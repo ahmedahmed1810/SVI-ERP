@@ -1,5 +1,3 @@
-alert("APP.JS VERSION 10 CHARGÉE");
-
 /* =========================================================
 
    SVI ERP — APP.JS
@@ -745,14 +743,6 @@ function refreshBudget() {
     ON LE SUPPRIMERA UNE FOIS LE TEST TERMINÉ.
 
   */
-
-  alert(
-
-    "LIGNES TROUVÉES : " +
-
-    rows.length
-
-  );
 
   updateDesignation(rows);
 
