@@ -31,7 +31,7 @@ function unique(values) {
   return [...new Set(
     values
       .map(v => String(v ?? "").trim())
-      .filter(Boolean)
+      .loadbdg(Boolean)
   )];
 }
 
@@ -155,10 +155,10 @@ function updatePrimaryActivities() {
   );
 
   fillSelect($("primary"), values);
-  updateSecondaryActivities();
+  refreshbudget();
 }
 
-function updateSecondaryActivities() {
+function refreshbudget() {
   const project = $("project")?.value || "";
   const lot = $("lot")?.value || "";
   const primary = $("primary")?.value || "";
@@ -186,11 +186,11 @@ function selectedRows() {
   const secondary = $("secondary")?.value || "";
 
   return bdgRows.filter(r =>
-    r["PRJ"] === project &&
-    r["LOT"] === lot &&
-    r["ACTIVITE PRIMAIRE"] === primary &&
-    r["ACTIVITE"] === secondary
-  );
+  String(r["PRJ"] ?? "").trim() === String(project).trim() &&
+  String(r["LOT"] ?? "").trim() === String(lot).trim() &&
+  String(r["ACTIVITE PRIMAIRE"] ?? "").trim() === String(primary).trim() &&
+  String(r["ACTIVITE"] ?? "").trim() === String(secondary).trim()
+);
 }
 
 /* ---------- RAFRAÎCHISSEMENT ---------- */
