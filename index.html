@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>SVI ERP — BUDGET</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">SVI <span>ERP</span></div>
+    <button class="nav active" data-view="budget">BUDGET</button>
+    <button class="nav" data-view="decomposition">DÉCOMPOSITION PROJET</button>
+    <button class="nav" data-view="achats">ARTICLES ACHATS</button>
+  </aside>
+
+  <main class="main">
+    <header class="topbar"><button id="menuBtn" class="icon mobile">☰</button><h1 id="pageTitle">BUDGET</h1><div class="status">BDG · PROTOTYPE V1</div></header>
+
+    <section id="budget" class="view active-view">
+      <div class="selectors card">
+        <label>PROJET<select id="project"><option>H88</option></select></label>
+        <label>LOT<select id="lot"><option>01 - FONDATION</option><option>03 - RDC</option></select></label>
+        <label>ACTIVITÉ PRIMAIRE<select id="primary"><option>02 - BETONNAGE DE PROPRETE</option><option>08 - BETONNAGE HORIZONTAL</option></select></label>
+        <label>ACTIVITÉ SECONDAIRE<select id="secondary"><option>02 - BETONNAGE DE PROPRETE</option><option>13 - POSE DE FILM EN POLYANE</option></select></label>
+        <label>DÉSIGNATION (BRD)<input id="brdDesignation" readonly value="BÉTON DE PROPRETÉ" /></label>
+      </div>
+
+      <div class="workgrid">
+        <section class="panel card">
+          <div class="panel-title"><h2>DÉTAIL PRODUIT</h2><div><button class="icon add" data-table="product">＋</button><button class="icon expand" data-target="productPanel">⛶</button></div></div>
+          <div class="table-wrap" id="productPanel">
+            <table id="productTable"><thead><tr></tr></thead><tbody></tbody><tfoot></tfoot></table>
+          </div>
+        </section>
+        <section class="panel card">
+          <div class="panel-title"><h2>DÉTAIL CHARGES</h2><div><button class="icon add" data-table="charge">＋</button><button class="icon expand" data-target="chargePanel">⛶</button></div></div>
+          <div class="table-wrap" id="chargePanel">
+            <table id="chargeTable"><thead><tr></tr></thead><tbody></tbody><tfoot></tfoot></table>
+          </div>
+        </section>
+      </div>
+
+      <section class="analysis card">
+        <div class="tabs">
+          <button class="tab active" data-tab="designation">MARGE PAR DÉSIGNATION</button>
+          <button class="tab" data-tab="primaryMargin">MARGE PAR ACTIVITÉ PRIMAIRE</button>
+          <button class="tab" data-tab="yield">RENDEMENT SELON BUDGET</button>
+          <button class="icon expand-analysis">⛶</button>
+        </div>
+        <div id="analysisCompact"></div>
+      </section>
+    </section>
+
+    <section id="decomposition" class="view placeholder"><h2>DÉCOMPOSITION PROJET</h2><p>ÉCRAN PRÉPARÉ POUR LA PROCHAINE ÉTAPE : PROJET → LOT → ACTIVITÉ PRIMAIRE → ACTIVITÉ SECONDAIRE → BORDEREAU DES PRIX.</p></section>
+    <section id="achats" class="view placeholder"><h2>ARTICLES ACHATS</h2><p>ÉCRAN PRÉPARÉ POUR LA BIBLIOTHÈQUE DES ARTICLES ET PRIX STANDARDS.</p></section>
+  </main>
+</div>
+
+<div id="columnMenu" class="popup hidden"></div>
+<div id="rowMenu" class="popup hidden"></div>
+<div id="modal" class="modal hidden"><div class="modal-card"><div class="modal-head"><h2 id="modalTitle"></h2><button id="closeModal" class="icon">✕</button></div><div id="modalBody"></div></div></div>
+<script src="app.js"></script>
+</body>
+</html>
