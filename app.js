@@ -197,7 +197,7 @@ function selectedRows() {
 
 function refreshBudget() {
   const rows = selectedRows();
-
+  console.log("LIGNES SELECTIONNEES :", rows.length, rows);
   updateDesignation(rows);
   renderProductTable(rows);
   renderChargeTable(rows);
