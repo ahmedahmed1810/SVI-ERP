@@ -198,7 +198,17 @@ function selectedRows() {
 function refreshBudget() {
   const rows = selectedRows();
   console.log("LIGNES SELECTIONNEES :", rows.length, rows);
+ function refreshBudget() {
+  const rows = selectedRows();
+  console.log("LIGNES SELECTIONNEES :", rows.length, rows);
+  alert("LIGNES SELECTIONNEES : " + rows.length);
+
   updateDesignation(rows);
+  renderProductTable(rows);
+  renderChargeTable(rows);
+  renderAnalysis(rows);
+}
+   updateDesignation(rows);
   renderProductTable(rows);
   renderChargeTable(rows);
   renderAnalysis(rows);
