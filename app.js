@@ -2,7 +2,7 @@
    SVI ERP — APP.JS
    ========================================================= */
 
-const API_URL = "COLLER_ICI_URL_APPS_SCRIPT";
+const API_URL = "https://script.google.com/macros/s/AKfycbzFgUloyiRJe-QmR7nRqJ4bfWqvfA_6LSgotJRrRt87yeRfWtdY7nxXMR9avafSJUPg4Q/exec";
 const API_KEY = "SVI-H88-2026-ERP";
 
 let bdgRows = [];
