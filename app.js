@@ -197,24 +197,19 @@ function selectedRows() {
 /* ---------- RAFRAÎCHISSEMENT ---------- */
 
 function refreshBudget() {
-  const rows = selectedRows();
-  console.log("LIGNES SELECTIONNEES :", rows.length, rows);
- function refreshBudget() {
-  const rows = selectedRows();
-  console.log("LIGNES SELECTIONNEES :", rows.length, rows);
-  alert("LIGNES SELECTIONNEES : " + rows.length);
+    const rows = selectedRows();
 
-  updateDesignation(rows);
-  renderProductTable(rows);
-  renderChargeTable(rows);
-  renderAnalysis(rows);
-}
-   updateDesignation(rows);
-  renderProductTable(rows);
-  renderChargeTable(rows);
-  renderAnalysis(rows);
+    alert("LIGNES TROUVEES : " + rows.length);
+
+    console.log("LIGNES SELECTIONNEES :", rows.length, rows);
+
+    updateDesignation(rows);
+    renderProductTable(rows);
+    renderChargeTable(rows);
+    renderAnalysis(rows);
 }
 
+   
 function updateDesignation(rows) {
   const field = $("brdDesignation");
 
