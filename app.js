@@ -200,13 +200,7 @@ async function loadBDG() {
 
     console.log("APPEL API BDG...");
 
-    const response = await fetch(url, {
-
-      method: "GET",
-
-      cache: "no-store"
-
-    });
+    const response = await fetch(url);
 
     if (!response.ok) {
 
