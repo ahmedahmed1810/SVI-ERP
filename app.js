@@ -948,198 +948,501 @@ function renderChargeTable(rows) {
    ========================================================= */
 
 function renderAnalysis(rows) {
+  const container = $("analysisCompact");
+  if (!container) return;
 
-  const box =
-    $("analysisCompact");
+  // ============================================================
+  // OUTILS
+  // ============================================================
 
-  if (!box) return;
+  const isProduct = row =>
+    normalise(row["CHG/PRD"]).toUpperCase() === "PRD";
 
-  const products =
-    rows.filter(row =>
+  const isCharge = row =>
+    normalise(row["CHG/PRD"]).toUpperCase() === "CHG";
 
-      normalise(
-        row["CHG/PRD"]
-      ).toUpperCase() ===
-      "PRD"
+  const amount = row => toNumber(row["MNB"]);
+  const quantity = row => toNumber(row["QTB"]);
 
+  const percentage = (value, base) => {
+    if (!base) return null;
+    return (value / base) * 100;
+  };
+
+  const formatPercent = value => {
+    if (value === null || !Number.isFinite(value)) return "—";
+    return `${formatNumber(value)} %`;
+  };
+
+  // ============================================================
+  // 1. MARGE PAR DÉSIGNATION
+  // ============================================================
+
+  const designationMap = new Map();
+
+  rows.forEach(row => {
+    const designation = normalise(row["DESIGNATION"]);
+    if (!designation) return;
+
+    if (!designationMap.has(designation)) {
+      designationMap.set(designation, {
+        designation,
+        MPB: 0,
+        MCB: 0
+      });
+    }
+
+    const item = designationMap.get(designation);
+
+    if (isProduct(row)) {
+      item.MPB += amount(row);
+    }
+
+    if (isCharge(row)) {
+      item.MCB += amount(row);
+    }
+  });
+
+  const designationRows = [...designationMap.values()]
+    .map(item => {
+      const MGB = item.MPB - item.MCB;
+      const TGB = percentage(MGB, item.MPB);
+
+      return {
+        ...item,
+        MGB,
+        TGB
+      };
+    })
+    .sort((a, b) =>
+      a.designation.localeCompare(b.designation, "fr")
     );
 
-  const charges =
-    rows.filter(row =>
+  // ============================================================
+  // 2. MARGE PAR TÂCHE PRIMAIRE
+  //
+  // BDG :
+  // colonne D = PRJ / TACHE PRIMAIRE
+  //
+  // On utilise donc "PRJ / TACHE PRIMAIRE".
+  // ============================================================
 
-      normalise(
-        row["CHG/PRD"]
-      ).toUpperCase() ===
-      "CHG"
+  const primaryTaskMap = new Map();
 
+  rows.forEach(row => {
+    const task =
+      normalise(row["PRJ / TACHE PRIMAIRE"]) ||
+      normalise(row["TACHE PRIMAIRE"]);
+
+    if (!task) return;
+
+    if (!primaryTaskMap.has(task)) {
+      primaryTaskMap.set(task, {
+        task,
+        MPB: 0,
+        MCB: 0
+      });
+    }
+
+    const item = primaryTaskMap.get(task);
+
+    if (isProduct(row)) {
+      item.MPB += amount(row);
+    }
+
+    if (isCharge(row)) {
+      item.MCB += amount(row);
+    }
+  });
+
+  const primaryTaskRows = [...primaryTaskMap.values()]
+    .map(item => {
+      const MGB = item.MPB - item.MCB;
+      const TGB = percentage(MGB, item.MPB);
+
+      return {
+        ...item,
+        MGB,
+        TGB
+      };
+    })
+    .sort((a, b) =>
+      a.task.localeCompare(b.task, "fr")
     );
 
-  const productAmount =
-    sum(
-      products,
-      "MNB"
+  // ============================================================
+  // 3. RENDEMENT SELON BUDGET
+  //
+  // Les charges sont regroupées par TÂCHE SECONDAIRE.
+  //
+  // Pour chaque charge :
+  // RNB = QPB / QCB
+  //
+  // La quantité produit de la tâche est utilisée comme QPB.
+  // ============================================================
+
+  const secondaryTaskMap = new Map();
+
+  rows.forEach(row => {
+    const task =
+      normalise(row["PRJ / TACHE"]) ||
+      normalise(row["TACHE"]);
+
+    if (!task) return;
+
+    if (!secondaryTaskMap.has(task)) {
+      secondaryTaskMap.set(task, {
+        task,
+        QPB: 0,
+        charges: new Map()
+      });
+    }
+
+    const taskItem = secondaryTaskMap.get(task);
+
+    // Quantité produit budgétée
+    if (isProduct(row)) {
+      taskItem.QPB += quantity(row);
+    }
+
+    // Charges budgétées
+    if (isCharge(row)) {
+      const designation =
+        normalise(row["DETAIL BUDGET"]) ||
+        normalise(row["DESIGNATION"]) ||
+        "SANS DÉSIGNATION";
+
+      const UCB = normalise(row["UTB"]);
+
+      // On sépare également par unité pour éviter
+      // d'additionner des KG, M3, H, etc.
+      const chargeKey = `${designation}|||${UCB}`;
+
+      if (!taskItem.charges.has(chargeKey)) {
+        taskItem.charges.set(chargeKey, {
+          designation,
+          UCB,
+          QCB: 0
+        });
+      }
+
+      taskItem.charges.get(chargeKey).QCB += quantity(row);
+    }
+  });
+
+  const yieldRows = [];
+
+  secondaryTaskMap.forEach(taskItem => {
+    taskItem.charges.forEach(charge => {
+      const RNB =
+        charge.QCB !== 0
+          ? taskItem.QPB / charge.QCB
+          : null;
+
+      yieldRows.push({
+        task: taskItem.task,
+        designation: charge.designation,
+        UCB: charge.UCB,
+        QPB: taskItem.QPB,
+        QCB: charge.QCB,
+        RNB
+      });
+    });
+  });
+
+  yieldRows.sort((a, b) => {
+    const taskCompare =
+      a.task.localeCompare(b.task, "fr");
+
+    if (taskCompare !== 0) return taskCompare;
+
+    return a.designation.localeCompare(
+      b.designation,
+      "fr"
     );
+  });
 
-  const chargeAmount =
-    sum(
-      charges,
-      "MNB"
-    );
+  // ============================================================
+  // TOTAUX MARGE PAR DÉSIGNATION
+  // ============================================================
 
-  const margin =
-    productAmount -
-    chargeAmount;
+  const designationMPB = designationRows.reduce(
+    (total, row) => total + row.MPB,
+    0
+  );
 
-  const rate =
-    productAmount !== 0
+  const designationMCB = designationRows.reduce(
+    (total, row) => total + row.MCB,
+    0
+  );
 
-      ? (
-          margin /
-          productAmount
-        ) * 100
+  const designationMGB =
+    designationMPB - designationMCB;
 
-      : 0;
+  const designationTGB =
+    percentage(designationMGB, designationMPB);
 
+  // ============================================================
+  // TOTAUX MARGE PAR TÂCHE PRIMAIRE
+  // ============================================================
 
-  /* ---------- RENDEMENT ---------- */
+  const taskMPB = primaryTaskRows.reduce(
+    (total, row) => total + row.MPB,
+    0
+  );
 
-  if (
-    currentAnalysis ===
-    "yield"
-  ) {
+  const taskMCB = primaryTaskRows.reduce(
+    (total, row) => total + row.MCB,
+    0
+  );
 
-    box.innerHTML = `
+  const taskMGB = taskMPB - taskMCB;
+
+  const taskTGB =
+    percentage(taskMGB, taskMPB);
+
+  // ============================================================
+  // MÉMORISATION DES ANALYSES
+  // ============================================================
+
+  currentAnalysis = {
+    designationRows,
+    primaryTaskRows,
+    yieldRows
+  };
+
+  // ============================================================
+  // AFFICHAGE
+  // ============================================================
+
+  container.innerHTML = `
+
+    <!-- ===================================================== -->
+    <!-- MARGE PAR DÉSIGNATION -->
+    <!-- ===================================================== -->
+
+    <div class="analysis-table active" data-analysis="designation">
 
       <table>
-
         <thead>
-
           <tr>
-
-            <th>
-              ACTIVITÉ
-            </th>
-
-            <th>
-              PRODUIT
-            </th>
-
-            <th>
-              CHARGE
-            </th>
-
-            <th>
-              RENDEMENT
-            </th>
-
+            <th>DÉSIGNATION ▾</th>
+            <th>MPB ▾</th>
+            <th>MCB ▾</th>
+            <th>MGB ▾</th>
+            <th>TGB ▾</th>
           </tr>
-
         </thead>
 
+        <tbody>
+          ${
+            designationRows.length
+              ? designationRows.map(row => `
+                <tr>
+                  <td>${escapeHtml(row.designation)}</td>
+
+                  <td class="number">
+                    ${formatNumber(row.MPB)}
+                  </td>
+
+                  <td class="number">
+                    ${formatNumber(row.MCB)}
+                  </td>
+
+                  <td class="number">
+                    ${formatNumber(row.MGB)}
+                  </td>
+
+                  <td class="number">
+                    ${formatPercent(row.TGB)}
+                  </td>
+                </tr>
+              `).join("")
+              : `
+                <tr>
+                  <td colspan="5" class="empty-row">
+                    AUCUNE DONNÉE
+                  </td>
+                </tr>
+              `
+          }
+        </tbody>
+
         <tfoot>
-
           <tr>
+            <td><strong>TOTAL</strong></td>
 
-            <td colspan="4">
-              RENDEMENT SELON BUDGET
+            <td class="number">
+              <strong>${formatNumber(designationMPB)}</strong>
             </td>
 
-          </tr>
+            <td class="number">
+              <strong>${formatNumber(designationMCB)}</strong>
+            </td>
 
+            <td class="number">
+              <strong>${formatNumber(designationMGB)}</strong>
+            </td>
+
+            <td class="number">
+              <strong>${formatPercent(designationTGB)}</strong>
+            </td>
+          </tr>
         </tfoot>
+      </table>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- MARGE PAR TÂCHE PRIMAIRE -->
+    <!-- ===================================================== -->
+
+    <div class="analysis-table" data-analysis="primaryMargin">
+
+      <table>
+        <thead>
+          <tr>
+            <th>TÂCHE PRIMAIRE ▾</th>
+            <th>MPB ▾</th>
+            <th>MCB ▾</th>
+            <th>MGB ▾</th>
+            <th>TGB ▾</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          ${
+            primaryTaskRows.length
+              ? primaryTaskRows.map(row => `
+                <tr>
+                  <td>${escapeHtml(row.task)}</td>
+
+                  <td class="number">
+                    ${formatNumber(row.MPB)}
+                  </td>
+
+                  <td class="number">
+                    ${formatNumber(row.MCB)}
+                  </td>
+
+                  <td class="number">
+                    ${formatNumber(row.MGB)}
+                  </td>
+
+                  <td class="number">
+                    ${formatPercent(row.TGB)}
+                  </td>
+                </tr>
+              `).join("")
+              : `
+                <tr>
+                  <td colspan="5" class="empty-row">
+                    AUCUNE DONNÉE
+                  </td>
+                </tr>
+              `
+          }
+        </tbody>
+
+        <tfoot>
+          <tr>
+            <td><strong>TOTAL</strong></td>
+
+            <td class="number">
+              <strong>${formatNumber(taskMPB)}</strong>
+            </td>
+
+            <td class="number">
+              <strong>${formatNumber(taskMCB)}</strong>
+            </td>
+
+            <td class="number">
+              <strong>${formatNumber(taskMGB)}</strong>
+            </td>
+
+            <td class="number">
+              <strong>${formatPercent(taskTGB)}</strong>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- RENDEMENT SELON BUDGET -->
+    <!-- ===================================================== -->
+
+    <div class="analysis-table" data-analysis="yield">
+
+      <table>
+        <thead>
+          <tr>
+            <th>TÂCHE SECONDAIRE ▾</th>
+            <th>DÉSIGNATION CHARGE ▾</th>
+            <th>UCB ▾</th>
+            <th>QPB ▾</th>
+            <th>QCB ▾</th>
+            <th>RNB ▾</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          ${
+            yieldRows.length
+              ? yieldRows.map(row => `
+                <tr>
+
+                  <td>
+                    ${escapeHtml(row.task)}
+                  </td>
+
+                  <td>
+                    ${escapeHtml(row.designation)}
+                  </td>
+
+                  <td class="yellow">
+                    ${escapeHtml(row.UCB)}
+                  </td>
+
+                  <td class="number yellow">
+                    ${formatNumber(row.QPB)}
+                  </td>
+
+                  <td class="number yellow">
+                    ${formatNumber(row.QCB)}
+                  </td>
+
+                  <td class="number">
+                    ${
+                      row.RNB === null
+                        ? "—"
+                        : formatNumber(row.RNB)
+                    }
+                  </td>
+
+                </tr>
+              `).join("")
+              : `
+                <tr>
+                  <td colspan="6" class="empty-row">
+                    AUCUNE DONNÉE
+                  </td>
+                </tr>
+              `
+          }
+        </tbody>
 
       </table>
 
-    `;
-
-    return;
-  }
-
-
-  /* ---------- MARGES ---------- */
-
-  box.innerHTML = `
-
-    <table>
-
-      <thead>
-
-        <tr>
-
-          <th>
-
-            ${
-              currentAnalysis ===
-              "primaryMargin"
-
-                ? "ACTIVITÉ PRIMAIRE"
-
-                : "DÉSIGNATION"
-            }
-
-          </th>
-
-          <th>
-            PRODUITS
-          </th>
-
-          <th>
-            CHARGES
-          </th>
-
-          <th>
-            MARGE
-          </th>
-
-          <th>
-            TAUX
-          </th>
-
-        </tr>
-
-      </thead>
-
-      <tfoot>
-
-        <tr>
-
-          <td>
-            TOTAL
-          </td>
-
-          <td class="number">
-            ${formatNumber(
-              productAmount
-            )}
-          </td>
-
-          <td class="number">
-            ${formatNumber(
-              chargeAmount
-            )}
-          </td>
-
-          <td class="number">
-            ${formatNumber(
-              margin
-            )}
-          </td>
-
-          <td class="number">
-            ${formatNumber(
-              rate
-            )} %
-          </td>
-
-        </tr>
-
-      </tfoot>
-
-    </table>
-
+    </div>
   `;
-}
 
+  // Réactive les onglets après reconstruction du HTML
+  initialiseAnalysisTabs();
+}
 
 /* =========================================================
    ONGLETS ANALYSE
