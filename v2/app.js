@@ -13,10 +13,23 @@ function money(v){ return num(v).toLocaleString("fr-FR",{minimumFractionDigits:2
 function esc(v){ return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m])); }
 
 async function apiGet(action="bootstrap"){
-  const url = `${API_URL}?key=${encodeURIComponent(API_KEY)}&action=${encodeURIComponent(action)}&_=${Date.now()}`;
-  const r = await fetch(url);
+  const url =
+    API_URL +
+    "?key=" + encodeURIComponent(API_KEY) +
+    "&action=" + encodeURIComponent(action) +
+    "&_=" + Date.now();
+
+  const r = await fetch(url, {
+    method: "GET",
+    cache: "no-store"
+  });
+
   const data = await r.json();
-  if(!data.ok) throw new Error(data.error || "ERREUR API");
+
+  if(!data.ok){
+    throw new Error(data.error || "ERREUR API");
+  }
+
   return data;
 }
 
