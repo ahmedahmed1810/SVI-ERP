@@ -71,6 +71,118 @@ async function reloadAll(){
   }
 }
 
+/* ========================= MISE A JOUR LOCALE RAPIDE ========================= */
+
+function upsertLocalCHS(x){
+  const item={
+    id:x.ID,
+    article:x.ARTICLE,
+    designation:x.DESIGNATION,
+    unit:x.UNITE,
+    pcs:num(x.PCS)
+  };
+  const i=db.chs.findIndex(r=>r.id===item.id);
+  if(i>=0) db.chs[i]=item;
+  else db.chs.push(item);
+}
+
+function upsertLocalBDS(x){
+  const type=String(x.TYPE||"").toUpperCase();
+
+  let arrName="";
+  let item=null;
+
+  if(type==="PROJECT"){
+    arrName="projects";
+    item={id:x.ID,code:x.CODE,name:x.NOM,order:num(x.ORDRE)};
+  }else if(type==="LOT"){
+    arrName="lots";
+    item={id:x.ID,projectId:x.PARENT_ID,code:x.CODE,name:x.NOM,order:num(x.ORDRE)};
+  }else if(type==="PRIMARY"){
+    arrName="primaries";
+    item={id:x.ID,lotId:x.PARENT_ID,code:x.CODE,name:x.NOM,order:num(x.ORDRE)};
+  }else if(type==="SECONDARY"){
+    arrName="secondaries";
+    item={id:x.ID,primaryId:x.PARENT_ID,code:x.CODE,name:x.NOM,order:num(x.ORDRE)};
+  }
+
+  if(!arrName||!item) return;
+
+  const arr=db[arrName];
+  const i=arr.findIndex(r=>r.id===item.id);
+  if(i>=0) arr[i]=item;
+  else arr.push(item);
+}
+
+function upsertLocalBRD(x){
+  const item={
+    id:x.ID,
+    secondaryId:x.TACHE_SECONDAIRE_ID,
+    article:x.ARTICLE,
+    designation:x.DESIGNATION,
+    unit:x.UNITE,
+    qty:num(x.QUANTITE),
+    price:num(x.PRIX)
+  };
+  const i=db.brd.findIndex(r=>r.id===item.id);
+  if(i>=0) db.brd[i]=item;
+  else db.brd.push(item);
+}
+
+function removeLocalBDS(type,id){
+  if(type==="project"){
+    const lotIds=db.lots.filter(x=>x.projectId===id).map(x=>x.id);
+    const primaryIds=db.primaries.filter(x=>lotIds.includes(x.lotId)).map(x=>x.id);
+    const secondaryIds=db.secondaries.filter(x=>primaryIds.includes(x.primaryId)).map(x=>x.id);
+
+    db.brd=db.brd.filter(x=>!secondaryIds.includes(x.secondaryId));
+    db.secondaries=db.secondaries.filter(x=>!secondaryIds.includes(x.id));
+    db.primaries=db.primaries.filter(x=>!primaryIds.includes(x.id));
+    db.lots=db.lots.filter(x=>!lotIds.includes(x.id));
+    db.projects=db.projects.filter(x=>x.id!==id);
+    selection={project:null,lot:null,primary:null,secondary:null};
+    return;
+  }
+
+  if(type==="lot"){
+    const primaryIds=db.primaries.filter(x=>x.lotId===id).map(x=>x.id);
+    const secondaryIds=db.secondaries.filter(x=>primaryIds.includes(x.primaryId)).map(x=>x.id);
+
+    db.brd=db.brd.filter(x=>!secondaryIds.includes(x.secondaryId));
+    db.secondaries=db.secondaries.filter(x=>!secondaryIds.includes(x.id));
+    db.primaries=db.primaries.filter(x=>!primaryIds.includes(x.id));
+    db.lots=db.lots.filter(x=>x.id!==id);
+
+    if(selection.lot===id){
+      selection.lot=null;
+      selection.primary=null;
+      selection.secondary=null;
+    }
+    return;
+  }
+
+  if(type==="primary"){
+    const secondaryIds=db.secondaries.filter(x=>x.primaryId===id).map(x=>x.id);
+
+    db.brd=db.brd.filter(x=>!secondaryIds.includes(x.secondaryId));
+    db.secondaries=db.secondaries.filter(x=>!secondaryIds.includes(x.id));
+    db.primaries=db.primaries.filter(x=>x.id!==id);
+
+    if(selection.primary===id){
+      selection.primary=null;
+      selection.secondary=null;
+    }
+    return;
+  }
+
+  if(type==="secondary"){
+    db.brd=db.brd.filter(x=>x.secondaryId!==id);
+    db.secondaries=db.secondaries.filter(x=>x.id!==id);
+
+    if(selection.secondary===id) selection.secondary=null;
+  }
+}
+
 function initNav(){
   document.querySelectorAll(".nav-btn").forEach(btn=>{
     btn.addEventListener("click",()=>{
@@ -104,14 +216,16 @@ function chsForm(item=null, duplicate=false){
     f("unit","UNITÃ",item?.unit||""),
     f("pcs","PCS",item?.pcs??"","number")
   ], async values=>{
-    await apiPost("saveCHS",{data:{
+    const out=await apiPost("saveCHS",{data:{
       ID: item&&!duplicate ? item.id : "",
       ARTICLE:values.article,
       DESIGNATION:values.designation,
       UNITE:values.unit,
       PCS:values.pcs
     }});
-    await reloadAll();
+
+    upsertLocalCHS(out.data);
+    renderChs();
   });
 }
 
@@ -172,7 +286,7 @@ function addHierarchy(type,item=null,duplicate=false){
     f("name","NOM",item?.name||"","text",true),
     f("order","ORDRE",item?.order??"","number")
   ],async values=>{
-    await apiPost("saveBDS",{data:{
+    const out=await apiPost("saveBDS",{data:{
       ID:item&&!duplicate?item.id:"",
       TYPE:c.type,
       PARENT_ID:c.parent?selection[c.parent]:"",
@@ -181,7 +295,9 @@ function addHierarchy(type,item=null,duplicate=false){
       ORDRE:values.order,
       ACTIF:"OUI"
     }});
-    await reloadAll();
+
+    upsertLocalBDS(out.data);
+    renderHierarchy();
   });
 }
 
@@ -224,7 +340,7 @@ function brdForm(item=null,duplicate=false){
     f("qty","QUANTITÃ",item?.qty??0,"number"),
     f("price","PRIX",item?.price??0,"number")
   ],async values=>{
-    await apiPost("saveBRD",{data:{
+    const out=await apiPost("saveBRD",{data:{
       ID:item&&!duplicate?item.id:"",
       TACHE_SECONDAIRE_ID:selection.secondary,
       ARTICLE:values.article,
@@ -234,7 +350,9 @@ function brdForm(item=null,duplicate=false){
       PRIX:values.price,
       ACTIF:"OUI"
     }});
-    await reloadAll();
+
+    upsertLocalBRD(out.data);
+    renderBrd();
   });
 }
 
@@ -320,12 +438,23 @@ function rowItem(ctx){
 }
 
 async function deleteRow(ctx){
-  if(ctx.type==="chs") await apiPost("deleteCHS",{id:ctx.id});
-  else if(ctx.type==="brd") await apiPost("deleteBRD",{id:ctx.id});
-  else await apiPost("deleteBDS",{id:ctx.id});
+  if(ctx.type==="chs"){
+    await apiPost("deleteCHS",{id:ctx.id});
+    db.chs=db.chs.filter(x=>x.id!==ctx.id);
+    renderChs();
+    return;
+  }
 
-  if(selection[ctx.type]===ctx.id) selection[ctx.type]=null;
-  await reloadAll();
+  if(ctx.type==="brd"){
+    await apiPost("deleteBRD",{id:ctx.id});
+    db.brd=db.brd.filter(x=>x.id!==ctx.id);
+    renderBrd();
+    return;
+  }
+
+  await apiPost("deleteBDS",{id:ctx.id});
+  removeLocalBDS(ctx.type,ctx.id);
+  renderHierarchy();
 }
 
 function infoRow(ctx){
