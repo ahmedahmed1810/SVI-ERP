@@ -22,10 +22,6 @@ let selection = {
 let rowContext = null;
 let longPressTimer = null;
 
-/* =========================================================
-   CACHE BRD
-   ========================================================= */
-
 let brdCache = new Map();
 let brdRequestId = 0;
 
@@ -75,10 +71,9 @@ function esc(v) {
    ========================================================= */
 
 async function apiGet(action = "bootstrap", params = {}) {
-
   const query = {
     key: API_KEY,
-    action: action,
+    action,
     ...params,
     _: Date.now()
   };
@@ -87,20 +82,18 @@ async function apiGet(action = "bootstrap", params = {}) {
     API_URL +
     "?" +
     Object.entries(query)
-      .map(([k, v]) =>
-        encodeURIComponent(k) +
-        "=" +
-        encodeURIComponent(v)
+      .map(
+        ([k, v]) =>
+          encodeURIComponent(k) +
+          "=" +
+          encodeURIComponent(v)
       )
       .join("&");
 
-  const r = await fetch(
-    url,
-    {
-      method: "GET",
-      cache: "no-store"
-    }
-  );
+  const r = await fetch(url, {
+    method: "GET",
+    cache: "no-store"
+  });
 
   const data = await r.json();
 
@@ -118,18 +111,14 @@ async function apiGet(action = "bootstrap", params = {}) {
    ========================================================= */
 
 async function apiPost(action, data = {}) {
-
-  const r = await fetch(
-    API_URL,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        key: API_KEY,
-        action,
-        ...data
-      })
-    }
-  );
+  const r = await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      key: API_KEY,
+      action,
+      ...data
+    })
+  });
 
   const out = await r.json();
 
@@ -144,11 +133,9 @@ async function apiPost(action, data = {}) {
 
 /* =========================================================
    BOOTSTRAP
-   CHS + STRUCTURE BDS UNIQUEMENT
    ========================================================= */
 
 function mapBootstrap(data) {
-
   db.chs = (data.chs || []).map(x => ({
     id: x.ID,
     article: x.ARTICLE,
@@ -160,10 +147,11 @@ function mapBootstrap(data) {
   const all = data.bds || [];
 
   db.projects = all
-    .filter(x =>
-      String(x.TYPE || "")
-        .trim()
-        .toUpperCase() === "PROJECT"
+    .filter(
+      x =>
+        String(x.TYPE || "")
+          .trim()
+          .toUpperCase() === "PROJECT"
     )
     .map(x => ({
       id: x.ID,
@@ -173,10 +161,11 @@ function mapBootstrap(data) {
     }));
 
   db.lots = all
-    .filter(x =>
-      String(x.TYPE || "")
-        .trim()
-        .toUpperCase() === "LOT"
+    .filter(
+      x =>
+        String(x.TYPE || "")
+          .trim()
+          .toUpperCase() === "LOT"
     )
     .map(x => ({
       id: x.ID,
@@ -187,10 +176,11 @@ function mapBootstrap(data) {
     }));
 
   db.primaries = all
-    .filter(x =>
-      String(x.TYPE || "")
-        .trim()
-        .toUpperCase() === "PRIMARY"
+    .filter(
+      x =>
+        String(x.TYPE || "")
+          .trim()
+          .toUpperCase() === "PRIMARY"
     )
     .map(x => ({
       id: x.ID,
@@ -201,10 +191,11 @@ function mapBootstrap(data) {
     }));
 
   db.secondaries = all
-    .filter(x =>
-      String(x.TYPE || "")
-        .trim()
-        .toUpperCase() === "SECONDARY"
+    .filter(
+      x =>
+        String(x.TYPE || "")
+          .trim()
+          .toUpperCase() === "SECONDARY"
     )
     .map(x => ({
       id: x.ID,
@@ -214,14 +205,7 @@ function mapBootstrap(data) {
       order: num(x.ORDRE)
     }));
 
-  /*
-   Le BRD n'est volontairement plus téléchargé ici.
-   Il sera chargé seulement après sélection
-   d'une tâche secondaire.
-  */
-
   db.brd = [];
-
   brdCache.clear();
 }
 
@@ -230,9 +214,7 @@ function mapBootstrap(data) {
    ========================================================= */
 
 async function reloadAll() {
-
   try {
-
     const data = await apiGet(
       "bootstrap"
     );
@@ -243,7 +225,6 @@ async function reloadAll() {
     renderHierarchy();
 
   } catch (e) {
-
     alert(
       "CONNEXION GOOGLE SHEETS IMPOSSIBLE : " +
       e.message
@@ -256,30 +237,18 @@ async function reloadAll() {
    ========================================================= */
 
 async function loadBrdForSecondary(secondaryId) {
-
   if (!secondaryId) {
-
     db.brd = [];
-
     renderBrd();
-
     return;
   }
 
-  /*
-   Si le bordereau a déjà été chargé pendant
-   cette session, aucune nouvelle lecture Google
-   Sheets n'est nécessaire.
-  */
-
   if (brdCache.has(secondaryId)) {
-
     db.brd = brdCache.get(
       secondaryId
     );
 
     renderBrd();
-
     return;
   }
 
@@ -307,15 +276,9 @@ async function loadBrdForSecondary(secondaryId) {
   const data = await apiGet(
     "brd",
     {
-      secondaryId: secondaryId
+      secondaryId
     }
   );
-
-  /*
-   L'utilisateur peut changer de tâche
-   avant la fin de la requête.
-   Dans ce cas on ignore l'ancienne réponse.
-  */
 
   if (
     requestId !== brdRequestId ||
@@ -356,7 +319,6 @@ async function loadBrdForSecondary(secondaryId) {
    ========================================================= */
 
 function upsertLocalCHS(x) {
-
   const item = {
     id: x.ID,
     article: x.ARTICLE,
@@ -381,7 +343,6 @@ function upsertLocalCHS(x) {
    ========================================================= */
 
 function upsertLocalBDS(x) {
-
   const type =
     String(x.TYPE || "")
       .toUpperCase();
@@ -390,7 +351,6 @@ function upsertLocalBDS(x) {
   let item = null;
 
   if (type === "PROJECT") {
-
     arrName = "projects";
 
     item = {
@@ -401,7 +361,6 @@ function upsertLocalBDS(x) {
     };
 
   } else if (type === "LOT") {
-
     arrName = "lots";
 
     item = {
@@ -413,7 +372,6 @@ function upsertLocalBDS(x) {
     };
 
   } else if (type === "PRIMARY") {
-
     arrName = "primaries";
 
     item = {
@@ -425,7 +383,6 @@ function upsertLocalBDS(x) {
     };
 
   } else if (type === "SECONDARY") {
-
     arrName = "secondaries";
 
     item = {
@@ -441,13 +398,11 @@ function upsertLocalBDS(x) {
     return;
   }
 
-  const arr =
-    db[arrName];
+  const arr = db[arrName];
 
-  const i =
-    arr.findIndex(
-      r => r.id === item.id
-    );
+  const i = arr.findIndex(
+    r => r.id === item.id
+  );
 
   if (i >= 0) {
     arr[i] = item;
@@ -461,34 +416,25 @@ function upsertLocalBDS(x) {
    ========================================================= */
 
 function upsertLocalBRD(x) {
-
   const item = {
-    id:
-      x.ID,
-
+    id: x.ID,
     secondaryId:
       x.TACHE_SECONDAIRE_ID,
-
     article:
       x.ARTICLE,
-
     designation:
       x.DESIGNATION,
-
     unit:
       x.UNITE,
-
     qty:
       num(x.QUANTITE),
-
     price:
       num(x.PRIX)
   };
 
-  const i =
-    db.brd.findIndex(
-      r => r.id === item.id
-    );
+  const i = db.brd.findIndex(
+    r => r.id === item.id
+  );
 
   if (i >= 0) {
     db.brd[i] = item;
@@ -497,7 +443,6 @@ function upsertLocalBRD(x) {
   }
 
   if (item.secondaryId) {
-
     brdCache.set(
       item.secondaryId,
       [...db.brd]
@@ -510,9 +455,7 @@ function upsertLocalBRD(x) {
    ========================================================= */
 
 function removeLocalBDS(type, id) {
-
   if (type === "project") {
-
     const lotIds =
       db.lots
         .filter(
@@ -525,7 +468,10 @@ function removeLocalBDS(type, id) {
     const primaryIds =
       db.primaries
         .filter(
-          x => lotIds.includes(x.lotId)
+          x =>
+            lotIds.includes(
+              x.lotId
+            )
         )
         .map(
           x => x.id
@@ -544,7 +490,8 @@ function removeLocalBDS(type, id) {
         );
 
     secondaryIds.forEach(
-      id => brdCache.delete(id)
+      id =>
+        brdCache.delete(id)
     );
 
     db.brd =
@@ -595,7 +542,6 @@ function removeLocalBDS(type, id) {
   }
 
   if (type === "lot") {
-
     const primaryIds =
       db.primaries
         .filter(
@@ -618,7 +564,8 @@ function removeLocalBDS(type, id) {
         );
 
     secondaryIds.forEach(
-      id => brdCache.delete(id)
+      id =>
+        brdCache.delete(id)
     );
 
     db.brd =
@@ -651,7 +598,6 @@ function removeLocalBDS(type, id) {
       );
 
     if (selection.lot === id) {
-
       selection.lot = null;
       selection.primary = null;
       selection.secondary = null;
@@ -661,7 +607,6 @@ function removeLocalBDS(type, id) {
   }
 
   if (type === "primary") {
-
     const secondaryIds =
       db.secondaries
         .filter(
@@ -672,7 +617,8 @@ function removeLocalBDS(type, id) {
         );
 
     secondaryIds.forEach(
-      id => brdCache.delete(id)
+      id =>
+        brdCache.delete(id)
     );
 
     db.brd =
@@ -699,7 +645,6 @@ function removeLocalBDS(type, id) {
     if (
       selection.primary === id
     ) {
-
       selection.primary = null;
       selection.secondary = null;
     }
@@ -708,7 +653,6 @@ function removeLocalBDS(type, id) {
   }
 
   if (type === "secondary") {
-
     brdCache.delete(id);
 
     db.brd =
@@ -736,15 +680,12 @@ function removeLocalBDS(type, id) {
    ========================================================= */
 
 function initNav() {
-
   document
     .querySelectorAll(".nav-btn")
     .forEach(btn => {
-
       btn.addEventListener(
         "click",
         () => {
-
           document
             .querySelectorAll(".nav-btn")
             .forEach(
@@ -772,13 +713,12 @@ function initNav() {
               "active-view"
             );
 
-          $("pageSubtitle")
-            .textContent =
-              btn.dataset.view === "chs"
-                ? "VERSION 2 — CHARGES STANDARDS"
-                : btn.dataset.view === "bds"
-                  ? "VERSION 2 — DÉCOMPOSITION"
-                  : "VERSION 2 — BUDGET";
+          $("pageSubtitle").textContent =
+            btn.dataset.view === "chs"
+              ? "VERSION 2 — CHARGES STANDARDS"
+              : btn.dataset.view === "bds"
+                ? "VERSION 2 — DÉCOMPOSITION"
+                : "VERSION 2 — BUDGET";
         }
       );
     });
@@ -789,7 +729,6 @@ function initNav() {
    ========================================================= */
 
 function renderChs() {
-
   const q =
     normalise(
       $("chsSearch").value
@@ -855,7 +794,6 @@ function chsForm(
   item = null,
   duplicate = false
 ) {
-
   openForm(
     item && !duplicate
       ? "MODIFIER CHARGE STANDARD"
@@ -893,7 +831,6 @@ function chsForm(
     ],
 
     async values => {
-
       const out =
         await apiPost(
           "saveCHS",
@@ -933,7 +870,6 @@ function chsForm(
    ========================================================= */
 
 const cfg = {
-
   project: {
     arr: "projects",
     list: "projectList",
@@ -975,7 +911,6 @@ const cfg = {
    ========================================================= */
 
 function rowsFor(type) {
-
   const c =
     cfg[type];
 
@@ -983,7 +918,6 @@ function rowsFor(type) {
     db[c.arr];
 
   if (c.parent) {
-
     rows =
       rows.filter(
         r =>
@@ -1003,7 +937,6 @@ function rowsFor(type) {
     ).toUpperCase();
 
   if (q) {
-
     rows =
       rows.filter(
         r =>
@@ -1029,14 +962,12 @@ function rowsFor(type) {
    ========================================================= */
 
 function renderHierarchy() {
-
   [
     "project",
     "lot",
     "primary",
     "secondary"
   ].forEach(type => {
-
     const rows =
       rowsFor(type);
 
@@ -1078,7 +1009,6 @@ function renderHierarchy() {
       "[data-select]"
     )
     .forEach(el => {
-
       el.onclick =
         () =>
           selectHierarchy(
@@ -1091,7 +1021,6 @@ function renderHierarchy() {
         {
           type:
             el.dataset.select,
-
           id:
             el.dataset.id
         }
@@ -1110,56 +1039,45 @@ async function selectHierarchy(
   type,
   id
 ) {
-
   selection[type] = id;
 
   if (type === "project") {
-
     selection.lot = null;
     selection.primary = null;
     selection.secondary = null;
 
     db.brd = [];
-
     brdRequestId++;
   }
 
   if (type === "lot") {
-
     selection.primary = null;
     selection.secondary = null;
 
     db.brd = [];
-
     brdRequestId++;
   }
 
   if (type === "primary") {
-
     selection.secondary = null;
 
     db.brd = [];
-
     brdRequestId++;
   }
 
   if (type === "secondary") {
-
     db.brd = [];
   }
 
   renderHierarchy();
 
   if (type === "secondary") {
-
     try {
-
       await loadBrdForSecondary(
         id
       );
 
     } catch (e) {
-
       $("brdCount").textContent =
         "ERREUR";
 
@@ -1171,8 +1089,7 @@ async function selectHierarchy(
               colspan="6"
               class="empty"
             >
-              IMPOSSIBLE DE CHARGER
-              LE BORDEREAU
+              IMPOSSIBLE DE CHARGER LE BORDEREAU
             </td>
           </tr>
         `;
@@ -1190,7 +1107,6 @@ async function selectHierarchy(
    ========================================================= */
 
 function getBy(type, id) {
-
   return db[
     cfg[type].arr
   ].find(
@@ -1207,7 +1123,6 @@ function addHierarchy(
   item = null,
   duplicate = false
 ) {
-
   const c =
     cfg[type];
 
@@ -1215,7 +1130,6 @@ function addHierarchy(
     c.parent &&
     !selection[c.parent]
   ) {
-
     return alert(
       `SÉLECTIONNEZ D'ABORD : ${
         cfg[c.parent].title
@@ -1224,7 +1138,6 @@ function addHierarchy(
   }
 
   openForm(
-
     item && !duplicate
       ? "MODIFIER " + c.title
       : "AJOUTER " + c.title,
@@ -1255,7 +1168,6 @@ function addHierarchy(
     ],
 
     async values => {
-
       const out =
         await apiPost(
           "saveBDS",
@@ -1305,11 +1217,9 @@ function addHierarchy(
    ========================================================= */
 
 function renderContext() {
-
   const parts = [];
 
   if (selection.project) {
-
     parts.push(
       `PROJET : ${
         getBy(
@@ -1321,7 +1231,6 @@ function renderContext() {
   }
 
   if (selection.lot) {
-
     parts.push(
       `LOT : ${
         getBy(
@@ -1333,7 +1242,6 @@ function renderContext() {
   }
 
   if (selection.primary) {
-
     parts.push(
       `TÂCHE PRIMAIRE : ${
         getBy(
@@ -1345,7 +1253,6 @@ function renderContext() {
   }
 
   if (selection.secondary) {
-
     parts.push(
       `TÂCHE SECONDAIRE : ${
         getBy(
@@ -1368,7 +1275,6 @@ function renderContext() {
    ========================================================= */
 
 function renderBrd() {
-
   const q =
     normalise(
       $("brdSearch").value
@@ -1382,7 +1288,6 @@ function renderBrd() {
     );
 
   if (q) {
-
     rows =
       rows.filter(
         r =>
@@ -1406,7 +1311,6 @@ function renderBrd() {
     .innerHTML =
       rows.length
         ? rows.map(r => {
-
             const amount =
               num(r.qty) *
               num(r.price);
@@ -1475,19 +1379,16 @@ function brdForm(
   item = null,
   duplicate = false
 ) {
-
   if (
     !selection.secondary &&
     !item
   ) {
-
     return alert(
       "SÉLECTIONNEZ D'ABORD UNE TÂCHE SECONDAIRE"
     );
   }
 
   openForm(
-
     item && !duplicate
       ? "MODIFIER ARTICLE BORDEREAU"
       : "AJOUTER ARTICLE BORDEREAU",
@@ -1531,7 +1432,6 @@ function brdForm(
     ],
 
     async values => {
-
       const out =
         await apiPost(
           "saveBRD",
@@ -1586,7 +1486,6 @@ function f(
   type = "text",
   full = false
 ) {
-
   return {
     name,
     label,
@@ -1601,7 +1500,6 @@ function openForm(
   fields,
   onSave
 ) {
-
   $("modalTitle")
     .textContent =
       title;
@@ -1664,7 +1562,6 @@ function openForm(
 
   $("modalForm").onsubmit =
     async e => {
-
       e.preventDefault();
 
       const btn =
@@ -1679,7 +1576,6 @@ function openForm(
         "ENREGISTREMENT...";
 
       try {
-
         await onSave(
           Object.fromEntries(
             new FormData(
@@ -1691,7 +1587,6 @@ function openForm(
         closeModal();
 
       } catch (err) {
-
         alert(
           err.message ||
           String(err)
@@ -1706,7 +1601,6 @@ function openForm(
 }
 
 function closeModal() {
-
   $("modal")
     .classList.add(
       "hidden"
@@ -1721,9 +1615,7 @@ function bindLongPress(
   el,
   ctx
 ) {
-
   const start = e => {
-
     clearTimeout(
       longPressTimer
     );
@@ -1768,7 +1660,6 @@ function bindLongPress(
   el.addEventListener(
     "contextmenu",
     e => {
-
       e.preventDefault();
 
       showRowMenu(
@@ -1780,20 +1671,17 @@ function bindLongPress(
 }
 
 function bindRows() {
-
   document
     .querySelectorAll(
       "tr.data-row"
     )
     .forEach(
       el => {
-
         bindLongPress(
           el,
           {
             type:
               el.dataset.type,
-
             id:
               el.dataset.id
           }
@@ -1806,7 +1694,6 @@ function showRowMenu(
   e,
   ctx
 ) {
-
   rowContext =
     ctx;
 
@@ -1835,16 +1722,13 @@ function showRowMenu(
    ========================================================= */
 
 function rowItem(ctx) {
-
   if (ctx.type === "chs") {
-
     return db.chs.find(
       x => x.id === ctx.id
     );
   }
 
   if (ctx.type === "brd") {
-
     return db.brd.find(
       x => x.id === ctx.id
     );
@@ -1861,9 +1745,7 @@ function rowItem(ctx) {
    ========================================================= */
 
 async function deleteRow(ctx) {
-
   if (ctx.type === "chs") {
-
     await apiPost(
       "deleteCHS",
       {
@@ -1878,12 +1760,10 @@ async function deleteRow(ctx) {
       );
 
     renderChs();
-
     return;
   }
 
   if (ctx.type === "brd") {
-
     await apiPost(
       "deleteBRD",
       {
@@ -1900,7 +1780,6 @@ async function deleteRow(ctx) {
     if (
       selection.secondary
     ) {
-
       brdCache.set(
         selection.secondary,
         [...db.brd]
@@ -1908,7 +1787,6 @@ async function deleteRow(ctx) {
     }
 
     renderBrd();
-
     return;
   }
 
@@ -1932,7 +1810,6 @@ async function deleteRow(ctx) {
    ========================================================= */
 
 function infoRow(ctx) {
-
   const x =
     rowItem(ctx);
 
@@ -1964,7 +1841,6 @@ $("rowMenu")
   .addEventListener(
     "click",
     async e => {
-
       const action =
         e.target.dataset.action;
 
@@ -1986,11 +1862,9 @@ $("rowMenu")
         );
 
       try {
-
         if (
           action === "info"
         ) {
-
           infoRow(
             rowContext
           );
@@ -2002,7 +1876,6 @@ $("rowMenu")
             "CONFIRMER LA SUPPRESSION ?"
           )
         ) {
-
           await deleteRow(
             rowContext
           );
@@ -2011,21 +1884,17 @@ $("rowMenu")
         if (
           action === "edit"
         ) {
-
           if (
             rowContext.type === "chs"
           ) {
-
             chsForm(item);
 
           } else if (
             rowContext.type === "brd"
           ) {
-
             brdForm(item);
 
           } else {
-
             addHierarchy(
               rowContext.type,
               item
@@ -2036,11 +1905,9 @@ $("rowMenu")
         if (
           action === "duplicate"
         ) {
-
           if (
             rowContext.type === "chs"
           ) {
-
             chsForm(
               item,
               true
@@ -2049,14 +1916,12 @@ $("rowMenu")
           } else if (
             rowContext.type === "brd"
           ) {
-
             brdForm(
               item,
               true
             );
 
           } else {
-
             addHierarchy(
               rowContext.type,
               item,
@@ -2066,7 +1931,6 @@ $("rowMenu")
         }
 
       } catch (err) {
-
         alert(
           err.message ||
           String(err)
@@ -2082,7 +1946,6 @@ $("rowMenu")
 document.addEventListener(
   "DOMContentLoaded",
   async () => {
-
     initNav();
 
     $("chsSearch")
@@ -2110,12 +1973,10 @@ document.addEventListener(
       .addEventListener(
         "click",
         e => {
-
           if (
             e.target ===
             $("modal")
           ) {
-
             closeModal();
           }
         }
@@ -2125,13 +1986,11 @@ document.addEventListener(
       .addEventListener(
         "click",
         e => {
-
           if (
             !e.target.closest(
               "#rowMenu"
             )
           ) {
-
             $("rowMenu")
               .classList.add(
                 "hidden"
@@ -2146,7 +2005,6 @@ document.addEventListener(
       )
       .forEach(
         b => {
-
           b.onclick =
             () =>
               addHierarchy(
@@ -2161,7 +2019,6 @@ document.addEventListener(
       )
       .forEach(
         i => {
-
           i.addEventListener(
             "input",
             renderHierarchy
