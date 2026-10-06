@@ -490,9 +490,10 @@ function showRowMenu(event, row) {
 /* ---------- NAVIGATION ---------- */
 
 function initialiseNavigation() {
-  document.querySelectorAll(".nav").forEach(button => {
+  document.querySelectorAll(".nav-btn, .nav").forEach(button => {
     button.addEventListener("click", () => {
-      document.querySelectorAll(".nav")
+
+      document.querySelectorAll(".nav-btn, .nav")
         .forEach(b => b.classList.remove("active"));
 
       button.classList.add("active");
@@ -514,7 +515,6 @@ function initialiseNavigation() {
     });
   });
 }
-
 /* ---------- MENU MOBILE ---------- */
 
 function initialiseMobileMenu() {
