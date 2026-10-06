@@ -1,27 +1,592 @@
-const $=id=>document.getElementById(id),STORE="SVI_ERP_V2_CHS_BDS";
-const seed={chs:[{id:"c1",article:"CHS-001",designation:"MAIN-D'ŒUVRE OUVRIER",unit:"J",pcs:365},{id:"c2",article:"CHS-002",designation:"MAIN-D'ŒUVRE MAÇON",unit:"J",pcs:800},{id:"c3",article:"CHS-003",designation:"POMPE À BÉTON",unit:"M3",pcs:72}],projects:[{id:"p1",code:"H88",name:"RÉSIDENCE AL KARIA AL KHADRA",order:1}],lots:[{id:"l1",projectId:"p1",code:"01",name:"FONDATION",order:1},{id:"l2",projectId:"p1",code:"02",name:"SOUS SOL",order:2},{id:"l3",projectId:"p1",code:"03",name:"RDC",order:3}],primaries:[{id:"pr1",lotId:"l1",code:"02",name:"BÉTONNAGE DE PROPRETÉ",order:1},{id:"pr2",lotId:"l1",code:"12",name:"REMBLAI EN TV",order:2}],secondaries:[{id:"s1",primaryId:"pr1",code:"02",name:"BÉTONNAGE DE PROPRETÉ",order:1},{id:"s2",primaryId:"pr2",code:"13",name:"POSE DE FILM EN POLYANE",order:1}],brd:[{id:"b1",secondaryId:"s1",article:"01",designation:"BÉTON DE PROPRETÉ",unit:"M3",qty:0,price:720},{id:"b2",secondaryId:"s2",article:"02",designation:"FILM EN POLYANE",unit:"M2",qty:0,price:0}]};
-let db=loadDb(),selection={project:null,lot:null,primary:null,secondary:null},rowContext=null,longPressTimer=null;
-function clone(v){return JSON.parse(JSON.stringify(v))}function uid(p){return p+"_"+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}function norm(v){return String(v??"").trim()}function num(v){const n=Number(String(v??0).replace(/\s/g,"").replace(",","."));return Number.isFinite(n)?n:0}function fmt(v){return num(v).toLocaleString("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2})}function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
-function loadDb(){try{const r=localStorage.getItem(STORE);if(r)return JSON.parse(r)}catch(e){}localStorage.setItem(STORE,JSON.stringify(seed));return clone(seed)}function saveDb(){localStorage.setItem(STORE,JSON.stringify(db))}
-function initNav(){document.querySelectorAll(".nav-btn").forEach(b=>b.onclick=()=>{document.querySelectorAll(".nav-btn").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".view").forEach(x=>x.classList.remove("active-view"));b.classList.add("active");$(b.dataset.view).classList.add("active-view");$("pageSubtitle").textContent=b.dataset.view==="chs"?"VERSION 2 — CHARGES STANDARDS":b.dataset.view==="bds"?"VERSION 2 — DÉCOMPOSITION":"VERSION 2 — BUDGET"})}
-function renderChs(){const q=norm($("chsSearch").value).toUpperCase(),rows=db.chs.filter(r=>[r.article,r.designation,r.unit].join(" ").toUpperCase().includes(q));$("chsCount").textContent=`${rows.length} CHARGE${rows.length>1?"S":""}`;$("chsTable").querySelector("tbody").innerHTML=rows.length?rows.map(r=>`<tr class="data-row" data-type="chs" data-id="${r.id}"><td>${esc(r.article)}</td><td>${esc(r.designation)}</td><td>${esc(r.unit)}</td><td class="number yellow">${fmt(r.pcs)}</td></tr>`).join(""):`<tr><td colspan="4" class="empty">AUCUNE CHARGE STANDARD</td></tr>`;bindRows()}
-function chsForm(item=null,dup=false){openForm(item?"MODIFIER CHARGE STANDARD":"AJOUTER CHARGE STANDARD",[F("article","ARTICLE",dup?item.article+"-COPIE":item?.article||""),F("designation","DÉSIGNATION",item?.designation||"","text",true),F("unit","UNITÉ",item?.unit||""),F("pcs","PCS",item?.pcs??"","number")],v=>{if(item&&!dup)Object.assign(item,v,{pcs:num(v.pcs)});else db.chs.push({id:uid("chs"),...v,pcs:num(v.pcs)});saveDb();renderChs()})}
-const cfg={project:{arr:"projects",list:"projectList",parent:null,title:"PROJET",prefix:"p"},lot:{arr:"lots",list:"lotList",parent:"project",fk:"projectId",title:"LOT",prefix:"l"},primary:{arr:"primaries",list:"primaryList",parent:"lot",fk:"lotId",title:"TÂCHE PRIMAIRE",prefix:"pr"},secondary:{arr:"secondaries",list:"secondaryList",parent:"primary",fk:"primaryId",title:"TÂCHE SECONDAIRE",prefix:"s"}};
-function rowsFor(t){const c=cfg[t];let rows=db[c.arr];if(c.parent)rows=rows.filter(r=>r[c.fk]===selection[c.parent]);const s=document.querySelector(`[data-search="${t}"]`),q=norm(s?.value).toUpperCase();if(q)rows=rows.filter(r=>`${r.code} ${r.name}`.toUpperCase().includes(q));return [...rows].sort((a,b)=>(a.order||0)-(b.order||0)||a.name.localeCompare(b.name,"fr"))}
-function renderHierarchy(){["project","lot","primary","secondary"].forEach(t=>{const rows=rowsFor(t),el=$(cfg[t].list);el.innerHTML=rows.length?rows.map(r=>`<div class="list-item ${selection[t]===r.id?"selected":""}" data-select="${t}" data-id="${r.id}"><span class="code">${esc(r.code)}</span><span class="name">${esc(r.name)}</span></div>`).join(""):`<div class="empty">AUCUN ÉLÉMENT</div>`});document.querySelectorAll("[data-select]").forEach(el=>{el.onclick=()=>selectHierarchy(el.dataset.select,el.dataset.id);bindLongPress(el,{type:el.dataset.select,id:el.dataset.id})});renderContext();renderBrd()}
-function selectHierarchy(t,id){selection[t]=id;if(t==="project")selection.lot=selection.primary=selection.secondary=null;if(t==="lot")selection.primary=selection.secondary=null;if(t==="primary")selection.secondary=null;renderHierarchy()}
-function getBy(t,id){return db[cfg[t].arr].find(x=>x.id===id)}
-function addHierarchy(t,item=null,dup=false){const c=cfg[t];if(c.parent&&!selection[c.parent])return alert("SÉLECTIONNEZ D'ABORD : "+cfg[c.parent].title);openForm((item?"MODIFIER ":"AJOUTER ")+c.title,[F("code","CODE / ABRÉVIATION",dup?item.code+"-C":item?.code||""),F("name","NOM",item?.name||"","text",true),F("order","ORDRE",item?.order??"","number")],v=>{const clean={code:norm(v.code).toUpperCase(),name:norm(v.name).toUpperCase(),order:num(v.order)};if(item&&!dup)Object.assign(item,clean);else{const o={id:uid(c.prefix),...clean};if(c.parent)o[c.fk]=selection[c.parent];db[c.arr].push(o)}saveDb();renderHierarchy()})}
-function renderContext(){const p=[];if(selection.project)p.push("PROJET : "+(getBy("project",selection.project)?.code||""));if(selection.lot)p.push("LOT : "+(getBy("lot",selection.lot)?.name||""));if(selection.primary)p.push("TÂCHE PRIMAIRE : "+(getBy("primary",selection.primary)?.name||""));if(selection.secondary)p.push("TÂCHE SECONDAIRE : "+(getBy("secondary",selection.secondary)?.name||""));$("bdsContext").textContent=p.length?p.join(" | "):"SÉLECTIONNEZ UNE TÂCHE SECONDAIRE"}
-function renderBrd(){const q=norm($("brdSearch").value).toUpperCase();let rows=db.brd.filter(r=>r.secondaryId===selection.secondary);if(q)rows=rows.filter(r=>`${r.article} ${r.designation} ${r.unit}`.toUpperCase().includes(q));$("brdCount").textContent=`${rows.length} ARTICLE${rows.length>1?"S":""}`;let total=0;$("brdTable").querySelector("tbody").innerHTML=rows.length?rows.map(r=>{const m=num(r.qty)*num(r.price);total+=m;return `<tr class="data-row" data-type="brd" data-id="${r.id}"><td>${esc(r.article)}</td><td>${esc(r.designation)}</td><td>${esc(r.unit)}</td><td class="number">${fmt(r.qty)}</td><td class="number">${fmt(r.price)}</td><td class="number">${fmt(m)}</td></tr>`}).join(""):`<tr><td colspan="6" class="empty">${selection.secondary?"AUCUN ARTICLE":"SÉLECTIONNEZ UNE TÂCHE SECONDAIRE"}</td></tr>`;$("brdTotal").textContent=fmt(total);bindRows()}
-function brdForm(item=null,dup=false){if(!selection.secondary&&!item)return alert("SÉLECTIONNEZ D'ABORD UNE TÂCHE SECONDAIRE");openForm(item?"MODIFIER ARTICLE BORDEREAU":"AJOUTER ARTICLE BORDEREAU",[F("article","ARTICLE",dup?item.article+"-C":item?.article||""),F("designation","DÉSIGNATION",item?.designation||"","text",true),F("unit","UNITÉ",item?.unit||""),F("qty","QUANTITÉ",item?.qty??0,"number"),F("price","PRIX",item?.price??0,"number")],v=>{const c={article:norm(v.article),designation:norm(v.designation).toUpperCase(),unit:norm(v.unit).toUpperCase(),qty:num(v.qty),price:num(v.price)};if(item&&!dup)Object.assign(item,c);else db.brd.push({id:uid("brd"),secondaryId:selection.secondary,...c});saveDb();renderBrd()})}
-function F(name,label,value="",type="text",full=false){return{name,label,value,type,full}}
-function openForm(title,fields,onSave){$("modalTitle").textContent=title;$("modalForm").innerHTML=fields.map(x=>`<div class="field ${x.full?"full":""}"><label>${esc(x.label)}</label><input name="${x.name}" type="${x.type}" value="${esc(x.value)}" ${x.type==="number"?'step="any" inputmode="decimal"':""} required></div>`).join("")+`<div class="form-actions"><button type="button" class="secondary" id="cancelForm">ANNULER</button><button class="primary" type="submit">ENREGISTRER</button></div>`;$("modal").classList.remove("hidden");$("cancelForm").onclick=closeModal;$("modalForm").onsubmit=e=>{e.preventDefault();onSave(Object.fromEntries(new FormData(e.currentTarget).entries()));closeModal()}}
-function closeModal(){$("modal").classList.add("hidden")}
-function bindLongPress(el,ctx){const start=e=>{clearTimeout(longPressTimer);longPressTimer=setTimeout(()=>showRowMenu(e,ctx),550)},stop=()=>clearTimeout(longPressTimer);el.addEventListener("pointerdown",start);el.addEventListener("pointerup",stop);el.addEventListener("pointerleave",stop);el.addEventListener("pointercancel",stop);el.addEventListener("contextmenu",e=>{e.preventDefault();showRowMenu(e,ctx)})}
-function bindRows(){document.querySelectorAll("tr.data-row").forEach(el=>bindLongPress(el,{type:el.dataset.type,id:el.dataset.id}))}
-function showRowMenu(e,ctx){rowContext=ctx;const m=$("rowMenu");m.style.left=Math.min(e.clientX||20,window.innerWidth-200)+"px";m.style.top=Math.min(e.clientY||20,window.innerHeight-190)+"px";m.classList.remove("hidden")}
-function rowItem(c){if(c.type==="chs")return db.chs.find(x=>x.id===c.id);if(c.type==="brd")return db.brd.find(x=>x.id===c.id);return getBy(c.type,c.id)}
-function deleteRow(c){if(c.type==="chs")db.chs=db.chs.filter(x=>x.id!==c.id);else if(c.type==="brd")db.brd=db.brd.filter(x=>x.id!==c.id);else{const x=cfg[c.type];if(c.type==="project"&&db.lots.some(v=>v.projectId===c.id))return alert("SUPPRESSION IMPOSSIBLE : CE PROJET CONTIENT DES LOTS.");if(c.type==="lot"&&db.primaries.some(v=>v.lotId===c.id))return alert("SUPPRESSION IMPOSSIBLE : CE LOT CONTIENT DES TÂCHES PRIMAIRES.");if(c.type==="primary"&&db.secondaries.some(v=>v.primaryId===c.id))return alert("SUPPRESSION IMPOSSIBLE : CETTE TÂCHE PRIMAIRE CONTIENT DES TÂCHES SECONDAIRES.");if(c.type==="secondary"&&db.brd.some(v=>v.secondaryId===c.id))return alert("SUPPRESSION IMPOSSIBLE : CETTE TÂCHE SECONDAIRE CONTIENT DES ARTICLES.");db[x.arr]=db[x.arr].filter(v=>v.id!==c.id);if(selection[c.type]===c.id)selection[c.type]=null}saveDb();renderChs();renderHierarchy()}
-$("rowMenu").addEventListener("click",e=>{const a=e.target.dataset.action;if(!a||!rowContext)return;const item=rowItem(rowContext);$("rowMenu").classList.add("hidden");if(a==="info")alert(Object.entries(item).filter(([k])=>k!=="id"&&!k.endsWith("Id")).map(([k,v])=>k.toUpperCase()+" : "+v).join("\n"));if(a==="delete"&&confirm("CONFIRMER LA SUPPRESSION ?"))deleteRow(rowContext);if(a==="edit"){if(rowContext.type==="chs")chsForm(item);else if(rowContext.type==="brd")brdForm(item);else addHierarchy(rowContext.type,item)}if(a==="duplicate"){if(rowContext.type==="chs")chsForm(item,true);else if(rowContext.type==="brd")brdForm(item,true);else addHierarchy(rowContext.type,item,true)}});
-document.addEventListener("DOMContentLoaded",()=>{initNav();$("chsSearch").addEventListener("input",renderChs);$("brdSearch").addEventListener("input",renderBrd);$("addChsBtn").onclick=()=>chsForm();$("addBrdBtn").onclick=()=>brdForm();$("modalClose").onclick=closeModal;$("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});document.addEventListener("click",e=>{if(!e.target.closest("#rowMenu"))$("rowMenu").classList.add("hidden")});document.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>addHierarchy(b.dataset.add));document.querySelectorAll("[data-search]").forEach(i=>i.addEventListener("input",renderHierarchy));renderChs();renderHierarchy()});
+
+/* =========================================================
+   SVI ERP — APP.JS
+   ========================================================= */
+
+const API_URL = "https://script.google.com/macros/s/AKfycbzFgUloyiRJe-QmR7nRqJ4bfWqvfA_6LSgotJRrRt87yeRfWtdY7nxXMR9avafSJUPg4Q/exec";
+const API_KEY = "SVI-H88-2026-ERP";
+
+let bdgRows = [];
+let currentAnalysis = "designation";
+
+/* ---------- OUTILS ---------- */
+
+const $ = (id) => document.getElementById(id);
+
+function formatNumber(value) {
+  const n = Number(
+    String(value ?? "")
+      .replace(/\s/g, "")
+      .replace(",", ".")
+  );
+
+  if (!Number.isFinite(n)) return value ?? "";
+
+  return new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(n);
+}
+
+function unique(values) {
+  return [...new Set(
+    values
+      .map(v => String(v ?? "").trim())
+      .filter(Boolean)
+  )];
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/* ---------- API GOOGLE SHEETS ---------- */
+
+async function loadBDG() {
+  try {
+    if (API_URL.includes("COLLER_ICI")) {
+      console.warn("URL API NON CONFIGURÉE");
+      return;
+    }
+
+    const separator = API_URL.includes("?") ? "&" : "?";
+
+    const response = await fetch(
+      `${API_URL}${separator}key=${encodeURIComponent(API_KEY)}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`ERREUR HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.ok) {
+      throw new Error(data.error || "ERREUR API");
+    }
+
+    const rows = data.rows || [];
+
+    if (rows.length < 2) {
+      throw new Error("BDG VIDE");
+    }
+
+    const headers = rows[0];
+
+    bdgRows = rows.slice(1).map(row => {
+      const obj = {};
+
+      headers.forEach((header, index) => {
+        obj[String(header).trim()] = row[index] ?? "";
+      });
+
+      return obj;
+    });
+
+    console.log(`${bdgRows.length} LIGNES BDG CHARGÉES`);
+
+    initialiseSelectors();
+
+  } catch (error) {
+    console.error("ERREUR CHARGEMENT BDG :", error);
+  }
+}
+
+/* ---------- SÉLECTEURS ---------- */
+
+function fillSelect(select, values, selectedValue = "") {
+  if (!select) return;
+
+  select.innerHTML = "";
+
+  values.forEach(value => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+
+    if (value === selectedValue) {
+      option.selected = true;
+    }
+
+    select.appendChild(option);
+  });
+}
+
+function initialiseSelectors() {
+  const projects = unique(bdgRows.map(r => r["PRJ"]));
+
+  fillSelect($("project"), projects);
+
+  if (projects.includes("H88")) {
+    $("project").value = "H88";
+  }
+
+  updateLots();
+}
+
+function updateLots() {
+  const project = $("project")?.value || "";
+
+  const lots = unique(
+    bdgRows
+      .filter(r => r["PRJ"] === project)
+      .map(r => r["LOT"])
+  );
+
+  fillSelect($("lot"), lots);
+  updatePrimaryActivities();
+}
+
+function updatePrimaryActivities() {
+  const project = $("project")?.value || "";
+  const lot = $("lot")?.value || "";
+
+  const values = unique(
+    bdgRows
+      .filter(r =>
+        r["PRJ"] === project &&
+        r["LOT"] === lot
+      )
+      .map(r => r["ACTIVITE PRIMAIRE"])
+  );
+
+  fillSelect($("primary"), values);
+  refreshbudget();
+}
+
+function refreshbudget() {
+  const project = $("project")?.value || "";
+  const lot = $("lot")?.value || "";
+  const primary = $("primary")?.value || "";
+
+  const values = unique(
+    bdgRows
+      .filter(r =>
+        r["PRJ"] === project &&
+        r["LOT"] === lot &&
+        r["ACTIVITE PRIMAIRE"] === primary
+      )
+      .map(r => r["ACTIVITE"])
+  );
+
+  fillSelect($("secondary"), values);
+  refreshBudget();
+}
+
+/* ---------- FILTRE TÂCHE ---------- */
+
+function selectedRows() {
+  const project = $("project")?.value || "";
+  const lot = $("lot")?.value || "";
+  const primary = $("primary")?.value || "";
+  const secondary = $("secondary")?.value || "";
+
+  return bdgRows.filter(r =>
+  String(r["PRJ"] ?? "").trim() === String(project).trim() &&
+  String(r["LOT"] ?? "").trim() === String(lot).trim() &&
+  String(r["ACTIVITE PRIMAIRE"] ?? "").trim() === String(primary).trim() &&
+  String(r["ACTIVITE"] ?? "").trim() === String(secondary).trim()
+);
+}
+
+/* ---------- RAFRAÎCHISSEMENT ---------- */
+
+function refreshBudget() {
+    const rows = selectedRows();
+
+  
+
+    console.log("LIGNES SELECTIONNEES :", rows.length, rows);
+
+    updateDesignation(rows);
+    renderProductTable(rows);
+    renderChargeTable(rows);
+    renderAnalysis(rows);
+}
+
+   
+function updateDesignation(rows) {
+  const field = $("brdDesignation");
+
+  if (!field) return;
+
+  const designations = unique(rows.map(r => r["DESIGNATION"]));
+
+  field.value = designations.join(" / ");
+}
+
+/* ---------- TABLE PRODUITS ---------- */
+
+function renderProductTable(rows) {
+  const table = $("productTable");
+
+  if (!table) return;
+
+  const products = rows.filter(r =>
+    String(r["CHG/PRD"]).trim().toUpperCase() === "PRD"
+  );
+
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>N° ▾</th>
+        <th>DÉSIGNATION ▾</th>
+        <th>UPB ▾</th>
+        <th>NBR ▾</th>
+        <th>DIM 1 ▾</th>
+        <th>DIM 2 ▾</th>
+        <th>DIM 3 ▾</th>
+        <th>QPB PRT ▾</th>
+        <th>PPB ▾</th>
+        <th>MPB ▾</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      ${products.map(r => `
+        <tr>
+          <td>${escapeHtml(r["N°"])}</td>
+          <td>${escapeHtml(r["DETAIL BUDGET"])}</td>
+          <td class="yellow">${escapeHtml(r["UTB"])}</td>
+          <td class="number">${escapeHtml(r["NBR"])}</td>
+          <td class="number">${escapeHtml(r["DIM1"])}</td>
+          <td class="number">${escapeHtml(r["DIM2"])}</td>
+          <td class="number">${escapeHtml(r["DIM3"])}</td>
+          <td class="number yellow">${formatNumber(r["QTB"])}</td>
+          <td class="number yellow">${formatNumber(r["PUB"])}</td>
+          <td class="number yellow">${formatNumber(r["MNB"])}</td>
+        </tr>
+      `).join("")}
+    </tbody>
+
+    <tfoot>
+      <tr>
+        <td colspan="7"><strong>TOTAL</strong></td>
+        <td class="number yellow">
+          ${formatNumber(sum(products, "QTB"))}
+        </td>
+        <td></td>
+        <td class="number yellow">
+          ${formatNumber(sum(products, "MNB"))}
+        </td>
+      </tr>
+    </tfoot>
+  `;
+
+  attachRowMenus(table);
+}
+
+/* ---------- TABLE CHARGES ---------- */
+
+function renderChargeTable(rows) {
+  const table = $("chargeTable");
+
+  if (!table) return;
+
+  const charges = rows.filter(r =>
+    String(r["CHG/PRD"]).trim().toUpperCase() === "CHG"
+  );
+
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>N° ▾</th>
+        <th>ARTICLE ▾</th>
+        <th>DÉSIGNATION ▾</th>
+        <th>UCB ▾</th>
+        <th>QCB ▾</th>
+        <th>PCS ▾</th>
+        <th>MCB ▾</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      ${charges.map(r => `
+        <tr>
+          <td>${escapeHtml(r["N°"])}</td>
+          <td>${escapeHtml(r["DESIGNATION"])}</td>
+          <td>${escapeHtml(r["DETAIL BUDGET"])}</td>
+          <td>${escapeHtml(r["UTB"])}</td>
+          <td class="number">${formatNumber(r["QTB"])}</td>
+          <td class="number yellow">${formatNumber(r["PUB"])}</td>
+          <td class="number yellow">${formatNumber(r["MNB"])}</td>
+        </tr>
+      `).join("")}
+    </tbody>
+
+    <tfoot>
+      <tr>
+        <td colspan="6"><strong>TOTAL</strong></td>
+        <td class="number yellow">
+          ${formatNumber(sum(charges, "MNB"))}
+        </td>
+      </tr>
+    </tfoot>
+  `;
+
+  attachRowMenus(table);
+}
+
+function sum(rows, field) {
+  return rows.reduce((total, row) => {
+    const value = Number(
+      String(row[field] ?? "")
+        .replace(/\s/g, "")
+        .replace(",", ".")
+    );
+
+    return total + (Number.isFinite(value) ? value : 0);
+  }, 0);
+}
+
+/* ---------- ANALYSE COMPACTE ---------- */
+
+function renderAnalysis(rows) {
+  const box = $("analysisCompact");
+
+  if (!box) return;
+
+  const products = rows.filter(r =>
+    String(r["CHG/PRD"]).toUpperCase() === "PRD"
+  );
+
+  const charges = rows.filter(r =>
+    String(r["CHG/PRD"]).toUpperCase() === "CHG"
+  );
+
+  const productAmount = sum(products, "MNB");
+  const chargeAmount = sum(charges, "MNB");
+  const margin = productAmount - chargeAmount;
+
+  const rate = productAmount
+    ? (margin / productAmount) * 100
+    : 0;
+
+  if (currentAnalysis === "yield") {
+    box.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>ACTIVITÉ</th>
+            <th>PRODUIT</th>
+            <th>CHARGE</th>
+            <th>RENDEMENT</th>
+          </tr>
+        </thead>
+        <tfoot>
+          <tr>
+            <td colspan="4">RENDEMENT SELON BUDGET</td>
+          </tr>
+        </tfoot>
+      </table>
+    `;
+
+    return;
+  }
+
+  box.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>${currentAnalysis === "primaryMargin"
+            ? "ACTIVITÉ PRIMAIRE"
+            : "DÉSIGNATION"}</th>
+          <th>PRODUITS</th>
+          <th>CHARGES</th>
+          <th>MARGE</th>
+          <th>TAUX</th>
+        </tr>
+      </thead>
+
+      <tfoot>
+        <tr>
+          <td>TOTAL</td>
+          <td class="number">${formatNumber(productAmount)}</td>
+          <td class="number">${formatNumber(chargeAmount)}</td>
+          <td class="number">${formatNumber(margin)}</td>
+          <td class="number">${formatNumber(rate)} %</td>
+        </tr>
+      </tfoot>
+    </table>
+  `;
+}
+
+/* ---------- ONGLETS ANALYSE ---------- */
+
+function initialiseAnalysisTabs() {
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab")
+        .forEach(t => t.classList.remove("active"));
+
+      tab.classList.add("active");
+
+      currentAnalysis = tab.dataset.tab || "designation";
+
+      renderAnalysis(selectedRows());
+    });
+  });
+}
+
+/* ---------- MENU LONG PRESS LIGNE ---------- */
+
+function attachRowMenus(table) {
+  table.querySelectorAll("tbody tr").forEach(row => {
+    let timer;
+
+    const start = event => {
+      timer = setTimeout(() => {
+        showRowMenu(event, row);
+      }, 550);
+    };
+
+    const cancel = () => {
+      clearTimeout(timer);
+    };
+
+    row.addEventListener("touchstart", start, { passive: true });
+    row.addEventListener("touchend", cancel);
+    row.addEventListener("touchmove", cancel);
+
+    row.addEventListener("mousedown", start);
+    row.addEventListener("mouseup", cancel);
+    row.addEventListener("mouseleave", cancel);
+  });
+}
+
+function showRowMenu(event, row) {
+  const menu = $("rowMenu");
+
+  if (!menu) return;
+
+  menu.innerHTML = `
+    <button>INFORMATION</button>
+    <button>MODIFIER</button>
+    <button>DUPLIQUER</button>
+    <button>INSÉRER UNE LIGNE</button>
+    <button>COPIER</button>
+    <button>SUPPRIMER</button>
+  `;
+
+  const touch = event.touches?.[0];
+
+  const x = touch?.clientX ?? event.clientX ?? 100;
+  const y = touch?.clientY ?? event.clientY ?? 100;
+
+  menu.style.left =
+    `${Math.min(x, window.innerWidth - 230)}px`;
+
+  menu.style.top =
+    `${Math.min(y, window.innerHeight - 280)}px`;
+
+  menu.classList.remove("hidden");
+}
+
+/* ---------- NAVIGATION ---------- */
+
+function initialiseNavigation() {
+  document.querySelectorAll(".nav").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".nav")
+        .forEach(b => b.classList.remove("active"));
+
+      button.classList.add("active");
+
+      document.querySelectorAll(".view")
+        .forEach(view => view.classList.remove("active-view"));
+
+      const view = $(button.dataset.view);
+
+      if (view) {
+        view.classList.add("active-view");
+      }
+
+      const title = $("pageTitle");
+
+      if (title) {
+        title.textContent = button.textContent.trim();
+      }
+    });
+  });
+}
+
+/* ---------- MENU MOBILE ---------- */
+
+function initialiseMobileMenu() {
+  $("menuBtn")?.addEventListener("click", () => {
+    document.querySelector(".sidebar")
+      ?.classList.toggle("open");
+  });
+}
+
+/* ---------- PLEIN ÉCRAN ANALYSE ---------- */
+
+function initialiseFullscreen() {
+  document.querySelector(".expand-analysis")
+    ?.addEventListener("click", () => {
+      document.querySelector(".analysis")
+        ?.classList.toggle("fullscreen");
+    });
+}
+
+/* ---------- FERMETURE POPUPS ---------- */
+
+function initialisePopupClosing() {
+  document.addEventListener("click", event => {
+    const rowMenu = $("rowMenu");
+    const columnMenu = $("columnMenu");
+
+    if (
+      rowMenu &&
+      !rowMenu.contains(event.target)
+    ) {
+      rowMenu.classList.add("hidden");
+    }
+
+    if (
+      columnMenu &&
+      !columnMenu.contains(event.target)
+    ) {
+      columnMenu.classList.add("hidden");
+    }
+  });
+}
+
+/* ---------- ÉVÉNEMENTS SÉLECTEURS ---------- */
+
+function initialiseSelectorEvents() {
+  $("project")?.addEventListener("change", updateLots);
+
+  $("lot")?.addEventListener(
+    "change",
+    updatePrimaryActivities
+  );
+
+  $("primary")?.addEventListener(
+    "change",
+    refreshbudget
+  );
+
+  $("secondary")?.addEventListener(
+    "change",
+    refreshBudget
+  );
+}
+
+/* ---------- DÉMARRAGE ---------- */
+
+document.addEventListener("DOMContentLoaded", () => {
+  initialiseNavigation();
+  initialiseMobileMenu();
+  initialiseAnalysisTabs();
+  initialiseFullscreen();
+  initialisePopupClosing();
+  initialiseSelectorEvents();
+
+  loadBDG();
+});
