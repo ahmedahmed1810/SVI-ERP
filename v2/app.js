@@ -43,21 +43,67 @@ async function apiPost(action, data={}){
   return out;
 }
 
-function mapBootstrap(data){
-  db.chs=(data.chs||[]).map(x=>({
-    id:x.ID, article:x.ARTICLE, designation:x.DESIGNATION, unit:x.UNITE, pcs:num(x.PCS)
+function mapBootstrap(data) {
+  db.chs = (data.chs || []).map(x => ({
+    id: x.ID,
+    article: x.ARTICLE,
+    designation: x.DESIGNATION,
+    unit: x.UNITE,
+    pcs: num(x.PCS)
   }));
 
-  const all=(data.bds||[]).filter(x=>String(x.ACTIF||"OUI").toUpperCase()!=="NON");
-  db.projects=all.filter(x=>x.TYPE==="PROJECT").map(x=>({id:x.ID,code:x.CODE,name:x.NOM,order:num(x.ORDRE)}));
-  db.lots=all.filter(x=>x.TYPE==="LOT").map(x=>({id:x.ID,projectId:x.PARENT_ID,code:x.CODE,name:x.NOM,order:num(x.ORDRE)}));
-  db.primaries=all.filter(x=>x.TYPE==="PRIMARY").map(x=>({id:x.ID,lotId:x.PARENT_ID,code:x.CODE,name:x.NOM,order:num(x.ORDRE)}));
-  db.secondaries=all.filter(x=>x.TYPE==="SECONDARY").map(x=>({id:x.ID,primaryId:x.PARENT_ID,code:x.CODE,name:x.NOM,order:num(x.ORDRE)}));
+  const all = data.bds || [];
 
-  db.brd=(data.brd||[]).filter(x=>String(x.ACTIF||"OUI").toUpperCase()!=="NON").map(x=>({
-    id:x.ID, secondaryId:x.TACHE_SECONDAIRE_ID, article:x.ARTICLE,
-    designation:x.DESIGNATION, unit:x.UNITE, qty:num(x.QUANTITE), price:num(x.PRIX)
-  }));
+  db.projects = all
+    .filter(x => String(x.TYPE || "").trim().toUpperCase() === "PROJECT")
+    .map(x => ({
+      id: x.ID,
+      code: x.CODE,
+      name: x.NOM,
+      order: num(x.ORDRE)
+    }));
+
+  db.lots = all
+    .filter(x => String(x.TYPE || "").trim().toUpperCase() === "LOT")
+    .map(x => ({
+      id: x.ID,
+      projectId: x.PARENT_ID,
+      code: x.CODE,
+      name: x.NOM,
+      order: num(x.ORDRE)
+    }));
+
+  db.primaries = all
+    .filter(x => String(x.TYPE || "").trim().toUpperCase() === "PRIMARY")
+    .map(x => ({
+      id: x.ID,
+      lotId: x.PARENT_ID,
+      code: x.CODE,
+      name: x.NOM,
+      order: num(x.ORDRE)
+    }));
+
+  db.secondaries = all
+    .filter(x => String(x.TYPE || "").trim().toUpperCase() === "SECONDARY")
+    .map(x => ({
+      id: x.ID,
+      primaryId: x.PARENT_ID,
+      code: x.CODE,
+      name: x.NOM,
+      order: num(x.ORDRE)
+    }));
+
+  db.brd = (data.brd || [])
+    .filter(x => String(x.ACTIF || "").trim().toUpperCase() !== "NON")
+    .map(x => ({
+      id: x.ID,
+      secondaryId: x.TACHE_SECONDAIRE_ID,
+      article: x.ARTICLE,
+      designation: x.DESIGNATION,
+      unit: x.UNITE,
+      qty: num(x.QUANTITE),
+      price: num(x.PRIX)
+    }));
 }
 
 async function reloadAll(){
