@@ -215,9 +215,7 @@ function mapBootstrap(data) {
 
 async function reloadAll() {
   try {
-    const data = await apiGet(
-      "bootstrap"
-    );
+    const data = await apiGet("bootstrap");
 
     mapBootstrap(data);
 
@@ -244,16 +242,12 @@ async function loadBrdForSecondary(secondaryId) {
   }
 
   if (brdCache.has(secondaryId)) {
-    db.brd = brdCache.get(
-      secondaryId
-    );
-
+    db.brd = brdCache.get(secondaryId);
     renderBrd();
     return;
   }
 
-  const requestId =
-    ++brdRequestId;
+  const requestId = ++brdRequestId;
 
   db.brd = [];
 
@@ -958,81 +952,98 @@ function rowsFor(type) {
 }
 
 /* =========================================================
-   AFFICHAGE HIERARCHIE
+   AFFICHAGE OPTIMISE D'UNE COLONNE
    ========================================================= */
 
-function renderHierarchy() {
-  [
-    "project",
-    "lot",
-    "primary",
-    "secondary"
-  ].forEach(type => {
-    const rows =
-      rowsFor(type);
+function renderHierarchyColumn(type) {
+  const rows = rowsFor(type);
+  const el = $(cfg[type].list);
 
-    const el =
-      $(cfg[type].list);
+  el.innerHTML =
+    rows.length
+      ? rows.map(
+          r => `
+            <div
+              class="list-item ${
+                selection[type] === r.id
+                  ? "selected"
+                  : ""
+              }"
+              data-select="${type}"
+              data-id="${esc(r.id)}"
+            >
+              <span class="code">
+                ${esc(r.code)}
+              </span>
 
-    el.innerHTML =
-      rows.length
-        ? rows.map(
-            r => `
-              <div
-                class="list-item ${
-                  selection[type] === r.id
-                    ? "selected"
-                    : ""
-                }"
-                data-select="${type}"
-                data-id="${esc(r.id)}"
-              >
-                <span class="code">
-                  ${esc(r.code)}
-                </span>
+              <span class="name">
+                ${esc(r.name)}
+              </span>
+            </div>
+          `
+        ).join("")
+      : `
+        <div class="empty">
+          AUCUN ÉLÉMENT
+        </div>
+      `;
 
-                <span class="name">
-                  ${esc(r.name)}
-                </span>
-              </div>
-            `
-          ).join("")
-        : `
-          <div class="empty">
-            AUCUN ÉLÉMENT
-          </div>
-        `;
-  });
-
-  document
-    .querySelectorAll(
-      "[data-select]"
-    )
-    .forEach(el => {
-      el.onclick =
+  el
+    .querySelectorAll("[data-select]")
+    .forEach(item => {
+      item.onclick =
         () =>
           selectHierarchy(
-            el.dataset.select,
-            el.dataset.id
+            item.dataset.select,
+            item.dataset.id
           );
 
       bindLongPress(
-        el,
+        item,
         {
           type:
-            el.dataset.select,
+            item.dataset.select,
           id:
-            el.dataset.id
+            item.dataset.id
         }
       );
     });
+}
+
+/* =========================================================
+   AFFICHAGE COMPLET HIERARCHIE
+   ========================================================= */
+
+function renderHierarchy() {
+  renderHierarchyColumn("project");
+  renderHierarchyColumn("lot");
+  renderHierarchyColumn("primary");
+  renderHierarchyColumn("secondary");
 
   renderContext();
   renderBrd();
 }
 
 /* =========================================================
-   SELECTION HIERARCHIE
+   MISE A JOUR VISUELLE DE LA SELECTION
+   ========================================================= */
+
+function updateSelectedItem(type, id) {
+  const list =
+    $(cfg[type].list);
+
+  list
+    .querySelectorAll(".list-item")
+    .forEach(el => {
+      el.classList.toggle(
+        "selected",
+        el.dataset.id === id
+      );
+    });
+}
+
+/* =========================================================
+   SELECTION HIERARCHIE OPTIMISEE
    ========================================================= */
 
 async function selectHierarchy(
@@ -1048,6 +1059,20 @@ async function selectHierarchy(
 
     db.brd = [];
     brdRequestId++;
+
+    updateSelectedItem(
+      "project",
+      id
+    );
+
+    renderHierarchyColumn("lot");
+    renderHierarchyColumn("primary");
+    renderHierarchyColumn("secondary");
+
+    renderContext();
+    renderBrd();
+
+    return;
   }
 
   if (type === "lot") {
@@ -1056,6 +1081,19 @@ async function selectHierarchy(
 
     db.brd = [];
     brdRequestId++;
+
+    updateSelectedItem(
+      "lot",
+      id
+    );
+
+    renderHierarchyColumn("primary");
+    renderHierarchyColumn("secondary");
+
+    renderContext();
+    renderBrd();
+
+    return;
   }
 
   if (type === "primary") {
@@ -1063,15 +1101,31 @@ async function selectHierarchy(
 
     db.brd = [];
     brdRequestId++;
+
+    updateSelectedItem(
+      "primary",
+      id
+    );
+
+    renderHierarchyColumn("secondary");
+
+    renderContext();
+    renderBrd();
+
+    return;
   }
 
   if (type === "secondary") {
     db.brd = [];
-  }
 
-  renderHierarchy();
+    updateSelectedItem(
+      "secondary",
+      id
+    );
 
-  if (type === "secondary") {
+    renderContext();
+    renderBrd();
+
     try {
       await loadBrdForSecondary(
         id
