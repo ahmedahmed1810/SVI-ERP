@@ -1,27 +1,388 @@
-const $=id=>document.getElementById(id),STORE="SVI_ERP_V2_CHS_BDS";
-const seed={chs:[{id:"c1",article:"CHS-001",designation:"MAIN-D'ŒUVRE OUVRIER",unit:"J",pcs:365},{id:"c2",article:"CHS-002",designation:"MAIN-D'ŒUVRE MAÇON",unit:"J",pcs:800},{id:"c3",article:"CHS-003",designation:"POMPE À BÉTON",unit:"M3",pcs:72}],projects:[{id:"p1",code:"H88",name:"RÉSIDENCE AL KARIA AL KHADRA",order:1}],lots:[{id:"l1",projectId:"p1",code:"01",name:"FONDATION",order:1},{id:"l2",projectId:"p1",code:"02",name:"SOUS SOL",order:2},{id:"l3",projectId:"p1",code:"03",name:"RDC",order:3}],primaries:[{id:"pr1",lotId:"l1",code:"02",name:"BÉTONNAGE DE PROPRETÉ",order:1},{id:"pr2",lotId:"l1",code:"12",name:"REMBLAI EN TV",order:2}],secondaries:[{id:"s1",primaryId:"pr1",code:"02",name:"BÉTONNAGE DE PROPRETÉ",order:1},{id:"s2",primaryId:"pr2",code:"13",name:"POSE DE FILM EN POLYANE",order:1}],brd:[{id:"b1",secondaryId:"s1",article:"01",designation:"BÉTON DE PROPRETÉ",unit:"M3",qty:0,price:720},{id:"b2",secondaryId:"s2",article:"02",designation:"FILM EN POLYANE",unit:"M2",qty:0,price:0}]};
-let db=loadDb(),selection={project:null,lot:null,primary:null,secondary:null},rowContext=null,longPressTimer=null;
-function clone(v){return JSON.parse(JSON.stringify(v))}function uid(p){return p+"_"+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}function norm(v){return String(v??"").trim()}function num(v){const n=Number(String(v??0).replace(/\s/g,"").replace(",","."));return Number.isFinite(n)?n:0}function fmt(v){return num(v).toLocaleString("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2})}function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
-function loadDb(){try{const r=localStorage.getItem(STORE);if(r)return JSON.parse(r)}catch(e){}localStorage.setItem(STORE,JSON.stringify(seed));return clone(seed)}function saveDb(){localStorage.setItem(STORE,JSON.stringify(db))}
-function initNav(){document.querySelectorAll(".nav-btn").forEach(b=>b.onclick=()=>{document.querySelectorAll(".nav-btn").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".view").forEach(x=>x.classList.remove("active-view"));b.classList.add("active");$(b.dataset.view).classList.add("active-view");$("pageSubtitle").textContent=b.dataset.view==="chs"?"VERSION 2 — CHARGES STANDARDS":b.dataset.view==="bds"?"VERSION 2 — DÉCOMPOSITION":"VERSION 2 — BUDGET"})}
-function renderChs(){const q=norm($("chsSearch").value).toUpperCase(),rows=db.chs.filter(r=>[r.article,r.designation,r.unit].join(" ").toUpperCase().includes(q));$("chsCount").textContent=`${rows.length} CHARGE${rows.length>1?"S":""}`;$("chsTable").querySelector("tbody").innerHTML=rows.length?rows.map(r=>`<tr class="data-row" data-type="chs" data-id="${r.id}"><td>${esc(r.article)}</td><td>${esc(r.designation)}</td><td>${esc(r.unit)}</td><td class="number yellow">${fmt(r.pcs)}</td></tr>`).join(""):`<tr><td colspan="4" class="empty">AUCUNE CHARGE STANDARD</td></tr>`;bindRows()}
-function chsForm(item=null,dup=false){openForm(item?"MODIFIER CHARGE STANDARD":"AJOUTER CHARGE STANDARD",[F("article","ARTICLE",dup?item.article+"-COPIE":item?.article||""),F("designation","DÉSIGNATION",item?.designation||"","text",true),F("unit","UNITÉ",item?.unit||""),F("pcs","PCS",item?.pcs??"","number")],v=>{if(item&&!dup)Object.assign(item,v,{pcs:num(v.pcs)});else db.chs.push({id:uid("chs"),...v,pcs:num(v.pcs)});saveDb();renderChs()})}
-const cfg={project:{arr:"projects",list:"projectList",parent:null,title:"PROJET",prefix:"p"},lot:{arr:"lots",list:"lotList",parent:"project",fk:"projectId",title:"LOT",prefix:"l"},primary:{arr:"primaries",list:"primaryList",parent:"lot",fk:"lotId",title:"TÂCHE PRIMAIRE",prefix:"pr"},secondary:{arr:"secondaries",list:"secondaryList",parent:"primary",fk:"primaryId",title:"TÂCHE SECONDAIRE",prefix:"s"}};
-function rowsFor(t){const c=cfg[t];let rows=db[c.arr];if(c.parent)rows=rows.filter(r=>r[c.fk]===selection[c.parent]);const s=document.querySelector(`[data-search="${t}"]`),q=norm(s?.value).toUpperCase();if(q)rows=rows.filter(r=>`${r.code} ${r.name}`.toUpperCase().includes(q));return [...rows].sort((a,b)=>(a.order||0)-(b.order||0)||a.name.localeCompare(b.name,"fr"))}
-function renderHierarchy(){["project","lot","primary","secondary"].forEach(t=>{const rows=rowsFor(t),el=$(cfg[t].list);el.innerHTML=rows.length?rows.map(r=>`<div class="list-item ${selection[t]===r.id?"selected":""}" data-select="${t}" data-id="${r.id}"><span class="code">${esc(r.code)}</span><span class="name">${esc(r.name)}</span></div>`).join(""):`<div class="empty">AUCUN ÉLÉMENT</div>`});document.querySelectorAll("[data-select]").forEach(el=>{el.onclick=()=>selectHierarchy(el.dataset.select,el.dataset.id);bindLongPress(el,{type:el.dataset.select,id:el.dataset.id})});renderContext();renderBrd()}
-function selectHierarchy(t,id){selection[t]=id;if(t==="project")selection.lot=selection.primary=selection.secondary=null;if(t==="lot")selection.primary=selection.secondary=null;if(t==="primary")selection.secondary=null;renderHierarchy()}
-function getBy(t,id){return db[cfg[t].arr].find(x=>x.id===id)}
-function addHierarchy(t,item=null,dup=false){const c=cfg[t];if(c.parent&&!selection[c.parent])return alert("SÉLECTIONNEZ D'ABORD : "+cfg[c.parent].title);openForm((item?"MODIFIER ":"AJOUTER ")+c.title,[F("code","CODE / ABRÉVIATION",dup?item.code+"-C":item?.code||""),F("name","NOM",item?.name||"","text",true),F("order","ORDRE",item?.order??"","number")],v=>{const clean={code:norm(v.code).toUpperCase(),name:norm(v.name).toUpperCase(),order:num(v.order)};if(item&&!dup)Object.assign(item,clean);else{const o={id:uid(c.prefix),...clean};if(c.parent)o[c.fk]=selection[c.parent];db[c.arr].push(o)}saveDb();renderHierarchy()})}
-function renderContext(){const p=[];if(selection.project)p.push("PROJET : "+(getBy("project",selection.project)?.code||""));if(selection.lot)p.push("LOT : "+(getBy("lot",selection.lot)?.name||""));if(selection.primary)p.push("TÂCHE PRIMAIRE : "+(getBy("primary",selection.primary)?.name||""));if(selection.secondary)p.push("TÂCHE SECONDAIRE : "+(getBy("secondary",selection.secondary)?.name||""));$("bdsContext").textContent=p.length?p.join(" | "):"SÉLECTIONNEZ UNE TÂCHE SECONDAIRE"}
-function renderBrd(){const q=norm($("brdSearch").value).toUpperCase();let rows=db.brd.filter(r=>r.secondaryId===selection.secondary);if(q)rows=rows.filter(r=>`${r.article} ${r.designation} ${r.unit}`.toUpperCase().includes(q));$("brdCount").textContent=`${rows.length} ARTICLE${rows.length>1?"S":""}`;let total=0;$("brdTable").querySelector("tbody").innerHTML=rows.length?rows.map(r=>{const m=num(r.qty)*num(r.price);total+=m;return `<tr class="data-row" data-type="brd" data-id="${r.id}"><td>${esc(r.article)}</td><td>${esc(r.designation)}</td><td>${esc(r.unit)}</td><td class="number">${fmt(r.qty)}</td><td class="number">${fmt(r.price)}</td><td class="number">${fmt(m)}</td></tr>`}).join(""):`<tr><td colspan="6" class="empty">${selection.secondary?"AUCUN ARTICLE":"SÉLECTIONNEZ UNE TÂCHE SECONDAIRE"}</td></tr>`;$("brdTotal").textContent=fmt(total);bindRows()}
-function brdForm(item=null,dup=false){if(!selection.secondary&&!item)return alert("SÉLECTIONNEZ D'ABORD UNE TÂCHE SECONDAIRE");openForm(item?"MODIFIER ARTICLE BORDEREAU":"AJOUTER ARTICLE BORDEREAU",[F("article","ARTICLE",dup?item.article+"-C":item?.article||""),F("designation","DÉSIGNATION",item?.designation||"","text",true),F("unit","UNITÉ",item?.unit||""),F("qty","QUANTITÉ",item?.qty??0,"number"),F("price","PRIX",item?.price??0,"number")],v=>{const c={article:norm(v.article),designation:norm(v.designation).toUpperCase(),unit:norm(v.unit).toUpperCase(),qty:num(v.qty),price:num(v.price)};if(item&&!dup)Object.assign(item,c);else db.brd.push({id:uid("brd"),secondaryId:selection.secondary,...c});saveDb();renderBrd()})}
-function F(name,label,value="",type="text",full=false){return{name,label,value,type,full}}
-function openForm(title,fields,onSave){$("modalTitle").textContent=title;$("modalForm").innerHTML=fields.map(x=>`<div class="field ${x.full?"full":""}"><label>${esc(x.label)}</label><input name="${x.name}" type="${x.type}" value="${esc(x.value)}" ${x.type==="number"?'step="any" inputmode="decimal"':""} required></div>`).join("")+`<div class="form-actions"><button type="button" class="secondary" id="cancelForm">ANNULER</button><button class="primary" type="submit">ENREGISTRER</button></div>`;$("modal").classList.remove("hidden");$("cancelForm").onclick=closeModal;$("modalForm").onsubmit=e=>{e.preventDefault();onSave(Object.fromEntries(new FormData(e.currentTarget).entries()));closeModal()}}
-function closeModal(){$("modal").classList.add("hidden")}
-function bindLongPress(el,ctx){const start=e=>{clearTimeout(longPressTimer);longPressTimer=setTimeout(()=>showRowMenu(e,ctx),550)},stop=()=>clearTimeout(longPressTimer);el.addEventListener("pointerdown",start);el.addEventListener("pointerup",stop);el.addEventListener("pointerleave",stop);el.addEventListener("pointercancel",stop);el.addEventListener("contextmenu",e=>{e.preventDefault();showRowMenu(e,ctx)})}
-function bindRows(){document.querySelectorAll("tr.data-row").forEach(el=>bindLongPress(el,{type:el.dataset.type,id:el.dataset.id}))}
-function showRowMenu(e,ctx){rowContext=ctx;const m=$("rowMenu");m.style.left=Math.min(e.clientX||20,window.innerWidth-200)+"px";m.style.top=Math.min(e.clientY||20,window.innerHeight-190)+"px";m.classList.remove("hidden")}
-function rowItem(c){if(c.type==="chs")return db.chs.find(x=>x.id===c.id);if(c.type==="brd")return db.brd.find(x=>x.id===c.id);return getBy(c.type,c.id)}
-function deleteRow(c){if(c.type==="chs")db.chs=db.chs.filter(x=>x.id!==c.id);else if(c.type==="brd")db.brd=db.brd.filter(x=>x.id!==c.id);else{const x=cfg[c.type];if(c.type==="project"&&db.lots.some(v=>v.projectId===c.id))return alert("SUPPRESSION IMPOSSIBLE : CE PROJET CONTIENT DES LOTS.");if(c.type==="lot"&&db.primaries.some(v=>v.lotId===c.id))return alert("SUPPRESSION IMPOSSIBLE : CE LOT CONTIENT DES TÂCHES PRIMAIRES.");if(c.type==="primary"&&db.secondaries.some(v=>v.primaryId===c.id))return alert("SUPPRESSION IMPOSSIBLE : CETTE TÂCHE PRIMAIRE CONTIENT DES TÂCHES SECONDAIRES.");if(c.type==="secondary"&&db.brd.some(v=>v.secondaryId===c.id))return alert("SUPPRESSION IMPOSSIBLE : CETTE TÂCHE SECONDAIRE CONTIENT DES ARTICLES.");db[x.arr]=db[x.arr].filter(v=>v.id!==c.id);if(selection[c.type]===c.id)selection[c.type]=null}saveDb();renderChs();renderHierarchy()}
-$("rowMenu").addEventListener("click",e=>{const a=e.target.dataset.action;if(!a||!rowContext)return;const item=rowItem(rowContext);$("rowMenu").classList.add("hidden");if(a==="info")alert(Object.entries(item).filter(([k])=>k!=="id"&&!k.endsWith("Id")).map(([k,v])=>k.toUpperCase()+" : "+v).join("\n"));if(a==="delete"&&confirm("CONFIRMER LA SUPPRESSION ?"))deleteRow(rowContext);if(a==="edit"){if(rowContext.type==="chs")chsForm(item);else if(rowContext.type==="brd")brdForm(item);else addHierarchy(rowContext.type,item)}if(a==="duplicate"){if(rowContext.type==="chs")chsForm(item,true);else if(rowContext.type==="brd")brdForm(item,true);else addHierarchy(rowContext.type,item,true)}});
-document.addEventListener("DOMContentLoaded",()=>{initNav();$("chsSearch").addEventListener("input",renderChs);$("brdSearch").addEventListener("input",renderBrd);$("addChsBtn").onclick=()=>chsForm();$("addBrdBtn").onclick=()=>brdForm();$("modalClose").onclick=closeModal;$("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});document.addEventListener("click",e=>{if(!e.target.closest("#rowMenu"))$("rowMenu").classList.add("hidden")});document.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>addHierarchy(b.dataset.add));document.querySelectorAll("[data-search]").forEach(i=>i.addEventListener("input",renderHierarchy));renderChs();renderHierarchy()});
+const API_URL = "https://script.google.com/macros/s/AKfycbzFgUloyiRJe-QmR7nRqJ4bfWqvfA_6LSgotJRrRt87yeRfWtdY7nxXMR9avafSJUPg4Q/exec";
+const API_KEY = "SVI-H88-2026-ERP";
+const $ = id => document.getElementById(id);
+
+let db = { chs: [], projects: [], lots: [], primaries: [], secondaries: [], brd: [] };
+let selection = { project: null, lot: null, primary: null, secondary: null };
+let rowContext = null;
+let longPressTimer = null;
+
+function normalise(v){ return String(v ?? "").trim(); }
+function num(v){ const n=Number(String(v??0).replace(/\s/g,"").replace(",",".")); return Number.isFinite(n)?n:0; }
+function money(v){ return num(v).toLocaleString("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function esc(v){ return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m])); }
+
+async function apiGet(action="bootstrap"){
+  const url = `${API_URL}?key=${encodeURIComponent(API_KEY)}&action=${encodeURIComponent(action)}&_=${Date.now()}`;
+  const r = await fetch(url);
+  const data = await r.json();
+  if(!data.ok) throw new Error(data.error || "ERREUR API");
+  return data;
+}
+
+async function apiPost(action, data={}){
+  const r = await fetch(API_URL,{
+    method:"POST",
+    body:JSON.stringify({key:API_KEY,action,...data})
+  });
+  const out = await r.json();
+  if(!out.ok) throw new Error(out.error || "ERREUR API");
+  return out;
+}
+
+function mapBootstrap(data){
+  db.chs=(data.chs||[]).map(x=>({
+    id:x.ID, article:x.ARTICLE, designation:x.DESIGNATION, unit:x.UNITE, pcs:num(x.PCS)
+  }));
+
+  const all=(data.bds||[]).filter(x=>String(x.ACTIF||"OUI").toUpperCase()!=="NON");
+  db.projects=all.filter(x=>x.TYPE==="PROJECT").map(x=>({id:x.ID,code:x.CODE,name:x.NOM,order:num(x.ORDRE)}));
+  db.lots=all.filter(x=>x.TYPE==="LOT").map(x=>({id:x.ID,projectId:x.PARENT_ID,code:x.CODE,name:x.NOM,order:num(x.ORDRE)}));
+  db.primaries=all.filter(x=>x.TYPE==="PRIMARY").map(x=>({id:x.ID,lotId:x.PARENT_ID,code:x.CODE,name:x.NOM,order:num(x.ORDRE)}));
+  db.secondaries=all.filter(x=>x.TYPE==="SECONDARY").map(x=>({id:x.ID,primaryId:x.PARENT_ID,code:x.CODE,name:x.NOM,order:num(x.ORDRE)}));
+
+  db.brd=(data.brd||[]).filter(x=>String(x.ACTIF||"OUI").toUpperCase()!=="NON").map(x=>({
+    id:x.ID, secondaryId:x.TACHE_SECONDAIRE_ID, article:x.ARTICLE,
+    designation:x.DESIGNATION, unit:x.UNITE, qty:num(x.QUANTITE), price:num(x.PRIX)
+  }));
+}
+
+async function reloadAll(){
+  try{
+    const data=await apiGet("bootstrap");
+    mapBootstrap(data);
+    renderChs();
+    renderHierarchy();
+  }catch(e){
+    alert("CONNEXION GOOGLE SHEETS IMPOSSIBLE : "+e.message);
+  }
+}
+
+function initNav(){
+  document.querySelectorAll(".nav-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      document.querySelectorAll(".nav-btn").forEach(x=>x.classList.remove("active"));
+      document.querySelectorAll(".view").forEach(x=>x.classList.remove("active-view"));
+      btn.classList.add("active");
+      $(btn.dataset.view).classList.add("active-view");
+      $("pageSubtitle").textContent = btn.dataset.view==="chs" ? "VERSION 2 â CHARGES STANDARDS" :
+        btn.dataset.view==="bds" ? "VERSION 2 â DÃCOMPOSITION" : "VERSION 2 â BUDGET";
+    });
+  });
+}
+
+/* ========================= CHS ========================= */
+function renderChs(){
+  const q=normalise($("chsSearch").value).toUpperCase();
+  const rows=db.chs.filter(r=>[r.article,r.designation,r.unit].join(" ").toUpperCase().includes(q));
+  $("chsCount").textContent=`${rows.length} CHARGE${rows.length>1?"S":""}`;
+  $("chsTable").querySelector("tbody").innerHTML=rows.length?rows.map(r=>`
+    <tr class="data-row" data-type="chs" data-id="${r.id}">
+      <td>${esc(r.article)}</td><td>${esc(r.designation)}</td><td>${esc(r.unit)}</td>
+      <td class="number yellow">${money(r.pcs)}</td>
+    </tr>`).join(""):`<tr><td colspan="4" class="empty">AUCUNE CHARGE STANDARD</td></tr>`;
+  bindRows();
+}
+
+function chsForm(item=null, duplicate=false){
+  openForm(item&&!duplicate?"MODIFIER CHARGE STANDARD":"AJOUTER CHARGE STANDARD",[
+    f("article","ARTICLE",duplicate?`${item.article}-COPIE`:item?.article||""),
+    f("designation","DÃSIGNATION",item?.designation||"","text",true),
+    f("unit","UNITÃ",item?.unit||""),
+    f("pcs","PCS",item?.pcs??"","number")
+  ], async values=>{
+    await apiPost("saveCHS",{data:{
+      ID: item&&!duplicate ? item.id : "",
+      ARTICLE:values.article,
+      DESIGNATION:values.designation,
+      UNITE:values.unit,
+      PCS:values.pcs
+    }});
+    await reloadAll();
+  });
+}
+
+/* ========================= BDS ========================= */
+const cfg={
+  project:{arr:"projects",list:"projectList",parent:null,title:"PROJET",type:"PROJECT"},
+  lot:{arr:"lots",list:"lotList",parent:"project",fk:"projectId",title:"LOT",type:"LOT"},
+  primary:{arr:"primaries",list:"primaryList",parent:"lot",fk:"lotId",title:"TÃCHE PRIMAIRE",type:"PRIMARY"},
+  secondary:{arr:"secondaries",list:"secondaryList",parent:"primary",fk:"primaryId",title:"TÃCHE SECONDAIRE",type:"SECONDARY"}
+};
+
+function rowsFor(type){
+  const c=cfg[type];
+  let rows=db[c.arr];
+  if(c.parent) rows=rows.filter(r=>r[c.fk]===selection[c.parent]);
+  const search=document.querySelector(`[data-search="${type}"]`);
+  const q=normalise(search?.value).toUpperCase();
+  if(q) rows=rows.filter(r=>`${r.code} ${r.name}`.toUpperCase().includes(q));
+  return [...rows].sort((a,b)=>(a.order||0)-(b.order||0)||a.name.localeCompare(b.name,"fr"));
+}
+
+function renderHierarchy(){
+  ["project","lot","primary","secondary"].forEach(type=>{
+    const rows=rowsFor(type), el=$(cfg[type].list);
+    el.innerHTML=rows.length?rows.map(r=>`
+      <div class="list-item ${selection[type]===r.id?"selected":""}" data-select="${type}" data-id="${r.id}">
+        <span class="code">${esc(r.code)}</span><span class="name">${esc(r.name)}</span>
+      </div>`).join(""):`<div class="empty">AUCUN ÃLÃMENT</div>`;
+  });
+
+  document.querySelectorAll("[data-select]").forEach(el=>{
+    el.onclick=()=>selectHierarchy(el.dataset.select,el.dataset.id);
+    bindLongPress(el,{type:el.dataset.select,id:el.dataset.id});
+  });
+
+  renderContext();
+  renderBrd();
+}
+
+function selectHierarchy(type,id){
+  selection[type]=id;
+  if(type==="project"){selection.lot=selection.primary=selection.secondary=null;}
+  if(type==="lot"){selection.primary=selection.secondary=null;}
+  if(type==="primary"){selection.secondary=null;}
+  renderHierarchy();
+}
+
+function getBy(type,id){
+  return db[cfg[type].arr].find(x=>x.id===id);
+}
+
+function addHierarchy(type,item=null,duplicate=false){
+  const c=cfg[type];
+  if(c.parent&&!selection[c.parent]) return alert(`SÃLECTIONNEZ D'ABORD : ${cfg[c.parent].title}`);
+
+  openForm(item&&!duplicate?"MODIFIER "+c.title:"AJOUTER "+c.title,[
+    f("code","CODE / ABRÃVIATION",duplicate?`${item.code}-C`:item?.code||""),
+    f("name","NOM",item?.name||"","text",true),
+    f("order","ORDRE",item?.order??"","number")
+  ],async values=>{
+    await apiPost("saveBDS",{data:{
+      ID:item&&!duplicate?item.id:"",
+      TYPE:c.type,
+      PARENT_ID:c.parent?selection[c.parent]:"",
+      CODE:values.code,
+      NOM:values.name,
+      ORDRE:values.order,
+      ACTIF:"OUI"
+    }});
+    await reloadAll();
+  });
+}
+
+function renderContext(){
+  const parts=[];
+  if(selection.project) parts.push(`PROJET : ${getBy("project",selection.project)?.code||""}`);
+  if(selection.lot) parts.push(`LOT : ${getBy("lot",selection.lot)?.name||""}`);
+  if(selection.primary) parts.push(`TÃCHE PRIMAIRE : ${getBy("primary",selection.primary)?.name||""}`);
+  if(selection.secondary) parts.push(`TÃCHE SECONDAIRE : ${getBy("secondary",selection.secondary)?.name||""}`);
+  $("bdsContext").textContent=parts.length?parts.join(" | "):"SÃLECTIONNEZ UNE TÃCHE SECONDAIRE";
+}
+
+function renderBrd(){
+  const q=normalise($("brdSearch").value).toUpperCase();
+  let rows=db.brd.filter(r=>r.secondaryId===selection.secondary);
+  if(q) rows=rows.filter(r=>`${r.article} ${r.designation} ${r.unit}`.toUpperCase().includes(q));
+
+  $("brdCount").textContent=`${rows.length} ARTICLE${rows.length>1?"S":""}`;
+
+  let total=0;
+  $("brdTable").querySelector("tbody").innerHTML=rows.length?rows.map(r=>{
+    const amount=num(r.qty)*num(r.price); total+=amount;
+    return `<tr class="data-row" data-type="brd" data-id="${r.id}">
+      <td>${esc(r.article)}</td><td>${esc(r.designation)}</td><td>${esc(r.unit)}</td>
+      <td class="number">${money(r.qty)}</td><td class="number">${money(r.price)}</td>
+      <td class="number">${money(amount)}</td></tr>`;
+  }).join(""):`<tr><td colspan="6" class="empty">${selection.secondary?"AUCUN ARTICLE":"SÃLECTIONNEZ UNE TÃCHE SECONDAIRE"}</td></tr>`;
+
+  $("brdTotal").textContent=money(total);
+  bindRows();
+}
+
+function brdForm(item=null,duplicate=false){
+  if(!selection.secondary&&!item) return alert("SÃLECTIONNEZ D'ABORD UNE TÃCHE SECONDAIRE");
+
+  openForm(item&&!duplicate?"MODIFIER ARTICLE BORDEREAU":"AJOUTER ARTICLE BORDEREAU",[
+    f("article","ARTICLE",duplicate?`${item.article}-C`:item?.article||""),
+    f("designation","DÃSIGNATION",item?.designation||"","text",true),
+    f("unit","UNITÃ",item?.unit||""),
+    f("qty","QUANTITÃ",item?.qty??0,"number"),
+    f("price","PRIX",item?.price??0,"number")
+  ],async values=>{
+    await apiPost("saveBRD",{data:{
+      ID:item&&!duplicate?item.id:"",
+      TACHE_SECONDAIRE_ID:selection.secondary,
+      ARTICLE:values.article,
+      DESIGNATION:values.designation,
+      UNITE:values.unit,
+      QUANTITE:values.qty,
+      PRIX:values.price,
+      ACTIF:"OUI"
+    }});
+    await reloadAll();
+  });
+}
+
+/* ========================= FORMULAIRES ========================= */
+function f(name,label,value="",type="text",full=false){
+  return {name,label,value,type,full};
+}
+
+function openForm(title,fields,onSave){
+  $("modalTitle").textContent=title;
+
+  $("modalForm").innerHTML=fields.map(x=>`
+    <div class="field ${x.full?"full":""}">
+      <label>${esc(x.label)}</label>
+      <input name="${x.name}" type="${x.type}" value="${esc(x.value)}"
+        ${x.type==="number"?'step="any" inputmode="decimal"':""} required>
+    </div>`).join("")+`
+    <div class="form-actions">
+      <button type="button" class="secondary" id="cancelForm">ANNULER</button>
+      <button class="primary" type="submit">ENREGISTRER</button>
+    </div>`;
+
+  $("modal").classList.remove("hidden");
+  $("cancelForm").onclick=closeModal;
+
+  $("modalForm").onsubmit=async e=>{
+    e.preventDefault();
+    const btn=e.currentTarget.querySelector('button[type="submit"]');
+    btn.disabled=true;
+    btn.textContent="ENREGISTREMENT...";
+
+    try{
+      await onSave(Object.fromEntries(new FormData(e.currentTarget).entries()));
+      closeModal();
+    }catch(err){
+      alert(err.message||String(err));
+      btn.disabled=false;
+      btn.textContent="ENREGISTRER";
+    }
+  };
+}
+
+function closeModal(){
+  $("modal").classList.add("hidden");
+}
+
+/* ========================= APPUI LONG ========================= */
+function bindLongPress(el,ctx){
+  const start=e=>{
+    clearTimeout(longPressTimer);
+    longPressTimer=setTimeout(()=>showRowMenu(e,ctx),550);
+  };
+  const stop=()=>clearTimeout(longPressTimer);
+
+  el.addEventListener("pointerdown",start);
+  el.addEventListener("pointerup",stop);
+  el.addEventListener("pointerleave",stop);
+  el.addEventListener("pointercancel",stop);
+  el.addEventListener("contextmenu",e=>{
+    e.preventDefault();
+    showRowMenu(e,ctx);
+  });
+}
+
+function bindRows(){
+  document.querySelectorAll("tr.data-row").forEach(el=>{
+    bindLongPress(el,{type:el.dataset.type,id:el.dataset.id});
+  });
+}
+
+function showRowMenu(e,ctx){
+  rowContext=ctx;
+  const menu=$("rowMenu");
+  menu.style.left=Math.min(e.clientX||20,window.innerWidth-200)+"px";
+  menu.style.top=Math.min(e.clientY||20,window.innerHeight-190)+"px";
+  menu.classList.remove("hidden");
+}
+
+function rowItem(ctx){
+  if(ctx.type==="chs") return db.chs.find(x=>x.id===ctx.id);
+  if(ctx.type==="brd") return db.brd.find(x=>x.id===ctx.id);
+  return getBy(ctx.type,ctx.id);
+}
+
+async function deleteRow(ctx){
+  if(ctx.type==="chs") await apiPost("deleteCHS",{id:ctx.id});
+  else if(ctx.type==="brd") await apiPost("deleteBRD",{id:ctx.id});
+  else await apiPost("deleteBDS",{id:ctx.id});
+
+  if(selection[ctx.type]===ctx.id) selection[ctx.type]=null;
+  await reloadAll();
+}
+
+function infoRow(ctx){
+  const x=rowItem(ctx);
+  if(!x) return;
+
+  const lines=Object.entries(x)
+    .filter(([k])=>k!=="id"&&!k.endsWith("Id"))
+    .map(([k,v])=>`${k.toUpperCase()} : ${v}`)
+    .join("\n");
+
+  alert(lines);
+}
+
+$("rowMenu").addEventListener("click",async e=>{
+  const action=e.target.dataset.action;
+  if(!action||!rowContext) return;
+
+  const item=rowItem(rowContext);
+  $("rowMenu").classList.add("hidden");
+
+  try{
+    if(action==="info") infoRow(rowContext);
+
+    if(action==="delete"&&confirm("CONFIRMER LA SUPPRESSION ?")){
+      await deleteRow(rowContext);
+    }
+
+    if(action==="edit"){
+      if(rowContext.type==="chs") chsForm(item);
+      else if(rowContext.type==="brd") brdForm(item);
+      else addHierarchy(rowContext.type,item);
+    }
+
+    if(action==="duplicate"){
+      if(rowContext.type==="chs") chsForm(item,true);
+      else if(rowContext.type==="brd") brdForm(item,true);
+      else addHierarchy(rowContext.type,item,true);
+    }
+  }catch(err){
+    alert(err.message||String(err));
+  }
+});
+
+/* ========================= DÃMARRAGE ========================= */
+document.addEventListener("DOMContentLoaded",async ()=>{
+  initNav();
+
+  $("chsSearch").addEventListener("input",renderChs);
+  $("brdSearch").addEventListener("input",renderBrd);
+
+  $("addChsBtn").onclick=()=>chsForm();
+  $("addBrdBtn").onclick=()=>brdForm();
+
+  $("modalClose").onclick=closeModal;
+  $("modal").addEventListener("click",e=>{
+    if(e.target===$("modal")) closeModal();
+  });
+
+  document.addEventListener("click",e=>{
+    if(!e.target.closest("#rowMenu")) $("rowMenu").classList.add("hidden");
+  });
+
+  document.querySelectorAll("[data-add]").forEach(b=>{
+    b.onclick=()=>addHierarchy(b.dataset.add);
+  });
+
+  document.querySelectorAll("[data-search]").forEach(i=>{
+    i.addEventListener("input",renderHierarchy);
+  });
+
+  await reloadAll();
+});
