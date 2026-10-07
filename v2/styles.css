@@ -706,3 +706,26 @@ tfoot td {
     font-size: 9px;
   }
 }
+
+
+/* =========================================================
+   BDG — LISTE NOVAPP (MAQUETTE VALIDÉE)
+   ========================================================= */
+#bdg { margin: -14px; }
+.novapp-list-shell { min-height: calc(100vh - 64px); background:#fff; color:#4b5565; }
+.novapp-list-titlebar { height:54px; display:flex; align-items:center; gap:18px; padding:0 10px; border-bottom:1px solid #e1e5eb; background:#fbfcfd; }
+.novapp-list-titlebar h1 { margin:0; flex:1; font-size:18px; font-weight:800; color:#252c38; }
+.novapp-menu,.novapp-list-actions button { width:36px; height:36px; border:1px solid #dfe4eb; border-radius:10px; background:#fff; color:#3f4856; font-size:18px; display:inline-flex; align-items:center; justify-content:center; padding:0; text-transform:none; }
+.novapp-list-actions { display:flex; gap:8px; }
+.novapp-budget-table-wrap { margin:30px 28px; overflow:auto; border:1px solid #e1e5eb; border-radius:12px; background:#fff; }
+.novapp-budget-table { min-width:1080px; border-collapse:collapse; }
+.novapp-budget-table th { height:34px; padding:0 10px; background:#f3f4f6; border-right:1px solid #e1e5eb; border-bottom:1px solid #dfe3e8; color:#596270; font-size:10px; font-weight:800; vertical-align:middle; }
+.novapp-budget-table td { height:31px; padding:0 10px; border-right:1px solid #e5e8ed; border-bottom:1px solid #e5e8ed; color:#4b5563; font-size:10px; font-weight:700; vertical-align:middle; }
+.novapp-budget-table th span { float:right; color:#7b8491; font-size:10px; }
+.novapp-budget-table tbody tr:hover { background:#f8fafc; }
+.novapp-budget-table .budget-link { color:#46505f; text-decoration:underline; text-underline-offset:2px; cursor:pointer; font-weight:800; }
+.novapp-budget-table .preview-head { width:48px; }
+.novapp-budget-table .preview-cell { width:48px; text-align:center; padding:0; }
+.novapp-budget-table .paper-preview { border:0; background:transparent; width:30px; height:30px; padding:0; color:#5f6875; font-size:17px; text-transform:none; cursor:pointer; }
+.novapp-budget-table .empty { height:72px; text-align:center; color:#8a94a5; font-weight:500; }
+@media(max-width:650px){ #bdg{margin:-14px;} .novapp-budget-table-wrap{margin:16px 10px;} .novapp-list-titlebar h1{font-size:15px;} }
