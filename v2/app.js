@@ -3091,7 +3091,27 @@ function printBudgetPDF(ref) {
     return;
   }
 
-  console.log("PDF BUDGET :", ref, budget);
+  const printWindow = window.open("", "_blank");
+
+if (!printWindow) {
+  alert("Impossible d'ouvrir le document PDF.");
+  return;
+}
+
+printWindow.document.write(`
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Budget ${esc(ref)}</title>
+    </head>
+    <body>
+      <h1>Budget ${esc(ref)}</h1>
+    </body>
+  </html>
+`);
+
+printWindow.document.close();
 }
 
 /* =========================================================
