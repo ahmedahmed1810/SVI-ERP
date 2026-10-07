@@ -3070,13 +3070,7 @@ function renderBudgetList() {
 
     if (printButton) {
       event.preventDefault();
-
-   window.print();
-
-      openBudgetDetail(
-        printButton.dataset
-          .printBudget
-      );
+       printBudgetPDF(printButton.dataset.printBudget);
     }
   };
 
@@ -3086,6 +3080,20 @@ function renderBudgetList() {
 
   renderRows();
 }
+
+function printBudgetPDF(ref) {
+  const budget = bdgRows.filter(
+    (row, index) => budgetReference(row, index) === ref
+  );
+
+  if (!budget.length) {
+    alert("Budget introuvable.");
+    return;
+  }
+
+  console.log("PDF BUDGET :", ref, budget);
+}
+
 /* =========================================================
    BDG — SELECTEURS
    ========================================================= */
