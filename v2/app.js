@@ -3,6 +3,10 @@ const API_KEY = "SVI-H88-2026-ERP";
 
 const $ = id => document.getElementById(id);
 
+/* =========================================================
+   DONNEES CHS / BDS
+   ========================================================= */
+
 let db = {
   chs: [],
   projects: [],
@@ -26,6 +30,15 @@ let brdCache = new Map();
 let brdRequestId = 0;
 
 /* =========================================================
+   DONNEES BDG
+   ========================================================= */
+
+let bdgRows = [];
+let bdgLoaded = false;
+let bdgLoading = false;
+let currentAnalysis = "designation";
+
+/* =========================================================
    OUTILS
    ========================================================= */
 
@@ -44,13 +57,10 @@ function num(v) {
 }
 
 function money(v) {
-  return num(v).toLocaleString(
-    "fr-FR",
-    {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }
-  );
+  return num(v).toLocaleString("fr-FR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 }
 
 function esc(v) {
@@ -66,8 +76,26 @@ function esc(v) {
   );
 }
 
+function unique(values) {
+  return [
+    ...new Set(
+      values
+        .map(v => String(v ?? "").trim())
+        .filter(Boolean)
+    )
+  ];
+}
+
+function sum(rows, field) {
+  return rows.reduce(
+    (total, row) =>
+      total + num(row[field]),
+    0
+  );
+}
+
 /* =========================================================
-   API GET
+   API GET CHS / BDS
    ========================================================= */
 
 async function apiGet(action = "bootstrap", params = {}) {
@@ -107,6 +135,41 @@ async function apiGet(action = "bootstrap", params = {}) {
 }
 
 /* =========================================================
+   API GET BDG
+   L'API HISTORIQUE UTILISE L'ABSENCE D'ACTION
+   ========================================================= */
+
+async function apiGetBDG() {
+  const url =
+    API_URL +
+    "?key=" +
+    encodeURIComponent(API_KEY) +
+    "&_=" +
+    Date.now();
+
+  const r = await fetch(url, {
+    method: "GET",
+    cache: "no-store"
+  });
+
+  if (!r.ok) {
+    throw new Error(
+      "ERREUR HTTP " + r.status
+    );
+  }
+
+  const data = await r.json();
+
+  if (!data.ok) {
+    throw new Error(
+      data.error || "ERREUR API BDG"
+    );
+  }
+
+  return data;
+}
+
+/* =========================================================
    API POST
    ========================================================= */
 
@@ -132,7 +195,7 @@ async function apiPost(action, data = {}) {
 }
 
 /* =========================================================
-   BOOTSTRAP
+   BOOTSTRAP CHS / BDS
    ========================================================= */
 
 function mapBootstrap(data) {
@@ -209,13 +272,10 @@ function mapBootstrap(data) {
   brdCache.clear();
 }
 
-/* =========================================================
-   CHARGEMENT INITIAL
-   ========================================================= */
-
 async function reloadAll() {
   try {
-    const data = await apiGet("bootstrap");
+    const data =
+      await apiGet("bootstrap");
 
     mapBootstrap(data);
 
@@ -231,7 +291,7 @@ async function reloadAll() {
 }
 
 /* =========================================================
-   CHARGEMENT BRD A LA DEMANDE
+   BRD A LA DEMANDE
    ========================================================= */
 
 async function loadBrdForSecondary(secondaryId) {
@@ -242,12 +302,15 @@ async function loadBrdForSecondary(secondaryId) {
   }
 
   if (brdCache.has(secondaryId)) {
-    db.brd = brdCache.get(secondaryId);
+    db.brd =
+      brdCache.get(secondaryId);
+
     renderBrd();
     return;
   }
 
-  const requestId = ++brdRequestId;
+  const requestId =
+    ++brdRequestId;
 
   db.brd = [];
 
@@ -267,12 +330,11 @@ async function loadBrdForSecondary(secondaryId) {
   $("brdTotal").textContent =
     "0,00";
 
-  const data = await apiGet(
-    "brd",
-    {
-      secondaryId
-    }
-  );
+  const data =
+    await apiGet(
+      "brd",
+      { secondaryId }
+    );
 
   if (
     requestId !== brdRequestId ||
@@ -281,8 +343,8 @@ async function loadBrdForSecondary(secondaryId) {
     return;
   }
 
-  const rows = (data.brd || [])
-    .map(x => ({
+  const rows =
+    (data.brd || []).map(x => ({
       id: x.ID,
       secondaryId:
         x.TACHE_SECONDAIRE_ID,
@@ -309,7 +371,7 @@ async function loadBrdForSecondary(secondaryId) {
 }
 
 /* =========================================================
-   MISE A JOUR LOCALE CHS
+   MISES A JOUR LOCALES
    ========================================================= */
 
 function upsertLocalCHS(x) {
@@ -321,9 +383,10 @@ function upsertLocalCHS(x) {
     pcs: num(x.PCS)
   };
 
-  const i = db.chs.findIndex(
-    r => r.id === item.id
-  );
+  const i =
+    db.chs.findIndex(
+      r => r.id === item.id
+    );
 
   if (i >= 0) {
     db.chs[i] = item;
@@ -332,13 +395,10 @@ function upsertLocalCHS(x) {
   }
 }
 
-/* =========================================================
-   MISE A JOUR LOCALE BDS
-   ========================================================= */
-
 function upsertLocalBDS(x) {
   const type =
     String(x.TYPE || "")
+      .trim()
       .toUpperCase();
 
   let arrName = "";
@@ -394,9 +454,10 @@ function upsertLocalBDS(x) {
 
   const arr = db[arrName];
 
-  const i = arr.findIndex(
-    r => r.id === item.id
-  );
+  const i =
+    arr.findIndex(
+      r => r.id === item.id
+    );
 
   if (i >= 0) {
     arr[i] = item;
@@ -404,10 +465,6 @@ function upsertLocalBDS(x) {
     arr.push(item);
   }
 }
-
-/* =========================================================
-   MISE A JOUR LOCALE BRD
-   ========================================================= */
 
 function upsertLocalBRD(x) {
   const item = {
@@ -426,9 +483,10 @@ function upsertLocalBRD(x) {
       num(x.PRIX)
   };
 
-  const i = db.brd.findIndex(
-    r => r.id === item.id
-  );
+  const i =
+    db.brd.findIndex(
+      r => r.id === item.id
+    );
 
   if (i >= 0) {
     db.brd[i] = item;
@@ -455,9 +513,7 @@ function removeLocalBDS(type, id) {
         .filter(
           x => x.projectId === id
         )
-        .map(
-          x => x.id
-        );
+        .map(x => x.id);
 
     const primaryIds =
       db.primaries
@@ -467,9 +523,7 @@ function removeLocalBDS(type, id) {
               x.lotId
             )
         )
-        .map(
-          x => x.id
-        );
+        .map(x => x.id);
 
     const secondaryIds =
       db.secondaries
@@ -479,13 +533,11 @@ function removeLocalBDS(type, id) {
               x.primaryId
             )
         )
-        .map(
-          x => x.id
-        );
+        .map(x => x.id);
 
     secondaryIds.forEach(
-      id =>
-        brdCache.delete(id)
+      sid =>
+        brdCache.delete(sid)
     );
 
     db.brd =
@@ -541,9 +593,7 @@ function removeLocalBDS(type, id) {
         .filter(
           x => x.lotId === id
         )
-        .map(
-          x => x.id
-        );
+        .map(x => x.id);
 
     const secondaryIds =
       db.secondaries
@@ -553,13 +603,11 @@ function removeLocalBDS(type, id) {
               x.primaryId
             )
         )
-        .map(
-          x => x.id
-        );
+        .map(x => x.id);
 
     secondaryIds.forEach(
-      id =>
-        brdCache.delete(id)
+      sid =>
+        brdCache.delete(sid)
     );
 
     db.brd =
@@ -606,13 +654,11 @@ function removeLocalBDS(type, id) {
         .filter(
           x => x.primaryId === id
         )
-        .map(
-          x => x.id
-        );
+        .map(x => x.id);
 
     secondaryIds.forEach(
-      id =>
-        brdCache.delete(id)
+      sid =>
+        brdCache.delete(sid)
     );
 
     db.brd =
@@ -657,8 +703,7 @@ function removeLocalBDS(type, id) {
 
     db.secondaries =
       db.secondaries.filter(
-        x =>
-          x.id !== id
+        x => x.id !== id
       );
 
     if (
@@ -677,9 +722,11 @@ function initNav() {
   document
     .querySelectorAll(".nav-btn")
     .forEach(btn => {
+
       btn.addEventListener(
         "click",
-        () => {
+        async () => {
+
           document
             .querySelectorAll(".nav-btn")
             .forEach(
@@ -702,10 +749,14 @@ function initNav() {
             "active"
           );
 
-          $(btn.dataset.view)
-            .classList.add(
+          const view =
+            $(btn.dataset.view);
+
+          if (view) {
+            view.classList.add(
               "active-view"
             );
+          }
 
           $("pageSubtitle").textContent =
             btn.dataset.view === "chs"
@@ -713,6 +764,12 @@ function initNav() {
               : btn.dataset.view === "bds"
                 ? "VERSION 2 — DÉCOMPOSITION"
                 : "VERSION 2 — BUDGET";
+
+          if (
+            btn.dataset.view === "bdg"
+          ) {
+            await ensureBDGLoaded();
+          }
         }
       );
     });
@@ -743,7 +800,9 @@ function renderChs() {
 
   $("chsCount").textContent =
     `${rows.length} CHARGE${
-      rows.length > 1 ? "S" : ""
+      rows.length > 1
+        ? "S"
+        : ""
     }`;
 
   $("chsTable")
@@ -757,9 +816,18 @@ function renderChs() {
                 data-type="chs"
                 data-id="${esc(r.id)}"
               >
-                <td>${esc(r.article)}</td>
-                <td>${esc(r.designation)}</td>
-                <td>${esc(r.unit)}</td>
+                <td>
+                  ${esc(r.article)}
+                </td>
+
+                <td>
+                  ${esc(r.designation)}
+                </td>
+
+                <td>
+                  ${esc(r.unit)}
+                </td>
+
                 <td class="number yellow">
                   ${money(r.pcs)}
                 </td>
@@ -779,10 +847,6 @@ function renderChs() {
 
   bindRows();
 }
-
-/* =========================================================
-   FORMULAIRE CHS
-   ========================================================= */
 
 function chsForm(
   item = null,
@@ -900,10 +964,6 @@ const cfg = {
   }
 };
 
-/* =========================================================
-   LIGNES BDS
-   ========================================================= */
-
 function rowsFor(type) {
   const c =
     cfg[type];
@@ -944,20 +1004,20 @@ function rowsFor(type) {
     (a, b) =>
       (a.order || 0) -
         (b.order || 0) ||
-      a.name.localeCompare(
-        b.name,
-        "fr"
-      )
+      String(a.name || "")
+        .localeCompare(
+          String(b.name || ""),
+          "fr"
+        )
   );
 }
 
-/* =========================================================
-   AFFICHAGE OPTIMISE D'UNE COLONNE
-   ========================================================= */
-
 function renderHierarchyColumn(type) {
-  const rows = rowsFor(type);
-  const el = $(cfg[type].list);
+  const rows =
+    rowsFor(type);
+
+  const el =
+    $(cfg[type].list);
 
   el.innerHTML =
     rows.length
@@ -989,8 +1049,11 @@ function renderHierarchyColumn(type) {
       `;
 
   el
-    .querySelectorAll("[data-select]")
+    .querySelectorAll(
+      "[data-select]"
+    )
     .forEach(item => {
+
       item.onclick =
         () =>
           selectHierarchy(
@@ -1010,10 +1073,6 @@ function renderHierarchyColumn(type) {
     });
 }
 
-/* =========================================================
-   AFFICHAGE COMPLET HIERARCHIE
-   ========================================================= */
-
 function renderHierarchy() {
   renderHierarchyColumn("project");
   renderHierarchyColumn("lot");
@@ -1024,27 +1083,22 @@ function renderHierarchy() {
   renderBrd();
 }
 
-/* =========================================================
-   MISE A JOUR VISUELLE DE LA SELECTION
-   ========================================================= */
-
 function updateSelectedItem(type, id) {
   const list =
     $(cfg[type].list);
 
   list
-    .querySelectorAll(".list-item")
+    .querySelectorAll(
+      ".list-item"
+    )
     .forEach(el => {
+
       el.classList.toggle(
         "selected",
         el.dataset.id === id
       );
     });
 }
-
-/* =========================================================
-   SELECTION HIERARCHIE OPTIMISEE
-   ========================================================= */
 
 async function selectHierarchy(
   type,
@@ -1107,7 +1161,9 @@ async function selectHierarchy(
       id
     );
 
-    renderHierarchyColumn("secondary");
+    renderHierarchyColumn(
+      "secondary"
+    );
 
     renderContext();
     renderBrd();
@@ -1156,10 +1212,6 @@ async function selectHierarchy(
   }
 }
 
-/* =========================================================
-   RECHERCHE OBJET BDS
-   ========================================================= */
-
 function getBy(type, id) {
   return db[
     cfg[type].arr
@@ -1167,10 +1219,6 @@ function getBy(type, id) {
     x => x.id === id
   );
 }
-
-/* =========================================================
-   AJOUT / MODIFICATION BDS
-   ========================================================= */
 
 function addHierarchy(
   type,
@@ -1266,10 +1314,6 @@ function addHierarchy(
   );
 }
 
-/* =========================================================
-   CONTEXTE BDS
-   ========================================================= */
-
 function renderContext() {
   const parts = [];
 
@@ -1317,16 +1361,11 @@ function renderContext() {
     );
   }
 
-  $("bdsContext")
-    .textContent =
-      parts.length
-        ? parts.join(" | ")
-        : "SÉLECTIONNEZ UNE TÂCHE SECONDAIRE";
+  $("bdsContext").textContent =
+    parts.length
+      ? parts.join(" | ")
+      : "SÉLECTIONNEZ UNE TÂCHE SECONDAIRE";
 }
-
-/* =========================================================
-   AFFICHAGE BRD
-   ========================================================= */
 
 function renderBrd() {
   const q =
@@ -1365,6 +1404,7 @@ function renderBrd() {
     .innerHTML =
       rows.length
         ? rows.map(r => {
+
             const amount =
               num(r.qty) *
               num(r.price);
@@ -1418,16 +1458,11 @@ function renderBrd() {
           </tr>
         `;
 
-  $("brdTotal")
-    .textContent =
-      money(total);
+  $("brdTotal").textContent =
+    money(total);
 
   bindRows();
 }
-
-/* =========================================================
-   FORMULAIRE BRD
-   ========================================================= */
 
 function brdForm(
   item = null,
@@ -1530,7 +1565,826 @@ function brdForm(
 }
 
 /* =========================================================
-   FORMULAIRES
+   BDG — CHARGEMENT
+   ========================================================= */
+
+async function ensureBDGLoaded() {
+  if (
+    bdgLoaded ||
+    bdgLoading
+  ) {
+    return;
+  }
+
+  bdgLoading = true;
+
+  try {
+    setBDGLoadingState();
+
+    const data =
+      await apiGetBDG();
+
+    const rows =
+      data.rows || [];
+
+    if (rows.length < 2) {
+      throw new Error(
+        "BDG VIDE"
+      );
+    }
+
+    const headers =
+      rows[0];
+
+    bdgRows =
+      rows.slice(1).map(row => {
+
+        const obj = {};
+
+        headers.forEach(
+          (header, index) => {
+
+            obj[
+              String(header).trim()
+            ] =
+              row[index] ?? "";
+          }
+        );
+
+        return obj;
+      });
+
+    bdgLoaded = true;
+
+    initialiseBDGSelectors();
+
+  } catch (error) {
+    renderBDGError(
+      error.message ||
+      String(error)
+    );
+
+  } finally {
+    bdgLoading = false;
+  }
+}
+
+function setBDGLoadingState() {
+  const project =
+    $("project");
+
+  if (project) {
+    project.innerHTML =
+      `<option>CHARGEMENT...</option>`;
+  }
+
+  const productBody =
+    $("productTable")
+      ?.querySelector("tbody");
+
+  if (productBody) {
+    productBody.innerHTML = `
+      <tr>
+        <td
+          colspan="10"
+          class="empty"
+        >
+          CHARGEMENT DU BUDGET...
+        </td>
+      </tr>
+    `;
+  }
+
+  const chargeBody =
+    $("chargeTable")
+      ?.querySelector("tbody");
+
+  if (chargeBody) {
+    chargeBody.innerHTML = `
+      <tr>
+        <td
+          colspan="7"
+          class="empty"
+        >
+          CHARGEMENT DU BUDGET...
+        </td>
+      </tr>
+    `;
+  }
+}
+
+function renderBDGError(message) {
+  const productBody =
+    $("productTable")
+      ?.querySelector("tbody");
+
+  if (productBody) {
+    productBody.innerHTML = `
+      <tr>
+        <td
+          colspan="10"
+          class="empty"
+        >
+          ERREUR BDG : ${esc(message)}
+        </td>
+      </tr>
+    `;
+  }
+
+  const chargeBody =
+    $("chargeTable")
+      ?.querySelector("tbody");
+
+  if (chargeBody) {
+    chargeBody.innerHTML = `
+      <tr>
+        <td
+          colspan="7"
+          class="empty"
+        >
+          ERREUR BDG
+        </td>
+      </tr>
+    `;
+  }
+}
+
+/* =========================================================
+   BDG — SELECTEURS
+   ========================================================= */
+
+function fillSelect(
+  select,
+  values,
+  selectedValue = ""
+) {
+  if (!select) {
+    return;
+  }
+
+  select.innerHTML = "";
+
+  if (!values.length) {
+    const option =
+      document.createElement(
+        "option"
+      );
+
+    option.value = "";
+    option.textContent =
+      "AUCUN ÉLÉMENT";
+
+    select.appendChild(
+      option
+    );
+
+    return;
+  }
+
+  values.forEach(value => {
+    const option =
+      document.createElement(
+        "option"
+      );
+
+    option.value = value;
+    option.textContent = value;
+
+    if (
+      value === selectedValue
+    ) {
+      option.selected = true;
+    }
+
+    select.appendChild(
+      option
+    );
+  });
+}
+
+function initialiseBDGSelectors() {
+  const projects =
+    unique(
+      bdgRows.map(
+        r => r["PRJ"]
+      )
+    );
+
+  fillSelect(
+    $("project"),
+    projects
+  );
+
+  if (
+    projects.includes("H88")
+  ) {
+    $("project").value =
+      "H88";
+  }
+
+  updateBDGLots();
+}
+
+function updateBDGLots() {
+  const project =
+    $("project")?.value || "";
+
+  const lots =
+    unique(
+      bdgRows
+        .filter(
+          r =>
+            normalise(
+              r["PRJ"]
+            ) ===
+            normalise(
+              project
+            )
+        )
+        .map(
+          r => r["LOT"]
+        )
+    );
+
+  fillSelect(
+    $("lot"),
+    lots
+  );
+
+  updateBDGPrimaryActivities();
+}
+
+function updateBDGPrimaryActivities() {
+  const project =
+    $("project")?.value || "";
+
+  const lot =
+    $("lot")?.value || "";
+
+  const values =
+    unique(
+      bdgRows
+        .filter(
+          r =>
+            normalise(
+              r["PRJ"]
+            ) ===
+              normalise(
+                project
+              ) &&
+            normalise(
+              r["LOT"]
+            ) ===
+              normalise(
+                lot
+              )
+        )
+        .map(
+          r =>
+            r[
+              "ACTIVITE PRIMAIRE"
+            ]
+        )
+    );
+
+  fillSelect(
+    $("primary"),
+    values
+  );
+
+  updateBDGSecondaryActivities();
+}
+
+function updateBDGSecondaryActivities() {
+  const project =
+    $("project")?.value || "";
+
+  const lot =
+    $("lot")?.value || "";
+
+  const primary =
+    $("primary")?.value || "";
+
+  const values =
+    unique(
+      bdgRows
+        .filter(
+          r =>
+            normalise(
+              r["PRJ"]
+            ) ===
+              normalise(
+                project
+              ) &&
+            normalise(
+              r["LOT"]
+            ) ===
+              normalise(
+                lot
+              ) &&
+            normalise(
+              r[
+                "ACTIVITE PRIMAIRE"
+              ]
+            ) ===
+              normalise(
+                primary
+              )
+        )
+        .map(
+          r =>
+            r["ACTIVITE"]
+        )
+    );
+
+  fillSelect(
+    $("secondary"),
+    values
+  );
+
+  refreshBudget();
+}
+
+/* =========================================================
+   BDG — FILTRE TACHE
+   ========================================================= */
+
+function selectedBDGRows() {
+  const project =
+    $("project")?.value || "";
+
+  const lot =
+    $("lot")?.value || "";
+
+  const primary =
+    $("primary")?.value || "";
+
+  const secondary =
+    $("secondary")?.value || "";
+
+  return bdgRows.filter(
+    r =>
+      normalise(
+        r["PRJ"]
+      ) === normalise(project) &&
+
+      normalise(
+        r["LOT"]
+      ) === normalise(lot) &&
+
+      normalise(
+        r["ACTIVITE PRIMAIRE"]
+      ) === normalise(primary) &&
+
+      normalise(
+        r["ACTIVITE"]
+      ) === normalise(secondary)
+  );
+}
+
+/* =========================================================
+   BDG — RAFRAICHISSEMENT
+   ========================================================= */
+
+function refreshBudget() {
+  const rows =
+    selectedBDGRows();
+
+  updateBDGDesignation(rows);
+  renderProductTable(rows);
+  renderChargeTable(rows);
+  renderAnalysis(rows);
+}
+
+function updateBDGDesignation(rows) {
+  const field =
+    $("brdDesignation");
+
+  if (!field) {
+    return;
+  }
+
+  const designations =
+    unique(
+      rows.map(
+        r => r["DESIGNATION"]
+      )
+    );
+
+  field.value =
+    designations.join(" / ");
+}
+
+/* =========================================================
+   BDG — PRODUITS
+   ========================================================= */
+
+function renderProductTable(rows) {
+  const table =
+    $("productTable");
+
+  if (!table) {
+    return;
+  }
+
+  const products =
+    rows.filter(
+      r =>
+        normalise(
+          r["CHG/PRD"]
+        ).toUpperCase() === "PRD"
+    );
+
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>N°</th>
+        <th>DÉSIGNATION</th>
+        <th>UPB</th>
+        <th>NBR</th>
+        <th>DIM 1</th>
+        <th>DIM 2</th>
+        <th>DIM 3</th>
+        <th class="number">QPB PRT</th>
+        <th class="number">PPB</th>
+        <th class="number">MPB</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      ${
+        products.length
+          ? products.map(
+              r => `
+                <tr>
+                  <td>
+                    ${esc(r["N°"])}
+                  </td>
+
+                  <td>
+                    ${esc(
+                      r["DETAIL BUDGET"]
+                    )}
+                  </td>
+
+                  <td class="yellow">
+                    ${esc(r["UTB"])}
+                  </td>
+
+                  <td class="number">
+                    ${esc(r["NBR"])}
+                  </td>
+
+                  <td class="number">
+                    ${esc(r["DIM1"])}
+                  </td>
+
+                  <td class="number">
+                    ${esc(r["DIM2"])}
+                  </td>
+
+                  <td class="number">
+                    ${esc(r["DIM3"])}
+                  </td>
+
+                  <td class="number yellow">
+                    ${money(r["QTB"])}
+                  </td>
+
+                  <td class="number yellow">
+                    ${money(r["PUB"])}
+                  </td>
+
+                  <td class="number yellow">
+                    ${money(r["MNB"])}
+                  </td>
+                </tr>
+              `
+            ).join("")
+          : `
+            <tr>
+              <td
+                colspan="10"
+                class="empty"
+              >
+                AUCUN PRODUIT
+              </td>
+            </tr>
+          `
+      }
+    </tbody>
+
+    <tfoot>
+      <tr>
+        <td colspan="7">
+          <strong>TOTAL</strong>
+        </td>
+
+        <td class="number yellow">
+          ${money(
+            sum(products, "QTB")
+          )}
+        </td>
+
+        <td></td>
+
+        <td class="number yellow">
+          ${money(
+            sum(products, "MNB")
+          )}
+        </td>
+      </tr>
+    </tfoot>
+  `;
+}
+
+/* =========================================================
+   BDG — CHARGES
+   ========================================================= */
+
+function renderChargeTable(rows) {
+  const table =
+    $("chargeTable");
+
+  if (!table) {
+    return;
+  }
+
+  const charges =
+    rows.filter(
+      r =>
+        normalise(
+          r["CHG/PRD"]
+        ).toUpperCase() === "CHG"
+    );
+
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>N°</th>
+        <th>ARTICLE</th>
+        <th>DÉSIGNATION</th>
+        <th>UCB</th>
+        <th class="number">QCB</th>
+        <th class="number">PCS</th>
+        <th class="number">MCB</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      ${
+        charges.length
+          ? charges.map(
+              r => `
+                <tr>
+                  <td>
+                    ${esc(r["N°"])}
+                  </td>
+
+                  <td>
+                    ${esc(
+                      r["DESIGNATION"]
+                    )}
+                  </td>
+
+                  <td>
+                    ${esc(
+                      r["DETAIL BUDGET"]
+                    )}
+                  </td>
+
+                  <td>
+                    ${esc(r["UTB"])}
+                  </td>
+
+                  <td class="number">
+                    ${money(r["QTB"])}
+                  </td>
+
+                  <td class="number yellow">
+                    ${money(r["PUB"])}
+                  </td>
+
+                  <td class="number yellow">
+                    ${money(r["MNB"])}
+                  </td>
+                </tr>
+              `
+            ).join("")
+          : `
+            <tr>
+              <td
+                colspan="7"
+                class="empty"
+              >
+                AUCUNE CHARGE
+              </td>
+            </tr>
+          `
+      }
+    </tbody>
+
+    <tfoot>
+      <tr>
+        <td colspan="6">
+          <strong>TOTAL</strong>
+        </td>
+
+        <td class="number yellow">
+          ${money(
+            sum(charges, "MNB")
+          )}
+        </td>
+      </tr>
+    </tfoot>
+  `;
+}
+
+/* =========================================================
+   BDG — ANALYSE
+   ========================================================= */
+
+function renderAnalysis(rows) {
+  const box =
+    $("analysisCompact");
+
+  if (!box) {
+    return;
+  }
+
+  const products =
+    rows.filter(
+      r =>
+        normalise(
+          r["CHG/PRD"]
+        ).toUpperCase() === "PRD"
+    );
+
+  const charges =
+    rows.filter(
+      r =>
+        normalise(
+          r["CHG/PRD"]
+        ).toUpperCase() === "CHG"
+    );
+
+  const productAmount =
+    sum(products, "MNB");
+
+  const chargeAmount =
+    sum(charges, "MNB");
+
+  const margin =
+    productAmount -
+    chargeAmount;
+
+  const rate =
+    productAmount
+      ? (
+          margin /
+          productAmount
+        ) * 100
+      : 0;
+
+  if (
+    currentAnalysis === "yield"
+  ) {
+    box.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>ACTIVITÉ</th>
+            <th class="number">PRODUIT</th>
+            <th class="number">CHARGE</th>
+            <th class="number">RENDEMENT</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr>
+            <td>
+              ${
+                esc(
+                  $("secondary")
+                    ?.value || ""
+                )
+              }
+            </td>
+
+            <td class="number">
+              ${money(productAmount)}
+            </td>
+
+            <td class="number">
+              ${money(chargeAmount)}
+            </td>
+
+            <td class="number">
+              ${money(rate)} %
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+
+    return;
+  }
+
+  box.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>
+            ${
+              currentAnalysis ===
+              "primaryMargin"
+                ? "ACTIVITÉ PRIMAIRE"
+                : "DÉSIGNATION"
+            }
+          </th>
+
+          <th class="number">
+            PRODUITS
+          </th>
+
+          <th class="number">
+            CHARGES
+          </th>
+
+          <th class="number">
+            MARGE
+          </th>
+
+          <th class="number">
+            TAUX
+          </th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr>
+          <td>
+            ${
+              currentAnalysis ===
+              "primaryMargin"
+                ? esc(
+                    $("primary")
+                      ?.value || ""
+                  )
+                : esc(
+                    $("brdDesignation")
+                      ?.value || ""
+                  )
+            }
+          </td>
+
+          <td class="number">
+            ${money(productAmount)}
+          </td>
+
+          <td class="number">
+            ${money(chargeAmount)}
+          </td>
+
+          <td class="number">
+            ${money(margin)}
+          </td>
+
+          <td class="number">
+            ${money(rate)} %
+          </td>
+        </tr>
+      </tbody>
+
+      <tfoot>
+        <tr>
+          <td>
+            <strong>TOTAL</strong>
+          </td>
+
+          <td class="number">
+            ${money(productAmount)}
+          </td>
+
+          <td class="number">
+            ${money(chargeAmount)}
+          </td>
+
+          <td class="number">
+            ${money(margin)}
+          </td>
+
+          <td class="number">
+            ${money(rate)} %
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  `;
+}
+
+/* =========================================================
+   FORMULAIRES CHS / BDS
    ========================================================= */
 
 function f(
@@ -1554,57 +2408,55 @@ function openForm(
   fields,
   onSave
 ) {
-  $("modalTitle")
-    .textContent =
-      title;
+  $("modalTitle").textContent =
+    title;
 
-  $("modalForm")
-    .innerHTML =
-      fields.map(
-        x => `
-          <div
-            class="field ${
-              x.full ? "full" : ""
-            }"
+  $("modalForm").innerHTML =
+    fields.map(
+      x => `
+        <div
+          class="field ${
+            x.full ? "full" : ""
+          }"
+        >
+          <label>
+            ${esc(x.label)}
+          </label>
+
+          <input
+            name="${esc(x.name)}"
+            type="${esc(x.type)}"
+            value="${esc(x.value)}"
+            ${
+              x.type === "number"
+                ? 'step="any" inputmode="decimal"'
+                : ""
+            }
+            required
           >
-            <label>
-              ${esc(x.label)}
-            </label>
-
-            <input
-              name="${esc(x.name)}"
-              type="${esc(x.type)}"
-              value="${esc(x.value)}"
-              ${
-                x.type === "number"
-                  ? 'step="any" inputmode="decimal"'
-                  : ""
-              }
-              required
-            >
-          </div>
-        `
-      ).join("") +
-      `
-        <div class="form-actions">
-
-          <button
-            type="button"
-            class="secondary"
-            id="cancelForm"
-          >
-            ANNULER
-          </button>
-
-          <button
-            class="primary"
-            type="submit"
-          >
-            ENREGISTRER
-          </button>
-
         </div>
-      `;
+      `
+    ).join("") +
+    `
+      <div class="form-actions">
+
+        <button
+          type="button"
+          class="secondary"
+          id="cancelForm"
+        >
+          ANNULER
+        </button>
+
+        <button
+          class="primary"
+          type="submit"
+        >
+          ENREGISTRER
+        </button>
+
+      </div>
+    `;
 
   $("modal")
     .classList.remove(
@@ -1616,6 +2468,7 @@ function openForm(
 
   $("modalForm").onsubmit =
     async e => {
+
       e.preventDefault();
 
       const btn =
@@ -1625,7 +2478,6 @@ function openForm(
           );
 
       btn.disabled = true;
-
       btn.textContent =
         "ENREGISTREMENT...";
 
@@ -1647,7 +2499,6 @@ function openForm(
         );
 
         btn.disabled = false;
-
         btn.textContent =
           "ENREGISTRER";
       }
@@ -1662,7 +2513,7 @@ function closeModal() {
 }
 
 /* =========================================================
-   APPUI LONG
+   APPUI LONG CHS / BDS
    ========================================================= */
 
 function bindLongPress(
@@ -1729,27 +2580,25 @@ function bindRows() {
     .querySelectorAll(
       "tr.data-row"
     )
-    .forEach(
-      el => {
-        bindLongPress(
-          el,
-          {
-            type:
-              el.dataset.type,
-            id:
-              el.dataset.id
-          }
-        );
-      }
-    );
+    .forEach(el => {
+
+      bindLongPress(
+        el,
+        {
+          type:
+            el.dataset.type,
+          id:
+            el.dataset.id
+        }
+      );
+    });
 }
 
 function showRowMenu(
   e,
   ctx
 ) {
-  rowContext =
-    ctx;
+  rowContext = ctx;
 
   const menu =
     $("rowMenu");
@@ -1771,18 +2620,18 @@ function showRowMenu(
   );
 }
 
-/* =========================================================
-   OBJET LIGNE
-   ========================================================= */
-
 function rowItem(ctx) {
-  if (ctx.type === "chs") {
+  if (
+    ctx.type === "chs"
+  ) {
     return db.chs.find(
       x => x.id === ctx.id
     );
   }
 
-  if (ctx.type === "brd") {
+  if (
+    ctx.type === "brd"
+  ) {
     return db.brd.find(
       x => x.id === ctx.id
     );
@@ -1794,17 +2643,13 @@ function rowItem(ctx) {
   );
 }
 
-/* =========================================================
-   SUPPRESSION
-   ========================================================= */
-
 async function deleteRow(ctx) {
-  if (ctx.type === "chs") {
+  if (
+    ctx.type === "chs"
+  ) {
     await apiPost(
       "deleteCHS",
-      {
-        id: ctx.id
-      }
+      { id: ctx.id }
     );
 
     db.chs =
@@ -1814,15 +2659,16 @@ async function deleteRow(ctx) {
       );
 
     renderChs();
+
     return;
   }
 
-  if (ctx.type === "brd") {
+  if (
+    ctx.type === "brd"
+  ) {
     await apiPost(
       "deleteBRD",
-      {
-        id: ctx.id
-      }
+      { id: ctx.id }
     );
 
     db.brd =
@@ -1841,14 +2687,13 @@ async function deleteRow(ctx) {
     }
 
     renderBrd();
+
     return;
   }
 
   await apiPost(
     "deleteBDS",
-    {
-      id: ctx.id
-    }
+    { id: ctx.id }
   );
 
   removeLocalBDS(
@@ -1858,10 +2703,6 @@ async function deleteRow(ctx) {
 
   renderHierarchy();
 }
-
-/* =========================================================
-   INFORMATION
-   ========================================================= */
 
 function infoRow(ctx) {
   const x =
@@ -1888,143 +2729,44 @@ function infoRow(ctx) {
 }
 
 /* =========================================================
-   MENU CONTEXTUEL
-   ========================================================= */
-
-$("rowMenu")
-  .addEventListener(
-    "click",
-    async e => {
-      const action =
-        e.target.dataset.action;
-
-      if (
-        !action ||
-        !rowContext
-      ) {
-        return;
-      }
-
-      const item =
-        rowItem(
-          rowContext
-        );
-
-      $("rowMenu")
-        .classList.add(
-          "hidden"
-        );
-
-      try {
-        if (
-          action === "info"
-        ) {
-          infoRow(
-            rowContext
-          );
-        }
-
-        if (
-          action === "delete" &&
-          confirm(
-            "CONFIRMER LA SUPPRESSION ?"
-          )
-        ) {
-          await deleteRow(
-            rowContext
-          );
-        }
-
-        if (
-          action === "edit"
-        ) {
-          if (
-            rowContext.type === "chs"
-          ) {
-            chsForm(item);
-
-          } else if (
-            rowContext.type === "brd"
-          ) {
-            brdForm(item);
-
-          } else {
-            addHierarchy(
-              rowContext.type,
-              item
-            );
-          }
-        }
-
-        if (
-          action === "duplicate"
-        ) {
-          if (
-            rowContext.type === "chs"
-          ) {
-            chsForm(
-              item,
-              true
-            );
-
-          } else if (
-            rowContext.type === "brd"
-          ) {
-            brdForm(
-              item,
-              true
-            );
-
-          } else {
-            addHierarchy(
-              rowContext.type,
-              item,
-              true
-            );
-          }
-        }
-
-      } catch (err) {
-        alert(
-          err.message ||
-          String(err)
-        );
-      }
-    }
-  );
-
-/* =========================================================
-   DEMARRAGE APPLICATION
+   DEMARRAGE
    ========================================================= */
 
 document.addEventListener(
   "DOMContentLoaded",
   async () => {
+
     initNav();
 
     $("chsSearch")
-      .addEventListener(
+      ?.addEventListener(
         "input",
         renderChs
       );
 
     $("brdSearch")
-      .addEventListener(
+      ?.addEventListener(
         "input",
         renderBrd
       );
 
-    $("addChsBtn").onclick =
-      () => chsForm();
+    if ($("addChsBtn")) {
+      $("addChsBtn").onclick =
+        () => chsForm();
+    }
 
-    $("addBrdBtn").onclick =
-      () => brdForm();
+    if ($("addBrdBtn")) {
+      $("addBrdBtn").onclick =
+        () => brdForm();
+    }
 
-    $("modalClose").onclick =
-      closeModal;
+    if ($("modalClose")) {
+      $("modalClose").onclick =
+        closeModal;
+    }
 
     $("modal")
-      .addEventListener(
+      ?.addEventListener(
         "click",
         e => {
           if (
@@ -2036,22 +2778,21 @@ document.addEventListener(
         }
       );
 
-    document
-      .addEventListener(
-        "click",
-        e => {
-          if (
-            !e.target.closest(
-              "#rowMenu"
-            )
-          ) {
-            $("rowMenu")
-              .classList.add(
-                "hidden"
-              );
-          }
+    document.addEventListener(
+      "click",
+      e => {
+        if (
+          !e.target.closest(
+            "#rowMenu"
+          )
+        ) {
+          $("rowMenu")
+            ?.classList.add(
+              "hidden"
+            );
         }
-      );
+      }
+    );
 
     document
       .querySelectorAll(
@@ -2077,6 +2818,175 @@ document.addEventListener(
             "input",
             renderHierarchy
           );
+        }
+      );
+
+    /* ---------------- BDG SELECTEURS ---------------- */
+
+    $("project")
+      ?.addEventListener(
+        "change",
+        updateBDGLots
+      );
+
+    $("lot")
+      ?.addEventListener(
+        "change",
+        updateBDGPrimaryActivities
+      );
+
+    $("primary")
+      ?.addEventListener(
+        "change",
+        updateBDGSecondaryActivities
+      );
+
+    $("secondary")
+      ?.addEventListener(
+        "change",
+        refreshBudget
+      );
+
+    /* ---------------- BDG ONGLETS ---------------- */
+
+    document
+      .querySelectorAll(
+        ".bdg-tabs .tab"
+      )
+      .forEach(tab => {
+
+        tab.addEventListener(
+          "click",
+          () => {
+
+            document
+              .querySelectorAll(
+                ".bdg-tabs .tab"
+              )
+              .forEach(
+                t =>
+                  t.classList.remove(
+                    "active"
+                  )
+              );
+
+            tab.classList.add(
+              "active"
+            );
+
+            currentAnalysis =
+              tab.dataset.tab ||
+              "designation";
+
+            renderAnalysis(
+              selectedBDGRows()
+            );
+          }
+        );
+      });
+
+    /* ---------------- MENU CONTEXTUEL ---------------- */
+
+    $("rowMenu")
+      ?.addEventListener(
+        "click",
+        async e => {
+
+          const action =
+            e.target.dataset.action;
+
+          if (
+            !action ||
+            !rowContext
+          ) {
+            return;
+          }
+
+          const item =
+            rowItem(
+              rowContext
+            );
+
+          $("rowMenu")
+            .classList.add(
+              "hidden"
+            );
+
+          try {
+            if (
+              action === "info"
+            ) {
+              infoRow(
+                rowContext
+              );
+            }
+
+            if (
+              action === "delete" &&
+              confirm(
+                "CONFIRMER LA SUPPRESSION ?"
+              )
+            ) {
+              await deleteRow(
+                rowContext
+              );
+            }
+
+            if (
+              action === "edit"
+            ) {
+              if (
+                rowContext.type === "chs"
+              ) {
+                chsForm(item);
+
+              } else if (
+                rowContext.type === "brd"
+              ) {
+                brdForm(item);
+
+              } else {
+                addHierarchy(
+                  rowContext.type,
+                  item
+                );
+              }
+            }
+
+            if (
+              action === "duplicate"
+            ) {
+              if (
+                rowContext.type === "chs"
+              ) {
+                chsForm(
+                  item,
+                  true
+                );
+
+              } else if (
+                rowContext.type === "brd"
+              ) {
+                brdForm(
+                  item,
+                  true
+                );
+
+              } else {
+                addHierarchy(
+                  rowContext.type,
+                  item,
+                  true
+                );
+              }
+            }
+
+          } catch (err) {
+            alert(
+              err.message ||
+              String(err)
+            );
+          }
         }
       );
 
