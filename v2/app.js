@@ -1631,59 +1631,39 @@ function brdForm(
    ========================================================= */
 
 async function ensureBDGLoaded() {
-  if (
-    bdgLoaded ||
-    bdgLoading
-  ) {
-    return;
-  }
+  if (bdgLoaded || bdgLoading) return;
 
   bdgLoading = true;
 
   try {
     setBDGLoadingState();
 
-    const data =
-      await apiGetBDG();
-
-    const rows =
-      data.rows || [];
+    const data = await apiGetBDG();
+    const rows = data.rows || [];
 
     if (rows.length < 2) {
-      throw new Error(
-        "BDG VIDE"
-      );
+      throw new Error("BDG VIDE");
     }
 
-    const headers =
-      rows[0];
+    const headers = rows[0];
 
-    bdgRows =
-      rows.slice(1).map(row => {
+    bdgRows = rows.slice(1).map(row => {
+      const obj = {};
 
-        const obj = {};
-
-        headers.forEach(
-          (header, index) => {
-
-            obj[
-              String(header).trim()
-            ] =
-              row[index] ?? "";
-          }
-        );
-
-        return obj;
+      headers.forEach((header, index) => {
+        obj[String(header).trim()] =
+          row[index] ?? "";
       });
 
-    bdgLoaded = true;
+      return obj;
+    });
 
+    bdgLoaded = true;
     renderBudgetList();
 
   } catch (error) {
     renderBDGError(
-      error.message ||
-      String(error)
+      error.message || String(error)
     );
 
   } finally {
@@ -1692,205 +1672,1131 @@ async function ensureBDGLoaded() {
 }
 
 function setBDGLoadingState() {
-  const body = $("budgetListTable")?.querySelector("tbody");
-  if (body) body.innerHTML = '<tr><td colspan="8" class="empty">CHARGEMENT DES BUDGETS...</td></tr>';
+  const body =
+    $("budgetListTable")
+      ?.querySelector("tbody");
+
+  if (body) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="7" class="empty">
+          CHARGEMENT DES BUDGETS...
+        </td>
+      </tr>
+    `;
+  }
 }
 
 function renderBDGError(message) {
-  const body = $("budgetListTable")?.querySelector("tbody");
-  if (body) body.innerHTML = '<tr><td colspan="8" class="empty">ERREUR BDG : ' + esc(message) + '</td></tr>';
+  const body =
+    $("budgetListTable")
+      ?.querySelector("tbody");
+
+  if (body) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="7" class="empty">
+          ERREUR BDG : ${esc(message)}
+        </td>
+      </tr>
+    `;
+  }
 }
 
 function firstValue(row, names) {
   for (const name of names) {
     const v = row[name];
-    if (normalise(v) !== "") return v;
+
+    if (normalise(v) !== "") {
+      return v;
+    }
   }
+
   return "";
 }
 
 function budgetReference(row, index) {
-  return firstValue(row, ["BDG","REFERENCE BDG","REFERENCE","RÉFÉRENCE"]) || ("BDG-" + String(index + 1).padStart(4,"0"));
+  return (
+    firstValue(
+      row,
+      [
+        "BDG",
+        "REFERENCE BDG",
+        "RÉFÉRENCE BDG",
+        "REFERENCE",
+        "RÉFÉRENCE"
+      ]
+    ) ||
+    (
+      "BDG-" +
+      String(index + 1)
+        .padStart(4, "0")
+    )
+  );
 }
 
+/* =========================================================
+   BDG — LISTE
+   ========================================================= */
+
 function renderBudgetList() {
-  const table = $("budgetListTable");
+  const table =
+    $("budgetListTable");
+
   if (!table) return;
 
-  const shell = table.closest(".novapp-list-shell");
+  const shell =
+    table.closest(
+      ".novapp-list-shell"
+    );
+
   if (!shell) return;
+
+  /* -------------------------------------------------------
+     STYLE SPÉCIFIQUE À LA LISTE
+     ------------------------------------------------------- */
+
+  if (!$("bdgListRuntimeStyle")) {
+    const style =
+      document.createElement("style");
+
+    style.id =
+      "bdgListRuntimeStyle";
+
+    style.textContent = `
+
+      .novapp-budget-table-wrap {
+        position: relative;
+        max-height: calc(100vh - 150px);
+        overflow: auto !important;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      #budgetListTable {
+        table-layout: fixed;
+        width: 100%;
+        min-width: 1050px;
+      }
+
+      #budgetListTable thead th {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: #f3f4f6;
+        overflow: visible;
+        user-select: none;
+      }
+
+      #budgetListTable td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .bdg-list-head {
+        position: relative;
+      }
+
+      .bdg-head-content {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .bdg-head-label {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .bdg-head-action {
+        width: 22px;
+        min-width: 22px;
+        height: 24px;
+        padding: 0;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: #687281;
+        cursor: pointer;
+        font-size: 12px;
+        line-height: 24px;
+        text-align: center;
+        text-transform: none;
+      }
+
+      .bdg-head-action:hover {
+        background: #e3e7ec;
+        color: #222b38;
+      }
+
+      .bdg-column-search {
+        width: 100%;
+        min-width: 50px;
+        height: 26px;
+        padding: 2px 7px;
+        border: 1px solid #9ca7b6;
+        border-radius: 5px;
+        outline: none;
+        background: #fff;
+        color: #303947;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: none;
+      }
+
+      .bdg-column-search:focus {
+        border-color: #1769c2;
+      }
+
+      .bdg-column-resizer {
+        position: absolute;
+        top: 0;
+        right: -4px;
+        z-index: 40;
+        width: 8px;
+        height: 100%;
+        cursor: col-resize;
+        touch-action: none;
+      }
+
+      .bdg-column-resizer:hover,
+      .bdg-column-resizer.active {
+        background:
+          rgba(23,105,194,.18);
+      }
+
+      #budgetListTable .number {
+        text-align: right;
+      }
+
+      #budgetListTable
+      .bdg-action-cell {
+        text-align: center;
+        padding-left: 3px;
+        padding-right: 3px;
+        overflow: visible;
+      }
+
+      .bdg-row-action {
+        width: 27px;
+        height: 27px;
+        padding: 0;
+        margin: 0 1px;
+        border: 0;
+        border-radius: 5px;
+        background: transparent;
+        color: #5f6875;
+        cursor: pointer;
+        font-size: 16px;
+        text-transform: none;
+      }
+
+      .bdg-row-action:hover {
+        background: #edf1f5;
+      }
+
+      @media (max-width:650px) {
+        .novapp-budget-table-wrap {
+          max-height:
+            calc(100vh - 130px);
+        }
+      }
+    `;
+
+    document.head.appendChild(
+      style
+    );
+  }
+
+  /* -------------------------------------------------------
+     REGROUPEMENT PAR BUDGET
+     ------------------------------------------------------- */
 
   const groups = new Map();
 
-  bdgRows.forEach((r, i) => {
-    const ref = budgetReference(r, i);
+  bdgRows.forEach((row, index) => {
+    const ref =
+      budgetReference(
+        row,
+        index
+      );
 
     if (!groups.has(ref)) {
-      groups.set(ref, {
+      groups.set(
         ref,
-        rows: [],
-        first: r
-      });
+        {
+          ref,
+          rows: [],
+          first: row
+        }
+      );
     }
 
-    groups.get(ref).rows.push(r);
+    groups.get(ref)
+      .rows.push(row);
   });
 
-  const budgets = [...groups.values()];
-  const body = table.querySelector("tbody");
+  const budgets =
+    [...groups.values()];
 
-  if (!budgets.length) {
-    body.innerHTML =
-      '<tr><td colspan="8" class="empty">AUCUN BUDGET</td></tr>';
-    return;
-  }
+  /* -------------------------------------------------------
+     CALCUL D'UNE LIGNE BUDGET
+     ------------------------------------------------------- */
 
-  body.innerHTML = budgets.map(b => {
-    const r = b.first;
+  function budgetData(budget) {
+    const first =
+      budget.first;
 
-    const project =
-      firstValue(r, ["PROJET", "PRJ", "NOM PROJET"]);
+    /*
+      BUDGET :
+      on privilégie le champ BUDGET.
+      PROJET reste en secours tant que
+      la source historique ne contient
+      pas encore une colonne BUDGET.
+    */
 
-    const designation =
-      firstValue(r, [
-        "DESIGNATION",
-        "DÉSIGNATION",
-        "DETAIL BUDGET"
-      ]);
+    const budgetName =
+      firstValue(
+        first,
+        [
+          "BUDGET",
+          "NOM BUDGET",
+          "PROJET",
+          "PRJ",
+          "NOM PROJET"
+        ]
+      );
 
-    const ht = b.rows.reduce(
-      (t, x) =>
-        t + num(
-          firstValue(x, [
-            "MNB",
-            "MONTANT HT",
-            "MPB HT",
-            "MPB"
-          ])
-        ),
-      0
-    );
-
-    const tva =
-      num(firstValue(r, ["TVA", "TAUX TVA"]));
-
-    const tvaAmount =
-      tva
-        ? ht * tva / (tva > 1 ? 100 : 1)
-        : 0;
-
-    const ttc = ht + tvaAmount;
-
-    const validated =
-      firstValue(r, [
-        "VALIDE LE",
-        "VALIDÉ LE",
-        "DATE VALIDATION",
-        "DATE"
-      ]);
-
-    return `
-      <tr data-budget-ref="${esc(b.ref)}">
-        <td>
-          <button
-            type="button"
-            class="budget-link"
-            data-open-budget="${esc(b.ref)}"
-          >
-            ${esc(b.ref)}
-          </button>
-        </td>
-
-        <td>${esc(project)}</td>
-
-        <td>${esc(designation)}</td>
-
-        <td class="number">
-          ${money(ht)}
-        </td>
-
-        <td class="number">
-          ${
-            tva
-              ? money(tva > 1 ? tva : tva * 100) + " %"
-              : ""
-          }
-        </td>
-
-        <td class="number">
-          ${money(ttc)}
-        </td>
-
-        <td>${esc(validated)}</td>
-
-        <td class="preview-cell">
-          <button
-            class="paper-preview"
-            type="button"
-            data-open-budget="${esc(b.ref)}"
-            aria-label="Aperçu"
-          >
-            ▤
-          </button>
-        </td>
-      </tr>
-    `;
-  }).join("");
-
-  function openBudgetDetail(ref) {
-    const budget = groups.get(ref);
-
-    if (!budget) return;
-
-    const rows = budget.rows;
-    const first = budget.first;
-
-    const project =
-      firstValue(first, [
-        "PROJET",
-        "PRJ",
-        "NOM PROJET"
-      ]);
-
-    const designation =
-      firstValue(first, [
-        "DESIGNATION",
-        "DÉSIGNATION",
-        "DETAIL BUDGET"
-      ]);
-
-    const ht = rows.reduce(
-      (total, row) =>
-        total + num(
-          firstValue(row, [
-            "MNB",
-            "MONTANT HT",
-            "MPB HT",
-            "MPB"
-          ])
-        ),
-      0
-    );
+    const ht =
+      budget.rows.reduce(
+        (total, row) =>
+          total +
+          num(
+            firstValue(
+              row,
+              [
+                "MNB",
+                "MONTANT HT",
+                "MPB HT",
+                "MPB"
+              ]
+            )
+          ),
+        0
+      );
 
     const tva =
       num(
-        firstValue(first, [
-          "TVA",
-          "TAUX TVA"
-        ])
+        firstValue(
+          first,
+          [
+            "TVA",
+            "TAUX TVA"
+          ]
+        )
       );
 
     const tvaAmount =
       tva
-        ? ht * tva / (tva > 1 ? 100 : 1)
+        ? ht *
+          tva /
+          (
+            tva > 1
+              ? 100
+              : 1
+          )
         : 0;
 
-    const ttc = ht + tvaAmount;
+    const ttc =
+      ht + tvaAmount;
 
-    const listHTML = shell.innerHTML;
+    const validated =
+      firstValue(
+        first,
+        [
+          "VALIDE LE",
+          "VALIDÉ LE",
+          "DATE VALIDATION"
+        ]
+      );
+
+    const entered =
+      firstValue(
+        first,
+        [
+          "SAISI LE",
+          "SAISIE LE",
+          "DATE SAISIE",
+          "CREE LE",
+          "CRÉÉ LE",
+          "DATE CREATION",
+          "DATE CRÉATION",
+          "DATE"
+        ]
+      );
+
+    return {
+      ref:
+        budget.ref,
+
+      budget:
+        budgetName,
+
+      ht,
+      ttc,
+      validated,
+      entered,
+
+      source:
+        budget
+    };
+  }
+
+  /* -------------------------------------------------------
+     COLONNES
+     ------------------------------------------------------- */
+
+  const columns = [
+    {
+      key: "ref",
+      title: "RÉFÉRENCE",
+      width: 210
+    },
+
+    {
+      key: "budget",
+      title: "BUDGET",
+      width: 260
+    },
+
+    {
+      key: "ht",
+      title: "MONTANT HT",
+      width: 150,
+      number: true
+    },
+
+    {
+      key: "ttc",
+      title: "MONTANT TTC",
+      width: 150,
+      number: true
+    },
+
+    {
+      key: "validated",
+      title: "VALIDÉ LE",
+      width: 140
+    },
+
+    {
+      key: "entered",
+      title: "SAISI LE",
+      width: 140
+    }
+  ];
+
+  /* -------------------------------------------------------
+     ÉTAT RECHERCHE / TRI
+     ------------------------------------------------------- */
+
+  const state = {
+    sortKey: "",
+    sortDirection: 1,
+
+    search: {
+      ref: "",
+      budget: "",
+      ht: "",
+      ttc: "",
+      validated: "",
+      entered: ""
+    }
+  };
+
+  const thead =
+    table.querySelector(
+      "thead"
+    );
+
+  const tbody =
+    table.querySelector(
+      "tbody"
+    );
+
+  /* -------------------------------------------------------
+     ENTÊTES
+     ------------------------------------------------------- */
+
+  thead.innerHTML = `
+    <tr>
+
+      ${
+        columns.map(
+          column => `
+            <th
+              class="
+                bdg-list-head
+                ${
+                  column.number
+                    ? "number"
+                    : ""
+                }
+              "
+              data-bdg-column="${column.key}"
+              style="
+                width:${column.width}px;
+                min-width:${column.width}px;
+              "
+            >
+
+              <div
+                class="bdg-head-content"
+              >
+
+                <span
+                  class="bdg-head-label"
+                >
+                  ${column.title}
+                </span>
+
+                <button
+                  type="button"
+                  class="bdg-head-action"
+                  data-bdg-search="${column.key}"
+                  title="Rechercher"
+                >
+                  ⌕
+                </button>
+
+                <button
+                  type="button"
+                  class="bdg-head-action"
+                  data-bdg-sort="${column.key}"
+                  title="Trier"
+                >
+                  ↕
+                </button>
+
+              </div>
+
+              <span
+                class="bdg-column-resizer"
+                data-bdg-resize="${column.key}"
+              ></span>
+
+            </th>
+          `
+        ).join("")
+      }
+
+      <th
+        style="
+          width:75px;
+          min-width:75px;
+        "
+      ></th>
+
+    </tr>
+  `;
+
+  /* -------------------------------------------------------
+     RENDU DES LIGNES
+     ------------------------------------------------------- */
+
+  function renderRows() {
+    let data =
+      budgets.map(
+        budget =>
+          budgetData(budget)
+      );
+
+    /* FILTRES */
+
+    Object.entries(
+      state.search
+    ).forEach(
+      ([key, search]) => {
+
+        const query =
+          normalise(search)
+            .toLowerCase();
+
+        if (!query) return;
+
+        data =
+          data.filter(item => {
+
+            let value =
+              item[key];
+
+            if (
+              key === "ht" ||
+              key === "ttc"
+            ) {
+              value =
+                money(value);
+            }
+
+            return normalise(value)
+              .toLowerCase()
+              .includes(query);
+          });
+      }
+    );
+
+    /* TRI */
+
+    if (state.sortKey) {
+      const key =
+        state.sortKey;
+
+      data.sort((a, b) => {
+
+        if (
+          key === "ht" ||
+          key === "ttc"
+        ) {
+          return (
+            (
+              num(a[key]) -
+              num(b[key])
+            ) *
+            state.sortDirection
+          );
+        }
+
+        return (
+          normalise(a[key])
+            .localeCompare(
+              normalise(b[key]),
+              "fr",
+              {
+                numeric: true,
+                sensitivity: "base"
+              }
+            ) *
+          state.sortDirection
+        );
+      });
+    }
+
+    if (!data.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td
+            colspan="7"
+            class="empty"
+          >
+            AUCUN BUDGET
+          </td>
+        </tr>
+      `;
+
+      return;
+    }
+
+    tbody.innerHTML =
+      data.map(item => `
+        <tr
+          data-budget-ref="${esc(item.ref)}"
+        >
+
+          <td>
+
+            <button
+              type="button"
+              class="budget-link"
+              data-open-budget="${esc(item.ref)}"
+            >
+              ${esc(item.ref)}
+            </button>
+
+          </td>
+
+          <td
+            title="${esc(item.budget)}"
+          >
+            ${esc(item.budget)}
+          </td>
+
+          <td class="number">
+            ${money(item.ht)}
+          </td>
+
+          <td class="number">
+            ${money(item.ttc)}
+          </td>
+
+          <td>
+            ${esc(item.validated)}
+          </td>
+
+          <td>
+            ${esc(item.entered)}
+          </td>
+
+          <td class="bdg-action-cell">
+
+            <button
+              type="button"
+              class="bdg-row-action"
+              data-open-budget="${esc(item.ref)}"
+              title="Aperçu"
+              aria-label="Aperçu"
+            >
+              ▤
+            </button>
+
+            <button
+              type="button"
+              class="bdg-row-action"
+              data-print-budget="${esc(item.ref)}"
+              title="Imprimer"
+              aria-label="Imprimer"
+            >
+              🖨
+            </button>
+
+          </td>
+
+        </tr>
+      `).join("");
+  }
+
+  /* -------------------------------------------------------
+     RESTAURATION D'UN ENTÊTE
+     ------------------------------------------------------- */
+
+  function restoreHeader(key) {
+    const column =
+      columns.find(
+        item =>
+          item.key === key
+      );
+
+    const th =
+      thead.querySelector(
+        `[data-bdg-column="${key}"]`
+      );
+
+    if (!column || !th) return;
+
+    const content =
+      th.querySelector(
+        ".bdg-head-content"
+      );
+
+    if (!content) return;
+
+    let sortIcon = "↕";
+
+    if (
+      state.sortKey === key
+    ) {
+      sortIcon =
+        state.sortDirection === 1
+          ? "↑"
+          : "↓";
+    }
+
+    content.innerHTML = `
+
+      <span
+        class="bdg-head-label"
+      >
+        ${column.title}
+      </span>
+
+      <button
+        type="button"
+        class="bdg-head-action"
+        data-bdg-search="${key}"
+        title="Rechercher"
+      >
+        ⌕
+      </button>
+
+      <button
+        type="button"
+        class="bdg-head-action"
+        data-bdg-sort="${key}"
+        title="Trier"
+      >
+        ${sortIcon}
+      </button>
+    `;
+  }
+
+  /* -------------------------------------------------------
+     RECHERCHE DANS L'ENTÊTE
+     ------------------------------------------------------- */
+
+  function activateSearch(key) {
+    const column =
+      columns.find(
+        item =>
+          item.key === key
+      );
+
+    const th =
+      thead.querySelector(
+        `[data-bdg-column="${key}"]`
+      );
+
+    if (!column || !th) return;
+
+    const content =
+      th.querySelector(
+        ".bdg-head-content"
+      );
+
+    if (!content) return;
+
+    content.innerHTML = `
+      <input
+        type="search"
+        class="bdg-column-search"
+        data-bdg-search-input="${key}"
+        value="${esc(state.search[key])}"
+        placeholder="${column.title}"
+        autocomplete="off"
+      >
+    `;
+
+    const input =
+      content.querySelector(
+        "input"
+      );
+
+    if (!input) return;
+
+    input.focus();
+
+    try {
+      input.setSelectionRange(
+        input.value.length,
+        input.value.length
+      );
+    } catch (_) {}
+
+    input.addEventListener(
+      "input",
+      () => {
+
+        state.search[key] =
+          input.value;
+
+        renderRows();
+
+        /*
+          Dès que la zone devient vide,
+          on revient à l'intitulé.
+        */
+
+        if (
+          input.value === ""
+        ) {
+          restoreHeader(key);
+        }
+      }
+    );
+
+    input.addEventListener(
+      "search",
+      () => {
+
+        state.search[key] =
+          input.value;
+
+        renderRows();
+
+        if (
+          input.value === ""
+        ) {
+          restoreHeader(key);
+        }
+      }
+    );
+
+    input.addEventListener(
+      "keydown",
+      event => {
+
+        if (
+          event.key === "Escape"
+        ) {
+          state.search[key] = "";
+          renderRows();
+          restoreHeader(key);
+        }
+      }
+    );
+  }
+
+  /* -------------------------------------------------------
+     CLICS SUR ENTÊTES
+     ------------------------------------------------------- */
+
+  thead.onclick = event => {
+
+    const searchButton =
+      event.target.closest(
+        "[data-bdg-search]"
+      );
+
+    if (searchButton) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      activateSearch(
+        searchButton.dataset
+          .bdgSearch
+      );
+
+      return;
+    }
+
+    const sortButton =
+      event.target.closest(
+        "[data-bdg-sort]"
+      );
+
+    if (sortButton) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const key =
+        sortButton.dataset
+          .bdgSort;
+
+      if (
+        state.sortKey === key
+      ) {
+        state.sortDirection *= -1;
+
+      } else {
+        state.sortKey = key;
+        state.sortDirection = 1;
+      }
+
+      columns.forEach(
+        column => {
+          if (
+            !state.search[
+              column.key
+            ]
+          ) {
+            restoreHeader(
+              column.key
+            );
+          }
+        }
+      );
+
+      renderRows();
+    }
+  };
+
+  /* -------------------------------------------------------
+     LARGEUR DES COLONNES AJUSTABLE
+     ------------------------------------------------------- */
+
+  thead
+    .querySelectorAll(
+      ".bdg-column-resizer"
+    )
+    .forEach(resizer => {
+
+      resizer.addEventListener(
+        "pointerdown",
+        event => {
+
+          event.preventDefault();
+          event.stopPropagation();
+
+          const th =
+            resizer.closest("th");
+
+          if (!th) return;
+
+          const startX =
+            event.clientX;
+
+          const startWidth =
+            th.getBoundingClientRect()
+              .width;
+
+          resizer.classList.add(
+            "active"
+          );
+
+          try {
+            resizer.setPointerCapture(
+              event.pointerId
+            );
+          } catch (_) {}
+
+          const move =
+            moveEvent => {
+
+              const newWidth =
+                Math.max(
+                  80,
+                  startWidth +
+                  (
+                    moveEvent.clientX -
+                    startX
+                  )
+                );
+
+              th.style.width =
+                newWidth + "px";
+
+              th.style.minWidth =
+                newWidth + "px";
+            };
+
+          const stop =
+            stopEvent => {
+
+              resizer.classList.remove(
+                "active"
+              );
+
+              resizer.removeEventListener(
+                "pointermove",
+                move
+              );
+
+              resizer.removeEventListener(
+                "pointerup",
+                stop
+              );
+
+              resizer.removeEventListener(
+                "pointercancel",
+                stop
+              );
+
+              try {
+                resizer
+                  .releasePointerCapture(
+                    stopEvent.pointerId
+                  );
+              } catch (_) {}
+            };
+
+          resizer.addEventListener(
+            "pointermove",
+            move
+          );
+
+          resizer.addEventListener(
+            "pointerup",
+            stop
+          );
+
+          resizer.addEventListener(
+            "pointercancel",
+            stop
+          );
+        }
+      );
+    });
+
+  /* -------------------------------------------------------
+     DÉTAIL D'UN BUDGET
+     ------------------------------------------------------- */
+
+  function openBudgetDetail(ref) {
+    const budget =
+      groups.get(ref);
+
+    if (!budget) return;
+
+    const rows =
+      budget.rows;
+
+    const first =
+      budget.first;
+
+    const project =
+      firstValue(
+        first,
+        [
+          "PROJET",
+          "PRJ",
+          "NOM PROJET"
+        ]
+      );
+
+    const designation =
+      firstValue(
+        first,
+        [
+          "DESIGNATION",
+          "DÉSIGNATION",
+          "DETAIL BUDGET"
+        ]
+      );
+
+    const ht =
+      rows.reduce(
+        (total, row) =>
+          total +
+          num(
+            firstValue(
+              row,
+              [
+                "MNB",
+                "MONTANT HT",
+                "MPB HT",
+                "MPB"
+              ]
+            )
+          ),
+        0
+      );
+
+    const tva =
+      num(
+        firstValue(
+          first,
+          [
+            "TVA",
+            "TAUX TVA"
+          ]
+        )
+      );
+
+    const tvaAmount =
+      tva
+        ? ht *
+          tva /
+          (
+            tva > 1
+              ? 100
+              : 1
+          )
+        : 0;
+
+    const ttc =
+      ht + tvaAmount;
+
+    const listHTML =
+      shell.innerHTML;
 
     shell.innerHTML = `
-      <div class="novapp-list-titlebar">
+
+      <div
+        class="novapp-list-titlebar"
+      >
 
         <button
           type="button"
@@ -1915,146 +2821,194 @@ function renderBudgetList() {
           style="
             display:grid;
             grid-template-columns:
-              repeat(auto-fit,minmax(180px,1fr));
+              repeat(
+                auto-fit,
+                minmax(180px,1fr)
+              );
             gap:12px;
             margin-bottom:18px;
           "
         >
 
           <div>
-            <strong>PROJET</strong><br>
+            <strong>PROJET</strong>
+            <br>
             ${esc(project)}
           </div>
 
           <div>
-            <strong>DÉSIGNATION</strong><br>
+            <strong>DÉSIGNATION</strong>
+            <br>
             ${esc(designation)}
           </div>
 
           <div>
-            <strong>MONTANT HT</strong><br>
+            <strong>MONTANT HT</strong>
+            <br>
             ${money(ht)}
           </div>
 
           <div>
-            <strong>TVA</strong><br>
-            ${
-              tva
-                ? money(tva > 1 ? tva : tva * 100) + " %"
-                : ""
-            }
-          </div>
-
-          <div>
-            <strong>MONTANT TTC</strong><br>
+            <strong>MONTANT TTC</strong>
+            <br>
             ${money(ttc)}
           </div>
 
         </div>
 
-        <div class="novapp-budget-table-wrap">
+        <div
+          class="novapp-budget-table-wrap"
+        >
 
-          <table class="novapp-budget-table">
+          <table
+            class="novapp-budget-table"
+          >
 
             <thead>
               <tr>
+
                 <th>N°</th>
-                <th>TYPE</th>
-                <th>DÉTAIL BUDGET</th>
-                <th>UNITÉ</th>
-                <th class="number">QUANTITÉ</th>
-                <th class="number">PRIX</th>
-                <th class="number">MONTANT</th>
+
+                <th>
+                  TYPE
+                </th>
+
+                <th>
+                  DÉTAIL BUDGET
+                </th>
+
+                <th>
+                  UNITÉ
+                </th>
+
+                <th class="number">
+                  QUANTITÉ
+                </th>
+
+                <th class="number">
+                  PRIX
+                </th>
+
+                <th class="number">
+                  MONTANT
+                </th>
+
               </tr>
             </thead>
 
             <tbody>
 
               ${
-                rows.map((r, index) => {
+                rows.map(
+                  (row, index) => {
 
-                  const type =
-                    firstValue(r, [
-                      "CHG/PRD",
-                      "TYPE"
-                    ]);
+                    const type =
+                      firstValue(
+                        row,
+                        [
+                          "CHG/PRD",
+                          "TYPE"
+                        ]
+                      );
 
-                  const detail =
-                    firstValue(r, [
-                      "DETAIL BUDGET",
-                      "DESIGNATION",
-                      "DÉSIGNATION"
-                    ]);
+                    const detail =
+                      firstValue(
+                        row,
+                        [
+                          "DETAIL BUDGET",
+                          "DESIGNATION",
+                          "DÉSIGNATION"
+                        ]
+                      );
 
-                  const unit =
-                    firstValue(r, [
-                      "UTB",
-                      "UNITE",
-                      "UNITÉ"
-                    ]);
+                    const unit =
+                      firstValue(
+                        row,
+                        [
+                          "UTB",
+                          "UNITE",
+                          "UNITÉ"
+                        ]
+                      );
 
-                  const qty =
-                    firstValue(r, [
-                      "QTB",
-                      "QUANTITE",
-                      "QUANTITÉ",
-                      "NBR"
-                    ]);
+                    const qty =
+                      firstValue(
+                        row,
+                        [
+                          "QTB",
+                          "QUANTITE",
+                          "QUANTITÉ",
+                          "NBR"
+                        ]
+                      );
 
-                  const price =
-                    firstValue(r, [
-                      "PUB",
-                      "PRIX",
-                      "PU"
-                    ]);
+                    const price =
+                      firstValue(
+                        row,
+                        [
+                          "PUB",
+                          "PRIX",
+                          "PU"
+                        ]
+                      );
 
-                  const amount =
-                    firstValue(r, [
-                      "MNB",
-                      "MONTANT",
-                      "MPB"
-                    ]);
+                    const amount =
+                      firstValue(
+                        row,
+                        [
+                          "MNB",
+                          "MONTANT",
+                          "MPB"
+                        ]
+                      );
 
-                  return `
-                    <tr>
-                      <td>
-                        ${index + 1}
-                      </td>
+                    return `
+                      <tr>
 
-                      <td>
-                        ${esc(type)}
-                      </td>
+                        <td>
+                          ${index + 1}
+                        </td>
 
-                      <td>
-                        ${esc(detail)}
-                      </td>
+                        <td>
+                          ${esc(type)}
+                        </td>
 
-                      <td>
-                        ${esc(unit)}
-                      </td>
+                        <td>
+                          ${esc(detail)}
+                        </td>
 
-                      <td class="number">
-                        ${esc(qty)}
-                      </td>
+                        <td>
+                          ${esc(unit)}
+                        </td>
 
-                      <td class="number">
-                        ${money(price)}
-                      </td>
+                        <td class="number">
+                          ${esc(qty)}
+                        </td>
 
-                      <td class="number">
-                        ${money(amount)}
-                      </td>
-                    </tr>
-                  `;
-                }).join("")
+                        <td class="number">
+                          ${money(price)}
+                        </td>
+
+                        <td class="number">
+                          ${money(amount)}
+                        </td>
+
+                      </tr>
+                    `;
+                  }
+                ).join("")
               }
 
             </tbody>
 
             <tfoot>
+
               <tr>
+
                 <td colspan="6">
-                  <strong>TOTAL HT</strong>
+                  <strong>
+                    TOTAL HT
+                  </strong>
                 </td>
 
                 <td class="number">
@@ -2062,7 +3016,9 @@ function renderBudgetList() {
                     ${money(ht)}
                   </strong>
                 </td>
+
               </tr>
+
             </tfoot>
 
           </table>
@@ -2076,33 +3032,66 @@ function renderBudgetList() {
       ?.addEventListener(
         "click",
         () => {
-          shell.innerHTML = listHTML;
+
+          shell.innerHTML =
+            listHTML;
+
           renderBudgetList();
         }
       );
   }
 
-  table.addEventListener(
-    "click",
-    event => {
+  /* -------------------------------------------------------
+     APERÇU / IMPRESSION
+     ------------------------------------------------------- */
 
-      const trigger =
-        event.target.closest(
-          "[data-open-budget]"
-        );
+  table.onclick = event => {
 
-      if (!trigger) return;
+    const preview =
+      event.target.closest(
+        "[data-open-budget]"
+      );
 
+    if (preview) {
       event.preventDefault();
 
       openBudgetDetail(
-        trigger.dataset.openBudget
+        preview.dataset
+          .openBudget
       );
-    },
-    { once: true }
-  );
-}
 
+      return;
+    }
+
+    const printButton =
+      event.target.closest(
+        "[data-print-budget]"
+      );
+
+    if (printButton) {
+      event.preventDefault();
+
+      /*
+        L'impression définitive du document
+        sera construite par la suite.
+        Pour l'instant on ouvre le budget,
+        puis l'utilisateur peut utiliser
+        l'impression du navigateur.
+      */
+
+      openBudgetDetail(
+        printButton.dataset
+          .printBudget
+      );
+    }
+  };
+
+  /* -------------------------------------------------------
+     PREMIER AFFICHAGE
+     ------------------------------------------------------- */
+
+  renderRows();
+}
 /* =========================================================
    BDG — SELECTEURS
    ========================================================= */
