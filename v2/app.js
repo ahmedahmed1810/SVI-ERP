@@ -140,35 +140,97 @@ async function apiGet(action = "bootstrap", params = {}) {
    ========================================================= */
 
 async function apiGetBDG() {
-  const url =
-    API_URL +
-    "?key=" +
-    encodeURIComponent(API_KEY) +
-    "&_=" +
-    Date.now();
+  const attempts = [
+    { action: "getBDG" },
+    { action: "bdg" },
+    { action: "bootstrapBDG" },
+    {}
+  ];
 
-  const r = await fetch(url, {
-    method: "GET",
-    cache: "no-store"
-  });
+  let lastError = null;
 
-  if (!r.ok) {
-    throw new Error(
-      "ERREUR HTTP " + r.status
-    );
+  for (const params of attempts) {
+    try {
+      const query = {
+        key: API_KEY,
+        ...params,
+        _: Date.now()
+      };
+
+      const url =
+        API_URL +
+        "?" +
+        Object.entries(query)
+          .map(([k, v]) =>
+            encodeURIComponent(k) +
+            "=" +
+            encodeURIComponent(v)
+          )
+          .join("&");
+
+      const r = await fetch(url, {
+        method: "GET",
+        cache: "no-store",
+        redirect: "follow"
+      });
+
+      if (!r.ok) {
+        lastError = new Error(
+          "ERREUR HTTP " + r.status
+        );
+        continue;
+      }
+
+      const text = await r.text();
+
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        lastError = new Error(
+          "RÉPONSE BDG NON JSON"
+        );
+        continue;
+      }
+
+      if (data && data.ok === false) {
+        lastError = new Error(
+          data.error || "ERREUR API BDG"
+        );
+        continue;
+      }
+
+      if (
+        data &&
+        Array.isArray(data.rows)
+      ) {
+        return data;
+      }
+
+      if (
+        data &&
+        data.data &&
+        Array.isArray(data.data.rows)
+      ) {
+        return {
+          ok: true,
+          rows: data.data.rows
+        };
+      }
+
+      lastError = new Error(
+        "FORMAT BDG NON RECONNU"
+      );
+
+    } catch (error) {
+      lastError = error;
+    }
   }
 
-  const data = await r.json();
-
-  if (!data.ok) {
-    throw new Error(
-      data.error || "ERREUR API BDG"
-    );
-  }
-
-  return data;
+  throw lastError ||
+    new Error("IMPOSSIBLE DE CHARGER BDG");
 }
-
 /* =========================================================
    API POST
    ========================================================= */
