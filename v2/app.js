@@ -1616,7 +1616,7 @@ async function ensureBDGLoaded() {
 
     bdgLoaded = true;
 
-    initialiseBDGSelectors();
+    renderBudgetList();
 
   } catch (error) {
     renderBDGError(
@@ -1630,83 +1630,62 @@ async function ensureBDGLoaded() {
 }
 
 function setBDGLoadingState() {
-  const project =
-    $("project");
-
-  if (project) {
-    project.innerHTML =
-      `<option>CHARGEMENT...</option>`;
-  }
-
-  const productBody =
-    $("productTable")
-      ?.querySelector("tbody");
-
-  if (productBody) {
-    productBody.innerHTML = `
-      <tr>
-        <td
-          colspan="10"
-          class="empty"
-        >
-          CHARGEMENT DU BUDGET...
-        </td>
-      </tr>
-    `;
-  }
-
-  const chargeBody =
-    $("chargeTable")
-      ?.querySelector("tbody");
-
-  if (chargeBody) {
-    chargeBody.innerHTML = `
-      <tr>
-        <td
-          colspan="7"
-          class="empty"
-        >
-          CHARGEMENT DU BUDGET...
-        </td>
-      </tr>
-    `;
-  }
+  const body = $("budgetListTable")?.querySelector("tbody");
+  if (body) body.innerHTML = '<tr><td colspan="8" class="empty">CHARGEMENT DES BUDGETS...</td></tr>';
 }
 
 function renderBDGError(message) {
-  const productBody =
-    $("productTable")
-      ?.querySelector("tbody");
+  const body = $("budgetListTable")?.querySelector("tbody");
+  if (body) body.innerHTML = '<tr><td colspan="8" class="empty">ERREUR BDG : ' + esc(message) + '</td></tr>';
+}
 
-  if (productBody) {
-    productBody.innerHTML = `
-      <tr>
-        <td
-          colspan="10"
-          class="empty"
-        >
-          ERREUR BDG : ${esc(message)}
-        </td>
-      </tr>
-    `;
+function firstValue(row, names) {
+  for (const name of names) {
+    const v = row[name];
+    if (normalise(v) !== "") return v;
   }
+  return "";
+}
 
-  const chargeBody =
-    $("chargeTable")
-      ?.querySelector("tbody");
+function budgetReference(row, index) {
+  return firstValue(row, ["BDG","REFERENCE BDG","REFERENCE","RÉFÉRENCE"]) || ("BDG-" + String(index + 1).padStart(4,"0"));
+}
 
-  if (chargeBody) {
-    chargeBody.innerHTML = `
-      <tr>
-        <td
-          colspan="7"
-          class="empty"
-        >
-          ERREUR BDG
-        </td>
-      </tr>
-    `;
+function renderBudgetList() {
+  const table = $("budgetListTable");
+  if (!table) return;
+  const groups = new Map();
+  bdgRows.forEach((r,i) => {
+    const ref = budgetReference(r,i);
+    if (!groups.has(ref)) groups.set(ref, { ref, rows: [], first:r });
+    groups.get(ref).rows.push(r);
+  });
+  const budgets = [...groups.values()];
+  const body = table.querySelector("tbody");
+  if (!budgets.length) {
+    body.innerHTML = '<tr><td colspan="8" class="empty">AUCUN BUDGET</td></tr>';
+    return;
   }
+  body.innerHTML = budgets.map((b,i) => {
+    const r=b.first;
+    const project=firstValue(r,["PROJET","PRJ","NOM PROJET"]);
+    const designation=firstValue(r,["DESIGNATION","DÉSIGNATION","DETAIL BUDGET"]);
+    const ht=b.rows.reduce((t,x)=>t+num(firstValue(x,["MNB","MONTANT HT","MPB HT","MPB"])),0);
+    const tva=num(firstValue(r,["TVA","TAUX TVA"]));
+    const tvaAmount=tva ? ht*tva/(tva>1?100:1) : 0;
+    const ttc=ht+tvaAmount;
+    const validated=firstValue(r,["VALIDE LE","VALIDÉ LE","DATE VALIDATION","DATE"]);
+    return '<tr data-budget-ref="'+esc(b.ref)+'">'+
+      '<td><span class="budget-link">'+esc(b.ref)+'</span></td>'+
+      '<td>'+esc(project)+'</td>'+
+      '<td>'+esc(designation)+'</td>'+
+      '<td class="number">'+money(ht)+'</td>'+
+      '<td class="number">'+(tva?money(tva>1?tva:tva*100)+" %":"")+'</td>'+
+      '<td class="number">'+money(ttc)+'</td>'+
+      '<td>'+esc(validated)+'</td>'+
+      '<td class="preview-cell"><button class="paper-preview" type="button" aria-label="Aperçu">▤</button></td>'+
+      '</tr>';
+  }).join("");
 }
 
 /* =========================================================
