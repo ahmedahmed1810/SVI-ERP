@@ -3071,13 +3071,7 @@ function renderBudgetList() {
     if (printButton) {
       event.preventDefault();
 
-      /*
-        L'impression définitive du document
-        sera construite par la suite.
-        Pour l'instant on ouvre le budget,
-        puis l'utilisateur peut utiliser
-        l'impression du navigateur.
-      */
+   window.print();
 
       openBudgetDetail(
         printButton.dataset
