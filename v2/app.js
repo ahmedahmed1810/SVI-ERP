@@ -1716,38 +1716,391 @@ function budgetReference(row, index) {
 function renderBudgetList() {
   const table = $("budgetListTable");
   if (!table) return;
+
+  const shell = table.closest(".novapp-list-shell");
+  if (!shell) return;
+
   const groups = new Map();
-  bdgRows.forEach((r,i) => {
-    const ref = budgetReference(r,i);
-    if (!groups.has(ref)) groups.set(ref, { ref, rows: [], first:r });
+
+  bdgRows.forEach((r, i) => {
+    const ref = budgetReference(r, i);
+
+    if (!groups.has(ref)) {
+      groups.set(ref, {
+        ref,
+        rows: [],
+        first: r
+      });
+    }
+
     groups.get(ref).rows.push(r);
   });
+
   const budgets = [...groups.values()];
   const body = table.querySelector("tbody");
+
   if (!budgets.length) {
-    body.innerHTML = '<tr><td colspan="8" class="empty">AUCUN BUDGET</td></tr>';
+    body.innerHTML =
+      '<tr><td colspan="8" class="empty">AUCUN BUDGET</td></tr>';
     return;
   }
-  body.innerHTML = budgets.map((b,i) => {
-    const r=b.first;
-    const project=firstValue(r,["PROJET","PRJ","NOM PROJET"]);
-    const designation=firstValue(r,["DESIGNATION","DÉSIGNATION","DETAIL BUDGET"]);
-    const ht=b.rows.reduce((t,x)=>t+num(firstValue(x,["MNB","MONTANT HT","MPB HT","MPB"])),0);
-    const tva=num(firstValue(r,["TVA","TAUX TVA"]));
-    const tvaAmount=tva ? ht*tva/(tva>1?100:1) : 0;
-    const ttc=ht+tvaAmount;
-    const validated=firstValue(r,["VALIDE LE","VALIDÉ LE","DATE VALIDATION","DATE"]);
-    return '<tr data-budget-ref="'+esc(b.ref)+'">'+
-      '<td><span class="budget-link">'+esc(b.ref)+'</span></td>'+
-      '<td>'+esc(project)+'</td>'+
-      '<td>'+esc(designation)+'</td>'+
-      '<td class="number">'+money(ht)+'</td>'+
-      '<td class="number">'+(tva?money(tva>1?tva:tva*100)+" %":"")+'</td>'+
-      '<td class="number">'+money(ttc)+'</td>'+
-      '<td>'+esc(validated)+'</td>'+
-      '<td class="preview-cell"><button class="paper-preview" type="button" aria-label="Aperçu">▤</button></td>'+
-      '</tr>';
+
+  body.innerHTML = budgets.map(b => {
+    const r = b.first;
+
+    const project =
+      firstValue(r, ["PROJET", "PRJ", "NOM PROJET"]);
+
+    const designation =
+      firstValue(r, [
+        "DESIGNATION",
+        "DÉSIGNATION",
+        "DETAIL BUDGET"
+      ]);
+
+    const ht = b.rows.reduce(
+      (t, x) =>
+        t + num(
+          firstValue(x, [
+            "MNB",
+            "MONTANT HT",
+            "MPB HT",
+            "MPB"
+          ])
+        ),
+      0
+    );
+
+    const tva =
+      num(firstValue(r, ["TVA", "TAUX TVA"]));
+
+    const tvaAmount =
+      tva
+        ? ht * tva / (tva > 1 ? 100 : 1)
+        : 0;
+
+    const ttc = ht + tvaAmount;
+
+    const validated =
+      firstValue(r, [
+        "VALIDE LE",
+        "VALIDÉ LE",
+        "DATE VALIDATION",
+        "DATE"
+      ]);
+
+    return `
+      <tr data-budget-ref="${esc(b.ref)}">
+        <td>
+          <button
+            type="button"
+            class="budget-link"
+            data-open-budget="${esc(b.ref)}"
+          >
+            ${esc(b.ref)}
+          </button>
+        </td>
+
+        <td>${esc(project)}</td>
+
+        <td>${esc(designation)}</td>
+
+        <td class="number">
+          ${money(ht)}
+        </td>
+
+        <td class="number">
+          ${
+            tva
+              ? money(tva > 1 ? tva : tva * 100) + " %"
+              : ""
+          }
+        </td>
+
+        <td class="number">
+          ${money(ttc)}
+        </td>
+
+        <td>${esc(validated)}</td>
+
+        <td class="preview-cell">
+          <button
+            class="paper-preview"
+            type="button"
+            data-open-budget="${esc(b.ref)}"
+            aria-label="Aperçu"
+          >
+            ▤
+          </button>
+        </td>
+      </tr>
+    `;
   }).join("");
+
+  function openBudgetDetail(ref) {
+    const budget = groups.get(ref);
+
+    if (!budget) return;
+
+    const rows = budget.rows;
+    const first = budget.first;
+
+    const project =
+      firstValue(first, [
+        "PROJET",
+        "PRJ",
+        "NOM PROJET"
+      ]);
+
+    const designation =
+      firstValue(first, [
+        "DESIGNATION",
+        "DÉSIGNATION",
+        "DETAIL BUDGET"
+      ]);
+
+    const ht = rows.reduce(
+      (total, row) =>
+        total + num(
+          firstValue(row, [
+            "MNB",
+            "MONTANT HT",
+            "MPB HT",
+            "MPB"
+          ])
+        ),
+      0
+    );
+
+    const tva =
+      num(
+        firstValue(first, [
+          "TVA",
+          "TAUX TVA"
+        ])
+      );
+
+    const tvaAmount =
+      tva
+        ? ht * tva / (tva > 1 ? 100 : 1)
+        : 0;
+
+    const ttc = ht + tvaAmount;
+
+    const listHTML = shell.innerHTML;
+
+    shell.innerHTML = `
+      <div class="novapp-list-titlebar">
+
+        <button
+          type="button"
+          id="budgetBackBtn"
+          class="novapp-menu"
+          aria-label="Retour"
+        >
+          ←
+        </button>
+
+        <h1>
+          ${esc(ref)}
+        </h1>
+
+        <div></div>
+
+      </div>
+
+      <div style="padding:16px">
+
+        <div
+          style="
+            display:grid;
+            grid-template-columns:
+              repeat(auto-fit,minmax(180px,1fr));
+            gap:12px;
+            margin-bottom:18px;
+          "
+        >
+
+          <div>
+            <strong>PROJET</strong><br>
+            ${esc(project)}
+          </div>
+
+          <div>
+            <strong>DÉSIGNATION</strong><br>
+            ${esc(designation)}
+          </div>
+
+          <div>
+            <strong>MONTANT HT</strong><br>
+            ${money(ht)}
+          </div>
+
+          <div>
+            <strong>TVA</strong><br>
+            ${
+              tva
+                ? money(tva > 1 ? tva : tva * 100) + " %"
+                : ""
+            }
+          </div>
+
+          <div>
+            <strong>MONTANT TTC</strong><br>
+            ${money(ttc)}
+          </div>
+
+        </div>
+
+        <div class="novapp-budget-table-wrap">
+
+          <table class="novapp-budget-table">
+
+            <thead>
+              <tr>
+                <th>N°</th>
+                <th>TYPE</th>
+                <th>DÉTAIL BUDGET</th>
+                <th>UNITÉ</th>
+                <th class="number">QUANTITÉ</th>
+                <th class="number">PRIX</th>
+                <th class="number">MONTANT</th>
+              </tr>
+            </thead>
+
+            <tbody>
+
+              ${
+                rows.map((r, index) => {
+
+                  const type =
+                    firstValue(r, [
+                      "CHG/PRD",
+                      "TYPE"
+                    ]);
+
+                  const detail =
+                    firstValue(r, [
+                      "DETAIL BUDGET",
+                      "DESIGNATION",
+                      "DÉSIGNATION"
+                    ]);
+
+                  const unit =
+                    firstValue(r, [
+                      "UTB",
+                      "UNITE",
+                      "UNITÉ"
+                    ]);
+
+                  const qty =
+                    firstValue(r, [
+                      "QTB",
+                      "QUANTITE",
+                      "QUANTITÉ",
+                      "NBR"
+                    ]);
+
+                  const price =
+                    firstValue(r, [
+                      "PUB",
+                      "PRIX",
+                      "PU"
+                    ]);
+
+                  const amount =
+                    firstValue(r, [
+                      "MNB",
+                      "MONTANT",
+                      "MPB"
+                    ]);
+
+                  return `
+                    <tr>
+                      <td>
+                        ${index + 1}
+                      </td>
+
+                      <td>
+                        ${esc(type)}
+                      </td>
+
+                      <td>
+                        ${esc(detail)}
+                      </td>
+
+                      <td>
+                        ${esc(unit)}
+                      </td>
+
+                      <td class="number">
+                        ${esc(qty)}
+                      </td>
+
+                      <td class="number">
+                        ${money(price)}
+                      </td>
+
+                      <td class="number">
+                        ${money(amount)}
+                      </td>
+                    </tr>
+                  `;
+                }).join("")
+              }
+
+            </tbody>
+
+            <tfoot>
+              <tr>
+                <td colspan="6">
+                  <strong>TOTAL HT</strong>
+                </td>
+
+                <td class="number">
+                  <strong>
+                    ${money(ht)}
+                  </strong>
+                </td>
+              </tr>
+            </tfoot>
+
+          </table>
+
+        </div>
+
+      </div>
+    `;
+
+    $("budgetBackBtn")
+      ?.addEventListener(
+        "click",
+        () => {
+          shell.innerHTML = listHTML;
+          renderBudgetList();
+        }
+      );
+  }
+
+  table.addEventListener(
+    "click",
+    event => {
+
+      const trigger =
+        event.target.closest(
+          "[data-open-budget]"
+        );
+
+      if (!trigger) return;
+
+      event.preventDefault();
+
+      openBudgetDetail(
+        trigger.dataset.openBudget
+      );
+    },
+    { once: true }
+  );
 }
 
 /* =========================================================
