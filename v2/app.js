@@ -1656,6 +1656,13 @@ async function ensureBDGLoaded() {
           row[index] ?? "";
       });
 
+      /* cellules brutes par position (colonne A = 0, B = 1 ...) */
+      Object.defineProperty(
+        obj,
+        "__cols",
+        { value: row, enumerable: false }
+      );
+
       return obj;
     });
 
@@ -3117,6 +3124,17 @@ function renderBudgetList() {
       return "";
     };
 
+    const colIndex = letter =>
+      letter
+        .toUpperCase()
+        .split("")
+        .reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
+
+    const byLetter = (row, letter) =>
+      row.__cols
+        ? normalise(row.__cols[colIndex(letter)])
+        : "";
+
     const typeKey =
       Object.keys(budget.rows[0] || {})
         .find(k => {
@@ -3180,11 +3198,13 @@ function renderBudgetList() {
         id: "l" + i,
         kind,
         article:
-          pick(row, ["ARTICLE", "N°"]),
+          byLetter(row, "H") || pick(row, ["ARTICLE", "N°"]),
         designation:
-          pick(row, ["DETAIL BUDGET", "DESIGNATION"]),
+          byLetter(row, "I") || pick(row, ["DESIGNATION"]),
         unit:
-          pick(row, ["UTB", "UNITE"]),
+          byLetter(row, "J") || pick(row, ["UTB", "UNITE"]),
+        cqty: num(byLetter(row, "V")),
+        cprice: num(byLetter(row, "W")),
         nbr,
         dims,
         qty,
@@ -3315,20 +3335,49 @@ function renderBudgetList() {
     const body = $("bdgTabBody");
 
     const renderClient = () => {
+      const groupsMap = new Map();
+
+      lines.forEach(l => {
+        const key = [
+          l.article,
+          l.designation,
+          l.unit,
+          l.cprice
+        ].join("|");
+
+        if (!groupsMap.has(key)) {
+          groupsMap.set(key, {
+            article: l.article,
+            designation: l.designation,
+            unit: l.unit,
+            qty: 0,
+            price: l.cprice
+          });
+        }
+
+        groupsMap.get(key).qty += l.cqty;
+      });
+
+      const list = [...groupsMap.values()];
+
       $("bdgClientBody").innerHTML =
-        lines.length
-          ? lines.map(l => `
-              <tr>
-                <td>${esc(l.article)}</td>
-                <td>${esc(l.designation)}</td>
-                <td>${esc(l.unit)}</td>
-                <td class="number">${money(l.qty)}</td>
-                <td class="number">${money(l.price)}</td>
-                <td class="number">${money(l.amount)}</td>
-                <td class="number">${money(l.tva)} %</td>
-                <td class="number">${money(l.amount + l.amount * l.tva / 100)}</td>
-              </tr>
-            `).join("")
+        list.length
+          ? list.map(g => {
+              const ht = g.qty * g.price;
+
+              return `
+                <tr>
+                  <td>${esc(g.article)}</td>
+                  <td>${esc(g.designation)}</td>
+                  <td>${esc(g.unit)}</td>
+                  <td class="number">${money(g.qty)}</td>
+                  <td class="number">${money(g.price)}</td>
+                  <td class="number">${money(ht)}</td>
+                  <td class="number">20,00 %</td>
+                  <td class="number">${money(ht * 1.2)}</td>
+                </tr>
+              `;
+            }).join("")
           : `<tr><td colspan="8" class="empty">AUCUNE DÉSIGNATION</td></tr>`;
     };
 
