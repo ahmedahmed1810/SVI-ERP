@@ -2153,6 +2153,49 @@ function renderBudgetList() {
         .bdg-d-title { font-size: 24px; }
       }
 
+
+      .bdg-d-h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 900;
+        text-transform: none;
+      }
+
+      .bdg-d-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: -1px;
+      }
+
+      .bdg-d-tab {
+        padding: 9px 16px;
+        border: 1px solid #e1e5eb;
+        border-bottom: 0;
+        border-radius: 10px 10px 0 0;
+        background: #f3f4f6;
+        color: #5f6875;
+        font-size: 10px;
+        font-weight: 800;
+        cursor: pointer;
+        text-transform: none;
+      }
+
+      .bdg-d-tab.active {
+        background: #fff;
+        color: #0f4f96;
+      }
+
+      .bdg-d-tabbody {
+        border-top-left-radius: 0;
+      }
+
+      .bdg-d-debug {
+        margin-top: 14px;
+        color: #8a93a0;
+        font-size: 10px;
+      }
+
       @media (max-width:650px) {
         .novapp-budget-table-wrap {
           max-height:
@@ -3038,45 +3081,75 @@ function renderBudgetList() {
     const listHTML =
       shell.innerHTML;
 
-    /* ---- répartition des lignes : charges / produits ---- */
+    /* ---- lecture tolérante des colonnes (accents, espaces, / ignorés) ---- */
 
-    const val = (row, names) =>
-      firstValue(row, names);
+    const nk = s =>
+      String(s ?? "")
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
 
-    const isProduct = row => {
-      const t =
-        normalise(
-          val(row, ["CHG/PRD", "TYPE"])
-        ).toUpperCase();
+    const pick = (row, names) => {
+      const keys = Object.keys(row);
 
-      if (t.startsWith("P")) return true;
-      if (t.startsWith("C")) return false;
+      for (const name of names) {
+        const target = nk(name);
 
-      return (
-        normalise(val(row, ["NBR"])) !== "" ||
-        normalise(val(row, ["DIM1", "DIM 1"])) !== ""
-      );
+        const key =
+          keys.find(k => nk(k) === target);
+
+        if (
+          key !== undefined &&
+          normalise(row[key]) !== ""
+        ) {
+          return row[key];
+        }
+      }
+
+      return "";
     };
 
-    const toLine = row => {
-      const product = isProduct(row);
+    const typeKey =
+      Object.keys(budget.rows[0] || {})
+        .find(k => {
+          const n = nk(k);
+          return n.includes("CHG") && n.includes("PRD");
+        });
 
-      const nbr =
-        val(row, ["NBR"]);
+    const kindOf = row => {
+      const t =
+        nk(typeKey ? row[typeKey] : "");
+
+      if (t.startsWith("PRD") || t.startsWith("PROD")) {
+        return "prd";
+      }
+
+      if (t.startsWith("CHG") || t.startsWith("CHARGE")) {
+        return "chg";
+      }
+
+      return "";
+    };
+
+    const toLine = (row, i) => {
+      const kind = kindOf(row);
+
+      const nbr = pick(row, ["NBR"]);
 
       const dims = [
-        val(row, ["DIM1", "DIM 1"]),
-        val(row, ["DIM2", "DIM 2"]),
-        val(row, ["DIM3", "DIM 3"])
+        pick(row, ["DIM1"]),
+        pick(row, ["DIM2"]),
+        pick(row, ["DIM3"])
       ];
 
       const price =
-        num(val(row, ["PUB", "PRIX", "PU"]));
+        num(pick(row, ["PUB", "PRIX", "PU"]));
 
       let qty =
-        num(val(row, ["QTB", "QUANTITE", "QUANTITÉ"]));
+        num(pick(row, ["QTB", "QUANTITE"]));
 
-      if (product) {
+      if (kind === "prd") {
         const factors =
           [nbr, ...dims]
             .filter(v => normalise(v) !== "")
@@ -3094,98 +3167,47 @@ function renderBudgetList() {
       const amount =
         price
           ? qty * price
-          : num(val(row, ["MNB", "MONTANT", "MPB"]));
+          : num(pick(row, ["MNB", "MONTANT", "MPB"]));
 
       return {
+        id: "l" + i,
+        kind,
         article:
-          val(row, ["ARTICLE", "N°"]),
+          pick(row, ["ARTICLE", "N°"]),
         designation:
-          val(row, ["DETAIL BUDGET", "DESIGNATION", "DÉSIGNATION"]),
+          pick(row, ["DETAIL BUDGET", "DESIGNATION"]),
         unit:
-          val(row, ["UTB", "UNITE", "UNITÉ"]),
+          pick(row, ["UTB", "UNITE"]),
         nbr,
         dims,
         qty,
         price,
-        amount
+        amount,
+        tva: 20
       };
     };
 
-    const charges =
-      budget.rows
-        .filter(r => !isProduct(r))
-        .map(toLine);
+    const lines =
+      budget.rows.map(toLine);
 
-    const products =
-      budget.rows
-        .filter(isProduct)
-        .map(toLine);
+    const byKind = {
+      chg: lines.filter(l => l.kind === "chg"),
+      prd: lines.filter(l => l.kind === "prd")
+    };
 
-    const all = [...charges, ...products];
+    const unclassified =
+      lines.filter(l => !l.kind).length;
 
-    const num2 = v => money(v);
+    const tabs = [
+      { key: "chg", title: "DÉTAIL CHARGE" },
+      { key: "prd", title: "DÉTAIL PRODUIT" },
+      { key: "qlt", title: "DÉTAIL QUALITÉ" },
+      { key: "dly", title: "DÉTAIL DÉLAI" }
+    ];
 
-    const tvaCell = (id, line) => `
-      <td class="number">
-        <input
-          type="number"
-          class="bdg-tva-input"
-          data-line="${id}"
-          value="20"
-          min="0"
-          step="0.01"
-        >
-      </td>
-      <td class="number" data-ttc="${id}">
-        ${num2(line.amount * 1.2)}
-      </td>
-    `;
+    let active = "chg";
 
-    let lineId = 0;
-
-    const chargeRows =
-      charges.map(l => {
-        l.id = "l" + (lineId++);
-        return `
-          <tr data-ht="${l.amount}" data-row="${l.id}">
-            <td>${esc(l.article)}</td>
-            <td>${esc(l.designation)}</td>
-            <td>${esc(l.unit)}</td>
-            <td class="number">${num2(l.qty)}</td>
-            <td class="number">${num2(l.price)}</td>
-            <td class="number">${num2(l.amount)}</td>
-            ${tvaCell(l.id, l)}
-          </tr>
-        `;
-      }).join("");
-
-    const productRows =
-      products.map(l => {
-        l.id = "l" + (lineId++);
-        return `
-          <tr data-ht="${l.amount}" data-row="${l.id}">
-            <td>${esc(l.article)}</td>
-            <td>${esc(l.designation)}</td>
-            <td>${esc(l.unit)}</td>
-            <td class="number">${esc(l.nbr)}</td>
-            <td class="number">${esc(l.dims[0])}</td>
-            <td class="number">${esc(l.dims[1])}</td>
-            <td class="number">${esc(l.dims[2])}</td>
-            <td class="number">${num2(l.qty)}</td>
-            <td class="number">${num2(l.price)}</td>
-            <td class="number">${num2(l.amount)}</td>
-            ${tvaCell(l.id, l)}
-          </tr>
-        `;
-      }).join("");
-
-    const empty = (cols, text) => `
-      <tr>
-        <td colspan="${cols}" class="empty">
-          ${text}
-        </td>
-      </tr>
-    `;
+    /* ---- squelette de l'écran ---- */
 
     shell.innerHTML = `
 
@@ -3208,15 +3230,15 @@ function renderBudgetList() {
           ←
         </button>
 
+        <h1 class="bdg-d-h1">
+          ${esc(budget.project)}
+        </h1>
+
         <div></div>
 
       </div>
 
       <div class="bdg-d-page">
-
-        <h1 class="bdg-d-title">
-          ${esc(budget.project)}
-        </h1>
 
         <div class="bdg-d-ref">
           <span>${esc(ref)}</span>
@@ -3231,7 +3253,9 @@ function renderBudgetList() {
         </div>
 
         <div class="bdg-d-block">
-          <div class="bdg-d-block-title">DÉTAIL CHARGE</div>
+          <div class="bdg-d-block-title">
+            DÉSIGNATIONS CLIENT
+          </div>
           <div class="bdg-d-scroll">
             <table class="bdg-d-table">
               <thead>
@@ -3242,130 +3266,243 @@ function renderBudgetList() {
                   <th class="number">QUANTITÉ</th>
                   <th class="number">PRIX</th>
                   <th class="number">MONTANT HT</th>
-                  <th class="number">TVA %</th>
+                  <th class="number">TVA</th>
                   <th class="number">MONTANT TTC</th>
                 </tr>
               </thead>
               <tbody>
-                ${chargeRows || empty(8, "AUCUNE CHARGE")}
+                <tr>
+                  <td colspan="8" class="empty">
+                    AUCUNE DÉSIGNATION CLIENT
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <div class="bdg-d-block">
-          <div class="bdg-d-block-title">DÉTAIL PRODUIT</div>
+        <div class="bdg-d-tabs" id="bdgTabs">
+          ${
+            tabs.map(t => `
+              <button
+                type="button"
+                class="bdg-d-tab"
+                data-tab="${t.key}"
+              >
+                ${t.title}
+              </button>
+            `).join("")
+          }
+        </div>
+
+        <div class="bdg-d-block bdg-d-tabbody" id="bdgTabBody"></div>
+
+        <details class="bdg-d-debug">
+          <summary>Colonnes détectées dans l'onglet BDG</summary>
+          <div>
+            ${esc(Object.keys(budget.rows[0] || {}).join(" | "))}
+            <br>
+            Colonne charge/produit :
+            ${esc(typeKey || "INTROUVABLE")}
+            — lignes non classées : ${unclassified}
+          </div>
+        </details>
+
+      </div>
+    `;
+
+    const body = $("bdgTabBody");
+
+    const tvaFor = l => l.amount * l.tva / 100;
+
+    const totalsHTML = list => {
+      const ht =
+        list.reduce((t, l) => t + l.amount, 0);
+
+      const tva =
+        list.reduce((t, l) => t + tvaFor(l), 0);
+
+      return `
+        <div class="bdg-d-totals">
+          <div>
+            <span>MONTANT HORS TAXE</span>
+            <strong id="bdgTotHT">${money(ht)}</strong>
+          </div>
+          <div>
+            <span>MONTANT TVA</span>
+            <strong id="bdgTotTVA">${money(tva)}</strong>
+          </div>
+          <div class="bdg-d-total-ttc">
+            <span>MONTANT TTC</span>
+            <strong id="bdgTotTTC">${money(ht + tva)}</strong>
+          </div>
+        </div>
+      `;
+    };
+
+    const renderTab = () => {
+      shell
+        .querySelectorAll(".bdg-d-tab")
+        .forEach(b =>
+          b.classList.toggle(
+            "active",
+            b.dataset.tab === active
+          )
+        );
+
+      if (active === "chg" || active === "prd") {
+        const list = byKind[active];
+        const prd = active === "prd";
+        const cols = prd ? 12 : 8;
+
+        const rowsHTML =
+          list.map(l => `
+            <tr data-row="${l.id}">
+              <td>${esc(l.article)}</td>
+              <td>${esc(l.designation)}</td>
+              <td>${esc(l.unit)}</td>
+              ${
+                prd
+                  ? `
+                    <td class="number">${esc(l.nbr)}</td>
+                    <td class="number">${esc(l.dims[0])}</td>
+                    <td class="number">${esc(l.dims[1])}</td>
+                    <td class="number">${esc(l.dims[2])}</td>
+                  `
+                  : ""
+              }
+              <td class="number">${money(l.qty)}</td>
+              <td class="number">${money(l.price)}</td>
+              <td class="number">${money(l.amount)}</td>
+              <td class="number">
+                <input
+                  type="number"
+                  class="bdg-tva-input"
+                  data-line="${l.id}"
+                  value="${l.tva}"
+                  min="0"
+                  step="0.01"
+                >
+              </td>
+              <td class="number" data-ttc="${l.id}">
+                ${money(l.amount + tvaFor(l))}
+              </td>
+            </tr>
+          `).join("");
+
+        body.innerHTML = `
           <div class="bdg-d-scroll">
             <table class="bdg-d-table">
               <thead>
                 <tr>
                   <th>ARTICLE</th>
                   <th>DÉSIGNATION</th>
-                  <th>UPB</th>
-                  <th class="number">NBR</th>
-                  <th class="number">DIM 1</th>
-                  <th class="number">DIM 2</th>
-                  <th class="number">DIM 3</th>
-                  <th class="number">QPB</th>
-                  <th class="number">PPB</th>
-                  <th class="number">MPB HT</th>
+                  <th>UNITÉ</th>
+                  ${
+                    prd
+                      ? `
+                        <th class="number">NBR</th>
+                        <th class="number">DIM 1</th>
+                        <th class="number">DIM 2</th>
+                        <th class="number">DIM 3</th>
+                      `
+                      : ""
+                  }
+                  <th class="number">QUANTITÉ</th>
+                  <th class="number">PRIX</th>
+                  <th class="number">MONTANT HT</th>
                   <th class="number">TVA %</th>
-                  <th class="number">MPB TTC</th>
+                  <th class="number">MONTANT TTC</th>
                 </tr>
               </thead>
               <tbody>
-                ${productRows || empty(12, "AUCUN PRODUIT")}
+                ${
+                  rowsHTML ||
+                  `<tr><td colspan="${cols}" class="empty">
+                    ${prd ? "AUCUN PRODUIT" : "AUCUNE CHARGE"}
+                  </td></tr>`
+                }
               </tbody>
             </table>
           </div>
-        </div>
+          ${totalsHTML(list)}
+        `;
 
-        <div class="bdg-d-block">
-          <div class="bdg-d-block-title">DÉTAIL QUALITÉ</div>
+        return;
+      }
+
+      if (active === "qlt") {
+        body.innerHTML = `
           <div class="bdg-d-reserved">
             Espace réservé — contenu à définir.
           </div>
+        `;
+
+        return;
+      }
+
+      body.innerHTML = `
+        <div class="bdg-d-delay">
+          <label>
+            DATE DÉBUT
+            <input type="date" id="bdgDelayStart">
+          </label>
+          <label>
+            DATE FIN
+            <input type="date" id="bdgDelayEnd">
+          </label>
+          <label>
+            DÉLAI
+            <div id="bdgDelayDays">—</div>
+          </label>
         </div>
+      `;
+    };
 
-        <div class="bdg-d-block">
-          <div class="bdg-d-block-title">DÉTAIL DÉLAI</div>
-          <div class="bdg-d-delay">
-            <label>
-              DATE DÉBUT
-              <input type="date" id="bdgDelayStart">
-            </label>
-            <label>
-              DATE FIN
-              <input type="date" id="bdgDelayEnd">
-            </label>
-            <label>
-              DÉLAI
-              <div id="bdgDelayDays">—</div>
-            </label>
-          </div>
-        </div>
+    shell.onclick = event => {
+      const tab =
+        event.target.closest("[data-tab]");
 
-        <div class="bdg-d-totals">
-          <div>
-            <span>MONTANT HORS TAXE</span>
-            <strong id="bdgTotHT">0,00</strong>
-          </div>
-          <div>
-            <span>MONTANT TVA</span>
-            <strong id="bdgTotTVA">0,00</strong>
-          </div>
-          <div class="bdg-d-total-ttc">
-            <span>MONTANT TTC</span>
-            <strong id="bdgTotTTC">0,00</strong>
-          </div>
-        </div>
-
-      </div>
-    `;
-
-    /* ---- totaux et TVA modifiable par ligne ---- */
-
-    const recalc = () => {
-      let ht = 0;
-      let tva = 0;
-
-      shell
-        .querySelectorAll("tr[data-row]")
-        .forEach(tr => {
-          const lineHT =
-            num(tr.dataset.ht);
-
-          const input =
-            tr.querySelector(".bdg-tva-input");
-
-          const rate =
-            input ? num(input.value) : 20;
-
-          const lineTVA =
-            lineHT * rate / 100;
-
-          ht += lineHT;
-          tva += lineTVA;
-
-          const cell =
-            tr.querySelector("[data-ttc]");
-
-          if (cell) {
-            cell.textContent =
-              money(lineHT + lineTVA);
-          }
-        });
-
-      $("bdgTotHT").textContent = money(ht);
-      $("bdgTotTVA").textContent = money(tva);
-      $("bdgTotTTC").textContent = money(ht + tva);
+      if (tab) {
+        active = tab.dataset.tab;
+        renderTab();
+      }
     };
 
     shell.oninput = event => {
-      if (
-        event.target.closest(".bdg-tva-input")
-      ) {
-        recalc();
+      const input =
+        event.target.closest(".bdg-tva-input");
+
+      if (input) {
+        const line =
+          lines.find(l => l.id === input.dataset.line);
+
+        if (line) {
+          line.tva = num(input.value);
+
+          const cell =
+            shell.querySelector(
+              `[data-ttc="${line.id}"]`
+            );
+
+          if (cell) {
+            cell.textContent =
+              money(line.amount + tvaFor(line));
+          }
+
+          const list = byKind[active] || [];
+
+          const ht =
+            list.reduce((t, l) => t + l.amount, 0);
+
+          const tva =
+            list.reduce((t, l) => t + tvaFor(l), 0);
+
+          $("bdgTotHT").textContent = money(ht);
+          $("bdgTotTVA").textContent = money(tva);
+          $("bdgTotTTC").textContent = money(ht + tva);
+        }
+
         return;
       }
 
@@ -3373,11 +3510,8 @@ function renderBudgetList() {
         event.target.id === "bdgDelayStart" ||
         event.target.id === "bdgDelayEnd"
       ) {
-        const a =
-          $("bdgDelayStart").value;
-
-        const b =
-          $("bdgDelayEnd").value;
+        const a = $("bdgDelayStart").value;
+        const b = $("bdgDelayEnd").value;
 
         if (a && b) {
           const days =
@@ -3394,12 +3528,13 @@ function renderBudgetList() {
       }
     };
 
-    recalc();
+    renderTab();
 
     $("budgetBackBtn")
       ?.addEventListener(
         "click",
         () => {
+          shell.onclick = null;
           shell.oninput = null;
           shell.innerHTML = listHTML;
           renderBudgetList();
