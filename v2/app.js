@@ -2208,6 +2208,74 @@ function renderBudgetList() {
   /* -------------------------------------------------------
      RENDU DES LIGNES
      ------------------------------------------------------- */
+  /* ---- PANNEAU DES DATES (à gauche) ---- */
+
+  let dateFilter = "";
+
+  let panel = $("bdgDatePanel");
+
+  if (!panel) {
+    const wrap = table.closest(".novapp-budget-table-wrap");
+    const layout = document.createElement("div");
+
+    layout.className = "novapp-budget-layout";
+    wrap.parentNode.insertBefore(layout, wrap);
+
+    panel = document.createElement("aside");
+    panel.id = "bdgDatePanel";
+    panel.className = "novapp-date-panel";
+
+    layout.appendChild(panel);
+    layout.appendChild(wrap);
+  }
+
+  function renderDatePanel() {
+    const counts = new Map();
+
+    budgets.forEach(b => {
+      const d = budgetDate(b.ref);
+      if (!d) return;
+
+      const c = counts.get(d.key) || { label: d.label, n: 0 };
+      c.n++;
+      counts.set(d.key, c);
+    });
+
+    const keys = [...counts.keys()].sort().reverse();
+
+    panel.innerHTML = `
+      <div class="novapp-date-head">
+        <button type="button" class="novapp-date-filter">TOUT ▾</button>
+      </div>
+      <div class="novapp-date-list">
+        ${keys.map(k => `
+          <button type="button" data-date="${k}"
+            class="novapp-date-item ${dateFilter === k ? "selected" : ""}">
+            <span>${counts.get(k).label}</span>
+            <span class="novapp-date-count">${counts.get(k).n}</span>
+          </button>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  panel.onclick = event => {
+    const item = event.target.closest("[data-date]");
+
+    if (item) {
+      dateFilter = dateFilter === item.dataset.date ? "" : item.dataset.date;
+    } else if (event.target.closest(".novapp-date-filter")) {
+      dateFilter = "";
+    } else {
+      return;
+    }
+
+    renderDatePanel();
+    renderRows();
+  };
+
+  renderDatePanel();
+
 
   function renderRows() {
     let data =
@@ -2216,6 +2284,15 @@ function renderBudgetList() {
           budgetData(budget)
       );
 
+    if (dateFilter) {
+      data = data.filter(item => {
+        const d = budgetDate(item.ref);
+        return d && d.key === dateFilter;
+      });
+    }
+
+
+     
     /* FILTRES */
 
     Object.entries(
@@ -4414,3 +4491,20 @@ document.addEventListener("click", e => {
   }
   menu.classList.add("hidden");
 });
+
+
+
+
+function budgetDate(ref) {
+  const m = String(ref).match(/(\d{2})-(\d{2})(\d{2})\s*\/\s*\d+/);
+
+  if (!m) return null;
+
+  return {
+    key: "20" + m[1] + "-" + m[2] + "-" + m[3],
+    label: m[3] + "/" + m[2] + "/20" + m[1]
+  };
+}
+
+
+
