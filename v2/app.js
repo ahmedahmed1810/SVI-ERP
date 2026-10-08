@@ -36,6 +36,7 @@ let brdRequestId = 0;
 let bdgRows = [];
 let bdgLoaded = false;
 let bdgLoading = false;
+let bdgGroups = new Map();
 let currentAnalysis = "designation";
 
 /* =========================================================
@@ -1900,6 +1901,86 @@ function renderBudgetList() {
         background: #edf1f5;
       }
 
+      #budgetListTable tbody tr[data-budget-ref] {
+        cursor: pointer;
+      }
+
+      #budgetListTable tbody tr[data-budget-ref]:hover {
+        background: #f8fafc;
+      }
+
+      .bdg-popup-back {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(15,23,42,.45);
+      }
+
+      .bdg-popup {
+        width: 100%;
+        max-width: 460px;
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: 0 20px 50px rgba(0,0,0,.3);
+        overflow: hidden;
+      }
+
+      .bdg-popup-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: #f3f4f6;
+        border-bottom: 1px solid #e1e5eb;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .bdg-popup-close {
+        width: 30px;
+        height: 30px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        font-size: 16px;
+        cursor: pointer;
+      }
+
+      .bdg-popup-body {
+        padding: 16px;
+      }
+
+      .bdg-popup-field {
+        margin-bottom: 12px;
+      }
+
+      .bdg-popup-field label {
+        display: block;
+        margin-bottom: 4px;
+        color: #6b7480;
+        font-size: 10px;
+        font-weight: 800;
+      }
+
+      .bdg-popup-field div {
+        min-height: 32px;
+        padding: 7px 10px;
+        border: 1px solid #dfe4eb;
+        border-radius: 8px;
+        background: #fafbfc;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .bdg-popup-note {
+        color: #8a93a0;
+        font-size: 10px;
+      }
+
       @media (max-width:650px) {
         .novapp-budget-table-wrap {
           max-height:
@@ -1951,6 +2032,8 @@ function renderBudgetList() {
 
     byProject.get(prj).rows.push(row);
   });
+
+  bdgGroups = groups;
 
   const budgets =
     [...groups.values()];
@@ -2025,6 +2108,18 @@ function renderBudgetList() {
 
     const entered = validated;
 
+    /* Intitulé provisoire : nom du projet dans BDS s'il existe */
+    const known =
+      db.projects.find(
+        p =>
+          normalise(p.code) ===
+          normalise(budgetName)
+      );
+
+    const intitule =
+      normalise(known?.name) ||
+      "À COMPLÉTER";
+
     return {
       ref:
         budget.ref,
@@ -2033,6 +2128,7 @@ function renderBudgetList() {
         budgetName,
 
       ht,
+      intitule,
       ttc,
       validated,
       entered,
@@ -2060,10 +2156,9 @@ function renderBudgetList() {
     },
 
     {
-      key: "ht",
-      title: "MONTANT HT",
-      width: 150,
-      number: true
+      key: "intitule",
+      title: "INTITULÉ",
+      width: 260
     },
 
     {
@@ -2097,7 +2192,7 @@ function renderBudgetList() {
     search: {
       ref: "",
       budget: "",
-      ht: "",
+      intitule: "",
       ttc: "",
       validated: "",
       entered: ""
@@ -2370,25 +2465,21 @@ function renderBudgetList() {
         >
 
           <td>
+            ${esc(item.ref)}
+          </td>
 
+          <td title="${esc(item.budget)}">
             <button
               type="button"
               class="budget-link"
-              data-open-budget="${esc(item.ref)}"
+              data-open-project="${esc(item.ref)}"
             >
-              ${esc(item.ref)}
+              ${esc(item.budget)}
             </button>
-
           </td>
 
-          <td
-            title="${esc(item.budget)}"
-          >
-            ${esc(item.budget)}
-          </td>
-
-          <td class="number">
-            ${money(item.ht)}
+          <td title="${esc(item.intitule)}">
+            ${esc(item.intitule)}
           </td>
 
           <td class="number">
@@ -2404,16 +2495,6 @@ function renderBudgetList() {
           </td>
 
           <td class="bdg-action-cell">
-
-            <button
-              type="button"
-              class="bdg-row-action"
-              data-open-budget="${esc(item.ref)}"
-              title="Aperçu"
-              aria-label="Aperçu"
-            >
-              ▤
-            </button>
 
             <button
               type="button"
@@ -3109,17 +3190,17 @@ function renderBudgetList() {
 
   table.onclick = event => {
 
-    const preview =
+    const projectLink =
       event.target.closest(
-        "[data-open-budget]"
+        "[data-open-project]"
       );
 
-    if (preview) {
+    if (projectLink) {
       event.preventDefault();
 
-      openBudgetDetail(
-        preview.dataset
-          .openBudget
+      openProjectPopup(
+        projectLink.dataset
+          .openProject
       );
 
       return;
@@ -3132,7 +3213,24 @@ function renderBudgetList() {
 
     if (printButton) {
       event.preventDefault();
-       printBudgetPDF(printButton.dataset.printBudget);
+
+      printBudgetPDF(
+        printButton.dataset
+          .printBudget
+      );
+
+      return;
+    }
+
+    const row =
+      event.target.closest(
+        "tr[data-budget-ref]"
+      );
+
+    if (row) {
+      openBudgetDetail(
+        row.dataset.budgetRef
+      );
     }
   };
 
@@ -3143,37 +3241,201 @@ function renderBudgetList() {
   renderRows();
 }
 
-function printBudgetPDF(ref) {
-  const budget = bdgRows.filter(
-    (row, index) => budgetReference(row, index) === ref
-  );
+function budgetTotals(group) {
+  const ht =
+    group.rows.reduce(
+      (total, row) =>
+        total +
+        num(
+          firstValue(
+            row,
+            ["MNB", "MONTANT HT", "MPB HT", "MPB"]
+          )
+        ),
+      0
+    );
 
-  if (!budget.length) {
+  const tva =
+    num(
+      firstValue(
+        group.first,
+        ["TVA", "TAUX TVA"]
+      )
+    );
+
+  const tvaAmount =
+    tva
+      ? ht * tva / (tva > 1 ? 100 : 1)
+      : 0;
+
+  return { ht, tvaAmount, ttc: ht + tvaAmount };
+}
+
+function printBudgetPDF(ref) {
+  const group = bdgGroups.get(ref);
+
+  if (!group || !group.rows.length) {
     alert("Budget introuvable.");
     return;
   }
 
-  const printWindow = window.open("", "_blank");
+  const totals = budgetTotals(group);
 
-if (!printWindow) {
-  alert("Impossible d'ouvrir le document PDF.");
-  return;
+  const lines = group.rows.map((row, index) => {
+    const type =
+      firstValue(row, ["CHG/PRD", "TYPE"]);
+
+    const detail =
+      firstValue(
+        row,
+        ["DETAIL BUDGET", "DESIGNATION", "DÉSIGNATION"]
+      );
+
+    const unit =
+      firstValue(row, ["UTB", "UNITE", "UNITÉ"]);
+
+    const qty =
+      firstValue(
+        row,
+        ["QTB", "QUANTITE", "QUANTITÉ", "NBR"]
+      );
+
+    const price =
+      firstValue(row, ["PUB", "PRIX", "PU"]);
+
+    const amount =
+      firstValue(row, ["MNB", "MONTANT", "MPB"]);
+
+    return `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${esc(type)}</td>
+        <td>${esc(detail)}</td>
+        <td>${esc(unit)}</td>
+        <td class="n">${esc(qty)}</td>
+        <td class="n">${money(price)}</td>
+        <td class="n">${money(amount)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const printWindow =
+    window.open("", "_blank");
+
+  if (!printWindow) {
+    alert("Impossible d'ouvrir le document. Autorisez les fenêtres pop-up.");
+    return;
+  }
+
+  printWindow.document.write(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>${esc(ref)} - ${esc(group.project)}</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #111; margin: 24px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .sub { color: #555; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #bbb; padding: 5px 6px; text-align: left; }
+  th { background: #eee; }
+  .n { text-align: right; white-space: nowrap; }
+  tfoot td { font-weight: bold; background: #f6f6f6; }
+  @media print { body { margin: 10mm; } }
+</style>
+</head>
+<body>
+  <h1>${esc(ref)}</h1>
+  <div class="sub">Projet : ${esc(group.project)}</div>
+  <table>
+    <thead>
+      <tr>
+        <th>N°</th><th>TYPE</th><th>DÉTAIL BUDGET</th>
+        <th>UNITÉ</th><th class="n">QUANTITÉ</th>
+        <th class="n">PRIX</th><th class="n">MONTANT</th>
+      </tr>
+    </thead>
+    <tbody>${lines}</tbody>
+    <tfoot>
+      <tr><td colspan="6">TOTAL HT</td><td class="n">${money(totals.ht)}</td></tr>
+      <tr><td colspan="6">TVA</td><td class="n">${money(totals.tvaAmount)}</td></tr>
+      <tr><td colspan="6">TOTAL TTC</td><td class="n">${money(totals.ttc)}</td></tr>
+    </tfoot>
+  </table>
+</body>
+</html>`);
+
+  printWindow.document.close();
+  printWindow.focus();
+
+  setTimeout(() => {
+    try { printWindow.print(); } catch (_) {}
+  }, 400);
 }
 
-printWindow.document.write(`
-  <!DOCTYPE html>
-  <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Budget ${esc(ref)}</title>
-    </head>
-    <body>
-      <h1>Budget ${esc(ref)}</h1>
-    </body>
-  </html>
-`);
+function openProjectPopup(ref) {
+  const group = bdgGroups.get(ref);
 
-printWindow.document.close();
+  if (!group) return;
+
+  const known =
+    db.projects.find(
+      p =>
+        normalise(p.code) ===
+        normalise(group.project)
+    );
+
+  const intitule =
+    normalise(known?.name) ||
+    "À COMPLÉTER";
+
+  const old = $("bdgProjectPopup");
+  if (old) old.remove();
+
+  const back = document.createElement("div");
+  back.id = "bdgProjectPopup";
+  back.className = "bdg-popup-back";
+
+  back.innerHTML = `
+    <div class="bdg-popup">
+      <div class="bdg-popup-head">
+        <span>FICHE PROJET</span>
+        <button type="button" class="bdg-popup-close" aria-label="Fermer">✕</button>
+      </div>
+      <div class="bdg-popup-body">
+        <div class="bdg-popup-field">
+          <label>RÉFÉRENCE</label>
+          <div>${esc(ref)}</div>
+        </div>
+        <div class="bdg-popup-field">
+          <label>PROJET (ABRÉVIATION)</label>
+          <div>${esc(group.project)}</div>
+        </div>
+        <div class="bdg-popup-field">
+          <label>INTITULÉ</label>
+          <div>${esc(intitule)}</div>
+        </div>
+        <div class="bdg-popup-field">
+          <label>CLIENT</label>
+          <div>À COMPLÉTER</div>
+        </div>
+        <div class="bdg-popup-note">
+          Fiche provisoire : les champs seront modifiables dans le futur module Projets.
+        </div>
+      </div>
+    </div>
+  `;
+
+  back.addEventListener("click", e => {
+    if (
+      e.target === back ||
+      e.target.closest(".bdg-popup-close")
+    ) {
+      back.remove();
+    }
+  });
+
+  document.body.appendChild(back);
 }
 
 /* =========================================================
