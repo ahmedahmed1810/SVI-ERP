@@ -740,3 +740,14 @@ tfoot td {
 
 
 
+.novapp-budget-layout { display:flex; align-items:flex-start; gap:14px; margin:30px 28px; }
+.novapp-budget-layout .novapp-budget-table-wrap { margin:0; flex:1; min-width:0; }
+.novapp-date-panel { width:170px; flex:none; border:1px solid #e1e5eb; border-radius:12px; background:#fff; overflow:hidden; }
+.novapp-date-head { padding:8px; background:#f3f4f6; border-bottom:1px solid #e1e5eb; }
+.novapp-date-filter { width:100%; height:30px; padding:0 10px; border:1px solid #dfe4eb; border-radius:8px; background:#fff; color:#3f4856; font-size:10px; font-weight:800; text-align:left; text-transform:none; cursor:pointer; }
+.novapp-date-list { max-height:calc(100vh - 220px); overflow:auto; }
+.novapp-date-item { width:100%; display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border:0; border-bottom:1px solid #e5e8ed; background:#fff; color:#4b5563; font-size:10px; font-weight:700; text-align:left; text-transform:none; cursor:pointer; }
+.novapp-date-item:hover { background:#f8fafc; }
+.novapp-date-item.selected { background:#dcecff; color:#0f4f96; font-weight:800; }
+.novapp-date-count { color:#7b8491; }
+@media (max-width:650px) { .novapp-budget-layout { flex-direction:column; margin:16px 10px; } .novapp-date-panel { width:100%; } }
