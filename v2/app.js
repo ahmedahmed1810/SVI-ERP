@@ -4398,3 +4398,19 @@ document.addEventListener(
     await reloadAll();
   }
 );
+
+
+
+document.addEventListener("click", e => {
+  const menu = $("navMenu");
+  if (!menu) return;
+  const opener = e.target.closest(".open-menu");
+  if (opener) {
+    const r = opener.getBoundingClientRect();
+    menu.style.left = r.left + "px";
+    menu.style.top = (r.bottom + 6) + "px";
+    menu.classList.toggle("hidden");
+    return;
+  }
+  menu.classList.add("hidden");
+});
