@@ -1918,27 +1918,38 @@ function renderBudgetList() {
      ------------------------------------------------------- */
 
   const groups = new Map();
+  const byProject = new Map();
 
-  bdgRows.forEach((row, index) => {
-    const ref =
-      budgetReference(
-        row,
-        index
-      );
+  /* Date provisoire intégrée à la référence : 01/10/2026 */
+  const REF_PREFIX = "BDG 26-1001/";
 
-    if (!groups.has(ref)) {
-      groups.set(
+  bdgRows.forEach(row => {
+    const prj =
+      normalise(
+        firstValue(
+          row,
+          ["PRJ", "PROJET", "NOM PROJET"]
+        )
+      ) || "SANS PROJET";
+
+    if (!byProject.has(prj)) {
+      const ref =
+        REF_PREFIX +
+        String(byProject.size + 1)
+          .padStart(3, "0");
+
+      const group = {
         ref,
-        {
-          ref,
-          rows: [],
-          first: row
-        }
-      );
+        project: prj,
+        rows: [],
+        first: row
+      };
+
+      byProject.set(prj, group);
+      groups.set(ref, group);
     }
 
-    groups.get(ref)
-      .rows.push(row);
+    byProject.get(prj).rows.push(row);
   });
 
   const budgets =
@@ -1961,16 +1972,7 @@ function renderBudgetList() {
     */
 
     const budgetName =
-      firstValue(
-        first,
-        [
-          "BUDGET",
-          "NOM BUDGET",
-          "PROJET",
-          "PRJ",
-          "NOM PROJET"
-        ]
-      );
+      budget.project;
 
     const ht =
       budget.rows.reduce(
@@ -2015,30 +2017,13 @@ function renderBudgetList() {
     const ttc =
       ht + tvaAmount;
 
-    const validated =
-      firstValue(
-        first,
-        [
-          "VALIDE LE",
-          "VALIDÉ LE",
-          "DATE VALIDATION"
-        ]
-      );
+    const refDate =
+      budgetDate(budget.ref);
 
-    const entered =
-      firstValue(
-        first,
-        [
-          "SAISI LE",
-          "SAISIE LE",
-          "DATE SAISIE",
-          "CREE LE",
-          "CRÉÉ LE",
-          "DATE CREATION",
-          "DATE CRÉATION",
-          "DATE"
-        ]
-      );
+    const validated =
+      refDate ? refDate.label : "";
+
+    const entered = validated;
 
     return {
       ref:
@@ -2070,7 +2055,7 @@ function renderBudgetList() {
 
     {
       key: "budget",
-      title: "BUDGET",
+      title: "PROJET",
       width: 260
     },
 
@@ -4505,6 +4490,3 @@ function budgetDate(ref) {
     label: m[3] + "/" + m[2] + "/20" + m[1]
   };
 }
-
-
-
