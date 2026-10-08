@@ -1,5 +1,5 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzFgUloyiRJe-QmR7nRqJ4bfWqvfA_6LSgotJRrRt87yeRfWtdY7nxXMR9avafSJUPg4Q/exec";
-const API_KEY = "SVI-H88-2026-ERP";
+const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
 
 const $ = id => document.getElementById(id);
 
