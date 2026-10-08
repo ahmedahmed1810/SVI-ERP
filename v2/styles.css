@@ -729,3 +729,14 @@ tfoot td {
 .novapp-budget-table .paper-preview { border:0; background:transparent; width:30px; height:30px; padding:0; color:#5f6875; font-size:17px; text-transform:none; cursor:pointer; }
 .novapp-budget-table .empty { height:72px; text-align:center; color:#8a94a5; font-weight:500; }
 @media(max-width:650px){ #bdg{margin:-14px;} .novapp-budget-table-wrap{margin:16px 10px;} .novapp-list-titlebar h1{font-size:15px;} }
+
+
+.topbar { display: none; }
+.section-head .open-menu { flex: none; margin-right: 12px; }
+.section-head > div { flex: 1; }
+#navMenu { min-width: 150px; }
+#navMenu .nav-btn { color:#172033; border:0; background:#fff; border-radius:6px; padding:10px; text-align:left; font-size:12px; font-weight:800; }
+#navMenu .nav-btn.active { background:#dcecff; color:#0f4f96; }
+
+
+
