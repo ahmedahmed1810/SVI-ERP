@@ -1981,6 +1981,178 @@ function renderBudgetList() {
         font-size: 10px;
       }
 
+
+      .bdg-d-page { padding: 18px 28px 40px; }
+
+      .bdg-d-title {
+        margin: 0 0 6px;
+        font-size: 30px;
+        font-weight: 900;
+        text-decoration: underline;
+        text-underline-offset: 6px;
+        text-transform: none;
+      }
+
+      .bdg-d-ref {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        color: #3f4856;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .bdg-d-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #e8edf3;
+        color: #5f6875;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .bdg-d-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 20px;
+      }
+
+      .bdg-d-pill {
+        padding: 6px 14px;
+        border: 1px solid #dfe4eb;
+        border-radius: 999px;
+        background: #fff;
+        color: #4b5563;
+        font-size: 10px;
+        font-weight: 800;
+      }
+
+      .bdg-d-block {
+        margin-bottom: 18px;
+        border: 1px solid #e1e5eb;
+        border-radius: 12px;
+        background: #fff;
+        overflow: hidden;
+      }
+
+      .bdg-d-block-title {
+        padding: 9px 14px;
+        background: #f3f4f6;
+        border-bottom: 1px solid #e1e5eb;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .bdg-d-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .bdg-d-table {
+        width: 100%;
+        min-width: 700px;
+        border-collapse: collapse;
+        font-size: 11px;
+      }
+
+      .bdg-d-table th,
+      .bdg-d-table td {
+        padding: 7px 10px;
+        border-bottom: 1px solid #edf0f4;
+        text-align: left;
+        white-space: nowrap;
+      }
+
+      .bdg-d-table th {
+        background: #fafbfc;
+        color: #6b7480;
+        font-size: 10px;
+      }
+
+      .bdg-d-table .number { text-align: right; }
+
+      .bdg-d-table .empty {
+        text-align: center;
+        color: #9aa3af;
+      }
+
+      .bdg-tva-input {
+        width: 58px;
+        padding: 3px 5px;
+        border: 1px solid #cfd6df;
+        border-radius: 6px;
+        text-align: right;
+        font-size: 11px;
+      }
+
+      .bdg-d-reserved {
+        padding: 22px 14px;
+        color: #9aa3af;
+        font-size: 11px;
+      }
+
+      .bdg-d-delay {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        padding: 14px;
+      }
+
+      .bdg-d-delay label {
+        display: block;
+        color: #6b7480;
+        font-size: 10px;
+        font-weight: 800;
+      }
+
+      .bdg-d-delay input,
+      .bdg-d-delay div {
+        display: block;
+        min-width: 150px;
+        min-height: 30px;
+        margin-top: 4px;
+        padding: 6px 9px;
+        border: 1px solid #dfe4eb;
+        border-radius: 8px;
+        background: #fff;
+        color: #303947;
+        font-size: 12px;
+      }
+
+      .bdg-d-totals {
+        margin-left: auto;
+        max-width: 340px;
+        border: 1px solid #e1e5eb;
+        border-radius: 12px;
+        background: #fff;
+        overflow: hidden;
+      }
+
+      .bdg-d-totals div {
+        display: flex;
+        justify-content: space-between;
+        padding: 9px 14px;
+        border-bottom: 1px solid #edf0f4;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .bdg-d-total-ttc {
+        background: #dcecff;
+        border-bottom: 0 !important;
+      }
+
+      @media (max-width:650px) {
+        .bdg-d-page { padding: 14px 10px 30px; }
+        .bdg-d-title { font-size: 24px; }
+      }
+
       @media (max-width:650px) {
         .novapp-budget-table-wrap {
           max-height:
@@ -2863,83 +3035,169 @@ function renderBudgetList() {
 
     if (!budget) return;
 
-    const rows =
-      budget.rows;
-
-    const first =
-      budget.first;
-
-    const project =
-      firstValue(
-        first,
-        [
-          "PROJET",
-          "PRJ",
-          "NOM PROJET"
-        ]
-      );
-
-    const designation =
-      firstValue(
-        first,
-        [
-          "DESIGNATION",
-          "DÉSIGNATION",
-          "DETAIL BUDGET"
-        ]
-      );
-
-    const ht =
-      rows.reduce(
-        (total, row) =>
-          total +
-          num(
-            firstValue(
-              row,
-              [
-                "MNB",
-                "MONTANT HT",
-                "MPB HT",
-                "MPB"
-              ]
-            )
-          ),
-        0
-      );
-
-    const tva =
-      num(
-        firstValue(
-          first,
-          [
-            "TVA",
-            "TAUX TVA"
-          ]
-        )
-      );
-
-    const tvaAmount =
-      tva
-        ? ht *
-          tva /
-          (
-            tva > 1
-              ? 100
-              : 1
-          )
-        : 0;
-
-    const ttc =
-      ht + tvaAmount;
-
     const listHTML =
       shell.innerHTML;
 
+    /* ---- répartition des lignes : charges / produits ---- */
+
+    const val = (row, names) =>
+      firstValue(row, names);
+
+    const isProduct = row => {
+      const t =
+        normalise(
+          val(row, ["CHG/PRD", "TYPE"])
+        ).toUpperCase();
+
+      if (t.startsWith("P")) return true;
+      if (t.startsWith("C")) return false;
+
+      return (
+        normalise(val(row, ["NBR"])) !== "" ||
+        normalise(val(row, ["DIM1", "DIM 1"])) !== ""
+      );
+    };
+
+    const toLine = row => {
+      const product = isProduct(row);
+
+      const nbr =
+        val(row, ["NBR"]);
+
+      const dims = [
+        val(row, ["DIM1", "DIM 1"]),
+        val(row, ["DIM2", "DIM 2"]),
+        val(row, ["DIM3", "DIM 3"])
+      ];
+
+      const price =
+        num(val(row, ["PUB", "PRIX", "PU"]));
+
+      let qty =
+        num(val(row, ["QTB", "QUANTITE", "QUANTITÉ"]));
+
+      if (product) {
+        const factors =
+          [nbr, ...dims]
+            .filter(v => normalise(v) !== "")
+            .map(num);
+
+        if (factors.length) {
+          qty =
+            factors.reduce(
+              (a, b) => a * b,
+              1
+            );
+        }
+      }
+
+      const amount =
+        price
+          ? qty * price
+          : num(val(row, ["MNB", "MONTANT", "MPB"]));
+
+      return {
+        article:
+          val(row, ["ARTICLE", "N°"]),
+        designation:
+          val(row, ["DETAIL BUDGET", "DESIGNATION", "DÉSIGNATION"]),
+        unit:
+          val(row, ["UTB", "UNITE", "UNITÉ"]),
+        nbr,
+        dims,
+        qty,
+        price,
+        amount
+      };
+    };
+
+    const charges =
+      budget.rows
+        .filter(r => !isProduct(r))
+        .map(toLine);
+
+    const products =
+      budget.rows
+        .filter(isProduct)
+        .map(toLine);
+
+    const all = [...charges, ...products];
+
+    const num2 = v => money(v);
+
+    const tvaCell = (id, line) => `
+      <td class="number">
+        <input
+          type="number"
+          class="bdg-tva-input"
+          data-line="${id}"
+          value="20"
+          min="0"
+          step="0.01"
+        >
+      </td>
+      <td class="number" data-ttc="${id}">
+        ${num2(line.amount * 1.2)}
+      </td>
+    `;
+
+    let lineId = 0;
+
+    const chargeRows =
+      charges.map(l => {
+        l.id = "l" + (lineId++);
+        return `
+          <tr data-ht="${l.amount}" data-row="${l.id}">
+            <td>${esc(l.article)}</td>
+            <td>${esc(l.designation)}</td>
+            <td>${esc(l.unit)}</td>
+            <td class="number">${num2(l.qty)}</td>
+            <td class="number">${num2(l.price)}</td>
+            <td class="number">${num2(l.amount)}</td>
+            ${tvaCell(l.id, l)}
+          </tr>
+        `;
+      }).join("");
+
+    const productRows =
+      products.map(l => {
+        l.id = "l" + (lineId++);
+        return `
+          <tr data-ht="${l.amount}" data-row="${l.id}">
+            <td>${esc(l.article)}</td>
+            <td>${esc(l.designation)}</td>
+            <td>${esc(l.unit)}</td>
+            <td class="number">${esc(l.nbr)}</td>
+            <td class="number">${esc(l.dims[0])}</td>
+            <td class="number">${esc(l.dims[1])}</td>
+            <td class="number">${esc(l.dims[2])}</td>
+            <td class="number">${num2(l.qty)}</td>
+            <td class="number">${num2(l.price)}</td>
+            <td class="number">${num2(l.amount)}</td>
+            ${tvaCell(l.id, l)}
+          </tr>
+        `;
+      }).join("");
+
+    const empty = (cols, text) => `
+      <tr>
+        <td colspan="${cols}" class="empty">
+          ${text}
+        </td>
+      </tr>
+    `;
+
     shell.innerHTML = `
 
-      <div
-        class="novapp-list-titlebar"
-      >
+      <div class="novapp-list-titlebar">
+
+        <button
+          type="button"
+          class="novapp-menu open-menu"
+          aria-label="Menu"
+        >
+          ☰
+        </button>
 
         <button
           type="button"
@@ -2950,235 +3208,200 @@ function renderBudgetList() {
           ←
         </button>
 
-        <h1>
-          ${esc(ref)}
-        </h1>
-
         <div></div>
 
       </div>
 
-      <div style="padding:16px">
+      <div class="bdg-d-page">
 
-        <div
-          style="
-            display:grid;
-            grid-template-columns:
-              repeat(
-                auto-fit,
-                minmax(180px,1fr)
-              );
-            gap:12px;
-            margin-bottom:18px;
-          "
-        >
+        <h1 class="bdg-d-title">
+          ${esc(budget.project)}
+        </h1>
 
-          <div>
-            <strong>PROJET</strong>
-            <br>
-            ${esc(project)}
-          </div>
-
-          <div>
-            <strong>DÉSIGNATION</strong>
-            <br>
-            ${esc(designation)}
-          </div>
-
-          <div>
-            <strong>MONTANT HT</strong>
-            <br>
-            ${money(ht)}
-          </div>
-
-          <div>
-            <strong>MONTANT TTC</strong>
-            <br>
-            ${money(ttc)}
-          </div>
-
+        <div class="bdg-d-ref">
+          <span>${esc(ref)}</span>
+          <span class="bdg-d-badge" title="Historique">H</span>
         </div>
 
-        <div
-          class="novapp-budget-table-wrap"
-        >
+        <div class="bdg-d-pills">
+          <span class="bdg-d-pill">DOC</span>
+          <span class="bdg-d-pill">TAF</span>
+          <span class="bdg-d-pill">OBS</span>
+          <span class="bdg-d-pill">INF</span>
+        </div>
 
-          <table
-            class="novapp-budget-table"
-          >
+        <div class="bdg-d-block">
+          <div class="bdg-d-block-title">DÉTAIL CHARGE</div>
+          <div class="bdg-d-scroll">
+            <table class="bdg-d-table">
+              <thead>
+                <tr>
+                  <th>ARTICLE</th>
+                  <th>DÉSIGNATION</th>
+                  <th>UNITÉ</th>
+                  <th class="number">QUANTITÉ</th>
+                  <th class="number">PRIX</th>
+                  <th class="number">MONTANT HT</th>
+                  <th class="number">TVA %</th>
+                  <th class="number">MONTANT TTC</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${chargeRows || empty(8, "AUCUNE CHARGE")}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-            <thead>
-              <tr>
+        <div class="bdg-d-block">
+          <div class="bdg-d-block-title">DÉTAIL PRODUIT</div>
+          <div class="bdg-d-scroll">
+            <table class="bdg-d-table">
+              <thead>
+                <tr>
+                  <th>ARTICLE</th>
+                  <th>DÉSIGNATION</th>
+                  <th>UPB</th>
+                  <th class="number">NBR</th>
+                  <th class="number">DIM 1</th>
+                  <th class="number">DIM 2</th>
+                  <th class="number">DIM 3</th>
+                  <th class="number">QPB</th>
+                  <th class="number">PPB</th>
+                  <th class="number">MPB HT</th>
+                  <th class="number">TVA %</th>
+                  <th class="number">MPB TTC</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${productRows || empty(12, "AUCUN PRODUIT")}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-                <th>N°</th>
+        <div class="bdg-d-block">
+          <div class="bdg-d-block-title">DÉTAIL QUALITÉ</div>
+          <div class="bdg-d-reserved">
+            Espace réservé — contenu à définir.
+          </div>
+        </div>
 
-                <th>
-                  TYPE
-                </th>
+        <div class="bdg-d-block">
+          <div class="bdg-d-block-title">DÉTAIL DÉLAI</div>
+          <div class="bdg-d-delay">
+            <label>
+              DATE DÉBUT
+              <input type="date" id="bdgDelayStart">
+            </label>
+            <label>
+              DATE FIN
+              <input type="date" id="bdgDelayEnd">
+            </label>
+            <label>
+              DÉLAI
+              <div id="bdgDelayDays">—</div>
+            </label>
+          </div>
+        </div>
 
-                <th>
-                  DÉTAIL BUDGET
-                </th>
-
-                <th>
-                  UNITÉ
-                </th>
-
-                <th class="number">
-                  QUANTITÉ
-                </th>
-
-                <th class="number">
-                  PRIX
-                </th>
-
-                <th class="number">
-                  MONTANT
-                </th>
-
-              </tr>
-            </thead>
-
-            <tbody>
-
-              ${
-                rows.map(
-                  (row, index) => {
-
-                    const type =
-                      firstValue(
-                        row,
-                        [
-                          "CHG/PRD",
-                          "TYPE"
-                        ]
-                      );
-
-                    const detail =
-                      firstValue(
-                        row,
-                        [
-                          "DETAIL BUDGET",
-                          "DESIGNATION",
-                          "DÉSIGNATION"
-                        ]
-                      );
-
-                    const unit =
-                      firstValue(
-                        row,
-                        [
-                          "UTB",
-                          "UNITE",
-                          "UNITÉ"
-                        ]
-                      );
-
-                    const qty =
-                      firstValue(
-                        row,
-                        [
-                          "QTB",
-                          "QUANTITE",
-                          "QUANTITÉ",
-                          "NBR"
-                        ]
-                      );
-
-                    const price =
-                      firstValue(
-                        row,
-                        [
-                          "PUB",
-                          "PRIX",
-                          "PU"
-                        ]
-                      );
-
-                    const amount =
-                      firstValue(
-                        row,
-                        [
-                          "MNB",
-                          "MONTANT",
-                          "MPB"
-                        ]
-                      );
-
-                    return `
-                      <tr>
-
-                        <td>
-                          ${index + 1}
-                        </td>
-
-                        <td>
-                          ${esc(type)}
-                        </td>
-
-                        <td>
-                          ${esc(detail)}
-                        </td>
-
-                        <td>
-                          ${esc(unit)}
-                        </td>
-
-                        <td class="number">
-                          ${esc(qty)}
-                        </td>
-
-                        <td class="number">
-                          ${money(price)}
-                        </td>
-
-                        <td class="number">
-                          ${money(amount)}
-                        </td>
-
-                      </tr>
-                    `;
-                  }
-                ).join("")
-              }
-
-            </tbody>
-
-            <tfoot>
-
-              <tr>
-
-                <td colspan="6">
-                  <strong>
-                    TOTAL HT
-                  </strong>
-                </td>
-
-                <td class="number">
-                  <strong>
-                    ${money(ht)}
-                  </strong>
-                </td>
-
-              </tr>
-
-            </tfoot>
-
-          </table>
-
+        <div class="bdg-d-totals">
+          <div>
+            <span>MONTANT HORS TAXE</span>
+            <strong id="bdgTotHT">0,00</strong>
+          </div>
+          <div>
+            <span>MONTANT TVA</span>
+            <strong id="bdgTotTVA">0,00</strong>
+          </div>
+          <div class="bdg-d-total-ttc">
+            <span>MONTANT TTC</span>
+            <strong id="bdgTotTTC">0,00</strong>
+          </div>
         </div>
 
       </div>
     `;
 
+    /* ---- totaux et TVA modifiable par ligne ---- */
+
+    const recalc = () => {
+      let ht = 0;
+      let tva = 0;
+
+      shell
+        .querySelectorAll("tr[data-row]")
+        .forEach(tr => {
+          const lineHT =
+            num(tr.dataset.ht);
+
+          const input =
+            tr.querySelector(".bdg-tva-input");
+
+          const rate =
+            input ? num(input.value) : 20;
+
+          const lineTVA =
+            lineHT * rate / 100;
+
+          ht += lineHT;
+          tva += lineTVA;
+
+          const cell =
+            tr.querySelector("[data-ttc]");
+
+          if (cell) {
+            cell.textContent =
+              money(lineHT + lineTVA);
+          }
+        });
+
+      $("bdgTotHT").textContent = money(ht);
+      $("bdgTotTVA").textContent = money(tva);
+      $("bdgTotTTC").textContent = money(ht + tva);
+    };
+
+    shell.oninput = event => {
+      if (
+        event.target.closest(".bdg-tva-input")
+      ) {
+        recalc();
+        return;
+      }
+
+      if (
+        event.target.id === "bdgDelayStart" ||
+        event.target.id === "bdgDelayEnd"
+      ) {
+        const a =
+          $("bdgDelayStart").value;
+
+        const b =
+          $("bdgDelayEnd").value;
+
+        if (a && b) {
+          const days =
+            Math.round(
+              (new Date(b) - new Date(a)) /
+              86400000
+            );
+
+          $("bdgDelayDays").textContent =
+            days + " JOUR" + (Math.abs(days) > 1 ? "S" : "");
+        } else {
+          $("bdgDelayDays").textContent = "—";
+        }
+      }
+    };
+
+    recalc();
+
     $("budgetBackBtn")
       ?.addEventListener(
         "click",
         () => {
-
-          shell.innerHTML =
-            listHTML;
-
+          shell.oninput = null;
+          shell.innerHTML = listHTML;
           renderBudgetList();
         }
       );
