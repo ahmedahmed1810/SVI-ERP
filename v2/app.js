@@ -2161,6 +2161,13 @@ function renderBudgetList() {
         text-transform: none;
       }
 
+      #bdgClientBody { }
+
+      .bdg-d-block > .bdg-d-scroll {
+        max-height: 320px;
+        overflow-y: auto;
+      }
+
       .bdg-d-tabs {
         display: flex;
         flex-wrap: wrap;
@@ -3270,13 +3277,7 @@ function renderBudgetList() {
                   <th class="number">MONTANT TTC</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td colspan="8" class="empty">
-                    AUCUNE DÉSIGNATION CLIENT
-                  </td>
-                </tr>
-              </tbody>
+              <tbody id="bdgClientBody"></tbody>
             </table>
           </div>
         </div>
@@ -3312,6 +3313,24 @@ function renderBudgetList() {
     `;
 
     const body = $("bdgTabBody");
+
+    const renderClient = () => {
+      $("bdgClientBody").innerHTML =
+        lines.length
+          ? lines.map(l => `
+              <tr>
+                <td>${esc(l.article)}</td>
+                <td>${esc(l.designation)}</td>
+                <td>${esc(l.unit)}</td>
+                <td class="number">${money(l.qty)}</td>
+                <td class="number">${money(l.price)}</td>
+                <td class="number">${money(l.amount)}</td>
+                <td class="number">${money(l.tva)} %</td>
+                <td class="number">${money(l.amount + l.amount * l.tva / 100)}</td>
+              </tr>
+            `).join("")
+          : `<tr><td colspan="8" class="empty">AUCUNE DÉSIGNATION</td></tr>`;
+    };
 
     const tvaFor = l => l.amount * l.tva / 100;
 
@@ -3501,6 +3520,8 @@ function renderBudgetList() {
           $("bdgTotHT").textContent = money(ht);
           $("bdgTotTVA").textContent = money(tva);
           $("bdgTotTTC").textContent = money(ht + tva);
+
+          renderClient();
         }
 
         return;
@@ -3528,6 +3549,7 @@ function renderBudgetList() {
       }
     };
 
+    renderClient();
     renderTab();
 
     $("budgetBackBtn")
