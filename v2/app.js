@@ -3869,9 +3869,23 @@ function renderBudgetList() {
         const id = lineRow.dataset.row;
 
         if (selRows.has(id)) {
+          /* désélection : on ne retire QUE la surbrillance de la ligne,
+             tous les filtres en place restent tels quels */
           selRows.delete(id);
         } else {
+          /* sélection : la ligne pose ses filtres (désignation, lot,
+             tâches) comme des choix à part entière */
           selRows.add(id);
+          const l = lines.find(x => x.id === id);
+          if (l) {
+            const add = (set, v) => {
+              if (String(v).trim() !== "") set.add(v);
+            };
+            add(dDesig, desigKey(l));
+            add(dH.lot, l.lot);
+            add(dH.prim, l.prim);
+            add(dH.sec, l.sec);
+          }
         }
 
         refreshAll();
