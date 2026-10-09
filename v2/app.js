@@ -3369,6 +3369,12 @@ function renderBudgetList() {
           byLetter(row, "I") || pick(row, ["DESIGNATION"]),
         unit:
           byLetter(row, "J") || pick(row, ["UTB", "UNITE"]),
+        /* unité de l'onglet Détail charge / produit :
+           charges = colonne Q de la feuille BDG */
+        dunit:
+          kind === "chg"
+            ? byLetter(row, "Q")
+            : (byLetter(row, "J") || pick(row, ["UTB", "UNITE"])),
         detail:
           pick(row, ["DETAIL BUDGET"]) ||
           byLetter(row, "I") ||
@@ -3404,8 +3410,8 @@ function renderBudgetList() {
        Détail produit : article + désignation + unité */
     const gidOf = l =>
       (l.kind === "chg"
-        ? [l.kind, l.detail, l.unit]
-        : [l.kind, l.article, l.detail, l.unit])
+        ? [l.kind, l.detail, l.dunit]
+        : [l.kind, l.article, l.detail, l.dunit])
         .map(v => String(v ?? "").trim().toUpperCase())
         .join("|");
 
@@ -3434,7 +3440,7 @@ function renderBudgetList() {
           /* Détail charge : article toujours vide ;
              Détail produit : vide si des articles différents sont fusionnés */
           article: f.kind === "chg" ? "" : same(l => l.article),
-          detail: f.detail, unit: f.unit,
+          detail: f.detail, unit: f.dunit,
           nbr: same(l => l.nbr),
           dims: [0, 1, 2].map(i => same(l => l.dims[i])),
           qty, amount, tvaAmt,
