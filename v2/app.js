@@ -2140,11 +2140,24 @@ function renderBudgetList() {
       }
 
       .bdg-d-table {
-        width: 100%;
-        min-width: 700px;
+        min-width: 0;
+        table-layout: fixed;
         border-collapse: collapse;
         font-size: 11px;
       }
+      .bdg-d-table th, .bdg-d-table td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .col-rs {
+        position: absolute; top: 0; right: 0; width: 9px; height: 100%;
+        cursor: col-resize; z-index: 4; touch-action: none;
+      }
+      .col-rs::after {
+        content: ""; position: absolute; top: 3px; bottom: 3px; right: 0;
+        width: 1px; background: #cfd6df;
+      }
+      .col-rs.on::after { background: #1d4ed8; width: 2px; }
 
       .bdg-d-table th,
       .bdg-d-table td {
@@ -3617,6 +3630,7 @@ function renderBudgetList() {
           </div>
           <div class="bdg-d-scroll bdg-d-client-scroll">
             <table class="bdg-d-table">
+              <colgroup id="bdgClientCols"></colgroup>
               <thead id="bdgClientHead"></thead>
               <tbody id="bdgClientBody"></tbody>
               <tfoot id="bdgClientFoot"></tfoot>
@@ -3697,8 +3711,33 @@ function renderBudgetList() {
       const on = (st.sort && st.sort.col === key) || st.f[key];
       return `<th class="${cls} ${on ? "cf-on" : ""}">
         <span class="cf-wrap">${label}<span class="cf-btn" data-cf="${t}" data-col="${key}"
-          role="button" aria-label="Trier / filtrer">${cfIcon}</span></span></th>`;
+          role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span
+          class="col-rs" data-rs="${t}" data-col="${key}"></span></th>`;
     };
+
+    /* ===== largeurs de colonnes : fixes, réglables, mémorisées ===== */
+    const CW_KEY = "svi_colw_v1";
+    const cwLoad = () => {
+      try { return JSON.parse(localStorage.getItem(CW_KEY) || "{}") || {}; }
+      catch (e) { return {}; }
+    };
+    const cwSave = obj => {
+      try { localStorage.setItem(CW_KEY, JSON.stringify(obj)); } catch (e) {}
+    };
+    const CW_DEF = {
+      article: 70, designation: 330, detail: 300, unit: 70,
+      qty: 100, price: 95, ht: 120, amount: 120, tva: 80, ttc: 130,
+      nbr: 60, d1: 60, d2: 60, d3: 60
+    };
+    const cwGet = (t, k) => cwLoad()[t + "." + k] || CW_DEF[k] || 100;
+
+    /* colgroup + largeur totale de la table */
+    const cwCols = (t, cols) =>
+      cols.map(([k]) =>
+        `<col data-w="${t}.${k}" style="width:${cwGet(t, k)}px">`
+      ).join("");
+    const cwTableW = (t, cols) =>
+      cols.reduce((sum, [k]) => sum + cwGet(t, k), 0);
 
     let cfOpen = null;   /* { t, key } du menu ouvert */
 
@@ -3882,7 +3921,7 @@ function renderBudgetList() {
       const ccols = [
         ["article", "ARTICLE", g => g.article, "center"],
         ["designation", "DÉSIGNATION", g => g.designation, ""],
-        ["unit", "UNITÉ", g => g.unit, ""],
+        ["unit", "UNITÉ", g => g.unit, "center"],
         ["qty", "QUANTITÉ", g => g.qty, "number"],
         ["price", "PRIX", g => g.price, "number"],
         ["ht", "MONTANT HT", g => g.qty * g.price, "number"],
@@ -3893,6 +3932,10 @@ function renderBudgetList() {
       const list = cfApply("client", ccols, base).sort((x, y) =>
         selDesig.has(y.key) - selDesig.has(x.key)
       );
+
+      $("bdgClientCols").innerHTML = cwCols("client", ccols);
+      $("bdgClientHead").closest("table").style.width =
+        cwTableW("client", ccols) + "px";
 
       $("bdgClientHead").innerHTML =
         "<tr>" + ccols.map(([k, lab, , cls]) => cfHead("client", k, lab, cls)).join("") + "</tr>";
@@ -3915,7 +3958,7 @@ function renderBudgetList() {
                     class="${selDesig.has(g.key) ? "selected" : ""}">
                   <td class="center">${esc(g.article)}</td>
                   <td>${esc(g.designation)}</td>
-                  <td>${esc(g.unit)}</td>
+                  <td class="center">${esc(g.unit)}</td>
                   <td class="number">${money(g.qty)}</td>
                   <td class="number">${money(g.price)}</td>
                   <td class="number">${money(ht)}</td>
@@ -3998,7 +4041,8 @@ function renderBudgetList() {
         return `
         <div class="bdg-h-col">
           <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap">${title}<span class="cf-btn"
-            data-cf="${level}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span></div>
+            data-cf="${level}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span
+            class="col-rs" data-rs="hier" data-col="${level}"></span></div>
           ${
             items.length
               ? items.map(v => `
@@ -4012,6 +4056,15 @@ function renderBudgetList() {
         </div>
       `;
       };
+
+      {
+        const w = cwLoad();
+        const ws = ["lot", "prim", "sec"].map(k => w["hier." + k]);
+        $("bdgHier").style.gridTemplateColumns =
+          ws.every(Boolean) && window.innerWidth > 650
+            ? ws.map(x => x + "px").join(" ")
+            : "";
+      }
 
       $("bdgHier").innerHTML =
         col("LOT", "lot", lots) +
@@ -4110,7 +4163,7 @@ function renderBudgetList() {
         const tcols = [
           ["article", "ARTICLE", l => l.article, "center"],
           ["detail", "DÉSIGNATION", l => l.detail, ""],
-          ["unit", "UNITÉ", l => l.unit, ""],
+          ["unit", "UNITÉ", l => l.unit, "center"],
           ...(prd ? [
             ["nbr", "NBR", l => String(l.nbr ?? ""), "number"],
             ["d1", "DIM 1", l => String(l.dims[0] ?? ""), "number"],
@@ -4137,7 +4190,7 @@ function renderBudgetList() {
                 class="${selRows.has(l.gid) ? "selected" : ""}">
               <td class="center">${esc(l.article)}</td>
               <td>${esc(l.detail)}</td>
-              <td>${esc(l.unit)}</td>
+              <td class="center">${esc(l.unit)}</td>
               ${
                 prd
                   ? `
@@ -4169,7 +4222,8 @@ function renderBudgetList() {
 
         body.innerHTML = `
           <div class="bdg-d-scroll">
-            <table class="bdg-d-table">
+            <table class="bdg-d-table" style="width:${cwTableW(active, tcols)}px">
+              <colgroup>${cwCols(active, tcols)}</colgroup>
               <thead>
                 <tr>${tcols.map(([k, lab, , cls]) => cfHead(active, k, lab, cls)).join("")}</tr>
               </thead>
@@ -4217,7 +4271,68 @@ function renderBudgetList() {
       `;
     };
 
+    shell.onpointerdown = event => {
+      const h = event.target.closest(".col-rs");
+      if (!h) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      const t = h.dataset.rs, key = h.dataset.col;
+      const x0 = event.clientX;
+      let apply, save;
+
+      if (t === "hier") {
+        const grid = $("bdgHier");
+        const cols = [...grid.querySelectorAll(".bdg-h-col")];
+        const keys = ["lot", "prim", "sec"];
+        const ws = cols.map(c => c.getBoundingClientRect().width);
+        const i = keys.indexOf(key);
+        const w0 = ws[i];
+        apply = x => {
+          ws[i] = Math.max(80, Math.round(w0 + x - x0));
+          grid.style.gridTemplateColumns = ws.map(v => v + "px").join(" ");
+        };
+        save = () => {
+          const all = cwLoad();
+          keys.forEach((k, j) => { all["hier." + k] = Math.round(ws[j]); });
+          cwSave(all);
+        };
+      } else {
+        const table = h.closest("table");
+        const col = table.querySelector(`col[data-w="${t}.${key}"]`);
+        if (!col) return;
+        const w0 = parseFloat(col.style.width) || col.getBoundingClientRect().width;
+        let w = w0;
+        apply = x => {
+          w = Math.max(40, Math.round(w0 + x - x0));
+          col.style.width = w + "px";
+          const total = [...table.querySelectorAll("col")]
+            .reduce((sum, c) => sum + (parseFloat(c.style.width) || 0), 0);
+          table.style.width = total + "px";
+        };
+        save = () => {
+          const all = cwLoad();
+          all[t + "." + key] = w;
+          cwSave(all);
+        };
+      }
+
+      h.classList.add("on");
+      const move = e => apply(e.clientX);
+      const up = () => {
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", up);
+        document.removeEventListener("pointercancel", up);
+        h.classList.remove("on");
+        save();
+      };
+      document.addEventListener("pointermove", move);
+      document.addEventListener("pointerup", up);
+      document.addEventListener("pointercancel", up);
+    };
+
     shell.onclick = event => {
+      if (event.target.closest(".col-rs")) return;
       const cfb = event.target.closest(".cf-btn");
       if (cfb) {
         event.stopPropagation();
