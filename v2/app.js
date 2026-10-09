@@ -2298,7 +2298,7 @@ function renderBudgetList() {
       }
       th.cf-on .cf-btn, .bdg-h-head.cf-on .cf-btn { color: #1d4ed8; }
       #cfMenu {
-        position: fixed; z-index: 10000; width: 230px; max-height: 340px;
+        position: fixed; z-index: 10000; width: 240px; max-height: 340px;
         display: flex; flex-direction: column; gap: 4px; padding: 8px;
         background: #fff; border: 1px solid #d6dbe3; border-radius: 10px;
         box-shadow: 0 10px 28px rgba(15, 23, 42, .18); font-size: 12px;
@@ -2309,13 +2309,21 @@ function renderBudgetList() {
       }
       #cfMenu .cf-sort.on { background: #dbeafe; color: #1d4ed8; }
       #cfMenu .cf-clear { background: transparent; color: #b42318; }
+      #cfMenu .cf-foot { display: flex; gap: 6px; flex: none; }
+      #cfMenu .cf-foot button { flex: 1; text-align: center; }
+      #cfMenu .cf-ok {
+        border: 0; border-radius: 6px; padding: 6px 8px; font-size: 12px;
+        font-weight: 800; cursor: pointer; background: #1d4ed8; color: #fff;
+      }
+      #cfMenu .cf-sort, #cfMenu .cf-search { flex: none; }
       #cfMenu .cf-search { display: flex; align-items: center; gap: 4px; }
       #cfMenu .cf-q {
         flex: 1; min-width: 0; padding: 5px 7px; border: 1px solid #cfd6df;
         border-radius: 6px; font-size: 12px;
       }
       #cfMenu .cf-list {
-        overflow-y: auto; min-height: 60px; max-height: 170px;
+        overflow-y: auto; min-height: 60px; flex: 1 1 auto;
+        -webkit-overflow-scrolling: touch;
         border: 1px solid #edf0f4; border-radius: 6px; padding: 2px 0;
       }
       #cfMenu .cf-item {
@@ -3760,8 +3768,11 @@ function renderBudgetList() {
       cols.reduce((sum, [k]) => sum + cwGet(t, k), 0);
 
     let cfOpen = null;   /* { t, key } du menu ouvert */
+    let cfPlace = () => {};
 
     const cfClose = () => {
+      window.visualViewport?.removeEventListener("resize", cfPlace);
+      window.visualViewport?.removeEventListener("scroll", cfPlace);
       document.getElementById("cfMenu")?.remove();
       cfOpen = null;
     };
@@ -3818,13 +3829,32 @@ function renderBudgetList() {
         <button type="button" class="cf-sort" data-dir="desc">↓ Tri décroissant</button>
         <div class="cf-search">🔍 <input type="search" class="cf-q" placeholder="Rechercher…"></div>
         <div class="cf-list"></div>
-        <button type="button" class="cf-clear">Effacer tri et filtre</button>`;
+        <div class="cf-foot">
+          <button type="button" class="cf-clear">Effacer</button>
+          <button type="button" class="cf-ok">OK</button>
+        </div>`;
       document.body.appendChild(m);
 
-      const r = btn.getBoundingClientRect();
-      const w = 230;
-      m.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + "px";
-      m.style.top = Math.min(window.innerHeight - 60, r.bottom + 4) + "px";
+      cfPlace = () => {
+        if (!document.body.contains(m)) return;
+        const r = btn.getBoundingClientRect();
+        const vv = window.visualViewport;
+        const vTop = vv ? vv.offsetTop : 0;
+        const vH = vv ? vv.height : window.innerHeight;
+        const w = 240;
+        m.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + "px";
+        const below = vTop + vH - r.bottom - 10;
+        const above = r.top - vTop - 10;
+        const useBelow = below >= 280 || below >= above;
+        const maxH = Math.max(160, useBelow ? below : above);
+        m.style.maxHeight = maxH + "px";
+        m.style.top = useBelow
+          ? (r.bottom + 4) + "px"
+          : Math.max(vTop + 8, r.top - 4 - Math.min(maxH, m.scrollHeight)) + "px";
+      };
+      cfPlace();
+      window.visualViewport?.addEventListener("resize", cfPlace);
+      window.visualViewport?.addEventListener("scroll", cfPlace);
 
       m.addEventListener("click", e => {
         e.stopPropagation();
@@ -3834,6 +3864,10 @@ function renderBudgetList() {
           const same = st.sort && st.sort.col === key && st.sort.dir === sb.dataset.dir;
           st.sort = same ? null : { col: key, dir: sb.dataset.dir };
           cfAfterChange();
+          return;
+        }
+        if (e.target.closest(".cf-ok")) {
+          cfClose();
           return;
         }
         if (e.target.closest(".cf-clear")) {
@@ -3862,13 +3896,20 @@ function renderBudgetList() {
         cfAfterChange();
       });
 
+      let qTimer = null;
       m.querySelector(".cf-q").addEventListener("input", e => {
-        const st = cfT(t);
-        const q = e.target.value.trim().toUpperCase();
-        const all = cfValues(t, key);
-        if (!q) delete st.f[key];
-        else st.f[key] = new Set(all.filter(v => v.toUpperCase().includes(q)));
-        cfAfterChange();
+        cfRenderList();
+        clearTimeout(qTimer);
+        qTimer = setTimeout(() => {
+          const st = cfT(t);
+          const q = e.target.value.trim().toUpperCase();
+          const all = cfValues(t, key);
+          if (!q) delete st.f[key];
+          else st.f[key] = new Set(all.filter(v => v.toUpperCase().includes(q)));
+          refreshAll();
+          cfRenderList();
+          cfPlace();
+        }, 350);
       });
 
       cfRenderList();
@@ -4124,7 +4165,9 @@ function renderBudgetList() {
       const saved = [...shell.querySelectorAll(sel)].map(el => el.scrollTop);
       const x = window.scrollX, y = window.scrollY;
       const active = document.activeElement;
-      if (active && active.blur && !active.classList.contains("bdg-tva-input")) {
+      if (active && active.blur &&
+          !active.classList.contains("bdg-tva-input") &&
+          !active.closest("#cfMenu")) {
         active.blur();
       }
 
