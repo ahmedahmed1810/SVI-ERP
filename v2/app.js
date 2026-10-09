@@ -3315,12 +3315,17 @@ function renderBudgetList() {
           pick(row, ["DETAIL BUDGET"]) ||
           byLetter(row, "I") ||
           pick(row, ["DESIGNATION"]),
-        lot: byLetter(row, "K") || pick(row, ["LOT"]),
-        prim:
-          byLetter(row, "N") ||
-          pick(row, ["ACTIVITE PRIMAIRE"]),
-        sec:
-          byLetter(row, "L") || pick(row, ["ACTIVITE"]),
+        /* préfixe « 01 - » retiré : les libellés identiques
+           sont ainsi regroupés en une seule entrée */
+        lot: stripLevelPrefix(
+          byLetter(row, "K") || pick(row, ["LOT"])
+        ).trim(),
+        prim: stripLevelPrefix(
+          byLetter(row, "N") || pick(row, ["ACTIVITE PRIMAIRE"])
+        ).trim(),
+        sec: stripLevelPrefix(
+          byLetter(row, "L") || pick(row, ["ACTIVITE"])
+        ).trim(),
         cqty: num(byLetter(row, "V")),
         cprice: num(byLetter(row, "W")),
         nbr,
@@ -3334,6 +3339,46 @@ function renderBudgetList() {
 
     const lines =
       budget.rows.map(toLine);
+
+    /* lignes identiques (même type, article, désignation, unité)
+       regroupées à l'affichage */
+    const gidOf = l =>
+      [l.kind, l.article, l.detail, l.unit]
+        .map(v => String(v ?? "").trim().toUpperCase())
+        .join("|");
+
+    const groupMembers = new Map();
+    lines.forEach(l => {
+      l.gid = gidOf(l);
+      if (!groupMembers.has(l.gid)) groupMembers.set(l.gid, []);
+      groupMembers.get(l.gid).push(l);
+    });
+
+    const groupLines = list => {
+      const m = new Map();
+      list.forEach(l => {
+        if (!m.has(l.gid)) m.set(l.gid, []);
+        m.get(l.gid).push(l);
+      });
+      return [...m.entries()].map(([gid, ms]) => {
+        const f = ms[0];
+        const qty = ms.reduce((t, l) => t + l.qty, 0);
+        const amount = ms.reduce((t, l) => t + l.amount, 0);
+        const tvaAmt = ms.reduce((t, l) => t + tvaFor(l), 0);
+        const prices = new Set(ms.map(l => l.price));
+        const same = v => new Set(ms.map(v)).size === 1 ? v(f) : "";
+        return {
+          gid, members: ms,
+          article: f.article, detail: f.detail, unit: f.unit,
+          nbr: same(l => l.nbr),
+          dims: [0, 1, 2].map(i => same(l => l.dims[i])),
+          qty, amount, tvaAmt,
+          /* prix identique, sinon prix moyen pondéré = montant / quantité */
+          price: prices.size === 1 ? f.price : (qty ? amount / qty : 0),
+          tva: same(l => l.tva)
+        };
+      });
+    };
 
     /* désignations choisies en haut (filtrent le bas) */
     const selDesig = new Set();
@@ -3353,9 +3398,10 @@ function renderBudgetList() {
     /* ce qu'apportent les lignes sélectionnées en bas */
     const rowSet = field => {
       const out = new Set();
-      selRows.forEach(id => {
-        const l = lines.find(x => x.id === id);
-        if (l && String(field(l)).trim() !== "") out.add(field(l));
+      selRows.forEach(gid => {
+        (groupMembers.get(gid) || []).forEach(l => {
+          if (String(field(l)).trim() !== "") out.add(field(l));
+        });
       });
       return out;
     };
@@ -3722,16 +3768,17 @@ function renderBudgetList() {
         );
 
       if (active === "chg" || active === "prd") {
-        const list = [...byKindNow()[active]].sort((x, y) =>
-          selRows.has(y.id) - selRows.has(x.id)
+        const raw = byKindNow()[active];
+        const list = groupLines(raw).sort((x, y) =>
+          selRows.has(y.gid) - selRows.has(x.gid)
         );
         const prd = active === "prd";
         const cols = prd ? 12 : 8;
 
         const rowsHTML =
           list.map(l => `
-            <tr data-row="${l.id}"
-                class="${selRows.has(l.id) ? "selected" : ""}">
+            <tr data-row="${esc(l.gid)}"
+                class="${selRows.has(l.gid) ? "selected" : ""}">
               <td class="center">${esc(l.article)}</td>
               <td>${esc(l.detail)}</td>
               <td>${esc(l.unit)}</td>
@@ -3752,14 +3799,14 @@ function renderBudgetList() {
                 <input
                   type="number"
                   class="bdg-tva-input"
-                  data-line="${l.id}"
+                  data-line="${esc(l.gid)}"
                   value="${l.tva}"
                   min="0"
                   step="0.01"
                 >
               </td>
-              <td class="number" data-ttc="${l.id}">
-                ${money(l.amount + tvaFor(l))}
+              <td class="number" data-ttc="${esc(l.gid)}">
+                ${money(l.amount + l.tvaAmt)}
               </td>
             </tr>
           `).join("");
@@ -3799,7 +3846,7 @@ function renderBudgetList() {
               </tbody>
             </table>
           </div>
-          ${totalsHTML(list)}
+          ${totalsHTML(raw)}
         `;
 
         return;
@@ -3878,20 +3925,20 @@ function renderBudgetList() {
         event.target.closest(".bdg-tva-input");
 
       if (input) {
-        const line =
-          lines.find(l => l.id === input.dataset.line);
+        const gid = input.dataset.line;
+        const members =
+          (byKindNow()[active] || []).filter(l => l.gid === gid);
 
-        if (line) {
-          line.tva = num(input.value);
+        if (members.length) {
+          members.forEach(l => { l.tva = num(input.value); });
 
-          const cell =
-            shell.querySelector(
-              `[data-ttc="${line.id}"]`
-            );
+          const cell = [...shell.querySelectorAll("[data-ttc]")]
+            .find(c => c.dataset.ttc === gid);
 
           if (cell) {
-            cell.textContent =
-              money(line.amount + tvaFor(line));
+            const a = members.reduce((t, l) => t + l.amount, 0);
+            const v = members.reduce((t, l) => t + tvaFor(l), 0);
+            cell.textContent = money(a + v);
           }
 
           const list = byKindNow()[active] || [];
