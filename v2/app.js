@@ -1082,6 +1082,49 @@ function stripLevelPrefix(v) {
   return /^\d{2} - /.test(s) ? s.slice(5) : s;
 }
 
+/* fiche en lecture seule au double-clic : code, nom, ordre */
+const levelTap = { type: "", id: "", at: 0 };
+
+function showLevelInfo(type, id) {
+  const item = getBy(type, id);
+  if (!item) return;
+
+  document.getElementById("levelInfoPop")?.remove();
+
+  const pop = document.createElement("div");
+  pop.id = "levelInfoPop";
+  pop.style.cssText =
+    "position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.35);" +
+    "display:flex;align-items:center;justify-content:center;padding:16px";
+
+  const row = (label, value) => `
+    <div style="display:flex;gap:12px;padding:8px 0;border-bottom:1px solid #edf0f4">
+      <span style="width:80px;flex:none;font-size:11px;font-weight:800;color:#7b8597">${label}</span>
+      <span style="font-size:13px;font-weight:600;color:#172033;word-break:break-word">${esc(value)}</span>
+    </div>`;
+
+  pop.innerHTML = `
+    <div style="background:#fff;border-radius:12px;width:100%;max-width:380px;
+                padding:16px 18px;box-shadow:0 12px 32px rgba(0,0,0,.18)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <strong style="font-size:13px;color:#0f4f96">${esc(cfg[type]?.title || "")}</strong>
+        <button type="button" data-close
+                style="border:0;background:#f1f3f6;border-radius:6px;padding:4px 10px;font-weight:800;cursor:pointer">✕</button>
+      </div>
+      ${row("CODE", item.code ?? "")}
+      ${row("NOM", stripLevelPrefix(item.name))}
+      ${row("ORDRE", item.order ?? "")}
+    </div>`;
+
+  pop.addEventListener("click", e => {
+    if (e.target === pop || e.target.closest("[data-close]")) {
+      pop.remove();
+    }
+  });
+
+  document.body.appendChild(pop);
+}
+
 function renderHierarchyColumn(type) {
   const rows =
     rowsFor(type);
@@ -1125,11 +1168,28 @@ function renderHierarchyColumn(type) {
     .forEach(item => {
 
       item.onclick =
-        () =>
-          selectHierarchy(
-            item.dataset.select,
-            item.dataset.id
-          );
+        () => {
+          const t = item.dataset.select;
+          const id = item.dataset.id;
+          const now = Date.now();
+
+          /* double-clic / double-tap (fiable aussi sur iPad) */
+          if (
+            levelTap.id === id &&
+            levelTap.type === t &&
+            now - levelTap.at < 400
+          ) {
+            levelTap.at = 0;
+            showLevelInfo(t, id);
+            return;
+          }
+
+          levelTap.type = t;
+          levelTap.id = id;
+          levelTap.at = now;
+
+          selectHierarchy(t, id);
+        };
 
       bindLongPress(
         item,
