@@ -3928,9 +3928,9 @@ function renderBudgetList() {
         ["unit", "UPB", g => g.unit, "center"],
         ["qty", "QPB", g => g.qty, "number"],
         ["price", "PPB", g => g.price, "number"],
-        ["ht", "MPB", g => g.qty * g.price, "number"],
+        ["ht", "MPB HT", g => g.qty * g.price, "number"],
         ["tva", "TVA", () => "20,00 %", "number"],
-        ["ttc", "MONTANT TTC", g => g.qty * g.price * 1.2, "number"]
+        ["ttc", "MPB TTC", g => g.qty * g.price * 1.2, "number"]
       ];
 
       const list = cfApply("client", ccols, base).sort((x, y) =>
@@ -4205,9 +4205,9 @@ function renderBudgetList() {
           ] : []),
           ["qty", prd ? "QPB" : "QCB", l => l.qty, "number"],
           ["price", prd ? "PPB" : "PCB", l => l.price, "number"],
-          ["amount", prd ? "MPB" : "MCB", l => l.amount, "number"],
+          ["amount", prd ? "MPB HT" : "MCB HT", l => l.amount, "number"],
           ["tva", "TVA %", l => String(l.tva ?? ""), "number"],
-          ["ttc", "MONTANT TTC", l => l.amount + l.tvaAmt, "number"]
+          ["ttc", prd ? "MPB TTC" : "MCB TTC", l => l.amount + l.tvaAmt, "number"]
         ];
         const all = byKindNow()[active];
         const byDesig = groupLines(all).sort((x, y) =>
