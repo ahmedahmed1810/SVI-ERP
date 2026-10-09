@@ -2210,6 +2210,17 @@ function renderBudgetList() {
         font-size: 10px;
       }
 
+.bdg-d-table tbody tr[data-desig]{cursor:pointer}
+.bdg-d-table tbody tr.selected td{background:#dbeafe !important}
+.bdg-d-fi{float:right;font-size:11px;font-weight:600;opacity:.8}
+.bdg-h-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
+.bdg-h-col{border:1px solid #d6dbe3;border-radius:8px;overflow:hidden;max-height:220px;overflow-y:auto;background:#fff}
+.bdg-h-head{position:sticky;top:0;background:#eef1f6;font-size:11px;font-weight:700;padding:6px 8px}
+.bdg-h-item{padding:7px 8px;font-size:12px;cursor:pointer;border-top:1px solid #eef1f6}
+.bdg-h-item.selected{background:#dbeafe;font-weight:700}
+.bdg-h-empty{padding:8px;font-size:12px;opacity:.5}
+@media (max-width:650px){.bdg-h-grid{grid-template-columns:1fr}}
+
       @media (max-width:650px) {
         .novapp-budget-table-wrap {
           max-height:
@@ -3203,6 +3214,12 @@ function renderBudgetList() {
           byLetter(row, "I") || pick(row, ["DESIGNATION"]),
         unit:
           byLetter(row, "J") || pick(row, ["UTB", "UNITE"]),
+        lot: byLetter(row, "K") || pick(row, ["LOT"]),
+        prim:
+          byLetter(row, "N") ||
+          pick(row, ["ACTIVITE PRIMAIRE"]),
+        sec:
+          byLetter(row, "L") || pick(row, ["ACTIVITE"]),
         cqty: num(byLetter(row, "V")),
         cprice: num(byLetter(row, "W")),
         nbr,
@@ -3217,9 +3234,38 @@ function renderBudgetList() {
     const lines =
       budget.rows.map(toLine);
 
-    const byKind = {
-      chg: lines.filter(l => l.kind === "chg"),
-      prd: lines.filter(l => l.kind === "prd")
+    let selDesig = null;
+    const hSel = { lot: "", prim: "", sec: "" };
+
+    const desigKey = l => l.article + "||" + l.designation;
+
+    const hierOK = l =>
+      (!hSel.lot || l.lot === hSel.lot) &&
+      (!hSel.prim || l.prim === hSel.prim) &&
+      (!hSel.sec || l.sec === hSel.sec);
+
+    /* tableau du haut : filtré seulement par la hiérarchie
+       (tâches primaire/secondaire) */
+    const clientLines = () =>
+      lines.filter(l =>
+        (!hSel.prim || l.prim === hSel.prim) &&
+        (!hSel.sec || l.sec === hSel.sec) &&
+        (!hSel.lot || l.lot === hSel.lot)
+      );
+
+    /* onglets du bas : désignation ET hiérarchie */
+    const visibleLines = () =>
+      lines.filter(l =>
+        hierOK(l) &&
+        (!selDesig || desigKey(l) === selDesig)
+      );
+
+    const byKindNow = () => {
+      const v = visibleLines();
+      return {
+        chg: v.filter(l => l.kind === "chg"),
+        prd: v.filter(l => l.kind === "prd")
+      };
     };
 
     const unclassified =
@@ -3302,6 +3348,14 @@ function renderBudgetList() {
           </div>
         </div>
 
+        <div class="bdg-d-block">
+          <div class="bdg-d-block-title">
+            LOTS / TÂCHES
+            <span id="bdgFilterInfo" class="bdg-d-fi"></span>
+          </div>
+          <div class="bdg-h-grid" id="bdgHier"></div>
+        </div>
+
         <div class="bdg-d-tabs" id="bdgTabs">
           ${
             tabs.map(t => `
@@ -3337,28 +3391,47 @@ function renderBudgetList() {
     const renderClient = () => {
       const groupsMap = new Map();
 
-      lines.forEach(l => {
-        const key = [
-          l.article,
-          l.designation,
-          l.unit,
-          l.cprice
-        ].join("|");
+      clientLines().forEach(l => {
+        const key = desigKey(l);
 
         if (!groupsMap.has(key)) {
           groupsMap.set(key, {
+            key,
             article: l.article,
             designation: l.designation,
             unit: l.unit,
             qty: 0,
-            price: l.cprice
+            price: 0,
+            hasKey: false
           });
         }
 
-        groupsMap.get(key).qty += l.cqty;
+        const g = groupsMap.get(key);
+
+        g.qty += l.cqty;
+
       });
 
-      const list = [...groupsMap.values()];
+      /* clé primaire = ligne au prix non nul (cherchée sur toutes
+         les lignes de la désignation, même hors filtre) */
+      groupsMap.forEach(g => {
+        const k = lines.find(l =>
+          desigKey(l) === g.key && l.cprice !== 0
+        );
+
+        if (k) {
+          g.price = k.cprice;
+          g.unit = k.unit || g.unit;
+        }
+      });
+
+      const list = [...groupsMap.values()].sort((x, y) =>
+        String(x.article).localeCompare(
+          String(y.article),
+          undefined,
+          { numeric: true }
+        )
+      );
 
       $("bdgClientBody").innerHTML =
         list.length
@@ -3366,7 +3439,8 @@ function renderBudgetList() {
               const ht = g.qty * g.price;
 
               return `
-                <tr>
+                <tr data-desig="${esc(g.key)}"
+                    class="${g.key === selDesig ? "selected" : ""}">
                   <td>${esc(g.article)}</td>
                   <td>${esc(g.designation)}</td>
                   <td>${esc(g.unit)}</td>
@@ -3379,6 +3453,64 @@ function renderBudgetList() {
               `;
             }).join("")
           : `<tr><td colspan="8" class="empty">AUCUNE DÉSIGNATION</td></tr>`;
+    };
+
+    const uniq = arr =>
+      [...new Set(arr.filter(v => String(v).trim() !== ""))]
+        .sort((x, y) =>
+          String(x).localeCompare(String(y), undefined, { numeric: true })
+        );
+
+    const renderHier = () => {
+      const lots = uniq(lines.map(l => l.lot));
+      const prims = uniq(
+        lines
+          .filter(l => !hSel.lot || l.lot === hSel.lot)
+          .map(l => l.prim)
+      );
+      const secs = uniq(
+        lines
+          .filter(l =>
+            (!hSel.lot || l.lot === hSel.lot) &&
+            (!hSel.prim || l.prim === hSel.prim)
+          )
+          .map(l => l.sec)
+      );
+
+      const col = (title, level, items) => `
+        <div class="bdg-h-col">
+          <div class="bdg-h-head">${title}</div>
+          ${
+            items.length
+              ? items.map(v => `
+                  <div class="bdg-h-item ${hSel[level] === v ? "selected" : ""}"
+                       data-h="${level}"
+                       data-v="${esc(v)}">${esc(v)}</div>
+                `).join("")
+              : `<div class="bdg-h-empty">—</div>`
+          }
+        </div>
+      `;
+
+      $("bdgHier").innerHTML =
+        col("LOT", "lot", lots) +
+        col("TÂCHE PRIMAIRE", "prim", prims) +
+        col("TÂCHE SECONDAIRE", "sec", secs);
+
+      const info = [];
+      if (selDesig) info.push("DÉSIGNATION");
+      if (hSel.lot) info.push("LOT " + hSel.lot);
+      if (hSel.prim) info.push(hSel.prim);
+      if (hSel.sec) info.push(hSel.sec);
+
+      $("bdgFilterInfo").textContent =
+        info.length ? "FILTRES : " + info.join(" › ") : "";
+    };
+
+    const refreshAll = () => {
+      renderClient();
+      renderHier();
+      renderTab();
     };
 
     const tvaFor = l => l.amount * l.tva / 100;
@@ -3419,7 +3551,7 @@ function renderBudgetList() {
         );
 
       if (active === "chg" || active === "prd") {
-        const list = byKind[active];
+        const list = byKindNow()[active];
         const prd = active === "prd";
         const cols = prd ? 12 : 8;
 
@@ -3534,6 +3666,40 @@ function renderBudgetList() {
       if (tab) {
         active = tab.dataset.tab;
         renderTab();
+        return;
+      }
+
+      const h = event.target.closest("[data-h]");
+
+      if (h) {
+        const level = h.dataset.h;
+        const v = h.dataset.v;
+        const order = ["lot", "prim", "sec"];
+
+        if (hSel[level] === v) {
+          hSel[level] = "";
+        } else {
+          hSel[level] = v;
+        }
+
+        /* changer un niveau réinitialise les niveaux inférieurs */
+        order
+          .slice(order.indexOf(level) + 1)
+          .forEach(k => { hSel[k] = ""; });
+
+        refreshAll();
+        return;
+      }
+
+      const dRow = event.target.closest("[data-desig]");
+
+      if (dRow) {
+        selDesig =
+          selDesig === dRow.dataset.desig
+            ? null
+            : dRow.dataset.desig;
+
+        refreshAll();
       }
     };
 
@@ -3558,7 +3724,7 @@ function renderBudgetList() {
               money(line.amount + tvaFor(line));
           }
 
-          const list = byKind[active] || [];
+          const list = byKindNow()[active] || [];
 
           const ht =
             list.reduce((t, l) => t + l.amount, 0);
@@ -3598,8 +3764,7 @@ function renderBudgetList() {
       }
     };
 
-    renderClient();
-    renderTab();
+    refreshAll();
 
     $("budgetBackBtn")
       ?.addEventListener(
