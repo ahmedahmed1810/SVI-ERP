@@ -4634,6 +4634,23 @@ function renderBudgetList() {
     const doExport = async (blk, fmt) => {
       const { head, rows } = blkData(blk);
       const base = fileBase(blk);
+      if (fmt === "gsheet") {
+        /* copie des données (tabulations) puis ouverture d'une nouvelle
+           feuille Google : il suffit de coller en A1 */
+        const cell = v => typeof v === "number"
+          ? money(v).replace(/\s/g, "")
+          : String(v ?? "").replace(/[\t\n]/g, " ");
+        const tsv = [head, ...rows].map(r => r.map(cell).join("\t")).join("\n");
+        let copied = false;
+        try { await navigator.clipboard.writeText(tsv); copied = true; } catch (e) {}
+        window.open("https://sheets.new", "_blank");
+        if (copied) {
+          alert("Données copiées. Dans la nouvelle feuille Google, touche la cellule A1 puis « Coller ».");
+        } else {
+          alert("Copie impossible sur cet appareil : utilise plutôt l'export Excel, puis Fichier › Importer dans Google Sheets.");
+        }
+        return;
+      }
       if (fmt === "csv") {
         const cell = v => {
           const t = typeof v === "number" ? money(v).replace(/\s/g, "") : String(v ?? "");
@@ -4679,6 +4696,7 @@ function renderBudgetList() {
           <button type="button" class="blk-choice" data-fmt="xlsx">Excel (.xlsx)</button>
           <button type="button" class="blk-choice" data-fmt="csv">CSV (.csv)</button>
           <button type="button" class="blk-choice" data-fmt="json">JSON (.json)</button>
+          <button type="button" class="blk-choice" data-fmt="gsheet">Google Sheets</button>
         </div>`);
       p.addEventListener("click", e => {
         const b = e.target.closest("[data-fmt]");
@@ -4703,6 +4721,40 @@ function renderBudgetList() {
             </table>
           </div>
         </div>`);
+    };
+
+    const importGSheet = async () => {
+      const url = prompt("Lien de la feuille Google (partagée « Toute personne disposant du lien ») :");
+      if (!url) return;
+      const id = (url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1];
+      const gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || "0";
+      if (!id) { alert("Lien Google Sheets non reconnu."); return; }
+      try {
+        const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`);
+        if (!r.ok) throw new Error("accès refusé (vérifie le partage)");
+        const X = await loadXLSX();
+        const wb = X.read(await r.text(), { type: "string" });
+        const aoa = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
+        showImport("Google Sheets", aoa[0] || [], aoa.slice(1));
+      } catch (e) {
+        alert("IMPORT GOOGLE SHEETS IMPOSSIBLE : " + e.message);
+      }
+    };
+
+    const openImportMenu = blk => {
+      const p = popup(`
+        <div class="blk-card">
+          <button type="button" class="blk-x" data-close>✕</button>
+          <div class="blk-title">IMPORTER — ${esc(blkName[blk])}</div>
+          <button type="button" class="blk-choice" data-src="file">Fichier (Excel, CSV, JSON)</button>
+          <button type="button" class="blk-choice" data-src="gsheet">Google Sheets (lien)</button>
+        </div>`);
+      p.addEventListener("click", e => {
+        const b = e.target.closest("[data-src]");
+        if (!b) return;
+        p.remove();
+        if (b.dataset.src === "gsheet") importGSheet(); else doImport(blk);
+      });
     };
 
     const doImport = blk => {
@@ -4779,7 +4831,7 @@ function renderBudgetList() {
         event.stopPropagation();
         const blk = bb.dataset.blk;
         if (bb.dataset.act === "export") openExportMenu(blk);
-        else if (bb.dataset.act === "import") doImport(blk);
+        else if (bb.dataset.act === "import") openImportMenu(blk);
         else doPdf(blk);
         return;
       }
