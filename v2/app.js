@@ -2258,11 +2258,28 @@ function renderBudgetList() {
       .bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll {
         height: 231px !important;
       }
-      /* détail charge / produit : au plus 10 lignes visibles */
+      /* détail charge / produit : au plus 6 lignes visibles,
+         pour laisser apparaître les totaux */
       .bdg-d-tabbody > .bdg-d-scroll,
       .bdg-d-tabbody .bdg-d-scroll {
-        max-height: 231px !important;
+        max-height: 147px !important;
         overflow-y: auto;
+      }
+
+      /* même taille de caractères (11 px) dans tout le corps de l'écran */
+      .bdg-d-page,
+      .bdg-d-page .bdg-d-block-title,
+      .bdg-d-page .bdg-d-tab,
+      .bdg-d-page .bdg-d-fi,
+      .bdg-d-page .bdg-d-totals div,
+      .bdg-d-page .bdg-d-totals span,
+      .bdg-d-page .bdg-d-totals strong,
+      .bdg-d-page .bdg-h-head,
+      .bdg-d-page .bdg-h-item,
+      .bdg-d-page .bdg-tva-input,
+      .bdg-d-page .bdg-d-delay,
+      .bdg-d-page .bdg-d-reserved {
+        font-size: 11px !important;
       }
 
       .bdg-d-tabbody .bdg-d-totals {
