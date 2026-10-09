@@ -2265,7 +2265,22 @@ function renderBudgetList() {
         white-space: nowrap;
       }
       .bdg-d-table tbody tr.bdg-d-filler td { height: 21px; }
-      .bdg-tva-input { height: 16px !important; line-height: 14px; }
+      .bdg-tva-input {
+        width: 100% !important;
+        height: 16px !important;
+        line-height: 16px;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        color: inherit;
+        font: inherit;
+        text-align: right;
+      }
+      .bdg-tva-input:focus {
+        outline: 1px solid #93b4e8;
+        background: #fff !important;
+      }
 
       /* tri / filtre par colonne */
       .cf-wrap { display: flex; align-items: center; gap: 4px; width: 100%; }
@@ -4256,12 +4271,11 @@ function renderBudgetList() {
               <td class="number">${money(l.amount)}</td>
               <td class="number">
                 <input
-                  type="number"
+                  type="text"
+                  inputmode="decimal"
                   class="bdg-tva-input"
                   data-line="${esc(l.gid)}"
-                  value="${l.tva}"
-                  min="0"
-                  step="0.01"
+                  value="${l.tva === "" ? "" : money(l.tva) + " %"}"
                 >
               </td>
               <td class="number" data-ttc="${esc(l.gid)}">
@@ -4444,7 +4458,8 @@ function renderBudgetList() {
           (byKindNow()[active] || []).filter(l => l.gid === gid);
 
         if (members.length) {
-          members.forEach(l => { l.tva = num(input.value); });
+          const v = num(String(input.value).replace("%", ""));
+          members.forEach(l => { l.tva = v; });
 
           const cell = [...shell.querySelectorAll("[data-ttc]")]
             .find(c => c.dataset.ttc === gid);
