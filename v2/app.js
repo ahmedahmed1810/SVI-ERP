@@ -3569,6 +3569,29 @@ function renderBudgetList() {
       return out;
     };
 
+    /* filtres de colonne propagés aux autres blocs :
+       client = désignations visibles du tableau client filtré,
+       det    = attributs des lignes visibles de Détail charges / produits filtrés,
+       h      = valeurs gardées dans les colonnes lots / activités */
+    let CONS = { client: null, det: null, h: {} };
+    let lastClientKeys = new Set();
+
+    const cons = (l, skip) => {
+      const c = CONS;
+      if (skip !== "client" && c.client && !c.client.has(desigKey(l))) return false;
+      if (skip !== "detail" && c.det && !(
+        c.det.d.has(desigKey(l)) &&
+        inSet(c.det.lot, l.lot) &&
+        inSet(c.det.prim, l.prim) &&
+        inSet(c.det.sec, l.sec)
+      )) return false;
+      for (const lv of ["lot", "prim", "sec"]) {
+        const set = c.h[lv];
+        if (skip !== lv && set && !set.has(cfText(stripLevelPrefix(l[lv])))) return false;
+      }
+      return true;
+    };
+
     const hierOK = l =>
       inSet(hSel.lot, l.lot) &&
       inSet(hSel.prim, l.prim) &&
@@ -3578,13 +3601,13 @@ function renderBudgetList() {
        filtré par la hiérarchie et par les lignes choisies en bas */
     const clientLines = () => {
       const rd = rowSet(desigKey);
-      return lines.filter(l => hierOK(l) && inSet(rd, desigKey(l)));
+      return lines.filter(l => hierOK(l) && inSet(rd, desigKey(l)) && cons(l, "client"));
     };
 
     /* onglets du bas : restent entiers quand on y clique ;
        filtrés par la hiérarchie et par les désignations choisies en haut */
     const visibleLines = () =>
-      lines.filter(l => hierOK(l) && inSet(selDesig, desigKey(l)));
+      lines.filter(l => hierOK(l) && inSet(selDesig, desigKey(l)) && cons(l, "detail"));
 
     const byKindNow = () => {
       const v = visibleLines();
@@ -4004,7 +4027,9 @@ function renderBudgetList() {
         ["ttc", "MPB TTC", g => g.qty * g.price * 1.2, "number"]
       ];
 
-      const list = cfApply("client", ccols, base).sort((x, y) =>
+      const shownClient = cfApply("client", ccols, base);
+      lastClientKeys = new Set(shownClient.map(g => g.key));
+      const list = shownClient.sort((x, y) =>
         selDesig.has(y.key) - selDesig.has(x.key)
       );
 
@@ -4078,7 +4103,8 @@ function renderBudgetList() {
         inSet(rowSet(x => x.sec), l.sec) &&
         (skip === "lot"  || inSet(hSel.lot, l.lot)) &&
         (skip === "prim" || inSet(hSel.prim, l.prim)) &&
-        (skip === "sec"  || inSet(hSel.sec, l.sec))
+        (skip === "sec"  || inSet(hSel.sec, l.sec)) &&
+        cons(l, skip)
       );
     };
 
@@ -4211,9 +4237,11 @@ function renderBudgetList() {
 
     const refreshAll = () => {
       keepScroll(() => {
+        computeCons(false);
         pruneHier();
 
         renderClient();
+        computeCons();
         renderHier();
         renderTab();
         markFiltered();
@@ -4267,6 +4295,49 @@ function renderBudgetList() {
       `;
     };
 
+    const tcolsFor = prd => [
+      ["article", "ART", l => l.article, "center"],
+      ["detail", "DÉSIGNATION", l => l.detail, ""],
+      ["unit", prd ? "UPB" : "UCB", l => l.unit, "center"],
+      ...(prd ? [
+        ["nbr", "NBR", l => String(l.nbr ?? ""), "number"],
+        ["d1", "DIM 1", l => String(l.dims[0] ?? ""), "number"],
+        ["d2", "DIM 2", l => String(l.dims[1] ?? ""), "number"],
+        ["d3", "DIM 3", l => String(l.dims[2] ?? ""), "number"]
+      ] : []),
+      ["qty", prd ? "QPB" : "QCB", l => l.qty, "number"],
+      ["price", prd ? "PPB" : "PCB", l => l.price, "number"],
+      ["amount", prd ? "MPB HT" : "MCB HT", l => l.amount, "number"],
+      ["tva", "TVA %", l => String(l.tva ?? ""), "number"],
+      ["ttc", prd ? "MPB TTC" : "MCB TTC", l => l.amount + l.tvaAmt, "number"]
+    ];
+
+    /* recalcule les contraintes propagées par les filtres de colonne */
+    const computeCons = (withClient = true) => {
+      const has = t => CF[t] && Object.keys(CF[t].f).length > 0;
+      CONS.client = withClient && has("client") ? new Set(lastClientKeys) : null;
+
+      let det = null;
+      ["chg", "prd"].forEach(kind => {
+        if (!has(kind)) return;
+        const all = lines.filter(l => l.kind === kind);
+        const shown = cfApply(kind, tcolsFor(kind === "prd"), groupLines(all));
+        det = det || { d: new Set(), lot: new Set(), prim: new Set(), sec: new Set() };
+        shown.forEach(g => g.members.forEach(l => {
+          det.d.add(desigKey(l));
+          if (String(l.lot).trim()) det.lot.add(l.lot);
+          if (String(l.prim).trim()) det.prim.add(l.prim);
+          if (String(l.sec).trim()) det.sec.add(l.sec);
+        }));
+      });
+      CONS.det = det;
+
+      CONS.h = {};
+      ["lot", "prim", "sec"].forEach(lv => {
+        if (CF[lv] && CF[lv].f.v) CONS.h[lv] = CF[lv].f.v;
+      });
+    };
+
     const renderTab = () => {
       shell
         .querySelectorAll(".bdg-d-tab")
@@ -4279,22 +4350,7 @@ function renderBudgetList() {
 
       if (active === "chg" || active === "prd") {
         const prd = active === "prd";
-        const tcols = [
-          ["article", "ART", l => l.article, "center"],
-          ["detail", "DÉSIGNATION", l => l.detail, ""],
-          ["unit", prd ? "UPB" : "UCB", l => l.unit, "center"],
-          ...(prd ? [
-            ["nbr", "NBR", l => String(l.nbr ?? ""), "number"],
-            ["d1", "DIM 1", l => String(l.dims[0] ?? ""), "number"],
-            ["d2", "DIM 2", l => String(l.dims[1] ?? ""), "number"],
-            ["d3", "DIM 3", l => String(l.dims[2] ?? ""), "number"]
-          ] : []),
-          ["qty", prd ? "QPB" : "QCB", l => l.qty, "number"],
-          ["price", prd ? "PPB" : "PCB", l => l.price, "number"],
-          ["amount", prd ? "MPB HT" : "MCB HT", l => l.amount, "number"],
-          ["tva", "TVA %", l => String(l.tva ?? ""), "number"],
-          ["ttc", prd ? "MPB TTC" : "MCB TTC", l => l.amount + l.tvaAmt, "number"]
-        ];
+        const tcols = tcolsFor(prd);
         const all = byKindNow()[active];
         const byDesig = groupLines(all).sort((x, y) =>
           String(x.detail).localeCompare(String(y.detail), "fr", { numeric: true })
