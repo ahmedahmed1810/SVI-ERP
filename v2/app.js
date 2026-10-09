@@ -3906,15 +3906,15 @@ function renderBudgetList() {
 
         const g = groupsMap.get(key);
 
-        /* quantité = somme des lignes PRODUIT d'activité primaire ;
-           les lignes d'activité secondaire ne sont pas comptées */
+        /* quantité = somme des lignes PRODUIT dont l'unité de détail
+           (col. Q) est celle de la désignation client (col. J) : les
+           activités secondaires d'une autre unité (ex. coffrage en m²
+           sous un béton en m³) ne sont pas comptées */
         if (l.kind === "prd" && String(l.prim).trim() !== "") {
-          if (String(l.sec).trim() === "") {
-            g.qty += l.cqty;
-          } else {
-            g.qtySec = (g.qtySec || 0) + l.cqty;
-          }
-          g.hasPrimQty = g.hasPrimQty || String(l.sec).trim() === "";
+          const du = String(l.dunit ?? "").trim().toUpperCase();
+          const cu = String(l.unit ?? "").trim().toUpperCase();
+          const ok = du && cu ? du === cu : l.cprice !== 0;
+          if (ok) g.qty += l.cqty;
         }
 
       });
@@ -3934,10 +3934,6 @@ function renderBudgetList() {
           g.price = k.cprice;
           g.unit = k.unit || g.unit;
         }
-      });
-
-      groupsMap.forEach(g => {
-        if (!g.hasPrimQty && g.qtySec) g.qty = g.qtySec;
       });
 
       const base = [...groupsMap.values()].sort((x, y) =>
