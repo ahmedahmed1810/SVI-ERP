@@ -1079,7 +1079,7 @@ function rowsFor(type) {
    de lots / tâches ; libellé inchangé s'il n'a pas ce préfixe */
 function stripLevelPrefix(v) {
   const s = String(v ?? "");
-  return /^\d{2} - /.test(s) ? s.slice(5) : s;
+  return s.replace(/^\s*\d{1,3}\s*[-–]\s*/, "");
 }
 
 /* fiche en lecture seule au double-clic : code, nom, ordre */
@@ -2309,9 +2309,10 @@ function renderBudgetList() {
 .bdg-d-table tbody tr.selected td{background:#dbeafe !important}
 .bdg-d-fi{float:right;font-size:11px;font-weight:600;opacity:.8}
 .bdg-h-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
-.bdg-h-col{border:1px solid #d6dbe3;border-radius:8px;overflow:hidden;max-height:250px;overflow-y:auto;background:#fff}
-.bdg-h-head{position:sticky;top:0;background:#eef1f6;font-size:11px;font-weight:700;padding:6px 8px}
-.bdg-h-item{padding:3px 8px;font-size:12px;cursor:pointer;border-top:1px solid #eef1f6}
+.bdg-h-col{border:1px solid #d6dbe3;border-radius:8px;overflow:hidden;height:143px;overflow-y:auto;background:#fff}
+.bdg-h-head{position:sticky;top:0;z-index:1;background:#eef1f6;font-size:11px;line-height:15px;font-weight:700;padding:6px 8px}
+.bdg-h-item{padding:3px 8px;font-size:12px;line-height:16px;cursor:pointer;border-top:1px solid #eef1f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bdg-h-fill{height:16px;padding:3px 8px;border-top:1px solid #eef1f6}
 .bdg-h-item.selected{background:#dbeafe;font-weight:700}
 .bdg-h-empty{padding:8px;font-size:12px;opacity:.5}
 @media (max-width:650px){.bdg-h-grid{grid-template-columns:1fr}}
@@ -3619,6 +3620,9 @@ function renderBudgetList() {
     const renderHier = () => {
       const { lots, prims, secs } = hierLists();
 
+      const hFill = n =>
+        `<div class="bdg-h-fill"></div>`.repeat(Math.max(0, n));
+
       const col = (title, level, items) => `
         <div class="bdg-h-col">
           <div class="bdg-h-head">${title}</div>
@@ -3627,9 +3631,10 @@ function renderBudgetList() {
               ? items.map(v => `
                   <div class="bdg-h-item ${hSel[level].has(v) ? "selected" : ""}"
                        data-h="${level}"
-                       data-v="${esc(v)}">${esc(v)}</div>
-                `).join("")
-              : `<div class="bdg-h-empty">—</div>`
+                       data-v="${esc(v)}"
+                       title="${esc(stripLevelPrefix(v))}">${esc(stripLevelPrefix(v))}</div>
+                `).join("") + hFill(5 - items.length)
+              : `<div class="bdg-h-item" style="opacity:.5;cursor:default">—</div>` + hFill(4)
           }
         </div>
       `;
@@ -3640,7 +3645,6 @@ function renderBudgetList() {
         col("TÂCHE SECONDAIRE", "sec", secs);
 
       const info = [];
-      if (selDesig.size) info.push(selDesig.size + " DÉSIGNATION(S)");
       if (hSel.lot.size) info.push(hSel.lot.size + " LOT(S)");
       if (hSel.prim.size) info.push(hSel.prim.size + " T. PRIMAIRE(S)");
       if (hSel.sec.size) info.push(hSel.sec.size + " T. SECONDAIRE(S)");
