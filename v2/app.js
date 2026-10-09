@@ -3342,8 +3342,12 @@ function renderBudgetList() {
 
     /* lignes identiques (même type, article, désignation, unité)
        regroupées à l'affichage */
+    /* Détail charge : désignation + unité (article ignoré) ;
+       Détail produit : article + désignation + unité */
     const gidOf = l =>
-      [l.kind, l.article, l.detail, l.unit]
+      (l.kind === "chg"
+        ? [l.kind, l.detail, l.unit]
+        : [l.kind, l.article, l.detail, l.unit])
         .map(v => String(v ?? "").trim().toUpperCase())
         .join("|");
 
@@ -3369,7 +3373,8 @@ function renderBudgetList() {
         const same = v => new Set(ms.map(v)).size === 1 ? v(f) : "";
         return {
           gid, members: ms,
-          article: f.article, detail: f.detail, unit: f.unit,
+          /* article vide quand des articles différents sont fusionnés */
+          article: same(l => l.article), detail: f.detail, unit: f.unit,
           nbr: same(l => l.nbr),
           dims: [0, 1, 2].map(i => same(l => l.dims[i])),
           qty, amount, tvaAmt,
