@@ -3335,13 +3335,11 @@ function renderBudgetList() {
     const lines =
       budget.rows.map(toLine);
 
+    /* désignations choisies en haut (filtrent le bas) */
     const selDesig = new Set();
-    /* lignes touchées dans Détail charge / Détail produit */
+    /* lignes choisies dans Détail charge / produit (filtrent le haut) */
     const selRows = new Set();
-
-    /* choix faits directement (désignation du haut, lot, tâche) */
-    const dDesig = new Set();
-    const dH = { lot: new Set(), prim: new Set(), sec: new Set() };
+    /* lots / tâches choisis dans les colonnes du bas */
     const hSel = {
       lot: new Set(),
       prim: new Set(),
@@ -3352,55 +3350,32 @@ function renderBudgetList() {
 
     const inSet = (set, v) => !set.size || set.has(v);
 
-    /* filtres effectifs = choix directs ∪ ce qu'apportent les lignes
-       sélectionnées ; un élément n'est retiré que lorsque plus aucune
-       sélection active ne s'y rattache */
-    const syncSel = () => {
-      const fill = (eff, direct) => {
-        eff.clear();
-        direct.forEach(v => eff.add(v));
-      };
-      fill(selDesig, dDesig);
-      fill(hSel.lot, dH.lot);
-      fill(hSel.prim, dH.prim);
-      fill(hSel.sec, dH.sec);
-
+    /* ce qu'apportent les lignes sélectionnées en bas */
+    const rowSet = field => {
+      const out = new Set();
       selRows.forEach(id => {
         const l = lines.find(x => x.id === id);
-        if (!l) return;
-        const add = (set, v) => {
-          if (String(v).trim() !== "") set.add(v);
-        };
-        add(selDesig, desigKey(l));
-        add(hSel.lot, l.lot);
-        add(hSel.prim, l.prim);
-        add(hSel.sec, l.sec);
+        if (l && String(field(l)).trim() !== "") out.add(field(l));
       });
+      return out;
     };
 
-    /* retire un élément précis : son choix direct et les lignes
-       sélectionnées qui l'apportaient */
-    const dropValue = (field, direct, v) => {
-      direct.delete(v);
-      [...selRows].forEach(id => {
-        const l = lines.find(x => x.id === id);
-        if (l && field(l) === v) selRows.delete(id);
-      });
+    const hierOK = l =>
+      inSet(hSel.lot, l.lot) &&
+      inSet(hSel.prim, l.prim) &&
+      inSet(hSel.sec, l.sec);
+
+    /* tableau du haut : reste entier quand on y clique ;
+       filtré par la hiérarchie et par les lignes choisies en bas */
+    const clientLines = () => {
+      const rd = rowSet(desigKey);
+      return lines.filter(l => hierOK(l) && inSet(rd, desigKey(l)));
     };
 
-    /* tableau du haut : filtré seulement par la hiérarchie */
-    const clientLines = () =>
-      lines.filter(l =>
-        inSet(hSel.lot, l.lot) &&
-        inSet(hSel.prim, l.prim) &&
-        inSet(hSel.sec, l.sec)
-      );
-
-    /* onglets du bas : désignations ET hiérarchie */
+    /* onglets du bas : restent entiers quand on y clique ;
+       filtrés par la hiérarchie et par les désignations choisies en haut */
     const visibleLines = () =>
-      clientLines().filter(l =>
-        inSet(selDesig, desigKey(l))
-      );
+      lines.filter(l => hierOK(l) && inSet(selDesig, desigKey(l)));
 
     const byKindNow = () => {
       const v = visibleLines();
@@ -3582,6 +3557,7 @@ function renderBudgetList() {
       });
 
       const list = [...groupsMap.values()].sort((x, y) =>
+        (selDesig.has(y.key) - selDesig.has(x.key)) ||
         String(x.article).localeCompare(
           String(y.article),
           undefined,
@@ -3629,11 +3605,18 @@ function renderBudgetList() {
     /* filtre dans tous les sens : chaque colonne affiche les valeurs
        des lignes qui respectent TOUS les AUTRES filtres (désignations,
        lots, primaires, secondaires) ; plusieurs choix = union */
-    const passes = (l, skip) =>
-      (skip === "desig" || inSet(selDesig, desigKey(l))) &&
-      (skip === "lot"   || inSet(hSel.lot, l.lot)) &&
-      (skip === "prim"  || inSet(hSel.prim, l.prim)) &&
-      (skip === "sec"   || inSet(hSel.sec, l.sec));
+    const passes = (l, skip) => {
+      const d = new Set([...selDesig, ...rowSet(desigKey)]);
+      return (
+        inSet(d, desigKey(l)) &&
+        inSet(rowSet(x => x.lot), l.lot) &&
+        inSet(rowSet(x => x.prim), l.prim) &&
+        inSet(rowSet(x => x.sec), l.sec) &&
+        (skip === "lot"  || inSet(hSel.lot, l.lot)) &&
+        (skip === "prim" || inSet(hSel.prim, l.prim)) &&
+        (skip === "sec"  || inSet(hSel.sec, l.sec))
+      );
+    };
 
     const hierLists = () => ({
       lots:  uniq(lines.filter(l => passes(l, "lot")).map(l => l.lot)),
@@ -3645,18 +3628,16 @@ function renderBudgetList() {
        (répété jusqu'à stabilité) */
     const pruneHier = () => {
       for (let guard = 0; guard < 5; guard++) {
-        syncSel();
         const h = hierLists();
         let changed = false;
         const drop = (set, list) => [...set].forEach(v => {
           if (!list.includes(v)) { set.delete(v); changed = true; }
         });
-        drop(dH.lot, h.lots);
-        drop(dH.prim, h.prims);
-        drop(dH.sec, h.secs);
+        drop(hSel.lot, h.lots);
+        drop(hSel.prim, h.prims);
+        drop(hSel.sec, h.secs);
         if (!changed) break;
       }
-      syncSel();
     };
 
     const renderHier = () => {
@@ -3741,7 +3722,9 @@ function renderBudgetList() {
         );
 
       if (active === "chg" || active === "prd") {
-        const list = byKindNow()[active];
+        const list = [...byKindNow()[active]].sort((x, y) =>
+          selRows.has(y.id) - selRows.has(x.id)
+        );
         const prd = active === "prd";
         const cols = prd ? 12 : 8;
 
@@ -3863,31 +3846,13 @@ function renderBudgetList() {
       /* ligne de Détail charge / Détail produit : filtre tout l'écran
          sur sa désignation, son lot, sa primaire et sa secondaire
          (re-toucher la ligne retire ces filtres) */
+      const toggle = (set, v) =>
+        set.has(v) ? set.delete(v) : set.add(v);
+
       const lineRow = event.target.closest("tr[data-row]");
 
       if (lineRow && !event.target.closest("input")) {
-        const id = lineRow.dataset.row;
-
-        if (selRows.has(id)) {
-          /* désélection : on ne retire QUE la surbrillance de la ligne,
-             tous les filtres en place restent tels quels */
-          selRows.delete(id);
-        } else {
-          /* sélection : la ligne pose ses filtres (désignation, lot,
-             tâches) comme des choix à part entière */
-          selRows.add(id);
-          const l = lines.find(x => x.id === id);
-          if (l) {
-            const add = (set, v) => {
-              if (String(v).trim() !== "") set.add(v);
-            };
-            add(dDesig, desigKey(l));
-            add(dH.lot, l.lot);
-            add(dH.prim, l.prim);
-            add(dH.sec, l.sec);
-          }
-        }
-
+        toggle(selRows, lineRow.dataset.row);
         refreshAll();
         return;
       }
@@ -3895,15 +3860,7 @@ function renderBudgetList() {
       const h = event.target.closest("[data-h]");
 
       if (h) {
-        const level = h.dataset.h;
-        const v = h.dataset.v;
-
-        if (hSel[level].has(v)) {
-          dropValue(l => l[level], dH[level], v);
-        } else {
-          dH[level].add(v);
-        }
-
+        toggle(hSel[h.dataset.h], h.dataset.v);
         refreshAll();
         return;
       }
@@ -3911,14 +3868,7 @@ function renderBudgetList() {
       const dRow = event.target.closest("[data-desig]");
 
       if (dRow) {
-        const k = dRow.dataset.desig;
-
-        if (selDesig.has(k)) {
-          dropValue(l => desigKey(l), dDesig, k);
-        } else {
-          dDesig.add(k);
-        }
-
+        toggle(selDesig, dRow.dataset.desig);
         refreshAll();
       }
     };
