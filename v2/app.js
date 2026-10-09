@@ -2058,6 +2058,17 @@ function renderBudgetList() {
 
       .bdg-d-page { padding: 18px 28px 40px; }
 
+      /* haut de l'écran figé : titre ☰ → pastilles DOC/TAF/OBS/INF */
+      .bdg-d-sticky {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: #fff;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, .06);
+      }
+      .bdg-d-head { padding: 14px 28px 4px; }
+      .bdg-d-head .bdg-d-pills { margin-bottom: 10px; }
+
       .bdg-d-title {
         margin: 0 0 6px;
         font-size: 30px;
@@ -2229,6 +2240,7 @@ function renderBudgetList() {
 
       @media (max-width:650px) {
         .bdg-d-page { padding: 14px 10px 30px; }
+        .bdg-d-head { padding: 10px 10px 2px; }
         .bdg-d-title { font-size: 24px; }
       }
 
@@ -3370,6 +3382,8 @@ function renderBudgetList() {
 
     shell.innerHTML = `
 
+      <div class="bdg-d-sticky">
+
       <div class="novapp-list-titlebar">
 
         <button
@@ -3397,7 +3411,7 @@ function renderBudgetList() {
 
       </div>
 
-      <div class="bdg-d-page">
+      <div class="bdg-d-head">
 
         <div class="bdg-d-ref">
           <span>${esc(ref)}</span>
@@ -3410,6 +3424,11 @@ function renderBudgetList() {
           <span class="bdg-d-pill">OBS</span>
           <span class="bdg-d-pill">INF</span>
         </div>
+
+      </div>
+      </div>
+
+      <div class="bdg-d-page">
 
         <div class="bdg-d-block">
           <div class="bdg-d-block-title">
