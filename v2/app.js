@@ -4162,10 +4162,16 @@ function renderBudgetList() {
       const sameUnit = list.length > 0 && units.size === 1;
       return `
         <tr class="bdg-d-total-row">
-          ${"<td></td>".repeat(lead)}
-          <td class="number">TOTAL</td>
-          <td class="number">${sameUnit ? money(qty) : ""}</td>
-          <td class="number">${sameUnit ? money(qty ? ht / qty : 0) : ""}</td>
+          ${
+            sameUnit
+              ? `${"<td></td>".repeat(lead)}
+                 <td class="number">TOTAL</td>
+                 <td class="number">${money(qty)}</td>
+                 <td class="number">${money(qty ? ht / qty : 0)}</td>`
+              /* unités différentes : « TOTAL » juste avant le montant HT */
+              : `${"<td></td>".repeat(lead + 2)}
+                 <td class="number">TOTAL</td>`
+          }
           <td class="number">${money(ht)}</td>
           <td class="number" id="bdgFtTVA">${money(tva)}</td>
           <td class="number" id="bdgFtTTC">${money(ht + tva)}</td>
