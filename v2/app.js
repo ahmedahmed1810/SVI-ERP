@@ -3563,21 +3563,42 @@ function renderBudgetList() {
           String(x).localeCompare(String(y), undefined, { numeric: true })
         );
 
-    const renderHier = () => {
-      const lots = uniq(lines.map(l => l.lot));
+    /* filtre dans l'autre sens : désignations sélectionnées en haut
+       → seuls les lots / tâches qui les contiennent (union) */
+    const desigLines = () =>
+      lines.filter(l => inSet(selDesig, desigKey(l)));
+
+    const hierLists = () => {
+      const base = desigLines();
+      const lots = uniq(base.map(l => l.lot));
       const prims = uniq(
-        lines
+        base
           .filter(l => inSet(hSel.lot, l.lot))
           .map(l => l.prim)
       );
       const secs = uniq(
-        lines
+        base
           .filter(l =>
             inSet(hSel.lot, l.lot) &&
             inSet(hSel.prim, l.prim)
           )
           .map(l => l.sec)
       );
+      return { lots, prims, secs };
+    };
+
+    /* retire des filtres lot / tâche les éléments devenus invisibles */
+    const pruneHier = () => {
+      let h = hierLists();
+      [...hSel.lot].forEach(v => { if (!h.lots.includes(v)) hSel.lot.delete(v); });
+      h = hierLists();
+      [...hSel.prim].forEach(v => { if (!h.prims.includes(v)) hSel.prim.delete(v); });
+      h = hierLists();
+      [...hSel.sec].forEach(v => { if (!h.secs.includes(v)) hSel.sec.delete(v); });
+    };
+
+    const renderHier = () => {
+      const { lots, prims, secs } = hierLists();
 
       const col = (title, level, items) => `
         <div class="bdg-h-col">
@@ -3610,6 +3631,7 @@ function renderBudgetList() {
     };
 
     const refreshAll = () => {
+      pruneHier();
       renderClient();
       renderHier();
       renderTab();
