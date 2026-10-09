@@ -2310,6 +2310,13 @@ function renderBudgetList() {
       #cfMenu .cf-sort.on { background: #dbeafe; color: #1d4ed8; }
       #cfMenu .cf-clear { background: transparent; color: #b42318; }
       #cfMenu .cf-foot { display: flex; gap: 6px; flex: none; }
+      #cfMenu .cf-x {
+        position: absolute; top: 6px; right: 6px; width: 26px; height: 26px;
+        border: 0; border-radius: 50%; background: #eef1f6; color: #374151;
+        font-size: 13px; font-weight: 800; cursor: pointer; line-height: 26px; padding: 0;
+      }
+      #cfMenu .cf-x:hover { background: #dbe2ec; }
+      #cfMenu .cf-sort { margin-right: 34px; }
       #cfMenu .cf-foot button { flex: 1; text-align: center; }
       #cfMenu .cf-ok {
         border: 0; border-radius: 6px; padding: 6px 8px; font-size: 12px;
@@ -3825,6 +3832,7 @@ function renderBudgetList() {
       const m = document.createElement("div");
       m.id = "cfMenu";
       m.innerHTML = `
+        <button type="button" class="cf-x" aria-label="Fermer">✕</button>
         <button type="button" class="cf-sort" data-dir="asc">↑ Tri croissant</button>
         <button type="button" class="cf-sort" data-dir="desc">↓ Tri décroissant</button>
         <div class="cf-search">🔍 <input type="search" class="cf-q" placeholder="Rechercher…"></div>
@@ -3866,7 +3874,7 @@ function renderBudgetList() {
           cfAfterChange();
           return;
         }
-        if (e.target.closest(".cf-ok")) {
+        if (e.target.closest(".cf-ok") || e.target.closest(".cf-x")) {
           cfClose();
           return;
         }
