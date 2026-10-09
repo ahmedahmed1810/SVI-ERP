@@ -3976,9 +3976,13 @@ function renderBudgetList() {
             filler(MIN_ROWS - 1));
 
       const cHT = list.reduce((t, g) => t + g.qty * g.price, 0);
+      const cUnits = new Set(list.map(g => String(g.unit ?? "").trim().toUpperCase()));
+      const cQty = list.length && cUnits.size === 1
+        ? money(list.reduce((t, g) => t + g.qty, 0))
+        : "";
       $("bdgClientFoot").innerHTML = `
         <tr class="bdg-d-total-row">
-          <td></td><td></td><td></td><td></td>
+          <td></td><td></td><td></td><td class="number">${cQty}</td>
           <td class="number">TOTAL</td>
           <td class="number">${money(cHT)}</td>
           <td class="number">${money(cHT * 0.2)}</td>
@@ -4153,12 +4157,15 @@ function renderBudgetList() {
       const ht = list.reduce((t, l) => t + l.amount, 0);
       const tva = list.reduce((t, l) => t + tvaFor(l), 0);
       const lead = prd ? 6 : 2;   /* colonnes avant « TOTAL » */
+      /* quantité (et prix moyen) seulement si toutes les unités sont identiques */
+      const units = new Set(list.map(l => String(l.dunit ?? "").trim().toUpperCase()));
+      const sameUnit = list.length > 0 && units.size === 1;
       return `
         <tr class="bdg-d-total-row">
           ${"<td></td>".repeat(lead)}
           <td class="number">TOTAL</td>
-          <td class="number">${money(qty)}</td>
-          <td class="number">${money(qty ? ht / qty : 0)}</td>
+          <td class="number">${sameUnit ? money(qty) : ""}</td>
+          <td class="number">${sameUnit ? money(qty ? ht / qty : 0) : ""}</td>
           <td class="number">${money(ht)}</td>
           <td class="number" id="bdgFtTVA">${money(tva)}</td>
           <td class="number" id="bdgFtTTC">${money(ht + tva)}</td>
