@@ -3743,8 +3743,8 @@ function renderBudgetList() {
        </svg>`;
 
     /* cols : [cle, libellé, accesseur, classe] */
-    const cfApply = (t, cols, rows) => {
-      cfSrc[t] = { cols, rows };
+    const cfApply = (t, cols, rows, keepSrc = false) => {
+      if (!keepSrc) cfSrc[t] = { cols, rows };
       const st = cfT(t);
       let out = rows.filter(r =>
         cols.every(([k, , get]) =>
@@ -3816,7 +3816,15 @@ function renderBudgetList() {
       const src = cfSrc[t];
       if (!src) return [];
       const c = src.cols.find(c => c[0] === key);
-      const raw = src.rows.map(r => c[2](r));
+      const st = cfT(t);
+      /* lignes encore possibles : filtres par sélection (déjà appliqués
+         aux lignes source) + filtres des AUTRES colonnes du tableau */
+      const rows = src.rows.filter(r =>
+        src.cols.every(([k, , get]) =>
+          k === key || !st.f[k] || st.f[k].has(cfText(get(r)))
+        )
+      );
+      const raw = rows.map(r => c[2](r));
       const num = raw.every(v => typeof v === "number");
       const uniqVals = [...new Set(raw.map(cfText))];
       if (num) {
@@ -4335,7 +4343,7 @@ function renderBudgetList() {
       ["chg", "prd"].forEach(kind => {
         if (!has(kind)) return;
         const all = lines.filter(l => l.kind === kind);
-        const shown = cfApply(kind, tcolsFor(kind === "prd"), groupLines(all));
+        const shown = cfApply(kind, tcolsFor(kind === "prd"), groupLines(all), true);
         det = det || { d: new Set(), lot: new Set(), prim: new Set(), sec: new Set() };
         shown.forEach(g => g.members.forEach(l => {
           det.d.add(desigKey(l));
