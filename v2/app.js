@@ -2306,6 +2306,7 @@ function renderBudgetList() {
       }
 
 .bdg-d-table tbody tr[data-desig]{cursor:pointer}
+.bdg-d-table tbody tr[data-row]{cursor:pointer}
 .bdg-d-table tbody tr.selected td{background:#dbeafe !important}
 .bdg-d-fi{float:right;font-size:11px;font-weight:600;opacity:.8}
 .bdg-h-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
@@ -3810,6 +3811,34 @@ function renderBudgetList() {
       if (tab) {
         active = tab.dataset.tab;
         renderTab();
+        return;
+      }
+
+      /* ligne de Détail charge / Détail produit : filtre tout l'écran
+         sur sa désignation, son lot, sa primaire et sa secondaire
+         (re-toucher la ligne retire ces filtres) */
+      const lineRow = event.target.closest("tr[data-row]");
+
+      if (lineRow && !event.target.closest("input")) {
+        const l = lines.find(x => x.id === lineRow.dataset.row);
+
+        if (l) {
+          const parts = [
+            [selDesig, desigKey(l)],
+            [hSel.lot, l.lot],
+            [hSel.prim, l.prim],
+            [hSel.sec, l.sec]
+          ].filter(([, v]) => String(v).trim() !== "");
+
+          const allOn = parts.every(([set, v]) => set.has(v));
+
+          parts.forEach(([set, v]) =>
+            allOn ? set.delete(v) : set.add(v)
+          );
+
+          refreshAll();
+        }
+
         return;
       }
 
