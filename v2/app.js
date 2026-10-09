@@ -2277,7 +2277,10 @@ function renderBudgetList() {
         color: #8a94a5; flex: none;
       }
       .cf-btn:hover { background: #e5e9f0; color: #374151; }
-      th.cf-on, .bdg-h-head.cf-on { color: #1d4ed8 !important; background: #dbeafe !important; }
+      th.cf-on, .bdg-h-head.cf-on,
+      .bdg-d-tab.cf-on, .bdg-d-block-title.cf-on {
+        color: #1d4ed8 !important; background: #dbeafe !important;
+      }
       th.cf-on .cf-btn, .bdg-h-head.cf-on .cf-btn { color: #1d4ed8; }
       #cfMenu {
         position: fixed; z-index: 10000; width: 230px; max-height: 340px;
@@ -3625,7 +3628,7 @@ function renderBudgetList() {
       <div class="bdg-d-page">
 
         <div class="bdg-d-block">
-          <div class="bdg-d-block-title">
+          <div class="bdg-d-block-title" id="bdgClientTitle">
             DÉSIGNATIONS CLIENT
           </div>
           <div class="bdg-d-scroll bdg-d-client-scroll">
@@ -4049,7 +4052,7 @@ function renderBudgetList() {
           hSel[level].has(y) - hSel[level].has(x)
         );
         const st = cfT(level);
-        const on = (st.sort && !st.sort.def) || st.f.v;
+        const on = (st.sort && !st.sort.def) || st.f.v || hSel[level].size;
         return `
         <div class="bdg-h-col">
           <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}</span><span class="cf-btn"
@@ -4109,6 +4112,24 @@ function renderBudgetList() {
       requestAnimationFrame(restore);
     };
 
+    /* titre en bleu quand le bloc est filtré (toucher de ligne
+       ou filtre / tri de colonne) */
+    const cfActive = t => {
+      const st = CF[t];
+      return !!st && ((st.sort && !st.sort.def) || Object.keys(st.f).length > 0);
+    };
+    const markFiltered = () => {
+      const rowsOf = kind =>
+        [...selRows].some(g => g.startsWith(kind.toUpperCase() + "|"));
+      shell.querySelectorAll(".bdg-d-tab").forEach(b => {
+        const t = b.dataset.tab;
+        b.classList.toggle("cf-on",
+          (t === "chg" || t === "prd") && (rowsOf(t) || cfActive(t)));
+      });
+      $("bdgClientTitle")?.classList.toggle("cf-on",
+        selDesig.size > 0 || cfActive("client"));
+    };
+
     const refreshAll = () => {
       keepScroll(() => {
         pruneHier();
@@ -4116,6 +4137,7 @@ function renderBudgetList() {
         renderClient();
         renderHier();
         renderTab();
+        markFiltered();
       });
       if (typeof stateSave === "function") stateSave();
     };
