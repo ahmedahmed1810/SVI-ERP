@@ -3567,10 +3567,10 @@ function renderBudgetList() {
       lines.filter(l => !l.kind).length;
 
     const tabs = [
-      { key: "chg", title: "DÉTAIL CHARGE" },
-      { key: "prd", title: "DÉTAIL PRODUIT" },
+      { key: "chg", title: "DÉTAIL CHARGES" },
+      { key: "prd", title: "DÉTAIL PRODUITS" },
       { key: "qlt", title: "DÉTAIL QUALITÉ" },
-      { key: "dly", title: "DÉTAIL DÉLAI" }
+      { key: "dly", title: "DÉTAIL DÉLAIS" }
     ];
 
     let active = "chg";
