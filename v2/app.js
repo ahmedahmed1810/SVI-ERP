@@ -3641,7 +3641,7 @@ function renderBudgetList() {
         <div class="bdg-d-block">
           <div class="bdg-d-block-title">
             LOTS / TÂCHES
-            <span id="bdgFilterInfo" class="bdg-d-fi"></span>
+
           </div>
           <div class="bdg-h-grid" id="bdgHier"></div>
         </div>
@@ -4083,13 +4083,7 @@ function renderBudgetList() {
         col("TÂCHE PRIMAIRE", "prim", prims) +
         col("TÂCHE SECONDAIRE", "sec", secs);
 
-      const info = [];
-      if (hSel.lot.size) info.push(hSel.lot.size + " LOT(S)");
-      if (hSel.prim.size) info.push(hSel.prim.size + " T. PRIMAIRE(S)");
-      if (hSel.sec.size) info.push(hSel.sec.size + " T. SECONDAIRE(S)");
-
-      $("bdgFilterInfo").textContent =
-        info.length ? "FILTRES : " + info.join(" › ") : "";
+      /* plus de texte « FILTRES : … » dans le titre du bloc */
     };
 
     /* garde la vue là où l'utilisateur a la main : page et cadres
