@@ -3450,10 +3450,13 @@ function renderBudgetList() {
         }
       }
 
-      const amount =
+      /* les prix / montants de la feuille sont TTC :
+         le HT est déduit avec la TVA de la ligne (20 % par défaut) */
+      const ttcAmount =
         price
           ? qty * price
           : num(pick(row, ["MNB", "MONTANT", "MPB"]));
+      const tvaRate = 20;
 
       return {
         id: "l" + i,
@@ -3487,9 +3490,11 @@ function renderBudgetList() {
         nbr,
         dims,
         qty,
-        price,
-        amount,
-        tva: 20
+        priceTTC: price,
+        ttcAmount,
+        price: price / (1 + tvaRate / 100),
+        amount: ttcAmount / (1 + tvaRate / 100),
+        tva: tvaRate
       };
     };
 
@@ -4005,7 +4010,7 @@ function renderBudgetList() {
         );
 
         if (k) {
-          g.price = k.cprice;
+          g.price = k.cprice / 1.2;   /* prix de la feuille TTC → HT */
           g.unit = k.unit || g.unit;
         }
       });
@@ -4257,7 +4262,8 @@ function renderBudgetList() {
       if (typeof stateSave === "function") stateSave();
     };
 
-    const tvaFor = l => l.amount * l.tva / 100;
+    const tvaFor = l =>
+      l.ttcAmount !== undefined ? l.ttcAmount - l.amount : l.amount * l.tva / 100;
 
     /* ligne TOTAL en pied des onglets Détail charge / produit */
     const tabFootHTML = (list, prd) => {
@@ -4580,7 +4586,11 @@ function renderBudgetList() {
 
         if (members.length) {
           const v = num(String(input.value).replace("%", ""));
-          members.forEach(l => { l.tva = v; });
+          members.forEach(l => {
+            l.tva = v;
+            l.price = l.priceTTC / (1 + v / 100);
+            l.amount = l.ttcAmount / (1 + v / 100);
+          });
 
           const cell = [...shell.querySelectorAll("[data-ttc]")]
             .find(c => c.dataset.ttc === gid);
