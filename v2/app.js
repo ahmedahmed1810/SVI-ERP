@@ -3711,7 +3711,7 @@ function renderBudgetList() {
 
     const cfHead = (t, key, label, cls = "") => {
       const st = cfT(t);
-      const on = (st.sort && st.sort.col === key && !st.sort.def) || st.f[key];
+      const on = !!st.f[key];
       return `<th class="${cls} ${on ? "cf-on" : ""}">
         <span class="cf-wrap"><span class="cf-lab">${label}</span><span class="cf-btn" data-cf="${t}" data-col="${key}"
           role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span
@@ -4052,7 +4052,7 @@ function renderBudgetList() {
           hSel[level].has(y) - hSel[level].has(x)
         );
         const st = cfT(level);
-        const on = (st.sort && !st.sort.def) || st.f.v || hSel[level].size;
+        const on = st.f.v || hSel[level].size;
         return `
         <div class="bdg-h-col">
           <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}</span><span class="cf-btn"
@@ -4116,7 +4116,7 @@ function renderBudgetList() {
        ou filtre / tri de colonne) */
     const cfActive = t => {
       const st = CF[t];
-      return !!st && ((st.sort && !st.sort.def) || Object.keys(st.f).length > 0);
+      return !!st && Object.keys(st.f).length > 0;
     };
     const markFiltered = () => {
       const rowsOf = kind =>
@@ -4208,7 +4208,10 @@ function renderBudgetList() {
           ["ttc", "MONTANT TTC", l => l.amount + l.tvaAmt, "number"]
         ];
         const all = byKindNow()[active];
-        const list = cfApply(active, tcols, groupLines(all)).sort((x, y) =>
+        const byDesig = groupLines(all).sort((x, y) =>
+          String(x.detail).localeCompare(String(y.detail), "fr", { numeric: true })
+        );
+        const list = cfApply(active, tcols, byDesig).sort((x, y) =>
           selRows.has(y.gid) - selRows.has(x.gid)
         );
         const shownG = new Set(list.map(g => g.gid));
