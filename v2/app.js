@@ -3924,7 +3924,7 @@ function renderBudgetList() {
       );
 
       const ccols = [
-        ["article", "ARTICLE", g => g.article, "center"],
+        ["article", "ART", g => g.article, "center"],
         ["designation", "DÉSIGNATION", g => g.designation, ""],
         ["unit", "UPB", g => g.unit, "center"],
         ["qty", "QPB", g => g.qty, "number"],
@@ -4195,7 +4195,7 @@ function renderBudgetList() {
       if (active === "chg" || active === "prd") {
         const prd = active === "prd";
         const tcols = [
-          ["article", "ARTICLE", l => l.article, "center"],
+          ["article", "ART", l => l.article, "center"],
           ["detail", "DÉSIGNATION", l => l.detail, ""],
           ["unit", prd ? "UPB" : "UCB", l => l.unit, "center"],
           ...(prd ? [
