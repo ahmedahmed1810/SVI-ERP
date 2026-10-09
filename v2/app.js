@@ -2254,6 +2254,46 @@ function renderBudgetList() {
       .bdg-d-table tbody tr.bdg-d-filler td { height: 21px; }
       .bdg-tva-input { height: 16px !important; line-height: 14px; }
 
+      /* tri / filtre par colonne */
+      .cf-wrap { display: inline-flex; align-items: center; gap: 4px; }
+      .cf-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 18px; height: 16px; border-radius: 4px; cursor: pointer;
+        color: #8a94a5; flex: none;
+      }
+      .cf-btn:hover { background: #e5e9f0; color: #374151; }
+      th.cf-on, .bdg-h-head.cf-on { color: #1d4ed8 !important; background: #dbeafe !important; }
+      th.cf-on .cf-btn, .bdg-h-head.cf-on .cf-btn { color: #1d4ed8; }
+      th.number .cf-wrap { justify-content: flex-end; }
+      th.center .cf-wrap { justify-content: center; }
+      #cfMenu {
+        position: fixed; z-index: 10000; width: 230px; max-height: 340px;
+        display: flex; flex-direction: column; gap: 4px; padding: 8px;
+        background: #fff; border: 1px solid #d6dbe3; border-radius: 10px;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, .18); font-size: 12px;
+      }
+      #cfMenu .cf-sort, #cfMenu .cf-clear {
+        text-align: left; border: 0; background: #f3f5f8; border-radius: 6px;
+        padding: 6px 8px; font-size: 12px; font-weight: 700; cursor: pointer; color: #172033;
+      }
+      #cfMenu .cf-sort.on { background: #dbeafe; color: #1d4ed8; }
+      #cfMenu .cf-clear { background: transparent; color: #b42318; }
+      #cfMenu .cf-search { display: flex; align-items: center; gap: 4px; }
+      #cfMenu .cf-q {
+        flex: 1; min-width: 0; padding: 5px 7px; border: 1px solid #cfd6df;
+        border-radius: 6px; font-size: 12px;
+      }
+      #cfMenu .cf-list {
+        overflow-y: auto; min-height: 60px; max-height: 170px;
+        border: 1px solid #edf0f4; border-radius: 6px; padding: 2px 0;
+      }
+      #cfMenu .cf-item {
+        display: flex; align-items: center; gap: 6px; padding: 3px 8px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+      }
+      #cfMenu .cf-all { font-weight: 700; border-bottom: 1px solid #edf0f4; }
+      #cfMenu .cf-none { padding: 6px 8px; color: #9aa3af; }
+
       /* désignations client : en-tête + 10 lignes + total */
       .bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll {
         height: 252px !important;
@@ -3577,18 +3617,7 @@ function renderBudgetList() {
           </div>
           <div class="bdg-d-scroll bdg-d-client-scroll">
             <table class="bdg-d-table">
-              <thead>
-                <tr>
-                  <th class="center">ARTICLE</th>
-                  <th>DÉSIGNATION</th>
-                  <th>UNITÉ</th>
-                  <th class="number">QUANTITÉ</th>
-                  <th class="number">PRIX</th>
-                  <th class="number">MONTANT HT</th>
-                  <th class="number">TVA</th>
-                  <th class="number">MONTANT TTC</th>
-                </tr>
-              </thead>
+              <thead id="bdgClientHead"></thead>
               <tbody id="bdgClientBody"></tbody>
               <tfoot id="bdgClientFoot"></tfoot>
             </table>
@@ -3624,6 +3653,179 @@ function renderBudgetList() {
     `;
 
     const body = $("bdgTabBody");
+
+    /* ===== tri et filtre par colonne (façon tableur) ===== */
+    const CF = {};          /* CF[table] = { sort:{col,dir}|null, f:{col:Set} } */
+    const cfSrc = {};       /* dernières lignes et colonnes de chaque tableau */
+    const cfT = t => CF[t] || (CF[t] = { sort: null, f: {} });
+    const cfText = v =>
+      typeof v === "number" ? money(v) : String(v ?? "").trim();
+    const cfIcon =
+      `<svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true">
+         <path d="M1 2h11M3 5h7M5 8h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+         <path d="M4.5 10l2 2.2 2-2.2z" fill="currentColor"/>
+       </svg>`;
+
+    /* cols : [cle, libellé, accesseur, classe] */
+    const cfApply = (t, cols, rows) => {
+      cfSrc[t] = { cols, rows };
+      const st = cfT(t);
+      let out = rows.filter(r =>
+        cols.every(([k, , get]) =>
+          !st.f[k] || st.f[k].has(cfText(get(r)))
+        )
+      );
+      if (st.sort) {
+        const c = cols.find(c => c[0] === st.sort.col);
+        if (c) {
+          const get = c[2];
+          const dir = st.sort.dir === "desc" ? -1 : 1;
+          out = [...out].sort((a, b) => {
+            const x = get(a), y = get(b);
+            const r = typeof x === "number" && typeof y === "number"
+              ? x - y
+              : String(x ?? "").localeCompare(String(y ?? ""), "fr", { numeric: true });
+            return r * dir;
+          });
+        }
+      }
+      return out;
+    };
+
+    const cfHead = (t, key, label, cls = "") => {
+      const st = cfT(t);
+      const on = (st.sort && st.sort.col === key) || st.f[key];
+      return `<th class="${cls} ${on ? "cf-on" : ""}">
+        <span class="cf-wrap">${label}<span class="cf-btn" data-cf="${t}" data-col="${key}"
+          role="button" aria-label="Trier / filtrer">${cfIcon}</span></span></th>`;
+    };
+
+    let cfOpen = null;   /* { t, key } du menu ouvert */
+
+    const cfClose = () => {
+      document.getElementById("cfMenu")?.remove();
+      cfOpen = null;
+    };
+
+    const cfValues = (t, key) => {
+      const src = cfSrc[t];
+      if (!src) return [];
+      const c = src.cols.find(c => c[0] === key);
+      const raw = src.rows.map(r => c[2](r));
+      const num = raw.every(v => typeof v === "number");
+      const uniqVals = [...new Set(raw.map(cfText))];
+      if (num) {
+        const back = new Map(raw.map(v => [cfText(v), v]));
+        return uniqVals.sort((a, b) => back.get(a) - back.get(b));
+      }
+      return uniqVals.sort((a, b) => a.localeCompare(b, "fr", { numeric: true }));
+    };
+
+    const cfRenderList = () => {
+      const m = document.getElementById("cfMenu");
+      if (!m || !cfOpen) return;
+      const { t, key } = cfOpen;
+      const st = cfT(t);
+      const q = (m.querySelector(".cf-q").value || "").trim().toUpperCase();
+      const vals = cfValues(t, key).filter(v => !q || v.toUpperCase().includes(q));
+      const isOn = v => !st.f[key] || st.f[key].has(v);
+      const allOn = vals.length && vals.every(isOn);
+      m.querySelector(".cf-list").innerHTML =
+        `<label class="cf-item cf-all"><input type="checkbox" data-cfall ${allOn ? "checked" : ""}>
+           (Tout sélectionner)</label>` +
+        (vals.length
+          ? vals.map(v => `<label class="cf-item"><input type="checkbox" data-cfv="${esc(v)}"
+               ${isOn(v) ? "checked" : ""}> ${esc(v || "(vide)")}</label>`).join("")
+          : `<div class="cf-none">Aucune valeur</div>`);
+      m.querySelectorAll(".cf-sort").forEach(b =>
+        b.classList.toggle("on", !!st.sort && st.sort.col === key && st.sort.dir === b.dataset.dir)
+      );
+    };
+
+    const cfAfterChange = () => {
+      refreshAll();
+      cfRenderList();
+    };
+
+    const cfOpenMenu = (btn) => {
+      const t = btn.dataset.cf, key = btn.dataset.col;
+      if (cfOpen && cfOpen.t === t && cfOpen.key === key) { cfClose(); return; }
+      cfClose();
+      cfOpen = { t, key };
+      const m = document.createElement("div");
+      m.id = "cfMenu";
+      m.innerHTML = `
+        <button type="button" class="cf-sort" data-dir="asc">↑ Tri croissant</button>
+        <button type="button" class="cf-sort" data-dir="desc">↓ Tri décroissant</button>
+        <div class="cf-search">🔍 <input type="search" class="cf-q" placeholder="Rechercher…"></div>
+        <div class="cf-list"></div>
+        <button type="button" class="cf-clear">Effacer tri et filtre</button>`;
+      document.body.appendChild(m);
+
+      const r = btn.getBoundingClientRect();
+      const w = 230;
+      m.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + "px";
+      m.style.top = Math.min(window.innerHeight - 60, r.bottom + 4) + "px";
+
+      m.addEventListener("click", e => {
+        e.stopPropagation();
+        const st = cfT(t);
+        const sb = e.target.closest(".cf-sort");
+        if (sb) {
+          const same = st.sort && st.sort.col === key && st.sort.dir === sb.dataset.dir;
+          st.sort = same ? null : { col: key, dir: sb.dataset.dir };
+          cfAfterChange();
+          return;
+        }
+        if (e.target.closest(".cf-clear")) {
+          delete st.f[key];
+          if (st.sort && st.sort.col === key) st.sort = null;
+          m.querySelector(".cf-q").value = "";
+          cfAfterChange();
+        }
+      });
+
+      m.addEventListener("change", e => {
+        const st = cfT(t);
+        const all = cfValues(t, key);
+        const q = (m.querySelector(".cf-q").value || "").trim().toUpperCase();
+        const shown = all.filter(v => !q || v.toUpperCase().includes(q));
+        let keep = st.f[key] ? new Set(st.f[key]) : new Set(all);
+        if (e.target.matches("[data-cfall]")) {
+          shown.forEach(v => e.target.checked ? keep.add(v) : keep.delete(v));
+        } else if (e.target.matches("[data-cfv]")) {
+          const v = e.target.dataset.cfv;
+          e.target.checked ? keep.add(v) : keep.delete(v);
+        } else {
+          return;
+        }
+        if (keep.size === all.length) delete st.f[key]; else st.f[key] = keep;
+        cfAfterChange();
+      });
+
+      m.querySelector(".cf-q").addEventListener("input", e => {
+        const st = cfT(t);
+        const q = e.target.value.trim().toUpperCase();
+        const all = cfValues(t, key);
+        if (!q) delete st.f[key];
+        else st.f[key] = new Set(all.filter(v => v.toUpperCase().includes(q)));
+        cfAfterChange();
+      });
+
+      cfRenderList();
+    };
+
+    /* fermeture du menu au toucher ailleurs (un seul écouteur actif) */
+    if (window.__cfDocHandler) {
+      document.removeEventListener("click", window.__cfDocHandler, true);
+    }
+    window.__cfDocHandler = e => {
+      if (!cfOpen) return;
+      if (e.target.closest("#cfMenu") || e.target.closest(".cf-btn")) return;
+      cfClose();
+    };
+    document.addEventListener("click", window.__cfDocHandler, true);
+    document.getElementById("cfMenu")?.remove();
 
     const renderClient = () => {
       const groupsMap = new Map();
@@ -3669,14 +3871,31 @@ function renderBudgetList() {
         }
       });
 
-      const list = [...groupsMap.values()].sort((x, y) =>
-        (selDesig.has(y.key) - selDesig.has(x.key)) ||
+      const base = [...groupsMap.values()].sort((x, y) =>
         String(x.article).localeCompare(
           String(y.article),
           undefined,
           { numeric: true }
         )
       );
+
+      const ccols = [
+        ["article", "ARTICLE", g => g.article, "center"],
+        ["designation", "DÉSIGNATION", g => g.designation, ""],
+        ["unit", "UNITÉ", g => g.unit, ""],
+        ["qty", "QUANTITÉ", g => g.qty, "number"],
+        ["price", "PRIX", g => g.price, "number"],
+        ["ht", "MONTANT HT", g => g.qty * g.price, "number"],
+        ["tva", "TVA", () => "20,00 %", "number"],
+        ["ttc", "MONTANT TTC", g => g.qty * g.price * 1.2, "number"]
+      ];
+
+      const list = cfApply("client", ccols, base).sort((x, y) =>
+        selDesig.has(y.key) - selDesig.has(x.key)
+      );
+
+      $("bdgClientHead").innerHTML =
+        "<tr>" + ccols.map(([k, lab, , cls]) => cfHead("client", k, lab, cls)).join("") + "</tr>";
 
       const MIN_ROWS = 10;
 
@@ -3770,12 +3989,16 @@ function renderBudgetList() {
         `<div class="bdg-h-fill"></div>`.repeat(Math.max(0, n));
 
       const col = (title, level, all) => {
-        const items = [...all].sort((x, y) =>
+        const hcols = [["v", title, v => stripLevelPrefix(v), ""]];
+        const items = cfApply(level, hcols, all).sort((x, y) =>
           hSel[level].has(y) - hSel[level].has(x)
         );
+        const st = cfT(level);
+        const on = st.sort || st.f.v;
         return `
         <div class="bdg-h-col">
-          <div class="bdg-h-head">${title}</div>
+          <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap">${title}<span class="cf-btn"
+            data-cf="${level}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span></div>
           ${
             items.length
               ? items.map(v => `
@@ -3883,11 +4106,29 @@ function renderBudgetList() {
         );
 
       if (active === "chg" || active === "prd") {
-        const raw = byKindNow()[active];
-        const list = groupLines(raw).sort((x, y) =>
+        const prd = active === "prd";
+        const tcols = [
+          ["article", "ARTICLE", l => l.article, "center"],
+          ["detail", "DÉSIGNATION", l => l.detail, ""],
+          ["unit", "UNITÉ", l => l.unit, ""],
+          ...(prd ? [
+            ["nbr", "NBR", l => String(l.nbr ?? ""), "number"],
+            ["d1", "DIM 1", l => String(l.dims[0] ?? ""), "number"],
+            ["d2", "DIM 2", l => String(l.dims[1] ?? ""), "number"],
+            ["d3", "DIM 3", l => String(l.dims[2] ?? ""), "number"]
+          ] : []),
+          ["qty", "QUANTITÉ", l => l.qty, "number"],
+          ["price", "PRIX", l => l.price, "number"],
+          ["amount", "MONTANT HT", l => l.amount, "number"],
+          ["tva", "TVA %", l => String(l.tva ?? ""), "number"],
+          ["ttc", "MONTANT TTC", l => l.amount + l.tvaAmt, "number"]
+        ];
+        const all = byKindNow()[active];
+        const list = cfApply(active, tcols, groupLines(all)).sort((x, y) =>
           selRows.has(y.gid) - selRows.has(x.gid)
         );
-        const prd = active === "prd";
+        const shownG = new Set(list.map(g => g.gid));
+        const raw = all.filter(l => shownG.has(l.gid));
         const cols = prd ? 12 : 8;
 
         const rowsHTML =
@@ -3930,26 +4171,7 @@ function renderBudgetList() {
           <div class="bdg-d-scroll">
             <table class="bdg-d-table">
               <thead>
-                <tr>
-                  <th class="center">ARTICLE</th>
-                  <th>DÉSIGNATION</th>
-                  <th>UNITÉ</th>
-                  ${
-                    prd
-                      ? `
-                        <th class="number">NBR</th>
-                        <th class="number">DIM 1</th>
-                        <th class="number">DIM 2</th>
-                        <th class="number">DIM 3</th>
-                      `
-                      : ""
-                  }
-                  <th class="number">QUANTITÉ</th>
-                  <th class="number">PRIX</th>
-                  <th class="number">MONTANT HT</th>
-                  <th class="number">TVA %</th>
-                  <th class="number">MONTANT TTC</th>
-                </tr>
+                <tr>${tcols.map(([k, lab, , cls]) => cfHead(active, k, lab, cls)).join("")}</tr>
               </thead>
               <tbody>
                 ${
@@ -3996,6 +4218,13 @@ function renderBudgetList() {
     };
 
     shell.onclick = event => {
+      const cfb = event.target.closest(".cf-btn");
+      if (cfb) {
+        event.stopPropagation();
+        cfOpenMenu(cfb);
+        return;
+      }
+
       const tab =
         event.target.closest("[data-tab]");
 
@@ -4056,7 +4285,10 @@ function renderBudgetList() {
             cell.textContent = money(a + v);
           }
 
-          const list = byKindNow()[active] || [];
+          const shownG = new Set(
+            [...shell.querySelectorAll("tr[data-row]")].map(r => r.dataset.row)
+          );
+          const list = (byKindNow()[active] || []).filter(l => shownG.has(l.gid));
 
           const ht =
             list.reduce((t, l) => t + l.amount, 0);
