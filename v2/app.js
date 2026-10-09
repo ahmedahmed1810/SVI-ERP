@@ -3435,7 +3435,7 @@ function renderBudgetList() {
       let qty =
         num(pick(row, ["QTB", "QUANTITE"]));
 
-      if (kind === "prd") {
+      if (kind === "prd" && !qty) {
         const factors =
           [nbr, ...dims]
             .filter(v => normalise(v) !== "")
@@ -3987,10 +3987,8 @@ function renderBudgetList() {
           const du = String(l.dunit ?? "").trim().toUpperCase();
           const cu = String(l.unit ?? "").trim().toUpperCase();
           const ok = du && cu ? du === cu : l.cprice !== 0;
-          /* mêmes quantités et montants que Détail produits :
-             le haut est exactement la somme du détail */
           if (ok) g.qty += l.qty;
-          g.ht += l.amount;
+          if (l.cprice !== 0) g.qtyPriced = (g.qtyPriced || 0) + l.qty;
         }
 
       });
@@ -4010,6 +4008,12 @@ function renderBudgetList() {
           g.price = k.cprice;
           g.unit = k.unit || g.unit;
         }
+      });
+
+      groupsMap.forEach(g => {
+        /* aucune ligne de même unité : on prend les lignes chiffrées */
+        if (!g.qty && g.qtyPriced) g.qty = g.qtyPriced;
+        g.ht = g.qty * g.price;
       });
 
       const base = [...groupsMap.values()].sort((x, y) =>
