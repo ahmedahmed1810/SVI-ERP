@@ -3643,7 +3643,7 @@ function renderBudgetList() {
 
         <div class="bdg-d-block">
           <div class="bdg-d-block-title">
-            LOTS / ACTIVITÉS
+            TÂCHES
 
           </div>
           <div class="bdg-h-grid" id="bdgHier"></div>
