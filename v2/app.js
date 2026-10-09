@@ -3971,6 +3971,7 @@ function renderBudgetList() {
             designation: l.designation,
             unit: l.unit,
             qty: 0,
+            ht: 0,
             price: 0,
             hasKey: false
           });
@@ -3986,7 +3987,10 @@ function renderBudgetList() {
           const du = String(l.dunit ?? "").trim().toUpperCase();
           const cu = String(l.unit ?? "").trim().toUpperCase();
           const ok = du && cu ? du === cu : l.cprice !== 0;
-          if (ok) g.qty += l.cqty;
+          /* mêmes quantités et montants que Détail produits :
+             le haut est exactement la somme du détail */
+          if (ok) g.qty += l.qty;
+          g.ht += l.amount;
         }
 
       });
@@ -4022,9 +4026,9 @@ function renderBudgetList() {
         ["unit", "UPB", g => g.unit, "center"],
         ["qty", "QPB", g => g.qty, "number"],
         ["price", "PPB", g => g.price, "number"],
-        ["ht", "MPB HT", g => g.qty * g.price, "number"],
+        ["ht", "MPB HT", g => g.ht, "number"],
         ["tva", "TVA", () => "20,00 %", "number"],
-        ["ttc", "MPB TTC", g => g.qty * g.price * 1.2, "number"]
+        ["ttc", "MPB TTC", g => g.ht * 1.2, "number"]
       ];
 
       const shownClient = cfApply("client", ccols, base);
@@ -4050,7 +4054,7 @@ function renderBudgetList() {
       $("bdgClientBody").innerHTML =
         (list.length
           ? list.map(g => {
-              const ht = g.qty * g.price;
+              const ht = g.ht;
 
 
               return `
@@ -4070,7 +4074,7 @@ function renderBudgetList() {
           : `<tr><td colspan="8" class="empty">AUCUNE DÉSIGNATION</td></tr>` +
             filler(MIN_ROWS - 1));
 
-      const cHT = list.reduce((t, g) => t + g.qty * g.price, 0);
+      const cHT = list.reduce((t, g) => t + g.ht, 0);
       const cUnits = new Set(list.map(g => String(g.unit ?? "").trim().toUpperCase()));
       const cQty = list.length && cUnits.size === 1
         ? money(list.reduce((t, g) => t + g.qty, 0))
