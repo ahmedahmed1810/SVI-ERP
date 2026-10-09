@@ -2282,6 +2282,41 @@ function renderBudgetList() {
         background: #fff !important;
       }
 
+      /* outils export / import / aperçu */
+      .blk-head { display: flex; align-items: center; justify-content: space-between; }
+      .blk-tools { display: inline-flex; gap: 4px; margin-left: auto; }
+      .bdg-d-tabs { align-items: flex-end; }
+      .bdg-d-tabs .blk-tools { align-self: center; padding-right: 6px; }
+      .blk-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 26px; height: 24px; border: 1px solid #d6dbe3; border-radius: 6px;
+        background: #fff; color: #4b5563; cursor: pointer; padding: 0;
+      }
+      .blk-btn:hover { background: #eef1f6; color: #1d4ed8; }
+      #blkPop {
+        position: fixed; inset: 0; z-index: 10001; background: rgba(15,23,42,.35);
+        display: flex; align-items: center; justify-content: center; padding: 16px;
+      }
+      #blkPop .blk-card {
+        position: relative; background: #fff; border-radius: 12px; width: 100%; max-width: 300px;
+        padding: 16px; display: flex; flex-direction: column; gap: 8px;
+        box-shadow: 0 12px 32px rgba(0,0,0,.18); font-size: 12px; max-height: 90vh;
+      }
+      #blkPop .blk-wide { max-width: 900px; }
+      #blkPop .blk-title { font-weight: 800; color: #0f4f96; padding-right: 30px; }
+      #blkPop .blk-sub { color: #6b7280; font-size: 11px; }
+      #blkPop .blk-choice {
+        border: 1px solid #d6dbe3; background: #f8fafc; border-radius: 8px; padding: 9px;
+        font-weight: 700; font-size: 12px; cursor: pointer; text-align: left;
+      }
+      #blkPop .blk-choice:hover { background: #dbeafe; }
+      #blkPop .blk-x {
+        position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border: 0;
+        border-radius: 50%; background: #eef1f6; font-weight: 800; cursor: pointer;
+      }
+      #blkPop .blk-scroll { overflow: auto; border: 1px solid #edf0f4; border-radius: 6px; }
+      #blkPop .blk-imp { table-layout: auto; width: auto; }
+
       /* tri / filtre par colonne */
       .cf-wrap { display: flex; align-items: center; gap: 4px; width: 100%; }
       .cf-lab { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
@@ -3687,8 +3722,13 @@ function renderBudgetList() {
       <div class="bdg-d-page">
 
         <div class="bdg-d-block">
-          <div class="bdg-d-block-title" id="bdgClientTitle">
-            DÉSIGNATIONS CLIENT
+          <div class="bdg-d-block-title blk-head" id="bdgClientTitle">
+            <span>DÉSIGNATIONS CLIENT</span>
+            <span class="blk-tools">
+              <button type="button" class="blk-btn" data-blk="client" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="client" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="client" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+            </span>
           </div>
           <div class="bdg-d-scroll bdg-d-client-scroll">
             <table class="bdg-d-table">
@@ -3701,9 +3741,13 @@ function renderBudgetList() {
         </div>
 
         <div class="bdg-d-block">
-          <div class="bdg-d-block-title">
-            TÂCHES
-
+          <div class="bdg-d-block-title blk-head">
+            <span>TÂCHES</span>
+            <span class="blk-tools">
+              <button type="button" class="blk-btn" data-blk="hier" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="hier" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="hier" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+            </span>
           </div>
           <div class="bdg-h-grid" id="bdgHier"></div>
         </div>
@@ -3720,6 +3764,11 @@ function renderBudgetList() {
               </button>
             `).join("")
           }
+          <span class="blk-tools">
+              <button type="button" class="blk-btn" data-blk="detail" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="detail" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="detail" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+            </span>
         </div>
 
         <div class="bdg-d-block bdg-d-tabbody" id="bdgTabBody"></div>
@@ -4045,6 +4094,7 @@ function renderBudgetList() {
 
       const shownClient = cfApply("client", ccols, base);
       lastClientKeys = new Set(shownClient.map(g => g.key));
+      lastShown.client = { cols: ccols, rows: shownClient };
       const list = shownClient.sort((x, y) =>
         selDesig.has(y.key) - selDesig.has(x.key)
       );
@@ -4166,7 +4216,9 @@ function renderBudgetList() {
           return o === undefined ? Infinity : o;
         };
         const byOrder = [...all].sort((a, b) => ord(a) - ord(b));
-        const items = cfApply(level, hcols, byOrder).sort((x, y) =>
+        const items = cfApply(level, hcols, byOrder);
+        lastShown.hier[level] = items.map(v => stripLevelPrefix(v));
+        items.sort((x, y) =>
           hSel[level].has(y) - hSel[level].has(x)
         );
         const st = cfT(level);
@@ -4375,6 +4427,7 @@ function renderBudgetList() {
         const list = cfApply(active, tcols, byDesig).sort((x, y) =>
           selRows.has(y.gid) - selRows.has(x.gid)
         );
+        lastShown.detail = { cols: tcols, rows: list, kind: active };
         const shownG = new Set(list.map(g => g.gid));
         const raw = all.filter(l => shownG.has(l.gid));
         const cols = prd ? 12 : 8;
@@ -4530,7 +4583,207 @@ function renderBudgetList() {
       document.addEventListener("pointercancel", up);
     };
 
+    /* ===== export / import / aperçu PDF par bloc ===== */
+    const lastShown = { client: null, detail: null, hier: {} };
+    const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL" };
+
+    const blkData = blk => {
+      if (blk === "hier") {
+        const h = lastShown.hier;
+        const n = Math.max((h.lot || []).length, (h.prim || []).length, (h.sec || []).length);
+        return {
+          head: ["LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE"],
+          rows: Array.from({ length: n }, (_, i) =>
+            [(h.lot || [])[i] ?? "", (h.prim || [])[i] ?? "", (h.sec || [])[i] ?? ""])
+        };
+      }
+      const src = lastShown[blk];
+      if (!src) return { head: [], rows: [] };
+      return {
+        head: src.cols.map(c => c[1]),
+        rows: src.rows.map(r => src.cols.map(c => c[2](r)))
+      };
+    };
+
+    const fileBase = blk => {
+      const kind = blk === "detail" && lastShown.detail
+        ? (lastShown.detail.kind === "prd" ? " PRODUITS" : " CHARGES") : "";
+      return (budget.project + " " + ref + " " + blkName[blk] + kind)
+        .replace(/[\\/:*?"<>|;]+/g, "-").replace(/\s+/g, "_");
+    };
+
+    const download = (name, blob) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    };
+
+    const loadXLSX = () => window.XLSX
+      ? Promise.resolve(window.XLSX)
+      : new Promise((ok, ko) => {
+          const sc = document.createElement("script");
+          sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+          sc.onload = () => ok(window.XLSX);
+          sc.onerror = () => ko(new Error("Bibliothèque Excel indisponible"));
+          document.head.appendChild(sc);
+        });
+
+    const doExport = async (blk, fmt) => {
+      const { head, rows } = blkData(blk);
+      const base = fileBase(blk);
+      if (fmt === "csv") {
+        const cell = v => {
+          const t = typeof v === "number" ? money(v).replace(/\s/g, "") : String(v ?? "");
+          return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+        };
+        const txt = [head, ...rows].map(r => r.map(cell).join(";")).join("\r\n");
+        download(base + ".csv", new Blob(["\ufeff" + txt], { type: "text/csv;charset=utf-8" }));
+      } else if (fmt === "json") {
+        const objs = rows.map(r => Object.fromEntries(head.map((h, i) => [h, r[i]])));
+        download(base + ".json", new Blob([JSON.stringify(objs, null, 2)], { type: "application/json" }));
+      } else {
+        try {
+          const X = await loadXLSX();
+          const ws = X.utils.aoa_to_sheet([head, ...rows]);
+          const wb = X.utils.book_new();
+          X.utils.book_append_sheet(wb, ws, blkName[blk].slice(0, 31));
+          X.writeFile(wb, base + ".xlsx");
+        } catch (e) {
+          alert(e.message);
+        }
+      }
+    };
+
+    const popup = (html, cls = "") => {
+      document.getElementById("blkPop")?.remove();
+      const p = document.createElement("div");
+      p.id = "blkPop";
+      p.className = cls;
+      p.innerHTML = html;
+      p.addEventListener("click", e => {
+        if (e.target === p || e.target.closest("[data-close]")) p.remove();
+      });
+      document.body.appendChild(p);
+      return p;
+    };
+
+    const openExportMenu = blk => {
+      const p = popup(`
+        <div class="blk-card">
+          <button type="button" class="blk-x" data-close>✕</button>
+          <div class="blk-title">EXPORTER — ${esc(blkName[blk])}</div>
+          <div class="blk-sub">Lignes affichées (filtres compris)</div>
+          <button type="button" class="blk-choice" data-fmt="xlsx">Excel (.xlsx)</button>
+          <button type="button" class="blk-choice" data-fmt="csv">CSV (.csv)</button>
+          <button type="button" class="blk-choice" data-fmt="json">JSON (.json)</button>
+        </div>`);
+      p.addEventListener("click", e => {
+        const b = e.target.closest("[data-fmt]");
+        if (b) { doExport(blk, b.dataset.fmt); p.remove(); }
+      });
+    };
+
+    const showImport = (name, head, rows) => {
+      const body = rows.slice(0, 300).map(r =>
+        "<tr>" + head.map((_, i) => `<td>${esc(r[i] ?? "")}</td>`).join("") + "</tr>").join("");
+      popup(`
+        <div class="blk-card blk-wide">
+          <button type="button" class="blk-x" data-close>✕</button>
+          <div class="blk-title">IMPORT — ${esc(name)}</div>
+          <div class="blk-sub">${rows.length} ligne(s) lue(s)${rows.length > 300 ? " — 300 premières affichées" : ""}.
+            Aperçu seulement : l'enregistrement dans la feuille Google nécessite
+            une fonction d'import côté Apps Script (Code.gs).</div>
+          <div class="blk-scroll">
+            <table class="bdg-d-table blk-imp">
+              <thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead>
+              <tbody>${body}</tbody>
+            </table>
+          </div>
+        </div>`);
+    };
+
+    const doImport = blk => {
+      const inp = document.createElement("input");
+      inp.type = "file";
+      inp.accept = ".xlsx,.xls,.csv,.json,.txt";
+      inp.onchange = async () => {
+        const f = inp.files[0];
+        if (!f) return;
+        try {
+          if (/\.json$/i.test(f.name)) {
+            const data = JSON.parse(await f.text());
+            const arr = Array.isArray(data) ? data : [data];
+            const head = [...new Set(arr.flatMap(o => Object.keys(o || {})))];
+            showImport(f.name, head, arr.map(o => head.map(h => o?.[h])));
+          } else {
+            const X = await loadXLSX();
+            const wb = X.read(await f.arrayBuffer(), { type: "array" });
+            const aoa = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
+            showImport(f.name, aoa[0] || [], aoa.slice(1));
+          }
+        } catch (e) {
+          alert("IMPORT IMPOSSIBLE : " + e.message);
+        }
+      };
+      inp.click();
+    };
+
+    const doPdf = blk => {
+      let tableHTML;
+      if (blk === "hier") {
+        const { head, rows } = blkData("hier");
+        tableHTML = `<table><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead>
+          <tbody>${rows.map(r => `<tr>${r.map(v => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+      } else {
+        const src = blk === "client"
+          ? $("bdgClientBody")?.closest("table")
+          : $("bdgTabBody")?.querySelector("table");
+        if (!src) return;
+        const t = src.cloneNode(true);
+        t.removeAttribute("style");
+        t.querySelectorAll("colgroup, .cf-btn, .col-rs, tr.bdg-d-filler").forEach(x => x.remove());
+        t.querySelectorAll("input").forEach(i => i.replaceWith(document.createTextNode(i.value)));
+        tableHTML = t.outerHTML;
+      }
+      const kind = blk === "detail" && lastShown.detail
+        ? (lastShown.detail.kind === "prd" ? " PRODUITS" : " CHARGES") : "";
+      const w = window.open("", "_blank");
+      if (!w) { alert("Autorisez les fenêtres pop-up pour l'aperçu PDF."); return; }
+      w.document.write(`<!doctype html><html><head><meta charset="utf-8">
+        <title>${esc(fileBase(blk))}</title>
+        <style>
+          @page { size: A4 landscape; margin: 12mm; }
+          body { font-family: Arial, Helvetica, sans-serif; color: #172033; font-size: 10px; }
+          h1 { font-size: 16px; margin: 0 0 2px; } h2 { font-size: 12px; margin: 0 0 10px; color: #4b5563; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border-bottom: 1px solid #dfe4eb; padding: 3px 6px; text-align: left; white-space: nowrap; }
+          th { background: #eef1f6; font-weight: 800; }
+          .number { text-align: right; } .center { text-align: center; }
+          tfoot td, .bdg-d-total-row td { background: #dcecff; font-weight: 800; }
+          tr.selected td { background: #dbeafe; font-weight: 700; }
+        </style></head><body>
+        <h1>${esc(budget.project)} — ${esc(ref)}</h1>
+        <h2>${esc(blkName[blk] + kind)} — ${new Date().toLocaleDateString("fr-FR")}</h2>
+        ${tableHTML}
+        <script>window.onload = () => setTimeout(() => window.print(), 300);<\/script>
+        </body></html>`);
+      w.document.close();
+    };
+
     shell.onclick = event => {
+      const bb = event.target.closest(".blk-btn");
+      if (bb) {
+        event.stopPropagation();
+        const blk = bb.dataset.blk;
+        if (bb.dataset.act === "export") openExportMenu(blk);
+        else if (bb.dataset.act === "import") doImport(blk);
+        else doPdf(blk);
+        return;
+      }
+
       if (event.target.closest(".col-rs")) return;
       const cfb = event.target.closest(".cf-btn");
       if (cfb) {
