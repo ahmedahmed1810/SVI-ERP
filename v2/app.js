@@ -4587,7 +4587,19 @@ function renderBudgetList() {
     const lastShown = { client: null, detail: null, hier: {} };
     const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL" };
 
+    const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
+    const blkLabel = blk => blk === "detail" ? tabTitle() : blkName[blk];
+
     const blkData = blk => {
+      if (blk === "detail" && active === "qlt") return { head: [], rows: [] };
+      if (blk === "detail" && active === "dly") {
+        const a = $("bdgDelayStart")?.value || "";
+        const b = $("bdgDelayEnd")?.value || "";
+        return {
+          head: ["DATE DÉBUT", "DATE FIN", "DÉLAI"],
+          rows: [[a, b, $("bdgDelayDays")?.textContent || ""]]
+        };
+      }
       if (blk === "hier") {
         const h = lastShown.hier;
         const n = Math.max((h.lot || []).length, (h.prim || []).length, (h.sec || []).length);
@@ -4606,9 +4618,7 @@ function renderBudgetList() {
     };
 
     const fileBase = blk => {
-      const kind = blk === "detail" && lastShown.detail
-        ? (lastShown.detail.kind === "prd" ? " PRODUITS" : " CHARGES") : "";
-      return (budget.project + " " + ref + " " + blkName[blk] + kind)
+      return (budget.project + " " + ref + " " + blkLabel(blk))
         .replace(/[\\/:*?"<>|;]+/g, "-").replace(/\s+/g, "_");
     };
 
@@ -4633,6 +4643,7 @@ function renderBudgetList() {
 
     const doExport = async (blk, fmt) => {
       const { head, rows } = blkData(blk);
+      if (!head.length) { alert("Aucune donnée à exporter dans " + blkLabel(blk) + "."); return; }
       const base = fileBase(blk);
       if (fmt === "gsheet") {
         /* copie des données (tabulations) puis ouverture d'une nouvelle
@@ -4669,7 +4680,7 @@ function renderBudgetList() {
           const X = await loadXLSX();
           const ws = X.utils.aoa_to_sheet([head, ...rows]);
           const wb = X.utils.book_new();
-          X.utils.book_append_sheet(wb, ws, blkName[blk].slice(0, 31));
+          X.utils.book_append_sheet(wb, ws, blkLabel(blk).slice(0, 31));
           X.writeFile(wb, base + ".xlsx");
         } catch (e) {
           alert(e.message);
@@ -4694,7 +4705,7 @@ function renderBudgetList() {
       const p = popup(`
         <div class="blk-card">
           <button type="button" class="blk-x" data-close>✕</button>
-          <div class="blk-title">EXPORTER — ${esc(blkName[blk])}</div>
+          <div class="blk-title">EXPORTER — ${esc(blkLabel(blk))}</div>
           <div class="blk-sub">Lignes affichées (filtres compris)</div>
           <button type="button" class="blk-choice" data-fmt="xlsx">Excel (.xlsx)</button>
           <button type="button" class="blk-choice" data-fmt="csv">CSV (.csv)</button>
@@ -4748,7 +4759,7 @@ function renderBudgetList() {
       const p = popup(`
         <div class="blk-card">
           <button type="button" class="blk-x" data-close>✕</button>
-          <div class="blk-title">IMPORTER — ${esc(blkName[blk])}</div>
+          <div class="blk-title">IMPORTER — ${esc(blkLabel(blk))}</div>
           <button type="button" class="blk-choice" data-src="file">Fichier (Excel, CSV, JSON)</button>
           <button type="button" class="blk-choice" data-src="gsheet">Google Sheets (lien)</button>
         </div>`);
@@ -4788,8 +4799,12 @@ function renderBudgetList() {
 
     const doPdf = blk => {
       let tableHTML;
-      if (blk === "hier") {
-        const { head, rows } = blkData("hier");
+      if (blk === "detail" && active === "qlt") {
+        alert("Aucune donnée dans " + blkLabel(blk) + ".");
+        return;
+      }
+      if (blk === "hier" || (blk === "detail" && active === "dly")) {
+        const { head, rows } = blkData(blk);
         tableHTML = `<table><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead>
           <tbody>${rows.map(r => `<tr>${r.map(v => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
       } else {
@@ -4803,8 +4818,6 @@ function renderBudgetList() {
         t.querySelectorAll("input").forEach(i => i.replaceWith(document.createTextNode(i.value)));
         tableHTML = t.outerHTML;
       }
-      const kind = blk === "detail" && lastShown.detail
-        ? (lastShown.detail.kind === "prd" ? " PRODUITS" : " CHARGES") : "";
       const w = window.open("", "_blank");
       if (!w) { alert("Autorisez les fenêtres pop-up pour l'aperçu PDF."); return; }
       w.document.write(`<!doctype html><html><head><meta charset="utf-8">
@@ -4821,7 +4834,7 @@ function renderBudgetList() {
           tr.selected td { background: #dbeafe; font-weight: 700; }
         </style></head><body>
         <h1>${esc(budget.project)} — ${esc(ref)}</h1>
-        <h2>${esc(blkName[blk] + kind)} — ${new Date().toLocaleDateString("fr-FR")}</h2>
+        <h2>${esc(blkLabel(blk))} — ${new Date().toLocaleDateString("fr-FR")}</h2>
         ${tableHTML}
         <script>window.onload = () => setTimeout(() => window.print(), 300);<\/script>
         </body></html>`);
