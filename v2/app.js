@@ -2258,11 +2258,11 @@ function renderBudgetList() {
       .bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll {
         height: 231px !important;
       }
-      /* détail charge / produit : au plus 6 lignes visibles,
+      /* détail charge / produit : au plus 8 lignes visibles,
          pour laisser apparaître les totaux */
       .bdg-d-tabbody > .bdg-d-scroll,
       .bdg-d-tabbody .bdg-d-scroll {
-        max-height: 147px !important;
+        max-height: 189px !important;
         overflow-y: auto;
       }
 
@@ -3607,16 +3607,6 @@ function renderBudgetList() {
 
         <div class="bdg-d-block bdg-d-tabbody" id="bdgTabBody"></div>
 
-        <details class="bdg-d-debug">
-          <summary>Colonnes détectées dans l'onglet BDG</summary>
-          <div>
-            ${esc(Object.keys(budget.rows[0] || {}).join(" | "))}
-            <br>
-            Colonne charge/produit :
-            ${esc(typeKey || "INTROUVABLE")}
-            — lignes non classées : ${unclassified}
-          </div>
-        </details>
 
       </div>
     `;
