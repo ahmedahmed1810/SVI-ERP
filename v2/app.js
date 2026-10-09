@@ -1013,7 +1013,7 @@ const cfg = {
     list: "primaryList",
     parent: "lot",
     fk: "lotId",
-    title: "TÂCHE PRIMAIRE",
+    title: "ACTIVITÉ PRIMAIRE",
     type: "PRIMARY"
   },
 
@@ -1022,7 +1022,7 @@ const cfg = {
     list: "secondaryList",
     parent: "primary",
     fk: "primaryId",
-    title: "TÂCHE SECONDAIRE",
+    title: "ACTIVITÉ SECONDAIRE",
     type: "SECONDARY"
   }
 };
@@ -1471,7 +1471,7 @@ function renderContext() {
 
   if (selection.primary) {
     parts.push(
-      `TÂCHE PRIMAIRE : ${
+      `ACTIVITÉ PRIMAIRE : ${
         getBy(
           "primary",
           selection.primary
@@ -1482,7 +1482,7 @@ function renderContext() {
 
   if (selection.secondary) {
     parts.push(
-      `TÂCHE SECONDAIRE : ${
+      `ACTIVITÉ SECONDAIRE : ${
         getBy(
           "secondary",
           selection.secondary
@@ -1494,7 +1494,7 @@ function renderContext() {
   $("bdsContext").textContent =
     parts.length
       ? parts.join(" | ")
-      : "SÉLECTIONNEZ UNE TÂCHE SECONDAIRE";
+      : "SÉLECTIONNEZ UNE ACTIVITÉ SECONDAIRE";
 }
 
 function renderBrd() {
@@ -1582,7 +1582,7 @@ function renderBrd() {
               ${
                 selection.secondary
                   ? "AUCUN ARTICLE"
-                  : "SÉLECTIONNEZ UNE TÂCHE SECONDAIRE"
+                  : "SÉLECTIONNEZ UNE ACTIVITÉ SECONDAIRE"
               }
             </td>
           </tr>
@@ -1603,7 +1603,7 @@ function brdForm(
     !item
   ) {
     return alert(
-      "SÉLECTIONNEZ D'ABORD UNE TÂCHE SECONDAIRE"
+      "SÉLECTIONNEZ D'ABORD UNE ACTIVITÉ SECONDAIRE"
     );
   }
 
@@ -3643,7 +3643,7 @@ function renderBudgetList() {
 
         <div class="bdg-d-block">
           <div class="bdg-d-block-title">
-            LOTS / TÂCHES
+            LOTS / ACTIVITÉS
 
           </div>
           <div class="bdg-h-grid" id="bdgHier"></div>
@@ -4083,8 +4083,8 @@ function renderBudgetList() {
 
       $("bdgHier").innerHTML =
         col("LOT", "lot", lots) +
-        col("TÂCHE PRIMAIRE", "prim", prims) +
-        col("TÂCHE SECONDAIRE", "sec", secs);
+        col("ACTIVITÉ PRIMAIRE", "prim", prims) +
+        col("ACTIVITÉ SECONDAIRE", "sec", secs);
 
       /* plus de texte « FILTRES : … » dans le titre du bloc */
     };
