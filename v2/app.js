@@ -2174,6 +2174,18 @@ function renderBudgetList() {
 
       #bdgClientBody { }
 
+      /* tableau désignations client : cadre de hauteur fixe,
+         en-tête figé, lignes vides de remplissage */
+      .bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll {
+        height: 245px;
+        max-height: none;
+      }
+      .bdg-d-table tbody tr.bdg-d-filler td {
+        height: 20px;
+        background: transparent;
+      }
+      .bdg-d-table td.price-mixed { color: #b45309; font-weight: 700; }
+
       .bdg-d-block > .bdg-d-scroll {
         max-height: 245px;
         overflow-y: auto;
@@ -3336,7 +3348,7 @@ function renderBudgetList() {
           <div class="bdg-d-block-title">
             DÉSIGNATIONS CLIENT
           </div>
-          <div class="bdg-d-scroll">
+          <div class="bdg-d-scroll bdg-d-client-scroll">
             <table class="bdg-d-table">
               <thead>
                 <tr>
@@ -3353,6 +3365,7 @@ function renderBudgetList() {
               <tbody id="bdgClientBody"></tbody>
             </table>
           </div>
+          <div id="bdgPriceInfo" class="hint" style="white-space:pre-line;padding:0 8px"></div>
         </div>
 
         <div class="bdg-d-block">
@@ -3432,7 +3445,21 @@ function renderBudgetList() {
         if (k) {
           g.price = k.cprice;
           g.unit = k.unit || g.unit;
+          g.priceKind = k.kind || "?";
+          g.priceDetail = k.detail;
         }
+
+        /* diagnostic : tous les prix (col. W) distincts
+           trouvés pour cette désignation */
+        const all = new Map();
+        lines.forEach(l => {
+          if (desigKey(l) === g.key && l.cprice !== 0) {
+            const lab = money(l.cprice) + " (" + (l.kind || "?").toUpperCase() + ")";
+            all.set(lab, (all.get(lab) || 0) + 1);
+          }
+        });
+        g.priceList = [...all.entries()]
+          .map(([lab, n]) => lab + " ×" + n);
       });
 
       const list = [...groupsMap.values()].sort((x, y) =>
@@ -3443,10 +3470,30 @@ function renderBudgetList() {
         )
       );
 
+      const MIN_ROWS = 10;
+      const selTips = [];
+
+      const filler = n =>
+        Array.from({ length: Math.max(0, n) }, () =>
+          `<tr class="bdg-d-filler">${"<td>&nbsp;</td>".repeat(8)}</tr>`
+        ).join("");
+
       $("bdgClientBody").innerHTML =
-        list.length
+        (list.length
           ? list.map(g => {
               const ht = g.qty * g.price;
+
+              const pl = g.priceList || [];
+              const tip =
+                "Prix retenu : " + money(g.price) +
+                " (ligne " + String(g.priceKind || "?").toUpperCase() +
+                (g.priceDetail ? " — " + g.priceDetail : "") + ")" +
+                "\nPrix trouvés (col. W) : " +
+                (pl.length ? pl.join(" | ") : "aucun");
+
+              if (selDesig.has(g.key)) {
+                selTips.push(g.designation + " → " + tip);
+              }
 
               return `
                 <tr data-desig="${esc(g.key)}"
@@ -3455,14 +3502,18 @@ function renderBudgetList() {
                   <td>${esc(g.designation)}</td>
                   <td>${esc(g.unit)}</td>
                   <td class="number">${money(g.qty)}</td>
-                  <td class="number">${money(g.price)}</td>
+                  <td class="number ${pl.length > 1 ? "price-mixed" : ""}"
+                      title="${esc(tip)}">${money(g.price)}</td>
                   <td class="number">${money(ht)}</td>
                   <td class="number">20,00 %</td>
                   <td class="number">${money(ht * 1.2)}</td>
                 </tr>
               `;
-            }).join("")
-          : `<tr><td colspan="8" class="empty">AUCUNE DÉSIGNATION</td></tr>`;
+            }).join("") + filler(MIN_ROWS - list.length)
+          : `<tr><td colspan="8" class="empty">AUCUNE DÉSIGNATION</td></tr>` +
+            filler(MIN_ROWS - 1));
+
+      $("bdgPriceInfo").textContent = selTips.join("\n");
     };
 
     const uniq = arr =>
