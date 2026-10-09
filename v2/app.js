@@ -3711,7 +3711,8 @@ function renderBudgetList() {
 
     const cfHead = (t, key, label, cls = "") => {
       const st = cfT(t);
-      const on = !!st.f[key];
+      /* en-tête de colonne bleu : filtre ou tri choisi sur cette colonne */
+      const on = !!st.f[key] || !!(st.sort && st.sort.col === key && !st.sort.def);
       return `<th class="${cls} ${on ? "cf-on" : ""}">
         <span class="cf-wrap"><span class="cf-lab">${label}</span><span class="cf-btn" data-cf="${t}" data-col="${key}"
           role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span
@@ -4052,7 +4053,7 @@ function renderBudgetList() {
           hSel[level].has(y) - hSel[level].has(x)
         );
         const st = cfT(level);
-        const on = st.f.v || hSel[level].size;
+        const on = st.f.v || hSel[level].size || (st.sort && !st.sort.def);
         return `
         <div class="bdg-h-col">
           <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}</span><span class="cf-btn"
