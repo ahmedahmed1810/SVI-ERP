@@ -4641,9 +4641,12 @@ function renderBudgetList() {
           ? money(v).replace(/\s/g, "")
           : String(v ?? "").replace(/[\t\n]/g, " ");
         const tsv = [head, ...rows].map(r => r.map(cell).join("\t")).join("\n");
-        let copied = false;
-        try { await navigator.clipboard.writeText(tsv); copied = true; } catch (e) {}
+        /* copie lancée et onglet ouvert dans le même geste (Safari) */
+        const copying = navigator.clipboard
+          ? navigator.clipboard.writeText(tsv).then(() => true, () => false)
+          : Promise.resolve(false);
         window.open("https://sheets.new", "_blank");
+        const copied = await copying;
         if (copied) {
           alert("Données copiées. Dans la nouvelle feuille Google, touche la cellule A1 puis « Coller ».");
         } else {
