@@ -2268,7 +2268,9 @@ function renderBudgetList() {
       .bdg-tva-input { height: 16px !important; line-height: 14px; }
 
       /* tri / filtre par colonne */
-      .cf-wrap { display: inline-flex; align-items: center; gap: 4px; }
+      .cf-wrap { display: flex; align-items: center; gap: 4px; width: 100%; }
+      .cf-lab { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+      .cf-wrap .cf-btn { margin-left: auto; margin-right: 7px; }
       .cf-btn {
         display: inline-flex; align-items: center; justify-content: center;
         width: 18px; height: 16px; border-radius: 4px; cursor: pointer;
@@ -2277,8 +2279,6 @@ function renderBudgetList() {
       .cf-btn:hover { background: #e5e9f0; color: #374151; }
       th.cf-on, .bdg-h-head.cf-on { color: #1d4ed8 !important; background: #dbeafe !important; }
       th.cf-on .cf-btn, .bdg-h-head.cf-on .cf-btn { color: #1d4ed8; }
-      th.number .cf-wrap { justify-content: flex-end; }
-      th.center .cf-wrap { justify-content: center; }
       #cfMenu {
         position: fixed; z-index: 10000; width: 230px; max-height: 340px;
         display: flex; flex-direction: column; gap: 4px; padding: 8px;
@@ -3708,9 +3708,9 @@ function renderBudgetList() {
 
     const cfHead = (t, key, label, cls = "") => {
       const st = cfT(t);
-      const on = (st.sort && st.sort.col === key) || st.f[key];
+      const on = (st.sort && st.sort.col === key && !st.sort.def) || st.f[key];
       return `<th class="${cls} ${on ? "cf-on" : ""}">
-        <span class="cf-wrap">${label}<span class="cf-btn" data-cf="${t}" data-col="${key}"
+        <span class="cf-wrap"><span class="cf-lab">${label}</span><span class="cf-btn" data-cf="${t}" data-col="${key}"
           role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span
           class="col-rs" data-rs="${t}" data-col="${key}"></span></th>`;
     };
@@ -4033,14 +4033,26 @@ function renderBudgetList() {
 
       const col = (title, level, all) => {
         const hcols = [["v", title, v => stripLevelPrefix(v), ""]];
-        const items = cfApply(level, hcols, all).sort((x, y) =>
+        /* ordre par défaut : champ ORDRE du BDS (inconnus à la fin) */
+        const src = { lot: db.lots, prim: db.primaries, sec: db.secondaries }[level] || [];
+        const ordOf = new Map();
+        src.forEach(x => {
+          const k = stripLevelPrefix(x.name).trim().toUpperCase();
+          if (k && !ordOf.has(k)) ordOf.set(k, Number(x.order) || 0);
+        });
+        const ord = v => {
+          const o = ordOf.get(String(v).trim().toUpperCase());
+          return o === undefined ? Infinity : o;
+        };
+        const byOrder = [...all].sort((a, b) => ord(a) - ord(b));
+        const items = cfApply(level, hcols, byOrder).sort((x, y) =>
           hSel[level].has(y) - hSel[level].has(x)
         );
         const st = cfT(level);
-        const on = st.sort || st.f.v;
+        const on = (st.sort && !st.sort.def) || st.f.v;
         return `
         <div class="bdg-h-col">
-          <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap">${title}<span class="cf-btn"
+          <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}</span><span class="cf-btn"
             data-cf="${level}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span
             class="col-rs" data-rs="hier" data-col="${level}"></span></div>
           ${
@@ -4103,13 +4115,16 @@ function renderBudgetList() {
       requestAnimationFrame(restore);
     };
 
-    const refreshAll = () => keepScroll(() => {
-      pruneHier();
+    const refreshAll = () => {
+      keepScroll(() => {
+        pruneHier();
 
-      renderClient();
-      renderHier();
-      renderTab();
-    });
+        renderClient();
+        renderHier();
+        renderTab();
+      });
+      if (typeof stateSave === "function") stateSave();
+    };
 
     const tvaFor = l => l.amount * l.tva / 100;
 
@@ -4442,6 +4457,53 @@ function renderBudgetList() {
       }
     };
 
+    /* ===== état mémorisé sur l'appareil, par budget ===== */
+    const ST_KEY = "svi_bdgstate_v1:" + String(ref);
+
+    const stateSave = () => {
+      try {
+        const cf = {};
+        Object.entries(CF).forEach(([t, st]) => {
+          const f = {};
+          Object.entries(st.f).forEach(([k, set]) => { f[k] = [...set]; });
+          cf[t] = { sort: st.sort, f };
+        });
+        localStorage.setItem(ST_KEY, JSON.stringify({
+          cf,
+          desig: [...selDesig],
+          rows: [...selRows],
+          h: { lot: [...hSel.lot], prim: [...hSel.prim], sec: [...hSel.sec] }
+        }));
+      } catch (e) {}
+    };
+
+    const stateLoad = () => {
+      let st = null;
+      try { st = JSON.parse(localStorage.getItem(ST_KEY) || "null"); }
+      catch (e) { st = null; }
+
+      if (!st) {
+        /* première ouverture : Détail charge / produit par désignation
+           (désignations client par article, lots / tâches par ordre BDS) */
+        cfT("chg").sort = { col: "detail", dir: "asc", def: true };
+        cfT("prd").sort = { col: "detail", dir: "asc", def: true };
+        return;
+      }
+
+      Object.entries(st.cf || {}).forEach(([t, v]) => {
+        const x = cfT(t);
+        x.sort = v.sort || null;
+        x.f = {};
+        Object.entries(v.f || {}).forEach(([k, arr]) => { x.f[k] = new Set(arr); });
+      });
+      (st.desig || []).forEach(v => selDesig.add(v));
+      (st.rows || []).forEach(v => selRows.add(v));
+      ["lot", "prim", "sec"].forEach(k =>
+        ((st.h || {})[k] || []).forEach(v => hSel[k].add(v))
+      );
+    };
+
+    stateLoad();
     refreshAll();
 
     $("budgetBackBtn")
