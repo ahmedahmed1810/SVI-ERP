@@ -2173,8 +2173,10 @@ function renderBudgetList() {
       }
 
       .bdg-tva-input {
-        width: 58px;
-        padding: 3px 5px;
+        width: 52px;
+        height: 18px;
+        box-sizing: border-box;
+        padding: 0 4px;
         border: 1px solid #cfd6df;
         border-radius: 6px;
         text-align: right;
@@ -2236,6 +2238,28 @@ function renderBudgetList() {
       .bdg-d-total-ttc {
         background: #dcecff;
         border-bottom: 0 !important;
+      }
+
+      /* Détail charge / produit : lignes compactes et totaux sur une
+         seule bande, pour garder le TTC visible */
+      .bdg-d-tabbody .bdg-d-table th,
+      .bdg-d-tabbody .bdg-d-table td {
+        padding: 1px 8px;
+        line-height: 1.15;
+        font-size: 11px;
+      }
+      .bdg-d-tabbody .bdg-d-totals {
+        max-width: none;
+        margin-top: 6px;
+        display: flex;
+        flex-wrap: wrap;
+      }
+      .bdg-d-tabbody .bdg-d-totals div {
+        flex: 1 1 0;
+        min-width: 150px;
+        padding: 6px 12px;
+        border-bottom: 0;
+        border-right: 1px solid #edf0f4;
       }
 
       @media (max-width:650px) {
