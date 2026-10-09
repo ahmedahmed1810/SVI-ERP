@@ -2254,15 +2254,23 @@ function renderBudgetList() {
       .bdg-d-table tbody tr.bdg-d-filler td { height: 21px; }
       .bdg-tva-input { height: 16px !important; line-height: 14px; }
 
-      /* désignations client : en-tête + 10 lignes */
+      /* désignations client : en-tête + 10 lignes + total */
       .bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll {
-        height: 231px !important;
+        height: 252px !important;
+      }
+      .bdg-d-table tfoot td {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        background: #dcecff;
+        font-weight: 800;
+        border-top: 1px solid #c7d7ee;
       }
       /* détail charge / produit : au plus 8 lignes visibles,
          pour laisser apparaître les totaux */
       .bdg-d-tabbody > .bdg-d-scroll,
       .bdg-d-tabbody .bdg-d-scroll {
-        max-height: 189px !important;
+        max-height: 210px !important;
         overflow-y: auto;
       }
 
@@ -3582,6 +3590,7 @@ function renderBudgetList() {
                 </tr>
               </thead>
               <tbody id="bdgClientBody"></tbody>
+              <tfoot id="bdgClientFoot"></tfoot>
             </table>
           </div>
         </div>
@@ -3697,6 +3706,16 @@ function renderBudgetList() {
             }).join("") + filler(MIN_ROWS - list.length)
           : `<tr><td colspan="8" class="empty">AUCUNE DÉSIGNATION</td></tr>` +
             filler(MIN_ROWS - 1));
+
+      const cHT = list.reduce((t, g) => t + g.qty * g.price, 0);
+      $("bdgClientFoot").innerHTML = `
+        <tr class="bdg-d-total-row">
+          <td></td><td></td><td></td><td></td>
+          <td class="number">TOTAL</td>
+          <td class="number">${money(cHT)}</td>
+          <td class="number">${money(cHT * 0.2)}</td>
+          <td class="number">${money(cHT * 1.2)}</td>
+        </tr>`;
     };
 
     const uniq = arr =>
@@ -3788,6 +3807,24 @@ function renderBudgetList() {
     };
 
     const tvaFor = l => l.amount * l.tva / 100;
+
+    /* ligne TOTAL en pied des onglets Détail charge / produit */
+    const tabFootHTML = (list, prd) => {
+      const qty = list.reduce((t, l) => t + l.qty, 0);
+      const ht = list.reduce((t, l) => t + l.amount, 0);
+      const tva = list.reduce((t, l) => t + tvaFor(l), 0);
+      const lead = prd ? 6 : 2;   /* colonnes avant « TOTAL » */
+      return `
+        <tr class="bdg-d-total-row">
+          ${"<td></td>".repeat(lead)}
+          <td class="number">TOTAL</td>
+          <td class="number">${money(qty)}</td>
+          <td class="number">${money(qty ? ht / qty : 0)}</td>
+          <td class="number">${money(ht)}</td>
+          <td class="number" id="bdgFtTVA">${money(tva)}</td>
+          <td class="number" id="bdgFtTTC">${money(ht + tva)}</td>
+        </tr>`;
+    };
 
     const totalsHTML = list => {
       const ht =
@@ -3893,9 +3930,9 @@ function renderBudgetList() {
                   </td></tr>`
                 }
               </tbody>
+              <tfoot>${tabFootHTML(raw, prd)}</tfoot>
             </table>
           </div>
-          ${totalsHTML(raw)}
         `;
 
         return;
@@ -3998,9 +4035,8 @@ function renderBudgetList() {
           const tva =
             list.reduce((t, l) => t + tvaFor(l), 0);
 
-          if ($("bdgTotTTC")) {
-            $("bdgTotTTC").textContent = money(ht + tva);
-          }
+          if ($("bdgFtTVA")) $("bdgFtTVA").textContent = money(tva);
+          if ($("bdgFtTTC")) $("bdgFtTTC").textContent = money(ht + tva);
 
           renderClient();
         }
