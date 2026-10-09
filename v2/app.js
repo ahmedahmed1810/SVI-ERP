@@ -3373,8 +3373,10 @@ function renderBudgetList() {
         const same = v => new Set(ms.map(v)).size === 1 ? v(f) : "";
         return {
           gid, members: ms,
-          /* article vide quand des articles différents sont fusionnés */
-          article: same(l => l.article), detail: f.detail, unit: f.unit,
+          /* Détail charge : article toujours vide ;
+             Détail produit : vide si des articles différents sont fusionnés */
+          article: f.kind === "chg" ? "" : same(l => l.article),
+          detail: f.detail, unit: f.unit,
           nbr: same(l => l.nbr),
           dims: [0, 1, 2].map(i => same(l => l.dims[i])),
           qty, amount, tvaAmt,
