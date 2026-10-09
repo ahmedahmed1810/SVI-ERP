@@ -4053,7 +4053,8 @@ function renderBudgetList() {
           hSel[level].has(y) - hSel[level].has(x)
         );
         const st = cfT(level);
-        const on = st.f.v || hSel[level].size || (st.sort && !st.sort.def);
+        /* lots / activités : bleu seulement si filtre ou toucher, jamais pour un tri */
+        const on = st.f.v || hSel[level].size;
         return `
         <div class="bdg-h-col">
           <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}</span><span class="cf-btn"
