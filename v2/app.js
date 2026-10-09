@@ -3603,7 +3603,6 @@ function renderBudgetList() {
       });
 
       const list = [...groupsMap.values()].sort((x, y) =>
-        (selDesig.has(y.key) - selDesig.has(x.key)) ||
         String(x.article).localeCompare(
           String(y.article),
           undefined,
