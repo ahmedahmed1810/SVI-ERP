@@ -3338,6 +3338,10 @@ function renderBudgetList() {
     const selDesig = new Set();
     /* lignes touchées dans Détail charge / Détail produit */
     const selRows = new Set();
+
+    /* choix faits directement (désignation du haut, lot, tâche) */
+    const dDesig = new Set();
+    const dH = { lot: new Set(), prim: new Set(), sec: new Set() };
     const hSel = {
       lot: new Set(),
       prim: new Set(),
@@ -3347,6 +3351,42 @@ function renderBudgetList() {
     const desigKey = l => l.article + "||" + l.designation;
 
     const inSet = (set, v) => !set.size || set.has(v);
+
+    /* filtres effectifs = choix directs ∪ ce qu'apportent les lignes
+       sélectionnées ; un élément n'est retiré que lorsque plus aucune
+       sélection active ne s'y rattache */
+    const syncSel = () => {
+      const fill = (eff, direct) => {
+        eff.clear();
+        direct.forEach(v => eff.add(v));
+      };
+      fill(selDesig, dDesig);
+      fill(hSel.lot, dH.lot);
+      fill(hSel.prim, dH.prim);
+      fill(hSel.sec, dH.sec);
+
+      selRows.forEach(id => {
+        const l = lines.find(x => x.id === id);
+        if (!l) return;
+        const add = (set, v) => {
+          if (String(v).trim() !== "") set.add(v);
+        };
+        add(selDesig, desigKey(l));
+        add(hSel.lot, l.lot);
+        add(hSel.prim, l.prim);
+        add(hSel.sec, l.sec);
+      });
+    };
+
+    /* retire un élément précis : son choix direct et les lignes
+       sélectionnées qui l'apportaient */
+    const dropValue = (field, direct, v) => {
+      direct.delete(v);
+      [...selRows].forEach(id => {
+        const l = lines.find(x => x.id === id);
+        if (l && field(l) === v) selRows.delete(id);
+      });
+    };
 
     /* tableau du haut : filtré seulement par la hiérarchie */
     const clientLines = () =>
@@ -3605,16 +3645,18 @@ function renderBudgetList() {
        (répété jusqu'à stabilité) */
     const pruneHier = () => {
       for (let guard = 0; guard < 5; guard++) {
+        syncSel();
         const h = hierLists();
         let changed = false;
         const drop = (set, list) => [...set].forEach(v => {
           if (!list.includes(v)) { set.delete(v); changed = true; }
         });
-        drop(hSel.lot, h.lots);
-        drop(hSel.prim, h.prims);
-        drop(hSel.sec, h.secs);
+        drop(dH.lot, h.lots);
+        drop(dH.prim, h.prims);
+        drop(dH.sec, h.secs);
         if (!changed) break;
       }
+      syncSel();
     };
 
     const renderHier = () => {
@@ -3655,12 +3697,6 @@ function renderBudgetList() {
 
     const refreshAll = () => {
       pruneHier();
-
-      /* une ligne reste marquée seulement si sa désignation l'est encore */
-      [...selRows].forEach(id => {
-        const l = lines.find(x => x.id === id);
-        if (!l || !selDesig.has(desigKey(l))) selRows.delete(id);
-      });
 
       renderClient();
       renderHier();
@@ -3830,31 +3866,15 @@ function renderBudgetList() {
       const lineRow = event.target.closest("tr[data-row]");
 
       if (lineRow && !event.target.closest("input")) {
-        const l = lines.find(x => x.id === lineRow.dataset.row);
+        const id = lineRow.dataset.row;
 
-        if (l) {
-          const parts = [
-            [selDesig, desigKey(l)],
-            [hSel.lot, l.lot],
-            [hSel.prim, l.prim],
-            [hSel.sec, l.sec]
-          ].filter(([, v]) => String(v).trim() !== "");
-
-          const on = selRows.has(l.id);
-
-          if (on) {
-            selRows.delete(l.id);
-          } else {
-            selRows.add(l.id);
-          }
-
-          parts.forEach(([set, v]) =>
-            on ? set.delete(v) : set.add(v)
-          );
-
-          refreshAll();
+        if (selRows.has(id)) {
+          selRows.delete(id);
+        } else {
+          selRows.add(id);
         }
 
+        refreshAll();
         return;
       }
 
@@ -3865,32 +3885,10 @@ function renderBudgetList() {
         const v = h.dataset.v;
 
         if (hSel[level].has(v)) {
-          hSel[level].delete(v);
+          dropValue(l => l[level], dH[level], v);
         } else {
-          hSel[level].add(v);
+          dH[level].add(v);
         }
-
-        /* retire les choix devenus incompatibles avec le parent */
-        const okPrim = new Set(
-          lines
-            .filter(l => inSet(hSel.lot, l.lot))
-            .map(l => l.prim)
-        );
-        [...hSel.prim].forEach(x => {
-          if (!okPrim.has(x)) hSel.prim.delete(x);
-        });
-
-        const okSec = new Set(
-          lines
-            .filter(l =>
-              inSet(hSel.lot, l.lot) &&
-              inSet(hSel.prim, l.prim)
-            )
-            .map(l => l.sec)
-        );
-        [...hSel.sec].forEach(x => {
-          if (!okSec.has(x)) hSel.sec.delete(x);
-        });
 
         refreshAll();
         return;
@@ -3902,9 +3900,9 @@ function renderBudgetList() {
         const k = dRow.dataset.desig;
 
         if (selDesig.has(k)) {
-          selDesig.delete(k);
+          dropValue(l => desigKey(l), dDesig, k);
         } else {
-          selDesig.add(k);
+          dDesig.add(k);
         }
 
         refreshAll();
