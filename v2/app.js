@@ -3924,10 +3924,10 @@ function renderBudgetList() {
       const ccols = [
         ["article", "ARTICLE", g => g.article, "center"],
         ["designation", "DÉSIGNATION", g => g.designation, ""],
-        ["unit", "UNITÉ", g => g.unit, "center"],
-        ["qty", "QUANTITÉ", g => g.qty, "number"],
-        ["price", "PRIX", g => g.price, "number"],
-        ["ht", "MONTANT HT", g => g.qty * g.price, "number"],
+        ["unit", "UPB", g => g.unit, "center"],
+        ["qty", "QPB", g => g.qty, "number"],
+        ["price", "PPB", g => g.price, "number"],
+        ["ht", "MPB", g => g.qty * g.price, "number"],
         ["tva", "TVA", () => "20,00 %", "number"],
         ["ttc", "MONTANT TTC", g => g.qty * g.price * 1.2, "number"]
       ];
@@ -4194,16 +4194,16 @@ function renderBudgetList() {
         const tcols = [
           ["article", "ARTICLE", l => l.article, "center"],
           ["detail", "DÉSIGNATION", l => l.detail, ""],
-          ["unit", "UNITÉ", l => l.unit, "center"],
+          ["unit", prd ? "UPB" : "UCB", l => l.unit, "center"],
           ...(prd ? [
             ["nbr", "NBR", l => String(l.nbr ?? ""), "number"],
             ["d1", "DIM 1", l => String(l.dims[0] ?? ""), "number"],
             ["d2", "DIM 2", l => String(l.dims[1] ?? ""), "number"],
             ["d3", "DIM 3", l => String(l.dims[2] ?? ""), "number"]
           ] : []),
-          ["qty", "QUANTITÉ", l => l.qty, "number"],
-          ["price", "PRIX", l => l.price, "number"],
-          ["amount", "MONTANT HT", l => l.amount, "number"],
+          ["qty", prd ? "QPB" : "QCB", l => l.qty, "number"],
+          ["price", prd ? "PPB" : "PCB", l => l.price, "number"],
+          ["amount", prd ? "MPB" : "MCB", l => l.amount, "number"],
           ["tva", "TVA %", l => String(l.tva ?? ""), "number"],
           ["ttc", "MONTANT TTC", l => l.amount + l.tvaAmt, "number"]
         ];
