@@ -2070,13 +2070,17 @@ function renderBudgetList() {
 
       .bdg-d-table th,
       .bdg-d-table td {
-        padding: 7px 10px;
+        padding: 3px 10px;
+        line-height: 1.25;
         border-bottom: 1px solid #edf0f4;
         text-align: left;
         white-space: nowrap;
       }
 
       .bdg-d-table th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
         background: #fafbfc;
         color: #6b7480;
         font-size: 10px;
@@ -2171,7 +2175,7 @@ function renderBudgetList() {
       #bdgClientBody { }
 
       .bdg-d-block > .bdg-d-scroll {
-        max-height: 320px;
+        max-height: 245px;
         overflow-y: auto;
       }
 
@@ -2214,9 +2218,9 @@ function renderBudgetList() {
 .bdg-d-table tbody tr.selected td{background:#dbeafe !important}
 .bdg-d-fi{float:right;font-size:11px;font-weight:600;opacity:.8}
 .bdg-h-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
-.bdg-h-col{border:1px solid #d6dbe3;border-radius:8px;overflow:hidden;max-height:220px;overflow-y:auto;background:#fff}
+.bdg-h-col{border:1px solid #d6dbe3;border-radius:8px;overflow:hidden;max-height:250px;overflow-y:auto;background:#fff}
 .bdg-h-head{position:sticky;top:0;background:#eef1f6;font-size:11px;font-weight:700;padding:6px 8px}
-.bdg-h-item{padding:7px 8px;font-size:12px;cursor:pointer;border-top:1px solid #eef1f6}
+.bdg-h-item{padding:3px 8px;font-size:12px;cursor:pointer;border-top:1px solid #eef1f6}
 .bdg-h-item.selected{background:#dbeafe;font-weight:700}
 .bdg-h-empty{padding:8px;font-size:12px;opacity:.5}
 @media (max-width:650px){.bdg-h-grid{grid-template-columns:1fr}}
@@ -3214,6 +3218,10 @@ function renderBudgetList() {
           byLetter(row, "I") || pick(row, ["DESIGNATION"]),
         unit:
           byLetter(row, "J") || pick(row, ["UTB", "UNITE"]),
+        detail:
+          pick(row, ["DETAIL BUDGET"]) ||
+          byLetter(row, "I") ||
+          pick(row, ["DESIGNATION"]),
         lot: byLetter(row, "K") || pick(row, ["LOT"]),
         prim:
           byLetter(row, "N") ||
@@ -3234,30 +3242,29 @@ function renderBudgetList() {
     const lines =
       budget.rows.map(toLine);
 
-    let selDesig = null;
-    const hSel = { lot: "", prim: "", sec: "" };
+    const selDesig = new Set();
+    const hSel = {
+      lot: new Set(),
+      prim: new Set(),
+      sec: new Set()
+    };
 
     const desigKey = l => l.article + "||" + l.designation;
 
-    const hierOK = l =>
-      (!hSel.lot || l.lot === hSel.lot) &&
-      (!hSel.prim || l.prim === hSel.prim) &&
-      (!hSel.sec || l.sec === hSel.sec);
+    const inSet = (set, v) => !set.size || set.has(v);
 
-    /* tableau du haut : filtré seulement par la hiérarchie
-       (tâches primaire/secondaire) */
+    /* tableau du haut : filtré seulement par la hiérarchie */
     const clientLines = () =>
       lines.filter(l =>
-        (!hSel.prim || l.prim === hSel.prim) &&
-        (!hSel.sec || l.sec === hSel.sec) &&
-        (!hSel.lot || l.lot === hSel.lot)
+        inSet(hSel.lot, l.lot) &&
+        inSet(hSel.prim, l.prim) &&
+        inSet(hSel.sec, l.sec)
       );
 
-    /* onglets du bas : désignation ET hiérarchie */
+    /* onglets du bas : désignations ET hiérarchie */
     const visibleLines = () =>
-      lines.filter(l =>
-        hierOK(l) &&
-        (!selDesig || desigKey(l) === selDesig)
+      clientLines().filter(l =>
+        inSet(selDesig, desigKey(l))
       );
 
     const byKindNow = () => {
@@ -3408,7 +3415,10 @@ function renderBudgetList() {
 
         const g = groupsMap.get(key);
 
-        g.qty += l.cqty;
+        /* quantité = somme des lignes PRODUIT ayant une tâche primaire */
+        if (l.kind === "prd" && String(l.prim).trim() !== "") {
+          g.qty += l.cqty;
+        }
 
       });
 
@@ -3440,7 +3450,7 @@ function renderBudgetList() {
 
               return `
                 <tr data-desig="${esc(g.key)}"
-                    class="${g.key === selDesig ? "selected" : ""}">
+                    class="${selDesig.has(g.key) ? "selected" : ""}">
                   <td>${esc(g.article)}</td>
                   <td>${esc(g.designation)}</td>
                   <td>${esc(g.unit)}</td>
@@ -3465,14 +3475,14 @@ function renderBudgetList() {
       const lots = uniq(lines.map(l => l.lot));
       const prims = uniq(
         lines
-          .filter(l => !hSel.lot || l.lot === hSel.lot)
+          .filter(l => inSet(hSel.lot, l.lot))
           .map(l => l.prim)
       );
       const secs = uniq(
         lines
           .filter(l =>
-            (!hSel.lot || l.lot === hSel.lot) &&
-            (!hSel.prim || l.prim === hSel.prim)
+            inSet(hSel.lot, l.lot) &&
+            inSet(hSel.prim, l.prim)
           )
           .map(l => l.sec)
       );
@@ -3483,7 +3493,7 @@ function renderBudgetList() {
           ${
             items.length
               ? items.map(v => `
-                  <div class="bdg-h-item ${hSel[level] === v ? "selected" : ""}"
+                  <div class="bdg-h-item ${hSel[level].has(v) ? "selected" : ""}"
                        data-h="${level}"
                        data-v="${esc(v)}">${esc(v)}</div>
                 `).join("")
@@ -3498,10 +3508,10 @@ function renderBudgetList() {
         col("TÂCHE SECONDAIRE", "sec", secs);
 
       const info = [];
-      if (selDesig) info.push("DÉSIGNATION");
-      if (hSel.lot) info.push("LOT " + hSel.lot);
-      if (hSel.prim) info.push(hSel.prim);
-      if (hSel.sec) info.push(hSel.sec);
+      if (selDesig.size) info.push(selDesig.size + " DÉSIGNATION(S)");
+      if (hSel.lot.size) info.push(hSel.lot.size + " LOT(S)");
+      if (hSel.prim.size) info.push(hSel.prim.size + " T. PRIMAIRE(S)");
+      if (hSel.sec.size) info.push(hSel.sec.size + " T. SECONDAIRE(S)");
 
       $("bdgFilterInfo").textContent =
         info.length ? "FILTRES : " + info.join(" › ") : "";
@@ -3559,7 +3569,7 @@ function renderBudgetList() {
           list.map(l => `
             <tr data-row="${l.id}">
               <td>${esc(l.article)}</td>
-              <td>${esc(l.designation)}</td>
+              <td>${esc(l.detail)}</td>
               <td>${esc(l.unit)}</td>
               ${
                 prd
@@ -3674,18 +3684,34 @@ function renderBudgetList() {
       if (h) {
         const level = h.dataset.h;
         const v = h.dataset.v;
-        const order = ["lot", "prim", "sec"];
 
-        if (hSel[level] === v) {
-          hSel[level] = "";
+        if (hSel[level].has(v)) {
+          hSel[level].delete(v);
         } else {
-          hSel[level] = v;
+          hSel[level].add(v);
         }
 
-        /* changer un niveau réinitialise les niveaux inférieurs */
-        order
-          .slice(order.indexOf(level) + 1)
-          .forEach(k => { hSel[k] = ""; });
+        /* retire les choix devenus incompatibles avec le parent */
+        const okPrim = new Set(
+          lines
+            .filter(l => inSet(hSel.lot, l.lot))
+            .map(l => l.prim)
+        );
+        [...hSel.prim].forEach(x => {
+          if (!okPrim.has(x)) hSel.prim.delete(x);
+        });
+
+        const okSec = new Set(
+          lines
+            .filter(l =>
+              inSet(hSel.lot, l.lot) &&
+              inSet(hSel.prim, l.prim)
+            )
+            .map(l => l.sec)
+        );
+        [...hSel.sec].forEach(x => {
+          if (!okSec.has(x)) hSel.sec.delete(x);
+        });
 
         refreshAll();
         return;
@@ -3694,10 +3720,13 @@ function renderBudgetList() {
       const dRow = event.target.closest("[data-desig]");
 
       if (dRow) {
-        selDesig =
-          selDesig === dRow.dataset.desig
-            ? null
-            : dRow.dataset.desig;
+        const k = dRow.dataset.desig;
+
+        if (selDesig.has(k)) {
+          selDesig.delete(k);
+        } else {
+          selDesig.add(k);
+        }
 
         refreshAll();
       }
