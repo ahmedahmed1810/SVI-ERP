@@ -3583,38 +3583,35 @@ function renderBudgetList() {
           String(x).localeCompare(String(y), undefined, { numeric: true })
         );
 
-    /* filtre dans l'autre sens : désignations sélectionnées en haut
-       → seuls les lots / tâches qui les contiennent (union) */
-    const desigLines = () =>
-      lines.filter(l => inSet(selDesig, desigKey(l)));
+    /* filtre dans tous les sens : chaque colonne affiche les valeurs
+       des lignes qui respectent TOUS les AUTRES filtres (désignations,
+       lots, primaires, secondaires) ; plusieurs choix = union */
+    const passes = (l, skip) =>
+      (skip === "desig" || inSet(selDesig, desigKey(l))) &&
+      (skip === "lot"   || inSet(hSel.lot, l.lot)) &&
+      (skip === "prim"  || inSet(hSel.prim, l.prim)) &&
+      (skip === "sec"   || inSet(hSel.sec, l.sec));
 
-    const hierLists = () => {
-      const base = desigLines();
-      const lots = uniq(base.map(l => l.lot));
-      const prims = uniq(
-        base
-          .filter(l => inSet(hSel.lot, l.lot))
-          .map(l => l.prim)
-      );
-      const secs = uniq(
-        base
-          .filter(l =>
-            inSet(hSel.lot, l.lot) &&
-            inSet(hSel.prim, l.prim)
-          )
-          .map(l => l.sec)
-      );
-      return { lots, prims, secs };
-    };
+    const hierLists = () => ({
+      lots:  uniq(lines.filter(l => passes(l, "lot")).map(l => l.lot)),
+      prims: uniq(lines.filter(l => passes(l, "prim")).map(l => l.prim)),
+      secs:  uniq(lines.filter(l => passes(l, "sec")).map(l => l.sec))
+    });
 
-    /* retire des filtres lot / tâche les éléments devenus invisibles */
+    /* retire des filtres les éléments devenus invisibles
+       (répété jusqu'à stabilité) */
     const pruneHier = () => {
-      let h = hierLists();
-      [...hSel.lot].forEach(v => { if (!h.lots.includes(v)) hSel.lot.delete(v); });
-      h = hierLists();
-      [...hSel.prim].forEach(v => { if (!h.prims.includes(v)) hSel.prim.delete(v); });
-      h = hierLists();
-      [...hSel.sec].forEach(v => { if (!h.secs.includes(v)) hSel.sec.delete(v); });
+      for (let guard = 0; guard < 5; guard++) {
+        const h = hierLists();
+        let changed = false;
+        const drop = (set, list) => [...set].forEach(v => {
+          if (!list.includes(v)) { set.delete(v); changed = true; }
+        });
+        drop(hSel.lot, h.lots);
+        drop(hSel.prim, h.prims);
+        drop(hSel.sec, h.secs);
+        if (!changed) break;
+      }
     };
 
     const renderHier = () => {
