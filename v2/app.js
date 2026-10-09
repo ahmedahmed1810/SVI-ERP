@@ -2307,7 +2307,7 @@ function renderBudgetList() {
 
 .bdg-d-table tbody tr[data-desig]{cursor:pointer}
 .bdg-d-table tbody tr[data-row]{cursor:pointer}
-.bdg-d-table tbody tr.selected td{background:#dbeafe !important}
+.bdg-d-table tbody tr.selected td{background:#dbeafe !important;font-weight:700}
 .bdg-d-fi{float:right;font-size:11px;font-weight:600;opacity:.8}
 .bdg-h-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
 .bdg-h-col{border:1px solid #d6dbe3;border-radius:8px;overflow:hidden;height:143px;overflow-y:auto;background:#fff}
@@ -3336,6 +3336,8 @@ function renderBudgetList() {
       budget.rows.map(toLine);
 
     const selDesig = new Set();
+    /* lignes touchées dans Détail charge / Détail produit */
+    const selRows = new Set();
     const hSel = {
       lot: new Set(),
       prim: new Set(),
@@ -3653,6 +3655,13 @@ function renderBudgetList() {
 
     const refreshAll = () => {
       pruneHier();
+
+      /* une ligne reste marquée seulement si sa désignation l'est encore */
+      [...selRows].forEach(id => {
+        const l = lines.find(x => x.id === id);
+        if (!l || !selDesig.has(desigKey(l))) selRows.delete(id);
+      });
+
       renderClient();
       renderHier();
       renderTab();
@@ -3702,7 +3711,8 @@ function renderBudgetList() {
 
         const rowsHTML =
           list.map(l => `
-            <tr data-row="${l.id}">
+            <tr data-row="${l.id}"
+                class="${selRows.has(l.id) ? "selected" : ""}">
               <td class="center">${esc(l.article)}</td>
               <td>${esc(l.detail)}</td>
               <td>${esc(l.unit)}</td>
@@ -3830,10 +3840,16 @@ function renderBudgetList() {
             [hSel.sec, l.sec]
           ].filter(([, v]) => String(v).trim() !== "");
 
-          const allOn = parts.every(([set, v]) => set.has(v));
+          const on = selRows.has(l.id);
+
+          if (on) {
+            selRows.delete(l.id);
+          } else {
+            selRows.add(l.id);
+          }
 
           parts.forEach(([set, v]) =>
-            allOn ? set.delete(v) : set.add(v)
+            on ? set.delete(v) : set.add(v)
           );
 
           refreshAll();
