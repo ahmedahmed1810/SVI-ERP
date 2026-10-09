@@ -3670,6 +3670,7 @@ function renderBudgetList() {
       });
 
       const list = [...groupsMap.values()].sort((x, y) =>
+        (selDesig.has(y.key) - selDesig.has(x.key)) ||
         String(x.article).localeCompare(
           String(y.article),
           undefined,
@@ -3768,7 +3769,11 @@ function renderBudgetList() {
       const hFill = n =>
         `<div class="bdg-h-fill"></div>`.repeat(Math.max(0, n));
 
-      const col = (title, level, items) => `
+      const col = (title, level, all) => {
+        const items = [...all].sort((x, y) =>
+          hSel[level].has(y) - hSel[level].has(x)
+        );
+        return `
         <div class="bdg-h-col">
           <div class="bdg-h-head">${title}</div>
           ${
@@ -3783,6 +3788,7 @@ function renderBudgetList() {
           }
         </div>
       `;
+      };
 
       $("bdgHier").innerHTML =
         col("LOT", "lot", lots) +
@@ -3798,13 +3804,36 @@ function renderBudgetList() {
         info.length ? "FILTRES : " + info.join(" › ") : "";
     };
 
-    const refreshAll = () => {
+    /* garde la vue là où l'utilisateur a la main : page et cadres
+       à défilement interne (désignations, lots/tâches, détail) */
+    const keepScroll = fn => {
+      const sel = ".bdg-d-client-scroll, .bdg-h-col, .bdg-d-tabbody .bdg-d-scroll";
+      const saved = [...shell.querySelectorAll(sel)].map(el => el.scrollTop);
+      const x = window.scrollX, y = window.scrollY;
+      const active = document.activeElement;
+      if (active && active.blur && !active.classList.contains("bdg-tva-input")) {
+        active.blur();
+      }
+
+      fn();
+
+      const restore = () => {
+        shell.querySelectorAll(sel).forEach((el, i) => {
+          if (saved[i] !== undefined) el.scrollTop = saved[i];
+        });
+        window.scrollTo(x, y);
+      };
+      restore();
+      requestAnimationFrame(restore);
+    };
+
+    const refreshAll = () => keepScroll(() => {
       pruneHier();
 
       renderClient();
       renderHier();
       renderTab();
-    };
+    });
 
     const tvaFor = l => l.amount * l.tva / 100;
 
