@@ -3369,12 +3369,9 @@ function renderBudgetList() {
           byLetter(row, "I") || pick(row, ["DESIGNATION"]),
         unit:
           byLetter(row, "J") || pick(row, ["UTB", "UNITE"]),
-        /* unité de l'onglet Détail charge / produit :
-           charges = colonne Q de la feuille BDG */
-        dunit:
-          kind === "chg"
-            ? byLetter(row, "Q")
-            : (byLetter(row, "J") || pick(row, ["UTB", "UNITE"])),
+        /* unité des onglets Détail charge / produit :
+           colonne Q de la feuille BDG */
+        dunit: byLetter(row, "Q"),
         detail:
           pick(row, ["DETAIL BUDGET"]) ||
           byLetter(row, "I") ||
@@ -3801,14 +3798,6 @@ function renderBudgetList() {
 
       return `
         <div class="bdg-d-totals">
-          <div>
-            <span>MONTANT HORS TAXE</span>
-            <strong id="bdgTotHT">${money(ht)}</strong>
-          </div>
-          <div>
-            <span>MONTANT TVA</span>
-            <strong id="bdgTotTVA">${money(tva)}</strong>
-          </div>
           <div class="bdg-d-total-ttc">
             <span>MONTANT TTC</span>
             <strong id="bdgTotTTC">${money(ht + tva)}</strong>
@@ -4009,9 +3998,9 @@ function renderBudgetList() {
           const tva =
             list.reduce((t, l) => t + tvaFor(l), 0);
 
-          $("bdgTotHT").textContent = money(ht);
-          $("bdgTotTVA").textContent = money(tva);
-          $("bdgTotTTC").textContent = money(ht + tva);
+          if ($("bdgTotTTC")) {
+            $("bdgTotTTC").textContent = money(ht + tva);
+          }
 
           renderClient();
         }
