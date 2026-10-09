@@ -2326,6 +2326,7 @@ function renderBudgetList() {
          pour laisser apparaître les totaux */
       .bdg-d-tabbody > .bdg-d-scroll,
       .bdg-d-tabbody .bdg-d-scroll {
+        height: 210px !important;
         max-height: 210px !important;
         overflow-y: auto;
       }
@@ -4269,6 +4270,11 @@ function renderBudgetList() {
                   `<tr><td colspan="${cols}" class="empty">
                     ${prd ? "AUCUN PRODUIT" : "AUCUNE CHARGE"}
                   </td></tr>`
+                }
+                ${
+                  /* lignes vides : le cadre garde sa hauteur même filtré */
+                  `<tr class="bdg-d-filler">${"<td>&nbsp;</td>".repeat(cols)}</tr>`
+                    .repeat(Math.max(0, 8 - Math.max(list.length, 1)))
                 }
               </tbody>
               <tfoot>${tabFootHTML(raw, prd)}</tfoot>
