@@ -3974,6 +3974,9 @@ function renderBudgetList() {
     const renderClient = () => {
       const groupsMap = new Map();
 
+      const U = v => String(v ?? "").trim().toUpperCase();
+      const lineUnit = l => U(l.dunit) || U(l.unit);
+
       clientLines().forEach(l => {
         const key = desigKey(l);
 
@@ -3986,31 +3989,17 @@ function renderBudgetList() {
             qty: 0,
             ht: 0,
             price: 0,
-            hasKey: false
+            members: []
           });
         }
 
-        const g = groupsMap.get(key);
-
-        /* quantité = somme des lignes PRODUIT dont l'unité de détail
-           (col. Q) est celle de la désignation client (col. J) : les
-           activités secondaires d'une autre unité (ex. coffrage en m²
-           sous un béton en m³) ne sont pas comptées */
-        if (l.kind === "prd" && String(l.prim).trim() !== "") {
-          const du = String(l.dunit ?? "").trim().toUpperCase();
-          const cu = String(l.unit ?? "").trim().toUpperCase();
-          const ok = du && cu ? du === cu : l.cprice !== 0;
-          if (ok) g.qty += l.qty;
-          if (l.cprice !== 0) g.qtyPriced = (g.qtyPriced || 0) + l.qty;
-        }
-
+        groupsMap.get(key).members.push(l);
       });
 
-      /* clé primaire = ligne au prix non nul (cherchée sur toutes
-         les lignes de la désignation, même hors filtre) */
       groupsMap.forEach(g => {
-        /* prix client = prix (col. W) d'une ligne PRODUIT uniquement ;
-           les lignes CHARGE (coûts internes) sont ignorées */
+        /* clé primaire = ligne PRODUIT au prix non nul (cherchée sur toutes
+           les lignes de la désignation, même hors filtre) : elle donne le
+           prix et l'unité de la désignation client (col. Q, sinon col. J) */
         const k = lines.find(l =>
           desigKey(l) === g.key &&
           l.kind === "prd" &&
@@ -4019,13 +4008,19 @@ function renderBudgetList() {
 
         if (k) {
           g.price = k.cprice / 1.2;   /* prix de la feuille TTC → HT */
-          g.unit = k.unit || g.unit;
+          g.unit = k.dunit || k.unit || g.unit;
         }
-      });
 
-      groupsMap.forEach(g => {
-        /* aucune ligne de même unité : on prend les lignes chiffrées */
-        if (!g.qty && g.qtyPriced) g.qty = g.qtyPriced;
+        /* quantité = lignes PRODUIT dans l'unité de la clé primaire
+           (les activités d'une autre unité, ex. coffrage en m² sous un
+           béton en m³, ne sont pas comptées) */
+        const gu = U(g.unit);
+        g.members.forEach(l => {
+          if (l.kind !== "prd") return;
+          const isKey = l === k;
+          if (!isKey && String(l.prim).trim() === "") return;
+          if (gu ? lineUnit(l) === gu : l.cprice !== 0) g.qty += l.qty;
+        });
         g.ht = g.qty * g.price;
       });
 
