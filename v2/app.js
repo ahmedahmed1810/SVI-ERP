@@ -2240,14 +2240,31 @@ function renderBudgetList() {
         border-bottom: 0 !important;
       }
 
-      /* Détail charge / produit : lignes compactes et totaux sur une
-         seule bande, pour garder le TTC visible */
-      .bdg-d-tabbody .bdg-d-table th,
-      .bdg-d-tabbody .bdg-d-table td {
-        padding: 1px 8px;
-        line-height: 1.15;
-        font-size: 11px;
+      /* même hauteur de ligne (21 px) pour tous les tableaux de l'écran :
+         désignations client, détail charge / produit, lots / tâches */
+      .bdg-d-table th,
+      .bdg-d-table td {
+        padding: 2px 8px !important;
+        line-height: 16px !important;
+        font-size: 11px !important;
+        height: 21px;
+        box-sizing: border-box;
+        white-space: nowrap;
       }
+      .bdg-d-table tbody tr.bdg-d-filler td { height: 21px; }
+      .bdg-tva-input { height: 16px !important; line-height: 14px; }
+
+      /* désignations client : en-tête + 10 lignes */
+      .bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll {
+        height: 231px !important;
+      }
+      /* détail charge / produit : au plus 10 lignes visibles */
+      .bdg-d-tabbody > .bdg-d-scroll,
+      .bdg-d-tabbody .bdg-d-scroll {
+        max-height: 231px !important;
+        overflow-y: auto;
+      }
+
       .bdg-d-tabbody .bdg-d-totals {
         max-width: none;
         margin-top: 6px;
@@ -2334,10 +2351,10 @@ function renderBudgetList() {
 .bdg-d-table tbody tr.selected td{background:#dbeafe !important;font-weight:700}
 .bdg-d-fi{float:right;font-size:11px;font-weight:600;opacity:.8}
 .bdg-h-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
-.bdg-h-col{border:1px solid #d6dbe3;border-radius:8px;overflow:hidden;height:143px;overflow-y:auto;background:#fff}
-.bdg-h-head{position:sticky;top:0;z-index:1;background:#eef1f6;font-size:11px;line-height:15px;font-weight:700;padding:6px 8px}
-.bdg-h-item{padding:3px 8px;font-size:12px;line-height:16px;cursor:pointer;border-top:1px solid #eef1f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bdg-h-fill{height:16px;padding:3px 8px;border-top:1px solid #eef1f6}
+.bdg-h-col{border:1px solid #d6dbe3;border-radius:8px;overflow:hidden;height:128px;overflow-y:auto;background:#fff}
+.bdg-h-head{position:sticky;top:0;z-index:1;background:#eef1f6;font-size:11px;line-height:16px;font-weight:700;padding:2px 8px;height:21px;box-sizing:border-box}
+.bdg-h-item{padding:2px 8px;font-size:11px;line-height:16px;height:21px;box-sizing:border-box;cursor:pointer;border-top:1px solid #eef1f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bdg-h-fill{height:21px;box-sizing:border-box;border-top:1px solid #eef1f6}
 .bdg-h-item.selected{background:#dbeafe;font-weight:700}
 .bdg-h-empty{padding:8px;font-size:12px;opacity:.5}
 @media (max-width:650px){.bdg-h-grid{grid-template-columns:1fr}}
