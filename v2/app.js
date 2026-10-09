@@ -1075,6 +1075,13 @@ function rowsFor(type) {
   );
 }
 
+/* retire le préfixe d'ordre "00 - " (5 caractères) des libellés
+   de lots / tâches ; libellé inchangé s'il n'a pas ce préfixe */
+function stripLevelPrefix(v) {
+  const s = String(v ?? "");
+  return /^\d{2} - /.test(s) ? s.slice(5) : s;
+}
+
 function renderHierarchyColumn(type) {
   const rows =
     rowsFor(type);
@@ -1100,7 +1107,7 @@ function renderHierarchyColumn(type) {
               </span>
 
               <span class="name">
-                ${esc(r.name)}
+                ${esc(stripLevelPrefix(r.name))}
               </span>
             </div>
           `
@@ -2087,6 +2094,7 @@ function renderBudgetList() {
       }
 
       .bdg-d-table .number { text-align: right; }
+      .bdg-d-table .center { text-align: center; }
 
       .bdg-d-table .empty {
         text-align: center;
@@ -2184,7 +2192,6 @@ function renderBudgetList() {
         height: 20px;
         background: transparent;
       }
-      .bdg-d-table td.price-mixed { color: #b45309; font-weight: 700; }
 
       .bdg-d-block > .bdg-d-scroll {
         max-height: 245px;
@@ -3352,7 +3359,7 @@ function renderBudgetList() {
             <table class="bdg-d-table">
               <thead>
                 <tr>
-                  <th>ARTICLE</th>
+                  <th class="center">ARTICLE</th>
                   <th>DÉSIGNATION</th>
                   <th>UNITÉ</th>
                   <th class="number">QUANTITÉ</th>
@@ -3365,7 +3372,6 @@ function renderBudgetList() {
               <tbody id="bdgClientBody"></tbody>
             </table>
           </div>
-          <div id="bdgPriceInfo" class="hint" style="white-space:pre-line;padding:0 8px"></div>
         </div>
 
         <div class="bdg-d-block">
@@ -3438,28 +3444,18 @@ function renderBudgetList() {
       /* clé primaire = ligne au prix non nul (cherchée sur toutes
          les lignes de la désignation, même hors filtre) */
       groupsMap.forEach(g => {
+        /* prix client = prix (col. W) d'une ligne PRODUIT uniquement ;
+           les lignes CHARGE (coûts internes) sont ignorées */
         const k = lines.find(l =>
-          desigKey(l) === g.key && l.cprice !== 0
+          desigKey(l) === g.key &&
+          l.kind === "prd" &&
+          l.cprice !== 0
         );
 
         if (k) {
           g.price = k.cprice;
           g.unit = k.unit || g.unit;
-          g.priceKind = k.kind || "?";
-          g.priceDetail = k.detail;
         }
-
-        /* diagnostic : tous les prix (col. W) distincts
-           trouvés pour cette désignation */
-        const all = new Map();
-        lines.forEach(l => {
-          if (desigKey(l) === g.key && l.cprice !== 0) {
-            const lab = money(l.cprice) + " (" + (l.kind || "?").toUpperCase() + ")";
-            all.set(lab, (all.get(lab) || 0) + 1);
-          }
-        });
-        g.priceList = [...all.entries()]
-          .map(([lab, n]) => lab + " ×" + n);
       });
 
       const list = [...groupsMap.values()].sort((x, y) =>
@@ -3471,7 +3467,6 @@ function renderBudgetList() {
       );
 
       const MIN_ROWS = 10;
-      const selTips = [];
 
       const filler = n =>
         Array.from({ length: Math.max(0, n) }, () =>
@@ -3483,27 +3478,15 @@ function renderBudgetList() {
           ? list.map(g => {
               const ht = g.qty * g.price;
 
-              const pl = g.priceList || [];
-              const tip =
-                "Prix retenu : " + money(g.price) +
-                " (ligne " + String(g.priceKind || "?").toUpperCase() +
-                (g.priceDetail ? " — " + g.priceDetail : "") + ")" +
-                "\nPrix trouvés (col. W) : " +
-                (pl.length ? pl.join(" | ") : "aucun");
-
-              if (selDesig.has(g.key)) {
-                selTips.push(g.designation + " → " + tip);
-              }
 
               return `
                 <tr data-desig="${esc(g.key)}"
                     class="${selDesig.has(g.key) ? "selected" : ""}">
-                  <td>${esc(g.article)}</td>
+                  <td class="center">${esc(g.article)}</td>
                   <td>${esc(g.designation)}</td>
                   <td>${esc(g.unit)}</td>
                   <td class="number">${money(g.qty)}</td>
-                  <td class="number ${pl.length > 1 ? "price-mixed" : ""}"
-                      title="${esc(tip)}">${money(g.price)}</td>
+                  <td class="number">${money(g.price)}</td>
                   <td class="number">${money(ht)}</td>
                   <td class="number">20,00 %</td>
                   <td class="number">${money(ht * 1.2)}</td>
@@ -3512,8 +3495,6 @@ function renderBudgetList() {
             }).join("") + filler(MIN_ROWS - list.length)
           : `<tr><td colspan="8" class="empty">AUCUNE DÉSIGNATION</td></tr>` +
             filler(MIN_ROWS - 1));
-
-      $("bdgPriceInfo").textContent = selTips.join("\n");
     };
 
     const uniq = arr =>
@@ -3619,7 +3600,7 @@ function renderBudgetList() {
         const rowsHTML =
           list.map(l => `
             <tr data-row="${l.id}">
-              <td>${esc(l.article)}</td>
+              <td class="center">${esc(l.article)}</td>
               <td>${esc(l.detail)}</td>
               <td>${esc(l.unit)}</td>
               ${
@@ -3656,7 +3637,7 @@ function renderBudgetList() {
             <table class="bdg-d-table">
               <thead>
                 <tr>
-                  <th>ARTICLE</th>
+                  <th class="center">ARTICLE</th>
                   <th>DÉSIGNATION</th>
                   <th>UNITÉ</th>
                   ${
