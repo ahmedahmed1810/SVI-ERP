@@ -751,3 +751,7 @@ tfoot td {
 .novapp-date-item.selected { background:#dcecff; color:#0f4f96; font-weight:800; }
 .novapp-date-count { color:#7b8491; }
 @media (max-width:650px) { .novapp-budget-layout { flex-direction:column; margin:16px 10px; } .novapp-date-panel { width:100%; } }
+
+/* colonne ARTICLE centrée (CHS, bordereau des prix) */
+#chsTable th:first-child, #chsTable td:first-child,
+#brdTable th:first-child, #brdTable td:first-child { text-align: center; }
