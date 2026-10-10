@@ -6095,7 +6095,11 @@ function renderBudgetList() {
   .mk.drag { outline: 1.5px dashed #2a4fd1; cursor: grabbing; }
   body.nohead .head img { visibility: hidden; }
   body.nofoot .foot .ad, body.nofoot .foot hr { visibility: hidden; }
-</style></head><body>
+  /* format portrait (A4 vertical) */
+  body.portrait .page { width: 210mm; height: 296mm; }
+  body.portrait .head .date { right: 12mm; }
+  body.portrait .head .t { padding-left: 30mm; padding-right: 30mm; }
+</style></head><body class="${cfg.portrait ? "portrait" : ""}">
 <aside id="side">
   <h2>OPTIONS PDF</h2>
   <div class="sub">CHOISISSEZ LES PARTIES À INCLURE AVANT LA GÉNÉRATION.</div>
@@ -6258,7 +6262,9 @@ function renderBudgetList() {
     fit();
   };
   /* positions par défaut (mm depuis le coin haut-gauche de la page) */
-  const DEF_POS = { sign: { x: 185, y: 150 }, stamp: { x: 230, y: 140 } };
+  const PORT = ${cfg.portrait ? "true" : "false"}, PW = PORT ? 210 : 297, PH = PORT ? 297 : 210;
+  const DEF_POS = PORT ? { sign: { x: 100, y: 235 }, stamp: { x: 145, y: 225 } }
+    : { sign: { x: 185, y: 150 }, stamp: { x: 230, y: 140 } };
   /* position mémorisée par type d'aperçu, reprise pour tous les budgets */
   const PKEY = "svi_markpos_v1", PTYPE = ${JSON.stringify(cfg.fileTag)};
   const posAll = () => { try { return JSON.parse(ls.get(PKEY) || "{}") || {}; } catch (e) { return {}; } };
@@ -6309,7 +6315,7 @@ function renderBudgetList() {
       ev.preventDefault();
       p = { x: Math.round((p0.x + (ev.clientX - start.x) / scale / pxmm) * 10) / 10,
             y: Math.round((p0.y + (ev.clientY - start.y) / scale / pxmm) * 10) / 10 };
-      p.x = Math.max(0, Math.min(280, p.x)); p.y = Math.max(0, Math.min(200, p.y));
+      p.x = Math.max(0, Math.min(PW - 15, p.x)); p.y = Math.max(0, Math.min(PH - 10, p.y));
       im.style.left = p.x + "mm"; im.style.top = p.y + "mm";
     };
     const tm = ev => ev.preventDefault();
@@ -6486,13 +6492,13 @@ function renderBudgetList() {
       await load("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
       await load("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
       unfit();
-      const pdf = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const pdf = new window.jspdf.jsPDF({ orientation: PORT ? "portrait" : "landscape", unit: "mm", format: "a4" });
       const pgs = [...out.querySelectorAll(".page")];
       for (let i = 0; i < pgs.length; i++) {
         msg.textContent = "PRÉPARATION DU PDF… PAGE " + (i + 1) + " / " + pgs.length;
         const cv = await html2canvas(pgs[i], { scale: 2, backgroundColor: "#ffffff" });
-        if (i) pdf.addPage("a4", "landscape");
-        pdf.addImage(cv.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, 297, 210);
+        if (i) pdf.addPage("a4", PORT ? "portrait" : "landscape");
+        pdf.addImage(cv.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, PW, PH);
       }
       fit();
       const blob = pdf.output("blob");
@@ -6620,7 +6626,7 @@ function renderBudgetList() {
         });
       });
       printModel({
-        branch: "DÉTAIL PRODUITS", docTitle: "AVANT MÉTRÉ", fileTag: "AVANT METRE", headLine: "AVANT MÉTRÉ",
+        branch: "DÉTAIL PRODUITS", docTitle: "AVANT MÉTRÉ", fileTag: "AVANT METRE", headLine: "AVANT MÉTRÉ", portrait: true,
         table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:38%"><col style="width:5%"><col style="width:10%">
             <col style="width:5%"><col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:12%"></colgroup>
           <thead><tr><th rowspan="2">N°</th><th rowspan="2">DÉSIGNATIONS</th><th rowspan="2">U</th><th rowspan="2">QUANTITÉ</th>
