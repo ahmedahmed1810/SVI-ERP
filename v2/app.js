@@ -6141,19 +6141,34 @@ function renderBudgetList() {
 
     const openExportMenu = blk => {
       loadXLSX().catch(() => {});
-      const p = popup(`
-        <div class="blk-card">
-          <button type="button" class="blk-x" data-close>✕</button>
-          <div class="blk-title">EXPORTER — ${esc(blkLabel(blk))}</div>
-          <div class="blk-sub">Lignes affichées (filtres compris)</div>
-          <label class="blk-sub" for="expName">NOM DU DOCUMENT</label>
-          <input id="expName" class="exp-name" type="text" value="${esc(fullRef + " " + String(blkLabel(blk)).toUpperCase())}">
-          <button type="button" class="blk-choice" data-fmt="xlsx">Excel (.xlsx)</button>
-          <button type="button" class="blk-choice" data-fmt="csv">CSV (.csv)</button>
-          <button type="button" class="blk-choice" data-fmt="json">JSON (.json)</button>
-          <button type="button" class="blk-choice" data-fmt="gsheet">Google Sheets</button>
-        </div>`);
+      document.getElementById("docPop")?.remove();
+      const p = document.createElement("div");
+      p.id = "docPop";
+      p.innerHTML = `
+        <div class="doc-card" role="dialog" aria-modal="true" style="max-width:640px">
+          <div class="doc-head">
+            <span class="doc-title">EXPORTER — ${esc(String(blkLabel(blk)).toUpperCase())}</span>
+            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+          </div>
+          <div class="doc-body">
+            <div class="doc-grid doc-grid-2">
+              <label class="doc-lab" for="expName">NOM DU DOCUMENT</label>
+              <input id="expName" class="doc-in" type="text" autocomplete="off" value="${esc(fullRef + " " + String(blkLabel(blk)).toUpperCase())}">
+            </div>
+            <div class="fmt-choice" style="margin-top:14px">
+              <button type="button" class="doc-btn fmt-btn" data-fmt="xlsx">EXCEL (.XLSX)</button>
+              <button type="button" class="doc-btn fmt-btn" data-fmt="csv">CSV (.CSV)</button>
+              <button type="button" class="doc-btn fmt-btn" data-fmt="json">JSON (.JSON)</button>
+              <button type="button" class="doc-btn fmt-btn" data-fmt="gsheet">GOOGLE SHEETS</button>
+            </div>
+            <div class="doc-err fd-msg">LIGNES AFFICHÉES (FILTRES COMPRIS).</div>
+          </div>
+          <div class="doc-foot"><button type="button" class="doc-btn" data-cancel>ANNULER</button></div>
+        </div>`;
+      document.body.appendChild(p);
+      popEnhance(p, "export");
       p.addEventListener("click", e => {
+        if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
         const b = e.target.closest("[data-fmt]");
         if (!b) return;
         const nm = p.querySelector("#expName").value.trim();
@@ -6403,10 +6418,24 @@ function renderBudgetList() {
   #share { width: 100%; margin-top: 10px; height: 40px; border: 1px solid #2a4fd1; border-radius: 8px; background: #fff;
            color: #2a4fd1; font-weight: 800; font-size: 12px; cursor: pointer; }
   #share[hidden], #saveDoc[hidden], #saveOpts[hidden] { display: none; }
-  #saveOpts span { display: block; font-size: 11px; font-weight: 800; color: #4b5563; margin: 10px 0 5px; }
-  #saveOpts input[type=text] { width: 100%; box-sizing: border-box; height: 36px; border: 1px solid #d6dbe3; border-radius: 8px;
-    padding: 0 10px; font-size: 12px; font-weight: 700; text-transform: uppercase; }
-  #saveOpts label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; margin-top: 8px; }
+  #saveOpts { position: fixed; inset: 0; z-index: 20; background: rgba(15,23,42,.45); display: flex;
+    align-items: center; justify-content: center; padding: 16px; }
+  #saveOpts .sv-card { width: 100%; max-width: 640px; background: #fff; border-radius: 10px; overflow: hidden;
+    box-shadow: 0 18px 40px rgba(0,0,0,.25); color: #172033; font-size: 12px; font-family: Arial, sans-serif; }
+  #saveOpts .sv-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px;
+    border-bottom: 1px solid #e5e9ef; font-size: 13px; font-weight: 800; }
+  #saveOpts .sv-x { border: 0; background: none; font-size: 16px; cursor: pointer; color: #374151; }
+  #saveOpts .sv-body { padding: 16px 18px 12px; display: grid; grid-template-columns: max-content 1fr; gap: 12px; align-items: center; }
+  #saveOpts .sv-lab { font-size: 11px; font-weight: 800; color: #4b5563; white-space: nowrap; }
+  #saveOpts input[type=text] { height: 34px; border: 1px solid #d6dbe3; border-radius: 6px; padding: 0 10px;
+    font-size: 12px; text-transform: uppercase; min-width: 0; }
+  #saveOpts .sv-ck { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
+  #saveOpts .sv-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 18px;
+    border-top: 1px solid #e5e9ef; background: #fafbfc; }
+  #saveOpts .sv-btn { height: 34px; padding: 0 16px; border: 1px solid #d6dbe3; border-radius: 6px; background: #fff;
+    font-size: 12px; font-weight: 800; cursor: pointer; color: #172033; }
+  #saveOpts .sv-ok { background: #eef3fb; border-color: #9fb6d9; }
+  @media (max-width: 650px) { #saveOpts .sv-body { grid-template-columns: 1fr; } }
   #savedBar a { color: #fff; font-weight: 800; }
   #saveDoc { width: 100%; margin-top: 10px; height: 42px; border: 0; border-radius: 8px; background: #15803d; color: #fff;
              font-weight: 800; font-size: 13px; cursor: pointer; }
@@ -6506,14 +6535,20 @@ function renderBudgetList() {
   <div class="sub" style="margin-top:14px">ASTUCE : FAITES GLISSER LA SIGNATURE OU LE CACHET SUR LA PAGE POUR LES PLACER.</div>
   <button type="button" id="gen">GÉNÉRER PDF</button>
   <div id="msg"></div>
-  <div id="saveOpts" hidden>
-    <span>NOM DU FICHIER</span>
-    <input type="text" id="svName" value="${esc(fileName.replace(/\.pdf$/i, "").replace(/_/g, " "))}">
-    <label><input type="checkbox" id="svDriveOn" checked> COPIE DANS LE DRIVE</label>
-    <span>DOSSIER DANS LE DRIVE</span>
-    <input type="text" id="svPath" list="svPaths" value="${esc(driveDefaultPath(budget.project, fullRef))}">
-    <datalist id="svPaths">${[...new Set([driveDefaultPath(budget.project, fullRef), ...drivePaths()])].map(o => `<option value="${esc(o)}">`).join("")}</datalist>
-  </div>
+  <div id="saveOpts" hidden><div class="sv-card" role="dialog" aria-modal="true">
+    <div class="sv-head"><span>ENREGISTRER DANS DOCUMENTS</span><button type="button" class="sv-x" id="svX">✕</button></div>
+    <div class="sv-body">
+      <label class="sv-lab" for="svName">NOM DU FICHIER</label>
+      <input type="text" id="svName" value="${esc(fileName.replace(/\.pdf$/i, "").replace(/_/g, " "))}">
+      <span class="sv-lab">DRIVE</span>
+      <label class="sv-ck"><input type="checkbox" id="svDriveOn" checked> COPIE DANS LE DRIVE</label>
+      <label class="sv-lab" for="svPath">DOSSIER DRIVE</label>
+      <input type="text" id="svPath" list="svPaths" value="${esc(driveDefaultPath(budget.project, fullRef))}">
+      <datalist id="svPaths">${[...new Set([driveDefaultPath(budget.project, fullRef), ...drivePaths()])].map(o => `<option value="${esc(o)}">`).join("")}</datalist>
+    </div>
+    <div class="sv-foot"><button type="button" class="sv-btn" id="svCancel">ANNULER</button>
+      <button type="button" class="sv-btn sv-ok" id="svGo">ENREGISTRER</button></div>
+  </div></div>
   <button type="button" id="saveDoc" hidden>ENREGISTRER DANS DOCUMENTS</button>
   <button type="button" id="share" hidden>PARTAGER LE PDF</button>
   <input type="file" id="signFile" accept="image/*" hidden>
@@ -6882,8 +6917,14 @@ function renderBudgetList() {
     document.body.appendChild(a); a.click(); a.remove();
   };
   /* seul ENREGISTRER ajoute le document à la liste DOCUMENTS (une fois) */
-  $("saveDoc").onclick = async () => {
+  $("saveDoc").onclick = () => {
+    if (!lastPdf || savedCodes[code]) return;
+    $("saveOpts").hidden = false;
+  };
+  $("svX").onclick = $("svCancel").onclick = () => { $("saveOpts").hidden = true; };
+  $("svGo").onclick = async () => {
     if (!lastPdf) return;
+    $("saveOpts").hidden = true;
     $("saveDoc").disabled = true;
     const nm = ($("svName").value.trim().toUpperCase() || lastPdf.file.name.replace(/\\.pdf$/i, ""))
       .replace(/[\\/:*?"<>|]+/g, "-") + ".pdf";
@@ -6918,7 +6959,6 @@ function renderBudgetList() {
       lastPdf = { blob, file };
       /* partage possible seulement après enregistrement (bandeau du haut) */
       $("saveDoc").hidden = false;
-      $("saveOpts").hidden = !!savedCodes[code];
     } catch (e) {
       msg.textContent = "PDF IMPOSSIBLE : " + (e && e.message ? e.message : e);
       fit();
@@ -8090,10 +8130,8 @@ function renderBudgetList() {
           </div>
           <div class="doc-body">
             <div class="fmt-choice">
-              <button type="button" class="doc-btn fmt-btn" data-fmt="metre">FORMAT MÉTRÉ
-                <small>AVANT MÉTRÉ : DÉSIGNATION, QUANTITÉ, PUIS NB × DIMENSIONS = QUANTITÉ PARTIELLE</small></button>
-              <button type="button" class="doc-btn fmt-btn" data-fmt="interne">FORMAT INTERNE
-                <small>DÉSIGNATIONS, TÂCHES, NBR, DIMENSIONS, QUANTITÉS ET SOUS-TOTAUX</small></button>
+              <button type="button" class="doc-btn fmt-btn" data-fmt="metre">FORMAT MÉTRÉ</button>
+              <button type="button" class="doc-btn fmt-btn" data-fmt="interne">FORMAT INTERNE</button>
             </div>
           </div>
           <div class="doc-foot"><button type="button" class="doc-btn" data-cancel>ANNULER</button></div>
