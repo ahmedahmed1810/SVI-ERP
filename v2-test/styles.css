@@ -823,3 +823,19 @@ tfoot td {
 #docPop.pop-new-bdg .nb-wide { grid-column: 2 / 5; }
 .bdg-row-del { color: #b91c1c; }
 .novapp-list-actions button.on { background: #e5e7eb; border-color: #cbd2db; }
+
+/* écran d'un budget en instance (façon NovApp) */
+.bdg-inst-instance .bdg-d-h1, .bdg-inst-fige .bdg-d-h1 { color: var(--inst); text-decoration: underline; text-underline-offset: 4px; }
+.bdg-inst-instance .bdg-d-sticky .bdg-d-badge, .bdg-inst-fige .bdg-d-sticky .bdg-d-badge {
+  background: #fff; color: var(--inst); border: 1.5px solid var(--inst); border-radius: 6px;
+}
+.bdg-inst-instance .bdg-d-block-title .ttl, .bdg-inst-fige .bdg-d-block-title .ttl,
+.bdg-inst-instance .rec-tab.active, .bdg-inst-fige .rec-tab.active { color: var(--inst); }
+.bdg-d-hright .inst-nav, .bdg-d-hright .inst-act {
+  width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 10px; background: #fff; cursor: pointer; padding: 0; margin-left: 6px;
+}
+.bdg-d-hright .inst-nav { border: 0; color: #374151; background: transparent; }
+.bdg-d-hright .inst-act { border: 1px solid #fca5a5; color: var(--inst, #b91c1c); }
+.bdg-inst-fige .bdg-d-hright .inst-act { border-color: #86efac; }
+.bdg-d-hright .inst-act:disabled { opacity: .35; cursor: default; }
