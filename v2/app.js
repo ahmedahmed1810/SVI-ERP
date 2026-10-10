@@ -2318,10 +2318,7 @@ function renderBudgetList() {
       #blkPop .blk-imp { table-layout: auto; width: auto; }
 
       /* contrôle unité / dimensions (Détail produits) */
-      .bdg-d-table td.unit-warn {
-        background: #fee2e2 !important; color: #b91c1c; font-weight: 800;
-      }
-      .unit-lock { font-size: 8px; opacity: .55; vertical-align: 1px; }
+      .bdg-d-table td.cell-warn { background: #fdecec !important; }
 
       /* tri / filtre par colonne */
       .cf-wrap { display: flex; align-items: center; gap: 4px; width: 100%; }
@@ -3562,6 +3559,12 @@ function renderBudgetList() {
     /* contrôle unité / dimensions des produits :
        M3 = 3 dimensions, M2 = 2, M = 1 ; sinon l'unité est signalée */
     const DIMS_EXPECTED = { M3: 3, M2: 2, M: 1, ML: 1 };
+    const dimMissing = (g, i) => {
+      const need = DIMS_EXPECTED[String(g.unit ?? "").trim().toUpperCase()];
+      if (!need || i >= need) return false;
+      return g.members.every(m => String(m.dims[i] ?? "").trim() === "");
+    };
+
     const unitMismatch = l => {
       const need = DIMS_EXPECTED[String(l.dunit ?? "").trim().toUpperCase()];
       if (!need) return false;
@@ -4486,17 +4489,17 @@ function renderBudgetList() {
                 class="${selRows.has(l.gid) ? "selected" : ""}">
               <td class="center">${esc(l.article)}</td>
               <td>${esc(l.detail)}</td>
-              <td class="center ${prd && l.members.some(unitMismatch) ? "unit-warn" : ""}"
+              <td class="center ${prd && (l.members.some(unitMismatch) || l.members.some(m => m.unitLocked)) ? "cell-warn" : ""}"
                   ${prd && l.members.some(unitMismatch)
-                    ? `title="Unité ${esc(l.unit)} : nombre de dimensions remplies incohérent"` : ""}>${
-                  esc(l.unit)}${prd && l.members.some(m => m.unitLocked) ? ' <span class="unit-lock" title="Unité imposée par la désignation client">🔒</span>' : ""}</td>
+                    ? `title="Unité ${esc(l.unit)} : nombre de dimensions remplies incohérent"`
+                    : prd && l.members.some(m => m.unitLocked)
+                      ? `title="Unité imposée par la désignation client"` : ""}>${esc(l.unit)}</td>
               ${
                 prd
                   ? `
                     <td class="number">${esc(l.nbr)}</td>
-                    <td class="number">${esc(l.dims[0])}</td>
-                    <td class="number">${esc(l.dims[1])}</td>
-                    <td class="number">${esc(l.dims[2])}</td>
+                    ${[0, 1, 2].map(i => `
+                      <td class="number ${dimMissing(l, i) ? "cell-warn" : ""}">${esc(l.dims[i])}</td>`).join("")}
                   `
                   : ""
               }
