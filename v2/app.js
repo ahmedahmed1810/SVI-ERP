@@ -5771,22 +5771,6 @@ function renderBudgetList() {
         ["PROJET", budget.project],
         ["INTITULÉ", (prj && prj.name) || "À COMPLÉTER"],
         ["DATE BUDGET", (dt && dt.label) || ""],
-        ["LIGNES", lines.length],
-        ["DÉSIGNATIONS CLIENT", desig],
-        ["LOTS", uniq(l => l.lot)],
-        ["ACTIVITÉS PRIMAIRES", uniq(l => l.prim)],
-        ["ACTIVITÉS SECONDAIRES", uniq(l => l.sec)],
-        ["LIGNES NON CLASSÉES", lines.filter(l => !l.kind).length],
-        ["PRODUITS HT", money(prdHT)],
-        ["PRODUITS TTC", money(prdTTC)],
-        ["CHARGES HT", money(chgHT)],
-        ["CHARGES TTC", money(chgTTC)],
-        ["MARGE HT", money(marge)],
-        ["TAUX DE MARGE", prdHT ? money(marge / prdHT * 100) + " %" : ""],
-        ["DOCUMENTS", docsLoad().length],
-        ["OBSERVATIONS", obs.length + (obs.some(r => r.important)
-          ? " (dont " + obs.filter(r => r.important).length + " importante(s))" : "")],
-        ["TAF", taf.length + (tafLate ? " (dont " + tafLate + " en retard)" : "")]
       ];
       document.getElementById("docPop")?.remove();
       const p = document.createElement("div");
@@ -5801,7 +5785,7 @@ function renderBudgetList() {
             <div class="doc-grid inf-grid">
               ${items.map(([k, v]) => `
                 <span class="doc-lab">${esc(k)}</span>
-                <span class="doc-in doc-ro inf-val${k.startsWith("MARGE") && marge < 0 ? " inf-neg" : ""}">${esc(v)}</span>`).join("")}
+                <span class="doc-in doc-ro inf-val">${esc(v)}</span>`).join("")}
             </div>
           </div>
           <div class="doc-foot">
