@@ -6002,7 +6002,9 @@ function renderBudgetList() {
   .head .t { padding: 22mm 40mm 0; line-height: 1.55; }
   .content { flex: 1; overflow: hidden; }
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  th, td { border: 1px solid #000; padding: 1.2mm 1.5mm; font-size: 10.5pt; vertical-align: middle; }
+  /* lignes compactes, largeurs de colonnes fixes (identiques pour tous les budgets) */
+  th, td { border: 1px solid #000; padding: 0.6mm 1.4mm; font-size: 10pt; line-height: 1.15; vertical-align: middle;
+           overflow: hidden; overflow-wrap: anywhere; }
   th { font-weight: bold; text-align: center; }
   th.sub { font-size: 10pt; padding: 0.4mm; }
   td.c { text-align: center; } td.r { text-align: right; }
