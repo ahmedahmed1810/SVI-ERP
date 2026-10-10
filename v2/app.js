@@ -5605,7 +5605,7 @@ function renderBudgetList() {
 
     const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
     const blkLabel = blk => blk === "detail" ? tabTitle()
-      : blk === "metre" ? "DÉTAIL PRODUITS FORMAT MÉTRÉ" : blkName[blk];
+      : blk === "metre" ? "AVANT METRE" : blk === "interne" ? "DÉTAIL PRODUITS FORMAT INTERNE" : blkName[blk];
 
     const blkData = blk => {
       if (blk === "detail" && active === "qlt") return { head: [], rows: [] };
@@ -5619,6 +5619,7 @@ function renderBudgetList() {
       }
       if (REC_KINDS.includes(blk)) return recTableData(blk);
       if (blk === "metre") return metreData();
+      if (blk === "interne") return interneData();
       if (blk === "hier") {
         const h = lastShown.hier;
         const n = Math.max((h.lot || []).length, (h.prim || []).length, (h.sec || []).length);
@@ -6069,6 +6070,9 @@ function renderBudgetList() {
   table th, table td { font-size: 7.5pt !important; padding: 0.5mm 0.8mm; }
   /* clé primaire (quantité comptée) et sous-total par désignation */
   td.pk { font-weight: bold; }
+  /* avant métré : ligne de désignation et sous-titre (lot / activité) */
+  tr.mdes td { font-weight: bold; border-top: 1.6px solid #000; }
+  tr.msub td:nth-child(2) { font-style: italic; text-decoration: underline; }
   tr.stot td { background: #eef1f6; font-weight: bold; }
   table th { padding-top: 1.2mm; padding-bottom: 1.2mm; } table th.sub { padding: 0.8mm 0.4mm; }
   .tot { margin-top: 2mm; display: flex; flex-direction: column; align-items: flex-end; }
@@ -6551,8 +6555,8 @@ function renderBudgetList() {
 
     /* TÂCHES : pour chaque désignation client, ses lots et ses activités
        primaires / secondaires avec leurs unités */
-    /* export FORMAT MÉTRÉ : une ligne par produit, valeurs complètes */
-    const metreData = () => {
+    /* export FORMAT INTERNE : une ligne par produit, valeurs complètes */
+    const interneData = () => {
       const src = lastShown.client;
       const head = ["ART.", "DESIGNATION", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE",
         "DÉTAIL", "UPB", "NBR", "DIM 1", "DIM 2", "DIM 3", "QPB", "CLÉ PRIMAIRE"];
@@ -6564,6 +6568,66 @@ function renderBudgetList() {
           l.nbr, l.dims[0], l.dims[1], l.dims[2], l.qty, l.cprice !== 0 ? "OUI" : "NON"
         ])));
       return { head, rows };
+    };
+
+    /* FORMAT MÉTRÉ (modèle « Détail métré ») : pour chaque désignation client,
+       la quantité (clés primaires), puis par lot / activité les lignes de calcul
+       NB × longueur × largeur × hauteur = quantité partielle */
+    const metreGroups = () => {
+      const src = lastShown.client;
+      if (!src) return [];
+      const U = v => String(v ?? "").trim().toUpperCase();
+      return [...src.rows].sort((a, b) => String(a.article).localeCompare(String(b.article), "fr", { numeric: true }))
+        .map(g => {
+          const pk = (g.members || []).filter(l => l.kind === "prd" && l.cprice !== 0);
+          const subs = new Map();
+          pk.forEach(l => {
+            const k = U(l.lot) + "||" + U(l.sec);
+            if (!subs.has(k)) subs.set(k, { title: [l.lot, l.sec].filter(Boolean).join(" — "), lines: [] });
+            subs.get(k).lines.push(l);
+          });
+          return { g, qty: pk.reduce((t, l) => t + (Number(l.qty) || 0), 0), subs: [...subs.values()] };
+        });
+    };
+    const metreData = () => {
+      const head = ["N°", "DÉSIGNATIONS", "U", "QUANTITÉ", "NB", "LONG", "LARG", "H OU EP", "QUANTITÉ PARTIELLE"];
+      const rows = [];
+      metreGroups().forEach(({ g, qty, subs }) => {
+        rows.push([g.article, g.designation, g.unit, qty, "", "", "", "", ""]);
+        subs.forEach(sb => {
+          if (sb.title) rows.push(["", sb.title, "", "", "", "", "", "", ""]);
+          sb.lines.forEach(l => rows.push(["", l.detail, "", "", l.nbr, l.dims[0], l.dims[1], l.dims[2], l.qty]));
+        });
+      });
+      return { head, rows };
+    };
+    const printMetre = () => {
+      const groups = metreGroups();
+      if (!groups.length) { alert("Aucune désignation à afficher."); return; }
+      const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
+      const dim = v => esc(String(v ?? ""));
+      let body = "";
+      groups.forEach(({ g, qty, subs }) => {
+        body += `<tr class="mdes">${td(esc(g.article), "c")}${td(esc(g.designation))}${td(esc(g.unit), "c")}` +
+          `${td(esc(money(qty)), "r")}${td("")}${td("")}${td("")}${td("")}${td("")}</tr>`;
+        subs.forEach(sb => {
+          if (sb.title) body += `<tr class="msub">${td("")}${td(esc(sb.title))}${td("").repeat(7)}</tr>`;
+          sb.lines.forEach(l => {
+            body += `<tr>${td("")}${td(esc(l.detail))}${td("")}${td("")}${td(dim(l.nbr), "c")}` +
+              `${td(dim(l.dims[0]), "r")}${td(dim(l.dims[1]), "r")}${td(dim(l.dims[2]), "r")}${td(esc(money(l.qty)), "r")}</tr>`;
+          });
+        });
+      });
+      printModel({
+        branch: "DÉTAIL PRODUITS", docTitle: "AVANT MÉTRÉ", fileTag: "AVANT METRE", headLine: "AVANT MÉTRÉ",
+        table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:38%"><col style="width:5%"><col style="width:10%">
+            <col style="width:5%"><col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:12%"></colgroup>
+          <thead><tr><th rowspan="2">N°</th><th rowspan="2">DÉSIGNATIONS</th><th rowspan="2">U</th><th rowspan="2">QUANTITÉ</th>
+            <th rowspan="2">NB</th><th colspan="3">DIMENSIONS</th><th rowspan="2">QUANTITÉ PARTIELLE</th></tr>
+            <tr><th class="sub">LONG</th><th class="sub">LARG</th><th class="sub">H OU EP</th></tr></thead>
+          <tbody>${body}</tbody></table>`,
+        end: ""
+      });
     };
 
     /* mode "prd" : décomposition + détail produits (aperçu TÂCHES)
@@ -7516,9 +7580,9 @@ function renderBudgetList() {
           <div class="doc-body">
             <div class="fmt-choice">
               <button type="button" class="doc-btn fmt-btn" data-fmt="metre">FORMAT MÉTRÉ
-                <small>DÉSIGNATIONS, TÂCHES, NBR, DIMENSIONS, QUANTITÉS ET SOUS-TOTAUX</small></button>
+                <small>AVANT MÉTRÉ : DÉSIGNATION, QUANTITÉ, PUIS NB × DIMENSIONS = QUANTITÉ PARTIELLE</small></button>
               <button type="button" class="doc-btn fmt-btn" data-fmt="interne">FORMAT INTERNE
-                <small>DÉTAIL PRODUITS AVEC PRIX, MONTANTS ET TVA</small></button>
+                <small>DÉSIGNATIONS, TÂCHES, NBR, DIMENSIONS, QUANTITÉS ET SOUS-TOTAUX</small></button>
             </div>
           </div>
           <div class="doc-foot"><button type="button" class="doc-btn" data-cancel>ANNULER</button></div>
@@ -7529,9 +7593,9 @@ function renderBudgetList() {
         if (f) {
           p.remove();
           const metre = f.dataset.fmt === "metre";
-          if (act === "export") openExportMenu(metre ? "metre" : "detail");
-          else if (metre) printTasks("prd");
-          else printGeneric("detail");
+          if (act === "export") openExportMenu(metre ? "metre" : "interne");
+          else if (metre) printMetre();
+          else printTasks("prd");
           return;
         }
         if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
