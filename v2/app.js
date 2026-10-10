@@ -6742,7 +6742,7 @@ function renderBudgetList() {
     /* colonnes : [clé, libellé, accesseur, classe] (même moteur que les autres tableaux) */
     const recCols = {
       doc: [["rref", "RÉFÉRENCE", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
-            ["rtitle", "INTITULÉ", r => r.title, ""], ["rfile", "DOCUMENT", r => docShort(r), ""],
+            ["rtitle", "INTITULÉ", r => r.title, ""],
             ["rexp", "EXPIRÉ", r => r.expired ? "OUI" : "NON", "center"]],
       taf: [["rref", "RÉFÉRENCE", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
             ["robj", "OBJET TAF", r => r.objet || "", ""], ["rtext", "DESCRIPTIF TAF", r => r.text, ""],
@@ -6781,8 +6781,9 @@ function renderBudgetList() {
 
       const rows = list.map(r => "<tr>" + cols.map(([k, , get, cls]) => {
         const v = get(r);
-        if (k === "rfile" && (r.data || r.idb))
-          return `<td><button type="button" class="rec-open" data-recopen="${r._i}">${esc(v)}</button></td>`;
+        /* DOCUMENTS : la référence est le lien vers le fichier */
+        if (kind === "doc" && k === "rref" && (r.data || r.idb))
+          return `<td><button type="button" class="rec-open" data-recopen="${r._i}" title="Ouvrir le document">${esc(v)}</button></td>`;
         if (k === "rimp")
           return `<td class="center"><button type="button" class="rec-flag ${r.important ? "on" : ""}" data-obsflag="${r._i}"
             title="${r.important ? "Désactiver" : "Activer"} l'alerte">!</button></td>`;
