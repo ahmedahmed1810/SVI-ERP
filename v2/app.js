@@ -2697,6 +2697,12 @@ function renderBudgetList() {
       #docPop .doc-card[style*="height"] .doc-body { display: flex; flex-direction: column; }
       #docPop .doc-card[style*="height"] .obs-alert-list { flex: 1; min-height: 0; }
 
+      /* choix du format (détail produits) */
+      #docPop .fmt-choice { display: flex; flex-direction: column; gap: 10px; }
+      #docPop .fmt-btn { height: auto; padding: 14px 16px; text-align: left; display: flex; flex-direction: column; gap: 4px; }
+      #docPop .fmt-btn small { font-size: 10px; font-weight: 600; color: #6b7280; }
+      #docPop .fmt-btn:hover { background: #eef3fb; border-color: #9fb6d9; }
+
       /* historique */
       #docPop .hist-card { max-width: 980px; }
       #docPop .hist-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
@@ -5598,7 +5604,8 @@ function renderBudgetList() {
     const REC_KINDS = ["doc", "taf", "obs"];
 
     const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
-    const blkLabel = blk => blk === "detail" ? tabTitle() : blkName[blk];
+    const blkLabel = blk => blk === "detail" ? tabTitle()
+      : blk === "metre" ? "DÉTAIL PRODUITS FORMAT MÉTRÉ" : blkName[blk];
 
     const blkData = blk => {
       if (blk === "detail" && active === "qlt") return { head: [], rows: [] };
@@ -5611,6 +5618,7 @@ function renderBudgetList() {
         };
       }
       if (REC_KINDS.includes(blk)) return recTableData(blk);
+      if (blk === "metre") return metreData();
       if (blk === "hier") {
         const h = lastShown.hier;
         const n = Math.max((h.lot || []).length, (h.prim || []).length, (h.sec || []).length);
@@ -6543,6 +6551,21 @@ function renderBudgetList() {
 
     /* TÂCHES : pour chaque désignation client, ses lots et ses activités
        primaires / secondaires avec leurs unités */
+    /* export FORMAT MÉTRÉ : une ligne par produit, valeurs complètes */
+    const metreData = () => {
+      const src = lastShown.client;
+      const head = ["ART.", "DESIGNATION", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE",
+        "DÉTAIL", "UPB", "NBR", "DIM 1", "DIM 2", "DIM 3", "QPB", "CLÉ PRIMAIRE"];
+      if (!src) return { head, rows: [] };
+      const rows = [];
+      [...src.rows].sort((a, b) => String(a.article).localeCompare(String(b.article), "fr", { numeric: true }))
+        .forEach(g => (g.members || []).filter(l => l.kind === "prd").forEach(l => rows.push([
+          g.article, g.designation, g.unit, l.lot, l.prim, l.sec, l.detail, l.dunit || l.unit,
+          l.nbr, l.dims[0], l.dims[1], l.dims[2], l.qty, l.cprice !== 0 ? "OUI" : "NON"
+        ])));
+      return { head, rows };
+    };
+
     /* mode "prd" : décomposition + détail produits (aperçu TÂCHES)
        mode "chg" : décomposition (avec U) + détail charges (aperçu DÉTAIL CHARGES) */
     const printTasks = (mode = "prd") => {
@@ -7479,8 +7502,45 @@ function renderBudgetList() {
       );
     };
 
+    /* DÉTAIL PRODUITS : choix du format avant aperçu ou export */
+    const chooseFormat = act => {
+      document.getElementById("docPop")?.remove();
+      const p = document.createElement("div");
+      p.id = "docPop";
+      p.innerHTML = `
+        <div class="doc-card" role="dialog" aria-modal="true" style="max-width:520px">
+          <div class="doc-head">
+            <span class="doc-title">DÉTAIL PRODUITS — ${act === "export" ? "EXPORTER" : "APERÇU"}</span>
+            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+          </div>
+          <div class="doc-body">
+            <div class="fmt-choice">
+              <button type="button" class="doc-btn fmt-btn" data-fmt="metre">FORMAT MÉTRÉ
+                <small>DÉSIGNATIONS, TÂCHES, NBR, DIMENSIONS, QUANTITÉS ET SOUS-TOTAUX</small></button>
+              <button type="button" class="doc-btn fmt-btn" data-fmt="interne">FORMAT INTERNE
+                <small>DÉTAIL PRODUITS AVEC PRIX, MONTANTS ET TVA</small></button>
+            </div>
+          </div>
+          <div class="doc-foot"><button type="button" class="doc-btn" data-cancel>ANNULER</button></div>
+        </div>`;
+      document.body.appendChild(p);
+      p.addEventListener("click", e => {
+        const f = e.target.closest("[data-fmt]");
+        if (f) {
+          p.remove();
+          const metre = f.dataset.fmt === "metre";
+          if (act === "export") openExportMenu(metre ? "metre" : "detail");
+          else if (metre) printTasks("prd");
+          else printGeneric("detail");
+          return;
+        }
+        if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
+      });
+    };
+
     const runBlkAct = (blk, act) => {
       if (act === "max") return toggleMax(blk);
+      if (blk === "detail" && active === "prd" && (act === "export" || act === "pdf")) return chooseFormat(act);
       const b = blk === "suivi" ? recActive : blk;
       if (act === "export") openExportMenu(b);
       else if (act === "import") openImportMenu(b);
