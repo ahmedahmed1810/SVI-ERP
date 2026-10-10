@@ -14,6 +14,21 @@ function obsBang(ref) {
     : "";
 }
 
+/* alertes sur une ligne : flèche ▾ si le texte dépasse, toucher pour le lire en entier */
+function obsAlertWire(p) {
+  const mark = () => p.querySelectorAll(".obs-alert-item").forEach(it => {
+    const t = it.querySelector(".obs-alert-text");
+    if (!it.classList.contains("open"))
+      it.classList.toggle("can-exp", t.scrollWidth > t.clientWidth + 1 || /\n/.test(t.textContent));
+  });
+  requestAnimationFrame(mark);
+  window.addEventListener("resize", mark);
+  p.addEventListener("click", e => {
+    const it = e.target.closest(".obs-alert-item.can-exp");
+    if (it) it.classList.toggle("open");
+  });
+}
+
 /* lecture des observations importantes d'un budget sans ouvrir son détail */
 function openObsAlertFor(ref, project) {
   let list = [];
@@ -39,8 +54,8 @@ function openObsAlertFor(ref, project) {
         <div class="obs-alert-list">
           ${list.map(r => `
             <div class="obs-alert-item">
-              <div class="obs-alert-meta">⚠ ${esc(r.ref)} — ${esc(fmt(r.date))}</div>
-              <div class="obs-alert-text">${esc(r.text)}</div>
+              <span class="obs-alert-meta">⚠ ${esc(r.ref)} — ${esc(fmt(r.date))}</span>
+              <span class="obs-alert-text">${esc(r.text)}</span><span class="obs-alert-more">▾</span>
             </div>`).join("") || `<div class="obs-alert-text">Aucune observation importante.</div>`}
         </div>
       </div>
@@ -49,6 +64,7 @@ function openObsAlertFor(ref, project) {
       </div>
     </div>`;
   document.body.appendChild(p);
+  obsAlertWire(p);
   p.addEventListener("click", e => {
     if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
   });
@@ -2618,11 +2634,22 @@ function renderBudgetList() {
         line-height: 17px; text-align: center; box-sizing: border-box;
       }
       #docPop .obs-alert-list { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
+      #docPop .obs-alert-list { gap: 6px; }
+      /* une alerte = une ligne ; toucher pour lire un texte long en entier */
       #docPop .obs-alert-item {
-        border: 1px solid #f3c2c2; background: #fff5f5; border-radius: 8px; padding: 10px 12px;
+        border: 1px solid #f3c2c2; background: #fff5f5; border-radius: 8px; padding: 7px 12px;
+        display: flex; align-items: baseline; gap: 10px; min-width: 0;
       }
-      #docPop .obs-alert-meta { font-size: 11px; font-weight: 800; color: #b91c1c; margin-bottom: 4px; }
-      #docPop .obs-alert-text { font-size: 13px; color: #172033; white-space: pre-wrap; line-height: 1.4; }
+      #docPop .obs-alert-meta { font-size: 11px; font-weight: 800; color: #b91c1c; white-space: nowrap; flex: none; }
+      #docPop .obs-alert-text {
+        font-size: 13px; color: #172033; line-height: 1.4; flex: 1; min-width: 0;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      #docPop .obs-alert-more { flex: none; color: #b91c1c; font-weight: 900; display: none; }
+      #docPop .obs-alert-item.can-exp { cursor: pointer; }
+      #docPop .obs-alert-item.can-exp .obs-alert-more { display: inline; }
+      #docPop .obs-alert-item.open .obs-alert-text { white-space: pre-wrap; }
+      #docPop .obs-alert-item.open .obs-alert-more { transform: rotate(180deg); }
 
       #docPop .inf-grid { row-gap: 10px; }
       #docPop .inf-val {
@@ -6123,8 +6150,8 @@ function renderBudgetList() {
             <div class="obs-alert-list">
               ${list.map(r => `
                 <div class="obs-alert-item">
-                  <div class="obs-alert-meta">⚠ ${esc(r.ref)} — ${esc(fmtDT(r.date))}</div>
-                  <div class="obs-alert-text">${esc(r.text)}</div>
+                  <span class="obs-alert-meta">⚠ ${esc(r.ref)} — ${esc(fmtDT(r.date))}</span>
+                  <span class="obs-alert-text">${esc(r.text)}</span><span class="obs-alert-more">▾</span>
                 </div>`).join("") || `<div class="obs-alert-text">Aucune observation importante.</div>`}
             </div>
           </div>
@@ -6134,6 +6161,7 @@ function renderBudgetList() {
         </div>`;
       document.body.appendChild(p);
       popEnhance(p, "alert");
+      obsAlertWire(p);
       p.addEventListener("click", e => {
         if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
       });
