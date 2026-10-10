@@ -4060,15 +4060,11 @@ function renderBudgetList() {
           g.unit = k.dunit || k.unit || g.unit;
         }
 
-        /* quantité = lignes PRODUIT dans l'unité de la clé primaire
-           (les activités d'une autre unité, ex. coffrage en m² sous un
-           béton en m³, ne sont pas comptées) */
-        const gu = U(g.unit);
+        /* quantité = somme des CLÉS PRIMAIRES uniquement : lignes PRODUIT
+           au prix non nul. Les clés secondaires (prix nul : coffrage,
+           ferraillage…) ne sont pas comptées, même dans la même unité */
         g.members.forEach(l => {
-          if (l.kind !== "prd") return;
-          const isKey = l === k;
-          if (!isKey && String(l.prim).trim() === "") return;
-          if (gu ? lineUnit(l) === gu : l.cprice !== 0) g.qty += l.qty;
+          if (l.kind === "prd" && l.cprice !== 0) g.qty += l.qty;
         });
         g.ht = g.qty * g.price;
       });
