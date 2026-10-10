@@ -5006,6 +5006,9 @@ function renderBudgetList() {
       const shownClient = roApply("client", cfApply("client", ccols, base), g => g.key);
       lastClientKeys = new Set(shownClient.map(g => g.key));
       lastShown.client = { cols: ccols, rows: shownClient };
+      /* compteur du titre : lignes affichées (filtres compris) */
+      { const t = document.querySelector("#bdgClientTitle .ttl");
+        if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + svCnt(shownClient.length); }
       const list = shownClient.sort((x, y) =>
         selDesig.has(y.key) - selDesig.has(x.key)
       );
@@ -5138,7 +5141,7 @@ function renderBudgetList() {
         const on = st.f.v || hSel[level].size;
         return `
         <div class="bdg-h-col">
-          <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}</span><span class="cf-btn"
+          <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}${svCnt(items.length)}</span><span class="cf-btn"
             data-cf="${level}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span
             class="col-rs" data-rs="hier" data-col="${level}"></span></div>
           ${
@@ -5333,6 +5336,15 @@ function renderBudgetList() {
             b.dataset.tab === active
           )
         );
+
+      /* compteurs des onglets DÉTAIL CHARGES / PRODUITS (filtres compris) */
+      ["chg", "prd"].forEach(k => {
+        const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
+        if (!b) return;
+        const n = cfApply(k, tcolsFor(k === "prd"), groupLines(byKindNow()[k])).length;
+        const t = tabs.find(x => x.key === k);
+        b.innerHTML = (SVI_ICON[k] || "") + t.title + " " + svCnt(n);
+      });
 
       if (active === "chg" || active === "prd") {
         const prd = active === "prd";
@@ -5727,7 +5739,7 @@ function renderBudgetList() {
           th.classList.add("co-src");
           ghost = document.createElement("div");
           ghost.id = "coGhost";
-          ghost.textContent = th.querySelector(".cf-lab")?.textContent || "";
+          ghost.textContent = (th.querySelector(".cf-lab")?.firstChild?.textContent || "").trim();
           document.body.appendChild(ghost);
         }
         e.preventDefault();
@@ -8146,7 +8158,7 @@ function renderBudgetList() {
       const list = cfApply(kind, cols, all);
       recShown[kind] = list;
       const title = $("recTitle-" + kind);
-      if (title) title.innerHTML = SVI_ICON[kind] + esc(blkName[kind]) + " " + svCnt(all.length);
+      if (title) title.innerHTML = SVI_ICON[kind] + esc(blkName[kind]) + " " + svCnt(list.length);
       const st = cfT(kind);
       title?.classList.toggle("cf-on", Object.keys(st.f).length > 0);
 
