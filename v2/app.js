@@ -74,6 +74,9 @@ function openObsAlertFor(ref, project) {
 /* logo de la société (impressions) */
 const SVI_LOGO = "data:image/png;base64,";
 
+/* cachet et signature de la société (impression, sur demande) */
+const SVI_STAMP = "data:image/png;base64,";
+
 /* nombre en toutes lettres (français, majuscules) */
 function frWords(n) {
   n = Math.floor(Math.abs(n));
@@ -2479,6 +2482,7 @@ function renderBudgetList() {
       }
       #docPop .doc-save { background: #eef3fb; border-color: #9fb6d9; }
       #docPop .doc-grid-2 { grid-template-columns: max-content 1fr; }
+      #docPop .doc-grid-2 > .doc-lab { margin-left: 0 !important; }
       #docPop .doc-grid > .doc-lab:nth-child(4n+3) { margin-left: 12px; }
       #docPop .doc-lab { white-space: nowrap; }
       /* libellé aligné sur la 1re ligne du champ, même si le champ est agrandi */
@@ -2639,6 +2643,15 @@ function renderBudgetList() {
       .bdg-d-page .bdg-d-total-row td { background: #e7edf5 !important; color: #12355b; }
       #bdgClientBody td:last-child, #bdgTabBody tbody td:last-child { color: #12355b; font-weight: 800; }
       .bdg-d-page .bdg-d-table tbody tr:nth-child(even) td:not(.cell-warn) { background: #fbfcfe; }
+
+      /* options d'impression : choix OUI / NON */
+      #docPop .po-card { max-width: 460px; }
+      #docPop .po-yn { display: inline-flex; border: 1px solid #d6dbe3; border-radius: 8px; overflow: hidden; width: max-content; }
+      #docPop .po-yn button {
+        border: 0; background: #fff; padding: 8px 18px; font-size: 12px; font-weight: 800; color: #4b5563; cursor: pointer;
+      }
+      #docPop .po-yn button + button { border-left: 1px solid #d6dbe3; }
+      #docPop .po-yn button.on { background: #12355b; color: #fff; }
 
       /* icônes de contenu */
       .bdg-d-pill, .rec-tab, .bdg-d-tab, .blk-head .ttl { display: inline-flex; align-items: center; gap: 6px; }
@@ -5669,7 +5682,58 @@ function renderBudgetList() {
 
     /* ===== impression DÉSIGNATIONS CLIENT : modèle de la société
        (logo, date d'édition, en-tête, tableau, totaux, pied de page) ===== */
-    const printClient = () => {
+    /* options d'impression, mémorisées */
+    const PO_KEY = "svi_printopt_v1";
+    const poLoad = () => {
+      try { return Object.assign({ head: true, stamp: false }, JSON.parse(localStorage.getItem(PO_KEY) || "{}")); }
+      catch (e) { return { head: true, stamp: false }; }
+    };
+    const openPrintOptions = () => {
+      const o = poLoad();
+      document.getElementById("docPop")?.remove();
+      const p = document.createElement("div");
+      p.id = "docPop";
+      const yn = (name, on) => `
+        <span class="po-yn" data-name="${name}">
+          <button type="button" data-v="1" class="${on ? "on" : ""}">OUI</button>
+          <button type="button" data-v="0" class="${on ? "" : "on"}">NON</button>
+        </span>`;
+      p.innerHTML = `
+        <div class="doc-card po-card" role="dialog" aria-modal="true">
+          <div class="doc-head">
+            <span class="doc-title">${esc(budget.project)} : IMPRESSION DÉSIGNATIONS CLIENT</span>
+            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+          </div>
+          <div class="doc-body">
+            <div class="doc-grid doc-grid-2">
+              <span class="doc-lab">EN-TÊTE ET PIED DE PAGE</span>${yn("head", o.head)}
+              <span class="doc-lab">CACHET ET SIGNATURE</span>${yn("stamp", o.stamp)}
+            </div>
+          </div>
+          <div class="doc-foot">
+            <button type="button" class="doc-btn" data-cancel>ANNULER</button>
+            <button type="button" class="doc-btn doc-save" id="poGo">IMPRIMER</button>
+          </div>
+        </div>`;
+      document.body.appendChild(p);
+      p.addEventListener("click", e => {
+        const b = e.target.closest(".po-yn button");
+        if (b) {
+          b.parentElement.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+          return;
+        }
+        if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
+        if (e.target.closest("#poGo")) {
+          const val = n => p.querySelector(`.po-yn[data-name="${n}"] .on`)?.dataset.v === "1";
+          const opt = { head: val("head"), stamp: val("stamp") };
+          try { localStorage.setItem(PO_KEY, JSON.stringify(opt)); } catch (err) {}
+          p.remove();
+          printClient(opt);
+        }
+      });
+    };
+
+    const printClient = (opt = { head: true, stamp: false }) => {
       const src = lastShown.client;
       if (!src || !src.rows.length) { alert("Aucune désignation à imprimer."); return; }
       const N = v => String(v ?? "").trim().toUpperCase();
@@ -5724,11 +5788,15 @@ function renderBudgetList() {
   .tot div:first-child b { border-top: 1px solid #000; }
   .arr { margin-top: 6mm; font-weight: bold; line-height: 1.9; }
   .foot { flex: none; text-align: center; font-weight: bold; font-size: 10pt; }
+  .stamp { text-align: right; margin-top: 6mm; padding-right: 30mm; }
+  .stamp img { width: 48mm; transform: rotate(-6deg); }
+  /* sans en-tête ni pied de page : la place reste vide (papier à en-tête) */
+  body.nohead .head img, body.nohead .foot .ad, body.nohead .foot hr { visibility: hidden; }
   .foot .pg { margin-bottom: 1.5mm; }
   .foot hr { width: 65%; border: 0; border-top: 2.5px solid #5677a7; margin: 0 auto 1.5mm; }
   .foot .ad { line-height: 1.3; }
   @media screen { body { background: #888; } .page { background: #fff; margin: 6mm auto; box-shadow: 0 2px 8px rgba(0,0,0,.3); } }
-</style></head><body>
+</style></head><body class="${opt.head ? "" : "nohead"}">
 <div id="src" style="display:none">
   <div class="head">
     <img src="${logo}" alt="">
@@ -5748,6 +5816,7 @@ function renderBudgetList() {
       <div><span>TOTAL T.T.C. :</span><b>${money(ttc)}</b></div>
     </div>
     <div class="arr">ARRÊTER LE PRÉSENT BUDGET À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>
+    ${opt.stamp ? `<div class="stamp"><img src="${SVI_STAMP}" alt=""></div>` : ""}
   </div>
   <div class="foot"><div class="pg"></div><hr>
     <div class="ad"><br>
@@ -5782,7 +5851,15 @@ function renderBudgetList() {
   });
   const end = document.getElementById("end");
   cur.c.appendChild(end);
-  if (full(cur.c)) { cur.c.removeChild(end); cur = newPage(false); cur.c.appendChild(end); }
+  if (full(cur.c)) {
+    /* les totaux ne partent jamais seuls : la dernière ligne les accompagne */
+    cur.c.removeChild(end);
+    const prev = cur.tb;
+    const last = prev && prev.rows.length > 1 ? prev.rows[prev.rows.length - 1] : null;
+    cur = newPage(!!last);
+    if (last) cur.tb.appendChild(last);
+    cur.c.appendChild(end);
+  }
   pages.forEach((pg, i) => { pg.querySelector(".pg").textContent = "Page " + (i + 1) + " / " + pages.length; });
   src.remove();
   const go = () => setTimeout(() => window.print(), 300);
@@ -5794,7 +5871,7 @@ function renderBudgetList() {
     };
 
     const doPdf = blk => {
-      if (blk === "client") return printClient();
+      if (blk === "client") return openPrintOptions();
       let tableHTML;
       if (blk === "detail" && active === "qlt") {
         alert("Aucune donnée dans " + blkLabel(blk) + ".");
