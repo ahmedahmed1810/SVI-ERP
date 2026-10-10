@@ -464,6 +464,11 @@ function driveDefaultPath(project, fullRef) {
     String(fullRef || "").replace(/^.*?BDG\s*/i, "BDG ").replace(/[\\/:*?"<>|]+/g, "-").trim();
 }
 
+/* dossier proposé : le dernier utilisé, sinon celui du budget */
+function driveLastPath(project, fullRef) {
+  return drivePaths()[0] || driveDefaultPath(project, fullRef);
+}
+
 function driveCleanPath(p) {
   return String(p || "").trim().replace(/^\/+|\/+$/g, "").replace(/\s*\/\s*/g, "/");
 }
@@ -5769,7 +5774,6 @@ function renderBudgetList() {
     /* fenêtre « enregistrer » au format des fenêtres INF / DOC :
        nom du fichier et dossier du Drive proposés, modifiables */
     const fileDialog = ({ title, name, path, buttons, onAct }) => {
-      const rec = drivePaths();
       document.getElementById("docPop")?.remove();
       const p = document.createElement("div");
       p.id = "docPop";
@@ -5784,11 +5788,8 @@ function renderBudgetList() {
               <label class="doc-lab" for="fdName">NOM DU FICHIER</label>
               <input id="fdName" class="doc-in" type="text" autocomplete="off" value="${esc(name)}">
               <label class="doc-lab" for="fdPath">DOSSIER DRIVE</label>
-              <input id="fdPath" class="doc-in" type="text" autocomplete="off" list="fdPaths" value="${esc(path)}">
-              ${rec.length ? `<span class="doc-lab">RÉCENTS</span>
-              <select id="fdRec" class="doc-in"><option value="">CHOISIR UN DOSSIER RÉCENT…</option>${rec.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}</select>` : ""}
+              <input id="fdPath" class="doc-in" type="text" autocomplete="off" value="${esc(path)}">
             </div>
-            <datalist id="fdPaths">${[...new Set([path, ...rec])].map(o => `<option value="${esc(o)}">`).join("")}</datalist>
             <div class="doc-err fd-msg" id="fdMsg"></div>
           </div>
           <div class="doc-foot">
@@ -5804,9 +5805,6 @@ function renderBudgetList() {
         close: () => p.remove(),
         busy: (k, on) => { const b = p.querySelector(`[data-act="${k}"]`); if (b) b.disabled = on; }
       };
-      p.querySelector("#fdRec")?.addEventListener("change", e => {
-        if (e.target.value) p.querySelector("#fdPath").value = e.target.value;
-      });
       p.addEventListener("click", e => {
         if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
         const b = e.target.closest("[data-act]");
@@ -5839,7 +5837,7 @@ function renderBudgetList() {
       const stem = ext ? String(name).slice(0, -ext.length) : String(name);
       fileDialog({
         title: "ENREGISTRER LE FICHIER " + ext.toUpperCase().replace(".", ""),
-        name: stem, path: driveDefaultPath(budget.project, fullRef),
+        name: stem, path: driveLastPath(budget.project, fullRef),
         buttons: [{ key: "device", label: "SUR L'IPAD" }, { key: "drive", label: "DANS LE DRIVE", primary: true }],
         onAct: async (k, v, ui) => {
           const nm = (v.name || stem).replace(/[\\/:*?"<>|]+/g, "-") + ext;
@@ -5964,7 +5962,7 @@ function renderBudgetList() {
     const openDriveExport = (blk, docName) => {
       fileDialog({
         title: "GOOGLE SHEETS — " + String(blkLabel(blk)).toUpperCase(),
-        name: docName, path: driveDefaultPath(budget.project, fullRef),
+        name: docName, path: driveLastPath(budget.project, fullRef),
         buttons: [{ key: "paste", label: "COPIER (FEUILLE SANS NOM)" }, { key: "go", label: "CRÉER DANS LE DRIVE", primary: true }],
         onAct: (k, v, ui) => {
           ui.close();
@@ -6165,8 +6163,7 @@ function renderBudgetList() {
     const openExportMenu = blk => {
       loadXLSX().catch(() => {});
       const label = String(blkLabel(blk)).toUpperCase();
-      const path0 = driveDefaultPath(budget.project, fullRef);
-      const rec = drivePaths();
+      const path0 = driveLastPath(budget.project, fullRef);
       let fmt = "xlsx";
       document.getElementById("docPop")?.remove();
       const p = document.createElement("div");
@@ -6182,11 +6179,8 @@ function renderBudgetList() {
               <label class="doc-lab" for="fdName">NOM DU FICHIER</label>
               <input id="fdName" class="doc-in" type="text" autocomplete="off" value="${esc((fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-"))}">
               <label class="doc-lab" for="fdPath">DOSSIER DRIVE</label>
-              <input id="fdPath" class="doc-in" type="text" autocomplete="off" list="fdPaths" value="${esc(path0)}">
-              ${rec.length ? `<span class="doc-lab">RÉCENTS</span>
-              <select id="fdRec" class="doc-in"><option value="">CHOISIR UN DOSSIER RÉCENT…</option>${rec.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}</select>` : ""}
+              <input id="fdPath" class="doc-in" type="text" autocomplete="off" value="${esc(path0)}">
             </div>
-            <datalist id="fdPaths">${[...new Set([path0, ...rec])].map(o => `<option value="${esc(o)}">`).join("")}</datalist>
             <div class="fmt-choice fmt-grid">
               <button type="button" class="doc-btn fmt-btn on" data-fmt="xlsx">EXCEL</button>
               <button type="button" class="doc-btn fmt-btn" data-fmt="csv">CSV</button>
@@ -6209,9 +6203,6 @@ function renderBudgetList() {
         close: () => p.remove()
       };
       const devBtn = p.querySelector('[data-act="device"]');
-      p.querySelector("#fdRec")?.addEventListener("change", e => {
-        if (e.target.value) p.querySelector("#fdPath").value = e.target.value;
-      });
       p.addEventListener("click", async e => {
         if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
         const f = e.target.closest("[data-fmt]");
@@ -6404,7 +6395,7 @@ function renderBudgetList() {
       if (it) { it.drive = url || ""; it.drivePath = path || ""; docsSave(l2); }
       histLog("DOC", "DRIVE", docRef + " → " + (path || "MON DRIVE"));
     };
-    window.__sviDrivePathDefault = () => driveDefaultPath(budget.project, fullRef);
+    window.__sviDrivePathDefault = () => driveLastPath(budget.project, fullRef);
 
     /* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :
        volet « OPTIONS PDF » à gauche, aperçu des pages à droite,
@@ -6600,8 +6591,7 @@ function renderBudgetList() {
       <span class="sv-lab">DRIVE</span>
       <label class="sv-ck"><input type="checkbox" id="svDriveOn" checked> COPIE DANS LE DRIVE</label>
       <label class="sv-lab" for="svPath">DOSSIER DRIVE</label>
-      <input type="text" id="svPath" list="svPaths" value="${esc(driveDefaultPath(budget.project, fullRef))}">
-      <datalist id="svPaths">${[...new Set([driveDefaultPath(budget.project, fullRef), ...drivePaths()])].map(o => `<option value="${esc(o)}">`).join("")}</datalist>
+      <input type="text" id="svPath" value="${esc(driveLastPath(budget.project, fullRef))}">
     </div>
     <div class="sv-foot"><button type="button" class="sv-btn" id="svCancel">ANNULER</button>
       <button type="button" class="sv-btn sv-ok" id="svGo">ENREGISTRER</button></div>
@@ -7569,10 +7559,9 @@ function renderBudgetList() {
               </div>
               <label class="doc-lab" for="docDrive">DOSSIER DRIVE</label>
               <div class="doc-file">
-                <input id="docDrive" class="doc-in" type="text" list="docDrivePaths" value="${esc(driveDefaultPath(budget.project, fullRef))}" autocomplete="off" style="flex:1;min-width:0">
+                <input id="docDrive" class="doc-in" type="text" value="${esc(driveLastPath(budget.project, fullRef))}" autocomplete="off" style="flex:1;min-width:0">
                 <label class="doc-lab" style="white-space:nowrap"><input type="checkbox" id="docDriveOn" checked> COPIE DRIVE</label>
               </div>
-              <datalist id="docDrivePaths">${[...new Set([driveDefaultPath(budget.project, fullRef), ...drivePaths()])].map(o => `<option value="${esc(o)}">`).join("")}</datalist>
             </div>
             <div id="docErr" class="doc-err"></div>
           </div>
