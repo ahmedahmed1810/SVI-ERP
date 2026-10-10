@@ -6018,12 +6018,17 @@ function renderBudgetList() {
   .tot div:first-child b { border-top: 1px solid #000; }
   .arr { margin-top: 6mm; font-weight: bold; line-height: 1.9; }
   .foot { flex: none; text-align: center; font-weight: bold; font-size: 10pt; }
-  .foot .pg { margin-bottom: 1.5mm; }
+  /* numéro de page en bas à droite : la place libérée sert aux lignes */
+  .foot { position: static; padding-top: 1.5mm; }
+  .foot .pg { position: absolute; right: 12mm; bottom: 4mm; font-size: 9.5pt; }
   .foot hr { width: 65%; border: 0; border-top: 2.5px solid #5677a7; margin: 0 auto 1.5mm; }
   .foot .ad { line-height: 1.3; }
-  .marks { position: absolute; right: 22mm; bottom: 26mm; display: flex; gap: 8mm; align-items: flex-end; pointer-events: none; }
-  .marks img.stamp { width: 48mm; transform: rotate(-6deg); }
-  .marks img.sign { max-width: 45mm; max-height: 25mm; }
+  /* signature et cachet : transparents, déplaçables au doigt dans l'aperçu */
+  .mk { position: absolute; z-index: 2; cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none;
+        -webkit-user-drag: none; }
+  .mk.stamp { width: 48mm; transform: rotate(-6deg); }
+  .mk.sign { width: 45mm; }
+  .mk.drag { outline: 1.5px dashed #2a4fd1; cursor: grabbing; }
   body.nohead .head img { visibility: hidden; }
   body.nofoot .foot .ad, body.nofoot .foot hr { visibility: hidden; }
 </style></head><body>
@@ -6047,6 +6052,7 @@ function renderBudgetList() {
     <span>PAGES CACHET</span>
     <select id="oStampPg"><option value="first">PREMIÈRE PAGE</option><option value="last">DERNIÈRE PAGE</option><option value="all">TOUTES LES PAGES</option></select>
   </div>
+  <div class="sub" style="margin-top:14px">ASTUCE : FAITES GLISSER LA SIGNATURE OU LE CACHET SUR LA PAGE POUR LES PLACER.</div>
   <button type="button" id="gen">GÉNÉRER PDF</button>
   <div id="msg"></div>
   <button type="button" id="share" hidden>PARTAGER / ENREGISTRER LE PDF</button>
@@ -6113,6 +6119,8 @@ function renderBudgetList() {
       if (full(cur.c) && cur.tb.rows.length > 1) {
         cur.tb.removeChild(r); cur = newPage(true); cur.tb.appendChild(r);
         /* ligne de suite d'un groupe en haut de page : on rappelle le groupe */
+        /* première ligne de la page : trait du haut toujours visible */
+        r.classList.remove("gnext", "lnext", "pnext");
         if (r.dataset.rep) JSON.parse(r.dataset.rep).forEach((v, k) => {
           if (!r.cells[k].textContent.trim() && v) { r.cells[k].textContent = v; r.cells[k].classList.add("rep"); }
         });
@@ -6130,23 +6138,95 @@ function renderBudgetList() {
       cur.c.appendChild(end);
     }
     const on = (pg, i) => pg === "all" || (pg === "first" && i === 0) || (pg === "last" && i === pages.length - 1);
+    const mark = (pg, k, src) => {
+      const p = o[k + "Pos"] || DEF_POS[k];
+      const im = document.createElement("img");
+      im.className = "mk " + k; im.dataset.k = k; im.src = src; im.draggable = false;
+      im.style.left = p.x + "mm"; im.style.top = p.y + "mm";
+      pg.appendChild(im);
+    };
     pages.forEach((pg, i) => {
       pg.querySelector(".pg").textContent = "Page " + (i + 1) + " / " + pages.length;
-      const m = document.createElement("div"); m.className = "marks";
-      if (o.sign && signImg && on(o.signPg, i)) m.insertAdjacentHTML("beforeend", '<img class="sign" src="' + signImg + '">');
-      if (o.stamp && on(o.stampPg, i)) m.insertAdjacentHTML("beforeend", '<img class="stamp" src="' + STAMP + '">');
-      if (m.children.length) pg.appendChild(m);
+      if (o.sign && signClear && on(o.signPg, i)) mark(pg, "sign", signClear);
+      if (o.stamp && stampClear && on(o.stampPg, i)) mark(pg, "stamp", stampClear);
     });
     document.body.classList.toggle("nohead", !o.head);
     document.body.classList.toggle("nofoot", !o.foot);
     fit();
   };
+  /* positions par défaut (mm depuis le coin haut-gauche de la page) */
+  const DEF_POS = { sign: { x: 185, y: 150 }, stamp: { x: 230, y: 140 } };
+  /* fond blanc rendu transparent : la signature / le cachet se superposent au texte */
+  let signClear = null, stampClear = null;
+  const clearWhite = src => new Promise(ok => {
+    if (!src) return ok(null);
+    const im = new Image();
+    im.onload = () => {
+      const cv = document.createElement("canvas");
+      cv.width = im.naturalWidth; cv.height = im.naturalHeight;
+      const g = cv.getContext("2d");
+      g.drawImage(im, 0, 0);
+      try {
+        const d = g.getImageData(0, 0, cv.width, cv.height), a = d.data;
+        for (let i = 0; i < a.length; i += 4) {
+          const m = Math.min(a[i], a[i + 1], a[i + 2]);
+          /* blanc → transparent, gris clair → semi-transparent */
+          if (m > 235) a[i + 3] = 0;
+          else if (m > 190) a[i + 3] = Math.round(a[i + 3] * (235 - m) / 45);
+        }
+        g.putImageData(d, 0, 0);
+        ok(cv.toDataURL("image/png"));
+      } catch (e) { ok(src); }
+    };
+    im.onerror = () => ok(src);
+    im.src = src;
+  });
+  const prepMarks = async () => {
+    [signClear, stampClear] = await Promise.all([clearWhite(signImg), clearWhite(STAMP)]);
+  };
+
+  /* glisser la signature ou le cachet : nouvelle position pour toutes les pages */
+  let scale = 1;
+  out.addEventListener("pointerdown", e => {
+    const im = e.target.closest(".mk");
+    if (!im) return;
+    e.preventDefault();
+    const k = im.dataset.k;
+    const pxmm = 96 / 25.4;
+    const start = { x: e.clientX, y: e.clientY };
+    const p0 = Object.assign({}, o[k + "Pos"] || DEF_POS[k]);
+    let p = p0;
+    im.classList.add("drag");
+    const mv = ev => {
+      ev.preventDefault();
+      p = { x: Math.round((p0.x + (ev.clientX - start.x) / scale / pxmm) * 10) / 10,
+            y: Math.round((p0.y + (ev.clientY - start.y) / scale / pxmm) * 10) / 10 };
+      p.x = Math.max(0, Math.min(280, p.x)); p.y = Math.max(0, Math.min(200, p.y));
+      im.style.left = p.x + "mm"; im.style.top = p.y + "mm";
+    };
+    const tm = ev => ev.preventDefault();
+    const up = () => {
+      document.removeEventListener("pointermove", mv);
+      document.removeEventListener("pointerup", up);
+      document.removeEventListener("pointercancel", up);
+      document.removeEventListener("touchmove", tm);
+      im.classList.remove("drag");
+      o[k + "Pos"] = p;
+      save();
+    };
+    document.addEventListener("pointermove", mv, { passive: false });
+    document.addEventListener("touchmove", tm, { passive: false });
+    document.addEventListener("pointerup", up);
+    document.addEventListener("pointercancel", up);
+  });
+
   /* réduction à l'écran par « transform » (ne change pas la mise en page) */
   const fit = () => {
     const pg = out.querySelector(".page");
     if (!pg) return;
     const avail = $("view").clientWidth - 40;
     const z = Math.min(1, avail / pg.offsetWidth);
+    scale = z;
     out.style.transformOrigin = "top left";
     out.style.transform = "scale(" + z + ")";
     out.style.width = pg.offsetWidth + "px";
@@ -6186,7 +6266,8 @@ function renderBudgetList() {
         cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height);
         signImg = cv.toDataURL("image/png");
         ls.set(SKEY, signImg);
-        o.sign = true; save();
+        o.sign = true;
+        prepMarks().then(save);
       };
       im.src = fr.result;
     };
@@ -6291,6 +6372,7 @@ function renderBudgetList() {
 
   sync();
   build();
+  prepMarks().then(build);
   /* mise en page refaite une fois les polices chargées (hauteurs exactes) */
   try { document.fonts && document.fonts.ready.then(() => build()); } catch (e) {}
   window.addEventListener("load", () => build());
