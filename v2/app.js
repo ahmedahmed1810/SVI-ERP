@@ -3925,6 +3925,8 @@ function renderBudgetList() {
       groups.get(ref);
 
     if (!budget) return;
+    /* dernier budget consulté : rouvert à la prochaine ouverture */
+    try { localStorage.setItem("svi_lastbdg_v1", ref); } catch (e) {}
 
     const listHTML =
       shell.innerHTML;
@@ -7741,6 +7743,8 @@ function renderBudgetList() {
         () => {
           shell.onclick = null;
           shell.oninput = null;
+          /* retour volontaire à la liste : elle sera l'écran d'ouverture */
+          try { localStorage.removeItem("svi_lastbdg_v1"); } catch (e) {}
           shell.innerHTML = listHTML;
           renderBudgetList();
         }
@@ -7812,6 +7816,12 @@ function renderBudgetList() {
      ------------------------------------------------------- */
 
   renderRows();
+
+  /* réouverture du dernier budget consulté */
+  try {
+    const last = localStorage.getItem("svi_lastbdg_v1");
+    if (last && groups.has(last)) openBudgetDetail(last);
+  } catch (e) {}
 }
 
 function budgetTotals(group) {
