@@ -6059,6 +6059,9 @@ function renderBudgetList() {
   tr.gnext td.gc, tr.lnext td.lc, tr.pnext td.pc, tr.snext td.sc { border-top-style: hidden; }
   /* tableau large (décomposition + détail produits) : texte plus petit */
   table.dense th, table.dense td { font-size: 7.5pt; padding: 0.5mm 0.8mm; }
+  /* clé primaire (quantité comptée) et sous-total par désignation */
+  td.pk { font-weight: bold; }
+  tr.stot td { background: #eef1f6; font-weight: bold; }
   table.dense th { padding-top: 1.2mm; padding-bottom: 1.2mm; }
   .tot { margin-top: 2mm; display: flex; flex-direction: column; align-items: flex-end; }
   .tot div { display: flex; }
@@ -6549,6 +6552,7 @@ function renderBudgetList() {
         /* une ligne par produit de l'activité secondaire (colonnes du détail produits) ;
            valeurs répétées laissées vides (désignation, lot, activités) */
         const rowsG = [];
+        let subQ = 0, subN = 0;
         list.forEach(c => {
           const prods = PLAIN ? [] : members.filter(l => l.kind === (CHG ? "chg" : "prd") &&
             U(l.lot) === U(c.lot) && U(l.prim) === U(c.prim) && U(l.sec) === U(c.sec));
@@ -6564,20 +6568,18 @@ function renderBudgetList() {
             String(c.lot ?? ""), String(c.prim ?? ""), String(c.sec ?? "")];
           const num = v => (v === null || v === undefined || v === "") ? "" : esc(money(v));
           const dim = v => esc(String(v ?? ""));
+          /* sans prix, montants ni TVA ; produits : les clés primaires
+             (prix non nul) sont en gras, seules leurs quantités sont totalisées */
+          const pk = l && !CHG && l.cprice !== 0 ? " pk" : "";
+          if (pk) subQ += Number(l.qty) || 0, subN++;
           const pr = PLAIN ? "" : CHG
-            ? (l ? [
-                td(esc(l.detail)), td(esc(l.dunit || l.unit), "c"),
-                td(num(l.qty), "r"), td(num(l.price), "r"), td(num(l.amount), "r"),
-                td(esc(money(Number(l.tva) || 0)) + " %", "r"), td(num(l.amount + tvaFor(l)), "r")
-              ].join("") : td("").repeat(7))
+            ? (l ? [td(esc(l.detail)), td(esc(l.dunit || l.unit), "c"), td(num(l.qty), "r")].join("") : td("").repeat(3))
             : (l ? [
-                td(esc(l.detail)), td(esc(l.dunit || l.unit), "c"), td(dim(l.nbr), "r"),
-                td(dim(l.dims[0]), "r"), td(dim(l.dims[1]), "r"), td(dim(l.dims[2]), "r"),
-                td(num(l.qty), "r"), td(num(l.price), "r"), td(num(l.amount), "r"),
-                td(esc(money(Number(l.tva) || 0)) + " %", "r"), td(num(l.amount + tvaFor(l)), "r")
-              ].join("") : td("").repeat(11));
+                td(esc(l.detail), pk), td(esc(l.dunit || l.unit), "c" + pk), td(dim(l.nbr), "r" + pk),
+                td(dim(l.dims[0]), "r" + pk), td(dim(l.dims[1]), "r" + pk), td(dim(l.dims[2]), "r" + pk),
+                td(num(l.qty), "r" + pk)
+              ].join("") : td("").repeat(7));
           const uSec = (CHG || PLAIN) ? td(sameSec ? "" : esc(unitOf(members, x => x.sec, c.sec)), "c sc") : "";
-          if (l) { totHT += l.amount; totTVA += tvaFor(l); }
 
           body += `<tr class="${i ? "gnext" : "gfirst"}${sameLot ? " lnext" : ""}${samePrim ? " pnext" : ""}${sameSec ? " snext" : ""}"${i ? ` data-rep="${esc(JSON.stringify(full))}"` : ""}>` +
             td(i ? "" : esc(g.article), "c gc") + td(i ? "" : esc(g.designation), "gc") + td(i ? "" : esc(g.unit), "c gc") +
@@ -6585,6 +6587,10 @@ function renderBudgetList() {
             td(sameSec ? "" : esc(c.sec), "sc") + uSec + pr + "</tr>";
           prev = c;
         });
+        if (!CHG && !PLAIN) {
+          body += `<tr class="stot"><td colspan="12" class="r">SOUS-TOTAL ART. ${esc(g.article)} — ${esc(g.designation)}` +
+            ` (${esc(g.unit)})</td><td class="r">${esc(money(subQ))}</td></tr>`;
+        }
       });
       if (PLAIN) {
         printModel({
@@ -6602,42 +6608,31 @@ function renderBudgetList() {
         printModel({
           branch: "DÉTAIL CHARGES", docTitle: "DÉTAIL CHARGES", fileTag: "DETAIL CHARGES", headLine: "DÉTAIL CHARGES",
           table: `<table id="tpl" class="dense"><colgroup>
-              <col style="width:3%"><col style="width:14%"><col style="width:3%"><col style="width:8%">
-              <col style="width:10%"><col style="width:10%"><col style="width:3%"><col style="width:15%"><col style="width:3.5%">
-              <col style="width:6%"><col style="width:5.5%"><col style="width:7%"><col style="width:4.5%"><col style="width:7.5%"></colgroup>
-            <thead><tr><th colspan="7">DÉSIGNATION CLIENT ET TÂCHES</th><th colspan="7">DÉTAIL CHARGES</th></tr>
+              <col style="width:3%"><col style="width:17%"><col style="width:4%"><col style="width:10%">
+              <col style="width:13%"><col style="width:13%"><col style="width:4%"><col style="width:24%">
+              <col style="width:4%"><col style="width:8%"></colgroup>
+            <thead><tr><th colspan="7">DÉSIGNATION CLIENT ET TÂCHES</th><th colspan="3">DÉTAIL CHARGES</th></tr>
               <tr><th class="sub">ART.</th><th class="sub">DESIGNATION</th><th class="sub">UPB</th><th class="sub">LOT</th>
               <th class="sub">ACTIVITÉ PRIMAIRE</th><th class="sub">ACTIVITÉ SECONDAIRE</th><th class="sub">U</th>
-              <th class="sub">DÉSIGNATION</th><th class="sub">UCB</th><th class="sub">QCB</th><th class="sub">PCB</th>
-              <th class="sub">MCB HT</th><th class="sub">TVA %</th><th class="sub">MCB TTC</th></tr></thead>
+              <th class="sub">DÉSIGNATION</th><th class="sub">UCB</th><th class="sub">QCB</th></tr></thead>
             <tbody>${body}</tbody></table>`,
-          end: `<div class="tot">
-              <div><span>TOTAL H.T. :</span><b>${money(totHT)}</b></div>
-              <div><span>TOTAL T.V.A. :</span><b>${money(totTVA)}</b></div>
-              <div><span>TOTAL T.T.C. :</span><b>${money(totHT + totTVA)}</b></div>
-            </div>`
+          end: ""
         });
         return;
       }
       printModel({
         branch: "DÉTAIL PRODUITS", docTitle: "DÉTAIL PRODUITS", fileTag: "DETAIL PRODUITS", headLine: "DÉTAIL PRODUITS",
         table: `<table id="tpl" class="dense"><colgroup>
-            <col style="width:3%"><col style="width:13%"><col style="width:3%"><col style="width:7%">
-            <col style="width:9%"><col style="width:9%"><col style="width:12%"><col style="width:3%">
-            <col style="width:3%"><col style="width:3.5%"><col style="width:3.5%"><col style="width:3.5%">
-            <col style="width:5%"><col style="width:5%"><col style="width:6.5%"><col style="width:4%"><col style="width:6.5%"></colgroup>
-          <thead><tr><th colspan="6">DÉSIGNATION CLIENT ET TÂCHES</th><th colspan="11">DÉTAIL PRODUITS</th></tr>
+            <col style="width:3%"><col style="width:15%"><col style="width:4%"><col style="width:9%">
+            <col style="width:11%"><col style="width:11%"><col style="width:17%"><col style="width:4%">
+            <col style="width:4%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:7%"></colgroup>
+          <thead><tr><th colspan="6">DÉSIGNATION CLIENT ET TÂCHES</th><th colspan="7">DÉTAIL PRODUITS</th></tr>
             <tr><th class="sub">ART.</th><th class="sub">DESIGNATION</th><th class="sub">UPB</th><th class="sub">LOT</th>
             <th class="sub">ACTIVITÉ PRIMAIRE</th><th class="sub">ACTIVITÉ SECONDAIRE</th>
             <th class="sub">DÉSIGNATION</th><th class="sub">UPB</th><th class="sub">NBR</th><th class="sub">DIM 1</th>
-            <th class="sub">DIM 2</th><th class="sub">DIM 3</th><th class="sub">QPB</th><th class="sub">PPB</th>
-            <th class="sub">MPB HT</th><th class="sub">TVA %</th><th class="sub">MPB TTC</th></tr></thead>
+            <th class="sub">DIM 2</th><th class="sub">DIM 3</th><th class="sub">QPB</th></tr></thead>
           <tbody>${body}</tbody></table>`,
-        end: `<div class="tot">
-            <div><span>TOTAL H.T. :</span><b>${money(totHT)}</b></div>
-            <div><span>TOTAL T.V.A. :</span><b>${money(totTVA)}</b></div>
-            <div><span>TOTAL T.T.C. :</span><b>${money(totHT + totTVA)}</b></div>
-          </div>`
+        end: ""
       });
     };
 
