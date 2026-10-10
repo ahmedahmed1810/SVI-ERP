@@ -6161,7 +6161,6 @@ function renderBudgetList() {
               <button type="button" class="doc-btn fmt-btn" data-fmt="json">JSON (.JSON)</button>
               <button type="button" class="doc-btn fmt-btn" data-fmt="gsheet">GOOGLE SHEETS</button>
             </div>
-            <div class="doc-err fd-msg">LIGNES AFFICHÉES (FILTRES COMPRIS).</div>
           </div>
           <div class="doc-foot"><button type="button" class="doc-btn" data-cancel>ANNULER</button></div>
         </div>`;
