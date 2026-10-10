@@ -5934,7 +5934,7 @@ function renderBudgetList() {
       list.push({ ref: docRef, date: localDT(now), title: String(title).toUpperCase(),
         name, size: blob.size, type: "application/pdf", data: null, idb, code: code || "", fp: fp || "" });
       docsSave(list);
-      histLog("DOC", "CRÉATION", docRef + " — " + title + " (PDF GÉNÉRÉ" + (code ? ", CODE " + code : "") + ")");
+      histLog("DOC", "CRÉATION", docRef + " — " + title + " (PDF GÉNÉRÉ)");
       updPill("doc");
       return docRef;
     };
@@ -6055,7 +6055,6 @@ function renderBudgetList() {
   /* numéro de page en bas à droite : la place libérée sert aux lignes */
   .foot { position: static; padding-top: 1.5mm; }
   .foot .pg { position: absolute; right: 12mm; bottom: 4mm; font-size: 9.5pt; }
-  .pcode { position: absolute; left: 12mm; bottom: 4mm; font: 8.5pt "Courier New", monospace; color: #444; letter-spacing: .5px; }
   .foot hr { width: 65%; border: 0; border-top: 2.5px solid #5677a7; margin: 0 auto 1.5mm; }
   .foot .ad { line-height: 1.3; }
   /* signature et cachet : transparents, déplaçables au doigt dans l'aperçu */
@@ -6194,8 +6193,6 @@ function renderBudgetList() {
     };
     pages.forEach((pg, i) => {
       pg.querySelector(".pg").textContent = "Page " + (i + 1) + " / " + pages.length;
-      const cd = document.createElement("div"); cd.className = "pcode"; cd.textContent = "CODE : " + code;
-      pg.appendChild(cd);
       if (o.sign && signClear && on(o.signPg, i)) mark(pg, "sign", signClear);
       if (o.stamp && stampClear && on(o.stampPg, i)) mark(pg, "stamp", stampClear);
     });
@@ -6382,13 +6379,13 @@ function renderBudgetList() {
      (on le rouvrira ensuite depuis la liste DOCUMENTS) */
   const lockSaved = ref => {
     document.body.classList.add("locked", "closed");
-    $("savedRef").textContent = "ENREGISTRÉ DANS DOCUMENTS : " + ref + " — CODE " + code;
+    $("savedRef").textContent = "ENREGISTRÉ DANS DOCUMENTS : " + ref;
     $("savedBar").hidden = false;
     setTimeout(fit, 220);
   };
   const saveOnce = async (blob, name) => {
     const msg = $("msg");
-    if (savedCodes[code]) { msg.textContent = "DÉJÀ ENREGISTRÉ DANS DOCUMENTS : " + savedCodes[code] + " (CODE " + code + ")"; return; }
+    if (savedCodes[code]) { msg.textContent = "DÉJÀ ENREGISTRÉ DANS DOCUMENTS : " + savedCodes[code]; return; }
     const title = ${JSON.stringify(cfg.docTitle)};
     let saved = null, err = "";
     try {
@@ -6401,7 +6398,7 @@ function renderBudgetList() {
     }
     if (saved) { savedCodes[code] = saved; lockSaved(saved); }
     msg.textContent = saved
-      ? "ENREGISTRÉ DANS DOCUMENTS : " + saved + " (CODE " + code + ")"
+      ? "ENREGISTRÉ DANS DOCUMENTS : " + saved
       : "NON ENREGISTRÉ DANS DOCUMENTS" + (err ? " (" + err + ")" : "");
   };
   $("share2").onclick = () => $("share").onclick();
@@ -6442,10 +6439,10 @@ function renderBudgetList() {
       }
       fit();
       const blob = pdf.output("blob");
-      const file = new File([blob], "${fileName}".replace(/\.pdf$/, "_" + code + ".pdf"), { type: "application/pdf" });
+      const file = new File([blob], "${fileName}", { type: "application/pdf" });
       msg.textContent = savedCodes[code]
         ? "PDF PRÊT — DÉJÀ ENREGISTRÉ (" + savedCodes[code] + ")"
-        : "PDF PRÊT (CODE " + code + ") : « ENREGISTRER » L'AJOUTE AUX DOCUMENTS.";
+        : "PDF PRÊT : « ENREGISTRER » L'AJOUTE AUX DOCUMENTS.";
       /* partage / enregistrement : sur un nouveau toucher (exigé par l'iPad) */
       lastPdf = { blob, file };
       $("share").hidden = false;
