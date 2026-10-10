@@ -2370,6 +2370,26 @@ function renderBudgetList() {
         max-height: none !important;
       }
 
+      /* triangle « observations importantes » en haut à droite */
+      .bdg-d-hright { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+      .bdg-alert-btn {
+        position: relative; width: 40px; height: 40px; border: 1px solid #f3c2c2; border-radius: 10px;
+        background: #fff5f5; color: #c81e1e; display: inline-flex; align-items: center;
+        justify-content: center; cursor: pointer; padding: 0;
+      }
+      .bdg-alert-btn[hidden] { display: none; }
+      .bdg-alert-n {
+        position: absolute; top: -6px; right: -6px; min-width: 17px; height: 17px; padding: 0 4px;
+        border-radius: 9px; background: #c81e1e; color: #fff; font-size: 10px; font-weight: 800;
+        line-height: 17px; text-align: center; box-sizing: border-box;
+      }
+      #docPop .obs-alert-list { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
+      #docPop .obs-alert-item {
+        border: 1px solid #f3c2c2; background: #fff5f5; border-radius: 8px; padding: 10px 12px;
+      }
+      #docPop .obs-alert-meta { font-size: 11px; font-weight: 800; color: #b91c1c; margin-bottom: 4px; }
+      #docPop .obs-alert-text { font-size: 13px; color: #172033; white-space: pre-wrap; line-height: 1.4; }
+
       /* listes DOC / TAF / OBS : 5 lignes visibles, défilement au-delà */
       .rec-scroll {
         overflow: auto; -webkit-overflow-scrolling: touch;
@@ -3868,7 +3888,13 @@ function renderBudgetList() {
           ${esc(budget.project)}
         </h1>
 
-        <div></div>
+        <div class="bdg-d-hright">
+          <button type="button" class="bdg-alert-btn" id="obsAlertBtn" hidden
+            aria-label="Observations importantes" title="Observations importantes">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 2.6 19.5h18.8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9.5v4.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.9" r="1.15" fill="currentColor"/></svg>
+            <span class="bdg-alert-n" id="obsAlertN"></span>
+          </button>
+        </div>
 
       </div>
 
@@ -5288,6 +5314,13 @@ function renderBudgetList() {
       const n = recLoad(kind).length;
       if (pill) pill.textContent = kind.toUpperCase() + " (" + n + ")";
       renderRec(kind);
+      if (kind === "obs") {
+        const imp = recLoad("obs").filter(r => r.important).length;
+        const b = $("obsAlertBtn");
+        if (b) b.hidden = !imp;
+        const c = $("obsAlertN");
+        if (c) c.textContent = imp;
+      }
     };
 
     /* ===== listes DOC / TAF / OBS sous le détail ===== */
@@ -5335,6 +5368,37 @@ function renderBudgetList() {
       }).join("") + "</tr>").join("");
       t.innerHTML = `<thead><tr>${cols.map(c => `<th>${esc(c[0])}</th>`).join("")}</tr></thead>
         <tbody>${rows || `<tr><td class="empty" colspan="${cols.length}">AUCUN ENREGISTREMENT</td></tr>`}</tbody>`;
+    };
+
+    /* fenêtre centrée : observations marquées « ! » */
+    const openObsAlert = () => {
+      const list = recSorted("obs").filter(({ r }) => r.important);
+      document.getElementById("docPop")?.remove();
+      const p = document.createElement("div");
+      p.id = "docPop";
+      p.innerHTML = `
+        <div class="doc-card" role="dialog" aria-modal="true">
+          <div class="doc-head">
+            <span class="doc-title">${esc(budget.project)} : OBSERVATIONS IMPORTANTES (${list.length})</span>
+            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+          </div>
+          <div class="doc-body">
+            <div class="obs-alert-list">
+              ${list.map(({ r }) => `
+                <div class="obs-alert-item">
+                  <div class="obs-alert-meta">⚠ ${esc(r.ref)} — ${esc(fmtDT(r.date))}</div>
+                  <div class="obs-alert-text">${esc(r.text)}</div>
+                </div>`).join("") || `<div class="obs-alert-text">Aucune observation importante.</div>`}
+            </div>
+          </div>
+          <div class="doc-foot">
+            <button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>
+          </div>
+        </div>`;
+      document.body.appendChild(p);
+      p.addEventListener("click", e => {
+        if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
+      });
     };
 
     /* ouvrir un document gardé sur l'appareil */
@@ -5505,6 +5569,7 @@ function renderBudgetList() {
         openDocForm();
         return;
       }
+      if (event.target.closest("#obsAlertBtn")) { openObsAlert(); return; }
       const ro = event.target.closest("[data-recopen]");
       if (ro) { openDoc(+ro.dataset.recopen); return; }
       const recPill = event.target.closest('[data-pill="obs"], [data-pill="taf"]');
