@@ -2371,10 +2371,14 @@ function renderBudgetList() {
       }
 
       /* déplacement des colonnes par glissement de l'en-tête */
-      .bdg-d-table thead th { touch-action: pan-y; cursor: grab; }
-      .bdg-d-table thead th.co-src { opacity: .45; }
-      .bdg-d-table thead th.co-before { box-shadow: inset 3px 0 0 #1d4ed8; }
-      .bdg-d-table thead th.co-after { box-shadow: inset -3px 0 0 #1d4ed8; }
+      /* iPad : pas de défilement depuis un en-tête, sinon le glissement est interrompu */
+      .bdg-d-table thead th, .bdg-h-head {
+        touch-action: none; cursor: grab;
+        user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+      }
+      .bdg-d-table thead th.co-src, .bdg-h-head.co-src { opacity: .45; }
+      .bdg-d-table thead th.co-before, .bdg-h-head.co-before { box-shadow: inset 3px 0 0 #1d4ed8; }
+      .bdg-d-table thead th.co-after, .bdg-h-head.co-after { box-shadow: inset -3px 0 0 #1d4ed8; }
       #coGhost {
         position: fixed; z-index: 10010; pointer-events: none; padding: 5px 10px;
         background: #1d4ed8; color: #fff; border-radius: 6px; font-size: 11px; font-weight: 800;
@@ -2417,6 +2421,7 @@ function renderBudgetList() {
         background: #fff; color: #4b5563; font-size: 11px; font-weight: 800; cursor: pointer;
         display: inline-flex; align-items: center; gap: 6px;
       }
+      .bdg-lay-btn[hidden] { display: none; }
 
       /* triangle « observations importantes » en haut à droite */
       .bdg-d-hright { margin-left: auto; display: flex; align-items: center; gap: 8px; }
@@ -4583,17 +4588,18 @@ function renderBudgetList() {
 
       {
         const w = cwLoad();
-        const ws = ["lot", "prim", "sec"].map(k => w["hier." + k]);
+        const ws = coKeys("hierCols", ["lot", "prim", "sec"]).map(k => w["hier." + k]);
         $("bdgHier").style.gridTemplateColumns =
           ws.every(Boolean) && window.innerWidth > 650
             ? ws.map(x => x + "px").join(" ")
             : "";
       }
 
-      $("bdgHier").innerHTML =
-        col("LOT", "lot", lots) +
-        col("ACTIVITÉ PRIMAIRE", "prim", prims) +
-        col("ACTIVITÉ SECONDAIRE", "sec", secs);
+      const hdef = {
+        lot: ["LOT", lots], prim: ["ACTIVITÉ PRIMAIRE", prims], sec: ["ACTIVITÉ SECONDAIRE", secs]
+      };
+      $("bdgHier").innerHTML = coKeys("hierCols", ["lot", "prim", "sec"])
+        .map(k => col(hdef[k][0], k, hdef[k][1])).join("");
 
       /* plus de texte « FILTRES : … » dans le titre du bloc */
     };
@@ -5044,16 +5050,22 @@ function renderBudgetList() {
 
     /* glisser un en-tête de colonne pour la déplacer */
     const coDrag = (event, th) => {
+      const isHier = th.classList.contains("bdg-h-head");
       const table = th.closest("table");
-      const t = th.querySelector(".cf-btn").dataset.cf;
-      const ths = () => [...table.querySelectorAll("thead tr:first-child > th")];
+      const t = isHier ? "hierCols" : th.querySelector(".cf-btn").dataset.cf;
+      const ths = () => isHier
+        ? [...$("bdgHier").querySelectorAll(".bdg-h-head")]
+        : [...table.querySelectorAll("thead tr:first-child > th")];
+      const keyOf = x => isHier
+        ? x.querySelector(".cf-btn")?.dataset.cf
+        : x.querySelector(".cf-btn")?.dataset.col;
       const x0 = event.clientX, y0 = event.clientY;
       let on = false, target = null, ghost = null;
       const clear = () => ths().forEach(x => x.classList.remove("co-before", "co-after"));
       const move = e => {
         const dx = e.clientX - x0, dy = e.clientY - y0;
         if (!on) {
-          if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy)) return;
+          if (Math.abs(dx) < 8) return;
           on = true;
           th.classList.add("co-src");
           ghost = document.createElement("div");
@@ -5087,9 +5099,9 @@ function renderBudgetList() {
         th.classList.remove("co-src");
         ghost?.remove();
         if (!on || !target) return;
-        const keys = ths().map(x => x.querySelector(".cf-btn")?.dataset.col);
-        const from = keys.indexOf(th.querySelector(".cf-btn").dataset.col);
-        const to = keys.indexOf(target.querySelector(".cf-btn").dataset.col);
+        const keys = ths().map(keyOf);
+        const from = keys.indexOf(keyOf(th));
+        const to = keys.indexOf(keyOf(target));
         const [k] = keys.splice(from, 1);
         keys.splice(to, 0, k);
         const all = coLoad();
@@ -5101,6 +5113,12 @@ function renderBudgetList() {
         setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 300);
         refreshAll();
       };
+      /* iPad : bloque le défilement pendant le glissement */
+      const tm = e => { if (on) e.preventDefault(); };
+      document.addEventListener("touchmove", tm, { passive: false });
+      const end = () => setTimeout(() => document.removeEventListener("touchmove", tm), 0);
+      document.addEventListener("pointerup", end, { once: true });
+      document.addEventListener("pointercancel", end, { once: true });
       document.addEventListener("pointermove", move, { passive: false });
       document.addEventListener("pointerup", up);
       document.addEventListener("pointercancel", up);
@@ -5113,7 +5131,7 @@ function renderBudgetList() {
       if (gp) { layDrag(event, gp); return; }
       const h = event.target.closest(".col-rs");
       if (!h) {
-        const th = event.target.closest("th");
+        const th = event.target.closest("th, .bdg-h-head");
         if (th && !event.target.closest(".cf-btn") && th.querySelector(".cf-btn")) coDrag(event, th);
         return;
       }
@@ -5127,7 +5145,7 @@ function renderBudgetList() {
       if (t === "hier") {
         const grid = $("bdgHier");
         const cols = [...grid.querySelectorAll(".bdg-h-col")];
-        const keys = ["lot", "prim", "sec"];
+        const keys = coKeys("hierCols", ["lot", "prim", "sec"]);
         const ws = cols.map(c => c.getBoundingClientRect().width);
         const i = keys.indexOf(key);
         const w0 = ws[i];
@@ -5197,10 +5215,11 @@ function renderBudgetList() {
       if (blk === "hier") {
         const h = lastShown.hier;
         const n = Math.max((h.lot || []).length, (h.prim || []).length, (h.sec || []).length);
+        const ks = coKeys("hierCols", ["lot", "prim", "sec"]);
+        const lab = { lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" };
         return {
-          head: ["LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE"],
-          rows: Array.from({ length: n }, (_, i) =>
-            [(h.lot || [])[i] ?? "", (h.prim || [])[i] ?? "", (h.sec || [])[i] ?? ""])
+          head: ks.map(k => lab[k]),
+          rows: Array.from({ length: n }, (_, i) => ks.map(k => (h[k] || [])[i] ?? ""))
         };
       }
       const src = lastShown[blk];
