@@ -3350,10 +3350,118 @@ function renderBudgetList() {
     byProject.get(prj).rows.push(row);
   });
 
+  /* ===== BUDGETS EN INSTANCE (création) — gardés sur l'appareil pendant les essais ===== */
+  const INST_KEY = "svi_bdg_inst_v1";
+  const instLoad = () => {
+    try { return JSON.parse(localStorage.getItem(INST_KEY) || "[]") || []; } catch (e) { return []; }
+  };
+  const instSave = l => { try { localStorage.setItem(INST_KEY, JSON.stringify(l)); } catch (e) {} };
+  instLoad().forEach(b => groups.set(b.ref, { ref: b.ref, project: b.project, rows: [], first: {}, inst: b }));
+
+  /* liste affichée : VALIDÉS (noir) ou EN INSTANCE (rouge / vert si figé) */
+  let listMode = "valid";
+  try { if (localStorage.getItem("svi_listmode_v1") === "inst") listMode = "inst"; } catch (e) {}
+
   bdgGroups = groups;
 
   const budgets =
-    [...groups.values()];
+    [...groups.values()].filter(g => listMode === "inst" ? !!g.inst : !g.inst);
+
+  /* titre, couleur et boutons de la barre de la liste */
+  shell.classList.remove("bdg-inst-instance", "bdg-inst-fige");
+  shell.classList.toggle("list-inst", listMode === "inst");
+  {
+    const h1 = shell.querySelector(".novapp-list-titlebar h1");
+    if (h1) h1.innerHTML = (listMode === "inst" ? "BUDGETS EN INSTANCE" : "BUDGETS VALIDÉS") + ' <span id="bdgListCount"></span>';
+    const acts = shell.querySelector(".novapp-list-actions");
+    if (acts) {
+      const hg = acts.querySelector('[aria-label="Historique"]');
+      if (hg) hg.title = listMode === "inst" ? "Voir les budgets validés" : "Voir les budgets en instance";
+      acts.onclick = e => {
+        const b = e.target.closest("button");
+        if (!b) return;
+        if (b.getAttribute("aria-label") === "Historique") {
+          try { localStorage.setItem("svi_listmode_v1", listMode === "inst" ? "valid" : "inst"); } catch (err) {}
+          renderBudgetList();
+        } else if (b.getAttribute("aria-label") === "Ajouter") {
+          openNewBudget();
+        }
+      };
+    }
+  }
+
+  /* prochaine référence : la suite continue pour toujours (tous budgets confondus) */
+  const nextBudgetRef = d => {
+    const n = Math.max(0, ...[...groups.keys()].map(r => Number((String(r).match(/\/(\d+)\s*$/) || [])[1]) || 0)) + 1;
+    const p2 = x => String(x).padStart(2, "0");
+    return "BDG " + p2(d.getFullYear() % 100) + "-" + p2(d.getMonth() + 1) + p2(d.getDate()) + "/" + String(n).padStart(3, "0");
+  };
+
+  /* bouton + : fenêtre rouge NOUVEAU BUDGET (date de création, nouveau projet) */
+  function openNewBudget() {
+    document.getElementById("docPop")?.remove();
+    const now = new Date();
+    const p2 = x => String(x).padStart(2, "0");
+    const local = now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()) + "T" + p2(now.getHours()) + ":" + p2(now.getMinutes());
+    const p = document.createElement("div");
+    p.id = "docPop";
+    p.className = "pop-new-bdg";
+    p.innerHTML = `
+      <div class="doc-card" role="dialog" aria-modal="true" style="max-width:620px">
+        <div class="doc-head">
+          <span class="doc-title">NOUVEAU BUDGET</span>
+          <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+        </div>
+        <div class="doc-body">
+          <div class="doc-grid doc-grid-2">
+            <label class="doc-lab" for="nbDate">DATE CRÉATION <b>*</b></label>
+            <input id="nbDate" class="doc-in" type="datetime-local" value="${local}">
+            <label class="doc-lab" for="nbPrj">PROJET <b>*</b></label>
+            <input id="nbPrj" class="doc-in" type="text" autocomplete="off" placeholder="CODE DU NOUVEAU PROJET (EX. H88)">
+            <label class="doc-lab" for="nbName">INTITULÉ</label>
+            <input id="nbName" class="doc-in" type="text" autocomplete="off" placeholder="NOM DU PROJET">
+            <span class="doc-lab">RÉFÉRENCE</span>
+            <input id="nbRef" class="doc-in doc-ro" type="text" readonly>
+          </div>
+          <div id="nbErr" class="doc-err"></div>
+        </div>
+        <div class="doc-foot">
+          <button type="button" class="doc-btn" data-cancel>ANNULER</button>
+          <button type="button" class="doc-btn doc-save" id="nbGo">CRÉER</button>
+        </div>
+      </div>`;
+    document.body.appendChild(p);
+    try { popEnhance(p, "newbdg"); } catch (e) {}
+    const val = id => (p.querySelector(id)?.value || "").trim();
+    const refNow = () => {
+      const d = new Date(val("#nbDate"));
+      const r = isNaN(d) ? "" : nextBudgetRef(d);
+      p.querySelector("#nbRef").value = r ? ((val("#nbPrj").toUpperCase() || "PROJET") + " " + r) : "";
+      return isNaN(d) ? "" : r;
+    };
+    refNow();
+    p.addEventListener("input", refNow);
+    p.addEventListener("change", refNow);
+    p.addEventListener("click", e => {
+      if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
+    });
+    setTimeout(() => p.querySelector("#nbPrj")?.focus(), 50);
+    p.querySelector("#nbGo").addEventListener("click", () => {
+      const prj = val("#nbPrj").toUpperCase().replace(/\s+/g, " ");
+      const r = refNow();
+      const miss = [];
+      if (!r) miss.push("date");
+      if (!prj) miss.push("projet");
+      if (miss.length) { p.querySelector("#nbErr").textContent = "Champs obligatoires manquants : " + miss.join(", ") + "."; return; }
+      const list = instLoad();
+      list.push({ ref: r, project: prj, intitule: val("#nbName").toUpperCase() || "À COMPLÉTER",
+        created: val("#nbDate"), state: "instance" });
+      instSave(list);
+      p.remove();
+      try { localStorage.setItem("svi_listmode_v1", "inst"); } catch (e) {}
+      renderBudgetList();
+    });
+  }
 
   /* -------------------------------------------------------
      CALCUL D'UNE LIGNE BUDGET
@@ -3436,6 +3544,16 @@ function renderBudgetList() {
     const intitule =
       normalise(known?.name) ||
       "À COMPLÉTER";
+
+    if (budget.inst) {
+      const c = String(budget.inst.created || "");
+      const m = c.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return {
+        ref: budget.ref, budget: budgetName, ht: 0, intitule: budget.inst.intitule || "À COMPLÉTER",
+        ttc: 0, validated: "", entered: m ? m[3] + "/" + m[2] + "/" + m[1] : "",
+        state: budget.inst.state || "instance", source: budget
+      };
+    }
 
     return {
       ref:
@@ -3762,6 +3880,7 @@ function renderBudgetList() {
       data.map(item => `
         <tr
           data-budget-ref="${esc(item.ref)}"
+          class="${item.state ? "inst-" + item.state : ""}"
         >
 
           <td>
@@ -4127,7 +4246,7 @@ function renderBudgetList() {
 
     /* balayage gauche / droite : budget suivant / précédent (ordre des références) */
     {
-      const refs = [...groups.keys()].sort((x, y) => String(x).localeCompare(String(y), "fr", { numeric: true }));
+      const refs = [...groups.keys()].filter(k => !!groups.get(k).inst === !!budget.inst).sort((x, y) => String(x).localeCompare(String(y), "fr", { numeric: true }));
       window.__sviBdgNav = { refs, cur: ref, open: openBudgetDetail };
       if (!window.__sviSwipe) {
         window.__sviSwipe = true;
@@ -4451,6 +4570,9 @@ function renderBudgetList() {
     } catch (e) {}
     /* référence affichée du budget : « H88 BDG 26-1001/001 » */
     const fullRef = String(budget.project).trim().toUpperCase() + " " + ref;
+    /* budget en instance : rouge (édition) ou vert (figé) */
+    shell.classList.remove("bdg-inst-instance", "bdg-inst-fige", "list-inst");
+    if (budget.inst) shell.classList.add("bdg-inst-" + (budget.inst.state || "instance"));
 
     /* ---- squelette de l'écran ---- */
 
