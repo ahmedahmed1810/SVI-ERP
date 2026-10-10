@@ -1500,6 +1500,90 @@ function exportSheet_(b) {
   return { ok: true, url: ss.getUrl(), id: ss.getId(), path: sviPathOf_(folder), folderUrl: folder.getUrl() };
 }
 </textarea></section>
+<section><h2>migrationV3.gs</h2><p class="n">82 lignes</p>
+<button onclick="cp('c3',this)">COPIER migrationV3.gs</button>
+<textarea id="c3" readonly>/* =========================================================
+   SVI ERP — MIGRATION DE L&#x27;ONGLET BDG VERS LA BASE V3
+   Fichier cible : « SVI ERP — BASE BUDGETS V3 »
+   Exécuter une fois : migrerVersV3 (menu Exécuter).
+   L&#x27;ancien onglet BDG n&#x27;est pas modifié. Les onglets V3 sont
+   vidés (sauf l&#x27;en-tête) puis remplis à chaque exécution.
+   ========================================================= */
+
+const V3_ID = &quot;131RdvI2_kqjRq7HbcPxXetWHmBcYJ3DNmGPiuogAoas&quot;;
+
+function migrerVersV3() {
+  const src = getSVISpreadsheet_().getSheetByName(&quot;BDG&quot;);
+  if (!src) throw new Error(&quot;ONGLET BDG INTROUVABLE&quot;);
+  const values = src.getDataRange().getValues();
+  const dst = SpreadsheetApp.openById(V3_ID);
+
+  /* colonnes de l&#x27;ancien onglet BDG (A = 0) */
+  const C = { PRJ: 6, ART: 7, DES: 8, UDB: 9, LOT: 10, SEC: 11, CLE: 12, PRIM: 13,
+              TYPE: 14, DET: 15, UTB: 16, NBR: 17, D1: 18, D2: 19, D3: 20, QTB: 21, PUB: 22 };
+  const t = v =&gt; String(v == null ? &quot;&quot; : v).trim();
+  const id = (p, n) =&gt; p + String(n).padStart(5, &quot;0&quot;);
+
+  const budgets = [], desig = [], taches = [], details = [];
+  const bByPrj = new Map(), dByKey = new Map(), tByKey = new Map();
+
+  for (let r = 1; r &lt; values.length; r++) {
+    const row = values[r];
+    const prj = t(row[C.PRJ]).toUpperCase();
+    if (!prj) continue;
+
+    /* un budget par projet (même numérotation que l&#x27;application) */
+    if (!bByPrj.has(prj)) {
+      const ref = &quot;BDG 26-1001/&quot; + String(bByPrj.size + 1).padStart(3, &quot;0&quot;);
+      bByPrj.set(prj, ref);
+      budgets.push([ref, prj, &quot;&quot;, &quot;VALIDE&quot;, &quot;01/10/2026&quot;, &quot;&quot;, &quot;01/10/2026&quot;, 1]);
+    }
+    const bdg = bByPrj.get(prj);
+
+    /* désignation client : écrite une seule fois */
+    const dKey = bdg + &quot;|&quot; + t(row[C.ART]) + &quot;|&quot; + t(row[C.DES]);
+    if (!dByKey.has(dKey)) {
+      const did = id(&quot;D&quot;, desig.length + 1);
+      dByKey.set(dKey, did);
+      desig.push([did, bdg, t(row[C.ART]), t(row[C.DES]), t(row[C.UDB]), &quot;NON&quot;, &quot;&quot;, desig.length + 1]);
+    }
+    const did = dByKey.get(dKey);
+
+    /* tâche = désignation + lot + activité primaire + activité secondaire */
+    const tKey = did + &quot;|&quot; + t(row[C.LOT]) + &quot;|&quot; + t(row[C.PRIM]) + &quot;|&quot; + t(row[C.SEC]);
+    if (!tByKey.has(tKey)) {
+      const tid = id(&quot;T&quot;, taches.length + 1);
+      tByKey.set(tKey, tid);
+      taches.push([tid, bdg, did, t(row[C.LOT]), t(row[C.PRIM]), t(row[C.SEC]), &quot;&quot;, &quot;&quot;, taches.length + 1]);
+    }
+
+    /* détail produit / charge */
+    const type = /PRD/i.test(t(row[C.TYPE])) ? &quot;PRD&quot; : &quot;CHG&quot;;
+    const cle = /VRAI|TRUE|OUI/i.test(t(row[C.CLE])) ? &quot;VRAI&quot; : &quot;FAUX&quot;;
+    details.push([id(&quot;E&quot;, details.length + 1), tByKey.get(tKey), type, &quot;&quot;, t(row[C.DET]),
+      t(row[C.UTB]), row[C.NBR], row[C.D1], row[C.D2], row[C.D3], row[C.QTB], row[C.PUB], cle, details.length + 1]);
+  }
+
+  const write = (name, rows) =&gt; {
+    const sh = dst.getSheetByName(name);
+    if (!sh) throw new Error(&quot;ONGLET &quot; + name + &quot; INTROUVABLE DANS LA BASE V3&quot;);
+    if (sh.getLastRow() &gt; 1) sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).clearContent();
+    if (rows.length) {
+      if (sh.getMaxRows() &lt; rows.length + 1) sh.insertRowsAfter(sh.getMaxRows(), rows.length + 1 - sh.getMaxRows());
+      sh.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+    }
+  };
+  write(&quot;BUDGETS&quot;, budgets);
+  write(&quot;DESIGNATIONS&quot;, desig);
+  write(&quot;TACHES&quot;, taches);
+  write(&quot;DETAILS&quot;, details);
+
+  const msg = &quot;MIGRATION V3 TERMINÉE : &quot; + budgets.length + &quot; BUDGETS, &quot; + desig.length +
+    &quot; DÉSIGNATIONS, &quot; + taches.length + &quot; TÂCHES, &quot; + details.length + &quot; DÉTAILS&quot;;
+  Logger.log(msg);
+  return msg;
+}
+</textarea></section>
 <script>
 function cp(id,b){var t=document.getElementById(id);
 var done=function(){b.textContent="✓ COPIÉ ("+t.value.split("\n").length+" LIGNES)";b.className="ok";};
