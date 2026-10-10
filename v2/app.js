@@ -5982,7 +5982,9 @@ function renderBudgetList() {
   #gen:disabled { opacity: .6; }
   #share { width: 100%; margin-top: 10px; height: 40px; border: 1px solid #2a4fd1; border-radius: 8px; background: #fff;
            color: #2a4fd1; font-weight: 800; font-size: 12px; cursor: pointer; }
-  #share[hidden] { display: none; }
+  #share[hidden], #saveDoc[hidden] { display: none; }
+  #saveDoc { width: 100%; margin-top: 10px; height: 42px; border: 0; border-radius: 8px; background: #15803d; color: #fff;
+             font-weight: 800; font-size: 13px; cursor: pointer; }
   body.locked #side, body.locked #tog { display: none !important; }
   body.locked .mk { pointer-events: none; cursor: default; }
   #savedBar { position: fixed; top: 0; left: 0; right: 0; z-index: 4; height: 62px; display: flex; align-items: center; gap: 12px;
@@ -6065,12 +6067,13 @@ function renderBudgetList() {
   <div class="sub" style="margin-top:14px">ASTUCE : FAITES GLISSER LA SIGNATURE OU LE CACHET SUR LA PAGE POUR LES PLACER.</div>
   <button type="button" id="gen">GÉNÉRER PDF</button>
   <div id="msg"></div>
-  <button type="button" id="share" hidden>PARTAGER / ENREGISTRER LE PDF</button>
+  <button type="button" id="saveDoc" hidden>ENREGISTRER DANS DOCUMENTS</button>
+  <button type="button" id="share" hidden>PARTAGER LE PDF</button>
   <input type="file" id="signFile" accept="image/*" hidden>
 </aside>
 <button type="button" id="tog" title="Masquer / afficher les options">‹</button>
 <div id="savedBar" hidden><span id="savedRef"></span>
-  <button type="button" id="share2">PARTAGER / ENREGISTRER</button></div>
+  <button type="button" id="share2">PARTAGER</button></div>
 <button type="button" id="close">✕ FERMER</button>
 <main id="view"><div id="pages"></div></main>
 
@@ -6277,7 +6280,7 @@ function renderBudgetList() {
     ls.set(KEY, JSON.stringify(o));
     /* contenu modifié après enregistrement : c'est un autre document, nouveau code */
     if (savedCodes[code]) code = newCode();
-    lastPdf = null; $("share").hidden = true;
+    lastPdf = null; $("share").hidden = true; $("saveDoc").hidden = true;
     sync(); build();
   };
   $("oHead").onchange = e => { o.head = e.target.checked; save(); };
@@ -6383,13 +6386,19 @@ function renderBudgetList() {
     if (!lastPdf) return;
     const { blob, file } = lastPdf;
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: file.name }); await saveOnce(blob, file.name); return; }
+      try { await navigator.share({ files: [file], title: file.name }); return; }
       catch (e) { if (e && e.name === "AbortError") return; }
     }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = file.name; a.target = "_blank";
     document.body.appendChild(a); a.click(); a.remove();
-    await saveOnce(blob, file.name);
+  };
+  /* seul ENREGISTRER ajoute le document à la liste DOCUMENTS (une fois) */
+  $("saveDoc").onclick = async () => {
+    if (!lastPdf) return;
+    $("saveDoc").disabled = true;
+    await saveOnce(lastPdf.blob, lastPdf.file.name);
+    $("saveDoc").disabled = false;
   };
 
   $("gen").onclick = async () => {
@@ -6413,10 +6422,11 @@ function renderBudgetList() {
       const file = new File([blob], "${fileName}".replace(/\.pdf$/, "_" + code + ".pdf"), { type: "application/pdf" });
       msg.textContent = savedCodes[code]
         ? "PDF PRÊT — DÉJÀ ENREGISTRÉ (" + savedCodes[code] + ")"
-        : "PDF PRÊT (CODE " + code + ") : PARTAGEZ OU ENREGISTREZ-LE POUR L'AJOUTER AUX DOCUMENTS.";
+        : "PDF PRÊT (CODE " + code + ") : « ENREGISTRER » L'AJOUTE AUX DOCUMENTS.";
       /* partage / enregistrement : sur un nouveau toucher (exigé par l'iPad) */
       lastPdf = { blob, file };
       $("share").hidden = false;
+      $("saveDoc").hidden = false;
     } catch (e) {
       msg.textContent = "PDF IMPOSSIBLE : " + (e && e.message ? e.message : e);
       fit();
