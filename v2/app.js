@@ -5942,10 +5942,9 @@ function renderBudgetList() {
     /* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :
        volet « OPTIONS PDF » à gauche, aperçu des pages à droite,
        bouton GÉNÉRER PDF ; aucune impression lancée ===== */
-    const printClient = () => {
-      const src = lastShown.client;
-      if (!src || !src.rows.length) { alert("Aucune désignation à afficher."); return; }
-      histLog("DÉSIGNATIONS CLIENT", "APERÇU PDF");
+    /* aperçu au modèle de la société (désignations client, tâches…) */
+    const printModel = cfg => {
+      histLog(cfg.branch, "APERÇU PDF");
       const N = v => String(v ?? "").trim().toUpperCase();
       const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
         "août", "septembre", "octobre", "novembre", "décembre"];
@@ -5953,24 +5952,14 @@ function renderBudgetList() {
       const dateTxt = `Agadir, le ${String(now.getDate()).padStart(2, "0")} ${mois[now.getMonth()]} ${now.getFullYear()}`;
       const prj = db.projects.find(x => N(x.code) === N(budget.project));
       const projet = (prj && prj.name && N(prj.name) !== N(budget.project)) ? prj.name : budget.project;
-      const rows = [...src.rows].sort((a, b) =>
-        String(a.article).localeCompare(String(b.article), "fr", { numeric: true }));
-      const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
-      const body = rows.map(g => {
-        const pu = Math.round(g.price * 100) / 100;
-        return `<tr>${td(esc(g.article), "c")}${td(esc(g.designation))}${td(esc(g.unit), "c")}` +
-          `${td(money(g.qty), "r")}${td(money(pu), "r")}${td(esc(frMoney(pu)), "c")}${td(money(g.ht), "r")}</tr>`;
-      }).join("");
-      const ht = rows.reduce((t, g) => t + g.ht, 0);
-      const tva = ht * 0.2, ttc = ht + tva;
-      const fileName = (ref + " DESIGNATIONS CLIENT").replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "_") + ".pdf";
+      const fileName = (fullRef + " " + cfg.fileTag).replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "_") + ".pdf";
 
       const w = window.open("", "_blank");
       if (!w) { alert("Autorisez les fenêtres pop-up pour l'aperçu."); return; }
       w.document.write(`<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
-<title>${esc(ref)} - DESIGNATIONS CLIENT</title>
+<title>${esc(fullRef)} - ${esc(cfg.fileTag)}</title>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -6017,6 +6006,9 @@ function renderBudgetList() {
   th { font-weight: bold; text-align: center; }
   th.sub { font-size: 10pt; padding: 0.4mm; }
   td.c { text-align: center; } td.r { text-align: right; }
+  td.rep { color: #555; font-style: italic; }
+  tr.gfirst td { border-top: 1.6px solid #000; }
+  tr.gnext td.gc { border-top-color: transparent; }
   .tot { margin-top: 2mm; display: flex; flex-direction: column; align-items: flex-end; }
   .tot div { display: flex; }
   .tot span { padding: 1mm 2mm; text-align: right; }
@@ -6066,23 +6058,11 @@ function renderBudgetList() {
   <div class="head">
     <img src="${SVI_LOGO}" alt="">
     <div class="date">${dateTxt}</div>
-    <div class="t">BUDGET N° : ${esc(fullRef)}<br>CLIENT : À COMPLÉTER<br>PROJET : ${esc(projet)}</div>
+    <div class="t">BUDGET N° : ${esc(fullRef)}<br>CLIENT : À COMPLÉTER<br>PROJET : ${esc(projet)}${cfg.headLine ? "<br>" + esc(cfg.headLine) : ""}</div>
   </div>
-  <table id="tpl"><colgroup><col style="width:6%"><col style="width:33%"><col style="width:4%"><col style="width:9%">
-    <col style="width:9.5%"><col style="width:28%"><col style="width:10.5%"></colgroup>
-    <thead><tr><th rowspan="2">ART.</th><th rowspan="2">DESIGNATION</th><th rowspan="2">U</th><th rowspan="2">QUANTITE</th>
-      <th colspan="2">PRIX UNITAIRES HORS TVA</th><th rowspan="2">MONTANT</th></tr>
-      <tr><th class="sub">EN CHIFFRES</th><th class="sub">EN LETTRES</th></tr></thead>
-    <tbody>${body}</tbody></table>
-  <div id="end">
-    <div class="tot">
-      <div><span>TOTAL H.T. :</span><b>${money(ht)}</b></div>
-      <div><span>TOTAL T.V.A. :</span><b>${money(tva)}</b></div>
-      <div><span>TOTAL T.T.C. :</span><b>${money(ttc)}</b></div>
-    </div>
-    <div class="arr">ARRÊTER LE PRÉSENT BUDGET À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>
-  </div>
-  <div class="foot"><div class="pg"></div><hr>
+  ${cfg.table}
+  <div id="end">${cfg.end}</div>
+  <div class="foot"><div class="pg">Page 1 / 1</div><hr>
     <div class="ad">N°35, Bloc G3 Cité DAKHLA Agadir, BP : 8837 Dakhla Agadir - Tél : 05 28 23 34 31<br>
     Sarl. Au capital de 500 000,00 Dhs - Patente 67505605 - I.F. 60201815 - R.C. 57784 I.C.E. : 003434605000090</div></div>
 </div>
@@ -6128,7 +6108,11 @@ function renderBudgetList() {
     let cur = newPage(true);
     [...tmp.rows].forEach(r => {
       cur.tb.appendChild(r);
-      if (full(cur.c) && cur.tb.rows.length > 1) { cur.tb.removeChild(r); cur = newPage(true); cur.tb.appendChild(r); }
+      if (full(cur.c) && cur.tb.rows.length > 1) {
+        cur.tb.removeChild(r); cur = newPage(true); cur.tb.appendChild(r);
+        /* ligne de suite d'un groupe en haut de page : on rappelle le groupe */
+        if (r.dataset.rep) JSON.parse(r.dataset.rep).forEach((v, k) => { r.cells[k].textContent = v; r.cells[k].classList.add("rep"); });
+      }
     });
     const end = src.querySelector("#end").cloneNode(true);
     cur.c.appendChild(end);
@@ -6278,7 +6262,7 @@ function renderBudgetList() {
       const blob = pdf.output("blob");
       const file = new File([blob], "${fileName}", { type: "application/pdf" });
       /* 1) enregistrement dans DOCUMENTS (par la page du budget, sinon ici) */
-      const title = "DÉSIGNATIONS CLIENT";
+      const title = ${JSON.stringify(cfg.docTitle)};
       let saved = null, err = "";
       try {
         if (window.opener && !window.opener.closed && window.opener.__sviSavePdfDoc)
@@ -6303,13 +6287,99 @@ function renderBudgetList() {
 
   sync();
   build();
+  /* mise en page refaite une fois les polices chargées (hauteurs exactes) */
+  try { document.fonts && document.fonts.ready.then(() => build()); } catch (e) {}
+  window.addEventListener("load", () => build());
 })();
 <\/script></body></html>`);
       w.document.close();
     };
 
+
+    const printClient = () => {
+      const src = lastShown.client;
+      if (!src || !src.rows.length) { alert("Aucune désignation à afficher."); return; }
+      const rows = [...src.rows].sort((a, b) =>
+        String(a.article).localeCompare(String(b.article), "fr", { numeric: true }));
+      const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
+      const body = rows.map(g => {
+        const pu = Math.round(g.price * 100) / 100;
+        return `<tr>${td(esc(g.article), "c")}${td(esc(g.designation))}${td(esc(g.unit), "c")}` +
+          `${td(money(g.qty), "r")}${td(money(pu), "r")}${td(esc(frMoney(pu)), "c")}${td(money(g.ht), "r")}</tr>`;
+      }).join("");
+      const ht = rows.reduce((t, g) => t + g.ht, 0);
+      const tva = ht * 0.2, ttc = ht + tva;
+      printModel({
+        branch: "DÉSIGNATIONS CLIENT", docTitle: "DÉSIGNATIONS CLIENT", fileTag: "DESIGNATIONS CLIENT", headLine: "",
+        table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:33%"><col style="width:4%"><col style="width:9%">
+          <col style="width:9.5%"><col style="width:28%"><col style="width:10.5%"></colgroup>
+          <thead><tr><th rowspan="2">ART.</th><th rowspan="2">DESIGNATION</th><th rowspan="2">U</th><th rowspan="2">QUANTITE</th>
+            <th colspan="2">PRIX UNITAIRES HORS TVA</th><th rowspan="2">MONTANT</th></tr>
+            <tr><th class="sub">EN CHIFFRES</th><th class="sub">EN LETTRES</th></tr></thead>
+          <tbody>${body}</tbody></table>`,
+        end: `<div class="tot">
+            <div><span>TOTAL H.T. :</span><b>${money(ht)}</b></div>
+            <div><span>TOTAL T.V.A. :</span><b>${money(tva)}</b></div>
+            <div><span>TOTAL T.T.C. :</span><b>${money(ttc)}</b></div>
+          </div>
+          <div class="arr">ARRÊTER LE PRÉSENT BUDGET À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>`
+      });
+    };
+
+    /* TÂCHES : pour chaque désignation client, ses lots et ses activités
+       primaires / secondaires avec leurs unités */
+    const printTasks = () => {
+      const src = lastShown.client;
+      if (!src || !src.rows.length) { alert("Aucune désignation à afficher."); return; }
+      const U = v => String(v ?? "").trim().toUpperCase();
+      const groups = [...src.rows].sort((a, b) =>
+        String(a.article).localeCompare(String(b.article), "fr", { numeric: true }));
+      const lotOrd = new Map((db.lots || []).map(x => [U(stripLevelPrefix(x.name)), Number(x.order) || 0]));
+      const primOrd = new Map((db.primaries || []).map(x => [U(stripLevelPrefix(x.name)), Number(x.order) || 0]));
+      const secOrd = new Map((db.secondaries || []).map(x => [U(stripLevelPrefix(x.name)), Number(x.order) || 0]));
+      const o = (m, v) => m.has(U(v)) ? m.get(U(v)) : 1e9;
+      /* unité d'une activité : unités des lignes de la désignation dans cette activité
+         (clés primaires d'abord, sinon toutes les lignes produit, sinon toutes) */
+      const unitOf = (members, pick, v) => {
+        const ls = members.filter(l => U(pick(l)) === U(v));
+        const pref = ls.filter(l => l.kind === "prd" && l.cprice !== 0);
+        const use = pref.length ? pref : ls.filter(l => l.kind === "prd").length ? ls.filter(l => l.kind === "prd") : ls;
+        return [...new Set(use.map(l => U(l.dunit || l.unit)).filter(Boolean))].join(" / ");
+      };
+      const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
+      let body = "";
+      groups.forEach(g => {
+        const members = g.members || [];
+        const combos = new Map();
+        members.forEach(l => {
+          const k = [l.lot, l.prim, l.sec].map(U).join("||");
+          if (!combos.has(k)) combos.set(k, { lot: l.lot, prim: l.prim, sec: l.sec });
+        });
+        const list = [...combos.values()].sort((a, b) =>
+          o(lotOrd, a.lot) - o(lotOrd, b.lot) || o(primOrd, a.prim) - o(primOrd, b.prim) || o(secOrd, a.sec) - o(secOrd, b.sec));
+        if (!list.length) list.push({ lot: "", prim: "", sec: "" });
+        const rep = esc(JSON.stringify([String(g.article ?? ""), String(g.designation ?? ""), String(g.unit ?? "")]));
+        list.forEach((c, i) => {
+          body += `<tr class="${i ? "gnext" : "gfirst"}"${i ? ` data-rep="${rep}"` : ""}>` +
+            td(i ? "" : esc(g.article), "c gc") + td(i ? "" : esc(g.designation), "gc") + td(i ? "" : esc(g.unit), "c gc") +
+            td(esc(c.lot)) + td(esc(c.prim)) + td(esc(unitOf(members, l => l.prim, c.prim)), "c") +
+            td(esc(c.sec)) + td(esc(unitOf(members, l => l.sec, c.sec)), "c") + "</tr>";
+        });
+      });
+      printModel({
+        branch: "TÂCHES", docTitle: "TÂCHES", fileTag: "TACHES", headLine: "TÂCHES PAR DÉSIGNATION CLIENT",
+        table: `<table id="tpl"><colgroup><col style="width:5%"><col style="width:27%"><col style="width:5%"><col style="width:13%">
+          <col style="width:20%"><col style="width:5%"><col style="width:20%"><col style="width:5%"></colgroup>
+          <thead><tr><th>ART.</th><th>DESIGNATION</th><th>UPB</th><th>LOT</th>
+            <th>ACTIVITÉ PRIMAIRE</th><th>U</th><th>ACTIVITÉ SECONDAIRE</th><th>U</th></tr></thead>
+          <tbody>${body}</tbody></table>`,
+        end: ""
+      });
+    };
+
     const doPdf = blk => {
       if (blk === "client") return printClient();
+      if (blk === "hier") return printTasks();
       histLog(blkLabel(blk), "APERÇU PDF");
       let tableHTML;
       if (blk === "detail" && active === "qlt") {
