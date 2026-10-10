@@ -3943,55 +3943,6 @@ function renderBudgetList() {
     const lines =
       budget.rows.map(toLine);
 
-    /* clés primaires (lignes produit au prix non nul) : leur unité de
-       détail est imposée par l'unité de la désignation client (celle de
-       la première clé primaire de la désignation) et n'est pas modifiable */
-    {
-      const unitOf = new Map();
-      lines.forEach(l => {
-        if (l.kind !== "prd" || l.cprice === 0) return;
-        const k = l.article + "||" + l.designation;
-        if (!unitOf.has(k)) unitOf.set(k, l.dunit || l.unit);
-      });
-      lines.forEach(l => {
-        if (l.kind !== "prd" || l.cprice === 0) return;
-        const u = unitOf.get(l.article + "||" + l.designation);
-        if (u) {
-          /* unité d'origine (col. Q) différente de celle de la désignation
-             client → signalée en rouge ; l'unité affichée reste imposée */
-          const norm = v => String(v ?? "").trim().toUpperCase();
-          l.unitDiff = !!l.dunit && norm(l.dunit) !== norm(u);
-          l.sheetUnit = l.dunit;
-          l.dunit = u;
-          l.unitLocked = true;
-        }
-      });
-    }
-
-    /* contrôle unité / dimensions des produits :
-       M3 = 3 dimensions, M2 = 2, M = 1 ; sinon l'unité est signalée */
-    const DIMS_EXPECTED = { M3: 3, M2: 2, M: 1, ML: 1 };
-    /* « m³ », « M 3 », « m2 »… ramenés à M3 / M2 */
-    const unitKey = u => String(u ?? "").trim().toUpperCase()
-      .replace(/\s+/g, "").replace("³", "3").replace("²", "2");
-    /* case attendue mais non renseignée (sur au moins une ligne du groupe) :
-       i = -1 pour NBR, 0..2 pour DIM 1..3 */
-    const isBlank = v => String(v ?? "").trim() === "";
-    const dimMissing = (g, i) => {
-      const need = DIMS_EXPECTED[unitKey(g.unit)];
-      if (!need) return false;
-      if (i === -1) return g.members.some(m => isBlank(m.nbr));
-      if (i >= need) return false;
-      return g.members.some(m => isBlank(m.dims[i]));
-    };
-
-    const unitMismatch = l => {
-      const need = DIMS_EXPECTED[unitKey(l.dunit)];
-      if (!need) return false;
-      const filled = l.dims.filter(v => String(v ?? "").trim() !== "").length;
-      return filled !== need;
-    };
-
     /* lignes identiques (même type, article, désignation, unité)
        regroupées à l'affichage */
     /* Détail charges : regroupées par désignation + unité (article ignoré) ;
