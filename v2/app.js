@@ -6468,9 +6468,53 @@ function renderBudgetList() {
       });
     };
 
+    /* autres aperçus (détails, documents, TAF, observations) : même modèle,
+       mêmes options, colonnes à largeur fixe */
+    const COLW = {
+      article: 5, detail: 30, unit: 5, nbr: 5, d1: 5, d2: 5, d3: 5, qty: 9, price: 9, amount: 11, tva: 6, ttc: 11,
+      rref: 22, rtitle: 60, rexp: 8, robj: 15, rtext: 30, rresp: 13, rprev: 12, rdelay: 9, relap: 9, rimp: 4
+    };
+    const printGeneric = blk => {
+      const label = String(blkLabel(blk)).toUpperCase();
+      let cols, rows, end = "";
+      if (blk === "detail" && active === "dly") {
+        const d = blkData(blk);
+        cols = d.head.map((h, i) => ["c" + i, h, r => r[i], "center"]);
+        rows = d.rows;
+      } else if (REC_KINDS.includes(blk)) {
+        if (!recLoad(blk).length) { alert("Aucune donnée dans " + label + "."); return; }
+        cols = coOrder(blk, recCols[blk]);
+        rows = recShown[blk] || recSorted(blk);
+      } else {
+        const src = lastShown.detail;
+        if (!src || !src.rows.length) { alert("Aucune donnée dans " + label + "."); return; }
+        cols = coOrder(active, src.cols);
+        rows = src.rows;
+        const ht = rows.reduce((t, l) => t + (l.amount || 0), 0);
+        const tv = rows.reduce((t, l) => t + (l.tvaAmt || 0), 0);
+        end = `<div class="tot">
+            <div><span>TOTAL H.T. :</span><b>${money(ht)}</b></div>
+            <div><span>TOTAL T.V.A. :</span><b>${money(tv)}</b></div>
+            <div><span>TOTAL T.T.C. :</span><b>${money(ht + tv)}</b></div>
+          </div>`;
+      }
+      const wsum = cols.reduce((t, c) => t + (COLW[c[0]] || 10), 0);
+      const fmt = (v, k) => k === "tva" ? money(Number(v) || 0) + " %" : typeof v === "number" ? money(v) : String(v ?? "");
+      const al = c => /number/.test(c[3] || "") ? "r" : /center/.test(c[3] || "") ? "c" : "";
+      const body = rows.map(r => "<tr>" + cols.map(c => `<td class="${al(c)}">${esc(fmt(c[2](r), c[0]))}</td>`).join("") + "</tr>").join("");
+      printModel({
+        branch: label, docTitle: label, fileTag: label, headLine: label,
+        table: `<table id="tpl"><colgroup>${cols.map(c => `<col style="width:${((COLW[c[0]] || 10) / wsum * 100).toFixed(2)}%">`).join("")}</colgroup>
+          <thead><tr>${cols.map(c => `<th>${esc(c[1])}</th>`).join("")}</tr></thead>
+          <tbody>${body}</tbody></table>`,
+        end
+      });
+    };
+
     const doPdf = blk => {
       if (blk === "client") return printClient();
       if (blk === "hier") return printTasks();
+      if (!(blk === "detail" && active === "qlt")) return printGeneric(blk);
       histLog(blkLabel(blk), "APERÇU PDF");
       let tableHTML;
       if (blk === "detail" && active === "qlt") {
