@@ -5679,41 +5679,16 @@ function renderBudgetList() {
       const dateTxt = `Agadir, le ${String(now.getDate()).padStart(2, "0")} ${mois[now.getMonth()]} ${now.getFullYear()}`;
       const prj = db.projects.find(x => N(x.code) === N(budget.project));
       const projet = (prj && prj.name && N(prj.name) !== N(budget.project)) ? prj.name : budget.project;
-      const lotOrd = name => {
-        const l = (db.lots || []).find(x => N(stripLevelPrefix(x.name)) === N(name));
-        return l && l.order ? l.order : "";
-      };
-
-      /* désignations dans l'ordre des articles, regroupées par lot */
+      /* désignations client dans l'ordre des articles (pas de lots) */
       const rows = [...src.rows].sort((a, b) =>
         String(a.article).localeCompare(String(b.article), "fr", { numeric: true }));
-      const byLot = new Map();
-      rows.forEach(g => {
-        const lot = (g.members || []).map(m => m.lot).find(Boolean) || "";
-        if (!byLot.has(lot)) byLot.set(lot, []);
-        byLot.get(lot).push(g);
-      });
-      const lots = [...byLot.keys()];
-      let lotLine = "";
-      if (lots.length === 1 && lots[0]) {
-        const o = lotOrd(lots[0]);
-        lotLine = `LOT N° ${o ? o + " " : ""}: ${esc(lots[0])}`;
-      } else if (lots.filter(Boolean).length) {
-        lotLine = "LOTS : " + esc(lots.filter(Boolean).join(", "));
-      }
 
       const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
-      let body = "";
-      lots.forEach((lot, i) => {
-        if (lots.length > 1 || lot) {
-          body += `<tr class="lot">${td(esc(lotOrd(lot) || i + 1), "c")}${td("Lot : " + esc(lot || "SANS LOT"))}${td("")}${td("")}${td("")}${td("")}${td("")}</tr>`;
-        }
-        byLot.get(lot).forEach(g => {
-          const pu = Math.round(g.price * 100) / 100;
-          body += `<tr>${td(esc(g.article), "c")}${td(esc(g.designation))}${td(esc(g.unit), "c")}` +
-            `${td(money(g.qty), "r")}${td(money(pu), "r")}${td(esc(frMoney(pu)), "c")}${td(money(g.ht), "r")}</tr>`;
-        });
-      });
+      const body = rows.map(g => {
+        const pu = Math.round(g.price * 100) / 100;
+        return `<tr>${td(esc(g.article), "c")}${td(esc(g.designation))}${td(esc(g.unit), "c")}` +
+          `${td(money(g.qty), "r")}${td(money(pu), "r")}${td(esc(frMoney(pu)), "c")}${td(money(g.ht), "r")}</tr>`;
+      }).join("");
       const ht = rows.reduce((t, g) => t + g.ht, 0);
       const tva = ht * 0.2, ttc = ht + tva;
 
@@ -5758,7 +5733,7 @@ function renderBudgetList() {
   <div class="head">
     <img src="${logo}" alt="">
     <div class="date">${dateTxt}</div>
-    <div class="t">BUDGET N° : ${esc(ref)}<br>CLIENT : À COMPLÉTER<br>PROJET : ${esc(projet)}${lotLine ? "<br>" + lotLine : ""}</div>
+    <div class="t">BUDGET N° : ${esc(ref)}<br>CLIENT : À COMPLÉTER<br>PROJET : ${esc(projet)}</div>
   </div>
   <table id="tpl"><colgroup><col style="width:6%"><col style="width:33%"><col style="width:4%"><col style="width:9%">
     <col style="width:9.5%"><col style="width:28%"><col style="width:10.5%"></colgroup>
