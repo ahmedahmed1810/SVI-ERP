@@ -4320,7 +4320,10 @@ function renderBudgetList() {
 
     /* ligne TOTAL en pied des onglets Détail charge / produit */
     const tabFootHTML = (list, prd) => {
-      const qty = list.reduce((t, l) => t + l.qty, 0);
+      /* produits : la quantité totale ne compte que les clés primaires
+         (lignes au prix non nul), comme dans les désignations client */
+      const qty = list.reduce((t, l) =>
+        t + (prd && !l.priceTTC ? 0 : l.qty), 0);
       const ht = list.reduce((t, l) => t + l.amount, 0);
       const tva = list.reduce((t, l) => t + tvaFor(l), 0);
       const lead = prd ? 6 : 2;   /* colonnes avant « TOTAL » */
