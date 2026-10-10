@@ -2382,6 +2382,16 @@ function renderBudgetList() {
         -webkit-appearance: none; appearance: none; text-align: left; line-height: 32px;
       }
       #docPop .fld-wrap > input::-webkit-date-and-time-value { text-align: left; margin: 0; }
+      /* date affichée JJ/MM/AAAA À HH:MM ; le vrai champ, transparent, est dessus */
+      #docPop .fld-wrap { position: relative; }
+      #docPop .dt-show { display: block; line-height: 32px; white-space: nowrap; overflow: hidden; cursor: pointer; }
+      #docPop .dt-native {
+        position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; z-index: 1;
+        margin: 0; border: 0; padding: 0; cursor: pointer; font-size: 16px;
+      }
+      #docPop .fld-wrap:has(.dt-native:focus) .dt-show { border-color: #60a5fa; box-shadow: 0 0 0 3px #dbeafe; }
+      #docPop .fld-wrap:has(.dt-native.bad) .dt-show { border-color: #f87171; background: #fef2f2; }
+      #docPop .fld-rsz { z-index: 2; }
       #docPop .fld-wrap > textarea.doc-in { display: block; resize: none; }
       #docPop .fld-rsz {
         position: absolute; right: 1px; bottom: 1px; width: 12px; height: 12px; cursor: nwse-resize;
@@ -5676,7 +5686,7 @@ function renderBudgetList() {
         const date = p.querySelector("#docDate").value;
         const title = p.querySelector("#docTitle").value.trim();
         const miss = [];
-        p.querySelectorAll(".doc-in, .doc-file").forEach(x => x.classList.remove("bad"));
+        p.querySelectorAll(".doc-in, .dt-native, .doc-file").forEach(x => x.classList.remove("bad"));
         if (!date) { miss.push("date"); p.querySelector("#docDate").classList.add("bad"); }
         if (!title) { miss.push("intitulé"); p.querySelector("#docTitle").classList.add("bad"); }
         if (!file) { miss.push("document"); p.querySelector(".doc-file").classList.add("bad"); }
@@ -5740,6 +5750,14 @@ function renderBudgetList() {
       document.addEventListener("pointerup", up);
       document.addEventListener("pointercancel", up);
     };
+    /* format unique des dates : JJ/MM/AAAA À HH:MM */
+    const fmtField = (type, v) => {
+      if (!v) return "";
+      if (type === "time") return v.slice(0, 5);
+      const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
+      if (!m) return String(v);
+      return `${m[3]}/${m[2]}/${m[1]}` + (type === "datetime-local" && m[4] ? ` À ${m[4]}:${m[5]}` : "");
+    };
     const popEnhance = (p, kind) => {
       const card = p.querySelector(".doc-card");
       if (!card) return;
@@ -5769,15 +5787,30 @@ function renderBudgetList() {
         const key = "fld." + kind + "." + (el.id || lab || i);
         /* agrandi vers la droite et vers le bas ; la saisie reste en haut
            (champ d'une ligne : la hauteur ajoutée passe en marge du bas) */
-        const isInput = el.tagName === "INPUT";
+        let vis = el;   /* élément visible (affichage JJ/MM/AAAA À HH:MM pour les dates) */
         const setH = h => {
-          el.style.height = h + "px";
-          if (isInput) el.style.paddingBottom = Math.max(0, h - 34) + "px";
+          vis.style.height = h + "px";
+          if (vis.tagName === "INPUT") vis.style.paddingBottom = Math.max(0, h - 34) + "px";
         };
         const wrap = document.createElement("span");
         wrap.className = "fld-wrap" + (el.closest(".doc-row") ? " in-row" : "");
         el.replaceWith(wrap);
         wrap.appendChild(el);
+        /* dates : affichage uniforme JJ/MM/AAAA À HH:MM, le sélecteur
+           natif reste dessous (transparent) pour la saisie */
+        if (["date", "time", "datetime-local"].includes(el.type)) {
+          const show = document.createElement("div");
+          show.className = "doc-in dt-show" + (el.classList.contains("doc-ro") ? " doc-ro" : "");
+          el.classList.remove("doc-in");
+          el.classList.add("dt-native");
+          wrap.insertBefore(show, el);
+          const upd = () => { show.textContent = fmtField(el.type, el.value) || "\u00a0"; };
+          el.addEventListener("input", upd);
+          el.addEventListener("change", upd);
+          el.addEventListener("click", () => { try { el.showPicker?.(); } catch (err) {} });
+          upd();
+          vis = show;
+        }
         const fs = sizes[key];
         if (fs) {
           if (fs.w) { wrap.style.width = fs.w + "px"; wrap.classList.add("sized"); }
@@ -5788,7 +5821,7 @@ function renderBudgetList() {
         hd.title = "Glisser pour régler la taille du champ";
         wrap.appendChild(hd);
         hd.addEventListener("pointerdown", e => {
-          const r = el.getBoundingClientRect();
+          const r = vis.getBoundingClientRect();
           let w = r.width, h = r.height;
           dragXY(e, (dx, dy) => {
             w = Math.max(60, Math.round(r.width + dx));
@@ -5801,7 +5834,7 @@ function renderBudgetList() {
         /* double-toucher sur la poignée : taille d'origine */
         hd.addEventListener("dblclick", () => {
           wrap.style.width = ""; wrap.classList.remove("sized");
-          el.style.height = ""; el.style.paddingBottom = "";
+          vis.style.height = ""; vis.style.paddingBottom = "";
           psSet(key, null);
         });
       });
@@ -5842,7 +5875,7 @@ function renderBudgetList() {
       if (!v) return "";
       const d = new Date(v);
       if (isNaN(d)) return String(v);
-      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} À ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
     /* colonnes : [clé, libellé, accesseur, classe] (même moteur que les autres tableaux) */
     const recCols = {
@@ -6100,7 +6133,7 @@ function renderBudgetList() {
           : [["recDate", "date"], ["recText", "descriptif"], ["recResp", "responsable"],
              ["recPDate", "date prévue"], ["recPTime", "heure prévue"]];
         const miss = [];
-        p.querySelectorAll(".doc-in").forEach(x => x.classList.remove("bad"));
+        p.querySelectorAll(".doc-in, .dt-native").forEach(x => x.classList.remove("bad"));
         req.forEach(([id, lab]) => {
           if (!String($p(id).value).trim()) { miss.push(lab); $p(id).classList.add("bad"); }
         });
