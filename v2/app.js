@@ -506,17 +506,25 @@ function driveUrlSet(path, url) {
   } catch (e) {}
 }
 
+/* lien d'ouverture d'un dossier (mémorisé, sinon demandé au script) */
+async function driveFolderUrl(path) {
+  let url = driveIsLink(path) ? "" : driveUrlGet(path);
+  if (!url) {
+    const out = await apiPost("drivePath", { path: driveCleanPath(path) });
+    url = out.folderUrl || "";
+    if (out.path) driveUrlSet(out.path, url);
+  }
+  if (!url) throw new Error("DOSSIER INTROUVABLE");
+  return url;
+}
+window.__sviDriveFolderUrl = driveFolderUrl;
+window.__sviDriveErr = e => driveErrText(e);
+
 /* ouvre le dossier dans le Drive (onglet ouvert dans le geste, pour Safari) */
 async function driveOpenFolder(path) {
   const w = window.open("", "_blank");
   try {
-    let url = driveIsLink(path) ? "" : driveUrlGet(path);
-    if (!url) {
-      const out = await apiPost("drivePath", { path: driveCleanPath(path) });
-      url = out.folderUrl || "";
-      if (out.path) { driveUrlSet(out.path, url); }
-    }
-    if (!url) throw new Error("DOSSIER INTROUVABLE");
+    const url = await driveFolderUrl(path);
     if (w) w.location.href = url; else window.open(url, "_blank");
   } catch (e) {
     if (w) w.close();
@@ -526,7 +534,7 @@ async function driveOpenFolder(path) {
 
 /* fenêtre « DOSSIER DRIVE » devant la fenêtre en cours :
    adresse en lien (ouvre le Drive), ✎ pour la changer (copier-coller) */
-function drivePickFolder(path, onSave) {
+function drivePickFolder(path, onSave, okLabel = "ENREGISTRER") {
   document.getElementById("drvPop")?.remove();
   const p = document.createElement("div");
   p.id = "drvPop";
@@ -543,7 +551,7 @@ function drivePickFolder(path, onSave) {
       </div>
       <div class="dp-foot">
         <button type="button" class="dp-btn" data-cancel>ANNULER</button>
-        <button type="button" class="dp-btn dp-ok" id="dpOk">ENREGISTRER</button>
+        <button type="button" class="dp-btn dp-ok" id="dpOk">${escH(okLabel)}</button>
       </div>
     </div>`;
   document.body.appendChild(p);
@@ -2735,6 +2743,8 @@ function renderBudgetList() {
       #docPop .fld-rsz:hover { opacity: 1; }
       #docPop .doc-err { color: #b42318; font-size: 11px; min-height: 14px; margin-top: 10px; }
       #docPop .fd-msg { color: #6b7280; }
+      #docPop .drv-link { flex: 1; color: #1d4ed8; text-decoration: underline; font-size: 12px; font-weight: 700;
+        word-break: break-all; text-transform: none; }
       #drvPop {
         position: fixed; inset: 0; z-index: 10010; background: rgba(15,23,42,.35);
         display: flex; align-items: center; justify-content: center; padding: 16px;
@@ -6631,6 +6641,12 @@ function renderBudgetList() {
   #saveOpts .sv-body { padding: 16px 18px 12px; display: grid; grid-template-columns: max-content 1fr; gap: 12px; align-items: center; }
   #saveOpts .sv-lab { font-size: 11px; font-weight: 800; color: #4b5563; white-space: nowrap; }
   #saveOpts input[data-keepcase] { text-transform: none; }
+  #saveOpts .sv-drv { display: flex; align-items: center; gap: 10px; min-height: 34px; }
+  #saveOpts .sv-drv input { flex: 1; }
+  #saveOpts .sv-link { flex: 1; color: #1d4ed8; text-decoration: underline; font-size: 12px; font-weight: 700; word-break: break-all; }
+  #saveOpts .sv-link[hidden], #saveOpts .sv-edit[hidden], #saveOpts .sv-drv input[hidden] { display: none; }
+  #saveOpts .sv-edit { width: 34px; height: 34px; border: 1px solid #d6dbe3; border-radius: 6px; background: #fff;
+    font-size: 16px; cursor: pointer; flex: none; }
   #saveOpts input[type=text] { height: 34px; border: 1px solid #d6dbe3; border-radius: 6px; padding: 0 10px;
     font-size: 12px; text-transform: uppercase; min-width: 0; }
   #saveOpts .sv-ck { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
@@ -6747,7 +6763,11 @@ function renderBudgetList() {
       <span class="sv-lab">DRIVE</span>
       <label class="sv-ck"><input type="checkbox" id="svDriveOn" checked> COPIE DANS LE DRIVE</label>
       <label class="sv-lab" for="svPath">DOSSIER DRIVE</label>
-      <input type="text" id="svPath" data-keepcase value="${esc(driveLastPath(budget.project, fullRef))}">
+      <div class="sv-drv" id="svPathRow">
+        <a href="#" class="sv-link" id="svLink">${esc(driveLastPath(budget.project, fullRef))}</a>
+        <input type="text" id="svPath" data-keepcase value="${esc(driveLastPath(budget.project, fullRef))}" hidden>
+        <button type="button" class="sv-edit" id="svEdit" title="Changer de dossier">✎</button>
+      </div>
     </div>
     <div class="sv-foot"><button type="button" class="sv-btn" id="svCancel">ANNULER</button>
       <button type="button" class="sv-btn sv-ok" id="svGo">ENREGISTRER</button></div>
@@ -7094,7 +7114,7 @@ function renderBudgetList() {
       : "NON ENREGISTRÉ DANS DOCUMENTS" + (err ? " (" + err + ")" : "");
     /* copie dans le Drive, dans le dossier choisi */
     if (saved && $("svDriveOn").checked && window.opener && !window.opener.closed && window.opener.__sviDriveSave) {
-      const path = $("svPath").value.trim();
+      const path = ($("svPath").hidden ? $("svLink").textContent : $("svPath").value).trim();
       const bar = $("savedRef");
       bar.textContent = "ENREGISTRÉ DANS DOCUMENTS : " + saved + " — ENVOI DANS LE DRIVE…";
       try {
@@ -7128,10 +7148,36 @@ function renderBudgetList() {
   /* dossier Drive affiché seulement si la copie Drive est cochée */
   const svRow = () => {
     const on = $("svDriveOn").checked;
-    $("svPath").style.display = on ? "" : "none";
+    $("svPathRow").style.display = on ? "" : "none";
     document.querySelector('label[for="svPath"]').style.display = on ? "" : "none";
   };
   $("svDriveOn").onchange = svRow;
+  /* adresse du dossier en lien bleu : ouvre le Drive ; ✎ : la changer (copier-coller) */
+  const svShowLink = () => {
+    const v = $("svPath").value.trim();
+    if (v) $("svLink").textContent = v;
+    $("svPath").hidden = true; $("svLink").hidden = false; $("svEdit").hidden = false;
+  };
+  $("svEdit").onclick = () => {
+    $("svPath").value = $("svLink").textContent;
+    $("svLink").hidden = true; $("svEdit").hidden = true; $("svPath").hidden = false;
+    $("svPath").focus(); $("svPath").select();
+  };
+  $("svPath").onblur = svShowLink;
+  $("svPath").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); svShowLink(); } };
+  $("svLink").onclick = async e => {
+    e.preventDefault();
+    const op = window.opener;
+    if (!op || op.closed || !op.__sviDriveFolderUrl) return;
+    const w = window.open("", "_blank");
+    try {
+      const url = await op.__sviDriveFolderUrl($("svLink").textContent.trim());
+      if (w) w.location.href = url; else window.open(url, "_blank");
+    } catch (err) {
+      if (w) w.close();
+      alert("OUVERTURE DU DOSSIER IMPOSSIBLE : " + (op.__sviDriveErr ? op.__sviDriveErr(err) : err));
+    }
+  };
   svRow();
   $("svGo").onclick = async () => {
     if (!lastPdf) return;
@@ -7721,13 +7767,15 @@ function renderBudgetList() {
                 <button type="button" class="doc-btn" id="docPick">TÉLÉCHARGER</button>
                 <span id="docName" class="doc-fname">AUCUN DOCUMENT SÉLECTIONNÉ</span>
               </div>
-              <span class="doc-lab">DRIVE</span>
+              <span class="doc-lab" style="margin-left:0">DRIVE</span>
               <div class="doc-file">
                 <label class="doc-lab" style="white-space:nowrap;padding:0"><input type="checkbox" id="docDriveOn" checked> COPIE DANS LE DRIVE</label>
               </div>
-              <label class="doc-lab" for="docDrive">DOSSIER DRIVE</label>
+              <label class="doc-lab" for="docDrive" style="margin-left:0">DOSSIER DRIVE</label>
               <div class="doc-file" id="docDriveRow">
-                <input id="docDrive" class="doc-in" type="text" data-keepcase value="${esc(driveLastPath(budget.project, fullRef))}" autocomplete="off" style="flex:1;min-width:0">
+                <input id="docDrive" type="hidden" value="${esc(driveLastPath(budget.project, fullRef))}">
+                <a href="#" class="drv-link" id="docDriveLink">${esc(driveLastPath(budget.project, fullRef))}</a>
+                <button type="button" class="doc-flag" id="docDriveEdit" title="Changer de dossier">✎</button>
               </div>
             </div>
             <div id="docErr" class="doc-err"></div>
@@ -7762,6 +7810,18 @@ function renderBudgetList() {
       };
       p.querySelector("#docDriveOn").addEventListener("change", docDriveRow);
       docDriveRow();
+      /* adresse en lien : ouvre le dossier ; ✎ : petite fenêtre pour en changer */
+      p.querySelector("#docDriveLink").addEventListener("click", e => {
+        e.preventDefault();
+        driveOpenFolder(p.querySelector("#docDrive").value);
+      });
+      p.querySelector("#docDriveEdit").addEventListener("click", () => {
+        drivePickFolder(p.querySelector("#docDrive").value, v => {
+          if (!v) return;
+          p.querySelector("#docDrive").value = v;
+          p.querySelector("#docDriveLink").textContent = v;
+        }, "VALIDER");
+      });
 
       p.querySelector("#docPick").addEventListener("click", () => {
         const inp = document.createElement("input");
