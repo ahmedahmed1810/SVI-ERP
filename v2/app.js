@@ -2682,8 +2682,10 @@ function renderBudgetList() {
       .bdg-h-item.ro-after { box-shadow: inset 0 -3px 0 #12355b; }
 
       /* « ! » d'une observation (activer / désactiver) et case EXPIRÉ des documents */
-      .rec-flag { width: 24px; height: 18px; border: 1px solid #d6dbe3; border-radius: 4px; background: #fff;
-        color: #c3c9d2; font-weight: 900; cursor: pointer; padding: 0; line-height: 16px; }
+      .rec-flag { width: 22px; height: 15px; border: 1px solid #d6dbe3; border-radius: 4px; background: #fff;
+        color: #c3c9d2; font-weight: 900; cursor: pointer; padding: 0; line-height: 13px; font-size: 11px; vertical-align: middle; }
+      .rec-table td { height: 21px; box-sizing: border-box; }
+      .rec-exp { margin: 0; vertical-align: middle; }
       .rec-flag.on { color: #b91c1c; border-color: #f3a5a5; background: #fff5f5; }
       .rec-exp { width: 16px; height: 16px; accent-color: #b91c1c; cursor: pointer; }
       .rec-exp:disabled { cursor: not-allowed; opacity: 1; }
@@ -2787,7 +2789,7 @@ function renderBudgetList() {
 
       /* listes DOC / TAF / OBS : 5 lignes visibles, défilement au-delà */
       .rec-scroll { overflow: auto; -webkit-overflow-scrolling: touch; }
-      .blk-suivi .rec-scroll { height: auto; max-height: var(--h-suivi, 127px); }
+      .blk-suivi .rec-scroll { height: auto; max-height: var(--h-suivi, 129px); }
       .rec-scroll[hidden] { display: none !important; }
       .rec-tabs { display: inline-flex; gap: 4px; flex-wrap: wrap; }
       .rec-tab {
@@ -5196,13 +5198,17 @@ function renderBudgetList() {
       const saved = (layLoad().order || []).filter(u => LAY_UNITS.includes(u));
       return [...saved, ...LAY_UNITS.filter(u => !saved.includes(u))];
     };
+    const layOpenH = {};   /* hauteurs réglées pendant cette ouverture seulement */
     const layApply = () => {
       const pg = page$();
       if (!pg) return;
       const lay = layLoad();
+      if (lay.h && lay.h.suivi) { delete lay.h.suivi; laySave(lay); }
       layOrder().forEach((u, i) => layEls(u).forEach(el => { el.style.order = i; }));
       LAY_UNITS.forEach(u => {
-        const h = (lay.h || {})[u];
+        /* SUIVI (DOC / TAF / OBS) : toujours 5 lignes à l'ouverture,
+           l'agrandissement ne vaut que pour la séance en cours */
+        const h = u === "suivi" ? layOpenH.suivi : (lay.h || {})[u];
         if (h) pg.style.setProperty("--h-" + u, h + "px");
         else pg.style.removeProperty("--h-" + u);
       });
@@ -5282,6 +5288,7 @@ function renderBudgetList() {
         document.removeEventListener("pointerup", up);
         document.removeEventListener("pointercancel", up);
         h.classList.remove("on");
+        if (u === "suivi") { layOpenH.suivi = v; layApply(); return; }
         const lay = layLoad();
         lay.h = lay.h || {};
         lay.h[u] = v;
