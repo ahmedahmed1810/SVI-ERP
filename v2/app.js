@@ -6032,7 +6032,7 @@ function renderBudgetList() {
           font-family: "Times New Roman", Times, serif; color: #000; font-size: 11pt; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
   .head { position: relative; min-height: 40mm; flex: none; text-align: center; font-weight: bold; padding-bottom: 4mm; }
   .head img { position: absolute; left: 3mm; top: 0; width: 30mm; height: 30mm; object-fit: cover; }
-  .head .date { position: absolute; right: 55mm; top: 15mm; }
+  .head .date { position: absolute; right: 30mm; top: 15mm; }
   .head .t { padding: 22mm 40mm 0; line-height: 1.55; }
   .content { flex: 1; overflow: hidden; }
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
