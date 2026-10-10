@@ -758,4 +758,4 @@ tfoot td {
 #brdTable th:first-child, #brdTable td:first-child { text-align: center; }
 
 /* observation importante : « ! » rouge devant la référence du budget */
-.obs-bang { color:#c81e1e; font-weight:900; cursor:pointer; }
+.obs-bang { color:#c81e1e; font-weight:900; cursor:pointer; display:inline-block; padding:4px 6px; margin:-4px 0 -4px -6px; }

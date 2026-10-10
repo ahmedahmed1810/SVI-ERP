@@ -14,6 +14,46 @@ function obsBang(ref) {
     : "";
 }
 
+/* lecture des observations importantes d'un budget sans ouvrir son détail */
+function openObsAlertFor(ref, project) {
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem("svi_obs_v1:" + String(ref)) || "[]") || []; } catch (e) {}
+  list = list.filter(r => r.important)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const p2 = n => String(n).padStart(2, "0");
+  const fmt = v => {
+    const d = new Date(v);
+    return isNaN(d) ? String(v || "")
+      : `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} À ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+  };
+  document.getElementById("docPop")?.remove();
+  const p = document.createElement("div");
+  p.id = "docPop";
+  p.innerHTML = `
+    <div class="doc-card" role="dialog" aria-modal="true">
+      <div class="doc-head">
+        <span class="doc-title">${esc(project || "")} : OBSERVATIONS IMPORTANTES — ${esc(ref)} (${list.length})</span>
+        <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+      </div>
+      <div class="doc-body">
+        <div class="obs-alert-list">
+          ${list.map(r => `
+            <div class="obs-alert-item">
+              <div class="obs-alert-meta">⚠ ${esc(r.ref)} — ${esc(fmt(r.date))}</div>
+              <div class="obs-alert-text">${esc(r.text)}</div>
+            </div>`).join("") || `<div class="obs-alert-text">Aucune observation importante.</div>`}
+        </div>
+      </div>
+      <div class="doc-foot">
+        <button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>
+      </div>
+    </div>`;
+  document.body.appendChild(p);
+  p.addEventListener("click", e => {
+    if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
+  });
+}
+
 /* icônes de contenu (traits fins, couleur du texte) */
 const SVI_ICON = (() => {
   const w = d => `<svg class="ico" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -6531,6 +6571,16 @@ function renderBudgetList() {
      ------------------------------------------------------- */
 
   table.onclick = event => {
+
+    /* « ! » : lire l'alerte sans ouvrir le détail du budget */
+    const bang = event.target.closest(".obs-bang");
+    if (bang) {
+      event.preventDefault();
+      event.stopPropagation();
+      const r = bang.closest("tr[data-budget-ref]")?.dataset.budgetRef;
+      openObsAlertFor(r, bdgGroups.get(r)?.project);
+      return;
+    }
 
     const projectLink =
       event.target.closest(
