@@ -21,7 +21,7 @@ function sviDriveRoute_(body) {
   try {
     out = body.action === "exportSheet" ? exportSheet_(body)
       : body.action === "saveFile" ? saveFile_(body)
-      : { ok: true, path: sviPathOf_(sviFolder_(body.path)) };
+      : sviFolderInfo_(sviFolder_(body.path));
   } catch (err) {
     out = { ok: false, error: String(err && err.message || err) };
   }
@@ -55,6 +55,11 @@ function sviFolder_(path) {
   return folder;
 }
 
+/* dossier : chemin court et lien pour l'ouvrir dans le Drive */
+function sviFolderInfo_(folder) {
+  return { ok: true, path: sviPathOf_(folder), folderUrl: folder.getUrl() };
+}
+
 /* chemin lisible « A/B/C » d'un dossier, depuis Mon Drive */
 function sviPathOf_(folder) {
   var rootId = DriveApp.getRootFolder().getId();
@@ -75,7 +80,7 @@ function saveFile_(b) {
   var blob = Utilities.newBlob(bytes, b.mime || "application/octet-stream", name);
   var folder = sviFolder_(b.path);
   var file = folder.createFile(blob);
-  return { ok: true, url: file.getUrl(), id: file.getId(), path: sviPathOf_(folder) };
+  return { ok: true, url: file.getUrl(), id: file.getId(), path: sviPathOf_(folder), folderUrl: folder.getUrl() };
 }
 
 function exportSheet_(b) {
@@ -169,5 +174,5 @@ function exportSheet_(b) {
   if (sh.getMaxColumns() > nc) sh.deleteColumns(nc + 1, sh.getMaxColumns() - nc);
 
   SpreadsheetApp.flush();
-  return { ok: true, url: ss.getUrl(), id: ss.getId(), path: sviPathOf_(folder) };
+  return { ok: true, url: ss.getUrl(), id: ss.getId(), path: sviPathOf_(folder), folderUrl: folder.getUrl() };
 }
