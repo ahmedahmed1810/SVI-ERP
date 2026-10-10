@@ -1,0 +1,1477 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Script Google SVI ERP</title>
+<style>
+body{margin:0;background:#f4f7fb;font-family:-apple-system,Arial,sans-serif;color:#172033;padding:16px}
+h1{font-size:20px;color:#0f4f96;margin:0 0 6px} p{margin:4px 0 12px;line-height:1.4}
+section{background:#fff;border-radius:12px;padding:16px;margin:0 0 16px;box-shadow:0 4px 14px rgba(0,0,0,.08)}
+h2{margin:0;font-size:17px} .n{color:#6b7280;font-size:13px}
+button{width:100%;height:52px;border:0;border-radius:10px;background:#1d4ed8;color:#fff;font-size:17px;font-weight:800}
+button.ok{background:#15803d}
+textarea{width:100%;box-sizing:border-box;height:160px;margin-top:10px;font:12px Menlo,monospace;border:1px solid #d6dbe3;border-radius:8px}
+</style></head><body>
+<h1>Script Google — SVI ERP</h1>
+<p>Touche COPIER, puis dans Apps Script : ouvre le fichier, sélectionne tout (appui long › Tout sélectionner) et colle. Tout le contenu est remplacé d'un coup.</p>
+<section><h2>Code.gs</h2><p class="n">1305 lignes</p>
+<button onclick="cp('c1',this)">COPIER Code.gs</button>
+<textarea id="c1" readonly>/* =========================================================
+   SVI ERP V2 - BACKEND (Google Apps Script)
+   Version corrigée
+
+   AVANT DE DEPLOYER, créer deux propriétés du script :
+   Paramètres du projet (roue dentée) &gt; Propriétés du script
+   - API_KEY          : la clé d&#x27;accès
+   - SPREADSHEET_ID   : l&#x27;identifiant de la feuille Google Sheets
+   ========================================================= */
+
+/* =========================================================
+   CONFIGURATION (PROPRIETES DU SCRIPT)
+   ========================================================= */
+
+function getProp_(name) {
+  const v = PropertiesService
+    .getScriptProperties()
+    .getProperty(name);
+
+  if (!v) {
+    throw new Error(&quot;PROPRIETE MANQUANTE : &quot; + name);
+  }
+
+  return v;
+}
+
+let SS_CACHE_ = null;
+
+function getSVISpreadsheet_() {
+  if (!SS_CACHE_) {
+    SS_CACHE_ = SpreadsheetApp.openById(
+      getProp_(&quot;SPREADSHEET_ID&quot;)
+    );
+  }
+
+  return SS_CACHE_;
+}
+
+const SHEETS_V2 = {
+  CHS: {
+    name: &quot;CHS&quot;,
+    headers: [&quot;ID&quot;, &quot;ARTICLE&quot;, &quot;DESIGNATION&quot;, &quot;UNITE&quot;, &quot;PCS&quot;]
+  },
+  BDS: {
+    name: &quot;BDS_V2&quot;,
+    headers: [&quot;ID&quot;, &quot;TYPE&quot;, &quot;PARENT_ID&quot;, &quot;CODE&quot;, &quot;NOM&quot;, &quot;ORDRE&quot;, &quot;ACTIF&quot;]
+  },
+  BRD: {
+    name: &quot;BRD_V2&quot;,
+    headers: [&quot;ID&quot;, &quot;TACHE_SECONDAIRE_ID&quot;, &quot;ARTICLE&quot;, &quot;DESIGNATION&quot;, &quot;UNITE&quot;, &quot;QUANTITE&quot;, &quot;PRIX&quot;, &quot;ACTIF&quot;]
+  }
+};
+
+/* =========================================================
+   VERROU : EVITE LES ECRITURES SIMULTANEES
+   ========================================================= */
+
+function withLock_(fn) {
+  const lock = LockService.getScriptLock();
+
+  lock.waitLock(30000);
+
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/* =========================================================
+   API GET
+   - Sans action ou action=bdg : lecture de l&#x27;onglet BDG
+   - action=bootstrap : CHS + BDS
+   - action=brd : bordereau d&#x27;une tâche secondaire
+   - action=ping : test API
+   ========================================================= */
+
+function doGet(e) {
+  try {
+    if (
+      !e ||
+      !e.parameter ||
+      e.parameter.key !== getProp_(&quot;API_KEY&quot;)
+    ) {
+      return jsonResponse_({
+        ok: false,
+        error: &quot;ACCES REFUSE&quot;
+      });
+    }
+
+    const action = String(
+      e.parameter.action || &quot;&quot;
+    ).toLowerCase();
+
+    /* ---------- BDG (compatibilité + actions nommées) ---------- */
+
+    if (
+      !action ||
+      action === &quot;bdg&quot; ||
+      action === &quot;getbdg&quot; ||
+      action === &quot;bootstrapbdg&quot;
+    ) {
+      return getBDG_();
+    }
+
+    /* ---------- TEST API ---------- */
+
+    if (action === &quot;ping&quot;) {
+      return jsonResponse_({
+        ok: true,
+        version: &quot;SVI-ERP-V2&quot;,
+        time: new Date().toISOString()
+      });
+    }
+
+    /* ---------- DEMARRAGE : CHS + STRUCTURE BDS ---------- */
+
+    if (action === &quot;bootstrap&quot;) {
+      verifierStructureV2_();
+
+      return jsonResponse_({
+        ok: true,
+
+        chs: lireObjets_(SHEETS_V2.CHS),
+
+        bds: lireObjets_(SHEETS_V2.BDS).filter(x =&gt;
+          String(x.ACTIF || &quot;OUI&quot;).trim().toUpperCase() !== &quot;NON&quot;
+        )
+      });
+    }
+
+    /* ---------- BORDEREAU D&#x27;UNE TACHE SECONDAIRE ---------- */
+
+    if (action === &quot;brd&quot;) {
+      const secondaryId = nettoyer_(
+        e.parameter.secondaryId
+      );
+
+      if (!secondaryId) {
+        return jsonResponse_({
+          ok: false,
+          error: &quot;TACHE SECONDAIRE MANQUANTE&quot;
+        });
+      }
+
+      const brd = lireObjets_(SHEETS_V2.BRD).filter(x =&gt;
+        String(x.TACHE_SECONDAIRE_ID || &quot;&quot;) === secondaryId &amp;&amp;
+        String(x.ACTIF || &quot;OUI&quot;).trim().toUpperCase() !== &quot;NON&quot;
+      );
+
+      return jsonResponse_({
+        ok: true,
+        secondaryId: secondaryId,
+        brd: brd
+      });
+    }
+
+    return jsonResponse_({
+      ok: false,
+      error: &quot;ACTION GET INCONNUE&quot;
+    });
+
+  } catch (error) {
+    return jsonResponse_({
+      ok: false,
+      error: String(
+        error &amp;&amp; error.message
+          ? error.message
+          : error
+      )
+    });
+  }
+}
+
+/* =========================================================
+   API POST
+   ========================================================= */
+
+function doPost(e) {
+  try {
+    const payload = JSON.parse(
+      (e &amp;&amp; e.postData &amp;&amp; e.postData.contents) || &quot;{}&quot;
+    );
+
+    if (payload.key !== getProp_(&quot;API_KEY&quot;)) {
+      return jsonResponse_({
+        ok: false,
+        error: &quot;ACCES REFUSE&quot;
+      });
+    }
+
+    /* enregistrement dans le Drive (fichiers et feuilles Google) */
+    const drv = sviDriveRoute_(payload);
+    if (drv) return drv;
+
+    const action = String(payload.action || &quot;&quot;).toLowerCase();
+
+    return withLock_(function () {
+      verifierStructureV2_();
+
+      if (action === &quot;savechs&quot;) {
+        return jsonResponse_({
+          ok: true,
+          data: upsertObjet_(
+            SHEETS_V2.CHS,
+            normaliserCHS_(payload.data || {})
+          )
+        });
+      }
+
+      if (action === &quot;deletechs&quot;) {
+        supprimerParId_(SHEETS_V2.CHS, payload.id);
+        return jsonResponse_({ ok: true });
+      }
+
+      if (action === &quot;savebds&quot;) {
+        return jsonResponse_({
+          ok: true,
+          data: upsertObjet_(
+            SHEETS_V2.BDS,
+            normaliserBDS_(payload.data || {})
+          )
+        });
+      }
+
+      if (action === &quot;deletebds&quot;) {
+        supprimerBDSProtege_(payload.id);
+        return jsonResponse_({ ok: true });
+      }
+
+      if (action === &quot;savebrd&quot;) {
+        const brd = normaliserBRD_(payload.data || {});
+        const tacheOk = lireObjets_(SHEETS_V2.BDS).some(x =&gt;
+          x.ID === brd.TACHE_SECONDAIRE_ID &amp;&amp; x.TYPE === &quot;SECONDARY&quot;
+        );
+        if (!tacheOk) {
+          throw new Error(&quot;TACHE SECONDAIRE INTROUVABLE&quot;);
+        }
+        return jsonResponse_({
+          ok: true,
+          data: upsertObjet_(SHEETS_V2.BRD, brd)
+        });
+      }
+
+      if (action === &quot;deletebrd&quot;) {
+        supprimerParId_(SHEETS_V2.BRD, payload.id);
+        return jsonResponse_({ ok: true });
+      }
+
+      return jsonResponse_({ ok: false, error: &quot;ACTION POST INCONNUE&quot; });
+    });
+
+  } catch (error) {
+    return jsonResponse_({
+      ok: false,
+      error: String(error &amp;&amp; error.message ? error.message : error)
+    });
+  }
+}
+
+/* =========================================================
+   BDG EXISTANT
+   ========================================================= */
+
+function getBDG_() {
+  const sheet = getSVISpreadsheet_().getSheetByName(&quot;BDG&quot;);
+
+  if (!sheet) {
+    return jsonResponse_({
+      ok: false,
+      error: &quot;ONGLET BDG INTROUVABLE&quot;
+    });
+  }
+
+  const values = sheet.getDataRange().getDisplayValues();
+
+  return jsonResponse_({
+    ok: true,
+    sheet: &quot;BDG&quot;,
+    count: values.length,
+    rows: values
+  });
+}
+
+/* =========================================================
+   INITIALISATION V2
+   À exécuter une seule fois. Crée uniquement CHS, BDS_V2
+   et BRD_V2. Aucun autre onglet n&#x27;est modifié.
+   ========================================================= */
+
+function initialiserV2() {
+  verifierStructureV2_();
+  return &quot;V2 INITIALISEE&quot;;
+}
+
+
+/* =========================================================
+   IMPORT BDS DEPUIS BRD bis
+   - PRJ vide = dernier projet connu
+   - LOT vide = dernier lot connu
+   - Ne modifie pas BRD bis
+   ========================================================= */
+
+function importerStructureDepuisBRDBis() {
+  return withLock_(importerStructure_);
+}
+
+function importerStructure_() {
+  verifierStructureV2_();
+
+  const ss = getSVISpreadsheet_();
+  const source = ss.getSheetByName(&quot;BRD bis&quot;);
+
+  if (!source) {
+    throw new Error(&quot;ONGLET BRD bis INTROUVABLE&quot;);
+  }
+
+  const values = source.getDataRange().getDisplayValues();
+
+  if (values.length &lt; 3) {
+    throw new Error(&quot;BRD bis NE CONTIENT PAS ASSEZ DE DONNEES&quot;);
+  }
+
+  const headerRowIndex = 1;
+
+  const headers = values[headerRowIndex].map(v =&gt;
+    String(v || &quot;&quot;).trim().toUpperCase()
+  );
+
+  const col = nom =&gt;
+    headers.indexOf(String(nom).trim().toUpperCase());
+
+  const cPrj = col(&quot;PRJ&quot;);
+  const cLot = col(&quot;LOT&quot;);
+  const cAct = col(&quot;ACTIVITE&quot;);
+  const cActP = col(&quot;ACTIVITE PRIMAIRE&quot;);
+
+  if ([cPrj, cLot, cAct, cActP].some(i =&gt; i &lt; 0)) {
+    throw new Error(
+      &quot;COLONNES PRJ / LOT / ACTIVITE / ACTIVITE PRIMAIRE INTROUVABLES&quot;
+    );
+  }
+
+  const cfg = SHEETS_V2.BDS;
+  const sheetBDS = ss.getSheetByName(cfg.name);
+
+  const existants = lireObjets_(cfg);
+  const index = new Map();
+
+  existants.forEach(x =&gt; {
+    index.set(
+      cleBDS_(x.TYPE, x.PARENT_ID, x.CODE, x.NOM),
+      x
+    );
+  });
+
+  const nouveaux = [];
+
+  let ordreProjet = 0;
+  let ordreLot = 0;
+  let ordrePrimary = 0;
+  let ordreSecondary = 0;
+
+  let dernierProjet = &quot;&quot;;
+  let dernierLot = &quot;&quot;;
+
+  for (let r = 2; r &lt; values.length; r++) {
+    const row = values[r];
+
+    const projetCellule = nettoyer_(row[cPrj]);
+    const lotCellule = nettoyer_(row[cLot]);
+
+    if (projetCellule) {
+      dernierProjet = projetCellule;
+      dernierLot = &quot;&quot;;
+    }
+
+    if (lotCellule) {
+      dernierLot = lotCellule;
+    }
+
+    const prj = dernierProjet;
+    const lot = dernierLot;
+    const secondaire = nettoyer_(row[cAct]);
+    const primaire = nettoyer_(row[cActP]);
+
+    if (!prj) {
+      continue;
+    }
+
+    const p = ensureBDSMemo_(
+      &quot;PROJECT&quot;,
+      &quot;&quot;,
+      prj,
+      prj,
+      ++ordreProjet,
+      index,
+      nouveaux
+    );
+
+    let l = null;
+
+    if (lot) {
+      const xLot = codeNom_(lot);
+
+      l = ensureBDSMemo_(
+        &quot;LOT&quot;,
+        p.ID,
+        xLot.code,
+        xLot.nom,
+        ++ordreLot,
+        index,
+        nouveaux
+      );
+    }
+
+    let pri = null;
+
+    if (l &amp;&amp; primaire) {
+      const xPri = codeNom_(primaire);
+
+      pri = ensureBDSMemo_(
+        &quot;PRIMARY&quot;,
+        l.ID,
+        xPri.code,
+        xPri.nom,
+        ++ordrePrimary,
+        index,
+        nouveaux
+      );
+    }
+
+    if (pri &amp;&amp; secondaire) {
+      const xSec = codeNom_(secondaire);
+
+      ensureBDSMemo_(
+        &quot;SECONDARY&quot;,
+        pri.ID,
+        xSec.code,
+        xSec.nom,
+        ++ordreSecondary,
+        index,
+        nouveaux
+      );
+    }
+  }
+
+  if (nouveaux.length &gt; 0) {
+    const startRow = Math.max(2, sheetBDS.getLastRow() + 1);
+
+    const rows = nouveaux.map(obj =&gt; ligneDepuisObjet_(cfg, obj));
+
+    sheetBDS
+      .getRange(startRow, 1, rows.length, cfg.headers.length)
+      .setValues(rows);
+  }
+
+  return &quot;IMPORT BDS TERMINE - &quot; +
+    nouveaux.length +
+    &quot; NOUVEAUX ELEMENTS&quot;;
+}
+
+
+/* =========================================================
+   IMPORT BORDEREAU DES PRIX V2
+   Sources :
+   - BRD : article, désignation, unité, prix
+   - BRD bis : rattachement Projet / Lot / Primaire /
+               Secondaire et montant budgété
+
+   ATTENTION : BRD_V2 est réécrit entièrement.
+   Une copie de sauvegarde est créée automatiquement
+   avant l&#x27;écrasement (onglet BRD_V2_SAUV_...).
+   ========================================================= */
+
+function importerBRDDepuisBRDBis() {
+  return withLock_(importerBRD_);
+}
+
+function importerBRD_() {
+  verifierStructureV2_();
+
+  const ss = getSVISpreadsheet_();
+  const shBRD = ss.getSheetByName(&quot;BRD&quot;);
+  const shBis = ss.getSheetByName(&quot;BRD bis&quot;);
+  const shOut = ss.getSheetByName(SHEETS_V2.BRD.name);
+
+  if (!shBRD) {
+    throw new Error(&quot;ONGLET BRD INTROUVABLE&quot;);
+  }
+
+  if (!shBis) {
+    throw new Error(&quot;ONGLET BRD bis INTROUVABLE&quot;);
+  }
+
+  if (!shOut) {
+    throw new Error(&quot;ONGLET BRD_V2 INTROUVABLE&quot;);
+  }
+
+  const brdValues = shBRD.getDataRange().getDisplayValues();
+  const bisValues = shBis.getDataRange().getDisplayValues();
+
+  if (brdValues.length &lt; 3 || bisValues.length &lt; 3) {
+    throw new Error(&quot;DONNEES BRD / BRD bis INSUFFISANTES&quot;);
+  }
+
+  /* ---------- 1. INDEX DU BORDEREAU BRD ---------- */
+
+  const hBRD = brdValues[1].map(v =&gt;
+    nettoyer_(v).toUpperCase()
+  );
+
+  const colBRD = nom =&gt;
+    hBRD.indexOf(nettoyer_(nom).toUpperCase());
+
+  const bPrj = colBRD(&quot;PRJ&quot;);
+  const bArt = colBRD(&quot;N°&quot;);
+  const bDes = colBRD(&quot;DESIGNATION&quot;);
+  const bUdb = colBRD(&quot;UDB&quot;);
+  const bQte = colBRD(&quot;QTE DVS&quot;);
+  const bPrix = colBRD(&quot;PUN DVS&quot;);
+
+  if ([bPrj, bArt, bDes, bUdb, bQte, bPrix].some(i =&gt; i &lt; 0)) {
+    throw new Error(&quot;COLONNES REQUISES INTROUVABLES DANS BRD&quot;);
+  }
+
+  const articleMap = new Map();
+
+  for (let r = 2; r &lt; brdValues.length; r++) {
+    const row = brdValues[r];
+
+    const prj = nettoyer_(row[bPrj]);
+    const article = nettoyer_(row[bArt]);
+
+    if (!prj || !article) {
+      continue;
+    }
+
+    articleMap.set(
+      cleArticle_(prj, article),
+      {
+        designation: nettoyer_(row[bDes]),
+        unite: nettoyer_(row[bUdb]),
+        quantiteContrat: nombre_(row[bQte]),
+        prix: nombre_(row[bPrix])
+      }
+    );
+  }
+
+  /* ---------- 2. COLONNES DE LA PARTIE DROITE DE BRD bis ---------- */
+
+  const hBis = bisValues[1].map(v =&gt;
+    nettoyer_(v).toUpperCase()
+  );
+
+  const cPrj = hBis.indexOf(&quot;PRJ&quot;);
+
+  if (cPrj &lt; 0) {
+    throw new Error(&quot;COLONNE PRJ INTROUVABLE DANS BRD bis&quot;);
+  }
+
+  // BRD bis contient deux colonnes N° et deux DESIGNATION.
+  // On prend explicitement celles qui se trouvent APRES PRJ.
+  const cArticle = hBis.indexOf(&quot;N°&quot;, cPrj + 1);
+  const cDesignation = hBis.indexOf(&quot;DESIGNATION&quot;, cPrj + 1);
+  const cLot = hBis.indexOf(&quot;LOT&quot;, cPrj + 1);
+  const cSecondaire = hBis.indexOf(&quot;ACTIVITE&quot;, cPrj + 1);
+  const cPrimaire = hBis.indexOf(&quot;ACTIVITE PRIMAIRE&quot;, cPrj + 1);
+  const cUnite = hBis.indexOf(&quot;UDB&quot;, cPrj + 1);
+  const cMontant = hBis.indexOf(&quot;SUM DE MNB&quot;, cPrj + 1);
+
+  if (
+    [
+      cArticle,
+      cDesignation,
+      cLot,
+      cSecondaire,
+      cPrimaire,
+      cUnite,
+      cMontant
+    ].some(i =&gt; i &lt; 0)
+  ) {
+    throw new Error(
+      &quot;COLONNES DE LA PARTIE DROITE DE BRD bis INTROUVABLES&quot;
+    );
+  }
+
+  /* ---------- 3. INDEX DE LA HIERARCHIE BDS_V2 (Maps) ---------- */
+
+  const bds = lireObjets_(SHEETS_V2.BDS);
+
+  const projetMap = new Map();
+  const lotMap = new Map();
+  const primaireMap = new Map();
+  const secondaireMap = new Map();
+
+  bds.forEach(x =&gt; {
+    if (x.TYPE === &quot;PROJECT&quot;) {
+      projetMap.set(
+        nettoyer_(x.CODE).toUpperCase(),
+        x
+      );
+    } else if (x.TYPE === &quot;LOT&quot;) {
+      lotMap.set(cleHier_(x.PARENT_ID, x.CODE, x.NOM), x);
+    } else if (x.TYPE === &quot;PRIMARY&quot;) {
+      primaireMap.set(cleHier_(x.PARENT_ID, x.CODE, x.NOM), x);
+    } else if (x.TYPE === &quot;SECONDARY&quot;) {
+      secondaireMap.set(cleHier_(x.PARENT_ID, x.CODE, x.NOM), x);
+    }
+  });
+
+  /* ---------- 4. LECTURE DE BRD bis AVEC HERITAGE ---------- */
+
+  let dernierProjet = &quot;&quot;;
+  let dernierLot = &quot;&quot;;
+  let dernierArticle = &quot;&quot;;
+  let derniereDesignation = &quot;&quot;;
+  let derniereUnite = &quot;&quot;;
+
+  const resultats = new Map();
+
+  for (let r = 2; r &lt; bisValues.length; r++) {
+    const row = bisValues[r];
+
+    const prjCell = nettoyer_(row[cPrj]);
+    const lotCell = nettoyer_(row[cLot]);
+    const articleCell = nettoyer_(row[cArticle]);
+    const designationCell = nettoyer_(row[cDesignation]);
+    const uniteCell = nettoyer_(row[cUnite]);
+
+    if (prjCell) {
+      dernierProjet = prjCell;
+      dernierLot = &quot;&quot;;
+      dernierArticle = &quot;&quot;;
+      derniereDesignation = &quot;&quot;;
+      derniereUnite = &quot;&quot;;
+    }
+
+    if (lotCell) {
+      dernierLot = lotCell;
+    }
+
+    if (articleCell) {
+      dernierArticle = articleCell;
+    }
+
+    if (designationCell) {
+      derniereDesignation = designationCell;
+    }
+
+    if (uniteCell) {
+      derniereUnite = uniteCell;
+    }
+
+    const prj = dernierProjet;
+    const lotTexte = dernierLot;
+    const article = dernierArticle;
+
+    const primaireTexte = nettoyer_(row[cPrimaire]);
+    const secondaireTexte = nettoyer_(row[cSecondaire]);
+
+    if (
+      !prj ||
+      !lotTexte ||
+      !article ||
+      !primaireTexte ||
+      !secondaireTexte
+    ) {
+      continue;
+    }
+
+    const projet = projetMap.get(prj.toUpperCase());
+
+    if (!projet) {
+      continue;
+    }
+
+    const lotCN = codeNom_(lotTexte);
+    const lot = lotMap.get(
+      cleHier_(projet.ID, lotCN.code, lotCN.nom)
+    );
+
+    if (!lot) {
+      continue;
+    }
+
+    const primaireCN = codeNom_(primaireTexte);
+    const primaire = primaireMap.get(
+      cleHier_(lot.ID, primaireCN.code, primaireCN.nom)
+    );
+
+    if (!primaire) {
+      continue;
+    }
+
+    const secondaireCN = codeNom_(secondaireTexte);
+    const secondaire = secondaireMap.get(
+      cleHier_(primaire.ID, secondaireCN.code, secondaireCN.nom)
+    );
+
+    if (!secondaire) {
+      continue;
+    }
+
+    const info =
+      articleMap.get(cleArticle_(prj, article)) || {};
+
+    const prix = nombre_(info.prix);
+    const montant = nombre_(row[cMontant]);
+
+    // Quantité de l&#x27;article affectée à cette tâche secondaire.
+    // Si le prix n&#x27;est pas disponible, la quantité reste à 0.
+    const quantite =
+      prix &gt; 0
+        ? montant / prix
+        : 0;
+
+    const cle =
+      secondaire.ID + &quot;|&quot; +
+      nettoyer_(article).toUpperCase();
+
+    if (!resultats.has(cle)) {
+      resultats.set(cle, {
+        ID: nouvelId_(&quot;BRD&quot;),
+        TACHE_SECONDAIRE_ID: secondaire.ID,
+        ARTICLE: article,
+        DESIGNATION:
+          derniereDesignation ||
+          info.designation ||
+          &quot;&quot;,
+        UNITE:
+          derniereUnite ||
+          info.unite ||
+          &quot;&quot;,
+        QUANTITE: quantite,
+        PRIX: prix,
+        ACTIF: &quot;OUI&quot;
+      });
+    } else {
+      // Même association présente plusieurs fois : on cumule.
+      const existant = resultats.get(cle);
+
+      existant.QUANTITE =
+        nombre_(existant.QUANTITE) + quantite;
+    }
+  }
+
+  /* ---------- 5. SAUVEGARDE PUIS REECRITURE DE BRD_V2 ---------- */
+
+  if (shOut.getLastRow() &gt; 1) {
+    const horodatage = Utilities.formatDate(
+      new Date(),
+      Session.getScriptTimeZone(),
+      &quot;yyyyMMdd_HHmmss&quot;
+    );
+
+    shOut
+      .copyTo(ss)
+      .setName(&quot;BRD_V2_SAUV_&quot; + horodatage);
+
+    shOut
+      .getRange(
+        2,
+        1,
+        shOut.getLastRow() - 1,
+        SHEETS_V2.BRD.headers.length
+      )
+      .clearContent();
+  }
+
+  const objets = Array.from(resultats.values());
+
+  if (objets.length &gt; 0) {
+    const rowsOut = objets.map(obj =&gt;
+      ligneDepuisObjet_(SHEETS_V2.BRD, obj)
+    );
+
+    shOut
+      .getRange(
+        2,
+        1,
+        rowsOut.length,
+        SHEETS_V2.BRD.headers.length
+      )
+      .setValues(rowsOut);
+  }
+
+  return (
+    &quot;IMPORT BRD TERMINE - &quot; +
+    objets.length +
+    &quot; LIGNES&quot;
+  );
+}
+
+function cleArticle_(prj, article) {
+  return [
+    nettoyer_(prj).toUpperCase(),
+    nettoyer_(article).toUpperCase()
+  ].join(&quot;|&quot;);
+}
+
+function cleHier_(parentId, code, nom) {
+  return [
+    parentId,
+    codeCle_(code),
+    nettoyer_(nom).toUpperCase()
+  ].join(&quot;|&quot;);
+}
+
+
+/* =========================================================
+   STRUCTURE DES ONGLETS V2
+   ========================================================= */
+
+function verifierStructureV2_() {
+  const ss = getSVISpreadsheet_();
+
+  Object.keys(SHEETS_V2).forEach(k =&gt; {
+    const cfg = SHEETS_V2[k];
+
+    let sh = ss.getSheetByName(cfg.name);
+
+    if (!sh) {
+      sh = ss.insertSheet(cfg.name);
+    }
+
+    const current = sh
+      .getRange(1, 1, 1, cfg.headers.length)
+      .getDisplayValues()[0];
+
+    const same = cfg.headers.every(
+      (h, i) =&gt; String(current[i] || &quot;&quot;).trim() === h
+    );
+
+    if (!same) {
+      sh
+        .getRange(1, 1, 1, cfg.headers.length)
+        .setValues([cfg.headers]);
+
+      sh.setFrozenRows(1);
+
+      sh
+        .getRange(1, 1, 1, cfg.headers.length)
+        .setFontWeight(&quot;bold&quot;);
+    }
+  });
+}
+
+/* =========================================================
+   LECTURE GENERIQUE
+   ========================================================= */
+
+function lireObjets_(cfg) {
+  const sh = getSVISpreadsheet_().getSheetByName(cfg.name);
+
+  if (!sh || sh.getLastRow() &lt; 2) {
+    return [];
+  }
+
+  const nCols = cfg.headers.length;
+
+  const values = sh
+    .getRange(2, 1, sh.getLastRow() - 1, nCols)
+    .getDisplayValues();
+
+  return values
+    .filter(row =&gt; nettoyer_(row[0]) !== &quot;&quot;)
+    .map(row =&gt; {
+      const o = {};
+
+      cfg.headers.forEach((h, i) =&gt; {
+        o[h] = row[i] == null ? &quot;&quot; : row[i];
+      });
+
+      return o;
+    });
+}
+
+/* =========================================================
+   ENREGISTREMENT / MODIFICATION GENERIQUE
+   ========================================================= */
+
+function upsertObjet_(cfg, obj) {
+  const sh = getSVISpreadsheet_().getSheetByName(cfg.name);
+
+  if (!sh) {
+    throw new Error(&quot;ONGLET &quot; + cfg.name + &quot; INTROUVABLE&quot;);
+  }
+
+  if (!obj.ID) {
+    obj.ID = nouvelId_(&quot;ID&quot;);
+  }
+
+  const lastRow = sh.getLastRow();
+  let targetRow = -1;
+
+  if (lastRow &gt;= 2) {
+    const ids = sh
+      .getRange(2, 1, lastRow - 1, 1)
+      .getDisplayValues()
+      .flat();
+
+    const idx = ids.findIndex(
+      x =&gt; String(x) === String(obj.ID)
+    );
+
+    if (idx &gt;= 0) {
+      targetRow = idx + 2;
+    }
+  }
+
+  if (targetRow &lt; 0) {
+    targetRow = Math.max(2, lastRow + 1);
+  }
+
+  const row = ligneDepuisObjet_(cfg, obj);
+
+  sh
+    .getRange(targetRow, 1, 1, row.length)
+    .setValues([row]);
+
+  return obj;
+}
+
+/* =========================================================
+   SUPPRESSION GENERIQUE
+   ========================================================= */
+
+function supprimerParId_(cfg, id) {
+  id = nettoyer_(id);
+
+  if (!id) {
+    throw new Error(&quot;ID MANQUANT&quot;);
+  }
+
+  const sh = getSVISpreadsheet_().getSheetByName(cfg.name);
+
+  if (!sh) {
+    return;
+  }
+
+  const lastRow = sh.getLastRow();
+
+  if (lastRow &lt; 2) {
+    return;
+  }
+
+  const ids = sh
+    .getRange(2, 1, lastRow - 1, 1)
+    .getDisplayValues()
+    .flat();
+
+  const idx = ids.findIndex(x =&gt; String(x) === id);
+
+  if (idx &gt;= 0) {
+    sh.deleteRow(idx + 2);
+  }
+}
+
+/* =========================================================
+   SUPPRESSION BDS PROTEGEE
+   ========================================================= */
+
+function supprimerBDSProtege_(id) {
+  id = nettoyer_(id);
+
+  const all = lireObjets_(SHEETS_V2.BDS);
+
+  const obj = all.find(x =&gt; String(x.ID) === id);
+
+  if (!obj) {
+    return;
+  }
+
+  if (all.some(x =&gt; String(x.PARENT_ID) === id)) {
+    throw new Error(
+      &quot;SUPPRESSION IMPOSSIBLE : CET ELEMENT CONTIENT DES SOUS-ELEMENTS&quot;
+    );
+  }
+
+  if (obj.TYPE === &quot;SECONDARY&quot;) {
+    const brd = lireObjets_(SHEETS_V2.BRD);
+
+    if (brd.some(x =&gt; String(x.TACHE_SECONDAIRE_ID) === id)) {
+      throw new Error(
+        &quot;SUPPRESSION IMPOSSIBLE : CETTE TACHE CONTIENT DES ARTICLES&quot;
+      );
+    }
+  }
+
+  supprimerParId_(SHEETS_V2.BDS, id);
+}
+
+/* =========================================================
+   VALIDATION
+   ========================================================= */
+
+function requis_(valeur, libelle) {
+  if (!nettoyer_(valeur)) {
+    throw new Error(&quot;CHAMP OBLIGATOIRE : &quot; + libelle);
+  }
+
+  return valeur;
+}
+
+/* =========================================================
+   NORMALISATION CHS
+   ========================================================= */
+
+function normaliserCHS_(x) {
+  return {
+    ID:
+      nettoyer_(x.ID) ||
+      nouvelId_(&quot;CHS&quot;),
+
+    ARTICLE:
+      requis_(texte_(x.ARTICLE), &quot;ARTICLE&quot;),
+
+    DESIGNATION:
+      requis_(texte_(x.DESIGNATION), &quot;DESIGNATION&quot;)
+        .toUpperCase(),
+
+    UNITE:
+      texte_(x.UNITE).toUpperCase(),
+
+    PCS:
+      nombre_(x.PCS)
+  };
+}
+
+/* =========================================================
+   NORMALISATION BDS
+   ========================================================= */
+
+function normaliserBDS_(x) {
+  const type = nettoyer_(x.TYPE).toUpperCase();
+
+  if (
+    ![
+      &quot;PROJECT&quot;,
+      &quot;LOT&quot;,
+      &quot;PRIMARY&quot;,
+      &quot;SECONDARY&quot;
+    ].includes(type)
+  ) {
+    throw new Error(&quot;TYPE BDS INVALIDE&quot;);
+  }
+
+  const parentId = nettoyer_(x.PARENT_ID);
+
+  if (type !== &quot;PROJECT&quot; &amp;&amp; !parentId) {
+    throw new Error(&quot;ELEMENT PARENT MANQUANT&quot;);
+  }
+
+  return {
+    ID:
+      nettoyer_(x.ID) ||
+      nouvelId_(type),
+
+    TYPE:
+      type,
+
+    PARENT_ID:
+      parentId,
+
+    CODE:
+      requis_(texte_(x.CODE), &quot;CODE&quot;).toUpperCase(),
+
+    NOM:
+      requis_(texte_(x.NOM), &quot;NOM&quot;).toUpperCase(),
+
+    ORDRE:
+      nombre_(x.ORDRE),
+
+    ACTIF:
+      nettoyer_(x.ACTIF || &quot;OUI&quot;).toUpperCase()
+  };
+}
+
+/* =========================================================
+   NORMALISATION BRD
+   ========================================================= */
+
+function normaliserBRD_(x) {
+  return {
+    ID:
+      nettoyer_(x.ID) ||
+      nouvelId_(&quot;BRD&quot;),
+
+    TACHE_SECONDAIRE_ID:
+      requis_(
+        nettoyer_(x.TACHE_SECONDAIRE_ID),
+        &quot;TACHE SECONDAIRE&quot;
+      ),
+
+    ARTICLE:
+      requis_(texte_(x.ARTICLE), &quot;ARTICLE&quot;),
+
+    DESIGNATION:
+      texte_(x.DESIGNATION).toUpperCase(),
+
+    UNITE:
+      texte_(x.UNITE).toUpperCase(),
+
+    QUANTITE:
+      nombre_(x.QUANTITE),
+
+    PRIX:
+      nombre_(x.PRIX),
+
+    ACTIF:
+      nettoyer_(x.ACTIF || &quot;OUI&quot;).toUpperCase()
+  };
+}
+
+/* =========================================================
+   CREATION MEMOIRE BDS POUR IMPORT RAPIDE
+   ========================================================= */
+
+function ensureBDSMemo_(
+  type,
+  parentId,
+  code,
+  nom,
+  ordre,
+  index,
+  nouveaux
+) {
+  const key = cleBDS_(type, parentId, code, nom);
+
+  if (index.has(key)) {
+    return index.get(key);
+  }
+
+  const obj = {
+    ID: nouvelId_(type),
+    TYPE: type,
+    PARENT_ID: parentId || &quot;&quot;,
+    CODE: code || &quot;&quot;,
+    NOM: nom || &quot;&quot;,
+    ORDRE: ordre || 0,
+    ACTIF: &quot;OUI&quot;
+  };
+
+  index.set(key, obj);
+  nouveaux.push(obj);
+
+  return obj;
+}
+
+/* =========================================================
+   CLE UNIQUE BDS
+   ========================================================= */
+
+function cleBDS_(type, parentId, code, nom) {
+  return [
+    type,
+    parentId,
+    codeCle_(code),
+    nettoyer_(nom).toUpperCase()
+  ].join(&quot;|&quot;);
+}
+
+function codeCle_(code) {
+  const s = nettoyer_(code).toUpperCase();
+
+  // Codes purement numériques : &quot;00&quot; = &quot;0&quot;, &quot;01&quot; = &quot;1&quot;.
+  if (/^\d+$/.test(s)) {
+    return String(Number(s));
+  }
+
+  return s;
+}
+
+/* =========================================================
+   EXTRACTION CODE / NOM
+   &quot;01 - FONDATION&quot; =&gt; code &quot;01&quot;, nom &quot;FONDATION&quot;
+   ========================================================= */
+
+function codeNom_(texte) {
+  const s = nettoyer_(texte);
+
+  const m = s.match(
+    /^([0-9A-ZÀ-Ü._-]+)\s*-\s*(.+)$/i
+  );
+
+  if (m) {
+    return {
+      code: m[1].trim(),
+      nom: m[2].trim()
+    };
+  }
+
+  return {
+    code: s,
+    nom: s
+  };
+}
+
+/* =========================================================
+   ECRITURE SECURISEE
+   Neutralise les textes qui seraient interprétés comme
+   des formules par Google Sheets (=, +, -, @).
+   ========================================================= */
+
+function celluleSure_(v) {
+  if (typeof v !== &quot;string&quot;) {
+    return v;
+  }
+
+  if (/^[=@]/.test(v)) {
+    return &quot;&#x27;&quot; + v;
+  }
+
+  if (
+    /^[+\-]/.test(v) &amp;&amp;
+    isNaN(Number(v.replace(&quot;,&quot;, &quot;.&quot;)))
+  ) {
+    return &quot;&#x27;&quot; + v;
+  }
+
+  return v;
+}
+
+function ligneDepuisObjet_(cfg, obj) {
+  return cfg.headers.map(h =&gt;
+    celluleSure_(obj[h] == null ? &quot;&quot; : obj[h])
+  );
+}
+
+/* =========================================================
+   CONVERSION EN NOMBRE
+   ========================================================= */
+
+function nombre_(v) {
+  if (typeof v === &quot;number&quot;) {
+    return v;
+  }
+
+  let s = String(v == null ? &quot;&quot; : v).trim();
+
+  if (!s) {
+    return 0;
+  }
+
+  s = s
+    .replace(/\u00A0/g, &quot; &quot;)
+    .replace(/\s/g, &quot;&quot;)
+    .replace(&quot;,&quot;, &quot;.&quot;);
+
+  const n = Number(s);
+
+  return isFinite(n) ? n : 0;
+}
+
+/* =========================================================
+   NETTOYAGE TEXTE
+   ========================================================= */
+
+function nettoyer_(v) {
+  return String(v == null ? &quot;&quot; : v).trim();
+}
+
+// Texte libre saisi par un utilisateur : limité à 500 caractères.
+function texte_(v) {
+  return nettoyer_(v).slice(0, 500);
+}
+
+/* =========================================================
+   GENERATION ID
+   ========================================================= */
+
+function nouvelId_(prefix) {
+  return (
+    String(prefix || &quot;ID&quot;).toUpperCase() +
+    &quot;_&quot; +
+    Utilities
+      .getUuid()
+      .replace(/-/g, &quot;&quot;)
+      .slice(0, 16)
+      .toUpperCase()
+  );
+}
+
+/* =========================================================
+   REPONSE JSON
+   ========================================================= */
+
+function jsonResponse_(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* =========================================================
+   AUTORISATION (à exécuter une fois depuis l&#x27;éditeur)
+   ========================================================= */
+
+function autoriserSVI() {
+  const ss = getSVISpreadsheet_();
+  Logger.log(ss.getName());
+  /* accès au Drive (enregistrement des fichiers) */
+  Logger.log(DriveApp.getRootFolder().getName());
+}
+</textarea></section>
+<section><h2>exportSheet.gs</h2><p class="n">148 lignes</p>
+<button onclick="cp('c2',this)">COPIER exportSheet.gs</button>
+<textarea id="c2" readonly>/* =========================================================
+   SVI ERP — ENREGISTREMENT DANS LE DRIVE (à ajouter dans le projet Apps Script)
+
+   1) Coller tout ce fichier dans un nouveau fichier du projet
+      (Fichier + › Script, nom : exportSheet).
+   2) Dans la fonction doPost(e) existante, juste après la lecture
+      du corps et le contrôle de la clé, ajouter la ligne :
+
+        var drv = sviDriveRoute_(body); if (drv) return drv;
+
+      (remplacer « body » par le nom de la variable qui contient
+       le JSON reçu, par exemple data ou req.)
+   3) Déployer › Gérer les déploiements › ✏️ › Version : Nouvelle
+      version › Déployer (garder la même URL).
+      À la première exécution, Google demande d&#x27;autoriser l&#x27;accès
+      au Drive : accepter.
+   ========================================================= */
+
+/* actions Drive : exportSheet (feuille Google mise en forme)
+   et saveFile (PDF, Excel, CSV, JSON, documents joints) */
+function sviDriveRoute_(body) {
+  if (!body || (body.action !== &quot;exportSheet&quot; &amp;&amp; body.action !== &quot;saveFile&quot;)) return null;
+  var out;
+  try {
+    out = body.action === &quot;exportSheet&quot; ? exportSheet_(body) : saveFile_(body);
+  } catch (err) {
+    out = { ok: false, error: String(err &amp;&amp; err.message || err) };
+  }
+  return ContentService
+    .createTextOutput(JSON.stringify(out))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* dossier « A/B/C » depuis Mon Drive, créé si besoin */
+function sviFolder_(path) {
+  var folder = DriveApp.getRootFolder();
+  String(path || &quot;&quot;).split(&quot;/&quot;).forEach(function (part) {
+    part = part.trim();
+    if (!part) return;
+    var it = folder.getFoldersByName(part);
+    folder = it.hasNext() ? it.next() : folder.createFolder(part);
+  });
+  return folder;
+}
+
+/* fichier reçu en base64, rangé dans le dossier choisi */
+function saveFile_(b) {
+  var name = String(b.name || &quot;FICHIER&quot;).trim();
+  var bytes = Utilities.base64Decode(String(b.data || &quot;&quot;));
+  var blob = Utilities.newBlob(bytes, b.mime || &quot;application/octet-stream&quot;, name);
+  var file = sviFolder_(b.path).createFile(blob);
+  return { ok: true, url: file.getUrl(), id: file.getId(), path: b.path || &quot;&quot; };
+}
+
+function exportSheet_(b) {
+  var head = b.head || [];
+  var rows = b.rows || [];
+  var top = b.top || [];
+  var nc = Math.max(head.length, 1);
+  var name = String(b.name || &quot;EXPORT SVI&quot;).trim();
+
+  var folder = sviFolder_(b.path);
+
+  var ss = SpreadsheetApp.create(name);
+  var file = DriveApp.getFileById(ss.getId());
+  file.moveTo(folder);
+
+  var sh = ss.getSheets()[0];
+  sh.setName(String(top[4] || &quot;EXPORT&quot;).slice(0, 90));
+
+  /* grille : 5 lignes d&#x27;entrée + 1 vide + entête + données */
+  var H0 = top.length + 1;
+  var grid = [];
+  top.forEach(function (t) {
+    var r = new Array(nc).fill(&quot;&quot;);
+    r[0] = t;
+    grid.push(r);
+  });
+  grid.push(new Array(nc).fill(&quot;&quot;));
+  grid.push(head.slice());
+  rows.forEach(function (r) {
+    var x = new Array(nc).fill(&quot;&quot;);
+    for (var c = 0; c &lt; nc; c++) x[c] = r[c] == null ? &quot;&quot; : r[c];
+    grid.push(x);
+  });
+
+  var nr = grid.length;
+  if (sh.getMaxColumns() &lt; nc) sh.insertColumnsAfter(sh.getMaxColumns(), nc - sh.getMaxColumns());
+  if (sh.getMaxRows() &lt; nr) sh.insertRowsAfter(sh.getMaxRows(), nr - sh.getMaxRows());
+
+  var all = sh.getRange(1, 1, nr, nc);
+  all.setNumberFormat(&quot;@&quot;);                     /* textes gardés tels quels */
+  all.setValues(grid);
+  all.setFontFamily(&quot;Arial&quot;).setFontSize(11).setVerticalAlignment(&quot;top&quot;);
+
+  /* entrée : fusion sur toute la largeur, gras, date à droite, le reste centré */
+  for (var i = 0; i &lt; top.length; i++) {
+    var rg = sh.getRange(i + 1, 1, 1, nc);
+    if (nc &gt; 1) rg.merge();
+    rg.setFontWeight(&quot;bold&quot;).setHorizontalAlignment(i ? &quot;center&quot; : &quot;right&quot;);
+  }
+
+  /* entête du tableau */
+  var hr = sh.getRange(H0 + 1, 1, 1, nc);
+  hr.setFontWeight(&quot;bold&quot;).setBackground(&quot;#D9DEE6&quot;)
+    .setHorizontalAlignment(&quot;center&quot;).setVerticalAlignment(&quot;middle&quot;).setWrap(true);
+  if (b.headHeight) sh.setRowHeight(H0 + 1, Number(b.headHeight));
+
+  if (rows.length) {
+    var body = sh.getRange(H0 + 2, 1, rows.length, nc);
+    /* nombres : vraies valeurs numériques au format 1 234,56 */
+    for (var c = 0; c &lt; nc; c++) {
+      var isNum = rows.some(function (r) { return typeof r[c] === &quot;number&quot;; });
+      if (isNum) {
+        var col = sh.getRange(H0 + 2, c + 1, rows.length, 1);
+        col.setNumberFormat(&quot;#,##0.00&quot;);
+        col.setValues(rows.map(function (r) { return [r[c] == null ? &quot;&quot; : r[c]]; }));
+      }
+    }
+    var al = b.align || [];
+    for (var c2 = 0; c2 &lt; nc; c2++) {
+      sh.getRange(H0 + 2, c2 + 1, rows.length, 1).setHorizontalAlignment(al[c2] || &quot;left&quot;);
+    }
+    (b.bold || []).forEach(function (k) {
+      if (k &gt;= 0 &amp;&amp; k &lt; rows.length) sh.getRange(H0 + 2 + k, 1, 1, nc).setFontWeight(&quot;bold&quot;);
+    });
+  }
+
+  /* bordures du tableau (entête + données) */
+  sh.getRange(H0 + 1, 1, rows.length + 1, nc)
+    .setBorder(true, true, true, true, true, true, &quot;#000000&quot;, SpreadsheetApp.BorderStyle.SOLID);
+
+  /* largeurs des colonnes */
+  (b.widths || []).forEach(function (w, c) {
+    if (c &lt; nc &amp;&amp; w) sh.setColumnWidth(c + 1, Number(w));
+  });
+
+  /* figer jusqu&#x27;à l&#x27;entête du tableau */
+  sh.setFrozenRows(H0 + 1);
+
+  /* lignes et colonnes en trop retirées */
+  if (sh.getMaxRows() &gt; nr + 1) sh.deleteRows(nr + 2, sh.getMaxRows() - nr - 1);
+  if (sh.getMaxColumns() &gt; nc) sh.deleteColumns(nc + 1, sh.getMaxColumns() - nc);
+
+  SpreadsheetApp.flush();
+  return { ok: true, url: ss.getUrl(), id: ss.getId(), path: b.path || &quot;&quot; };
+}
+</textarea></section>
+<script>
+function cp(id,b){var t=document.getElementById(id);
+var done=function(){b.textContent="✓ COPIÉ ("+t.value.split("\n").length+" LIGNES)";b.className="ok";};
+if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t.value).then(done,function(){fb(t);done();});}else{fb(t);done();}}
+function fb(t){t.focus();t.select();t.setSelectionRange(0,t.value.length);document.execCommand("copy");}
+</script></body></html>
