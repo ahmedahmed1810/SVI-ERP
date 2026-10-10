@@ -2259,12 +2259,13 @@ function renderBudgetList() {
       .bdg-d-table td {
         padding: 2px 8px !important;
         line-height: 16px !important;
-        font-size: 11px !important;
+        font-size: 12px !important;
         height: 21px;
         box-sizing: border-box;
         white-space: nowrap;
       }
       .bdg-d-table tbody tr.bdg-d-filler td { height: 21px; }
+      .bdg-d-table th { font-size: 11px !important; }
       .bdg-tva-input {
         width: 100% !important;
         height: 16px !important;
@@ -2374,14 +2375,14 @@ function renderBudgetList() {
         overflow: auto; -webkit-overflow-scrolling: touch;
         max-height: calc(27px + 5 * 29px);
       }
-      .rec-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+      .rec-table { width: 100%; border-collapse: collapse; font-size: 12px; }
       .rec-table th, .rec-table td {
         padding: 0 10px; height: 28px; border-bottom: 1px solid #edf0f4;
         text-align: left; white-space: nowrap;
       }
       .rec-table th {
         position: sticky; top: 0; z-index: 1; height: 26px;
-        background: #fafbfc; color: #6b7480; font-size: 10px;
+        background: #fafbfc; color: #6b7480; font-size: 11px;
       }
       .rec-table td.wrap { white-space: normal; min-width: 220px; line-height: 1.3; }
       .rec-table td.center { text-align: center; }
@@ -2517,7 +2518,7 @@ function renderBudgetList() {
         overflow-y: auto;
       }
 
-      /* même taille de caractères (11 px) dans tout le corps de l'écran */
+      /* même taille de caractères (12 px) dans tout le corps de l'écran */
       .bdg-d-page,
       .bdg-d-page .bdg-d-block-title,
       .bdg-d-page .bdg-d-tab,
@@ -2525,12 +2526,11 @@ function renderBudgetList() {
       .bdg-d-page .bdg-d-totals div,
       .bdg-d-page .bdg-d-totals span,
       .bdg-d-page .bdg-d-totals strong,
-      .bdg-d-page .bdg-h-head,
       .bdg-d-page .bdg-h-item,
       .bdg-d-page .bdg-tva-input,
       .bdg-d-page .bdg-d-delay,
       .bdg-d-page .bdg-d-reserved {
-        font-size: 11px !important;
+        font-size: 12px !important;
       }
 
       .bdg-d-tabbody .bdg-d-totals {
@@ -2621,7 +2621,7 @@ function renderBudgetList() {
 .bdg-h-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
 .bdg-h-col{border:1px solid #d6dbe3;border-radius:8px;overflow:hidden;height:128px;overflow-y:auto;background:#fff}
 .bdg-h-head{position:sticky;top:0;z-index:1;background:#eef1f6;font-size:11px;line-height:16px;font-weight:700;padding:2px 8px;height:21px;box-sizing:border-box}
-.bdg-h-item{padding:2px 8px;font-size:11px;line-height:16px;height:21px;box-sizing:border-box;cursor:pointer;border-top:1px solid #eef1f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bdg-h-item{padding:2px 8px;font-size:12px;line-height:16px;height:21px;box-sizing:border-box;cursor:pointer;border-top:1px solid #eef1f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bdg-h-fill{height:21px;box-sizing:border-box;border-top:1px solid #eef1f6}
 .bdg-h-item.selected{background:#dbeafe;font-weight:700}
 .bdg-h-empty{padding:8px;font-size:12px;opacity:.5}
