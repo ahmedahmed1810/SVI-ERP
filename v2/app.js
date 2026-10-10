@@ -3934,8 +3934,47 @@ function renderBudgetList() {
     /* dernier budget consulté : rouvert à la prochaine ouverture */
     try { localStorage.setItem("svi_lastbdg_v1", ref); } catch (e) {}
 
-    const listHTML =
-      shell.innerHTML;
+    /* balayage gauche / droite : budget suivant / précédent (ordre des références) */
+    {
+      const refs = [...groups.keys()].sort((x, y) => String(x).localeCompare(String(y), "fr", { numeric: true }));
+      window.__sviBdgNav = { refs, cur: ref, open: openBudgetDetail };
+      if (!window.__sviSwipe) {
+        window.__sviSwipe = true;
+        let st = null;
+        const scrollsX = el => {
+          for (let n = el; n && n !== document.body; n = n.parentElement) {
+            if (n.scrollWidth > n.clientWidth + 2 && /(auto|scroll)/.test(getComputedStyle(n).overflowX)) return true;
+          }
+          return false;
+        };
+        document.addEventListener("touchstart", e => {
+          const nav = window.__sviBdgNav;
+          if (!nav || e.touches.length !== 1 || !document.querySelector(".bdg-d-page")) { st = null; return; }
+          const t = e.target;
+          /* pas depuis un tableau qui défile, une fenêtre, un champ ou une poignée */
+          if (scrollsX(t) || t.closest("#docPop, #blkPop, #cfMenu, #blkMenu, input, textarea, select, .blk-rsz, .blk-grip, .col-rs, th")) { st = null; return; }
+          st = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
+        }, { passive: true });
+        document.addEventListener("touchend", e => {
+          const nav = window.__sviBdgNav;
+          if (!st || !nav) return;
+          const dx = e.changedTouches[0].clientX - st.x, dy = e.changedTouches[0].clientY - st.y;
+          const quick = Date.now() - st.t < 700;
+          st = null;
+          if (!quick || Math.abs(dx) < 90 || Math.abs(dy) > Math.abs(dx) * 0.5) return;
+          const i = nav.refs.indexOf(nav.cur);
+          const j = dx < 0 ? i + 1 : i - 1;
+          if (i < 0 || j < 0 || j >= nav.refs.length) return;
+          nav.open(nav.refs[j]);
+          window.scrollTo(0, 0);
+        }, { passive: true });
+      }
+    }
+
+    /* écran liste à restaurer au retour (même après un balayage entre budgets) */
+    const listHTML = shell.querySelector(".bdg-d-page")
+      ? (window.__sviListHTML || shell.innerHTML)
+      : (window.__sviListHTML = shell.innerHTML);
 
     /* ---- lecture tolérante des colonnes (accents, espaces, / ignorés) ---- */
 
