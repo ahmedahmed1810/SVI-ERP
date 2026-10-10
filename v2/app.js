@@ -5797,7 +5797,17 @@ function renderBudgetList() {
   .foot hr { width: 65%; border: 0; border-top: 2.5px solid #5677a7; margin: 0 auto 1.5mm; }
   .foot .ad { line-height: 1.3; }
   @media screen { body { background: #888; } .page { background: #fff; margin: 6mm auto; box-shadow: 0 2px 8px rgba(0,0,0,.3); } }
+  .pv-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 10px;
+            padding: 10px 16px; background: #12355b; color: #fff; font: 700 14px Arial, Helvetica, sans-serif; }
+  .pv-bar span { flex: 1; }
+  .pv-bar button { border: 1px solid rgba(255,255,255,.4); background: #fff; color: #12355b; border-radius: 8px;
+            padding: 8px 16px; font: 800 13px Arial, Helvetica, sans-serif; cursor: pointer; }
+  .pv-bar button.x { background: transparent; color: #fff; }
+  @media print { .pv-bar { display: none !important; } }
 </style></head><body class="${opt.head ? "" : "nohead"}">
+<div class="pv-bar"><span>APERÇU — DÉSIGNATIONS CLIENT — ${esc(ref)}</span>
+  <button type="button" onclick="window.print()">🖨 IMPRIMER</button>
+  <button type="button" class="x" onclick="window.close()">✕ FERMER</button></div>
 <div id="src" style="display:none">
   <div class="head">
     <img src="${logo}" alt="">
@@ -5865,9 +5875,15 @@ function renderBudgetList() {
   }
   pages.forEach((pg, i) => { pg.querySelector(".pg").textContent = "Page " + (i + 1) + " / " + pages.length; });
   src.remove();
-  const go = () => setTimeout(() => window.print(), 300);
-  const im = document.images[0];
-  if (im && !im.complete) { im.onload = go; im.onerror = go; } else go();
+  /* aperçu à l'écran : pages réduites pour tenir dans la largeur */
+  const fit = () => {
+    const z = Math.min(1, (window.innerWidth - 16) / out.querySelector(".page").offsetWidth);
+    out.style.zoom = z;
+  };
+  fit();
+  window.addEventListener("resize", fit);
+  window.addEventListener("beforeprint", () => { out.style.zoom = 1; });
+  window.addEventListener("afterprint", fit);
 })();
 <\/script></body></html>`);
       w.document.close();
@@ -5913,11 +5929,20 @@ function renderBudgetList() {
           .number { text-align: right; } .center { text-align: center; }
           tfoot td, .bdg-d-total-row td { background: #dcecff; font-weight: 800; }
           tr.selected td { background: #dbeafe; font-weight: 700; }
+          .pv-bar { position: sticky; top: 0; display: flex; align-items: center; gap: 10px; margin: -8px -8px 10px;
+                    padding: 10px 16px; background: #12355b; color: #fff; font-weight: 700; font-size: 14px; }
+          .pv-bar span { flex: 1; }
+          .pv-bar button { border: 1px solid rgba(255,255,255,.4); background: #fff; color: #12355b; border-radius: 8px;
+                    padding: 8px 16px; font-weight: 800; font-size: 13px; cursor: pointer; }
+          .pv-bar button.x { background: transparent; color: #fff; }
+          @media print { .pv-bar { display: none !important; } }
         </style></head><body>
+        <div class="pv-bar"><span>APERÇU — ${esc(blkLabel(blk))}</span>
+          <button type="button" onclick="window.print()">🖨 IMPRIMER</button>
+          <button type="button" class="x" onclick="window.close()">✕ FERMER</button></div>
         <h1>${esc(budget.project)} — ${esc(ref)}</h1>
         <h2>${esc(blkLabel(blk))} — ${new Date().toLocaleDateString("fr-FR")}</h2>
         ${tableHTML}
-        <script>window.onload = () => setTimeout(() => window.print(), 300);<\/script>
         </body></html>`);
       w.document.close();
     };
