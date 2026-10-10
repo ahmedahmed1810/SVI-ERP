@@ -13,7 +13,7 @@
 
   <link
     rel="stylesheet"
-    href="styles.css?v=20"
+    href="styles.css?v=30"
   >
 </head>
 
@@ -79,6 +79,9 @@
 
       <div class="section-head">
 
+      <button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button>
+
+        
         <div>
           <h1>
             CHS — CHARGES STANDARDS
@@ -164,6 +167,7 @@
     >
 
       <div class="section-head">
+      <button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button>
 
         <div>
 
@@ -172,8 +176,8 @@
           </h1>
 
           <p>
-            PROJET → LOT → TÂCHE PRIMAIRE →
-            TÂCHE SECONDAIRE → BORDEREAU DES PRIX
+            PROJET → LOT → ACTIVITÉ PRIMAIRE →
+            ACTIVITÉ SECONDAIRE → BORDEREAU DES PRIX
           </p>
 
         </div>
@@ -256,7 +260,7 @@
           <div class="panel-head">
 
             <strong>
-              3. TÂCHE PRIMAIRE
+              3. ACTIVITÉ PRIMAIRE
             </strong>
 
             <button
@@ -289,7 +293,7 @@
           <div class="panel-head">
 
             <strong>
-              4. TÂCHE SECONDAIRE
+              4. ACTIVITÉ SECONDAIRE
             </strong>
 
             <button
@@ -437,403 +441,28 @@
 
 
     <!-- ===================================================
-         BDG — BUDGET
+         BDG — LISTE DES BUDGETS
          =================================================== -->
-
-    <section
-      id="bdg"
-      class="view"
-    >
-
-      <div class="section-head">
-
-        <div>
-
-          <h1>
-            BDG — BUDGET
-          </h1>
-
-          <p>
-            PRODUITS · CHARGES · MARGE · RENDEMENT
-          </p>
-
+        <section id="bdg" class="view">
+      <div class="novapp-list-shell">
+        <div class="novapp-list-titlebar">
+          <button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button>
+          <h1>BUDGETS (VALIDÉS)</h1>
+          <div class="novapp-list-actions">
+            <button type="button" aria-label="Historique">⌛</button>
+            <button type="button" aria-label="Liste">≡</button>
+            <button type="button" aria-label="Ajouter">＋</button>
+          </div>
         </div>
-
-      </div>
-
-
-      <!-- ===============================================
-           SELECTEURS BDG
-           =============================================== -->
-
-      <div class="bdg-selectors">
-
-        <label>
-
-          <span>
-            PROJET
-          </span>
-
-          <select id="project">
-            <option value="">
-              CHARGEMENT...
-            </option>
-          </select>
-
-        </label>
-
-
-        <label>
-
-          <span>
-            LOT
-          </span>
-
-          <select id="lot">
-            <option value="">
-              SÉLECTIONNER
-            </option>
-          </select>
-
-        </label>
-
-
-        <label>
-
-          <span>
-            ACTIVITÉ PRIMAIRE
-          </span>
-
-          <select id="primary">
-            <option value="">
-              SÉLECTIONNER
-            </option>
-          </select>
-
-        </label>
-
-
-        <label>
-
-          <span>
-            ACTIVITÉ SECONDAIRE
-          </span>
-
-          <select id="secondary">
-            <option value="">
-              SÉLECTIONNER
-            </option>
-          </select>
-
-        </label>
-
-
-        <label class="bdg-designation">
-
-          <span>
-            DÉSIGNATION BRD
-          </span>
-
-          <input
-            id="brdDesignation"
-            type="text"
-            readonly
-            value=""
-          >
-
-        </label>
-
-      </div>
-
-
-      <!-- ===============================================
-           PRODUITS + CHARGES
-           =============================================== -->
-
-      <div class="bdg-workgrid">
-
-
-        <!-- PRODUITS -->
-
-        <article class="bdg-panel">
-
-          <div class="bdg-panel-head">
-
-            <div>
-
-              <strong>
-                DÉTAIL PRODUIT
-              </strong>
-
-              <div
-                class="context"
-                id="productContext"
-              >
-                PRODUITS DE LA TÂCHE SÉLECTIONNÉE
-              </div>
-
-            </div>
-
-          </div>
-
-
-          <div
-            class="table-wrap"
-            id="productPanel"
-          >
-
-            <table id="productTable">
-
-              <thead>
-
-                <tr>
-
-                  <th>
-                    N°
-                  </th>
-
-                  <th>
-                    DÉSIGNATION
-                  </th>
-
-                  <th>
-                    UPB
-                  </th>
-
-                  <th>
-                    NBR
-                  </th>
-
-                  <th>
-                    DIM 1
-                  </th>
-
-                  <th>
-                    DIM 2
-                  </th>
-
-                  <th>
-                    DIM 3
-                  </th>
-
-                  <th class="number">
-                    QPB PRT
-                  </th>
-
-                  <th class="number">
-                    PPB
-                  </th>
-
-                  <th class="number">
-                    MPB
-                  </th>
-
-                </tr>
-
-              </thead>
-
-              <tbody>
-
-                <tr>
-
-                  <td
-                    colspan="10"
-                    class="empty"
-                  >
-                    SÉLECTIONNEZ UNE TÂCHE
-                  </td>
-
-                </tr>
-
-              </tbody>
-
-              <tfoot></tfoot>
-
-            </table>
-
-          </div>
-
-        </article>
-
-
-        <!-- CHARGES -->
-
-        <article class="bdg-panel">
-
-          <div class="bdg-panel-head">
-
-            <div>
-
-              <strong>
-                DÉTAIL CHARGES
-              </strong>
-
-              <div
-                class="context"
-                id="chargeContext"
-              >
-                CHARGES DE LA TÂCHE SÉLECTIONNÉE
-              </div>
-
-            </div>
-
-          </div>
-
-
-          <div
-            class="table-wrap"
-            id="chargePanel"
-          >
-
-            <table id="chargeTable">
-
-              <thead>
-
-                <tr>
-
-                  <th>
-                    N°
-                  </th>
-
-                  <th>
-                    ARTICLE
-                  </th>
-
-                  <th>
-                    DÉSIGNATION
-                  </th>
-
-                  <th>
-                    UCB
-                  </th>
-
-                  <th class="number">
-                    QCB
-                  </th>
-
-                  <th class="number">
-                    PCS
-                  </th>
-
-                  <th class="number">
-                    MCB
-                  </th>
-
-                </tr>
-
-              </thead>
-
-              <tbody>
-
-                <tr>
-
-                  <td
-                    colspan="7"
-                    class="empty"
-                  >
-                    SÉLECTIONNEZ UNE TÂCHE
-                  </td>
-
-                </tr>
-
-              </tbody>
-
-              <tfoot></tfoot>
-
-            </table>
-
-          </div>
-
-        </article>
-
-      </div>
-
-
-      <!-- ===============================================
-           ANALYSE
-           =============================================== -->
-
-      <article class="bdg-analysis">
-
-        <div class="bdg-tabs">
-
-          <button
-            class="tab active"
-            data-tab="designation"
-          >
-            MARGE PAR DÉSIGNATION
-          </button>
-
-          <button
-            class="tab"
-            data-tab="primaryMargin"
-          >
-            MARGE PAR ACTIVITÉ PRIMAIRE
-          </button>
-
-          <button
-            class="tab"
-            data-tab="yield"
-          >
-            RENDEMENT SELON BUDGET
-          </button>
-
-        </div>
-
-
-        <div id="analysisCompact">
-
-          <table>
-
-            <thead>
-
-              <tr>
-
-                <th>
-                  DÉSIGNATION
-                </th>
-
-                <th class="number">
-                  PRODUITS
-                </th>
-
-                <th class="number">
-                  CHARGES
-                </th>
-
-                <th class="number">
-                  MARGE
-                </th>
-
-                <th class="number">
-                  TAUX
-                </th>
-
-              </tr>
-
-            </thead>
-
+        <div class="novapp-budget-table-wrap">
+          <table id="budgetListTable" class="novapp-budget-table">
+            <thead></thead>
             <tbody>
-
-              <tr>
-
-                <td
-                  colspan="5"
-                  class="empty"
-                >
-                  SÉLECTIONNEZ UNE TÂCHE
-                </td>
-
-              </tr>
-
+              <tr><td colspan="7" class="empty">CHARGEMENT DES BUDGETS...</td></tr>
             </tbody>
-
           </table>
-
         </div>
-
-      </article>
-
+      </div>
     </section>
 
   </main>
@@ -843,6 +472,13 @@
        MODALE GLOBALE
        ===================================================== -->
 
+<div id="navMenu" class="popup hidden">
+  <button class="nav-btn active" data-view="chs">CHS</button>
+  <button class="nav-btn" data-view="bds">BDS</button>
+  <button class="nav-btn" data-view="bdg">BDG</button>
+</div>
+
+  
   <div
     id="modal"
     class="modal hidden"
@@ -910,7 +546,7 @@
        JAVASCRIPT
        ===================================================== -->
 
-  <script src="app.js?v=40"></script>
+  <script src="app.js?v=236"></script>
 
 </body>
 
