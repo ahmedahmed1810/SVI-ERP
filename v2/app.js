@@ -5816,13 +5816,8 @@ function renderBudgetList() {
       const idb = "doc:" + ref + ":" + docRef;
       await sviFiles.put(idb, blob);
       const list = docsLoad();
-      /* intitulé unique : date d'édition ajoutée, puis (2), (3)… si besoin */
-      const p2 = n => String(n).padStart(2, "0");
-      let t0 = String(title).toUpperCase() + " DU " + p2(now.getDate()) + "/" + p2(now.getMonth() + 1) +
-        "/" + now.getFullYear() + " À " + p2(now.getHours()) + ":" + p2(now.getMinutes());
-      let t = t0;
-      for (let k = 2; findDup(list, r => r.title, t); k++) t = t0 + " (" + k + ")";
-      title = t;
+      /* PDF généré : même intitulé à chaque édition, c'est la référence
+         (…/001, …/002) qui distingue les versions */
       list.push({ ref: docRef, date: localDT(now), title: String(title).toUpperCase(),
         name, size: blob.size, type: "application/pdf", data: null, idb });
       docsSave(list);
@@ -6130,11 +6125,6 @@ function renderBudgetList() {
       const t = r.result.transaction("f", "readwrite");
       t.objectStore("f").put(blob, idb);
       t.oncomplete = () => {
-        const dk = v => String(v || "").trim().toUpperCase().replace(/\s+/g, " ");
-        let t0 = title.toUpperCase() + " DU " + p2(d.getDate()) + "/" + p2(d.getMonth() + 1) + "/" + d.getFullYear() +
-          " À " + p2(d.getHours()) + ":" + p2(d.getMinutes()), tt = t0;
-        for (let k = 2; list.some(x => dk(x.title) === dk(tt)); k++) tt = t0 + " (" + k + ")";
-        title = tt;
         list.push({ ref: docRef, date: d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()) + "T" + p2(d.getHours()) + ":" + p2(d.getMinutes()),
           title: title.toUpperCase(), name, size: blob.size, type: "application/pdf", data: null, idb });
         localStorage.setItem(KEYD, JSON.stringify(list));
