@@ -3582,7 +3582,15 @@ function renderBudgetList() {
       lines.forEach(l => {
         if (l.kind !== "prd" || l.cprice === 0) return;
         const u = unitOf.get(l.article + "||" + l.designation);
-        if (u) { l.dunit = u; l.unitLocked = true; }
+        if (u) {
+          /* unité d'origine (col. Q) différente de celle de la désignation
+             client → signalée en rouge ; l'unité affichée reste imposée */
+          const norm = v => String(v ?? "").trim().toUpperCase();
+          l.unitDiff = !!l.dunit && norm(l.dunit) !== norm(u);
+          l.sheetUnit = l.dunit;
+          l.dunit = u;
+          l.unitLocked = true;
+        }
       });
     }
 
@@ -4530,11 +4538,11 @@ function renderBudgetList() {
                 class="${selRows.has(l.gid) ? "selected" : ""}">
               <td class="center">${esc(l.article)}</td>
               <td>${esc(l.detail)}</td>
-              <td class="center ${prd && (l.members.some(unitMismatch) || l.members.some(m => m.unitLocked)) ? "cell-warn" : ""}"
-                  ${prd && l.members.some(unitMismatch)
-                    ? `data-why="Unité ${esc(l.unit)} : le nombre de dimensions renseignées ne correspond pas (M3 = 3, M2 = 2, M = 1)."`
-                    : prd && l.members.some(m => m.unitLocked)
-                      ? `data-why="Clé primaire : unité reprise automatiquement de la désignation client, non modifiable."` : ""}>${esc(l.unit)}</td>
+              <td class="center ${prd && (l.members.some(unitMismatch) || l.members.some(m => m.unitDiff)) ? "cell-warn" : ""}"
+                  ${prd && l.members.some(m => m.unitDiff)
+                    ? `data-why="Unité de la feuille (${esc(l.members.find(m => m.unitDiff).sheetUnit)}) différente de celle de la désignation client (${esc(l.unit)})."`
+                    : prd && l.members.some(unitMismatch)
+                      ? `data-why="Unité ${esc(l.unit)} : le nombre de dimensions renseignées ne correspond pas (M3 = 3, M2 = 2, M = 1)."` : ""}>${esc(l.unit)}</td>
               ${
                 prd
                   ? `
