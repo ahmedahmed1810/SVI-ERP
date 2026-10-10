@@ -2289,6 +2289,53 @@ function renderBudgetList() {
       }
       .bdg-d-table td[data-why] { cursor: help; }
 
+      .bdg-d-pill-btn { cursor: pointer; }
+      .bdg-d-pill-btn:hover { background: #eef1f6; }
+      #docPop {
+        position: fixed; inset: 0; z-index: 10003; background: rgba(15,23,42,.45);
+        display: flex; align-items: center; justify-content: center; padding: 16px;
+      }
+      #docPop .doc-card {
+        width: 100%; max-width: 760px; background: #fff; border-radius: 10px;
+        box-shadow: 0 18px 40px rgba(0,0,0,.25); overflow: hidden; color: #172033;
+        font-size: 12px;
+      }
+      #docPop .doc-head {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 14px 18px; border-bottom: 1px solid #e5e9ef;
+      }
+      #docPop .doc-title { font-size: 13px; font-weight: 800; }
+      #docPop .doc-x { border: 0; background: none; font-size: 16px; cursor: pointer; color: #374151; }
+      #docPop .doc-body { padding: 16px 18px 12px; }
+      #docPop .doc-grid {
+        display: grid; grid-template-columns: 120px 1fr 90px 1fr; gap: 12px 14px; align-items: center;
+      }
+      #docPop .doc-lab { font-size: 11px; font-weight: 800; color: #4b5563; }
+      #docPop .doc-lab b { color: #dc2626; }
+      #docPop .doc-in {
+        height: 34px; border: 1px solid #d6dbe3; border-radius: 6px; padding: 0 10px;
+        font-size: 12px; font-family: inherit; color: #172033; background: #fff; min-width: 0;
+      }
+      #docPop .doc-in:focus { outline: none; border-color: #60a5fa; box-shadow: 0 0 0 3px #dbeafe; }
+      #docPop .doc-in.bad, #docPop .doc-file.bad .doc-btn { border-color: #f87171; background: #fef2f2; }
+      #docPop .doc-file { grid-column: 2 / 5; display: flex; align-items: center; gap: 12px; }
+      #docPop .doc-fname { font-size: 11px; color: #6b7280; }
+      #docPop .doc-fname.ok { color: #172033; font-weight: 700; }
+      #docPop .doc-btn {
+        height: 34px; padding: 0 16px; border: 1px solid #d6dbe3; border-radius: 6px;
+        background: #fff; font-size: 12px; font-weight: 800; cursor: pointer; color: #172033;
+      }
+      #docPop .doc-save { background: #eef3fb; border-color: #9fb6d9; }
+      #docPop .doc-err { color: #b42318; font-size: 11px; min-height: 14px; margin-top: 10px; }
+      #docPop .doc-foot {
+        display: flex; justify-content: flex-end; gap: 10px; padding: 12px 18px;
+        border-top: 1px solid #e5e9ef; background: #fafbfc;
+      }
+      @media (max-width: 650px) {
+        #docPop .doc-grid { grid-template-columns: 1fr; }
+        #docPop .doc-file { grid-column: auto; }
+      }
+
       /* agrandissement d'un bloc */
       .blk-max-btn .ic-min { display: none; }
       .blk-max-btn.on .ic-max { display: none; }
@@ -3792,7 +3839,7 @@ function renderBudgetList() {
         </div>
 
         <div class="bdg-d-pills">
-          <span class="bdg-d-pill">DOC</span>
+          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="doc" role="button">DOC</span>
           <span class="bdg-d-pill">TAF</span>
           <span class="bdg-d-pill">OBS</span>
           <span class="bdg-d-pill">INF</span>
@@ -5017,6 +5064,126 @@ function renderBudgetList() {
       setTimeout(close, 5000);
     };
 
+    /* ===== fenêtre DOC : ajout d'un document au budget ===== */
+    const DOC_KEY = "svi_docs_v1:" + String(ref);
+    const docsLoad = () => {
+      try { return JSON.parse(localStorage.getItem(DOC_KEY) || "[]") || []; }
+      catch (e) { return []; }
+    };
+    const docsSave = list => {
+      try { localStorage.setItem(DOC_KEY, JSON.stringify(list)); return true; }
+      catch (e) { return false; }
+    };
+    const pad = (n, w = 2) => String(n).padStart(w, "0");
+
+    /* numéro : DOC AA-MMJJ/NNN (compteur du jour pour ce budget) */
+    const nextDocRef = d => {
+      const day = `${pad(d.getFullYear() % 100)}-${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+      const n = docsLoad().filter(x => String(x.ref).startsWith("DOC " + day)).length + 1;
+      return `DOC ${day}/${pad(n, 3)}`;
+    };
+
+    const openDocForm = () => {
+      const now = new Date();
+      const local = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      let docRef = nextDocRef(now);
+      let file = null;
+
+      document.getElementById("docPop")?.remove();
+      const p = document.createElement("div");
+      p.id = "docPop";
+      p.innerHTML = `
+        <div class="doc-card" role="dialog" aria-modal="true">
+          <div class="doc-head">
+            <span class="doc-title">${esc(budget.project)} : <span id="docRef">${esc(docRef)}</span></span>
+            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+          </div>
+          <div class="doc-body">
+            <div class="doc-grid">
+              <label class="doc-lab" for="docDate">DATE CRÉATION <b>*</b></label>
+              <input id="docDate" class="doc-in" type="datetime-local" value="${local}">
+              <label class="doc-lab" for="docTitle">INTITULÉ <b>*</b></label>
+              <input id="docTitle" class="doc-in" type="text" placeholder="INTITULÉ" autocomplete="off">
+              <span class="doc-lab">DOC <b>*</b></span>
+              <div class="doc-file">
+                <button type="button" class="doc-btn" id="docPick">TÉLÉCHARGER</button>
+                <span id="docName" class="doc-fname">AUCUN DOCUMENT SÉLECTIONNÉ</span>
+              </div>
+            </div>
+            <div id="docErr" class="doc-err"></div>
+          </div>
+          <div class="doc-foot">
+            <button type="button" class="doc-btn" data-cancel>ANNULER</button>
+            <button type="button" class="doc-btn doc-save" id="docSave">ENREGISTRER</button>
+          </div>
+        </div>`;
+      document.body.appendChild(p);
+      setTimeout(() => p.querySelector("#docTitle")?.focus(), 50);
+
+      const close = () => p.remove();
+      p.addEventListener("click", e => {
+        if (e.target === p || e.target.closest("[data-cancel]")) close();
+      });
+
+      p.querySelector("#docDate").addEventListener("change", e => {
+        const d = new Date(e.target.value);
+        if (!isNaN(d)) {
+          docRef = nextDocRef(d);
+          p.querySelector("#docRef").textContent = docRef;
+        }
+      });
+
+      p.querySelector("#docPick").addEventListener("click", () => {
+        const inp = document.createElement("input");
+        inp.type = "file";
+        inp.onchange = () => {
+          file = inp.files[0] || null;
+          p.querySelector("#docName").textContent =
+            file ? file.name.toUpperCase() : "AUCUN DOCUMENT SÉLECTIONNÉ";
+          p.querySelector("#docName").classList.toggle("ok", !!file);
+        };
+        inp.click();
+      });
+
+      p.querySelector("#docSave").addEventListener("click", async () => {
+        const date = p.querySelector("#docDate").value;
+        const title = p.querySelector("#docTitle").value.trim();
+        const miss = [];
+        p.querySelectorAll(".doc-in, .doc-file").forEach(x => x.classList.remove("bad"));
+        if (!date) { miss.push("date"); p.querySelector("#docDate").classList.add("bad"); }
+        if (!title) { miss.push("intitulé"); p.querySelector("#docTitle").classList.add("bad"); }
+        if (!file) { miss.push("document"); p.querySelector(".doc-file").classList.add("bad"); }
+        if (miss.length) {
+          p.querySelector("#docErr").textContent = "Champs obligatoires manquants : " + miss.join(", ") + ".";
+          return;
+        }
+
+        /* fichier gardé sur l'appareil s'il est raisonnable (≤ 1,5 Mo) ;
+           l'enregistrement sur Google Drive viendra plus tard */
+        let data = null;
+        if (file.size <= 1.5 * 1024 * 1024) {
+          data = await new Promise(ok => {
+            const fr = new FileReader();
+            fr.onload = () => ok(fr.result);
+            fr.onerror = () => ok(null);
+            fr.readAsDataURL(file);
+          });
+        }
+        const list = docsLoad();
+        list.push({
+          ref: docRef, date, title: title.toUpperCase(),
+          name: file.name, size: file.size, type: file.type, data
+        });
+        if (!docsSave(list)) {
+          list[list.length - 1].data = null;
+          docsSave(list);
+        }
+        close();
+        const pill = shell.querySelector('[data-pill="doc"]');
+        if (pill) pill.textContent = "DOC (" + list.length + ")";
+      });
+    };
+
     /* agrandir un bloc : il occupe tout l'écran sous l'en-tête figé */
     const toggleMax = blk => {
       const page = shell.querySelector(".bdg-d-page");
@@ -5038,6 +5205,11 @@ function renderBudgetList() {
     };
 
     shell.onclick = event => {
+      if (event.target.closest('[data-pill="doc"]')) {
+        openDocForm();
+        return;
+      }
+
       const bb = event.target.closest(".blk-btn");
       if (bb) {
         event.stopPropagation();
@@ -5218,6 +5390,11 @@ function renderBudgetList() {
 
     stateLoad();
     refreshAll();
+    {
+      const n = docsLoad().length;
+      const pill = shell.querySelector('[data-pill="doc"]');
+      if (pill && n) pill.textContent = "DOC (" + n + ")";
+    }
 
     $("budgetBackBtn")
       ?.addEventListener(
