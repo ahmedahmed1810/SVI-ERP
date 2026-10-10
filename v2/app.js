@@ -2369,6 +2369,36 @@ function renderBudgetList() {
         max-height: none !important;
       }
 
+      /* listes DOC / TAF / OBS : 5 lignes visibles, défilement au-delà */
+      .rec-scroll {
+        overflow: auto; -webkit-overflow-scrolling: touch;
+        max-height: calc(27px + 5 * 29px);
+      }
+      .rec-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+      .rec-table th, .rec-table td {
+        padding: 0 10px; height: 28px; border-bottom: 1px solid #edf0f4;
+        text-align: left; white-space: nowrap;
+      }
+      .rec-table th {
+        position: sticky; top: 0; z-index: 1; height: 26px;
+        background: #fafbfc; color: #6b7480; font-size: 10px;
+      }
+      .rec-table td.wrap { white-space: normal; min-width: 220px; line-height: 1.3; }
+      .rec-table td.center { text-align: center; }
+      .rec-table td.empty { color: #9aa3af; text-align: center; font-style: italic; }
+      .rec-table .rec-imp { color: #b91c1c; font-weight: 900; }
+      .rec-table .rec-late { color: #b91c1c; font-weight: 700; }
+      .rec-table .rec-open {
+        color: #1d4ed8; text-decoration: underline; cursor: pointer; background: none;
+        border: 0; padding: 0; font: inherit;
+      }
+      .bdg-d-page[class*="max-"] > .blk-rec:not(.blk-rec-on) { display: none !important; }
+      .bdg-d-page.max-rec > .blk-client,
+      .bdg-d-page.max-rec > .blk-hier,
+      .bdg-d-page.max-rec > #bdgTabs,
+      .bdg-d-page.max-rec > #bdgTabBody { display: none !important; }
+      .bdg-d-page.max-rec .blk-rec-on .rec-scroll { max-height: none; height: calc(var(--avail) - 50px); }
+
       /* outils export / import / aperçu */
       .blk-head { display: flex; align-items: center; justify-content: space-between; }
       .blk-tools { display: inline-flex; gap: 4px; margin-left: auto; }
@@ -3916,6 +3946,42 @@ function renderBudgetList() {
 
         <div class="bdg-d-block bdg-d-tabbody" id="bdgTabBody"></div>
 
+        <div class="bdg-d-block blk-rec blk-rec-doc" data-rec="doc">
+          <div class="bdg-d-block-title blk-head">
+            <span id="recTitle-doc">DOCUMENTS (0)</span>
+            <span class="blk-tools">
+              <button type="button" class="blk-btn" data-blk="doc" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="doc" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn blk-max-btn" data-blk="doc" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </span>
+          </div>
+          <div class="rec-scroll"><table class="rec-table" id="recTable-doc"></table></div>
+        </div>
+
+        <div class="bdg-d-block blk-rec blk-rec-taf" data-rec="taf">
+          <div class="bdg-d-block-title blk-head">
+            <span id="recTitle-taf">TAF (0)</span>
+            <span class="blk-tools">
+              <button type="button" class="blk-btn" data-blk="taf" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="taf" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn blk-max-btn" data-blk="taf" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </span>
+          </div>
+          <div class="rec-scroll"><table class="rec-table" id="recTable-taf"></table></div>
+        </div>
+
+        <div class="bdg-d-block blk-rec blk-rec-obs" data-rec="obs">
+          <div class="bdg-d-block-title blk-head">
+            <span id="recTitle-obs">OBSERVATIONS (0)</span>
+            <span class="blk-tools">
+              <button type="button" class="blk-btn" data-blk="obs" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="obs" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn blk-max-btn" data-blk="obs" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </span>
+          </div>
+          <div class="rec-scroll"><table class="rec-table" id="recTable-obs"></table></div>
+        </div>
+
 
       </div>
     `;
@@ -4748,7 +4814,9 @@ function renderBudgetList() {
 
     /* ===== export / import / aperçu PDF par bloc ===== */
     const lastShown = { client: null, detail: null, hier: {} };
-    const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL" };
+    const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL",
+                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS" };
+    const REC_KINDS = ["doc", "taf", "obs"];
 
     const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
     const blkLabel = blk => blk === "detail" ? tabTitle() : blkName[blk];
@@ -4763,6 +4831,7 @@ function renderBudgetList() {
           rows: [[a, b, $("bdgDelayDays")?.textContent || ""]]
         };
       }
+      if (REC_KINDS.includes(blk)) return recTableData(blk);
       if (blk === "hier") {
         const h = lastShown.hier;
         const n = Math.max((h.lot || []).length, (h.prim || []).length, (h.sec || []).length);
@@ -5019,7 +5088,11 @@ function renderBudgetList() {
         alert("Aucune donnée dans " + blkLabel(blk) + ".");
         return;
       }
-      if (blk === "hier" || (blk === "detail" && active === "dly")) {
+      if (REC_KINDS.includes(blk) && !recLoad(blk).length) {
+        alert("Aucune donnée dans " + blkLabel(blk) + ".");
+        return;
+      }
+      if (blk === "hier" || REC_KINDS.includes(blk) || (blk === "detail" && active === "dly")) {
         const { head, rows } = blkData(blk);
         tableHTML = `<table><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead>
           <tbody>${rows.map(r => `<tr>${r.map(v => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
@@ -5190,14 +5263,14 @@ function renderBudgetList() {
           docsSave(list);
         }
         close();
-        const pill = shell.querySelector('[data-pill="doc"]');
-        if (pill) pill.textContent = "DOC (" + list.length + ")";
+        updPill("doc");
       });
     };
 
     /* ===== fenêtres OBS et TAF (même présentation que DOC) ===== */
     const recKey = kind => "svi_" + kind + "_v1:" + String(ref);
     const recLoad = kind => {
+      if (kind === "doc") return docsLoad();
       try { return JSON.parse(localStorage.getItem(recKey(kind)) || "[]") || []; }
       catch (e) { return []; }
     };
@@ -5214,6 +5287,70 @@ function renderBudgetList() {
       const pill = shell.querySelector(`[data-pill="${kind}"]`);
       const n = recLoad(kind).length;
       if (pill) pill.textContent = kind.toUpperCase() + " (" + n + ")";
+      renderRec(kind);
+    };
+
+    /* ===== listes DOC / TAF / OBS sous le détail ===== */
+    const fmtDT = v => {
+      if (!v) return "";
+      const d = new Date(v);
+      if (isNaN(d)) return String(v);
+      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+    const recCols = {
+      doc: [["N°", r => r.ref], ["DATE CRÉATION", r => fmtDT(r.date)], ["INTITULÉ", r => r.title],
+            ["DOCUMENT", r => r.name || ""]],
+      taf: [["N°", r => r.ref], ["DATE CRÉATION", r => fmtDT(r.date)], ["OBJET TAF", r => r.objet || ""],
+            ["DESCRIPTIF TAF", r => r.text], ["RESPONSABLE", r => r.responsable],
+            ["PRÉVU LE", r => fmtDT(r.prevu)],
+            ["DÉLAI PLANIFIÉ", r => hm(new Date(r.prevu) - new Date(r.date))],
+            ["DURÉE ÉCOULÉE", r => hm(Date.now() - new Date(r.date))]],
+      obs: [["N°", r => r.ref], ["DATE CRÉATION", r => fmtDT(r.date)],
+            ["!", r => r.important ? "!" : ""], ["OBSERVATION", r => r.text]]
+    };
+    /* plus récent en premier */
+    const recSorted = kind => recLoad(kind).map((r, i) => ({ r, i }))
+      .sort((a, b) => String(b.r.date).localeCompare(String(a.r.date)) || b.i - a.i);
+    const recTableData = kind => ({
+      head: recCols[kind].map(c => c[0]),
+      rows: recSorted(kind).map(({ r }) => recCols[kind].map(c => c[1](r)))
+    });
+
+    const renderRec = kind => {
+      const t = $("recTable-" + kind);
+      if (!t) return;
+      const list = recSorted(kind);
+      const cols = recCols[kind];
+      const title = $("recTitle-" + kind);
+      if (title) title.textContent = blkName[kind] + " (" + list.length + ")";
+      const wide = { doc: 2, taf: 3, obs: 3 }[kind];
+      const rows = list.map(({ r, i }) => "<tr>" + cols.map((c, ci) => {
+        const v = c[1](r);
+        if (kind === "doc" && ci === 3 && r.data)
+          return `<td><button type="button" class="rec-open" data-recopen="${i}">${esc(v)}</button></td>`;
+        if (kind === "obs" && ci === 2) return `<td class="center rec-imp">${esc(v)}</td>`;
+        if (kind === "taf" && ci === 7 && Date.now() > new Date(r.prevu))
+          return `<td class="rec-late" title="Échéance dépassée">${esc(v)}</td>`;
+        return `<td${ci === wide ? ' class="wrap"' : ""}>${esc(v)}</td>`;
+      }).join("") + "</tr>").join("");
+      t.innerHTML = `<thead><tr>${cols.map(c => `<th>${esc(c[0])}</th>`).join("")}</tr></thead>
+        <tbody>${rows || `<tr><td class="empty" colspan="${cols.length}">AUCUN ENREGISTREMENT</td></tr>`}</tbody>`;
+    };
+
+    /* ouvrir un document gardé sur l'appareil */
+    const openDoc = i => {
+      const d = docsLoad()[i];
+      if (!d || !d.data) { alert("Document non disponible sur cet appareil."); return; }
+      try {
+        const [meta, b64] = d.data.split(",");
+        const bin = atob(b64);
+        const arr = new Uint8Array(bin.length);
+        for (let k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
+        const blob = new Blob([arr], { type: (meta.match(/data:([^;]+)/) || [])[1] || d.type || "" });
+        const url = URL.createObjectURL(blob);
+        const w = window.open(url, "_blank");
+        if (!w) download(d.name, blob);
+      } catch (e) { alert("Ouverture impossible : " + e.message); }
     };
     const localDT = d =>
       `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -5344,7 +5481,11 @@ function renderBudgetList() {
       const page = shell.querySelector(".bdg-d-page");
       const cls = "max-" + blk;
       const on = !page.classList.contains(cls);
-      page.classList.remove("max-client", "max-hier", "max-detail");
+      page.classList.remove("max-client", "max-hier", "max-detail", "max-rec",
+        ...REC_KINDS.map(k => "max-" + k));
+      shell.querySelectorAll(".blk-rec").forEach(b =>
+        b.classList.toggle("blk-rec-on", on && b.dataset.rec === blk));
+      if (on && REC_KINDS.includes(blk)) page.classList.add("max-rec");
       if (on) {
         const head = shell.querySelector(".bdg-d-sticky");
         const avail = window.innerHeight - (head ? head.offsetHeight : 0) - 40;
@@ -5364,6 +5505,8 @@ function renderBudgetList() {
         openDocForm();
         return;
       }
+      const ro = event.target.closest("[data-recopen]");
+      if (ro) { openDoc(+ro.dataset.recopen); return; }
       const recPill = event.target.closest('[data-pill="obs"], [data-pill="taf"]');
       if (recPill) {
         openRecForm(recPill.dataset.pill);
@@ -5552,8 +5695,7 @@ function renderBudgetList() {
     refreshAll();
     {
       const n = docsLoad().length;
-      const pill = shell.querySelector('[data-pill="doc"]');
-      if (pill) pill.textContent = "DOC (" + n + ")";
+      updPill("doc");
       updPill("obs");
       updPill("taf");
     }
