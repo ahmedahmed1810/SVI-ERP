@@ -5091,7 +5091,9 @@ function renderBudgetList() {
       h.classList.add("on");
       const move = e => {
         e.preventDefault();
-        v = Math.max(60, Math.round(base + e.clientY - y0));
+        /* minimum : en-tête + une seule ligne (+ ligne TOTAL s'il y en a une) */
+        const minH = { client: 65, detail: 65 }[u] || 44;
+        v = Math.max(minH, Math.round(base + e.clientY - y0));
         pg.style.setProperty("--h-" + u, v + "px");
       };
       const up = () => {
