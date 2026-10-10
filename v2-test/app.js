@@ -3372,18 +3372,24 @@ function renderBudgetList() {
   shell.classList.toggle("list-inst", listMode === "inst");
   {
     const h1 = shell.querySelector(".novapp-list-titlebar h1");
-    if (h1) h1.innerHTML = (listMode === "inst" ? "BUDGETS EN INSTANCE" : "BUDGETS VALIDÉS") + ' <span id="bdgListCount"></span>';
+    if (h1) h1.innerHTML = (listMode === "inst" ? "BUDGETS (EN INSTANCE)" : "BUDGETS (VALIDÉS)") + ' <span id="bdgListCount"></span>';
     const acts = shell.querySelector(".novapp-list-actions");
     if (acts) {
+      /* ⌛ : budgets en instance — ≡ : budgets validés (bouton de la liste affichée surligné) */
       const hg = acts.querySelector('[aria-label="Historique"]');
-      if (hg) hg.title = listMode === "inst" ? "Voir les budgets validés" : "Voir les budgets en instance";
+      const ls = acts.querySelector('[aria-label="Liste"]');
+      if (hg) { hg.title = "Budgets en instance"; hg.classList.toggle("on", listMode === "inst"); }
+      if (ls) { ls.title = "Budgets validés"; ls.classList.toggle("on", listMode !== "inst"); }
+      const setMode = m => {
+        try { localStorage.setItem("svi_listmode_v1", m); } catch (err) {}
+        renderBudgetList();
+      };
       acts.onclick = e => {
         const b = e.target.closest("button");
         if (!b) return;
-        if (b.getAttribute("aria-label") === "Historique") {
-          try { localStorage.setItem("svi_listmode_v1", listMode === "inst" ? "valid" : "inst"); } catch (err) {}
-          renderBudgetList();
-        } else if (b.getAttribute("aria-label") === "Ajouter") {
+        if (b.getAttribute("aria-label") === "Historique") setMode("inst");
+        else if (b.getAttribute("aria-label") === "Liste") setMode("valid");
+        else if (b.getAttribute("aria-label") === "Ajouter") {
           openNewBudget();
         }
       };
