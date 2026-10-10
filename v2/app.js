@@ -1,6 +1,21 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzFgUloyiRJe-QmR7nRqJ4bfWqvfA_6LSgotJRrRt87yeRfWtdY7nxXMR9avafSJUPg4Q/exec";
 const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
 
+/* toute saisie est enregistrée en MAJUSCULES, même tapée en minuscules
+   (le curseur reste à sa place) */
+document.addEventListener("input", e => {
+  const el = e.target;
+  if (e.isComposing || !el || el.dataset?.keepcase !== undefined) return;
+  const ok = el.tagName === "TEXTAREA" ||
+    (el.tagName === "INPUT" && ["text", "search", ""].includes(el.type || ""));
+  if (!ok) return;
+  const up = el.value.toUpperCase();
+  if (up === el.value) return;
+  const a = el.selectionStart, b = el.selectionEnd;
+  el.value = up;
+  try { el.setSelectionRange(a, b); } catch (err) {}
+}, true);
+
 const $ = id => document.getElementById(id);
 
 /* =========================================================
