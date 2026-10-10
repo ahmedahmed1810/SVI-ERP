@@ -2764,6 +2764,10 @@ function renderBudgetList() {
       #docPop .fmt-btn { height: auto; padding: 14px 16px; text-align: left; display: flex; flex-direction: column; gap: 4px; }
       #docPop .fmt-btn small { font-size: 10px; font-weight: 600; color: #6b7280; }
       #docPop .fmt-btn:hover { background: #eef3fb; border-color: #9fb6d9; }
+      #docPop .fmt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
+      #docPop .fmt-grid .fmt-btn { align-items: center; text-align: center; padding: 12px 8px; }
+      #docPop .fmt-btn.on { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+      @media (max-width: 650px) { #docPop .fmt-grid { grid-template-columns: 1fr 1fr; } }
 
       /* historique */
       #docPop .hist-card { max-width: 980px; }
@@ -5785,7 +5789,7 @@ function renderBudgetList() {
               <select id="fdRec" class="doc-in"><option value="">CHOISIR UN DOSSIER RÉCENT…</option>${rec.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}</select>` : ""}
             </div>
             <datalist id="fdPaths">${[...new Set([path, ...rec])].map(o => `<option value="${esc(o)}">`).join("")}</datalist>
-            <div class="doc-err fd-msg" id="fdMsg">SOUS-DOSSIERS SÉPARÉS PAR « / », CRÉÉS SI BESOIN.</div>
+            <div class="doc-err fd-msg" id="fdMsg"></div>
           </div>
           <div class="doc-foot">
             <button type="button" class="doc-btn" data-cancel>ANNULER</button>
@@ -5970,7 +5974,24 @@ function renderBudgetList() {
       });
     };
 
-    const doExport = async (blk, fmt, docName) => {
+    /* fichier prêt : sur l'iPad ou dans le Drive (fenêtre d'export fusionnée),
+       sinon fenêtre d'enregistrement */
+    const deliver = async (name, blob, dest) => {
+      if (!dest) return saveFile(name, blob);
+      if (dest.target === "device") { saveDevice(name, blob); dest.ui && dest.ui.close(); return; }
+      const ui = dest.ui;
+      ui && ui.msg("ENVOI DANS LE DRIVE…");
+      try {
+        const out = await driveSave(blob, name, dest.path);
+        histLog("FICHIER", "DRIVE", (dest.path ? dest.path + "/" : "") + name);
+        ui && ui.msg(`ENREGISTRÉ : ${esc((dest.path || "MON DRIVE") + "/" + name)}` +
+          (out.url ? ` — <a href="${esc(out.url)}" target="_blank" rel="noopener">OUVRIR</a>` : ""), "ok");
+      } catch (err) {
+        ui && ui.msg("ÉCHEC : " + esc(driveErrText(err)));
+      }
+    };
+
+    const doExport = async (blk, fmt, docName, dest) => {
       const { head, rows, bold: boldIdx } = blkData(blk);
       if (!head.length) { alert("Aucune donnée à exporter dans " + blkLabel(blk) + "."); return; }
       const T = exportTop(blk);
@@ -6057,11 +6078,11 @@ function renderBudgetList() {
           return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
         };
         const txt = [...topLines.map(t => [t]), [], head, ...rows].map(r => r.map(cell).join(";")).join("\r\n");
-        saveFile(base + ".csv", new Blob(["\ufeff" + txt], { type: "text/csv" }));
+        await deliver(base + ".csv", new Blob(["\ufeff" + txt], { type: "text/csv" }), dest);
       } else if (fmt === "json") {
         const objs = rows.map(r => Object.fromEntries(head.map((h, i) => [h, r[i]])));
         const doc = { entete: T, lignes: objs };
-        saveFile(base + ".json", new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" }));
+        await deliver(base + ".json", new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" }), dest);
       } else {
         try {
           const X = await loadXLSX();
@@ -6117,9 +6138,9 @@ function renderBudgetList() {
           const wb = X.utils.book_new();
           X.utils.book_append_sheet(wb, ws, blkLabel(blk).slice(0, 31));
           const out = X.write(wb, { bookType: "xlsx", type: "array" });
-          saveFile(base + ".xlsx", new Blob([out], {
+          await deliver(base + ".xlsx", new Blob([out], {
             type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-          }));
+          }), dest);
         } catch (e) {
           alert(e.message);
         }
@@ -6139,41 +6160,78 @@ function renderBudgetList() {
       return p;
     };
 
+    /* EXPORTER : nom et dossier en haut, format au milieu,
+       destination (iPad / Drive) en bas */
     const openExportMenu = blk => {
       loadXLSX().catch(() => {});
+      const label = String(blkLabel(blk)).toUpperCase();
+      const path0 = driveDefaultPath(budget.project, fullRef);
+      const rec = drivePaths();
+      let fmt = "xlsx";
       document.getElementById("docPop")?.remove();
       const p = document.createElement("div");
       p.id = "docPop";
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true" style="max-width:640px">
           <div class="doc-head">
-            <span class="doc-title">EXPORTER — ${esc(String(blkLabel(blk)).toUpperCase())}</span>
+            <span class="doc-title">EXPORTER — ${esc(label)}</span>
             <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
           </div>
           <div class="doc-body">
             <div class="doc-grid doc-grid-2">
-              <label class="doc-lab" for="expName">NOM DU DOCUMENT</label>
-              <input id="expName" class="doc-in" type="text" autocomplete="off" value="${esc(fullRef + " " + String(blkLabel(blk)).toUpperCase())}">
+              <label class="doc-lab" for="fdName">NOM DU FICHIER</label>
+              <input id="fdName" class="doc-in" type="text" autocomplete="off" value="${esc((fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-"))}">
+              <label class="doc-lab" for="fdPath">DOSSIER DRIVE</label>
+              <input id="fdPath" class="doc-in" type="text" autocomplete="off" list="fdPaths" value="${esc(path0)}">
+              ${rec.length ? `<span class="doc-lab">RÉCENTS</span>
+              <select id="fdRec" class="doc-in"><option value="">CHOISIR UN DOSSIER RÉCENT…</option>${rec.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}</select>` : ""}
             </div>
-            <div class="fmt-choice" style="margin-top:14px">
-              <button type="button" class="doc-btn fmt-btn" data-fmt="xlsx">EXCEL (.XLSX)</button>
-              <button type="button" class="doc-btn fmt-btn" data-fmt="csv">CSV (.CSV)</button>
-              <button type="button" class="doc-btn fmt-btn" data-fmt="json">JSON (.JSON)</button>
+            <datalist id="fdPaths">${[...new Set([path0, ...rec])].map(o => `<option value="${esc(o)}">`).join("")}</datalist>
+            <div class="fmt-choice fmt-grid">
+              <button type="button" class="doc-btn fmt-btn on" data-fmt="xlsx">EXCEL</button>
+              <button type="button" class="doc-btn fmt-btn" data-fmt="csv">CSV</button>
+              <button type="button" class="doc-btn fmt-btn" data-fmt="json">JSON</button>
               <button type="button" class="doc-btn fmt-btn" data-fmt="gsheet">GOOGLE SHEETS</button>
             </div>
+            <div class="doc-err fd-msg" id="fdMsg"></div>
           </div>
-          <div class="doc-foot"><button type="button" class="doc-btn" data-cancel>ANNULER</button></div>
+          <div class="doc-foot">
+            <button type="button" class="doc-btn" data-cancel>ANNULER</button>
+            <button type="button" class="doc-btn" data-act="device">SUR L'IPAD</button>
+            <button type="button" class="doc-btn doc-save" data-act="drive">DANS LE DRIVE</button>
+          </div>
         </div>`;
       document.body.appendChild(p);
       popEnhance(p, "export");
-      p.addEventListener("click", e => {
+      const msg = p.querySelector("#fdMsg");
+      const ui = {
+        msg: (t, kind) => { msg.innerHTML = t; msg.className = "doc-err fd-msg" + (kind ? " " + kind : ""); },
+        close: () => p.remove()
+      };
+      const devBtn = p.querySelector('[data-act="device"]');
+      p.querySelector("#fdRec")?.addEventListener("change", e => {
+        if (e.target.value) p.querySelector("#fdPath").value = e.target.value;
+      });
+      p.addEventListener("click", async e => {
         if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
-        const b = e.target.closest("[data-fmt]");
-        if (!b) return;
-        const nm = p.querySelector("#expName").value.trim();
-        p.remove();
-        if (b.dataset.fmt === "gsheet") openDriveExport(blk, nm || fullRef + " " + String(blkLabel(blk)).toUpperCase());
-        else doExport(blk, b.dataset.fmt, nm);
+        const f = e.target.closest("[data-fmt]");
+        if (f) {
+          fmt = f.dataset.fmt;
+          p.querySelectorAll("[data-fmt]").forEach(x => x.classList.toggle("on", x === f));
+          /* Google Sheets : feuille créée dans le Drive uniquement */
+          devBtn.disabled = fmt === "gsheet";
+          ui.msg("");
+          return;
+        }
+        const b = e.target.closest("[data-act]");
+        if (!b || b.disabled) return;
+        const name = (p.querySelector("#fdName").value.trim() || fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-");
+        const path = driveCleanPath(p.querySelector("#fdPath").value);
+        if (fmt === "gsheet") { p.remove(); sendToDrive(blk, name, path); return; }
+        const btns = p.querySelectorAll("[data-act]");
+        btns.forEach(x => x.disabled = true);
+        await doExport(blk, fmt, name, { target: b.dataset.act, path, ui });
+        btns.forEach(x => x.disabled = x === devBtn && fmt === "gsheet");
       });
     };
 
