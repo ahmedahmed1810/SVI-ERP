@@ -6056,7 +6056,7 @@ function renderBudgetList() {
   td.c { text-align: center; } td.r { text-align: right; }
   td.rep { color: #555; font-style: italic; }
   tr.gfirst td { border-top: 1.6px solid #000; }
-  tr.gnext td.gc, tr.lnext td.lc, tr.pnext td.pc, tr.snext td.sc { border-top-style: hidden; }
+  td.gc, td.lc, td.pc, td.sc { vertical-align: top; }
   /* tableau large (décomposition + détail produits) : texte plus petit */
   table.dense th, table.dense td { font-size: 7.5pt; padding: 0.5mm 0.8mm; }
   /* clé primaire (quantité comptée) et sous-total par désignation */
@@ -6175,19 +6175,45 @@ function renderBudgetList() {
       const bottom = [...c.children].reduce((m, x) => Math.max(m, x.offsetTop + x.offsetHeight), 0);
       return bottom > c.offsetTop + c.clientHeight - 3;
     };
-    const tmp = document.createElement("tbody");
-    tmp.innerHTML = allRows.join("");
+    /* cellules fusionnées (rowspan) : désignation, lot, activités répétés
+       s'étalent sur les lignes suivantes, sans agrandir la première ligne */
+    const MERGE = [["gnext", "gc"], ["lnext", "lc"], ["pnext", "pc"], ["snext", "sc"]];
+    const mk = html => {
+      const t = document.createElement("tbody"); t.innerHTML = html;
+      const r = t.rows[0];
+      [...r.cells].forEach((c, i) => { c.dataset.ci = i; });
+      return r;
+    };
+    const place = (tb, r) => {
+      tb.appendChild(r);
+      const an = tb.__an || (tb.__an = {});
+      const used = [];
+      [...r.cells].forEach(c => {
+        const k = c.dataset.ci;
+        const rule = MERGE.find(([rc, cc]) => c.classList.contains(cc) && r.classList.contains(rc));
+        if (rule && an[k] && tb.contains(an[k])) {
+          an[k].rowSpan += 1; c.remove(); used.push(an[k]);
+        } else an[k] = c;
+      });
+      r.__used = used;
+    };
+    const unplace = r => { (r.__used || []).forEach(a => { a.rowSpan -= 1; }); r.remove(); };
+    /* première ligne d'une page : groupe rappelé, trait du haut visible */
+    const first = r => {
+      r.classList.remove("gnext", "lnext", "pnext", "snext");
+      if (r.dataset.rep) JSON.parse(r.dataset.rep).forEach((v, k) => {
+        const c = r.cells[k];
+        if (c && !c.textContent.trim() && v) { c.textContent = v; c.classList.add("rep"); }
+      });
+    };
     let cur = newPage(true);
-    [...tmp.rows].forEach(r => {
-      cur.tb.appendChild(r);
+    allRows.forEach(html => {
+      let r = mk(html); r.__h = html;
+      place(cur.tb, r);
       if (full(cur.c) && cur.tb.rows.length > 1) {
-        cur.tb.removeChild(r); cur = newPage(true); cur.tb.appendChild(r);
-        /* ligne de suite d'un groupe en haut de page : on rappelle le groupe */
-        /* première ligne de la page : trait du haut toujours visible */
-        r.classList.remove("gnext", "lnext", "pnext", "snext");
-        if (r.dataset.rep) JSON.parse(r.dataset.rep).forEach((v, k) => {
-          if (!r.cells[k].textContent.trim() && v) { r.cells[k].textContent = v; r.cells[k].classList.add("rep"); }
-        });
+        unplace(r);
+        cur = newPage(true);
+        r = mk(html); r.__h = html; first(r); place(cur.tb, r);
       }
     });
     const end = src.querySelector("#end").cloneNode(true);
@@ -6197,8 +6223,9 @@ function renderBudgetList() {
       const prev = cur.tb;
       const n = prev ? Math.min(2, prev.rows.length - 1) : 0;
       const moved = n > 0 ? [...prev.rows].slice(-n) : [];
+      moved.slice().reverse().forEach(unplace);
       cur = newPage(moved.length > 0);
-      moved.forEach(r => cur.tb.appendChild(r));
+      moved.forEach((m, i) => { const r = mk(m.__h); r.__h = m.__h; if (!i) first(r); place(cur.tb, r); });
       cur.c.appendChild(end);
     }
     const on = (pg, i) => pg === "all" || (pg === "first" && i === 0) || (pg === "last" && i === pages.length - 1);
