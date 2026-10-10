@@ -6404,7 +6404,7 @@ function renderBudgetList() {
   };
   $("share2").onclick = () => $("share").onclick();
   $("share").onclick = async () => {
-    if (!lastPdf) return;
+    if (!lastPdf || !savedCodes[code]) return;
     const { blob, file } = lastPdf;
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file], title: file.name }); return; }
@@ -6446,7 +6446,7 @@ function renderBudgetList() {
         : "PDF PRÊT : « ENREGISTRER » L'AJOUTE AUX DOCUMENTS.";
       /* partage / enregistrement : sur un nouveau toucher (exigé par l'iPad) */
       lastPdf = { blob, file };
-      $("share").hidden = false;
+      /* partage possible seulement après enregistrement (bandeau du haut) */
       $("saveDoc").hidden = false;
     } catch (e) {
       msg.textContent = "PDF IMPOSSIBLE : " + (e && e.message ? e.message : e);
