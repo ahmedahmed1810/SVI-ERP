@@ -5736,6 +5736,35 @@ function renderBudgetList() {
       };
     };
 
+    /* largeurs des colonnes et hauteur de l'entête du tableau pour les exports
+       (Excel et Google Sheets) : colonnes numériques (quantités…) ajustées aux
+       nombres, titres longs repliés sur plusieurs lignes, entête à la bonne hauteur */
+    const exportSizing = (head, rows) => {
+      const txt = v => typeof v === "number" ? money(v) : String(v ?? "");
+      const isNum = c => {
+        const vals = rows.map(r => r[c]).filter(v => v !== "" && v != null);
+        return vals.length > 0 && vals.filter(v => typeof v === "number").length >= vals.length / 2;
+      };
+      const wch = head.map((h, c) => {
+        const dataLen = Math.max(0, ...rows.map(r => txt(r[c]).length));
+        const longWord = Math.max(...String(h ?? "").split(/\s+/).map(w => w.length));
+        if (c === 1) return Math.min(80, Math.max(dataLen, String(h ?? "").length) + 2);
+        if (isNum(c)) return Math.max(9, dataLen + 3, longWord + 2);
+        return Math.max(6, Math.min(30, Math.max(dataLen, longWord) + 2));
+      });
+      /* nombre de lignes du titre une fois replié dans sa largeur */
+      const lines = head.map((h, c) => {
+        let n = 1, cur = 0;
+        String(h ?? "").split(/\s+/).forEach(w => {
+          if (cur && cur + 1 + w.length > wch[c] - 1) { n++; cur = w.length; }
+          else cur += (cur ? 1 : 0) + w.length;
+        });
+        return n;
+      });
+      const hpt = 15 * Math.max(1, ...lines) + 6;
+      return { wch, hpt };
+    };
+
     const doExport = async (blk, fmt, docName) => {
       const { head, rows, bold: boldIdx } = blkData(blk);
       if (!head.length) { alert("Aucune donnée à exporter dans " + blkLabel(blk) + "."); return; }
@@ -5759,10 +5788,12 @@ function renderBudgetList() {
           : c >= head.length - 5 ? "right" : Uc(h) ? "center" : "left";
         const st = "font-family:Arial;font-size:11pt;";
         const bd = "border:1px solid #000;";
+        const SZ = exportSizing(head, rows);
         const html = `<meta charset="utf-8"><table style="border-collapse:collapse;${st}">` +
+          `<colgroup>${SZ.wch.map(w => `<col width="${Math.round(w * 7.5 + 5)}" style="width:${Math.round(w * 7.5 + 5)}px">`).join("")}</colgroup>` +
           topLines.map((t, i) => `<tr><td colspan="${head.length}" style="${st}font-weight:bold;text-align:${i ? "center" : "right"}">${esc(t)}</td></tr>`).join("") +
           `<tr><td colspan="${head.length}"></td></tr>` +
-          `<tr>${head.map(h => `<th style="${st}${bd}font-weight:bold;background:#D9DEE6;text-align:center">${esc(h)}</th>`).join("")}</tr>` +
+          `<tr style="height:${Math.round(SZ.hpt * 4 / 3)}px">${head.map(h => `<th style="${st}${bd}font-weight:bold;background:#D9DEE6;text-align:center;vertical-align:middle;white-space:normal;height:${Math.round(SZ.hpt * 4 / 3)}px">${esc(h)}</th>`).join("")}</tr>` +
           rows.map((r, i) => `<tr>${r.map((v, c) => `<td style="${st}${bd}text-align:${al(c, head[c])};${bs.has(i) ? "font-weight:bold;" : ""}">${esc(cell(v))}</td>`).join("")}</tr>`).join("") +
           `</table>`;
         /* copie lancée et onglet ouvert dans le même geste (Safari) ;
@@ -5872,20 +5903,12 @@ function renderBudgetList() {
               if (ws[a].t === "n") ws[a].z = "#,##0.00";
             });
           });
-          /* largeurs : colonne 2 ajustée au contenu, les autres selon leur titre */
-          const len = c => Math.max(String(head[c] ?? "").length,
-            ...rows.map(r => String(r[c] ?? "").length));
-          ws["!cols"] = head.map((h, c) => ({ wch: c === 1 ? Math.min(80, len(c) + 2) : Math.max(8, Math.min(30, len(c) + 2)) }));
-          if (blk === "metre") {
-            /* quantités : largeur selon les nombres (le titre passe sur 2 lignes) */
-            const numLen = c => Math.max(...rows.map(r => typeof r[c] === "number" ? money(r[c]).length : String(r[c] ?? "").length), 4);
-            head.forEach((h, c) => {
-              if (h === "QUANTITÉ" || h === "QUANTITÉ PARTIELLE") ws["!cols"][c] = { wch: Math.max(11, numLen(c) + 3) };
-            });
-            /* entête du tableau plus haute (titres sur deux lignes) */
-            ws["!rows"] = ws["!rows"] || [];
-            ws["!rows"][H0] = { hpt: 32 };
-          }
+          /* largeurs ajustées (quantités selon les nombres) et entête du tableau
+             assez haute pour ses titres repliés — pour tous les exports */
+          const SZ = exportSizing(head, rows);
+          ws["!cols"] = SZ.wch.map(w => ({ wch: w }));
+          ws["!rows"] = ws["!rows"] || [];
+          ws["!rows"][H0] = { hpt: SZ.hpt };
           const wb = X.utils.book_new();
           X.utils.book_append_sheet(wb, ws, blkLabel(blk).slice(0, 31));
           const out = X.write(wb, { bookType: "xlsx", type: "array" });
