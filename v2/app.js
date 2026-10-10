@@ -6149,7 +6149,7 @@ function renderBudgetList() {
     }
     const on = (pg, i) => pg === "all" || (pg === "first" && i === 0) || (pg === "last" && i === pages.length - 1);
     const mark = (pg, k, src) => {
-      const p = o[k + "Pos"] || DEF_POS[k];
+      const p = posGet(k);
       const im = document.createElement("img");
       im.className = "mk " + k; im.dataset.k = k; im.src = src; im.draggable = false;
       im.style.left = p.x + "mm"; im.style.top = p.y + "mm";
@@ -6168,6 +6168,11 @@ function renderBudgetList() {
   };
   /* positions par défaut (mm depuis le coin haut-gauche de la page) */
   const DEF_POS = { sign: { x: 185, y: 150 }, stamp: { x: 230, y: 140 } };
+  /* position mémorisée par type d'aperçu, reprise pour tous les budgets */
+  const PKEY = "svi_markpos_v1", PTYPE = ${JSON.stringify(cfg.fileTag)};
+  const posAll = () => { try { return JSON.parse(ls.get(PKEY) || "{}") || {}; } catch (e) { return {}; } };
+  const posGet = k => ((posAll()[PTYPE] || {})[k]) || o[k + "Pos"] || DEF_POS[k];
+  const posSet = (k, p) => { const a = posAll(); a[PTYPE] = a[PTYPE] || {}; a[PTYPE][k] = p; ls.set(PKEY, JSON.stringify(a)); };
   /* fond blanc rendu transparent : la signature / le cachet se superposent au texte */
   let signClear = null, stampClear = null;
   const clearWhite = src => new Promise(ok => {
@@ -6206,7 +6211,7 @@ function renderBudgetList() {
     const k = im.dataset.k;
     const pxmm = 96 / 25.4;
     const start = { x: e.clientX, y: e.clientY };
-    const p0 = Object.assign({}, o[k + "Pos"] || DEF_POS[k]);
+    const p0 = Object.assign({}, posGet(k));
     let p = p0;
     im.classList.add("drag");
     const mv = ev => {
@@ -6223,7 +6228,7 @@ function renderBudgetList() {
       document.removeEventListener("pointercancel", up);
       document.removeEventListener("touchmove", tm);
       im.classList.remove("drag");
-      o[k + "Pos"] = p;
+      posSet(k, p);
       save();
     };
     document.addEventListener("pointermove", mv, { passive: false });
