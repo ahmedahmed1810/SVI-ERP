@@ -3945,7 +3945,8 @@ function renderBudgetList() {
            entièrement visible (boutons OK / Effacer accessibles) */
         const maxH = Math.max(180, Math.min(vH * 0.6, useBelow ? below : above));
         m.style.maxHeight = maxH + "px";
-        let top = useBelow ? r.bottom + 4 : r.top - 4 - Math.min(maxH, m.scrollHeight);
+        const realH = Math.min(maxH, m.scrollHeight);
+        let top = useBelow ? r.bottom + 4 : r.top - 4 - realH;
         const h = Math.min(maxH, m.offsetHeight);
         top = Math.min(top, vTop + vH - 8 - h);
         m.style.top = Math.max(vTop + 8, top) + "px";
@@ -4011,6 +4012,9 @@ function renderBudgetList() {
       });
 
       cfRenderList();
+      /* placement APRÈS remplissage de la liste (hauteur réelle connue) */
+      cfPlace();
+      requestAnimationFrame(cfPlace);
     };
 
     /* fermeture du menu au toucher ailleurs (un seul écouteur actif) */
