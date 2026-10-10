@@ -5796,6 +5796,10 @@ function renderBudgetList() {
       });
     };
 
+    /* texte principal sans doublon (intitulé DOC / OBS, descriptif TAF) */
+    const dupKey = v => String(v ?? "").trim().toUpperCase().replace(/\s+/g, " ");
+    const findDup = (list, get, v) => list.find(r => dupKey(get(r)) === dupKey(v));
+
     /* PDF validé dans l'aperçu → nouvelle ligne DOCUMENTS avec lien vers le fichier */
     /* retour sur la page du budget : liste DOCUMENTS relue (PDF enregistré ailleurs) */
     if (window.__sviDocRefresh) {
@@ -5812,6 +5816,13 @@ function renderBudgetList() {
       const idb = "doc:" + ref + ":" + docRef;
       await sviFiles.put(idb, blob);
       const list = docsLoad();
+      /* intitulé unique : date d'édition ajoutée, puis (2), (3)… si besoin */
+      const p2 = n => String(n).padStart(2, "0");
+      let t0 = String(title).toUpperCase() + " DU " + p2(now.getDate()) + "/" + p2(now.getMonth() + 1) +
+        "/" + now.getFullYear() + " À " + p2(now.getHours()) + ":" + p2(now.getMinutes());
+      let t = t0;
+      for (let k = 2; findDup(list, r => r.title, t); k++) t = t0 + " (" + k + ")";
+      title = t;
       list.push({ ref: docRef, date: localDT(now), title: String(title).toUpperCase(),
         name, size: blob.size, type: "application/pdf", data: null, idb });
       docsSave(list);
@@ -6119,6 +6130,11 @@ function renderBudgetList() {
       const t = r.result.transaction("f", "readwrite");
       t.objectStore("f").put(blob, idb);
       t.oncomplete = () => {
+        const dk = v => String(v || "").trim().toUpperCase().replace(/\s+/g, " ");
+        let t0 = title.toUpperCase() + " DU " + p2(d.getDate()) + "/" + p2(d.getMonth() + 1) + "/" + d.getFullYear() +
+          " À " + p2(d.getHours()) + ":" + p2(d.getMinutes()), tt = t0;
+        for (let k = 2; list.some(x => dk(x.title) === dk(tt)); k++) tt = t0 + " (" + k + ")";
+        title = tt;
         list.push({ ref: docRef, date: d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()) + "T" + p2(d.getHours()) + ":" + p2(d.getMinutes()),
           title: title.toUpperCase(), name, size: blob.size, type: "application/pdf", data: null, idb });
         localStorage.setItem(KEYD, JSON.stringify(list));
@@ -6417,6 +6433,12 @@ function renderBudgetList() {
           p.querySelector("#docErr").textContent = "Champs obligatoires manquants : " + miss.join(", ") + ".";
           return;
         }
+        const dupD = findDup(docsLoad(), r => r.title, title);
+        if (dupD) {
+          p.querySelector("#docTitle").classList.add("bad");
+          p.querySelector("#docErr").textContent = "Cet intitulé existe déjà (" + dupD.ref + ").";
+          return;
+        }
 
         /* fichier gardé sur l'appareil s'il est raisonnable (≤ 1,5 Mo) ;
            l'enregistrement sur Google Drive viendra plus tard */
@@ -6632,7 +6654,7 @@ function renderBudgetList() {
             ["rdelay", "DÉLAI PLANIFIÉ", r => hm(new Date(r.prevu) - new Date(r.date)), "number"],
             ["relap", "DURÉE ÉCOULÉE", r => hm(Date.now() - new Date(r.date)), "number"]],
       obs: [["rref", "RÉFÉRENCE", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
-            ["rimp", "!", r => r.important ? "!" : "", "center"], ["rtext", "OBSERVATION", r => r.text, ""]]
+            ["rimp", "!", r => r.important ? "!" : "", "center"], ["rtext", "INTITULÉ", r => r.text, ""]]
     };
     Object.assign(CW_DEF, {
       rref: 210, rdate: 150, rtitle: 360, rfile: 120, rexp: 80, robj: 200, rtext: 420,
@@ -6812,8 +6834,8 @@ function renderBudgetList() {
               <input id="recDate" class="doc-in" type="datetime-local" value="${localDT(now)}">
               <button type="button" class="doc-flag" id="recFlag" title="Observation importante">!</button>
             </div>
-            <label class="doc-lab" for="recText">OBSERVATION <b>*</b></label>
-            <textarea id="recText" class="doc-in doc-ta" placeholder="OBSERVATION"></textarea>
+            <label class="doc-lab" for="recText">INTITULÉ <b>*</b></label>
+            <textarea id="recText" class="doc-in doc-ta" placeholder="INTITULÉ"></textarea>
           </div>` : `
           <div class="doc-grid">
             <label class="doc-lab" for="recDate">DATE CRÉATION <b>*</b></label>
@@ -6890,7 +6912,7 @@ function renderBudgetList() {
 
       $p("recSave").addEventListener("click", () => {
         const req = kind === "obs"
-          ? [["recDate", "date"], ["recText", "observation"]]
+          ? [["recDate", "date"], ["recText", "intitulé"]]
           : [["recDate", "date"], ["recText", "descriptif"], ["recResp", "responsable"],
              ["recPDate", "date prévue"], ["recPTime", "heure prévue"]];
         const miss = [];
@@ -6900,6 +6922,13 @@ function renderBudgetList() {
         });
         if (miss.length) {
           $p("recErr").textContent = "Champs obligatoires manquants : " + miss.join(", ") + ".";
+          return;
+        }
+        const dupR = findDup(recLoad(kind), r => r.text, $p("recText").value);
+        if (dupR) {
+          $p("recText").classList.add("bad");
+          $p("recErr").textContent = (kind === "obs" ? "Cet intitulé" : "Ce descriptif") +
+            " existe déjà (" + dupR.ref + ").";
           return;
         }
         const rec = kind === "obs"
