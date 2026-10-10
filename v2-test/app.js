@@ -3413,27 +3413,25 @@ function renderBudgetList() {
     p.id = "docPop";
     p.className = "pop-new-bdg";
     p.innerHTML = `
-      <div class="doc-card" role="dialog" aria-modal="true" style="max-width:620px">
+      <div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
         <div class="doc-head">
-          <span class="doc-title">NOUVEAU BUDGET</span>
+          <span class="doc-title">AJOUT <span id="nbRefT"></span></span>
           <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
         </div>
         <div class="doc-body">
-          <div class="doc-grid doc-grid-2">
+          <div class="doc-grid">
             <label class="doc-lab" for="nbDate">DATE CRÉATION <b>*</b></label>
             <input id="nbDate" class="doc-in" type="datetime-local" value="${local}">
             <label class="doc-lab" for="nbPrj">PROJET <b>*</b></label>
-            <input id="nbPrj" class="doc-in" type="text" autocomplete="off" placeholder="CODE DU NOUVEAU PROJET (EX. H88)">
+            <input id="nbPrj" class="doc-in" type="text" autocomplete="off" placeholder="CODE PROJET">
             <label class="doc-lab" for="nbName">INTITULÉ</label>
-            <input id="nbName" class="doc-in" type="text" autocomplete="off" placeholder="NOM DU PROJET">
-            <span class="doc-lab">RÉFÉRENCE</span>
-            <input id="nbRef" class="doc-in doc-ro" type="text" readonly>
+            <input id="nbName" class="doc-in nb-wide" type="text" autocomplete="off" placeholder="INTITULÉ DU PROJET">
           </div>
           <div id="nbErr" class="doc-err"></div>
         </div>
         <div class="doc-foot">
           <button type="button" class="doc-btn" data-cancel>ANNULER</button>
-          <button type="button" class="doc-btn doc-save" id="nbGo">CRÉER</button>
+          <button type="button" class="doc-btn nb-save" id="nbGo">ENREGISTRER</button>
         </div>
       </div>`;
     document.body.appendChild(p);
@@ -3442,7 +3440,7 @@ function renderBudgetList() {
     const refNow = () => {
       const d = new Date(val("#nbDate"));
       const r = isNaN(d) ? "" : nextBudgetRef(d);
-      p.querySelector("#nbRef").value = r ? ((val("#nbPrj").toUpperCase() || "PROJET") + " " + r) : "";
+      p.querySelector("#nbRefT").textContent = r ? ((val("#nbPrj").toUpperCase() ? val("#nbPrj").toUpperCase() + " " : "") + r) : "";
       return isNaN(d) ? "" : r;
     };
     refNow();
@@ -3930,6 +3928,8 @@ function renderBudgetList() {
             >
               🖨
             </button>
+            ${item.state === "instance" ? `<button type="button" class="bdg-row-action bdg-row-del" data-del-budget="${esc(item.ref)}"
+              title="Supprimer" aria-label="Supprimer">🗑</button>` : ""}
 
           </td>
 
@@ -8972,6 +8972,23 @@ function renderBudgetList() {
           .openProject
       );
 
+      return;
+    }
+
+    /* budget en instance : suppression (après confirmation) */
+    const delButton = event.target.closest("[data-del-budget]");
+    if (delButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      const r = delButton.dataset.delBudget;
+      const g = bdgGroups.get(r);
+      if (!g || !g.inst) return;
+      if (!confirm("SUPPRIMER LE BUDGET EN INSTANCE " + g.project + " " + r + " ?")) return;
+      try {
+        const l = (JSON.parse(localStorage.getItem("svi_bdg_inst_v1") || "[]") || []).filter(x => x.ref !== r);
+        localStorage.setItem("svi_bdg_inst_v1", JSON.stringify(l));
+      } catch (e) {}
+      renderBudgetList();
       return;
     }
 

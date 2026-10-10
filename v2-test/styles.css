@@ -802,9 +802,9 @@ tfoot td {
 .bdg-list-menu .blm-q { height: 32px; border: 1px solid #d6dbe3; border-radius: 6px; padding: 0 10px; font-size: 12px; }
 
 /* ===== budgets EN INSTANCE : rouge (édition), vert (figé) ===== */
-.list-inst .novapp-list-titlebar h1 { color: #b91c1c; }
-#budgetListTable tr.inst-instance td { color: #b91c1c; background: #fef2f2; }
-#budgetListTable tr.inst-fige td { color: #15803d; background: #f0fdf4; }
+
+#budgetListTable tr.inst-instance td { color: #b91c1c; }
+#budgetListTable tr.inst-fige td { color: #15803d; }
 #budgetListTable tr.inst-instance td:first-child { color: #b91c1c; }
 #budgetListTable tr.inst-fige td:first-child { color: #15803d; }
 #budgetListTable tr.inst-instance .budget-link { color: #b91c1c; }
@@ -819,8 +819,7 @@ tfoot td {
 .bdg-inst-fige .bdg-d-pill .ico, .bdg-inst-fige .rec-tab .ico, .bdg-inst-fige .bdg-d-tab .ico, .bdg-inst-fige .blk-head .ttl .ico { color: var(--inst); }
 .bdg-inst-instance .bdg-d-page .bdg-d-total-row td, .bdg-inst-fige .bdg-d-page .bdg-d-total-row td { background: var(--inst-bg) !important; color: var(--inst); }
 /* fenêtre NOUVEAU BUDGET en rouge */
-#docPop.pop-new-bdg .doc-card { border-top: 5px solid #dc2626; }
-#docPop.pop-new-bdg .doc-title { color: #b91c1c; }
-#docPop.pop-new-bdg .doc-save { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; }
-.novapp-list-actions button.on { background: #e7edf5; border-color: #9fb6d9; }
-.list-inst .novapp-list-actions button.on { background: #fee2e2; border-color: #fca5a5; }
+#docPop.pop-new-bdg .nb-save { background: #fff; border-color: #dc2626; color: #b91c1c; }
+#docPop.pop-new-bdg .nb-wide { grid-column: 2 / 5; }
+.bdg-row-del { color: #b91c1c; }
+.novapp-list-actions button.on { background: #e5e7eb; border-color: #cbd2db; }
