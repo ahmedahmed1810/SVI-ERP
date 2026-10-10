@@ -800,3 +800,25 @@ tfoot td {
 }
 .bdg-list-menu button.on { background: #dbeafe; border-color: #93b4e8; color: #1d4ed8; }
 .bdg-list-menu .blm-q { height: 32px; border: 1px solid #d6dbe3; border-radius: 6px; padding: 0 10px; font-size: 12px; }
+
+/* ===== budgets EN INSTANCE : rouge (édition), vert (figé) ===== */
+.list-inst .novapp-list-titlebar h1 { color: #b91c1c; }
+#budgetListTable tr.inst-instance td { color: #b91c1c; background: #fef2f2; }
+#budgetListTable tr.inst-fige td { color: #15803d; background: #f0fdf4; }
+#budgetListTable tr.inst-instance td:first-child { color: #b91c1c; }
+#budgetListTable tr.inst-fige td:first-child { color: #15803d; }
+#budgetListTable tr.inst-instance .budget-link { color: #b91c1c; }
+#budgetListTable tr.inst-fige .budget-link { color: #15803d; }
+.bdg-inst-instance { --inst: #b91c1c; --inst-bg: #fef2f2; }
+.bdg-inst-fige { --inst: #15803d; --inst-bg: #f0fdf4; }
+.bdg-inst-instance .bdg-d-sticky .bdg-d-ref, .bdg-inst-fige .bdg-d-sticky .bdg-d-ref { color: var(--inst); }
+.bdg-inst-instance .bdg-d-sticky .bdg-d-badge, .bdg-inst-fige .bdg-d-sticky .bdg-d-badge { background: var(--inst); }
+.bdg-inst-instance .bdg-d-page .bdg-d-block-title, .bdg-inst-fige .bdg-d-page .bdg-d-block-title { border-left-color: var(--inst); }
+.bdg-inst-instance .bdg-d-page .bdg-d-tab.active, .bdg-inst-fige .bdg-d-page .bdg-d-tab.active { color: var(--inst); box-shadow: inset 0 -3px 0 var(--inst); }
+.bdg-inst-instance .bdg-d-pill .ico, .bdg-inst-instance .rec-tab .ico, .bdg-inst-instance .bdg-d-tab .ico, .bdg-inst-instance .blk-head .ttl .ico,
+.bdg-inst-fige .bdg-d-pill .ico, .bdg-inst-fige .rec-tab .ico, .bdg-inst-fige .bdg-d-tab .ico, .bdg-inst-fige .blk-head .ttl .ico { color: var(--inst); }
+.bdg-inst-instance .bdg-d-page .bdg-d-total-row td, .bdg-inst-fige .bdg-d-page .bdg-d-total-row td { background: var(--inst-bg) !important; color: var(--inst); }
+/* fenêtre NOUVEAU BUDGET en rouge */
+#docPop.pop-new-bdg .doc-card { border-top: 5px solid #dc2626; }
+#docPop.pop-new-bdg .doc-title { color: #b91c1c; }
+#docPop.pop-new-bdg .doc-save { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; }
