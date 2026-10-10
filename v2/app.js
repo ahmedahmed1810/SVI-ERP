@@ -71,7 +71,7 @@ function openObsAlertFor(ref, project) {
   p.innerHTML = `
     <div class="doc-card" role="dialog" aria-modal="true">
       <div class="doc-head">
-        <span class="doc-title">OBSERVATIONS IMPORTANTES — ${esc((project ? project + " " : "") + ref)} (${list.length})</span>
+        <span class="doc-title">OBSERVATIONS IMPORTANTES — ${esc((project ? project + " " : "") + ref)} ${svCnt(list.length)}</span>
         <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
       </div>
       <div class="doc-body">
@@ -183,6 +183,9 @@ document.addEventListener("input", e => {
 }, true);
 
 const $ = id => document.getElementById(id);
+
+/* compteur : petite pastille grise juste après le libellé (remplace « (n) ») */
+const svCnt = n => `<span class="svi-cnt">${Number(n) || 0}</span>`;
 
 /* =========================================================
    DONNEES CHS / BDS
@@ -4526,9 +4529,9 @@ function renderBudgetList() {
         </div>
 
         <div class="bdg-d-pills">
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="doc" role="button">${SVI_ICON.doc}<span class="pl">DOC (0)</span></span>
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="taf" role="button">${SVI_ICON.taf}<span class="pl">TAF (0)</span></span>
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="obs" role="button">${SVI_ICON.obs}<span class="pl">OBS (0)</span></span>
+          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="doc" role="button">${SVI_ICON.doc}<span class="pl">DOC ${svCnt(0)}</span></span>
+          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="taf" role="button">${SVI_ICON.taf}<span class="pl">TAF ${svCnt(0)}</span></span>
+          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="obs" role="button">${SVI_ICON.obs}<span class="pl">OBS ${svCnt(0)}</span></span>
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="inf" role="button">${SVI_ICON.inf}<span class="pl">INF</span></span>
         </div>
 
@@ -4595,9 +4598,9 @@ function renderBudgetList() {
         <div class="bdg-d-block blk-rec blk-suivi" data-rec="suivi">
           <div class="bdg-d-block-title blk-head">
             <span class="rec-tabs">
-              <button type="button" class="rec-tab" data-rtab="doc" id="recTitle-doc">${SVI_ICON.doc}DOCUMENTS (0)</button>
-              <button type="button" class="rec-tab" data-rtab="taf" id="recTitle-taf">${SVI_ICON.taf}TAF (0)</button>
-              <button type="button" class="rec-tab" data-rtab="obs" id="recTitle-obs">${SVI_ICON.obs}OBSERVATIONS (0)</button>
+              <button type="button" class="rec-tab" data-rtab="doc" id="recTitle-doc">${SVI_ICON.doc}DOCUMENTS ${svCnt(0)}</button>
+              <button type="button" class="rec-tab" data-rtab="taf" id="recTitle-taf">${SVI_ICON.taf}TAF ${svCnt(0)}</button>
+              <button type="button" class="rec-tab" data-rtab="obs" id="recTitle-obs">${SVI_ICON.obs}OBSERVATIONS ${svCnt(0)}</button>
             </span>
             <span class="blk-tools">
               <button type="button" class="blk-btn" data-blk="suivi" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -7731,8 +7734,8 @@ function renderBudgetList() {
           </div>
           <div class="doc-body">
             <div class="hist-filters">
-              <button type="button" class="hist-f on" data-b="">TOUT (${all.length})</button>
-              ${branches.map(b => `<button type="button" class="hist-f" data-b="${esc(b)}">${esc(b)} (${all.filter(h => h.b === b).length})</button>`).join("")}
+              <button type="button" class="hist-f on" data-b="">TOUT ${svCnt(all.length)}</button>
+              ${branches.map(b => `<button type="button" class="hist-f" data-b="${esc(b)}">${esc(b)} ${svCnt(all.filter(h => h.b === b).length)}</button>`).join("")}
             </div>
             <div class="hist-scroll"><table class="hist-table">
               <thead><tr><th>DATE</th><th>BRANCHE</th><th>ACTION</th><th>DÉTAIL</th></tr></thead>
@@ -8071,7 +8074,7 @@ function renderBudgetList() {
     const updPill = kind => {
       const pill = shell.querySelector(`[data-pill="${kind}"]`);
       const n = recLoad(kind).length;
-      if (pill) pill.innerHTML = SVI_ICON[kind] + `<span class="pl">${kind.toUpperCase()} (${n})</span>`;
+      if (pill) pill.innerHTML = SVI_ICON[kind] + `<span class="pl">${kind.toUpperCase()} ${svCnt(n)}</span>`;
       renderRec(kind);
       if (kind === "obs") {
         const imp = recLoad("obs").filter(r => r.important).length;
@@ -8143,7 +8146,7 @@ function renderBudgetList() {
       const list = cfApply(kind, cols, all);
       recShown[kind] = list;
       const title = $("recTitle-" + kind);
-      if (title) title.innerHTML = SVI_ICON[kind] + esc(blkName[kind] + " (" + all.length + ")");
+      if (title) title.innerHTML = SVI_ICON[kind] + esc(blkName[kind]) + " " + svCnt(all.length);
       const st = cfT(kind);
       title?.classList.toggle("cf-on", Object.keys(st.f).length > 0);
 
@@ -8229,7 +8232,7 @@ function renderBudgetList() {
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true">
           <div class="doc-head">
-            <span class="doc-title">OBSERVATIONS IMPORTANTES — ${esc(fullRef)} (${list.length})</span>
+            <span class="doc-title">OBSERVATIONS IMPORTANTES — ${esc(fullRef)} ${svCnt(list.length)}</span>
             <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
           </div>
           <div class="doc-body">
