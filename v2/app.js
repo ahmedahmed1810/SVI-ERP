@@ -2317,6 +2317,12 @@ function renderBudgetList() {
       #blkPop .blk-scroll { overflow: auto; border: 1px solid #edf0f4; border-radius: 6px; }
       #blkPop .blk-imp { table-layout: auto; width: auto; }
 
+      /* contrôle unité / dimensions (Détail produits) */
+      .bdg-d-table td.unit-warn {
+        background: #fee2e2 !important; color: #b91c1c; font-weight: 800;
+      }
+      .unit-lock { font-size: 8px; opacity: .55; vertical-align: 1px; }
+
       /* tri / filtre par colonne */
       .cf-wrap { display: flex; align-items: center; gap: 4px; width: 100%; }
       .cf-lab { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
@@ -3536,6 +3542,33 @@ function renderBudgetList() {
     const lines =
       budget.rows.map(toLine);
 
+    /* clés primaires (lignes produit au prix non nul) : leur unité de
+       détail est imposée par l'unité de la désignation client (celle de
+       la première clé primaire de la désignation) et n'est pas modifiable */
+    {
+      const unitOf = new Map();
+      lines.forEach(l => {
+        if (l.kind !== "prd" || l.cprice === 0) return;
+        const k = l.article + "||" + l.designation;
+        if (!unitOf.has(k)) unitOf.set(k, l.dunit || l.unit);
+      });
+      lines.forEach(l => {
+        if (l.kind !== "prd" || l.cprice === 0) return;
+        const u = unitOf.get(l.article + "||" + l.designation);
+        if (u) { l.dunit = u; l.unitLocked = true; }
+      });
+    }
+
+    /* contrôle unité / dimensions des produits :
+       M3 = 3 dimensions, M2 = 2, M = 1 ; sinon l'unité est signalée */
+    const DIMS_EXPECTED = { M3: 3, M2: 2, M: 1, ML: 1 };
+    const unitMismatch = l => {
+      const need = DIMS_EXPECTED[String(l.dunit ?? "").trim().toUpperCase()];
+      if (!need) return false;
+      const filled = l.dims.filter(v => String(v ?? "").trim() !== "").length;
+      return filled !== need;
+    };
+
     /* lignes identiques (même type, article, désignation, unité)
        regroupées à l'affichage */
     /* Détail charge : désignation + unité (article ignoré) ;
@@ -4446,7 +4479,10 @@ function renderBudgetList() {
                 class="${selRows.has(l.gid) ? "selected" : ""}">
               <td class="center">${esc(l.article)}</td>
               <td>${esc(l.detail)}</td>
-              <td class="center">${esc(l.unit)}</td>
+              <td class="center ${prd && l.members.some(unitMismatch) ? "unit-warn" : ""}"
+                  ${prd && l.members.some(unitMismatch)
+                    ? `title="Unité ${esc(l.unit)} : nombre de dimensions remplies incohérent"` : ""}>${
+                  esc(l.unit)}${prd && l.members.some(m => m.unitLocked) ? ' <span class="unit-lock" title="Unité imposée par la désignation client">🔒</span>' : ""}</td>
               ${
                 prd
                   ? `
