@@ -5786,7 +5786,10 @@ function renderBudgetList() {
             const r = H0 + 1 + i;
             pad(r).forEach((a, c) => {
               ws[a] = ws[a] || { t: "s", v: "" };
-              const h = c >= nc - 5 ? "right" : U(head[c]) ? "center" : "left";
+              let h = c >= nc - 5 ? "right" : U(head[c]) ? "center" : "left";
+              /* format métré : NB centré, quantité à droite */
+              if (blk === "metre" && head[c] === "NB") h = "center";
+              if (blk === "metre" && head[c] === "QUANTITÉ") h = "right";
               ws[a].s = { font: font(bold.has(i)), border, alignment: { horizontal: h, vertical: "top", wrapText: c !== 1 } };
               if (ws[a].t === "n") ws[a].z = "#,##0.00";
             });
