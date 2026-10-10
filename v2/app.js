@@ -6121,6 +6121,7 @@ function renderBudgetList() {
         histLog(blkLabel(blk), "EXPORT", "GOOGLE SHEETS — " + rows.length + " LIGNE(S) — " + (out.path ? out.path + "/" : "") + name);
         drivePathAdd(out.path || path);
         driveUrlSet(out.path, out.folderUrl);
+        saveExportDoc(null, name, name, "GOOGLE SHEETS", out.url, out.path);
         if (w) w.location.href = out.url; else window.open(out.url, "_blank");
         return out;
       } catch (e) {
@@ -6156,7 +6157,8 @@ function renderBudgetList() {
 
     const deliver = async (name, blob, dest) => {
       if (!dest) return saveFile(name, blob);
-      if (dest.target === "device") { saveDevice(name, blob); return; }
+      const title = name.replace(/\.[a-z0-9]+$/i, "");
+      if (dest.target === "device") { saveDevice(name, blob); saveExportDoc(blob, title, name); return; }
       const ui = dest.ui;
       ui && ui.msg("");
       try {
@@ -6165,6 +6167,7 @@ function renderBudgetList() {
         ui && ui.setPath && ui.setPath(out.path);
         ui && ui.msg("");
         driveDoneFlash();
+        saveExportDoc(blob, title, name, blob.type, out.url, out.path);
       } catch (err) {
         ui && ui.msg("ÉCHEC : " + esc(driveErrText(err)));
       }
@@ -6362,7 +6365,7 @@ function renderBudgetList() {
           <div class="doc-body">
             <div class="doc-grid doc-grid-2">
               <label class="doc-lab" for="fdName">NOM DU FICHIER</label>
-              <input id="fdName" class="doc-in" type="text" autocomplete="off" value="${esc((fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-"))}">
+              <input id="fdName" class="doc-in doc-ro" type="text" autocomplete="off" readonly value="${esc((fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-"))}">
               <span class="doc-lab exp-drv" hidden>DOSSIER DRIVE</span>
               <div class="exp-drv exp-drv-row" hidden>
                 <input type="text" class="doc-in exp-path" id="expPath" data-keepcase autocomplete="off" readonly
@@ -6631,6 +6634,25 @@ function renderBudgetList() {
       updPill("doc");
       return docRef;
     };
+    /* export (Excel, CSV, JSON, Google Sheets) : une copie est ajoutée à DOCUMENTS
+       (fichier gardé sur l'appareil, lien Drive s'il a été enregistré dans le Drive) */
+    const saveExportDoc = async (blob, title, name, type, drive, drivePath) => {
+      try {
+        const now = new Date();
+        const docRef = nextDocRef(now);
+        let idb = null;
+        if (blob) { idb = "doc:" + ref + ":" + docRef; await sviFiles.put(idb, blob); }
+        const list = docsLoad();
+        list.push({ ref: docRef, date: localDT(now), title: String(title).toUpperCase(), name,
+          size: blob ? blob.size : 0, type: type || (blob && blob.type) || "", data: null, idb,
+          drive: drive || "", drivePath: drivePath || "" });
+        docsSave(list);
+        histLog("DOC", "CRÉATION", docRef + " — " + title + " (EXPORT)");
+        updPill("doc");
+        return docRef;
+      } catch (e) { return null; }
+    };
+
     /* lien Drive ajouté à une ligne DOC déjà enregistrée */
     window.__sviDocSetDrive = (docRef, url, path) => {
       const l2 = docsLoad();
@@ -6719,6 +6741,7 @@ function renderBudgetList() {
   #saveOpts .sv-body { padding: 16px 18px 12px; display: grid; grid-template-columns: max-content 1fr; gap: 12px; align-items: center; }
   #saveOpts .sv-lab { font-size: 11px; font-weight: 800; color: #4b5563; white-space: nowrap; }
   #saveOpts input[data-keepcase] { text-transform: none; }
+  #saveOpts input.sv-ro { background: #f3f5f8; color: #374151; }
   #saveOpts .sv-drv { display: flex; align-items: center; gap: 10px; min-height: 34px; }
   #saveOpts .sv-drv input { flex: 1; }
   #saveOpts .sv-link { flex: 1; color: #1d4ed8; text-decoration: underline; font-size: 12px; font-weight: 700; word-break: break-all; }
@@ -6837,7 +6860,7 @@ function renderBudgetList() {
     <div class="sv-head"><span>ENREGISTRER DANS DOCUMENTS</span><button type="button" class="sv-x" id="svX">✕</button></div>
     <div class="sv-body">
       <label class="sv-lab" for="svName">NOM DU FICHIER</label>
-      <input type="text" id="svName" value="${esc(fileName.replace(/\.pdf$/i, "").replace(/_/g, " "))}">
+      <input type="text" id="svName" readonly class="sv-ro" value="${esc(fileName.replace(/\.pdf$/i, "").replace(/_/g, " "))}">
       <span class="sv-lab">DRIVE</span>
       <label class="sv-ck"><input type="checkbox" id="svDriveOn" checked> COPIE DANS LE DRIVE</label>
       <label class="sv-lab" for="svPath">DOSSIER DRIVE</label>
@@ -8192,7 +8215,7 @@ function renderBudgetList() {
       const rows = list.map(r => "<tr>" + cols.map(([k, , get, cls]) => {
         const v = get(r);
         /* DOCUMENTS : la référence est le lien vers le fichier */
-        if (kind === "doc" && k === "rref" && (r.data || r.idb))
+        if (kind === "doc" && k === "rref" && (r.data || r.idb || r.drive))
           return `<td><button type="button" class="rec-open" data-recopen="${r._i}" title="Ouvrir le document">${esc(v)}</button></td>`;
         if (k === "rimp")
           return `<td class="center"><button type="button" class="rec-flag ${r.important ? "on" : ""}" data-obsflag="${r._i}"
@@ -8298,6 +8321,7 @@ function renderBudgetList() {
     /* ouvrir un document gardé sur l'appareil */
     const openDoc = i => {
       const d = docsLoad()[i];
+      if (d && !d.idb && !d.data && d.drive) { window.open(d.drive, "_blank"); return; }
       if (d && d.idb) {
         /* fenêtre ouverte tout de suite (sinon bloquée par Safari), fichier ensuite */
         const w = window.open("", "_blank");
