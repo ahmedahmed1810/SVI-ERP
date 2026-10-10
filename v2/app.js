@@ -2340,7 +2340,8 @@ function renderBudgetList() {
       #blkPop .blk-imp { table-layout: auto; width: auto; }
 
       /* contrôle unité / dimensions (Détail produits) */
-      .bdg-d-table td.cell-warn { background: #fdecec !important; }
+      .bdg-d-table tbody tr td.cell-warn,
+      .bdg-d-table tbody tr.selected td.cell-warn { background: #fbd5d5 !important; }
 
       /* tri / filtre par colonne */
       .cf-wrap { display: flex; align-items: center; gap: 4px; width: 100%; }
@@ -3581,14 +3582,22 @@ function renderBudgetList() {
     /* contrôle unité / dimensions des produits :
        M3 = 3 dimensions, M2 = 2, M = 1 ; sinon l'unité est signalée */
     const DIMS_EXPECTED = { M3: 3, M2: 2, M: 1, ML: 1 };
+    /* « m³ », « M 3 », « m2 »… ramenés à M3 / M2 */
+    const unitKey = u => String(u ?? "").trim().toUpperCase()
+      .replace(/\s+/g, "").replace("³", "3").replace("²", "2");
+    /* case attendue mais non renseignée (sur au moins une ligne du groupe) :
+       i = -1 pour NBR, 0..2 pour DIM 1..3 */
+    const isBlank = v => String(v ?? "").trim() === "";
     const dimMissing = (g, i) => {
-      const need = DIMS_EXPECTED[String(g.unit ?? "").trim().toUpperCase()];
-      if (!need || i >= need) return false;
-      return g.members.every(m => String(m.dims[i] ?? "").trim() === "");
+      const need = DIMS_EXPECTED[unitKey(g.unit)];
+      if (!need) return false;
+      if (i === -1) return g.members.some(m => isBlank(m.nbr));
+      if (i >= need) return false;
+      return g.members.some(m => isBlank(m.dims[i]));
     };
 
     const unitMismatch = l => {
-      const need = DIMS_EXPECTED[String(l.dunit ?? "").trim().toUpperCase()];
+      const need = DIMS_EXPECTED[unitKey(l.dunit)];
       if (!need) return false;
       const filled = l.dims.filter(v => String(v ?? "").trim() !== "").length;
       return filled !== need;
@@ -4522,7 +4531,7 @@ function renderBudgetList() {
               ${
                 prd
                   ? `
-                    <td class="number">${esc(l.nbr)}</td>
+                    <td class="number ${dimMissing(l, -1) ? "cell-warn" : ""}">${esc(l.nbr)}</td>
                     ${[0, 1, 2].map(i => `
                       <td class="number ${dimMissing(l, i) ? "cell-warn" : ""}">${esc(l.dims[i])}</td>`).join("")}
                   `
