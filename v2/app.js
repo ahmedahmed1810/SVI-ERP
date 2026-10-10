@@ -6094,8 +6094,9 @@ function renderBudgetList() {
     try { list = JSON.parse(localStorage.getItem(KEYD) || "[]") || []; } catch (e) {}
     const d = new Date(), p2 = n => String(n).padStart(2, "0");
     const day = p2(d.getFullYear() % 100) + "-" + p2(d.getMonth() + 1) + p2(d.getDate());
-    const n = list.filter(x => String(x.ref).startsWith("DOC " + day)).length + 1;
-    const docRef = "DOC " + day + "/" + String(n).padStart(3, "0");
+    const PFX = ${JSON.stringify(String(budget.project).trim().toUpperCase() + " BDG ")};
+    const n = list.filter(x => String(x.ref).startsWith(PFX + "DOC " + day)).length + 1;
+    const docRef = PFX + "DOC " + day + "/" + String(n).padStart(3, "0");
     const idb = "doc:" + ${JSON.stringify(String(ref))} + ":" + docRef;
     const r = indexedDB.open("svi_files", 1);
     r.onupgradeneeded = () => r.result.createObjectStore("f");
@@ -6308,6 +6309,8 @@ function renderBudgetList() {
     };
 
     const DOC_KEY = "svi_docs_v1:" + String(ref);
+    /* références des branches : « <PROJET> BDG <TYPE> AA-MMJJ/NNN » (ex. H88 BDG DOC 26-1010/001) */
+    const REF_PFX = String(budget.project).trim().toUpperCase() + " BDG ";
     const docsLoad = () => {
       try { return JSON.parse(localStorage.getItem(DOC_KEY) || "[]") || []; }
       catch (e) { return []; }
@@ -6321,8 +6324,8 @@ function renderBudgetList() {
     /* numéro : DOC AA-MMJJ/NNN (compteur du jour pour ce budget) */
     const nextDocRef = d => {
       const day = `${pad(d.getFullYear() % 100)}-${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
-      const n = docsLoad().filter(x => String(x.ref).startsWith("DOC " + day)).length + 1;
-      return `DOC ${day}/${pad(n, 3)}`;
+      const n = docsLoad().filter(x => String(x.ref).startsWith(REF_PFX + "DOC " + day)).length + 1;
+      return `${REF_PFX}DOC ${day}/${pad(n, 3)}`;
     };
 
     const openDocForm = () => {
@@ -6337,7 +6340,7 @@ function renderBudgetList() {
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true">
           <div class="doc-head">
-            <span class="doc-title">${esc(budget.project)} : <span id="docRef">${esc(docRef)}</span></span>
+            <span class="doc-title"><span id="docRef">${esc(docRef)}</span></span>
             <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
           </div>
           <div class="doc-body">
@@ -6562,8 +6565,8 @@ function renderBudgetList() {
     const nextRecRef = (kind, d) => {
       const day = `${pad(d.getFullYear() % 100)}-${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
       const tag = kind.toUpperCase();
-      const n = recLoad(kind).filter(x => String(x.ref).startsWith(tag + " " + day)).length + 1;
-      return `${tag} ${day}/${pad(n, 3)}`;
+      const n = recLoad(kind).filter(x => String(x.ref).startsWith(REF_PFX + tag + " " + day)).length + 1;
+      return `${REF_PFX}${tag} ${day}/${pad(n, 3)}`;
     };
     const updPill = kind => {
       const pill = shell.querySelector(`[data-pill="${kind}"]`);
@@ -6597,10 +6600,17 @@ function renderBudgetList() {
       if (isNaN(d)) return String(v);
       return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} À ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
+    /* colonne DOCUMENT : type et taille seulement (l'intitulé dit déjà de quoi il s'agit) */
+    const docShort = r => {
+      const ext = (String(r.name || "").match(/\.([a-z0-9]{1,5})$/i) || [])[1] ||
+        (String(r.type || "").split("/")[1] || "FICHIER");
+      const ko = r.size ? " · " + (r.size >= 1048576 ? money(r.size / 1048576) + " MO" : Math.max(1, Math.round(r.size / 1024)) + " KO") : "";
+      return ext.toUpperCase() + ko;
+    };
     /* colonnes : [clé, libellé, accesseur, classe] (même moteur que les autres tableaux) */
     const recCols = {
       doc: [["rref", "RÉFÉRENCE", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
-            ["rtitle", "INTITULÉ", r => r.title, ""], ["rfile", "DOCUMENT", r => r.name || "", ""]],
+            ["rtitle", "INTITULÉ", r => r.title, ""], ["rfile", "DOCUMENT", r => docShort(r), ""]],
       taf: [["rref", "RÉFÉRENCE", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
             ["robj", "OBJET TAF", r => r.objet || "", ""], ["rtext", "DESCRIPTIF TAF", r => r.text, ""],
             ["rresp", "RESPONSABLE", r => r.responsable, ""], ["rprev", "PRÉVU LE", r => fmtDT(r.prevu), ""],
@@ -6610,7 +6620,7 @@ function renderBudgetList() {
             ["rimp", "!", r => r.important ? "!" : "", "center"], ["rtext", "OBSERVATION", r => r.text, ""]]
     };
     Object.assign(CW_DEF, {
-      rref: 150, rdate: 140, rtitle: 320, rfile: 260, robj: 200, rtext: 420,
+      rref: 210, rdate: 150, rtitle: 360, rfile: 120, robj: 200, rtext: 420,
       rresp: 180, rprev: 140, rdelay: 120, relap: 120, rimp: 50
     });
     /* plus récent en premier (ordre par défaut, sans tri choisi) */
@@ -6813,7 +6823,7 @@ function renderBudgetList() {
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true">
           <div class="doc-head">
-            <span class="doc-title">${esc(budget.project)} : <span id="recRef">${esc(recRef)}</span></span>
+            <span class="doc-title"><span id="recRef">${esc(recRef)}</span></span>
             <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
           </div>
           <div class="doc-body">
