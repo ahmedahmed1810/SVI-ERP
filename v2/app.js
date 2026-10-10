@@ -2509,6 +2509,18 @@ function renderBudgetList() {
       .bdg-d-page .blk-grip { width: 18px; height: 18px; margin-right: 4px; }
       .bdg-d-page .bdg-d-tab { padding: 6px 14px; }
 
+      /* thème sobre : une seule couleur d'accent (bleu marine) */
+      .bdg-d-sticky .bdg-d-ref { color: #12355b; }
+      .bdg-d-sticky .bdg-d-badge { background: #12355b; color: #fff; }
+      .bdg-d-pill .ico, .rec-tab .ico, .bdg-d-tab .ico, .blk-head .ttl .ico { color: #12355b; opacity: 1; }
+      .bdg-d-page .bdg-d-block-title { border-left: 4px solid #12355b; }
+      .bdg-d-page .bdg-d-tab.active { color: #12355b; box-shadow: inset 0 -3px 0 #12355b; }
+      .bdg-d-page .rec-tab.active { color: #12355b; }
+      .bdg-d-page .bdg-d-table tfoot td,
+      .bdg-d-page .bdg-d-total-row td { background: #e7edf5 !important; color: #12355b; }
+      #bdgClientBody td:last-child, #bdgTabBody tbody td:last-child { color: #12355b; font-weight: 800; }
+      .bdg-d-page .bdg-d-table tbody tr:nth-child(even) td:not(.cell-warn) { background: #fbfcfe; }
+
       /* icônes de contenu */
       .bdg-d-pill, .rec-tab, .bdg-d-tab, .blk-head .ttl { display: inline-flex; align-items: center; gap: 6px; }
       .ico { flex: none; opacity: .85; }
