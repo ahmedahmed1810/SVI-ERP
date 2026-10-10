@@ -2338,6 +2338,29 @@ function renderBudgetList() {
         font-size: 16px; font-weight: 900; cursor: pointer; color: #374151;
       }
       #docPop .doc-flag.on { background: #fee2e2; border-color: #f87171; color: #b91c1c; }
+      /* fenêtre et champs réglables */
+      #docPop .doc-card { position: relative; display: flex; flex-direction: column; max-height: calc(100vh - 32px); }
+      #docPop .doc-card .doc-body { flex: 1 1 auto; overflow: auto; }
+      #docPop .pop-rsz {
+        position: absolute; right: 2px; bottom: 2px; width: 18px; height: 18px; cursor: nwse-resize;
+        touch-action: none; z-index: 2;
+        background: linear-gradient(135deg, transparent 50%, #9aa3af 50%, #9aa3af 58%, transparent 58%,
+          transparent 70%, #9aa3af 70%, #9aa3af 78%, transparent 78%);
+      }
+      #docPop .fld-wrap { position: relative; display: block; min-width: 0; }
+      #docPop .fld-wrap.sized { justify-self: start; max-width: none; }
+      #docPop .fld-wrap.in-row { flex: 1; }
+      #docPop .fld-wrap.in-row.sized { flex: none; }
+      #docPop .fld-wrap > .doc-in { width: 100%; box-sizing: border-box; }
+      #docPop .fld-wrap > input.doc-in { display: block; }
+      #docPop .fld-wrap > textarea.doc-in { display: block; resize: none; }
+      #docPop .fld-rsz {
+        position: absolute; right: 1px; bottom: 1px; width: 12px; height: 12px; cursor: nwse-resize;
+        touch-action: none; opacity: .55;
+        background: linear-gradient(135deg, transparent 55%, #6b7280 55%, #6b7280 65%, transparent 65%,
+          transparent 78%, #6b7280 78%, #6b7280 88%, transparent 88%);
+      }
+      #docPop .fld-rsz:hover { opacity: 1; }
       #docPop .doc-err { color: #b42318; font-size: 11px; min-height: 14px; margin-top: 10px; }
       #docPop .doc-foot {
         display: flex; justify-content: flex-end; gap: 10px; padding: 12px 18px;
@@ -5590,6 +5613,7 @@ function renderBudgetList() {
           </div>
         </div>`;
       document.body.appendChild(p);
+      popEnhance(p, "doc");
       setTimeout(() => p.querySelector("#docTitle")?.focus(), 50);
 
       const close = () => p.remove();
@@ -5652,6 +5676,93 @@ function renderBudgetList() {
         }
         close();
         updPill("doc");
+      });
+    };
+
+    /* ===== fenêtres et champs de saisie réglables (tailles mémorisées) ===== */
+    const PS_KEY = "svi_popsize_v1";
+    const psLoad = () => {
+      try { return JSON.parse(localStorage.getItem(PS_KEY) || "{}") || {}; }
+      catch (e) { return {}; }
+    };
+    const psSet = (k, v) => {
+      const all = psLoad();
+      if (v) all[k] = v; else delete all[k];
+      try { localStorage.setItem(PS_KEY, JSON.stringify(all)); } catch (e) {}
+    };
+    /* glissement générique : fn(dx, dy) pendant, done() à la fin */
+    const dragXY = (e, fn, done) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const x0 = e.clientX, y0 = e.clientY;
+      const mv = ev => { ev.preventDefault(); fn(ev.clientX - x0, ev.clientY - y0); };
+      const tm = ev => ev.preventDefault();
+      const up = () => {
+        document.removeEventListener("pointermove", mv);
+        document.removeEventListener("pointerup", up);
+        document.removeEventListener("pointercancel", up);
+        document.removeEventListener("touchmove", tm);
+        done();
+      };
+      document.addEventListener("pointermove", mv, { passive: false });
+      document.addEventListener("touchmove", tm, { passive: false });
+      document.addEventListener("pointerup", up);
+      document.addEventListener("pointercancel", up);
+    };
+    const popEnhance = (p, kind) => {
+      const card = p.querySelector(".doc-card");
+      if (!card) return;
+      const sizes = psLoad();
+      /* fenêtre : poignée en bas à droite */
+      const cs = sizes["win." + kind];
+      if (cs) { card.style.width = cs.w + "px"; card.style.maxWidth = "none"; card.style.height = cs.h + "px"; }
+      const ch = document.createElement("span");
+      ch.className = "pop-rsz";
+      ch.title = "Glisser pour redimensionner la fenêtre";
+      card.appendChild(ch);
+      ch.addEventListener("pointerdown", e => {
+        const r = card.getBoundingClientRect();
+        let w = r.width, h = r.height;
+        card.style.maxWidth = "none";
+        dragXY(e, (dx, dy) => {
+          w = Math.max(300, Math.min(window.innerWidth - 16, Math.round(r.width + dx * 2)));
+          h = Math.max(180, Math.min(window.innerHeight - 16, Math.round(r.height + dy * 2)));
+          card.style.width = w + "px";
+          card.style.height = h + "px";
+        }, () => psSet("win." + kind, { w, h }));
+      });
+      /* champs : poignée sur le coin bas-droit de chaque champ */
+      p.querySelectorAll(".doc-in").forEach((el, i) => {
+        const key = "fld." + kind + "." + (el.id || i);
+        const wrap = document.createElement("span");
+        wrap.className = "fld-wrap" + (el.closest(".doc-row") ? " in-row" : "");
+        el.replaceWith(wrap);
+        wrap.appendChild(el);
+        const fs = sizes[key];
+        if (fs) {
+          if (fs.w) { wrap.style.width = fs.w + "px"; wrap.classList.add("sized"); }
+          if (fs.h) el.style.height = fs.h + "px";
+        }
+        const hd = document.createElement("span");
+        hd.className = "fld-rsz";
+        hd.title = "Glisser pour régler la taille du champ";
+        wrap.appendChild(hd);
+        hd.addEventListener("pointerdown", e => {
+          const r = el.getBoundingClientRect();
+          let w = r.width, h = r.height;
+          dragXY(e, (dx, dy) => {
+            w = Math.max(60, Math.round(r.width + dx));
+            h = Math.max(28, Math.round(r.height + dy));
+            wrap.style.width = w + "px";
+            wrap.classList.add("sized");
+            el.style.height = h + "px";
+          }, () => psSet(key, { w, h }));
+        });
+        /* double-toucher sur la poignée : taille d'origine */
+        hd.addEventListener("dblclick", () => {
+          wrap.style.width = ""; wrap.classList.remove("sized"); el.style.height = "";
+          psSet(key, null);
+        });
       });
     };
 
@@ -5793,6 +5904,7 @@ function renderBudgetList() {
           </div>
         </div>`;
       document.body.appendChild(p);
+      popEnhance(p, "inf");
       p.addEventListener("click", e => {
         if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
       });
@@ -5824,6 +5936,7 @@ function renderBudgetList() {
           </div>
         </div>`;
       document.body.appendChild(p);
+      popEnhance(p, "alert");
       p.addEventListener("click", e => {
         if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
       });
@@ -5909,6 +6022,7 @@ function renderBudgetList() {
           </div>
         </div>`;
       document.body.appendChild(p);
+      popEnhance(p, kind);
       setTimeout(() => p.querySelector("#recText")?.focus(), 50);
 
       const close = () => { clearInterval(timer); p.remove(); };
