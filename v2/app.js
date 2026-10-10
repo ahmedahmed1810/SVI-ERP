@@ -2746,6 +2746,7 @@ function renderBudgetList() {
       #docPop .exp-drv-row { display: flex; align-items: center; gap: 10px; min-height: 34px; }
       #docPop .exp-drv-row > .doc-in { flex: 1; }
       #docPop .exp-drv-row > .fld-wrap { flex: 1; min-width: 0; }
+      #docPop .exp-path { color: #1d4ed8; text-decoration: underline; font-weight: 700; text-transform: none; }
       #docPop .drv-link { flex: 1; color: #1d4ed8; text-decoration: underline; font-size: 12px; font-weight: 700;
         word-break: break-all; text-transform: none; }
       #drvPop {
@@ -6347,9 +6348,8 @@ function renderBudgetList() {
               <input id="fdName" class="doc-in" type="text" autocomplete="off" value="${esc((fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-"))}">
               <span class="doc-lab exp-drv" hidden>DOSSIER DRIVE</span>
               <div class="exp-drv exp-drv-row" hidden>
-                <a href="#" class="drv-link" id="expLink">${esc(path0)}</a>
-                <input type="text" class="doc-in" id="expPath" data-keepcase autocomplete="off" value="${esc(path0)}" hidden>
-                <button type="button" class="doc-flag" id="expEdit" title="Changer de dossier">✎</button>
+                <input type="text" class="doc-in exp-path" id="expPath" data-keepcase autocomplete="off" value="${esc(path0)}">
+                <button type="button" class="doc-flag" id="expOpen" title="Ouvrir le dossier dans le Drive">↗</button>
               </div>
             </div>
             <div class="fmt-choice fmt-grid">
@@ -6374,15 +6374,10 @@ function renderBudgetList() {
       const ui = {
         msg: (t, kind) => { msg.innerHTML = t; msg.className = "doc-err fd-msg" + (kind ? " " + kind : ""); },
         close: () => p.remove(),
-        setPath: v => { if (v) { $q("#expPath").value = v; $q("#expLink").textContent = v; } }
+        setPath: v => { if (v) $q("#expPath").value = v; }
       };
       const devBtn = $q('[data-act="device"]'), drvBtn = $q('[data-act="drive"]'), saveBtn = $q('[data-act="save"]');
-      /* le champ dossier est enveloppé (poignée de taille) : on masque l'enveloppe */
-      const show = (el, on) => {
-        const t = el.id === "expPath" ? (el.closest(".fld-wrap") || el) : el;
-        el.hidden = !on; t.hidden = !on; t.style.display = on ? "" : "none";
-        if (t !== el) el.style.display = "";
-      };
+      const show = (el, on) => { el.hidden = !on; el.style.display = on ? "" : "none"; };
       /* boutons activés selon le cas */
       const refresh = () => {
         p.querySelectorAll(".exp-drv").forEach(el => show(el, driveMode));
@@ -6391,22 +6386,10 @@ function renderBudgetList() {
         show(saveBtn, driveMode);
         devBtn.disabled = fmt === "gsheet";       /* Google Sheets : Drive seulement */
       };
-      const curPath = () => $q("#expPath").hidden ? $q("#expLink").textContent.trim() : $q("#expPath").value.trim();
-      const showLink = () => {
-        const v = $q("#expPath").value.trim();
-        if (v) $q("#expLink").textContent = v;
-        show($q("#expPath"), false); show($q("#expLink"), true); show($q("#expEdit"), true);
-      };
-      show($q("#expPath"), false);
+      const curPath = () => $q("#expPath").value.trim();
       refresh();
-      $q("#expEdit").addEventListener("click", () => {
-        $q("#expPath").value = $q("#expLink").textContent;
-        show($q("#expLink"), false); show($q("#expEdit"), false); show($q("#expPath"), true);
-        $q("#expPath").focus(); $q("#expPath").select();
-      });
-      $q("#expPath").addEventListener("blur", showLink);
-      $q("#expPath").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); showLink(); } });
-      $q("#expLink").addEventListener("click", e => { e.preventDefault(); driveOpenFolder(curPath()); });
+      /* ↗ : ouvre le dossier dans le Drive */
+      $q("#expOpen").addEventListener("click", () => driveOpenFolder(curPath()));
 
       p.addEventListener("click", async e => {
         if (e.target === p || e.target.closest("[data-close]")) { p.remove(); return; }
