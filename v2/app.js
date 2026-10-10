@@ -3891,6 +3891,8 @@ function renderBudgetList() {
       const q = (m.querySelector(".cf-q").value || "").trim().toUpperCase();
       const vals = cfValues(t, key).filter(v => !q || v.toUpperCase().includes(q));
       const isOn = v => !st.f[key] || st.f[key].has(v);
+      /* valeurs cochées (filtre actif) remontées en tête de liste */
+      if (st.f[key]) vals.sort((x, y) => isOn(y) - isOn(x));
       const allOn = vals.length && vals.every(isOn);
       m.querySelector(".cf-list").innerHTML =
         `<label class="cf-item cf-all"><input type="checkbox" data-cfall ${allOn ? "checked" : ""}>
