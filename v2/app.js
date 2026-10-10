@@ -2644,6 +2644,21 @@ function renderBudgetList() {
       #bdgClientBody td:last-child, #bdgTabBody tbody td:last-child { color: #12355b; font-weight: 800; }
       .bdg-d-page .bdg-d-table tbody tr:nth-child(even) td:not(.cell-warn) { background: #fbfcfe; }
 
+      /* historique */
+      #docPop .hist-card { max-width: 980px; }
+      #docPop .hist-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+      #docPop .hist-f { border: 1px solid #d6dbe3; background: #fff; border-radius: 999px; padding: 5px 12px;
+        font-size: 11px; font-weight: 800; color: #4b5563; cursor: pointer; }
+      #docPop .hist-f.on { background: #12355b; color: #fff; border-color: #12355b; }
+      #docPop .hist-scroll { max-height: 55vh; overflow: auto; border: 1px solid #e5e9ef; border-radius: 8px; }
+      #docPop .hist-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      #docPop .hist-table th { position: sticky; top: 0; background: #f6f8fb; color: #3d4a5c; text-align: left;
+        font-size: 11px; padding: 6px 10px; border-bottom: 1px solid #e5e9ef; }
+      #docPop .hist-table td { padding: 5px 10px; border-bottom: 1px solid #f0f2f5; vertical-align: top; }
+      #docPop .hist-table td:first-child { white-space: nowrap; }
+      #docPop .hist-table td.empty { text-align: center; color: #9aa3af; padding: 14px; }
+      #histBtn { cursor: pointer; }
+
       /* options d'impression : choix OUI / NON */
       #docPop .po-card { max-width: 460px; }
       #docPop .po-yn { display: inline-flex; border: 1px solid #d6dbe3; border-radius: 8px; overflow: hidden; width: max-content; }
@@ -4185,7 +4200,7 @@ function renderBudgetList() {
 
         <div class="bdg-d-ref">
           <span><span id="refBang">${obsBang(ref)}</span>${esc(ref)}</span>
-          <span class="bdg-d-badge" title="Historique">H</span>
+          <span class="bdg-d-badge" id="histBtn" role="button" title="Historique">H</span>
         </div>
 
         <div class="bdg-d-pills">
@@ -5198,6 +5213,7 @@ function renderBudgetList() {
         lay.h = lay.h || {};
         lay.h[u] = v;
         laySave(lay);
+        histLog("DISPOSITION", "MODIFICATION", "ORDRE / HAUTEUR DES BLOCS");
         layApply();
       };
       document.addEventListener("pointermove", move, { passive: false });
@@ -5257,6 +5273,7 @@ function renderBudgetList() {
         const lay = layLoad();
         lay.order = order;
         laySave(lay);
+        histLog("DISPOSITION", "MODIFICATION", "ORDRE / HAUTEUR DES BLOCS");
         layApply();
       };
       document.addEventListener("pointermove", move, { passive: false });
@@ -5323,6 +5340,7 @@ function renderBudgetList() {
         const all = coLoad();
         all[t] = keys;
         coSave(all);
+        histLog("COLONNES", "DÉPLACEMENT", t + " : " + keys.join(", "));
         /* évite le clic qui suit le glissement */
         const stop = ev => { ev.stopPropagation(); ev.preventDefault(); };
         shell.addEventListener("click", stop, { capture: true, once: true });
@@ -5373,6 +5391,7 @@ function renderBudgetList() {
           const all = cwLoad();
           keys.forEach((k, j) => { all["hier." + k] = Math.round(ws[j]); });
           cwSave(all);
+          histLog("COLONNES", "LARGEUR", t);
         };
       } else {
         const table = h.closest("table");
@@ -5391,6 +5410,7 @@ function renderBudgetList() {
           const all = cwLoad();
           all[t + "." + key] = w;
           cwSave(all);
+          histLog("COLONNES", "LARGEUR", t);
         };
       }
 
@@ -5490,6 +5510,7 @@ function renderBudgetList() {
     const doExport = async (blk, fmt) => {
       const { head, rows } = blkData(blk);
       if (!head.length) { alert("Aucune donnée à exporter dans " + blkLabel(blk) + "."); return; }
+      histLog(blkLabel(blk), "EXPORT", ({ xlsx: "EXCEL", csv: "CSV", json: "JSON", gsheet: "GOOGLE SHEETS" }[fmt] || fmt) + " — " + rows.length + " LIGNE(S)");
       const base = fileBase(blk);
       if (fmt === "gsheet") {
         /* copie des données (tabulations) puis ouverture d'une nouvelle
@@ -5602,6 +5623,7 @@ function renderBudgetList() {
     };
 
     const showImport = (name, head, rows) => {
+      histLog("IMPORT", "APERÇU IMPORT", name + " — " + rows.length + " LIGNE(S)");
       const body = rows.slice(0, 300).map(r =>
         "<tr>" + head.map((_, i) => `<td>${esc(r[i] ?? "")}</td>`).join("") + "</tr>").join("");
       popup(`
@@ -5734,6 +5756,8 @@ function renderBudgetList() {
     };
 
     const printClient = (opt = { head: true, stamp: false }) => {
+      histLog("DÉSIGNATIONS CLIENT", "APERÇU PDF",
+        "EN-TÊTE " + (opt.head ? "OUI" : "NON") + " — CACHET " + (opt.stamp ? "OUI" : "NON"));
       const src = lastShown.client;
       if (!src || !src.rows.length) { alert("Aucune désignation à imprimer."); return; }
       const N = v => String(v ?? "").trim().toUpperCase();
@@ -5917,6 +5941,7 @@ function renderBudgetList() {
 
     const doPdf = blk => {
       if (blk === "client") return openPrintOptions();
+      histLog(blkLabel(blk), "APERÇU PDF");
       let tableHTML;
       if (blk === "detail" && active === "qlt") {
         alert("Aucune donnée dans " + blkLabel(blk) + ".");
@@ -5992,6 +6017,61 @@ function renderBudgetList() {
     };
 
     /* ===== fenêtre DOC : ajout d'un document au budget ===== */
+    /* ===== HISTORIQUE (bouton H) : journal des changements du budget
+       et de ses branches (DOC, TAF, OBS, impressions, exports, disposition…) ===== */
+    const HIST_KEY = "svi_hist_v1:" + String(ref);
+    const histLoad = () => {
+      try { return JSON.parse(localStorage.getItem(HIST_KEY) || "[]") || []; } catch (e) { return []; }
+    };
+    const histLog = (branche, action, detail = "") => {
+      try {
+        const l = histLoad();
+        l.push({ t: new Date().toISOString(), b: branche, a: action, d: String(detail || "").toUpperCase() });
+        localStorage.setItem(HIST_KEY, JSON.stringify(l.slice(-1000)));
+      } catch (e) {}
+    };
+    const openHistory = () => {
+      const p2 = n => String(n).padStart(2, "0");
+      const f = v => { const d = new Date(v); return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} À ${p2(d.getHours())}:${p2(d.getMinutes())}`; };
+      const all = histLoad().reverse();
+      const branches = [...new Set(all.map(h => h.b))].sort();
+      document.getElementById("docPop")?.remove();
+      const p = document.createElement("div");
+      p.id = "docPop";
+      p.innerHTML = `
+        <div class="doc-card hist-card" role="dialog" aria-modal="true">
+          <div class="doc-head">
+            <span class="doc-title">${esc(budget.project)} : HISTORIQUE ${esc(ref)}</span>
+            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+          </div>
+          <div class="doc-body">
+            <div class="hist-filters">
+              <button type="button" class="hist-f on" data-b="">TOUT (${all.length})</button>
+              ${branches.map(b => `<button type="button" class="hist-f" data-b="${esc(b)}">${esc(b)} (${all.filter(h => h.b === b).length})</button>`).join("")}
+            </div>
+            <div class="hist-scroll"><table class="hist-table">
+              <thead><tr><th>DATE</th><th>BRANCHE</th><th>ACTION</th><th>DÉTAIL</th></tr></thead>
+              <tbody>${all.map(h => `<tr data-b="${esc(h.b)}"><td>${esc(f(h.t))}</td><td>${esc(h.b)}</td><td>${esc(h.a)}</td><td>${esc(h.d)}</td></tr>`).join("") ||
+                `<tr><td colspan="4" class="empty">AUCUN CHANGEMENT ENREGISTRÉ</td></tr>`}</tbody>
+            </table></div>
+          </div>
+          <div class="doc-foot">
+            <button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>
+          </div>
+        </div>`;
+      document.body.appendChild(p);
+      popEnhance(p, "hist");
+      p.addEventListener("click", e => {
+        const fb = e.target.closest(".hist-f");
+        if (fb) {
+          p.querySelectorAll(".hist-f").forEach(x => x.classList.toggle("on", x === fb));
+          p.querySelectorAll("tbody tr[data-b]").forEach(tr => { tr.hidden = !!fb.dataset.b && tr.dataset.b !== fb.dataset.b; });
+          return;
+        }
+        if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
+      });
+    };
+
     const DOC_KEY = "svi_docs_v1:" + String(ref);
     const docsLoad = () => {
       try { return JSON.parse(localStorage.getItem(DOC_KEY) || "[]") || []; }
@@ -6102,6 +6182,7 @@ function renderBudgetList() {
           ref: docRef, date, title: title.toUpperCase(),
           name: file.name, size: file.size, type: file.type, data
         });
+        histLog("DOC", "CRÉATION", docRef + " — " + title);
         if (!docsSave(list)) {
           list[list.length - 1].data = null;
           docsSave(list);
@@ -6553,6 +6634,8 @@ function renderBudgetList() {
         const list = recLoad(kind);
         list.push(rec);
         recSave(kind, list);
+        histLog(kind.toUpperCase(), "CRÉATION", rec.ref + " — " + (rec.text || "") +
+          (rec.important ? " (IMPORTANTE)" : "") + (rec.responsable ? " — " + rec.responsable : ""));
         close();
         updPill(kind);
       });
@@ -6626,10 +6709,12 @@ function renderBudgetList() {
         return;
       }
       if (event.target.closest("#obsAlertBtn, #refBang .obs-bang")) { openObsAlert(); return; }
+      if (event.target.closest("#histBtn")) { openHistory(); return; }
       if (event.target.closest(".blk-grip, .blk-rsz")) return;
       if (event.target.closest("#layResetBtn")) {
         if (confirm("Remettre tous les blocs à leur place et à leur taille d'origine ?")) {
           laySave({});
+          histLog("DISPOSITION", "PAR DÉFAUT", "BLOCS REMIS À L'ORIGINE");
           layApply();
         }
         return;
@@ -6714,6 +6799,11 @@ function renderBudgetList() {
         toggle(selDesig, dRow.dataset.desig);
         refreshAll();
       }
+    };
+
+    shell.onchange = event => {
+      const ti = event.target.closest(".bdg-tva-input");
+      if (ti) histLog(tabTitle(), "TVA MODIFIÉE", ti.dataset.line + " → " + ti.value);
     };
 
     shell.oninput = event => {
