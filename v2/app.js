@@ -70,6 +70,56 @@ function openObsAlertFor(ref, project) {
   });
 }
 
+
+/* logo de la société (impressions) */
+const SVI_LOGO = "data:image/png;base64,";
+
+/* nombre en toutes lettres (français, majuscules) */
+function frWords(n) {
+  n = Math.floor(Math.abs(n));
+  if (n === 0) return "ZÉRO";
+  const U = ["", "UN", "DEUX", "TROIS", "QUATRE", "CINQ", "SIX", "SEPT", "HUIT", "NEUF", "DIX",
+    "ONZE", "DOUZE", "TREIZE", "QUATORZE", "QUINZE", "SEIZE", "DIX-SEPT", "DIX-HUIT", "DIX-NEUF"];
+  const T = ["", "", "VINGT", "TRENTE", "QUARANTE", "CINQUANTE", "SOIXANTE"];
+  const below100 = (x, final) => {
+    if (x < 20) return U[x];
+    const t = Math.floor(x / 10), u = x % 10;
+    if (t === 7 || t === 9) {
+      const base = t === 7 ? "SOIXANTE" : "QUATRE-VINGT";
+      const r = 10 + u;
+      return base + (t === 7 && u === 1 ? " ET " : "-") + U[r];
+    }
+    if (t === 8) return u === 0 ? (final ? "QUATRE-VINGTS" : "QUATRE-VINGT") : "QUATRE-VINGT-" + U[u];
+    if (u === 0) return T[t];
+    if (u === 1) return T[t] + " ET UN";
+    return T[t] + "-" + U[u];
+  };
+  const below1000 = (x, final) => {
+    const c = Math.floor(x / 100), r = x % 100;
+    let out = "";
+    if (c === 1) out = "CENT";
+    else if (c > 1) out = U[c] + " CENT" + (r === 0 && final ? "S" : "");
+    if (r) out += (out ? " " : "") + below100(r, final);
+    return out;
+  };
+  const parts = [];
+  const mds = Math.floor(n / 1e9), mns = Math.floor(n / 1e6) % 1000,
+    mil = Math.floor(n / 1000) % 1000, rest = n % 1000;
+  if (mds) parts.push(below1000(mds, true) + " MILLIARD" + (mds > 1 ? "S" : ""));
+  if (mns) parts.push(below1000(mns, true) + " MILLION" + (mns > 1 ? "S" : ""));
+  if (mil) parts.push(mil === 1 ? "MILLE" : below1000(mil, false) + " MILLE");
+  if (rest) parts.push(below1000(rest, true));
+  return parts.join(" ");
+}
+/* montant en lettres : « … DIRHAMS ET … CENTIMES » */
+function frMoney(v) {
+  const c = Math.round(Math.abs(v) * 100);
+  const d = Math.floor(c / 100), ct = c % 100;
+  let s = frWords(d) + (d >= 1e6 && d % 1e6 === 0 ? " DE" : "") + " DIRHAM" + (d > 1 ? "S" : "");
+  if (ct) s += " ET " + frWords(ct) + " CENTIME" + (ct > 1 ? "S" : "");
+  return s;
+}
+
 /* icônes de contenu (traits fins, couleur du texte) */
 const SVI_ICON = (() => {
   const w = d => `<svg class="ico" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -5617,7 +5667,159 @@ function renderBudgetList() {
       inp.click();
     };
 
+    /* ===== impression DÉSIGNATIONS CLIENT : modèle de la société
+       (logo, date d'édition, en-tête, tableau, totaux, pied de page) ===== */
+    const printClient = () => {
+      const src = lastShown.client;
+      if (!src || !src.rows.length) { alert("Aucune désignation à imprimer."); return; }
+      const N = v => String(v ?? "").trim().toUpperCase();
+      const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
+        "août", "septembre", "octobre", "novembre", "décembre"];
+      const now = new Date();
+      const dateTxt = `Agadir, le ${String(now.getDate()).padStart(2, "0")} ${mois[now.getMonth()]} ${now.getFullYear()}`;
+      const prj = db.projects.find(x => N(x.code) === N(budget.project));
+      const projet = (prj && prj.name && N(prj.name) !== N(budget.project)) ? prj.name : budget.project;
+      const lotOrd = name => {
+        const l = (db.lots || []).find(x => N(stripLevelPrefix(x.name)) === N(name));
+        return l && l.order ? l.order : "";
+      };
+
+      /* désignations dans l'ordre des articles, regroupées par lot */
+      const rows = [...src.rows].sort((a, b) =>
+        String(a.article).localeCompare(String(b.article), "fr", { numeric: true }));
+      const byLot = new Map();
+      rows.forEach(g => {
+        const lot = (g.members || []).map(m => m.lot).find(Boolean) || "";
+        if (!byLot.has(lot)) byLot.set(lot, []);
+        byLot.get(lot).push(g);
+      });
+      const lots = [...byLot.keys()];
+      let lotLine = "";
+      if (lots.length === 1 && lots[0]) {
+        const o = lotOrd(lots[0]);
+        lotLine = `LOT N° ${o ? o + " " : ""}: ${esc(lots[0])}`;
+      } else if (lots.filter(Boolean).length) {
+        lotLine = "LOTS : " + esc(lots.filter(Boolean).join(", "));
+      }
+
+      const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
+      let body = "";
+      lots.forEach((lot, i) => {
+        if (lots.length > 1 || lot) {
+          body += `<tr class="lot">${td(esc(lotOrd(lot) || i + 1), "c")}${td("Lot : " + esc(lot || "SANS LOT"))}${td("")}${td("")}${td("")}${td("")}${td("")}</tr>`;
+        }
+        byLot.get(lot).forEach(g => {
+          const pu = Math.round(g.price * 100) / 100;
+          body += `<tr>${td(esc(g.article), "c")}${td(esc(g.designation))}${td(esc(g.unit), "c")}` +
+            `${td(money(g.qty), "r")}${td(money(pu), "r")}${td(esc(frMoney(pu)), "c")}${td(money(g.ht), "r")}</tr>`;
+        });
+      });
+      const ht = rows.reduce((t, g) => t + g.ht, 0);
+      const tva = ht * 0.2, ttc = ht + tva;
+
+      const logo = SVI_LOGO;
+      const w = window.open("", "_blank");
+      if (!w) { alert("Autorisez les fenêtres pop-up pour l'impression."); return; }
+      w.document.write(`<!doctype html><html><head><meta charset="utf-8">
+<title>${esc(ref)} - DESIGNATIONS CLIENT</title>
+<style>
+  @page { size: A4 landscape; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  body { font-family: "Times New Roman", Times, serif; color: #000; font-size: 11pt;
+         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { width: 297mm; height: 209mm; padding: 8mm 12mm 6mm; display: flex; flex-direction: column;
+          page-break-after: always; break-after: page; overflow: hidden; }
+  .page:last-child { page-break-after: auto; break-after: auto; }
+  .head { position: relative; min-height: 40mm; flex: none; text-align: center; font-weight: bold; padding-bottom: 4mm; }
+  .head img { position: absolute; left: 3mm; top: 0; width: 30mm; height: 30mm; object-fit: cover; }
+  .head .date { position: absolute; right: 55mm; top: 15mm; }
+  .head .t { padding: 22mm 40mm 0; line-height: 1.55; }
+  .content { flex: 1; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { border: 1px solid #000; padding: 1.2mm 1.5mm; font-size: 10.5pt; vertical-align: middle; }
+  th { font-weight: bold; text-align: center; }
+  th.sub { font-size: 10pt; padding: 0.4mm; }
+  td.c { text-align: center; } td.r { text-align: right; }
+  tr.lot td { font-weight: normal; }
+  .tot { margin-top: 2mm; display: flex; flex-direction: column; align-items: flex-end; }
+  .tot div { display: flex; }
+  .tot span { padding: 1mm 2mm; text-align: right; }
+  .tot b { width: 30mm; border: 1px solid #000; border-top: 0; padding: 1mm 1.5mm; text-align: right; font-weight: normal; }
+  .tot div:first-child b { border-top: 1px solid #000; }
+  .arr { margin-top: 6mm; font-weight: bold; line-height: 1.9; }
+  .foot { flex: none; text-align: center; font-weight: bold; font-size: 10pt; }
+  .foot .pg { margin-bottom: 1.5mm; }
+  .foot hr { width: 65%; border: 0; border-top: 2.5px solid #5677a7; margin: 0 auto 1.5mm; }
+  .foot .ad { line-height: 1.3; }
+  @media screen { body { background: #888; } .page { background: #fff; margin: 6mm auto; box-shadow: 0 2px 8px rgba(0,0,0,.3); } }
+</style></head><body>
+<div id="src" style="display:none">
+  <div class="head">
+    <img src="${logo}" alt="">
+    <div class="date">${dateTxt}</div>
+    <div class="t">BUDGET N° : ${esc(ref)}<br>CLIENT : À COMPLÉTER<br>PROJET : ${esc(projet)}${lotLine ? "<br>" + lotLine : ""}</div>
+  </div>
+  <table id="tpl"><colgroup><col style="width:6%"><col style="width:33%"><col style="width:4%"><col style="width:9%">
+    <col style="width:9.5%"><col style="width:28%"><col style="width:10.5%"></colgroup>
+    <thead><tr><th rowspan="2">ART.</th><th rowspan="2">DESIGNATION</th><th rowspan="2">U</th><th rowspan="2">QUANTITE</th>
+      <th colspan="2">PRIX UNITAIRES HORS TVA</th><th rowspan="2">MONTANT</th></tr>
+      <tr><th class="sub">EN CHIFFRES</th><th class="sub">EN LETTRES</th></tr></thead>
+    <tbody>${body}</tbody></table>
+  <div id="end">
+    <div class="tot">
+      <div><span>TOTAL H.T. :</span><b>${money(ht)}</b></div>
+      <div><span>TOTAL T.V.A. :</span><b>${money(tva)}</b></div>
+      <div><span>TOTAL T.T.C. :</span><b>${money(ttc)}</b></div>
+    </div>
+    <div class="arr">ARRÊTER LE PRÉSENT BUDGET À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>
+  </div>
+  <div class="foot"><div class="pg"></div><hr>
+    <div class="ad"><br>
+    </div></div>
+</div>
+<div id="pages"></div>
+<script>
+(function () {
+  const src = document.getElementById("src");
+  const out = document.getElementById("pages");
+  const tpl = document.getElementById("tpl");
+  const rows = [...tpl.tBodies[0].rows];
+  const pages = [];
+  const newPage = withTable => {
+    const pg = document.createElement("div"); pg.className = "page";
+    pg.appendChild(src.querySelector(".head").cloneNode(true));
+    const c = document.createElement("div"); c.className = "content"; pg.appendChild(c);
+    let tb = null;
+    if (withTable) {
+      const t = tpl.cloneNode(true); t.removeAttribute("id"); t.tBodies[0].innerHTML = "";
+      c.appendChild(t); tb = t.tBodies[0];
+    }
+    pg.appendChild(src.querySelector(".foot").cloneNode(true));
+    out.appendChild(pg); pages.push(pg);
+    return { c, tb };
+  };
+  const full = c => c.scrollHeight > c.clientHeight + 1;
+  let cur = newPage(true);
+  rows.forEach(r => {
+    cur.tb.appendChild(r);
+    if (full(cur.c) && cur.tb.rows.length > 1) { cur.tb.removeChild(r); cur = newPage(true); cur.tb.appendChild(r); }
+  });
+  const end = document.getElementById("end");
+  cur.c.appendChild(end);
+  if (full(cur.c)) { cur.c.removeChild(end); cur = newPage(false); cur.c.appendChild(end); }
+  pages.forEach((pg, i) => { pg.querySelector(".pg").textContent = "Page " + (i + 1) + " / " + pages.length; });
+  src.remove();
+  const go = () => setTimeout(() => window.print(), 300);
+  const im = document.images[0];
+  if (im && !im.complete) { im.onload = go; im.onerror = go; } else go();
+})();
+<\/script></body></html>`);
+      w.document.close();
+    };
+
     const doPdf = blk => {
+      if (blk === "client") return printClient();
       let tableHTML;
       if (blk === "detail" && active === "qlt") {
         alert("Aucune donnée dans " + blkLabel(blk) + ".");
