@@ -5955,11 +5955,13 @@ function renderBudgetList() {
         }
         return h1.toString(36) + h2.toString(36);
       })();
-      /* déjà enregistré (et non expiré) : on ouvre directement ce document */
+      /* bloc déjà enregistré (et non expiré) : on ouvre directement son document */
       const docs = docsLoad();
       for (let i = docs.length - 1; i >= 0; i--) {
         const d = docs[i];
-        if (d.fp === fp && !d.expired && (d.idb || d.data)) {
+        /* budget figé : un bloc déjà enregistré se rouvre tel quel */
+        if (!d.expired && (d.idb || d.data) &&
+            String(d.title || "").toUpperCase() === String(cfg.docTitle).toUpperCase()) {
           histLog(cfg.branch, "OUVERTURE DOCUMENT ENREGISTRÉ", d.ref);
           openDoc(i);
           return;
