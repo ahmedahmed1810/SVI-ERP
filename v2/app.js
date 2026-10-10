@@ -2393,20 +2393,10 @@ function renderBudgetList() {
       /* listes DOC / TAF / OBS : 5 lignes visibles, défilement au-delà */
       .rec-scroll {
         overflow: auto; -webkit-overflow-scrolling: touch;
-        max-height: calc(27px + 5 * 29px);
+        height: calc(6 * 21px + 1px);
       }
-      .rec-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-      .rec-table th, .rec-table td {
-        padding: 0 10px; height: 28px; border-bottom: 1px solid #edf0f4;
-        text-align: left; white-space: nowrap;
-      }
-      .rec-table th {
-        position: sticky; top: 0; z-index: 1; height: 26px;
-        background: #fafbfc; color: #6b7480; font-size: 11px;
-      }
-      .rec-table td.wrap { white-space: normal; min-width: 220px; line-height: 1.3; }
       .rec-table td.center { text-align: center; }
-      .rec-table td.empty { color: #9aa3af; text-align: center; font-style: italic; }
+      .rec-table td.number { text-align: right; }
       .rec-table .rec-imp { color: #b91c1c; font-weight: 900; }
       .rec-table .rec-late { color: #b91c1c; font-weight: 700; }
       .rec-table .rec-open {
@@ -2418,7 +2408,7 @@ function renderBudgetList() {
       .bdg-d-page.max-rec > .blk-hier,
       .bdg-d-page.max-rec > #bdgTabs,
       .bdg-d-page.max-rec > #bdgTabBody { display: none !important; }
-      .bdg-d-page.max-rec .blk-rec-on .rec-scroll { max-height: none; height: calc(var(--avail) - 50px); }
+      .bdg-d-page.max-rec .blk-rec-on .rec-scroll { height: calc(var(--avail) - 50px); }
 
       /* outils export / import / aperçu */
       .blk-head { display: flex; align-items: center; justify-content: space-between; }
@@ -3981,7 +3971,7 @@ function renderBudgetList() {
               <button type="button" class="blk-btn blk-max-btn" data-blk="doc" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
           </div>
-          <div class="rec-scroll"><table class="rec-table" id="recTable-doc"></table></div>
+          <div class="rec-scroll"><table class="bdg-d-table rec-table" id="recTable-doc"></table></div>
         </div>
 
         <div class="bdg-d-block blk-rec blk-rec-taf" data-rec="taf">
@@ -3993,7 +3983,7 @@ function renderBudgetList() {
               <button type="button" class="blk-btn blk-max-btn" data-blk="taf" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
           </div>
-          <div class="rec-scroll"><table class="rec-table" id="recTable-taf"></table></div>
+          <div class="rec-scroll"><table class="bdg-d-table rec-table" id="recTable-taf"></table></div>
         </div>
 
         <div class="bdg-d-block blk-rec blk-rec-obs" data-rec="obs">
@@ -4005,7 +3995,7 @@ function renderBudgetList() {
               <button type="button" class="blk-btn blk-max-btn" data-blk="obs" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
           </div>
-          <div class="rec-scroll"><table class="rec-table" id="recTable-obs"></table></div>
+          <div class="rec-scroll"><table class="bdg-d-table rec-table" id="recTable-obs"></table></div>
         </div>
 
 
@@ -4560,6 +4550,7 @@ function renderBudgetList() {
         renderHier();
         renderTab();
         markFiltered();
+        REC_KINDS.forEach(renderRec);
       });
       if (typeof stateSave === "function") stateSave();
     };
@@ -5330,49 +5321,65 @@ function renderBudgetList() {
       if (isNaN(d)) return String(v);
       return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
+    /* colonnes : [clé, libellé, accesseur, classe] (même moteur que les autres tableaux) */
     const recCols = {
-      doc: [["N°", r => r.ref], ["DATE CRÉATION", r => fmtDT(r.date)], ["INTITULÉ", r => r.title],
-            ["DOCUMENT", r => r.name || ""]],
-      taf: [["N°", r => r.ref], ["DATE CRÉATION", r => fmtDT(r.date)], ["OBJET TAF", r => r.objet || ""],
-            ["DESCRIPTIF TAF", r => r.text], ["RESPONSABLE", r => r.responsable],
-            ["PRÉVU LE", r => fmtDT(r.prevu)],
-            ["DÉLAI PLANIFIÉ", r => hm(new Date(r.prevu) - new Date(r.date))],
-            ["DURÉE ÉCOULÉE", r => hm(Date.now() - new Date(r.date))]],
-      obs: [["N°", r => r.ref], ["DATE CRÉATION", r => fmtDT(r.date)],
-            ["!", r => r.important ? "!" : ""], ["OBSERVATION", r => r.text]]
+      doc: [["rref", "N°", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
+            ["rtitle", "INTITULÉ", r => r.title, ""], ["rfile", "DOCUMENT", r => r.name || "", ""]],
+      taf: [["rref", "N°", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
+            ["robj", "OBJET TAF", r => r.objet || "", ""], ["rtext", "DESCRIPTIF TAF", r => r.text, ""],
+            ["rresp", "RESPONSABLE", r => r.responsable, ""], ["rprev", "PRÉVU LE", r => fmtDT(r.prevu), ""],
+            ["rdelay", "DÉLAI PLANIFIÉ", r => hm(new Date(r.prevu) - new Date(r.date)), "number"],
+            ["relap", "DURÉE ÉCOULÉE", r => hm(Date.now() - new Date(r.date)), "number"]],
+      obs: [["rref", "N°", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
+            ["rimp", "!", r => r.important ? "!" : "", "center"], ["rtext", "OBSERVATION", r => r.text, ""]]
     };
-    /* plus récent en premier */
-    const recSorted = kind => recLoad(kind).map((r, i) => ({ r, i }))
-      .sort((a, b) => String(b.r.date).localeCompare(String(a.r.date)) || b.i - a.i);
-    const recTableData = kind => ({
-      head: recCols[kind].map(c => c[0]),
-      rows: recSorted(kind).map(({ r }) => recCols[kind].map(c => c[1](r)))
+    Object.assign(CW_DEF, {
+      rref: 150, rdate: 140, rtitle: 320, rfile: 260, robj: 200, rtext: 420,
+      rresp: 180, rprev: 140, rdelay: 120, relap: 120, rimp: 50
     });
+    /* plus récent en premier (ordre par défaut, sans tri choisi) */
+    const recSorted = kind => recLoad(kind).map((r, i) => ({ ...r, _i: i }))
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)) || b._i - a._i);
+    const recShown = {};
+    const recTableData = kind => {
+      const cols = recCols[kind];
+      const rows = recShown[kind] || cfApply(kind, cols, recSorted(kind), true);
+      return { head: cols.map(c => c[1]), rows: rows.map(r => cols.map(c => c[2](r))) };
+    };
 
     const renderRec = kind => {
       const t = $("recTable-" + kind);
       if (!t) return;
-      const list = recSorted(kind);
       const cols = recCols[kind];
+      const all = recSorted(kind);
+      const list = cfApply(kind, cols, all);
+      recShown[kind] = list;
       const title = $("recTitle-" + kind);
-      if (title) title.textContent = blkName[kind] + " (" + list.length + ")";
-      const wide = { doc: 2, taf: 3, obs: 3 }[kind];
-      const rows = list.map(({ r, i }) => "<tr>" + cols.map((c, ci) => {
-        const v = c[1](r);
-        if (kind === "doc" && ci === 3 && r.data)
-          return `<td><button type="button" class="rec-open" data-recopen="${i}">${esc(v)}</button></td>`;
-        if (kind === "obs" && ci === 2) return `<td class="center rec-imp">${esc(v)}</td>`;
-        if (kind === "taf" && ci === 7 && Date.now() > new Date(r.prevu))
-          return `<td class="rec-late" title="Échéance dépassée">${esc(v)}</td>`;
-        return `<td${ci === wide ? ' class="wrap"' : ""}>${esc(v)}</td>`;
+      if (title) title.textContent = blkName[kind] + " (" + all.length + ")";
+      const st = cfT(kind);
+      title?.closest(".bdg-d-block-title")?.classList.toggle("cf-on", Object.keys(st.f).length > 0);
+
+      const rows = list.map(r => "<tr>" + cols.map(([k, , get, cls]) => {
+        const v = get(r);
+        if (k === "rfile" && r.data)
+          return `<td><button type="button" class="rec-open" data-recopen="${r._i}">${esc(v)}</button></td>`;
+        if (k === "rimp") return `<td class="center rec-imp">${esc(v)}</td>`;
+        if (k === "relap" && Date.now() > new Date(r.prevu))
+          return `<td class="number rec-late" title="Échéance dépassée">${esc(v)}</td>`;
+        return `<td class="${cls}" title="${esc(v)}">${esc(v)}</td>`;
       }).join("") + "</tr>").join("");
-      t.innerHTML = `<thead><tr>${cols.map(c => `<th>${esc(c[0])}</th>`).join("")}</tr></thead>
-        <tbody>${rows || `<tr><td class="empty" colspan="${cols.length}">AUCUN ENREGISTREMENT</td></tr>`}</tbody>`;
+      const fill = Array.from({ length: Math.max(0, 5 - list.length) }, () =>
+        `<tr class="bdg-d-filler">${"<td>&nbsp;</td>".repeat(cols.length)}</tr>`).join("");
+
+      t.style.width = cwTableW(kind, cols) + "px";
+      t.innerHTML = `<colgroup>${cwCols(kind, cols)}</colgroup>
+        <thead><tr>${cols.map(([k, lab, , cls]) => cfHead(kind, k, lab, cls)).join("")}</tr></thead>
+        <tbody>${rows}${fill}</tbody>`;
     };
 
     /* fenêtre centrée : observations marquées « ! » */
     const openObsAlert = () => {
-      const list = recSorted("obs").filter(({ r }) => r.important);
+      const list = recSorted("obs").filter(r => r.important);
       document.getElementById("docPop")?.remove();
       const p = document.createElement("div");
       p.id = "docPop";
@@ -5384,7 +5391,7 @@ function renderBudgetList() {
           </div>
           <div class="doc-body">
             <div class="obs-alert-list">
-              ${list.map(({ r }) => `
+              ${list.map(r => `
                 <div class="obs-alert-item">
                   <div class="obs-alert-meta">⚠ ${esc(r.ref)} — ${esc(fmtDT(r.date))}</div>
                   <div class="obs-alert-text">${esc(r.text)}</div>
