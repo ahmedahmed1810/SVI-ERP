@@ -5882,7 +5882,7 @@ function renderBudgetList() {
         ["RÉFÉRENCE", ref],
         ["PROJET", budget.project],
         ["INTITULÉ", (prj && prj.name) || "À COMPLÉTER"],
-        ["DATE BUDGET", (dt && dt.label) || ""],
+        ["DATE CRÉATION", (dt && dt.label) || ""],
       ];
       document.getElementById("docPop")?.remove();
       const p = document.createElement("div");
