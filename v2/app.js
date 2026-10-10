@@ -2628,6 +2628,10 @@ function renderBudgetList() {
       }
       #docPop .fld-rsz:hover { opacity: 1; }
       #docPop .doc-err { color: #b42318; font-size: 11px; min-height: 14px; margin-top: 10px; }
+      #docPop .fd-msg { color: #6b7280; }
+      #docPop .fd-msg.ok { color: #15803d; font-weight: 700; }
+      #docPop .fd-msg a { color: #1d4ed8; font-weight: 800; }
+      #docPop .doc-btn:disabled { opacity: .5; cursor: default; }
       #docPop .doc-foot {
         display: flex; justify-content: flex-end; gap: 10px; padding: 12px 18px;
         border-top: 1px solid #e5e9ef; background: #fafbfc;
@@ -5758,6 +5762,58 @@ function renderBudgetList() {
     /* enregistrement : sur iPad / iPhone, la feuille de partage permet
        « Enregistrer dans Fichiers » › Google Drive, avec choix ou création
        du dossier ; sinon, téléchargement classique */
+    /* fenêtre « enregistrer » au format des fenêtres INF / DOC :
+       nom du fichier et dossier du Drive proposés, modifiables */
+    const fileDialog = ({ title, name, path, buttons, onAct }) => {
+      const rec = drivePaths();
+      document.getElementById("docPop")?.remove();
+      const p = document.createElement("div");
+      p.id = "docPop";
+      p.innerHTML = `
+        <div class="doc-card" role="dialog" aria-modal="true" style="max-width:640px">
+          <div class="doc-head">
+            <span class="doc-title">${esc(title)}</span>
+            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+          </div>
+          <div class="doc-body">
+            <div class="doc-grid doc-grid-2">
+              <label class="doc-lab" for="fdName">NOM DU FICHIER</label>
+              <input id="fdName" class="doc-in" type="text" autocomplete="off" value="${esc(name)}">
+              <label class="doc-lab" for="fdPath">DOSSIER DRIVE</label>
+              <input id="fdPath" class="doc-in" type="text" autocomplete="off" list="fdPaths" value="${esc(path)}">
+              ${rec.length ? `<span class="doc-lab">RÉCENTS</span>
+              <select id="fdRec" class="doc-in"><option value="">CHOISIR UN DOSSIER RÉCENT…</option>${rec.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}</select>` : ""}
+            </div>
+            <datalist id="fdPaths">${[...new Set([path, ...rec])].map(o => `<option value="${esc(o)}">`).join("")}</datalist>
+            <div class="doc-err fd-msg" id="fdMsg">SOUS-DOSSIERS SÉPARÉS PAR « / », CRÉÉS SI BESOIN.</div>
+          </div>
+          <div class="doc-foot">
+            <button type="button" class="doc-btn" data-cancel>ANNULER</button>
+            ${buttons.map(b => `<button type="button" class="doc-btn${b.primary ? " doc-save" : ""}" data-act="${b.key}">${esc(b.label)}</button>`).join("")}
+          </div>
+        </div>`;
+      document.body.appendChild(p);
+      popEnhance(p, "save");
+      const msg = p.querySelector("#fdMsg");
+      const ui = {
+        msg: (t, kind) => { msg.innerHTML = t; msg.className = "doc-err fd-msg" + (kind ? " " + kind : ""); },
+        close: () => p.remove(),
+        busy: (k, on) => { const b = p.querySelector(`[data-act="${k}"]`); if (b) b.disabled = on; }
+      };
+      p.querySelector("#fdRec")?.addEventListener("change", e => {
+        if (e.target.value) p.querySelector("#fdPath").value = e.target.value;
+      });
+      p.addEventListener("click", e => {
+        if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
+        const b = e.target.closest("[data-act]");
+        if (!b || b.disabled) return;
+        onAct(b.dataset.act, {
+          name: p.querySelector("#fdName").value.trim(),
+          path: driveCleanPath(p.querySelector("#fdPath").value)
+        }, ui);
+      });
+    };
+
     /* enregistrement sur l'iPad (partage / téléchargement) */
     const saveDevice = (name, blob) => {
       try {
@@ -5777,42 +5833,24 @@ function renderBudgetList() {
     const saveFile = (name, blob) => {
       const ext = (String(name).match(/\.[a-z0-9]+$/i) || [""])[0];
       const stem = ext ? String(name).slice(0, -ext.length) : String(name);
-      const def = driveDefaultPath(budget.project, fullRef);
-      const rec = drivePaths();
-      const p = popup(`
-        <div class="blk-card">
-          <button type="button" class="blk-x" data-close>✕</button>
-          <div class="blk-title">ENREGISTRER LE FICHIER ${esc(ext.toUpperCase())}</div>
-          <label class="blk-sub" for="svName">NOM DU FICHIER</label>
-          <input id="svName" class="exp-name" type="text" value="${esc(stem)}">
-          <label class="blk-sub" for="svPath">DOSSIER DANS LE DRIVE (sous-dossiers séparés par « / », créés si besoin)</label>
-          <input id="svPath" class="exp-name" type="text" list="svPaths" value="${esc(def)}">
-          <datalist id="svPaths">${[...new Set([def, ...rec])].map(o => `<option value="${esc(o)}">`).join("")}</datalist>
-          ${rec.length ? `<div class="blk-sub">DOSSIERS RÉCENTS</div>` + rec.slice(0, 5).map(r =>
-            `<button type="button" class="blk-choice drv-rec" data-path="${esc(r)}">📁 ${esc(r)}</button>`).join("") : ""}
-          <button type="button" class="blk-choice drv-go" data-drive>Enregistrer dans le Drive</button>
-          <button type="button" class="blk-choice" data-device>Enregistrer sur l'iPad</button>
-          <div class="blk-sub" id="svMsg"></div>
-        </div>`);
-      p.addEventListener("click", async e => {
-        const r = e.target.closest("[data-path]");
-        if (r) { p.querySelector("#svPath").value = r.dataset.path; return; }
-        const nm = (p.querySelector("#svName").value.trim() || stem).replace(/[\\/:*?"<>|]+/g, "-") + ext;
-        if (e.target.closest("[data-device]")) { saveDevice(nm, blob); p.remove(); return; }
-        const go = e.target.closest("[data-drive]");
-        if (!go || go.disabled) return;
-        const path = driveCleanPath(p.querySelector("#svPath").value);
-        const msg = p.querySelector("#svMsg");
-        go.disabled = true;
-        msg.textContent = "ENVOI DANS LE DRIVE…";
-        try {
-          const out = await driveSave(blob, nm, path);
-          histLog("FICHIER", "DRIVE", (path ? path + "/" : "") + nm);
-          msg.innerHTML = `ENREGISTRÉ : ${esc((path || "MON DRIVE") + "/" + nm)}` +
-            (out.url ? ` — <a href="${esc(out.url)}" target="_blank" rel="noopener">OUVRIR</a>` : "");
-        } catch (err) {
-          msg.textContent = "ÉCHEC : " + driveErrText(err);
-          go.disabled = false;
+      fileDialog({
+        title: "ENREGISTRER LE FICHIER " + ext.toUpperCase().replace(".", ""),
+        name: stem, path: driveDefaultPath(budget.project, fullRef),
+        buttons: [{ key: "device", label: "SUR L'IPAD" }, { key: "drive", label: "DANS LE DRIVE", primary: true }],
+        onAct: async (k, v, ui) => {
+          const nm = (v.name || stem).replace(/[\\/:*?"<>|]+/g, "-") + ext;
+          if (k === "device") { saveDevice(nm, blob); ui.close(); return; }
+          ui.busy("drive", true);
+          ui.msg("ENVOI DANS LE DRIVE…");
+          try {
+            const out = await driveSave(blob, nm, v.path);
+            histLog("FICHIER", "DRIVE", (v.path ? v.path + "/" : "") + nm);
+            ui.msg(`ENREGISTRÉ : ${esc((v.path || "MON DRIVE") + "/" + nm)}` +
+              (out.url ? ` — <a href="${esc(out.url)}" target="_blank" rel="noopener">OUVRIR</a>` : ""), "ok");
+          } catch (err) {
+            ui.msg("ÉCHEC : " + esc(driveErrText(err)));
+            ui.busy("drive", false);
+          }
         }
       });
     };
@@ -5920,30 +5958,15 @@ function renderBudgetList() {
     };
 
     const openDriveExport = (blk, docName) => {
-      const def = driveDefaultPath(budget.project, fullRef);
-      const rec = drivePaths();
-      const opts = [...new Set([def, ...rec])];
-      const p = popup(`
-        <div class="blk-card">
-          <button type="button" class="blk-x" data-close>✕</button>
-          <div class="blk-title">GOOGLE SHEETS — ${esc(blkLabel(blk))}</div>
-          <label class="blk-sub" for="drvName">NOM DE LA FEUILLE</label>
-          <input id="drvName" class="exp-name" type="text" value="${esc(docName)}">
-          <label class="blk-sub" for="drvPath">DOSSIER DANS LE DRIVE (sous-dossiers séparés par « / », créés si besoin)</label>
-          <input id="drvPath" class="exp-name" type="text" list="drvPaths" value="${esc(def)}">
-          <datalist id="drvPaths">${opts.map(o => `<option value="${esc(o)}">`).join("")}</datalist>
-          ${rec.length ? `<div class="blk-sub">DOSSIERS RÉCENTS</div>` + rec.slice(0, 5).map(r =>
-            `<button type="button" class="blk-choice drv-rec" data-path="${esc(r)}">📁 ${esc(r)}</button>`).join("") : ""}
-          <button type="button" class="blk-choice drv-go" data-go>Créer la feuille dans le Drive</button>
-          <button type="button" class="blk-choice" data-paste>Copier pour coller dans une feuille vierge (sans nom)</button>
-        </div>`);
-      p.addEventListener("click", e => {
-        const r = e.target.closest("[data-path]");
-        if (r) { p.querySelector("#drvPath").value = r.dataset.path; return; }
-        const nm = p.querySelector("#drvName").value.trim();
-        const pa = p.querySelector("#drvPath").value.trim().replace(/^\/+|\/+$/g, "").replace(/\s*\/\s*/g, "/");
-        if (e.target.closest("[data-go]")) { sendToDrive(blk, nm, pa); p.remove(); }
-        else if (e.target.closest("[data-paste]")) { doExport(blk, "gsheet", nm); p.remove(); }
+      fileDialog({
+        title: "GOOGLE SHEETS — " + String(blkLabel(blk)).toUpperCase(),
+        name: docName, path: driveDefaultPath(budget.project, fullRef),
+        buttons: [{ key: "paste", label: "COPIER (FEUILLE SANS NOM)" }, { key: "go", label: "CRÉER DANS LE DRIVE", primary: true }],
+        onAct: (k, v, ui) => {
+          ui.close();
+          if (k === "go") sendToDrive(blk, v.name, v.path);
+          else doExport(blk, "gsheet", v.name);
+        }
       });
     };
 
