@@ -1,6 +1,23 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzFgUloyiRJe-QmR7nRqJ4bfWqvfA_6LSgotJRrRt87yeRfWtdY7nxXMR9avafSJUPg4Q/exec";
 const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
 
+/* icônes de contenu (traits fins, couleur du texte) */
+const SVI_ICON = (() => {
+  const w = d => `<svg class="ico" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  return {
+    doc: w('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>'),
+    taf: w('<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1M9 12l2 2 4-4"/>'),
+    obs: w('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11h7M8.5 14h4"/>'),
+    inf: w('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>'),
+    client: w('<path d="M3 7h18M3 12h18M3 17h12"/><circle cx="19" cy="17" r="2"/>'),
+    hier: w('<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/>'),
+    chg: w('<circle cx="12" cy="12" r="9"/><path d="M12 7v10M8 13l4 4 4-4"/>'),
+    prd: w('<circle cx="12" cy="12" r="9"/><path d="M12 17V7M8 11l4-4 4 4"/>'),
+    qlt: w('<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>'),
+    dly: w('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>')
+  };
+})();
+
 /* toute saisie est enregistrée en MAJUSCULES, même tapée en minuscules
    (le curseur reste à sa place) */
 document.addEventListener("input", e => {
@@ -2492,6 +2509,11 @@ function renderBudgetList() {
       .bdg-d-page .blk-grip { width: 18px; height: 18px; margin-right: 4px; }
       .bdg-d-page .bdg-d-tab { padding: 6px 14px; }
 
+      /* icônes de contenu */
+      .bdg-d-pill, .rec-tab, .bdg-d-tab, .blk-head .ttl { display: inline-flex; align-items: center; gap: 6px; }
+      .ico { flex: none; opacity: .85; }
+      .bdg-d-pill .ico { width: 15px; height: 15px; }
+
       /* un seul bouton d'actions par bloc */
       .blk-tools .blk-btn { display: none !important; }
       .blk-more {
@@ -4056,10 +4078,10 @@ function renderBudgetList() {
         </div>
 
         <div class="bdg-d-pills">
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="doc" role="button">DOC (0)</span>
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="taf" role="button">TAF (0)</span>
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="obs" role="button">OBS (0)</span>
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="inf" role="button">INF</span>
+          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="doc" role="button">${SVI_ICON.doc}<span class="pl">DOC (0)</span></span>
+          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="taf" role="button">${SVI_ICON.taf}<span class="pl">TAF (0)</span></span>
+          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="obs" role="button">${SVI_ICON.obs}<span class="pl">OBS (0)</span></span>
+          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="inf" role="button">${SVI_ICON.inf}<span class="pl">INF</span></span>
         </div>
 
       </div>
@@ -4069,7 +4091,7 @@ function renderBudgetList() {
 
         <div class="bdg-d-block blk-client">
           <div class="bdg-d-block-title blk-head" id="bdgClientTitle">
-            <span>DÉSIGNATIONS CLIENT</span>
+            <span class="ttl">${SVI_ICON.client}DÉSIGNATIONS CLIENT</span>
             <span class="blk-tools">
               <button type="button" class="blk-btn" data-blk="client" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="client" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -4089,7 +4111,7 @@ function renderBudgetList() {
 
         <div class="bdg-d-block blk-hier">
           <div class="bdg-d-block-title blk-head">
-            <span>TÂCHES</span>
+            <span class="ttl">${SVI_ICON.hier}TÂCHES</span>
             <span class="blk-tools">
               <button type="button" class="blk-btn" data-blk="hier" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="hier" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -4108,7 +4130,7 @@ function renderBudgetList() {
                 class="bdg-d-tab"
                 data-tab="${t.key}"
               >
-                ${t.title}
+                ${SVI_ICON[t.key] || ""}${t.title}
               </button>
             `).join("")
           }
@@ -4125,9 +4147,9 @@ function renderBudgetList() {
         <div class="bdg-d-block blk-rec blk-suivi" data-rec="suivi">
           <div class="bdg-d-block-title blk-head">
             <span class="rec-tabs">
-              <button type="button" class="rec-tab" data-rtab="doc" id="recTitle-doc">DOCUMENTS (0)</button>
-              <button type="button" class="rec-tab" data-rtab="taf" id="recTitle-taf">TAF (0)</button>
-              <button type="button" class="rec-tab" data-rtab="obs" id="recTitle-obs">OBSERVATIONS (0)</button>
+              <button type="button" class="rec-tab" data-rtab="doc" id="recTitle-doc">${SVI_ICON.doc}DOCUMENTS (0)</button>
+              <button type="button" class="rec-tab" data-rtab="taf" id="recTitle-taf">${SVI_ICON.taf}TAF (0)</button>
+              <button type="button" class="rec-tab" data-rtab="obs" id="recTitle-obs">${SVI_ICON.obs}OBSERVATIONS (0)</button>
             </span>
             <span class="blk-tools">
               <button type="button" class="blk-btn" data-blk="suivi" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -5876,7 +5898,7 @@ function renderBudgetList() {
     const updPill = kind => {
       const pill = shell.querySelector(`[data-pill="${kind}"]`);
       const n = recLoad(kind).length;
-      if (pill) pill.textContent = kind.toUpperCase() + " (" + n + ")";
+      if (pill) pill.innerHTML = SVI_ICON[kind] + `<span class="pl">${kind.toUpperCase()} (${n})</span>`;
       renderRec(kind);
       if (kind === "obs") {
         const imp = recLoad("obs").filter(r => r.important).length;
@@ -5938,7 +5960,7 @@ function renderBudgetList() {
       const list = cfApply(kind, cols, all);
       recShown[kind] = list;
       const title = $("recTitle-" + kind);
-      if (title) title.textContent = blkName[kind] + " (" + all.length + ")";
+      if (title) title.innerHTML = SVI_ICON[kind] + esc(blkName[kind] + " (" + all.length + ")");
       const st = cfT(kind);
       title?.classList.toggle("cf-on", Object.keys(st.f).length > 0);
 
