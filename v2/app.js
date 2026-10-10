@@ -2381,6 +2381,43 @@ function renderBudgetList() {
         box-shadow: 0 6px 16px rgba(0,0,0,.2);
       }
 
+      /* disposition des blocs : ordre par glissement, hauteur réglable */
+      .bdg-d-page { display: flex; flex-direction: column; }
+      .bdg-d-page > * { min-width: 0; }
+      #bdgTabBody { margin-bottom: 0; }
+      .blk-rsz {
+        height: 14px; cursor: ns-resize; touch-action: none; position: relative;
+        background: #fafbfc; border-top: 1px solid #edf0f4;
+      }
+      .blk-rsz::after {
+        content: ""; position: absolute; left: 50%; top: 5px; width: 36px; height: 4px;
+        margin-left: -18px; border-radius: 2px; background: #c3cad5;
+      }
+      .blk-rsz.on::after, .blk-rsz:hover::after { background: #1d4ed8; }
+      #bdgDetailRsz {
+        margin-bottom: 18px; border: 1px solid #e1e5eb; border-top: 0;
+        border-radius: 0 0 12px 12px;
+      }
+      #bdgTabBody { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+      .bdg-d-page[class*="max-"] .blk-rsz { display: none !important; }
+      .blk-grip {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 22px; height: 22px; margin-right: 6px; border-radius: 5px;
+        color: #8a93a0; cursor: grab; touch-action: none; font-size: 14px; line-height: 1;
+        flex: none; user-select: none; -webkit-user-select: none;
+      }
+      .blk-grip:hover { background: #e5e9ef; color: #1d4ed8; }
+      .bdg-d-page .blk-head { justify-content: flex-start; }
+      #bdgTabs .blk-grip { align-self: center; }
+      .lay-src { opacity: .5; }
+      .lay-before { box-shadow: 0 -4px 0 #1d4ed8; }
+      .lay-after { box-shadow: 0 4px 0 #1d4ed8; }
+      .bdg-lay-btn {
+        height: 40px; padding: 0 10px; border: 1px solid #d6dbe3; border-radius: 10px;
+        background: #fff; color: #4b5563; font-size: 11px; font-weight: 800; cursor: pointer;
+        display: inline-flex; align-items: center; gap: 6px;
+      }
+
       /* triangle « observations importantes » en haut à droite */
       .bdg-d-hright { margin-left: auto; display: flex; align-items: center; gap: 8px; }
       .bdg-alert-btn {
@@ -2415,6 +2452,9 @@ function renderBudgetList() {
         overflow: auto; -webkit-overflow-scrolling: touch;
         height: calc(6 * 21px + 1px);
       }
+      .blk-rec-doc .rec-scroll { height: var(--h-doc, 127px); }
+      .blk-rec-taf .rec-scroll { height: var(--h-taf, 127px); }
+      .blk-rec-obs .rec-scroll { height: var(--h-obs, 127px); }
       .rec-table td.center { text-align: center; }
       .rec-table td.number { text-align: right; }
       .rec-table .rec-imp { color: #b91c1c; font-weight: 900; }
@@ -2529,7 +2569,8 @@ function renderBudgetList() {
 
       /* désignations client : en-tête + 10 lignes + total */
       .bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll {
-        height: 252px !important;
+        height: var(--h-client, 252px) !important;
+        max-height: none !important;
       }
       .bdg-d-table tfoot td {
         position: sticky;
@@ -2543,8 +2584,8 @@ function renderBudgetList() {
          pour laisser apparaître les totaux */
       .bdg-d-tabbody > .bdg-d-scroll,
       .bdg-d-tabbody .bdg-d-scroll {
-        height: 210px !important;
-        max-height: 210px !important;
+        height: var(--h-detail, 210px) !important;
+        max-height: var(--h-detail, 210px) !important;
         overflow-y: auto;
       }
 
@@ -2649,7 +2690,7 @@ function renderBudgetList() {
 .bdg-d-table tbody tr.selected td{background:#dbeafe !important;font-weight:700}
 .bdg-d-fi{float:right;font-size:11px;font-weight:600;opacity:.8}
 .bdg-h-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
-.bdg-h-col{border:1px solid #d6dbe3;border-radius:8px;overflow:hidden;height:128px;overflow-y:auto;background:#fff}
+.bdg-h-col{border:1px solid #d6dbe3;border-radius:8px;overflow:hidden;height:var(--h-hier,128px);overflow-y:auto;background:#fff}
 .bdg-h-head{position:sticky;top:0;z-index:1;background:#eef1f6;font-size:11px;line-height:16px;font-weight:700;padding:2px 8px;height:21px;box-sizing:border-box}
 .bdg-h-item{padding:2px 8px;font-size:12px;line-height:16px;height:21px;box-sizing:border-box;cursor:pointer;border-top:1px solid #eef1f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bdg-h-fill{height:21px;box-sizing:border-box;border-top:1px solid #eef1f6}
@@ -3899,6 +3940,8 @@ function renderBudgetList() {
         </h1>
 
         <div class="bdg-d-hright">
+          <button type="button" class="bdg-lay-btn" id="layResetBtn" hidden
+            title="Remettre les blocs à leur place et taille d'origine">⟲ DISPOSITION PAR DÉFAUT</button>
           <button type="button" class="bdg-alert-btn" id="obsAlertBtn" hidden
             aria-label="Observations importantes" title="Observations importantes">
             <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 2.6 19.5h18.8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9.5v4.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.9" r="1.15" fill="currentColor"/></svg>
@@ -4828,6 +4871,177 @@ function renderBudgetList() {
       `;
     };
 
+    /* ===== disposition des blocs : ordre et hauteur, mémorisés ===== */
+    const LAY_KEY = "svi_layout_v1";
+    const LAY_UNITS = ["client", "hier", "detail", "doc", "taf", "obs"];
+    const layLoad = () => {
+      try { return JSON.parse(localStorage.getItem(LAY_KEY) || "{}") || {}; }
+      catch (e) { return {}; }
+    };
+    const laySave = v => {
+      try { localStorage.setItem(LAY_KEY, JSON.stringify(v)); } catch (e) {}
+    };
+    const page$ = () => shell.querySelector(".bdg-d-page");
+    const layEls = u => {
+      const pg = page$();
+      if (u === "detail") return [$("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
+      const sel = { client: ".blk-client", hier: ".blk-hier" }[u] || ".blk-rec-" + u;
+      return [pg.querySelector(":scope > " + sel)].filter(Boolean);
+    };
+    const layMeasure = u => {
+      const sel = {
+        client: ".bdg-d-client-scroll", hier: ".bdg-h-col",
+        detail: "#bdgTabBody .bdg-d-scroll"
+      }[u] || ".blk-rec-" + u + " .rec-scroll";
+      const el = page$().querySelector(sel);
+      return el ? el.getBoundingClientRect().height : 150;
+    };
+    const layOrder = () => {
+      const saved = (layLoad().order || []).filter(u => LAY_UNITS.includes(u));
+      return [...saved, ...LAY_UNITS.filter(u => !saved.includes(u))];
+    };
+    const layApply = () => {
+      const pg = page$();
+      if (!pg) return;
+      const lay = layLoad();
+      layOrder().forEach((u, i) => layEls(u).forEach(el => { el.style.order = i; }));
+      LAY_UNITS.forEach(u => {
+        const h = (lay.h || {})[u];
+        if (h) pg.style.setProperty("--h-" + u, h + "px");
+        else pg.style.removeProperty("--h-" + u);
+      });
+      const custom = (lay.order && lay.order.join() !== LAY_UNITS.join()) ||
+        Object.keys(lay.h || {}).length > 0;
+      const rb = $("layResetBtn");
+      if (rb) rb.hidden = !custom;
+    };
+    const layInit = () => {
+      const pg = page$();
+      if (!pg) return;
+      LAY_UNITS.forEach(u => {
+        /* poignée de déplacement dans le titre */
+        const title = u === "detail" ? $("bdgTabs")
+          : layEls(u)[0]?.querySelector(".blk-head");
+        if (title && !title.querySelector(".blk-grip")) {
+          const g = document.createElement("span");
+          g.className = "blk-grip";
+          g.dataset.grip = u;
+          g.title = "Glisser pour déplacer le bloc";
+          g.textContent = "⠿";
+          title.prepend(g);
+        }
+        /* poignée de hauteur en bas du bloc */
+        if (u === "detail") {
+          if (!$("bdgDetailRsz")) {
+            const r = document.createElement("div");
+            r.className = "blk-rsz";
+            r.id = "bdgDetailRsz";
+            r.dataset.rsz = u;
+            r.title = "Glisser pour changer la hauteur";
+            $("bdgTabBody").after(r);
+          }
+        } else {
+          const b = layEls(u)[0];
+          if (b && !b.querySelector(":scope > .blk-rsz")) {
+            const r = document.createElement("div");
+            r.className = "blk-rsz";
+            r.dataset.rsz = u;
+            r.title = "Glisser pour changer la hauteur";
+            b.appendChild(r);
+          }
+        }
+      });
+      layApply();
+    };
+
+    const layResize = (event, h) => {
+      event.preventDefault();
+      const u = h.dataset.rsz;
+      const pg = page$();
+      const y0 = event.clientY;
+      const base = layMeasure(u);
+      let v = base;
+      h.classList.add("on");
+      const move = e => {
+        e.preventDefault();
+        v = Math.max(60, Math.round(base + e.clientY - y0));
+        pg.style.setProperty("--h-" + u, v + "px");
+      };
+      const up = () => {
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", up);
+        document.removeEventListener("pointercancel", up);
+        h.classList.remove("on");
+        const lay = layLoad();
+        lay.h = lay.h || {};
+        lay.h[u] = v;
+        laySave(lay);
+        layApply();
+      };
+      document.addEventListener("pointermove", move, { passive: false });
+      document.addEventListener("pointerup", up);
+      document.addEventListener("pointercancel", up);
+    };
+
+    const layDrag = (event, grip) => {
+      event.preventDefault();
+      const src = grip.dataset.grip;
+      let target = null, after = false, timer = null, lastY = event.clientY;
+      layEls(src).forEach(el => el.classList.add("lay-src"));
+      const rectOf = u => {
+        const rs = layEls(u).map(el => el.getBoundingClientRect());
+        return { top: Math.min(...rs.map(r => r.top)), bottom: Math.max(...rs.map(r => r.bottom)) };
+      };
+      const clear = () => LAY_UNITS.forEach(u =>
+        layEls(u).forEach(el => el.classList.remove("lay-before", "lay-after")));
+      const pick = y => {
+        clear();
+        target = null;
+        for (const u of layOrder()) {
+          if (u === src) continue;
+          const r = rectOf(u);
+          if (y >= r.top && y <= r.bottom) {
+            target = u;
+            after = y > (r.top + r.bottom) / 2;
+            const els = layEls(u);
+            (after ? els[els.length - 1] : els[0]).classList.add(after ? "lay-after" : "lay-before");
+            break;
+          }
+        }
+      };
+      /* défilement automatique près des bords de l'écran */
+      timer = setInterval(() => {
+        const vh = window.innerHeight;
+        if (lastY < 90) window.scrollBy(0, -14);
+        else if (lastY > vh - 60) window.scrollBy(0, 14);
+        else return;
+        pick(lastY);
+      }, 30);
+      const move = e => {
+        e.preventDefault();
+        lastY = e.clientY;
+        pick(lastY);
+      };
+      const up = () => {
+        clearInterval(timer);
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", up);
+        document.removeEventListener("pointercancel", up);
+        clear();
+        layEls(src).forEach(el => el.classList.remove("lay-src"));
+        if (!target) return;
+        const order = layOrder().filter(u => u !== src);
+        order.splice(order.indexOf(target) + (after ? 1 : 0), 0, src);
+        const lay = layLoad();
+        lay.order = order;
+        laySave(lay);
+        layApply();
+      };
+      document.addEventListener("pointermove", move, { passive: false });
+      document.addEventListener("pointerup", up);
+      document.addEventListener("pointercancel", up);
+    };
+
     /* glisser un en-tête de colonne pour la déplacer */
     const coDrag = (event, th) => {
       const table = th.closest("table");
@@ -4893,6 +5107,10 @@ function renderBudgetList() {
     };
 
     shell.onpointerdown = event => {
+      const rz = event.target.closest(".blk-rsz");
+      if (rz) { layResize(event, rz); return; }
+      const gp = event.target.closest(".blk-grip");
+      if (gp) { layDrag(event, gp); return; }
       const h = event.target.closest(".col-rs");
       if (!h) {
         const th = event.target.closest("th");
@@ -5771,6 +5989,14 @@ function renderBudgetList() {
         return;
       }
       if (event.target.closest("#obsAlertBtn")) { openObsAlert(); return; }
+      if (event.target.closest(".blk-grip, .blk-rsz")) return;
+      if (event.target.closest("#layResetBtn")) {
+        if (confirm("Remettre tous les blocs à leur place et à leur taille d'origine ?")) {
+          laySave({});
+          layApply();
+        }
+        return;
+      }
       if (event.target.closest('[data-pill="inf"]')) { openInfo(); return; }
       const ro = event.target.closest("[data-recopen]");
       if (ro) { openDoc(+ro.dataset.recopen); return; }
@@ -5959,6 +6185,7 @@ function renderBudgetList() {
     };
 
     stateLoad();
+    layInit();
     refreshAll();
     {
       const n = docsLoad().length;
