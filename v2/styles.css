@@ -756,3 +756,6 @@ tfoot td {
 /* colonne ARTICLE centrée (CHS, bordereau des prix) */
 #chsTable th:first-child, #chsTable td:first-child,
 #brdTable th:first-child, #brdTable td:first-child { text-align: center; }
+
+/* observation importante : « ! » rouge devant la référence du budget */
+.obs-bang { color:#c81e1e; font-weight:900; cursor:pointer; }

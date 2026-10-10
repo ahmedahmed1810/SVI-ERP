@@ -1,6 +1,19 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzFgUloyiRJe-QmR7nRqJ4bfWqvfA_6LSgotJRrRt87yeRfWtdY7nxXMR9avafSJUPg4Q/exec";
 const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
 
+/* observations importantes d'un budget (marquées « ! ») */
+function obsAlertCount(ref) {
+  try {
+    const l = JSON.parse(localStorage.getItem("svi_obs_v1:" + String(ref)) || "[]") || [];
+    return l.filter(r => r.important).length;
+  } catch (e) { return 0; }
+}
+function obsBang(ref) {
+  return obsAlertCount(ref)
+    ? `<b class="obs-bang" title="Observation importante">!</b> `
+    : "";
+}
+
 /* icônes de contenu (traits fins, couleur du texte) */
 const SVI_ICON = (() => {
   const w = d => `<svg class="ico" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -3312,7 +3325,7 @@ function renderBudgetList() {
         >
 
           <td>
-            ${esc(item.ref)}
+            ${obsBang(item.ref)}${esc(item.ref)}
           </td>
 
           <td title="${esc(item.budget)}">
@@ -4085,7 +4098,7 @@ function renderBudgetList() {
       <div class="bdg-d-head">
 
         <div class="bdg-d-ref">
-          <span>${esc(ref)}</span>
+          <span><span id="refBang">${obsBang(ref)}</span>${esc(ref)}</span>
           <span class="bdg-d-badge" title="Historique">H</span>
         </div>
 
@@ -5920,6 +5933,8 @@ function renderBudgetList() {
         if (b) b.hidden = !imp;
         const c = $("obsAlertN");
         if (c) c.textContent = imp;
+        const rb = $("refBang");
+        if (rb) rb.innerHTML = obsBang(ref);
       }
     };
 
@@ -6284,7 +6299,7 @@ function renderBudgetList() {
         openDocForm();
         return;
       }
-      if (event.target.closest("#obsAlertBtn")) { openObsAlert(); return; }
+      if (event.target.closest("#obsAlertBtn, #refBang .obs-bang")) { openObsAlert(); return; }
       if (event.target.closest(".blk-grip, .blk-rsz")) return;
       if (event.target.closest("#layResetBtn")) {
         if (confirm("Remettre tous les blocs à leur place et à leur taille d'origine ?")) {
