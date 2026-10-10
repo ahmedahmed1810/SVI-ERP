@@ -4676,17 +4676,37 @@ function renderBudgetList() {
           ? money(v).replace(/\s/g, "")
           : String(v ?? "").replace(/[\t\n]/g, " ");
         const tsv = [head, ...rows].map(r => r.map(cell).join("\t")).join("\n");
-        /* copie lancée et onglet ouvert dans le même geste (Safari) */
+        /* copie lancée et onglet ouvert dans le même geste (Safari) ;
+           le message s'affiche DANS le nouvel onglet, avec un bouton
+           qui ouvre ensuite la feuille Google vierge */
         const copying = navigator.clipboard
           ? navigator.clipboard.writeText(tsv).then(() => true, () => false)
           : Promise.resolve(false);
-        window.open("https://sheets.new", "_blank");
+        const w = window.open("", "_blank");
         const copied = await copying;
-        if (copied) {
-          alert("Données copiées. Dans la nouvelle feuille Google, touche la cellule A1 puis « Coller ».");
-        } else {
-          alert("Copie impossible sur cet appareil : utilise plutôt l'export Excel, puis Fichier › Importer dans Google Sheets.");
-        }
+        const msg = copied
+          ? "Données copiées. Touche le bouton ci-dessous : dans la nouvelle feuille Google, touche la cellule A1 puis « Coller »."
+          : "Copie impossible sur cet appareil : utilise plutôt l'export Excel, puis Fichier › Importer dans Google Sheets.";
+        if (!w) { alert(msg); return; }
+        w.document.write(`<!doctype html><html><head><meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1">
+          <title>Export vers Google Sheets</title>
+          <style>
+            body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+                   background: #f4f7fb; font-family: -apple-system, Arial, sans-serif; color: #172033; }
+            .card { background: #fff; border-radius: 14px; padding: 24px; max-width: 420px; margin: 16px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,.12); text-align: center; }
+            h1 { font-size: 18px; margin: 0 0 10px; color: #0f4f96; }
+            p { font-size: 15px; line-height: 1.45; margin: 0 0 18px; }
+            a { display: inline-block; background: #1d4ed8; color: #fff; text-decoration: none;
+                padding: 12px 20px; border-radius: 10px; font-weight: 700; font-size: 15px; }
+          </style></head><body>
+          <div class="card">
+            <h1>${esc(fileBase(blk).replace(/_/g, " "))}</h1>
+            <p>${esc(msg)}</p>
+            ${copied ? `<a href="https://sheets.new">Ouvrir une nouvelle feuille Google</a>` : ""}
+          </div></body></html>`);
+        w.document.close();
         return;
       }
       if (fmt === "csv") {
