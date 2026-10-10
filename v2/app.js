@@ -2743,6 +2743,9 @@ function renderBudgetList() {
       #docPop .fld-rsz:hover { opacity: 1; }
       #docPop .doc-err { color: #b42318; font-size: 11px; min-height: 14px; margin-top: 10px; }
       #docPop .fd-msg { color: #6b7280; }
+      #docPop .exp-drv-row { display: flex; align-items: center; gap: 10px; min-height: 34px; }
+      #docPop .exp-drv-row > .doc-in { flex: 1; }
+      #docPop .exp-drv-row > .fld-wrap { flex: 1; min-width: 0; }
       #docPop .drv-link { flex: 1; color: #1d4ed8; text-decoration: underline; font-size: 12px; font-weight: 700;
         word-break: break-all; text-transform: none; }
       #drvPop {
@@ -6101,6 +6104,7 @@ function renderBudgetList() {
         drivePathAdd(out.path || path);
         driveUrlSet(out.path, out.folderUrl);
         if (w) w.location.href = out.url; else window.open(out.url, "_blank");
+        return out;
       } catch (e) {
         const m = String(e && e.message || e);
         say("Échec de la création : " + driveErrText(e), true);
@@ -6125,7 +6129,7 @@ function renderBudgetList() {
     /* enregistré dans le Drive : pas de message, le bouton l'indique un instant
        (le dossier utilisé reste affiché dans le champ DOSSIER DRIVE) */
     const driveDoneFlash = () => {
-      const b = document.querySelector('#docPop [data-act="drive"]');
+      const b = document.querySelector('#docPop [data-act="save"]') || document.querySelector('#docPop [data-act="drive"]');
       if (!b) return;
       const t = b.textContent;
       b.textContent = "✓ ENREGISTRÉ";
@@ -6317,25 +6321,36 @@ function renderBudgetList() {
       return p;
     };
 
-    /* EXPORTER : nom et dossier en haut, format au milieu,
-       destination (iPad / Drive) en bas */
+    /* EXPORTER
+       - départ : nom du fichier, 4 formats, ANNULER / SUR L'IPAD / DANS LE DRIVE
+       - DANS LE DRIVE : la ligne DOSSIER DRIVE (lien bleu, ✎ pour la changer)
+         apparaît sous le nom ; en bas il ne reste qu'ANNULER / ENREGISTRER
+       - ENREGISTRER : enregistre, la fenêtre reste ouverte (accès au dossier)
+       - ANNULER en mode Drive : retour à la fenêtre de départ */
     const openExportMenu = blk => {
       loadXLSX().catch(() => {});
       const label = String(blkLabel(blk)).toUpperCase();
-            let fmt = "xlsx";
+      let fmt = "xlsx", driveMode = false;
       document.getElementById("docPop")?.remove();
       const p = document.createElement("div");
       p.id = "docPop";
+      const path0 = driveLastPath(budget.project, fullRef);
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true" style="max-width:640px">
           <div class="doc-head">
             <span class="doc-title">EXPORTER — ${esc(label)}</span>
-            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+            <button type="button" class="doc-x" data-close aria-label="Fermer">✕</button>
           </div>
           <div class="doc-body">
             <div class="doc-grid doc-grid-2">
               <label class="doc-lab" for="fdName">NOM DU FICHIER</label>
               <input id="fdName" class="doc-in" type="text" autocomplete="off" value="${esc((fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-"))}">
+              <span class="doc-lab exp-drv" hidden>DOSSIER DRIVE</span>
+              <div class="exp-drv exp-drv-row" hidden>
+                <a href="#" class="drv-link" id="expLink">${esc(path0)}</a>
+                <input type="text" class="doc-in" id="expPath" data-keepcase autocomplete="off" value="${esc(path0)}" hidden>
+                <button type="button" class="doc-flag" id="expEdit" title="Changer de dossier">✎</button>
+              </div>
             </div>
             <div class="fmt-choice fmt-grid">
               <button type="button" class="doc-btn fmt-btn on" data-fmt="xlsx">EXCEL</button>
@@ -6349,45 +6364,83 @@ function renderBudgetList() {
             <button type="button" class="doc-btn" data-cancel>ANNULER</button>
             <button type="button" class="doc-btn" data-act="device">SUR L'IPAD</button>
             <button type="button" class="doc-btn doc-save" data-act="drive">DANS LE DRIVE</button>
+            <button type="button" class="doc-btn doc-save" data-act="save" hidden>ENREGISTRER</button>
           </div>
         </div>`;
       document.body.appendChild(p);
       popEnhance(p, "export");
-      const msg = p.querySelector("#fdMsg");
+      const $q = sel => p.querySelector(sel);
+      const msg = $q("#fdMsg");
       const ui = {
         msg: (t, kind) => { msg.innerHTML = t; msg.className = "doc-err fd-msg" + (kind ? " " + kind : ""); },
         close: () => p.remove(),
-        setPath: () => {}
+        setPath: v => { if (v) { $q("#expPath").value = v; $q("#expLink").textContent = v; } }
       };
-      const devBtn = p.querySelector('[data-act="device"]');
+      const devBtn = $q('[data-act="device"]'), drvBtn = $q('[data-act="drive"]'), saveBtn = $q('[data-act="save"]');
+      /* le champ dossier est enveloppé (poignée de taille) : on masque l'enveloppe */
+      const show = (el, on) => {
+        const t = el.id === "expPath" ? (el.closest(".fld-wrap") || el) : el;
+        el.hidden = !on; t.hidden = !on; t.style.display = on ? "" : "none";
+        if (t !== el) el.style.display = "";
+      };
+      /* boutons activés selon le cas */
+      const refresh = () => {
+        p.querySelectorAll(".exp-drv").forEach(el => show(el, driveMode));
+        show(devBtn, !driveMode);
+        show(drvBtn, !driveMode);
+        show(saveBtn, driveMode);
+        devBtn.disabled = fmt === "gsheet";       /* Google Sheets : Drive seulement */
+      };
+      const curPath = () => $q("#expPath").hidden ? $q("#expLink").textContent.trim() : $q("#expPath").value.trim();
+      const showLink = () => {
+        const v = $q("#expPath").value.trim();
+        if (v) $q("#expLink").textContent = v;
+        show($q("#expPath"), false); show($q("#expLink"), true); show($q("#expEdit"), true);
+      };
+      show($q("#expPath"), false);
+      refresh();
+      $q("#expEdit").addEventListener("click", () => {
+        $q("#expPath").value = $q("#expLink").textContent;
+        show($q("#expLink"), false); show($q("#expEdit"), false); show($q("#expPath"), true);
+        $q("#expPath").focus(); $q("#expPath").select();
+      });
+      $q("#expPath").addEventListener("blur", showLink);
+      $q("#expPath").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); showLink(); } });
+      $q("#expLink").addEventListener("click", e => { e.preventDefault(); driveOpenFolder(curPath()); });
+
       p.addEventListener("click", async e => {
-        if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
+        if (e.target === p || e.target.closest("[data-close]")) { p.remove(); return; }
+        if (e.target.closest("[data-cancel]")) {
+          if (driveMode) { driveMode = false; ui.msg(""); refresh(); } else p.remove();
+          return;
+        }
         const f = e.target.closest("[data-fmt]");
         if (f) {
           fmt = f.dataset.fmt;
           p.querySelectorAll("[data-fmt]").forEach(x => x.classList.toggle("on", x === f));
-          /* Google Sheets : feuille créée dans le Drive uniquement */
-          devBtn.disabled = fmt === "gsheet";
           ui.msg("");
+          refresh();
           return;
         }
         const b = e.target.closest("[data-act]");
         if (!b || b.disabled) return;
-        const name = (p.querySelector("#fdName").value.trim() || fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-");
-        const btns = p.querySelectorAll("[data-act]");
-        const run = async (target, path) => {
-          if (fmt === "gsheet") { await sendToDrive(blk, name, path); driveDoneFlash(); return; }
-          btns.forEach(x => x.disabled = true);
-          await doExport(blk, fmt, name, { target, path, ui });
-          btns.forEach(x => x.disabled = x === devBtn && fmt === "gsheet");
-        };
-        /* DANS LE DRIVE : le dossier s'affiche devant la fenêtre,
-           qui reste ouverte après l'enregistrement */
-        if (b.dataset.act === "drive") {
-          drivePickFolder(driveLastPath(budget.project, fullRef), path => run("drive", path));
+        const name = ($q("#fdName").value.trim() || fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-");
+        if (b.dataset.act === "drive") { driveMode = true; ui.msg(""); refresh(); return; }
+        if (b.dataset.act === "device") {
+          await doExport(blk, fmt, name, { target: "device", path: "", ui });
           return;
         }
-        run("device", "");
+        /* ENREGISTRER dans le Drive */
+        const path = driveCleanPath(curPath());
+        if (fmt === "gsheet") {
+          const out = await sendToDrive(blk, name, path);
+          if (out && out.path) ui.setPath(out.path);
+          driveDoneFlash();
+          return;
+        }
+        saveBtn.disabled = true;
+        await doExport(blk, fmt, name, { target: "drive", path, ui });
+        saveBtn.disabled = false;
       });
     };
 
@@ -8407,7 +8460,7 @@ function renderBudgetList() {
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true" style="max-width:520px">
           <div class="doc-head">
-            <span class="doc-title">DÉTAIL PRODUITS — ${act === "export" ? "EXPORTER" : "APERÇU"}</span>
+            <span class="doc-title">${act === "export" ? "EXPORTER" : "APERÇU"} — DÉTAIL PRODUITS</span>
             <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
           </div>
           <div class="doc-body">
