@@ -101,6 +101,9 @@ const SVI_LOGO = "data:image/png;base64,";
 /* cachet et signature de la société (impression, sur demande) */
 const SVI_STAMP = "data:image/png;base64,";
 
+/* signature provisoire (tirée du modèle), en attendant celle fournie */
+const SVI_SIGN = "data:image/png;base64,";
+
 /* nombre en toutes lettres (français, majuscules) */
 function frWords(n) {
   n = Math.floor(Math.abs(n));
@@ -5946,7 +5949,8 @@ function renderBudgetList() {
                set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } } };
   let o = { head: true, foot: true, sign: false, signPg: "last", stamp: false, stampPg: "last" };
   try { Object.assign(o, JSON.parse(ls.get(KEY) || "{}")); } catch (e) {}
-  let signImg = ls.get(SKEY);
+  /* signature importée sur cet appareil, sinon signature provisoire */
+  let signImg = ls.get(SKEY) || "${SVI_SIGN}";
 
   const src = $("src"), out = $("pages"), tpl = $("tpl");
   const allRows = [...tpl.tBodies[0].rows].map(r => r.outerHTML);
