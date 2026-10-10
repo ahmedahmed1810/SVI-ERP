@@ -2282,6 +2282,28 @@ function renderBudgetList() {
         background: #fff !important;
       }
 
+      /* agrandissement d'un bloc */
+      .blk-max-btn .ic-min { display: none; }
+      .blk-max-btn.on .ic-max { display: none; }
+      .blk-max-btn.on .ic-min { display: inline; }
+      .blk-max-btn.on { background: #dbeafe; color: #1d4ed8; }
+      .bdg-d-page.max-client > .blk-hier,
+      .bdg-d-page.max-client > #bdgTabs,
+      .bdg-d-page.max-client > #bdgTabBody,
+      .bdg-d-page.max-hier > .blk-client,
+      .bdg-d-page.max-hier > #bdgTabs,
+      .bdg-d-page.max-hier > #bdgTabBody,
+      .bdg-d-page.max-detail > .blk-client,
+      .bdg-d-page.max-detail > .blk-hier { display: none !important; }
+      .bdg-d-page.max-client .bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll {
+        height: calc(var(--avail) - 50px) !important;
+      }
+      .bdg-d-page.max-hier .bdg-h-col { height: calc(var(--avail) - 70px) !important; }
+      .bdg-d-page.max-detail .bdg-d-tabbody .bdg-d-scroll {
+        height: calc(var(--avail) - 60px) !important;
+        max-height: none !important;
+      }
+
       /* outils export / import / aperçu */
       .blk-head { display: flex; align-items: center; justify-content: space-between; }
       .blk-tools { display: inline-flex; gap: 4px; margin-left: auto; }
@@ -3757,13 +3779,14 @@ function renderBudgetList() {
 
       <div class="bdg-d-page">
 
-        <div class="bdg-d-block">
+        <div class="bdg-d-block blk-client">
           <div class="bdg-d-block-title blk-head" id="bdgClientTitle">
             <span>DÉSIGNATIONS CLIENT</span>
             <span class="blk-tools">
               <button type="button" class="blk-btn" data-blk="client" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="client" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="client" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn blk-max-btn" data-blk="client" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
           </div>
           <div class="bdg-d-scroll bdg-d-client-scroll">
@@ -3776,13 +3799,14 @@ function renderBudgetList() {
           </div>
         </div>
 
-        <div class="bdg-d-block">
+        <div class="bdg-d-block blk-hier">
           <div class="bdg-d-block-title blk-head">
             <span>TÂCHES</span>
             <span class="blk-tools">
               <button type="button" class="blk-btn" data-blk="hier" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="hier" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="hier" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn blk-max-btn" data-blk="hier" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
           </div>
           <div class="bdg-h-grid" id="bdgHier"></div>
@@ -3804,6 +3828,7 @@ function renderBudgetList() {
               <button type="button" class="blk-btn" data-blk="detail" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="detail" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="detail" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn blk-max-btn" data-blk="detail" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
         </div>
 
@@ -4948,12 +4973,33 @@ function renderBudgetList() {
       w.document.close();
     };
 
+    /* agrandir un bloc : il occupe tout l'écran sous l'en-tête figé */
+    const toggleMax = blk => {
+      const page = shell.querySelector(".bdg-d-page");
+      const cls = "max-" + blk;
+      const on = !page.classList.contains(cls);
+      page.classList.remove("max-client", "max-hier", "max-detail");
+      if (on) {
+        const head = shell.querySelector(".bdg-d-sticky");
+        const avail = window.innerHeight - (head ? head.offsetHeight : 0) - 40;
+        page.style.setProperty("--avail", Math.max(260, avail) + "px");
+        page.classList.add(cls);
+        const top = page.getBoundingClientRect().top + window.scrollY -
+          (head ? head.offsetHeight : 0);
+        window.scrollTo(0, Math.max(0, top));
+      }
+      shell.querySelectorAll(".blk-max-btn").forEach(b =>
+        b.classList.toggle("on", on && b.dataset.blk === blk)
+      );
+    };
+
     shell.onclick = event => {
       const bb = event.target.closest(".blk-btn");
       if (bb) {
         event.stopPropagation();
         const blk = bb.dataset.blk;
-        if (bb.dataset.act === "export") openExportMenu(blk);
+        if (bb.dataset.act === "max") toggleMax(blk);
+        else if (bb.dataset.act === "export") openExportMenu(blk);
         else if (bb.dataset.act === "import") openImportMenu(blk);
         else doPdf(blk);
         return;
