@@ -6582,8 +6582,9 @@ function renderBudgetList() {
           const pk = (g.members || []).filter(l => l.kind === "prd" && l.cprice !== 0);
           const subs = new Map();
           pk.forEach(l => {
-            const k = U(l.lot) + "||" + U(l.sec);
-            if (!subs.has(k)) subs.set(k, { title: [l.lot, l.sec].filter(Boolean).join(" — "), lines: [] });
+            /* regroupement par activité primaire (sans intitulé), activités secondaires ignorées */
+            const k = U(l.prim);
+            if (!subs.has(k)) subs.set(k, { title: "", lines: [] });
             subs.get(k).lines.push(l);
           });
           return { g, qty: pk.reduce((t, l) => t + (Number(l.qty) || 0), 0), subs: [...subs.values()] };
