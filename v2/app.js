@@ -2370,6 +2370,17 @@ function renderBudgetList() {
         max-height: none !important;
       }
 
+      /* déplacement des colonnes par glissement de l'en-tête */
+      .bdg-d-table thead th { touch-action: pan-y; cursor: grab; }
+      .bdg-d-table thead th.co-src { opacity: .45; }
+      .bdg-d-table thead th.co-before { box-shadow: inset 3px 0 0 #1d4ed8; }
+      .bdg-d-table thead th.co-after { box-shadow: inset -3px 0 0 #1d4ed8; }
+      #coGhost {
+        position: fixed; z-index: 10010; pointer-events: none; padding: 5px 10px;
+        background: #1d4ed8; color: #fff; border-radius: 6px; font-size: 11px; font-weight: 800;
+        box-shadow: 0 6px 16px rgba(0,0,0,.2);
+      }
+
       /* triangle « observations importantes » en haut à droite */
       .bdg-d-hright { margin-left: auto; display: flex; align-items: center; gap: 8px; }
       .bdg-alert-btn {
@@ -4085,6 +4096,43 @@ function renderBudgetList() {
     const cwTableW = (t, cols) =>
       cols.reduce((sum, [k]) => sum + cwGet(t, k), 0);
 
+    /* ===== ordre des colonnes : glisser un en-tête, ordre mémorisé ===== */
+    const CO_KEY = "svi_colorder_v1";
+    const coLoad = () => {
+      try { return JSON.parse(localStorage.getItem(CO_KEY) || "{}") || {}; }
+      catch (e) { return {}; }
+    };
+    const coSave = obj => {
+      try { localStorage.setItem(CO_KEY, JSON.stringify(obj)); } catch (e) {}
+    };
+    /* clés dans l'ordre choisi (colonnes inconnues gardées à la fin) */
+    const coKeys = (t, keys) => {
+      const saved = (coLoad()[t] || []).filter(k => keys.includes(k));
+      return [...saved, ...keys.filter(k => !saved.includes(k))];
+    };
+    const coOrder = (t, cols) => {
+      const order = coKeys(t, cols.map(c => c[0]));
+      return order.map(k => cols.find(c => c[0] === k));
+    };
+    /* réordonne un tableau déjà dessiné (col, en-têtes, lignes, pied) */
+    const coApply = (t, table) => {
+      if (!table) return;
+      const ths = [...table.querySelectorAll("thead tr:first-child > th")];
+      const keys = ths.map(th => th.querySelector(".cf-btn")?.dataset.col);
+      if (keys.some(k => !k)) return;
+      const order = coKeys(t, keys);
+      if (order.every((k, i) => k === keys[i])) return;
+      const perm = order.map(k => keys.indexOf(k));
+      const n = keys.length;
+      const reorder = parent => {
+        const kids = [...parent.children];
+        if (kids.length !== n || kids.some(c => c.colSpan > 1)) return;
+        perm.forEach(i => parent.appendChild(kids[i]));
+      };
+      table.querySelectorAll("colgroup").forEach(reorder);
+      table.querySelectorAll("tr").forEach(reorder);
+    };
+
     let cfOpen = null;   /* { t, key } du menu ouvert */
     let cfPlace = () => {};
 
@@ -4395,6 +4443,7 @@ function renderBudgetList() {
           <td class="number">${money(cHT * 0.2)}</td>
           <td class="number">${money(cHT * 1.2)}</td>
         </tr>`;
+      coApply("client", $("bdgClientHead").closest("table"));
     };
 
     const uniq = arr =>
@@ -4746,6 +4795,7 @@ function renderBudgetList() {
             </table>
           </div>
         `;
+        coApply(active, body.querySelector("table"));
 
         return;
       }
@@ -4778,9 +4828,77 @@ function renderBudgetList() {
       `;
     };
 
+    /* glisser un en-tête de colonne pour la déplacer */
+    const coDrag = (event, th) => {
+      const table = th.closest("table");
+      const t = th.querySelector(".cf-btn").dataset.cf;
+      const ths = () => [...table.querySelectorAll("thead tr:first-child > th")];
+      const x0 = event.clientX, y0 = event.clientY;
+      let on = false, target = null, ghost = null;
+      const clear = () => ths().forEach(x => x.classList.remove("co-before", "co-after"));
+      const move = e => {
+        const dx = e.clientX - x0, dy = e.clientY - y0;
+        if (!on) {
+          if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy)) return;
+          on = true;
+          th.classList.add("co-src");
+          ghost = document.createElement("div");
+          ghost.id = "coGhost";
+          ghost.textContent = th.querySelector(".cf-lab")?.textContent || "";
+          document.body.appendChild(ghost);
+        }
+        e.preventDefault();
+        ghost.style.left = e.clientX + 8 + "px";
+        ghost.style.top = e.clientY - 28 + "px";
+        clear();
+        target = null;
+        const list = ths();
+        for (const x of list) {
+          const r = x.getBoundingClientRect();
+          if (e.clientX >= r.left && e.clientX < r.right) {
+            if (x !== th) {
+              const after = list.indexOf(x) > list.indexOf(th);
+              x.classList.add(after ? "co-after" : "co-before");
+              target = x;
+            }
+            break;
+          }
+        }
+      };
+      const up = () => {
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", up);
+        document.removeEventListener("pointercancel", up);
+        clear();
+        th.classList.remove("co-src");
+        ghost?.remove();
+        if (!on || !target) return;
+        const keys = ths().map(x => x.querySelector(".cf-btn")?.dataset.col);
+        const from = keys.indexOf(th.querySelector(".cf-btn").dataset.col);
+        const to = keys.indexOf(target.querySelector(".cf-btn").dataset.col);
+        const [k] = keys.splice(from, 1);
+        keys.splice(to, 0, k);
+        const all = coLoad();
+        all[t] = keys;
+        coSave(all);
+        /* évite le clic qui suit le glissement */
+        const stop = ev => { ev.stopPropagation(); ev.preventDefault(); };
+        shell.addEventListener("click", stop, { capture: true, once: true });
+        setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 300);
+        refreshAll();
+      };
+      document.addEventListener("pointermove", move, { passive: false });
+      document.addEventListener("pointerup", up);
+      document.addEventListener("pointercancel", up);
+    };
+
     shell.onpointerdown = event => {
       const h = event.target.closest(".col-rs");
-      if (!h) return;
+      if (!h) {
+        const th = event.target.closest("th");
+        if (th && !event.target.closest(".cf-btn") && th.querySelector(".cf-btn")) coDrag(event, th);
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
 
@@ -4869,9 +4987,10 @@ function renderBudgetList() {
       }
       const src = lastShown[blk];
       if (!src) return { head: [], rows: [] };
+      const oc = coOrder(blk === "detail" ? active : blk, src.cols);
       return {
-        head: src.cols.map(c => c[1]),
-        rows: src.rows.map(r => src.cols.map(c => c[2](r)))
+        head: oc.map(c => c[1]),
+        rows: src.rows.map(r => oc.map(c => c[2](r)))
       };
     };
 
@@ -5353,7 +5472,8 @@ function renderBudgetList() {
     const recTableData = kind => {
       const cols = recCols[kind];
       const rows = recShown[kind] || cfApply(kind, cols, recSorted(kind), true);
-      return { head: cols.map(c => c[1]), rows: rows.map(r => cols.map(c => c[2](r))) };
+      const oc = coOrder(kind, cols);
+      return { head: oc.map(c => c[1]), rows: rows.map(r => oc.map(c => c[2](r))) };
     };
 
     const renderRec = kind => {
@@ -5384,6 +5504,7 @@ function renderBudgetList() {
       t.innerHTML = `<colgroup>${cwCols(kind, cols)}</colgroup>
         <thead><tr>${cols.map(([k, lab, , cls]) => cfHead(kind, k, lab, cls)).join("")}</tr></thead>
         <tbody>${rows}${fill}</tbody>`;
+      coApply(kind, t);
     };
 
     /* fenêtre INF : informations du budget */
