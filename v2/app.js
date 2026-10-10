@@ -509,6 +509,34 @@ function driveUrlSet(path, url) {
   } catch (e) {}
 }
 
+/* ouvre un lien Google (dossier, fichier, feuille) :
+   sur iPad / iPhone, d'abord dans l'app Drive (ou Sheets) si elle est installée,
+   sinon dans le navigateur. « w » : onglet ouvert pendant le toucher. */
+function openGoogleLink(url, w) {
+  const ios = /iP(ad|hone|od)/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (!ios) {
+    if (w) w.location.href = url; else window.open(url, "_blank");
+    return;
+  }
+  const app = /docs\.google\.com\/spreadsheets/.test(url) ? "googlesheets://" : "googledrive://";
+  let left = false;
+  const away = () => { if (document.hidden) left = true; };
+  document.addEventListener("visibilitychange", away);
+  window.addEventListener("pagehide", away);
+  try {
+    if (w) w.location.href = app + url; else location.href = app + url;
+  } catch (e) {}
+  /* l'app ne s'est pas ouverte : on bascule sur le navigateur */
+  setTimeout(() => {
+    document.removeEventListener("visibilitychange", away);
+    window.removeEventListener("pagehide", away);
+    if (left) { try { w && w.close(); } catch (e) {} return; }
+    if (w && !w.closed) w.location.href = url; else window.open(url, "_blank");
+  }, 1800);
+}
+window.__sviOpenGoogle = openGoogleLink;
+
 /* lien d'ouverture d'un dossier (mémorisé, sinon demandé au script) */
 async function driveFolderUrl(path) {
   let url = driveIsLink(path) ? "" : driveUrlGet(path);
@@ -528,7 +556,7 @@ async function driveOpenFolder(path) {
   const w = window.open("", "_blank");
   try {
     const url = await driveFolderUrl(path);
-    if (w) w.location.href = url; else window.open(url, "_blank");
+    openGoogleLink(url, w);
   } catch (e) {
     if (w) w.close();
     alert("OUVERTURE DU DOSSIER IMPOSSIBLE : " + driveErrText(e));
@@ -6122,7 +6150,7 @@ function renderBudgetList() {
         drivePathAdd(out.path || path);
         driveUrlSet(out.path, out.folderUrl);
         saveExportDoc(null, name, name, "GOOGLE SHEETS", out.url, out.path);
-        if (w) w.location.href = out.url; else window.open(out.url, "_blank");
+        openGoogleLink(out.url, w);
         return out;
       } catch (e) {
         const m = String(e && e.message || e);
@@ -7273,7 +7301,7 @@ function renderBudgetList() {
     const w = window.open("", "_blank");
     try {
       const url = await op.__sviDriveFolderUrl($("svLink").textContent.trim());
-      if (w) w.location.href = url; else window.open(url, "_blank");
+      if (op.__sviOpenGoogle) op.__sviOpenGoogle(url, w); else if (w) w.location.href = url; else window.open(url, "_blank");
     } catch (err) {
       if (w) w.close();
       alert("OUVERTURE DU DOSSIER IMPOSSIBLE : " + (op.__sviDriveErr ? op.__sviDriveErr(err) : err));
@@ -8321,7 +8349,7 @@ function renderBudgetList() {
     /* ouvrir un document gardé sur l'appareil */
     const openDoc = i => {
       const d = docsLoad()[i];
-      if (d && !d.idb && !d.data && d.drive) { window.open(d.drive, "_blank"); return; }
+      if (d && !d.idb && !d.data && d.drive) { openGoogleLink(d.drive, window.open("", "_blank")); return; }
       if (d && d.idb) {
         /* fenêtre ouverte tout de suite (sinon bloquée par Safari), fichier ensuite */
         const w = window.open("", "_blank");
