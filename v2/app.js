@@ -71,7 +71,7 @@ function openObsAlertFor(ref, project) {
   p.innerHTML = `
     <div class="doc-card" role="dialog" aria-modal="true">
       <div class="doc-head">
-        <span class="doc-title">${esc(project || "")} : OBSERVATIONS IMPORTANTES — ${esc(ref)} (${list.length})</span>
+        <span class="doc-title">OBSERVATIONS IMPORTANTES — ${esc((project ? project + " " : "") + ref)} (${list.length})</span>
         <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
       </div>
       <div class="doc-body">
@@ -2671,6 +2671,18 @@ function renderBudgetList() {
       #bdgClientBody td:last-child, #bdgTabBody tbody td:last-child { color: #12355b; font-weight: 800; }
       .bdg-d-page .bdg-d-table tbody tr:nth-child(even) td:not(.cell-warn) { background: #fbfcfe; }
 
+      /* « ! » d'une observation (activer / désactiver) et case EXPIRÉ des documents */
+      .rec-flag { width: 24px; height: 18px; border: 1px solid #d6dbe3; border-radius: 4px; background: #fff;
+        color: #c3c9d2; font-weight: 900; cursor: pointer; padding: 0; line-height: 16px; }
+      .rec-flag.on { color: #b91c1c; border-color: #f3a5a5; background: #fff5f5; }
+      .rec-exp { width: 16px; height: 16px; accent-color: #b91c1c; cursor: pointer; }
+      .rec-exp:disabled { cursor: not-allowed; opacity: 1; }
+      /* alertes : 5 lignes à l'ouverture, plus si la fenêtre est agrandie */
+      #docPop .obs-alert-list { max-height: calc(5 * 40px + 4 * 6px); }
+      #docPop .doc-card[style*="height"] .obs-alert-list { max-height: none; }
+      #docPop .doc-card[style*="height"] .doc-body { display: flex; flex-direction: column; }
+      #docPop .doc-card[style*="height"] .obs-alert-list { flex: 1; min-height: 0; }
+
       /* historique */
       #docPop .hist-card { max-width: 980px; }
       #docPop .hist-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
@@ -3502,7 +3514,7 @@ function renderBudgetList() {
         >
 
           <td>
-            <span class="bang-slot">${obsBang(item.ref)}</span>${esc(item.ref)}
+            <span class="bang-slot">${obsBang(item.ref)}</span>${esc(item.budget + " " + item.ref)}
           </td>
 
           <td title="${esc(item.budget)}">
@@ -4180,6 +4192,8 @@ function renderBudgetList() {
     ];
 
     let active = "chg";
+    /* référence affichée du budget : « H88 BDG 26-1001/001 » */
+    const fullRef = String(budget.project).trim().toUpperCase() + " " + ref;
 
     /* ---- squelette de l'écran ---- */
 
@@ -4226,7 +4240,7 @@ function renderBudgetList() {
       <div class="bdg-d-head">
 
         <div class="bdg-d-ref">
-          <span><span id="refBang">${obsBang(ref)}</span>${esc(ref)}</span>
+          <span><span id="refBang">${obsBang(ref)}</span>${esc(fullRef)}</span>
           <span class="bdg-d-badge" id="histBtn" role="button" title="Historique">H</span>
         </div>
 
@@ -5933,7 +5947,7 @@ function renderBudgetList() {
   <div class="head">
     <img src="${SVI_LOGO}" alt="">
     <div class="date">${dateTxt}</div>
-    <div class="t">BUDGET N° : ${esc(ref)}<br>CLIENT : À COMPLÉTER<br>PROJET : ${esc(projet)}</div>
+    <div class="t">BUDGET N° : ${esc(fullRef)}<br>CLIENT : À COMPLÉTER<br>PROJET : ${esc(projet)}</div>
   </div>
   <table id="tpl"><colgroup><col style="width:6%"><col style="width:33%"><col style="width:4%"><col style="width:9%">
     <col style="width:9.5%"><col style="width:28%"><col style="width:10.5%"></colgroup>
@@ -6145,7 +6159,7 @@ function renderBudgetList() {
       const blob = pdf.output("blob");
       const file = new File([blob], "${fileName}", { type: "application/pdf" });
       /* 1) enregistrement dans DOCUMENTS (par la page du budget, sinon ici) */
-      const title = "DÉSIGNATIONS CLIENT ${esc(ref)}";
+      const title = "DÉSIGNATIONS CLIENT";
       let saved = null, err = "";
       try {
         if (window.opener && !window.opener.closed && window.opener.__sviSavePdfDoc)
@@ -6277,7 +6291,7 @@ function renderBudgetList() {
       p.innerHTML = `
         <div class="doc-card hist-card" role="dialog" aria-modal="true">
           <div class="doc-head">
-            <span class="doc-title">${esc(budget.project)} : HISTORIQUE ${esc(ref)}</span>
+            <span class="doc-title">HISTORIQUE ${esc(fullRef)}</span>
             <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
           </div>
           <div class="doc-body">
@@ -6610,7 +6624,8 @@ function renderBudgetList() {
     /* colonnes : [clé, libellé, accesseur, classe] (même moteur que les autres tableaux) */
     const recCols = {
       doc: [["rref", "RÉFÉRENCE", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
-            ["rtitle", "INTITULÉ", r => r.title, ""], ["rfile", "DOCUMENT", r => docShort(r), ""]],
+            ["rtitle", "INTITULÉ", r => r.title, ""], ["rfile", "DOCUMENT", r => docShort(r), ""],
+            ["rexp", "EXPIRÉ", r => r.expired ? "OUI" : "NON", "center"]],
       taf: [["rref", "RÉFÉRENCE", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
             ["robj", "OBJET TAF", r => r.objet || "", ""], ["rtext", "DESCRIPTIF TAF", r => r.text, ""],
             ["rresp", "RESPONSABLE", r => r.responsable, ""], ["rprev", "PRÉVU LE", r => fmtDT(r.prevu), ""],
@@ -6620,7 +6635,7 @@ function renderBudgetList() {
             ["rimp", "!", r => r.important ? "!" : "", "center"], ["rtext", "OBSERVATION", r => r.text, ""]]
     };
     Object.assign(CW_DEF, {
-      rref: 210, rdate: 150, rtitle: 360, rfile: 120, robj: 200, rtext: 420,
+      rref: 210, rdate: 150, rtitle: 360, rfile: 120, rexp: 80, robj: 200, rtext: 420,
       rresp: 180, rprev: 140, rdelay: 120, relap: 120, rimp: 50
     });
     /* plus récent en premier (ordre par défaut, sans tri choisi) */
@@ -6650,7 +6665,12 @@ function renderBudgetList() {
         const v = get(r);
         if (k === "rfile" && (r.data || r.idb))
           return `<td><button type="button" class="rec-open" data-recopen="${r._i}">${esc(v)}</button></td>`;
-        if (k === "rimp") return `<td class="center rec-imp">${esc(v)}</td>`;
+        if (k === "rimp")
+          return `<td class="center"><button type="button" class="rec-flag ${r.important ? "on" : ""}" data-obsflag="${r._i}"
+            title="${r.important ? "Désactiver" : "Activer"} l'alerte">!</button></td>`;
+        if (k === "rexp")
+          return `<td class="center"><input type="checkbox" class="rec-exp" data-docexp="${r._i}" ${r.expired ? "checked disabled" : ""}
+            title="${r.expired ? "Expiré le " + esc(fmtDT(r.expiredAt)) : "Marquer comme expiré (définitif)"}"></td>`;
         if (k === "relap" && Date.now() > new Date(r.prevu))
           return `<td class="number rec-late" title="Échéance dépassée">${esc(v)}</td>`;
         return `<td class="${cls}" title="${esc(v)}">${esc(v)}</td>`;
@@ -6692,7 +6712,7 @@ function renderBudgetList() {
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true">
           <div class="doc-head">
-            <span class="doc-title">${esc(budget.project)} : INF ${esc(ref)}</span>
+            <span class="doc-title">INF ${esc(fullRef)}</span>
             <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
           </div>
           <div class="doc-body">
@@ -6722,7 +6742,7 @@ function renderBudgetList() {
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true">
           <div class="doc-head">
-            <span class="doc-title">${esc(budget.project)} : OBSERVATIONS IMPORTANTES (${list.length})</span>
+            <span class="doc-title">OBSERVATIONS IMPORTANTES — ${esc(fullRef)} (${list.length})</span>
             <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
           </div>
           <div class="doc-body">
@@ -6783,7 +6803,7 @@ function renderBudgetList() {
     const openRecForm = kind => {
       const now = new Date();
       let recRef = nextRecRef(kind, now);
-      const tafObj = "BDG/" + String(budget.project).toUpperCase();
+      const tafObj = "";
 
       const fieldsHTML = kind === "obs" ? `
           <div class="doc-grid doc-grid-2">
@@ -6967,6 +6987,33 @@ function renderBudgetList() {
       }
       if (event.target.closest("#obsAlertBtn, #refBang .obs-bang")) { openObsAlert(); return; }
       if (event.target.closest("#histBtn")) { openHistory(); return; }
+      const ofl = event.target.closest("[data-obsflag]");
+      if (ofl) {
+        const list = recLoad("obs");
+        const r = list[+ofl.dataset.obsflag];
+        if (r) {
+          r.important = !r.important;
+          recSave("obs", list);
+          histLog("OBS", r.important ? "ALERTE ACTIVÉE" : "ALERTE DÉSACTIVÉE", r.ref);
+          updPill("obs");
+        }
+        return;
+      }
+      const dx = event.target.closest("[data-docexp]");
+      if (dx) {
+        event.preventDefault();
+        const list = docsLoad();
+        const r = list[+dx.dataset.docexp];
+        if (r && !r.expired &&
+            confirm("Marquer " + r.ref + " comme EXPIRÉ ?\nCe choix est définitif.")) {
+          r.expired = true;
+          r.expiredAt = localDT(new Date());
+          docsSave(list);
+          histLog("DOC", "EXPIRÉ", r.ref + " — " + (r.title || ""));
+          updPill("doc");
+        } else renderRec("doc");
+        return;
+      }
       if (event.target.closest(".blk-grip, .blk-rsz")) return;
       if (event.target.closest("#layResetBtn")) {
         if (confirm("Remettre tous les blocs à leur place et à leur taille d'origine ?")) {
