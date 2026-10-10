@@ -2671,6 +2671,16 @@ function renderBudgetList() {
       #bdgClientBody td:last-child, #bdgTabBody tbody td:last-child { color: #12355b; font-weight: 800; }
       .bdg-d-page .bdg-d-table tbody tr:nth-child(even) td:not(.cell-warn) { background: #fbfcfe; }
 
+      /* glisser une ligne pour changer son ordre */
+      #bdgClientBody tr[data-desig], .bdg-h-item[data-h] {
+        -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+      }
+      #bdgClientBody tr.ro-src td, .bdg-h-item.ro-src { background: #e7edf5 !important; opacity: .7; }
+      #bdgClientBody tr.ro-before td { box-shadow: inset 0 3px 0 #12355b; }
+      #bdgClientBody tr.ro-after td { box-shadow: inset 0 -3px 0 #12355b; }
+      .bdg-h-item.ro-before { box-shadow: inset 0 3px 0 #12355b; }
+      .bdg-h-item.ro-after { box-shadow: inset 0 -3px 0 #12355b; }
+
       /* « ! » d'une observation (activer / désactiver) et case EXPIRÉ des documents */
       .rec-flag { width: 24px; height: 18px; border: 1px solid #d6dbe3; border-radius: 4px; background: #fff;
         color: #c3c9d2; font-weight: 900; cursor: pointer; padding: 0; line-height: 16px; }
@@ -4347,6 +4357,28 @@ function renderBudgetList() {
          <path d="M4.5 10l2 2.2 2-2.2z" fill="currentColor"/>
        </svg>`;
 
+    /* ===== ordre manuel des lignes (glisser une ligne après un appui long) :
+       désignations client, lots, activités primaires et secondaires ===== */
+    const RO_KEY = "svi_roworder_v1:" + String(ref);
+    const roLoad = () => {
+      try { return JSON.parse(localStorage.getItem(RO_KEY) || "{}") || {}; } catch (e) { return {}; }
+    };
+    const roSave = o => { try { localStorage.setItem(RO_KEY, JSON.stringify(o)); } catch (e) {} };
+    /* appliqué quand aucun tri n'est choisi sur ce tableau */
+    const roApply = (t, arr, keyOf) => {
+      const st = CF[t];
+      if (st && st.sort && !st.sort.def) return arr;
+      const order = roLoad()[t];
+      if (!order || !order.length) return arr;
+      const pos = new Map(order.map((k, i) => [k, i]));
+      return arr.map((x, i) => ({ x, i }))
+        .sort((a, b) => {
+          const pa = pos.has(keyOf(a.x)) ? pos.get(keyOf(a.x)) : Infinity;
+          const pb = pos.has(keyOf(b.x)) ? pos.get(keyOf(b.x)) : Infinity;
+          return pa - pb || a.i - b.i;
+        }).map(o => o.x);
+    };
+
     /* cols : [cle, libellé, accesseur, classe] */
     const cfApply = (t, cols, rows, keepSrc = false) => {
       if (!keepSrc) cfSrc[t] = { cols, rows };
@@ -4697,7 +4729,7 @@ function renderBudgetList() {
         ["ttc", "MPB TTC", g => g.ht * 1.2, "number"]
       ];
 
-      const shownClient = cfApply("client", ccols, base);
+      const shownClient = roApply("client", cfApply("client", ccols, base), g => g.key);
       lastClientKeys = new Set(shownClient.map(g => g.key));
       lastShown.client = { cols: ccols, rows: shownClient };
       const list = shownClient.sort((x, y) =>
@@ -4822,7 +4854,7 @@ function renderBudgetList() {
           return o === undefined ? Infinity : o;
         };
         const byOrder = [...all].sort((a, b) => ord(a) - ord(b));
-        const items = cfApply(level, hcols, byOrder);
+        const items = roApply(level, cfApply(level, hcols, byOrder), v => v);
         lastShown.hier[level] = items.map(v => stripLevelPrefix(v));
         items.sort((x, y) =>
           hSel[level].has(y) - hSel[level].has(x)
@@ -5322,6 +5354,78 @@ function renderBudgetList() {
       document.addEventListener("pointercancel", up);
     };
 
+    /* glisser une ligne : appui long (0,35 s) puis glissement vertical */
+    const roStart = (event, el) => {
+      const isRow = el.tagName === "TR";
+      const t = isRow ? "client" : el.dataset.h;
+      const keyOf = x => isRow ? x.dataset.desig : x.dataset.v;
+      const sibs = () => isRow
+        ? [...el.parentElement.querySelectorAll("tr[data-desig]")]
+        : [...el.parentElement.querySelectorAll(".bdg-h-item[data-h]")];
+      const x0 = event.clientX, y0 = event.clientY;
+      let on = false, target = null, after = false, lastY = y0;
+      const clear = () => sibs().forEach(x => x.classList.remove("ro-before", "ro-after"));
+      const timer = setTimeout(() => {
+        on = true;
+        el.classList.add("ro-src");
+        try { navigator.vibrate && navigator.vibrate(15); } catch (e) {}
+      }, 350);
+      const tm = e => { if (on) e.preventDefault(); };
+      const move = e => {
+        lastY = e.clientY;
+        if (!on) {
+          if (Math.abs(e.clientX - x0) > 8 || Math.abs(e.clientY - y0) > 8) end(false);
+          return;
+        }
+        e.preventDefault();
+        clear();
+        target = null;
+        for (const x of sibs()) {
+          const r = x.getBoundingClientRect();
+          if (lastY >= r.top && lastY <= r.bottom) {
+            if (x !== el) {
+              after = lastY > (r.top + r.bottom) / 2;
+              x.classList.add(after ? "ro-after" : "ro-before");
+              target = x;
+            }
+            break;
+          }
+        }
+      };
+      const end = drop => {
+        clearTimeout(timer);
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", up);
+        document.removeEventListener("pointercancel", cancel);
+        setTimeout(() => document.removeEventListener("touchmove", tm), 0);
+        clear();
+        el.classList.remove("ro-src");
+        if (!on) return;
+        /* le toucher qui suit le glissement ne sélectionne pas la ligne */
+        const stop = ev => { ev.stopPropagation(); ev.preventDefault(); };
+        shell.addEventListener("click", stop, { capture: true, once: true });
+        setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 350);
+        if (!drop || !target) return;
+        const keys = sibs().map(keyOf).filter(k => k !== keyOf(el));
+        let i = keys.indexOf(keyOf(target));
+        keys.splice(after ? i + 1 : i, 0, keyOf(el));
+        const all = roLoad();
+        /* lignes masquées par un filtre : gardent leur rang après les visibles */
+        all[t] = [...keys, ...(all[t] || []).filter(k => !keys.includes(k))];
+        roSave(all);
+        const st = cfT(t);
+        if (st.sort && !st.sort.def) st.sort = null;
+        histLog(t === "client" ? "DÉSIGNATIONS CLIENT" : "TÂCHES", "ORDRE DES LIGNES", keyOf(el).split("||").pop());
+        refreshAll();
+      };
+      const up = () => end(true);
+      const cancel = () => end(false);
+      document.addEventListener("touchmove", tm, { passive: false });
+      document.addEventListener("pointermove", move, { passive: false });
+      document.addEventListener("pointerup", up);
+      document.addEventListener("pointercancel", cancel);
+    };
+
     /* glisser un en-tête de colonne pour la déplacer */
     const coDrag = (event, th) => {
       const isHier = th.classList.contains("bdg-h-head");
@@ -5404,6 +5508,8 @@ function renderBudgetList() {
       if (rz) { layResize(event, rz); return; }
       const gp = event.target.closest(".blk-grip");
       if (gp) { layDrag(event, gp); return; }
+      const roEl = event.target.closest("#bdgClientBody tr[data-desig], .bdg-h-item[data-h]");
+      if (roEl) { roStart(event, roEl); return; }
       const h = event.target.closest(".col-rs");
       if (!h) {
         const th = event.target.closest("th, .bdg-h-head");
