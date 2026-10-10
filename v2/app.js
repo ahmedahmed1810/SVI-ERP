@@ -5760,6 +5760,7 @@ function renderBudgetList() {
       const w = window.open("", "_blank");
       if (!w) { alert("Autorisez les fenêtres pop-up pour l'impression."); return; }
       w.document.write(`<!doctype html><html><head><meta charset="utf-8">
+<meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
 <title>${esc(ref)} - DESIGNATIONS CLIENT</title>
 <style>
   @page { size: A4 landscape; margin: 0; }
