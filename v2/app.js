@@ -5923,7 +5923,7 @@ function renderBudgetList() {
     window.addEventListener("focus", window.__sviDocRefresh);
     document.addEventListener("visibilitychange", window.__sviDocRefresh);
 
-    window.__sviSavePdfDoc = async (blob, title, name, code) => {
+    window.__sviSavePdfDoc = async (blob, title, name, code, fp) => {
       const now = new Date();
       const docRef = nextDocRef(now);
       const idb = "doc:" + ref + ":" + docRef;
@@ -5932,7 +5932,7 @@ function renderBudgetList() {
       /* PDF généré : même intitulé à chaque édition, c'est la référence
          (…/001, …/002) qui distingue les versions */
       list.push({ ref: docRef, date: localDT(now), title: String(title).toUpperCase(),
-        name, size: blob.size, type: "application/pdf", data: null, idb, code: code || "" });
+        name, size: blob.size, type: "application/pdf", data: null, idb, code: code || "", fp: fp || "" });
       docsSave(list);
       histLog("DOC", "CRÉATION", docRef + " — " + title + " (PDF GÉNÉRÉ" + (code ? ", CODE " + code : "") + ")");
       updPill("doc");
@@ -5944,6 +5944,27 @@ function renderBudgetList() {
        bouton GÉNÉRER PDF ; aucune impression lancée ===== */
     /* aperçu au modèle de la société (désignations client, tâches…) */
     const printModel = cfg => {
+      /* empreinte du contenu : même bloc, mêmes données → même document */
+      const fp = (() => {
+        const str = cfg.docTitle + "|" + cfg.table + "|" + cfg.end;
+        let h1 = 0x811c9dc5, h2 = 0;
+        for (let i = 0; i < str.length; i++) {
+          const c = str.charCodeAt(i);
+          h1 = Math.imul(h1 ^ c, 16777619) >>> 0;
+          h2 = (h2 * 31 + c) >>> 0;
+        }
+        return h1.toString(36) + h2.toString(36);
+      })();
+      /* déjà enregistré (et non expiré) : on ouvre directement ce document */
+      const docs = docsLoad();
+      for (let i = docs.length - 1; i >= 0; i--) {
+        const d = docs[i];
+        if (d.fp === fp && !d.expired && (d.idb || d.data)) {
+          histLog(cfg.branch, "OUVERTURE DOCUMENT ENREGISTRÉ", d.ref);
+          openDoc(i);
+          return;
+        }
+      }
       histLog(cfg.branch, "APERÇU PDF");
       const N = v => String(v ?? "").trim().toUpperCase();
       const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
@@ -6327,7 +6348,7 @@ function renderBudgetList() {
   });
   let lastPdf = null;
   /* enregistrement direct (si la page du budget n'est plus joignable) */
-  const saveHere = (blob, title, name, code) => new Promise((ok, ko) => {
+  const saveHere = (blob, title, name, code, fp) => new Promise((ok, ko) => {
     const KEYD = "svi_docs_v1:" + ${JSON.stringify(String(ref))};
     let list = [];
     try { list = JSON.parse(localStorage.getItem(KEYD) || "[]") || []; } catch (e) {}
@@ -6345,7 +6366,7 @@ function renderBudgetList() {
       t.objectStore("f").put(blob, idb);
       t.oncomplete = () => {
         list.push({ ref: docRef, date: d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()) + "T" + p2(d.getHours()) + ":" + p2(d.getMinutes()),
-          title: title.toUpperCase(), name, size: blob.size, type: "application/pdf", data: null, idb, code });
+          title: title.toUpperCase(), name, size: blob.size, type: "application/pdf", data: null, idb, code, fp });
         localStorage.setItem(KEYD, JSON.stringify(list));
         ok(docRef);
       };
@@ -6370,10 +6391,10 @@ function renderBudgetList() {
     let saved = null, err = "";
     try {
       if (window.opener && !window.opener.closed && window.opener.__sviSavePdfDoc)
-        saved = await window.opener.__sviSavePdfDoc(blob, title, name, code);
+        saved = await window.opener.__sviSavePdfDoc(blob, title, name, code, ${JSON.stringify(fp)});
     } catch (e) { err = e && e.message ? e.message : String(e); }
     if (!saved) {
-      try { saved = await saveHere(blob, title, name, code); }
+      try { saved = await saveHere(blob, title, name, code, ${JSON.stringify(fp)}); }
       catch (e) { err = err || (e && e.message ? e.message : String(e)); }
     }
     if (saved) { savedCodes[code] = saved; lockSaved(saved); }
