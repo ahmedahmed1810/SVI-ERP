@@ -2326,6 +2326,17 @@ function renderBudgetList() {
         background: #fff; font-size: 12px; font-weight: 800; cursor: pointer; color: #172033;
       }
       #docPop .doc-save { background: #eef3fb; border-color: #9fb6d9; }
+      #docPop .doc-grid-2 { grid-template-columns: 140px 1fr; }
+      #docPop .doc-row { display: flex; align-items: center; gap: 10px; }
+      #docPop .doc-row .doc-in { flex: 1; }
+      #docPop .doc-ta { height: 90px; padding: 8px 10px; resize: vertical; line-height: 1.4; }
+      #docPop .doc-ta-s { height: 34px; padding: 7px 10px; }
+      #docPop .doc-ro { background: #f3f5f8; color: #374151; }
+      #docPop .doc-flag {
+        width: 34px; height: 34px; border: 1px solid #d6dbe3; border-radius: 6px; background: #fff;
+        font-size: 16px; font-weight: 900; cursor: pointer; color: #374151;
+      }
+      #docPop .doc-flag.on { background: #fee2e2; border-color: #f87171; color: #b91c1c; }
       #docPop .doc-err { color: #b42318; font-size: 11px; min-height: 14px; margin-top: 10px; }
       #docPop .doc-foot {
         display: flex; justify-content: flex-end; gap: 10px; padding: 12px 18px;
@@ -3840,8 +3851,8 @@ function renderBudgetList() {
 
         <div class="bdg-d-pills">
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="doc" role="button">DOC</span>
-          <span class="bdg-d-pill">TAF</span>
-          <span class="bdg-d-pill">OBS</span>
+          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="taf" role="button">TAF</span>
+          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="obs" role="button">OBS</span>
           <span class="bdg-d-pill">INF</span>
         </div>
 
@@ -5184,6 +5195,150 @@ function renderBudgetList() {
       });
     };
 
+    /* ===== fenêtres OBS et TAF (même présentation que DOC) ===== */
+    const recKey = kind => "svi_" + kind + "_v1:" + String(ref);
+    const recLoad = kind => {
+      try { return JSON.parse(localStorage.getItem(recKey(kind)) || "[]") || []; }
+      catch (e) { return []; }
+    };
+    const recSave = (kind, list) => {
+      try { localStorage.setItem(recKey(kind), JSON.stringify(list)); } catch (e) {}
+    };
+    const nextRecRef = (kind, d) => {
+      const day = `${pad(d.getFullYear() % 100)}-${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+      const tag = kind.toUpperCase();
+      const n = recLoad(kind).filter(x => String(x.ref).startsWith(tag + " " + day)).length + 1;
+      return `${tag} ${day}/${pad(n, 3)}`;
+    };
+    const updPill = kind => {
+      const pill = shell.querySelector(`[data-pill="${kind}"]`);
+      const n = recLoad(kind).length;
+      if (pill) pill.textContent = kind.toUpperCase() + (n ? " (" + n + ")" : "");
+    };
+    const localDT = d =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const hm = ms => {
+      if (!isFinite(ms)) return "0:00";
+      const neg = ms < 0; ms = Math.abs(ms);
+      const m = Math.round(ms / 60000);
+      return (neg ? "-" : "") + Math.floor(m / 60) + ":" + pad(m % 60);
+    };
+
+    const openRecForm = kind => {
+      const now = new Date();
+      let recRef = nextRecRef(kind, now);
+      const tafObj = "BDG/" + String(budget.project).toUpperCase();
+
+      const fieldsHTML = kind === "obs" ? `
+          <div class="doc-grid doc-grid-2">
+            <label class="doc-lab" for="recDate">DATE CRÉATION <b>*</b></label>
+            <div class="doc-row">
+              <input id="recDate" class="doc-in" type="datetime-local" value="${localDT(now)}">
+              <button type="button" class="doc-flag" id="recFlag" title="Observation importante">!</button>
+            </div>
+            <label class="doc-lab" for="recText">OBSERVATION <b>*</b></label>
+            <textarea id="recText" class="doc-in doc-ta" placeholder="OBSERVATION"></textarea>
+          </div>` : `
+          <div class="doc-grid">
+            <label class="doc-lab" for="recDate">DATE CRÉATION <b>*</b></label>
+            <input id="recDate" class="doc-in" type="datetime-local" value="${localDT(now)}">
+            <label class="doc-lab" for="recObj">OBJET TAF</label>
+            <input id="recObj" class="doc-in" type="text" value="${esc(tafObj)}">
+
+            <label class="doc-lab" for="recText">DESCRIPTIF TAF <b>*</b></label>
+            <textarea id="recText" class="doc-in doc-ta doc-ta-s" placeholder="DESCRIPTIF TAF"></textarea>
+            <label class="doc-lab" for="recResp">RESPONSABLE <b>*</b></label>
+            <input id="recResp" class="doc-in" type="text" placeholder="RESPONSABLE" autocomplete="off">
+
+            <label class="doc-lab" for="recPDate">DATE PRÉVUE TRAITEMENT <b>*</b></label>
+            <input id="recPDate" class="doc-in" type="date" value="${localDT(now).slice(0, 10)}">
+            <label class="doc-lab" for="recPTime">HEURE PRÉVUE TRAITEMENT <b>*</b></label>
+            <input id="recPTime" class="doc-in" type="time" value="${localDT(now).slice(11)}">
+
+            <label class="doc-lab">DÉLAI TRAITEMENT PLANIFIÉ</label>
+            <input id="recDelay" class="doc-in doc-ro" type="text" value="0:00" readonly>
+            <label class="doc-lab">DURÉE ÉCOULÉE</label>
+            <input id="recElapsed" class="doc-in doc-ro" type="text" value="0:00" readonly>
+          </div>`;
+
+      document.getElementById("docPop")?.remove();
+      const p = document.createElement("div");
+      p.id = "docPop";
+      p.innerHTML = `
+        <div class="doc-card" role="dialog" aria-modal="true">
+          <div class="doc-head">
+            <span class="doc-title">${esc(budget.project)} : <span id="recRef">${esc(recRef)}</span></span>
+            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+          </div>
+          <div class="doc-body">
+            ${fieldsHTML}
+            <div id="recErr" class="doc-err"></div>
+          </div>
+          <div class="doc-foot">
+            <button type="button" class="doc-btn" data-cancel>ANNULER</button>
+            <button type="button" class="doc-btn doc-save" id="recSave">ENREGISTRER</button>
+          </div>
+        </div>`;
+      document.body.appendChild(p);
+      setTimeout(() => p.querySelector("#recText")?.focus(), 50);
+
+      const close = () => { clearInterval(timer); p.remove(); };
+      p.addEventListener("click", e => {
+        if (e.target === p || e.target.closest("[data-cancel]")) close();
+      });
+
+      const $p = id => p.querySelector("#" + id);
+      $p("recFlag")?.addEventListener("click", e => e.currentTarget.classList.toggle("on"));
+
+      /* TAF : délai planifié = prévu − création ; durée écoulée = maintenant − création */
+      const updTimes = () => {
+        if (kind !== "taf") return;
+        const c = new Date($p("recDate").value);
+        const plan = new Date($p("recPDate").value + "T" + ($p("recPTime").value || "00:00"));
+        $p("recDelay").value = hm(plan - c);
+        $p("recElapsed").value = hm(Date.now() - c);
+      };
+      const timer = setInterval(updTimes, 30000);
+      updTimes();
+      ["recPDate", "recPTime"].forEach(id => $p(id)?.addEventListener("input", updTimes));
+
+      $p("recDate").addEventListener("change", e => {
+        const d = new Date(e.target.value);
+        if (!isNaN(d)) {
+          recRef = nextRecRef(kind, d);
+          $p("recRef").textContent = recRef;
+        }
+        updTimes();
+      });
+
+      $p("recSave").addEventListener("click", () => {
+        const req = kind === "obs"
+          ? [["recDate", "date"], ["recText", "observation"]]
+          : [["recDate", "date"], ["recText", "descriptif"], ["recResp", "responsable"],
+             ["recPDate", "date prévue"], ["recPTime", "heure prévue"]];
+        const miss = [];
+        p.querySelectorAll(".doc-in").forEach(x => x.classList.remove("bad"));
+        req.forEach(([id, lab]) => {
+          if (!String($p(id).value).trim()) { miss.push(lab); $p(id).classList.add("bad"); }
+        });
+        if (miss.length) {
+          $p("recErr").textContent = "Champs obligatoires manquants : " + miss.join(", ") + ".";
+          return;
+        }
+        const rec = kind === "obs"
+          ? { ref: recRef, date: $p("recDate").value, text: $p("recText").value.trim(),
+              important: $p("recFlag").classList.contains("on") }
+          : { ref: recRef, date: $p("recDate").value, objet: $p("recObj").value.trim(),
+              text: $p("recText").value.trim(), responsable: $p("recResp").value.trim(),
+              prevu: $p("recPDate").value + "T" + $p("recPTime").value };
+        const list = recLoad(kind);
+        list.push(rec);
+        recSave(kind, list);
+        close();
+        updPill(kind);
+      });
+    };
+
     /* agrandir un bloc : il occupe tout l'écran sous l'en-tête figé */
     const toggleMax = blk => {
       const page = shell.querySelector(".bdg-d-page");
@@ -5207,6 +5362,11 @@ function renderBudgetList() {
     shell.onclick = event => {
       if (event.target.closest('[data-pill="doc"]')) {
         openDocForm();
+        return;
+      }
+      const recPill = event.target.closest('[data-pill="obs"], [data-pill="taf"]');
+      if (recPill) {
+        openRecForm(recPill.dataset.pill);
         return;
       }
 
@@ -5394,6 +5554,8 @@ function renderBudgetList() {
       const n = docsLoad().length;
       const pill = shell.querySelector('[data-pill="doc"]');
       if (pill && n) pill.textContent = "DOC (" + n + ")";
+      updPill("obs");
+      updPill("taf");
     }
 
     $("budgetBackBtn")
