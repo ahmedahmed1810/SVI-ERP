@@ -6504,7 +6504,10 @@ function renderBudgetList() {
 
     /* TÂCHES : pour chaque désignation client, ses lots et ses activités
        primaires / secondaires avec leurs unités */
-    const printTasks = () => {
+    /* mode "prd" : décomposition + détail produits (aperçu TÂCHES)
+       mode "chg" : décomposition (avec U) + détail charges (aperçu DÉTAIL CHARGES) */
+    const printTasks = (mode = "prd") => {
+      const CHG = mode === "chg";
       const src = lastShown.client;
       if (!src || !src.rows.length) { alert("Aucune désignation à afficher."); return; }
       const U = v => String(v ?? "").trim().toUpperCase();
@@ -6538,7 +6541,7 @@ function renderBudgetList() {
            valeurs répétées laissées vides (désignation, lot, activités) */
         const rowsG = [];
         list.forEach(c => {
-          const prods = members.filter(l => l.kind === "prd" &&
+          const prods = members.filter(l => l.kind === (CHG ? "chg" : "prd") &&
             U(l.lot) === U(c.lot) && U(l.prim) === U(c.prim) && U(l.sec) === U(c.sec));
           if (prods.length) prods.forEach(l => rowsG.push({ c, l }));
           else rowsG.push({ c, l: null });
@@ -6552,20 +6555,48 @@ function renderBudgetList() {
             String(c.lot ?? ""), String(c.prim ?? ""), String(c.sec ?? "")];
           const num = v => (v === null || v === undefined || v === "") ? "" : esc(money(v));
           const dim = v => esc(String(v ?? ""));
-          const pr = l ? [
-            td(esc(l.detail)), td(esc(l.dunit || l.unit), "c"), td(dim(l.nbr), "r"),
-            td(dim(l.dims[0]), "r"), td(dim(l.dims[1]), "r"), td(dim(l.dims[2]), "r"),
-            td(num(l.qty), "r"), td(num(l.price), "r"), td(num(l.amount), "r"),
-            td(esc(money(Number(l.tva) || 0)) + " %", "r"), td(num(l.amount + tvaFor(l)), "r")
-          ].join("") : td("") + td("") + td("") + td("") + td("") + td("") + td("") + td("") + td("") + td("") + td("");
+          const pr = CHG
+            ? (l ? [
+                td(esc(l.detail)), td(esc(l.dunit || l.unit), "c"),
+                td(num(l.qty), "r"), td(num(l.price), "r"), td(num(l.amount), "r"),
+                td(esc(money(Number(l.tva) || 0)) + " %", "r"), td(num(l.amount + tvaFor(l)), "r")
+              ].join("") : td("").repeat(7))
+            : (l ? [
+                td(esc(l.detail)), td(esc(l.dunit || l.unit), "c"), td(dim(l.nbr), "r"),
+                td(dim(l.dims[0]), "r"), td(dim(l.dims[1]), "r"), td(dim(l.dims[2]), "r"),
+                td(num(l.qty), "r"), td(num(l.price), "r"), td(num(l.amount), "r"),
+                td(esc(money(Number(l.tva) || 0)) + " %", "r"), td(num(l.amount + tvaFor(l)), "r")
+              ].join("") : td("").repeat(11));
+          const uSec = CHG ? td(sameSec ? "" : esc(unitOf(members, x => x.sec, c.sec)), "c sc") : "";
           if (l) { totHT += l.amount; totTVA += tvaFor(l); }
           body += `<tr class="${i ? "gnext" : "gfirst"}${sameLot ? " lnext" : ""}${samePrim ? " pnext" : ""}${sameSec ? " snext" : ""}"${i ? ` data-rep="${esc(JSON.stringify(full))}"` : ""}>` +
             td(i ? "" : esc(g.article), "c gc") + td(i ? "" : esc(g.designation), "gc") + td(i ? "" : esc(g.unit), "c gc") +
             td(sameLot ? "" : esc(c.lot), "lc") + td(samePrim ? "" : esc(c.prim), "pc") +
-            td(sameSec ? "" : esc(c.sec), "sc") + pr + "</tr>";
+            td(sameSec ? "" : esc(c.sec), "sc") + uSec + pr + "</tr>";
           prev = c;
         });
       });
+      if (CHG) {
+        printModel({
+          branch: "DÉTAIL CHARGES", docTitle: "DÉTAIL CHARGES", fileTag: "DETAIL CHARGES", headLine: "DÉTAIL CHARGES",
+          table: `<table id="tpl" class="dense"><colgroup>
+              <col style="width:3%"><col style="width:14%"><col style="width:3%"><col style="width:8%">
+              <col style="width:10%"><col style="width:10%"><col style="width:3%"><col style="width:15%"><col style="width:3.5%">
+              <col style="width:6%"><col style="width:5.5%"><col style="width:7%"><col style="width:4.5%"><col style="width:7.5%"></colgroup>
+            <thead><tr><th colspan="7">DÉSIGNATION CLIENT ET TÂCHES</th><th colspan="7">DÉTAIL CHARGES</th></tr>
+              <tr><th class="sub">ART.</th><th class="sub">DESIGNATION</th><th class="sub">UPB</th><th class="sub">LOT</th>
+              <th class="sub">ACTIVITÉ PRIMAIRE</th><th class="sub">ACTIVITÉ SECONDAIRE</th><th class="sub">U</th>
+              <th class="sub">DÉSIGNATION</th><th class="sub">UCB</th><th class="sub">QCB</th><th class="sub">PCB</th>
+              <th class="sub">MCB HT</th><th class="sub">TVA %</th><th class="sub">MCB TTC</th></tr></thead>
+            <tbody>${body}</tbody></table>`,
+          end: `<div class="tot">
+              <div><span>TOTAL H.T. :</span><b>${money(totHT)}</b></div>
+              <div><span>TOTAL T.V.A. :</span><b>${money(totTVA)}</b></div>
+              <div><span>TOTAL T.T.C. :</span><b>${money(totHT + totTVA)}</b></div>
+            </div>`
+        });
+        return;
+      }
       printModel({
         branch: "TÂCHES", docTitle: "DÉCOMPOSITION DU PROJET", fileTag: "DECOMPOSITION DU PROJET", headLine: "DÉCOMPOSITION DU PROJET",
         table: `<table id="tpl" class="dense"><colgroup>
@@ -6637,6 +6668,7 @@ function renderBudgetList() {
     const doPdf = blk => {
       if (blk === "client") return printClient();
       if (blk === "hier") return printTasks();
+      if (blk === "detail" && active === "chg") return printTasks("chg");
       if (!(blk === "detail" && active === "qlt")) return printGeneric(blk);
       histLog(blkLabel(blk), "APERÇU PDF");
       let tableHTML;
