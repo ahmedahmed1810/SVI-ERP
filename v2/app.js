@@ -439,6 +439,64 @@ async function apiPost(action, data = {}) {
 }
 
 /* =========================================================
+   GOOGLE DRIVE : ENREGISTREMENT DES FICHIERS (via Code.gs)
+   ========================================================= */
+
+const DRIVE_PATHS_KEY = "svi_drivepaths_v1";
+
+function drivePaths() {
+  try { return JSON.parse(localStorage.getItem(DRIVE_PATHS_KEY) || "[]") || []; }
+  catch (e) { return []; }
+}
+
+function drivePathAdd(path) {
+  if (!path) return;
+  try {
+    const rec = drivePaths().filter(x => x !== path);
+    rec.unshift(path);
+    localStorage.setItem(DRIVE_PATHS_KEY, JSON.stringify(rec.slice(0, 12)));
+  } catch (e) {}
+}
+
+/* chemin proposé : SVI ERP/<PROJET>/BUDGETS/BDG 26-1001-001 */
+function driveDefaultPath(project, fullRef) {
+  return "SVI ERP/" + String(project || "PROJET").trim().toUpperCase() + "/BUDGETS/" +
+    String(fullRef || "").replace(/^.*?BDG\s*/i, "BDG ").replace(/[\\/:*?"<>|]+/g, "-").trim();
+}
+
+function driveCleanPath(p) {
+  return String(p || "").trim().replace(/^\/+|\/+$/g, "").replace(/\s*\/\s*/g, "/");
+}
+
+function blobToB64(blob) {
+  return new Promise((ok, ko) => {
+    const fr = new FileReader();
+    fr.onload = () => ok(String(fr.result).split(",")[1] || "");
+    fr.onerror = () => ko(fr.error);
+    fr.readAsDataURL(blob);
+  });
+}
+
+/* envoie le fichier au script Google, qui le range dans le dossier
+   (créé si besoin) ; renvoie { url, id } */
+async function driveSave(blob, name, path) {
+  const data = await blobToB64(blob);
+  const out = await apiPost("saveFile", {
+    name, path: driveCleanPath(path), mime: blob.type || "application/octet-stream", data
+  });
+  drivePathAdd(driveCleanPath(path));
+  return out;
+}
+window.__sviDriveSave = driveSave;
+
+function driveErrText(e) {
+  const m = String(e && e.message || e);
+  return /action|inconnu|unknown|non reconnu|JSON/i.test(m)
+    ? "Le script Google n'a pas encore la fonction d'enregistrement : ajoute exportSheet.gs dans Code.gs puis redéploie. (" + m + ")"
+    : m;
+}
+
+/* =========================================================
    BOOTSTRAP CHS / BDS
    ========================================================= */
 
@@ -2851,6 +2909,9 @@ function renderBudgetList() {
       #blkPop .blk-choice:hover { background: #dbeafe; }
       #blkPop .exp-name { height: 34px; border: 1px solid #d6dbe3; border-radius: 6px; padding: 0 8px;
         font-size: 12px; font-weight: 700; color: #172033; margin-bottom: 4px; }
+      #blkPop .drv-go { background: #1d4ed8; color: #fff; border-color: #1d4ed8; text-align: center; }
+      #blkPop .drv-go:hover { background: #1e40af; }
+      #blkPop .drv-rec { font-weight: 600; padding: 6px 9px; }
       #blkPop .blk-x {
         position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border: 0;
         border-radius: 50%; background: #eef1f6; font-weight: 800; cursor: pointer;
@@ -5697,7 +5758,8 @@ function renderBudgetList() {
     /* enregistrement : sur iPad / iPhone, la feuille de partage permet
        « Enregistrer dans Fichiers » › Google Drive, avec choix ou création
        du dossier ; sinon, téléchargement classique */
-    const saveFile = (name, blob) => {
+    /* enregistrement sur l'iPad (partage / téléchargement) */
+    const saveDevice = (name, blob) => {
       try {
         const file = new File([blob], name, { type: blob.type });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -5708,6 +5770,51 @@ function renderBudgetList() {
         }
       } catch (e) {}
       download(name, blob);
+    };
+
+    /* chaque fichier enregistré : nom et dossier du Drive proposés (modifiables),
+       puis enregistrement dans le Drive ou sur l'iPad */
+    const saveFile = (name, blob) => {
+      const ext = (String(name).match(/\.[a-z0-9]+$/i) || [""])[0];
+      const stem = ext ? String(name).slice(0, -ext.length) : String(name);
+      const def = driveDefaultPath(budget.project, fullRef);
+      const rec = drivePaths();
+      const p = popup(`
+        <div class="blk-card">
+          <button type="button" class="blk-x" data-close>✕</button>
+          <div class="blk-title">ENREGISTRER LE FICHIER ${esc(ext.toUpperCase())}</div>
+          <label class="blk-sub" for="svName">NOM DU FICHIER</label>
+          <input id="svName" class="exp-name" type="text" value="${esc(stem)}">
+          <label class="blk-sub" for="svPath">DOSSIER DANS LE DRIVE (sous-dossiers séparés par « / », créés si besoin)</label>
+          <input id="svPath" class="exp-name" type="text" list="svPaths" value="${esc(def)}">
+          <datalist id="svPaths">${[...new Set([def, ...rec])].map(o => `<option value="${esc(o)}">`).join("")}</datalist>
+          ${rec.length ? `<div class="blk-sub">DOSSIERS RÉCENTS</div>` + rec.slice(0, 5).map(r =>
+            `<button type="button" class="blk-choice drv-rec" data-path="${esc(r)}">📁 ${esc(r)}</button>`).join("") : ""}
+          <button type="button" class="blk-choice drv-go" data-drive>Enregistrer dans le Drive</button>
+          <button type="button" class="blk-choice" data-device>Enregistrer sur l'iPad</button>
+          <div class="blk-sub" id="svMsg"></div>
+        </div>`);
+      p.addEventListener("click", async e => {
+        const r = e.target.closest("[data-path]");
+        if (r) { p.querySelector("#svPath").value = r.dataset.path; return; }
+        const nm = (p.querySelector("#svName").value.trim() || stem).replace(/[\\/:*?"<>|]+/g, "-") + ext;
+        if (e.target.closest("[data-device]")) { saveDevice(nm, blob); p.remove(); return; }
+        const go = e.target.closest("[data-drive]");
+        if (!go || go.disabled) return;
+        const path = driveCleanPath(p.querySelector("#svPath").value);
+        const msg = p.querySelector("#svMsg");
+        go.disabled = true;
+        msg.textContent = "ENVOI DANS LE DRIVE…";
+        try {
+          const out = await driveSave(blob, nm, path);
+          histLog("FICHIER", "DRIVE", (path ? path + "/" : "") + nm);
+          msg.innerHTML = `ENREGISTRÉ : ${esc((path || "MON DRIVE") + "/" + nm)}` +
+            (out.url ? ` — <a href="${esc(out.url)}" target="_blank" rel="noopener">OUVRIR</a>` : "");
+        } catch (err) {
+          msg.textContent = "ÉCHEC : " + driveErrText(err);
+          go.disabled = false;
+        }
+      });
     };
 
     const loadXLSX = () => window.XLSX
@@ -5763,6 +5870,81 @@ function renderBudgetList() {
       });
       const hpt = 15 * Math.max(1, ...lines) + 6;
       return { wch, hpt };
+    };
+
+    /* Google Sheets : la feuille est créée par le script Google (Code.gs) dans
+       le Drive, nommée et rangée dans le dossier choisi, déjà mise en forme */
+    const sendToDrive = async (blk, docName, path) => {
+      const { head, rows, bold: boldIdx } = blkData(blk);
+      if (!head.length) { alert("Aucune donnée à exporter dans " + blkLabel(blk) + "."); return; }
+      const T = exportTop(blk);
+      const Uc = h => /^(ART\.?|N°)$/i.test(h) || /^(U|UPB|UCB|UNITÉ|UNITE)$/i.test(h);
+      const al = (c, h) => blk === "metre" && h === "NB" ? "center"
+        : blk === "metre" && h === "QUANTITÉ" ? "right"
+        : c >= head.length - 5 ? "right" : Uc(h) ? "center" : "left";
+      const SZ = exportSizing(head, rows);
+      const name = (docName || fileBase(blk)).replace(/[\\/:*?"<>|]+/g, "-").trim();
+      /* onglet ouvert dans le geste (Safari), redirigé vers la feuille une fois créée */
+      const w = window.open("", "_blank");
+      const say = (t, err) => {
+        if (!w) { alert(t); return; }
+        w.document.open();
+        w.document.write(`<!doctype html><html><head><meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1"><title>Google Sheets</title>
+          <style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+          background:#f4f7fb;font-family:-apple-system,Arial,sans-serif;color:#172033}
+          .c{background:#fff;border-radius:14px;padding:24px;max-width:440px;margin:16px;
+          box-shadow:0 10px 30px rgba(0,0,0,.12);text-align:center}
+          h1{font-size:17px;margin:0 0 10px;color:${err ? "#b91c1c" : "#0f4f96"}}
+          p{font-size:14px;line-height:1.45;margin:0}</style></head><body><div class="c">
+          <h1>${esc(name)}</h1><p>${esc(t)}</p></div></body></html>`);
+        w.document.close();
+      };
+      say("Création de la feuille dans le Drive (" + (path || "Mon Drive") + ")…");
+      try {
+        const out = await apiPost("exportSheet", {
+          name, path,
+          top: [T.date, T.budget, T.client, T.projet, T.titre],
+          head, rows, bold: boldIdx || [],
+          align: head.map((h, c) => al(c, h)),
+          widths: SZ.wch.map(x => Math.round(x * 7.5 + 5)),
+          headHeight: Math.round(SZ.hpt * 4 / 3)
+        });
+        histLog(blkLabel(blk), "EXPORT", "GOOGLE SHEETS — " + rows.length + " LIGNE(S) — " + (path ? path + "/" : "") + name);
+        drivePathAdd(path);
+        if (w) w.location.href = out.url; else window.open(out.url, "_blank");
+      } catch (e) {
+        const m = String(e && e.message || e);
+        say("Échec de la création : " + driveErrText(e), true);
+      }
+    };
+
+    const openDriveExport = (blk, docName) => {
+      const def = driveDefaultPath(budget.project, fullRef);
+      const rec = drivePaths();
+      const opts = [...new Set([def, ...rec])];
+      const p = popup(`
+        <div class="blk-card">
+          <button type="button" class="blk-x" data-close>✕</button>
+          <div class="blk-title">GOOGLE SHEETS — ${esc(blkLabel(blk))}</div>
+          <label class="blk-sub" for="drvName">NOM DE LA FEUILLE</label>
+          <input id="drvName" class="exp-name" type="text" value="${esc(docName)}">
+          <label class="blk-sub" for="drvPath">DOSSIER DANS LE DRIVE (sous-dossiers séparés par « / », créés si besoin)</label>
+          <input id="drvPath" class="exp-name" type="text" list="drvPaths" value="${esc(def)}">
+          <datalist id="drvPaths">${opts.map(o => `<option value="${esc(o)}">`).join("")}</datalist>
+          ${rec.length ? `<div class="blk-sub">DOSSIERS RÉCENTS</div>` + rec.slice(0, 5).map(r =>
+            `<button type="button" class="blk-choice drv-rec" data-path="${esc(r)}">📁 ${esc(r)}</button>`).join("") : ""}
+          <button type="button" class="blk-choice drv-go" data-go>Créer la feuille dans le Drive</button>
+          <button type="button" class="blk-choice" data-paste>Copier pour coller dans une feuille vierge (sans nom)</button>
+        </div>`);
+      p.addEventListener("click", e => {
+        const r = e.target.closest("[data-path]");
+        if (r) { p.querySelector("#drvPath").value = r.dataset.path; return; }
+        const nm = p.querySelector("#drvName").value.trim();
+        const pa = p.querySelector("#drvPath").value.trim().replace(/^\/+|\/+$/g, "").replace(/\s*\/\s*/g, "/");
+        if (e.target.closest("[data-go]")) { sendToDrive(blk, nm, pa); p.remove(); }
+        else if (e.target.closest("[data-paste]")) { doExport(blk, "gsheet", nm); p.remove(); }
+      });
     };
 
     const doExport = async (blk, fmt, docName) => {
@@ -5950,7 +6132,11 @@ function renderBudgetList() {
         </div>`);
       p.addEventListener("click", e => {
         const b = e.target.closest("[data-fmt]");
-        if (b) { const nm = p.querySelector("#expName").value.trim(); doExport(blk, b.dataset.fmt, nm); p.remove(); }
+        if (!b) return;
+        const nm = p.querySelector("#expName").value.trim();
+        p.remove();
+        if (b.dataset.fmt === "gsheet") openDriveExport(blk, nm || fullRef + " " + String(blkLabel(blk)).toUpperCase());
+        else doExport(blk, b.dataset.fmt, nm);
       });
     };
 
@@ -6116,6 +6302,14 @@ function renderBudgetList() {
       updPill("doc");
       return docRef;
     };
+    /* lien Drive ajouté à une ligne DOC déjà enregistrée */
+    window.__sviDocSetDrive = (docRef, url, path) => {
+      const l2 = docsLoad();
+      const it = l2.find(x => x.ref === docRef);
+      if (it) { it.drive = url || ""; it.drivePath = path || ""; docsSave(l2); }
+      histLog("DOC", "DRIVE", docRef + " → " + (path || "MON DRIVE"));
+    };
+    window.__sviDrivePathDefault = () => driveDefaultPath(budget.project, fullRef);
 
     /* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :
        volet « OPTIONS PDF » à gauche, aperçu des pages à droite,
@@ -6185,7 +6379,12 @@ function renderBudgetList() {
   #gen:disabled { opacity: .6; }
   #share { width: 100%; margin-top: 10px; height: 40px; border: 1px solid #2a4fd1; border-radius: 8px; background: #fff;
            color: #2a4fd1; font-weight: 800; font-size: 12px; cursor: pointer; }
-  #share[hidden], #saveDoc[hidden] { display: none; }
+  #share[hidden], #saveDoc[hidden], #saveOpts[hidden] { display: none; }
+  #saveOpts span { display: block; font-size: 11px; font-weight: 800; color: #4b5563; margin: 10px 0 5px; }
+  #saveOpts input[type=text] { width: 100%; box-sizing: border-box; height: 36px; border: 1px solid #d6dbe3; border-radius: 8px;
+    padding: 0 10px; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+  #saveOpts label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; margin-top: 8px; }
+  #savedBar a { color: #fff; font-weight: 800; }
   #saveDoc { width: 100%; margin-top: 10px; height: 42px; border: 0; border-radius: 8px; background: #15803d; color: #fff;
              font-weight: 800; font-size: 13px; cursor: pointer; }
   body.locked #side, body.locked #tog { display: none !important; }
@@ -6284,6 +6483,14 @@ function renderBudgetList() {
   <div class="sub" style="margin-top:14px">ASTUCE : FAITES GLISSER LA SIGNATURE OU LE CACHET SUR LA PAGE POUR LES PLACER.</div>
   <button type="button" id="gen">GÉNÉRER PDF</button>
   <div id="msg"></div>
+  <div id="saveOpts" hidden>
+    <span>NOM DU FICHIER</span>
+    <input type="text" id="svName" value="${esc(fileName.replace(/\.pdf$/i, "").replace(/_/g, " "))}">
+    <label><input type="checkbox" id="svDriveOn" checked> COPIE DANS LE DRIVE</label>
+    <span>DOSSIER DANS LE DRIVE</span>
+    <input type="text" id="svPath" list="svPaths" value="${esc(driveDefaultPath(budget.project, fullRef))}">
+    <datalist id="svPaths">${[...new Set([driveDefaultPath(budget.project, fullRef), ...drivePaths()])].map(o => `<option value="${esc(o)}">`).join("")}</datalist>
+  </div>
   <button type="button" id="saveDoc" hidden>ENREGISTRER DANS DOCUMENTS</button>
   <button type="button" id="share" hidden>PARTAGER LE PDF</button>
   <input type="file" id="signFile" accept="image/*" hidden>
@@ -6624,6 +6831,20 @@ function renderBudgetList() {
     msg.textContent = saved
       ? "ENREGISTRÉ DANS DOCUMENTS : " + saved
       : "NON ENREGISTRÉ DANS DOCUMENTS" + (err ? " (" + err + ")" : "");
+    /* copie dans le Drive, dans le dossier choisi */
+    if (saved && $("svDriveOn").checked && window.opener && !window.opener.closed && window.opener.__sviDriveSave) {
+      const path = $("svPath").value.trim().toUpperCase();
+      const bar = $("savedRef");
+      bar.textContent = "ENREGISTRÉ DANS DOCUMENTS : " + saved + " — ENVOI DANS LE DRIVE…";
+      try {
+        const r = await window.opener.__sviDriveSave(blob, name, path);
+        bar.innerHTML = "ENREGISTRÉ DANS DOCUMENTS : " + saved + " — DRIVE : " +
+          (path || "MON DRIVE").replace(/[<>&]/g, "") + (r.url ? ' <a href="' + r.url + '" target="_blank" rel="noopener">OUVRIR</a>' : "");
+        try { window.opener.__sviDocSetDrive && window.opener.__sviDocSetDrive(saved, r.url, path); } catch (e) {}
+      } catch (e) {
+        bar.textContent = "ENREGISTRÉ DANS DOCUMENTS : " + saved + " — PAS DANS LE DRIVE (" + (e && e.message ? e.message : e) + ")";
+      }
+    }
   };
   $("share2").onclick = () => $("share").onclick();
   $("share").onclick = async () => {
@@ -6641,7 +6862,10 @@ function renderBudgetList() {
   $("saveDoc").onclick = async () => {
     if (!lastPdf) return;
     $("saveDoc").disabled = true;
-    await saveOnce(lastPdf.blob, lastPdf.file.name);
+    const nm = ($("svName").value.trim().toUpperCase() || lastPdf.file.name.replace(/\\.pdf$/i, ""))
+      .replace(/[\\/:*?"<>|]+/g, "-") + ".pdf";
+    lastPdf.file = new File([lastPdf.blob], nm, { type: "application/pdf" });
+    await saveOnce(lastPdf.blob, nm);
     $("saveDoc").disabled = false;
   };
 
@@ -6671,6 +6895,7 @@ function renderBudgetList() {
       lastPdf = { blob, file };
       /* partage possible seulement après enregistrement (bandeau du haut) */
       $("saveDoc").hidden = false;
+      $("saveOpts").hidden = !!savedCodes[code];
     } catch (e) {
       msg.textContent = "PDF IMPOSSIBLE : " + (e && e.message ? e.message : e);
       fit();
@@ -7222,6 +7447,12 @@ function renderBudgetList() {
                 <button type="button" class="doc-btn" id="docPick">TÉLÉCHARGER</button>
                 <span id="docName" class="doc-fname">AUCUN DOCUMENT SÉLECTIONNÉ</span>
               </div>
+              <label class="doc-lab" for="docDrive">DOSSIER DRIVE</label>
+              <div class="doc-file">
+                <input id="docDrive" class="doc-in" type="text" list="docDrivePaths" value="${esc(driveDefaultPath(budget.project, fullRef))}" autocomplete="off" style="flex:1;min-width:0">
+                <label class="doc-lab" style="white-space:nowrap"><input type="checkbox" id="docDriveOn" checked> COPIE DRIVE</label>
+              </div>
+              <datalist id="docDrivePaths">${[...new Set([driveDefaultPath(budget.project, fullRef), ...drivePaths()])].map(o => `<option value="${esc(o)}">`).join("")}</datalist>
             </div>
             <div id="docErr" class="doc-err"></div>
           </div>
@@ -7301,8 +7532,22 @@ function renderBudgetList() {
           list[list.length - 1].data = null;
           docsSave(list);
         }
+        const toDrive = p.querySelector("#docDriveOn").checked;
+        const dpath = driveCleanPath(p.querySelector("#docDrive").value);
         close();
         updPill("doc");
+        /* copie dans le Drive (en arrière-plan) : lien gardé sur la ligne DOC */
+        if (toDrive) {
+          const savedRef = docRef;
+          const dname = (savedRef + " " + title).replace(/[\\/:*?"<>|]+/g, "-").toUpperCase() +
+            ((file.name.match(/\.[a-z0-9]+$/i) || [""])[0]).toLowerCase();
+          driveSave(file, dname, dpath).then(out => {
+            const l2 = docsLoad();
+            const it = l2.find(x => x.ref === savedRef);
+            if (it) { it.drive = out.url || ""; it.drivePath = dpath; docsSave(l2); }
+            histLog("DOC", "DRIVE", savedRef + " → " + (dpath || "MON DRIVE") + "/" + dname);
+          }).catch(err => alert("DOCUMENT " + savedRef + " ENREGISTRÉ SUR L'IPAD, MAIS PAS DANS LE DRIVE : " + driveErrText(err)));
+        }
       });
     };
 
