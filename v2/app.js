@@ -2849,6 +2849,8 @@ function renderBudgetList() {
         font-weight: 700; font-size: 12px; cursor: pointer; text-align: left;
       }
       #blkPop .blk-choice:hover { background: #dbeafe; }
+      #blkPop .exp-name { height: 34px; border: 1px solid #d6dbe3; border-radius: 6px; padding: 0 8px;
+        font-size: 12px; font-weight: 700; color: #172033; margin-bottom: 4px; }
       #blkPop .blk-x {
         position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border: 0;
         border-radius: 50%; background: #eef1f6; font-weight: 800; cursor: pointer;
@@ -5719,24 +5721,60 @@ function renderBudgetList() {
           document.head.appendChild(sc);
         });
 
-    const doExport = async (blk, fmt) => {
-      const { head, rows } = blkData(blk);
+    /* entrée commune aux exports (comme sur les PDF) */
+    const exportTop = blk => {
+      const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
+        "septembre", "octobre", "novembre", "décembre"];
+      const d0 = new Date();
+      const N = v => String(v ?? "").trim().toUpperCase();
+      const prj = db.projects.find(x => N(x.code) === N(budget.project));
+      const projet = (prj && prj.name && N(prj.name) !== N(budget.project)) ? prj.name : budget.project;
+      return {
+        date: "Agadir, le " + String(d0.getDate()).padStart(2, "0") + " " + mois[d0.getMonth()] + " " + d0.getFullYear(),
+        budget: "BUDGET N° : " + fullRef, client: "CLIENT : À COMPLÉTER", projet: "PROJET : " + projet,
+        titre: String(blkLabel(blk)).toUpperCase()
+      };
+    };
+
+    const doExport = async (blk, fmt, docName) => {
+      const { head, rows, bold: boldIdx } = blkData(blk);
       if (!head.length) { alert("Aucune donnée à exporter dans " + blkLabel(blk) + "."); return; }
+      const T = exportTop(blk);
+      const topLines = [T.date, T.budget, T.client, T.projet, T.titre];
       histLog(blkLabel(blk), "EXPORT", ({ xlsx: "EXCEL", csv: "CSV", json: "JSON", gsheet: "GOOGLE SHEETS" }[fmt] || fmt) + " — " + rows.length + " LIGNE(S)");
-      const base = fileBase(blk);
+      /* nom du fichier : celui proposé (modifiable) dans la fenêtre d'export */
+      const base = docName ? docName.replace(/[\\/:*?"<>|;]+/g, "-").trim() : fileBase(blk);
       if (fmt === "gsheet") {
         /* copie des données (tabulations) puis ouverture d'une nouvelle
            feuille Google : il suffit de coller en A1 */
         const cell = v => typeof v === "number"
           ? money(v).replace(/\s/g, "")
           : String(v ?? "").replace(/[\t\n]/g, " ");
-        const tsv = [head, ...rows].map(r => r.map(cell).join("\t")).join("\n");
+        const tsv = [...topLines.map(t => [t]), [], head, ...rows].map(r => r.map(cell).join("\t")).join("\n");
+        /* version mise en forme (police, gras, bordures, alignements) collée dans Google Sheets */
+        const bs = new Set(boldIdx || []);
+        const Uc = h => /^(ART\.?|N°)$/i.test(h) || /^(U|UPB|UCB|UNITÉ|UNITE)$/i.test(h);
+        const al = (c, h) => blk === "metre" && h === "NB" ? "center"
+          : blk === "metre" && h === "QUANTITÉ" ? "right"
+          : c >= head.length - 5 ? "right" : Uc(h) ? "center" : "left";
+        const st = "font-family:Arial;font-size:11pt;";
+        const bd = "border:1px solid #000;";
+        const html = `<meta charset="utf-8"><table style="border-collapse:collapse;${st}">` +
+          topLines.map((t, i) => `<tr><td colspan="${head.length}" style="${st}font-weight:bold;text-align:${i ? "center" : "right"}">${esc(t)}</td></tr>`).join("") +
+          `<tr><td colspan="${head.length}"></td></tr>` +
+          `<tr>${head.map(h => `<th style="${st}${bd}font-weight:bold;background:#D9DEE6;text-align:center">${esc(h)}</th>`).join("")}</tr>` +
+          rows.map((r, i) => `<tr>${r.map((v, c) => `<td style="${st}${bd}text-align:${al(c, head[c])};${bs.has(i) ? "font-weight:bold;" : ""}">${esc(cell(v))}</td>`).join("")}</tr>`).join("") +
+          `</table>`;
         /* copie lancée et onglet ouvert dans le même geste (Safari) ;
            le message s'affiche DANS le nouvel onglet, avec un bouton
            qui ouvre ensuite la feuille Google vierge */
-        const copying = navigator.clipboard
-          ? navigator.clipboard.writeText(tsv).then(() => true, () => false)
-          : Promise.resolve(false);
+        const copying = !navigator.clipboard ? Promise.resolve(false)
+          : (window.ClipboardItem && navigator.clipboard.write
+              ? navigator.clipboard.write([new ClipboardItem({
+                  "text/html": new Blob([html], { type: "text/html" }),
+                  "text/plain": new Blob([tsv], { type: "text/plain" })
+                })]).then(() => true, () => navigator.clipboard.writeText(tsv).then(() => true, () => false))
+              : navigator.clipboard.writeText(tsv).then(() => true, () => false));
         const w = window.open("", "_blank");
         const copied = await copying;
         const msg = copied
@@ -5767,7 +5805,7 @@ function renderBudgetList() {
           </style></head><body>
           <div class="card">
             <button class="x" onclick="window.close()" aria-label="Fermer">✕</button>
-            <h1>${esc(fileBase(blk).replace(/_/g, " "))}</h1>
+            <h1>${esc(base)}</h1>
             <p>${esc(msg)}</p>
             <div class="btns">
               ${copied ? `<a class="go" href="https://sheets.new">Ouvrir une nouvelle feuille Google</a>` : ""}
@@ -5782,11 +5820,12 @@ function renderBudgetList() {
           const t = typeof v === "number" ? money(v).replace(/\s/g, "") : String(v ?? "");
           return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
         };
-        const txt = [head, ...rows].map(r => r.map(cell).join(";")).join("\r\n");
+        const txt = [...topLines.map(t => [t]), [], head, ...rows].map(r => r.map(cell).join(";")).join("\r\n");
         saveFile(base + ".csv", new Blob(["\ufeff" + txt], { type: "text/csv" }));
       } else if (fmt === "json") {
         const objs = rows.map(r => Object.fromEntries(head.map((h, i) => [h, r[i]])));
-        saveFile(base + ".json", new Blob([JSON.stringify(objs, null, 2)], { type: "application/json" }));
+        const doc = { entete: T, lignes: objs };
+        saveFile(base + ".json", new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" }));
       } else {
         try {
           const X = await loadXLSX();
@@ -5879,6 +5918,8 @@ function renderBudgetList() {
           <button type="button" class="blk-x" data-close>✕</button>
           <div class="blk-title">EXPORTER — ${esc(blkLabel(blk))}</div>
           <div class="blk-sub">Lignes affichées (filtres compris)</div>
+          <label class="blk-sub" for="expName">NOM DU DOCUMENT</label>
+          <input id="expName" class="exp-name" type="text" value="${esc(fullRef + " " + String(blkLabel(blk)).toUpperCase())}">
           <button type="button" class="blk-choice" data-fmt="xlsx">Excel (.xlsx)</button>
           <button type="button" class="blk-choice" data-fmt="csv">CSV (.csv)</button>
           <button type="button" class="blk-choice" data-fmt="json">JSON (.json)</button>
@@ -5886,7 +5927,7 @@ function renderBudgetList() {
         </div>`);
       p.addEventListener("click", e => {
         const b = e.target.closest("[data-fmt]");
-        if (b) { doExport(blk, b.dataset.fmt); p.remove(); }
+        if (b) { const nm = p.querySelector("#expName").value.trim(); doExport(blk, b.dataset.fmt, nm); p.remove(); }
       });
     };
 
