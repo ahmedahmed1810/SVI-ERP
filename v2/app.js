@@ -4726,21 +4726,34 @@ function renderBudgetList() {
         if (!w) { alert(msg); return; }
         w.document.write(`<!doctype html><html><head><meta charset="utf-8">
           <meta name="viewport" content="width=device-width,initial-scale=1">
+          <meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
           <title>Export vers Google Sheets</title>
           <style>
             body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
                    background: #f4f7fb; font-family: -apple-system, Arial, sans-serif; color: #172033; }
-            .card { background: #fff; border-radius: 14px; padding: 24px; max-width: 420px; margin: 16px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,.12); text-align: center; }
-            h1 { font-size: 18px; margin: 0 0 10px; color: #0f4f96; }
+            .card { position: relative; background: #fff; border-radius: 14px; padding: 24px; max-width: 420px;
+                    margin: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.12); text-align: center; }
+            h1 { font-size: 18px; margin: 0 0 10px; color: #0f4f96; padding: 0 28px; }
+            h1 a { color: inherit !important; text-decoration: none !important; background: none !important;
+                   padding: 0 !important; font: inherit !important; pointer-events: none; }
             p { font-size: 15px; line-height: 1.45; margin: 0 0 18px; }
-            a { display: inline-block; background: #1d4ed8; color: #fff; text-decoration: none;
-                padding: 12px 20px; border-radius: 10px; font-weight: 700; font-size: 15px; }
+            .btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+            .go, .cancel { display: inline-block; text-decoration: none; padding: 12px 20px; border-radius: 10px;
+                           font-weight: 700; font-size: 15px; border: 0; cursor: pointer; font-family: inherit; }
+            .go { background: #1d4ed8; color: #fff; }
+            .cancel { background: #eef1f6; color: #374151; }
+            .x { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border: 0;
+                 border-radius: 50%; background: #eef1f6; color: #374151; font-size: 15px; font-weight: 800;
+                 cursor: pointer; }
           </style></head><body>
           <div class="card">
+            <button class="x" onclick="window.close()" aria-label="Fermer">✕</button>
             <h1>${esc(fileBase(blk).replace(/_/g, " "))}</h1>
             <p>${esc(msg)}</p>
-            ${copied ? `<a href="https://sheets.new">Ouvrir une nouvelle feuille Google</a>` : ""}
+            <div class="btns">
+              ${copied ? `<a class="go" href="https://sheets.new">Ouvrir une nouvelle feuille Google</a>` : ""}
+              <button class="cancel" onclick="window.close()">Annuler</button>
+            </div>
           </div></body></html>`);
         w.document.close();
         return;
