@@ -6057,12 +6057,12 @@ function renderBudgetList() {
   td.rep { color: #555; font-style: italic; }
   tr.gfirst td { border-top: 1.6px solid #000; }
   td.gc, td.lc, td.pc, td.sc { vertical-align: top; }
-  /* tableau large (décomposition + détail produits) : texte plus petit */
-  table.dense th, table.dense td { font-size: 7.5pt; padding: 0.5mm 0.8mm; }
+  /* même caractère fin et clair (7,5 pt) pour tous les aperçus */
+  table th, table td { font-size: 7.5pt !important; padding: 0.5mm 0.8mm; }
   /* clé primaire (quantité comptée) et sous-total par désignation */
   td.pk { font-weight: bold; }
   tr.stot td { background: #eef1f6; font-weight: bold; }
-  table.dense th { padding-top: 1.2mm; padding-bottom: 1.2mm; }
+  table th { padding-top: 1.2mm; padding-bottom: 1.2mm; } table th.sub { padding: 0.8mm 0.4mm; }
   .tot { margin-top: 2mm; display: flex; flex-direction: column; align-items: flex-end; }
   .tot div { display: flex; }
   .tot span { padding: 1mm 2mm; text-align: right; }
