@@ -6825,15 +6825,15 @@ function renderBudgetList() {
     };
     /* colonnes : [clé, libellé, accesseur, classe] (même moteur que les autres tableaux) */
     const recCols = {
-      doc: [["rref", "RÉFÉRENCE", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
+      doc: [["rref", "RÉFÉRENCE", r => r.ref, ""],
             ["rtitle", "INTITULÉ", r => r.title, ""],
             ["rexp", "EXPIRÉ", r => r.expired ? "OUI" : "NON", "center"]],
-      taf: [["rref", "RÉFÉRENCE", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
+      taf: [["rref", "RÉFÉRENCE", r => r.ref, ""],
             ["robj", "OBJET TAF", r => r.objet || "", ""], ["rtext", "DESCRIPTIF TAF", r => r.text, ""],
             ["rresp", "RESPONSABLE", r => r.responsable, ""], ["rprev", "PRÉVU LE", r => fmtDT(r.prevu), ""],
             ["rdelay", "DÉLAI PLANIFIÉ", r => hm(new Date(r.prevu) - new Date(r.date)), "number"],
             ["relap", "DURÉE ÉCOULÉE", r => hm(Date.now() - new Date(r.date)), "number"]],
-      obs: [["rref", "RÉFÉRENCE", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
+      obs: [["rref", "RÉFÉRENCE", r => r.ref, ""],
             ["rimp", "!", r => r.important ? "!" : "", "center"], ["rtext", "INTITULÉ", r => r.text, ""]]
     };
     Object.assign(CW_DEF, {
