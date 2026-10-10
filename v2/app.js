@@ -3850,9 +3850,9 @@ function renderBudgetList() {
         </div>
 
         <div class="bdg-d-pills">
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="doc" role="button">DOC</span>
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="taf" role="button">TAF</span>
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="obs" role="button">OBS</span>
+          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="doc" role="button">DOC (0)</span>
+          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="taf" role="button">TAF (0)</span>
+          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="obs" role="button">OBS (0)</span>
           <span class="bdg-d-pill">INF</span>
         </div>
 
@@ -5213,7 +5213,7 @@ function renderBudgetList() {
     const updPill = kind => {
       const pill = shell.querySelector(`[data-pill="${kind}"]`);
       const n = recLoad(kind).length;
-      if (pill) pill.textContent = kind.toUpperCase() + (n ? " (" + n + ")" : "");
+      if (pill) pill.textContent = kind.toUpperCase() + " (" + n + ")";
     };
     const localDT = d =>
       `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -5553,7 +5553,7 @@ function renderBudgetList() {
     {
       const n = docsLoad().length;
       const pill = shell.querySelector('[data-pill="doc"]');
-      if (pill && n) pill.textContent = "DOC (" + n + ")";
+      if (pill) pill.textContent = "DOC (" + n + ")";
       updPill("obs");
       updPill("taf");
     }
