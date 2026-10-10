@@ -5923,7 +5923,7 @@ function renderBudgetList() {
     window.addEventListener("focus", window.__sviDocRefresh);
     document.addEventListener("visibilitychange", window.__sviDocRefresh);
 
-    window.__sviSavePdfDoc = async (blob, title, name) => {
+    window.__sviSavePdfDoc = async (blob, title, name, code) => {
       const now = new Date();
       const docRef = nextDocRef(now);
       const idb = "doc:" + ref + ":" + docRef;
@@ -5932,9 +5932,9 @@ function renderBudgetList() {
       /* PDF généré : même intitulé à chaque édition, c'est la référence
          (…/001, …/002) qui distingue les versions */
       list.push({ ref: docRef, date: localDT(now), title: String(title).toUpperCase(),
-        name, size: blob.size, type: "application/pdf", data: null, idb });
+        name, size: blob.size, type: "application/pdf", data: null, idb, code: code || "" });
       docsSave(list);
-      histLog("DOC", "CRÉATION", docRef + " — " + title + " (PDF GÉNÉRÉ)");
+      histLog("DOC", "CRÉATION", docRef + " — " + title + " (PDF GÉNÉRÉ" + (code ? ", CODE " + code : "") + ")");
       updPill("doc");
       return docRef;
     };
@@ -6021,6 +6021,7 @@ function renderBudgetList() {
   /* numéro de page en bas à droite : la place libérée sert aux lignes */
   .foot { position: static; padding-top: 1.5mm; }
   .foot .pg { position: absolute; right: 12mm; bottom: 4mm; font-size: 9.5pt; }
+  .pcode { position: absolute; left: 12mm; bottom: 4mm; font: 8.5pt "Courier New", monospace; color: #444; letter-spacing: .5px; }
   .foot hr { width: 65%; border: 0; border-top: 2.5px solid #5677a7; margin: 0 auto 1.5mm; }
   .foot .ad { line-height: 1.3; }
   /* signature et cachet : transparents, déplaçables au doigt dans l'aperçu */
@@ -6087,6 +6088,15 @@ function renderBudgetList() {
   let signImg = ls.get(SKEY) || "${SVI_SIGN}";
 
   const src = $("src"), out = $("pages"), tpl = $("tpl");
+  /* code aléatoire de l'aperçu, imprimé sur chaque page */
+  const newCode = () => {
+    const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const r = new Uint32Array(8);
+    (window.crypto || {}).getRandomValues ? crypto.getRandomValues(r) : r.forEach((_, i) => r[i] = Math.random() * 1e9);
+    const c = [...r].map(x => A[x % A.length]).join("");
+    return c.slice(0, 4) + "-" + c.slice(4);
+  };
+  let code = newCode();
   const allRows = [...tpl.tBodies[0].rows].map(r => r.outerHTML);
 
   const build = () => {
@@ -6147,6 +6157,8 @@ function renderBudgetList() {
     };
     pages.forEach((pg, i) => {
       pg.querySelector(".pg").textContent = "Page " + (i + 1) + " / " + pages.length;
+      const cd = document.createElement("div"); cd.className = "pcode"; cd.textContent = "CODE : " + code;
+      pg.appendChild(cd);
       if (o.sign && signClear && on(o.signPg, i)) mark(pg, "sign", signClear);
       if (o.stamp && stampClear && on(o.stampPg, i)) mark(pg, "stamp", stampClear);
     });
@@ -6245,7 +6257,13 @@ function renderBudgetList() {
     $("stampOpts").classList.toggle("dis", !o.stamp);
     $("msg").textContent = o.sign && !signImg ? "AUCUNE SIGNATURE ENREGISTRÉE : CHOISISSEZ « IMPORTER UNE IMAGE… »" : "";
   };
-  const save = () => { ls.set(KEY, JSON.stringify(o)); sync(); build(); };
+  const save = () => {
+    ls.set(KEY, JSON.stringify(o));
+    /* contenu modifié après enregistrement : c'est un autre document, nouveau code */
+    if (savedCodes[code]) code = newCode();
+    lastPdf = null; $("share").hidden = true;
+    sync(); build();
+  };
   $("oHead").onchange = e => { o.head = e.target.checked; save(); };
   $("oFoot").onchange = e => { o.foot = e.target.checked; save(); };
   $("oSign").onchange = e => { o.sign = e.target.checked; save(); };
@@ -6290,7 +6308,7 @@ function renderBudgetList() {
   });
   let lastPdf = null;
   /* enregistrement direct (si la page du budget n'est plus joignable) */
-  const saveHere = (blob, title, name) => new Promise((ok, ko) => {
+  const saveHere = (blob, title, name, code) => new Promise((ok, ko) => {
     const KEYD = "svi_docs_v1:" + ${JSON.stringify(String(ref))};
     let list = [];
     try { list = JSON.parse(localStorage.getItem(KEYD) || "[]") || []; } catch (e) {}
@@ -6308,23 +6326,45 @@ function renderBudgetList() {
       t.objectStore("f").put(blob, idb);
       t.oncomplete = () => {
         list.push({ ref: docRef, date: d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()) + "T" + p2(d.getHours()) + ":" + p2(d.getMinutes()),
-          title: title.toUpperCase(), name, size: blob.size, type: "application/pdf", data: null, idb });
+          title: title.toUpperCase(), name, size: blob.size, type: "application/pdf", data: null, idb, code });
         localStorage.setItem(KEYD, JSON.stringify(list));
         ok(docRef);
       };
       t.onerror = () => ko(t.error);
     };
   });
+  /* enregistrement dans DOCUMENTS : une seule fois par code d'aperçu,
+     après un partage / enregistrement réussi */
+  const savedCodes = {};
+  const saveOnce = async (blob, name) => {
+    const msg = $("msg");
+    if (savedCodes[code]) { msg.textContent = "DÉJÀ ENREGISTRÉ DANS DOCUMENTS : " + savedCodes[code] + " (CODE " + code + ")"; return; }
+    const title = ${JSON.stringify(cfg.docTitle)};
+    let saved = null, err = "";
+    try {
+      if (window.opener && !window.opener.closed && window.opener.__sviSavePdfDoc)
+        saved = await window.opener.__sviSavePdfDoc(blob, title, name, code);
+    } catch (e) { err = e && e.message ? e.message : String(e); }
+    if (!saved) {
+      try { saved = await saveHere(blob, title, name, code); }
+      catch (e) { err = err || (e && e.message ? e.message : String(e)); }
+    }
+    if (saved) savedCodes[code] = saved;
+    msg.textContent = saved
+      ? "ENREGISTRÉ DANS DOCUMENTS : " + saved + " (CODE " + code + ")"
+      : "NON ENREGISTRÉ DANS DOCUMENTS" + (err ? " (" + err + ")" : "");
+  };
   $("share").onclick = async () => {
     if (!lastPdf) return;
     const { blob, file } = lastPdf;
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: file.name }); return; }
+      try { await navigator.share({ files: [file], title: file.name }); await saveOnce(blob, file.name); return; }
       catch (e) { if (e && e.name === "AbortError") return; }
     }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = file.name; a.target = "_blank";
     document.body.appendChild(a); a.click(); a.remove();
+    await saveOnce(blob, file.name);
   };
 
   $("gen").onclick = async () => {
@@ -6345,22 +6385,11 @@ function renderBudgetList() {
       }
       fit();
       const blob = pdf.output("blob");
-      const file = new File([blob], "${fileName}", { type: "application/pdf" });
-      /* 1) enregistrement dans DOCUMENTS (par la page du budget, sinon ici) */
-      const title = ${JSON.stringify(cfg.docTitle)};
-      let saved = null, err = "";
-      try {
-        if (window.opener && !window.opener.closed && window.opener.__sviSavePdfDoc)
-          saved = await window.opener.__sviSavePdfDoc(blob, title, "${fileName}");
-      } catch (e) { err = e && e.message ? e.message : String(e); }
-      if (!saved) {
-        try { saved = await saveHere(blob, title, "${fileName}"); }
-        catch (e) { err = err || (e && e.message ? e.message : String(e)); }
-      }
-      msg.textContent = saved
-        ? "PDF ENREGISTRÉ DANS DOCUMENTS : " + saved
-        : "PDF PRÊT, MAIS NON ENREGISTRÉ DANS DOCUMENTS" + (err ? " (" + err + ")" : "");
-      /* 2) partage / enregistrement : sur un nouveau toucher (exigé par l'iPad) */
+      const file = new File([blob], "${fileName}".replace(/\.pdf$/, "_" + code + ".pdf"), { type: "application/pdf" });
+      msg.textContent = savedCodes[code]
+        ? "PDF PRÊT — DÉJÀ ENREGISTRÉ (" + savedCodes[code] + ")"
+        : "PDF PRÊT (CODE " + code + ") : PARTAGEZ OU ENREGISTREZ-LE POUR L'AJOUTER AUX DOCUMENTS.";
+      /* partage / enregistrement : sur un nouveau toucher (exigé par l'iPad) */
       lastPdf = { blob, file };
       $("share").hidden = false;
     } catch (e) {
