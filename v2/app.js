@@ -5959,9 +5959,11 @@ function renderBudgetList() {
       const docs = docsLoad();
       for (let i = docs.length - 1; i >= 0; i--) {
         const d = docs[i];
-        /* budget figé : un bloc déjà enregistré se rouvre tel quel */
-        if (!d.expired && (d.idb || d.data) &&
-            String(d.title || "").toUpperCase() === String(cfg.docTitle).toUpperCase()) {
+        /* contenu identique à un document déjà enregistré (même empreinte) :
+           on l'ouvre tel quel ; anciens documents sans empreinte : même intitulé */
+        const same = d.fp ? d.fp === fp
+          : String(d.title || "").toUpperCase() === String(cfg.docTitle).toUpperCase();
+        if (!d.expired && (d.idb || d.data) && same) {
           histLog(cfg.branch, "OUVERTURE DOCUMENT ENREGISTRÉ", d.ref);
           openDoc(i);
           return;
