@@ -2425,8 +2425,9 @@ function renderBudgetList() {
       .bdg-d-page.max-detail > .blk-hier { display: none !important; }
       .bdg-d-page.max-client .bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll {
         height: calc(var(--avail) - 50px) !important;
+        max-height: none !important;
       }
-      .bdg-d-page.max-hier .bdg-h-col { height: calc(var(--avail) - 70px) !important; }
+      .bdg-d-page.max-hier .bdg-h-col { height: calc(var(--avail) - 70px) !important; max-height: none !important; }
       .bdg-d-page.max-detail .bdg-d-tabbody .bdg-d-scroll {
         height: calc(var(--avail) - 60px) !important;
         max-height: none !important;
@@ -2491,6 +2492,24 @@ function renderBudgetList() {
       .bdg-d-page .blk-grip { width: 18px; height: 18px; margin-right: 4px; }
       .bdg-d-page .bdg-d-tab { padding: 6px 14px; }
 
+      /* un seul bouton d'actions par bloc */
+      .blk-tools .blk-btn { display: none !important; }
+      .blk-more {
+        width: 28px; height: 22px; border: 1px solid #d6dbe3; border-radius: 6px; background: #fff;
+        color: #374151; font-size: 16px; line-height: 18px; font-weight: 900; cursor: pointer; padding: 0;
+      }
+      .blk-more:hover { background: #eef1f6; color: #1d4ed8; }
+      #blkMenu {
+        position: fixed; z-index: 10005; background: #fff; border: 1px solid #d6dbe3; border-radius: 10px;
+        box-shadow: 0 10px 28px rgba(15,23,42,.18); padding: 4px; display: flex; flex-direction: column; min-width: 170px;
+      }
+      #blkMenu button {
+        display: flex; align-items: center; gap: 10px; border: 0; background: none; border-radius: 6px;
+        padding: 8px 10px; font-size: 12px; font-weight: 700; color: #172033; cursor: pointer; text-align: left;
+      }
+      #blkMenu button:hover { background: #eef3fb; color: #1d4ed8; }
+      #blkMenu .ic-min { display: none; }
+
       /* triangle « observations importantes » en haut à droite */
       .bdg-d-hright { margin-left: auto; display: flex; align-items: center; gap: 8px; }
       .bdg-alert-btn {
@@ -2521,13 +2540,16 @@ function renderBudgetList() {
       @media (max-width: 650px) { #docPop .inf-grid { grid-template-columns: 1fr; } }
 
       /* listes DOC / TAF / OBS : 5 lignes visibles, défilement au-delà */
-      .rec-scroll {
-        overflow: auto; -webkit-overflow-scrolling: touch;
-        height: calc(6 * 21px + 1px);
+      .rec-scroll { overflow: auto; -webkit-overflow-scrolling: touch; }
+      .blk-suivi .rec-scroll { height: auto; max-height: var(--h-suivi, 127px); }
+      .rec-scroll[hidden] { display: none !important; }
+      .rec-tabs { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+      .rec-tab {
+        border: 1px solid transparent; background: none; border-radius: 6px; padding: 3px 10px;
+        font: inherit; font-weight: 900; color: #6b7480; cursor: pointer;
       }
-      .blk-rec-doc .rec-scroll { height: var(--h-doc, 127px); }
-      .blk-rec-taf .rec-scroll { height: var(--h-taf, 127px); }
-      .blk-rec-obs .rec-scroll { height: var(--h-obs, 127px); }
+      .rec-tab.active { background: #fff; border-color: #d6dbe3; color: #0f4f96; }
+      .rec-tab.cf-on { color: #1d4ed8; }
       .rec-table td.center { text-align: center; }
       .rec-table td.number { text-align: right; }
       .rec-table .rec-imp { color: #b91c1c; font-weight: 900; }
@@ -2541,7 +2563,7 @@ function renderBudgetList() {
       .bdg-d-page.max-rec > .blk-hier,
       .bdg-d-page.max-rec > #bdgTabs,
       .bdg-d-page.max-rec > #bdgTabBody { display: none !important; }
-      .bdg-d-page.max-rec .blk-rec-on .rec-scroll { height: calc(var(--avail) - 50px); }
+      .bdg-d-page.max-rec .blk-rec-on .rec-scroll { height: calc(var(--avail) - 50px); max-height: none; }
 
       /* outils export / import / aperçu */
       .blk-head { display: flex; align-items: center; justify-content: space-between; }
@@ -2642,8 +2664,8 @@ function renderBudgetList() {
 
       /* désignations client : en-tête + 10 lignes + total */
       .bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll {
-        height: var(--h-client, 252px) !important;
-        max-height: none !important;
+        height: auto !important;
+        max-height: var(--h-client, 148px) !important;
       }
       .bdg-d-table tfoot td {
         position: sticky;
@@ -2657,8 +2679,8 @@ function renderBudgetList() {
          pour laisser apparaître les totaux */
       .bdg-d-tabbody > .bdg-d-scroll,
       .bdg-d-tabbody .bdg-d-scroll {
-        height: var(--h-detail, 210px) !important;
-        max-height: var(--h-detail, 210px) !important;
+        height: auto !important;
+        max-height: var(--h-detail, 148px) !important;
         overflow-y: auto;
       }
 
@@ -2764,7 +2786,7 @@ function renderBudgetList() {
 .bdg-d-table tbody tr.selected td{background:#dbeafe !important;font-weight:700}
 .bdg-d-fi{float:right;font-size:11px;font-weight:600;opacity:.8}
 .bdg-h-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
-.bdg-h-col{border:1px solid #d6dbe3;border-radius:8px;overflow:hidden;height:var(--h-hier,128px);overflow-y:auto;background:#fff}
+.bdg-h-col{border:1px solid #d6dbe3;border-radius:8px;overflow:hidden;height:auto;max-height:var(--h-hier,128px);overflow-y:auto;background:#fff}
 .bdg-h-head{position:sticky;top:0;z-index:1;background:#eef1f6;font-size:11px;line-height:16px;font-weight:700;padding:2px 8px;height:21px;box-sizing:border-box}
 .bdg-h-item{padding:2px 8px;font-size:12px;line-height:16px;height:21px;box-sizing:border-box;cursor:pointer;border-top:1px solid #eef1f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bdg-h-fill{height:21px;box-sizing:border-box;border-top:1px solid #eef1f6}
@@ -4100,40 +4122,22 @@ function renderBudgetList() {
 
         <div class="bdg-d-block bdg-d-tabbody" id="bdgTabBody"></div>
 
-        <div class="bdg-d-block blk-rec blk-rec-doc" data-rec="doc">
+        <div class="bdg-d-block blk-rec blk-suivi" data-rec="suivi">
           <div class="bdg-d-block-title blk-head">
-            <span id="recTitle-doc">DOCUMENTS (0)</span>
+            <span class="rec-tabs">
+              <button type="button" class="rec-tab" data-rtab="doc" id="recTitle-doc">DOCUMENTS (0)</button>
+              <button type="button" class="rec-tab" data-rtab="taf" id="recTitle-taf">TAF (0)</button>
+              <button type="button" class="rec-tab" data-rtab="obs" id="recTitle-obs">OBSERVATIONS (0)</button>
+            </span>
             <span class="blk-tools">
-              <button type="button" class="blk-btn" data-blk="doc" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-              <button type="button" class="blk-btn" data-blk="doc" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-              <button type="button" class="blk-btn blk-max-btn" data-blk="doc" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="suivi" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="suivi" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn blk-max-btn" data-blk="suivi" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
           </div>
-          <div class="rec-scroll"><table class="bdg-d-table rec-table" id="recTable-doc"></table></div>
-        </div>
-
-        <div class="bdg-d-block blk-rec blk-rec-taf" data-rec="taf">
-          <div class="bdg-d-block-title blk-head">
-            <span id="recTitle-taf">TAF (0)</span>
-            <span class="blk-tools">
-              <button type="button" class="blk-btn" data-blk="taf" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-              <button type="button" class="blk-btn" data-blk="taf" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-              <button type="button" class="blk-btn blk-max-btn" data-blk="taf" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-            </span>
-          </div>
-          <div class="rec-scroll"><table class="bdg-d-table rec-table" id="recTable-taf"></table></div>
-        </div>
-
-        <div class="bdg-d-block blk-rec blk-rec-obs" data-rec="obs">
-          <div class="bdg-d-block-title blk-head">
-            <span id="recTitle-obs">OBSERVATIONS (0)</span>
-            <span class="blk-tools">
-              <button type="button" class="blk-btn" data-blk="obs" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-              <button type="button" class="blk-btn" data-blk="obs" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-              <button type="button" class="blk-btn blk-max-btn" data-blk="obs" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-            </span>
-          </div>
-          <div class="rec-scroll"><table class="bdg-d-table rec-table" id="recTable-obs"></table></div>
+          <div class="rec-scroll" data-pane="doc"><table class="bdg-d-table rec-table" id="recTable-doc"></table></div>
+          <div class="rec-scroll" data-pane="taf" hidden><table class="bdg-d-table rec-table" id="recTable-taf"></table></div>
+          <div class="rec-scroll" data-pane="obs" hidden><table class="bdg-d-table rec-table" id="recTable-obs"></table></div>
         </div>
 
 
@@ -4544,9 +4548,9 @@ function renderBudgetList() {
                   <td class="number">${money(ht * 1.2)}</td>
                 </tr>
               `;
-            }).join("") + filler(MIN_ROWS - list.length)
+            }).join("")
           : `<tr><td colspan="8" class="empty">AUCUNE DÉSIGNATION</td></tr>` +
-            filler(MIN_ROWS - 1));
+            "");
 
       const cHT = list.reduce((t, g) => t + g.ht, 0);
       const cUnits = new Set(list.map(g => String(g.unit ?? "").trim().toUpperCase()));
@@ -4649,8 +4653,8 @@ function renderBudgetList() {
                        data-h="${level}"
                        data-v="${esc(v)}"
                        title="${esc(stripLevelPrefix(v))}">${esc(stripLevelPrefix(v))}</div>
-                `).join("") + hFill(5 - items.length)
-              : `<div class="bdg-h-item" style="opacity:.5;cursor:default">—</div>` + hFill(4)
+                `).join("")
+              : `<div class="bdg-h-item" style="opacity:.5;cursor:default">—</div>`
           }
         </div>
       `;
@@ -4907,7 +4911,7 @@ function renderBudgetList() {
                 ${
                   /* lignes vides : le cadre garde sa hauteur même filtré */
                   `<tr class="bdg-d-filler">${"<td>&nbsp;</td>".repeat(cols)}</tr>`
-                    .repeat(Math.max(0, 8 - Math.max(list.length, 1)))
+                    .repeat(0)
                 }
               </tbody>
               <tfoot>${tabFootHTML(raw, prd)}</tfoot>
@@ -4949,7 +4953,7 @@ function renderBudgetList() {
 
     /* ===== disposition des blocs : ordre et hauteur, mémorisés ===== */
     const LAY_KEY = "svi_layout_v1";
-    const LAY_UNITS = ["client", "hier", "detail", "doc", "taf", "obs"];
+    const LAY_UNITS = ["client", "hier", "detail", "suivi"];
     const layLoad = () => {
       try { return JSON.parse(localStorage.getItem(LAY_KEY) || "{}") || {}; }
       catch (e) { return {}; }
@@ -4961,14 +4965,15 @@ function renderBudgetList() {
     const layEls = u => {
       const pg = page$();
       if (u === "detail") return [$("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
-      const sel = { client: ".blk-client", hier: ".blk-hier" }[u] || ".blk-rec-" + u;
+      const sel = { client: ".blk-client", hier: ".blk-hier", suivi: ".blk-suivi" }[u];
       return [pg.querySelector(":scope > " + sel)].filter(Boolean);
     };
     const layMeasure = u => {
       const sel = {
         client: ".bdg-d-client-scroll", hier: ".bdg-h-col",
-        detail: "#bdgTabBody .bdg-d-scroll"
-      }[u] || ".blk-rec-" + u + " .rec-scroll";
+        detail: "#bdgTabBody .bdg-d-scroll",
+        suivi: ".blk-suivi .rec-scroll:not([hidden])"
+      }[u];
       const el = page$().querySelector(sel);
       return el ? el.getBoundingClientRect().height : 150;
     };
@@ -4994,6 +4999,18 @@ function renderBudgetList() {
     const layInit = () => {
       const pg = page$();
       if (!pg) return;
+      shell.querySelectorAll(".blk-tools").forEach((t, i) => {
+        if (t.querySelector(".blk-more")) return;
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "blk-more";
+        b.dataset.for = "m" + i;
+        b.title = "Actions";
+        b.setAttribute("aria-label", "Actions");
+        b.textContent = "⋯";
+        t.appendChild(b);
+      });
+      recTabApply();
       LAY_UNITS.forEach(u => {
         /* poignée de déplacement dans le titre */
         const title = u === "detail" ? $("bdgTabs")
@@ -5265,7 +5282,7 @@ function renderBudgetList() {
     /* ===== export / import / aperçu PDF par bloc ===== */
     const lastShown = { client: null, detail: null, hier: {} };
     const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL",
-                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS" };
+                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI" };
     const REC_KINDS = ["doc", "taf", "obs"];
 
     const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
@@ -5870,6 +5887,15 @@ function renderBudgetList() {
       }
     };
 
+    /* ===== bloc SUIVI : onglets DOCUMENTS / TAF / OBSERVATIONS ===== */
+    let recActive = "doc";
+    try { recActive = localStorage.getItem("svi_rectab_v1") || "doc"; } catch (e) {}
+    if (!["doc", "taf", "obs"].includes(recActive)) recActive = "doc";
+    const recTabApply = () => {
+      shell.querySelectorAll(".rec-tab").forEach(b => b.classList.toggle("active", b.dataset.rtab === recActive));
+      shell.querySelectorAll(".blk-suivi .rec-scroll").forEach(d => { d.hidden = d.dataset.pane !== recActive; });
+    };
+
     /* ===== listes DOC / TAF / OBS sous le détail ===== */
     const fmtDT = v => {
       if (!v) return "";
@@ -5914,7 +5940,7 @@ function renderBudgetList() {
       const title = $("recTitle-" + kind);
       if (title) title.textContent = blkName[kind] + " (" + all.length + ")";
       const st = cfT(kind);
-      title?.closest(".bdg-d-block-title")?.classList.toggle("cf-on", Object.keys(st.f).length > 0);
+      title?.classList.toggle("cf-on", Object.keys(st.f).length > 0);
 
       const rows = list.map(r => "<tr>" + cols.map(([k, , get, cls]) => {
         const v = get(r);
@@ -5925,8 +5951,8 @@ function renderBudgetList() {
           return `<td class="number rec-late" title="Échéance dépassée">${esc(v)}</td>`;
         return `<td class="${cls}" title="${esc(v)}">${esc(v)}</td>`;
       }).join("") + "</tr>").join("");
-      const fill = Array.from({ length: Math.max(0, 5 - list.length) }, () =>
-        `<tr class="bdg-d-filler">${"<td>&nbsp;</td>".repeat(cols.length)}</tr>`).join("");
+      const fill = list.length ? "" :
+        `<tr><td colspan="${cols.length}" class="empty">AUCUN ENREGISTREMENT</td></tr>`;
 
       t.style.width = cwTableW(kind, cols) + "px";
       t.innerHTML = `<colgroup>${cwCols(kind, cols)}</colgroup>
@@ -6160,11 +6186,10 @@ function renderBudgetList() {
       const page = shell.querySelector(".bdg-d-page");
       const cls = "max-" + blk;
       const on = !page.classList.contains(cls);
-      page.classList.remove("max-client", "max-hier", "max-detail", "max-rec",
-        ...REC_KINDS.map(k => "max-" + k));
+      page.classList.remove("max-client", "max-hier", "max-detail", "max-rec", "max-suivi");
       shell.querySelectorAll(".blk-rec").forEach(b =>
         b.classList.toggle("blk-rec-on", on && b.dataset.rec === blk));
-      if (on && REC_KINDS.includes(blk)) page.classList.add("max-rec");
+      if (on && blk === "suivi") page.classList.add("max-rec");
       if (on) {
         const head = shell.querySelector(".bdg-d-sticky");
         const avail = window.innerHeight - (head ? head.offsetHeight : 0) - 40;
@@ -6177,6 +6202,45 @@ function renderBudgetList() {
       shell.querySelectorAll(".blk-max-btn").forEach(b =>
         b.classList.toggle("on", on && b.dataset.blk === blk)
       );
+    };
+
+    const runBlkAct = (blk, act) => {
+      if (act === "max") return toggleMax(blk);
+      const b = blk === "suivi" ? recActive : blk;
+      if (act === "export") openExportMenu(b);
+      else if (act === "import") openImportMenu(b);
+      else doPdf(b);
+    };
+    /* un seul bouton « ⋯ » par bloc : menu des actions */
+    const openBlkMenu = btn => {
+      const old = document.getElementById("blkMenu");
+      const same = old && old.dataset.for === btn.dataset.for;
+      old?.remove();
+      if (same) return;
+      const tools = btn.closest(".blk-tools");
+      const acts = [...tools.querySelectorAll(".blk-btn")];
+      const m = document.createElement("div");
+      m.id = "blkMenu";
+      m.dataset.for = btn.dataset.for;
+      m.innerHTML = acts.map((a, i) => {
+        let lab = a.title;
+        if (a.dataset.act === "max") lab = a.classList.contains("on") ? "Réduire" : "Agrandir";
+        return `<button type="button" data-i="${i}">${a.innerHTML}<span>${esc(lab)}</span></button>`;
+      }).join("");
+      document.body.appendChild(m);
+      const r = btn.getBoundingClientRect();
+      m.style.top = r.bottom + 4 + "px";
+      m.style.left = Math.max(8, r.right - m.offsetWidth) + "px";
+      m.addEventListener("click", e => {
+        const it = e.target.closest("[data-i]");
+        if (!it) return;
+        const a = acts[+it.dataset.i];
+        m.remove();
+        runBlkAct(a.dataset.blk, a.dataset.act);
+      });
+      setTimeout(() => document.addEventListener("click", function off(e) {
+        if (!e.target.closest("#blkMenu")) { m.remove(); document.removeEventListener("click", off, true); }
+      }, true), 0);
     };
 
     shell.onclick = event => {
@@ -6202,14 +6266,23 @@ function renderBudgetList() {
         return;
       }
 
+      const rt = event.target.closest("[data-rtab]");
+      if (rt) {
+        recActive = rt.dataset.rtab;
+        try { localStorage.setItem("svi_rectab_v1", recActive); } catch (e) {}
+        recTabApply();
+        return;
+      }
+      const more = event.target.closest(".blk-more");
+      if (more) {
+        event.stopPropagation();
+        openBlkMenu(more);
+        return;
+      }
       const bb = event.target.closest(".blk-btn");
       if (bb) {
         event.stopPropagation();
-        const blk = bb.dataset.blk;
-        if (bb.dataset.act === "max") toggleMax(blk);
-        else if (bb.dataset.act === "export") openExportMenu(blk);
-        else if (bb.dataset.act === "import") openImportMenu(blk);
-        else doPdf(blk);
+        runBlkAct(bb.dataset.blk, bb.dataset.act);
         return;
       }
 
