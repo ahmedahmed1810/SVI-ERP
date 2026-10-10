@@ -6575,6 +6575,9 @@ function renderBudgetList() {
       });
     };
 
+    /* bouton d'impression de la liste des budgets : même aperçu */
+    window.__sviPrintClient = printClient;
+
     const doPdf = blk => {
       if (blk === "client") return printClient();
       if (blk === "hier") return printTasks();
@@ -7687,12 +7690,12 @@ function renderBudgetList() {
 
     if (printButton) {
       event.preventDefault();
-
-      printBudgetPDF(
-        printButton.dataset
-          .printBudget
-      );
-
+      /* même aperçu que DÉSIGNATIONS CLIENT (options, code, enregistrement) :
+         le budget est ouvert puis son aperçu lancé dans le même geste */
+      window.__sviPrintClient = null;
+      openBudgetDetail(printButton.dataset.printBudget);
+      if (window.__sviPrintClient) window.__sviPrintClient();
+      else printBudgetPDF(printButton.dataset.printBudget);
       return;
     }
 
