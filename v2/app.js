@@ -5873,13 +5873,14 @@ function renderBudgetList() {
           const nm = (v.name || stem).replace(/[\\/:*?"<>|]+/g, "-") + ext;
           if (k === "device") { saveDevice(nm, blob); ui.close(); return; }
           ui.busy("drive", true);
-          ui.msg("ENVOI DANS LE DRIVE…");
+          ui.msg("");
           try {
             const out = await driveSave(blob, nm, v.path);
             histLog("FICHIER", "DRIVE", (out.path ? out.path + "/" : "") + nm);
             ui.setPath(out.path);
-            ui.msg(`ENREGISTRÉ : ${esc((out.path || "MON DRIVE") + "/" + nm)}` +
-              (out.url ? ` — <a href="${esc(out.url)}" target="_blank" rel="noopener">OUVRIR</a>` : ""), "ok");
+            ui.msg("");
+            driveDoneFlash();
+            ui.busy("drive", false);
           } catch (err) {
             ui.msg("ÉCHEC : " + esc(driveErrText(err)));
             ui.busy("drive", false);
@@ -6005,17 +6006,27 @@ function renderBudgetList() {
 
     /* fichier prêt : sur l'iPad ou dans le Drive (fenêtre d'export fusionnée),
        sinon fenêtre d'enregistrement */
+    /* enregistré dans le Drive : pas de message, le bouton l'indique un instant
+       (le dossier utilisé reste affiché dans le champ DOSSIER DRIVE) */
+    const driveDoneFlash = () => {
+      const b = document.querySelector('#docPop [data-act="drive"]');
+      if (!b) return;
+      const t = b.textContent;
+      b.textContent = "✓ ENREGISTRÉ";
+      setTimeout(() => { if (b.isConnected) b.textContent = t; }, 2500);
+    };
+
     const deliver = async (name, blob, dest) => {
       if (!dest) return saveFile(name, blob);
       if (dest.target === "device") { saveDevice(name, blob); dest.ui && dest.ui.close(); return; }
       const ui = dest.ui;
-      ui && ui.msg("ENVOI DANS LE DRIVE…");
+      ui && ui.msg("");
       try {
         const out = await driveSave(blob, name, dest.path);
         histLog("FICHIER", "DRIVE", (out.path ? out.path + "/" : "") + name);
         ui && ui.setPath && ui.setPath(out.path);
-        ui && ui.msg(`ENREGISTRÉ : ${esc((out.path || "MON DRIVE") + "/" + name)}` +
-          (out.url ? ` — <a href="${esc(out.url)}" target="_blank" rel="noopener">OUVRIR</a>` : ""), "ok");
+        ui && ui.msg("");
+        driveDoneFlash();
       } catch (err) {
         ui && ui.msg("ÉCHEC : " + esc(driveErrText(err)));
       }
