@@ -5896,10 +5896,9 @@ function renderBudgetList() {
       const tafLate = taf.filter(r => Date.now() > new Date(r.prevu)).length;
       const obs = recLoad("obs");
       const items = [
-        ["RÉFÉRENCE", ref],
+        ["DATE CRÉATION", (dt && dt.label) || ""],
         ["PROJET", budget.project],
         ["INTITULÉ", (prj && prj.name) || "À COMPLÉTER"],
-        ["DATE CRÉATION", (dt && dt.label) || ""],
       ];
       document.getElementById("docPop")?.remove();
       const p = document.createElement("div");
