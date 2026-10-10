@@ -5673,7 +5673,8 @@ function renderBudgetList() {
       ? Promise.resolve(window.XLSX)
       : new Promise((ok, ko) => {
           const sc = document.createElement("script");
-          sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+          /* version de SheetJS qui sait écrire les styles (police, bordures, alignement) */
+          sc.src = "https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js";
           sc.onload = () => ok(window.XLSX);
           sc.onerror = () => ko(new Error("Bibliothèque Excel indisponible"));
           document.head.appendChild(sc);
@@ -5750,7 +5751,50 @@ function renderBudgetList() {
       } else {
         try {
           const X = await loadXLSX();
-          const ws = X.utils.aoa_to_sheet([head, ...rows]);
+          const bold = new Set((blkData(blk).bold || []));
+          const nc = head.length;
+          /* entrée comme sur les PDF : date, budget, client, projet, titre */
+          const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
+            "septembre", "octobre", "novembre", "décembre"];
+          const d0 = new Date();
+          const N = v => String(v ?? "").trim().toUpperCase();
+          const prj = db.projects.find(x => N(x.code) === N(budget.project));
+          const projet = (prj && prj.name && N(prj.name) !== N(budget.project)) ? prj.name : budget.project;
+          const top = [
+            ["Agadir, le " + String(d0.getDate()).padStart(2, "0") + " " + mois[d0.getMonth()] + " " + d0.getFullYear()],
+            ["BUDGET N° : " + fullRef], ["CLIENT : À COMPLÉTER"], ["PROJET : " + projet],
+            [String(blkLabel(blk)).toUpperCase()], []
+          ];
+          const H0 = top.length;
+          const ws = X.utils.aoa_to_sheet([...top, head, ...rows]);
+          const pad = r => Array.from({ length: nc }, (_, i) => X.utils.encode_cell({ r, c: i }));
+          ws["!merges"] = top.slice(0, 5).map((_, r) => ({ s: { r, c: 0 }, e: { r, c: nc - 1 } }));
+          const font = (b, sz = 11) => ({ name: "Arial", sz, bold: !!b });
+          const border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+          const U = h => /^(ART\.?|N°)$/i.test(h) || /^(U|UPB|UCB|UNITÉ|UNITE)$/i.test(h);
+          top.slice(0, 5).forEach((_, r) => {
+            const a = X.utils.encode_cell({ r, c: 0 });
+            ws[a] = ws[a] || { t: "s", v: "" };
+            ws[a].s = { font: font(true), alignment: { horizontal: r ? "center" : "right" } };
+          });
+          pad(H0).forEach(a => {
+            ws[a] = ws[a] || { t: "s", v: "" };
+            ws[a].s = { font: font(true), border, fill: { fgColor: { rgb: "D9DEE6" } },
+              alignment: { horizontal: "center", vertical: "center", wrapText: true } };
+          });
+          rows.forEach((row, i) => {
+            const r = H0 + 1 + i;
+            pad(r).forEach((a, c) => {
+              ws[a] = ws[a] || { t: "s", v: "" };
+              const h = c >= nc - 5 ? "right" : U(head[c]) ? "center" : "left";
+              ws[a].s = { font: font(bold.has(i)), border, alignment: { horizontal: h, vertical: "top", wrapText: c !== 1 } };
+              if (ws[a].t === "n") ws[a].z = "#,##0.00";
+            });
+          });
+          /* largeurs : colonne 2 ajustée au contenu, les autres selon leur titre */
+          const len = c => Math.max(String(head[c] ?? "").length,
+            ...rows.map(r => String(r[c] ?? "").length));
+          ws["!cols"] = head.map((h, c) => ({ wch: c === 1 ? Math.min(80, len(c) + 2) : Math.max(8, Math.min(30, len(c) + 2)) }));
           const wb = X.utils.book_new();
           X.utils.book_append_sheet(wb, ws, blkLabel(blk).slice(0, 31));
           const out = X.write(wb, { bookType: "xlsx", type: "array" });
@@ -6567,13 +6611,19 @@ function renderBudgetList() {
       const head = ["ART.", "DESIGNATION", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE",
         "DÉTAIL", "UPB", "NBR", "DIM 1", "DIM 2", "DIM 3", "QPB", "CLÉ PRIMAIRE"];
       if (!src) return { head, rows: [] };
-      const rows = [];
+      const rows = [], bold = [];
       [...src.rows].sort((a, b) => String(a.article).localeCompare(String(b.article), "fr", { numeric: true }))
-        .forEach(g => (g.members || []).filter(l => l.kind === "prd").forEach(l => rows.push([
-          g.article, g.designation, g.unit, l.lot, l.prim, l.sec, l.detail, l.dunit || l.unit,
-          l.nbr, l.dims[0], l.dims[1], l.dims[2], l.qty, l.cprice !== 0 ? "OUI" : "NON"
-        ])));
-      return { head, rows };
+        .forEach(g => {
+          let q = 0;
+          (g.members || []).filter(l => l.kind === "prd").forEach(l => {
+            if (l.cprice !== 0) q += Number(l.qty) || 0;
+            rows.push([g.article, g.designation, g.unit, l.lot, l.prim, l.sec, l.detail, l.dunit || l.unit,
+              l.nbr, l.dims[0], l.dims[1], l.dims[2], l.qty, l.cprice !== 0 ? "OUI" : "NON"]);
+          });
+          bold.push(rows.length);
+          rows.push(["", "SOUS-TOTAL ART. " + g.article + " — " + g.designation, g.unit, "", "", "", "", "", "", "", "", "", q, ""]);
+        });
+      return { head, rows, bold };
     };
 
     /* FORMAT MÉTRÉ (modèle « Détail métré ») : pour chaque désignation client,
@@ -6598,15 +6648,16 @@ function renderBudgetList() {
     };
     const metreData = () => {
       const head = ["N°", "DÉSIGNATIONS", "U", "QUANTITÉ", "NB", "LONG", "LARG", "H OU EP", "QUANTITÉ PARTIELLE"];
-      const rows = [];
+      const rows = [], bold = [];
       metreGroups().forEach(({ g, qty, subs }) => {
+        bold.push(rows.length);
         rows.push([g.article, g.designation, g.unit, qty, "", "", "", "", ""]);
         subs.forEach(sb => {
           if (sb.title) rows.push(["", sb.title, "", "", "", "", "", "", ""]);
           sb.lines.forEach(l => rows.push(["", l.detail, "", "", l.nbr, l.dims[0], l.dims[1], l.dims[2], l.qty]));
         });
       });
-      return { head, rows };
+      return { head, rows, bold };
     };
     const printMetre = () => {
       const groups = metreGroups();
