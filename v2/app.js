@@ -3605,12 +3605,12 @@ function renderBudgetList() {
 
     /* lignes identiques (même type, article, désignation, unité)
        regroupées à l'affichage */
-    /* Détail charge : désignation + unité (article ignoré) ;
-       Détail produit : article + désignation + unité */
+    /* Détail charges : regroupées par désignation + unité (article ignoré) ;
+       Détail produits : PAS de regroupement, une ligne de la feuille = une ligne */
     const gidOf = l =>
       (l.kind === "chg"
         ? [l.kind, l.detail, l.dunit]
-        : [l.kind, l.article, l.detail, l.dunit])
+        : [l.kind, l.id])
         .map(v => String(v ?? "").trim().toUpperCase())
         .join("|");
 
