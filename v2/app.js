@@ -4979,19 +4979,13 @@ function renderBudgetList() {
                 class="${selRows.has(l.gid) ? "selected" : ""}">
               <td class="center">${esc(l.article)}</td>
               <td>${esc(l.detail)}</td>
-              <td class="center ${prd && (l.members.some(unitMismatch) || l.members.some(m => m.unitDiff)) ? "cell-warn" : ""}"
-                  ${prd && l.members.some(m => m.unitDiff)
-                    ? `data-why="Unité de la feuille (${esc(l.members.find(m => m.unitDiff).sheetUnit)}) différente de celle de la désignation client (${esc(l.unit)})."`
-                    : prd && l.members.some(unitMismatch)
-                      ? `data-why="Unité ${esc(l.unit)} : le nombre de dimensions renseignées ne correspond pas (M3 = 3, M2 = 2, M = 1)."` : ""}>${esc(l.unit)}</td>
+              <td class="center">${esc(l.unit)}</td>
               ${
                 prd
                   ? `
-                    <td class="number ${dimMissing(l, -1) ? "cell-warn" : ""}"
-                        ${dimMissing(l, -1) ? `data-why="NBR non renseigné (obligatoire pour une unité ${esc(l.unit)})."` : ""}>${esc(l.nbr)}</td>
+                    <td class="number">${esc(l.nbr)}</td>
                     ${[0, 1, 2].map(i => `
-                      <td class="number ${dimMissing(l, i) ? "cell-warn" : ""}"
-                          ${dimMissing(l, i) ? `data-why="DIM ${i + 1} non renseignée (attendue pour une unité ${esc(l.unit)})."` : ""}>${esc(l.dims[i])}</td>`).join("")}
+                      <td class="number">${esc(l.dims[i])}</td>`).join("")}
                   `
                   : ""
               }
