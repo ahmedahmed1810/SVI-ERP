@@ -5755,11 +5755,13 @@ function renderBudgetList() {
       });
     };
 
-    const printClient = (opt = { head: true, stamp: false }) => {
-      histLog("DÉSIGNATIONS CLIENT", "APERÇU PDF",
-        "EN-TÊTE " + (opt.head ? "OUI" : "NON") + " — CACHET " + (opt.stamp ? "OUI" : "NON"));
+    /* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :
+       volet « OPTIONS PDF » à gauche, aperçu des pages à droite,
+       bouton GÉNÉRER PDF ; aucune impression lancée ===== */
+    const printClient = () => {
       const src = lastShown.client;
-      if (!src || !src.rows.length) { alert("Aucune désignation à imprimer."); return; }
+      if (!src || !src.rows.length) { alert("Aucune désignation à afficher."); return; }
+      histLog("DÉSIGNATIONS CLIENT", "APERÇU PDF");
       const N = v => String(v ?? "").trim().toUpperCase();
       const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
         "août", "septembre", "octobre", "novembre", "décembre"];
@@ -5767,10 +5769,8 @@ function renderBudgetList() {
       const dateTxt = `Agadir, le ${String(now.getDate()).padStart(2, "0")} ${mois[now.getMonth()]} ${now.getFullYear()}`;
       const prj = db.projects.find(x => N(x.code) === N(budget.project));
       const projet = (prj && prj.name && N(prj.name) !== N(budget.project)) ? prj.name : budget.project;
-      /* désignations client dans l'ordre des articles (pas de lots) */
       const rows = [...src.rows].sort((a, b) =>
         String(a.article).localeCompare(String(b.article), "fr", { numeric: true }));
-
       const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
       const body = rows.map(g => {
         const pu = Math.round(g.price * 100) / 100;
@@ -5779,22 +5779,47 @@ function renderBudgetList() {
       }).join("");
       const ht = rows.reduce((t, g) => t + g.ht, 0);
       const tva = ht * 0.2, ttc = ht + tva;
+      const fileName = (ref + " DESIGNATIONS CLIENT").replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "_") + ".pdf";
 
-      const logo = SVI_LOGO;
       const w = window.open("", "_blank");
-      if (!w) { alert("Autorisez les fenêtres pop-up pour l'impression."); return; }
+      if (!w) { alert("Autorisez les fenêtres pop-up pour l'aperçu."); return; }
       w.document.write(`<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
 <title>${esc(ref)} - DESIGNATIONS CLIENT</title>
 <style>
-  @page { size: A4 landscape; margin: 0; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: #fff; }
-  body { font-family: "Times New Roman", Times, serif; color: #000; font-size: 11pt;
-         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { margin: 0; padding: 0; }
+  body { background: #eef1f6; font-family: Arial, Helvetica, sans-serif; }
+  /* ---- volet options ---- */
+  #side { position: fixed; left: 0; top: 0; bottom: 0; width: 300px; background: #fff; border-right: 1px solid #e1e5eb;
+          padding: 18px 16px; overflow-y: auto; z-index: 3; transition: transform .2s; color: #172033; }
+  body.closed #side { transform: translateX(-300px); }
+  #side h2 { margin: 0 0 6px; font-size: 15px; font-weight: 900; }
+  #side .sub { font-size: 11px; color: #4b5563; margin-bottom: 16px; line-height: 1.35; }
+  #side label.ck { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; margin: 12px 0 6px; }
+  #side label.ck input { width: 18px; height: 18px; accent-color: #2a4fd1; }
+  #side .opt { margin: 4px 0 4px 28px; }
+  #side .opt span { display: block; font-size: 11px; font-weight: 800; color: #4b5563; margin: 8px 0 5px; }
+  #side select { width: 100%; height: 36px; border: 1px solid #d6dbe3; border-radius: 8px; padding: 0 10px;
+                 font-size: 12px; background: #fff; color: #172033; }
+  #side .dis { opacity: .45; pointer-events: none; }
+  #gen { width: 100%; margin-top: 22px; height: 42px; border: 0; border-radius: 8px; background: #2a4fd1; color: #fff;
+         font-weight: 800; font-size: 13px; cursor: pointer; }
+  #gen:disabled { opacity: .6; }
+  #msg { font-size: 11px; color: #4b5563; margin-top: 10px; min-height: 14px; }
+  #tog { position: fixed; top: 14px; left: 254px; z-index: 4; width: 34px; height: 34px; border: 1px solid #d6dbe3;
+         border-radius: 8px; background: #fff; font-size: 16px; cursor: pointer; transition: left .2s; }
+  body.closed #tog { left: 10px; }
+  #close { position: fixed; top: 14px; right: 14px; z-index: 4; height: 34px; padding: 0 14px; border: 1px solid #d6dbe3;
+           border-radius: 8px; background: #fff; font-weight: 800; font-size: 12px; cursor: pointer; }
+  #view { margin-left: 300px; padding: 20px; transition: margin .2s; overflow: hidden; }
+  #pages .page { margin: 0 0 18px; }
+  body.closed #view { margin-left: 0; padding-top: 56px; }
+  /* ---- pages (A4 paysage, modèle de la société) ---- */
   .page { width: 297mm; height: 209mm; padding: 8mm 12mm 6mm; display: flex; flex-direction: column;
-          page-break-after: always; break-after: page; overflow: hidden; }
-  .page:last-child { page-break-after: auto; break-after: auto; }
+          overflow: hidden; background: #fff; margin: 0 auto 18px; position: relative;
+          font-family: "Times New Roman", Times, serif; color: #000; font-size: 11pt; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
   .head { position: relative; min-height: 40mm; flex: none; text-align: center; font-weight: bold; padding-bottom: 4mm; }
   .head img { position: absolute; left: 3mm; top: 0; width: 30mm; height: 30mm; object-fit: cover; }
   .head .date { position: absolute; right: 55mm; top: 15mm; }
@@ -5805,7 +5830,6 @@ function renderBudgetList() {
   th { font-weight: bold; text-align: center; }
   th.sub { font-size: 10pt; padding: 0.4mm; }
   td.c { text-align: center; } td.r { text-align: right; }
-  tr.lot td { font-weight: normal; }
   .tot { margin-top: 2mm; display: flex; flex-direction: column; align-items: flex-end; }
   .tot div { display: flex; }
   .tot span { padding: 1mm 2mm; text-align: right; }
@@ -5813,29 +5837,46 @@ function renderBudgetList() {
   .tot div:first-child b { border-top: 1px solid #000; }
   .arr { margin-top: 6mm; font-weight: bold; line-height: 1.9; }
   .foot { flex: none; text-align: center; font-weight: bold; font-size: 10pt; }
-  .stamp { text-align: right; margin-top: 6mm; padding-right: 30mm; }
-  .stamp img { width: 48mm; transform: rotate(-6deg); }
-  /* sans en-tête ni pied de page : la place reste vide (papier à en-tête) */
-  body.nohead .head img, body.nohead .foot .ad, body.nohead .foot hr { visibility: hidden; }
   .foot .pg { margin-bottom: 1.5mm; }
   .foot hr { width: 65%; border: 0; border-top: 2.5px solid #5677a7; margin: 0 auto 1.5mm; }
   .foot .ad { line-height: 1.3; }
-  @media screen { body { background: #888; } .page { background: #fff; margin: 6mm auto; } }
-  .pv-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 10px;
-            padding: 10px 16px; background: #12355b; color: #fff; font: 700 14px Arial, Helvetica, sans-serif; }
-  .pv-bar span { flex: 1; }
-  .pv-bar button { border: 1px solid rgba(255,255,255,.4); background: #fff; color: #12355b; border-radius: 8px;
-            padding: 8px 16px; font: 800 13px Arial, Helvetica, sans-serif; cursor: pointer; }
-  .pv-bar button.x { background: transparent; color: #fff; }
-  @media print { .pv-bar { display: none !important; } }
-  #pvCover { position: fixed; inset: 0; background: #e9edf3; z-index: 5; }
-  .pv-bar { z-index: 6; }
-</style></head><body class="${opt.head ? "" : "nohead"}">
-<div class="pv-bar"><span id="pvMsg">PRÉPARATION DU PDF…</span>
-  <button type="button" class="x" onclick="window.close()">✕ FERMER</button></div>
+  .marks { position: absolute; right: 22mm; bottom: 26mm; display: flex; gap: 8mm; align-items: flex-end; pointer-events: none; }
+  .marks img.stamp { width: 48mm; transform: rotate(-6deg); }
+  .marks img.sign { max-width: 45mm; max-height: 25mm; }
+  body.nohead .head img { visibility: hidden; }
+  body.nofoot .foot .ad, body.nofoot .foot hr { visibility: hidden; }
+</style></head><body>
+<aside id="side">
+  <h2>OPTIONS PDF</h2>
+  <div class="sub">CHOISISSEZ LES PARTIES À INCLURE AVANT LA GÉNÉRATION.</div>
+  <label class="ck"><input type="checkbox" id="oHead"> ENTÊTE</label>
+  <label class="ck"><input type="checkbox" id="oFoot"> PIED DE PAGE</label>
+  <label class="ck"><input type="checkbox" id="oSign"> SIGNATURE</label>
+  <div class="opt" id="signOpts">
+    <span>CHOIX SIGNATURE</span>
+    <select id="oSignSrc">
+      <option value="saved">SIGNATURE ENREGISTRÉE</option>
+      <option value="new">IMPORTER UNE IMAGE…</option>
+    </select>
+    <span>PAGES SIGNATURE</span>
+    <select id="oSignPg"><option value="first">PREMIÈRE PAGE</option><option value="last">DERNIÈRE PAGE</option><option value="all">TOUTES LES PAGES</option></select>
+  </div>
+  <label class="ck"><input type="checkbox" id="oStamp"> CACHET</label>
+  <div class="opt" id="stampOpts">
+    <span>PAGES CACHET</span>
+    <select id="oStampPg"><option value="first">PREMIÈRE PAGE</option><option value="last">DERNIÈRE PAGE</option><option value="all">TOUTES LES PAGES</option></select>
+  </div>
+  <button type="button" id="gen">GÉNÉRER PDF</button>
+  <div id="msg"></div>
+  <input type="file" id="signFile" accept="image/*" hidden>
+</aside>
+<button type="button" id="tog" title="Masquer / afficher les options">‹</button>
+<button type="button" id="close">✕ FERMER</button>
+<main id="view"><div id="pages"></div></main>
+
 <div id="src" style="display:none">
   <div class="head">
-    <img src="${logo}" alt="">
+    <img src="${SVI_LOGO}" alt="">
     <div class="date">${dateTxt}</div>
     <div class="t">BUDGET N° : ${esc(ref)}<br>CLIENT : À COMPLÉTER<br>PROJET : ${esc(projet)}</div>
   </div>
@@ -5852,95 +5893,187 @@ function renderBudgetList() {
       <div><span>TOTAL T.T.C. :</span><b>${money(ttc)}</b></div>
     </div>
     <div class="arr">ARRÊTER LE PRÉSENT BUDGET À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>
-    ${opt.stamp ? `<div class="stamp"><img src="${SVI_STAMP}" alt=""></div>` : ""}
   </div>
   <div class="foot"><div class="pg"></div><hr>
     <div class="ad">N°35, Bloc G3 Cité DAKHLA Agadir, BP : 8837 Dakhla Agadir - Tél : 05 28 23 34 31<br>
     Sarl. Au capital de 500 000,00 Dhs - Patente 67505605 - I.F. 60201815 - R.C. 57784 I.C.E. : 003434605000090</div></div>
 </div>
-<div id="pvCover"></div>
-<div id="pages"></div>
 <script>
 (function () {
-  const src = document.getElementById("src");
-  const out = document.getElementById("pages");
-  const tpl = document.getElementById("tpl");
-  const rows = [...tpl.tBodies[0].rows];
-  const pages = [];
-  const newPage = withTable => {
-    const pg = document.createElement("div"); pg.className = "page";
-    pg.appendChild(src.querySelector(".head").cloneNode(true));
-    const c = document.createElement("div"); c.className = "content"; pg.appendChild(c);
-    let tb = null;
-    if (withTable) {
-      const t = tpl.cloneNode(true); t.removeAttribute("id"); t.tBodies[0].innerHTML = "";
-      c.appendChild(t); tb = t.tBodies[0];
-    }
-    pg.appendChild(src.querySelector(".foot").cloneNode(true));
-    out.appendChild(pg); pages.push(pg);
-    return { c, tb };
-  };
-  const full = c => c.scrollHeight > c.clientHeight + 1;
-  let cur = newPage(true);
-  rows.forEach(r => {
-    cur.tb.appendChild(r);
-    if (full(cur.c) && cur.tb.rows.length > 1) { cur.tb.removeChild(r); cur = newPage(true); cur.tb.appendChild(r); }
-  });
-  const end = document.getElementById("end");
-  cur.c.appendChild(end);
-  if (full(cur.c)) {
-    /* les totaux ne partent jamais seuls : les deux dernières lignes
-       du tableau les accompagnent (au moins une reste sur la page d'avant) */
-    cur.c.removeChild(end);
-    const prev = cur.tb;
-    const n = prev ? Math.min(2, prev.rows.length - 1) : 0;
-    const moved = n > 0 ? [...prev.rows].slice(-n) : [];
-    cur = newPage(moved.length > 0);
-    moved.forEach(r => cur.tb.appendChild(r));
+  const STAMP = "${SVI_STAMP}";
+  const $ = id => document.getElementById(id);
+  const KEY = "svi_printopt_v2", SKEY = "svi_sign_v1";
+  const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+               set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } } };
+  let o = { head: true, foot: true, sign: false, signPg: "last", stamp: false, stampPg: "last" };
+  try { Object.assign(o, JSON.parse(ls.get(KEY) || "{}")); } catch (e) {}
+  let signImg = ls.get(SKEY);
+
+  const src = $("src"), out = $("pages"), tpl = $("tpl");
+  const allRows = [...tpl.tBodies[0].rows].map(r => r.outerHTML);
+
+  const build = () => {
+    unfit();
+    out.innerHTML = "";
+    const pages = [];
+    const newPage = withTable => {
+      const pg = document.createElement("div"); pg.className = "page";
+      pg.appendChild(src.querySelector(".head").cloneNode(true));
+      const c = document.createElement("div"); c.className = "content"; pg.appendChild(c);
+      let tb = null;
+      if (withTable) {
+        const t = tpl.cloneNode(true); t.removeAttribute("id"); t.tBodies[0].innerHTML = "";
+        c.appendChild(t); tb = t.tBodies[0];
+      }
+      pg.appendChild(src.querySelector(".foot").cloneNode(true));
+      out.appendChild(pg); pages.push(pg);
+      return { c, tb };
+    };
+    /* marge de 3 px : la bordure du bas de la dernière ligne reste visible */
+    const full = c => {
+      const bottom = [...c.children].reduce((m, x) => Math.max(m, x.offsetTop + x.offsetHeight), 0);
+      return bottom > c.offsetTop + c.clientHeight - 3;
+    };
+    const tmp = document.createElement("tbody");
+    tmp.innerHTML = allRows.join("");
+    let cur = newPage(true);
+    [...tmp.rows].forEach(r => {
+      cur.tb.appendChild(r);
+      if (full(cur.c) && cur.tb.rows.length > 1) { cur.tb.removeChild(r); cur = newPage(true); cur.tb.appendChild(r); }
+    });
+    const end = src.querySelector("#end").cloneNode(true);
     cur.c.appendChild(end);
-  }
-  pages.forEach((pg, i) => { pg.querySelector(".pg").textContent = "Page " + (i + 1) + " / " + pages.length; });
-  src.remove();
-  /* aperçu = un vrai fichier PDF (A4 paysage), affiché par l'iPad :
-     pas de fenêtre d'impression, partage / enregistrement / impression
-     depuis le lecteur PDF */
-  const msg = document.getElementById("pvMsg");
+    if (full(cur.c)) {
+      cur.c.removeChild(end);
+      const prev = cur.tb;
+      const n = prev ? Math.min(2, prev.rows.length - 1) : 0;
+      const moved = n > 0 ? [...prev.rows].slice(-n) : [];
+      cur = newPage(moved.length > 0);
+      moved.forEach(r => cur.tb.appendChild(r));
+      cur.c.appendChild(end);
+    }
+    const on = (pg, i) => pg === "all" || (pg === "first" && i === 0) || (pg === "last" && i === pages.length - 1);
+    pages.forEach((pg, i) => {
+      pg.querySelector(".pg").textContent = "Page " + (i + 1) + " / " + pages.length;
+      const m = document.createElement("div"); m.className = "marks";
+      if (o.sign && signImg && on(o.signPg, i)) m.insertAdjacentHTML("beforeend", '<img class="sign" src="' + signImg + '">');
+      if (o.stamp && on(o.stampPg, i)) m.insertAdjacentHTML("beforeend", '<img class="stamp" src="' + STAMP + '">');
+      if (m.children.length) pg.appendChild(m);
+    });
+    document.body.classList.toggle("nohead", !o.head);
+    document.body.classList.toggle("nofoot", !o.foot);
+    fit();
+  };
+  /* réduction à l'écran par « transform » (ne change pas la mise en page) */
+  const fit = () => {
+    const pg = out.querySelector(".page");
+    if (!pg) return;
+    const avail = $("view").clientWidth - 40;
+    const z = Math.min(1, avail / pg.offsetWidth);
+    out.style.transformOrigin = "top left";
+    out.style.transform = "scale(" + z + ")";
+    out.style.width = pg.offsetWidth + "px";
+    out.style.marginLeft = Math.max(0, (avail - pg.offsetWidth * z) / 2) + "px";
+    $("view").style.height = (out.offsetHeight * z + 60) + "px";
+  };
+  const unfit = () => { out.style.transform = "none"; out.style.marginLeft = "0"; };
+
+  /* options ↔ formulaire */
+  const sync = () => {
+    $("oHead").checked = o.head; $("oFoot").checked = o.foot;
+    $("oSign").checked = o.sign; $("oStamp").checked = o.stamp;
+    $("oSignPg").value = o.signPg; $("oStampPg").value = o.stampPg;
+    $("oSignSrc").value = "saved";
+    $("signOpts").classList.toggle("dis", !o.sign);
+    $("stampOpts").classList.toggle("dis", !o.stamp);
+    $("msg").textContent = o.sign && !signImg ? "AUCUNE SIGNATURE ENREGISTRÉE : CHOISISSEZ « IMPORTER UNE IMAGE… »" : "";
+  };
+  const save = () => { ls.set(KEY, JSON.stringify(o)); sync(); build(); };
+  $("oHead").onchange = e => { o.head = e.target.checked; save(); };
+  $("oFoot").onchange = e => { o.foot = e.target.checked; save(); };
+  $("oSign").onchange = e => { o.sign = e.target.checked; save(); };
+  $("oStamp").onchange = e => { o.stamp = e.target.checked; save(); };
+  $("oSignPg").onchange = e => { o.signPg = e.target.value; save(); };
+  $("oStampPg").onchange = e => { o.stampPg = e.target.value; save(); };
+  $("oSignSrc").onchange = e => { if (e.target.value === "new") $("signFile").click(); e.target.value = "saved"; };
+  $("signFile").onchange = e => {
+    const f = e.target.files[0]; if (!f) return;
+    const fr = new FileReader();
+    fr.onload = () => {
+      const im = new Image();
+      im.onload = () => {
+        /* signature réduite (≤ 600 px) pour rester légère */
+        const k = Math.min(1, 600 / Math.max(im.width, im.height));
+        const cv = document.createElement("canvas");
+        cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k);
+        cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height);
+        signImg = cv.toDataURL("image/png");
+        ls.set(SKEY, signImg);
+        o.sign = true; save();
+      };
+      im.src = fr.result;
+    };
+    fr.readAsDataURL(f);
+  };
+  $("tog").onclick = () => {
+    document.body.classList.toggle("closed");
+    $("tog").textContent = document.body.classList.contains("closed") ? "›" : "‹";
+    setTimeout(fit, 220);
+  };
+  $("close").onclick = () => window.close();
+  window.addEventListener("resize", fit);
+
+  /* GÉNÉRER PDF : vrai fichier PDF A4 paysage */
   const load = u => new Promise((ok, ko) => {
+    if ((u.includes("html2canvas") && window.html2canvas) || (u.includes("jspdf") && window.jspdf)) return ok();
     const sc = document.createElement("script"); sc.src = u; sc.onload = ok; sc.onerror = ko;
-    setTimeout(() => ko(new Error("délai dépassé")), 12000);
+    setTimeout(() => ko(new Error("délai dépassé")), 15000);
     document.head.appendChild(sc);
   });
-  const fallback = () => {
-    msg.textContent = "PDF indisponible (connexion ?) — aperçu affiché";
-    const z = Math.min(1, (window.innerWidth - 16) / out.querySelector(".page").offsetWidth);
-    out.style.zoom = z;
-    document.getElementById("pvCover").remove();
-  };
-  (async () => {
+  $("gen").onclick = async () => {
+    const btn = $("gen"), msg = $("msg");
+    btn.disabled = true;
     try {
+      msg.textContent = "PRÉPARATION DU PDF…";
       await load("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
       await load("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-      await Promise.all([...document.images].map(im => im.complete ? 0 :
-        new Promise(r => { im.onload = im.onerror = r; })));
+      unfit();
       const pdf = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
       const pgs = [...out.querySelectorAll(".page")];
       for (let i = 0; i < pgs.length; i++) {
         msg.textContent = "PRÉPARATION DU PDF… PAGE " + (i + 1) + " / " + pgs.length;
-        const cv = await html2canvas(pgs[i], { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+        const cv = await html2canvas(pgs[i], { scale: 2, backgroundColor: "#ffffff" });
         if (i) pdf.addPage("a4", "landscape");
         pdf.addImage(cv.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, 297, 210);
       }
-      const url = URL.createObjectURL(pdf.output("blob"));
-      location.replace(url);
-    } catch (e) { fallback(); }
-  })();
+      fit();
+      const blob = pdf.output("blob");
+      const file = new File([blob], "${fileName}", { type: "application/pdf" });
+      msg.textContent = "PDF PRÊT.";
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: "${fileName}" }); }
+        catch (e) { if (e && e.name !== "AbortError") window.open(URL.createObjectURL(blob), "_blank"); }
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob); a.download = "${fileName}";
+        document.body.appendChild(a); a.click(); a.remove();
+      }
+    } catch (e) {
+      msg.textContent = "PDF IMPOSSIBLE : " + (e && e.message ? e.message : e);
+      fit();
+    }
+    btn.disabled = false;
+  };
+
+  sync();
+  build();
 })();
 <\/script></body></html>`);
       w.document.close();
     };
 
     const doPdf = blk => {
-      if (blk === "client") return openPrintOptions();
+      if (blk === "client") return printClient();
       histLog(blkLabel(blk), "APERÇU PDF");
       let tableHTML;
       if (blk === "detail" && active === "qlt") {
