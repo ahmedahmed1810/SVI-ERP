@@ -2099,7 +2099,7 @@ function renderBudgetList() {
         gap: 8px;
         margin-bottom: 10px;
         color: #3f4856;
-        font-size: 13px;
+        font-size: 24px;
         font-weight: 800;
       }
 
@@ -2107,8 +2107,8 @@ function renderBudgetList() {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 22px;
-        height: 22px;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
         background: #e8edf3;
         color: #5f6875;
@@ -2129,7 +2129,7 @@ function renderBudgetList() {
         border-radius: 999px;
         background: #fff;
         color: #4b5563;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 800;
       }
 
@@ -2679,9 +2679,10 @@ function renderBudgetList() {
       }
 
 
+      .novapp-list-titlebar .bdg-d-h1 { font-size: 24px; }
       .bdg-d-h1 {
         margin: 0;
-        font-size: 22px;
+        font-size: 24px;
         font-weight: 900;
         text-transform: none;
       }
