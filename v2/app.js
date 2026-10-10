@@ -5783,11 +5783,20 @@ function renderBudgetList() {
     };
 
     /* PDF validé dans l'aperçu → nouvelle ligne DOCUMENTS avec lien vers le fichier */
+    /* retour sur la page du budget : liste DOCUMENTS relue (PDF enregistré ailleurs) */
+    if (window.__sviDocRefresh) {
+      window.removeEventListener("focus", window.__sviDocRefresh);
+      document.removeEventListener("visibilitychange", window.__sviDocRefresh);
+    }
+    window.__sviDocRefresh = () => { if (document.visibilityState !== "hidden") updPill("doc"); };
+    window.addEventListener("focus", window.__sviDocRefresh);
+    document.addEventListener("visibilitychange", window.__sviDocRefresh);
+
     window.__sviSavePdfDoc = async (blob, title, name) => {
       const now = new Date();
       const docRef = nextDocRef(now);
       const idb = "doc:" + ref + ":" + docRef;
-      try { await sviFiles.put(idb, blob); } catch (e) { return null; }
+      await sviFiles.put(idb, blob);
       const list = docsLoad();
       list.push({ ref: docRef, date: localDT(now), title: String(title).toUpperCase(),
         name, size: blob.size, type: "application/pdf", data: null, idb });
@@ -5849,6 +5858,9 @@ function renderBudgetList() {
   #gen { width: 100%; margin-top: 22px; height: 42px; border: 0; border-radius: 8px; background: #2a4fd1; color: #fff;
          font-weight: 800; font-size: 13px; cursor: pointer; }
   #gen:disabled { opacity: .6; }
+  #share { width: 100%; margin-top: 10px; height: 40px; border: 1px solid #2a4fd1; border-radius: 8px; background: #fff;
+           color: #2a4fd1; font-weight: 800; font-size: 12px; cursor: pointer; }
+  #share[hidden] { display: none; }
   #msg { font-size: 11px; color: #4b5563; margin-top: 10px; min-height: 14px; }
   #tog { position: fixed; top: 14px; left: 254px; z-index: 4; width: 34px; height: 34px; border: 1px solid #d6dbe3;
          border-radius: 8px; background: #fff; font-size: 16px; cursor: pointer; transition: left .2s; }
@@ -5910,6 +5922,7 @@ function renderBudgetList() {
   </div>
   <button type="button" id="gen">GÉNÉRER PDF</button>
   <div id="msg"></div>
+  <button type="button" id="share" hidden>PARTAGER / ENREGISTRER LE PDF</button>
   <input type="file" id="signFile" accept="image/*" hidden>
 </aside>
 <button type="button" id="tog" title="Masquer / afficher les options">‹</button>
@@ -6073,6 +6086,44 @@ function renderBudgetList() {
     setTimeout(() => ko(new Error("délai dépassé")), 15000);
     document.head.appendChild(sc);
   });
+  let lastPdf = null;
+  /* enregistrement direct (si la page du budget n'est plus joignable) */
+  const saveHere = (blob, title, name) => new Promise((ok, ko) => {
+    const KEYD = "svi_docs_v1:" + ${JSON.stringify(String(ref))};
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(KEYD) || "[]") || []; } catch (e) {}
+    const d = new Date(), p2 = n => String(n).padStart(2, "0");
+    const day = p2(d.getFullYear() % 100) + "-" + p2(d.getMonth() + 1) + p2(d.getDate());
+    const n = list.filter(x => String(x.ref).startsWith("DOC " + day)).length + 1;
+    const docRef = "DOC " + day + "/" + String(n).padStart(3, "0");
+    const idb = "doc:" + ${JSON.stringify(String(ref))} + ":" + docRef;
+    const r = indexedDB.open("svi_files", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("f");
+    r.onerror = () => ko(r.error);
+    r.onsuccess = () => {
+      const t = r.result.transaction("f", "readwrite");
+      t.objectStore("f").put(blob, idb);
+      t.oncomplete = () => {
+        list.push({ ref: docRef, date: d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()) + "T" + p2(d.getHours()) + ":" + p2(d.getMinutes()),
+          title: title.toUpperCase(), name, size: blob.size, type: "application/pdf", data: null, idb });
+        localStorage.setItem(KEYD, JSON.stringify(list));
+        ok(docRef);
+      };
+      t.onerror = () => ko(t.error);
+    };
+  });
+  $("share").onclick = async () => {
+    if (!lastPdf) return;
+    const { blob, file } = lastPdf;
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: file.name }); return; }
+      catch (e) { if (e && e.name === "AbortError") return; }
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = file.name; a.target = "_blank";
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+
   $("gen").onclick = async () => {
     const btn = $("gen"), msg = $("msg");
     btn.disabled = true;
@@ -6092,18 +6143,23 @@ function renderBudgetList() {
       fit();
       const blob = pdf.output("blob");
       const file = new File([blob], "${fileName}", { type: "application/pdf" });
-      let saved = null;
-      try { saved = window.opener && window.opener.__sviSavePdfDoc
-        ? await window.opener.__sviSavePdfDoc(blob, "DÉSIGNATIONS CLIENT ${esc(ref)}", "${fileName}") : null; } catch (e) {}
-      msg.textContent = saved ? "PDF PRÊT — ENREGISTRÉ DANS DOCUMENTS : " + saved : "PDF PRÊT.";
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try { await navigator.share({ files: [file], title: "${fileName}" }); }
-        catch (e) { if (e && e.name !== "AbortError") window.open(URL.createObjectURL(blob), "_blank"); }
-      } else {
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob); a.download = "${fileName}";
-        document.body.appendChild(a); a.click(); a.remove();
+      /* 1) enregistrement dans DOCUMENTS (par la page du budget, sinon ici) */
+      const title = "DÉSIGNATIONS CLIENT ${esc(ref)}";
+      let saved = null, err = "";
+      try {
+        if (window.opener && !window.opener.closed && window.opener.__sviSavePdfDoc)
+          saved = await window.opener.__sviSavePdfDoc(blob, title, "${fileName}");
+      } catch (e) { err = e && e.message ? e.message : String(e); }
+      if (!saved) {
+        try { saved = await saveHere(blob, title, "${fileName}"); }
+        catch (e) { err = err || (e && e.message ? e.message : String(e)); }
       }
+      msg.textContent = saved
+        ? "PDF ENREGISTRÉ DANS DOCUMENTS : " + saved
+        : "PDF PRÊT, MAIS NON ENREGISTRÉ DANS DOCUMENTS" + (err ? " (" + err + ")" : "");
+      /* 2) partage / enregistrement : sur un nouveau toucher (exigé par l'iPad) */
+      lastPdf = { blob, file };
+      $("share").hidden = false;
     } catch (e) {
       msg.textContent = "PDF IMPOSSIBLE : " + (e && e.message ? e.message : e);
       fit();
