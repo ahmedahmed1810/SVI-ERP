@@ -2749,7 +2749,9 @@ function renderBudgetList() {
       #docPop .exp-drv-row { display: flex; align-items: center; gap: 10px; min-height: 34px; }
       #docPop .exp-drv-row > .doc-in { flex: 1; }
       #docPop .exp-drv-row > .fld-wrap { flex: 1; min-width: 0; }
-      #docPop .exp-path { color: #1d4ed8; text-decoration: underline; font-weight: 700; text-transform: none; }
+      #docPop .exp-path { color: #1d4ed8; text-decoration: underline; font-weight: 700; text-transform: none; cursor: pointer; }
+      #docPop .exp-path[readonly] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+      #docPop .exp-path.editing { cursor: text; text-decoration: none; color: #172033; }
       #docPop .drv-link { flex: 1; color: #1d4ed8; text-decoration: underline; font-size: 12px; font-weight: 700;
         word-break: break-all; text-transform: none; }
       #drvPop {
@@ -6363,8 +6365,8 @@ function renderBudgetList() {
               <input id="fdName" class="doc-in" type="text" autocomplete="off" value="${esc((fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-"))}">
               <span class="doc-lab exp-drv" hidden>DOSSIER DRIVE</span>
               <div class="exp-drv exp-drv-row" hidden>
-                <input type="text" class="doc-in exp-path" id="expPath" data-keepcase autocomplete="off" value="${esc(path0)}">
-                <button type="button" class="doc-flag" id="expOpen" title="Ouvrir le dossier dans le Drive">↗</button>
+                <input type="text" class="doc-in exp-path" id="expPath" data-keepcase autocomplete="off" readonly
+                  title="Toucher : ouvrir le dossier — appui long : modifier" value="${esc(path0)}">
               </div>
             </div>
             <div class="fmt-choice fmt-grid">
@@ -6403,8 +6405,33 @@ function renderBudgetList() {
       };
       const curPath = () => $q("#expPath").value.trim();
       refresh();
-      /* ↗ : ouvre le dossier dans le Drive */
-      $q("#expOpen").addEventListener("click", () => driveOpenFolder(curPath()));
+      /* adresse du dossier : toucher = ouvrir dans le Drive ;
+         appui long (ou double toucher) = modifier, comme un champ normal */
+      {
+        const f = $q("#expPath");
+        let timer = null, longDone = false;
+        const edit = () => {
+          f.readOnly = false; f.classList.add("editing");
+          f.focus(); f.select();
+        };
+        f.addEventListener("pointerdown", () => {
+          if (!f.readOnly) return;
+          longDone = false;
+          timer = setTimeout(() => { longDone = true; edit(); }, 550);
+        });
+        ["pointerup", "pointerleave", "pointercancel"].forEach(ev =>
+          f.addEventListener(ev, () => clearTimeout(timer)));
+        f.addEventListener("click", e => {
+          if (!f.readOnly || longDone) { longDone = false; return; }
+          e.preventDefault();
+          driveOpenFolder(curPath());
+        });
+        f.addEventListener("dblclick", () => { if (f.readOnly) edit(); });
+        f.addEventListener("contextmenu", e => { if (f.readOnly) e.preventDefault(); });
+        const done = () => { f.readOnly = true; f.classList.remove("editing"); };
+        f.addEventListener("blur", done);
+        f.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); f.blur(); } });
+      }
 
       p.addEventListener("click", async e => {
         if (e.target === p || e.target.closest("[data-close]")) { p.remove(); return; }
