@@ -2282,6 +2282,13 @@ function renderBudgetList() {
         background: #fff !important;
       }
 
+      #whyTip {
+        position: fixed; z-index: 10002; padding: 8px 10px; border-radius: 8px;
+        background: #1f2937; color: #fff; font-size: 12px; line-height: 1.35;
+        box-shadow: 0 6px 18px rgba(0,0,0,.2);
+      }
+      .bdg-d-table td[data-why] { cursor: help; }
+
       /* agrandissement d'un bloc */
       .blk-max-btn .ic-min { display: none; }
       .blk-max-btn.on .ic-max { display: none; }
@@ -4525,15 +4532,17 @@ function renderBudgetList() {
               <td>${esc(l.detail)}</td>
               <td class="center ${prd && (l.members.some(unitMismatch) || l.members.some(m => m.unitLocked)) ? "cell-warn" : ""}"
                   ${prd && l.members.some(unitMismatch)
-                    ? `title="Unité ${esc(l.unit)} : nombre de dimensions remplies incohérent"`
+                    ? `data-why="Unité ${esc(l.unit)} : le nombre de dimensions renseignées ne correspond pas (M3 = 3, M2 = 2, M = 1)."`
                     : prd && l.members.some(m => m.unitLocked)
-                      ? `title="Unité imposée par la désignation client"` : ""}>${esc(l.unit)}</td>
+                      ? `data-why="Clé primaire : unité reprise automatiquement de la désignation client, non modifiable."` : ""}>${esc(l.unit)}</td>
               ${
                 prd
                   ? `
-                    <td class="number ${dimMissing(l, -1) ? "cell-warn" : ""}">${esc(l.nbr)}</td>
+                    <td class="number ${dimMissing(l, -1) ? "cell-warn" : ""}"
+                        ${dimMissing(l, -1) ? `data-why="NBR non renseigné (obligatoire pour une unité ${esc(l.unit)})."` : ""}>${esc(l.nbr)}</td>
                     ${[0, 1, 2].map(i => `
-                      <td class="number ${dimMissing(l, i) ? "cell-warn" : ""}">${esc(l.dims[i])}</td>`).join("")}
+                      <td class="number ${dimMissing(l, i) ? "cell-warn" : ""}"
+                          ${dimMissing(l, i) ? `data-why="DIM ${i + 1} non renseignée (attendue pour une unité ${esc(l.unit)})."` : ""}>${esc(l.dims[i])}</td>`).join("")}
                   `
                   : ""
               }
@@ -4982,6 +4991,24 @@ function renderBudgetList() {
       w.document.close();
     };
 
+    /* bulle d'explication sur une case signalée */
+    const showWhy = td => {
+      document.getElementById("whyTip")?.remove();
+      const tip = document.createElement("div");
+      tip.id = "whyTip";
+      tip.textContent = td.dataset.why;
+      document.body.appendChild(tip);
+      const r = td.getBoundingClientRect();
+      const w = Math.min(280, window.innerWidth - 16);
+      tip.style.width = w + "px";
+      tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + "px";
+      const above = r.top - tip.offsetHeight - 8;
+      tip.style.top = (above > 8 ? above : r.bottom + 8) + "px";
+      const close = () => { tip.remove(); document.removeEventListener("click", close, true); };
+      setTimeout(() => document.addEventListener("click", close, true), 0);
+      setTimeout(close, 5000);
+    };
+
     /* agrandir un bloc : il occupe tout l'écran sous l'en-tête figé */
     const toggleMax = blk => {
       const page = shell.querySelector(".bdg-d-page");
@@ -5034,6 +5061,12 @@ function renderBudgetList() {
       /* ligne de Détail charge / Détail produit : filtre tout l'écran
          sur sa désignation, son lot, sa primaire et sa secondaire
          (re-toucher la ligne retire ces filtres) */
+      const why = event.target.closest("td[data-why]");
+      if (why) {
+        showWhy(why);
+        return;
+      }
+
       const toggle = (set, v) =>
         set.has(v) ? set.delete(v) : set.add(v);
 
