@@ -2423,6 +2423,12 @@ function renderBudgetList() {
       }
       .bdg-lay-btn[hidden] { display: none; }
 
+      /* titres de blocs plus bas */
+      .bdg-d-page .bdg-d-block-title { padding: 3px 10px 3px 8px; min-height: 28px; box-sizing: border-box; }
+      .bdg-d-page .blk-btn { width: 24px; height: 22px; }
+      .bdg-d-page .blk-grip { width: 18px; height: 18px; margin-right: 4px; }
+      .bdg-d-page .bdg-d-tab { padding: 6px 14px; }
+
       /* triangle « observations importantes » en haut à droite */
       .bdg-d-hright { margin-left: auto; display: flex; align-items: center; gap: 8px; }
       .bdg-alert-btn {
@@ -5688,14 +5694,14 @@ function renderBudgetList() {
     };
     /* colonnes : [clé, libellé, accesseur, classe] (même moteur que les autres tableaux) */
     const recCols = {
-      doc: [["rref", "N°", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
+      doc: [["rref", "RÉFÉRENCE", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
             ["rtitle", "INTITULÉ", r => r.title, ""], ["rfile", "DOCUMENT", r => r.name || "", ""]],
-      taf: [["rref", "N°", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
+      taf: [["rref", "RÉFÉRENCE", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
             ["robj", "OBJET TAF", r => r.objet || "", ""], ["rtext", "DESCRIPTIF TAF", r => r.text, ""],
             ["rresp", "RESPONSABLE", r => r.responsable, ""], ["rprev", "PRÉVU LE", r => fmtDT(r.prevu), ""],
             ["rdelay", "DÉLAI PLANIFIÉ", r => hm(new Date(r.prevu) - new Date(r.date)), "number"],
             ["relap", "DURÉE ÉCOULÉE", r => hm(Date.now() - new Date(r.date)), "number"]],
-      obs: [["rref", "N°", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
+      obs: [["rref", "RÉFÉRENCE", r => r.ref, ""], ["rdate", "DATE CRÉATION", r => fmtDT(r.date), ""],
             ["rimp", "!", r => r.important ? "!" : "", "center"], ["rtext", "OBSERVATION", r => r.text, ""]]
     };
     Object.assign(CW_DEF, {
