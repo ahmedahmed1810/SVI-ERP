@@ -6114,6 +6114,7 @@ function renderBudgetList() {
   table th, table td { font-size: 7.5pt !important; padding: 0.5mm 0.8mm; }
   /* clé primaire (quantité comptée) et sous-total par désignation */
   td.pk { font-weight: bold; }
+  td.gt { border-left: 1px dotted #999; border-right: 1px dotted #999; }
   /* avant métré : ligne de désignation et sous-titre (lot / activité) */
   tr.mdes td { font-weight: bold; border-top: 1.6px solid #000; }
   tr.msub td:nth-child(2) { font-style: italic; text-decoration: underline; }
@@ -6653,24 +6654,37 @@ function renderBudgetList() {
       const fmtD = v => { const m = String(v || "").match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : ""; };
       const a = $("bdgDelayStart")?.value || "", b = $("bdgDelayEnd")?.value || "";
       const days = ($("bdgDelayDays")?.textContent || "").replace("—", "").trim();
+      /* diagramme de Gantt à droite : une colonne par période
+         (mois entre début et fin du budget, sinon 12 semaines) */
+      const per = [];
+      const da = a ? new Date(a + "T00:00") : null, db2 = b ? new Date(b + "T00:00") : null;
+      const MO = ["JAN", "FÉV", "MAR", "AVR", "MAI", "JUN", "JUL", "AOÛ", "SEP", "OCT", "NOV", "DÉC"];
+      if (da && db2 && db2 >= da) {
+        const d = new Date(da.getFullYear(), da.getMonth(), 1);
+        while (d <= db2 && per.length < 24) { per.push(MO[d.getMonth()] + " " + String(d.getFullYear()).slice(2)); d.setMonth(d.getMonth() + 1); }
+      }
+      if (!per.length) for (let k = 1; k <= 12; k++) per.push("S" + k);
       const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
+      /* une ligne par lot / activité secondaire (activité primaire non affichée) */
+      const seen = new Set();
+      const rowsL = list.filter(c => { const k = U(c.lot) + "||" + U(c.sec); if (seen.has(k)) return false; seen.add(k); return true; });
       let body = "", prev = null;
-      list.forEach((c, i) => {
+      rowsL.forEach((c, i) => {
         const sameLot = prev && U(prev.lot) === U(c.lot);
-        const samePrim = sameLot && U(prev.prim) === U(c.prim);
-        const rep = esc(JSON.stringify([String(c.lot ?? ""), String(c.prim ?? "")]));
-        body += `<tr class="${sameLot ? "lnext" : "gfirst"}${samePrim ? " pnext" : ""}"${i ? ` data-rep="${rep}"` : ""}>` +
-          td(sameLot ? "" : esc(c.lot), "lc") + td(samePrim ? "" : esc(c.prim), "pc") +
-          td(esc(c.sec)) + td(esc(unitOf(c)), "c") + td("", "c") + td("", "c") + td("", "r") + "</tr>";
+        const rep = esc(JSON.stringify([String(c.lot ?? "")]));
+        body += `<tr class="${sameLot ? "lnext" : "gfirst"}"${i ? ` data-rep="${rep}"` : ""}>` +
+          td(sameLot ? "" : esc(c.lot), "lc") + td(esc(c.sec)) + td(esc(unitOf(c)), "c") +
+          td("", "c") + td("", "c") + td("", "r") + per.map(() => td("", "gt")).join("") + "</tr>";
         prev = c;
       });
+      const left = [12, 18, 4, 7, 7, 5], gw = (100 - left.reduce((t, x) => t + x, 0)) / per.length;
       printModel({
         branch: "DÉTAIL DÉLAIS", docTitle: "DÉTAIL DÉLAIS", fileTag: "DETAIL DELAIS", headLine: "DÉTAIL DÉLAIS",
-        table: `<table id="tpl"><colgroup><col style="width:17%"><col style="width:22%"><col style="width:22%"><col style="width:5%">
-            <col style="width:11%"><col style="width:11%"><col style="width:12%"></colgroup>
-          <thead><tr><th colspan="4">TÂCHES</th><th colspan="3">DÉLAIS</th></tr>
-            <tr><th class="sub">LOT</th><th class="sub">ACTIVITÉ PRIMAIRE</th><th class="sub">ACTIVITÉ SECONDAIRE</th><th class="sub">U</th>
-            <th class="sub">DATE DÉBUT</th><th class="sub">DATE FIN</th><th class="sub">DÉLAI (JOURS)</th></tr></thead>
+        table: `<table id="tpl"><colgroup>${left.map(w => `<col style="width:${w}%">`).join("")}${per.map(() => `<col style="width:${gw.toFixed(2)}%">`).join("")}</colgroup>
+          <thead><tr><th colspan="3">TÂCHES</th><th colspan="3">DÉLAIS</th><th colspan="${per.length}">DIAGRAMME DE GANTT</th></tr>
+            <tr><th class="sub">LOT</th><th class="sub">ACTIVITÉ SECONDAIRE</th><th class="sub">U</th>
+            <th class="sub">DÉBUT</th><th class="sub">FIN</th><th class="sub">JOURS</th>
+            ${per.map(x => `<th class="sub">${esc(x)}</th>`).join("")}</tr></thead>
           <tbody>${body}</tbody></table>`,
         end: `<div class="tot">
             <div><span>DATE DÉBUT DU BUDGET :</span><b>${esc(fmtD(a))}</b></div>
