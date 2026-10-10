@@ -6047,7 +6047,10 @@ function renderBudgetList() {
   td.c { text-align: center; } td.r { text-align: right; }
   td.rep { color: #555; font-style: italic; }
   tr.gfirst td { border-top: 1.6px solid #000; }
-  tr.gnext td.gc, tr.lnext td.lc, tr.pnext td.pc { border-top-style: hidden; }
+  tr.gnext td.gc, tr.lnext td.lc, tr.pnext td.pc, tr.snext td.sc { border-top-style: hidden; }
+  /* tableau large (décomposition + détail produits) : texte plus petit */
+  table.dense th, table.dense td { font-size: 7.5pt; padding: 0.5mm 0.8mm; }
+  table.dense th { padding-top: 1.2mm; padding-bottom: 1.2mm; }
   .tot { margin-top: 2mm; display: flex; flex-direction: column; align-items: flex-end; }
   .tot div { display: flex; }
   .tot span { padding: 1mm 2mm; text-align: right; }
@@ -6169,7 +6172,7 @@ function renderBudgetList() {
         cur.tb.removeChild(r); cur = newPage(true); cur.tb.appendChild(r);
         /* ligne de suite d'un groupe en haut de page : on rappelle le groupe */
         /* première ligne de la page : trait du haut toujours visible */
-        r.classList.remove("gnext", "lnext", "pnext");
+        r.classList.remove("gnext", "lnext", "pnext", "snext");
         if (r.dataset.rep) JSON.parse(r.dataset.rep).forEach((v, k) => {
           if (!r.cells[k].textContent.trim() && v) { r.cells[k].textContent = v; r.cells[k].classList.add("rep"); }
         });
@@ -6520,7 +6523,7 @@ function renderBudgetList() {
         return [...new Set(use.map(l => U(l.dunit || l.unit)).filter(Boolean))].join(" / ");
       };
       const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
-      let body = "";
+      let body = "", totHT = 0, totTVA = 0;
       groups.forEach(g => {
         const members = g.members || [];
         const combos = new Map();
@@ -6531,27 +6534,57 @@ function renderBudgetList() {
         const list = [...combos.values()].sort((a, b) =>
           o(lotOrd, a.lot) - o(lotOrd, b.lot) || o(primOrd, a.prim) - o(primOrd, b.prim) || o(secOrd, a.sec) - o(secOrd, b.sec));
         if (!list.length) list.push({ lot: "", prim: "", sec: "" });
-        /* valeurs répétées laissées vides (désignation, lot, activité primaire) */
+        /* une ligne par produit de l'activité secondaire (colonnes du détail produits) ;
+           valeurs répétées laissées vides (désignation, lot, activités) */
+        const rowsG = [];
+        list.forEach(c => {
+          const prods = members.filter(l => l.kind === "prd" &&
+            U(l.lot) === U(c.lot) && U(l.prim) === U(c.prim) && U(l.sec) === U(c.sec));
+          if (prods.length) prods.forEach(l => rowsG.push({ c, l }));
+          else rowsG.push({ c, l: null });
+        });
         let prev = null;
-        list.forEach((c, i) => {
+        rowsG.forEach(({ c, l }, i) => {
           const sameLot = prev && U(prev.lot) === U(c.lot);
           const samePrim = sameLot && U(prev.prim) === U(c.prim);
-          const full = [String(g.article ?? ""), String(g.designation ?? ""), String(g.unit ?? ""), String(c.lot ?? ""), String(c.prim ?? "")];
-          body += `<tr class="${i ? "gnext" : "gfirst"}${sameLot ? " lnext" : ""}${samePrim ? " pnext" : ""}"${i ? ` data-rep="${esc(JSON.stringify(full))}"` : ""}>` +
+          const sameSec = samePrim && U(prev.sec) === U(c.sec);
+          const full = [String(g.article ?? ""), String(g.designation ?? ""), String(g.unit ?? ""),
+            String(c.lot ?? ""), String(c.prim ?? ""), String(c.sec ?? "")];
+          const num = v => (v === null || v === undefined || v === "") ? "" : esc(money(v));
+          const dim = v => esc(String(v ?? ""));
+          const pr = l ? [
+            td(esc(l.detail)), td(esc(l.dunit || l.unit), "c"), td(dim(l.nbr), "r"),
+            td(dim(l.dims[0]), "r"), td(dim(l.dims[1]), "r"), td(dim(l.dims[2]), "r"),
+            td(num(l.qty), "r"), td(num(l.price), "r"), td(num(l.amount), "r"),
+            td(esc(money(Number(l.tva) || 0)) + " %", "r"), td(num(l.amount + tvaFor(l)), "r")
+          ].join("") : td("") + td("") + td("") + td("") + td("") + td("") + td("") + td("") + td("") + td("") + td("");
+          if (l) { totHT += l.amount; totTVA += tvaFor(l); }
+          body += `<tr class="${i ? "gnext" : "gfirst"}${sameLot ? " lnext" : ""}${samePrim ? " pnext" : ""}${sameSec ? " snext" : ""}"${i ? ` data-rep="${esc(JSON.stringify(full))}"` : ""}>` +
             td(i ? "" : esc(g.article), "c gc") + td(i ? "" : esc(g.designation), "gc") + td(i ? "" : esc(g.unit), "c gc") +
             td(sameLot ? "" : esc(c.lot), "lc") + td(samePrim ? "" : esc(c.prim), "pc") +
-            td(esc(c.sec)) + td(esc(unitOf(members, l => l.sec, c.sec)), "c") + "</tr>";
+            td(sameSec ? "" : esc(c.sec), "sc") + pr + "</tr>";
           prev = c;
         });
       });
       printModel({
         branch: "TÂCHES", docTitle: "DÉCOMPOSITION DU PROJET", fileTag: "DECOMPOSITION DU PROJET", headLine: "DÉCOMPOSITION DU PROJET",
-        table: `<table id="tpl"><colgroup><col style="width:5%"><col style="width:30%"><col style="width:5%"><col style="width:15%">
-          <col style="width:20%"><col style="width:20%"><col style="width:5%"></colgroup>
-          <thead><tr><th>ART.</th><th>DESIGNATION</th><th>UPB</th><th>LOT</th>
-            <th>ACTIVITÉ PRIMAIRE</th><th>ACTIVITÉ SECONDAIRE</th><th>U</th></tr></thead>
+        table: `<table id="tpl" class="dense"><colgroup>
+            <col style="width:3%"><col style="width:13%"><col style="width:3%"><col style="width:7%">
+            <col style="width:9%"><col style="width:9%"><col style="width:12%"><col style="width:3%">
+            <col style="width:3%"><col style="width:3.5%"><col style="width:3.5%"><col style="width:3.5%">
+            <col style="width:5%"><col style="width:5%"><col style="width:6.5%"><col style="width:4%"><col style="width:6.5%"></colgroup>
+          <thead><tr><th colspan="6">DÉSIGNATION CLIENT ET TÂCHES</th><th colspan="11">DÉTAIL PRODUITS</th></tr>
+            <tr><th class="sub">ART.</th><th class="sub">DESIGNATION</th><th class="sub">UPB</th><th class="sub">LOT</th>
+            <th class="sub">ACTIVITÉ PRIMAIRE</th><th class="sub">ACTIVITÉ SECONDAIRE</th>
+            <th class="sub">DÉSIGNATION</th><th class="sub">UPB</th><th class="sub">NBR</th><th class="sub">DIM 1</th>
+            <th class="sub">DIM 2</th><th class="sub">DIM 3</th><th class="sub">QPB</th><th class="sub">PPB</th>
+            <th class="sub">MPB HT</th><th class="sub">TVA %</th><th class="sub">MPB TTC</th></tr></thead>
           <tbody>${body}</tbody></table>`,
-        end: ""
+        end: `<div class="tot">
+            <div><span>TOTAL H.T. :</span><b>${money(totHT)}</b></div>
+            <div><span>TOTAL T.V.A. :</span><b>${money(totTVA)}</b></div>
+            <div><span>TOTAL T.T.C. :</span><b>${money(totHT + totTVA)}</b></div>
+          </div>`
       });
     };
 
