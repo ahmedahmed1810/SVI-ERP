@@ -5358,6 +5358,8 @@ function renderBudgetList() {
     const roStart = (event, el) => {
       const isRow = el.tagName === "TR";
       const t = isRow ? "client" : el.dataset.h;
+      /* tri choisi en cours : il garde la main, pas de glissement */
+      if (CF[t] && CF[t].sort && !CF[t].sort.def) return;
       const keyOf = x => isRow ? x.dataset.desig : x.dataset.v;
       const sibs = () => isRow
         ? [...el.parentElement.querySelectorAll("tr[data-desig]")]
@@ -5413,8 +5415,6 @@ function renderBudgetList() {
         /* lignes masquées par un filtre : gardent leur rang après les visibles */
         all[t] = [...keys, ...(all[t] || []).filter(k => !keys.includes(k))];
         roSave(all);
-        const st = cfT(t);
-        if (st.sort && !st.sort.def) st.sort = null;
         histLog(t === "client" ? "DÉSIGNATIONS CLIENT" : "TÂCHES", "ORDRE DES LIGNES", keyOf(el).split("||").pop());
         refreshAll();
       };
