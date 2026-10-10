@@ -6,10 +6,7 @@
    2) Dans la fonction doPost(e) existante, juste après la lecture
       du corps et le contrôle de la clé, ajouter la ligne :
 
-        var drv = sviDriveRoute_(body); if (drv) return drv;
-
-      (remplacer « body » par le nom de la variable qui contient
-       le JSON reçu, par exemple data ou req.)
+        const drv = sviDriveRoute_(payload); if (drv) return drv;
    3) Déployer › Gérer les déploiements › ✏️ › Version : Nouvelle
       version › Déployer (garder la même URL).
       À la première exécution, Google demande d'autoriser l'accès
@@ -19,10 +16,12 @@
 /* actions Drive : exportSheet (feuille Google mise en forme)
    et saveFile (PDF, Excel, CSV, JSON, documents joints) */
 function sviDriveRoute_(body) {
-  if (!body || (body.action !== "exportSheet" && body.action !== "saveFile")) return null;
+  if (!body || ["exportSheet", "saveFile", "drivePath"].indexOf(body.action) < 0) return null;
   var out;
   try {
-    out = body.action === "exportSheet" ? exportSheet_(body) : saveFile_(body);
+    out = body.action === "exportSheet" ? exportSheet_(body)
+      : body.action === "saveFile" ? saveFile_(body)
+      : { ok: true, path: sviPathOf_(sviFolder_(body.path)) };
   } catch (err) {
     out = { ok: false, error: String(err && err.message || err) };
   }
@@ -31,10 +30,23 @@ function sviDriveRoute_(body) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-/* dossier « A/B/C » depuis Mon Drive, créé si besoin */
+/* dossier de destination :
+   - lien Google Drive d'un dossier (…/folders/ID) : ce dossier
+   - lien d'un fichier (…/d/ID/… ou ?id=ID) : le dossier qui le contient
+   - chemin « A/B/C » depuis Mon Drive : dossiers créés si besoin */
 function sviFolder_(path) {
+  var s = String(path || "").trim();
+  var m = s.match(/\/folders\/([A-Za-z0-9_-]{10,})/);
+  if (m) return DriveApp.getFolderById(m[1]);
+  m = s.match(/\/d\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+  if (m) {
+    try { return DriveApp.getFolderById(m[1]); } catch (e) {}
+    var parents = DriveApp.getFileById(m[1]).getParents();
+    return parents.hasNext() ? parents.next() : DriveApp.getRootFolder();
+  }
+  if (/^https?:/i.test(s)) throw new Error("LIEN DRIVE NON RECONNU");
   var folder = DriveApp.getRootFolder();
-  String(path || "").split("/").forEach(function (part) {
+  s.split("/").forEach(function (part) {
     part = part.trim();
     if (!part) return;
     var it = folder.getFoldersByName(part);
@@ -43,13 +55,27 @@ function sviFolder_(path) {
   return folder;
 }
 
+/* chemin lisible « A/B/C » d'un dossier, depuis Mon Drive */
+function sviPathOf_(folder) {
+  var rootId = DriveApp.getRootFolder().getId();
+  var names = [];
+  var f = folder;
+  for (var i = 0; i < 30 && f && f.getId() !== rootId; i++) {
+    names.unshift(f.getName());
+    var it = f.getParents();
+    f = it.hasNext() ? it.next() : null;
+  }
+  return names.join("/");
+}
+
 /* fichier reçu en base64, rangé dans le dossier choisi */
 function saveFile_(b) {
   var name = String(b.name || "FICHIER").trim();
   var bytes = Utilities.base64Decode(String(b.data || ""));
   var blob = Utilities.newBlob(bytes, b.mime || "application/octet-stream", name);
-  var file = sviFolder_(b.path).createFile(blob);
-  return { ok: true, url: file.getUrl(), id: file.getId(), path: b.path || "" };
+  var folder = sviFolder_(b.path);
+  var file = folder.createFile(blob);
+  return { ok: true, url: file.getUrl(), id: file.getId(), path: sviPathOf_(folder) };
 }
 
 function exportSheet_(b) {
@@ -143,5 +169,5 @@ function exportSheet_(b) {
   if (sh.getMaxColumns() > nc) sh.deleteColumns(nc + 1, sh.getMaxColumns() - nc);
 
   SpreadsheetApp.flush();
-  return { ok: true, url: ss.getUrl(), id: ss.getId(), path: b.path || "" };
+  return { ok: true, url: ss.getUrl(), id: ss.getId(), path: sviPathOf_(folder) };
 }
