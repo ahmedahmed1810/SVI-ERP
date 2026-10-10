@@ -444,13 +444,17 @@ async function apiPost(action, data = {}) {
 
 const DRIVE_PATHS_KEY = "svi_drivepaths_v1";
 
+/* un lien Google (https://…) n'est jamais gardé : on garde le chemin court */
+const driveIsLink = p => /^https?:|:\/\//i.test(String(p || ""));
+
 function drivePaths() {
-  try { return JSON.parse(localStorage.getItem(DRIVE_PATHS_KEY) || "[]") || []; }
-  catch (e) { return []; }
+  try {
+    return (JSON.parse(localStorage.getItem(DRIVE_PATHS_KEY) || "[]") || []).filter(x => x && !driveIsLink(x));
+  } catch (e) { return []; }
 }
 
 function drivePathAdd(path) {
-  if (!path) return;
+  if (!path || driveIsLink(path)) return;
   try {
     const rec = drivePaths().filter(x => x !== path);
     rec.unshift(path);
@@ -469,8 +473,22 @@ function driveLastPath(project, fullRef) {
   return drivePaths()[0] || driveDefaultPath(project, fullRef);
 }
 
+/* lien collé : gardé tel quel (le script retrouve le dossier) ;
+   chemin tapé : nettoyé et mis en majuscules */
 function driveCleanPath(p) {
-  return String(p || "").trim().replace(/^\/+|\/+$/g, "").replace(/\s*\/\s*/g, "/");
+  const s = String(p || "").trim();
+  if (driveIsLink(s)) return s;
+  return s.replace(/^\/+|\/+$/g, "").replace(/\s*\/\s*/g, "/").toUpperCase();
+}
+
+/* ligne DOSSIER DRIVE (libellé + champ) affichée ou masquée */
+function drivePathRow(root, sel, on) {
+  const inp = root.querySelector(sel);
+  if (!inp) return;
+  const box = inp.closest(".fld-wrap") || inp;
+  const lab = root.querySelector(`label[for="${inp.id}"]`);
+  box.hidden = !on; box.style.display = on ? "" : "none";
+  if (lab) { lab.hidden = !on; lab.style.display = on ? "" : "none"; }
 }
 
 function blobToB64(blob) {
@@ -489,7 +507,9 @@ async function driveSave(blob, name, path) {
   const out = await apiPost("saveFile", {
     name, path: driveCleanPath(path), mime: blob.type || "application/octet-stream", data
   });
-  drivePathAdd(driveCleanPath(path));
+  /* chemin court renvoyé par le script (lien collé converti en A/B/C) */
+  out.path = out.path || driveCleanPath(path);
+  drivePathAdd(out.path);
   return out;
 }
 window.__sviDriveSave = driveSave;
@@ -5788,27 +5808,37 @@ function renderBudgetList() {
               <label class="doc-lab" for="fdName">NOM DU FICHIER</label>
               <input id="fdName" class="doc-in" type="text" autocomplete="off" value="${esc(name)}">
               <label class="doc-lab" for="fdPath">DOSSIER DRIVE</label>
-              <input id="fdPath" class="doc-in" type="text" autocomplete="off" value="${esc(path)}">
+              <input id="fdPath" class="doc-in" type="text" autocomplete="off" data-keepcase value="${esc(path)}">
             </div>
             <div class="doc-err fd-msg" id="fdMsg"></div>
           </div>
           <div class="doc-foot">
             <button type="button" class="doc-btn" data-cancel>ANNULER</button>
-            ${buttons.map(b => `<button type="button" class="doc-btn${b.primary ? " doc-save" : ""}" data-act="${b.key}">${esc(b.label)}</button>`).join("")}
+            ${buttons.map(b => `<button type="button" class="doc-btn${b.primary ? " doc-save" : ""}" data-act="${b.key}"${b.drive ? " data-drive" : ""}>${esc(b.label)}</button>`).join("")}
           </div>
         </div>`;
       document.body.appendChild(p);
       popEnhance(p, "save");
+      drivePathRow(p, "#fdPath", false);
       const msg = p.querySelector("#fdMsg");
       const ui = {
         msg: (t, kind) => { msg.innerHTML = t; msg.className = "doc-err fd-msg" + (kind ? " " + kind : ""); },
         close: () => p.remove(),
-        busy: (k, on) => { const b = p.querySelector(`[data-act="${k}"]`); if (b) b.disabled = on; }
+        busy: (k, on) => { const b = p.querySelector(`[data-act="${k}"]`); if (b) b.disabled = on; },
+        setPath: v => { if (v) p.querySelector("#fdPath").value = v; }
       };
+      let pathShown = false;
       p.addEventListener("click", e => {
         if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
         const b = e.target.closest("[data-act]");
         if (!b || b.disabled) return;
+        /* 1er toucher sur le Drive : le dossier s'affiche ; 2e : enregistrement */
+        if (b.dataset.drive !== undefined && !pathShown) {
+          pathShown = true;
+          drivePathRow(p, "#fdPath", true);
+          b.textContent = "ENREGISTRER";
+          return;
+        }
         onAct(b.dataset.act, {
           name: p.querySelector("#fdName").value.trim(),
           path: driveCleanPath(p.querySelector("#fdPath").value)
@@ -5838,7 +5868,7 @@ function renderBudgetList() {
       fileDialog({
         title: "ENREGISTRER LE FICHIER " + ext.toUpperCase().replace(".", ""),
         name: stem, path: driveLastPath(budget.project, fullRef),
-        buttons: [{ key: "device", label: "SUR L'IPAD" }, { key: "drive", label: "DANS LE DRIVE", primary: true }],
+        buttons: [{ key: "device", label: "SUR L'IPAD" }, { key: "drive", label: "DANS LE DRIVE", primary: true, drive: true }],
         onAct: async (k, v, ui) => {
           const nm = (v.name || stem).replace(/[\\/:*?"<>|]+/g, "-") + ext;
           if (k === "device") { saveDevice(nm, blob); ui.close(); return; }
@@ -5846,8 +5876,9 @@ function renderBudgetList() {
           ui.msg("ENVOI DANS LE DRIVE…");
           try {
             const out = await driveSave(blob, nm, v.path);
-            histLog("FICHIER", "DRIVE", (v.path ? v.path + "/" : "") + nm);
-            ui.msg(`ENREGISTRÉ : ${esc((v.path || "MON DRIVE") + "/" + nm)}` +
+            histLog("FICHIER", "DRIVE", (out.path ? out.path + "/" : "") + nm);
+            ui.setPath(out.path);
+            ui.msg(`ENREGISTRÉ : ${esc((out.path || "MON DRIVE") + "/" + nm)}` +
               (out.url ? ` — <a href="${esc(out.url)}" target="_blank" rel="noopener">OUVRIR</a>` : ""), "ok");
           } catch (err) {
             ui.msg("ÉCHEC : " + esc(driveErrText(err)));
@@ -5950,8 +5981,8 @@ function renderBudgetList() {
           widths: SZ.wch.map(x => Math.round(x * 7.5 + 5)),
           headHeight: Math.round(SZ.hpt * 4 / 3)
         });
-        histLog(blkLabel(blk), "EXPORT", "GOOGLE SHEETS — " + rows.length + " LIGNE(S) — " + (path ? path + "/" : "") + name);
-        drivePathAdd(path);
+        histLog(blkLabel(blk), "EXPORT", "GOOGLE SHEETS — " + rows.length + " LIGNE(S) — " + (out.path ? out.path + "/" : "") + name);
+        drivePathAdd(out.path || path);
         if (w) w.location.href = out.url; else window.open(out.url, "_blank");
       } catch (e) {
         const m = String(e && e.message || e);
@@ -5963,7 +5994,7 @@ function renderBudgetList() {
       fileDialog({
         title: "GOOGLE SHEETS — " + String(blkLabel(blk)).toUpperCase(),
         name: docName, path: driveLastPath(budget.project, fullRef),
-        buttons: [{ key: "paste", label: "COPIER (FEUILLE SANS NOM)" }, { key: "go", label: "CRÉER DANS LE DRIVE", primary: true }],
+        buttons: [{ key: "paste", label: "COPIER (FEUILLE SANS NOM)" }, { key: "go", label: "CRÉER DANS LE DRIVE", primary: true, drive: true }],
         onAct: (k, v, ui) => {
           ui.close();
           if (k === "go") sendToDrive(blk, v.name, v.path);
@@ -5981,8 +6012,9 @@ function renderBudgetList() {
       ui && ui.msg("ENVOI DANS LE DRIVE…");
       try {
         const out = await driveSave(blob, name, dest.path);
-        histLog("FICHIER", "DRIVE", (dest.path ? dest.path + "/" : "") + name);
-        ui && ui.msg(`ENREGISTRÉ : ${esc((dest.path || "MON DRIVE") + "/" + name)}` +
+        histLog("FICHIER", "DRIVE", (out.path ? out.path + "/" : "") + name);
+        ui && ui.setPath && ui.setPath(out.path);
+        ui && ui.msg(`ENREGISTRÉ : ${esc((out.path || "MON DRIVE") + "/" + name)}` +
           (out.url ? ` — <a href="${esc(out.url)}" target="_blank" rel="noopener">OUVRIR</a>` : ""), "ok");
       } catch (err) {
         ui && ui.msg("ÉCHEC : " + esc(driveErrText(err)));
@@ -6179,7 +6211,7 @@ function renderBudgetList() {
               <label class="doc-lab" for="fdName">NOM DU FICHIER</label>
               <input id="fdName" class="doc-in" type="text" autocomplete="off" value="${esc((fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-"))}">
               <label class="doc-lab" for="fdPath">DOSSIER DRIVE</label>
-              <input id="fdPath" class="doc-in" type="text" autocomplete="off" value="${esc(path0)}">
+              <input id="fdPath" class="doc-in" type="text" autocomplete="off" data-keepcase value="${esc(path0)}">
             </div>
             <div class="fmt-choice fmt-grid">
               <button type="button" class="doc-btn fmt-btn on" data-fmt="xlsx">EXCEL</button>
@@ -6197,10 +6229,13 @@ function renderBudgetList() {
         </div>`;
       document.body.appendChild(p);
       popEnhance(p, "export");
+      drivePathRow(p, "#fdPath", false);
+      let pathShown = false;
       const msg = p.querySelector("#fdMsg");
       const ui = {
         msg: (t, kind) => { msg.innerHTML = t; msg.className = "doc-err fd-msg" + (kind ? " " + kind : ""); },
-        close: () => p.remove()
+        close: () => p.remove(),
+        setPath: v => { if (v) p.querySelector("#fdPath").value = v; }
       };
       const devBtn = p.querySelector('[data-act="device"]');
       p.addEventListener("click", async e => {
@@ -6216,6 +6251,13 @@ function renderBudgetList() {
         }
         const b = e.target.closest("[data-act]");
         if (!b || b.disabled) return;
+        /* DANS LE DRIVE : 1er toucher = choix du dossier, 2e = enregistrement */
+        if (b.dataset.act === "drive" && !pathShown) {
+          pathShown = true;
+          drivePathRow(p, "#fdPath", true);
+          b.textContent = "ENREGISTRER";
+          return;
+        }
         const name = (p.querySelector("#fdName").value.trim() || fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-");
         const path = driveCleanPath(p.querySelector("#fdPath").value);
         if (fmt === "gsheet") { p.remove(); sendToDrive(blk, name, path); return; }
@@ -6475,6 +6517,7 @@ function renderBudgetList() {
   #saveOpts .sv-x { border: 0; background: none; font-size: 16px; cursor: pointer; color: #374151; }
   #saveOpts .sv-body { padding: 16px 18px 12px; display: grid; grid-template-columns: max-content 1fr; gap: 12px; align-items: center; }
   #saveOpts .sv-lab { font-size: 11px; font-weight: 800; color: #4b5563; white-space: nowrap; }
+  #saveOpts input[data-keepcase] { text-transform: none; }
   #saveOpts input[type=text] { height: 34px; border: 1px solid #d6dbe3; border-radius: 6px; padding: 0 10px;
     font-size: 12px; text-transform: uppercase; min-width: 0; }
   #saveOpts .sv-ck { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
@@ -6591,7 +6634,7 @@ function renderBudgetList() {
       <span class="sv-lab">DRIVE</span>
       <label class="sv-ck"><input type="checkbox" id="svDriveOn" checked> COPIE DANS LE DRIVE</label>
       <label class="sv-lab" for="svPath">DOSSIER DRIVE</label>
-      <input type="text" id="svPath" value="${esc(driveLastPath(budget.project, fullRef))}">
+      <input type="text" id="svPath" data-keepcase value="${esc(driveLastPath(budget.project, fullRef))}">
     </div>
     <div class="sv-foot"><button type="button" class="sv-btn" id="svCancel">ANNULER</button>
       <button type="button" class="sv-btn sv-ok" id="svGo">ENREGISTRER</button></div>
@@ -6938,14 +6981,14 @@ function renderBudgetList() {
       : "NON ENREGISTRÉ DANS DOCUMENTS" + (err ? " (" + err + ")" : "");
     /* copie dans le Drive, dans le dossier choisi */
     if (saved && $("svDriveOn").checked && window.opener && !window.opener.closed && window.opener.__sviDriveSave) {
-      const path = $("svPath").value.trim().toUpperCase();
+      const path = $("svPath").value.trim();
       const bar = $("savedRef");
       bar.textContent = "ENREGISTRÉ DANS DOCUMENTS : " + saved + " — ENVOI DANS LE DRIVE…";
       try {
         const r = await window.opener.__sviDriveSave(blob, name, path);
         bar.innerHTML = "ENREGISTRÉ DANS DOCUMENTS : " + saved + " — DRIVE : " +
-          (path || "MON DRIVE").replace(/[<>&]/g, "") + (r.url ? ' <a href="' + r.url + '" target="_blank" rel="noopener">OUVRIR</a>' : "");
-        try { window.opener.__sviDocSetDrive && window.opener.__sviDocSetDrive(saved, r.url, path); } catch (e) {}
+          (r.path || "MON DRIVE").replace(/[<>&]/g, "") + (r.url ? ' <a href="' + r.url + '" target="_blank" rel="noopener">OUVRIR</a>' : "");
+        try { window.opener.__sviDocSetDrive && window.opener.__sviDocSetDrive(saved, r.url, r.path); } catch (e) {}
       } catch (e) {
         bar.textContent = "ENREGISTRÉ DANS DOCUMENTS : " + saved + " — PAS DANS LE DRIVE (" + (e && e.message ? e.message : e) + ")";
       }
@@ -6969,6 +7012,14 @@ function renderBudgetList() {
     $("saveOpts").hidden = false;
   };
   $("svX").onclick = $("svCancel").onclick = () => { $("saveOpts").hidden = true; };
+  /* dossier Drive affiché seulement si la copie Drive est cochée */
+  const svRow = () => {
+    const on = $("svDriveOn").checked;
+    $("svPath").style.display = on ? "" : "none";
+    document.querySelector('label[for="svPath"]').style.display = on ? "" : "none";
+  };
+  $("svDriveOn").onchange = svRow;
+  svRow();
   $("svGo").onclick = async () => {
     if (!lastPdf) return;
     $("saveOpts").hidden = true;
@@ -7557,10 +7608,13 @@ function renderBudgetList() {
                 <button type="button" class="doc-btn" id="docPick">TÉLÉCHARGER</button>
                 <span id="docName" class="doc-fname">AUCUN DOCUMENT SÉLECTIONNÉ</span>
               </div>
-              <label class="doc-lab" for="docDrive">DOSSIER DRIVE</label>
+              <span class="doc-lab">DRIVE</span>
               <div class="doc-file">
-                <input id="docDrive" class="doc-in" type="text" value="${esc(driveLastPath(budget.project, fullRef))}" autocomplete="off" style="flex:1;min-width:0">
-                <label class="doc-lab" style="white-space:nowrap"><input type="checkbox" id="docDriveOn" checked> COPIE DRIVE</label>
+                <label class="doc-lab" style="white-space:nowrap;padding:0"><input type="checkbox" id="docDriveOn" checked> COPIE DANS LE DRIVE</label>
+              </div>
+              <label class="doc-lab" for="docDrive">DOSSIER DRIVE</label>
+              <div class="doc-file" id="docDriveRow">
+                <input id="docDrive" class="doc-in" type="text" data-keepcase value="${esc(driveLastPath(budget.project, fullRef))}" autocomplete="off" style="flex:1;min-width:0">
               </div>
             </div>
             <div id="docErr" class="doc-err"></div>
@@ -7586,6 +7640,15 @@ function renderBudgetList() {
           p.querySelector("#docRef").textContent = docRef;
         }
       });
+
+      /* dossier Drive affiché seulement si la copie Drive est cochée */
+      const docDriveRow = () => {
+        const on = p.querySelector("#docDriveOn").checked;
+        p.querySelector("#docDriveRow").style.display = on ? "" : "none";
+        p.querySelector('label[for="docDrive"]').style.display = on ? "" : "none";
+      };
+      p.querySelector("#docDriveOn").addEventListener("change", docDriveRow);
+      docDriveRow();
 
       p.querySelector("#docPick").addEventListener("click", () => {
         const inp = document.createElement("input");
@@ -7653,8 +7716,8 @@ function renderBudgetList() {
           driveSave(file, dname, dpath).then(out => {
             const l2 = docsLoad();
             const it = l2.find(x => x.ref === savedRef);
-            if (it) { it.drive = out.url || ""; it.drivePath = dpath; docsSave(l2); }
-            histLog("DOC", "DRIVE", savedRef + " → " + (dpath || "MON DRIVE") + "/" + dname);
+            if (it) { it.drive = out.url || ""; it.drivePath = out.path || ""; docsSave(l2); }
+            histLog("DOC", "DRIVE", savedRef + " → " + (out.path || "MON DRIVE") + "/" + dname);
           }).catch(err => alert("DOCUMENT " + savedRef + " ENREGISTRÉ SUR L'IPAD, MAIS PAS DANS LE DRIVE : " + driveErrText(err)));
         }
       });

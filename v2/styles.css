@@ -18,6 +18,9 @@ textarea {
   text-transform: uppercase;
 }
 
+/* champs où la casse compte (liens Google Drive) */
+input[data-keepcase] { text-transform: none; }
+
 /* =========================================================
    BARRE SUPERIEURE
    ========================================================= */
