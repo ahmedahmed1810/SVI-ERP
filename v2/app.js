@@ -4635,6 +4635,22 @@ function renderBudgetList() {
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
     };
 
+    /* enregistrement : sur iPad / iPhone, la feuille de partage permet
+       « Enregistrer dans Fichiers » › Google Drive, avec choix ou création
+       du dossier ; sinon, téléchargement classique */
+    const saveFile = (name, blob) => {
+      try {
+        const file = new File([blob], name, { type: blob.type });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], title: name }).catch(err => {
+            if (err && err.name !== "AbortError") download(name, blob);
+          });
+          return;
+        }
+      } catch (e) {}
+      download(name, blob);
+    };
+
     const loadXLSX = () => window.XLSX
       ? Promise.resolve(window.XLSX)
       : new Promise((ok, ko) => {
@@ -4675,17 +4691,20 @@ function renderBudgetList() {
           return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
         };
         const txt = [head, ...rows].map(r => r.map(cell).join(";")).join("\r\n");
-        download(base + ".csv", new Blob(["\ufeff" + txt], { type: "text/csv;charset=utf-8" }));
+        saveFile(base + ".csv", new Blob(["\ufeff" + txt], { type: "text/csv" }));
       } else if (fmt === "json") {
         const objs = rows.map(r => Object.fromEntries(head.map((h, i) => [h, r[i]])));
-        download(base + ".json", new Blob([JSON.stringify(objs, null, 2)], { type: "application/json" }));
+        saveFile(base + ".json", new Blob([JSON.stringify(objs, null, 2)], { type: "application/json" }));
       } else {
         try {
           const X = await loadXLSX();
           const ws = X.utils.aoa_to_sheet([head, ...rows]);
           const wb = X.utils.book_new();
           X.utils.book_append_sheet(wb, ws, blkLabel(blk).slice(0, 31));
-          X.writeFile(wb, base + ".xlsx");
+          const out = X.write(wb, { bookType: "xlsx", type: "array" });
+          saveFile(base + ".xlsx", new Blob([out], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          }));
         } catch (e) {
           alert(e.message);
         }
@@ -4706,6 +4725,7 @@ function renderBudgetList() {
     };
 
     const openExportMenu = blk => {
+      loadXLSX().catch(() => {});
       const p = popup(`
         <div class="blk-card">
           <button type="button" class="blk-x" data-close>✕</button>
