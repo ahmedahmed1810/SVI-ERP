@@ -6516,7 +6516,7 @@ function renderBudgetList() {
     /* mode "prd" : décomposition + détail produits (aperçu TÂCHES)
        mode "chg" : décomposition (avec U) + détail charges (aperçu DÉTAIL CHARGES) */
     const printTasks = (mode = "prd") => {
-      const CHG = mode === "chg";
+      const CHG = mode === "chg", PLAIN = mode === "plain";
       const src = lastShown.client;
       if (!src || !src.rows.length) { alert("Aucune désignation à afficher."); return; }
       const U = v => String(v ?? "").trim().toUpperCase();
@@ -6550,7 +6550,7 @@ function renderBudgetList() {
            valeurs répétées laissées vides (désignation, lot, activités) */
         const rowsG = [];
         list.forEach(c => {
-          const prods = members.filter(l => l.kind === (CHG ? "chg" : "prd") &&
+          const prods = PLAIN ? [] : members.filter(l => l.kind === (CHG ? "chg" : "prd") &&
             U(l.lot) === U(c.lot) && U(l.prim) === U(c.prim) && U(l.sec) === U(c.sec));
           if (prods.length) prods.forEach(l => rowsG.push({ c, l }));
           else rowsG.push({ c, l: null });
@@ -6564,7 +6564,7 @@ function renderBudgetList() {
             String(c.lot ?? ""), String(c.prim ?? ""), String(c.sec ?? "")];
           const num = v => (v === null || v === undefined || v === "") ? "" : esc(money(v));
           const dim = v => esc(String(v ?? ""));
-          const pr = CHG
+          const pr = PLAIN ? "" : CHG
             ? (l ? [
                 td(esc(l.detail)), td(esc(l.dunit || l.unit), "c"),
                 td(num(l.qty), "r"), td(num(l.price), "r"), td(num(l.amount), "r"),
@@ -6576,8 +6576,9 @@ function renderBudgetList() {
                 td(num(l.qty), "r"), td(num(l.price), "r"), td(num(l.amount), "r"),
                 td(esc(money(Number(l.tva) || 0)) + " %", "r"), td(num(l.amount + tvaFor(l)), "r")
               ].join("") : td("").repeat(11));
-          const uSec = CHG ? td(sameSec ? "" : esc(unitOf(members, x => x.sec, c.sec)), "c sc") : "";
+          const uSec = (CHG || PLAIN) ? td(sameSec ? "" : esc(unitOf(members, x => x.sec, c.sec)), "c sc") : "";
           if (l) { totHT += l.amount; totTVA += tvaFor(l); }
+
           body += `<tr class="${i ? "gnext" : "gfirst"}${sameLot ? " lnext" : ""}${samePrim ? " pnext" : ""}${sameSec ? " snext" : ""}"${i ? ` data-rep="${esc(JSON.stringify(full))}"` : ""}>` +
             td(i ? "" : esc(g.article), "c gc") + td(i ? "" : esc(g.designation), "gc") + td(i ? "" : esc(g.unit), "c gc") +
             td(sameLot ? "" : esc(c.lot), "lc") + td(samePrim ? "" : esc(c.prim), "pc") +
@@ -6585,6 +6586,18 @@ function renderBudgetList() {
           prev = c;
         });
       });
+      if (PLAIN) {
+        printModel({
+          branch: "TÂCHES", docTitle: "DÉCOMPOSITION DU PROJET", fileTag: "DECOMPOSITION DU PROJET", headLine: "DÉCOMPOSITION DU PROJET",
+          table: `<table id="tpl"><colgroup><col style="width:5%"><col style="width:30%"><col style="width:5%"><col style="width:15%">
+              <col style="width:20%"><col style="width:20%"><col style="width:5%"></colgroup>
+            <thead><tr><th>ART.</th><th>DESIGNATION</th><th>UPB</th><th>LOT</th>
+              <th>ACTIVITÉ PRIMAIRE</th><th>ACTIVITÉ SECONDAIRE</th><th>U</th></tr></thead>
+            <tbody>${body}</tbody></table>`,
+          end: ""
+        });
+        return;
+      }
       if (CHG) {
         printModel({
           branch: "DÉTAIL CHARGES", docTitle: "DÉTAIL CHARGES", fileTag: "DETAIL CHARGES", headLine: "DÉTAIL CHARGES",
@@ -6607,7 +6620,7 @@ function renderBudgetList() {
         return;
       }
       printModel({
-        branch: "TÂCHES", docTitle: "DÉCOMPOSITION DU PROJET", fileTag: "DECOMPOSITION DU PROJET", headLine: "DÉCOMPOSITION DU PROJET",
+        branch: "DÉTAIL PRODUITS", docTitle: "DÉTAIL PRODUITS", fileTag: "DETAIL PRODUITS", headLine: "DÉTAIL PRODUITS",
         table: `<table id="tpl" class="dense"><colgroup>
             <col style="width:3%"><col style="width:13%"><col style="width:3%"><col style="width:7%">
             <col style="width:9%"><col style="width:9%"><col style="width:12%"><col style="width:3%">
@@ -6676,8 +6689,9 @@ function renderBudgetList() {
 
     const doPdf = blk => {
       if (blk === "client") return printClient();
-      if (blk === "hier") return printTasks();
+      if (blk === "hier") return printTasks("plain");
       if (blk === "detail" && active === "chg") return printTasks("chg");
+      if (blk === "detail" && active === "prd") return printTasks("prd");
       if (!(blk === "detail" && active === "qlt")) return printGeneric(blk);
       histLog(blkLabel(blk), "APERÇU PDF");
       let tableHTML;
