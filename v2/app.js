@@ -3460,7 +3460,7 @@ function renderBudgetList() {
         >
 
           <td>
-            ${obsBang(item.ref)}${esc(item.ref)}
+            <span class="bang-slot">${obsBang(item.ref)}</span>${esc(item.ref)}
           </td>
 
           <td title="${esc(item.budget)}">
@@ -5796,7 +5796,7 @@ function renderBudgetList() {
   .foot .pg { margin-bottom: 1.5mm; }
   .foot hr { width: 65%; border: 0; border-top: 2.5px solid #5677a7; margin: 0 auto 1.5mm; }
   .foot .ad { line-height: 1.3; }
-  @media screen { body { background: #888; } .page { background: #fff; margin: 6mm auto; box-shadow: 0 2px 8px rgba(0,0,0,.3); } }
+  @media screen { body { background: #888; } .page { background: #fff; margin: 6mm auto; } }
   .pv-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 10px;
             padding: 10px 16px; background: #12355b; color: #fff; font: 700 14px Arial, Helvetica, sans-serif; }
   .pv-bar span { flex: 1; }
@@ -5804,9 +5804,10 @@ function renderBudgetList() {
             padding: 8px 16px; font: 800 13px Arial, Helvetica, sans-serif; cursor: pointer; }
   .pv-bar button.x { background: transparent; color: #fff; }
   @media print { .pv-bar { display: none !important; } }
+  #pvCover { position: fixed; inset: 0; background: #e9edf3; z-index: 5; }
+  .pv-bar { z-index: 6; }
 </style></head><body class="${opt.head ? "" : "nohead"}">
-<div class="pv-bar"><span>APERÇU — DÉSIGNATIONS CLIENT — ${esc(ref)}</span>
-  <button type="button" onclick="window.print()">🖨 IMPRIMER</button>
+<div class="pv-bar"><span id="pvMsg">PRÉPARATION DU PDF…</span>
   <button type="button" class="x" onclick="window.close()">✕ FERMER</button></div>
 <div id="src" style="display:none">
   <div class="head">
@@ -5833,6 +5834,7 @@ function renderBudgetList() {
     <div class="ad">N°35, Bloc G3 Cité DAKHLA Agadir, BP : 8837 Dakhla Agadir - Tél : 05 28 23 34 31<br>
     Sarl. Au capital de 500 000,00 Dhs - Patente 67505605 - I.F. 60201815 - R.C. 57784 I.C.E. : 003434605000090</div></div>
 </div>
+<div id="pvCover"></div>
 <div id="pages"></div>
 <script>
 (function () {
@@ -5875,15 +5877,39 @@ function renderBudgetList() {
   }
   pages.forEach((pg, i) => { pg.querySelector(".pg").textContent = "Page " + (i + 1) + " / " + pages.length; });
   src.remove();
-  /* aperçu à l'écran : pages réduites pour tenir dans la largeur */
-  const fit = () => {
+  /* aperçu = un vrai fichier PDF (A4 paysage), affiché par l'iPad :
+     pas de fenêtre d'impression, partage / enregistrement / impression
+     depuis le lecteur PDF */
+  const msg = document.getElementById("pvMsg");
+  const load = u => new Promise((ok, ko) => {
+    const sc = document.createElement("script"); sc.src = u; sc.onload = ok; sc.onerror = ko;
+    setTimeout(() => ko(new Error("délai dépassé")), 12000);
+    document.head.appendChild(sc);
+  });
+  const fallback = () => {
+    msg.textContent = "PDF indisponible (connexion ?) — aperçu affiché";
     const z = Math.min(1, (window.innerWidth - 16) / out.querySelector(".page").offsetWidth);
     out.style.zoom = z;
+    document.getElementById("pvCover").remove();
   };
-  fit();
-  window.addEventListener("resize", fit);
-  window.addEventListener("beforeprint", () => { out.style.zoom = 1; });
-  window.addEventListener("afterprint", fit);
+  (async () => {
+    try {
+      await load("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
+      await load("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+      await Promise.all([...document.images].map(im => im.complete ? 0 :
+        new Promise(r => { im.onload = im.onerror = r; })));
+      const pdf = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const pgs = [...out.querySelectorAll(".page")];
+      for (let i = 0; i < pgs.length; i++) {
+        msg.textContent = "PRÉPARATION DU PDF… PAGE " + (i + 1) + " / " + pgs.length;
+        const cv = await html2canvas(pgs[i], { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+        if (i) pdf.addPage("a4", "landscape");
+        pdf.addImage(cv.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, 297, 210);
+      }
+      const url = URL.createObjectURL(pdf.output("blob"));
+      location.replace(url);
+    } catch (e) { fallback(); }
+  })();
 })();
 <\/script></body></html>`);
       w.document.close();
