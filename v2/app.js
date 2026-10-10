@@ -2333,7 +2333,7 @@ function renderBudgetList() {
       }
       th.cf-on .cf-btn, .bdg-h-head.cf-on .cf-btn { color: #1d4ed8; }
       #cfMenu {
-        position: fixed; z-index: 10000; width: 240px; max-height: 340px;
+        position: fixed; z-index: 10000; width: 240px; max-height: 60vh; overflow: hidden;
         display: flex; flex-direction: column; gap: 4px; padding: 8px;
         background: #fff; border: 1px solid #d6dbe3; border-radius: 10px;
         box-shadow: 0 10px 28px rgba(15, 23, 42, .18); font-size: 12px;
@@ -2364,7 +2364,7 @@ function renderBudgetList() {
         border-radius: 6px; font-size: 12px;
       }
       #cfMenu .cf-list {
-        overflow-y: auto; min-height: 60px; flex: 1 1 auto;
+        overflow-y: auto; min-height: 0; flex: 1 1 auto;
         -webkit-overflow-scrolling: touch;
         border: 1px solid #edf0f4; border-radius: 6px; padding: 2px 0;
       }
@@ -3941,11 +3941,14 @@ function renderBudgetList() {
         const below = vTop + vH - r.bottom - 10;
         const above = r.top - vTop - 10;
         const useBelow = below >= 280 || below >= above;
-        const maxH = Math.max(160, useBelow ? below : above);
+        /* jamais plus haut que 60 % de l'écran visible, et toujours
+           entièrement visible (boutons OK / Effacer accessibles) */
+        const maxH = Math.max(180, Math.min(vH * 0.6, useBelow ? below : above));
         m.style.maxHeight = maxH + "px";
-        m.style.top = useBelow
-          ? (r.bottom + 4) + "px"
-          : Math.max(vTop + 8, r.top - 4 - Math.min(maxH, m.scrollHeight)) + "px";
+        let top = useBelow ? r.bottom + 4 : r.top - 4 - Math.min(maxH, m.scrollHeight);
+        const h = Math.min(maxH, m.offsetHeight);
+        top = Math.min(top, vTop + vH - 8 - h);
+        m.style.top = Math.max(vTop + 8, top) + "px";
       };
       cfPlace();
       window.visualViewport?.addEventListener("resize", cfPlace);
