@@ -6626,6 +6626,60 @@ function renderBudgetList() {
       return { head, rows, bold };
     };
 
+    /* DÉTAIL DÉLAIS : colonnes des tâches (lot, activités, unité) sans ART,
+       DÉSIGNATION ni UPB, suivies des colonnes du délai */
+    const printDelay = () => {
+      const U = v => String(v ?? "").trim().toUpperCase();
+      const lotOrd = new Map((db.lots || []).map(x => [U(stripLevelPrefix(x.name)), Number(x.order) || 0]));
+      const primOrd = new Map((db.primaries || []).map(x => [U(stripLevelPrefix(x.name)), Number(x.order) || 0]));
+      const secOrd = new Map((db.secondaries || []).map(x => [U(stripLevelPrefix(x.name)), Number(x.order) || 0]));
+      const o = (m, v) => m.has(U(v)) ? m.get(U(v)) : 1e9;
+      const src = (lastShown.client && lastShown.client.rows) || [];
+      const ls = src.flatMap(g => g.members || []);
+      const combos = new Map();
+      ls.forEach(l => {
+        const k = [l.lot, l.prim, l.sec].map(U).join("||");
+        if (!combos.has(k)) combos.set(k, { lot: l.lot, prim: l.prim, sec: l.sec, ls: [] });
+        combos.get(k).ls.push(l);
+      });
+      const list = [...combos.values()].sort((a, b) =>
+        o(lotOrd, a.lot) - o(lotOrd, b.lot) || o(primOrd, a.prim) - o(primOrd, b.prim) || o(secOrd, a.sec) - o(secOrd, b.sec));
+      if (!list.length) { alert("Aucune tâche à afficher."); return; }
+      const unitOf = c => {
+        const pref = c.ls.filter(l => l.kind === "prd" && l.cprice !== 0);
+        const use = pref.length ? pref : c.ls.filter(l => l.kind === "prd").length ? c.ls.filter(l => l.kind === "prd") : c.ls;
+        return [...new Set(use.map(l => U(l.dunit || l.unit)).filter(Boolean))].join(" / ");
+      };
+      const fmtD = v => { const m = String(v || "").match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : ""; };
+      const a = $("bdgDelayStart")?.value || "", b = $("bdgDelayEnd")?.value || "";
+      const days = ($("bdgDelayDays")?.textContent || "").replace("—", "").trim();
+      const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
+      let body = "", prev = null;
+      list.forEach((c, i) => {
+        const sameLot = prev && U(prev.lot) === U(c.lot);
+        const samePrim = sameLot && U(prev.prim) === U(c.prim);
+        const rep = esc(JSON.stringify([String(c.lot ?? ""), String(c.prim ?? "")]));
+        body += `<tr class="${sameLot ? "lnext" : "gfirst"}${samePrim ? " pnext" : ""}"${i ? ` data-rep="${rep}"` : ""}>` +
+          td(sameLot ? "" : esc(c.lot), "lc") + td(samePrim ? "" : esc(c.prim), "pc") +
+          td(esc(c.sec)) + td(esc(unitOf(c)), "c") + td("", "c") + td("", "c") + td("", "r") + "</tr>";
+        prev = c;
+      });
+      printModel({
+        branch: "DÉTAIL DÉLAIS", docTitle: "DÉTAIL DÉLAIS", fileTag: "DETAIL DELAIS", headLine: "DÉTAIL DÉLAIS",
+        table: `<table id="tpl"><colgroup><col style="width:17%"><col style="width:22%"><col style="width:22%"><col style="width:5%">
+            <col style="width:11%"><col style="width:11%"><col style="width:12%"></colgroup>
+          <thead><tr><th colspan="4">TÂCHES</th><th colspan="3">DÉLAIS</th></tr>
+            <tr><th class="sub">LOT</th><th class="sub">ACTIVITÉ PRIMAIRE</th><th class="sub">ACTIVITÉ SECONDAIRE</th><th class="sub">U</th>
+            <th class="sub">DATE DÉBUT</th><th class="sub">DATE FIN</th><th class="sub">DÉLAI (JOURS)</th></tr></thead>
+          <tbody>${body}</tbody></table>`,
+        end: `<div class="tot">
+            <div><span>DATE DÉBUT DU BUDGET :</span><b>${esc(fmtD(a))}</b></div>
+            <div><span>DATE FIN DU BUDGET :</span><b>${esc(fmtD(b))}</b></div>
+            <div><span>DÉLAI GLOBAL (JOURS) :</span><b>${esc(days)}</b></div>
+          </div>`
+      });
+    };
+
     /* FORMAT MÉTRÉ (modèle « Détail métré ») : pour chaque désignation client,
        la quantité (clés primaires), puis par lot / activité les lignes de calcul
        NB × longueur × largeur × hauteur = quantité partielle */
@@ -6859,6 +6913,7 @@ function renderBudgetList() {
       if (blk === "hier") return printTasks("plain");
       if (blk === "detail" && active === "chg") return printTasks("chg");
       if (blk === "detail" && active === "prd") return printTasks("prd");
+      if (blk === "detail" && active === "dly") return printDelay();
       if (!(blk === "detail" && active === "qlt")) return printGeneric(blk);
       histLog(blkLabel(blk), "APERÇU PDF");
       let tableHTML;
