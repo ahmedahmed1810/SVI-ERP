@@ -2381,11 +2381,6 @@ function renderBudgetList() {
           transparent 78%, #6b7280 78%, #6b7280 88%, transparent 88%);
       }
       #docPop .fld-rsz:hover { opacity: 1; }
-      /* champ d'une ligne : poignée de largeur seulement (bord droit) */
-      #docPop .fld-rsz.w-only {
-        top: 6px; bottom: 6px; height: auto; width: 6px; right: 0; cursor: ew-resize;
-        background: none; border-right: 3px double #9aa3af;
-      }
       #docPop .doc-err { color: #b42318; font-size: 11px; min-height: 14px; margin-top: 10px; }
       #docPop .doc-foot {
         display: flex; justify-content: flex-end; gap: 10px; padding: 12px 18px;
@@ -5762,9 +5757,13 @@ function renderBudgetList() {
         /* clé stable : identifiant du champ, sinon son libellé */
         const lab = (el.previousElementSibling?.textContent || "").replace(/\*/g, "").trim();
         const key = "fld." + kind + "." + (el.id || lab || i);
-        /* hauteur réglable seulement pour les zones de plusieurs lignes ;
-           un champ d'une ligne ne change que de largeur */
-        const multi = el.tagName === "TEXTAREA" || el.classList.contains("inf-val");
+        /* agrandi vers la droite et vers le bas ; la saisie reste en haut
+           (champ d'une ligne : la hauteur ajoutée passe en marge du bas) */
+        const isInput = el.tagName === "INPUT";
+        const setH = h => {
+          el.style.height = h + "px";
+          if (isInput) el.style.paddingBottom = Math.max(0, h - 34) + "px";
+        };
         const wrap = document.createElement("span");
         wrap.className = "fld-wrap" + (el.closest(".doc-row") ? " in-row" : "");
         el.replaceWith(wrap);
@@ -5772,10 +5771,10 @@ function renderBudgetList() {
         const fs = sizes[key];
         if (fs) {
           if (fs.w) { wrap.style.width = fs.w + "px"; wrap.classList.add("sized"); }
-          if (fs.h && multi) el.style.height = fs.h + "px";
+          if (fs.h) setH(fs.h);
         }
         const hd = document.createElement("span");
-        hd.className = "fld-rsz" + (multi ? "" : " w-only");
+        hd.className = "fld-rsz";
         hd.title = "Glisser pour régler la taille du champ";
         wrap.appendChild(hd);
         hd.addEventListener("pointerdown", e => {
@@ -5783,17 +5782,16 @@ function renderBudgetList() {
           let w = r.width, h = r.height;
           dragXY(e, (dx, dy) => {
             w = Math.max(60, Math.round(r.width + dx));
+            h = Math.max(28, Math.round(r.height + dy));
             wrap.style.width = w + "px";
             wrap.classList.add("sized");
-            if (multi) {
-              h = Math.max(28, Math.round(r.height + dy));
-              el.style.height = h + "px";
-            }
-          }, () => psSet(key, multi ? { w, h } : { w }));
+            setH(h);
+          }, () => psSet(key, { w, h }));
         });
         /* double-toucher sur la poignée : taille d'origine */
         hd.addEventListener("dblclick", () => {
-          wrap.style.width = ""; wrap.classList.remove("sized"); el.style.height = "";
+          wrap.style.width = ""; wrap.classList.remove("sized");
+          el.style.height = ""; el.style.paddingBottom = "";
           psSet(key, null);
         });
       });
