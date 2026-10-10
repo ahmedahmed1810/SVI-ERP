@@ -992,6 +992,8 @@ function initNav() {
           btn.classList.add(
             "active"
           );
+          /* dernier module ouvert, retrouvé à la prochaine ouverture */
+          try { localStorage.setItem("svi_view_v1", btn.dataset.view || ""); } catch (e) {}
 
           const view =
             $(btn.dataset.view);
@@ -4203,7 +4205,12 @@ function renderBudgetList() {
       { key: "dly", title: "DÉTAIL DÉLAIS" }
     ];
 
+    /* dernier onglet du détail ouvert (charges, produits, qualité, délais) */
     let active = "chg";
+    try {
+      const t = localStorage.getItem("svi_dtab_v1");
+      if (["chg", "prd", "qlt", "dly"].includes(t)) active = t;
+    } catch (e) {}
     /* référence affichée du budget : « H88 BDG 26-1001/001 » */
     const fullRef = String(budget.project).trim().toUpperCase() + " " + ref;
 
@@ -7558,6 +7565,7 @@ function renderBudgetList() {
 
       if (tab) {
         active = tab.dataset.tab;
+        try { localStorage.setItem("svi_dtab_v1", active); } catch (e) {}
         renderTab();
         return;
       }
@@ -9285,6 +9293,13 @@ document.addEventListener(
       );
 
     await reloadAll();
+
+    /* retour au dernier module ouvert (CHS, BDS, BDG…) */
+    try {
+      const v = localStorage.getItem("svi_view_v1");
+      const b = v && document.querySelector(`.nav-btn[data-view="${v}"]`);
+      if (b && !b.classList.contains("active")) b.click();
+    } catch (e) {}
   }
 );
 
