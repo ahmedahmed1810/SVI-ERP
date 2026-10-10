@@ -2371,8 +2371,17 @@ function renderBudgetList() {
       #docPop .fld-wrap.sized { justify-self: start; max-width: none; }
       #docPop .fld-wrap.in-row { flex: 1; }
       #docPop .fld-wrap.in-row.sized { flex: none; }
-      #docPop .fld-wrap > .doc-in { width: 100%; box-sizing: border-box; }
+      /* le champ remplit exactement son cadre : la poignée tombe sur son coin */
+      #docPop .fld-wrap { display: flex; flex-direction: column; align-items: stretch; line-height: normal; }
+      #docPop .fld-wrap > .doc-in { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; margin: 0; }
       #docPop .fld-wrap > input.doc-in { display: block; }
+      /* iPad : les champs date / heure gardent sinon leur propre largeur */
+      #docPop .fld-wrap > input[type="date"],
+      #docPop .fld-wrap > input[type="time"],
+      #docPop .fld-wrap > input[type="datetime-local"] {
+        -webkit-appearance: none; appearance: none; text-align: left; line-height: 32px;
+      }
+      #docPop .fld-wrap > input::-webkit-date-and-time-value { text-align: left; margin: 0; }
       #docPop .fld-wrap > textarea.doc-in { display: block; resize: none; }
       #docPop .fld-rsz {
         position: absolute; right: 1px; bottom: 1px; width: 12px; height: 12px; cursor: nwse-resize;
