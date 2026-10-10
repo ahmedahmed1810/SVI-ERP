@@ -3556,29 +3556,9 @@ function renderBudgetList() {
                 class="bdg-head-content"
               >
 
-                <span
-                  class="bdg-head-label"
-                >
-                  ${column.title}
-                </span>
-
-                <button
-                  type="button"
-                  class="bdg-head-action"
-                  data-bdg-search="${column.key}"
-                  title="Rechercher"
-                >
-                  ⌕
-                </button>
-
-                <button
-                  type="button"
-                  class="bdg-head-action"
-                  data-bdg-sort="${column.key}"
-                  title="Trier"
-                >
-                  ↕
-                </button>
+                <span class="bdg-head-label">${column.title}</span>
+                <button type="button" class="bdg-head-action" data-bdg-menu="${column.key}"
+                  title="Trier / rechercher"><svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><path d="M1 2h11M3 5h7M5 8h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M4.5 10l2 2.2 2-2.2z" fill="currentColor"/></svg></button>
 
               </div>
 
@@ -3649,7 +3629,7 @@ function renderBudgetList() {
           <button type="button" data-date="${k}"
             class="novapp-date-item ${dateFilter === k ? "selected" : ""}">
             <span>${counts.get(k).label}</span>
-            <span class="novapp-date-count">${counts.get(k).n}</span>
+            ${svCnt(counts.get(k).n)}
           </button>
         `).join("")}
       </div>
@@ -3707,7 +3687,7 @@ function renderBudgetList() {
           data.filter(item => {
 
             let value =
-              item[key];
+              key === "ref" ? item.budget + " " + item.ref : item[key];
 
             if (
               key === "ht" ||
@@ -3759,6 +3739,9 @@ function renderBudgetList() {
         );
       });
     }
+
+    /* compteur du titre : budgets affichés (filtres compris) */
+    { const c = $("bdgListCount"); if (c) c.innerHTML = svCnt(data.length); }
 
     if (!data.length) {
       tbody.innerHTML = `
@@ -3854,43 +3837,12 @@ function renderBudgetList() {
 
     if (!content) return;
 
-    let sortIcon = "↕";
-
-    if (
-      state.sortKey === key
-    ) {
-      sortIcon =
-        state.sortDirection === 1
-          ? "↑"
-          : "↓";
-    }
-
     content.innerHTML = `
-
-      <span
-        class="bdg-head-label"
-      >
-        ${column.title}
-      </span>
-
-      <button
-        type="button"
-        class="bdg-head-action"
-        data-bdg-search="${key}"
-        title="Rechercher"
-      >
-        ⌕
-      </button>
-
-      <button
-        type="button"
-        class="bdg-head-action"
-        data-bdg-sort="${key}"
-        title="Trier"
-      >
-        ${sortIcon}
-      </button>
-    `;
+      <span class="bdg-head-label">${column.title}</span>
+      <button type="button" class="bdg-head-action" data-bdg-menu="${key}"
+        title="Trier / rechercher"><svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><path d="M1 2h11M3 5h7M5 8h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M4.5 10l2 2.2 2-2.2z" fill="currentColor"/></svg></button>`;
+    /* en-tête bleu quand un tri ou une recherche est choisi (comme le budget) */
+    th.classList.toggle("cf-on", !!state.search[key] || state.sortKey === key);
   }
 
   /* -------------------------------------------------------
@@ -4003,64 +3955,55 @@ function renderBudgetList() {
      CLICS SUR ENTÊTES
      ------------------------------------------------------- */
 
-  thead.onclick = event => {
-
-    const searchButton =
-      event.target.closest(
-        "[data-bdg-search]"
-      );
-
-    if (searchButton) {
-      event.preventDefault();
-      event.stopPropagation();
-
-      activateSearch(
-        searchButton.dataset
-          .bdgSearch
-      );
-
-      return;
-    }
-
-    const sortButton =
-      event.target.closest(
-        "[data-bdg-sort]"
-      );
-
-    if (sortButton) {
-      event.preventDefault();
-      event.stopPropagation();
-
-      const key =
-        sortButton.dataset
-          .bdgSort;
-
-      if (
-        state.sortKey === key
-      ) {
-        state.sortDirection *= -1;
-
+  /* menu de colonne (comme dans le budget) : tri croissant / décroissant,
+     recherche, effacer */
+  const closeListMenu = () => document.getElementById("bdgListMenu")?.remove();
+  const openListMenu = (key, btn) => {
+    closeListMenu();
+    const column = columns.find(c => c.key === key);
+    if (!column) return;
+    const m = document.createElement("div");
+    m.id = "bdgListMenu";
+    m.className = "bdg-list-menu";
+    m.innerHTML = `
+      <div class="blm-title">${esc(column.title)}</div>
+      <button type="button" data-lm="asc" class="${state.sortKey === key && state.sortDirection === 1 ? "on" : ""}">↑ TRI CROISSANT</button>
+      <button type="button" data-lm="desc" class="${state.sortKey === key && state.sortDirection === -1 ? "on" : ""}">↓ TRI DÉCROISSANT</button>
+      <input type="search" class="blm-q" placeholder="RECHERCHER…" autocomplete="off" value="${esc(state.search[key] || "")}">
+      <button type="button" data-lm="clear">EFFACER</button>`;
+    document.body.appendChild(m);
+    const r = btn.getBoundingClientRect();
+    m.style.left = Math.max(8, Math.min(window.innerWidth - m.offsetWidth - 8, r.right - m.offsetWidth)) + "px";
+    m.style.top = (r.bottom + 4) + "px";
+    const q = m.querySelector(".blm-q");
+    const apply = () => { columns.forEach(c => restoreHeader(c.key)); renderRows(); };
+    q.addEventListener("input", () => { state.search[key] = q.value; apply(); });
+    m.addEventListener("click", e => {
+      const b = e.target.closest("[data-lm]");
+      if (!b) return;
+      const a = b.dataset.lm;
+      if (a === "asc" || a === "desc") {
+        const d = a === "asc" ? 1 : -1;
+        if (state.sortKey === key && state.sortDirection === d) state.sortKey = "";
+        else { state.sortKey = key; state.sortDirection = d; }
       } else {
-        state.sortKey = key;
-        state.sortDirection = 1;
+        state.search[key] = "";
+        if (state.sortKey === key) state.sortKey = "";
       }
+      apply();
+      closeListMenu();
+    });
+    setTimeout(() => document.addEventListener("pointerdown", function off(e) {
+      if (!e.target.closest("#bdgListMenu")) { closeListMenu(); document.removeEventListener("pointerdown", off, true); }
+    }, true), 0);
+  };
 
-      columns.forEach(
-        column => {
-          if (
-            !state.search[
-              column.key
-            ]
-          ) {
-            restoreHeader(
-              column.key
-            );
-          }
-        }
-      );
-
-      renderRows();
-    }
+  thead.onclick = event => {
+    const b = event.target.closest("[data-bdg-menu]");
+    if (!b) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openListMenu(b.dataset.bdgMenu, b);
   };
 
   /* -------------------------------------------------------
