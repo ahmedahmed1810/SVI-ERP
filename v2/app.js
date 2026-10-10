@@ -2324,7 +2324,7 @@ function renderBudgetList() {
       #docPop .doc-x { border: 0; background: none; font-size: 16px; cursor: pointer; color: #374151; }
       #docPop .doc-body { padding: 16px 18px 12px; }
       #docPop .doc-grid {
-        display: grid; grid-template-columns: 120px 1fr 90px 1fr; gap: 12px 14px; align-items: center;
+        display: grid; grid-template-columns: max-content 1fr max-content 1fr; gap: 12px 12px; align-items: center;
       }
       #docPop .doc-lab { font-size: 11px; font-weight: 800; color: #4b5563; }
       #docPop .doc-lab b { color: #dc2626; }
@@ -2342,7 +2342,9 @@ function renderBudgetList() {
         background: #fff; font-size: 12px; font-weight: 800; cursor: pointer; color: #172033;
       }
       #docPop .doc-save { background: #eef3fb; border-color: #9fb6d9; }
-      #docPop .doc-grid-2 { grid-template-columns: 140px 1fr; }
+      #docPop .doc-grid-2 { grid-template-columns: max-content 1fr; }
+      #docPop .doc-grid > .doc-lab:nth-child(4n+3) { margin-left: 12px; }
+      #docPop .doc-lab { white-space: nowrap; }
       #docPop .doc-row { display: flex; align-items: center; gap: 10px; }
       #docPop .doc-row .doc-in { flex: 1; }
       #docPop .doc-ta { height: 90px; padding: 8px 10px; resize: vertical; line-height: 1.4; }
@@ -2487,7 +2489,7 @@ function renderBudgetList() {
       #docPop .obs-alert-meta { font-size: 11px; font-weight: 800; color: #b91c1c; margin-bottom: 4px; }
       #docPop .obs-alert-text { font-size: 13px; color: #172033; white-space: pre-wrap; line-height: 1.4; }
 
-      #docPop .inf-grid { grid-template-columns: 170px 1fr 170px 1fr; row-gap: 10px; }
+      #docPop .inf-grid { row-gap: 10px; }
       #docPop .inf-val {
         display: flex; align-items: center; min-height: 34px; box-sizing: border-box;
         font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
