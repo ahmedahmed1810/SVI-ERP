@@ -5983,6 +5983,15 @@ function renderBudgetList() {
   #share { width: 100%; margin-top: 10px; height: 40px; border: 1px solid #2a4fd1; border-radius: 8px; background: #fff;
            color: #2a4fd1; font-weight: 800; font-size: 12px; cursor: pointer; }
   #share[hidden] { display: none; }
+  body.locked #side, body.locked #tog { display: none !important; }
+  body.locked .mk { pointer-events: none; cursor: default; }
+  #savedBar { position: fixed; top: 0; left: 0; right: 0; z-index: 4; height: 62px; display: flex; align-items: center; gap: 12px;
+              padding: 0 150px 0 16px; background: #12355b; color: #fff; font: 800 13px Arial, Helvetica, sans-serif; }
+  #savedBar[hidden] { display: none; }
+  #savedBar span { flex: 1; }
+  #savedBar button { height: 34px; padding: 0 14px; border: 0; border-radius: 8px; background: #fff; color: #12355b;
+                     font-weight: 800; font-size: 12px; cursor: pointer; }
+  body.locked #view { padding-top: 80px; }
   #msg { font-size: 11px; color: #4b5563; margin-top: 10px; min-height: 14px; }
   #tog { position: fixed; top: 14px; left: 254px; z-index: 4; width: 34px; height: 34px; border: 1px solid #d6dbe3;
          border-radius: 8px; background: #fff; font-size: 16px; cursor: pointer; transition: left .2s; }
@@ -6060,6 +6069,8 @@ function renderBudgetList() {
   <input type="file" id="signFile" accept="image/*" hidden>
 </aside>
 <button type="button" id="tog" title="Masquer / afficher les options">‹</button>
+<div id="savedBar" hidden><span id="savedRef"></span>
+  <button type="button" id="share2">PARTAGER / ENREGISTRER</button></div>
 <button type="button" id="close">✕ FERMER</button>
 <main id="view"><div id="pages"></div></main>
 
@@ -6206,7 +6217,7 @@ function renderBudgetList() {
   let scale = 1;
   out.addEventListener("pointerdown", e => {
     const im = e.target.closest(".mk");
-    if (!im) return;
+    if (!im || document.body.classList.contains("locked")) return;
     e.preventDefault();
     const k = im.dataset.k;
     const pxmm = 96 / 25.4;
@@ -6341,6 +6352,14 @@ function renderBudgetList() {
   /* enregistrement dans DOCUMENTS : une seule fois par code d'aperçu,
      après un partage / enregistrement réussi */
   const savedCodes = {};
+  /* document enregistré : configuration masquée, document figé
+     (on le rouvrira ensuite depuis la liste DOCUMENTS) */
+  const lockSaved = ref => {
+    document.body.classList.add("locked", "closed");
+    $("savedRef").textContent = "ENREGISTRÉ DANS DOCUMENTS : " + ref + " — CODE " + code;
+    $("savedBar").hidden = false;
+    setTimeout(fit, 220);
+  };
   const saveOnce = async (blob, name) => {
     const msg = $("msg");
     if (savedCodes[code]) { msg.textContent = "DÉJÀ ENREGISTRÉ DANS DOCUMENTS : " + savedCodes[code] + " (CODE " + code + ")"; return; }
@@ -6354,11 +6373,12 @@ function renderBudgetList() {
       try { saved = await saveHere(blob, title, name, code); }
       catch (e) { err = err || (e && e.message ? e.message : String(e)); }
     }
-    if (saved) savedCodes[code] = saved;
+    if (saved) { savedCodes[code] = saved; lockSaved(saved); }
     msg.textContent = saved
       ? "ENREGISTRÉ DANS DOCUMENTS : " + saved + " (CODE " + code + ")"
       : "NON ENREGISTRÉ DANS DOCUMENTS" + (err ? " (" + err + ")" : "");
   };
+  $("share2").onclick = () => $("share").onclick();
   $("share").onclick = async () => {
     if (!lastPdf) return;
     const { blob, file } = lastPdf;
