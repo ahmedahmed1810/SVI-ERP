@@ -1,6 +1,30 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzFgUloyiRJe-QmR7nRqJ4bfWqvfA_6LSgotJRrRt87yeRfWtdY7nxXMR9avafSJUPg4Q/exec";
 const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
 
+/* fichiers volumineux (PDF, documents) gardés sur l'appareil dans IndexedDB */
+const sviFiles = (() => {
+  let dbp = null;
+  const open = () => dbp || (dbp = new Promise((ok, ko) => {
+    const r = indexedDB.open("svi_files", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("f");
+    r.onsuccess = () => ok(r.result);
+    r.onerror = () => ko(r.error);
+  }));
+  const tx = async (mode, fn) => {
+    const db = await open();
+    return new Promise((ok, ko) => {
+      const t = db.transaction("f", mode);
+      const req = fn(t.objectStore("f"));
+      t.oncomplete = () => ok(req && req.result);
+      t.onerror = () => ko(t.error);
+    });
+  };
+  return {
+    put: (k, blob) => tx("readwrite", st => st.put(blob, k)),
+    get: k => tx("readonly", st => st.get(k))
+  };
+})();
+
 /* observations importantes d'un budget (marquées « ! ») */
 function obsAlertCount(ref) {
   try {
@@ -5755,6 +5779,21 @@ function renderBudgetList() {
       });
     };
 
+    /* PDF validé dans l'aperçu → nouvelle ligne DOCUMENTS avec lien vers le fichier */
+    window.__sviSavePdfDoc = async (blob, title, name) => {
+      const now = new Date();
+      const docRef = nextDocRef(now);
+      const idb = "doc:" + ref + ":" + docRef;
+      try { await sviFiles.put(idb, blob); } catch (e) { return null; }
+      const list = docsLoad();
+      list.push({ ref: docRef, date: localDT(now), title: String(title).toUpperCase(),
+        name, size: blob.size, type: "application/pdf", data: null, idb });
+      docsSave(list);
+      histLog("DOC", "CRÉATION", docRef + " — " + title + " (PDF GÉNÉRÉ)");
+      updPill("doc");
+      return docRef;
+    };
+
     /* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :
        volet « OPTIONS PDF » à gauche, aperçu des pages à droite,
        bouton GÉNÉRER PDF ; aucune impression lancée ===== */
@@ -6049,7 +6088,10 @@ function renderBudgetList() {
       fit();
       const blob = pdf.output("blob");
       const file = new File([blob], "${fileName}", { type: "application/pdf" });
-      msg.textContent = "PDF PRÊT.";
+      let saved = null;
+      try { saved = window.opener && window.opener.__sviSavePdfDoc
+        ? await window.opener.__sviSavePdfDoc(blob, "DÉSIGNATIONS CLIENT ${esc(ref)}", "${fileName}") : null; } catch (e) {}
+      msg.textContent = saved ? "PDF PRÊT — ENREGISTRÉ DANS DOCUMENTS : " + saved : "PDF PRÊT.";
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try { await navigator.share({ files: [file], title: "${fileName}" }); }
         catch (e) { if (e && e.name !== "AbortError") window.open(URL.createObjectURL(blob), "_blank"); }
@@ -6301,8 +6343,10 @@ function renderBudgetList() {
 
         /* fichier gardé sur l'appareil s'il est raisonnable (≤ 1,5 Mo) ;
            l'enregistrement sur Google Drive viendra plus tard */
-        let data = null;
-        if (file.size <= 1.5 * 1024 * 1024) {
+        let data = null, idb = null;
+        try { idb = "doc:" + ref + ":" + docRef; await sviFiles.put(idb, file); }
+        catch (e) { idb = null; }
+        if (!idb && file.size <= 1.5 * 1024 * 1024) {
           data = await new Promise(ok => {
             const fr = new FileReader();
             fr.onload = () => ok(fr.result);
@@ -6313,7 +6357,7 @@ function renderBudgetList() {
         const list = docsLoad();
         list.push({
           ref: docRef, date, title: title.toUpperCase(),
-          name: file.name, size: file.size, type: file.type, data
+          name: file.name, size: file.size, type: file.type, data, idb
         });
         histLog("DOC", "CRÉATION", docRef + " — " + title);
         if (!docsSave(list)) {
@@ -6534,7 +6578,7 @@ function renderBudgetList() {
 
       const rows = list.map(r => "<tr>" + cols.map(([k, , get, cls]) => {
         const v = get(r);
-        if (k === "rfile" && r.data)
+        if (k === "rfile" && (r.data || r.idb))
           return `<td><button type="button" class="rec-open" data-recopen="${r._i}">${esc(v)}</button></td>`;
         if (k === "rimp") return `<td class="center rec-imp">${esc(v)}</td>`;
         if (k === "relap" && Date.now() > new Date(r.prevu))
@@ -6635,6 +6679,16 @@ function renderBudgetList() {
     /* ouvrir un document gardé sur l'appareil */
     const openDoc = i => {
       const d = docsLoad()[i];
+      if (d && d.idb) {
+        /* fenêtre ouverte tout de suite (sinon bloquée par Safari), fichier ensuite */
+        const w = window.open("", "_blank");
+        sviFiles.get(d.idb).then(blob => {
+          if (!blob) { w && w.close(); alert("Document non disponible sur cet appareil."); return; }
+          const url = URL.createObjectURL(blob);
+          if (w) w.location.href = url; else download(d.name, blob);
+        }).catch(e => { w && w.close(); alert("Ouverture impossible : " + e.message); });
+        return;
+      }
       if (!d || !d.data) { alert("Document non disponible sur cet appareil."); return; }
       try {
         const [meta, b64] = d.data.split(",");
