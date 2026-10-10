@@ -5852,12 +5852,14 @@ function renderBudgetList() {
   const end = document.getElementById("end");
   cur.c.appendChild(end);
   if (full(cur.c)) {
-    /* les totaux ne partent jamais seuls : la dernière ligne les accompagne */
+    /* les totaux ne partent jamais seuls : les deux dernières lignes
+       du tableau les accompagnent (au moins une reste sur la page d'avant) */
     cur.c.removeChild(end);
     const prev = cur.tb;
-    const last = prev && prev.rows.length > 1 ? prev.rows[prev.rows.length - 1] : null;
-    cur = newPage(!!last);
-    if (last) cur.tb.appendChild(last);
+    const n = prev ? Math.min(2, prev.rows.length - 1) : 0;
+    const moved = n > 0 ? [...prev.rows].slice(-n) : [];
+    cur = newPage(moved.length > 0);
+    moved.forEach(r => cur.tb.appendChild(r));
     cur.c.appendChild(end);
   }
   pages.forEach((pg, i) => { pg.querySelector(".pg").textContent = "Page " + (i + 1) + " / " + pages.length; });
