@@ -6008,7 +6008,7 @@ function renderBudgetList() {
   td.c { text-align: center; } td.r { text-align: right; }
   td.rep { color: #555; font-style: italic; }
   tr.gfirst td { border-top: 1.6px solid #000; }
-  tr.gnext td.gc { border-top-color: transparent; }
+  tr.gnext td.gc, tr.lnext td.lc, tr.pnext td.pc { border-top-style: hidden; }
   .tot { margin-top: 2mm; display: flex; flex-direction: column; align-items: flex-end; }
   .tot div { display: flex; }
   .tot span { padding: 1mm 2mm; text-align: right; }
@@ -6111,7 +6111,9 @@ function renderBudgetList() {
       if (full(cur.c) && cur.tb.rows.length > 1) {
         cur.tb.removeChild(r); cur = newPage(true); cur.tb.appendChild(r);
         /* ligne de suite d'un groupe en haut de page : on rappelle le groupe */
-        if (r.dataset.rep) JSON.parse(r.dataset.rep).forEach((v, k) => { r.cells[k].textContent = v; r.cells[k].classList.add("rep"); });
+        if (r.dataset.rep) JSON.parse(r.dataset.rep).forEach((v, k) => {
+          if (!r.cells[k].textContent.trim() && v) { r.cells[k].textContent = v; r.cells[k].classList.add("rep"); }
+        });
       }
     });
     const end = src.querySelector("#end").cloneNode(true);
@@ -6358,20 +6360,25 @@ function renderBudgetList() {
         const list = [...combos.values()].sort((a, b) =>
           o(lotOrd, a.lot) - o(lotOrd, b.lot) || o(primOrd, a.prim) - o(primOrd, b.prim) || o(secOrd, a.sec) - o(secOrd, b.sec));
         if (!list.length) list.push({ lot: "", prim: "", sec: "" });
-        const rep = esc(JSON.stringify([String(g.article ?? ""), String(g.designation ?? ""), String(g.unit ?? "")]));
+        /* valeurs répétées laissées vides (désignation, lot, activité primaire) */
+        let prev = null;
         list.forEach((c, i) => {
-          body += `<tr class="${i ? "gnext" : "gfirst"}"${i ? ` data-rep="${rep}"` : ""}>` +
+          const sameLot = prev && U(prev.lot) === U(c.lot);
+          const samePrim = sameLot && U(prev.prim) === U(c.prim);
+          const full = [String(g.article ?? ""), String(g.designation ?? ""), String(g.unit ?? ""), String(c.lot ?? ""), String(c.prim ?? "")];
+          body += `<tr class="${i ? "gnext" : "gfirst"}${sameLot ? " lnext" : ""}${samePrim ? " pnext" : ""}"${i ? ` data-rep="${esc(JSON.stringify(full))}"` : ""}>` +
             td(i ? "" : esc(g.article), "c gc") + td(i ? "" : esc(g.designation), "gc") + td(i ? "" : esc(g.unit), "c gc") +
-            td(esc(c.lot)) + td(esc(c.prim)) + td(esc(unitOf(members, l => l.prim, c.prim)), "c") +
+            td(sameLot ? "" : esc(c.lot), "lc") + td(samePrim ? "" : esc(c.prim), "pc") +
             td(esc(c.sec)) + td(esc(unitOf(members, l => l.sec, c.sec)), "c") + "</tr>";
+          prev = c;
         });
       });
       printModel({
-        branch: "TÂCHES", docTitle: "TÂCHES", fileTag: "TACHES", headLine: "TÂCHES PAR DÉSIGNATION CLIENT",
-        table: `<table id="tpl"><colgroup><col style="width:5%"><col style="width:27%"><col style="width:5%"><col style="width:13%">
-          <col style="width:20%"><col style="width:5%"><col style="width:20%"><col style="width:5%"></colgroup>
+        branch: "TÂCHES", docTitle: "DÉCOMPOSITION DU PROJET", fileTag: "DECOMPOSITION DU PROJET", headLine: "DÉCOMPOSITION DU PROJET",
+        table: `<table id="tpl"><colgroup><col style="width:5%"><col style="width:30%"><col style="width:5%"><col style="width:15%">
+          <col style="width:20%"><col style="width:20%"><col style="width:5%"></colgroup>
           <thead><tr><th>ART.</th><th>DESIGNATION</th><th>UPB</th><th>LOT</th>
-            <th>ACTIVITÉ PRIMAIRE</th><th>U</th><th>ACTIVITÉ SECONDAIRE</th><th>U</th></tr></thead>
+            <th>ACTIVITÉ PRIMAIRE</th><th>ACTIVITÉ SECONDAIRE</th><th>U</th></tr></thead>
           <tbody>${body}</tbody></table>`,
         end: ""
       });
