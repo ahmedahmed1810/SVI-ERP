@@ -2345,6 +2345,9 @@ function renderBudgetList() {
       #docPop .doc-grid-2 { grid-template-columns: max-content 1fr; }
       #docPop .doc-grid > .doc-lab:nth-child(4n+3) { margin-left: 12px; }
       #docPop .doc-lab { white-space: nowrap; }
+      /* libellé aligné sur la 1re ligne du champ, même si le champ est agrandi */
+      #docPop .doc-grid { align-items: start; }
+      #docPop .doc-grid > .doc-lab { padding-top: 10px; }
       #docPop .doc-row { display: flex; align-items: center; gap: 10px; }
       #docPop .doc-row .doc-in { flex: 1; }
       #docPop .doc-ta { height: 90px; padding: 8px 10px; resize: vertical; line-height: 1.4; }
@@ -2378,6 +2381,11 @@ function renderBudgetList() {
           transparent 78%, #6b7280 78%, #6b7280 88%, transparent 88%);
       }
       #docPop .fld-rsz:hover { opacity: 1; }
+      /* champ d'une ligne : poignée de largeur seulement (bord droit) */
+      #docPop .fld-rsz.w-only {
+        top: 6px; bottom: 6px; height: auto; width: 6px; right: 0; cursor: ew-resize;
+        background: none; border-right: 3px double #9aa3af;
+      }
       #docPop .doc-err { color: #b42318; font-size: 11px; min-height: 14px; margin-top: 10px; }
       #docPop .doc-foot {
         display: flex; justify-content: flex-end; gap: 10px; padding: 12px 18px;
@@ -2491,8 +2499,8 @@ function renderBudgetList() {
 
       #docPop .inf-grid { row-gap: 10px; }
       #docPop .inf-val {
-        display: flex; align-items: center; min-height: 34px; box-sizing: border-box;
-        font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        display: block; min-height: 34px; box-sizing: border-box; padding: 8px 10px; height: auto;
+        font-weight: 700; overflow: hidden; white-space: normal; word-break: break-word; line-height: 1.35;
       }
       #docPop .inf-neg { color: #b91c1c; }
       #docPop .doc-card .doc-body { max-height: 75vh; overflow-y: auto; }
@@ -5751,7 +5759,12 @@ function renderBudgetList() {
       });
       /* champs : poignée sur le coin bas-droit de chaque champ */
       p.querySelectorAll(".doc-in").forEach((el, i) => {
-        const key = "fld." + kind + "." + (el.id || i);
+        /* clé stable : identifiant du champ, sinon son libellé */
+        const lab = (el.previousElementSibling?.textContent || "").replace(/\*/g, "").trim();
+        const key = "fld." + kind + "." + (el.id || lab || i);
+        /* hauteur réglable seulement pour les zones de plusieurs lignes ;
+           un champ d'une ligne ne change que de largeur */
+        const multi = el.tagName === "TEXTAREA" || el.classList.contains("inf-val");
         const wrap = document.createElement("span");
         wrap.className = "fld-wrap" + (el.closest(".doc-row") ? " in-row" : "");
         el.replaceWith(wrap);
@@ -5759,10 +5772,10 @@ function renderBudgetList() {
         const fs = sizes[key];
         if (fs) {
           if (fs.w) { wrap.style.width = fs.w + "px"; wrap.classList.add("sized"); }
-          if (fs.h) el.style.height = fs.h + "px";
+          if (fs.h && multi) el.style.height = fs.h + "px";
         }
         const hd = document.createElement("span");
-        hd.className = "fld-rsz";
+        hd.className = "fld-rsz" + (multi ? "" : " w-only");
         hd.title = "Glisser pour régler la taille du champ";
         wrap.appendChild(hd);
         hd.addEventListener("pointerdown", e => {
@@ -5770,11 +5783,13 @@ function renderBudgetList() {
           let w = r.width, h = r.height;
           dragXY(e, (dx, dy) => {
             w = Math.max(60, Math.round(r.width + dx));
-            h = Math.max(28, Math.round(r.height + dy));
             wrap.style.width = w + "px";
             wrap.classList.add("sized");
-            el.style.height = h + "px";
-          }, () => psSet(key, { w, h }));
+            if (multi) {
+              h = Math.max(28, Math.round(r.height + dy));
+              el.style.height = h + "px";
+            }
+          }, () => psSet(key, multi ? { w, h } : { w }));
         });
         /* double-toucher sur la poignée : taille d'origine */
         hd.addEventListener("dblclick", () => {
