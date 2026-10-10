@@ -5798,6 +5798,16 @@ function renderBudgetList() {
           const len = c => Math.max(String(head[c] ?? "").length,
             ...rows.map(r => String(r[c] ?? "").length));
           ws["!cols"] = head.map((h, c) => ({ wch: c === 1 ? Math.min(80, len(c) + 2) : Math.max(8, Math.min(30, len(c) + 2)) }));
+          if (blk === "metre") {
+            /* quantités : largeur selon les nombres (le titre passe sur 2 lignes) */
+            const numLen = c => Math.max(...rows.map(r => typeof r[c] === "number" ? money(r[c]).length : String(r[c] ?? "").length), 4);
+            head.forEach((h, c) => {
+              if (h === "QUANTITÉ" || h === "QUANTITÉ PARTIELLE") ws["!cols"][c] = { wch: Math.max(11, numLen(c) + 3) };
+            });
+            /* entête du tableau plus haute (titres sur deux lignes) */
+            ws["!rows"] = ws["!rows"] || [];
+            ws["!rows"][H0] = { hpt: 32 };
+          }
           const wb = X.utils.book_new();
           X.utils.book_append_sheet(wb, ws, blkLabel(blk).slice(0, 31));
           const out = X.write(wb, { bookType: "xlsx", type: "array" });
