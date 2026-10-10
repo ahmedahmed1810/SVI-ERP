@@ -2390,6 +2390,15 @@ function renderBudgetList() {
       #docPop .obs-alert-meta { font-size: 11px; font-weight: 800; color: #b91c1c; margin-bottom: 4px; }
       #docPop .obs-alert-text { font-size: 13px; color: #172033; white-space: pre-wrap; line-height: 1.4; }
 
+      #docPop .inf-grid { grid-template-columns: 170px 1fr 170px 1fr; row-gap: 10px; }
+      #docPop .inf-val {
+        display: flex; align-items: center; min-height: 34px; box-sizing: border-box;
+        font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      #docPop .inf-neg { color: #b91c1c; }
+      #docPop .doc-card .doc-body { max-height: 75vh; overflow-y: auto; }
+      @media (max-width: 650px) { #docPop .inf-grid { grid-template-columns: 1fr; } }
+
       /* listes DOC / TAF / OBS : 5 lignes visibles, défilement au-delà */
       .rec-scroll {
         overflow: auto; -webkit-overflow-scrolling: touch;
@@ -3899,7 +3908,7 @@ function renderBudgetList() {
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="doc" role="button">DOC (0)</span>
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="taf" role="button">TAF (0)</span>
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="obs" role="button">OBS (0)</span>
-          <span class="bdg-d-pill">INF</span>
+          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="inf" role="button">INF</span>
         </div>
 
       </div>
@@ -5377,6 +5386,70 @@ function renderBudgetList() {
         <tbody>${rows}${fill}</tbody>`;
     };
 
+    /* fenêtre INF : informations du budget */
+    const openInfo = () => {
+      const prj = db.projects.find(x =>
+        String(x.code ?? "").trim().toUpperCase() === String(budget.project).trim().toUpperCase());
+      const dt = typeof budgetDate === "function" ? budgetDate(ref) : null;
+      const prd = lines.filter(l => l.kind === "prd");
+      const chg = lines.filter(l => l.kind === "chg");
+      const sum = (arr, f) => arr.reduce((t, l) => t + (f(l) || 0), 0);
+      const prdHT = sum(prd, l => l.amount), prdTTC = sum(prd, l => l.ttcAmount);
+      const chgHT = sum(chg, l => l.amount), chgTTC = sum(chg, l => l.ttcAmount);
+      const marge = prdHT - chgHT;
+      const uniq = f => new Set(lines.map(f).map(v => String(v ?? "").trim()).filter(Boolean)).size;
+      const desig = new Set(lines.map(l => desigKey(l))).size;
+      const taf = recLoad("taf");
+      const tafLate = taf.filter(r => Date.now() > new Date(r.prevu)).length;
+      const obs = recLoad("obs");
+      const items = [
+        ["RÉFÉRENCE", ref],
+        ["PROJET", budget.project],
+        ["INTITULÉ", (prj && prj.name) || "À COMPLÉTER"],
+        ["DATE BUDGET", (dt && dt.label) || ""],
+        ["LIGNES", lines.length],
+        ["DÉSIGNATIONS CLIENT", desig],
+        ["LOTS", uniq(l => l.lot)],
+        ["ACTIVITÉS PRIMAIRES", uniq(l => l.prim)],
+        ["ACTIVITÉS SECONDAIRES", uniq(l => l.sec)],
+        ["LIGNES NON CLASSÉES", lines.filter(l => !l.kind).length],
+        ["PRODUITS HT", money(prdHT)],
+        ["PRODUITS TTC", money(prdTTC)],
+        ["CHARGES HT", money(chgHT)],
+        ["CHARGES TTC", money(chgTTC)],
+        ["MARGE HT", money(marge)],
+        ["TAUX DE MARGE", prdHT ? money(marge / prdHT * 100) + " %" : ""],
+        ["DOCUMENTS", docsLoad().length],
+        ["OBSERVATIONS", obs.length + (obs.some(r => r.important)
+          ? " (dont " + obs.filter(r => r.important).length + " importante(s))" : "")],
+        ["TAF", taf.length + (tafLate ? " (dont " + tafLate + " en retard)" : "")]
+      ];
+      document.getElementById("docPop")?.remove();
+      const p = document.createElement("div");
+      p.id = "docPop";
+      p.innerHTML = `
+        <div class="doc-card" role="dialog" aria-modal="true">
+          <div class="doc-head">
+            <span class="doc-title">${esc(budget.project)} : INF ${esc(ref)}</span>
+            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+          </div>
+          <div class="doc-body">
+            <div class="doc-grid inf-grid">
+              ${items.map(([k, v]) => `
+                <span class="doc-lab">${esc(k)}</span>
+                <span class="doc-in doc-ro inf-val${k.startsWith("MARGE") && marge < 0 ? " inf-neg" : ""}">${esc(v)}</span>`).join("")}
+            </div>
+          </div>
+          <div class="doc-foot">
+            <button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>
+          </div>
+        </div>`;
+      document.body.appendChild(p);
+      p.addEventListener("click", e => {
+        if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
+      });
+    };
+
     /* fenêtre centrée : observations marquées « ! » */
     const openObsAlert = () => {
       const list = recSorted("obs").filter(r => r.important);
@@ -5577,6 +5650,7 @@ function renderBudgetList() {
         return;
       }
       if (event.target.closest("#obsAlertBtn")) { openObsAlert(); return; }
+      if (event.target.closest('[data-pill="inf"]')) { openInfo(); return; }
       const ro = event.target.closest("[data-recopen]");
       if (ro) { openDoc(+ro.dataset.recopen); return; }
       const recPill = event.target.closest('[data-pill="obs"], [data-pill="taf"]');
