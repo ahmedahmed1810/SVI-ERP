@@ -2440,7 +2440,7 @@ function renderBudgetList() {
       .lay-before { box-shadow: 0 -4px 0 #1d4ed8; }
       .lay-after { box-shadow: 0 4px 0 #1d4ed8; }
       .bdg-lay-btn {
-        height: 40px; padding: 0 10px; border: 1px solid #d6dbe3; border-radius: 10px;
+        width: 40px; height: 40px; padding: 0; justify-content: center; border: 1px solid #d6dbe3; border-radius: 10px;
         background: #fff; color: #4b5563; font-size: 11px; font-weight: 800; cursor: pointer;
         display: inline-flex; align-items: center; gap: 6px;
       }
@@ -3975,7 +3975,8 @@ function renderBudgetList() {
 
         <div class="bdg-d-hright">
           <button type="button" class="bdg-lay-btn" id="layResetBtn" hidden
-            title="Remettre les blocs à leur place et taille d'origine">⟲ DISPOSITION PAR DÉFAUT</button>
+            title="Disposition par défaut : remettre les blocs à leur place et taille d'origine"
+            aria-label="Disposition par défaut"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button type="button" class="bdg-alert-btn" id="obsAlertBtn" hidden
             aria-label="Observations importantes" title="Observations importantes">
             <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 2.6 19.5h18.8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9.5v4.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.9" r="1.15" fill="currentColor"/></svg>
