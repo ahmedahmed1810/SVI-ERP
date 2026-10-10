@@ -3942,6 +3942,7 @@ function renderBudgetList() {
     const cfAfterChange = () => {
       refreshAll();
       cfRenderList();
+      cfPlace();
     };
 
     const cfOpenMenu = (btn) => {
@@ -3965,7 +3966,13 @@ function renderBudgetList() {
 
       cfPlace = () => {
         if (!document.body.contains(m)) return;
-        const r = btn.getBoundingClientRect();
+        /* l'en-tête est redessiné à chaque changement : on repart du
+           bouton actuellement affiché pour garder le menu sous sa colonne */
+        const live = shell.querySelector(
+          `.cf-btn[data-cf="${t}"][data-col="${key}"]`
+        ) || btn;
+        const r = live.getBoundingClientRect();
+        if (!r.width && !r.height) return;
         const vv = window.visualViewport;
         const vTop = vv ? vv.offsetTop : 0;
         const vH = vv ? vv.height : window.innerHeight;
