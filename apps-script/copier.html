@@ -1319,7 +1319,7 @@ function autoriserSVI() {
   Logger.log(DriveApp.getRootFolder().getName());
 }
 </textarea></section>
-<section><h2>exportSheet.gs</h2><p class="n">174 lignes</p>
+<section><h2>exportSheet.gs</h2><p class="n">179 lignes</p>
 <button onclick="cp('c2',this)">COPIER exportSheet.gs</button>
 <textarea id="c2" readonly>/* =========================================================
    SVI ERP — ENREGISTREMENT DANS LE DRIVE (à ajouter dans le projet Apps Script)
@@ -1344,7 +1344,7 @@ function sviDriveRoute_(body) {
   try {
     out = body.action === &quot;exportSheet&quot; ? exportSheet_(body)
       : body.action === &quot;saveFile&quot; ? saveFile_(body)
-      : { ok: true, path: sviPathOf_(sviFolder_(body.path)) };
+      : sviFolderInfo_(sviFolder_(body.path));
   } catch (err) {
     out = { ok: false, error: String(err &amp;&amp; err.message || err) };
   }
@@ -1378,6 +1378,11 @@ function sviFolder_(path) {
   return folder;
 }
 
+/* dossier : chemin court et lien pour l&#x27;ouvrir dans le Drive */
+function sviFolderInfo_(folder) {
+  return { ok: true, path: sviPathOf_(folder), folderUrl: folder.getUrl() };
+}
+
 /* chemin lisible « A/B/C » d&#x27;un dossier, depuis Mon Drive */
 function sviPathOf_(folder) {
   var rootId = DriveApp.getRootFolder().getId();
@@ -1398,7 +1403,7 @@ function saveFile_(b) {
   var blob = Utilities.newBlob(bytes, b.mime || &quot;application/octet-stream&quot;, name);
   var folder = sviFolder_(b.path);
   var file = folder.createFile(blob);
-  return { ok: true, url: file.getUrl(), id: file.getId(), path: sviPathOf_(folder) };
+  return { ok: true, url: file.getUrl(), id: file.getId(), path: sviPathOf_(folder), folderUrl: folder.getUrl() };
 }
 
 function exportSheet_(b) {
@@ -1492,7 +1497,7 @@ function exportSheet_(b) {
   if (sh.getMaxColumns() &gt; nc) sh.deleteColumns(nc + 1, sh.getMaxColumns() - nc);
 
   SpreadsheetApp.flush();
-  return { ok: true, url: ss.getUrl(), id: ss.getId(), path: sviPathOf_(folder) };
+  return { ok: true, url: ss.getUrl(), id: ss.getId(), path: sviPathOf_(folder), folderUrl: folder.getUrl() };
 }
 </textarea></section>
 <script>

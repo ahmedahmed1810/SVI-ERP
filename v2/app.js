@@ -491,6 +491,86 @@ function drivePathRow(root, sel, on) {
   if (lab) { lab.hidden = !on; lab.style.display = on ? "" : "none"; }
 }
 
+/* lien d'ouverture de chaque dossier Drive déjà utilisé */
+const DRIVE_URLS_KEY = "svi_driveurls_v1";
+function driveUrlGet(path) {
+  try { return (JSON.parse(localStorage.getItem(DRIVE_URLS_KEY) || "{}") || {})[path] || ""; }
+  catch (e) { return ""; }
+}
+function driveUrlSet(path, url) {
+  if (!path || !url) return;
+  try {
+    const m = JSON.parse(localStorage.getItem(DRIVE_URLS_KEY) || "{}") || {};
+    m[path] = url;
+    localStorage.setItem(DRIVE_URLS_KEY, JSON.stringify(m));
+  } catch (e) {}
+}
+
+/* ouvre le dossier dans le Drive (onglet ouvert dans le geste, pour Safari) */
+async function driveOpenFolder(path) {
+  const w = window.open("", "_blank");
+  try {
+    let url = driveIsLink(path) ? "" : driveUrlGet(path);
+    if (!url) {
+      const out = await apiPost("drivePath", { path: driveCleanPath(path) });
+      url = out.folderUrl || "";
+      if (out.path) { driveUrlSet(out.path, url); }
+    }
+    if (!url) throw new Error("DOSSIER INTROUVABLE");
+    if (w) w.location.href = url; else window.open(url, "_blank");
+  } catch (e) {
+    if (w) w.close();
+    alert("OUVERTURE DU DOSSIER IMPOSSIBLE : " + driveErrText(e));
+  }
+}
+
+/* fenêtre « DOSSIER DRIVE » devant la fenêtre en cours :
+   adresse en lien (ouvre le Drive), ✎ pour la changer (copier-coller) */
+function drivePickFolder(path, onSave) {
+  document.getElementById("drvPop")?.remove();
+  const p = document.createElement("div");
+  p.id = "drvPop";
+  const escH = v => String(v ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  p.innerHTML = `
+    <div class="dp-card" role="dialog" aria-modal="true">
+      <div class="dp-head"><span>DOSSIER DRIVE</span><button type="button" class="dp-x" data-cancel aria-label="Fermer">✕</button></div>
+      <div class="dp-body">
+        <div class="dp-row" id="dpView">
+          <a href="#" class="dp-link" id="dpLink">${escH(path)}</a>
+          <button type="button" class="dp-edit" id="dpEdit" title="Changer de dossier">✎</button>
+        </div>
+        <input type="text" class="dp-in" id="dpIn" data-keepcase autocomplete="off" value="${escH(path)}" hidden>
+      </div>
+      <div class="dp-foot">
+        <button type="button" class="dp-btn" data-cancel>ANNULER</button>
+        <button type="button" class="dp-btn dp-ok" id="dpOk">ENREGISTRER</button>
+      </div>
+    </div>`;
+  document.body.appendChild(p);
+  const inp = p.querySelector("#dpIn"), link = p.querySelector("#dpLink"), view = p.querySelector("#dpView");
+  const cur = () => inp.hidden ? link.textContent : inp.value.trim();
+  const showLink = () => {
+    const v = inp.value.trim();
+    if (!v) return;
+    link.textContent = v;
+    inp.hidden = true; view.hidden = false;
+  };
+  link.onclick = e => { e.preventDefault(); driveOpenFolder(cur()); };
+  p.querySelector("#dpEdit").onclick = () => {
+    view.hidden = true; inp.hidden = false; inp.focus(); inp.select();
+  };
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); showLink(); } });
+  inp.addEventListener("blur", showLink);
+  p.addEventListener("click", e => {
+    if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
+  });
+  p.querySelector("#dpOk").onclick = () => {
+    const v = driveCleanPath(cur());
+    p.remove();
+    onSave(v);
+  };
+}
+
 function blobToB64(blob) {
   return new Promise((ok, ko) => {
     const fr = new FileReader();
@@ -510,6 +590,7 @@ async function driveSave(blob, name, path) {
   /* chemin court renvoyé par le script (lien collé converti en A/B/C) */
   out.path = out.path || driveCleanPath(path);
   drivePathAdd(out.path);
+  driveUrlSet(out.path, out.folderUrl);
   return out;
 }
 window.__sviDriveSave = driveSave;
@@ -2654,6 +2735,30 @@ function renderBudgetList() {
       #docPop .fld-rsz:hover { opacity: 1; }
       #docPop .doc-err { color: #b42318; font-size: 11px; min-height: 14px; margin-top: 10px; }
       #docPop .fd-msg { color: #6b7280; }
+      #drvPop {
+        position: fixed; inset: 0; z-index: 10010; background: rgba(15,23,42,.35);
+        display: flex; align-items: center; justify-content: center; padding: 16px;
+      }
+      #drvPop .dp-card { width: 100%; max-width: 560px; background: #fff; border-radius: 10px; overflow: hidden;
+        box-shadow: 0 18px 40px rgba(0,0,0,.3); color: #172033; font-size: 12px; }
+      #drvPop .dp-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px;
+        border-bottom: 1px solid #e5e9ef; font-size: 13px; font-weight: 800; }
+      #drvPop .dp-x { border: 0; background: none; font-size: 16px; cursor: pointer; color: #374151; }
+      #drvPop .dp-body { padding: 18px; }
+      #drvPop .dp-row { display: flex; align-items: center; gap: 10px; min-height: 34px; }
+      #drvPop .dp-row[hidden] { display: none; }
+      #drvPop .dp-link { flex: 1; color: #1d4ed8; text-decoration: underline; font-size: 13px; font-weight: 700;
+        word-break: break-all; cursor: pointer; }
+      #drvPop .dp-edit { width: 34px; height: 34px; border: 1px solid #d6dbe3; border-radius: 6px; background: #fff;
+        font-size: 16px; cursor: pointer; color: #374151; flex: none; }
+      #drvPop .dp-in { width: 100%; box-sizing: border-box; height: 34px; border: 1px solid #60a5fa; border-radius: 6px;
+        padding: 0 10px; font-size: 12px; box-shadow: 0 0 0 3px #dbeafe; outline: none; }
+      #drvPop .dp-in[hidden] { display: none; }
+      #drvPop .dp-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 18px;
+        border-top: 1px solid #e5e9ef; background: #fafbfc; }
+      #drvPop .dp-btn { height: 34px; padding: 0 16px; border: 1px solid #d6dbe3; border-radius: 6px; background: #fff;
+        font-size: 12px; font-weight: 800; cursor: pointer; color: #172033; }
+      #drvPop .dp-ok { background: #eef3fb; border-color: #9fb6d9; }
       #docPop .fd-msg.ok { color: #15803d; font-weight: 700; }
       #docPop .fd-msg a { color: #1d4ed8; font-weight: 800; }
       #docPop .doc-btn:disabled { opacity: .5; cursor: default; }
@@ -5984,6 +6089,7 @@ function renderBudgetList() {
         });
         histLog(blkLabel(blk), "EXPORT", "GOOGLE SHEETS — " + rows.length + " LIGNE(S) — " + (out.path ? out.path + "/" : "") + name);
         drivePathAdd(out.path || path);
+        driveUrlSet(out.path, out.folderUrl);
         if (w) w.location.href = out.url; else window.open(out.url, "_blank");
       } catch (e) {
         const m = String(e && e.message || e);
@@ -6018,7 +6124,7 @@ function renderBudgetList() {
 
     const deliver = async (name, blob, dest) => {
       if (!dest) return saveFile(name, blob);
-      if (dest.target === "device") { saveDevice(name, blob); dest.ui && dest.ui.close(); return; }
+      if (dest.target === "device") { saveDevice(name, blob); return; }
       const ui = dest.ui;
       ui && ui.msg("");
       try {
@@ -6206,8 +6312,7 @@ function renderBudgetList() {
     const openExportMenu = blk => {
       loadXLSX().catch(() => {});
       const label = String(blkLabel(blk)).toUpperCase();
-      const path0 = driveLastPath(budget.project, fullRef);
-      let fmt = "xlsx";
+            let fmt = "xlsx";
       document.getElementById("docPop")?.remove();
       const p = document.createElement("div");
       p.id = "docPop";
@@ -6221,8 +6326,6 @@ function renderBudgetList() {
             <div class="doc-grid doc-grid-2">
               <label class="doc-lab" for="fdName">NOM DU FICHIER</label>
               <input id="fdName" class="doc-in" type="text" autocomplete="off" value="${esc((fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-"))}">
-              <label class="doc-lab" for="fdPath">DOSSIER DRIVE</label>
-              <input id="fdPath" class="doc-in" type="text" autocomplete="off" data-keepcase value="${esc(path0)}">
             </div>
             <div class="fmt-choice fmt-grid">
               <button type="button" class="doc-btn fmt-btn on" data-fmt="xlsx">EXCEL</button>
@@ -6240,13 +6343,11 @@ function renderBudgetList() {
         </div>`;
       document.body.appendChild(p);
       popEnhance(p, "export");
-      drivePathRow(p, "#fdPath", false);
-      let pathShown = false;
       const msg = p.querySelector("#fdMsg");
       const ui = {
         msg: (t, kind) => { msg.innerHTML = t; msg.className = "doc-err fd-msg" + (kind ? " " + kind : ""); },
         close: () => p.remove(),
-        setPath: v => { if (v) p.querySelector("#fdPath").value = v; }
+        setPath: () => {}
       };
       const devBtn = p.querySelector('[data-act="device"]');
       p.addEventListener("click", async e => {
@@ -6262,20 +6363,21 @@ function renderBudgetList() {
         }
         const b = e.target.closest("[data-act]");
         if (!b || b.disabled) return;
-        /* DANS LE DRIVE : 1er toucher = choix du dossier, 2e = enregistrement */
-        if (b.dataset.act === "drive" && !pathShown) {
-          pathShown = true;
-          drivePathRow(p, "#fdPath", true);
-          b.textContent = "ENREGISTRER";
+        const name = (p.querySelector("#fdName").value.trim() || fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-");
+        const btns = p.querySelectorAll("[data-act]");
+        const run = async (target, path) => {
+          if (fmt === "gsheet") { await sendToDrive(blk, name, path); driveDoneFlash(); return; }
+          btns.forEach(x => x.disabled = true);
+          await doExport(blk, fmt, name, { target, path, ui });
+          btns.forEach(x => x.disabled = x === devBtn && fmt === "gsheet");
+        };
+        /* DANS LE DRIVE : le dossier s'affiche devant la fenêtre,
+           qui reste ouverte après l'enregistrement */
+        if (b.dataset.act === "drive") {
+          drivePickFolder(driveLastPath(budget.project, fullRef), path => run("drive", path));
           return;
         }
-        const name = (p.querySelector("#fdName").value.trim() || fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-");
-        const path = driveCleanPath(p.querySelector("#fdPath").value);
-        if (fmt === "gsheet") { p.remove(); sendToDrive(blk, name, path); return; }
-        const btns = p.querySelectorAll("[data-act]");
-        btns.forEach(x => x.disabled = true);
-        await doExport(blk, fmt, name, { target: b.dataset.act, path, ui });
-        btns.forEach(x => x.disabled = x === devBtn && fmt === "gsheet");
+        run("device", "");
       });
     };
 
