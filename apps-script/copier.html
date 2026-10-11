@@ -1319,7 +1319,7 @@ function autoriserSVI() {
   Logger.log(DriveApp.getRootFolder().getName());
 }
 </textarea></section>
-<section><h2>exportSheet.gs</h2><p class="n">179 lignes</p>
+<section><h2>exportSheet.gs</h2><p class="n">195 lignes</p>
 <button onclick="cp('c2',this)">COPIER exportSheet.gs</button>
 <textarea id="c2" readonly>/* =========================================================
    SVI ERP — ENREGISTREMENT DANS LE DRIVE (à ajouter dans le projet Apps Script)
@@ -1339,11 +1339,12 @@ function autoriserSVI() {
 /* actions Drive : exportSheet (feuille Google mise en forme)
    et saveFile (PDF, Excel, CSV, JSON, documents joints) */
 function sviDriveRoute_(body) {
-  if (!body || [&quot;exportSheet&quot;, &quot;saveFile&quot;, &quot;drivePath&quot;].indexOf(body.action) &lt; 0) return null;
+  if (!body || [&quot;exportSheet&quot;, &quot;saveFile&quot;, &quot;drivePath&quot;, &quot;v3Read&quot;].indexOf(body.action) &lt; 0) return null;
   var out;
   try {
     out = body.action === &quot;exportSheet&quot; ? exportSheet_(body)
       : body.action === &quot;saveFile&quot; ? saveFile_(body)
+      : body.action === &quot;v3Read&quot; ? v3Read_()
       : sviFolderInfo_(sviFolder_(body.path));
   } catch (err) {
     out = { ok: false, error: String(err &amp;&amp; err.message || err) };
@@ -1498,6 +1499,21 @@ function exportSheet_(b) {
 
   SpreadsheetApp.flush();
   return { ok: true, url: ss.getUrl(), id: ss.getId(), path: sviPathOf_(folder), folderUrl: folder.getUrl() };
+}
+
+/* =========================================================
+   BASE BUDGETS V3 : lecture de tous les onglets
+   ========================================================= */
+var SVI_V3_ID = &quot;131RdvI2_kqjRq7HbcPxXetWHmBcYJ3DNmGPiuogAoas&quot;;
+
+function v3Read_() {
+  var ss = SpreadsheetApp.openById(SVI_V3_ID);
+  var out = { ok: true };
+  [&quot;BUDGETS&quot;, &quot;DESIGNATIONS&quot;, &quot;TACHES&quot;, &quot;DETAILS&quot;, &quot;ARRETS&quot;].forEach(function (name) {
+    var sh = ss.getSheetByName(name);
+    out[name.toLowerCase()] = sh ? sh.getDataRange().getValues() : [];
+  });
+  return out;
 }
 </textarea></section>
 <section><h2>migrationV3.gs</h2><p class="n">82 lignes</p>
