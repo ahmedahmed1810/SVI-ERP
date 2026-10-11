@@ -5961,7 +5961,7 @@ function renderBudgetList() {
       const all = [];
       insTasks().forEach(t => {
         const ps = [...(INS.dlp[t.key] || [])].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")));
-        ps.forEach((p, i) => all.push({ task: t.key, pid: p.id, lot: t.lot, prim: t.prim, per: i + 1, deb: p.deb || "", fin: p.fin || "",
+        ps.forEach((p, i) => all.push({ task: t.key, pid: p.id, on: p.on === true, lot: t.lot, prim: t.prim, per: i + 1, deb: p.deb || "", fin: p.fin || "",
           dur: p.deb && p.fin ? dDiff(p.deb, p.fin) : "" }));
         if (edit || !ps.length) all.push({ task: t.key, pid: "", lot: t.lot, prim: t.prim, per: "", deb: "", fin: "", dur: "", nw: true });
       });
@@ -5977,6 +5977,7 @@ function renderBudgetList() {
       return (err ? `<div class="lk-err dlp-err">${esc(err)}</div>` : "") + dlyTable(rows, x => ({ lot: esc(x.lot), prim: esc(x.prim), per: x.per,
         deb: inp(x, "deb"), fin: inp(x, "fin"), dur: inp(x, "dur"),
         __td_deb: td, __td_fin: td, __td_dur: td,
+        __cb: edit && x.pid ? `<input type="checkbox" class="dlp-cb" data-task="${x.task}" data-pid="${x.pid}" ${x.on ? "checked" : ""}>` : "",
         __x: edit && x.pid ? `<button type="button" class="ins-x dlp-x" data-task="${x.task}" data-pid="${x.pid}" title="Supprimer la période" aria-label="Supprimer">${INS_TRASH}</button>` : "" }),
         x => `class="${x.nw ? "ins-new" : ""}"`, edit);
     };
@@ -5984,8 +5985,19 @@ function renderBudgetList() {
     if (!shell.__dlyBound) {
       shell.__dlyBound = true;
       shell.addEventListener("change", e => {
-        const i = e.target.closest && e.target.closest("input.dlp-in");
         const X = shell.__insDly;
+        const cb = e.target.closest && e.target.closest("input.dlp-cb, input.dlp-cball");
+        if (cb && X) {
+          const D = X.INS.dlp = X.INS.dlp || {};
+          const boxes = cb.classList.contains("dlp-cball") ? [...cb.closest("table").querySelectorAll("input.dlp-cb")] : [cb];
+          boxes.forEach(b => { const p = (D[b.dataset.task] || []).find(x => x.id === b.dataset.pid); if (p) { p.on = cb.checked; b.checked = cb.checked; } });
+          const all = cb.closest("table").querySelector("input.dlp-cball");
+          const list = [...cb.closest("table").querySelectorAll("input.dlp-cb")];
+          if (all) all.checked = list.length > 0 && list.every(b => b.checked);
+          X.insSave();
+          return;
+        }
+        const i = e.target.closest && e.target.closest("input.dlp-in");
         if (!i || !X) return;
         const D = X.INS.dlp = X.INS.dlp || {};
         const list = D[i.dataset.task] = D[i.dataset.task] || [];
@@ -6021,8 +6033,21 @@ function renderBudgetList() {
         if (el) { el.focus(); try { el.select(); } catch (err) {} }
       });
       shell.addEventListener("click", e => {
-        const b = e.target.closest && e.target.closest(".dlp-x");
         const X = shell.__insDly;
+        const xa = e.target.closest && e.target.closest(".dlp-xall");
+        if (xa && X) {
+          e.stopPropagation();
+          const D = X.INS.dlp || {};
+          const n = Object.values(D).reduce((t, l) => t + l.filter(p => p.on === true).length, 0);
+          if (!n) return;
+          svConfirm({ title: "SUPPRIMER LES PÉRIODES COCHÉES", text: n + " PÉRIODE(S) SERONT SUPPRIMÉES.", ok: "SUPPRIMER" }).then(go => {
+            if (!go) return;
+            Object.keys(D).forEach(k => { D[k] = D[k].filter(p => p.on !== true); });
+            X.insSave(); X.render();
+          });
+          return;
+        }
+        const b = e.target.closest && e.target.closest(".dlp-x");
         if (!b || !X) return;
         e.stopPropagation();
         svConfirm({ title: "SUPPRIMER LA PÉRIODE", text: "LA PÉRIODE SERA SUPPRIMÉE.", ok: "SUPPRIMER" }).then(go => {
@@ -6643,14 +6668,16 @@ function renderBudgetList() {
     ];
     const DLY_W = { lot: 200, prim: 280, per: 120, deb: 140, fin: 140, dur: 110 };
     /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */
+    /* del : mode modifiable (case au début de chaque période, 🗑 à la fin, case et 🗑 en tête) */
     const dlyTable = (rows, cells, trAttr = () => "", del = false) => {
       const cols = coOrder("dly", DLY_COLS);
       const w = k => cwLoad()["dly." + k] || DLY_W[k];
-      return `<table class="bdg-d-table dly-table" style="width:${cols.reduce((t, c) => t + w(c[0]), 0) + (del ? 44 : 0)}px">
-        <colgroup>${cols.map(c => `<col data-w="dly.${c[0]}" style="width:${w(c[0])}px">`).join("")}${del ? '<col style="width:44px">' : ""}</colgroup>
-        <thead><tr>${cols.map(c => cfHead("dly", c[0], c[1], c[3])).join("")}${del ? "<th></th>" : ""}</tr></thead>
-        <tbody>${rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}${del ? `<td class="center ins-delc">${h.__x || ""}</td>` : ""}</tr>`; }).join("")
-          || `<tr><td colspan="${cols.length + (del ? 1 : 0)}" class="empty">AUCUNE TÂCHE PRIMAIRE</td></tr>`}</tbody></table>`;
+      return `<table class="bdg-d-table dly-table" style="width:${cols.reduce((t, c) => t + w(c[0]), 0) + (del ? 84 : 0)}px">
+        <colgroup>${del ? '<col style="width:40px">' : ""}${cols.map(c => `<col data-w="dly.${c[0]}" style="width:${w(c[0])}px">`).join("")}${del ? '<col style="width:44px">' : ""}</colgroup>
+        <thead><tr>${del ? '<th class="center"><input type="checkbox" class="dlp-cball" title="Tout cocher"></th>' : ""}${cols.map(c => cfHead("dly", c[0], c[1], c[3])).join("")}${del
+          ? `<th class="center"><button type="button" class="ins-x dlp-xall" title="Supprimer les périodes cochées" aria-label="Supprimer les périodes cochées">${INS_TRASH}</button></th>` : ""}</tr></thead>
+        <tbody>${rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${del ? `<td class="center ins-cbc">${h.__cb || ""}</td>` : ""}${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}${del ? `<td class="center ins-delc">${h.__x || ""}</td>` : ""}</tr>`; }).join("")
+          || `<tr><td colspan="${cols.length + (del ? 2 : 0)}" class="empty">AUCUNE TÂCHE PRIMAIRE</td></tr>`}</tbody></table>`;
     };
     const renderTab = () => { renderTab0(); sviMarkEmptyTabs(shell); };
     const renderTab0 = () => {

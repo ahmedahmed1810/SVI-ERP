@@ -1143,3 +1143,9 @@ tfoot td {
 .ins-table tr[data-iid]:has(input.ins-cb:checked) .ins-x, .ins-hcol .ins-li[data-iid]:has(input.ins-cb:checked) .ins-x { visibility: visible; }
 .ins-table .ins-xall, .ins-hcol .ins-xall { visibility: hidden; }
 .ins-table:has(tbody input.ins-cb:checked) .ins-xall, .ins-hcol:has(.ins-li input.ins-cb:checked) .ins-xall { visibility: visible; }
+/* délais : même règle (🗑 seulement sur une période cochée) */
+.dly-table tr .dlp-x { visibility: hidden; }
+.dly-table tr:has(input.dlp-cb:checked) .dlp-x { visibility: visible; }
+.dly-table .dlp-xall { visibility: hidden; }
+.dly-table:has(tbody input.dlp-cb:checked) .dlp-xall { visibility: visible; }
+.dlp-cb, .dlp-cball { width: 15px; height: 15px; accent-color: var(--inst, #b91c1c); vertical-align: middle; margin: 0; }
