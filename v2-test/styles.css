@@ -1157,14 +1157,8 @@ span.ins-rdc { width: 22px; flex: none; display: inline-flex; align-items: cente
 .ins-hcol .ins-li.lk-dim { opacity: .55; }
 .ins-table tr.lk-sel td, .ins-hcol .ins-li.lk-sel { background: #fde8e8 !important; font-weight: 800; }
 .bdg-inst-fige .ins-table tr.lk-sel td, .bdg-inst-fige .ins-hcol .ins-li.lk-sel { background: #dcfce7 !important; }
-/* case à droite : cochée, elle devient 🗑 (ANNULER la décoche) */
-.ins-delc .ins-x { display: none; visibility: visible !important; }
-.ins-delc:has(input.ins-cb:checked) .ins-x { display: inline-flex; }
-.ins-delc:has(input.ins-cb:checked) input.ins-cb { display: none; }
+/* case à droite : elle coche seulement (supprimer / exporter / aperçu : menu ⋯ du bloc) */
 .ins-hcol .ins-li .ins-delc { width: 28px; flex: none; display: inline-flex; justify-content: center; }
-.ins-hdel .ins-xall { display: none; visibility: visible !important; }
-.ins-table:has(tbody input.ins-cb:checked) .ins-hdel .ins-xall, .ins-hcol:has(.ins-li input.ins-cb:checked) .ins-hdel .ins-xall { display: inline-flex; }
-.ins-table:has(tbody input.ins-cb:checked) .ins-hdel .ins-cball, .ins-hcol:has(.ins-li input.ins-cb:checked) .ins-hdel .ins-cball { display: none; }
 .ins-hcol .bdg-h-head .ins-hdel { width: 28px; flex: none; display: inline-flex; justify-content: center; }
 .ins-hcol .bdg-h-head .ins-rdc { width: 22px; }
 .ins-x { color: #fff !important; background: var(--inst, #b91c1c) !important; border-radius: 5px; padding: 3px 4px !important; opacity: 1 !important; }
@@ -1192,11 +1186,14 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 /* lignes déjà liées à la désignation choisie : mise en forme du choix du budget validé, en bleu tirant sur le rouge */
 .ins-table tr.lk-link td, .ins-hcol .ins-li.lk-link { background: #dbeafe !important; color: #1d4ed8 !important; font-weight: 700; }
 .ins-table tr.lk-link td input.ins-in, .ins-hcol .ins-li.lk-link input.ins-in { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; }
-.lk-rd.lnk { border-color: #1d4ed8; background: radial-gradient(circle, #1d4ed8 0 4px, #fff 4.5px); }
-.lk-rd.lnk.on { border-color: #1d4ed8; background: radial-gradient(circle, #1d4ed8 0 4px, #fff 4.5px); }
-.lk-dim .lk-rd.lnk { pointer-events: auto; opacity: 1; }
+/* rond : liée à la désignation choisie = anneau bleu + point ; CHOISIE = rond plein avec coche blanche
+   (les deux états se distinguent : toucher le rond se voit toujours) */
+.lk-rd.lnk { border-color: #1d4ed8; background: radial-gradient(circle, #1d4ed8 0 3px, #fff 3.5px); }
+.lk-rd.on { position: relative; border-color: var(--inst, #b91c1c); background: var(--inst, #b91c1c); }
+.lk-rd.lnk.on { border-color: #1d4ed8; background: #1d4ed8; }
+.lk-rd.on::after { content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
 /* message d'erreur passager */
-#svToast { position: fixed; top: 200px; right: 24px; z-index: 100003; max-width: 520px; background: #fff; color: #b91c1c; border: 1.5px solid #b91c1c;
+#svToast { position: fixed; top: 200px; right: 24px; max-width: min(520px, calc(100vw - 16px)); z-index: 100003; background: #fff; color: #b91c1c; border: 1.5px solid #b91c1c;
   border-radius: 10px; padding: 10px 14px; font-weight: 800; font-size: 12px; box-shadow: 0 10px 30px rgba(15,23,42,.2); opacity: 0; transform: translateY(-6px);
   transition: opacity .2s, transform .2s; pointer-events: none; }
 #svToast.on { opacity: 1; transform: none; }
@@ -1221,3 +1218,13 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 #svConf .svc-sub { font-weight: 800; font-size: 12px; margin: 8px 0 4px; }
 #svConf .svc-warn { color: #b91c1c; }
 #svConf .svc-list { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.5; }
+
+/* champs non saisissables (calculés ou venus d'ailleurs) : fond gris, partout, même sur une ligne liée ou choisie */
+.ins-table td.ins-lock, .ins-table tr.ins-new td.ins-lock,
+.ins-table tr.lk-link td.ins-lock, .ins-table tr.lk-sel td.ins-lock, .ins-table tr.lk-sel.lk-link td.ins-lock,
+.ins-table tr.ins-unl td.ins-lock { background: #e6e8ec !important; }
+.ins-table tr.ins-title td.ins-lock { background: #dfe2e7 !important; }
+/* menu ⋯ : SUPPRIMER LES LIGNES COCHÉES (grisé sans ligne cochée et déliée) */
+#blkMenu button.blk-del { color: var(--inst, #b91c1c); }
+#blkMenu button.blk-del.off { color: #9aa3af; cursor: default; opacity: .6; }
+#blkMenu button.blk-del .svi-cnt { margin-left: auto; }
