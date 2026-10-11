@@ -270,6 +270,24 @@ document.addEventListener("input", e => {
 const $ = id => document.getElementById(id);
 
 /* compteur : petite pastille grise juste après le libellé (remplace « (n) ») */
+/* format unique des dates : JJ/MM/AAAA À HH:MM (JJ/MM/AAAA si la date n'a pas d'heure) */
+const svDT = v => {
+  if (v === undefined || v === null || v === "") return "";
+  const p2 = n => String(n).padStart(2, "0");
+  if (typeof v === "string") {
+    const m = v.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+    if (m) return m[3] + "/" + m[2] + "/" + m[1] + (m[4] ? " À " + m[4] + ":" + m[5] : "");
+  }
+  const d = v instanceof Date ? v : new Date(v);
+  if (isNaN(d)) return String(v);
+  return p2(d.getDate()) + "/" + p2(d.getMonth() + 1) + "/" + d.getFullYear() + " À " + p2(d.getHours()) + ":" + p2(d.getMinutes());
+};
+/* QPB d'une désignation liée = somme des quantités des produits de ses tâches (liaisons validées) */
+const insLinkedQ = (data, id) => {
+  const L = ((data || {}).links || []).filter(l => l.des === id);
+  if (!L.length) return null;
+  return L.reduce((t, l) => t + (l.prd || []).reduce((a, x) => a + (Number(String(x.q ?? "").replace(/\s/g, "").replace(",", ".")) || 0), 0), 0);
+};
 const svCnt = n => `<span class="svi-cnt">${Number(n) || 0}</span>`;
 /* onglets vides (compteur 0) : mise en forme spéciale, même facultatifs */
 const sviMarkEmptyTabs = root => (root || document).querySelectorAll(".bdg-d-tab, .rec-tab, .imp-tab").forEach(b => {
@@ -3726,13 +3744,15 @@ function renderBudgetList() {
         /* total TTC des désignations saisies (titres exclus) */
         ...(() => {
           const ds = ((budget.inst.data || {}).des || []).filter(r => !r.t);
-          const ht = ds.reduce((t, r) => t + num(r.q || 0) * num(r.p || 0), 0);
-          const ttc = ds.reduce((t, r) => t + num(r.q || 0) * num(r.p || 0) *
+          const D = budget.inst.data || {};
+          const qq = r => { const lq = insLinkedQ(D, r.id); return lq !== null ? lq : num(r.q || 0); };
+          const ht = ds.reduce((t, r) => t + qq(r) * num(r.p || 0), 0);
+          const ttc = ds.reduce((t, r) => t + qq(r) * num(r.p || 0) *
             (1 + (r.tva === "" || r.tva === undefined ? 20 : num(r.tva)) / 100), 0);
           return { ht, ttc };
         })(),
-        validated: (() => { const v = String(budget.inst.validated || "").match(/^(\d{4})-(\d{2})-(\d{2})/); return v ? v[3] + "/" + v[2] + "/" + v[1] : ""; })(),
-        entered: m ? m[3] + "/" + m[2] + "/" + m[1] : "",
+        validated: svDT(budget.inst.validated || ""),
+        entered: m ? svDT(c) : "",
         state: budget.inst.state || "instance", source: budget
       };
     }
@@ -5273,6 +5293,7 @@ function renderBudgetList() {
         const f = [r.nbr, r.d1, r.d2, r.d3].filter(v => v !== "" && v !== undefined);
         if (f.length) return f.reduce((a, b) => a * num(b), 1);
       }
+      if (k === "des" && r.id) { const lq = insLinkedQ(INS, r.id); if (lq !== null) return lq; }
       return r.q === "" || r.q === undefined ? 0 : num(r.q);
     };
     const insHT = (k, r) => r.t ? 0 : insQty(k, r) * num(r.p || 0);
@@ -5325,7 +5346,8 @@ function renderBudgetList() {
       const [f, , cls, type] = c;
       const isNew = !r;
       r = r || {};
-      const qAuto = k === "prd" && f === "q";   /* QPB produits = NBR × DIM 1 × DIM 2 × DIM 3 */
+      /* QPB produits = NBR × DIM 1 × DIM 2 × DIM 3 ; QPB désignation liée = somme des produits de ses tâches */
+      const qAuto = f === "q" && (k === "prd" || (k === "des" && r.id && insLinkedQ(INS, r.id) !== null));
       const locked = !INS_EDIT || type === "calc" || qAuto || (r.t && f !== "art" && f !== "des");
       let val = "";
       if (!isNew) {
@@ -5342,7 +5364,9 @@ function renderBudgetList() {
     const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     const insRowHTML = (k, r, lvl) => {
       const cols = INS_COLS[k];
-      const cb = !r || r.t ? "" : `<input type="checkbox" class="ins-cb" ${r.on === true ? "checked" : ""} ${INS_EDIT ? "" : "disabled"}>`;
+      const cb = !r ? "" : r.t
+        ? `<input type="checkbox" class="ins-cb ins-tcb" ${INS_EDIT ? "" : "disabled"}>`
+        : `<input type="checkbox" class="ins-cb" ${r.on === true ? "checked" : ""} ${INS_EDIT ? "" : "disabled"}>`;
       const tcell = k === "des"
         ? `<td class="center ins-tc">${r && (INS_EDIT || r.t) ? `<span class="ins-t${r.t ? " on" : ""}" role="button" title="Ligne titre">T</span>` : ""}</td>`
         : "";
@@ -5376,6 +5400,26 @@ function renderBudgetList() {
           if (!x.t && keep.has(x.id)) return true;
         }
         return false;
+      });
+    };
+    /* branche d'un titre : lignes (non titres) jusqu'au prochain titre de même niveau ou plus haut */
+    const insBranch = t => {
+      const out = [];
+      for (let i = INS.des.indexOf(t) + 1; i < INS.des.length; i++) {
+        const r = INS.des[i];
+        if (r.t && insLevel(r.art) <= insLevel(t.art)) break;
+        if (!r.t) out.push(r);
+      }
+      return out;
+    };
+    /* case d'un titre : cochée si toute sa branche l'est, à moitié (grisée) si une partie seulement */
+    const insSyncTitles = () => {
+      $("bdgClientBody")?.querySelectorAll("tr.ins-title[data-iid] input.ins-tcb").forEach(cb => {
+        const t = INS.des.find(x => x.id === cb.closest("tr").dataset.iid);
+        const b = t ? insBranch(t) : [];
+        const n = b.filter(r => r.on === true).length;
+        cb.checked = b.length > 0 && n === b.length;
+        cb.indeterminate = n > 0 && n < b.length;
       });
     };
     const insSubOf = t => {
@@ -5463,6 +5507,7 @@ function renderBudgetList() {
       $("bdgClientHead").innerHTML = src.querySelector("thead").innerHTML;
       $("bdgClientBody").innerHTML = src.querySelector("tbody").innerHTML;
       $("bdgClientFoot").innerHTML = src.querySelector("tfoot").innerHTML;
+      insSyncTitles();
       insDim();
     };
     /* une désignation cochée : les autres lignes se grisent (une seule à la fois) */
@@ -5523,10 +5568,11 @@ function renderBudgetList() {
         if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + " " + svCnt(insShown(k).length);
       });
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
-        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(INS.sec.length); }
+        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(insTasks().length); }
       sviMarkEmptyTabs(shell);
       if (active === "dly") {
-        body.innerHTML = `<div class="bdg-d-scroll">${insDlyHTML()}</div>`;
+        /* délais : saisis en mode LIAISONS seulement ; ici en lecture */
+        body.innerHTML = `<div class="bdg-d-scroll">${insDlyHTML(false)}</div>`;
         return;
       }
       body.innerHTML = `<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
@@ -5541,7 +5587,7 @@ function renderBudgetList() {
         const f = inp.dataset.f;
         const c = INS_COLS[k].find(x => x[0] === f);
         if (!c || inp === document.activeElement) return;
-        const qAuto = k === "prd" && f === "q";   /* QPB produits = NBR × DIM 1 × DIM 2 × DIM 3 */
+        const qAuto = f === "q" && (k === "prd" || (k === "des" && insLinkedQ(INS, r.id) !== null));
         if (c[3] === "calc" || qAuto) inp.value = r.t ? "" : insFmt(insCalc(k, r, f));
       });
       if (k === "des") {
@@ -5587,7 +5633,7 @@ function renderBudgetList() {
       INS[k] = INS[k].filter(r => !empty(r));
       return INS[k].length !== before;
     };
-    shell.__ins = INS_EDIT ? { INS, cleanLinks: () => insCleanLinks(), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel } : null;
+    shell.__ins = INS_EDIT ? { INS, cleanLinks: () => insCleanLinks(), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles } : null;
     if (!shell.__insBound) {
       shell.__insBound = true;
       shell.addEventListener("input", e => {
@@ -5685,17 +5731,23 @@ function renderBudgetList() {
         const k = holder.dataset.ik;
         const r = X.INS[k].find(x => x.id === holder.dataset.iid);
         if (!r) return;
+        if (cb && r.t) {
+          /* case d'un titre : coche / décoche toute sa branche */
+          X.insBranch(r).forEach(x => { x.on = cb.checked; });
+          X.insSave(); X.insRedraw(k);
+          return;
+        }
         if (cb) {
-          r.on = cb.checked; X.insSave(); if (k === "des") X.insDim();
+          r.on = cb.checked; X.insSave(); if (k === "des") { X.insDim(); X.insSyncTitles(); }
           /* case d'en-tête à jour */
           const box = cb.closest("table.ins-table, .ins-hcol");
           const all = box?.querySelector("input.ins-cball");
           if (all) all.checked = [...box.querySelectorAll("[data-iid] input.ins-cb")].every(c => c.checked);
           return;
         }
-        /* ligne titre : unité, quantité, prix, TVA vidés et verrouillés */
+        /* ligne titre : unité, quantité, prix, TVA masqués et verrouillés, mais gardés
+           (retour possible) ; seule la validation du budget les efface */
         r.t = !r.t;
-        ["u", "q", "p", "tva"].forEach(f => { r[f] = ""; });
         X.insSave();
         X.insRedraw(k);
       }, true);
@@ -5795,43 +5847,105 @@ function renderBudgetList() {
     const dAdd = (iso, n) => { const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return dIso(d); };
     const dDiff = (a, b) => Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000);
     const dFr = iso => iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : "";
-    const insDlyHTML = () => {
-      INS.dly = INS.dly || {};
-      const lotsOf = id => [...new Set((INS.links || []).filter(l => l.sec === id)
-        .map(l => (INS.lot.find(x => x.id === l.lot) || {}).v).filter(Boolean))].join(", ");
-      const all = INS.sec.map(r => {
-        const d = INS.dly[r.id] || {};
-        return { id: r.id, lot: lotsOf(r.id), sec: r.v || "", deb: d.deb || "", dur: d.dur ?? "", fin: d.fin || "", arr: d.arr || "" };
-      }).sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || a.sec.localeCompare(b.sec, "fr"));
-      const rows = cfApply("dly", DLY_COLS, all);
-      lastShown.detail = { cols: DLY_COLS, rows, kind: "dly" };
-      const inp = (x, f, type) => INS_EDIT
-        ? `<input class="ins-in dly-in${f === "dur" ? " number" : f === "arr" ? "" : " center"}" data-dly="${x.id}" data-f="${f}" type="${type}" ${f === "dur" ? 'inputmode="numeric"' : ""} value="${esc(x[f] ?? "")}">`
-        : esc(f === "deb" || f === "fin" ? dFr(x[f]) : (x[f] || (f === "arr" ? "—" : "")));
-      return dlyTable(rows, x => ({ lot: esc(x.lot), sec: esc(x.sec),
-        deb: inp(x, "deb", "date"), dur: inp(x, "dur", "text"), fin: inp(x, "fin", "date"), arr: inp(x, "arr", "text"),
-        __td_deb: INS_EDIT ? " ins-td" : "", __td_dur: INS_EDIT ? " ins-td" : "", __td_fin: INS_EDIT ? " ins-td" : "", __td_arr: INS_EDIT ? " ins-td" : "" }),
-        x => `data-sec="${x.id}"`);
+    /* ---------- DÉTAIL DÉLAIS (instance) : une ou plusieurs périodes par TÂCHE PRIMAIRE
+       (tâche primaire = un lot associé à une activité primaire, d'après les liaisons validées).
+       Saisie en mode LIAISONS seulement ; périodes sans chevauchement dans une même tâche. ---------- */
+    const dParse = v => {
+      const t = String(v || "").trim();
+      if (!t) return "";
+      let m = t.match(/^(\d{1,2})[\/.\- ](\d{1,2})[\/.\- ](\d{2,4})$/) || t.match(/^(\d{2})(\d{2})(\d{4})$/);
+      if (!m) return null;
+      let y = Number(m[3]); if (y < 100) y += 2000;
+      const d = new Date(y, Number(m[2]) - 1, Number(m[1]));
+      if (isNaN(d) || d.getDate() !== Number(m[1]) || d.getMonth() !== Number(m[2]) - 1) return null;
+      return dIso(d);
     };
-    /* saisie : durée → fin ; fin → durée ; début → fin (si durée) */
+    const insTasks = () => {
+      const m = new Map();
+      (INS.links || []).forEach(l => {
+        const k = l.lot + "|" + l.prim;
+        if (!m.has(k)) m.set(k, { key: k, lot: (INS.lot.find(x => x.id === l.lot) || {}).v || "", prim: (INS.prim.find(x => x.id === l.prim) || {}).v || "" });
+      });
+      return [...m.values()];
+    };
+    const insDlyHTML = (edit, err) => {
+      INS.dlp = INS.dlp || {};
+      const all = [];
+      insTasks().forEach(t => {
+        const ps = [...(INS.dlp[t.key] || [])].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")));
+        ps.forEach((p, i) => all.push({ task: t.key, pid: p.id, lot: t.lot, prim: t.prim, per: i + 1, deb: p.deb || "", fin: p.fin || "",
+          dur: p.deb && p.fin ? dDiff(p.deb, p.fin) : "" }));
+        if (edit || !ps.length) all.push({ task: t.key, pid: "", lot: t.lot, prim: t.prim, per: "", deb: "", fin: "", dur: "", nw: true });
+      });
+      /* ordre par défaut : chronologique (début), puis alphabétique */
+      all.sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || a.lot.localeCompare(b.lot, "fr") || a.prim.localeCompare(b.prim, "fr") || (a.nw - b.nw));
+      const rows = cfApply("dly", DLY_COLS, all);
+      lastShown.detail = { cols: DLY_COLS, rows: rows.filter(x => !x.nw), kind: "dly" };
+      const inp = (x, f) => edit
+        ? `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${x.task}" data-pid="${x.pid}" data-f="${f}" type="text"
+            inputmode="${f === "dur" ? "numeric" : "text"}" placeholder="${x.nw && f === "deb" ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? x.dur : dFr(x[f]))}">`
+        : esc(f === "dur" ? x.dur : dFr(x[f]));
+      const td = edit ? " ins-td" : "";
+      return (err ? `<div class="lk-err dlp-err">${esc(err)}</div>` : "") + dlyTable(rows, x => ({ lot: esc(x.lot), prim: esc(x.prim), per: x.per,
+        deb: inp(x, "deb"), fin: inp(x, "fin"), dur: inp(x, "dur"),
+        __td_deb: td, __td_fin: td, __td_dur: td,
+        __x: edit && x.pid ? `<button type="button" class="ins-x dlp-x" data-task="${x.task}" data-pid="${x.pid}" title="Supprimer la période" aria-label="Supprimer">${INS_TRASH}</button>` : "" }),
+        x => `class="${x.nw ? "ins-new" : ""}"`, edit);
+    };
+    /* saisie : début + durée → fin ; fin → durée ; refus d'un chevauchement dans la même tâche */
     if (!shell.__dlyBound) {
       shell.__dlyBound = true;
       shell.addEventListener("change", e => {
-        const i = e.target.closest && e.target.closest("input.dly-in");
+        const i = e.target.closest && e.target.closest("input.dlp-in");
         const X = shell.__insDly;
         if (!i || !X) return;
-        const d = X.INS.dly[i.dataset.dly] = X.INS.dly[i.dataset.dly] || {};
-        const f = i.dataset.f;
-        d[f] = i.value.trim();
-        if ((f === "deb" || f === "dur") && d.deb && d.dur !== "" && d.dur !== undefined && !isNaN(num(d.dur))) d.fin = X.dAdd(d.deb, num(d.dur));
-        if (f === "fin" && d.deb && d.fin) d.dur = String(X.dDiff(d.deb, d.fin));
-        const tr = i.closest("tr");
-        tr.querySelector('[data-f="fin"]').value = d.fin || "";
-        tr.querySelector('[data-f="dur"]').value = d.dur || "";
-        X.insSave();
+        const D = X.INS.dlp = X.INS.dlp || {};
+        const list = D[i.dataset.task] = D[i.dataset.task] || [];
+        let p = list.find(x => x.id === i.dataset.pid);
+        const q = p ? { ...p } : { id: X.insId(), deb: "", fin: "" };
+        const f = i.dataset.f, v = i.value.trim();
+        X.err = "";
+        if (f === "dur") {
+          if (v === "") q.fin = "";
+          else if (!/^\d+$/.test(v)) X.err = "DURÉE NON VALIDE : NOMBRE DE JOURS ATTENDU.";
+          else if (q.deb) q.fin = X.dAdd(q.deb, Number(v));
+          else X.err = "SAISISSEZ D'ABORD LA DATE DE DÉBUT.";
+        } else {
+          const iso = X.dParse(v);
+          if (iso === null) X.err = "DATE NON VALIDE : FORMAT JJ/MM/AAAA.";
+          else q[f] = iso;
+        }
+        if (!X.err && q.deb && q.fin && q.fin < q.deb) X.err = "LA FIN EST AVANT LE DÉBUT.";
+        if (!X.err && (q.deb || q.fin)) {
+          /* une date seule ne doit pas tomber dans une autre période de la même tâche */
+          const a = q.deb || q.fin, z = q.fin || q.deb;
+          const o = list.find(x => x.id !== q.id && x.deb && x.fin && (q.deb && q.fin ? a < x.fin && x.deb < z : a >= x.deb && a < x.fin));
+          if (o) X.err = "PÉRIODE REFUSÉE : ELLE CHEVAUCHE LA PÉRIODE DU " + X.dFr(o.deb) + " AU " + X.dFr(o.fin) + ".";
+        }
+        if (!X.err) {
+          if (p) Object.assign(p, q); else if (q.deb || q.fin) list.push(q);
+          X.insSave();
+        }
+        X.render();
+        /* le curseur passe à la case suivante de la même période */
+        const nx = { deb: "fin", fin: "dur" }[f];
+        const el = !X.err && nx && shell.querySelector(`input.dlp-in[data-pid="${q.id}"][data-f="${nx}"]`);
+        if (el) { el.focus(); try { el.select(); } catch (err) {} }
       });
+      shell.addEventListener("click", e => {
+        const b = e.target.closest && e.target.closest(".dlp-x");
+        const X = shell.__insDly;
+        if (!b || !X) return;
+        e.stopPropagation();
+        svConfirm({ title: "SUPPRIMER LA PÉRIODE", text: "LA PÉRIODE SERA SUPPRIMÉE.", ok: "SUPPRIMER" }).then(go => {
+          if (!go) return;
+          const D = X.INS.dlp || {};
+          D[b.dataset.task] = (D[b.dataset.task] || []).filter(x => x.id !== b.dataset.pid);
+          X.insSave(); X.render();
+        });
+      }, true);
     }
-    shell.__insDly = INS && INS_EDIT ? { INS, dAdd, dDiff, insSave } : null;
+    shell.__insDly = INS && INS_EDIT ? { INS, dAdd, dDiff, dParse, dFr, insId, insSave, err: "", render: () => insRenderLinks() } : null;
 
     /* ---------- MODE LIAISONS ---------- */
     const LK = { des: null, lot: null, prim: null, sec: null, prd: {}, chg: {}, err: "" };
@@ -5844,7 +5958,7 @@ function renderBudgetList() {
       const az = (a, b) => String(a).localeCompare(String(b), "fr", { numeric: true });
       /* lignes choisies en haut (consigne 14), filtres / tri de colonne (7), colonnes réglables (9) */
       const top = (rows, isSel) => rows.map((r, i) => ({ r, i })).sort((a, b) => (isSel(b.r) - isSel(a.r)) || a.i - b.i).map(o => o.r);
-      const W = { art: 70, des: 340, u: 70, q: 110, lnk: 120, v: 220, lot: 160, prim: 180, sec: 200, np: 110, nc: 110, act: 110, qt: 200 };
+      const W = { art: 70, des: 340, u: 70, q: 110, lnk: 120, v: 220, lot: 160, prim: 180, sec: 200, np: 110, nc: 110, act: 110, qt: 200, lq: 120, lp: 110, lm: 140 };
       const tbl = (t, cols, rows, lead, rowHTML) => {
         const oc = coOrder(t, cols);
         const w = k => cwLoad()[t + "." + k] || W[k] || 120;
@@ -5862,7 +5976,7 @@ function renderBudgetList() {
       const desList = top(cfApply("lk_des", DC, INS.des.filter(r => !r.t)), r => r.id === LK.des);
       const desHTML = tbl("lk_des", DC, desList, true, (r, oc) => `<tr class="${LK.des === r.id ? "lk-sel" : LK.des ? "lk-dim" : ""}${unl("des", r.id)}" data-pick="des" data-id="${r.id}">
           <td class="center">${radio("des", r.id)}</td>${oc.map(c => `<td class="${c[3]}">${c[0] === "lnk" ? (nLinks(r.id) ? `<span class="lk-ok">${nLinks(r.id)} VALIDÉE(S)</span>` : "")
-            : c[0] === "q" ? insFmt(r.q) : esc(c[2](r))}</td>`).join("")}</tr>`);
+            : c[0] === "q" ? insFmt(insQty("des", r)) : esc(c[2](r))}</td>`).join("")}</tr>`);
       /* TÂCHES : trois blocs (ordre alphabétique, largeur réglable) */
       const ws = ["lot", "prim", "sec"].map(k => cwLoad()["lk_hier." + k]);
       const gridCols = ws.every(Boolean) && window.innerWidth > 700 ? ws.map(x => x + "px").join(" ") : "";
@@ -5890,12 +6004,18 @@ function renderBudgetList() {
       };
       /* DÉTAILS sous onglets, même format que SAISIE / validé */
       const detN = {};
-      const lkTab = LK.tab === "chg" ? "chg" : "prd";
-      const detBody = det(lkTab);
+      const lkTab = ["chg", "qlt", "dly"].includes(LK.tab) ? LK.tab : "prd";
+      /* QUALITÉ : lecture (saisie en mode SAISIE) ; DÉLAIS : saisis ici seulement */
+      const qltHTML = () => `<table class="bdg-d-table" style="width:600px"><thead><tr><th>QUALITÉ</th></tr></thead><tbody>${
+        (INS.qlt || []).map(r => `<tr><td>${esc(r.v || "")}</td></tr>`).join("") || '<tr><td class="empty">AUCUNE LIGNE</td></tr>'}</tbody></table>`;
+      const detBody = lkTab === "qlt" ? `<div class="lk-scroll">${qltHTML()}</div>`
+        : lkTab === "dly" ? `<div class="lk-scroll">${insDlyHTML(!RO, shell.__insDly && shell.__insDly.err)}</div>` : det(lkTab);
+      detN.qlt = (INS.qlt || []).length;
+      detN.dly = insTasks().length;
       if (detN.prd === undefined) detN.prd = cfApply("lk_prd", [["des", "", r => r.des || ""], ["u", "", r => r.u || ""], ["qt", "", r => LK.prd[r.id] ?? ""]], [...INS.prd]).length;
       if (detN.chg === undefined) detN.chg = cfApply("lk_chg", [["des", "", r => r.des || ""], ["u", "", r => r.u || ""], ["qt", "", r => LK.chg[r.id] ?? ""]], [...INS.chg]).length;
       const tabBtn = (k, title, extra) => `<button type="button" class="bdg-d-tab${lkTab === k ? " active" : ""}${Object.keys(cfT("lk_" + k).f).length ? " cf-on" : ""}" data-lktab="${k}">${SVI_ICON[k] || ""}${title} ${svCnt(detN[k])}${extra || ""}</button>`;
-      const detHTML = `<div class="lk-dettabs"><div class="bdg-d-tabs lk-tabs">${tabBtn("prd", 'DÉTAIL PRODUITS <b class="req-star">*</b>')}${tabBtn("chg", "DÉTAIL CHARGES")}</div>
+      const detHTML = `<div class="lk-dettabs"><div class="bdg-d-tabs lk-tabs">${tabBtn("prd", 'DÉTAIL PRODUITS <b class="req-star">*</b>')}${tabBtn("chg", "DÉTAIL CHARGES")}${tabBtn("qlt", "DÉTAIL QUALITÉ")}${tabBtn("dly", "DÉTAIL DÉLAIS")}</div>
         <div class="bdg-d-block bdg-d-tabbody lk-blk">${detBody}</div></div>`;
       const nPrd = Object.keys(LK.prd).length;
       const complete = LK.des && LK.lot && LK.prim && LK.sec && nPrd > 0;
@@ -5906,7 +6026,11 @@ function renderBudgetList() {
         ["des", "DÉSIGNATION", l => (INS.des.find(x => x.id === l.des) || {}).des || "", ""],
         ["lot", "LOT", l => lkName("lot", l.lot), ""], ["prim", "ACT. PRIMAIRE", l => lkName("prim", l.prim), ""],
         ["sec", "ACT. SECONDAIRE", l => lkName("sec", l.sec), ""], ["np", "PRODUITS", l => (l.prd || []).length, "center"],
-        ["nc", "CHARGES", l => (l.chg || []).length, "center"]];
+        ["nc", "CHARGES", l => (l.chg || []).length, "center"],
+        /* prix de la tâche primaire = PPB de la désignation client */
+        ["lq", "QUANTITÉ", l => insFmt((l.prd || []).reduce((t, x) => t + num(x.q || 0), 0)), "number"],
+        ["lp", "PPB", l => insFmt(num((INS.des.find(x => x.id === l.des) || {}).p || 0)), "number"],
+        ["lm", "MPB HT", l => insFmt((l.prd || []).reduce((t, x) => t + num(x.q || 0), 0) * num((INS.des.find(x => x.id === l.des) || {}).p || 0)), "number"]];
       const lrows = cfApply("lk_links", LC, INS.links || []);
       const linksHTML = tbl("lk_links", LC, lrows, false, (l, oc) => `<tr>${oc.map(c => `<td class="${c[3]}">${esc(c[2](l))}</td>`).join("")}</tr>`)
         .replace(/<\/tr><\/thead>/, RO ? "</tr></thead>" : `<th class="center" style="width:110px"></th></tr></thead>`);
@@ -5943,6 +6067,10 @@ function renderBudgetList() {
       if (primP) return "RÈGLE A : L'ACTIVITÉ PRIMAIRE " + lkName("prim", LK.prim) + " EST DÉJÀ LIÉE AU LOT " + lkName("lot", primP.lot) + ".";
       const secP = L.find(l => l.sec === LK.sec && l.prim !== LK.prim);
       if (secP) return "RÈGLE A : L'ACTIVITÉ SECONDAIRE " + lkName("sec", LK.sec) + " EST DÉJÀ LIÉE À " + lkName("prim", secP.prim) + ".";
+      const D = INS.des.find(x => x.id === LK.des);
+      const du = U_(D && D.u);
+      const bad = du && Object.keys(LK.prd).find(id => { const p = INS.prd.find(x => x.id === id); return p && U_(p.u) && U_(p.u) !== du; });
+      if (bad) return "UNITÉ : " + lkName("prd", bad) + " (" + U_(INS.prd.find(x => x.id === bad).u) + ") N'A PAS L'UNITÉ DE LA DÉSIGNATION (" + du + ").";
       const dup = Object.keys(LK.prd).find(id => L.some(l => l.sec === LK.sec && (l.prd || []).some(x => x.id === id)));
       if (dup) return "RÈGLE D : " + lkName("prd", dup) + " EST DÉJÀ DANS L'ACTIVITÉ SECONDAIRE " + lkName("sec", LK.sec) + ".";
       return "";
@@ -6414,24 +6542,25 @@ function renderBudgetList() {
     };
 
     /* ===== DÉTAIL DÉLAIS : colonnes (tri / filtre, largeur et ordre réglables) ===== */
+    /* une ligne par période d'une TÂCHE PRIMAIRE (lot + activité primaire) */
     const DLY_COLS = [
       ["lot", "LOT", x => x.lot || "", ""],
-      ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""],
+      ["prim", "ACTIVITÉ PRIMAIRE", x => x.prim || "", ""],
+      ["per", "PÉRIODE", x => x.per ?? "", "center"],
       ["deb", "DÉBUT", x => x.deb || "", "center"],
-      ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "number"],
       ["fin", "FIN", x => x.fin || "", "center"],
-      ["arr", "ARRÊTS", x => x.arr || "", ""]
+      ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "number"]
     ];
-    const DLY_W = { lot: 200, sec: 320, deb: 140, dur: 100, fin: 140, arr: 200 };
+    const DLY_W = { lot: 200, prim: 280, per: 120, deb: 140, fin: 140, dur: 110 };
     /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */
-    const dlyTable = (rows, cells, trAttr = () => "") => {
+    const dlyTable = (rows, cells, trAttr = () => "", del = false) => {
       const cols = coOrder("dly", DLY_COLS);
       const w = k => cwLoad()["dly." + k] || DLY_W[k];
-      return `<table class="bdg-d-table dly-table" style="width:${cols.reduce((t, c) => t + w(c[0]), 0)}px">
-        <colgroup>${cols.map(c => `<col data-w="dly.${c[0]}" style="width:${w(c[0])}px">`).join("")}</colgroup>
-        <thead><tr>${cols.map(c => cfHead("dly", c[0], c[1], c[3])).join("")}</tr></thead>
-        <tbody>${rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}</tr>`; }).join("")
-          || `<tr><td colspan="${cols.length}" class="empty">AUCUNE ACTIVITÉ SECONDAIRE</td></tr>`}</tbody></table>`;
+      return `<table class="bdg-d-table dly-table" style="width:${cols.reduce((t, c) => t + w(c[0]), 0) + (del ? 44 : 0)}px">
+        <colgroup>${cols.map(c => `<col data-w="dly.${c[0]}" style="width:${w(c[0])}px">`).join("")}${del ? '<col style="width:44px">' : ""}</colgroup>
+        <thead><tr>${cols.map(c => cfHead("dly", c[0], c[1], c[3])).join("")}${del ? "<th></th>" : ""}</tr></thead>
+        <tbody>${rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}${del ? `<td class="center ins-delc">${h.__x || ""}</td>` : ""}</tr>`; }).join("")
+          || `<tr><td colspan="${cols.length + (del ? 1 : 0)}" class="empty">AUCUNE TÂCHE PRIMAIRE</td></tr>`}</tbody></table>`;
     };
     const renderTab = () => { renderTab0(); sviMarkEmptyTabs(shell); };
     const renderTab0 = () => {
@@ -6457,7 +6586,7 @@ function renderBudgetList() {
       { const q = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="qlt"]`);
         if (q) q.innerHTML = (SVI_ICON.qlt || "") + "DÉTAIL QUALITÉ " + svCnt(0);
         const d = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
-        if (d) d.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(new Set(lines.map(l => String(l.sec || "").trim()).filter(Boolean)).size); }
+        if (d) d.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(new Set(lines.filter(l => String(l.lot || "").trim() || String(l.prim || "").trim()).map(l => String(l.lot || "").trim() + "|" + String(l.prim || "").trim())).size); }
       if (active === "chg" || active === "prd") {
         const prd = active === "prd";
         const tcols = tcolsFor(prd);
@@ -6547,26 +6676,27 @@ function renderBudgetList() {
       /* DÉTAIL DÉLAIS : une ligne par activité secondaire (lots, début, durée, fin, arrêts) */
       {
         const fr = iso => iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : "";
+        /* une ligne par TÂCHE PRIMAIRE (lot + activité primaire) : du premier début à la dernière fin */
         const m = new Map();
         lines.forEach(l => {
-          const k = String(l.sec || "").trim();
-          if (!k) return;
-          if (!m.has(k)) m.set(k, { sec: k, lots: new Set(), deb: "", fin: "" });
+          const lot = String(l.lot || "").trim(), prim = String(l.prim || "").trim();
+          if (!lot && !prim) return;
+          const k = lot + "|" + prim;
+          if (!m.has(k)) m.set(k, { lot, prim, per: 1, deb: "", fin: "" });
           const x = m.get(k);
-          if (l.lot) x.lots.add(l.lot);
-          if (!x.deb && l.deb) x.deb = l.deb;
-          if (!x.fin && l.fin) x.fin = l.fin;
+          if (l.deb && (!x.deb || l.deb < x.deb)) x.deb = l.deb;
+          if (l.fin && (!x.fin || l.fin > x.fin)) x.fin = l.fin;
         });
         const dur = x => x.deb && x.fin ? Math.round((new Date(x.fin) - new Date(x.deb)) / 86400000) : "";
         /* ordre par défaut : chronologique (début), puis alphabétique */
-        const all = [...m.values()].map(x => ({ ...x, lot: [...x.lots].join(", "), dur: dur(x) }))
-          .sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || a.sec.localeCompare(b.sec, "fr"));
+        const all = [...m.values()].map(x => ({ ...x, dur: dur(x) }))
+          .sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || a.lot.localeCompare(b.lot, "fr") || a.prim.localeCompare(b.prim, "fr"));
         const rows = cfApply("dly", DLY_COLS, all);
         { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
           if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(rows.length); }
         lastShown.detail = { cols: DLY_COLS, rows, kind: "dly" };
         body.innerHTML = `<div class="bdg-d-scroll">${dlyTable(rows, x => DLY_COLS.map(c => c[0])
-          .reduce((o, k) => (o[k] = k === "deb" || k === "fin" ? fr(x[k]) : k === "arr" ? "—" : esc(x[k] ?? ""), o), {}))}</div>`;
+          .reduce((o, k) => (o[k] = k === "deb" || k === "fin" ? fr(x[k]) : esc(x[k] ?? ""), o), {}))}</div>`;
         return;
       }
       body.innerHTML = `
@@ -7307,7 +7437,7 @@ function renderBudgetList() {
       const prj = db.projects.find(x => N(x.code) === N(budget.project));
       const projet = (prj && prj.name && N(prj.name) !== N(budget.project)) ? prj.name : budget.project;
       return {
-        date: "Agadir, le " + String(d0.getDate()).padStart(2, "0") + " " + mois[d0.getMonth()] + " " + d0.getFullYear(),
+        date: "AGADIR, LE " + svDT(d0),
         budget: "BUDGET N° : " + fullRef, client: "CLIENT : À COMPLÉTER", projet: "PROJET : " + projet,
         titre: String(blkLabel(blk)).toUpperCase()
       };
@@ -8486,7 +8616,7 @@ function renderBudgetList() {
       const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
         "août", "septembre", "octobre", "novembre", "décembre"];
       const now = new Date();
-      const dateTxt = `Agadir, le ${String(now.getDate()).padStart(2, "0")} ${mois[now.getMonth()]} ${now.getFullYear()}`;
+      const dateTxt = "AGADIR, LE " + svDT(now);
       const prj = db.projects.find(x => N(x.code) === N(budget.project));
       const projet = (prj && prj.name && N(prj.name) !== N(budget.project)) ? prj.name : budget.project;
       const fileName = (fullRef + " " + cfg.fileTag).replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "_") + ".pdf";
@@ -9586,7 +9716,7 @@ function renderBudgetList() {
           <button type="button" onclick="window.print()">🖨 IMPRIMER</button>
           <button type="button" class="x" onclick="window.close()">✕ FERMER</button></div>
         <h1>${esc(budget.project)} — ${esc(ref)}</h1>
-        <h2>${esc(blkDisp(blk))} — ${new Date().toLocaleDateString("fr-FR")}</h2>
+        <h2>${esc(blkDisp(blk))} — ${svDT(new Date())}</h2>
         ${tableHTML}
         </body></html>`);
       w.document.close();
@@ -10797,10 +10927,12 @@ function renderBudgetList() {
       $("instValid")?.addEventListener("click", () => {
         svConfirm({ title: "VALIDER LE BUDGET", text: fullRef + " PASSERA DANS BUDGETS (VALIDÉS), EN LECTURE SEULE.", ok: "✓ VALIDER", tone: "neutral" }).then(go => {
         if (!go) return;
+        /* validation : les données gardées sous les lignes titre sont effacées */
+        ((budget.inst.data || {}).des || []).forEach(r => { if (r.t) ["u", "q", "p", "tva"].forEach(f => { delete r[f]; }); });
         budget.inst.state = "valide";
         const d = new Date(), p2 = n => String(n).padStart(2, "0");
-        budget.inst.validated = d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
-        instUpd(l => l.map(x => x.ref === ref ? { ...x, state: "valide", validated: budget.inst.validated } : x));
+        budget.inst.validated = d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()) + "T" + p2(d.getHours()) + ":" + p2(d.getMinutes());
+        instUpd(l => l.map(x => x.ref === ref ? { ...x, data: budget.inst.data || x.data, state: "valide", validated: budget.inst.validated } : x));
         histLog("BUDGET", "VALIDÉ", fullRef);
         try { localStorage.setItem("svi_listmode_v1", "valid"); } catch (e) {}
         toList();
