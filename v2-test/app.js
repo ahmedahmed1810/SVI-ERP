@@ -5215,7 +5215,7 @@ function renderBudgetList() {
         else val = r[f] || "";
       }
       if (!INS_EDIT) return `<td class="${cls}">${esc(val)}${f === "tva" && val ? " %" : ""}</td>`;
-      return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}"><input class="ins-in ${cls}" data-f="${f}"
+      return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}"><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
         ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
         value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off"></td>`;
     };
@@ -5230,44 +5230,77 @@ function renderBudgetList() {
         <td class="center ins-cbc">${cb}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}</tr>`;
     };
     /* lignes + sous-totaux de titres (désignations) */
+    /* filtres / tri de colonne (mêmes menus que la version validée) :
+       une ligne filtrée garde son titre ; un tri affiche la liste à plat */
+    const insCfT = k => k === "des" ? "client" : k;
+    const insCfCols = k => INS_COLS[k].map(c => [c[4], c[1],
+      r => c[3] === "txt" ? (r[c[0]] || "") : (r.t ? "" : insCalc(k, r, c[0])), c[2]]);
+    const insShown = k => {
+      const t = insCfT(k);
+      const normal = INS[k].filter(r => !r.t);
+      const shown = cfApply(t, insCfCols(k), normal);
+      const st = cfT(t);
+      const sorting = !!(st.sort && !st.sort.def);
+      const filtering = Object.keys(st.f).length > 0;
+      if (k !== "des" || sorting) return shown;
+      if (!filtering) return INS.des;
+      const keep = new Set(shown.map(r => r.id));
+      return INS.des.filter((r, i) => {
+        if (!r.t) return keep.has(r.id);
+        const L = insLevel(r.art);
+        for (let j = i + 1; j < INS.des.length; j++) {
+          const x = INS.des[j];
+          if (x.t && insLevel(x.art) <= L) break;
+          if (!x.t && keep.has(x.id)) return true;
+        }
+        return false;
+      });
+    };
+    const insSubOf = t => {
+      const i0 = INS.des.indexOf(t);
+      let ht = 0, ttc = 0;
+      for (let i = i0 + 1; i < INS.des.length; i++) {
+        const r = INS.des[i];
+        if (r.t && insLevel(r.art) <= insLevel(t.art)) break;
+        if (!r.t) { ht += insHT("des", r); ttc += insTTC("des", r); }
+      }
+      return { ht, ttc };
+    };
+    /* suite d'affichage : titres, lignes et sous-totaux (écran et aperçu) */
+    const insOrder = rows => {
+      const out = [], stack = [];
+      rows.forEach(r => {
+        if (r.t) {
+          const L = insLevel(r.art);
+          while (stack.length && insLevel(stack[stack.length - 1].art) >= L) out.push({ sub: stack.pop() });
+          stack.push(r);
+          out.push({ r, lvl: 0 });
+        } else out.push({ r, lvl: stack.length ? insLevel(stack[stack.length - 1].art) : 0 });
+      });
+      while (stack.length) out.push({ sub: stack.pop() });
+      return out;
+    };
     const insBodyHTML = k => {
-      const rows = INS[k];
+      const rows = insShown(k);
       const ncol = INS_COLS[k].length + (k === "des" ? 2 : 1);
       let html = "";
       if (k !== "des") {
         html = rows.map(r => insRowHTML(k, r, 0)).join("");
       } else {
-        const stack = [];
         const sub = t => {
-          const i0 = rows.indexOf(t);
-          let ht = 0, ttc = 0;
-          for (let i = i0 + 1; i < rows.length; i++) {
-            const r = rows[i];
-            if (r.t && insLevel(r.art) <= insLevel(t.art)) break;
-            if (!r.t) { ht += insHT(k, r); ttc += insTTC(k, r); }
-          }
+          const { ht, ttc } = insSubOf(t);
           return `<tr class="ins-sub lv${insLevel(t.art)}" data-sub="${t.id}"><td></td><td></td><td></td>
             <td colspan="4" class="number">TOTAL ${esc(t.des || t.art || "")}</td>
             <td class="number ins-sht">${money(ht)}</td><td></td><td class="number ins-sttc">${money(ttc)}</td></tr>`;
         };
-        rows.forEach(r => {
-          if (r.t) {
-            const L = insLevel(r.art);
-            while (stack.length && insLevel(stack[stack.length - 1].art) >= L) html += sub(stack.pop());
-            stack.push(r);
-            html += insRowHTML(k, r, 0);
-          } else {
-            html += insRowHTML(k, r, stack.length ? insLevel(stack[stack.length - 1].art) : 0);
-          }
-        });
-        while (stack.length) html += sub(stack.pop());
+        html = insOrder(rows).map(x => x.sub ? sub(x.sub) : insRowHTML(k, x.r, x.lvl)).join("");
       }
       if (INS_EDIT) html += insRowHTML(k, null, 0);
       if (!rows.length && !INS_EDIT) html += `<tr><td colspan="${ncol}" class="empty">AUCUNE LIGNE</td></tr>`;
       return html;
     };
     const insFootHTML = k => {
-      const rows = INS[k].filter(r => !r.t);
+      const rows = insShown(k).filter(r => !r.t);
       const ht = rows.reduce((t, r) => t + insHT(k, r), 0);
       const ttc = rows.reduce((t, r) => t + insTTC(k, r), 0);
       const n = INS_COLS[k].length + (k === "des" ? 2 : 1);
@@ -5278,15 +5311,19 @@ function renderBudgetList() {
       const cols = INS_COLS[k];
       const lead = k === "des" ? 2 : 1;
       const w = 36 * lead + cols.reduce((t, c) => t + cwGet(k === "des" ? "client" : k, c[4]), 0);
+      const t = insCfT(k);
       return `<table class="bdg-d-table ins-table" data-ik="${k}" style="width:${w}px">
-        <colgroup>${'<col style="width:36px">'.repeat(lead)}${cols.map(c => `<col style="width:${cwGet(k === "des" ? "client" : k, c[4])}px">`).join("")}</colgroup>
-        <thead><tr><th class="center"></th>${k === "des" ? '<th class="center">T</th>' : ""}${cols.map(c => `<th class="${c[2]}">${c[1]}</th>`).join("")}</tr></thead>
+        <colgroup>${'<col style="width:36px">'.repeat(lead)}${cols.map(c => `<col data-w="${t}.${c[4]}" style="width:${cwGet(t, c[4])}px">`).join("")}</colgroup>
+        <thead><tr><th class="center"></th>${k === "des" ? '<th class="center">T</th>' : ""}${cols.map(c => cfHead(t, c[4], c[1], c[2])).join("")}</tr></thead>
         <tbody>${insBodyHTML(k)}</tbody>
         <tfoot>${insFootHTML(k)}</tfoot></table>`;
     };
     const insRenderClient = () => {
       const t = document.querySelector("#bdgClientTitle .ttl");
-      if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + svCnt(INS.des.filter(r => !r.t).length);
+      const shownD = insShown("des");
+      if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + svCnt(shownD.filter(r => !r.t).length);
+      lastShown.client = { cols: insCfCols("des"), rows: shownD, ins: true };
+      lastClientKeys = new Set();
       /* même tableau que la version validée (identifiants gardés) */
       const tbl = $("bdgClientBody")?.closest("table");
       if (!tbl) return;
@@ -5302,17 +5339,23 @@ function renderBudgetList() {
       $("bdgClientFoot").innerHTML = src.querySelector("tfoot").innerHTML;
     };
     const insRenderHier = only => {
-      const col = (title, k) => `
+      const col = (title, k) => {
+        const list = cfApply(k, [["v", title, r => r.v || "", ""]], INS[k]);
+        lastShown.hier[k] = list.map(r => r.v || "");
+        const on = !!cfT(k).f.v;
+        return `
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
-          <div class="bdg-h-head"><span class="cf-wrap"><span class="cf-lab">${title}${svCnt(INS[k].length)}</span></span></div>
-          ${INS[k].map(r => `<div class="ins-li" data-ik="${k}" data-iid="${r.id}">
+          <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length)}</span><span class="cf-btn"
+            data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span></div>
+          ${list.map(r => `<div class="ins-li" data-ik="${k}" data-iid="${r.id}">
               <input type="checkbox" class="ins-cb" ${r.on !== false ? "checked" : ""} ${INS_EDIT ? "" : "disabled"}>
-              ${INS_EDIT ? `<input class="ins-in" data-f="v" value="${esc(r.v || "")}" autocomplete="off">` : `<span>${esc(r.v || "")}</span>`}
+              ${INS_EDIT ? `<input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">` : `<span>${esc(r.v || "")}</span>`}
             </div>`).join("")}
           ${INS_EDIT ? `<div class="ins-li ins-new" data-ik="${k}"><span class="ins-cbc"></span>
-              <input class="ins-in" data-f="v" placeholder="SAISIR ICI…" autocomplete="off"></div>`
-            : (INS[k].length ? "" : `<div class="bdg-h-item" style="opacity:.5;cursor:default">—</div>`)}
+              <input class="ins-in" data-f="v" enterkeyhint="next" placeholder="SAISIR ICI…" autocomplete="off"></div>`
+            : (list.length ? "" : `<div class="bdg-h-item" style="opacity:.5;cursor:default">—</div>`)}
         </div>`;
+      };
       const T = { lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" };
       const old = only && $("bdgHier").querySelector(`.ins-hcol[data-ik="${only}"]`);
       if (old) {
@@ -5327,9 +5370,10 @@ function renderBudgetList() {
     const insRenderTab = () => {
       ["chg", "prd"].forEach(k => {
         const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
-        if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + " " + svCnt(INS[k].length);
+        if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + " " + svCnt(insShown(k).length);
       });
       body.innerHTML = `<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
+      lastShown.detail = { cols: insCfCols(active), rows: insShown(active), kind: active, ins: true };
     };
     /* met à jour les montants calculés, sous-totaux et totaux sans redessiner
        (la saisie en cours garde le clavier) */
@@ -5417,7 +5461,7 @@ function renderBudgetList() {
             const d = document.createElement("div");
             d.className = "ins-li ins-new";
             d.dataset.ik = k;
-            d.innerHTML = `<span class="ins-cbc"></span><input class="ins-in" data-f="v" placeholder="SAISIR ICI…" autocomplete="off">`;
+            d.innerHTML = `<span class="ins-cbc"></span><input class="ins-in" data-f="v" enterkeyhint="next" placeholder="SAISIR ICI…" autocomplete="off">`;
             holder.after(d);
             const lab = holder.closest(".ins-hcol")?.querySelector(".svi-cnt");
             if (lab) lab.textContent = X.INS[k].length;
@@ -5447,6 +5491,22 @@ function renderBudgetList() {
         X.insSave();
         X.insRedraw(k);
       }, true);
+      /* touche Entrée : case suivante (fin de ligne : 1re case de la ligne suivante) */
+      shell.addEventListener("keydown", e => {
+        if (e.key !== "Enter" || !shell.__ins) return;
+        const inp = e.target.closest && e.target.closest("input.ins-in");
+        if (!inp) return;
+        e.preventDefault();
+        const box = inp.closest("table.ins-table, .ins-hcol");
+        if (!box) return;
+        const all = [...box.querySelectorAll("input.ins-in:not([disabled])")];
+        const nx = all[all.indexOf(inp) + 1];
+        if (nx) {
+          nx.focus();
+          try { const n = nx.value.length; nx.setSelectionRange(n, n); } catch (err) {}
+          nx.scrollIntoView({ block: "nearest", inline: "nearest" });
+        }
+      });
       /* le doigt quitte un bloc : lignes vidées retirées, titres et sous-totaux remis en place */
       shell.addEventListener("focusout", e => {
         const X = shell.__ins;
@@ -6335,6 +6395,7 @@ function renderBudgetList() {
       const holder = el.closest("[data-ik]");
       const k = el.dataset.ik || holder?.dataset.ik;
       const isRow = el.tagName === "TR";
+      { const st = CF[k === "des" ? "client" : k]; if (st && st.sort && !st.sort.def) return; }
       const inp = event.target.closest("input.ins-in");
       const tapFocus = inp && inp !== document.activeElement ? inp : null;
       const sibs = () => isRow
@@ -7993,6 +8054,7 @@ function renderBudgetList() {
     const printClient = () => {
       const src = lastShown.client;
       if (!src || !src.rows.length) { alert("Aucune désignation à afficher."); return; }
+      if (src.ins) return printClientIns(src.rows);
       const rows = [...src.rows].sort((a, b) =>
         String(a.article).localeCompare(String(b.article), "fr", { numeric: true }));
       const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
@@ -8003,6 +8065,41 @@ function renderBudgetList() {
       }).join("");
       const ht = rows.reduce((t, g) => t + g.ht, 0);
       const tva = ht * 0.2, ttc = ht + tva;
+      printModel({
+        branch: "DÉSIGNATIONS CLIENT", docTitle: "DÉSIGNATIONS CLIENT", fileTag: "DESIGNATIONS CLIENT", headLine: "",
+        table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:33%"><col style="width:4%"><col style="width:9%">
+          <col style="width:9.5%"><col style="width:28%"><col style="width:10.5%"></colgroup>
+          <thead><tr><th rowspan="2">ART.</th><th rowspan="2">DESIGNATION</th><th rowspan="2">U</th><th rowspan="2">QUANTITE</th>
+            <th colspan="2">PRIX UNITAIRES HORS TVA</th><th rowspan="2">MONTANT</th></tr>
+            <tr><th class="sub">EN CHIFFRES</th><th class="sub">EN LETTRES</th></tr></thead>
+          <tbody>${body}</tbody></table>`,
+        end: `<div class="tot">
+            <div><span>TOTAL H.T. :</span><b>${money(ht)}</b></div>
+            <div><span>TOTAL T.V.A. :</span><b>${money(tva)}</b></div>
+            <div><span>TOTAL T.T.C. :</span><b>${money(ttc)}</b></div>
+          </div>
+          <div class="arr">ARRÊTER LE PRÉSENT BUDGET À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>`
+      });
+    };
+
+    /* budget en instance : même modèle, avec lignes titres et sous-totaux */
+    const printClientIns = rows => {
+      const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
+      const body = insOrder(rows).map(x => {
+        if (x.sub) {
+          const { ht } = insSubOf(x.sub);
+          return `<tr>${td("")}${td("<b>TOTAL " + esc(x.sub.des || x.sub.art || "") + "</b>", "r")}${td("")}${td("")}${td("")}${td("")}${td("<b>" + money(ht) + "</b>", "r")}</tr>`;
+        }
+        const r = x.r;
+        if (r.t) return `<tr>${td("<b>" + esc(r.art || "") + "</b>", "c")}${td("<b>" + esc(r.des || "") + "</b>")}${td("")}${td("")}${td("")}${td("")}${td("")}</tr>`;
+        const pu = Math.round(num(r.p || 0) * 100) / 100;
+        return `<tr>${td(esc(r.art || ""), "c")}${td(esc(r.des || ""))}${td(esc(r.u || ""), "c")}` +
+          `${td(money(insQty("des", r)), "r")}${td(money(pu), "r")}${td(esc(frMoney(pu)), "c")}${td(money(insHT("des", r)), "r")}</tr>`;
+      }).join("");
+      const ls = rows.filter(r => !r.t);
+      const ht = ls.reduce((t, r) => t + insHT("des", r), 0);
+      const ttc = ls.reduce((t, r) => t + insTTC("des", r), 0);
+      const tva = ttc - ht;
       printModel({
         branch: "DÉSIGNATIONS CLIENT", docTitle: "DÉSIGNATIONS CLIENT", fileTag: "DESIGNATIONS CLIENT", headLine: "",
         table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:33%"><col style="width:4%"><col style="width:9%">
@@ -8343,6 +8440,8 @@ function renderBudgetList() {
 
     const doPdf = blk => {
       if (blk === "client") return printClient();
+      /* budget en instance : aperçu standard des lignes saisies */
+      if (INS && (blk === "hier" || (blk === "detail" && (active === "chg" || active === "prd")))) return printGeneric(blk);
       if (blk === "hier") return printTasks("plain");
       if (blk === "detail" && active === "chg") return printTasks("chg");
       if (blk === "detail" && active === "prd") return printTasks("prd");
@@ -9268,7 +9367,7 @@ function renderBudgetList() {
 
     const runBlkAct = (blk, act) => {
       if (act === "max") return toggleMax(blk);
-      if (blk === "detail" && active === "prd" && (act === "export" || act === "pdf")) return chooseFormat(act);
+      if (!INS && blk === "detail" && active === "prd" && (act === "export" || act === "pdf")) return chooseFormat(act);
       const b = blk === "suivi" ? recActive : blk;
       if (act === "export") openExportMenu(b);
       else if (act === "import") { if (budget.inst && (budget.inst.state || "instance") === "instance") openImportMenu(b); }
