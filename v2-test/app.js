@@ -4850,7 +4850,9 @@ function renderBudgetList() {
       { key: "chg", title: "DÉTAIL CHARGES" },
       { key: "prd", title: "DÉTAIL PRODUITS" },
       { key: "qlt", title: "DÉTAIL QUALITÉ" },
-      { key: "dly", title: "DÉTAIL DÉLAIS" }
+      { key: "dly", title: "DÉTAIL DÉLAIS" },
+      /* budget en instance : les liaisons validées sont un onglet du détail */
+      ...(budget.inst ? [{ key: "lnk", title: "LIAISONS VALIDÉES" }] : [])
     ];
 
     /* dernier onglet du détail ouvert (charges, produits, qualité, délais) */
@@ -4896,8 +4898,7 @@ function renderBudgetList() {
         <h1 class="bdg-d-h1">
           ${esc(budget.project)}
         </h1>
-        ${INST_LIVE ? `<span class="ins-sw" id="insModeSw"><button type="button" data-mode="saisie">SAISIE</button><button type="button" data-mode="link">LIAISONS</button></span>
-          <button type="button" class="ins-unl-btn" id="insUnlBtn" hidden></button>` : ""}
+        ${INST_LIVE ? `<button type="button" class="ins-unl-btn" id="insUnlBtn" hidden></button>` : ""}
 
         <div class="bdg-d-hright">
           ${INST_LIVE ? `
@@ -4975,6 +4976,7 @@ function renderBudgetList() {
           <div class="bdg-h-grid" id="bdgHier"></div>
         </div>
 
+        ${INST_LIVE ? '<div class="lk-chain" id="insChain" hidden></div>' : ""}
         <div class="bdg-d-tabs" id="bdgTabs">
           ${
             tabs.map(t => `
@@ -5450,18 +5452,25 @@ function renderBudgetList() {
         value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off"></td>`;
     };
     const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    /* page unique : rond à gauche = choix pour la liaison (2e toucher = libère le choix) ;
+       case à droite = suppression (cochée, elle devient 🗑 ; ANNULER la décoche) */
+    const lkOn = (k, id) => (k === "prd" || k === "chg") ? LK[k][id] !== undefined : LK[k] === id;
+    const lkRd = (k, r) => INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
+    const insDelCell = r => !r ? "" : `<input type="checkbox" class="ins-cb${r.t ? " ins-tcb" : ""}" ${!r.t && r.on === true ? "checked" : ""}>`
+      + `<button type="button" class="ins-x" title="Supprimer la ligne" aria-label="Supprimer">${INS_TRASH}</button>`;
+    const insQCol = k => !!(INS_EDIT && LK.des && (k === "prd" || k === "chg"));
     const insRowHTML = (k, r, lvl) => {
       const cols = INS_COLS[k];
-      const cb = !r ? "" : r.t
-        ? `<input type="checkbox" class="ins-cb ins-tcb" ${INS_EDIT ? "" : "disabled"}>`
-        : `<input type="checkbox" class="ins-cb" ${r.on === true ? "checked" : ""} ${INS_EDIT ? "" : "disabled"}>`;
       const tcell = k === "des"
         ? `<td class="center ins-tc">${r && (INS_EDIT || r.t) ? `<span class="ins-t${r.t ? " on" : ""}" role="button" title="Ligne titre">T</span>` : ""}</td>`
         : "";
-      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + insLevel(r.art) : ""}${r && !r.t && lvl ? " ins-in" + lvl : ""}"
+      const sel = r && !r.t && lkOn(k, r.id);
+      const dim = k === "des" && r && !r.t && LK.des && !sel;
+      const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
+      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + insLevel(r.art) : ""}${r && !r.t && lvl ? " ins-in" + lvl : ""}${sel ? " lk-sel" : ""}${dim ? " lk-dim" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}>
-        <td class="center ins-cbc">${cb}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${INS_EDIT
-          ? `<td class="center ins-delc">${r ? `<button type="button" class="ins-x" title="Supprimer la ligne" aria-label="Supprimer">${INS_TRASH}</button>` : ""}</td>` : ""}</tr>`;
+        <td class="center ins-rdc">${lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
+          ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>`;
     };
     /* lignes + sous-totaux de titres (désignations) */
     /* filtres / tri de colonne (mêmes menus que la version validée) :
@@ -5560,19 +5569,20 @@ function renderBudgetList() {
       const ttc = rows.reduce((t, r) => t + insTTC(k, r), 0);
       const n = INS_COLS[k].length + (k === "des" ? 2 : 1);
       return `<tr class="bdg-d-total-row">${"<td></td>".repeat(n - 4)}<td class="number">TOTAL</td>
-        <td class="number">${money(ht)}</td><td class="number">${money(ttc - ht)}</td><td class="number">${money(ttc)}</td>${INS_EDIT ? "<td></td>" : ""}</tr>`;
+        <td class="number">${money(ht)}</td><td class="number">${money(ttc - ht)}</td><td class="number">${money(ttc)}</td>${insQCol(k) ? "<td></td>" : ""}${INS_EDIT ? "<td></td>" : ""}</tr>`;
     };
     /* case d'en-tête : toutes les lignes visibles (hors titres) cochées */
     const insAllOn = k => { const v = insShown(k).filter(r => !r.t); return v.length > 0 && v.every(r => r.on === true); };
     const insTableHTML = k => {
       const cols = INS_COLS[k];
       const lead = k === "des" ? 2 : 1;
-      const w = 36 * lead + (INS_EDIT ? 40 : 0) + cols.reduce((t, c) => t + cwGet(k === "des" ? "client" : k, c[4]), 0);
+      const qw = insQCol(k) ? 160 : 0;
+      const w = 36 * lead + (INS_EDIT ? 40 : 0) + qw + cols.reduce((t, c) => t + cwGet(k === "des" ? "client" : k, c[4]), 0);
       const t = insCfT(k);
       return `<table class="bdg-d-table ins-table" data-ik="${k}" style="width:${w}px">
-        <colgroup>${'<col style="width:36px">'.repeat(lead)}${cols.map(c => `<col data-w="${t}.${c[4]}" style="width:${cwGet(t, c[4])}px">`).join("")}${INS_EDIT ? '<col style="width:40px">' : ""}</colgroup>
-        <thead><tr><th class="center">${INS_EDIT ? `<input type="checkbox" class="ins-cball" title="Tout cocher" ${insAllOn(k) ? "checked" : ""}>` : ""}</th>${k === "des" ? '<th class="center">T</th>' : ""}${cols.map(c => cfHead(t, c[4], c[1], c[2])).join("")}${INS_EDIT
-          ? `<th class="center"><button type="button" class="ins-xall" title="Supprimer les lignes cochées" aria-label="Supprimer les lignes cochées">${INS_TRASH}</button></th>` : ""}</tr></thead>
+        <colgroup>${'<col style="width:36px">'.repeat(lead)}${cols.map(c => `<col data-w="${t}.${c[4]}" style="width:${cwGet(t, c[4])}px">`).join("")}${qw ? `<col style="width:${qw}px">` : ""}${INS_EDIT ? '<col style="width:40px">' : ""}</colgroup>
+        <thead><tr><th class="center"></th>${k === "des" ? '<th class="center">T</th>' : ""}${cols.map(c => cfHead(t, c[4], c[1], c[2])).join("")}${qw ? '<th class="number lk-qh">QUANTITÉ DE LA TÂCHE</th>' : ""}${INS_EDIT
+          ? `<th class="center ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"><button type="button" class="ins-xall" title="Supprimer les lignes cochées" aria-label="Supprimer les lignes cochées">${INS_TRASH}</button></th>` : ""}</tr></thead>
         <tbody>${insBodyHTML(k)}</tbody>
         <tfoot>${insFootHTML(k)}</tfoot></table>`;
     };
@@ -5626,16 +5636,15 @@ function renderBudgetList() {
         const on = !!cfT(k).f.v;
         return `
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
-          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<input type="checkbox" class="ins-cball" title="Tout cocher" ${list.length && list.every(r => r.on === true) ? "checked" : ""}>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length)}</span><span class="cf-btn"
+          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? '<span class="ins-rdc"></span>' : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length)}</span><span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${INS_EDIT
-            ? `<button type="button" class="ins-xall" title="Supprimer les lignes cochées" aria-label="Supprimer les lignes cochées">${INS_TRASH}</button>` : ""}</div>
-          ${list.map(r => `<div class="ins-li" data-ik="${k}" data-iid="${r.id}">
-              <input type="checkbox" class="ins-cb" ${r.on === true ? "checked" : ""} ${INS_EDIT ? "" : "disabled"}>
-              ${INS_EDIT ? `<input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">
-                <button type="button" class="ins-x" title="Supprimer la ligne" aria-label="Supprimer">${INS_TRASH}</button>` : `<span>${esc(r.v || "")}</span>`}
+            ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"><button type="button" class="ins-xall" title="Supprimer les lignes cochées" aria-label="Supprimer les lignes cochées">${INS_TRASH}</button></span>` : ""}</div>
+          ${list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : INS_EDIT && LK[k] ? " lk-dim" : ""}" data-ik="${k}" data-iid="${r.id}">
+              ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">
+                <span class="ins-delc">${insDelCell(r)}</span>` : `<span>${esc(r.v || "")}</span>`}
             </div>`).join("")}
-          ${INS_EDIT ? `<div class="ins-li ins-new" data-ik="${k}"><span class="ins-cbc"></span>
-              <input class="ins-in" data-f="v" enterkeyhint="next" placeholder="SAISIR ICI…" autocomplete="off"></div>`
+          ${INS_EDIT ? `<div class="ins-li ins-new" data-ik="${k}"><span class="ins-rdc"></span>
+              <input class="ins-in" data-f="v" enterkeyhint="next" placeholder="SAISIR ICI…" autocomplete="off"><span class="ins-delc"></span></div>`
             : (list.length ? "" : `<div class="bdg-h-item" style="opacity:.5;cursor:default">—</div>`)}
         </div>`;
       };
@@ -5650,19 +5659,57 @@ function renderBudgetList() {
       $("bdgHier").style.gridTemplateColumns = "";
       $("bdgHier").innerHTML = col(T.lot, "lot") + col(T.prim, "prim") + col(T.sec, "sec");
     };
+    /* LIAISONS VALIDÉES (onglet du détail) : chaîne, produits, charges, quantité, PPB, MPB HT ; DÉLIER */
+    const insLinksHTML = () => {
+      const D = id => INS.des.find(x => x.id === id) || {};
+      const qOf = l => (l.prd || []).reduce((t, x) => t + num(x.q || 0), 0);
+      const LC = [["art", "ART", l => D(l.des).art || "", "center"], ["des", "DÉSIGNATION", l => D(l.des).des || "", ""],
+        ["lot", "LOT", l => lkName("lot", l.lot), ""], ["prim", "ACT. PRIMAIRE", l => lkName("prim", l.prim), ""],
+        ["sec", "ACT. SECONDAIRE", l => lkName("sec", l.sec), ""], ["np", "PRODUITS", l => (l.prd || []).length, "center"],
+        ["nc", "CHARGES", l => (l.chg || []).length, "center"], ["lq", "QUANTITÉ", l => insFmt(qOf(l)), "number"],
+        ["lp", "PPB", l => insFmt(num(D(l.des).p || 0)), "number"], ["lm", "MPB HT", l => insFmt(qOf(l) * num(D(l.des).p || 0)), "number"]];
+      const W = { art: 70, des: 300, lot: 150, prim: 170, sec: 190, np: 110, nc: 110, lq: 120, lp: 110, lm: 140 };
+      const oc = coOrder("lk_links", LC);
+      const w = k => cwLoad()["lk_links." + k] || W[k] || 120;
+      const rows = cfApply("lk_links", LC, INS.links || []);
+      lastShown.detail = { cols: LC, rows, kind: "lnk" };
+      const dw = INS_EDIT ? 110 : 0;
+      return `<table class="bdg-d-table lk-table" style="width:${oc.reduce((t, c) => t + w(c[0]), 0) + dw}px">
+        <colgroup>${oc.map(c => `<col data-w="lk_links.${c[0]}" style="width:${w(c[0])}px">`).join("")}${dw ? `<col style="width:${dw}px">` : ""}</colgroup>
+        <thead><tr>${oc.map(c => cfHead("lk_links", c[0], c[1], c[3])).join("")}${dw ? "<th></th>" : ""}</tr></thead>
+        <tbody>${rows.map(l => `<tr>${oc.map(c => `<td class="${c[3]}">${esc(c[2](l))}</td>`).join("")}${dw
+          ? `<td class="center"><button type="button" class="lk-del" data-lid="${l.id}">${INS_TRASH} DÉLIER</button></td>` : ""}</tr>`).join("")
+          || `<tr><td colspan="${oc.length + (dw ? 1 : 0)}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
+    };
+    /* bandeau CHAÎNE … ✓ VALIDER LA LIAISON (visible quand une désignation est choisie) */
+    const insRenderChain = () => {
+      const el = $("insChain");
+      if (!el) return;
+      el.hidden = !(INS_EDIT && LK.des);
+      if (el.hidden) return;
+      const nPrd = Object.keys(LK.prd).length, nChg = Object.keys(LK.chg).length;
+      const complete = LK.des && LK.lot && LK.prim && LK.sec && nPrd > 0;
+      const chain = [lkName("des", LK.des), lkName("lot", LK.lot), lkName("prim", LK.prim), lkName("sec", LK.sec)]
+        .map(x => x || "…").join(" › ") + " › " + nPrd + " PRODUIT(S)" + (nChg ? " + " + nChg + " CHARGE(S)" : "");
+      el.innerHTML = `<span class="lk-path">CHAÎNE : ${esc(chain)}</span>${LK.err ? `<span class="lk-err">${esc(LK.err)}</span>` : ""}
+        <button type="button" class="lk-go" ${complete ? "" : "disabled"}>✓ VALIDER LA LIAISON</button>`;
+    };
     const insRenderTab = () => {
       ["chg", "prd", "qlt"].forEach(k => {
         const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
-        if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + " " + svCnt(insShown(k).length);
+        if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + (k === "prd" ? ' <b class="req-star">*</b>' : "") + " " + svCnt(insShown(k).length);
       });
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
         if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(insTasks().length); }
+      { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
+        if (b) b.innerHTML = (SVI_ICON.hier || "") + "LIAISONS VALIDÉES " + svCnt((INS.links || []).length); }
       sviMarkEmptyTabs(shell);
       if (active === "dly") {
-        /* délais : saisis en mode LIAISONS seulement ; ici en lecture */
-        body.innerHTML = `<div class="bdg-d-scroll">${insDlyHTML(false)}</div>`;
+        /* délais : saisis ici (périodes par tâche primaire) */
+        body.innerHTML = `<div class="bdg-d-scroll">${insDlyHTML(INS_EDIT, shell.__insDly && shell.__insDly.err)}</div>`;
         return;
       }
+      if (active === "lnk") { body.innerHTML = `<div class="bdg-d-scroll">${insLinksHTML()}</div>`; return; }
       body.innerHTML = `<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
       lastShown.detail = { cols: insCfCols(active), rows: insShown(active), kind: active, ins: true };
       insMarkUnlinked();
@@ -5778,9 +5825,12 @@ function renderBudgetList() {
           const k = h?.dataset.ik;
           const r = k && X.INS[k].find(x => x.id === h.dataset.iid);
           if (!r) return;
-          svConfirm({ title: "SUPPRIMER LA LIGNE", text: (r.des || r.v || r.art || "") + "", ok: "SUPPRIMER" }).then(go => {
-            if (!go) return;
-            X.INS[k] = X.INS[k].filter(x => x.id !== r.id);
+          const br = r.t ? X.insBranch(r).filter(x => x.on === true) : [];
+          svConfirm({ title: r.t ? "SUPPRIMER LE TITRE" : "SUPPRIMER LA LIGNE", text: (r.des || r.v || r.art || "") + (br.length ? " ET " + br.length + " LIGNE(S) COCHÉE(S)" : ""), ok: "SUPPRIMER" }).then(go => {
+            /* ANNULER : la ligne est décochée (la case revient à la place du 🗑) */
+            if (!go) { if (r.t) X.insBranch(r).forEach(x => { x.on = false; }); r.on = false; X.insSave(); X.insRedraw(k); return; }
+            const gone = new Set([r.id, ...br.map(x => x.id)]);
+            X.INS[k] = X.INS[k].filter(x => !gone.has(x.id));
             X.cleanLinks(); X.insSave(); X.insRedraw(k);
           });
           return;
@@ -5804,7 +5854,8 @@ function renderBudgetList() {
           const del = vis.filter(r => r.on === true);
           if (!del.length) return;
           svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", text: del.length + " LIGNE(S) SERONT SUPPRIMÉES.", ok: "SUPPRIMER" }).then(go => {
-            if (!go) return;
+            /* ANNULER : toutes les lignes sont décochées */
+            if (!go) { vis.forEach(r => { r.on = false; }); X.insSave(); X.insRedraw(k); return; }
             const ids = new Set(del.map(r => r.id));
             X.INS[k] = X.INS[k].filter(x => !ids.has(x.id));
             X.cleanLinks(); X.insSave(); X.insRedraw(k);
@@ -5880,7 +5931,8 @@ function renderBudgetList() {
        - LIAISONS : chaîne désignation › lot › primaire › secondaire › produits
          (+ charges facultatives), validée par ✓ ; liste des liaisons, délier.
        ========================================================= */
-    const INS_MODE = () => (INS && budget.inst.mode === "link") ? "link" : "saisie";
+    /* page unique : la saisie et les liaisons se font sur la même page */
+    const INS_MODE = () => "saisie";
     /* lignes utilisées par au moins une liaison validée */
     const insUsed = () => {
       const u = { des: new Set(), lot: new Set(), prim: new Set(), sec: new Set(), chg: new Set(), prd: new Set() };
@@ -6059,7 +6111,7 @@ function renderBudgetList() {
         });
       }, true);
     }
-    shell.__insDly = INS && INS_EDIT ? { INS, dAdd, dDiff, dParse, dFr, insId, insSave, err: "", render: () => insRenderLinks() } : null;
+    shell.__insDly = INS && INS_EDIT ? { INS, dAdd, dDiff, dParse, dFr, insId, insSave, err: "", render: () => renderTab() } : null;
 
     /* ---------- MODE LIAISONS ---------- */
     const LK = { des: null, lot: null, prim: null, sec: null, prd: {}, chg: {}, err: "" };
@@ -6249,13 +6301,65 @@ function renderBudgetList() {
     }
     shell.__lk = INS ? { INS, LK, insId, check: lkCheck, render: () => insRenderLinks(), RO: () => !INS_EDIT,
       save: what => { insSave(); histLog("LIAISONS", what, fullRef); } } : null;
+    /* page unique : rond (choix de la chaîne), quantité de la tâche, ✓ VALIDER, DÉLIER */
+    if (!shell.__fuseBound) {
+      shell.__fuseBound = true;
+      shell.addEventListener("click", e => {
+        const X = shell.__fuse;
+        if (!X) return;
+        const rd = e.target.closest(".lk-rd");
+        if (rd) {
+          e.stopPropagation(); e.preventDefault();
+          const k = rd.dataset.rd, id = rd.closest("[data-iid]")?.dataset.iid;
+          if (!id) return;
+          const L = X.LK;
+          if (k === "prd" || k === "chg") { if (L[k][id] !== undefined) delete L[k][id]; else L[k][id] = ""; }
+          else {
+            if (L[k] && L[k] !== id) return;     /* une ligne déjà choisie : les autres attendent qu'on la libère */
+            L[k] = L[k] === id ? null : id;      /* 2e toucher : le choix est libéré */
+            if (k === "des" && !L.des) { L.lot = L.prim = L.sec = null; L.prd = {}; L.chg = {}; }
+          }
+          L.err = "";
+          X.refresh();
+          return;
+        }
+        if (e.target.closest("#insChain .lk-go")) {
+          const err = X.check();
+          if (err) { X.LK.err = err; X.chain(); return; }
+          const L = X.LK;
+          X.INS.links = X.INS.links || [];
+          X.INS.links.push({ id: X.insId(), des: L.des, lot: L.lot, prim: L.prim, sec: L.sec,
+            prd: Object.entries(L.prd).map(([id, q]) => ({ id, q: q === "" ? "" : num(q) })),
+            chg: Object.entries(L.chg).map(([id, q]) => ({ id, q: q === "" ? "" : num(q) })) });
+          /* on garde la désignation et le lot pour enchaîner la tâche suivante */
+          L.prim = null; L.sec = null; L.prd = {}; L.chg = {}; L.err = "";
+          X.save("LIAISON VALIDÉE"); X.refresh();
+          return;
+        }
+        const del = e.target.closest(".lk-del");
+        if (del && !e.target.closest("#insLinkView")) {
+          svConfirm({ title: "DÉLIER", text: "LA LIAISON SERA DÉFAITE ; LES LIGNES RESTENT DANS LE BUDGET.", ok: "DÉLIER" }).then(go => {
+            if (!go) return;
+            X.INS.links = (X.INS.links || []).filter(l => l.id !== del.dataset.lid);
+            X.save("DÉLIER"); X.refresh();
+          });
+        }
+      }, true);
+      shell.addEventListener("change", e => {
+        const X = shell.__fuse;
+        const q = e.target.closest && e.target.closest("input.lk-q");
+        if (!X || !q || e.target.closest("#insLinkView")) return;
+        const id = q.closest("[data-iid]")?.dataset.iid;
+        if (id && X.LK[q.dataset.qk][id] !== undefined) { X.LK[q.dataset.qk][id] = q.value.trim(); X.chain(); }
+      });
+    }
+    shell.__fuse = INS && INS_EDIT ? { INS, LK, insId, check: lkCheck, chain: () => insRenderChain(), refresh: () => refreshAll(),
+      save: what => { insSave(); histLog("LIAISONS", what, fullRef); } } : null;
     /* bascule SAISIE / LIAISONS */
     const insApplyMode = () => {
       if (!INS) return;
-      const link = INS_MODE() === "link";
-      shell.classList.toggle("ins-mode-link", link);
-      shell.querySelectorAll("#insModeSw [data-mode]").forEach(b => b.classList.toggle("on", (b.dataset.mode === "link") === link));
-      if (link) insRenderLinks();
+      shell.classList.remove("ins-mode-link");
+      insRenderChain();
       insMarkUnlinked();
     };
 
@@ -6538,11 +6642,10 @@ function renderBudgetList() {
         [...selRows].some(g => g.startsWith(kind.toUpperCase() + "|"));
       shell.querySelectorAll("#bdgTabs .bdg-d-tab").forEach(b => {
         const t = b.dataset.tab;
-        b.classList.toggle("cf-on",
-          (t === "chg" || t === "prd") && (rowsOf(t) || cfActive(t)));
+        /* bleu de l'onglet : seulement un choix de lignes (budget validé), pas le filtre (loupe) */
+        b.classList.toggle("cf-on", !INS && (t === "chg" || t === "prd") && rowsOf(t));
       });
-      $("bdgClientTitle")?.classList.toggle("cf-on",
-        selDesig.size > 0 || cfActive("client"));
+      $("bdgClientTitle")?.classList.toggle("cf-on", !INS && selDesig.size > 0);
       sviMarkEmptyTabs(shell);
     };
 
@@ -6848,7 +6951,7 @@ function renderBudgetList() {
     const page$ = () => shell.querySelector(".bdg-d-page");
     const layEls = u => {
       const pg = page$();
-      if (u === "detail") return [$("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
+      if (u === "detail") return [$("insChain"), $("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
       const sel = { client: ".blk-client", hier: ".blk-hier", suivi: ".blk-suivi" }[u];
       return [pg.querySelector(":scope > " + sel)].filter(Boolean);
     };
@@ -7321,7 +7424,7 @@ function renderBudgetList() {
         return;
       }
       const insEl = INS_EDIT && event.target.closest(".ins-table tr[data-iid], .ins-hcol .ins-li[data-iid]");
-      if (insEl && !event.target.closest(".ins-t, .ins-cb, .ins-x") &&
+      if (insEl && !event.target.closest(".ins-t, .ins-cb, .ins-x, .lk-rd, .lk-q") &&
           event.target.closest("input.ins-in") !== document.activeElement) { insDrag(event, insEl); return; }
       const rz = event.target.closest(".blk-rsz");
       if (rz) { layResize(event, rz); return; }
@@ -10394,7 +10497,7 @@ function renderBudgetList() {
       const title = $("recTitle-" + kind);
       if (title) title.innerHTML = SVI_ICON[kind] + esc(blkName[kind]) + " " + svCnt(list.length);
       const st = cfT(kind);
-      title?.classList.toggle("cf-on", Object.keys(st.f).length > 0);
+      title?.classList.remove("cf-on");   /* pas de bleu d'onglet pour un filtre (loupe) */
       if (title) sviMarkEmptyTabs(title.parentNode);
 
       const rows = list.map(r => "<tr>" + cols.map(([k, , get, cls]) => {
