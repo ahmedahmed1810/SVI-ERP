@@ -1195,7 +1195,7 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 .ins-table tr.lk-link td, .ins-hcol .ins-li.lk-link { background: #f3e8ff !important; color: #7e22ce !important; font-weight: 700; }
 .ins-table tr.lk-link td input.ins-in, .ins-hcol .ins-li.lk-link input.ins-in { color: #7e22ce !important; -webkit-text-fill-color: #7e22ce !important; }
 .lk-rd.lnk { border-color: #7e22ce; background: radial-gradient(circle, #7e22ce 0 4px, #fff 4.5px); }
-.lk-rd.lnk.on { border-color: var(--inst, #b91c1c); background: radial-gradient(circle, var(--inst, #b91c1c) 0 4px, #fff 4.5px); }
+.lk-rd.lnk.on { border-color: #7e22ce; background: radial-gradient(circle, #7e22ce 0 4px, #fff 4.5px); }
 .lk-dim .lk-rd.lnk { pointer-events: auto; opacity: 1; }
 /* message d'erreur passager */
 #svToast { position: fixed; top: 200px; right: 24px; z-index: 100003; max-width: 520px; background: #fff; color: #b91c1c; border: 1.5px solid #b91c1c;
@@ -1209,3 +1209,4 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
   font: italic 900 15px Georgia, serif; cursor: pointer; flex: none; }
 /* iPad : pas de loupe ni de sélection sur une case non active (le défilement reste libre) */
 .ins-table input.ins-in:not(:focus), .ins-hcol input.ins-in:not(:focus), .dly-table input.ins-in:not(:focus) { -webkit-touch-callout: none; }
+.ins-table tr.lk-sel.lk-link td, .ins-hcol .ins-li.lk-sel.lk-link { background: #ede0ff !important; color: #6b21a8 !important; font-weight: 800; }
