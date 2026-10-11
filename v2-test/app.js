@@ -298,6 +298,81 @@ const insLinkedQ = (data, id) => {
   if (!L.length) return null;
   return L.reduce((t, l) => t + (l.prd || []).reduce((a, x) => a + (Number(String(x.q ?? "").replace(/\s/g, "").replace(",", ".")) || 0), 0), 0);
 };
+/* =========================================================
+   ONGLETS DÉPLAÇABLES (comme les colonnes) : on glisse un onglet
+   pour changer l'ordre ; ordre mémorisé par jeu d'onglets
+   (détail : le même en saisie, liaisons et validé ; suivi DOC/TAF/OBS ;
+   import ; historique).
+   ========================================================= */
+const SV_TABSETS = [
+  { c: "#bdgTabs", t: ".bdg-d-tab", k: "tab", set: "detail" },
+  { c: ".lk-tabs", t: ".bdg-d-tab", k: "lktab", set: "detail" },
+  { c: ".rec-tabs", t: ".rec-tab", k: "rtab", set: "suivi" },
+  { c: ".imp-tabs", t: ".imp-tab", k: "tab", set: "import" },
+  { c: ".hist-filters", t: ".hist-f", k: "b", set: "hist" }
+];
+const svTabLoad = () => { try { return JSON.parse(localStorage.getItem("svi_taborder_v1") || "{}") || {}; } catch (e) { return {}; } };
+const svTabApply = () => {
+  const O = svTabLoad();
+  SV_TABSETS.forEach(S => {
+    const ord = O[S.set];
+    if (!ord || !ord.length) return;
+    document.querySelectorAll(S.c).forEach(box => {
+      const tabs = [...box.children].filter(x => x.matches(S.t));
+      if (tabs.length < 2) return;
+      const pos = el => { const i = ord.indexOf(el.dataset[S.k]); return i < 0 ? 999 : i; };
+      const want = tabs.map((el, i) => ({ el, i })).sort((a, b) => pos(a.el) - pos(b.el) || a.i - b.i).map(o => o.el);
+      if (want.every((el, i) => el === tabs[i])) return;
+      const after = tabs[tabs.length - 1].nextSibling;
+      want.forEach(el => box.insertBefore(el, after));
+    });
+  });
+};
+(() => {
+  let busy = false;
+  const mo = new MutationObserver(() => { if (busy) return; busy = true; try { svTabApply(); } finally { busy = false; } });
+  const go = () => mo.observe(document.body, { childList: true, subtree: true });
+  if (document.body) go(); else document.addEventListener("DOMContentLoaded", go);
+  document.addEventListener("pointerdown", e => {
+    if (e.button > 0 || e.target.closest(".cf-btn")) return;
+    const S = SV_TABSETS.find(S => e.target.closest(S.t) && e.target.closest(S.t).parentElement.matches(S.c));
+    if (!S) return;
+    const tab = e.target.closest(S.t), box = tab.parentElement;
+    const x0 = e.clientX, y0 = e.clientY;
+    let drag = false;
+    const mv = ev => {
+      if (!drag) {
+        if (Math.abs(ev.clientX - x0) < 10 || Math.abs(ev.clientX - x0) < Math.abs(ev.clientY - y0)) return;
+        drag = true; tab.classList.add("tab-drag");
+      }
+      ev.preventDefault();
+      const over = [...box.children].filter(x => x.matches(S.t) && x !== tab).find(x => {
+        const r = x.getBoundingClientRect(); return ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top - 6 && ev.clientY <= r.bottom + 6;
+      });
+      if (!over) return;
+      const r = over.getBoundingClientRect();
+      box.insertBefore(tab, ev.clientX < r.left + r.width / 2 ? over : over.nextSibling);
+    };
+    const up = () => {
+      document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
+      if (!drag) return;
+      tab.classList.remove("tab-drag");
+      const O = svTabLoad();
+      O[S.set] = [...box.children].filter(x => x.matches(S.t)).map(x => x.dataset[S.k]);
+      try { localStorage.setItem("svi_taborder_v1", JSON.stringify(O)); } catch (err) {}
+      svTabApply();
+      /* le glissement ne vaut pas un toucher : pas de changement d'onglet */
+      const stop = ev => {
+        if (!box.contains(ev.target)) return;
+        ev.stopPropagation(); ev.preventDefault();
+        document.removeEventListener("click", stop, true);
+      };
+      document.addEventListener("click", stop, true);
+      setTimeout(() => document.removeEventListener("click", stop, true), 400);
+    };
+    document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
+  }, true);
+})();
 const svCnt = n => `<span class="svi-cnt">${Number(n) || 0}</span>`;
 /* onglets vides (compteur 0) : mise en forme spéciale, même facultatifs */
 const sviMarkEmptyTabs = root => (root || document).querySelectorAll(".bdg-d-tab, .rec-tab, .imp-tab").forEach(b => {
@@ -4477,7 +4552,7 @@ function renderBudgetList() {
           if (!nav || e.touches.length !== 1 || !document.querySelector(".bdg-d-page")) { st = null; return; }
           const t = e.target;
           /* pas depuis un tableau qui défile, une fenêtre, un champ ou une poignée */
-          if (scrollsX(t) || t.closest("#docPop, #blkPop, #cfMenu, #blkMenu, input, textarea, select, .blk-rsz, .blk-grip, .col-rs, th")) { st = null; return; }
+          if (scrollsX(t) || t.closest("#docPop, #blkPop, #cfMenu, #blkMenu, input, textarea, select, .blk-rsz, .blk-grip, .col-rs, th, .bdg-d-tab, .rec-tab, .imp-tab, .hist-f")) { st = null; return; }
           st = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
         }, { passive: true });
         document.addEventListener("touchend", e => {
@@ -6017,7 +6092,7 @@ function renderBudgetList() {
       };
       /* DÉTAILS sous onglets, même format que SAISIE / validé */
       const detN = {};
-      const lkTab = ["chg", "qlt", "dly"].includes(LK.tab) ? LK.tab : "prd";
+      const lkTab = ["prd", "qlt", "dly"].includes(LK.tab) ? LK.tab : "chg";
       /* QUALITÉ : lecture (saisie en mode SAISIE) ; DÉLAIS : saisis ici seulement */
       const qltHTML = () => `<table class="bdg-d-table" style="width:600px"><thead><tr><th>QUALITÉ</th></tr></thead><tbody>${
         (INS.qlt || []).map(r => `<tr><td>${esc(r.v || "")}</td></tr>`).join("") || '<tr><td class="empty">AUCUNE LIGNE</td></tr>'}</tbody></table>`;
@@ -6028,7 +6103,7 @@ function renderBudgetList() {
       if (detN.prd === undefined) detN.prd = cfApply("lk_prd", [["des", "", r => r.des || ""], ["u", "", r => r.u || ""], ["qt", "", r => LK.prd[r.id] ?? ""]], [...INS.prd]).length;
       if (detN.chg === undefined) detN.chg = cfApply("lk_chg", [["des", "", r => r.des || ""], ["u", "", r => r.u || ""], ["qt", "", r => LK.chg[r.id] ?? ""]], [...INS.chg]).length;
       const tabBtn = (k, title, extra) => `<button type="button" class="bdg-d-tab${lkTab === k ? " active" : ""}${Object.keys(cfT("lk_" + k).f).length ? " cf-on" : ""}" data-lktab="${k}">${SVI_ICON[k] || ""}${title} ${svCnt(detN[k])}${extra || ""}</button>`;
-      const detHTML = `<div class="lk-dettabs"><div class="bdg-d-tabs lk-tabs">${tabBtn("prd", 'DÉTAIL PRODUITS <b class="req-star">*</b>')}${tabBtn("chg", "DÉTAIL CHARGES")}${tabBtn("qlt", "DÉTAIL QUALITÉ")}${tabBtn("dly", "DÉTAIL DÉLAIS")}</div>
+      const detHTML = `<div class="lk-dettabs"><div class="bdg-d-tabs lk-tabs">${tabBtn("chg", "DÉTAIL CHARGES")}${tabBtn("prd", 'DÉTAIL PRODUITS <b class="req-star">*</b>')}${tabBtn("qlt", "DÉTAIL QUALITÉ")}${tabBtn("dly", "DÉTAIL DÉLAIS")}</div>
         <div class="bdg-d-block bdg-d-tabbody lk-blk lk-det">${detBody}<div class="blk-rsz lk-hrsz" data-lkh="det"></div></div></div>`;
       const nPrd = Object.keys(LK.prd).length;
       const complete = LK.des && LK.lot && LK.prim && LK.sec && nPrd > 0;
