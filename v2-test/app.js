@@ -7374,6 +7374,20 @@ function renderBudgetList() {
       ["chg", "DÉTAIL CHARGES"], ["prd", "DÉTAIL PRODUITS"]
     ];
     const U_ = v => String(v ?? "").trim().toUpperCase();
+    /* identité d'une ligne : deux lignes identiques = doublon (jamais importé deux fois)
+       désignations / charges : ART + DÉSIGNATION + UNITÉ (+ titre) ;
+       produits : en plus NBR, DIM, QUANTITÉ et PRIX (un même produit sert à plusieurs tâches) */
+    const impId = (k, r) => {
+      const n = v => v === "" || v === undefined || v === null ? "" : (Math.round(num(v) * 1000) / 1000).toString();
+      const base = [U_(r.art), U_(r.des), U_(r.u), r.t ? "T" : ""];
+      return (k === "prd" ? [...base, n(r.nbr), n(r.d1), n(r.d2), n(r.d3), n(insQty("prd", r)), n(r.p)] : base).join("|");
+    };
+    /* charges, lots et activités : ordre alphabétique */
+    const impSort = m => {
+      const az = (a, b) => String(a).localeCompare(String(b), "fr", { numeric: true });
+      m.chg.sort((a, b) => az(a.row.des, b.row.des) || az(a.row.u, b.row.u));
+      m.hier.sort((a, b) => az(a.row.v, b.row.v));
+    };
     /* modèle d'un budget source : lignes de chaque onglet + liens (lignes de détail) */
     const impModel = ref => {
       const g = groups.get(ref);
@@ -7381,10 +7395,20 @@ function renderBudgetList() {
       if (!g) return m;
       if (g.inst) {
         const d = g.inst.data || {};
-        (d.des || []).forEach(r => m.des.push({ key: "d" + r.id, row: { ...r } }));
-        ["lot", "prim", "sec"].forEach(k => (d[k] || []).forEach(r =>
-          m.hier.push({ key: k + "|" + U_(r.v), lvl: k, row: { v: r.v } })));
-        ["chg", "prd"].forEach(k => (d[k] || []).forEach(r => m[k].push({ key: k + r.id, row: { ...r } })));
+        const seen = new Set();
+        ["des", "chg", "prd"].forEach(k => (d[k] || []).forEach(r => {
+          const id = k + "|" + impId(k, r);
+          if (seen.has(id)) return;
+          seen.add(id);
+          m[k].push({ key: id, row: { ...r } });
+        }));
+        ["lot", "prim", "sec"].forEach(k => (d[k] || []).forEach(r => {
+          const id = k + "|" + U_(r.v);
+          if (!U_(r.v) || seen.has(id)) return;
+          seen.add(id);
+          m.hier.push({ key: id, lvl: k, row: { v: U_(r.v) } });
+        }));
+        impSort(m);
         return m;
       }
       /* type CHG / PRD lu dans le budget source (l'écran courant, vide, ne le connaît pas) */
@@ -7399,7 +7423,7 @@ function renderBudgetList() {
         }
         return l;
       });
-      const dmap = new Map(), cmap = new Map(), hset = new Map();
+      const dmap = new Map(), cmap = new Map(), hset = new Map(), pset = new Set();
       ls.forEach(l => {
         const dk = "d" + U_(l.article) + "||" + U_(l.designation);
         if (!dmap.has(dk)) dmap.set(dk, { key: dk, ms: [] });
@@ -7417,11 +7441,13 @@ function renderBudgetList() {
           cmap.get(ck).ms.push(l);
           ks.ck = ck;
         } else if (l.kind === "prd") {
-          const pk = "p" + l.id;
-          m.prd.push({ key: pk, row: { art: l.article, des: U_(l.detail), u: U_(l.dunit || l.unit),
+          const row = { art: l.article, des: U_(l.detail), u: U_(l.dunit || l.unit),
             nbr: l.nbr === "" ? "" : num(l.nbr), d1: l.dims[0] === "" ? "" : num(l.dims[0]),
             d2: l.dims[1] === "" ? "" : num(l.dims[1]), d3: l.dims[2] === "" ? "" : num(l.dims[2]),
-            q: l.qty, p: l.price, tva: 20 } });
+            q: l.qty, p: l.price, tva: 20 };
+          /* produit identique déjà listé : une seule ligne (ses liens sont gardés) */
+          const pk = "p" + impId("prd", row);
+          if (!pset.has(pk)) { pset.add(pk); m.prd.push({ key: pk, row }); }
           ks.pk = pk;
         }
         m.links.push(ks);
@@ -7441,6 +7467,7 @@ function renderBudgetList() {
       });
       m.hier = [...hset.values()];
       m.des.sort((a, b) => String(a.row.art).localeCompare(String(b.row.art), "fr", { numeric: true }));
+      impSort(m);
       return m;
     };
     const openImportBudget = blk => {
@@ -7622,7 +7649,7 @@ function renderBudgetList() {
           let added = 0, upd = 0, skip = 0;
           const same = (k, a, b) => k === "lot" || k === "prim" || k === "sec"
             ? U_(a.v) === U_(b.v)
-            : U_(a.art) === U_(b.art) && U_(a.des) === U_(b.des) && U_(a.u) === U_(b.u) && !!a.t === !!b.t;
+            : impId(k, a) === impId(k, b);
           Object.keys(inc).forEach(k => {
             if (!inc[k].length) return;
             if (mode === "replace") INS[k] = [];
