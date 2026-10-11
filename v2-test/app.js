@@ -5289,6 +5289,7 @@ function renderBudgetList() {
         ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
         value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off"></td>`;
     };
+    const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     const insRowHTML = (k, r, lvl) => {
       const cols = INS_COLS[k];
       const cb = !r || r.t ? "" : `<input type="checkbox" class="ins-cb" ${r.on === true ? "checked" : ""} ${INS_EDIT ? "" : "disabled"}>`;
@@ -5297,7 +5298,8 @@ function renderBudgetList() {
         : "";
       return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + insLevel(r.art) : ""}${r && !r.t && lvl ? " ins-in" + lvl : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}>
-        <td class="center ins-cbc">${cb}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}</tr>`;
+        <td class="center ins-cbc">${cb}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${INS_EDIT
+          ? `<td class="center ins-delc">${r ? `<button type="button" class="ins-x" title="Supprimer la ligne" aria-label="Supprimer">${INS_TRASH}</button>` : ""}</td>` : ""}</tr>`;
     };
     /* lignes + sous-totaux de titres (désignations) */
     /* filtres / tri de colonne (mêmes menus que la version validée) :
@@ -5361,7 +5363,7 @@ function renderBudgetList() {
           const { ht, ttc } = insSubOf(t);
           return `<tr class="ins-sub lv${insLevel(t.art)}" data-sub="${t.id}"><td></td><td></td><td></td>
             <td colspan="4" class="number">TOTAL ${esc(t.des || t.art || "")}</td>
-            <td class="number ins-sht">${money(ht)}</td><td></td><td class="number ins-sttc">${money(ttc)}</td></tr>`;
+            <td class="number ins-sht">${money(ht)}</td><td></td><td class="number ins-sttc">${money(ttc)}</td>${INS_EDIT ? "<td></td>" : ""}</tr>`;
         };
         html = insOrder(rows).map(x => x.sub ? sub(x.sub) : insRowHTML(k, x.r, x.lvl)).join("");
       }
@@ -5375,16 +5377,19 @@ function renderBudgetList() {
       const ttc = rows.reduce((t, r) => t + insTTC(k, r), 0);
       const n = INS_COLS[k].length + (k === "des" ? 2 : 1);
       return `<tr class="bdg-d-total-row">${"<td></td>".repeat(n - 4)}<td class="number">TOTAL</td>
-        <td class="number">${money(ht)}</td><td class="number">${money(ttc - ht)}</td><td class="number">${money(ttc)}</td></tr>`;
+        <td class="number">${money(ht)}</td><td class="number">${money(ttc - ht)}</td><td class="number">${money(ttc)}</td>${INS_EDIT ? "<td></td>" : ""}</tr>`;
     };
+    /* case d'en-tête : toutes les lignes visibles (hors titres) cochées */
+    const insAllOn = k => { const v = insShown(k).filter(r => !r.t); return v.length > 0 && v.every(r => r.on === true); };
     const insTableHTML = k => {
       const cols = INS_COLS[k];
       const lead = k === "des" ? 2 : 1;
-      const w = 36 * lead + cols.reduce((t, c) => t + cwGet(k === "des" ? "client" : k, c[4]), 0);
+      const w = 36 * lead + (INS_EDIT ? 40 : 0) + cols.reduce((t, c) => t + cwGet(k === "des" ? "client" : k, c[4]), 0);
       const t = insCfT(k);
       return `<table class="bdg-d-table ins-table" data-ik="${k}" style="width:${w}px">
-        <colgroup>${'<col style="width:36px">'.repeat(lead)}${cols.map(c => `<col data-w="${t}.${c[4]}" style="width:${cwGet(t, c[4])}px">`).join("")}</colgroup>
-        <thead><tr><th class="center"></th>${k === "des" ? '<th class="center">T</th>' : ""}${cols.map(c => cfHead(t, c[4], c[1], c[2])).join("")}</tr></thead>
+        <colgroup>${'<col style="width:36px">'.repeat(lead)}${cols.map(c => `<col data-w="${t}.${c[4]}" style="width:${cwGet(t, c[4])}px">`).join("")}${INS_EDIT ? '<col style="width:40px">' : ""}</colgroup>
+        <thead><tr><th class="center">${INS_EDIT ? `<input type="checkbox" class="ins-cball" title="Tout cocher" ${insAllOn(k) ? "checked" : ""}>` : ""}</th>${k === "des" ? '<th class="center">T</th>' : ""}${cols.map(c => cfHead(t, c[4], c[1], c[2])).join("")}${INS_EDIT
+          ? `<th class="center"><button type="button" class="ins-xall" title="Supprimer les lignes cochées" aria-label="Supprimer les lignes cochées">${INS_TRASH}</button></th>` : ""}</tr></thead>
         <tbody>${insBodyHTML(k)}</tbody>
         <tfoot>${insFootHTML(k)}</tfoot></table>`;
     };
@@ -5436,11 +5441,13 @@ function renderBudgetList() {
         const on = !!cfT(k).f.v;
         return `
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
-          <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length)}</span><span class="cf-btn"
-            data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span></div>
+          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<input type="checkbox" class="ins-cball" title="Tout cocher" ${list.length && list.every(r => r.on === true) ? "checked" : ""}>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length)}</span><span class="cf-btn"
+            data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${INS_EDIT
+            ? `<button type="button" class="ins-xall" title="Supprimer les lignes cochées" aria-label="Supprimer les lignes cochées">${INS_TRASH}</button>` : ""}</div>
           ${list.map(r => `<div class="ins-li" data-ik="${k}" data-iid="${r.id}">
               <input type="checkbox" class="ins-cb" ${r.on === true ? "checked" : ""} ${INS_EDIT ? "" : "disabled"}>
-              ${INS_EDIT ? `<input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">` : `<span>${esc(r.v || "")}</span>`}
+              ${INS_EDIT ? `<input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">
+                <button type="button" class="ins-x" title="Supprimer la ligne" aria-label="Supprimer">${INS_TRASH}</button>` : `<span>${esc(r.v || "")}</span>`}
             </div>`).join("")}
           ${INS_EDIT ? `<div class="ins-li ins-new" data-ik="${k}"><span class="ins-cbc"></span>
               <input class="ins-in" data-f="v" enterkeyhint="next" placeholder="SAISIR ICI…" autocomplete="off"></div>`
@@ -5519,7 +5526,7 @@ function renderBudgetList() {
       INS[k] = INS[k].filter(r => !empty(r));
       return INS[k].length !== before;
     };
-    shell.__ins = INS_EDIT ? { INS, insDim, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel } : null;
+    shell.__ins = INS_EDIT ? { INS, insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel } : null;
     if (!shell.__insBound) {
       shell.__insBound = true;
       shell.addEventListener("input", e => {
@@ -5568,6 +5575,47 @@ function renderBudgetList() {
       shell.addEventListener("click", e => {
         const X = shell.__ins;
         if (!X) return;
+        /* 🗑 d'une ligne */
+        const xb = e.target.closest(".ins-x");
+        if (xb) {
+          e.stopPropagation();
+          const h = xb.closest("[data-iid]");
+          const k = h?.dataset.ik;
+          const r = k && X.INS[k].find(x => x.id === h.dataset.iid);
+          if (!r) return;
+          svConfirm({ title: "SUPPRIMER LA LIGNE", text: (r.des || r.v || r.art || "") + "", ok: "SUPPRIMER" }).then(go => {
+            if (!go) return;
+            X.INS[k] = X.INS[k].filter(x => x.id !== r.id);
+            X.insSave(); X.insRedraw(k);
+          });
+          return;
+        }
+        /* case d'en-tête et 🗑 d'en-tête (lignes cochées) */
+        const ca = e.target.closest("input.ins-cball");
+        const xa = e.target.closest(".ins-xall");
+        if (ca || xa) {
+          e.stopPropagation();
+          const box = e.target.closest("table.ins-table, .ins-hcol");
+          const k = box?.dataset.ik;
+          if (!k) return;
+          const vis = k === "lot" || k === "prim" || k === "sec"
+            ? [...box.querySelectorAll(".ins-li[data-iid]")].map(li => X.INS[k].find(x => x.id === li.dataset.iid)).filter(Boolean)
+            : X.insShown(k).filter(x => !x.t);
+          if (ca) {
+            vis.forEach(r => { r.on = ca.checked; });
+            X.insSave(); X.insRedraw(k);
+            return;
+          }
+          const del = vis.filter(r => r.on === true);
+          if (!del.length) return;
+          svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", text: del.length + " LIGNE(S) SERONT SUPPRIMÉES.", ok: "SUPPRIMER" }).then(go => {
+            if (!go) return;
+            const ids = new Set(del.map(r => r.id));
+            X.INS[k] = X.INS[k].filter(x => !ids.has(x.id));
+            X.insSave(); X.insRedraw(k);
+          });
+          return;
+        }
         const t = e.target.closest(".ins-t");
         const cb = e.target.closest("input.ins-cb");
         if (!t && !cb) return;
@@ -5576,7 +5624,14 @@ function renderBudgetList() {
         const k = holder.dataset.ik;
         const r = X.INS[k].find(x => x.id === holder.dataset.iid);
         if (!r) return;
-        if (cb) { r.on = cb.checked; X.insSave(); if (k === "des") X.insDim(); return; }
+        if (cb) {
+          r.on = cb.checked; X.insSave(); if (k === "des") X.insDim();
+          /* case d'en-tête à jour */
+          const box = cb.closest("table.ins-table, .ins-hcol");
+          const all = box?.querySelector("input.ins-cball");
+          if (all) all.checked = [...box.querySelectorAll("[data-iid] input.ins-cb")].every(c => c.checked);
+          return;
+        }
         /* ligne titre : unité, quantité, prix, TVA vidés et verrouillés */
         r.t = !r.t;
         ["u", "q", "p", "tva"].forEach(f => { r[f] = ""; });
@@ -6587,7 +6642,7 @@ function renderBudgetList() {
 
     shell.onpointerdown = event => {
       const insEl = INS_EDIT && event.target.closest(".ins-table tr[data-iid], .ins-hcol .ins-li[data-iid]");
-      if (insEl && !event.target.closest(".ins-t, .ins-cb") &&
+      if (insEl && !event.target.closest(".ins-t, .ins-cb, .ins-x") &&
           event.target.closest("input.ins-in") !== document.activeElement) { insDrag(event, insEl); return; }
       const rz = event.target.closest(".blk-rsz");
       if (rz) { layResize(event, rz); return; }
@@ -11910,6 +11965,31 @@ function budgetDate(ref) {
   };
 }
 
+
+/* =========================================================
+   CONFIRMATION AU FORMAT DE L'APPLICATION (jamais de message Safari)
+   svConfirm({ title, text, ok }) → Promise<boolean>
+   ========================================================= */
+function svConfirm({ title = "CONFIRMER", text = "", ok = "OK" } = {}) {
+  return new Promise(res => {
+    document.getElementById("svConf")?.remove();
+    const d = document.createElement("div");
+    d.id = "svConf";
+    d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
+        <div class="svc-t">${esc(title)}</div>
+        ${text ? `<div class="svc-x">${esc(text)}</div>` : ""}
+        <div class="svc-f"><button type="button" class="svc-b" data-r="0">ANNULER</button>
+          <button type="button" class="svc-b svc-ok" data-r="1">${esc(ok)}</button></div>
+      </div>`;
+    document.body.appendChild(d);
+    d.addEventListener("click", e => {
+      const b = e.target.closest("[data-r]");
+      if (!b && e.target !== d) return;
+      d.remove();
+      res(!!b && b.dataset.r === "1");
+    });
+  });
+}
 
 /* =========================================================
    MENU ☰ › DONNÉES SOURCE : fichiers Google Sheets lus par l'application
