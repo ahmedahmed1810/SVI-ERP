@@ -7750,7 +7750,6 @@ function renderBudgetList() {
           histLog("IMPORT", "DEPUIS UN AUTRE BUDGET — " + M, src + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S)" + (lk ? " — AVEC LIAISONS" : ""));
           p.remove();
           refreshAll();
-          alert("IMPORT DEPUIS " + src + " (" + M + ") :\n" + added + " LIGNE(S) AJOUTÉE(S)\n" + upd + " LIGNE(S) MISE(S) À JOUR\n" + skip + " LIGNE(S) IGNORÉE(S) (DÉJÀ PRÉSENTES)");
         };
         if (!busy.length) { run("add"); return; }
         /* des lignes existent déjà : l'utilisateur choisit */
@@ -7759,7 +7758,6 @@ function renderBudgetList() {
         ask.className = "imp-ask";
         ask.innerHTML = `<div class="imp-ask-card" role="dialog" aria-modal="true">
             <div class="imp-ask-t">DONNÉES DÉJÀ PRÉSENTES</div>
-            <div class="imp-ask-l">${busy.map(k => `<div><b>${LAB[k]}</b> : ${INS[k].length} LIGNE(S) EXISTANTE(S), ${inc[k].length} À IMPORTER</div>`).join("")}</div>
             <button type="button" class="imp-ask-b" data-mode="add"><b>AJOUTER</b><span>LES LIGNES EXISTANTES SONT GARDÉES ; LES LIGNES IDENTIQUES NE SONT PAS AJOUTÉES</span></button>
             <button type="button" class="imp-ask-b" data-mode="update"><b>METTRE À JOUR</b><span>LES LIGNES IDENTIQUES PRENNENT LA QUANTITÉ ET LE PRIX IMPORTÉS ; LES NOUVELLES S'AJOUTENT</span></button>
             <button type="button" class="imp-ask-b imp-ask-r" data-mode="replace"><b>REMPLACER</b><span>LES BLOCS CI-DESSUS SONT VIDÉS PUIS REMPLIS AVEC LES LIGNES IMPORTÉES</span></button>
@@ -7771,8 +7769,18 @@ function renderBudgetList() {
           if (ev.target === ask || ev.target.closest("[data-ask-cancel]")) { ask.remove(); return; }
           const b = ev.target.closest("[data-mode]");
           if (!b) return;
-          if (b.dataset.mode === "replace" &&
-              !confirm("REMPLACER : LES LIGNES EXISTANTES DE " + busy.map(k => LAB[k]).join(", ") + " SERONT SUPPRIMÉES. CONTINUER ?")) return;
+          /* REMPLACER : confirmation dans la fenêtre (pas de message Safari) */
+          if (b.dataset.mode === "replace" && !ask.classList.contains("imp-ask-confirm")) {
+            ask.classList.add("imp-ask-confirm");
+            ask.querySelector(".imp-ask-card").innerHTML = `
+              <div class="imp-ask-t">REMPLACER</div>
+              <div class="imp-ask-w">LES LIGNES EXISTANTES DE ${busy.map(k => LAB[k]).join(", ")} SERONT SUPPRIMÉES.</div>
+              <div class="imp-ask-f">
+                <button type="button" class="doc-btn" data-ask-cancel>ANNULER</button>
+                <button type="button" class="doc-btn imp-ask-ok" data-mode="replace">REMPLACER</button>
+              </div>`;
+            return;
+          }
           run(b.dataset.mode);
         });
       });
