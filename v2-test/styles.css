@@ -1234,3 +1234,14 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 .ins-table tr.lk-hit td, .ins-hcol .ins-li.lk-hit { background: #bfdbfe !important; color: #1e3a8a !important; font-weight: 800; }
 .ins-table tr.lk-hit td input.ins-in, .ins-hcol .ins-li.lk-hit input.ins-in { color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important; }
 .ins-table tr.lk-hit td.ins-lock { background: #d9dde3 !important; }
+/* ligne qu'on ne peut pas choisir : grisée d'avance, rond inactif (appui long = raison) */
+.ins-table tr.lk-ban td, .ins-hcol .ins-li.lk-ban { opacity: .45; }
+.lk-ban .lk-rd { opacity: .45; pointer-events: none; border-color: #9aa3af !important; background: #f3f4f6 !important; }
+.lk-ban .lk-rd::after { display: none; }
+.ins-table tr.lk-ban, .ins-hcol .ins-li.lk-ban { -webkit-user-select: none; user-select: none; }
+/* fenêtres de confirmation / choix : ✕ en haut à droite (format INF) */
+#svConf .svc-card { position: relative; }
+#svConf .svc-close { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border: 0; background: transparent; color: #172033;
+  font-size: 16px; font-weight: 800; cursor: pointer; border-radius: 8px; line-height: 1; }
+#svConf .svc-close:active { background: #eef1f6; }
+#svConf .svc-t { padding-right: 34px; }

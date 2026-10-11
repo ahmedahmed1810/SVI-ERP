@@ -5552,6 +5552,26 @@ function renderBudgetList() {
     };
     let LKH = null;
     const lkHit = (k, id) => !!(LKH && LKH[k] && LKH[k].has(id)) && !lkOn(k, id);
+    /* une ligne qu'on ne peut pas choisir (avec les choix déjà faits) : grisée d'avance, son rond ne réagit pas ;
+       appui long = la raison s'affiche près de la ligne (gain de temps : on ne commet plus l'erreur) */
+    const LK_T = { des: "UNE DÉSIGNATION", lot: "UN LOT", prim: "UNE ACTIVITÉ PRIMAIRE", sec: "UNE ACTIVITÉ SECONDAIRE" };
+    const lkBan = (k, id) => {
+      if (!INS_EDIT || !id || lkOn(k, id)) return "";
+      if (LK_T[k] && LK[k] && LK[k] !== id) return LK_T[k] + " EST DÉJÀ CHOISI(E) : LIBÉREZ-LA D'ABORD.";
+      if (k === "prim" || k === "sec") return lkRuleA(k, id);
+      if (k === "prd" && LK.des) {
+        const D = INS.des.find(x => x.id === LK.des), P = INS.prd.find(x => x.id === id);
+        const du = String((D && D.u) || "").trim().toUpperCase(), pu = String((P && P.u) || "").trim().toUpperCase();
+        if (du && pu && du !== pu) return "RÈGLE B : UNITÉ " + pu + " ≠ UNITÉ DE LA DÉSIGNATION (" + du + ").";
+      }
+      if ((k === "prd" || k === "chg") && LK.lot && LK.sec) {
+        const l = (INS.links || []).find(l => l.lot === LK.lot && l.sec === LK.sec && !(l.des === LK.des && l.prim === LK.prim)
+          && (l[k] || []).some(x => x.id === id));
+        if (l) return "RÈGLE D : DÉJÀ DANS LA TÂCHE SECONDAIRE " + lkName("lot", LK.lot) + " › " + lkName("sec", LK.sec) + ".";
+      }
+      return "";
+    };
+    const lkBanAttr = (k, r) => { const b = r && !r.t ? lkBan(k, r.id) : ""; return b ? ` data-ban="${esc(b)}"` : ""; };
     let LKS = null, LKG = null;   /* calculés à chaque dessin : liées à la désignation choisie / liées à n'importe quelle désignation */
     const lkIsLinked = (k, id) => !!(LKS && LKS[k] && LKS[k].has(id));
     const lkAnyLinked = (k, id) => !!(LKG && LKG[k] && LKG[k].has(id));
@@ -5576,8 +5596,8 @@ function renderBudgetList() {
       const dim = k === "des" && r && !r.t && LK.des && !sel;
       const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
       const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* bleu = liée (à n'importe quelle désignation) */
-      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + insLevel(r.art) : ""}${r && !r.t && lvl ? " ins-in" + lvl : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}"
-          data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}>
+      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + insLevel(r.art) : ""}${r && !r.t && lvl ? " ins-in" + lvl : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
+          data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}>
         <td class="center ins-rdc">${lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
           ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>`;
     };
@@ -5774,7 +5794,7 @@ function renderBudgetList() {
           <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? '<span class="ins-rdc"></span>' : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length)}</span><span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
-          ${list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}" data-ik="${k}" data-iid="${r.id}">
+          ${list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
               ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">
                 <span class="ins-delc">${insDelCell(r)}</span>` : `<span>${esc(r.v || "")}</span>`}
             </div>`).join("")}
@@ -6615,6 +6635,7 @@ function renderBudgetList() {
           e.stopPropagation(); e.preventDefault();
           const k = rd.dataset.rd, id = rd.closest("[data-iid]")?.dataset.iid;
           if (!id) return;
+          if (rd.closest(".lk-ban")) return;   /* ligne grisée : on ne peut pas la choisir (appui long = raison) */
           const L = X.LK, multi = k === "prd" || k === "chg";
           const chosen = multi ? L[k][id] !== undefined : L[k] === id;
           if (!multi && L[k] && !chosen) return;   /* une ligne déjà choisie : les autres attendent qu'on la libère */
@@ -6763,8 +6784,17 @@ function renderBudgetList() {
       return true;
     };
     /* modification non validée : avant de passer à autre chose, on propose de valider */
+    /* ce qui sera abandonné (consigne 27) : produits / charges à ajouter, délais modifiés, liaisons déliées */
+    const lkPendingHTML = () => {
+      const add = [...Object.keys(LK.prd || {}).map(id => lkName("prd", id)), ...Object.keys(LK.chg || {}).map(id => lkName("chg", id))];
+      const out = [];
+      if (add.length) out.push(`<div class="svc-sub">À AJOUTER :</div><ul class="svc-list">${add.map(n => `<li>${esc(n)}</li>`).join("")}</ul>`);
+      if (lkDlyDirty()) out.push(`<div class="svc-sub">DÉLAIS MODIFIÉS</div>`);
+      if ((LK.unlinked || []).length) out.push(`<div class="svc-sub">DÉLIÉES :</div><ul class="svc-list">${LK.unlinked.map(n => `<li>${esc(n)}</li>`).join("")}</ul>`);
+      return out.join("");
+    };
     const lkGuard = () => !lkPending() ? Promise.resolve(true)
-      : svChoose({ title: "LIAISON NON VALIDÉE", text: "DES MODIFICATIONS DE LA LIAISON NE SONT PAS VALIDÉES.",
+      : svChoose({ title: "LIAISON EN COURS NON VALIDÉE", html: lkPendingHTML(),
           buttons: [{ v: "drop", label: "ABANDONNER", tone: "danger" }, { v: "ok", label: "✓ VALIDER", tone: "neutral" }] })
         .then(v => {
           if (v === "ok") return lkCommit();
@@ -6808,7 +6838,7 @@ function renderBudgetList() {
         const p = document.createElement("div");
         p.id = "docPop";
         p.innerHTML = `<div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
-            <div class="doc-head"><span class="doc-title">LIAISON</span><button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button></div>
+            <div class="doc-head"><span class="doc-title">LIAISON EN COURS</span><button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button></div>
             <div class="doc-body">
               <div class="lk-info-st${same ? " ok" : ""}">${st}</div>
               <div class="doc-grid">
@@ -7902,6 +7932,14 @@ function renderBudgetList() {
         return;
       }
       const insEl = INS_EDIT && event.target.closest(".ins-table tr[data-iid], .ins-hcol .ins-li[data-iid]");
+      if (insEl && insEl.classList.contains("lk-ban") && !event.target.closest("input.ins-cb, .ins-t")) {
+        const x0 = event.clientX, y0 = event.clientY;
+        const tmr = setTimeout(() => { svToast(insEl.dataset.ban || "", 3500, insEl); off(); }, 450);
+        const mv = e => { if (Math.abs(e.clientX - x0) > 10 || Math.abs(e.clientY - y0) > 10) off(); };
+        const off = () => { clearTimeout(tmr); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", off); document.removeEventListener("pointercancel", off); };
+        document.addEventListener("pointermove", mv); document.addEventListener("pointerup", off); document.addEventListener("pointercancel", off);
+        return;
+      }
       if (insEl && !event.target.closest(".ins-t, .ins-cb, .ins-x, .lk-rd, .lk-q") &&
           event.target.closest("input.ins-in") !== document.activeElement) { insDrag(event, insEl); return; }
       const rz = event.target.closest(".blk-rsz");
@@ -13485,14 +13523,15 @@ function svToast(msg, ms = 3500, anchor) {
   t.__tm = setTimeout(() => t.classList.remove("on"), ms);
 }
 /* fenêtre de choix de l'application : ANNULER + boutons [{ v, label, tone }] ; résout la valeur choisie ou null */
-function svChoose({ title = "", text = "", buttons = [] } = {}) {
+function svChoose({ title = "", text = "", html = "", buttons = [] } = {}) {
   return new Promise(res => {
     document.getElementById("svConf")?.remove();
     const d = document.createElement("div");
     d.id = "svConf";
     d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
+        <button type="button" class="svc-close" data-v="" aria-label="Fermer">✕</button>
         <div class="svc-t">${esc(title)}</div>
-        ${text ? `<div class="svc-x">${esc(text)}</div>` : ""}
+        ${text ? `<div class="svc-x">${esc(text)}</div>` : ""}${html ? `<div class="svc-x svc-html">${html}</div>` : ""}
         <div class="svc-f"><button type="button" class="svc-b" data-v="">ANNULER</button>
           ${buttons.map(b => `<button type="button" class="svc-b svc-ok${b.tone === "danger" ? "" : " svc-neutral"}" data-v="${esc(b.v)}">${esc(b.label)}</button>`).join("")}</div>
       </div>`;
@@ -13511,6 +13550,7 @@ function svConfirm({ title = "CONFIRMER", text = "", html = "", ok = "OK", tone 
     const d = document.createElement("div");
     d.id = "svConf";
     d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
+        <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
         <div class="svc-t">${esc(title)}</div>
         ${text ? `<div class="svc-x">${esc(text)}</div>` : ""}${html ? `<div class="svc-x svc-html">${html}</div>` : ""}
         <div class="svc-f"><button type="button" class="svc-b" data-r="0">ANNULER</button>
