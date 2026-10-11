@@ -5788,20 +5788,19 @@ function renderBudgetList() {
       INS.dly = INS.dly || {};
       const lotsOf = id => [...new Set((INS.links || []).filter(l => l.sec === id)
         .map(l => (INS.lot.find(x => x.id === l.lot) || {}).v).filter(Boolean))].join(", ");
-      const rows = INS.sec.map(r => {
+      const all = INS.sec.map(r => {
         const d = INS.dly[r.id] || {};
-        const inp = (f, type, v) => INS_EDIT
-          ? `<input class="ins-in dly-in" data-dly="${r.id}" data-f="${f}" type="${type}" ${type === "text" ? 'inputmode="numeric"' : ""} value="${esc(v || "")}">`
-          : esc(f === "deb" || f === "fin" ? dFr(v) : (v || ""));
-        return `<tr data-sec="${r.id}"><td>${esc(lotsOf(r.id))}</td><td>${esc(r.v || "")}</td>
-          <td class="center ins-td">${inp("deb", "date", d.deb)}</td>
-          <td class="number ins-td">${inp("dur", "text", d.dur)}</td>
-          <td class="center ins-td">${inp("fin", "date", d.fin)}</td>
-          <td class="ins-td">${INS_EDIT ? `<input class="ins-in dly-in" data-dly="${r.id}" data-f="arr" value="${esc(d.arr || "")}">` : esc(d.arr || "—")}</td></tr>`;
-      }).join("") || `<tr><td colspan="6" class="empty">AUCUNE ACTIVITÉ SECONDAIRE</td></tr>`;
-      return `<table class="bdg-d-table dly-table"><colgroup><col style="width:180px"><col style="width:300px"><col style="width:150px"><col style="width:100px"><col style="width:150px"><col style="width:220px"></colgroup>
-        <thead><tr><th>LOT</th><th>ACTIVITÉ SECONDAIRE</th><th class="center">DÉBUT</th><th class="number">DURÉE (J)</th><th class="center">FIN</th><th>ARRÊTS</th></tr></thead>
-        <tbody>${rows}</tbody></table>`;
+        return { id: r.id, lot: lotsOf(r.id), sec: r.v || "", deb: d.deb || "", dur: d.dur ?? "", fin: d.fin || "", arr: d.arr || "" };
+      }).sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || a.sec.localeCompare(b.sec, "fr"));
+      const rows = cfApply("dly", DLY_COLS, all);
+      lastShown.detail = { cols: DLY_COLS, rows, kind: "dly" };
+      const inp = (x, f, type) => INS_EDIT
+        ? `<input class="ins-in dly-in${f === "dur" ? " number" : f === "arr" ? "" : " center"}" data-dly="${x.id}" data-f="${f}" type="${type}" ${f === "dur" ? 'inputmode="numeric"' : ""} value="${esc(x[f] ?? "")}">`
+        : esc(f === "deb" || f === "fin" ? dFr(x[f]) : (x[f] || (f === "arr" ? "—" : "")));
+      return dlyTable(rows, x => ({ lot: esc(x.lot), sec: esc(x.sec),
+        deb: inp(x, "deb", "date"), dur: inp(x, "dur", "text"), fin: inp(x, "fin", "date"), arr: inp(x, "arr", "text"),
+        __td_deb: INS_EDIT ? " ins-td" : "", __td_dur: INS_EDIT ? " ins-td" : "", __td_fin: INS_EDIT ? " ins-td" : "", __td_arr: INS_EDIT ? " ins-td" : "" }),
+        x => `data-sec="${x.id}"`);
     };
     /* saisie : durée → fin ; fin → durée ; début → fin (si durée) */
     if (!shell.__dlyBound) {
@@ -6343,6 +6342,26 @@ function renderBudgetList() {
       });
     };
 
+    /* ===== DÉTAIL DÉLAIS : colonnes (tri / filtre, largeur et ordre réglables) ===== */
+    const DLY_COLS = [
+      ["lot", "LOT", x => x.lot || "", ""],
+      ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""],
+      ["deb", "DÉBUT", x => x.deb || "", "center"],
+      ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "number"],
+      ["fin", "FIN", x => x.fin || "", "center"],
+      ["arr", "ARRÊTS", x => x.arr || "", ""]
+    ];
+    const DLY_W = { lot: 200, sec: 320, deb: 140, dur: 100, fin: 140, arr: 200 };
+    /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */
+    const dlyTable = (rows, cells, trAttr = () => "") => {
+      const cols = coOrder("dly", DLY_COLS);
+      const w = k => cwLoad()["dly." + k] || DLY_W[k];
+      return `<table class="bdg-d-table dly-table" style="width:${cols.reduce((t, c) => t + w(c[0]), 0)}px">
+        <colgroup>${cols.map(c => `<col data-w="dly.${c[0]}" style="width:${w(c[0])}px">`).join("")}</colgroup>
+        <thead><tr>${cols.map(c => cfHead("dly", c[0], c[1], c[3])).join("")}</tr></thead>
+        <tbody>${rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}</tr>`; }).join("")
+          || `<tr><td colspan="${cols.length}" class="empty">AUCUNE ACTIVITÉ SECONDAIRE</td></tr>`}</tbody></table>`;
+    };
     const renderTab = () => {
       shell
         .querySelectorAll(".bdg-d-tab")
@@ -6462,16 +6481,16 @@ function renderBudgetList() {
           if (!x.deb && l.deb) x.deb = l.deb;
           if (!x.fin && l.fin) x.fin = l.fin;
         });
-        const rows = [...m.values()];
+        const dur = x => x.deb && x.fin ? Math.round((new Date(x.fin) - new Date(x.deb)) / 86400000) : "";
+        /* ordre par défaut : chronologique (début), puis alphabétique */
+        const all = [...m.values()].map(x => ({ ...x, lot: [...x.lots].join(", "), dur: dur(x) }))
+          .sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || a.sec.localeCompare(b.sec, "fr"));
+        const rows = cfApply("dly", DLY_COLS, all);
         { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
           if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(rows.length); }
-        const dur = x => x.deb && x.fin ? Math.round((new Date(x.fin) - new Date(x.deb)) / 86400000) : "";
-        body.innerHTML = `<div class="bdg-d-scroll"><table class="bdg-d-table dly-table">
-          <colgroup><col style="width:200px"><col style="width:320px"><col style="width:120px"><col style="width:100px"><col style="width:120px"><col style="width:160px"></colgroup>
-          <thead><tr><th>LOT</th><th>ACTIVITÉ SECONDAIRE</th><th class="center">DÉBUT</th><th class="number">DURÉE (J)</th><th class="center">FIN</th><th>ARRÊTS</th></tr></thead>
-          <tbody>${rows.map(x => `<tr><td>${esc([...x.lots].join(", "))}</td><td>${esc(x.sec)}</td><td class="center">${fr(x.deb)}</td>
-            <td class="number">${dur(x)}</td><td class="center">${fr(x.fin)}</td><td>—</td></tr>`).join("") ||
-            `<tr><td colspan="6" class="empty">AUCUNE ACTIVITÉ SECONDAIRE</td></tr>`}</tbody></table></div>`;
+        lastShown.detail = { cols: DLY_COLS, rows, kind: "dly" };
+        body.innerHTML = `<div class="bdg-d-scroll">${dlyTable(rows, x => DLY_COLS.map(c => c[0])
+          .reduce((o, k) => (o[k] = k === "deb" || k === "fin" ? fr(x[k]) : k === "arr" ? "—" : esc(x[k] ?? ""), o), {}))}</div>`;
         return;
       }
       body.innerHTML = `
@@ -7027,12 +7046,11 @@ function renderBudgetList() {
     const blkData = blk => {
       if (blk === "detail" && active === "qlt") return { head: [], rows: [] };
       if (blk === "detail" && active === "dly") {
-        const a = $("bdgDelayStart")?.value || "";
-        const b = $("bdgDelayEnd")?.value || "";
-        return {
-          head: ["DATE DÉBUT", "DATE FIN", "DÉLAI"],
-          rows: [[a, b, $("bdgDelayDays")?.textContent || ""]]
-        };
+        /* délais : tableau affiché (filtres compris), dates JJ/MM/AAAA */
+        const src = lastShown.detail && lastShown.detail.kind === "dly" ? lastShown.detail : { cols: DLY_COLS, rows: [] };
+        const fr = v => /^\d{4}-\d{2}-\d{2}/.test(String(v)) ? String(v).slice(8, 10) + "/" + String(v).slice(5, 7) + "/" + String(v).slice(0, 4) : v;
+        const oc = coOrder("dly", src.cols);
+        return { head: oc.map(c => c[1]), rows: src.rows.map(r => oc.map(c => fr(c[2](r)))) };
       }
       if (REC_KINDS.includes(blk)) return recTableData(blk);
       if (blk === "hist") return histData();
@@ -9378,7 +9396,7 @@ function renderBudgetList() {
       if (blk === "hier") return printTasks("plain");
       if (blk === "detail" && active === "chg") return printTasks("chg");
       if (blk === "detail" && active === "prd") return printTasks("prd");
-      if (blk === "detail" && active === "dly") return printDelay();
+      if (blk === "detail" && active === "dly") return printGeneric(blk);
       if (!(blk === "detail" && active === "qlt")) return printGeneric(blk);
       histLog(blkLabel(blk), "APERÇU PDF");
       let tableHTML;

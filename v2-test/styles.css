@@ -1079,3 +1079,11 @@ tfoot td {
 .dly-table input.dly-in { text-align: center; }
 .dly-table td.number input.dly-in { text-align: right; }
 @media (max-width: 700px) { .lk-grid { grid-template-columns: 1fr; } }
+/* délais : champs sans cadre, comme les autres tableaux de saisie */
+.dly-table td.ins-td { padding: 0 !important; }
+.dly-table input.ins-in { width: 100%; box-sizing: border-box; border: 0; background: transparent; font: inherit; color: inherit;
+  padding: 0 8px; height: 20px; line-height: 20px; margin: 0; outline: none; border-radius: 0; -webkit-appearance: none; appearance: none; }
+.dly-table input.ins-in:focus { box-shadow: inset 0 0 0 2px var(--inst, #b91c1c); background: #fff; }
+.dly-table input.ins-in.number { text-align: right; }
+.dly-table input.ins-in.center { text-align: center; }
+.bdg-inst-instance .dly-table input.ins-in, .bdg-inst-fige .dly-table input.ins-in { color: var(--inst) !important; -webkit-text-fill-color: var(--inst) !important; }
