@@ -3641,7 +3641,7 @@ function renderBudgetList() {
       const miss = [];
       if (!r) miss.push("date");
       if (!prj) miss.push("projet");
-      if (miss.length) { p.querySelector("#nbErr").textContent = "Champs obligatoires manquants : " + miss.join(", ") + "."; return; }
+      if (miss.length) { p.querySelector("#nbErr").textContent = "CHAMPS OBLIGATOIRES MANQUANTS : " + miss.join(", ").toUpperCase() + "."; return; }
       const list = instLoad();
       list.push({ ref: r, project: prj, intitule: val("#nbName").toUpperCase() || "À COMPLÉTER",
         created: val("#nbDate"), state: "instance" });
@@ -3649,6 +3649,11 @@ function renderBudgetList() {
       p.remove();
       try { localStorage.setItem("svi_listmode_v1", "inst"); } catch (e) {}
       renderBudgetList();
+      /* consigne : l'élément créé s'ouvre directement (budget en rouge, mode SAISIE) */
+      setTimeout(() => {
+        const tr = [...document.querySelectorAll("tr[data-budget-ref]")].find(x => x.dataset.budgetRef === r);
+        if (tr) tr.click();
+      }, 30);
     });
   }
 
@@ -5320,7 +5325,7 @@ function renderBudgetList() {
       const [f, , cls, type] = c;
       const isNew = !r;
       r = r || {};
-      const qAuto = k === "prd" && f === "q" && ["nbr", "d1", "d2", "d3"].some(x => r[x] !== "" && r[x] !== undefined);
+      const qAuto = k === "prd" && f === "q";   /* QPB produits = NBR × DIM 1 × DIM 2 × DIM 3 */
       const locked = !INS_EDIT || type === "calc" || qAuto || (r.t && f !== "art" && f !== "des");
       let val = "";
       if (!isNew) {
@@ -5536,7 +5541,7 @@ function renderBudgetList() {
         const f = inp.dataset.f;
         const c = INS_COLS[k].find(x => x[0] === f);
         if (!c || inp === document.activeElement) return;
-        const qAuto = k === "prd" && f === "q" && ["nbr", "d1", "d2", "d3"].some(x => r[x] !== "" && r[x] !== undefined);
+        const qAuto = k === "prd" && f === "q";   /* QPB produits = NBR × DIM 1 × DIM 2 × DIM 3 */
         if (c[3] === "calc" || qAuto) inp.value = r.t ? "" : insFmt(insCalc(k, r, f));
       });
       if (k === "des") {
@@ -5966,6 +5971,13 @@ function renderBudgetList() {
       shell.addEventListener("click", e => {
         const X = shell.__lk;
         if (!X || !e.target.closest("#insLinkView")) return;
+        /* toucher la ligne = toucher le rond (ou la case) */
+        if (!e.target.closest("input, button, .cf-btn, label")) {
+          const tr = e.target.closest("tr[data-pick]");
+          if (tr && !X.RO()) { X.LK[tr.dataset.pick] = tr.dataset.id; X.LK.err = ""; X.render(); return; }
+          const td = e.target.closest("tr[data-det]");
+          if (td && !X.RO()) { td.querySelector(".lk-cb")?.click(); return; }
+        }
         const lt = e.target.closest(".bdg-d-tab[data-lktab]");
         if (lt && !e.target.closest(".cf-btn")) { X.LK.tab = lt.dataset.lktab; X.render(); return; }
         const del = e.target.closest(".lk-del");
@@ -5991,7 +6003,7 @@ function renderBudgetList() {
         }
       });
     }
-    shell.__lk = INS ? { INS, LK, insId, check: lkCheck, render: () => insRenderLinks(),
+    shell.__lk = INS ? { INS, LK, insId, check: lkCheck, render: () => insRenderLinks(), RO: () => !INS_EDIT,
       save: what => { insSave(); histLog("LIAISONS", what, fullRef); } } : null;
     /* bascule SAISIE / LIAISONS */
     const insApplyMode = () => {
@@ -7868,6 +7880,15 @@ function renderBudgetList() {
           seen.add(id);
           m.hier.push({ key: id, lvl: k, row: { v: U_(r.v) } });
         }));
+        /* liaisons validées du budget source : un chemin par produit / charge */
+        const byId = (k, id) => (d[k] || []).find(x => x.id === id);
+        (d.links || []).forEach(l => {
+          const D = byId("des", l.des), L = byId("lot", l.lot), P = byId("prim", l.prim), S = byId("sec", l.sec);
+          if (!D || !L || !P || !S) return;
+          const base = { dk: "des|" + impId("des", D), lot: "lot|" + U_(L.v), prim: "prim|" + U_(P.v), sec: "sec|" + U_(S.v) };
+          (l.prd || []).forEach(x => { const r = byId("prd", x.id); if (r) m.links.push({ ...base, pk: "prd|" + impId("prd", r), q: x.q }); });
+          (l.chg || []).forEach(x => { const r = byId("chg", x.id); if (r) m.links.push({ ...base, ck: "chg|" + impId("chg", r), q: x.q }); });
+        });
         impSort(m);
         return m;
       }
@@ -7888,7 +7909,7 @@ function renderBudgetList() {
         const dk = "d" + U_(l.article) + "||" + U_(l.designation);
         if (!dmap.has(dk)) dmap.set(dk, { key: dk, ms: [] });
         dmap.get(dk).ms.push(l);
-        const ks = { dk };
+        const ks = { dk, q: Number(l.qty) || "" };
         [["lot", l.lot], ["prim", l.prim], ["sec", l.sec]].forEach(([k, v]) => {
           if (!U_(v)) return;
           const hk = k + "|" + U_(v);
@@ -8177,6 +8198,7 @@ function renderBudgetList() {
         const busy = Object.keys(inc).filter(k => inc[k].length && INS[k].length);
         const run = mode => {
           let added = 0, upd = 0, skip = 0;
+          const kid = new Map();   /* clé du budget source → id de la ligne dans ce budget */
           const same = (k, a, b) => k === "lot" || k === "prim" || k === "sec"
             ? U_(a.v) === U_(b.v)
             : impId(k, a) === impId(k, b);
@@ -8187,6 +8209,7 @@ function renderBudgetList() {
               const hierK = k === "lot" || k === "prim" || k === "sec";
               const r = hierK ? { v: x.row.v } : { ...x.row };
               const old = INS[k].find(o => same(k, o, r));
+              if (old) kid.set(x.key, old.id);
               if (old) {
                 if (mode !== "update" || hierK) { skip++; return; }
                 let ch = false;
@@ -8201,11 +8224,39 @@ function renderBudgetList() {
               if (lk) r.lk = { src, key: x.key, links: hierK ? undefined
                 : model.links.filter(l => l.dk === x.key || l.ck === x.key || l.pk === x.key) };
               INS[k].push(r); added++;
+              kid.set(x.key, r.id);
             });
           });
+          /* AVEC LIAISONS : les chemins du budget source deviennent des liaisons validées */
+          let nl = 0;
+          if (lk) {
+            if (mode === "replace") INS.links = [];
+            INS.links = INS.links || [];
+            const ok = { des: new Set(INS.des.map(x => x.id)), lot: new Set(INS.lot.map(x => x.id)), prim: new Set(INS.prim.map(x => x.id)),
+              sec: new Set(INS.sec.map(x => x.id)), prd: new Set(INS.prd.map(x => x.id)), chg: new Set(INS.chg.map(x => x.id)) };
+            const fresh = new Set();
+            model.links.forEach(l => {
+              const des = kid.get(l.dk), lot = kid.get(l.lot), prim = kid.get(l.prim), sec = kid.get(l.sec);
+              const pid = l.pk && kid.get(l.pk), cid = l.ck && kid.get(l.ck);
+              if (!ok.des.has(des) || !ok.lot.has(lot) || !ok.prim.has(prim) || !ok.sec.has(sec)) return;
+              if (!(pid && ok.prd.has(pid)) && !(cid && ok.chg.has(cid))) return;
+              let L = INS.links.find(x => x.des === des && x.lot === lot && x.prim === prim && x.sec === sec);
+              if (!L) { L = { id: insId(), des, lot, prim, sec, prd: [], chg: [] }; INS.links.push(L); nl++; }
+              const add = (arr, id) => {
+                const e = arr.find(x => x.id === id);
+                /* même produit plusieurs fois sur la même tâche : quantités additionnées (une seule fois par import) */
+                if (e) { if (fresh.has(e) && l.q !== "" && l.q !== undefined) e.q = (Number(e.q) || 0) + Number(l.q); }
+                else { const n = { id, q: l.q === undefined ? "" : l.q }; arr.push(n); fresh.add(n); }
+              };
+              if (pid && ok.prd.has(pid)) add(L.prd = L.prd || [], pid);
+              if (cid && ok.chg.has(cid)) add(L.chg = L.chg || [], cid);
+            });
+            /* une liaison doit avoir au moins un produit */
+            INS.links = INS.links.filter(x => (x.prd || []).length);
+          }
           insSave();
           const M = { add: "AJOUT", replace: "REMPLACEMENT", update: "MISE À JOUR" }[mode];
-          histLog("IMPORT", "DEPUIS UN AUTRE BUDGET — " + M, src + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S)" + (lk ? " — AVEC LIAISONS" : ""));
+          histLog("IMPORT", "DEPUIS UN AUTRE BUDGET — " + M, src + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S)" + (lk ? " — " + nl + " LIAISON(S)" : ""));
           p.remove();
           refreshAll();
         };
@@ -9812,7 +9863,7 @@ function renderBudgetList() {
         if (!title) { miss.push("intitulé"); p.querySelector("#docTitle").classList.add("bad"); }
         if (!file) { miss.push("document"); p.querySelector(".doc-file").classList.add("bad"); }
         if (miss.length) {
-          p.querySelector("#docErr").textContent = "Champs obligatoires manquants : " + miss.join(", ") + ".";
+          p.querySelector("#docErr").textContent = "CHAMPS OBLIGATOIRES MANQUANTS : " + miss.join(", ").toUpperCase() + ".";
           return;
         }
         const dupD = findDup(docsLoad(), r => r.title, title);
@@ -10320,7 +10371,7 @@ function renderBudgetList() {
           if (!String($p(id).value).trim()) { miss.push(lab); $p(id).classList.add("bad"); }
         });
         if (miss.length) {
-          $p("recErr").textContent = "Champs obligatoires manquants : " + miss.join(", ") + ".";
+          $p("recErr").textContent = "CHAMPS OBLIGATOIRES MANQUANTS : " + miss.join(", ").toUpperCase() + ".";
           return;
         }
         const dupR = findDup(recLoad(kind), r => r.text, $p("recText").value);
