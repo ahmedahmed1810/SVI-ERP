@@ -1,6 +1,61 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzFgUloyiRJe-QmR7nRqJ4bfWqvfA_6LSgotJRrRt87yeRfWtdY7nxXMR9avafSJUPg4Q/exec";
 const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
 
+/* =========================================================
+   CHARGEMENT EN COURS : tout échange avec Google (script, feuilles)
+   affiche une fenêtre centrale et bloque l'écran jusqu'à la réponse.
+   Apparaît après 0,3 s (pas de clignotement) ; bouton FERMER après 30 s.
+   ========================================================= */
+(() => {
+  const nativeFetch = window.fetch.bind(window);
+  let busy = 0, showT = null, slowT = null;
+  const el = () => {
+    let d = document.getElementById("sviLoad");
+    if (d) return d;
+    d = document.createElement("div");
+    d.id = "sviLoad";
+    d.innerHTML = `<div class="ld-card" role="status" aria-live="polite">
+        <div class="ld-spin"></div>
+        <div class="ld-t">TÉLÉCHARGEMENT DES DONNÉES…</div>
+        <div class="ld-bar"><i></i></div>
+        <div class="ld-s">GOOGLE SHEETS — MERCI DE PATIENTER</div>
+        <button type="button" class="ld-x" hidden>FERMER</button>
+      </div>`;
+    d.addEventListener("click", e => {
+      if (e.target.closest(".ld-x")) d.classList.remove("on");
+    });
+    document.body.appendChild(d);
+    return d;
+  };
+  const start = () => {
+    if (busy++ > 0) return;
+    clearTimeout(showT); clearTimeout(slowT);
+    showT = setTimeout(() => {
+      const d = el();
+      d.querySelector(".ld-x").hidden = true;
+      d.classList.add("on");
+    }, 300);
+    slowT = setTimeout(() => { const d = el(); d.querySelector(".ld-x").hidden = false; }, 30000);
+  };
+  const stop = () => {
+    busy = Math.max(0, busy - 1);
+    if (busy) return;
+    clearTimeout(showT); clearTimeout(slowT);
+    document.getElementById("sviLoad")?.classList.remove("on");
+  };
+  window.fetch = (input, init) => {
+    const url = String((input && input.url) || input || "");
+    if (!/script\.google(usercontent)?\.com|docs\.google\.com/.test(url)) return nativeFetch(input, init);
+    start();
+    return nativeFetch(input, init).then(r => {
+      /* le corps est lu ensuite : on attend sa lecture complète */
+      const c = r.clone();
+      c.text().then(stop, stop);
+      return r;
+    }, e => { stop(); throw e; });
+  };
+})();
+
 /* fichiers volumineux (PDF, documents) gardés sur l'appareil dans IndexedDB */
 const sviFiles = (() => {
   let dbp = null;
