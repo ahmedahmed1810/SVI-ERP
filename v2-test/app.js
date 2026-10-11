@@ -7214,8 +7214,58 @@ function renderBudgetList() {
         </div>`);
     };
 
+    /* fenêtre au format INF : lien de la feuille Google à importer */
+    const askSheetLink = () => new Promise(res => {
+      document.getElementById("docPop")?.remove();
+      const p = document.createElement("div");
+      p.id = "docPop";
+      p.className = "pop-new-bdg";
+      p.innerHTML = `
+        <div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
+          <div class="doc-head">
+            <span class="doc-title">IMPORTER — GOOGLE SHEETS</span>
+            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+          </div>
+          <div class="doc-body">
+            <div class="doc-grid">
+              <label class="doc-lab" for="gsLink">LIEN DE LA FEUILLE <b>*</b></label>
+              <input id="gsLink" class="doc-in" style="grid-column:2 / -1;width:100%" type="url" data-keepcase autocomplete="off"
+                inputmode="url" placeholder="https://docs.google.com/spreadsheets/d/…">
+            </div>
+            <div id="gsErr" class="doc-err"></div>
+          </div>
+          <div class="doc-foot">
+            <button type="button" class="doc-btn" data-cancel>ANNULER</button>
+            <button type="button" class="doc-btn nb-save" id="gsGo">IMPORTER</button>
+          </div>
+        </div>`;
+      document.body.appendChild(p);
+      try { popEnhance(p, "gslink"); } catch (e) {}
+      const inp = p.querySelector("#gsLink");
+      /* champ sur toute la largeur de la fenêtre */
+      const cell = inp.parentElement.classList.contains("doc-grid") ? inp : inp.parentElement;
+      cell.style.gridColumn = "2 / -1";
+      cell.style.width = "100%";
+      const close = v => { p.remove(); res(v); };
+      const go = () => {
+        const v = inp.value.trim();
+        if (!/\/d\/[a-zA-Z0-9_-]+/.test(v)) {
+          p.querySelector("#gsErr").textContent = "LIEN GOOGLE SHEETS NON RECONNU.";
+          inp.focus();
+          return;
+        }
+        close(v);
+      };
+      p.addEventListener("click", e => {
+        if (e.target === p || e.target.closest("[data-cancel]")) close("");
+        else if (e.target.closest("#gsGo")) go();
+      });
+      inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+      setTimeout(() => inp.focus(), 50);
+    });
+
     const importGSheet = async () => {
-      const url = prompt("Lien de la feuille Google (partagée « Toute personne disposant du lien ») :");
+      const url = await askSheetLink();
       if (!url) return;
       const id = (url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1];
       const gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || "0";
