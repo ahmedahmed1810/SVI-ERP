@@ -6454,6 +6454,25 @@ function renderBudgetList() {
     }
     shell.__lk = INS ? { INS, LK, insId, check: lkCheck, render: () => insRenderLinks(), RO: () => !INS_EDIT,
       save: what => { insSave(); histLog("LIAISONS", what, fullRef); } } : null;
+    /* détail produits : alerte (non bloquante) si les dimensions ne correspondent pas à l'unité
+       U / F : NBR seul ; M / ML : NBR + 1 DIM ; M2 : NBR + 2 DIM ; M3 : NBR + 3 DIM */
+    if (!shell.__dimBound) {
+      shell.__dimBound = true;
+      shell.addEventListener("change", e => {
+        const inp = e.target.closest && e.target.closest("input.ins-in");
+        const X = shell.__ins;
+        if (!inp || !X || !["u", "nbr", "d1", "d2", "d3"].includes(inp.dataset.f)) return;
+        const tr = inp.closest('tr[data-ik="prd"][data-iid]');
+        if (!tr) return;
+        const r = X.INS.prd.find(x => x.id === tr.dataset.iid);
+        if (!r) return;
+        const u = String(r.u || "").trim().toUpperCase();
+        const max = { U: 0, F: 0, M: 1, ML: 1, M2: 2, M3: 3 }[u];
+        if (max === undefined) return;
+        const nd = ["d1", "d2", "d3"].filter(f => r[f] !== "" && r[f] !== undefined && r[f] !== null).length;
+        if (nd > max) svToast("ATTENTION : UNITÉ " + u + " → " + (max === 0 ? "NBR SEUL" : "NBR ET " + max + " DIM") + " (" + nd + " DIM RENSEIGNÉE" + (nd > 1 ? "S" : "") + ").");
+      });
+    }
     /* page unique : rond (choix de la chaîne), quantité de la tâche, ✓ VALIDER, DÉLIER */
     if (!shell.__fuseBound) {
       shell.__fuseBound = true;
