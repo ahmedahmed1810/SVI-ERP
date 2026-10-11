@@ -2,6 +2,36 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzFgUloyiRJe-QmR7nRqJ4b
 const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
 
 /* =========================================================
+   MISE À JOUR AUTOMATIQUE : Safari garde parfois l'ancienne page.
+   À l'ouverture (et au retour sur l'onglet), la page publiée est relue
+   sans cache ; si elle annonce une version plus récente, on la charge.
+   ========================================================= */
+(() => {
+  const cur = (() => {
+    const s = [...document.scripts].find(x => /app\.js\?v=\d+/.test(x.src || ""));
+    return s ? Number(s.src.match(/app\.js\?v=(\d+)/)[1]) : 0;
+  })();
+  if (!cur) return;
+  const check = () => {
+    fetch(location.pathname + "?_=" + Date.now(), { cache: "no-store" })
+      .then(r => r.text())
+      .then(t => {
+        const m = t.match(/app\.js\?v=(\d+)/);
+        const v = m ? Number(m[1]) : 0;
+        if (v > cur) {
+          let done = "";
+          try { done = sessionStorage.getItem("svi_upd") || ""; } catch (e) {}
+          if (done === String(v)) return;          /* une seule tentative par version */
+          try { sessionStorage.setItem("svi_upd", String(v)); } catch (e) {}
+          location.replace(location.pathname + "?v=" + v + location.hash);
+        }
+      }).catch(() => {});
+  };
+  check();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+})();
+
+/* =========================================================
    CHARGEMENT EN COURS : tout échange avec Google (script, feuilles)
    affiche une fenêtre centrale et bloque l'écran jusqu'à la réponse.
    Apparaît après 0,3 s (pas de clignotement) ; bouton FERMER après 30 s.
