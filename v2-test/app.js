@@ -5350,6 +5350,8 @@ function renderBudgetList() {
       const qAuto = f === "q" && (k === "prd" || (k === "des" && r.id && insLinkedQ(INS, r.id) !== null));
       const locked = !INS_EDIT || type === "calc" || qAuto || (r.t && f !== "art" && f !== "des");
       let val = "";
+      /* ligne vide « SAISIR ICI » des désignations : TVA 20 % affichée par défaut */
+      if (isNew && k === "des" && f === "tva") val = "20,00";
       if (!isNew) {
         if (r.t && f !== "art" && f !== "des") val = "";
         else if (type === "calc" || qAuto) val = insFmt(insCalc(k, r, f));
@@ -5648,7 +5650,7 @@ function renderBudgetList() {
         if (!r) {
           /* première frappe dans la ligne vide : la ligne est créée */
           r = { id: X.insId(), on: false };   /* nouvelle ligne : décochée par défaut */
-          if (k === "des") r.t = false;
+          if (k === "des") { r.t = false; r.tva = 20; }   /* TVA 20 % par défaut */
           X.INS[k].push(r);
           holder.dataset.iid = r.id;
           holder.classList.remove("ins-new");
