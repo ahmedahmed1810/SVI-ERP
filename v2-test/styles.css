@@ -1228,3 +1228,9 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 #blkMenu button.blk-del { color: var(--inst, #b91c1c); }
 #blkMenu button.blk-del.off { color: #9aa3af; cursor: default; opacity: .6; }
 #blkMenu button.blk-del .svi-cnt { margin-left: auto; }
+/* ↻ disposition par défaut : toujours affiché, grisé quand il n'y a rien à remettre en place */
+#layResetBtn:disabled { opacity: .35; cursor: default; pointer-events: none; }
+/* liées exactement à ce qui est choisi (lot, activité, désignation…) : bleu foncé, en haut */
+.ins-table tr.lk-hit td, .ins-hcol .ins-li.lk-hit { background: #bfdbfe !important; color: #1e3a8a !important; font-weight: 800; }
+.ins-table tr.lk-hit td input.ins-in, .ins-hcol .ins-li.lk-hit input.ins-in { color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important; }
+.ins-table tr.lk-hit td.ins-lock { background: #d9dde3 !important; }
