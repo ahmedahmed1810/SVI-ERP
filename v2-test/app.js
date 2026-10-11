@@ -7369,7 +7369,7 @@ function renderBudgetList() {
        budget source au choix, lignes cochées par onglet ;
        options : SANS / AVEC LIAISONS, TOUT LE BUDGET */
     const IMP_TABS = [
-      ["des", "DÉSIGNATIONS CLIENT"], ["hier", "LOTS / ACTIVITÉS"],
+      ["des", "DÉSIGNATIONS CLIENT"], ["hier", "TÂCHES"],
       ["chg", "DÉTAIL CHARGES"], ["prd", "DÉTAIL PRODUITS"]
     ];
     const U_ = v => String(v ?? "").trim().toUpperCase();
@@ -7436,7 +7436,9 @@ function renderBudgetList() {
       const startTab = blk === "client" ? "des" : blk === "hier" ? "hier" : (active === "prd" ? "prd" : "chg");
       const refs = [...groups.keys()].filter(r => r !== ref)
         .sort((a, b) => String(a).localeCompare(String(b), "fr", { numeric: true }));
-      const st = (g => !g.inst ? "VALIDÉ" : g.inst.state === "fige" ? "FIGÉ" : g.inst.state === "valide" ? "VALIDÉ" : "EN INSTANCE");
+      /* couleur de l'état, comme dans la liste des budgets */
+      const stCls = g => !g.inst || g.inst.state === "valide" ? "" : g.inst.state === "fige" ? "imp-fige" : "imp-inst";
+      const refLab = r => { const g = groups.get(r); return U_(g.project) + " " + r; };
       let src = refs[0] || "", model = impModel(src), tab = startTab, withLinks = false, all = false;
       const sel = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set() };
       document.getElementById("docPop")?.remove();
@@ -7450,16 +7452,15 @@ function renderBudgetList() {
             <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
           </div>
           <div class="doc-body">
-            <div class="imp-row"><label class="doc-lab" for="impSrc">BUDGET SOURCE <b>*</b></label>
-              <select id="impSrc" class="doc-in">${refs.map(r => {
-                const g = groups.get(r);
-                return `<option value="${esc(r)}">${esc(U_(g.project) + " " + r + " — " + st(g))}</option>`;
-              }).join("")}</select></div>
+            <div class="imp-row"><span class="doc-lab">BUDGET SOURCE <b>*</b></span>
+              <div class="imp-src">
+                <button type="button" class="imp-src-btn" id="impSrc"></button>
+                <div class="imp-src-list" hidden>${refs.map(r =>
+                  `<button type="button" class="imp-src-it ${stCls(groups.get(r))}" data-ref="${esc(r)}">${esc(refLab(r))}</button>`).join("")}</div>
+              </div></div>
             <div class="imp-opts">
-              <span class="imp-lab">LIAISONS</span>
               <label><input type="radio" name="impLk" value="0" checked> SANS LIAISONS <small>(LIGNES COCHÉES SEULEMENT)</small></label>
-              <label><input type="radio" name="impLk" value="1"> AVEC LIAISONS <small>(+ LOTS, ACTIVITÉS ET DÉTAILS LIÉS)</small></label>
-              <label class="imp-all"><input type="checkbox" id="impAll"> TOUT LE BUDGET</label>
+              <label><input type="radio" name="impLk" value="1"> AVEC LIAISONS <small>(+ TÂCHES ET DÉTAILS LIÉS)</small></label>
             </div>
             <div class="imp-tabs"></div>
             <div class="imp-scroll"><table class="bdg-d-table imp-table"></table></div>
@@ -7516,15 +7517,32 @@ function renderBudgetList() {
         p.querySelector("#impGo").textContent = "IMPORTER (" + n + ")";
         p.querySelector("#impGo").disabled = !n;
       };
+      const showSrc = () => {
+        const b = p.querySelector("#impSrc");
+        b.className = "imp-src-btn " + (src ? stCls(groups.get(src)) : "");
+        b.textContent = src ? refLab(src) : "AUCUN AUTRE BUDGET";
+        p.querySelectorAll(".imp-src-it").forEach(x => x.classList.toggle("on", x.dataset.ref === src));
+      };
+      showSrc();
       render();
-      p.querySelector("#impSrc").addEventListener("change", e => {
-        src = e.target.value; model = impModel(src);
-        IMP_TABS.forEach(([k]) => sel[k].clear());
-        render();
+      /* liste des budgets : même présentation et mêmes couleurs que l'application */
+      p.querySelector(".imp-src").addEventListener("click", e => {
+        e.stopPropagation();
+        const list = p.querySelector(".imp-src-list");
+        const it = e.target.closest(".imp-src-it");
+        if (it) {
+          list.hidden = true;
+          if (it.dataset.ref !== src) {
+            src = it.dataset.ref; model = impModel(src);
+            IMP_TABS.forEach(([k]) => sel[k].clear());
+            showSrc(); render();
+          }
+          return;
+        }
+        if (e.target.closest("#impSrc")) list.hidden = !list.hidden;
       });
       p.addEventListener("change", e => {
         if (e.target.name === "impLk") { withLinks = e.target.value === "1"; render(); return; }
-        if (e.target.id === "impAll") { all = e.target.checked; render(); return; }
         if (e.target.classList.contains("imp-cball")) {
           model[tab].forEach(x => e.target.checked ? sel[tab].add(x.key) : sel[tab].delete(x.key));
           render(); return;
@@ -7538,6 +7556,7 @@ function renderBudgetList() {
       p.addEventListener("click", e => {
         const t = e.target.closest("[data-tab]");
         if (t) { tab = t.dataset.tab; render(); return; }
+        if (!e.target.closest(".imp-src")) { const l = p.querySelector(".imp-src-list"); if (l) l.hidden = true; }
         if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
         if (!e.target.closest("#impGo")) return;
         const pk = picked();
