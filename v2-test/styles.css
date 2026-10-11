@@ -1014,3 +1014,5 @@ tfoot td {
 #docPop .imp-tab.on .imp-selcnt { background: #fff; color: #b91c1c; }
 #docPop .imp-scroll.imp-hier { overflow-x: auto; }
 #docPop .imp-hcol th { position: relative; }
+/* liaison coupée : ligne barrée */
+#docPop .imp-table tr.imp-cut td:not(:first-child) { text-decoration: line-through; color: #9aa3af; }
