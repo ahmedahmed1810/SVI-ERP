@@ -1590,7 +1590,7 @@ function sheetRead_(b) {
   return { ok: true, name: ss.getName() + &quot; › &quot; + sh.getName(), values: sh.getDataRange().getDisplayValues() };
 }
 </textarea></section>
-<section><h2>migrationV3.gs</h2><p class="n">82 lignes</p>
+<section><h2>migrationV3.gs</h2><p class="n">118 lignes</p>
 <button onclick="cp('c3',this)">COPIER migrationV3.gs</button>
 <textarea id="c3" readonly>/* =========================================================
    SVI ERP — MIGRATION DE L&#x27;ONGLET BDG VERS LA BASE V3
@@ -1670,6 +1670,42 @@ function migrerVersV3() {
 
   const msg = &quot;MIGRATION V3 TERMINÉE : &quot; + budgets.length + &quot; BUDGETS, &quot; + desig.length +
     &quot; DÉSIGNATIONS, &quot; + taches.length + &quot; TÂCHES, &quot; + details.length + &quot; DÉTAILS&quot;;
+  Logger.log(msg);
+  return msg;
+}
+
+/* =========================================================
+   DÉLAIS DE H88 (exemple) : une période par activité secondaire.
+   1re activité secondaire : du 01/10/2026 au 08/10/2026 (7 jours),
+   chaque activité suivante commence un jour plus tard, 7 jours chacune.
+   Écrit DEBUT et FIN dans l&#x27;onglet TACHES de la base V3.
+   Exécuter une fois : remplirDelaisH88 (menu Exécuter).
+   ========================================================= */
+function remplirDelaisH88() {
+  const ss = SpreadsheetApp.openById(typeof sviV3Id_ === &quot;function&quot; ? sviV3Id_() : V3_ID);
+  const bud = ss.getSheetByName(&quot;BUDGETS&quot;).getDataRange().getValues();
+  const hb = bud[0].map(String);
+  const refs = bud.slice(1).filter(r =&gt; String(r[hb.indexOf(&quot;PROJET&quot;)]).trim().toUpperCase() === &quot;H88&quot;)
+    .map(r =&gt; String(r[hb.indexOf(&quot;REF&quot;)]));
+  if (!refs.length) throw new Error(&quot;BUDGET H88 INTROUVABLE&quot;);
+  const sh = ss.getSheetByName(&quot;TACHES&quot;);
+  const v = sh.getDataRange().getValues();
+  const h = v[0].map(String);
+  const iB = h.indexOf(&quot;BDG&quot;), iS = h.indexOf(&quot;ACT_SECONDAIRE&quot;), iD = h.indexOf(&quot;DEBUT&quot;), iF = h.indexOf(&quot;FIN&quot;), iO = h.indexOf(&quot;ORDRE&quot;);
+  const rows = v.slice(1).map((r, i) =&gt; ({ r, i: i + 2 })).filter(x =&gt; refs.indexOf(String(x.r[iB])) &gt;= 0)
+    .sort((a, b) =&gt; (Number(a.r[iO]) || 0) - (Number(b.r[iO]) || 0));
+  const order = [];
+  rows.forEach(x =&gt; { const s = String(x.r[iS]).trim().toUpperCase(); if (s &amp;&amp; order.indexOf(s) &lt; 0) order.push(s); });
+  const start = new Date(2026, 9, 1);
+  rows.forEach(x =&gt; {
+    const k = order.indexOf(String(x.r[iS]).trim().toUpperCase());
+    if (k &lt; 0) return;
+    const d = new Date(start); d.setDate(d.getDate() + k);
+    const f = new Date(d); f.setDate(f.getDate() + 7);
+    sh.getRange(x.i, iD + 1).setValue(d).setNumberFormat(&quot;dd/MM/yyyy&quot;);
+    sh.getRange(x.i, iF + 1).setValue(f).setNumberFormat(&quot;dd/MM/yyyy&quot;);
+  });
+  const msg = &quot;DÉLAIS H88 : &quot; + order.length + &quot; ACTIVITÉS SECONDAIRES, &quot; + rows.length + &quot; LIGNES DE TÂCHES&quot;;
   Logger.log(msg);
   return msg;
 }

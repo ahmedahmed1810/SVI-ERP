@@ -1037,3 +1037,45 @@ tfoot td {
 #svConf .svc-f { display: flex; justify-content: flex-end; gap: 10px; padding-top: 4px; }
 #svConf .svc-b { height: 38px; padding: 0 20px; border: 1px solid #d6dbe3; border-radius: 8px; background: #fff; font-weight: 800; font-size: 13px; color: #172033; cursor: pointer; }
 #svConf .svc-ok { border-color: #b91c1c; color: #b91c1c; }
+
+/* ===== budget en instance : bascule SAISIE / LIAISONS ===== */
+.ins-sw { display: inline-flex; border: 1.5px solid var(--inst, #b91c1c); border-radius: 999px; overflow: hidden; margin-left: 12px; flex: none; }
+.ins-sw button { border: 0; background: #fff; color: var(--inst, #b91c1c); font-weight: 800; font-size: 12px; padding: 6px 14px; cursor: pointer; }
+.ins-sw button.on { background: var(--inst, #b91c1c); color: #fff; }
+.ins-unl-btn { margin-left: 10px; border: 1px solid #c2410c; color: #c2410c; background: #fff7ed; border-radius: 8px; padding: 5px 10px;
+  font-weight: 800; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; flex: none; }
+.ins-unl-btn[hidden] { display: none; }
+/* lignes non liées (mode SAISIE) : hachurées orange */
+.ins-table tr.ins-unl td, .ins-hcol .ins-li.ins-unl {
+  background: repeating-linear-gradient(135deg, #fff7ed, #fff7ed 6px, #ffedd5 6px, #ffedd5 12px) !important; }
+.ins-table tr.ins-unl td, .ins-table tr.ins-unl td input.ins-in, .ins-hcol .ins-li.ins-unl input.ins-in {
+  color: #c2410c !important; -webkit-text-fill-color: #c2410c !important; }
+/* mode LIAISONS : les tableaux de saisie sont remplacés par la vue des liaisons */
+.ins-link-view { display: none; }
+.ins-mode-link .ins-link-view { display: block; order: -1; }
+.ins-mode-link .bdg-d-page > .blk-client, .ins-mode-link .bdg-d-page > .blk-hier,
+.ins-mode-link #bdgTabs, .ins-mode-link #bdgTabBody, .ins-mode-link #bdgDetailRsz { display: none !important; }
+.lk-blk { margin-bottom: 12px; }
+.lk-blk .bdg-d-block-title { display: flex; align-items: center; }
+.lk-need { margin-left: auto; font-size: 11px; font-weight: 800; color: #6b7280; }
+.lk-scroll { max-height: 260px; overflow: auto; }
+.ins-link-view tr.lk-sel td { background: #fde8e8 !important; font-weight: 800; }
+.ins-link-view tr.lk-dim td { opacity: .45; }
+.ins-link-view input[type=radio], .ins-link-view input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--inst, #b91c1c); vertical-align: middle; }
+.lk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 8px; }
+.lk-col { border: 1px solid #e5e9f0; border-radius: 8px; max-height: 240px; overflow: auto; }
+.lk-ch { padding: 6px 8px; background: #f6f7f9; font-weight: 800; font-size: 11px; color: #4b5563; position: sticky; top: 0; }
+.lk-li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid #f0f2f5; cursor: pointer; color: var(--inst, #b91c1c); }
+.lk-li.lk-sel { background: #fde8e8; font-weight: 800; }
+.lk-q { width: 110px; border: 1px solid #e7a3a3; border-radius: 6px; padding: 3px 6px; text-align: right; font: inherit; color: var(--inst, #b91c1c); }
+.lk-chain { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; padding: 10px 14px; background: #fff;
+  border: 1.5px dashed var(--inst, #b91c1c); border-radius: 10px; font-weight: 800; color: var(--inst, #b91c1c); }
+.lk-path { flex: 1; font-size: 12px; }
+.lk-err { flex-basis: 100%; order: 3; font-size: 12px; color: #b91c1c; background: #fef2f2; border-radius: 6px; padding: 6px 8px; }
+.lk-go { background: var(--inst, #b91c1c); color: #fff; border: 0; border-radius: 8px; padding: 9px 16px; font-weight: 800; cursor: pointer; }
+.lk-go:disabled { background: #e5e7eb; color: #9ca3af; cursor: default; }
+.lk-ok { background: #dcfce7; color: #166534; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 800; }
+.lk-del { border: 0; background: transparent; color: var(--inst, #b91c1c); font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.dly-table input.dly-in { text-align: center; }
+.dly-table td.number input.dly-in { text-align: right; }
+@media (max-width: 700px) { .lk-grid { grid-template-columns: 1fr; } }
