@@ -5482,7 +5482,8 @@ function renderBudgetList() {
       && (upTo < 1 || !LK.lot || l.lot === LK.lot) && (upTo < 2 || !LK.prim || l.prim === LK.prim) && (upTo < 3 || !LK.sec || l.sec === LK.sec));
     const lkLinked = () => {
       const S = { lot: new Set(), prim: new Set(), sec: new Set(), prd: new Set(), chg: new Set() };
-      if (!LK.des) return S;
+      /* aucune désignation choisie : toutes les lignes liées sont en violet */
+      if (!LK.des) return insUsed();
       lkLinks(0).forEach(l => S.lot.add(l.lot));
       lkLinks(1).forEach(l => S.prim.add(l.prim));
       lkLinks(2).forEach(l => S.sec.add(l.sec));
@@ -5498,7 +5499,7 @@ function renderBudgetList() {
       if (!INS_EDIT) return rows;
       return rows.map((r, i) => ({ r, i, g: r.t ? 2 : lkRank(k, r) })).sort((a, b) => a.g - b.g || a.i - b.i).map(o => o.r);
     };
-    const lkRd = (k, r) => INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${(k === "prd" || k === "chg") && lkIsLinked(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
+    const lkRd = (k, r) => INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${LK.des && (k === "prd" || k === "chg") && lkIsLinked(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
     const insDelCell = r => !r ? "" : `<input type="checkbox" class="ins-cb${r.t ? " ins-tcb" : ""}" ${!r.t && r.on === true ? "checked" : ""}>`
       + `<button type="button" class="ins-x" title="Supprimer la ligne" aria-label="Supprimer">${INS_TRASH}</button>`;
     const insQCol = k => false;   /* plus de colonne QUANTITÉ DE LA TÂCHE : la quantité liée est la QPB du produit */
@@ -6468,9 +6469,9 @@ function renderBudgetList() {
             X.light(k);
           };
           /* produit / charge déjà lié (rond coché violet) : le toucher le délie */
-          if (multi && !chosen && X.isLinked(k, id)) { X.unlink(k, id); return; }
+          if (multi && !chosen && L.des && X.isLinked(k, id)) { X.unlink(k, id); return; }
           /* lot / activité déjà liés : cocher = les choisir ; décocher = les délier */
-          if (!multi && chosen && k !== "des" && X.isLinked(k, id)) {
+          if (!multi && chosen && k !== "des" && L.des && X.isLinked(k, id)) {
             L[k] = null;
             if (k === "lot") { L.prim = L.sec = null; }
             if (k === "prim") { L.sec = null; }
