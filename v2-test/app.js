@@ -5337,6 +5337,27 @@ function renderBudgetList() {
       $("bdgClientHead").innerHTML = src.querySelector("thead").innerHTML;
       $("bdgClientBody").innerHTML = src.querySelector("tbody").innerHTML;
       $("bdgClientFoot").innerHTML = src.querySelector("tfoot").innerHTML;
+      insDim();
+    };
+    /* une désignation cochée : les autres lignes se grisent (une seule à la fois) */
+    const insDim = () => {
+      const body = $("bdgClientBody");
+      if (!body) return;
+      const on = new Set(INS.des.filter(r => r.on === true && !r.t).map(r => r.id));
+      /* les titres de la ligne cochée restent normaux */
+      const stack = [];
+      INS.des.forEach(r => {
+        if (r.t) {
+          while (stack.length && insLevel(stack[stack.length - 1].art) >= insLevel(r.art)) stack.pop();
+          stack.push(r);
+        } else if (r.on === true) stack.forEach(t => on.add(t.id));
+      });
+      body.querySelectorAll("tr[data-iid]").forEach(tr => {
+        const dim = on.size > 0 && !on.has(tr.dataset.iid);
+        tr.classList.toggle("ins-dim", dim);
+        const cb = tr.querySelector("input.ins-cb");
+        if (cb && INS_EDIT) cb.disabled = dim;
+      });
     };
     const insRenderHier = only => {
       const col = (title, k) => {
@@ -5428,7 +5449,7 @@ function renderBudgetList() {
       INS[k] = INS[k].filter(r => !empty(r));
       return INS[k].length !== before;
     };
-    shell.__ins = INS_EDIT ? { INS, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel } : null;
+    shell.__ins = INS_EDIT ? { INS, insDim, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel } : null;
     if (!shell.__insBound) {
       shell.__insBound = true;
       shell.addEventListener("input", e => {
@@ -5452,6 +5473,7 @@ function renderBudgetList() {
           if (cbc) cbc.innerHTML = `<input type="checkbox" class="ins-cb">`;
           const tc = holder.querySelector(".ins-tc");
           if (tc) tc.innerHTML = `<span class="ins-t" role="button" title="Ligne titre">T</span>`;
+          if (k === "des") X.insDim();
           /* nouvelle ligne vide dessous */
           if (c) {
             const tmp = document.createElement("tbody");
@@ -5484,7 +5506,7 @@ function renderBudgetList() {
         const k = holder.dataset.ik;
         const r = X.INS[k].find(x => x.id === holder.dataset.iid);
         if (!r) return;
-        if (cb) { r.on = cb.checked; X.insSave(); return; }
+        if (cb) { r.on = cb.checked; X.insSave(); if (k === "des") X.insDim(); return; }
         /* ligne titre : unité, quantité, prix, TVA vidés et verrouillés */
         r.t = !r.t;
         ["u", "q", "p", "tva"].forEach(f => { r[f] = ""; });

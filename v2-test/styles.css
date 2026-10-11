@@ -900,3 +900,6 @@ tfoot td {
 .ins-table tr.ro-before td, .ins-hcol .ins-li.ro-before { box-shadow: inset 0 3px 0 var(--inst, #12355b); }
 .ins-table tr.ro-after td, .ins-hcol .ins-li.ro-after { box-shadow: inset 0 -3px 0 var(--inst, #12355b); }
 .ins-table tr[data-iid], .ins-hcol .ins-li[data-iid] { -webkit-touch-callout: none; }
+/* désignation cochée : les autres lignes grisées */
+.ins-table tr.ins-dim td { opacity: .4; }
+.ins-table tr.ins-dim td.ins-cbc { opacity: .4; }
