@@ -5385,7 +5385,10 @@ function renderBudgetList() {
         const list = instLoad();
         const r = list.find(x => x.ref === budget.inst.ref);
         if (!r) return;
-        r.data = INS;
+        /* délier en attente de ✓ VALIDER : l'état enregistré garde les liaisons d'avant */
+        let lb = null;
+        try { lb = LK.linksBak; } catch (e) {}
+        r.data = lb ? { ...INS, links: lb } : INS;
         instSave(list);
       }, 250);
     };
@@ -5782,7 +5785,7 @@ function renderBudgetList() {
       const clean = l => JSON.stringify((l || []).map(p => [p.deb || "", p.fin || ""]).sort());
       return Object.keys(D).some(k => clean(D[k]) !== clean((INS.dlp || {})[k]));
     };
-    const lkPending = () => Object.keys(LK.prd).length > 0 || Object.keys(LK.chg).length > 0 || lkDlyDirty();
+    const lkPending = () => Object.keys(LK.prd).length > 0 || Object.keys(LK.chg).length > 0 || lkDlyDirty() || !!LK.linksBak;
     /* bandeau CHAÎNE … ✓ VALIDER LA LIAISON (visible quand une désignation est choisie) */
     const insRenderChain = () => {
       const el = $("insChain");
@@ -5794,7 +5797,7 @@ function renderBudgetList() {
       const nPrd = Object.keys(LK.prd).length, nChg = Object.keys(LK.chg).length;
       const same = (INS.links || []).some(l => l.des === LK.des && l.lot === LK.lot && l.prim === LK.prim && l.sec === LK.sec);
       /* nouvelle liaison complète, ajout à une liaison existante, ou délais modifiés */
-      const complete = (LK.des && LK.lot && LK.prim && LK.sec && (nPrd > 0 || (same && nChg > 0))) || lkDlyDirty();
+      const complete = (LK.des && LK.lot && LK.prim && LK.sec && (nPrd > 0 || (same && nChg > 0))) || lkDlyDirty() || !!LK.linksBak;
       const chain = [lkName("des", LK.des), lkName("lot", LK.lot), lkName("prim", LK.prim), lkName("sec", LK.sec)]
         .map(x => x || "…").join(" › ") + " › " + nPrd + " PRODUIT(S)" + (nChg ? " + " + nChg + " CHARGE(S)" : "");
       el.innerHTML = `<button type="button" class="lk-info" title="Voir la liaison" aria-label="Voir la liaison">i</button>
@@ -5875,7 +5878,14 @@ function renderBudgetList() {
       INS[k] = INS[k].filter(r => !empty(r));
       return INS[k].length !== before;
     };
-    shell.__ins = INS_EDIT ? { INS, cleanLinks: () => insCleanLinks(), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles } : null;
+    shell.__ins = INS_EDIT ? { INS, cleanLinks: () => insCleanLinks(), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles,
+      /* ligne utilisée par une liaison (validée, ou déliée mais pas encore validée) : suppression interdite */
+      isUsed: (k, id) => {
+        if (!["des", "lot", "prim", "sec", "prd", "chg"].includes(k)) return false;
+        let bak = null;
+        try { bak = LK.linksBak; } catch (e) {}
+        return [INS.links || [], bak || []].some(L => L.some(l => k === "prd" || k === "chg" ? (l[k] || []).some(x => x.id === id) : l[k] === id));
+      } } : null;
     if (!shell.__insBound) {
       shell.__insBound = true;
       shell.addEventListener("input", e => {
@@ -5933,6 +5943,9 @@ function renderBudgetList() {
           const r = k && X.INS[k].find(x => x.id === h.dataset.iid);
           if (!r) return;
           const br = r.t ? X.insBranch(r).filter(x => x.on === true) : [];
+          /* une donnée ne se supprime que si elle est déliée de partout */
+          const used = [r, ...br].filter(x => !x.t && X.isUsed(k, x.id));
+          if (used.length) { svToast("SUPPRESSION REFUSÉE : " + (used[0].des || used[0].v || used[0].art || "") + (used.length > 1 ? " ET " + (used.length - 1) + " AUTRE(S)" : "") + " EST LIÉ(E). DÉLIEZ D'ABORD."); return; }
           svConfirm({ title: r.t ? "SUPPRIMER LE TITRE" : "SUPPRIMER LA LIGNE", text: (r.des || r.v || r.art || "") + (br.length ? " ET " + br.length + " LIGNE(S) COCHÉE(S)" : ""), ok: "SUPPRIMER" }).then(go => {
             /* ANNULER : la ligne est décochée (la case revient à la place du 🗑) */
             if (!go) { if (r.t) X.insBranch(r).forEach(x => { x.on = false; }); r.on = false; X.insSave(); X.insRedraw(k); return; }
@@ -5960,6 +5973,8 @@ function renderBudgetList() {
           }
           const del = vis.filter(r => r.on === true);
           if (!del.length) return;
+          const used = del.filter(r => X.isUsed(k, r.id));
+          if (used.length) { svToast("SUPPRESSION REFUSÉE : " + used.length + " LIGNE(S) COCHÉE(S) SONT LIÉES. DÉLIEZ-LES D'ABORD."); return; }
           svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", text: del.length + " LIGNE(S) SERONT SUPPRIMÉES.", ok: "SUPPRIMER" }).then(go => {
             /* ANNULER : toutes les lignes sont décochées */
             if (!go) { vis.forEach(r => { r.on = false; }); X.insSave(); X.insRedraw(k); return; }
@@ -6545,13 +6560,15 @@ function renderBudgetList() {
     }
     /* briser la liaison d'une ligne, dans le contexte choisi (désignation, et lot / activités s'ils sont choisis) */
     const lkUnlink = (k, id) => {
+      /* délier = modification de la liaison : à valider (✓ VALIDER), annulable (ABANDONNER) */
+      if (!LK.linksBak) LK.linksBak = JSON.parse(JSON.stringify(INS.links || []));
       const lvl = { lot: 0, prim: 1, sec: 2, prd: 3, chg: 3 }[k];
       const hit = new Set(lkLinks(lvl).map(l => l.id));
       if (k === "prd" || k === "chg") {
         INS.links.forEach(l => { if (hit.has(l.id)) l[k] = (l[k] || []).filter(x => x.id !== id); });
         INS.links = INS.links.filter(l => (l.prd || []).length);
       } else INS.links = INS.links.filter(l => !(hit.has(l.id) && l[k] === id));
-      insSave(); histLog("LIAISONS", "DÉLIER", lkName("des", LK.des) + " — " + lkName(k, id));
+      LK.unlinked = (LK.unlinked || []).concat(lkName("des", LK.des) + " — " + lkName(k, id));
       refreshAll();
     };
     /* toucher un rond : on ne redessine que ce qui change (rapidité) */
@@ -6592,6 +6609,10 @@ function renderBudgetList() {
         INS.dlp = INS.dlp || {};
         Object.keys(L.dlpDraft).forEach(k => { INS.dlp[k] = L.dlpDraft[k].map(p => ({ id: p.id, deb: p.deb || "", fin: p.fin || "" })); });
       }
+      if (L.linksBak) {
+        (L.unlinked || []).forEach(t => histLog("LIAISONS", "DÉLIER", t));
+        L.linksBak = null; L.unlinked = null;
+      }
       L.dlpDraft = null; L.err = "";
       /* après validation : seule la désignation reste choisie ; lot et activités repassent en « liés » (violet) */
       L.lot = L.prim = L.sec = null;
@@ -6605,7 +6626,11 @@ function renderBudgetList() {
           buttons: [{ v: "drop", label: "ABANDONNER", tone: "danger" }, { v: "ok", label: "✓ VALIDER", tone: "neutral" }] })
         .then(v => {
           if (v === "ok") return lkCommit();
-          if (v === "drop") { LK.prd = {}; LK.chg = {}; LK.dlpDraft = null; return true; }
+          if (v === "drop") {
+            LK.prd = {}; LK.chg = {}; LK.dlpDraft = null;
+            if (LK.linksBak) { INS.links = LK.linksBak; LK.linksBak = null; LK.unlinked = null; insSave(); }
+            return true;
+          }
           return false;
         });
     shell.__lkGuard = INS && INS_EDIT ? lkGuard : null;
@@ -6623,7 +6648,7 @@ function renderBudgetList() {
         const n = (k, id) => esc(lkName(k, id) || "—");
         const same = LK.des && LK.lot && LK.prim && LK.sec
           && (INS.links || []).find(l => l.des === LK.des && l.lot === LK.lot && l.prim === LK.prim && l.sec === LK.sec);
-        const st = same ? "LIAISON DÉJÀ ÉTABLIE" + (Object.keys(LK.prd).length || Object.keys(LK.chg).length || lkDlyDirty() ? " — AJOUTS À VALIDER" : "")
+        const st = same ? "LIAISON DÉJÀ ÉTABLIE" + (Object.keys(LK.prd).length || Object.keys(LK.chg).length || lkDlyDirty() || LK.linksBak ? " — MODIFICATIONS À VALIDER" : "")
           : LK.des && LK.lot && LK.prim && LK.sec ? "NOUVELLE LIAISON — À VALIDER" : "LIAISON INCOMPLÈTE";
         /* tableaux de la fenêtre : tri / filtre sur chaque colonne (consigne 7) */
         const list = k => [...(same ? (same[k] || []).map(x => ({ id: x.id, st: "LIÉ" })) : []), ...Object.keys(LK[k]).map(id => ({ id, st: "À AJOUTER" }))]
@@ -11575,6 +11600,8 @@ function renderBudgetList() {
       });
       /* 🗑 NON LIÉES : supprime toutes les lignes qu'aucune liaison n'utilise */
       $("insUnlBtn")?.addEventListener("click", async () => {
+        /* liaisons déliées pas encore validées : valider ou abandonner d'abord */
+        if (shell.__lkGuard && !(await shell.__lkGuard())) return;
         const n = insUnlCount();
         if (!n || !(await svConfirm({ title: "SUPPRIMER LES LIGNES NON LIÉES", text: n + " LIGNE(S) NON LIÉE(S) SERONT SUPPRIMÉES.", ok: "SUPPRIMER" }))) return;
         const u = insUsed();
@@ -11584,6 +11611,8 @@ function renderBudgetList() {
         refreshAll();
       });
       $("instLock")?.addEventListener("click", async () => {
+        /* liaison modifiée non validée : valider ou abandonner d'abord */
+        if (shell.__lkGuard && !(await shell.__lkGuard())) return;
         const fige = budget.inst.state === "fige";
         /* FIGER : impossible tant qu'il reste des lignes non liées */
         if (!fige && INS) {
