@@ -271,6 +271,11 @@ const $ = id => document.getElementById(id);
 
 /* compteur : petite pastille grise juste après le libellé (remplace « (n) ») */
 const svCnt = n => `<span class="svi-cnt">${Number(n) || 0}</span>`;
+/* onglets vides (compteur 0) : mise en forme spéciale, même facultatifs */
+const sviMarkEmptyTabs = root => (root || document).querySelectorAll(".bdg-d-tab").forEach(b => {
+  const c = b.querySelector(".svi-cnt");
+  b.classList.toggle("tab-vide", !!c && c.textContent.trim() === "0" && !b.classList.contains("cf-on"));
+});
 
 /* =========================================================
    DONNEES CHS / BDS
@@ -5514,6 +5519,7 @@ function renderBudgetList() {
       });
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
         if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(INS.sec.length); }
+      sviMarkEmptyTabs(shell);
       if (active === "dly") {
         body.innerHTML = `<div class="bdg-d-scroll">${insDlyHTML()}</div>`;
         return;
@@ -5863,20 +5869,29 @@ function renderBudgetList() {
           ${list.map(r => `<label class="lk-li ${LK[k] === r.id ? "lk-sel" : ""}${unl(k, r.id)}" data-pick="${k}" data-id="${r.id}">${radio(k, r.id)}<span>${esc(r.v || "")}</span></label>`).join("")
             || `<div class="lk-li" style="opacity:.5">—</div>`}</div>`;
       };
-      /* DÉTAILS : produits (obligatoire), charges (facultatif, ordre alphabétique) */
-      const det = (k, title, need) => {
+      /* DÉTAILS : produits (obligatoire = étoile), charges (ordre alphabétique) */
+      const det = k => {
         const C = [["des", "DÉSIGNATION", r => r.des || "", ""], ["u", k === "prd" ? "UPB" : "UCB", r => r.u || "", "center"],
           ["qt", "QUANTITÉ DE LA TÂCHE", r => LK[k][r.id] ?? "", "number"]];
         let rows = [...INS[k]];
         if (k === "chg") rows.sort((a, b) => az(a.des || "", b.des || ""));
         rows = top(cfApply("lk_" + k, C, rows), r => LK[k][r.id] !== undefined);
-        return `<div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${title} ${svCnt(rows.length)}</span><span class="lk-need">${need}</span></div>
-          <div class="lk-scroll">${tbl("lk_" + k, C, rows, true, (r, oc) => {
+        detN[k] = rows.length;
+        return `<div class="lk-scroll">${tbl("lk_" + k, C, rows, true, (r, oc) => {
             const on = LK[k][r.id] !== undefined;
             return `<tr class="${on ? "lk-sel" : ""}${unl(k, r.id)}" data-det="${k}" data-id="${r.id}"><td class="center"><input type="checkbox" class="lk-cb" ${on ? "checked" : ""} ${RO ? "disabled" : ""}></td>
               ${oc.map(c => `<td class="${c[3]}">${c[0] === "qt" ? `<input class="lk-q" inputmode="decimal" value="${on ? esc(LK[k][r.id]) : ""}" ${RO ? "disabled" : ""}>` : esc(c[2](r))}</td>`).join("")}</tr>`;
-          })}</div></div>`;
+          })}</div>`;
       };
+      /* DÉTAILS sous onglets, même format que SAISIE / validé */
+      const detN = {};
+      const lkTab = LK.tab === "chg" ? "chg" : "prd";
+      const detBody = det(lkTab);
+      if (detN.prd === undefined) detN.prd = cfApply("lk_prd", [["des", "", r => r.des || ""], ["u", "", r => r.u || ""], ["qt", "", r => LK.prd[r.id] ?? ""]], [...INS.prd]).length;
+      if (detN.chg === undefined) detN.chg = cfApply("lk_chg", [["des", "", r => r.des || ""], ["u", "", r => r.u || ""], ["qt", "", r => LK.chg[r.id] ?? ""]], [...INS.chg]).length;
+      const tabBtn = (k, title, extra) => `<button type="button" class="bdg-d-tab${lkTab === k ? " active" : ""}${Object.keys(cfT("lk_" + k).f).length ? " cf-on" : ""}" data-lktab="${k}">${SVI_ICON[k] || ""}${title} ${svCnt(detN[k])}${extra || ""}</button>`;
+      const detHTML = `<div class="lk-dettabs"><div class="bdg-d-tabs lk-tabs">${tabBtn("prd", 'DÉTAIL PRODUITS <b class="req-star">*</b>')}${tabBtn("chg", "DÉTAIL CHARGES")}</div>
+        <div class="bdg-d-block bdg-d-tabbody lk-blk">${detBody}</div></div>`;
       const nPrd = Object.keys(LK.prd).length;
       const complete = LK.des && LK.lot && LK.prim && LK.sec && nPrd > 0;
       const chain = [lkName("des", LK.des), lkName("lot", LK.lot), lkName("prim", LK.prim), lkName("sec", LK.sec)]
@@ -5895,13 +5910,13 @@ function renderBudgetList() {
           <div class="lk-scroll">${desHTML}</div></div>
         <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${SVI_ICON.hier}TÂCHES</span></div>
           <div class="lk-grid" style="${gridCols ? "grid-template-columns:" + gridCols : ""}">${col("lot", "LOT")}${col("prim", "ACTIVITÉ PRIMAIRE")}${col("sec", "ACTIVITÉ SECONDAIRE")}</div></div>
-        ${det("prd", "DÉTAIL PRODUITS", "OBLIGATOIRE")}
-        ${det("chg", "DÉTAIL CHARGES", "FACULTATIF")}
+        ${detHTML}
         ${RO ? "" : `<div class="lk-chain"><span class="lk-path">CHAÎNE : ${esc(chain)}</span>
           ${LK.err ? `<span class="lk-err">${esc(LK.err)}</span>` : ""}
           <button type="button" class="lk-go" ${complete ? "" : "disabled"}>✓ VALIDER LA LIAISON</button></div>`}
         <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">LIAISONS VALIDÉES ${svCnt(lrows.length)}</span></div>
           <div class="lk-scroll lk-links">${linksHTML}</div></div>`;
+      sviMarkEmptyTabs(box);
       /* bouton DÉLIER au bout de chaque liaison */
       if (!RO) box.querySelectorAll(".lk-links tbody tr").forEach((tr, i) => {
         const l = lrows[i];
@@ -5951,6 +5966,8 @@ function renderBudgetList() {
       shell.addEventListener("click", e => {
         const X = shell.__lk;
         if (!X || !e.target.closest("#insLinkView")) return;
+        const lt = e.target.closest(".bdg-d-tab[data-lktab]");
+        if (lt && !e.target.closest(".cf-btn")) { X.LK.tab = lt.dataset.lktab; X.render(); return; }
         const del = e.target.closest(".lk-del");
         if (del) {
           svConfirm({ title: "DÉLIER", text: "LA LIAISON SERA DÉFAITE ; LES LIGNES RESTENT DANS LE BUDGET.", ok: "DÉLIER" }).then(go => {
@@ -6263,13 +6280,14 @@ function renderBudgetList() {
     const markFiltered = () => {
       const rowsOf = kind =>
         [...selRows].some(g => g.startsWith(kind.toUpperCase() + "|"));
-      shell.querySelectorAll(".bdg-d-tab").forEach(b => {
+      shell.querySelectorAll("#bdgTabs .bdg-d-tab").forEach(b => {
         const t = b.dataset.tab;
         b.classList.toggle("cf-on",
           (t === "chg" || t === "prd") && (rowsOf(t) || cfActive(t)));
       });
       $("bdgClientTitle")?.classList.toggle("cf-on",
         selDesig.size > 0 || cfActive("client"));
+      sviMarkEmptyTabs(shell);
     };
 
     const refreshAll = () => {
@@ -6403,9 +6421,10 @@ function renderBudgetList() {
         <tbody>${rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}</tr>`; }).join("")
           || `<tr><td colspan="${cols.length}" class="empty">AUCUNE ACTIVITÉ SECONDAIRE</td></tr>`}</tbody></table>`;
     };
-    const renderTab = () => {
+    const renderTab = () => { renderTab0(); sviMarkEmptyTabs(shell); };
+    const renderTab0 = () => {
       shell
-        .querySelectorAll(".bdg-d-tab")
+        .querySelectorAll("#bdgTabs .bdg-d-tab")
         .forEach(b =>
           b.classList.toggle(
             "active",
@@ -6423,6 +6442,10 @@ function renderBudgetList() {
       });
 
       if (INS) { insRenderTab(); return; }
+      { const q = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="qlt"]`);
+        if (q) q.innerHTML = (SVI_ICON.qlt || "") + "DÉTAIL QUALITÉ " + svCnt(0);
+        const d = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
+        if (d) d.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(new Set(lines.map(l => String(l.sec || "").trim()).filter(Boolean)).size); }
       if (active === "chg" || active === "prd") {
         const prd = active === "prd";
         const tcols = tcolsFor(prd);

@@ -1099,3 +1099,15 @@ tfoot td {
 .ins-link-view .lk-li.ins-unl, .ins-link-view tr.ins-unl td {
   background: repeating-linear-gradient(135deg, #fff7ed, #fff7ed 6px, #ffedd5 6px, #ffedd5 12px) !important; color: #c2410c !important; }
 .ins-link-view tr.lk-sel.ins-unl td, .ins-link-view .lk-li.lk-sel.ins-unl { background: #fde8e8 !important; color: var(--inst, #b91c1c) !important; }
+/* onglets vides : pointillés + hachures orange, compteur orange (tous modes) */
+.bdg-d-tab.tab-vide { border: 1.5px dashed #ea580c !important; border-bottom: 0 !important; color: #c2410c !important;
+  background: repeating-linear-gradient(135deg, #fff7ed, #fff7ed 6px, #ffedd5 6px, #ffedd5 12px) !important; }
+.bdg-d-tab.tab-vide .svi-cnt { background: #fed7aa !important; color: #c2410c !important; }
+.bdg-d-tab.tab-vide .ico { color: #c2410c !important; }
+.bdg-d-tab.tab-vide.active { box-shadow: inset 0 -3px 0 #c2410c !important; }
+/* LIAISONS : détails sous onglets */
+.lk-dettabs { margin-bottom: 12px; }
+.lk-dettabs .bdg-d-tabs { align-items: flex-end; }
+.lk-dettabs .bdg-d-tabbody { margin-bottom: 0; }
+.bdg-d-tab .lk-need { font-size: 9px; font-weight: 800; color: #9ca3af; margin-left: 4px; }
+.req-star { color: #b91c1c; font-weight: 900; margin-left: 2px; }
