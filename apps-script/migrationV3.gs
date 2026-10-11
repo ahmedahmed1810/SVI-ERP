@@ -79,3 +79,39 @@ function migrerVersV3() {
   Logger.log(msg);
   return msg;
 }
+
+/* =========================================================
+   DÉLAIS DE H88 (exemple) : une période par activité secondaire.
+   1re activité secondaire : du 01/10/2026 au 08/10/2026 (7 jours),
+   chaque activité suivante commence un jour plus tard, 7 jours chacune.
+   Écrit DEBUT et FIN dans l'onglet TACHES de la base V3.
+   Exécuter une fois : remplirDelaisH88 (menu Exécuter).
+   ========================================================= */
+function remplirDelaisH88() {
+  const ss = SpreadsheetApp.openById(typeof sviV3Id_ === "function" ? sviV3Id_() : V3_ID);
+  const bud = ss.getSheetByName("BUDGETS").getDataRange().getValues();
+  const hb = bud[0].map(String);
+  const refs = bud.slice(1).filter(r => String(r[hb.indexOf("PROJET")]).trim().toUpperCase() === "H88")
+    .map(r => String(r[hb.indexOf("REF")]));
+  if (!refs.length) throw new Error("BUDGET H88 INTROUVABLE");
+  const sh = ss.getSheetByName("TACHES");
+  const v = sh.getDataRange().getValues();
+  const h = v[0].map(String);
+  const iB = h.indexOf("BDG"), iS = h.indexOf("ACT_SECONDAIRE"), iD = h.indexOf("DEBUT"), iF = h.indexOf("FIN"), iO = h.indexOf("ORDRE");
+  const rows = v.slice(1).map((r, i) => ({ r, i: i + 2 })).filter(x => refs.indexOf(String(x.r[iB])) >= 0)
+    .sort((a, b) => (Number(a.r[iO]) || 0) - (Number(b.r[iO]) || 0));
+  const order = [];
+  rows.forEach(x => { const s = String(x.r[iS]).trim().toUpperCase(); if (s && order.indexOf(s) < 0) order.push(s); });
+  const start = new Date(2026, 9, 1);
+  rows.forEach(x => {
+    const k = order.indexOf(String(x.r[iS]).trim().toUpperCase());
+    if (k < 0) return;
+    const d = new Date(start); d.setDate(d.getDate() + k);
+    const f = new Date(d); f.setDate(f.getDate() + 7);
+    sh.getRange(x.i, iD + 1).setValue(d).setNumberFormat("dd/MM/yyyy");
+    sh.getRange(x.i, iF + 1).setValue(f).setNumberFormat("dd/MM/yyyy");
+  });
+  const msg = "DÉLAIS H88 : " + order.length + " ACTIVITÉS SECONDAIRES, " + rows.length + " LIGNES DE TÂCHES";
+  Logger.log(msg);
+  return msg;
+}

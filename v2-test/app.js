@@ -2224,6 +2224,11 @@ function v3ToRows(v3) {
       const obj = {};
       HEAD.forEach((h, i) => { if (h) obj[h] = cols[i]; });
       Object.defineProperty(obj, "__cols", { value: cols, enumerable: false });
+      /* délais de la tâche (onglet TACHES : DEBUT / FIN) */
+      const iso = v => { if (!v) return ""; const d = new Date(v); return isNaN(d) ? "" :
+        d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+      Object.defineProperty(obj, "__deb", { value: iso(t.DEBUT), enumerable: false });
+      Object.defineProperty(obj, "__fin", { value: iso(t.FIN), enumerable: false });
       return obj;
     });
 }
@@ -4586,6 +4591,7 @@ function renderBudgetList() {
           byLetter(row, "L") || pick(row, ["ACTIVITE"])
         ).trim(),
         cqty: num(byLetter(row, "V")),
+        deb: row.__deb || "", fin: row.__fin || "",
         cprice: num(byLetter(row, "W")),
         nbr,
         dims,
@@ -4775,6 +4781,8 @@ function renderBudgetList() {
         <h1 class="bdg-d-h1">
           ${esc(budget.project)}
         </h1>
+        ${INST_LIVE ? `<span class="ins-sw" id="insModeSw"><button type="button" data-mode="saisie">SAISIE</button><button type="button" data-mode="link">LIAISONS</button></span>
+          <button type="button" class="ins-unl-btn" id="insUnlBtn" hidden></button>` : ""}
 
         <div class="bdg-d-hright">
           ${INST_LIVE ? `
@@ -4817,6 +4825,7 @@ function renderBudgetList() {
       </div>
 
       <div class="bdg-d-page">
+        <div id="insLinkView" class="ins-link-view"></div>
 
         <div class="bdg-d-block blk-client">
           <div class="bdg-d-block-title blk-head" id="bdgClientTitle">
@@ -5224,7 +5233,7 @@ function renderBudgetList() {
        ========================================================= */
     const INS = budget.inst
       ? (budget.inst.data = Object.assign(
-          { des: [], lot: [], prim: [], sec: [], chg: [], prd: [] },
+          { des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: [], dly: {}, links: [] },
           budget.inst.data || {}))
       : null;
     const INS_EDIT = !!INS && (budget.inst.state || "instance") === "instance";
@@ -5262,6 +5271,7 @@ function renderBudgetList() {
 
     /* colonnes : [champ, libellé, classe, type, largeur] ; type : txt / num / calc */
     const INS_COLS = {
+      qlt: [["v", "QUALITÉ", "", "txt", "qlt"]],
       des: [
         ["art", "ART", "center", "txt", "article"],
         ["des", "DÉSIGNATION", "", "txt", "designation"],
@@ -5402,6 +5412,7 @@ function renderBudgetList() {
       return html;
     };
     const insFootHTML = k => {
+      if (k === "qlt") return "";
       const rows = insShown(k).filter(r => !r.t);
       const ht = rows.reduce((t, r) => t + insHT(k, r), 0);
       const ttc = rows.reduce((t, r) => t + insTTC(k, r), 0);
@@ -5446,6 +5457,7 @@ function renderBudgetList() {
     };
     /* une désignation cochée : les autres lignes se grisent (une seule à la fois) */
     const insDim = () => {
+      return;   /* mode SAISIE : la case sert à choisir des lignes ; le choix unique est en mode LIAISONS */
       const body = $("bdgClientBody");
       if (!body) return;
       const on = new Set(INS.des.filter(r => r.on === true && !r.t).map(r => r.id));
@@ -5496,12 +5508,19 @@ function renderBudgetList() {
       $("bdgHier").innerHTML = col(T.lot, "lot") + col(T.prim, "prim") + col(T.sec, "sec");
     };
     const insRenderTab = () => {
-      ["chg", "prd"].forEach(k => {
+      ["chg", "prd", "qlt"].forEach(k => {
         const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
         if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + " " + svCnt(insShown(k).length);
       });
+      { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
+        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(INS.sec.length); }
+      if (active === "dly") {
+        body.innerHTML = `<div class="bdg-d-scroll">${insDlyHTML()}</div>`;
+        return;
+      }
       body.innerHTML = `<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
       lastShown.detail = { cols: insCfCols(active), rows: insShown(active), kind: active, ins: true };
+      insMarkUnlinked();
     };
     /* met à jour les montants calculés, sous-totaux et totaux sans redessiner
        (la saisie en cours garde le clavier) */
@@ -5536,15 +5555,16 @@ function renderBudgetList() {
     const insRedraw = k => {
       /* seul ce bloc est redessiné : la saisie ailleurs garde le clavier */
       const box = k === "des" ? shell.querySelector(".bdg-d-client-scroll")
-        : (k === "chg" || k === "prd") ? body.querySelector(".bdg-d-scroll")
+        : (k === "chg" || k === "prd" || k === "qlt") ? body.querySelector(".bdg-d-scroll")
         : $("bdgHier")?.querySelector(`.ins-hcol[data-ik="${k}"]`);
       const top = box ? box.scrollTop : 0;
       const x = window.scrollX, y = window.scrollY;
       if (k === "des") insRenderClient();
-      else if (k === "chg" || k === "prd") insRenderTab();
+      else if (k === "chg" || k === "prd" || k === "qlt") insRenderTab();
       else insRenderHier(k);
+      insMarkUnlinked();
       const nb = k === "des" ? shell.querySelector(".bdg-d-client-scroll")
-        : (k === "chg" || k === "prd") ? body.querySelector(".bdg-d-scroll")
+        : (k === "chg" || k === "prd" || k === "qlt") ? body.querySelector(".bdg-d-scroll")
         : $("bdgHier")?.querySelector(`.ins-hcol[data-ik="${k}"]`);
       if (nb) nb.scrollTop = top;
       window.scrollTo(x, y);
@@ -5556,7 +5576,7 @@ function renderBudgetList() {
       INS[k] = INS[k].filter(r => !empty(r));
       return INS[k].length !== before;
     };
-    shell.__ins = INS_EDIT ? { INS, insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel } : null;
+    shell.__ins = INS_EDIT ? { INS, cleanLinks: () => insCleanLinks(), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel } : null;
     if (!shell.__insBound) {
       shell.__insBound = true;
       shell.addEventListener("input", e => {
@@ -5616,7 +5636,7 @@ function renderBudgetList() {
           svConfirm({ title: "SUPPRIMER LA LIGNE", text: (r.des || r.v || r.art || "") + "", ok: "SUPPRIMER" }).then(go => {
             if (!go) return;
             X.INS[k] = X.INS[k].filter(x => x.id !== r.id);
-            X.insSave(); X.insRedraw(k);
+            X.cleanLinks(); X.insSave(); X.insRedraw(k);
           });
           return;
         }
@@ -5642,7 +5662,7 @@ function renderBudgetList() {
             if (!go) return;
             const ids = new Set(del.map(r => r.id));
             X.INS[k] = X.INS[k].filter(x => !ids.has(x.id));
-            X.insSave(); X.insRedraw(k);
+            X.cleanLinks(); X.insSave(); X.insRedraw(k);
           });
           return;
         }
@@ -5700,6 +5720,231 @@ function renderBudgetList() {
         }, 0);
       });
     }
+
+    /* =========================================================
+       BUDGET EN INSTANCE : MODE SAISIE / MODE LIAISONS
+       - SAISIE : les 8 tableaux (désignations, lots, activités primaires,
+         secondaires, charges, produits, qualité, délais) ; lignes non liées
+         hachurées, à supprimer avant FIGER ;
+       - LIAISONS : chaîne désignation › lot › primaire › secondaire › produits
+         (+ charges facultatives), validée par ✓ ; liste des liaisons, délier.
+       ========================================================= */
+    const INS_MODE = () => (INS && budget.inst.mode === "link") ? "link" : "saisie";
+    /* lignes utilisées par au moins une liaison validée */
+    const insUsed = () => {
+      const u = { des: new Set(), lot: new Set(), prim: new Set(), sec: new Set(), chg: new Set(), prd: new Set() };
+      (INS.links || []).forEach(l => {
+        u.des.add(l.des); u.lot.add(l.lot); u.prim.add(l.prim); u.sec.add(l.sec);
+        (l.prd || []).forEach(x => u.prd.add(x.id));
+        (l.chg || []).forEach(x => u.chg.add(x.id));
+      });
+      /* un titre est « utilisé » si une de ses lignes l'est */
+      const stack = [];
+      INS.des.forEach(r => {
+        if (r.t) {
+          while (stack.length && insLevel(stack[stack.length - 1].art) >= insLevel(r.art)) stack.pop();
+          stack.push(r);
+        } else if (u.des.has(r.id)) stack.forEach(t => u.des.add(t.id));
+      });
+      return u;
+    };
+    const INS_LINKED_KINDS = ["des", "lot", "prim", "sec", "chg", "prd"];
+    const insUnlinked = () => {
+      const u = insUsed(), out = {};
+      INS_LINKED_KINDS.forEach(k => { out[k] = INS[k].filter(r => !u[k].has(r.id)); });
+      return out;
+    };
+    const insUnlCount = () => { const n = insUnlinked(); return INS_LINKED_KINDS.reduce((t, k) => t + n[k].length, 0); };
+    /* liaisons dont une ligne a disparu : nettoyées */
+    const insCleanLinks = () => {
+      const has = k => new Set(INS[k].map(r => r.id));
+      const H = Object.fromEntries(INS_LINKED_KINDS.map(k => [k, has(k)]));
+      INS.links = (INS.links || []).filter(l => H.des.has(l.des) && H.lot.has(l.lot) && H.prim.has(l.prim) && H.sec.has(l.sec))
+        .map(l => ({ ...l, prd: (l.prd || []).filter(x => H.prd.has(x.id)), chg: (l.chg || []).filter(x => H.chg.has(x.id)) }));
+    };
+    /* hachures « NON LIÉE » (mode SAISIE) et bouton 🗑 NON LIÉES de l'en-tête */
+    const insMarkUnlinked = () => {
+      if (!INS) return;
+      const u = insUsed();
+      shell.querySelectorAll(".ins-table[data-ik] tr[data-iid], .ins-hcol .ins-li[data-iid]").forEach(el => {
+        const k = el.dataset.ik || el.closest("[data-ik]")?.dataset.ik;
+        if (!u[k]) return;
+        el.classList.toggle("ins-unl", !u[k].has(el.dataset.iid));
+      });
+      const b = $("insUnlBtn");
+      if (b) {
+        const n = insUnlCount();
+        b.hidden = !(INS_EDIT && INS_MODE() === "saisie" && n > 0);
+        b.innerHTML = INS_TRASH + " NON LIÉES " + svCnt(n);
+      }
+    };
+
+    /* ---------- DÉTAIL DÉLAIS (instance) : une ligne par activité secondaire ---------- */
+    const dIso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const dAdd = (iso, n) => { const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return dIso(d); };
+    const dDiff = (a, b) => Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000);
+    const dFr = iso => iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : "";
+    const insDlyHTML = () => {
+      INS.dly = INS.dly || {};
+      const lotsOf = id => [...new Set((INS.links || []).filter(l => l.sec === id)
+        .map(l => (INS.lot.find(x => x.id === l.lot) || {}).v).filter(Boolean))].join(", ");
+      const rows = INS.sec.map(r => {
+        const d = INS.dly[r.id] || {};
+        const inp = (f, type, v) => INS_EDIT
+          ? `<input class="ins-in dly-in" data-dly="${r.id}" data-f="${f}" type="${type}" ${type === "text" ? 'inputmode="numeric"' : ""} value="${esc(v || "")}">`
+          : esc(f === "deb" || f === "fin" ? dFr(v) : (v || ""));
+        return `<tr data-sec="${r.id}"><td>${esc(lotsOf(r.id))}</td><td>${esc(r.v || "")}</td>
+          <td class="center ins-td">${inp("deb", "date", d.deb)}</td>
+          <td class="number ins-td">${inp("dur", "text", d.dur)}</td>
+          <td class="center ins-td">${inp("fin", "date", d.fin)}</td>
+          <td class="ins-td">${INS_EDIT ? `<input class="ins-in dly-in" data-dly="${r.id}" data-f="arr" value="${esc(d.arr || "")}">` : esc(d.arr || "—")}</td></tr>`;
+      }).join("") || `<tr><td colspan="6" class="empty">AUCUNE ACTIVITÉ SECONDAIRE</td></tr>`;
+      return `<table class="bdg-d-table dly-table"><colgroup><col style="width:180px"><col style="width:300px"><col style="width:150px"><col style="width:100px"><col style="width:150px"><col style="width:220px"></colgroup>
+        <thead><tr><th>LOT</th><th>ACTIVITÉ SECONDAIRE</th><th class="center">DÉBUT</th><th class="number">DURÉE (J)</th><th class="center">FIN</th><th>ARRÊTS</th></tr></thead>
+        <tbody>${rows}</tbody></table>`;
+    };
+    /* saisie : durée → fin ; fin → durée ; début → fin (si durée) */
+    if (!shell.__dlyBound) {
+      shell.__dlyBound = true;
+      shell.addEventListener("change", e => {
+        const i = e.target.closest && e.target.closest("input.dly-in");
+        const X = shell.__insDly;
+        if (!i || !X) return;
+        const d = X.INS.dly[i.dataset.dly] = X.INS.dly[i.dataset.dly] || {};
+        const f = i.dataset.f;
+        d[f] = i.value.trim();
+        if ((f === "deb" || f === "dur") && d.deb && d.dur !== "" && d.dur !== undefined && !isNaN(num(d.dur))) d.fin = X.dAdd(d.deb, num(d.dur));
+        if (f === "fin" && d.deb && d.fin) d.dur = String(X.dDiff(d.deb, d.fin));
+        const tr = i.closest("tr");
+        tr.querySelector('[data-f="fin"]').value = d.fin || "";
+        tr.querySelector('[data-f="dur"]').value = d.dur || "";
+        X.insSave();
+      });
+    }
+    shell.__insDly = INS && INS_EDIT ? { INS, dAdd, dDiff, insSave } : null;
+
+    /* ---------- MODE LIAISONS ---------- */
+    const LK = { des: null, lot: null, prim: null, sec: null, prd: {}, chg: {}, err: "" };
+    const lkName = (k, id) => { const r = INS[k].find(x => x.id === id); return r ? (k === "des" ? ((r.art ? r.art + " " : "") + (r.des || "")) : (r.v || r.des || "")) : ""; };
+    const insRenderLinks = () => {
+      const box = $("insLinkView");
+      if (!box) return;
+      const RO = !INS_EDIT;
+      const radio = (k, id) => `<input type="radio" name="lk_${k}" data-lk="${k}" value="${id}" ${LK[k] === id ? "checked" : ""} ${RO ? "disabled" : ""}>`;
+      const nLinks = id => (INS.links || []).filter(l => l.des === id).length;
+      const desRows = INS.des.filter(r => !r.t).map(r => `<tr class="${LK.des === r.id ? "lk-sel" : LK.des ? "lk-dim" : ""}" data-pick="des" data-id="${r.id}">
+          <td class="center">${radio("des", r.id)}</td><td class="center">${esc(r.art || "")}</td><td>${esc(r.des || "")}</td>
+          <td class="center">${esc(r.u || "")}</td><td class="number">${insFmt(r.q)}</td>
+          <td>${nLinks(r.id) ? `<span class="lk-ok">${nLinks(r.id)} VALIDÉE(S)</span>` : ""}</td></tr>`).join("")
+        || `<tr><td colspan="6" class="empty">AUCUNE DÉSIGNATION (MODE SAISIE)</td></tr>`;
+      const col = (k, title) => `<div class="lk-col"><div class="lk-ch">${title} ${svCnt(INS[k].length)}</div>
+          ${INS[k].map(r => `<label class="lk-li ${LK[k] === r.id ? "lk-sel" : ""}" data-pick="${k}" data-id="${r.id}">${radio(k, r.id)}<span>${esc(r.v || "")}</span></label>`).join("")
+            || `<div class="lk-li" style="opacity:.5">—</div>`}</div>`;
+      const det = (k, title, need) => `<div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${title} ${svCnt(INS[k].length)}</span>
+          <span class="lk-need">${need}</span></div>
+          <div class="lk-scroll"><table class="bdg-d-table"><thead><tr><th class="center" style="width:36px"></th><th>DÉSIGNATION</th><th class="center">${k === "prd" ? "UPB" : "UCB"}</th><th class="number">QUANTITÉ DE LA TÂCHE</th></tr></thead>
+          <tbody>${INS[k].map(r => {
+            const on = LK[k][r.id] !== undefined;
+            return `<tr class="${on ? "lk-sel" : ""}" data-det="${k}" data-id="${r.id}"><td class="center"><input type="checkbox" class="lk-cb" ${on ? "checked" : ""} ${RO ? "disabled" : ""}></td>
+              <td>${esc(r.des || "")}</td><td class="center">${esc(r.u || "")}</td>
+              <td class="number"><input class="lk-q" inputmode="decimal" value="${on ? esc(LK[k][r.id]) : ""}" ${RO ? "disabled" : ""}></td></tr>`;
+          }).join("") || `<tr><td colspan="4" class="empty">AUCUNE LIGNE (MODE SAISIE)</td></tr>`}</tbody></table></div></div>`;
+      const nPrd = Object.keys(LK.prd).length;
+      const complete = LK.des && LK.lot && LK.prim && LK.sec && nPrd > 0;
+      const chain = [lkName("des", LK.des), lkName("lot", LK.lot), lkName("prim", LK.prim), lkName("sec", LK.sec)]
+        .map(x => x || "…").join(" › ") + " › " + nPrd + " PRODUIT(S)" + (Object.keys(LK.chg).length ? " + " + Object.keys(LK.chg).length + " CHARGE(S)" : "");
+      const links = (INS.links || []).map(l => `<tr><td class="center">${esc((INS.des.find(x => x.id === l.des) || {}).art || "")}</td>
+          <td>${esc((INS.des.find(x => x.id === l.des) || {}).des || "")}</td><td>${esc(lkName("lot", l.lot))}</td><td>${esc(lkName("prim", l.prim))}</td>
+          <td>${esc(lkName("sec", l.sec))}</td><td class="center">${(l.prd || []).length}</td><td class="center">${(l.chg || []).length}</td>
+          <td class="center">${RO ? "" : `<button type="button" class="lk-del" data-lid="${l.id}">${INS_TRASH} DÉLIER</button>`}</td></tr>`).join("")
+        || `<tr><td colspan="8" class="empty">AUCUNE LIAISON VALIDÉE</td></tr>`;
+      box.innerHTML = `
+        <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${SVI_ICON.client}DÉSIGNATIONS CLIENT ${svCnt(INS.des.filter(r => !r.t).length)}</span><span class="lk-need">UNE À LA FOIS</span></div>
+          <div class="lk-scroll"><table class="bdg-d-table"><thead><tr><th class="center" style="width:36px"></th><th class="center">ART</th><th>DÉSIGNATION</th><th class="center">UPB</th><th class="number">QPB</th><th>LIAISONS</th></tr></thead><tbody>${desRows}</tbody></table></div></div>
+        <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${SVI_ICON.hier}TÂCHES</span></div>
+          <div class="lk-grid">${col("lot", "LOT")}${col("prim", "ACTIVITÉ PRIMAIRE")}${col("sec", "ACTIVITÉ SECONDAIRE")}</div></div>
+        ${det("prd", "DÉTAIL PRODUITS", "OBLIGATOIRE")}
+        ${det("chg", "DÉTAIL CHARGES", "FACULTATIF")}
+        ${RO ? "" : `<div class="lk-chain"><span class="lk-path">CHAÎNE : ${esc(chain)}</span>
+          ${LK.err ? `<span class="lk-err">${esc(LK.err)}</span>` : ""}
+          <button type="button" class="lk-go" ${complete ? "" : "disabled"}>✓ VALIDER LA LIAISON</button></div>`}
+        <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">LIAISONS VALIDÉES ${svCnt((INS.links || []).length)}</span></div>
+          <div class="lk-scroll"><table class="bdg-d-table"><thead><tr><th class="center">ART</th><th>DÉSIGNATION</th><th>LOT</th><th>ACT. PRIMAIRE</th><th>ACT. SECONDAIRE</th><th class="center">PRODUITS</th><th class="center">CHARGES</th><th></th></tr></thead>
+          <tbody>${links}</tbody></table></div></div>`;
+    };
+    /* contrôle des règles avant validation (cahier des charges A et D) */
+    const lkCheck = () => {
+      const L = INS.links || [];
+      const same = L.find(l => l.des === LK.des && l.lot === LK.lot && l.prim === LK.prim && l.sec === LK.sec);
+      if (same) return "CETTE LIAISON EXISTE DÉJÀ (DÉLIEZ-LA POUR LA MODIFIER).";
+      const lotP = L.find(l => l.lot === LK.lot && l.des !== LK.des);
+      if (lotP) return "RÈGLE A : LE LOT " + lkName("lot", LK.lot) + " EST DÉJÀ LIÉ À " + lkName("des", lotP.des) + ".";
+      const primP = L.find(l => l.prim === LK.prim && l.lot !== LK.lot);
+      if (primP) return "RÈGLE A : L'ACTIVITÉ PRIMAIRE " + lkName("prim", LK.prim) + " EST DÉJÀ LIÉE AU LOT " + lkName("lot", primP.lot) + ".";
+      const secP = L.find(l => l.sec === LK.sec && l.prim !== LK.prim);
+      if (secP) return "RÈGLE A : L'ACTIVITÉ SECONDAIRE " + lkName("sec", LK.sec) + " EST DÉJÀ LIÉE À " + lkName("prim", secP.prim) + ".";
+      const dup = Object.keys(LK.prd).find(id => L.some(l => l.sec === LK.sec && (l.prd || []).some(x => x.id === id)));
+      if (dup) return "RÈGLE D : " + lkName("prd", dup) + " EST DÉJÀ DANS L'ACTIVITÉ SECONDAIRE " + lkName("sec", LK.sec) + ".";
+      return "";
+    };
+    if (!shell.__lkBound) {
+      shell.__lkBound = true;
+      shell.addEventListener("change", e => {
+        const X = shell.__lk;
+        if (!X || !e.target.closest("#insLinkView")) return;
+        const r = e.target.closest("input[data-lk]");
+        if (r) { X.LK[r.dataset.lk] = r.value; X.LK.err = ""; X.render(); return; }
+        const cb = e.target.closest("input.lk-cb");
+        if (cb) {
+          const tr = cb.closest("tr[data-det]");
+          const k = tr.dataset.det, id = tr.dataset.id;
+          if (cb.checked) X.LK[k][id] = tr.querySelector(".lk-q").value || ""; else delete X.LK[k][id];
+          X.LK.err = ""; X.render(); return;
+        }
+        const q = e.target.closest("input.lk-q");
+        if (q) {
+          const tr = q.closest("tr[data-det]");
+          X.LK[tr.dataset.det][tr.dataset.id] = q.value.trim();
+          X.render();
+        }
+      });
+      shell.addEventListener("click", e => {
+        const X = shell.__lk;
+        if (!X || !e.target.closest("#insLinkView")) return;
+        const del = e.target.closest(".lk-del");
+        if (del) {
+          svConfirm({ title: "DÉLIER", text: "LA LIAISON SERA DÉFAITE ; LES LIGNES RESTENT DANS LE BUDGET.", ok: "DÉLIER" }).then(go => {
+            if (!go) return;
+            X.INS.links = (X.INS.links || []).filter(l => l.id !== del.dataset.lid);
+            X.save("DÉLIER"); X.render();
+          });
+          return;
+        }
+        if (e.target.closest(".lk-go")) {
+          const err = X.check();
+          if (err) { X.LK.err = err; X.render(); return; }
+          const L = X.LK;
+          X.INS.links = X.INS.links || [];
+          X.INS.links.push({ id: X.insId(), des: L.des, lot: L.lot, prim: L.prim, sec: L.sec,
+            prd: Object.entries(L.prd).map(([id, q]) => ({ id, q: q === "" ? "" : num(q) })),
+            chg: Object.entries(L.chg).map(([id, q]) => ({ id, q: q === "" ? "" : num(q) })) });
+          /* on garde la désignation et le lot pour enchaîner la tâche suivante */
+          L.prim = null; L.sec = null; L.prd = {}; L.chg = {}; L.err = "";
+          X.save("LIAISON VALIDÉE"); X.render();
+        }
+      });
+    }
+    shell.__lk = INS ? { INS, LK, insId, check: lkCheck, render: () => insRenderLinks(),
+      save: what => { insSave(); histLog("LIAISONS", what, fullRef); } } : null;
+    /* bascule SAISIE / LIAISONS */
+    const insApplyMode = () => {
+      if (!INS) return;
+      const link = INS_MODE() === "link";
+      shell.classList.toggle("ins-mode-link", link);
+      shell.querySelectorAll("#insModeSw [data-mode]").forEach(b => b.classList.toggle("on", (b.dataset.mode === "link") === link));
+      if (link) insRenderLinks();
+      insMarkUnlinked();
+    };
 
     const renderClient = () => {
       if (INS) { insRenderClient(); return; }
@@ -6000,6 +6245,7 @@ function renderBudgetList() {
         REC_KINDS.forEach(renderRec);
         if (window.__sviHistRefresh) window.__sviHistRefresh();
         if (window.__sviImpRefresh) window.__sviImpRefresh();
+        if (INS) insApplyMode();
       });
       if (typeof stateSave === "function") stateSave();
     };
@@ -6116,7 +6362,7 @@ function renderBudgetList() {
         b.innerHTML = (SVI_ICON[k] || "") + t.title + " " + svCnt(n);
       });
 
-      if (INS && (active === "chg" || active === "prd")) { insRenderTab(); return; }
+      if (INS) { insRenderTab(); return; }
       if (active === "chg" || active === "prd") {
         const prd = active === "prd";
         const tcols = tcolsFor(prd);
@@ -6196,15 +6442,38 @@ function renderBudgetList() {
       }
 
       if (active === "qlt") {
-        body.innerHTML = `
-          <div class="bdg-d-reserved">
-            Espace réservé — contenu à définir.
-          </div>
-        `;
+        /* DÉTAIL QUALITÉ : une seule colonne (contenu à venir) */
+        body.innerHTML = `<div class="bdg-d-scroll"><table class="bdg-d-table"><thead><tr><th>QUALITÉ</th></tr></thead>
+          <tbody><tr><td class="empty">AUCUNE LIGNE</td></tr></tbody></table></div>`;
 
         return;
       }
 
+      /* DÉTAIL DÉLAIS : une ligne par activité secondaire (lots, début, durée, fin, arrêts) */
+      {
+        const fr = iso => iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : "";
+        const m = new Map();
+        lines.forEach(l => {
+          const k = String(l.sec || "").trim();
+          if (!k) return;
+          if (!m.has(k)) m.set(k, { sec: k, lots: new Set(), deb: "", fin: "" });
+          const x = m.get(k);
+          if (l.lot) x.lots.add(l.lot);
+          if (!x.deb && l.deb) x.deb = l.deb;
+          if (!x.fin && l.fin) x.fin = l.fin;
+        });
+        const rows = [...m.values()];
+        { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
+          if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(rows.length); }
+        const dur = x => x.deb && x.fin ? Math.round((new Date(x.fin) - new Date(x.deb)) / 86400000) : "";
+        body.innerHTML = `<div class="bdg-d-scroll"><table class="bdg-d-table dly-table">
+          <colgroup><col style="width:200px"><col style="width:320px"><col style="width:120px"><col style="width:100px"><col style="width:120px"><col style="width:160px"></colgroup>
+          <thead><tr><th>LOT</th><th>ACTIVITÉ SECONDAIRE</th><th class="center">DÉBUT</th><th class="number">DURÉE (J)</th><th class="center">FIN</th><th>ARRÊTS</th></tr></thead>
+          <tbody>${rows.map(x => `<tr><td>${esc([...x.lots].join(", "))}</td><td>${esc(x.sec)}</td><td class="center">${fr(x.deb)}</td>
+            <td class="number">${dur(x)}</td><td class="center">${fr(x.fin)}</td><td>—</td></tr>`).join("") ||
+            `<tr><td colspan="6" class="empty">AUCUNE ACTIVITÉ SECONDAIRE</td></tr>`}</tbody></table></div>`;
+        return;
+      }
       body.innerHTML = `
         <div class="bdg-d-delay">
           <label>
@@ -10375,9 +10644,38 @@ function renderBudgetList() {
         try { localStorage.setItem("svi_listmode_v1", "valid"); } catch (e) {}
         toList();
       });
-      $("instLock")?.addEventListener("click", () => {
+      /* bascule SAISIE / LIAISONS (mémorisée pour ce budget) */
+      $("insModeSw")?.addEventListener("click", e => {
+        const b = e.target.closest("[data-mode]");
+        if (!b) return;
+        budget.inst.mode = b.dataset.mode;
+        instUpd(l => l.map(x => x.ref === ref ? { ...x, mode: budget.inst.mode } : x));
+        insApplyMode();
+        window.scrollTo(0, 0);
+      });
+      /* 🗑 NON LIÉES : supprime toutes les lignes qu'aucune liaison n'utilise */
+      $("insUnlBtn")?.addEventListener("click", async () => {
+        const n = insUnlCount();
+        if (!n || !(await svConfirm({ title: "SUPPRIMER LES LIGNES NON LIÉES", text: n + " LIGNE(S) NON LIÉE(S) SERONT SUPPRIMÉES.", ok: "SUPPRIMER" }))) return;
+        const u = insUsed();
+        INS_LINKED_KINDS.forEach(k => { INS[k] = INS[k].filter(r => u[k].has(r.id)); });
+        insCleanLinks(); insSave();
+        histLog("SAISIE", "LIGNES NON LIÉES SUPPRIMÉES", n + " LIGNE(S)");
+        refreshAll();
+      });
+      $("instLock")?.addEventListener("click", async () => {
         const fige = budget.inst.state === "fige";
-        if (!confirm(fige ? "REVENIR EN ÉDITION POUR " + fullRef + " ?" : "FIGER " + fullRef + " ? (LECTURE SEULE, RETOUR EN ÉDITION POSSIBLE)")) return;
+        /* FIGER : impossible tant qu'il reste des lignes non liées */
+        if (!fige && INS) {
+          const n = insUnlCount();
+          if (n) {
+            await svConfirm({ title: "FIGER IMPOSSIBLE", text: n + " LIGNE(S) NON LIÉE(S) : LIEZ-LES OU SUPPRIMEZ-LES (MODE SAISIE).", ok: "OK" });
+            return;
+          }
+        }
+        if (!(await svConfirm(fige
+          ? { title: "REVENIR EN ÉDITION", text: fullRef, ok: "REVENIR EN ÉDITION" }
+          : { title: "FIGER", text: fullRef + " PASSE EN LECTURE SEULE (RETOUR EN ÉDITION POSSIBLE).", ok: "FIGER" }))) return;
         budget.inst.state = fige ? "instance" : "fige";
         instUpd(l => l.map(x => x.ref === ref ? { ...x, state: budget.inst.state } : x));
         histLog("BUDGET", fige ? "RETOUR EN ÉDITION" : "FIGÉ", fullRef);
