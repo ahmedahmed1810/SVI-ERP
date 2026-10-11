@@ -39,7 +39,11 @@ const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
   };
   check();
   document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+  /* aussi pendant le travail (budget en instance ouvert…) : relue chaque minute */
+  setInterval(() => { if (!document.hidden && !document.getElementById("sviUpd")) check(); }, 60000);
 })();
+
+const SVI_DEL_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 /* =========================================================
    CHARGEMENT EN COURS : tout échange avec Google (script, feuilles)
@@ -4973,6 +4977,7 @@ function renderBudgetList() {
               <button type="button" class="blk-btn" data-blk="client" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="client" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="client" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="client" data-act="del" title="Supprimer les lignes cochées">${SVI_DEL_ICON}</button>` : ""}
               <button type="button" class="blk-btn blk-max-btn" data-blk="client" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
           </div>
@@ -4993,6 +4998,7 @@ function renderBudgetList() {
               <button type="button" class="blk-btn" data-blk="hier" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="hier" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="hier" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="hier" data-act="del" title="Supprimer les lignes cochées">${SVI_DEL_ICON}</button>` : ""}
               <button type="button" class="blk-btn blk-max-btn" data-blk="hier" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
           </div>
@@ -5015,6 +5021,7 @@ function renderBudgetList() {
               <button type="button" class="blk-btn" data-blk="detail" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="detail" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="detail" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="detail" data-act="del" title="Supprimer les lignes cochées">${SVI_DEL_ICON}</button>` : ""}
               <button type="button" class="blk-btn blk-max-btn" data-blk="detail" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
         </div>
@@ -5449,6 +5456,10 @@ function renderBudgetList() {
         ["ttc", "MPB TTC", "number", "calc", "ttc"]
       ]
     };
+    /* champs non saisissables (calculés ou venus d'ailleurs) : fond gris ; les autres gardent le fond normal
+       désignations : QPB, montants, TVA ; charges : PCB, montants, TVA (seule la quantité se saisit) ;
+       produits : QPB, PPB, montants, TVA (unité, NBR et DIM se saisissent) */
+    const INS_LOCK = { des: ["q", "ht", "tva", "ttc"], chg: ["p", "ht", "tva", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
         : f === "q" ? insQty(k, r) : f === "tva" ? insTVA(r) : (f === "p" && k === "prd") ? insPrice(k, r) : r[f];
@@ -5459,10 +5470,10 @@ function renderBudgetList() {
       r = r || {};
       /* QPB produits = NBR × DIM 1 × DIM 2 × DIM 3 ; QPB désignation liée = somme des produits de ses tâches */
       const qAuto = (f === "q" && (k === "prd" || k === "des")) || (f === "p" && k === "prd");
-      const locked = !INS_EDIT || type === "calc" || qAuto || (r.t && f !== "art" && f !== "des");
+      const locked = !INS_EDIT || type === "calc" || qAuto || (INS_LOCK[k] || []).includes(f) || (r.t && f !== "art" && f !== "des");
       let val = "";
       /* ligne vide « SAISIR ICI » des désignations : TVA 20 % affichée par défaut */
-      if (isNew && k === "des" && f === "tva") val = "20,00";
+      if (isNew && f === "tva") val = "20,00";
       if (!isNew) {
         if (r.t && f !== "art" && f !== "des") val = "";
         else if (type === "calc" || qAuto) val = insFmt(insCalc(k, r, f));
@@ -5506,8 +5517,8 @@ function renderBudgetList() {
       return rows.map((r, i) => ({ r, i, g: r.t ? 4 : lkRank(k, r) })).sort((a, b) => a.g - b.g || a.i - b.i).map(o => o.r);
     };
     const lkRd = (k, r) => INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${LK.des && lkIsLinked(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
-    const insDelCell = r => !r ? "" : `<input type="checkbox" class="ins-cb${r.t ? " ins-tcb" : ""}" ${!r.t && r.on === true ? "checked" : ""}>`
-      + `<button type="button" class="ins-x" title="Supprimer la ligne" aria-label="Supprimer">${INS_TRASH}</button>`;
+    /* case à droite : elle coche seulement (suppression, export, aperçu passent par le menu ⋯ du bloc) */
+    const insDelCell = r => !r ? "" : `<input type="checkbox" class="ins-cb${r.t ? " ins-tcb" : ""}" ${!r.t && r.on === true ? "checked" : ""}>`;
     const insQCol = k => false;   /* plus de colonne QUANTITÉ DE LA TÂCHE : la quantité liée est la QPB du produit */
     const insRowHTML = (k, r, lvl) => {
       const cols = INS_COLS[k];
@@ -5658,7 +5669,7 @@ function renderBudgetList() {
       return `<table class="bdg-d-table ins-table" data-ik="${k}" style="width:${w}px">
         <colgroup>${'<col style="width:36px">'.repeat(lead)}${cols.map(c => `<col data-w="${t}.${c[4]}" style="width:${cwGet(t, c[4])}px">`).join("")}${qw ? `<col style="width:${qw}px">` : ""}${INS_EDIT ? '<col style="width:40px">' : ""}</colgroup>
         <thead><tr><th class="center"></th>${k === "des" ? '<th class="center">T</th>' : ""}${cols.map(c => cfHead(t, c[4], c[1], c[2])).join("")}${qw ? '<th class="number lk-qh">QUANTITÉ DE LA TÂCHE</th>' : ""}${INS_EDIT
-          ? `<th class="center ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"><button type="button" class="ins-xall" title="Supprimer les lignes cochées" aria-label="Supprimer les lignes cochées">${INS_TRASH}</button></th>` : ""}</tr></thead>
+          ? `<th class="center ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${insAllOn(k) ? " checked" : ""}></th>` : ""}</tr></thead>
         <tbody>${insBodyHTML(k)}</tbody>
         <tfoot>${insFootHTML(k)}</tfoot></table>`;
     };
@@ -5715,7 +5726,7 @@ function renderBudgetList() {
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
           <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? '<span class="ins-rdc"></span>' : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length)}</span><span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${INS_EDIT
-            ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"><button type="button" class="ins-xall" title="Supprimer les lignes cochées" aria-label="Supprimer les lignes cochées">${INS_TRASH}</button></span>` : ""}</div>
+            ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
           ${list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}" data-ik="${k}" data-iid="${r.id}">
               ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">
                 <span class="ins-delc">${insDelCell(r)}</span>` : `<span>${esc(r.v || "")}</span>`}
@@ -6515,7 +6526,7 @@ function renderBudgetList() {
         const max = { U: 0, F: 0, M: 1, ML: 1, M2: 2, M3: 3 }[u];
         if (max === undefined) return;
         const nd = ["d1", "d2", "d3"].filter(f => r[f] !== "" && r[f] !== undefined && r[f] !== null).length;
-        if (nd > max) svToast("ATTENTION : UNITÉ " + u + " → " + (max === 0 ? "NBR SEUL" : "NBR ET " + max + " DIM") + " (" + nd + " DIM RENSEIGNÉE" + (nd > 1 ? "S" : "") + ").");
+        if (nd > max) svToast("ATTENTION : UNITÉ " + u + " → " + (max === 0 ? "NBR SEUL" : "NBR ET " + max + " DIM") + " (" + nd + " DIM RENSEIGNÉE" + (nd > 1 ? "S" : "") + ").", 3500, inp);
       });
     }
     /* page unique : rond (choix de la chaîne), quantité de la tâche, ✓ VALIDER, DÉLIER */
@@ -11289,8 +11300,64 @@ function renderBudgetList() {
       });
     };
 
+    /* budget en instance : lignes cochées d'un bloc (les cases servent à supprimer, exporter, aperçu) */
+    const insBlkKinds = blk => blk === "client" ? ["des"] : blk === "hier" ? ["lot", "prim", "sec"]
+      : blk === "detail" && ["chg", "prd", "qlt"].includes(active) ? [active] : [];
+    /* suppression : seules les lignes cochées ET déliées partent ; une ligne liée n'est jamais proposée */
+    const insDelPlan = blk => {
+      const X = shell.__ins;
+      const out = { del: {}, n: 0, kept: 0 };
+      if (!X) return out;
+      insBlkKinds(blk).forEach(k => {
+        const rows = X.INS[k].filter(r => !r.t && r.on === true);
+        const free = rows.filter(r => !X.isUsed(k, r.id));
+        out.kept += rows.length - free.length;
+        const ids = new Set(free.map(r => r.id));
+        /* un titre part avec sa branche quand toute sa branche part */
+        if (k === "des") X.INS.des.forEach(t => { if (t.t) { const b = X.insBranch(t); if (b.length && b.every(r => ids.has(r.id))) ids.add(t.id); } });
+        if (ids.size) { out.del[k] = ids; out.n += free.length; }
+      });
+      return out;
+    };
+    const insDelRun = blk => {
+      const X = shell.__ins;
+      const pl = insDelPlan(blk);
+      if (!X || !pl.n) return;
+      svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES",
+        text: pl.n + " LIGNE(S) SERONT SUPPRIMÉES." + (pl.kept ? " " + pl.kept + " LIGNE(S) LIÉE(S) RESTENT." : ""), ok: "SUPPRIMER" }).then(go => {
+        if (!go) return;
+        Object.keys(pl.del).forEach(k => {
+          X.INS[k] = X.INS[k].filter(x => !pl.del[k].has(x.id));
+          histLog("SAISIE", "LIGNES SUPPRIMÉES", pl.del[k].size + " LIGNE(S)");
+        });
+        X.cleanLinks(); X.insSave();
+        Object.keys(pl.del).forEach(k => X.insRedraw(k));
+      });
+    };
+    /* export / aperçu : s'il y a des lignes cochées dans le bloc, seulement celles-là */
+    const insOnlyChecked = blk => {
+      const X = shell.__ins;
+      if (!X || !lastShown) return;
+      if (blk === "client" && lastShown.client && lastShown.client.ins) {
+        const on = new Set(X.INS.des.filter(r => !r.t && r.on === true).map(r => r.id));
+        if (!on.size) return;
+        const keep = new Set();
+        X.INS.des.forEach(t => { if (t.t && X.insBranch(t).some(r => on.has(r.id))) keep.add(t.id); });
+        lastShown.client = { ...lastShown.client, rows: lastShown.client.rows.filter(r => on.has(r.id) || keep.has(r.id)) };
+      } else if (blk === "hier" && lastShown.hier) {
+        ["lot", "prim", "sec"].forEach(k => {
+          const on = X.INS[k].filter(r => r.on === true);
+          if (on.length) lastShown.hier[k] = on.map(r => r.v || "");
+        });
+      } else if (blk === "detail" && lastShown.detail && lastShown.detail.ins) {
+        const rows = lastShown.detail.rows.filter(r => r.on === true);
+        if (rows.length) lastShown.detail = { ...lastShown.detail, rows };
+      }
+    };
     const runBlkAct = (blk, act) => {
       if (act === "max") return toggleMax(blk);
+      if (act === "del") return insDelRun(blk);
+      if (act === "export" || act === "pdf") insOnlyChecked(blk);
       if (!INS && blk === "detail" && active === "prd" && (act === "export" || act === "pdf")) return chooseFormat(act);
       const b = blk === "suivi" ? recActive : blk;
       if (act === "export") openExportMenu(b);
@@ -11313,6 +11380,11 @@ function renderBudgetList() {
       m.innerHTML = acts.map((a, i) => {
         let lab = a.title;
         if (a.dataset.act === "max") lab = a.classList.contains("on") ? "Réduire" : "Agrandir";
+        /* supprimer : grisé s'il n'y a aucune ligne cochée et déliée (l'erreur n'est pas proposée) */
+        if (a.dataset.act === "del") {
+          const n = insDelPlan(a.dataset.blk).n;
+          return `<button type="button" data-i="${i}" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}</span>${svCnt(n)}</button>`;
+        }
         return `<button type="button" data-i="${i}">${a.innerHTML}<span>${esc(lab)}</span></button>`;
       }).join("");
       document.body.appendChild(m);
@@ -11321,7 +11393,7 @@ function renderBudgetList() {
       m.style.left = Math.max(8, r.right - m.offsetWidth) + "px";
       m.addEventListener("click", e => {
         const it = e.target.closest("[data-i]");
-        if (!it) return;
+        if (!it || it.classList.contains("off")) return;
         const a = acts[+it.dataset.i];
         m.remove();
         runBlkAct(a.dataset.blk, a.dataset.act);
@@ -13304,10 +13376,32 @@ function budgetDate(ref) {
    svConfirm({ title, text, ok }) → Promise<boolean>
    ========================================================= */
 /* message d'erreur passager : affiché au moment de l'erreur, puis il s'efface (règle générale) */
-function svToast(msg, ms = 3500) {
+/* il s'affiche PRÈS DE LA SOURCE de l'erreur (la case ou la ligne touchée) : juste dessous,
+   sans la cacher ; au-dessus s'il n'y a pas la place ; jamais loin (règle générale) */
+let svLastTouch = null;
+document.addEventListener("pointerdown", e => { svLastTouch = e.target; }, true);
+document.addEventListener("focusin", e => { svLastTouch = e.target; }, true);
+function svToast(msg, ms = 3500, anchor) {
   let t = document.getElementById("svToast");
   if (!t) { t = document.createElement("div"); t.id = "svToast"; document.body.appendChild(t); }
   t.textContent = String(msg || "").toUpperCase();
+  let a = anchor || svLastTouch;
+  if (a && !a.isConnected) a = null;
+  /* la source : la case, sinon la ligne touchée */
+  const src = a && (a.closest("td, .ins-li, .lk-li, button, [data-iid]") || a);
+  const r = src && src.getBoundingClientRect();
+  t.style.left = t.style.top = t.style.right = "";
+  if (r && (r.width || r.height)) {
+    t.style.right = "auto";
+    t.style.visibility = "hidden";
+    t.classList.add("on");
+    const w = t.offsetWidth, h = t.offsetHeight, vw = window.innerWidth, vh = window.innerHeight;
+    const left = Math.max(8, Math.min(r.left, vw - w - 8));
+    const top = r.bottom + 6 + h <= vh - 8 ? r.bottom + 6 : Math.max(8, r.top - h - 6);
+    t.style.left = left + "px";
+    t.style.top = top + "px";
+    t.style.visibility = "";
+  }
   t.classList.add("on");
   clearTimeout(t.__tm);
   t.__tm = setTimeout(() => t.classList.remove("on"), ms);
