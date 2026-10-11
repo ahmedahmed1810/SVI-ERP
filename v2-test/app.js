@@ -6035,7 +6035,7 @@ function renderBudgetList() {
     /* ===== export / import / aperçu PDF par bloc ===== */
     const lastShown = { client: null, detail: null, hier: {} };
     const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL",
-                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI" };
+                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE" };
     const REC_KINDS = ["doc", "taf", "obs"];
 
     const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
@@ -6053,6 +6053,7 @@ function renderBudgetList() {
         };
       }
       if (REC_KINDS.includes(blk)) return recTableData(blk);
+      if (blk === "hist") return histData();
       if (blk === "metre") return metreData();
       if (blk === "interne") return interneData();
       if (blk === "hier") {
@@ -7804,16 +7805,18 @@ function renderBudgetList() {
 
     /* autres aperçus (détails, documents, TAF, observations) : même modèle,
        mêmes options, colonnes à largeur fixe */
-    const COLW = {
+    const COLW = { hdt: 14, hbr: 8, hac: 12, hde: 40,
       article: 5, detail: 30, unit: 5, nbr: 5, d1: 5, d2: 5, d3: 5, qty: 9, price: 9, amount: 11, tva: 6, ttc: 11,
       rref: 22, rtitle: 60, rexp: 8, robj: 15, rtext: 30, rresp: 13, rprev: 12, rdelay: 9, relap: 9, rimp: 4
     };
     const printGeneric = blk => {
       const label = String(blkLabel(blk)).toUpperCase();
       let cols, rows, end = "";
-      if (blk === "detail" && active === "dly") {
+      if ((blk === "detail" && active === "dly") || blk === "hist") {
         const d = blkData(blk);
-        cols = d.head.map((h, i) => ["c" + i, h, r => r[i], "center"]);
+        if (!d.rows.length) { alert("Aucune donnée dans " + label + "."); return; }
+        /* historique : date, branche et action étroites, détail large */
+        cols = d.head.map((h, i) => [blk === "hist" ? ["hdt", "hbr", "hac", "hde"][i] : "c" + i, h, r => r[i], blk === "hist" && i ? "" : "center"]);
         rows = d.rows;
       } else if (REC_KINDS.includes(blk)) {
         if (!recLoad(blk).length) { alert("Aucune donnée dans " + label + "."); return; }
@@ -7944,7 +7947,18 @@ function renderBudgetList() {
         localStorage.setItem(HIST_KEY, JSON.stringify(l.slice(-1000)));
       } catch (e) {}
     };
+    /* historique : données affichées (filtre de branche compris), pour l'export et l'aperçu */
+    let histBranch = "";
+    const histData = () => {
+      const p2 = n => String(n).padStart(2, "0");
+      const f = v => { const d = new Date(v); return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} À ${p2(d.getHours())}:${p2(d.getMinutes())}`; };
+      const rows = histLoad().reverse().filter(h => !histBranch || h.b === histBranch)
+        .map(h => [f(h.t), h.b, h.a, h.d]);
+      return { head: ["DATE", "BRANCHE", "ACTION", "DÉTAIL"], rows };
+    };
+
     const openHistory = () => {
+      histBranch = "";
       const p2 = n => String(n).padStart(2, "0");
       const f = v => { const d = new Date(v); return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} À ${p2(d.getHours())}:${p2(d.getMinutes())}`; };
       const all = histLoad().reverse();
@@ -7970,6 +7984,8 @@ function renderBudgetList() {
             </table></div>
           </div>
           <div class="doc-foot">
+            <button type="button" class="doc-btn" data-hact="export">EXPORTER</button>
+            <button type="button" class="doc-btn" data-hact="pdf">APERÇU PDF</button>
             <button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>
           </div>
         </div>`;
@@ -7978,8 +7994,16 @@ function renderBudgetList() {
       p.addEventListener("click", e => {
         const fb = e.target.closest(".hist-f");
         if (fb) {
+          histBranch = fb.dataset.b || "";
           p.querySelectorAll(".hist-f").forEach(x => x.classList.toggle("on", x === fb));
           p.querySelectorAll("tbody tr[data-b]").forEach(tr => { tr.hidden = !!fb.dataset.b && tr.dataset.b !== fb.dataset.b; });
+          return;
+        }
+        const ha = e.target.closest("[data-hact]");
+        if (ha) {
+          if (!histData().rows.length) { alert("Aucune donnée dans l'historique."); return; }
+          if (ha.dataset.hact === "export") openExportMenu("hist");
+          else { p.remove(); printGeneric("hist"); }
           return;
         }
         if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
