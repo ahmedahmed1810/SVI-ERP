@@ -2948,6 +2948,13 @@ function renderBudgetList() {
 
       /* historique */
       #docPop .hist-card { max-width: 980px; }
+      #docPop .hist-card.hist-max { max-width: none; width: calc(100vw - 32px); height: calc(100vh - 32px); }
+      #docPop .hist-card.hist-max .hist-scroll { max-height: none; flex: 1; }
+      #docPop .hist-card.hist-max .doc-body { display: flex; flex-direction: column; }
+      #docPop .hist-tools { display: flex; align-items: center; gap: 6px; }
+      #docPop .hist-table { table-layout: auto; width: 100%; }
+      #docPop .hist-table td { white-space: normal; vertical-align: top; }
+      #docPop .hist-table td.center { text-align: center; white-space: nowrap; }
       #docPop .hist-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
       #docPop .hist-f { border: 1px solid #d6dbe3; background: #fff; border-radius: 999px; padding: 5px 12px;
         font-size: 11px; font-weight: 800; color: #4b5563; cursor: pointer; }
@@ -3124,7 +3131,7 @@ function renderBudgetList() {
       }
       th.cf-on .cf-btn, .bdg-h-head.cf-on .cf-btn { color: #1d4ed8; }
       #cfMenu {
-        position: fixed; z-index: 10000; width: 240px; max-height: 60vh; overflow: hidden;
+        position: fixed; z-index: 10020; width: 240px; max-height: 60vh; overflow: hidden;
         display: flex; flex-direction: column; gap: 4px; padding: 8px;
         background: #fff; border: 1px solid #d6dbe3; border-radius: 10px;
         box-shadow: 0 10px 28px rgba(15, 23, 42, .18); font-size: 12px;
@@ -4786,7 +4793,7 @@ function renderBudgetList() {
         if (!document.body.contains(m)) return;
         /* l'en-tête est redessiné à chaque changement : on repart du
            bouton actuellement affiché pour garder le menu sous sa colonne */
-        const live = shell.querySelector(
+        const live = document.querySelector(
           `.cf-btn[data-cf="${t}"][data-col="${key}"]`
         ) || btn;
         const r = live.getBoundingClientRect();
@@ -5182,6 +5189,7 @@ function renderBudgetList() {
         renderTab();
         markFiltered();
         REC_KINDS.forEach(renderRec);
+        if (window.__sviHistRefresh) window.__sviHistRefresh();
       });
       if (typeof stateSave === "function") stateSave();
     };
@@ -7627,6 +7635,7 @@ function renderBudgetList() {
       const body = rows.map(r => "<tr>" + cols.map(c => `<td class="${al(c)}">${esc(fmt(c[2](r), c[0]))}</td>`).join("") + "</tr>").join("");
       printModel({
         branch: label, docTitle: label, fileTag: label, headLine: label,
+        portrait: blk === "hist",
         table: `<table id="tpl"><colgroup>${cols.map(c => `<col style="width:${((COLW[c[0]] || 10) / wsum * 100).toFixed(2)}%">`).join("")}</colgroup>
           <thead><tr>${cols.map(c => `<th>${esc(c[1])}</th>`).join("")}</tr></thead>
           <tbody>${body}</tbody></table>`,
@@ -7733,21 +7742,29 @@ function renderBudgetList() {
         localStorage.setItem(HIST_KEY, JSON.stringify(l.slice(-1000)));
       } catch (e) {}
     };
-    /* historique : données affichées (filtre de branche compris), pour l'export et l'aperçu */
+    /* ===== HISTORIQUE : tableau avec tri / filtre par colonne (comme les autres),
+       menu ⋯ (exporter, aperçu PDF A4 vertical, agrandir) ===== */
     let histBranch = "";
-    const histData = () => {
+    const histCols = [
+      ["hdt", "DATE", r => r.dt, "center"],
+      ["hbr", "BRANCHE", r => r.b, ""],
+      ["hac", "ACTION", r => r.a, ""],
+      ["hde", "DÉTAIL", r => r.d, ""]
+    ];
+    const histRows = () => {
       const p2 = n => String(n).padStart(2, "0");
       const f = v => { const d = new Date(v); return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} À ${p2(d.getHours())}:${p2(d.getMinutes())}`; };
-      const rows = histLoad().reverse().filter(h => !histBranch || h.b === histBranch)
-        .map(h => [f(h.t), h.b, h.a, h.d]);
-      return { head: ["DATE", "BRANCHE", "ACTION", "DÉTAIL"], rows };
+      const all = histLoad().reverse().map(h => ({ ...h, dt: f(h.t) }));
+      return cfApply("hist", histCols, all.filter(h => !histBranch || h.b === histBranch));
+    };
+    const histData = () => {
+      const oc = coOrder("hist", histCols);
+      return { head: oc.map(c => c[1]), rows: histRows().map(r => oc.map(c => c[2](r))) };
     };
 
     const openHistory = () => {
       histBranch = "";
-      const p2 = n => String(n).padStart(2, "0");
-      const f = v => { const d = new Date(v); return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} À ${p2(d.getHours())}:${p2(d.getMinutes())}`; };
-      const all = histLoad().reverse();
+      const all = histLoad();
       const branches = [...new Set(all.map(h => h.b))].sort();
       document.getElementById("docPop")?.remove();
       const p = document.createElement("div");
@@ -7756,43 +7773,88 @@ function renderBudgetList() {
         <div class="doc-card hist-card" role="dialog" aria-modal="true">
           <div class="doc-head">
             <span class="doc-title">HISTORIQUE ${esc(fullRef)}</span>
-            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+            <span class="hist-tools">
+              <button type="button" class="blk-more hist-more" title="Actions" aria-label="Actions">⋯</button>
+              <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+            </span>
           </div>
           <div class="doc-body">
             <div class="hist-filters">
               <button type="button" class="hist-f on" data-b="">TOUT ${svCnt(all.length)}</button>
               ${branches.map(b => `<button type="button" class="hist-f" data-b="${esc(b)}">${esc(b)} ${svCnt(all.filter(h => h.b === b).length)}</button>`).join("")}
             </div>
-            <div class="hist-scroll"><table class="hist-table">
-              <thead><tr><th>DATE</th><th>BRANCHE</th><th>ACTION</th><th>DÉTAIL</th></tr></thead>
-              <tbody>${all.map(h => `<tr data-b="${esc(h.b)}"><td>${esc(f(h.t))}</td><td>${esc(h.b)}</td><td>${esc(h.a)}</td><td>${esc(h.d)}</td></tr>`).join("") ||
-                `<tr><td colspan="4" class="empty">AUCUN CHANGEMENT ENREGISTRÉ</td></tr>`}</tbody>
-            </table></div>
+            <div class="hist-scroll"><table class="bdg-d-table hist-table" id="histTable"></table></div>
           </div>
           <div class="doc-foot">
-            <button type="button" class="doc-btn" data-hact="export">EXPORTER</button>
-            <button type="button" class="doc-btn" data-hact="pdf">APERÇU PDF</button>
             <button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>
           </div>
         </div>`;
       document.body.appendChild(p);
       popEnhance(p, "hist");
+      const render = () => {
+        const t = p.querySelector("#histTable");
+        if (!t || !document.body.contains(p)) { window.__sviHistRefresh = null; return; }
+        const rows = histRows();
+        const oc = coOrder("hist", histCols);
+        t.innerHTML = `<thead><tr>${oc.map(c => cfHead("hist", c[0], c[1], c[3])).join("")}</tr></thead>
+          <tbody>${rows.map(r => "<tr>" + oc.map(c => `<td class="${c[3]}">${esc(c[2](r))}</td>`).join("") + "</tr>").join("") ||
+            `<tr><td colspan="4" class="empty">AUCUN CHANGEMENT ENREGISTRÉ</td></tr>`}</tbody>`;
+      };
+      window.__sviHistRefresh = render;
+      render();
+      const close = () => { window.__sviHistRefresh = null; document.getElementById("blkMenu")?.remove(); p.remove(); };
       p.addEventListener("click", e => {
+        const cfb = e.target.closest(".cf-btn");
+        if (cfb) { e.stopPropagation(); cfOpenMenu(cfb); return; }
         const fb = e.target.closest(".hist-f");
         if (fb) {
           histBranch = fb.dataset.b || "";
           p.querySelectorAll(".hist-f").forEach(x => x.classList.toggle("on", x === fb));
-          p.querySelectorAll("tbody tr[data-b]").forEach(tr => { tr.hidden = !!fb.dataset.b && tr.dataset.b !== fb.dataset.b; });
+          render();
           return;
         }
-        const ha = e.target.closest("[data-hact]");
-        if (ha) {
-          if (!histData().rows.length) { alert("Aucune donnée dans l'historique."); return; }
-          if (ha.dataset.hact === "export") openExportMenu("hist");
-          else { p.remove(); printGeneric("hist"); }
+        /* ⋯ : mêmes actions que les blocs DOC / TAF / OBS */
+        const more = e.target.closest(".hist-more");
+        if (more) {
+          e.stopPropagation();
+          const old = document.getElementById("blkMenu");
+          old?.remove();
+          if (old && old.dataset.for === "hist") return;
+          const big = p.querySelector(".hist-card").classList.contains("hist-max");
+          const m = document.createElement("div");
+          m.id = "blkMenu";
+          m.dataset.for = "hist";
+          m.innerHTML = `
+            <button type="button" data-ha="export"><span>Exporter</span></button>
+            <button type="button" data-ha="pdf"><span>Aperçu PDF</span></button>
+            <button type="button" data-ha="max"><span>${big ? "Réduire" : "Agrandir"}</span></button>`;
+          document.body.appendChild(m);
+          const r = more.getBoundingClientRect();
+          m.style.top = r.bottom + 4 + "px";
+          m.style.left = Math.max(8, r.right - m.offsetWidth) + "px";
+          m.style.zIndex = 10010;
+          m.addEventListener("click", ev => {
+            const it = ev.target.closest("[data-ha]");
+            if (!it) return;
+            m.remove();
+            const a = it.dataset.ha;
+            if (a === "max") {
+              const c = p.querySelector(".hist-card");
+              const on = c.classList.toggle("hist-max");
+              if (on) { c.dataset.sw = c.style.width; c.dataset.sh = c.style.height; c.style.width = ""; c.style.height = ""; }
+              else { c.style.width = c.dataset.sw || ""; c.style.height = c.dataset.sh || ""; }
+              return;
+            }
+            if (!histData().rows.length) { alert("Aucune donnée dans l'historique."); return; }
+            if (a === "export") { close(); openExportMenu("hist"); }
+            else { close(); printGeneric("hist"); }
+          });
+          setTimeout(() => document.addEventListener("pointerdown", function off(ev) {
+            if (!ev.target.closest("#blkMenu")) { m.remove(); document.removeEventListener("pointerdown", off, true); }
+          }, true), 0);
           return;
         }
-        if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
+        if (e.target === p || e.target.closest("[data-cancel]")) close();
       });
     };
 
