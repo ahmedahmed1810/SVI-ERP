@@ -292,11 +292,32 @@ const svDT = v => {
   if (isNaN(d)) return String(v);
   return p2(d.getDate()) + "/" + p2(d.getMonth() + 1) + "/" + d.getFullYear() + " À " + p2(d.getHours()) + ":" + p2(d.getMinutes());
 };
-/* QPB d'une désignation liée = somme des quantités des produits de ses tâches (liaisons validées) */
+/* QPB d'un produit = NBR × DIM 1 × DIM 2 × DIM 3 (cases remplies) */
+const insPrdQ = r => {
+  const f = [r.nbr, r.d1, r.d2, r.d3].filter(v => v !== "" && v !== undefined && v !== null);
+  if (f.length) return f.reduce((a, b) => a * num(b), 1);
+  return r.q === "" || r.q === undefined ? 0 : num(r.q);
+};
+/* liaison « primaire » : son activité secondaire porte le même libellé que son activité primaire */
+const insLinkPrim = (data, l) => {
+  const v = (k, id) => String(((data[k] || []).find(x => x.id === id) || {}).v || "").trim().toUpperCase();
+  return !!l && v("sec", l.sec) !== "" && v("sec", l.sec) === v("prim", l.prim);
+};
+/* QPB d'une désignation liée = somme des QPB de ses produits des activités primaires ; null sans liaison */
 const insLinkedQ = (data, id) => {
   const L = ((data || {}).links || []).filter(l => l.des === id);
   if (!L.length) return null;
-  return L.reduce((t, l) => t + (l.prd || []).reduce((a, x) => a + (Number(String(x.q ?? "").replace(/\s/g, "").replace(",", ".")) || 0), 0), 0);
+  return L.filter(l => insLinkPrim(data, l)).reduce((t, l) => t + (l.prd || []).reduce((a, x) => {
+    const p = (data.prd || []).find(r => r.id === x.id);
+    return a + (p ? insPrdQ(p) : 0);
+  }, 0), 0);
+};
+/* prix d'un produit : PPB de la désignation s'il est dans une activité secondaire identique à son activité primaire ; sinon vide */
+const insPrdPrice = (data, id) => {
+  const l = ((data || {}).links || []).find(l => (l.prd || []).some(x => x.id === id) && insLinkPrim(data, l));
+  if (!l) return "";
+  const d = (data.des || []).find(x => x.id === l.des);
+  return d && d.p !== "" && d.p !== undefined ? num(d.p) : "";
 };
 /* =========================================================
    ONGLETS DÉPLAÇABLES (comme les colonnes) : on glisse un onglet
@@ -4911,6 +4932,7 @@ function renderBudgetList() {
             ? `<button type="button" class="inst-act" id="instValid" title="Valider le budget" aria-label="Valider"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
             : `<button type="button" class="inst-act" id="instDel" title="Supprimer ce budget" aria-label="Supprimer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`}
           <button type="button" class="inst-act" id="instClose" title="Fermer" aria-label="Fermer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>` : ""}
+          <button type="button" class="inst-act" id="instDup" title="Dupliquer ce budget" aria-label="Dupliquer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
           <button type="button" class="bdg-lay-btn" id="layResetBtn" hidden
             title="Disposition par défaut : remettre les blocs à leur place et taille d'origine"
             aria-label="Disposition par défaut"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -5376,15 +5398,13 @@ function renderBudgetList() {
     const insLevel = art => Math.min(3, String(art || "").split(".").filter(x => x.trim() !== "").length || 1);
     /* quantité d'un détail produit : NBR × DIM si renseignés, sinon la saisie */
     const insQty = (k, r) => {
-      if (k === "prd") {
-        const f = [r.nbr, r.d1, r.d2, r.d3].filter(v => v !== "" && v !== undefined);
-        if (f.length) return f.reduce((a, b) => a * num(b), 1);
-      }
+      if (k === "prd") return insPrdQ(r);
       /* QPB désignation : toujours calculée = somme des produits de ses tâches primaires (0 sans liaison) */
       if (k === "des") { const lq = r.id ? insLinkedQ(INS, r.id) : null; return lq !== null ? lq : 0; }
       return r.q === "" || r.q === undefined ? 0 : num(r.q);
     };
-    const insHT = (k, r) => r.t ? 0 : insQty(k, r) * num(r.p || 0);
+    const insPrice = (k, r) => k === "prd" ? insPrdPrice(INS, r.id) : r.p;
+    const insHT = (k, r) => r.t ? 0 : insQty(k, r) * num(insPrice(k, r) || 0);
     const insTVA = r => (r.tva === "" || r.tva === undefined) ? 20 : num(r.tva);
     const insTTC = (k, r) => insHT(k, r) * (1 + insTVA(r) / 100);
 
@@ -5428,14 +5448,14 @@ function renderBudgetList() {
     };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
-        : f === "q" ? insQty(k, r) : f === "tva" ? insTVA(r) : r[f];
+        : f === "q" ? insQty(k, r) : f === "tva" ? insTVA(r) : (f === "p" && k === "prd") ? insPrice(k, r) : r[f];
     /* une cellule : champ saisissable, ou verrouillé (titre, calculé) */
     const insCell = (k, r, c) => {
       const [f, , cls, type] = c;
       const isNew = !r;
       r = r || {};
       /* QPB produits = NBR × DIM 1 × DIM 2 × DIM 3 ; QPB désignation liée = somme des produits de ses tâches */
-      const qAuto = f === "q" && (k === "prd" || k === "des");
+      const qAuto = (f === "q" && (k === "prd" || k === "des")) || (f === "p" && k === "prd");
       const locked = !INS_EDIT || type === "calc" || qAuto || (r.t && f !== "art" && f !== "des");
       let val = "";
       /* ligne vide « SAISIR ICI » des désignations : TVA 20 % affichée par défaut */
@@ -5472,14 +5492,16 @@ function renderBudgetList() {
     let LKS = null;   /* calculé à chaque dessin */
     const lkIsLinked = (k, id) => !!(LKS && LKS[k] && LKS[k].has(id));
     /* lignes liées en haut du tableau (consigne 14) */
+    /* ordre : lignes au rond coché (choisies ou liées) en haut, puis lignes cochées pour suppression, puis le reste */
+    const lkRank = (k, r) => (lkOn(k, r.id) || lkIsLinked(k, r.id)) ? 0 : r.on === true ? 1 : 2;
     const lkTop = (k, rows) => {
-      if (!LK.des || !LKS || !LKS[k] || !LKS[k].size) return rows;
-      return rows.map((r, i) => ({ r, i })).sort((a, b) => (LKS[k].has(b.r.id) - LKS[k].has(a.r.id)) || a.i - b.i).map(o => o.r);
+      if (!INS_EDIT) return rows;
+      return rows.map((r, i) => ({ r, i, g: r.t ? 2 : lkRank(k, r) })).sort((a, b) => a.g - b.g || a.i - b.i).map(o => o.r);
     };
-    const lkRd = (k, r) => INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${lkIsLinked(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
+    const lkRd = (k, r) => INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${(k === "prd" || k === "chg") && lkIsLinked(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
     const insDelCell = r => !r ? "" : `<input type="checkbox" class="ins-cb${r.t ? " ins-tcb" : ""}" ${!r.t && r.on === true ? "checked" : ""}>`
       + `<button type="button" class="ins-x" title="Supprimer la ligne" aria-label="Supprimer">${INS_TRASH}</button>`;
-    const insQCol = k => !!(INS_EDIT && LK.des && (k === "prd" || k === "chg"));
+    const insQCol = k => false;   /* plus de colonne QUANTITÉ DE LA TÂCHE : la quantité liée est la QPB du produit */
     const insRowHTML = (k, r, lvl) => {
       const cols = INS_COLS[k];
       const tcell = k === "des"
@@ -5584,7 +5606,26 @@ function renderBudgetList() {
             <td colspan="4" class="number">TOTAL ${esc(t.des || t.art || "")}</td>
             <td class="number ins-sht">${money(ht)}</td><td></td><td class="number ins-sttc">${money(ttc)}</td>${INS_EDIT ? "<td></td>" : ""}</tr>`;
         };
-        html = insOrder(rows).map(x => x.sub ? sub(x.sub) : insRowHTML(k, x.r, x.lvl)).join("");
+        /* désignations : les lignes choisies puis cochées montent en haut avec leur titre ;
+           les autres lignes du même titre restent à leur place */
+        const top = INS_EDIT ? rows.map((r, i) => ({ r, i })).filter(o => !o.r.t && lkRank(k, o.r) < 2)
+          .sort((a, b) => lkRank(k, a.r) - lkRank(k, b.r) || a.i - b.i).map(o => o.r) : [];
+        let head = "";
+        if (top.length) {
+          const done = new Set();
+          top.forEach(r => {
+            const anc = [];
+            for (let i = INS.des.indexOf(r) - 1, L = 99; i >= 0; i--) {
+              const t = INS.des[i];
+              if (t.t && insLevel(t.art) < L) { anc.unshift(t); L = insLevel(t.art); if (L <= 1) break; }
+            }
+            anc.forEach(t => { if (!done.has(t.id)) { done.add(t.id); head += insRowHTML(k, t, 0).replace('class="ins-row', 'class="ins-row ins-top'); } });
+            head += insRowHTML(k, r, anc.length ? insLevel(anc[anc.length - 1].art) : 0);
+          });
+        }
+        const topIds = new Set(top.map(r => r.id));
+        const rest = rows.filter(r => !topIds.has(r.id));
+        html = head + insOrder(rest).map(x => x.sub ? sub(x.sub) : insRowHTML(k, x.r, x.lvl)).join("");
       }
       if (INS_EDIT) html += insRowHTML(k, null, 0);
       if (!rows.length && !INS_EDIT) html += `<tr><td colspan="${ncol}" class="empty">AUCUNE LIGNE</td></tr>`;
@@ -5711,12 +5752,14 @@ function renderBudgetList() {
     /* LIAISONS VALIDÉES (onglet du détail) : chaîne, produits, charges, quantité, PPB, MPB HT ; DÉLIER */
     const insLinksHTML = () => {
       const D = id => INS.des.find(x => x.id === id) || {};
-      const qOf = l => (l.prd || []).reduce((t, x) => t + num(x.q || 0), 0);
+      /* quantité = somme des QPB de ses produits ; prix = PPB de la désignation si la liaison est primaire */
+      const qOf = l => (l.prd || []).reduce((t, x) => { const p = INS.prd.find(r => r.id === x.id); return t + (p ? insPrdQ(p) : 0); }, 0);
+      const pOf = l => insLinkPrim(INS, l) ? num(D(l.des).p || 0) : "";
       const LC = [["art", "ART", l => D(l.des).art || "", "center"], ["des", "DÉSIGNATION", l => D(l.des).des || "", ""],
         ["lot", "LOT", l => lkName("lot", l.lot), ""], ["prim", "ACT. PRIMAIRE", l => lkName("prim", l.prim), ""],
         ["sec", "ACT. SECONDAIRE", l => lkName("sec", l.sec), ""], ["np", "PRODUITS", l => (l.prd || []).length, "center"],
         ["nc", "CHARGES", l => (l.chg || []).length, "center"], ["lq", "QUANTITÉ", l => insFmt(qOf(l)), "number"],
-        ["lp", "PPB", l => insFmt(num(D(l.des).p || 0)), "number"], ["lm", "MPB HT", l => insFmt(qOf(l) * num(D(l.des).p || 0)), "number"]];
+        ["lp", "PPB", l => pOf(l) === "" ? "" : insFmt(pOf(l)), "number"], ["lm", "MPB HT", l => pOf(l) === "" ? "" : insFmt(qOf(l) * pOf(l)), "number"]];
       const W = { art: 70, des: 300, lot: 150, prim: 170, sec: 190, np: 110, nc: 110, lq: 120, lp: 110, lm: 140 };
       const oc = coOrder("lk_links", LC);
       const w = k => cwLoad()["lk_links." + k] || W[k] || 120;
@@ -5730,17 +5773,28 @@ function renderBudgetList() {
           ? `<td class="center"><button type="button" class="lk-del" data-lid="${l.id}">${INS_TRASH} DÉLIER</button></td>` : ""}</tr>`).join("")
           || `<tr><td colspan="${oc.length + (dw ? 1 : 0)}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
     };
+    /* modification en attente : produits / charges choisis, ou délais changés et pas encore validés */
+    const lkDlyDirty = () => {
+      const D = LK.dlpDraft || {};
+      const clean = l => JSON.stringify((l || []).map(p => [p.deb || "", p.fin || ""]).sort());
+      return Object.keys(D).some(k => clean(D[k]) !== clean((INS.dlp || {})[k]));
+    };
+    const lkPending = () => Object.keys(LK.prd).length > 0 || Object.keys(LK.chg).length > 0 || lkDlyDirty();
     /* bandeau CHAÎNE … ✓ VALIDER LA LIAISON (visible quand une désignation est choisie) */
     const insRenderChain = () => {
       const el = $("insChain");
       if (!el) return;
-      el.hidden = !(INS_EDIT && LK.des);
-      if (el.hidden) return;
+      el.hidden = false;
+      /* la place est toujours réservée : rien ne bouge quand le bandeau apparaît */
+      el.classList.toggle("off", !(INS_EDIT && LK.des));
+      if (!(INS_EDIT && LK.des)) { el.innerHTML = '<button type="button" class="lk-go" disabled>✓ VALIDER LA LIAISON</button>'; return; }
       const nPrd = Object.keys(LK.prd).length, nChg = Object.keys(LK.chg).length;
-      const complete = LK.des && LK.lot && LK.prim && LK.sec && nPrd > 0;
+      const same = (INS.links || []).some(l => l.des === LK.des && l.lot === LK.lot && l.prim === LK.prim && l.sec === LK.sec);
+      /* nouvelle liaison complète, ajout à une liaison existante, ou délais modifiés */
+      const complete = (LK.des && LK.lot && LK.prim && LK.sec && (nPrd > 0 || (same && nChg > 0))) || lkDlyDirty();
       const chain = [lkName("des", LK.des), lkName("lot", LK.lot), lkName("prim", LK.prim), lkName("sec", LK.sec)]
         .map(x => x || "…").join(" › ") + " › " + nPrd + " PRODUIT(S)" + (nChg ? " + " + nChg + " CHARGE(S)" : "");
-      el.innerHTML = `<span class="lk-path">CHAÎNE : ${esc(chain)}</span>${LK.err ? `<span class="lk-err">${esc(LK.err)}</span>` : ""}
+      el.innerHTML = `<button type="button" class="lk-info" title="Voir la liaison" aria-label="Voir la liaison">i</button>
         <button type="button" class="lk-go" ${complete ? "" : "disabled"}>✓ VALIDER LA LIAISON</button>`;
     };
     const insRenderTab = () => {
@@ -5749,7 +5803,7 @@ function renderBudgetList() {
         if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + (k === "prd" ? ' <b class="req-star">*</b>' : "") + " " + svCnt(insShown(k).length);
       });
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
-        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(insTasks().length); }
+        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(INS_EDIT ? (insDlyKey() ? insDlyList(insDlyKey()).length : 0) : insTasks().length); }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
         if (b) b.innerHTML = (SVI_ICON.hier || "") + "LIAISONS VALIDÉES " + svCnt((INS.links || []).length); }
       sviMarkEmptyTabs(shell);
@@ -5772,7 +5826,7 @@ function renderBudgetList() {
         const f = inp.dataset.f;
         const c = INS_COLS[k].find(x => x[0] === f);
         if (!c || inp === document.activeElement) return;
-        const qAuto = f === "q" && (k === "prd" || k === "des");
+        const qAuto = (f === "q" && (k === "prd" || k === "des")) || (f === "p" && k === "prd");
         if (c[3] === "calc" || qAuto) inp.value = r.t ? "" : insFmt(insCalc(k, r, f));
       });
       if (k === "des") {
@@ -5928,6 +5982,9 @@ function renderBudgetList() {
         }
         if (cb) {
           r.on = cb.checked; X.insSave(); if (k === "des") { X.insDim(); X.insSyncTitles(); }
+          /* ligne cochée : elle remonte (après les lignes au rond coché) */
+          X.insRedraw(k);
+          return;
           /* case d'en-tête à jour */
           const box = cb.closest("table.ins-table, .ins-hcol");
           const all = box?.querySelector("input.ins-cball");
@@ -6058,8 +6115,29 @@ function renderBudgetList() {
       });
       return [...m.values()];
     };
+    /* tâche primaire choisie (désignation + lot + activité primaire), seulement si elle est déjà liée */
+    const insDlyKey = () => LK.des && LK.lot && LK.prim && (INS.links || []).some(l => l.des === LK.des && l.lot === LK.lot && l.prim === LK.prim)
+      ? LK.lot + "|" + LK.prim : null;
+    /* périodes affichées : brouillon en cours (à valider) ou périodes validées */
+    const insDlyList = key => (LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
     const insDlyHTML = (edit, err) => {
       INS.dlp = INS.dlp || {};
+      if (edit) {
+        /* saisie : les périodes de la tâche primaire choisie (les ronds du haut disent laquelle) */
+        const key = insDlyKey();
+        const ps = key ? [...insDlyList(key)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9"))) : [];
+        const all = ps.map((p, i) => ({ task: key, pid: p.id, on: p.on === true, per: i + 1, deb: p.deb || "", fin: p.fin || "", dur: p.deb && p.fin ? dDiff(p.deb, p.fin) : "" }));
+        if (key) all.push({ task: key, pid: "", per: "", deb: "", fin: "", dur: "", nw: true });
+        const rows = cfApply("dlyi", DLY_COLS_I, all);
+        lastShown.detail = { cols: DLY_COLS_I, rows: rows.filter(x => !x.nw), kind: "dly" };
+        const inp = (x, f) => `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${x.task}" data-pid="${x.pid}" data-f="${f}" type="text"
+            inputmode="${f === "dur" ? "numeric" : "text"}" placeholder="${x.nw && f === "deb" ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? x.dur : dFr(x[f]))}">`;
+        return dlyTable(rows, x => ({ per: x.per, deb: inp(x, "deb"), fin: inp(x, "fin"), dur: inp(x, "dur"),
+          __td_deb: " ins-td", __td_fin: " ins-td", __td_dur: " ins-td",
+          __cb: x.pid ? `<input type="checkbox" class="dlp-cb" data-task="${x.task}" data-pid="${x.pid}" ${x.on ? "checked" : ""}>` : "",
+          __x: x.pid ? `<button type="button" class="ins-x dlp-x" data-task="${x.task}" data-pid="${x.pid}" title="Supprimer la période" aria-label="Supprimer">${INS_TRASH}</button>` : "" }),
+          x => `class="${x.nw ? "ins-new" : ""}"`, true, DLY_COLS_I);
+      }
       const all = [];
       insTasks().forEach(t => {
         const ps = [...(INS.dlp[t.key] || [])].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")));
@@ -6091,7 +6169,7 @@ function renderBudgetList() {
         const X = shell.__insDly;
         const cb = e.target.closest && e.target.closest("input.dlp-cb, input.dlp-cball");
         if (cb && X) {
-          const D = X.INS.dlp = X.INS.dlp || {};
+          const D = X.draft();
           const boxes = cb.classList.contains("dlp-cball") ? [...cb.closest("table").querySelectorAll("input.dlp-cb")] : [cb];
           boxes.forEach(b => { const p = (D[b.dataset.task] || []).find(x => x.id === b.dataset.pid); if (p) { p.on = cb.checked; b.checked = cb.checked; } });
           const all = cb.closest("table").querySelector("input.dlp-cball");
@@ -6102,7 +6180,7 @@ function renderBudgetList() {
         }
         const i = e.target.closest && e.target.closest("input.dlp-in");
         if (!i || !X) return;
-        const D = X.INS.dlp = X.INS.dlp || {};
+        const D = X.draft();
         const list = D[i.dataset.task] = D[i.dataset.task] || [];
         let p = list.find(x => x.id === i.dataset.pid);
         const q = p ? { ...p } : { id: X.insId(), deb: "", fin: "" };
@@ -6127,8 +6205,8 @@ function renderBudgetList() {
         }
         if (!X.err) {
           if (p) Object.assign(p, q); else if (q.deb || q.fin) list.push(q);
-          X.insSave();
-        }
+        } else svToast(X.err);   /* message passager, au moment de l'erreur */
+        X.err = "";
         X.render();
         /* le curseur passe à la case suivante de la même période */
         const nx = { deb: "fin", fin: "dur" }[f];
@@ -6140,13 +6218,13 @@ function renderBudgetList() {
         const xa = e.target.closest && e.target.closest(".dlp-xall");
         if (xa && X) {
           e.stopPropagation();
-          const D = X.INS.dlp || {};
+          const D = X.draft();
           const n = Object.values(D).reduce((t, l) => t + l.filter(p => p.on === true).length, 0);
           if (!n) return;
           svConfirm({ title: "SUPPRIMER LES PÉRIODES COCHÉES", text: n + " PÉRIODE(S) SERONT SUPPRIMÉES.", ok: "SUPPRIMER" }).then(go => {
             if (!go) return;
             Object.keys(D).forEach(k => { D[k] = D[k].filter(p => p.on !== true); });
-            X.insSave(); X.render();
+            X.render();
           });
           return;
         }
@@ -6155,13 +6233,21 @@ function renderBudgetList() {
         e.stopPropagation();
         svConfirm({ title: "SUPPRIMER LA PÉRIODE", text: "LA PÉRIODE SERA SUPPRIMÉE.", ok: "SUPPRIMER" }).then(go => {
           if (!go) return;
-          const D = X.INS.dlp || {};
+          const D = X.draft();
           D[b.dataset.task] = (D[b.dataset.task] || []).filter(x => x.id !== b.dataset.pid);
-          X.insSave(); X.render();
+          X.render();
         });
       }, true);
     }
-    shell.__insDly = INS && INS_EDIT ? { INS, dAdd, dDiff, dParse, dFr, insId, insSave, err: "", render: () => renderTab() } : null;
+    /* brouillon des délais de la tâche choisie : copie des périodes validées, enregistrée par ✓ VALIDER LA LIAISON */
+    const dlyDraft = () => {
+      const key = insDlyKey();
+      LK.dlpDraft = LK.dlpDraft || {};
+      if (key && !LK.dlpDraft[key]) LK.dlpDraft[key] = ((INS.dlp || {})[key] || []).map(p => ({ ...p }));
+      return LK.dlpDraft;
+    };
+    shell.__insDly = INS && INS_EDIT ? { INS, dAdd, dDiff, dParse, dFr, insId, insSave, err: "", draft: dlyDraft,
+      render: () => { renderTab(); insRenderChain(); } } : null;
 
     /* ---------- MODE LIAISONS ---------- */
     const LK = { des: null, lot: null, prim: null, sec: null, prd: {}, chg: {}, err: "" };
@@ -6277,8 +6363,7 @@ function renderBudgetList() {
     /* contrôle des règles avant validation (cahier des charges A et D) */
     const lkCheck = () => {
       const L = INS.links || [];
-      const same = L.find(l => l.des === LK.des && l.lot === LK.lot && l.prim === LK.prim && l.sec === LK.sec);
-      if (same) return "CETTE LIAISON EXISTE DÉJÀ (DÉLIEZ-LA POUR LA MODIFIER).";
+      /* liaison déjà validée : on y ajoute les nouveaux détails (pas d'erreur) */
       const lotP = L.find(l => l.lot === LK.lot && l.des !== LK.des);
       if (lotP) return "RÈGLE A : LE LOT " + lkName("lot", LK.lot) + " EST DÉJÀ LIÉ À " + lkName("des", lotP.des) + ".";
       const primP = L.find(l => l.prim === LK.prim && l.lot !== LK.lot);
@@ -6365,7 +6450,13 @@ function renderBudgetList() {
           const L = X.LK, multi = k === "prd" || k === "chg";
           const chosen = multi ? L[k][id] !== undefined : L[k] === id;
           if (!multi && L[k] && !chosen) return;   /* une ligne déjà choisie : les autres attendent qu'on la libère */
+          /* libérer la désignation avec une modification non validée : proposer de valider d'abord */
+          if (k === "des" && chosen && X.pending()) { X.guard().then(ok => { if (ok) { L.des = null; L.lot = L.prim = L.sec = null; L.prd = {}; L.chg = {}; L.dlpDraft = null; X.light("des"); } }); return; }
           const pick = () => {
+            if (k === "prd" && L[k][id] === undefined) {
+              const bad = X.unitErr(id);
+              if (bad) { svToast(bad); return; }   /* unité différente : refusé tout de suite */
+            }
             if (multi) { if (L[k][id] !== undefined) delete L[k][id]; else L[k][id] = ""; }
             else {
               L[k] = L[k] === id ? null : id;      /* 2e toucher : le choix est libéré */
@@ -6376,26 +6467,22 @@ function renderBudgetList() {
             L.err = "";
             X.light(k);
           };
-          /* ligne déjà liée (rond coché) : décocher = briser la liaison, ou la choisir pour une nouvelle tâche */
-          if (!chosen && X.isLinked(k, id)) {
-            svChoose({ title: "LIGNE LIÉE", text: X.name(k, id), buttons: [{ v: "pick", label: "CHOISIR", tone: "neutral" }, { v: "unlink", label: "DÉLIER", tone: "danger" }] })
-              .then(v => { if (v === "pick") pick(); else if (v === "unlink") X.unlink(k, id); });
+          /* produit / charge déjà lié (rond coché violet) : le toucher le délie */
+          if (multi && !chosen && X.isLinked(k, id)) { X.unlink(k, id); return; }
+          /* lot / activité déjà liés : cocher = les choisir ; décocher = les délier */
+          if (!multi && chosen && k !== "des" && X.isLinked(k, id)) {
+            L[k] = null;
+            if (k === "lot") { L.prim = L.sec = null; }
+            if (k === "prim") { L.sec = null; }
+            X.unlink(k, id);
             return;
           }
           pick();
           return;
         }
+        if (e.target.closest("#insChain .lk-info")) { X.info(); return; }
         if (e.target.closest("#insChain .lk-go")) {
-          const err = X.check();
-          if (err) { X.LK.err = err; X.chain(); return; }
-          const L = X.LK;
-          X.INS.links = X.INS.links || [];
-          X.INS.links.push({ id: X.insId(), des: L.des, lot: L.lot, prim: L.prim, sec: L.sec,
-            prd: Object.entries(L.prd).map(([id, q]) => ({ id, q: q === "" ? "" : num(q) })),
-            chg: Object.entries(L.chg).map(([id, q]) => ({ id, q: q === "" ? "" : num(q) })) });
-          /* on garde la désignation et le lot pour enchaîner la tâche suivante */
-          L.prim = null; L.sec = null; L.prd = {}; L.chg = {}; L.err = "";
-          X.save("LIAISON VALIDÉE"); X.refresh();
+          X.commit();
           return;
         }
         const del = e.target.closest(".lk-del");
@@ -6430,25 +6517,72 @@ function renderBudgetList() {
     const lkLight = k => {
       keepScroll(() => {
         if (k === "prd" || k === "chg") {
-          /* produit / charge : mise à jour sur place, sans redessiner le tableau */
-          $("bdgTabBody")?.querySelectorAll(`tr[data-ik="${k}"][data-iid]`).forEach(tr => {
-            const on = LK[k][tr.dataset.iid] !== undefined;
-            tr.classList.toggle("lk-sel", on);
-            tr.querySelector(".lk-rd")?.classList.toggle("on", on);
-            const q = tr.querySelector("input.lk-q");
-            if (q) { q.disabled = !on; if (!on) q.value = ""; }
-          });
+          /* produit / charge : le tableau seul est redessiné (la ligne choisie monte) */
+          renderTab();
+          insMarkUnlinked();
         } else {
           if (k === "des") insRenderClient();
           insRenderHier();
-          if (k === "des" || ["prd", "chg"].includes(active)) renderTab();
+          renderTab();   /* compteurs des onglets et tableau du détail (produits, charges, délais de la tâche choisie) */
           insMarkUnlinked();
         }
         insRenderChain();
       });
     };
+    /* ✓ VALIDER LA LIAISON : nouvelle liaison, ajout de détails à une liaison existante, délais de la tâche */
+    const lkCommit = () => {
+      const L = LK, hasNew = Object.keys(L.prd).length || Object.keys(L.chg).length;
+      if (hasNew && L.des && L.lot && L.prim && L.sec) {
+        const err = lkCheck();
+        if (err) { svToast(err); return false; }
+        INS.links = INS.links || [];
+        const ent = o => Object.keys(o).map(id => ({ id, q: "" }));
+        const same = INS.links.find(l => l.des === L.des && l.lot === L.lot && l.prim === L.prim && l.sec === L.sec);
+        if (same) {
+          ent(L.prd).forEach(x => { if (!(same.prd || []).some(y => y.id === x.id)) (same.prd = same.prd || []).push(x); });
+          ent(L.chg).forEach(x => { if (!(same.chg || []).some(y => y.id === x.id)) (same.chg = same.chg || []).push(x); });
+        } else {
+          if (!Object.keys(L.prd).length) { svToast("UNE LIAISON DOIT AVOIR AU MOINS UN PRODUIT."); return false; }
+          INS.links.push({ id: insId(), des: L.des, lot: L.lot, prim: L.prim, sec: L.sec, prd: ent(L.prd), chg: ent(L.chg) });
+        }
+        L.prd = {}; L.chg = {};
+      }
+      if (lkDlyDirty()) {
+        INS.dlp = INS.dlp || {};
+        Object.keys(L.dlpDraft).forEach(k => { INS.dlp[k] = L.dlpDraft[k].map(p => ({ id: p.id, deb: p.deb || "", fin: p.fin || "" })); });
+      }
+      L.dlpDraft = null; L.err = "";
+      /* après validation : seule la désignation reste choisie ; lot et activités repassent en « liés » (violet) */
+      L.lot = L.prim = L.sec = null;
+      insSave(); histLog("LIAISONS", "LIAISON VALIDÉE", lkName("des", L.des));
+      refreshAll();
+      return true;
+    };
+    /* modification non validée : avant de passer à autre chose, on propose de valider */
+    const lkGuard = () => !lkPending() ? Promise.resolve(true)
+      : svChoose({ title: "LIAISON NON VALIDÉE", text: "DES MODIFICATIONS DE LA LIAISON NE SONT PAS VALIDÉES.",
+          buttons: [{ v: "drop", label: "ABANDONNER", tone: "danger" }, { v: "ok", label: "✓ VALIDER", tone: "neutral" }] })
+        .then(v => {
+          if (v === "ok") return lkCommit();
+          if (v === "drop") { LK.prd = {}; LK.chg = {}; LK.dlpDraft = null; return true; }
+          return false;
+        });
+    shell.__lkGuard = INS && INS_EDIT ? lkGuard : null;
     shell.__fuse = INS && INS_EDIT ? { INS, LK, insId, check: lkCheck, chain: () => insRenderChain(), refresh: () => refreshAll(),
+      commit: () => lkCommit(), guard: () => lkGuard(), pending: () => lkPending(),
       light: k => lkLight(k), unlink: (k, id) => lkUnlink(k, id), name: (k, id) => lkName(k, id),
+      unitErr: id => {
+        const D = INS.des.find(x => x.id === LK.des), P = INS.prd.find(x => x.id === id);
+        const du = String((D && D.u) || "").trim().toUpperCase(), pu = String((P && P.u) || "").trim().toUpperCase();
+        return du && pu && du !== pu ? "UNITÉ REFUSÉE : " + (P.des || "") + " (" + pu + ") N'A PAS L'UNITÉ DE LA DÉSIGNATION (" + du + ")." : "";
+      },
+      info: () => {
+        const n = (k, id) => lkName(k, id) || "—";
+        const prd = Object.keys(LK.prd).map(id => { const p = INS.prd.find(x => x.id === id); return "  " + (p ? p.des + " — " + insFmt(insPrdQ(p)) + " " + (p.u || "") : ""); });
+        const chg = Object.keys(LK.chg).map(id => "  " + n("chg", id));
+        svAlert(["LIAISON EN COURS", "DÉSIGNATION : " + n("des", LK.des), "LOT : " + n("lot", LK.lot), "ACTIVITÉ PRIMAIRE : " + n("prim", LK.prim),
+          "ACTIVITÉ SECONDAIRE : " + n("sec", LK.sec), "PRODUITS : " + (prd.length ? "" : "—"), ...prd, "CHARGES : " + (chg.length ? "" : "—"), ...chg].join("\n"));
+      },
       isLinked: (k, id) => { const S = lkLinked(); return !!(S[k] && S[k].has(id)); },
       save: what => { insSave(); histLog("LIAISONS", what, fullRef); } } : null;
     /* bascule SAISIE / LIAISONS */
@@ -6867,14 +7001,16 @@ function renderBudgetList() {
       ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "number"]
     ];
     const DLY_W = { lot: 200, prim: 280, per: 120, deb: 140, fin: 140, dur: 110 };
+    /* budget en instance : la tâche est donnée par les ronds du haut (pas de colonnes LOT / ACT. PRIMAIRE) */
+    const DLY_COLS_I = DLY_COLS.filter(c => c[0] !== "lot" && c[0] !== "prim");
     /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */
     /* del : mode modifiable (case au début de chaque période, 🗑 à la fin, case et 🗑 en tête) */
-    const dlyTable = (rows, cells, trAttr = () => "", del = false) => {
-      const cols = coOrder("dly", DLY_COLS);
+    const dlyTable = (rows, cells, trAttr = () => "", del = false, base = DLY_COLS) => {
+      const cols = coOrder(base === DLY_COLS ? "dly" : "dlyi", base);
       const w = k => cwLoad()["dly." + k] || DLY_W[k];
       return `<table class="bdg-d-table dly-table" style="width:${cols.reduce((t, c) => t + w(c[0]), 0) + (del ? 84 : 0)}px">
         <colgroup>${del ? '<col style="width:40px">' : ""}${cols.map(c => `<col data-w="dly.${c[0]}" style="width:${w(c[0])}px">`).join("")}${del ? '<col style="width:44px">' : ""}</colgroup>
-        <thead><tr>${del ? '<th class="center"><input type="checkbox" class="dlp-cball" title="Tout cocher"></th>' : ""}${cols.map(c => cfHead("dly", c[0], c[1], c[3])).join("")}${del
+        <thead><tr>${del ? '<th class="center"><input type="checkbox" class="dlp-cball" title="Tout cocher"></th>' : ""}${cols.map(c => cfHead(base === DLY_COLS ? "dly" : "dlyi", c[0], c[1], c[3])).join("")}${del
           ? `<th class="center"><button type="button" class="ins-x dlp-xall" title="Supprimer les périodes cochées" aria-label="Supprimer les périodes cochées">${INS_TRASH}</button></th>` : ""}</tr></thead>
         <tbody>${rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${del ? `<td class="center ins-cbc">${h.__cb || ""}</td>` : ""}${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}${del ? `<td class="center ins-delc">${h.__x || ""}</td>` : ""}</tr>`; }).join("")
           || ""}</tbody></table>`;
@@ -7395,6 +7531,8 @@ function renderBudgetList() {
       const clear = () => sibs().forEach(x => x.classList.remove("ro-before", "ro-after"));
       const timer = setTimeout(() => {
         on = true;
+        /* le doigt est bloqué seulement pendant le glissement (le défilement normal reste libre) */
+        document.addEventListener("touchmove", tm, { passive: false });
         shell.__insDragging = true;
         if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
         el.classList.add("ro-src");
@@ -7464,7 +7602,6 @@ function renderBudgetList() {
       };
       const up = () => end(true);
       const cancel = () => end(false);
-      document.addEventListener("touchmove", tm, { passive: false });
       document.addEventListener("pointermove", move, { passive: false });
       document.addEventListener("pointerup", up);
       document.addEventListener("pointercancel", cancel);
@@ -7473,12 +7610,8 @@ function renderBudgetList() {
        le simple toucher la rend active (ci-dessus), l'appui long glisse la ligne */
     if (!shell.__insTouch) {
       shell.__insTouch = true;
-      shell.addEventListener("touchstart", e => {
-        const inp = e.target.closest && e.target.closest("input.ins-in");
-        if (!inp || inp === document.activeElement || !shell.__ins) return;
-        if (!inp.closest("tr[data-iid], .ins-li[data-iid]")) return;
-        e.preventDefault();
-      }, { passive: false });
+      /* plus de blocage du toucher : il empêchait de faire défiler la page en partant d'une case.
+         La loupe est évitée par le style (pas de sélection sur une case non active). */
     }
 
     shell.onpointerdown = event => {
@@ -8305,8 +8438,10 @@ function renderBudgetList() {
        options : SANS / AVEC LIAISONS, TOUT LE BUDGET */
     const IMP_TABS = [
       ["des", "DÉSIGNATIONS CLIENT"], ["hier", "TÂCHES"],
-      ["chg", "DÉTAIL CHARGES"], ["prd", "DÉTAIL PRODUITS"]
+      ["chg", "DÉTAIL CHARGES"], ["prd", "DÉTAIL PRODUITS"],
+      ["qlt", "DÉTAIL QUALITÉ"], ["dly", "DÉTAIL DÉLAIS"]
     ];
+    const impFr = iso => iso ? String(iso).slice(8, 10) + "/" + String(iso).slice(5, 7) + "/" + String(iso).slice(0, 4) : "";
     const U_ = v => String(v ?? "").trim().toUpperCase();
     /* identité d'une ligne : deux lignes identiques = doublon (jamais importé deux fois)
        désignations / charges : ART + DÉSIGNATION + UNITÉ (+ titre) ;
@@ -8326,7 +8461,7 @@ function renderBudgetList() {
     /* modèle d'un budget source : lignes de chaque onglet + liens (lignes de détail) */
     const impModel = ref => {
       const g = groups.get(ref);
-      const m = { des: [], hier: [], chg: [], prd: [], links: [] };
+      const m = { des: [], hier: [], chg: [], prd: [], qlt: [], dly: [], links: [] };
       if (!g) return m;
       if (g.inst) {
         const d = g.inst.data || {};
@@ -8345,6 +8480,15 @@ function renderBudgetList() {
           seen.add(id);
           m.hier.push({ key: id, lvl: k, row: { v: U_(r.v) } });
         }));
+        /* qualité (une colonne) et délais (périodes par tâche primaire) */
+        (d.qlt || []).forEach(r => { const id = "qlt|" + U_(r.v); if (U_(r.v) && !seen.has(id)) { seen.add(id); m.qlt.push({ key: id, row: { v: U_(r.v) } }); } });
+        Object.keys(d.dlp || {}).forEach(tk => {
+          const [lo, pr] = tk.split("|");
+          const ln = U_(((d.lot || []).find(x => x.id === lo) || {}).v), pn = U_(((d.prim || []).find(x => x.id === pr) || {}).v);
+          if (!ln || !pn) return;
+          (d.dlp[tk] || []).forEach(pp => m.dly.push({ key: "dly|" + ln + "|" + pn + "|" + (pp.deb || "") + "|" + (pp.fin || ""),
+            row: { lot: ln, prim: pn, deb: impFr(pp.deb), fin: impFr(pp.fin), _deb: pp.deb || "", _fin: pp.fin || "" } }));
+        });
         /* liaisons validées du budget source : un chemin par produit / charge */
         const byId = (k, id) => (d[k] || []).find(x => x.id === id);
         (d.links || []).forEach(l => {
@@ -8410,10 +8554,62 @@ function renderBudgetList() {
         m.chg.push({ key: x.key, row: { art: "", des: U_(f.detail), u: U_(f.dunit), q, p: q ? a / q : 0, tva: 20 } });
       });
       m.hier = [...hset.values()];
+      /* délais du budget validé : une période par tâche primaire (du premier début à la dernière fin) */
+      { const dm = new Map();
+        ls.forEach(l => {
+          const ln = U_(l.lot), pn = U_(l.prim);
+          if (!ln || !pn || (!l.deb && !l.fin)) return;
+          const k = ln + "|" + pn;
+          if (!dm.has(k)) dm.set(k, { lot: ln, prim: pn, _deb: "", _fin: "" });
+          const x = dm.get(k);
+          if (l.deb && (!x._deb || l.deb < x._deb)) x._deb = l.deb;
+          if (l.fin && (!x._fin || l.fin > x._fin)) x._fin = l.fin;
+        });
+        dm.forEach(x => m.dly.push({ key: "dly|" + x.lot + "|" + x.prim + "|" + x._deb + "|" + x._fin, row: { ...x, deb: impFr(x._deb), fin: impFr(x._fin) } })); }
       m.des.sort((a, b) => String(a.row.art).localeCompare(String(b.row.art), "fr", { numeric: true }));
       impSort(m);
       return m;
     };
+    /* DUPLIQUER : copie complète (désignations, tâches, détails, qualité, liaisons, délais) dans un nouveau budget en instance ;
+       DOCUMENTS / TAF / OBSERVATIONS et historique ne sont pas copiés ; le nouveau budget s'ouvre directement */
+    const dupData = () => {
+      if (budget.inst) return JSON.parse(JSON.stringify(budget.inst.data || {}));
+      const m = impModel(ref), kid = new Map();
+      const d = { des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: [], dly: {}, dlp: {}, links: [] };
+      ["des", "chg", "prd", "qlt"].forEach(k => m[k].forEach(x => { const r = { ...x.row, id: insId(), on: false }; if (k === "des") r.t = !!r.t; d[k].push(r); kid.set(x.key, r.id); }));
+      m.hier.forEach(x => { const r = { id: insId(), v: x.row.v }; d[x.lvl].push(r); kid.set(x.key, r.id); });
+      m.links.forEach(l => {
+        const des = kid.get(l.dk), lot = kid.get(l.lot), prim = kid.get(l.prim), sec = kid.get(l.sec);
+        const pid = l.pk && kid.get(l.pk), cid = l.ck && kid.get(l.ck);
+        if (!des || !lot || !prim || !sec) return;
+        let L = d.links.find(x => x.des === des && x.lot === lot && x.prim === prim && x.sec === sec);
+        if (!L) { L = { id: insId(), des, lot, prim, sec, prd: [], chg: [] }; d.links.push(L); }
+        if (pid && !L.prd.some(y => y.id === pid)) L.prd.push({ id: pid, q: "" });
+        if (cid && !L.chg.some(y => y.id === cid)) L.chg.push({ id: cid, q: "" });
+      });
+      d.links = d.links.filter(x => x.prd.length);
+      m.dly.forEach(x => { const lo = kid.get("lot|" + x.row.lot), pr = kid.get("prim|" + x.row.prim); if (lo && pr) (d.dlp[lo + "|" + pr] = d.dlp[lo + "|" + pr] || []).push({ id: insId(), deb: x.row._deb, fin: x.row._fin }); });
+      return d;
+    };
+    $("instDup")?.addEventListener("click", () => {
+      const go = () => {
+        const now = new Date(), p2 = n => String(n).padStart(2, "0");
+        const nr = nextBudgetRef(now);
+        const list = instLoad();
+        list.push({ ref: nr, project: budget.project, intitule: (budget.inst && budget.inst.intitule) || "À COMPLÉTER",
+          created: now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()) + "T" + p2(now.getHours()) + ":" + p2(now.getMinutes()),
+          state: "instance", data: dupData() });
+        instSave(list);
+        histLog("BUDGET", "DUPLIQUÉ", fullRef + " → " + budget.project + " " + nr);
+        try { localStorage.setItem("svi_listmode_v1", "inst"); } catch (e) {}
+        $("budgetBackBtn")?.click();
+        setTimeout(() => {
+          renderBudgetList();
+          setTimeout(() => { const tr = [...document.querySelectorAll("tr[data-budget-ref]")].find(x => x.dataset.budgetRef === nr); if (tr) tr.click(); }, 40);
+        }, 40);
+      };
+      (shell.__lkGuard ? shell.__lkGuard() : Promise.resolve(true)).then(ok => { if (ok) go(); });
+    });
     const openImportBudget = blk => {
       if (!INS) return;
       const startTab = blk === "client" ? "des" : blk === "hier" ? "hier" : (active === "prd" ? "prd" : "chg");
@@ -8423,7 +8619,7 @@ function renderBudgetList() {
       const stCls = g => !g.inst || g.inst.state === "valide" ? "" : g.inst.state === "fige" ? "imp-fige" : "imp-inst";
       const refLab = r => { const g = groups.get(r); return U_(g.project) + " " + r; };
       let src = refs[0] || "", model = impModel(src), tab = startTab, withLinks = false, all = false;
-      const sel = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set() };
+      const sel = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set() };
       /* lignes liées décochées à la main : la liaison est coupée à cet endroit */
       const cut = new Set();
       document.getElementById("docPop")?.remove();
@@ -8462,7 +8658,9 @@ function renderBudgetList() {
         des: [["art", "ART"], ["des", "DÉSIGNATION"], ["u", "UPB"], ["q", "QPB", 1], ["p", "PPB", 1]],
         hier: [["lvl", "NIVEAU"], ["v", "LIBELLÉ"]],
         chg: [["des", "DÉSIGNATION"], ["u", "UCB"], ["q", "QCB", 1], ["p", "PCB", 1]],
-        prd: [["des", "DÉSIGNATION"], ["u", "UPB"]]
+        prd: [["des", "DÉSIGNATION"], ["u", "UPB"]],
+        qlt: [["v", "QUALITÉ"]],
+        dly: [["lot", "LOT"], ["prim", "ACTIVITÉ PRIMAIRE"], ["deb", "DÉBUT"], ["fin", "FIN"]]
       };
       const LV = { lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" };
       const val = (x, f, isNum) => f === "lvl" ? LV[x.lvl] : x.row.t && isNum ? "" : isNum ? money(f === "q" ? insQty(tab === "prd" ? "prd" : "des", x.row) : x.row[f]) : (x.row[f] ?? "");
@@ -8475,7 +8673,7 @@ function renderBudgetList() {
       const shownRows = () => cfApply("imp_" + tab, cfCols(), model[tab]);
       /* lignes retenues : cochées, + liées (AVEC LIAISONS), ou tout le budget */
       const picked = (noCut = false) => {
-        const out = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set() };
+        const out = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set() };
         if (all) { IMP_TABS.forEach(([k]) => model[k].forEach(x => out[k].add(x.key))); return out; }
         IMP_TABS.forEach(([k]) => sel[k].forEach(x => out[k].add(x)));
         if (withLinks) {
@@ -8493,6 +8691,8 @@ function renderBudgetList() {
               for (let j = i - 1; j >= 0 && ok(path[j][1]); j--) out[path[j][0]].add(path[j][1]);
             });
           });
+          /* délais : ils suivent leur tâche primaire (lot et activité primaire retenus) */
+          model.dly.forEach(x => { if (out.hier.has("lot|" + x.row.lot) && out.hier.has("prim|" + x.row.prim)) out.dly.add(x.key); });
         }
         return out;
       };
@@ -8550,7 +8750,7 @@ function renderBudgetList() {
              const on = pk[tab].has(x.key), linked = on && !sel[tab].has(x.key) && !all;
              const isCut = withLinks && cut.has(x.key) && !on && pAll && pAll[tab].has(x.key);
              return `<tr class="${x.row.t ? "imp-tt" : ""}${linked ? " imp-linked" : ""}${isCut ? " imp-cut" : ""}" data-k="${esc(x.key)}">
-               <td class="center"><input type="checkbox" class="imp-cb" ${on ? "checked" : ""} ${all ? "disabled" : ""}></td>
+               <td class="center"><input type="checkbox" class="imp-cb" ${on ? "checked" : ""} ${all || (tab === "dly" && !withLinks) ? "disabled" : ""}></td>
                ${cs.map(c => `<td class="${impCls(c)}">${esc(val(x, c[0], c[2]))}</td>`).join("")}</tr>`;
            }).join("") || `<tr><td colspan="${cs.length + 1}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody>`;
         }
@@ -8655,23 +8855,23 @@ function renderBudgetList() {
         const pk = picked();
         const lk = withLinks || all;
         /* lignes à importer, rangées par bloc du budget */
-        const inc = { des: [], chg: [], prd: [], lot: [], prim: [], sec: [] };
-        ["des", "chg", "prd"].forEach(k => model[k].filter(x => pk[k].has(x.key)).forEach(x => inc[k].push(x)));
+        const inc = { des: [], chg: [], prd: [], qlt: [], lot: [], prim: [], sec: [] };
+        ["des", "chg", "prd", "qlt"].forEach(k => model[k].filter(x => pk[k].has(x.key)).forEach(x => inc[k].push(x)));
         model.hier.filter(x => pk.hier.has(x.key)).forEach(x => inc[x.lvl].push(x));
         const LAB = { des: "DÉSIGNATIONS CLIENT", lot: "LOTS", prim: "ACTIVITÉS PRIMAIRES", sec: "ACTIVITÉS SECONDAIRES",
-          chg: "DÉTAIL CHARGES", prd: "DÉTAIL PRODUITS" };
+          chg: "DÉTAIL CHARGES", prd: "DÉTAIL PRODUITS", qlt: "DÉTAIL QUALITÉ" };
         const busy = Object.keys(inc).filter(k => inc[k].length && INS[k].length);
         const run = mode => {
           let added = 0, upd = 0, skip = 0;
           const kid = new Map();   /* clé du budget source → id de la ligne dans ce budget */
-          const same = (k, a, b) => k === "lot" || k === "prim" || k === "sec"
+          const same = (k, a, b) => k === "lot" || k === "prim" || k === "sec" || k === "qlt"
             ? U_(a.v) === U_(b.v)
             : impId(k, a) === impId(k, b);
           Object.keys(inc).forEach(k => {
             if (!inc[k].length) return;
             if (mode === "replace") INS[k] = [];
             inc[k].forEach(x => {
-              const hierK = k === "lot" || k === "prim" || k === "sec";
+              const hierK = k === "lot" || k === "prim" || k === "sec" || k === "qlt";
               const r = hierK ? { v: x.row.v } : { ...x.row };
               const old = INS[k].find(o => same(k, o, r));
               if (old) kid.set(x.key, old.id);
@@ -8718,6 +8918,15 @@ function renderBudgetList() {
             });
             /* une liaison doit avoir au moins un produit */
             INS.links = INS.links.filter(x => (x.prd || []).length);
+            /* délais : rattachés à la tâche primaire importée (lot + activité primaire), seulement avec les liaisons */
+            INS.dlp = INS.dlp || {};
+            if (mode === "replace") INS.dlp = {};
+            model.dly.filter(x => pk.dly.has(x.key)).forEach(x => {
+              const lo = kid.get("lot|" + x.row.lot), pr = kid.get("prim|" + x.row.prim);
+              if (!lo || !pr) return;
+              const key = lo + "|" + pr, list = INS.dlp[key] = INS.dlp[key] || [];
+              if (!list.some(p => p.deb === x.row._deb && p.fin === x.row._fin)) list.push({ id: insId(), deb: x.row._deb, fin: x.row._fin });
+            });
           }
           insSave();
           const M = { add: "AJOUT", replace: "REMPLACEMENT", update: "MISE À JOUR" }[mode];
@@ -11247,9 +11456,11 @@ function renderBudgetList() {
         const j = nav.refs.indexOf(nav.cur) + d;
         if (j >= 0 && j < nav.refs.length) { nav.open(nav.refs[j]); window.scrollTo(0, 0); }
       };
-      $("instPrev")?.addEventListener("click", () => go(-1));
-      $("instNext")?.addEventListener("click", () => go(1));
-      $("instClose")?.addEventListener("click", toList);
+      /* sortie avec une liaison modifiée non validée : on propose de valider d'abord */
+      const guarded = fn => () => (shell.__lkGuard ? shell.__lkGuard() : Promise.resolve(true)).then(ok => { if (ok) fn(); });
+      $("instPrev")?.addEventListener("click", guarded(() => go(-1)));
+      $("instNext")?.addEventListener("click", guarded(() => go(1)));
+      $("instClose")?.addEventListener("click", guarded(toList));
       $("instDel")?.addEventListener("click", () => {
         svConfirm({ title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
           if (!go) return;
@@ -12927,6 +13138,15 @@ function budgetDate(ref) {
    CONFIRMATION AU FORMAT DE L'APPLICATION (jamais de message Safari)
    svConfirm({ title, text, ok }) → Promise<boolean>
    ========================================================= */
+/* message d'erreur passager : affiché au moment de l'erreur, puis il s'efface (règle générale) */
+function svToast(msg, ms = 3500) {
+  let t = document.getElementById("svToast");
+  if (!t) { t = document.createElement("div"); t.id = "svToast"; document.body.appendChild(t); }
+  t.textContent = String(msg || "").toUpperCase();
+  t.classList.add("on");
+  clearTimeout(t.__tm);
+  t.__tm = setTimeout(() => t.classList.remove("on"), ms);
+}
 /* fenêtre de choix de l'application : ANNULER + boutons [{ v, label, tone }] ; résout la valeur choisie ou null */
 function svChoose({ title = "", text = "", buttons = [] } = {}) {
   return new Promise(res => {
