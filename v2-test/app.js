@@ -272,7 +272,7 @@ const $ = id => document.getElementById(id);
 /* compteur : petite pastille grise juste après le libellé (remplace « (n) ») */
 const svCnt = n => `<span class="svi-cnt">${Number(n) || 0}</span>`;
 /* onglets vides (compteur 0) : mise en forme spéciale, même facultatifs */
-const sviMarkEmptyTabs = root => (root || document).querySelectorAll(".bdg-d-tab").forEach(b => {
+const sviMarkEmptyTabs = root => (root || document).querySelectorAll(".bdg-d-tab, .rec-tab, .imp-tab").forEach(b => {
   const c = b.querySelector(".svi-cnt");
   b.classList.toggle("tab-vide", !!c && c.textContent.trim() === "0" && !b.classList.contains("cf-on"));
 });
@@ -3267,7 +3267,7 @@ function renderBudgetList() {
         box-shadow: 0 12px 32px rgba(0,0,0,.18); font-size: 12px; max-height: 90vh;
       }
       #blkPop .blk-wide { max-width: 900px; }
-      #blkPop .blk-title { font-weight: 800; color: #0f4f96; padding-right: 30px; }
+      #blkPop .blk-title { font-weight: 800; color: #172033; padding-right: 30px; }
       #blkPop .blk-sub { color: #6b7280; font-size: 11px; }
       #blkPop .blk-choice {
         border: 1px solid #d6dbe3; background: #f8fafc; border-radius: 8px; padding: 9px;
@@ -5839,7 +5839,7 @@ function renderBudgetList() {
       const az = (a, b) => String(a).localeCompare(String(b), "fr", { numeric: true });
       /* lignes choisies en haut (consigne 14), filtres / tri de colonne (7), colonnes réglables (9) */
       const top = (rows, isSel) => rows.map((r, i) => ({ r, i })).sort((a, b) => (isSel(b.r) - isSel(a.r)) || a.i - b.i).map(o => o.r);
-      const W = { art: 70, des: 340, u: 70, q: 110, lnk: 120, v: 220, lot: 160, prim: 180, sec: 200, np: 90, nc: 90, act: 110, qt: 150 };
+      const W = { art: 70, des: 340, u: 70, q: 110, lnk: 120, v: 220, lot: 160, prim: 180, sec: 200, np: 110, nc: 110, act: 110, qt: 200 };
       const tbl = (t, cols, rows, lead, rowHTML) => {
         const oc = coOrder(t, cols);
         const w = k => cwLoad()[t + "." + k] || W[k] || 120;
@@ -5867,7 +5867,7 @@ function renderBudgetList() {
         return `<div class="lk-col" data-lk-col="${k}"><div class="lk-ch bdg-h-head ${cfT("lk_" + k).f.v ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length)}</span><span class="cf-btn"
             data-cf="lk_${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span class="col-rs lk-rs"></span></div>
           ${list.map(r => `<label class="lk-li ${LK[k] === r.id ? "lk-sel" : ""}${unl(k, r.id)}" data-pick="${k}" data-id="${r.id}">${radio(k, r.id)}<span>${esc(r.v || "")}</span></label>`).join("")
-            || `<div class="lk-li" style="opacity:.5">—</div>`}</div>`;
+            || `<div class="lk-li empty">AUCUNE LIGNE</div>`}</div>`;
       };
       /* DÉTAILS : produits (obligatoire = étoile), charges (ordre alphabétique) */
       const det = k => {
@@ -5906,7 +5906,7 @@ function renderBudgetList() {
       const linksHTML = tbl("lk_links", LC, lrows, false, (l, oc) => `<tr>${oc.map(c => `<td class="${c[3]}">${esc(c[2](l))}</td>`).join("")}</tr>`)
         .replace(/<\/tr><\/thead>/, RO ? "</tr></thead>" : `<th class="center" style="width:110px"></th></tr></thead>`);
       box.innerHTML = `
-        <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${SVI_ICON.client}DÉSIGNATIONS CLIENT ${svCnt(desList.length)}</span><span class="lk-need">UNE À LA FOIS</span></div>
+        <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${SVI_ICON.client}DÉSIGNATIONS CLIENT ${svCnt(desList.length)}</span></div>
           <div class="lk-scroll">${desHTML}</div></div>
         <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${SVI_ICON.hier}TÂCHES</span></div>
           <div class="lk-grid" style="${gridCols ? "grid-template-columns:" + gridCols : ""}">${col("lot", "LOT")}${col("prim", "ACTIVITÉ PRIMAIRE")}${col("sec", "ACTIVITÉ SECONDAIRE")}</div></div>
@@ -7123,6 +7123,8 @@ function renderBudgetList() {
     const REC_KINDS = ["doc", "taf", "obs"];
 
     const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
+    /* libellé affiché (avec accents) ; blkLabel reste pour les noms de fichiers */
+    const blkDisp = blk => ({ client: "DÉSIGNATIONS CLIENT", hier: "TÂCHES", metre: "AVANT MÉTRÉ" }[blk] || blkLabel(blk));
     const blkLabel = blk => blk === "detail" ? tabTitle()
       : blk === "metre" ? "AVANT METRE" : blk === "interne" ? "DÉTAIL PRODUITS FORMAT INTERNE" : blkName[blk];
 
@@ -7945,7 +7947,7 @@ function renderBudgetList() {
       p.innerHTML = `
         <div class="doc-card imp-card" role="dialog" aria-modal="true">
           <div class="doc-head">
-            <span class="doc-title">IMPORTER — ${esc(blkLabel(blk))}</span>
+            <span class="doc-title">IMPORTER — ${esc(blkDisp(blk))}</span>
             <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
           </div>
           <div class="doc-body">
@@ -8020,6 +8022,7 @@ function renderBudgetList() {
         p.querySelector(".imp-tabs").innerHTML = IMP_TABS.map(([k, lab]) =>
           /* pastille grise : lignes disponibles ; pastille rouge : lignes retenues */
           `<button type="button" class="imp-tab${k === tab ? " on" : ""}" data-tab="${k}">${lab} ${svCnt(model[k].length)}${pk[k].size ? `<span class="imp-selcnt">${pk[k].size}</span>` : ""}</button>`).join("");
+        sviMarkEmptyTabs(p.querySelector(".imp-tabs"));
         const box = p.querySelector(".imp-scroll");
         /* TÂCHES : trois blocs côte à côte (lots, activités primaires, secondaires) */
         if (tab === "hier") {
@@ -8245,7 +8248,7 @@ function renderBudgetList() {
       const p = popup(`
         <div class="blk-card">
           <button type="button" class="blk-x" data-close>✕</button>
-          <div class="blk-title">IMPORTER — ${esc(blkLabel(blk))}</div>
+          <div class="blk-title">IMPORTER — ${esc(blkDisp(blk))}</div>
           <button type="button" class="blk-choice" data-src="file">Fichier (Excel, CSV, JSON)</button>
           <button type="button" class="blk-choice" data-src="gsheet">Google Sheets (lien)</button>
           ${INS ? `<button type="button" class="blk-choice" data-src="bdg">Autre budget de l'application</button>` : ""}
@@ -9528,11 +9531,11 @@ function renderBudgetList() {
           .pv-bar button.x { background: transparent; color: #fff; }
           @media print { .pv-bar { display: none !important; } }
         </style></head><body>
-        <div class="pv-bar"><span>APERÇU — ${esc(blkLabel(blk))}</span>
+        <div class="pv-bar"><span>APERÇU — ${esc(blkDisp(blk))}</span>
           <button type="button" onclick="window.print()">🖨 IMPRIMER</button>
           <button type="button" class="x" onclick="window.close()">✕ FERMER</button></div>
         <h1>${esc(budget.project)} — ${esc(ref)}</h1>
-        <h2>${esc(blkLabel(blk))} — ${new Date().toLocaleDateString("fr-FR")}</h2>
+        <h2>${esc(blkDisp(blk))} — ${new Date().toLocaleDateString("fr-FR")}</h2>
         ${tableHTML}
         </body></html>`);
       w.document.close();
@@ -10050,8 +10053,8 @@ function renderBudgetList() {
             ["rimp", "!", r => r.important ? "!" : "", "center"], ["rtext", "INTITULÉ", r => r.text, ""]]
     };
     Object.assign(CW_DEF, {
-      rref: 210, rdate: 150, rtitle: 360, rfile: 120, rexp: 80, robj: 200, rtext: 420,
-      rresp: 180, rprev: 140, rdelay: 120, relap: 120, rimp: 50
+      rref: 210, rdate: 150, rtitle: 360, rfile: 120, rexp: 110, robj: 200, rtext: 420,
+      rresp: 180, rprev: 140, rdelay: 150, relap: 150, rimp: 60
     });
     /* plus récent en premier (ordre par défaut, sans tri choisi) */
     const recSorted = kind => recLoad(kind).map((r, i) => ({ ...r, _i: i }))
@@ -10075,6 +10078,7 @@ function renderBudgetList() {
       if (title) title.innerHTML = SVI_ICON[kind] + esc(blkName[kind]) + " " + svCnt(list.length);
       const st = cfT(kind);
       title?.classList.toggle("cf-on", Object.keys(st.f).length > 0);
+      if (title) sviMarkEmptyTabs(title.parentNode);
 
       const rows = list.map(r => "<tr>" + cols.map(([k, , get, cls]) => {
         const v = get(r);
@@ -10465,23 +10469,25 @@ function renderBudgetList() {
         event.preventDefault();
         const list = docsLoad();
         const r = list[+dx.dataset.docexp];
-        if (r && !r.expired &&
-            confirm("Marquer " + r.ref + " comme EXPIRÉ ?\nCe choix est définitif.")) {
+        if (r && !r.expired) svConfirm({ title: "MARQUER EXPIRÉ", text: r.ref + " SERA MARQUÉ EXPIRÉ (CHOIX DÉFINITIF).", ok: "EXPIRÉ" }).then(go => {
+          if (!go) { renderRec("doc"); return; }
           r.expired = true;
           r.expiredAt = localDT(new Date());
           docsSave(list);
           histLog("DOC", "EXPIRÉ", r.ref + " — " + (r.title || ""));
           updPill("doc");
-        } else renderRec("doc");
+        });
+        else renderRec("doc");
         return;
       }
       if (event.target.closest(".blk-grip, .blk-rsz")) return;
       if (event.target.closest("#layResetBtn")) {
-        if (confirm("Remettre tous les blocs à leur place et à leur taille d'origine ?")) {
+        svConfirm({ title: "DISPOSITION PAR DÉFAUT", text: "TOUS LES BLOCS REVIENNENT À LEUR PLACE ET À LEUR TAILLE D'ORIGINE.", ok: "RÉTABLIR", tone: "neutral" }).then(go => {
+          if (!go) return;
           laySave({});
           histLog("DISPOSITION", "PAR DÉFAUT", "BLOCS REMIS À L'ORIGINE");
           layApply();
-        }
+        });
         return;
       }
       if (event.target.closest('[data-pill="inf"]')) { openInfo(); return; }
@@ -10729,14 +10735,17 @@ function renderBudgetList() {
       $("instNext")?.addEventListener("click", () => go(1));
       $("instClose")?.addEventListener("click", toList);
       $("instDel")?.addEventListener("click", () => {
-        if (!confirm("SUPPRIMER LE BUDGET EN INSTANCE " + fullRef + " ?")) return;
-        instUpd(l => l.filter(x => x.ref !== ref));
-        groups.delete(ref);
-        toList();
+        svConfirm({ title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
+          if (!go) return;
+          instUpd(l => l.filter(x => x.ref !== ref));
+          groups.delete(ref);
+          toList();
+        });
       });
       /* ✓ : le budget figé passe dans BUDGETS (VALIDÉS), en noir, lecture seule */
       $("instValid")?.addEventListener("click", () => {
-        if (!confirm("VALIDER " + fullRef + " ?\nLE BUDGET PASSERA DANS BUDGETS (VALIDÉS), EN LECTURE SEULE.")) return;
+        svConfirm({ title: "VALIDER LE BUDGET", text: fullRef + " PASSERA DANS BUDGETS (VALIDÉS), EN LECTURE SEULE.", ok: "✓ VALIDER", tone: "neutral" }).then(go => {
+        if (!go) return;
         budget.inst.state = "valide";
         const d = new Date(), p2 = n => String(n).padStart(2, "0");
         budget.inst.validated = d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
@@ -10744,6 +10753,7 @@ function renderBudgetList() {
         histLog("BUDGET", "VALIDÉ", fullRef);
         try { localStorage.setItem("svi_listmode_v1", "valid"); } catch (e) {}
         toList();
+        });
       });
       /* bascule SAISIE / LIAISONS (mémorisée pour ce budget) */
       $("insModeSw")?.addEventListener("click", e => {
@@ -10825,12 +10835,14 @@ function renderBudgetList() {
       const r = delButton.dataset.delBudget;
       const g = bdgGroups.get(r);
       if (!g || !g.inst) return;
-      if (!confirm("SUPPRIMER LE BUDGET EN INSTANCE " + g.project + " " + r + " ?")) return;
-      try {
-        const l = (JSON.parse(localStorage.getItem("svi_bdg_inst_v1") || "[]") || []).filter(x => x.ref !== r);
-        localStorage.setItem("svi_bdg_inst_v1", JSON.stringify(l));
-      } catch (e) {}
-      renderBudgetList();
+      svConfirm({ title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + g.project + " " + r + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
+        if (!go) return;
+        try {
+          const l = (JSON.parse(localStorage.getItem("svi_bdg_inst_v1") || "[]") || []).filter(x => x.ref !== r);
+          localStorage.setItem("svi_bdg_inst_v1", JSON.stringify(l));
+        } catch (e) {}
+        renderBudgetList();
+      });
       return;
     }
 
@@ -12286,9 +12298,7 @@ document.addEventListener(
 
             if (
               action === "delete" &&
-              confirm(
-                "CONFIRMER LA SUPPRESSION ?"
-              )
+              await svConfirm({ title: "SUPPRIMER", text: "LA LIGNE SERA SUPPRIMÉE.", ok: "SUPPRIMER" })
             ) {
               await deleteRow(
                 rowContext
@@ -12399,7 +12409,7 @@ function budgetDate(ref) {
    CONFIRMATION AU FORMAT DE L'APPLICATION (jamais de message Safari)
    svConfirm({ title, text, ok }) → Promise<boolean>
    ========================================================= */
-function svConfirm({ title = "CONFIRMER", text = "", ok = "OK" } = {}) {
+function svConfirm({ title = "CONFIRMER", text = "", ok = "OK", tone = "danger" } = {}) {
   return new Promise(res => {
     document.getElementById("svConf")?.remove();
     const d = document.createElement("div");
@@ -12408,7 +12418,7 @@ function svConfirm({ title = "CONFIRMER", text = "", ok = "OK" } = {}) {
         <div class="svc-t">${esc(title)}</div>
         ${text ? `<div class="svc-x">${esc(text)}</div>` : ""}
         <div class="svc-f"><button type="button" class="svc-b" data-r="0">ANNULER</button>
-          <button type="button" class="svc-b svc-ok" data-r="1">${esc(ok)}</button></div>
+          <button type="button" class="svc-b svc-ok${tone === "danger" ? "" : " svc-neutral"}" data-r="1">${esc(ok)}</button></div>
       </div>`;
     document.body.appendChild(d);
     d.addEventListener("click", e => {
@@ -12419,6 +12429,22 @@ function svConfirm({ title = "CONFIRMER", text = "", ok = "OK" } = {}) {
     });
   });
 }
+
+/* message d'information dans une fenêtre de l'application (remplace l'alerte Safari) */
+function svAlert(msg) {
+  document.getElementById("svConf")?.remove();
+  const lines = String(msg ?? "").toUpperCase().split("\n").map(x => x.trim()).filter(Boolean);
+  const d = document.createElement("div");
+  d.id = "svConf";
+  d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
+      <div class="svc-t">${esc(lines.length > 1 ? lines[0] : "INFORMATION")}</div>
+      <div class="svc-x">${esc((lines.length > 1 ? lines.slice(1) : lines).join("\n"))}</div>
+      <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-r="1">OK</button></div>
+    </div>`;
+  document.body.appendChild(d);
+  d.addEventListener("click", e => { if (e.target.closest("[data-r]") || e.target === d) d.remove(); });
+}
+try { window.alert = svAlert; } catch (e) {}
 
 /* =========================================================
    MENU ☰ › DONNÉES SOURCE : fichiers Google Sheets lus par l'application
@@ -12534,7 +12560,7 @@ function openSourceWin() {
     const link = p.querySelector(`.src-fld[data-which="${editing}"] .src-in`).value.trim();
     if (!/\/d\/[A-Za-z0-9_-]{20,}|^[A-Za-z0-9_-]{20,}$/.test(link)) { msg("LIEN GOOGLE SHEETS NON RECONNU.", true); return; }
     const lab = editing === "v3" ? "LA BASE DES BUDGETS (V3)" : "LE FICHIER PRINCIPAL (CHS, BDS, BDG)";
-    if (!confirm("CHANGER " + lab + " ?\nL'APPLICATION LIRA DÉSORMAIS SES DONNÉES DANS CE FICHIER.")) return;
+    if (!await svConfirm({ title: "CHANGER LE FICHIER SOURCE", text: "L'APPLICATION LIRA DÉSORMAIS " + lab + " DANS CE FICHIER.", ok: "CHANGER", tone: "neutral" })) return;
     sv.disabled = true;
     msg("VÉRIFICATION DU FICHIER…");
     try {
@@ -12542,7 +12568,7 @@ function openSourceWin() {
       ["main", "v3"].forEach(k => { if (d[k] && d[k].id) files[k] = { ...files[k], ...d[k], name: d[k].name || files[k].name }; });
       setMode(null);
       render();
-      msg("✓ ENREGISTRÉ — ACTUALISATION DES DONNÉES…");
+      msg("ACTUALISATION DES DONNÉES…");
       setTimeout(() => location.reload(), 1200);
     } catch (err) {
       msg("CHANGEMENT IMPOSSIBLE : " + (err && err.message || err), true);
