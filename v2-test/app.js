@@ -7522,6 +7522,28 @@ function renderBudgetList() {
         const n = IMP_TABS.reduce((t, [k]) => t + pk[k].size, 0);
         p.querySelector(".imp-tabs").innerHTML = IMP_TABS.map(([k, lab]) =>
           `<button type="button" class="imp-tab${k === tab ? " on" : ""}" data-tab="${k}">${lab} ${svCnt(pk[k].size)}</button>`).join("");
+        const box = p.querySelector(".imp-scroll");
+        /* TÂCHES : trois blocs côte à côte (lots, activités primaires, secondaires) */
+        if (tab === "hier") {
+          box.classList.add("imp-hier");
+          box.innerHTML = ["lot", "prim", "sec"].map(lv => {
+            const rows = cfApply("imp_" + lv, [["v", LV[lv], x => x.row.v || "", ""]], model.hier.filter(x => x.lvl === lv));
+            const allOn = rows.length && rows.every(x => pk.hier.has(x.key));
+            return `<div class="imp-hcol"><table class="bdg-d-table imp-table">
+              <thead><tr><th class="center" style="width:34px"><input type="checkbox" class="imp-cball" data-lvl="${lv}" ${allOn ? "checked" : ""}></th>
+                ${cfHead("imp_" + lv, "v", LV[lv] + " " + svCnt(rows.length), "")}</tr></thead>
+              <tbody>${rows.map(x => {
+                const on = pk.hier.has(x.key), linked = on && !sel.hier.has(x.key);
+                return `<tr class="${linked ? "imp-linked" : ""}" data-k="${esc(x.key)}">
+                  <td class="center"><input type="checkbox" class="imp-cb" ${on ? "checked" : ""} ${linked ? "disabled" : ""}></td>
+                  <td>${esc(x.row.v)}</td></tr>`;
+              }).join("") || `<tr><td colspan="2" class="empty">—</td></tr>`}</tbody></table></div>`;
+          }).join("");
+        } else {
+        if (box.classList.contains("imp-hier") || !box.querySelector(".imp-table")) {
+          box.classList.remove("imp-hier");
+          box.innerHTML = `<table class="bdg-d-table imp-table"></table>`;
+        }
         const cs = cols[tab], rows = shownRows();
         const allOn = rows.length && rows.every(x => pk[tab].has(x.key));
         p.querySelector(".imp-table").innerHTML =
@@ -7532,6 +7554,7 @@ function renderBudgetList() {
                <td class="center"><input type="checkbox" class="imp-cb" ${on ? "checked" : ""} ${all || linked ? "disabled" : ""}></td>
                ${cs.map(c => `<td class="${impCls(c)}">${esc(val(x, c[0], c[2]))}</td>`).join("")}</tr>`;
            }).join("") || `<tr><td colspan="${cs.length + 1}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody>`;
+        }
         p.querySelector(".imp-n").textContent = n + " LIGNE(S) À IMPORTER" + (withLinks && !all ? " (LIAISONS COMPRISES)" : "");
         p.querySelector("#impGo").textContent = "IMPORTER (" + n + ")";
         p.querySelector("#impGo").disabled = !n;
@@ -7565,7 +7588,11 @@ function renderBudgetList() {
       p.addEventListener("change", e => {
         if (e.target.name === "impLk") { withLinks = e.target.value === "1"; render(); return; }
         if (e.target.classList.contains("imp-cball")) {
-          shownRows().forEach(x => e.target.checked ? sel[tab].add(x.key) : sel[tab].delete(x.key));
+          const lv = e.target.dataset.lvl;
+          const rows = lv
+            ? cfApply("imp_" + lv, [["v", LV[lv], x => x.row.v || "", ""]], model.hier.filter(x => x.lvl === lv))
+            : shownRows();
+          rows.forEach(x => e.target.checked ? sel[tab].add(x.key) : sel[tab].delete(x.key));
           render(); return;
         }
         const tr = e.target.closest("tr[data-k]");

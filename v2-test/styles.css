@@ -1005,3 +1005,7 @@ tfoot td {
 #docPop .imp-table { table-layout: auto; }
 #docPop .imp-table th.center, #docPop .imp-table td.center { text-align: center; }
 #docPop .imp-table th.center .cf-wrap { justify-content: center; }
+/* importer : TÂCHES en trois blocs */
+#docPop .imp-scroll.imp-hier { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; border: 0; overflow: visible; max-height: none; }
+#docPop .imp-hcol { border: 1px solid #e5e9f0; border-radius: 8px; max-height: 46vh; overflow: auto; }
+@media (max-width: 700px) { #docPop .imp-scroll.imp-hier { grid-template-columns: 1fr; } }
