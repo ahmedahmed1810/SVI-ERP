@@ -7437,7 +7437,7 @@ function renderBudgetList() {
       const prj = db.projects.find(x => N(x.code) === N(budget.project));
       const projet = (prj && prj.name && N(prj.name) !== N(budget.project)) ? prj.name : budget.project;
       return {
-        date: "AGADIR, LE " + svDT(d0),
+        date: "Agadir, le " + String(d0.getDate()).padStart(2, "0") + " " + mois[d0.getMonth()] + " " + d0.getFullYear(),
         budget: "BUDGET N° : " + fullRef, client: "CLIENT : À COMPLÉTER", projet: "PROJET : " + projet,
         titre: String(blkLabel(blk)).toUpperCase()
       };
@@ -8616,7 +8616,7 @@ function renderBudgetList() {
       const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
         "août", "septembre", "octobre", "novembre", "décembre"];
       const now = new Date();
-      const dateTxt = "AGADIR, LE " + svDT(now);
+      const dateTxt = `Agadir, le ${String(now.getDate()).padStart(2, "0")} ${mois[now.getMonth()]} ${now.getFullYear()}`;
       const prj = db.projects.find(x => N(x.code) === N(budget.project));
       const projet = (prj && prj.name && N(prj.name) !== N(budget.project)) ? prj.name : budget.project;
       const fileName = (fullRef + " " + cfg.fileTag).replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "_") + ".pdf";
@@ -9716,7 +9716,7 @@ function renderBudgetList() {
           <button type="button" onclick="window.print()">🖨 IMPRIMER</button>
           <button type="button" class="x" onclick="window.close()">✕ FERMER</button></div>
         <h1>${esc(budget.project)} — ${esc(ref)}</h1>
-        <h2>${esc(blkDisp(blk))} — ${svDT(new Date())}</h2>
+        <h2>${esc(blkDisp(blk))} — ${new Date().toLocaleDateString("fr-FR")}</h2>
         ${tableHTML}
         </body></html>`);
       w.document.close();
