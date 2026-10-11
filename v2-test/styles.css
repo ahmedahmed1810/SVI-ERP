@@ -989,13 +989,13 @@ tfoot td {
 /* importer : liste des budgets source (couleurs de l'état) */
 #docPop .imp-src { position: relative; }
 #docPop .imp-src-btn { width: 100%; text-align: left; border: 1px solid #d6dbe3; border-radius: 8px; background: #fff;
-  padding: 9px 34px 9px 12px; font: inherit; font-size: 14px; font-weight: 800; color: #12355b; cursor: pointer; position: relative; }
+  padding: 9px 34px 9px 12px; font: inherit; font-size: 14px; font-weight: 800; color: #000; cursor: pointer; position: relative; }
 #docPop .imp-src-btn::after { content: "▾"; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #6b7280; }
 #docPop .imp-src-list { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 6; background: #fff; border: 1px solid #d6dbe3;
   border-radius: 10px; box-shadow: 0 12px 30px rgba(15,23,42,.2); max-height: 300px; overflow: auto; padding: 4px; }
 #docPop .imp-src-list[hidden] { display: none; }
 #docPop .imp-src-it { display: block; width: 100%; text-align: left; border: 0; background: #fff; padding: 9px 10px; border-radius: 6px;
-  font: inherit; font-size: 13px; font-weight: 800; color: #12355b; cursor: pointer; }
+  font: inherit; font-size: 13px; font-weight: 800; color: #000; cursor: pointer; }
 #docPop .imp-src-it.on { background: #eef4ff; }
 #docPop .imp-inst { color: #b91c1c !important; }
 #docPop .imp-fige { color: #15803d !important; }
