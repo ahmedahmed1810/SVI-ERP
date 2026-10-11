@@ -5495,10 +5495,11 @@ function renderBudgetList() {
     const lkIsLinked = (k, id) => !!(LKS && LKS[k] && LKS[k].has(id));
     /* lignes liées en haut du tableau (consigne 14) */
     /* ordre : lignes au rond coché (choisies ou liées) en haut, puis lignes cochées pour suppression, puis le reste */
-    const lkRank = (k, r) => (lkOn(k, r.id) || lkIsLinked(k, r.id)) ? 0 : r.on === true ? 1 : 2;
+    /* ordre : 1) rond coché (choisies), 2) cochées pour suppression, 3) liées (violet), 4) le reste */
+    const lkRank = (k, r) => lkOn(k, r.id) ? 0 : r.on === true ? 1 : lkIsLinked(k, r.id) ? 2 : 3;
     const lkTop = (k, rows) => {
       if (!INS_EDIT) return rows;
-      return rows.map((r, i) => ({ r, i, g: r.t ? 2 : lkRank(k, r) })).sort((a, b) => a.g - b.g || a.i - b.i).map(o => o.r);
+      return rows.map((r, i) => ({ r, i, g: r.t ? 3 : lkRank(k, r) })).sort((a, b) => a.g - b.g || a.i - b.i).map(o => o.r);
     };
     const lkRd = (k, r) => INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${(LK.des && (k === "prd" || k === "chg") && lkIsLinked(k, r.id)) || (lkOn(k, r.id) && lkIsLinked(k, r.id)) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
     const insDelCell = r => !r ? "" : `<input type="checkbox" class="ins-cb${r.t ? " ins-tcb" : ""}" ${!r.t && r.on === true ? "checked" : ""}>`
@@ -5610,7 +5611,7 @@ function renderBudgetList() {
         };
         /* désignations : les lignes choisies puis cochées montent en haut avec leur titre ;
            les autres lignes du même titre restent à leur place */
-        const top = INS_EDIT ? rows.map((r, i) => ({ r, i })).filter(o => !o.r.t && lkRank(k, o.r) < 2)
+        const top = INS_EDIT ? rows.map((r, i) => ({ r, i })).filter(o => !o.r.t && lkRank(k, o.r) < 3)
           .sort((a, b) => lkRank(k, a.r) - lkRank(k, b.r) || a.i - b.i).map(o => o.r) : [];
         let head = "";
         if (top.length) {
