@@ -7481,6 +7481,8 @@ function renderBudgetList() {
       const refLab = r => { const g = groups.get(r); return U_(g.project) + " " + r; };
       let src = refs[0] || "", model = impModel(src), tab = startTab, withLinks = false, all = false;
       const sel = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set() };
+      /* lignes liées décochées à la main : la liaison est coupée à cet endroit */
+      const cut = new Set();
       document.getElementById("docPop")?.remove();
       const p = document.createElement("div");
       p.id = "docPop";
@@ -7534,13 +7536,18 @@ function renderBudgetList() {
         if (all) { IMP_TABS.forEach(([k]) => model[k].forEach(x => out[k].add(x.key))); return out; }
         IMP_TABS.forEach(([k]) => sel[k].forEach(x => out[k].add(x)));
         if (withLinks) {
-          const hit = l => sel.des.has(l.dk) || sel.chg.has(l.ck) || sel.prd.has(l.pk) ||
-            ["lot", "prim", "sec"].some(k => l[k] && sel.hier.has(l[k]));
-          model.links.filter(hit).forEach(l => {
-            out.des.add(l.dk);
-            ["lot", "prim", "sec"].forEach(k => l[k] && out.hier.add(l[k]));
-            if (l.ck) out.chg.add(l.ck);
-            if (l.pk) out.prd.add(l.pk);
+          /* chaque ligne de détail = un chemin DÉSIGNATION › LOT › PRIMAIRE › SECONDAIRE › DÉTAIL.
+             Depuis une ligne cochée, on descend et on remonte le chemin ;
+             une ligne décochée à la main coupe le chemin : elle et tout ce qui est
+             au-delà (en dessous quand on descend, au-dessus quand on remonte) ne suivent plus. */
+          model.links.forEach(l => {
+            const path = [["des", l.dk], ["hier", l.lot], ["hier", l.prim], ["hier", l.sec],
+              ["chg", l.ck], ["prd", l.pk]].filter(x => x[1]);
+            path.forEach(([t, k], i) => {
+              if (!sel[t].has(k)) return;
+              for (let j = i + 1; j < path.length && !cut.has(path[j][1]); j++) out[path[j][0]].add(path[j][1]);
+              for (let j = i - 1; j >= 0 && !cut.has(path[j][1]); j--) out[path[j][0]].add(path[j][1]);
+            });
           });
         }
         return out;
@@ -7566,8 +7573,9 @@ function renderBudgetList() {
                 ${cfHead("imp_" + lv, "v", LV[lv] + " " + svCnt(rows.length), "")}</tr></thead>
               <tbody>${rows.map(x => {
                 const on = pk.hier.has(x.key), linked = on && !sel.hier.has(x.key);
-                return `<tr class="${linked ? "imp-linked" : ""}" data-k="${esc(x.key)}">
-                  <td class="center"><input type="checkbox" class="imp-cb" ${on ? "checked" : ""} ${linked ? "disabled" : ""}></td>
+                const isCut = withLinks && cut.has(x.key) && !on;
+                return `<tr class="${linked ? "imp-linked" : ""}${isCut ? " imp-cut" : ""}" data-k="${esc(x.key)}">
+                  <td class="center"><input type="checkbox" class="imp-cb" ${on ? "checked" : ""}></td>
                   <td>${esc(x.row.v)}</td></tr>`;
               }).join("") || `<tr><td colspan="2" class="empty">—</td></tr>`}</tbody></table></div>`;
           }).join("");
@@ -7589,8 +7597,9 @@ function renderBudgetList() {
           `<colgroup><col style="width:40px">${cs.map(c => `<col data-w="imp_${tab}.${c[0]}" style="width:${wOf(c[0])}px">`).join("")}</colgroup><thead><tr><th class="center" style="width:34px"><input type="checkbox" class="imp-cball" ${allOn ? "checked" : ""} ${all ? "disabled" : ""}></th>${cs.map(c => cfHead("imp_" + tab, c[0], c[1], impCls(c))).join("")}</tr></thead>
            <tbody>${rows.map(x => {
              const on = pk[tab].has(x.key), linked = on && !sel[tab].has(x.key) && !all;
-             return `<tr class="${x.row.t ? "imp-tt" : ""}${linked ? " imp-linked" : ""}" data-k="${esc(x.key)}">
-               <td class="center"><input type="checkbox" class="imp-cb" ${on ? "checked" : ""} ${all || linked ? "disabled" : ""}></td>
+             const isCut = withLinks && cut.has(x.key) && !on;
+             return `<tr class="${x.row.t ? "imp-tt" : ""}${linked ? " imp-linked" : ""}${isCut ? " imp-cut" : ""}" data-k="${esc(x.key)}">
+               <td class="center"><input type="checkbox" class="imp-cb" ${on ? "checked" : ""} ${all ? "disabled" : ""}></td>
                ${cs.map(c => `<td class="${impCls(c)}">${esc(val(x, c[0], c[2]))}</td>`).join("")}</tr>`;
            }).join("") || `<tr><td colspan="${cs.length + 1}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody>`;
         }
@@ -7652,6 +7661,7 @@ function renderBudgetList() {
           if (it.dataset.ref !== src) {
             src = it.dataset.ref; model = impModel(src);
             IMP_TABS.forEach(([k]) => sel[k].clear());
+            cut.clear();
             showSrc(); render();
           }
           return;
@@ -7665,12 +7675,21 @@ function renderBudgetList() {
           const rows = lv
             ? cfApply("imp_" + lv, [["v", LV[lv], x => x.row.v || "", ""]], model.hier.filter(x => x.lvl === lv))
             : shownRows();
-          rows.forEach(x => e.target.checked ? sel[tab].add(x.key) : sel[tab].delete(x.key));
+          rows.forEach(x => {
+            if (e.target.checked) { sel[tab].add(x.key); cut.delete(x.key); }
+            else { sel[tab].delete(x.key); if (withLinks) cut.add(x.key); }
+          });
           render(); return;
         }
         const tr = e.target.closest("tr[data-k]");
         if (tr && e.target.classList.contains("imp-cb")) {
-          e.target.checked ? sel[tab].add(tr.dataset.k) : sel[tab].delete(tr.dataset.k);
+          const k = tr.dataset.k;
+          if (e.target.checked) { sel[tab].add(k); cut.delete(k); }
+          else {
+            sel[tab].delete(k);
+            /* encore retenue par une liaison : la liaison est coupée ici */
+            if (withLinks && picked()[tab].has(k)) cut.add(k);
+          }
           render();
         }
       });
