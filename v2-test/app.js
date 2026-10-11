@@ -5004,8 +5004,9 @@ function renderBudgetList() {
             ? `<button type="button" class="inst-act" id="instValid" title="Valider le budget" aria-label="Valider"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
             : `<button type="button" class="inst-act" id="instDel" title="Supprimer ce budget" aria-label="Supprimer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`}
           <button type="button" class="inst-act" id="instClose" title="Fermer" aria-label="Fermer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>` : ""}
-          <button type="button" class="inst-act" id="instDup" title="Dupliquer ce budget" aria-label="Dupliquer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
-          <button type="button" class="bdg-lay-btn" id="layResetBtn" disabled
+          <button type="button" class="inst-act" id="instDup" hidden title="Dupliquer ce budget" aria-label="Dupliquer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+          <button type="button" class="inst-act bdg-more-btn" id="bdgMore" title="Actions du budget" aria-label="Actions du budget">⋯</button>
+          <button type="button" class="bdg-lay-btn" id="layResetBtn" disabled style="display:none"
             title="Disposition par défaut : remettre les blocs à leur place et taille d'origine"
             aria-label="Disposition par défaut"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button type="button" class="bdg-alert-btn" id="obsAlertBtn" hidden
@@ -7549,7 +7550,7 @@ function renderBudgetList() {
         Object.keys(lay.h || {}).length > 0;
       const rb = $("layResetBtn");
       /* ↻ toujours affiché ; grisé quand les blocs sont déjà à leur place d'origine */
-      if (rb) { rb.hidden = false; rb.disabled = !custom; }
+      if (rb) { rb.disabled = !custom; }   /* ↻ : dans le menu ⋯ du haut, grisé quand il n'y a rien à remettre en place */
     };
     const layInit = () => {
       const pg = page$();
@@ -8069,7 +8070,7 @@ function renderBudgetList() {
     /* ===== export / import / aperçu PDF par bloc ===== */
     const lastShown = { client: null, detail: null, hier: {} };
     const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL",
-                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE" };
+                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET" };
     const REC_KINDS = ["doc", "taf", "obs"];
 
     const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
@@ -8079,6 +8080,7 @@ function renderBudgetList() {
       : blk === "metre" ? "AVANT METRE" : blk === "interne" ? "DÉTAIL PRODUITS FORMAT INTERNE" : blkName[blk];
 
     const blkData = blk => {
+      if (blk === "budget") return budgetFlat();
       if (blk === "detail" && active === "qlt") return { head: [], rows: [] };
       if (blk === "detail" && active === "dly") {
         /* délais : tableau affiché (filtres compris), dates JJ/MM/AAAA */
@@ -9309,6 +9311,216 @@ function renderBudgetList() {
       });
     };
 
+    /* ===== BUDGET ENTIER SUR UN SEUL ONGLET (export / import)
+       une ligne par produit ou charge, avec toute sa chaîne ; les lignes non liées figurent seules.
+       Ni prix, ni montant, ni TVA, ni délais ; QTE seulement pour les charges. ===== */
+    const BF_HEAD = ["ART", "DÉSIGNATION CLIENT", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE",
+      "TYPE (PRD / CHG)", "ARTICLE", "DÉSIGNATION", "UNITÉ", "NBR", "DIM 1", "DIM 2", "DIM 3", "QTE"];
+    const budgetFlat = () => {
+      const d = dupData();
+      const by = (k, id) => (d[k] || []).find(x => x.id === id) || {};
+      const n = v => v === "" || v === undefined || v === null ? "" : num(v);
+      const desC = D => [D.art || "", U_(D.des), D.t ? "" : U_(D.u)];
+      const prdC = P => ["PRD", P.art || "", U_(P.des), U_(P.u), n(P.nbr), n(P.d1), n(P.d2), n(P.d3), ""];
+      const chgC = (C, q) => ["CHG", C.art || "", U_(C.des), U_(C.u), "", "", "", "", n(q !== "" && q !== undefined ? q : C.q)];
+      const rows = [], used = { lot: new Set(), prim: new Set(), sec: new Set(), prd: new Set(), chg: new Set() };
+      (d.des || []).forEach(D => {
+        const L = (d.links || []).filter(l => l.des === D.id);
+        if (!L.length) { rows.push([...desC(D), "", "", "", "", "", "", "", "", "", "", "", ""]); return; }
+        L.forEach(l => {
+          const ch = [U_(by("lot", l.lot).v), U_(by("prim", l.prim).v), U_(by("sec", l.sec).v)];
+          ["lot", "prim", "sec"].forEach(k => used[k].add(l[k]));
+          (l.prd || []).forEach(x => { used.prd.add(x.id); rows.push([...desC(D), ...ch, ...prdC(by("prd", x.id))]); });
+          (l.chg || []).forEach(x => { used.chg.add(x.id); rows.push([...desC(D), ...ch, ...chgC(by("chg", x.id), x.q)]); });
+        });
+      });
+      [["lot", 3], ["prim", 4], ["sec", 5]].forEach(([k, c]) => (d[k] || []).filter(r => !used[k].has(r.id)).forEach(r => {
+        const row = Array(BF_HEAD.length).fill(""); row[c] = U_(r.v); rows.push(row);
+      }));
+      (d.prd || []).filter(r => !used.prd.has(r.id)).forEach(P => rows.push(["", "", "", "", "", "", ...prdC(P)]));
+      (d.chg || []).filter(r => !used.chg.has(r.id)).forEach(C => rows.push(["", "", "", "", "", "", ...chgC(C)]));
+      return { head: BF_HEAD, rows };
+    };
+    /* lecture d'un onglet : ligne d'en-tête trouvée (DÉSIGNATION CLIENT), colonnes par leur nom */
+    const bfNorm = v => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
+    const bfModel = aoa => {
+      const hi = aoa.findIndex(r => (r || []).some(c => bfNorm(c) === "DESIGNATION CLIENT"));
+      if (hi < 0) throw new Error("COLONNE « DÉSIGNATION CLIENT » INTROUVABLE");
+      const H = aoa[hi].map(bfNorm);
+      const col = (...names) => H.findIndex(h => names.some(x => h === x || (x.endsWith("*") && h.startsWith(x.slice(0, -1)))));
+      const C = { art: col("ART"), dc: col("DESIGNATION CLIENT"), upb: col("UPB"), lot: col("LOT"), prim: col("ACTIVITE PRIMAIRE"),
+        sec: col("ACTIVITE SECONDAIRE"), type: col("TYPE*"), article: col("ARTICLE"), des: col("DESIGNATION"), u: col("UNITE"),
+        nbr: col("NBR"), d1: col("DIM 1", "DIM1"), d2: col("DIM 2", "DIM2"), d3: col("DIM 3", "DIM3"), q: col("QTE", "QUANTITE") };
+      const g = (r, k) => C[k] < 0 ? "" : (r[C[k]] ?? "");
+      const nn = v => String(v ?? "").trim() === "" ? "" : num(v);
+      const m = { des: [], hier: [], chg: [], prd: [], qlt: [], dly: [], links: [] };
+      const seen = new Map();
+      const put = (k, key, row, hier) => { if (!seen.has(key)) { seen.set(key, true); hier ? m.hier.push({ key, lvl: k, row }) : m[k].push({ key, row }); } return key; };
+      aoa.slice(hi + 1).forEach(r => {
+        if (!r || !r.some(c => String(c ?? "").trim() !== "")) return;
+        const dc = U_(g(r, "dc")), lot = U_(g(r, "lot")), prim = U_(g(r, "prim")), sec = U_(g(r, "sec"));
+        const t = bfNorm(g(r, "type")), dn = U_(g(r, "des"));
+        let dk = "", pk = "", ck = "";
+        if (dc) {
+          const row = { art: String(g(r, "art") ?? "").trim(), des: dc, u: U_(g(r, "upb")), tva: 20 };
+          /* titre : ni unité, ni tâche, ni détail */
+          if (!row.u && !lot && !t && !dn) row.t = true;
+          dk = put("des", "des|" + impId("des", row), row);
+        }
+        const hk = [["lot", lot], ["prim", prim], ["sec", sec]].map(([k, v]) => v ? put(k, k + "|" + v, { v }, true) : "");
+        if (dn && t.startsWith("PRD")) {
+          const row = { des: dn, u: U_(g(r, "u")), nbr: nn(g(r, "nbr")), d1: nn(g(r, "d1")), d2: nn(g(r, "d2")), d3: nn(g(r, "d3")) };
+          pk = put("prd", "prd|" + impId("prd", row), row);
+        } else if (dn && t.startsWith("CHG")) {
+          const row = { art: String(g(r, "article") ?? "").trim(), des: dn, u: U_(g(r, "u")), q: nn(g(r, "q")), tva: 20 };
+          /* prix et TVA : depuis CHS */
+          const c = chsFind(row.art, row.des);
+          if (c) { row.chs = c.id; row.p = c.pcs; row.tva = c.tva; row.u = row.u || U_(c.unit); }
+          ck = put("chg", "chg|" + impId("chg", row), row);
+        }
+        if (dk && hk[0] && hk[1] && hk[2] && (pk || ck)) m.links.push({ dk, lot: hk[0], prim: hk[1], sec: hk[2], pk: pk || undefined, ck: ck || undefined, q: "" });
+      });
+      return m;
+    };
+    /* ajoute le modèle au budget : AJOUTER / METTRE À JOUR / REMPLACER */
+    const bfApply = (m, mode, srcName) => {
+      let added = 0, upd = 0, skip = 0, nl = 0;
+      const kid = new Map();
+      const K = ["des", "lot", "prim", "sec", "chg", "prd"];
+      const inc = { des: m.des, chg: m.chg, prd: m.prd, lot: [], prim: [], sec: [] };
+      m.hier.forEach(x => inc[x.lvl].push(x));
+      K.forEach(k => {
+        if (!inc[k].length) return;
+        if (mode === "replace") INS[k] = [];
+        const hierK = k === "lot" || k === "prim" || k === "sec";
+        inc[k].forEach(x => {
+          const r = hierK ? { v: x.row.v } : { ...x.row };
+          const old = INS[k].find(o => hierK ? U_(o.v) === U_(r.v) : impId(k, o) === impId(k, r));
+          if (old) {
+            kid.set(x.key, old.id);
+            if (mode !== "update" || hierK) { skip++; return; }
+            let ch = false;
+            ["q", "nbr", "d1", "d2", "d3", "p", "tva", "chs"].forEach(f => { if (r[f] !== undefined && String(r[f]) !== String(old[f] ?? "")) { old[f] = r[f]; ch = true; } });
+            ch ? upd++ : skip++;
+            return;
+          }
+          r.id = insId(); r.on = false;
+          if (k === "des") r.t = !!r.t;
+          INS[k].push(r); added++;
+          kid.set(x.key, r.id);
+        });
+      });
+      if (mode === "replace") { INS.links = []; INS.dlp = {}; }
+      INS.links = INS.links || [];
+      m.links.forEach(l => {
+        const des = kid.get(l.dk), lot = kid.get(l.lot), prim = kid.get(l.prim), sec = kid.get(l.sec);
+        const pid = l.pk && kid.get(l.pk), cid = l.ck && kid.get(l.ck);
+        if (!des || !lot || !prim || !sec || (!pid && !cid)) return;
+        let L = INS.links.find(x => x.des === des && x.lot === lot && x.prim === prim && x.sec === sec);
+        if (!L) { L = { id: insId(), des, lot, prim, sec, prd: [], chg: [] }; INS.links.push(L); nl++; }
+        if (pid && !(L.prd = L.prd || []).some(y => y.id === pid)) L.prd.push({ id: pid, q: "" });
+        if (cid && !(L.chg = L.chg || []).some(y => y.id === cid)) L.chg.push({ id: cid, q: "" });
+      });
+      INS.links = INS.links.filter(x => (x.prd || []).length);
+      insCleanLinks();
+      insSave();
+      const M = { add: "AJOUT", replace: "REMPLACEMENT", update: "MISE À JOUR" }[mode];
+      histLog("IMPORT", "BUDGET COMPLET — " + M, srcName + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S) — " + nl + " LIAISON(S)");
+      refreshAll();
+    };
+    const bfImportAoa = async (aoa, srcName) => {
+      let m;
+      try { m = bfModel(aoa); } catch (e) { svToast("IMPORT IMPOSSIBLE : " + e.message, 5000); return; }
+      const busy = ["des", "lot", "prim", "sec", "chg", "prd"].some(k => INS[k].length);
+      if (!busy) { bfApply(m, "add", srcName); return; }
+      const v = await svChoose({ title: "DONNÉES DÉJÀ PRÉSENTES", buttons: [
+        { v: "add", label: "AJOUTER", tone: "neutral" }, { v: "update", label: "METTRE À JOUR", tone: "neutral" }, { v: "replace", label: "REMPLACER", tone: "danger" }] });
+      if (!v) return;
+      if (v === "replace" && !(await svConfirm({ title: "REMPLACER", text: "TOUTES LES LIGNES ET LIAISONS DU BUDGET SERONT SUPPRIMÉES PUIS REMPLACÉES PAR CELLES DU FICHIER.", ok: "REMPLACER" }))) return;
+      bfApply(m, v, srcName);
+    };
+    /* IMPORTER UN BUDGET : fichier Excel (iPad) ou Google Sheets (Drive) ; un seul onglet */
+    const openBudgetImport = () => {
+      const p = popup(`
+        <div class="blk-card">
+          <button type="button" class="blk-x" data-close>✕</button>
+          <div class="blk-title">IMPORTER UN BUDGET</div>
+          <button type="button" class="blk-choice" data-src="file">FICHIER EXCEL (SUR L'IPAD)</button>
+          <button type="button" class="blk-choice" data-src="gsheet">GOOGLE SHEETS (DRIVE)</button>
+        </div>`);
+      p.addEventListener("click", async e => {
+        const b = e.target.closest("[data-src]");
+        if (!b) return;
+        p.remove();
+        if (b.dataset.src === "file") {
+          const inp = document.createElement("input");
+          inp.type = "file";
+          inp.accept = ".xlsx,.xls,.csv";
+          inp.onchange = async () => {
+            const f = inp.files[0];
+            if (!f) return;
+            try {
+              const X = await loadXLSX();
+              const wb = X.read(await f.arrayBuffer(), { type: "array" });
+              let sh = wb.SheetNames[0];
+              /* plusieurs onglets : lequel ? */
+              if (wb.SheetNames.length > 1) {
+                sh = await svChoose({ title: "QUEL ONGLET ?", buttons: wb.SheetNames.map(n => ({ v: n, label: n, tone: "neutral" })) });
+                if (!sh) return;
+              }
+              const aoa = X.utils.sheet_to_json(wb.Sheets[sh], { header: 1, defval: "" });
+              bfImportAoa(aoa, f.name + " › " + sh);
+            } catch (err) { svToast("IMPORT IMPOSSIBLE : " + ((err && err.message) || err), 5000); }
+          };
+          inp.click();
+          return;
+        }
+        /* Google Sheets : lien de la feuille (l'onglet ouvert dans le lien est celui lu) */
+        const url = await askSheetLink();
+        if (!url) return;
+        let first = "";
+        for (const call of [() => apiGet("sheetRead", { link: url }), () => apiPost("sheetRead", { link: url })]) {
+          try {
+            const d = await call();
+            if (d && d.ok && Array.isArray(d.values)) { bfImportAoa(d.values, d.name || "GOOGLE SHEETS"); return; }
+          } catch (err) { first = first || (err && err.message) || String(err); }
+        }
+        svToast("IMPORT GOOGLE SHEETS IMPOSSIBLE : " + (first || "LECTURE REFUSÉE"), 6000);
+      });
+    };
+    /* menu ⋯ du haut : DUPLIQUER, DISPOSITION PAR DÉFAUT, EXPORTER / IMPORTER LE BUDGET */
+    const openBdgMore = btn => {
+      const old = document.getElementById("blkMenu");
+      if (old && old.dataset.for === "bdgMore") { old.remove(); return; }
+      old?.remove();
+      const rb = $("layResetBtn");
+      const items = [
+        { a: "dup", lab: "DUPLIQUER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>' },
+        { a: "lay", lab: "DISPOSITION PAR DÉFAUT", off: !rb || rb.disabled, ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
+        { a: "exp", lab: "EXPORTER LE BUDGET", ic: '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
+        ...(INS_EDIT ? [{ a: "imp", lab: "IMPORTER UN BUDGET", ic: '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : [])
+      ];
+      const m = document.createElement("div");
+      m.id = "blkMenu";
+      m.dataset.for = "bdgMore";
+      m.innerHTML = items.map(x => `<button type="button" data-a="${x.a}" class="${x.off ? "blk-del off" : ""}" ${x.off ? "disabled" : ""}>${x.ic}<span>${x.lab}</span></button>`).join("");
+      document.body.appendChild(m);
+      const r = btn.getBoundingClientRect();
+      m.style.top = r.bottom + 4 + "px";
+      m.style.left = Math.max(8, r.right - m.offsetWidth) + "px";
+      m.addEventListener("click", e => {
+        const it = e.target.closest("[data-a]");
+        if (!it || it.classList.contains("off")) return;
+        m.remove();
+        if (it.dataset.a === "dup") $("instDup")?.click();
+        else if (it.dataset.a === "lay") $("layResetBtn")?.click();
+        else if (it.dataset.a === "exp") openExportMenu("budget");
+        else if (it.dataset.a === "imp") openBudgetImport();
+      });
+      setTimeout(() => document.addEventListener("click", function off(e) {
+        if (!e.target.closest("#blkMenu")) { m.remove(); document.removeEventListener("click", off, true); }
+      }, true), 0);
+    };
     const openImportMenu = blk => {
       const p = popup(`
         <div class="blk-card">
@@ -11607,6 +11819,8 @@ function renderBudgetList() {
         return;
       }
       if (event.target.closest(".blk-grip, .blk-rsz")) return;
+      const bm = event.target.closest("#bdgMore");
+      if (bm) { event.stopPropagation(); openBdgMore(bm); return; }
       if (event.target.closest("#layResetBtn")) {
         if ($("layResetBtn").disabled) return;
         svConfirm({ title: "DISPOSITION PAR DÉFAUT", text: "TOUS LES BLOCS REVIENNENT À LEUR PLACE ET À LEUR TAILLE D'ORIGINE.", ok: "RÉTABLIR", tone: "neutral" }).then(go => {
