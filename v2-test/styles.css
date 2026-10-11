@@ -1210,3 +1210,8 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 /* iPad : pas de loupe ni de sélection sur une case non active (le défilement reste libre) */
 .ins-table input.ins-in:not(:focus), .ins-hcol input.ins-in:not(:focus), .dly-table input.ins-in:not(:focus) { -webkit-touch-callout: none; }
 .ins-table tr.lk-sel.lk-link td, .ins-hcol .ins-li.lk-sel.lk-link { background: #ede0ff !important; color: #6b21a8 !important; font-weight: 800; }
+/* fenêtre LIAISON (icône i) */
+#docPop .lk-info-st { display: inline-block; margin-bottom: 12px; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800;
+  color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; }
+#docPop .lk-info-st.ok { color: #6b21a8; background: #f3e8ff; border-color: #e9d5ff; }
+#docPop .lk-info-v { font-size: 13px; font-weight: 700; color: #172033; align-self: center; }
