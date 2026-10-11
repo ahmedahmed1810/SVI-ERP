@@ -7376,11 +7376,11 @@ function renderBudgetList() {
     const U_ = v => String(v ?? "").trim().toUpperCase();
     /* identité d'une ligne : deux lignes identiques = doublon (jamais importé deux fois)
        désignations / charges : ART + DÉSIGNATION + UNITÉ (+ titre) ;
-       produits : en plus NBR, DIM, QUANTITÉ et PRIX (un même produit sert à plusieurs tâches) */
+       produits : idem (ART + DÉSIGNATION + UNITÉ) */
     const impId = (k, r) => {
       const n = v => v === "" || v === undefined || v === null ? "" : (Math.round(num(v) * 1000) / 1000).toString();
       const base = [U_(r.art), U_(r.des), U_(r.u), r.t ? "T" : ""];
-      return (k === "prd" ? [...base, n(r.nbr), n(r.d1), n(r.d2), n(r.d3), n(insQty("prd", r)), n(r.p)] : base).join("|");
+      return base.join("|");
     };
     /* charges, lots et activités : ordre alphabétique */
     const impSort = m => {
@@ -7400,7 +7400,9 @@ function renderBudgetList() {
           const id = k + "|" + impId(k, r);
           if (seen.has(id)) return;
           seen.add(id);
-          m[k].push({ key: id, row: { ...r } });
+          const row = { ...r };
+          if (k === "prd") ["nbr", "d1", "d2", "d3", "q", "p"].forEach(f => delete row[f]);
+          m[k].push({ key: id, row });
         }));
         ["lot", "prim", "sec"].forEach(k => (d[k] || []).forEach(r => {
           const id = k + "|" + U_(r.v);
@@ -7441,10 +7443,8 @@ function renderBudgetList() {
           cmap.get(ck).ms.push(l);
           ks.ck = ck;
         } else if (l.kind === "prd") {
-          const row = { art: l.article, des: U_(l.detail), u: U_(l.dunit || l.unit),
-            nbr: l.nbr === "" ? "" : num(l.nbr), d1: l.dims[0] === "" ? "" : num(l.dims[0]),
-            d2: l.dims[1] === "" ? "" : num(l.dims[1]), d3: l.dims[2] === "" ? "" : num(l.dims[2]),
-            q: l.qty, p: l.price, tva: 20 };
+          /* produit : ART, DÉSIGNATION, UNITÉ ; quantité et prix propres à chaque tâche, non repris */
+          const row = { art: l.article, des: U_(l.detail), u: U_(l.dunit || l.unit), tva: 20 };
           /* produit identique déjà listé : une seule ligne (ses liens sont gardés) */
           const pk = "p" + impId("prd", row);
           if (!pset.has(pk)) { pset.add(pk); m.prd.push({ key: pk, row }); }
@@ -7516,7 +7516,7 @@ function renderBudgetList() {
         des: [["art", "ART"], ["des", "DÉSIGNATION"], ["u", "UPB"], ["q", "QPB", 1], ["p", "PPB", 1]],
         hier: [["lvl", "NIVEAU"], ["v", "LIBELLÉ"]],
         chg: [["des", "DÉSIGNATION"], ["u", "UCB"], ["q", "QCB", 1], ["p", "PCB", 1]],
-        prd: [["art", "ART"], ["des", "DÉSIGNATION"], ["u", "UPB"], ["q", "QPB", 1], ["p", "PPB", 1]]
+        prd: [["art", "ART"], ["des", "DÉSIGNATION"], ["u", "UPB"]]
       };
       const LV = { lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" };
       const val = (x, f, isNum) => f === "lvl" ? LV[x.lvl] : x.row.t && isNum ? "" : isNum ? money(f === "q" ? insQty(tab === "prd" ? "prd" : "des", x.row) : x.row[f]) : (x.row[f] ?? "");
