@@ -6016,7 +6016,7 @@ function renderBudgetList() {
       if (detN.chg === undefined) detN.chg = cfApply("lk_chg", [["des", "", r => r.des || ""], ["u", "", r => r.u || ""], ["qt", "", r => LK.chg[r.id] ?? ""]], [...INS.chg]).length;
       const tabBtn = (k, title, extra) => `<button type="button" class="bdg-d-tab${lkTab === k ? " active" : ""}${Object.keys(cfT("lk_" + k).f).length ? " cf-on" : ""}" data-lktab="${k}">${SVI_ICON[k] || ""}${title} ${svCnt(detN[k])}${extra || ""}</button>`;
       const detHTML = `<div class="lk-dettabs"><div class="bdg-d-tabs lk-tabs">${tabBtn("prd", 'DÉTAIL PRODUITS <b class="req-star">*</b>')}${tabBtn("chg", "DÉTAIL CHARGES")}${tabBtn("qlt", "DÉTAIL QUALITÉ")}${tabBtn("dly", "DÉTAIL DÉLAIS")}</div>
-        <div class="bdg-d-block bdg-d-tabbody lk-blk">${detBody}</div></div>`;
+        <div class="bdg-d-block bdg-d-tabbody lk-blk lk-det">${detBody}<div class="blk-rsz lk-hrsz" data-lkh="det"></div></div></div>`;
       const nPrd = Object.keys(LK.prd).length;
       const complete = LK.des && LK.lot && LK.prim && LK.sec && nPrd > 0;
       const chain = [lkName("des", LK.des), lkName("lot", LK.lot), lkName("prim", LK.prim), lkName("sec", LK.sec)]
@@ -6036,15 +6036,17 @@ function renderBudgetList() {
         .replace(/<\/tr><\/thead>/, RO ? "</tr></thead>" : `<th class="center" style="width:110px"></th></tr></thead>`);
       box.innerHTML = `
         <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${SVI_ICON.client}DÉSIGNATIONS CLIENT ${svCnt(desList.length)}</span></div>
-          <div class="lk-scroll">${desHTML}</div></div>
+          <div class="lk-scroll" style="height:var(--lkh-des,170px)">${desHTML}</div><div class="blk-rsz lk-hrsz" data-lkh="des"></div></div>
         <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${SVI_ICON.hier}TÂCHES</span></div>
-          <div class="lk-grid" style="${gridCols ? "grid-template-columns:" + gridCols : ""}">${col("lot", "LOT")}${col("prim", "ACTIVITÉ PRIMAIRE")}${col("sec", "ACTIVITÉ SECONDAIRE")}</div></div>
+          <div class="lk-grid" style="${gridCols ? "grid-template-columns:" + gridCols : ""}">${col("lot", "LOT")}${col("prim", "ACTIVITÉ PRIMAIRE")}${col("sec", "ACTIVITÉ SECONDAIRE")}</div><div class="blk-rsz lk-hrsz" data-lkh="hier"></div></div>
         ${detHTML}
         ${RO ? "" : `<div class="lk-chain"><span class="lk-path">CHAÎNE : ${esc(chain)}</span>
           ${LK.err ? `<span class="lk-err">${esc(LK.err)}</span>` : ""}
           <button type="button" class="lk-go" ${complete ? "" : "disabled"}>✓ VALIDER LA LIAISON</button></div>`}
         <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">LIAISONS VALIDÉES ${svCnt(lrows.length)}</span></div>
-          <div class="lk-scroll lk-links">${linksHTML}</div></div>`;
+          <div class="lk-scroll lk-links" style="height:var(--lkh-links,170px)">${linksHTML}</div><div class="blk-rsz lk-hrsz" data-lkh="links"></div></div>`;
+      /* hauteurs des blocs réglées par la poignée (mémorisées) */
+      try { const H = JSON.parse(localStorage.getItem("svi_lkh_v1") || "{}"); Object.keys(H).forEach(k => box.style.setProperty("--lkh-" + k, H[k] + "px")); } catch (e) {}
       sviMarkEmptyTabs(box);
       /* bouton DÉLIER au bout de chaque liaison */
       if (!RO) box.querySelectorAll(".lk-links tbody tr").forEach((tr, i) => {
@@ -7166,6 +7168,24 @@ function renderBudgetList() {
 
     shell.onpointerdown = event => {
       /* mode LIAISONS : la poignée d'en-tête règle la largeur des blocs TÂCHES */
+      /* mode LIAISONS : poignée du bas = hauteur du bloc (mémorisée) */
+      const lkH = event.target.closest(".lk-hrsz");
+      if (lkH) {
+        event.preventDefault(); event.stopPropagation();
+        const k = lkH.dataset.lkh, box = $("insLinkView");
+        const ref = lkH.parentElement.querySelector(k === "hier" ? ".lk-col" : ".lk-scroll");
+        const y0 = event.clientY, h0 = ref ? ref.getBoundingClientRect().height : 170;
+        let h = h0;
+        lkH.classList.add("on");
+        const mv = ev => { h = Math.max(80, Math.round(h0 + ev.clientY - y0)); box.style.setProperty("--lkh-" + k, h + "px"); };
+        const up = () => {
+          lkH.classList.remove("on");
+          document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
+          try { const H = JSON.parse(localStorage.getItem("svi_lkh_v1") || "{}"); H[k] = h; localStorage.setItem("svi_lkh_v1", JSON.stringify(H)); } catch (e) {}
+        };
+        document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
+        return;
+      }
       const lkRs = event.target.closest(".lk-col .lk-rs");
       if (lkRs) {
         event.preventDefault(); event.stopPropagation();
