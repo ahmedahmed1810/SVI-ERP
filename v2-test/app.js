@@ -7542,26 +7542,71 @@ function renderBudgetList() {
         if (!e.target.closest("#impGo")) return;
         const pk = picked();
         const lk = withLinks || all;
-        let added = 0;
-        const has = (k, r) => INS[k].some(x => U_(x.art) === U_(r.art) && U_(x.des) === U_(r.des) && U_(x.u) === U_(r.u) && !!x.t === !!r.t);
-        ["des", "chg", "prd"].forEach(k => model[k].filter(x => pk[k].has(x.key)).forEach(x => {
-          const r = { ...x.row, id: insId(), on: false };
-          if (k === "des") r.t = !!r.t;
-          if (has(k, r)) return;
-          if (lk) r.lk = { src, key: x.key, links: model.links.filter(l => l.dk === x.key || l.ck === x.key || l.pk === x.key) };
-          INS[k].push(r); added++;
-        }));
-        model.hier.filter(x => pk.hier.has(x.key)).forEach(x => {
-          if (INS[x.lvl].some(r => U_(r.v) === U_(x.row.v))) return;
-          const r = { id: insId(), on: false, v: x.row.v };
-          if (lk) r.lk = { src, key: x.key };
-          INS[x.lvl].push(r); added++;
+        /* lignes à importer, rangées par bloc du budget */
+        const inc = { des: [], chg: [], prd: [], lot: [], prim: [], sec: [] };
+        ["des", "chg", "prd"].forEach(k => model[k].filter(x => pk[k].has(x.key)).forEach(x => inc[k].push(x)));
+        model.hier.filter(x => pk.hier.has(x.key)).forEach(x => inc[x.lvl].push(x));
+        const LAB = { des: "DÉSIGNATIONS CLIENT", lot: "LOTS", prim: "ACTIVITÉS PRIMAIRES", sec: "ACTIVITÉS SECONDAIRES",
+          chg: "DÉTAIL CHARGES", prd: "DÉTAIL PRODUITS" };
+        const busy = Object.keys(inc).filter(k => inc[k].length && INS[k].length);
+        const run = mode => {
+          let added = 0, upd = 0, skip = 0;
+          const same = (k, a, b) => k === "lot" || k === "prim" || k === "sec"
+            ? U_(a.v) === U_(b.v)
+            : U_(a.art) === U_(b.art) && U_(a.des) === U_(b.des) && U_(a.u) === U_(b.u) && !!a.t === !!b.t;
+          Object.keys(inc).forEach(k => {
+            if (!inc[k].length) return;
+            if (mode === "replace") INS[k] = [];
+            inc[k].forEach(x => {
+              const hierK = k === "lot" || k === "prim" || k === "sec";
+              const r = hierK ? { v: x.row.v } : { ...x.row };
+              const old = INS[k].find(o => same(k, o, r));
+              if (old) {
+                if (mode !== "update" || hierK) { skip++; return; }
+                let ch = false;
+                ["q", "p", "tva", "nbr", "d1", "d2", "d3"].forEach(f => {
+                  if (r[f] !== undefined && String(r[f]) !== String(old[f] ?? "")) { old[f] = r[f]; ch = true; }
+                });
+                ch ? upd++ : skip++;
+                return;
+              }
+              r.id = insId(); r.on = false;
+              if (k === "des") r.t = !!r.t;
+              if (lk) r.lk = { src, key: x.key, links: hierK ? undefined
+                : model.links.filter(l => l.dk === x.key || l.ck === x.key || l.pk === x.key) };
+              INS[k].push(r); added++;
+            });
+          });
+          insSave();
+          const M = { add: "AJOUT", replace: "REMPLACEMENT", update: "MISE À JOUR" }[mode];
+          histLog("IMPORT", "DEPUIS UN AUTRE BUDGET — " + M, src + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S)" + (lk ? " — AVEC LIAISONS" : ""));
+          p.remove();
+          refreshAll();
+          alert("IMPORT DEPUIS " + src + " (" + M + ") :\n" + added + " LIGNE(S) AJOUTÉE(S)\n" + upd + " LIGNE(S) MISE(S) À JOUR\n" + skip + " LIGNE(S) IGNORÉE(S) (DÉJÀ PRÉSENTES)");
+        };
+        if (!busy.length) { run("add"); return; }
+        /* des lignes existent déjà : l'utilisateur choisit */
+        p.querySelector(".imp-ask")?.remove();
+        const ask = document.createElement("div");
+        ask.className = "imp-ask";
+        ask.innerHTML = `<div class="imp-ask-card" role="dialog" aria-modal="true">
+            <div class="imp-ask-t">DONNÉES DÉJÀ PRÉSENTES</div>
+            <div class="imp-ask-l">${busy.map(k => `<div><b>${LAB[k]}</b> : ${INS[k].length} LIGNE(S) EXISTANTE(S), ${inc[k].length} À IMPORTER</div>`).join("")}</div>
+            <button type="button" class="imp-ask-b" data-mode="add"><b>AJOUTER</b><span>LES LIGNES EXISTANTES SONT GARDÉES ; LES LIGNES IDENTIQUES NE SONT PAS AJOUTÉES</span></button>
+            <button type="button" class="imp-ask-b" data-mode="update"><b>METTRE À JOUR</b><span>LES LIGNES IDENTIQUES PRENNENT LA QUANTITÉ ET LE PRIX IMPORTÉS ; LES NOUVELLES S'AJOUTENT</span></button>
+            <button type="button" class="imp-ask-b imp-ask-r" data-mode="replace"><b>REMPLACER</b><span>LES BLOCS CI-DESSUS SONT VIDÉS PUIS REMPLIS AVEC LES LIGNES IMPORTÉES</span></button>
+            <div class="imp-ask-f"><button type="button" class="doc-btn" data-ask-cancel>ANNULER</button></div>
+          </div>`;
+        p.appendChild(ask);
+        ask.addEventListener("click", ev => {
+          ev.stopPropagation();
+          if (ev.target === ask || ev.target.closest("[data-ask-cancel]")) { ask.remove(); return; }
+          const b = ev.target.closest("[data-mode]");
+          if (!b) return;
+          if (b.dataset.mode === "replace" &&
+              !confirm("REMPLACER : LES LIGNES EXISTANTES DE " + busy.map(k => LAB[k]).join(", ") + " SERONT SUPPRIMÉES. CONTINUER ?")) return;
+          run(b.dataset.mode);
         });
-        insSave();
-        histLog("IMPORT", "DEPUIS UN AUTRE BUDGET", src + " — " + added + " LIGNE(S)" + (lk ? " AVEC LIAISONS" : ""));
-        p.remove();
-        refreshAll();
-        alert(added + " LIGNE(S) IMPORTÉE(S) DEPUIS " + src + (added ? "" : " (DÉJÀ PRÉSENTES)") + ".");
       });
     };
 
