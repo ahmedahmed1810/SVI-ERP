@@ -529,7 +529,12 @@ function openGoogleLink(url, w) {
     if (w) w.location.href = url; else window.open(url, "_blank");
     return;
   }
-  const app = /docs\.google\.com\/spreadsheets/.test(url) ? "googlesheets://" : "googledrive://";
+  /* feuille Google : ouverte directement (l'app Sheets, si elle est là, la reprend) */
+  if (/docs\.google\.com\/spreadsheets/.test(url)) {
+    if (w) w.location.href = url; else window.open(url, "_blank");
+    return;
+  }
+  const app = "googledrive://";
   let left = false;
   const away = () => { if (document.hidden) left = true; };
   document.addEventListener("visibilitychange", away);
@@ -2142,7 +2147,7 @@ async function ensureBDGLoaded() {
 
     /* VERSION TEST : lecture de la base V3 (repli sur l'ancien onglet BDG) */
     try {
-      const v3 = await apiPost("v3Read", {});
+      const v3 = await apiSrc("v3Read");
       bdgRows = v3ToRows(v3);
       if (!bdgRows.length) throw new Error("BASE V3 VIDE");
       window.SVI_SRC = "V3";
@@ -11406,49 +11411,135 @@ function budgetDate(ref) {
 
 /* =========================================================
    MENU ☰ › DONNÉES SOURCE : fichiers Google Sheets lus par l'application
+   - toucher le nom : ouvre le fichier ;
+   - appui long : coller le lien d'un autre fichier,
+     puis ENREGISTRER (le script vérifie que le fichier s'ouvre).
    ========================================================= */
 const SVI_SRC_FILES = {
   main: { name: "SVI 26-0826/001", url: "https://docs.google.com/spreadsheets/d/1-gZdPMT3V6zLMuS5b8nylgqvSB1zrAukJfZ0o4ht1YE/edit" },
   v3: { name: "SVI ERP — BASE BUDGETS V3", url: "https://docs.google.com/spreadsheets/d/131RdvI2_kqjRq7HbcPxXetWHmBcYJ3DNmGPiuogAoas/edit" }
 };
+/* appel du script : d'abord par GET (paramètres gardés si Google redirige), sinon POST */
+async function apiSrc(action, params = {}) {
+  try {
+    const d = await apiGet(action, params);
+    if (d && d.ok && (d.main || d.budgets || d.v3)) return d;
+  } catch (e) {}
+  return apiPost(action, params);
+}
 function openSourceWin() {
   document.getElementById("srcPop")?.remove();
   const test = !!document.getElementById("sviTestTag");
-  const lnk = f => `<a href="${f.url}" class="src-link" data-src-url="${f.url}">${esc(f.name)}</a>`;
+  /* fichier modifiable ici : base V3 (version test), fichier principal (version validée) */
+  const EDIT = test ? "v3" : "main";
+  const files = { main: { ...SVI_SRC_FILES.main }, v3: { ...SVI_SRC_FILES.v3 } };
+  const tag = (document.getElementById("sviTestTag")?.textContent || "").replace(/^VERSION TEST — /, "");
+  const v3ok = window.SVI_SRC === "V3" || !/ANCIEN BDG/.test(tag);
+  const field = (which, note) => `
+    <div class="src-fld${which === EDIT ? " src-edit-ok" : ""}" data-which="${which}">
+      <input class="src-in" data-keepcase readonly value="${esc(files[which].name)}"
+        placeholder="COLLER LE LIEN DE LA FEUILLE GOOGLE">
+    </div><span class="src-note" data-note="${which}">${note}</span>`;
   const row = (lab, val) => `<div class="src-lab">${lab}</div><div class="src-val">${val}</div>`;
-  let rows = row("VERSION", test ? "TEST" : "VALIDÉE");
-  if (test) {
-    const tag = (document.getElementById("sviTestTag")?.textContent || "").replace(/^VERSION TEST — /, "");
-    /* repli sur l'ancien onglet BDG seulement si la lecture de la base V3 a échoué */
-    const v3 = window.SVI_SRC === "V3" || !/ANCIEN BDG/.test(tag);
-    rows +=
-      row("BUDGETS (BDG)", v3 ? lnk(SVI_SRC_FILES.v3) + "<span class=\"src-note\">ONGLETS BUDGETS, DESIGNATIONS, TACHES, DETAILS, ARRETS</span>"
-        : lnk(SVI_SRC_FILES.main) + `<span class="src-note">ONGLET BDG — BASE V3 NON LUE : ${esc(tag)}</span>`) +
-      row("CHS, BDS", lnk(SVI_SRC_FILES.main) + "<span class=\"src-note\">ONGLETS CHS, BDS_V2, BRD_V2</span>") +
-      row("BUDGETS EN INSTANCE", "SUR CET APPAREIL SEULEMENT<span class=\"src-note\">PAS ENCORE ENREGISTRÉS DANS GOOGLE SHEETS</span>");
-  } else {
-    rows +=
-      row("BUDGETS (BDG)", lnk(SVI_SRC_FILES.main) + "<span class=\"src-note\">ONGLET BDG</span>") +
-      row("CHS, BDS", lnk(SVI_SRC_FILES.main) + "<span class=\"src-note\">ONGLETS CHS, BDS_V2, BRD_V2</span>");
-  }
+  const render = () => {
+    let rows = row("VERSION", test ? "TEST" : "VALIDÉE");
+    if (test) {
+      rows +=
+        row("BUDGETS (BDG)", v3ok
+          ? field("v3", "ONGLETS BUDGETS, DESIGNATIONS, TACHES, DETAILS, ARRETS" + (files.v3.folder ? " — DOSSIER " + esc(files.v3.folder) : ""))
+          : field("main", "ONGLET BDG — BASE V3 NON LUE : " + esc(tag))) +
+        (v3ok ? "" : row("BASE V3", field("v3", "NON LUE : " + esc(tag)))) +
+        row("CHS, BDS", field("main", "ONGLETS CHS, BDS_V2, BRD_V2 — MODIFIABLE DEPUIS LA VERSION VALIDÉE")) +
+        row("BUDGETS EN INSTANCE", "SUR CET APPAREIL SEULEMENT<span class=\"src-note\">PAS ENCORE ENREGISTRÉS DANS GOOGLE SHEETS</span>");
+    } else {
+      rows +=
+        row("BDG, CHS, BDS", field("main", "ONGLETS BDG, CHS, BDS_V2, BRD_V2" + (files.main.folder ? " — DOSSIER " + esc(files.main.folder) : "")));
+    }
+    p.querySelector(".src-grid").innerHTML = rows;
+  };
   const p = document.createElement("div");
   p.id = "srcPop";
   p.innerHTML = `
     <div class="src-card" role="dialog" aria-modal="true">
       <div class="src-head">
         <span class="src-title">DONNÉES SOURCE</span>
-        <button type="button" class="src-x" data-cancel aria-label="Fermer">✕</button>
+        <button type="button" class="src-x" data-close aria-label="Fermer">✕</button>
       </div>
-      <div class="src-body"><div class="src-grid">${rows}</div></div>
+      <div class="src-body"><div class="src-grid"></div><div class="src-msg"></div></div>
       <div class="src-foot">
-        <button type="button" class="src-btn" data-cancel>FERMER</button>
+        <button type="button" class="src-btn" data-close>FERMER</button>
+        <button type="button" class="src-btn" data-cancel hidden>ANNULER</button>
+        <button type="button" class="src-btn src-save" data-save hidden>ENREGISTRER</button>
       </div>
     </div>`;
   document.body.appendChild(p);
-  p.addEventListener("click", e => {
-    const a = e.target.closest("[data-src-url]");
-    if (a) { e.preventDefault(); openGoogleLink(a.dataset.srcUrl); return; }
-    if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
+  render();
+  const msg = (t, err) => { const m = p.querySelector(".src-msg"); m.textContent = t || ""; m.classList.toggle("err", !!err); };
+  /* noms réels des fichiers, lus par le script */
+  apiSrc("srcGet").then(d => {
+    ["main", "v3"].forEach(k => { if (d[k] && d[k].id) files[k] = { ...files[k], ...d[k], name: d[k].name || files[k].name }; });
+    if (!editing) render();
+  }).catch(() => {});
+  let editing = null;
+  const setMode = which => {
+    editing = which;
+    p.querySelector("[data-close].src-btn").hidden = !!which;
+    p.querySelector("[data-cancel]").hidden = !which;
+    p.querySelector("[data-save]").hidden = !which;
+    p.querySelectorAll(".src-fld").forEach(f => f.classList.toggle("editing", f.dataset.which === which && !!which));
+    p.querySelectorAll(".src-in").forEach(i => {
+      const on = which && i.closest(".src-fld").dataset.which === which;
+      i.readOnly = !on;
+      if (!on) i.value = files[i.closest(".src-fld").dataset.which].name;
+    });
+    if (which) {
+      const i = p.querySelector(`.src-fld[data-which="${which}"] .src-in`);
+      i.value = "";
+      i.focus();
+    }
+  };
+  /* appui long : modifier ; toucher simple : ouvrir */
+  let lpTimer = null, lpDone = false;
+  p.addEventListener("pointerdown", e => {
+    const f = e.target.closest(".src-fld.src-edit-ok");
+    if (!f || editing) return;
+    lpDone = false;
+    lpTimer = setTimeout(() => { lpDone = true; msg(""); setMode(f.dataset.which); }, 550);
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach(t => p.addEventListener(t, () => clearTimeout(lpTimer)));
+  p.addEventListener("contextmenu", e => { if (e.target.closest(".src-fld")) e.preventDefault(); });
+  p.addEventListener("click", async e => {
+    if (e.target === p || e.target.closest("[data-close]")) { p.remove(); return; }
+    if (e.target.closest("[data-cancel]")) { msg(""); setMode(null); return; }
+    const f = e.target.closest(".src-fld");
+    if (f && !(editing && f.dataset.which === editing)) {
+      if (lpDone) { lpDone = false; return; }
+      e.preventDefault();
+      openGoogleLink(files[f.dataset.which].url);
+      return;
+    }
+    const sv = e.target.closest("[data-save]");
+    if (!sv || !editing) return;
+    const link = p.querySelector(`.src-fld[data-which="${editing}"] .src-in`).value.trim();
+    if (!/\/d\/[A-Za-z0-9_-]{20,}|^[A-Za-z0-9_-]{20,}$/.test(link)) { msg("LIEN GOOGLE SHEETS NON RECONNU.", true); return; }
+    const lab = editing === "v3" ? "LA BASE DES BUDGETS (V3)" : "LE FICHIER PRINCIPAL (CHS, BDS, BDG)";
+    if (!confirm("CHANGER " + lab + " ?\nL'APPLICATION LIRA DÉSORMAIS SES DONNÉES DANS CE FICHIER.")) return;
+    sv.disabled = true;
+    msg("VÉRIFICATION DU FICHIER…");
+    try {
+      const d = await apiSrc("srcSet", { which: editing, link });
+      ["main", "v3"].forEach(k => { if (d[k] && d[k].id) files[k] = { ...files[k], ...d[k], name: d[k].name || files[k].name }; });
+      setMode(null);
+      render();
+      msg("✓ ENREGISTRÉ — ACTUALISATION DES DONNÉES…");
+      setTimeout(() => location.reload(), 1200);
+    } catch (err) {
+      msg("CHANGEMENT IMPOSSIBLE : " + (err && err.message || err), true);
+    }
+    sv.disabled = false;
+  });
+  p.addEventListener("keydown", e => {
+    if (e.key === "Enter" && editing) { e.preventDefault(); p.querySelector("[data-save]").click(); }
   });
 }
 document.addEventListener("click", e => {

@@ -88,6 +88,9 @@ function doGet(e) {
       });
     }
 
+    /* base V3 et données source (lecture par GET) */
+    const drvG = sviGetRoute_(e.parameter); if (drvG) return drvG;
+
     const action = String(
       e.parameter.action || ""
     ).toLowerCase();

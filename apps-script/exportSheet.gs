@@ -16,12 +16,14 @@
 /* actions Drive : exportSheet (feuille Google mise en forme)
    et saveFile (PDF, Excel, CSV, JSON, documents joints) */
 function sviDriveRoute_(body) {
-  if (!body || ["exportSheet", "saveFile", "drivePath", "v3Read"].indexOf(body.action) < 0) return null;
+  if (!body || ["exportSheet", "saveFile", "drivePath", "v3Read", "srcGet", "srcSet"].indexOf(body.action) < 0) return null;
   var out;
   try {
     out = body.action === "exportSheet" ? exportSheet_(body)
       : body.action === "saveFile" ? saveFile_(body)
       : body.action === "v3Read" ? v3Read_()
+      : body.action === "srcGet" ? srcGet_()
+      : body.action === "srcSet" ? srcSet_(body)
       : sviFolderInfo_(sviFolder_(body.path));
   } catch (err) {
     out = { ok: false, error: String(err && err.message || err) };
@@ -29,6 +31,16 @@ function sviDriveRoute_(body) {
   return ContentService
     .createTextOutput(JSON.stringify(out))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* mêmes actions en lecture par GET (doGet) : à appeler dans doGet juste
+   après le contrôle de la clé :
+     const drvG = sviGetRoute_(e.parameter); if (drvG) return drvG;
+   (un appel GET garde ses paramètres même quand Google redirige la requête) */
+function sviGetRoute_(p) {
+  var a = String((p && p.action) || "");
+  if (["v3Read", "srcGet", "srcSet"].indexOf(a) < 0) return null;
+  return sviDriveRoute_({ action: a, which: p.which, link: p.link });
 }
 
 /* dossier de destination :
@@ -183,12 +195,54 @@ function exportSheet_(b) {
    ========================================================= */
 var SVI_V3_ID = "131RdvI2_kqjRq7HbcPxXetWHmBcYJ3DNmGPiuogAoas";
 
+/* fichier de la base V3 : propriété V3_ID si elle existe (changée depuis
+   l'application, fenêtre DONNÉES SOURCE), sinon le fichier d'origine */
+function sviV3Id_() {
+  return PropertiesService.getScriptProperties().getProperty("V3_ID") || SVI_V3_ID;
+}
+
 function v3Read_() {
-  var ss = SpreadsheetApp.openById(SVI_V3_ID);
+  var ss = SpreadsheetApp.openById(sviV3Id_());
   var out = { ok: true };
   ["BUDGETS", "DESIGNATIONS", "TACHES", "DETAILS", "ARRETS"].forEach(function (name) {
     var sh = ss.getSheetByName(name);
     out[name.toLowerCase()] = sh ? sh.getDataRange().getValues() : [];
   });
   return out;
+}
+
+/* =========================================================
+   DONNÉES SOURCE : fichiers Google Sheets lus par l'application
+   srcGet : fichier principal (SPREADSHEET_ID) et base V3 (V3_ID)
+   srcSet : change l'un des deux (which = "main" ou "v3", link = lien
+            ou identifiant de la feuille) ; le fichier doit s'ouvrir.
+   ========================================================= */
+function sviSrcInfo_(id) {
+  try {
+    var f = DriveApp.getFileById(id);
+    var parents = f.getParents();
+    return { id: id, name: f.getName(), url: "https://docs.google.com/spreadsheets/d/" + id + "/edit",
+      folder: parents.hasNext() ? sviPathOf_(parents.next()) : "" };
+  } catch (e) {
+    return { id: id, name: "", url: "https://docs.google.com/spreadsheets/d/" + id + "/edit", error: String(e && e.message || e) };
+  }
+}
+
+function srcGet_() {
+  var props = PropertiesService.getScriptProperties();
+  return { ok: true, main: sviSrcInfo_(props.getProperty("SPREADSHEET_ID")), v3: sviSrcInfo_(sviV3Id_()) };
+}
+
+function srcSet_(b) {
+  var which = String(b.which || "");
+  if (which !== "main" && which !== "v3") throw new Error("FICHIER À CHANGER INCONNU");
+  var s = String(b.link || "").trim();
+  var m = s.match(/\/d\/([A-Za-z0-9_-]{20,})/) || s.match(/^([A-Za-z0-9_-]{20,})$/);
+  if (!m) throw new Error("LIEN GOOGLE SHEETS NON RECONNU");
+  var id = m[1];
+  var ss = SpreadsheetApp.openById(id);   /* erreur si le fichier ne s'ouvre pas */
+  if (which === "main" && !ss.getSheetByName("BDG")) throw new Error("ONGLET BDG ABSENT DE CE FICHIER");
+  if (which === "v3" && !ss.getSheetByName("BUDGETS")) throw new Error("ONGLET BUDGETS ABSENT DE CE FICHIER");
+  PropertiesService.getScriptProperties().setProperty(which === "main" ? "SPREADSHEET_ID" : "V3_ID", id);
+  return srcGet_();
 }

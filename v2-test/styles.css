@@ -924,3 +924,14 @@ tfoot td {
 #srcPop .src-link { color: #1d4ed8; text-decoration: underline; }
 #srcPop .src-note { display: block; font-size: 11px; font-weight: 600; color: #6b7280; margin-top: 3px; }
 @media (max-width: 600px) { #srcPop .src-grid { grid-template-columns: 1fr; gap: 4px; } }
+#srcPop .src-fld { border: 1px solid #d6dbe3; border-radius: 8px; background: #fff; cursor: pointer; }
+#srcPop .src-fld .src-in { width: 100%; box-sizing: border-box; border: 0; background: transparent; padding: 9px 12px;
+  font: inherit; font-size: 14px; font-weight: 700; color: #1d4ed8; text-decoration: underline; outline: none;
+  cursor: pointer; -webkit-user-select: none; user-select: none; text-transform: none; }
+#srcPop .src-fld.editing { border-color: #1d4ed8; box-shadow: 0 0 0 3px rgba(29,78,216,.15); }
+#srcPop .src-fld.editing .src-in { color: #172033; text-decoration: none; cursor: text; -webkit-user-select: text; user-select: text; }
+#srcPop .src-msg { margin-top: 12px; font-size: 12px; font-weight: 700; color: #15803d; min-height: 16px; }
+#srcPop .src-msg.err { color: #b91c1c; }
+#srcPop .src-foot { gap: 10px; }
+#srcPop .src-btn[hidden] { display: none; }
+#srcPop .src-save { background: #fff; border-color: #1d4ed8; color: #1d4ed8; }
