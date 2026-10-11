@@ -308,7 +308,17 @@ async function apiGet(action = "bootstrap", params = {}) {
     cache: "no-store"
   });
 
-  const data = await r.json();
+  /* réponse illisible (page d'erreur Google au lieu de JSON) : on montre la raison */
+  const txt = await r.text();
+  let data;
+  try { data = JSON.parse(txt); }
+  catch (e) {
+    const m = txt.match(/<title>([^<]*)<\/title>/i);
+    const body = txt.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    throw new Error("RÉPONSE NON JSON (HTTP " + r.status + ") : " +
+      ((m && m[1].trim()) ? m[1].trim() + " — " : "") + body.slice(0, 200));
+  }
 
   if (!data.ok) {
     throw new Error(
