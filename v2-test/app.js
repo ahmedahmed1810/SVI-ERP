@@ -4935,6 +4935,7 @@ function renderBudgetList() {
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="taf" role="button">${SVI_ICON.taf}<span class="pl">TAF ${svCnt(0)}</span></span>
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="obs" role="button">${SVI_ICON.obs}<span class="pl">OBS ${svCnt(0)}</span></span>
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="inf" role="button">${SVI_ICON.inf}<span class="pl">INF</span></span>
+          ${INST_LIVE ? '<div class="lk-chain lk-chain-top" id="insChain" hidden></div>' : ""}
         </div>
 
       </div>
@@ -4976,7 +4977,6 @@ function renderBudgetList() {
           <div class="bdg-h-grid" id="bdgHier"></div>
         </div>
 
-        ${INST_LIVE ? '<div class="lk-chain" id="insChain" hidden></div>' : ""}
         <div class="bdg-d-tabs" id="bdgTabs">
           ${
             tabs.map(t => `
@@ -5455,7 +5455,28 @@ function renderBudgetList() {
     /* page unique : rond à gauche = choix pour la liaison (2e toucher = libère le choix) ;
        case à droite = suppression (cochée, elle devient 🗑 ; ANNULER la décoche) */
     const lkOn = (k, id) => (k === "prd" || k === "chg") ? LK[k][id] !== undefined : LK[k] === id;
-    const lkRd = (k, r) => INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
+    /* lignes déjà liées à la désignation choisie (comme le choix du budget validé, niveau par niveau) :
+       lots de la désignation ; activités primaires du lot choisi ; secondaires de la primaire choisie ;
+       produits / charges de la secondaire choisie */
+    const lkLinks = upTo => (INS.links || []).filter(l => l.des === LK.des
+      && (upTo < 1 || !LK.lot || l.lot === LK.lot) && (upTo < 2 || !LK.prim || l.prim === LK.prim) && (upTo < 3 || !LK.sec || l.sec === LK.sec));
+    const lkLinked = () => {
+      const S = { lot: new Set(), prim: new Set(), sec: new Set(), prd: new Set(), chg: new Set() };
+      if (!LK.des) return S;
+      lkLinks(0).forEach(l => S.lot.add(l.lot));
+      lkLinks(1).forEach(l => S.prim.add(l.prim));
+      lkLinks(2).forEach(l => S.sec.add(l.sec));
+      lkLinks(3).forEach(l => { (l.prd || []).forEach(x => S.prd.add(x.id)); (l.chg || []).forEach(x => S.chg.add(x.id)); });
+      return S;
+    };
+    let LKS = null;   /* calculé à chaque dessin */
+    const lkIsLinked = (k, id) => !!(LKS && LKS[k] && LKS[k].has(id));
+    /* lignes liées en haut du tableau (consigne 14) */
+    const lkTop = (k, rows) => {
+      if (!LK.des || !LKS || !LKS[k] || !LKS[k].size) return rows;
+      return rows.map((r, i) => ({ r, i })).sort((a, b) => (LKS[k].has(b.r.id) - LKS[k].has(a.r.id)) || a.i - b.i).map(o => o.r);
+    };
+    const lkRd = (k, r) => INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${lkIsLinked(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
     const insDelCell = r => !r ? "" : `<input type="checkbox" class="ins-cb${r.t ? " ins-tcb" : ""}" ${!r.t && r.on === true ? "checked" : ""}>`
       + `<button type="button" class="ins-x" title="Supprimer la ligne" aria-label="Supprimer">${INS_TRASH}</button>`;
     const insQCol = k => !!(INS_EDIT && LK.des && (k === "prd" || k === "chg"));
@@ -5467,7 +5488,8 @@ function renderBudgetList() {
       const sel = r && !r.t && lkOn(k, r.id);
       const dim = k === "des" && r && !r.t && LK.des && !sel;
       const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
-      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + insLevel(r.art) : ""}${r && !r.t && lvl ? " ins-in" + lvl : ""}${sel ? " lk-sel" : ""}${dim ? " lk-dim" : ""}"
+      const lnk = r && !r.t && !sel && lkIsLinked(k, r.id);
+      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + insLevel(r.art) : ""}${r && !r.t && lvl ? " ins-in" + lvl : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${dim ? " lk-dim" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}>
         <td class="center ins-rdc">${lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
           ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>`;
@@ -5543,12 +5565,18 @@ function renderBudgetList() {
       while (stack.length) out.push({ sub: stack.pop() });
       return out;
     };
+    /* grands tableaux (détail produits / charges) : lignes dessinées par paquets, au fil du défilement (rapidité) */
+    const INS_CHUNK = 120;
+    const insMore = {};
     const insBodyHTML = k => {
-      const rows = insShown(k);
+      LKS = lkLinked();
+      const rows = k === "des" ? insShown(k) : lkTop(k, insShown(k));
       const ncol = INS_COLS[k].length + (k === "des" ? 2 : 1);
       let html = "";
       if (k !== "des") {
-        html = rows.map(r => insRowHTML(k, r, 0)).join("");
+        const first = rows.length > INS_CHUNK * 1.5 ? rows.slice(0, INS_CHUNK) : rows;
+        insMore[k] = rows.slice(first.length);
+        html = first.map(r => insRowHTML(k, r, 0)).join("");
       } else {
         const sub = t => {
           const { ht, ttc } = insSubOf(t);
@@ -5630,8 +5658,9 @@ function renderBudgetList() {
       });
     };
     const insRenderHier = only => {
+      LKS = lkLinked();
       const col = (title, k) => {
-        const list = cfApply(k, [["v", title, r => r.v || "", ""]], INS[k]);
+        const list = lkTop(k, cfApply(k, [["v", title, r => r.v || "", ""]], INS[k]));
         lastShown.hier[k] = list.map(r => r.v || "");
         const on = !!cfT(k).f.v;
         return `
@@ -5639,7 +5668,7 @@ function renderBudgetList() {
           <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? '<span class="ins-rdc"></span>' : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length)}</span><span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"><button type="button" class="ins-xall" title="Supprimer les lignes cochées" aria-label="Supprimer les lignes cochées">${INS_TRASH}</button></span>` : ""}</div>
-          ${list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : INS_EDIT && LK[k] ? " lk-dim" : ""}" data-ik="${k}" data-iid="${r.id}">
+          ${list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : INS_EDIT && lkIsLinked(k, r.id) ? " lk-link" : INS_EDIT && LK[k] ? " lk-dim" : ""}" data-ik="${k}" data-iid="${r.id}">
               ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">
                 <span class="ins-delc">${insDelCell(r)}</span>` : `<span>${esc(r.v || "")}</span>`}
             </div>`).join("")}
@@ -5659,6 +5688,26 @@ function renderBudgetList() {
       $("bdgHier").style.gridTemplateColumns = "";
       $("bdgHier").innerHTML = col(T.lot, "lot") + col(T.prim, "prim") + col(T.sec, "sec");
     };
+    const insMoreRows = k => {
+      const rest = insMore[k];
+      const tb = $("bdgTabBody")?.querySelector(`table.ins-table[data-ik="${k}"] tbody`);
+      if (!rest || !rest.length || !tb) return;
+      const part = rest.splice(0, INS_CHUNK * 2);
+      LKS = lkLinked();
+      const tmp = document.createElement("tbody");
+      tmp.innerHTML = part.map(r => insRowHTML(k, r, 0)).join("");
+      const before = tb.querySelector("tr.ins-new");
+      [...tmp.children].forEach(tr => tb.insertBefore(tr, before));
+      insMarkUnlinked();
+    };
+    if (!shell.__moreBound) {
+      shell.__moreBound = true;
+      shell.addEventListener("scroll", e => {
+        const sc = e.target;
+        if (!sc || !sc.matches || !sc.matches(".bdg-d-tabbody .bdg-d-scroll") || !shell.__insMore) return;
+        if (sc.scrollTop + sc.clientHeight > sc.scrollHeight - 300) shell.__insMore();
+      }, true);
+    }
     /* LIAISONS VALIDÉES (onglet du détail) : chaîne, produits, charges, quantité, PPB, MPB HT ; DÉLIER */
     const insLinksHTML = () => {
       const D = id => INS.des.find(x => x.id === id) || {};
@@ -5711,6 +5760,7 @@ function renderBudgetList() {
       }
       if (active === "lnk") { body.innerHTML = `<div class="bdg-d-scroll">${insLinksHTML()}</div>`; return; }
       body.innerHTML = `<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
+      shell.__insMore = () => insMoreRows(active);
       lastShown.detail = { cols: insCfCols(active), rows: insShown(active), kind: active, ins: true };
       insMarkUnlinked();
     };
@@ -6312,15 +6362,27 @@ function renderBudgetList() {
           e.stopPropagation(); e.preventDefault();
           const k = rd.dataset.rd, id = rd.closest("[data-iid]")?.dataset.iid;
           if (!id) return;
-          const L = X.LK;
-          if (k === "prd" || k === "chg") { if (L[k][id] !== undefined) delete L[k][id]; else L[k][id] = ""; }
-          else {
-            if (L[k] && L[k] !== id) return;     /* une ligne déjà choisie : les autres attendent qu'on la libère */
-            L[k] = L[k] === id ? null : id;      /* 2e toucher : le choix est libéré */
-            if (k === "des" && !L.des) { L.lot = L.prim = L.sec = null; L.prd = {}; L.chg = {}; }
+          const L = X.LK, multi = k === "prd" || k === "chg";
+          const chosen = multi ? L[k][id] !== undefined : L[k] === id;
+          if (!multi && L[k] && !chosen) return;   /* une ligne déjà choisie : les autres attendent qu'on la libère */
+          const pick = () => {
+            if (multi) { if (L[k][id] !== undefined) delete L[k][id]; else L[k][id] = ""; }
+            else {
+              L[k] = L[k] === id ? null : id;      /* 2e toucher : le choix est libéré */
+              if (k === "des" && !L.des) { L.lot = L.prim = L.sec = null; L.prd = {}; L.chg = {}; }
+              if (k === "lot" && !L.lot) { L.prim = L.sec = null; }
+              if (k === "prim" && !L.prim) { L.sec = null; }
+            }
+            L.err = "";
+            X.light(k);
+          };
+          /* ligne déjà liée (rond coché) : décocher = briser la liaison, ou la choisir pour une nouvelle tâche */
+          if (!chosen && X.isLinked(k, id)) {
+            svChoose({ title: "LIGNE LIÉE", text: X.name(k, id), buttons: [{ v: "pick", label: "CHOISIR", tone: "neutral" }, { v: "unlink", label: "DÉLIER", tone: "danger" }] })
+              .then(v => { if (v === "pick") pick(); else if (v === "unlink") X.unlink(k, id); });
+            return;
           }
-          L.err = "";
-          X.refresh();
+          pick();
           return;
         }
         if (e.target.closest("#insChain .lk-go")) {
@@ -6353,7 +6415,41 @@ function renderBudgetList() {
         if (id && X.LK[q.dataset.qk][id] !== undefined) { X.LK[q.dataset.qk][id] = q.value.trim(); X.chain(); }
       });
     }
+    /* briser la liaison d'une ligne, dans le contexte choisi (désignation, et lot / activités s'ils sont choisis) */
+    const lkUnlink = (k, id) => {
+      const lvl = { lot: 0, prim: 1, sec: 2, prd: 3, chg: 3 }[k];
+      const hit = new Set(lkLinks(lvl).map(l => l.id));
+      if (k === "prd" || k === "chg") {
+        INS.links.forEach(l => { if (hit.has(l.id)) l[k] = (l[k] || []).filter(x => x.id !== id); });
+        INS.links = INS.links.filter(l => (l.prd || []).length);
+      } else INS.links = INS.links.filter(l => !(hit.has(l.id) && l[k] === id));
+      insSave(); histLog("LIAISONS", "DÉLIER", lkName("des", LK.des) + " — " + lkName(k, id));
+      refreshAll();
+    };
+    /* toucher un rond : on ne redessine que ce qui change (rapidité) */
+    const lkLight = k => {
+      keepScroll(() => {
+        if (k === "prd" || k === "chg") {
+          /* produit / charge : mise à jour sur place, sans redessiner le tableau */
+          $("bdgTabBody")?.querySelectorAll(`tr[data-ik="${k}"][data-iid]`).forEach(tr => {
+            const on = LK[k][tr.dataset.iid] !== undefined;
+            tr.classList.toggle("lk-sel", on);
+            tr.querySelector(".lk-rd")?.classList.toggle("on", on);
+            const q = tr.querySelector("input.lk-q");
+            if (q) { q.disabled = !on; if (!on) q.value = ""; }
+          });
+        } else {
+          if (k === "des") insRenderClient();
+          insRenderHier();
+          if (k === "des" || ["prd", "chg"].includes(active)) renderTab();
+          insMarkUnlinked();
+        }
+        insRenderChain();
+      });
+    };
     shell.__fuse = INS && INS_EDIT ? { INS, LK, insId, check: lkCheck, chain: () => insRenderChain(), refresh: () => refreshAll(),
+      light: k => lkLight(k), unlink: (k, id) => lkUnlink(k, id), name: (k, id) => lkName(k, id),
+      isLinked: (k, id) => { const S = lkLinked(); return !!(S[k] && S[k].has(id)); },
       save: what => { insSave(); histLog("LIAISONS", what, fullRef); } } : null;
     /* bascule SAISIE / LIAISONS */
     const insApplyMode = () => {
@@ -6951,7 +7047,7 @@ function renderBudgetList() {
     const page$ = () => shell.querySelector(".bdg-d-page");
     const layEls = u => {
       const pg = page$();
-      if (u === "detail") return [$("insChain"), $("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
+      if (u === "detail") return [$("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
       const sel = { client: ".blk-client", hier: ".blk-hier", suivi: ".blk-suivi" }[u];
       return [pg.querySelector(":scope > " + sel)].filter(Boolean);
     };
@@ -12831,6 +12927,27 @@ function budgetDate(ref) {
    CONFIRMATION AU FORMAT DE L'APPLICATION (jamais de message Safari)
    svConfirm({ title, text, ok }) → Promise<boolean>
    ========================================================= */
+/* fenêtre de choix de l'application : ANNULER + boutons [{ v, label, tone }] ; résout la valeur choisie ou null */
+function svChoose({ title = "", text = "", buttons = [] } = {}) {
+  return new Promise(res => {
+    document.getElementById("svConf")?.remove();
+    const d = document.createElement("div");
+    d.id = "svConf";
+    d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
+        <div class="svc-t">${esc(title)}</div>
+        ${text ? `<div class="svc-x">${esc(text)}</div>` : ""}
+        <div class="svc-f"><button type="button" class="svc-b" data-v="">ANNULER</button>
+          ${buttons.map(b => `<button type="button" class="svc-b svc-ok${b.tone === "danger" ? "" : " svc-neutral"}" data-v="${esc(b.v)}">${esc(b.label)}</button>`).join("")}</div>
+      </div>`;
+    document.body.appendChild(d);
+    d.addEventListener("click", e => {
+      const b = e.target.closest("[data-v]");
+      if (!b && e.target !== d) return;
+      d.remove();
+      res(b && b.dataset.v ? b.dataset.v : null);
+    });
+  });
+}
 function svConfirm({ title = "CONFIRMER", text = "", ok = "OK", tone = "danger" } = {}) {
   return new Promise(res => {
     document.getElementById("svConf")?.remove();
