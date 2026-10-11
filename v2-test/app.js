@@ -430,7 +430,17 @@ async function apiPost(action, data = {}) {
     })
   });
 
-  const out = await r.json();
+  /* réponse illisible (page d'erreur Google au lieu de JSON) : on montre la raison */
+  const txt = await r.text();
+  let out;
+  try { out = JSON.parse(txt); }
+  catch (e) {
+    const m = txt.match(/<title>([^<]*)<\/title>/i);
+    const body = txt.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    throw new Error("RÉPONSE NON JSON (HTTP " + r.status + ") : " +
+      ((m && m[1].trim()) ? m[1].trim() + " — " : "") + body.slice(0, 160));
+  }
 
   if (!out.ok) {
     throw new Error(
@@ -6821,7 +6831,8 @@ function renderBudgetList() {
     const printModel = cfg => {
       /* empreinte du contenu : même bloc, mêmes données → même document */
       const fp = (() => {
-        const str = cfg.docTitle + "|" + cfg.table + "|" + cfg.end;
+        const str = cfg.docTitle + "|" + cfg.table + "|" + cfg.end +
+          (budget && budget.inst ? "|" + (budget.inst.state || "instance") : "");
         let h1 = 0x811c9dc5, h2 = 0;
         for (let i = 0; i < str.length; i++) {
           const c = str.charCodeAt(i);
@@ -6982,6 +6993,13 @@ function renderBudgetList() {
   body.nofoot .foot .ad, body.nofoot .foot hr { visibility: hidden; }
   /* format portrait (A4 vertical) */
   body.portrait .page { width: 210mm; height: 296mm; }
+  /* filigrane PROVISOIRE : budget en instance (rouge) ou figé (vert) */
+  .page .wm { position: absolute; inset: 0; z-index: 0; pointer-events: none; display: flex;
+              align-items: center; justify-content: center; overflow: hidden; }
+  .page .wm span { transform: rotate(-30deg); font-family: Arial, Helvetica, sans-serif; font-weight: 900;
+                   font-size: 96pt; letter-spacing: 4mm; white-space: nowrap; color: var(--wm); opacity: .13; }
+  body.portrait .page .wm span { font-size: 66pt; transform: rotate(-52deg); }
+  .page > .head, .page > .content, .page > .foot { position: relative; z-index: 1; }
   body.portrait .head .date { right: 12mm; }
   body.portrait .head .t { padding-left: 30mm; padding-right: 30mm; }
 </style></head><body class="${cfg.portrait ? "portrait" : ""}">
@@ -7048,6 +7066,8 @@ function renderBudgetList() {
     Sarl. Au capital de 500 000,00 Dhs - Patente 67505605 - I.F. 60201815 - R.C. 57784 I.C.E. : 003434605000090</div></div>
 </div>
 <script>
+  const WM = ${JSON.stringify(budget && budget.inst ? (budget.inst.state === "fige" ? "#15803d" : "#b91c1c") : "")};
+  const WMT = ${JSON.stringify(budget && budget.inst && budget.inst.state === "fige" ? "PROVISOIRE" : "EN INSTANCE")};
 (function () {
   const STAMP = "${SVI_STAMP}";
   const $ = id => document.getElementById(id);
@@ -7077,6 +7097,11 @@ function renderBudgetList() {
     const pages = [];
     const newPage = withTable => {
       const pg = document.createElement("div"); pg.className = "page";
+      if (WM) {
+        const wm = document.createElement("div"); wm.className = "wm";
+        wm.style.setProperty("--wm", WM); wm.innerHTML = "<span>" + WMT + "</span>";
+        pg.appendChild(wm);
+      }
       pg.appendChild(src.querySelector(".head").cloneNode(true));
       const c = document.createElement("div"); c.className = "content"; pg.appendChild(c);
       let tb = null;
