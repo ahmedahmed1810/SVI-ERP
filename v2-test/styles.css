@@ -839,3 +839,43 @@ tfoot td {
 .bdg-d-hright .inst-act { border: 1px solid #fca5a5; color: var(--inst, #b91c1c); }
 .bdg-inst-fige .bdg-d-hright .inst-act { border-color: #86efac; }
 .bdg-d-hright .inst-act:disabled { opacity: .35; cursor: default; }
+
+/* ===== budget en instance / figé : blocs à hauteur fixe (vides ou non) ===== */
+/* désignations client : hauteur fixe de 5 lignes (en-tête + 5 lignes + total),
+   ajustable par la poignée, même vide ou avec plus de lignes */
+.bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll { height: var(--h-client, 148px) !important; }
+.bdg-inst-instance .bdg-d-tabbody .bdg-d-scroll,
+.bdg-inst-fige .bdg-d-tabbody .bdg-d-scroll { height: var(--h-detail, 148px) !important; }
+.bdg-inst-instance .bdg-h-col, .bdg-inst-fige .bdg-h-col { height: var(--h-hier, 128px); }
+
+/* ===== saisie directe ===== */
+.ins-table td.ins-td { padding: 0 !important; }
+.ins-table input.ins-in, .ins-hcol input.ins-in {
+  width: 100%; box-sizing: border-box; border: 0; background: transparent; font: inherit; color: inherit;
+  padding: 0 8px; height: 20px; line-height: 20px; margin: 0; outline: none; text-transform: uppercase; border-radius: 0; -webkit-appearance: none;
+}
+.ins-table input.ins-in.number { text-align: right; }
+.ins-table input.ins-in.center { text-align: center; }
+.ins-table input.ins-in:focus, .ins-hcol input.ins-in:focus { box-shadow: inset 0 0 0 2px var(--inst, #b91c1c); background: #fff; }
+.ins-table td.ins-lock { background: #f3f4f6; }
+.ins-table td.ins-lock input { color: #374151; -webkit-text-fill-color: #374151; opacity: 1; }
+.ins-table tr.ins-title td.ins-lock { background: #eceff3; }
+.ins-table tr.ins-title td, .ins-table tr.ins-title input { font-weight: 800; }
+.ins-table tr.ins-title.lv1 td { background: #eceff3; }
+.ins-table tr.ins-title.lv2 td, .ins-table tr.ins-title.lv3 td { background: #f5f6f8; }
+.ins-table tr.ins-in1 input[data-f="des"] { padding-left: 22px; }
+.ins-table tr.ins-in2 input[data-f="des"] { padding-left: 36px; }
+.ins-table tr.ins-in3 input[data-f="des"] { padding-left: 50px; }
+.ins-table tr.ins-sub td { font-weight: 800; background: #f8fafc; border-top: 1px solid #d6dbe3; }
+.ins-table tr.ins-new td { background: var(--inst-bg, #fef2f2); }
+.ins-table tr.ins-new input::placeholder, .ins-hcol .ins-new input::placeholder { color: var(--inst, #b91c1c); opacity: .75; }
+.ins-cb { width: 15px; height: 15px; accent-color: var(--inst, #b91c1c); vertical-align: middle; margin: 0; }
+.ins-t { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 4px; font-size: 10px !important;
+  border: 1.5px solid #c3c9d3; color: #9aa3af; font: 800 11px Arial, sans-serif; cursor: pointer; user-select: none; }
+.ins-t.on { background: var(--inst, #b91c1c); border-color: var(--inst, #b91c1c); color: #fff; }
+.bdg-inst-fige .ins-t { cursor: default; }
+.ins-hcol .ins-li { display: flex; align-items: center; gap: 8px; padding: 0 0 0 10px; border-bottom: 1px solid #eef0f4; min-height: 24px; }
+.ins-hcol .ins-li > span:not(.ins-cbc) { padding: 6px 0; }
+.ins-hcol .ins-li .ins-cbc { width: 17px; flex: none; }
+.ins-hcol .ins-li.ins-new { background: var(--inst-bg, #fef2f2); }
+.ins-table td.ins-tc, .ins-table td.ins-cbc { padding: 0 !important; text-overflow: clip !important; overflow: visible !important; }
