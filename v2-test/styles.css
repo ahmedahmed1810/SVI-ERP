@@ -1046,10 +1046,8 @@ tfoot td {
   font-weight: 800; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; flex: none; }
 .ins-unl-btn[hidden] { display: none; }
 /* lignes non liées : hachurées dans la couleur de l'état (rouge en instance) */
-.ins-table tr.ins-unl td, .ins-hcol .ins-li.ins-unl {
-  background: repeating-linear-gradient(135deg, var(--inst-bg, #fef2f2), var(--inst-bg, #fef2f2) 6px, var(--inst-hatch, #fee2e2) 6px, var(--inst-hatch, #fee2e2) 12px) !important; }
-.ins-table tr.ins-unl td, .ins-table tr.ins-unl td input.ins-in, .ins-hcol .ins-li.ins-unl input.ins-in {
-  color: var(--inst, #b91c1c) !important; -webkit-text-fill-color: var(--inst, #b91c1c) !important; }
+/* lignes non liées : blanches, sans mise en forme (consigne 24) */
+.ins-table tr.ins-unl td, .ins-hcol .ins-li.ins-unl { background: #fff !important; }
 /* mode LIAISONS : les tableaux de saisie sont remplacés par la vue des liaisons */
 .ins-link-view { display: none; }
 .ins-mode-link .ins-link-view { display: block; order: -1; }
@@ -1192,10 +1190,10 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 #insChain.lk-chain-top { position: relative; }
 #insChain.lk-chain-top .lk-go { flex: none; padding: 7px 12px; font-size: 12px; }
 /* lignes déjà liées à la désignation choisie : mise en forme du choix du budget validé, en bleu tirant sur le rouge */
-.ins-table tr.lk-link td, .ins-hcol .ins-li.lk-link { background: #f3e8ff !important; color: #7e22ce !important; font-weight: 700; }
-.ins-table tr.lk-link td input.ins-in, .ins-hcol .ins-li.lk-link input.ins-in { color: #7e22ce !important; -webkit-text-fill-color: #7e22ce !important; }
-.lk-rd.lnk { border-color: #7e22ce; background: radial-gradient(circle, #7e22ce 0 4px, #fff 4.5px); }
-.lk-rd.lnk.on { border-color: #7e22ce; background: radial-gradient(circle, #7e22ce 0 4px, #fff 4.5px); }
+.ins-table tr.lk-link td, .ins-hcol .ins-li.lk-link { background: #dbeafe !important; color: #1d4ed8 !important; font-weight: 700; }
+.ins-table tr.lk-link td input.ins-in, .ins-hcol .ins-li.lk-link input.ins-in { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; }
+.lk-rd.lnk { border-color: #1d4ed8; background: radial-gradient(circle, #1d4ed8 0 4px, #fff 4.5px); }
+.lk-rd.lnk.on { border-color: #1d4ed8; background: radial-gradient(circle, #1d4ed8 0 4px, #fff 4.5px); }
 .lk-dim .lk-rd.lnk { pointer-events: auto; opacity: 1; }
 /* message d'erreur passager */
 #svToast { position: fixed; top: 200px; right: 24px; z-index: 100003; max-width: 520px; background: #fff; color: #b91c1c; border: 1.5px solid #b91c1c;
@@ -1209,9 +1207,17 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
   font: italic 900 15px Georgia, serif; cursor: pointer; flex: none; }
 /* iPad : pas de loupe ni de sélection sur une case non active (le défilement reste libre) */
 .ins-table input.ins-in:not(:focus), .ins-hcol input.ins-in:not(:focus), .dly-table input.ins-in:not(:focus) { -webkit-touch-callout: none; }
-.ins-table tr.lk-sel.lk-link td, .ins-hcol .ins-li.lk-sel.lk-link { background: #ede0ff !important; color: #6b21a8 !important; font-weight: 800; }
+.ins-table tr.lk-sel.lk-link td, .ins-hcol .ins-li.lk-sel.lk-link { background: #bfdbfe !important; color: #1e3a8a !important; font-weight: 800; }
 /* fenêtre LIAISON (icône i) */
 #docPop .lk-info-st { display: inline-block; margin-bottom: 12px; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800;
   color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; }
-#docPop .lk-info-st.ok { color: #6b21a8; background: #f3e8ff; border-color: #e9d5ff; }
+#docPop .lk-info-st.ok { color: #1e3a8a; background: #dbeafe; border-color: #93c5fd; }
 #docPop .lk-info-v { font-size: 13px; font-weight: 700; color: #172033; align-self: center; }
+
+/* bouton ✕ DÉLIER (même place que ✓ VALIDER) et fenêtre de confirmation */
+#insChain .lk-go:not(:disabled) { background: #15803d; }
+#insChain .lk-go.lk-del-go { background: #b91c1c !important; border-color: #b91c1c !important; color: #fff !important; }
+#svConf .svc-html { text-align: left; max-height: 50vh; overflow: auto; }
+#svConf .svc-sub { font-weight: 800; font-size: 12px; margin: 8px 0 4px; }
+#svConf .svc-warn { color: #b91c1c; }
+#svConf .svc-list { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.5; }
