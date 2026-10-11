@@ -1247,3 +1247,6 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 #svConf .svc-t { padding-right: 34px; }
 /* zone du bouton DÉLIER / VALIDER : sans pointillés (place toujours réservée) */
 #insChain.lk-chain-top { border-color: transparent !important; background: transparent; }
+/* barre du haut : DUPLIQUER et ↻ sont dans le menu ⋯ (avec EXPORTER / IMPORTER LE BUDGET) */
+#instDup[hidden] { display: none !important; }
+.bdg-more-btn { font-size: 20px; font-weight: 900; line-height: 1; letter-spacing: 1px; }
