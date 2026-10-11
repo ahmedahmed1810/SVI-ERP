@@ -7497,6 +7497,8 @@ function renderBudgetList() {
       const cfCols = () => cols[tab].map(c => [c[0], c[1],
         x => c[0] === "lvl" ? LV[x.lvl] : c[2] ? (x.row.t ? "" : c[0] === "q" ? insQty(tab === "prd" ? "prd" : "des", x.row) : num(x.row[c[0]] || 0)) : (x.row[c[0]] ?? ""),
         c[2] ? "number" : ""]);
+      /* ART et unité centrés, nombres à droite */
+      const impCls = c => c[2] ? "number" : (c[0] === "art" || c[0] === "u") ? "center" : "";
       const shownRows = () => cfApply("imp_" + tab, cfCols(), model[tab]);
       /* lignes retenues : cochées, + liées (AVEC LIAISONS), ou tout le budget */
       const picked = () => {
@@ -7523,12 +7525,12 @@ function renderBudgetList() {
         const cs = cols[tab], rows = shownRows();
         const allOn = rows.length && rows.every(x => pk[tab].has(x.key));
         p.querySelector(".imp-table").innerHTML =
-          `<thead><tr><th class="center" style="width:34px"><input type="checkbox" class="imp-cball" ${allOn ? "checked" : ""} ${all ? "disabled" : ""}></th>${cs.map(c => cfHead("imp_" + tab, c[0], c[1], c[2] ? "number" : "")).join("")}</tr></thead>
+          `<thead><tr><th class="center" style="width:34px"><input type="checkbox" class="imp-cball" ${allOn ? "checked" : ""} ${all ? "disabled" : ""}></th>${cs.map(c => cfHead("imp_" + tab, c[0], c[1], impCls(c))).join("")}</tr></thead>
            <tbody>${rows.map(x => {
              const on = pk[tab].has(x.key), linked = on && !sel[tab].has(x.key) && !all;
              return `<tr class="${x.row.t ? "imp-tt" : ""}${linked ? " imp-linked" : ""}" data-k="${esc(x.key)}">
                <td class="center"><input type="checkbox" class="imp-cb" ${on ? "checked" : ""} ${all || linked ? "disabled" : ""}></td>
-               ${cs.map(c => `<td class="${c[2] ? "number" : ""}">${esc(val(x, c[0], c[2]))}</td>`).join("")}</tr>`;
+               ${cs.map(c => `<td class="${impCls(c)}">${esc(val(x, c[0], c[2]))}</td>`).join("")}</tr>`;
            }).join("") || `<tr><td colspan="${cs.length + 1}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody>`;
         p.querySelector(".imp-n").textContent = n + " LIGNE(S) À IMPORTER" + (withLinks && !all ? " (LIAISONS COMPRISES)" : "");
         p.querySelector("#impGo").textContent = "IMPORTER (" + n + ")";

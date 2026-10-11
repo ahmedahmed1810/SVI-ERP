@@ -1003,3 +1003,5 @@ tfoot td {
 #docPop .imp-table th:first-child, #docPop .imp-table td:first-child { width: 40px; min-width: 40px; padding: 0 8px !important;
   overflow: visible !important; text-overflow: clip !important; }
 #docPop .imp-table { table-layout: auto; }
+#docPop .imp-table th.center, #docPop .imp-table td.center { text-align: center; }
+#docPop .imp-table th.center .cf-wrap { justify-content: center; }
