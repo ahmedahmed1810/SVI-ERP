@@ -5774,7 +5774,7 @@ function renderBudgetList() {
       const b = $("insUnlBtn");
       if (b) {
         const n = insUnlCount();
-        b.hidden = !(INS_EDIT && INS_MODE() === "saisie" && n > 0);
+        b.hidden = !(INS_EDIT && n > 0);
         b.innerHTML = INS_TRASH + " NON LIÉES " + svCnt(n);
       }
     };
@@ -5829,47 +5829,88 @@ function renderBudgetList() {
       const box = $("insLinkView");
       if (!box) return;
       const RO = !INS_EDIT;
+      const U = insUsed();
+      const az = (a, b) => String(a).localeCompare(String(b), "fr", { numeric: true });
+      /* lignes choisies en haut (consigne 14), filtres / tri de colonne (7), colonnes réglables (9) */
+      const top = (rows, isSel) => rows.map((r, i) => ({ r, i })).sort((a, b) => (isSel(b.r) - isSel(a.r)) || a.i - b.i).map(o => o.r);
+      const W = { art: 70, des: 340, u: 70, q: 110, lnk: 120, v: 220, lot: 160, prim: 180, sec: 200, np: 90, nc: 90, act: 110, qt: 150 };
+      const tbl = (t, cols, rows, lead, rowHTML) => {
+        const oc = coOrder(t, cols);
+        const w = k => cwLoad()[t + "." + k] || W[k] || 120;
+        return `<table class="bdg-d-table lk-table" style="width:${(lead ? 40 : 0) + oc.reduce((s, c) => s + w(c[0]), 0)}px">
+          <colgroup>${lead ? '<col style="width:40px">' : ""}${oc.map(c => `<col data-w="${t}.${c[0]}" style="width:${w(c[0])}px">`).join("")}</colgroup>
+          <thead><tr>${lead ? '<th class="center"></th>' : ""}${oc.map(c => cfHead(t, c[0], c[1], c[3])).join("")}</tr></thead>
+          <tbody>${rows.map(r => rowHTML(r, oc)).join("") || `<tr><td colspan="${oc.length + (lead ? 1 : 0)}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
+      };
       const radio = (k, id) => `<input type="radio" name="lk_${k}" data-lk="${k}" value="${id}" ${LK[k] === id ? "checked" : ""} ${RO ? "disabled" : ""}>`;
       const nLinks = id => (INS.links || []).filter(l => l.des === id).length;
-      const desRows = INS.des.filter(r => !r.t).map(r => `<tr class="${LK.des === r.id ? "lk-sel" : LK.des ? "lk-dim" : ""}" data-pick="des" data-id="${r.id}">
-          <td class="center">${radio("des", r.id)}</td><td class="center">${esc(r.art || "")}</td><td>${esc(r.des || "")}</td>
-          <td class="center">${esc(r.u || "")}</td><td class="number">${insFmt(r.q)}</td>
-          <td>${nLinks(r.id) ? `<span class="lk-ok">${nLinks(r.id)} VALIDÉE(S)</span>` : ""}</td></tr>`).join("")
-        || `<tr><td colspan="6" class="empty">AUCUNE DÉSIGNATION (MODE SAISIE)</td></tr>`;
-      const col = (k, title) => `<div class="lk-col"><div class="lk-ch">${title} ${svCnt(INS[k].length)}</div>
-          ${INS[k].map(r => `<label class="lk-li ${LK[k] === r.id ? "lk-sel" : ""}" data-pick="${k}" data-id="${r.id}">${radio(k, r.id)}<span>${esc(r.v || "")}</span></label>`).join("")
+      const unl = (k, id) => U[k] && !U[k].has(id) ? " ins-unl" : "";
+      /* DÉSIGNATIONS */
+      const DC = [["art", "ART", r => r.art || "", "center"], ["des", "DÉSIGNATION", r => r.des || "", ""], ["u", "UPB", r => r.u || "", "center"],
+        ["q", "QPB", r => r.q === "" || r.q === undefined ? "" : num(r.q), "number"], ["lnk", "LIAISONS", r => nLinks(r.id) ? nLinks(r.id) + " VALIDÉE(S)" : "", ""]];
+      const desList = top(cfApply("lk_des", DC, INS.des.filter(r => !r.t)), r => r.id === LK.des);
+      const desHTML = tbl("lk_des", DC, desList, true, (r, oc) => `<tr class="${LK.des === r.id ? "lk-sel" : LK.des ? "lk-dim" : ""}${unl("des", r.id)}" data-pick="des" data-id="${r.id}">
+          <td class="center">${radio("des", r.id)}</td>${oc.map(c => `<td class="${c[3]}">${c[0] === "lnk" ? (nLinks(r.id) ? `<span class="lk-ok">${nLinks(r.id)} VALIDÉE(S)</span>` : "")
+            : c[0] === "q" ? insFmt(r.q) : esc(c[2](r))}</td>`).join("")}</tr>`);
+      /* TÂCHES : trois blocs (ordre alphabétique, largeur réglable) */
+      const ws = ["lot", "prim", "sec"].map(k => cwLoad()["lk_hier." + k]);
+      const gridCols = ws.every(Boolean) && window.innerWidth > 700 ? ws.map(x => x + "px").join(" ") : "";
+      const col = (k, title) => {
+        const C = [["v", title, r => r.v || "", ""]];
+        const list = top(cfApply("lk_" + k, C, [...INS[k]].sort((a, b) => az(a.v || "", b.v || ""))), r => r.id === LK[k]);
+        return `<div class="lk-col" data-lk-col="${k}"><div class="lk-ch bdg-h-head ${cfT("lk_" + k).f.v ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length)}</span><span class="cf-btn"
+            data-cf="lk_${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span class="col-rs lk-rs"></span></div>
+          ${list.map(r => `<label class="lk-li ${LK[k] === r.id ? "lk-sel" : ""}${unl(k, r.id)}" data-pick="${k}" data-id="${r.id}">${radio(k, r.id)}<span>${esc(r.v || "")}</span></label>`).join("")
             || `<div class="lk-li" style="opacity:.5">—</div>`}</div>`;
-      const det = (k, title, need) => `<div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${title} ${svCnt(INS[k].length)}</span>
-          <span class="lk-need">${need}</span></div>
-          <div class="lk-scroll"><table class="bdg-d-table"><thead><tr><th class="center" style="width:36px"></th><th>DÉSIGNATION</th><th class="center">${k === "prd" ? "UPB" : "UCB"}</th><th class="number">QUANTITÉ DE LA TÂCHE</th></tr></thead>
-          <tbody>${INS[k].map(r => {
+      };
+      /* DÉTAILS : produits (obligatoire), charges (facultatif, ordre alphabétique) */
+      const det = (k, title, need) => {
+        const C = [["des", "DÉSIGNATION", r => r.des || "", ""], ["u", k === "prd" ? "UPB" : "UCB", r => r.u || "", "center"],
+          ["qt", "QUANTITÉ DE LA TÂCHE", r => LK[k][r.id] ?? "", "number"]];
+        let rows = [...INS[k]];
+        if (k === "chg") rows.sort((a, b) => az(a.des || "", b.des || ""));
+        rows = top(cfApply("lk_" + k, C, rows), r => LK[k][r.id] !== undefined);
+        return `<div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${title} ${svCnt(rows.length)}</span><span class="lk-need">${need}</span></div>
+          <div class="lk-scroll">${tbl("lk_" + k, C, rows, true, (r, oc) => {
             const on = LK[k][r.id] !== undefined;
-            return `<tr class="${on ? "lk-sel" : ""}" data-det="${k}" data-id="${r.id}"><td class="center"><input type="checkbox" class="lk-cb" ${on ? "checked" : ""} ${RO ? "disabled" : ""}></td>
-              <td>${esc(r.des || "")}</td><td class="center">${esc(r.u || "")}</td>
-              <td class="number"><input class="lk-q" inputmode="decimal" value="${on ? esc(LK[k][r.id]) : ""}" ${RO ? "disabled" : ""}></td></tr>`;
-          }).join("") || `<tr><td colspan="4" class="empty">AUCUNE LIGNE (MODE SAISIE)</td></tr>`}</tbody></table></div></div>`;
+            return `<tr class="${on ? "lk-sel" : ""}${unl(k, r.id)}" data-det="${k}" data-id="${r.id}"><td class="center"><input type="checkbox" class="lk-cb" ${on ? "checked" : ""} ${RO ? "disabled" : ""}></td>
+              ${oc.map(c => `<td class="${c[3]}">${c[0] === "qt" ? `<input class="lk-q" inputmode="decimal" value="${on ? esc(LK[k][r.id]) : ""}" ${RO ? "disabled" : ""}>` : esc(c[2](r))}</td>`).join("")}</tr>`;
+          })}</div></div>`;
+      };
       const nPrd = Object.keys(LK.prd).length;
       const complete = LK.des && LK.lot && LK.prim && LK.sec && nPrd > 0;
       const chain = [lkName("des", LK.des), lkName("lot", LK.lot), lkName("prim", LK.prim), lkName("sec", LK.sec)]
         .map(x => x || "…").join(" › ") + " › " + nPrd + " PRODUIT(S)" + (Object.keys(LK.chg).length ? " + " + Object.keys(LK.chg).length + " CHARGE(S)" : "");
-      const links = (INS.links || []).map(l => `<tr><td class="center">${esc((INS.des.find(x => x.id === l.des) || {}).art || "")}</td>
-          <td>${esc((INS.des.find(x => x.id === l.des) || {}).des || "")}</td><td>${esc(lkName("lot", l.lot))}</td><td>${esc(lkName("prim", l.prim))}</td>
-          <td>${esc(lkName("sec", l.sec))}</td><td class="center">${(l.prd || []).length}</td><td class="center">${(l.chg || []).length}</td>
-          <td class="center">${RO ? "" : `<button type="button" class="lk-del" data-lid="${l.id}">${INS_TRASH} DÉLIER</button>`}</td></tr>`).join("")
-        || `<tr><td colspan="8" class="empty">AUCUNE LIAISON VALIDÉE</td></tr>`;
+      /* LIAISONS VALIDÉES */
+      const LC = [["art", "ART", l => (INS.des.find(x => x.id === l.des) || {}).art || "", "center"],
+        ["des", "DÉSIGNATION", l => (INS.des.find(x => x.id === l.des) || {}).des || "", ""],
+        ["lot", "LOT", l => lkName("lot", l.lot), ""], ["prim", "ACT. PRIMAIRE", l => lkName("prim", l.prim), ""],
+        ["sec", "ACT. SECONDAIRE", l => lkName("sec", l.sec), ""], ["np", "PRODUITS", l => (l.prd || []).length, "center"],
+        ["nc", "CHARGES", l => (l.chg || []).length, "center"]];
+      const lrows = cfApply("lk_links", LC, INS.links || []);
+      const linksHTML = tbl("lk_links", LC, lrows, false, (l, oc) => `<tr>${oc.map(c => `<td class="${c[3]}">${esc(c[2](l))}</td>`).join("")}</tr>`)
+        .replace(/<\/tr><\/thead>/, RO ? "</tr></thead>" : `<th class="center" style="width:110px"></th></tr></thead>`);
       box.innerHTML = `
-        <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${SVI_ICON.client}DÉSIGNATIONS CLIENT ${svCnt(INS.des.filter(r => !r.t).length)}</span><span class="lk-need">UNE À LA FOIS</span></div>
-          <div class="lk-scroll"><table class="bdg-d-table"><thead><tr><th class="center" style="width:36px"></th><th class="center">ART</th><th>DÉSIGNATION</th><th class="center">UPB</th><th class="number">QPB</th><th>LIAISONS</th></tr></thead><tbody>${desRows}</tbody></table></div></div>
+        <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${SVI_ICON.client}DÉSIGNATIONS CLIENT ${svCnt(desList.length)}</span><span class="lk-need">UNE À LA FOIS</span></div>
+          <div class="lk-scroll">${desHTML}</div></div>
         <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${SVI_ICON.hier}TÂCHES</span></div>
-          <div class="lk-grid">${col("lot", "LOT")}${col("prim", "ACTIVITÉ PRIMAIRE")}${col("sec", "ACTIVITÉ SECONDAIRE")}</div></div>
+          <div class="lk-grid" style="${gridCols ? "grid-template-columns:" + gridCols : ""}">${col("lot", "LOT")}${col("prim", "ACTIVITÉ PRIMAIRE")}${col("sec", "ACTIVITÉ SECONDAIRE")}</div></div>
         ${det("prd", "DÉTAIL PRODUITS", "OBLIGATOIRE")}
         ${det("chg", "DÉTAIL CHARGES", "FACULTATIF")}
         ${RO ? "" : `<div class="lk-chain"><span class="lk-path">CHAÎNE : ${esc(chain)}</span>
           ${LK.err ? `<span class="lk-err">${esc(LK.err)}</span>` : ""}
           <button type="button" class="lk-go" ${complete ? "" : "disabled"}>✓ VALIDER LA LIAISON</button></div>`}
-        <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">LIAISONS VALIDÉES ${svCnt((INS.links || []).length)}</span></div>
-          <div class="lk-scroll"><table class="bdg-d-table"><thead><tr><th class="center">ART</th><th>DÉSIGNATION</th><th>LOT</th><th>ACT. PRIMAIRE</th><th>ACT. SECONDAIRE</th><th class="center">PRODUITS</th><th class="center">CHARGES</th><th></th></tr></thead>
-          <tbody>${links}</tbody></table></div></div>`;
+        <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">LIAISONS VALIDÉES ${svCnt(lrows.length)}</span></div>
+          <div class="lk-scroll lk-links">${linksHTML}</div></div>`;
+      /* bouton DÉLIER au bout de chaque liaison */
+      if (!RO) box.querySelectorAll(".lk-links tbody tr").forEach((tr, i) => {
+        const l = lrows[i];
+        if (!l) return;
+        const td = document.createElement("td");
+        td.className = "center";
+        td.innerHTML = `<button type="button" class="lk-del" data-lid="${l.id}">${INS_TRASH} DÉLIER</button>`;
+        tr.appendChild(td);
+      });
     };
     /* contrôle des règles avant validation (cahier des charges A et D) */
     const lkCheck = () => {
@@ -6959,6 +7000,25 @@ function renderBudgetList() {
     }
 
     shell.onpointerdown = event => {
+      /* mode LIAISONS : la poignée d'en-tête règle la largeur des blocs TÂCHES */
+      const lkRs = event.target.closest(".lk-col .lk-rs");
+      if (lkRs) {
+        event.preventDefault(); event.stopPropagation();
+        const grid = lkRs.closest(".lk-grid");
+        const colsEl = [...grid.querySelectorAll(".lk-col")];
+        const i = colsEl.indexOf(lkRs.closest(".lk-col"));
+        const ws = colsEl.map(c => c.getBoundingClientRect().width);
+        const x0 = event.clientX, w0 = ws[i];
+        const mv = ev => { ws[i] = Math.max(120, Math.round(w0 + ev.clientX - x0)); grid.style.gridTemplateColumns = ws.map(v => v + "px").join(" "); };
+        const up = () => {
+          document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
+          const all = cwLoad();
+          ["lot", "prim", "sec"].forEach((k, j) => { all["lk_hier." + k] = Math.round(ws[j]); });
+          cwSave(all);
+        };
+        document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
+        return;
+      }
       const insEl = INS_EDIT && event.target.closest(".ins-table tr[data-iid], .ins-hcol .ins-li[data-iid]");
       if (insEl && !event.target.closest(".ins-t, .ins-cb, .ins-x") &&
           event.target.closest("input.ins-in") !== document.activeElement) { insDrag(event, insEl); return; }
