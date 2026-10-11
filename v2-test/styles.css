@@ -973,3 +973,16 @@ tfoot td {
 #docPop .imp-table tr.imp-linked td { color: #b91c1c; font-style: italic; }
 #docPop .imp-foot { justify-content: space-between; align-items: center; }
 #docPop .imp-n { font-size: 12px; font-weight: 700; color: #6b7280; }
+/* importer : données déjà présentes */
+#docPop .imp-ask { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; background: rgba(15,23,42,.35); }
+#docPop .imp-ask-card { width: min(620px, calc(100% - 32px)); background: #fff; border-radius: 12px; padding: 18px 20px;
+  box-shadow: 0 20px 50px rgba(15,23,42,.35); display: flex; flex-direction: column; gap: 10px; }
+#docPop .imp-ask-t { font-size: 15px; font-weight: 800; color: #172033; }
+#docPop .imp-ask-l { font-size: 12px; font-weight: 600; color: #4b5563; line-height: 1.6; padding-bottom: 4px; border-bottom: 1px solid #e5e9f0; }
+#docPop .imp-ask-b { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; padding: 10px 14px;
+  border: 1px solid #d6dbe3; border-radius: 8px; background: #fff; cursor: pointer; }
+#docPop .imp-ask-b b { font-size: 13px; color: #172033; }
+#docPop .imp-ask-b span { font-size: 11px; font-weight: 600; color: #6b7280; }
+#docPop .imp-ask-b.imp-ask-r b { color: #b91c1c; }
+#docPop .imp-ask-b:active { background: #f3f5f8; }
+#docPop .imp-ask-f { display: flex; justify-content: flex-end; }
