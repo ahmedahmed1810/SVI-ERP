@@ -3374,48 +3374,27 @@ function renderBudgetList() {
     const budgetName =
       budget.project;
 
-    const ht =
-      budget.rows.reduce(
-        (total, row) =>
-          total +
-          num(
-            firstValue(
-              row,
-              [
-                "MNB",
-                "MONTANT HT",
-                "MPB HT",
-                "MPB"
-              ]
-            )
-          ),
-        0
-      );
-
-    const tva =
-      num(
-        firstValue(
-          first,
-          [
-            "TVA",
-            "TAUX TVA"
-          ]
-        )
-      );
-
-    const tvaAmount =
-      tva
-        ? ht *
-          tva /
-          (
-            tva > 1
-              ? 100
-              : 1
-          )
-        : 0;
-
-    const ttc =
-      ht + tvaAmount;
+    /* montant TTC = celui du tableau DÉSIGNATIONS CLIENT de l'écran du budget :
+       par désignation, quantité des lignes PRODUIT au prix non nul
+       (clés primaires) × prix de la première d'entre elles (prix TTC de la feuille) */
+    const dg = new Map();
+    budget.rows.forEach(r => {
+      const c = r.__cols || [];
+      if (!/PRD/i.test(String(c[14] ?? ""))) return;
+      const price = num(c[22]);
+      if (!price) return;
+      let q = num(c[21]);
+      if (!q) {
+        const f = [c[17], c[18], c[19], c[20]].filter(v => normalise(v) !== "").map(num);
+        if (f.length) q = f.reduce((x, y) => x * y, 1);
+      }
+      const k = normalise(c[7]) + "||" + normalise(c[8]);
+      const g = dg.get(k) || { price, qty: 0 };
+      g.qty += q;
+      dg.set(k, g);
+    });
+    const ttc = [...dg.values()].reduce((t, g) => t + g.qty * g.price, 0);
+    const ht = ttc / 1.2;
 
     const refDate =
       budgetDate(budget.ref);
