@@ -7548,7 +7548,8 @@ function renderBudgetList() {
         const pk = picked();
         const n = IMP_TABS.reduce((t, [k]) => t + pk[k].size, 0);
         p.querySelector(".imp-tabs").innerHTML = IMP_TABS.map(([k, lab]) =>
-          `<button type="button" class="imp-tab${k === tab ? " on" : ""}" data-tab="${k}">${lab} ${svCnt(pk[k].size)}</button>`).join("");
+          /* pastille grise : lignes disponibles ; pastille rouge : lignes retenues */
+          `<button type="button" class="imp-tab${k === tab ? " on" : ""}" data-tab="${k}">${lab} ${svCnt(model[k].length)}${pk[k].size ? `<span class="imp-selcnt">${pk[k].size}</span>` : ""}</button>`).join("");
         const box = p.querySelector(".imp-scroll");
         /* TÂCHES : trois blocs côte à côte (lots, activités primaires, secondaires) */
         if (tab === "hier") {
