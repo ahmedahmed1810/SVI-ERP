@@ -1111,3 +1111,17 @@ tfoot td {
 .lk-dettabs .bdg-d-tabbody { margin-bottom: 0; }
 .bdg-d-tab .lk-need { font-size: 9px; font-weight: 800; color: #9ca3af; margin-left: 4px; }
 .req-star { color: #b91c1c; font-weight: 900; margin-left: 2px; }
+#svConf .svc-x { white-space: pre-line; }
+#svConf .svc-ok.svc-neutral { border-color: #172033; color: #172033; }
+.rec-tab.tab-vide, #docPop .imp-tab.tab-vide { border: 1.5px dashed #ea580c !important; color: #c2410c !important;
+  background: repeating-linear-gradient(135deg, #fff7ed, #fff7ed 6px, #ffedd5 6px, #ffedd5 12px) !important; }
+.rec-tab.tab-vide .svi-cnt, #docPop .imp-tab.tab-vide .svi-cnt { background: #fed7aa !important; color: #c2410c !important; }
+.rec-tab.tab-vide .ico { color: #c2410c !important; }
+.rec-tab.tab-vide.active { box-shadow: inset 0 -3px 0 #c2410c; }
+/* consigne 16 : blocs à hauteur fixe de 5 lignes, même vides (tous les modes) */
+.bdg-d-page:not(.max-client) .bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll { height: var(--h-client, 148px) !important; max-height: none !important; }
+.bdg-d-page:not(.max-rec) .blk-suivi .rec-scroll { height: var(--h-suivi, 129px); max-height: none; }
+.bdg-d-page:not(.max-detail) .bdg-d-tabbody .bdg-d-scroll { height: var(--h-detail, 148px) !important; max-height: none !important; }
+/* consigne 5 : en-têtes non tronqués */
+.ins-link-view .bdg-d-block-title .ttl { display: inline-flex; align-items: center; gap: 8px; }
+.lk-li.empty { justify-content: center; cursor: default; border: 0; }
