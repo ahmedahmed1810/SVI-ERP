@@ -1152,7 +1152,7 @@ tfoot td {
 /* ===== page unique (saisie + liaisons) ===== */
 .lk-rd { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--inst, #b91c1c); border-radius: 50%; box-sizing: border-box; vertical-align: middle; cursor: pointer; flex: none; }
 .lk-rd.on { background: radial-gradient(circle, var(--inst, #b91c1c) 0 4px, #fff 4.5px); }
-.ins-rdc { width: 22px; flex: none; display: inline-flex; align-items: center; justify-content: center; }
+span.ins-rdc { width: 22px; flex: none; display: inline-flex; align-items: center; justify-content: center; }
 .ins-table td.ins-rdc { padding: 0 !important; overflow: visible !important; text-overflow: clip !important; }
 .lk-dim .lk-rd { pointer-events: none; opacity: .35; }
 .ins-table tr.lk-dim td { opacity: .5; }
@@ -1176,3 +1176,24 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 .lk-qc input.lk-q:disabled { border-color: transparent; background: transparent; }
 #insChain { margin: 0 0 12px; }
 #insChain[hidden] { display: none !important; }
+/* rond et case : mêmes colonnes en tête et dans les lignes (lots / activités) */
+.ins-hcol .bdg-h-head, .ins-hcol .ins-li { padding-left: 8px !important; padding-right: 6px !important; gap: 8px !important; }
+.ins-hcol .ins-li .ins-x { margin-right: 0 !important; }
+.ins-hcol .ins-li .ins-delc, .ins-hcol .bdg-h-head .ins-hdel { width: 28px; flex: none; display: inline-flex; justify-content: center; padding: 0 !important; }
+.ins-hcol .ins-li .ins-rdc, .ins-hcol .bdg-h-head .ins-rdc { width: 22px; flex: none; padding: 0 !important; }
+.ins-hcol .ins-li .ins-in { flex: 1; min-width: 0; }
+.ins-table td.ins-rdc { display: table-cell; width: 36px; text-align: center; vertical-align: middle; }
+/* chaîne + ✓ VALIDER LA LIAISON en haut à droite, sur la ligne DOC / TAF / OBS */
+.bdg-d-pills { align-items: center; }
+#insChain.lk-chain-top { margin: 0 0 0 auto; padding: 4px 6px 4px 12px; border: 1.5px dashed var(--inst, #b91c1c); border-radius: 10px; background: #fff;
+  display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; max-width: 62%; min-width: 0; }
+#insChain.lk-chain-top .lk-path { font-size: 11px; font-weight: 800; color: var(--inst, #b91c1c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+#insChain.lk-chain-top .lk-err { position: absolute; right: 16px; top: 100%; margin-top: 4px; max-width: 60%; z-index: 5; flex-basis: auto; order: 0; }
+#insChain.lk-chain-top { position: relative; }
+#insChain.lk-chain-top .lk-go { flex: none; padding: 7px 12px; font-size: 12px; }
+/* lignes déjà liées à la désignation choisie : mise en forme du choix du budget validé, en bleu tirant sur le rouge */
+.ins-table tr.lk-link td, .ins-hcol .ins-li.lk-link { background: #f3e8ff !important; color: #7e22ce !important; font-weight: 700; }
+.ins-table tr.lk-link td input.ins-in, .ins-hcol .ins-li.lk-link input.ins-in { color: #7e22ce !important; -webkit-text-fill-color: #7e22ce !important; }
+.lk-rd.lnk { border-color: #7e22ce; background: radial-gradient(circle, #7e22ce 0 4px, #fff 4.5px); }
+.lk-rd.lnk.on { border-color: var(--inst, #b91c1c); background: radial-gradient(circle, var(--inst, #b91c1c) 0 4px, #fff 4.5px); }
+.lk-dim .lk-rd.lnk { pointer-events: auto; opacity: 1; }
