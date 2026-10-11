@@ -5963,7 +5963,8 @@ function renderBudgetList() {
         const ps = [...(INS.dlp[t.key] || [])].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")));
         ps.forEach((p, i) => all.push({ task: t.key, pid: p.id, on: p.on === true, lot: t.lot, prim: t.prim, per: i + 1, deb: p.deb || "", fin: p.fin || "",
           dur: p.deb && p.fin ? dDiff(p.deb, p.fin) : "" }));
-        if (edit || !ps.length) all.push({ task: t.key, pid: "", lot: t.lot, prim: t.prim, per: "", deb: "", fin: "", dur: "", nw: true });
+        /* mode SAISIE : seulement les périodes saisies (en mode LIAISONS) */
+        if (edit) all.push({ task: t.key, pid: "", lot: t.lot, prim: t.prim, per: "", deb: "", fin: "", dur: "", nw: true });
       });
       /* ordre par défaut : chronologique (début), puis alphabétique */
       all.sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || a.lot.localeCompare(b.lot, "fr") || a.prim.localeCompare(b.prim, "fr") || (a.nw - b.nw));
@@ -6677,7 +6678,7 @@ function renderBudgetList() {
         <thead><tr>${del ? '<th class="center"><input type="checkbox" class="dlp-cball" title="Tout cocher"></th>' : ""}${cols.map(c => cfHead("dly", c[0], c[1], c[3])).join("")}${del
           ? `<th class="center"><button type="button" class="ins-x dlp-xall" title="Supprimer les périodes cochées" aria-label="Supprimer les périodes cochées">${INS_TRASH}</button></th>` : ""}</tr></thead>
         <tbody>${rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${del ? `<td class="center ins-cbc">${h.__cb || ""}</td>` : ""}${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}${del ? `<td class="center ins-delc">${h.__x || ""}</td>` : ""}</tr>`; }).join("")
-          || `<tr><td colspan="${cols.length + (del ? 2 : 0)}" class="empty">AUCUNE TÂCHE PRIMAIRE</td></tr>`}</tbody></table>`;
+          || ""}</tbody></table>`;
     };
     const renderTab = () => { renderTab0(); sviMarkEmptyTabs(shell); };
     const renderTab0 = () => {
