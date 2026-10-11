@@ -5221,7 +5221,7 @@ function renderBudgetList() {
     };
     const insRowHTML = (k, r, lvl) => {
       const cols = INS_COLS[k];
-      const cb = !r || r.t ? "" : `<input type="checkbox" class="ins-cb" ${r.on !== false ? "checked" : ""} ${INS_EDIT ? "" : "disabled"}>`;
+      const cb = !r || r.t ? "" : `<input type="checkbox" class="ins-cb" ${r.on === true ? "checked" : ""} ${INS_EDIT ? "" : "disabled"}>`;
       const tcell = k === "des"
         ? `<td class="center ins-tc">${r && (INS_EDIT || r.t) ? `<span class="ins-t${r.t ? " on" : ""}" role="button" title="Ligne titre">T</span>` : ""}</td>`
         : "";
@@ -5348,7 +5348,7 @@ function renderBudgetList() {
           <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length)}</span><span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span></div>
           ${list.map(r => `<div class="ins-li" data-ik="${k}" data-iid="${r.id}">
-              <input type="checkbox" class="ins-cb" ${r.on !== false ? "checked" : ""} ${INS_EDIT ? "" : "disabled"}>
+              <input type="checkbox" class="ins-cb" ${r.on === true ? "checked" : ""} ${INS_EDIT ? "" : "disabled"}>
               ${INS_EDIT ? `<input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">` : `<span>${esc(r.v || "")}</span>`}
             </div>`).join("")}
           ${INS_EDIT ? `<div class="ins-li ins-new" data-ik="${k}"><span class="ins-cbc"></span>
@@ -5442,14 +5442,14 @@ function renderBudgetList() {
         let r = holder.dataset.iid ? X.INS[k].find(x => x.id === holder.dataset.iid) : null;
         if (!r) {
           /* première frappe dans la ligne vide : la ligne est créée */
-          r = { id: X.insId(), on: true };
+          r = { id: X.insId(), on: false };   /* nouvelle ligne : décochée par défaut */
           if (k === "des") r.t = false;
           X.INS[k].push(r);
           holder.dataset.iid = r.id;
           holder.classList.remove("ins-new");
           inp.removeAttribute("placeholder");
           const cbc = holder.querySelector(".ins-cbc");
-          if (cbc) cbc.innerHTML = `<input type="checkbox" class="ins-cb" checked>`;
+          if (cbc) cbc.innerHTML = `<input type="checkbox" class="ins-cb">`;
           const tc = holder.querySelector(".ins-tc");
           if (tc) tc.innerHTML = `<span class="ins-t" role="button" title="Ligne titre">T</span>`;
           /* nouvelle ligne vide dessous */
