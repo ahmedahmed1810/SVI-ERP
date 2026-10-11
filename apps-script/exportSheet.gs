@@ -16,11 +16,12 @@
 /* actions Drive : exportSheet (feuille Google mise en forme)
    et saveFile (PDF, Excel, CSV, JSON, documents joints) */
 function sviDriveRoute_(body) {
-  if (!body || ["exportSheet", "saveFile", "drivePath"].indexOf(body.action) < 0) return null;
+  if (!body || ["exportSheet", "saveFile", "drivePath", "v3Read"].indexOf(body.action) < 0) return null;
   var out;
   try {
     out = body.action === "exportSheet" ? exportSheet_(body)
       : body.action === "saveFile" ? saveFile_(body)
+      : body.action === "v3Read" ? v3Read_()
       : sviFolderInfo_(sviFolder_(body.path));
   } catch (err) {
     out = { ok: false, error: String(err && err.message || err) };
@@ -175,4 +176,19 @@ function exportSheet_(b) {
 
   SpreadsheetApp.flush();
   return { ok: true, url: ss.getUrl(), id: ss.getId(), path: sviPathOf_(folder), folderUrl: folder.getUrl() };
+}
+
+/* =========================================================
+   BASE BUDGETS V3 : lecture de tous les onglets
+   ========================================================= */
+var SVI_V3_ID = "131RdvI2_kqjRq7HbcPxXetWHmBcYJ3DNmGPiuogAoas";
+
+function v3Read_() {
+  var ss = SpreadsheetApp.openById(SVI_V3_ID);
+  var out = { ok: true };
+  ["BUDGETS", "DESIGNATIONS", "TACHES", "DETAILS", "ARRETS"].forEach(function (name) {
+    var sh = ss.getSheetByName(name);
+    out[name.toLowerCase()] = sh ? sh.getDataRange().getValues() : [];
+  });
+  return out;
 }

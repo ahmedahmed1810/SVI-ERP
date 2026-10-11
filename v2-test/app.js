@@ -2081,6 +2081,44 @@ function brdForm(
 }
 
 /* =========================================================
+   BASE V3 → lignes au format de l'ancien onglet BDG (colonnes A:Z),
+   pour que tout l'écran du budget fonctionne sans changement
+   ========================================================= */
+function v3ToRows(v3) {
+  const tab = name => {
+    const t = v3[name] || [];
+    if (t.length < 2) return [];
+    const h = t[0].map(x => String(x).trim());
+    return t.slice(1).map(r => Object.fromEntries(h.map((k, i) => [k, r[i]])));
+  };
+  const fr = v => typeof v === "number" ? String(v).replace(".", ",") : String(v ?? "");
+  const budgets = tab("budgets"), desig = tab("designations"), taches = tab("taches"), details = tab("details");
+  const bud = new Map(budgets.map(b => [String(b.REF), b]));
+  const des = new Map(desig.map(d => [String(d.ID), d]));
+  const tch = new Map(taches.map(t => [String(t.ID), t]));
+  const HEAD = ["", "", "", "", "", "", "PRJ", "N°", "DESIGNATION", "UDB", "LOT", "ACTIVITE", "CLE",
+    "ACTIVITE PRIMAIRE", "CHG/PRD", "DETAIL BUDGET", "UTB", "NBR", "DIM1", "DIM2", "DIM3", "QTB", "PUB", "MNB", "", ""];
+  return details
+    .sort((a, b) => (Number(a.ORDRE) || 0) - (Number(b.ORDRE) || 0))
+    .map(e => {
+      const t = tch.get(String(e.TACHE_ID)) || {};
+      const d = des.get(String(t.DESIGNATION_ID)) || {};
+      const b = bud.get(String(t.BDG)) || {};
+      const q = Number(e.QTE) || 0, pu = Number(e.PRIX) || 0;
+      const cols = new Array(26).fill("");
+      cols[6] = b.PROJET || ""; cols[7] = fr(d.ART); cols[8] = d.DESIGNATION || ""; cols[9] = d.UNITE || "";
+      cols[10] = t.LOT || ""; cols[11] = t.ACT_SECONDAIRE || ""; cols[12] = e.CLE || "";
+      cols[13] = t.ACT_PRIMAIRE || ""; cols[14] = e.TYPE || ""; cols[15] = e.DESIGNATION || "";
+      cols[16] = e.UNITE || ""; cols[17] = fr(e.NBR); cols[18] = fr(e.DIM1); cols[19] = fr(e.DIM2);
+      cols[20] = fr(e.DIM3); cols[21] = fr(e.QTE); cols[22] = fr(e.PRIX); cols[23] = q && pu ? fr(q * pu) : "";
+      const obj = {};
+      HEAD.forEach((h, i) => { if (h) obj[h] = cols[i]; });
+      Object.defineProperty(obj, "__cols", { value: cols, enumerable: false });
+      return obj;
+    });
+}
+
+/* =========================================================
    BDG — CHARGEMENT
    ========================================================= */
 
@@ -2091,6 +2129,23 @@ async function ensureBDGLoaded() {
 
   try {
     setBDGLoadingState();
+
+    /* VERSION TEST : lecture de la base V3 (repli sur l'ancien onglet BDG) */
+    try {
+      const v3 = await apiPost("v3Read", {});
+      bdgRows = v3ToRows(v3);
+      if (!bdgRows.length) throw new Error("BASE V3 VIDE");
+      window.SVI_SRC = "V3";
+      const tag = document.getElementById("sviTestTag");
+      if (tag) tag.textContent = "VERSION TEST — BASE V3";
+      bdgLoaded = true;
+      renderBudgetList();
+      return;
+    } catch (e) {
+      window.SVI_SRC = "BDG";
+      const tag = document.getElementById("sviTestTag");
+      if (tag) tag.textContent = "VERSION TEST — ANCIEN BDG (V3 : " + (e && e.message || e) + ")";
+    }
 
     const data = await apiGetBDG();
     const rows = data.rows || [];
