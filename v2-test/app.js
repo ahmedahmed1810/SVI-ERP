@@ -5485,7 +5485,7 @@ function renderBudgetList() {
       && (upTo < 1 || !LK.lot || l.lot === LK.lot) && (upTo < 2 || !LK.prim || l.prim === LK.prim) && (upTo < 3 || !LK.sec || l.sec === LK.sec));
     const lkLinked = () => {
       const S = { lot: new Set(), prim: new Set(), sec: new Set(), prd: new Set(), chg: new Set() };
-      /* aucune désignation choisie : toutes les lignes liées sont en violet */
+      /* aucune désignation choisie : toutes les lignes liées sont en bleu */
       if (!LK.des) return insUsed();
       S.des = new Set((INS.links || []).some(l => l.des === LK.des) ? [LK.des] : []);   /* la désignation choisie, si elle est liée */
       lkLinks(0).forEach(l => S.lot.add(l.lot));
@@ -5499,7 +5499,7 @@ function renderBudgetList() {
     const lkAnyLinked = (k, id) => !!(LKG && LKG[k] && LKG[k].has(id));
     /* lignes liées en haut du tableau (consigne 14) */
     /* ordre : lignes au rond coché (choisies ou liées) en haut, puis lignes cochées pour suppression, puis le reste */
-    /* ordre : 1) rond coché (choisies), 2) cochées pour suppression, 3) liées (violet), 4) le reste */
+    /* ordre : 1) rond coché (choisies), 2) cochées pour suppression, 3) liées (bleu), 4) le reste */
     const lkRank = (k, r) => lkOn(k, r.id) ? 0 : r.on === true ? 1 : (LK.des && lkIsLinked(k, r.id)) ? 2 : lkAnyLinked(k, r.id) ? 3 : 4;
     const lkTop = (k, rows) => {
       if (!INS_EDIT) return rows;
@@ -5517,7 +5517,7 @@ function renderBudgetList() {
       const sel = r && !r.t && lkOn(k, r.id);
       const dim = k === "des" && r && !r.t && LK.des && !sel;
       const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
-      const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* violet = liée (à n'importe quelle désignation) */
+      const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* bleu = liée (à n'importe quelle désignation) */
       return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + insLevel(r.art) : ""}${r && !r.t && lvl ? " ins-in" + lvl : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${dim ? " lk-dim" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}>
         <td class="center ins-rdc">${lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
@@ -5786,23 +5786,51 @@ function renderBudgetList() {
       const clean = l => JSON.stringify((l || []).map(p => [p.deb || "", p.fin || ""]).sort());
       return Object.keys(D).some(k => clean(D[k]) !== clean((INS.dlp || {})[k]));
     };
-    const lkPending = () => Object.keys(LK.prd).length > 0 || Object.keys(LK.chg).length > 0 || lkDlyDirty() || !!LK.linksBak;
+    /* que fait le bouton ? (consigne 37 : construire ET détruire passent par le bouton)
+       - chaîne complète + produits / charges nouveaux, ou délais modifiés : ✓ VALIDER
+       - sinon, les éléments choisis désignent des liaisons existantes : ✕ DÉLIER
+         · produits / charges choisis : ils sont retirés des liaisons qui contiennent tous les éléments choisis
+         · aucun produit / charge : ces liaisons sont détruites */
+    const lkPlan = () => {
+      const L = INS.links || [], keys = ["des", "lot", "prim", "sec"].filter(k => LK[k]);
+      const P = Object.keys(LK.prd), C = Object.keys(LK.chg);
+      const full = keys.length === 4;
+      if (!keys.length && !P.length && !C.length) return { mode: "none" };
+      const M = L.filter(l => keys.every(k => l[k] === LK[k]));
+      const inM = (k, id) => M.some(l => (l[k] || []).some(x => x.id === id));
+      const addP = P.filter(id => !inM("prd", id)), addC = C.filter(id => !inM("chg", id));
+      const remP = P.filter(id => inM("prd", id)), remC = C.filter(id => inM("chg", id));
+      const nAdd = addP.length + addC.length, nRem = remP.length + remC.length;
+      if (nAdd && nRem) return { mode: "mix" };
+      if (lkDlyDirty() && !nRem && (!nAdd || full)) return { mode: "add", full, same: full && M.length > 0 };
+      if (nAdd) return full ? { mode: "add", full, same: M.length > 0 } : { mode: "incomplete" };
+      if (nRem) {
+        const hit = M.filter(l => (l.prd || []).some(x => remP.includes(x.id)) || (l.chg || []).some(x => remC.includes(x.id)));
+        return { mode: "del", links: hit, remP, remC, n: hit.length };
+      }
+      if (!keys.length || !M.length) return { mode: "none" };
+      return { mode: "del", links: M, remP: [], remC: [], n: M.length };
+    };
+    const lkPending = () => { const m = lkPlan().mode; return m === "add" || lkDlyDirty(); };
     /* bandeau CHAÎNE … ✓ VALIDER LA LIAISON (visible quand une désignation est choisie) */
     const insRenderChain = () => {
       const el = $("insChain");
       if (!el) return;
       el.hidden = false;
       /* la place est toujours réservée : rien ne bouge quand le bandeau apparaît */
-      el.classList.toggle("off", !(INS_EDIT && LK.des));
-      if (!(INS_EDIT && LK.des)) { el.innerHTML = '<button type="button" class="lk-go" disabled>✓ VALIDER LA LIAISON</button>'; return; }
-      const nPrd = Object.keys(LK.prd).length, nChg = Object.keys(LK.chg).length;
-      const same = (INS.links || []).some(l => l.des === LK.des && l.lot === LK.lot && l.prim === LK.prim && l.sec === LK.sec);
-      /* nouvelle liaison complète, ajout à une liaison existante, ou délais modifiés */
-      const complete = (LK.des && LK.lot && LK.prim && LK.sec && (nPrd > 0 || (same && nChg > 0))) || lkDlyDirty() || !!LK.linksBak;
-      const chain = [lkName("des", LK.des), lkName("lot", LK.lot), lkName("prim", LK.prim), lkName("sec", LK.sec)]
-        .map(x => x || "…").join(" › ") + " › " + nPrd + " PRODUIT(S)" + (nChg ? " + " + nChg + " CHARGE(S)" : "");
-      el.innerHTML = `<button type="button" class="lk-info" title="Voir la liaison" aria-label="Voir la liaison">i</button>
-        <button type="button" class="lk-go" ${complete ? "" : "disabled"}>✓ VALIDER LA LIAISON</button>`;
+      const any = INS_EDIT && (LK.des || LK.lot || LK.prim || LK.sec || Object.keys(LK.prd).length || Object.keys(LK.chg).length);
+      el.classList.toggle("off", !any);
+      if (!any) { el.innerHTML = '<button type="button" class="lk-go" disabled>✓ VALIDER LA LIAISON</button>'; return; }
+      const pl = lkPlan();
+      const nPrd = Object.keys(LK.prd).length;
+      let btn;
+      if (pl.mode === "del") btn = `<button type="button" class="lk-go lk-del-go">✕ DÉLIER (${pl.n})</button>`;
+      else if (pl.mode === "add") {
+        const ok = lkDlyDirty() || (pl.same || nPrd > 0);
+        btn = `<button type="button" class="lk-go" ${ok ? "" : "disabled"}>${pl.same || (!pl.full && lkDlyDirty()) ? "✓ VALIDER LES MODIFICATIONS" : "✓ VALIDER LA LIAISON"}</button>`;
+      } else if (pl.mode === "mix") btn = `<button type="button" class="lk-go lk-mix">✓ VALIDER LA LIAISON</button>`;
+      else btn = `<button type="button" class="lk-go" disabled>✓ VALIDER LA LIAISON</button>`;
+      el.innerHTML = `${LK.des ? '<button type="button" class="lk-info" title="Voir la liaison" aria-label="Voir la liaison">i</button>' : ""}${btn}`;
     };
     const insRenderTab = () => {
       ["chg", "prd", "qlt"].forEach(k => {
@@ -5894,6 +5922,7 @@ function renderBudgetList() {
         const inp = e.target.closest("input.ins-in");
         if (!X || !inp) return;
         const holder = inp.closest("[data-ik]");
+        if (!holder) return;   /* délais : gérés à part */
         const k = holder.dataset.ik;
         const f = inp.dataset.f;
         const c = (X.insRowHTML && ["des", "chg", "prd"].includes(k)) ? true : false;
@@ -6524,16 +6553,7 @@ function renderBudgetList() {
             L.err = "";
             X.light(k);
           };
-          /* produit / charge déjà lié (rond coché violet) : le toucher le délie */
-          if (multi && !chosen && L.des && X.isLinked(k, id)) { X.unlink(k, id); return; }
-          /* lot / activité déjà liés : cocher = les choisir ; décocher = les délier */
-          if (!multi && chosen && k !== "des" && L.des && X.isLinked(k, id)) {
-            L[k] = null;
-            if (k === "lot") { L.prim = L.sec = null; }
-            if (k === "prim") { L.sec = null; }
-            X.unlink(k, id);
-            return;
-          }
+          /* le rond ne fait que choisir / libérer ; délier passe par le bouton ✕ DÉLIER */
           pick();
           return;
         }
@@ -6589,7 +6609,41 @@ function renderBudgetList() {
       });
     };
     /* ✓ VALIDER LA LIAISON : nouvelle liaison, ajout de détails à une liaison existante, délais de la tâche */
+    /* ✕ DÉLIER : fenêtre de confirmation (liaisons concernées, délais supprimés), puis destruction */
+    const lkDestroy = pl => {
+      const tag = l => [lkName("des", l.des), lkName("lot", l.lot), lkName("prim", l.prim), lkName("sec", l.sec)].join(" › ");
+      const rem = pl.remP.length || pl.remC.length;
+      const names = [...pl.remP.map(id => lkName("prd", id)), ...pl.remC.map(id => lkName("chg", id))];
+      const ids = new Set(pl.links.map(l => l.id));
+      /* liaisons après l'opération (un produit retiré : la liaison sans produit disparaît) */
+      const after = (INS.links || []).map(l => !ids.has(l.id) ? l : !rem ? null
+        : { ...l, prd: (l.prd || []).filter(x => !pl.remP.includes(x.id)), chg: (l.chg || []).filter(x => !pl.remC.includes(x.id)) })
+        .filter(l => l && (l.prd || []).length);
+      const gone = pl.links.filter(l => !after.some(a => a.id === l.id));
+      /* délais des tâches primaires qui n'ont plus aucune liaison */
+      const dK = Object.keys(INS.dlp || {}).filter(k => (INS.dlp[k] || []).length && !after.some(l => l.lot + "|" + l.prim === k)
+        && (INS.links || []).some(l => l.lot + "|" + l.prim === k));
+      const nD = dK.reduce((t, k) => t + INS.dlp[k].length, 0);
+      const html = `${rem ? `<div class="svc-sub">À RETIRER : ${esc(names.join(", "))}</div>` : ""}
+        <div class="svc-sub">${rem ? "DANS" : "LIAISONS DÉTRUITES"} (${pl.links.length}) :</div>
+        <ul class="svc-list">${pl.links.map(l => `<li>${esc(tag(l))}${rem && gone.includes(l) ? " <b>(PLUS AUCUN PRODUIT : DÉTRUITE)</b>" : ""}</li>`).join("")}</ul>
+        ${nD ? `<div class="svc-sub svc-warn">${nD} PÉRIODE${nD > 1 ? "S" : ""} DE DÉLAIS ${nD > 1 ? "SERONT SUPPRIMÉES" : "SERA SUPPRIMÉE"}.</div>` : ""}`;
+      return svConfirm({ title: rem ? "RETIRER DES LIAISONS" : "DÉLIER", html, ok: "✕ DÉLIER" }).then(go => {
+        if (!go) return false;
+        INS.links = after;
+        dK.forEach(k => { delete INS.dlp[k]; });
+        histLog("LIAISONS", "DÉLIER", (rem ? names.join(", ") + " — " : "") + pl.links.map(tag).join(" ; "));
+        LK.prd = {}; LK.chg = {}; LK.lot = LK.prim = LK.sec = null; LK.dlpDraft = null;
+        if (LK.des && !INS.des.some(x => x.id === LK.des)) LK.des = null;
+        insSave();
+        refreshAll();
+        return true;
+      });
+    };
     const lkCommit = () => {
+      const pl = lkPlan();
+      if (pl.mode === "mix") { svToast("CHOISIR SOIT DES LIGNES À AJOUTER, SOIT DES LIGNES À DÉLIER (EN DEUX FOIS)."); return false; }
+      if (pl.mode === "del") return lkDestroy(pl);
       const L = LK, hasNew = Object.keys(L.prd).length || Object.keys(L.chg).length;
       if (hasNew && L.des && L.lot && L.prim && L.sec) {
         const err = lkCheck();
@@ -6615,7 +6669,7 @@ function renderBudgetList() {
         L.linksBak = null; L.unlinked = null;
       }
       L.dlpDraft = null; L.err = "";
-      /* après validation : seule la désignation reste choisie ; lot et activités repassent en « liés » (violet) */
+      /* après validation : seule la désignation reste choisie ; lot et activités repassent en « liés » (bleu) */
       L.lot = L.prim = L.sec = null;
       insSave(); histLog("LIAISONS", "LIAISON VALIDÉE", lkName("des", L.des));
       refreshAll();
@@ -6629,6 +6683,7 @@ function renderBudgetList() {
           if (v === "ok") return lkCommit();
           if (v === "drop") {
             LK.prd = {}; LK.chg = {}; LK.dlpDraft = null;
+            LK.lot = LK.prim = LK.sec = null;
             if (LK.linksBak) { INS.links = LK.linksBak; LK.linksBak = null; LK.unlinked = null; insSave(); }
             return true;
           }
@@ -13278,14 +13333,14 @@ function svChoose({ title = "", text = "", buttons = [] } = {}) {
     });
   });
 }
-function svConfirm({ title = "CONFIRMER", text = "", ok = "OK", tone = "danger" } = {}) {
+function svConfirm({ title = "CONFIRMER", text = "", html = "", ok = "OK", tone = "danger" } = {}) {
   return new Promise(res => {
     document.getElementById("svConf")?.remove();
     const d = document.createElement("div");
     d.id = "svConf";
     d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
         <div class="svc-t">${esc(title)}</div>
-        ${text ? `<div class="svc-x">${esc(text)}</div>` : ""}
+        ${text ? `<div class="svc-x">${esc(text)}</div>` : ""}${html ? `<div class="svc-x svc-html">${html}</div>` : ""}
         <div class="svc-f"><button type="button" class="svc-b" data-r="0">ANNULER</button>
           <button type="button" class="svc-b svc-ok${tone === "danger" ? "" : " svc-neutral"}" data-r="1">${esc(ok)}</button></div>
       </div>`;
