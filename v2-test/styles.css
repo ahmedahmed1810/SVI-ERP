@@ -1137,3 +1137,9 @@ tfoot td {
 /* onglets déplaçables : le défilement vertical reste possible, le glissement horizontal déplace l'onglet */
 .bdg-d-tab, .rec-tab, .imp-tab, .hist-f { touch-action: pan-y; -webkit-user-select: none; user-select: none; }
 .tab-drag { opacity: .6; outline: 2px dashed #94a3b8; outline-offset: -2px; }
+/* 🗑 d'une ligne visible seulement quand la ligne est cochée ;
+   🗑 d'en-tête visible seulement quand au moins une ligne est cochée */
+.ins-table tr[data-iid] .ins-x, .ins-hcol .ins-li[data-iid] .ins-x { visibility: hidden; }
+.ins-table tr[data-iid]:has(input.ins-cb:checked) .ins-x, .ins-hcol .ins-li[data-iid]:has(input.ins-cb:checked) .ins-x { visibility: visible; }
+.ins-table .ins-xall, .ins-hcol .ins-xall { visibility: hidden; }
+.ins-table:has(tbody input.ins-cb:checked) .ins-xall, .ins-hcol:has(.ins-li input.ins-cb:checked) .ins-xall { visibility: visible; }
