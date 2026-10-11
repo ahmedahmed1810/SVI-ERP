@@ -7531,7 +7531,7 @@ function renderBudgetList() {
       const impCls = c => c[2] ? "number" : (c[0] === "art" || c[0] === "u") ? "center" : "";
       const shownRows = () => cfApply("imp_" + tab, cfCols(), model[tab]);
       /* lignes retenues : cochées, + liées (AVEC LIAISONS), ou tout le budget */
-      const picked = () => {
+      const picked = (noCut = false) => {
         const out = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set() };
         if (all) { IMP_TABS.forEach(([k]) => model[k].forEach(x => out[k].add(x.key))); return out; }
         IMP_TABS.forEach(([k]) => sel[k].forEach(x => out[k].add(x)));
@@ -7545,8 +7545,9 @@ function renderBudgetList() {
               ["chg", l.ck], ["prd", l.pk]].filter(x => x[1]);
             path.forEach(([t, k], i) => {
               if (!sel[t].has(k)) return;
-              for (let j = i + 1; j < path.length && !cut.has(path[j][1]); j++) out[path[j][0]].add(path[j][1]);
-              for (let j = i - 1; j >= 0 && !cut.has(path[j][1]); j--) out[path[j][0]].add(path[j][1]);
+              const ok = k2 => noCut || !cut.has(k2);
+              for (let j = i + 1; j < path.length && ok(path[j][1]); j++) out[path[j][0]].add(path[j][1]);
+              for (let j = i - 1; j >= 0 && ok(path[j][1]); j--) out[path[j][0]].add(path[j][1]);
             });
           });
         }
@@ -7556,6 +7557,9 @@ function renderBudgetList() {
       const upTop = (rows, set) => rows.map((x, i) => ({ x, i }))
         .sort((a, b) => (set.has(b.x.key) - set.has(a.x.key)) || a.i - b.i).map(o => o.x);
       const render = () => {
+        /* coupures sans objet (plus aucune liaison n'y passe) : oubliées */
+        const pAll = withLinks ? picked(true) : null;
+        if (pAll) [...cut].forEach(k => { if (!IMP_TABS.some(([t]) => pAll[t].has(k))) cut.delete(k); });
         const pk = picked();
         const n = IMP_TABS.reduce((t, [k]) => t + pk[k].size, 0);
         p.querySelector(".imp-tabs").innerHTML = IMP_TABS.map(([k, lab]) =>
@@ -7576,7 +7580,7 @@ function renderBudgetList() {
                 ${cfHead("imp_" + lv, "v", LV[lv] + " " + svCnt(rows.length), "")}</tr></thead>
               <tbody>${rows.map(x => {
                 const on = pk.hier.has(x.key), linked = on && !sel.hier.has(x.key);
-                const isCut = withLinks && cut.has(x.key) && !on;
+                const isCut = withLinks && cut.has(x.key) && !on && pAll && pAll.hier.has(x.key);
                 return `<tr class="${linked ? "imp-linked" : ""}${isCut ? " imp-cut" : ""}" data-k="${esc(x.key)}">
                   <td class="center"><input type="checkbox" class="imp-cb" ${on ? "checked" : ""}></td>
                   <td>${esc(x.row.v)}</td></tr>`;
@@ -7600,7 +7604,7 @@ function renderBudgetList() {
           `<colgroup><col style="width:40px">${cs.map(c => `<col data-w="imp_${tab}.${c[0]}" style="width:${wOf(c[0])}px">`).join("")}</colgroup><thead><tr><th class="center" style="width:34px"><input type="checkbox" class="imp-cball" ${allOn ? "checked" : ""} ${all ? "disabled" : ""}></th>${cs.map(c => cfHead("imp_" + tab, c[0], c[1], impCls(c))).join("")}</tr></thead>
            <tbody>${rows.map(x => {
              const on = pk[tab].has(x.key), linked = on && !sel[tab].has(x.key) && !all;
-             const isCut = withLinks && cut.has(x.key) && !on;
+             const isCut = withLinks && cut.has(x.key) && !on && pAll && pAll[tab].has(x.key);
              return `<tr class="${x.row.t ? "imp-tt" : ""}${linked ? " imp-linked" : ""}${isCut ? " imp-cut" : ""}" data-k="${esc(x.key)}">
                <td class="center"><input type="checkbox" class="imp-cb" ${on ? "checked" : ""} ${all ? "disabled" : ""}></td>
                ${cs.map(c => `<td class="${impCls(c)}">${esc(val(x, c[0], c[2]))}</td>`).join("")}</tr>`;
@@ -7680,7 +7684,7 @@ function renderBudgetList() {
             : shownRows();
           rows.forEach(x => {
             if (e.target.checked) { sel[tab].add(x.key); cut.delete(x.key); }
-            else { sel[tab].delete(x.key); if (withLinks) cut.add(x.key); }
+            else sel[tab].delete(x.key);
           });
           render(); return;
         }
