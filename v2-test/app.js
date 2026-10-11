@@ -7284,6 +7284,7 @@ function renderBudgetList() {
             showImport(d.name || "Google Sheets", d.values[0] || [], d.values.slice(1));
             return;
           }
+          first = first || "LE SCRIPT NE CONNAÎT PAS ENCORE LA LECTURE DE FEUILLE (NOUVELLE VERSION À DÉPLOYER)";
         } catch (e) { first = first || (e && e.message) || String(e); }
       }
       /* repli : feuille partagée « Toute personne disposant du lien » */
@@ -7295,7 +7296,7 @@ function renderBudgetList() {
         const aoa = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
         showImport("Google Sheets", aoa[0] || [], aoa.slice(1));
       } catch (e) {
-        alert("IMPORT GOOGLE SHEETS IMPOSSIBLE : " + (first || e.message));
+        alert("IMPORT GOOGLE SHEETS IMPOSSIBLE.\nPAR LE SCRIPT : " + (first || "?") + "\nPAR LE LIEN PUBLIC : " + e.message);
       }
     };
 
