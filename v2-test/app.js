@@ -5628,7 +5628,10 @@ function renderBudgetList() {
     /* lignes liées en haut du tableau (consigne 14) */
     /* ordre : lignes au rond coché (choisies ou liées) en haut, puis lignes cochées pour suppression, puis le reste */
     /* ordre : 1) rond coché (choisies), 2) cochées pour suppression, 3) liées (bleu), 4) le reste */
-    const lkRank = (k, r) => lkOn(k, r.id) ? 0 : r.on === true ? 1 : (lkHit(k, r.id) || (LK.des && lkIsLinked(k, r.id))) ? 2 : lkAnyLinked(k, r.id) ? 3 : 4;
+    /* ordre : 1) choisies, 2) cochées, 3) liées à ce qui est choisi, 4) autres lignes qu'on peut choisir
+       (liées puis non liées), 5) en bas, les lignes grisées qu'on ne peut pas choisir */
+    const lkRank = (k, r) => lkOn(k, r.id) ? 0 : r.on === true ? 1 : (lkHit(k, r.id) || (LK.des && lkIsLinked(k, r.id))) ? 2
+      : (k !== "des" && lkBan(k, r.id)) ? 5 : lkAnyLinked(k, r.id) ? 3 : 4;
     const lkTop = (k, rows) => {
       if (!INS_EDIT) return rows;
       return rows.map((r, i) => ({ r, i, g: r.t ? 4 : lkRank(k, r) })).sort((a, b) => a.g - b.g || a.i - b.i).map(o => o.r);
