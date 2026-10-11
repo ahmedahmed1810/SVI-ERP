@@ -1245,3 +1245,5 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
   font-size: 16px; font-weight: 800; cursor: pointer; border-radius: 8px; line-height: 1; }
 #svConf .svc-close:active { background: #eef1f6; }
 #svConf .svc-t { padding-right: 34px; }
+/* zone du bouton DÉLIER / VALIDER : sans pointillés (place toujours réservée) */
+#insChain.lk-chain-top { border-color: transparent !important; background: transparent; }
