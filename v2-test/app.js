@@ -323,6 +323,22 @@ const insPrdPrice = (data, id) => {
   const d = (data.des || []).find(x => x.id === l.des);
   return d && d.p !== "" && d.p !== undefined ? num(d.p) : "";
 };
+/* TVA d'un produit : celle de la désignation client à laquelle il est lié ; vide s'il n'est lié à rien */
+const insPrdTVA = (data, id) => {
+  const l = ((data || {}).links || []).find(l => (l.prd || []).some(x => x.id === id));
+  if (!l) return "";
+  const d = (data.des || []).find(x => x.id === l.des);
+  return !d ? "" : (d.tva === "" || d.tva === undefined ? 20 : num(d.tva));
+};
+/* charges : catalogue CHS (ARTICLE, DÉSIGNATION, UNITÉ, PCS, TVA) */
+const chsFind = (art, des) => {
+  const L = (typeof db !== "undefined" && db.chs) || [];
+  const n = v => String(v ?? "").trim().toUpperCase();
+  if (n(art)) { const x = L.find(c => n(c.article) === n(art)); if (x) return x; }
+  if (n(des)) { const x = L.find(c => n(c.designation) === n(des)); if (x) return x; }
+  return null;
+};
+const chsById = id => ((typeof db !== "undefined" && db.chs) || []).find(c => String(c.id) === String(id)) || null;
 /* =========================================================
    ONGLETS DÉPLAÇABLES (comme les colonnes) : on glisse un onglet
    pour changer l'ordre ; ordre mémorisé par jeu d'onglets
@@ -894,7 +910,9 @@ function mapBootstrap(data) {
     article: x.ARTICLE,
     designation: x.DESIGNATION,
     unit: x.UNITE,
-    pcs: num(x.PCS)
+    pcs: num(x.PCS),
+    /* colonne TVA (à créer dans la feuille CHS) : vide = 20 % */
+    tva: x.TVA === undefined || x.TVA === "" ? 20 : num(x.TVA)
   }));
 
   const all = data.bds || [];
@@ -4937,7 +4955,7 @@ function renderBudgetList() {
             : `<button type="button" class="inst-act" id="instDel" title="Supprimer ce budget" aria-label="Supprimer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`}
           <button type="button" class="inst-act" id="instClose" title="Fermer" aria-label="Fermer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>` : ""}
           <button type="button" class="inst-act" id="instDup" title="Dupliquer ce budget" aria-label="Dupliquer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
-          <button type="button" class="bdg-lay-btn" id="layResetBtn" hidden
+          <button type="button" class="bdg-lay-btn" id="layResetBtn" disabled
             title="Disposition par défaut : remettre les blocs à leur place et taille d'origine"
             aria-label="Disposition par défaut"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button type="button" class="bdg-alert-btn" id="obsAlertBtn" hidden
@@ -5383,6 +5401,13 @@ function renderBudgetList() {
           budget.inst.data || {}))
       : null;
     const INS_EDIT = !!INS && (budget.inst.state || "instance") === "instance";
+    /* budget en instance (rouge) : les charges venues de CHS suivent CHS (prix, TVA, unité…) ;
+       figé (vert) ou validé (noir) : on garde les valeurs du moment */
+    if (INS_EDIT) (INS.chg || []).forEach(r => {
+      const c = r.chs && chsById(r.chs);
+      if (!c) return;
+      r.art = c.article ?? r.art; r.des = c.designation ?? r.des; r.u = c.unit ?? r.u; r.p = c.pcs; r.tva = c.tva;
+    });
     let insSeq = Date.now();
     const insId = () => "i" + (insSeq++).toString(36);
     let insTimer = null;
@@ -5416,7 +5441,9 @@ function renderBudgetList() {
     const insPrice = (k, r) => k === "prd" ? insPrdPrice(INS, r.id) : r.p;
     const insHT = (k, r) => r.t ? 0 : insQty(k, r) * num(insPrice(k, r) || 0);
     const insTVA = r => (r.tva === "" || r.tva === undefined) ? 20 : num(r.tva);
-    const insTTC = (k, r) => insHT(k, r) * (1 + insTVA(r) / 100);
+    /* TVA de la ligne : produits = celle de la désignation liée (vide sans liaison) */
+    const insTVAk = (k, r) => k === "prd" ? insPrdTVA(INS, r.id) : insTVA(r);
+    const insTTC = (k, r) => insHT(k, r) * (1 + num(insTVAk(k, r) || 0) / 100);
 
     /* colonnes : [champ, libellé, classe, type, largeur] ; type : txt / num / calc */
     const INS_COLS = {
@@ -5457,12 +5484,13 @@ function renderBudgetList() {
       ]
     };
     /* champs non saisissables (calculés ou venus d'ailleurs) : fond gris ; les autres gardent le fond normal
-       désignations : QPB, montants, TVA ; charges : PCB, montants, TVA (seule la quantité se saisit) ;
-       produits : QPB, PPB, montants, TVA (unité, NBR et DIM se saisissent) */
-    const INS_LOCK = { des: ["q", "ht", "tva", "ttc"], chg: ["p", "ht", "tva", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
+       désignations : QPB, montants (TVA saisissable, 20 % par défaut) ;
+       charges : PCB (s'il vient de CHS), montants, TVA (de CHS) — une charge absente de CHS garde son PCB saisissable ;
+       produits : QPB, PPB, montants, TVA (celle de la désignation liée) ; unité, NBR et DIM se saisissent */
+    const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "tva", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
-        : f === "q" ? insQty(k, r) : f === "tva" ? insTVA(r) : (f === "p" && k === "prd") ? insPrice(k, r) : r[f];
+        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : r[f];
     /* une cellule : champ saisissable, ou verrouillé (titre, calculé) */
     const insCell = (k, r, c) => {
       const [f, , cls, type] = c;
@@ -5470,13 +5498,14 @@ function renderBudgetList() {
       r = r || {};
       /* QPB produits = NBR × DIM 1 × DIM 2 × DIM 3 ; QPB désignation liée = somme des produits de ses tâches */
       const qAuto = (f === "q" && (k === "prd" || k === "des")) || (f === "p" && k === "prd");
-      const locked = !INS_EDIT || type === "calc" || qAuto || (INS_LOCK[k] || []).includes(f) || (r.t && f !== "art" && f !== "des");
+      const locked = !INS_EDIT || type === "calc" || qAuto || (INS_LOCK[k] || []).includes(f) || (k === "chg" && f === "p" && !!r.chs) || (r.t && f !== "art" && f !== "des");
       let val = "";
       /* ligne vide « SAISIR ICI » des désignations : TVA 20 % affichée par défaut */
-      if (isNew && f === "tva") val = "20,00";
+      if (isNew && f === "tva" && k !== "prd") val = "20,00";
       if (!isNew) {
         if (r.t && f !== "art" && f !== "des") val = "";
         else if (type === "calc" || qAuto) val = insFmt(insCalc(k, r, f));
+        else if (k === "prd" && f === "tva") val = insFmt(insPrdTVA(INS, r.id));
         else if (type === "num") val = f === "tva" ? (r.tva === "" || r.tva === undefined ? "20,00" : insFmt(r.tva)) : insFmt(r[f]);
         else val = r[f] || "";
       }
@@ -5505,13 +5534,31 @@ function renderBudgetList() {
       lkLinks(3).forEach(l => { (l.prd || []).forEach(x => S.prd.add(x.id)); (l.chg || []).forEach(x => S.chg.add(x.id)); });
       return S;
     };
+    /* lignes liées EXACTEMENT à ce qui est choisi (désignation, lot, activités, produits, charges) :
+       elles remontent et passent en bleu foncé, dans tous les blocs, quel que soit l'élément choisi
+       (le rond à point reste réservé aux lignes liées à la désignation choisie) */
+    const lkHits = () => {
+      const ch = ["des", "lot", "prim", "sec"].filter(k => LK[k]);
+      const cp = Object.keys(LK.prd || {}), cc = Object.keys(LK.chg || {});
+      if (!ch.length && !cp.length && !cc.length) return null;
+      const S = { des: new Set(), lot: new Set(), prim: new Set(), sec: new Set(), prd: new Set(), chg: new Set() };
+      (INS.links || []).filter(l => ch.every(k => l[k] === LK[k])
+        && cp.every(id => (l.prd || []).some(x => x.id === id)) && cc.every(id => (l.chg || []).some(x => x.id === id)))
+        .forEach(l => {
+          ["des", "lot", "prim", "sec"].forEach(k => S[k].add(l[k]));
+          (l.prd || []).forEach(x => S.prd.add(x.id)); (l.chg || []).forEach(x => S.chg.add(x.id));
+        });
+      return S;
+    };
+    let LKH = null;
+    const lkHit = (k, id) => !!(LKH && LKH[k] && LKH[k].has(id)) && !lkOn(k, id);
     let LKS = null, LKG = null;   /* calculés à chaque dessin : liées à la désignation choisie / liées à n'importe quelle désignation */
     const lkIsLinked = (k, id) => !!(LKS && LKS[k] && LKS[k].has(id));
     const lkAnyLinked = (k, id) => !!(LKG && LKG[k] && LKG[k].has(id));
     /* lignes liées en haut du tableau (consigne 14) */
     /* ordre : lignes au rond coché (choisies ou liées) en haut, puis lignes cochées pour suppression, puis le reste */
     /* ordre : 1) rond coché (choisies), 2) cochées pour suppression, 3) liées (bleu), 4) le reste */
-    const lkRank = (k, r) => lkOn(k, r.id) ? 0 : r.on === true ? 1 : (LK.des && lkIsLinked(k, r.id)) ? 2 : lkAnyLinked(k, r.id) ? 3 : 4;
+    const lkRank = (k, r) => lkOn(k, r.id) ? 0 : r.on === true ? 1 : (lkHit(k, r.id) || (LK.des && lkIsLinked(k, r.id))) ? 2 : lkAnyLinked(k, r.id) ? 3 : 4;
     const lkTop = (k, rows) => {
       if (!INS_EDIT) return rows;
       return rows.map((r, i) => ({ r, i, g: r.t ? 4 : lkRank(k, r) })).sort((a, b) => a.g - b.g || a.i - b.i).map(o => o.r);
@@ -5529,7 +5576,7 @@ function renderBudgetList() {
       const dim = k === "des" && r && !r.t && LK.des && !sel;
       const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
       const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* bleu = liée (à n'importe quelle désignation) */
-      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + insLevel(r.art) : ""}${r && !r.t && lvl ? " ins-in" + lvl : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${dim ? " lk-dim" : ""}"
+      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + insLevel(r.art) : ""}${r && !r.t && lvl ? " ins-in" + lvl : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}>
         <td class="center ins-rdc">${lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
           ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>`;
@@ -5609,7 +5656,7 @@ function renderBudgetList() {
     const INS_CHUNK = 120;
     const insMore = {};
     const insBodyHTML = k => {
-      LKS = lkLinked(); LKG = insUsed();
+      LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
       const rows = k === "des" ? insShown(k) : lkTop(k, insShown(k));
       const ncol = INS_COLS[k].length + (k === "des" ? 2 : 1);
       let html = "";
@@ -5717,7 +5764,7 @@ function renderBudgetList() {
       });
     };
     const insRenderHier = only => {
-      LKS = lkLinked(); LKG = insUsed();
+      LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
       const col = (title, k) => {
         const list = lkTop(k, cfApply(k, [["v", title, r => r.v || "", ""]], INS[k]));
         lastShown.hier[k] = list.map(r => r.v || "");
@@ -5727,7 +5774,7 @@ function renderBudgetList() {
           <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? '<span class="ins-rdc"></span>' : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length)}</span><span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
-          ${list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}" data-ik="${k}" data-iid="${r.id}">
+          ${list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}" data-ik="${k}" data-iid="${r.id}">
               ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">
                 <span class="ins-delc">${insDelCell(r)}</span>` : `<span>${esc(r.v || "")}</span>`}
             </div>`).join("")}
@@ -5752,7 +5799,7 @@ function renderBudgetList() {
       const tb = $("bdgTabBody")?.querySelector(`table.ins-table[data-ik="${k}"] tbody`);
       if (!rest || !rest.length || !tb) return;
       const part = rest.splice(0, INS_CHUNK * 2);
-      LKS = lkLinked(); LKG = insUsed();
+      LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
       const tmp = document.createElement("tbody");
       tmp.innerHTML = part.map(r => insRowHTML(k, r, 0)).join("");
       const before = tb.querySelector("tr.ins-new");
@@ -5872,7 +5919,7 @@ function renderBudgetList() {
         const f = inp.dataset.f;
         const c = INS_COLS[k].find(x => x[0] === f);
         if (!c || inp === document.activeElement) return;
-        const qAuto = (f === "q" && (k === "prd" || k === "des")) || (f === "p" && k === "prd");
+        const qAuto = (f === "q" && (k === "prd" || k === "des")) || (f === "p" && k === "prd") || (f === "tva" && k === "prd");
         if (c[3] === "calc" || qAuto) inp.value = r.t ? "" : insFmt(insCalc(k, r, f));
       });
       if (k === "des") {
@@ -6529,6 +6576,34 @@ function renderBudgetList() {
         if (nd > max) svToast("ATTENTION : UNITÉ " + u + " → " + (max === 0 ? "NBR SEUL" : "NBR ET " + max + " DIM") + " (" + nd + " DIM RENSEIGNÉE" + (nd > 1 ? "S" : "") + ").", 3500, inp);
       });
     }
+    /* détail charges : ART ou désignation saisi → désignation, unité, PCB et TVA viennent de CHS ;
+       charge absente de CHS : acceptée, son PCB reste saisissable */
+    if (!shell.__chsBound) {
+      shell.__chsBound = true;
+      shell.addEventListener("change", e => {
+        const inp = e.target.closest && e.target.closest("input.ins-in");
+        const X = shell.__ins;
+        if (!inp || !X || !["art", "des"].includes(inp.dataset.f)) return;
+        const tr = inp.closest('tr[data-ik="chg"][data-iid]');
+        if (!tr) return;
+        const r = X.INS.chg.find(x => x.id === tr.dataset.iid);
+        if (!r) return;
+        const c = chsFind(inp.dataset.f === "art" ? r.art : "", inp.dataset.f === "des" ? r.des : "");
+        if (c) { r.chs = c.id; r.art = String(c.article ?? r.art ?? "").toUpperCase(); r.des = String(c.designation ?? r.des ?? "").toUpperCase();
+          r.u = String(c.unit ?? r.u ?? "").toUpperCase(); r.p = c.pcs; r.tva = c.tva; }
+        else if (r.chs) { delete r.chs; }
+        else return;
+        X.insSave();
+        /* la ligne seule est redessinée (le PCB passe en gris ou redevient saisissable) */
+        const tmp = document.createElement("tbody");
+        tmp.innerHTML = X.insRowHTML("chg", r, 0);
+        const nr = tmp.firstElementChild;
+        const foc = document.activeElement && tr.contains(document.activeElement) ? document.activeElement.dataset.f : null;
+        tr.replaceWith(nr);
+        X.insLive("chg", nr, r);
+        if (foc) nr.querySelector(`input[data-f="${foc}"]`)?.focus();
+      });
+    }
     /* page unique : rond (choix de la chaîne), quantité de la tâche, ✓ VALIDER, DÉLIER */
     if (!shell.__fuseBound) {
       shell.__fuseBound = true;
@@ -6606,12 +6681,13 @@ function renderBudgetList() {
     /* toucher un rond : on ne redessine que ce qui change (rapidité) */
     const lkLight = k => {
       keepScroll(() => {
-        if (k === "prd" || k === "chg") {
-          /* produit / charge : le tableau seul est redessiné (la ligne choisie monte) */
+        if ((k === "prd" || k === "chg") && !(INS.links || []).length) {
+          /* produit / charge sans aucune liaison : le tableau seul est redessiné (la ligne choisie monte) */
           renderTab();
           insMarkUnlinked();
         } else {
-          if (k === "des") insRenderClient();
+          /* tout choix fait remonter, dans les autres blocs, les lignes qui lui sont liées */
+          insRenderClient();
           insRenderHier();
           renderTab();   /* compteurs des onglets et tableau du détail (produits, charges, délais de la tâche choisie) */
           insMarkUnlinked();
@@ -7389,7 +7465,8 @@ function renderBudgetList() {
       const custom = (lay.order && lay.order.join() !== LAY_UNITS.join()) ||
         Object.keys(lay.h || {}).length > 0;
       const rb = $("layResetBtn");
-      if (rb) rb.hidden = !custom;
+      /* ↻ toujours affiché ; grisé quand les blocs sont déjà à leur place d'origine */
+      if (rb) { rb.hidden = false; rb.disabled = !custom; }
     };
     const layInit = () => {
       const pg = page$();
@@ -11440,6 +11517,7 @@ function renderBudgetList() {
       }
       if (event.target.closest(".blk-grip, .blk-rsz")) return;
       if (event.target.closest("#layResetBtn")) {
+        if ($("layResetBtn").disabled) return;
         svConfirm({ title: "DISPOSITION PAR DÉFAUT", text: "TOUS LES BLOCS REVIENNENT À LEUR PLACE ET À LEUR TAILLE D'ORIGINE.", ok: "RÉTABLIR", tone: "neutral" }).then(go => {
           if (!go) return;
           laySave({});
