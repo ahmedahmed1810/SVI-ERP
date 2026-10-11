@@ -5456,7 +5456,7 @@ function renderBudgetList() {
         const k = box?.dataset.ik;
         if (!k) return;
         setTimeout(() => {
-          if (box.contains(document.activeElement)) return;
+          if (box.contains(document.activeElement) || shell.__insDragging) return;
           X.insClean(k);
           X.insSave();
           X.insRedraw(k);
@@ -6327,7 +6327,114 @@ function renderBudgetList() {
       document.addEventListener("pointercancel", up);
     };
 
+    /* ===== budget en instance : appui long sur une ligne saisie = glisser la ligne
+       (un titre emmène ses lignes et sous-titres) ===== */
+    const insDrag = (event, el) => {
+      const X = shell.__ins;
+      if (!X) return;
+      const holder = el.closest("[data-ik]");
+      const k = el.dataset.ik || holder?.dataset.ik;
+      const isRow = el.tagName === "TR";
+      const inp = event.target.closest("input.ins-in");
+      const tapFocus = inp && inp !== document.activeElement ? inp : null;
+      const sibs = () => isRow
+        ? [...el.parentElement.querySelectorAll("tr[data-iid]")]
+        : [...el.parentElement.querySelectorAll(".ins-li[data-iid]")];
+      const x0 = event.clientX, y0 = event.clientY;
+      let on = false, moved = false, target = null, after = false;
+      const clear = () => sibs().forEach(x => x.classList.remove("ro-before", "ro-after"));
+      const timer = setTimeout(() => {
+        on = true;
+        shell.__insDragging = true;
+        if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+        el.classList.add("ro-src");
+        try { navigator.vibrate && navigator.vibrate(15); } catch (e) {}
+      }, 350);
+      const tm = e => { if (on) e.preventDefault(); };
+      const move = e => {
+        if (!on) {
+          if (Math.abs(e.clientX - x0) > 8 || Math.abs(e.clientY - y0) > 8) { moved = true; end(false); }
+          return;
+        }
+        e.preventDefault();
+        clear();
+        target = null;
+        for (const x of sibs()) {
+          const r = x.getBoundingClientRect();
+          if (e.clientY >= r.top && e.clientY <= r.bottom) {
+            if (x !== el) {
+              after = e.clientY > (r.top + r.bottom) / 2;
+              x.classList.add(after ? "ro-after" : "ro-before");
+              target = x;
+            }
+            break;
+          }
+        }
+      };
+      const end = drop => {
+        clearTimeout(timer);
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", up);
+        document.removeEventListener("pointercancel", cancel);
+        setTimeout(() => document.removeEventListener("touchmove", tm), 0);
+        clear();
+        el.classList.remove("ro-src");
+        shell.__insDragging = false;
+        if (!on) {
+          /* simple toucher sur une case : saisie normale */
+          if (drop && !moved && tapFocus) {
+            tapFocus.focus();
+            try { const n = tapFocus.value.length; tapFocus.setSelectionRange(n, n); } catch (e) {}
+          }
+          return;
+        }
+        const stop = ev => { ev.stopPropagation(); ev.preventDefault(); };
+        shell.addEventListener("click", stop, { capture: true, once: true });
+        setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 350);
+        if (!drop || !target) return;
+        const arr = X.INS[k];
+        const i0 = arr.findIndex(r => r.id === el.dataset.iid);
+        if (i0 < 0) return;
+        /* bloc déplacé : la ligne, ou le titre avec ses lignes */
+        let n = 1;
+        if (k === "des" && arr[i0].t) {
+          const L = X.insLevel(arr[i0].art);
+          while (i0 + n < arr.length && !(arr[i0 + n].t && X.insLevel(arr[i0 + n].art) <= L)) n++;
+        }
+        const blockIds = arr.slice(i0, i0 + n).map(r => r.id);
+        if (blockIds.includes(target.dataset.iid)) return;
+        const block = arr.splice(i0, n);
+        let j = arr.findIndex(r => r.id === target.dataset.iid);
+        if (after) j++;
+        arr.splice(j, 0, ...block);
+        X.insSave();
+        histLog(k === "des" ? "DÉSIGNATIONS CLIENT" : k === "chg" ? "DÉTAIL CHARGES" : k === "prd" ? "DÉTAIL PRODUITS" : "TÂCHES",
+          "ORDRE DES LIGNES", String(block[0].des || block[0].v || block[0].art || ""));
+        X.insRedraw(k);
+      };
+      const up = () => end(true);
+      const cancel = () => end(false);
+      document.addEventListener("touchmove", tm, { passive: false });
+      document.addEventListener("pointermove", move, { passive: false });
+      document.addEventListener("pointerup", up);
+      document.addEventListener("pointercancel", cancel);
+    };
+    /* iPad : l'appui sur une case non active ne lance ni la loupe ni le clavier ;
+       le simple toucher la rend active (ci-dessus), l'appui long glisse la ligne */
+    if (!shell.__insTouch) {
+      shell.__insTouch = true;
+      shell.addEventListener("touchstart", e => {
+        const inp = e.target.closest && e.target.closest("input.ins-in");
+        if (!inp || inp === document.activeElement || !shell.__ins) return;
+        if (!inp.closest("tr[data-iid], .ins-li[data-iid]")) return;
+        e.preventDefault();
+      }, { passive: false });
+    }
+
     shell.onpointerdown = event => {
+      const insEl = INS_EDIT && event.target.closest(".ins-table tr[data-iid], .ins-hcol .ins-li[data-iid]");
+      if (insEl && !event.target.closest(".ins-t, .ins-cb") &&
+          event.target.closest("input.ins-in") !== document.activeElement) { insDrag(event, insEl); return; }
       const rz = event.target.closest(".blk-rsz");
       if (rz) { layResize(event, rz); return; }
       const gp = event.target.closest(".blk-grip");
