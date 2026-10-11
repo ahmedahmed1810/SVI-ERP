@@ -3604,8 +3604,15 @@ function renderBudgetList() {
       const c = String(budget.inst.created || "");
       const m = c.match(/^(\d{4})-(\d{2})-(\d{2})/);
       return {
-        ref: budget.ref, budget: budgetName, ht: 0, intitule: budget.inst.intitule || "À COMPLÉTER",
-        ttc: 0, validated: "", entered: m ? m[3] + "/" + m[2] + "/" + m[1] : "",
+        ref: budget.ref, budget: budgetName, intitule: budget.inst.intitule || "À COMPLÉTER",
+        /* total TTC des désignations saisies (titres exclus) */
+        ...(() => {
+          const ds = ((budget.inst.data || {}).des || []).filter(r => !r.t);
+          const ht = ds.reduce((t, r) => t + num(r.q || 0) * num(r.p || 0), 0);
+          const ttc = ds.reduce((t, r) => t + num(r.q || 0) * num(r.p || 0) *
+            (1 + (r.tva === "" || r.tva === undefined ? 20 : num(r.tva)) / 100), 0);
+          return { ht, ttc };
+        })(), validated: "", entered: m ? m[3] + "/" + m[2] + "/" + m[1] : "",
         state: budget.inst.state || "instance", source: budget
       };
     }
@@ -5097,7 +5104,359 @@ function renderBudgetList() {
     document.addEventListener("click", window.__cfDocHandler, true);
     document.getElementById("cfMenu")?.remove();
 
+    /* =========================================================
+       BUDGET EN INSTANCE : SAISIE DIRECTE
+       - dernière ligne de chaque bloc vide : on la touche et on écrit,
+         la ligne est créée (case à cocher au début) et une nouvelle
+         ligne vide apparaît dessous ;
+       - désignations : case T = ligne titre (seuls ART et DÉSIGNATION
+         sont saisissables), niveaux I / I.1 / I.1.1, sous-total par titre ;
+       - budget figé : lecture seule.
+       ========================================================= */
+    const INS = budget.inst
+      ? (budget.inst.data = Object.assign(
+          { des: [], lot: [], prim: [], sec: [], chg: [], prd: [] },
+          budget.inst.data || {}))
+      : null;
+    const INS_EDIT = !!INS && (budget.inst.state || "instance") === "instance";
+    let insSeq = Date.now();
+    const insId = () => "i" + (insSeq++).toString(36);
+    let insTimer = null;
+    const insSave = () => {
+      clearTimeout(insTimer);
+      insTimer = setTimeout(() => {
+        const list = instLoad();
+        const r = list.find(x => x.ref === budget.inst.ref);
+        if (!r) return;
+        r.data = INS;
+        instSave(list);
+      }, 250);
+    };
+    const insNum = v => {
+      const s = String(v ?? "").trim();
+      return s === "" ? "" : num(s);
+    };
+    const insFmt = v => (v === "" || v === null || v === undefined) ? "" : money(v);
+    /* niveau d'un titre d'après sa numérotation : I = 1, I.1 = 2, I.1.1 = 3 */
+    const insLevel = art => Math.min(3, String(art || "").split(".").filter(x => x.trim() !== "").length || 1);
+    /* quantité d'un détail produit : NBR × DIM si renseignés, sinon la saisie */
+    const insQty = (k, r) => {
+      if (k === "prd") {
+        const f = [r.nbr, r.d1, r.d2, r.d3].filter(v => v !== "" && v !== undefined);
+        if (f.length) return f.reduce((a, b) => a * num(b), 1);
+      }
+      return r.q === "" || r.q === undefined ? 0 : num(r.q);
+    };
+    const insHT = (k, r) => r.t ? 0 : insQty(k, r) * num(r.p || 0);
+    const insTVA = r => (r.tva === "" || r.tva === undefined) ? 20 : num(r.tva);
+    const insTTC = (k, r) => insHT(k, r) * (1 + insTVA(r) / 100);
+
+    /* colonnes : [champ, libellé, classe, type, largeur] ; type : txt / num / calc */
+    const INS_COLS = {
+      des: [
+        ["art", "ART", "center", "txt", "article"],
+        ["des", "DÉSIGNATION", "", "txt", "designation"],
+        ["u", "UPB", "center", "txt", "unit"],
+        ["q", "QPB", "number", "num", "qty"],
+        ["p", "PPB", "number", "num", "price"],
+        ["ht", "MPB HT", "number", "calc", "ht"],
+        ["tva", "TVA %", "number", "num", "tva"],
+        ["ttc", "MPB TTC", "number", "calc", "ttc"]
+      ],
+      chg: [
+        ["art", "ART", "center", "txt", "article"],
+        ["des", "DÉSIGNATION", "", "txt", "detail"],
+        ["u", "UCB", "center", "txt", "unit"],
+        ["q", "QCB", "number", "num", "qty"],
+        ["p", "PCB", "number", "num", "price"],
+        ["ht", "MCB HT", "number", "calc", "amount"],
+        ["tva", "TVA %", "number", "num", "tva"],
+        ["ttc", "MCB TTC", "number", "calc", "ttc"]
+      ],
+      prd: [
+        ["art", "ART", "center", "txt", "article"],
+        ["des", "DÉSIGNATION", "", "txt", "detail"],
+        ["u", "UPB", "center", "txt", "unit"],
+        ["nbr", "NBR", "number", "num", "nbr"],
+        ["d1", "DIM 1", "number", "num", "d1"],
+        ["d2", "DIM 2", "number", "num", "d2"],
+        ["d3", "DIM 3", "number", "num", "d3"],
+        ["q", "QPB", "number", "num", "qty"],
+        ["p", "PPB", "number", "num", "price"],
+        ["ht", "MPB HT", "number", "calc", "amount"],
+        ["tva", "TVA %", "number", "num", "tva"],
+        ["ttc", "MPB TTC", "number", "calc", "ttc"]
+      ]
+    };
+    const insCalc = (k, r, f) =>
+      f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
+        : f === "q" ? insQty(k, r) : f === "tva" ? insTVA(r) : r[f];
+    /* une cellule : champ saisissable, ou verrouillé (titre, calculé) */
+    const insCell = (k, r, c) => {
+      const [f, , cls, type] = c;
+      const isNew = !r;
+      r = r || {};
+      const qAuto = k === "prd" && f === "q" && ["nbr", "d1", "d2", "d3"].some(x => r[x] !== "" && r[x] !== undefined);
+      const locked = !INS_EDIT || type === "calc" || qAuto || (r.t && f !== "art" && f !== "des");
+      let val = "";
+      if (!isNew) {
+        if (r.t && f !== "art" && f !== "des") val = "";
+        else if (type === "calc" || qAuto) val = insFmt(insCalc(k, r, f));
+        else if (type === "num") val = f === "tva" ? (r.tva === "" || r.tva === undefined ? "20,00" : insFmt(r.tva)) : insFmt(r[f]);
+        else val = r[f] || "";
+      }
+      if (!INS_EDIT) return `<td class="${cls}">${esc(val)}${f === "tva" && val ? " %" : ""}</td>`;
+      return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}"><input class="ins-in ${cls}" data-f="${f}"
+        ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
+        value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off"></td>`;
+    };
+    const insRowHTML = (k, r, lvl) => {
+      const cols = INS_COLS[k];
+      const cb = !r || r.t ? "" : `<input type="checkbox" class="ins-cb" ${r.on !== false ? "checked" : ""} ${INS_EDIT ? "" : "disabled"}>`;
+      const tcell = k === "des"
+        ? `<td class="center ins-tc">${r && (INS_EDIT || r.t) ? `<span class="ins-t${r.t ? " on" : ""}" role="button" title="Ligne titre">T</span>` : ""}</td>`
+        : "";
+      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + insLevel(r.art) : ""}${r && !r.t && lvl ? " ins-in" + lvl : ""}"
+          data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}>
+        <td class="center ins-cbc">${cb}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}</tr>`;
+    };
+    /* lignes + sous-totaux de titres (désignations) */
+    const insBodyHTML = k => {
+      const rows = INS[k];
+      const ncol = INS_COLS[k].length + (k === "des" ? 2 : 1);
+      let html = "";
+      if (k !== "des") {
+        html = rows.map(r => insRowHTML(k, r, 0)).join("");
+      } else {
+        const stack = [];
+        const sub = t => {
+          const i0 = rows.indexOf(t);
+          let ht = 0, ttc = 0;
+          for (let i = i0 + 1; i < rows.length; i++) {
+            const r = rows[i];
+            if (r.t && insLevel(r.art) <= insLevel(t.art)) break;
+            if (!r.t) { ht += insHT(k, r); ttc += insTTC(k, r); }
+          }
+          return `<tr class="ins-sub lv${insLevel(t.art)}" data-sub="${t.id}"><td></td><td></td><td></td>
+            <td colspan="4" class="number">TOTAL ${esc(t.des || t.art || "")}</td>
+            <td class="number ins-sht">${money(ht)}</td><td></td><td class="number ins-sttc">${money(ttc)}</td></tr>`;
+        };
+        rows.forEach(r => {
+          if (r.t) {
+            const L = insLevel(r.art);
+            while (stack.length && insLevel(stack[stack.length - 1].art) >= L) html += sub(stack.pop());
+            stack.push(r);
+            html += insRowHTML(k, r, 0);
+          } else {
+            html += insRowHTML(k, r, stack.length ? insLevel(stack[stack.length - 1].art) : 0);
+          }
+        });
+        while (stack.length) html += sub(stack.pop());
+      }
+      if (INS_EDIT) html += insRowHTML(k, null, 0);
+      if (!rows.length && !INS_EDIT) html += `<tr><td colspan="${ncol}" class="empty">AUCUNE LIGNE</td></tr>`;
+      return html;
+    };
+    const insFootHTML = k => {
+      const rows = INS[k].filter(r => !r.t);
+      const ht = rows.reduce((t, r) => t + insHT(k, r), 0);
+      const ttc = rows.reduce((t, r) => t + insTTC(k, r), 0);
+      const n = INS_COLS[k].length + (k === "des" ? 2 : 1);
+      return `<tr class="bdg-d-total-row">${"<td></td>".repeat(n - 4)}<td class="number">TOTAL</td>
+        <td class="number">${money(ht)}</td><td class="number">${money(ttc - ht)}</td><td class="number">${money(ttc)}</td></tr>`;
+    };
+    const insTableHTML = k => {
+      const cols = INS_COLS[k];
+      const lead = k === "des" ? 2 : 1;
+      const w = 36 * lead + cols.reduce((t, c) => t + cwGet(k === "des" ? "client" : k, c[4]), 0);
+      return `<table class="bdg-d-table ins-table" data-ik="${k}" style="width:${w}px">
+        <colgroup>${'<col style="width:36px">'.repeat(lead)}${cols.map(c => `<col style="width:${cwGet(k === "des" ? "client" : k, c[4])}px">`).join("")}</colgroup>
+        <thead><tr><th class="center"></th>${k === "des" ? '<th class="center">T</th>' : ""}${cols.map(c => `<th class="${c[2]}">${c[1]}</th>`).join("")}</tr></thead>
+        <tbody>${insBodyHTML(k)}</tbody>
+        <tfoot>${insFootHTML(k)}</tfoot></table>`;
+    };
+    const insRenderClient = () => {
+      const t = document.querySelector("#bdgClientTitle .ttl");
+      if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + svCnt(INS.des.filter(r => !r.t).length);
+      /* même tableau que la version validée (identifiants gardés) */
+      const tbl = $("bdgClientBody")?.closest("table");
+      if (!tbl) return;
+      const tmp = document.createElement("div");
+      tmp.innerHTML = insTableHTML("des");
+      const src = tmp.firstElementChild;
+      tbl.classList.add("ins-table");
+      tbl.dataset.ik = "des";
+      tbl.style.width = src.style.width;
+      $("bdgClientCols").innerHTML = src.querySelector("colgroup").innerHTML;
+      $("bdgClientHead").innerHTML = src.querySelector("thead").innerHTML;
+      $("bdgClientBody").innerHTML = src.querySelector("tbody").innerHTML;
+      $("bdgClientFoot").innerHTML = src.querySelector("tfoot").innerHTML;
+    };
+    const insRenderHier = only => {
+      const col = (title, k) => `
+        <div class="bdg-h-col ins-hcol" data-ik="${k}">
+          <div class="bdg-h-head"><span class="cf-wrap"><span class="cf-lab">${title}${svCnt(INS[k].length)}</span></span></div>
+          ${INS[k].map(r => `<div class="ins-li" data-ik="${k}" data-iid="${r.id}">
+              <input type="checkbox" class="ins-cb" ${r.on !== false ? "checked" : ""} ${INS_EDIT ? "" : "disabled"}>
+              ${INS_EDIT ? `<input class="ins-in" data-f="v" value="${esc(r.v || "")}" autocomplete="off">` : `<span>${esc(r.v || "")}</span>`}
+            </div>`).join("")}
+          ${INS_EDIT ? `<div class="ins-li ins-new" data-ik="${k}"><span class="ins-cbc"></span>
+              <input class="ins-in" data-f="v" placeholder="SAISIR ICI…" autocomplete="off"></div>`
+            : (INS[k].length ? "" : `<div class="bdg-h-item" style="opacity:.5;cursor:default">—</div>`)}
+        </div>`;
+      const T = { lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" };
+      const old = only && $("bdgHier").querySelector(`.ins-hcol[data-ik="${only}"]`);
+      if (old) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = col(T[only], only);
+        old.replaceWith(tmp.firstElementChild);
+        return;
+      }
+      $("bdgHier").style.gridTemplateColumns = "";
+      $("bdgHier").innerHTML = col(T.lot, "lot") + col(T.prim, "prim") + col(T.sec, "sec");
+    };
+    const insRenderTab = () => {
+      ["chg", "prd"].forEach(k => {
+        const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
+        if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + " " + svCnt(INS[k].length);
+      });
+      body.innerHTML = `<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
+    };
+    /* met à jour les montants calculés, sous-totaux et totaux sans redessiner
+       (la saisie en cours garde le clavier) */
+    const insLive = (k, tr, r) => {
+      const tbl = tr.closest("table");
+      tr.querySelectorAll("input.ins-in").forEach(inp => {
+        const f = inp.dataset.f;
+        const c = INS_COLS[k].find(x => x[0] === f);
+        if (!c || inp === document.activeElement) return;
+        const qAuto = k === "prd" && f === "q" && ["nbr", "d1", "d2", "d3"].some(x => r[x] !== "" && r[x] !== undefined);
+        if (c[3] === "calc" || qAuto) inp.value = r.t ? "" : insFmt(insCalc(k, r, f));
+      });
+      if (k === "des") {
+        tbl.querySelectorAll("tr.ins-sub").forEach(s => {
+          const t = INS.des.find(x => x.id === s.dataset.sub);
+          if (!t) return;
+          const i0 = INS.des.indexOf(t);
+          let ht = 0, ttc = 0;
+          for (let i = i0 + 1; i < INS.des.length; i++) {
+            const x = INS.des[i];
+            if (x.t && insLevel(x.art) <= insLevel(t.art)) break;
+            if (!x.t) { ht += insHT(k, x); ttc += insTTC(k, x); }
+          }
+          s.querySelector(".ins-sht").textContent = money(ht);
+          s.querySelector(".ins-sttc").textContent = money(ttc);
+        });
+      }
+      const ft = tbl.querySelector("tfoot");
+      if (ft) ft.innerHTML = insFootHTML(k);
+    };
+    /* redessine le bloc (structure changée) si le doigt n'est plus dedans */
+    const insRedraw = k => {
+      /* seul ce bloc est redessiné : la saisie ailleurs garde le clavier */
+      const box = k === "des" ? shell.querySelector(".bdg-d-client-scroll")
+        : (k === "chg" || k === "prd") ? body.querySelector(".bdg-d-scroll")
+        : $("bdgHier")?.querySelector(`.ins-hcol[data-ik="${k}"]`);
+      const top = box ? box.scrollTop : 0;
+      const x = window.scrollX, y = window.scrollY;
+      if (k === "des") insRenderClient();
+      else if (k === "chg" || k === "prd") insRenderTab();
+      else insRenderHier(k);
+      const nb = k === "des" ? shell.querySelector(".bdg-d-client-scroll")
+        : (k === "chg" || k === "prd") ? body.querySelector(".bdg-d-scroll")
+        : $("bdgHier")?.querySelector(`.ins-hcol[data-ik="${k}"]`);
+      if (nb) nb.scrollTop = top;
+      window.scrollTo(x, y);
+    };
+    const insClean = k => {
+      const empty = r => r.t ? !String(r.art || "").trim() && !String(r.des || "").trim()
+        : Object.keys(r).every(f => ["id", "on", "t"].includes(f) || String(r[f] ?? "").trim() === "");
+      const before = INS[k].length;
+      INS[k] = INS[k].filter(r => !empty(r));
+      return INS[k].length !== before;
+    };
+    shell.__ins = INS_EDIT ? { INS, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel } : null;
+    if (!shell.__insBound) {
+      shell.__insBound = true;
+      shell.addEventListener("input", e => {
+        const X = shell.__ins;
+        const inp = e.target.closest("input.ins-in");
+        if (!X || !inp) return;
+        const holder = inp.closest("[data-ik]");
+        const k = holder.dataset.ik;
+        const f = inp.dataset.f;
+        const c = (X.insRowHTML && ["des", "chg", "prd"].includes(k)) ? true : false;
+        let r = holder.dataset.iid ? X.INS[k].find(x => x.id === holder.dataset.iid) : null;
+        if (!r) {
+          /* première frappe dans la ligne vide : la ligne est créée */
+          r = { id: X.insId(), on: true };
+          if (k === "des") r.t = false;
+          X.INS[k].push(r);
+          holder.dataset.iid = r.id;
+          holder.classList.remove("ins-new");
+          inp.removeAttribute("placeholder");
+          const cbc = holder.querySelector(".ins-cbc");
+          if (cbc) cbc.innerHTML = `<input type="checkbox" class="ins-cb" checked>`;
+          const tc = holder.querySelector(".ins-tc");
+          if (tc) tc.innerHTML = `<span class="ins-t" role="button" title="Ligne titre">T</span>`;
+          /* nouvelle ligne vide dessous */
+          if (c) {
+            const tmp = document.createElement("tbody");
+            tmp.innerHTML = X.insRowHTML(k, null, 0);
+            holder.after(tmp.firstElementChild);
+          } else {
+            const d = document.createElement("div");
+            d.className = "ins-li ins-new";
+            d.dataset.ik = k;
+            d.innerHTML = `<span class="ins-cbc"></span><input class="ins-in" data-f="v" placeholder="SAISIR ICI…" autocomplete="off">`;
+            holder.after(d);
+            const lab = holder.closest(".ins-hcol")?.querySelector(".svi-cnt");
+            if (lab) lab.textContent = X.INS[k].length;
+          }
+        }
+        const isNum = inp.getAttribute("inputmode") === "decimal";
+        r[f] = isNum ? inp.value.trim() : inp.value.toUpperCase();
+        if (isNum) r[f] = r[f] === "" ? "" : X.insNum(r[f]);
+        if (c) X.insLive(k, holder, r);
+        X.insSave();
+      });
+      shell.addEventListener("click", e => {
+        const X = shell.__ins;
+        if (!X) return;
+        const t = e.target.closest(".ins-t");
+        const cb = e.target.closest("input.ins-cb");
+        if (!t && !cb) return;
+        e.stopPropagation();
+        const holder = e.target.closest("[data-ik]");
+        const k = holder.dataset.ik;
+        const r = X.INS[k].find(x => x.id === holder.dataset.iid);
+        if (!r) return;
+        if (cb) { r.on = cb.checked; X.insSave(); return; }
+        /* ligne titre : unité, quantité, prix, TVA vidés et verrouillés */
+        r.t = !r.t;
+        ["u", "q", "p", "tva"].forEach(f => { r[f] = ""; });
+        X.insSave();
+        X.insRedraw(k);
+      }, true);
+      /* le doigt quitte un bloc : lignes vidées retirées, titres et sous-totaux remis en place */
+      shell.addEventListener("focusout", e => {
+        const X = shell.__ins;
+        const inp = e.target.closest && e.target.closest("input.ins-in");
+        if (!X || !inp) return;
+        const box = inp.closest("table.ins-table, .ins-hcol");
+        const k = box?.dataset.ik;
+        if (!k) return;
+        setTimeout(() => {
+          if (box.contains(document.activeElement)) return;
+          X.insClean(k);
+          X.insSave();
+          X.insRedraw(k);
+        }, 0);
+      });
+    }
+
     const renderClient = () => {
+      if (INS) { insRenderClient(); return; }
       const groupsMap = new Map();
 
       const U = v => String(v ?? "").trim().toUpperCase();
@@ -5274,6 +5633,7 @@ function renderBudgetList() {
     };
 
     const renderHier = () => {
+      if (INS) { insRenderHier(); return; }
       const { lots, prims, secs } = hierLists();
 
       const hFill = n =>
@@ -5509,6 +5869,7 @@ function renderBudgetList() {
         b.innerHTML = (SVI_ICON[k] || "") + t.title + " " + svCnt(n);
       });
 
+      if (INS && (active === "chg" || active === "prd")) { insRenderTab(); return; }
       if (active === "chg" || active === "prd") {
         const prd = active === "prd";
         const tcols = tcolsFor(prd);
