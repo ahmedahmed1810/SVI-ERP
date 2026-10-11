@@ -7275,6 +7275,18 @@ function renderBudgetList() {
       const id = (url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1];
       const gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || "0";
       if (!id) { alert("Lien Google Sheets non reconnu."); return; }
+      /* lecture par le script (avec votre compte : pas besoin de partager la feuille) */
+      let first = "";
+      for (const call of [() => apiGet("sheetRead", { link: url }), () => apiPost("sheetRead", { link: url })]) {
+        try {
+          const d = await call();
+          if (d && d.ok && Array.isArray(d.values)) {
+            showImport(d.name || "Google Sheets", d.values[0] || [], d.values.slice(1));
+            return;
+          }
+        } catch (e) { first = first || (e && e.message) || String(e); }
+      }
+      /* repli : feuille partagée « Toute personne disposant du lien » */
       try {
         const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`);
         if (!r.ok) throw new Error("accès refusé (vérifie le partage)");
@@ -7283,7 +7295,7 @@ function renderBudgetList() {
         const aoa = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
         showImport("Google Sheets", aoa[0] || [], aoa.slice(1));
       } catch (e) {
-        alert("IMPORT GOOGLE SHEETS IMPOSSIBLE : " + e.message);
+        alert("IMPORT GOOGLE SHEETS IMPOSSIBLE : " + (first || e.message));
       }
     };
 

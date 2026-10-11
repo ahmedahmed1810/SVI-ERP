@@ -1322,7 +1322,7 @@ function autoriserSVI() {
   Logger.log(DriveApp.getRootFolder().getName());
 }
 </textarea></section>
-<section><h2>exportSheet.gs</h2><p class="n">249 lignes</p>
+<section><h2>exportSheet.gs</h2><p class="n">266 lignes</p>
 <button onclick="cp('c2',this)">COPIER exportSheet.gs</button>
 <textarea id="c2" readonly>/* =========================================================
    SVI ERP — ENREGISTREMENT DANS LE DRIVE (à ajouter dans le projet Apps Script)
@@ -1342,7 +1342,7 @@ function autoriserSVI() {
 /* actions Drive : exportSheet (feuille Google mise en forme)
    et saveFile (PDF, Excel, CSV, JSON, documents joints) */
 function sviDriveRoute_(body) {
-  if (!body || [&quot;exportSheet&quot;, &quot;saveFile&quot;, &quot;drivePath&quot;, &quot;v3Read&quot;, &quot;srcGet&quot;, &quot;srcSet&quot;].indexOf(body.action) &lt; 0) return null;
+  if (!body || [&quot;exportSheet&quot;, &quot;saveFile&quot;, &quot;drivePath&quot;, &quot;v3Read&quot;, &quot;srcGet&quot;, &quot;srcSet&quot;, &quot;sheetRead&quot;].indexOf(body.action) &lt; 0) return null;
   var out;
   try {
     out = body.action === &quot;exportSheet&quot; ? exportSheet_(body)
@@ -1350,6 +1350,7 @@ function sviDriveRoute_(body) {
       : body.action === &quot;v3Read&quot; ? v3Read_()
       : body.action === &quot;srcGet&quot; ? srcGet_()
       : body.action === &quot;srcSet&quot; ? srcSet_(body)
+      : body.action === &quot;sheetRead&quot; ? sheetRead_(body)
       : sviFolderInfo_(sviFolder_(body.path));
   } catch (err) {
     out = { ok: false, error: String(err &amp;&amp; err.message || err) };
@@ -1365,7 +1366,7 @@ function sviDriveRoute_(body) {
    (un appel GET garde ses paramètres même quand Google redirige la requête) */
 function sviGetRoute_(p) {
   var a = String((p &amp;&amp; p.action) || &quot;&quot;);
-  if ([&quot;v3Read&quot;, &quot;srcGet&quot;, &quot;srcSet&quot;].indexOf(a) &lt; 0) return null;
+  if ([&quot;v3Read&quot;, &quot;srcGet&quot;, &quot;srcSet&quot;, &quot;sheetRead&quot;].indexOf(a) &lt; 0) return null;
   return sviDriveRoute_({ action: a, which: p.which, link: p.link });
 }
 
@@ -1571,6 +1572,22 @@ function srcSet_(b) {
   if (which === &quot;v3&quot; &amp;&amp; !ss.getSheetByName(&quot;BUDGETS&quot;)) throw new Error(&quot;ONGLET BUDGETS ABSENT DE CE FICHIER&quot;);
   PropertiesService.getScriptProperties().setProperty(which === &quot;main&quot; ? &quot;SPREADSHEET_ID&quot; : &quot;V3_ID&quot;, id);
   return srcGet_();
+}
+
+/* =========================================================
+   IMPORT : lecture d&#x27;une feuille Google (lien collé dans l&#x27;application).
+   Le script l&#x27;ouvre avec votre compte : pas besoin de la partager.
+   L&#x27;onglet est celui du lien (#gid=…), sinon le premier.
+   ========================================================= */
+function sheetRead_(b) {
+  var s = String(b.link || &quot;&quot;).trim();
+  var m = s.match(/\/d\/([A-Za-z0-9_-]{20,})/) || s.match(/^([A-Za-z0-9_-]{20,})$/);
+  if (!m) throw new Error(&quot;LIEN GOOGLE SHEETS NON RECONNU&quot;);
+  var ss = SpreadsheetApp.openById(m[1]);
+  var g = s.match(/[#&amp;?]gid=(\d+)/);
+  var sheets = ss.getSheets(), sh = sheets[0];
+  if (g) sheets.forEach(function (x) { if (String(x.getSheetId()) === g[1]) sh = x; });
+  return { ok: true, name: ss.getName() + &quot; › &quot; + sh.getName(), values: sh.getDataRange().getDisplayValues() };
 }
 </textarea></section>
 <section><h2>migrationV3.gs</h2><p class="n">82 lignes</p>

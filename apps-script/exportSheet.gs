@@ -16,7 +16,7 @@
 /* actions Drive : exportSheet (feuille Google mise en forme)
    et saveFile (PDF, Excel, CSV, JSON, documents joints) */
 function sviDriveRoute_(body) {
-  if (!body || ["exportSheet", "saveFile", "drivePath", "v3Read", "srcGet", "srcSet"].indexOf(body.action) < 0) return null;
+  if (!body || ["exportSheet", "saveFile", "drivePath", "v3Read", "srcGet", "srcSet", "sheetRead"].indexOf(body.action) < 0) return null;
   var out;
   try {
     out = body.action === "exportSheet" ? exportSheet_(body)
@@ -24,6 +24,7 @@ function sviDriveRoute_(body) {
       : body.action === "v3Read" ? v3Read_()
       : body.action === "srcGet" ? srcGet_()
       : body.action === "srcSet" ? srcSet_(body)
+      : body.action === "sheetRead" ? sheetRead_(body)
       : sviFolderInfo_(sviFolder_(body.path));
   } catch (err) {
     out = { ok: false, error: String(err && err.message || err) };
@@ -39,7 +40,7 @@ function sviDriveRoute_(body) {
    (un appel GET garde ses paramètres même quand Google redirige la requête) */
 function sviGetRoute_(p) {
   var a = String((p && p.action) || "");
-  if (["v3Read", "srcGet", "srcSet"].indexOf(a) < 0) return null;
+  if (["v3Read", "srcGet", "srcSet", "sheetRead"].indexOf(a) < 0) return null;
   return sviDriveRoute_({ action: a, which: p.which, link: p.link });
 }
 
@@ -245,4 +246,20 @@ function srcSet_(b) {
   if (which === "v3" && !ss.getSheetByName("BUDGETS")) throw new Error("ONGLET BUDGETS ABSENT DE CE FICHIER");
   PropertiesService.getScriptProperties().setProperty(which === "main" ? "SPREADSHEET_ID" : "V3_ID", id);
   return srcGet_();
+}
+
+/* =========================================================
+   IMPORT : lecture d'une feuille Google (lien collé dans l'application).
+   Le script l'ouvre avec votre compte : pas besoin de la partager.
+   L'onglet est celui du lien (#gid=…), sinon le premier.
+   ========================================================= */
+function sheetRead_(b) {
+  var s = String(b.link || "").trim();
+  var m = s.match(/\/d\/([A-Za-z0-9_-]{20,})/) || s.match(/^([A-Za-z0-9_-]{20,})$/);
+  if (!m) throw new Error("LIEN GOOGLE SHEETS NON RECONNU");
+  var ss = SpreadsheetApp.openById(m[1]);
+  var g = s.match(/[#&?]gid=(\d+)/);
+  var sheets = ss.getSheets(), sh = sheets[0];
+  if (g) sheets.forEach(function (x) { if (String(x.getSheetId()) === g[1]) sh = x; });
+  return { ok: true, name: ss.getName() + " › " + sh.getName(), values: sh.getDataRange().getDisplayValues() };
 }
