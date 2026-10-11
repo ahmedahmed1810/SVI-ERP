@@ -5484,6 +5484,7 @@ function renderBudgetList() {
       const S = { lot: new Set(), prim: new Set(), sec: new Set(), prd: new Set(), chg: new Set() };
       /* aucune désignation choisie : toutes les lignes liées sont en violet */
       if (!LK.des) return insUsed();
+      S.des = new Set((INS.links || []).map(l => l.des));   /* désignations liées : violettes aussi quand elles sont choisies */
       lkLinks(0).forEach(l => S.lot.add(l.lot));
       lkLinks(1).forEach(l => S.prim.add(l.prim));
       lkLinks(2).forEach(l => S.sec.add(l.sec));
@@ -5499,7 +5500,7 @@ function renderBudgetList() {
       if (!INS_EDIT) return rows;
       return rows.map((r, i) => ({ r, i, g: r.t ? 2 : lkRank(k, r) })).sort((a, b) => a.g - b.g || a.i - b.i).map(o => o.r);
     };
-    const lkRd = (k, r) => INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${LK.des && (k === "prd" || k === "chg") && lkIsLinked(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
+    const lkRd = (k, r) => INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${(LK.des && (k === "prd" || k === "chg") && lkIsLinked(k, r.id)) || (lkOn(k, r.id) && lkIsLinked(k, r.id)) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
     const insDelCell = r => !r ? "" : `<input type="checkbox" class="ins-cb${r.t ? " ins-tcb" : ""}" ${!r.t && r.on === true ? "checked" : ""}>`
       + `<button type="button" class="ins-x" title="Supprimer la ligne" aria-label="Supprimer">${INS_TRASH}</button>`;
     const insQCol = k => false;   /* plus de colonne QUANTITÉ DE LA TÂCHE : la quantité liée est la QPB du produit */
@@ -5511,7 +5512,7 @@ function renderBudgetList() {
       const sel = r && !r.t && lkOn(k, r.id);
       const dim = k === "des" && r && !r.t && LK.des && !sel;
       const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
-      const lnk = r && !r.t && !sel && lkIsLinked(k, r.id);
+      const lnk = r && !r.t && lkIsLinked(k, r.id);   /* ligne liée : violette, choisie ou non */
       return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + insLevel(r.art) : ""}${r && !r.t && lvl ? " ins-in" + lvl : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${dim ? " lk-dim" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}>
         <td class="center ins-rdc">${lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
@@ -5710,7 +5711,7 @@ function renderBudgetList() {
           <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? '<span class="ins-rdc"></span>' : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length)}</span><span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"><button type="button" class="ins-xall" title="Supprimer les lignes cochées" aria-label="Supprimer les lignes cochées">${INS_TRASH}</button></span>` : ""}</div>
-          ${list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : INS_EDIT && lkIsLinked(k, r.id) ? " lk-link" : INS_EDIT && LK[k] ? " lk-dim" : ""}" data-ik="${k}" data-iid="${r.id}">
+          ${list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkIsLinked(k, r.id) ? " lk-link" : INS_EDIT && LK[k] && LK[k] !== r.id ? " lk-dim" : ""}" data-ik="${k}" data-iid="${r.id}">
               ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">
                 <span class="ins-delc">${insDelCell(r)}</span>` : `<span>${esc(r.v || "")}</span>`}
             </div>`).join("")}
