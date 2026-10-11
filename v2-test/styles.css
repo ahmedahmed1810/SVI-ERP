@@ -1129,3 +1129,8 @@ tfoot td {
 .ins-hcol .bdg-h-head .ins-cball { margin-left: 2px; }
 .ins-tcb:indeterminate { opacity: .5; }
 .dlp-err { margin: 6px 8px; display: block; }
+/* mode LIAISONS : hauteur des blocs réglable par la poignée du bas (consigne 16) */
+.lk-col { height: var(--lkh-hier, 200px); }
+.lk-det .lk-scroll { height: var(--lkh-det, 170px); }
+.lk-blk .lk-grid { padding-bottom: 8px; }
+.lk-blk > .lk-hrsz { margin: 0; }
