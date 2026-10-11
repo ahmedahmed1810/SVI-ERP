@@ -5914,6 +5914,7 @@ function renderBudgetList() {
         markFiltered();
         REC_KINDS.forEach(renderRec);
         if (window.__sviHistRefresh) window.__sviHistRefresh();
+        if (window.__sviImpRefresh) window.__sviImpRefresh();
       });
       if (typeof stateSave === "function") stateSave();
     };
@@ -7492,6 +7493,11 @@ function renderBudgetList() {
       };
       const LV = { lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" };
       const val = (x, f, isNum) => f === "lvl" ? LV[x.lvl] : x.row.t && isNum ? "" : isNum ? money(f === "q" ? insQty(tab === "prd" ? "prd" : "des", x.row) : x.row[f]) : (x.row[f] ?? "");
+      /* tri et filtre par colonne (mêmes menus que les autres tableaux) */
+      const cfCols = () => cols[tab].map(c => [c[0], c[1],
+        x => c[0] === "lvl" ? LV[x.lvl] : c[2] ? (x.row.t ? "" : c[0] === "q" ? insQty(tab === "prd" ? "prd" : "des", x.row) : num(x.row[c[0]] || 0)) : (x.row[c[0]] ?? ""),
+        c[2] ? "number" : ""]);
+      const shownRows = () => cfApply("imp_" + tab, cfCols(), model[tab]);
       /* lignes retenues : cochées, + liées (AVEC LIAISONS), ou tout le budget */
       const picked = () => {
         const out = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set() };
@@ -7514,10 +7520,10 @@ function renderBudgetList() {
         const n = IMP_TABS.reduce((t, [k]) => t + pk[k].size, 0);
         p.querySelector(".imp-tabs").innerHTML = IMP_TABS.map(([k, lab]) =>
           `<button type="button" class="imp-tab${k === tab ? " on" : ""}" data-tab="${k}">${lab} ${svCnt(pk[k].size)}</button>`).join("");
-        const cs = cols[tab], rows = model[tab];
+        const cs = cols[tab], rows = shownRows();
         const allOn = rows.length && rows.every(x => pk[tab].has(x.key));
         p.querySelector(".imp-table").innerHTML =
-          `<thead><tr><th class="center" style="width:34px"><input type="checkbox" class="imp-cball" ${allOn ? "checked" : ""} ${all ? "disabled" : ""}></th>${cs.map(c => `<th class="${c[2] ? "number" : ""}">${c[1]}</th>`).join("")}</tr></thead>
+          `<thead><tr><th class="center" style="width:34px"><input type="checkbox" class="imp-cball" ${allOn ? "checked" : ""} ${all ? "disabled" : ""}></th>${cs.map(c => cfHead("imp_" + tab, c[0], c[1], c[2] ? "number" : "")).join("")}</tr></thead>
            <tbody>${rows.map(x => {
              const on = pk[tab].has(x.key), linked = on && !sel[tab].has(x.key) && !all;
              return `<tr class="${x.row.t ? "imp-tt" : ""}${linked ? " imp-linked" : ""}" data-k="${esc(x.key)}">
@@ -7536,6 +7542,8 @@ function renderBudgetList() {
       };
       showSrc();
       render();
+      /* un tri / filtre choisi redessine la fenêtre */
+      window.__sviImpRefresh = () => { if (document.body.contains(p)) render(); else window.__sviImpRefresh = null; };
       /* liste des budgets : même présentation et mêmes couleurs que l'application */
       p.querySelector(".imp-src").addEventListener("click", e => {
         e.stopPropagation();
@@ -7555,7 +7563,7 @@ function renderBudgetList() {
       p.addEventListener("change", e => {
         if (e.target.name === "impLk") { withLinks = e.target.value === "1"; render(); return; }
         if (e.target.classList.contains("imp-cball")) {
-          model[tab].forEach(x => e.target.checked ? sel[tab].add(x.key) : sel[tab].delete(x.key));
+          shownRows().forEach(x => e.target.checked ? sel[tab].add(x.key) : sel[tab].delete(x.key));
           render(); return;
         }
         const tr = e.target.closest("tr[data-k]");
@@ -7565,6 +7573,8 @@ function renderBudgetList() {
         }
       });
       p.addEventListener("click", e => {
+        const cfb = e.target.closest(".cf-btn");
+        if (cfb) { e.stopPropagation(); cfOpenMenu(cfb); return; }
         const t = e.target.closest("[data-tab]");
         if (t) { tab = t.dataset.tab; render(); return; }
         if (!e.target.closest(".imp-src")) { const l = p.querySelector(".imp-src-list"); if (l) l.hidden = true; }
