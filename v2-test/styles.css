@@ -1012,3 +1012,5 @@ tfoot td {
 #docPop .imp-tab .imp-selcnt { display: inline-block; margin-left: 4px; min-width: 18px; padding: 1px 6px; border-radius: 9px;
   background: #b91c1c; color: #fff; font-size: 11px; font-weight: 800; text-align: center; }
 #docPop .imp-tab.on .imp-selcnt { background: #fff; color: #b91c1c; }
+#docPop .imp-scroll.imp-hier { overflow-x: auto; }
+#docPop .imp-hcol th { position: relative; }
