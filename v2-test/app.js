@@ -18,7 +18,7 @@ const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
         <div class="ld-spin"></div>
         <div class="ld-t">TÉLÉCHARGEMENT DES DONNÉES…</div>
         <div class="ld-bar"><i></i></div>
-        <div class="ld-s">GOOGLE SHEETS — MERCI DE PATIENTER</div>
+        <div class="ld-s">MERCI DE PATIENTER</div>
         <button type="button" class="ld-x" hidden>FERMER</button>
       </div>`;
     d.addEventListener("click", e => {
@@ -7365,6 +7365,206 @@ function renderBudgetList() {
       }
     };
 
+    /* ===== IMPORTER depuis un autre budget de l'application =====
+       budget source au choix, lignes cochées par onglet ;
+       options : SANS / AVEC LIAISONS, TOUT LE BUDGET */
+    const IMP_TABS = [
+      ["des", "DÉSIGNATIONS CLIENT"], ["hier", "LOTS / ACTIVITÉS"],
+      ["chg", "DÉTAIL CHARGES"], ["prd", "DÉTAIL PRODUITS"]
+    ];
+    const U_ = v => String(v ?? "").trim().toUpperCase();
+    /* modèle d'un budget source : lignes de chaque onglet + liens (lignes de détail) */
+    const impModel = ref => {
+      const g = groups.get(ref);
+      const m = { des: [], hier: [], chg: [], prd: [], links: [] };
+      if (!g) return m;
+      if (g.inst) {
+        const d = g.inst.data || {};
+        (d.des || []).forEach(r => m.des.push({ key: "d" + r.id, row: { ...r } }));
+        ["lot", "prim", "sec"].forEach(k => (d[k] || []).forEach(r =>
+          m.hier.push({ key: k + "|" + U_(r.v), lvl: k, row: { v: r.v } })));
+        ["chg", "prd"].forEach(k => (d[k] || []).forEach(r => m[k].push({ key: k + r.id, row: { ...r } })));
+        return m;
+      }
+      const ls = g.rows.map(toLine);
+      const dmap = new Map(), cmap = new Map(), hset = new Map();
+      ls.forEach(l => {
+        const dk = "d" + U_(l.article) + "||" + U_(l.designation);
+        if (!dmap.has(dk)) dmap.set(dk, { key: dk, ms: [] });
+        dmap.get(dk).ms.push(l);
+        const ks = { dk };
+        [["lot", l.lot], ["prim", l.prim], ["sec", l.sec]].forEach(([k, v]) => {
+          if (!U_(v)) return;
+          const hk = k + "|" + U_(v);
+          if (!hset.has(hk)) hset.set(hk, { key: hk, lvl: k, row: { v: U_(v) } });
+          ks[k] = hk;
+        });
+        if (l.kind === "chg") {
+          const ck = "c" + U_(l.detail) + "||" + U_(l.dunit);
+          if (!cmap.has(ck)) cmap.set(ck, { key: ck, ms: [] });
+          cmap.get(ck).ms.push(l);
+          ks.ck = ck;
+        } else if (l.kind === "prd") {
+          const pk = "p" + l.id;
+          m.prd.push({ key: pk, row: { art: l.article, des: U_(l.detail), u: U_(l.dunit || l.unit),
+            nbr: l.nbr === "" ? "" : num(l.nbr), d1: l.dims[0] === "" ? "" : num(l.dims[0]),
+            d2: l.dims[1] === "" ? "" : num(l.dims[1]), d3: l.dims[2] === "" ? "" : num(l.dims[2]),
+            q: l.qty, p: l.price, tva: 20 } });
+          ks.pk = pk;
+        }
+        m.links.push(ks);
+      });
+      dmap.forEach(x => {
+        /* même calcul que l'écran : clés primaires (produit au prix non nul) */
+        const prim = l => l.kind !== "chg" && (l.cprice || l.priceTTC);
+        const k = x.ms.find(prim) || x.ms[0];
+        const q = x.ms.filter(prim).reduce((t, l) => t + (Number(l.qty) || 0), 0);
+        m.des.push({ key: x.key, row: { art: k.article, des: U_(k.designation), u: U_(k.dunit || k.unit), q, p: k.price, tva: 20 } });
+      });
+      cmap.forEach(x => {
+        const f = x.ms[0];
+        const q = x.ms.reduce((t, l) => t + (Number(l.qty) || 0), 0);
+        const a = x.ms.reduce((t, l) => t + (Number(l.amount) || 0), 0);
+        m.chg.push({ key: x.key, row: { art: "", des: U_(f.detail), u: U_(f.dunit), q, p: q ? a / q : 0, tva: 20 } });
+      });
+      m.hier = [...hset.values()];
+      m.des.sort((a, b) => String(a.row.art).localeCompare(String(b.row.art), "fr", { numeric: true }));
+      return m;
+    };
+    const openImportBudget = blk => {
+      if (!INS) return;
+      const startTab = blk === "client" ? "des" : blk === "hier" ? "hier" : (active === "prd" ? "prd" : "chg");
+      const refs = [...groups.keys()].filter(r => r !== ref)
+        .sort((a, b) => String(a).localeCompare(String(b), "fr", { numeric: true }));
+      const st = (g => !g.inst ? "VALIDÉ" : g.inst.state === "fige" ? "FIGÉ" : g.inst.state === "valide" ? "VALIDÉ" : "EN INSTANCE");
+      let src = refs[0] || "", model = impModel(src), tab = startTab, withLinks = false, all = false;
+      const sel = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set() };
+      document.getElementById("docPop")?.remove();
+      const p = document.createElement("div");
+      p.id = "docPop";
+      p.className = "pop-new-bdg";
+      p.innerHTML = `
+        <div class="doc-card imp-card" role="dialog" aria-modal="true">
+          <div class="doc-head">
+            <span class="doc-title">IMPORTER — ${esc(blkLabel(blk))}</span>
+            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+          </div>
+          <div class="doc-body">
+            <div class="imp-row"><label class="doc-lab" for="impSrc">BUDGET SOURCE <b>*</b></label>
+              <select id="impSrc" class="doc-in">${refs.map(r => {
+                const g = groups.get(r);
+                return `<option value="${esc(r)}">${esc(U_(g.project) + " " + r + " — " + st(g))}</option>`;
+              }).join("")}</select></div>
+            <div class="imp-opts">
+              <span class="imp-lab">LIAISONS</span>
+              <label><input type="radio" name="impLk" value="0" checked> SANS LIAISONS <small>(LIGNES COCHÉES SEULEMENT)</small></label>
+              <label><input type="radio" name="impLk" value="1"> AVEC LIAISONS <small>(+ LOTS, ACTIVITÉS ET DÉTAILS LIÉS)</small></label>
+              <label class="imp-all"><input type="checkbox" id="impAll"> TOUT LE BUDGET</label>
+            </div>
+            <div class="imp-tabs"></div>
+            <div class="imp-scroll"><table class="bdg-d-table imp-table"></table></div>
+          </div>
+          <div class="doc-foot imp-foot">
+            <span class="imp-n"></span>
+            <span><button type="button" class="doc-btn" data-cancel>ANNULER</button>
+            <button type="button" class="doc-btn nb-save" id="impGo">IMPORTER</button></span>
+          </div>
+        </div>`;
+      document.body.appendChild(p);
+      try { popEnhance(p, "impbdg"); } catch (e) {}
+      const cols = {
+        des: [["art", "ART"], ["des", "DÉSIGNATION"], ["u", "UPB"], ["q", "QPB", 1], ["p", "PPB", 1]],
+        hier: [["lvl", "NIVEAU"], ["v", "LIBELLÉ"]],
+        chg: [["des", "DÉSIGNATION"], ["u", "UCB"], ["q", "QCB", 1], ["p", "PCB", 1]],
+        prd: [["art", "ART"], ["des", "DÉSIGNATION"], ["u", "UPB"], ["q", "QPB", 1], ["p", "PPB", 1]]
+      };
+      const LV = { lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" };
+      const val = (x, f, isNum) => f === "lvl" ? LV[x.lvl] : x.row.t && isNum ? "" : isNum ? money(f === "q" ? insQty(tab === "prd" ? "prd" : "des", x.row) : x.row[f]) : (x.row[f] ?? "");
+      /* lignes retenues : cochées, + liées (AVEC LIAISONS), ou tout le budget */
+      const picked = () => {
+        const out = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set() };
+        if (all) { IMP_TABS.forEach(([k]) => model[k].forEach(x => out[k].add(x.key))); return out; }
+        IMP_TABS.forEach(([k]) => sel[k].forEach(x => out[k].add(x)));
+        if (withLinks) {
+          const hit = l => sel.des.has(l.dk) || sel.chg.has(l.ck) || sel.prd.has(l.pk) ||
+            ["lot", "prim", "sec"].some(k => l[k] && sel.hier.has(l[k]));
+          model.links.filter(hit).forEach(l => {
+            out.des.add(l.dk);
+            ["lot", "prim", "sec"].forEach(k => l[k] && out.hier.add(l[k]));
+            if (l.ck) out.chg.add(l.ck);
+            if (l.pk) out.prd.add(l.pk);
+          });
+        }
+        return out;
+      };
+      const render = () => {
+        const pk = picked();
+        const n = IMP_TABS.reduce((t, [k]) => t + pk[k].size, 0);
+        p.querySelector(".imp-tabs").innerHTML = IMP_TABS.map(([k, lab]) =>
+          `<button type="button" class="imp-tab${k === tab ? " on" : ""}" data-tab="${k}">${lab} ${svCnt(pk[k].size)}</button>`).join("");
+        const cs = cols[tab], rows = model[tab];
+        const allOn = rows.length && rows.every(x => pk[tab].has(x.key));
+        p.querySelector(".imp-table").innerHTML =
+          `<thead><tr><th class="center" style="width:34px"><input type="checkbox" class="imp-cball" ${allOn ? "checked" : ""} ${all ? "disabled" : ""}></th>${cs.map(c => `<th class="${c[2] ? "number" : ""}">${c[1]}</th>`).join("")}</tr></thead>
+           <tbody>${rows.map(x => {
+             const on = pk[tab].has(x.key), linked = on && !sel[tab].has(x.key) && !all;
+             return `<tr class="${x.row.t ? "imp-tt" : ""}${linked ? " imp-linked" : ""}" data-k="${esc(x.key)}">
+               <td class="center"><input type="checkbox" class="imp-cb" ${on ? "checked" : ""} ${all || linked ? "disabled" : ""}></td>
+               ${cs.map(c => `<td class="${c[2] ? "number" : ""}">${esc(val(x, c[0], c[2]))}</td>`).join("")}</tr>`;
+           }).join("") || `<tr><td colspan="${cs.length + 1}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody>`;
+        p.querySelector(".imp-n").textContent = n + " LIGNE(S) À IMPORTER" + (withLinks && !all ? " (LIAISONS COMPRISES)" : "");
+        p.querySelector("#impGo").textContent = "IMPORTER (" + n + ")";
+        p.querySelector("#impGo").disabled = !n;
+      };
+      render();
+      p.querySelector("#impSrc").addEventListener("change", e => {
+        src = e.target.value; model = impModel(src);
+        IMP_TABS.forEach(([k]) => sel[k].clear());
+        render();
+      });
+      p.addEventListener("change", e => {
+        if (e.target.name === "impLk") { withLinks = e.target.value === "1"; render(); return; }
+        if (e.target.id === "impAll") { all = e.target.checked; render(); return; }
+        if (e.target.classList.contains("imp-cball")) {
+          model[tab].forEach(x => e.target.checked ? sel[tab].add(x.key) : sel[tab].delete(x.key));
+          render(); return;
+        }
+        const tr = e.target.closest("tr[data-k]");
+        if (tr && e.target.classList.contains("imp-cb")) {
+          e.target.checked ? sel[tab].add(tr.dataset.k) : sel[tab].delete(tr.dataset.k);
+          render();
+        }
+      });
+      p.addEventListener("click", e => {
+        const t = e.target.closest("[data-tab]");
+        if (t) { tab = t.dataset.tab; render(); return; }
+        if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
+        if (!e.target.closest("#impGo")) return;
+        const pk = picked();
+        const lk = withLinks || all;
+        let added = 0;
+        const has = (k, r) => INS[k].some(x => U_(x.art) === U_(r.art) && U_(x.des) === U_(r.des) && U_(x.u) === U_(r.u) && !!x.t === !!r.t);
+        ["des", "chg", "prd"].forEach(k => model[k].filter(x => pk[k].has(x.key)).forEach(x => {
+          const r = { ...x.row, id: insId(), on: false };
+          if (k === "des") r.t = !!r.t;
+          if (has(k, r)) return;
+          if (lk) r.lk = { src, key: x.key, links: model.links.filter(l => l.dk === x.key || l.ck === x.key || l.pk === x.key) };
+          INS[k].push(r); added++;
+        }));
+        model.hier.filter(x => pk.hier.has(x.key)).forEach(x => {
+          if (INS[x.lvl].some(r => U_(r.v) === U_(x.row.v))) return;
+          const r = { id: insId(), on: false, v: x.row.v };
+          if (lk) r.lk = { src, key: x.key };
+          INS[x.lvl].push(r); added++;
+        });
+        insSave();
+        histLog("IMPORT", "DEPUIS UN AUTRE BUDGET", src + " — " + added + " LIGNE(S)" + (lk ? " AVEC LIAISONS" : ""));
+        p.remove();
+        refreshAll();
+        alert(added + " LIGNE(S) IMPORTÉE(S) DEPUIS " + src + (added ? "" : " (DÉJÀ PRÉSENTES)") + ".");
+      });
+    };
+
     const openImportMenu = blk => {
       const p = popup(`
         <div class="blk-card">
@@ -7372,12 +7572,15 @@ function renderBudgetList() {
           <div class="blk-title">IMPORTER — ${esc(blkLabel(blk))}</div>
           <button type="button" class="blk-choice" data-src="file">Fichier (Excel, CSV, JSON)</button>
           <button type="button" class="blk-choice" data-src="gsheet">Google Sheets (lien)</button>
+          ${INS ? `<button type="button" class="blk-choice" data-src="bdg">Autre budget de l'application</button>` : ""}
         </div>`);
       p.addEventListener("click", e => {
         const b = e.target.closest("[data-src]");
         if (!b) return;
         p.remove();
-        if (b.dataset.src === "gsheet") importGSheet(); else doImport(blk);
+        if (b.dataset.src === "gsheet") importGSheet();
+        else if (b.dataset.src === "bdg") openImportBudget(blk);
+        else doImport(blk);
       });
     };
 

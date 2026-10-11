@@ -952,3 +952,24 @@ tfoot td {
 #sviLoad .ld-x[hidden] { display: none; }
 @keyframes sviSpin { to { transform: rotate(360deg); } }
 @keyframes sviBar { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+/* ===== importer depuis un autre budget ===== */
+#docPop .imp-card { max-width: 980px; }
+#docPop .imp-row { display: grid; grid-template-columns: 170px 1fr; gap: 12px; align-items: center; margin-bottom: 12px; }
+#docPop .imp-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 10px 12px; border: 1px solid #e5e9f0;
+  border-radius: 8px; background: #f8fafc; margin-bottom: 12px; font-size: 12px; font-weight: 800; color: #172033; }
+#docPop .imp-opts .imp-lab { color: #4b5563; margin-right: 4px; }
+#docPop .imp-opts label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+#docPop .imp-opts small { font-weight: 600; color: #6b7280; font-size: 11px; }
+#docPop .imp-opts .imp-all { margin-left: auto; }
+#docPop .imp-opts input { accent-color: #b91c1c; width: 16px; height: 16px; }
+#docPop .imp-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+#docPop .imp-tab { border: 1px solid #d6dbe3; border-radius: 999px; padding: 6px 12px; background: #fff; font-size: 12px; font-weight: 800; color: #4b5563; cursor: pointer; }
+#docPop .imp-tab.on { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+#docPop .imp-tab.on .svi-cnt { background: rgba(255,255,255,.25); color: #fff; }
+#docPop .imp-scroll { max-height: 46vh; overflow: auto; border: 1px solid #e5e9f0; border-radius: 8px; }
+#docPop .imp-table { width: 100%; }
+#docPop .imp-table input { width: 15px; height: 15px; accent-color: #b91c1c; }
+#docPop .imp-table tr.imp-tt td { font-weight: 800; background: #f6f7f9; }
+#docPop .imp-table tr.imp-linked td { color: #b91c1c; font-style: italic; }
+#docPop .imp-foot { justify-content: space-between; align-items: center; }
+#docPop .imp-n { font-size: 12px; font-weight: 700; color: #6b7280; }

@@ -832,3 +832,21 @@ tfoot td {
 #srcPop .src-foot { gap: 10px; }
 #srcPop .src-btn[hidden] { display: none; }
 #srcPop .src-save { background: #fff; border-color: #1d4ed8; color: #1d4ed8; }
+
+/* ===== chargement en cours (fenêtre centrale, écran bloqué) ===== */
+#sviLoad { position: fixed; inset: 0; z-index: 100000; display: none; align-items: center; justify-content: center;
+  background: rgba(15,23,42,.35); -webkit-backdrop-filter: blur(1.5px); backdrop-filter: blur(1.5px); }
+#sviLoad.on { display: flex; }
+#sviLoad .ld-card { background: #fff; border-radius: 14px; padding: 26px 34px; min-width: 300px;
+  box-shadow: 0 20px 50px rgba(15,23,42,.3); display: flex; flex-direction: column; align-items: center; gap: 14px; }
+#sviLoad .ld-spin { width: 46px; height: 46px; border-radius: 50%; border: 4px solid #dbe4f0; border-top-color: #1d4ed8;
+  animation: sviSpin .8s linear infinite; }
+#sviLoad .ld-t { font-weight: 800; font-size: 15px; color: #172033; letter-spacing: .3px; }
+#sviLoad .ld-s { font-size: 12px; font-weight: 600; color: #6b7280; }
+#sviLoad .ld-bar { width: 240px; height: 4px; border-radius: 2px; background: #e5e9f0; overflow: hidden; }
+#sviLoad .ld-bar i { display: block; width: 40%; height: 100%; background: #1d4ed8; border-radius: 2px; animation: sviBar 1.2s ease-in-out infinite; }
+#sviLoad .ld-x { margin-top: 4px; height: 36px; padding: 0 20px; border: 1px solid #d6dbe3; border-radius: 8px; background: #fff;
+  font-weight: 800; font-size: 13px; color: #172033; cursor: pointer; }
+#sviLoad .ld-x[hidden] { display: none; }
+@keyframes sviSpin { to { transform: rotate(360deg); } }
+@keyframes sviBar { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
