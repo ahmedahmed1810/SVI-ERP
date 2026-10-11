@@ -7555,6 +7555,9 @@ function renderBudgetList() {
         /* TÂCHES : trois blocs côte à côte (lots, activités primaires, secondaires) */
         if (tab === "hier") {
           box.classList.add("imp-hier");
+          /* largeur de chaque bloc : réglable par la poignée de son en-tête, mémorisée */
+          const ws = ["lot", "prim", "sec"].map(lv => cwLoad()["imp_hier." + lv]);
+          box.style.gridTemplateColumns = ws.every(Boolean) && window.innerWidth > 700 ? ws.map(w => w + "px").join(" ") : "";
           box.innerHTML = ["lot", "prim", "sec"].map(lv => {
             const rows = cfApply("imp_" + lv, [["v", LV[lv], x => x.row.v || "", ""]], model.hier.filter(x => x.lvl === lv));
             const allOn = rows.length && rows.every(x => pk.hier.has(x.key));
@@ -7571,6 +7574,7 @@ function renderBudgetList() {
         } else {
         if (box.classList.contains("imp-hier") || !box.querySelector(".imp-table")) {
           box.classList.remove("imp-hier");
+          box.style.gridTemplateColumns = "";
           box.innerHTML = `<table class="bdg-d-table imp-table"></table>`;
         }
         /* colonnes : ordre et largeurs réglables (glisser l'en-tête / la poignée), mémorisés */
@@ -7596,6 +7600,34 @@ function renderBudgetList() {
       };
       /* poignées de largeur et glisser des en-têtes : même mécanisme que l'écran */
       p.addEventListener("pointerdown", e => {
+        /* TÂCHES : la poignée d'en-tête règle la largeur du bloc */
+        const hrs = e.target.closest(".imp-hcol .col-rs");
+        if (hrs) {
+          e.preventDefault(); e.stopPropagation();
+          const grid = p.querySelector(".imp-scroll.imp-hier");
+          const colsEl = [...grid.querySelectorAll(".imp-hcol")];
+          const i = colsEl.indexOf(hrs.closest(".imp-hcol"));
+          const ws = colsEl.map(c => c.getBoundingClientRect().width);
+          const x0 = e.clientX, w0 = ws[i];
+          hrs.classList.add("on");
+          const mv = ev => {
+            ws[i] = Math.max(120, Math.round(w0 + ev.clientX - x0));
+            grid.style.gridTemplateColumns = ws.map(v => v + "px").join(" ");
+          };
+          const up = () => {
+            document.removeEventListener("pointermove", mv);
+            document.removeEventListener("pointerup", up);
+            document.removeEventListener("pointercancel", up);
+            hrs.classList.remove("on");
+            const all = cwLoad();
+            ["lot", "prim", "sec"].forEach((lv, j) => { all["imp_hier." + lv] = Math.round(ws[j]); });
+            cwSave(all);
+          };
+          document.addEventListener("pointermove", mv);
+          document.addEventListener("pointerup", up);
+          document.addEventListener("pointercancel", up);
+          return;
+        }
         if (e.target.closest(".col-rs") || (e.target.closest(".imp-table th") && !e.target.closest(".cf-btn, input"))) {
           if (typeof shell.onpointerdown === "function") shell.onpointerdown(e);
         }
