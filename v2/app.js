@@ -4,7 +4,8 @@ const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
 /* =========================================================
    MISE À JOUR AUTOMATIQUE : Safari garde parfois l'ancienne page.
    À l'ouverture (et au retour sur l'onglet), la page publiée est relue
-   sans cache ; si elle annonce une version plus récente, on la charge.
+   sans cache ; si elle annonce une version plus récente, un bouton
+   « NOUVELLE VERSION — ACTUALISER » apparaît (pas de rechargement automatique).
    ========================================================= */
 (() => {
   const cur = (() => {
@@ -18,12 +19,21 @@ const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
       .then(t => {
         const m = t.match(/app\.js\?v=(\d+)/);
         const v = m ? Number(m[1]) : 0;
+        /* nouvelle version publiée : pas de rechargement automatique,
+           un bouton en haut de l'écran ; la page se recharge seulement quand on le touche */
         if (v > cur) {
-          let done = "";
-          try { done = sessionStorage.getItem("svi_upd") || ""; } catch (e) {}
-          if (done === String(v)) return;          /* une seule tentative par version */
-          try { sessionStorage.setItem("svi_upd", String(v)); } catch (e) {}
-          location.replace(location.pathname + "?v=" + v + location.hash);
+          let b = document.getElementById("sviUpd");
+          if (!b) {
+            b = document.createElement("button");
+            b.type = "button";
+            b.id = "sviUpd";
+            b.style.cssText = "position:fixed;top:62px;left:50%;transform:translateX(-50%);z-index:100002;" +
+              "border:1px solid #172033;background:#fff;color:#172033;border-radius:999px;padding:8px 18px;" +
+              "font:800 12px -apple-system,Helvetica,Arial,sans-serif;letter-spacing:.3px;box-shadow:0 6px 18px rgba(15,23,42,.18);cursor:pointer";
+            document.body.appendChild(b);
+          }
+          b.textContent = "NOUVELLE VERSION — ACTUALISER";
+          b.onclick = () => location.replace(location.pathname + "?v=" + v + location.hash);
         }
       }).catch(() => {});
   };
