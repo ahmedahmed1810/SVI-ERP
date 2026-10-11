@@ -7552,6 +7552,9 @@ function renderBudgetList() {
         }
         return out;
       };
+      /* lignes retenues (cochées ou liées) en haut du tableau, comme les lignes bleues de l'écran */
+      const upTop = (rows, set) => rows.map((x, i) => ({ x, i }))
+        .sort((a, b) => (set.has(b.x.key) - set.has(a.x.key)) || a.i - b.i).map(o => o.x);
       const render = () => {
         const pk = picked();
         const n = IMP_TABS.reduce((t, [k]) => t + pk[k].size, 0);
@@ -7566,7 +7569,7 @@ function renderBudgetList() {
           const ws = ["lot", "prim", "sec"].map(lv => cwLoad()["imp_hier." + lv]);
           box.style.gridTemplateColumns = ws.every(Boolean) && window.innerWidth > 700 ? ws.map(w => w + "px").join(" ") : "";
           box.innerHTML = ["lot", "prim", "sec"].map(lv => {
-            const rows = cfApply("imp_" + lv, [["v", LV[lv], x => x.row.v || "", ""]], model.hier.filter(x => x.lvl === lv));
+            const rows = upTop(cfApply("imp_" + lv, [["v", LV[lv], x => x.row.v || "", ""]], model.hier.filter(x => x.lvl === lv)), pk.hier);
             const allOn = rows.length && rows.every(x => pk.hier.has(x.key));
             return `<div class="imp-hcol"><table class="bdg-d-table imp-table">
               <thead><tr><th class="center" style="width:34px"><input type="checkbox" class="imp-cball" data-lvl="${lv}" ${allOn ? "checked" : ""}></th>
@@ -7586,7 +7589,7 @@ function renderBudgetList() {
           box.innerHTML = `<table class="bdg-d-table imp-table"></table>`;
         }
         /* colonnes : ordre et largeurs réglables (glisser l'en-tête / la poignée), mémorisés */
-        const cs = coOrder("imp_" + tab, cols[tab]), rows = shownRows();
+        const cs = coOrder("imp_" + tab, cols[tab]), rows = upTop(shownRows(), pk[tab]);
         const allOn = rows.length && rows.every(x => pk[tab].has(x.key));
         const IMPW = { art: 70, des: 340, u: 70, q: 110, p: 110 };
         const wOf = k => cwLoad()["imp_" + tab + "." + k] || IMPW[k] || 110;
