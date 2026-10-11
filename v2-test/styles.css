@@ -1016,3 +1016,6 @@ tfoot td {
 #docPop .imp-hcol th { position: relative; }
 /* liaison coupée : ligne barrée */
 #docPop .imp-table tr.imp-cut td:not(:first-child) { text-decoration: line-through; color: #9aa3af; }
+#docPop .imp-ask-w { font-size: 13px; font-weight: 700; color: #172033; line-height: 1.5; padding: 4px 0 8px; }
+#docPop .imp-ask-f { gap: 10px; }
+#docPop .imp-ask-ok { border-color: #b91c1c !important; color: #b91c1c !important; background: #fff; }
