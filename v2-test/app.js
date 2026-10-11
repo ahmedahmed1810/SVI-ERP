@@ -3437,7 +3437,10 @@ function renderBudgetList() {
   bdgGroups = groups;
 
   const budgets =
-    [...groups.values()].filter(g => listMode === "inst" ? !!g.inst : !g.inst);
+    [...groups.values()].filter(g => {
+      const live = !!g.inst && g.inst.state !== "valide";
+      return listMode === "inst" ? live : !live;
+    });
 
   /* titre, couleur et boutons de la barre de la liste */
   shell.classList.remove("bdg-inst-instance", "bdg-inst-fige");
@@ -3612,7 +3615,9 @@ function renderBudgetList() {
           const ttc = ds.reduce((t, r) => t + num(r.q || 0) * num(r.p || 0) *
             (1 + (r.tva === "" || r.tva === undefined ? 20 : num(r.tva)) / 100), 0);
           return { ht, ttc };
-        })(), validated: "", entered: m ? m[3] + "/" + m[2] + "/" + m[1] : "",
+        })(),
+        validated: (() => { const v = String(budget.inst.validated || "").match(/^(\d{4})-(\d{2})-(\d{2})/); return v ? v[3] + "/" + v[2] + "/" + v[1] : ""; })(),
+        entered: m ? m[3] + "/" + m[2] + "/" + m[1] : "",
         state: budget.inst.state || "instance", source: budget
       };
     }
@@ -4310,7 +4315,8 @@ function renderBudgetList() {
 
     /* balayage gauche / droite : budget suivant / précédent (ordre des références) */
     {
-      const refs = [...groups.keys()].filter(k => !!groups.get(k).inst === !!budget.inst).sort((x, y) => String(x).localeCompare(String(y), "fr", { numeric: true }));
+      const liveOf = g => !!g.inst && g.inst.state !== "valide";
+      const refs = [...groups.keys()].filter(k => liveOf(groups.get(k)) === liveOf(budget)).sort((x, y) => String(x).localeCompare(String(y), "fr", { numeric: true }));
       window.__sviBdgNav = { refs, cur: ref, open: openBudgetDetail };
       if (!window.__sviSwipe) {
         window.__sviSwipe = true;
@@ -4636,7 +4642,9 @@ function renderBudgetList() {
     const fullRef = String(budget.project).trim().toUpperCase() + " " + ref;
     /* budget en instance : rouge (édition) ou vert (figé) */
     shell.classList.remove("bdg-inst-instance", "bdg-inst-fige", "list-inst");
-    if (budget.inst) shell.classList.add("bdg-inst-" + (budget.inst.state || "instance"));
+    /* en instance (rouge) ou figé (vert) ; validé : présentation noire normale */
+    const INST_LIVE = !!budget.inst && budget.inst.state !== "valide";
+    if (INST_LIVE) shell.classList.add("bdg-inst-" + (budget.inst.state || "instance"));
 
     /* ---- squelette de l'écran ---- */
 
@@ -4659,7 +4667,7 @@ function renderBudgetList() {
           id="budgetBackBtn"
           class="novapp-menu"
           aria-label="Retour"
-          ${budget.inst ? 'style="display:none"' : ""}
+          ${INST_LIVE ? 'style="display:none"' : ""}
         >
           ←
         </button>
@@ -4669,14 +4677,15 @@ function renderBudgetList() {
         </h1>
 
         <div class="bdg-d-hright">
-          ${budget.inst ? `
+          ${INST_LIVE ? `
           <button type="button" class="inst-nav" id="instPrev" title="Budget précédent" aria-label="Précédent"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button type="button" class="inst-nav" id="instNext" title="Budget suivant" aria-label="Suivant"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button type="button" class="inst-act" id="instLock"
             title="${budget.inst.state === "fige" ? "Revenir en édition" : "Figer (lecture seule)"}"
             aria-label="Figer">${budget.inst.state === "fige" ? `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 7.5-1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>` : `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>`}</button>
-          <button type="button" class="inst-act" id="instDel" title="Supprimer ce budget" aria-label="Supprimer"
-            ${budget.inst.state === "fige" ? "disabled" : ""}><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          ${budget.inst.state === "fige"
+            ? `<button type="button" class="inst-act" id="instValid" title="Valider le budget" aria-label="Valider"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
+            : `<button type="button" class="inst-act" id="instDel" title="Supprimer ce budget" aria-label="Supprimer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`}
           <button type="button" class="inst-act" id="instClose" title="Fermer" aria-label="Fermer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>` : ""}
           <button type="button" class="bdg-lay-btn" id="layResetBtn" hidden
             title="Disposition par défaut : remettre les blocs à leur place et taille d'origine"
@@ -7427,7 +7436,7 @@ function renderBudgetList() {
     Sarl. Au capital de 500 000,00 Dhs - Patente 67505605 - I.F. 60201815 - R.C. 57784 I.C.E. : 003434605000090</div></div>
 </div>
 <script>
-  const WM = ${JSON.stringify(budget && budget.inst ? (budget.inst.state === "fige" ? "#15803d" : "#b91c1c") : "")};
+  const WM = ${JSON.stringify(budget && budget.inst && budget.inst.state !== "valide" ? (budget.inst.state === "fige" ? "#15803d" : "#b91c1c") : "")};
   const WMT = ${JSON.stringify(budget && budget.inst && budget.inst.state === "fige" ? "PROVISOIRE" : "EN INSTANCE")};
 (function () {
   const STAMP = "${SVI_STAMP}";
@@ -9155,7 +9164,7 @@ function renderBudgetList() {
       if (blk === "detail" && active === "prd" && (act === "export" || act === "pdf")) return chooseFormat(act);
       const b = blk === "suivi" ? recActive : blk;
       if (act === "export") openExportMenu(b);
-      else if (act === "import") { if (!(!budget.inst || budget.inst.state === "fige")) openImportMenu(b); }
+      else if (act === "import") { if (budget.inst && (budget.inst.state || "instance") === "instance") openImportMenu(b); }
       else doPdf(b);
     };
     /* un seul bouton « ⋯ » par bloc : menu des actions */
@@ -9166,7 +9175,7 @@ function renderBudgetList() {
       if (same) return;
       const tools = btn.closest(".blk-tools");
       /* budget validé (ou figé) : lecture seule, pas d'import */
-      const readOnly = !budget.inst || budget.inst.state === "fige";
+      const readOnly = !budget.inst || (budget.inst.state || "instance") !== "instance";
       const acts = [...tools.querySelectorAll(".blk-btn")].filter(a => !(readOnly && a.dataset.act === "import"));
       const m = document.createElement("div");
       m.id = "blkMenu";
@@ -9461,7 +9470,7 @@ function renderBudgetList() {
       );
 
     /* budget en instance : ‹ › navigation, 🔒 figer / revenir en édition, 🗑 supprimer, ✕ fermer */
-    if (budget.inst) {
+    if (budget.inst && budget.inst.state !== "valide") {
       const toList = () => $("budgetBackBtn")?.click();
       const instUpd = fn => {
         try {
@@ -9483,6 +9492,17 @@ function renderBudgetList() {
         if (!confirm("SUPPRIMER LE BUDGET EN INSTANCE " + fullRef + " ?")) return;
         instUpd(l => l.filter(x => x.ref !== ref));
         groups.delete(ref);
+        toList();
+      });
+      /* ✓ : le budget figé passe dans BUDGETS (VALIDÉS), en noir, lecture seule */
+      $("instValid")?.addEventListener("click", () => {
+        if (!confirm("VALIDER " + fullRef + " ?\nLE BUDGET PASSERA DANS BUDGETS (VALIDÉS), EN LECTURE SEULE.")) return;
+        budget.inst.state = "valide";
+        const d = new Date(), p2 = n => String(n).padStart(2, "0");
+        budget.inst.validated = d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
+        instUpd(l => l.map(x => x.ref === ref ? { ...x, state: "valide", validated: budget.inst.validated } : x));
+        histLog("BUDGET", "VALIDÉ", fullRef);
+        try { localStorage.setItem("svi_listmode_v1", "valid"); } catch (e) {}
         toList();
       });
       $("instLock")?.addEventListener("click", () => {
