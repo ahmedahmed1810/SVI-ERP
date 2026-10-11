@@ -895,3 +895,8 @@ tfoot td {
 .bdg-inst-instance .ins-t.on, .bdg-inst-fige .ins-t.on { color: #fff !important; }
 .bdg-inst-instance .bdg-d-tabbody .bdg-d-reserved, .bdg-inst-fige .bdg-d-tabbody .bdg-d-reserved,
 .bdg-inst-instance .bdg-d-delay, .bdg-inst-fige .bdg-d-delay { color: var(--inst); }
+/* glisser une ligne saisie (appui long) */
+.ins-table tr.ro-src td, .ins-hcol .ins-li.ro-src { background: #e7edf5 !important; opacity: .7; }
+.ins-table tr.ro-before td, .ins-hcol .ins-li.ro-before { box-shadow: inset 0 3px 0 var(--inst, #12355b); }
+.ins-table tr.ro-after td, .ins-hcol .ins-li.ro-after { box-shadow: inset 0 -3px 0 var(--inst, #12355b); }
+.ins-table tr[data-iid], .ins-hcol .ins-li[data-iid] { -webkit-touch-callout: none; }
