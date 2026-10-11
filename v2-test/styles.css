@@ -1087,3 +1087,15 @@ tfoot td {
 .dly-table input.ins-in.number { text-align: right; }
 .dly-table input.ins-in.center { text-align: center; }
 .bdg-inst-instance .dly-table input.ins-in, .bdg-inst-fige .dly-table input.ins-in { color: var(--inst) !important; -webkit-text-fill-color: var(--inst) !important; }
+/* mode LIAISONS : FORMAT */
+.lk-scroll { height: 170px; max-height: none; overflow: auto; }
+.lk-table { table-layout: fixed; }
+.lk-table td, .lk-table th { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lk-table td:first-child, .lk-table th:first-child { overflow: visible; text-overflow: clip; }
+.lk-col { height: 200px; max-height: none; }
+.lk-col .lk-ch { display: flex; align-items: center; position: sticky; top: 0; z-index: 1; }
+.lk-col .lk-ch .cf-wrap { flex: 1; }
+.lk-col .lk-rs { position: static; width: 10px; align-self: stretch; cursor: col-resize; }
+.ins-link-view .lk-li.ins-unl, .ins-link-view tr.ins-unl td {
+  background: repeating-linear-gradient(135deg, #fff7ed, #fff7ed 6px, #ffedd5 6px, #ffedd5 12px) !important; color: #c2410c !important; }
+.ins-link-view tr.lk-sel.ins-unl td, .ins-link-view .lk-li.lk-sel.ins-unl { background: #fde8e8 !important; color: var(--inst, #b91c1c) !important; }
