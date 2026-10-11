@@ -3745,7 +3745,7 @@ function renderBudgetList() {
         ...(() => {
           const ds = ((budget.inst.data || {}).des || []).filter(r => !r.t);
           const D = budget.inst.data || {};
-          const qq = r => { const lq = insLinkedQ(D, r.id); return lq !== null ? lq : num(r.q || 0); };
+          const qq = r => { const lq = insLinkedQ(D, r.id); return lq !== null ? lq : 0; };
           const ht = ds.reduce((t, r) => t + qq(r) * num(r.p || 0), 0);
           const ttc = ds.reduce((t, r) => t + qq(r) * num(r.p || 0) *
             (1 + (r.tva === "" || r.tva === undefined ? 20 : num(r.tva)) / 100), 0);
@@ -5293,7 +5293,8 @@ function renderBudgetList() {
         const f = [r.nbr, r.d1, r.d2, r.d3].filter(v => v !== "" && v !== undefined);
         if (f.length) return f.reduce((a, b) => a * num(b), 1);
       }
-      if (k === "des" && r.id) { const lq = insLinkedQ(INS, r.id); if (lq !== null) return lq; }
+      /* QPB désignation : toujours calculée = somme des produits de ses tâches primaires (0 sans liaison) */
+      if (k === "des") { const lq = r.id ? insLinkedQ(INS, r.id) : null; return lq !== null ? lq : 0; }
       return r.q === "" || r.q === undefined ? 0 : num(r.q);
     };
     const insHT = (k, r) => r.t ? 0 : insQty(k, r) * num(r.p || 0);
@@ -5347,7 +5348,7 @@ function renderBudgetList() {
       const isNew = !r;
       r = r || {};
       /* QPB produits = NBR × DIM 1 × DIM 2 × DIM 3 ; QPB désignation liée = somme des produits de ses tâches */
-      const qAuto = f === "q" && (k === "prd" || (k === "des" && r.id && insLinkedQ(INS, r.id) !== null));
+      const qAuto = f === "q" && (k === "prd" || k === "des");
       const locked = !INS_EDIT || type === "calc" || qAuto || (r.t && f !== "art" && f !== "des");
       let val = "";
       /* ligne vide « SAISIR ICI » des désignations : TVA 20 % affichée par défaut */
@@ -5589,7 +5590,7 @@ function renderBudgetList() {
         const f = inp.dataset.f;
         const c = INS_COLS[k].find(x => x[0] === f);
         if (!c || inp === document.activeElement) return;
-        const qAuto = f === "q" && (k === "prd" || (k === "des" && insLinkedQ(INS, r.id) !== null));
+        const qAuto = f === "q" && (k === "prd" || k === "des");
         if (c[3] === "calc" || qAuto) inp.value = r.t ? "" : insFmt(insCalc(k, r, f));
       });
       if (k === "des") {
