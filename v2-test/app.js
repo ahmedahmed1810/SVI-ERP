@@ -6362,21 +6362,36 @@ function renderBudgetList() {
       });
     };
     /* contrôle des règles avant validation (cahier des charges A et D) */
+    /* règle A au moment du choix : message passager et choix refusé */
+    const lkRuleA = (k, id) => {
+      const L = INS.links || [];
+      if (!LK.des || !id) return "";
+      if (k === "prim") {
+        const o = L.find(l => l.prim === id && l.des !== LK.des);
+        if (o) return "RÈGLE A : L'ACTIVITÉ PRIMAIRE " + lkName("prim", id) + " EST DÉJÀ LIÉE À " + lkName("des", o.des) + ".";
+        const t = LK.lot && L.find(l => l.lot === LK.lot && l.prim === id && l.des !== LK.des);
+        if (t) return "RÈGLE A : LA TÂCHE PRIMAIRE " + lkName("lot", LK.lot) + " › " + lkName("prim", id) + " EST DÉJÀ LIÉE À " + lkName("des", t.des) + ".";
+      }
+      if (k === "sec" && LK.lot) {
+        const t = L.find(l => l.lot === LK.lot && l.sec === id && l.des !== LK.des);
+        if (t) return "RÈGLE A : LA TÂCHE SECONDAIRE " + lkName("lot", LK.lot) + " › " + lkName("sec", id) + " EST DÉJÀ LIÉE À " + lkName("des", t.des) + ".";
+      }
+      return "";
+    };
     const lkCheck = () => {
       const L = INS.links || [];
       /* liaison déjà validée : on y ajoute les nouveaux détails (pas d'erreur) */
-      const lotP = L.find(l => l.lot === LK.lot && l.des !== LK.des);
-      if (lotP) return "RÈGLE A : LE LOT " + lkName("lot", LK.lot) + " EST DÉJÀ LIÉ À " + lkName("des", lotP.des) + ".";
-      const primP = L.find(l => l.prim === LK.prim && l.lot !== LK.lot);
-      if (primP) return "RÈGLE A : L'ACTIVITÉ PRIMAIRE " + lkName("prim", LK.prim) + " EST DÉJÀ LIÉE AU LOT " + lkName("lot", primP.lot) + ".";
-      const secP = L.find(l => l.sec === LK.sec && l.prim !== LK.prim);
-      if (secP) return "RÈGLE A : L'ACTIVITÉ SECONDAIRE " + lkName("sec", LK.sec) + " EST DÉJÀ LIÉE À " + lkName("prim", secP.prim) + ".";
+      /* règle A (11/10/2026) : lot, désignation et activité secondaire se lient librement ;
+         une activité primaire n'a qu'une désignation ; une tâche primaire (lot + act. prm)
+         et une tâche secondaire (lot + act. scd) n'ont qu'une désignation */
+      const ra = lkRuleA("prim", LK.prim) || lkRuleA("sec", LK.sec);
+      if (ra) return ra;
       const D = INS.des.find(x => x.id === LK.des);
       const du = U_(D && D.u);
       const bad = du && Object.keys(LK.prd).find(id => { const p = INS.prd.find(x => x.id === id); return p && U_(p.u) && U_(p.u) !== du; });
       if (bad) return "UNITÉ : " + lkName("prd", bad) + " (" + U_(INS.prd.find(x => x.id === bad).u) + ") N'A PAS L'UNITÉ DE LA DÉSIGNATION (" + du + ").";
-      const dup = Object.keys(LK.prd).find(id => L.some(l => l.sec === LK.sec && (l.prd || []).some(x => x.id === id)));
-      if (dup) return "RÈGLE D : " + lkName("prd", dup) + " EST DÉJÀ DANS L'ACTIVITÉ SECONDAIRE " + lkName("sec", LK.sec) + ".";
+      const dup = Object.keys(LK.prd).find(id => L.some(l => l.lot === LK.lot && l.sec === LK.sec && (l.prd || []).some(x => x.id === id)));
+      if (dup) return "RÈGLE D : " + lkName("prd", dup) + " EST DÉJÀ DANS LA TÂCHE SECONDAIRE " + lkName("lot", LK.lot) + " › " + lkName("sec", LK.sec) + ".";
       return "";
     };
     if (!shell.__lkBound) {
@@ -6454,6 +6469,10 @@ function renderBudgetList() {
           /* libérer la désignation avec une modification non validée : proposer de valider d'abord */
           if (k === "des" && chosen && X.pending()) { X.guard().then(ok => { if (ok) { L.des = null; L.lot = L.prim = L.sec = null; L.prd = {}; L.chg = {}; L.dlpDraft = null; X.light("des"); } }); return; }
           const pick = () => {
+            if ((k === "prim" || k === "sec") && L[k] !== id) {
+              const ra = X.ruleA(k, id);
+              if (ra) { svToast(ra); return; }   /* refusé tout de suite */
+            }
             if (k === "prd" && L[k][id] === undefined) {
               const bad = X.unitErr(id);
               if (bad) { svToast(bad); return; }   /* unité différente : refusé tout de suite */
@@ -6570,7 +6589,7 @@ function renderBudgetList() {
         });
     shell.__lkGuard = INS && INS_EDIT ? lkGuard : null;
     shell.__fuse = INS && INS_EDIT ? { INS, LK, insId, check: lkCheck, chain: () => insRenderChain(), refresh: () => refreshAll(),
-      commit: () => lkCommit(), guard: () => lkGuard(), pending: () => lkPending(),
+      commit: () => lkCommit(), guard: () => lkGuard(), pending: () => lkPending(), ruleA: (k, id) => lkRuleA(k, id),
       light: k => lkLight(k), unlink: (k, id) => lkUnlink(k, id), name: (k, id) => lkName(k, id),
       unitErr: id => {
         const D = INS.des.find(x => x.id === LK.des), P = INS.prd.find(x => x.id === id);

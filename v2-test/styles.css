@@ -1198,7 +1198,7 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 .lk-rd.lnk.on { border-color: var(--inst, #b91c1c); background: radial-gradient(circle, var(--inst, #b91c1c) 0 4px, #fff 4.5px); }
 .lk-dim .lk-rd.lnk { pointer-events: auto; opacity: 1; }
 /* message d'erreur passager */
-#svToast { position: fixed; top: 120px; right: 24px; z-index: 100003; max-width: 520px; background: #fff; color: #b91c1c; border: 1.5px solid #b91c1c;
+#svToast { position: fixed; top: 200px; right: 24px; z-index: 100003; max-width: 520px; background: #fff; color: #b91c1c; border: 1.5px solid #b91c1c;
   border-radius: 10px; padding: 10px 14px; font-weight: 800; font-size: 12px; box-shadow: 0 10px 30px rgba(15,23,42,.2); opacity: 0; transform: translateY(-6px);
   transition: opacity .2s, transform .2s; pointer-events: none; }
 #svToast.on { opacity: 1; transform: none; }
