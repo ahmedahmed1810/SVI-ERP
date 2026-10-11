@@ -7572,10 +7572,16 @@ function renderBudgetList() {
           box.classList.remove("imp-hier");
           box.innerHTML = `<table class="bdg-d-table imp-table"></table>`;
         }
-        const cs = cols[tab], rows = shownRows();
+        /* colonnes : ordre et largeurs réglables (glisser l'en-tête / la poignée), mémorisés */
+        const cs = coOrder("imp_" + tab, cols[tab]), rows = shownRows();
         const allOn = rows.length && rows.every(x => pk[tab].has(x.key));
-        p.querySelector(".imp-table").innerHTML =
-          `<thead><tr><th class="center" style="width:34px"><input type="checkbox" class="imp-cball" ${allOn ? "checked" : ""} ${all ? "disabled" : ""}></th>${cs.map(c => cfHead("imp_" + tab, c[0], c[1], impCls(c))).join("")}</tr></thead>
+        const IMPW = { art: 70, des: 340, u: 70, q: 110, p: 110 };
+        const wOf = k => cwLoad()["imp_" + tab + "." + k] || IMPW[k] || 110;
+        const tbl = p.querySelector(".imp-table");
+        tbl.style.width = (40 + cs.reduce((t, c) => t + wOf(c[0]), 0)) + "px";
+        tbl.style.tableLayout = "fixed";
+        tbl.innerHTML =
+          `<colgroup><col style="width:40px">${cs.map(c => `<col data-w="imp_${tab}.${c[0]}" style="width:${wOf(c[0])}px">`).join("")}</colgroup><thead><tr><th class="center" style="width:34px"><input type="checkbox" class="imp-cball" ${allOn ? "checked" : ""} ${all ? "disabled" : ""}></th>${cs.map(c => cfHead("imp_" + tab, c[0], c[1], impCls(c))).join("")}</tr></thead>
            <tbody>${rows.map(x => {
              const on = pk[tab].has(x.key), linked = on && !sel[tab].has(x.key) && !all;
              return `<tr class="${x.row.t ? "imp-tt" : ""}${linked ? " imp-linked" : ""}" data-k="${esc(x.key)}">
@@ -7587,6 +7593,12 @@ function renderBudgetList() {
         p.querySelector("#impGo").textContent = "IMPORTER (" + n + ")";
         p.querySelector("#impGo").disabled = !n;
       };
+      /* poignées de largeur et glisser des en-têtes : même mécanisme que l'écran */
+      p.addEventListener("pointerdown", e => {
+        if (e.target.closest(".col-rs") || (e.target.closest(".imp-table th") && !e.target.closest(".cf-btn, input"))) {
+          if (typeof shell.onpointerdown === "function") shell.onpointerdown(e);
+        }
+      });
       const showSrc = () => {
         const b = p.querySelector("#impSrc");
         b.className = "imp-src-btn " + (src ? stCls(groups.get(src)) : "");
