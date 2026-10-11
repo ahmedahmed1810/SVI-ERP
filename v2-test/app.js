@@ -8704,7 +8704,7 @@ function renderBudgetList() {
       if (blk === "detail" && active === "prd" && (act === "export" || act === "pdf")) return chooseFormat(act);
       const b = blk === "suivi" ? recActive : blk;
       if (act === "export") openExportMenu(b);
-      else if (act === "import") openImportMenu(b);
+      else if (act === "import") { if (!(!budget.inst || budget.inst.state === "fige")) openImportMenu(b); }
       else doPdf(b);
     };
     /* un seul bouton « ⋯ » par bloc : menu des actions */
@@ -8714,7 +8714,9 @@ function renderBudgetList() {
       old?.remove();
       if (same) return;
       const tools = btn.closest(".blk-tools");
-      const acts = [...tools.querySelectorAll(".blk-btn")];
+      /* budget validé (ou figé) : lecture seule, pas d'import */
+      const readOnly = !budget.inst || budget.inst.state === "fige";
+      const acts = [...tools.querySelectorAll(".blk-btn")].filter(a => !(readOnly && a.dataset.act === "import"));
       const m = document.createElement("div");
       m.id = "blkMenu";
       m.dataset.for = btn.dataset.for;
