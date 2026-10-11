@@ -7386,7 +7386,18 @@ function renderBudgetList() {
         ["chg", "prd"].forEach(k => (d[k] || []).forEach(r => m[k].push({ key: k + r.id, row: { ...r } })));
         return m;
       }
-      const ls = g.rows.map(toLine);
+      /* type CHG / PRD lu dans le budget source (l'écran courant, vide, ne le connaît pas) */
+      const tk = Object.keys(g.rows[0] || {}).find(k => { const n = nk(k); return n.includes("CHG") && n.includes("PRD"); });
+      const ls = g.rows.map((row, i) => {
+        const l = toLine(row, i);
+        const t = nk(tk ? row[tk] : "");
+        l.kind = t.startsWith("PRD") || t.startsWith("PROD") ? "prd" : t.startsWith("CHG") || t.startsWith("CHARGE") ? "chg" : "";
+        if (l.kind === "prd" && !l.qty) {
+          const f = [l.nbr, ...l.dims].filter(v => normalise(v) !== "").map(num);
+          if (f.length) l.qty = f.reduce((a, b) => a * b, 1);
+        }
+        return l;
+      });
       const dmap = new Map(), cmap = new Map(), hset = new Map();
       ls.forEach(l => {
         const dk = "d" + U_(l.article) + "||" + U_(l.designation);

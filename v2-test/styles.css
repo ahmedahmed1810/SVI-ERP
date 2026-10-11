@@ -999,3 +999,7 @@ tfoot td {
 #docPop .imp-src-it.on { background: #eef4ff; }
 #docPop .imp-inst { color: #b91c1c !important; }
 #docPop .imp-fige { color: #15803d !important; }
+/* importer : colonne des cases sans « … » (case entière visible) */
+#docPop .imp-table th:first-child, #docPop .imp-table td:first-child { width: 40px; min-width: 40px; padding: 0 8px !important;
+  overflow: visible !important; text-overflow: clip !important; }
+#docPop .imp-table { table-layout: auto; }
