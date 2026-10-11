@@ -6598,11 +6598,49 @@ function renderBudgetList() {
         return du && pu && du !== pu ? "UNITÉ REFUSÉE : " + (P.des || "") + " (" + pu + ") N'A PAS L'UNITÉ DE LA DÉSIGNATION (" + du + ")." : "";
       },
       info: () => {
-        const n = (k, id) => lkName(k, id) || "—";
-        const prd = Object.keys(LK.prd).map(id => { const p = INS.prd.find(x => x.id === id); return "  " + (p ? p.des + " — " + insFmt(insPrdQ(p)) + " " + (p.u || "") : ""); });
-        const chg = Object.keys(LK.chg).map(id => "  " + n("chg", id));
-        svAlert(["LIAISON EN COURS", "DÉSIGNATION : " + n("des", LK.des), "LOT : " + n("lot", LK.lot), "ACTIVITÉ PRIMAIRE : " + n("prim", LK.prim),
-          "ACTIVITÉ SECONDAIRE : " + n("sec", LK.sec), "PRODUITS : " + (prd.length ? "" : "—"), ...prd, "CHARGES : " + (chg.length ? "" : "—"), ...chg].join("\n"));
+        /* fenêtre au format INF : titre, ✕, libellés à gauche, état de la liaison, produits et charges, FERMER */
+        document.getElementById("docPop")?.remove();
+        const n = (k, id) => esc(lkName(k, id) || "—");
+        const same = LK.des && LK.lot && LK.prim && LK.sec
+          && (INS.links || []).find(l => l.des === LK.des && l.lot === LK.lot && l.prim === LK.prim && l.sec === LK.sec);
+        const st = same ? "LIAISON DÉJÀ ÉTABLIE" + (Object.keys(LK.prd).length || Object.keys(LK.chg).length || lkDlyDirty() ? " — AJOUTS À VALIDER" : "")
+          : LK.des && LK.lot && LK.prim && LK.sec ? "NOUVELLE LIAISON — À VALIDER" : "LIAISON INCOMPLÈTE";
+        /* tableaux de la fenêtre : tri / filtre sur chaque colonne (consigne 7) */
+        const list = k => [...(same ? (same[k] || []).map(x => ({ id: x.id, st: "LIÉ" })) : []), ...Object.keys(LK[k]).map(id => ({ id, st: "À AJOUTER" }))]
+          .map(o => { const r = INS[k].find(x => x.id === o.id) || {}; return { des: r.des || "", u: r.u || "", q: k === "prd" ? insPrdQ(r) : num(r.q || 0), st: o.st }; });
+        const C = k => [["des", "DÉSIGNATION", x => x.des, ""], ["u", k === "prd" ? "UPB" : "UCB", x => x.u, "center"],
+          ["q", k === "prd" ? "QPB" : "QCB", x => x.q, "number"], ["st", "ÉTAT", x => x.st, "center"]];
+        const tbl = (k, lab) => {
+          const t = "lki_" + k, rows = cfApply(t, C(k), list(k));
+          return `<div class="doc-lab" style="margin-top:12px">${lab} ${svCnt(rows.length)}</div>
+            <table class="bdg-d-table" style="width:100%;margin-top:6px"><thead><tr>${C(k).map(c => cfHead(t, c[0], c[1], c[3])).join("")}</tr></thead>
+            <tbody>${rows.map(x => `<tr>${C(k).map(c => `<td class="${c[3]}">${c[0] === "q" ? insFmt(x.q) : esc(c[2](x))}</td>`).join("")}</tr>`).join("")
+              || `<tr><td colspan="4" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
+        };
+        const p = document.createElement("div");
+        p.id = "docPop";
+        p.innerHTML = `<div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
+            <div class="doc-head"><span class="doc-title">LIAISON</span><button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button></div>
+            <div class="doc-body">
+              <div class="lk-info-st${same ? " ok" : ""}">${st}</div>
+              <div class="doc-grid">
+                <span class="doc-lab">DÉSIGNATION</span><span class="lk-info-v">${n("des", LK.des)}</span>
+                <span class="doc-lab">LOT</span><span class="lk-info-v">${n("lot", LK.lot)}</span>
+                <span class="doc-lab">ACTIVITÉ PRIMAIRE</span><span class="lk-info-v">${n("prim", LK.prim)}</span>
+                <span class="doc-lab">ACTIVITÉ SECONDAIRE</span><span class="lk-info-v">${n("sec", LK.sec)}</span>
+              </div>
+              <div class="lk-info-t">${tbl("prd", "DÉTAIL PRODUITS")}${tbl("chg", "DÉTAIL CHARGES")}</div>
+            </div>
+            <div class="doc-foot"><span></span><button type="button" class="doc-btn" data-cancel>FERMER</button></div>
+          </div>`;
+        document.body.appendChild(p);
+        try { popEnhance(p, "lkinfo"); } catch (e) {}
+        p.addEventListener("click", e => {
+          const cfb = e.target.closest(".cf-btn");
+          if (cfb) { e.stopPropagation(); cfOpenMenu(cfb); return; }
+          if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); window.__sviInfoRefresh = null; }
+        });
+        window.__sviInfoRefresh = () => { const b = p.isConnected && p.querySelector(".lk-info-t"); if (b) b.innerHTML = tbl("prd", "DÉTAIL PRODUITS") + tbl("chg", "DÉTAIL CHARGES"); };
       },
       isLinked: (k, id) => { const S = lkLinked(); return !!(S[k] && S[k].has(id)); },
       save: what => { insSave(); histLog("LIAISONS", what, fullRef); } } : null;
@@ -6913,6 +6951,7 @@ function renderBudgetList() {
         REC_KINDS.forEach(renderRec);
         if (window.__sviHistRefresh) window.__sviHistRefresh();
         if (window.__sviImpRefresh) window.__sviImpRefresh();
+        if (window.__sviInfoRefresh) window.__sviInfoRefresh();
         if (INS) insApplyMode();
       });
       if (typeof stateSave === "function") stateSave();
