@@ -10473,3 +10473,57 @@ function budgetDate(ref) {
     label: m[3] + "/" + m[2] + "/20" + m[1]
   };
 }
+
+
+/* =========================================================
+   MENU ☰ › DONNÉES SOURCE : fichiers Google Sheets lus par l'application
+   ========================================================= */
+const SVI_SRC_FILES = {
+  main: { name: "SVI 26-0826/001", url: "https://docs.google.com/spreadsheets/d/1-gZdPMT3V6zLMuS5b8nylgqvSB1zrAukJfZ0o4ht1YE/edit" },
+  v3: { name: "SVI ERP — BASE BUDGETS V3", url: "https://docs.google.com/spreadsheets/d/131RdvI2_kqjRq7HbcPxXetWHmBcYJ3DNmGPiuogAoas/edit" }
+};
+function openSourceWin() {
+  document.getElementById("srcPop")?.remove();
+  const test = !!document.getElementById("sviTestTag");
+  const lnk = f => `<a href="${f.url}" class="src-link" data-src-url="${f.url}">${esc(f.name)}</a>`;
+  const row = (lab, val) => `<div class="src-lab">${lab}</div><div class="src-val">${val}</div>`;
+  let rows = row("VERSION", test ? "TEST" : "VALIDÉE");
+  if (test) {
+    const tag = (document.getElementById("sviTestTag")?.textContent || "").replace(/^VERSION TEST — /, "");
+    /* repli sur l'ancien onglet BDG seulement si la lecture de la base V3 a échoué */
+    const v3 = window.SVI_SRC === "V3" || !/ANCIEN BDG/.test(tag);
+    rows +=
+      row("BUDGETS (BDG)", v3 ? lnk(SVI_SRC_FILES.v3) + "<span class=\"src-note\">ONGLETS BUDGETS, DESIGNATIONS, TACHES, DETAILS, ARRETS</span>"
+        : lnk(SVI_SRC_FILES.main) + `<span class="src-note">ONGLET BDG — BASE V3 NON LUE : ${esc(tag)}</span>`) +
+      row("CHS, BDS", lnk(SVI_SRC_FILES.main) + "<span class=\"src-note\">ONGLETS CHS, BDS_V2, BRD_V2</span>") +
+      row("BUDGETS EN INSTANCE", "SUR CET APPAREIL SEULEMENT<span class=\"src-note\">PAS ENCORE ENREGISTRÉS DANS GOOGLE SHEETS</span>");
+  } else {
+    rows +=
+      row("BUDGETS (BDG)", lnk(SVI_SRC_FILES.main) + "<span class=\"src-note\">ONGLET BDG</span>") +
+      row("CHS, BDS", lnk(SVI_SRC_FILES.main) + "<span class=\"src-note\">ONGLETS CHS, BDS_V2, BRD_V2</span>");
+  }
+  const p = document.createElement("div");
+  p.id = "srcPop";
+  p.innerHTML = `
+    <div class="src-card" role="dialog" aria-modal="true">
+      <div class="src-head">
+        <span class="src-title">DONNÉES SOURCE</span>
+        <button type="button" class="src-x" data-cancel aria-label="Fermer">✕</button>
+      </div>
+      <div class="src-body"><div class="src-grid">${rows}</div></div>
+      <div class="src-foot">
+        <button type="button" class="src-btn" data-cancel>FERMER</button>
+      </div>
+    </div>`;
+  document.body.appendChild(p);
+  p.addEventListener("click", e => {
+    const a = e.target.closest("[data-src-url]");
+    if (a) { e.preventDefault(); openGoogleLink(a.dataset.srcUrl); return; }
+    if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
+  });
+}
+document.addEventListener("click", e => {
+  if (!e.target.closest("#navSrcBtn")) return;
+  document.getElementById("navMenu")?.classList.add("hidden");
+  openSourceWin();
+});
