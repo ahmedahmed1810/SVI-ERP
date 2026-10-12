@@ -428,6 +428,33 @@ const sviEqualTabs = () => {
     document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
   }, true);
 }
+/* en-têtes de colonnes jamais tronqués (FORMAT) : une colonne n'est jamais plus étroite que son intitulé,
+   même si une largeur plus petite avait été mémorisée */
+const sviMinHeadCols = () => {
+  document.querySelectorAll("table").forEach(tb => {
+    if (tb.offsetParent === null) return;
+    const cols = tb.querySelectorAll(":scope > colgroup > col");
+    const ths = tb.querySelectorAll(":scope > thead > tr:first-child > th");
+    if (!cols.length || cols.length !== ths.length) return;
+    let add = 0;
+    ths.forEach((th, i) => {
+      const lab = th.querySelector(".cf-lab");
+      if (!lab || lab.scrollWidth <= lab.clientWidth + 1) return;   /* intitulé déjà entier */
+      const need = Math.ceil(lab.scrollWidth + (th.clientWidth - lab.clientWidth)) + 2;
+      const cur = th.getBoundingClientRect().width;
+      if (need > cur + 1) { cols[i].style.width = need + "px"; add += need - cur; }
+    });
+    if (add && tb.style.width) tb.style.width = (parseFloat(tb.style.width) + add) + "px";
+  });
+};
+{
+  let q2 = 0;
+  new MutationObserver(ms => {
+    if (q2) return;
+    if (!ms.some(m => { const el = m.target.nodeType === 1 ? m.target : m.target.parentElement; return el && (el.closest("table") || (el.querySelector && el.querySelector("table"))); })) return;
+    q2 = requestAnimationFrame(() => { q2 = 0; try { sviMinHeadCols(); } catch (e) {} });
+  }).observe(document.documentElement, { childList: true, subtree: true });
+}
 const svTabLoad = () => { try { return JSON.parse(localStorage.getItem("svi_taborder_v1") || "{}") || {}; } catch (e) { return {}; } };
 const svTabApply = () => {
   const O = svTabLoad();
@@ -5607,7 +5634,7 @@ function renderBudgetList() {
 
     /* colonnes : [champ, libellé, classe, type, largeur] ; type : txt / num / calc */
     const INS_COLS = {
-      qlt: [["v", "QUALITÉ", "", "txt", "qlt"]],
+      qlt: [["v", "QUALITÉ", "", "txt", "qlt"]],   /* une seule colonne : toute la largeur du bloc (voir insTableHTML) */
       des: [
         ["art", "ART", "center", "txt", "article"],
         ["des", "DÉSIGNATION", "", "txt", "designation"],
@@ -5628,8 +5655,7 @@ function renderBudgetList() {
         ["tva", "TVA %", "number", "num", "tva"],
         ["ttc", "MCB TTC", "number", "calc", "ttc"]
       ],
-      prd: [
-        ["art", "ART", "center", "txt", "article"],
+      prd: [   /* pas de colonne ART : un produit n'a pas d'article */
         ["des", "DÉSIGNATION", "", "txt", "detail"],
         ["u", "UPB", "center", "txt", "unit"],
         ["nbr", "NBR", "number", "num", "nbr"],
@@ -5939,8 +5965,10 @@ function renderBudgetList() {
       const qw = insQCol(k) ? 160 : 0;
       const w = 36 * lead + (INS_EDIT ? 40 : 0) + qw + cols.reduce((t, c) => t + cwGet(k === "des" ? "client" : k, c[4]), 0);
       const t = insCfT(k);
-      return `<table class="bdg-d-table ins-table" data-ik="${k}" style="width:${w}px">
-        <colgroup>${'<col style="width:36px">'.repeat(lead)}${cols.map(c => `<col data-w="${t}.${c[4]}" style="width:${cwGet(t, c[4])}px">`).join("")}${qw ? `<col style="width:${qw}px">` : ""}${INS_EDIT ? '<col style="width:40px">' : ""}</colgroup>
+      /* DÉTAIL QUALITÉ (une seule colonne) : toute la largeur du bloc, sauf largeur réglée à la main */
+      const full = k === "qlt" && !cwLoad()["qlt.qlt"];
+      return `<table class="bdg-d-table ins-table" data-ik="${k}" style="width:${full ? "100%" : w + "px"}">
+        <colgroup>${'<col style="width:36px">'.repeat(lead)}${cols.map(c => `<col data-w="${t}.${c[4]}" ${full ? "" : `style="width:${cwGet(t, c[4])}px"`}>`).join("")}${qw ? `<col style="width:${qw}px">` : ""}${INS_EDIT ? '<col style="width:40px">' : ""}</colgroup>
         <thead><tr><th class="center"></th>${cols.map(c => cfHead(t, c[4], c[1], c[2])).join("")}${qw ? '<th class="number lk-qh">QUANTITÉ DE LA TÂCHE</th>' : ""}${INS_EDIT
           ? `<th class="center ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${insAllOn(k) ? " checked" : ""}></th>` : ""}</tr></thead>
         <tbody>${insBodyHTML(k)}</tbody>
@@ -6048,8 +6076,8 @@ function renderBudgetList() {
       const qOf = l => (l.prd || []).reduce((t, x) => { const p = INS.prd.find(r => r.id === x.id); return t + (p ? insPrdQ(p) : 0); }, 0);
       const pOf = l => insLinkPrim(INS, l) ? num(D(l.des).p || 0) : "";
       const LC = [["art", "ART", l => D(l.des).art || "", "center"], ["des", "DÉSIGNATION", l => D(l.des).des || "", ""],
-        ["lot", "LOT", l => lkName("lot", l.lot), ""], ["prim", "ACT. PRIMAIRE", l => lkName("prim", l.prim), ""],
-        ["sec", "ACT. SECONDAIRE", l => lkName("sec", l.sec), ""], ["np", "PRODUITS", l => (l.prd || []).length, "center"],
+        ["lot", "LOT", l => lkName("lot", l.lot), ""], ["prim", "ACTIVITÉ PRIMAIRE", l => lkName("prim", l.prim), ""],
+        ["sec", "ACTIVITÉ SECONDAIRE", l => lkName("sec", l.sec), ""], ["np", "PRODUITS", l => (l.prd || []).length, "center"],
         ["nc", "CHARGES", l => (l.chg || []).length, "center"], ["lq", "QUANTITÉ", l => insFmt(qOf(l)), "number"],
         ["lp", "PPB", l => pOf(l) === "" ? "" : insFmt(pOf(l)), "number"], ["lm", "MPB HT", l => pOf(l) === "" ? "" : insFmt(qOf(l) * pOf(l)), "number"]];
       const W = { art: 70, des: 300, lot: 150, prim: 170, sec: 190, np: 110, nc: 110, lq: 120, lp: 110, lm: 140 };
@@ -6057,7 +6085,7 @@ function renderBudgetList() {
       const w = k => cwLoad()["lk_links." + k] || W[k] || 120;
       const rows = cfApply("lk_links", LC, INS.links || []);
       lastShown.detail = { cols: LC, rows, kind: "lnk" };
-      const dw = INS_EDIT ? 110 : 0;
+      const dw = 0;   /* délier : seulement par le bouton du haut (✕ DÉLIER), jamais par ligne */
       return `<table class="bdg-d-table lk-table" style="width:${oc.reduce((t, c) => t + w(c[0]), 0) + dw}px">
         <colgroup>${oc.map(c => `<col data-w="lk_links.${c[0]}" style="width:${w(c[0])}px">`).join("")}${dw ? `<col style="width:${dw}px">` : ""}</colgroup>
         <thead><tr>${oc.map(c => cfHead("lk_links", c[0], c[1], c[3])).join("")}${dw ? "<th></th>" : ""}</tr></thead>
@@ -6760,8 +6788,8 @@ function renderBudgetList() {
       /* LIAISONS VALIDÉES */
       const LC = [["art", "ART", l => (INS.des.find(x => x.id === l.des) || {}).art || "", "center"],
         ["des", "DÉSIGNATION", l => (INS.des.find(x => x.id === l.des) || {}).des || "", ""],
-        ["lot", "LOT", l => lkName("lot", l.lot), ""], ["prim", "ACT. PRIMAIRE", l => lkName("prim", l.prim), ""],
-        ["sec", "ACT. SECONDAIRE", l => lkName("sec", l.sec), ""], ["np", "PRODUITS", l => (l.prd || []).length, "center"],
+        ["lot", "LOT", l => lkName("lot", l.lot), ""], ["prim", "ACTIVITÉ PRIMAIRE", l => lkName("prim", l.prim), ""],
+        ["sec", "ACTIVITÉ SECONDAIRE", l => lkName("sec", l.sec), ""], ["np", "PRODUITS", l => (l.prd || []).length, "center"],
         ["nc", "CHARGES", l => (l.chg || []).length, "center"],
         /* prix de la tâche primaire = PPB de la désignation client */
         ["lq", "QUANTITÉ", l => insFmt((l.prd || []).reduce((t, x) => t + num(x.q || 0), 0)), "number"],
