@@ -1274,3 +1274,6 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 #svConf .imp-fail .svc-list li { margin-bottom: 4px; }
 /* pendant un glissement : aucune sélection de texte ni loupe */
 body.svi-dragging, body.svi-dragging * { -webkit-user-select: none !important; user-select: none !important; -webkit-touch-callout: none !important; }
+/* IMPORT NON CRÉÉ : case fautive encadrée, raison en rouge */
+.inc-table td.inc-bad { box-shadow: inset 0 0 0 2px #dc2626 !important; background: #fef2f2 !important; }
+.inc-table td.inc-why { color: #b91c1c !important; font-weight: 700; font-size: 11px; white-space: normal; }

@@ -385,6 +385,10 @@ const sviEqualTabs = () => {
     }
     ts.forEach(t => { t.style.boxSizing = "border-box"; t.style.width = w + "px"; t.style.flex = "none";
       t.style.whiteSpace = "normal"; t.style.justifyContent = "center"; t.style.textAlign = "center"; t.classList.add("tab-eq"); });
+    /* même hauteur pour tous les onglets de la rangée (celle du plus haut) */
+    ts.forEach(t => { t.style.height = ""; t.style.alignSelf = "flex-end"; });
+    const hMax = Math.ceil(Math.max(...ts.filter(t => t.offsetParent !== null).map(t => t.getBoundingClientRect().height)));
+    if (hMax) ts.forEach(t => { t.style.height = hMax + "px"; });
   }));
 };
 {
@@ -5025,7 +5029,7 @@ function renderBudgetList() {
       { key: "qlt", title: "DÉTAIL QUALITÉ" },
       { key: "dly", title: "DÉTAIL DÉLAIS" },
       /* budget en instance : les liaisons validées sont un onglet du détail */
-      ...(budget.inst ? [{ key: "lnk", title: "LIAISONS VALIDÉES" }, { key: "unl", title: "LIGNES NON LIÉES" }] : [])
+      ...(budget.inst ? [{ key: "lnk", title: "LIAISONS VALIDÉES" }, { key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }] : [])
     ];
 
     /* dernier onglet du détail ouvert (charges, produits, qualité, délais) */
@@ -6055,6 +6059,42 @@ function renderBudgetList() {
           ? `<td class="center"><button type="button" class="lk-del" data-lid="${l.id}">${INS_TRASH} DÉLIER</button></td>` : ""}</tr>`).join("")
           || `<tr><td colspan="${oc.length + (dw ? 1 : 0)}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
     };
+    /* IMPORT NON CRÉÉ (onglet du détail) : lignes du fichier qui n'ont pas pu être liées ;
+       corrigées ici (case fautive encadrée), elles créent leur liaison et sortent de l'onglet */
+    const INC_COLS = [["art", "ART", 60, "center"], ["dc", "DÉSIGNATION CLIENT", 240, ""], ["upb", "UPB", 60, "center"], ["lot", "LOT", 150, ""],
+      ["prim", "ACTIVITÉ PRIMAIRE", 170, ""], ["sec", "ACTIVITÉ SECONDAIRE", 170, ""], ["type", "TYPE", 70, "center"], ["article", "ARTICLE", 80, "center"],
+      ["des", "DÉSIGNATION", 220, ""], ["u", "UNITÉ", 60, "center"], ["nbr", "NBR", 60, "number"], ["d1", "DIM 1", 60, "number"], ["d2", "DIM 2", 60, "number"],
+      ["d3", "DIM 3", 60, "number"], ["q", "QTE", 70, "number"]];
+    const insIncHTML = () => {
+      const UC = [...INC_COLS.map(c => [c[0], c[1], x => x.src[c[0]] || "", c[3]]), ["why", "RAISON", x => x.why || "", ""]];
+      const rows = cfApply("lk_inc", UC, INS.inc || []);
+      lastShown.detail = { cols: UC, rows, kind: "inc" };
+      const w = k => cwLoad()["lk_inc." + k] || ((INC_COLS.find(c => c[0] === k) || [])[2]) || 320;
+      const ed = INS_EDIT;
+      const all = rows.length && rows.every(x => x.on === true);
+      return `<table class="bdg-d-table ins-table lk-table inc-table" style="width:${UC.reduce((t, c) => t + w(c[0]), 0) + 40}px">
+        <colgroup>${UC.map(c => `<col data-w="lk_inc.${c[0]}" style="width:${w(c[0])}px">`).join("")}<col style="width:40px"></colgroup>
+        <thead><tr>${UC.map(c => cfHead("lk_inc", c[0], c[1], c[3])).join("")}<th class="center">${ed ? `<input type="checkbox" class="inc-cball"${all ? " checked" : ""}>` : ""}</th></tr></thead>
+        <tbody>${rows.map(x => `<tr data-inc="${x.id}">${INC_COLS.map(c => `<td class="${c[3]} ins-td${(x.bad || []).includes(c[0]) ? " inc-bad" : ""}">${ed
+            ? `<input class="ins-in inc-in ${c[3]}" data-f="${c[0]}" value="${esc(x.src[c[0]] || "")}" autocomplete="off">` : esc(x.src[c[0]] || "")}</td>`).join("")}
+          <td class="inc-why">${esc(x.why || "")}</td><td class="center">${ed ? `<input type="checkbox" class="inc-cb"${x.on === true ? " checked" : ""}>` : ""}</td></tr>`).join("")
+          || `<tr><td colspan="${UC.length + 1}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
+    };
+    if (!shell.__incBound) {
+      shell.__incBound = true;
+      shell.addEventListener("change", e => {
+        const X = shell.__incX;
+        if (!X || !e.target.closest || !e.target.closest(".inc-table")) return;
+        const tr = e.target.closest("tr[data-inc]");
+        if (e.target.classList.contains("inc-cball")) { (X.INS.inc || []).forEach(x => { x.on = e.target.checked; }); X.save(); X.refresh(); return; }
+        const it = tr && (X.INS.inc || []).find(x => x.id === tr.dataset.inc);
+        if (!it) return;
+        if (e.target.classList.contains("inc-cb")) { it.on = e.target.checked; X.save(); return; }
+        const inp = e.target.closest("input.inc-in");
+        if (inp) { it.src[inp.dataset.f] = inp.value.trim().toUpperCase(); X.tryIt(it); }
+      });
+    }
+    shell.__incX = INS && INS_EDIT ? { INS, save: () => insSave(), refresh: () => refreshAll(), tryIt: it => incTry(it) } : null;
     /* LIGNES NON LIÉES (onglet du détail) : BLOC, LIBELLÉ ; cases à cocher, suppression par le menu ⋯ */
     const UNL_BLOC = { des: "DÉSIGNATION CLIENT", lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE", prd: "PRODUIT", chg: "CHARGE" };
     const insUnlRows = () => {
@@ -6156,6 +6196,10 @@ function renderBudgetList() {
       });
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
         if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(INS_EDIT ? (insDlyKey() ? insDlyList(insDlyKey()).length : 0) : insTasks().length); }
+      /* IMPORT NON CRÉÉ : visible seulement s'il reste des lignes */
+      { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="inc"]`), n = (INS.inc || []).length;
+        if (b) { b.innerHTML = (SVI_ICON.hier || "") + "IMPORT NON CRÉÉ " + svCnt(n); b.hidden = !n; b.style.display = n ? "" : "none"; }
+        if (!n && active === "inc") { active = "prd"; try { localStorage.setItem("svi_dtab_v1", "prd"); } catch (e) {} document.querySelectorAll("#bdgTabs .bdg-d-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === active)); } }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
         if (b) b.innerHTML = (SVI_ICON.hier || "") + "LIAISONS VALIDÉES " + svCnt((INS.links || []).length); }
       sviMarkEmptyTabs(shell);
@@ -6166,6 +6210,7 @@ function renderBudgetList() {
       }
       if (active === "lnk") { body.innerHTML = `<div class="bdg-d-scroll">${insLinksHTML()}</div>`; return; }
       if (active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
+      if (active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
       body.innerHTML = `<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
       shell.__insMore = () => insMoreRows(active);
       lastShown.detail = { cols: insCfCols(active), rows: insShown(active), kind: active, ins: true };
@@ -9659,8 +9704,9 @@ function renderBudgetList() {
         nbr: col("NBR"), d1: col("DIM 1", "DIM1"), d2: col("DIM 2", "DIM2"), d3: col("DIM 3", "DIM3"), q: col("QTE", "QUANTITE") };
       const g = (r, k) => C[k] < 0 ? "" : (r[C[k]] ?? "");
       const nn = v => String(v ?? "").trim() === "" ? "" : num(v);
-      const m = { des: [], hier: [], chg: [], prd: [], qlt: [], dly: [], links: [] };
+      const m = { des: [], hier: [], chg: [], prd: [], qlt: [], dly: [], links: [], rej: [] };
       const seen = new Map();
+      const RAW = ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u", "nbr", "d1", "d2", "d3", "q"];
       const put = (k, key, row, hier) => { if (!seen.has(key)) { seen.set(key, true); hier ? m.hier.push({ key, lvl: k, row }) : m[k].push({ key, row }); } return key; };
       aoa.slice(hi + 1).forEach(r => {
         if (!r || !r.some(c => String(c ?? "").trim() !== "")) return;
@@ -9684,12 +9730,24 @@ function renderBudgetList() {
           if (c) { row.chs = c.id; row.p = c.pcs; row.tva = c.tva; row.u = row.u || U_(c.unit); }
           ck = put("chg", "chg|" + impId("chg", row), row);
         }
-        if (dk && hk[0] && hk[1] && hk[2] && (pk || ck)) m.links.push({ dk, lot: hk[0], prim: hk[1], sec: hk[2], pk: pk || undefined, ck: ck || undefined, q: "" });
+        const src = Object.fromEntries(RAW.map(k => [k, String(g(r, k) ?? "").trim()]));
+        if (dk && hk[0] && hk[1] && hk[2] && (pk || ck)) { m.links.push({ dk, lot: hk[0], prim: hk[1], sec: hk[2], pk: pk || undefined, ck: ck || undefined, q: "", src }); return; }
+        /* ligne qui voulait une liaison mais incomplète → onglet IMPORT NON CRÉÉ (raison + cases fautives) */
+        const chain = !!(lot || prim || sec), det = !!(t || dn);
+        if (!((dc && (chain || det)) || (chain && det))) return;
+        const bad = [], why = [];
+        if (!dc) { bad.push("dc"); why.push("DÉSIGNATION CLIENT MANQUANTE"); }
+        if (!lot) { bad.push("lot"); why.push("LOT MANQUANT"); }
+        if (!prim) { bad.push("prim"); why.push("ACTIVITÉ PRIMAIRE MANQUANTE"); }
+        if (!sec) { bad.push("sec"); why.push("ACTIVITÉ SECONDAIRE MANQUANTE"); }
+        if (!t.startsWith("PRD") && !t.startsWith("CHG")) { bad.push("type"); why.push(t ? "TYPE NON RECONNU (PRD OU CHG)" : "TYPE MANQUANT (PRD OU CHG)"); }
+        if (!dn) { bad.push("des"); why.push("DÉSIGNATION DU DÉTAIL MANQUANTE"); }
+        m.rej.push({ src, bad, why: why.join(" ; ") });
       });
       return m;
     };
     /* ajoute le modèle au budget : AJOUTER / METTRE À JOUR / REMPLACER */
-    const bfApply = (m, mode, srcName) => {
+    const bfApply = (m, mode, srcName, quiet) => {
       let added = 0, upd = 0, skip = 0, nl = 0;
       const kid = new Map();
       const K = ["des", "lot", "prim", "sec", "chg", "prd"];
@@ -9718,21 +9776,56 @@ function renderBudgetList() {
       });
       if (mode === "replace") { INS.links = []; INS.dlp = {}; }
       INS.links = INS.links || [];
+      const rej = (m.rej || []).slice();
+      const byId = (k, id) => INS[k].find(x => x.id === id) || {};
+      const chgOnly = new Map();   /* liaison sans produit : ses charges iront dans IMPORT NON CRÉÉ */
       m.links.forEach(l => {
         const des = kid.get(l.dk), lot = kid.get(l.lot), prim = kid.get(l.prim), sec = kid.get(l.sec);
         const pid = l.pk && kid.get(l.pk), cid = l.ck && kid.get(l.ck);
         if (!des || !lot || !prim || !sec || (!pid && !cid)) return;
+        /* règle A : une activité primaire n'a qu'une désignation */
+        const other = INS.links.find(x => x.prim === prim && x.des !== des);
+        if (other) { rej.push({ src: l.src, bad: ["prim"], why: "RÈGLE A : ACTIVITÉ PRIMAIRE DÉJÀ LIÉE À " + (byId("des", other.des).des || "") }); return; }
+        /* règle B : produit de la même unité que la désignation */
+        if (pid) {
+          const du = U_(byId("des", des).u), pu = U_(byId("prd", pid).u);
+          if (du && pu && du !== pu) { rej.push({ src: l.src, bad: ["u", "upb"], why: "RÈGLE B : UNITÉ " + pu + " ≠ UNITÉ DE LA DÉSIGNATION (" + du + ")" }); return; }
+        }
         let L = INS.links.find(x => x.des === des && x.lot === lot && x.prim === prim && x.sec === sec);
+        if (!pid && !(L && (L.prd || []).length)) { const key = [des, lot, prim, sec].join("|"); (chgOnly.get(key) || chgOnly.set(key, []).get(key)).push(l.src); }
         if (!L) { L = { id: insId(), des, lot, prim, sec, prd: [], chg: [] }; INS.links.push(L); nl++; }
         if (pid && !(L.prd = L.prd || []).some(y => y.id === pid)) L.prd.push({ id: pid, q: "" });
         if (cid && !(L.chg = L.chg || []).some(y => y.id === cid)) L.chg.push({ id: cid, q: "" });
       });
+      /* charges d'une tâche restée sans produit */
+      INS.links.filter(x => !(x.prd || []).length).forEach(x => {
+        (chgOnly.get([x.des, x.lot, x.prim, x.sec].join("|")) || []).forEach(src => rej.push({ src, bad: ["type"], why: "AUCUN PRODUIT DANS CETTE TÂCHE (UNE LIAISON DOIT AVOIR AU MOINS UN PRODUIT)" }));
+      });
       INS.links = INS.links.filter(x => (x.prd || []).length);
       insCleanLinks();
+      if (mode === "replace") INS.inc = [];
+      INS.inc = (INS.inc || []).concat(rej.map(x => ({ id: insId(), on: false, src: x.src, bad: x.bad, why: x.why })));
       insSave();
+      if (quiet) { refreshAll(); return rej; }
       const M = { add: "AJOUT", replace: "REMPLACEMENT", update: "MISE À JOUR" }[mode];
-      histLog("IMPORT", "BUDGET COMPLET — " + M, srcName + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S) — " + nl + " LIAISON(S)");
+      histLog("IMPORT", "BUDGET COMPLET — " + M, srcName + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S) — " + nl + " LIAISON(S)" + (rej.length ? " — " + rej.length + " NON CRÉÉE(S)" : ""));
+      /* des liaisons n'ont pas pu être créées : l'onglet IMPORT NON CRÉÉ s'ouvre */
+      if (rej.length) { active = "inc"; try { localStorage.setItem("svi_dtab_v1", "inc"); } catch (e) {} }
       refreshAll();
+      return rej;
+    };
+    /* correction dans l'onglet : la ligne est réessayée ; complète et conforme, elle crée sa liaison et sort de l'onglet */
+    const incTry = item => {
+      INS.inc = (INS.inc || []).filter(x => x.id !== item.id);
+      const s0 = item.src;
+      const aoa = [BF_HEAD, ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u", "nbr", "d1", "d2", "d3", "q"].map(k => s0[k] ?? "")];
+      const before = (INS.inc || []).length;
+      bfApply(bfModel(aoa), "add", "CORRECTION", true);
+      const again = (INS.inc || []).slice(before);
+      /* toujours refusée : elle garde sa place dans la liste */
+      if (again.length) { again[0].id = item.id; again[0].on = item.on; }
+      else histLog("IMPORT", "LIAISON CRÉÉE (CORRECTION)", [s0.dc, s0.lot, s0.prim, s0.sec, s0.des].filter(Boolean).join(" › "));
+      insSave(); refreshAll();
     };
     const bfImportAoa = async (aoa, srcName) => {
       let m;
@@ -12032,6 +12125,8 @@ function renderBudgetList() {
       const X = shell.__ins;
       const out = { del: {}, n: 0, kept: 0 };
       if (!X) return out;
+      /* IMPORT NON CRÉÉ : les lignes cochées de l'onglet (les données déjà importées restent) */
+      if (blk === "detail" && active === "inc") { const ids = new Set((INS.inc || []).filter(x => x.on === true).map(x => x.id)); if (ids.size) { out.del.inc = ids; out.n = ids.size; } return out; }
       const unlTab = blk === "detail" && active === "unl";
       insBlkKinds(blk).forEach(k => {
         /* onglet LIGNES NON LIÉES : seulement ses lignes (non liées), titres compris */
@@ -12049,6 +12144,15 @@ function renderBudgetList() {
       const X = shell.__ins;
       const pl = insDelPlan(blk);
       if (!X || !pl.n) return;
+      if (pl.del.inc) {
+        svConfirm({ title: "EFFACER LES LIGNES D'IMPORT", text: pl.n + " LIGNE(S) EFFACÉE(S) DE L'ONGLET IMPORT NON CRÉÉ. LES DONNÉES DÉJÀ IMPORTÉES RESTENT.", ok: "EFFACER" }).then(go => {
+          if (!go) return;
+          INS.inc = (INS.inc || []).filter(x => !pl.del.inc.has(x.id));
+          histLog("IMPORT", "LIGNES NON CRÉÉES EFFACÉES", pl.n + " LIGNE(S)");
+          insSave(); refreshAll();
+        });
+        return;
+      }
       svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES",
         text: pl.n + " LIGNE(S) SERONT SUPPRIMÉES." + (pl.kept ? " " + pl.kept + " LIGNE(S) LIÉE(S) RESTENT." : ""), ok: "SUPPRIMER" }).then(go => {
         if (!go) return;
