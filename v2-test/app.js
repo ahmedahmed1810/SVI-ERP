@@ -43,6 +43,9 @@ const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
   setInterval(() => { if (!document.hidden && !document.getElementById("sviUpd")) check(); }, 60000);
 })();
 
+const SVI_COPY_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>`;
+const SVI_CUT_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="17" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="17" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.2 15 18 3M15.8 15 6 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+const SVI_PASTE_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 4V2.8h6V4M9 10h6M9 14h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
 const SVI_DEL_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 /* =========================================================
@@ -5129,6 +5132,7 @@ function renderBudgetList() {
               <button type="button" class="blk-btn" data-blk="client" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="client" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="client" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="client" data-act="copy" title="Copier les lignes cochées">${SVI_COPY_ICON}</button><button type="button" class="blk-btn" data-blk="client" data-act="cut" title="Couper les lignes cochées">${SVI_CUT_ICON}</button><button type="button" class="blk-btn" data-blk="client" data-act="paste" title="Coller">${SVI_PASTE_ICON}</button>` : ""}
               ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="client" data-act="del" title="Supprimer les lignes cochées">${SVI_DEL_ICON}</button>` : ""}
               <button type="button" class="blk-btn blk-max-btn" data-blk="client" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
@@ -5150,6 +5154,7 @@ function renderBudgetList() {
               <button type="button" class="blk-btn" data-blk="hier" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="hier" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="hier" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="hier" data-act="copy" title="Copier les lignes cochées">${SVI_COPY_ICON}</button><button type="button" class="blk-btn" data-blk="hier" data-act="cut" title="Couper les lignes cochées">${SVI_CUT_ICON}</button><button type="button" class="blk-btn" data-blk="hier" data-act="paste" title="Coller">${SVI_PASTE_ICON}</button>` : ""}
               ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="hier" data-act="del" title="Supprimer les lignes cochées">${SVI_DEL_ICON}</button>` : ""}
               <button type="button" class="blk-btn blk-max-btn" data-blk="hier" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
@@ -5173,6 +5178,7 @@ function renderBudgetList() {
               <button type="button" class="blk-btn" data-blk="detail" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="detail" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="detail" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="detail" data-act="copy" title="Copier les lignes cochées">${SVI_COPY_ICON}</button><button type="button" class="blk-btn" data-blk="detail" data-act="cut" title="Couper les lignes cochées">${SVI_CUT_ICON}</button><button type="button" class="blk-btn" data-blk="detail" data-act="paste" title="Coller">${SVI_PASTE_ICON}</button>` : ""}
               ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="detail" data-act="del" title="Supprimer les lignes cochées">${SVI_DEL_ICON}</button>` : ""}
               <button type="button" class="blk-btn blk-max-btn" data-blk="detail" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
@@ -6393,7 +6399,7 @@ function renderBudgetList() {
         if (cb && r.t) {
           /* case d'un titre : coche / décoche toute sa branche ; titre vide : le titre lui-même */
           const br = X.insBranch(r);
-          if (!br.length) r.on = cb.checked;
+          r.on = cb.checked;   /* le titre lui-même est coché (copier / couper / déplacer l'emportent) */
           br.forEach(x => { x.on = cb.checked; });
           X.insSave(); X.insRedraw(k);
           return;
@@ -6504,6 +6510,7 @@ function renderBudgetList() {
       if (lk && INS_EDIT) { const n = insUnlCount(); lk.disabled = n > 0; lk.title = n ? n + " LIGNE(S) NON LIÉE(S) : ONGLET LIGNES NON LIÉES" : "Figer (lecture seule)"; }
       const tb = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="unl"]`);
       if (tb) tb.innerHTML = (SVI_ICON.hier || "") + "LIGNES NON LIÉES " + svCnt(insUnlCount());
+      if (shell.__markCut) shell.__markCut();
     };
 
     /* ---------- DÉTAIL DÉLAIS (instance) : une ligne par activité secondaire ---------- */
@@ -8090,14 +8097,32 @@ function renderBudgetList() {
        - après un titre déplié : entre dans ce titre ; après un titre replié : à côté de lui (après sa branche) ;
        - superposé : nouveau titre « NOUVEAU TITRE n » qui regroupe la ligne visée puis la ligne glissée ;
        - titres devenus vides : supprimés après confirmation (ANNULER = glissement annulé) */
-    const desDrop = async (arr, i0, n, tid, mode) => {
+    /* lignes sélectionnées d'un bloc (cases cochées) ; désignations : un titre coché (branche entière ou titre vide) emporte sa branche */
+    const insSelIds = k => {
+      const L = INS[k] || [], out = new Set();
+      if (k !== "des") { L.forEach(r => { if (r.on === true) out.add(r.id); }); return out; }
+      insNorm();
+      const D = r => Number(r.d) || 0;
+      L.forEach((r, i) => {
+        if (!r.t) { if (r.on === true) out.add(r.id); return; }
+        let e = i + 1; while (e < L.length && D(L[e]) > D(r)) e++;
+        const br = L.slice(i + 1, e), lines = br.filter(x => !x.t);
+        /* titre retenu seulement si sa propre case est cochée (et toute sa branche, s'il en a une) */
+        if (r.on === true && (!lines.length || lines.every(x => x.on === true))) { out.add(r.id); br.forEach(x => out.add(x.id)); }
+      });
+      return out;
+    };
+    const desDrop = async (arr, ids, tid, mode) => {
       insNorm();
       const snap = arr.map(r => ({ ...r }));
       const D = r => Number(r.d) || 0;
-      const block = arr.splice(i0, n);
+      const bset = new Set(ids);
+      const i0 = arr.findIndex(r => bset.has(r.id));
+      const block = arr.filter(r => bset.has(r.id));
+      arr.splice(0, arr.length, ...arr.filter(r => !bset.has(r.id)));
       const shift = (rows, base) => { const d0 = D(rows[0]); rows.forEach(r => { r.d = base + D(r) - d0; }); };
       let j = arr.findIndex(r => r.id === tid);
-      if (j < 0) { arr.splice(i0, 0, ...block); return; }
+      if (j < 0) { arr.splice(0, arr.length, ...snap); return; }
       const T = arr[j];
       const branchEnd = i => { let e = i + 1; while (e < arr.length && D(arr[e]) > D(arr[i])) e++; return e; };
       let created = null;
@@ -8268,10 +8293,15 @@ function renderBudgetList() {
         if (k === "des" && arr[i0].t) {
           while (i0 + n < arr.length && (Number(arr[i0 + n].d) || 0) > (Number(arr[i0].d) || 0)) n++;
         }
-        const blockIds = arr.slice(i0, i0 + n).map(r => r.id);
+        let blockIds = arr.slice(i0, i0 + n).map(r => r.id);
+        /* ligne cochée : toutes les lignes cochées du bloc se déplacent ensemble (dans leur ordre) */
+        const sel = insSelIds(k);
+        if (sel.has(arr[i0].id) && sel.size > 1) blockIds = arr.filter(r => sel.has(r.id)).map(r => r.id);
         if (blockIds.includes(target.dataset.iid)) return;
-        if (k === "des") { desDrop(arr, i0, n, target.dataset.iid, over ? "on" : after ? (inside ? "afterIn" : "after") : "before"); return; }
-        const block = arr.splice(i0, n);
+        if (k === "des") { desDrop(arr, blockIds, target.dataset.iid, over ? "on" : after ? (inside ? "afterIn" : "after") : "before"); return; }
+        const bset = new Set(blockIds);
+        const block = arr.filter(r => bset.has(r.id));
+        arr.splice(0, arr.length, ...arr.filter(r => !bset.has(r.id)));
         let j = arr.findIndex(r => r.id === target.dataset.iid);
         if (after) j++;
         arr.splice(j, 0, ...block);
@@ -12189,9 +12219,96 @@ function renderBudgetList() {
         if (rows.length) lastShown.detail = { ...lastShown.detail, rows };
       }
     };
+    /* ===== COPIER / COUPER / COLLER (FORMAT) : lignes cochées d'un bloc ;
+       collées à la fin du même bloc, dans ce budget ou un autre, sans liaison ;
+       « COPIE DE » seulement en cas de doublon ; COUPER = lignes non liées, retirées au COLLER ;
+       copie aussi dans le presse-papiers de l'iPad (tableau) ===== */
+    const CLIP_KEY = "svi_clip_v1";
+    const clipGet = () => { try { return JSON.parse(localStorage.getItem(CLIP_KEY) || "null"); } catch (e) { return null; } };
+    const clipSet = c => { try { c ? localStorage.setItem(CLIP_KEY, JSON.stringify(c)) : localStorage.removeItem(CLIP_KEY); } catch (e) {} };
+    const clipKinds = blk => blk === "detail" && !["chg", "prd", "qlt"].includes(active) ? [] : insBlkKinds(blk);
+    const clipPick = (blk, cut) => {
+      const X = shell.__ins, out = {};
+      if (!X) return out;
+      clipKinds(blk).forEach(k => {
+        const sel = insSelIds(k);
+        let rows = X.INS[k].filter(r => sel.has(r.id));
+        if (cut) {
+          /* couper : seulement les lignes non liées (un titre dont une ligne est liée reste) */
+          const used = new Set(rows.filter(r => !r.t && X.isUsed(k, r.id)).map(r => r.id));
+          rows = rows.filter(r => !used.has(r.id) && !(r.t && X.insBranch(r).some(x => used.has(x.id))));
+        }
+        if (rows.length) out[k] = rows;
+      });
+      return out;
+    };
+    const clipCount = (blk, act) => {
+      if (act === "paste") { const c = clipGet(); return c ? clipKinds(blk).reduce((t, k) => t + ((c.items || {})[k] || []).length, 0) : 0; }
+      const p = clipPick(blk, act === "cut");
+      return Object.values(p).reduce((t, a) => t + a.length, 0);
+    };
+    const clipTake = (blk, cut) => {
+      const p = clipPick(blk, cut);
+      if (!Object.keys(p).length) return;
+      const items = {}, tsv = [];
+      Object.keys(p).forEach(k => {
+        const minD = Math.min(...p[k].map(r => Number(r.d) || 0));
+        items[k] = p[k].map(r => { const c = JSON.parse(JSON.stringify(r)); delete c.on; delete c.lk; if (k === "des") c.d = (Number(r.d) || 0) - minD; return c; });
+        /* presse-papiers : en-tête + lignes, séparées par des tabulations */
+        if (INS_COLS[k]) {
+          tsv.push(INS_COLS[k].map(c => c[1]).join("\t"));
+          p[k].forEach(r => tsv.push(INS_COLS[k].map(c => { const v = r.t && !["art", "des"].includes(c[0]) ? "" : (c[3] === "txt" ? (r[c[0]] || "") : insFmt(insCalc(k, r, c[0]))); return String(v ?? "").replace(/[\t\n]/g, " "); }).join("\t")));
+        } else { tsv.push({ lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" }[k] || k.toUpperCase()); p[k].forEach(r => tsv.push(r.v || "")); }
+        tsv.push("");
+      });
+      clipSet({ items, cut: cut ? { ref, ids: Object.fromEntries(Object.keys(p).map(k => [k, p[k].map(r => r.id)])) } : null, from: fullRef });
+      try { navigator.clipboard && navigator.clipboard.writeText(tsv.join("\n").trim()).catch(() => {}); } catch (e) {}
+      histLog("SAISIE", cut ? "COUPER" : "COPIER", Object.values(p).reduce((t, a) => t + a.length, 0) + " LIGNE(S)");
+      insMarkCut();
+    };
+    /* lignes coupées : en pointillés jusqu'au COLLER */
+    const insMarkCut = () => {
+      const c = clipGet(), ids = new Set(c && c.cut && c.cut.ref === ref ? Object.values(c.cut.ids).flat() : []);
+      shell.querySelectorAll(".ins-table tr[data-iid], .ins-hcol .ins-li[data-iid]").forEach(el => el.classList.toggle("ins-cut", ids.has(el.dataset.iid)));
+    };
+    shell.__markCut = insMarkCut;
+    const clipPaste = blk => {
+      const X = shell.__ins, c = clipGet();
+      if (!X || !c) return;
+      let n = 0;
+      clipKinds(blk).forEach(k => {
+        const rows = (c.items || {})[k] || [];
+        if (!rows.length) return;
+        const fresh = rows.map(r => {
+          const x = JSON.parse(JSON.stringify(r));
+          x.id = insId(); x.on = false;
+          const lab = (k === "lot" || k === "prim" || k === "sec" || k === "qlt") ? "v" : "des";
+          /* doublon dans ce bloc (copie, pas coupe dans ce même budget) : « COPIE DE » */
+          const cutHere = c.cut && c.cut.ref === ref;
+          const dup = lab === "v" ? X.INS[k].some(o => U_(o.v) === U_(x.v)) : X.INS[k].some(o => impId(k, o) === impId(k, x));
+          if (dup && !cutHere) x[lab] = "COPIE DE " + (x[lab] || "");
+          return x;
+        });
+        X.INS[k].push(...fresh);
+        n += fresh.length;
+      });
+      if (!n) return;
+      /* coupe : les lignes d'origine sont retirées (dans ce budget ou dans l'autre) */
+      if (c.cut) {
+        const gone = c.cut.ids || {};
+        if (c.cut.ref === ref) Object.keys(gone).forEach(k => { const s0 = new Set(gone[k]); X.INS[k] = X.INS[k].filter(r => !s0.has(r.id)); });
+        else sviInstSet(sviInstGet().map(b => b.ref !== c.cut.ref ? b : { ...b, data: Object.fromEntries(Object.entries(b.data || {}).map(([k, v]) => [k, gone[k] ? v.filter(r => !gone[k].includes(r.id)) : v])) }));
+        c.cut = null; clipSet(c);
+      }
+      insNorm(); X.cleanLinks(); X.insSave();
+      histLog("SAISIE", "COLLER", n + " LIGNE(S) — DEPUIS " + (c.from || ""));
+      refreshAll();
+    };
     const runBlkAct = (blk, act) => {
       if (act === "max") return toggleMax(blk);
       if (act === "del") return insDelRun(blk);
+      if (act === "copy" || act === "cut") return clipTake(blk, act === "cut");
+      if (act === "paste") return clipPaste(blk);
       if (act === "export" || act === "pdf") insOnlyChecked(blk);
       if (!INS && blk === "detail" && active === "prd" && (act === "export" || act === "pdf")) return chooseFormat(act);
       const b = blk === "suivi" ? recActive : blk;
@@ -12216,6 +12333,10 @@ function renderBudgetList() {
         let lab = a.title;
         if (a.dataset.act === "max") lab = a.classList.contains("on") ? "Réduire" : "Agrandir";
         /* supprimer : grisé s'il n'y a aucune ligne cochée et déliée (l'erreur n'est pas proposée) */
+        if (["copy", "cut", "paste"].includes(a.dataset.act)) {
+          const n = clipCount(a.dataset.blk, a.dataset.act);
+          return `<button type="button" data-i="${i}" class="blk-del blk-clip${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}</span>${svCnt(n)}</button>`;
+        }
         if (a.dataset.act === "del") {
           const n = insDelPlan(a.dataset.blk).n;
           return `<button type="button" data-i="${i}" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}</span>${svCnt(n)}</button>`;
