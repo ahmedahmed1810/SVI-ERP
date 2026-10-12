@@ -6372,6 +6372,17 @@ function renderBudgetList() {
         if (!k || !DUP_LAB[k]) return;
         const id = inp.closest("[data-iid]")?.dataset.iid || (X.INS[k][X.INS[k].length - 1] || {}).id;
         const r = X.INS[k].find(x => x.id === id);
+        /* FORMAT 88 : même désignation (ART + DÉSIGNATION ; produit : DÉSIGNATION) avec une autre unité → refusée */
+        if ((k === "des" || k === "prd") && r && !r.t && U_(r.des) && U_(r.u)) {
+          const o = X.INS[k].find(x => x.id !== r.id && !x.t && U_(x.des) === U_(r.des) && (k === "prd" || U_(x.art) === U_(r.art)) && U_(x.u) && U_(x.u) !== U_(r.u));
+          if (o) {
+            const f = inp.dataset.f, old = shell.__dupOld && shell.__dupOld.id === r.id ? shell.__dupOld.row : null;
+            svToast([k === "des" ? r.art : "", r.des].filter(Boolean).join(" ") + " EXISTE DÉJÀ EN " + U_(o.u) + " : UNITÉ " + U_(r.u) + " REFUSÉE.", 4500, inp);
+            r[f] = old ? (old[f] ?? "") : "";
+            X.save(); X.refresh();
+            return;
+          }
+        }
         const key = dupKeyOf(k, r);
         if (!key) return;
         const other = X.INS[k].find(x => x.id !== r.id && dupKeyOf(k, x) === key);
@@ -10322,6 +10333,23 @@ function renderBudgetList() {
       const RAW = ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u", "nbr", "d1", "d2", "d3", "q"];
       const put = (k, key, row, hier) => { if (!seen.has(key)) { seen.set(key, true); hier ? m.hier.push({ key, lvl: k, row }) : m[k].push({ key, row }); } return key; };
       const seenLine = new Map();   /* doublons dans le fichier : tout identique sauf NBR / DIM / QTE */
+      /* FORMAT 88 : une même désignation (ART + DÉSIGNATION) / un même produit (DÉSIGNATION) n'a qu'une unité ;
+         la plus fréquente l'emporte (budget compris ; égalité : le budget, puis l'ordre du fichier) */
+      const UW = { d: new Map(), p: new Map() };
+      let uo = 0;
+      const uAdd = (g, key, u, n) => { if (!key || !u) return; const M = UW[g].get(key) || UW[g].set(key, new Map()).get(key); const e = M.get(u) || M.set(u, { n: 0, o: uo++ }).get(u); e.n += n; };
+      if (INS) {
+        const nL = (k, id) => (INS.links || []).reduce((t, l) => t + (k === "des" ? (l.des === id ? (l.prd || []).length + (l.chg || []).length : 0) : (l.prd || []).some(x => x.id === id) ? 1 : 0), 0);
+        INS.des.forEach(x => { if (!x.t) uAdd("d", U_(x.art) + "|" + U_(x.des), U_(x.u), Math.max(1, nL("des", x.id))); });
+        INS.prd.forEach(x => uAdd("p", U_(x.des), U_(x.u), Math.max(1, nL("prd", x.id))));
+      }
+      aoa.slice(hi + 1).forEach(r => {
+        if (!r) return;
+        const dc = U_(g(r, "dc")), t = bfNorm(g(r, "type")), dn = U_(g(r, "des"));
+        if (dc && U_(g(r, "upb"))) uAdd("d", U_(String(g(r, "art") ?? "").trim()) + "|" + dc, U_(g(r, "upb")), 1);
+        if (dn && t.startsWith("PRD") && U_(g(r, "u"))) uAdd("p", dn, U_(g(r, "u")), 1);
+      });
+      const uWin = (g, key) => { const M = UW[g].get(key); if (!M || M.size < 2) return null; const b = [...M].sort((a, c) => c[1].n - a[1].n || a[1].o - c[1].o)[0]; return { u: b[0], n: b[1].n }; };
       aoa.slice(hi + 1).forEach((r, ri) => {
         if (!r || !r.some(c => String(c ?? "").trim() !== "")) return;
         const lineNo = (aoa.__line0 || 0) + hi + 2 + ri;   /* numéro de ligne dans le tableau source */
@@ -10337,6 +10365,14 @@ function renderBudgetList() {
             const bad = [], why = [];
             const z = v => String(v ?? "").trim() === "" || num(v) === 0;
             if (!U_(g(r, "upb"))) { bad.push("upb"); why.push("UPB MANQUANTE : LA DÉSIGNATION CLIENT NE PEUT PAS ÊTRE LIÉE"); }
+            else {
+              const w = uWin("d", U_(String(g(r, "art") ?? "").trim()) + "|" + dc);
+              if (w && w.u !== U_(g(r, "upb"))) { bad.push("upb"); why.push("UPB " + U_(g(r, "upb")) + " ≠ UPB DE LA DÉSIGNATION " + [String(g(r, "art") ?? "").trim(), dc].filter(Boolean).join(" ") + " (" + w.u + ", " + w.n + " LIGNE" + (w.n > 1 ? "S" : "") + ")"); }
+            }
+            if (isP && U_(g(r, "u"))) {
+              const w = uWin("p", dn);
+              if (w && w.u !== U_(g(r, "u"))) { bad.push("u"); why.push("UNITÉ " + U_(g(r, "u")) + " ≠ UNITÉ DU PRODUIT " + dn + " (" + w.u + ", " + w.n + " LIGNE" + (w.n > 1 ? "S" : "") + ")"); }
+            }
             ["nbr", "d1", "d2", "d3", "q"].forEach(f => { if (!sviNumOk(g(r, f))) { bad.push(f); why.push("NOMBRE NON VALIDE : " + f.toUpperCase().replace(/^D(\d)$/, "DIM $1")); } });
             if (isP) {
               const u = U_(g(r, "u")), nd = sviUnitDims(u), known = ["U", "F", "M", "ML", "M2", "M3"].includes(u);
@@ -10422,7 +10458,8 @@ function renderBudgetList() {
       });
       exist.forEach(x => { add("p", x.pk, x.dk, x.n, x.name); add("s", x.sk, x.dk, x.n, x.name); });
       /* fichier : toutes les lignes, refusées comprises */
-      [...m.links.map(l => l.src), ...(m.rej || []).map(r => r.src)].forEach(src => {
+      /* une ligne refusée pour son unité ne compte pas pour la règle A (sa désignation est la même, mal écrite) */
+      [...m.links.map(l => l.src), ...(m.rej || []).filter(r => !(r.bad || []).includes("upb")).map(r => r.src)].forEach(src => {
         if (!src) return;
         const dc = U_(src.dc);
         if (!dc) return;
