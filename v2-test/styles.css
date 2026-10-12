@@ -1277,3 +1277,7 @@ body.svi-dragging, body.svi-dragging * { -webkit-user-select: none !important; u
 /* IMPORT NON CRÉÉ : case fautive encadrée, raison en rouge */
 .inc-table td.inc-bad { box-shadow: inset 0 0 0 2px #dc2626 !important; background: #fef2f2 !important; }
 .inc-table td.inc-why { color: #b91c1c !important; font-weight: 700; font-size: 11px; white-space: normal; }
+/* lignes coupées (en attente du COLLER) : pointillés */
+.ins-table tr.ins-cut td, .ins-hcol .ins-li.ins-cut { opacity: .5; outline: 1.5px dashed var(--inst, #b91c1c); outline-offset: -2px; }
+#blkMenu button.blk-clip { color: #172033; }
+#blkMenu button.blk-clip.off { color: #9aa3af; }
