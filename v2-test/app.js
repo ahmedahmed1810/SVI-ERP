@@ -2426,6 +2426,10 @@ function sviIntitule(ref, project, inst) {
   const R = String(ref || "").trim().toUpperCase(), P = String(project || "").trim().toUpperCase();
   return I.byRef[R] || I.byRef[(P + " " + R).trim()] || I.byPrj[P] || "À COMPLÉTER";
 }
+/* client d'un budget : saisi dans INF (budgets créés dans l'application) ; sinon « À COMPLÉTER » */
+function sviClient(inst) {
+  return (inst && String(inst.client || "").trim().toUpperCase()) || "À COMPLÉTER";
+}
 function v3ToRows(v3) {
   const tab = name => {
     const t = v3[name] || [];
@@ -8318,7 +8322,7 @@ function renderBudgetList() {
       const projet = (() => { const it = sviIntitule(ref, budget.project, budget.inst); return it !== "À COMPLÉTER" ? it : budget.project; })();
       return {
         date: "Agadir, le " + String(d0.getDate()).padStart(2, "0") + " " + mois[d0.getMonth()] + " " + d0.getFullYear(),
-        budget: "BUDGET N° : " + fullRef, client: "CLIENT : À COMPLÉTER", projet: "PROJET : " + projet,
+        budget: "BUDGET N° : " + fullRef, client: "CLIENT : " + sviClient(budget.inst), projet: "PROJET : " + projet,
         titre: String(blkLabel(blk)).toUpperCase()
       };
     };
@@ -8550,7 +8554,7 @@ function renderBudgetList() {
           const projet = (() => { const it = sviIntitule(ref, budget.project, budget.inst); return it !== "À COMPLÉTER" ? it : budget.project; })();
           const top = [
             ["Agadir, le " + String(d0.getDate()).padStart(2, "0") + " " + mois[d0.getMonth()] + " " + d0.getFullYear()],
-            ["BUDGET N° : " + fullRef], ["CLIENT : À COMPLÉTER"], ["PROJET : " + projet],
+            ["BUDGET N° : " + fullRef], ["CLIENT : " + sviClient(budget.inst)], ["PROJET : " + projet],
             [String(blkLabel(blk)).toUpperCase()], []
           ];
           const H0 = top.length;
@@ -9007,7 +9011,7 @@ function renderBudgetList() {
         const now = new Date(), p2 = n => String(n).padStart(2, "0");
         const nr = nextBudgetRef(now);
         const list = instLoad();
-        list.push({ ref: nr, project: budget.project, intitule: (budget.inst && budget.inst.intitule) || "À COMPLÉTER",
+        list.push({ ref: nr, project: budget.project, intitule: (budget.inst && budget.inst.intitule) || "À COMPLÉTER", client: (budget.inst && budget.inst.client) || "",
           created: now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()) + "T" + p2(now.getHours()) + ":" + p2(now.getMinutes()),
           state: "instance", data: dupData() });
         instSave(list);
@@ -9977,7 +9981,7 @@ function renderBudgetList() {
   <div class="head">
     <img src="${SVI_LOGO}" alt="">
     <div class="date">${dateTxt}</div>
-    <div class="t">BUDGET N° : ${esc(fullRef)}<br>CLIENT : À COMPLÉTER<br>PROJET : ${esc(projet)}${cfg.headLine ? "<br>" + esc(cfg.headLine) : ""}</div>
+    <div class="t">BUDGET N° : ${esc(fullRef)}<br>CLIENT : ${esc(sviClient(budget.inst))}<br>PROJET : ${esc(projet)}${cfg.headLine ? "<br>" + esc(cfg.headLine) : ""}</div>
   </div>
   ${cfg.table}
   <div id="end">${cfg.end}</div>
@@ -11468,6 +11472,7 @@ function renderBudgetList() {
         ["DATE CRÉATION", (dt && dt.label) || ""],
         ["PROJET", budget.project],
         ["INTITULÉ", sviIntitule(ref, budget.project, budget.inst)],
+        ["CLIENT", sviClient(budget.inst)],
       ];
       /* budget en instance : l'INTITULÉ se saisit ici (repris dans les listes, exports et aperçus) */
       const editInt = !!(budget.inst && (budget.inst.state || "instance") === "instance");
@@ -11484,8 +11489,8 @@ function renderBudgetList() {
             <div class="doc-grid inf-grid">
               ${items.map(([k, v]) => `
                 <span class="doc-lab">${esc(k)}</span>
-                ${k === "INTITULÉ" && editInt
-                  ? `<input class="doc-in inf-int" id="infInt" value="${esc(v === "À COMPLÉTER" ? "" : v)}" placeholder="À COMPLÉTER" autocomplete="off">`
+                ${(k === "INTITULÉ" || k === "CLIENT") && editInt
+                  ? `<input class="doc-in inf-int" id="${k === "CLIENT" ? "infCli" : "infInt"}" value="${esc(v === "À COMPLÉTER" ? "" : v)}" placeholder="À COMPLÉTER" autocomplete="off">`
                   : `<span class="doc-in doc-ro inf-val">${esc(v)}</span>`}`).join("")}
             </div>
           </div>
@@ -11495,16 +11500,19 @@ function renderBudgetList() {
         </div>`;
       document.body.appendChild(p);
       popEnhance(p, "inf");
+      /* INTITULÉ et CLIENT : enregistrés à la fermeture de la fenêtre */
       const saveInt = () => {
-        const i = p.querySelector("#infInt");
-        if (!i) return;
-        const v = i.value.trim().toUpperCase();
-        if (v === String(budget.inst.intitule || "").trim().toUpperCase()) return;
-        budget.inst.intitule = v || "À COMPLÉTER";
-        sviInstSet(sviInstGet().map(x => x.ref === ref ? { ...x, intitule: budget.inst.intitule } : x));
-        histLog("INF", "INTITULÉ", budget.inst.intitule);
+        [["#infInt", "intitule", "INTITULÉ", "À COMPLÉTER"], ["#infCli", "client", "CLIENT", ""]].forEach(([sel, f, lab, def]) => {
+          const i = p.querySelector(sel);
+          if (!i) return;
+          const v = i.value.trim().toUpperCase();
+          if (v === String(budget.inst[f] || "").trim().toUpperCase()) return;
+          budget.inst[f] = v || def;
+          sviInstSet(sviInstGet().map(x => x.ref === ref ? { ...x, [f]: budget.inst[f] } : x));
+          histLog("INF", lab, budget.inst[f] || "—");
+        });
       };
-      p.querySelector("#infInt")?.addEventListener("input", e => { e.target.value = e.target.value.toUpperCase(); });
+      p.querySelectorAll("#infInt, #infCli").forEach(i => i.addEventListener("input", e => { e.target.value = e.target.value.toUpperCase(); }));
       p.addEventListener("click", e => {
         if (e.target === p || e.target.closest("[data-cancel]")) { saveInt(); p.remove(); }
       });
@@ -12480,7 +12488,7 @@ function openProjectPopup(ref) {
         </div>
         <div class="bdg-popup-field">
           <label>CLIENT</label>
-          <div>À COMPLÉTER</div>
+          <div>${esc(sviClient(group.inst))}</div>
         </div>
         <div class="bdg-popup-note">
           Fiche provisoire : les champs seront modifiables dans le futur module Projets.
