@@ -48,6 +48,16 @@ const SVI_CUT_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidde
 const SVI_PASTE_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 4V2.8h6V4M9 10h6M9 14h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
 const SVI_DEL_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
+/* ESPACES (FORMAT) : à toute saisie, espaces de début et de fin effacés, un seul espace entre les mots */
+const sviClean = v => String(v ?? "").replace(/\s+/g, " ").trim();
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (!t || !(t.tagName === "TEXTAREA" || (t.tagName === "INPUT" && /^(text|search|url|email|tel|)$/i.test(t.type || "")))) return;
+  if (t.tagName === "TEXTAREA") { const c = t.value.split("\n").map(x => x.replace(/[ \t]+/g, " ").trim()).join("\n").trim(); if (c !== t.value) { t.value = c; t.dispatchEvent(new Event("input", { bubbles: true })); } return; }
+  const c = sviClean(t.value);
+  if (c !== t.value) { t.value = c; t.dispatchEvent(new Event("input", { bubbles: true })); }
+}, true);
+
 /* =========================================================
    CHARGEMENT EN COURS : tout échange avec Google (script, feuilles)
    affiche une fenêtre centrale et bloque l'écran jusqu'à la réponse.
@@ -6101,7 +6111,9 @@ function renderBudgetList() {
       ["des", "DÉSIGNATION", 220, ""], ["u", "UNITÉ", 60, "center"], ["nbr", "NBR", 60, "number"], ["d1", "DIM 1", 60, "number"], ["d2", "DIM 2", 60, "number"],
       ["d3", "DIM 3", 60, "number"], ["q", "QTE", 70, "number"]];
     const insIncHTML = () => {
-      const UC = [...INC_COLS.map(c => [c[0], c[1], x => x.src[c[0]] || "", c[3]]), ["why", "RAISON", x => x.why || "", ""]];
+      /* justificatif : numéro de la ligne dans le tableau source + raison */
+      const why = x => (x.line ? "LIGNE " + x.line + " — " : "") + (x.why || "");
+      const UC = [...INC_COLS.map(c => [c[0], c[1], x => x.src[c[0]] || "", c[3]]), ["why", "RAISON", why, ""]];
       const rows = cfApply("lk_inc", UC, (INS.inc || []).slice().sort((a, b) => natCmp(a.src.dc, b.src.dc)));
       lastShown.detail = { cols: UC, rows, kind: "inc" };
       const w = k => cwLoad()["lk_inc." + k] || ((INC_COLS.find(c => c[0] === k) || [])[2]) || 320;
@@ -6112,7 +6124,7 @@ function renderBudgetList() {
         <thead><tr>${UC.map(c => cfHead("lk_inc", c[0], c[1], c[3])).join("")}<th class="center">${ed ? `<input type="checkbox" class="inc-cball"${all ? " checked" : ""}>` : ""}</th></tr></thead>
         <tbody>${rows.map(x => `<tr data-inc="${x.id}">${INC_COLS.map(c => `<td class="${c[3]} ins-td${(x.bad || []).includes(c[0]) ? " inc-bad" : ""}">${ed
             ? `<input class="ins-in inc-in ${c[3]}" data-f="${c[0]}" value="${esc(x.src[c[0]] || "")}" autocomplete="off">` : esc(x.src[c[0]] || "")}</td>`).join("")}
-          <td class="inc-why">${esc(x.why || "")}</td><td class="center">${ed ? `<input type="checkbox" class="inc-cb"${x.on === true ? " checked" : ""}>` : ""}</td></tr>`).join("")
+          <td class="inc-why">${esc(why(x))}</td><td class="center">${ed ? `<input type="checkbox" class="inc-cb"${x.on === true ? " checked" : ""}>` : ""}</td></tr>`).join("")
           || `<tr><td colspan="${UC.length + 1}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
     };
     if (!shell.__incBound) {
@@ -6250,6 +6262,11 @@ function renderBudgetList() {
       INS.des.splice(0, INS.des.length, ...flat);
     };
     const insSortAll = () => ["des", "lot", "prim", "sec", "chg", "prd", "qlt"].forEach(insSortKind);
+    /* espaces nettoyés une fois dans les données déjà enregistrées (FORMAT) */
+    if (INS && INS_EDIT && !INS.cleanV1) {
+      ["des", "lot", "prim", "sec", "chg", "prd", "qlt"].forEach(k => (INS[k] || []).forEach(r => ["art", "des", "u", "v"].forEach(f => { if (typeof r[f] === "string") r[f] = sviClean(r[f]); })));
+      INS.cleanV1 = true; insSave();
+    }
     if (INS && INS_EDIT && !INS.sortedV1) { insSortAll(); INS.sortedV1 = true; insSave(); }
     shell.__dupX = INS && INS_EDIT ? { INS, ask: (k, a, b, o) => dupAsk(k, a, b, o), save: () => insSave(), refresh: () => refreshAll() } : null;
     /* doublons déjà présents (anciens budgets, imports) : proposés à l'ouverture, un par un ; IGNORER = plus redemandé pendant la séance */
@@ -9922,14 +9939,16 @@ function renderBudgetList() {
       const C = { art: col("ART"), dc: col("DESIGNATION CLIENT"), upb: col("UPB"), lot: col("LOT"), prim: col("ACTIVITE PRIMAIRE"),
         sec: col("ACTIVITE SECONDAIRE"), type: col("TYPE*"), article: col("ARTICLE"), des: col("DESIGNATION"), u: col("UNITE"),
         nbr: col("NBR"), d1: col("DIM 1", "DIM1"), d2: col("DIM 2", "DIM2"), d3: col("DIM 3", "DIM3"), q: col("QTE", "QUANTITE") };
-      const g = (r, k) => C[k] < 0 ? "" : (r[C[k]] ?? "");
+      const g = (r, k) => C[k] < 0 ? "" : sviClean(r[C[k]] ?? "");
       const nn = v => String(v ?? "").trim() === "" ? "" : num(v);
       const m = { des: [], hier: [], chg: [], prd: [], qlt: [], dly: [], links: [], rej: [] };
       const seen = new Map();
       const RAW = ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u", "nbr", "d1", "d2", "d3", "q"];
       const put = (k, key, row, hier) => { if (!seen.has(key)) { seen.set(key, true); hier ? m.hier.push({ key, lvl: k, row }) : m[k].push({ key, row }); } return key; };
-      aoa.slice(hi + 1).forEach(r => {
+      const seenLine = new Map();   /* doublons dans le fichier : tout identique sauf NBR / DIM / QTE */
+      aoa.slice(hi + 1).forEach((r, ri) => {
         if (!r || !r.some(c => String(c ?? "").trim() !== "")) return;
+        const lineNo = (aoa.__line0 || 0) + hi + 2 + ri;   /* numéro de ligne dans le tableau source */
         const dc = U_(g(r, "dc")), lot = U_(g(r, "lot")), prim = U_(g(r, "prim")), sec = U_(g(r, "sec"));
         const t = bfNorm(g(r, "type")), dn = U_(g(r, "des"));
         let dk = "", pk = "", ck = "";
@@ -9951,7 +9970,13 @@ function renderBudgetList() {
           ck = put("chg", "chg|" + impId("chg", row), row);
         }
         const src = Object.fromEntries(RAW.map(k => [k, String(g(r, k) ?? "").trim()]));
-        if (dk && hk[0] && hk[1] && hk[2] && (pk || ck)) { m.links.push({ dk, lot: hk[0], prim: hk[1], sec: hk[2], pk: pk || undefined, ck: ck || undefined, q: "", src }); return; }
+        src.__line = aoa.__lineFix || lineNo;
+        if (dk && hk[0] && hk[1] && hk[2] && (pk || ck)) {
+          const lk = ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u"].map(f => U_(src[f])).join("|");
+          if (seenLine.has(lk)) { m.rej.push({ src, bad: ["des"], why: "DOUBLON DANS LE FICHIER : IDENTIQUE À LA LIGNE " + seenLine.get(lk) + " (SEULS NBR / DIM / QTE PEUVENT DIFFÉRER)" }); return; }
+          seenLine.set(lk, src.__line);
+          m.links.push({ dk, lot: hk[0], prim: hk[1], sec: hk[2], pk: pk || undefined, ck: ck || undefined, q: "", src }); return;
+        }
         /* ligne qui voulait une liaison mais incomplète → onglet IMPORT NON CRÉÉ (raison + cases fautives) */
         const chain = !!(lot || prim || sec), det = !!(t || dn);
         if (!((dc && (chain || det)) || (chain && det))) return;
@@ -9998,11 +10023,16 @@ function renderBudgetList() {
       INS.links = INS.links || [];
       const rej = (m.rej || []).slice();
       const byId = (k, id) => INS[k].find(x => x.id === id) || {};
+      /* liaisons déjà dans le budget avant l'import : une ligne identique va dans IMPORT NON CRÉÉ */
+      const had = new Set();
+      (INS.links || []).forEach(l => { const c = [l.des, l.lot, l.prim, l.sec].join("|"); (l.prd || []).forEach(x => had.add(c + "|p|" + x.id)); (l.chg || []).forEach(x => had.add(c + "|c|" + x.id)); });
       const chgOnly = new Map();   /* liaison sans produit : ses charges iront dans IMPORT NON CRÉÉ */
       m.links.forEach(l => {
         const des = kid.get(l.dk), lot = kid.get(l.lot), prim = kid.get(l.prim), sec = kid.get(l.sec);
         const pid = l.pk && kid.get(l.pk), cid = l.ck && kid.get(l.ck);
         if (!des || !lot || !prim || !sec || (!pid && !cid)) return;
+        const ch0 = [des, lot, prim, sec].join("|");
+        if ((pid && had.has(ch0 + "|p|" + pid)) || (cid && had.has(ch0 + "|c|" + cid))) { rej.push({ src: l.src, bad: ["des"], why: "DOUBLON : EXISTE DÉJÀ DANS LE BUDGET (SEULS NBR / DIM / QTE PEUVENT DIFFÉRER)" }); return; }
         /* règle A : une activité primaire n'a qu'une désignation */
         const other = INS.links.find(x => x.prim === prim && x.des !== des);
         if (other) { rej.push({ src: l.src, bad: ["prim"], why: "RÈGLE A : ACTIVITÉ PRIMAIRE DÉJÀ LIÉE À " + (byId("des", other.des).des || "") }); return; }
@@ -10024,7 +10054,11 @@ function renderBudgetList() {
       INS.links = INS.links.filter(x => (x.prd || []).length);
       insCleanLinks();
       if (mode === "replace") INS.inc = [];
-      INS.inc = (INS.inc || []).concat(rej.map(x => ({ id: insId(), on: false, src: x.src, bad: x.bad, why: x.why })));
+      /* une même ligne refusée deux fois (import refait) n'apparaît qu'une fois */
+      const incKey = x => JSON.stringify(["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u", "nbr", "d1", "d2", "d3", "q"].map(f => U_((x.src || {})[f])));
+      const inK = new Set((INS.inc || []).map(incKey));
+      INS.inc = (INS.inc || []).concat(rej.filter(x => { const kk = incKey(x); if (inK.has(kk)) return false; inK.add(kk); return true; })
+        .map(x => ({ id: insId(), on: false, src: x.src, bad: x.bad, why: x.why, line: (x.src || {}).__line || "" })));
       insSave();
       if (quiet) { refreshAll(); return rej; }
       insSortAll();
@@ -10040,6 +10074,7 @@ function renderBudgetList() {
       INS.inc = (INS.inc || []).filter(x => x.id !== item.id);
       const s0 = item.src;
       const aoa = [BF_HEAD, ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u", "nbr", "d1", "d2", "d3", "q"].map(k => s0[k] ?? "")];
+      aoa.__lineFix = s0.__line || item.line || "";
       const before = (INS.inc || []).length;
       bfApply(bfModel(aoa), "add", "CORRECTION", true);
       const again = (INS.inc || []).slice(before);
