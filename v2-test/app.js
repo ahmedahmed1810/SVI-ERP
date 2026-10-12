@@ -352,6 +352,29 @@ const SV_TABSETS = [
   { c: ".imp-tabs", t: ".imp-tab", k: "tab", set: "import" },
   { c: ".hist-filters", t: ".hist-f", k: "b", set: "hist" }
 ];
+/* onglets : dans chaque rangée (chaque bloc), tous les intercalaires ont la même largeur,
+   celle qu'il faut pour le plus long de SES intitulés (recalculée quand un intitulé change) */
+const sviEqualTabs = () => {
+  SV_TABSETS.forEach(set => document.querySelectorAll(set.c).forEach(c => {
+    const ts = [...c.querySelectorAll(set.t)].filter(t => t.offsetParent !== null || t.style.width);
+    if (ts.length < 2) return;
+    ts.forEach(t => { t.style.width = ""; t.style.flex = "none"; t.style.whiteSpace = "nowrap"; });
+    const w = Math.ceil(Math.max(...ts.map(t => t.getBoundingClientRect().width)));
+    if (!w) return;
+    ts.forEach(t => { t.style.boxSizing = "border-box"; t.style.width = w + "px"; t.style.flex = "none"; t.style.justifyContent = "center"; });
+  }));
+};
+{
+  let q = 0;
+  const run = () => { q = 0; try { sviEqualTabs(); } catch (e) {} };
+  const sel = SV_TABSETS.map(x => x.c).join(",");
+  new MutationObserver(ms => {
+    if (q) return;
+    if (!ms.some(m => { const el = m.target.nodeType === 1 ? m.target : m.target.parentElement; return el && (el.closest(sel) || (el.querySelector && el.querySelector(sel))); })) return;
+    q = requestAnimationFrame(run);
+  }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+  window.addEventListener("resize", () => { if (!q) q = requestAnimationFrame(run); });
+}
 const svTabLoad = () => { try { return JSON.parse(localStorage.getItem("svi_taborder_v1") || "{}") || {}; } catch (e) { return {}; } };
 const svTabApply = () => {
   const O = svTabLoad();
@@ -2396,6 +2419,13 @@ function brdForm(
    BASE V3 → lignes au format de l'ancien onglet BDG (colonnes A:Z),
    pour que tout l'écran du budget fonctionne sans changement
    ========================================================= */
+/* intitulé d'un budget : saisi dans INF (budget en instance), sinon base V3 ; à défaut « À COMPLÉTER » */
+function sviIntitule(ref, project, inst) {
+  if (inst) return String(inst.intitule || "").trim().toUpperCase() || "À COMPLÉTER";
+  const I = window.SVI_V3_INT || { byRef: {}, byPrj: {} };
+  const R = String(ref || "").trim().toUpperCase(), P = String(project || "").trim().toUpperCase();
+  return I.byRef[R] || I.byRef[(P + " " + R).trim()] || I.byPrj[P] || "À COMPLÉTER";
+}
 function v3ToRows(v3) {
   const tab = name => {
     const t = v3[name] || [];
@@ -2406,6 +2436,15 @@ function v3ToRows(v3) {
   const fr = v => typeof v === "number" ? String(v).replace(".", ",") : String(v ?? "");
   const budgets = tab("budgets"), desig = tab("designations"), taches = tab("taches"), details = tab("details");
   const bud = new Map(budgets.map(b => [String(b.REF), b]));
+  /* intitulé des budgets validés : base V3 (onglet BUDGETS, colonne INTITULE) ; BDS n'est plus lu */
+  window.SVI_V3_INT = { byRef: {}, byPrj: {} };
+  budgets.forEach(b => {
+    const it = String(b.INTITULE ?? "").trim().toUpperCase();
+    if (!it) return;
+    window.SVI_V3_INT.byRef[String(b.REF).trim().toUpperCase()] = it;
+    const pj = String(b.PROJET ?? "").trim().toUpperCase();
+    if (pj && !window.SVI_V3_INT.byPrj[pj]) window.SVI_V3_INT.byPrj[pj] = it;
+  });
   const des = new Map(desig.map(d => [String(d.ID), d]));
   const tch = new Map(taches.map(t => [String(t.ID), t]));
   const HEAD = ["", "", "", "", "", "", "PRJ", "N°", "DESIGNATION", "UDB", "LOT", "ACTIVITE", "CLE",
@@ -3902,17 +3941,8 @@ function renderBudgetList() {
 
     const entered = validated;
 
-    /* Intitulé provisoire : nom du projet dans BDS s'il existe */
-    const known =
-      db.projects.find(
-        p =>
-          normalise(p.code) ===
-          normalise(budgetName)
-      );
-
-    const intitule =
-      normalise(known?.name) ||
-      "À COMPLÉTER";
+    /* intitulé : saisi dans INF, sinon base V3 (BDS n'est plus lu) */
+    const intitule = sviIntitule(budget.ref, budgetName, budget.inst);
 
     if (budget.inst) {
       const c = String(budget.inst.created || "");
@@ -4945,7 +4975,7 @@ function renderBudgetList() {
       { key: "qlt", title: "DÉTAIL QUALITÉ" },
       { key: "dly", title: "DÉTAIL DÉLAIS" },
       /* budget en instance : les liaisons validées sont un onglet du détail */
-      ...(budget.inst ? [{ key: "lnk", title: "LIAISONS VALIDÉES" }] : [])
+      ...(budget.inst ? [{ key: "lnk", title: "LIAISONS VALIDÉES" }, { key: "unl", title: "LIGNES NON LIÉES" }] : [])
     ];
 
     /* dernier onglet du détail ouvert (charges, produits, qualité, délais) */
@@ -4991,7 +5021,6 @@ function renderBudgetList() {
         <h1 class="bdg-d-h1">
           ${esc(budget.project)}
         </h1>
-        ${INST_LIVE ? `<button type="button" class="ins-unl-btn" id="insUnlBtn" hidden></button>` : ""}
 
         <div class="bdg-d-hright">
           ${INST_LIVE ? `
@@ -5912,6 +5941,48 @@ function renderBudgetList() {
           ? `<td class="center"><button type="button" class="lk-del" data-lid="${l.id}">${INS_TRASH} DÉLIER</button></td>` : ""}</tr>`).join("")
           || `<tr><td colspan="${oc.length + (dw ? 1 : 0)}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
     };
+    /* LIGNES NON LIÉES (onglet du détail) : BLOC, LIBELLÉ ; cases à cocher, suppression par le menu ⋯ */
+    const UNL_BLOC = { des: "DÉSIGNATION CLIENT", lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE", prd: "PRODUIT", chg: "CHARGE" };
+    const insUnlRows = () => {
+      const u = insUnlinked(), out = [];
+      INS_LINKED_KINDS.forEach(k => u[k].forEach(r => out.push({ k, r, id: r.id,
+        bloc: UNL_BLOC[k], lib: (k === "lot" || k === "prim" || k === "sec") ? (r.v || "") : [r.art, r.des].filter(Boolean).join(" — ") + (r.u ? " (" + r.u + ")" : "") })));
+      return out;
+    };
+    const insUnlHTML = () => {
+      const UC = [["bloc", "BLOC", x => x.bloc, ""], ["lib", "LIBELLÉ", x => x.lib, ""]];
+      const W = { bloc: 200, lib: 520 };
+      const oc = coOrder("lk_unl", UC);
+      const w = k => cwLoad()["lk_unl." + k] || W[k] || 160;
+      const rows = cfApply("lk_unl", UC, insUnlRows());
+      lastShown.detail = { cols: UC, rows, kind: "unl" };
+      const dw = INS_EDIT ? 40 : 0;
+      const all = rows.length && rows.every(x => x.r.on === true);
+      return `<table class="bdg-d-table lk-table unl-table" style="width:${oc.reduce((t, c) => t + w(c[0]), 0) + dw}px">
+        <colgroup>${oc.map(c => `<col data-w="lk_unl.${c[0]}" style="width:${w(c[0])}px">`).join("")}${dw ? `<col style="width:${dw}px">` : ""}</colgroup>
+        <thead><tr>${oc.map(c => cfHead("lk_unl", c[0], c[1], c[3])).join("")}${dw ? `<th class="center"><input type="checkbox" class="unl-cball"${all ? " checked" : ""}></th>` : ""}</tr></thead>
+        <tbody>${rows.map(x => `<tr data-uk="${x.k}" data-uid="${x.id}">${oc.map(c => `<td class="${c[3]}">${esc(c[2](x))}</td>`).join("")}${dw
+          ? `<td class="center"><input type="checkbox" class="unl-cb"${x.r.on === true ? " checked" : ""}></td>` : ""}</tr>`).join("")
+          || `<tr><td colspan="${oc.length + (dw ? 1 : 0)}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
+    };
+    if (!shell.__unlBound) {
+      shell.__unlBound = true;
+      shell.addEventListener("change", e => {
+        const X = shell.__unl;
+        if (!X) return;
+        const cb = e.target.closest && e.target.closest("input.unl-cb, input.unl-cball");
+        if (!cb) return;
+        if (cb.classList.contains("unl-cball")) {
+          cb.closest("table").querySelectorAll("tbody tr[data-uk]").forEach(tr => { const r = X.INS[tr.dataset.uk].find(x => x.id === tr.dataset.uid); if (r) r.on = cb.checked; });
+        } else {
+          const tr = cb.closest("tr[data-uk]");
+          const r = tr && X.INS[tr.dataset.uk].find(x => x.id === tr.dataset.uid);
+          if (r) r.on = cb.checked;
+        }
+        X.save(); X.refresh();
+      });
+    }
+    shell.__unl = INS ? { INS, save: () => insSave(), refresh: () => refreshAll() } : null;
     /* modification en attente : produits / charges choisis, ou délais changés et pas encore validés */
     const lkDlyDirty = () => {
       const D = LK.dlpDraft || {};
@@ -5980,6 +6051,7 @@ function renderBudgetList() {
         return;
       }
       if (active === "lnk") { body.innerHTML = `<div class="bdg-d-scroll">${insLinksHTML()}</div>`; return; }
+      if (active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
       body.innerHTML = `<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
       shell.__insMore = () => insMoreRows(active);
       lastShown.detail = { cols: insCfCols(active), rows: insShown(active), kind: active, ins: true };
@@ -6261,12 +6333,11 @@ function renderBudgetList() {
         if (!u[k]) return;
         el.classList.toggle("ins-unl", !u[k].has(el.dataset.iid));
       });
-      const b = $("insUnlBtn");
-      if (b) {
-        const n = insUnlCount();
-        b.hidden = !(INS_EDIT && n > 0);
-        b.innerHTML = INS_TRASH + " NON LIÉES " + svCnt(n);
-      }
+      /* FIGER grisé tant que l'onglet LIGNES NON LIÉES n'est pas à 0 */
+      const lk = $("instLock");
+      if (lk && INS_EDIT) { const n = insUnlCount(); lk.disabled = n > 0; lk.title = n ? n + " LIGNE(S) NON LIÉE(S) : ONGLET LIGNES NON LIÉES" : "Figer (lecture seule)"; }
+      const tb = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="unl"]`);
+      if (tb) tb.innerHTML = (SVI_ICON.hier || "") + "LIGNES NON LIÉES " + svCnt(insUnlCount());
     };
 
     /* ---------- DÉTAIL DÉLAIS (instance) : une ligne par activité secondaire ---------- */
@@ -8244,8 +8315,7 @@ function renderBudgetList() {
         "septembre", "octobre", "novembre", "décembre"];
       const d0 = new Date();
       const N = v => String(v ?? "").trim().toUpperCase();
-      const prj = db.projects.find(x => N(x.code) === N(budget.project));
-      const projet = (prj && prj.name && N(prj.name) !== N(budget.project)) ? prj.name : budget.project;
+      const projet = (() => { const it = sviIntitule(ref, budget.project, budget.inst); return it !== "À COMPLÉTER" ? it : budget.project; })();
       return {
         date: "Agadir, le " + String(d0.getDate()).padStart(2, "0") + " " + mois[d0.getMonth()] + " " + d0.getFullYear(),
         budget: "BUDGET N° : " + fullRef, client: "CLIENT : À COMPLÉTER", projet: "PROJET : " + projet,
@@ -8477,8 +8547,7 @@ function renderBudgetList() {
             "septembre", "octobre", "novembre", "décembre"];
           const d0 = new Date();
           const N = v => String(v ?? "").trim().toUpperCase();
-          const prj = db.projects.find(x => N(x.code) === N(budget.project));
-          const projet = (prj && prj.name && N(prj.name) !== N(budget.project)) ? prj.name : budget.project;
+          const projet = (() => { const it = sviIntitule(ref, budget.project, budget.inst); return it !== "À COMPLÉTER" ? it : budget.project; })();
           const top = [
             ["Agadir, le " + String(d0.getDate()).padStart(2, "0") + " " + mois[d0.getMonth()] + " " + d0.getFullYear()],
             ["BUDGET N° : " + fullRef], ["CLIENT : À COMPLÉTER"], ["PROJET : " + projet],
@@ -9713,8 +9782,7 @@ function renderBudgetList() {
         "août", "septembre", "octobre", "novembre", "décembre"];
       const now = new Date();
       const dateTxt = `Agadir, le ${String(now.getDate()).padStart(2, "0")} ${mois[now.getMonth()]} ${now.getFullYear()}`;
-      const prj = db.projects.find(x => N(x.code) === N(budget.project));
-      const projet = (prj && prj.name && N(prj.name) !== N(budget.project)) ? prj.name : budget.project;
+      const projet = (() => { const it = sviIntitule(ref, budget.project, budget.inst); return it !== "À COMPLÉTER" ? it : budget.project; })();
       const fileName = (fullRef + " " + cfg.fileTag).replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "_") + ".pdf";
 
       const w = window.open("", "_blank");
@@ -11384,8 +11452,6 @@ function renderBudgetList() {
 
     /* fenêtre INF : informations du budget */
     const openInfo = () => {
-      const prj = db.projects.find(x =>
-        String(x.code ?? "").trim().toUpperCase() === String(budget.project).trim().toUpperCase());
       const dt = typeof budgetDate === "function" ? budgetDate(ref) : null;
       const prd = lines.filter(l => l.kind === "prd");
       const chg = lines.filter(l => l.kind === "chg");
@@ -11401,8 +11467,10 @@ function renderBudgetList() {
       const items = [
         ["DATE CRÉATION", (dt && dt.label) || ""],
         ["PROJET", budget.project],
-        ["INTITULÉ", (prj && prj.name) || "À COMPLÉTER"],
+        ["INTITULÉ", sviIntitule(ref, budget.project, budget.inst)],
       ];
+      /* budget en instance : l'INTITULÉ se saisit ici (repris dans les listes, exports et aperçus) */
+      const editInt = !!(budget.inst && (budget.inst.state || "instance") === "instance");
       document.getElementById("docPop")?.remove();
       const p = document.createElement("div");
       p.id = "docPop";
@@ -11416,7 +11484,9 @@ function renderBudgetList() {
             <div class="doc-grid inf-grid">
               ${items.map(([k, v]) => `
                 <span class="doc-lab">${esc(k)}</span>
-                <span class="doc-in doc-ro inf-val">${esc(v)}</span>`).join("")}
+                ${k === "INTITULÉ" && editInt
+                  ? `<input class="doc-in inf-int" id="infInt" value="${esc(v === "À COMPLÉTER" ? "" : v)}" placeholder="À COMPLÉTER" autocomplete="off">`
+                  : `<span class="doc-in doc-ro inf-val">${esc(v)}</span>`}`).join("")}
             </div>
           </div>
           <div class="doc-foot">
@@ -11425,8 +11495,18 @@ function renderBudgetList() {
         </div>`;
       document.body.appendChild(p);
       popEnhance(p, "inf");
+      const saveInt = () => {
+        const i = p.querySelector("#infInt");
+        if (!i) return;
+        const v = i.value.trim().toUpperCase();
+        if (v === String(budget.inst.intitule || "").trim().toUpperCase()) return;
+        budget.inst.intitule = v || "À COMPLÉTER";
+        sviInstSet(sviInstGet().map(x => x.ref === ref ? { ...x, intitule: budget.inst.intitule } : x));
+        histLog("INF", "INTITULÉ", budget.inst.intitule);
+      };
+      p.querySelector("#infInt")?.addEventListener("input", e => { e.target.value = e.target.value.toUpperCase(); });
       p.addEventListener("click", e => {
-        if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
+        if (e.target === p || e.target.closest("[data-cancel]")) { saveInt(); p.remove(); }
       });
     };
 
@@ -11682,14 +11762,17 @@ function renderBudgetList() {
 
     /* budget en instance : lignes cochées d'un bloc (les cases servent à supprimer, exporter, aperçu) */
     const insBlkKinds = blk => blk === "client" ? ["des"] : blk === "hier" ? ["lot", "prim", "sec"]
-      : blk === "detail" && ["chg", "prd", "qlt"].includes(active) ? [active] : [];
+      : blk === "detail" && ["chg", "prd", "qlt"].includes(active) ? [active]
+      : blk === "detail" && active === "unl" ? ["des", "lot", "prim", "sec", "chg", "prd"] : [];
     /* suppression : seules les lignes cochées ET déliées partent ; une ligne liée n'est jamais proposée */
     const insDelPlan = blk => {
       const X = shell.__ins;
       const out = { del: {}, n: 0, kept: 0 };
       if (!X) return out;
+      const unlTab = blk === "detail" && active === "unl";
       insBlkKinds(blk).forEach(k => {
-        const rows = X.INS[k].filter(r => !r.t && r.on === true);
+        /* onglet LIGNES NON LIÉES : seulement ses lignes (non liées), titres compris */
+        const rows = unlTab ? X.INS[k].filter(r => r.on === true && !X.isUsed(k, r.id)) : X.INS[k].filter(r => !r.t && r.on === true);
         const free = rows.filter(r => !X.isUsed(k, r.id));
         out.kept += rows.length - free.length;
         const ids = new Set(free.map(r => r.id));
@@ -11711,7 +11794,7 @@ function renderBudgetList() {
           histLog("SAISIE", "LIGNES SUPPRIMÉES", pl.del[k].size + " LIGNE(S)");
         });
         X.cleanLinks(); X.insSave();
-        Object.keys(pl.del).forEach(k => X.insRedraw(k));
+        if (blk === "detail" && active === "unl") refreshAll(); else Object.keys(pl.del).forEach(k => X.insRedraw(k));
       });
     };
     /* export / aperçu : s'il y a des lignes cochées dans le bloc, seulement celles-là */
@@ -12126,13 +12209,7 @@ function renderBudgetList() {
         if (shell.__lkGuard && !(await shell.__lkGuard())) return;
         const fige = budget.inst.state === "fige";
         /* FIGER : impossible tant qu'il reste des lignes non liées */
-        if (!fige && INS) {
-          const n = insUnlCount();
-          if (n) {
-            await svConfirm({ title: "FIGER IMPOSSIBLE", text: n + " LIGNE(S) NON LIÉE(S) : LIEZ-LES OU SUPPRIMEZ-LES (MODE SAISIE).", ok: "OK" });
-            return;
-          }
-        }
+        if (!fige && INS && insUnlCount()) return;   /* bouton grisé : voir l'onglet LIGNES NON LIÉES */
         if (!(await svConfirm(fige
           ? { title: "REVENIR EN ÉDITION", text: fullRef, ok: "REVENIR EN ÉDITION" }
           : { title: "FIGER", text: fullRef + " PASSE EN LECTURE SEULE (RETOUR EN ÉDITION POSSIBLE).", ok: "FIGER" }))) return;
@@ -12373,16 +12450,7 @@ function openProjectPopup(ref) {
 
   if (!group) return;
 
-  const known =
-    db.projects.find(
-      p =>
-        normalise(p.code) ===
-        normalise(group.project)
-    );
-
-  const intitule =
-    normalise(known?.name) ||
-    "À COMPLÉTER";
+  const intitule = sviIntitule(ref, group.project, group.inst);
 
   const old = $("bdgProjectPopup");
   if (old) old.remove();
