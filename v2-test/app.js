@@ -5893,7 +5893,8 @@ function renderBudgetList() {
               const t = INS.des[i];
               if (t.t && dOf(t) < L) { anc.unshift(t); L = dOf(t); if (L <= 0) break; }
             }
-            anc.forEach(t => { if (!done.has(t.id)) { done.add(t.id); head += insRowHTML(k, t, 0).replace('class="ins-row', 'class="ins-row ins-top'); } });
+            /* un titre caché par un titre replié au-dessus n'apparaît pas, même en haut */
+            anc.forEach(t => { if (!done.has(t.id) && !hid(t)) { done.add(t.id); head += insRowHTML(k, t, dOf(t)).replace('class="ins-row', 'class="ins-row ins-top'); } });
             /* titre replié : la ligne reste cachée (le titre, lui, est affiché avec ›) */
             if (!hid(r)) head += insRowHTML(k, r, dOf(r));
           });
@@ -5903,7 +5904,7 @@ function renderBudgetList() {
         /* plus de total par titre (seulement le total général) ; un titre n'apparaît qu'une fois,
            sauf s'il garde des lignes plus bas */
         const restIds = new Set(rest.filter(r => !r.t).map(r => r.id));
-        const hasRest = t => { for (let i = INS.des.indexOf(t) + 1; i < INS.des.length && dOf(INS.des[i]) > dOf(t); i++) if (restIds.has(INS.des[i].id)) return true; return false; };
+        const hasRest = t => { for (let i = INS.des.indexOf(t) + 1; i < INS.des.length && dOf(INS.des[i]) > dOf(t); i++) if (restIds.has(INS.des[i].id) && !hid(INS.des[i])) return true; return false; };
         html = head + insOrder(rest).filter(x => !x.sub && !hid(x.r) && !(x.r.t && done.has(x.r.id) && !hasRest(x.r)))
           .map(x => insRowHTML(k, x.r, x.lvl)).join("");
       }
@@ -8111,7 +8112,21 @@ function renderBudgetList() {
       const x0 = event.clientX, y0 = event.clientY;
       let on = false, moved = false, target = null, after = false, over = false;
       /* repères de glissement effacés partout (même si le tableau a été redessiné entre-temps) */
-      const clear = () => shell.querySelectorAll(".ro-before, .ro-after, .ro-in, .ro-on").forEach(x => x.classList.remove("ro-before", "ro-after", "ro-in", "ro-on"));
+      const clear = () => {
+        shell.querySelectorAll(".ro-before, .ro-after, .ro-in, .ro-on").forEach(x => x.classList.remove("ro-before", "ro-after", "ro-in", "ro-on"));
+        document.getElementById("roLine")?.remove();
+      };
+      /* désignations : un seul trait à l'endroit du dépôt, décalé selon le niveau d'arrivée
+         (même trait entre deux lignes d'un même titre ; en bas d'un titre : décalé = reste dedans, plus à gauche = sort) */
+      const roLine = (row, y, depth) => {
+        let l = document.getElementById("roLine");
+        if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); }
+        const cell = row.querySelector('input[data-f="des"]')?.closest("td") || row;
+        const c = cell.getBoundingClientRect(), t = row.closest("table").getBoundingClientRect(), box = row.closest(".bdg-d-scroll") || row.closest("table");
+        const b = box.getBoundingClientRect();
+        const x0 = Math.max(b.left, c.left + 4 + depth * 14), x1 = Math.min(b.right, t.right);
+        l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${x0}px;width:${Math.max(20, x1 - x0)}px;top:${y - 1.5}px`;
+      };
       const timer = setTimeout(() => {
         on = true;
         /* le doigt est bloqué seulement pendant le glissement (le défilement normal reste libre) */
@@ -8142,9 +8157,9 @@ function renderBudgetList() {
                 over = f > .25 && f < .75;
                 after = f >= .75;
                 const tr0 = X.INS.des.find(q => q.id === x.dataset.iid);
+                const d0 = Number(tr0 && tr0.d) || 0;
                 if (over) x.classList.add("ro-on");
-                else if (after && tr0 && tr0.t && !foldGet()[tr0.id]) x.classList.add("ro-in");   /* entre dans le titre déplié */
-                else x.classList.add(after ? "ro-after" : "ro-before");
+                else roLine(x, after ? r.bottom : r.top, !after ? d0 : (tr0 && tr0.t && !foldGet()[tr0.id]) ? d0 + 1 : d0);
               } else {
                 after = e.clientY > (r.top + r.bottom) / 2;
                 x.classList.add(after ? "ro-after" : "ro-before");
