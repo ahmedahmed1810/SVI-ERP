@@ -6509,7 +6509,17 @@ function renderBudgetList() {
       const lk = $("instLock");
       if (lk && INS_EDIT) { const n = insUnlCount(); lk.disabled = n > 0; lk.title = n ? n + " LIGNE(S) NON LIÉE(S) : ONGLET LIGNES NON LIÉES" : "Figer (lecture seule)"; }
       const tb = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="unl"]`);
-      if (tb) tb.innerHTML = (SVI_ICON.hier || "") + "LIGNES NON LIÉES " + svCnt(insUnlCount());
+      /* LIGNES NON LIÉES : visible seulement s'il reste des lignes */
+      if (tb) {
+        const nU = insUnlCount();
+        tb.innerHTML = (SVI_ICON.hier || "") + "LIGNES NON LIÉES " + svCnt(nU);
+        tb.hidden = !nU; tb.style.display = nU ? "" : "none";
+        if (!nU && active === "unl") {
+          active = "prd";
+          try { localStorage.setItem("svi_dtab_v1", "prd"); } catch (e) {}
+          setTimeout(() => refreshAll(), 0);
+        }
+      }
       if (shell.__markCut) shell.__markCut();
     };
 
