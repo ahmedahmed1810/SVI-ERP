@@ -1257,3 +1257,7 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 #bdgTabs > .blk-tools { position: sticky; right: 0; margin-left: auto; background: inherit; z-index: 2; flex: none; }
 .tab-eq { position: relative; line-height: 1.2; }
 .tab-eq::after { content: ""; position: absolute; top: 20%; bottom: 20%; right: 2px; width: 3px; border-radius: 2px; background: #cbd2dc; cursor: col-resize; }
+/* titres repliables : › replié, ⌄ déplié */
+.ins-fold { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 5px; cursor: pointer;
+  font: 900 15px Arial, sans-serif; color: var(--inst, #b91c1c); border: 1.5px solid var(--inst, #b91c1c); background: #fff; user-select: none; -webkit-user-select: none; }
+.ins-fold.open { font-size: 12px; opacity: .8; }

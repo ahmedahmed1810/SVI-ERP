@@ -5731,7 +5731,7 @@ function renderBudgetList() {
       const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* bleu = liée (à n'importe quelle désignation) */
       return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + insLevel(r.art) : ""}${r && !r.t && lvl ? " ins-in" + lvl : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}>
-        <td class="center ins-rdc">${lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
+        <td class="center ins-rdc">${k === "des" && r && r.t ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
           ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>`;
     };
     /* lignes + sous-totaux de titres (désignations) */
@@ -5805,6 +5805,43 @@ function renderBudgetList() {
       while (stack.length) out.push({ sub: stack.pop() });
       return out;
     };
+    /* ===== titres repliables (FORMAT 60) : › replié / ⌄ déplié ; état mémorisé par budget ===== */
+    const FOLD_KEY = "svi_fold_v1";
+    const foldAll = () => { try { return JSON.parse(localStorage.getItem(FOLD_KEY) || "{}") || {}; } catch (e) { return {}; } };
+    const foldGet = () => foldAll()[ref] || {};
+    const foldSet = (id, on) => {
+      const a = foldAll(), m = a[ref] || {};
+      if (on) m[id] = 1; else delete m[id];
+      a[ref] = m;
+      try { localStorage.setItem(FOLD_KEY, JSON.stringify(a)); } catch (e) {}
+    };
+    /* titres parents de chaque ligne (désignations) */
+    const insAnc = () => {
+      const out = new Map(), stack = [];
+      INS.des.forEach(r => {
+        if (r.t) { while (stack.length && insLevel(stack[stack.length - 1].art) >= insLevel(r.art)) stack.pop(); }
+        out.set(r.id, stack.slice());
+        if (r.t) stack.push(r);
+      });
+      return out;
+    };
+    /* ligne cachée : un de ses titres parents est replié */
+    const insHiddenFn = () => {
+      const F = foldGet(), A = insAnc();
+      return r => (A.get(r.id) || []).some(t => F[t.id]);
+    };
+    /* toucher › / ⌄ : replier / déplier (budget en instance, figé ou validé) */
+    shell.__fold = INS ? id => { foldSet(id, !foldGet()[id]); keepScroll(() => insRenderClient()); } : null;
+    if (!shell.__foldBound) {
+      shell.__foldBound = true;
+      shell.addEventListener("click", e => {
+        const b = e.target.closest && e.target.closest(".ins-fold");
+        if (!b || !shell.__fold) return;
+        e.stopPropagation(); e.preventDefault();
+        shell.__fold(b.dataset.fold);
+      }, true);
+    }
+    const foldBtn = r => r && r.t ? `<span class="ins-fold${foldGet()[r.id] ? "" : " open"}" data-fold="${r.id}" role="button" aria-label="Replier / déplier">${foldGet()[r.id] ? "›" : "⌄"}</span>` : "";
     /* grands tableaux (détail produits / charges) : lignes dessinées par paquets, au fil du défilement (rapidité) */
     const INS_CHUNK = 120;
     const insMore = {};
@@ -5828,6 +5865,11 @@ function renderBudgetList() {
            les autres lignes du même titre restent à leur place */
         const top = INS_EDIT ? rows.map((r, i) => ({ r, i })).filter(o => !o.r.t && lkRank(k, o.r) < 4)
           .sort((a, b) => lkRank(k, a.r) - lkRank(k, b.r) || a.i - b.i).map(o => o.r) : [];
+        /* une ligne choisie ou liée à ce qui est choisi : ses titres repliés se déplient */
+        { const A = insAnc(), F = foldGet();
+          top.filter(r => { const g = lkRank(k, r); return g === 0 || g === 2; })
+            .forEach(r => (A.get(r.id) || []).forEach(t => { if (F[t.id]) foldSet(t.id, false); })); }
+        const hid = insHiddenFn();
         let head = "";
         if (top.length) {
           const done = new Set();
@@ -5838,12 +5880,13 @@ function renderBudgetList() {
               if (t.t && insLevel(t.art) < L) { anc.unshift(t); L = insLevel(t.art); if (L <= 1) break; }
             }
             anc.forEach(t => { if (!done.has(t.id)) { done.add(t.id); head += insRowHTML(k, t, 0).replace('class="ins-row', 'class="ins-row ins-top'); } });
-            head += insRowHTML(k, r, anc.length ? insLevel(anc[anc.length - 1].art) : 0);
+            /* titre replié : la ligne reste cachée (le titre, lui, est affiché avec ›) */
+            if (!hid(r)) head += insRowHTML(k, r, anc.length ? insLevel(anc[anc.length - 1].art) : 0);
           });
         }
         const topIds = new Set(top.map(r => r.id));
         const rest = rows.filter(r => !topIds.has(r.id));
-        html = head + insOrder(rest).map(x => x.sub ? sub(x.sub) : insRowHTML(k, x.r, x.lvl)).join("");
+        html = head + insOrder(rest).filter(x => !hid(x.sub || x.r)).map(x => x.sub ? sub(x.sub) : insRowHTML(k, x.r, x.lvl)).join("");
       }
       if (INS_EDIT) html += insRowHTML(k, null, 0);
       if (!rows.length && !INS_EDIT) html += `<tr><td colspan="${ncol}" class="empty">AUCUNE LIGNE</td></tr>`;
@@ -8115,7 +8158,7 @@ function renderBudgetList() {
         document.addEventListener("pointermove", mv); document.addEventListener("pointerup", off); document.addEventListener("pointercancel", off);
         return;
       }
-      if (insEl && !event.target.closest(".ins-t, .ins-cb, .ins-x, .lk-rd, .lk-q") &&
+      if (insEl && !event.target.closest(".ins-t, .ins-cb, .ins-x, .lk-rd, .lk-q, .ins-fold") &&
           event.target.closest("input.ins-in") !== document.activeElement) { insDrag(event, insEl); return; }
       const rz = event.target.closest(".blk-rsz");
       if (rz) { layResize(event, rz); return; }
@@ -8227,6 +8270,18 @@ function renderBudgetList() {
       const src = lastShown[blk];
       if (!src) return { head: [], rows: [] };
       const oc = coOrder(blk === "detail" ? active : blk, src.cols);
+      /* désignations (budget en instance) : titres repliés = titre et son total seulement */
+      if (blk === "client" && src.ins) {
+        const hid = insHiddenFn(), F = foldGet();
+        return {
+          head: oc.map(c => c[1]),
+          rows: src.rows.filter(r => !hid(r)).map(r => {
+            if (!(r.t && F[r.id])) return oc.map(c => c[2](r));
+            const { ht, ttc } = insSubOf(r);
+            return oc.map(c => c[0] === "ht" ? ht : c[0] === "ttc" ? ttc : c[2](r));
+          })
+        };
+      }
       return {
         head: oc.map(c => c[1]),
         rows: src.rows.map(r => oc.map(c => c[2](r)))
@@ -10517,7 +10572,8 @@ function renderBudgetList() {
     /* budget en instance : même modèle, avec lignes titres et sous-totaux */
     const printClientIns = rows => {
       const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
-      const body = insOrder(rows).map(x => {
+      const hid = insHiddenFn();
+      const body = insOrder(rows).filter(x => !hid(x.sub || x.r)).map(x => {
         if (x.sub) {
           const { ht } = insSubOf(x.sub);
           return `<tr>${td("")}${td("<b>TOTAL " + esc(x.sub.des || x.sub.art || "") + "</b>", "r")}${td("")}${td("")}${td("")}${td("")}${td("<b>" + money(ht) + "</b>", "r")}</tr>`;
