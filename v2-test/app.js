@@ -6288,7 +6288,12 @@ function renderBudgetList() {
         if (!it) return;
         if (e.target.classList.contains("inc-cb")) { it.on = e.target.checked; X.save(); return; }
         const inp = e.target.closest("input.inc-in");
-        if (inp) { it.src[inp.dataset.f] = inp.value.trim().toUpperCase(); X.tryIt(it); }
+        if (inp) {
+          it.src[inp.dataset.f] = inp.value.trim().toUpperCase();
+          /* toutes les cases effacées : la ligne est supprimée (FORMAT 90) */
+          if (INC_COLS.every(c => String(it.src[c[0]] ?? "").trim() === "")) { X.INS.inc = (X.INS.inc || []).filter(x => x.id !== it.id); X.save(); X.refresh(); return; }
+          X.tryIt(it);
+        }
       });
     }
     shell.__incX = INS && INS_EDIT ? { INS, save: () => insSave(), refresh: () => refreshAll(), tryIt: it => incTry(it) } : null;
@@ -6374,10 +6379,10 @@ function renderBudgetList() {
         const r = X.INS[k].find(x => x.id === id);
         /* FORMAT 88 : même désignation (ART + DÉSIGNATION ; produit : DÉSIGNATION) avec une autre unité → refusée */
         if ((k === "des" || k === "prd") && r && !r.t && U_(r.des) && U_(r.u)) {
-          const o = X.INS[k].find(x => x.id !== r.id && !x.t && U_(x.des) === U_(r.des) && (k === "prd" || U_(x.art) === U_(r.art)) && U_(x.u) && U_(x.u) !== U_(r.u));
+          const o = X.INS[k].find(x => x.id !== r.id && !x.t && U_(x.des) === U_(r.des) && U_(x.u) && U_(x.u) !== U_(r.u));
           if (o) {
             const f = inp.dataset.f, old = shell.__dupOld && shell.__dupOld.id === r.id ? shell.__dupOld.row : null;
-            svToast([k === "des" ? r.art : "", r.des].filter(Boolean).join(" ") + " EXISTE DÉJÀ EN " + U_(o.u) + " : UNITÉ " + U_(r.u) + " REFUSÉE.", 4500, inp);
+            svToast(U_(r.des) + " EXISTE DÉJÀ EN " + U_(o.u) + " : UNITÉ " + U_(r.u) + " REFUSÉE.", 4500, inp);
             r[f] = old ? (old[f] ?? "") : "";
             X.save(); X.refresh();
             return;
@@ -6683,9 +6688,14 @@ function renderBudgetList() {
       if (nb) nb.scrollTop = top;
       window.scrollTo(x, y);
     };
+    /* ligne vide (FORMAT 90) : toutes ses cases saisissables effacées (TVA par défaut, PCB / TVA de CHS ne comptent pas) */
+    const INS_ENTRY = { des: ["art", "des", "u"], chg: ["art", "des", "u", "q"], prd: ["des", "u", "nbr", "d1", "d2", "d3"], lot: ["v"], prim: ["v"], sec: ["v"], qlt: ["v"] };
+    const insRowEmpty = (k, r) => r.t ? !String(r.art || "").trim() && !String(r.des || "").trim()
+      : (INS_ENTRY[k] || Object.keys(r).filter(f => !["id", "on", "t", "tw", "d"].includes(f))).concat(k === "chg" && !r.chs ? ["p"] : [])
+        .every(f => String(r[f] ?? "").trim() === "");
     const insClean = k => {
-      const empty = r => r.t ? !String(r.art || "").trim() && !String(r.des || "").trim()
-        : Object.keys(r).every(f => ["id", "on", "t"].includes(f) || String(r[f] ?? "").trim() === "");
+      const used = ["des", "lot", "prim", "sec", "prd", "chg"].includes(k) ? insUsed()[k] : new Set();
+      const empty = r => insRowEmpty(k, r) && !used.has(r.id);
       const before = INS[k].length;
       INS[k] = INS[k].filter(r => !empty(r));
       return INS[k].length !== before;
@@ -7413,10 +7423,18 @@ function renderBudgetList() {
         const inp = e.target.closest && e.target.closest("input.ins-in");
         const X = shell.__ins;
         if (!inp || !X) return;
-        const tr = inp.closest("tr[data-ik][data-iid]");
+        const tr = inp.closest("[data-ik][data-iid]");
         if (!tr) return;
         const k = tr.dataset.ik, r = X.INS[k] && X.INS[k].find(x => x.id === tr.dataset.iid);
         if (!r) return;
+        /* ligne liée entièrement vidée : refusée, la valeur revient (FORMAT 90) */
+        if (insRowEmpty(k, r) && X.isUsed(k, r.id)) {
+          const old = shell.__dupOld && shell.__dupOld.id === r.id ? shell.__dupOld.row : null;
+          if (old) { r[inp.dataset.f] = old[inp.dataset.f] ?? ""; inp.value = inp.getAttribute("inputmode") === "decimal" ? insFmt(r[inp.dataset.f]) : String(r[inp.dataset.f] ?? ""); }
+          svToast("LIGNE LIÉE : DÉLIER D'ABORD.", 3500, inp);
+          X.insSave();
+          return;
+        }
         if (inp.getAttribute("inputmode") === "decimal" && !sviNumOk(inp.value)) {
           svToast("NOMBRE NON VALIDE : CHIFFRES SEULEMENT (EX. 1 234,56).", 3500, inp);
           inp.value = ""; r[inp.dataset.f] = ""; X.insSave();
@@ -9764,7 +9782,9 @@ function renderBudgetList() {
     const impId = (k, r) => {
       const n = v => v === "" || v === undefined || v === null ? "" : (Math.round(num(v) * 1000) / 1000).toString();
       /* produits : sans article — DÉSIGNATION + UNITÉ */
-      const base = [k === "prd" ? "" : U_(r.art), U_(r.des), U_(r.u), r.t ? "T" : ""];
+      /* FORMAT 89 : une désignation (et une charge) se reconnaît par sa DÉSIGNATION + UNITÉ, sans l'ART ;
+         seuls les titres gardent leur ART */
+      const base = [r.t ? U_(r.art) : "", U_(r.des), U_(r.u), r.t ? "T" : ""];
       return base.join("|");
     };
     /* charges, lots et activités : ordre alphabétique */
@@ -10340,13 +10360,13 @@ function renderBudgetList() {
       const uAdd = (g, key, u, n) => { if (!key || !u) return; const M = UW[g].get(key) || UW[g].set(key, new Map()).get(key); const e = M.get(u) || M.set(u, { n: 0, o: uo++ }).get(u); e.n += n; };
       if (INS) {
         const nL = (k, id) => (INS.links || []).reduce((t, l) => t + (k === "des" ? (l.des === id ? (l.prd || []).length + (l.chg || []).length : 0) : (l.prd || []).some(x => x.id === id) ? 1 : 0), 0);
-        INS.des.forEach(x => { if (!x.t) uAdd("d", U_(x.art) + "|" + U_(x.des), U_(x.u), Math.max(1, nL("des", x.id))); });
+        INS.des.forEach(x => { if (!x.t) uAdd("d", U_(x.des), U_(x.u), Math.max(1, nL("des", x.id))); });
         INS.prd.forEach(x => uAdd("p", U_(x.des), U_(x.u), Math.max(1, nL("prd", x.id))));
       }
       aoa.slice(hi + 1).forEach(r => {
         if (!r) return;
         const dc = U_(g(r, "dc")), t = bfNorm(g(r, "type")), dn = U_(g(r, "des"));
-        if (dc && U_(g(r, "upb"))) uAdd("d", U_(String(g(r, "art") ?? "").trim()) + "|" + dc, U_(g(r, "upb")), 1);
+        if (dc && U_(g(r, "upb"))) uAdd("d", dc, U_(g(r, "upb")), 1);
         if (dn && t.startsWith("PRD") && U_(g(r, "u"))) uAdd("p", dn, U_(g(r, "u")), 1);
       });
       const uWin = (g, key) => { const M = UW[g].get(key); if (!M || M.size < 2) return null; const b = [...M].sort((a, c) => c[1].n - a[1].n || a[1].o - c[1].o)[0]; return { u: b[0], n: b[1].n }; };
@@ -10366,8 +10386,8 @@ function renderBudgetList() {
             const z = v => String(v ?? "").trim() === "" || num(v) === 0;
             if (!U_(g(r, "upb"))) { bad.push("upb"); why.push("UPB MANQUANTE : LA DÉSIGNATION CLIENT NE PEUT PAS ÊTRE LIÉE"); }
             else {
-              const w = uWin("d", U_(String(g(r, "art") ?? "").trim()) + "|" + dc);
-              if (w && w.u !== U_(g(r, "upb"))) { bad.push("upb"); why.push("UPB " + U_(g(r, "upb")) + " ≠ UPB DE LA DÉSIGNATION " + [String(g(r, "art") ?? "").trim(), dc].filter(Boolean).join(" ") + " (" + w.u + ", " + w.n + " LIGNE" + (w.n > 1 ? "S" : "") + ")"); }
+              const w = uWin("d", dc);
+              if (w && w.u !== U_(g(r, "upb"))) { bad.push("upb"); why.push("UPB " + U_(g(r, "upb")) + " ≠ UPB DE LA DÉSIGNATION " + dc + " (" + w.u + ", " + w.n + " LIGNE" + (w.n > 1 ? "S" : "") + ")"); }
             }
             if (isP && U_(g(r, "u"))) {
               const w = uWin("p", dn);
@@ -10412,7 +10432,7 @@ function renderBudgetList() {
         src.__line = aoa.__lineFix || lineNo;
         if (lineBad) { m.rej.push({ src, bad: lineBad.bad, why: lineBad.why }); return; }
         if (dk && hk[0] && hk[1] && hk[2] && (pk || ck)) {
-          const lk = ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u"].map(f => U_(src[f])).join("|");
+          const lk = ["dc", "upb", "lot", "prim", "sec", "type", "des", "u"].map(f => U_(src[f])).join("|");
           if (seenLine.has(lk)) { m.rej.push({ src, bad: ["des"], why: "DOUBLON DANS LE FICHIER : IDENTIQUE À LA LIGNE " + seenLine.get(lk) + " (SEULS NBR / DIM / QTE PEUVENT DIFFÉRER)" }); return; }
           seenLine.set(lk, src.__line);
           m.links.push({ dk, lot: hk[0], prim: hk[1], sec: hk[2], pk: pk || undefined, ck: ck || undefined, q: "", src }); return;
@@ -15543,7 +15563,12 @@ function sviParamTabs() {
     /* pas de doublon d'abréviation ni d'intitulé */
     const dup = v && L.some((x, j) => j !== i && clean(x[f]) === v);
     if (dup) { svToast("DOUBLON : " + v + " EXISTE DÉJÀ.", 3500, inp); inp.value = i >= 0 ? L[i][f] : ""; setTimeout(() => inp.focus(), 0); return; }
-    if (i >= 0) { L[i][f] = v; sviUnitsSave(L); return; }
+    if (i >= 0) {
+      L[i][f] = v;
+      /* intitulé et abréviation effacés : la ligne est supprimée (FORMAT 90) */
+      if (!clean(L[i].n) && !clean(L[i].a)) { L.splice(i, 1); sviUnitsSave(L); draw(); return; }
+      sviUnitsSave(L); return;
+    }
     if (!v) return;
     const row = { n: "", a: "" };
     row[f] = v;
