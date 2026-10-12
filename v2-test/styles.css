@@ -1310,3 +1310,18 @@ input[type=checkbox], input[type=radio] { accent-color: var(--svst); }
 .prm-foot { margin-top: 8px; display: flex; justify-content: flex-end; }
 .prm-del { border: 1.5px solid #b91c1c; color: #b91c1c; background: #fff; border-radius: 8px; padding: 7px 12px; font-weight: 800; font-size: 11px; }
 .prm-del:disabled { border-color: #d1d5db; color: #9aa3af; }
+
+/* calendrier de l'application */
+#svCal { position: fixed; z-index: 10050; width: 280px; background: #fff; border: 1px solid #d6dbe3; border-radius: 12px; padding: 10px; box-shadow: 0 12px 30px rgba(15,23,42,.2); font: 12px Arial, sans-serif; }
+#svCal .svcal-h { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+#svCal .svcal-h b { flex: 1; text-align: center; font-weight: 800; color: #172033; }
+#svCal .svcal-h button { border: 0; background: #eef1f6; border-radius: 8px; width: 30px; height: 30px; font-size: 16px; font-weight: 800; color: #172033; }
+#svCal .svcal-w, #svCal .svcal-g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; text-align: center; }
+#svCal .svcal-w span { font-size: 10px; color: #6b7280; font-weight: 800; padding: 2px 0; }
+#svCal .svcal-g button { border: 0; background: #fff; border-radius: 8px; height: 32px; font-weight: 700; color: #172033; }
+#svCal .svcal-g button.td { box-shadow: inset 0 0 0 1.5px #9aa3af; }
+#svCal .svcal-g button.on { background: var(--svst, #172033); color: #fff; }
+#svCal .svcal-g button:disabled { color: #c3c9d2; background: #f3f4f6; text-decoration: line-through; }
+input.sv-date, input.dlp-in[readonly] { cursor: pointer; }
+.dly-recap-t { font-weight: 800; font-size: 11px; color: #6b7280; padding: 8px 4px; }
+.dly-recap-f { display: flex; gap: 22px; padding: 8px 6px; font-size: 12px; font-weight: 700; border-top: 2px solid #e5e9f0; }

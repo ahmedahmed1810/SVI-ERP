@@ -315,6 +315,26 @@ const svDT = v => {
 const sviUnitDims = u => { const m = { U: 0, F: 0, M: 1, ML: 1, M2: 2, M3: 3 }[String(u || "").trim().toUpperCase()]; return m === undefined ? 3 : m; };
 /* nombre valide (1 234,56 ; 1234.56 ; -3) */
 const sviNumOk = v => { const t = String(v ?? "").replace(/[\s\u00a0\u202f]/g, ""); return t === "" || /^[-+]?\d*([.,]\d*)?$/.test(t) && /\d/.test(t); };
+/* délais par TÂCHE SECONDAIRE (lot + act. scd), 12/10/2026 : les périodes saisies par tâche primaire
+   sont recopiées dans chacune de ses tâches secondaires (sans chevauchement) ; une seule fois par budget */
+const sviDlpSec = d => {
+  if (!d || d.dlpSec) return false;
+  const out = {};
+  Object.keys(d.dlp || {}).forEach(key => {
+    const [lo, pr] = key.split("|");
+    const secs = [...new Set((d.links || []).filter(l => l.lot === lo && l.prim === pr).map(l => l.sec))];
+    secs.forEach(se => {
+      const list = out[lo + "|" + se] = out[lo + "|" + se] || [];
+      (d.dlp[key] || []).forEach(p => {
+        if (list.some(x => x.deb && x.fin && p.deb && p.fin && p.deb < x.fin && x.deb < p.fin)) return;
+        list.push({ id: p.id + (secs.length > 1 ? "s" + se : ""), deb: p.deb || "", fin: p.fin || "" });
+      });
+    });
+  });
+  d.dlp = out;
+  d.dlpSec = true;
+  return true;
+};
 const insPrdQ = r => {
   const f = [r.nbr, r.d1, r.d2, r.d3].filter(v => v !== "" && v !== undefined && v !== null);
   if (f.length) return f.reduce((a, b) => a * num(b), 1);
@@ -5612,6 +5632,7 @@ function renderBudgetList() {
           budget.inst.data || {}))
       : null;
     const INS_EDIT = !!INS && (budget.inst.state || "instance") === "instance";
+    const INS_DLP_MIG = !!INS && sviDlpSec(INS);
     /* budget en instance (rouge) : les charges venues de CHS suivent CHS (prix, TVA, unité…) ;
        figé (vert) ou validé (noir) : on garde les valeurs du moment */
     if (INS_EDIT) (INS.chg || []).forEach(r => {
@@ -5636,6 +5657,8 @@ function renderBudgetList() {
         instSave(list);
       }, 250);
     };
+    if (INS_DLP_MIG) insSave();
+
     const insNum = v => {
       const s = String(v ?? "").trim();
       return s === "" ? "" : num(s);
@@ -6292,11 +6315,11 @@ function renderBudgetList() {
     };
     const dupMerge = (k, keep, drop, links) => {
       INS.links = links;
-      /* délais : clés « lot|prim » reportées */
-      if ((k === "lot" || k === "prim") && INS.dlp) {
+      /* délais : clés « lot|act. scd » reportées */
+      if ((k === "lot" || k === "sec") && INS.dlp) {
         Object.keys(INS.dlp).forEach(key => {
           const [lo, pr] = key.split("|");
-          const nk = (k === "lot" && lo === drop ? keep : lo) + "|" + (k === "prim" && pr === drop ? keep : pr);
+          const nk = (k === "lot" && lo === drop ? keep : lo) + "|" + (k === "sec" && pr === drop ? keep : pr);
           if (nk !== key) { INS.dlp[nk] = (INS.dlp[nk] || []).concat(INS.dlp[key]); delete INS.dlp[key]; }
         });
       }
@@ -6507,7 +6530,7 @@ function renderBudgetList() {
         if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + (k === "prd" ? ' <b class="req-star">*</b>' : "") + " " + svCnt(insShown(k).length);
       });
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
-        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(INS_EDIT ? (insDlyKey() ? insDlyList(insDlyKey()).length : 0) : insTasks().length); }
+        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(INS_EDIT ? (insDlyKey() ? insDlyList(insDlyKey()).length : (insDlyRecap() || []).filter(x => x.deb || x.fin).length) : insTasks().length); }
       /* IMPORT NON CRÉÉ : visible seulement s'il reste des lignes */
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="inc"]`), n = (INS.inc || []).length;
         if (b) { b.innerHTML = (SVI_ICON.hier || "") + "IMPORT NON CRÉÉ " + svCnt(n); b.hidden = !n; b.style.display = n ? "" : "none"; }
@@ -6516,7 +6539,7 @@ function renderBudgetList() {
         if (b) b.innerHTML = (SVI_ICON.hier || "") + "LIAISONS VALIDÉES " + svCnt((INS.links || []).length); }
       sviMarkEmptyTabs(shell);
       if (active === "dly") {
-        /* délais : saisis ici (périodes par tâche primaire) */
+        /* délais : saisis ici (périodes par tâche secondaire ; tâche primaire choisie = récapitulatif) */
         body.innerHTML = `<div class="bdg-d-scroll">${insDlyHTML(INS_EDIT, shell.__insDly && shell.__insDly.err)}</div>`;
         return;
       }
@@ -6860,14 +6883,28 @@ function renderBudgetList() {
     const insTasks = () => {
       const m = new Map();
       (INS.links || []).forEach(l => {
-        const k = l.lot + "|" + l.prim;
-        if (!m.has(k)) m.set(k, { key: k, lot: (INS.lot.find(x => x.id === l.lot) || {}).v || "", prim: (INS.prim.find(x => x.id === l.prim) || {}).v || "" });
+        const k = l.lot + "|" + l.sec;
+        if (!m.has(k)) m.set(k, { key: k, lot: (INS.lot.find(x => x.id === l.lot) || {}).v || "", sec: (INS.sec.find(x => x.id === l.sec) || {}).v || "" });
       });
       return [...m.values()];
     };
-    /* tâche primaire choisie (désignation + lot + activité primaire), seulement si elle est déjà liée */
-    const insDlyKey = () => LK.des && LK.lot && LK.prim && (INS.links || []).some(l => l.des === LK.des && l.lot === LK.lot && l.prim === LK.prim)
-      ? LK.lot + "|" + LK.prim : null;
+    /* tâche SECONDAIRE choisie (désignation + lot + activité secondaire), seulement si elle est déjà liée */
+    const insDlyKey = () => LK.des && LK.lot && LK.sec && (INS.links || []).some(l => l.des === LK.des && l.lot === LK.lot && l.sec === LK.sec
+      && (!LK.prim || l.prim === LK.prim)) ? LK.lot + "|" + LK.sec : null;
+    /* tâche primaire choisie (sans activité secondaire) : récapitulatif des dates de ses tâches secondaires */
+    const insDlyRecap = () => {
+      if (!(LK.des && LK.lot && LK.prim && !LK.sec)) return null;
+      const secs = [...new Set((INS.links || []).filter(l => l.des === LK.des && l.lot === LK.lot && l.prim === LK.prim).map(l => l.sec))];
+      if (!secs.length) return null;
+      const rows = [];
+      secs.forEach(se => {
+        const ps = [...insDlyList(LK.lot + "|" + se)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")));
+        const sv = (INS.sec.find(x => x.id === se) || {}).v || "";
+        if (!ps.length) rows.push({ sec: sv, per: "", deb: "", fin: "", dur: "" });
+        ps.forEach((p, i) => rows.push({ sec: sv, per: i + 1, deb: p.deb || "", fin: p.fin || "", dur: p.deb && p.fin ? dDiff(p.deb, p.fin) : "" }));
+      });
+      return rows;
+    };
     /* périodes affichées : brouillon en cours (à valider) ou périodes validées */
     const insDlyList = key => (LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
     const insDlyHTML = (edit, err) => {
@@ -6875,13 +6912,22 @@ function renderBudgetList() {
       if (edit) {
         /* saisie : les périodes de la tâche primaire choisie (les ronds du haut disent laquelle) */
         const key = insDlyKey();
+        const rc = !key && insDlyRecap();
+        if (rc) {
+          const rows = cfApply("dlyr", DLY_COLS_R, rc);
+          lastShown.detail = { cols: DLY_COLS_R, rows, kind: "dly" };
+          const ds = rc.map(x => x.deb).filter(Boolean).sort(), fs = rc.map(x => x.fin).filter(Boolean).sort();
+          const d0 = ds[0] || "", f0 = fs[fs.length - 1] || "";
+          return `<div class="dly-recap-t">RÉCAPITULATIF — ${esc(lkName("lot", LK.lot))} › ${esc(lkName("prim", LK.prim))}</div>` + dlyTable(rows, x => ({ sec: esc(x.sec), per: x.per, deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur }), () => "", false, DLY_COLS_R)
+            + `<div class="dly-recap-f"><span>DÉBUT : <b>${esc(dFr(d0)) || "—"}</b></span><span>FIN : <b>${esc(dFr(f0)) || "—"}</b></span><span>DURÉE : <b>${d0 && f0 ? dDiff(d0, f0) + " J" : "—"}</b></span></div>`;
+        }
         const ps = key ? [...insDlyList(key)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9"))) : [];
         const all = ps.map((p, i) => ({ task: key, pid: p.id, on: p.on === true, per: i + 1, deb: p.deb || "", fin: p.fin || "", dur: p.deb && p.fin ? dDiff(p.deb, p.fin) : "" }));
         if (key) all.push({ task: key, pid: "", per: "", deb: "", fin: "", dur: "", nw: true });
         const rows = cfApply("dlyi", DLY_COLS_I, all);
         lastShown.detail = { cols: DLY_COLS_I, rows: rows.filter(x => !x.nw), kind: "dly" };
         const inp = (x, f) => `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${x.task}" data-pid="${x.pid}" data-f="${f}" type="text"
-            inputmode="${f === "dur" ? "numeric" : "text"}" placeholder="${x.nw && f === "deb" ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? x.dur : dFr(x[f]))}">`;
+            ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${x.nw && f === "deb" ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? x.dur : dFr(x[f]))}">`;
         return dlyTable(rows, x => ({ per: x.per, deb: inp(x, "deb"), fin: inp(x, "fin"), dur: inp(x, "dur"),
           __td_deb: " ins-td", __td_fin: " ins-td", __td_dur: " ins-td",
           __cb: x.pid ? `<input type="checkbox" class="dlp-cb" data-task="${x.task}" data-pid="${x.pid}" ${x.on ? "checked" : ""}>` : "",
@@ -6891,26 +6937,26 @@ function renderBudgetList() {
       const all = [];
       insTasks().forEach(t => {
         const ps = [...(INS.dlp[t.key] || [])].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")));
-        ps.forEach((p, i) => all.push({ task: t.key, pid: p.id, on: p.on === true, lot: t.lot, prim: t.prim, per: i + 1, deb: p.deb || "", fin: p.fin || "",
+        ps.forEach((p, i) => all.push({ task: t.key, pid: p.id, on: p.on === true, lot: t.lot, sec: t.sec, per: i + 1, deb: p.deb || "", fin: p.fin || "",
           dur: p.deb && p.fin ? dDiff(p.deb, p.fin) : "" }));
         /* mode SAISIE : seulement les périodes saisies (en mode LIAISONS) */
-        if (edit) all.push({ task: t.key, pid: "", lot: t.lot, prim: t.prim, per: "", deb: "", fin: "", dur: "", nw: true });
+        if (edit) all.push({ task: t.key, pid: "", lot: t.lot, sec: t.sec, per: "", deb: "", fin: "", dur: "", nw: true });
       });
       /* ordre par défaut : chronologique (début), puis alphabétique */
-      all.sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || a.lot.localeCompare(b.lot, "fr") || a.prim.localeCompare(b.prim, "fr") || (a.nw - b.nw));
-      const rows = cfApply("dly", DLY_COLS, all);
-      lastShown.detail = { cols: DLY_COLS, rows: rows.filter(x => !x.nw), kind: "dly" };
+      all.sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || a.lot.localeCompare(b.lot, "fr") || a.sec.localeCompare(b.sec, "fr") || (a.nw - b.nw));
+      const rows = cfApply("dlys", DLY_COLS_S, all);
+      lastShown.detail = { cols: DLY_COLS_S, rows: rows.filter(x => !x.nw), kind: "dly" };
       const inp = (x, f) => edit
         ? `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${x.task}" data-pid="${x.pid}" data-f="${f}" type="text"
-            inputmode="${f === "dur" ? "numeric" : "text"}" placeholder="${x.nw && f === "deb" ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? x.dur : dFr(x[f]))}">`
+            ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${x.nw && f === "deb" ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? x.dur : dFr(x[f]))}">`
         : esc(f === "dur" ? x.dur : dFr(x[f]));
       const td = edit ? " ins-td" : "";
-      return (err ? `<div class="lk-err dlp-err">${esc(err)}</div>` : "") + dlyTable(rows, x => ({ lot: esc(x.lot), prim: esc(x.prim), per: x.per,
+      return (err ? `<div class="lk-err dlp-err">${esc(err)}</div>` : "") + dlyTable(rows, x => ({ lot: esc(x.lot), sec: esc(x.sec), per: x.per,
         deb: inp(x, "deb"), fin: inp(x, "fin"), dur: inp(x, "dur"),
         __td_deb: td, __td_fin: td, __td_dur: td,
         __cb: edit && x.pid ? `<input type="checkbox" class="dlp-cb" data-task="${x.task}" data-pid="${x.pid}" ${x.on ? "checked" : ""}>` : "",
         __x: "" }),
-        x => `class="${x.nw ? "ins-new" : ""}"`, edit);
+        x => `class="${x.nw ? "ins-new" : ""}"`, edit, DLY_COLS_S);
     };
     /* saisie : début + durée → fin ; fin → durée ; refus d'un chevauchement dans la même tâche */
     if (!shell.__dlyBound) {
@@ -7007,6 +7053,26 @@ function renderBudgetList() {
       }, true);
     }
     /* brouillon des délais de la tâche choisie : copie des périodes validées, enregistrée par ✓ VALIDER LA LIAISON */
+    /* calendrier des délais : dates refusées grisées (fin avant début, début après fin, chevauchement
+       avec une autre période de la même tâche secondaire) */
+    window.__sviDlyCal = el => {
+      if (!INS_EDIT) return null;
+      const D = dlyDraft(), list = D[el.dataset.task] || (INS.dlp || {})[el.dataset.task] || [];
+      const q = list.find(x => x.id === el.dataset.pid) || { deb: "", fin: "" };
+      const oth = list.filter(x => x.id !== q.id && x.deb && x.fin);
+      const f = el.dataset.f;
+      const dis = d => {
+        if (f === "deb") {
+          if (q.fin && d > q.fin) return true;
+          if (oth.some(o => d >= o.deb && d < o.fin)) return true;
+          return !!q.fin && oth.some(o => d < o.fin && o.deb < q.fin);
+        }
+        if (q.deb && d < q.deb) return true;
+        if (!q.deb) return oth.some(o => d >= o.deb && d < o.fin);
+        return oth.some(o => q.deb < o.fin && o.deb < d);
+      };
+      return { iso: q[f] || (f === "fin" ? q.deb : "") || "", dis };
+    };
     const dlyDraft = () => {
       const key = insDlyKey();
       LK.dlpDraft = LK.dlpDraft || {};
@@ -7428,9 +7494,9 @@ function renderBudgetList() {
         : { ...l, prd: (l.prd || []).filter(x => !pl.remP.includes(x.id)), chg: (l.chg || []).filter(x => !pl.remC.includes(x.id)) })
         .filter(l => l && (l.prd || []).length);
       const gone = pl.links.filter(l => !after.some(a => a.id === l.id));
-      /* délais des tâches primaires qui n'ont plus aucune liaison */
-      const dK = Object.keys(INS.dlp || {}).filter(k => (INS.dlp[k] || []).length && !after.some(l => l.lot + "|" + l.prim === k)
-        && (INS.links || []).some(l => l.lot + "|" + l.prim === k));
+      /* délais des tâches secondaires qui n'ont plus aucune liaison */
+      const dK = Object.keys(INS.dlp || {}).filter(k => (INS.dlp[k] || []).length && !after.some(l => l.lot + "|" + l.sec === k)
+        && (INS.links || []).some(l => l.lot + "|" + l.sec === k));
       const nD = dK.reduce((t, k) => t + INS.dlp[k].length, 0);
       const html = `${rem ? `<div class="svc-sub">À RETIRER : ${esc(names.join(", "))}</div>` : ""}
         <div class="svc-sub">${rem ? "DANS" : "LIAISONS DÉLIÉES"} ${svCnt(pl.links.length)} :</div>
@@ -8007,18 +8073,23 @@ function renderBudgetList() {
       ["fin", "FIN", x => x.fin || "", "center"],
       ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "number"]
     ];
-    const DLY_W = { lot: 200, prim: 280, per: 120, deb: 140, fin: 140, dur: 110 };
+    const DLY_W = { lot: 200, prim: 280, sec: 280, per: 120, deb: 140, fin: 140, dur: 110 };
+    /* budget en instance / figé : une ligne par période d'une TÂCHE SECONDAIRE (lot + activité secondaire) */
+    const DLY_COLS_S = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ...DLY_COLS.slice(2)];
+    /* récapitulatif d'une tâche primaire : ses tâches secondaires */
+    const DLY_COLS_R = DLY_COLS_S.slice(1);
     /* budget en instance : la tâche est donnée par les ronds du haut (pas de colonnes LOT / ACT. PRIMAIRE) */
     const DLY_COLS_I = DLY_COLS.filter(c => c[0] !== "lot" && c[0] !== "prim");
     /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */
     /* del : mode modifiable (case au début de chaque période, 🗑 à la fin, case et 🗑 en tête) */
     const dlyTable = (rows, cells, trAttr = () => "", del = false, base = DLY_COLS) => {
-      const cols = coOrder(base === DLY_COLS ? "dly" : "dlyi", base);
+      const tk = base === DLY_COLS ? "dly" : base === DLY_COLS_S ? "dlys" : base === DLY_COLS_R ? "dlyr" : "dlyi";
+      const cols = coOrder(tk, base);
       const w = k => cwLoad()["dly." + k] || DLY_W[k];
       /* FORMAT : case à droite de chaque ligne (cocher seulement) ; suppression par le menu ⋯ */
       return `<table class="bdg-d-table dly-table" style="width:${cols.reduce((t, c) => t + w(c[0]), 0) + (del ? 44 : 0)}px">
         <colgroup>${cols.map(c => `<col data-w="dly.${c[0]}" style="width:${w(c[0])}px">`).join("")}${del ? '<col style="width:44px">' : ""}</colgroup>
-        <thead><tr>${cols.map(c => cfHead(base === DLY_COLS ? "dly" : "dlyi", c[0], c[1], c[3])).join("")}${del ? '<th class="center"><input type="checkbox" class="dlp-cball" title="Tout cocher"></th>' : ""}</tr></thead>
+        <thead><tr>${cols.map(c => cfHead(tk, c[0], c[1], c[3])).join("")}${del ? '<th class="center"><input type="checkbox" class="dlp-cball" title="Tout cocher"></th>' : ""}</tr></thead>
         <tbody>${rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}${del ? `<td class="center ins-cbc">${h.__cb || ""}</td>` : ""}</tr>`; }).join("")
           || ""}</tbody></table>`;
     };
@@ -9646,12 +9717,13 @@ function renderBudgetList() {
         }));
         /* qualité (une colonne) et délais (périodes par tâche primaire) */
         (d.qlt || []).forEach(r => { const id = "qlt|" + U_(r.v); if (U_(r.v) && !seen.has(id)) { seen.add(id); m.qlt.push({ key: id, row: { v: U_(r.v) } }); } });
-        Object.keys(d.dlp || {}).forEach(tk => {
-          const [lo, pr] = tk.split("|");
-          const ln = U_(((d.lot || []).find(x => x.id === lo) || {}).v), pn = U_(((d.prim || []).find(x => x.id === pr) || {}).v);
-          if (!ln || !pn) return;
-          (d.dlp[tk] || []).forEach(pp => m.dly.push({ key: "dly|" + ln + "|" + pn + "|" + (pp.deb || "") + "|" + (pp.fin || ""),
-            row: { lot: ln, prim: pn, deb: impFr(pp.deb), fin: impFr(pp.fin), _deb: pp.deb || "", _fin: pp.fin || "" } }));
+        const dD = d.dlpSec ? d : (() => { const c = { links: d.links, dlp: d.dlp }; sviDlpSec(c); return c; })();
+        Object.keys(dD.dlp || {}).forEach(tk => {
+          const [lo, se] = tk.split("|");
+          const ln = U_(((d.lot || []).find(x => x.id === lo) || {}).v), sn = U_(((d.sec || []).find(x => x.id === se) || {}).v);
+          if (!ln || !sn) return;
+          (dD.dlp[tk] || []).forEach(pp => m.dly.push({ key: "dly|" + ln + "|" + sn + "|" + (pp.deb || "") + "|" + (pp.fin || ""),
+            row: { lot: ln, sec: sn, deb: impFr(pp.deb), fin: impFr(pp.fin), _deb: pp.deb || "", _fin: pp.fin || "" } }));
         });
         /* liaisons validées du budget source : un chemin par produit / charge */
         const byId = (k, id) => (d[k] || []).find(x => x.id === id);
@@ -9718,18 +9790,18 @@ function renderBudgetList() {
         m.chg.push({ key: x.key, row: { art: "", des: U_(f.detail), u: U_(f.dunit), q, p: q ? a / q : 0, tva: 20 } });
       });
       m.hier = [...hset.values()];
-      /* délais du budget validé : une période par tâche primaire (du premier début à la dernière fin) */
+      /* délais du budget validé : une période par tâche secondaire (du premier début à la dernière fin) */
       { const dm = new Map();
         ls.forEach(l => {
-          const ln = U_(l.lot), pn = U_(l.prim);
+          const ln = U_(l.lot), pn = U_(l.sec);
           if (!ln || !pn || (!l.deb && !l.fin)) return;
           const k = ln + "|" + pn;
-          if (!dm.has(k)) dm.set(k, { lot: ln, prim: pn, _deb: "", _fin: "" });
+          if (!dm.has(k)) dm.set(k, { lot: ln, sec: pn, _deb: "", _fin: "" });
           const x = dm.get(k);
           if (l.deb && (!x._deb || l.deb < x._deb)) x._deb = l.deb;
           if (l.fin && (!x._fin || l.fin > x._fin)) x._fin = l.fin;
         });
-        dm.forEach(x => m.dly.push({ key: "dly|" + x.lot + "|" + x.prim + "|" + x._deb + "|" + x._fin, row: { ...x, deb: impFr(x._deb), fin: impFr(x._fin) } })); }
+        dm.forEach(x => m.dly.push({ key: "dly|" + x.lot + "|" + x.sec + "|" + x._deb + "|" + x._fin, row: { ...x, deb: impFr(x._deb), fin: impFr(x._fin) } })); }
       m.des.sort((a, b) => String(a.row.art).localeCompare(String(b.row.art), "fr", { numeric: true }));
       impSort(m);
       return m;
@@ -9739,7 +9811,7 @@ function renderBudgetList() {
     const dupData = () => {
       if (budget.inst) return JSON.parse(JSON.stringify(budget.inst.data || {}));
       const m = impModel(ref), kid = new Map();
-      const d = { des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: [], dly: {}, dlp: {}, links: [] };
+      const d = { des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: [], dly: {}, dlp: {}, dlpSec: true, links: [] };
       ["des", "chg", "prd", "qlt"].forEach(k => m[k].forEach(x => { const r = { ...x.row, id: insId(), on: false }; if (k === "des") r.t = !!r.t; d[k].push(r); kid.set(x.key, r.id); }));
       m.hier.forEach(x => { const r = { id: insId(), v: x.row.v }; d[x.lvl].push(r); kid.set(x.key, r.id); });
       m.links.forEach(l => {
@@ -9752,7 +9824,7 @@ function renderBudgetList() {
         if (cid && !L.chg.some(y => y.id === cid)) L.chg.push({ id: cid, q: "" });
       });
       d.links = d.links.filter(x => x.prd.length);
-      m.dly.forEach(x => { const lo = kid.get("lot|" + x.row.lot), pr = kid.get("prim|" + x.row.prim); if (lo && pr) (d.dlp[lo + "|" + pr] = d.dlp[lo + "|" + pr] || []).push({ id: insId(), deb: x.row._deb, fin: x.row._fin }); });
+      m.dly.forEach(x => { const lo = kid.get("lot|" + x.row.lot), pr = kid.get("sec|" + x.row.sec); if (lo && pr) (d.dlp[lo + "|" + pr] = d.dlp[lo + "|" + pr] || []).push({ id: insId(), deb: x.row._deb, fin: x.row._fin }); });
       return d;
     };
     $("instDup")?.addEventListener("click", () => {
@@ -9824,7 +9896,7 @@ function renderBudgetList() {
         chg: [["des", "DÉSIGNATION"], ["u", "UCB"], ["q", "QCB", 1], ["p", "PCB", 1]],
         prd: [["des", "DÉSIGNATION"], ["u", "UPB"]],
         qlt: [["v", "QUALITÉ"]],
-        dly: [["lot", "LOT"], ["prim", "ACTIVITÉ PRIMAIRE"], ["deb", "DÉBUT"], ["fin", "FIN"]]
+        dly: [["lot", "LOT"], ["sec", "ACTIVITÉ SECONDAIRE"], ["deb", "DÉBUT"], ["fin", "FIN"]]
       };
       const LV = { lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" };
       const val = (x, f, isNum) => f === "lvl" ? LV[x.lvl] : x.row.t && isNum ? "" : isNum ? money(f === "q" ? insQty(tab === "prd" ? "prd" : "des", x.row) : x.row[f]) : (x.row[f] ?? "");
@@ -9856,7 +9928,7 @@ function renderBudgetList() {
             });
           });
           /* délais : ils suivent leur tâche primaire (lot et activité primaire retenus) */
-          model.dly.forEach(x => { if (out.hier.has("lot|" + x.row.lot) && out.hier.has("prim|" + x.row.prim)) out.dly.add(x.key); });
+          model.dly.forEach(x => { if (out.hier.has("lot|" + x.row.lot) && out.hier.has("sec|" + x.row.sec)) out.dly.add(x.key); });
         }
         return out;
       };
@@ -10082,11 +10154,11 @@ function renderBudgetList() {
             });
             /* une liaison doit avoir au moins un produit */
             INS.links = INS.links.filter(x => (x.prd || []).length);
-            /* délais : rattachés à la tâche primaire importée (lot + activité primaire), seulement avec les liaisons */
+            /* délais : rattachés à la tâche secondaire importée (lot + activité secondaire), seulement avec les liaisons */
             INS.dlp = INS.dlp || {};
             if (mode === "replace") INS.dlp = {};
             model.dly.filter(x => pk.dly.has(x.key)).forEach(x => {
-              const lo = kid.get("lot|" + x.row.lot), pr = kid.get("prim|" + x.row.prim);
+              const lo = kid.get("lot|" + x.row.lot), pr = kid.get("sec|" + x.row.sec);
               if (!lo || !pr) return;
               const key = lo + "|" + pr, list = INS.dlp[key] = INS.dlp[key] || [];
               if (!list.some(p => p.deb === x.row._deb && p.fin === x.row._fin)) list.push({ id: insId(), deb: x.row._deb, fin: x.row._fin });
@@ -10304,12 +10376,12 @@ function renderBudgetList() {
     const bfRuleAAsk = plan => {
       if (!plan.lose.length) return Promise.resolve(true);
       const byIdK = (k, id) => INS[k].find(x => x.id === id) || {};
-      const nDl = new Set(plan.lose.map(x => x.l.lot + "|" + x.l.prim).filter(k => (INS.dlp || {})[k] && INS.dlp[k].length
-        && !(INS.links || []).some(l => !plan.lose.some(y => y.l === l) && l.lot + "|" + l.prim === k))).size;
+      const nDl = new Set(plan.lose.map(x => x.l.lot + "|" + x.l.sec).filter(k => (INS.dlp || {})[k] && INS.dlp[k].length
+        && !(INS.links || []).some(l => !plan.lose.some(y => y.l === l) && l.lot + "|" + l.sec === k))).size;
       const html = `<div class="svc-sub">LIAISONS DU BUDGET À DÉLIER ${svCnt(plan.lose.length)} :</div>
         <ul class="svc-list">${plan.lose.map(x => `<li>${esc([x.name, byIdK("lot", x.l.lot).v, byIdK("prim", x.l.prim).v, byIdK("sec", x.l.sec).v].join(" › "))} — ${x.n} LIGNE${x.n > 1 ? "S" : ""}<br><b>GARDÉE : ${esc(x.by.w.name)} — ${x.by.w.n} LIGNE${x.by.w.n > 1 ? "S" : ""}</b></li>`).join("")}</ul>
         <div class="svc-sub">LES LIGNES DÉLIÉES VONT DANS L'ONGLET IMPORT NON CRÉÉ.</div>
-        ${nDl ? `<div class="svc-sub svc-warn">LES DÉLAIS DE ${nDl} TÂCHE${nDl > 1 ? "S" : ""} PRIMAIRE${nDl > 1 ? "S" : ""} SERONT SUPPRIMÉS.</div>` : ""}`;
+        ${nDl ? `<div class="svc-sub svc-warn">LES DÉLAIS DE ${nDl} TÂCHE${nDl > 1 ? "S" : ""} SECONDAIRE${nDl > 1 ? "S" : ""} SERONT SUPPRIMÉS.</div>` : ""}`;
       return svConfirm({ title: "RÈGLE A — LIAISONS À DÉLIER", html, ok: "IMPORTER" });
     };
     /* ajoute le modèle au budget : AJOUTER / METTRE À JOUR / REMPLACER */
@@ -10357,7 +10429,7 @@ function renderBudgetList() {
         });
         INS.links = INS.links.filter(l => !gone.has(l));
         /* délais d'une tâche primaire restée sans liaison : supprimés */
-        Object.keys(INS.dlp || {}).forEach(k => { if (!INS.links.some(l => l.lot + "|" + l.prim === k) && [...gone].some(l => l.lot + "|" + l.prim === k)) delete INS.dlp[k]; });
+        Object.keys(INS.dlp || {}).forEach(k => { if (!INS.links.some(l => l.lot + "|" + l.sec === k) && [...gone].some(l => l.lot + "|" + l.sec === k)) delete INS.dlp[k]; });
         histLog("IMPORT", "RÈGLE A — LIAISONS DÉLIÉES", plan.lose.length + " LIAISON(S) DU BUDGET");
       }
       const byId = (k, id) => INS[k].find(x => x.id === id) || {};
@@ -15297,3 +15369,114 @@ function sviParamTabs() {
   show(start);
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", sviParamTabs); else sviParamTabs();
+
+
+/* =========================================================
+   CALENDRIER DE L'APPLICATION (FORMAT 76) : toutes les dates se choisissent dans un calendrier ;
+   affichage JJ/MM/AAAA ; les dates refusées sont grisées.
+   - champs « date » (ex. type=date) : convertis, .value garde la date AAAA-MM-JJ
+   - DÉTAIL DÉLAIS : DÉBUT / FIN (dates hors règles grisées : fin avant début, chevauchement)
+   ========================================================= */
+const SVI_VAL = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+const SVI_MOIS = ["JANVIER", "FÉVRIER", "MARS", "AVRIL", "MAI", "JUIN", "JUILLET", "AOÛT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DÉCEMBRE"];
+const sviIsoOf = dt => dt.getFullYear() + "-" + String(dt.getMonth() + 1).padStart(2, "0") + "-" + String(dt.getDate()).padStart(2, "0");
+function sviDateField(el) {
+  if (el.__svDate) return;
+  el.__svDate = true;
+  const iso0 = SVI_VAL.get.call(el);
+  el.type = "text";
+  el.readOnly = true;
+  el.setAttribute("inputmode", "none");
+  el.classList.add("sv-date");
+  if (!el.placeholder) el.placeholder = "JJ/MM/AAAA";
+  Object.defineProperty(el, "value", {
+    configurable: true,
+    get() { return el.dataset.iso || ""; },
+    set(v) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || ""));
+      el.dataset.iso = m ? m[0] : "";
+      SVI_VAL.set.call(el, m ? m[3] + "/" + m[2] + "/" + m[1] : "");
+    }
+  });
+  el.value = iso0;
+}
+function sviCal(anchor, { iso = "", dis = null, onPick }) {
+  document.getElementById("svCal")?.remove();
+  const box = document.createElement("div");
+  box.id = "svCal";
+  box.__for = anchor;
+  const today = sviIsoOf(new Date());
+  let cur = iso ? new Date(iso + "T00:00:00") : new Date();
+  if (isNaN(cur)) cur = new Date();
+  cur.setDate(1);
+  const draw = () => {
+    const y = cur.getFullYear(), m = cur.getMonth();
+    const first = (new Date(y, m, 1).getDay() + 6) % 7, n = new Date(y, m + 1, 0).getDate();
+    let cells = "";
+    for (let i = 0; i < first; i++) cells += "<span></span>";
+    for (let day = 1; day <= n; day++) {
+      const di = sviIsoOf(new Date(y, m, day));
+      const off = dis ? dis(di) : false;
+      cells += `<button type="button" data-d="${di}" class="${di === iso ? "on" : ""}${di === today ? " td" : ""}"${off ? " disabled" : ""}>${day}</button>`;
+    }
+    box.innerHTML = `<div class="svcal-h"><button type="button" data-m="-1" aria-label="Mois précédent">‹</button><b>${SVI_MOIS[m]} ${y}</b><button type="button" data-m="1" aria-label="Mois suivant">›</button><button type="button" class="svcal-x" data-x aria-label="Fermer">✕</button></div>
+      <div class="svcal-w"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+      <div class="svcal-g">${cells}</div>`;
+  };
+  draw();
+  document.body.appendChild(box);
+  const r = anchor.getBoundingClientRect(), h = box.offsetHeight, w = box.offsetWidth;
+  box.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + "px";
+  box.style.top = (r.bottom + 6 + h <= window.innerHeight - 8 ? r.bottom + 6 : Math.max(8, r.top - h - 6)) + "px";
+  const close = () => { box.remove(); document.removeEventListener("pointerdown", out, true); };
+  const out = e => { if (!box.contains(e.target) && e.target !== anchor) close(); };
+  setTimeout(() => document.addEventListener("pointerdown", out, true), 0);
+  box.addEventListener("click", e => {
+    e.stopPropagation();
+    const mb = e.target.closest("[data-m]");
+    if (mb) { cur.setMonth(cur.getMonth() + Number(mb.dataset.m)); draw(); return; }
+    if (e.target.closest("[data-x]")) { close(); return; }
+    const db = e.target.closest("[data-d]");
+    if (!db || db.disabled) return;
+    close();
+    onPick && onPick(db.dataset.d);
+  });
+}
+/* ouverture : toucher (ou arrivée du curseur) sur un champ date */
+function sviCalOpen(el) {
+  if (!el || el.disabled) return;
+  const ex = document.getElementById("svCal");
+  if (ex && ex.__for === el) return;
+  if (el.classList.contains("sv-date")) {
+    const mn = el.getAttribute("min") || "", mx = el.getAttribute("max") || "";
+    sviCal(el, { iso: el.value, dis: d => (mn && d < mn) || (mx && d > mx), onPick: d => {
+      el.value = d;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    } });
+    return;
+  }
+  if (el.matches("input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]") && window.__sviDlyCal) {
+    const o = window.__sviDlyCal(el);
+    if (!o) return;
+    sviCal(el, { iso: o.iso, dis: o.dis, onPick: d => {
+      SVI_VAL.set.call(el, d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    } });
+  }
+}
+document.addEventListener("click", e => {
+  const el = e.target.closest && e.target.closest("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]");
+  if (el) sviCalOpen(el);
+});
+document.addEventListener("focusin", e => {
+  const el = e.target.closest && e.target.closest("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]");
+  if (el) setTimeout(() => { if (document.activeElement === el) sviCalOpen(el); }, 0);
+});
+/* tout champ date ajouté à l'écran passe au calendrier de l'application */
+(() => {
+  const up = root => (root.querySelectorAll ? root.querySelectorAll('input[type="date"]') : []).forEach(sviDateField);
+  const mo = new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) { if (n.matches && n.matches('input[type="date"]')) sviDateField(n); else up(n); } })));
+  const go = () => { up(document); mo.observe(document.body, { childList: true, subtree: true }); };
+  if (document.body) go(); else document.addEventListener("DOMContentLoaded", go);
+})();
