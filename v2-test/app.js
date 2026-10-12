@@ -3660,7 +3660,7 @@ function renderBudgetList() {
       #cfMenu .cf-foot button { flex: 1; text-align: center; }
       #cfMenu .cf-ok {
         border: 0; border-radius: 6px; padding: 6px 8px; font-size: 12px;
-        font-weight: 800; cursor: pointer; background: #1d4ed8; color: #fff;
+        font-weight: 800; cursor: pointer; background: var(--svst, #172033); color: #fff;
       }
       #cfMenu .cf-sort, #cfMenu .cf-search { flex: none; }
       #cfMenu .cf-search { display: flex; align-items: center; gap: 4px; }
@@ -5419,17 +5419,18 @@ function renderBudgetList() {
       const st = cfT(t);
       const q = (m.querySelector(".cf-q").value || "").trim().toUpperCase();
       const vals = cfValues(t, key).filter(v => !q || v.toUpperCase().includes(q));
-      const isOn = v => !st.f[key] || st.f[key].has(v);
+      /* comme Google Sheets : les cases suivent le brouillon du menu, appliqué seulement par OK */
+      const isOn = v => cfOpen.draft.has(v);
       /* valeurs cochées (filtre actif) remontées en tête de liste */
       if (st.f[key]) vals.sort((x, y) => isOn(y) - isOn(x));
       const allOn = vals.length && vals.every(isOn);
       m.querySelector(".cf-list").innerHTML =
         `<label class="cf-item cf-all"><input type="checkbox" data-cfall ${allOn ? "checked" : ""}>
-           (Tout sélectionner)</label>` +
+           (TOUT SÉLECTIONNER)</label>` +
         (vals.length
           ? vals.map(v => `<label class="cf-item"><input type="checkbox" data-cfv="${esc(v)}"
                ${isOn(v) ? "checked" : ""}> ${esc(v || "(vide)")}</label>`).join("")
-          : `<div class="cf-none">Aucune valeur</div>`);
+          : `<div class="cf-none">AUCUNE VALEUR</div>`);
       m.querySelectorAll(".cf-sort").forEach(b =>
         b.classList.toggle("on", !!st.sort && st.sort.col === key && st.sort.dir === b.dataset.dir)
       );
@@ -5445,17 +5446,20 @@ function renderBudgetList() {
       const t = btn.dataset.cf, key = btn.dataset.col;
       if (cfOpen && cfOpen.t === t && cfOpen.key === key) { cfClose(); return; }
       cfClose();
-      cfOpen = { t, key };
+      {
+        const st0 = cfT(t);
+        cfOpen = { t, key, draft: new Set(st0.f[key] ? [...st0.f[key]] : cfValues(t, key)) };
+      }
       const m = document.createElement("div");
       m.id = "cfMenu";
       m.innerHTML = `
         <button type="button" class="cf-x" aria-label="Fermer">✕</button>
-        <button type="button" class="cf-sort" data-dir="asc">↑ Tri croissant</button>
-        <button type="button" class="cf-sort" data-dir="desc">↓ Tri décroissant</button>
-        <div class="cf-search">🔍 <input type="search" class="cf-q" placeholder="Rechercher…"></div>
+        <button type="button" class="cf-sort" data-dir="asc">↑ TRI CROISSANT</button>
+        <button type="button" class="cf-sort" data-dir="desc">↓ TRI DÉCROISSANT</button>
+        <div class="cf-search">🔍 <input type="search" class="cf-q" placeholder="RECHERCHER…"></div>
         <div class="cf-list"></div>
         <div class="cf-foot">
-          <button type="button" class="cf-clear">Effacer</button>
+          <button type="button" class="cf-clear">EFFACER</button>
           <button type="button" class="cf-ok">OK</button>
         </div>`;
       document.body.appendChild(m);
@@ -5501,7 +5505,16 @@ function renderBudgetList() {
           cfAfterChange();
           return;
         }
-        if (e.target.closest(".cf-ok") || e.target.closest(".cf-x")) {
+        /* OK : le filtre coché s'applique ; ✕ (ou toucher ailleurs) : rien ne change */
+        if (e.target.closest(".cf-ok")) {
+          const all = cfValues(t, key);
+          const keep = new Set(all.filter(v => cfOpen.draft.has(v)));
+          if (keep.size === all.length) delete st.f[key]; else st.f[key] = keep;
+          cfClose();
+          refreshAll();
+          return;
+        }
+        if (e.target.closest(".cf-x")) {
           cfClose();
           return;
         }
@@ -5509,17 +5522,18 @@ function renderBudgetList() {
           delete st.f[key];
           if (st.sort && st.sort.col === key) st.sort = null;
           m.querySelector(".cf-q").value = "";
+          cfOpen.draft = new Set(cfValues(t, key));
           cfAfterChange();
         }
       });
 
       m.addEventListener("change", e => {
-        const st = cfT(t);
         const all = cfValues(t, key);
         const q = (m.querySelector(".cf-q").value || "").trim().toUpperCase();
         const shown = all.filter(v => !q || v.toUpperCase().includes(q));
-        let keep = st.f[key] ? new Set(st.f[key]) : new Set(all);
+        const keep = cfOpen.draft;
         if (e.target.matches("[data-cfall]")) {
+          /* (TOUT SÉLECTIONNER) : seulement les valeurs affichées par la recherche */
           shown.forEach(v => e.target.checked ? keep.add(v) : keep.delete(v));
         } else if (e.target.matches("[data-cfv]")) {
           const v = e.target.dataset.cfv;
@@ -5527,24 +5541,16 @@ function renderBudgetList() {
         } else {
           return;
         }
-        if (keep.size === all.length) delete st.f[key]; else st.f[key] = keep;
-        cfAfterChange();
+        /* rien ne s'applique au tableau avant OK */
+        const sc = m.querySelector(".cf-list").scrollTop;
+        cfRenderList();
+        m.querySelector(".cf-list").scrollTop = sc;
       });
 
-      let qTimer = null;
-      m.querySelector(".cf-q").addEventListener("input", e => {
+      /* recherche : réduit seulement la liste affichée, sans rien cocher ni décocher */
+      m.querySelector(".cf-q").addEventListener("input", () => {
         cfRenderList();
-        clearTimeout(qTimer);
-        qTimer = setTimeout(() => {
-          const st = cfT(t);
-          const q = e.target.value.trim().toUpperCase();
-          const all = cfValues(t, key);
-          if (!q) delete st.f[key];
-          else st.f[key] = new Set(all.filter(v => v.toUpperCase().includes(q)));
-          refreshAll();
-          cfRenderList();
-          cfPlace();
-        }, 350);
+        cfPlace();
       });
 
       cfRenderList();
