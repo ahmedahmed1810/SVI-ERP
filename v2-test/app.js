@@ -9015,7 +9015,7 @@ function renderBudgetList() {
       if (!url) return;
       const id = (url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1];
       const gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || "0";
-      if (!id) { alert("Lien Google Sheets non reconnu."); return; }
+      if (!id) { svImportFail({ source: url, tries: [{ err: "LIEN GOOGLE SHEETS NON RECONNU" }], hint: "COPIER LE LIEN COMPLET DE LA FEUILLE (IL CONTIENT /spreadsheets/d/…)." }); return; }
       /* lecture par le script (avec votre compte : pas besoin de partager la feuille) */
       let first = "";
       for (const call of [() => apiGet("sheetRead", { link: url }), () => apiPost("sheetRead", { link: url })]) {
@@ -9031,13 +9031,13 @@ function renderBudgetList() {
       /* repli : feuille partagée « Toute personne disposant du lien » */
       try {
         const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`);
-        if (!r.ok) throw new Error("accès refusé (vérifie le partage)");
+        if (!r.ok) throw new Error("HTTP " + r.status + " — ACCÈS REFUSÉ (FEUILLE NON PARTAGÉE)");
         const X = await loadXLSX();
         const wb = X.read(await r.text(), { type: "string" });
         const aoa = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
         showImport("Google Sheets", aoa[0] || [], aoa.slice(1));
       } catch (e) {
-        alert("IMPORT GOOGLE SHEETS IMPOSSIBLE.\nPAR LE SCRIPT : " + (first || "?") + "\nPAR LE LIEN PUBLIC : " + e.message);
+        svImportFail({ source: "GOOGLE SHEETS — " + url, tries: [{ via: "PAR LE SCRIPT", err: first }, { via: "PAR LE LIEN PUBLIC", err: e }], hint: "VÉRIFIER LE LIEN, QUE VOTRE COMPTE GOOGLE A ACCÈS À LA FEUILLE, OU LA PARTAGER « TOUTE PERSONNE DISPOSANT DU LIEN » ; SINON EXPORTER LA FEUILLE EN EXCEL ET IMPORTER LE FICHIER." });
       }
     };
 
@@ -9696,7 +9696,16 @@ function renderBudgetList() {
     };
     const bfImportAoa = async (aoa, srcName) => {
       let m;
-      try { m = bfModel(aoa); } catch (e) { svToast("IMPORT IMPOSSIBLE : " + e.message, 5000); return; }
+      try { m = bfModel(aoa); } catch (e) {
+        svImportFail({ source: srcName, tries: [{ err: e }], found: (aoa || []).find(r => (r || []).some(c => String(c ?? "").trim())) || [],
+          hint: "LA PREMIÈRE LIGNE DU TABLEAU DOIT PORTER LES COLONNES : ART, DÉSIGNATION CLIENT, UPB, LOT, ACTIVITÉ PRIMAIRE, ACTIVITÉ SECONDAIRE, TYPE (PRD / CHG), ARTICLE, DÉSIGNATION, UNITÉ, NBR, DIM 1 À 3, QTE. EXPORTER UN BUDGET DONNE LE BON MODÈLE." });
+        return;
+      }
+      if (!m.des.length && !m.hier.length && !m.prd.length && !m.chg.length) {
+        svImportFail({ source: srcName, tries: [{ err: "AUCUNE LIGNE À IMPORTER SOUS L'EN-TÊTE" }], found: (aoa || []).find(r => (r || []).some(c => String(c ?? "").trim())) || [],
+          hint: "VÉRIFIER QUE LES LIGNES SONT REMPLIES SOUS LA LIGNE D'EN-TÊTE, DANS LE BON ONGLET." });
+        return;
+      }
       const busy = ["des", "lot", "prim", "sec", "chg", "prd"].some(k => INS[k].length);
       if (!busy) { bfApply(m, "add", srcName); return; }
       const v = await svChoose({ title: "DONNÉES DÉJÀ PRÉSENTES", buttons: [
@@ -9736,7 +9745,7 @@ function renderBudgetList() {
               }
               const aoa = X.utils.sheet_to_json(wb.Sheets[sh], { header: 1, defval: "" });
               bfImportAoa(aoa, f.name + " › " + sh);
-            } catch (err) { svToast("IMPORT IMPOSSIBLE : " + ((err && err.message) || err), 5000); }
+            } catch (err) { svImportFail({ source: f.name, tries: [{ err }], hint: "VÉRIFIER QUE LE FICHIER EST UN EXCEL (.XLSX) OU UN CSV, NON PROTÉGÉ PAR MOT DE PASSE." }); }
           };
           inp.click();
           return;
@@ -9744,14 +9753,26 @@ function renderBudgetList() {
         /* Google Sheets : lien de la feuille (l'onglet ouvert dans le lien est celui lu) */
         const url = await askSheetLink();
         if (!url) return;
+        if (!/\/d\/[a-zA-Z0-9_-]+/.test(url)) { svImportFail({ source: url, tries: [{ err: "LIEN GOOGLE SHEETS NON RECONNU" }], hint: "COPIER LE LIEN COMPLET DE LA FEUILLE (IL CONTIENT /spreadsheets/d/…)." }); return; }
         let first = "";
         for (const call of [() => apiGet("sheetRead", { link: url }), () => apiPost("sheetRead", { link: url })]) {
           try {
             const d = await call();
             if (d && d.ok && Array.isArray(d.values)) { bfImportAoa(d.values, d.name || "GOOGLE SHEETS"); return; }
+            first = first || "LE SCRIPT NE CONNAÎT PAS ENCORE LA LECTURE DE FEUILLE (NOUVELLE VERSION À DÉPLOYER)";
           } catch (err) { first = first || (err && err.message) || String(err); }
         }
-        svToast("IMPORT GOOGLE SHEETS IMPOSSIBLE : " + (first || "LECTURE REFUSÉE"), 6000);
+        /* repli : feuille partagée « Toute personne disposant du lien » */
+        try {
+          const id = url.match(/\/d\/([a-zA-Z0-9_-]+)/)[1], gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || "0";
+          const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`);
+          if (!r.ok) throw new Error("HTTP " + r.status + " — ACCÈS REFUSÉ (FEUILLE NON PARTAGÉE)");
+          const X = await loadXLSX();
+          const wb = X.read(await r.text(), { type: "string" });
+          bfImportAoa(X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" }), "GOOGLE SHEETS");
+          return;
+        } catch (err2) { var pub = err2; }
+        svImportFail({ source: "GOOGLE SHEETS — " + url, tries: [{ via: "PAR LE SCRIPT", err: first }, { via: "PAR LE LIEN PUBLIC", err: pub }], hint: "VÉRIFIER LE LIEN, QUE VOTRE COMPTE GOOGLE A ACCÈS À LA FEUILLE, OU LA PARTAGER « TOUTE PERSONNE DISPOSANT DU LIEN » ; SINON EXPORTER LA FEUILLE EN EXCEL ET IMPORTER LE FICHIER." });
       });
     };
     /* menu ⋯ du haut : DUPLIQUER, DISPOSITION PAR DÉFAUT, EXPORTER / IMPORTER LE BUDGET */
@@ -9826,7 +9847,7 @@ function renderBudgetList() {
             showImport(f.name, aoa[0] || [], aoa.slice(1));
           }
         } catch (e) {
-          alert("IMPORT IMPOSSIBLE : " + e.message);
+          svImportFail({ source: f.name, tries: [{ err: e }], hint: "VÉRIFIER QUE LE FICHIER EST UN EXCEL (.XLSX), UN CSV OU UN JSON, NON PROTÉGÉ PAR MOT DE PASSE." });
         }
       };
       inp.click();
@@ -14058,6 +14079,39 @@ function svToast(msg, ms = 3500, anchor) {
   t.classList.add("on");
   clearTimeout(t.__tm);
   t.__tm = setTimeout(() => t.classList.remove("on"), ms);
+}
+/* IMPORT IMPOSSIBLE (FORMAT 62) : fenêtre qui reste ouverte, avec le fichier, la raison de chaque essai
+   (en clair + détail technique), le contenu trouvé et que faire ; jamais un message passager */
+function svImportReason(m) {
+  const t = String((m && m.message) || m || "").trim();
+  const U = t.toUpperCase();
+  if (!t) return "LECTURE REFUSÉE (RAISON NON DONNÉE)";
+  if (/NOUVELLE VERSION À DÉPLOYER|UNKNOWN ACTION|ACTION INCONNUE/.test(U)) return "LE SCRIPT GOOGLE NE SAIT PAS ENCORE LIRE UNE FEUILLE (NOUVELLE VERSION DU SCRIPT À DÉPLOYER)";
+  if (/PERMISSION|ACCESS|ACCÈS|DENIED|REFUS|AUTORIS|403|401/.test(U)) return "ACCÈS REFUSÉ À LA FEUILLE (VOTRE COMPTE N'Y A PAS ACCÈS, OU ELLE N'EST PAS PARTAGÉE)";
+  if (/NOT FOUND|INTROUVABLE|404|DOES NOT EXIST|N'EXISTE PAS/.test(U)) return "FEUILLE INTROUVABLE (LIEN INCORRECT OU FEUILLE SUPPRIMÉE)";
+  if (/FAILED TO FETCH|LOAD FAILED|NETWORK|RÉSEAU|TIMEOUT/.test(U)) return "PAS DE CONNEXION INTERNET OU SERVICE GOOGLE INJOIGNABLE";
+  if (/NON JSON/.test(U)) return "LE SCRIPT GOOGLE A RÉPONDU PAR UNE PAGE D'ERREUR";
+  if (/BIBLIOTH|EXCEL INDISPONIBLE/.test(U)) return "LA LECTURE DES FICHIERS EXCEL N'A PAS PU ÊTRE CHARGÉE (CONNEXION INTERNET ?)";
+  return U;
+}
+function svImportFail({ source = "", tries = [], found = null, hint = "" } = {}) {
+  document.getElementById("svConf")?.remove();
+  const d = document.createElement("div");
+  d.id = "svConf";
+  const row = (lab, html) => `<div class="svc-sub">${esc(lab)}</div><div class="svc-x imp-fail-v">${html}</div>`;
+  d.innerHTML = `<div class="svc-card imp-fail" role="dialog" aria-modal="true">
+      <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
+      <div class="svc-t">IMPORT IMPOSSIBLE</div>
+      ${source ? row("FICHIER", esc(/https?:\/\//i.test(source) ? String(source) : String(source).toUpperCase())) : ""}
+      ${tries.length ? row("RAISON", `<ul class="svc-list">${tries.map(x => `<li>${x.via ? "<b>" + esc(x.via) + " :</b> " : ""}${esc(svImportReason(x.err))}${
+        String((x.err && x.err.message) || x.err || "").trim() && svImportReason(x.err) !== String((x.err && x.err.message) || x.err).toUpperCase()
+          ? `<div class="imp-fail-d">${esc(String((x.err && x.err.message) || x.err))}</div>` : ""}</li>`).join("")}</ul>`) : ""}
+      ${found && found.length ? row("COLONNES TROUVÉES", esc(found.filter(v => String(v ?? "").trim()).map(v => String(v).toUpperCase()).join(" · ") || "AUCUNE")) : ""}
+      ${hint ? row("QUE FAIRE", esc(String(hint).toUpperCase())) : ""}
+      <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-r="0">FERMER</button></div>
+    </div>`;
+  document.body.appendChild(d);
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-r]")) d.remove(); });
 }
 /* fenêtre de choix de l'application : ANNULER + boutons [{ v, label, tone }] ; résout la valeur choisie ou null */
 function svChoose({ title = "", text = "", html = "", buttons = [] } = {}) {
