@@ -352,16 +352,39 @@ const SV_TABSETS = [
   { c: ".imp-tabs", t: ".imp-tab", k: "tab", set: "import" },
   { c: ".hist-filters", t: ".hist-f", k: "b", set: "hist" }
 ];
-/* onglets : dans chaque rangée (chaque bloc), tous les intercalaires ont la même largeur,
-   celle qu'il faut pour le plus long de SES intitulés (recalculée quand un intitulé change) */
+/* onglets : dans chaque rangée (chaque bloc), tous les intercalaires ont la même largeur.
+   Par défaut : celle du plus long intitulé, réduite pour que toute la rangée ET le bouton ⋯
+   tiennent dans le bloc (un intitulé trop long passe sur deux lignes, jamais « … »).
+   Poignée au bord droit d'un onglet : règle la largeur de tous les onglets du bloc, mémorisée. */
+const SVI_TABW_KEY = "svi_tabw_v1";
+const sviTabwLoad = () => { try { return JSON.parse(localStorage.getItem(SVI_TABW_KEY) || "{}") || {}; } catch (e) { return {}; } };
+const sviTabwSave = o => { try { localStorage.setItem(SVI_TABW_KEY, JSON.stringify(o)); } catch (e) {} };
+const sviTabsOf = (set, c) => [...c.querySelectorAll(set.t)].filter(t => t.parentElement === c || t.closest(set.c) === c);
 const sviEqualTabs = () => {
+  const saved = sviTabwLoad();
   SV_TABSETS.forEach(set => document.querySelectorAll(set.c).forEach(c => {
-    const ts = [...c.querySelectorAll(set.t)].filter(t => t.offsetParent !== null || t.style.width);
+    if (c.offsetParent === null) return;
+    const ts = sviTabsOf(set, c);
     if (ts.length < 2) return;
-    ts.forEach(t => { t.style.width = ""; t.style.flex = "none"; t.style.whiteSpace = "nowrap"; });
-    const w = Math.ceil(Math.max(...ts.map(t => t.getBoundingClientRect().width)));
-    if (!w) return;
-    ts.forEach(t => { t.style.boxSizing = "border-box"; t.style.width = w + "px"; t.style.flex = "none"; t.style.justifyContent = "center"; });
+    let w = saved[set.c];
+    if (!w) {
+      /* largeur naturelle du plus long intitulé */
+      ts.forEach(t => { t.style.width = ""; t.style.flex = "none"; t.style.whiteSpace = "nowrap"; });
+      const nat = Math.ceil(Math.max(...ts.map(t => t.getBoundingClientRect().width)));
+      /* place disponible : le bloc, moins ce qui n'est pas un onglet (⋯, poignée…) */
+      const par = c.parentElement;
+      let avail = c.clientWidth;
+      const others = [...c.children].filter(x => !ts.includes(x)).reduce((t, x) => t + x.getBoundingClientRect().width, 0);
+      if (par && getComputedStyle(par).display.includes("flex") && !getComputedStyle(par).flexDirection.startsWith("column")
+        && c.getBoundingClientRect().width < par.clientWidth - 4) {
+        avail = par.clientWidth - [...par.children].filter(x => x !== c).reduce((t, x) => t + x.getBoundingClientRect().width, 0);
+      }
+      const gap = parseFloat(getComputedStyle(c).columnGap) || 0;
+      const fit = Math.floor((avail - others - 16 - gap * ts.length) / ts.length);
+      w = Math.max(80, Math.min(nat, fit));
+    }
+    ts.forEach(t => { t.style.boxSizing = "border-box"; t.style.width = w + "px"; t.style.flex = "none";
+      t.style.whiteSpace = "normal"; t.style.justifyContent = "center"; t.style.textAlign = "center"; t.classList.add("tab-eq"); });
   }));
 };
 {
@@ -374,6 +397,29 @@ const sviEqualTabs = () => {
     q = requestAnimationFrame(run);
   }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
   window.addEventListener("resize", () => { if (!q) q = requestAnimationFrame(run); });
+  /* poignée : bord droit d'un onglet (12 px) ; glisser = largeur de tous les onglets du bloc */
+  document.addEventListener("pointerdown", e => {
+    const t = e.target.closest && e.target.closest(".tab-eq");
+    if (!t) return;
+    const r = t.getBoundingClientRect();
+    if (e.clientX < r.right - 12) return;
+    const set = SV_TABSETS.find(x => t.closest(x.c));
+    if (!set) return;
+    const c = t.closest(set.c);
+    e.preventDefault(); e.stopImmediatePropagation();
+    const x0 = e.clientX, w0 = r.width, ts = sviTabsOf(set, c);
+    let w = w0;
+    const mv = ev => { ev.preventDefault(); w = Math.max(70, Math.min(420, Math.round(w0 + ev.clientX - x0))); ts.forEach(x => { x.style.width = w + "px"; }); };
+    const up = () => {
+      document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
+      const o = sviTabwLoad(); o[set.c] = w; sviTabwSave(o);
+      /* le toucher ne doit pas ouvrir l'onglet */
+      const stop = ev => { ev.stopPropagation(); ev.preventDefault(); };
+      document.addEventListener("click", stop, { capture: true, once: true });
+      setTimeout(() => document.removeEventListener("click", stop, { capture: true }), 300);
+    };
+    document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
+  }, true);
 }
 const svTabLoad = () => { try { return JSON.parse(localStorage.getItem("svi_taborder_v1") || "{}") || {}; } catch (e) { return {}; } };
 const svTabApply = () => {

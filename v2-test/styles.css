@@ -1253,3 +1253,7 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 /* onglets à largeur égale : une seule rangée, défilement horizontal si elle dépasse */
 #bdgTabs, .rec-tabs, .imp-tabs, .lk-tabs { flex-wrap: nowrap !important; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 #bdgTabs::-webkit-scrollbar, .rec-tabs::-webkit-scrollbar, .imp-tabs::-webkit-scrollbar, .lk-tabs::-webkit-scrollbar { display: none; }
+/* onglets : ⋯ toujours visible à droite ; poignée de largeur au bord droit de chaque onglet */
+#bdgTabs > .blk-tools { position: sticky; right: 0; margin-left: auto; background: inherit; z-index: 2; flex: none; }
+.tab-eq { position: relative; line-height: 1.2; }
+.tab-eq::after { content: ""; position: absolute; top: 20%; bottom: 20%; right: 2px; width: 3px; border-radius: 2px; background: #cbd2dc; cursor: col-resize; }
