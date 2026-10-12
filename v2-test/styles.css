@@ -1283,3 +1283,6 @@ body.svi-dragging, body.svi-dragging * { -webkit-user-select: none !important; u
 #blkMenu button.blk-clip.off { color: #9aa3af; }
 /* bouton grisé dans une fenêtre (ex. FUSIONNER impossible) */
 #svConf .svc-b:disabled { opacity: .4; cursor: default; }
+/* rond d'en-tête : choisir toutes les lignes déjà liées ; grisé si une ligne du bloc est déjà choisie */
+.lk-rdall.off { opacity: .3; pointer-events: none; }
+th.ins-rdc .lk-rdall, .bdg-h-head .lk-rdall { vertical-align: middle; }
