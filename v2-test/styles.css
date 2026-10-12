@@ -1261,3 +1261,10 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 .ins-fold { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 5px; cursor: pointer;
   font: 900 15px Arial, sans-serif; color: var(--inst, #b91c1c); border: 1.5px solid var(--inst, #b91c1c); background: #fff; user-select: none; -webkit-user-select: none; }
 .ins-fold.open { font-size: 12px; opacity: .8; }
+/* désignations : retrait selon le niveau (r.d), sans limite */
+.ins-table[data-ik="des"] tr[data-iid] input[data-f="des"], .bdg-d-table.ins-table tr[style*="--d"] input[data-f="des"] { padding-left: calc(8px + var(--d, 0) * 14px) !important; }
+.ins-table tr.ins-sub td.number:first-of-type { padding-left: calc(8px + var(--d, 0) * 14px); }
+/* glissement : entre dans le titre (décalé) / superposer = nouveau titre (encadré) */
+.ins-table tr.ro-in td { box-shadow: inset 0 -3px 0 var(--inst, #12355b); }
+.ins-table tr.ro-in td:nth-child(-n+3) { box-shadow: none; }
+.ins-table tr.ro-on td { background: #fde68a !important; box-shadow: inset 0 2px 0 #b45309, inset 0 -2px 0 #b45309; }
