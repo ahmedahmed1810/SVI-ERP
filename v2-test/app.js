@@ -6129,6 +6129,124 @@ function renderBudgetList() {
       });
     }
     shell.__incX = INS && INS_EDIT ? { INS, save: () => insSave(), refresh: () => refreshAll(), tryIt: it => incTry(it) } : null;
+    /* ===== AUCUN DOUBLON (FORMAT) : lots / activités / qualité = même intitulé ;
+       désignations et charges = ART + DÉSIGNATION + UNITÉ ; produits = DÉSIGNATION + UNITÉ.
+       Une saisie qui crée un doublon ouvre la fenêtre DOUBLON : RÉTABLIR ou FUSIONNER (liaisons reportées) ===== */
+    const DUP_LAB = { des: "DÉSIGNATIONS CLIENT", lot: "LOTS", prim: "ACTIVITÉS PRIMAIRES", sec: "ACTIVITÉS SECONDAIRES", chg: "DÉTAIL CHARGES", prd: "DÉTAIL PRODUITS", qlt: "DÉTAIL QUALITÉ" };
+    const dupKeyOf = (k, r) => {
+      if (!r || r.t) return "";
+      if (k === "lot" || k === "prim" || k === "sec" || k === "qlt") return U_(r.v);
+      if (!U_(r.des)) return "";
+      return impId(k, r);
+    };
+    const dupName = (k, r) => (k === "lot" || k === "prim" || k === "sec" || k === "qlt") ? U_(r.v) : [r.art, r.des].filter(Boolean).join(" — ") + (r.u ? " (" + U_(r.u) + ")" : "");
+    const dupLinks = (k, id) => (INS.links || []).filter(l => k === "prd" || k === "chg" ? (l[k] || []).some(x => x.id === id) : l[k] === id).length;
+    /* liaisons après fusion (drop → keep), avec contrôle de la règle A */
+    const dupMerged = (k, keep, drop) => {
+      const L = JSON.parse(JSON.stringify(INS.links || []));
+      L.forEach(l => {
+        if (k === "prd" || k === "chg") (l[k] || []).forEach(x => { if (x.id === drop) x.id = keep; });
+        else if (l[k] === drop) l[k] = keep;
+      });
+      const out = [];
+      L.forEach(l => {
+        if (k === "prd" || k === "chg") { const seen = new Set(); l[k] = (l[k] || []).filter(x => !seen.has(x.id) && seen.add(x.id)); }
+        const same = out.find(o => o.des === l.des && o.lot === l.lot && o.prim === l.prim && o.sec === l.sec);
+        if (!same) { out.push(l); return; }
+        ["prd", "chg"].forEach(f => (l[f] || []).forEach(x => { if (!(same[f] || []).some(y => y.id === x.id)) (same[f] = same[f] || []).push(x); }));
+      });
+      const P = new Map(), S = new Map();
+      let err = "";
+      out.forEach(l => {
+        if (P.has(l.prim) && P.get(l.prim) !== l.des) err = "RÈGLE A : L'ACTIVITÉ PRIMAIRE " + lkName("prim", l.prim) + " SERAIT LIÉE À DEUX DÉSIGNATIONS.";
+        P.set(l.prim, l.des);
+        const ts = l.lot + "|" + l.sec;
+        if (S.has(ts) && S.get(ts) !== l.des) err = err || "RÈGLE A : LA TÂCHE SECONDAIRE " + lkName("lot", l.lot) + " › " + lkName("sec", l.sec) + " SERAIT LIÉE À DEUX DÉSIGNATIONS.";
+        S.set(ts, l.des);
+      });
+      return { links: out, err };
+    };
+    const dupMerge = (k, keep, drop, links) => {
+      INS.links = links;
+      /* délais : clés « lot|prim » reportées */
+      if ((k === "lot" || k === "prim") && INS.dlp) {
+        Object.keys(INS.dlp).forEach(key => {
+          const [lo, pr] = key.split("|");
+          const nk = (k === "lot" && lo === drop ? keep : lo) + "|" + (k === "prim" && pr === drop ? keep : pr);
+          if (nk !== key) { INS.dlp[nk] = (INS.dlp[nk] || []).concat(INS.dlp[key]); delete INS.dlp[key]; }
+        });
+      }
+      INS[k] = INS[k].filter(r => r.id !== drop);
+      histLog("SAISIE", "DOUBLON FUSIONNÉ", DUP_LAB[k] + " — " + dupName(k, INS[k].find(r => r.id === keep) || {}));
+    };
+    /* fenêtre DOUBLON ; renvoie "merge" ou "back" */
+    const dupAsk = async (k, keepR, dropR, opts = {}) => {
+      const m = dupMerged(k, keepR.id, dropR.id);
+      const v = await svChoose({ title: opts.title || "DOUBLON",
+        html: `<div class="svc-sub">${esc(DUP_LAB[k])} : CE LIBELLÉ EXISTE DÉJÀ</div>
+          <ul class="svc-list"><li>${esc(dupName(k, keepR))} — ${dupLinks(k, keepR.id)} LIAISON(S)</li><li>${esc(dupName(k, dropR))} — ${dupLinks(k, dropR.id)} LIAISON(S)${opts.typed ? " (SAISIE)" : ""}</li></ul>
+          ${m.err ? `<div class="svc-sub svc-warn">FUSION IMPOSSIBLE : ${esc(m.err)}</div>` : `<div class="svc-sub">FUSIONNER : UNE SEULE LIGNE, TOUTES LES LIAISONS REPORTÉES.</div>`}`,
+        noCancel: true,
+        buttons: [{ v: "back", label: opts.backLabel || "RÉTABLIR", tone: "neutral" }, { v: "merge", label: "FUSIONNER", tone: "danger", disabled: !!m.err }] });
+      if (v === "merge" && !m.err) { dupMerge(k, keepR.id, dropR.id, m.links); return "merge"; }
+      return "back";
+    };
+    if (!shell.__dupBound) {
+      shell.__dupBound = true;
+      /* valeur avant saisie */
+      shell.addEventListener("focusin", e => {
+        const X = shell.__dupX, inp = e.target.closest && e.target.closest("input.ins-in");
+        if (!X || !inp) return;
+        const h = inp.closest("[data-iid]"), k = h && (h.dataset.ik || h.closest("[data-ik]")?.dataset.ik);
+        const r = k && X.INS[k] && X.INS[k].find(x => x.id === h.dataset.iid);
+        shell.__dupOld = r ? { k, id: r.id, row: { ...r } } : null;
+      });
+      shell.addEventListener("change", async e => {
+        const X = shell.__dupX, inp = e.target.closest && e.target.closest("input.ins-in");
+        if (!X || !inp || !["v", "des", "art", "u"].includes(inp.dataset.f)) return;
+        const h = inp.closest("[data-ik]"), k = h && h.dataset.ik;
+        if (!k || !DUP_LAB[k]) return;
+        const id = inp.closest("[data-iid]")?.dataset.iid || (X.INS[k][X.INS[k].length - 1] || {}).id;
+        const r = X.INS[k].find(x => x.id === id);
+        const key = dupKeyOf(k, r);
+        if (!key) return;
+        const other = X.INS[k].find(x => x.id !== r.id && dupKeyOf(k, x) === key);
+        if (!other) return;
+        const old = shell.__dupOld && shell.__dupOld.id === r.id ? shell.__dupOld.row : null;
+        const v = await X.ask(k, other, r, { typed: true, backLabel: old ? "RÉTABLIR" : "EFFACER LA SAISIE" });
+        if (v === "back") {
+          if (old) Object.assign(r, old); else X.INS[k] = X.INS[k].filter(x => x.id !== r.id);
+        }
+        X.save(); X.refresh();
+      }, true);
+    }
+    shell.__dupX = INS && INS_EDIT ? { INS, ask: (k, a, b, o) => dupAsk(k, a, b, o), save: () => insSave(), refresh: () => refreshAll() } : null;
+    /* doublons déjà présents (anciens budgets, imports) : proposés à l'ouverture, un par un ; IGNORER = plus redemandé pendant la séance */
+    const dupExisting = async () => {
+      if (!INS || !INS_EDIT || shell.__dupBusy) return;
+      shell.__dupBusy = true;
+      try {
+        let skip = {};
+        try { skip = JSON.parse(sessionStorage.getItem("svi_dupskip") || "{}"); } catch (e) {}
+        let changed = false;
+        for (const k of Object.keys(DUP_LAB)) {
+          const seen = new Map();
+          for (const r of INS[k].slice()) {
+            const key = dupKeyOf(k, r);
+            if (!key) continue;
+            const first = seen.get(key);
+            if (!first) { seen.set(key, r); continue; }
+            const sk = ref + "|" + k + "|" + key;
+            if (skip[sk]) continue;
+            const v = await dupAsk(k, first, r, { title: "DOUBLON EXISTANT", backLabel: "IGNORER" });
+            if (v === "merge") changed = true;
+            else { skip[sk] = 1; try { sessionStorage.setItem("svi_dupskip", JSON.stringify(skip)); } catch (e) {} }
+          }
+        }
+        if (changed) { insSave(); refreshAll(); }
+      } finally { shell.__dupBusy = false; }
+    };
+    if (INS && INS_EDIT) setTimeout(dupExisting, 600);
     /* LIGNES NON LIÉES (onglet du détail) : BLOC, LIBELLÉ ; cases à cocher, suppression par le menu ⋯ */
     const UNL_BLOC = { des: "DÉSIGNATION CLIENT", lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE", prd: "PRODUIT", chg: "CHARGE" };
     const insUnlRows = () => {
@@ -14424,7 +14542,7 @@ function svImportFail({ source = "", tries = [], found = null, hint = "" } = {})
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-r]")) d.remove(); });
 }
 /* fenêtre de choix de l'application : ANNULER + boutons [{ v, label, tone }] ; résout la valeur choisie ou null */
-function svChoose({ title = "", text = "", html = "", buttons = [] } = {}) {
+function svChoose({ title = "", text = "", html = "", buttons = [], noCancel = false } = {}) {
   return new Promise(res => {
     document.getElementById("svConf")?.remove();
     const d = document.createElement("div");
@@ -14433,13 +14551,14 @@ function svChoose({ title = "", text = "", html = "", buttons = [] } = {}) {
         <button type="button" class="svc-close" data-v="" aria-label="Fermer">✕</button>
         <div class="svc-t">${esc(title)}</div>
         ${text ? `<div class="svc-x">${esc(text)}</div>` : ""}${html ? `<div class="svc-x svc-html">${html}</div>` : ""}
-        <div class="svc-f"><button type="button" class="svc-b" data-v="">ANNULER</button>
-          ${buttons.map(b => `<button type="button" class="svc-b svc-ok${b.tone === "danger" ? "" : " svc-neutral"}" data-v="${esc(b.v)}">${esc(b.label)}</button>`).join("")}</div>
+        <div class="svc-f">${noCancel ? "" : '<button type="button" class="svc-b" data-v="">ANNULER</button>'}
+          ${buttons.map(b => `<button type="button" class="svc-b svc-ok${b.tone === "danger" ? "" : " svc-neutral"}" data-v="${esc(b.v)}"${b.disabled ? " disabled" : ""}>${esc(b.label)}</button>`).join("")}</div>
       </div>`;
     document.body.appendChild(d);
     d.addEventListener("click", e => {
       const b = e.target.closest("[data-v]");
       if (!b && e.target !== d) return;
+      if (b && b.disabled) return;
       d.remove();
       res(b && b.dataset.v ? b.dataset.v : null);
     });

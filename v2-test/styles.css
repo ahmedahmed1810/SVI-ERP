@@ -1281,3 +1281,5 @@ body.svi-dragging, body.svi-dragging * { -webkit-user-select: none !important; u
 .ins-table tr.ins-cut td, .ins-hcol .ins-li.ins-cut { opacity: .5; outline: 1.5px dashed var(--inst, #b91c1c); outline-offset: -2px; }
 #blkMenu button.blk-clip { color: #172033; }
 #blkMenu button.blk-clip.off { color: #9aa3af; }
+/* bouton grisé dans une fenêtre (ex. FUSIONNER impossible) */
+#svConf .svc-b:disabled { opacity: .4; cursor: default; }
