@@ -1272,3 +1272,5 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 #svConf .imp-fail .imp-fail-v { margin-top: 2px; word-break: break-word; }
 #svConf .imp-fail .imp-fail-d { font-size: 10px; font-weight: 600; color: #6b7280; margin-top: 2px; word-break: break-all; }
 #svConf .imp-fail .svc-list li { margin-bottom: 4px; }
+/* pendant un glissement : aucune sélection de texte ni loupe */
+body.svi-dragging, body.svi-dragging * { -webkit-user-select: none !important; user-select: none !important; -webkit-touch-callout: none !important; }
