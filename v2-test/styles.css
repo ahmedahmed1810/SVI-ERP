@@ -1329,3 +1329,9 @@ input.sv-date, input.dlp-in[readonly] { cursor: pointer; }
 tr.unl-go { cursor: pointer; }
 .unl-flash, .unl-flash > td { animation: unlFlash 2.2s ease-out; }
 @keyframes unlFlash { 0%, 60% { box-shadow: inset 0 0 0 3px var(--svst, #b91c1c); background: #fff7d6; } 100% { box-shadow: none; } }
+/* proposition d'unités (format de l'application) */
+#svUnitSug { position: fixed; z-index: 10040; min-width: 180px; max-width: 280px; background: #fff; border: 1px solid #d6dbe3; border-radius: 10px; box-shadow: 0 10px 26px rgba(15,23,42,.18); padding: 4px; display: flex; flex-direction: column; }
+#svUnitSug button { display: flex; gap: 10px; align-items: baseline; border: 0; background: #fff; text-align: left; padding: 7px 9px; border-radius: 7px; font-size: 12px; color: #172033; }
+#svUnitSug button b { min-width: 34px; font-weight: 800; }
+#svUnitSug button span { color: #6b7280; font-size: 11px; }
+#svUnitSug button:active { background: #eef1f6; }
