@@ -1325,3 +1325,7 @@ input[type=checkbox], input[type=radio] { accent-color: var(--svst); }
 input.sv-date, input.dlp-in[readonly] { cursor: pointer; }
 .dly-recap-t { font-weight: 800; font-size: 11px; color: #6b7280; padding: 8px 4px; }
 .dly-recap-f { display: flex; gap: 22px; padding: 8px 6px; font-size: 12px; font-weight: 700; border-top: 2px solid #e5e9f0; }
+/* LIGNES NON LIÉES : toucher = aller à la ligne */
+tr.unl-go { cursor: pointer; }
+.unl-flash, .unl-flash > td { animation: unlFlash 2.2s ease-out; }
+@keyframes unlFlash { 0%, 60% { box-shadow: inset 0 0 0 3px var(--svst, #b91c1c); background: #fff7d6; } 100% { box-shadow: none; } }

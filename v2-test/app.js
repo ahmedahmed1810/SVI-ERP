@@ -3663,7 +3663,7 @@ function renderBudgetList() {
       }
       th.cf-on .cf-btn, .bdg-h-head.cf-on .cf-btn { color: #1d4ed8; }
       #cfMenu {
-        position: fixed; z-index: 10020; width: 240px; max-height: 60vh; overflow: hidden; padding-left: 14px !important;
+        position: fixed; z-index: 10020; width: 240px; max-height: 60vh; overflow: hidden;
         display: flex; flex-direction: column; gap: 4px; padding: 8px;
         background: #fff; border: 1px solid #d6dbe3; border-radius: 10px;
         box-shadow: 0 10px 28px rgba(15, 23, 42, .18); font-size: 12px;
@@ -3672,6 +3672,7 @@ function renderBudgetList() {
         text-align: left; border: 0; background: #f3f5f8; border-radius: 6px;
         padding: 6px 8px; font-size: 12px; font-weight: 700; cursor: pointer; color: #172033;
       }
+      #cfMenu { padding-left: 8px !important; }
       #cfMenu .cf-sort.on { background: #dbeafe; color: #1d4ed8; }
       #cfMenu .cf-clear { background: transparent; color: #b42318; }
       #cfMenu .cf-foot { display: flex; gap: 6px; flex: none; }
@@ -3702,8 +3703,10 @@ function renderBudgetList() {
         display: flex; align-items: flex-start; gap: 6px; padding: 3px 8px;
         white-space: normal; overflow-wrap: anywhere; cursor: pointer;
       }
-      #cfMenu .cf-rsz { position: absolute; left: 0; top: 0; bottom: 0; width: 12px; cursor: ew-resize; touch-action: none; z-index: 2; }
-      #cfMenu .cf-rsz::after { content: ""; position: absolute; left: 4px; top: 50%; width: 3px; height: 34px; margin-top: -17px; border-radius: 2px; background: #cfd6df; }
+      #cfMenu .cf-rsz { position: absolute; left: 0; bottom: 0; width: 30px; height: 30px; cursor: nesw-resize; touch-action: none; z-index: 3; }
+      #cfMenu .cf-rsz::after { content: ""; position: absolute; left: 5px; bottom: 5px; width: 14px; height: 14px; border-left: 3px solid #9aa3af; border-bottom: 3px solid #9aa3af; border-radius: 0 0 0 4px; }
+      #cfMenu .cf-foot { padding-left: 22px; }
+      #cfMenu .cf-all .cf-n { margin-left: auto; flex: none; background: #eef1f6; color: #374151; border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: 800; }
       #cfMenu .cf-item input { margin-top: 2px; flex: none; }
       #cfMenu .cf-all { font-weight: 700; border-bottom: 1px solid #edf0f4; }
       #cfMenu .cf-none { padding: 6px 8px; color: #9aa3af; }
@@ -5454,7 +5457,7 @@ function renderBudgetList() {
       const allOn = vals.length && vals.every(isOn);
       m.querySelector(".cf-list").innerHTML =
         `<label class="cf-item cf-all"><input type="checkbox" data-cfall ${allOn ? "checked" : ""}>
-           (TOUT SÉLECTIONNER)</label>` +
+           (TOUT SÉLECTIONNER)<span class="cf-n">${vals.filter(isOn).length}/${vals.length}</span></label>` +
         (vals.length
           ? vals.map(v => `<label class="cf-item"><input type="checkbox" data-cfv="${esc(v)}"
                ${isOn(v) ? "checked" : ""}> ${esc(v || "(vide)")}</label>`).join("")
@@ -5481,7 +5484,7 @@ function renderBudgetList() {
       const m = document.createElement("div");
       m.id = "cfMenu";
       m.innerHTML = `
-        <div class="cf-rsz" title="Largeur"></div>
+        <div class="cf-rsz" title="Largeur et hauteur"></div>
         <button type="button" class="cf-x" aria-label="Fermer">✕</button>
         <button type="button" class="cf-sort" data-dir="asc">↑ TRI CROISSANT</button>
         <button type="button" class="cf-sort" data-dir="desc">↓ TRI DÉCROISSANT</button>
@@ -5515,8 +5518,11 @@ function renderBudgetList() {
         const useBelow = below >= 280 || below >= above;
         /* jamais plus haut que 60 % de l'écran visible, et toujours
            entièrement visible (boutons OK / Effacer accessibles) */
-        const maxH = Math.max(180, Math.min(vH * 0.6, useBelow ? below : above));
+        let uh = 0;
+        try { uh = +localStorage.getItem("svi_cfh_v1") || 0; } catch (e) {}
+        const maxH = Math.max(180, Math.min(uh ? vH - 16 : vH * 0.6, useBelow ? below : above));
         m.style.maxHeight = maxH + "px";
+        m.style.height = uh ? Math.min(uh, maxH) + "px" : "";
         const realH = Math.min(maxH, m.scrollHeight);
         let top = useBelow ? r.bottom + 4 : r.top - 4 - realH;
         const h = Math.min(maxH, m.offsetHeight);
@@ -5526,14 +5532,19 @@ function renderBudgetList() {
       cfPlace();
       m.querySelector(".cf-rsz").addEventListener("pointerdown", ev => {
         ev.preventDefault(); ev.stopPropagation();
-        const x0 = ev.clientX, r0 = m.getBoundingClientRect();
+        const x0 = ev.clientX, y0 = ev.clientY, r0 = m.getBoundingClientRect();
+        m.style.maxHeight = (window.innerHeight - r0.top - 8) + "px";
         const mv = e2 => {
+          /* poignée d'angle (bas gauche) : largeur ET hauteur, mémorisées */
           const w = Math.max(200, Math.min(window.innerWidth * 0.9, r0.width + (x0 - e2.clientX)));
+          const h = Math.max(180, Math.min(window.innerHeight - r0.top - 8, r0.height + (e2.clientY - y0)));
           m.style.width = w + "px";
           m.style.left = Math.max(8, r0.right - w) + "px";
-          try { localStorage.setItem("svi_cfw_v1", Math.round(w)); } catch (e) {}
+          m.style.height = h + "px";
+          try { localStorage.setItem("svi_cfw_v1", Math.round(w)); localStorage.setItem("svi_cfh_v1", Math.round(h)); } catch (e) {}
         };
-        const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); };
+        window.__cfRsz = true;
+        const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); setTimeout(() => { window.__cfRsz = false; }, 300); };
         document.addEventListener("pointermove", mv);
         document.addEventListener("pointerup", up);
       });
@@ -5611,7 +5622,7 @@ function renderBudgetList() {
     }
     window.__cfDocHandler = e => {
       if (!cfOpen) return;
-      if (e.target.closest("#cfMenu") || e.target.closest(".cf-btn")) return;
+      if (e.target.closest("#cfMenu") || e.target.closest(".cf-btn") || window.__cfRsz) return;
       cfClose();
     };
     document.addEventListener("click", window.__cfDocHandler, true);
@@ -6433,13 +6444,17 @@ function renderBudgetList() {
     const UNL_BLOC = { des: "DÉSIGNATION CLIENT", lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE", prd: "PRODUIT", chg: "CHARGE" };
     const insUnlRows = () => {
       const u = insUnlinked(), out = [];
+      /* RÉF. : ART (désignations, charges) sinon numéro de la ligne dans son bloc */
+      const pos = {};
+      INS_LINKED_KINDS.forEach(k => { pos[k] = new Map(INS[k].filter(r => !r.t).map((r, i) => [r.id, i + 1])); });
       INS_LINKED_KINDS.forEach(k => u[k].forEach(r => out.push({ k, r, id: r.id,
+        ref: ((k === "des" || k === "chg") && String(r.art || "").trim()) ? String(r.art).trim() : "N° " + (pos[k].get(r.id) || ""),
         bloc: UNL_BLOC[k], lib: (k === "lot" || k === "prim" || k === "sec") ? (r.v || "") : [r.art, r.des].filter(Boolean).join(" — ") + (r.u ? " (" + r.u + ")" : "") })));
       return out;
     };
     const insUnlHTML = () => {
-      const UC = [["bloc", "BLOC", x => x.bloc, ""], ["lib", "LIBELLÉ", x => x.lib, ""]];
-      const W = { bloc: 200, lib: 520 };
+      const UC = [["ref", "RÉF.", x => x.ref, "center"], ["bloc", "BLOC", x => x.bloc, ""], ["lib", "LIBELLÉ", x => x.lib, ""]];
+      const W = { ref: 90, bloc: 200, lib: 520 };
       const oc = coOrder("lk_unl", UC);
       const w = k => cwLoad()["lk_unl." + k] || W[k] || 160;
       const rows = cfApply("lk_unl", UC, insUnlRows().sort((a, b) => natCmp(a.bloc, b.bloc) || natCmp(a.lib, b.lib)));
@@ -6449,7 +6464,7 @@ function renderBudgetList() {
       return `<table class="bdg-d-table lk-table unl-table" style="width:${oc.reduce((t, c) => t + w(c[0]), 0) + dw}px">
         <colgroup>${oc.map(c => `<col data-w="lk_unl.${c[0]}" style="width:${w(c[0])}px">`).join("")}${dw ? `<col style="width:${dw}px">` : ""}</colgroup>
         <thead><tr>${oc.map(c => cfHead("lk_unl", c[0], c[1], c[3])).join("")}${dw ? `<th class="center"><input type="checkbox" class="unl-cball"${all ? " checked" : ""}></th>` : ""}</tr></thead>
-        <tbody>${rows.map(x => `<tr data-uk="${x.k}" data-uid="${x.id}">${oc.map(c => `<td class="${c[3]}">${esc(c[2](x))}</td>`).join("")}${dw
+        <tbody>${rows.map(x => `<tr data-uk="${x.k}" data-uid="${x.id}" class="unl-go" title="Aller à la ligne">${oc.map(c => `<td class="${c[3]}">${esc(c[2](x))}</td>`).join("")}${dw
           ? `<td class="center"><input type="checkbox" class="unl-cb"${x.r.on === true ? " checked" : ""}></td>` : ""}</tr>`).join("")
           || `<tr><td colspan="${oc.length + (dw ? 1 : 0)}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
     };
@@ -6470,7 +6485,31 @@ function renderBudgetList() {
         X.save(); X.refresh();
       });
     }
-    shell.__unl = INS ? { INS, save: () => insSave(), refresh: () => refreshAll() } : null;
+    shell.__unl = INS ? { INS, save: () => insSave(), refresh: () => refreshAll(),
+      /* toucher une ligne : l'écran va à la ligne dans son bloc, encadrée un instant */
+      go: (k, id) => {
+        const find = () => shell.querySelector(`[data-ik="${k}"][data-iid="${id}"]`);
+        const show = () => {
+          const el = find();
+          if (!el) { svToast("LIGNE CACHÉE (TITRE REPLIÉ OU FILTRE) : DÉPLIER OU EFFACER LE FILTRE."); return; }
+          el.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+          el.classList.remove("unl-flash"); void el.offsetWidth; el.classList.add("unl-flash");
+          setTimeout(() => el.classList.remove("unl-flash"), 2200);
+        };
+        if (k === "prd" || k === "chg") {
+          const b = shell.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
+          if (b) b.click();
+          setTimeout(show, 120);
+        } else show();
+      } } : null;
+    if (!shell.__unlGoBound) {
+      shell.__unlGoBound = true;
+      shell.addEventListener("click", e => {
+        const tr = e.target.closest && e.target.closest("tr.unl-go");
+        if (!tr || e.target.closest("input, .cf-btn") || !shell.__unl) return;
+        shell.__unl.go(tr.dataset.uk, tr.dataset.uid);
+      });
+    }
     /* modification en attente : produits / charges choisis, ou délais changés et pas encore validés */
     const lkDlyDirty = () => {
       const D = LK.dlpDraft || {};
@@ -6824,7 +6863,8 @@ function renderBudgetList() {
     const INS_LINKED_KINDS = ["des", "lot", "prim", "sec", "chg", "prd"];
     const insUnlinked = () => {
       const u = insUsed(), out = {};
-      INS_LINKED_KINDS.forEach(k => { out[k] = INS[k].filter(r => !u[k].has(r.id)); });
+      /* activité secondaire jumelle créée automatiquement : pas comptée « non liée » (elle suit son activité primaire) */
+      INS_LINKED_KINDS.forEach(k => { out[k] = INS[k].filter(r => !u[k].has(r.id) && !(k === "sec" && r.tw)); });
       return out;
     };
     const insUnlCount = () => { const n = insUnlinked(); return INS_LINKED_KINDS.reduce((t, k) => t + n[k].length, 0); };
