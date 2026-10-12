@@ -6083,7 +6083,8 @@ function renderBudgetList() {
       const W = { art: 70, des: 300, lot: 150, prim: 170, sec: 190, np: 110, nc: 110, lq: 120, lp: 110, lm: 140 };
       const oc = coOrder("lk_links", LC);
       const w = k => cwLoad()["lk_links." + k] || W[k] || 120;
-      const rows = cfApply("lk_links", LC, INS.links || []);
+      const D2 = id => INS.des.find(x => x.id === id) || {};
+      const rows = cfApply("lk_links", LC, (INS.links || []).slice().sort((a, b) => desCmp(D2(a.des), D2(b.des)) || natCmp(lkName("lot", a.lot), lkName("lot", b.lot))));
       lastShown.detail = { cols: LC, rows, kind: "lnk" };
       const dw = 0;   /* délier : seulement par le bouton du haut (✕ DÉLIER), jamais par ligne */
       return `<table class="bdg-d-table lk-table" style="width:${oc.reduce((t, c) => t + w(c[0]), 0) + dw}px">
@@ -6101,7 +6102,7 @@ function renderBudgetList() {
       ["d3", "DIM 3", 60, "number"], ["q", "QTE", 70, "number"]];
     const insIncHTML = () => {
       const UC = [...INC_COLS.map(c => [c[0], c[1], x => x.src[c[0]] || "", c[3]]), ["why", "RAISON", x => x.why || "", ""]];
-      const rows = cfApply("lk_inc", UC, INS.inc || []);
+      const rows = cfApply("lk_inc", UC, (INS.inc || []).slice().sort((a, b) => natCmp(a.src.dc, b.src.dc)));
       lastShown.detail = { cols: UC, rows, kind: "inc" };
       const w = k => cwLoad()["lk_inc." + k] || ((INC_COLS.find(c => c[0] === k) || [])[2]) || 320;
       const ed = INS_EDIT;
@@ -6220,6 +6221,36 @@ function renderBudgetList() {
         X.save(); X.refresh();
       }, true);
     }
+    /* ===== CLASSEMENT PAR DÉFAUT (FORMAT) : désignations client par ART croissant (ordre naturel ; ART vide en tête ;
+       même ART → par désignation), en gardant les titres (classement à l'intérieur de chaque titre) ;
+       autres tableaux par désignation / intitulé croissant. Appliqué à l'ouverture (une fois), après un import
+       ou un collage ; le glisser reste libre ensuite. ===== */
+    const natCmp = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "fr", { numeric: true, sensitivity: "base" });
+    const desCmp = (a, b) => {
+      const A = String(a.art ?? "").trim(), B = String(b.art ?? "").trim();
+      if (!A !== !B) return A ? 1 : -1;   /* ART vide en tête */
+      return natCmp(A, B) || natCmp(a.des, b.des);
+    };
+    const insSortKind = k => {
+      if (!INS || !INS[k] || INS[k].length < 2) return;
+      if (k !== "des") { INS[k].sort((a, b) => natCmp(k === "lot" || k === "prim" || k === "sec" || k === "qlt" ? a.v : a.des, k === "lot" || k === "prim" || k === "sec" || k === "qlt" ? b.v : b.des) || natCmp(a.u, b.u)); return; }
+      insNorm();
+      /* arbre (niveau r.d) → frères classés → remis à plat */
+      const root = { kids: [] }, stack = [root];
+      INS.des.forEach(r => {
+        const d = Number(r.d) || 0;
+        while (stack.length - 1 > d) stack.pop();
+        const node = { r, kids: [] };
+        stack[stack.length - 1].kids.push(node);
+        if (r.t) stack.push(node);
+      });
+      const flat = [];
+      const walk = n => { n.kids.sort((x, y) => desCmp(x.r, y.r)); n.kids.forEach(c => { flat.push(c.r); walk(c); }); };
+      walk(root);
+      INS.des.splice(0, INS.des.length, ...flat);
+    };
+    const insSortAll = () => ["des", "lot", "prim", "sec", "chg", "prd", "qlt"].forEach(insSortKind);
+    if (INS && INS_EDIT && !INS.sortedV1) { insSortAll(); INS.sortedV1 = true; insSave(); }
     shell.__dupX = INS && INS_EDIT ? { INS, ask: (k, a, b, o) => dupAsk(k, a, b, o), save: () => insSave(), refresh: () => refreshAll() } : null;
     /* doublons déjà présents (anciens budgets, imports) : proposés à l'ouverture, un par un ; IGNORER = plus redemandé pendant la séance */
     const dupExisting = async () => {
@@ -6260,7 +6291,7 @@ function renderBudgetList() {
       const W = { bloc: 200, lib: 520 };
       const oc = coOrder("lk_unl", UC);
       const w = k => cwLoad()["lk_unl." + k] || W[k] || 160;
-      const rows = cfApply("lk_unl", UC, insUnlRows());
+      const rows = cfApply("lk_unl", UC, insUnlRows().sort((a, b) => natCmp(a.bloc, b.bloc) || natCmp(a.lib, b.lib)));
       lastShown.detail = { cols: UC, rows, kind: "unl" };
       const dw = INS_EDIT ? 40 : 0;
       const all = rows.length && rows.every(x => x.r.on === true);
@@ -9811,6 +9842,7 @@ function renderBudgetList() {
           }
           insSave();
           const M = { add: "AJOUT", replace: "REMPLACEMENT", update: "MISE À JOUR" }[mode];
+          insSortAll(); insSave();
           histLog("IMPORT", "DEPUIS UN AUTRE BUDGET — " + M, src + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S)" + (lk ? " — " + nl + " LIAISON(S)" : ""));
           p.remove();
           refreshAll();
@@ -9995,6 +10027,7 @@ function renderBudgetList() {
       INS.inc = (INS.inc || []).concat(rej.map(x => ({ id: insId(), on: false, src: x.src, bad: x.bad, why: x.why })));
       insSave();
       if (quiet) { refreshAll(); return rej; }
+      insSortAll();
       const M = { add: "AJOUT", replace: "REMPLACEMENT", update: "MISE À JOUR" }[mode];
       histLog("IMPORT", "BUDGET COMPLET — " + M, srcName + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S) — " + nl + " LIAISON(S)" + (rej.length ? " — " + rej.length + " NON CRÉÉE(S)" : ""));
       /* des liaisons n'ont pas pu être créées : l'onglet IMPORT NON CRÉÉ s'ouvre */
@@ -12456,7 +12489,7 @@ function renderBudgetList() {
         else sviInstSet(sviInstGet().map(b => b.ref !== c.cut.ref ? b : { ...b, data: Object.fromEntries(Object.entries(b.data || {}).map(([k, v]) => [k, gone[k] ? v.filter(r => !gone[k].includes(r.id)) : v])) }));
         c.cut = null; clipSet(c);
       }
-      insNorm(); X.cleanLinks(); X.insSave();
+      insSortAll(); insNorm(); X.cleanLinks(); X.insSave();
       histLog("SAISIE", "COLLER", n + " LIGNE(S) — DEPUIS " + (c.from || ""));
       refreshAll();
     };
