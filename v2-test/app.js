@@ -8075,16 +8075,24 @@ function renderBudgetList() {
       }
       insNorm();
       /* titres vides (sans aucune ligne, sous-titres vides compris) */
-      const empty = arr.filter((r, i) => {
-        if (!r.t || (created && r.id === created.id)) return false;
-        for (let x = i + 1; x < arr.length && D(arr[x]) > D(r); x++) if (!arr[x].t) return false;
+      /* titres devenus vides PAR CE GLISSEMENT (un titre déjà vide et gardé n'est plus redemandé) */
+      const emptyIn = L => new Set(L.filter((r, i) => {
+        if (!r.t) return false;
+        for (let x = i + 1; x < L.length && D(L[x]) > D(r); x++) if (!L[x].t) return false;
         return true;
-      });
+      }).map(r => r.id));
+      const was = emptyIn(snap), now = emptyIn(arr);
+      const empty = arr.filter(r => now.has(r.id) && !was.has(r.id) && !(created && r.id === created.id));
+      let choice = "";
       if (empty.length) {
-        const ok = await svConfirm({ title: "SUPPRIMER LES TITRES VIDES",
+        /* ANNULER = glissement annulé ; GARDER = glissement fait, titres vides gardés ; SUPPRIMER = titres vides supprimés */
+        const v = await svChoose({ title: "TITRES VIDES",
           html: `<div class="svc-sub">CES TITRES N'ONT PLUS AUCUNE LIGNE :</div><ul class="svc-list">${empty.map(r => `<li>${esc([r.art, r.des].filter(Boolean).join(" "))}</li>`).join("")}</ul>`,
-          ok: "SUPPRIMER" });
-        if (!ok) { arr.splice(0, arr.length, ...snap); insSave(); insRedraw("des"); return; }
+          buttons: [{ v: "keep", label: "GARDER", tone: "neutral" }, { v: "del", label: "SUPPRIMER", tone: "danger" }] });
+        if (!v) { arr.splice(0, arr.length, ...snap); insSave(); insRedraw("des"); return; }
+        choice = v;
+      }
+      if (choice === "del") {
         const gone = new Set(empty.map(r => r.id));
         const keep = arr.filter(r => !gone.has(r.id));
         arr.splice(0, arr.length, ...keep);
@@ -8136,6 +8144,9 @@ function renderBudgetList() {
         document.addEventListener("touchmove", tm, { passive: false });
         shell.__insDragging = true;
         if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+        /* pas de sélection de texte (poignées bleues) pendant le glissement */
+        try { window.getSelection && window.getSelection().removeAllRanges(); } catch (e) {}
+        document.body.classList.add("svi-dragging");
         el.classList.add("ro-src");
         try { navigator.vibrate && navigator.vibrate(15); } catch (e) {}
       }, 350);
@@ -8187,6 +8198,8 @@ function renderBudgetList() {
         clear();
         el.classList.remove("ro-src");
         shell.querySelectorAll(".ro-src").forEach(x => x.classList.remove("ro-src"));
+        document.body.classList.remove("svi-dragging");
+        try { window.getSelection && window.getSelection().removeAllRanges(); } catch (e) {}
         shell.__insDragging = false;
         if (!on) {
           /* simple toucher sur une case : saisie normale */
@@ -14113,9 +14126,11 @@ function svImportReason(m) {
   const t = String((m && m.message) || m || "").trim();
   const U = t.toUpperCase();
   if (!t) return "LECTURE REFUSÉE (RAISON NON DONNÉE)";
+  /* erreur de CONTENU (la feuille a été lue) : affichée telle quelle */
+  if (/COLONNE|AUCUNE LIGNE|EN-TÊTE|ONGLET/.test(U)) return U;
   if (/NOUVELLE VERSION À DÉPLOYER|UNKNOWN ACTION|ACTION INCONNUE/.test(U)) return "LE SCRIPT GOOGLE NE SAIT PAS ENCORE LIRE UNE FEUILLE (NOUVELLE VERSION DU SCRIPT À DÉPLOYER)";
-  if (/PERMISSION|ACCESS|ACCÈS|DENIED|REFUS|AUTORIS|403|401/.test(U)) return "ACCÈS REFUSÉ À LA FEUILLE (VOTRE COMPTE N'Y A PAS ACCÈS, OU ELLE N'EST PAS PARTAGÉE)";
-  if (/NOT FOUND|INTROUVABLE|404|DOES NOT EXIST|N'EXISTE PAS/.test(U)) return "FEUILLE INTROUVABLE (LIEN INCORRECT OU FEUILLE SUPPRIMÉE)";
+  if (/PERMISSION|ACCESS|ACCÈS|DENIED|REFUS|AUTORIS|\b403\b|\b401\b/.test(U)) return "ACCÈS REFUSÉ À LA FEUILLE (VOTRE COMPTE N'Y A PAS ACCÈS, OU ELLE N'EST PAS PARTAGÉE)";
+  if (/NOT FOUND|FEUILLE INTROUVABLE|FICHIER INTROUVABLE|\b404\b|DOES NOT EXIST|N'EXISTE PAS/.test(U)) return "FEUILLE INTROUVABLE (LIEN INCORRECT OU FEUILLE SUPPRIMÉE)";
   if (/FAILED TO FETCH|LOAD FAILED|NETWORK|RÉSEAU|TIMEOUT/.test(U)) return "PAS DE CONNEXION INTERNET OU SERVICE GOOGLE INJOIGNABLE";
   if (/NON JSON/.test(U)) return "LE SCRIPT GOOGLE A RÉPONDU PAR UNE PAGE D'ERREUR";
   if (/BIBLIOTH|EXCEL INDISPONIBLE/.test(U)) return "LA LECTURE DES FICHIERS EXCEL N'A PAS PU ÊTRE CHARGÉE (CONNEXION INTERNET ?)";
