@@ -310,6 +310,11 @@ const svDT = v => {
   return p2(d.getDate()) + "/" + p2(d.getMonth() + 1) + "/" + d.getFullYear() + " À " + p2(d.getHours()) + ":" + p2(d.getMinutes());
 };
 /* QPB d'un produit = NBR × DIM 1 × DIM 2 × DIM 3 (cases remplies) */
+/* cases à saisir selon l'unité : U / F → NBR ; M / ML → + DIM 1 ; M2 → + DIM 1 et 2 ; M3 → + DIM 1 à 3 ;
+   une autre unité (permise) laisse toutes les cases ouvertes */
+const sviUnitDims = u => { const m = { U: 0, F: 0, M: 1, ML: 1, M2: 2, M3: 3 }[String(u || "").trim().toUpperCase()]; return m === undefined ? 3 : m; };
+/* nombre valide (1 234,56 ; 1234.56 ; -3) */
+const sviNumOk = v => { const t = String(v ?? "").replace(/[\s\u00a0\u202f]/g, ""); return t === "" || /^[-+]?\d*([.,]\d*)?$/.test(t) && /\d/.test(t); };
 const insPrdQ = r => {
   const f = [r.nbr, r.d1, r.d2, r.d3].filter(v => v !== "" && v !== undefined && v !== null);
   if (f.length) return f.reduce((a, b) => a * num(b), 1);
@@ -1634,7 +1639,7 @@ function initNav() {
 
           $("pageSubtitle").textContent =
             btn.dataset.view === "chs"
-              ? "VERSION 2 — CHARGES STANDARDS"
+              ? "VERSION 2 — PARAMÉTRAGE"
               : btn.dataset.view === "bds"
                 ? "VERSION 2 — DÉCOMPOSITION"
                 : "VERSION 2 — BUDGET";
@@ -3638,7 +3643,7 @@ function renderBudgetList() {
       }
       th.cf-on .cf-btn, .bdg-h-head.cf-on .cf-btn { color: #1d4ed8; }
       #cfMenu {
-        position: fixed; z-index: 10020; width: 240px; max-height: 60vh; overflow: hidden;
+        position: fixed; z-index: 10020; width: 240px; max-height: 60vh; overflow: hidden; padding-left: 14px !important;
         display: flex; flex-direction: column; gap: 4px; padding: 8px;
         background: #fff; border: 1px solid #d6dbe3; border-radius: 10px;
         box-shadow: 0 10px 28px rgba(15, 23, 42, .18); font-size: 12px;
@@ -3674,9 +3679,12 @@ function renderBudgetList() {
         border: 1px solid #edf0f4; border-radius: 6px; padding: 2px 0;
       }
       #cfMenu .cf-item {
-        display: flex; align-items: center; gap: 6px; padding: 3px 8px;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+        display: flex; align-items: flex-start; gap: 6px; padding: 3px 8px;
+        white-space: normal; overflow-wrap: anywhere; cursor: pointer;
       }
+      #cfMenu .cf-rsz { position: absolute; left: 0; top: 0; bottom: 0; width: 12px; cursor: ew-resize; touch-action: none; z-index: 2; }
+      #cfMenu .cf-rsz::after { content: ""; position: absolute; left: 4px; top: 50%; width: 3px; height: 34px; margin-top: -17px; border-radius: 2px; background: #cfd6df; }
+      #cfMenu .cf-item input { margin-top: 2px; flex: none; }
       #cfMenu .cf-all { font-weight: 700; border-bottom: 1px solid #edf0f4; }
       #cfMenu .cf-none { padding: 6px 8px; color: #9aa3af; }
 
@@ -5453,6 +5461,7 @@ function renderBudgetList() {
       const m = document.createElement("div");
       m.id = "cfMenu";
       m.innerHTML = `
+        <div class="cf-rsz" title="Largeur"></div>
         <button type="button" class="cf-x" aria-label="Fermer">✕</button>
         <button type="button" class="cf-sort" data-dir="asc">↑ TRI CROISSANT</button>
         <button type="button" class="cf-sort" data-dir="desc">↓ TRI DÉCROISSANT</button>
@@ -5476,7 +5485,10 @@ function renderBudgetList() {
         const vv = window.visualViewport;
         const vTop = vv ? vv.offsetTop : 0;
         const vH = vv ? vv.height : window.innerHeight;
-        const w = 240;
+        /* largeur ajustable par la poignée du bord gauche, mémorisée (FORMAT 73) */
+        let w = 240;
+        try { w = Math.max(200, Math.min(window.innerWidth * 0.9, +localStorage.getItem("svi_cfw_v1") || 240)); } catch (e) {}
+        m.style.width = w + "px";
         m.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + "px";
         const below = vTop + vH - r.bottom - 10;
         const above = r.top - vTop - 10;
@@ -5492,6 +5504,19 @@ function renderBudgetList() {
         m.style.top = Math.max(vTop + 8, top) + "px";
       };
       cfPlace();
+      m.querySelector(".cf-rsz").addEventListener("pointerdown", ev => {
+        ev.preventDefault(); ev.stopPropagation();
+        const x0 = ev.clientX, r0 = m.getBoundingClientRect();
+        const mv = e2 => {
+          const w = Math.max(200, Math.min(window.innerWidth * 0.9, r0.width + (x0 - e2.clientX)));
+          m.style.width = w + "px";
+          m.style.left = Math.max(8, r0.right - w) + "px";
+          try { localStorage.setItem("svi_cfw_v1", Math.round(w)); } catch (e) {}
+        };
+        const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); };
+        document.addEventListener("pointermove", mv);
+        document.addEventListener("pointerup", up);
+      });
       window.visualViewport?.addEventListener("resize", cfPlace);
       window.visualViewport?.addEventListener("scroll", cfPlace);
 
@@ -5596,6 +5621,7 @@ function renderBudgetList() {
     });
     let insSeq = Date.now();
     const insId = () => "i" + (insSeq++).toString(36);
+    const U_ = v => String(v ?? "").trim().toUpperCase();
     let insTimer = null;
     const insSave = () => {
       clearTimeout(insTimer);
@@ -5621,8 +5647,40 @@ function renderBudgetList() {
        Calculé une fois depuis l'ART (lignes anciennes / importées), puis changé seulement par le glissement ;
        l'ART reste tel que saisi. Pas de limite de niveaux. */
     const dOf = r => Number(r && r.d) || 0;
+    /* liaison primaire : l'activité secondaire porte le même intitulé que l'activité primaire */
+    const insIsPrimLink = (pid, sid) => {
+      const P = INS && INS.prim.find(x => x.id === pid), S = INS && INS.sec.find(x => x.id === sid);
+      return !!(P && S && U_(P.v) && U_(P.v) === U_(S.v));
+    };
+    /* activité primaire = aussi une activité secondaire (sa jumelle, même intitulé) : créée avec elle,
+       renommée et supprimée avec elle tant qu'elle n'est liée à rien d'autre */
+    const insTwins = () => {
+      if (!INS || !INS.prim || !INS.sec) return false;
+      let ch = false;
+      const usedElse = (sid, pid) => (INS.links || []).some(l => l.sec === sid && l.prim !== pid);
+      const keep = new Set();
+      INS.prim.forEach(p => {
+        const v = U_(p.v);
+        if (!v || p.t) return;
+        let t = p.tw && INS.sec.find(x => x.id === p.tw);
+        if (t && U_(t.v) !== v) {
+          const other = INS.sec.find(x => x !== t && U_(x.v) === v);
+          if (!other && !usedElse(t.id, p.id)) { t.v = p.v; ch = true; }
+          else t = other || null;
+        }
+        if (!t) t = INS.sec.find(x => U_(x.v) === v);
+        if (!t) { t = { id: insId(), v: p.v, on: false, tw: 1 }; INS.sec.push(t); ch = true; }
+        if (p.tw !== t.id) { p.tw = t.id; ch = true; }
+        keep.add(t.id);
+      });
+      const n0 = INS.sec.length;
+      INS.sec = INS.sec.filter(x => !x.tw || keep.has(x.id) || (INS.links || []).some(l => l.sec === x.id));
+      if (INS.sec.length !== n0) ch = true;
+      return ch;
+    };
     const insNorm = () => {
       if (!INS) return;
+      if (insTwins()) insSave();
       const stack = [];
       INS.des.forEach(r => {
         if (r.d === undefined || r.d === null || r.d === "") {
@@ -5696,6 +5754,22 @@ function renderBudgetList() {
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
         : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : r[f];
+    /* erreur d'une ligne (FORMAT 75) : on ne passe pas à la ligne suivante tant qu'elle reste */
+    const insRowErr = (k, r) => {
+      if (!r || r.t || !INS || !(INS[k] || []).includes(r)) return null;
+      const z = v => v === "" || v === undefined || v === null || num(v) === 0;
+      if (k === "prd") {
+        if (z(r.nbr)) return { f: "nbr", m: "NBR VIDE OU 0 : SAISIR LE NOMBRE." };
+        const nd = sviUnitDims(r.u);
+        const known = ["U", "F", "M", "ML", "M2", "M3"].includes(U_(r.u));
+        if (known) for (let i = 1; i <= nd; i++) if (z(r["d" + i])) return { f: "d" + i, m: "UNITÉ " + (U_(r.u) || "") + " : DIM " + i + " À SAISIR." };
+      }
+      if (k === "chg") {
+        if (z(r.q)) return { f: "q", m: "QTE VIDE OU 0 : SAISIR LA QUANTITÉ." };
+        if (!r.chs && z(r.p)) return { f: "p", m: "CHARGE ABSENTE DE CHS : SAISIR LE PCB." };
+      }
+      return null;
+    };
     /* une cellule : champ saisissable, ou verrouillé (titre, calculé) */
     const insCell = (k, r, c) => {
       const [f, , cls, type] = c;
@@ -5703,7 +5777,10 @@ function renderBudgetList() {
       r = r || {};
       /* QPB produits = NBR × DIM 1 × DIM 2 × DIM 3 ; QPB désignation liée = somme des produits de ses tâches */
       const qAuto = (f === "q" && (k === "prd" || k === "des")) || (f === "p" && k === "prd");
-      const locked = !INS_EDIT || type === "calc" || qAuto || (INS_LOCK[k] || []).includes(f) || (k === "chg" && f === "p" && !!r.chs) || (r.t && f !== "art" && f !== "des");
+      const locked = !INS_EDIT || type === "calc" || qAuto || (INS_LOCK[k] || []).includes(f) || (k === "chg" && (f === "p" || f === "u") && !!r.chs) || (r.t && f !== "art" && f !== "des")
+        /* DIM que l'unité n'autorise pas : grisées (FORMAT 74, R10) */
+        || (k === "prd" && /^d[123]$/.test(f) && !isNew && +f[1] > sviUnitDims(r.u));
+      const er = !isNew && INS_EDIT ? insRowErr(k, r) : null;
       let val = "";
       /* ligne vide « SAISIR ICI » des désignations : TVA 20 % affichée par défaut */
       if (isNew && f === "tva" && k !== "prd") val = "20,00";
@@ -5715,7 +5792,7 @@ function renderBudgetList() {
         else val = r[f] || "";
       }
       if (!INS_EDIT) return `<td class="${cls}">${esc(val)}${f === "tva" && val ? " %" : ""}</td>`;
-      return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}"><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
+      return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
         ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
         value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off"></td>`;
     };
@@ -5766,11 +5843,24 @@ function renderBudgetList() {
       if (!INS_EDIT || !id || lkOn(k, id)) return "";
       if (LK.all && LK.all[k]) return "TOUTES LES LIGNES LIÉES SONT CHOISIES : TOUCHER LE ROND D'EN-TÊTE POUR LIBÉRER.";
       if (LK_T[k] && LK[k] && LK[k] !== id) return LK_T[k] + " EST DÉJÀ CHOISI(E) : LIBÉREZ-LA D'ABORD.";
-      if (k === "prim" || k === "sec") return lkRuleA(k, id);
-      if (k === "prd" && LK.des) {
+      /* désignation sans UPB : elle ne peut pas être liée */
+      if (k === "des") { const D = INS.des.find(x => x.id === id); if (D && !D.t && !U_(D.u)) return "UPB MANQUANTE : SAISIR L'UNITÉ DE LA DÉSIGNATION AVANT DE LA LIER."; }
+      if (k === "prim" || k === "sec") {
+        const a = lkRuleA(k, id);
+        if (a) return a;
+        /* règle B : la liaison primaire (act. scd = act. prm) n'a que des produits de l'unité de la désignation */
+        const D = LK.des && INS.des.find(x => x.id === LK.des), du = U_(D && D.u);
+        const pid = k === "prim" ? id : LK.prim, sid = k === "sec" ? id : LK.sec;
+        if (du && pid && sid && insIsPrimLink(pid, sid)) {
+          const bad = Object.keys(LK.prd || {}).find(x => { const P = INS.prd.find(y => y.id === x); return P && U_(P.u) && U_(P.u) !== du; });
+          if (bad) return "RÈGLE B : LIAISON PRIMAIRE — " + lkName("prd", bad) + " N'A PAS L'UNITÉ DE LA DÉSIGNATION (" + du + ").";
+        }
+        return "";
+      }
+      if (k === "prd" && LK.des && LK.prim && LK.sec && insIsPrimLink(LK.prim, LK.sec)) {
         const D = INS.des.find(x => x.id === LK.des), P = INS.prd.find(x => x.id === id);
         const du = String((D && D.u) || "").trim().toUpperCase(), pu = String((P && P.u) || "").trim().toUpperCase();
-        if (du && pu && du !== pu) return "RÈGLE B : UNITÉ " + pu + " ≠ UNITÉ DE LA DÉSIGNATION (" + du + ").";
+        if (du && pu && du !== pu) return "RÈGLE B : LIAISON PRIMAIRE — UNITÉ " + pu + " ≠ UNITÉ DE LA DÉSIGNATION (" + du + ").";
       }
       if ((k === "prd" || k === "chg") && LK.lot && LK.sec) {
         const l = (INS.links || []).find(l => l.lot === LK.lot && l.sec === LK.sec && !(l.des === LK.des && l.prim === LK.prim)
@@ -6191,8 +6281,9 @@ function renderBudgetList() {
       const P = new Map(), S = new Map();
       let err = "";
       out.forEach(l => {
-        if (P.has(l.prim) && P.get(l.prim) !== l.des) err = "RÈGLE A : L'ACTIVITÉ PRIMAIRE " + lkName("prim", l.prim) + " SERAIT LIÉE À DEUX DÉSIGNATIONS.";
-        P.set(l.prim, l.des);
+        const tp = l.lot + "|" + l.prim;
+        if (P.has(tp) && P.get(tp) !== l.des) err = "RÈGLE A : LA TÂCHE PRIMAIRE " + lkName("lot", l.lot) + " › " + lkName("prim", l.prim) + " SERAIT LIÉE À DEUX DÉSIGNATIONS.";
+        P.set(tp, l.des);
         const ts = l.lot + "|" + l.sec;
         if (S.has(ts) && S.get(ts) !== l.des) err = err || "RÈGLE A : LA TÂCHE SECONDAIRE " + lkName("lot", l.lot) + " › " + lkName("sec", l.sec) + " SERAIT LIÉE À DEUX DÉSIGNATIONS.";
         S.set(ts, l.des);
@@ -6441,6 +6532,15 @@ function renderBudgetList() {
        (la saisie en cours garde le clavier) */
     const insLive = (k, tr, r) => {
       const tbl = tr.closest("table");
+      /* case fautive de la ligne encadrée en rouge (FORMAT 75) */
+      if (k === "prd" || k === "chg") {
+        const er = insRowErr(k, r);
+        tr.querySelectorAll("td.ins-td").forEach(td => {
+          const on = !!er && td.querySelector("input")?.dataset.f === er.f;
+          td.classList.toggle("ins-bad", on);
+          if (on) td.dataset.why = er.m; else delete td.dataset.why;
+        });
+      }
       tr.querySelectorAll("input.ins-in").forEach(inp => {
         const f = inp.dataset.f;
         const c = INS_COLS[k].find(x => x[0] === f);
@@ -6477,6 +6577,7 @@ function renderBudgetList() {
       if (k === "des") insRenderClient();
       else if (k === "chg" || k === "prd" || k === "qlt") insRenderTab();
       else insRenderHier(k);
+      if (k === "prim" && insTwins()) { insSave(); insRenderHier("sec"); }
       insMarkUnlinked();
       const nb = k === "des" ? shell.querySelector(".bdg-d-client-scroll")
         : (k === "chg" || k === "prd" || k === "qlt") ? body.querySelector(".bdg-d-scroll")
@@ -6491,7 +6592,7 @@ function renderBudgetList() {
       INS[k] = INS[k].filter(r => !empty(r));
       return INS[k].length !== before;
     };
-    shell.__ins = INS_EDIT ? { INS, cleanLinks: () => insCleanLinks(), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles,
+    shell.__ins = INS_EDIT ? { INS, rowErr: (k, r) => insRowErr(k, r), cleanLinks: () => insCleanLinks(), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles,
       /* ligne utilisée par une liaison (validée, ou déliée mais pas encore validée) : suppression interdite */
       isUsed: (k, id) => {
         if (!["des", "lot", "prim", "sec", "prd", "chg"].includes(k)) return false;
@@ -7032,8 +7133,6 @@ function renderBudgetList() {
       const L = INS.links || [];
       if (!LK.des || !id) return "";
       if (k === "prim") {
-        const o = L.find(l => l.prim === id && l.des !== LK.des);
-        if (o) return "RÈGLE A : L'ACTIVITÉ PRIMAIRE " + lkName("prim", id) + " EST DÉJÀ LIÉE À " + lkName("des", o.des) + ".";
         const t = LK.lot && L.find(l => l.lot === LK.lot && l.prim === id && l.des !== LK.des);
         if (t) return "RÈGLE A : LA TÂCHE PRIMAIRE " + lkName("lot", LK.lot) + " › " + lkName("prim", id) + " EST DÉJÀ LIÉE À " + lkName("des", t.des) + ".";
       }
@@ -7053,7 +7152,7 @@ function renderBudgetList() {
       if (ra) return ra;
       const D = INS.des.find(x => x.id === LK.des);
       const du = U_(D && D.u);
-      const bad = du && Object.keys(LK.prd).find(id => { const p = INS.prd.find(x => x.id === id); return p && U_(p.u) && U_(p.u) !== du; });
+      const bad = du && insIsPrimLink(LK.prim, LK.sec) && Object.keys(LK.prd).find(id => { const p = INS.prd.find(x => x.id === id); return p && U_(p.u) && U_(p.u) !== du; });
       if (bad) return "UNITÉ : " + lkName("prd", bad) + " (" + U_(INS.prd.find(x => x.id === bad).u) + ") N'A PAS L'UNITÉ DE LA DÉSIGNATION (" + du + ").";
       const dup = Object.keys(LK.prd).find(id => L.some(l => l.lot === LK.lot && l.sec === LK.sec && (l.prd || []).some(x => x.id === id)));
       if (dup) return "RÈGLE D : " + lkName("prd", dup) + " EST DÉJÀ DANS LA TÂCHE SECONDAIRE " + lkName("lot", LK.lot) + " › " + lkName("sec", LK.sec) + ".";
@@ -7162,6 +7261,60 @@ function renderBudgetList() {
         tr.replaceWith(nr);
         X.insLive("chg", nr, r);
         if (foc) nr.querySelector(`input[data-f="${foc}"]`)?.focus();
+      });
+    }
+    /* FORMAT 74-75 : nombre non valide refusé ; unité d'un produit → DIM non autorisées effacées et grisées ;
+       on ne passe pas à une autre ligne tant que la ligne quittée a une erreur */
+    if (!shell.__ruleBound) {
+      shell.__ruleBound = true;
+      shell.addEventListener("change", e => {
+        const inp = e.target.closest && e.target.closest("input.ins-in");
+        const X = shell.__ins;
+        if (!inp || !X) return;
+        const tr = inp.closest("tr[data-ik][data-iid]");
+        if (!tr) return;
+        const k = tr.dataset.ik, r = X.INS[k] && X.INS[k].find(x => x.id === tr.dataset.iid);
+        if (!r) return;
+        if (inp.getAttribute("inputmode") === "decimal" && !sviNumOk(inp.value)) {
+          svToast("NOMBRE NON VALIDE : CHIFFRES SEULEMENT (EX. 1 234,56).", 3500, inp);
+          inp.value = ""; r[inp.dataset.f] = ""; X.insSave();
+          setTimeout(() => inp.focus(), 0);
+          return;
+        }
+        if (k === "prd" && inp.dataset.f === "u") {
+          const nd = sviUnitDims(r.u);
+          const gone = [1, 2, 3].filter(i => i > nd && String(r["d" + i] ?? "") !== "");
+          gone.forEach(i => { r["d" + i] = ""; });
+          if (gone.length) svToast("UNITÉ " + U_(r.u) + " : " + (nd ? "NBR ET " + nd + " DIM" : "NBR SEUL") + " — DIM " + gone.join(", ") + " EFFACÉE(S).", 3500, inp);
+          X.insSave();
+          const tmp = document.createElement("tbody");
+          tmp.innerHTML = X.insRowHTML("prd", r, 0);
+          const nr = tmp.firstElementChild;
+          if (tr.contains(document.activeElement)) document.activeElement.blur();
+          const cur = tr.isConnected ? tr : shell.querySelector(`tr[data-ik="prd"][data-iid="${r.id}"]`);
+          if (!cur || !cur.parentNode) return;
+          try { cur.replaceWith(nr); } catch (err) { return; }
+          X.insLive("prd", nr, r);
+          setTimeout(() => { const nx = nr.querySelector('input[data-f="nbr"]'); if (nx && !document.activeElement?.closest("tr")) nx.focus(); }, 0);
+        }
+      });
+      let lastRow = null;
+      shell.addEventListener("focusin", e => {
+        const inp = e.target.closest && e.target.closest("input.ins-in");
+        const X = shell.__ins;
+        if (!inp || !X) return;
+        const tr = inp.closest("tr[data-ik]");
+        const prev = lastRow;
+        lastRow = tr && tr.dataset.iid ? { k: tr.dataset.ik, id: tr.dataset.iid } : null;
+        if (!prev || (tr && tr.dataset.ik === prev.k && tr.dataset.iid === prev.id)) return;
+        const r = (X.INS[prev.k] || []).find(x => x.id === prev.id);
+        const er = r && X.rowErr(prev.k, r);
+        if (!er) return;
+        const back = shell.querySelector(`tr[data-ik="${prev.k}"][data-iid="${prev.id}"] input[data-f="${er.f}"]`);
+        if (!back || back.disabled) return;
+        lastRow = prev;
+        e.preventDefault();
+        setTimeout(() => { back.focus(); svToast(er.m, 3500, back); }, 0);
       });
     }
     /* page unique : rond (choix de la chaîne), quantité de la tâche, ✓ VALIDER, DÉLIER */
@@ -7372,7 +7525,7 @@ function renderBudgetList() {
       unitErr: id => {
         const D = INS.des.find(x => x.id === LK.des), P = INS.prd.find(x => x.id === id);
         const du = String((D && D.u) || "").trim().toUpperCase(), pu = String((P && P.u) || "").trim().toUpperCase();
-        return du && pu && du !== pu ? "UNITÉ REFUSÉE : " + (P.des || "") + " (" + pu + ") N'A PAS L'UNITÉ DE LA DÉSIGNATION (" + du + ")." : "";
+        return du && pu && du !== pu && LK.prim && LK.sec && insIsPrimLink(LK.prim, LK.sec) ? "UNITÉ REFUSÉE : " + (P.des || "") + " (" + pu + ") N'A PAS L'UNITÉ DE LA DÉSIGNATION (" + du + ")." : "";
       },
       info: () => {
         /* fenêtre au format INF : titre, ✕, libellés à gauche, état de la liaison, produits et charges, FERMER */
@@ -9453,7 +9606,7 @@ function renderBudgetList() {
       ["qlt", "DÉTAIL QUALITÉ"], ["dly", "DÉTAIL DÉLAIS"]
     ];
     const impFr = iso => iso ? String(iso).slice(8, 10) + "/" + String(iso).slice(5, 7) + "/" + String(iso).slice(0, 4) : "";
-    const U_ = v => String(v ?? "").trim().toUpperCase();
+    /* U_ : défini plus haut (utilisé dès l'ouverture du budget) */
     /* identité d'une ligne : deux lignes identiques = doublon (jamais importé deux fois)
        désignations / charges : ART + DÉSIGNATION + UNITÉ (+ titre) ;
        produits : idem (ART + DÉSIGNATION + UNITÉ) */
@@ -10034,14 +10187,41 @@ function renderBudgetList() {
         const dc = U_(g(r, "dc")), lot = U_(g(r, "lot")), prim = U_(g(r, "prim")), sec = U_(g(r, "sec"));
         const t = bfNorm(g(r, "type")), dn = U_(g(r, "des"));
         let dk = "", pk = "", ck = "";
-        if (dc) {
+        /* ligne de liaison complète : mêmes règles que la saisie (FORMAT 74) ; non conforme → IMPORT NON CRÉÉ,
+           et ni sa désignation sans UPB, ni son produit / sa charge ne sont créés */
+        const isP = !!dn && t.startsWith("PRD"), isC = !!dn && t.startsWith("CHG");
+        let lineBad = null;
+        if (dc && lot && prim && sec && (isP || isC)) {
+            /* mêmes règles que la saisie (FORMAT 74) : la ligne non conforme va dans IMPORT NON CRÉÉ */
+            const bad = [], why = [];
+            const z = v => String(v ?? "").trim() === "" || num(v) === 0;
+            if (!U_(g(r, "upb"))) { bad.push("upb"); why.push("UPB MANQUANTE : LA DÉSIGNATION CLIENT NE PEUT PAS ÊTRE LIÉE"); }
+            ["nbr", "d1", "d2", "d3", "q"].forEach(f => { if (!sviNumOk(g(r, f))) { bad.push(f); why.push("NOMBRE NON VALIDE : " + f.toUpperCase().replace(/^D(\d)$/, "DIM $1")); } });
+            if (isP) {
+              const u = U_(g(r, "u")), nd = sviUnitDims(u), known = ["U", "F", "M", "ML", "M2", "M3"].includes(u);
+              if (z(g(r, "nbr"))) { bad.push("nbr"); why.push("NBR VIDE OU 0"); }
+              [1, 2, 3].forEach(i => {
+                const v = g(r, "d" + i);
+                if (i > nd && String(v ?? "").trim() !== "") { bad.push("d" + i); why.push("UNITÉ " + u + " : " + (nd ? "NBR ET " + nd + " DIM" : "NBR SEUL") + " (DIM " + i + " EN TROP)"); }
+                else if (known && i <= nd && z(v)) { bad.push("d" + i); why.push("UNITÉ " + u + " : DIM " + i + " À SAISIR"); }
+              });
+            }
+            if (isC) {
+              if (z(g(r, "q"))) { bad.push("q"); why.push("QTE VIDE OU 0"); }
+              const c = chsFind(String(g(r, "article") ?? "").trim(), dn);
+              if (c && U_(g(r, "u")) && U_(c.unit) && U_(g(r, "u")) !== U_(c.unit)) { bad.push("u"); why.push("UNITÉ " + U_(g(r, "u")) + " ≠ UNITÉ DE CHS (" + U_(c.unit) + ")"); }
+            }
+            if (bad.length) lineBad = { bad, why: why.join(" ; ") };
+        }
+        if (dc && !(lineBad && lineBad.bad.includes("upb"))) {
           const row = { art: String(g(r, "art") ?? "").trim(), des: dc, u: U_(g(r, "upb")), tva: 20 };
           /* titre : ni unité, ni tâche, ni détail */
           if (!row.u && !lot && !t && !dn) row.t = true;
           dk = put("des", "des|" + impId("des", row), row);
         }
         const hk = [["lot", lot], ["prim", prim], ["sec", sec]].map(([k, v]) => v ? put(k, k + "|" + v, { v }, true) : "");
-        if (dn && t.startsWith("PRD")) {
+        if (lineBad) { /* rien de plus n'est créé */ }
+        else if (dn && t.startsWith("PRD")) {
           const row = { des: dn, u: U_(g(r, "u")), nbr: nn(g(r, "nbr")), d1: nn(g(r, "d1")), d2: nn(g(r, "d2")), d3: nn(g(r, "d3")) };
           pk = put("prd", "prd|" + impId("prd", row), row);
         } else if (dn && t.startsWith("CHG")) {
@@ -10053,6 +10233,7 @@ function renderBudgetList() {
         }
         const src = Object.fromEntries(RAW.map(k => [k, String(g(r, k) ?? "").trim()]));
         src.__line = aoa.__lineFix || lineNo;
+        if (lineBad) { m.rej.push({ src, bad: lineBad.bad, why: lineBad.why }); return; }
         if (dk && hk[0] && hk[1] && hk[2] && (pk || ck)) {
           const lk = ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u"].map(f => U_(src[f])).join("|");
           if (seenLine.has(lk)) { m.rej.push({ src, bad: ["des"], why: "DOUBLON DANS LE FICHIER : IDENTIQUE À LA LIGNE " + seenLine.get(lk) + " (SEULS NBR / DIM / QTE PEUVENT DIFFÉRER)" }); return; }
@@ -10094,7 +10275,7 @@ function renderBudgetList() {
       /* budget d'abord (prioritaire à égalité) — sauf REMPLACER */
       const exist = mode === "replace" ? [] : (INS.links || []).map(l => {
         const d = byIdK("des", l.des), lo = byIdK("lot", l.lot), pr = byIdK("prim", l.prim), se = byIdK("sec", l.sec);
-        const dk = dKey(d), pk = "prim|" + U_(pr.v), sk = "lot|" + U_(lo.v) + "#sec|" + U_(se.v);
+        const dk = dKey(d), pk = "lot|" + U_(lo.v) + "#prim|" + U_(pr.v), sk = "lot|" + U_(lo.v) + "#sec|" + U_(se.v);
         const n = (l.prd || []).length + (l.chg || []).length;
         return { l, dk, pk, sk, n, name: d.des || "" };
       });
@@ -10105,7 +10286,7 @@ function renderBudgetList() {
         const dc = U_(src.dc);
         if (!dc) return;
         const dk = dKey({ art: String(src.art ?? "").trim(), des: dc, u: U_(src.upb) });
-        if (U_(src.prim)) add("p", "prim|" + U_(src.prim), dk, 1, dc);
+        if (U_(src.lot) && U_(src.prim)) add("p", "lot|" + U_(src.lot) + "#prim|" + U_(src.prim), dk, 1, dc);
         if (U_(src.lot) && U_(src.sec)) add("s", "lot|" + U_(src.lot) + "#sec|" + U_(src.sec), dk, 1, dc);
       });
       const win = g => new Map([...G[g]].map(([gk, M]) => {
@@ -10118,7 +10299,7 @@ function renderBudgetList() {
         .map(x => ({ ...x, by: W.p.get(x.pk).dk !== x.dk ? { g: "p", w: W.p.get(x.pk) } : { g: "s", w: W.s.get(x.sk) } }));
       return { W, lose, names };
     };
-    const bfRuleAWhy = (g, w) => "RÈGLE A : " + (g === "p" ? "ACTIVITÉ PRIMAIRE" : "TÂCHE SECONDAIRE") + " LIÉE À " + w.name + " (" + w.n + " LIGNE" + (w.n > 1 ? "S" : "") + ")";
+    const bfRuleAWhy = (g, w) => "RÈGLE A : " + (g === "p" ? "TÂCHE PRIMAIRE" : "TÂCHE SECONDAIRE") + " LIÉE À " + w.name + " (" + w.n + " LIGNE" + (w.n > 1 ? "S" : "") + ")";
     /* fenêtre de confirmation : liaisons du budget à délier */
     const bfRuleAAsk = plan => {
       if (!plan.lose.length) return Promise.resolve(true);
@@ -10170,7 +10351,7 @@ function renderBudgetList() {
         const gone = new Set(plan.lose.map(x => x.l));
         plan.lose.forEach(x => {
           const d = by("des", x.l.des), base = { art: d.art || "", dc: d.des || "", upb: d.u || "", lot: by("lot", x.l.lot).v || "", prim: by("prim", x.l.prim).v || "", sec: by("sec", x.l.sec).v || "" };
-          const why = "LIAISON DU BUDGET DÉLIÉE — " + bfRuleAWhy(x.by.g, x.by.w), bad = x.by.g === "p" ? ["prim"] : ["lot", "sec"];
+          const why = "LIAISON DU BUDGET DÉLIÉE — " + bfRuleAWhy(x.by.g, x.by.w), bad = x.by.g === "p" ? ["lot", "prim"] : ["lot", "sec"];
           (x.l.prd || []).forEach(y => { const r = by("prd", y.id); rej.push({ src: { ...base, type: "PRD", article: "", des: r.des || "", u: r.u || "", nbr: r.nbr ?? "", d1: r.d1 ?? "", d2: r.d2 ?? "", d3: r.d3 ?? "", q: "" }, bad, why }); });
           (x.l.chg || []).forEach(y => { const r = by("chg", y.id); rej.push({ src: { ...base, type: "CHG", article: r.art || "", des: r.des || "", u: r.u || "", nbr: "", d1: "", d2: "", d3: "", q: y.q !== "" && y.q !== undefined ? y.q : (r.q ?? "") }, bad, why }); });
         });
@@ -10191,15 +10372,19 @@ function renderBudgetList() {
         const ch0 = [des, lot, prim, sec].join("|");
         if ((pid && had.has(ch0 + "|p|" + pid)) || (cid && had.has(ch0 + "|c|" + cid))) { rej.push({ src: l.src, bad: ["des"], why: "DOUBLON : EXISTE DÉJÀ DANS LE BUDGET (SEULS NBR / DIM / QTE PEUVENT DIFFÉRER)" }); return; }
         /* règle A : la désignation qui a le plus de lignes l'emporte (activité primaire, puis tâche secondaire) */
-        const wp = plan.W.p.get(l.prim), ws = plan.W.s.get(l.lot + "#" + l.sec);
-        if (wp && wp.dk !== l.dk) { rej.push({ src: l.src, bad: ["prim"], why: bfRuleAWhy("p", wp) }); return; }
+        const wp = plan.W.p.get(l.lot + "#" + l.prim), ws = plan.W.s.get(l.lot + "#" + l.sec);
+        if (wp && wp.dk !== l.dk) { rej.push({ src: l.src, bad: ["lot", "prim"], why: bfRuleAWhy("p", wp) }); return; }
         if (ws && ws.dk !== l.dk) { rej.push({ src: l.src, bad: ["lot", "sec"], why: bfRuleAWhy("s", ws) }); return; }
-        const other = INS.links.find(x => x.prim === prim && x.des !== des);
-        if (other) { rej.push({ src: l.src, bad: ["prim"], why: "RÈGLE A : ACTIVITÉ PRIMAIRE DÉJÀ LIÉE À " + (byId("des", other.des).des || "") }); return; }
-        /* règle B : produit de la même unité que la désignation */
-        if (pid) {
+        const other = INS.links.find(x => x.lot === lot && x.prim === prim && x.des !== des);
+        if (other) { rej.push({ src: l.src, bad: ["lot", "prim"], why: "RÈGLE A : TÂCHE PRIMAIRE DÉJÀ LIÉE À " + (byId("des", other.des).des || "") }); return; }
+        /* règle D : un produit / une charge une seule fois dans une tâche secondaire (lot + act. scd) */
+        const dD = INS.links.find(x => x.lot === lot && x.sec === sec && !(x.des === des && x.prim === prim)
+          && ((pid && (x.prd || []).some(y => y.id === pid)) || (cid && (x.chg || []).some(y => y.id === cid))));
+        if (dD) { rej.push({ src: l.src, bad: ["des"], why: "RÈGLE D : DÉJÀ DANS LA TÂCHE SECONDAIRE " + (byId("lot", lot).v || "") + " › " + (byId("sec", sec).v || "") }); return; }
+        /* règle B : liaison primaire (act. scd = act. prm) → produit de l'unité de la désignation */
+        if (pid && U_(byId("prim", prim).v) === U_(byId("sec", sec).v)) {
           const du = U_(byId("des", des).u), pu = U_(byId("prd", pid).u);
-          if (du && pu && du !== pu) { rej.push({ src: l.src, bad: ["u", "upb"], why: "RÈGLE B : UNITÉ " + pu + " ≠ UNITÉ DE LA DÉSIGNATION (" + du + ")" }); return; }
+          if (du && pu && du !== pu) { rej.push({ src: l.src, bad: ["u", "upb"], why: "RÈGLE B : LIAISON PRIMAIRE — UNITÉ " + pu + " ≠ UNITÉ DE LA DÉSIGNATION (" + du + ")" }); return; }
         }
         let L = INS.links.find(x => x.des === des && x.lot === lot && x.prim === prim && x.sec === sec);
         if (!pid && !(L && (L.prd || []).length)) { const key = [des, lot, prim, sec].join("|"); (chgOnly.get(key) || chgOnly.set(key, []).get(key)).push(l.src); }
@@ -15003,3 +15188,112 @@ document.addEventListener("click", e => {
   document.getElementById("navMenu")?.classList.add("hidden");
   openSourceWin();
 });
+
+
+/* =========================================================
+   PARAMÉTRAGE : CHS + UNITÉS (12/10/2026)
+   UNITÉS : intitulé et abréviation ; l'abréviation est celle utilisée dans les tableaux.
+   Toutes les unités restent permises ; la liste sert de choix proposé à la saisie.
+   Gardée sur l'appareil en attendant l'onglet UNITÉS de la base Google.
+   ========================================================= */
+const SVI_UNITS_KEY = "svi_units_v1";
+const SVI_UNITS_DEF = [["UNITÉ", "U"], ["FORFAIT", "F"], ["MÈTRE", "M"], ["MÈTRE LINÉAIRE", "ML"], ["MÈTRE CARRÉ", "M2"],
+  ["MÈTRE CUBE", "M3"], ["TONNE", "T"], ["KILOGRAMME", "KG"], ["LITRE", "L"], ["ENSEMBLE", "ENS"]].map(([n, a]) => ({ n, a }));
+function sviUnits() {
+  try { const v = JSON.parse(localStorage.getItem(SVI_UNITS_KEY) || "null"); if (Array.isArray(v)) return v; } catch (e) {}
+  return SVI_UNITS_DEF.map(x => ({ ...x }));
+}
+function sviUnitsSave(list) {
+  try { localStorage.setItem(SVI_UNITS_KEY, JSON.stringify(list)); } catch (e) {}
+  sviUnitsList();
+}
+/* liste proposée dans les cases d'unité (UPB, UNITÉ) */
+function sviUnitsList() {
+  let dl = document.getElementById("sviUnitsDl");
+  if (!dl) { dl = document.createElement("datalist"); dl.id = "sviUnitsDl"; document.body.appendChild(dl); }
+  dl.innerHTML = sviUnits().filter(x => x.a).map(x => `<option value="${esc(x.a)}">${esc(x.n)}</option>`).join("");
+}
+document.addEventListener("focusin", e => {
+  const i = e.target.closest && e.target.closest('input.ins-in[data-f="u"]');
+  if (i && !i.disabled && !i.getAttribute("list")) { sviUnitsList(); i.setAttribute("list", "sviUnitsDl"); }
+});
+function sviParamTabs() {
+  const view = document.getElementById("chs");
+  if (!view || view.querySelector(".prm-tabs")) return;
+  const head = view.querySelector(".section-head");
+  const bar = document.createElement("div");
+  bar.className = "prm-tabs";
+  bar.innerHTML = `<button type="button" class="prm-tab on" data-prm="chs">CHS — CHARGES STANDARDS</button><button type="button" class="prm-tab" data-prm="unit">UNITÉS</button>`;
+  head.after(bar);
+  const pane = document.createElement("div");
+  pane.className = "prm-unit";
+  pane.hidden = true;
+  bar.after(pane);
+  const others = () => [...view.children].filter(x => x !== head && x !== bar && x !== pane);
+  const show = which => {
+    bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.prm === which));
+    others().forEach(x => { x.style.display = which === "chs" ? "" : "none"; });
+    pane.hidden = which !== "unit";
+    const add = document.getElementById("addChsBtn");
+    if (add) add.style.display = which === "chs" ? "" : "none";
+    const h1 = head.querySelector("h1"), sub = head.querySelector("p");
+    if (h1) h1.textContent = which === "chs" ? "CHS — CHARGES STANDARDS" : "UNITÉS";
+    if (sub) sub.textContent = which === "chs" ? "BIBLIOTHÈQUE DES CHARGES STANDARDS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";
+    if (which === "unit") draw();
+    try { localStorage.setItem("svi_prm_v1", which); } catch (e) {}
+  };
+  const draw = () => {
+    const L = sviUnits();
+    pane.innerHTML = `<table class="prm-table"><colgroup><col><col style="width:160px"><col style="width:44px"></colgroup>
+      <thead><tr><th>UNITÉ</th><th class="center">ABRÉVIATION</th><th class="center"><input type="checkbox" class="prm-all" title="Tout cocher"></th></tr></thead>
+      <tbody>${L.map((x, i) => `<tr data-i="${i}"><td><input class="prm-in" data-f="n" value="${esc(x.n)}" autocomplete="off"></td>
+        <td class="center"><input class="prm-in center" data-f="a" value="${esc(x.a)}" autocomplete="off"></td>
+        <td class="center"><input type="checkbox" class="prm-cb"></td></tr>`).join("")}
+        <tr class="prm-new"><td><input class="prm-in" data-f="n" placeholder="SAISIR ICI…" autocomplete="off"></td><td class="center"><input class="prm-in center" data-f="a" autocomplete="off"></td><td></td></tr></tbody></table>
+      <div class="prm-foot"><button type="button" class="prm-del" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div>`;
+  };
+  const clean = v => String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();
+  pane.addEventListener("change", e => {
+    const L = sviUnits();
+    if (e.target.matches(".prm-all")) { pane.querySelectorAll(".prm-cb").forEach(c => { c.checked = e.target.checked; }); }
+    if (e.target.matches(".prm-cb, .prm-all")) {
+      const n = pane.querySelectorAll(".prm-cb:checked").length;
+      const b = pane.querySelector(".prm-del");
+      b.disabled = !n; b.querySelector(".svi-cnt").textContent = n;
+      return;
+    }
+    const inp = e.target.closest(".prm-in");
+    if (!inp) return;
+    const tr = inp.closest("tr"), f = inp.dataset.f, v = clean(inp.value);
+    inp.value = v;
+    const i = tr.dataset.i !== undefined ? +tr.dataset.i : -1;
+    /* pas de doublon d'abréviation ni d'intitulé */
+    const dup = v && L.some((x, j) => j !== i && clean(x[f]) === v);
+    if (dup) { svToast("DOUBLON : " + v + " EXISTE DÉJÀ.", 3500, inp); inp.value = i >= 0 ? L[i][f] : ""; setTimeout(() => inp.focus(), 0); return; }
+    if (i >= 0) { L[i][f] = v; sviUnitsSave(L); return; }
+    if (!v) return;
+    const row = { n: "", a: "" };
+    row[f] = v;
+    tr.querySelectorAll(".prm-in").forEach(x => { row[x.dataset.f] = clean(x.value); });
+    L.push(row);
+    sviUnitsSave(L);
+    draw();
+    const nt = pane.querySelector(`tr[data-i="${L.length - 1}"] .prm-in[data-f="${f === "n" ? "a" : "n"}"]`);
+    if (nt) nt.focus();
+  });
+  pane.addEventListener("click", async e => {
+    if (!e.target.closest(".prm-del") || e.target.closest(".prm-del").disabled) return;
+    const idx = [...pane.querySelectorAll(".prm-cb")].map((c, i) => c.checked ? i : -1).filter(i => i >= 0);
+    if (!idx.length) return;
+    const L = sviUnits();
+    const ok = await svConfirm({ title: "SUPPRIMER LES UNITÉS COCHÉES", html: `<ul class="svc-list">${idx.map(i => `<li>${esc(L[i].a + " — " + L[i].n)}</li>`).join("")}</ul>`, ok: "SUPPRIMER" });
+    if (!ok) return;
+    sviUnitsSave(L.filter((x, i) => !idx.includes(i)));
+    draw();
+  });
+  bar.addEventListener("click", e => { const b = e.target.closest(".prm-tab"); if (b) show(b.dataset.prm); });
+  let start = "chs";
+  try { start = localStorage.getItem("svi_prm_v1") || "chs"; } catch (e) {}
+  show(start);
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", sviParamTabs); else sviParamTabs();
