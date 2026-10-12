@@ -982,7 +982,7 @@ async function driveOpenFolder(path) {
     openGoogleLink(url, w);
   } catch (e) {
     if (w) w.close();
-    alert("OUVERTURE DU DOSSIER IMPOSSIBLE : " + driveErrText(e));
+    sviAlert("OUVERTURE DU DOSSIER IMPOSSIBLE : " + driveErrText(e));
   }
 }
 
@@ -1155,7 +1155,7 @@ async function reloadAll() {
     renderHierarchy();
 
   } catch (e) {
-    alert(
+    sviAlert(
       "CONNEXION GOOGLE SHEETS IMPOSSIBLE : " +
       e.message
     );
@@ -2145,7 +2145,7 @@ async function selectHierarchy(
           </tr>
         `;
 
-      alert(
+      sviAlert(
         "CHARGEMENT DU BORDEREAU IMPOSSIBLE : " +
         e.message
       );
@@ -2173,7 +2173,7 @@ function addHierarchy(
     c.parent &&
     !selection[c.parent]
   ) {
-    return alert(
+    return sviAlert(
       `SÉLECTIONNEZ D'ABORD : ${
         cfg[c.parent].title
       }`
@@ -2413,7 +2413,7 @@ function brdForm(
     !selection.secondary &&
     !item
   ) {
-    return alert(
+    return sviAlert(
       "SÉLECTIONNEZ D'ABORD UNE ACTIVITÉ SECONDAIRE"
     );
   }
@@ -3435,7 +3435,7 @@ function renderBudgetList() {
       .rec-table td { height: 21px; box-sizing: border-box; }
       .rec-exp { margin: 0; vertical-align: middle; }
       .rec-flag.on { color: #b91c1c; border-color: #f3a5a5; background: #fff5f5; }
-      .rec-exp { width: 16px; height: 16px; accent-color: #b91c1c; cursor: pointer; }
+      .rec-exp { width: 16px; height: 16px; accent-color: var(--svst); cursor: pointer; }
       .rec-exp:disabled { cursor: not-allowed; opacity: 1; }
       /* alertes : 5 lignes à l'ouverture, plus si la fenêtre est agrandie */
       #docPop .obs-alert-list { max-height: calc(5 * 40px + 4 * 6px); }
@@ -3884,6 +3884,7 @@ function renderBudgetList() {
   /* titre, couleur et boutons de la barre de la liste */
   shell.classList.remove("bdg-inst-instance", "bdg-inst-fige");
   shell.classList.toggle("list-inst", listMode === "inst");
+  sviWatchState(shell);
   {
     const h1 = shell.querySelector(".novapp-list-titlebar h1");
     if (h1) h1.innerHTML = (listMode === "inst" ? "BUDGETS (EN INSTANCE)" : "BUDGETS (VALIDÉS)") + ' <span id="bdgListCount"></span>';
@@ -3970,7 +3971,7 @@ function renderBudgetList() {
       const miss = [];
       if (!r) miss.push("date");
       if (!prj) miss.push("projet");
-      if (miss.length) { p.querySelector("#nbErr").textContent = "CHAMPS OBLIGATOIRES MANQUANTS : " + miss.join(", ").toUpperCase() + "."; return; }
+      if (miss.length) { p.querySelector("#nbErr").textContent = "À COMPLÉTER (*) : " + miss.join(", ").toUpperCase() + "."; return; }
       const list = instLoad();
       list.push({ ref: r, project: prj, intitule: val("#nbName").toUpperCase() || "À COMPLÉTER",
         created: val("#nbDate"), state: "instance" });
@@ -5085,6 +5086,7 @@ function renderBudgetList() {
     /* en instance (rouge) ou figé (vert) ; validé : présentation noire normale */
     const INST_LIVE = !!budget.inst && budget.inst.state !== "valide";
     if (INST_LIVE) shell.classList.add("bdg-inst-" + (budget.inst.state || "instance"));
+    sviWatchState(shell);
 
     /* ---- squelette de l'écran ---- */
 
@@ -6775,7 +6777,7 @@ function renderBudgetList() {
         return dlyTable(rows, x => ({ per: x.per, deb: inp(x, "deb"), fin: inp(x, "fin"), dur: inp(x, "dur"),
           __td_deb: " ins-td", __td_fin: " ins-td", __td_dur: " ins-td",
           __cb: x.pid ? `<input type="checkbox" class="dlp-cb" data-task="${x.task}" data-pid="${x.pid}" ${x.on ? "checked" : ""}>` : "",
-          __x: x.pid ? `<button type="button" class="ins-x dlp-x" data-task="${x.task}" data-pid="${x.pid}" title="Supprimer la période" aria-label="Supprimer">${INS_TRASH}</button>` : "" }),
+          __x: "" }),
           x => `class="${x.nw ? "ins-new" : ""}"`, true, DLY_COLS_I);
       }
       const all = [];
@@ -6799,7 +6801,7 @@ function renderBudgetList() {
         deb: inp(x, "deb"), fin: inp(x, "fin"), dur: inp(x, "dur"),
         __td_deb: td, __td_fin: td, __td_dur: td,
         __cb: edit && x.pid ? `<input type="checkbox" class="dlp-cb" data-task="${x.task}" data-pid="${x.pid}" ${x.on ? "checked" : ""}>` : "",
-        __x: edit && x.pid ? `<button type="button" class="ins-x dlp-x" data-task="${x.task}" data-pid="${x.pid}" title="Supprimer la période" aria-label="Supprimer">${INS_TRASH}</button>` : "" }),
+        __x: "" }),
         x => `class="${x.nw ? "ins-new" : ""}"`, edit);
     };
     /* saisie : début + durée → fin ; fin → durée ; refus d'un chevauchement dans la même tâche */
@@ -6853,11 +6855,28 @@ function renderBudgetList() {
         const el = !X.err && nx && shell.querySelector(`input.dlp-in[data-pid="${q.id}"][data-f="${nx}"]`);
         if (el) { el.focus(); try { el.select(); } catch (err) {} }
       });
+      /* SUPPRIMER LES LIGNES COCHÉES (menu ⋯) : périodes cochées */
+      shell.__insDlyDel = () => {
+        const X = shell.__insDly;
+        if (!X) return;
+        const D = X.draft();
+        const n = Object.values(D).reduce((t, l) => t + l.filter(p => p.on === true).length, 0);
+        if (!n) return;
+        svConfirm({ title: "SUPPRIMER LES PÉRIODES COCHÉES", text: n + " PÉRIODE(S) SERONT SUPPRIMÉES.", ok: "SUPPRIMER" }).then(go => {
+          if (!go) return;
+          Object.keys(D).forEach(k => { D[k] = D[k].filter(p => p.on !== true); });
+          X.render();
+        });
+      };
       shell.addEventListener("click", e => {
         const X = shell.__insDly;
         const xa = e.target.closest && e.target.closest(".dlp-xall");
         if (xa && X) {
           e.stopPropagation();
+          shell.__insDlyDel();
+          return;
+        }
+        if (false) {
           const D = X.draft();
           const n = Object.values(D).reduce((t, l) => t + l.filter(p => p.on === true).length, 0);
           if (!n) return;
@@ -7254,7 +7273,7 @@ function renderBudgetList() {
         && (INS.links || []).some(l => l.lot + "|" + l.prim === k));
       const nD = dK.reduce((t, k) => t + INS.dlp[k].length, 0);
       const html = `${rem ? `<div class="svc-sub">À RETIRER : ${esc(names.join(", "))}</div>` : ""}
-        <div class="svc-sub">${rem ? "DANS" : "LIAISONS DÉLIÉES"} (${pl.links.length}) :</div>
+        <div class="svc-sub">${rem ? "DANS" : "LIAISONS DÉLIÉES"} ${svCnt(pl.links.length)} :</div>
         <ul class="svc-list">${pl.links.map(l => `<li>${esc(tag(l))}${rem && gone.includes(l) ? " <b>(PLUS AUCUN PRODUIT : DÉLIÉE)</b>" : ""}</li>`).join("")}</ul>
         ${nD ? `<div class="svc-sub svc-warn">${nD} PÉRIODE${nD > 1 ? "S" : ""} DE DÉLAIS ${nD > 1 ? "SERONT SUPPRIMÉES" : "SERA SUPPRIMÉE"}.</div>` : ""}`;
       return svConfirm({ title: rem ? "RETIRER DES LIAISONS" : "DÉLIER", html, ok: "✕ DÉLIER" }).then(go => {
@@ -7819,11 +7838,11 @@ function renderBudgetList() {
     const dlyTable = (rows, cells, trAttr = () => "", del = false, base = DLY_COLS) => {
       const cols = coOrder(base === DLY_COLS ? "dly" : "dlyi", base);
       const w = k => cwLoad()["dly." + k] || DLY_W[k];
-      return `<table class="bdg-d-table dly-table" style="width:${cols.reduce((t, c) => t + w(c[0]), 0) + (del ? 84 : 0)}px">
-        <colgroup>${del ? '<col style="width:40px">' : ""}${cols.map(c => `<col data-w="dly.${c[0]}" style="width:${w(c[0])}px">`).join("")}${del ? '<col style="width:44px">' : ""}</colgroup>
-        <thead><tr>${del ? '<th class="center"><input type="checkbox" class="dlp-cball" title="Tout cocher"></th>' : ""}${cols.map(c => cfHead(base === DLY_COLS ? "dly" : "dlyi", c[0], c[1], c[3])).join("")}${del
-          ? `<th class="center"><button type="button" class="ins-x dlp-xall" title="Supprimer les périodes cochées" aria-label="Supprimer les périodes cochées">${INS_TRASH}</button></th>` : ""}</tr></thead>
-        <tbody>${rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${del ? `<td class="center ins-cbc">${h.__cb || ""}</td>` : ""}${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}${del ? `<td class="center ins-delc">${h.__x || ""}</td>` : ""}</tr>`; }).join("")
+      /* FORMAT : case à droite de chaque ligne (cocher seulement) ; suppression par le menu ⋯ */
+      return `<table class="bdg-d-table dly-table" style="width:${cols.reduce((t, c) => t + w(c[0]), 0) + (del ? 44 : 0)}px">
+        <colgroup>${cols.map(c => `<col data-w="dly.${c[0]}" style="width:${w(c[0])}px">`).join("")}${del ? '<col style="width:44px">' : ""}</colgroup>
+        <thead><tr>${cols.map(c => cfHead(base === DLY_COLS ? "dly" : "dlyi", c[0], c[1], c[3])).join("")}${del ? '<th class="center"><input type="checkbox" class="dlp-cball" title="Tout cocher"></th>' : ""}</tr></thead>
+        <tbody>${rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}${del ? `<td class="center ins-cbc">${h.__cb || ""}</td>` : ""}</tr>`; }).join("")
           || ""}</tbody></table>`;
     };
     const renderTab = () => { renderTab0(); sviMarkEmptyTabs(shell); };
@@ -8691,9 +8710,17 @@ function renderBudgetList() {
     const blkLabel = blk => blk === "detail" ? tabTitle()
       : blk === "metre" ? "AVANT METRE" : blk === "interne" ? "DÉTAIL PRODUITS FORMAT INTERNE" : blkName[blk];
 
+    const blkEmpty = blk => {
+      try {
+        if (blk === "detail" && active === "qlt" && !INS) return true;
+        const b = blk === "suivi" ? recActive : blk;
+        const d = blkData(b);
+        return !d || !d.rows || !d.rows.length;
+      } catch (e) { return false; }
+    };
     const blkData = blk => {
       if (blk === "budget") return budgetFlat();
-      if (blk === "detail" && active === "qlt") return { head: [], rows: [] };
+      if (blk === "detail" && active === "qlt" && !INS) return { head: [], rows: [] };
       if (blk === "detail" && active === "dly") {
         /* délais : tableau affiché (filtres compris), dates JJ/MM/AAAA */
         const src = lastShown.detail && lastShown.detail.kind === "dly" ? lastShown.detail : { cols: DLY_COLS, rows: [] };
@@ -8905,7 +8932,7 @@ function renderBudgetList() {
        le Drive, nommée et rangée dans le dossier choisi, déjà mise en forme */
     const sendToDrive = async (blk, docName, path) => {
       const { head, rows, bold: boldIdx } = blkData(blk);
-      if (!head.length) { alert("Aucune donnée à exporter dans " + blkLabel(blk) + "."); return; }
+      if (!head.length) { sviAlert("Aucune donnée à exporter dans " + blkLabel(blk) + "."); return; }
       const T = exportTop(blk);
       const Uc = h => /^(ART\.?|N°)$/i.test(h) || /^(U|UPB|UCB|UNITÉ|UNITE)$/i.test(h);
       const al = (c, h) => blk === "metre" && h === "NB" ? "center"
@@ -8916,7 +8943,7 @@ function renderBudgetList() {
       /* onglet ouvert dans le geste (Safari), redirigé vers la feuille une fois créée */
       const w = window.open("", "_blank");
       const say = (t, err) => {
-        if (!w) { alert(t); return; }
+        if (!w) { sviAlert(t); return; }
         w.document.open();
         w.document.write(`<!doctype html><html><head><meta charset="utf-8">
           <meta name="viewport" content="width=device-width,initial-scale=1"><title>Google Sheets</title>
@@ -8996,7 +9023,7 @@ function renderBudgetList() {
 
     const doExport = async (blk, fmt, docName, dest) => {
       const { head, rows, bold: boldIdx } = blkData(blk);
-      if (!head.length) { alert("Aucune donnée à exporter dans " + blkLabel(blk) + "."); return; }
+      if (!head.length) { sviAlert("Aucune donnée à exporter dans " + blkLabel(blk) + "."); return; }
       const T = exportTop(blk);
       const topLines = [T.date, T.budget, T.client, T.projet, T.titre];
       histLog(blkLabel(blk), "EXPORT", ({ xlsx: "EXCEL", csv: "CSV", json: "JSON", gsheet: "GOOGLE SHEETS" }[fmt] || fmt) + " — " + rows.length + " LIGNE(S)");
@@ -9040,7 +9067,7 @@ function renderBudgetList() {
         const msg = copied
           ? "Données copiées. Touche le bouton ci-dessous : dans la nouvelle feuille Google, touche la cellule A1 puis « Coller »."
           : "Copie impossible sur cet appareil : utilise plutôt l'export Excel, puis Fichier › Importer dans Google Sheets.";
-        if (!w) { alert(msg); return; }
+        if (!w) { sviAlert(msg); return; }
         w.document.write(`<!doctype html><html><head><meta charset="utf-8">
           <meta name="viewport" content="width=device-width,initial-scale=1">
           <meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
@@ -9144,7 +9171,7 @@ function renderBudgetList() {
             type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           }), dest);
         } catch (e) {
-          alert(e.message);
+          sviAlert(e.message);
         }
       }
     };
@@ -10424,7 +10451,7 @@ function renderBudgetList() {
       const fileName = (fullRef + " " + cfg.fileTag).replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "_") + ".pdf";
 
       const w = window.open("", "_blank");
-      if (!w) { alert("Autorisez les fenêtres pop-up pour l'aperçu."); return; }
+      if (!w) { sviAlert("Autorisez les fenêtres pop-up pour l'aperçu."); return; }
       w.document.write(`<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
@@ -10440,7 +10467,7 @@ function renderBudgetList() {
   #side h2 { margin: 0 0 6px; font-size: 15px; font-weight: 900; }
   #side .sub { font-size: 11px; color: #4b5563; margin-bottom: 16px; line-height: 1.35; }
   #side label.ck { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; margin: 12px 0 6px; }
-  #side label.ck input { width: 18px; height: 18px; accent-color: #2a4fd1; }
+  #side label.ck input { width: 18px; height: 18px; accent-color: var(--svst); }
   #side .opt { margin: 4px 0 4px 28px; }
   #side .opt span { display: block; font-size: 11px; font-weight: 800; color: #4b5563; margin: 8px 0 5px; }
   #side select { width: 100%; height: 36px; border: 1px solid #d6dbe3; border-radius: 8px; padding: 0 10px;
@@ -11011,7 +11038,7 @@ function renderBudgetList() {
       if (op.__sviOpenGoogle) op.__sviOpenGoogle(url, w); else if (w) w.location.href = url; else window.open(url, "_blank");
     } catch (err) {
       if (w) w.close();
-      alert("OUVERTURE DU DOSSIER IMPOSSIBLE : " + (op.__sviDriveErr ? op.__sviDriveErr(err) : err));
+      (function (m) { var d = document.createElement("div"); d.textContent = m; d.style.cssText = "position:fixed;left:50%;top:40%;transform:translateX(-50%);max-width:90vw;background:#fff;border:1.5px solid #b91c1c;color:#b91c1c;padding:12px 16px;border-radius:10px;font:800 12px Arial,sans-serif;z-index:99999;box-shadow:0 10px 30px rgba(15,23,42,.2)"; document.body.appendChild(d); setTimeout(function () { d.remove(); }, 6000); })("OUVERTURE DU DOSSIER IMPOSSIBLE : " + String(op.__sviDriveErr ? op.__sviDriveErr(err) : err).toUpperCase());
     }
   };
   svRow();
@@ -11073,7 +11100,7 @@ function renderBudgetList() {
 
     const printClient = () => {
       const src = lastShown.client;
-      if (!src || !src.rows.length) { alert("Aucune désignation à afficher."); return; }
+      if (!src || !src.rows.length) { sviAlert("Aucune désignation à afficher."); return; }
       if (src.ins) return printClientIns(src.rows);
       const rows = [...src.rows].sort((a, b) =>
         String(a.article).localeCompare(String(b.article), "fr", { numeric: true }));
@@ -11179,7 +11206,7 @@ function renderBudgetList() {
       });
       const list = [...combos.values()].sort((a, b) =>
         o(lotOrd, a.lot) - o(lotOrd, b.lot) || o(primOrd, a.prim) - o(primOrd, b.prim) || o(secOrd, a.sec) - o(secOrd, b.sec));
-      if (!list.length) { alert("Aucune tâche à afficher."); return; }
+      if (!list.length) { sviAlert("Aucune tâche à afficher."); return; }
       const unitOf = c => {
         const pref = c.ls.filter(l => l.kind === "prd" && l.cprice !== 0);
         const use = pref.length ? pref : c.ls.filter(l => l.kind === "prd").length ? c.ls.filter(l => l.kind === "prd") : c.ls;
@@ -11263,7 +11290,7 @@ function renderBudgetList() {
     };
     const printMetre = () => {
       const groups = metreGroups();
-      if (!groups.length) { alert("Aucune désignation à afficher."); return; }
+      if (!groups.length) { sviAlert("Aucune désignation à afficher."); return; }
       const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
       const dim = v => esc(String(v ?? ""));
       let body = "";
@@ -11295,7 +11322,7 @@ function renderBudgetList() {
     const printTasks = (mode = "prd") => {
       const CHG = mode === "chg", PLAIN = mode === "plain";
       const src = lastShown.client;
-      if (!src || !src.rows.length) { alert("Aucune désignation à afficher."); return; }
+      if (!src || !src.rows.length) { sviAlert("Aucune désignation à afficher."); return; }
       const U = v => String(v ?? "").trim().toUpperCase();
       const groups = [...src.rows].sort((a, b) =>
         String(a.article).localeCompare(String(b.article), "fr", { numeric: true }));
@@ -11421,22 +11448,22 @@ function renderBudgetList() {
       let cols, rows, end = "";
       if ((blk === "detail" && active === "dly") || blk === "hist") {
         const d = blkData(blk);
-        if (!d.rows.length) { alert("Aucune donnée dans " + label + "."); return; }
+        if (!d.rows.length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         /* historique : date, branche et action étroites, détail large */
         cols = d.head.map((h, i) => [blk === "hist" ? ["hdt", "hbr", "hac", "hde"][i] : "c" + i, h, r => r[i], blk === "hist" && i ? "" : "center"]);
         rows = d.rows;
       } else if (REC_KINDS.includes(blk)) {
-        if (!recLoad(blk).length) { alert("Aucune donnée dans " + label + "."); return; }
+        if (!recLoad(blk).length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         cols = coOrder(blk, recCols[blk]);
         rows = recShown[blk] || recSorted(blk);
       } else {
         const src = lastShown.detail;
-        if (!src || !src.rows.length) { alert("Aucune donnée dans " + label + "."); return; }
+        if (!src || !src.rows.length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         cols = coOrder(active, src.cols);
         rows = src.rows;
         const ht = rows.reduce((t, l) => t + (l.amount || 0), 0);
         const tv = rows.reduce((t, l) => t + (l.tvaAmt || 0), 0);
-        end = `<div class="tot">
+        if (active === "chg" || active === "prd") end = `<div class="tot">
             <div><span>TOTAL H.T. :</span><b>${money(ht)}</b></div>
             <div><span>TOTAL T.V.A. :</span><b>${money(tv)}</b></div>
             <div><span>TOTAL T.T.C. :</span><b>${money(ht + tv)}</b></div>
@@ -11462,7 +11489,7 @@ function renderBudgetList() {
     const doPdf = blk => {
       if (blk === "client") return printClient();
       /* budget en instance : aperçu standard des lignes saisies */
-      if (INS && (blk === "hier" || (blk === "detail" && (active === "chg" || active === "prd")))) return printGeneric(blk);
+      if (INS && (blk === "hier" || blk === "detail")) return printGeneric(blk);
       if (blk === "hier") return printTasks("plain");
       if (blk === "detail" && active === "chg") return printTasks("chg");
       if (blk === "detail" && active === "prd") return printTasks("prd");
@@ -11471,11 +11498,11 @@ function renderBudgetList() {
       histLog(blkLabel(blk), "APERÇU PDF");
       let tableHTML;
       if (blk === "detail" && active === "qlt") {
-        alert("Aucune donnée dans " + blkLabel(blk) + ".");
+        sviAlert("Aucune donnée dans " + blkLabel(blk) + ".");
         return;
       }
       if (REC_KINDS.includes(blk) && !recLoad(blk).length) {
-        alert("Aucune donnée dans " + blkLabel(blk) + ".");
+        sviAlert("Aucune donnée dans " + blkLabel(blk) + ".");
         return;
       }
       if (blk === "hier" || REC_KINDS.includes(blk) || (blk === "detail" && active === "dly")) {
@@ -11494,7 +11521,7 @@ function renderBudgetList() {
         tableHTML = t.outerHTML;
       }
       const w = window.open("", "_blank");
-      if (!w) { alert("Autorisez les fenêtres pop-up pour l'aperçu PDF."); return; }
+      if (!w) { sviAlert("Autorisez les fenêtres pop-up pour l'aperçu PDF."); return; }
       w.document.write(`<!doctype html><html><head><meta charset="utf-8">
         <title>${esc(fileBase(blk))}</title>
         <style>
@@ -11640,8 +11667,8 @@ function renderBudgetList() {
           m.id = "blkMenu";
           m.dataset.for = "hist";
           m.innerHTML = `
-            <button type="button" data-ha="export"><span>Exporter</span></button>
-            <button type="button" data-ha="pdf"><span>Aperçu PDF</span></button>
+            <button type="button" data-ha="export"${histData().rows.length ? "" : ' class="off" disabled'}><span>Exporter</span></button>
+            <button type="button" data-ha="pdf"${histData().rows.length ? "" : ' class="off" disabled'}><span>Aperçu PDF</span></button>
             <button type="button" data-ha="max"><span>${big ? "Réduire" : "Agrandir"}</span></button>`;
           document.body.appendChild(m);
           const r = more.getBoundingClientRect();
@@ -11650,7 +11677,7 @@ function renderBudgetList() {
           m.style.zIndex = 10010;
           m.addEventListener("click", ev => {
             const it = ev.target.closest("[data-ha]");
-            if (!it) return;
+            if (!it || it.disabled) return;
             m.remove();
             const a = it.dataset.ha;
             if (a === "max") {
@@ -11660,7 +11687,7 @@ function renderBudgetList() {
               else { c.style.width = c.dataset.sw || ""; c.style.height = c.dataset.sh || ""; }
               return;
             }
-            if (!histData().rows.length) { alert("Aucune donnée dans l'historique."); return; }
+            if (!histData().rows.length) { sviAlert("Aucune donnée dans l'historique."); return; }
             if (a === "export") { close(); openExportMenu("hist"); }
             else { close(); printGeneric("hist"); }
           });
@@ -11796,7 +11823,7 @@ function renderBudgetList() {
         if (!title) { miss.push("intitulé"); p.querySelector("#docTitle").classList.add("bad"); }
         if (!file) { miss.push("document"); p.querySelector(".doc-file").classList.add("bad"); }
         if (miss.length) {
-          p.querySelector("#docErr").textContent = "CHAMPS OBLIGATOIRES MANQUANTS : " + miss.join(", ").toUpperCase() + ".";
+          p.querySelector("#docErr").textContent = "À COMPLÉTER (*) : " + miss.join(", ").toUpperCase() + ".";
           return;
         }
         const dupD = findDup(docsLoad(), r => r.title, title);
@@ -11843,7 +11870,7 @@ function renderBudgetList() {
             const it = l2.find(x => x.ref === savedRef);
             if (it) { it.drive = out.url || ""; it.drivePath = out.path || ""; docsSave(l2); }
             histLog("DOC", "DRIVE", savedRef + " → " + (out.path || "MON DRIVE") + "/" + dname);
-          }).catch(err => alert("DOCUMENT " + savedRef + " ENREGISTRÉ SUR L'IPAD, MAIS PAS DANS LE DRIVE : " + driveErrText(err)));
+          }).catch(err => sviAlert("DOCUMENT " + savedRef + " ENREGISTRÉ SUR L'IPAD, MAIS PAS DANS LE DRIVE : " + driveErrText(err)));
         }
       });
     };
@@ -12194,13 +12221,13 @@ function renderBudgetList() {
         /* fenêtre ouverte tout de suite (sinon bloquée par Safari), fichier ensuite */
         const w = window.open("", "_blank");
         sviFiles.get(d.idb).then(blob => {
-          if (!blob) { w && w.close(); alert("Document non disponible sur cet appareil."); return; }
+          if (!blob) { w && w.close(); sviAlert("Document non disponible sur cet appareil."); return; }
           const url = URL.createObjectURL(blob);
           if (w) w.location.href = url; else download(d.name, blob);
-        }).catch(e => { w && w.close(); alert("Ouverture impossible : " + e.message); });
+        }).catch(e => { w && w.close(); sviAlert("Ouverture impossible : " + e.message); });
         return;
       }
-      if (!d || !d.data) { alert("Document non disponible sur cet appareil."); return; }
+      if (!d || !d.data) { sviAlert("Document non disponible sur cet appareil."); return; }
       try {
         const [meta, b64] = d.data.split(",");
         const bin = atob(b64);
@@ -12210,7 +12237,7 @@ function renderBudgetList() {
         const url = URL.createObjectURL(blob);
         const w = window.open(url, "_blank");
         if (!w) download(d.name, blob);
-      } catch (e) { alert("Ouverture impossible : " + e.message); }
+      } catch (e) { sviAlert("Ouverture impossible : " + e.message); }
     };
     const localDT = d =>
       `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -12320,7 +12347,7 @@ function renderBudgetList() {
           if (!String($p(id).value).trim()) { miss.push(lab); $p(id).classList.add("bad"); }
         });
         if (miss.length) {
-          $p("recErr").textContent = "CHAMPS OBLIGATOIRES MANQUANTS : " + miss.join(", ").toUpperCase() + ".";
+          $p("recErr").textContent = "À COMPLÉTER (*) : " + miss.join(", ").toUpperCase() + ".";
           return;
         }
         const dupR = findDup(recLoad(kind), r => r.text, $p("recText").value);
@@ -12413,6 +12440,8 @@ function renderBudgetList() {
       const out = { del: {}, n: 0, kept: 0 };
       if (!X) return out;
       /* IMPORT NON CRÉÉ : les lignes cochées de l'onglet (les données déjà importées restent) */
+      /* DÉTAIL DÉLAIS : périodes cochées (le brouillon de la liaison en cours) */
+      if (blk === "detail" && active === "dly") { const Y = shell.__insDly; if (Y && Y.draft) { const D = Y.draft(); out.n = Object.values(D).reduce((t, l) => t + l.filter(p => p.on === true).length, 0); if (out.n) out.del.dly = true; } return out; }
       if (blk === "detail" && active === "inc") { const ids = new Set((INS.inc || []).filter(x => x.on === true).map(x => x.id)); if (ids.size) { out.del.inc = ids; out.n = ids.size; } return out; }
       const unlTab = blk === "detail" && active === "unl";
       insBlkKinds(blk).forEach(k => {
@@ -12433,7 +12462,9 @@ function renderBudgetList() {
     const insDelRun = blk => {
       const X = shell.__ins;
       const pl = insDelPlan(blk);
-      if (!X || !pl.n) return;
+      if (!pl.n) return;
+      if (pl.del.dly) { shell.__insDlyDel && shell.__insDlyDel(); return; }
+      if (!X) return;
       if (pl.del.inc) {
         svConfirm({ title: "EFFACER LES LIGNES D'IMPORT", text: pl.n + " LIGNE(S) EFFACÉE(S) DE L'ONGLET IMPORT NON CRÉÉ. LES DONNÉES DÉJÀ IMPORTÉES RESTENT.", ok: "EFFACER" }).then(go => {
           if (!go) return;
@@ -12591,6 +12622,10 @@ function renderBudgetList() {
         if (["copy", "cut", "paste"].includes(a.dataset.act)) {
           const n = clipCount(a.dataset.blk, a.dataset.act);
           return `<button type="button" data-i="${i}" class="blk-del blk-clip${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}</span>${svCnt(n)}</button>`;
+        }
+        /* exporter / aperçu : grisés si le bloc est vide (l'erreur n'est pas proposée) */
+        if ((a.dataset.act === "export" || a.dataset.act === "pdf") && blkEmpty(a.dataset.blk)) {
+          return `<button type="button" data-i="${i}" class="off" disabled>${a.innerHTML}<span>${esc(lab)}</span></button>`;
         }
         if (a.dataset.act === "del") {
           const n = insDelPlan(a.dataset.blk).n;
@@ -13095,7 +13130,7 @@ function printBudgetPDF(ref) {
   const group = bdgGroups.get(ref);
 
   if (!group || !group.rows.length) {
-    alert("Budget introuvable.");
+    sviAlert("Budget introuvable.");
     return;
   }
 
@@ -13143,7 +13178,7 @@ function printBudgetPDF(ref) {
     window.open("", "_blank");
 
   if (!printWindow) {
-    alert("Impossible d'ouvrir le document. Autorisez les fenêtres pop-up.");
+    sviAlert("Impossible d'ouvrir le document. Autorisez les fenêtres pop-up.");
     return;
   }
 
@@ -14033,7 +14068,7 @@ function openForm(
         closeModal();
 
       } catch (err) {
-        alert(
+        sviAlert(
           err.message ||
           String(err)
         );
@@ -14265,7 +14300,7 @@ function infoRow(ctx) {
       )
       .join("\n");
 
-  alert(lines);
+  sviAlert(lines);
 }
 
 /* =========================================================
@@ -14520,7 +14555,7 @@ document.addEventListener(
             }
 
           } catch (err) {
-            alert(
+            sviAlert(
               err.message ||
               String(err)
             );
@@ -14635,6 +14670,32 @@ function svImportFail({ source = "", tries = [], found = null, hint = "" } = {})
           ? `<div class="imp-fail-d">${esc(String((x.err && x.err.message) || x.err))}</div>` : ""}</li>`).join("")}</ul>`) : ""}
       ${found && found.length ? row("COLONNES TROUVÉES", esc(found.filter(v => String(v ?? "").trim()).map(v => String(v).toUpperCase()).join(" · ") || "AUCUNE")) : ""}
       ${hint ? row("QUE FAIRE", esc(String(hint).toUpperCase())) : ""}
+      <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-r="0">FERMER</button></div>
+    </div>`;
+  document.body.appendChild(d);
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-r]")) d.remove(); });
+}
+/* couleur d'état reportée sur toute la page (cases, fenêtres) : rouge en instance, vert figé, noir sinon */
+const SVI_ST_WATCH = new WeakSet();
+function sviSyncState() {
+  const sh = [...document.querySelectorAll(".novapp-list-shell")].find(x => x.offsetParent !== null) || document.querySelector(".novapp-list-shell");
+  let st = "";
+  if (sh) st = sh.classList.contains("bdg-inst-fige") ? "fige" : (sh.classList.contains("bdg-inst-instance") || sh.classList.contains("list-inst")) ? "instance" : "";
+  if (document.documentElement.dataset.svst !== st) document.documentElement.dataset.svst = st;
+}
+function sviWatchState(shell) {
+  if (shell && !SVI_ST_WATCH.has(shell)) { SVI_ST_WATCH.add(shell); new MutationObserver(sviSyncState).observe(shell, { attributes: true, attributeFilter: ["class"] }); }
+  sviSyncState();
+}
+/* message au format de l'application (jamais de fenêtre Safari) : titre, texte, FERMER */
+function sviAlert(msg, title = "INFORMATION") {
+  document.getElementById("svConf")?.remove();
+  const d = document.createElement("div");
+  d.id = "svConf";
+  d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
+      <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
+      <div class="svc-t">${esc(String(title).toUpperCase())}</div>
+      <div class="svc-x" style="white-space:pre-line">${esc(String(msg ?? "").toUpperCase())}</div>
       <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-r="0">FERMER</button></div>
     </div>`;
   document.body.appendChild(d);

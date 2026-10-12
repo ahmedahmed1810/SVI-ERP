@@ -961,14 +961,14 @@ tfoot td {
 #docPop .imp-opts label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 #docPop .imp-opts small { font-weight: 600; color: #6b7280; font-size: 11px; }
 #docPop .imp-opts .imp-all { margin-left: auto; }
-#docPop .imp-opts input { accent-color: #b91c1c; width: 16px; height: 16px; }
+#docPop .imp-opts input { accent-color: var(--svst); width: 16px; height: 16px; }
 #docPop .imp-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 #docPop .imp-tab { border: 1px solid #d6dbe3; border-radius: 999px; padding: 6px 12px; background: #fff; font-size: 12px; font-weight: 800; color: #4b5563; cursor: pointer; }
 #docPop .imp-tab.on { background: #b91c1c; border-color: #b91c1c; color: #fff; }
 #docPop .imp-tab.on .svi-cnt { background: rgba(255,255,255,.25); color: #fff; }
 #docPop .imp-scroll { max-height: 46vh; overflow: auto; border: 1px solid #e5e9f0; border-radius: 8px; }
 #docPop .imp-table { width: 100%; }
-#docPop .imp-table input { width: 15px; height: 15px; accent-color: #b91c1c; }
+#docPop .imp-table input { width: 15px; height: 15px; accent-color: var(--svst); }
 #docPop .imp-table tr.imp-tt td { font-weight: 800; background: #f6f7f9; }
 #docPop .imp-table tr.imp-linked td { color: #b91c1c; font-style: italic; }
 #docPop .imp-foot { justify-content: space-between; align-items: center; }
@@ -1286,3 +1286,11 @@ body.svi-dragging, body.svi-dragging * { -webkit-user-select: none !important; u
 /* rond d'en-tête : choisir toutes les lignes déjà liées ; grisé si une ligne du bloc est déjà choisie */
 .lk-rdall.off { opacity: .3; pointer-events: none; }
 th.ins-rdc .lk-rdall, .bdg-h-head .lk-rdall { vertical-align: middle; }
+
+/* FORMAT : toutes les cases et ronds prennent la couleur de l'état (jamais le bleu du navigateur) */
+:root { --svst: #172033; }
+:root[data-svst="instance"] { --svst: #b91c1c; }
+:root[data-svst="fige"] { --svst: #15803d; }
+input[type=checkbox], input[type=radio] { accent-color: var(--svst); }
+.inc-cb, .inc-cball, .unl-cb, .unl-cball { accent-color: var(--inst, var(--svst)); }
+#blkMenu button.off, #blkMenu button:disabled { color: #9aa3af; cursor: default; opacity: .6; background: none; }
