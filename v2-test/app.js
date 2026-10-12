@@ -5561,6 +5561,26 @@ function renderBudgetList() {
     const insFmt = v => (v === "" || v === null || v === undefined) ? "" : money(v);
     /* niveau d'un titre d'après sa numérotation : I = 1, I.1 = 2, I.1.1 = 3 */
     const insLevel = art => Math.min(3, String(art || "").split(".").filter(x => x.trim() !== "").length || 1);
+    /* niveau enregistré à part (FORMAT 61) : r.d = nombre de titres au-dessus de la ligne.
+       Calculé une fois depuis l'ART (lignes anciennes / importées), puis changé seulement par le glissement ;
+       l'ART reste tel que saisi. Pas de limite de niveaux. */
+    const dOf = r => Number(r && r.d) || 0;
+    const insNorm = () => {
+      if (!INS) return;
+      const stack = [];
+      INS.des.forEach(r => {
+        if (r.d === undefined || r.d === null || r.d === "") {
+          if (r.t) {
+            const L = insLevel(r.art);
+            while (stack.length && insLevel(stack[stack.length - 1].art) >= L) stack.pop();
+            r.d = stack.length;
+          } else r.d = stack.length;
+        }
+        r.d = Math.max(0, Math.min(Number(r.d) || 0, stack.length));
+        while (stack.length > r.d) stack.pop();
+        if (r.t) stack.push(r);
+      });
+    };
     /* quantité d'un détail produit : NBR × DIM si renseignés, sinon la saisie */
     const insQty = (k, r) => {
       if (k === "prd") return insPrdQ(r);
@@ -5722,15 +5742,13 @@ function renderBudgetList() {
     const insQCol = k => false;   /* plus de colonne QUANTITÉ DE LA TÂCHE : la quantité liée est la QPB du produit */
     const insRowHTML = (k, r, lvl) => {
       const cols = INS_COLS[k];
-      const tcell = k === "des"
-        ? `<td class="center ins-tc">${r && (INS_EDIT || r.t) ? `<span class="ins-t${r.t ? " on" : ""}" role="button" title="Ligne titre">T</span>` : ""}</td>`
-        : "";
+      const tcell = "";   /* plus de colonne T : un titre se crée en superposant deux lignes (FORMAT 61) */
       const sel = r && !r.t && lkOn(k, r.id);
       const dim = k === "des" && r && !r.t && LK.des && !sel;
       const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
       const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* bleu = liée (à n'importe quelle désignation) */
-      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + insLevel(r.art) : ""}${r && !r.t && lvl ? " ins-in" + lvl : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
-          data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}>
+      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
+          data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}${k === "des" && r ? ` style="--d:${dOf(r)}"` : ""}>
         <td class="center ins-rdc">${k === "des" && r && r.t ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
           ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>`;
     };
@@ -5752,10 +5770,9 @@ function renderBudgetList() {
       const keep = new Set(shown.map(r => r.id));
       return INS.des.filter((r, i) => {
         if (!r.t) return keep.has(r.id);
-        const L = insLevel(r.art);
         for (let j = i + 1; j < INS.des.length; j++) {
           const x = INS.des[j];
-          if (x.t && insLevel(x.art) <= L) break;
+          if (dOf(x) <= dOf(r)) break;
           if (!x.t && keep.has(x.id)) return true;
         }
         return false;
@@ -5766,7 +5783,7 @@ function renderBudgetList() {
       const out = [];
       for (let i = INS.des.indexOf(t) + 1; i < INS.des.length; i++) {
         const r = INS.des[i];
-        if (r.t && insLevel(r.art) <= insLevel(t.art)) break;
+        if (dOf(r) <= dOf(t)) break;
         if (!r.t) out.push(r);
       }
       return out;
@@ -5786,7 +5803,7 @@ function renderBudgetList() {
       let ht = 0, ttc = 0;
       for (let i = i0 + 1; i < INS.des.length; i++) {
         const r = INS.des[i];
-        if (r.t && insLevel(r.art) <= insLevel(t.art)) break;
+        if (dOf(r) <= dOf(t)) break;
         if (!r.t) { ht += insHT("des", r); ttc += insTTC("des", r); }
       }
       return { ht, ttc };
@@ -5795,12 +5812,9 @@ function renderBudgetList() {
     const insOrder = rows => {
       const out = [], stack = [];
       rows.forEach(r => {
-        if (r.t) {
-          const L = insLevel(r.art);
-          while (stack.length && insLevel(stack[stack.length - 1].art) >= L) out.push({ sub: stack.pop() });
-          stack.push(r);
-          out.push({ r, lvl: 0 });
-        } else out.push({ r, lvl: stack.length ? insLevel(stack[stack.length - 1].art) : 0 });
+        while (stack.length && dOf(stack[stack.length - 1]) >= dOf(r)) out.push({ sub: stack.pop() });
+        out.push({ r, lvl: dOf(r) });
+        if (r.t) stack.push(r);
       });
       while (stack.length) out.push({ sub: stack.pop() });
       return out;
@@ -5819,7 +5833,7 @@ function renderBudgetList() {
     const insAnc = () => {
       const out = new Map(), stack = [];
       INS.des.forEach(r => {
-        if (r.t) { while (stack.length && insLevel(stack[stack.length - 1].art) >= insLevel(r.art)) stack.pop(); }
+        while (stack.length && dOf(stack[stack.length - 1]) >= dOf(r)) stack.pop();
         out.set(r.id, stack.slice());
         if (r.t) stack.push(r);
       });
@@ -5848,7 +5862,7 @@ function renderBudgetList() {
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
       const rows = k === "des" ? insShown(k) : lkTop(k, insShown(k));
-      const ncol = INS_COLS[k].length + (k === "des" ? 2 : 1);
+      const ncol = INS_COLS[k].length + 1;
       let html = "";
       if (k !== "des") {
         const first = rows.length > INS_CHUNK * 1.5 ? rows.slice(0, INS_CHUNK) : rows;
@@ -5857,7 +5871,7 @@ function renderBudgetList() {
       } else {
         const sub = t => {
           const { ht, ttc } = insSubOf(t);
-          return `<tr class="ins-sub lv${insLevel(t.art)}" data-sub="${t.id}"><td></td><td></td><td></td>
+          return `<tr class="ins-sub lv${Math.min(3, dOf(t) + 1)}" data-sub="${t.id}" style="--d:${dOf(t)}"><td></td><td></td>
             <td colspan="4" class="number">TOTAL ${esc(t.des || t.art || "")}</td>
             <td class="number ins-sht">${money(ht)}</td><td></td><td class="number ins-sttc">${money(ttc)}</td>${INS_EDIT ? "<td></td>" : ""}</tr>`;
         };
@@ -5875,13 +5889,13 @@ function renderBudgetList() {
           const done = new Set();
           top.forEach(r => {
             const anc = [];
-            for (let i = INS.des.indexOf(r) - 1, L = 99; i >= 0; i--) {
+            for (let i = INS.des.indexOf(r) - 1, L = dOf(r); i >= 0 && L > 0; i--) {
               const t = INS.des[i];
-              if (t.t && insLevel(t.art) < L) { anc.unshift(t); L = insLevel(t.art); if (L <= 1) break; }
+              if (t.t && dOf(t) < L) { anc.unshift(t); L = dOf(t); if (L <= 0) break; }
             }
             anc.forEach(t => { if (!done.has(t.id)) { done.add(t.id); head += insRowHTML(k, t, 0).replace('class="ins-row', 'class="ins-row ins-top'); } });
             /* titre replié : la ligne reste cachée (le titre, lui, est affiché avec ›) */
-            if (!hid(r)) head += insRowHTML(k, r, anc.length ? insLevel(anc[anc.length - 1].art) : 0);
+            if (!hid(r)) head += insRowHTML(k, r, dOf(r));
           });
         }
         const topIds = new Set(top.map(r => r.id));
@@ -5897,7 +5911,7 @@ function renderBudgetList() {
       const rows = insShown(k).filter(r => !r.t);
       const ht = rows.reduce((t, r) => t + insHT(k, r), 0);
       const ttc = rows.reduce((t, r) => t + insTTC(k, r), 0);
-      const n = INS_COLS[k].length + (k === "des" ? 2 : 1);
+      const n = INS_COLS[k].length + 1;
       return `<tr class="bdg-d-total-row">${"<td></td>".repeat(n - 4)}<td class="number">TOTAL</td>
         <td class="number">${money(ht)}</td><td class="number">${money(ttc - ht)}</td><td class="number">${money(ttc)}</td>${insQCol(k) ? "<td></td>" : ""}${INS_EDIT ? "<td></td>" : ""}</tr>`;
     };
@@ -5905,18 +5919,19 @@ function renderBudgetList() {
     const insAllOn = k => { const v = insShown(k).filter(r => !r.t); return v.length > 0 && v.every(r => r.on === true); };
     const insTableHTML = k => {
       const cols = INS_COLS[k];
-      const lead = k === "des" ? 2 : 1;
+      const lead = 1;
       const qw = insQCol(k) ? 160 : 0;
       const w = 36 * lead + (INS_EDIT ? 40 : 0) + qw + cols.reduce((t, c) => t + cwGet(k === "des" ? "client" : k, c[4]), 0);
       const t = insCfT(k);
       return `<table class="bdg-d-table ins-table" data-ik="${k}" style="width:${w}px">
         <colgroup>${'<col style="width:36px">'.repeat(lead)}${cols.map(c => `<col data-w="${t}.${c[4]}" style="width:${cwGet(t, c[4])}px">`).join("")}${qw ? `<col style="width:${qw}px">` : ""}${INS_EDIT ? '<col style="width:40px">' : ""}</colgroup>
-        <thead><tr><th class="center"></th>${k === "des" ? '<th class="center">T</th>' : ""}${cols.map(c => cfHead(t, c[4], c[1], c[2])).join("")}${qw ? '<th class="number lk-qh">QUANTITÉ DE LA TÂCHE</th>' : ""}${INS_EDIT
+        <thead><tr><th class="center"></th>${cols.map(c => cfHead(t, c[4], c[1], c[2])).join("")}${qw ? '<th class="number lk-qh">QUANTITÉ DE LA TÂCHE</th>' : ""}${INS_EDIT
           ? `<th class="center ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${insAllOn(k) ? " checked" : ""}></th>` : ""}</tr></thead>
         <tbody>${insBodyHTML(k)}</tbody>
         <tfoot>${insFootHTML(k)}</tfoot></table>`;
     };
     const insRenderClient = () => {
+      insNorm();
       const t = document.querySelector("#bdgClientTitle .ttl");
       const shownD = insShown("des");
       if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + svCnt(shownD.filter(r => !r.t).length);
@@ -6169,7 +6184,7 @@ function renderBudgetList() {
           let ht = 0, ttc = 0;
           for (let i = i0 + 1; i < INS.des.length; i++) {
             const x = INS.des[i];
-            if (x.t && insLevel(x.art) <= insLevel(t.art)) break;
+            if (dOf(x) <= dOf(t)) break;
             if (!x.t) { ht += insHT(k, x); ttc += insTTC(k, x); }
           }
           s.querySelector(".ins-sht").textContent = money(ht);
@@ -6227,7 +6242,12 @@ function renderBudgetList() {
         if (!r) {
           /* première frappe dans la ligne vide : la ligne est créée */
           r = { id: X.insId(), on: false };   /* nouvelle ligne : décochée par défaut */
-          if (k === "des") { r.t = false; r.tva = 20; }   /* TVA 20 % par défaut */
+          if (k === "des") {
+            r.t = false; r.tva = 20;   /* TVA 20 % par défaut */
+            /* niveau : celui de la dernière ligne (ou dans le dernier titre) */
+            const last = X.INS.des[X.INS.des.length - 1];
+            r.d = !last ? 0 : last.t ? (Number(last.d) || 0) + 1 : (Number(last.d) || 0);
+          }
           X.INS[k].push(r);
           holder.dataset.iid = r.id;
           holder.classList.remove("ins-new");
@@ -6394,12 +6414,12 @@ function renderBudgetList() {
         (l.chg || []).forEach(x => u.chg.add(x.id));
       });
       /* un titre est « utilisé » si une de ses lignes l'est */
+      insNorm();
       const stack = [];
       INS.des.forEach(r => {
-        if (r.t) {
-          while (stack.length && insLevel(stack[stack.length - 1].art) >= insLevel(r.art)) stack.pop();
-          stack.push(r);
-        } else if (u.des.has(r.id)) stack.forEach(t => u.des.add(t.id));
+        while (stack.length && dOf(stack[stack.length - 1]) >= dOf(r)) stack.pop();
+        if (r.t) stack.push(r);
+        else if (u.des.has(r.id)) stack.forEach(t => u.des.add(t.id));
       });
       return u;
     };
@@ -8011,6 +8031,66 @@ function renderBudgetList() {
 
     /* ===== budget en instance : appui long sur une ligne saisie = glisser la ligne
        (un titre emmène ses lignes et sous-titres) ===== */
+    /* désignations : dépôt d'une ligne ou d'un titre (avec sa branche) — FORMAT 61
+       - avant une ligne / un titre : même niveau que lui ;
+       - après une ligne : même niveau (entre dans son titre) ;
+       - après un titre déplié : entre dans ce titre ; après un titre replié : à côté de lui (après sa branche) ;
+       - superposé : nouveau titre « NOUVEAU TITRE n » qui regroupe la ligne visée puis la ligne glissée ;
+       - titres devenus vides : supprimés après confirmation (ANNULER = glissement annulé) */
+    const desDrop = async (arr, i0, n, tid, mode) => {
+      insNorm();
+      const snap = arr.map(r => ({ ...r }));
+      const D = r => Number(r.d) || 0;
+      const block = arr.splice(i0, n);
+      const shift = (rows, base) => { const d0 = D(rows[0]); rows.forEach(r => { r.d = base + D(r) - d0; }); };
+      let j = arr.findIndex(r => r.id === tid);
+      if (j < 0) { arr.splice(i0, 0, ...block); return; }
+      const T = arr[j];
+      const branchEnd = i => { let e = i + 1; while (e < arr.length && D(arr[e]) > D(arr[i])) e++; return e; };
+      let created = null;
+      if (mode === "on") {
+        const e = branchEnd(j);
+        const tb = arr.splice(j, e - j);
+        const used = INS.des.concat(snap).map(r => (String(r.des || "").match(/^NOUVEAU TITRE (\d+)$/) || [])[1]).filter(Boolean).map(Number);
+        created = { id: insId(), t: true, art: "", des: "NOUVEAU TITRE " + ((used.length ? Math.max(...used) : 0) + 1), d: D(T), on: false };
+        shift(tb, D(T) + 1); shift(block, D(T) + 1);
+        arr.splice(j, 0, created, ...tb, ...block);
+      } else if (mode === "before") {
+        shift(block, D(T)); arr.splice(j, 0, ...block);
+      } else if (T.t && !foldGet()[T.id]) {
+        shift(block, D(T) + 1); arr.splice(j + 1, 0, ...block);
+      } else if (T.t) {
+        shift(block, D(T)); arr.splice(branchEnd(j), 0, ...block);
+      } else {
+        shift(block, D(T)); arr.splice(j + 1, 0, ...block);
+      }
+      insNorm();
+      /* titres vides (sans aucune ligne, sous-titres vides compris) */
+      const empty = arr.filter((r, i) => {
+        if (!r.t || (created && r.id === created.id)) return false;
+        for (let x = i + 1; x < arr.length && D(arr[x]) > D(r); x++) if (!arr[x].t) return false;
+        return true;
+      });
+      if (empty.length) {
+        const ok = await svConfirm({ title: "SUPPRIMER LES TITRES VIDES",
+          html: `<div class="svc-sub">CES TITRES N'ONT PLUS AUCUNE LIGNE :</div><ul class="svc-list">${empty.map(r => `<li>${esc([r.art, r.des].filter(Boolean).join(" "))}</li>`).join("")}</ul>`,
+          ok: "SUPPRIMER" });
+        if (!ok) { arr.splice(0, arr.length, ...snap); insSave(); insRedraw("des"); return; }
+        const gone = new Set(empty.map(r => r.id));
+        const keep = arr.filter(r => !gone.has(r.id));
+        arr.splice(0, arr.length, ...keep);
+        insNorm();
+        histLog("DÉSIGNATIONS CLIENT", "TITRES VIDES SUPPRIMÉS", empty.map(r => r.des || r.art || "").join(", "));
+      }
+      insSave();
+      histLog("DÉSIGNATIONS CLIENT", created ? "NOUVEAU TITRE" : "ORDRE DES LIGNES", String(created ? created.des : (block[0].des || block[0].art || "")));
+      insRedraw("des");
+      /* nouveau titre : l'intitulé est prêt à être saisi */
+      if (created) setTimeout(() => {
+        const i = shell.querySelector(`#bdgClientBody tr[data-iid="${created.id}"] input[data-f="des"]`);
+        if (i) { i.focus(); try { i.select(); } catch (e) {} i.scrollIntoView({ block: "nearest" }); }
+      }, 30);
+    };
     const insDrag = (event, el) => {
       const X = shell.__ins;
       if (!X) return;
@@ -8024,8 +8104,8 @@ function renderBudgetList() {
         ? [...el.parentElement.querySelectorAll("tr[data-iid]")]
         : [...el.parentElement.querySelectorAll(".ins-li[data-iid]")];
       const x0 = event.clientX, y0 = event.clientY;
-      let on = false, moved = false, target = null, after = false;
-      const clear = () => sibs().forEach(x => x.classList.remove("ro-before", "ro-after"));
+      let on = false, moved = false, target = null, after = false, over = false;
+      const clear = () => sibs().forEach(x => x.classList.remove("ro-before", "ro-after", "ro-in", "ro-on"));
       const timer = setTimeout(() => {
         on = true;
         /* le doigt est bloqué seulement pendant le glissement (le défilement normal reste libre) */
@@ -8048,9 +8128,21 @@ function renderBudgetList() {
           const r = x.getBoundingClientRect();
           if (e.clientY >= r.top && e.clientY <= r.bottom) {
             if (x !== el) {
-              after = e.clientY > (r.top + r.bottom) / 2;
-              x.classList.add(after ? "ro-after" : "ro-before");
               target = x;
+              over = false;
+              if (k === "des") {
+                /* désignations : haut = avant, milieu = superposer (nouveau titre), bas = après */
+                const f = (e.clientY - r.top) / (r.height || 1);
+                over = f > .25 && f < .75;
+                after = f >= .75;
+                const tr0 = X.INS.des.find(q => q.id === x.dataset.iid);
+                if (over) x.classList.add("ro-on");
+                else if (after && tr0 && tr0.t && !foldGet()[tr0.id]) x.classList.add("ro-in");   /* entre dans le titre déplié */
+                else x.classList.add(after ? "ro-after" : "ro-before");
+              } else {
+                after = e.clientY > (r.top + r.bottom) / 2;
+                x.classList.add(after ? "ro-after" : "ro-before");
+              }
             }
             break;
           }
@@ -8083,11 +8175,11 @@ function renderBudgetList() {
         /* bloc déplacé : la ligne, ou le titre avec ses lignes */
         let n = 1;
         if (k === "des" && arr[i0].t) {
-          const L = X.insLevel(arr[i0].art);
-          while (i0 + n < arr.length && !(arr[i0 + n].t && X.insLevel(arr[i0 + n].art) <= L)) n++;
+          while (i0 + n < arr.length && (Number(arr[i0 + n].d) || 0) > (Number(arr[i0].d) || 0)) n++;
         }
         const blockIds = arr.slice(i0, i0 + n).map(r => r.id);
         if (blockIds.includes(target.dataset.iid)) return;
+        if (k === "des") { desDrop(arr, i0, n, target.dataset.iid, over ? "on" : after ? "after" : "before"); return; }
         const block = arr.splice(i0, n);
         let j = arr.findIndex(r => r.id === target.dataset.iid);
         if (after) j++;
