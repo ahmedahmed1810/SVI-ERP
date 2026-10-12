@@ -5885,8 +5885,8 @@ function renderBudgetList() {
             .forEach(r => (A.get(r.id) || []).forEach(t => { if (F[t.id]) foldSet(t.id, false); })); }
         const hid = insHiddenFn();
         let head = "";
+        const done = new Set();   /* titres déjà affichés en haut */
         if (top.length) {
-          const done = new Set();
           top.forEach(r => {
             const anc = [];
             for (let i = INS.des.indexOf(r) - 1, L = dOf(r); i >= 0 && L > 0; i--) {
@@ -5900,7 +5900,12 @@ function renderBudgetList() {
         }
         const topIds = new Set(top.map(r => r.id));
         const rest = rows.filter(r => !topIds.has(r.id));
-        html = head + insOrder(rest).filter(x => !hid(x.sub || x.r)).map(x => x.sub ? sub(x.sub) : insRowHTML(k, x.r, x.lvl)).join("");
+        /* plus de total par titre (seulement le total général) ; un titre n'apparaît qu'une fois,
+           sauf s'il garde des lignes plus bas */
+        const restIds = new Set(rest.filter(r => !r.t).map(r => r.id));
+        const hasRest = t => { for (let i = INS.des.indexOf(t) + 1; i < INS.des.length && dOf(INS.des[i]) > dOf(t); i++) if (restIds.has(INS.des[i].id)) return true; return false; };
+        html = head + insOrder(rest).filter(x => !x.sub && !hid(x.r) && !(x.r.t && done.has(x.r.id) && !hasRest(x.r)))
+          .map(x => insRowHTML(k, x.r, x.lvl)).join("");
       }
       if (INS_EDIT) html += insRowHTML(k, null, 0);
       if (!rows.length && !INS_EDIT) html += `<tr><td colspan="${ncol}" class="empty">AUCUNE LIGNE</td></tr>`;
@@ -8105,7 +8110,8 @@ function renderBudgetList() {
         : [...el.parentElement.querySelectorAll(".ins-li[data-iid]")];
       const x0 = event.clientX, y0 = event.clientY;
       let on = false, moved = false, target = null, after = false, over = false;
-      const clear = () => sibs().forEach(x => x.classList.remove("ro-before", "ro-after", "ro-in", "ro-on"));
+      /* repères de glissement effacés partout (même si le tableau a été redessiné entre-temps) */
+      const clear = () => shell.querySelectorAll(".ro-before, .ro-after, .ro-in, .ro-on").forEach(x => x.classList.remove("ro-before", "ro-after", "ro-in", "ro-on"));
       const timer = setTimeout(() => {
         on = true;
         /* le doigt est bloqué seulement pendant le glissement (le défilement normal reste libre) */
@@ -8156,6 +8162,7 @@ function renderBudgetList() {
         setTimeout(() => document.removeEventListener("touchmove", tm), 0);
         clear();
         el.classList.remove("ro-src");
+        shell.querySelectorAll(".ro-src").forEach(x => x.classList.remove("ro-src"));
         shell.__insDragging = false;
         if (!on) {
           /* simple toucher sur une case : saisie normale */
@@ -8367,11 +8374,7 @@ function renderBudgetList() {
         const hid = insHiddenFn(), F = foldGet();
         return {
           head: oc.map(c => c[1]),
-          rows: src.rows.filter(r => !hid(r)).map(r => {
-            if (!(r.t && F[r.id])) return oc.map(c => c[2](r));
-            const { ht, ttc } = insSubOf(r);
-            return oc.map(c => c[0] === "ht" ? ht : c[0] === "ttc" ? ttc : c[2](r));
-          })
+          rows: src.rows.filter(r => !hid(r)).map(r => oc.map(c => c[2](r)))
         };
       }
       return {
@@ -10686,7 +10689,7 @@ function renderBudgetList() {
     const printClientIns = rows => {
       const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
       const hid = insHiddenFn();
-      const body = insOrder(rows).filter(x => !hid(x.sub || x.r)).map(x => {
+      const body = insOrder(rows).filter(x => !x.sub && !hid(x.r)).map(x => {
         if (x.sub) {
           const { ht } = insSubOf(x.sub);
           return `<tr>${td("")}${td("<b>TOTAL " + esc(x.sub.des || x.sub.art || "") + "</b>", "r")}${td("")}${td("")}${td("")}${td("")}${td("<b>" + money(ht) + "</b>", "r")}</tr>`;
