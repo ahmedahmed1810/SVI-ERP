@@ -15386,7 +15386,6 @@ function sviUnits() {
 }
 function sviUnitsSave(list) {
   try { localStorage.setItem(SVI_UNITS_KEY, JSON.stringify(list)); } catch (e) {}
-  sviUnitsList();
 }
 /* liste proposée dans les cases d'unité (UPB, UNITÉ) */
 function sviUnitsList() {
@@ -15394,9 +15393,65 @@ function sviUnitsList() {
   if (!dl) { dl = document.createElement("datalist"); dl.id = "sviUnitsDl"; document.body.appendChild(dl); }
   dl.innerHTML = sviUnits().filter(x => x.a).map(x => `<option value="${esc(x.a)}">${esc(x.n)}</option>`).join("");
 }
+/* proposition d'unités au format de l'application (plus de bulle Safari) : après la 1re lettre tapée,
+   6 unités au plus qui commencent par la saisie ; un toucher choisit ; continuer à taper la fait suivre */
+const SVI_UNIT_SEL = 'input.ins-in[data-f="u"], input.inc-in[data-f="u"], input.inc-in[data-f="upb"]';
+function sviUnitSugHide() { document.getElementById("svUnitSug")?.remove(); }
+document.addEventListener("input", e => {
+  const i = e.target.closest && e.target.closest(SVI_UNIT_SEL);
+  if (!i) return;
+  const q = String(i.value || "").trim().toUpperCase();
+  if (!q) { sviUnitSugHide(); return; }
+  const L = sviUnits().filter(x => x.a && (x.a.startsWith(q) || String(x.n || "").startsWith(q)) && x.a !== q).slice(0, 6);
+  if (!L.length) { sviUnitSugHide(); return; }
+  let b = document.getElementById("svUnitSug");
+  if (!b) { b = document.createElement("div"); b.id = "svUnitSug"; document.body.appendChild(b); }
+  b.__for = i;
+  b.innerHTML = L.map(x => `<button type="button" data-u="${esc(x.a)}"><b>${esc(x.a)}</b><span>${esc(x.n)}</span></button>`).join("");
+  const r = i.getBoundingClientRect();
+  b.style.left = Math.max(8, Math.min(r.left, window.innerWidth - b.offsetWidth - 8)) + "px";
+  b.style.top = (r.bottom + 4 + b.offsetHeight <= window.innerHeight - 8 ? r.bottom + 4 : Math.max(8, r.top - b.offsetHeight - 4)) + "px";
+});
+document.addEventListener("pointerdown", e => {
+  const b = document.getElementById("svUnitSug");
+  if (!b) return;
+  const u = e.target.closest && e.target.closest("#svUnitSug [data-u]");
+  if (!u) { if (!b.contains(e.target)) sviUnitSugHide(); return; }
+  e.preventDefault();
+  const i = b.__for;
+  sviUnitSugHide();
+  if (!i || !i.isConnected) return;
+  i.value = u.dataset.u;
+  i.dispatchEvent(new Event("input", { bubbles: true }));
+  sviUnitSugHide();
+  i.dispatchEvent(new Event("change", { bubbles: true }));
+}, true);
+document.addEventListener("focusout", e => { if (e.target.closest && e.target.closest(SVI_UNIT_SEL)) setTimeout(() => { const b = document.getElementById("svUnitSug"); if (b && b.__for === e.target && document.activeElement !== e.target) sviUnitSugHide(); }, 150); });
+document.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === "Escape") sviUnitSugHide(); }, true);
+/* correction d'un nombre déjà saisi (FORMAT 86) : à la touche, sans zéros inutiles (1,00 → 1) et tout sélectionné ;
+   en quittant la case, le format revient (1 → 1,00) */
+const SVI_NUM_SEL = 'input.ins-in[inputmode="decimal"], input.inc-in.number, input.lk-q';
 document.addEventListener("focusin", e => {
-  const i = e.target.closest && e.target.closest('input.ins-in[data-f="u"]');
-  if (i && !i.disabled && !i.getAttribute("list")) { sviUnitsList(); i.setAttribute("list", "sviUnitsDl"); }
+  const i = e.target.closest && e.target.closest(SVI_NUM_SEL);
+  if (!i || i.disabled || i.readOnly) return;
+  const v = String(i.value || "").trim();
+  if (!v || !sviNumOk(v)) return;
+  const n = num(v);
+  if (!isFinite(n)) return;
+  const raw = String(Math.round(n * 1e6) / 1e6).replace(".", ",");
+  i.__numFmt = v;
+  if (raw !== v) i.value = raw;
+  setTimeout(() => { if (document.activeElement === i) { try { i.select(); i.setSelectionRange(0, i.value.length); } catch (err) {} } }, 0);
+});
+document.addEventListener("focusout", e => {
+  const i = e.target.closest && e.target.closest(SVI_NUM_SEL);
+  if (!i || i.__numFmt === undefined) return;
+  const v = String(i.value || "").trim();
+  if (v && sviNumOk(v) && i.isConnected) {
+    const old = i.__numFmt, dec = (String(old).split(",")[1] || "").length || 2;
+    i.value = num(v).toLocaleString("fr-FR", { minimumFractionDigits: Math.max(2, dec), maximumFractionDigits: Math.max(2, dec) }).replace(/\u202f|\u00a0/g, " ");
+  }
+  delete i.__numFmt;
 });
 function sviParamTabs() {
   const view = document.getElementById("chs");
