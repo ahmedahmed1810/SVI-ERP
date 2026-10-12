@@ -552,7 +552,12 @@ const svTabApply = () => {
     document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
   }, true);
 })();
-const svCnt = n => `<span class="svi-cnt">${Number(n) || 0}</span>`;
+/* FORMAT 83 : avec un filtre, « retenues/total » ; sans filtre, le total seul */
+const svCnt = (n, total) => {
+  const a = Number(n) || 0;
+  if (total === undefined || total === null || Number(total) === a) return `<span class="svi-cnt">${a}</span>`;
+  return `<span class="svi-cnt">${a}/${Number(total) || 0}</span>`;
+};
 /* onglets vides (compteur 0) : mise en forme spéciale, même facultatifs */
 const sviMarkEmptyTabs = root => (root || document).querySelectorAll(".bdg-d-tab, .rec-tab, .imp-tab").forEach(b => {
   const c = b.querySelector(".svi-cnt");
@@ -1697,12 +1702,8 @@ function renderChs() {
           .includes(q)
     );
 
-  $("chsCount").textContent =
-    `${rows.length} CHARGE${
-      rows.length > 1
-        ? "S"
-        : ""
-    }`;
+  /* FORMAT 83 : recherche active → « retenues/total » */
+  $("chsCount").innerHTML = svCnt(rows.length, db.chs.length);
 
   $("chsTable")
     .querySelector("tbody")
@@ -4395,7 +4396,7 @@ function renderBudgetList() {
     }
 
     /* compteur du titre : budgets affichés (filtres compris) */
-    { const c = $("bdgListCount"); if (c) c.innerHTML = svCnt(data.length); }
+    { const c = $("bdgListCount"); if (c) c.innerHTML = svCnt(data.length, budgets.length); }
 
     if (!data.length) {
       tbody.innerHTML = `
@@ -6132,7 +6133,7 @@ function renderBudgetList() {
       insNorm();
       const t = document.querySelector("#bdgClientTitle .ttl");
       const shownD = insShown("des");
-      if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + svCnt(shownD.filter(r => !r.t).length);
+      if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + svCnt(shownD.filter(r => !r.t).length, INS.des.filter(r => !r.t).length);
       lastShown.client = { cols: insCfCols("des"), rows: shownD, ins: true };
       lastClientKeys = new Set();
       /* même tableau que la version validée (identifiants gardés) */
@@ -6180,7 +6181,7 @@ function renderBudgetList() {
         const on = !!cfT(k).f.v;
         return `
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
-          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length)}</span><span class="cf-btn"
+          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length, INS[k].length)}</span><span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
           ${list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
@@ -6240,12 +6241,14 @@ function renderBudgetList() {
       const D2 = id => INS.des.find(x => x.id === id) || {};
       const rows = cfApply("lk_links", LC, (INS.links || []).slice().sort((a, b) => desCmp(D2(a.des), D2(b.des)) || natCmp(lkName("lot", a.lot), lkName("lot", b.lot))));
       lastShown.detail = { cols: LC, rows, kind: "lnk" };
-      const dw = 0;   /* délier : seulement par le bouton du haut (✕ DÉLIER), jamais par ligne */
-      return `<table class="bdg-d-table lk-table" style="width:${oc.reduce((t, c) => t + w(c[0]), 0) + dw}px">
+      /* case à droite (cocher seulement) : ✕ DÉLIER LES LIGNES COCHÉES par le menu ⋯ */
+      const dw = INS_EDIT ? 40 : 0;
+      const allOn = rows.length && rows.every(l => l.on === true);
+      return `<table class="bdg-d-table lk-table lnk-table" style="width:${oc.reduce((t, c) => t + w(c[0]), 0) + dw}px">
         <colgroup>${oc.map(c => `<col data-w="lk_links.${c[0]}" style="width:${w(c[0])}px">`).join("")}${dw ? `<col style="width:${dw}px">` : ""}</colgroup>
-        <thead><tr>${oc.map(c => cfHead("lk_links", c[0], c[1], c[3])).join("")}${dw ? "<th></th>" : ""}</tr></thead>
-        <tbody>${rows.map(l => `<tr>${oc.map(c => `<td class="${c[3]}">${esc(c[2](l))}</td>`).join("")}${dw
-          ? `<td class="center"><button type="button" class="lk-del" data-lid="${l.id}">${INS_TRASH} DÉLIER</button></td>` : ""}</tr>`).join("")
+        <thead><tr>${oc.map(c => cfHead("lk_links", c[0], c[1], c[3])).join("")}${dw ? `<th class="center"><input type="checkbox" class="lnk-cball"${allOn ? " checked" : ""}></th>` : ""}</tr></thead>
+        <tbody>${rows.map(l => `<tr data-lid="${l.id}">${oc.map(c => `<td class="${c[3]}">${esc(c[2](l))}</td>`).join("")}${dw
+          ? `<td class="center"><input type="checkbox" class="lnk-cb"${l.on === true ? " checked" : ""}></td>` : ""}</tr>`).join("")
           || `<tr><td colspan="${oc.length + (dw ? 1 : 0)}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
     };
     /* IMPORT NON CRÉÉ (onglet du détail) : lignes du fichier qui n'ont pas pu être liées ;
@@ -6277,7 +6280,10 @@ function renderBudgetList() {
         const X = shell.__incX;
         if (!X || !e.target.closest || !e.target.closest(".inc-table")) return;
         const tr = e.target.closest("tr[data-inc]");
-        if (e.target.classList.contains("inc-cball")) { (X.INS.inc || []).forEach(x => { x.on = e.target.checked; }); X.save(); X.refresh(); return; }
+        if (e.target.classList.contains("inc-cball")) {
+          /* case d'en-tête : seulement les lignes affichées par le filtre (FORMAT 84) */
+          const vi = new Set([...e.target.closest("table").querySelectorAll("tbody tr[data-inc]")].map(tr => tr.dataset.inc));
+          (X.INS.inc || []).forEach(x => { if (vi.has(x.id)) x.on = e.target.checked; }); X.save(); X.refresh(); return; }
         const it = tr && (X.INS.inc || []).find(x => x.id === tr.dataset.inc);
         if (!it) return;
         if (e.target.classList.contains("inc-cb")) { it.on = e.target.checked; X.save(); return; }
@@ -6502,6 +6508,17 @@ function renderBudgetList() {
           setTimeout(show, 120);
         } else show();
       } } : null;
+    if (!shell.__lnkCbBound) {
+      shell.__lnkCbBound = true;
+      shell.addEventListener("change", e => {
+        const cb = e.target.closest && e.target.closest("input.lnk-cb, input.lnk-cball");
+        if (!cb || !shell.__unl) return;
+        const L = shell.__unl.INS.links || [];
+        const trs = cb.classList.contains("lnk-cball") ? [...cb.closest("table").querySelectorAll("tbody tr[data-lid]")] : [cb.closest("tr[data-lid]")];
+        trs.forEach(tr => { const l = L.find(x => x.id === tr.dataset.lid); if (l) l.on = cb.checked; });
+        shell.__unl.save(); shell.__unl.refresh();
+      });
+    }
     if (!shell.__unlGoBound) {
       shell.__unlGoBound = true;
       shell.addEventListener("click", e => {
@@ -6566,7 +6583,7 @@ function renderBudgetList() {
     const insRenderTab = () => {
       ["chg", "prd", "qlt"].forEach(k => {
         const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
-        if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + (k === "prd" ? ' <b class="req-star">*</b>' : "") + " " + svCnt(insShown(k).length);
+        if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + (k === "prd" ? ' <b class="req-star">*</b>' : "") + " " + svCnt(insShown(k).length, INS[k].filter(r => !r.t).length);
       });
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
         if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(INS_EDIT ? (insDlyKey() ? insDlyList(insDlyKey()).length : (insDlyRecap() || []).filter(x => x.deb || x.fin).length) : insTasks().length); }
@@ -6577,6 +6594,14 @@ function renderBudgetList() {
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
         if (b) b.innerHTML = (SVI_ICON.hier || "") + "LIAISONS VALIDÉES " + svCnt((INS.links || []).length); }
       sviMarkEmptyTabs(shell);
+      /* onglet actif (liaisons validées, lignes non liées, import non créé) : « retenues/total » une fois dessiné */
+      setTimeout(() => {
+        const ls = lastShown.detail;
+        if (!ls || !["lnk", "unl", "inc"].includes(ls.kind) || ls.kind !== active) return;
+        const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${active}"] .svi-cnt`);
+        const tot = active === "lnk" ? (INS.links || []).length : active === "inc" ? (INS.inc || []).length : insUnlCount();
+        if (b) b.outerHTML = svCnt(ls.rows.length, tot);
+      }, 0);
       if (active === "dly") {
         /* délais : saisis ici (périodes par tâche secondaire ; tâche primaire choisie = récapitulatif) */
         body.innerHTML = `<div class="bdg-d-scroll">${insDlyHTML(INS_EDIT, shell.__insDly && shell.__insDly.err)}</div>`;
@@ -7762,7 +7787,7 @@ function renderBudgetList() {
       lastShown.client = { cols: ccols, rows: shownClient };
       /* compteur du titre : lignes affichées (filtres compris) */
       { const t = document.querySelector("#bdgClientTitle .ttl");
-        if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + svCnt(shownClient.length); }
+        if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + svCnt(shownClient.length, base.length); }
       const list = shownClient.sort((x, y) =>
         selDesig.has(y.key) - selDesig.has(x.key)
       );
@@ -7896,7 +7921,7 @@ function renderBudgetList() {
         const on = st.f.v || hSel[level].size;
         return `
         <div class="bdg-h-col">
-          <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}${svCnt(items.length)}</span><span class="cf-btn"
+          <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}${svCnt(items.length, all.length)}</span><span class="cf-btn"
             data-cf="${level}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span
             class="col-rs" data-rs="hier" data-col="${level}"></span></div>
           ${
@@ -8148,9 +8173,10 @@ function renderBudgetList() {
       ["chg", "prd"].forEach(k => {
         const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
         if (!b) return;
-        const n = cfApply(k, tcolsFor(k === "prd"), groupLines(byKindNow()[k])).length;
+        const gl = groupLines(byKindNow()[k]);
+        const n = cfApply(k, tcolsFor(k === "prd"), gl).length;
         const t = tabs.find(x => x.key === k);
-        b.innerHTML = (SVI_ICON[k] || "") + t.title + " " + svCnt(n);
+        b.innerHTML = (SVI_ICON[k] || "") + t.title + " " + svCnt(n, gl.length);
       });
 
       if (INS) { insRenderTab(); return; }
@@ -8640,15 +8666,18 @@ function renderBudgetList() {
        - superposé : nouveau titre « NOUVEAU TITRE n » qui regroupe la ligne visée puis la ligne glissée ;
        - titres devenus vides : supprimés après confirmation (ANNULER = glissement annulé) */
     /* lignes sélectionnées d'un bloc (cases cochées) ; désignations : un titre coché (branche entière ou titre vide) emporte sa branche */
+    /* lignes affichées (filtres compris) : les actions ne portent que sur elles (FORMAT 84) */
+    const insVis = k => new Set((["lot", "prim", "sec"].includes(k) ? cfApply(k, [["v", "", r => r.v || "", ""]], INS[k]) : insShown(k)).map(r => r.id));
     const insSelIds = k => {
-      const L = INS[k] || [], out = new Set();
-      if (k !== "des") { L.forEach(r => { if (r.on === true) out.add(r.id); }); return out; }
+      const L = INS[k] || [], out = new Set(), vis = insVis(k);
+      if (k !== "des") { L.forEach(r => { if (r.on === true && vis.has(r.id)) out.add(r.id); }); return out; }
       insNorm();
       const D = r => Number(r.d) || 0;
       L.forEach((r, i) => {
-        if (!r.t) { if (r.on === true) out.add(r.id); return; }
+        if (!r.t) { if (r.on === true && vis.has(r.id)) out.add(r.id); return; }
+        if (!vis.has(r.id)) return;
         let e = i + 1; while (e < L.length && D(L[e]) > D(r)) e++;
-        const br = L.slice(i + 1, e), lines = br.filter(x => !x.t);
+        const br = L.slice(i + 1, e).filter(x => x.t ? vis.has(x.id) : vis.has(x.id)), lines = br.filter(x => !x.t);
         /* titre retenu seulement si sa propre case est cochée (et toute sa branche, s'il en a une) */
         if (r.on === true && (!lines.length || lines.every(x => x.on === true))) { out.add(r.id); br.forEach(x => out.add(x.id)); }
       });
@@ -12486,7 +12515,7 @@ function renderBudgetList() {
       const list = cfApply(kind, cols, all);
       recShown[kind] = list;
       const title = $("recTitle-" + kind);
-      if (title) title.innerHTML = SVI_ICON[kind] + esc(blkName[kind]) + " " + svCnt(list.length);
+      if (title) title.innerHTML = SVI_ICON[kind] + esc(blkName[kind]) + " " + svCnt(list.length, all.length);
       const st = cfT(kind);
       title?.classList.remove("cf-on");   /* pas de bleu d'onglet pour un filtre (loupe) */
       if (title) sviMarkEmptyTabs(title.parentNode);
@@ -12834,6 +12863,27 @@ function renderBudgetList() {
     const insBlkKinds = blk => blk === "client" ? ["des"] : blk === "hier" ? ["lot", "prim", "sec"]
       : blk === "detail" && ["chg", "prd", "qlt"].includes(active) ? [active]
       : blk === "detail" && active === "unl" ? ["des", "lot", "prim", "sec", "chg", "prd"] : [];
+    /* ✕ DÉLIER LES LIGNES COCHÉES (menu ⋯) : liaisons qui contiennent une ligne cochée (et affichée) du bloc ;
+       produits / charges cochés : retirés de leurs liaisons ; LIAISONS VALIDÉES : liaisons cochées */
+    const insUnlPlan = blk => {
+      if (!INS || !INS_EDIT) return null;
+      const L = INS.links || [];
+      if (blk === "detail" && active === "lnk") {
+        const vi = new Set((lastShown.detail && lastShown.detail.kind === "lnk" ? lastShown.detail.rows : []).map(l => l.id));
+        const hit = L.filter(l => l.on === true && vi.has(l.id));
+        return { mode: "del", links: hit, remP: [], remC: [], n: hit.length };
+      }
+      if (blk === "detail" && !["chg", "prd"].includes(active)) return null;
+      const ks = insBlkKinds(blk).filter(k => k !== "qlt");
+      if (!ks.length) return null;
+      const sel = {};
+      ks.forEach(k => { sel[k] = insSelIds(k); });
+      const remP = sel.prd ? [...sel.prd].filter(id => L.some(l => (l.prd || []).some(x => x.id === id))) : [];
+      const remC = sel.chg ? [...sel.chg].filter(id => L.some(l => (l.chg || []).some(x => x.id === id))) : [];
+      const hit = L.filter(l => ["des", "lot", "prim", "sec"].some(k => sel[k] && sel[k].has(l[k]))
+        || (l.prd || []).some(x => remP.includes(x.id)) || (l.chg || []).some(x => remC.includes(x.id)));
+      return { mode: "del", links: hit, remP, remC, n: hit.length };
+    };
     /* suppression : seules les lignes cochées ET déliées partent ; une ligne liée n'est jamais proposée */
     const insDelPlan = blk => {
       const X = shell.__ins;
@@ -12842,11 +12892,13 @@ function renderBudgetList() {
       /* IMPORT NON CRÉÉ : les lignes cochées de l'onglet (les données déjà importées restent) */
       /* DÉTAIL DÉLAIS : périodes cochées (le brouillon de la liaison en cours) */
       if (blk === "detail" && active === "dly") { const Y = shell.__insDly; if (Y && Y.draft) { const D = Y.draft(); out.n = Object.values(D).reduce((t, l) => t + l.filter(p => p.on === true).length, 0); if (out.n) out.del.dly = true; } return out; }
-      if (blk === "detail" && active === "inc") { const ids = new Set((INS.inc || []).filter(x => x.on === true).map(x => x.id)); if (ids.size) { out.del.inc = ids; out.n = ids.size; } return out; }
+      if (blk === "detail" && active === "inc") { const vi = new Set(lastShown.detail && lastShown.detail.kind === "inc" ? lastShown.detail.rows.map(x => x.id) : []);
+        const ids = new Set((INS.inc || []).filter(x => x.on === true && vi.has(x.id)).map(x => x.id)); if (ids.size) { out.del.inc = ids; out.n = ids.size; } return out; }
       const unlTab = blk === "detail" && active === "unl";
       insBlkKinds(blk).forEach(k => {
         /* onglet LIGNES NON LIÉES : seulement ses lignes (non liées), titres compris */
-        const rows = unlTab ? X.INS[k].filter(r => r.on === true && !X.isUsed(k, r.id)) : X.INS[k].filter(r => !r.t && r.on === true);
+        const vu = unlTab ? new Set((lastShown.detail && lastShown.detail.kind === "unl" ? lastShown.detail.rows : []).filter(x => x.k === k).map(x => x.id)) : insVis(k);
+        const rows = unlTab ? X.INS[k].filter(r => r.on === true && vu.has(r.id) && !X.isUsed(k, r.id)) : X.INS[k].filter(r => !r.t && r.on === true && vu.has(r.id));
         const free = rows.filter(r => !X.isUsed(k, r.id));
         out.kept += rows.length - free.length;
         const ids = new Set(free.map(r => r.id));
@@ -12897,7 +12949,8 @@ function renderBudgetList() {
         lastShown.client = { ...lastShown.client, rows: lastShown.client.rows.filter(r => on.has(r.id) || keep.has(r.id)) };
       } else if (blk === "hier" && lastShown.hier) {
         ["lot", "prim", "sec"].forEach(k => {
-          const on = X.INS[k].filter(r => r.on === true);
+          const vis = insVis(k);
+          const on = X.INS[k].filter(r => r.on === true && vis.has(r.id));
           if (on.length) lastShown.hier[k] = on.map(r => r.v || "");
         });
       } else if (blk === "detail" && lastShown.detail && lastShown.detail.ins) {
@@ -13028,7 +13081,15 @@ function renderBudgetList() {
           return `<button type="button" data-i="${i}" class="off" disabled>${a.innerHTML}<span>${esc(lab)}</span></button>`;
         }
         if (a.dataset.act === "del") {
+          const up = insUnlPlan(a.dataset.blk);
+          const un = up ? up.n : 0;
+          const dl = up ? `<button type="button" data-unl="${esc(a.dataset.blk)}" class="blk-del blk-unl${un ? "" : " off"}" ${un ? "" : "disabled"}><span>✕ DÉLIER LES LIGNES COCHÉES</span>${svCnt(un)}</button>` : "";
+          if (a.dataset.blk === "detail" && active === "lnk") return dl;
           const n = insDelPlan(a.dataset.blk).n;
+          return dl + `<button type="button" data-i="${i}" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}</span>${svCnt(n)}</button>`;
+        }
+        if (false) {
+          const n = 0;
           return `<button type="button" data-i="${i}" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}</span>${svCnt(n)}</button>`;
         }
         return `<button type="button" data-i="${i}">${a.innerHTML}<span>${esc(lab)}</span></button>`;
@@ -13038,6 +13099,14 @@ function renderBudgetList() {
       m.style.top = r.bottom + 4 + "px";
       m.style.left = Math.max(8, r.right - m.offsetWidth) + "px";
       m.addEventListener("click", e => {
+        const ub = e.target.closest("[data-unl]");
+        if (ub) {
+          if (ub.disabled) return;
+          m.remove();
+          const pl = insUnlPlan(ub.dataset.unl);
+          if (pl && pl.n) lkDestroy(pl);
+          return;
+        }
         const it = e.target.closest("[data-i]");
         if (!it || it.classList.contains("off")) return;
         const a = acts[+it.dataset.i];
