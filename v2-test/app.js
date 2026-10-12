@@ -5511,6 +5511,7 @@ function renderBudgetList() {
           const keep = new Set(all.filter(v => cfOpen.draft.has(v)));
           if (keep.size === all.length) delete st.f[key]; else st.f[key] = keep;
           cfClose();
+          keepScroll.toTop = true;
           refreshAll();
           return;
         }
@@ -7675,8 +7676,13 @@ function renderBudgetList() {
        à défilement interne (désignations, lots/tâches, détail) */
     const keepScroll = fn => {
       const sel = ".bdg-d-client-scroll, .bdg-h-col, .bdg-d-tabbody .bdg-d-scroll";
-      const saved = [...shell.querySelectorAll(sel)].map(el => el.scrollTop);
-      const x = window.scrollX, y = window.scrollY;
+      /* FORMAT : un tableau redessiné ne fait jamais bouger l'écran (vertical ET horizontal) */
+      /* redessins enchaînés : on garde la position d'avant le premier (pas celle, provisoire, d'entre deux) */
+      const P = keepScroll.pend && performance.now() < keepScroll.pend.until ? keepScroll.pend : null;
+      const saved = P ? P.saved : [...shell.querySelectorAll(sel)].map(el => [el.scrollTop, el.scrollLeft]);
+      const toTop = keepScroll.toTop || (P ? P.toTop : false); keepScroll.toTop = false;
+      const x = P ? P.x : window.scrollX, y = P ? P.y : window.scrollY;
+      keepScroll.pend = { saved, toTop, x, y, until: performance.now() + 200 };
       const active = document.activeElement;
       if (active && active.blur &&
           !active.classList.contains("bdg-tva-input") &&
@@ -7688,12 +7694,24 @@ function renderBudgetList() {
 
       const restore = () => {
         shell.querySelectorAll(sel).forEach((el, i) => {
-          if (saved[i] !== undefined) el.scrollTop = saved[i];
+          if (saved[i] === undefined) return;
+          /* après un filtre : si la partie regardée n'existe plus, premières lignes retenues */
+          el.scrollTop = toTop && saved[i][0] > el.scrollHeight - el.clientHeight ? 0 : saved[i][0];
+          el.scrollLeft = saved[i][1];
         });
         window.scrollTo(x, y);
       };
       restore();
       requestAnimationFrame(restore);
+      /* un tableau qui s'élargit juste après (largeur des en-têtes) : position remise avant l'affichage */
+      if (window.ResizeObserver) {
+        const ro = new ResizeObserver(restore);
+        shell.querySelectorAll(sel).forEach(el => [...el.children].forEach(c => ro.observe(c)));
+        setTimeout(() => ro.disconnect(), 200);
+      }
+      /* mises en page tardives (largeurs d'en-tête, onglets) : position remise encore une fois */
+      setTimeout(() => { restore(); }, 120);
+      setTimeout(() => { if (keepScroll.pend && performance.now() >= keepScroll.pend.until) keepScroll.pend = null; }, 220);
     };
 
     /* titre en bleu quand le bloc est filtré (toucher de ligne
