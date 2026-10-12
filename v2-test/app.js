@@ -5798,7 +5798,7 @@ function renderBudgetList() {
         const t = INS.des.find(x => x.id === cb.closest("tr").dataset.iid);
         const b = t ? insBranch(t) : [];
         const n = b.filter(r => r.on === true).length;
-        cb.checked = b.length > 0 && n === b.length;
+        cb.checked = b.length ? n === b.length : !!(t && t.on === true);
         cb.indeterminate = n > 0 && n < b.length;
       });
     };
@@ -6391,8 +6391,10 @@ function renderBudgetList() {
         const r = X.INS[k].find(x => x.id === holder.dataset.iid);
         if (!r) return;
         if (cb && r.t) {
-          /* case d'un titre : coche / décoche toute sa branche */
-          X.insBranch(r).forEach(x => { x.on = cb.checked; });
+          /* case d'un titre : coche / décoche toute sa branche ; titre vide : le titre lui-même */
+          const br = X.insBranch(r);
+          if (!br.length) r.on = cb.checked;
+          br.forEach(x => { x.on = cb.checked; });
           X.insSave(); X.insRedraw(k);
           return;
         }
@@ -12135,7 +12137,10 @@ function renderBudgetList() {
         out.kept += rows.length - free.length;
         const ids = new Set(free.map(r => r.id));
         /* un titre part avec sa branche quand toute sa branche part */
-        if (k === "des") X.INS.des.forEach(t => { if (t.t) { const b = X.insBranch(t); if (b.length && b.every(r => ids.has(r.id))) ids.add(t.id); } });
+        if (k === "des") X.INS.des.forEach(t => { if (t.t) { const b = X.insBranch(t);
+          if (b.length && b.every(r => ids.has(r.id))) ids.add(t.id);
+          /* titre vide coché : supprimé lui aussi (et compté) */
+          else if (!b.length && t.on === true && !unlTab) { ids.add(t.id); out.n++; } } });
         if (ids.size) { out.del[k] = ids; out.n += free.length; }
       });
       return out;
