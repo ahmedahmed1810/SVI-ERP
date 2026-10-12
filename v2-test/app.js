@@ -8065,6 +8065,9 @@ function renderBudgetList() {
         shift(block, D(T)); arr.splice(j, 0, ...block);
       } else if (T.t && !foldGet()[T.id]) {
         shift(block, D(T) + 1); arr.splice(j + 1, 0, ...block);
+      } else if (T.t && mode === "afterIn") {
+        /* titre replié, doigt à droite : ajouté à la fin de ses lignes ; le titre reste replié */
+        shift(block, D(T) + 1); arr.splice(branchEnd(j), 0, ...block);
       } else if (T.t) {
         shift(block, D(T)); arr.splice(branchEnd(j), 0, ...block);
       } else {
@@ -8110,7 +8113,7 @@ function renderBudgetList() {
         ? [...el.parentElement.querySelectorAll("tr[data-iid]")]
         : [...el.parentElement.querySelectorAll(".ins-li[data-iid]")];
       const x0 = event.clientX, y0 = event.clientY;
-      let on = false, moved = false, target = null, after = false, over = false;
+      let on = false, moved = false, target = null, after = false, over = false, inside = false;
       /* repères de glissement effacés partout (même si le tableau a été redessiné entre-temps) */
       const clear = () => {
         shell.querySelectorAll(".ro-before, .ro-after, .ro-in, .ro-on").forEach(x => x.classList.remove("ro-before", "ro-after", "ro-in", "ro-on"));
@@ -8158,8 +8161,14 @@ function renderBudgetList() {
                 after = f >= .75;
                 const tr0 = X.INS.des.find(q => q.id === x.dataset.iid);
                 const d0 = Number(tr0 && tr0.d) || 0;
+                /* sous un titre replié : doigt vers la droite = entre dans le titre, vers la gauche = à l'extérieur */
+                inside = false;
+                if (after && tr0 && tr0.t && foldGet()[tr0.id]) {
+                  const c = (x.querySelector('input[data-f="des"]')?.closest("td") || x).getBoundingClientRect();
+                  inside = e.clientX > c.left + 8 + d0 * 14 + 24;
+                }
                 if (over) x.classList.add("ro-on");
-                else roLine(x, after ? r.bottom : r.top, !after ? d0 : (tr0 && tr0.t && !foldGet()[tr0.id]) ? d0 + 1 : d0);
+                else roLine(x, after ? r.bottom : r.top, !after ? d0 : (tr0 && tr0.t && (!foldGet()[tr0.id] || inside)) ? d0 + 1 : d0);
               } else {
                 after = e.clientY > (r.top + r.bottom) / 2;
                 x.classList.add(after ? "ro-after" : "ro-before");
@@ -8201,7 +8210,7 @@ function renderBudgetList() {
         }
         const blockIds = arr.slice(i0, i0 + n).map(r => r.id);
         if (blockIds.includes(target.dataset.iid)) return;
-        if (k === "des") { desDrop(arr, i0, n, target.dataset.iid, over ? "on" : after ? "after" : "before"); return; }
+        if (k === "des") { desDrop(arr, i0, n, target.dataset.iid, over ? "on" : after ? (inside ? "afterIn" : "after") : "before"); return; }
         const block = arr.splice(i0, n);
         let j = arr.findIndex(r => r.id === target.dataset.iid);
         if (after) j++;
