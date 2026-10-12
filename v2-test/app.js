@@ -10073,8 +10073,66 @@ function renderBudgetList() {
       });
       return m;
     };
+    /* RÈGLE A à l'import (FORMAT) : une activité primaire, et une tâche secondaire (lot + activité secondaire),
+       n'ont qu'une désignation client. On compte toutes les lignes (fichier, refusées comprises, et budget :
+       une ligne par produit / charge de ses liaisons) ; le plus grand nombre l'emporte ; égalité : le budget,
+       puis l'ordre du fichier. Les liaisons du budget qui perdent sont déliées (après confirmation) et vont
+       dans IMPORT NON CRÉÉ. */
+    const bfRuleA = (m, mode) => {
+      const dKey = row => "des|" + impId("des", row);
+      const G = { p: new Map(), s: new Map() };
+      const names = new Map();
+      let ord = 0;
+      const add = (g, gk, dk, n, name) => {
+        if (!gk || !dk) return;
+        const M = G[g].get(gk) || G[g].set(gk, new Map()).get(gk);
+        const e = M.get(dk) || M.set(dk, { n: 0, o: ord++ }).get(dk);
+        e.n += n;
+        if (name && !names.has(dk)) names.set(dk, name);
+      };
+      const byIdK = (k, id) => INS[k].find(x => x.id === id) || {};
+      /* budget d'abord (prioritaire à égalité) — sauf REMPLACER */
+      const exist = mode === "replace" ? [] : (INS.links || []).map(l => {
+        const d = byIdK("des", l.des), lo = byIdK("lot", l.lot), pr = byIdK("prim", l.prim), se = byIdK("sec", l.sec);
+        const dk = dKey(d), pk = "prim|" + U_(pr.v), sk = "lot|" + U_(lo.v) + "#sec|" + U_(se.v);
+        const n = (l.prd || []).length + (l.chg || []).length;
+        return { l, dk, pk, sk, n, name: d.des || "" };
+      });
+      exist.forEach(x => { add("p", x.pk, x.dk, x.n, x.name); add("s", x.sk, x.dk, x.n, x.name); });
+      /* fichier : toutes les lignes, refusées comprises */
+      [...m.links.map(l => l.src), ...(m.rej || []).map(r => r.src)].forEach(src => {
+        if (!src) return;
+        const dc = U_(src.dc);
+        if (!dc) return;
+        const dk = dKey({ art: String(src.art ?? "").trim(), des: dc, u: U_(src.upb) });
+        if (U_(src.prim)) add("p", "prim|" + U_(src.prim), dk, 1, dc);
+        if (U_(src.lot) && U_(src.sec)) add("s", "lot|" + U_(src.lot) + "#sec|" + U_(src.sec), dk, 1, dc);
+      });
+      const win = g => new Map([...G[g]].map(([gk, M]) => {
+        const best = [...M].sort((a, b) => b[1].n - a[1].n || a[1].o - b[1].o)[0];
+        return [gk, { dk: best[0], n: best[1].n, name: names.get(best[0]) || "" }];
+      }));
+      const W = { p: win("p"), s: win("s") };
+      /* liaisons du budget qui perdent */
+      const lose = exist.filter(x => (W.p.get(x.pk) && W.p.get(x.pk).dk !== x.dk) || (W.s.get(x.sk) && W.s.get(x.sk).dk !== x.dk))
+        .map(x => ({ ...x, by: W.p.get(x.pk).dk !== x.dk ? { g: "p", w: W.p.get(x.pk) } : { g: "s", w: W.s.get(x.sk) } }));
+      return { W, lose, names };
+    };
+    const bfRuleAWhy = (g, w) => "RÈGLE A : " + (g === "p" ? "ACTIVITÉ PRIMAIRE" : "TÂCHE SECONDAIRE") + " LIÉE À " + w.name + " (" + w.n + " LIGNE" + (w.n > 1 ? "S" : "") + ")";
+    /* fenêtre de confirmation : liaisons du budget à délier */
+    const bfRuleAAsk = plan => {
+      if (!plan.lose.length) return Promise.resolve(true);
+      const byIdK = (k, id) => INS[k].find(x => x.id === id) || {};
+      const nDl = new Set(plan.lose.map(x => x.l.lot + "|" + x.l.prim).filter(k => (INS.dlp || {})[k] && INS.dlp[k].length
+        && !(INS.links || []).some(l => !plan.lose.some(y => y.l === l) && l.lot + "|" + l.prim === k))).size;
+      const html = `<div class="svc-sub">LIAISONS DU BUDGET À DÉLIER ${svCnt(plan.lose.length)} :</div>
+        <ul class="svc-list">${plan.lose.map(x => `<li>${esc([x.name, byIdK("lot", x.l.lot).v, byIdK("prim", x.l.prim).v, byIdK("sec", x.l.sec).v].join(" › "))} — ${x.n} LIGNE${x.n > 1 ? "S" : ""}<br><b>GARDÉE : ${esc(x.by.w.name)} — ${x.by.w.n} LIGNE${x.by.w.n > 1 ? "S" : ""}</b></li>`).join("")}</ul>
+        <div class="svc-sub">LES LIGNES DÉLIÉES VONT DANS L'ONGLET IMPORT NON CRÉÉ.</div>
+        ${nDl ? `<div class="svc-sub svc-warn">LES DÉLAIS DE ${nDl} TÂCHE${nDl > 1 ? "S" : ""} PRIMAIRE${nDl > 1 ? "S" : ""} SERONT SUPPRIMÉS.</div>` : ""}`;
+      return svConfirm({ title: "RÈGLE A — LIAISONS À DÉLIER", html, ok: "IMPORTER" });
+    };
     /* ajoute le modèle au budget : AJOUTER / METTRE À JOUR / REMPLACER */
-    const bfApply = (m, mode, srcName, quiet) => {
+    const bfApply = (m, mode, srcName, quiet, plan) => {
       let added = 0, upd = 0, skip = 0, nl = 0;
       const kid = new Map();
       const K = ["des", "lot", "prim", "sec", "chg", "prd"];
@@ -10104,6 +10162,23 @@ function renderBudgetList() {
       if (mode === "replace") { INS.links = []; INS.dlp = {}; }
       INS.links = INS.links || [];
       const rej = (m.rej || []).slice();
+      /* règle A : sans confirmation (correction dans l'onglet), le budget n'est jamais délié */
+      plan = plan || bfRuleA(m, mode);
+      if (plan.lose.length && !plan.ok) plan.lose.forEach(x => { plan.W[x.by.g].set(x.by.g === "p" ? x.pk : x.sk, { dk: x.dk, n: x.n, name: x.name }); });
+      if (plan.lose.length && plan.ok) {
+        const by = (k, id) => INS[k].find(x => x.id === id) || {};
+        const gone = new Set(plan.lose.map(x => x.l));
+        plan.lose.forEach(x => {
+          const d = by("des", x.l.des), base = { art: d.art || "", dc: d.des || "", upb: d.u || "", lot: by("lot", x.l.lot).v || "", prim: by("prim", x.l.prim).v || "", sec: by("sec", x.l.sec).v || "" };
+          const why = "LIAISON DU BUDGET DÉLIÉE — " + bfRuleAWhy(x.by.g, x.by.w), bad = x.by.g === "p" ? ["prim"] : ["lot", "sec"];
+          (x.l.prd || []).forEach(y => { const r = by("prd", y.id); rej.push({ src: { ...base, type: "PRD", article: "", des: r.des || "", u: r.u || "", nbr: r.nbr ?? "", d1: r.d1 ?? "", d2: r.d2 ?? "", d3: r.d3 ?? "", q: "" }, bad, why }); });
+          (x.l.chg || []).forEach(y => { const r = by("chg", y.id); rej.push({ src: { ...base, type: "CHG", article: r.art || "", des: r.des || "", u: r.u || "", nbr: "", d1: "", d2: "", d3: "", q: y.q !== "" && y.q !== undefined ? y.q : (r.q ?? "") }, bad, why }); });
+        });
+        INS.links = INS.links.filter(l => !gone.has(l));
+        /* délais d'une tâche primaire restée sans liaison : supprimés */
+        Object.keys(INS.dlp || {}).forEach(k => { if (!INS.links.some(l => l.lot + "|" + l.prim === k) && [...gone].some(l => l.lot + "|" + l.prim === k)) delete INS.dlp[k]; });
+        histLog("IMPORT", "RÈGLE A — LIAISONS DÉLIÉES", plan.lose.length + " LIAISON(S) DU BUDGET");
+      }
       const byId = (k, id) => INS[k].find(x => x.id === id) || {};
       /* liaisons déjà dans le budget avant l'import : une ligne identique va dans IMPORT NON CRÉÉ */
       const had = new Set();
@@ -10115,7 +10190,10 @@ function renderBudgetList() {
         if (!des || !lot || !prim || !sec || (!pid && !cid)) return;
         const ch0 = [des, lot, prim, sec].join("|");
         if ((pid && had.has(ch0 + "|p|" + pid)) || (cid && had.has(ch0 + "|c|" + cid))) { rej.push({ src: l.src, bad: ["des"], why: "DOUBLON : EXISTE DÉJÀ DANS LE BUDGET (SEULS NBR / DIM / QTE PEUVENT DIFFÉRER)" }); return; }
-        /* règle A : une activité primaire n'a qu'une désignation */
+        /* règle A : la désignation qui a le plus de lignes l'emporte (activité primaire, puis tâche secondaire) */
+        const wp = plan.W.p.get(l.prim), ws = plan.W.s.get(l.lot + "#" + l.sec);
+        if (wp && wp.dk !== l.dk) { rej.push({ src: l.src, bad: ["prim"], why: bfRuleAWhy("p", wp) }); return; }
+        if (ws && ws.dk !== l.dk) { rej.push({ src: l.src, bad: ["lot", "sec"], why: bfRuleAWhy("s", ws) }); return; }
         const other = INS.links.find(x => x.prim === prim && x.des !== des);
         if (other) { rej.push({ src: l.src, bad: ["prim"], why: "RÈGLE A : ACTIVITÉ PRIMAIRE DÉJÀ LIÉE À " + (byId("des", other.des).des || "") }); return; }
         /* règle B : produit de la même unité que la désignation */
@@ -10179,11 +10257,12 @@ function renderBudgetList() {
       }
       const busy = ["des", "lot", "prim", "sec", "chg", "prd"].some(k => INS[k].length);
       if (!busy) { bfApply(m, "add", srcName); return; }
+      const goA = async mode => { const plan = bfRuleA(m, mode); if (!(await bfRuleAAsk(plan))) return; plan.ok = true; bfApply(m, mode, srcName, false, plan); };
       const v = await svChoose({ title: "DONNÉES DÉJÀ PRÉSENTES", buttons: [
         { v: "add", label: "AJOUTER", tone: "neutral" }, { v: "update", label: "METTRE À JOUR", tone: "neutral" }, { v: "replace", label: "REMPLACER", tone: "danger" }] });
       if (!v) return;
       if (v === "replace" && !(await svConfirm({ title: "REMPLACER", text: "TOUTES LES LIGNES ET LIAISONS DU BUDGET SERONT SUPPRIMÉES PUIS REMPLACÉES PAR CELLES DU FICHIER.", ok: "REMPLACER" }))) return;
-      bfApply(m, v, srcName);
+      await goA(v);
     };
     /* IMPORTER UN BUDGET : fichier Excel (iPad) ou Google Sheets (Drive) ; un seul onglet */
     const openBudgetImport = () => {
