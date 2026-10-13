@@ -1378,3 +1378,14 @@ tr.dly-task { cursor: pointer; }
 .ins-table textarea.ins-in { display: block; resize: none; overflow: hidden; white-space: pre-wrap; word-break: break-word;
   height: 20px; min-height: 20px; line-height: 16px; padding: 2px 8px; font-family: inherit; }
 .bdg-d-table td.c-wrap { white-space: normal !important; word-break: break-word; }
+
+/* FORMAT 115 : une seule hauteur de ligne (21 px) dans tous les tableaux */
+.bdg-d-table tbody td { height: 21px; }
+.bdg-d-table tbody td:has(> input[type="checkbox"]), .bdg-d-table tbody td.ins-cbc { padding-top: 0 !important; padding-bottom: 0 !important; }
+.bdg-d-table tbody td input[type="checkbox"] { margin-top: 0; margin-bottom: 0; vertical-align: middle; width: 16px; height: 16px; }
+.ins-hcol .ins-li { min-height: 21px; }
+.ins-hcol .ins-li > span:not(.ins-cbc) { padding: 2px 0; }
+/* FORMAT 116 : colonne sélectionnée (toucher sur le titre) */
+th.col-sel, td.col-sel, .bdg-h-head.col-sel, .ins-hcol.col-sel .ins-li, .bdg-h-col.col-sel .bdg-h-item {
+  background-image: linear-gradient(rgba(37, 99, 235, .13), rgba(37, 99, 235, .13)) !important; }
+th.col-sel .cf-lab, .bdg-h-head.col-sel .cf-lab { text-decoration: underline; text-underline-offset: 3px; }
