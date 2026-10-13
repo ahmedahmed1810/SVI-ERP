@@ -6277,7 +6277,7 @@ function renderBudgetList() {
     const INC_COLS = [["art", "ART", 60, "center"], ["dc", "DÉSIGNATION CLIENT", 240, ""], ["upb", "UPB", 60, "center"], ["lot", "LOT", 150, ""],
       ["prim", "ACTIVITÉ PRIMAIRE", 170, ""], ["sec", "ACTIVITÉ SECONDAIRE", 170, ""], ["type", "TYPE", 70, "center"], ["article", "ARTICLE", 80, "center"],
       ["des", "DÉSIGNATION", 220, ""], ["u", "UNITÉ", 60, "center"], ["nbr", "NBR", 60, "number"], ["d1", "DIM 1", 60, "number"], ["d2", "DIM 2", 60, "number"],
-      ["d3", "DIM 3", 60, "number"], ["q", "QTE", 70, "number"]];
+      ["d3", "DIM 3", 60, "number"], ["q", "QTE", 70, "number"], ["deb", "DÉBUT", 100, "center"], ["fin", "FIN", 100, "center"], ["pred", "PRÉDÉCESSEURS", 220, ""]];
     const insIncHTML = () => {
       /* justificatif : numéro de la ligne dans le tableau source + raison */
       const why = x => (x.line ? "LIGNE " + x.line + " — " : "") + (x.why || "");
@@ -9772,7 +9772,16 @@ function renderBudgetList() {
           ws["!rows"] = ws["!rows"] || [];
           ws["!rows"][H0] = { hpt: SZ.hpt };
           const wb = X.utils.book_new();
-          X.utils.book_append_sheet(wb, ws, blkLabel(blk).slice(0, 31));
+          X.utils.book_append_sheet(wb, ws, blk === "budget" ? "BUDGET" : blkLabel(blk).slice(0, 31));
+          /* EXPORTER LE BUDGET : 2e onglet DÉLAIS (une ligne par période, prédécesseurs) — FORMAT 57 */
+          if (blk === "budget" && INS) {
+            const DH = DLY_HEAD, DR = dlyExportRows();
+            const ws2 = X.utils.aoa_to_sheet([DH, ...DR]);
+            DH.forEach((_, c) => { const a = X.utils.encode_cell({ r: 0, c }); ws2[a].s = { font: font(true), border, fill: { fgColor: { rgb: "D9DEE6" } }, alignment: { horizontal: "center", vertical: "center", wrapText: true } }; });
+            DR.forEach((row, i) => DH.forEach((h, c) => { const a = X.utils.encode_cell({ r: i + 1, c }); ws2[a] = ws2[a] || { t: "s", v: "" }; ws2[a].s = { font: font(false), border, alignment: { horizontal: c >= 2 && c <= 5 ? "center" : "left", vertical: "top", wrapText: true } }; }));
+            ws2["!cols"] = [{ wch: 24 }, { wch: 32 }, { wch: 9 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 48 }];
+            X.utils.book_append_sheet(wb, ws2, "DÉLAIS");
+          }
           const out = X.write(wb, { bookType: "xlsx", type: "array" });
           await deliver(base + ".xlsx", new Blob([out], {
             type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -10874,6 +10883,18 @@ function renderBudgetList() {
     const incTry = item => {
       INS.inc = (INS.inc || []).filter(x => x.id !== item.id);
       const s0 = item.src;
+      /* ligne de délai : réessayée avec les règles des délais */
+      if (U_(s0.type) === "DÉLAI") {
+        const aoa = [DLY_HEAD, [s0.lot || "", s0.sec || "", "", s0.deb || "", s0.fin || "", "", s0.pred || ""]];
+        aoa.__lineFix = s0.__line || item.line || "";
+        const before = (INS.inc || []).length;
+        dlyImportAoa(aoa, "CORRECTION", true);
+        const again = (INS.inc || []).slice(before);
+        if (again.length) { again[0].id = item.id; again[0].on = item.on; }
+        else histLog("IMPORT", "DÉLAI CRÉÉ (CORRECTION)", [s0.lot, s0.sec, s0.deb, s0.fin].filter(Boolean).join(" › "));
+        insSave(); refreshAll();
+        return;
+      }
       const aoa = [BF_HEAD, ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u", "nbr", "d1", "d2", "d3", "q"].map(k => s0[k] ?? "")];
       aoa.__lineFix = s0.__line || item.line || "";
       const before = (INS.inc || []).length;
@@ -10884,7 +10905,103 @@ function renderBudgetList() {
       else histLog("IMPORT", "LIAISON CRÉÉE (CORRECTION)", [s0.dc, s0.lot, s0.prim, s0.sec, s0.des].filter(Boolean).join(" › "));
       insSave(); refreshAll();
     };
+    /* ===== DÉLAIS dans l'export / l'import du budget (onglet DÉLAIS) ===== */
+    const DLY_HEAD = ["LOT", "ACTIVITÉ SECONDAIRE", "PÉRIODE", "DÉBUT", "FIN", "DURÉE (J)", "PRÉDÉCESSEURS"];
+    const dlyExportRows = () => {
+      const out = [];
+      const keys = Object.keys(INS.dlp || {}).filter(k => (INS.dlp[k] || []).length);
+      Object.keys(INS.dpred || {}).forEach(k => { if (!keys.includes(k)) keys.push(k); });
+      keys.map(k => ({ k, n: dlyName(k) })).sort((a, b) => String(((INS.dlp[a.k] || [])[0] || {}).deb || "9").localeCompare(String(((INS.dlp[b.k] || [])[0] || {}).deb || "9")) || natCmp(a.n, b.n)).forEach(({ k }) => {
+        const [lo, se] = k.split("|");
+        const pr = ((INS.dpred || {})[k] || []).map(dlyName).join(" ; ");
+        const ps = [...((INS.dlp || {})[k] || [])].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")));
+        if (!ps.length) out.push([lkName("lot", lo), lkName("sec", se), "", "", "", "", pr]);
+        ps.forEach((p, i) => out.push([lkName("lot", lo), lkName("sec", se), i + 1, dFr(p.deb || ""), dFr(p.fin || ""), p.deb && p.fin ? dDiff(p.deb, p.fin) : "", i ? "" : pr]));
+      });
+      return out;
+    };
+    /* nature d'un onglet : budget (DÉSIGNATION CLIENT) ou délais (ACTIVITÉ SECONDAIRE + DÉBUT / FIN, sans DÉSIGNATION CLIENT) */
+    const sheetKind = aoa => {
+      const rows = (aoa || []).slice(0, 15).map(r => (r || []).map(bfNorm));
+      if (rows.some(r => r.includes("DESIGNATION CLIENT"))) return "budget";
+      if (rows.some(r => r.includes("ACTIVITE SECONDAIRE") && (r.includes("DEBUT") || r.includes("FIN") || r.includes("PREDECESSEURS")))) return "dly";
+      return "";
+    };
+    const dlyDate = v => {
+      if (v === "" || v === null || v === undefined) return "";
+      if (typeof v === "number" && v > 20000) { const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000); return d.toISOString().slice(0, 10); }
+      const t = String(v).trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
+      const iso = dParse(t);
+      return iso === null ? null : iso;
+    };
+    /* import de l'onglet DÉLAIS : mêmes règles que la saisie ; ligne refusée → IMPORT NON CRÉÉ (TYPE DÉLAI) */
+    const dlyImportAoa = (aoa, srcName, quiet) => {
+      const hi = (aoa || []).findIndex(r => (r || []).map(bfNorm).includes("ACTIVITE SECONDAIRE"));
+      if (hi < 0) return 0;
+      const H = aoa[hi].map(bfNorm), col = n => H.indexOf(n);
+      const C = { lot: col("LOT"), sec: col("ACTIVITE SECONDAIRE"), deb: col("DEBUT"), fin: col("FIN"), dur: H.findIndex(h => h.startsWith("DUREE")), pred: col("PREDECESSEURS") };
+      const g = (r, k) => C[k] < 0 ? "" : r[C[k]];
+      const idOf = (k, name) => { const v = sviClean(name); if (!v) return ""; let r = INS[k].find(x => U_(x.v) === U_(v)); if (!r) { r = { id: insId(), v: U_(v), on: false }; INS[k].push(r); } return r.id; };
+      const keyOf = txt => { const [a, b] = String(txt || "").split("›").map(x => x.trim()); return a && b ? idOf("lot", a) + "|" + idOf("sec", b) : ""; };
+      INS.dlp = INS.dlp || {}; INS.dpred = INS.dpred || {};
+      const rej = [], added = [];
+      const srcOf = (r, ln) => ({ lot: sviClean(g(r, "lot")), sec: sviClean(g(r, "sec")), type: "DÉLAI", deb: String(g(r, "deb") ?? "").trim(), fin: String(g(r, "fin") ?? "").trim(), pred: sviClean(g(r, "pred")), __line: aoa.__lineFix || ln });
+      aoa.slice(hi + 1).forEach((r, ri) => {
+        if (!r || !r.some(c => String(c ?? "").trim() !== "")) return;
+        const ln = hi + 2 + ri, src = srcOf(r, ln);
+        if (!src.lot || !src.sec) { rej.push({ src, bad: [!src.lot ? "lot" : "sec"], why: !src.lot ? "LOT MANQUANT" : "ACTIVITÉ SECONDAIRE MANQUANTE" }); return; }
+        const key = idOf("lot", src.lot) + "|" + idOf("sec", src.sec);
+        /* prédécesseurs (« LOT › ACTIVITÉ SECONDAIRE ; … ») : la tâche elle-même et les boucles refusées */
+        if (src.pred) {
+          const bad = [];
+          src.pred.split(";").map(x => x.trim()).filter(Boolean).forEach(t => {
+            const pk = keyOf(t);
+            if (!pk) { bad.push("« " + t + " » : ÉCRIRE LOT › ACTIVITÉ SECONDAIRE"); return; }
+            if (pk === key || dlyReach(pk, key)) { bad.push(t + " : BOUCLE"); return; }
+            const L = INS.dpred[key] = INS.dpred[key] || [];
+            if (!L.includes(pk)) L.push(pk);
+          });
+          if (bad.length) rej.push({ src: { ...src, deb: "", fin: "" }, bad: ["pred"], why: "PRÉDÉCESSEURS REFUSÉS : " + bad.join(" ; ") });
+        }
+        let deb = dlyDate(g(r, "deb")), fin = dlyDate(g(r, "fin"));
+        if (!deb && !fin) return;
+        if (deb === null || fin === null) { rej.push({ src, bad: [deb === null ? "deb" : "fin"], why: "DATE NON VALIDE : FORMAT JJ/MM/AAAA" }); return; }
+        if (deb && !fin && String(g(r, "dur") ?? "").trim() !== "" && /^\d+$/.test(String(g(r, "dur")).trim())) fin = dAdd(deb, Number(g(r, "dur")));
+        if (!deb || !fin) { rej.push({ src, bad: [!deb ? "deb" : "fin"], why: !deb ? "DÉBUT MANQUANT" : "FIN MANQUANTE" }); return; }
+        if (fin < deb) { rej.push({ src, bad: ["fin"], why: "LA FIN EST AVANT LE DÉBUT" }); return; }
+        if (((INS.dlp || {})[key] || []).some(x => x.deb === deb && x.fin === fin) || added.some(x => x.key === key && x.deb === deb && x.fin === fin)) return;   /* déjà là */
+        added.push({ key, deb, fin, src });
+      });
+      /* 1) une tâche commence au plus tôt le jour de la fin de ses prédécesseurs (fins connues : budget + fichier) */
+      const finOf = k => [...((INS.dlp || {})[k] || []), ...added.filter(x => x.key === k)].map(x => x.fin).filter(Boolean).sort().pop() || "";
+      const ok1 = added.filter(c => {
+        const pf = ((INS.dpred || {})[c.key] || []).map(finOf).filter(Boolean).sort().pop() || "";
+        if (pf && c.deb < pf) { rej.push({ src: c.src, bad: ["deb"], why: "DÉBUT AVANT LA FIN DES PRÉDÉCESSEURS (" + dFr(pf) + ")" }); return false; }
+        return true;
+      });
+      /* 2) pas de chevauchement, et deux périodes d'une même tâche ne se touchent pas */
+      let nAdd = 0;
+      ok1.forEach(c => {
+        const list = INS.dlp[c.key] = INS.dlp[c.key] || [];
+        const o = list.find(x => x.deb && x.fin && c.deb <= x.fin && x.deb <= c.fin) || list.find(x => x.deb && x.fin && (dAdd(c.fin, 1) === x.deb || c.deb === dAdd(x.fin, 1)));
+        if (o) { rej.push({ src: c.src, bad: ["deb", "fin"], why: "PÉRIODE QUI CHEVAUCHE OU TOUCHE LA PÉRIODE DU " + dFr(o.deb) + " AU " + dFr(o.fin) }); return; }
+        list.push({ id: insId(), deb: c.deb, fin: c.fin }); nAdd++;
+      });
+      const kk = x => JSON.stringify(["lot", "sec", "type", "deb", "fin", "pred"].map(f => U_((x.src || {})[f])));
+      const inK = new Set((INS.inc || []).map(kk));
+      INS.inc = (INS.inc || []).concat(rej.filter(x => { const k = kk(x); if (inK.has(k)) return false; inK.add(k); return true; })
+        .map(x => ({ id: insId(), on: false, src: x.src, bad: x.bad, why: x.why, line: x.src.__line || "" })));
+      if (!quiet) {
+        histLog("IMPORT", "DÉLAIS", (srcName || "") + " — " + nAdd + " PÉRIODE(S)" + (rej.length ? " — " + rej.length + " NON CRÉÉE(S)" : ""));
+        if (rej.length) { active = "inc"; try { localStorage.setItem("svi_dtab_v1", "inc"); } catch (e) {} }
+      }
+      insSave(); refreshAll();
+      return rej.length;
+    };
     const bfImportAoa = async (aoa, srcName) => {
+      /* onglet DÉLAIS seul : seuls les délais sont importés */
+      if (sheetKind(aoa) === "dly") { dlyImportAoa(aoa, srcName); return true; }
       let m;
       try { m = bfModel(aoa); } catch (e) {
         svImportFail({ source: srcName, tries: [{ err: e }], found: (aoa || []).find(r => (r || []).some(c => String(c ?? "").trim())) || [],
@@ -10897,13 +11014,15 @@ function renderBudgetList() {
         return;
       }
       const busy = ["des", "lot", "prim", "sec", "chg", "prd"].some(k => INS[k].length);
-      if (!busy) { bfApply(m, "add", srcName); return; }
-      const goA = async mode => { const plan = bfRuleA(m, mode); if (!(await bfRuleAAsk(plan))) return; plan.ok = true; bfApply(m, mode, srcName, false, plan); };
+      if (!busy) { bfApply(m, "add", srcName); return true; }
+      let done = false;
+      const goA = async mode => { const plan = bfRuleA(m, mode); if (!(await bfRuleAAsk(plan))) return; plan.ok = true; bfApply(m, mode, srcName, false, plan); done = true; };
       const v = await svChoose({ title: "DONNÉES DÉJÀ PRÉSENTES", buttons: [
         { v: "add", label: "AJOUTER", tone: "neutral" }, { v: "update", label: "METTRE À JOUR", tone: "neutral" }, { v: "replace", label: "REMPLACER", tone: "danger" }] });
       if (!v) return;
       if (v === "replace" && !(await svConfirm({ title: "REMPLACER", text: "TOUTES LES LIGNES ET LIAISONS DU BUDGET SERONT SUPPRIMÉES PUIS REMPLACÉES PAR CELLES DU FICHIER.", ok: "REMPLACER" }))) return;
       await goA(v);
+      return done;
     };
     /* IMPORTER UN BUDGET : fichier Excel (iPad) ou Google Sheets (Drive) ; un seul onglet */
     const openBudgetImport = () => {
@@ -10929,6 +11048,14 @@ function renderBudgetList() {
               const X = await loadXLSX();
               const wb = X.read(await f.arrayBuffer(), { type: "array" });
               let sh = wb.SheetNames[0];
+              /* onglets BUDGET et DÉLAIS (export de l'application) : les deux sont importés */
+              const kinds = wb.SheetNames.map(n => ({ n, k: sheetKind(X.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: "" })) }));
+              const bS = kinds.filter(x => x.k === "budget"), dS = kinds.filter(x => x.k === "dly");
+              if (bS.length === 1 && dS.length === 1) {
+                const ok = await bfImportAoa(X.utils.sheet_to_json(wb.Sheets[bS[0].n], { header: 1, defval: "" }), f.name + " › " + bS[0].n);
+                if (ok) dlyImportAoa(X.utils.sheet_to_json(wb.Sheets[dS[0].n], { header: 1, defval: "" }), f.name + " › " + dS[0].n);
+                return;
+              }
               /* plusieurs onglets : lequel ? */
               if (wb.SheetNames.length > 1) {
                 sh = await svChoose({ title: "QUEL ONGLET ?", buttons: wb.SheetNames.map(n => ({ v: n, label: n, tone: "neutral" })) });
