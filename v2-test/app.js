@@ -12205,7 +12205,7 @@ function renderBudgetList() {
         table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:33%"><col style="width:4%"><col style="width:9%">
           <col style="width:9.5%"><col style="width:28%"><col style="width:10.5%"></colgroup>
           <thead><tr><th rowspan="2">ART.</th><th rowspan="2">DESIGNATION</th><th rowspan="2">U</th><th rowspan="2">QUANTITE</th>
-            <th colspan="2">PRIX UNITAIRES HORS TVA</th><th rowspan="2">MONTANT</th></tr>
+            <th colspan="2">PRIX UNITAIRES HORS TVA</th><th rowspan="2">MONTANT HT</th></tr>
             <tr><th class="sub">EN CHIFFRES</th><th class="sub">EN LETTRES</th></tr></thead>
           <tbody>${body}</tbody></table>`,
         end: `<div class="tot">
@@ -12241,7 +12241,7 @@ function renderBudgetList() {
         table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:33%"><col style="width:4%"><col style="width:9%">
           <col style="width:9.5%"><col style="width:28%"><col style="width:10.5%"></colgroup>
           <thead><tr><th rowspan="2">ART.</th><th rowspan="2">DESIGNATION</th><th rowspan="2">U</th><th rowspan="2">QUANTITE</th>
-            <th colspan="2">PRIX UNITAIRES HORS TVA</th><th rowspan="2">MONTANT</th></tr>
+            <th colspan="2">PRIX UNITAIRES HORS TVA</th><th rowspan="2">MONTANT HT</th></tr>
             <tr><th class="sub">EN CHIFFRES</th><th class="sub">EN LETTRES</th></tr></thead>
           <tbody>${body}</tbody></table>`,
         end: `<div class="tot">
