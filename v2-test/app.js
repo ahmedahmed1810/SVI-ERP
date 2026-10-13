@@ -7910,7 +7910,7 @@ function renderBudgetList() {
       const names = [...pl.remP.map(id => lkName("prd", id)), ...pl.remC.map(id => lkName("chg", id))];
       const ids = new Set(pl.links.map(l => l.id));
       /* liaisons après l'opération (un produit retiré : la liaison sans produit disparaît) */
-      const after = (INS.links || []).map(l => !ids.has(l.id) ? l : !rem ? null
+      const after = (INS.links || []).map(l => !ids.has(l.id) ? l : (!rem || (pl.whole && pl.whole.has(l.id))) ? null
         : { ...l, prd: (l.prd || []).filter(x => !pl.remP.includes(x.id)), chg: (l.chg || []).filter(x => !pl.remC.includes(x.id)) })
         .filter(l => l && (l.prd || []).length);
       const gone = pl.links.filter(l => !after.some(a => a.id === l.id));
@@ -13383,12 +13383,16 @@ function renderBudgetList() {
     const insUnlPlan = blk => {
       if (!INS || !INS_EDIT) return null;
       const L = INS.links || [];
-      if (blk === "detail" && active === "lnk") {
-        const vi = new Set((lastShown.detail && lastShown.detail.kind === "lnk" ? lastShown.detail.rows : []).map(l => l.id));
-        const hit = L.filter(l => l.on === true && vi.has(l.id));
-        return { mode: "del", links: hit, remP: [], remC: [], n: hit.length };
+      /* bloc détail : tous ses onglets (FORMAT 104) — liaisons cochées (délier en entier) + produits / charges cochés (retirés) */
+      if (blk === "detail") {
+        const vi = active === "lnk" && lastShown.detail && lastShown.detail.kind === "lnk" ? new Set(lastShown.detail.rows.map(l => l.id)) : null;
+        const whole = L.filter(l => l.on === true && (!vi || vi.has(l.id)));
+        const sp = insSelIds("prd"), sc = insSelIds("chg");
+        const remP = [...sp].filter(id => L.some(l => (l.prd || []).some(x => x.id === id)));
+        const remC = [...sc].filter(id => L.some(l => (l.chg || []).some(x => x.id === id)));
+        const hit = L.filter(l => whole.includes(l) || (l.prd || []).some(x => remP.includes(x.id)) || (l.chg || []).some(x => remC.includes(x.id)));
+        return { mode: "del", links: hit, remP, remC, whole: new Set(whole.map(l => l.id)), n: hit.length };
       }
-      if (blk === "detail" && !["chg", "prd"].includes(active)) return null;
       const ks = insBlkKinds(blk).filter(k => k !== "qlt");
       if (!ks.length) return null;
       const sel = {};
@@ -13404,6 +13408,27 @@ function renderBudgetList() {
       const X = shell.__ins;
       const out = { del: {}, n: 0, kept: 0 };
       if (!X) return out;
+      /* FORMAT 104 : bloc détail = lignes cochées de TOUS ses onglets (filtre de chaque onglet respecté) ;
+         une ligne cochée dans deux onglets n'est comptée qu'une fois ; les lignes liées restent */
+      if (blk === "detail") {
+        const add = (k, id) => { (out.del[k] = out.del[k] || new Set()).add(id); };
+        ["chg", "prd", "qlt"].forEach(k => {
+          const vis = insVis(k);
+          X.INS[k].forEach(r => { if (r.t || r.on !== true || !vis.has(r.id)) return; if (k !== "qlt" && X.isUsed(k, r.id)) out.kept++; else add(k, r.id); });
+        });
+        /* LIGNES NON LIÉES : ses lignes cochées des autres blocs (désignations, lots, activités) */
+        const uv = active === "unl" && lastShown.detail && lastShown.detail.kind === "unl" ? new Set(lastShown.detail.rows.map(x => x.k + "|" + x.id)) : null;
+        const un = insUnlinked();
+        ["des", "lot", "prim", "sec", "chg", "prd"].forEach(k => (un[k] || []).forEach(r => { if (r.on === true && !r.t && (!uv || uv.has(k + "|" + r.id))) add(k, r.id); }));
+        /* IMPORT NON CRÉÉ */
+        const vi = active === "inc" && lastShown.detail && lastShown.detail.kind === "inc" ? new Set(lastShown.detail.rows.map(x => x.id)) : null;
+        (INS.inc || []).forEach(x => { if (x.on === true && (!vi || vi.has(x.id))) add("inc", x.id); });
+        /* DÉTAIL DÉLAIS : périodes cochées */
+        const Y = shell.__insDly;
+        if (Y && Y.draft) Object.values(Y.draft()).forEach(l => l.forEach(p => { if (p.on === true) add("dly", p.id); }));
+        out.n = Object.values(out.del).reduce((t, S) => t + S.size, 0);
+        return out;
+      }
       /* IMPORT NON CRÉÉ : les lignes cochées de l'onglet (les données déjà importées restent) */
       /* DÉTAIL DÉLAIS : périodes cochées (le brouillon de la liaison en cours) */
       if (blk === "detail" && active === "dly") { const Y = shell.__insDly; if (Y && Y.draft) { const D = Y.draft(); out.n = Object.values(D).reduce((t, l) => t + l.filter(p => p.on === true).length, 0); if (out.n) out.del.dly = true; } return out; }
@@ -13427,12 +13452,27 @@ function renderBudgetList() {
       return out;
     };
     /* détail d'un compteur de lignes cochées par bloc : « 5 CHARGES + 42 PRODUITS » */
-    const DEL_LAB = { des: ["DÉSIGNATION", "DÉSIGNATIONS"], lot: ["LOT", "LOTS"], prim: ["ACTIVITÉ PRIMAIRE", "ACTIVITÉS PRIMAIRES"], sec: ["ACTIVITÉ SECONDAIRE", "ACTIVITÉS SECONDAIRES"], chg: ["CHARGE", "CHARGES"], prd: ["PRODUIT", "PRODUITS"] };
+    const DEL_LAB = { des: ["DÉSIGNATION", "DÉSIGNATIONS"], lot: ["LOT", "LOTS"], prim: ["ACTIVITÉ PRIMAIRE", "ACTIVITÉS PRIMAIRES"], sec: ["ACTIVITÉ SECONDAIRE", "ACTIVITÉS SECONDAIRES"], chg: ["CHARGE", "CHARGES"], prd: ["PRODUIT", "PRODUITS"],
+      qlt: ["LIGNE QUALITÉ", "LIGNES QUALITÉ"], inc: ["LIGNE D'IMPORT NON CRÉÉ", "LIGNES D'IMPORT NON CRÉÉ"], dly: ["PÉRIODE", "PÉRIODES"] };
     const insDelSplit = pl => Object.keys(pl.del || {}).filter(k => DEL_LAB[k] && pl.del[k].size).map(k => pl.del[k].size + " " + DEL_LAB[k][pl.del[k].size > 1 ? 1 : 0]).join(" + ");
     const insDelRun = blk => {
       const X = shell.__ins;
       const pl = insDelPlan(blk);
       if (!pl.n) return;
+      if (blk === "detail" && X) {
+        svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES",
+          text: pl.n + " LIGNE(S) SERONT SUPPRIMÉES : " + insDelSplit(pl) + "." + (pl.del.inc ? " (IMPORT NON CRÉÉ : LES DONNÉES DÉJÀ IMPORTÉES RESTENT.)" : "") + (pl.kept ? " " + pl.kept + " LIGNE(S) LIÉE(S) RESTENT." : ""), ok: "SUPPRIMER" }).then(go => {
+          if (!go) return;
+          Object.keys(pl.del).forEach(k => {
+            if (k === "inc") { INS.inc = (INS.inc || []).filter(x => !pl.del.inc.has(x.id)); return; }
+            if (k === "dly") { const D = shell.__insDly.draft(); Object.keys(D).forEach(t => { D[t] = D[t].filter(p => !pl.del.dly.has(p.id)); }); return; }
+            X.INS[k] = X.INS[k].filter(x => !pl.del[k].has(x.id));
+          });
+          histLog("SAISIE", "LIGNES SUPPRIMÉES", pl.n + " LIGNE(S) — " + insDelSplit(pl));
+          X.cleanLinks(); X.insSave(); refreshAll();
+        });
+        return;
+      }
       if (pl.del.dly) { shell.__insDlyDel && shell.__insDlyDel(); return; }
       if (!X) return;
       if (pl.del.inc) {
@@ -13650,14 +13690,21 @@ function renderBudgetList() {
         let lab = a.title;
         if (a.dataset.act === "max") lab = a.classList.contains("on") ? "Réduire" : "Agrandir";
         /* supprimer : grisé s'il n'y a aucune ligne cochée et déliée (l'erreur n'est pas proposée) */
+        if (a.dataset.blk === "detail" && ["copy", "cut", "export", "pdf"].includes(a.dataset.act) && INS_EDIT) {
+          /* ces actions ne prennent que l'onglet ouvert : signaler les cochées des autres onglets */
+          const all = insDelPlan("detail"), here = active === "lnk" ? 0 : (all.del[active] || new Set()).size;
+          const other = active === "unl" ? 0 : Math.max(0, all.n - here);
+          if (other) a.__hint = "+ " + other + " COCHÉE(S) DANS D'AUTRES ONGLETS";
+          else a.__hint = "";
+        }
         if (["copy", "cut", "paste"].includes(a.dataset.act) && ctlTab(a.dataset.blk)) {
           const n = ctlCount(a.dataset.blk, a.dataset.act);
           const lb = a.dataset.act === "paste" && ctlTab(a.dataset.blk) === "inc" ? "COLLER (RÉIMPORTER)" : lab;
-          return `<button type="button" data-i="${i}" class="blk-del blk-clip${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lb)}</span>${n > 0 || n === 0 ? svCnt(n) : ""}</button>`;
+          return `<button type="button" data-i="${i}" class="blk-del blk-clip${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lb)}${a.__hint ? `<small class="del-split">${esc(a.__hint)}</small>` : ""}</span>${n > 0 || n === 0 ? svCnt(n) : ""}</button>`;
         }
         if (["copy", "cut", "paste"].includes(a.dataset.act)) {
           const n = clipCount(a.dataset.blk, a.dataset.act);
-          return `<button type="button" data-i="${i}" class="blk-del blk-clip${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}</span>${svCnt(n)}</button>`;
+          return `<button type="button" data-i="${i}" class="blk-del blk-clip${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}${a.__hint ? `<small class="del-split">${esc(a.__hint)}</small>` : ""}</span>${svCnt(n)}</button>`;
         }
         /* exporter / aperçu : grisés si le bloc est vide (l'erreur n'est pas proposée) */
         if ((a.dataset.act === "export" || a.dataset.act === "pdf") && blkEmpty(a.dataset.blk)) {
@@ -13667,7 +13714,6 @@ function renderBudgetList() {
           const up = insUnlPlan(a.dataset.blk);
           const un = up ? up.n : 0;
           const dl = up ? `<button type="button" data-unl="${esc(a.dataset.blk)}" class="blk-del blk-unl${un ? "" : " off"}" ${un ? "" : "disabled"}><span>✕ DÉLIER LES LIGNES COCHÉES</span>${svCnt(un)}</button>` : "";
-          if (a.dataset.blk === "detail" && active === "lnk") return dl;
           const dp = insDelPlan(a.dataset.blk), n = dp.n, sp = Object.keys(dp.del).length > 1 ? insDelSplit(dp) : "";
           return dl + `<button type="button" data-i="${i}" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}${sp ? `<small class="del-split">${esc(sp)}</small>` : ""}</span>${svCnt(n)}</button>`;
         }
@@ -13675,7 +13721,7 @@ function renderBudgetList() {
           const n = 0;
           return `<button type="button" data-i="${i}" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}</span>${svCnt(n)}</button>`;
         }
-        return `<button type="button" data-i="${i}">${a.innerHTML}<span>${esc(lab)}</span></button>`;
+        return `<button type="button" data-i="${i}">${a.innerHTML}<span>${esc(lab)}${a.__hint ? `<small class="del-split">${esc(a.__hint)}</small>` : ""}</span></button>`;
       }).join("");
       document.body.appendChild(m);
       const r = btn.getBoundingClientRect();
