@@ -9847,11 +9847,11 @@ function renderBudgetList() {
           X.utils.book_append_sheet(wb, ws, blk === "budget" ? "BUDGET" : blkLabel(blk).slice(0, 31));
           /* EXPORTER LE BUDGET : 2e onglet DÉLAIS (une ligne par période, prédécesseurs) — FORMAT 57 */
           if (blk === "budget" && INS) {
-            const DH = DLY_HEAD, DR = dlyExportRows();
+            const DH = ["PROJET", ...DLY_HEAD], DR = dlyExportRows().map(r => [U_(budget.project || ""), ...r]);
             const ws2 = X.utils.aoa_to_sheet([DH, ...DR]);
             DH.forEach((_, c) => { const a = X.utils.encode_cell({ r: 0, c }); ws2[a].s = { font: font(true), border, fill: { fgColor: { rgb: "D9DEE6" } }, alignment: { horizontal: "center", vertical: "center", wrapText: true } }; });
-            DR.forEach((row, i) => DH.forEach((h, c) => { const a = X.utils.encode_cell({ r: i + 1, c }); ws2[a] = ws2[a] || { t: "s", v: "" }; ws2[a].s = { font: font(false), border, alignment: { horizontal: c >= 2 && c <= 5 ? "center" : "left", vertical: "top", wrapText: true } }; }));
-            ws2["!cols"] = [{ wch: 24 }, { wch: 32 }, { wch: 9 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 48 }];
+            DR.forEach((row, i) => DH.forEach((h, c) => { const a = X.utils.encode_cell({ r: i + 1, c }); ws2[a] = ws2[a] || { t: "s", v: "" }; ws2[a].s = { font: font(false), border, alignment: { horizontal: c >= 3 && c <= 6 ? "center" : "left", vertical: "top", wrapText: true } }; }));
+            ws2["!cols"] = [{ wch: 10 }, { wch: 24 }, { wch: 32 }, { wch: 9 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 48 }];
             X.utils.book_append_sheet(wb, ws2, "DÉLAIS");
           }
           const out = X.write(wb, { bookType: "xlsx", type: "array" });
@@ -10677,21 +10677,33 @@ function renderBudgetList() {
       }));
       (d.prd || []).filter(r => !used.prd.has(r.id)).forEach(P => rows.push(["", "", "", "", "", "", ...prdC(P)]));
       (d.chg || []).filter(r => !used.chg.has(r.id)).forEach(C => rows.push(["", "", "", "", "", "", ...chgC(C)]));
-      return { head: BF_HEAD, rows };
+      /* FORMAT 105 : colonne PROJET en tête (projet du budget) */
+      const pj = U_(budget.project || "");
+      return { head: ["PROJET", ...BF_HEAD], rows: rows.map(r => [pj, ...r]) };
     };
     /* lecture d'un onglet : ligne d'en-tête trouvée (DÉSIGNATION CLIENT), colonnes par leur nom */
     const bfNorm = v => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
     const bfModel = aoa => {
-      const hi = aoa.findIndex(r => (r || []).some(c => bfNorm(c) === "DESIGNATION CLIENT"));
-      if (hi < 0) throw new Error("COLONNE « DÉSIGNATION CLIENT » INTROUVABLE");
+      /* FORMAT 105 : en-tête = ligne portant DÉSIGNATION CLIENT, sinon la première ligne remplie */
+      let hi = aoa.findIndex(r => (r || []).some(c => bfNorm(c) === "DESIGNATION CLIENT"));
+      if (hi < 0) hi = aoa.findIndex(r => (r || []).some(c => String(c ?? "").trim() !== ""));
+      if (hi < 0) throw new Error("TABLEAU VIDE");
       const H = aoa[hi].map(bfNorm);
       const col = (...names) => H.findIndex(h => names.some(x => h === x || (x.endsWith("*") && h.startsWith(x.slice(0, -1)))));
       const C = { art: col("ART"), dc: col("DESIGNATION CLIENT"), upb: col("UPB"), lot: col("LOT"), prim: col("ACTIVITE PRIMAIRE"),
         sec: col("ACTIVITE SECONDAIRE"), type: col("TYPE*"), article: col("ARTICLE"), des: col("DESIGNATION"), u: col("UNITE"),
-        nbr: col("NBR"), d1: col("DIM 1", "DIM1"), d2: col("DIM 2", "DIM2"), d3: col("DIM 3", "DIM3"), q: col("QTE", "QUANTITE") };
+        nbr: col("NBR"), d1: col("DIM 1", "DIM1"), d2: col("DIM 2", "DIM2"), d3: col("DIM 3", "DIM3"), q: col("QTE", "QUANTITE"), prj: col("PROJET", "PRJ") };
+      /* colonnes recherchées absentes (ART et ARTICLE facultatifs) ; colonnes en trop ignorées */
+      const NEED = [["prj", "PROJET"], ["dc", "DÉSIGNATION CLIENT"], ["upb", "UPB"], ["lot", "LOT"], ["prim", "ACTIVITÉ PRIMAIRE"], ["sec", "ACTIVITÉ SECONDAIRE"],
+        ["type", "TYPE (PRD / CHG)"], ["des", "DÉSIGNATION"], ["u", "UNITÉ"], ["nbr", "NBR"], ["d1", "DIM 1"], ["d2", "DIM 2"], ["d3", "DIM 3"], ["q", "QTE"]];
+      const miss = NEED.filter(([k]) => C[k] < 0).map(([, n]) => n);
+      /* lignes d'un autre projet que celui du budget : ignorées */
+      const PJ = U_((typeof budget !== "undefined" && budget && budget.project) || "");
+      const other = r => C.prj >= 0 && !!PJ && U_(sviClean(r[C.prj] ?? "")) !== PJ;
+      let prjIn = 0, prjOut = 0;
       const g = (r, k) => C[k] < 0 ? "" : sviClean(r[C[k]] ?? "");
       const nn = v => String(v ?? "").trim() === "" ? "" : num(v);
-      const m = { des: [], hier: [], chg: [], prd: [], qlt: [], dly: [], links: [], rej: [] };
+      const m = { des: [], hier: [], chg: [], prd: [], qlt: [], dly: [], links: [], rej: [], miss, prjCol: C.prj >= 0, prj: PJ };
       const seen = new Map();
       const RAW = ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u", "nbr", "d1", "d2", "d3", "q"];
       const put = (k, key, row, hier) => { if (!seen.has(key)) { seen.set(key, true); hier ? m.hier.push({ key, lvl: k, row }) : m[k].push({ key, row }); } return key; };
@@ -10707,7 +10719,7 @@ function renderBudgetList() {
         INS.prd.forEach(x => uAdd("p", U_(x.des), U_(x.u), Math.max(1, nL("prd", x.id))));
       }
       aoa.slice(hi + 1).forEach(r => {
-        if (!r) return;
+        if (!r || other(r)) return;
         const dc = U_(g(r, "dc")), t = bfNorm(g(r, "type")), dn = U_(g(r, "des"));
         if (dc && U_(g(r, "upb"))) uAdd("d", dc, U_(g(r, "upb")), 1);
         if (dn && t.startsWith("PRD") && U_(g(r, "u"))) uAdd("p", dn, U_(g(r, "u")), 1);
@@ -10715,6 +10727,8 @@ function renderBudgetList() {
       const uWin = (g, key) => { const M = UW[g].get(key); if (!M || M.size < 2) return null; const b = [...M].sort((a, c) => c[1].n - a[1].n || a[1].o - c[1].o)[0]; return { u: b[0], n: b[1].n }; };
       aoa.slice(hi + 1).forEach((r, ri) => {
         if (!r || !r.some(c => String(c ?? "").trim() !== "")) return;
+        if (other(r)) { prjOut++; return; }
+        prjIn++;
         const lineNo = (aoa.__line0 || 0) + hi + 2 + ri;   /* numéro de ligne dans le tableau source */
         const dc = U_(g(r, "dc")), lot = U_(g(r, "lot")), prim = U_(g(r, "prim")), sec = U_(g(r, "sec"));
         const t = bfNorm(g(r, "type")), dn = U_(g(r, "des"));
@@ -10790,6 +10804,7 @@ function renderBudgetList() {
         if (!dn) { bad.push("des"); why.push("DÉSIGNATION DU DÉTAIL MANQUANTE"); }
         m.rej.push({ src, bad, why: why.join(" ; ") });
       });
+      m.prjIn = prjIn; m.prjOut = prjOut;
       return m;
     };
     /* RÈGLE A à l'import (FORMAT) : une activité primaire, et une tâche secondaire (lot + activité secondaire),
@@ -11013,7 +11028,8 @@ function renderBudgetList() {
       const hi = (aoa || []).findIndex(r => (r || []).map(bfNorm).includes("ACTIVITE SECONDAIRE"));
       if (hi < 0) return 0;
       const H = aoa[hi].map(bfNorm), col = n => H.indexOf(n);
-      const C = { lot: col("LOT"), sec: col("ACTIVITE SECONDAIRE"), deb: col("DEBUT"), fin: col("FIN"), dur: H.findIndex(h => h.startsWith("DUREE")), pred: col("PREDECESSEURS") };
+      const C = { lot: col("LOT"), sec: col("ACTIVITE SECONDAIRE"), deb: col("DEBUT"), fin: col("FIN"), dur: H.findIndex(h => h.startsWith("DUREE")), pred: col("PREDECESSEURS"), prj: H.findIndex(h => h === "PROJET" || h === "PRJ") };
+      const PJ = U_(budget.project || "");
       const g = (r, k) => C[k] < 0 ? "" : r[C[k]];
       const idOf = (k, name) => { const v = sviClean(name); if (!v) return ""; let r = INS[k].find(x => U_(x.v) === U_(v)); if (!r) { r = { id: insId(), v: U_(v), on: false }; INS[k].push(r); } return r.id; };
       const keyOf = txt => { const [a, b] = String(txt || "").split("›").map(x => x.trim()); return a && b ? idOf("lot", a) + "|" + idOf("sec", b) : ""; };
@@ -11022,6 +11038,7 @@ function renderBudgetList() {
       const srcOf = (r, ln) => ({ lot: sviClean(g(r, "lot")), sec: sviClean(g(r, "sec")), type: "DÉLAI", deb: String(g(r, "deb") ?? "").trim(), fin: String(g(r, "fin") ?? "").trim(), pred: sviClean(g(r, "pred")), __line: aoa.__lineFix || ln });
       aoa.slice(hi + 1).forEach((r, ri) => {
         if (!r || !r.some(c => String(c ?? "").trim() !== "")) return;
+        if (C.prj >= 0 && PJ && U_(sviClean(r[C.prj] ?? "")) !== PJ) return;   /* autre projet : ignorée (FORMAT 105) */
         const ln = hi + 2 + ri, src = srcOf(r, ln);
         if (!src.lot || !src.sec) { rej.push({ src, bad: [!src.lot ? "lot" : "sec"], why: !src.lot ? "LOT MANQUANT" : "ACTIVITÉ SECONDAIRE MANQUANTE" }); return; }
         const key = idOf("lot", src.lot) + "|" + idOf("sec", src.sec);
@@ -11080,6 +11097,17 @@ function renderBudgetList() {
         svImportFail({ source: srcName, tries: [{ err: e }], found: (aoa || []).find(r => (r || []).some(c => String(c ?? "").trim())) || [],
           hint: "LA PREMIÈRE LIGNE DU TABLEAU DOIT PORTER LES COLONNES : ART, DÉSIGNATION CLIENT, UPB, LOT, ACTIVITÉ PRIMAIRE, ACTIVITÉ SECONDAIRE, TYPE (PRD / CHG), ARTICLE, DÉSIGNATION, UNITÉ, NBR, DIM 1 À 3, QTE. EXPORTER UN BUDGET DONNE LE BON MODÈLE." });
         return;
+      }
+      /* FORMAT 105 : colonnes manquantes → IMPORTER QUAND MÊME / ANNULER */
+      if (m.miss.length) {
+        const v = await svChoose({ title: "COLONNE(S) MANQUANTE(S)", html: `<div class="svc-sub">${esc(srcName || "")}</div><div class="svc-sub">CES COLONNES N'EXISTENT PAS DANS LA PREMIÈRE LIGNE DU TABLEAU :</div><ul class="svc-list">${m.miss.map(n => `<li>${esc(n)}</li>`).join("")}</ul><div class="svc-sub">IMPORTER QUAND MÊME (CES COLONNES SERONT LUES VIDES) ?</div>`,
+          buttons: [{ v: "go", label: "IMPORTER QUAND MÊME", tone: "neutral" }] });
+        if (v !== "go") return false;
+      }
+      if (m.prjCol && m.prj && !m.prjIn) {
+        svImportFail({ source: srcName, tries: [{ err: "AUCUNE LIGNE POUR LE PROJET " + m.prj }], found: [],
+          hint: "LA COLONNE PROJET DOIT PORTER " + m.prj + " (PROJET DU BUDGET OUVERT)." });
+        return false;
       }
       if (!m.des.length && !m.hier.length && !m.prd.length && !m.chg.length) {
         svImportFail({ source: srcName, tries: [{ err: "AUCUNE LIGNE À IMPORTER SOUS L'EN-TÊTE" }], found: (aoa || []).find(r => (r || []).some(c => String(c ?? "").trim())) || [],
