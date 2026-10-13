@@ -1352,3 +1352,6 @@ tr.dly-task { cursor: pointer; }
 .dpk-lot.on { background: var(--svst, #172033); color: #fff; }
 .dpk-sec { display: flex; gap: 8px; align-items: center; padding: 6px 10px; font-size: 12px; border-bottom: 1px solid #f0f2f5; }
 .dpk-sec.off { color: #c3c9d2; }
+/* FIGER impossible : bouton grisé (toucher = raisons) */
+.bdg-d-hright .inst-act.off { opacity: .35; }
+#svConf .fz-why { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid #e5e9f0; background: #fff; border-radius: 8px; padding: 9px 10px; margin: 0 0 6px; font-weight: 700; font-size: 12px; text-align: left; color: #172033; }

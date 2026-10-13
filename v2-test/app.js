@@ -6937,6 +6937,51 @@ function renderBudgetList() {
       INS_LINKED_KINDS.forEach(k => { out[k] = INS[k].filter(r => !u[k].has(r.id) && !(k === "sec" && r.tw)); });
       return out;
     };
+    /* FIGER (FORMAT 96) : impossible tant qu'il reste une cause ; chaque cause = libellé, nombre, onglet où aller */
+    const insFigeBlocks = () => {
+      const out = [];
+      if (!INS || !INS_EDIT) return out;
+      const nU = insUnlCount();
+      if (nU) out.push({ lab: "LIGNES NON LIÉES", n: nU, go: "unl" });
+      const nI = (INS.inc || []).length;
+      if (nI) out.push({ lab: "LIGNES DANS IMPORT NON CRÉÉ", n: nI, go: "inc" });
+      const linked = new Set((INS.links || []).map(l => l.lot + "|" + l.sec));
+      const keys = Object.keys(INS.dlp || {}).filter(k => (INS.dlp[k] || []).length);
+      const nl = keys.filter(k => !linked.has(k));
+      if (nl.length) out.push({ lab: "TÂCHES AVEC DÉLAIS NON LIÉES", n: nl.length, go: "dly", list: nl });
+      const np = keys.reduce((t, k) => t + INS.dlp[k].filter(p => !p.deb || !p.fin).length, 0);
+      if (np) out.push({ lab: "PÉRIODES SANS DÉBUT OU SANS FIN", n: np, go: "dly" });
+      const nD = INS.des.filter(r => !r.t && !String(r.u || "").trim()).length;
+      if (nD) out.push({ lab: "DÉSIGNATIONS CLIENT SANS UPB", n: nD, go: "des" });
+      ["prd", "chg"].forEach(k => { const n = INS[k].filter(r => !r.t && insRowErr(k, r)).length; if (n) out.push({ lab: "LIGNES EN ERREUR — " + (k === "prd" ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"), n, go: k }); });
+      try { if (lkPending()) out.push({ lab: "MODIFICATION EN ATTENTE DE ✓ VALIDER", n: 1, go: "" }); } catch (e) {}
+      return out;
+    };
+    const insFigeWhy = () => {
+      const B = insFigeBlocks();
+      document.getElementById("svConf")?.remove();
+      const d = document.createElement("div");
+      d.id = "svConf";
+      d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true"><button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
+        <div class="svc-t">FIGER IMPOSSIBLE</div>
+        <div class="svc-x">${B.map((b, i) => `<button type="button" class="fz-why" data-i="${i}"><span>${esc(b.lab)}${b.list ? " : " + esc(b.list.slice(0, 3).map(dlyName).join(" ; ")) + (b.list.length > 3 ? "…" : "") : ""}</span>${svCnt(b.n)}</button>`).join("")}</div>
+        <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button></div></div>`;
+      document.body.appendChild(d);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        const it = e.target.closest(".fz-why");
+        if (!it) return;
+        const b = B[+it.dataset.i];
+        d.remove();
+        if (!b.go) return;
+        if (b.go === "des") { shell.querySelector(".bdg-d-client-scroll")?.scrollIntoView({ block: "start", behavior: "smooth" }); return; }
+        if (b.go === "dly") { LK.lot = LK.sec = LK.prim = null; }
+        const t = shell.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${b.go}"]`);
+        if (t) { t.click(); t.scrollIntoView({ block: "start", behavior: "smooth" }); }
+      });
+    };
+    shell.__figeWhy = () => insFigeWhy();
+    shell.__figeBlocks = () => insFigeBlocks();
     const insUnlCount = () => { const n = insUnlinked(); return INS_LINKED_KINDS.reduce((t, k) => t + n[k].length, 0); };
     /* liaisons dont une ligne a disparu : nettoyées */
     const insCleanLinks = () => {
@@ -6956,7 +7001,7 @@ function renderBudgetList() {
       });
       /* FIGER grisé tant que l'onglet LIGNES NON LIÉES n'est pas à 0 */
       const lk = $("instLock");
-      if (lk && INS_EDIT) { const n = insUnlCount(); lk.disabled = n > 0; lk.title = n ? n + " LIGNE(S) NON LIÉE(S) : ONGLET LIGNES NON LIÉES" : "Figer (lecture seule)"; }
+      if (lk && INS_EDIT) { const B = insFigeBlocks(); lk.disabled = false; lk.classList.toggle("off", B.length > 0); lk.title = B.length ? "FIGER IMPOSSIBLE : TOUCHER POUR VOIR POURQUOI" : "Figer (lecture seule)"; }
       const tb = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="unl"]`);
       /* LIGNES NON LIÉES : visible seulement s'il reste des lignes */
       if (tb) {
@@ -13697,8 +13742,8 @@ function renderBudgetList() {
         /* liaison modifiée non validée : valider ou abandonner d'abord */
         if (shell.__lkGuard && !(await shell.__lkGuard())) return;
         const fige = budget.inst.state === "fige";
-        /* FIGER : impossible tant qu'il reste des lignes non liées */
-        if (!fige && INS && insUnlCount()) return;   /* bouton grisé : voir l'onglet LIGNES NON LIÉES */
+        /* FIGER : impossible tant qu'il reste une cause (FORMAT 96) : la fenêtre dit pourquoi */
+        if (!fige && INS && shell.__figeBlocks && shell.__figeBlocks().length) { shell.__figeWhy(); return; }
         if (!(await svConfirm(fige
           ? { title: "REVENIR EN ÉDITION", text: fullRef, ok: "REVENIR EN ÉDITION" }
           : { title: "FIGER", text: fullRef + " PASSE EN LECTURE SEULE (RETOUR EN ÉDITION POSSIBLE).", ok: "FIGER" }))) return;
