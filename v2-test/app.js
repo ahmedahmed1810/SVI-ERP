@@ -13408,6 +13408,60 @@ function renderBudgetList() {
     const clipGet = () => { try { return JSON.parse(localStorage.getItem(CLIP_KEY) || "null"); } catch (e) { return null; } };
     const clipSet = c => { try { c ? localStorage.setItem(CLIP_KEY, JSON.stringify(c)) : localStorage.removeItem(CLIP_KEY); } catch (e) {} };
     const clipKinds = blk => blk === "detail" && !["chg", "prd", "qlt"].includes(active) ? [] : insBlkKinds(blk);
+    /* ===== onglets de contrôle (FORMAT 99) : IMPORT NON CRÉÉ (COPIER / COUPER / COLLER = réimport),
+       LIGNES NON LIÉES et LIAISONS VALIDÉES (COPIER) — lignes cochées ET affichées ===== */
+    const ctlTab = blk => blk === "detail" && ["inc", "unl", "lnk"].includes(active) ? active : "";
+    const ctlRows = () => {
+      const ls = lastShown.detail;
+      if (!ls || ls.kind !== active) return [];
+      return ls.rows.filter(x => active === "unl" ? x.r && x.r.on === true : x.on === true);
+    };
+    const ctlCount = (blk, act) => {
+      const t = ctlTab(blk);
+      if (!t || !INS_EDIT && act !== "copy") return 0;
+      if (act === "copy") return ctlRows().length;
+      if (t !== "inc") return 0;
+      if (act === "cut") return ctlRows().length;
+      return -1;   /* COLLER : toujours proposé (le presse-papiers est lu au toucher) */
+    };
+    const ctlCopy = async (cut) => {
+      const ls = lastShown.detail, rows = ctlRows();
+      if (!rows.length) return;
+      const cols = coOrder(ls.kind === "inc" ? "lk_inc" : ls.kind === "unl" ? "lk_unl" : "lk_links", ls.cols);
+      const cell = v => String(v ?? "").replace(/[\t\n]/g, " ");
+      const tsv = [cols.map(c => c[1]).join("\t"), ...rows.map(r => cols.map(c => cell(c[2](r))).join("\t"))].join("\n");
+      try { navigator.clipboard && await navigator.clipboard.writeText(tsv); } catch (e) {}
+      if (!cut) { svToast(rows.length + " LIGNE(S) COPIÉE(S) DANS LE PRESSE-PAPIERS.", 2500); histLog("SAISIE", "COPIER", rows.length + " LIGNE(S) — " + ls.kind.toUpperCase()); return; }
+      if (!(await svConfirm({ title: "COUPER LES LIGNES COCHÉES", text: rows.length + " LIGNE(S) COPIÉE(S) PUIS RETIRÉE(S) DE L'ONGLET IMPORT NON CRÉÉ.", ok: "COUPER" }))) return;
+      const ids = new Set(rows.map(x => x.id));
+      INS.inc = (INS.inc || []).filter(x => !ids.has(x.id));
+      histLog("IMPORT", "COUPER", rows.length + " LIGNE(S) — IMPORT NON CRÉÉ");
+      insSave(); refreshAll();
+    };
+    /* COLLER dans IMPORT NON CRÉÉ : lignes corrigées (Excel / Google Sheets, avec en-têtes) réimportées */
+    const ctlPaste = async () => {
+      let txt = "";
+      try { txt = await navigator.clipboard.readText(); } catch (e) { svToast("COLLAGE IMPOSSIBLE : AUTORISER L'ACCÈS AU PRESSE-PAPIERS.", 4000); return; }
+      const aoa = String(txt || "").replace(/\r/g, "").split("\n").filter(l => l.trim()).map(l => l.split("\t"));
+      if (!aoa.length) { svToast("PRESSE-PAPIERS VIDE.", 3000); return; }
+      const H = (aoa.find(r => r.map(bfNorm).includes("DESIGNATION CLIENT") || r.map(bfNorm).includes("ACTIVITE SECONDAIRE")) || []).map(bfNorm);
+      if (!H.length) { svToast("EN-TÊTES ATTENDUS (ART, DÉSIGNATION CLIENT… ou LOT, ACTIVITÉ SECONDAIRE, DÉBUT, FIN).", 4500); return; }
+      const hi = aoa.findIndex(r => r.map(bfNorm).join("|") === H.join("|"));
+      const body = aoa.slice(hi + 1), ti = H.indexOf("TYPE");
+      const isD = r => ti >= 0 && bfNorm(r[ti]) === "DELAI";
+      const bRows = body.filter(r => !isD(r)), dRows = body.filter(isD);
+      /* la colonne LIGNE n de la raison garde le numéro d'origine */
+      const before = (INS.inc || []).length;
+      if (bRows.length && H.includes("DESIGNATION CLIENT")) bfApply(bfModel([aoa[hi], ...bRows]), "add", "COLLER", true);
+      if (dRows.length || (!H.includes("DESIGNATION CLIENT") && body.length)) {
+        const pick = n => H.indexOf(n);
+        const D = (dRows.length ? dRows : body).map(r => [r[pick("LOT")] ?? "", r[pick("ACTIVITE SECONDAIRE")] ?? "", "", r[pick("DEBUT")] ?? "", r[pick("FIN")] ?? "", "", r[pick("PREDECESSEURS")] ?? ""]);
+        dlyImportAoa([DLY_HEAD, ...D], "COLLER", true);
+      }
+      const n = body.length, left = (INS.inc || []).length - before;
+      histLog("IMPORT", "COLLER (RÉIMPORT)", n + " LIGNE(S)" + (left > 0 ? " — " + left + " NON CRÉÉE(S)" : ""));
+      insSave(); refreshAll();
+    };
     const clipPick = (blk, cut) => {
       const X = shell.__ins, out = {};
       if (!X) return out;
@@ -13488,6 +13542,8 @@ function renderBudgetList() {
     const runBlkAct = (blk, act) => {
       if (act === "max") return toggleMax(blk);
       if (act === "del") return insDelRun(blk);
+      if (ctlTab(blk) && (act === "copy" || act === "cut")) return ctlCopy(act === "cut");
+      if (ctlTab(blk) === "inc" && act === "paste") return ctlPaste();
       if (act === "copy" || act === "cut") return clipTake(blk, act === "cut");
       if (act === "paste") return clipPaste(blk);
       if (act === "export" || act === "pdf") insOnlyChecked(blk);
@@ -13514,6 +13570,11 @@ function renderBudgetList() {
         let lab = a.title;
         if (a.dataset.act === "max") lab = a.classList.contains("on") ? "Réduire" : "Agrandir";
         /* supprimer : grisé s'il n'y a aucune ligne cochée et déliée (l'erreur n'est pas proposée) */
+        if (["copy", "cut", "paste"].includes(a.dataset.act) && ctlTab(a.dataset.blk)) {
+          const n = ctlCount(a.dataset.blk, a.dataset.act);
+          const lb = a.dataset.act === "paste" ? "COLLER (RÉIMPORTER)" : lab;
+          return `<button type="button" data-i="${i}" class="blk-del blk-clip${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lb)}</span>${n > 0 || n === 0 ? svCnt(n) : ""}</button>`;
+        }
         if (["copy", "cut", "paste"].includes(a.dataset.act)) {
           const n = clipCount(a.dataset.blk, a.dataset.act);
           return `<button type="button" data-i="${i}" class="blk-del blk-clip${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}</span>${svCnt(n)}</button>`;
