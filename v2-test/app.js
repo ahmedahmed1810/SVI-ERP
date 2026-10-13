@@ -5374,7 +5374,7 @@ function renderBudgetList() {
     const CW_DEF_T = {
       "client.article": 69, "client.designation": 660, "client.unit": 70, "client.qty": 71, "client.price": 86, "client.ht": 96, "client.tva": 81, "client.ttc": 97,
       "chg.article": 69, "chg.detail": 545, "chg.unit": 70, "chg.qty": 109, "chg.price": 107, "chg.amount": 120, "chg.tva": 80, "chg.ttc": 130,
-      "prd.detail": 337, "prd.unit": 70, "prd.nbr": 71, "prd.d1": 76, "prd.d2": 76, "prd.d3": 68, "prd.qty": 108, "prd.price": 94, "prd.amount": 120, "prd.tva": 81, "prd.ttc": 130
+      "prd.detail": 337, "prd.tache": 230, "prd.unit": 70, "prd.nbr": 71, "prd.d1": 76, "prd.d2": 76, "prd.d3": 68, "prd.qty": 108, "prd.price": 94, "prd.amount": 120, "prd.tva": 81, "prd.ttc": 130
     };
     const cwGet = (t, k) => cwLoad()[t + "." + k] || CW_DEF_T[t + "." + k] || CW_DEF[k] || 100;
 
@@ -5752,9 +5752,37 @@ function renderBudgetList() {
       if (INS.sec.length !== n0) ch = true;
       return ch;
     };
+    /* FORMAT 117 : quantités par tâche — une ligne de DÉTAIL PRODUITS = un produit dans UNE tâche (une seule liaison) */
+    const prdLinks = id => (INS.links || []).filter(l => (l.prd || []).some(x => x.id === id));
+    const prdLinkName = l => {
+      const v = (k, id) => { const r = (INS[k] || []).find(x => x.id === id); return r ? (r.v || "") : ""; };
+      return [v("lot", l.lot), v("sec", l.sec)].filter(Boolean).join(" › ");
+    };
+    const prdTaskName = id => { const l = prdLinks(id)[0]; return l ? prdLinkName(l) : ""; };
+    const prdChainKey = id => {
+      const l = prdLinks(id)[0];
+      if (!l) return "";
+      const f = (k, i, fl) => U_(((INS[k] || []).find(x => x.id === i) || {})[fl] || "");
+      return [f("des", l.des, "des"), f("lot", l.lot, "v"), f("prim", l.prim, "v"), f("sec", l.sec, "v")].join("|");
+    };
+    /* un produit lié à plusieurs liaisons : une copie (mêmes quantités) par liaison supplémentaire */
+    const insPrdSplit = () => {
+      let ch = false;
+      const seen = new Set();
+      (INS.links || []).forEach(l => (l.prd || []).forEach(x => {
+        if (!seen.has(x.id)) { seen.add(x.id); return; }
+        const p = INS.prd.find(r => r.id === x.id);
+        if (!p) return;
+        const c = { ...p, id: insId(), on: false };
+        INS.prd.splice(INS.prd.indexOf(p) + 1, 0, c);
+        x.id = c.id; ch = true;
+      }));
+      return ch;
+    };
     const insNorm = () => {
       if (!INS) return;
       if (insTwins()) insSave();
+      if (insPrdSplit() && INS_EDIT) insSave();
       /* FORMAT 108 : DIM à 0 = DIM vide */
       { let ch = false;
         (INS.prd || []).forEach(r => ["d1", "d2", "d3"].forEach(f => { const v = r[f]; if (v !== "" && v !== undefined && v !== null && String(v).trim() !== "" && num(v) === 0) { r[f] = ""; ch = true; } }));
@@ -5813,6 +5841,7 @@ function renderBudgetList() {
       ],
       prd: [   /* pas de colonne ART : un produit n'a pas d'article */
         ["des", "DÉSIGNATION PRODUIT", "", "txt", "detail"],
+        ["tache", "TÂCHE", "", "calc", "tache"],
         ["u", "UPB", "center", "txt", "unit"],
         ["nbr", "NBR", "number", "num", "nbr"],
         ["d1", "DIM 1", "number", "num", "d1"],
@@ -5832,7 +5861,7 @@ function renderBudgetList() {
     const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "tva", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
-        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : r[f];
+        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? prdTaskName(r.id) : r[f];
     /* erreur d'une ligne (FORMAT 75) : on ne passe pas à la ligne suivante tant qu'elle reste */
     const insRowErr = (k, r) => {
       if (!r || r.t || !INS || !(INS[k] || []).includes(r)) return null;
@@ -5865,6 +5894,7 @@ function renderBudgetList() {
       if (isNew && f === "tva" && k !== "prd") val = "20,00";
       if (!isNew) {
         if (r.t && f !== "art" && f !== "des") val = "";
+        else if (f === "tache") val = insCalc(k, r, f) || "";
         else if (type === "calc" || qAuto) val = insFmt(insCalc(k, r, f));
         else if (k === "prd" && f === "tva") val = insFmt(insPrdTVA(INS, r.id));
         else if (type === "num") val = f === "tva" ? (r.tva === "" || r.tva === undefined ? "20,00" : insFmt(r.tva)) : insFmt(r[f]);
@@ -6403,7 +6433,8 @@ function renderBudgetList() {
       if (!r || r.t) return "";
       if (k === "lot" || k === "prim" || k === "sec" || k === "qlt") return U_(r.v);
       if (!U_(r.des)) return "";
-      return impId(k, r);
+      /* FORMAT 117 : un même produit dans des tâches différentes n'est pas un doublon */
+      return k === "prd" ? impId(k, r) + "#" + prdChainKey(r.id) : impId(k, r);
     };
     const dupName = (k, r) => (k === "lot" || k === "prim" || k === "sec" || k === "qlt") ? U_(r.v) : [r.art, r.des].filter(Boolean).join(" — ") + (r.u ? " (" + U_(r.u) + ")" : "");
     const dupLinks = (k, id) => (INS.links || []).filter(l => k === "prd" || k === "chg" ? (l[k] || []).some(x => x.id === id) : l[k] === id).length;
@@ -7714,7 +7745,8 @@ function renderBudgetList() {
       const du = U_(D && D.u);
       const bad = du && insIsPrimLink(LK.prim, LK.sec) && Object.keys(LK.prd).find(id => { const p = INS.prd.find(x => x.id === id); return p && U_(p.u) && U_(p.u) !== du; });
       if (bad) return "UNITÉ : " + lkName("prd", bad) + " (" + U_(INS.prd.find(x => x.id === bad).u) + ") N'A PAS L'UNITÉ DE LA DÉSIGNATION (" + du + ").";
-      const dup = Object.keys(LK.prd).find(id => L.some(l => l.lot === LK.lot && l.sec === LK.sec && (l.prd || []).some(x => x.id === id)));
+      const pk = id => impId("prd", INS.prd.find(x => x.id === id) || {});
+      const dup = Object.keys(LK.prd).find(id => L.some(l => l.lot === LK.lot && l.sec === LK.sec && (l.prd || []).some(x => x.id === id || pk(x.id) === pk(id))));
       if (dup) return "RÈGLE D : " + lkName("prd", dup) + " EST DÉJÀ DANS LA TÂCHE SECONDAIRE " + lkName("lot", LK.lot) + " › " + lkName("sec", LK.sec) + ".";
       return "";
     };
@@ -8025,6 +8057,18 @@ function renderBudgetList() {
         const err = lkCheck();
         if (err) { svToast(err); return false; }
         INS.links = INS.links || [];
+        /* FORMAT 117 : produit déjà lié à une autre tâche → nouvelle ligne pour cette tâche (mêmes quantités au départ) */
+        { const tgt = INS.links.find(l => l.des === L.des && l.lot === L.lot && l.prim === L.prim && l.sec === L.sec);
+          const re = {};
+          Object.keys(L.prd).forEach(id => {
+            if (!INS.links.some(l => l !== tgt && (l.prd || []).some(x => x.id === id))) { re[id] = L.prd[id]; return; }
+            const p = INS.prd.find(x => x.id === id);
+            if (!p) return;
+            const c = { ...p, id: insId(), on: false };
+            INS.prd.splice(INS.prd.indexOf(p) + 1, 0, c);
+            re[c.id] = L.prd[id];
+          });
+          L.prd = re; }
         const ent = o => Object.keys(o).map(id => ({ id, q: "" }));
         const same = INS.links.find(l => l.des === L.des && l.lot === L.lot && l.prim === L.prim && l.sec === L.sec);
         if (same) {
@@ -9203,7 +9247,18 @@ function renderBudgetList() {
       const holder = el.closest("[data-ik]");
       const k = el.dataset.ik || holder?.dataset.ik;
       const isRow = el.tagName === "TR";
-      { const st = CF[k === "des" ? "client" : k]; if (st && st.sort && !st.sort.def) return; }
+      { const st = CF[k === "des" ? "client" : k];
+        if (st && st.sort && !st.sort.def) {
+          /* FORMAT 118 : appui long pendant un tri → message (le glissement reste impossible) */
+          const c = (INS_COLS[k] || []).find(x => x[4] === st.sort.col || x[0] === st.sort.col);
+          const lab = c ? c[1] : ({ lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE", v: k === "lot" ? "LOT" : k === "prim" ? "ACTIVITÉ PRIMAIRE" : "ACTIVITÉ SECONDAIRE" }[st.sort.col] || String(st.sort.col).toUpperCase());
+          const sx = event.clientX, sy = event.clientY;
+          const tm = setTimeout(() => { off(); svToast("GLISSEMENT IMPOSSIBLE : TRI ACTIF SUR LA COLONNE " + lab + " — ANNULER LE TRI POUR DÉPLACER OU SUPERPOSER", 4500, el); }, 400);
+          const mvv = e => { if (Math.abs(e.clientX - sx) > 10 || Math.abs(e.clientY - sy) > 10) off(); };
+          const off = () => { clearTimeout(tm); document.removeEventListener("pointermove", mvv); document.removeEventListener("pointerup", off); document.removeEventListener("pointercancel", off); };
+          document.addEventListener("pointermove", mvv); document.addEventListener("pointerup", off); document.addEventListener("pointercancel", off);
+          return;
+        } }
       const inp = event.target.closest(".ins-in");
       const tapFocus = inp && inp !== document.activeElement ? inp : null;
       const sibs = () => isRow
@@ -10231,7 +10286,21 @@ function renderBudgetList() {
       if (g.inst) {
         const d = g.inst.data || {};
         const seen = new Set();
+        /* FORMAT 117 : produit lié = une ligne par chaîne (avec ses quantités) ; non lié : sans quantités */
+        const srcCh = l => { const f = (k, i, fl) => U_(((d[k] || []).find(x => x.id === i) || {})[fl] || ""); return [f("des", l.des, "des"), f("lot", l.lot, "v"), f("prim", l.prim, "v"), f("sec", l.sec, "v")].join("|"); };
         ["des", "chg", "prd"].forEach(k => (d[k] || []).forEach(r => {
+          const ls = k === "prd" ? (d.links || []).filter(l => (l.prd || []).some(x => x.id === r.id)) : [];
+          if (ls.length) {
+            ls.forEach(l => {
+              const ch = srcCh(l), id = k + "|" + impId(k, r) + "#" + ch;
+              if (seen.has(id)) return;
+              seen.add(id);
+              const row = { ...r, __ch: ch };
+              ["art", "q", "p"].forEach(f => delete row[f]);
+              m[k].push({ key: id, row });
+            });
+            return;
+          }
           const id = k + "|" + impId(k, r);
           if (seen.has(id)) return;
           seen.add(id);
@@ -10261,7 +10330,7 @@ function renderBudgetList() {
           const D = byId("des", l.des), L = byId("lot", l.lot), P = byId("prim", l.prim), S = byId("sec", l.sec);
           if (!D || !L || !P || !S) return;
           const base = { dk: "des|" + impId("des", D), lot: "lot|" + U_(L.v), prim: "prim|" + U_(P.v), sec: "sec|" + U_(S.v) };
-          (l.prd || []).forEach(x => { const r = byId("prd", x.id); if (r) m.links.push({ ...base, pk: "prd|" + impId("prd", r), q: x.q }); });
+          (l.prd || []).forEach(x => { const r = byId("prd", x.id); if (r) m.links.push({ ...base, pk: "prd|" + impId("prd", r) + "#" + srcCh(l), q: x.q }); });
           (l.chg || []).forEach(x => { const r = byId("chg", x.id); if (r) m.links.push({ ...base, ck: "chg|" + impId("chg", r), q: x.q }); });
         });
         impSort(m);
@@ -10342,7 +10411,7 @@ function renderBudgetList() {
       if (budget.inst) return JSON.parse(JSON.stringify(budget.inst.data || {}));
       const m = impModel(ref), kid = new Map();
       const d = { des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: [], dly: {}, dlp: {}, dlpSec: true, links: [] };
-      ["des", "chg", "prd", "qlt"].forEach(k => m[k].forEach(x => { const r = { ...x.row, id: insId(), on: false }; if (k === "des") r.t = !!r.t; d[k].push(r); kid.set(x.key, r.id); }));
+      ["des", "chg", "prd", "qlt"].forEach(k => m[k].forEach(x => { const r = { ...x.row, id: insId(), on: false }; delete r.__ch; if (k === "des") r.t = !!r.t; d[k].push(r); kid.set(x.key, r.id); }));
       m.hier.forEach(x => { const r = { id: insId(), v: x.row.v }; d[x.lvl].push(r); kid.set(x.key, r.id); });
       m.links.forEach(l => {
         const des = kid.get(l.dk), lot = kid.get(l.lot), prim = kid.get(l.prim), sec = kid.get(l.sec);
@@ -10639,7 +10708,9 @@ function renderBudgetList() {
             inc[k].forEach(x => {
               const hierK = k === "lot" || k === "prim" || k === "sec" || k === "qlt";
               const r = hierK ? { v: x.row.v } : { ...x.row };
-              const old = INS[k].find(o => same(k, o, r));
+              const ch = k === "prd" ? (r.__ch || "") : null;
+              delete r.__ch;
+              const old = INS[k].find(o => same(k, o, r) && (k !== "prd" || prdChainKey(o.id) === ch));
               if (old) kid.set(x.key, old.id);
               if (old) {
                 if (mode !== "update" || hierK) { skip++; return; }
@@ -10875,7 +10946,10 @@ function renderBudgetList() {
         if (lineBad) { /* rien de plus n'est créé */ }
         else if (dn && t.startsWith("PRD")) {
           const row = { des: dn, u: U_(g(r, "u")), nbr: nn(g(r, "nbr")), d1: nn(g(r, "d1")), d2: nn(g(r, "d2")), d3: nn(g(r, "d3")) };
-          pk = put("prd", "prd|" + impId("prd", row), row);
+          /* FORMAT 117 : quantités par tâche — une ligne produit par chaîne (désignation › lot › activités) */
+          const ch = dc && lot && prim && sec ? [dc, lot, prim, sec].join("|") : "";
+          row.__ch = ch;
+          pk = put("prd", "prd|" + impId("prd", row) + (ch ? "#" + ch : ""), row);
         } else if (dn && t.startsWith("CHG")) {
           const row = { art: String(g(r, "article") ?? "").trim(), des: dn, u: U_(g(r, "u")), q: nn(g(r, "q")), tva: 20 };
           /* prix et TVA : depuis CHS */
@@ -10979,7 +11053,9 @@ function renderBudgetList() {
         const hierK = k === "lot" || k === "prim" || k === "sec";
         inc[k].forEach(x => {
           const r = hierK ? { v: x.row.v } : { ...x.row };
-          const old = INS[k].find(o => hierK ? U_(o.v) === U_(r.v) : impId(k, o) === impId(k, r));
+          const ch = k === "prd" ? (r.__ch || "") : null;
+          delete r.__ch;
+          const old = INS[k].find(o => hierK ? U_(o.v) === U_(r.v) : impId(k, o) === impId(k, r) && (k !== "prd" || prdChainKey(o.id) === ch));
           if (old) {
             kid.set(x.key, old.id);
             if (mode !== "update" || hierK) { skip++; return; }
@@ -13817,7 +13893,7 @@ function renderBudgetList() {
           const lab = (k === "lot" || k === "prim" || k === "sec" || k === "qlt") ? "v" : "des";
           /* doublon dans ce bloc (copie, pas coupe dans ce même budget) : « COPIE DE » */
           const cutHere = c.cut && c.cut.ref === ref;
-          const dup = lab === "v" ? X.INS[k].some(o => U_(o.v) === U_(x.v)) : X.INS[k].some(o => impId(k, o) === impId(k, x));
+          const dup = lab === "v" ? X.INS[k].some(o => U_(o.v) === U_(x.v)) : k === "prd" ? X.INS[k].some(o => impId(k, o) === impId(k, x) && !prdLinks(o.id).length) : X.INS[k].some(o => impId(k, o) === impId(k, x));
           if (dup && !cutHere) x[lab] = "COPIE DE " + (x[lab] || "");
           return x;
         });
