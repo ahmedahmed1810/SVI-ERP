@@ -5736,6 +5736,7 @@ function renderBudgetList() {
     const insNorm = () => {
       if (!INS) return;
       if (insTwins()) insSave();
+      try { if (dlyClean()) insSave(); } catch (e) {}
       const stack = [];
       INS.des.forEach(r => {
         if (r.d === undefined || r.d === null || r.d === "") {
@@ -6639,7 +6640,7 @@ function renderBudgetList() {
         if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + (k === "prd" ? ' <b class="req-star">*</b>' : "") + " " + svCnt(insShown(k).length, INS[k].filter(r => !r.t).length);
       });
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
-        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(INS_EDIT ? (insDlyKey() ? insDlyList(insDlyKey()).length : (insDlyRecap() || []).filter(x => x.deb || x.fin).length) : insTasks().length); }
+        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(INS_EDIT ? (insDlyKey() ? insDlyList(insDlyKey()).length : insDlyRecap() ? insDlyRecap().filter(x => x.deb || x.fin).length : dlyKeys().length) : insTasks().length); }
       /* IMPORT NON CRÉÉ : visible seulement s'il reste des lignes */
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="inc"]`), n = (INS.inc || []).length;
         if (b) { b.innerHTML = (SVI_ICON.hier || "") + "IMPORT NON CRÉÉ " + svCnt(n); b.hidden = !n; b.style.display = n ? "" : "none"; }
@@ -6998,8 +6999,61 @@ function renderBudgetList() {
       return [...m.values()];
     };
     /* tâche SECONDAIRE choisie (désignation + lot + activité secondaire), seulement si elle est déjà liée */
-    const insDlyKey = () => LK.des && LK.lot && LK.sec && (INS.links || []).some(l => l.des === LK.des && l.lot === LK.lot && l.sec === LK.sec
-      && (!LK.prim || l.prim === LK.prim)) ? LK.lot + "|" + LK.sec : null;
+    /* tâche secondaire choisie par les ronds (lot + activité secondaire), liée ou non : le planning peut précéder les liaisons */
+    const insDlyKey = () => LK.lot && LK.sec ? LK.lot + "|" + LK.sec : null;
+    /* ===== PLANNING (FORMAT 94) : prédécesseurs (plusieurs, communs à toutes les périodes de la tâche) ;
+       une tâche commence au plus tôt le jour de la fin de tous ses prédécesseurs ===== */
+    const dlyName = key => { const [lo, se] = String(key).split("|"); return lkName("lot", lo) + " › " + lkName("sec", se); };
+    const dlyPreds = key => ((INS.dpred || {})[key] || []).slice();
+    const dlySuccs = key => Object.keys(INS.dpred || {}).filter(k => (INS.dpred[k] || []).includes(key));
+    const dlyList = key => (LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
+    const dlyFin = key => dlyList(key).map(p => p.fin).filter(Boolean).sort().pop() || "";
+    const dlyDeb = key => dlyList(key).map(p => p.deb).filter(Boolean).sort()[0] || "";
+    const dlyPredFin = key => dlyPreds(key).map(dlyFin).filter(Boolean).sort().pop() || "";
+    /* la tâche k est-elle (de proche en proche) un prédécesseur de c ? (boucle interdite) */
+    const dlyReach = (c, k, seen = new Set()) => { if (c === k) return true; if (seen.has(c)) return false; seen.add(c); return dlyPreds(c).some(x => dlyReach(x, k, seen)); };
+    const dlyDraftKey = key => { LK.dlpDraft = LK.dlpDraft || {}; if (!LK.dlpDraft[key]) LK.dlpDraft[key] = ((INS.dlp || {})[key] || []).map(p => ({ ...p })); return LK.dlpDraft[key]; };
+    /* décaler les tâches suivantes (durées gardées) pour qu'elles commencent après la fin de leurs prédécesseurs */
+    const dlyShift = from => {
+      const q = [from], moved = [];
+      let guard = 0;
+      while (q.length && guard++ < 500) {
+        const k = q.shift();
+        dlySuccs(k).forEach(S => {
+          const need = dlyPredFin(S), st = dlyDeb(S);
+          if (need && st && st < need) {
+            const dd = dDiff(st, need);
+            dlyDraftKey(S).forEach(p => { if (p.deb) p.deb = dAdd(p.deb, dd); if (p.fin) p.fin = dAdd(p.fin, dd); });
+            moved.push(S); q.push(S);
+          }
+        });
+      }
+      return moved;
+    };
+    /* tâches à afficher dans le planning : liées, avec périodes ou avec prédécesseurs */
+    const dlyKeys = () => {
+      const S = new Set();
+      (INS.links || []).forEach(l => S.add(l.lot + "|" + l.sec));
+      Object.keys(INS.dlp || {}).forEach(k => { if ((INS.dlp[k] || []).length) S.add(k); });
+      Object.keys(LK.dlpDraft || {}).forEach(k => { if ((LK.dlpDraft[k] || []).length) S.add(k); });
+      Object.keys(INS.dpred || {}).forEach(k => { S.add(k); (INS.dpred[k] || []).forEach(x => S.add(x)); });
+      const ok = k => { const [lo, se] = k.split("|"); return INS.lot.some(x => x.id === lo) && INS.sec.some(x => x.id === se); };
+      return [...S].filter(ok);
+    };
+    /* tâche supprimée (lot ou activité secondaire) : ses délais et ses liens de prédécesseurs disparaissent */
+    const dlyClean = () => {
+      if (!INS) return false;
+      const L = new Set(INS.lot.map(x => x.id)), Sc = new Set(INS.sec.map(x => x.id));
+      const ok = k => { const [lo, se] = String(k).split("|"); return L.has(lo) && Sc.has(se); };
+      let ch = false;
+      Object.keys(INS.dlp || {}).forEach(k => { if (!ok(k)) { delete INS.dlp[k]; ch = true; } });
+      Object.keys(INS.dpred || {}).forEach(k => {
+        if (!ok(k)) { delete INS.dpred[k]; ch = true; return; }
+        const n = INS.dpred[k].filter(ok);
+        if (n.length !== INS.dpred[k].length) { INS.dpred[k] = n; ch = true; }
+      });
+      return ch;
+    };
     /* tâche primaire choisie (sans activité secondaire) : récapitulatif des dates de ses tâches secondaires */
     const insDlyRecap = () => {
       if (!(LK.des && LK.lot && LK.prim && !LK.sec)) return null;
@@ -7030,14 +7084,29 @@ function renderBudgetList() {
           return `<div class="dly-recap-t">RÉCAPITULATIF — ${esc(lkName("lot", LK.lot))} › ${esc(lkName("prim", LK.prim))}</div>` + dlyTable(rows, x => ({ sec: esc(x.sec), per: x.per, deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur }), () => "", false, DLY_COLS_R)
             + `<div class="dly-recap-f"><span>DÉBUT : <b>${esc(dFr(d0)) || "—"}</b></span><span>FIN : <b>${esc(dFr(f0)) || "—"}</b></span><span>DURÉE : <b>${d0 && f0 ? dDiff(d0, f0) + " J" : "—"}</b></span></div>`;
         }
+        if (!key) {
+          /* PLANNING : une ligne par tâche secondaire ; toucher une ligne = saisir ses périodes ;
+             toucher PRÉDÉCESSEURS = les choisir */
+          const P = dlyKeys().map(k => { const d0 = dlyDeb(k), f0 = dlyFin(k); const [lo, se] = k.split("|");
+            return { key: k, lot: lkName("lot", lo), sec: lkName("sec", se), pred: dlyPreds(k).map(dlyName).join(" ; "), deb: d0, fin: f0, dur: d0 && f0 ? dDiff(d0, f0) : "" }; })
+            .sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || natCmp(a.lot, b.lot) || natCmp(a.sec, b.sec));
+          const rows = cfApply("dlyp", DLY_COLS_P, P);
+          lastShown.detail = { cols: DLY_COLS_P, rows, kind: "dly" };
+          return `<div class="dly-recap-t">PLANNING — TOUCHER UNE TÂCHE POUR SAISIR SES PÉRIODES, TOUCHER PRÉDÉCESSEURS POUR LES CHOISIR</div>`
+            + dlyTable(rows, x => ({ lot: esc(x.lot), sec: esc(x.sec), pred: `<span class="dly-pred" data-key="${esc(x.key)}">${esc(x.pred) || "<i>CHOISIR…</i>"}</span>`, deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur }),
+              x => `class="dly-task" data-key="${esc(x.key)}"`, false, DLY_COLS_P)
+            + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE AU PLANNING</button></div>`;
+        }
         const ps = key ? [...insDlyList(key)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9"))) : [];
         const all = ps.map((p, i) => ({ task: key, pid: p.id, on: p.on === true, per: i + 1, deb: p.deb || "", fin: p.fin || "", dur: p.deb && p.fin ? dDiff(p.deb, p.fin) : "" }));
         if (key) all.push({ task: key, pid: "", per: "", deb: "", fin: "", dur: "", nw: true });
         const rows = cfApply("dlyi", DLY_COLS_I, all);
         lastShown.detail = { cols: DLY_COLS_I, rows: rows.filter(x => !x.nw), kind: "dly" };
         const inp = (x, f) => `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${x.task}" data-pid="${x.pid}" data-f="${f}" type="text"
-            ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${x.nw && f === "deb" ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? x.dur : dFr(x[f]))}">`;
-        return dlyTable(rows, x => ({ per: x.per, deb: inp(x, "deb"), fin: inp(x, "fin"), dur: inp(x, "dur"),
+            ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${x.nw && (f === "deb" || f === "fin") ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? x.dur : dFr(x[f]))}">`;
+        const pf = dlyPredFin(key);
+        return `<div class="dly-recap-t">${esc(dlyName(key))} — PRÉDÉCESSEURS : <span class="dly-pred" data-key="${esc(key)}">${esc(dlyPreds(key).map(dlyName).join(" ; ")) || "<i>CHOISIR…</i>"}</span>${pf ? " — DÉBUT AU PLUS TÔT LE " + esc(dFr(pf)) : ""}</div>`
+          + dlyTable(rows, x => ({ per: x.per, deb: inp(x, "deb"), fin: inp(x, "fin"), dur: inp(x, "dur"),
           __td_deb: " ins-td", __td_fin: " ins-td", __td_dur: " ins-td",
           __cb: x.pid ? `<input type="checkbox" class="dlp-cb" data-task="${x.task}" data-pid="${x.pid}" ${x.on ? "checked" : ""}>` : "",
           __x: "" }),
@@ -7108,10 +7177,27 @@ function renderBudgetList() {
           const o = list.find(x => x.id !== q.id && x.deb && x.fin && (q.deb && q.fin ? a < x.fin && x.deb < z : a >= x.deb && a < x.fin));
           if (o) X.err = "PÉRIODE REFUSÉE : ELLE CHEVAUCHE LA PÉRIODE DU " + X.dFr(o.deb) + " AU " + X.dFr(o.fin) + ".";
         }
-        if (!X.err) {
-          if (p) Object.assign(p, q); else if (q.deb || q.fin) list.push(q);
-        } else svToast(X.err);   /* message passager, au moment de l'erreur */
-        X.err = "";
+        /* deux périodes de la même tâche ne se touchent pas (fin le jour du début, ou la veille, d'une autre) */
+        if (!X.err && q.deb && q.fin) {
+          const o = list.find(x => x.id !== q.id && x.deb && x.fin && (q.fin === x.deb || X.dAdd(q.fin, 1) === x.deb || q.deb === x.fin || q.deb === X.dAdd(x.fin, 1)));
+          if (o) X.err = "PÉRIODE REFUSÉE : ELLE TOUCHE LA PÉRIODE DU " + X.dFr(o.deb) + " AU " + X.dFr(o.fin) + " — PROLONGER CETTE PÉRIODE.";
+        }
+        /* prédécesseurs : la tâche commence au plus tôt le jour de leur fin */
+        if (!X.err && q.deb) { const pf = X.predFin(i.dataset.task); if (pf && q.deb < pf) X.err = "DÉBUT REFUSÉ : LES PRÉDÉCESSEURS FINISSENT LE " + X.dFr(pf) + "."; }
+        if (X.err) { svToast(X.err, 4000, i); X.err = ""; X.render(); return; }
+        const apply = () => { if (p) Object.assign(p, q); else if (q.deb || q.fin) list.push(q); };
+        /* la fin dépasse le début d'une tâche suivante : on propose de garder la durée et de décaler les suivantes */
+        const late = q.fin ? X.succs(i.dataset.task).filter(S => { const d0 = X.deb(S); return d0 && d0 < q.fin; }) : [];
+        if (late.length) {
+          svChoose({ title: "TÂCHES SUIVANTES", html: `<div class="svc-sub">LA FIN DU ${esc(X.dFr(q.fin))} DÉPASSE LE DÉBUT DE :</div><ul class="svc-list">${late.map(k => `<li>${esc(X.name(k))} — ${esc(X.dFr(X.deb(k)))}</li>`).join("")}</ul><div class="svc-sub">RESPECTER LA DURÉE ET DÉCALER CES TÂCHES ET TOUTES CELLES QUI VIENNENT APRÈS ?</div>`,
+            buttons: [{ v: "shift", label: "DÉCALER LES TÂCHES SUIVANTES", tone: "neutral" }] }).then(v => {
+            if (v === "shift") { apply(); const mv = X.shift(i.dataset.task); if (mv.length) svToast(mv.length + " TÂCHE(S) DÉCALÉE(S) — À VALIDER.", 3000); }
+            X.render();
+          });
+          X.render();
+          return;
+        }
+        apply();
         X.render();
         /* le curseur passe à la case suivante de la même période */
         const nx = { deb: "fin", fin: "dur" }[f];
@@ -7169,9 +7255,10 @@ function renderBudgetList() {
       const D = dlyDraft(), list = D[el.dataset.task] || (INS.dlp || {})[el.dataset.task] || [];
       const q = list.find(x => x.id === el.dataset.pid) || { deb: "", fin: "" };
       const oth = list.filter(x => x.id !== q.id && x.deb && x.fin);
-      const f = el.dataset.f;
+      const f = el.dataset.f, pf = dlyPredFin(el.dataset.task);
       const dis = d => {
         if (f === "deb") {
+          if (pf && d < pf) return true;
           if (q.fin && d > q.fin) return true;
           if (oth.some(o => d >= o.deb && d < o.fin)) return true;
           return !!q.fin && oth.some(o => d < o.fin && o.deb < q.fin);
@@ -7182,6 +7269,74 @@ function renderBudgetList() {
       };
       return { iso: q[f] || (f === "fin" ? q.deb : "") || "", dis };
     };
+    /* fenêtre PRÉDÉCESSEURS (ou AJOUTER UNE TÂCHE) : lot à gauche, activités secondaires à droite ;
+       toutes les tâches, liées ou non ; la tâche elle-même et celles qui feraient une boucle sont grisées */
+    const dlyPickPreds = key => {
+      const add = !key;
+      const sel = new Set(add ? [] : dlyPreds(key));
+      let lot = (INS.lot[0] || {}).id || "", q = "";
+      const d = document.createElement("div");
+      d.id = "svConf";
+      const draw = () => {
+        const lots = INS.lot.filter(x => !x.t), secs = INS.sec.filter(x => U_(x.v).includes(q));
+        d.innerHTML = `<div class="svc-card dpk-card" role="dialog" aria-modal="true">
+          <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
+          <div class="svc-t">${add ? "AJOUTER UNE TÂCHE AU PLANNING" : "PRÉDÉCESSEURS — " + esc(dlyName(key))}</div>
+          ${add ? "" : `<div class="dpk-sel">${[...sel].map(k => `<span class="dpk-chip">${esc(dlyName(k))}<button type="button" data-rm="${esc(k)}">✕</button></span>`).join("") || "<i>AUCUN PRÉDÉCESSEUR</i>"} ${svCnt(sel.size)}</div>`}
+          <div class="dpk-cols"><div class="dpk-col"><div class="dpk-h">LOT ${svCnt(lots.length)}</div>${lots.map(x => `<button type="button" class="dpk-lot${x.id === lot ? " on" : ""}" data-lot="${x.id}">${esc(x.v)}</button>`).join("")}</div>
+            <div class="dpk-col"><div class="dpk-h">ACTIVITÉ SECONDAIRE ${svCnt(secs.length, INS.sec.length)}<input class="dpk-q" placeholder="RECHERCHER…" value="${esc(q)}"></div>
+            ${secs.map(x => { const k = lot + "|" + x.id; const off = !add && (k === key || dlyReach(k, key)); return `<label class="dpk-sec${off ? " off" : ""}"><input type="${add ? "radio" : "checkbox"}" name="dpk" data-k="${k}"${sel.has(k) ? " checked" : ""}${off ? " disabled" : ""}> ${esc(x.v)}</label>`; }).join("")}</div></div>
+          <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok${add && !sel.size ? " disabled" : ""}>${add ? "SAISIR SES PÉRIODES" : "VALIDER"}</button></div></div>`;
+        const qi = d.querySelector(".dpk-q");
+        if (qi && d.__qf) { qi.focus(); qi.setSelectionRange(qi.value.length, qi.value.length); }
+      };
+      document.getElementById("svConf")?.remove();
+      document.body.appendChild(d);
+      draw();
+      d.addEventListener("input", e => { if (e.target.matches(".dpk-q")) { q = U_(e.target.value); d.__qf = true; draw(); } });
+      d.addEventListener("change", e => {
+        const c = e.target.closest("[data-k]");
+        if (!c) return;
+        if (add) { sel.clear(); if (c.checked) sel.add(c.dataset.k); } else if (c.checked) sel.add(c.dataset.k); else sel.delete(c.dataset.k);
+        d.__qf = false; draw();
+      });
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        const l = e.target.closest("[data-lot]");
+        if (l) { lot = l.dataset.lot; d.__qf = false; draw(); return; }
+        const rm = e.target.closest("[data-rm]");
+        if (rm) { sel.delete(rm.dataset.rm); d.__qf = false; draw(); return; }
+        if (!e.target.closest("[data-ok]") || e.target.closest("[data-ok]").disabled) return;
+        d.remove();
+        if (add) { const k = [...sel][0]; if (k && shell.__insDly) shell.__insDly.go(k); return; }
+        INS.dpred = INS.dpred || {};
+        if (sel.size) INS.dpred[key] = [...sel]; else delete INS.dpred[key];
+        insSave();
+        histLog("DÉLAIS", "PRÉDÉCESSEURS", dlyName(key) + " : " + ([...sel].map(dlyName).join(" ; ") || "AUCUN"));
+        /* la tâche commence avant la fin d'un prédécesseur : proposer de la décaler (durée gardée) */
+        const pf = dlyPredFin(key), st = dlyDeb(key);
+        if (pf && st && st < pf) {
+          svChoose({ title: "TÂCHE À DÉCALER", html: `<div class="svc-sub">${esc(dlyName(key))} COMMENCE LE ${esc(dFr(st))}, AVANT LA FIN DE SES PRÉDÉCESSEURS (${esc(dFr(pf))}).</div><div class="svc-sub">RESPECTER LA DURÉE ET DÉCALER CETTE TÂCHE ET TOUTES CELLES QUI VIENNENT APRÈS ?</div>`,
+            buttons: [{ v: "shift", label: "DÉCALER", tone: "neutral" }] }).then(v => {
+            if (v === "shift") { const dd = dDiff(st, pf); dlyDraftKey(key).forEach(p => { if (p.deb) p.deb = dAdd(p.deb, dd); if (p.fin) p.fin = dAdd(p.fin, dd); }); dlyShift(key); svToast("TÂCHES DÉCALÉES — À VALIDER.", 3000); }
+            refreshAll();
+          });
+        }
+        refreshAll();
+      });
+    };
+    if (!shell.__dlyPlanBound) {
+      shell.__dlyPlanBound = true;
+      shell.addEventListener("click", e => {
+        const X = shell.__insDly;
+        if (!X) return;
+        const pc = e.target.closest && e.target.closest(".dly-pred");
+        if (pc) { e.stopPropagation(); X.pickPreds(pc.dataset.key); return; }
+        if (e.target.closest && e.target.closest(".dly-pred-new")) { X.pickPreds(null); return; }
+        const tr = e.target.closest && e.target.closest("tr.dly-task");
+        if (tr && !e.target.closest(".cf-btn, input")) X.go(tr.dataset.key);
+      });
+    }
     const dlyDraft = () => {
       const key = insDlyKey();
       LK.dlpDraft = LK.dlpDraft || {};
@@ -7189,6 +7344,8 @@ function renderBudgetList() {
       return LK.dlpDraft;
     };
     shell.__insDly = INS && INS_EDIT ? { INS, dAdd, dDiff, dParse, dFr, insId, insSave, err: "", draft: dlyDraft,
+      predFin: k => dlyPredFin(k), succs: k => dlySuccs(k), deb: k => dlyDeb(k), name: k => dlyName(k), shift: k => dlyShift(k),
+      pickPreds: k => dlyPickPreds(k), go: k => { const [lo, se] = k.split("|"); LK.lot = lo; LK.sec = se; LK.prim = null; refreshAll(); },
       render: () => { renderTab(); insRenderChain(); } } : null;
 
     /* ---------- MODE LIAISONS ---------- */
@@ -7612,8 +7769,8 @@ function renderBudgetList() {
         .filter(l => l && (l.prd || []).length);
       const gone = pl.links.filter(l => !after.some(a => a.id === l.id));
       /* délais des tâches secondaires qui n'ont plus aucune liaison */
-      const dK = Object.keys(INS.dlp || {}).filter(k => (INS.dlp[k] || []).length && !after.some(l => l.lot + "|" + l.sec === k)
-        && (INS.links || []).some(l => l.lot + "|" + l.sec === k));
+      /* délais : indépendants des liaisons (planning possible avant les liaisons) — gardés */
+      const dK = [];
       const nD = dK.reduce((t, k) => t + INS.dlp[k].length, 0);
       const html = `${rem ? `<div class="svc-sub">À RETIRER : ${esc(names.join(", "))}</div>` : ""}
         <div class="svc-sub">${rem ? "DANS" : "LIAISONS DÉLIÉES"} ${svCnt(pl.links.length)} :</div>
@@ -8190,17 +8347,20 @@ function renderBudgetList() {
       ["fin", "FIN", x => x.fin || "", "center"],
       ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "number"]
     ];
-    const DLY_W = { lot: 200, prim: 280, sec: 280, per: 120, deb: 140, fin: 140, dur: 110 };
+    const DLY_W = { lot: 200, prim: 280, sec: 280, pred: 320, per: 120, deb: 140, fin: 140, dur: 110 };
     /* budget en instance / figé : une ligne par période d'une TÂCHE SECONDAIRE (lot + activité secondaire) */
     const DLY_COLS_S = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ...DLY_COLS.slice(2)];
     /* récapitulatif d'une tâche primaire : ses tâches secondaires */
     const DLY_COLS_R = DLY_COLS_S.slice(1);
+    /* planning : lot, activité secondaire, prédécesseurs, début, fin, durée */
+    const DLY_COLS_P = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ["pred", "PRÉDÉCESSEURS", x => x.pred || "", ""],
+      ["deb", "DÉBUT", x => x.deb || "", "center"], ["fin", "FIN", x => x.fin || "", "center"], ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "number"]];
     /* budget en instance : la tâche est donnée par les ronds du haut (pas de colonnes LOT / ACT. PRIMAIRE) */
     const DLY_COLS_I = DLY_COLS.filter(c => c[0] !== "lot" && c[0] !== "prim");
     /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */
     /* del : mode modifiable (case au début de chaque période, 🗑 à la fin, case et 🗑 en tête) */
     const dlyTable = (rows, cells, trAttr = () => "", del = false, base = DLY_COLS) => {
-      const tk = base === DLY_COLS ? "dly" : base === DLY_COLS_S ? "dlys" : base === DLY_COLS_R ? "dlyr" : "dlyi";
+      const tk = base === DLY_COLS ? "dly" : base === DLY_COLS_S ? "dlys" : base === DLY_COLS_R ? "dlyr" : base === DLY_COLS_P ? "dlyp" : "dlyi";
       const cols = coOrder(tk, base);
       const w = k => cwLoad()["dly." + k] || DLY_W[k];
       /* FORMAT : case à droite de chaque ligne (cocher seulement) ; suppression par le menu ⋯ */
@@ -10528,7 +10688,7 @@ function renderBudgetList() {
       const html = `<div class="svc-sub">LIAISONS DU BUDGET À DÉLIER ${svCnt(plan.lose.length)} :</div>
         <ul class="svc-list">${plan.lose.map(x => `<li>${esc([x.name, byIdK("lot", x.l.lot).v, byIdK("prim", x.l.prim).v, byIdK("sec", x.l.sec).v].join(" › "))} — ${x.n} LIGNE${x.n > 1 ? "S" : ""}<br><b>GARDÉE : ${esc(x.by.w.name)} — ${x.by.w.n} LIGNE${x.by.w.n > 1 ? "S" : ""}</b></li>`).join("")}</ul>
         <div class="svc-sub">LES LIGNES DÉLIÉES VONT DANS L'ONGLET IMPORT NON CRÉÉ.</div>
-        ${nDl ? `<div class="svc-sub svc-warn">LES DÉLAIS DE ${nDl} TÂCHE${nDl > 1 ? "S" : ""} SECONDAIRE${nDl > 1 ? "S" : ""} SERONT SUPPRIMÉS.</div>` : ""}`;
+`;
       return svConfirm({ title: "RÈGLE A — LIAISONS À DÉLIER", html, ok: "IMPORTER" });
     };
     /* ajoute le modèle au budget : AJOUTER / METTRE À JOUR / REMPLACER */
@@ -10575,8 +10735,7 @@ function renderBudgetList() {
           (x.l.chg || []).forEach(y => { const r = by("chg", y.id); rej.push({ src: { ...base, type: "CHG", article: r.art || "", des: r.des || "", u: r.u || "", nbr: "", d1: "", d2: "", d3: "", q: y.q !== "" && y.q !== undefined ? y.q : (r.q ?? "") }, bad, why }); });
         });
         INS.links = INS.links.filter(l => !gone.has(l));
-        /* délais d'une tâche primaire restée sans liaison : supprimés */
-        Object.keys(INS.dlp || {}).forEach(k => { if (!INS.links.some(l => l.lot + "|" + l.sec === k) && [...gone].some(l => l.lot + "|" + l.sec === k)) delete INS.dlp[k]; });
+        /* délais : indépendants des liaisons — gardés */
         histLog("IMPORT", "RÈGLE A — LIAISONS DÉLIÉES", plan.lose.length + " LIAISON(S) DU BUDGET");
       }
       const byId = (k, id) => INS[k].find(x => x.id === id) || {};
