@@ -12549,8 +12549,9 @@ function renderBudgetList() {
         if (!src || !src.rows.length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         cols = screenCols(detailTable(), src.cols);
         rows = src.rows;
-        const ht = rows.reduce((t, l) => t + (l.amount || 0), 0);
-        const tv = rows.reduce((t, l) => t + (l.tvaAmt || 0), 0);
+        /* budget en instance : montants calculés des lignes saisies (avant : 0,00) */
+        const ht = src.ins ? rows.reduce((t, r) => t + (Number(insCalc(active, r, "ht")) || 0), 0) : rows.reduce((t, l) => t + (l.amount || 0), 0);
+        const tv = src.ins ? rows.reduce((t, r) => t + (Number(insCalc(active, r, "ttc")) || 0), 0) - ht : rows.reduce((t, l) => t + (l.tvaAmt || 0), 0);
         if (active === "chg" || active === "prd") end = `<div class="tot">
             <div><span>TOTAL H.T. :</span><b>${money(ht)}</b></div>
             <div><span>TOTAL T.V.A. :</span><b>${money(tv)}</b></div>
@@ -12574,8 +12575,28 @@ function renderBudgetList() {
     /* bouton d'impression de la liste des budgets : même aperçu */
     window.__sviPrintClient = printClient;
 
+    /* FORMAT 112 : aperçu TÂCHES = les trois tableaux côte à côte, comme à l'écran (ordre des colonnes, filtres, lignes cochées) */
+    const printHier = () => {
+      const h = lastShown.hier || {};
+      const ks = coKeys("hierCols", ["lot", "prim", "sec"]);
+      const lab = { lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" };
+      const L = ks.map(k => h[k] || []);
+      const n = Math.max(0, ...L.map(x => x.length));
+      if (!n) { sviAlert("Aucune donnée dans TÂCHES."); return; }
+      const NB = ' style="border:0 !important;background:none !important"';
+      const head = ks.map((k, i) => (i ? `<th${NB}></th>` : "") + `<th>${esc(lab[k])} ${L[i].length}</th>`).join("");
+      const body = Array.from({ length: n }, (_, j) => "<tr>" + L.map((x, i) => (i ? `<td${NB}></td>` : "") +
+        (j < x.length ? `<td>${esc(x[j])}</td>` : `<td${NB}></td>`)).join("") + "</tr>").join("");
+      const cg = ks.map((k, i) => (i ? '<col style="width:2%">' : "") + '<col style="width:32%">').join("");
+      printModel({
+        branch: "TÂCHES", docTitle: "TÂCHES", fileTag: "TACHES", headLine: "TÂCHES",
+        table: `<table id="tpl"><colgroup>${cg}</colgroup><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`,
+        end: ""
+      });
+    };
     const doPdf = blk => {
       if (blk === "client") return printClient();
+      if (blk === "hier") return printHier();
       /* budget en instance : aperçu standard des lignes saisies */
       if (INS && (blk === "hier" || blk === "detail")) return printGeneric(blk);
       if (blk === "hier") return printTasks("plain");
