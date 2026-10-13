@@ -11386,6 +11386,8 @@ function renderBudgetList() {
        volet « OPTIONS PDF » à gauche, aperçu des pages à droite,
        bouton GÉNÉRER PDF ; aucune impression lancée ===== */
     /* aperçu au modèle de la société (désignations client, tâches…) */
+    /* FORMAT 106 : essai à blanc d'un aperçu (PM_DRY) — sert à griser APERÇU PDF si ce contenu est déjà classé */
+    let PM_DRY = null;
     const printModel = cfg => {
       /* empreinte du contenu : même bloc, mêmes données → même document */
       const fp = (() => {
@@ -11401,18 +11403,16 @@ function renderBudgetList() {
       })();
       /* bloc déjà enregistré (et non expiré) : on ouvre directement son document */
       const docs = docsLoad();
-      for (let i = docs.length - 1; i >= 0; i--) {
+      let exDoc = null;
+      for (let i = docs.length - 1; i >= 0 && !exDoc; i--) {
         const d = docs[i];
-        /* contenu identique à un document déjà enregistré (même empreinte) :
-           on l'ouvre tel quel ; anciens documents sans empreinte : même intitulé */
+        /* contenu identique à un document déjà classé (même empreinte ; anciens documents sans empreinte : même intitulé) */
         const same = d.fp ? d.fp === fp
           : String(d.title || "").toUpperCase() === String(cfg.docTitle).toUpperCase();
-        if (!d.expired && (d.idb || d.data) && same) {
-          histLog(cfg.branch, "OUVERTURE DOCUMENT ENREGISTRÉ", d.ref);
-          openDoc(i);
-          return;
-        }
+        if (!d.expired && (d.idb || d.data) && same) exDoc = d;
       }
+      if (PM_DRY) { PM_DRY.doc = exDoc ? exDoc.ref : ""; return; }
+      if (exDoc) { sviAlert("DÉJÀ ÉDITÉ ET CLASSÉ DANS DOCUMENTS : " + exDoc.ref + ". LE CONSULTER DEPUIS DOCUMENTS.", "APERÇU PDF"); return; }
       histLog(cfg.branch, "APERÇU PDF");
       const N = v => String(v ?? "").trim().toUpperCase();
       const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
@@ -11447,7 +11447,16 @@ function renderBudgetList() {
   #side .dis { opacity: .45; pointer-events: none; }
   #gen { width: 100%; margin-top: 22px; height: 42px; border: 0; border-radius: 8px; background: #2a4fd1; color: #fff;
          font-weight: 800; font-size: 13px; cursor: pointer; }
-  #gen:disabled { opacity: .6; }
+  #gen:disabled, #prt:disabled { opacity: .6; }
+  #prt { width: 100%; margin-top: 10px; height: 40px; border: 1px solid #2a4fd1; border-radius: 8px; background: #fff;
+         color: #2a4fd1; font-weight: 800; font-size: 12px; cursor: pointer; }
+  @media print {
+    #side, #tog, #savedBar, #close, #saveOpts { display: none !important; }
+    html, body { background: #fff !important; }
+    #view, body.closed #view, body.locked #view { margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+    #pages .page { margin: 0 !important; box-shadow: none !important; break-after: page; page-break-after: always; }
+    #pages .page:last-child { break-after: auto; page-break-after: auto; }
+  }
   #share { width: 100%; margin-top: 10px; height: 40px; border: 1px solid #2a4fd1; border-radius: 8px; background: #fff;
            color: #2a4fd1; font-weight: 800; font-size: 12px; cursor: pointer; }
   #share[hidden], #saveDoc[hidden], #saveOpts[hidden] { display: none; }
@@ -11582,9 +11591,11 @@ function renderBudgetList() {
   </div>
   <div class="sub" style="margin-top:14px">ASTUCE : FAITES GLISSER LA SIGNATURE OU LE CACHET SUR LA PAGE POUR LES PLACER.</div>
   <button type="button" id="gen">GÉNÉRER PDF</button>
+  <button type="button" id="prt">IMPRIMER (SANS CLASSER)</button>
+  <div class="sub" style="margin-top:8px">GÉNÉRER PDF CLASSE LE DOCUMENT DANS DOCUMENTS. IMPRIMER NE LE CLASSE PAS.</div>
   <div id="msg"></div>
   <div id="saveOpts" hidden><div class="sv-card" role="dialog" aria-modal="true">
-    <div class="sv-head"><span>ENREGISTRER DANS DOCUMENTS</span><button type="button" class="sv-x" id="svX">✕</button></div>
+    <div class="sv-head"><span>GÉNÉRER ET CLASSER DANS DOCUMENTS</span><button type="button" class="sv-x" id="svX">✕</button></div>
     <div class="sv-body">
       <label class="sv-lab" for="svName">NOM DU FICHIER</label>
       <input type="text" id="svName" readonly class="sv-ro" value="${esc(fileName.replace(/\.pdf$/i, "").replace(/_/g, " "))}">
@@ -11598,7 +11609,7 @@ function renderBudgetList() {
       </div>
     </div>
     <div class="sv-foot"><button type="button" class="sv-btn" id="svCancel">ANNULER</button>
-      <button type="button" class="sv-btn sv-ok" id="svGo">ENREGISTRER</button></div>
+      <button type="button" class="sv-btn sv-ok" id="svGo">GÉNÉRER ET CLASSER</button></div>
   </div></div>
   <button type="button" id="saveDoc" hidden>ENREGISTRER DANS DOCUMENTS</button>
   <button type="button" id="share" hidden>PARTAGER LE PDF</button>
@@ -12014,19 +12025,30 @@ function renderBudgetList() {
     }
   };
   svRow();
+  /* FORMAT 106 : GÉNÉRER PDF = générer puis classer dans DOCUMENTS (options Drive d'abord) */
   $("svGo").onclick = async () => {
-    if (!lastPdf) return;
     $("saveOpts").hidden = true;
-    $("saveDoc").disabled = true;
+    if (!(await genPdf())) return;
     const nm = ($("svName").value.trim().toUpperCase() || lastPdf.file.name.replace(/\\.pdf$/i, ""))
       .replace(/[\\/:*?"<>|]+/g, "-") + ".pdf";
     lastPdf.file = new File([lastPdf.blob], nm, { type: "application/pdf" });
     await saveOnce(lastPdf.blob, nm);
-    $("saveDoc").disabled = false;
   };
-
-  $("gen").onclick = async () => {
+  $("gen").onclick = () => { if (savedCodes[code]) return; $("saveOpts").hidden = false; };
+  /* IMPRIMER : l'aperçu (filigrane compris) sans classement */
+  $("prt").onclick = () => {
+    let st = document.getElementById("prtPage");
+    if (!st) { st = document.createElement("style"); st.id = "prtPage"; document.head.appendChild(st); }
+    st.textContent = "@page { size: A4 " + (PORT ? "portrait" : "landscape") + "; margin: 0; }";
+    unfit();
+    const back = () => { fit(); window.removeEventListener("afterprint", back); };
+    window.addEventListener("afterprint", back);
+    window.print();
+    setTimeout(back, 1500);
+  };
+  const genPdf = async () => {
     const btn = $("gen"), msg = $("msg");
+    let ok = false;
     btn.disabled = true;
     try {
       msg.textContent = "PRÉPARATION DU PDF…";
@@ -12044,18 +12066,15 @@ function renderBudgetList() {
       fit();
       const blob = pdf.output("blob");
       const file = new File([blob], "${fileName}", { type: "application/pdf" });
-      msg.textContent = savedCodes[code]
-        ? "PDF PRÊT — DÉJÀ ENREGISTRÉ (" + savedCodes[code] + ")"
-        : "PDF PRÊT : « ENREGISTRER » L'AJOUTE AUX DOCUMENTS.";
-      /* partage / enregistrement : sur un nouveau toucher (exigé par l'iPad) */
+      msg.textContent = "PDF PRÊT — CLASSEMENT DANS DOCUMENTS…";
       lastPdf = { blob, file };
-      /* partage possible seulement après enregistrement (bandeau du haut) */
-      $("saveDoc").hidden = false;
+      ok = true;
     } catch (e) {
       msg.textContent = "PDF IMPOSSIBLE : " + (e && e.message ? e.message : e);
       fit();
     }
     btn.disabled = false;
+    return ok;
   };
 
   sync();
@@ -13687,6 +13706,18 @@ function renderBudgetList() {
       histLog("SAISIE", "COLLER", n + " LIGNE(S) — DEPUIS " + (c.from || ""));
       refreshAll();
     };
+    /* FORMAT 106 : document déjà classé pour le contenu que donnerait APERÇU PDF (essai à blanc, sans fenêtre) */
+    const pdfDoneRef = blk => {
+      if (!INS && blk === "detail" && (active === "prd" || active === "qlt")) return "";
+      const b = blk === "suivi" ? recActive : blk;
+      const ls = { ...lastShown, hier: { ...(lastShown.hier || {}) } };
+      PM_DRY = {}; window.__sviQuiet = true;
+      let r = "";
+      try { insOnlyChecked(blk); doPdf(b); r = PM_DRY.doc || ""; } catch (e) { r = ""; }
+      PM_DRY = null; window.__sviQuiet = false;
+      Object.keys(ls).forEach(k => { lastShown[k] = ls[k]; });
+      return r;
+    };
     const runBlkAct = (blk, act) => {
       if (act === "max") return toggleMax(blk);
       if (act === "del") return insDelRun(blk);
@@ -13737,6 +13768,10 @@ function renderBudgetList() {
         /* exporter / aperçu : grisés si le bloc est vide (l'erreur n'est pas proposée) */
         if ((a.dataset.act === "export" || a.dataset.act === "pdf") && blkEmpty(a.dataset.blk)) {
           return `<button type="button" data-i="${i}" class="off" disabled>${a.innerHTML}<span>${esc(lab)}</span></button>`;
+        }
+        if (a.dataset.act === "pdf") {
+          const dref = pdfDoneRef(a.dataset.blk);
+          if (dref) return `<button type="button" data-i="${i}" class="off" disabled>${a.innerHTML}<span>${esc(lab)}<small class="del-split">DÉJÀ ÉDITÉ ET CLASSÉ DANS DOCUMENTS : ${esc(dref)}</small></span></button>`;
         }
         if (a.dataset.act === "del") {
           const up = insUnlPlan(a.dataset.blk);
@@ -15815,6 +15850,7 @@ function sviWatchState(shell) {
 }
 /* message au format de l'application (jamais de fenêtre Safari) : titre, texte, FERMER */
 function sviAlert(msg, title = "INFORMATION") {
+  if (window.__sviQuiet) return;   /* contrôle silencieux (état du bouton APERÇU PDF) */
   document.getElementById("svConf")?.remove();
   const d = document.createElement("div");
   d.id = "svConf";
