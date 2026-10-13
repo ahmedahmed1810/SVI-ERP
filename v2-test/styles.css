@@ -1360,3 +1360,4 @@ tr.dly-task { cursor: pointer; }
 /* FIGER impossible : bouton grisé (toucher = raisons) */
 .bdg-d-hright .inst-act.off { opacity: .35; }
 #svConf .fz-why { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid #e5e9f0; background: #fff; border-radius: 8px; padding: 9px 10px; margin: 0 0 6px; font-weight: 700; font-size: 12px; text-align: left; color: #172033; }
+#blkMenu .del-split { display: block; font-size: 10px; font-weight: 700; color: #6b7280; margin-top: 2px; }

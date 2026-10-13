@@ -8373,7 +8373,8 @@ function renderBudgetList() {
     };
 
     const tcolsFor = prd => [
-      ["article", "ART", l => l.article, "center"],
+      /* détail produits : pas de colonne ART (FORMAT 6) */
+      ...(prd ? [] : [["article", "ART", l => l.article, "center"]]),
       ["detail", "DÉSIGNATION", l => l.detail, ""],
       ["unit", prd ? "UPB" : "UCB", l => l.unit, "center"],
       ...(prd ? [
@@ -10586,7 +10587,8 @@ function renderBudgetList() {
       const by = (k, id) => (d[k] || []).find(x => x.id === id) || {};
       const n = v => v === "" || v === undefined || v === null ? "" : num(v);
       const desC = D => [D.art || "", U_(D.des), D.t ? "" : U_(D.u)];
-      const prdC = P => ["PRD", P.art || "", U_(P.des), U_(P.u), n(P.nbr), n(P.d1), n(P.d2), n(P.d3), ""];
+      /* produits : pas d'article (FORMAT 6) — colonne ARTICLE vide sur les lignes PRD */
+      const prdC = P => ["PRD", "", U_(P.des), U_(P.u), n(P.nbr), n(P.d1), n(P.d2), n(P.d3), ""];
       const chgC = (C, q) => ["CHG", C.art || "", U_(C.des), U_(C.u), "", "", "", "", n(q !== "" && q !== undefined ? q : C.q)];
       const rows = [], used = { lot: new Set(), prim: new Set(), sec: new Set(), prd: new Set(), chg: new Set() };
       (d.des || []).forEach(D => {
@@ -13353,6 +13355,9 @@ function renderBudgetList() {
       });
       return out;
     };
+    /* détail d'un compteur de lignes cochées par bloc : « 5 CHARGES + 42 PRODUITS » */
+    const DEL_LAB = { des: ["DÉSIGNATION", "DÉSIGNATIONS"], lot: ["LOT", "LOTS"], prim: ["ACTIVITÉ PRIMAIRE", "ACTIVITÉS PRIMAIRES"], sec: ["ACTIVITÉ SECONDAIRE", "ACTIVITÉS SECONDAIRES"], chg: ["CHARGE", "CHARGES"], prd: ["PRODUIT", "PRODUITS"] };
+    const insDelSplit = pl => Object.keys(pl.del || {}).filter(k => DEL_LAB[k] && pl.del[k].size).map(k => pl.del[k].size + " " + DEL_LAB[k][pl.del[k].size > 1 ? 1 : 0]).join(" + ");
     const insDelRun = blk => {
       const X = shell.__ins;
       const pl = insDelPlan(blk);
@@ -13369,7 +13374,7 @@ function renderBudgetList() {
         return;
       }
       svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES",
-        text: pl.n + " LIGNE(S) SERONT SUPPRIMÉES." + (pl.kept ? " " + pl.kept + " LIGNE(S) LIÉE(S) RESTENT." : ""), ok: "SUPPRIMER" }).then(go => {
+        text: pl.n + " LIGNE(S) SERONT SUPPRIMÉES" + (Object.keys(pl.del).length > 1 ? " : " + insDelSplit(pl) : "") + "." + (pl.kept ? " " + pl.kept + " LIGNE(S) LIÉE(S) RESTENT." : ""), ok: "SUPPRIMER" }).then(go => {
         if (!go) return;
         Object.keys(pl.del).forEach(k => {
           X.INS[k] = X.INS[k].filter(x => !pl.del[k].has(x.id));
@@ -13572,7 +13577,7 @@ function renderBudgetList() {
         /* supprimer : grisé s'il n'y a aucune ligne cochée et déliée (l'erreur n'est pas proposée) */
         if (["copy", "cut", "paste"].includes(a.dataset.act) && ctlTab(a.dataset.blk)) {
           const n = ctlCount(a.dataset.blk, a.dataset.act);
-          const lb = a.dataset.act === "paste" ? "COLLER (RÉIMPORTER)" : lab;
+          const lb = a.dataset.act === "paste" && ctlTab(a.dataset.blk) === "inc" ? "COLLER (RÉIMPORTER)" : lab;
           return `<button type="button" data-i="${i}" class="blk-del blk-clip${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lb)}</span>${n > 0 || n === 0 ? svCnt(n) : ""}</button>`;
         }
         if (["copy", "cut", "paste"].includes(a.dataset.act)) {
@@ -13588,8 +13593,8 @@ function renderBudgetList() {
           const un = up ? up.n : 0;
           const dl = up ? `<button type="button" data-unl="${esc(a.dataset.blk)}" class="blk-del blk-unl${un ? "" : " off"}" ${un ? "" : "disabled"}><span>✕ DÉLIER LES LIGNES COCHÉES</span>${svCnt(un)}</button>` : "";
           if (a.dataset.blk === "detail" && active === "lnk") return dl;
-          const n = insDelPlan(a.dataset.blk).n;
-          return dl + `<button type="button" data-i="${i}" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}</span>${svCnt(n)}</button>`;
+          const dp = insDelPlan(a.dataset.blk), n = dp.n, sp = Object.keys(dp.del).length > 1 ? insDelSplit(dp) : "";
+          return dl + `<button type="button" data-i="${i}" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}${sp ? `<small class="del-split">${esc(sp)}</small>` : ""}</span>${svCnt(n)}</button>`;
         }
         if (false) {
           const n = 0;
