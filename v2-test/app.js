@@ -6378,7 +6378,7 @@ function renderBudgetList() {
         const id = inp.closest("[data-iid]")?.dataset.iid || (X.INS[k][X.INS[k].length - 1] || {}).id;
         const r = X.INS[k].find(x => x.id === id);
         /* FORMAT 88 : même désignation (ART + DÉSIGNATION ; produit : DÉSIGNATION) avec une autre unité → refusée */
-        if ((k === "des" || k === "prd") && r && !r.t && U_(r.des) && U_(r.u)) {
+        if (k === "des" && r && !r.t && U_(r.des) && U_(r.u)) {
           const o = X.INS[k].find(x => x.id !== r.id && !x.t && U_(x.des) === U_(r.des) && U_(x.u) && U_(x.u) !== U_(r.u));
           if (o) {
             const f = inp.dataset.f, old = shell.__dupOld && shell.__dupOld.id === r.id ? shell.__dupOld.row : null;
@@ -10389,10 +10389,8 @@ function renderBudgetList() {
               const w = uWin("d", dc);
               if (w && w.u !== U_(g(r, "upb"))) { bad.push("upb"); why.push("UPB " + U_(g(r, "upb")) + " ≠ UPB DE LA DÉSIGNATION " + dc + " (" + w.u + ", " + w.n + " LIGNE" + (w.n > 1 ? "S" : "") + ")"); }
             }
-            if (isP && U_(g(r, "u"))) {
-              const w = uWin("p", dn);
-              if (w && w.u !== U_(g(r, "u"))) { bad.push("u"); why.push("UNITÉ " + U_(g(r, "u")) + " ≠ UNITÉ DU PRODUIT " + dn + " (" + w.u + ", " + w.n + " LIGNE" + (w.n > 1 ? "S" : "") + ")"); }
-            }
+            /* produits : plusieurs unités permises (même repère en M3 et en M2) ; seule la liaison primaire
+               impose l'unité de la désignation (règle B) */
             ["nbr", "d1", "d2", "d3", "q"].forEach(f => { if (!sviNumOk(g(r, f))) { bad.push(f); why.push("NOMBRE NON VALIDE : " + f.toUpperCase().replace(/^D(\d)$/, "DIM $1")); } });
             if (isP) {
               const u = U_(g(r, "u")), nd = sviUnitDims(u), known = ["U", "F", "M", "ML", "M2", "M3"].includes(u);
