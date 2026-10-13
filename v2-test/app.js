@@ -9035,10 +9035,11 @@ function renderBudgetList() {
         ? x.querySelector(".cf-btn")?.dataset.cf
         : x.querySelector(".cf-btn")?.dataset.col;
       const x0 = event.clientX, y0 = event.clientY;
-      let on = false, target = null, ghost = null;
+      let on = false, target = null, ghost = null, mv = 0;
       const clear = () => ths().forEach(x => x.classList.remove("co-before", "co-after"));
       const move = e => {
         const dx = e.clientX - x0, dy = e.clientY - y0;
+        mv = Math.max(mv, Math.abs(dx), Math.abs(dy));
         if (!on) {
           if (Math.abs(dx) < 8) return;
           on = true;
@@ -9073,6 +9074,8 @@ function renderBudgetList() {
         clear();
         th.classList.remove("co-src");
         ghost?.remove();
+        /* FORMAT 116 : simple toucher sur le titre = sélection de la colonne */
+        if (!on && mv < 8) { try { colSelToggle(th); } catch (e) {} return; }
         if (!on || !target) return;
         const keys = ths().map(keyOf);
         const from = keys.indexOf(keyOf(th));
@@ -13833,6 +13836,106 @@ function renderBudgetList() {
       histLog("SAISIE", "COLLER", n + " LIGNE(S) — DEPUIS " + (c.from || ""));
       refreshAll();
     };
+    /* ===== FORMAT 116 : sélection d'une colonne (toucher sur son titre) → COPIER / COUPER / COLLER LA COLONNE ===== */
+    let COLSEL = null;
+    const colThOf = cs => {
+      if (!cs) return null;
+      const b = cs.hier ? shell.querySelector(`.bdg-h-head .cf-btn[data-cf="${cs.key}"]`) : shell.querySelector(`th .cf-btn[data-cf="${cs.t}"][data-col="${cs.key}"]`);
+      return b ? b.closest("th, .bdg-h-head") : null;
+    };
+    const colSelPaint = () => {
+      shell.querySelectorAll(".col-sel").forEach(x => x.classList.remove("col-sel"));
+      if (!COLSEL) return;
+      const th = colThOf(COLSEL);
+      if (!th) { COLSEL = null; return; }
+      th.classList.add("col-sel");
+      if (COLSEL.hier) { th.closest(".ins-hcol, .bdg-h-col")?.classList.add("col-sel"); return; }
+      const tb = th.closest("table"), idx = [...th.parentElement.children].indexOf(th), n = th.parentElement.children.length;
+      tb.querySelectorAll("tbody tr").forEach(tr => { if (tr.children.length === n && tr.children[idx]) tr.children[idx].classList.add("col-sel"); });
+    };
+    { let raf = 0; new MutationObserver(() => { if (!COLSEL) return; cancelAnimationFrame(raf); raf = requestAnimationFrame(colSelPaint); }).observe(shell, { childList: true, subtree: true }); }
+    const colSelToggle = th => {
+      const isHier = th.classList.contains("bdg-h-head");
+      const b = th.querySelector(".cf-btn");
+      if (!b) return;
+      const cs = isHier ? { hier: true, key: b.dataset.cf, t: "hierCols" } : { t: b.dataset.cf, key: b.dataset.col };
+      cs.blk = th.closest(".bdg-d-block")?.querySelector(".blk-btn[data-blk]")?.dataset.blk || "";
+      COLSEL = COLSEL && COLSEL.t === cs.t && COLSEL.key === cs.key ? null : cs;
+      colSelPaint();
+    };
+    /* colonne choisie dans ce bloc : cellules, champ, lignes visées (cochées s'il y en a) */
+    const colSelFor = blk => {
+      if (!COLSEL || COLSEL.blk !== blk) return null;
+      const th = colThOf(COLSEL);
+      if (!th) return null;
+      const label = (th.querySelector(".cf-lab")?.textContent || "").replace(/\s*\d+\s*$/, "").trim();
+      if (COLSEL.hier) {
+        const box = th.closest(".ins-hcol, .bdg-h-col");
+        let items = [...(box ? box.querySelectorAll(".ins-li[data-iid], .bdg-h-item") : [])];
+        const on = items.filter(x => x.querySelector('input[type="checkbox"]:checked'));
+        if (on.length) items = on;
+        return { label, vals: items.map(x => (x.querySelector(".ins-in")?.value ?? x.textContent ?? "").trim()), edit: false };
+      }
+      const tb = th.closest("table"), idx = [...th.parentElement.children].indexOf(th), n = th.parentElement.children.length;
+      let trs = [...tb.querySelectorAll("tbody tr")].filter(tr => tr.children.length === n && !tr.classList.contains("ins-new") && !tr.classList.contains("bdg-d-filler"));
+      const on = trs.filter(tr => tr.querySelector('td:last-child input[type="checkbox"]:checked'));
+      if (on.length) trs = on;
+      const k = tb.dataset.ik, edit = !!(INS_EDIT && tb.classList.contains("ins-table") && ["des", "chg", "prd"].includes(k));
+      const col = edit ? (INS_COLS[k] || []).find(c => c[4] === COLSEL.key) : null;
+      const cell = tr => { const td = tr.children[idx]; const i = td && td.querySelector(".ins-in, input:not([type=checkbox]), textarea"); return (i ? i.value : (td ? td.textContent : "")).trim(); };
+      return { label, k, col, edit: edit && !!col, trs, vals: trs.map(cell) };
+    };
+    const colOp = async (act, cs) => {
+      if (act === "copy" || act === "cut") {
+        const txt = cs.vals.join("\n");
+        window.__sviColClip = cs.vals.slice();
+        try { navigator.clipboard && await navigator.clipboard.writeText(txt); } catch (e) {}
+        if (act === "copy") { svToast(cs.vals.length + " VALEUR(S) COPIÉE(S) — COLONNE " + cs.label, 2500); histLog("SAISIE", "COPIER LA COLONNE", cs.label + " — " + cs.vals.length); return; }
+      }
+      if (!cs.edit) return;
+      const [f, , , type] = cs.col, k = cs.k;
+      const locked = type === "calc" || (INS_LOCK[k] || []).includes(f);
+      if (locked) { sviAlert("COLONNE " + cs.label + " : CALCULÉE OU NON SAISISSABLE.", act === "cut" ? "COUPER LA COLONNE" : "COLLER DANS LA COLONNE"); return; }
+      let vals;
+      if (act === "cut") vals = cs.trs.map(() => "");
+      else {
+        let txt = null;
+        try { txt = await navigator.clipboard.readText(); } catch (e) {}
+        vals = txt !== null && txt !== undefined && txt !== "" ? String(txt).replace(/\r/g, "").replace(/\n+$/, "").split("\n").map(l => l.split("\t")[0]) : (window.__sviColClip || []);
+        if (!vals.length) { svToast("PRESSE-PAPIERS VIDE.", 2500); return; }
+      }
+      const isNum = type === "num", bad = [];
+      let done = 0;
+      const n = Math.min(vals.length, cs.trs.length);
+      for (let i = 0; i < n; i++) {
+        const r = INS[k].find(x => x.id === cs.trs[i].dataset.iid);
+        if (!r) continue;
+        const name = (r.des || r.v || "").trim() || ("LIGNE " + (i + 1));
+        if (r.t && f !== "art" && f !== "des") continue;
+        let v = String(vals[i] ?? "").trim();
+        if (isNum && v !== "" && !sviNumOk(v)) { bad.push(name + " : « " + v + " » N'EST PAS UN NOMBRE"); continue; }
+        if (k === "chg" && (f === "p" || f === "u") && r.chs) { bad.push(name + " : VALEUR VENUE DE CHS"); continue; }
+        if (k === "prd" && /^d[123]$/.test(f) && v !== "" && +f[1] > sviUnitDims(r.u)) { bad.push(name + " : UNITÉ " + (r.u || "") + " — " + f.toUpperCase().replace(/^D/, "DIM ") + " EN TROP"); continue; }
+        const linked = lkAnyLinked(k, r.id);
+        if (linked && (f === "u" || (f === "des" && v === ""))) { bad.push(name + " : LIGNE LIÉE — DÉLIER D'ABORD"); continue; }
+        const old = r[f];
+        r[f] = isNum ? (v === "" ? "" : insNum(v)) : sviClean(v).toUpperCase();
+        if (["des", "u", "art"].includes(f) && v !== "") {
+          const key = dupKeyOf(k, r);
+          if (key && INS[k].some(x => x !== r && !x.t && dupKeyOf(k, x) === key)) { r[f] = old; bad.push(name + " : DOUBLON"); continue; }
+        }
+        done++;
+      }
+      const extra = Math.max(0, vals.length - cs.trs.length);
+      insNorm(); insSave();
+      histLog("SAISIE", act === "cut" ? "COUPER LA COLONNE" : "COLLER DANS LA COLONNE", cs.label + " — " + done + " CASE(S)" + (bad.length ? " — " + bad.length + " REFUSÉE(S)" : ""));
+      refreshAll();
+      const msg = [done + " CASE(S) " + (act === "cut" ? "VIDÉE(S)" : "COLLÉE(S)") + " — COLONNE " + cs.label];
+      if (extra) msg.push(extra + " VALEUR(S) EN TROP IGNORÉE(S) (PLUS DE VALEURS QUE DE LIGNES)");
+      if (bad.length) msg.push("REFUSÉES :", ...bad.map(x => "— " + x));
+      if (bad.length || extra) sviAlert(msg.join("\n"), act === "cut" ? "COUPER LA COLONNE" : "COLLER DANS LA COLONNE");
+      else svToast(msg[0], 2500);
+    };
     /* FORMAT 106 : document déjà classé pour le contenu que donnerait APERÇU PDF (essai à blanc, sans fenêtre) */
     const pdfDoneRef = blk => {
       if (!INS && blk === "detail" && (active === "prd" || active === "qlt")) return "";
@@ -13848,6 +13951,7 @@ function renderBudgetList() {
     const runBlkAct = (blk, act) => {
       if (act === "max") return toggleMax(blk);
       if (act === "del") return insDelRun(blk);
+      { const cs = ["copy", "cut", "paste"].includes(act) && colSelFor(blk); if (cs) return colOp(act, cs); }
       if (ctlTab(blk) && (act === "copy" || act === "cut")) return ctlCopy(act === "cut");
       if (ctlTab(blk) === "inc" && act === "paste") return ctlPaste();
       if (act === "copy" || act === "cut") return clipTake(blk, act === "cut");
@@ -13882,6 +13986,14 @@ function renderBudgetList() {
           const other = active === "unl" ? 0 : Math.max(0, all.n - here);
           a.__hint = "";
           if (other) m.__hint = "+ " + other + " COCHÉE(S) DANS D'AUTRES ONGLETS — COPIER, COUPER, EXPORTER ET APERÇU NE PRENNENT QUE L'ONGLET OUVERT";
+        }
+        /* FORMAT 116 : colonne sélectionnée dans ce bloc → actions sur la colonne */
+        if (["copy", "cut", "paste"].includes(a.dataset.act) && colSelFor(a.dataset.blk)) {
+          const cs = colSelFor(a.dataset.blk);
+          const ok = a.dataset.act === "copy" || cs.edit;
+          const lb = (a.dataset.act === "copy" ? "COPIER LA COLONNE" : a.dataset.act === "cut" ? "COUPER LA COLONNE" : "COLLER DANS LA COLONNE") + " « " + cs.label + " »";
+          const n = a.dataset.act === "paste" ? "" : cs.vals.length;
+          return `<button type="button" data-i="${i}" class="blk-del blk-clip${ok ? "" : " off"}" ${ok ? "" : "disabled"}>${a.innerHTML}<span>${esc(lb)}</span>${n === "" ? "" : svCnt(n)}</button>`;
         }
         if (["copy", "cut", "paste"].includes(a.dataset.act) && ctlTab(a.dataset.blk)) {
           const n = ctlCount(a.dataset.blk, a.dataset.act);
