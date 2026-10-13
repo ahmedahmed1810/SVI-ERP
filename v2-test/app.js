@@ -5902,6 +5902,8 @@ function renderBudgetList() {
       }
       if (!INS_EDIT) return `<td class="${cls}${k === "des" && f === "des" ? " c-wrap" : ""}">${esc(val)}${f === "tva" && val ? " %" : ""}</td>`;
       /* FORMAT 109 : DÉSIGNATION client sur plusieurs lignes si elle est trop longue (la ligne devient plus haute) */
+      /* FORMAT 122 : ligne existante — texte affiché (appui long = glisser), un toucher ouvre la saisie */
+      if (k === "des" && f === "des" && !isNew) return `<td class="${cls} ins-td ins-tdv${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><div class="ins-dv" data-f="des">${esc(val)}</div><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea></td>`;
       if (k === "des" && f === "des") return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} ${isNew ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea></td>`;
       return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
         ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
@@ -9260,7 +9262,8 @@ function renderBudgetList() {
           document.addEventListener("pointermove", mvv); document.addEventListener("pointerup", off); document.addEventListener("pointercancel", off);
           return;
         } }
-      const inp = event.target.closest(".ins-in");
+      const dv = event.target.closest(".ins-dv");
+      const inp = event.target.closest(".ins-in") || (dv && dv.parentElement.querySelector(".ins-in"));
       const tapFocus = inp && inp !== document.activeElement ? inp : null;
       const sibs = () => isRow
         ? [...el.parentElement.querySelectorAll("tr[data-iid]")]
@@ -9349,6 +9352,7 @@ function renderBudgetList() {
         if (!on) {
           /* simple toucher sur une case : saisie normale */
           if (drop && !moved && tapFocus) {
+            tapFocus.closest("td.ins-tdv")?.classList.add("ins-ed");
             tapFocus.focus();
             try { const n = tapFocus.value.length; tapFocus.setSelectionRange(n, n); } catch (e) {}
           }
@@ -16448,11 +16452,56 @@ document.addEventListener("pointerdown", e => {
 }, true);
 document.addEventListener("focusout", e => { if (e.target.closest && e.target.closest(SVI_UNIT_SEL)) setTimeout(() => { const b = document.getElementById("svUnitSug"); if (b && b.__for === e.target && document.activeElement !== e.target) sviUnitSugHide(); }, 150); });
 document.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === "Escape") sviUnitSugHide(); }, true);
+/* FORMAT 121 : en-têtes des tableaux fixés sous la bande du budget quand la page défile */
+(() => {
+  let raf = 0;
+  const run = () => {
+    raf = 0;
+    const band = document.querySelector(".bdg-d-sticky");
+    const blocks = document.querySelectorAll(".bdg-d-block");
+    if (!blocks.length) return;
+    const top = band ? band.getBoundingClientRect().bottom : 0;
+    blocks.forEach(bl => {
+      const ttl = bl.querySelector(":scope > .blk-head, :scope > .bdg-d-block-title, :scope > .bdg-d-tabs, :scope > #bdgTabs");
+      const heads = [...bl.querySelectorAll("thead th, .bdg-h-head")];
+      const parts = (ttl ? [ttl] : []).concat(heads);
+      const cur = el => { const m = /translateY\((-?[\d.]+)px\)/.exec(el.style.transform || ""); return m ? +m[1] : 0; };
+      const br = bl.getBoundingClientRect();
+      const tH = ttl ? ttl.offsetHeight : 0, hH = heads.length ? Math.max(...heads.map(h => h.offsetHeight)) : 0;
+      const room = br.bottom - (tH + hH + 30);
+      const set = (el, want) => {
+        const t0 = el.getBoundingClientRect().top - cur(el);
+        const off = Math.max(0, Math.min(want - t0, room - t0));
+        const v = off > 0.5 ? "translateY(" + off.toFixed(1) + "px)" : "";
+        if (el.style.transform !== v) el.style.transform = v;
+        el.classList.toggle("sv-stuck", !!v);
+      };
+      if (ttl) set(ttl, top);
+      heads.forEach(h => set(h, top + tH));
+      void parts;
+    });
+  };
+  const go = () => { if (!raf) raf = requestAnimationFrame(run); };
+  document.addEventListener("scroll", go, true);
+  window.addEventListener("resize", go);
+  const mo = new MutationObserver(go);
+  const start = () => mo.observe(document.body, { childList: true, subtree: true });
+  if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
+})();
+/* FORMAT 122 : désignation en lecture (texte) / saisie (zone de texte posée dessus pendant l'édition) */
+document.addEventListener("focusin", e => { const t = e.target; if (t && t.matches && t.matches("td.ins-tdv textarea.ins-ta")) t.closest("td").classList.add("ins-ed"); }, true);
+document.addEventListener("focusout", e => {
+  const t = e.target;
+  if (!t || !t.matches || !t.matches("td.ins-tdv textarea.ins-ta")) return;
+  const td = t.closest("td"); td.classList.remove("ins-ed");
+  const dv = td.querySelector(".ins-dv"); if (dv) dv.textContent = t.value;
+}, true);
 /* FORMAT 109 : DÉSIGNATION client à la ligne — hauteur suivant le texte, pas de retour à la ligne saisi */
 document.addEventListener("input", e => {
   const t = e.target;
   if (!t || !t.matches || !t.matches("textarea.ins-ta")) return;
   if (/[\r\n]/.test(t.value)) t.value = t.value.replace(/[\r\n]+/g, " ");
+  { const dv = t.closest("td.ins-tdv")?.querySelector(".ins-dv"); if (dv) { dv.textContent = t.value; return; } }
   t.style.height = "0px"; t.style.height = Math.max(20, t.scrollHeight) + "px";
 }, true);
 /* correction d'un nombre déjà saisi (FORMAT 86) : à la touche, sans zéros inutiles (1,00 → 1) et tout sélectionné ;
