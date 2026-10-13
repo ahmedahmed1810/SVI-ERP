@@ -5393,6 +5393,14 @@ function renderBudgetList() {
       const order = coKeys(t, cols.map(c => c[0]));
       return order.map(k => cols.find(c => c[0] === k));
     };
+    /* FORMAT 102 : ordre des colonnes tel qu'affiché à l'écran (après glissement) — copies, exports, aperçus */
+    const screenCols = (table, cols) => {
+      if (!table || !cols) return cols;
+      const keys = [...table.querySelectorAll("thead tr:first-child > th .cf-btn[data-col]")].map(b => b.dataset.col);
+      const out = keys.map(k => cols.find(c => c[0] === k)).filter(Boolean);
+      return out.length ? [...out, ...cols.filter(c => !out.includes(c) && !keys.length)] : cols;
+    };
+    const detailTable = () => body && body.querySelector("table.bdg-d-table, table.ins-table, table.lk-table");
     /* réordonne un tableau déjà dessiné (col, en-têtes, lignes, pied) */
     const coApply = (t, table) => {
       if (!table) return;
@@ -5953,7 +5961,7 @@ function renderBudgetList() {
     const insDelCell = r => !r ? "" : `<input type="checkbox" class="ins-cb${r.t ? " ins-tcb" : ""}" ${!r.t && r.on === true ? "checked" : ""}>`;
     const insQCol = k => false;   /* plus de colonne QUANTITÉ DE LA TÂCHE : la quantité liée est la QPB du produit */
     const insRowHTML = (k, r, lvl) => {
-      const cols = INS_COLS[k];
+      const cols = insColsOrd(k);
       const tcell = "";   /* plus de colonne T : un titre se crée en superposant deux lignes (FORMAT 61) */
       const sel = r && !r.t && lkOn(k, r.id);
       const dim = k === "des" && r && !r.t && LK.des && !sel;
@@ -5968,6 +5976,8 @@ function renderBudgetList() {
     /* filtres / tri de colonne (mêmes menus que la version validée) :
        une ligne filtrée garde son titre ; un tri affiche la liste à plat */
     const insCfT = k => k === "des" ? "client" : k;
+    /* colonnes d'un tableau de saisie dans l'ordre choisi par glissement (mémorisé) */
+    const insColsOrd = k => { const cols = INS_COLS[k] || []; const ord = coKeys(insCfT(k), cols.map(c => c[4])); return ord.map(x => cols.find(c => c[4] === x)).filter(Boolean); };
     const insCfCols = k => INS_COLS[k].map(c => [c[4], c[1],
       r => c[3] === "txt" ? (r[c[0]] || "") : (r.t ? "" : insCalc(k, r, c[0])), c[2]]);
     const insShown = k => {
@@ -6129,14 +6139,16 @@ function renderBudgetList() {
       const rows = insShown(k).filter(r => !r.t);
       const ht = rows.reduce((t, r) => t + insHT(k, r), 0);
       const ttc = rows.reduce((t, r) => t + insTTC(k, r), 0);
-      const n = INS_COLS[k].length + 1;
-      return `<tr class="bdg-d-total-row">${"<td></td>".repeat(n - 4)}<td class="number">TOTAL</td>
-        <td class="number">${money(ht)}</td><td class="number">${money(ttc - ht)}</td><td class="number">${money(ttc)}</td>${insQCol(k) ? "<td></td>" : ""}${INS_EDIT ? "<td></td>" : ""}</tr>`;
+      /* pied aligné sur l'ordre des colonnes de l'écran */
+      const cols = insColsOrd(k), val = { ht: money(ht), tva: money(ttc - ht), ttc: money(ttc) };
+      const first = cols.findIndex(c => val[c[0]] !== undefined);
+      const cells = cols.map((c, i) => val[c[0]] !== undefined ? `<td class="number">${val[c[0]]}</td>` : i === first - 1 ? '<td class="number">TOTAL</td>' : "<td></td>");
+      return `<tr class="bdg-d-total-row"><td>${first === 0 ? "TOTAL" : ""}</td>${cells.join("")}${insQCol(k) ? "<td></td>" : ""}${INS_EDIT ? "<td></td>" : ""}</tr>`;
     };
     /* case d'en-tête : toutes les lignes visibles (hors titres) cochées */
     const insAllOn = k => { const v = insShown(k).filter(r => !r.t); return v.length > 0 && v.every(r => r.on === true); };
     const insTableHTML = k => {
-      const cols = INS_COLS[k];
+      const cols = insColsOrd(k);
       const lead = 1;
       const qw = insQCol(k) ? 160 : 0;
       const w = 36 * lead + (INS_EDIT ? 40 : 0) + qw + cols.reduce((t, c) => t + cwGet(k === "des" ? "client" : k, c[4]), 0);
@@ -6294,12 +6306,13 @@ function renderBudgetList() {
       const w = k => cwLoad()["lk_inc." + k] || ((INC_COLS.find(c => c[0] === k) || [])[2]) || 320;
       const ed = INS_EDIT;
       const all = rows.length && rows.every(x => x.on === true);
+      const OC = coOrder("lk_inc", UC);
       return `<table class="bdg-d-table ins-table lk-table inc-table" style="width:${UC.reduce((t, c) => t + w(c[0]), 0) + 40}px">
-        <colgroup>${UC.map(c => `<col data-w="lk_inc.${c[0]}" style="width:${w(c[0])}px">`).join("")}<col style="width:40px"></colgroup>
-        <thead><tr>${UC.map(c => cfHead("lk_inc", c[0], c[1], c[3])).join("")}<th class="center">${ed ? `<input type="checkbox" class="inc-cball"${all ? " checked" : ""}>` : ""}</th></tr></thead>
-        <tbody>${rows.map(x => `<tr data-inc="${x.id}">${INC_COLS.map(c => `<td class="${c[3]} ins-td${(x.bad || []).includes(c[0]) ? " inc-bad" : ""}">${ed
+        <colgroup>${OC.map(c => `<col data-w="lk_inc.${c[0]}" style="width:${w(c[0])}px">`).join("")}<col style="width:40px"></colgroup>
+        <thead><tr>${OC.map(c => cfHead("lk_inc", c[0], c[1], c[3])).join("")}<th class="center">${ed ? `<input type="checkbox" class="inc-cball"${all ? " checked" : ""}>` : ""}</th></tr></thead>
+        <tbody>${rows.map(x => `<tr data-inc="${x.id}">${OC.map(c => c[0] === "why" ? `<td class="inc-why">${esc(why(x))}</td>` : `<td class="${c[3]} ins-td${(x.bad || []).includes(c[0]) ? " inc-bad" : ""}">${ed
             ? `<input class="ins-in inc-in ${c[3]}" data-f="${c[0]}" value="${esc(x.src[c[0]] || "")}" autocomplete="off">` : esc(x.src[c[0]] || "")}</td>`).join("")}
-          <td class="inc-why">${esc(why(x))}</td><td class="center">${ed ? `<input type="checkbox" class="inc-cb"${x.on === true ? " checked" : ""}>` : ""}</td></tr>`).join("")
+          <td class="center">${ed ? `<input type="checkbox" class="inc-cb"${x.on === true ? " checked" : ""}>` : ""}</td></tr>`).join("")
           || `<tr><td colspan="${UC.length + 1}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
     };
     if (!shell.__incBound) {
@@ -9352,7 +9365,9 @@ function renderBudgetList() {
       }
       const src = lastShown[blk];
       if (!src) return { head: [], rows: [] };
-      const oc = coOrder(blk === "detail" ? active : blk, src.cols);
+      const oc = blk === "detail" ? screenCols(detailTable(), src.cols)
+        : blk === "client" ? screenCols(shell.querySelector(".bdg-d-client-scroll table"), src.cols)
+        : coOrder(blk, src.cols);
       /* désignations (budget en instance) : titres repliés = titre et son total seulement */
       if (blk === "client" && src.ins) {
         const hid = insHiddenFn(), F = foldGet();
@@ -12332,7 +12347,7 @@ function renderBudgetList() {
       } else {
         const src = lastShown.detail;
         if (!src || !src.rows.length) { sviAlert("Aucune donnée dans " + label + "."); return; }
-        cols = coOrder(active, src.cols);
+        cols = screenCols(detailTable(), src.cols);
         rows = src.rows;
         const ht = rows.reduce((t, l) => t + (l.amount || 0), 0);
         const tv = rows.reduce((t, l) => t + (l.tvaAmt || 0), 0);
@@ -13432,7 +13447,7 @@ function renderBudgetList() {
     const ctlCopy = async (cut) => {
       const ls = lastShown.detail, rows = ctlRows();
       if (!rows.length) return;
-      const cols = coOrder(ls.kind === "inc" ? "lk_inc" : ls.kind === "unl" ? "lk_unl" : "lk_links", ls.cols);
+      const cols = screenCols(detailTable(), ls.cols);
       const cell = v => String(v ?? "").replace(/[\t\n]/g, " ");
       const tsv = [cols.map(c => c[1]).join("\t"), ...rows.map(r => cols.map(c => cell(c[2](r))).join("\t"))].join("\n");
       try { navigator.clipboard && await navigator.clipboard.writeText(tsv); } catch (e) {}
@@ -13496,8 +13511,12 @@ function renderBudgetList() {
         items[k] = p[k].map(r => { const c = JSON.parse(JSON.stringify(r)); delete c.on; delete c.lk; if (k === "des") c.d = (Number(r.d) || 0) - minD; return c; });
         /* presse-papiers : en-tête + lignes, séparées par des tabulations */
         if (INS_COLS[k]) {
-          tsv.push(INS_COLS[k].map(c => c[1]).join("\t"));
-          p[k].forEach(r => tsv.push(INS_COLS[k].map(c => { const v = r.t && !["art", "des"].includes(c[0]) ? "" : (c[3] === "txt" ? (r[c[0]] || "") : insFmt(insCalc(k, r, c[0]))); return String(v ?? "").replace(/[\t\n]/g, " "); }).join("\t")));
+          /* colonnes dans l'ordre de l'écran (glissement) */
+          const tbl = shell.querySelector(`.ins-table[data-ik="${k}"]`);
+          const keys = tbl ? [...tbl.querySelectorAll("thead tr:first-child > th .cf-btn[data-col]")].map(b => b.dataset.col) : [];
+          const CO = keys.length ? keys.map(x => INS_COLS[k].find(c => c[4] === x)).filter(Boolean) : INS_COLS[k];
+          tsv.push(CO.map(c => c[1]).join("\t"));
+          p[k].forEach(r => tsv.push(CO.map(c => { const v = r.t && !["art", "des"].includes(c[0]) ? "" : (c[3] === "txt" ? (r[c[0]] || "") : insFmt(insCalc(k, r, c[0]))); return String(v ?? "").replace(/[\t\n]/g, " "); }).join("\t")));
         } else { tsv.push({ lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" }[k] || k.toUpperCase()); p[k].forEach(r => tsv.push(r.v || "")); }
         tsv.push("");
       });
