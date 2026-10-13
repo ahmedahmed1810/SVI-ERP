@@ -5656,7 +5656,27 @@ function renderBudgetList() {
     const insId = () => "i" + (insSeq++).toString(36);
     const U_ = v => String(v ?? "").trim().toUpperCase();
     let insTimer = null;
+    /* FORMAT 91 : LIGNES NON LIÉES (compteur, liste ouverte, hachures, FIGER) et LIAISONS VALIDÉES
+       recalculés aussitôt après chaque changement du budget */
+    let insLiveT = null;
+    const insLiveSync = () => {
+      clearTimeout(insLiveT);
+      insLiveT = setTimeout(() => {
+        try {
+          insMarkUnlinked();
+          const lb = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"] .svi-cnt`);
+          if (lb && active !== "lnk") lb.outerHTML = svCnt((INS.links || []).length);
+          if (active === "unl" && body && !body.contains(document.activeElement)) {
+            const sc = body.querySelector(".bdg-d-scroll"), top = sc ? sc.scrollTop : 0, left = sc ? sc.scrollLeft : 0;
+            body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`;
+            const ns = body.querySelector(".bdg-d-scroll");
+            if (ns) { ns.scrollTop = top; ns.scrollLeft = left; }
+          }
+        } catch (e) {}
+      }, 60);
+    };
     const insSave = () => {
+      if (INS_EDIT) insLiveSync();
       clearTimeout(insTimer);
       insTimer = setTimeout(() => {
         const list = instLoad();
