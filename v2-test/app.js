@@ -6281,7 +6281,14 @@ function renderBudgetList() {
       /* justificatif : numéro de la ligne dans le tableau source + raison */
       const why = x => (x.line ? "LIGNE " + x.line + " — " : "") + (x.why || "");
       const UC = [...INC_COLS.map(c => [c[0], c[1], x => x.src[c[0]] || "", c[3]]), ["why", "RAISON", why, ""]];
-      const rows = cfApply("lk_inc", UC, (INS.inc || []).slice().sort((a, b) => natCmp(a.src.dc, b.src.dc)));
+      /* classement (FORMAT 92) : raisons par ordre alphabétique, puis lignes du fichier par ordre croissant ;
+         doublons : les lignes en doublon d'une même ligne d'origine se suivent (groupes par ligne d'origine) */
+      const incKey = x => {
+        const w = String(x.why || ""), m = /IDENTIQUE À LA LIGNE (\d+)/.exec(w);
+        return m ? "DOUBLON DANS LE FICHIER " + String(m[1]).padStart(7, "0") : w.replace(/^LIAISON DU BUDGET DÉLIÉE — /, "");
+      };
+      const incLn = x => { const n = parseInt(x.line, 10); return isNaN(n) ? Infinity : n; };
+      const rows = cfApply("lk_inc", UC, (INS.inc || []).slice().sort((a, b) => incKey(a).localeCompare(incKey(b), "fr") || incLn(a) - incLn(b) || natCmp(a.src.dc, b.src.dc)));
       lastShown.detail = { cols: UC, rows, kind: "inc" };
       const w = k => cwLoad()["lk_inc." + k] || ((INC_COLS.find(c => c[0] === k) || [])[2]) || 320;
       const ed = INS_EDIT;
@@ -6312,7 +6319,17 @@ function renderBudgetList() {
           it.src[inp.dataset.f] = inp.value.trim().toUpperCase();
           /* toutes les cases effacées : la ligne est supprimée (FORMAT 90) */
           if (INC_COLS.every(c => String(it.src[c[0]] ?? "").trim() === "")) { X.INS.inc = (X.INS.inc || []).filter(x => x.id !== it.id); X.save(); X.refresh(); return; }
+          const idx = [...inp.closest("tbody").querySelectorAll("tr[data-inc]")].indexOf(tr);
+          const want = shell.__incNext && Date.now() - shell.__incNext.t < 1500 ? shell.__incNext : null;
           X.tryIt(it);
+          /* le curseur va à la case fautive voulue ; ligne sortie : 1re case fautive de la ligne qui prend sa place */
+          if (want) setTimeout(() => {
+            const tb = shell.querySelector(".inc-table tbody");
+            if (!tb) return;
+            let el = tb.querySelector(`tr[data-inc="${want.id}"] input[data-f="${want.f}"]`);
+            if (!el || !el.closest("td.inc-bad")) { const trs = [...tb.querySelectorAll("tr[data-inc]")]; const r2 = trs[Math.min(idx, trs.length - 1)]; el = r2 && r2.querySelector("td.inc-bad input.inc-in"); }
+            if (el) { el.focus(); try { el.select(); } catch (err) {} el.scrollIntoView({ block: "nearest", inline: "nearest" }); }
+          }, 30);
         }
       });
     }
@@ -6866,21 +6883,7 @@ function renderBudgetList() {
         X.insRedraw(k);
       }, true);
       /* touche Entrée : case suivante (fin de ligne : 1re case de la ligne suivante) */
-      shell.addEventListener("keydown", e => {
-        if (e.key !== "Enter" || !shell.__ins) return;
-        const inp = e.target.closest && e.target.closest("input.ins-in");
-        if (!inp) return;
-        e.preventDefault();
-        const box = inp.closest("table.ins-table, .ins-hcol");
-        if (!box) return;
-        const all = [...box.querySelectorAll("input.ins-in:not([disabled])")];
-        const nx = all[all.indexOf(inp) + 1];
-        if (nx) {
-          nx.focus();
-          try { const n = nx.value.length; nx.setSelectionRange(n, n); } catch (err) {}
-          nx.scrollIntoView({ block: "nearest", inline: "nearest" });
-        }
-      });
+      /* (Entrée / Tab : voir la règle générale FORMAT 93, plus bas) */
       /* le doigt quitte un bloc : lignes vidées retirées, titres et sous-totaux remis en place */
       shell.addEventListener("focusout", e => {
         const X = shell.__ins;
@@ -15724,3 +15727,41 @@ document.addEventListener("focusin", e => {
   const go = () => { up(document); mo.observe(document.body, { childList: true, subtree: true }); };
   if (document.body) go(); else document.addEventListener("DOMContentLoaded", go);
 })();
+
+
+/* =========================================================
+   FORMAT 93 : Entrée et Tab = case saisissable suivante (Maj + Tab = précédente), partout ;
+   cases grisées sautées ; dans une fenêtre, Entrée ne valide jamais toute seule ;
+   IMPORT NON CRÉÉ : case encadrée (fautive) suivante
+   ========================================================= */
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== "Tab") return;
+  const el = e.target;
+  if (!el || !el.matches || !el.matches("input, select")) return;
+  if (el.matches('[type="checkbox"], [type="radio"], [type="file"], .cf-q') || el.closest("#cfMenu, #svCal")) return;
+  const back = e.key === "Tab" && e.shiftKey;
+  const ok = x => x.offsetParent !== null && !x.disabled && !(x.readOnly && !x.classList.contains("sv-date") && !x.classList.contains("dlp-in")) && !x.matches('[type="checkbox"], [type="radio"], [type="file"], [type="hidden"]');
+  let list = null;
+  const inc = el.closest(".inc-table");
+  if (inc) {
+    list = [...inc.querySelectorAll("td.inc-bad input.inc-in")].filter(ok);
+    if (!list.includes(el)) list = [...inc.querySelectorAll("input.inc-in")].filter(x => ok(x) && (x === el || x.closest("td.inc-bad")));
+  } else {
+    const box = el.closest("table.ins-table, .ins-hcol, .dly-table, .prm-table, .svc-card, .doc-card, .blk-card, .modal-card, form, #docPop, .view");
+    if (!box) return;
+    list = [...box.querySelectorAll("input, select, textarea")].filter(x => x === el || ok(x));
+  }
+  const i = list.indexOf(el);
+  const nx = list[i + (back ? -1 : 1)];
+  e.preventDefault();
+  if (!nx) return;
+  if (inc) { const tr = nx.closest("tr[data-inc]"); const sh = inc.closest(".novapp-list-shell") || document.body; sh.__incNext = { id: tr && tr.dataset.inc, f: nx.dataset.f, t: Date.now() }; }
+  nx.focus();
+  try { if (nx.matches("input:not(.sv-date):not(.dlp-in)")) nx.select(); } catch (err) {}
+  nx.scrollIntoView({ block: "nearest", inline: "nearest" });
+}, true);
+/* clavier de l'iPad : touche « Suivant » */
+document.addEventListener("focusin", e => {
+  const el = e.target;
+  if (el && el.matches && el.matches("input:not([type=checkbox]):not([type=radio])") && !el.getAttribute("enterkeyhint")) el.setAttribute("enterkeyhint", "next");
+});
