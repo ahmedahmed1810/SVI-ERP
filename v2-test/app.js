@@ -6702,12 +6702,13 @@ function renderBudgetList() {
       const rows = cfApply("lk_unl", UC, insUnlRows().sort((a, b) => natCmp(a.bloc, b.bloc) || natCmp(a.lib, b.lib)));
       lastShown.detail = { cols: UC, rows, kind: "unl" };
       const dw = INS_EDIT ? 40 : 0;
-      const all = rows.length && rows.every(x => x.r.on === true);
+      /* FORMAT 119 : case propre à LIGNES NON LIÉES (r.uon), indépendante des cases des tableaux d'origine */
+      const all = rows.length && rows.every(x => x.r.uon === true);
       return `<table class="bdg-d-table lk-table unl-table" style="width:${oc.reduce((t, c) => t + w(c[0]), 0) + dw}px">
         <colgroup>${oc.map(c => `<col data-w="lk_unl.${c[0]}" style="width:${w(c[0])}px">`).join("")}${dw ? `<col style="width:${dw}px">` : ""}</colgroup>
         <thead><tr>${oc.map(c => cfHead("lk_unl", c[0], c[1], c[3])).join("")}${dw ? `<th class="center"><input type="checkbox" class="unl-cball"${all ? " checked" : ""}></th>` : ""}</tr></thead>
         <tbody>${rows.map(x => `<tr data-uk="${x.k}" data-uid="${x.id}" class="unl-go" title="Aller à la ligne">${oc.map(c => `<td class="${c[3]}">${esc(c[2](x))}</td>`).join("")}${dw
-          ? `<td class="center"><input type="checkbox" class="unl-cb"${x.r.on === true ? " checked" : ""}></td>` : ""}</tr>`).join("")
+          ? `<td class="center"><input type="checkbox" class="unl-cb"${x.r.uon === true ? " checked" : ""}></td>` : ""}</tr>`).join("")
           || `<tr><td colspan="${oc.length + (dw ? 1 : 0)}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
     };
     if (!shell.__unlBound) {
@@ -6718,11 +6719,11 @@ function renderBudgetList() {
         const cb = e.target.closest && e.target.closest("input.unl-cb, input.unl-cball");
         if (!cb) return;
         if (cb.classList.contains("unl-cball")) {
-          cb.closest("table").querySelectorAll("tbody tr[data-uk]").forEach(tr => { const r = X.INS[tr.dataset.uk].find(x => x.id === tr.dataset.uid); if (r) r.on = cb.checked; });
+          cb.closest("table").querySelectorAll("tbody tr[data-uk]").forEach(tr => { const r = X.INS[tr.dataset.uk].find(x => x.id === tr.dataset.uid); if (r) r.uon = cb.checked; });
         } else {
           const tr = cb.closest("tr[data-uk]");
           const r = tr && X.INS[tr.dataset.uk].find(x => x.id === tr.dataset.uid);
-          if (r) r.on = cb.checked;
+          if (r) r.uon = cb.checked;
         }
         X.save(); X.refresh();
       });
@@ -13672,7 +13673,7 @@ function renderBudgetList() {
         /* LIGNES NON LIÉES : ses lignes cochées des autres blocs (désignations, lots, activités) */
         const uv = active === "unl" && lastShown.detail && lastShown.detail.kind === "unl" ? new Set(lastShown.detail.rows.map(x => x.k + "|" + x.id)) : null;
         const un = insUnlinked();
-        ["des", "lot", "prim", "sec", "chg", "prd"].forEach(k => (un[k] || []).forEach(r => { if (r.on === true && !r.t && (!uv || uv.has(k + "|" + r.id))) add(k, r.id); }));
+        ["des", "lot", "prim", "sec", "chg", "prd"].forEach(k => (un[k] || []).forEach(r => { if (r.uon === true && !r.t && (!uv || uv.has(k + "|" + r.id))) add(k, r.id); }));
         /* IMPORT NON CRÉÉ */
         const vi = active === "inc" && lastShown.detail && lastShown.detail.kind === "inc" ? new Set(lastShown.detail.rows.map(x => x.id)) : null;
         (INS.inc || []).forEach(x => { if (x.on === true && (!vi || vi.has(x.id))) add("inc", x.id); });
@@ -13691,7 +13692,7 @@ function renderBudgetList() {
       insBlkKinds(blk).forEach(k => {
         /* onglet LIGNES NON LIÉES : seulement ses lignes (non liées), titres compris */
         const vu = unlTab ? new Set((lastShown.detail && lastShown.detail.kind === "unl" ? lastShown.detail.rows : []).filter(x => x.k === k).map(x => x.id)) : insVis(k);
-        const rows = unlTab ? X.INS[k].filter(r => r.on === true && vu.has(r.id) && !X.isUsed(k, r.id)) : X.INS[k].filter(r => !r.t && r.on === true && vu.has(r.id));
+        const rows = unlTab ? X.INS[k].filter(r => r.uon === true && vu.has(r.id) && !X.isUsed(k, r.id)) : X.INS[k].filter(r => !r.t && r.on === true && vu.has(r.id));
         const free = rows.filter(r => !X.isUsed(k, r.id));
         out.kept += rows.length - free.length;
         const ids = new Set(free.map(r => r.id));
@@ -13783,7 +13784,7 @@ function renderBudgetList() {
     const ctlRows = () => {
       const ls = lastShown.detail;
       if (!ls || ls.kind !== active) return [];
-      return ls.rows.filter(x => active === "unl" ? x.r && x.r.on === true : x.on === true);
+      return ls.rows.filter(x => active === "unl" ? x.r && x.r.uon === true : x.on === true);
     };
     const ctlCount = (blk, act) => {
       const t = ctlTab(blk);
