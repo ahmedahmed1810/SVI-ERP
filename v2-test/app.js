@@ -6488,29 +6488,85 @@ function renderBudgetList() {
     if (INS && INS_EDIT && !INS.sortedV1) { insSortAll(); INS.sortedV1 = true; insSave(); }
     shell.__dupX = INS && INS_EDIT ? { INS, ask: (k, a, b, o) => dupAsk(k, a, b, o), save: () => insSave(), refresh: () => refreshAll() } : null;
     /* doublons déjà présents (anciens budgets, imports) : proposés à l'ouverture, un par un ; IGNORER = plus redemandé pendant la séance */
+    /* DOUBLON EXISTANT (FORMAT 103) : une seule fenêtre pour tous les doublons du budget ;
+       sélecteur ‹ i/N › (liste au toucher du numéro), IGNORER / FUSIONNER / IGNORER TOUS / FUSIONNER TOUS */
     const dupExisting = async () => {
       if (!INS || !INS_EDIT || shell.__dupBusy) return;
+      let skip = {};
+      try { skip = JSON.parse(sessionStorage.getItem("svi_dupskip") || "{}"); } catch (e) {}
+      const items = [];
+      Object.keys(DUP_LAB).forEach(k => {
+        const seen = new Map();
+        INS[k].forEach(r => {
+          const key = dupKeyOf(k, r);
+          if (!key) return;
+          const first = seen.get(key);
+          if (!first) { seen.set(key, r); return; }
+          const sk = ref + "|" + k + "|" + key + "|" + r.id;
+          if (!skip[sk]) items.push({ k, keep: first, drop: r, sk });
+        });
+      });
+      if (!items.length) return;
       shell.__dupBusy = true;
-      try {
-        let skip = {};
-        try { skip = JSON.parse(sessionStorage.getItem("svi_dupskip") || "{}"); } catch (e) {}
-        let changed = false;
-        for (const k of Object.keys(DUP_LAB)) {
-          const seen = new Map();
-          for (const r of INS[k].slice()) {
-            const key = dupKeyOf(k, r);
-            if (!key) continue;
-            const first = seen.get(key);
-            if (!first) { seen.set(key, r); continue; }
-            const sk = ref + "|" + k + "|" + key;
-            if (skip[sk]) continue;
-            const v = await dupAsk(k, first, r, { title: "DOUBLON EXISTANT", backLabel: "IGNORER" });
-            if (v === "merge") changed = true;
-            else { skip[sk] = 1; try { sessionStorage.setItem("svi_dupskip", JSON.stringify(skip)); } catch (e) {} }
-          }
+      let cur = 0, showList = false, changed = false;
+      const alive = it => INS[it.k].includes(it.keep) && INS[it.k].includes(it.drop);
+      const ignore = it => { skip[it.sk] = 1; try { sessionStorage.setItem("svi_dupskip", JSON.stringify(skip)); } catch (e) {} };
+      const d = document.createElement("div");
+      d.id = "svConf";
+      const finish = () => { d.remove(); shell.__dupBusy = false; if (changed) { insSave(); refreshAll(); } };
+      const left = () => { for (let n = items.length - 1; n >= 0; n--) if (!alive(items[n])) items.splice(n, 1); if (cur >= items.length) cur = Math.max(0, items.length - 1); return items.length; };
+      const draw = () => {
+        if (!left()) { finish(); return; }
+        const it = items[cur], m = dupMerged(it.k, it.keep.id, it.drop.id);
+        d.innerHTML = `<div class="svc-card dupx-card" role="dialog" aria-modal="true">
+          <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
+          <div class="svc-t dupx-head">DOUBLON EXISTANT
+            <span class="dupx-nav"><button type="button" data-nav="-1"${cur ? "" : " disabled"}>‹</button><button type="button" class="dupx-num" data-list>${cur + 1}/${items.length}</button><button type="button" data-nav="1"${cur < items.length - 1 ? "" : " disabled"}>›</button></span></div>
+          ${showList ? `<div class="dupx-list">${items.map((x, n) => `<button type="button" class="dupx-li${n === cur ? " on" : ""}" data-go="${n}"><b>${n + 1}</b> ${esc(DUP_LAB[x.k])} — ${esc(dupName(x.k, x.drop))}</button>`).join("")}</div>` : ""}
+          <div class="svc-x"><div class="svc-sub">${esc(DUP_LAB[it.k])} : CE LIBELLÉ EXISTE DÉJÀ</div>
+            <ul class="svc-list"><li>${esc(dupName(it.k, it.keep))} — ${dupLinks(it.k, it.keep.id)} LIAISON(S)</li><li>${esc(dupName(it.k, it.drop))} — ${dupLinks(it.k, it.drop.id)} LIAISON(S)</li></ul>
+            ${m.err ? `<div class="svc-sub svc-warn">FUSION IMPOSSIBLE : ${esc(m.err)}</div>` : `<div class="svc-sub">FUSIONNER : UNE SEULE LIGNE, TOUTES LES LIAISONS REPORTÉES.</div>`}</div>
+          <div class="svc-f dupx-f">
+            <button type="button" class="svc-b" data-a="ignall">IGNORER TOUS</button>
+            <button type="button" class="svc-b svc-ok" data-a="mergeall">FUSIONNER TOUS</button>
+            <button type="button" class="svc-b" data-a="ign">IGNORER</button>
+            <button type="button" class="svc-b svc-ok" data-a="merge"${m.err ? " disabled" : ""}>FUSIONNER</button>
+          </div></div>`;
+      };
+      document.getElementById("svConf")?.remove();
+      document.body.appendChild(d);
+      draw();
+      d.addEventListener("click", async e => {
+        if (e.target.closest("[data-x]")) { finish(); return; }
+        const nv = e.target.closest("[data-nav]");
+        if (nv && !nv.disabled) { cur += +nv.dataset.nav; draw(); return; }
+        if (e.target.closest("[data-list]")) { showList = !showList; draw(); return; }
+        const go = e.target.closest("[data-go]");
+        if (go) { cur = +go.dataset.go; showList = false; draw(); return; }
+        const a = e.target.closest("[data-a]");
+        if (!a || a.disabled) return;
+        const it = items[cur];
+        if (a.dataset.a === "ign") { ignore(it); items.splice(cur, 1); draw(); return; }
+        if (a.dataset.a === "merge") { const m = dupMerged(it.k, it.keep.id, it.drop.id); if (!m.err) { dupMerge(it.k, it.keep.id, it.drop.id, m.links); changed = true; } items.splice(cur, 1); draw(); return; }
+        if (a.dataset.a === "ignall") { items.forEach(ignore); items.length = 0; finish(); return; }
+        if (a.dataset.a === "mergeall") {
+          d.style.display = "none";
+          const n = items.length;
+          const ok = await svConfirm({ title: "FUSIONNER TOUS", text: n + " DOUBLON(S) SERONT FUSIONNÉS (LIAISONS ET DÉLAIS REPORTÉS).", ok: "FUSIONNER TOUS" });
+          if (!ok) { document.body.appendChild(d); d.style.display = ""; draw(); return; }
+          const blocked = [];
+          items.slice().forEach(x => {
+            if (!alive(x)) return;
+            const m = dupMerged(x.k, x.keep.id, x.drop.id);
+            if (m.err) { blocked.push(x.k + "|" + dupName(x.k, x.drop) + " : " + m.err); return; }
+            dupMerge(x.k, x.keep.id, x.drop.id, m.links); changed = true;
+          });
+          items.length = 0;
+          finish();
+          histLog("SAISIE", "DOUBLONS FUSIONNÉS", (n - blocked.length) + " / " + n);
+          if (blocked.length) sviAlert(blocked.map(b => "— " + b.replace(/^[a-z]+\|/, "")).join("\n"), "NON FUSIONNÉS (RÈGLE A) : " + blocked.length);
         }
-        if (changed) { insSave(); refreshAll(); }
-      } finally { shell.__dupBusy = false; }
+      });
     };
     if (INS && INS_EDIT) setTimeout(dupExisting, 600);
     /* LIGNES NON LIÉES (onglet du détail) : BLOC, LIBELLÉ ; cases à cocher, suppression par le menu ⋯ */
