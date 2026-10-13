@@ -7319,40 +7319,72 @@ function renderBudgetList() {
     const dlyPickPreds = key => {
       const add = !key;
       const sel = new Set(add ? [] : dlyPreds(key));
-      let lot = (INS.lot[0] || {}).id || "", q = "";
+      let lot = ([...sel][0] || "").split("|")[0] || (INS.lot.find(x => !x.t) || {}).id || "";
       const d = document.createElement("div");
       d.id = "svConf";
+      const nSel = lo => [...sel].filter(k => k.startsWith(lo + "|")).length;
+      const size = (() => { try { return JSON.parse(localStorage.getItem("svi_dpk_v1") || "null"); } catch (e) { return null; } })();
       const draw = () => {
-        const lots = INS.lot.filter(x => !x.t), secs = INS.sec.filter(x => U_(x.v).includes(q));
-        d.innerHTML = `<div class="svc-card dpk-card" role="dialog" aria-modal="true">
+        const sc = [...d.querySelectorAll(".dpk-col")].map(c => c.scrollTop);
+        const LC = [["v", "LOT", r => r.v || "", ""]], SC = [["v", "ACTIVITÉ SECONDAIRE", r => r.v || "", ""]];
+        const lotsAll = INS.lot.filter(x => !x.t), secsAll = INS.sec.filter(x => !x.t);
+        const lots = cfApply("dpk_lot", LC, lotsAll), secs = cfApply("dpk_sec", SC, secsAll);
+        const okSec = x => { const k = lot + "|" + x.id; return add || !(k === key || dlyReach(k, key)); };
+        const allOn = secs.filter(okSec).length && secs.filter(okSec).every(x => sel.has(lot + "|" + x.id));
+        const card = d.querySelector(".dpk-card");
+        const w = card ? card.style.width : (size && size.w ? size.w + "px" : ""), h = card ? card.style.height : (size && size.h ? size.h + "px" : "");
+        d.innerHTML = `<div class="svc-card dpk-card" role="dialog" aria-modal="true" style="${w ? "width:" + w + ";" : ""}${h ? "height:" + h + ";" : ""}">
           <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
           <div class="svc-t">${add ? "AJOUTER UNE TÂCHE AU PLANNING" : "PRÉDÉCESSEURS — " + esc(dlyName(key))}</div>
-          ${add ? "" : `<div class="dpk-sel">${[...sel].map(k => `<span class="dpk-chip">${esc(dlyName(k))}<button type="button" data-rm="${esc(k)}">✕</button></span>`).join("") || "<i>AUCUN PRÉDÉCESSEUR</i>"} ${svCnt(sel.size)}</div>`}
-          <div class="dpk-cols"><div class="dpk-col"><div class="dpk-h">LOT ${svCnt(lots.length)}</div>${lots.map(x => `<button type="button" class="dpk-lot${x.id === lot ? " on" : ""}" data-lot="${x.id}">${esc(x.v)}</button>`).join("")}</div>
-            <div class="dpk-col"><div class="dpk-h">ACTIVITÉ SECONDAIRE ${svCnt(secs.length, INS.sec.length)}<input class="dpk-q" placeholder="RECHERCHER…" value="${esc(q)}"></div>
-            ${secs.map(x => { const k = lot + "|" + x.id; const off = !add && (k === key || dlyReach(k, key)); return `<label class="dpk-sec${off ? " off" : ""}"><input type="${add ? "radio" : "checkbox"}" name="dpk" data-k="${k}"${sel.has(k) ? " checked" : ""}${off ? " disabled" : ""}> ${esc(x.v)}</label>`; }).join("")}</div></div>
-          <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok${add && !sel.size ? " disabled" : ""}>${add ? "SAISIR SES PÉRIODES" : "VALIDER"}</button></div></div>`;
-        const qi = d.querySelector(".dpk-q");
-        if (qi && d.__qf) { qi.focus(); qi.setSelectionRange(qi.value.length, qi.value.length); }
+          <div class="dpk-cols">
+            <div class="dpk-col"><table class="dpk-t"><thead><tr>${cfHead("dpk_lot", "v", "LOT " + svCnt(lots.length, lotsAll.length))}</tr></thead>
+              <tbody>${lots.map(x => `<tr class="dpk-lot${x.id === lot ? " cur" : ""}${nSel(x.id) ? " chosen" : ""}" data-lot="${x.id}"><td>${esc(x.v)}${nSel(x.id) ? " " + svCnt(nSel(x.id)) : ""}</td></tr>`).join("")}</tbody></table></div>
+            <div class="dpk-col"><table class="dpk-t"><thead><tr>${cfHead("dpk_sec", "v", "ACTIVITÉ SECONDAIRE " + svCnt(secs.length, secsAll.length))}<th class="center dpk-cbh">${add ? "" : `<input type="checkbox" class="dpk-all"${allOn ? " checked" : ""}>`}</th></tr></thead>
+              <tbody>${secs.map(x => { const k = lot + "|" + x.id, off = !okSec(x), on = sel.has(k);
+                return `<tr class="dpk-sec${off ? " off" : ""}${on ? " chosen" : ""}"><td>${esc(x.v)}</td><td class="center"><input type="${add ? "radio" : "checkbox"}" name="dpk" data-k="${k}"${on ? " checked" : ""}${off ? " disabled" : ""}></td></tr>`; }).join("")}</tbody></table></div>
+          </div>
+          <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok${add && !sel.size ? " disabled" : ""}>${add ? "SAISIR SES PÉRIODES" : "VALIDER"}</button></div>
+          <div class="dpk-rsz" title="Largeur et hauteur"></div></div>`;
+        d.querySelectorAll(".dpk-col").forEach((c, n) => { c.scrollTop = sc[n] || 0; });
       };
       document.getElementById("svConf")?.remove();
       document.body.appendChild(d);
       draw();
-      d.addEventListener("input", e => { if (e.target.matches(".dpk-q")) { q = U_(e.target.value); d.__qf = true; draw(); } });
+      window.__sviDpkRefresh = () => { if (d.isConnected) draw(); else window.__sviDpkRefresh = null; };
+      const close = () => { d.remove(); window.__sviDpkRefresh = null; };
+      /* poignée d'angle : largeur et hauteur, mémorisées */
+      d.addEventListener("pointerdown", e => {
+        const hd = e.target.closest(".dpk-rsz");
+        if (!hd) return;
+        e.preventDefault();
+        const card = d.querySelector(".dpk-card"), r0 = card.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY;
+        const mv = ev => {
+          const w = Math.max(420, Math.min(window.innerWidth - 16, r0.width + 2 * (ev.clientX - x0)));
+          const h = Math.max(300, Math.min(window.innerHeight - 16, r0.height + 2 * (ev.clientY - y0)));
+          card.style.width = w + "px"; card.style.height = h + "px";
+          try { localStorage.setItem("svi_dpk_v1", JSON.stringify({ w: Math.round(w), h: Math.round(h) })); } catch (err) {}
+        };
+        const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); };
+        document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+      });
       d.addEventListener("change", e => {
+        if (e.target.matches(".dpk-all")) {
+          d.querySelectorAll("input[data-k]:not([disabled])").forEach(c => { if (e.target.checked) sel.add(c.dataset.k); else sel.delete(c.dataset.k); });
+          draw(); return;
+        }
         const c = e.target.closest("[data-k]");
         if (!c) return;
         if (add) { sel.clear(); if (c.checked) sel.add(c.dataset.k); } else if (c.checked) sel.add(c.dataset.k); else sel.delete(c.dataset.k);
-        d.__qf = false; draw();
+        draw();
       });
       d.addEventListener("click", e => {
-        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        const cfb = e.target.closest(".cf-btn");
+        if (cfb) { e.stopPropagation(); cfOpenMenu(cfb); return; }
+        if (e.target === d || e.target.closest("[data-x]")) { close(); return; }
         const l = e.target.closest("[data-lot]");
-        if (l) { lot = l.dataset.lot; d.__qf = false; draw(); return; }
-        const rm = e.target.closest("[data-rm]");
-        if (rm) { sel.delete(rm.dataset.rm); d.__qf = false; draw(); return; }
+        if (l) { lot = l.dataset.lot; draw(); return; }
         if (!e.target.closest("[data-ok]") || e.target.closest("[data-ok]").disabled) return;
-        d.remove();
+        close();
         if (add) { const k = [...sel][0]; if (k && shell.__insDly) shell.__insDly.go(k); return; }
         INS.dpred = INS.dpred || {};
         if (sel.size) INS.dpred[key] = [...sel]; else delete INS.dpred[key];
@@ -8283,6 +8315,7 @@ function renderBudgetList() {
         REC_KINDS.forEach(renderRec);
         if (window.__sviHistRefresh) window.__sviHistRefresh();
         if (window.__sviImpRefresh) window.__sviImpRefresh();
+        if (window.__sviDpkRefresh) window.__sviDpkRefresh();
         if (window.__sviInfoRefresh) window.__sviInfoRefresh();
         if (INS) insApplyMode();
       });
