@@ -3068,15 +3068,17 @@ function renderBudgetList() {
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      /* FORMAT 113 : zone de réglage large au toucher (trait fin à l'œil) */
       .col-rs {
-        position: absolute; top: 0; right: 0; width: 9px; height: 100%;
+        position: absolute; top: 0; right: 0; width: 18px; height: 100%;
         cursor: col-resize; z-index: 4; touch-action: none;
       }
       .col-rs::after {
         content: ""; position: absolute; top: 3px; bottom: 3px; right: 0;
         width: 1px; background: #cfd6df;
       }
-      .col-rs.on::after { background: #1d4ed8; width: 2px; }
+      .col-rs.on::after { background: #1d4ed8; width: 3px; }
+      .col-rs.on { background: rgba(29, 78, 216, .08); }
 
       .bdg-d-table th,
       .bdg-d-table td {
@@ -3654,7 +3656,7 @@ function renderBudgetList() {
       /* tri / filtre par colonne */
       .cf-wrap { display: flex; align-items: center; gap: 4px; width: 100%; }
       .cf-lab { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
-      .cf-wrap .cf-btn { margin-left: auto; margin-right: 7px; }
+      .cf-wrap .cf-btn { margin-left: auto; margin-right: 10px; }
       .cf-btn {
         display: inline-flex; align-items: center; justify-content: center;
         width: 18px; height: 16px; border-radius: 4px; cursor: pointer;
@@ -5368,7 +5370,13 @@ function renderBudgetList() {
       qty: 100, price: 95, ht: 120, amount: 120, tva: 80, ttc: 130,
       nbr: 60, d1: 60, d2: 60, d3: 60
     };
-    const cwGet = (t, k) => cwLoad()[t + "." + k] || CW_DEF[k] || 100;
+    /* FORMAT 113 : disposition par défaut = largeurs réglées par Ahmed sur l'iPad (13/10/2026) */
+    const CW_DEF_T = {
+      "client.article": 69, "client.designation": 660, "client.unit": 70, "client.qty": 71, "client.price": 86, "client.ht": 96, "client.tva": 81, "client.ttc": 97,
+      "chg.article": 69, "chg.detail": 545, "chg.unit": 70, "chg.qty": 109, "chg.price": 107, "chg.amount": 120, "chg.tva": 80, "chg.ttc": 130,
+      "prd.detail": 337, "prd.unit": 70, "prd.nbr": 71, "prd.d1": 76, "prd.d2": 76, "prd.d3": 68, "prd.qty": 108, "prd.price": 94, "prd.amount": 120, "prd.tva": 81, "prd.ttc": 130
+    };
+    const cwGet = (t, k) => cwLoad()[t + "." + k] || CW_DEF_T[t + "." + k] || CW_DEF[k] || 100;
 
     /* colgroup + largeur totale de la table */
     const cwCols = (t, cols) =>
@@ -6307,7 +6315,7 @@ function renderBudgetList() {
         ["sec", "ACTIVITÉ SECONDAIRE", l => lkName("sec", l.sec), ""], ["np", "PRODUITS", l => (l.prd || []).length, "center"],
         ["nc", "CHARGES", l => (l.chg || []).length, "center"], ["lq", "QUANTITÉ", l => insFmt(qOf(l)), "number"],
         ["lp", "PPB", l => pOf(l) === "" ? "" : insFmt(pOf(l)), "number"], ["lm", "MPB HT", l => pOf(l) === "" ? "" : insFmt(qOf(l) * pOf(l)), "number"]];
-      const W = { art: 70, des: 300, lot: 150, prim: 170, sec: 190, np: 110, nc: 110, lq: 120, lp: 110, lm: 140 };
+      const W = { art: 70, des: 227, lot: 133, prim: 170, sec: 190, np: 104, nc: 102, lq: 104, lp: 71, lm: 97 };   /* FORMAT 113 */
       const oc = coOrder("lk_links", LC);
       const w = k => cwLoad()["lk_links." + k] || W[k] || 120;
       const D2 = id => INS.des.find(x => x.id === id) || {};
@@ -6657,7 +6665,7 @@ function renderBudgetList() {
     };
     const insUnlHTML = () => {
       const UC = [["ref", "RÉF.", x => x.ref, "center"], ["bloc", "BLOC", x => x.bloc, ""], ["lib", "LIBELLÉ", x => x.lib, ""]];
-      const W = { ref: 90, bloc: 200, lib: 520 };
+      const W = { ref: 89, bloc: 469, lib: 709 };   /* FORMAT 113 */
       const oc = coOrder("lk_unl", UC);
       const w = k => cwLoad()["lk_unl." + k] || W[k] || 160;
       const rows = cfApply("lk_unl", UC, insUnlRows().sort((a, b) => natCmp(a.bloc, b.bloc) || natCmp(a.lib, b.lib)));
@@ -9417,8 +9425,10 @@ function renderBudgetList() {
         };
       } else {
         const table = h.closest("table");
-        const col = table.querySelector(`col[data-w="${t}.${key}"]`);
+        /* DÉTAIL DÉLAIS : en-têtes « dlys / dlyp… », colonnes « dly.… » — la colonne est retrouvée par sa clé */
+        const col = table.querySelector(`col[data-w="${t}.${key}"]`) || table.querySelector(`col[data-w$=".${key}"]`);
         if (!col) return;
+        const wKey = col.dataset.w;
         const w0 = parseFloat(col.style.width) || col.getBoundingClientRect().width;
         let w = w0;
         apply = x => {
@@ -9430,7 +9440,7 @@ function renderBudgetList() {
         };
         save = () => {
           const all = cwLoad();
-          all[t + "." + key] = w;
+          all[wKey] = w;
           cwSave(all);
           histLog("COLONNES", "LARGEUR", t);
         };
@@ -12584,7 +12594,7 @@ function renderBudgetList() {
       const n = Math.max(0, ...L.map(x => x.length));
       if (!n) { sviAlert("Aucune donnée dans TÂCHES."); return; }
       const NB = ' style="border:0 !important;background:none !important"';
-      const head = ks.map((k, i) => (i ? `<th${NB}></th>` : "") + `<th>${esc(lab[k])} ${L[i].length}</th>`).join("");
+      const head = ks.map((k, i) => (i ? `<th${NB}></th>` : "") + `<th>${esc(lab[k])} (${L[i].length})</th>`).join("");
       const body = Array.from({ length: n }, (_, j) => "<tr>" + L.map((x, i) => (i ? `<td${NB}></td>` : "") +
         (j < x.length ? `<td>${esc(x[j])}</td>` : `<td${NB}></td>`)).join("") + "</tr>").join("");
       const cg = ks.map((k, i) => (i ? '<col style="width:2%">' : "") + '<col style="width:32%">').join("");
