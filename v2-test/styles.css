@@ -1361,3 +1361,15 @@ tr.dly-task { cursor: pointer; }
 .bdg-d-hright .inst-act.off { opacity: .35; }
 #svConf .fz-why { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid #e5e9f0; background: #fff; border-radius: 8px; padding: 9px 10px; margin: 0 0 6px; font-weight: 700; font-size: 12px; text-align: left; color: #172033; }
 #blkMenu .del-split { display: block; font-size: 10px; font-weight: 700; color: #6b7280; margin-top: 2px; }
+/* DOUBLON EXISTANT : sélecteur et liste */
+#svConf .dupx-card { width: min(680px, 94vw); max-width: none; }
+.dupx-head { display: flex; align-items: center; gap: 14px; padding-right: 36px; }
+.dupx-nav { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+.dupx-nav button { border: 1px solid #d6dbe3; background: #fff; border-radius: 8px; min-width: 32px; height: 30px; font-weight: 800; font-size: 13px; color: #172033; }
+.dupx-nav button:disabled { opacity: .35; }
+.dupx-nav .dupx-num { padding: 0 10px; background: #eef1f6; }
+.dupx-list { max-height: 34vh; overflow: auto; border: 1px solid #e5e9f0; border-radius: 8px; margin: 6px 0 8px; }
+.dupx-li { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid #f0f2f5; background: #fff; padding: 6px 10px; font-size: 11px; font-weight: 700; color: #172033; }
+.dupx-li b { display: inline-block; min-width: 28px; color: #6b7280; }
+.dupx-li.on { background: #dbeafe; }
+.dupx-f { flex-wrap: wrap; }
