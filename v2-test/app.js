@@ -9238,7 +9238,7 @@ function renderBudgetList() {
       insRedraw("des");
       /* nouveau titre : l'intitulé est prêt à être saisi */
       if (created) setTimeout(() => {
-        const i = shell.querySelector(`#bdgClientBody tr[data-iid="${created.id}"] input[data-f="des"]`);
+        const i = shell.querySelector(`#bdgClientBody tr[data-iid="${created.id}"] [data-f="des"]`);
         if (i) { i.focus(); try { i.select(); } catch (e) {} i.scrollIntoView({ block: "nearest" }); }
       }, 30);
     };
@@ -9277,10 +9277,10 @@ function renderBudgetList() {
       const roLine = (row, y, depth) => {
         let l = document.getElementById("roLine");
         if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); }
-        const cell = row.querySelector('input[data-f="des"]')?.closest("td") || row;
+        const cell = row.querySelector('[data-f="des"]')?.closest("td") || row;
         const c = cell.getBoundingClientRect(), t = row.closest("table").getBoundingClientRect(), box = row.closest(".bdg-d-scroll") || row.closest("table");
         const b = box.getBoundingClientRect();
-        const x0 = Math.max(b.left, c.left + 4 + depth * 14), x1 = Math.min(b.right, t.right);
+        const x0 = Math.max(b.left, c.left + 4 + depth * 20), x1 = Math.min(b.right, t.right);
         l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${x0}px;width:${Math.max(20, x1 - x0)}px;top:${y - 1.5}px`;
       };
       const timer = setTimeout(() => {
@@ -9320,8 +9320,8 @@ function renderBudgetList() {
                 /* sous un titre replié : doigt vers la droite = entre dans le titre, vers la gauche = à l'extérieur */
                 inside = false;
                 if (after && tr0 && tr0.t && foldGet()[tr0.id]) {
-                  const c = (x.querySelector('input[data-f="des"]')?.closest("td") || x).getBoundingClientRect();
-                  inside = e.clientX > c.left + 8 + d0 * 14 + 24;
+                  const c = (x.querySelector('[data-f="des"]')?.closest("td") || x).getBoundingClientRect();
+                  inside = e.clientX > c.left + 8 + d0 * 20 + 24;
                 }
                 if (over) x.classList.add("ro-on");
                 else roLine(x, after ? r.bottom : r.top, !after ? d0 : (tr0 && tr0.t && (!foldGet()[tr0.id] || inside)) ? d0 + 1 : d0);
