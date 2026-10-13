@@ -5747,6 +5747,10 @@ function renderBudgetList() {
     const insNorm = () => {
       if (!INS) return;
       if (insTwins()) insSave();
+      /* FORMAT 108 : DIM à 0 = DIM vide */
+      { let ch = false;
+        (INS.prd || []).forEach(r => ["d1", "d2", "d3"].forEach(f => { const v = r[f]; if (v !== "" && v !== undefined && v !== null && String(v).trim() !== "" && num(v) === 0) { r[f] = ""; ch = true; } }));
+        if (ch && INS_EDIT) insSave(); }
       try { if (dlyClean()) insSave(); } catch (e) {}
       const stack = [];
       INS.des.forEach(r => {
@@ -5791,7 +5795,7 @@ function renderBudgetList() {
       ],
       chg: [
         ["art", "ART", "center", "txt", "article"],
-        ["des", "DÉSIGNATION", "", "txt", "detail"],
+        ["des", "DÉSIGNATION CHARGE", "", "txt", "detail"],
         ["u", "UCB", "center", "txt", "unit"],
         ["q", "QCB", "number", "num", "qty"],
         ["p", "PCB", "number", "num", "price"],
@@ -5800,7 +5804,7 @@ function renderBudgetList() {
         ["ttc", "MCB TTC", "number", "calc", "ttc"]
       ],
       prd: [   /* pas de colonne ART : un produit n'a pas d'article */
-        ["des", "DÉSIGNATION", "", "txt", "detail"],
+        ["des", "DÉSIGNATION PRODUIT", "", "txt", "detail"],
         ["u", "UPB", "center", "txt", "unit"],
         ["nbr", "NBR", "number", "num", "nbr"],
         ["d1", "DIM 1", "number", "num", "d1"],
@@ -5858,7 +5862,9 @@ function renderBudgetList() {
         else if (type === "num") val = f === "tva" ? (r.tva === "" || r.tva === undefined ? "20,00" : insFmt(r.tva)) : insFmt(r[f]);
         else val = r[f] || "";
       }
-      if (!INS_EDIT) return `<td class="${cls}">${esc(val)}${f === "tva" && val ? " %" : ""}</td>`;
+      if (!INS_EDIT) return `<td class="${cls}${k === "des" && f === "des" ? " c-wrap" : ""}">${esc(val)}${f === "tva" && val ? " %" : ""}</td>`;
+      /* FORMAT 109 : DÉSIGNATION client sur plusieurs lignes si elle est trop longue (la ligne devient plus haute) */
+      if (k === "des" && f === "des") return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} ${isNew ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea></td>`;
       return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
         ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
         value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off"></td>`;
@@ -6165,6 +6171,35 @@ function renderBudgetList() {
         <tbody>${insBodyHTML(k)}</tbody>
         <tfoot>${insFootHTML(k)}</tfoot></table>`;
     };
+    /* FORMAT 109 : bloc DÉSIGNATIONS CLIENT — à l'ouverture toutes les colonnes tiennent (cases comprises) :
+       la colonne DÉSIGNATION se réduit (sauf largeur réglée à la main) ; texte à la ligne */
+    const clientTaFit = root => (root || document).querySelectorAll("textarea.ins-ta").forEach(t => {
+      t.style.height = "0px"; t.style.height = Math.max(20, t.scrollHeight) + "px";
+    });
+    const clientFit = () => {
+      const sc = document.querySelector(".bdg-d-client-scroll"), cg = $("bdgClientCols");
+      if (!sc || !cg) return;
+      const tbl = sc.querySelector("table"), dc = cg.querySelector('col[data-w="client.designation"]');
+      if (!sc.__ro && window.ResizeObserver) {
+        let raf = 0; const run = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(clientFit); };
+        sc.__ro = new ResizeObserver(run); sc.__ro.observe(sc);
+        const body = $("bdgClientBody"); if (body) new MutationObserver(run).observe(body, { childList: true, subtree: true });
+      }
+      if (tbl && dc && !cwLoad()["client.designation"] && sc.clientWidth > 300) {
+        const cols = [...cg.querySelectorAll("col")];
+        const others = cols.filter(c => c !== dc).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
+        const nd = Math.max(160, Math.min(cwGet("client", "designation"), sc.clientWidth - others - 2));
+        if (parseFloat(dc.style.width) !== nd) dc.style.width = nd + "px";
+        const tw = others + nd + "px";
+        if (tbl.style.width !== tw) tbl.style.width = tw;
+      }
+      /* version validée / figée : cellule DÉSIGNATION à la ligne */
+      if (tbl && dc && !tbl.classList.contains("ins-table")) {
+        const idx = [...cg.querySelectorAll("col")].indexOf(dc);
+        tbl.querySelectorAll("tbody tr").forEach(tr => { const td = tr.children[idx]; if (td && td.colSpan <= 1) td.classList.add("c-wrap"); });
+      }
+      clientTaFit(sc);
+    };
     const insRenderClient = () => {
       insNorm();
       const t = document.querySelector("#bdgClientTitle .ttl");
@@ -6187,6 +6222,7 @@ function renderBudgetList() {
       $("bdgClientFoot").innerHTML = src.querySelector("tfoot").innerHTML;
       insSyncTitles();
       insDim();
+      clientFit();
     };
     /* une désignation cochée : les autres lignes se grisent (une seule à la fois) */
     const insDim = () => {
@@ -6291,7 +6327,7 @@ function renderBudgetList() {
        corrigées ici (case fautive encadrée), elles créent leur liaison et sortent de l'onglet */
     const INC_COLS = [["art", "ART", 60, "center"], ["dc", "DÉSIGNATION CLIENT", 240, ""], ["upb", "UPB", 60, "center"], ["lot", "LOT", 150, ""],
       ["prim", "ACTIVITÉ PRIMAIRE", 170, ""], ["sec", "ACTIVITÉ SECONDAIRE", 170, ""], ["type", "TYPE", 70, "center"], ["article", "ARTICLE", 80, "center"],
-      ["des", "DÉSIGNATION", 220, ""], ["u", "UNITÉ", 60, "center"], ["nbr", "NBR", 60, "number"], ["d1", "DIM 1", 60, "number"], ["d2", "DIM 2", 60, "number"],
+      ["des", "DÉSIGNATION PRODUIT / CHARGE", 220, ""], ["u", "UNITÉ", 60, "center"], ["nbr", "NBR", 60, "number"], ["d1", "DIM 1", 60, "number"], ["d2", "DIM 2", 60, "number"],
       ["d3", "DIM 3", 60, "number"], ["q", "QTE", 70, "number"], ["deb", "DÉBUT", 100, "center"], ["fin", "FIN", 100, "center"], ["pred", "PRÉDÉCESSEURS", 220, ""]];
     const insIncHTML = () => {
       /* justificatif : numéro de la ligne dans le tableau source + raison */
@@ -6418,14 +6454,14 @@ function renderBudgetList() {
       shell.__dupBound = true;
       /* valeur avant saisie */
       shell.addEventListener("focusin", e => {
-        const X = shell.__dupX, inp = e.target.closest && e.target.closest("input.ins-in");
+        const X = shell.__dupX, inp = e.target.closest && e.target.closest(".ins-in");
         if (!X || !inp) return;
         const h = inp.closest("[data-iid]"), k = h && (h.dataset.ik || h.closest("[data-ik]")?.dataset.ik);
         const r = k && X.INS[k] && X.INS[k].find(x => x.id === h.dataset.iid);
         shell.__dupOld = r ? { k, id: r.id, row: { ...r } } : null;
       });
       shell.addEventListener("change", async e => {
-        const X = shell.__dupX, inp = e.target.closest && e.target.closest("input.ins-in");
+        const X = shell.__dupX, inp = e.target.closest && e.target.closest(".ins-in");
         if (!X || !inp || !["v", "des", "art", "u"].includes(inp.dataset.f)) return;
         const h = inp.closest("[data-ik]"), k = h && h.dataset.ik;
         if (!k || !DUP_LAB[k]) return;
@@ -6571,7 +6607,42 @@ function renderBudgetList() {
         }
       });
     };
-    if (INS && INS_EDIT) setTimeout(dupExisting, 600);
+    /* FORMAT 108 : produits du budget avec NBR vide ou 0 → déliés, retirés, mis dans IMPORT NON CRÉÉ (après confirmation) */
+    const insNbrFix = async () => {
+      if (!INS || !INS_EDIT || shell.__nbrBusy) return;
+      const z = v => String(v ?? "").trim() === "" || num(v) === 0;
+      const bad = (INS.prd || []).filter(r => z(r.nbr));
+      if (!bad.length) return;
+      const skipK = "svi_nbrskip:" + ref;
+      try { if (sessionStorage.getItem(skipK) === bad.map(r => r.id).join(",")) return; } catch (e) {}
+      const ids = new Set(bad.map(r => r.id));
+      const touched = (INS.links || []).filter(l => (l.prd || []).some(x => ids.has(x.id)));
+      const tag = l => [lkName("des", l.des), lkName("lot", l.lot), lkName("prim", l.prim), lkName("sec", l.sec)].join(" › ");
+      shell.__nbrBusy = true;
+      const go = await svConfirm({ title: "PRODUITS SANS NBR", ok: "RETIRER",
+        html: `<div class="svc-sub">${bad.length} PRODUIT(S) AVEC NBR VIDE OU 0 SERONT RETIRÉS ET MIS DANS IMPORT NON CRÉÉ :</div>
+          <ul class="svc-list">${bad.map(r => `<li>${esc(r.des || "")} — ${esc(r.u || "")}</li>`).join("")}</ul>
+          ${touched.length ? `<div class="svc-sub">LIAISONS TOUCHÉES ${svCnt(touched.length)} (PRODUIT RETIRÉ ; SANS AUTRE PRODUIT, LA LIAISON EST DÉLIÉE) :</div><ul class="svc-list">${touched.map(l => `<li>${esc(tag(l))}</li>`).join("")}</ul>` : ""}` });
+      shell.__nbrBusy = false;
+      if (!go) { try { sessionStorage.setItem(skipK, bad.map(r => r.id).join(",")); } catch (e) {} return; }
+      const V = (k, id) => (INS[k].find(x => x.id === id) || {});
+      const items = [];
+      bad.forEach(r => {
+        const base = { type: "PRD", article: "", des: r.des || "", u: r.u || "", nbr: String(r.nbr ?? ""), d1: String(r.d1 ?? ""), d2: String(r.d2 ?? ""), d3: String(r.d3 ?? ""), q: "" };
+        const ls = touched.filter(l => (l.prd || []).some(x => x.id === r.id));
+        (ls.length ? ls : [null]).forEach(l => {
+          const D = l ? V("des", l.des) : {};
+          items.push({ id: insId(), on: false, bad: ["nbr"], why: "NBR VIDE OU 0", line: "",
+            src: { art: l ? String(D.art || "") : "", dc: l ? D.des || "" : "", upb: l ? D.u || "" : "", lot: l ? V("lot", l.lot).v || "" : "", prim: l ? V("prim", l.prim).v || "" : "", sec: l ? V("sec", l.sec).v || "" : "", ...base } });
+        });
+      });
+      INS.links = (INS.links || []).map(l => ({ ...l, prd: (l.prd || []).filter(x => !ids.has(x.id)) })).filter(l => (l.prd || []).length);
+      INS.prd = INS.prd.filter(r => !ids.has(r.id));
+      INS.inc = (INS.inc || []).concat(items);
+      histLog("SAISIE", "PRODUITS SANS NBR", bad.length + " PRODUIT(S) → IMPORT NON CRÉÉ" + (touched.length ? " — " + touched.length + " LIAISON(S) TOUCHÉE(S)" : ""));
+      insSave(); refreshAll();
+    };
+    if (INS && INS_EDIT) setTimeout(async () => { try { await dupExisting(); } catch (e) {} insNbrFix(); }, 600);
     /* LIGNES NON LIÉES (onglet du détail) : BLOC, LIBELLÉ ; cases à cocher, suppression par le menu ⋯ */
     const UNL_BLOC = { des: "DÉSIGNATION CLIENT", lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE", prd: "PRODUIT", chg: "CHARGE" };
     const insUnlRows = () => {
@@ -6754,7 +6825,7 @@ function renderBudgetList() {
           if (on) td.dataset.why = er.m; else delete td.dataset.why;
         });
       }
-      tr.querySelectorAll("input.ins-in").forEach(inp => {
+      tr.querySelectorAll(".ins-in").forEach(inp => {
         const f = inp.dataset.f;
         const c = INS_COLS[k].find(x => x[0] === f);
         if (!c || inp === document.activeElement) return;
@@ -6822,7 +6893,7 @@ function renderBudgetList() {
       shell.__insBound = true;
       shell.addEventListener("input", e => {
         const X = shell.__ins;
-        const inp = e.target.closest("input.ins-in");
+        const inp = e.target.closest(".ins-in");
         if (!X || !inp) return;
         const holder = inp.closest("[data-ik]");
         if (!holder) return;   /* délais : gérés à part */
@@ -6960,7 +7031,7 @@ function renderBudgetList() {
       /* le doigt quitte un bloc : lignes vidées retirées, titres et sous-totaux remis en place */
       shell.addEventListener("focusout", e => {
         const X = shell.__ins;
-        const inp = e.target.closest && e.target.closest("input.ins-in");
+        const inp = e.target.closest && e.target.closest(".ins-in");
         if (!X || !inp) return;
         const box = inp.closest("table.ins-table, .ins-hcol");
         const k = box?.dataset.ik;
@@ -7540,7 +7611,7 @@ function renderBudgetList() {
       };
       /* DÉTAILS : produits (obligatoire = étoile), charges (ordre alphabétique) */
       const det = k => {
-        const C = [["des", "DÉSIGNATION", r => r.des || "", ""], ["u", k === "prd" ? "UPB" : "UCB", r => r.u || "", "center"],
+        const C = [["des", k === "prd" ? "DÉSIGNATION PRODUIT" : "DÉSIGNATION CHARGE", r => r.des || "", ""], ["u", k === "prd" ? "UPB" : "UCB", r => r.u || "", "center"],
           ["qt", "QUANTITÉ DE LA TÂCHE", r => LK[k][r.id] ?? "", "number"]];
         let rows = [...INS[k]];
         if (k === "chg") rows.sort((a, b) => az(a.des || "", b.des || ""));
@@ -7702,7 +7773,7 @@ function renderBudgetList() {
     if (!shell.__dimBound) {
       shell.__dimBound = true;
       shell.addEventListener("change", e => {
-        const inp = e.target.closest && e.target.closest("input.ins-in");
+        const inp = e.target.closest && e.target.closest(".ins-in");
         const X = shell.__ins;
         if (!inp || !X || !["u", "nbr", "d1", "d2", "d3"].includes(inp.dataset.f)) return;
         const tr = inp.closest('tr[data-ik="prd"][data-iid]');
@@ -7721,7 +7792,7 @@ function renderBudgetList() {
     if (!shell.__chsBound) {
       shell.__chsBound = true;
       shell.addEventListener("change", e => {
-        const inp = e.target.closest && e.target.closest("input.ins-in");
+        const inp = e.target.closest && e.target.closest(".ins-in");
         const X = shell.__ins;
         if (!inp || !X || !["art", "des"].includes(inp.dataset.f)) return;
         const tr = inp.closest('tr[data-ik="chg"][data-iid]');
@@ -7749,7 +7820,7 @@ function renderBudgetList() {
     if (!shell.__ruleBound) {
       shell.__ruleBound = true;
       shell.addEventListener("change", e => {
-        const inp = e.target.closest && e.target.closest("input.ins-in");
+        const inp = e.target.closest && e.target.closest(".ins-in");
         const X = shell.__ins;
         if (!inp || !X) return;
         const tr = inp.closest("[data-ik][data-iid]");
@@ -7789,7 +7860,7 @@ function renderBudgetList() {
       });
       let lastRow = null;
       shell.addEventListener("focusin", e => {
-        const inp = e.target.closest && e.target.closest("input.ins-in");
+        const inp = e.target.closest && e.target.closest(".ins-in");
         const X = shell.__ins;
         if (!inp || !X) return;
         const tr = inp.closest("tr[data-ik]");
@@ -8027,7 +8098,7 @@ function renderBudgetList() {
         /* tableaux de la fenêtre : tri / filtre sur chaque colonne (consigne 7) */
         const list = k => [...(same ? (same[k] || []).map(x => ({ id: x.id, st: "LIÉ" })) : []), ...Object.keys(LK[k]).map(id => ({ id, st: "À AJOUTER" }))]
           .map(o => { const r = INS[k].find(x => x.id === o.id) || {}; return { des: r.des || "", u: r.u || "", q: k === "prd" ? insPrdQ(r) : num(r.q || 0), st: o.st }; });
-        const C = k => [["des", "DÉSIGNATION", x => x.des, ""], ["u", k === "prd" ? "UPB" : "UCB", x => x.u, "center"],
+        const C = k => [["des", k === "prd" ? "DÉSIGNATION PRODUIT" : "DÉSIGNATION CHARGE", x => x.des, ""], ["u", k === "prd" ? "UPB" : "UCB", x => x.u, "center"],
           ["q", k === "prd" ? "QPB" : "QCB", x => x.q, "number"], ["st", "ÉTAT", x => x.st, "center"]];
         const tbl = (k, lab) => {
           const t = "lki_" + k, rows = cfApply(t, C(k), list(k));
@@ -8153,6 +8224,7 @@ function renderBudgetList() {
       $("bdgClientCols").innerHTML = cwCols("client", ccols);
       $("bdgClientHead").closest("table").style.width =
         cwTableW("client", ccols) + "px";
+      setTimeout(clientFit, 0);
 
       $("bdgClientHead").innerHTML =
         "<tr>" + ccols.map(([k, lab, , cls]) => cfHead("client", k, lab, cls)).join("") + "</tr>";
@@ -8447,7 +8519,7 @@ function renderBudgetList() {
     const tcolsFor = prd => [
       /* détail produits : pas de colonne ART (FORMAT 6) */
       ...(prd ? [] : [["article", "ART", l => l.article, "center"]]),
-      ["detail", "DÉSIGNATION", l => l.detail, ""],
+      ["detail", prd ? "DÉSIGNATION PRODUIT" : "DÉSIGNATION CHARGE", l => l.detail, ""],
       ["unit", prd ? "UPB" : "UCB", l => l.unit, "center"],
       ...(prd ? [
         ["nbr", "NBR", l => String(l.nbr ?? ""), "number"],
@@ -9121,7 +9193,7 @@ function renderBudgetList() {
       const k = el.dataset.ik || holder?.dataset.ik;
       const isRow = el.tagName === "TR";
       { const st = CF[k === "des" ? "client" : k]; if (st && st.sort && !st.sort.def) return; }
-      const inp = event.target.closest("input.ins-in");
+      const inp = event.target.closest(".ins-in");
       const tapFocus = inp && inp !== document.activeElement ? inp : null;
       const sibs = () => isRow
         ? [...el.parentElement.querySelectorAll("tr[data-iid]")]
@@ -9306,7 +9378,7 @@ function renderBudgetList() {
         return;
       }
       if (insEl && !event.target.closest(".ins-t, .ins-cb, .ins-x, .lk-rd, .lk-q, .ins-fold") &&
-          event.target.closest("input.ins-in") !== document.activeElement) { insDrag(event, insEl); return; }
+          event.target.closest(".ins-in") !== document.activeElement) { insDrag(event, insEl); return; }
       const rz = event.target.closest(".blk-rsz");
       if (rz) { layResize(event, rz); return; }
       const gp = event.target.closest(".blk-grip");
@@ -10338,8 +10410,8 @@ function renderBudgetList() {
       const cols = {
         des: [["art", "ART"], ["des", "DÉSIGNATION"], ["u", "UPB"], ["q", "QPB", 1], ["p", "PPB", 1]],
         hier: [["lvl", "NIVEAU"], ["v", "LIBELLÉ"]],
-        chg: [["des", "DÉSIGNATION"], ["u", "UCB"], ["q", "QCB", 1], ["p", "PCB", 1]],
-        prd: [["des", "DÉSIGNATION"], ["u", "UPB"]],
+        chg: [["des", "DÉSIGNATION CHARGE"], ["u", "UCB"], ["q", "QCB", 1], ["p", "PCB", 1]],
+        prd: [["des", "DÉSIGNATION PRODUIT"], ["u", "UPB"]],
         qlt: [["v", "QUALITÉ"]],
         dly: [["lot", "LOT"], ["sec", "ACTIVITÉ SECONDAIRE"], ["deb", "DÉBUT"], ["fin", "FIN"]]
       };
@@ -10655,7 +10727,7 @@ function renderBudgetList() {
        une ligne par produit ou charge, avec toute sa chaîne ; les lignes non liées figurent seules.
        Ni prix, ni montant, ni TVA, ni délais ; QTE seulement pour les charges. ===== */
     const BF_HEAD = ["ART", "DÉSIGNATION CLIENT", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE",
-      "TYPE (PRD / CHG)", "ARTICLE", "DÉSIGNATION", "UNITÉ", "NBR", "DIM 1", "DIM 2", "DIM 3", "QTE"];
+      "TYPE (PRD / CHG)", "ARTICLE", "DÉSIGNATION PRODUIT / CHARGE", "UNITÉ", "NBR", "DIM 1", "DIM 2", "DIM 3", "QTE"];
     const budgetFlat = () => {
       const d = dupData();
       const by = (k, id) => (d[k] || []).find(x => x.id === id) || {};
@@ -10694,17 +10766,22 @@ function renderBudgetList() {
       const H = aoa[hi].map(bfNorm);
       const col = (...names) => H.findIndex(h => names.some(x => h === x || (x.endsWith("*") && h.startsWith(x.slice(0, -1)))));
       const C = { art: col("ART"), dc: col("DESIGNATION CLIENT"), upb: col("UPB"), lot: col("LOT"), prim: col("ACTIVITE PRIMAIRE"),
-        sec: col("ACTIVITE SECONDAIRE"), type: col("TYPE*"), article: col("ARTICLE"), des: col("DESIGNATION"), u: col("UNITE"),
+        sec: col("ACTIVITE SECONDAIRE"), type: col("TYPE*"), article: col("ARTICLE"), des: col("DESIGNATION PRODUIT / CHARGE", "DESIGNATION"), u: col("UNITE"),
         nbr: col("NBR"), d1: col("DIM 1", "DIM1"), d2: col("DIM 2", "DIM2"), d3: col("DIM 3", "DIM3"), q: col("QTE", "QUANTITE"), prj: col("PROJET", "PRJ") };
       /* colonnes recherchées absentes (ART et ARTICLE facultatifs) ; colonnes en trop ignorées */
       const NEED = [["prj", "PROJET"], ["dc", "DÉSIGNATION CLIENT"], ["upb", "UPB"], ["lot", "LOT"], ["prim", "ACTIVITÉ PRIMAIRE"], ["sec", "ACTIVITÉ SECONDAIRE"],
-        ["type", "TYPE (PRD / CHG)"], ["des", "DÉSIGNATION"], ["u", "UNITÉ"], ["nbr", "NBR"], ["d1", "DIM 1"], ["d2", "DIM 2"], ["d3", "DIM 3"], ["q", "QTE"]];
+        ["type", "TYPE (PRD / CHG)"], ["des", "DÉSIGNATION PRODUIT / CHARGE"], ["u", "UNITÉ"], ["nbr", "NBR"], ["d1", "DIM 1"], ["d2", "DIM 2"], ["d3", "DIM 3"], ["q", "QTE"]];
       const miss = NEED.filter(([k]) => C[k] < 0).map(([, n]) => n);
       /* lignes d'un autre projet que celui du budget : ignorées */
       const PJ = U_((typeof budget !== "undefined" && budget && budget.project) || "");
       const other = r => C.prj >= 0 && !!PJ && U_(sviClean(r[C.prj] ?? "")) !== PJ;
       let prjIn = 0, prjOut = 0;
-      const g = (r, k) => C[k] < 0 ? "" : sviClean(r[C[k]] ?? "");
+      const g = (r, k) => {
+        if (C[k] < 0) return "";
+        const v = sviClean(r[C[k]] ?? "");
+        /* FORMAT 108 : DIM à 0 = DIM vide */
+        return /^d[123]$/.test(k) && String(v).trim() !== "" && sviNumOk(v) && num(v) === 0 ? "" : v;
+      };
       const nn = v => String(v ?? "").trim() === "" ? "" : num(v);
       const m = { des: [], hier: [], chg: [], prd: [], qlt: [], dly: [], links: [], rej: [], miss, prjCol: C.prj >= 0, prj: PJ };
       const seen = new Map();
@@ -10768,6 +10845,8 @@ function renderBudgetList() {
             }
             if (bad.length) lineBad = { bad, why: why.join(" ; ") };
         }
+        /* FORMAT 108 : produit sans NBR (même hors liaison complète) → IMPORT NON CRÉÉ */
+        else if (isP && (String(g(r, "nbr") ?? "").trim() === "" || num(g(r, "nbr")) === 0)) lineBad = { bad: ["nbr"], why: "NBR VIDE OU 0" };
         if (dc && !(lineBad && lineBad.bad.includes("upb"))) {
           const row = { art: String(g(r, "art") ?? "").trim(), des: dc, u: U_(g(r, "upb")), tva: 20 };
           /* titre : ni unité, ni tâche, ni détail */
@@ -12164,7 +12243,7 @@ function renderBudgetList() {
     const interneData = () => {
       const src = lastShown.client;
       const head = ["ART.", "DESIGNATION", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE",
-        "DÉTAIL", "UPB", "NBR", "DIM 1", "DIM 2", "DIM 3", "QPB", "CLÉ PRIMAIRE"];
+        "DÉSIGNATION PRODUIT", "UPB", "NBR", "DIM 1", "DIM 2", "DIM 3", "QPB", "CLÉ PRIMAIRE"];
       if (!src) return { head, rows: [] };
       const rows = [], bold = [];
       [...src.rows].sort((a, b) => String(a.article).localeCompare(String(b.article), "fr", { numeric: true }))
@@ -12408,7 +12487,7 @@ function renderBudgetList() {
             <thead><tr><th colspan="7">DÉSIGNATION CLIENT ET TÂCHES</th><th colspan="3">DÉTAIL CHARGES</th></tr>
               <tr><th class="sub">ART.</th><th class="sub">DESIGNATION</th><th class="sub">UPB</th><th class="sub">LOT</th>
               <th class="sub">ACTIVITÉ PRIMAIRE</th><th class="sub">ACTIVITÉ SECONDAIRE</th><th class="sub">U</th>
-              <th class="sub">DÉSIGNATION</th><th class="sub">UCB</th><th class="sub">QCB</th></tr></thead>
+              <th class="sub">DÉSIGNATION CHARGE</th><th class="sub">UCB</th><th class="sub">QCB</th></tr></thead>
             <tbody>${body}</tbody></table>`,
           end: ""
         });
@@ -12423,7 +12502,7 @@ function renderBudgetList() {
           <thead><tr><th colspan="6">DÉSIGNATION CLIENT ET TÂCHES</th><th colspan="7">DÉTAIL PRODUITS</th></tr>
             <tr><th class="sub">ART.</th><th class="sub">DESIGNATION</th><th class="sub">UPB</th><th class="sub">LOT</th>
             <th class="sub">ACTIVITÉ PRIMAIRE</th><th class="sub">ACTIVITÉ SECONDAIRE</th>
-            <th class="sub">DÉSIGNATION</th><th class="sub">UPB</th><th class="sub">NBR</th><th class="sub">DIM 1</th>
+            <th class="sub">DÉSIGNATION PRODUIT</th><th class="sub">UPB</th><th class="sub">NBR</th><th class="sub">DIM 1</th>
             <th class="sub">DIM 2</th><th class="sub">DIM 3</th><th class="sub">QPB</th></tr></thead>
           <tbody>${body}</tbody></table>`,
         end: ""
@@ -16133,6 +16212,13 @@ document.addEventListener("pointerdown", e => {
 }, true);
 document.addEventListener("focusout", e => { if (e.target.closest && e.target.closest(SVI_UNIT_SEL)) setTimeout(() => { const b = document.getElementById("svUnitSug"); if (b && b.__for === e.target && document.activeElement !== e.target) sviUnitSugHide(); }, 150); });
 document.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === "Escape") sviUnitSugHide(); }, true);
+/* FORMAT 109 : DÉSIGNATION client à la ligne — hauteur suivant le texte, pas de retour à la ligne saisi */
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (!t || !t.matches || !t.matches("textarea.ins-ta")) return;
+  if (/[\r\n]/.test(t.value)) t.value = t.value.replace(/[\r\n]+/g, " ");
+  t.style.height = "0px"; t.style.height = Math.max(20, t.scrollHeight) + "px";
+}, true);
 /* correction d'un nombre déjà saisi (FORMAT 86) : à la touche, sans zéros inutiles (1,00 → 1) et tout sélectionné ;
    en quittant la case, le format revient (1 → 1,00) */
 const SVI_NUM_SEL = 'input.ins-in[inputmode="decimal"], input.inc-in.number, input.lk-q';
@@ -16364,7 +16450,7 @@ document.addEventListener("focusin", e => {
 document.addEventListener("keydown", e => {
   if (e.key !== "Enter" && e.key !== "Tab") return;
   const el = e.target;
-  if (!el || !el.matches || !el.matches("input, select")) return;
+  if (!el || !el.matches || !el.matches("input, select, textarea.ins-in")) return;
   if (el.matches('[type="checkbox"], [type="radio"], [type="file"], .cf-q') || el.closest("#cfMenu, #svCal")) return;
   const back = e.key === "Tab" && e.shiftKey;
   const ok = x => x.offsetParent !== null && !x.disabled && !(x.readOnly && !x.classList.contains("sv-date") && !x.classList.contains("dlp-in")) && !x.matches('[type="checkbox"], [type="radio"], [type="file"], [type="hidden"]');
