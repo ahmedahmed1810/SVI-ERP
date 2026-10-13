@@ -10727,6 +10727,9 @@ function renderBudgetList() {
        une ligne par produit ou charge, avec toute sa chaîne ; les lignes non liées figurent seules.
        Ni prix, ni montant, ni TVA, ni délais ; QTE seulement pour les charges. ===== */
     const BF_HEAD = ["ART", "DÉSIGNATION CLIENT", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE",
+      "TYPE (PRD / CHG)", "ARTICLE", "DÉSIGNATION PRODUIT", "DÉSIGNATION CHARGE", "UNITÉ", "NBR", "DIM 1", "DIM 2", "DIM 3", "QTE"];
+    /* lignes refaites en interne (IMPORT NON CRÉÉ) : une seule colonne de désignation du détail */
+    const BF_HEAD_IN = ["ART", "DÉSIGNATION CLIENT", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE",
       "TYPE (PRD / CHG)", "ARTICLE", "DÉSIGNATION PRODUIT / CHARGE", "UNITÉ", "NBR", "DIM 1", "DIM 2", "DIM 3", "QTE"];
     const budgetFlat = () => {
       const d = dupData();
@@ -10734,12 +10737,12 @@ function renderBudgetList() {
       const n = v => v === "" || v === undefined || v === null ? "" : num(v);
       const desC = D => [D.art || "", U_(D.des), D.t ? "" : U_(D.u)];
       /* produits : pas d'article (FORMAT 6) — colonne ARTICLE vide sur les lignes PRD */
-      const prdC = P => ["PRD", "", U_(P.des), U_(P.u), n(P.nbr), n(P.d1), n(P.d2), n(P.d3), ""];
-      const chgC = (C, q) => ["CHG", C.art || "", U_(C.des), U_(C.u), "", "", "", "", n(q !== "" && q !== undefined ? q : C.q)];
+      const prdC = P => ["PRD", "", U_(P.des), "", U_(P.u), n(P.nbr), n(P.d1), n(P.d2), n(P.d3), ""];
+      const chgC = (C, q) => ["CHG", C.art || "", "", U_(C.des), U_(C.u), "", "", "", "", n(q !== "" && q !== undefined ? q : C.q)];
       const rows = [], used = { lot: new Set(), prim: new Set(), sec: new Set(), prd: new Set(), chg: new Set() };
       (d.des || []).forEach(D => {
         const L = (d.links || []).filter(l => l.des === D.id);
-        if (!L.length) { rows.push([...desC(D), "", "", "", "", "", "", "", "", "", "", "", ""]); return; }
+        if (!L.length) { rows.push([...desC(D), ...Array(BF_HEAD.length - 3).fill("")]); return; }
         L.forEach(l => {
           const ch = [U_(by("lot", l.lot).v), U_(by("prim", l.prim).v), U_(by("sec", l.sec).v)];
           ["lot", "prim", "sec"].forEach(k => used[k].add(l[k]));
@@ -10766,17 +10769,19 @@ function renderBudgetList() {
       const H = aoa[hi].map(bfNorm);
       const col = (...names) => H.findIndex(h => names.some(x => h === x || (x.endsWith("*") && h.startsWith(x.slice(0, -1)))));
       const C = { art: col("ART"), dc: col("DESIGNATION CLIENT"), upb: col("UPB"), lot: col("LOT"), prim: col("ACTIVITE PRIMAIRE"),
-        sec: col("ACTIVITE SECONDAIRE"), type: col("TYPE*"), article: col("ARTICLE"), des: col("DESIGNATION PRODUIT / CHARGE", "DESIGNATION"), u: col("UNITE"),
+        sec: col("ACTIVITE SECONDAIRE"), type: col("TYPE*"), article: col("ARTICLE"), des: col("DESIGNATION PRODUIT / CHARGE", "DESIGNATION"), desP: col("DESIGNATION PRODUIT"), desC: col("DESIGNATION CHARGE"), u: col("UNITE"),
         nbr: col("NBR"), d1: col("DIM 1", "DIM1"), d2: col("DIM 2", "DIM2"), d3: col("DIM 3", "DIM3"), q: col("QTE", "QUANTITE"), prj: col("PROJET", "PRJ") };
       /* colonnes recherchées absentes (ART et ARTICLE facultatifs) ; colonnes en trop ignorées */
       const NEED = [["prj", "PROJET"], ["dc", "DÉSIGNATION CLIENT"], ["upb", "UPB"], ["lot", "LOT"], ["prim", "ACTIVITÉ PRIMAIRE"], ["sec", "ACTIVITÉ SECONDAIRE"],
         ["type", "TYPE (PRD / CHG)"], ["des", "DÉSIGNATION PRODUIT / CHARGE"], ["u", "UNITÉ"], ["nbr", "NBR"], ["d1", "DIM 1"], ["d2", "DIM 2"], ["d3", "DIM 3"], ["q", "QTE"]];
-      const miss = NEED.filter(([k]) => C[k] < 0).map(([, n]) => n);
+      const miss = NEED.filter(([k]) => C[k] < 0 && !(k === "des" && (C.desP >= 0 || C.desC >= 0))).map(([, n]) => n);
       /* lignes d'un autre projet que celui du budget : ignorées */
       const PJ = U_((typeof budget !== "undefined" && budget && budget.project) || "");
       const other = r => C.prj >= 0 && !!PJ && U_(sviClean(r[C.prj] ?? "")) !== PJ;
       let prjIn = 0, prjOut = 0;
       const g = (r, k) => {
+        /* désignation du détail : colonne commune, sinon DÉSIGNATION PRODUIT / DÉSIGNATION CHARGE (FORMAT 110) */
+        if (k === "des" && C.des < 0) return sviClean((C.desP >= 0 ? r[C.desP] : "") ?? "") || sviClean((C.desC >= 0 ? r[C.desC] : "") ?? "");
         if (C[k] < 0) return "";
         const v = sviClean(r[C[k]] ?? "");
         /* FORMAT 108 : DIM à 0 = DIM vide */
@@ -11065,7 +11070,7 @@ function renderBudgetList() {
         insSave(); refreshAll();
         return;
       }
-      const aoa = [BF_HEAD, ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u", "nbr", "d1", "d2", "d3", "q"].map(k => s0[k] ?? "")];
+      const aoa = [BF_HEAD_IN, ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u", "nbr", "d1", "d2", "d3", "q"].map(k => s0[k] ?? "")];
       aoa.__lineFix = s0.__line || item.line || "";
       const before = (INS.inc || []).length;
       bfApply(bfModel(aoa), "add", "CORRECTION", true);
@@ -11835,6 +11840,17 @@ function renderBudgetList() {
     });
     document.body.classList.toggle("nohead", !o.head);
     document.body.classList.toggle("nofoot", !o.foot);
+    /* FORMAT 111 : cases des totaux exactement sous la dernière colonne du tableau (MONTANT) */
+    out.querySelectorAll(".tot").forEach(t => {
+      const tbs = [...out.querySelectorAll("table")].filter(x => x.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING);
+      const tb = tbs[tbs.length - 1];
+      if (!tb || !tb.rows.length) return;
+      const row = tb.rows[tb.rows.length - 1], cell = row.cells[row.cells.length - 1];
+      if (!cell) return;
+      const cr = cell.getBoundingClientRect(), tr = t.getBoundingClientRect();
+      t.querySelectorAll("b").forEach(b => { b.style.width = cr.width + "px"; });
+      t.style.marginRight = Math.max(0, tr.right - cr.right) + "px";
+    });
     fit();
   };
   /* positions par défaut (mm depuis le coin haut-gauche de la page) */
