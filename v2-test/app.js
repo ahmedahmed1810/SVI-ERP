@@ -3530,7 +3530,10 @@ function renderBudgetList() {
       #blkMenu {
         position: fixed; z-index: 10005; background: #fff; border: 1px solid #d6dbe3; border-radius: 10px;
         box-shadow: 0 10px 28px rgba(15,23,42,.18); padding: 4px; display: flex; flex-direction: column; min-width: 170px;
+        overflow-y: auto; -webkit-overflow-scrolling: touch;
       }
+      #blkMenu button { flex: none; }
+      #blkMenu .blk-hint { flex: none; padding: 6px 10px 8px; font-size: 10px; font-weight: 800; color: #6b7280; border-bottom: 1px solid #e5e9ef; margin-bottom: 2px; width: 0; min-width: 100%; box-sizing: border-box; line-height: 1.35; }
       #blkMenu button {
         display: flex; align-items: center; gap: 10px; border: 0; background: none; border-radius: 6px;
         padding: 8px 10px; font-size: 12px; font-weight: 700; color: #172033; cursor: pointer; text-align: left;
@@ -4631,8 +4634,8 @@ function renderBudgetList() {
       <button type="button" data-lm="clear">EFFACER</button>`;
     document.body.appendChild(m);
     const r = btn.getBoundingClientRect();
-    m.style.left = Math.max(8, Math.min(window.innerWidth - m.offsetWidth - 8, r.right - m.offsetWidth)) + "px";
-    m.style.top = (r.bottom + 4) + "px";
+    m.style.overflowY = "auto";
+    sviPlaceMenu(m, r);
     const q = m.querySelector(".blm-q");
     const apply = () => { columns.forEach(c => restoreHeader(c.key)); renderRows(); };
     q.addEventListener("input", () => { state.search[key] = q.value; apply(); });
@@ -11212,8 +11215,7 @@ function renderBudgetList() {
       m.innerHTML = items.map(x => `<button type="button" data-a="${x.a}" class="${x.off ? "blk-del off" : ""}" ${x.off ? "disabled" : ""}>${x.ic}<span>${x.lab}</span></button>`).join("");
       document.body.appendChild(m);
       const r = btn.getBoundingClientRect();
-      m.style.top = r.bottom + 4 + "px";
-      m.style.left = Math.max(8, r.right - m.offsetWidth) + "px";
+      sviPlaceMenu(m, r);
       m.addEventListener("click", e => {
         const it = e.target.closest("[data-a]");
         if (!it || it.classList.contains("off")) return;
@@ -12663,8 +12665,7 @@ function renderBudgetList() {
             <button type="button" data-ha="max"><span>${big ? "Réduire" : "Agrandir"}</span></button>`;
           document.body.appendChild(m);
           const r = more.getBoundingClientRect();
-          m.style.top = r.bottom + 4 + "px";
-          m.style.left = Math.max(8, r.right - m.offsetWidth) + "px";
+          sviPlaceMenu(m, r);
           m.style.zIndex = 10010;
           m.addEventListener("click", ev => {
             const it = ev.target.closest("[data-ha]");
@@ -13753,8 +13754,8 @@ function renderBudgetList() {
           /* ces actions ne prennent que l'onglet ouvert : signaler les cochées des autres onglets */
           const all = insDelPlan("detail"), here = active === "lnk" ? 0 : (all.del[active] || new Set()).size;
           const other = active === "unl" ? 0 : Math.max(0, all.n - here);
-          if (other) a.__hint = "+ " + other + " COCHÉE(S) DANS D'AUTRES ONGLETS";
-          else a.__hint = "";
+          a.__hint = "";
+          if (other) m.__hint = "+ " + other + " COCHÉE(S) DANS D'AUTRES ONGLETS — COPIER, COUPER, EXPORTER ET APERÇU NE PRENNENT QUE L'ONGLET OUVERT";
         }
         if (["copy", "cut", "paste"].includes(a.dataset.act) && ctlTab(a.dataset.blk)) {
           const n = ctlCount(a.dataset.blk, a.dataset.act);
@@ -13786,10 +13787,10 @@ function renderBudgetList() {
         }
         return `<button type="button" data-i="${i}">${a.innerHTML}<span>${esc(lab)}${a.__hint ? `<small class="del-split">${esc(a.__hint)}</small>` : ""}</span></button>`;
       }).join("");
+      if (m.__hint) m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">${esc(m.__hint)}</div>`);
       document.body.appendChild(m);
       const r = btn.getBoundingClientRect();
-      m.style.top = r.bottom + 4 + "px";
-      m.style.left = Math.max(8, r.right - m.offsetWidth) + "px";
+      sviPlaceMenu(m, r);
       m.addEventListener("click", e => {
         const ub = e.target.closest("[data-unl]");
         if (ub) {
@@ -15849,6 +15850,17 @@ function sviWatchState(shell) {
   sviSyncState();
 }
 /* message au format de l'application (jamais de fenêtre Safari) : titre, texte, FERMER */
+/* menus ⋯ (FORMAT 107) : sous le bouton s'il y a la place, sinon au-dessus ; sinon hauteur disponible avec défilement */
+function sviPlaceMenu(m, r) {
+  const vh = window.innerHeight, M = 8;
+  m.style.maxHeight = ""; m.style.top = "0px";
+  const h = m.offsetHeight, below = vh - r.bottom - 4 - M, above = r.top - 4 - M;
+  if (h <= below) m.style.top = r.bottom + 4 + "px";
+  else if (h <= above) m.style.top = r.top - 4 - h + "px";
+  else if (below >= above) { m.style.top = r.bottom + 4 + "px"; m.style.maxHeight = below + "px"; }
+  else { m.style.top = M + "px"; m.style.maxHeight = above + "px"; }
+  m.style.left = Math.max(M, Math.min(window.innerWidth - m.offsetWidth - M, r.right - m.offsetWidth)) + "px";
+}
 function sviAlert(msg, title = "INFORMATION") {
   if (window.__sviQuiet) return;   /* contrôle silencieux (état du bouton APERÇU PDF) */
   document.getElementById("svConf")?.remove();
