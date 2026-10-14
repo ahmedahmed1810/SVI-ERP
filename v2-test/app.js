@@ -5374,7 +5374,7 @@ function renderBudgetList() {
     const CW_DEF_T = {
       "client.article": 69, "client.designation": 660, "client.unit": 70, "client.qty": 71, "client.price": 86, "client.ht": 96, "client.tva": 81, "client.ttc": 97,
       "chg.article": 69, "chg.detail": 545, "chg.unit": 70, "chg.qty": 109, "chg.price": 107, "chg.amount": 120, "chg.tva": 80, "chg.ttc": 130,
-      "prd.detail": 337, "prd.tache": 230, "prd.unit": 70, "prd.nbr": 71, "prd.d1": 76, "prd.d2": 76, "prd.d3": 68, "prd.qty": 108, "prd.price": 94, "prd.amount": 120, "prd.tva": 81, "prd.ttc": 130
+      "prd.detail": 176, "prd.tache": 246, "prd.unit": 70, "prd.nbr": 77, "prd.d1": 79, "prd.d2": 79, "prd.d3": 79, "prd.qty": 72, "prd.price": 72, "prd.amount": 92, "prd.tva": 82, "prd.ttc": 109
     };
     const cwGet = (t, k) => cwLoad()[t + "." + k] || CW_DEF_T[t + "." + k] || CW_DEF[k] || 100;
 
