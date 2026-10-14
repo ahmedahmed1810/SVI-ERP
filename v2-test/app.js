@@ -6246,8 +6246,10 @@ function renderBudgetList() {
       }
       const lab = partial ? "TOTAL PARTIEL" : "TOTAL";
       const first = cols.findIndex(c => val[c[0]] !== undefined);
-      const cells = cols.map((c, i) => val[c[0]] !== undefined ? `<td class="${c[0] === "u" ? "center" : "number"}">${val[c[0]]}</td>` : i === first - 1 ? `<td class="number">${lab}</td>` : "<td></td>");
-      return `<tr class="bdg-d-total-row"><td>${first === 0 ? lab : ""}</td>${cells.join("")}${insQCol(k) ? "<td></td>" : ""}${INS_EDIT ? "<td></td>" : ""}</tr>`;
+      /* libellé dans une seule case qui couvre les colonnes vides de gauche : jamais coupé (« TOTAL PARTIEL » en entier) */
+      const f0 = Math.max(0, first);
+      const cells = cols.slice(f0).map(c => val[c[0]] !== undefined ? `<td class="${c[0] === "u" ? "center" : "number"}">${val[c[0]]}</td>` : "<td></td>");
+      return `<tr class="bdg-d-total-row"><td colspan="${f0 + 1}" class="number" style="white-space:nowrap;overflow:visible;text-overflow:clip">${lab}</td>${cells.join("")}${insQCol(k) ? "<td></td>" : ""}${INS_EDIT ? "<td></td>" : ""}</tr>`;
     };
     /* case d'en-tête : toutes les lignes visibles (hors titres) cochées */
     const insAllOn = k => { const v = insShown(k).filter(r => !r.t); return v.length > 0 && v.every(r => r.on === true); };
