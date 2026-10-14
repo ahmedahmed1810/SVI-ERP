@@ -8035,9 +8035,13 @@ function renderBudgetList() {
       /* délais : indépendants des liaisons (planning possible avant les liaisons) — gardés */
       const dK = [];
       const nD = dK.reduce((t, k) => t + INS.dlp[k].length, 0);
-      const html = `${rem ? `<div class="svc-sub">À RETIRER : ${esc(names.join(", "))}</div>` : ""}
-        <div class="svc-sub">${rem ? "DANS" : "LIAISONS DÉLIÉES"} ${svCnt(pl.links.length)} :</div>
-        <ul class="svc-list">${pl.links.map(l => `<li>${esc(tag(l))}${rem && gone.includes(l) ? " <b>(PLUS AUCUN PRODUIT : DÉLIÉE)</b>" : ""}</li>`).join("")}</ul>
+      /* FORMAT 123 : résumé chiffré, pas de longue liste */
+      const nDes = new Set(pl.links.map(l => l.des)).size;
+      const html = `<div class="svc-sub"><b>${pl.links.length} LIAISON(S) ${rem ? "TOUCHÉE(S)" : "SERONT DÉLIÉES"}</b> (${nDes} DÉSIGNATION(S) CLIENT${rem ? ", " + names.length + " PRODUIT(S) / CHARGE(S) RETIRÉ(S)" + (gone.length ? ", " + gone.length + " LIAISON(S) SANS PRODUIT DÉLIÉE(S)" : "") : ""}).</div>
+        <div class="svc-sub">LES LIGNES DÉLIÉES RESTENT DANS LEURS TABLEAUX (LIGNES NON LIÉES).</div>
+        ${rem && names.length <= 5 ? `<div class="svc-sub">À RETIRER : ${esc(names.join(", "))}</div>` : ""}
+${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISONS DÉLIÉES"} ${svCnt(pl.links.length)} :</div>
+        <ul class="svc-list">${pl.links.map(l => `<li>${esc(tag(l))}${rem && gone.includes(l) ? " <b>(PLUS AUCUN PRODUIT : DÉLIÉE)</b>" : ""}</li>`).join("")}</ul>` : ""}
         ${nD ? `<div class="svc-sub svc-warn">${nD} PÉRIODE${nD > 1 ? "S" : ""} DE DÉLAIS ${nD > 1 ? "SERONT SUPPRIMÉES" : "SERA SUPPRIMÉE"}.</div>` : ""}`;
       return svConfirm({ title: rem ? "RETIRER DES LIAISONS" : "DÉLIER", html, ok: "✕ DÉLIER" }).then(go => {
         if (!go) return false;
@@ -16208,6 +16212,7 @@ function svChoose({ title = "", text = "", html = "", buttons = [], noCancel = f
           ${buttons.map(b => `<button type="button" class="svc-b svc-ok${b.tone === "danger" ? "" : " svc-neutral"}" data-v="${esc(b.v)}"${b.disabled ? " disabled" : ""}>${esc(b.label)}</button>`).join("")}</div>
       </div>`;
     document.body.appendChild(d);
+    svShortLists(d);
     d.addEventListener("click", e => {
       const b = e.target.closest("[data-v]");
       if (!b && e.target !== d) return;
@@ -16215,6 +16220,15 @@ function svChoose({ title = "", text = "", html = "", buttons = [], noCancel = f
       d.remove();
       res(b && b.dataset.v ? b.dataset.v : null);
     });
+  });
+}
+/* FORMAT 123 : fenêtres de confirmation — une liste de plus de 5 lignes n'est pas affichée (le nombre suffit) */
+function svShortLists(d) {
+  d.querySelectorAll(".svc-list").forEach(ul => {
+    if (ul.children.length <= 5) return;
+    const prev = ul.previousElementSibling;
+    if (prev && prev.classList.contains("svc-sub")) prev.innerHTML = prev.innerHTML.replace(/\s*:\s*$/, ".");
+    ul.remove();
   });
 }
 function svConfirm({ title = "CONFIRMER", text = "", html = "", ok = "OK", tone = "danger" } = {}) {
@@ -16230,6 +16244,7 @@ function svConfirm({ title = "CONFIRMER", text = "", html = "", ok = "OK", tone 
           <button type="button" class="svc-b svc-ok${tone === "danger" ? "" : " svc-neutral"}" data-r="1">${esc(ok)}</button></div>
       </div>`;
     document.body.appendChild(d);
+    svShortLists(d);
     d.addEventListener("click", e => {
       const b = e.target.closest("[data-r]");
       if (!b && e.target !== d) return;
