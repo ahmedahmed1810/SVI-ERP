@@ -7583,16 +7583,15 @@ function renderBudgetList() {
       const q = list.find(x => x.id === el.dataset.pid) || { deb: "", fin: "" };
       const oth = list.filter(x => x.id !== q.id && x.deb && x.fin);
       const f = el.dataset.f, pf = dlyPredFin(el.dataset.task);
+      /* FORMAT 136 : une date grisée = une date que la saisie refuserait (mêmes contrôles que le message d'erreur) */
       const dis = d => {
-        if (f === "deb") {
-          if (pf && d < pf) return true;
-          if (q.fin && d > q.fin) return true;
-          if (oth.some(o => d >= o.deb && d < o.fin)) return true;
-          return !!q.fin && oth.some(o => d < o.fin && o.deb < q.fin);
-        }
-        if (q.deb && d < q.deb) return true;
-        if (!q.deb) return oth.some(o => d >= o.deb && d < o.fin);
-        return oth.some(o => q.deb < o.fin && o.deb < d);
+        const z = { ...q, [f]: d };
+        if (z.deb && z.fin && z.fin < z.deb) return true;
+        const a = z.deb || z.fin, e = z.fin || z.deb;
+        if (oth.some(x => z.deb && z.fin ? a < x.fin && x.deb < e : a >= x.deb && a < x.fin)) return true;
+        if (z.deb && z.fin && oth.some(x => z.fin === x.deb || dAdd(z.fin, 1) === x.deb || z.deb === x.fin || z.deb === dAdd(x.fin, 1))) return true;
+        if (z.deb && pf && z.deb < pf) return true;
+        return false;
       };
       return { iso: q[f] || (f === "fin" ? q.deb : "") || "", dis };
     };
