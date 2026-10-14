@@ -6023,7 +6023,8 @@ function renderBudgetList() {
     /* ordre : 1) rond coché (choisies), 2) cochées pour suppression, 3) liées (bleu), 4) le reste */
     /* ordre : 1) choisies, 2) cochées, 3) liées à ce qui est choisi, 4) autres lignes qu'on peut choisir
        (liées puis non liées), 5) en bas, les lignes grisées qu'on ne peut pas choisir */
-    const lkRank = (k, r) => lkOn(k, r.id) ? 0 : r.on === true ? 1 : (lkHit(k, r.id) || (LK.des && lkIsLinked(k, r.id))) ? 2
+    /* FORMAT 131 : une case cochée ne fait plus remonter la ligne (seuls les ronds) */
+    const lkRank = (k, r) => lkOn(k, r.id) ? 0 : (lkHit(k, r.id) || (LK.des && lkIsLinked(k, r.id))) ? 2
       : (k !== "des" && lkBan(k, r.id)) ? 5 : lkAnyLinked(k, r.id) ? 3 : 4;
     const lkTop = (k, rows) => {
       if (!INS_EDIT) return rows;
@@ -6057,6 +6058,14 @@ function renderBudgetList() {
     /* filtres / tri de colonne (mêmes menus que la version validée) :
        une ligne filtrée garde son titre ; un tri affiche la liste à plat */
     const insCfT = k => k === "des" ? "client" : k;
+    /* FORMAT 131 : bouton « COCHÉES SEULEMENT (n) » — n'affiche que les lignes cochées (avec leurs titres) */
+    const ONLYC = shell.__onlyc = shell.__onlyc || {};
+    const onlyBtn = (k, short) => {
+      if (!INS || !INS[k]) return "";
+      const n = INS[k].filter(r => !r.t && r.on === true).length;
+      if (!n && !ONLYC[k]) return "";
+      return `<button type="button" class="only-c${ONLYC[k] ? " on" : ""}" data-onlyc="${k}">${short ? "COCHÉES" : "COCHÉES SEULEMENT"} (${n})</button>`;
+    };
     /* colonnes d'un tableau de saisie dans l'ordre choisi par glissement (mémorisé) */
     const insColsOrd = k => { const cols = INS_COLS[k] || []; const ord = coKeys(insCfT(k), cols.map(c => c[4])); return ord.map(x => cols.find(c => c[4] === x)).filter(Boolean); };
     const insCfCols = k => INS_COLS[k].map(c => [c[4], c[1],
@@ -6064,10 +6073,11 @@ function renderBudgetList() {
     const insShown = k => {
       const t = insCfT(k);
       const normal = INS[k].filter(r => !r.t);
-      const shown = cfApply(t, insCfCols(k), normal);
+      if (ONLYC[k] && !normal.some(r => r.on === true)) ONLYC[k] = false;
+      const shown = cfApply(t, insCfCols(k), normal).filter(r => !ONLYC[k] || r.on === true);
       const st = cfT(t);
       const sorting = !!(st.sort && !st.sort.def);
-      const filtering = Object.keys(st.f).length > 0;
+      const filtering = Object.keys(st.f).length > 0 || !!ONLYC[k];
       if (k !== "des" || sorting) return shown;
       if (!filtering) return INS.des;
       const keep = new Set(shown.map(r => r.id));
@@ -6301,7 +6311,7 @@ function renderBudgetList() {
       insNorm();
       const t = document.querySelector("#bdgClientTitle .ttl");
       const shownD = insShown("des");
-      if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + svCnt(shownD.filter(r => !r.t).length, INS.des.filter(r => !r.t).length);
+      if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + svCnt(shownD.filter(r => !r.t).length, INS.des.filter(r => !r.t).length) + onlyBtn("des");
       lastShown.client = { cols: insCfCols("des"), rows: shownD, ins: true };
       lastClientKeys = new Set();
       /* même tableau que la version validée (identifiants gardés) */
@@ -6345,12 +6355,13 @@ function renderBudgetList() {
     const insRenderHier = only => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
       const col = (title, k) => {
-        const list = lkTop(k, cfApply(k, [["v", title, r => r.v || "", ""]], INS[k]));
+        if (ONLYC[k] && !INS[k].some(r => r.on === true)) ONLYC[k] = false;
+        const list = lkTop(k, cfApply(k, [["v", title, r => r.v || "", ""]], INS[k]).filter(r => !ONLYC[k] || r.on === true));
         lastShown.hier[k] = list.map(r => r.v || "");
         const on = !!cfT(k).f.v;
         return `
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
-          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length, INS[k].length)}</span><span class="cf-btn"
+          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length, INS[k].length)}</span>${onlyBtn(k, true)}<span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
           ${list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
@@ -6770,6 +6781,18 @@ function renderBudgetList() {
           ? `<td class="center"><input type="checkbox" class="unl-cb"${x.r.uon === true ? " checked" : ""}></td>` : ""}</tr>`).join("")
           || `<tr><td colspan="${oc.length + (dw ? 1 : 0)}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
     };
+    if (!shell.__onlyBound) {
+      shell.__onlyBound = true;
+      shell.addEventListener("click", e => {
+        const b = e.target.closest("[data-onlyc]");
+        if (!b) return;
+        e.stopPropagation(); e.preventDefault();
+        const k = b.dataset.onlyc, O = shell.__onlyc;
+        O[k] = !O[k];
+        shell.__onlyRefresh && shell.__onlyRefresh();
+      }, true);
+    }
+    shell.__onlyRefresh = () => refreshAll();
     if (!shell.__unlBound) {
       shell.__unlBound = true;
       shell.addEventListener("change", e => {
@@ -6877,6 +6900,8 @@ function renderBudgetList() {
       el.innerHTML = `${LK.des ? '<button type="button" class="lk-info" title="Voir la liaison" aria-label="Voir la liaison">i</button>' : ""}${btn}`;
     };
     const insRenderTab = () => {
+      { const tl = document.querySelector("#bdgTabs > .blk-tools");
+        if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (active === "chg" || active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(active)); } }
       ["chg", "prd", "qlt"].forEach(k => {
         const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
         if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + (k === "prd" ? ' <b class="req-star">*</b>' : "") + " " + svCnt(insShown(k).length, INS[k].filter(r => !r.t).length);
