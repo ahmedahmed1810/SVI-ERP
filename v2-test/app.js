@@ -11987,8 +11987,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
   td.rep { color: #555; font-style: italic; }
   tr.gfirst td { border-top: 1.6px solid #000; }
   td.gc, td.lc, td.pc, td.sc { vertical-align: top; }
-  /* même caractère fin et clair (7,5 pt) pour tous les aperçus */
-  table th, table td { font-size: 7.5pt !important; padding: 0.5mm 0.8mm; }
+  /* FORMAT 133 : caractère du modèle DEVIS (10 pt, lignes aérées) pour tous les aperçus */
+  table th, table td { font-size: 10pt !important; padding: 1mm 1.4mm; line-height: 1.25; }
   /* clé primaire (quantité comptée) et sous-total par désignation */
   td.pk { font-weight: bold; }
   td.gt { border-left: 1px dotted #999; border-right: 1px dotted #999; }
@@ -11996,7 +11996,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
   tr.mdes td { font-weight: bold; border-top: 1.6px solid #000; }
   tr.msub td:nth-child(2) { font-style: italic; text-decoration: underline; }
   tr.stot td { background: #eef1f6; font-weight: bold; }
-  table th { padding-top: 1.2mm; padding-bottom: 1.2mm; } table th.sub { padding: 0.8mm 0.4mm; }
+  table th { padding-top: 2mm; padding-bottom: 2mm; } table th.sub { padding: 1.2mm 0.4mm; }
   .tot { margin-top: 2mm; display: flex; flex-direction: column; align-items: flex-end; }
   .tot div { display: flex; }
   .tot span { padding: 1mm 2mm; text-align: right; }
@@ -12006,7 +12006,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
   .foot { flex: none; text-align: center; font-weight: bold; font-size: 10pt; }
   /* numéro de page en bas à droite : la place libérée sert aux lignes */
   .foot { position: static; padding-top: 1.5mm; }
-  .foot .pg { position: absolute; right: 12mm; bottom: 4mm; font-size: 9.5pt; }
+  /* FORMAT 133 : « Page 1 / 4 » centré au-dessus du trait */
+  .foot .pg { position: static; text-align: center; font-size: 10pt; font-weight: bold; margin-bottom: 1.5mm; }
   .foot hr { width: 65%; border: 0; border-top: 2.5px solid #5677a7; margin: 0 auto 1.5mm; }
   .foot .ad { line-height: 1.3; }
   /* signature et cachet : transparents, déplaçables au doigt dans l'aperçu */
@@ -12085,9 +12086,9 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
   <div class="head">
     <img src="${SVI_LOGO}" alt="">
     <div class="date">${dateTxt}</div>
-    <div class="t">BUDGET N° : ${esc(fullRef)}<br>CLIENT : ${esc(sviClient(budget.inst))}<br>PROJET : ${esc(projet)}${cfg.headLine ? "<br>" + esc(cfg.headLine) : ""}</div>
+    <div class="t">DEVIS N° : ${esc(fullRef.replace(/\bBDG\b/, "DVC"))}<br>CLIENT : ${esc(sviClient(budget.inst))}<br>PROJET : ${esc(projet)}${cfg.headLine ? "<br>" + esc(cfg.headLine) : ""}</div>
   </div>
-  ${cfg.table}
+  ${/* FORMAT 133 : unités M² / M³ (cellule d'unité seule) */ cfg.table.replace(/(<td[^>]*>)\s*M([23])\s*(<\/td>)/g, (m, a, d, b) => a + "M" + (d === "2" ? "²" : "³") + b)}
   <div id="end">${cfg.end}</div>
   <div class="foot"><div class="pg">Page 1 / 1</div><hr>
     <div class="ad">N°35, Bloc G3 Cité DAKHLA Agadir, BP : 8837 Dakhla Agadir - Tél : 05 28 23 34 31<br>
@@ -12576,8 +12577,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       const tva = ht * 0.2, ttc = ht + tva;
       printModel({
         branch: "DÉSIGNATIONS CLIENT", docTitle: "DÉSIGNATIONS CLIENT", fileTag: "DESIGNATIONS CLIENT", headLine: "",
-        table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:33%"><col style="width:4%"><col style="width:9%">
-          <col style="width:9.5%"><col style="width:28%"><col style="width:10.5%"></colgroup>
+        table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:37%"><col style="width:4%"><col style="width:9%">
+          <col style="width:9%"><col style="width:25%"><col style="width:10%"></colgroup>
           <thead><tr><th rowspan="2">ART.</th><th rowspan="2">DESIGNATION</th><th rowspan="2">U</th><th rowspan="2">QUANTITE</th>
             <th colspan="2">PRIX UNITAIRES HORS TVA</th><th rowspan="2">MONTANT HT</th></tr>
             <tr><th class="sub">EN CHIFFRES</th><th class="sub">EN LETTRES</th></tr></thead>
@@ -12587,7 +12588,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
             <div><span>TOTAL T.V.A. :</span><b>${money(tva)}</b></div>
             <div><span>TOTAL T.T.C. :</span><b>${money(ttc)}</b></div>
           </div>
-          <div class="arr">ARRÊTER LE PRÉSENT BUDGET À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>`
+          <div class="arr">ARRÊTER LE PRÉSENT DEVIS À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>`
       });
     };
 
@@ -12612,8 +12613,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       const tva = ttc - ht;
       printModel({
         branch: "DÉSIGNATIONS CLIENT", docTitle: "DÉSIGNATIONS CLIENT", fileTag: "DESIGNATIONS CLIENT", headLine: "",
-        table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:33%"><col style="width:4%"><col style="width:9%">
-          <col style="width:9.5%"><col style="width:28%"><col style="width:10.5%"></colgroup>
+        table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:37%"><col style="width:4%"><col style="width:9%">
+          <col style="width:9%"><col style="width:25%"><col style="width:10%"></colgroup>
           <thead><tr><th rowspan="2">ART.</th><th rowspan="2">DESIGNATION</th><th rowspan="2">U</th><th rowspan="2">QUANTITE</th>
             <th colspan="2">PRIX UNITAIRES HORS TVA</th><th rowspan="2">MONTANT HT</th></tr>
             <tr><th class="sub">EN CHIFFRES</th><th class="sub">EN LETTRES</th></tr></thead>
@@ -12623,7 +12624,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
             <div><span>TOTAL T.V.A. :</span><b>${money(tva)}</b></div>
             <div><span>TOTAL T.T.C. :</span><b>${money(ttc)}</b></div>
           </div>
-          <div class="arr">ARRÊTER LE PRÉSENT BUDGET À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>`
+          <div class="arr">ARRÊTER LE PRÉSENT DEVIS À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>`
       });
     };
 
