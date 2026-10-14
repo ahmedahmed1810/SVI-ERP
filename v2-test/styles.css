@@ -1411,3 +1411,6 @@ thead th.sv-stuck, .bdg-h-head.sv-stuck { z-index: 7; box-shadow: 0 3px 4px -2px
 #svConf .src-opt { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-weight: 700; font-size: 12px; }
 #svConf .src-opt input { width: 18px; height: 18px; flex: none; accent-color: var(--svst, #b91c1c); }
 #svConf .svc-b:disabled { opacity: .4; cursor: default; }
+
+/* FORMAT 129 : case d'en-tête à moitié cochée (comme les titres) */
+input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
