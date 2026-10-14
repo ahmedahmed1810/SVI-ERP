@@ -6208,8 +6208,19 @@ function renderBudgetList() {
            sauf s'il garde des lignes plus bas */
         const restIds = new Set(rest.filter(r => !r.t).map(r => r.id));
         const hasRest = t => { for (let i = INS.des.indexOf(t) + 1; i < INS.des.length && dOf(INS.des[i]) > dOf(t); i++) if (restIds.has(INS.des[i].id) && !hid(INS.des[i])) return true; return false; };
-        html = head + insOrder(rest).filter(x => !x.sub && !hid(x.r) && !(x.r.t && done.has(x.r.id) && !hasRest(x.r)))
-          .map(x => insRowHTML(k, x.r, x.lvl)).join("");
+        /* FORMAT 130 : une ligne n'apparaît jamais seule — ses titres sont toujours affichés au-dessus d'elle
+           (titre en deux exemplaires si une partie de sa branche est remontée en haut) */
+        void hasRest;
+        const emitted = new Set();
+        const ancOf = r => { const a = []; for (let i = INS.des.indexOf(r) - 1, L = dOf(r); i >= 0 && L > 0; i--) { const t = INS.des[i]; if (t.t && dOf(t) < L) { a.unshift(t); L = dOf(t); } } return a; };
+        let body2 = "";
+        insOrder(rest).filter(x => !x.sub && !hid(x.r)).forEach(x => {
+          const r = x.r;
+          if (r.t) { if (done.has(r.id) || emitted.has(r.id)) return; emitted.add(r.id); body2 += insRowHTML(k, r, x.lvl); return; }
+          ancOf(r).forEach(t => { if (!emitted.has(t.id) && !hid(t)) { emitted.add(t.id); body2 += insRowHTML(k, t, dOf(t)); } });
+          body2 += insRowHTML(k, r, x.lvl);
+        });
+        html = head + body2;
       }
       if (INS_EDIT) html += insRowHTML(k, null, 0);
       if (!rows.length && !INS_EDIT) html += `<tr><td colspan="${ncol}" class="empty">AUCUNE LIGNE</td></tr>`;
