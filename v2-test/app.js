@@ -10101,6 +10101,13 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
             DR.forEach((row, i) => DH.forEach((h, c) => { const a = X.utils.encode_cell({ r: i + 1, c }); ws2[a] = ws2[a] || { t: "s", v: "" }; ws2[a].s = { font: font(false), border, alignment: { horizontal: c >= 3 && c <= 6 ? "center" : "left", vertical: "top", wrapText: true } }; }));
             ws2["!cols"] = [{ wch: 10 }, { wch: 24 }, { wch: 32 }, { wch: 9 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 48 }];
             X.utils.book_append_sheet(wb, ws2, "DÉLAIS");
+            /* 3e onglet QUALITÉ (FORMAT 132) */
+            const QH = ["PROJET", "QUALITÉ", "TITRE"], QR = (INS.qlt || []).filter(r => U_(r.v)).map(r => [U_(budget.project || ""), U_(r.v), r.t ? "OUI" : ""]);
+            const ws3 = X.utils.aoa_to_sheet([QH, ...QR]);
+            QH.forEach((_, c) => { const a = X.utils.encode_cell({ r: 0, c }); ws3[a].s = { font: font(true), border, fill: { fgColor: { rgb: "D9DEE6" } }, alignment: { horizontal: "center", vertical: "center", wrapText: true } }; });
+            QR.forEach((row, i) => QH.forEach((h, c) => { const a = X.utils.encode_cell({ r: i + 1, c }); ws3[a] = ws3[a] || { t: "s", v: "" }; ws3[a].s = { font: font(!!row[2]), border, alignment: { horizontal: c === 2 ? "center" : "left", vertical: "top", wrapText: true } }; }));
+            ws3["!cols"] = [{ wch: 10 }, { wch: 70 }, { wch: 8 }];
+            X.utils.book_append_sheet(wb, ws3, "QUALITÉ");
           }
           const out = X.write(wb, { bookType: "xlsx", type: "array" });
           await deliver(base + ".xlsx", new Blob([out], {
@@ -11302,12 +11309,39 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       const rows = (aoa || []).slice(0, 15).map(r => (r || []).map(bfNorm));
       if (rows.some(r => r.includes("DESIGNATION CLIENT"))) return "budget";
       if (rows.some(r => r.includes("ACTIVITE SECONDAIRE") && (r.includes("DEBUT") || r.includes("FIN") || r.includes("PREDECESSEURS")))) return "dly";
+      if (rows.some(r => r.includes("QUALITE"))) return "qlt";
       return "";
+    };
+    /* import de l'onglet QUALITÉ (FORMAT 132) : une ligne par libellé, TITRE = OUI pour un titre ; doublons ignorés */
+    const qltImportAoa = (aoa, srcName, quiet) => {
+      const hi = (aoa || []).findIndex(r => (r || []).map(bfNorm).includes("QUALITE"));
+      if (hi < 0) return 0;
+      const H = aoa[hi].map(bfNorm), cv = H.indexOf("QUALITE"), ct = H.indexOf("TITRE"), cp = H.findIndex(h => h === "PROJET" || h === "PRJ");
+      const PJ = U_(budget.project || "");
+      INS.qlt = INS.qlt || [];
+      const have = new Set(INS.qlt.map(r => U_(r.v)));
+      let n = 0;
+      aoa.slice(hi + 1).forEach(r => {
+        if (!r) return;
+        if (cp >= 0 && PJ && U_(sviClean(r[cp] ?? "")) !== PJ) return;
+        const v = U_(sviClean(r[cv] ?? ""));
+        if (!v || have.has(v)) return;
+        have.add(v);
+        const row = { id: insId(), v, on: false };
+        if (ct >= 0 && /^(OUI|X|1|TITRE)$/.test(bfNorm(r[ct]))) row.t = true;
+        INS.qlt.push(row); n++;
+      });
+      if (!quiet) histLog("IMPORT", "QUALITÉ", (srcName || "") + " — " + n + " LIGNE(S)");
+      insSave(); refreshAll();
+      return n;
     };
     const dlyDate = v => {
       if (v === "" || v === null || v === undefined) return "";
       if (typeof v === "number" && v > 20000) { const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000); return d.toISOString().slice(0, 10); }
+      if (v instanceof Date && !isNaN(v)) return v.getFullYear() + "-" + String(v.getMonth() + 1).padStart(2, "0") + "-" + String(v.getDate()).padStart(2, "0");
       const t = String(v).trim();
+      /* date complète renvoyée par le script (2026-10-13T23:00:00.000Z) : jour local */
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:/.test(t)) { const d = new Date(t); if (!isNaN(d)) return dlyDate(d); }
       if (/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
       const iso = dParse(t);
       return iso === null ? null : iso;
@@ -11381,6 +11415,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
     const bfImportAoa = async (aoa, srcName) => {
       /* onglet DÉLAIS seul : seuls les délais sont importés */
       if (sheetKind(aoa) === "dly") { dlyImportAoa(aoa, srcName); return true; }
+      if (sheetKind(aoa) === "qlt") { qltImportAoa(aoa, srcName); return true; }
       let m;
       try { m = bfModel(aoa); } catch (e) {
         svImportFail({ source: srcName, tries: [{ err: e }], found: (aoa || []).find(r => (r || []).some(c => String(c ?? "").trim())) || [],
@@ -11418,17 +11453,47 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
     const srcRemember = o => { if (!INS) return; const d = new Date(), p2 = n => String(n).padStart(2, "0");
       INS.src = { ...o, date: p2(d.getDate()) + "/" + p2(d.getMonth() + 1) + "/" + d.getFullYear() + " À " + p2(d.getHours()) + ":" + p2(d.getMinutes()) }; insSave(); };
     /* relit la source : { aoa, daoa, name } (fichier : choisi de nouveau, Safari ne relit pas un fichier seul) */
-    const srcRead = src => new Promise(async (ok, ko) => {
+    /* Google Sheets : un onglet du même classeur lu par son nom (script, sinon feuille partagée) ;
+       gardé seulement s'il est bien de la nature attendue (un ancien script renvoie l'onglet du lien) */
+    const gsTab = async (url, names, kind) => {
+      for (const nm of names) {
+        for (const call of [() => apiGet("sheetRead", { link: url, sheet: nm }), () => apiPost("sheetRead", { link: url, sheet: nm })]) {
+          try { const d = await call(); if (d && d.ok && Array.isArray(d.values) && sheetKind(d.values) === kind) return { aoa: d.values, sheet: d.sheet || nm }; } catch (e) {}
+        }
+      }
+      const id = (url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1];
+      if (!id) return null;
+      for (const nm of names) {
+        try {
+          const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(nm)}`);
+          if (!r.ok) continue;
+          const X = await loadXLSX(), wb = X.read(await r.text(), { type: "string", raw: true });
+          const aoa = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false });
+          if (sheetKind(aoa) === kind) return { aoa, sheet: nm };
+        } catch (e) {}
+      }
+      return null;
+    };
+    const srcRead = (src, need) => new Promise(async (ok, ko) => {
       try {
         if (src.kind === "gsheet") {
-          let d = null;
-          for (const call of [() => apiGet("sheetRead", { link: src.url }), () => apiPost("sheetRead", { link: src.url })]) { try { d = await call(); if (d && d.ok && Array.isArray(d.values)) break; } catch (e) {} d = null; }
-          if (d) return ok({ aoa: d.values, name: d.name || src.name });
-          const id = src.url.match(/\/d\/([a-zA-Z0-9_-]+)/)[1], gid = (src.url.match(/[#&?]gid=(\d+)/) || [])[1] || "0";
-          const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`);
-          if (!r.ok) throw new Error("HTTP " + r.status + " — ACCÈS REFUSÉ");
-          const X = await loadXLSX(), wb = X.read(await r.text(), { type: "string" });
-          return ok({ aoa: X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" }), name: src.name });
+          need = need || new Set(["budget", "dly", "qlt"]);
+          let aoa = null, name = src.name;
+          if (need.has("budget")) {
+            let d = null;
+            for (const call of [() => apiGet("sheetRead", { link: src.url }), () => apiPost("sheetRead", { link: src.url })]) { try { d = await call(); if (d && d.ok && Array.isArray(d.values)) break; } catch (e) {} d = null; }
+            if (d) { aoa = d.values; name = d.name || src.name; }
+            else {
+              const id = src.url.match(/\/d\/([a-zA-Z0-9_-]+)/)[1], gid = (src.url.match(/[#&?]gid=(\d+)/) || [])[1] || "0";
+              const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`);
+              if (!r.ok) throw new Error("HTTP " + r.status + " — ACCÈS REFUSÉ");
+              const X = await loadXLSX(), wb = X.read(await r.text(), { type: "string" });
+              aoa = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
+            }
+          }
+          const D = need.has("dly") ? await gsTab(src.url, [src.dsheet, "DÉLAIS", "DELAIS"].filter(Boolean), "dly") : null;
+          const Q = need.has("qlt") ? await gsTab(src.url, [src.qsheet, "QUALITÉ", "QUALITE"].filter(Boolean), "qlt") : null;
+          return ok({ aoa, daoa: D && D.aoa, qaoa: Q && Q.aoa, dsheet: D && D.sheet, qsheet: Q && Q.sheet, name });
         }
         const inp = document.createElement("input");
         inp.type = "file"; inp.accept = ".xlsx,.xls,.csv";
@@ -11442,7 +11507,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
             const kinds = wb.SheetNames.map(n => ({ n, k: sheetKind(J(n)) }));
             const bn = wb.SheetNames.includes(src.sheet) ? src.sheet : (kinds.find(x => x.k === "budget") || {}).n || wb.SheetNames[0];
             const dn = (src.dsheet && wb.SheetNames.includes(src.dsheet)) ? src.dsheet : (kinds.find(x => x.k === "dly") || {}).n;
-            ok({ aoa: J(bn), daoa: dn ? J(dn) : null, name: f.name + " › " + bn });
+            const qn = (src.qsheet && wb.SheetNames.includes(src.qsheet)) ? src.qsheet : (kinds.find(x => x.k === "qlt") || {}).n;
+            ok({ aoa: J(bn), daoa: dn ? J(dn) : null, qaoa: qn ? J(qn) : null, dsheet: dn, qsheet: qn, name: f.name + " › " + bn });
           } catch (e) { ko(e); }
         };
         inp.click();
@@ -11452,23 +11518,30 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       if (!INS || !INS_EDIT || !INS.src) return;
       const S = INS.src;
       const opts = [["prd", "DÉTAIL PRODUITS (produits, NBR / DIM et leurs liaisons)"], ["chg", "DÉTAIL CHARGES (charges, QTE et leurs liaisons)"],
-        ["des", "DÉSIGNATIONS CLIENT (ART, désignations, UPB, titres)"], ["hier", "TÂCHES (lots, activités primaires et secondaires)"], ["dly", "DÉLAIS (onglet DÉLAIS du fichier)"]];
+        ["des", "DÉSIGNATIONS CLIENT (ART, désignations, UPB, titres)"], ["hier", "TÂCHES (lots, activités primaires et secondaires)"], ["dly", "DÉLAIS (onglet DÉLAIS)"], ["qlt", "QUALITÉ (onglet QUALITÉ)"]];
       const sel = new Set();
       const html = `<div class="svc-sub">SOURCE : ${esc(S.kind === "gsheet" ? "GOOGLE SHEETS — " : "FICHIER — ")}${esc(S.name || "")}${S.sheet ? " › " + esc(S.sheet) : ""}</div>
         <div class="svc-sub">DERNIER IMPORT : ${esc(S.date || "")}</div>
         <div class="svc-sub"><b>CE QUI EST EFFACÉ PUIS RÉIMPORTÉ :</b></div>
-        ${opts.map(([k, l]) => `<label class="src-opt"><input type="checkbox" data-src-k="${k}"${k === "dly" && S.kind === "gsheet" ? " disabled" : ""}> ${esc(l.toUpperCase())}${k === "dly" && S.kind === "gsheet" ? " — SEULEMENT DEPUIS UN FICHIER EXCEL" : ""}</label>`).join("")}
-        <div class="svc-sub">LES BLOCS NON COCHÉS NE SONT PAS TOUCHÉS. DOCUMENTS / TAF / OBSERVATIONS ET QUALITÉ SONT TOUJOURS GARDÉS.</div>`;
+        <label class="src-opt src-all"><input type="checkbox" data-src-all> TOUT SÉLECTIONNER</label>
+        ${opts.map(([k, l]) => `<label class="src-opt"><input type="checkbox" data-src-k="${k}"> ${esc(l.toUpperCase())}</label>`).join("")}
+        <div class="svc-sub">LES BLOCS NON COCHÉS NE SONT PAS TOUCHÉS. DOCUMENTS / TAF / OBSERVATIONS SONT TOUJOURS GARDÉS.</div>`;
       const pr = svChoose({ title: "ACTUALISER DEPUIS LA SOURCE", html, buttons: [{ v: "go", label: "ACTUALISER", tone: "danger", disabled: true }] });
       const dlg = document.getElementById("svConf");
       dlg && dlg.addEventListener("change", e => {
-        const c = e.target.closest("input[data-src-k]"); if (!c) return;
-        c.checked ? sel.add(c.dataset.srcK) : sel.delete(c.dataset.srcK);
+        const all = e.target.closest("input[data-src-all]"), c = e.target.closest("input[data-src-k]");
+        if (!all && !c) return;
+        const L = [...dlg.querySelectorAll("input[data-src-k]")];
+        if (all) L.forEach(x => { x.checked = all.checked; });
+        sel.clear(); L.forEach(x => { if (x.checked) sel.add(x.dataset.srcK); });
+        const A = dlg.querySelector("input[data-src-all]");
+        if (A) { A.checked = sel.size === L.length; A.indeterminate = sel.size > 0 && sel.size < L.length; }
         const b = dlg.querySelector('[data-v="go"]'); if (b) b.disabled = !sel.size;
       });
       if ((await pr) !== "go" || !sel.size) return;
       let got;
-      try { got = await srcRead(S); } catch (err) { svImportFail({ source: S.name, tries: [{ err }], hint: "SOURCE ILLISIBLE : RÉIMPORTER LE BUDGET PAR ⋯ › IMPORTER." }); return; }
+      const need = new Set([...(["prd", "chg", "des", "hier"].some(k => sel.has(k)) ? ["budget"] : []), ...["dly", "qlt"].filter(k => sel.has(k))]);
+      try { got = await srcRead(S, need); } catch (err) { svImportFail({ source: S.name, tries: [{ err }], hint: "SOURCE ILLISIBLE : RÉIMPORTER LE BUDGET PAR ⋯ › IMPORTER." }); return; }
       if (!got) return;
       const kinds = new Set(sel);
       if (kinds.has("prd") || kinds.has("chg") || kinds.has("des") || kinds.has("hier")) {
@@ -11497,9 +11570,13 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         const rk = new Set((INS.inc || []).filter(x => /ABSENTE\(S\) DU BUDGET/.test(x.why || "")).map(x => U_((x.src || {}).type || "").slice(0, 3) + "|" + U_((x.src || {}).des) + "|" + U_((x.src || {}).u)));
         ["prd", "chg"].forEach(k => { INS[k] = INS[k].filter(r => bef[k].has(r.id) || (INS.links || []).some(l => (l[k] || []).some(x => x.id === r.id)) || !rk.has((k === "prd" ? "PRD" : "CHG") + "|" + U_(r.des) + "|" + U_(r.u))); });
       }
-      if (kinds.has("dly") && got.daoa) { INS.dlp = {}; INS.dpred = {}; INS.inc = (INS.inc || []).filter(x => U_((x.src || {}).type || "") !== "DÉLAI"); dlyImportAoa(got.daoa, got.name); }
-      srcRemember({ ...S, name: S.kind === "file" ? (got.name.split(" › ")[0] || S.name) : S.name });
-      histLog("IMPORT", "ACTUALISATION DEPUIS LA SOURCE", got.name + " — " + [...kinds].map(k => ({ prd: "PRODUITS", chg: "CHARGES", des: "DÉSIGNATIONS", hier: "TÂCHES", dly: "DÉLAIS" })[k]).join(", "));
+      /* onglet absent : ce bloc n'est pas touché, dit en une ligne */
+      const absent = [];
+      if (kinds.has("dly")) { if (got.daoa) { INS.dlp = {}; INS.dpred = {}; INS.inc = (INS.inc || []).filter(x => U_((x.src || {}).type || "") !== "DÉLAI"); dlyImportAoa(got.daoa, got.name); } else { absent.push("DÉLAIS"); kinds.delete("dly"); } }
+      if (kinds.has("qlt")) { if (got.qaoa) { INS.qlt = []; qltImportAoa(got.qaoa, got.name, true); } else { absent.push("QUALITÉ"); kinds.delete("qlt"); } }
+      if (absent.length) svToast("ONGLET " + absent.join(" ET ") + " INTROUVABLE DANS LA SOURCE : NON ACTUALISÉ.", 6000);
+      srcRemember({ ...S, name: S.kind === "file" ? (got.name.split(" › ")[0] || S.name) : S.name, ...(got.dsheet ? { dsheet: got.dsheet } : {}), ...(got.qsheet ? { qsheet: got.qsheet } : {}) });
+      if (kinds.size) histLog("IMPORT", "ACTUALISATION DEPUIS LA SOURCE", got.name + " — " + [...kinds].map(k => ({ prd: "PRODUITS", chg: "CHARGES", des: "DÉSIGNATIONS", hier: "TÂCHES", dly: "DÉLAIS", qlt: "QUALITÉ" })[k]).join(", "));
       insSave(); refreshAll();
     };
     /* IMPORTER UN BUDGET : fichier Excel (iPad) ou Google Sheets (Drive) ; un seul onglet */
@@ -11528,10 +11605,15 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
               let sh = wb.SheetNames[0];
               /* onglets BUDGET et DÉLAIS (export de l'application) : les deux sont importés */
               const kinds = wb.SheetNames.map(n => ({ n, k: sheetKind(X.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: "" })) }));
-              const bS = kinds.filter(x => x.k === "budget"), dS = kinds.filter(x => x.k === "dly");
-              if (bS.length === 1 && dS.length === 1) {
-                const ok = await bfImportAoa(X.utils.sheet_to_json(wb.Sheets[bS[0].n], { header: 1, defval: "" }), f.name + " › " + bS[0].n);
-                if (ok) { dlyImportAoa(X.utils.sheet_to_json(wb.Sheets[dS[0].n], { header: 1, defval: "" }), f.name + " › " + dS[0].n); srcRemember({ kind: "file", name: f.name, sheet: bS[0].n, dsheet: dS[0].n }); }
+              const bS = kinds.filter(x => x.k === "budget"), dS = kinds.filter(x => x.k === "dly"), qS = kinds.filter(x => x.k === "qlt");
+              if (bS.length === 1 && (dS.length === 1 || qS.length === 1) && dS.length < 2 && qS.length < 2) {
+                const J = n => X.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: "" });
+                const ok = await bfImportAoa(J(bS[0].n), f.name + " › " + bS[0].n);
+                if (ok) {
+                  if (dS[0]) dlyImportAoa(J(dS[0].n), f.name + " › " + dS[0].n);
+                  if (qS[0]) qltImportAoa(J(qS[0].n), f.name + " › " + qS[0].n);
+                  srcRemember({ kind: "file", name: f.name, sheet: bS[0].n, dsheet: (dS[0] || {}).n, qsheet: (qS[0] || {}).n });
+                }
                 return;
               }
               /* plusieurs onglets : lequel ? */
