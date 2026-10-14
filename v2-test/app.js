@@ -11109,7 +11109,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       return svConfirm({ title: "RÈGLE A — LIAISONS À DÉLIER", html, ok: "IMPORTER" });
     };
     /* ajoute le modèle au budget : AJOUTER / METTRE À JOUR / REMPLACER */
-    const bfApply = (m, mode, srcName, quiet, plan) => {
+    const bfApply = (m, mode, srcName, quiet, plan, only) => {
       let added = 0, upd = 0, skip = 0, nl = 0;
       const kid = new Map();
       const K = ["des", "lot", "prim", "sec", "chg", "prd"];
@@ -11134,6 +11134,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           }
           r.id = insId(); r.on = false;
           if (k === "des") r.t = !!r.t;
+          /* FORMAT 128 : actualisation partielle — un bloc non coché n'est jamais créé */
+          if (only && !only.has(hierK ? "hier" : k)) return;
           INS[k].push(r); added++;
           kid.set(x.key, r.id);
         });
@@ -11165,6 +11167,11 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       m.links.forEach(l => {
         const des = kid.get(l.dk), lot = kid.get(l.lot), prim = kid.get(l.prim), sec = kid.get(l.sec);
         const pid = l.pk && kid.get(l.pk), cid = l.ck && kid.get(l.ck);
+        if (only && (!des || !lot || !prim || !sec) && (pid || cid)) {
+          const miss = [!des && "DÉSIGNATION CLIENT", !lot && "LOT", !prim && "ACTIVITÉ PRIMAIRE", !sec && "ACTIVITÉ SECONDAIRE"].filter(Boolean);
+          rej.push({ src: l.src, bad: [!des ? "dc" : !lot ? "lot" : !prim ? "prim" : "sec"], why: miss.join(", ") + " ABSENTE(S) DU BUDGET (BLOC NON ACTUALISÉ)" });
+          return;
+        }
         if (!des || !lot || !prim || !sec || (!pid && !cid)) return;
         const ch0 = [des, lot, prim, sec].join("|");
         if ((pid && had.has(ch0 + "|p|" + pid)) || (cid && had.has(ch0 + "|c|" + cid))) { rej.push({ src: l.src, bad: ["des"], why: "DOUBLON : EXISTE DÉJÀ DANS LE BUDGET (SEULS NBR / DIM / QTE PEUVENT DIFFÉRER)" }); return; }
@@ -11369,6 +11376,94 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       await goA(v);
       return done;
     };
+    /* ===== FORMAT 128 : ACTUALISER DEPUIS LA SOURCE ===== */
+    const srcRemember = o => { if (!INS) return; const d = new Date(), p2 = n => String(n).padStart(2, "0");
+      INS.src = { ...o, date: p2(d.getDate()) + "/" + p2(d.getMonth() + 1) + "/" + d.getFullYear() + " À " + p2(d.getHours()) + ":" + p2(d.getMinutes()) }; insSave(); };
+    /* relit la source : { aoa, daoa, name } (fichier : choisi de nouveau, Safari ne relit pas un fichier seul) */
+    const srcRead = src => new Promise(async (ok, ko) => {
+      try {
+        if (src.kind === "gsheet") {
+          let d = null;
+          for (const call of [() => apiGet("sheetRead", { link: src.url }), () => apiPost("sheetRead", { link: src.url })]) { try { d = await call(); if (d && d.ok && Array.isArray(d.values)) break; } catch (e) {} d = null; }
+          if (d) return ok({ aoa: d.values, name: d.name || src.name });
+          const id = src.url.match(/\/d\/([a-zA-Z0-9_-]+)/)[1], gid = (src.url.match(/[#&?]gid=(\d+)/) || [])[1] || "0";
+          const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`);
+          if (!r.ok) throw new Error("HTTP " + r.status + " — ACCÈS REFUSÉ");
+          const X = await loadXLSX(), wb = X.read(await r.text(), { type: "string" });
+          return ok({ aoa: X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" }), name: src.name });
+        }
+        const inp = document.createElement("input");
+        inp.type = "file"; inp.accept = ".xlsx,.xls,.csv";
+        inp.onchange = async () => {
+          try {
+            const f = inp.files[0];
+            if (!f) return ok(null);
+            if (f.name !== src.name) svToast("FICHIER « " + f.name + " » — LA SOURCE ÉTAIT « " + src.name + " ».", 5000);
+            const X = await loadXLSX(), wb = X.read(await f.arrayBuffer(), { type: "array" });
+            const J = n => X.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: "" });
+            const kinds = wb.SheetNames.map(n => ({ n, k: sheetKind(J(n)) }));
+            const bn = wb.SheetNames.includes(src.sheet) ? src.sheet : (kinds.find(x => x.k === "budget") || {}).n || wb.SheetNames[0];
+            const dn = (src.dsheet && wb.SheetNames.includes(src.dsheet)) ? src.dsheet : (kinds.find(x => x.k === "dly") || {}).n;
+            ok({ aoa: J(bn), daoa: dn ? J(dn) : null, name: f.name + " › " + bn });
+          } catch (e) { ko(e); }
+        };
+        inp.click();
+      } catch (e) { ko(e); }
+    });
+    const srcRefresh = async () => {
+      if (!INS || !INS_EDIT || !INS.src) return;
+      const S = INS.src;
+      const opts = [["prd", "DÉTAIL PRODUITS (produits, NBR / DIM et leurs liaisons)"], ["chg", "DÉTAIL CHARGES (charges, QTE et leurs liaisons)"],
+        ["des", "DÉSIGNATIONS CLIENT (ART, désignations, UPB, titres)"], ["hier", "TÂCHES (lots, activités primaires et secondaires)"], ["dly", "DÉLAIS (onglet DÉLAIS du fichier)"]];
+      const sel = new Set();
+      const html = `<div class="svc-sub">SOURCE : ${esc(S.kind === "gsheet" ? "GOOGLE SHEETS — " : "FICHIER — ")}${esc(S.name || "")}${S.sheet ? " › " + esc(S.sheet) : ""}</div>
+        <div class="svc-sub">DERNIER IMPORT : ${esc(S.date || "")}</div>
+        <div class="svc-sub"><b>CE QUI EST EFFACÉ PUIS RÉIMPORTÉ :</b></div>
+        ${opts.map(([k, l]) => `<label class="src-opt"><input type="checkbox" data-src-k="${k}"${k === "dly" && S.kind === "gsheet" ? " disabled" : ""}> ${esc(l.toUpperCase())}${k === "dly" && S.kind === "gsheet" ? " — SEULEMENT DEPUIS UN FICHIER EXCEL" : ""}</label>`).join("")}
+        <div class="svc-sub">LES BLOCS NON COCHÉS NE SONT PAS TOUCHÉS. DOCUMENTS / TAF / OBSERVATIONS ET QUALITÉ SONT TOUJOURS GARDÉS.</div>`;
+      const pr = svChoose({ title: "ACTUALISER DEPUIS LA SOURCE", html, buttons: [{ v: "go", label: "ACTUALISER", tone: "danger", disabled: true }] });
+      const dlg = document.getElementById("svConf");
+      dlg && dlg.addEventListener("change", e => {
+        const c = e.target.closest("input[data-src-k]"); if (!c) return;
+        c.checked ? sel.add(c.dataset.srcK) : sel.delete(c.dataset.srcK);
+        const b = dlg.querySelector('[data-v="go"]'); if (b) b.disabled = !sel.size;
+      });
+      if ((await pr) !== "go" || !sel.size) return;
+      let got;
+      try { got = await srcRead(S); } catch (err) { svImportFail({ source: S.name, tries: [{ err }], hint: "SOURCE ILLISIBLE : RÉIMPORTER LE BUDGET PAR ⋯ › IMPORTER." }); return; }
+      if (!got) return;
+      const kinds = new Set(sel);
+      if (kinds.has("prd") || kinds.has("chg") || kinds.has("des") || kinds.has("hier")) {
+        let m;
+        try { m = bfModel(got.aoa); } catch (err) { svImportFail({ source: got.name, tries: [{ err }], found: [] }); return; }
+        if (m.miss.length) {
+          const v = await svChoose({ title: "COLONNE(S) MANQUANTE(S)", html: `<div class="svc-sub">${esc(m.miss.join(", "))}</div><div class="svc-sub">ACTUALISER QUAND MÊME ?</div>`, buttons: [{ v: "go", label: "ACTUALISER QUAND MÊME", tone: "neutral" }] });
+          if (v !== "go") return;
+        }
+        /* effacement des blocs cochés (et des liaisons qui en dépendent) */
+        const T = { prd: "PRD", chg: "CHG" };
+        if (kinds.has("des") || kinds.has("hier")) INS.links = [];
+        if (kinds.has("prd")) { INS.prd = []; (INS.links || []).forEach(l => { l.prd = []; }); }
+        if (kinds.has("chg")) { INS.chg = []; (INS.links || []).forEach(l => { l.chg = []; }); }
+        if (kinds.has("des")) INS.des = [];
+        if (kinds.has("hier")) { INS.lot = []; INS.prim = []; INS.sec = []; }
+        INS.links = (INS.links || []).filter(l => (l.prd || []).length);
+        INS.inc = (INS.inc || []).filter(x => { const t = U_((x.src || {}).type || ""); if (t === "DÉLAI") return true; if (kinds.has("des") || kinds.has("hier")) return false; return !Object.keys(T).some(k => kinds.has(k) && t.startsWith(T[k])); });
+        const only = new Set(kinds);
+        const plan = bfRuleA(m, "add");
+        if (!(await bfRuleAAsk(plan))) { insSave(); refreshAll(); return; }
+        plan.ok = true;
+        const bef = { prd: new Set(INS.prd.map(r => r.id)), chg: new Set(INS.chg.map(r => r.id)) };
+        bfApply(m, "add", "ACTUALISATION — " + got.name, false, plan, only);
+        /* produit / charge d'une ligne refusée (désignation ou tâche absente) : pas créé seul */
+        const rk = new Set((INS.inc || []).filter(x => /ABSENTE\(S\) DU BUDGET/.test(x.why || "")).map(x => U_((x.src || {}).type || "").slice(0, 3) + "|" + U_((x.src || {}).des) + "|" + U_((x.src || {}).u)));
+        ["prd", "chg"].forEach(k => { INS[k] = INS[k].filter(r => bef[k].has(r.id) || (INS.links || []).some(l => (l[k] || []).some(x => x.id === r.id)) || !rk.has((k === "prd" ? "PRD" : "CHG") + "|" + U_(r.des) + "|" + U_(r.u))); });
+      }
+      if (kinds.has("dly") && got.daoa) { INS.dlp = {}; INS.dpred = {}; INS.inc = (INS.inc || []).filter(x => U_((x.src || {}).type || "") !== "DÉLAI"); dlyImportAoa(got.daoa, got.name); }
+      srcRemember({ ...S, name: S.kind === "file" ? (got.name.split(" › ")[0] || S.name) : S.name });
+      histLog("IMPORT", "ACTUALISATION DEPUIS LA SOURCE", got.name + " — " + [...kinds].map(k => ({ prd: "PRODUITS", chg: "CHARGES", des: "DÉSIGNATIONS", hier: "TÂCHES", dly: "DÉLAIS" })[k]).join(", "));
+      insSave(); refreshAll();
+    };
     /* IMPORTER UN BUDGET : fichier Excel (iPad) ou Google Sheets (Drive) ; un seul onglet */
     const openBudgetImport = () => {
       const p = popup(`
@@ -11398,7 +11493,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
               const bS = kinds.filter(x => x.k === "budget"), dS = kinds.filter(x => x.k === "dly");
               if (bS.length === 1 && dS.length === 1) {
                 const ok = await bfImportAoa(X.utils.sheet_to_json(wb.Sheets[bS[0].n], { header: 1, defval: "" }), f.name + " › " + bS[0].n);
-                if (ok) dlyImportAoa(X.utils.sheet_to_json(wb.Sheets[dS[0].n], { header: 1, defval: "" }), f.name + " › " + dS[0].n);
+                if (ok) { dlyImportAoa(X.utils.sheet_to_json(wb.Sheets[dS[0].n], { header: 1, defval: "" }), f.name + " › " + dS[0].n); srcRemember({ kind: "file", name: f.name, sheet: bS[0].n, dsheet: dS[0].n }); }
                 return;
               }
               /* plusieurs onglets : lequel ? */
@@ -11407,7 +11502,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
                 if (!sh) return;
               }
               const aoa = X.utils.sheet_to_json(wb.Sheets[sh], { header: 1, defval: "" });
-              bfImportAoa(aoa, f.name + " › " + sh);
+              if (await bfImportAoa(aoa, f.name + " › " + sh)) srcRemember({ kind: "file", name: f.name, sheet: sh });
             } catch (err) { svImportFail({ source: f.name, tries: [{ err }], hint: "VÉRIFIER QUE LE FICHIER EST UN EXCEL (.XLSX) OU UN CSV, NON PROTÉGÉ PAR MOT DE PASSE." }); }
           };
           inp.click();
@@ -11421,7 +11516,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         for (const call of [() => apiGet("sheetRead", { link: url }), () => apiPost("sheetRead", { link: url })]) {
           try {
             const d = await call();
-            if (d && d.ok && Array.isArray(d.values)) { bfImportAoa(d.values, d.name || "GOOGLE SHEETS"); return; }
+            if (d && d.ok && Array.isArray(d.values)) { if (await bfImportAoa(d.values, d.name || "GOOGLE SHEETS")) srcRemember({ kind: "gsheet", url, name: d.name || "GOOGLE SHEETS" }); return; }
             first = first || "LE SCRIPT NE CONNAÎT PAS ENCORE LA LECTURE DE FEUILLE (NOUVELLE VERSION À DÉPLOYER)";
           } catch (err) { first = first || (err && err.message) || String(err); }
         }
@@ -11432,7 +11527,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           if (!r.ok) throw new Error("HTTP " + r.status + " — ACCÈS REFUSÉ (FEUILLE NON PARTAGÉE)");
           const X = await loadXLSX();
           const wb = X.read(await r.text(), { type: "string" });
-          bfImportAoa(X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" }), "GOOGLE SHEETS");
+          if (await bfImportAoa(X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" }), "GOOGLE SHEETS")) srcRemember({ kind: "gsheet", url, name: "GOOGLE SHEETS" });
           return;
         } catch (err2) { var pub = err2; }
         svImportFail({ source: "GOOGLE SHEETS — " + url, tries: [{ via: "PAR LE SCRIPT", err: first }, { via: "PAR LE LIEN PUBLIC", err: pub }], hint: "VÉRIFIER LE LIEN, QUE VOTRE COMPTE GOOGLE A ACCÈS À LA FEUILLE, OU LA PARTAGER « TOUTE PERSONNE DISPOSANT DU LIEN » ; SINON EXPORTER LA FEUILLE EN EXCEL ET IMPORTER LE FICHIER." });
@@ -11448,7 +11543,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         { a: "dup", lab: "DUPLIQUER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>' },
         { a: "lay", lab: "DISPOSITION PAR DÉFAUT", off: !rb || rb.disabled, ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
         { a: "exp", lab: "EXPORTER LE BUDGET", ic: '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
-        ...(INS_EDIT ? [{ a: "imp", lab: "IMPORTER UN BUDGET", ic: '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : [])
+        ...(INS_EDIT ? [{ a: "imp", lab: "IMPORTER UN BUDGET", ic: '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
+        ...(INS_EDIT && INS && INS.src ? [{ a: "src", lab: "ACTUALISER DEPUIS LA SOURCE", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.7-4.4M4 4v4h4M4 13a8 8 0 0 0 14.7 4.4M20 20v-4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
       ];
       const m = document.createElement("div");
       m.id = "blkMenu";
@@ -11465,6 +11561,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         else if (it.dataset.a === "lay") $("layResetBtn")?.click();
         else if (it.dataset.a === "exp") openExportMenu("budget");
         else if (it.dataset.a === "imp") openBudgetImport();
+        else if (it.dataset.a === "src") srcRefresh();
       });
       setTimeout(() => document.addEventListener("click", function off(e) {
         if (!e.target.closest("#blkMenu")) { m.remove(); document.removeEventListener("click", off, true); }
