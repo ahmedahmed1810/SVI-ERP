@@ -6295,7 +6295,8 @@ function renderBudgetList() {
       if (tbl && dc && !cwLoad()["client.designation"] && sc.clientWidth > 300) {
         const cols = [...cg.querySelectorAll("col")];
         const others = cols.filter(c => c !== dc).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
-        const nd = Math.max(160, Math.min(cwGet("client", "designation"), sc.clientWidth - others - 2));
+        const pr = parseFloat(getComputedStyle(sc).paddingRight) || 0;   /* FORMAT 134 : 9 px jusqu'au bord droit */
+        const nd = Math.max(160, Math.min(cwGet("client", "designation"), Math.floor(sc.clientWidth - pr - others)));
         if (parseFloat(dc.style.width) !== nd) dc.style.width = nd + "px";
         const tw = others + nd + "px";
         if (tbl.style.width !== tw) tbl.style.width = tw;
