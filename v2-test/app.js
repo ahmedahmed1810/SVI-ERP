@@ -16635,6 +16635,27 @@ document.addEventListener("pointerdown", e => {
 }, true);
 document.addEventListener("focusout", e => { if (e.target.closest && e.target.closest(SVI_UNIT_SEL)) setTimeout(() => { const b = document.getElementById("svUnitSug"); if (b && b.__for === e.target && document.activeElement !== e.target) sviUnitSugHide(); }, 150); });
 document.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === "Escape") sviUnitSugHide(); }, true);
+/* FORMAT 129 : case « tout cocher » à trois états — vide / à moitié (une partie cochée) / cochée (toutes) */
+(() => {
+  let raf = 0;
+  const run = () => {
+    raf = 0;
+    document.querySelectorAll('input[type="checkbox"][class$="-cball"]').forEach(hd => {
+      const box = hd.closest("table, .ins-hcol");
+      if (!box) return;
+      const rows = [...box.querySelectorAll('input[type="checkbox"]')].filter(c => c !== hd && !c.closest("thead, .bdg-h-head") && !c.classList.contains("ins-tcb") && !/-cball$/.test(c.className));
+      const n = rows.filter(c => c.checked).length;
+      const all = rows.length > 0 && n === rows.length, part = n > 0 && n < rows.length;
+      if (hd.checked !== all) hd.checked = all;
+      if (hd.indeterminate !== part) hd.indeterminate = part;
+    });
+  };
+  const go = () => { if (!raf) raf = requestAnimationFrame(run); };
+  document.addEventListener("change", go, true);
+  const mo = new MutationObserver(go);
+  const start = () => mo.observe(document.body, { childList: true, subtree: true });
+  if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
+})();
 /* FORMAT 121 : en-têtes des tableaux fixés sous la bande du budget quand la page défile */
 (() => {
   let raf = 0;
