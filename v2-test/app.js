@@ -7303,6 +7303,8 @@ function renderBudgetList() {
     const dIso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const dAdd = (iso, n) => { const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return dIso(d); };
     const dDiff = (a, b) => Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000);
+    /* FORMAT 139 : durée en jours, jour de début et jour de fin compris (même jour = 1 J) */
+    const dDur = (a, b) => dDiff(a, b) + 1;
     const dFr = iso => iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : "";
     /* ---------- DÉTAIL DÉLAIS (instance) : une ou plusieurs périodes par TÂCHE PRIMAIRE
        (tâche primaire = un lot associé à une activité primaire, d'après les liaisons validées).
@@ -7391,7 +7393,7 @@ function renderBudgetList() {
         const ps = [...insDlyList(LK.lot + "|" + se)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")));
         const sv = (INS.sec.find(x => x.id === se) || {}).v || "";
         if (!ps.length) rows.push({ sec: sv, per: "", deb: "", fin: "", dur: "" });
-        ps.forEach((p, i) => rows.push({ sec: sv, per: i + 1, deb: p.deb || "", fin: p.fin || "", dur: p.deb && p.fin ? dDiff(p.deb, p.fin) : "" }));
+        ps.forEach((p, i) => rows.push({ sec: sv, per: i + 1, deb: p.deb || "", fin: p.fin || "", dur: p.deb && p.fin ? dDur(p.deb, p.fin) : "" }));
       });
       return rows;
     };
@@ -7409,13 +7411,13 @@ function renderBudgetList() {
           const ds = rc.map(x => x.deb).filter(Boolean).sort(), fs = rc.map(x => x.fin).filter(Boolean).sort();
           const d0 = ds[0] || "", f0 = fs[fs.length - 1] || "";
           return `<div class="dly-recap-t">RÉCAPITULATIF — ${esc(lkName("lot", LK.lot))} › ${esc(lkName("prim", LK.prim))}</div>` + dlyTable(rows, x => ({ sec: esc(x.sec), per: x.per, deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur }), () => "", false, DLY_COLS_R)
-            + `<div class="dly-recap-f"><span>DÉBUT : <b>${esc(dFr(d0)) || "—"}</b></span><span>FIN : <b>${esc(dFr(f0)) || "—"}</b></span><span>DURÉE : <b>${d0 && f0 ? dDiff(d0, f0) + " J" : "—"}</b></span></div>`;
+            + `<div class="dly-recap-f"><span>DÉBUT : <b>${esc(dFr(d0)) || "—"}</b></span><span>FIN : <b>${esc(dFr(f0)) || "—"}</b></span><span>DURÉE : <b>${d0 && f0 ? dDur(d0, f0) + " J" : "—"}</b></span></div>`;
         }
         if (!key) {
           /* PLANNING : une ligne par tâche secondaire ; toucher une ligne = saisir ses périodes ;
              toucher PRÉDÉCESSEURS = les choisir */
           const P = dlyKeys().map(k => { const d0 = dlyDeb(k), f0 = dlyFin(k); const [lo, se] = k.split("|");
-            return { key: k, lot: lkName("lot", lo), sec: lkName("sec", se), pred: dlyPreds(k).map(dlyName).join(" ; "), deb: d0, fin: f0, dur: d0 && f0 ? dDiff(d0, f0) : "" }; })
+            return { key: k, lot: lkName("lot", lo), sec: lkName("sec", se), pred: dlyPreds(k).map(dlyName).join(" ; "), deb: d0, fin: f0, dur: d0 && f0 ? dDur(d0, f0) : "" }; })
             .sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || natCmp(a.lot, b.lot) || natCmp(a.sec, b.sec));
           const rows = cfApply("dlyp", DLY_COLS_P, P);
           lastShown.detail = { cols: DLY_COLS_P, rows, kind: "dly" };
@@ -7425,7 +7427,7 @@ function renderBudgetList() {
             + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE AU PLANNING</button></div>`;
         }
         const ps = key ? [...insDlyList(key)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9"))) : [];
-        const all = ps.map((p, i) => ({ task: key, pid: p.id, on: p.on === true, per: i + 1, deb: p.deb || "", fin: p.fin || "", dur: p.deb && p.fin ? dDiff(p.deb, p.fin) : "" }));
+        const all = ps.map((p, i) => ({ task: key, pid: p.id, on: p.on === true, per: i + 1, deb: p.deb || "", fin: p.fin || "", dur: p.deb && p.fin ? dDur(p.deb, p.fin) : "" }));
         if (key) all.push({ task: key, pid: "", per: "", deb: "", fin: "", dur: "", nw: true });
         const rows = cfApply("dlyi", DLY_COLS_I, all);
         lastShown.detail = { cols: DLY_COLS_I, rows: rows.filter(x => !x.nw), kind: "dly" };
@@ -7443,7 +7445,7 @@ function renderBudgetList() {
       insTasks().forEach(t => {
         const ps = [...(INS.dlp[t.key] || [])].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")));
         ps.forEach((p, i) => all.push({ task: t.key, pid: p.id, on: p.on === true, lot: t.lot, sec: t.sec, per: i + 1, deb: p.deb || "", fin: p.fin || "",
-          dur: p.deb && p.fin ? dDiff(p.deb, p.fin) : "" }));
+          dur: p.deb && p.fin ? dDur(p.deb, p.fin) : "" }));
         /* mode SAISIE : seulement les périodes saisies (en mode LIAISONS) */
         if (edit) all.push({ task: t.key, pid: "", lot: t.lot, sec: t.sec, per: "", deb: "", fin: "", dur: "", nw: true });
       });
@@ -7489,8 +7491,8 @@ function renderBudgetList() {
         X.err = "";
         if (f === "dur") {
           if (v === "") q.fin = "";
-          else if (!/^\d+$/.test(v)) X.err = "DURÉE NON VALIDE : NOMBRE DE JOURS ATTENDU.";
-          else if (q.deb) q.fin = X.dAdd(q.deb, Number(v));
+          else if (!/^\d+$/.test(v) || Number(v) < 1) X.err = "DURÉE NON VALIDE : NOMBRE DE JOURS ATTENDU (1 = DÉBUT ET FIN LE MÊME JOUR).";
+          else if (q.deb) q.fin = X.dAdd(q.deb, Number(v) - 1);
           else X.err = "SAISISSEZ D'ABORD LA DATE DE DÉBUT.";
         } else {
           const iso = X.dParse(v);
@@ -8874,7 +8876,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           if (l.deb && (!x.deb || l.deb < x.deb)) x.deb = l.deb;
           if (l.fin && (!x.fin || l.fin > x.fin)) x.fin = l.fin;
         });
-        const dur = x => x.deb && x.fin ? Math.round((new Date(x.fin) - new Date(x.deb)) / 86400000) : "";
+        const dur = x => x.deb && x.fin ? Math.round((new Date(x.fin) - new Date(x.deb)) / 86400000) + 1 : "";   /* FORMAT 139 */
         /* ordre par défaut : chronologique (début), puis alphabétique */
         const all = [...m.values()].map(x => ({ ...x, dur: dur(x) }))
           .sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || a.lot.localeCompare(b.lot, "fr") || a.prim.localeCompare(b.prim, "fr"));
@@ -11305,7 +11307,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         const pr = ((INS.dpred || {})[k] || []).map(dlyName).join(" ; ");
         const ps = [...((INS.dlp || {})[k] || [])].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")));
         if (!ps.length) out.push([lkName("lot", lo), lkName("sec", se), "", "", "", "", pr]);
-        ps.forEach((p, i) => out.push([lkName("lot", lo), lkName("sec", se), i + 1, dFr(p.deb || ""), dFr(p.fin || ""), p.deb && p.fin ? dDiff(p.deb, p.fin) : "", i ? "" : pr]));
+        ps.forEach((p, i) => out.push([lkName("lot", lo), lkName("sec", se), i + 1, dFr(p.deb || ""), dFr(p.fin || ""), p.deb && p.fin ? dDur(p.deb, p.fin) : "", i ? "" : pr]));
       });
       return out;
     };
@@ -11385,7 +11387,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         let deb = dlyDate(g(r, "deb")), fin = dlyDate(g(r, "fin"));
         if (!deb && !fin) return;
         if (deb === null || fin === null) { rej.push({ src, bad: [deb === null ? "deb" : "fin"], why: "DATE NON VALIDE : FORMAT JJ/MM/AAAA" }); return; }
-        if (deb && !fin && String(g(r, "dur") ?? "").trim() !== "" && /^\d+$/.test(String(g(r, "dur")).trim())) fin = dAdd(deb, Number(g(r, "dur")));
+        if (deb && !fin && String(g(r, "dur") ?? "").trim() !== "" && /^\d+$/.test(String(g(r, "dur")).trim()) && Number(g(r, "dur")) >= 1) fin = dAdd(deb, Number(g(r, "dur")) - 1);
         if (!deb || !fin) { rej.push({ src, bad: [!deb ? "deb" : "fin"], why: !deb ? "DÉBUT MANQUANT" : "FIN MANQUANTE" }); return; }
         if (fin < deb) { rej.push({ src, bad: ["fin"], why: "LA FIN EST AVANT LE DÉBUT" }); return; }
         if (((INS.dlp || {})[key] || []).some(x => x.deb === deb && x.fin === fin) || added.some(x => x.key === key && x.deb === deb && x.fin === fin)) return;   /* déjà là */
@@ -14624,7 +14626,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
             Math.round(
               (new Date(b) - new Date(a)) /
               86400000
-            );
+            ) + 1;   /* FORMAT 139 : jours de début et de fin compris */
 
           $("bdgDelayDays").textContent =
             days + " JOUR" + (Math.abs(days) > 1 ? "S" : "");
