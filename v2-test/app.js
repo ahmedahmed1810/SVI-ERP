@@ -6217,14 +6217,26 @@ function renderBudgetList() {
     };
     const insFootHTML = k => {
       if (k === "qlt") return "";
-      const rows = insShown(k).filter(r => !r.t);
+      /* FORMAT 126 : lignes affichées, ou seulement les cases carrées cochées ; « TOTAL PARTIEL » si une partie seulement */
+      const shown = insShown(k).filter(r => !r.t), on = shown.filter(r => r.on === true);
+      const rows = on.length ? on : shown;
+      const partial = on.length > 0 || shown.length < INS[k].filter(r => !r.t).length;
       const ht = rows.reduce((t, r) => t + insHT(k, r), 0);
       const ttc = rows.reduce((t, r) => t + insTTC(k, r), 0);
       /* pied aligné sur l'ordre des colonnes de l'écran */
       const cols = insColsOrd(k), val = { ht: money(ht), tva: money(ttc - ht), ttc: money(ttc) };
+      /* même unité → unité + somme des quantités ; même unité et même prix → le prix */
+      const us = new Set(rows.map(r => U_(r.u || "")));
+      if (rows.length && us.size === 1 && [...us][0]) {
+        val.u = [...us][0];
+        val.q = money(rows.reduce((t, r) => t + (Number(insCalc(k, r, "q")) || 0), 0));
+        const ps = new Set(rows.map(r => money(Number(insCalc(k, r, "p")) || 0)));
+        if (ps.size === 1 && rows.every(r => String(insCalc(k, r, "p") ?? "") !== "")) val.p = [...ps][0];
+      }
+      const lab = partial ? "TOTAL PARTIEL" : "TOTAL";
       const first = cols.findIndex(c => val[c[0]] !== undefined);
-      const cells = cols.map((c, i) => val[c[0]] !== undefined ? `<td class="number">${val[c[0]]}</td>` : i === first - 1 ? '<td class="number">TOTAL</td>' : "<td></td>");
-      return `<tr class="bdg-d-total-row"><td>${first === 0 ? "TOTAL" : ""}</td>${cells.join("")}${insQCol(k) ? "<td></td>" : ""}${INS_EDIT ? "<td></td>" : ""}</tr>`;
+      const cells = cols.map((c, i) => val[c[0]] !== undefined ? `<td class="${c[0] === "u" ? "center" : "number"}">${val[c[0]]}</td>` : i === first - 1 ? `<td class="number">${lab}</td>` : "<td></td>");
+      return `<tr class="bdg-d-total-row"><td>${first === 0 ? lab : ""}</td>${cells.join("")}${insQCol(k) ? "<td></td>" : ""}${INS_EDIT ? "<td></td>" : ""}</tr>`;
     };
     /* case d'en-tête : toutes les lignes visibles (hors titres) cochées */
     const insAllOn = k => { const v = insShown(k).filter(r => !r.t); return v.length > 0 && v.every(r => r.on === true); };
