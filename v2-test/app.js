@@ -13963,12 +13963,17 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       }
       const tb = th.closest("table"), idx = [...th.parentElement.children].indexOf(th), n = th.parentElement.children.length;
       let trs = [...tb.querySelectorAll("tbody tr")].filter(tr => tr.children.length === n && !tr.classList.contains("ins-new") && !tr.classList.contains("bdg-d-filler"));
+      /* COLLER : toutes les lignes affichées, titres compris, dans l'ordre de l'écran (une ligne = une cellule) */
+      const seenI = new Set();
+      const all = trs.filter(tr => { const id = tr.dataset.iid; if (!id) return true; if (seenI.has(id)) return false; seenI.add(id); return true; });
+      /* ordre du tableau (filtre / tri), sans la remontée des lignes choisies ou cochées */
+      { const kk = tb.dataset.ik; if (INS && ["des", "chg", "prd"].includes(kk)) { const ix = new Map(insShown(kk).map((r, i) => [r.id, i])); all.sort((a, b) => (ix.get(a.dataset.iid) ?? 1e9) - (ix.get(b.dataset.iid) ?? 1e9)); } }
       const on = trs.filter(tr => tr.querySelector('td:last-child input[type="checkbox"]:checked'));
       if (on.length) trs = on;
       const k = tb.dataset.ik, edit = !!(INS_EDIT && tb.classList.contains("ins-table") && ["des", "chg", "prd"].includes(k));
       const col = edit ? (INS_COLS[k] || []).find(c => c[4] === COLSEL.key) : null;
       const cell = tr => { const td = tr.children[idx]; const i = td && td.querySelector(".ins-in, input:not([type=checkbox]), textarea"); return (i ? i.value : (td ? td.textContent : "")).trim(); };
-      return { label, k, col, edit: edit && !!col, trs, vals: trs.map(cell) };
+      return { label, k, col, edit: edit && !!col, trs, all, vals: trs.map(cell) };
     };
     const colOp = async (act, cs) => {
       if (act === "copy" || act === "cut") {
@@ -13991,12 +13996,14 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       }
       const isNum = type === "num", bad = [];
       let done = 0;
-      const n = Math.min(vals.length, cs.trs.length);
+      /* FORMAT 116 (14/10/2026) : COLLER est positionnel — à partir de la 1re ligne affichée, titres compris, cases cochées ignorées */
+      const rowsT = act === "paste" ? (cs.all || cs.trs) : cs.trs;
+      const n = Math.min(vals.length, rowsT.length);
       for (let i = 0; i < n; i++) {
-        const r = INS[k].find(x => x.id === cs.trs[i].dataset.iid);
+        const r = INS[k].find(x => x.id === rowsT[i].dataset.iid);
         if (!r) continue;
         const name = (r.des || r.v || "").trim() || ("LIGNE " + (i + 1));
-        if (r.t && f !== "art" && f !== "des") continue;
+        if (r.t && f !== "art" && f !== "des") { if (String(vals[i] ?? "").trim() !== "") bad.push(name + " : TITRE — PAS DE " + cs.label); continue; }
         let v = String(vals[i] ?? "").trim();
         if (isNum && v !== "" && !sviNumOk(v)) { bad.push(name + " : « " + v + " » N'EST PAS UN NOMBRE"); continue; }
         if (k === "chg" && (f === "p" || f === "u") && r.chs) { bad.push(name + " : VALEUR VENUE DE CHS"); continue; }
@@ -14011,7 +14018,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         }
         done++;
       }
-      const extra = Math.max(0, vals.length - cs.trs.length);
+      const extra = Math.max(0, vals.length - rowsT.length);
       insNorm(); insSave();
       histLog("SAISIE", act === "cut" ? "COUPER LA COLONNE" : "COLLER DANS LA COLONNE", cs.label + " — " + done + " CASE(S)" + (bad.length ? " — " + bad.length + " REFUSÉE(S)" : ""));
       refreshAll();
