@@ -10082,7 +10082,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
               /* format métré : NB centré, quantité à droite */
               if (blk === "metre" && head[c] === "NB") h = "center";
               if (blk === "metre" && head[c] === "QUANTITÉ") h = "right";
-              ws[a].s = { font: font(bold.has(i)), border, alignment: { horizontal: h, vertical: "top", wrapText: c !== 1 } };
+              ws[a].s = { font: font(bold.has(i)), border, alignment: { horizontal: h, vertical: "top", wrapText: c !== 1 || (blk === "detail" && active === "dly") } };
               if (ws[a].t === "n") ws[a].z = "#,##0.00";
             });
           });
@@ -10096,19 +10096,24 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           X.utils.book_append_sheet(wb, ws, blk === "budget" ? "BUDGET" : blkLabel(blk).slice(0, 31));
           /* EXPORTER LE BUDGET : 2e onglet DÉLAIS (une ligne par période, prédécesseurs) — FORMAT 57 */
           if (blk === "budget" && INS) {
+            /* FORMAT 135 : onglets DÉLAIS et QUALITÉ avec la même entrée que l'export du bloc (date, budget, client, projet, titre),
+               tableau en dessous ; l'import retrouve la ligne d'en-tête */
+            const tab = (title, HH, RR, al, wch, isBold) => {
+              const tp = [top[0], top[1], top[2], top[3], [title], []], h0 = tp.length, n = HH.length;
+              const w = X.utils.aoa_to_sheet([...tp, HH, ...RR]);
+              w["!merges"] = tp.slice(0, 5).map((_, r) => ({ s: { r, c: 0 }, e: { r, c: n - 1 } }));
+              tp.slice(0, 5).forEach((_, r) => { const a = X.utils.encode_cell({ r, c: 0 }); w[a] = w[a] || { t: "s", v: "" }; w[a].s = { font: font(true), alignment: { horizontal: r ? "center" : "right" } }; });
+              HH.forEach((_, c) => { const a = X.utils.encode_cell({ r: h0, c }); w[a].s = { font: font(true), border, fill: { fgColor: { rgb: "D9DEE6" } }, alignment: { horizontal: "center", vertical: "center", wrapText: true } }; });
+              RR.forEach((row, i) => HH.forEach((_, c) => { const a = X.utils.encode_cell({ r: h0 + 1 + i, c }); w[a] = w[a] || { t: "s", v: "" }; w[a].s = { font: font(isBold(row)), border, alignment: { horizontal: al(c), vertical: "top", wrapText: true } }; }));
+              w["!cols"] = wch.map(x => ({ wch: x }));
+              w["!rows"] = []; w["!rows"][h0] = { hpt: 30 };
+              return w;
+            };
             const DH = ["PROJET", ...DLY_HEAD], DR = dlyExportRows().map(r => [U_(budget.project || ""), ...r]);
-            const ws2 = X.utils.aoa_to_sheet([DH, ...DR]);
-            DH.forEach((_, c) => { const a = X.utils.encode_cell({ r: 0, c }); ws2[a].s = { font: font(true), border, fill: { fgColor: { rgb: "D9DEE6" } }, alignment: { horizontal: "center", vertical: "center", wrapText: true } }; });
-            DR.forEach((row, i) => DH.forEach((h, c) => { const a = X.utils.encode_cell({ r: i + 1, c }); ws2[a] = ws2[a] || { t: "s", v: "" }; ws2[a].s = { font: font(false), border, alignment: { horizontal: c >= 3 && c <= 6 ? "center" : "left", vertical: "top", wrapText: true } }; }));
-            ws2["!cols"] = [{ wch: 10 }, { wch: 24 }, { wch: 32 }, { wch: 9 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 48 }];
-            X.utils.book_append_sheet(wb, ws2, "DÉLAIS");
+            X.utils.book_append_sheet(wb, tab("DÉTAIL DÉLAIS", DH, DR, c => c >= 3 && c <= 6 ? "center" : "left", [10, 24, 40, 9, 12, 12, 10, 48], () => false), "DÉLAIS");
             /* 3e onglet QUALITÉ (FORMAT 132) */
             const QH = ["PROJET", "QUALITÉ", "TITRE"], QR = (INS.qlt || []).filter(r => U_(r.v)).map(r => [U_(budget.project || ""), U_(r.v), r.t ? "OUI" : ""]);
-            const ws3 = X.utils.aoa_to_sheet([QH, ...QR]);
-            QH.forEach((_, c) => { const a = X.utils.encode_cell({ r: 0, c }); ws3[a].s = { font: font(true), border, fill: { fgColor: { rgb: "D9DEE6" } }, alignment: { horizontal: "center", vertical: "center", wrapText: true } }; });
-            QR.forEach((row, i) => QH.forEach((h, c) => { const a = X.utils.encode_cell({ r: i + 1, c }); ws3[a] = ws3[a] || { t: "s", v: "" }; ws3[a].s = { font: font(!!row[2]), border, alignment: { horizontal: c === 2 ? "center" : "left", vertical: "top", wrapText: true } }; }));
-            ws3["!cols"] = [{ wch: 10 }, { wch: 70 }, { wch: 8 }];
-            X.utils.book_append_sheet(wb, ws3, "QUALITÉ");
+            X.utils.book_append_sheet(wb, tab("DÉTAIL QUALITÉ", QH, QR, c => c === 2 ? "center" : "left", [10, 70, 8], row => !!row[2]), "QUALITÉ");
           }
           const out = X.write(wb, { bookType: "xlsx", type: "array" });
           await deliver(base + ".xlsx", new Blob([out], {
