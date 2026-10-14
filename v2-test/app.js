@@ -12148,9 +12148,11 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       return { c, tb };
     };
     /* marge de 3 px : la bordure du bas de la dernière ligne reste visible */
+    /* FORMAT 137 : mesure à l'écran (le contenu est son propre repère depuis le filigrane) — aucune ligne coupée en bas */
     const full = c => {
-      const bottom = [...c.children].reduce((m, x) => Math.max(m, x.offsetTop + x.offsetHeight), 0);
-      return bottom > c.offsetTop + c.clientHeight - 3;
+      const cb = c.getBoundingClientRect().top + c.clientHeight;
+      const bottom = [...c.children].reduce((m, x) => Math.max(m, x.getBoundingClientRect().bottom), 0);
+      return bottom > cb - 3;
     };
     /* cellules fusionnées (rowspan) : désignation, lot, activités répétés
        s'étalent sur les lignes suivantes, sans agrandir la première ligne */
