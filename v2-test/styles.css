@@ -1419,3 +1419,4 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .only-c { margin-left: 8px; height: 22px; padding: 0 8px; border: 1px solid var(--svst, #b91c1c); border-radius: 11px; background: #fff;
   color: var(--svst, #b91c1c); font: 800 10px Arial, sans-serif; cursor: pointer; white-space: nowrap; flex: none; vertical-align: middle; }
 .only-c.on { background: var(--svst, #b91c1c); color: #fff; }
+#svConf .src-opt.src-all { padding-bottom: 6px; border-bottom: 1px solid #d1d5db; }
