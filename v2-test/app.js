@@ -12011,8 +12011,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
   .foot { flex: none; text-align: center; font-weight: bold; font-size: 10pt; }
   /* numéro de page en bas à droite : la place libérée sert aux lignes */
   .foot { position: static; padding-top: 1.5mm; }
-  /* FORMAT 133 : « Page 1 / 4 » centré au-dessus du trait */
-  .foot .pg { position: static; text-align: center; font-size: 10pt; font-weight: bold; margin-bottom: 1.5mm; }
+  /* FORMAT 138 : numéro de page en bas à droite, dans la marge du pied : la place libérée sert aux lignes */
+  .foot .pg { position: absolute; right: 12mm; bottom: 4mm; font-size: 9.5pt; font-weight: bold; }
   .foot hr { width: 65%; border: 0; border-top: 2.5px solid #5677a7; margin: 0 auto 1.5mm; }
   .foot .ad { line-height: 1.3; }
   /* signature et cachet : transparents, déplaçables au doigt dans l'aperçu */
