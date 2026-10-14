@@ -5721,6 +5721,30 @@ function renderBudgetList() {
        Calculé une fois depuis l'ART (lignes anciennes / importées), puis changé seulement par le glissement ;
        l'ART reste tel que saisi. Pas de limite de niveaux. */
     const dOf = r => Number(r && r.d) || 0;
+    /* FORMAT 124 : ART calculé quand il est vide — suivant de la ligne précédente de même niveau (dernier nombre + 1),
+       sinon numéro du titre + « .1 » (1re ligne du tableau : 1) ; un ART saisi n'est jamais changé */
+    const artIncr = a => { const m = /^(.*?)(\d+)(\D*)$/.exec(String(a)); return m ? m[1] + (Number(m[2]) + 1) + m[3] : String(a) + ".1"; };
+    const artAutoOf = list => {
+      const out = new Map(), last = [], tnum = [];
+      (list || []).forEach(r => {
+        const d = Number(r && r.d) || 0;
+        last.length = d + 1; tnum.length = d + 1;
+        const own = String(r.art ?? "").trim();
+        const n = own || (last[d] !== undefined ? artIncr(last[d]) : d === 0 ? "1" : (tnum[d - 1] || "1") + ".1");
+        last[d] = n;
+        if (!own) out.set(r.id, n);
+        if (r.t) { tnum[d] = n; last[d + 1] = undefined; }
+      });
+      return out;
+    };
+    let ART_AUTO = new Map(), ART_DUP = new Map();
+    const artOf = r => r ? (String(r.art ?? "").trim() || ART_AUTO.get(r.id) || "") : "";
+    const artRefresh = () => {
+      if (!INS) return;
+      ART_AUTO = artAutoOf(INS.des);
+      ART_DUP = new Map();
+      INS.des.forEach(r => { const a = artOf(r); if (a) (ART_DUP.get(a) || ART_DUP.set(a, []).get(a)).push(r); });
+    };
     /* liaison primaire : l'activité secondaire porte le même intitulé que l'activité primaire */
     const insIsPrimLink = (pid, sid) => {
       const P = INS && INS.prim.find(x => x.id === pid), S = INS && INS.sec.find(x => x.id === sid);
@@ -5783,6 +5807,7 @@ function renderBudgetList() {
       if (!INS) return;
       if (insTwins()) insSave();
       if (insPrdSplit() && INS_EDIT) insSave();
+      try { artRefresh(); } catch (e) {}
       /* FORMAT 108 : DIM à 0 = DIM vide */
       { let ch = false;
         (INS.prd || []).forEach(r => ["d1", "d2", "d3"].forEach(f => { const v = r[f]; if (v !== "" && v !== undefined && v !== null && String(v).trim() !== "" && num(v) === 0) { r[f] = ""; ch = true; } }));
@@ -5864,6 +5889,12 @@ function renderBudgetList() {
         : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? prdTaskName(r.id) : r[f];
     /* erreur d'une ligne (FORMAT 75) : on ne passe pas à la ligne suivante tant qu'elle reste */
     const insRowErr = (k, r) => {
+      /* FORMAT 124 : ART en double (saisi ou calculé) — titres compris */
+      if (k === "des" && r && INS && (INS.des || []).includes(r)) {
+        if (!insRowErr.__t || Date.now() - insRowErr.__t > 50) { artRefresh(); insRowErr.__t = Date.now(); }
+        const a = artOf(r), same = a ? (ART_DUP.get(a) || []).filter(x => x !== r) : [];
+        if (same.length) return { f: "art", m: "ART " + a + " DÉJÀ UTILISÉ PAR " + (same[0].des || "UNE AUTRE LIGNE") + " : CHANGER L'ART." };
+      }
       if (!r || r.t || !INS || !(INS[k] || []).includes(r)) return null;
       const z = v => v === "" || v === undefined || v === null || num(v) === 0;
       if (k === "prd") {
@@ -5900,14 +5931,15 @@ function renderBudgetList() {
         else if (type === "num") val = f === "tva" ? (r.tva === "" || r.tva === undefined ? "20,00" : insFmt(r.tva)) : insFmt(r[f]);
         else val = r[f] || "";
       }
-      if (!INS_EDIT) return `<td class="${cls}${k === "des" && f === "des" ? " c-wrap" : ""}">${esc(val)}${f === "tva" && val ? " %" : ""}</td>`;
+      const artA = k === "des" && f === "art" && !isNew && !String(r.art ?? "").trim() ? (ART_AUTO.get(r.id) || "") : "";
+      if (!INS_EDIT) return `<td class="${cls}${k === "des" && f === "des" ? " c-wrap" : ""}${artA ? " art-auto" : ""}">${esc(artA || val)}${f === "tva" && val ? " %" : ""}</td>`;
       /* FORMAT 109 : DÉSIGNATION client sur plusieurs lignes si elle est trop longue (la ligne devient plus haute) */
       /* FORMAT 122 : ligne existante — texte affiché (appui long = glisser), un toucher ouvre la saisie */
       if (k === "des" && f === "des" && !isNew) return `<td class="${cls} ins-td ins-tdv${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><div class="ins-dv" data-f="des">${esc(val)}</div><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea></td>`;
       if (k === "des" && f === "des") return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} ${isNew ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea></td>`;
       return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
         ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
-        value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off"></td>`;
+        value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off"></td>`;
     };
     const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     /* page unique : rond à gauche = choix pour la liaison (2e toucher = libère le choix) ;
@@ -6028,7 +6060,7 @@ function renderBudgetList() {
     /* colonnes d'un tableau de saisie dans l'ordre choisi par glissement (mémorisé) */
     const insColsOrd = k => { const cols = INS_COLS[k] || []; const ord = coKeys(insCfT(k), cols.map(c => c[4])); return ord.map(x => cols.find(c => c[4] === x)).filter(Boolean); };
     const insCfCols = k => INS_COLS[k].map(c => [c[4], c[1],
-      r => c[3] === "txt" ? (r[c[0]] || "") : (r.t ? "" : insCalc(k, r, c[0])), c[2]]);
+      r => k === "des" && c[0] === "art" ? artOf(r) : c[3] === "txt" ? (r[c[0]] || "") : (r.t ? "" : insCalc(k, r, c[0])), c[2]]);
     const insShown = k => {
       const t = insCfT(k);
       const normal = INS[k].filter(r => !r.t);
@@ -6865,6 +6897,19 @@ function renderBudgetList() {
           const on = !!er && td.querySelector("input")?.dataset.f === er.f;
           td.classList.toggle("ins-bad", on);
           if (on) td.dataset.why = er.m; else delete td.dataset.why;
+        });
+      }
+      /* FORMAT 124 : ART calculés et doublons d'ART mis à jour à la frappe */
+      if (k === "des") {
+        artRefresh(); insRowErr.__t = Date.now();
+        tbl.querySelectorAll("tr[data-iid]").forEach(row => {
+          const rr = INS.des.find(x => x.id === row.dataset.iid);
+          const ai = row.querySelector('.ins-in[data-f="art"]');
+          if (!rr || !ai) return;
+          ai.placeholder = String(rr.art ?? "").trim() ? "" : (ART_AUTO.get(rr.id) || "");
+          const er = insRowErr("des", rr), td = ai.closest("td"), on = !!er && er.f === "art";
+          td.classList.toggle("ins-bad", on);
+          if (on) td.dataset.why = er.m; else if (td.dataset.why && /^ART /.test(td.dataset.why)) delete td.dataset.why;
         });
       }
       tr.querySelectorAll(".ins-in").forEach(inp => {
@@ -10828,7 +10873,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       const d = dupData();
       const by = (k, id) => (d[k] || []).find(x => x.id === id) || {};
       const n = v => v === "" || v === undefined || v === null ? "" : num(v);
-      const desC = D => [D.art || "", U_(D.des), D.t ? "" : U_(D.u)];
+      const AA = artAutoOf(d.des || []);   /* FORMAT 124 : ART calculé exporté */
+      const desC = D => [D.art || AA.get(D.id) || "", U_(D.des), D.t ? "" : U_(D.u)];
       /* produits : pas d'article (FORMAT 6) — colonne ARTICLE vide sur les lignes PRD */
       const prdC = P => ["PRD", "", U_(P.des), "", U_(P.u), n(P.nbr), n(P.d1), n(P.d2), n(P.d3), ""];
       const chgC = (C, q) => ["CHG", C.art || "", "", U_(C.des), U_(C.u), "", "", "", "", n(q !== "" && q !== undefined ? q : C.q)];
@@ -12325,9 +12371,9 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           return `<tr>${td("")}${td("<b>TOTAL " + esc(x.sub.des || x.sub.art || "") + "</b>", "r")}${td("")}${td("")}${td("")}${td("")}${td("<b>" + money(ht) + "</b>", "r")}</tr>`;
         }
         const r = x.r;
-        if (r.t) return `<tr>${td("<b>" + esc(r.art || "") + "</b>", "c")}${td("<b>" + esc(r.des || "") + "</b>")}${td("")}${td("")}${td("")}${td("")}${td("")}</tr>`;
+        if (r.t) return `<tr>${td("<b>" + esc(artOf(r)) + "</b>", "c")}${td("<b>" + esc(r.des || "") + "</b>")}${td("")}${td("")}${td("")}${td("")}${td("")}</tr>`;
         const pu = Math.round(num(r.p || 0) * 100) / 100;
-        return `<tr>${td(esc(r.art || ""), "c")}${td(esc(r.des || ""))}${td(esc(r.u || ""), "c")}` +
+        return `<tr>${td(esc(artOf(r)), "c")}${td(esc(r.des || ""))}${td(esc(r.u || ""), "c")}` +
           `${td(money(insQty("des", r)), "r")}${td(money(pu), "r")}${td(esc(frMoney(pu)), "c")}${td(money(insHT("des", r)), "r")}</tr>`;
       }).join("");
       const ls = rows.filter(r => !r.t);
@@ -13972,7 +14018,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       if (on.length) trs = on;
       const k = tb.dataset.ik, edit = !!(INS_EDIT && tb.classList.contains("ins-table") && ["des", "chg", "prd"].includes(k));
       const col = edit ? (INS_COLS[k] || []).find(c => c[4] === COLSEL.key) : null;
-      const cell = tr => { const td = tr.children[idx]; const i = td && td.querySelector(".ins-in, input:not([type=checkbox]), textarea"); return (i ? i.value : (td ? td.textContent : "")).trim(); };
+      const cell = tr => { const td = tr.children[idx]; const i = td && td.querySelector(".ins-in, input:not([type=checkbox]), textarea"); return (i ? (i.value || (i.dataset.f === "art" ? i.placeholder : "")) : (td ? td.textContent : "")).trim(); };
       return { label, k, col, edit: edit && !!col, trs, all, vals: trs.map(cell) };
     };
     const colOp = async (act, cs) => {

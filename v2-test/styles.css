@@ -1402,3 +1402,7 @@ th.col-sel .cf-lab, .bdg-h-head.col-sel .cf-lab { text-decoration: underline; te
 .sv-stuck:not(th) { position: relative; z-index: 6; }
 thead th.sv-stuck, .bdg-h-head.sv-stuck { z-index: 7; box-shadow: 0 3px 4px -2px rgba(15, 23, 42, .18); }
 .blk-head.sv-stuck, .bdg-d-block-title.sv-stuck, #bdgTabs.sv-stuck { background: #fff; z-index: 8; }
+
+/* FORMAT 124 : ART calculé (case vide) en gris */
+.ins-table input.ins-in[data-f="art"]::placeholder { color: #9aa3af !important; -webkit-text-fill-color: #9aa3af !important; opacity: 1; }
+.bdg-d-table td.art-auto { color: #9aa3af !important; }
