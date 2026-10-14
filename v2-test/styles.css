@@ -1414,3 +1414,8 @@ thead th.sv-stuck, .bdg-h-head.sv-stuck { z-index: 7; box-shadow: 0 3px 4px -2px
 
 /* FORMAT 129 : case d'en-tête à moitié cochée (comme les titres) */
 input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
+
+/* FORMAT 131 : bouton COCHÉES SEULEMENT */
+.only-c { margin-left: 8px; height: 22px; padding: 0 8px; border: 1px solid var(--svst, #b91c1c); border-radius: 11px; background: #fff;
+  color: var(--svst, #b91c1c); font: 800 10px Arial, sans-serif; cursor: pointer; white-space: nowrap; flex: none; vertical-align: middle; }
+.only-c.on { background: var(--svst, #b91c1c); color: #fff; }
