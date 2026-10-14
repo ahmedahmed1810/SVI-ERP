@@ -7493,7 +7493,8 @@ function renderBudgetList() {
           if (v === "") q.fin = "";
           else if (!/^\d+$/.test(v) || Number(v) < 1) X.err = "DURÉE NON VALIDE : NOMBRE DE JOURS ATTENDU (1 = DÉBUT ET FIN LE MÊME JOUR).";
           else if (q.deb) q.fin = X.dAdd(q.deb, Number(v) - 1);
-          else X.err = "SAISISSEZ D'ABORD LA DATE DE DÉBUT.";
+          else if (q.fin) q.deb = X.dAdd(q.fin, 1 - Number(v));   /* FIN + DURÉE → DÉBUT (FORMAT 140) */
+          else X.err = "SAISISSEZ D'ABORD LA DATE DE DÉBUT OU DE FIN.";
         } else {
           const iso = X.dParse(v);
           if (iso === null) X.err = "DATE NON VALIDE : FORMAT JJ/MM/AAAA.";
@@ -7529,8 +7530,13 @@ function renderBudgetList() {
         apply();
         X.render();
         /* le curseur passe à la case suivante de la même période */
-        const nx = { deb: "fin", fin: "dur" }[f];
-        const el = !X.err && nx && shell.querySelector(`input.dlp-in[data-pid="${q.id}"][data-f="${nx}"]`);
+        /* FORMAT 140 : dès que deux valeurs sur trois (DÉBUT, FIN, DURÉE) sont connues, la période est complète :
+           le curseur passe à la nouvelle ligne (SAISIR ICI…) ; sinon à la valeur qui manque */
+        const done = q.deb && q.fin;
+        const nx = done ? "" : (q.deb ? "fin" : "deb");
+        const el = !X.err && (done
+          ? shell.querySelector(`input.dlp-in[data-task="${i.dataset.task}"][data-pid=""][data-f="deb"]`)
+          : shell.querySelector(`input.dlp-in[data-pid="${q.id}"][data-f="${nx}"]`));
         if (el) { el.focus(); try { el.select(); } catch (err) {} }
       });
       /* SUPPRIMER LES LIGNES COCHÉES (menu ⋯) : périodes cochées */
