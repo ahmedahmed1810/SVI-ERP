@@ -7063,7 +7063,8 @@ function renderBudgetList() {
             ? [...box.querySelectorAll(".ins-li[data-iid]")].map(li => X.INS[k].find(x => x.id === li.dataset.iid)).filter(Boolean)
             : X.insShown(k).filter(x => !x.t);
           if (ca) {
-            vis.forEach(r => { r.on = ca.checked; });
+            /* FORMAT 125 : tout cocher coche aussi les titres (désignations) */
+            (k === "des" ? X.insShown(k) : vis).forEach(r => { r.on = ca.checked; });
             X.insSave(); X.insRedraw(k);
             return;
           }
@@ -13896,6 +13897,11 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           /* couper : seulement les lignes non liées (un titre dont une ligne est liée reste) */
           const used = new Set(rows.filter(r => !r.t && X.isUsed(k, r.id)).map(r => r.id));
           rows = rows.filter(r => !used.has(r.id) && !(r.t && X.insBranch(r).some(x => used.has(x.id))));
+        } else if (k === "des") {
+          /* FORMAT 125 : copier — chaque ligne emporte ses titres (même structure que le tableau) */
+          const ids = new Set(rows.map(r => r.id));
+          X.INS.des.forEach(t => { if (t.t && !ids.has(t.id) && X.insBranch(t).some(x => ids.has(x.id))) ids.add(t.id); });
+          rows = X.INS.des.filter(r => ids.has(r.id));
         }
         if (rows.length) out[k] = rows;
       });
@@ -13920,7 +13926,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           const keys = tbl ? [...tbl.querySelectorAll("thead tr:first-child > th .cf-btn[data-col]")].map(b => b.dataset.col) : [];
           const CO = keys.length ? keys.map(x => INS_COLS[k].find(c => c[4] === x)).filter(Boolean) : INS_COLS[k];
           tsv.push(CO.map(c => c[1]).join("\t"));
-          p[k].forEach(r => tsv.push(CO.map(c => { const v = r.t && !["art", "des"].includes(c[0]) ? "" : (c[3] === "txt" ? (r[c[0]] || "") : insFmt(insCalc(k, r, c[0]))); return String(v ?? "").replace(/[\t\n]/g, " "); }).join("\t")));
+          p[k].forEach(r => tsv.push(CO.map(c => { const v = r.t && !["art", "des"].includes(c[0]) ? "" : (k === "des" && c[0] === "art" ? artOf(r) : c[3] === "txt" ? (r[c[0]] || "") : insFmt(insCalc(k, r, c[0]))); return String(v ?? "").replace(/[\t\n]/g, " "); }).join("\t")));
         } else { tsv.push({ lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" }[k] || k.toUpperCase()); p[k].forEach(r => tsv.push(r.v || "")); }
         tsv.push("");
       });
