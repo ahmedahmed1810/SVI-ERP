@@ -1420,3 +1420,5 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
   color: var(--svst, #b91c1c); font: 800 10px Arial, sans-serif; cursor: pointer; white-space: nowrap; flex: none; vertical-align: middle; }
 .only-c.on { background: var(--svst, #b91c1c); color: #fff; }
 #svConf .src-opt.src-all { padding-bottom: 6px; border-bottom: 1px solid #d1d5db; }
+/* FORMAT 134 : 9 px entre la dernière colonne et le bord droit du bloc (8 px + trait 1 px), défilement compris */
+.bdg-d-block .bdg-d-scroll, .bdg-d-block .rec-scroll, .bdg-d-block .lk-scroll { padding-right: 8px !important; box-sizing: border-box; }
