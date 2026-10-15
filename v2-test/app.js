@@ -7849,7 +7849,8 @@ function renderBudgetList() {
             bars += `<div class="gdot" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW}px;top:${y + 5}px"></div>`;
             segs.forEach(s => { bars += `<div class="gseg" style="left:${X(s.a)}px;width:${X(s.b) - X(s.a) + DLY_DW - 1}px;top:${y}px;background:${s.lo ? dlyLotColor(s.lo) : "#475467"}"></div>`; });
             bars += `<span class="gb-n gb-out" style="left:${X(b0) + DLY_DW + 5}px;top:${y - 2}px">${esc(x.name)}</span>`;
-          } else bars += `<div class="gsum" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW}px;top:${y + 3}px"></div>`;
+          } else bars += `<div class="gsum" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW}px;top:${y + 3}px"></div>`
+            + `<span class="gb-n gb-out gb-grp" style="left:${X(b0) + DLY_DW + 5}px;top:${y - 2}px">${esc(x.name)}</span>`;
           return;
         }
         if (!x.deb || !x.fin) return;
@@ -8068,7 +8069,7 @@ function renderBudgetList() {
           lastShown.detail = { cols: DLY_COLS_R, rows, kind: "dly" };
           const ds = rc.map(x => x.deb).filter(Boolean).sort(), fs = rc.map(x => x.fin).filter(Boolean).sort();
           const d0 = ds[0] || "", f0 = fs[fs.length - 1] || "";
-          return `<div class="dly-recap-t">RÉCAPITULATIF — ${esc(lkName("lot", LK.lot))} › ${esc(lkName("prim", LK.prim))}</div>` + dlyTable(rows, x => ({ sec: esc(x.sec), deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur }), () => "", false, DLY_COLS_R)
+          return `<div class="dly-recap-t"><button type="button" class="dly-back">‹ PLANNING</button>RÉCAPITULATIF — ${esc(lkName("lot", LK.lot))} › ${esc(lkName("prim", LK.prim))}</div>` + dlyTable(rows, x => ({ sec: esc(x.sec), deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur }), () => "", false, DLY_COLS_R)
             + `<div class="dly-recap-f"><span>DÉBUT : <b>${esc(dFr(d0)) || "—"}</b></span><span>FIN : <b>${esc(dFr(f0)) || "—"}</b></span><span>DURÉE : <b>${d0 && f0 ? dDur(d0, f0) + " J" : "—"}</b></span></div>`;
         }
         if (!key) {
@@ -8110,7 +8111,7 @@ function renderBudgetList() {
         const inp = (x, f) => `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${x.task}" data-pid="${x.pid}" data-f="${f}" type="text"
             ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${x.nw && (f === "deb" || f === "fin") ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? x.dur : dFr(x[f]))}">`;
         const pf = dlyPredFin(key);
-        return `<div class="dly-recap-t">${esc(dlyName(key))} — PRÉDÉCESSEURS : <span class="dly-pred" data-key="${esc(key)}">${esc(dlyPredTxt(key)) || "<i>CHOISIR…</i>"}</span>${pf ? " — DÉBUT AU PLUS TÔT LE " + esc(dFr(pf)) : ""}</div>`
+        return `<div class="dly-recap-t"><button type="button" class="dly-back">‹ PLANNING</button>${esc(dlyName(key))} — PRÉDÉCESSEURS : <span class="dly-pred" data-key="${esc(key)}">${esc(dlyPredTxt(key)) || "<i>CHOISIR…</i>"}</span>${pf ? " — DÉBUT AU PLUS TÔT LE " + esc(dFr(pf)) : ""}</div>`
           + dlyTable(rows, x => ({ deb: inp(x, "deb"), fin: inp(x, "fin"), dur: inp(x, "dur"),
           __td_deb: " ins-td", __td_fin: " ins-td", __td_dur: " ins-td",
           __cb: x.pid ? `<input type="checkbox" class="dlp-cb" data-task="${x.task}" data-pid="${x.pid}" ${x.on ? "checked" : ""}>` : "",
@@ -8365,6 +8366,8 @@ function renderBudgetList() {
         if (e.target.closest && e.target.closest(".dly-pred-new")) { X.pickPreds(null); return; }
         if (e.target.closest && e.target.closest(".dly-gen")) { X.gen(); return; }
         if (e.target.closest && e.target.closest(".dly-sortd")) { X.sortDeb(); return; }
+        /* ‹ PLANNING : retour au PLANNING (lot et activités libérés, la désignation reste choisie ; brouillon gardé) */
+        if (e.target.closest && e.target.closest(".dly-back")) { e.stopPropagation(); X.back(); return; }
         /* en-tête du Gantt : calendrier du budget, ouvert sur le mois touché */
         const gh = e.target.closest && e.target.closest("#dlyGantt .gh");
         if (gh) { const host = gh.closest("#dlyGantt"); const n = Math.floor((e.clientX - gh.getBoundingClientRect().left) / DLY_DW); sviBdgCalWin(sviIsoAdd(host.__d0, Math.max(0, n))); return; }
@@ -8539,6 +8542,7 @@ function renderBudgetList() {
       jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTab(); },
       linkWin: (p, k) => dlyLinkWin(p, k), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
       gen: () => dlyGenWin(), level: () => dlyApplyLevel(),
+      back: () => { LK.lot = LK.prim = LK.sec = null; refreshAll(); },
       sortDeb: () => { dlySortByDeb(); insSave(); histLog("DÉLAIS", "CLASSER PAR DÉBUT", ""); renderTab(); },
       moveRow: (k, t, after) => shell.__insDly.moveKeys([k], [t], after),
       /* déplacer un bloc de lignes (une tâche, ou toutes les tâches d'un lot) avant / après un autre */
@@ -18200,3 +18204,28 @@ document.addEventListener("focusin", e => {
   const el = e.target;
   if (el && el.matches && el.matches("input:not([type=checkbox]):not([type=radio])") && !el.getAttribute("enterkeyhint")) el.setAttribute("enterkeyhint", "next");
 });
+
+/* FORMAT 30 : double toucher sur la barre de titre d'un bloc (ou sa rangée d'onglets) = agrandir / réduire ;
+   sur le titre d'une grande fenêtre réglable = plein écran / taille mémorisée.
+   Jamais sur les boutons, cases, en-têtes de colonnes, en-tête du Gantt ni dans les lignes. */
+(() => {
+  let last = null;
+  document.addEventListener("pointerup", e => {
+    const t = e.target;
+    if (!t || !t.closest) return;
+    if (t.closest("input, textarea, select, .blk-tools, .cf-btn, [data-onlyc], .col-rs, th, .gh, .blk-grip, .blk-rsz")) { last = null; return; }
+    let zone = "", act = null;
+    const head = t.closest(".blk-head, .bdg-d-block-title, .bdg-d-tabs");
+    if (head) {
+      const blk = head.closest(".bdg-d-block"), mb = head.querySelector(".blk-max-btn[data-blk]") || (blk && blk.querySelector(".blk-max-btn[data-blk]"));
+      if (mb) { const b = mb.dataset.blk; zone = "b:" + b; act = () => { const m = document.querySelector(`.blk-max-btn[data-blk="${b}"]`); if (m) m.click(); }; }
+    } else {
+      const tt = t.closest(".svc-card .svc-t"), card = tt && tt.closest(".svc-card");
+      if (card && card.querySelector('[class$="-rsz"]')) { zone = "w"; act = () => card.classList.toggle("svc-full"); }
+    }
+    if (!zone) { last = null; return; }
+    const now = Date.now();
+    if (last && last.zone === zone && now - last.t < 380 && Math.abs(e.clientX - last.x) < 30 && Math.abs(e.clientY - last.y) < 30) { last = null; act(); }
+    else last = { zone, t: now, x: e.clientX, y: e.clientY };
+  });
+})();
