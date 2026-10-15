@@ -7867,7 +7867,9 @@ function renderBudgetList() {
             if (s && a <= sviIsoAdd(s.b, 1)) { if (b > s.b) s.b = b; if (s.lo !== lo) s.lo = ""; }
             else segs.push({ a, b, lo });
           });
-          if (!segs.length) return;
+          /* FORMAT 93 : signe › / ⌄ devant le nom du lot (ou du niveau) ; un toucher = replier / déplier */
+          const gname = l => `<span class="gb-n gb-out gb-grp gb-fold" data-path="${esc(x.path)}" style="left:${l}px;top:${y - 2}px"><b class="gb-fs">${x.fold ? "›" : "⌄"}</b>${esc(x.name)}</span>`;
+          if (!segs.length) { bars += gname(4); return; }
           const a0 = segs[0].a, b0 = segs[segs.length - 1].b;
           /* couleur d'un lot (FORMAT 91, 93) : celle de son lot, ou de son premier lot pour un niveau qui en regroupe plusieurs */
           const gcol = dlyLotColor((x.all.find(t => t.lo) || {}).lo);
@@ -7875,9 +7877,9 @@ function renderBudgetList() {
             /* lot replié (FORMAT 92) : parties travaillées dans la couleur du lot, creux en blanc, trait fin en pointillé */
             bars += `<div class="gdot" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW}px;top:${y + 5}px"></div>`;
             segs.forEach(s => { bars += `<div class="gseg" style="left:${X(s.a)}px;width:${X(s.b) - X(s.a) + DLY_DW - 1}px;top:${y}px;background:${s.lo ? dlyLotColor(s.lo) : gcol}"></div>`; });
-            bars += `<span class="gb-n gb-out" style="left:${X(b0) + DLY_DW + 5}px;top:${y - 2}px">${esc(x.name)}</span>`;
+            bars += gname(X(b0) + DLY_DW + 5);
           } else bars += `<div class="gsum" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW - 1}px;top:${y + 2}px;--c:${gcol}"></div>`
-            + `<span class="gb-n gb-out gb-grp" style="left:${X(b0) + DLY_DW + 5}px;top:${y - 2}px">${esc(x.name)}</span>`;
+            + gname(X(b0) + DLY_DW + 5);
           return;
         }
         if (!x.deb || !x.fin) return;
@@ -8396,6 +8398,8 @@ function renderBudgetList() {
         /* ‹ PLANNING : retour au PLANNING (lot et activités libérés, la désignation reste choisie ; brouillon gardé) */
         if (e.target.closest && e.target.closest(".dly-back")) { e.stopPropagation(); X.back(); return; }
         /* en-tête du Gantt : calendrier du budget, ouvert sur le mois touché */
+        const gf = e.target.closest && e.target.closest("#dlyGantt .gb-fold");
+        if (gf) { e.stopPropagation(); X.fold(gf.dataset.path); return; }
         const gh = e.target.closest && e.target.closest("#dlyGantt .gh");
         if (gh) { const host = gh.closest("#dlyGantt"); const n = Math.floor((e.clientX - gh.getBoundingClientRect().left) / DLY_DW); sviBdgCalWin(sviIsoAdd(host.__d0, Math.max(0, n))); return; }
         const lv = e.target.closest && e.target.closest(".dly-lev");
