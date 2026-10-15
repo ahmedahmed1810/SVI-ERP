@@ -7549,6 +7549,29 @@ function renderBudgetList() {
       p.deb = sviWNear(cal, deb, 1);
       if (dur) p.fin = sviWFin(cal, p.deb, dur);
     };
+    /* liaisons toujours respectées (cahier, Planning budgétaire) : toute tâche qui commence avant la date exigée
+       par ses liaisons est décalée à cette date (durée gardée, jours travaillés), de proche en proche ;
+       dates enregistrées aussitôt (brouillon compris) et inscrites dans l'historique. Renvoie le nombre de tâches décalées */
+    const dlyRespect = (save) => {
+      const cal = insCal(), moved = new Map();
+      let pass = 0, ch = true;
+      while (ch && pass++ < 60) {
+        ch = false;
+        dlyKeys().forEach(k => {
+          const need = dlyPredFin(k), L = dlyList(k), p0 = L[0];
+          if (!need || !p0 || !p0.deb || p0.deb >= need) return;
+          const dur = p0.fin ? sviWDur(cal, p0.deb, p0.fin) || 1 : 0, deb = sviWNear(cal, need, 1), fin = dur ? sviWFin(cal, deb, dur) : p0.fin;
+          if (!moved.has(k)) moved.set(k, p0.deb);
+          const np = { id: p0.id || insId(), deb, fin: fin || "" };
+          INS.dlp = INS.dlp || {}; INS.dlp[k] = [np];
+          if (LK.dlpDraft && LK.dlpDraft[k]) LK.dlpDraft[k] = [{ ...LK.dlpDraft[k][0], deb, fin: fin || "" }];
+          ch = true;
+        });
+      }
+      moved.forEach((d0, k) => histLog("DÉLAIS", "LIAISON RESPECTÉE", dlyName(k) + " : DÉBUT " + dFr(d0) + " → " + dFr(dlyDeb(k))));
+      if (moved.size && save) insSave();
+      return moved.size;
+    };
     /* tâches « collées » : celles qui commencent exactement à la date exigée par leurs liaisons ;
        elles suivent leur prédécesseur dans les deux sens (le décalage est une relation) */
     const dlyGlued = from => {
@@ -7712,13 +7735,8 @@ function renderBudgetList() {
       const pf = dlyPredFin(succ), st = dlyDeb(succ);
       const go = () => { renderTab(); insRenderChain(); };
       if (pf && st && glued && st !== pf) { dlyMoveTo(succ, pf); dlyShift(succ, dlyGlued(succ)); go(); return; }
-      if (pf && st && st < pf) {
-        svChoose({ title: "TÂCHE À DÉCALER", html: `<div class="svc-sub">${esc(dlyName(succ))} COMMENCE LE ${esc(dFr(st))}, AVANT LA DATE IMPOSÉE PAR SES LIAISONS (${esc(dFr(pf))}).</div><div class="svc-sub">RESPECTER LA DURÉE ET DÉCALER CETTE TÂCHE ET TOUTES CELLES QUI VIENNENT APRÈS ?</div>`,
-          buttons: [{ v: "shift", label: "DÉCALER", tone: "neutral" }] }).then(v => {
-          if (v === "shift") { const g = dlyGlued(succ); dlyMoveTo(succ, pf); dlyShift(succ, g); }
-          go();
-        });
-      }
+      /* liaison toujours respectée : la tâche suivante (et ses suivantes) est décalée aussitôt, sans fenêtre */
+      if (pf && st && st < pf) dlyRespect(true);
       go();
     };
     /* fenêtre LIAISON (FORMAT 96) : TYPE, DÉCALAGE (J) ≥ 0, ✕ DÉLIER */
@@ -7798,6 +7816,13 @@ function renderBudgetList() {
     };
     /* GANTT (FORMAT 90 à 96) : à droite du tableau du PLANNING, lignes alignées ; jours en abscisse */
     const DLY_DW = 22, DLY_HH = 110;
+    /* largeur d'un intitulé dans la barre (police des barres : 9 px, gras) */
+    const dlyTxtW = t => {
+      const c = dlyTxtW.c || (dlyTxtW.c = document.createElement("canvas").getContext("2d"));
+      if (!dlyTxtW.f) dlyTxtW.f = "700 9px " + (getComputedStyle(document.body).fontFamily || "sans-serif");
+      c.font = dlyTxtW.f;
+      return c.measureText(String(t || "").toUpperCase()).width;
+    };
     const dlyGanttDraw = () => {
       const host = shell.querySelector("#dlyGantt");
       if (!host || host.__drawn) return;
@@ -7868,8 +7893,10 @@ function renderBudgetList() {
             else segs.push({ a, b, lo });
           });
           /* FORMAT 93 : signe › / ⌄ devant le nom du lot (ou du niveau) ; un toucher = replier / déplier */
-          const gname = l => `<span class="gb-n gb-out gb-grp gb-fold" data-path="${esc(x.path)}" style="left:${l}px;top:${y - 2}px"><b class="gb-fs">${x.fold ? "›" : "⌄"}</b>${esc(x.name)}</span>`;
-          if (!segs.length) { bars += gname(4); return; }
+          /* signe à gauche de la barre du lot, nom à droite ; les deux se touchent pour replier / déplier */
+          const gname = (l, r) => `<span class="gb-n gb-out gb-fold gb-fsg" data-path="${esc(x.path)}" style="left:${Math.max(0, l - 17)}px;top:${y - 2}px">${x.fold ? "›" : "⌄"}</span>`
+            + `<span class="gb-n gb-out gb-grp gb-fold" data-path="${esc(x.path)}" style="left:${r}px;top:${y - 2}px">${esc(x.name)}</span>`;
+          if (!segs.length) { bars += gname(17, 20); return; }
           const a0 = segs[0].a, b0 = segs[segs.length - 1].b;
           /* couleur d'un lot (FORMAT 91, 93) : celle de son lot, ou de son premier lot pour un niveau qui en regroupe plusieurs */
           const gcol = dlyLotColor((x.all.find(t => t.lo) || {}).lo);
@@ -7877,9 +7904,9 @@ function renderBudgetList() {
             /* lot replié (FORMAT 92) : parties travaillées dans la couleur du lot, creux en blanc, trait fin en pointillé */
             bars += `<div class="gdot" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW}px;top:${y + 5}px"></div>`;
             segs.forEach(s => { bars += `<div class="gseg" style="left:${X(s.a)}px;width:${X(s.b) - X(s.a) + DLY_DW - 1}px;top:${y}px;background:${s.lo ? dlyLotColor(s.lo) : gcol}"></div>`; });
-            bars += gname(X(b0) + DLY_DW + 5);
+            bars += gname(X(a0), X(b0) + DLY_DW + 5);
           } else bars += `<div class="gsum" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW - 1}px;top:${y + 2}px;--c:${gcol}"></div>`
-            + gname(X(b0) + DLY_DW + 5);
+            + gname(X(a0), X(b0) + DLY_DW + 5);
           return;
         }
         if (!x.deb || !x.fin) return;
@@ -7888,9 +7915,13 @@ function renderBudgetList() {
         const nm = esc(x.sec);
         /* FORMAT 91 : barre fine et arrondie, nom juste à droite */
         pos[x.key] = { l: left, r: left + w, y: y + 5.5 };
-        bars += `<div class="gb${crit ? " crit" : ""}" data-key="${esc(x.key)}" style="left:${left}px;width:${w}px;top:${y}px;--c:${col}">`
+        /* FORMAT 91 : nom dans la barre quand il y tient en entier, sinon juste à droite */
+        const inside = dlyTxtW(x.sec) + 12 <= w;
+        bars += `<div class="gb${crit ? " crit" : ""}${inside ? " gb-tin" : ""}" data-key="${esc(x.key)}" style="left:${left}px;width:${w}px;top:${y}px;--c:${col}">`
+          + (inside ? `<span class="gb-ti">${nm}</span>` : "")
           + `<span class="gb-s"></span><span class="gb-e"></span></div>`
-          + `<span class="gb-n gb-out" style="left:${left + w + 5}px;top:${y - 2}px">${nm}${x.jal ? ' <span class="gjal">★</span>' : ""}</span>`;
+          + (inside ? (x.jal ? `<span class="gb-n gb-out" style="left:${left + w + 5}px;top:${y - 2}px"><span class="gjal">★</span></span>` : "")
+            : `<span class="gb-n gb-out" style="left:${left + w + 5}px;top:${y - 2}px">${nm}${x.jal ? ' <span class="gjal">★</span>' : ""}</span>`);
       });
       /* liaisons : fils fléchés (FIN → DÉBUT depuis la fin, DÉBUT → DÉBUT depuis le début) ; toucher le fil = fenêtre LIAISON */
       let lk = "";
@@ -8103,6 +8134,8 @@ function renderBudgetList() {
         }
         if (!key) {
           /* PLANNING (FORMAT 64, 90) : tableau à gauche (lots repliables, tâches), Gantt à droite, lignes alignées */
+          /* liaisons non respectées (anciennes dates, import) : corrigées à l'ouverture du planning */
+          if (INS_EDIT && dlyRespect(false)) setTimeout(() => insSave(), 0);
           const PR = dlyPlanRows();
           shell.__dlyRows = PR.rows;
           lastShown.detail = { cols: DLY_COLS_P, rows: PR.flat, kind: "dly" };
@@ -8569,7 +8602,8 @@ function renderBudgetList() {
     shell.__insDly = INS && INS_EDIT ? { INS, dAdd, dDiff, dParse, dFr, insId, insSave, err: "", draft: dlyDraft,
       predFin: k => dlyPredFin(k), succs: k => dlySuccs(k), deb: k => dlyDeb(k), name: k => dlyName(k), shift: (k, g) => dlyShift(k, g),
       cal: () => insCal(), glued: k => dlyGlued(k), links: k => dlyLinks(k), apply: (k, q, o) => dlyApply(k, q, o),
-      fold: p => { dlyFoldToggle(p); renderTab(); },
+      /* FORMAT 22 : replier / déplier sans faire bouger l'écran */
+      fold: p => { dlyFoldToggle(p); keepScroll(() => renderTab()); },
       jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTab(); },
       linkWin: (p, k) => dlyLinkWin(p, k), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
       gen: () => dlyGenWin(), level: () => dlyApplyLevel(),
@@ -8755,7 +8789,11 @@ function renderBudgetList() {
         const cal = insCal(), d0 = dlyDeb(k), f0 = dlyFin(k);
         if (!d0 || !f0) return;
         if (mode === "end") { let f = sviWNear(cal, sviIsoAdd(f0, n), n > 0 ? 1 : -1); if (f < d0) f = d0; dlyApply(k, { deb: d0, fin: f }, { anchor: a, fromDur: true }); return; }
-        const dur = sviWDur(cal, d0, f0) || 1, d = sviWNear(cal, sviIsoAdd(d0, n), n > 0 ? 1 : -1);
+        const dur = sviWDur(cal, d0, f0) || 1, pf = dlyPredFin(k);
+        let d = sviWNear(cal, sviIsoAdd(d0, n), n > 0 ? 1 : -1);
+        /* glissée trop tôt : la barre revient à la première date permise par ses liaisons */
+        if (pf && d < pf) d = sviWNear(cal, pf, 1);
+        if (d === d0) { renderTab(); insRenderChain(); return; }
         dlyApply(k, { deb: d, fin: sviWFin(cal, d, dur) }, { anchor: a });
       },
       pickPreds: k => dlyPickPreds(k), go: k => { const [lo, se] = k.split("|"); LK.lot = lo; LK.sec = se; LK.prim = null; refreshAll(); },
@@ -9639,7 +9677,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
     /* garde la vue là où l'utilisateur a la main : page et cadres
        à défilement interne (désignations, lots/tâches, détail) */
     const keepScroll = fn => {
-      const sel = ".bdg-d-client-scroll, .bdg-h-col, .bdg-d-tabbody .bdg-d-scroll";
+      const sel = ".bdg-d-client-scroll, .bdg-h-col, .bdg-d-tabbody .bdg-d-scroll, .bdg-d-tabbody .dlyg-l, .bdg-d-tabbody .dlyg-r";
       /* FORMAT : un tableau redessiné ne fait jamais bouger l'écran (vertical ET horizontal) */
       /* redessins enchaînés : on garde la position d'avant le premier (pas celle, provisoire, d'entre deux) */
       const P = keepScroll.pend && performance.now() < keepScroll.pend.until ? keepScroll.pend : null;
