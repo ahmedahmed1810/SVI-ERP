@@ -7666,7 +7666,7 @@ function renderBudgetList() {
       return true;
     };
     /* GANTT (FORMAT 90 à 96) : à droite du tableau du PLANNING, lignes alignées ; jours en abscisse */
-    const DLY_DW = 22;
+    const DLY_DW = 22, DLY_HH = 110;
     const dlyGanttDraw = () => {
       const host = shell.querySelector("#dlyGantt");
       if (!host || host.__drawn) return;
@@ -7747,10 +7747,22 @@ function renderBudgetList() {
           lk += `<path class="gl" d="${dpath}" marker-end="url(#gArr)"/><path class="gl-hit" data-p="${esc(l.k)}" data-s="${esc(x.key)}" d="${dpath}"/>`;
         });
       });
+      /* histogramme MAIN D'ŒUVRE (J-H / jour), même échelle de jours ; barre de plafond tirée au doigt, par paliers entiers */
+      let hist = "";
+      const LD = dlyLoad(dlyCurDates()), vals = Object.values(LD), mx = vals.length ? Math.max(...vals) : 0;
+      if (mx > 0) {
+        const P = Number(INS.plaf) || Math.ceil(mx), top = Math.max(mx, P) + 1, sc = (DLY_HH - 16) / top;
+        let hb = "";
+        Object.keys(LD).forEach(di => { if (di < d0 || di > d1) return; const v = LD[di];
+          hb += `<div class="ghb${v > P + 1e-9 ? " over" : ""}" style="left:${X(di) + 3}px;width:${DLY_DW - 6}px;height:${Math.max(1, v * sc)}px" title="${Math.round(v * 100) / 100} J-H"></div>`; });
+        const late = INS.plaf && INS.dbut && dlyEnd(dlyLevel(P)) > INS.dbut;
+        hist = `<div class="ghist" style="width:${W}px;height:${DLY_HH}px" data-sc="${sc}">${bg}${hb}
+          <div class="gplaf" style="top:${DLY_HH - P * sc}px"><span class="gplaf-v">PLAFOND ${P}</span>${late ? `<span class="gplaf-w">${DLY_BUT_MSG}</span>` : ""}</div></div>`;
+      }
       host.innerHTML = `<div class="gh" style="width:${W}px;height:${thH}px">${head}</div>
         <div class="gbody" style="width:${W}px;height:${bodyH}px">${bg}${vline(today, "gv-today", "")}${vline(INS.dobj, "gv-obj", "OBJECTIF")}${vline(INS.dbut, "gv-but", "BUTOIR")}
           <svg class="glinks" width="${W}" height="${bodyH}"><defs><marker id="gArr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#475467"/></marker></defs>${lk}</svg>
-          ${bars}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>`;
+          ${bars}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>${hist}`;
       host.__X = X; host.__d0 = d0;
       /* défilement horizontal du Gantt gardé d'un dessin à l'autre */
       if (shell.__dlyGx !== undefined) host.scrollLeft = shell.__dlyGx;
@@ -7769,6 +7781,145 @@ function renderBudgetList() {
       };
       if (!sc.__dlyStick) { sc.__dlyStick = true; sc.addEventListener("scroll", run, { passive: true }); }
       run();
+    };
+    /* ===== GÉNÉRER LE PLANNING, MAIN D'ŒUVRE, NIVELLEMENT (v403) ===== */
+    /* une charge de main d'œuvre : unité en journées-homme (JH, J/H, JOUR…) ou en heures (H, comptées 8 par jour),
+       ou désignation « MAIN D'ŒUVRE … » (sous-traitance comprise) */
+    const dlyLabU = r => U_(r.u).replace(/[^A-Z]/g, "");
+    const dlyIsLab = r => ["JH", "HJ", "J", "JR", "JOUR", "JOURS", "JOURHOMME", "JOURSHOMME", "H", "HR", "HEURE", "HEURES"].includes(dlyLabU(r)) || /MAIN\s*D.?\s*(Œ|OE)UVRE/.test(U_(r.des));
+    const dlyJHof = r => { const q = num(r.q || 0) || 0; return ["H", "HR", "HEURE", "HEURES"].includes(dlyLabU(r)) ? q / 8 : q; };
+    /* journées-homme d'une tâche secondaire : charges de main d'œuvre de ses liaisons */
+    const dlyJH = k => {
+      let t = 0;
+      const seen = new Set();
+      (INS.links || []).forEach(l => {
+        if (l.lot + "|" + l.sec !== k) return;
+        (l.chg || []).forEach(e => { if (seen.has(e.id)) return; seen.add(e.id); const r = INS.chg.find(x => x.id === e.id); if (r && dlyIsLab(r)) t += dlyJHof(r); });
+      });
+      return Math.round(t * 100) / 100;
+    };
+    /* ordre des tâches qui respecte les liaisons (prédécesseurs d'abord), puis le DÉBUT, puis l'intitulé */
+    const dlyTopo = (keys, debOf) => {
+      const S = new Set(keys), done = new Set(), out = [];
+      const rest = [...keys].sort((a, b) => String(debOf(a) || "9").localeCompare(String(debOf(b) || "9")) || natCmp(dlyName(a), dlyName(b)));
+      for (let guard = 0; rest.length && guard < 100000; guard++) {
+        const i = rest.findIndex(k => dlyPreds(k).every(p => !S.has(p) || done.has(p)));
+        const k = rest.splice(i < 0 ? 0 : i, 1)[0];
+        done.add(k); out.push(k);
+      }
+      return out;
+    };
+    /* date exigée par les liaisons, d'après des dates calculées (D[k] = { deb, fin }) */
+    const dlyNeedIn = (k, D) => dlyNeedOf(k, x => (D[x] || {}).fin || "", x => (D[x] || {}).deb || "");
+    /* GÉNÉRER : durée = ⌈ J-H ÷ ouvriers ⌉ ; une tâche de main d'œuvre prend toute l'équipe (pas deux à la fois) ;
+       tâche sans main d'œuvre : sa durée actuelle (1 J si elle n'a pas de dates) ; liaisons et calendrier respectés */
+    const dlyGenerate = (start, N) => {
+      const cal = insCal(), keys = dlyKeys(), D = {}, busy = new Set();
+      dlyTopo(keys, dlyDeb).forEach(k => {
+        const jh = dlyJH(k), d0 = dlyDeb(k), f0 = dlyFin(k);
+        const dur = jh > 0 ? Math.max(1, Math.ceil(jh / N)) : (d0 && f0 ? sviWDur(cal, d0, f0) || 1 : 1);
+        let d = sviWNear(cal, start, 1);
+        const need = dlyNeedIn(k, D);
+        if (need && need > d) d = sviWNear(cal, need, 1);
+        if (jh > 0) {
+          for (let g = 0; g < 3000; g++) {
+            let ok = true;
+            for (let i = 0, x = d; i < dur; i++, x = sviWAdd(cal, x, 1)) if (busy.has(x)) { ok = false; break; }
+            if (ok) break;
+            d = sviWAdd(cal, d, 1);
+          }
+          for (let i = 0, x = d; i < dur; i++, x = sviWAdd(cal, x, 1)) busy.add(x);
+        }
+        D[k] = { deb: d, fin: sviWFin(cal, d, dur) };
+      });
+      return D;
+    };
+    /* charge de main d'œuvre par jour (J-H / jour) : J-H de chaque tâche répartis sur ses jours travaillés */
+    const dlyLoad = (D) => {
+      const cal = insCal(), L = {};
+      Object.keys(D).forEach(k => {
+        const jh = dlyJH(k), p = D[k];
+        if (!(jh > 0) || !p.deb || !p.fin) return;
+        const n = sviWDur(cal, p.deb, p.fin) || 1, r = jh / n;
+        for (let i = 0, x = p.deb; i < n; i++, x = sviWAdd(cal, x, 1)) L[x] = (L[x] || 0) + r;
+      });
+      return L;
+    };
+    const dlyCurDates = () => { const D = {}; dlyKeys().forEach(k => { const d = dlyDeb(k), f = dlyFin(k); if (d && f) D[k] = { deb: d, fin: f }; }); return D; };
+    /* NIVELLEMENT sous un plafond entier P : il ne réduit jamais le travail ; une tâche n'est jamais avancée ;
+       elle recule tant que la charge du jour dépasserait P ; une tâche qui demande plus que P ouvriers s'allonge (⌈ J-H ÷ P ⌉) ;
+       liaisons, décalages et calendrier respectés ; les jours vides sont gardés */
+    const dlyLevel = P => {
+      const cal = insCal(), cur = dlyCurDates(), D = {}, L = {};
+      dlyTopo(Object.keys(cur), k => cur[k].deb).forEach(k => {
+        const jh = dlyJH(k);
+        let dur = sviWDur(cal, cur[k].deb, cur[k].fin) || 1;
+        let d = cur[k].deb;
+        const need = dlyNeedIn(k, D);
+        if (need && need > d) d = sviWNear(cal, need, 1);
+        if (jh > 0) {
+          if (jh / dur > P) dur = Math.max(1, Math.ceil(jh / P));
+          const r = jh / dur;
+          for (let g = 0; g < 3000; g++) {
+            let ok = true;
+            for (let i = 0, x = d; i < dur; i++, x = sviWAdd(cal, x, 1)) if ((L[x] || 0) + r > P + 1e-9) { ok = false; break; }
+            if (ok) break;
+            d = sviWAdd(cal, d, 1);
+          }
+          for (let i = 0, x = d; i < dur; i++, x = sviWAdd(cal, x, 1)) L[x] = (L[x] || 0) + r;
+        }
+        D[k] = { deb: d, fin: sviWFin(cal, d, dur) };
+      });
+      return D;
+    };
+    const dlyEnd = D => Object.values(D).map(x => x.fin).filter(Boolean).sort().pop() || "";
+    /* écrit des dates calculées dans le brouillon (à valider) */
+    const dlyWrite = (D, all) => {
+      if (all) dlyKeys().forEach(k => { if (!D[k]) dlyDraftKey(k).splice(0); });
+      Object.keys(D).forEach(k => { const L = dlyDraftKey(k); if (L[0]) { L.splice(1); L[0].deb = D[k].deb; L[0].fin = D[k].fin; } else L.push({ id: insId(), deb: D[k].deb, fin: D[k].fin }); });
+    };
+    const DLY_BUT_MSG = "AVEC CE NOMBRE VOUS RISQUEZ DE DÉPASSER LA DATE BUTOIR";
+    /* fenêtre GÉNÉRER LE PLANNING (FORMAT 97) : date de début, nombre d'ouvriers ; le planning existant est remplacé */
+    const dlyGenWin = () => {
+      const keys = dlyKeys();
+      if (!keys.length) { svToast("AUCUNE TÂCHE AU PLANNING.", 3000); return; }
+      const d0 = INS.gdeb || keys.map(dlyDeb).filter(Boolean).sort()[0] || sviIsoOf(new Date());
+      const d = document.createElement("div");
+      d.id = "svConf";
+      d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
+        <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
+        <div class="svc-t">GÉNÉRER LE PLANNING</div>
+        <div class="bdt-row"><span>DATE DE DÉBUT DU PROJET</span><input type="date" class="gen-d" value="${esc(d0)}"></div>
+        <div class="bdt-row"><span>NOMBRE D'OUVRIERS</span><input class="gen-n" inputmode="numeric" value="${esc(String(INS.ouv || 5))}"></div>
+        <div class="svc-sub svc-warn">LE PLANNING EXISTANT SERA REMPLACÉ.</div>
+        <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok" data-ok>GÉNÉRER</button></div></div>`;
+      document.getElementById("svConf")?.remove();
+      document.body.appendChild(d);
+      d.querySelectorAll('input[type="date"]').forEach(sviDateField);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        if (!e.target.closest("[data-ok]")) return;
+        const st = d.querySelector(".gen-d").value, nv = String(d.querySelector(".gen-n").value).trim();
+        if (!st) { svToast("CHOISIR LA DATE DE DÉBUT.", 3000, d.querySelector(".gen-d")); return; }
+        if (!/^\d+$/.test(nv) || Number(nv) < 1) { svToast("NOMBRE D'OUVRIERS : ENTIER ≥ 1.", 3000, d.querySelector(".gen-n")); return; }
+        d.remove();
+        INS.gdeb = st; INS.ouv = Number(nv);
+        const D = dlyGenerate(st, Number(nv));
+        dlyWrite(D, true);
+        insSave();
+        histLog("DÉLAIS", "GÉNÉRER LE PLANNING", "DÉBUT " + dFr(st) + " — " + nv + " OUVRIER(S) — FIN " + dFr(dlyEnd(D)));
+        renderTab(); insRenderChain();
+        if (INS.dbut && dlyEnd(D) > INS.dbut) sviAlert(DLY_BUT_MSG + " (FIN CALCULÉE LE " + dFr(dlyEnd(D)) + ", BUTOIR LE " + dFr(INS.dbut) + ").");
+      });
+    };
+    /* APPLIQUER LE NIVELLEMENT (FORMAT 97) : plafond de la barre (FORMAT 99) */
+    const dlyApplyLevel = () => {
+      const P = Number(INS.plaf) || 0;
+      if (!P) return;
+      const D = dlyLevel(P);
+      dlyWrite(D, false);
+      histLog("DÉLAIS", "NIVELLEMENT", "PLAFOND " + P + " — FIN " + dFr(dlyEnd(D)));
+      renderTab(); insRenderChain();
     };
     /* périodes affichées : brouillon en cours (à valider) ou périodes validées */
     const insDlyList = key => (LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
@@ -7800,8 +7951,13 @@ function renderBudgetList() {
                 deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur, marge: x.marge === "" ? "" : x.marge,
                 jal: `<span class="dly-jal${x.jal ? " on" : ""}" data-key="${esc(x.key)}">${x.jal ? "★" : "☆"}</span>`, __td_marge: " dly-calc" },
             x => x.grp ? `class="dly-grp" data-path="${esc(x.path)}"` : `class="dly-task${x.marge === 0 ? " dly-crit" : ""}" data-key="${esc(x.key)}"`, false, DLY_COLS_P);
+          /* histogramme MAIN D'ŒUVRE sous le Gantt (FORMAT 98, 99) : libellé à gauche, sous le tableau */
+          const LD = dlyLoad(dlyCurDates()), mx = Math.max(0, ...Object.values(LD));
+          const P = Number(INS.plaf) || 0;
+          const canLev = mx > 0 && P > 0 && mx > P + 1e-9;
           return `<div class="dly-recap-t">PLANNING — TOUCHER UNE TÂCHE POUR SAISIR SES DATES, TOUCHER PRÉDÉCESSEURS POUR LES CHOISIR</div>`
-            + `<div class="dlyg"><div class="dlyg-l">${tbl}</div><div class="dlyg-r" id="dlyGantt"></div></div>`
+            + `<div class="dly-tools"><button type="button" class="dly-gen">GÉNÉRER LE PLANNING</button><button type="button" class="dly-lev"${canLev ? "" : " disabled"}>APPLIQUER LE NIVELLEMENT</button></div>`
+            + `<div class="dlyg"><div class="dlyg-l">${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-r" id="dlyGantt"></div></div>`
             + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE AU PLANNING</button></div>`;
         }
         const ps = key ? [...insDlyList(key)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9"))) : [];
@@ -8066,6 +8222,9 @@ function renderBudgetList() {
         const pc = e.target.closest && e.target.closest(".dly-pred");
         if (pc) { e.stopPropagation(); X.pickPreds(pc.dataset.key); return; }
         if (e.target.closest && e.target.closest(".dly-pred-new")) { X.pickPreds(null); return; }
+        if (e.target.closest && e.target.closest(".dly-gen")) { X.gen(); return; }
+        const lv = e.target.closest && e.target.closest(".dly-lev");
+        if (lv) { if (!lv.disabled) X.level(); return; }
         /* repli d'un lot (› / ⌄) */
         const fo = e.target.closest && e.target.closest(".dly-fold");
         if (fo) { e.stopPropagation(); X.fold(fo.dataset.path); return; }
@@ -8080,6 +8239,19 @@ function renderBudgetList() {
       });
       /* gestes sur le Gantt (FORMAT 96) : glisser une barre = la déplacer ; tirer son bout = changer la FIN ;
          appui long sur la fin (ou le début) puis glisser jusqu'à une autre barre = liaison FIN → DÉBUT (ou DÉBUT → DÉBUT) */
+      /* barre de plafond (FORMAT 99) : tirée au doigt, par paliers entiers (1 au moins) */
+      shell.addEventListener("pointerdown", e => {
+        const X = shell.__insDly;
+        const pl = e.target.closest && e.target.closest("#dlyGantt .gplaf");
+        if (!X || !pl) return;
+        e.preventDefault(); e.stopPropagation();
+        const h = pl.closest(".ghist"), sc = Number(h.dataset.sc) || 1, HH = h.offsetHeight, r0 = h.getBoundingClientRect();
+        const v0 = pl.querySelector(".gplaf-v");
+        let P = 0;
+        const mv = ev => { P = Math.max(1, Math.round((HH - (ev.clientY - r0.top)) / sc)); pl.style.top = (HH - P * sc) + "px"; v0.textContent = "PLAFOND " + P; };
+        const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); if (P) X.plaf(P); };
+        document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+      });
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
         const bar = e.target.closest && e.target.closest("#dlyGantt .gb");
@@ -8138,6 +8310,8 @@ function renderBudgetList() {
       fold: p => { dlyFoldToggle(p); renderTab(); },
       jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTab(); },
       linkWin: (p, k) => dlyLinkWin(p, k), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
+      gen: () => dlyGenWin(), level: () => dlyApplyLevel(),
+      plaf: P => { INS.plaf = P; insSave(); histLog("DÉLAIS", "PLAFOND MAIN D'ŒUVRE", String(P)); renderTab(); },
       /* barre glissée de n jours : FIN seule (bout tiré) ou tâche entière, durée gardée (jours travaillés) */
       dragTo: (k, mode, n, a) => {
         const cal = insCal(), d0 = dlyDeb(k), f0 = dlyFin(k);
