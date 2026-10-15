@@ -8605,6 +8605,81 @@ function renderBudgetList() {
         histLog("DÉLAIS", "CHANGEMENT DE LOT", lkName("sec", se) + " : " + lkName("lot", lo) + " → " + lkName("lot", nl));
         return nk;
       },
+      /* même intitulé d'activité secondaire déjà dans le lot d'arrivée → clé de cette tâche, sinon "" */
+      sameIn: (key, nl) => {
+        const se = String(key).split("|")[1], nm = U_(lkName("sec", se));
+        return dlyKeys().find(k => { const [lo, s2] = k.split("|"); return lo === nl && k !== key && U_(lkName("sec", s2)) === nm; }) || "";
+      },
+      /* fenêtre TÂCHE DÉJÀ DANS LE LOT : FUSIONNER / REMPLACER / ANNULER (cahier, Planning budgétaire) */
+      mergeAsk: async (key, ek, anchor) => {
+        const X = shell.__insDly, plan = X.mergePlan(key, ek);
+        const line = k => esc(dlyName(k)) + " — " + (dlyDeb(k) ? esc(dFr(dlyDeb(k))) + " → " + esc(dFr(dlyFin(k))) : "SANS DATES") + " — " + (INS.links || []).filter(l => l.lot + "|" + l.sec === k).length + " LIAISON(S)";
+        const v = await svChoose({ title: "TÂCHE DÉJÀ DANS LE LOT",
+          html: `<div class="svc-sub">${esc(lkName("sec", ek.split("|")[1]))} EXISTE DÉJÀ DANS ${esc(lkName("lot", ek.split("|")[0]))}</div>
+            <ul class="svc-list"><li>${line(ek)}</li><li>${line(key)} (TÂCHE LÂCHÉE)</li></ul>
+            ${plan.err ? `<div class="svc-sub svc-warn">IMPOSSIBLE : ${esc(plan.err)}</div>` : ""}`,
+          buttons: [{ v: "rep", label: "REMPLACER", tone: "neutral", disabled: !!plan.err }, { v: "fus", label: "FUSIONNER", tone: "neutral", disabled: !!plan.err }] });
+        if (!v || plan.err) { renderTab(); return ""; }
+        return X.mergeDo(key, ek, plan, v === "fus" ? "fus" : "rep");
+      },
+      /* plan de la fusion : tâche gardée (la primaire s'il y en a une, sinon celle du lot) et liaisons du budget réunies */
+      mergePlan: (key, ek) => {
+        const [lo, se] = key.split("|"), [nl, es] = ek.split("|");
+        const L = INS.links || [];
+        const mine = L.filter(l => l.lot === lo && l.sec === se), theirs = L.filter(l => l.lot === nl && l.sec === es);
+        const isP = A => A.some(l => insIsPrimLink(l.prim, l.sec));
+        const keepMine = isP(mine) && !isP(theirs);
+        const S = keepMine ? nl + "|" + se : ek;
+        const tgt = keepMine ? mine : theirs, oth = keepMine ? theirs : mine;
+        const tPrim = isP(tgt) ? (tgt.find(l => insIsPrimLink(l.prim, l.sec)) || {}).prim : null, tSec = S.split("|")[1];
+        const out = L.filter(l => !mine.includes(l) && !theirs.includes(l)).map(l => ({ ...l }));
+        const add = (l, prim) => {
+          const n = { ...l, lot: nl, sec: tSec, prim: prim || l.prim, prd: (l.prd || []).map(x => ({ ...x })), chg: (l.chg || []).map(x => ({ ...x })) };
+          const same = out.find(o => o.des === n.des && o.lot === n.lot && o.prim === n.prim && o.sec === n.sec);
+          if (!same) { out.push(n); return; }
+          ["prd", "chg"].forEach(f => n[f].forEach(x => { if (!(same[f] || []).some(y => y.id === x.id)) (same[f] = same[f] || []).push(x); }));
+        };
+        tgt.forEach(l => add(l, null)); oth.forEach(l => add(l, tPrim));
+        let err = "";
+        const P = new Map(), Sx = new Map();
+        out.forEach(l => {
+          const tp = l.lot + "|" + l.prim, ts = l.lot + "|" + l.sec;
+          if (P.has(tp) && P.get(tp) !== l.des && !err && l.lot === nl) err = "RÈGLE A : LA TÂCHE PRIMAIRE " + lkName("lot", l.lot) + " › " + lkName("prim", l.prim) + " SERAIT LIÉE À DEUX DÉSIGNATIONS (" + lkName("des", P.get(tp)) + " ET " + lkName("des", l.des) + ").";
+          P.set(tp, l.des);
+          if (Sx.has(ts) && Sx.get(ts) !== l.des && !err && l.lot === nl) err = "RÈGLE A : LA TÂCHE " + lkName("lot", l.lot) + " › " + lkName("sec", l.sec) + " SERAIT LIÉE À DEUX DÉSIGNATIONS (" + lkName("des", Sx.get(ts)) + " ET " + lkName("des", l.des) + ").";
+          Sx.set(ts, l.des);
+        });
+        return { S, links: out, err };
+      },
+      /* fusion / remplacement : une seule tâche S ; key = tâche lâchée, ek = tâche du lot */
+      mergeDo: (key, ek, plan, mode) => {
+        const S = plan.S, both = [key, ek];
+        const db = mode === "fus" ? [dlyDeb(key), dlyDeb(ek)].filter(Boolean).sort()[0] || "" : dlyDeb(key);
+        const fn = mode === "fus" ? [dlyFin(key), dlyFin(ek)].filter(Boolean).sort().pop() || "" : dlyFin(key);
+        const pr = (mode === "fus" ? [...dlyLinks(ek), ...dlyLinks(key)] : dlyLinks(key)).filter(x => !both.includes(x.k));
+        const jal = mode === "fus" ? !!((INS.jal || {})[key] || (INS.jal || {})[ek]) : !!(INS.jal || {})[key];
+        INS.links = plan.links;
+        both.forEach(k => { if (INS.dlp) delete INS.dlp[k]; if (LK.dlpDraft) delete LK.dlpDraft[k]; if (INS.dpred) delete INS.dpred[k]; if (INS.jal) delete INS.jal[k]; });
+        if (db || fn) { INS.dlp = INS.dlp || {}; INS.dlp[S] = [{ id: insId(), deb: db, fin: fn }]; }
+        INS.jal = INS.jal || {}; if (jal) INS.jal[S] = true;
+        /* successeurs des deux tâches reportés sur S (sans doublon) */
+        Object.keys(INS.dpred || {}).forEach(s2 => {
+          const seen = new Set();
+          INS.dpred[s2] = dlyLinks(s2).map(x => both.includes(x.k) ? { ...x, k: S } : x).filter(x => x.k !== s2 && !seen.has(x.k) && seen.add(x.k));
+          if (!INS.dpred[s2].length) delete INS.dpred[s2];
+        });
+        /* prédécesseurs de S, sans boucle ni doublon */
+        const kept = [];
+        pr.forEach(x => { if (x.k === S || kept.some(y => y.k === x.k) || dlyReach(x.k, S)) return; kept.push({ ...x }); });
+        if (kept.length) { INS.dpred = INS.dpred || {}; INS.dpred[S] = kept; }
+        const pos = (INS.dord || []).indexOf(ek);
+        INS.dord = (INS.dord || []).filter(x => !both.includes(x) && x !== S);
+        INS.dord.splice(pos >= 0 ? Math.min(pos, INS.dord.length) : INS.dord.length, 0, S);
+        if (shell.__dlySel) both.forEach(k => shell.__dlySel.delete(k));
+        histLog("DÉLAIS", mode === "fus" ? "TÂCHES FUSIONNÉES" : "TÂCHE REMPLACÉE", dlyName(key) + " → " + dlyName(S));
+        insSave(); insRenderChain(); renderTab();
+        return S;
+      },
       /* tâche lâchée sur une ligne (tableau ou Gantt) : autre lot → changement de lot, puis rang */
       dropTask: (key, tr, after) => {
         const X = shell.__insDly;
@@ -8616,7 +8691,11 @@ function renderBudgetList() {
           nl = lt.id;
         }
         let k = key;
-        if (nl && nl !== key.split("|")[0]) { k = X.changeLot(key, nl, tr); if (!k) { renderTab(); return; } insSave(); insRenderChain(); }
+        if (nl && nl !== key.split("|")[0]) {
+          const ek = X.sameIn(key, nl);
+          if (ek) { X.mergeAsk(key, ek, tr); return; }
+          k = X.changeLot(key, nl, tr); if (!k) { renderTab(); return; } insSave(); insRenderChain();
+        }
         const g = tr.classList.contains("dly-task") ? null : (shell.__dlyRows || []).find(x => x.grp && x.path === tr.dataset.path);
         const ts = (g ? g.all.map(t => t.key) : [tr.dataset.key]).map(t => t === key ? k : t).filter(t => t && t !== k);
         if (ts.length) X.moveKeys([k], ts, after); else renderTab();
