@@ -7499,7 +7499,8 @@ function renderBudgetList() {
     /* ===== PLANNING (v401) : MARGE, JALON, LOTS EN ARBORESCENCE (« / »), GANTT ===== */
     const dlyLotPath = name => String(name || "").split("/").map(x => x.trim()).filter(Boolean);
     /* une couleur par lot (FORMAT 91), partagée par toutes ses tâches */
-    const DLY_PAL = ["#2f6f9f", "#c2410c", "#4d7c0f", "#7c3aed", "#0f766e", "#b45309", "#be185d", "#1d4ed8", "#15803d", "#9333ea", "#0e7490", "#a16207"];
+    /* pas de rouge : le rouge est réservé aux tâches critiques */
+    const DLY_PAL = ["#2f6f9f", "#4d7c0f", "#7c3aed", "#0f766e", "#b45309", "#1d4ed8", "#15803d", "#9333ea", "#0e7490", "#a16207", "#475569", "#0891b2"];
     const dlyLotColor = lotId => { const i = INS.lot.filter(x => !x.t).findIndex(x => x.id === lotId); return DLY_PAL[Math.max(0, i) % DLY_PAL.length]; };
     /* MARGE = jours travaillés dont la tâche peut glisser sans repousser la fin du chantier (calcul au plus tard) */
     const dlyMarges = keys => {
