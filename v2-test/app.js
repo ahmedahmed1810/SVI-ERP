@@ -7500,7 +7500,7 @@ function renderBudgetList() {
     const dlyLotPath = name => String(name || "").split("/").map(x => x.trim()).filter(Boolean);
     /* une couleur par lot (FORMAT 91), partagée par toutes ses tâches */
     /* pas de rouge : le rouge est réservé aux tâches critiques */
-    const DLY_PAL = ["#2f6f9f", "#4d7c0f", "#7c3aed", "#0f766e", "#b45309", "#1d4ed8", "#15803d", "#9333ea", "#0e7490", "#a16207", "#475569", "#0891b2"];
+    const DLY_PAL = ["#6fa8dc", "#93c47d", "#f6b26b", "#8e9fd6", "#76c5c0", "#c9a0dc", "#e8c468", "#9fb7c9", "#a8d5a2", "#8db3e2", "#d7b98e", "#7fc3e0"];
     const dlyLotColor = lotId => { const i = INS.lot.filter(x => !x.t).findIndex(x => x.id === lotId); return DLY_PAL[Math.max(0, i) % DLY_PAL.length]; };
     /* MARGE = jours travaillés dont la tâche peut glisser sans repousser la fin du chantier (calcul au plus tard) */
     const dlyMarges = keys => {
@@ -7701,7 +7701,7 @@ function renderBudgetList() {
       R.forEach((x, i) => {
         const g = geo[i];
         if (!g) return;
-        const y = g.y + Math.max(2, (g.h - 15) / 2);
+        const y = g.y + Math.max(2, (g.h - 11) / 2);
         if (x.grp) {
           const segs = [];
           x.all.filter(t => t.deb && t.fin).map(t => [t.deb, t.fin, t.lo]).sort((a, b) => a[0].localeCompare(b[0])).forEach(([a, b, lo]) => {
@@ -7713,22 +7713,21 @@ function renderBudgetList() {
           const a0 = segs[0].a, b0 = segs[segs.length - 1].b;
           if (x.fold) {
             /* lot replié (FORMAT 92) : parties travaillées dans la couleur du lot, creux en blanc, trait fin en pointillé */
-            bars += `<div class="gdot" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW}px;top:${y + 7}px"></div>`;
+            bars += `<div class="gdot" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW}px;top:${y + 5}px"></div>`;
             segs.forEach(s => { bars += `<div class="gseg" style="left:${X(s.a)}px;width:${X(s.b) - X(s.a) + DLY_DW - 1}px;top:${y}px;background:${s.lo ? dlyLotColor(s.lo) : "#475467"}"></div>`; });
-            bars += `<span class="gb-n gb-out" style="left:${X(b0) + DLY_DW + 4}px;top:${y}px">${esc(x.name)}</span>`;
-          } else bars += `<div class="gsum" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW}px;top:${y + 4}px"></div>`;
+            bars += `<span class="gb-n gb-out" style="left:${X(b0) + DLY_DW + 5}px;top:${y - 2}px">${esc(x.name)}</span>`;
+          } else bars += `<div class="gsum" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW}px;top:${y + 3}px"></div>`;
           return;
         }
         if (!x.deb || !x.fin) return;
         const left = X(x.deb), w = X(x.fin) - left + DLY_DW - 1, col = dlyLotColor(x.lo);
         const crit = x.marge === 0;
         const nm = esc(x.sec);
-        const inside = w >= nm.length * 6.6 + 10;
-        pos[x.key] = { l: left, r: left + w, y: y + 7.5 };
+        /* FORMAT 91 : barre fine et arrondie, nom juste à droite */
+        pos[x.key] = { l: left, r: left + w, y: y + 5.5 };
         bars += `<div class="gb${crit ? " crit" : ""}" data-key="${esc(x.key)}" style="left:${left}px;width:${w}px;top:${y}px;--c:${col}">`
-          + `<span class="gb-s"></span>${inside ? `<span class="gb-n">${nm}</span>` : ""}<span class="gb-e"></span></div>`
-          + (inside ? "" : `<span class="gb-n gb-out" style="left:${left + w + 4}px;top:${y}px">${nm}</span>`)
-          + (x.jal ? `<span class="gjal" style="left:${left + w + (inside ? 2 : 4 + nm.length * 6.6 + 6)}px;top:${y - 1}px">★</span>` : "");
+          + `<span class="gb-s"></span><span class="gb-e"></span></div>`
+          + `<span class="gb-n gb-out" style="left:${left + w + 5}px;top:${y - 2}px">${nm}${x.jal ? ' <span class="gjal">★</span>' : ""}</span>`;
       });
       /* liaisons : fils fléchés (FIN → DÉBUT depuis la fin, DÉBUT → DÉBUT depuis le début) ; toucher le fil = fenêtre LIAISON */
       let lk = "";
@@ -7764,6 +7763,7 @@ function renderBudgetList() {
           <svg class="glinks" width="${W}" height="${bodyH}"><defs><marker id="gArr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#475467"/></marker></defs>${lk}</svg>
           ${bars}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>${hist}`;
       host.__X = X; host.__d0 = d0;
+      host.parentElement.querySelectorAll("input.dlyp-cb[data-part]").forEach(c => { c.indeterminate = true; });
       /* défilement horizontal du Gantt gardé d'un dessin à l'autre */
       if (shell.__dlyGx !== undefined) host.scrollLeft = shell.__dlyGx;
       host.addEventListener("scroll", () => { shell.__dlyGx = host.scrollLeft; }, { passive: true });
@@ -7944,20 +7944,27 @@ function renderBudgetList() {
           lastShown.detail = { cols: DLY_COLS_P, rows: PR.flat, kind: "dly" };
           requestAnimationFrame(() => dlyGanttDraw());
           const ind = n => `style="padding-left:${6 + n * 20}px"`;
+          /* cases à cocher (FORMAT 64) : la case d'un lot coche toutes ses tâches */
+          const SEL = shell.__dlySel = shell.__dlySel || new Set();
+          const allK = new Set(PR.flat.map(x => x.key));
+          [...SEL].forEach(k => { if (!allK.has(k)) SEL.delete(k); });
+          const nm = (kind, attr, v) => `<input class="dly-nm" data-kind="${kind}" ${attr} value="${esc(v)}" autocomplete="off" enterkeyhint="next">`;
           const tbl = dlyTable(PR.rows, x => x.grp
-            ? { lot: `<span class="dly-fold" data-path="${esc(x.path)}" ${ind(x.lvl)}><b>${x.fold ? "›" : "⌄"}</b> ${esc(x.name)}</span>`, sec: "", pred: "",
-                deb: `<b>${esc(dFr(x.deb))}</b>`, fin: `<b>${esc(dFr(x.fin))}</b>`, dur: x.dur === "" ? "" : `<b>${x.dur}</b>`, marge: "", jal: "", __td_marge: " dly-calc" }
-            : { lot: "", sec: `<span ${ind(x.lvl)}>${esc(x.sec)}</span>`, pred: `<span class="dly-pred" data-key="${esc(x.key)}">${esc(x.pred) || "<i>CHOISIR…</i>"}</span>`,
+            ? { lot: `<span class="dly-lotc" ${ind(x.lvl)}><span class="dly-fold" data-path="${esc(x.path)}"><b>${x.fold ? "›" : "⌄"}</b></span>${nm("grp", `data-path="${esc(x.path)}"`, x.name)}</span>`, sec: "", pred: "",
+                deb: `<b>${esc(dFr(x.deb))}</b>`, fin: `<b>${esc(dFr(x.fin))}</b>`, dur: x.dur === "" ? "" : `<b>${x.dur}</b>`, marge: "", jal: "", __td_marge: " dly-calc",
+                __cb: `<input type="checkbox" class="dlyp-cb" data-path="${esc(x.path)}"${x.all.length && x.all.every(t => SEL.has(t.key)) ? " checked" : ""}${x.all.some(t => SEL.has(t.key)) && !x.all.every(t => SEL.has(t.key)) ? " data-part=\"1\"" : ""}>` }
+            : { lot: "", sec: `<span class="dly-lotc" ${ind(x.lvl)}>${nm("sec", `data-sid="${esc(x.key.split("|")[1])}"`, x.sec)}</span>`, pred: `<span class="dly-pred" data-key="${esc(x.key)}">${esc(x.pred) || "<i>CHOISIR…</i>"}</span>`,
                 deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur, marge: x.marge === "" ? "" : x.marge,
-                jal: `<span class="dly-jal${x.jal ? " on" : ""}" data-key="${esc(x.key)}">${x.jal ? "★" : "☆"}</span>`, __td_marge: " dly-calc" },
-            x => x.grp ? `class="dly-grp" data-path="${esc(x.path)}"` : `class="dly-task${x.marge === 0 ? " dly-crit" : ""}" data-key="${esc(x.key)}"`, false, DLY_COLS_P);
+                jal: `<span class="dly-jal${x.jal ? " on" : ""}" data-key="${esc(x.key)}">${x.jal ? "★" : "☆"}</span>`, __td_marge: " dly-calc",
+                __cb: `<input type="checkbox" class="dlyp-cb" data-key="${esc(x.key)}"${SEL.has(x.key) ? " checked" : ""}>` },
+            x => x.grp ? `class="dly-grp" data-path="${esc(x.path)}"` : `class="dly-task${x.marge === 0 ? " dly-crit" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P);
           /* histogramme MAIN D'ŒUVRE sous le Gantt (FORMAT 98, 99) : libellé à gauche, sous le tableau */
           const LD = dlyLoad(dlyCurDates()), mx = Math.max(0, ...Object.values(LD));
           const P = Number(INS.plaf) || 0;
           const canLev = mx > 0 && P > 0 && mx > P + 1e-9;
           return `<div class="dly-recap-t">PLANNING — TOUCHER UNE TÂCHE POUR SAISIR SES DATES, TOUCHER PRÉDÉCESSEURS POUR LES CHOISIR</div>`
             + `<div class="dly-tools"><button type="button" class="dly-gen">GÉNÉRER LE PLANNING</button><button type="button" class="dly-lev"${canLev ? "" : " disabled"}>APPLIQUER LE NIVELLEMENT</button></div>`
-            + `<div class="dlyg"><div class="dlyg-l"${(() => { const w = Number(localStorage.getItem("svi_dlyg_w_v1")) || 0; return w ? ` style="width:${w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
+            + `<div class="dlyg"><div class="dlyg-l"${(() => { const w = Number(localStorage.getItem("svi_dlyg_w_v1")) || 0; return localStorage.getItem("svi_dlyg_w_v1") !== null ? ` style="width:${w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
             + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE AU PLANNING</button></div>`;
         }
         const ps = key ? [...insDlyList(key)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9"))) : [];
@@ -8239,6 +8246,24 @@ function renderBudgetList() {
       });
       /* gestes sur le Gantt (FORMAT 96) : glisser une barre = la déplacer ; tirer son bout = changer la FIN ;
          appui long sur la fin (ou le début) puis glisser jusqu'à une autre barre = liaison FIN → DÉBUT (ou DÉBUT → DÉBUT) */
+      /* PLANNING : cases à cocher (tâche, lot = toutes ses tâches, en-tête = toutes les tâches affichées) et noms modifiables */
+      shell.addEventListener("change", e => {
+        const X = shell.__insDly;
+        if (!X) return;
+        const c = e.target.closest && e.target.closest("input.dlyp-cb, input.dlyp-cball");
+        if (c) {
+          const S = shell.__dlySel = shell.__dlySel || new Set(), R = shell.__dlyRows || [];
+          let keys = [];
+          if (c.classList.contains("dlyp-cball")) keys = R.flatMap(x => x.grp ? x.all.map(t => t.key) : [x.key]);
+          else if (c.dataset.path) { const g = R.find(x => x.grp && x.path === c.dataset.path); keys = g ? g.all.map(t => t.key) : []; }
+          else keys = [c.dataset.key];
+          keys.forEach(k => { if (c.checked) S.add(k); else S.delete(k); });
+          X.render();
+          return;
+        }
+        const n = e.target.closest && e.target.closest("input.dly-nm");
+        if (n) { X.rename(n); return; }
+      });
       /* séparation tableau / Gantt (FORMAT 90) : poignée ‖ tirée au doigt ; largeur du tableau mémorisée */
       shell.addEventListener("pointerdown", e => {
         const sp = e.target.closest && e.target.closest(".dlyg-sp");
@@ -8248,7 +8273,8 @@ function renderBudgetList() {
         const x0 = e.clientX, w0 = L.getBoundingClientRect().width;
         sp.classList.add("on");
         let w = w0;
-        const mv = ev => { w = Math.max(120, Math.min(gw.width - 140, w0 + ev.clientX - x0)); L.style.width = w + "px"; L.style.maxWidth = "none"; };
+        /* de 0 (tableau caché) à toute la largeur (Gantt caché) */
+        const mv = ev => { w = Math.max(0, Math.min(gw.width - 3, w0 + ev.clientX - x0)); L.style.width = w + "px"; L.style.maxWidth = "none"; };
         const up = () => {
           document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
           sp.classList.remove("on");
@@ -8328,6 +8354,51 @@ function renderBudgetList() {
       jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTab(); },
       linkWin: (p, k) => dlyLinkWin(p, k), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
       gen: () => dlyGenWin(), level: () => dlyApplyLevel(),
+      linked: k => (INS.links || []).some(l => l.lot + "|" + l.sec === k),
+      /* tâches retirées du planning (non liées seulement, règle G) : dates, liaisons de planning et jalon */
+      removeTasks: keys => {
+        keys.forEach(k => {
+          if (INS.dlp) delete INS.dlp[k];
+          if (LK.dlpDraft) delete LK.dlpDraft[k];
+          if (INS.dpred) delete INS.dpred[k];
+          if (INS.jal) delete INS.jal[k];
+          Object.keys(INS.dpred || {}).forEach(s2 => { INS.dpred[s2] = dlyLinks(s2).filter(x => x.k !== k); if (!INS.dpred[s2].length) delete INS.dpred[s2]; });
+          if (shell.__dlySel) shell.__dlySel.delete(k);
+        });
+        insSave();
+      },
+      /* nom modifié dans le PLANNING : même lot / même activité que dans TÂCHES (doublons refusés) */
+      rename: inp => {
+        const v = U_(sviClean(inp.value));
+        const back = () => { renderTab(); };
+        if (inp.dataset.kind === "sec") {
+          const id = inp.dataset.sid, r = INS.sec.find(x => x.id === id);
+          if (!r || v === U_(r.v)) { back(); return; }
+          if (!v) { svToast("NOM VIDE REFUSÉ.", 3000, inp); back(); return; }
+          if (INS.sec.some(x => x.id !== id && U_(x.v) === v)) { svToast("ACTIVITÉ SECONDAIRE « " + v + " » EXISTE DÉJÀ.", 3500, inp); back(); return; }
+          /* activité jumelle d'une activité primaire : renommées ensemble (si le nom est libre côté primaire) */
+          const old = r.v, tw = INS.prim.find(p => p.tw === id && U_(p.v) === U_(old));
+          if (tw && INS.prim.some(p => p !== tw && U_(p.v) === v)) { svToast("ACTIVITÉ PRIMAIRE « " + v + " » EXISTE DÉJÀ.", 3500, inp); back(); return; }
+          r.v = v; if (tw) tw.v = v;
+          insSave(); histLog("SAISIE", "ACTIVITÉ SECONDAIRE RENOMMÉE", old + " → " + v + (tw ? " (AVEC L'ACTIVITÉ PRIMAIRE)" : ""));
+          refreshAll();
+          return;
+        }
+        /* lot ou niveau de lot (« / ») : toutes les tâches dessous suivent */
+        const segs = dlyLotPath(inp.dataset.path), lvl = segs.length;
+        if (!v || v.includes("/")) { svToast(!v ? "NOM VIDE REFUSÉ." : "« / » SÉPARE LES NIVEAUX : NOM REFUSÉ.", 3500, inp); back(); return; }
+        if (v === segs[lvl - 1]) { back(); return; }
+        const hit = INS.lot.filter(x => !x.t && (() => { const p = dlyLotPath(x.v); return p.length >= lvl && segs.every((sg, i) => U_(p[i]) === U_(sg)); })());
+        const nv = x => { const p = dlyLotPath(x.v); p[lvl - 1] = v; return p.join(" / "); };
+        const ids = new Set(hit.map(x => x.id));
+        const clash = hit.find(x => INS.lot.some(y => !ids.has(y.id) && U_(y.v) === U_(nv(x))));
+        if (clash) { svToast("LOT « " + nv(clash) + " » EXISTE DÉJÀ.", 3500, inp); back(); return; }
+        hit.forEach(x => { x.v = nv(x); });
+        /* l'état replié suit le nouveau nom */
+        { const f = dlyFoldAll(), o = dlyFoldK(inp.dataset.path); if (f[o]) { delete f[o]; f[dlyFoldK(segs.slice(0, lvl - 1).concat(v).join(" / "))] = 1; try { localStorage.setItem("svi_lotfold_v1", JSON.stringify(f)); } catch (e) {} } }
+        insSave(); histLog("SAISIE", "LOT RENOMMÉ", inp.dataset.path + " → " + v + " (" + hit.length + " LOT(S))");
+        refreshAll();
+      },
       plaf: P => { INS.plaf = P; insSave(); histLog("DÉLAIS", "PLAFOND MAIN D'ŒUVRE", String(P)); renderTab(); },
       /* barre glissée de n jours : FIN seule (bout tiré) ou tâche entière, durée gardée (jours travaillés) */
       dragTo: (k, mode, n, a) => {
@@ -9405,8 +9476,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
     const DLY_COLS_R = DLY_COLS_S.slice(1);
     /* planning : lot, activité secondaire, prédécesseurs, début, fin, durée */
     const DLY_COLS_P = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ["pred", "PRÉDÉCESSEURS", x => x.pred || "", ""],
-      ["deb", "DÉBUT", x => x.deb || "", "center"], ["fin", "FIN", x => x.fin || "", "center"], ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "number"],
-      ["marge", "MARGE", x => x.marge === "" || x.marge === undefined ? "" : Number(x.marge), "number"], ["jal", "JALON", x => x.jal || "", "center"]];
+      ["deb", "DÉBUT", x => x.deb || "", "center"], ["fin", "FIN", x => x.fin || "", "center"], ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "center"],
+      ["marge", "MARGE", x => x.marge === "" || x.marge === undefined ? "" : Number(x.marge), "center"], ["jal", "JALON", x => x.jal || "", "center"]];
     /* budget en instance : la tâche est donnée par les ronds du haut (pas de colonnes LOT / ACT. PRIMAIRE) */
     const DLY_COLS_I = DLY_COLS.filter(c => c[0] !== "lot" && c[0] !== "prim");
     /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */
@@ -9418,7 +9489,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       /* FORMAT : case à droite de chaque ligne (cocher seulement) ; suppression par le menu ⋯ */
       return `<table class="bdg-d-table dly-table" style="width:${cols.reduce((t, c) => t + w(c[0]), 0) + (del ? 44 : 0)}px">
         <colgroup>${cols.map(c => `<col data-w="dly.${c[0]}" style="width:${w(c[0])}px">`).join("")}${del ? '<col style="width:44px">' : ""}</colgroup>
-        <thead><tr>${cols.map(c => cfHead(tk, c[0], c[1], c[3])).join("")}${del ? '<th class="center"><input type="checkbox" class="dlp-cball" title="Tout cocher"></th>' : ""}</tr></thead>
+        <thead><tr>${cols.map(c => cfHead(tk, c[0], c[1], c[3])).join("")}${del ? `<th class="center"><input type="checkbox" class="${tk === "dlyp" ? "dlyp-cball" : "dlp-cball"}" title="Tout cocher"></th>` : ""}</tr></thead>
         <tbody>${rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}${del ? `<td class="center ins-cbc">${h.__cb || ""}</td>` : ""}</tr>`; }).join("")
           || ""}</tbody></table>`;
     };
@@ -14663,12 +14734,23 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         /* DÉTAIL DÉLAIS : périodes cochées */
         const Y = shell.__insDly;
         if (Y && Y.draft) Object.values(Y.draft()).forEach(l => l.forEach(p => { if (p.on === true) add("dly", p.id); }));
+        /* PLANNING : tâches cochées ; une tâche liée reste (règle G) */
+        if (Y && Y.linked) (shell.__dlySel || new Set()).forEach(k => { if (Y.linked(k)) out.kept++; else add("plan", k); });
         out.n = Object.values(out.del).reduce((t, S) => t + S.size, 0);
         return out;
       }
       /* IMPORT NON CRÉÉ : les lignes cochées de l'onglet (les données déjà importées restent) */
       /* DÉTAIL DÉLAIS : périodes cochées (le brouillon de la liaison en cours) */
-      if (blk === "detail" && active === "dly") { const Y = shell.__insDly; if (Y && Y.draft) { const D = Y.draft(); out.n = Object.values(D).reduce((t, l) => t + l.filter(p => p.on === true).length, 0); if (out.n) out.del.dly = true; } return out; }
+      if (blk === "detail" && active === "dly") {
+        const Y = shell.__insDly, S = new Set(), P = new Set();
+        if (Y && Y.draft) Object.values(Y.draft()).forEach(l => l.forEach(p => { if (p.on === true) S.add(p.id); }));
+        /* PLANNING : tâches cochées ; une tâche liée reste (règle G) */
+        if (Y && !insDlyKey()) (shell.__dlySel || new Set()).forEach(k => { if (Y.linked(k)) out.kept++; else P.add(k); });
+        if (S.size) out.del.dly = S;
+        if (P.size) out.del.plan = P;
+        out.n = S.size + P.size;
+        return out;
+      }
       if (blk === "detail" && active === "inc") { const vi = new Set(lastShown.detail && lastShown.detail.kind === "inc" ? lastShown.detail.rows.map(x => x.id) : []);
         const ids = new Set((INS.inc || []).filter(x => x.on === true && vi.has(x.id)).map(x => x.id)); if (ids.size) { out.del.inc = ids; out.n = ids.size; } return out; }
       const unlTab = blk === "detail" && active === "unl";
@@ -14690,7 +14772,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
     };
     /* détail d'un compteur de lignes cochées par bloc : « 5 CHARGES + 42 PRODUITS » */
     const DEL_LAB = { des: ["DÉSIGNATION", "DÉSIGNATIONS"], lot: ["LOT", "LOTS"], prim: ["ACTIVITÉ PRIMAIRE", "ACTIVITÉS PRIMAIRES"], sec: ["ACTIVITÉ SECONDAIRE", "ACTIVITÉS SECONDAIRES"], chg: ["CHARGE", "CHARGES"], prd: ["PRODUIT", "PRODUITS"],
-      qlt: ["LIGNE QUALITÉ", "LIGNES QUALITÉ"], inc: ["LIGNE D'IMPORT NON CRÉÉ", "LIGNES D'IMPORT NON CRÉÉ"], dly: ["DÉLAI", "DÉLAIS"] };
+      qlt: ["LIGNE QUALITÉ", "LIGNES QUALITÉ"], inc: ["LIGNE D'IMPORT NON CRÉÉ", "LIGNES D'IMPORT NON CRÉÉ"], dly: ["DÉLAI", "DÉLAIS"], plan: ["TÂCHE DU PLANNING", "TÂCHES DU PLANNING"] };
     const insDelSplit = pl => Object.keys(pl.del || {}).filter(k => DEL_LAB[k] && pl.del[k].size).map(k => pl.del[k].size + " " + DEL_LAB[k][pl.del[k].size > 1 ? 1 : 0]).join(" + ");
     const insDelRun = blk => {
       const X = shell.__ins;
@@ -14703,6 +14785,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           Object.keys(pl.del).forEach(k => {
             if (k === "inc") { INS.inc = (INS.inc || []).filter(x => !pl.del.inc.has(x.id)); return; }
             if (k === "dly") { const D = shell.__insDly.draft(); Object.keys(D).forEach(t => { D[t] = D[t].filter(p => !pl.del.dly.has(p.id)); }); return; }
+            if (k === "plan") { shell.__insDly.removeTasks([...pl.del.plan]); return; }
             X.INS[k] = X.INS[k].filter(x => !pl.del[k].has(x.id));
           });
           histLog("SAISIE", "LIGNES SUPPRIMÉES", pl.n + " LIGNE(S) — " + insDelSplit(pl));
