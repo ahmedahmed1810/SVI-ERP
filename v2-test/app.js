@@ -7844,12 +7844,14 @@ function renderBudgetList() {
           });
           if (!segs.length) return;
           const a0 = segs[0].a, b0 = segs[segs.length - 1].b;
+          /* couleur d'un lot (FORMAT 91, 93) : celle de son lot, ou de son premier lot pour un niveau qui en regroupe plusieurs */
+          const gcol = dlyLotColor((x.all.find(t => t.lo) || {}).lo);
           if (x.fold) {
             /* lot replié (FORMAT 92) : parties travaillées dans la couleur du lot, creux en blanc, trait fin en pointillé */
             bars += `<div class="gdot" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW}px;top:${y + 5}px"></div>`;
-            segs.forEach(s => { bars += `<div class="gseg" style="left:${X(s.a)}px;width:${X(s.b) - X(s.a) + DLY_DW - 1}px;top:${y}px;background:${s.lo ? dlyLotColor(s.lo) : "#475467"}"></div>`; });
+            segs.forEach(s => { bars += `<div class="gseg" style="left:${X(s.a)}px;width:${X(s.b) - X(s.a) + DLY_DW - 1}px;top:${y}px;background:${s.lo ? dlyLotColor(s.lo) : gcol}"></div>`; });
             bars += `<span class="gb-n gb-out" style="left:${X(b0) + DLY_DW + 5}px;top:${y - 2}px">${esc(x.name)}</span>`;
-          } else bars += `<div class="gsum" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW}px;top:${y + 3}px"></div>`
+          } else bars += `<div class="gsum" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW - 1}px;top:${y}px;background:${gcol}"></div>`
             + `<span class="gb-n gb-out gb-grp" style="left:${X(b0) + DLY_DW + 5}px;top:${y - 2}px">${esc(x.name)}</span>`;
           return;
         }
