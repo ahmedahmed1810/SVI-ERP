@@ -1553,4 +1553,6 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 
 /* FORMAT 93 : repli d'un lot depuis le Gantt (signe + nom touchables) */
 #dlyGantt .gb-n.gb-fold { pointer-events: auto; cursor: pointer; padding: 2px 6px 2px 0; margin-top: -2px; z-index: 4; }
-#dlyGantt .gb-fold .gb-fs { display: inline-block; width: 14px; text-align: center; font-weight: 800; color: var(--inst, #b91c1c); }
+#dlyGantt .gb-n.gb-fsg { width: 14px; text-align: center; padding: 2px 0; font-weight: 800; font-size: 12px; color: var(--inst, #b91c1c); }
+/* FORMAT 91 : nom dans la barre */
+#dlyGantt .gb .gb-ti { position: absolute; left: 6px; right: 6px; top: 0; bottom: 0; font-size: 9px; line-height: 11px; font-weight: 700; color: #1f2937; white-space: nowrap; overflow: hidden; pointer-events: none; text-transform: uppercase; }
