@@ -6422,8 +6422,21 @@ function renderBudgetList() {
     const lotSegs = r => String(r && r.v || "").split("/").map(x => x.trim()).filter(Boolean);
     const lotCmp = (a, b) => { const A = lotSegs(a), B = lotSegs(b); for (let i = 0; i < Math.min(A.length, B.length); i++) { const c = natCmp(A[i], B[i]); if (c) return c; } return A.length - B.length; };
     const lotUnder = (r, P) => { const s2 = lotSegs(r); return s2.length >= P.length && P.every((g, i) => U_(g) === U_(s2[i])); };
+    /* arborescence dans l'ordre des lots (classés par ordre alphabétique au départ, puis ordre libre) :
+       un niveau prend la place de son premier lot */
     const lotTreeRows = list => {
-      const rows = [...list].sort(lotCmp);
+      const ids = new Set(list.map(r => r.id));
+      const flat = INS.lot.filter(r => ids.has(r.id));
+      const root = { kids: [], map: new Map() };
+      flat.forEach(r => {
+        let n = root;
+        lotSegs(r).forEach(g => { const K = U_(g); if (!n.map.has(K)) { const c = { name: g, kids: [], map: new Map(), recs: [] }; n.map.set(K, c); n.kids.push(c); } n = n.map.get(K); });
+        (n.recs = n.recs || []).push(r);
+        if (!lotSegs(r).length) root.kids.push({ name: "", kids: [], map: new Map(), recs: [r], empty: true });
+      });
+      const rows = [];
+      const walk = n => n.kids.forEach(c => { (c.recs || []).forEach(r => rows.push(r)); walk(c); });
+      walk(root);
       const byPath = new Set(rows.map(r => U_(lotSegs(r).join(" / "))));
       const ch = LK.lot && INS.lot.find(x => x.id === LK.lot), chP = ch ? U_(lotSegs(ch).join(" / ")) : "";
       const folded = p => dlyIsFolded(p) && !chP.startsWith(U_(p) + " / ");
@@ -6480,13 +6493,29 @@ function renderBudgetList() {
       const add = (P0, b0) => L.filter(x => !x.t && lotUnder(x, P0)).forEach(x => { plan.set(x.id, b0.concat(lotSegs(x).slice(P0.length - 1)).join(" / ")); });
       add(P, base);
       if (extra) add(extra.P, extra.base);
-      if ([...plan].every(([id, v]) => U_((L.find(x => x.id === id) || {}).v) === U_(v))) return;
-      const ids = new Set(plan.keys()), vals = [...plan.values()].map(U_);
-      const clash = [...plan.values()].find(v => L.some(y => !ids.has(y.id) && U_(y.v) === U_(v))) || vals.find((v, i) => vals.indexOf(v) !== i);
-      if (clash) { svToast("LOT « " + clash + " » EXISTE DÉJÀ : DÉPLACEMENT REFUSÉ.", 4000, tEl); return; }
-      plan.forEach((v, id) => { L.find(x => x.id === id).v = v; });
+      const same = [...plan].every(([id, v]) => U_((L.find(x => x.id === id) || {}).v) === U_(v));
+      if (!same) {
+        const ids = new Set(plan.keys()), vals = [...plan.values()].map(U_);
+        const clash = [...plan.values()].find(v => L.some(y => !ids.has(y.id) && U_(y.v) === U_(v))) || vals.find((v, i) => vals.indexOf(v) !== i);
+        if (clash) { svToast("LOT « " + clash + " » EXISTE DÉJÀ : DÉPLACEMENT REFUSÉ.", 4000, tEl); return; }
+        plan.forEach((v, id) => { L.find(x => x.id === id).v = v; });
+      }
+      /* ordre : le bloc déplacé se place à l'endroit du dépôt */
+      {
+        const mv = L.filter(x => plan.has(x.id) && !(extra && lotUnder(x, extra.P) && !lotUnder(x, P)));
+        const rest = L.filter(x => !mv.includes(x));
+        const nodeOf = tEl.classList.contains("lot-grp") ? lotSegs({ v: tEl.dataset.path }) : null;
+        const tId = tEl.dataset.iid;
+        const under = r => nodeOf ? lotUnder(r, nodeOf) : r.id === tId || lotUnder(r, lotSegs(L.find(x => x.id === tId)));
+        let idx;
+        if (mode === "before") idx = rest.findIndex(under);
+        else { let last = -1; rest.forEach((r, i) => { if (under(r)) last = i; }); idx = last + 1; }
+        if (idx < 0) idx = rest.length;
+        rest.splice(idx, 0, ...mv);
+        L.splice(0, L.length, ...rest);
+      }
       insSave();
-      histLog("TÂCHES", N ? "NOUVEAU NIVEAU DE LOT" : "LOT DÉPLACÉ", (src.v || "") + (N ? " — " + N : ""));
+      histLog("TÂCHES", N ? "NOUVEAU NIVEAU DE LOT" : same ? "ORDRE DES LOTS" : "LOT DÉPLACÉ", (src.v || "") + (N ? " — " + N : ""));
       refreshAll();
       /* nouveau niveau : son nom est prêt à être saisi */
       if (N) setTimeout(() => { const i = [...shell.querySelectorAll("input.lot-gname")].find(x => x.dataset.path === base.join(" / ")); if (i) { i.focus(); try { i.select(); } catch (e) {} } }, 60);
@@ -7625,13 +7654,26 @@ function renderBudgetList() {
     const dlyFoldK = p => (budget.project || "") + "|" + p;
     const dlyIsFolded = p => !!dlyFoldAll()[dlyFoldK(p)];
     const dlyFoldToggle = p => { const f = dlyFoldAll(), k = dlyFoldK(p); if (f[k]) delete f[k]; else f[k] = 1; try { localStorage.setItem("svi_lotfold_v1", JSON.stringify(f)); } catch (e) {} };
-    /* lignes du PLANNING : lots (et sous-lots « / ») puis leurs tâches, dans l'ordre du DÉBUT */
+    /* ordre des lignes du PLANNING : gardé tel quel (glissement d'une barre compris) ; classé par DÉBUT à l'import,
+       après GÉNÉRER LE PLANNING et par le bouton CLASSER PAR DÉBUT */
+    const dlyByDeb = keys => [...keys].sort((a, b) => String(dlyDeb(a) || "9").localeCompare(String(dlyDeb(b) || "9")) || natCmp(dlyName(a), dlyName(b)));
+    const dlyOrder = keys => {
+      const K = new Set(keys);
+      const cur = (INS.dord || []).filter(k => K.has(k));
+      const miss = dlyByDeb(keys.filter(k => !cur.includes(k)));
+      INS.dord = cur.concat(miss);
+      return new Map(INS.dord.map((k, i) => [k, i]));
+    };
+    const dlySortByDeb = () => { INS.dord = dlyByDeb(dlyKeys()); };
+    /* lignes du PLANNING : lots (et sous-lots « / ») puis leurs tâches, dans l'ordre des lignes */
     const dlyPlanRows = () => {
       const keys = dlyKeys(), M = dlyMarges(keys), J = INS.jal || {};
       const P = keys.map(k => { const d0 = dlyDeb(k), f0 = dlyFin(k); const [lo, se] = k.split("|");
         return { key: k, lo, lot: lkName("lot", lo), sec: lkName("sec", se), pred: dlyPredTxt(k), deb: d0, fin: f0, dur: d0 && f0 ? dDur(d0, f0) : "",
-          marge: M[k] === undefined ? "" : M[k], jal: J[k] ? "★" : "" }; })
-        .sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || natCmp(a.lot, b.lot) || natCmp(a.sec, b.sec));
+          marge: M[k] === undefined ? "" : M[k], jal: J[k] ? "★" : "" }; });
+      /* ordre libre des lignes (INS.dord) ; une tâche nouvelle se place à la fin */
+      const O = dlyOrder(keys);
+      P.sort((a, b) => O.get(a.key) - O.get(b.key));
       const flat = cfApply("dlyp", DLY_COLS_P, P);
       const root = { kids: new Map(), tasks: [] };
       flat.forEach(t => {
@@ -7997,6 +8039,7 @@ function renderBudgetList() {
         INS.gdeb = st; INS.ouv = Number(nv);
         const D = dlyGenerate(st, Number(nv));
         dlyWrite(D, true);
+        dlySortByDeb();
         insSave();
         histLog("DÉLAIS", "GÉNÉRER LE PLANNING", "DÉBUT " + dFr(st) + " — " + nv + " OUVRIER(S) — FIN " + dFr(dlyEnd(D)));
         renderTab(); insRenderChain();
@@ -8054,7 +8097,7 @@ function renderBudgetList() {
           const P = Number(INS.plaf) || 0;
           const canLev = mx > 0 && P > 0 && mx > P + 1e-9;
           return `<div class="dly-recap-t">PLANNING — TOUCHER UNE TÂCHE POUR SAISIR SES DATES, TOUCHER PRÉDÉCESSEURS POUR LES CHOISIR</div>`
-            + `<div class="dly-tools"><button type="button" class="dly-gen">GÉNÉRER LE PLANNING</button><button type="button" class="dly-lev"${canLev ? "" : " disabled"}>APPLIQUER LE NIVELLEMENT</button></div>`
+            + `<div class="dly-tools"><button type="button" class="dly-gen">GÉNÉRER LE PLANNING</button><button type="button" class="dly-sortd">CLASSER PAR DÉBUT</button><button type="button" class="dly-lev"${canLev ? "" : " disabled"}>APPLIQUER LE NIVELLEMENT</button></div>`
             + `<div class="dlyg"><div class="dlyg-l"${(() => { const w = Number(localStorage.getItem("svi_dlyg_w_v1")) || 0; return localStorage.getItem("svi_dlyg_w_v1") !== null ? ` style="width:${w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
             + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE AU PLANNING</button></div>`;
         }
@@ -8321,6 +8364,10 @@ function renderBudgetList() {
         if (pc) { e.stopPropagation(); X.pickPreds(pc.dataset.key); return; }
         if (e.target.closest && e.target.closest(".dly-pred-new")) { X.pickPreds(null); return; }
         if (e.target.closest && e.target.closest(".dly-gen")) { X.gen(); return; }
+        if (e.target.closest && e.target.closest(".dly-sortd")) { X.sortDeb(); return; }
+        /* en-tête du Gantt : calendrier du budget, ouvert sur le mois touché */
+        const gh = e.target.closest && e.target.closest("#dlyGantt .gh");
+        if (gh) { const host = gh.closest("#dlyGantt"); const n = Math.floor((e.clientX - gh.getBoundingClientRect().left) / DLY_DW); sviBdgCalWin(sviIsoAdd(host.__d0, Math.max(0, n))); return; }
         const lv = e.target.closest && e.target.closest(".dly-lev");
         if (lv) { if (!lv.disabled) X.level(); return; }
         /* repli d'un lot (› / ⌄) */
@@ -8372,6 +8419,41 @@ function renderBudgetList() {
           try { localStorage.setItem("svi_dlyg_w_v1", String(Math.round(w))); } catch (err) {}
         };
         document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
+      });
+      /* PLANNING : appui long sur une ligne de tâche puis glisser = la déplacer (un seul trait) */
+      shell.addEventListener("pointerdown", e => {
+        const X = shell.__insDly;
+        const tr = e.target.closest && e.target.closest(".dlyg-l tr.dly-task");
+        if (!X || !tr || e.target.closest("input[type=checkbox], .dly-pred, .dly-jal, .dly-fold, .cf-btn")) return;
+        const x0 = e.clientX, y0 = e.clientY;
+        let on = false, tgt = null, after = false;
+        const line = () => { let l = document.getElementById("roLine"); if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); } return l; };
+        const tm = setTimeout(() => { on = true; tr.classList.add("ro-src"); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); document.body.classList.add("svi-dragging"); }, 350);
+        const tmv = ev => { if (on) ev.preventDefault(); };
+        document.addEventListener("touchmove", tmv, { passive: false });
+        const mv = ev => {
+          if (!on) { if (Math.abs(ev.clientX - x0) > 8 || Math.abs(ev.clientY - y0) > 8) end(); return; }
+          ev.preventDefault();
+          tgt = null;
+          for (const r0 of tr.parentElement.querySelectorAll("tr.dly-task")) {
+            const r = r0.getBoundingClientRect();
+            if (ev.clientY >= r.top && ev.clientY <= r.bottom && r0 !== tr) {
+              tgt = r0; after = ev.clientY > (r.top + r.bottom) / 2;
+              line().style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${r.left}px;width:${r.width}px;top:${(after ? r.bottom : r.top) - 1.5}px`;
+              break;
+            }
+          }
+        };
+        const end = drop => {
+          clearTimeout(tm);
+          document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", cc);
+          setTimeout(() => document.removeEventListener("touchmove", tmv), 0);
+          document.getElementById("roLine")?.remove(); tr.classList.remove("ro-src"); document.body.classList.remove("svi-dragging");
+          if (on) { const stop = ev => { ev.stopPropagation(); ev.preventDefault(); }; shell.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 350); }
+          if (drop && on && tgt) X.moveRow(tr.dataset.key, tgt.dataset.key, after);
+        };
+        const up = () => end(true), cc = () => end(false);
+        document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", cc);
       });
       /* barre de plafond (FORMAT 99) : tirée au doigt, par paliers entiers (1 au moins) */
       shell.addEventListener("pointerdown", e => {
@@ -8445,6 +8527,13 @@ function renderBudgetList() {
       jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTab(); },
       linkWin: (p, k) => dlyLinkWin(p, k), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
       gen: () => dlyGenWin(), level: () => dlyApplyLevel(),
+      sortDeb: () => { dlySortByDeb(); insSave(); histLog("DÉLAIS", "CLASSER PAR DÉBUT", ""); renderTab(); },
+      moveRow: (k, t, after) => {
+        const O = (INS.dord || []).filter(x => x !== k);
+        let j = O.indexOf(t); if (j < 0) return;
+        if (after) j++;
+        O.splice(j, 0, k); INS.dord = O; insSave(); renderTab();
+      },
       linked: k => (INS.links || []).some(l => l.lot + "|" + l.sec === k),
       /* tâches retirées du planning (non liées seulement, règle G) : dates, liaisons de planning et jalon */
       removeTasks: keys => {
@@ -10222,8 +10311,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         const x0 = Math.max(b.left, c.left + 4 + depth * 20), x1 = Math.min(b.right, t.right);
         l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${x0}px;width:${Math.max(20, x1 - x0)}px;top:${y - 1.5}px`;
       };
-      /* FORMAT 26 : glisser seulement dans les tableaux à titres ou niveaux (désignations, qualité, lots) */
-      const canDrag = ["des", "qlt", "lot"].includes(k);
+      /* FORMAT 26 : glisser pour déplacer partout ; regrouper (superposer) seulement désignations et lots */
+      const canDrag = true;
       const timer = setTimeout(() => {
         if (!canDrag) return;
         on = true;
@@ -10280,8 +10369,11 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
                   l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${ip.left}px;width:${Math.max(20, cr.right - ip.left)}px;top:${(after ? r.bottom : r.top) - 1.5}px`;
                 }
               } else {
+                /* déplacement simple : un seul trait à l'endroit du dépôt */
                 after = e.clientY > (r.top + r.bottom) / 2;
-                x.classList.add(after ? "ro-after" : "ro-before");
+                let l = document.getElementById("roLine");
+                if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); }
+                l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${r.left}px;width:${r.width}px;top:${(after ? r.bottom : r.top) - 1.5}px`;
               }
             }
             break;
@@ -12279,6 +12371,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       const inK = new Set((INS.inc || []).map(kk));
       INS.inc = (INS.inc || []).concat(rej.filter(x => { const k = kk(x); if (inK.has(k)) return false; inK.add(k); return true; })
         .map(x => ({ id: insId(), on: false, src: x.src, bad: x.bad, why: x.why, line: x.src.__line || "" })));
+      dlySortByDeb();
       if (!quiet) {
         histLog("IMPORT", "DÉLAIS", (srcName || "") + " — " + nAdd + " TÂCHE(S) DATÉE(S)" + (rej.length ? " — " + rej.length + " NON CRÉÉE(S)" : ""));
         if (rej.length) { active = "inc"; try { localStorage.setItem("svi_dtab_v1", "inc"); } catch (e) {} }
@@ -17849,11 +17942,12 @@ function sviParamTabs() {
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", sviParamTabs); else sviParamTabs();
 /* PARAMÉTRAGE › CALENDRIER : fenêtre CALENDRIER DU BUDGET (FORMAT 101) — un mois à la fois ;
    toucher un jour = travaillé ↔ non travaillé ; TOUS LES DIMANCHES / TOUS LES SAMEDIS ; ANNULER / ENREGISTRER */
-function sviBdgCalWin() {
+function sviBdgCalWin(iso) {
   const L = window.__sviBdgLive;
   if (!L) return;
+  if (!L.edit) { svToast("BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE", 3000); return; }
   const c0 = L.cal(), cal = { we: c0.we.slice(), off: c0.off.slice(), on: c0.on.slice() };
-  let cur = new Date(); cur.setDate(1);
+  let cur = iso ? new Date(iso + "T00:00:00") : new Date(); if (isNaN(cur)) cur = new Date(); cur.setDate(1);
   const d = document.createElement("div");
   d.id = "svConf";
   const draw = () => {
