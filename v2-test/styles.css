@@ -1530,3 +1530,7 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .dlyg-r .gh { cursor: pointer; }
 /* PLANNING : pas de sélection de texte ni de loupe à l'appui long (glissement des lignes) */
 .dlyg-l td, .dlyg-l .dly-nm:not(:focus) { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* ‹ PLANNING (retour) et fenêtre plein écran (double toucher sur le titre) */
+.dly-back { border: 1.5px solid var(--inst, #b42318); background: #fff; color: var(--inst, #b42318); border-radius: 8px; padding: 3px 10px; margin-right: 8px; font-weight: 800; font-size: 11px; }
+.svc-card.svc-full { width: calc(100vw - 16px) !important; height: calc(100vh - 16px) !important; max-width: none !important; max-height: none !important; }
+.gb-n.gb-grp { font-weight: 800; color: #1f2937; }
