@@ -1197,6 +1197,10 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
   border-radius: 10px; padding: 10px 14px; font-weight: 800; font-size: 12px; box-shadow: 0 10px 30px rgba(15,23,42,.2); opacity: 0; transform: translateY(-6px);
   transition: opacity .2s, transform .2s; pointer-events: none; }
 #svToast.on { opacity: 1; transform: none; }
+#svToast { display: flex; align-items: flex-start; gap: 10px; }
+#svToast .svt-m { flex: 1; min-width: 0; }
+#svToast .svt-x { flex: none; border: 0; background: none; color: inherit; font: inherit; font-size: 14px; line-height: 1; padding: 0 0 0 4px; margin: -1px -4px 0 0; cursor: pointer; }
+#svToast.on .svt-x { pointer-events: auto; }
 /* bandeau : icône i + VALIDER ; place toujours réservée */
 #insChain.lk-chain-top { max-width: none; }
 #insChain.off { visibility: hidden; }
@@ -1541,3 +1545,8 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 /* Gantt : pas de sélection bleue, de poignées ni de loupe de l'iPad à l'appui long */
 #dlyGantt, #dlyGantt * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .gb.gb-lift { box-shadow: 0 4px 10px rgba(0,0,0,.28); transform: translateY(-2px); }
+
+/* FORMAT 4 / 5 : cases numériques des fenêtres comme les cases des tableaux — à droite, cadre rouge (jamais le bleu de l'iPad) */
+:is(input.lkw-o, input.gen-n, input.dpk-o-in) { text-align: right; outline: none; -webkit-appearance: none; color: var(--inst, #b91c1c); -webkit-text-fill-color: var(--inst, #b91c1c); font-weight: 600; }
+:is(input.lkw-o, input.gen-n, input.dpk-o-in):focus { outline: none; border-color: transparent; box-shadow: inset 0 0 0 2px var(--inst, #b91c1c); background: #fff; }
+.bdt-row .gen-n { width: 90px; }

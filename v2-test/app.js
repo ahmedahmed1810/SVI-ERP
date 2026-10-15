@@ -7739,14 +7739,12 @@ function renderBudgetList() {
       d.addEventListener("click", e => {
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         if (e.target.closest(".lkw-del")) {
+          /* FORMAT 96 : liaison du planning déliée sans confirmation : le fil disparaît (pas de message de fin, FORMAT 32) */
           d.remove();
-          svConfirm({ title: "DÉLIER", text: "LA LIAISON " + dlyName(pred) + " → " + dlyName(succ) + " SERA DÉLIÉE.", ok: "✕ DÉLIER" }).then(go => {
-            if (!go) return;
-            INS.dpred[succ] = dlyLinks(succ).filter(x => x.k !== pred);
-            if (!INS.dpred[succ].length) delete INS.dpred[succ];
-            insSave(); histLog("DÉLAIS", "LIAISON DÉLIÉE", dlyName(pred) + " → " + dlyName(succ));
-            renderTab(); insRenderChain();
-          });
+          INS.dpred[succ] = dlyLinks(succ).filter(x => x.k !== pred);
+          if (!INS.dpred[succ].length) delete INS.dpred[succ];
+          insSave(); histLog("DÉLAIS", "LIAISON DÉLIÉE", dlyName(pred) + " → " + dlyName(succ));
+          renderTab(); insRenderChain();
           return;
         }
         if (!e.target.closest("[data-ok]")) return;
@@ -7803,10 +7801,37 @@ function renderBudgetList() {
     const dlyGanttDraw = () => {
       const host = shell.querySelector("#dlyGantt");
       if (!host || host.__drawn) return;
-      host.__drawn = true;
       const tbl = host.parentElement.querySelector(".dlyg-l table");
       const R = shell.__dlyRows || [];
       if (!tbl) return;
+      /* onglet pas encore visible (ouverture du budget, ‹ ›) : lignes de hauteur 0 → on attend qu'elles soient affichées,
+         sinon toutes les barres tomberaient sur la première ligne */
+      if (!tbl.getBoundingClientRect().height) {
+        if (!host.__ro && window.ResizeObserver) {
+          host.__ro = new ResizeObserver(() => {
+            if (!host.isConnected) { host.__ro.disconnect(); host.__ro = null; return; }
+            if (!tbl.getBoundingClientRect().height || host.__drawn) return;
+            host.__ro.disconnect(); host.__ro = null;
+            dlyGanttDraw();
+          });
+          host.__ro.observe(tbl);
+        }
+        return;
+      }
+      host.__drawn = true;
+      /* hauteur du tableau changée ensuite (police, repli, largeur) : le Gantt se redessine */
+      if (window.ResizeObserver && !host.__ro2) {
+        let h0 = tbl.getBoundingClientRect().height;
+        host.__ro2 = new ResizeObserver(() => {
+          if (!host.isConnected) { host.__ro2.disconnect(); return; }
+          const h = tbl.getBoundingClientRect().height;
+          if (!h || Math.abs(h - h0) < 1) return;
+          h0 = h;
+          cancelAnimationFrame(host.__raf);
+          host.__raf = requestAnimationFrame(() => { host.__drawn = false; dlyGanttDraw(); });
+        });
+        host.__ro2.observe(tbl);
+      }
       const cal = insCal(), tr0 = tbl.getBoundingClientRect();
       const thH = tbl.querySelector("thead").getBoundingClientRect().height;
       const trs = [...tbl.querySelectorAll("tbody tr")];
@@ -8462,7 +8487,7 @@ function renderBudgetList() {
           setTimeout(() => document.removeEventListener("touchmove", tmv), 0);
           document.getElementById("roLine")?.remove(); tr.classList.remove("ro-src"); document.body.classList.remove("svi-dragging");
           if (on) { const stop = ev => { ev.stopPropagation(); ev.preventDefault(); }; shell.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 350); }
-          if (drop && on && hit) X.moveKeys(dlyRowKeys(tr), dlyRowKeys(hit.tr), hit.after);
+          if (drop && on && hit) { if (tr.classList.contains("dly-task")) X.dropTask(tr.dataset.key, hit.tr, hit.after); else X.moveKeys(dlyRowKeys(tr), dlyRowKeys(hit.tr), hit.after); }
         };
         const up = () => end(true), cc = () => end(false);
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", cc);
@@ -8515,7 +8540,7 @@ function renderBudgetList() {
           document.removeEventListener("pointerup", up);
           document.removeEventListener("pointercancel", up);
           bar.classList.remove("gb-link", "gb-drag", "gb-lift");
-          if (vert) { document.getElementById("roLine")?.remove(); if (hitV) X.moveKeys([key], dlyRowKeys(hitV.tr), hitV.after); return; }
+          if (vert) { document.getElementById("roLine")?.remove(); if (hitV) X.dropTask(key, hitV.tr, hitV.after); return; }
           if (link) {
             tmp.innerHTML = "";
             const el = document.elementFromPoint(ev.clientX, ev.clientY);
@@ -8558,6 +8583,43 @@ function renderBudgetList() {
         const j = after ? Math.max(...pos) + 1 : Math.min(...pos);
         O.splice(j, 0, ...(INS.dord || []).filter(x => K.has(x)));
         INS.dord = O; insSave(); histLog("DÉLAIS", "ORDRE DES LIGNES", ks.map(dlyName).join(" ; ").slice(0, 120)); renderTab();
+      },
+      /* changer une tâche de lot (cahier, Planning budgétaire) : seul le lot change ; désignation, activités,
+         produits / charges, dates et liaisons du planning gardés. Renvoie la nouvelle clé, ou "" (refus, message) */
+      changeLot: (key, nl, anchor) => {
+        const [lo, se] = String(key).split("|"), nk = nl + "|" + se;
+        if (!nl || lo === nl) return key;
+        const L = INS.links || [];
+        if (dlyKeys().includes(nk) || L.some(l => l.lot === nl && l.sec === se)) { svToast("CHANGEMENT REFUSÉ : " + lkName("sec", se) + " EXISTE DÉJÀ DANS LE LOT " + lkName("lot", nl) + ".", 4000, anchor); return ""; }
+        const mine = L.filter(l => l.lot === lo && l.sec === se);
+        for (const l of mine) {
+          const t = L.find(m => m.lot === nl && m.prim === l.prim && m.des !== l.des);
+          if (t) { svToast("RÈGLE A : LA TÂCHE PRIMAIRE " + lkName("lot", nl) + " › " + lkName("prim", l.prim) + " EST DÉJÀ LIÉE À " + lkName("des", t.des) + ".", 4500, anchor); return ""; }
+        }
+        mine.forEach(l => { l.lot = nl; });
+        const mv = o => { if (o && Object.prototype.hasOwnProperty.call(o, key)) { o[nk] = o[key]; delete o[key]; } };
+        mv(INS.dlp); mv(LK.dlpDraft); mv(INS.jal); mv(INS.dpred);
+        Object.keys(INS.dpred || {}).forEach(s2 => { INS.dpred[s2] = dlyLinks(s2).map(x => x.k === key ? { ...x, k: nk } : x); });
+        INS.dord = (INS.dord || []).map(x => x === key ? nk : x);
+        if (shell.__dlySel && shell.__dlySel.has(key)) { shell.__dlySel.delete(key); shell.__dlySel.add(nk); }
+        histLog("DÉLAIS", "CHANGEMENT DE LOT", lkName("sec", se) + " : " + lkName("lot", lo) + " → " + lkName("lot", nl));
+        return nk;
+      },
+      /* tâche lâchée sur une ligne (tableau ou Gantt) : autre lot → changement de lot, puis rang */
+      dropTask: (key, tr, after) => {
+        const X = shell.__insDly;
+        let nl = null;
+        if (tr.classList.contains("dly-task")) nl = String(tr.dataset.key).split("|")[0];
+        else if (after) {
+          const lt = INS.lot.find(x => dlyLotPath(x.v).join(" / ") === tr.dataset.path);
+          if (!lt) { svToast("CHANGEMENT REFUSÉ : " + tr.dataset.path + " EST UN NIVEAU, PAS UN LOT. LÂCHER LA TÂCHE PARMI LES TÂCHES D'UN LOT.", 4500, tr); return; }
+          nl = lt.id;
+        }
+        let k = key;
+        if (nl && nl !== key.split("|")[0]) { k = X.changeLot(key, nl, tr); if (!k) { renderTab(); return; } insSave(); insRenderChain(); }
+        const g = tr.classList.contains("dly-task") ? null : (shell.__dlyRows || []).find(x => x.grp && x.path === tr.dataset.path);
+        const ts = (g ? g.all.map(t => t.key) : [tr.dataset.key]).map(t => t === key ? k : t).filter(t => t && t !== k);
+        if (ts.length) X.moveKeys([k], ts, after); else renderTab();
       },
       linked: k => (INS.links || []).some(l => l.lot + "|" + l.sec === k),
       /* tâches retirées du planning (non liées seulement, règle G) : dates, liaisons de planning et jalon */
@@ -17401,7 +17463,11 @@ document.addEventListener("focusin", e => { svLastTouch = e.target; }, true);
 function svToast(msg, ms = 3500, anchor) {
   let t = document.getElementById("svToast");
   if (!t) { t = document.createElement("div"); t.id = "svToast"; document.body.appendChild(t); }
-  t.textContent = String(msg || "").toUpperCase();
+  /* FORMAT 1 : un ✕ à droite ferme le message tout de suite */
+  t.innerHTML = `<span class="svt-m"></span><button type="button" class="svt-x" aria-label="Fermer">✕</button>`;
+  t.querySelector(".svt-m").textContent = String(msg || "").toUpperCase();
+  t.querySelector(".svt-x").addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); clearTimeout(t.__tm); t.classList.remove("on"); });
+  t.querySelector(".svt-x").addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); });
   let a = anchor || svLastTouch;
   if (a && !a.isConnected) a = null;
   /* la source : la case, sinon la ligne touchée */
@@ -17852,6 +17918,21 @@ document.addEventListener("focusin", e => {
   i.__numFmt = v;
   if (raw !== v) i.value = raw;
   setTimeout(() => { if (document.activeElement === i) { try { i.select(); i.setSelectionRange(0, i.value.length); } catch (err) {} } }, 0);
+});
+/* FORMAT 5 dans les fenêtres : nombres entiers (jours, ouvriers) — à la touche, tout sélectionné (la frappe remplace) */
+const SVI_INT_SEL = "input.lkw-o, input.gen-n, input.dpk-o-in";
+document.addEventListener("focusin", e => {
+  const i = e.target.closest && e.target.closest(SVI_INT_SEL);
+  if (!i || i.disabled || i.readOnly) return;
+  setTimeout(() => { if (document.activeElement === i) { try { i.select(); i.setSelectionRange(0, i.value.length); } catch (err) {} } }, 0);
+});
+/* iPad : un toucher sur une case déjà active replace le curseur ; on resélectionne tout */
+document.addEventListener("pointerup", e => {
+  const i = e.target.closest && e.target.closest(SVI_INT_SEL);
+  if (!i || i.disabled || i.readOnly || i.__selOnce) return;
+  i.__selOnce = true;
+  setTimeout(() => { try { i.select(); i.setSelectionRange(0, i.value.length); } catch (err) {} }, 0);
+  i.addEventListener("blur", () => { i.__selOnce = false; }, { once: true });
 });
 document.addEventListener("focusout", e => {
   const i = e.target.closest && e.target.closest(SVI_NUM_SEL);
