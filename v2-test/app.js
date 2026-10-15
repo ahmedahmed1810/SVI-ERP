@@ -4869,7 +4869,8 @@ function renderBudgetList() {
           if (!nav || e.touches.length !== 1 || !document.querySelector(".bdg-d-page")) { st = null; return; }
           const t = e.target;
           /* pas depuis un tableau qui défile, une fenêtre, un champ ou une poignée */
-          if (scrollsX(t) || t.closest("#docPop, #blkPop, #cfMenu, #blkMenu, input, textarea, select, .blk-rsz, .blk-grip, .col-rs, th, .bdg-d-tab, .rec-tab, .imp-tab, .hist-f")) { st = null; return; }
+          /* balayage seulement hors des blocs : un geste dans un tableau, le Gantt ou les tâches sert à défiler, jamais à changer de budget */
+          if (scrollsX(t) || t.closest("#docPop, #blkPop, #cfMenu, #blkMenu, #svConf, input, textarea, select, .blk-rsz, .blk-grip, .col-rs, th, .bdg-d-tab, .rec-tab, .imp-tab, .hist-f, .bdg-d-block, .bdg-d-tabbody, .ins-hcol, #bdgHier, .dlyg, table")) { st = null; return; }
           st = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
         }, { passive: true });
         document.addEventListener("touchend", e => {
