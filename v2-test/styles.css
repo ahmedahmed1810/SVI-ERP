@@ -1517,3 +1517,13 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .dly-grp .dly-nm { font-weight: 700; }
 .dly-nm:focus { outline: none; box-shadow: inset 0 0 0 2px var(--inst, #b42318); background: #fff; }
 .dly-fold { flex: none; }
+/* LOTS en arborescence dans le bloc TÂCHES (v406) */
+.ins-hcol .lot-in { display: flex; align-items: center; flex: 1; min-width: 0; }
+.ins-hcol .lot-in .ins-in, .ins-hcol .lot-in .lot-gname { flex: 1; min-width: 0; }
+.lot-fold, .lot-fold-sp { flex: none; display: inline-block; width: 14px; text-align: center; font-weight: 800; color: #475467; cursor: pointer; }
+.lot-fold-sp { cursor: default; }
+.ins-hcol .ins-li.lot-grp { background: #f6f7f9; }
+.lot-gname { border: 0; background: transparent; font: inherit; font-weight: 800; color: inherit; padding: 0 2px; height: 19px; -webkit-text-fill-color: currentColor; }
+.lot-gname:focus { outline: none; box-shadow: inset 0 0 0 2px var(--inst, #b42318); background: #fff; }
+.ins-hcol .ins-li.ro-on { background: #fde68a !important; box-shadow: inset 0 2px 0 #b45309, inset 0 -2px 0 #b45309; }
+.ins-hcol .lot-fold { border: 0 !important; background: none !important; box-shadow: none !important; padding: 0 !important; min-width: 0 !important; height: auto !important; }

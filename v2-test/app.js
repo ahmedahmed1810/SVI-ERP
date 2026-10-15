@@ -6417,6 +6417,95 @@ function renderBudgetList() {
         if (cb && INS_EDIT) cb.disabled = dim;
       });
     };
+    /* ===== LOTS en arborescence (« / ») dans le bloc TÂCHES : niveaux repliables › / ⌄, nom du dernier niveau ===== */
+    const lotSegs = r => String(r && r.v || "").split("/").map(x => x.trim()).filter(Boolean);
+    const lotCmp = (a, b) => { const A = lotSegs(a), B = lotSegs(b); for (let i = 0; i < Math.min(A.length, B.length); i++) { const c = natCmp(A[i], B[i]); if (c) return c; } return A.length - B.length; };
+    const lotUnder = (r, P) => { const s2 = lotSegs(r); return s2.length >= P.length && P.every((g, i) => U_(g) === U_(s2[i])); };
+    const lotTreeRows = list => {
+      const rows = [...list].sort(lotCmp);
+      const byPath = new Set(rows.map(r => U_(lotSegs(r).join(" / "))));
+      const ch = LK.lot && INS.lot.find(x => x.id === LK.lot), chP = ch ? U_(lotSegs(ch).join(" / ")) : "";
+      const folded = p => dlyIsFolded(p) && !chP.startsWith(U_(p) + " / ");
+      const out = [], seen = new Set();
+      rows.forEach(r => {
+        const sg = lotSegs(r);
+        for (let i = 1; i < sg.length; i++) {
+          const p = sg.slice(0, i).join(" / ");
+          if (seen.has(U_(p))) continue;
+          seen.add(U_(p));
+          if (!byPath.has(U_(p))) out.push({ grp: true, path: p, segs: sg.slice(0, i), lvl: i - 1 });
+        }
+        seen.add(U_(sg.join(" / ")));
+        out.push({ r, path: sg.join(" / "), segs: sg, lvl: Math.max(0, sg.length - 1) });
+      });
+      out.forEach(x => { x.kids = out.some(y => y !== x && U_(y.path).startsWith(U_(x.path) + " / ")); });
+      return out.filter(x => { for (let i = 1; i < x.segs.length; i++) if (folded(x.segs.slice(0, i).join(" / "))) return false; return true; });
+    };
+    const lotTreeHTML = list => lotTreeRows(list).map(x => {
+      const pad = `style="margin-left:${x.lvl * 16}px"`;
+      const fold = x.kids ? `<span class="ins-fold lot-fold" data-path="${esc(x.path)}">${dlyIsFolded(x.path) ? "›" : "⌄"}</span>` : `<span class="lot-fold-sp"></span>`;
+      if (x.grp) {
+        /* niveau sans lot à lui : nom modifiable, case = toute sa branche */
+        const br = INS.lot.filter(r => !r.t && lotUnder(r, x.segs));
+        const all = br.length && br.every(r => r.on === true);
+        return `<div class="ins-li lot-grp" data-path="${esc(x.path)}"><span class="ins-rdc"></span><span class="lot-in" ${pad}>${fold}${INS_EDIT ? `<input class="lot-gname" data-kind="grp" data-path="${esc(x.path)}" value="${esc(x.segs[x.segs.length - 1])}" autocomplete="off">` : `<span>${esc(x.segs[x.segs.length - 1])}</span>`}</span>
+          ${INS_EDIT ? `<span class="ins-delc"><input type="checkbox" class="lot-gcb" data-path="${esc(x.path)}"${all ? " checked" : ""}></span>` : ""}</div>`;
+      }
+      const r = x.r, k = "lot";
+      const pre = x.segs.length > 1 ? x.segs.slice(0, -1).join(" / ") + " / " : "";
+      const nm = x.segs.length ? x.segs[x.segs.length - 1] : (r.v || "");
+      return `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
+          ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><span class="lot-in" ${pad}>${fold}<input class="ins-in" data-f="v" enterkeyhint="next" data-pre="${esc(pre)}" value="${esc(nm)}" autocomplete="off"></span>
+            <span class="ins-delc">${insDelCell(r)}</span>` : `<span class="lot-in" ${pad}>${fold}<span>${esc(nm)}</span></span>`}
+        </div>`;
+    }).join("");
+    /* glissement d'un lot (FORMAT 26, 44) : dans un niveau = passe dessous ; avant / après = même niveau que la ligne visée ;
+       superposé à un lot = nouveau niveau « NOUVEAU NIVEAU n » qui regroupe les deux */
+    const lotDrop = (srcId, tEl, mode) => {
+      const L = INS.lot, src = L.find(x => x.id === srcId);
+      if (!src || !tEl) return;
+      const P = lotSegs(src);
+      const tSegs = tEl.classList.contains("lot-grp") ? dlyLotPath(tEl.dataset.path) : lotSegs(L.find(x => x.id === tEl.dataset.iid));
+      let base, extra = null, N = "";
+      if (mode === "on" && tEl.classList.contains("lot-grp")) base = tSegs;
+      else if (mode === "on") {
+        const used = L.flatMap(x => lotSegs(x)).map(g => (String(g).match(/^NOUVEAU NIVEAU (\d+)$/) || [])[1]).filter(Boolean).map(Number);
+        N = "NOUVEAU NIVEAU " + ((used.length ? Math.max(...used) : 0) + 1);
+        base = tSegs.slice(0, -1).concat(N);
+        extra = { P: tSegs, base };
+      } else base = tSegs.slice(0, -1);
+      if (base.length >= P.length && P.every((g, i) => U_(g) === U_(base[i]))) return;   /* pas dans sa propre branche */
+      const plan = new Map();
+      const add = (P0, b0) => L.filter(x => !x.t && lotUnder(x, P0)).forEach(x => { plan.set(x.id, b0.concat(lotSegs(x).slice(P0.length - 1)).join(" / ")); });
+      add(P, base);
+      if (extra) add(extra.P, extra.base);
+      if ([...plan].every(([id, v]) => U_((L.find(x => x.id === id) || {}).v) === U_(v))) return;
+      const ids = new Set(plan.keys()), vals = [...plan.values()].map(U_);
+      const clash = [...plan.values()].find(v => L.some(y => !ids.has(y.id) && U_(y.v) === U_(v))) || vals.find((v, i) => vals.indexOf(v) !== i);
+      if (clash) { svToast("LOT « " + clash + " » EXISTE DÉJÀ : DÉPLACEMENT REFUSÉ.", 4000, tEl); return; }
+      plan.forEach((v, id) => { L.find(x => x.id === id).v = v; });
+      insSave();
+      histLog("TÂCHES", N ? "NOUVEAU NIVEAU DE LOT" : "LOT DÉPLACÉ", (src.v || "") + (N ? " — " + N : ""));
+      refreshAll();
+      /* nouveau niveau : son nom est prêt à être saisi */
+      if (N) setTimeout(() => { const i = [...shell.querySelectorAll("input.lot-gname")].find(x => x.dataset.path === base.join(" / ")); if (i) { i.focus(); try { i.select(); } catch (e) {} } }, 60);
+    };
+    if (!shell.__lotTreeBound) {
+      shell.__lotTreeBound = true;
+      shell.addEventListener("click", e => {
+        const f = e.target.closest && e.target.closest(".lot-fold");
+        if (!f) return;
+        e.stopPropagation();
+        dlyFoldToggle(f.dataset.path);
+        refreshAll();
+      }, true);
+      shell.addEventListener("change", e => {
+        const g = e.target.closest && e.target.closest("input.lot-gcb");
+        if (g) { const P = dlyLotPath(g.dataset.path); INS.lot.forEach(r => { if (!r.t && lotUnder(r, P)) r.on = g.checked; }); insSave(); refreshAll(); return; }
+        const n = e.target.closest && e.target.closest("input.lot-gname");
+        if (n && shell.__insDly) shell.__insDly.rename(n);
+      });
+    }
     const insRenderHier = only => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
       const col = (title, k) => {
@@ -6429,7 +6518,7 @@ function renderBudgetList() {
           <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length, INS[k].length)}</span>${onlyBtn(k, true)}<span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
-          ${list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
+          ${k === "lot" ? lotTreeHTML(list) : list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
               ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">
                 <span class="ins-delc">${insDelCell(r)}</span>` : `<span>${esc(r.v || "")}</span>`}
             </div>`).join("")}
@@ -7137,7 +7226,8 @@ function renderBudgetList() {
           }
         }
         const isNum = inp.getAttribute("inputmode") === "decimal";
-        r[f] = isNum ? inp.value.trim() : inp.value.toUpperCase();
+        /* LOTS en arborescence : la case montre le dernier niveau, le chemin du dessus est gardé (data-pre) */
+        r[f] = isNum ? inp.value.trim() : (inp.dataset.pre || "") + inp.value.toUpperCase();
         if (isNum) r[f] = r[f] === "" ? "" : X.insNum(r[f]);
         if (c) X.insLive(k, holder, r);
         X.insSave();
@@ -10112,7 +10202,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       const tapFocus = inp && inp !== document.activeElement ? inp : null;
       const sibs = () => isRow
         ? [...el.parentElement.querySelectorAll("tr[data-iid]")]
-        : [...el.parentElement.querySelectorAll(".ins-li[data-iid]")];
+        : [...el.parentElement.querySelectorAll(k === "lot" ? ".ins-li[data-iid], .ins-li.lot-grp" : ".ins-li[data-iid]")];
       const x0 = event.clientX, y0 = event.clientY;
       let on = false, moved = false, target = null, after = false, over = false, inside = false;
       /* repères de glissement effacés partout (même si le tableau a été redessiné entre-temps) */
@@ -10131,7 +10221,10 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         const x0 = Math.max(b.left, c.left + 4 + depth * 20), x1 = Math.min(b.right, t.right);
         l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${x0}px;width:${Math.max(20, x1 - x0)}px;top:${y - 1.5}px`;
       };
+      /* FORMAT 26 : glisser seulement dans les tableaux à titres ou niveaux (désignations, qualité, lots) */
+      const canDrag = ["des", "qlt", "lot"].includes(k);
       const timer = setTimeout(() => {
+        if (!canDrag) return;
         on = true;
         /* le doigt est bloqué seulement pendant le glissement (le défilement normal reste libre) */
         document.addEventListener("touchmove", tm, { passive: false });
@@ -10173,6 +10266,18 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
                 }
                 if (over) x.classList.add("ro-on");
                 else roLine(x, after ? r.bottom : r.top, !after ? d0 : (tr0 && tr0.t && (!foldGet()[tr0.id] || inside)) ? d0 + 1 : d0);
+              } else if (k === "lot") {
+                /* lots : haut = avant, milieu = dans le niveau (ou nouveau niveau), bas = après — un seul trait */
+                const f = (e.clientY - r.top) / (r.height || 1);
+                over = f > .25 && f < .75;
+                after = f >= .75;
+                if (over) x.classList.add("ro-on");
+                else {
+                  let l = document.getElementById("roLine");
+                  if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); }
+                  const ip = (x.querySelector(".lot-in") || x).getBoundingClientRect(), cr = x.getBoundingClientRect();
+                  l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${ip.left}px;width:${Math.max(20, cr.right - ip.left)}px;top:${(after ? r.bottom : r.top) - 1.5}px`;
+                }
               } else {
                 after = e.clientY > (r.top + r.bottom) / 2;
                 x.classList.add(after ? "ro-after" : "ro-before");
@@ -10221,6 +10326,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         if (sel.has(arr[i0].id) && sel.size > 1) blockIds = arr.filter(r => sel.has(r.id)).map(r => r.id);
         if (blockIds.includes(target.dataset.iid)) return;
         if (k === "des") { desDrop(arr, blockIds, target.dataset.iid, over ? "on" : after ? (inside ? "afterIn" : "after") : "before"); return; }
+        if (k === "lot") { lotDrop(el.dataset.iid, target, over ? "on" : after ? "after" : "before"); return; }
         const bset = new Set(blockIds);
         const block = arr.filter(r => bset.has(r.id));
         arr.splice(0, arr.length, ...arr.filter(r => !bset.has(r.id)));
