@@ -1472,16 +1472,17 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .glinks, .gtmp { position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; overflow: visible; }
 .gl { fill: none; stroke: #475467; stroke-width: 1.2; }
 .gl-hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
-.gb { position: absolute; height: 15px; border-radius: 3px; background: var(--c); z-index: 3; touch-action: none; cursor: grab; display: flex; align-items: center; box-sizing: border-box; }
-.gb.crit { background: linear-gradient(90deg, #d92d20 0, var(--c) 8%, var(--c) 92%, #d92d20 100%); }
+.gb { position: absolute; height: 11px; border-radius: 6px; background: var(--c); z-index: 3; touch-action: none; cursor: grab; display: flex; align-items: center; box-sizing: border-box; }
+.gb.crit { background: linear-gradient(90deg, #e5484d 0, var(--c) 10%, var(--c) 90%, #e5484d 100%); }
 .gb.gb-drag { opacity: .75; cursor: grabbing; }
 .gb.gb-link { outline: 2px dashed #b42318; outline-offset: 1px; }
 .gb-s, .gb-e { position: absolute; top: 0; bottom: 0; width: 8px; }
 .gb-s { left: 0; cursor: crosshair; }
 .gb-e { right: 0; cursor: ew-resize; }
 .gb-n { font-size: 10px; font-weight: 700; color: #fff; padding: 0 5px; white-space: nowrap; pointer-events: none; line-height: 15px; }
-.gb-n.gb-out { position: absolute; color: #344054; padding: 0; z-index: 3; }
-.gseg { position: absolute; height: 15px; border-radius: 2px; z-index: 3; }
+.gb-n.gb-out { position: absolute; color: #344054; padding: 0; z-index: 3; font-weight: 600; }
+.gb-n .gjal { position: static; }
+.gseg { position: absolute; height: 11px; border-radius: 6px; z-index: 3; }
 .gdot { position: absolute; height: 0; border-top: 1.5px dotted #475467; z-index: 2; }
 .gsum { position: absolute; height: 5px; background: #475467; border-radius: 1px; z-index: 3; }
 .gjal { position: absolute; font-size: 13px; color: #b45309; z-index: 3; pointer-events: none; }
@@ -1508,3 +1509,11 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .dlyg-hd { position: sticky; top: 45%; display: block; width: 30px; height: 30px; margin: 40px 0 0 -13.5px; border-radius: 50%; background: #475467; color: #fff; font-size: 13px; font-weight: 800; line-height: 30px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.25); pointer-events: none; }
 .dlyg-sp.on { background: #b42318; }
 .dlyg-sp.on .dlyg-hd { background: #b42318; }
+
+/* PLANNING : noms modifiables, cases à cocher, sans débordement (v405) */
+.dlyg-l { min-width: 0; }
+.dly-lotc { display: flex; align-items: center; gap: 2px; }
+.dly-nm { flex: 1; min-width: 60px; border: 0; background: transparent; font: inherit; color: inherit; padding: 0 2px; height: 19px; -webkit-text-fill-color: currentColor; }
+.dly-grp .dly-nm { font-weight: 700; }
+.dly-nm:focus { outline: none; box-shadow: inset 0 0 0 2px var(--inst, #b42318); background: #fff; }
+.dly-fold { flex: none; }
