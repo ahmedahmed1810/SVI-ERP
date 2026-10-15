@@ -7957,7 +7957,7 @@ function renderBudgetList() {
           const canLev = mx > 0 && P > 0 && mx > P + 1e-9;
           return `<div class="dly-recap-t">PLANNING — TOUCHER UNE TÂCHE POUR SAISIR SES DATES, TOUCHER PRÉDÉCESSEURS POUR LES CHOISIR</div>`
             + `<div class="dly-tools"><button type="button" class="dly-gen">GÉNÉRER LE PLANNING</button><button type="button" class="dly-lev"${canLev ? "" : " disabled"}>APPLIQUER LE NIVELLEMENT</button></div>`
-            + `<div class="dlyg"><div class="dlyg-l">${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-r" id="dlyGantt"></div></div>`
+            + `<div class="dlyg"><div class="dlyg-l"${(() => { const w = Number(localStorage.getItem("svi_dlyg_w_v1")) || 0; return w ? ` style="width:${w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
             + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE AU PLANNING</button></div>`;
         }
         const ps = key ? [...insDlyList(key)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9"))) : [];
@@ -8239,6 +8239,23 @@ function renderBudgetList() {
       });
       /* gestes sur le Gantt (FORMAT 96) : glisser une barre = la déplacer ; tirer son bout = changer la FIN ;
          appui long sur la fin (ou le début) puis glisser jusqu'à une autre barre = liaison FIN → DÉBUT (ou DÉBUT → DÉBUT) */
+      /* séparation tableau / Gantt (FORMAT 90) : poignée ‖ tirée au doigt ; largeur du tableau mémorisée */
+      shell.addEventListener("pointerdown", e => {
+        const sp = e.target.closest && e.target.closest(".dlyg-sp");
+        if (!sp) return;
+        e.preventDefault(); e.stopPropagation();
+        const g = sp.closest(".dlyg"), L = g.querySelector(".dlyg-l"), gw = g.getBoundingClientRect();
+        const x0 = e.clientX, w0 = L.getBoundingClientRect().width;
+        sp.classList.add("on");
+        let w = w0;
+        const mv = ev => { w = Math.max(120, Math.min(gw.width - 140, w0 + ev.clientX - x0)); L.style.width = w + "px"; L.style.maxWidth = "none"; };
+        const up = () => {
+          document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
+          sp.classList.remove("on");
+          try { localStorage.setItem("svi_dlyg_w_v1", String(Math.round(w))); } catch (err) {}
+        };
+        document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
+      });
       /* barre de plafond (FORMAT 99) : tirée au doigt, par paliers entiers (1 au moins) */
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
