@@ -1347,7 +1347,7 @@ tr.dly-task { cursor: pointer; }
 .dpk-t { width: 100% !important; min-width: 0 !important; table-layout: fixed; border-collapse: collapse; font-size: 12px; }
 .dpk-t th .cf-wrap { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .dpk-t thead th { position: sticky; top: 0; z-index: 1; background: #f6f7f9; font-size: 10px; color: #6b7280; text-align: left; padding: 5px 8px; }
-.dpk-t td { padding: 3px 8px; height: 26px; border-bottom: 1px solid #f0f2f5; }
+.dpk-t td { padding: 0 8px; height: 21px; border-bottom: 1px solid #f0f2f5; }
 .dpk-t td label { display: flex; gap: 8px; align-items: center; }
 .dpk-lot { cursor: pointer; font-weight: 700; color: #172033; }
 .dpk-lot.cur td { box-shadow: inset 4px 0 0 var(--svst, #172033); background: #f3f5f8; }
@@ -1422,3 +1422,26 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 #svConf .src-opt.src-all { padding-bottom: 6px; border-bottom: 1px solid #d1d5db; }
 /* FORMAT 134 : 9 px entre la dernière colonne et le bord droit du bloc (8 px + trait 1 px), défilement compris */
 .bdg-d-block .bdg-d-scroll, .bdg-d-block .rec-scroll, .bdg-d-block .lk-scroll { padding-right: 8px !important; box-sizing: border-box; }
+
+/* fenêtre PRÉDÉCESSEURS : type et décalage de chaque liaison (15/10/2026) */
+.dpk-t .dpk-ty { width: 132px; }
+.dpk-t .dpk-of { width: 100px; }
+/* FORMAT 6 : en-tête jamais coupé en « … » (passe à la ligne) */
+.dpk-t th .cf-lab { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+.dpk-t-in { width: 100%; height: 19px; font-size: 10px; border: 1px solid #d0d5dd; border-radius: 4px; background: #fff; padding: 0 2px; }
+.dpk-o-in { width: 100%; height: 19px; font-size: 12px; text-align: right; border: 1px solid #d0d5dd; border-radius: 4px; padding: 0 4px; box-sizing: border-box; }
+/* calendrier du budget (PARAMÉTRAGE › CALENDRIER) */
+.bcal-card { width: 360px; }
+.bcal-h { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; }
+.bcal-h b { font-size: 13px; }
+.bcal-h button { border: 1px solid #d0d5dd; background: #fff; border-radius: 6px; width: 32px; height: 28px; font-size: 16px; }
+.bcal-w, .bcal-g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; text-align: center; }
+.bcal-w span { font-size: 10px; color: #6b7280; }
+.bcal-g button { position: relative; height: 34px; border: 1px solid #e4e7ec; background: #fff; border-radius: 6px; font-size: 13px; color: #111; }
+.bcal-g button.off { background: #e5e7eb; color: #9ca3af; }
+.bcal-g button.exc::after { content: ""; position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--svst, #b42318); }
+.bcal-rec { display: flex; gap: 18px; margin: 10px 0 2px; font-size: 12px; }
+.bcal-rec label { display: flex; gap: 6px; align-items: center; }
+.bdt-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; font-size: 12px; }
+.bdt-row input { width: 150px; height: 30px; border: 1px solid #d0d5dd; border-radius: 6px; text-align: center; font-size: 13px; }
+.prm-tab.off { opacity: .45; }
