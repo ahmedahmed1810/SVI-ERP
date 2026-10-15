@@ -8420,29 +8420,36 @@ function renderBudgetList() {
         };
         document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       });
-      /* PLANNING : appui long sur une ligne de tâche puis glisser = la déplacer (un seul trait) */
+      /* PLANNING : appui long sur une tâche ou un lot puis glisser = la / le déplacer (un seul trait) */
+      const dlyRowKeys = tr => { if (!tr) return []; if (tr.classList.contains("dly-task")) return [tr.dataset.key]; const g = (shell.__dlyRows || []).find(x => x.grp && x.path === tr.dataset.path); return g ? g.all.map(t => t.key) : []; };
+      const dlyRowAt = (y, src) => {
+        for (const r0 of shell.querySelectorAll(".dlyg-l tbody tr.dly-task, .dlyg-l tbody tr.dly-grp")) {
+          const r = r0.getBoundingClientRect();
+          if (y >= r.top && y <= r.bottom && r0 !== src) return { tr: r0, r, after: y > (r.top + r.bottom) / 2 };
+        }
+        return null;
+      };
+      const dlyRowLine = h => {
+        let l = document.getElementById("roLine");
+        if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); }
+        const g = h.tr.closest(".dlyg").getBoundingClientRect();
+        l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${g.left}px;width:${g.width}px;top:${(h.after ? h.r.bottom : h.r.top) - 1.5}px`;
+      };
+      shell.__dlyRowDrag = (e, srcTr, onDrop) => {};
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
-        const tr = e.target.closest && e.target.closest(".dlyg-l tr.dly-task");
+        const tr = e.target.closest && e.target.closest(".dlyg-l tr.dly-task, .dlyg-l tr.dly-grp");
         if (!X || !tr || e.target.closest("input[type=checkbox], .dly-pred, .dly-jal, .dly-fold, .cf-btn")) return;
         const x0 = e.clientX, y0 = e.clientY;
-        let on = false, tgt = null, after = false;
-        const line = () => { let l = document.getElementById("roLine"); if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); } return l; };
-        const tm = setTimeout(() => { on = true; tr.classList.add("ro-src"); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); document.body.classList.add("svi-dragging"); }, 350);
+        let on = false, hit = null;
+        const tm = setTimeout(() => { on = true; tr.classList.add("ro-src"); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); try { window.getSelection().removeAllRanges(); } catch (err) {} document.body.classList.add("svi-dragging"); }, 350);
         const tmv = ev => { if (on) ev.preventDefault(); };
         document.addEventListener("touchmove", tmv, { passive: false });
         const mv = ev => {
           if (!on) { if (Math.abs(ev.clientX - x0) > 8 || Math.abs(ev.clientY - y0) > 8) end(); return; }
           ev.preventDefault();
-          tgt = null;
-          for (const r0 of tr.parentElement.querySelectorAll("tr.dly-task")) {
-            const r = r0.getBoundingClientRect();
-            if (ev.clientY >= r.top && ev.clientY <= r.bottom && r0 !== tr) {
-              tgt = r0; after = ev.clientY > (r.top + r.bottom) / 2;
-              line().style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${r.left}px;width:${r.width}px;top:${(after ? r.bottom : r.top) - 1.5}px`;
-              break;
-            }
-          }
+          hit = dlyRowAt(ev.clientY, tr);
+          if (hit) dlyRowLine(hit); else document.getElementById("roLine")?.remove();
         };
         const end = drop => {
           clearTimeout(tm);
@@ -8450,7 +8457,7 @@ function renderBudgetList() {
           setTimeout(() => document.removeEventListener("touchmove", tmv), 0);
           document.getElementById("roLine")?.remove(); tr.classList.remove("ro-src"); document.body.classList.remove("svi-dragging");
           if (on) { const stop = ev => { ev.stopPropagation(); ev.preventDefault(); }; shell.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 350); }
-          if (drop && on && tgt) X.moveRow(tr.dataset.key, tgt.dataset.key, after);
+          if (drop && on && hit) X.moveKeys(dlyRowKeys(tr), dlyRowKeys(hit.tr), hit.after);
         };
         const up = () => end(true), cc = () => end(false);
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", cc);
@@ -8475,8 +8482,8 @@ function renderBudgetList() {
         const host = bar.closest("#dlyGantt"), body = host.querySelector(".gbody"), tmp = host.querySelector(".gtmp");
         const key = bar.dataset.key, mode = e.target.closest(".gb-e") ? "end" : e.target.closest(".gb-s") ? "start" : "body";
         e.preventDefault();
-        const x0 = e.clientX, L0 = bar.offsetLeft, W0 = bar.offsetWidth;
-        let moved = false, link = false, days = 0;
+        const x0 = e.clientX, y0b = e.clientY, L0 = bar.offsetLeft, W0 = bar.offsetWidth;
+        let moved = false, link = false, days = 0, vert = false, hitV = null;
         const t = setTimeout(() => { if (!moved && mode !== "body") { link = true; bar.classList.add("gb-link"); } }, 500);
         const br = () => body.getBoundingClientRect();
         const ax = mode === "end" ? L0 + W0 : L0, ay = bar.offsetTop + bar.offsetHeight / 2;
@@ -8487,6 +8494,10 @@ function renderBudgetList() {
             tmp.innerHTML = `<line x1="${ax}" y1="${ay}" x2="${ev.clientX - r.left}" y2="${ev.clientY - r.top}" stroke="#b42318" stroke-width="2" stroke-dasharray="4 3"/>`;
             return;
           }
+          /* glisser la barre vers le haut ou le bas = changer le rang de la tâche (un seul trait) */
+          const dy = ev.clientY - y0b;
+          if (!moved && !vert && mode === "body" && Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { vert = true; clearTimeout(t); bar.classList.add("gb-drag"); }
+          if (vert) { hitV = dlyRowAt(ev.clientY, null); if (hitV && hitV.tr.dataset.key === key) hitV = null; if (hitV) dlyRowLine(hitV); else document.getElementById("roLine")?.remove(); return; }
           if (!moved && Math.abs(dx) > 4) { moved = true; clearTimeout(t); bar.classList.add("gb-drag"); }
           if (!moved) return;
           days = Math.round(dx / DLY_DW);
@@ -8499,6 +8510,7 @@ function renderBudgetList() {
           document.removeEventListener("pointerup", up);
           document.removeEventListener("pointercancel", up);
           bar.classList.remove("gb-link", "gb-drag");
+          if (vert) { document.getElementById("roLine")?.remove(); if (hitV) X.moveKeys([key], dlyRowKeys(hitV.tr), hitV.after); return; }
           if (link) {
             tmp.innerHTML = "";
             const el = document.elementFromPoint(ev.clientX, ev.clientY);
@@ -8528,11 +8540,18 @@ function renderBudgetList() {
       linkWin: (p, k) => dlyLinkWin(p, k), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
       gen: () => dlyGenWin(), level: () => dlyApplyLevel(),
       sortDeb: () => { dlySortByDeb(); insSave(); histLog("DÉLAIS", "CLASSER PAR DÉBUT", ""); renderTab(); },
-      moveRow: (k, t, after) => {
-        const O = (INS.dord || []).filter(x => x !== k);
-        let j = O.indexOf(t); if (j < 0) return;
-        if (after) j++;
-        O.splice(j, 0, k); INS.dord = O; insSave(); renderTab();
+      moveRow: (k, t, after) => shell.__insDly.moveKeys([k], [t], after),
+      /* déplacer un bloc de lignes (une tâche, ou toutes les tâches d'un lot) avant / après un autre */
+      moveKeys: (ks, ts, after) => {
+        const K = new Set(ks);
+        if (!ks.length || !ts.length || ts.every(t => K.has(t))) return;
+        dlyOrder(dlyKeys());
+        const O = (INS.dord || []).filter(x => !K.has(x));
+        const pos = ts.filter(t => !K.has(t)).map(t => O.indexOf(t)).filter(i => i >= 0);
+        if (!pos.length) return;
+        const j = after ? Math.max(...pos) + 1 : Math.min(...pos);
+        O.splice(j, 0, ...(INS.dord || []).filter(x => K.has(x)));
+        INS.dord = O; insSave(); histLog("DÉLAIS", "ORDRE DES LIGNES", ks.map(dlyName).join(" ; ").slice(0, 120)); renderTab();
       },
       linked: k => (INS.links || []).some(l => l.lot + "|" + l.sec === k),
       /* tâches retirées du planning (non liées seulement, règle G) : dates, liaisons de planning et jalon */
