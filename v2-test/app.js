@@ -7851,7 +7851,7 @@ function renderBudgetList() {
             bars += `<div class="gdot" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW}px;top:${y + 5}px"></div>`;
             segs.forEach(s => { bars += `<div class="gseg" style="left:${X(s.a)}px;width:${X(s.b) - X(s.a) + DLY_DW - 1}px;top:${y}px;background:${s.lo ? dlyLotColor(s.lo) : gcol}"></div>`; });
             bars += `<span class="gb-n gb-out" style="left:${X(b0) + DLY_DW + 5}px;top:${y - 2}px">${esc(x.name)}</span>`;
-          } else bars += `<div class="gsum" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW - 1}px;top:${y}px;background:${gcol}"></div>`
+          } else bars += `<div class="gsum" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW - 1}px;top:${y + 2}px;--c:${gcol}"></div>`
             + `<span class="gb-n gb-out gb-grp" style="left:${X(b0) + DLY_DW + 5}px;top:${y - 2}px">${esc(x.name)}</span>`;
           return;
         }
@@ -8489,7 +8489,8 @@ function renderBudgetList() {
         e.preventDefault();
         const x0 = e.clientX, y0b = e.clientY, L0 = bar.offsetLeft, W0 = bar.offsetWidth;
         let moved = false, link = false, days = 0, vert = false, hitV = null;
-        const t = setTimeout(() => { if (!moved && mode !== "body") { link = true; bar.classList.add("gb-link"); } }, 500);
+        /* appui long : sur un bout = liaison ; sur le milieu = changer le rang (barre soulevée) */
+        const t = setTimeout(() => { if (moved) return; if (mode !== "body") { link = true; bar.classList.add("gb-link"); } else { vert = true; bar.classList.add("gb-lift"); } }, 500);
         const br = () => body.getBoundingClientRect();
         const ax = mode === "end" ? L0 + W0 : L0, ay = bar.offsetTop + bar.offsetHeight / 2;
         const mv = ev => {
@@ -8501,7 +8502,6 @@ function renderBudgetList() {
           }
           /* glisser la barre vers le haut ou le bas = changer le rang de la tâche (un seul trait) */
           const dy = ev.clientY - y0b;
-          if (!moved && !vert && mode === "body" && Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { vert = true; clearTimeout(t); bar.classList.add("gb-drag"); }
           if (vert) { hitV = dlyRowAt(ev.clientY, null); if (hitV && hitV.tr.dataset.key === key) hitV = null; if (hitV) dlyRowLine(hitV); else document.getElementById("roLine")?.remove(); return; }
           if (!moved && Math.abs(dx) > 4) { moved = true; clearTimeout(t); bar.classList.add("gb-drag"); }
           if (!moved) return;
@@ -8514,7 +8514,7 @@ function renderBudgetList() {
           document.removeEventListener("pointermove", mv);
           document.removeEventListener("pointerup", up);
           document.removeEventListener("pointercancel", up);
-          bar.classList.remove("gb-link", "gb-drag");
+          bar.classList.remove("gb-link", "gb-drag", "gb-lift");
           if (vert) { document.getElementById("roLine")?.remove(); if (hitV) X.moveKeys([key], dlyRowKeys(hitV.tr), hitV.after); return; }
           if (link) {
             tmp.innerHTML = "";
