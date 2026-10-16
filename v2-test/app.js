@@ -7843,7 +7843,11 @@ function renderBudgetList() {
       return true;
     };
     /* GANTT (FORMAT 90 à 96) : à droite du tableau du PLANNING, lignes alignées ; jours en abscisse */
-    const DLY_DW = 22, DLY_HH = 110;
+    /* largeur d'un jour du Gantt (FORMAT 91) : réglable en glissant sur l'en-tête ou en pinçant, 14 à 60 px, mémorisée */
+    const DLY_DW_MIN = 14, DLY_DW_MAX = 60;
+    const dlyDwGet = () => { let v = 22; try { v = Number(localStorage.getItem("svi_dlyg_dw_v1")) || 22; } catch (e) {} return Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v))); };
+    let DLY_DW = dlyDwGet();
+    const DLY_HH = 110;
     /* largeur d'un intitulé dans la barre (police des barres : 9 px, gras) */
     const dlyTxtW = t => {
       const c = dlyTxtW.c || (dlyTxtW.c = document.createElement("canvas").getContext("2d"));
@@ -7896,6 +7900,8 @@ function renderBudgetList() {
       dates.sort();
       const today = sviIsoOf(new Date());
       const d0 = sviIsoAdd(dates[0] || today, -3), d1 = sviIsoAdd(dates[dates.length - 1] || sviIsoAdd(today, 30), 10);
+      DLY_DW = shell.__dlyDw || dlyDwGet();
+      host.style.setProperty("--dw", DLY_DW + "px");
       const nD = dDiff(d0, d1) + 1, W = nD * DLY_DW;
       const X = iso => dDiff(d0, iso) * DLY_DW;
       let head = "", bg = "";
@@ -7945,7 +7951,7 @@ function renderBudgetList() {
         pos[x.key] = { l: left, r: left + w, y: y + 5.5 };
         /* FORMAT 91 : nom dans la barre quand il y tient en entier, sinon juste à droite */
         const inside = dlyTxtW(x.sec) + 12 <= w;
-        bars += `<div class="gb${crit ? " crit" : ""}${inside ? " gb-tin" : ""}" data-key="${esc(x.key)}" style="left:${left}px;width:${w}px;top:${y}px;--c:${col}">`
+        bars += `<div class="gb${crit ? " crit" : ""}${inside ? " gb-tin" : ""}${w < 30 ? " gb-nar" : ""}" data-key="${esc(x.key)}" style="left:${left}px;width:${w}px;top:${y}px;--c:${col}">`
           + (inside ? `<span class="gb-ti">${nm}</span>` : "")
           + `<span class="gb-s"></span><span class="gb-e"></span></div>`
           + (inside ? (x.jal ? `<span class="gb-n gb-out" style="left:${left + w + 5}px;top:${y - 2}px"><span class="gjal">★</span></span>` : "")
@@ -8464,6 +8470,7 @@ function renderBudgetList() {
         const gf = e.target.closest && e.target.closest("#dlyGantt .gb-fold");
         if (gf) { e.stopPropagation(); X.fold(gf.dataset.path); return; }
         const gh = e.target.closest && e.target.closest("#dlyGantt .gh");
+        if (gh && shell.__dlyNoClick) { shell.__dlyNoClick = false; return; }
         if (gh) { const host = gh.closest("#dlyGantt"); const n = Math.floor((e.clientX - gh.getBoundingClientRect().left) / DLY_DW); sviBdgCalWin(sviIsoAdd(host.__d0, Math.max(0, n))); return; }
         const lv = e.target.closest && e.target.closest(".dly-lev");
         if (lv) { if (!lv.disabled) X.level(); return; }
@@ -8572,6 +8579,63 @@ function renderBudgetList() {
         const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); if (P) X.plaf(P); };
         document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
       });
+      /* FORMAT 91 : largeur des jours — glisser horizontalement sur l'en-tête, ou pincer le Gantt ;
+         le jour sous le doigt reste en place ; largeur mémorisée ; un toucher simple ouvre toujours le calendrier */
+      const dlyDwSet = (host, w, ax, p) => {
+        w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w)));
+        if (w === DLY_DW) return;
+        shell.__dlyDw = w;
+        try { localStorage.setItem("svi_dlyg_dw_v1", String(w)); } catch (e) {}
+        host.__drawn = false; dlyGanttDraw();
+        const h2 = shell.querySelector("#dlyGantt");
+        if (h2) h2.scrollLeft = Math.max(0, p * w - ax);
+        let lab = document.getElementById("dlyDwLab");
+        if (!lab) { lab = document.createElement("div"); lab.id = "dlyDwLab"; document.body.appendChild(lab); }
+        const r = (h2 || host).getBoundingClientRect();
+        lab.textContent = "1 JOUR = " + w + " PX";
+        lab.style.left = (r.left + ax) + "px"; lab.style.top = (r.top + 4) + "px";
+        clearTimeout(lab.__tm); lab.__tm = setTimeout(() => lab.remove(), 900);
+      };
+      shell.addEventListener("pointerdown", e => {
+        const gh = e.target.closest && e.target.closest("#dlyGantt .gh");
+        if (!gh || e.button > 0 || shell.__dlyPinch) return;
+        const host = gh.closest("#dlyGantt"), hr = host.getBoundingClientRect();
+        const x0 = e.clientX, y0 = e.clientY, w0 = DLY_DW, ax = x0 - hr.left, p = (ax + host.scrollLeft) / w0;
+        let on = false, raf = 0;
+        const mv = ev => {
+          const dx = ev.clientX - x0;
+          if (!on) { if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(ev.clientY - y0)) return; on = true; }
+          ev.preventDefault();
+          cancelAnimationFrame(raf);
+          raf = requestAnimationFrame(() => dlyDwSet(host, w0 * Math.pow(2, dx / 160), ax, p));
+        };
+        const up = () => {
+          document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
+          if (on) { shell.__dlyNoClick = true; setTimeout(() => { shell.__dlyNoClick = false; }, 400); }
+        };
+        document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
+      });
+      if (!shell.__dlyPinchBound) {
+        shell.__dlyPinchBound = true;
+        let P0 = null;
+        const dist = t => Math.abs(t[0].clientX - t[1].clientX);
+        shell.addEventListener("touchstart", e => {
+          const host = e.target.closest && e.target.closest("#dlyGantt");
+          if (!host || e.touches.length !== 2) return;
+          const hr = host.getBoundingClientRect(), mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - hr.left;
+          P0 = { host, d: Math.max(20, dist(e.touches)), w0: DLY_DW, ax: mx, p: (mx + host.scrollLeft) / DLY_DW };
+          shell.__dlyPinch = true; shell.__dlyPinched = true;
+          e.preventDefault();
+        }, { passive: false });
+        shell.addEventListener("touchmove", e => {
+          if (!P0 || e.touches.length !== 2) return;
+          e.preventDefault();
+          const w = P0.w0 * Math.max(20, dist(e.touches)) / P0.d;
+          dlyDwSet(shell.querySelector("#dlyGantt") || P0.host, w, P0.ax, P0.p);
+        }, { passive: false });
+        const end = e => { if (!P0 || (e.touches && e.touches.length >= 2)) return; P0 = null; setTimeout(() => { shell.__dlyPinch = false; }, 50); };
+        shell.addEventListener("touchend", end); shell.addEventListener("touchcancel", end);
+      }
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
         const bar = e.target.closest && e.target.closest("#dlyGantt .gb");
@@ -8600,6 +8664,7 @@ function renderBudgetList() {
         };
         const ax = mode === "end" ? L0 + W0 : L0, ay = bar.offsetTop + bar.offsetHeight / 2;
         const mv = ev => {
+          if (shell.__dlyPinch) { clearTimeout(t); return; }
           const dx = ev.clientX - x0;
           if (link) {
             const r = br();
@@ -8627,6 +8692,7 @@ function renderBudgetList() {
           document.removeEventListener("pointercancel", up);
           bar.classList.remove("gb-link", "gb-drag", "gb-lift");
           host.querySelectorAll(".gb.gb-tgt").forEach(b => b.classList.remove("gb-tgt", "gb-ts", "gb-te"));
+          if (shell.__dlyPinch || shell.__dlyPinched) { shell.__dlyPinched = false; tmp.innerHTML = ""; document.getElementById("roLine")?.remove(); return; }
           if (vert) { document.getElementById("roLine")?.remove(); if (hitV) X.dropTask(key, hitV.tr, hitV.after); return; }
           if (link) {
             tmp.innerHTML = "";
