@@ -8254,7 +8254,7 @@ function renderBudgetList() {
         const rows = cfApply("dlyi", DLY_COLS_I, all);
         lastShown.detail = { cols: DLY_COLS_I, rows: rows.filter(x => !x.nw), kind: "dly" };
         const inp = (x, f) => `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${x.task}" data-pid="${x.pid}" data-f="${f}" type="text"
-            ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${x.nw && (f === "deb" || f === "fin") ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? x.dur : dFr(x[f]))}">`;
+            ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${x.nw && (f === "deb" || f === "fin") ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? (x.dur || (shell.__dlyPendDur || {})[x.task] || "") : dFr(x[f]))}">`;
         const pf = dlyPredFin(key);
         return `<div class="dly-recap-t"><button type="button" class="dly-back">‹ PLANNING</button>${esc(dlyName(key))} — PRÉDÉCESSEURS : <span class="dly-pred" data-key="${esc(key)}">${esc(dlyPredTxt(key)) || "<i>CHOISIR…</i>"}</span>${pf ? " — DÉBUT AU PLUS TÔT LE " + esc(dFr(pf)) : ""}</div>`
           + dlyTable(rows, x => ({ deb: inp(x, "deb"), fin: inp(x, "fin"), dur: inp(x, "dur"),
@@ -8277,7 +8277,7 @@ function renderBudgetList() {
       lastShown.detail = { cols: DLY_COLS_S, rows: rows.filter(x => !x.nw), kind: "dly" };
       const inp = (x, f) => edit
         ? `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${x.task}" data-pid="${x.pid}" data-f="${f}" type="text"
-            ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${x.nw && f === "deb" ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? x.dur : dFr(x[f]))}">`
+            ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${x.nw && f === "deb" ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? (x.dur || (shell.__dlyPendDur || {})[x.task] || "") : dFr(x[f]))}">`
         : esc(f === "dur" ? x.dur : dFr(x[f]));
       const td = edit ? " ins-td" : "";
       return (err ? `<div class="lk-err dlp-err">${esc(err)}</div>` : "") + dlyTable(rows, x => ({ lot: esc(x.lot), sec: esc(x.sec),
@@ -8320,20 +8320,26 @@ function renderBudgetList() {
           else if (!/^\d+$/.test(v) || Number(v) < 1) X.err = "DURÉE NON VALIDE : NOMBRE DE JOURS TRAVAILLÉS ATTENDU (1 = DÉBUT ET FIN LE MÊME JOUR).";
           else if (q.deb) q.fin = sviWFin(cal, q.deb, Number(v));
           else if (q.fin) q.deb = sviWDeb(cal, q.fin, Number(v));   /* FIN + DURÉE → DÉBUT */
-          else X.err = "SAISISSEZ D'ABORD LA DATE DE DÉBUT OU DE FIN.";
+          else { (shell.__dlyPendDur = shell.__dlyPendDur || {})[task] = Number(v); }   /* DURÉE d'abord : gardée, la première date calculera l'autre */
         } else {
           const iso = X.dParse(v);
           if (iso === null) X.err = "DATE NON VALIDE : FORMAT JJ/MM/AAAA.";
           else if (iso && !sviWork(cal, iso)) X.err = "JOUR NON TRAVAILLÉ DANS LE CALENDRIER DU BUDGET.";
-          else q[f] = iso;
+          else {
+            q[f] = iso;
+            const pd = (shell.__dlyPendDur || {})[task];
+            if (pd && iso && !(f === "deb" ? q.fin : q.deb)) { if (f === "deb") q.fin = sviWFin(cal, iso, pd); else q.deb = sviWDeb(cal, iso, pd); }
+          }
         }
+        if (q.deb && q.fin && shell.__dlyPendDur) delete shell.__dlyPendDur[task];
         if (X.err) { svToast(X.err, 4000, i); X.err = ""; X.render(); return; }
         /* mêmes contrôles et même fenêtre TÂCHES SUIVANTES que le Gantt */
         if (!X.apply(task, q, { anchor: i, fromDur: f === "dur" })) return;
         /* DÉBUT, FIN, DURÉE : dès que deux valeurs sont connues, la troisième est calculée ; sinon le curseur va à celle qui manque */
         const done = q.deb && q.fin;
-        const nx = done ? "" : (q.deb ? "fin" : "deb");
-        const el = !done && shell.querySelector(`input.dlp-in[data-task="${task}"][data-f="${nx}"]`);
+        /* DURÉE saisie d'abord : on touche la date de son choix (DÉBUT ou FIN), le curseur ne bouge pas */
+        const nx = done || (f === "dur" && !q.deb && !q.fin) ? "" : (q.deb ? "fin" : "deb");
+        const el = !done && (i.closest("#dlyAddW") || shell).querySelector(`input.dlp-in[data-task="${task}"][data-f="${nx}"]`);
         if (el) { el.focus(); try { el.select(); } catch (err) {} }
       });
       /* SUPPRIMER LES LIGNES COCHÉES (menu ⋯) : périodes cochées */
@@ -8533,11 +8539,11 @@ function renderBudgetList() {
         let panel = "";
         if (key) {
           const p0 = ((LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [])[0] || {};
-          const dur = p0.deb && p0.fin ? dDur(p0.deb, p0.fin) : "";
+          const dur = p0.deb && p0.fin ? dDur(p0.deb, p0.fin) : ((shell.__dlyPendDur || {})[key] || "");
           const s0 = T.includes(key) ? (dated(key) ? "black" : "red") : "none";
           const inp = (f, v, ph) => `<input class="ins-in dlp-in dlw-in${f === "dur" ? " number" : " center"}" data-task="${esc(key)}" data-pid="${esc(p0.id || "")}" data-f="${f}" type="text" ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${ph}" value="${esc(v)}">`;
-          panel = `<div class="dlw-p"><div class="dlw-n dlw-${s0}">${esc(dlyName(key))}<span>${s0 === "red" ? "SANS SES DEUX DATES" : s0 === "black" ? "DATÉE" : "PAS ENCORE DANS LE PLANNING"}</span></div>
-            <div class="dlw-f"><label>DÉBUT${inp("deb", dFr(p0.deb || ""), "SAISIR ICI…")}</label><label>FIN${inp("fin", dFr(p0.fin || ""), "SAISIR ICI…")}</label><label>DURÉE (J)${inp("dur", dur, "")}</label></div></div>`;
+          /* pas d'intitulé ni d'état au-dessus des dates : la tâche se lit déjà dans les deux listes */
+          panel = `<div class="dlw-p"><div class="dlw-f"><label>DÉBUT${inp("deb", dFr(p0.deb || ""), "SAISIR ICI…")}</label><label>FIN${inp("fin", dFr(p0.fin || ""), "SAISIR ICI…")}</label><label>DURÉE (J)${inp("dur", dur, "")}</label></div></div>`;
         }
         d.innerHTML = `<div class="svc-card dpk-card" role="dialog" aria-modal="true" style="${w ? "width:" + w + ";" : ""}${h ? "height:" + h + ";" : ""}">
           <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
@@ -8670,12 +8676,14 @@ function renderBudgetList() {
       const dlyRowLine = h => {
         let l = document.getElementById("roLine");
         if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); }
-        const box = h.tr.closest(".dlyg"), g = box.getBoundingClientRect(), lw = box.querySelector(".dlyg-l")?.getBoundingClientRect().width || 0;
-        /* Gantt seul (tableau caché) : décalage de 40 px par niveau et petit trait vertical au départ, pour bien voir trait court / trait long */
-        const gOnly = lw < 60, ind = h.lvl ? (gOnly ? 8 + h.lvl * 40 : 6 + h.lvl * 20) : 0;
+        /* le trait n'apparaît que là où l'on agit (FORMAT 64) : glissement sur le tableau = trait sur le tableau,
+           décalé de 20 px par niveau comme DÉSIGNATIONS CLIENT ; sur le Gantt = trait sur le Gantt, 40 px par niveau, petit trait vertical au départ */
+        const box = h.tr.closest(".dlyg"), onG = !!shell.__dlySrcG;
+        const pane = box.querySelector(onG ? ".dlyg-r" : ".dlyg-l") || box, g = pane.getBoundingClientRect();
+        const ind = onG ? 8 + (h.lvl || 0) * 40 : (h.lvl ? 6 + h.lvl * 20 : 0);
         const y = (h.after ? h.r.bottom : h.r.top) - 1.5;
         l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${g.left + ind}px;width:${Math.max(40, g.width - ind)}px;top:${y}px`;
-        l.innerHTML = gOnly ? `<i style="position:absolute;left:0;top:-6px;width:3px;height:15px;border-radius:2px;background:var(--inst,#12355b)"></i>` : "";
+        l.innerHTML = onG ? `<i style="position:absolute;left:0;top:-6px;width:3px;height:15px;border-radius:2px;background:var(--inst,#12355b)"></i>` : "";
       };
       /* lot glissé en hauteur (tableau ou Gantt) : endroit et niveau d'arrivée (FORMAT 64 / 44) —
          le trait commence au niveau d'arrivée ; doigt vers la droite = plus profond, vers la gauche = moins ;
@@ -8744,6 +8752,7 @@ function renderBudgetList() {
         const mv = ev => {
           if (!on) { if (Math.abs(ev.clientX - x0) > 8 || Math.abs(ev.clientY - y0) > 8) end(); return; }
           ev.preventDefault();
+          shell.__dlySrcG = window.__sviDlySrcG = false;
           if (gRow) { hit = dlyGrpHit(ev, gRow.path, gRow.lvl, x0); dlyGrpShow(hit); return; }
           if (tr.classList.contains("dly-task")) { hit = dlyTaskHit(ev, tr, tr.dataset.key); if (!hit) document.getElementById("roLine")?.remove(); return; }
           hit = dlyRowAt(ev.clientY, tr);
@@ -8851,7 +8860,7 @@ function renderBudgetList() {
         const mv = ev => {
           if (shell.__dlyPinch) { clearTimeout(t); return; }
           const dx = ev.clientX - x0;
-          if (mode === "vert") { ev.preventDefault(); hit = g ? dlyGrpHit(ev, path, g.lvl, x0) : null; dlyGrpShow(hit); return; }
+          if (mode === "vert") { ev.preventDefault(); shell.__dlySrcG = window.__sviDlySrcG = true; hit = g ? dlyGrpHit(ev, path, g.lvl, x0) : null; dlyGrpShow(hit); return; }
           if (!mode && Math.abs(dx) > 4) { mode = "time"; clearTimeout(t); moving.forEach(b => { b.__l0 = b.offsetLeft; b.classList.add("gb-drag"); }); }
           if (mode !== "time") return;
           ev.preventDefault();
@@ -8913,7 +8922,7 @@ function renderBudgetList() {
           }
           /* glisser la barre vers le haut ou le bas = changer le rang de la tâche (un seul trait) */
           const dy = ev.clientY - y0b;
-          if (vert) { hitV = dlyTaskHit(ev, null, key); if (!hitV) document.getElementById("roLine")?.remove(); return; }
+          if (vert) { shell.__dlySrcG = window.__sviDlySrcG = true; hitV = dlyTaskHit(ev, null, key); if (!hitV) document.getElementById("roLine")?.remove(); return; }
           if (!moved && Math.abs(dx) > 4) { moved = true; clearTimeout(t); bar.classList.add("gb-drag"); }
           if (!moved) return;
           days = Math.round(dx / DLY_DW);
@@ -18889,8 +18898,10 @@ function sviCalOpen(el) {
     const o = window.__sviDlyCal(el);
     if (!o) return;
     sviCal(el, { iso: o.iso, dis: o.dis, onPick: d => {
-      SVI_VAL.set.call(el, d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
+      let t = el;
+      if (!t.isConnected) t = document.querySelector(`${el.classList.contains("dlw-in") ? "#dlyAddW " : ""}input.dlp-in[data-task="${CSS.escape(el.dataset.task || "")}"][data-f="${el.dataset.f}"]`) || el;
+      SVI_VAL.set.call(t, d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4));
+      t.dispatchEvent(new Event("change", { bubbles: true }));
     } });
   }
 }
@@ -19043,7 +19054,9 @@ document.addEventListener("pointerdown", e => {
 function sviDlyRoSync() {
   document.querySelectorAll(".g-ro-band").forEach(b => b.remove());
   const tr = document.querySelector(".dlyg-l tr.ro-on"), body = document.querySelector("#dlyGantt .gbody");
-  if (!tr || !body) return;
+  const onG = !!window.__sviDlySrcG;
+  document.querySelectorAll(".dlyg").forEach(x => x.classList.toggle("dly-src-g", onG));
+  if (!tr || !body || !onG) return;
   const r = tr.getBoundingClientRect(), g = body.getBoundingClientRect();
   const b = document.createElement("div");
   b.className = "g-ro-band"; b.style.top = (r.top - g.top) + "px"; b.style.height = r.height + "px";
