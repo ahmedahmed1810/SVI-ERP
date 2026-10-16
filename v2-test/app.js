@@ -8677,13 +8677,13 @@ function renderBudgetList() {
           const x = tr.classList.contains("dly-grp") ? R.find(r => r.grp && r.path === tr.dataset.path) : R.find(r => !r.grp && r.key === tr.dataset.key);
           return x ? { tr, x, r: tr.getBoundingClientRect() } : null;
         }).filter(o => o && !inSrc(o.x));
-        shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on"));
+        shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on")); sviDlyRoSync();
         if (!rows.length) return null;
         let i = rows.findIndex(o => ev.clientY < o.r.bottom);
         if (i < 0) i = rows.length;
         const o = rows[i];
         if (o && o.x.grp && ev.clientY >= o.r.top + o.r.height / 3 && ev.clientY <= o.r.bottom - o.r.height / 3) {
-          o.tr.classList.add("ro-on");
+          o.tr.classList.add("ro-on"); sviDlyRoSync();
           let j = i + 1; while (j < rows.length && rows[j].x.lvl > o.x.lvl) j++;
           const nx = rows.slice(j).find(q => !q.x.grp);
           return { on: o.x.path, before: nx ? nx.x.key : "", tr: o.tr, r: o.r, after: false, line: false };
@@ -8701,11 +8701,11 @@ function renderBudgetList() {
       };
       /* tâche glissée : au milieu d'une autre tâche (ligne encadrée) = superposer ; sinon trait (rang / lot) */
       const dlyTaskHit = (ev, srcTr, srcKey) => {
-        shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on"));
+        shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on")); sviDlyRoSync();
         const h = dlyRowAt(ev.clientY, srcTr);
         if (!h || (srcKey && h.tr.dataset.key === srcKey)) return null;
         if (h.tr.classList.contains("dly-task") && ev.clientY >= h.r.top + h.r.height / 3 && ev.clientY <= h.r.bottom - h.r.height / 3) {
-          h.tr.classList.add("ro-on"); document.getElementById("roLine")?.remove();
+          h.tr.classList.add("ro-on"); sviDlyRoSync(); document.getElementById("roLine")?.remove();
           return { ...h, on: h.tr.dataset.key };
         }
         dlyRowLine(h);
@@ -8744,7 +8744,7 @@ function renderBudgetList() {
           document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", cc);
           setTimeout(() => document.removeEventListener("touchmove", tmv), 0);
           document.getElementById("roLine")?.remove(); tr.classList.remove("ro-src"); document.body.classList.remove("svi-dragging");
-          shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on"));
+          shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on")); sviDlyRoSync();
           if (on) { const stop = ev => { ev.stopPropagation(); ev.preventDefault(); }; shell.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 350); }
           if (drop && on && hit) { if (gRow) X.moveGroup(gRow.path, hit, tr); else if (hit.on) X.superpose(tr.dataset.key, hit.on, tr); else if (tr.classList.contains("dly-task")) X.dropTask(tr.dataset.key, hit.tr, hit.after); else X.moveKeys(dlyRowKeys(tr), dlyRowKeys(hit.tr), hit.after); }
         };
@@ -8853,7 +8853,7 @@ function renderBudgetList() {
           document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
           setTimeout(() => document.removeEventListener("touchmove", tmv), 0);
           document.getElementById("roLine")?.remove(); document.body.classList.remove("svi-dragging");
-          shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(r => r.classList.remove("ro-on"));
+          shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(r => r.classList.remove("ro-on")); sviDlyRoSync();
           moving.forEach(b => b.classList.remove("gb-drag", "gb-lift"));
           if (shell.__dlyPinched) { shell.__dlyPinched = false; X.render(); return; }
           if (mode === "vert") { if (hit) X.moveGroup(path, hit, gb); else X.render(); return; }
@@ -8918,7 +8918,7 @@ function renderBudgetList() {
           bar.classList.remove("gb-link", "gb-drag", "gb-lift");
           host.querySelectorAll(".gb.gb-tgt").forEach(b => b.classList.remove("gb-tgt", "gb-ts", "gb-te"));
           if (shell.__dlyPinch || shell.__dlyPinched) { shell.__dlyPinched = false; tmp.innerHTML = ""; document.getElementById("roLine")?.remove(); return; }
-          if (vert) { document.getElementById("roLine")?.remove(); shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on")); if (hitV && hitV.on) X.superpose(key, hitV.on, bar); else if (hitV) X.dropTask(key, hitV.tr, hitV.after); return; }
+          if (vert) { document.getElementById("roLine")?.remove(); shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on")); sviDlyRoSync(); if (hitV && hitV.on) X.superpose(key, hitV.on, bar); else if (hitV) X.dropTask(key, hitV.tr, hitV.after); return; }
           if (link) {
             tmp.innerHTML = "";
             const P = linkPlan(ev);
@@ -19028,3 +19028,14 @@ document.addEventListener("pointerdown", e => {
   };
   document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
 }, true);
+
+/* FORMAT 64 : superposition dans le PLANNING / Gantt = ligne visée en jaune, comme DÉSIGNATIONS CLIENT ; bande jaune sur la ligne de la barre */
+function sviDlyRoSync() {
+  document.querySelectorAll(".g-ro-band").forEach(b => b.remove());
+  const tr = document.querySelector(".dlyg-l tr.ro-on"), body = document.querySelector("#dlyGantt .gbody");
+  if (!tr || !body) return;
+  const r = tr.getBoundingClientRect(), g = body.getBoundingClientRect();
+  const b = document.createElement("div");
+  b.className = "g-ro-band"; b.style.top = (r.top - g.top) + "px"; b.style.height = r.height + "px";
+  body.insertBefore(b, body.firstChild);
+}
