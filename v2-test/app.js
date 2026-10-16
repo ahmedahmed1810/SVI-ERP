@@ -8428,7 +8428,7 @@ function renderBudgetList() {
           <div class="dpk-cols">
             <div class="dpk-col"><table class="dpk-t"><thead><tr>${cfHead("dpk_lot", "v", "LOT " + svCnt(lots.length, lotsAll.length))}</tr></thead>
               <tbody>${lots.map(x => `<tr class="dpk-lot${x.id === lot ? " cur" : ""}${nSel(x.id) ? " chosen" : ""}" data-lot="${x.id}"><td>${esc(x.v)}${nSel(x.id) ? " " + svCnt(nSel(x.id)) : ""}</td></tr>`).join("")}</tbody></table></div>
-            <div class="dpk-col"><table class="dpk-t"><thead><tr>${cfHead("dpk_sec", "v", "ACTIVITÉ SECONDAIRE " + svCnt(secs.length, secsAll.length))}${add ? "" : '<th class="center dpk-ty">TYPE</th><th class="center dpk-of">DÉCALAGE (J)</th>'}<th class="center dpk-cbh">${add ? "" : `<input type="checkbox" class="dpk-all"${allOn ? " checked" : ""}>`}</th></tr></thead>
+            <div class="dpk-col"><table class="dpk-t"><thead><tr>${cfHead("dpk_sec", "v", "ACTIVITÉ SECONDAIRE " + svCnt(secs.length, secsAll.length))}${add ? "" : '<th class="center dpk-ty">TYPE<span class="col-rs" data-rs="dpk_ty"></span></th><th class="center dpk-of">DÉCALAGE (J)<span class="col-rs" data-rs="dpk_of"></span></th>'}<th class="center dpk-cbh">${add ? "" : `<input type="checkbox" class="dpk-all"${allOn ? " checked" : ""}>`}</th></tr></thead>
               <tbody>${secs.map(x => { const k = lot + "|" + x.id, off = !okSec(x), on = sel.has(k);
                 const lk = on ? mt(k) : null;
                 const ty = add ? "" : `<td class="center dpk-ty">${on ? `<select class="dpk-t-in" data-k="${k}" data-f="t"><option value="FD"${lk.t === "FD" ? " selected" : ""}>FIN → DÉBUT</option><option value="DD"${lk.t === "DD" ? " selected" : ""}>DÉBUT → DÉBUT</option></select>` : ""}</td>
@@ -8438,6 +8438,7 @@ function renderBudgetList() {
           <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok${add && !sel.size ? " disabled" : ""}>${add ? "AJOUTER" : "VALIDER"}</button></div>
           <div class="dpk-rsz" title="Largeur et hauteur"></div></div>`;
         d.querySelectorAll(".dpk-col").forEach((c, n) => { c.scrollTop = sc[n] || 0; });
+        sviDpkCols(d);
       };
       document.getElementById("svConf")?.remove();
       document.body.appendChild(d);
@@ -8548,6 +8549,7 @@ function renderBudgetList() {
           <div class="svc-f"><button type="button" class="svc-b" data-x>FERMER</button></div>
           <div class="dpk-rsz" title="Largeur et hauteur"></div></div>`;
         d.querySelectorAll(".dpk-col").forEach((c, n) => { c.scrollTop = sc[n] || 0; });
+        sviDpkCols(d);
       };
       document.getElementById("dlyAddW")?.remove();
       shell.appendChild(d);
@@ -18960,3 +18962,69 @@ document.addEventListener("focusin", e => {
     else last = { zone, t: now, x: e.clientX, y: e.clientY };
   });
 })();
+
+/* =========================================================
+   FORMAT 17 dans les fenêtres PRÉDÉCESSEURS et AJOUTER UNE TÂCHE (16/10/2026) :
+   poignée au bord droit de chaque en-tête — LOT = largeur des deux volets ; ACTIVITÉ SECONDAIRE,
+   TYPE, DÉCALAGE (J) = largeur de la colonne (le volet défile s'il devient trop large) ; mémorisé
+   ========================================================= */
+const SVI_DPK_COLS = "svi_dpk_cols_v1";
+function sviDpkColsGet() { try { return JSON.parse(localStorage.getItem(SVI_DPK_COLS) || "{}") || {}; } catch (e) { return {}; } }
+function sviDpkCols(root) {
+  const W = sviDpkColsGet();
+  const cols = root.querySelector(".dpk-cols");
+  if (cols && W.split) cols.style.gridTemplateColumns = W.split + "px minmax(160px, 1fr)";
+  const t = root.querySelectorAll(".dpk-t")[1];
+  if (!t) return;
+  const ths = [...t.querySelectorAll("thead th")];
+  const pre = root.id === "dlyAddW" ? "a_" : "p_";
+  const keyOf = th => pre + (th.querySelector('.col-rs[data-rs="dpk_sec"]') ? "sec" : th.classList.contains("dpk-ty") ? "ty" : th.classList.contains("dpk-of") ? "of" : "x");
+  if (!ths.some(th => W[keyOf(th)])) return;
+  let total = 0;
+  ths.forEach(th => {
+    const k = keyOf(th), w = W[k] || (k === pre + "sec" ? 0 : th.getBoundingClientRect().width || 36);
+    if (k === pre + "sec" && !w) { th.style.width = ""; return; }
+    th.style.width = w + "px"; total += w;
+  });
+  if (ths.every(th => th.style.width)) t.style.setProperty("width", total + "px", "important");
+}
+document.addEventListener("pointerdown", e => {
+  const h = e.target.closest && e.target.closest(".dpk-card .col-rs");
+  if (!h) return;
+  e.preventDefault(); e.stopPropagation();
+  const root = h.closest("#svConf, #dlyAddW"), rs = h.dataset.rs, x0 = e.clientX;
+  const W = sviDpkColsGet();
+  const cols = root.querySelector(".dpk-cols");
+  const t = h.closest("table"), th = h.closest("th");
+  h.classList.add("on");
+  let apply;
+  if (rs === "dpk_lot") {
+    const w0 = root.querySelector(".dpk-col").getBoundingClientRect().width, cw = cols.getBoundingClientRect().width;
+    apply = x => { W.split = Math.round(Math.max(120, Math.min(cw - 170, w0 + x - x0))); cols.style.gridTemplateColumns = W.split + "px minmax(160px, 1fr)"; };
+  } else {
+    const pre = root.id === "dlyAddW" ? "a_" : "p_";
+    const k = pre + (rs === "dpk_sec" ? "sec" : rs === "dpk_ty" ? "ty" : "of");
+    /* largeurs actuelles figées, puis la colonne tirée change seule */
+    const ths = [...t.querySelectorAll("thead th")];
+    const ws = ths.map(x => x.getBoundingClientRect().width);
+    ths.forEach((x, i) => { x.style.width = ws[i] + "px"; });
+    const i0 = ths.indexOf(th), w0 = ws[i0];
+    apply = x => {
+      const w = Math.round(Math.max(k.endsWith("sec") ? 120 : 60, w0 + x - x0));
+      W[k] = w; th.style.width = w + "px";
+      ths.forEach((y, i) => { const kk = y.querySelector('.col-rs[data-rs="dpk_sec"]') ? "sec" : y.classList.contains("dpk-ty") ? "ty" : y.classList.contains("dpk-of") ? "of" : ""; if (kk && pre + kk !== k && !W[pre + kk]) W[pre + kk] = Math.round(kk === "sec" ? Math.max(120, ws[i]) : ws[i]); });
+      t.style.setProperty("width", ths.reduce((sum, y) => sum + (parseFloat(y.style.width) || 0), 0) + "px", "important");
+    };
+  }
+  const mv = ev => { ev.preventDefault(); apply(ev.clientX); };
+  const up = () => {
+    document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
+    h.classList.remove("on");
+    try { localStorage.setItem(SVI_DPK_COLS, JSON.stringify(W)); } catch (err) {}
+    /* le « clic » qui suit le glissement ne ferme pas la fenêtre et ne choisit rien */
+    const stop = ev => { ev.stopPropagation(); ev.preventDefault(); };
+    document.addEventListener("click", stop, { capture: true, once: true });
+    setTimeout(() => document.removeEventListener("click", stop, { capture: true }), 350);
+  };
+  document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
+}, true);
