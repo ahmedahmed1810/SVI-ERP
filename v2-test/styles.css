@@ -1573,7 +1573,8 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 /* zone de toucher plus haute (bord transparent), dessin inchangé */
 #dlyGantt .gsum { box-sizing: content-box; border-top: 5px solid transparent; border-bottom: 5px solid transparent; margin-top: -5px; background-clip: padding-box; }
 #dlyGantt .gsum.gb-lift, #dlyGantt .gseg.gb-lift { box-shadow: 0 4px 12px rgba(15,23,42,.3); }
-.dlyg-l tr.ro-on td { box-shadow: inset 0 2px 0 var(--inst, #12355b), inset 0 -2px 0 var(--inst, #12355b); }
+.dlyg-l tr.ro-on td { background: #fde68a !important; box-shadow: inset 0 2px 0 #b45309, inset 0 -2px 0 #b45309; }
+.gbody .g-ro-band { position: absolute; left: 0; right: 0; background: #fde68a; box-shadow: inset 0 2px 0 #b45309, inset 0 -2px 0 #b45309; pointer-events: none; z-index: 0; }
 /* FORMAT 66 : + AJOUTER UNE TÂCHE grisé quand toutes les tâches sont déjà dans le planning */
 .dly-pred-new.off { opacity: .45; cursor: default; }
 
