@@ -1,5 +1,4 @@
-@verbatim
-    /* ===== tri et filtre par colonne (façon tableur) ===== */
+@verbatim/* ===== tri et filtre par colonne (façon tableur) ===== */
     const CF = {};          /* CF[table] = { sort:{col,dir}|null, f:{col:Set} } */
     const cfSrc = {};       /* dernières lignes et colonnes de chaque tableau */
     const cfT = t => CF[t] || (CF[t] = { sort: null, f: {} });
@@ -2019,4 +2018,4 @@
       });
     }
 
-@endverbatim
+    @endverbatim

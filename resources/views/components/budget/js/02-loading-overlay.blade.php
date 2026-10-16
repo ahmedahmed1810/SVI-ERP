@@ -1,5 +1,4 @@
-@verbatim
-/* =========================================================
+@verbatim/* =========================================================
    CHARGEMENT EN COURS : tout échange avec Google (script, feuilles)
    affiche une fenêtre centrale et bloque l'écran jusqu'à la réponse.
    Apparaît après 0,3 s (pas de clignotement) ; bouton FERMER après 30 s.
