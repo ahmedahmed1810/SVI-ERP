@@ -8786,7 +8786,7 @@ function renderBudgetList() {
         const ind = onG ? 8 + (h.lvl || 0) * 40 : (h.lvl ? 6 + h.lvl * 20 : 0);
         const y = (h.after ? h.r.bottom : h.r.top) - 1.5;
         l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${g.left + ind}px;width:${Math.max(40, g.width - ind)}px;top:${y}px`;
-        l.innerHTML = onG ? `<i style="position:absolute;left:0;top:-6px;width:3px;height:15px;border-radius:2px;background:var(--inst,#12355b)"></i>` : "";
+        l.innerHTML = "";
       };
       /* lot glissé en hauteur (tableau ou Gantt) : endroit et niveau d'arrivée (FORMAT 64 / 44) —
          le trait commence au niveau d'arrivée ; doigt vers la droite = plus profond, vers la gauche = moins ;
@@ -8821,14 +8821,42 @@ function renderBudgetList() {
         return { parent, before: nx ? nx.x.key : "", tr: ref.tr, r: ref.r, after: !next, lvl: L, line: true };
       };
       /* tâche glissée : au milieu d'une autre tâche (ligne encadrée) = superposer ; sinon trait (rang / lot) */
-      const dlyTaskHit = (ev, srcTr, srcKey) => {
+      /* tâche glissée (tableau ou Gantt), même logique que DÉSIGNATIONS CLIENT (FORMAT 44 / 64) :
+         au milieu d'une autre tâche (ligne en jaune) = superposer ; sinon un trait à l'endroit du dépôt, qui commence au niveau d'arrivée :
+         doigt vers la droite = trait court = la tâche entre dans le lot du dessus (plus profond) ; vers la gauche = trait long = lot de niveau supérieur.
+         Une tâche est toujours dans un lot (jamais à la racine, jamais dans un simple niveau sans lot). */
+      const dlyTaskHit = (ev, srcTr, srcKey, x0) => {
         shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on")); sviDlyRoSync();
-        const h = dlyRowAt(ev.clientY, srcTr);
-        if (!h || (srcKey && h.tr.dataset.key === srcKey)) return null;
-        if (h.tr.classList.contains("dly-task") && ev.clientY >= h.r.top + h.r.height / 3 && ev.clientY <= h.r.bottom - h.r.height / 3) {
-          h.tr.classList.add("ro-on"); sviDlyRoSync(); document.getElementById("roLine")?.remove();
-          return { ...h, on: h.tr.dataset.key };
+        const R = shell.__dlyRows || [];
+        const rows = [...shell.querySelectorAll(".dlyg-l tbody tr.dly-task, .dlyg-l tbody tr.dly-grp")].map(tr => {
+          const x = tr.classList.contains("dly-grp") ? R.find(r => r.grp && r.path === tr.dataset.path) : R.find(r => !r.grp && r.key === tr.dataset.key);
+          return x ? { tr, x, r: tr.getBoundingClientRect() } : null;
+        }).filter(o => o && !(srcKey && !o.x.grp && o.x.key === srcKey));
+        if (!rows.length) return null;
+        let i = rows.findIndex(o => ev.clientY < o.r.bottom);
+        if (i < 0) i = rows.length;
+        const o = rows[i];
+        if (o && !o.x.grp && ev.clientY >= o.r.top + o.r.height / 3 && ev.clientY <= o.r.bottom - o.r.height / 3) {
+          o.tr.classList.add("ro-on"); sviDlyRoSync(); document.getElementById("roLine")?.remove();
+          return { tr: o.tr, r: o.r, after: false, on: o.x.key };
         }
+        if (o && ev.clientY > o.r.top + o.r.height / 2) i++;
+        const prev = rows[i - 1], next = rows[i];
+        if (!prev) { document.getElementById("roLine")?.remove(); return null; }   /* tout en haut : pas de lot au-dessus */
+        const isLot = path => INS.lot.some(l => !l.t && dlyLotPath(l.v).join(" / ") === path);
+        /* niveaux possibles (niveau d'une tâche = niveau de son lot + 1) */
+        const maxL = prev.x.grp ? prev.x.lvl + 1 : prev.x.lvl, minL = Math.max(1, next ? (next.x.grp ? next.x.lvl : next.x.lvl) : 1);
+        const parentAt = L => { for (let k = i - 1; k >= 0; k--) if (rows[k].x.grp && rows[k].x.lvl === L - 1) return rows[k]; return null; };
+        const ok = [];
+        for (let L = Math.min(minL, maxL); L <= maxL; L++) { const pa = parentAt(L); if (L >= 1 && pa && isLot(pa.x.path)) ok.push(L); }
+        if (!ok.length) { document.getElementById("roLine")?.remove(); return null; }
+        const src = srcKey ? R.find(r => !r.grp && r.key === srcKey) : null;
+        const want = Math.round((src ? src.lvl : maxL) + (ev.clientX - (x0 === undefined ? ev.clientX : x0)) / 30);
+        const L = ok.reduce((b, v) => Math.abs(v - want) < Math.abs(b - want) ? v : b, ok[0]);
+        const pa = parentAt(L);
+        const nextT = rows.slice(i).find(q => !q.x.grp), prevT = [...rows.slice(0, i)].reverse().find(q => !q.x.grp);
+        const h = { tr: (next || prev).tr, r: (next || prev).r, after: !next, lvl: L, parent: pa.x.path,
+          before: next && !next.x.grp ? next.x.key : "", afterKey: !(next && !next.x.grp) && prevT ? prevT.x.key : "", nextKey: nextT ? nextT.x.key : "" };
         dlyRowLine(h);
         return h;
       };
@@ -8857,7 +8885,7 @@ function renderBudgetList() {
           ev.preventDefault();
           shell.__dlySrcG = window.__sviDlySrcG = false;
           if (gRow) { hit = dlyGrpHit(ev, gRow.path, gRow.lvl, x0); dlyGrpShow(hit); return; }
-          if (tr.classList.contains("dly-task")) { hit = dlyTaskHit(ev, tr, tr.dataset.key); if (!hit) document.getElementById("roLine")?.remove(); return; }
+          if (tr.classList.contains("dly-task")) { hit = dlyTaskHit(ev, tr, tr.dataset.key, x0); if (!hit) document.getElementById("roLine")?.remove(); return; }
           hit = dlyRowAt(ev.clientY, tr);
           if (hit) dlyRowLine(hit); else document.getElementById("roLine")?.remove();
         };
@@ -8868,7 +8896,7 @@ function renderBudgetList() {
           document.getElementById("roLine")?.remove(); tr.classList.remove("ro-src"); document.body.classList.remove("svi-dragging");
           shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on")); sviDlyRoSync();
           if (on) { const stop = ev => { ev.stopPropagation(); ev.preventDefault(); }; shell.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 350); }
-          if (drop && on && hit) { if (gRow) X.moveGroup(gRow.path, hit, tr); else if (hit.on) X.superpose(tr.dataset.key, hit.on, tr); else if (tr.classList.contains("dly-task")) X.dropTask(tr.dataset.key, hit.tr, hit.after); else X.moveKeys(dlyRowKeys(tr), dlyRowKeys(hit.tr), hit.after); }
+          if (drop && on && hit) { if (gRow) X.moveGroup(gRow.path, hit, tr); else if (hit.on) X.superpose(tr.dataset.key, hit.on, tr); else if (tr.classList.contains("dly-task")) X.dropTaskTo(tr.dataset.key, hit, tr); else X.moveKeys(dlyRowKeys(tr), dlyRowKeys(hit.tr), hit.after); }
         };
         const up = () => end(true), cc = () => end(false);
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", cc);
@@ -9041,7 +9069,7 @@ function renderBudgetList() {
           }
           /* glisser la barre vers le haut ou le bas = changer le rang de la tâche (un seul trait) */
           const dy = ev.clientY - y0b;
-          if (vert) { shell.__dlySrcG = window.__sviDlySrcG = true; hitV = dlyTaskHit(ev, null, key); if (!hitV) document.getElementById("roLine")?.remove(); return; }
+          if (vert) { shell.__dlySrcG = window.__sviDlySrcG = true; hitV = dlyTaskHit(ev, null, key, x0); if (!hitV) document.getElementById("roLine")?.remove(); return; }
           if (!moved && Math.abs(dx) > 4) { moved = true; clearTimeout(t); bar.classList.add("gb-drag"); }
           if (!moved) return;
           days = Math.round(dx / DLY_DW);
@@ -9056,7 +9084,7 @@ function renderBudgetList() {
           bar.classList.remove("gb-link", "gb-drag", "gb-lift");
           host.querySelectorAll(".gb.gb-tgt").forEach(b => b.classList.remove("gb-tgt", "gb-ts", "gb-te"));
           if (shell.__dlyPinch || shell.__dlyPinched) { shell.__dlyPinched = false; tmp.innerHTML = ""; document.getElementById("roLine")?.remove(); return; }
-          if (vert) { document.getElementById("roLine")?.remove(); shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on")); sviDlyRoSync(); if (hitV && hitV.on) X.superpose(key, hitV.on, bar); else if (hitV) X.dropTask(key, hitV.tr, hitV.after); return; }
+          if (vert) { document.getElementById("roLine")?.remove(); shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on")); sviDlyRoSync(); if (hitV && hitV.on) X.superpose(key, hitV.on, bar); else if (hitV) X.dropTaskTo(key, hitV, bar); return; }
           if (link) {
             tmp.innerHTML = "";
             const P = linkPlan(ev);
@@ -9360,6 +9388,21 @@ function renderBudgetList() {
         setTimeout(() => { const inp = [...shell.querySelectorAll("input.dly-nm")].find(x => x.dataset.path === nl.v); if (inp) { inp.focus(); try { inp.select(); } catch (e) {} } }, 80);
       },
       /* tâche lâchée sur une ligne (tableau ou Gantt) : autre lot → changement de lot, puis rang */
+      /* dépôt d'une tâche au niveau choisi : lot d'arrivée (trait court / long), puis rang (devant la tâche suivante, sinon après la précédente) */
+      dropTaskTo: (key, h, anchor) => {
+        const X = shell.__insDly;
+        const lt = INS.lot.find(l => !l.t && dlyLotPath(l.v).join(" / ") === h.parent);
+        if (!lt) { renderTab(); return; }
+        let k = key;
+        if (lt.id !== key.split("|")[0]) {
+          const ek = X.sameIn(key, lt.id);
+          if (ek) { X.mergeAsk(key, ek, anchor); return; }
+          k = X.changeLot(key, lt.id, anchor); if (!k) { renderTab(); return; } insSave(); insRenderChain();
+        }
+        if (h.before && h.before !== k) X.moveKeys([k], [h.before], false);
+        else if (h.afterKey && h.afterKey !== k) X.moveKeys([k], [h.afterKey], true);
+        else renderTab();
+      },
       dropTask: (key, tr, after) => {
         const X = shell.__insDly;
         let nl = null;
