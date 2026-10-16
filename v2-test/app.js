@@ -8573,7 +8573,11 @@ function renderBudgetList() {
         document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
       });
       /* une date saisie (gérée comme dans le PLANNING) : la fenêtre se redessine (couleurs, durée) */
-      d.addEventListener("change", e => { if (e.target.closest("input.dlw-in")) { setTimeout(draw, 0); setTimeout(draw, 400); } });
+      /* FORMAT 65 : une seule date connue = le calendrier de l'autre date s'ouvre tout seul */
+      d.addEventListener("change", e => { const i = e.target.closest("input.dlw-in"); if (!i) return; const f = i.dataset.f; setTimeout(draw, 0);
+        setTimeout(() => { draw(); if (!d.isConnected || (f !== "deb" && f !== "fin")) return;
+          const g = q => d.querySelector('input.dlw-in[data-f="' + q + '"]'), o = g(f === "deb" ? "fin" : "deb");
+          if (o && !o.value && g(f) && g(f).value) { o.focus(); sviCalOpen(o); } }, 400); });
       d.addEventListener("click", e => {
         const cfb = e.target.closest(".cf-btn");
         if (cfb) { e.stopPropagation(); cfOpenMenu(cfb); return; }
