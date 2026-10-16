@@ -8298,7 +8298,7 @@ function renderBudgetList() {
           const dls = dl("dlyLotDl", [...new Set(INS.lot.filter(x => !x.t).map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")))
             + dl("dlySecDl", [...new Set(INS.sec.map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")));
           return dls + `<div class="dlyg"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return o && o.ins === INS ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
-            + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE AU PLANNING</button></div>`;
+            + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE OU SES DÉLAIS</button></div>`;
         }
         const ps = key ? [...insDlyList(key)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9"))) : [];
         /* une seule période par tâche : sa ligne, ou une ligne vide SAISIR ICI… */
@@ -8485,7 +8485,7 @@ function renderBudgetList() {
         const w = card ? card.style.width : (size && size.w ? size.w + "px" : ""), h = card ? card.style.height : (size && size.h ? size.h + "px" : "");
         d.innerHTML = `<div class="svc-card dpk-card" role="dialog" aria-modal="true" style="${w ? "width:" + w + ";" : ""}${h ? "height:" + h + ";" : ""}">
           <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
-          <div class="svc-t">${add ? "AJOUTER UNE TÂCHE AU PLANNING" : "PRÉDÉCESSEURS — " + esc(dlyName(key))}</div>
+          <div class="svc-t">${add ? "AJOUTER UNE TÂCHE OU SES DÉLAIS" : "PRÉDÉCESSEURS — " + esc(dlyName(key))}</div>
           <div class="dpk-cols">
             <div class="dpk-col"><table class="dpk-t"><thead><tr>${cfHead("dpk_lot", "v", "LOT " + svCnt(lots.length, lotsAll.length))}</tr></thead>
               <tbody>${lots.map(x => `<tr class="dpk-lot${x.id === lot ? " cur" : ""}${nSel(x.id) ? " chosen" : ""}" data-lot="${x.id}"><td>${esc(x.v)}${nSel(x.id) ? " " + svCnt(nSel(x.id)) : ""}</td></tr>`).join("")}</tbody></table></div>
@@ -8589,6 +8589,8 @@ function renderBudgetList() {
         const card = d.querySelector(".dpk-card");
         const w = card ? card.style.width : (size && size.w ? size.w + "px" : ""), h = card ? card.style.height : (size && size.h ? size.h + "px" : "");
         const key = lot && sec ? lot + "|" + sec : "";
+        /* FORMAT 66 : ligne SAISIR ICI… en bas de chaque liste = nouveau lot / nouvelle activité, choisi aussitôt */
+        const newRow = k => `<tr class="dlw-newr"><td><input class="dlw-new" data-k="${k}" placeholder="SAISIR ICI…" autocomplete="off" enterkeyhint="done"></td></tr>`;
         let panel = "";
         if (key) {
           const p0 = ((LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [])[0] || {};
@@ -8600,12 +8602,12 @@ function renderBudgetList() {
         }
         d.innerHTML = `<div class="svc-card dpk-card" role="dialog" aria-modal="true" style="${w ? "width:" + w + ";" : ""}${h ? "height:" + h + ";" : ""}">
           <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
-          <div class="svc-t">AJOUTER UNE TÂCHE AU PLANNING</div>
+          <div class="svc-t">AJOUTER UNE TÂCHE OU SES DÉLAIS</div>
           <div class="dpk-cols">
             <div class="dpk-col"><table class="dpk-t"><thead><tr>${cfHead("dpk_lot", "v", "LOT " + svCnt(lots.length, lotsAll.length))}</tr></thead>
-              <tbody>${lots.map(x => `<tr class="dpk-lot dlw-r dlw-${lotSt(x)}${x.id === lot ? " cur" : ""}" data-lot="${x.id}"><td>${esc(x.v)}</td></tr>`).join("")}</tbody></table></div>
+              <tbody>${lots.map(x => `<tr class="dpk-lot dlw-r dlw-${lotSt(x)}${x.id === lot ? " cur" : ""}" data-lot="${x.id}"><td>${esc(x.v)}</td></tr>`).join("")}${newRow("lot")}</tbody></table></div>
             <div class="dpk-col"><table class="dpk-t"><thead><tr>${cfHead("dpk_sec", "v", "ACTIVITÉ SECONDAIRE " + svCnt(secs.length, secsAll.length))}</tr></thead>
-              <tbody>${secs.map(x => `<tr class="dpk-sec dlw-r dlw-${secSt(x)}${x.id === sec ? " cur" : ""}" data-sec="${x.id}"><td>${esc(x.v)}</td></tr>`).join("")}</tbody></table></div>
+              <tbody>${secs.map(x => `<tr class="dpk-sec dlw-r dlw-${secSt(x)}${x.id === sec ? " cur" : ""}" data-sec="${x.id}"><td>${esc(x.v)}</td></tr>`).join("")}${newRow("sec")}</tbody></table></div>
           </div>${panel}
           <div class="svc-f"><button type="button" class="svc-b" data-x>FERMER</button></div>
           <div class="dpk-rsz" title="Largeur et hauteur"></div></div>`;
@@ -8639,10 +8641,32 @@ function renderBudgetList() {
         setTimeout(() => { draw(); if (!d.isConnected || (f !== "deb" && f !== "fin")) return;
           const g = q => d.querySelector('input.dlw-in[data-f="' + q + '"]'), o = g(f === "deb" ? "fin" : "deb");
           if (o && !o.value && g(f) && g(f).value) { o.focus(); sviCalOpen(o); } }, 400); });
+      /* nouveau lot / nouvelle activité tapé dans la fenêtre : repris s'il existe déjà (même nom), sinon créé (non lié) */
+      const addNew = i => {
+        if (i.dataset.done) return;
+        const k = i.dataset.k, raw = U_(sviClean(i.value));
+        const v = k === "lot" ? dlyLotPath(raw).map(x => x.trim()).filter(Boolean).join(" / ") : raw;
+        if (!v) return;
+        i.dataset.done = "1";
+        const list = k === "lot" ? INS.lot : INS.sec;
+        let r = list.find(x => !x.t && U_(x.v) === v);
+        if (!r) { r = { id: insId(), v, on: false }; list.push(r); insSave(); histLog("DÉLAIS", k === "lot" ? "LOT AJOUTÉ" : "ACTIVITÉ SECONDAIRE AJOUTÉE", v); refreshAll(); }
+        if (k === "lot") lot = r.id; else sec = r.id;
+        setTimeout(() => {
+          if (!d.isConnected) return;
+          draw();
+          const c = d.querySelector(`[data-${k}="${r.id}"]`); if (c) c.scrollIntoView({ block: "nearest" });
+          if (lot && sec) { const di = d.querySelector('input.dlw-in[data-f="deb"]'); if (di && !di.value) di.focus(); }
+          else { const o = d.querySelector(`input.dlw-new[data-k="${k === "lot" ? "sec" : "lot"}"]`); if (o) o.focus(); }
+        }, 0);
+      };
+      d.addEventListener("keydown", e => { const i = e.target.closest("input.dlw-new"); if (!i || (e.key !== "Enter" && e.key !== "Tab")) return; e.preventDefault(); e.stopPropagation(); addNew(i); }, true);
+      d.addEventListener("change", e => { const i = e.target.closest("input.dlw-new"); if (i) addNew(i); });
       d.addEventListener("click", e => {
         const cfb = e.target.closest(".cf-btn");
         if (cfb) { e.stopPropagation(); cfOpenMenu(cfb); return; }
         if (e.target === d || e.target.closest("[data-x]")) { close(); return; }
+        if (e.target.closest("input.dlw-new")) return;
         const l = e.target.closest("[data-lot]");
         if (l) { lot = lot === l.dataset.lot ? "" : l.dataset.lot; draw(); return; }
         const s2 = e.target.closest("[data-sec]");

@@ -1655,3 +1655,7 @@ détail technique en petit */
 .dly-newin { width: 100%; min-width: 80px; border: 0; background: transparent; font: inherit; color: var(--inst, #b42318); text-transform: uppercase; padding: 0 6px; height: 20px; box-sizing: border-box; }
 .dly-newin::placeholder { color: var(--inst, #b42318); opacity: .8; }
 .dly-newin:focus { outline: none; box-shadow: inset 0 0 0 2px var(--inst, #b42318); background: #fff; }
+#dlyAddW input.dlw-new { width: 100%; border: 0; background: transparent; font: inherit; color: var(--inst, #b42318); text-transform: uppercase; padding: 0; height: 18px; outline: none; }
+#dlyAddW input.dlw-new::placeholder { color: var(--inst, #b42318); opacity: .8; }
+#dlyAddW tr.dlw-newr td { background: var(--inst-bg, #fef2f2); }
+#dlyAddW input.dlw-new:focus { box-shadow: inset 0 0 0 2px var(--inst, #b42318); background: #fff; }
