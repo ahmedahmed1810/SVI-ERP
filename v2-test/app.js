@@ -8198,7 +8198,8 @@ function renderBudgetList() {
           /* FORMAT 64 / 33 : pas de ligne d'explication au-dessus du PLANNING */
           return `<div class="dly-tools"><button type="button" class="dly-gen">GÉNÉRER LE PLANNING</button><button type="button" class="dly-sortd">CLASSER PAR DÉBUT</button><button type="button" class="dly-lev"${canLev ? "" : " disabled"}>APPLIQUER LE NIVELLEMENT</button></div>`
             + `<div class="dlyg"><div class="dlyg-l"${(() => { const w = Number(localStorage.getItem("svi_dlyg_w_v1")) || 0; return localStorage.getItem("svi_dlyg_w_v1") !== null ? ` style="width:${w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
-            + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE AU PLANNING</button></div>`;
+            + (() => { const full = INS.lot.filter(x => !x.t).length * INS.sec.filter(x => !x.t).length <= dlyKeys().length;
+                return `<div class="dly-add"><button type="button" class="dly-pred-new${full ? " off" : ""}"${full ? ' aria-disabled="true"' : ""}>+ AJOUTER UNE TÂCHE AU PLANNING</button></div>`; })();
         }
         const ps = key ? [...insDlyList(key)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9"))) : [];
         /* une seule période par tâche : sa ligne, ou une ligne vide SAISIR ICI… */
@@ -8371,7 +8372,9 @@ function renderBudgetList() {
         const LC = [["v", "LOT", r => r.v || "", ""]], SC = [["v", "ACTIVITÉ SECONDAIRE", r => r.v || "", ""]];
         const lotsAll = INS.lot.filter(x => !x.t), secsAll = INS.sec.filter(x => !x.t);
         const lots = cfApply("dpk_lot", LC, lotsAll), secs = cfApply("dpk_sec", SC, secsAll);
-        const okSec = x => { const k = lot + "|" + x.id; return add || !(k === key || dlyReach(k, key)); };
+        /* AJOUTER : une tâche déjà dans le planning n'est pas proposée (grisée ; ses dates se saisissent en touchant sa ligne) */
+        const inPlan = new Set(add ? dlyKeys() : []);
+        const okSec = x => { const k = lot + "|" + x.id; return add ? !inPlan.has(k) : !(k === key || dlyReach(k, key)); };
         const allOn = secs.filter(okSec).length && secs.filter(okSec).every(x => sel.has(lot + "|" + x.id));
         const card = d.querySelector(".dpk-card");
         const w = card ? card.style.width : (size && size.w ? size.w + "px" : ""), h = card ? card.style.height : (size && size.h ? size.h + "px" : "");
@@ -8388,7 +8391,7 @@ function renderBudgetList() {
                   <td class="center dpk-of">${on ? `<input class="dpk-o-in number" data-k="${k}" data-f="o" inputmode="numeric" value="${lk.o}">` : ""}</td>`;
                 return `<tr class="dpk-sec${off ? " off" : ""}${on ? " chosen" : ""}"><td>${esc(x.v)}</td>${ty}<td class="center"><input type="${add ? "radio" : "checkbox"}" name="dpk" data-k="${k}"${on ? " checked" : ""}${off ? " disabled" : ""}></td></tr>`; }).join("")}</tbody></table></div>
           </div>
-          <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok${add && !sel.size ? " disabled" : ""}>${add ? "SAISIR SES DATES" : "VALIDER"}</button></div>
+          <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok${add && !sel.size ? " disabled" : ""}>${add ? "AJOUTER" : "VALIDER"}</button></div>
           <div class="dpk-rsz" title="Largeur et hauteur"></div></div>`;
         d.querySelectorAll(".dpk-col").forEach((c, n) => { c.scrollTop = sc[n] || 0; });
       };
@@ -8412,6 +8415,15 @@ function renderBudgetList() {
         const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); };
         document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
       });
+      /* FORMAT 56 / 66 : appui long sur une ligne grisée = la raison */
+      let lpT = null;
+      d.addEventListener("pointerdown", e => {
+        const r = e.target.closest("tr.dpk-sec.off");
+        if (!r) return;
+        clearTimeout(lpT);
+        lpT = setTimeout(() => svToast(add ? "DÉJÀ DANS LE PLANNING : TOUCHER SA LIGNE POUR SAISIR SES DATES." : "IMPOSSIBLE : LA TÂCHE ELLE-MÊME OU UNE BOUCLE.", 3500, r), 550);
+      });
+      ["pointerup", "pointercancel", "pointerleave"].forEach(t => d.addEventListener(t, () => clearTimeout(lpT)));
       d.addEventListener("change", e => {
         if (e.target.matches(".dpk-t-in")) { mt(e.target.dataset.k).t = e.target.value === "DD" ? "DD" : "FD"; return; }
         if (e.target.matches(".dpk-o-in")) {
@@ -8442,15 +8454,9 @@ function renderBudgetList() {
         if (sel.size) INS.dpred[key] = [...sel].map(k => ({ k, t: mt(k).t, o: mt(k).o })); else delete INS.dpred[key];
         insSave();
         histLog("DÉLAIS", "PRÉDÉCESSEURS", dlyName(key) + " : " + (dlyPredTxt(key) || "AUCUN"));
-        /* la tâche commence avant la fin d'un prédécesseur : proposer de la décaler (durée gardée) */
+        /* liaisons toujours respectées (cahier, Planning budgétaire) : décalage automatique, sans fenêtre */
         const pf = dlyPredFin(key), st = dlyDeb(key);
-        if (pf && st && st < pf) {
-          svChoose({ title: "TÂCHE À DÉCALER", html: `<div class="svc-sub">${esc(dlyName(key))} COMMENCE LE ${esc(dFr(st))}, AVANT LA DATE IMPOSÉE PAR SES LIAISONS (${esc(dFr(pf))}).</div><div class="svc-sub">RESPECTER LA DURÉE ET DÉCALER CETTE TÂCHE ET TOUTES CELLES QUI VIENNENT APRÈS ?</div>`,
-            buttons: [{ v: "shift", label: "DÉCALER", tone: "neutral" }] }).then(v => {
-            if (v === "shift") { dlyMoveTo(key, pf); dlyShift(key); svToast("TÂCHES DÉCALÉES — À VALIDER.", 3000); }
-            refreshAll();
-          });
-        }
+        if (pf && st && st < pf) dlyRespect(true);
         refreshAll();
       });
     };
@@ -8461,7 +8467,7 @@ function renderBudgetList() {
         if (!X) return;
         const pc = e.target.closest && e.target.closest(".dly-pred");
         if (pc) { e.stopPropagation(); X.pickPreds(pc.dataset.key); return; }
-        if (e.target.closest && e.target.closest(".dly-pred-new")) { X.pickPreds(null); return; }
+        if (e.target.closest && e.target.closest(".dly-pred-new")) { if (!e.target.closest(".dly-pred-new.off")) X.pickPreds(null); return; }
         if (e.target.closest && e.target.closest(".dly-gen")) { X.gen(); return; }
         if (e.target.closest && e.target.closest(".dly-sortd")) { X.sortDeb(); return; }
         /* ‹ PLANNING : retour au PLANNING (lot et activités libérés, la désignation reste choisie ; brouillon gardé) */
@@ -8573,6 +8579,14 @@ function renderBudgetList() {
       };
       const dlyGrpShow = h => { if (h && h.line) dlyRowLine(h); else document.getElementById("roLine")?.remove(); };
       shell.__dlyRowDrag = (e, srcTr, onDrop) => {};
+      /* + AJOUTER UNE TÂCHE grisé : appui long = la raison (FORMAT 56) */
+      shell.addEventListener("pointerdown", e => {
+        const b = e.target.closest && e.target.closest(".dly-pred-new.off");
+        if (!b) return;
+        const t = setTimeout(() => svToast("TOUTES LES TÂCHES SONT DÉJÀ DANS LE PLANNING.", 3000, b), 550);
+        const off = () => { clearTimeout(t); document.removeEventListener("pointerup", off); document.removeEventListener("pointercancel", off); };
+        document.addEventListener("pointerup", off); document.addEventListener("pointercancel", off);
+      });
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
         const tr = e.target.closest && e.target.closest(".dlyg-l tr.dly-task, .dlyg-l tr.dly-grp");
