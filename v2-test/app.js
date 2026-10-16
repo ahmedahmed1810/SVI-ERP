@@ -8666,8 +8666,12 @@ function renderBudgetList() {
       const dlyRowLine = h => {
         let l = document.getElementById("roLine");
         if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); }
-        const g = h.tr.closest(".dlyg").getBoundingClientRect(), ind = h.lvl ? 6 + h.lvl * 20 : 0;
-        l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${g.left + ind}px;width:${Math.max(40, g.width - ind)}px;top:${(h.after ? h.r.bottom : h.r.top) - 1.5}px`;
+        const box = h.tr.closest(".dlyg"), g = box.getBoundingClientRect(), lw = box.querySelector(".dlyg-l")?.getBoundingClientRect().width || 0;
+        /* Gantt seul (tableau caché) : décalage de 40 px par niveau et petit trait vertical au départ, pour bien voir trait court / trait long */
+        const gOnly = lw < 60, ind = h.lvl ? (gOnly ? 8 + h.lvl * 40 : 6 + h.lvl * 20) : 0;
+        const y = (h.after ? h.r.bottom : h.r.top) - 1.5;
+        l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${g.left + ind}px;width:${Math.max(40, g.width - ind)}px;top:${y}px`;
+        l.innerHTML = gOnly ? `<i style="position:absolute;left:0;top:-6px;width:3px;height:15px;border-radius:2px;background:var(--inst,#12355b)"></i>` : "";
       };
       /* lot glissé en hauteur (tableau ou Gantt) : endroit et niveau d'arrivée (FORMAT 64 / 44) —
          le trait commence au niveau d'arrivée ; doigt vers la droite = plus profond, vers la gauche = moins ;
