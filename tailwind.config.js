@@ -4,10 +4,13 @@ import defaultTheme from 'tailwindcss/defaultTheme';
 export default {
     content: [
         './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
-        './storage/framework/views/*.php',
         './resources/**/*.blade.php',
         './resources/**/*.js',
-        './resources/**/*.vue',
+        // Budget: its HTML / JS use their own class names (hidden, table, fixed…) styled by
+        // public/budget/styles.css; they must not generate Tailwind utilities.
+        // (storage/framework/views is not scanned either: it holds the compiled Budget page.)
+        '!./resources/views/dashboard/budget/**',
+        '!./resources/views/components/budget/**',
     ],
     theme: {
         extend: {
