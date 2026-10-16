@@ -1464,10 +1464,10 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .dly-table td.dly-calc { background: #f2f4f7; }
 .dlyg-r .gh { z-index: 5; background: #f6f7f9; border-bottom: 1px solid #e4e7ec; box-sizing: border-box; overflow: hidden; }
 .gh-m { position: absolute; top: 2px; font-size: 9px; font-weight: 800; color: #475467; white-space: nowrap; padding-left: 3px; border-left: 1px solid #d0d5dd; }
-.gh-d { position: absolute; bottom: 2px; width: 22px; text-align: center; font-size: 9px; color: #6b7280; }
+.gh-d { position: absolute; bottom: 2px; width: var(--dw, 22px); text-align: center; font-size: 9px; color: #6b7280; }
 .gh-d.off { color: #b0b6c0; }
 .gbody { position: relative; }
-.gbg-off { position: absolute; top: 0; bottom: 0; width: 22px; background: #f2f4f7; }
+.gbg-off { position: absolute; top: 0; bottom: 0; width: var(--dw, 22px); background: #f2f4f7; }
 .gv { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1.5px solid #b42318; z-index: 1; }
 .gv span { position: absolute; top: 2px; left: 3px; font-size: 8px; font-weight: 800; color: #b42318; white-space: nowrap; }
 .gv-obj { border-left: 1.5px dashed #b45309; }
@@ -1561,3 +1561,9 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .gb.gb-ts::before, .gb.gb-te::after { content: ""; position: absolute; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; border-radius: 50%; background: #b42318; box-shadow: 0 0 0 2px #fff; z-index: 2; }
 .gb.gb-ts::before { left: -5px; }
 .gb.gb-te::after { right: -5px; }
+
+/* FORMAT 91 : largeur des jours réglable — en-tête glissable, repère de largeur, poignées réduites sur une barre courte */
+#dlyGantt .gh { touch-action: pan-y; cursor: ew-resize; }
+#dlyDwLab { position: fixed; z-index: 100004; transform: translateX(-50%); background: #172033; color: #fff; font: 800 11px -apple-system, Helvetica, Arial, sans-serif;
+  padding: 4px 10px; border-radius: 999px; pointer-events: none; white-space: nowrap; }
+.gb.gb-nar .gb-s, .gb.gb-nar .gb-e { width: 5px; }
