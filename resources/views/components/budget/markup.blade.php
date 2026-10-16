@@ -1,7 +1,10 @@
 {{-- Budget app HTML: the <body> of the former v2-test/index.html, unchanged --}}
 @verbatim
-  <div style="position:fixed;left:50%;top:6px;transform:translateX(-50%);z-index:20000;background:#dc2626;color:#fff;
-    font:800 11px Arial,sans-serif;padding:3px 10px;border-radius:10px;pointer-events:none;letter-spacing:.5px" id="sviTestTag">VERSION TEST</div>
+@endverbatim
+  {{-- Red « VERSION TEST » label removed (it is no longer shown). The element stays, hidden, because
+       the script reads it to keep the test version's behaviour (base V3 read, source file editable = V3). --}}
+@verbatim
+  <div id="sviTestTag" hidden>VERSION TEST</div>
 
   <!-- =====================================================
        ENTETE PRINCIPALE

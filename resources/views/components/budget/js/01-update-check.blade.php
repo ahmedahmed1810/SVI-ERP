@@ -9,17 +9,17 @@ const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
    « NOUVELLE VERSION — ACTUALISER » apparaît (pas de rechargement automatique).
    ========================================================= */
 (() => {
-  const cur = (() => {
-    const s = [...document.scripts].find(x => /app\.js\?v=\d+/.test(x.src || ""));
-    return s ? Number(s.src.match(/app\.js\?v=(\d+)/)[1]) : 0;
-  })();
-  if (!cur) return;
+  /* Laravel : version publiée dans la page (meta budget-version, réglée dans config/budget.php)
+     et relue sans cache à l'adresse meta budget-version-url */
+  const meta = n => (document.querySelector('meta[name="' + n + '"]') || {}).content || "";
+  const cur = Number(meta("budget-version")) || 0;
+  const verUrl = meta("budget-version-url");
+  if (!cur || !verUrl) return;
   const check = () => {
-    fetch(location.pathname + "?_=" + Date.now(), { cache: "no-store" })
+    fetch(verUrl + "?_=" + Date.now(), { cache: "no-store" })
       .then(r => r.text())
       .then(t => {
-        const m = t.match(/app\.js\?v=(\d+)/);
-        const v = m ? Number(m[1]) : 0;
+        const v = Number(String(t).trim()) || 0;
         /* nouvelle version publiée : pas de rechargement automatique,
            un bouton en haut de l'écran ; la page se recharge seulement quand on le touche */
         if (v > cur) {
