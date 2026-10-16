@@ -6514,6 +6514,7 @@ function renderBudgetList() {
         rest.splice(idx, 0, ...mv);
         L.splice(0, L.length, ...rest);
       }
+      dlyPlanFromTasks("lot");
       insSave();
       histLog("TÂCHES", N ? "NOUVEAU NIVEAU DE LOT" : same ? "ORDRE DES LOTS" : "LOT DÉPLACÉ", (src.v || "") + (N ? " — " + N : ""));
       refreshAll();
@@ -7687,7 +7688,34 @@ function renderBudgetList() {
       INS.dord = cur.concat(miss);
       return new Map(INS.dord.map((k, i) => [k, i]));
     };
-    const dlySortByDeb = () => { INS.dord = dlyByDeb(dlyKeys()); };
+    const dlySortByDeb = () => { INS.dord = dlyByDeb(dlyKeys()); dlyTasksFromPlan(); };
+    /* un seul ordre (cahier, Planning budgétaire) : PLANNING → bloc TÂCHES — lots dans l'ordre de leur première tâche,
+       activités secondaires dans l'ordre de leur première tâche, activités primaires dans l'ordre de leur première
+       activité secondaire ; lignes hors planning à la suite, dans leur ordre */
+    const dlyTasksFromPlan = () => {
+      if (!INS || !INS_EDIT) return;
+      const keys = [...dlyOrder(dlyKeys()).keys()];
+      const uniq = a => [...new Set(a.filter(Boolean))];
+      const lots = uniq(keys.map(k => k.split("|")[0])), secs = uniq(keys.map(k => k.split("|")[1]));
+      const prims = uniq(keys.flatMap(k => (INS.links || []).filter(l => l.lot + "|" + l.sec === k).map(l => l.prim)));
+      const rank = (arr, ids) => {
+        if (!arr) return;
+        const pos = new Map(ids.map((id, i) => [id, i]));
+        const inP = arr.filter(r => pos.has(r.id)).sort((a, b) => pos.get(a.id) - pos.get(b.id)), rest = arr.filter(r => !pos.has(r.id));
+        arr.splice(0, arr.length, ...inP, ...rest);
+      };
+      rank(INS.lot, lots); rank(INS.sec, secs); rank(INS.prim, prims);
+    };
+    /* bloc TÂCHES → PLANNING : lots (et activités secondaires) glissés dans TÂCHES rangent aussi le planning */
+    const dlyPlanFromTasks = k => {
+      if (!INS || !INS_EDIT || (k !== "lot" && k !== "sec")) return;
+      const keys = [...dlyOrder(dlyKeys()).keys()];
+      const li = new Map(INS.lot.map((r, i) => [r.id, i])), si = new Map(INS.sec.map((r, i) => [r.id, i])), o = new Map(keys.map((x, i) => [x, i]));
+      INS.dord = keys.slice().sort((a, b) => {
+        const [la, sa] = a.split("|"), [lb, sb] = b.split("|");
+        return (li.get(la) ?? 1e9) - (li.get(lb) ?? 1e9) || (k === "sec" ? (si.get(sa) ?? 1e9) - (si.get(sb) ?? 1e9) : 0) || o.get(a) - o.get(b);
+      });
+    };
     /* lignes du PLANNING : lots (et sous-lots « / ») puis leurs tâches, dans l'ordre des lignes */
     const dlyPlanRows = () => {
       const keys = dlyKeys(), M = dlyMarges(keys), J = INS.jal || {};
@@ -8136,6 +8164,8 @@ function renderBudgetList() {
           /* PLANNING (FORMAT 64, 90) : tableau à gauche (lots repliables, tâches), Gantt à droite, lignes alignées */
           /* liaisons non respectées (anciennes dates, import) : corrigées à l'ouverture du planning */
           if (INS_EDIT && dlyRespect(false)) setTimeout(() => insSave(), 0);
+          /* un seul ordre : la première fois, le bloc TÂCHES prend l'ordre du PLANNING */
+          if (INS_EDIT && !INS.ordSyncV1 && dlyKeys().length) { INS.ordSyncV1 = true; dlyTasksFromPlan(); setTimeout(() => { insSave(); refreshAll(); }, 0); }
           const PR = dlyPlanRows();
           shell.__dlyRows = PR.rows;
           lastShown.detail = { cols: DLY_COLS_P, rows: PR.flat, kind: "dly" };
@@ -8614,7 +8644,7 @@ function renderBudgetList() {
       linkWin: (p, k) => dlyLinkWin(p, k), reach: (a, b) => dlyReach(a, b), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
       gen: () => dlyGenWin(), level: () => dlyApplyLevel(),
       back: () => { LK.lot = LK.prim = LK.sec = null; refreshAll(); },
-      sortDeb: () => { dlySortByDeb(); insSave(); histLog("DÉLAIS", "CLASSER PAR DÉBUT", ""); renderTab(); },
+      sortDeb: () => { dlySortByDeb(); insSave(); histLog("DÉLAIS", "CLASSER PAR DÉBUT", ""); refreshAll(); },
       moveRow: (k, t, after) => shell.__insDly.moveKeys([k], [t], after),
       /* déplacer un bloc de lignes (une tâche, ou toutes les tâches d'un lot) avant / après un autre */
       moveKeys: (ks, ts, after) => {
@@ -8626,7 +8656,7 @@ function renderBudgetList() {
         if (!pos.length) return;
         const j = after ? Math.max(...pos) + 1 : Math.min(...pos);
         O.splice(j, 0, ...(INS.dord || []).filter(x => K.has(x)));
-        INS.dord = O; insSave(); histLog("DÉLAIS", "ORDRE DES LIGNES", ks.map(dlyName).join(" ; ").slice(0, 120)); renderTab();
+        INS.dord = O; dlyTasksFromPlan(); insSave(); histLog("DÉLAIS", "ORDRE DES LIGNES", ks.map(dlyName).join(" ; ").slice(0, 120)); refreshAll();
       },
       /* changer une tâche de lot (cahier, Planning budgétaire) : seul le lot change ; désignation, activités,
          produits / charges, dates et liaisons du planning gardés. Renvoie la nouvelle clé, ou "" (refus, message) */
@@ -8721,7 +8751,7 @@ function renderBudgetList() {
         INS.dord.splice(pos >= 0 ? Math.min(pos, INS.dord.length) : INS.dord.length, 0, S);
         if (shell.__dlySel) both.forEach(k => shell.__dlySel.delete(k));
         histLog("DÉLAIS", mode === "fus" ? "TÂCHES FUSIONNÉES" : "TÂCHE REMPLACÉE", dlyName(key) + " → " + dlyName(S));
-        insSave(); insRenderChain(); renderTab();
+        dlyTasksFromPlan(); insSave(); refreshAll();
         return S;
       },
       /* tâche lâchée sur une ligne (tableau ou Gantt) : autre lot → changement de lot, puis rang */
@@ -10640,6 +10670,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         let j = arr.findIndex(r => r.id === target.dataset.iid);
         if (after) j++;
         arr.splice(j, 0, ...block);
+        if (k === "sec") { dlyPlanFromTasks("sec"); renderTab(); }
         X.insSave();
         histLog(k === "des" ? "DÉSIGNATIONS CLIENT" : k === "chg" ? "DÉTAIL CHARGES" : k === "prd" ? "DÉTAIL PRODUITS" : "TÂCHES",
           "ORDRE DES LIGNES", String(block[0].des || block[0].v || block[0].art || ""));
