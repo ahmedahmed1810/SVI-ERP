@@ -8584,17 +8584,31 @@ function renderBudgetList() {
         /* appui long : sur un bout = liaison ; sur le milieu = changer le rang (barre soulevée) */
         const t = setTimeout(() => { if (moved) return; if (mode !== "body") { link = true; bar.classList.add("gb-link"); } else { vert = true; bar.classList.add("gb-lift"); } }, 500);
         const br = () => body.getBoundingClientRect();
+        /* liaison selon le bout de départ ET le bout d'arrivée (moitié gauche = début, moitié droite = fin) :
+           fin → début = FD ; début → fin = FD dans l'autre sens ; début → début = DD ; fin → fin = rien */
+        const linkPlan = ev => {
+          /* les fils (flèches) peuvent couvrir le bout d'une barre : on prend la première barre sous le doigt */
+          const tg = document.elementsFromPoint(ev.clientX, ev.clientY).map(e => e.closest && e.closest("#dlyGantt .gb")).find(Boolean);
+          if (!tg || tg.dataset.key === key) return null;
+          const r = tg.getBoundingClientRect(), side = ev.clientX > r.left + r.width / 2 ? "end" : "start", o = tg.dataset.key;
+          let P = null;
+          if (mode === "end" && side === "start") P = { pred: key, succ: o, t: "FD" };
+          else if (mode === "start" && side === "end") P = { pred: o, succ: key, t: "FD" };
+          else if (mode === "start" && side === "start") P = { pred: key, succ: o, t: "DD" };
+          if (!P || X.reach(P.pred, P.succ)) return null;
+          return { ...P, tg, side };
+        };
         const ax = mode === "end" ? L0 + W0 : L0, ay = bar.offsetTop + bar.offsetHeight / 2;
         const mv = ev => {
           const dx = ev.clientX - x0;
           if (link) {
             const r = br();
             tmp.innerHTML = `<line x1="${ax}" y1="${ay}" x2="${ev.clientX - r.left}" y2="${ev.clientY - r.top}" stroke="#b42318" stroke-width="2" stroke-dasharray="4 3"/>`;
-            /* FORMAT 96 : la barre survolée passe aussi en pointillés (sauf liaison impossible : elle-même ou une boucle) */
-            const el = document.elementFromPoint(ev.clientX, ev.clientY), tg = el && el.closest && el.closest("#dlyGantt .gb");
-            const ok = tg && tg.dataset.key !== key && !X.reach(key, tg.dataset.key) ? tg : null;
-            host.querySelectorAll(".gb.gb-tgt").forEach(b => { if (b !== ok) b.classList.remove("gb-tgt"); });
-            if (ok) ok.classList.add("gb-tgt");
+            /* FORMAT 96 : la barre survolée passe aussi en pointillés, bout visé marqué d'un point rouge
+               (sauf liaison impossible : elle-même, une boucle, fin → fin) */
+            const P = linkPlan(ev);
+            host.querySelectorAll(".gb.gb-tgt").forEach(b => { if (!P || b !== P.tg) b.classList.remove("gb-tgt", "gb-ts", "gb-te"); });
+            if (P) { P.tg.classList.add("gb-tgt"); P.tg.classList.toggle("gb-ts", P.side === "start"); P.tg.classList.toggle("gb-te", P.side === "end"); }
             return;
           }
           /* glisser la barre vers le haut ou le bas = changer le rang de la tâche (un seul trait) */
@@ -8612,13 +8626,12 @@ function renderBudgetList() {
           document.removeEventListener("pointerup", up);
           document.removeEventListener("pointercancel", up);
           bar.classList.remove("gb-link", "gb-drag", "gb-lift");
-          host.querySelectorAll(".gb.gb-tgt").forEach(b => b.classList.remove("gb-tgt"));
+          host.querySelectorAll(".gb.gb-tgt").forEach(b => b.classList.remove("gb-tgt", "gb-ts", "gb-te"));
           if (vert) { document.getElementById("roLine")?.remove(); if (hitV) X.dropTask(key, hitV.tr, hitV.after); return; }
           if (link) {
             tmp.innerHTML = "";
-            const el = document.elementFromPoint(ev.clientX, ev.clientY);
-            const tg = el && el.closest && el.closest("#dlyGantt .gb");
-            if (tg && tg.dataset.key !== key) X.addLink(key, tg.dataset.key, mode === "end" ? "FD" : "DD", tg);
+            const P = linkPlan(ev);
+            if (P) X.addLink(P.pred, P.succ, P.t, P.tg);
             return;
           }
           if (!moved || !days) { X.render(); return; }
