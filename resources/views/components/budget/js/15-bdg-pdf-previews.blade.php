@@ -1,5 +1,4 @@
-@verbatim
-    /* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :
+@verbatim/* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :
        volet « OPTIONS PDF » à gauche, aperçu des pages à droite,
        bouton GÉNÉRER PDF ; aucune impression lancée ===== */
     /* aperçu au modèle de la société (désignations client, tâches…) */
@@ -2226,4 +2225,4 @@
         if (rows.length) lastShown.detail = { ...lastShown.detail, rows };
       }
     };
-@endverbatim
+    @endverbatim

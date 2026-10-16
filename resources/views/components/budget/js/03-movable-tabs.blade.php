@@ -1,5 +1,4 @@
-@verbatim
-/* =========================================================
+@verbatim/* =========================================================
    ONGLETS DÉPLAÇABLES (comme les colonnes) : on glisse un onglet
    pour changer l'ordre ; ordre mémorisé par jeu d'onglets
    (détail : le même en saisie, liaisons et validé ; suivi DOC/TAF/OBS ;

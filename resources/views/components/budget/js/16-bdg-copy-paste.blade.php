@@ -1,5 +1,4 @@
-@verbatim
-    /* ===== COPIER / COUPER / COLLER (FORMAT) : lignes cochées d'un bloc ;
+@verbatim/* ===== COPIER / COUPER / COLLER (FORMAT) : lignes cochées d'un bloc ;
        collées à la fin du même bloc, dans ce budget ou un autre, sans liaison ;
        « COPIE DE » seulement en cas de doublon ; COUPER = lignes non liées, retirées au COLLER ;
        copie aussi dans le presse-papiers de l'iPad (tableau) ===== */

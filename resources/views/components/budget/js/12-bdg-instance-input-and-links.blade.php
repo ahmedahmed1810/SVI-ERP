@@ -1,5 +1,4 @@
-@verbatim
-    /* =========================================================
+@verbatim/* =========================================================
        BUDGET EN INSTANCE : MODE SAISIE / MODE LIAISONS
        - SAISIE : les 8 tableaux (désignations, lots, activités primaires,
          secondaires, charges, produits, qualité, délais) ; lignes non liées
@@ -2527,4 +2526,4 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       });
     };
 
-@endverbatim
+    @endverbatim

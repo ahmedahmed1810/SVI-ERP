@@ -1,5 +1,4 @@
-@verbatim
-    /* ===== IMPORTER depuis un autre budget de l'application =====
+@verbatim/* ===== IMPORTER depuis un autre budget de l'application =====
        budget source au choix, lignes cochées par onglet ;
        options : SANS / AVEC LIAISONS, TOUT LE BUDGET */
     const IMP_TABS = [
@@ -1496,4 +1495,4 @@
     };
     window.__sviDrivePathDefault = () => driveLastPath(budget.project, fullRef);
 
-@endverbatim
+    @endverbatim

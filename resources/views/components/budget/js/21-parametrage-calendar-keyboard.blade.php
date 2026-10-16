@@ -1,5 +1,4 @@
-@verbatim
-/* =========================================================
+@verbatim/* =========================================================
    PARAMÉTRAGE : CHS + UNITÉS (12/10/2026)
    UNITÉS : intitulé et abréviation ; l'abréviation est celle utilisée dans les tableaux.
    Toutes les unités restent permises ; la liste sert de choix proposé à la saisie.

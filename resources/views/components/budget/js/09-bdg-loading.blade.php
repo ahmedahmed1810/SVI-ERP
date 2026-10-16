@@ -1,5 +1,4 @@
-@verbatim
-/* =========================================================
+@verbatim/* =========================================================
    BASE V3 → lignes au format de l'ancien onglet BDG (colonnes A:Z),
    pour que tout l'écran du budget fonctionne sans changement
    ========================================================= */

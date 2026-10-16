@@ -1,6 +1,8 @@
 {{-- Budget app script: the former v2-test/app.js, unchanged, cut into parts at its own section
      headers (components/budget/js/NN-*.blade.php). The parts are glued back into ONE <script>
-     element in this order, so the code runs exactly as the single file did. --}}
+     element in this order, so the code runs exactly as the single file did.
+     Each part ends with its end-verbatim directive and NO newline after it: that keeps the glued
+     script byte-identical to the original file. --}}
 <script>
 @include('components.budget.js.01-update-check')
 @include('components.budget.js.02-loading-overlay')

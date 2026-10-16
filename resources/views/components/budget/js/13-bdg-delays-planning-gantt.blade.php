@@ -1,5 +1,4 @@
-@verbatim
-    /* ===== DÉTAIL DÉLAIS : colonnes (tri / filtre, largeur et ordre réglables) ===== */
+@verbatim/* ===== DÉTAIL DÉLAIS : colonnes (tri / filtre, largeur et ordre réglables) ===== */
     /* une ligne par période d'une TÂCHE PRIMAIRE (lot + activité primaire) */
     const DLY_COLS = [
       ["lot", "LOT", x => x.lot || "", ""],
@@ -1672,4 +1671,4 @@
       }
     };
 
-@endverbatim
+    @endverbatim

@@ -1,5 +1,4 @@
-@verbatim
-/* =========================================================
+@verbatim/* =========================================================
    CONFIRMATION AU FORMAT DE L'APPLICATION (jamais de message Safari)
    svConfirm({ title, text, ok }) → Promise<boolean>
    ========================================================= */
