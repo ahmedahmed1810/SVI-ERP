@@ -1,0 +1,7 @@
+/* Budget page: Tailwind without its reset (preflight), see tailwind.budget.config.js.
+   The Budget app's own styles are in public/budget/styles.css (unchanged). */
+@config "../../tailwind.budget.config.js";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
