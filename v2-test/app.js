@@ -4870,7 +4870,7 @@ function renderBudgetList() {
           const t = e.target;
           /* pas depuis un tableau qui défile, une fenêtre, un champ ou une poignée */
           /* balayage seulement hors des blocs : un geste dans un tableau, le Gantt ou les tâches sert à défiler, jamais à changer de budget */
-          if (scrollsX(t) || t.closest("#docPop, #blkPop, #cfMenu, #blkMenu, #svConf, input, textarea, select, .blk-rsz, .blk-grip, .col-rs, th, .bdg-d-tab, .rec-tab, .imp-tab, .hist-f, .bdg-d-block, .bdg-d-tabbody, .ins-hcol, #bdgHier, .dlyg, table")) { st = null; return; }
+          if (scrollsX(t) || t.closest("#docPop, #blkPop, #cfMenu, #blkMenu, #svConf, #dlyAddW, #svCal, input, textarea, select, .blk-rsz, .blk-grip, .col-rs, th, .bdg-d-tab, .rec-tab, .imp-tab, .hist-f, .bdg-d-block, .bdg-d-tabbody, .ins-hcol, #bdgHier, .dlyg, table")) { st = null; return; }
           st = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
         }, { passive: true });
         document.addEventListener("touchend", e => {
@@ -8198,8 +8198,7 @@ function renderBudgetList() {
           /* FORMAT 64 / 33 : pas de ligne d'explication au-dessus du PLANNING */
           return `<div class="dly-tools"><button type="button" class="dly-gen">GÉNÉRER LE PLANNING</button><button type="button" class="dly-sortd">CLASSER PAR DÉBUT</button><button type="button" class="dly-lev"${canLev ? "" : " disabled"}>APPLIQUER LE NIVELLEMENT</button></div>`
             + `<div class="dlyg"><div class="dlyg-l"${(() => { const w = Number(localStorage.getItem("svi_dlyg_w_v1")) || 0; return localStorage.getItem("svi_dlyg_w_v1") !== null ? ` style="width:${w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
-            + (() => { const full = INS.lot.filter(x => !x.t).length * INS.sec.filter(x => !x.t).length <= dlyKeys().length;
-                return `<div class="dly-add"><button type="button" class="dly-pred-new${full ? " off" : ""}"${full ? ' aria-disabled="true"' : ""}>+ AJOUTER UNE TÂCHE AU PLANNING</button></div>`; })();
+            + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE AU PLANNING</button></div>`;
         }
         const ps = key ? [...insDlyList(key)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9"))) : [];
         /* une seule période par tâche : sa ligne, ou une ligne vide SAISIR ICI… */
@@ -8460,6 +8459,82 @@ function renderBudgetList() {
         refreshAll();
       });
     };
+    /* fenêtre AJOUTER UNE TÂCHE AU PLANNING (FORMAT 66) : on ne crée pas de tâche, on donne ses dates à une tâche du budget.
+       Lots à gauche, activités secondaires à droite (toutes) ; rouge = au moins une tâche sans ses deux dates, noir = tout daté,
+       gris = aucune tâche (ou, une ligne étant choisie de l'autre côté, ne forme pas de tâche avec elle) — tout reste touchable ;
+       un lot et une activité choisis : DÉBUT, FIN, DURÉE (J) se saisissent dans la fenêtre, une tâche à la fois */
+    const dlyAddWin = () => {
+      let lot = "", sec = "";
+      const d = document.createElement("div");
+      d.id = "dlyAddW";
+      const size = (() => { try { return JSON.parse(localStorage.getItem("svi_dpk_v1") || "null"); } catch (e) { return null; } })();
+      const dated = k => !!(dlyDeb(k) && dlyFin(k));
+      const st = keys => !keys.length ? "none" : keys.some(k => !dated(k)) ? "red" : "black";
+      const draw = () => {
+        if (!d.isConnected) return;
+        const sc = [...d.querySelectorAll(".dpk-col")].map(c => c.scrollTop);
+        const T = dlyKeys();
+        const LC = [["v", "LOT", r => r.v || "", ""]], SC = [["v", "ACTIVITÉ SECONDAIRE", r => r.v || "", ""]];
+        const lotsAll = INS.lot.filter(x => !x.t), secsAll = INS.sec.filter(x => !x.t);
+        const lots = cfApply("dpk_lot", LC, lotsAll), secs = cfApply("dpk_sec", SC, secsAll);
+        const lotSt = x => st(T.filter(k => k.split("|")[0] === x.id && (!sec || k.split("|")[1] === sec)));
+        const secSt = x => st(T.filter(k => k.split("|")[1] === x.id && (!lot || k.split("|")[0] === lot)));
+        const card = d.querySelector(".dpk-card");
+        const w = card ? card.style.width : (size && size.w ? size.w + "px" : ""), h = card ? card.style.height : (size && size.h ? size.h + "px" : "");
+        const key = lot && sec ? lot + "|" + sec : "";
+        let panel = "";
+        if (key) {
+          const p0 = ((LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [])[0] || {};
+          const dur = p0.deb && p0.fin ? dDur(p0.deb, p0.fin) : "";
+          const s0 = T.includes(key) ? (dated(key) ? "black" : "red") : "none";
+          const inp = (f, v, ph) => `<input class="ins-in dlp-in dlw-in${f === "dur" ? " number" : " center"}" data-task="${esc(key)}" data-pid="${esc(p0.id || "")}" data-f="${f}" type="text" ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${ph}" value="${esc(v)}">`;
+          panel = `<div class="dlw-p"><div class="dlw-n dlw-${s0}">${esc(dlyName(key))}<span>${s0 === "red" ? "SANS SES DEUX DATES" : s0 === "black" ? "DATÉE" : "PAS ENCORE DANS LE PLANNING"}</span></div>
+            <div class="dlw-f"><label>DÉBUT${inp("deb", dFr(p0.deb || ""), "SAISIR ICI…")}</label><label>FIN${inp("fin", dFr(p0.fin || ""), "SAISIR ICI…")}</label><label>DURÉE (J)${inp("dur", dur, "")}</label></div></div>`;
+        }
+        d.innerHTML = `<div class="svc-card dpk-card" role="dialog" aria-modal="true" style="${w ? "width:" + w + ";" : ""}${h ? "height:" + h + ";" : ""}">
+          <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
+          <div class="svc-t">AJOUTER UNE TÂCHE AU PLANNING</div>
+          <div class="dpk-cols">
+            <div class="dpk-col"><table class="dpk-t"><thead><tr>${cfHead("dpk_lot", "v", "LOT " + svCnt(lots.length, lotsAll.length))}</tr></thead>
+              <tbody>${lots.map(x => `<tr class="dpk-lot dlw-r dlw-${lotSt(x)}${x.id === lot ? " cur" : ""}" data-lot="${x.id}"><td>${esc(x.v)}</td></tr>`).join("")}</tbody></table></div>
+            <div class="dpk-col"><table class="dpk-t"><thead><tr>${cfHead("dpk_sec", "v", "ACTIVITÉ SECONDAIRE " + svCnt(secs.length, secsAll.length))}</tr></thead>
+              <tbody>${secs.map(x => `<tr class="dpk-sec dlw-r dlw-${secSt(x)}${x.id === sec ? " cur" : ""}" data-sec="${x.id}"><td>${esc(x.v)}</td></tr>`).join("")}</tbody></table></div>
+          </div>${panel}
+          <div class="svc-f"><button type="button" class="svc-b" data-x>FERMER</button></div>
+          <div class="dpk-rsz" title="Largeur et hauteur"></div></div>`;
+        d.querySelectorAll(".dpk-col").forEach((c, n) => { c.scrollTop = sc[n] || 0; });
+      };
+      document.getElementById("dlyAddW")?.remove();
+      shell.appendChild(d);
+      draw();
+      window.__sviDpkRefresh = () => { if (d.isConnected) draw(); else window.__sviDpkRefresh = null; };
+      const close = () => { d.remove(); window.__sviDpkRefresh = null; document.getElementById("svCal")?.remove(); };
+      d.addEventListener("pointerdown", e => {
+        const hd = e.target.closest(".dpk-rsz");
+        if (!hd) return;
+        e.preventDefault();
+        const card = d.querySelector(".dpk-card"), r0 = card.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY;
+        const mv = ev => {
+          const w = Math.max(420, Math.min(window.innerWidth - 16, r0.width + 2 * (ev.clientX - x0)));
+          const h = Math.max(300, Math.min(window.innerHeight - 16, r0.height + 2 * (ev.clientY - y0)));
+          card.style.width = w + "px"; card.style.height = h + "px";
+          try { localStorage.setItem("svi_dpk_v1", JSON.stringify({ w: Math.round(w), h: Math.round(h) })); } catch (err) {}
+        };
+        const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); };
+        document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+      });
+      /* une date saisie (gérée comme dans le PLANNING) : la fenêtre se redessine (couleurs, durée) */
+      d.addEventListener("change", e => { if (e.target.closest("input.dlw-in")) { setTimeout(draw, 0); setTimeout(draw, 400); } });
+      d.addEventListener("click", e => {
+        const cfb = e.target.closest(".cf-btn");
+        if (cfb) { e.stopPropagation(); cfOpenMenu(cfb); return; }
+        if (e.target === d || e.target.closest("[data-x]")) { close(); return; }
+        const l = e.target.closest("[data-lot]");
+        if (l) { lot = lot === l.dataset.lot ? "" : l.dataset.lot; draw(); return; }
+        const s2 = e.target.closest("[data-sec]");
+        if (s2) { sec = sec === s2.dataset.sec ? "" : s2.dataset.sec; draw(); if (lot && sec) setTimeout(() => { const i = d.querySelector('input.dlw-in[data-f="deb"]'); if (i && !i.value) i.focus(); }, 0); return; }
+      });
+    };
     if (!shell.__dlyPlanBound) {
       shell.__dlyPlanBound = true;
       shell.addEventListener("click", e => {
@@ -8467,7 +8542,7 @@ function renderBudgetList() {
         if (!X) return;
         const pc = e.target.closest && e.target.closest(".dly-pred");
         if (pc) { e.stopPropagation(); X.pickPreds(pc.dataset.key); return; }
-        if (e.target.closest && e.target.closest(".dly-pred-new")) { if (!e.target.closest(".dly-pred-new.off")) X.pickPreds(null); return; }
+        if (e.target.closest && e.target.closest(".dly-pred-new")) { X.addWin(); return; }
         if (e.target.closest && e.target.closest(".dly-gen")) { X.gen(); return; }
         if (e.target.closest && e.target.closest(".dly-sortd")) { X.sortDeb(); return; }
         /* ‹ PLANNING : retour au PLANNING (lot et activités libérés, la désignation reste choisie ; brouillon gardé) */
@@ -9068,7 +9143,7 @@ function renderBudgetList() {
         if (d === d0) { renderTab(); insRenderChain(); return; }
         dlyApply(k, { deb: d, fin: sviWFin(cal, d, dur) }, { anchor: a });
       },
-      pickPreds: k => dlyPickPreds(k), go: k => { const [lo, se] = k.split("|"); LK.lot = lo; LK.sec = se; LK.prim = null; refreshAll(); },
+      pickPreds: k => dlyPickPreds(k), addWin: () => dlyAddWin(), go: k => { const [lo, se] = k.split("|"); LK.lot = lo; LK.sec = se; LK.prim = null; refreshAll(); },
       render: () => { renderTab(); insRenderChain(); } } : null;
     /* budget ouvert, pour PARAMÉTRAGE › CALENDRIER et DATES DU BUDGET (15/10/2026) */
     window.__sviBdgLive = INS ? {
