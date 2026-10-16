@@ -1479,7 +1479,7 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .gb { position: absolute; height: 11px; border-radius: 6px; background: var(--c); z-index: 3; touch-action: none; cursor: grab; display: flex; align-items: center; box-sizing: border-box; }
 .gb.crit { background: linear-gradient(90deg, #e5484d 0, var(--c) 10%, var(--c) 90%, #e5484d 100%); }
 .gb.gb-drag { opacity: .75; cursor: grabbing; }
-.gb.gb-link { outline: 2px dashed #b42318; outline-offset: 1px; }
+.gb.gb-link, .gb.gb-tgt { outline: 2px dashed #b42318; outline-offset: 1px; }
 .gb-s, .gb-e { position: absolute; top: 0; bottom: 0; width: 8px; }
 .gb-s { left: 0; cursor: crosshair; }
 .gb-e { right: 0; cursor: ew-resize; }

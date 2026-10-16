@@ -8560,6 +8560,11 @@ function renderBudgetList() {
           if (link) {
             const r = br();
             tmp.innerHTML = `<line x1="${ax}" y1="${ay}" x2="${ev.clientX - r.left}" y2="${ev.clientY - r.top}" stroke="#b42318" stroke-width="2" stroke-dasharray="4 3"/>`;
+            /* FORMAT 96 : la barre survolée passe aussi en pointillés (sauf liaison impossible : elle-même ou une boucle) */
+            const el = document.elementFromPoint(ev.clientX, ev.clientY), tg = el && el.closest && el.closest("#dlyGantt .gb");
+            const ok = tg && tg.dataset.key !== key && !X.reach(key, tg.dataset.key) ? tg : null;
+            host.querySelectorAll(".gb.gb-tgt").forEach(b => { if (b !== ok) b.classList.remove("gb-tgt"); });
+            if (ok) ok.classList.add("gb-tgt");
             return;
           }
           /* glisser la barre vers le haut ou le bas = changer le rang de la tâche (un seul trait) */
@@ -8577,6 +8582,7 @@ function renderBudgetList() {
           document.removeEventListener("pointerup", up);
           document.removeEventListener("pointercancel", up);
           bar.classList.remove("gb-link", "gb-drag", "gb-lift");
+          host.querySelectorAll(".gb.gb-tgt").forEach(b => b.classList.remove("gb-tgt"));
           if (vert) { document.getElementById("roLine")?.remove(); if (hitV) X.dropTask(key, hitV.tr, hitV.after); return; }
           if (link) {
             tmp.innerHTML = "";
@@ -8605,7 +8611,7 @@ function renderBudgetList() {
       /* FORMAT 22 : replier / déplier sans faire bouger l'écran */
       fold: p => { dlyFoldToggle(p); keepScroll(() => renderTab()); },
       jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTab(); },
-      linkWin: (p, k) => dlyLinkWin(p, k), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
+      linkWin: (p, k) => dlyLinkWin(p, k), reach: (a, b) => dlyReach(a, b), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
       gen: () => dlyGenWin(), level: () => dlyApplyLevel(),
       back: () => { LK.lot = LK.prim = LK.sec = null; refreshAll(); },
       sortDeb: () => { dlySortByDeb(); insSave(); histLog("DÉLAIS", "CLASSER PAR DÉBUT", ""); renderTab(); },
