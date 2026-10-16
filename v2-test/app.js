@@ -497,7 +497,9 @@ const sviEqualTabs = () => {
   const sel = SV_TABSETS.map(x => x.c).join(",");
   new MutationObserver(ms => {
     if (q) return;
-    if (!ms.some(m => { const el = m.target.nodeType === 1 ? m.target : m.target.parentElement; return el && (el.closest(sel) || (el.querySelector && el.querySelector(sel))); })) return;
+    /* seulement si des onglets changent (pas un trait de glissement ou un message ajouté au document) */
+    const has = n => n.nodeType === 1 && (n.matches(sel) || !!n.querySelector(sel));
+    if (!ms.some(m => { const el = m.target.nodeType === 1 ? m.target : m.target.parentElement; return el && (el.closest(sel) || [...m.addedNodes].some(has) || [...m.removedNodes].some(has)); })) return;
     q = requestAnimationFrame(run);
   }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
   window.addEventListener("resize", () => { if (!q) q = requestAnimationFrame(run); });
