@@ -8159,8 +8159,8 @@ function renderBudgetList() {
           const LD = dlyLoad(dlyCurDates()), mx = Math.max(0, ...Object.values(LD));
           const P = Number(INS.plaf) || 0;
           const canLev = mx > 0 && P > 0 && mx > P + 1e-9;
-          return `<div class="dly-recap-t">PLANNING — TOUCHER UNE TÂCHE POUR SAISIR SES DATES, TOUCHER PRÉDÉCESSEURS POUR LES CHOISIR</div>`
-            + `<div class="dly-tools"><button type="button" class="dly-gen">GÉNÉRER LE PLANNING</button><button type="button" class="dly-sortd">CLASSER PAR DÉBUT</button><button type="button" class="dly-lev"${canLev ? "" : " disabled"}>APPLIQUER LE NIVELLEMENT</button></div>`
+          /* FORMAT 64 / 33 : pas de ligne d'explication au-dessus du PLANNING */
+          return `<div class="dly-tools"><button type="button" class="dly-gen">GÉNÉRER LE PLANNING</button><button type="button" class="dly-sortd">CLASSER PAR DÉBUT</button><button type="button" class="dly-lev"${canLev ? "" : " disabled"}>APPLIQUER LE NIVELLEMENT</button></div>`
             + `<div class="dlyg"><div class="dlyg-l"${(() => { const w = Number(localStorage.getItem("svi_dlyg_w_v1")) || 0; return localStorage.getItem("svi_dlyg_w_v1") !== null ? ` style="width:${w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
             + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE AU PLANNING</button></div>`;
         }
