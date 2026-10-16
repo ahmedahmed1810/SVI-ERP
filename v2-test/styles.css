@@ -1476,7 +1476,7 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .glinks, .gtmp { position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; overflow: visible; }
 .gl { fill: none; stroke: #475467; stroke-width: 1.2; }
 .gl-hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
-.gb { position: absolute; height: 11px; border-radius: 6px; background: var(--c); z-index: 3; touch-action: none; cursor: grab; display: flex; align-items: center; box-sizing: border-box; }
+.gb { position: absolute; height: var(--gbh, 11px); border-radius: 6px; background: var(--c); z-index: 3; touch-action: none; cursor: grab; display: flex; align-items: center; box-sizing: border-box; }
 .gb.crit { background: linear-gradient(90deg, #e5484d 0, var(--c) 10%, var(--c) 90%, #e5484d 100%); }
 .gb.gb-drag { opacity: .75; cursor: grabbing; }
 .gb.gb-link, .gb.gb-tgt { outline: 2px dashed #b42318; outline-offset: 1px; }
@@ -1486,7 +1486,7 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .gb-n { font-size: 10px; font-weight: 700; color: #fff; padding: 0 5px; white-space: nowrap; pointer-events: none; line-height: 15px; }
 .gb-n.gb-out { position: absolute; color: #344054; padding: 0; z-index: 3; font-weight: 600; }
 .gb-n .gjal { position: static; }
-.gseg { position: absolute; height: 11px; border-radius: 6px; z-index: 3; }
+.gseg { position: absolute; height: var(--gbh, 11px); border-radius: 6px; z-index: 3; }
 .gdot { position: absolute; height: 0; border-top: 1.5px dotted #475467; z-index: 2; }
 .gsum { position: absolute; height: 6px; z-index: 3; background: color-mix(in srgb, var(--c) 55%, #fff); border-radius: 1px; }
 .gsum::before, .gsum::after { content: ""; position: absolute; top: 6px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid color-mix(in srgb, var(--c) 55%, #fff); }
@@ -1512,8 +1512,8 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 /* séparation tableau / Gantt avec poignée ‖ (FORMAT 90) */
 .dlyg { position: relative; align-items: stretch; }
 .dlyg-sp { flex: none; width: 3px; background: #8a5a3c; position: relative; cursor: col-resize; touch-action: none; z-index: 6; }
-.dlyg-sp::before { content: ""; position: absolute; top: 0; bottom: 0; left: -10px; right: -10px; }
-.dlyg-hd { position: sticky; top: 45%; display: block; width: 30px; height: 30px; margin: 40px 0 0 -13.5px; border-radius: 50%; background: #475467; color: #fff; font-size: 13px; font-weight: 800; line-height: 30px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.25); pointer-events: none; }
+.dlyg-sp::before { content: ""; position: absolute; top: 0; bottom: 0; left: -16px; right: -16px; touch-action: none; }
+.dlyg-hd { position: sticky; top: 45%; display: block; width: 30px; height: 30px; margin: 40px 0 0 -13.5px; border-radius: 50%; background: #475467; color: #fff; font-size: 13px; font-weight: 800; line-height: 30px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.25); touch-action: none; }
 .dlyg-sp.on { background: #b42318; }
 .dlyg-sp.on .dlyg-hd { background: #b42318; }
 
@@ -1555,7 +1555,7 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 #dlyGantt .gb-n.gb-fold { pointer-events: auto; cursor: pointer; padding: 2px 6px 2px 0; margin-top: -2px; z-index: 4; }
 #dlyGantt .gb-n.gb-fsg { width: 14px; text-align: center; padding: 2px 0; font-weight: 800; font-size: 12px; color: var(--inst, #b91c1c); }
 /* FORMAT 91 : nom dans la barre */
-#dlyGantt .gb .gb-ti { position: absolute; left: 6px; right: 6px; top: 0; bottom: 0; font-size: 9px; line-height: 11px; font-weight: 700; color: #1f2937; white-space: nowrap; overflow: hidden; pointer-events: none; text-transform: uppercase; }
+#dlyGantt .gb .gb-ti { position: absolute; left: 6px; right: 6px; top: 0; bottom: 0; font-size: 9px; line-height: var(--gbh, 11px); font-weight: 700; color: #1f2937; white-space: nowrap; overflow: hidden; pointer-events: none; text-transform: uppercase; }
 
 /* FORMAT 96 : bout visé de la barre d'arrivée (point rouge) */
 .gb.gb-ts::before, .gb.gb-te::after { content: ""; position: absolute; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; border-radius: 50%; background: #b42318; box-shadow: 0 0 0 2px #fff; z-index: 2; }
@@ -1648,3 +1648,10 @@ détail technique en petit */
 
 /* superposition depuis le Gantt : le jaune n'est que sur le Gantt (FORMAT 64) */
 .dlyg.dly-src-g .dlyg-l tr.ro-on td { background: inherit !important; box-shadow: none !important; }
+/* hauteur des lignes du PLANNING réglable (pincement vertical) */
+.dlyg-l .dly-table tbody td { height: var(--dly-rh, 24px); box-sizing: border-box; }
+#dlyGantt .gb-n.gb-ren { pointer-events: auto; cursor: text; z-index: 4; }
+#dlyGantt input.dly-gin { background: #fff; color: #1f2937; font-size: 11px; font-weight: 700; text-transform: uppercase; border-radius: 4px; box-shadow: inset 0 0 0 2px var(--inst, #b42318), 0 2px 8px rgba(0,0,0,.15); }
+.dly-newin { width: 100%; min-width: 80px; border: 0; background: transparent; font: inherit; color: var(--inst, #b42318); text-transform: uppercase; padding: 0 6px; height: 20px; box-sizing: border-box; }
+.dly-newin::placeholder { color: var(--inst, #b42318); opacity: .8; }
+.dly-newin:focus { outline: none; box-shadow: inset 0 0 0 2px var(--inst, #b42318); background: #fff; }
