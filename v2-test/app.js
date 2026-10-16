@@ -8020,7 +8020,8 @@ function renderBudgetList() {
           /* FORMAT 93 : signe › / ⌄ devant le nom du lot (ou du niveau) ; un toucher = replier / déplier */
           /* signe à gauche de la barre du lot, nom à droite ; les deux se touchent pour replier / déplier */
           const gname = (l, r) => `<span class="gb-n gb-out gb-fold gb-fsg" data-path="${esc(x.path)}" style="left:${Math.max(0, l - 17)}px;top:${ty}px">${x.fold ? "›" : "⌄"}</span>`
-            + `<span class="gb-n gb-out gb-grp gb-ren" data-path="${esc(x.path)}" style="left:${r}px;top:${ty}px">${esc(x.name)}</span>`;
+            /* nom court (sans le parent) ; un lot rangé dans un autre est décalé et marqué ↳ selon son niveau (comme le bloc LOT) */
+            + `<span class="gb-n gb-out gb-grp gb-ren" data-path="${esc(x.path)}" style="left:${r + x.lvl * 14}px;top:${ty}px">${x.lvl ? '<span class="gb-lv">↳</span>' : ""}${esc(x.name)}</span>`;
           if (!segs.length) { bars += gname(17, 20); return; }
           const a0 = segs[0].a, b0 = segs[segs.length - 1].b;
           /* couleur d'un lot (FORMAT 91, 93) : celle de son lot, ou de son premier lot pour un niveau qui en regroupe plusieurs */
@@ -9294,6 +9295,8 @@ function renderBudgetList() {
           } else base = T;
         }
         if (base.length >= src.length && src.every((g, i) => U_(g) === U_(base[i]))) { renderTab(); return; }   /* pas dans sa propre branche */
+        /* déjà rangé là (même parent) : on le dit, au lieu de ne rien faire en silence */
+        if (!extra && U_(src.slice(0, -1).join(" / ")) === U_(base.join(" / ")) && (plan.on || !plan.before)) { svToast(src[src.length - 1] + (base.length ? " EST DÉJÀ DANS " + base[base.length - 1] : " EST DÉJÀ AU PREMIER NIVEAU") + ".", 3500, anchor); }
         const ren = new Map();
         const add = (P0, b0) => L.filter(x => !x.t && under(x.v, P0)).forEach(x => ren.set(x.id, b0.concat(dlyLotPath(x.v).slice(P0.length - 1)).join(" / ")));
         add(src, base); if (extra) add(extra.P, extra.base);
