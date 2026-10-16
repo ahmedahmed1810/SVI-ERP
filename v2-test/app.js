@@ -4868,6 +4868,15 @@ function renderBudgetList() {
           const nav = window.__sviBdgNav;
           if (!nav || e.touches.length !== 1 || !document.querySelector(".bdg-d-page")) { st = null; return; }
           const t = e.target;
+          /* bloc agrandi (16/10/2026) : le balayage y change de budget en restant sur le même bloc et le même onglet ;
+             un tableau ou le Gantt qui défile garde le geste tant qu'il n'est pas arrivé au bout */
+          const pg = document.querySelector(".bdg-d-page"), mx = pg && [...pg.classList].find(c => /^max-/.test(c));
+          if (mx && !t.closest("#docPop, #blkPop, #cfMenu, #blkMenu, #svConf, #dlyAddW, #svCal, input, textarea, select, .blk-rsz, .blk-grip, .col-rs, .dlyg-sp, #dlyGantt .gh, #dlyGantt .gb, #dlyGantt .gsum, #dlyGantt .gseg, .gplaf")) {
+            let sc = null;
+            for (let n = t; n && n !== document.body; n = n.parentElement) if (n.scrollWidth > n.clientWidth + 2 && /(auto|scroll)/.test(getComputedStyle(n).overflowX)) { sc = n; break; }
+            st = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), max: mx.slice(4), sc, sl: sc ? sc.scrollLeft : 0 };
+            return;
+          }
           /* pas depuis un tableau qui défile, une fenêtre, un champ ou une poignée */
           /* balayage seulement hors des blocs : un geste dans un tableau, le Gantt ou les tâches sert à défiler, jamais à changer de budget */
           if (scrollsX(t) || t.closest("#docPop, #blkPop, #cfMenu, #blkMenu, #svConf, #dlyAddW, #svCal, input, textarea, select, .blk-rsz, .blk-grip, .col-rs, th, .bdg-d-tab, .rec-tab, .imp-tab, .hist-f, .bdg-d-block, .bdg-d-tabbody, .ins-hcol, #bdgHier, .dlyg, table")) { st = null; return; }
@@ -4878,13 +4887,22 @@ function renderBudgetList() {
           if (!st || !nav) return;
           const dx = e.changedTouches[0].clientX - st.x, dy = e.changedTouches[0].clientY - st.y;
           const quick = Date.now() - st.t < 700;
+          const s0 = st;
           st = null;
           if (!quick || Math.abs(dx) < 90 || Math.abs(dy) > Math.abs(dx) * 0.5) return;
+          if (s0.sc) {
+            /* zone qui défile : elle a bougé pendant le geste, ou n'est pas au bout dans ce sens → c'était un défilement */
+            const c = s0.sc;
+            if (Math.abs(c.scrollLeft - s0.sl) > 2) return;
+            if (dx < 0 && c.scrollLeft + c.clientWidth < c.scrollWidth - 2) return;
+            if (dx > 0 && c.scrollLeft > 2) return;
+          }
           const i = nav.refs.indexOf(nav.cur);
           const j = dx < 0 ? i + 1 : i - 1;
           if (i < 0 || j < 0 || j >= nav.refs.length) return;
+          if (s0.max) window.__sviPendingMax = s0.max;
           nav.open(nav.refs[j]);
-          window.scrollTo(0, 0);
+          if (!s0.max) window.scrollTo(0, 0);
         }, { passive: true });
       }
     }
@@ -15519,6 +15537,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
     };
 
     /* agrandir un bloc : il occupe tout l'écran sous l'en-tête figé */
+    /* budget ouvert par un balayage depuis un bloc agrandi : même bloc agrandi (l'onglet ouvert est déjà gardé) */
+    setTimeout(() => { const b = window.__sviPendingMax; if (!b) return; window.__sviPendingMax = ""; const pg = shell.querySelector(".bdg-d-page"); if (pg && !pg.classList.contains("max-" + b)) toggleMax(b); }, 0);
     const toggleMax = blk => {
       const page = shell.querySelector(".bdg-d-page");
       const cls = "max-" + blk;
