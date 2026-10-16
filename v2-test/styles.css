@@ -1628,3 +1628,13 @@ détail technique en petit */
 #dlyAddW .dlw-f label { flex: 1; display: flex; flex-direction: column; gap: 3px; font-size: 10px; font-weight: 800; color: #6b7280; }
 #dlyAddW .dlw-in { height: 30px; border: 1px solid #d0d5dd; border-radius: 6px; font-size: 13px; font-weight: 700; color: var(--inst, #b91c1c); -webkit-text-fill-color: var(--inst, #b91c1c); background: #fff; padding: 0 8px; outline: none; -webkit-appearance: none; }
 #dlyAddW .dlw-in:focus { border-color: transparent; box-shadow: inset 0 0 0 2px var(--inst, #b91c1c); }
+
+/* SUPERPOSER deux tâches (16/10/2026) */
+#svConf .sup-card { width: min(640px, 94vw); max-width: none; }
+#svConf .sup-r { border: 1px solid #e5e9f0; border-radius: 8px; padding: 8px 10px; margin: 6px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#svConf .sup-l { grid-column: 1 / -1; font-size: 10px; font-weight: 800; color: #6b7280; }
+#svConf .sup-r label { display: flex; flex-direction: column; gap: 3px; font-size: 10px; font-weight: 800; color: #6b7280; }
+#svConf .sup-pre { font-weight: 700; color: #9aa3af; min-height: 12px; }
+#svConf .sup-in { height: 30px; border: 1px solid #d0d5dd; border-radius: 6px; padding: 0 8px; font-size: 12px; font-weight: 700; color: #172033; text-transform: uppercase; outline: none; -webkit-appearance: none; }
+#svConf .sup-in:focus { border-color: transparent; box-shadow: inset 0 0 0 2px var(--inst, #b91c1c); }
+#svConf .sup-in.sup-bad { border-color: #b91c1c; color: #b91c1c; }

@@ -6420,6 +6420,11 @@ function renderBudgetList() {
     };
     /* ===== LOTS en arborescence (« / ») dans le bloc TÂCHES : niveaux repliables › / ⌄, nom du dernier niveau ===== */
     const lotSegs = r => String(r && r.v || "").split("/").map(x => x.trim()).filter(Boolean);
+    /* nom d'un nouveau niveau de lot (16/10/2026) : « NIVEAU n », numéro suivant dans le budget (anciens « NOUVEAU NIVEAU n » comptés) */
+    const insNextLevel = () => {
+      const used = INS.lot.flatMap(x => lotSegs(x)).map(g => (String(g).match(/^(?:NOUVEAU )?NIVEAU (\d+)$/) || [])[1]).filter(Boolean).map(Number);
+      return "NIVEAU " + ((used.length ? Math.max(...used) : 0) + 1);
+    };
     const lotCmp = (a, b) => { const A = lotSegs(a), B = lotSegs(b); for (let i = 0; i < Math.min(A.length, B.length); i++) { const c = natCmp(A[i], B[i]); if (c) return c; } return A.length - B.length; };
     const lotUnder = (r, P) => { const s2 = lotSegs(r); return s2.length >= P.length && P.every((g, i) => U_(g) === U_(s2[i])); };
     /* arborescence dans l'ordre des lots (classés par ordre alphabétique au départ, puis ordre libre) :
@@ -6474,7 +6479,7 @@ function renderBudgetList() {
         </div>`;
     }).join("");
     /* glissement d'un lot (FORMAT 26, 44) : dans un niveau = passe dessous ; avant / après = même niveau que la ligne visée ;
-       superposé à un lot = nouveau niveau « NOUVEAU NIVEAU n » qui regroupe les deux */
+       superposé à un lot = nouveau niveau « NIVEAU n » qui regroupe les deux */
     const lotDrop = (srcId, tEl, mode) => {
       const L = INS.lot, src = L.find(x => x.id === srcId);
       if (!src || !tEl) return;
@@ -6483,8 +6488,7 @@ function renderBudgetList() {
       let base, extra = null, N = "";
       if (mode === "on" && tEl.classList.contains("lot-grp")) base = tSegs;
       else if (mode === "on") {
-        const used = L.flatMap(x => lotSegs(x)).map(g => (String(g).match(/^NOUVEAU NIVEAU (\d+)$/) || [])[1]).filter(Boolean).map(Number);
-        N = "NOUVEAU NIVEAU " + ((used.length ? Math.max(...used) : 0) + 1);
+        N = insNextLevel();
         base = tSegs.slice(0, -1).concat(N);
         extra = { P: tSegs, base };
       } else base = tSegs.slice(0, -1);
@@ -6516,7 +6520,7 @@ function renderBudgetList() {
       }
       dlyPlanFromTasks("lot");
       insSave();
-      histLog("TÂCHES", N ? "NOUVEAU NIVEAU DE LOT" : same ? "ORDRE DES LOTS" : "LOT DÉPLACÉ", (src.v || "") + (N ? " — " + N : ""));
+      histLog("TÂCHES", N ? "NIVEAU DE LOT CRÉÉ" : same ? "ORDRE DES LOTS" : "LOT DÉPLACÉ", (src.v || "") + (N ? " — " + N : ""));
       refreshAll();
       /* nouveau niveau : son nom est prêt à être saisi */
       if (N) setTimeout(() => { const i = [...shell.querySelectorAll("input.lot-gname")].find(x => x.dataset.path === base.join(" / ")); if (i) { i.focus(); try { i.select(); } catch (e) {} } }, 60);
@@ -8652,6 +8656,18 @@ function renderBudgetList() {
         const ref = next || prev;
         return { parent, before: nx ? nx.x.key : "", tr: ref.tr, r: ref.r, after: !next, lvl: L, line: true };
       };
+      /* tâche glissée : au milieu d'une autre tâche (ligne encadrée) = superposer ; sinon trait (rang / lot) */
+      const dlyTaskHit = (ev, srcTr, srcKey) => {
+        shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on"));
+        const h = dlyRowAt(ev.clientY, srcTr);
+        if (!h || (srcKey && h.tr.dataset.key === srcKey)) return null;
+        if (h.tr.classList.contains("dly-task") && ev.clientY >= h.r.top + h.r.height / 3 && ev.clientY <= h.r.bottom - h.r.height / 3) {
+          h.tr.classList.add("ro-on"); document.getElementById("roLine")?.remove();
+          return { ...h, on: h.tr.dataset.key };
+        }
+        dlyRowLine(h);
+        return h;
+      };
       const dlyGrpShow = h => { if (h && h.line) dlyRowLine(h); else document.getElementById("roLine")?.remove(); };
       shell.__dlyRowDrag = (e, srcTr, onDrop) => {};
       /* + AJOUTER UNE TÂCHE grisé : appui long = la raison (FORMAT 56) */
@@ -8676,6 +8692,7 @@ function renderBudgetList() {
           if (!on) { if (Math.abs(ev.clientX - x0) > 8 || Math.abs(ev.clientY - y0) > 8) end(); return; }
           ev.preventDefault();
           if (gRow) { hit = dlyGrpHit(ev, gRow.path, gRow.lvl, x0); dlyGrpShow(hit); return; }
+          if (tr.classList.contains("dly-task")) { hit = dlyTaskHit(ev, tr, tr.dataset.key); if (!hit) document.getElementById("roLine")?.remove(); return; }
           hit = dlyRowAt(ev.clientY, tr);
           if (hit) dlyRowLine(hit); else document.getElementById("roLine")?.remove();
         };
@@ -8686,7 +8703,7 @@ function renderBudgetList() {
           document.getElementById("roLine")?.remove(); tr.classList.remove("ro-src"); document.body.classList.remove("svi-dragging");
           shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on"));
           if (on) { const stop = ev => { ev.stopPropagation(); ev.preventDefault(); }; shell.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 350); }
-          if (drop && on && hit) { if (gRow) X.moveGroup(gRow.path, hit, tr); else if (tr.classList.contains("dly-task")) X.dropTask(tr.dataset.key, hit.tr, hit.after); else X.moveKeys(dlyRowKeys(tr), dlyRowKeys(hit.tr), hit.after); }
+          if (drop && on && hit) { if (gRow) X.moveGroup(gRow.path, hit, tr); else if (hit.on) X.superpose(tr.dataset.key, hit.on, tr); else if (tr.classList.contains("dly-task")) X.dropTask(tr.dataset.key, hit.tr, hit.after); else X.moveKeys(dlyRowKeys(tr), dlyRowKeys(hit.tr), hit.after); }
         };
         const up = () => end(true), cc = () => end(false);
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", cc);
@@ -8844,7 +8861,7 @@ function renderBudgetList() {
           }
           /* glisser la barre vers le haut ou le bas = changer le rang de la tâche (un seul trait) */
           const dy = ev.clientY - y0b;
-          if (vert) { hitV = dlyRowAt(ev.clientY, null); if (hitV && hitV.tr.dataset.key === key) hitV = null; if (hitV) dlyRowLine(hitV); else document.getElementById("roLine")?.remove(); return; }
+          if (vert) { hitV = dlyTaskHit(ev, null, key); if (!hitV) document.getElementById("roLine")?.remove(); return; }
           if (!moved && Math.abs(dx) > 4) { moved = true; clearTimeout(t); bar.classList.add("gb-drag"); }
           if (!moved) return;
           days = Math.round(dx / DLY_DW);
@@ -8859,7 +8876,7 @@ function renderBudgetList() {
           bar.classList.remove("gb-link", "gb-drag", "gb-lift");
           host.querySelectorAll(".gb.gb-tgt").forEach(b => b.classList.remove("gb-tgt", "gb-ts", "gb-te"));
           if (shell.__dlyPinch || shell.__dlyPinched) { shell.__dlyPinched = false; tmp.innerHTML = ""; document.getElementById("roLine")?.remove(); return; }
-          if (vert) { document.getElementById("roLine")?.remove(); if (hitV) X.dropTask(key, hitV.tr, hitV.after); return; }
+          if (vert) { document.getElementById("roLine")?.remove(); shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on")); if (hitV && hitV.on) X.superpose(key, hitV.on, bar); else if (hitV) X.dropTask(key, hitV.tr, hitV.after); return; }
           if (link) {
             tmp.innerHTML = "";
             const P = linkPlan(ev);
@@ -9039,8 +9056,7 @@ function renderBudgetList() {
           const own = L.some(x => U_(x.v) === U_(T.join(" / "))), kids = L.some(x => dlyLotPath(x.v).length > T.length && under(x.v, T));
           if (own && !kids) {
             /* superposé sur un lot simple : nouveau niveau qui regroupe les deux (comme dans TÂCHES) */
-            const used = L.flatMap(x => dlyLotPath(x.v)).map(g => (String(g).match(/^NOUVEAU NIVEAU (\d+)$/) || [])[1]).filter(Boolean).map(Number);
-            N = "NOUVEAU NIVEAU " + ((used.length ? Math.max(...used) : 0) + 1);
+            N = insNextLevel();
             base = T.slice(0, -1).concat(N); extra = { P: T, base };
           } else base = T;
         }
@@ -9061,9 +9077,106 @@ function renderBudgetList() {
         rest.splice(j, 0, ...mine);
         INS.dord = rest;
         dlyTasksFromPlan(); insSave();
-        histLog("DÉLAIS", N ? "NOUVEAU NIVEAU DE LOT" : "LOT DÉPLACÉ", dlyLotPath(path).pop() + " → " + (base.length ? base.join(" / ") : "RACINE"));
+        histLog("DÉLAIS", N ? "NIVEAU DE LOT CRÉÉ" : "LOT DÉPLACÉ", dlyLotPath(path).pop() + " → " + (base.length ? base.join(" / ") : "RACINE"));
         refreshAll();
         if (N) setTimeout(() => { const i = [...shell.querySelectorAll("input.dly-nm")].find(x => x.dataset.path === base.join(" / ")); if (i) { i.focus(); try { i.select(); } catch (e) {} } }, 80);
+      },
+      /* SUPERPOSER une tâche B (glissée) sur une tâche A (cahier, Planning budgétaire, 16/10/2026) :
+         CRÉER UN NIVEAU (deux tâches sous un sous-lot « NIVEAU n » du lot de A) / FUSIONNER (une seule tâche) / ANNULER ;
+         puis, s'il y a des produits en double (même désignation, même unité) : GARDER LES DOUBLONS (doublons de B → IMPORT NON CRÉÉ)
+         / IGNORER (doublons de B supprimés) / ANNULER */
+      superpose: (B, A, anchor) => {
+        const X = shell.__insDly;
+        if (!A || !B || A === B) { renderTab(); return; }
+        const linksOf = k => (INS.links || []).filter(l => l.lot + "|" + l.sec === k);
+        const nm = (k, i) => lkName(i ? "sec" : "lot", k.split("|")[i ? 1 : 0]);
+        const lvlErr = () => {
+          /* règle A dans le nouveau niveau : une même activité primaire ne peut pas y avoir deux désignations */
+          const P = new Map(); let e = "";
+          [...linksOf(A), ...linksOf(B)].forEach(l => { if (P.has(l.prim) && P.get(l.prim) !== l.des && !e) e = "RÈGLE A : LA TÂCHE PRIMAIRE › " + lkName("prim", l.prim) + " SERAIT LIÉE À DEUX DÉSIGNATIONS (" + lkName("des", P.get(l.prim)) + " ET " + lkName("des", l.des) + ")."; P.set(l.prim, l.des); });
+          return e;
+        };
+        const d = document.createElement("div");
+        d.id = "svConf";
+        const draw = () => {
+          const same = U_(nm(A, 1)) === U_(nm(B, 1));
+          const eL = same ? "" : lvlErr(), eF = X.mergePlan(B, A).err;
+          const row = (k, lab) => { const [lo, se] = k.split("|"), segs = dlyLotPath(lkName("lot", lo));
+            return `<div class="sup-r"><div class="sup-l">${lab}</div>
+              <label>LOT<span class="sup-pre">${esc(segs.slice(0, -1).map(x => x + " / ").join(""))}</span><input class="sup-in" data-kind="lot" data-path="${esc(segs.join(" / "))}" value="${esc(segs[segs.length - 1] || "")}"></label>
+              <label>ACTIVITÉ SECONDAIRE<span class="sup-pre"></span><input class="sup-in${same ? " sup-bad" : ""}" data-kind="sec" data-sid="${esc(se)}" value="${esc(lkName("sec", se))}"></label></div>`; };
+          d.innerHTML = `<div class="svc-card sup-card" role="dialog" aria-modal="true">
+            <button type="button" class="svc-close" data-v="" aria-label="Fermer">✕</button>
+            <div class="svc-t">SUPERPOSER</div>
+            <div class="svc-x svc-html">${row(A, "TÂCHE VISÉE")}${row(B, "TÂCHE GLISSÉE")}
+              ${same ? `<div class="svc-sub svc-warn">MÊME ACTIVITÉ « ${esc(nm(A, 1))} » : CHANGER UN INTITULÉ POUR CRÉER UN NIVEAU (OU FUSIONNER).</div>` : ""}
+              ${eL ? `<div class="svc-sub svc-warn">CRÉER UN NIVEAU IMPOSSIBLE : ${esc(eL)}</div>` : ""}
+              ${eF ? `<div class="svc-sub svc-warn">FUSIONNER IMPOSSIBLE : ${esc(eF)}</div>` : ""}</div>
+            <div class="svc-f"><button type="button" class="svc-b" data-v="">ANNULER</button>
+              <button type="button" class="svc-b svc-ok svc-neutral" data-v="fus"${eF ? " disabled" : ""}>FUSIONNER</button>
+              <button type="button" class="svc-b svc-ok svc-neutral" data-v="lvl"${same || eL ? " disabled" : ""}>CRÉER UN NIVEAU</button></div></div>`;
+        };
+        document.getElementById("svConf")?.remove();
+        document.body.appendChild(d);
+        draw();
+        /* lot et activité modifiables à tout moment (mêmes règles que le PLANNING : pas de doublon) */
+        d.addEventListener("change", e => { const i = e.target.closest("input.sup-in"); if (!i) return; X.rename(i); setTimeout(() => { if (d.isConnected) draw(); }, 0); });
+        d.addEventListener("click", e => {
+          const b = e.target.closest("[data-v]");
+          if (!b && e.target !== d) return;
+          if (b && b.disabled) return;
+          const v = b ? b.dataset.v : "";
+          d.remove();
+          if (!v) { renderTab(); return; }
+          X.supDups(B, A, () => v === "lvl" ? X.supLevel(B, A) : X.mergeDo(B, A, X.mergePlan(B, A), "fus"), anchor);
+        });
+      },
+      /* produits en double entre A et B (même désignation + même unité) : fenêtre DOUBLONS DE PRODUITS, puis suite */
+      supDups: (B, A, then, anchor) => {
+        const linksOf = k => (INS.links || []).filter(l => l.lot + "|" + l.sec === k);
+        const pk = id => { const r = INS.prd.find(x => x.id === id) || {}; return U_(r.des) + "|" + U_(r.u); };
+        const inA = new Set(linksOf(A).flatMap(l => (l.prd || []).map(x => pk(x.id))));
+        const dup = [...new Set(linksOf(B).flatMap(l => (l.prd || []).filter(x => inA.has(pk(x.id))).map(x => x.id)))];
+        if (!dup.length) { then(); return; }
+        const names = dup.map(id => { const r = INS.prd.find(x => x.id === id) || {}; return (r.des || "") + (r.u ? " (" + r.u + ")" : ""); });
+        svChoose({ title: "DOUBLONS DE PRODUITS",
+          html: `<div class="svc-sub">${dup.length} PRODUIT(S) DE ${esc(dlyName(B))} EXISTE(NT) DÉJÀ DANS ${esc(dlyName(A))} :</div><ul class="svc-list">${names.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`,
+          buttons: [{ v: "ign", label: "IGNORER", tone: "neutral" }, { v: "keep", label: "GARDER LES DOUBLONS", tone: "neutral" }] }).then(v => {
+          if (!v) { renderTab(); return; }
+          const ids = new Set(dup), V = (k, id) => (INS[k].find(x => x.id === id) || {});
+          if (v === "keep") {
+            /* doublons gardés dans l'onglet IMPORT NON CRÉÉ, avec leur chaîne, pour être revus */
+            const items = [];
+            linksOf(B).forEach(l => (l.prd || []).filter(x => ids.has(x.id)).forEach(x => {
+              const r = V("prd", x.id), D = V("des", l.des);
+              items.push({ id: insId(), on: false, bad: ["des"], why: "DOUBLON À LA SUPERPOSITION (" + dlyName(B) + " SUR " + dlyName(A) + ")", line: "",
+                src: { art: String(D.art || ""), dc: D.des || "", upb: D.u || "", lot: V("lot", l.lot).v || "", prim: V("prim", l.prim).v || "", sec: V("sec", l.sec).v || "",
+                  type: "PRD", article: "", des: r.des || "", u: r.u || "", nbr: String(r.nbr ?? ""), d1: String(r.d1 ?? ""), d2: String(r.d2 ?? ""), d3: String(r.d3 ?? ""), q: "" } });
+            }));
+            INS.inc = (INS.inc || []).concat(items);
+          }
+          INS.links = (INS.links || []).map(l => l.lot + "|" + l.sec === B ? { ...l, prd: (l.prd || []).filter(x => !ids.has(x.id)) } : l).filter(l => (l.prd || []).length);
+          /* une ligne produit qui n'est plus liée nulle part est retirée du détail produits */
+          INS.prd = INS.prd.filter(r => !ids.has(r.id) || (INS.links || []).some(l => (l.prd || []).some(x => x.id === r.id)));
+          histLog("DÉLAIS", "SUPERPOSITION — DOUBLONS " + (v === "keep" ? "GARDÉS (IMPORT NON CRÉÉ)" : "IGNORÉS"), dup.length + " PRODUIT(S) DE " + dlyName(B));
+          insSave();
+          then();
+        });
+      },
+      /* CRÉER UN NIVEAU : sous-lot « NIVEAU n » du lot de A ; A puis B y passent (seul le lot change) */
+      supLevel: (B, A) => {
+        const X = shell.__insDly, la = A.split("|")[0], N = insNextLevel();
+        const nl = { id: insId(), v: dlyLotPath(lkName("lot", la)).concat(N).join(" / ") };
+        const i = INS.lot.findIndex(x => x.id === la);
+        INS.lot.splice(i < 0 ? INS.lot.length : i + 1, 0, nl);
+        const kA = X.changeLot(A, nl.id), kB = kA ? X.changeLot(B, nl.id) : "";
+        if (!kA || !kB) { if (!kA) INS.lot = INS.lot.filter(x => x !== nl); insSave(); refreshAll(); return; }
+        INS.dord = (INS.dord || []).filter(x => x !== kB);
+        INS.dord.splice(INS.dord.indexOf(kA) + 1, 0, kB);
+        dlyTasksFromPlan(); insSave();
+        histLog("DÉLAIS", "NIVEAU DE LOT CRÉÉ", dlyName(kA) + " + " + dlyName(kB));
+        refreshAll();
+        setTimeout(() => { const inp = [...shell.querySelectorAll("input.dly-nm")].find(x => x.dataset.path === nl.v); if (inp) { inp.focus(); try { inp.select(); } catch (e) {} } }, 80);
       },
       /* tâche lâchée sur une ligne (tableau ou Gantt) : autre lot → changement de lot, puis rang */
       dropTask: (key, tr, after) => {
