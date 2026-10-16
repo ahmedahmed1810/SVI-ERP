@@ -1638,3 +1638,9 @@ détail technique en petit */
 #svConf .sup-in { height: 30px; border: 1px solid #d0d5dd; border-radius: 6px; padding: 0 8px; font-size: 12px; font-weight: 700; color: #172033; text-transform: uppercase; outline: none; -webkit-appearance: none; }
 #svConf .sup-in:focus { border-color: transparent; box-shadow: inset 0 0 0 2px var(--inst, #b91c1c); }
 #svConf .sup-in.sup-bad { border-color: #b91c1c; color: #b91c1c; }
+/* FORMAT 97 : menu ⋯ du détail — commandes du planning et affichage du Gantt */
+#blkMenu .blk-sep { flex: none; height: 1px; background: #e5e9ef; margin: 4px 0; }
+#blkMenu .dly-sc.on span { font-weight: 800; }
+#blkMenu [data-dly].off { opacity: .45; }
+/* FORMAT 91 : en-tête SEMAINE / MOIS */
+.gh-d.gh-w { text-align: left; padding-left: 3px; box-sizing: border-box; border-left: 1px solid #e4e7ec; white-space: nowrap; overflow: hidden; }

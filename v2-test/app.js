@@ -7848,8 +7848,11 @@ function renderBudgetList() {
     };
     /* GANTT (FORMAT 90 à 96) : à droite du tableau du PLANNING, lignes alignées ; jours en abscisse */
     /* largeur d'un jour du Gantt (FORMAT 91) : réglable en glissant sur l'en-tête ou en pinçant, 14 à 60 px, mémorisée */
-    const DLY_DW_MIN = 14, DLY_DW_MAX = 60;
-    const dlyDwGet = () => { let v = 22; try { v = Number(localStorage.getItem("svi_dlyg_dw_v1")) || 22; } catch (e) {} return Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v))); };
+    /* affichage du Gantt (FORMAT 91, 97) : JOUR / SEMAINE / MOIS — largeur d'un jour propre à chaque affichage, mémorisée */
+    const DLY_SC = { j: { min: 14, max: 60, def: 22, k: "svi_dlyg_dw_v1" }, s: { min: 4, max: 12, def: 9, k: "svi_dlyg_dw_s_v1" }, m: { min: 1, max: 4, def: 2, k: "svi_dlyg_dw_m_v1" } };
+    const dlyScale = () => { let v = "j"; try { v = localStorage.getItem("svi_dlyg_sc_v1") || "j"; } catch (e) {} return DLY_SC[v] ? v : "j"; };
+    let DLY_DW_MIN = DLY_SC[dlyScale()].min, DLY_DW_MAX = DLY_SC[dlyScale()].max;
+    const dlyDwGet = () => { const c = DLY_SC[dlyScale()]; DLY_DW_MIN = c.min; DLY_DW_MAX = c.max; let v = c.def; try { v = Number(localStorage.getItem(c.k)) || c.def; } catch (e) {} return Math.max(c.min, Math.min(c.max, Math.round(v))); };
     let DLY_DW = dlyDwGet();
     const DLY_HH = 110;
     /* largeur d'un intitulé dans la barre (police des barres : 9 px, gras) */
@@ -7904,14 +7907,33 @@ function renderBudgetList() {
       dates.sort();
       const today = sviIsoOf(new Date());
       const d0 = sviIsoAdd(dates[0] || today, -3), d1 = sviIsoAdd(dates[dates.length - 1] || sviIsoAdd(today, 30), 10);
-      DLY_DW = shell.__dlyDw || dlyDwGet();
+      DLY_DW = dlyDwGet();
+      const SC = dlyScale();
       host.style.setProperty("--dw", DLY_DW + "px");
       const nD = dDiff(d0, d1) + 1, W = nD * DLY_DW;
       const X = iso => dDiff(d0, iso) * DLY_DW;
       let head = "", bg = "";
       for (let i = 0; i < nD; i++) {
         const di = sviIsoAdd(d0, i), dd = Number(di.slice(8, 10));
-        if (dd === 1 || i === 0) head += `<span class="gh-m" style="left:${i * DLY_DW}px">${SVI_MOIS[Number(di.slice(5, 7)) - 1]} ${di.slice(0, 4)}</span>`;
+        const mo = Number(di.slice(5, 7)) - 1;
+        if (SC === "m") {
+          /* MOIS : année en haut, mois en bas */
+          if ((dd === 1 && mo === 0) || i === 0) head += `<span class="gh-m" style="left:${i * DLY_DW}px">${di.slice(0, 4)}</span>`;
+          if (dd === 1 || i === 0) { const nd = new Date(Number(di.slice(0, 4)), mo + 1, 0).getDate() - dd + 1;
+            head += `<span class="gh-d gh-w" style="left:${i * DLY_DW}px;width:${nd * DLY_DW}px">${["JANV.", "FÉVR.", "MARS", "AVR.", "MAI", "JUIN", "JUIL.", "AOÛT", "SEPT.", "OCT.", "NOV.", "DÉC."][mo]}</span>`; }
+          continue;
+        }
+        if (dd === 1 || i === 0) head += `<span class="gh-m" style="left:${i * DLY_DW}px">${SVI_MOIS[mo]} ${di.slice(0, 4)}</span>`;
+        if (SC === "s") {
+          /* SEMAINE : numéro de semaine (ISO) et date du lundi */
+          const dt = new Date(di + "T00:00:00");
+          if (dt.getDay() === 1 || i === 0) {
+            const t = new Date(dt); t.setDate(t.getDate() + 3 - (t.getDay() + 6) % 7);
+            const w1 = new Date(t.getFullYear(), 0, 4), wn = 1 + Math.round(((t - w1) / 864e5 - 3 + (w1.getDay() + 6) % 7) / 7);
+            head += `<span class="gh-d gh-w" style="left:${i * DLY_DW}px;width:${7 * DLY_DW}px">S${wn}${7 * DLY_DW >= 56 ? " " + di.slice(8, 10) + "/" + di.slice(5, 7) : ""}</span>`;
+          }
+          continue;
+        }
         const off = !sviWork(cal, di);
         head += `<span class="gh-d${off ? " off" : ""}" style="left:${i * DLY_DW}px">${dd}</span>`;
         if (off) bg += `<div class="gbg-off" style="left:${i * DLY_DW}px"></div>`;
@@ -7985,7 +8007,7 @@ function renderBudgetList() {
         const P = Number(INS.plaf) || Math.ceil(mx), top = Math.max(mx, P) + 1, sc = (DLY_HH - 16) / top;
         let hb = "";
         Object.keys(LD).forEach(di => { if (di < d0 || di > d1) return; const v = LD[di];
-          hb += `<div class="ghb${v > P + 1e-9 ? " over" : ""}" style="left:${X(di) + 3}px;width:${DLY_DW - 6}px;height:${Math.max(1, v * sc)}px" title="${Math.round(v * 100) / 100} J-H"></div>`; });
+          hb += `<div class="ghb${v > P + 1e-9 ? " over" : ""}" style="left:${X(di) + (DLY_DW > 10 ? 3 : 0)}px;width:${Math.max(1, DLY_DW - (DLY_DW > 10 ? 6 : 0))}px;height:${Math.max(1, v * sc)}px" title="${Math.round(v * 100) / 100} J-H"></div>`; });
         const late = INS.plaf && INS.dbut && dlyEnd(dlyLevel(P)) > INS.dbut;
         hist = `<div class="ghist" style="width:${W}px;height:${DLY_HH}px" data-sc="${sc}">${bg}${hb}
           <div class="gplaf" style="top:${DLY_HH - P * sc}px"><span class="gplaf-v">PLAFOND ${P}</span>${late ? `<span class="gplaf-w">${DLY_BUT_MSG}</span>` : ""}</div></div>`;
@@ -8200,8 +8222,9 @@ function renderBudgetList() {
           const P = Number(INS.plaf) || 0;
           const canLev = mx > 0 && P > 0 && mx > P + 1e-9;
           /* FORMAT 64 / 33 : pas de ligne d'explication au-dessus du PLANNING */
-          return `<div class="dly-tools"><button type="button" class="dly-gen">GÉNÉRER LE PLANNING</button><button type="button" class="dly-sortd">CLASSER PAR DÉBUT</button><button type="button" class="dly-lev"${canLev ? "" : " disabled"}>APPLIQUER LE NIVELLEMENT</button></div>`
-            + `<div class="dlyg"><div class="dlyg-l"${(() => { const w = Number(localStorage.getItem("svi_dlyg_w_v1")) || 0; return localStorage.getItem("svi_dlyg_w_v1") !== null ? ` style="width:${w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
+          /* FORMAT 97 : commandes du planning dans le menu ⋯ du bloc détail (plus de rangée de boutons) */
+          shell.__dlyCanLev = canLev;
+          return `<div class="dlyg"><div class="dlyg-l"${(() => { const w = Number(localStorage.getItem("svi_dlyg_w_v1")) || 0; return localStorage.getItem("svi_dlyg_w_v1") !== null ? ` style="width:${w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
             + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE AU PLANNING</button></div>`;
         }
         const ps = key ? [...insDlyList(key)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9"))) : [];
@@ -8726,8 +8749,7 @@ function renderBudgetList() {
       const dlyDwSet = (host, w, ax, p) => {
         w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w)));
         if (w === DLY_DW) return;
-        shell.__dlyDw = w;
-        try { localStorage.setItem("svi_dlyg_dw_v1", String(w)); } catch (e) {}
+        try { localStorage.setItem(DLY_SC[dlyScale()].k, String(w)); } catch (e) {}
         host.__drawn = false; dlyGanttDraw();
         const h2 = shell.querySelector("#dlyGantt");
         if (h2) h2.scrollLeft = Math.max(0, p * w - ax);
@@ -9256,7 +9278,9 @@ function renderBudgetList() {
         if (d === d0) { renderTab(); insRenderChain(); return; }
         dlyApply(k, { deb: d, fin: sviWFin(cal, d, dur) }, { anchor: a });
       },
-      pickPreds: k => dlyPickPreds(k), addWin: () => dlyAddWin(), go: k => { const [lo, se] = k.split("|"); LK.lot = lo; LK.sec = se; LK.prim = null; refreshAll(); },
+      pickPreds: k => dlyPickPreds(k), addWin: () => dlyAddWin(),
+      scale: v => { try { localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} keepScroll(() => renderTab()); }, scaleOf: () => dlyScale(), canLev: () => !!shell.__dlyCanLev,
+      go: k => { const [lo, se] = k.split("|"); LK.lot = lo; LK.sec = se; LK.prim = null; refreshAll(); },
       render: () => { renderTab(); insRenderChain(); } } : null;
     /* budget ouvert, pour PARAMÉTRAGE › CALENDRIER et DATES DU BUDGET (15/10/2026) */
     window.__sviBdgLive = INS ? {
@@ -16052,6 +16076,28 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         return `<button type="button" data-i="${i}">${a.innerHTML}<span>${esc(lab)}${a.__hint ? `<small class="del-split">${esc(a.__hint)}</small>` : ""}</span></button>`;
       }).join("");
       if (m.__hint) m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">${esc(m.__hint)}</div>`);
+      /* FORMAT 97 : DÉTAIL DÉLAIS ouvert (PLANNING) — commandes du planning et affichage JOUR / SEMAINE / MOIS en tête du menu */
+      const DX = shell.__insDly;
+      if (DX && active === "dly" && acts.some(a => a.dataset.blk === "detail") && shell.querySelector("#dlyGantt")) {
+        const sc = DX.scaleOf(), lev = DX.canLev();
+        const opt = (v, lab) => `<button type="button" data-dly="sc-${v}" class="dly-sc${sc === v ? " on" : ""}"><span>${sc === v ? "✓ " : ""}${lab}</span></button>`;
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-dly="gen"><span>GÉNÉRER LE PLANNING</span></button>
+          <button type="button" data-dly="sort"><span>CLASSER PAR DÉBUT</span></button>
+          <button type="button" data-dly="lev" class="${lev ? "" : "off"}" ${lev ? "" : 'aria-disabled="true"'}><span>APPLIQUER LE NIVELLEMENT</span></button>
+          <div class="blk-sep"></div><div class="blk-hint">AFFICHAGE DU GANTT</div>${opt("j", "JOUR")}${opt("s", "SEMAINE")}${opt("m", "MOIS")}<div class="blk-sep"></div>`);
+        let lp = null;
+        m.addEventListener("pointerdown", e => { const b = e.target.closest('[data-dly="lev"].off'); if (!b) return; lp = setTimeout(() => svToast("RIEN À NIVELER : AUCUN JOUR NE DÉPASSE LE PLAFOND DE MAIN D'ŒUVRE (OU PAS DE PLAFOND / PAS DE MAIN D'ŒUVRE).", 4000, b), 550); });
+        ["pointerup", "pointercancel"].forEach(t => m.addEventListener(t, () => clearTimeout(lp)));
+        m.addEventListener("click", e => {
+          const b = e.target.closest("[data-dly]");
+          if (!b) return;
+          e.stopPropagation();
+          if (b.classList.contains("off")) return;
+          m.remove();
+          const v = b.dataset.dly;
+          if (v === "gen") DX.gen(); else if (v === "sort") DX.sortDeb(); else if (v === "lev") DX.level(); else DX.scale(v.slice(3));
+        }, true);
+      }
       document.body.appendChild(m);
       const r = btn.getBoundingClientRect();
       sviPlaceMenu(m, r);
