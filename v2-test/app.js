@@ -6451,6 +6451,34 @@ function renderBudgetList() {
     };
     /* ===== LOTS en arborescence (« / ») dans le bloc TÂCHES : niveaux repliables › / ⌄, nom du dernier niveau ===== */
     const lotSegs = r => String(r && r.v || "").split("/").map(x => x.trim()).filter(Boolean);
+    /* v461 : NUMÉRO D'ORDRE des lots et niveaux (cahier, Planning budgétaire) — lots principaux 1, 2, 3… dans l'ordre des lots,
+       puis 1.1, 1.2, 1.1.1… selon l'arborescence ; écrit devant le nom (« 1.1 BAS ») ; niveau sans nom = « NIVEAU 1.1 » */
+    const LVL_AUTO = /^(NOUVEAU )?NIVEAU \d+(\.\d+)*$/i;
+    let lotNumC = { k: null, M: null };
+    const lotNumMap = () => {
+      const k = INS.lot.map(x => (x.t ? "#" : "") + x.v).join("\n");
+      if (lotNumC.k === k) return lotNumC.M;
+      const M = new Map(), cnt = new Map();
+      INS.lot.filter(x => !x.t).forEach(x => {
+        let p = "";
+        lotSegs(x).forEach(g => {
+          const par = p; p = p ? p + " / " + U_(g) : U_(g);
+          if (M.has(p)) return;
+          const n = (cnt.get(par) || 0) + 1; cnt.set(par, n);
+          M.set(p, (par ? M.get(par) + "." : "") + n);
+        });
+      });
+      lotNumC = { k, M };
+      return M;
+    };
+    const lotLab = segs => {
+      const sg = (segs || []).map(x => String(x || "").trim()).filter(Boolean);
+      const no = lotNumMap().get(sg.map(U_).join(" / ")) || "", last = sg[sg.length - 1] || "";
+      const auto = sg.length > 1 && LVL_AUTO.test(last);
+      const name = auto ? "NIVEAU " + no : last;
+      return { no, auto, name, full: auto ? name : (no ? no + " " : "") + last };
+    };
+    const lotNoHTML = L => L.auto || !L.no ? "" : `<span class="lvl-no">${esc(L.no)}</span>`;
     /* nom d'un nouveau niveau de lot (16/10/2026) : « NIVEAU n », numéro suivant dans le budget (anciens « NOUVEAU NIVEAU n » comptés) */
     /* v450 : nom d'un niveau créé selon l'arborescence — sous un lot : NIVEAU 1, NIVEAU 2… (rang parmi les niveaux du même parent) ;
        sous un niveau « NIVEAU 2 » : NIVEAU 2.1, NIVEAU 2.2… ; affiché avec le nom des parents (« FONDATION / NIVEAU 2 ») tant qu'on ne lui donne pas un intitulé */
@@ -6508,15 +6536,17 @@ function renderBudgetList() {
         /* niveau sans lot à lui : nom modifiable, case = toute sa branche */
         const br = INS.lot.filter(r => !r.t && lotUnder(r, x.segs));
         const all = br.length && br.every(r => r.on === true);
-        return `<div class="ins-li lot-grp" data-path="${esc(x.path)}"><span class="ins-rdc"></span><span class="lot-in" ${pad}>${fold}${sviLvlPre(x.segs) ? `<span class="lvl-pre"><span dir="ltr">${esc(sviLvlPre(x.segs))}</span></span>` : ""}${INS_EDIT ? `<input class="lot-gname" data-kind="grp" data-path="${esc(x.path)}" value="${esc(x.segs[x.segs.length - 1])}" autocomplete="off">` : `<span>${esc(x.segs[x.segs.length - 1])}</span>`}</span>
+        const GL = lotLab(x.segs);
+        return `<div class="ins-li lot-grp" data-path="${esc(x.path)}"><span class="ins-rdc"></span><span class="lot-in" ${pad}>${fold}${lotNoHTML(GL)}${INS_EDIT ? `<input class="lot-gname" data-kind="grp" data-path="${esc(x.path)}" value="${esc(GL.name)}" autocomplete="off">` : `<span>${esc(GL.name)}</span>`}</span>
           ${INS_EDIT ? `<span class="ins-delc"><input type="checkbox" class="lot-gcb" data-path="${esc(x.path)}"${all ? " checked" : ""}></span>` : ""}</div>`;
       }
       const r = x.r, k = "lot";
       const pre = x.segs.length > 1 ? x.segs.slice(0, -1).join(" / ") + " / " : "";
-      const nm = x.segs.length ? x.segs[x.segs.length - 1] : (r.v || "");
+      const LL = lotLab(x.segs);
+      const nm = x.segs.length ? LL.name : (r.v || "");
       return `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
-          ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><span class="lot-in" ${pad}>${fold}${sviLvlPre(x.segs) ? `<span class="lvl-pre"><span dir="ltr">${esc(sviLvlPre(x.segs))}</span></span>` : ""}<input class="ins-in" data-f="v" enterkeyhint="next" data-pre="${esc(pre)}" value="${esc(nm)}" autocomplete="off"></span>
-            <span class="ins-delc">${insDelCell(r)}</span>` : `<span class="lot-in" ${pad}>${fold}<span>${esc(sviLvlPre(x.segs) + nm)}</span></span>`}
+          ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><span class="lot-in" ${pad}>${fold}${lotNoHTML(LL)}<input class="ins-in" data-f="v" enterkeyhint="next" data-pre="${esc(pre)}" value="${esc(nm)}" autocomplete="off"></span>
+            <span class="ins-delc">${insDelCell(r)}</span>` : `<span class="lot-in" ${pad}>${fold}<span>${esc(x.segs.length ? LL.full : nm)}</span></span>`}
         </div>`;
     }).join("");
     /* glissement d'un lot (FORMAT 26, 44) : dans un niveau = passe dessous ; avant / après = même niveau que la ligne visée ;
@@ -8272,6 +8302,8 @@ function renderBudgetList() {
     const dlyFoldAll = () => { try { return JSON.parse(localStorage.getItem("svi_lotfold_v1") || "{}") || {}; } catch (e) { return {}; } };
     const dlyFoldK = p => (budget.project || "") + "|" + p;
     const dlyIsFolded = p => !!dlyFoldAll()[dlyFoldK(p)];
+    /* v461 : branche ISOLÉE (lot ou niveau) — pour ce budget, jusqu'à TOUT AFFICHER */
+    const dlyIsoPath = () => { const o = shell.__dlyIso; if (!o || o.ref !== DLYG_REF) return ""; const P = U_(o.path); return INS.lot.some(x => !x.t && (U_(x.v) === P || U_(x.v).startsWith(P + " / "))) ? o.path : ""; };
     const dlyFoldToggle = p => { const f = dlyFoldAll(), k = dlyFoldK(p); if (f[k]) delete f[k]; else f[k] = 1; try { localStorage.setItem("svi_lotfold_v1", JSON.stringify(f)); } catch (e) {} };
     /* ordre des lignes du PLANNING : gardé tel quel (glissement d'une barre compris) ; classé par DÉBUT à l'import,
        après GÉNÉRER LE PLANNING et par le bouton CLASSER PAR DÉBUT */
@@ -8329,23 +8361,45 @@ function renderBudgetList() {
       });
       const gather = n => (n.all = [...n.tasks, ...[...n.kids.values()].flatMap(gather)]);
       gather(root);
-      const out = root.tasks.map(t => ({ ...t, lvl: 0 }));
-      const walk = (n, lvl) => [...n.kids.values()].forEach(g => {
-        const ds = g.all.map(x => x.deb).filter(Boolean).sort(), fs = g.all.map(x => x.fin).filter(Boolean).sort();
-        const d0 = ds[0] || "", f0 = fs[fs.length - 1] || "", fold = dlyIsFolded(g.path);
-        out.push({ grp: true, lvl, name: g.name, path: g.path, fold, deb: d0, fin: f0, dur: d0 && f0 ? dDur(d0, f0) : "", all: g.all });
-        if (fold) return;
-        /* v446 : tâches et sous-niveaux mêlés dans l'ordre du PLANNING (un niveau reste là où il a été créé,
-           au rang de sa première tâche) — il ne descend plus après les tâches de son lot */
-        walkIn(g, lvl + 1);
-      });
       const pos = new Map(flat.map((t, i) => [t.key, i]));
       const first = n => Math.min(...n.all.map(t => pos.get(t.key)).filter(v => v !== undefined), Infinity);
-      const walkIn = (g, lvl) => {
-        const items = [...g.tasks.map(t => ({ t, o: pos.get(t.key) })), ...[...g.kids.values()].map(k => ({ k, o: first(k) }))].sort((a, b) => a.o - b.o);
-        items.forEach(it => { if (it.t) out.push({ ...it.t, lvl }); else walk({ kids: new Map([[it.k.name, it.k]]) }, lvl); });
+      /* v461 : un niveau peut être placé n'importe où (même tout en bas) : s'il est rangé hors du bloc de son parent
+         (après une tâche d'un autre lot), il s'affiche à sa place, seul, et reste lié à son parent par son numéro */
+      const runEnd = n => { const S = new Set(n.all.map(t => t.key)); let i = first(n); if (!isFinite(i)) return i; while (i < flat.length && S.has(flat[i].key)) i++; return i; };
+      const det = [];
+      const mark = n => { const e = runEnd(n); [...n.kids.values()].forEach(k => { const f = first(k); k.det = isFinite(f) && isFinite(e) && f >= e; if (k.det) det.push(k); mark(k); }); };
+      [...root.kids.values()].forEach(mark);
+      const out = [];
+      const hidden = path => { const sg = dlyLotPath(path); for (let i = 1; i < sg.length; i++) if (dlyIsFolded(sg.slice(0, i).join(" / "))) return true; return false; };
+      const emit = (g, lvl) => {
+        const ds = g.all.map(x => x.deb).filter(Boolean).sort(), fs = g.all.map(x => x.fin).filter(Boolean).sort();
+        const d0 = ds[0] || "", f0 = fs[fs.length - 1] || "", fold = dlyIsFolded(g.path);
+        out.push({ grp: true, lvl, name: g.name, path: g.path, fold, det: !!g.det, lab: lotLab(dlyLotPath(g.path)), deb: d0, fin: f0, dur: d0 && f0 ? dDur(d0, f0) : "", all: g.all });
+        if (fold) return;
+        /* v446 : tâches et sous-niveaux mêlés dans l'ordre du PLANNING (un niveau reste là où il a été créé) */
+        const items = [...g.tasks.map(t => ({ t, o: pos.get(t.key) })), ...[...g.kids.values()].filter(k => !k.det).map(k => ({ k, o: first(k) }))].sort((a, b) => a.o - b.o);
+        items.forEach(it => { if (it.t) out.push({ ...it.t, lvl: lvl + 1 }); else emit(it.k, lvl + 1); });
       };
-      walk(root, 0);
+      const top = [...root.tasks.map(t => ({ t, o: pos.get(t.key) })), ...[...root.kids.values()].map(k => ({ k, o: first(k) })),
+        ...det.filter(k => !hidden(k.path)).map(k => ({ k, o: first(k) }))].sort((a, b) => a.o - b.o);
+      top.forEach(it => { if (it.t) out.push({ ...it.t, lvl: 0 }); else emit(it.k, dlyLotPath(it.k.path).length - 1); });
+      /* v461 : ISOLER une branche — seules ses lignes restent, plus les tâches liées hors de la branche (gris, lecture seule) */
+      const iso = dlyIsoPath();
+      if (iso) {
+        const IP = dlyLotPath(iso).map(U_);
+        const inB = p => { const sg = dlyLotPath(p).map(U_); return sg.length >= IP.length && IP.every((g, i) => g === sg[i]); };
+        const kept = out.filter(x => inB(x.grp ? x.path : x.lot));
+        if (kept.length) {
+          const K = new Set(kept.filter(x => !x.grp).map(x => x.key));
+          const ext = new Set();
+          K.forEach(k => dlyLinks(k).forEach(l => { if (!K.has(l.k)) ext.add(l.k); }));
+          keys.forEach(k => { if (!K.has(k) && dlyLinks(k).some(l => K.has(l.k))) ext.add(k); });
+          const minL = Math.min(...kept.map(x => x.lvl));
+          const rows = kept.map(x => ({ ...x, lvl: x.lvl - minL }));
+          flat.filter(t => ext.has(t.key)).forEach(t => rows.push({ ...t, lvl: 0, ext: true }));
+          return { rows, flat, iso };
+        }
+      }
       return { rows: out, flat };
     };
     /* ajout d'une liaison (geste sur le Gantt) : pred → succ, FIN → DÉBUT ou DÉBUT → DÉBUT, décalage 0 */
@@ -8605,8 +8659,8 @@ function renderBudgetList() {
             /* nom court (sans le parent) ; un lot rangé dans un autre est décalé et marqué ↳ selon son niveau (comme le bloc LOT) */
             + (() => {
               /* v443 : nom du lot dans sa barre quand il y tient en entier (comme les tâches), sinon juste à droite */
-              const pre = sviLvlPre(dlyLotPath(x.path)), bw = r - 5 - l, need = dlyTxtW(pre + x.name) + (x.lvl ? 14 : 0) + 12, inb = l > 0 && bw >= need;
-              return `<span class="gb-n gb-out gb-grp gb-ren${inb ? " gb-gin" : ""}" data-path="${esc(x.path)}" style="left:${inb ? l + 4 : r + x.lvl * 14}px;top:${ty}px;--c:${gcolOf()}">${x.lvl ? '<span class="gb-lv">↳</span>' : ""}${pre ? `<span class="lvl-pre">${esc(pre)}</span>` : ""}${esc(x.name)}</span>`;
+              const LB = x.lab || lotLab(dlyLotPath(x.path)), bw = r - 5 - l, need = dlyTxtW(LB.full) + (x.lvl ? 14 : 0) + 16, inb = l > 0 && bw >= need;
+              return `<span class="gb-n gb-out gb-grp gb-ren${inb ? " gb-gin" : ""}" data-path="${esc(x.path)}" style="left:${inb ? l + 4 : r + x.lvl * 14}px;top:${ty}px;--c:${gcolOf()}">${x.lvl ? '<span class="gb-lv">↳</span>' : ""}${lotNoHTML(LB)}${esc(LB.name)}</span>`;
             })();
           const gcolOf = () => dlyLotColor((x.all.find(t => t.lo) || {}).lo);
           if (!segs.length) { bars += gname(17, 20); return; }
@@ -8630,11 +8684,11 @@ function renderBudgetList() {
         pos[x.key] = { l: left, r: left + w, y: y + BH / 2 };
         /* FORMAT 91 : nom dans la barre quand il y tient en entier, sinon juste à droite */
         const inside = dlyTxtW(x.sec) + 12 <= w;
-        bars += `<div class="gb${crit ? " crit" : ""}${inside ? " gb-tin" : ""}${w < 30 ? " gb-nar" : ""}" data-key="${esc(x.key)}" style="left:${left}px;width:${w}px;top:${y}px;--c:${col}">`
+        bars += `<div class="gb${x.ext ? " gb-ext" : ""}${crit ? " crit" : ""}${inside ? " gb-tin" : ""}${w < 30 ? " gb-nar" : ""}" data-key="${esc(x.key)}" style="left:${left}px;width:${w}px;top:${y}px;--c:${col}">`
           + (inside ? `<span class="gb-ti">${nm}</span>` : "")
           + `<span class="gb-s"></span><span class="gb-e"></span></div>`
           + (inside ? (x.jal || qqArret(x.key) ? `<span class="gb-n gb-out" style="left:${left + w + 5}px;top:${ty}px">${x.jal ? '<span class="gjal">★</span>' : ""}${qqArret(x.key) ? '<span class="garr">■</span>' : ""}</span>` : "")
-            : `<span class="gb-n gb-out gb-ren" data-key="${esc(x.key)}" style="left:${left + w + 5}px;top:${ty}px">${nm}${x.jal ? ' <span class="gjal">★</span>' : ""}${qqArret(x.key) ? ' <span class="garr">■</span>' : ""}</span>`);
+            : `<span class="gb-n gb-out${x.ext ? " gb-extn" : " gb-ren"}" data-key="${esc(x.key)}" style="left:${left + w + 5}px;top:${ty}px">${x.ext ? esc(lotLab(dlyLotPath(x.lot)).full) + " › " : ""}${nm}${x.jal ? ' <span class="gjal">★</span>' : ""}${qqArret(x.key) ? ' <span class="garr">■</span>' : ""}</span>`);
       });
       /* liaisons : fils fléchés (FIN → DÉBUT depuis la fin, DÉBUT → DÉBUT depuis le début) ; toucher le fil = fenêtre LIAISON */
       let lk = "";
@@ -8905,15 +8959,18 @@ function renderBudgetList() {
           const tbl = dlyTable(PR.rows.concat(INS_EDIT ? [{ nw: true }] : []), x => x.nw
             ? { lot: newIn("lot", "dlyLotDl"), sec: newIn("sec", "dlySecDl"), pred: "", deb: "", fin: "", dur: "", marge: "", jal: "", __cb: "", __td_marge: " dly-calc" }
             : x.grp
-            ? { lot: `<span class="dly-lotc" ${ind(x.lvl)}><span class="dly-fold" data-path="${esc(x.path)}"><b>${x.fold ? "›" : "⌄"}</b></span>${sviLvlPre(dlyLotPath(x.path)) ? `<span class="lvl-pre"><span dir="ltr">${esc(sviLvlPre(dlyLotPath(x.path)))}</span></span>` : ""}${nm("grp", `data-path="${esc(x.path)}"${sviLvlPre(dlyLotPath(x.path)) ? ` style="flex:0 0 ${Math.ceil(dlyTxtW(x.name) * 1.3) + 16}px"` : ""}`, x.name)}</span>`, sec: "", pred: "",
+            ? { lot: `<span class="dly-lotc" ${ind(x.lvl)}><span class="dly-fold" data-path="${esc(x.path)}"><b>${x.fold ? "›" : "⌄"}</b></span>${lotNoHTML(x.lab)}${nm("grp", `data-path="${esc(x.path)}"`, x.lab.name)}</span>`, sec: "", pred: "",
                 deb: `<b>${esc(dFr(x.deb))}</b>`, fin: `<b>${esc(dFr(x.fin))}</b>`, dur: x.dur === "" ? "" : `<b>${x.dur}</b>`, marge: "", jal: "", __td_marge: " dly-calc",
                 __cb: `<input type="checkbox" class="dlyp-cb" data-path="${esc(x.path)}"${x.all.length && x.all.every(t => SEL.has(t.key)) ? " checked" : ""}${x.all.some(t => SEL.has(t.key)) && !x.all.every(t => SEL.has(t.key)) ? " data-part=\"1\"" : ""}>` }
+            : x.ext
+            ? { lot: "", sec: `<span class="dly-lotc dly-extn" ${ind(0)}>${esc(lotLab(dlyLotPath(x.lot)).full)} › ${esc(x.sec)}</span>`, pred: esc(x.pred), deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur === "" ? "" : x.dur,
+                marge: x.marge === "" ? "" : x.marge, jal: x.jal ? "★" : "", __cb: "", __td_marge: " dly-calc" }
             : { lot: "", sec: `<span class="dly-lotc" ${ind(x.lvl)}>${nm("sec", `data-sid="${esc(x.key.split("|")[1])}"`, x.sec)}</span>`, pred: `<span class="dly-pred" data-key="${esc(x.key)}">${esc(x.pred) || "<i>CHOISIR…</i>"}</span>`,
                 deb: dlyCellIn(x, "deb"), fin: dlyCellIn(x, "fin"), dur: dlyCellIn(x, "dur"), marge: x.marge === "" ? "" : x.marge,
                 __td_deb: INS_EDIT ? " ins-td" : "", __td_fin: INS_EDIT ? " ins-td" : "", __td_dur: INS_EDIT ? " ins-td" : "",
                 jal: `<span class="dly-jal${x.jal ? " on" : ""}" data-key="${esc(x.key)}">${x.jal ? "★" : "☆"}</span>`, __td_marge: " dly-calc",
                 __cb: `<input type="checkbox" class="dlyp-cb" data-key="${esc(x.key)}"${SEL.has(x.key) ? " checked" : ""}>` },
-            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp" data-path="${esc(x.path)}"` : `class="dly-task${x.marge === 0 ? " dly-crit" : ""}${dlyPicked(x.key) ? " dly-pick" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P);
+            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp${x.det ? " dly-det" : ""}" data-path="${esc(x.path)}"` : `class="dly-task${x.ext ? " dly-ext" : ""}${x.marge === 0 ? " dly-crit" : ""}${dlyPicked(x.key) ? " dly-pick" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P);
           /* histogramme MAIN D'ŒUVRE sous le Gantt (FORMAT 98, 99) : libellé à gauche, sous le tableau */
           const LD = dlyLoad(dlyCurDates()), mx = Math.max(0, ...Object.values(LD));
           const P = Number(INS.plaf) || 0;
@@ -8923,7 +8980,8 @@ function renderBudgetList() {
           shell.__dlyCanLev = canLev;
           const dls = dl("dlyLotDl", [...new Set(INS.lot.filter(x => !x.t).map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")))
             + dl("dlySecDl", [...new Set(INS.sec.map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")));
-          return dls + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
+          const isoB = PR.iso ? `<div class="dly-iso"><span>ISOLÉ : <b>${esc(lotLab(dlyLotPath(PR.iso)).full)}</b></span><small>LIAISONS, DÉCALAGES ET CALENDRIER RESTENT APPLIQUÉS · TÂCHES LIÉES HORS DE LA BRANCHE EN GRIS (LECTURE SEULE)</small><button type="button" class="dly-iso-x">TOUT AFFICHER</button></div>` : "";
+          return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
             + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE OU SES DÉLAIS</button></div>`;
         }
         const ps = key ? [...insDlyList(key)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9"))) : [];
@@ -9309,11 +9367,13 @@ function renderBudgetList() {
         if (e.target.closest && e.target.closest(".dly-pred-new")) { X.addWin(); return; }
         if (e.target.closest && e.target.closest(".dly-gen")) { X.gen(); return; }
         if (e.target.closest && e.target.closest(".dly-sortd")) { X.sortDeb(); return; }
+        if (e.target.closest && e.target.closest(".dly-iso-x")) { X.isoOff(); return; }
         /* ‹ PLANNING : retour au PLANNING (lot et activités libérés, la désignation reste choisie ; brouillon gardé) */
         if (e.target.closest && e.target.closest(".dly-back")) { e.stopPropagation(); X.back(); return; }
         /* en-tête du Gantt : calendrier du budget, ouvert sur le mois touché */
         /* nom d'un lot ou d'une activité sur le Gantt : toucher = le modifier sur place */
         const gr = e.target.closest && e.target.closest("#dlyGantt .gb-ren");
+        if (gr && Date.now() - (shell.__dlyGLong || 0) < 600) { e.stopPropagation(); return; }
         if (gr) { e.stopPropagation(); dlyGEdit(gr); return; }
         const gf = e.target.closest && e.target.closest("#dlyGantt .gb-fold");
         if (gf) { e.stopPropagation(); X.fold(gf.dataset.path); return; }
@@ -9504,7 +9564,10 @@ function renderBudgetList() {
         if (L > 0) for (let k = i - 1; k >= 0; k--) if (rows[k].x.grp && rows[k].x.lvl === L - 1) { parent = rows[k].x.path; break; }
         const nx = rows.slice(i).find(q => !q.x.grp);
         const ref = next || prev;
-        return { parent, into: !!parent, before: nx ? nx.x.key : "", tr: ref.tr, r: ref.r, after: !next, lvl: L, line: true };
+        void parent; void L;
+        /* v461 : le parent ne change pas : le trait suit le titre parent du lot glissé */
+        const own = P.slice(0, -1).join(" / ");
+        return { parent: own, into: !!own, before: nx ? nx.x.key : "", tr: ref.tr, r: ref.r, after: !next, lvl: P.length - 1, line: true };
       };
       /* tâche glissée : au milieu d'une autre tâche (ligne encadrée) = superposer ; sinon trait (rang / lot) */
       /* tâche glissée (tableau ou Gantt), même logique que DÉSIGNATIONS CLIENT (FORMAT 44 / 64) :
@@ -9559,9 +9622,9 @@ function renderBudgetList() {
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
         const tr = e.target.closest && e.target.closest(".dlyg-l tr.dly-task, .dlyg-l tr.dly-grp");
-        if (!X || !tr || e.target.closest("input[type=checkbox], .dly-pred, .dly-jal, .dly-fold, .cf-btn")) return;
+        if (!X || !tr || tr.classList.contains("dly-ext") || e.target.closest("input[type=checkbox], .dly-pred, .dly-jal, .dly-fold, .cf-btn")) return;
         const x0 = e.clientX, y0 = e.clientY;
-        let on = false, hit = null;
+        let on = false, hit = null, far = false;
         const tm = setTimeout(() => { on = true; tr.classList.add("ro-src"); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); try { window.getSelection().removeAllRanges(); } catch (err) {} document.body.classList.add("svi-dragging"); }, 350);
         const tmv = ev => { if (on) ev.preventDefault(); };
         document.addEventListener("touchmove", tmv, { passive: false });
@@ -9569,6 +9632,8 @@ function renderBudgetList() {
         const mv = ev => {
           if (!on) { if (Math.abs(ev.clientX - x0) > 8 || Math.abs(ev.clientY - y0) > 8) end(); return; }
           ev.preventDefault();
+          if (!far && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 10) return;
+          far = true;
           shell.__dlySrcG = window.__sviDlySrcG = false;
           if (gRow) { hit = dlyGrpHit(ev, gRow.path, gRow.lvl, x0); dlyGrpShow(hit); return; }
           if (tr.classList.contains("dly-task")) { hit = dlyTaskHit(ev, tr, tr.dataset.key, x0); if (!hit) document.getElementById("roLine")?.remove(); return; }
@@ -9582,7 +9647,9 @@ function renderBudgetList() {
           document.getElementById("roLine")?.remove(); tr.classList.remove("ro-src"); document.body.classList.remove("svi-dragging");
           shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on")); sviDlyRoSync();
           if (on) { const stop = ev => { ev.stopPropagation(); ev.preventDefault(); }; shell.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 350); }
-          if (drop && on && hit) { if (gRow) X.moveGroup(gRow.path, hit, tr); else if (hit.on) X.superpose(tr.dataset.key, hit.on, tr); else if (tr.classList.contains("dly-task")) X.dropTaskTo(tr.dataset.key, hit, tr); else X.moveKeys(dlyRowKeys(tr), dlyRowKeys(hit.tr), hit.after); }
+          /* v461 : appui long sans glisser sur un lot ou un niveau = son menu (ISOLER) */
+          if (drop && on && !far && gRow) { X.grpMenu(gRow.path, tr.querySelector(".dly-lotc") || tr); return; }
+          if (drop && on && hit && far) { if (gRow) X.moveGroup(gRow.path, hit, tr); else if (hit.on) X.superpose(tr.dataset.key, hit.on, tr); else if (tr.classList.contains("dly-task")) X.dropTaskTo(tr.dataset.key, hit, tr); else X.moveKeys(dlyRowKeys(tr), dlyRowKeys(hit.tr), hit.after); }
         };
         const up = () => end(true), cc = () => end(false);
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", cc);
@@ -9693,6 +9760,17 @@ function renderBudgetList() {
         };
         shell.addEventListener("touchend", end); shell.addEventListener("touchcancel", end);
       }
+      /* v461 : appui long sur le NOM d'un lot ou d'un niveau sur le Gantt = son menu (ISOLER) */
+      shell.addEventListener("pointerdown", e => {
+        const X = shell.__insDly;
+        const gn = e.target.closest && e.target.closest("#dlyGantt .gb-grp[data-path]");
+        if (!X || !gn || e.button > 0) return;
+        const x0 = e.clientX, y0 = e.clientY;
+        const t = setTimeout(() => { shell.__dlyGLong = Date.now(); X.grpMenu(gn.dataset.path, gn); }, 500);
+        const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 8) stop(); };
+        const stop = () => { clearTimeout(t); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", stop); document.removeEventListener("pointercancel", stop); };
+        document.addEventListener("pointermove", mv); document.addEventListener("pointerup", stop); document.addEventListener("pointercancel", stop);
+      });
       /* barre d'un lot (ou d'un titre) sur le Gantt : glisser sans attendre = déplacer toutes ses tâches dans le temps ;
          appui long puis glisser vers le haut ou le bas = changer son rang ou son titre (FORMAT 96) */
       shell.addEventListener("pointerdown", e => {
@@ -9707,14 +9785,14 @@ function renderBudgetList() {
         const bars = [...host.querySelectorAll(".gb")].filter(b => G.has(b.dataset.key));
         const moving = [...els, ...bars];
         const x0 = e.clientX, y0 = e.clientY;
-        let mode = "", hit = null, days = 0;
+        let mode = "", hit = null, days = 0, gfar = false;
         const t = setTimeout(() => { if (mode) return; mode = "vert"; els.forEach(b => b.classList.add("gb-lift")); document.body.classList.add("svi-dragging"); }, 500);
         const tmv = ev => { if (mode) ev.preventDefault(); };
         document.addEventListener("touchmove", tmv, { passive: false });
         const mv = ev => {
           if (shell.__dlyPinch) { clearTimeout(t); return; }
           const dx = ev.clientX - x0;
-          if (mode === "vert") { ev.preventDefault(); shell.__dlySrcG = window.__sviDlySrcG = true; hit = g ? dlyGrpHit(ev, path, g.lvl, x0) : null; dlyGrpShow(hit); return; }
+          if (mode === "vert") { ev.preventDefault(); if (!gfar && Math.hypot(dx, ev.clientY - y0) < 10) return; gfar = true; shell.__dlySrcG = window.__sviDlySrcG = true; hit = g ? dlyGrpHit(ev, path, g.lvl, x0) : null; dlyGrpShow(hit); return; }
           if (!mode && Math.abs(dx) > 4) { mode = "time"; clearTimeout(t); moving.forEach(b => { b.__l0 = b.offsetLeft; b.classList.add("gb-drag"); }); }
           if (mode !== "time") return;
           ev.preventDefault();
@@ -9729,7 +9807,7 @@ function renderBudgetList() {
           shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(r => r.classList.remove("ro-on")); sviDlyRoSync();
           moving.forEach(b => b.classList.remove("gb-drag", "gb-lift"));
           if (shell.__dlyPinched) { shell.__dlyPinched = false; X.render(); return; }
-          if (mode === "vert") { if (hit) X.moveGroup(path, hit, gb); else X.render(); return; }
+          if (mode === "vert") { if (!gfar) { X.grpMenu(path, gb); return; } if (hit) X.moveGroup(path, hit, gb); else X.render(); return; }
           if (mode === "time") { if (days) X.shiftGroup(path, days, gb); else X.render(); }
         };
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
@@ -9738,6 +9816,7 @@ function renderBudgetList() {
         const X = shell.__insDly;
         const bar = e.target.closest && e.target.closest("#dlyGantt .gb");
         if (!X || !bar || e.button > 0) return;
+        if (bar.classList.contains("gb-ext")) { e.preventDefault(); svToast("TÂCHE HORS DE LA BRANCHE ISOLÉE : LECTURE SEULE (TOUT AFFICHER POUR LA MODIFIER).", 3000, bar); return; }
         const host = bar.closest("#dlyGantt"), body = host.querySelector(".gbody"), tmp = host.querySelector(".gtmp");
         const key = bar.dataset.key, mode = e.target.closest(".gb-e") ? "end" : e.target.closest(".gb-s") ? "start" : "body";
         e.preventDefault();
@@ -9825,6 +9904,29 @@ function renderBudgetList() {
       gen: () => dlyGenWin(), level: () => dlyApplyLevel(),
       back: () => { LK.lot = LK.prim = LK.sec = null; refreshAll(); },
       sortDeb: () => { dlySortByDeb(); insSave(); histLog("DÉLAIS", "CLASSER PAR DÉBUT", ""); refreshAll(); },
+      /* v461 : menu d'un lot ou d'un niveau (appui long) : ISOLER / TOUT AFFICHER */
+      grpMenu: (path, el) => {
+        document.getElementById("blkMenu")?.remove();
+        const m = document.createElement("div");
+        m.id = "blkMenu"; m.dataset.for = "dlyGrp";
+        const now = dlyIsoPath() === path;
+        m.innerHTML = `<div class="blk-hint">${esc(lotLab(dlyLotPath(path)).full)}</div>`
+          + `<button type="button" data-g="iso"><span>${now ? "TOUT AFFICHER" : "ISOLER"}</span></button>`
+          + (dlyIsoPath() && !now ? `<button type="button" data-g="all"><span>TOUT AFFICHER</span></button>` : "");
+        document.body.appendChild(m);
+        sviPlaceMenu(m, el.getBoundingClientRect());
+        const off = ev => { if (!m.contains(ev.target)) { m.remove(); document.removeEventListener("pointerdown", off, true); } };
+        setTimeout(() => document.addEventListener("pointerdown", off, true), 0);
+        m.addEventListener("click", ev => {
+          const b = ev.target.closest("[data-g]");
+          if (!b) return;
+          ev.stopPropagation();
+          m.remove(); document.removeEventListener("pointerdown", off, true);
+          shell.__dlyIso = b.dataset.g === "iso" && !now ? { ref: DLYG_REF, path } : null;
+          refreshAll();
+        });
+      },
+      isoOff: () => { shell.__dlyIso = null; refreshAll(); },
       moveRow: (k, t, after) => shell.__insDly.moveKeys([k], [t], after),
       /* déplacer un bloc de lignes (une tâche, ou toutes les tâches d'un lot) avant / après un autre */
       moveKeys: (ks, ts, after) => {
@@ -9967,7 +10069,9 @@ function renderBudgetList() {
          plan = { parent: chemin du titre d'arrivée ("" = racine), before: clé de la tâche devant laquelle il se place, on: chemin superposé } */
       moveGroup: (path, plan, anchor) => {
         const L = INS.lot, src = dlyLotPath(path);
-        let base = plan.parent ? dlyLotPath(plan.parent) : [], extra = null, N = "";
+        /* v461 : glissé entre deux lignes = la PLACE change, jamais le parent (le numéro garde l'appartenance ; placé hors du
+           bloc de son parent, il s'affiche seul à sa place) ; superposé sur un titre = rangé dans ce titre */
+        let base = plan.on ? [] : src.slice(0, -1), extra = null, N = "";
         const under = (v, P) => { const s2 = dlyLotPath(v); return s2.length >= P.length && P.every((g, i) => U_(g) === U_(s2[i])); };
         if (plan.on) {
           const T = dlyLotPath(plan.on);
@@ -9980,7 +10084,7 @@ function renderBudgetList() {
         }
         if (base.length >= src.length && src.every((g, i) => U_(g) === U_(base[i]))) { renderTabK(); return; }   /* pas dans sa propre branche */
         /* déjà rangé là (même parent) : on le dit, au lieu de ne rien faire en silence */
-        if (!extra && U_(src.slice(0, -1).join(" / ")) === U_(base.join(" / ")) && (plan.on || !plan.before)) { svToast(src[src.length - 1] + (base.length ? " EST DÉJÀ DANS " + base[base.length - 1] : " EST DÉJÀ AU PREMIER NIVEAU") + ".", 3500, anchor); }
+        if (!extra && plan.on && U_(src.slice(0, -1).join(" / ")) === U_(base.join(" / "))) { svToast(src[src.length - 1] + (base.length ? " EST DÉJÀ DANS " + base[base.length - 1] : " EST DÉJÀ AU PREMIER NIVEAU") + ".", 3500, anchor); }
         const ren = new Map();
         const add = (P0, b0) => L.filter(x => !x.t && under(x.v, P0)).forEach(x => ren.set(x.id, b0.concat(dlyLotPath(x.v).slice(P0.length - 1)).join(" / ")));
         add(src, base); if (extra) add(extra.P, extra.base);
@@ -9997,7 +10101,7 @@ function renderBudgetList() {
         rest.splice(j, 0, ...mine);
         INS.dord = rest;
         dlyTasksFromPlan(); insSave();
-        histLog("DÉLAIS", N ? "NIVEAU DE LOT CRÉÉ" : "LOT DÉPLACÉ", dlyLotPath(path).pop() + " → " + (base.length ? base.join(" / ") : "RACINE"));
+        histLog("DÉLAIS", N ? "NIVEAU DE LOT CRÉÉ" : plan.on ? "LOT DÉPLACÉ" : "LOT DÉPLACÉ (PLACE)", dlyLotPath(path).pop() + (plan.on || N ? " → " + (base.length ? base.join(" / ") : "RACINE") : ""));
         refreshAll();
         if (N) setTimeout(() => { const i = [...shell.querySelectorAll("input.dly-nm")].find(x => x.dataset.path === base.join(" / ")); if (i) { i.focus(); try { i.select(); } catch (e) {} } }, 80);
       },
@@ -10166,7 +10270,7 @@ function renderBudgetList() {
         /* lot ou niveau de lot (« / ») : toutes les tâches dessous suivent */
         const segs = dlyLotPath(inp.dataset.path), lvl = segs.length;
         if (!v || v.includes("/")) { svToast(!v ? "NOM VIDE REFUSÉ." : "« / » SÉPARE LES NIVEAUX : NOM REFUSÉ.", 3500, inp); back(); return; }
-        if (v === segs[lvl - 1]) { back(); return; }
+        if (v === segs[lvl - 1] || (LVL_AUTO.test(segs[lvl - 1] || "") && v === U_(lotLab(segs).name))) { back(); return; }
         const hit = INS.lot.filter(x => !x.t && (() => { const p = dlyLotPath(x.v); return p.length >= lvl && segs.every((sg, i) => U_(p[i]) === U_(sg)); })());
         const nv = x => { const p = dlyLotPath(x.v); p[lvl - 1] = v; return p.join(" / "); };
         const ids = new Set(hit.map(x => x.id));
@@ -17226,6 +17330,11 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           const v = b.dataset.dly;
           if (v === "gen") DX.gen(); else if (v === "sort") DX.sortDeb(); else if (v === "lev") DX.level(); else DX.scale(v.slice(3));
         }, true);
+      }
+      /* v461 : bloc TÂCHES — CLASSER PAR DÉBUT (même ordre que le PLANNING : lots, activités, puis le planning) */
+      if (DX && INS_EDIT && acts.some(a => a.dataset.blk === "hier")) {
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-hs="sort"><span>CLASSER PAR DÉBUT</span></button><div class="blk-sep"></div>`);
+        m.addEventListener("click", e => { const b = e.target.closest("[data-hs]"); if (!b) return; e.stopPropagation(); m.remove(); DX.sortDeb(); }, true);
       }
       if (QQm && QQm.edit()) {
         const n = QQm.nChecked();
