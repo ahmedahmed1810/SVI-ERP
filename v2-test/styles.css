@@ -1758,3 +1758,8 @@ td.ins-tdv { position: relative; }
 .inf-cell.inf-dt > .fld-wrap { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; }
 .inf-cell.inf-dt > .fld-wrap:last-child { flex: 0 0 104px !important; width: 104px !important; }
 .inf-cell.inf-dt > .fld-wrap > input { width: 100% !important; }
+/* v459 : menu ⋯ trop long pour la hauteur de l'écran : deux colonnes, vu en entier */
+#blkMenu.sv-2col { display: block; column-count: 2; column-gap: 6px; column-rule: 1px solid #eef1f5; }
+#blkMenu.sv-2col > * { break-inside: avoid; -webkit-column-break-inside: avoid; }
+#blkMenu.sv-2col > button { display: flex; width: 100%; box-sizing: border-box; }
+#blkMenu.sv-2col .blk-sep { height: 1px; }
