@@ -9220,6 +9220,8 @@ function renderBudgetList() {
         if (gf) { e.stopPropagation(); X.fold(gf.dataset.path); return; }
         const gh = e.target.closest && e.target.closest("#dlyGantt .gh");
         if (gh && shell.__dlyNoClick) { shell.__dlyNoClick = false; return; }
+        /* v449 : deux doigts posés sur le Gantt (pincement pour élargir) : le calendrier ne s'ouvre pas */
+        if (gh && Date.now() - (shell.__dlyMultiT || 0) < 800) return;
         if (gh) { const host = gh.closest("#dlyGantt"); const n = Math.floor((e.clientX - gh.getBoundingClientRect().left) / DLY_DW); sviBdgCalWin(sviIsoAdd(host.__d0, Math.max(0, n))); return; }
         const lv = e.target.closest && e.target.closest(".dly-lev");
         if (lv) { if (!lv.disabled) X.level(); return; }
@@ -9509,6 +9511,7 @@ function renderBudgetList() {
         const x0 = e.clientX, y0 = e.clientY, w0 = DLY_DW, ax = x0 - hr.left, p = (ax + host.scrollLeft) / w0;
         let on = false, raf = 0;
         const mv = ev => {
+          if (shell.__dlyPinch) return;   /* deuxième doigt posé : c'est le pincement qui agit */
           const dx = ev.clientX - x0;
           if (!on) { if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(ev.clientY - y0)) return; on = true; }
           ev.preventDefault();
@@ -9521,8 +9524,23 @@ function renderBudgetList() {
         };
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       });
+      /* tableau caché (Gantt sur toute la largeur) ou de nouveau affiché à sa largeur d'avant */
+      const dlyToggleTable = () => {
+        const L = shell.querySelector(".dlyg-l");
+        if (!L) return;
+        const X = shell.__insDly, ins = X ? X.INS : (shell.__dlygW || {}).ins;
+        const w = L.getBoundingClientRect().width;
+        if (w > 2) { shell.__dlygPrevW = Math.round(w); L.style.width = "0px"; L.style.maxWidth = "none"; shell.__dlygW = { ins, w: 0, auto: false }; }
+        else { const nw = shell.__dlygPrevW || 600; L.style.width = nw + "px"; L.style.maxWidth = "none"; shell.__dlygW = { ins, w: nw, auto: false }; }
+        if (window.__sviViewSave) window.__sviViewSave();
+      };
       if (!shell.__dlyPinchBound) {
         shell.__dlyPinchBound = true;
+        /* plusieurs doigts sur le Gantt : noté, pour ne pas prendre la fin du geste pour un toucher (calendrier) */
+        const multi = e => { if (e.touches && e.touches.length >= 2 && e.target.closest && e.target.closest("#dlyGantt")) shell.__dlyMultiT = Date.now(); };
+        shell.addEventListener("touchstart", multi, { capture: true, passive: true });
+        shell.addEventListener("touchmove", multi, { capture: true, passive: true });
+        shell.addEventListener("touchend", e => { if (Date.now() - (shell.__dlyMultiT || 0) < 800) shell.__dlyMultiT = Date.now(); }, { capture: true, passive: true });
         let P0 = null;
         const dist = t => Math.abs(t[0].clientX - t[1].clientX), distY = t => Math.abs(t[0].clientY - t[1].clientY);
         shell.addEventListener("touchstart", e => {
@@ -9530,7 +9548,7 @@ function renderBudgetList() {
           if (!host || e.touches.length !== 2) return;
           const hr = host.getBoundingClientRect(), mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - hr.left;
           /* écarter à l'horizontale = largeur des jours ; à la verticale = hauteur des lignes et des barres (sens choisi au premier mouvement) */
-          P0 = { host, d: Math.max(20, dist(e.touches)), dy: Math.max(20, distY(e.touches)), rh0: dlyRhGet(), mode: "", rx: dist(e.touches), ry: distY(e.touches), w0: DLY_DW, ax: mx, p: (mx + host.scrollLeft) / DLY_DW };
+          P0 = { t0: Date.now(), host, d: Math.max(20, dist(e.touches)), dy: Math.max(20, distY(e.touches)), rh0: dlyRhGet(), mode: "", rx: dist(e.touches), ry: distY(e.touches), w0: DLY_DW, ax: mx, p: (mx + host.scrollLeft) / DLY_DW };
           shell.__dlyPinch = true; shell.__dlyPinched = true;
           P0.tg = e.target; e.target.addEventListener("touchmove", pmv, { passive: false }); e.target.addEventListener("touchend", end); e.target.addEventListener("touchcancel", end);
           e.preventDefault();
@@ -9555,7 +9573,12 @@ function renderBudgetList() {
           dlyDwSet(shell.querySelector("#dlyGantt") || P0.host, w, P0.ax, P0.p);
         };
         shell.addEventListener("touchmove", pmv, { passive: false });
-        const end = e => { if (!P0 || (e.touches && e.touches.length >= 2)) return; const tg = P0.tg; if (tg) { tg.removeEventListener("touchmove", pmv); tg.removeEventListener("touchend", end); tg.removeEventListener("touchcancel", end); } P0 = null; setTimeout(() => { shell.__dlyPinch = false; }, 50); };
+        const end = e => { if (!P0 || (e.touches && e.touches.length >= 2)) return; const tg = P0.tg; if (tg) { tg.removeEventListener("touchmove", pmv); tg.removeEventListener("touchend", end); tg.removeEventListener("touchcancel", end); }
+          /* v449 : toucher bref à deux doigts (sans écarter) n'importe où sur le Gantt = Gantt sur toute la largeur ↔ tableau de nouveau affiché */
+          const tap = !P0.mode && Date.now() - P0.t0 < 450 && e.type === "touchend";
+          P0 = null; setTimeout(() => { shell.__dlyPinch = false; }, 50);
+          if (tap) dlyToggleTable();
+        };
         shell.addEventListener("touchend", end); shell.addEventListener("touchcancel", end);
       }
       /* barre d'un lot (ou d'un titre) sur le Gantt : glisser sans attendre = déplacer toutes ses tâches dans le temps ;
