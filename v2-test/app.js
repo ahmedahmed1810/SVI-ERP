@@ -7844,8 +7844,11 @@ function renderBudgetList() {
             const d = document.createElement("div");
             d.className = "ins-li ins-new";
             d.dataset.ik = k;
-            d.innerHTML = `<span class="ins-cbc"></span><input class="ins-in" data-f="v" enterkeyhint="next" placeholder="SAISIR ICI…" autocomplete="off">`;
-            holder.after(d);
+            d.innerHTML = `<span class="ins-rdc"></span><input class="ins-in" data-f="v" enterkeyhint="next" placeholder="SAISIR ICI…" autocomplete="off"><span class="ins-delc"></span>`;
+            /* v467 : une seule ligne SAISIR ICI… par liste — l'ancienne (restée vide) disparaît, la nouvelle va en bas */
+            const col = holder.closest(".ins-hcol");
+            if (col) col.querySelectorAll(".ins-new").forEach(o => { if (o !== d && !o.dataset.iid) o.remove(); });
+            (col || holder.parentElement).appendChild(d);
             const lab = holder.closest(".ins-hcol")?.querySelector(".svi-cnt");
             if (lab) lab.textContent = X.INS[k].length;
           }
@@ -7857,6 +7860,10 @@ function renderBudgetList() {
         if (c) X.insLive(k, holder, r);
         X.insSave();
       });
+      /* v467 : garde-fou — jamais deux lignes SAISIR ICI… dans une même liste (on garde la dernière) */
+      shell.addEventListener("focusout", () => setTimeout(() => {
+        shell.querySelectorAll(".ins-hcol").forEach(c => { const n = [...c.querySelectorAll(":scope > .ins-new")]; n.slice(0, -1).forEach(o => { const i = o.querySelector("input"); if (!o.dataset.iid && i && !i.value && i !== document.activeElement) o.remove(); }); });
+      }, 0));
       shell.addEventListener("click", e => {
         const X = shell.__ins;
         if (!X) return;
