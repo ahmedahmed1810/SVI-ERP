@@ -6016,7 +6016,7 @@ function renderBudgetList() {
       });
       return ch;
     };
-    shell.__prdSyncU = () => { if (INS && INS_EDIT && prdSyncU()) insSave(); };
+    shell.__prdSyncU = () => { if (INS && INS_EDIT && prdSyncU()) { insSave(); return true; } return false; };
     /* une cellule : champ saisissable, ou verrouillé (titre, calculé) */
     const insCell = (k, r, c) => {
       const [f, , cls, type] = c;
@@ -6106,17 +6106,11 @@ function renderBudgetList() {
         /* règle B : la liaison primaire (act. scd = act. prm) n'a que des produits de l'unité de la désignation */
         const D = LK.des && INS.des.find(x => x.id === LK.des), du = U_(D && D.u);
         const pid = k === "prim" ? id : LK.prim, sid = k === "sec" ? id : LK.sec;
-        if (du && pid && sid && insIsPrimLink(pid, sid)) {
-          const bad = Object.keys(LK.prd || {}).find(x => { const P = INS.prd.find(y => y.id === x); return P && U_(P.u) && U_(P.u) !== du; });
-          if (bad) return "RÈGLE B : LIAISON PRIMAIRE — " + lkName("prd", bad) + " N'A PAS L'UNITÉ DE LA DÉSIGNATION (" + du + ").";
-        }
+        /* v471 (règle B revue) : plus de refus — les produits de la liaison primaire prennent l'UPB et le PPB de la désignation */
+        void du; void pid; void sid;
         return "";
       }
-      if (k === "prd" && LK.des && LK.prim && LK.sec && insIsPrimLink(LK.prim, LK.sec)) {
-        const D = INS.des.find(x => x.id === LK.des), P = INS.prd.find(x => x.id === id);
-        const du = String((D && D.u) || "").trim().toUpperCase(), pu = String((P && P.u) || "").trim().toUpperCase();
-        if (du && pu && du !== pu) return "RÈGLE B : LIAISON PRIMAIRE — UNITÉ " + pu + " ≠ UNITÉ DE LA DÉSIGNATION (" + du + ").";
-      }
+
       if ((k === "prd" || k === "chg") && LK.lot && LK.sec) {
         const l = (INS.links || []).find(l => l.lot === LK.lot && l.sec === LK.sec && !(l.des === LK.des && l.prim === LK.prim)
           && (l[k] || []).some(x => x.id === id));
@@ -10680,8 +10674,7 @@ function renderBudgetList() {
       if (ra) return ra;
       const D = INS.des.find(x => x.id === LK.des);
       const du = U_(D && D.u);
-      const bad = du && insIsPrimLink(LK.prim, LK.sec) && Object.keys(LK.prd).find(id => { const p = INS.prd.find(x => x.id === id); return p && U_(p.u) && U_(p.u) !== du; });
-      if (bad) return "UNITÉ : " + lkName("prd", bad) + " (" + U_(INS.prd.find(x => x.id === bad).u) + ") N'A PAS L'UNITÉ DE LA DÉSIGNATION (" + du + ").";
+      /* v471 : unité d'un produit ≠ désignation dans une liaison primaire : plus refusée (elle sera celle de la désignation) */
       const pk = id => impId("prd", INS.prd.find(x => x.id === id) || {});
       const dup = Object.keys(LK.prd).find(id => L.some(l => l.lot === LK.lot && l.sec === LK.sec && (l.prd || []).some(x => x.id === id || pk(x.id) === pk(id))));
       if (dup) return "RÈGLE D : " + lkName("prd", dup) + " EST DÉJÀ DANS LA TÂCHE SECONDAIRE " + lkName("lot", LK.lot) + " › " + lkName("sec", LK.sec) + ".";
@@ -11073,12 +11066,12 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       lkLight(k);
     };
     shell.__fuse = INS && INS_EDIT ? { INS, LK, insId, check: lkCheck, allToggle: k => lkAllToggle(k), chain: () => insRenderChain(), refresh: () => refreshAll(),
-      commit: () => lkCommit(), guard: () => lkGuard(), pending: () => lkPending(), ruleA: (k, id) => lkRuleA(k, id),
+      commit: () => { const r0 = lkCommit(); if (shell.__prdSyncU && shell.__prdSyncU()) refreshAll(); return r0; }, guard: () => lkGuard(), pending: () => lkPending(), ruleA: (k, id) => lkRuleA(k, id),
       light: k => lkLight(k), unlink: (k, id) => lkUnlink(k, id), name: (k, id) => lkName(k, id),
       unitErr: id => {
         const D = INS.des.find(x => x.id === LK.des), P = INS.prd.find(x => x.id === id);
         const du = String((D && D.u) || "").trim().toUpperCase(), pu = String((P && P.u) || "").trim().toUpperCase();
-        return du && pu && du !== pu && LK.prim && LK.sec && insIsPrimLink(LK.prim, LK.sec) ? "UNITÉ REFUSÉE : " + (P.des || "") + " (" + pu + ") N'A PAS L'UNITÉ DE LA DÉSIGNATION (" + du + ")." : "";
+        void du; void pu; return "";
       },
       info: () => {
         /* fenêtre au format INF : titre, ✕, libellés à gauche, état de la liaison, produits et charges, FERMER */
@@ -20537,3 +20530,31 @@ function sviDlyRoSync() {
     }
   }, true);
 })();
+
+/* =========================================================
+   FORMAT 121 (v471) : cases de nombre — chiffres seulement, dès la frappe, partout.
+   inputmode="decimal" : chiffres + une virgule (ou un point) ; inputmode="numeric" : chiffres seuls ;
+   « − » seulement si la case porte data-neg. Espaces (séparateurs de milliers) tolérés.
+   Tout autre caractère (frappe ou collage) est retiré aussitôt, avec un court message près de la case.
+   ========================================================= */
+document.addEventListener("input", e => {
+  const el = e.target;
+  if (!el || el.tagName !== "INPUT" || el.readOnly) return;
+  const m = el.getAttribute("inputmode");
+  if (m !== "decimal" && m !== "numeric") return;
+  const v0 = el.value, dec = m === "decimal", neg = el.hasAttribute("data-neg");
+  let out = "", sep = false, bad = false;
+  for (let i = 0; i < v0.length; i++) {
+    const c = v0[i];
+    if (/[0-9]/.test(c) || c === " " || c === " " || c === " ") { out += c; continue; }
+    if (dec && (c === "," || c === ".") && !sep) { sep = true; out += c; continue; }
+    if (neg && (c === "-" || c === "−") && !out.trim()) { out += "-"; continue; }
+    bad = true;
+  }
+  if (!bad) return;
+  let pos = 0;
+  try { pos = Math.max(0, (el.selectionStart || 0) - (v0.length - out.length)); } catch (err) {}
+  el.value = out;
+  try { el.setSelectionRange(pos, pos); } catch (err) {}
+  if (typeof svToast === "function") svToast(dec ? "CHIFFRES SEULEMENT (UNE VIRGULE PERMISE)." : "CHIFFRES SEULEMENT.", 2200, el);
+}, true);
