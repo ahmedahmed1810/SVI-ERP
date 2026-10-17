@@ -19208,9 +19208,12 @@ function sviWatchState(shell) {
 /* message au format de l'application (jamais de fenêtre Safari) : titre, texte, FERMER */
 /* menus ⋯ (FORMAT 107) : sous le bouton s'il y a la place, sinon au-dessus ; sinon hauteur disponible avec défilement */
 /* v453 (FORMAT 28) : hauteur réellement visible — sur iPad, window.innerHeight peut compter la zone cachée par la barre de Safari */
-function sviViewH() { const v = window.visualViewport; return Math.min(window.innerHeight, v ? v.height + (v.offsetTop || 0) : window.innerHeight); }
+function sviViewH() {
+  const v = window.visualViewport, de = document.documentElement;
+  return Math.min(window.innerHeight, de && de.clientHeight ? de.clientHeight : window.innerHeight, v ? v.height + (v.offsetTop || 0) : window.innerHeight);
+}
 function sviPlaceMenu(m, r) {
-  const vh = sviViewH(), M = 12;
+  const vh = sviViewH(), M = 20;
   m.style.maxHeight = ""; m.style.top = "0px";
   const h = m.offsetHeight, below = vh - r.bottom - 4 - M, above = r.top - 4 - M;
   if (h <= below) m.style.top = r.bottom + 4 + "px";
@@ -19221,6 +19224,10 @@ function sviPlaceMenu(m, r) {
   /* garde finale : le menu ne dépasse jamais le bas de la partie visible (défilement interne) */
   const b = m.getBoundingClientRect();
   if (b.bottom > vh - M) m.style.maxHeight = Math.max(120, vh - M - b.top) + "px";
+  /* v456 : menu plus long que la place : il défile à l'intérieur, une flèche ▼ en bas le signale (disparaît en bas de la liste) */
+  const more = m.scrollHeight > m.clientHeight + 2;
+  m.classList.toggle("sv-more", more && m.scrollTop + m.clientHeight < m.scrollHeight - 2);
+  if (!m.__svMoreB) { m.__svMoreB = true; m.addEventListener("scroll", () => m.classList.toggle("sv-more", m.scrollTop + m.clientHeight < m.scrollHeight - 2), { passive: true }); }
   /* mise en page tardive (polices, iPad) : replacé une fois affiché, et si la zone visible change */
   if (!m.__svPlaced) {
     m.__svPlaced = true;
