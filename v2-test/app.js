@@ -7691,12 +7691,18 @@ function renderBudgetList() {
         /* délais : saisis ici (périodes par tâche secondaire ; tâche primaire choisie = récapitulatif) */
         body.innerHTML = `<div class="bdg-d-scroll">${insDlyHTML(INS_EDIT, shell.__insDly && shell.__insDly.err)}</div>`;
         /* v454 : nouvelle tâche choisie par les ronds → le PLANNING défile jusqu'à sa ligne (surlignée) */
-        { const pk = [LK.lot, LK.prim, LK.sec].join("|");
-          if (pk !== shell.__dlyPickK) { shell.__dlyPickK = pk; setTimeout(() => {
-            const tr = body.querySelector("tr.dly-pick"), sc = body.querySelector(".bdg-d-scroll");
-            if (!tr || !sc) return;
-            const r = tr.getBoundingClientRect(), b = sc.getBoundingClientRect();
-            if (r.top < b.top + 40 || r.bottom > b.bottom - 10) sc.scrollTop += r.top - b.top - Math.max(40, (b.height - r.height) / 2);
+        /* v464 : ronds changés → tableau ouvert s'il était caché, première tâche surlignée en haut du tableau et du Gantt */
+        { const pk = [LK.des, LK.lot, LK.prim, LK.sec, Object.keys(LK.prd || {}).join(","), Object.keys(LK.chg || {}).join(",")].join("|");
+          if (pk !== shell.__dlyPickK) { shell.__dlyPickK = pk; if (shell.__dlyPS && shell.__dlyPS.size) setTimeout(() => {
+            if (shell.__dlyOpenToDur) shell.__dlyOpenToDur();
+            setTimeout(() => {
+              const tr = body.querySelector(".dlyg-l tr.dly-pick"), sc = body.querySelector(".bdg-d-scroll");
+              if (!tr || !sc) return;
+              const th = tr.closest("table").querySelector("thead"), hh = th ? th.getBoundingClientRect().height : 0;
+              sc.scrollTop += tr.getBoundingClientRect().top - sc.getBoundingClientRect().top - hh;
+              const host = body.querySelector("#dlyGantt"), bar = host && host.querySelector(`.gb[data-key="${CSS.escape(tr.dataset.key)}"]`);
+              if (bar) host.scrollLeft = Math.max(0, bar.offsetLeft - 3 * (DLY_DW || 20));
+            }, 80);
           }, 60); } }
         return;
       }
@@ -8732,6 +8738,7 @@ function renderBudgetList() {
           <svg class="glinks" width="${W}" height="${bodyH}"><defs><marker id="gArr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#475467"/></marker></defs>${lk}</svg>
           ${bars}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>${hist}`;
       host.__X = X; host.__d0 = d0;
+      try { dlyPickPaint(); } catch (e) {}
       host.parentElement.querySelectorAll("input.dlyp-cb[data-part]").forEach(c => { c.indeterminate = true; });
       /* défilement horizontal du Gantt gardé d'un dessin à l'autre */
       if (shell.__dlyGx !== undefined) host.scrollLeft = shell.__dlyGx;
@@ -8904,13 +8911,46 @@ function renderBudgetList() {
       if (ch) setTimeout(() => insSave(), 0);
     };
     /* tâche choisie par les ronds (lot + activité secondaire), ou tâches de l'activité primaire choisie : surlignées */
-    const dlyPicked = k => {
-      if (!LK.lot) return false;
-      const [lo, se] = String(k).split("|");
-      if (lo !== LK.lot) return false;
-      if (LK.sec) return se === LK.sec;
-      return !!LK.prim && (INS.links || []).some(l => l.lot === lo && l.sec === se && l.prim === LK.prim);
+    /* v464 : ronds pleins (désignation, lot, activités, produits, charges) → tâches des liaisons correspondantes surlignées
+       dans le PLANNING (ligne et barre), les autres grisées ; null = aucun rond plein */
+    const dlyPickSet = () => {
+      const ch = ["des", "lot", "prim", "sec"].filter(k => LK[k]);
+      const cp = Object.keys(LK.prd || {}), cc = Object.keys(LK.chg || {});
+      if (!ch.length && !cp.length && !cc.length) return null;
+      const S = new Set();
+      (INS.links || []).filter(l => ch.every(k => l[k] === LK[k]) && cp.every(id => (l.prd || []).some(x => x.id === id)) && cc.every(id => (l.chg || []).some(x => x.id === id)))
+        .forEach(l => S.add(l.lot + "|" + l.sec));
+      if (LK.lot && LK.sec && !LK.des && !cp.length && !cc.length) S.add(LK.lot + "|" + LK.sec);
+      return S;
     };
+    const dlyPicked = k => { const S = shell.__dlyPS; return !!(S && S.has(k)); };
+    const dlyPickPaint = () => {
+      const S = shell.__dlyPS, box = shell.querySelector(".dlyg");
+      if (!box) return;
+      box.classList.toggle("dly-picking", !!S);
+      const R = shell.__dlyRows || [];
+      box.querySelectorAll("#dlyGantt .gb[data-key], #dlyGantt .gb-n[data-key]").forEach(b => { const on = !!(S && S.has(b.dataset.key)); b.classList.toggle("gb-pick", on); b.classList.toggle("gb-dim", !!S && !on); });
+      box.querySelectorAll("#dlyGantt [data-path]").forEach(b => { const g = R.find(r => r.grp && r.path === b.dataset.path); const on = !!(S && g && g.all.some(t => S.has(t.key))); b.classList.toggle("gb-dim", !!S && !on); });
+      box.querySelectorAll(".dlyg-l tr.dly-grp").forEach(tr => { const g = R.find(r => r.grp && r.path === tr.dataset.path); const on = !!(S && g && g.all.some(t => S.has(t.key))); tr.classList.toggle("dly-dim", !!S && !on); });
+      box.querySelectorAll(".dlyg-l tr.dly-task").forEach(tr => { const on = !!(S && S.has(tr.dataset.key)); tr.classList.toggle("dly-dim", !!S && !on); });
+    };
+    shell.__dlyPickPaint = dlyPickPaint;
+    /* tableau caché : ouvert jusqu'à la colonne DURÉE (J) (même règle que le toucher de la pastille) */
+    const dlyOpenToDur = () => {
+      const g = shell.querySelector(".dlyg"), L = g && g.querySelector(".dlyg-l");
+      if (!L || L.getBoundingClientRect().width > 2) return;
+      const gw = g.getBoundingClientRect();
+      L.style.width = Math.round(gw.width - 3) + "px"; L.style.maxWidth = "none";
+      const th = [...L.querySelectorAll("thead th")].find(t => /^DURÉE/.test((t.textContent || "").trim()));
+      let w = th ? Math.round(th.getBoundingClientRect().right - L.getBoundingClientRect().left + L.scrollLeft + 1) : (shell.__dlygPrevW || Math.round(gw.width * 0.55));
+      w = Math.max(60, Math.min(Math.round(gw.width - 3), w));
+      L.scrollLeft = 0; L.style.width = w + "px";
+      shell.__dlygPrevW = w; g.classList.remove("tbl-hid");
+      shell.__dlygW = { ins: INS, ref: DLYG_REF, w, auto: false };
+      if (window.__sviViewSave) window.__sviViewSave();
+      const host = g.querySelector("#dlyGantt"); if (host) { host.__drawn = false; dlyGanttDraw(); }
+    };
+    shell.__dlyOpenToDur = dlyOpenToDur;
     const dlyCellIn = (x, f) => {
       if (!INS_EDIT) return esc(f === "dur" ? x.dur : dFr(x[f]));
       const p = (insDlyList(x.key) || [])[0] || {};
@@ -8950,6 +8990,7 @@ function renderBudgetList() {
           if (INS_EDIT && dlyRespect(false)) setTimeout(() => insSave(), 0);
           /* un seul ordre : la première fois, le bloc TÂCHES prend l'ordre du PLANNING */
           if (INS_EDIT && !INS.ordSyncV1 && dlyKeys().length) { INS.ordSyncV1 = true; dlyTasksFromPlan(); setTimeout(() => { insSave(); refreshAll(); }, 0); }
+          shell.__dlyPS = dlyPickSet();
           const PR = dlyPlanRows();
           shell.__dlyRows = PR.rows;
           lastShown.detail = { cols: DLY_COLS_P, rows: PR.flat, kind: "dly" };

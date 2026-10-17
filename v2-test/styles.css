@@ -1774,3 +1774,8 @@ td.ins-tdv { position: relative; }
 .dlyg-l tr.dly-ext .dly-extn { font-weight: 600; }
 #dlyGantt .gb.gb-ext { opacity: .35; filter: grayscale(1); cursor: default; }
 #dlyGantt .gb-extn { color: #9aa3af; }
+/* v464 : tâches des liaisons choisies (ronds) surlignées, les autres grisées */
+.dlyg.dly-picking .dlyg-l tr.dly-dim > td { opacity: .38; }
+.dlyg.dly-picking #dlyGantt .gb-dim { opacity: .22; filter: grayscale(1); }
+.dlyg.dly-picking #dlyGantt .gb.gb-pick { box-shadow: 0 0 0 2px #f59e0b; }
+.dlyg.dly-picking #dlyGantt .gb-n.gb-pick { font-weight: 800; color: #92400e; }
