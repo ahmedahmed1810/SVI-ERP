@@ -6017,10 +6017,10 @@ function renderBudgetList() {
         else val = r[f] || "";
       }
       const artA = k === "des" && f === "art" && !isNew && !String(r.art ?? "").trim() ? (ART_AUTO.get(r.id) || "") : "";
-      if (!INS_EDIT) return `<td class="${cls}${k === "des" && f === "des" ? " c-wrap" : ""}${artA ? " art-auto" : ""}">${esc(artA || val)}${f === "tva" && val ? " %" : ""}</td>`;
+      if (!INS_EDIT) return `<td class="${cls}${k === "des" && f === "des" ? " c-wrap ins-tdv" : ""}${artA ? " art-auto" : ""}">${esc(artA || val)}${f === "tva" && val ? " %" : ""}${k === "des" && f === "des" && !isNew && !r.t ? `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>` : ""}</td>`;
       /* FORMAT 109 : DÉSIGNATION client sur plusieurs lignes si elle est trop longue (la ligne devient plus haute) */
       /* FORMAT 122 : ligne existante — texte affiché (appui long = glisser), un toucher ouvre la saisie */
-      if (k === "des" && f === "des" && !isNew) return `<td class="${cls} ins-td ins-tdv${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><div class="ins-dv" data-f="des">${esc(val)}</div><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea></td>`;
+      if (k === "des" && f === "des" && !isNew) return `<td class="${cls} ins-td ins-tdv${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><div class="ins-dv" data-f="des">${esc(val)}</div><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea>${r.t ? "" : `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>`}</td>`;
       if (k === "des" && f === "des") return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} ${isNew ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea></td>`;
       return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
         ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
@@ -7108,13 +7108,487 @@ function renderBudgetList() {
       else btn = `<button type="button" class="lk-go" disabled>✓ VALIDER LA LIAISON</button>`;
       el.innerHTML = `${LK.des ? '<button type="button" class="lk-info" title="Voir la liaison" aria-label="Voir la liaison">i</button>' : ""}${btn}`;
     };
+    /* =========================================================
+       DÉTAIL QUALITÉ (cahier, section Qualité ; FORMAT, section U, points 102 à 112) — v438
+       INS.qq = { M: [nœuds du MODÈLE COMMUN], T: { "lot|sec": [nœuds de la tâche] }, ext: [essais externes], per: { clé: personnel } }
+       nœud = { id, k: "t" (titre) | "p" (point de contrôle) | "c" (critère), d: niveau, v: intitulé, f: replié, on: coché, …champs du critère }
+       ========================================================= */
+    const QQ_M = ["MATIÈRE", "MAIN D'ŒUVRE", "MATÉRIEL", "MÉTHODE", "MILIEU", "MESURE"];
+    const QQ_LISTS = {
+      how: ["VISUEL", "MESURE", "ESSAI", "ÉPREUVE"],
+      who: ["INTÉRIEUR", "INTERNE", "EXTERNE", "EXTÉRIEUR"],
+      proof: ["VERBAL", "PHOTO", "PV", "RAPPORT DE LABORATOIRE"],
+      nc: ["ARRÊT", "TAF", "RIEN"],
+      niv: ["OUVRIER", "APPRENTI", "STAGIAIRE", "QUALIFIÉ"],
+      sec: ["ACCUEIL SÉCURITÉ", "PORT DES EPI", "ACCUEIL SÉCURITÉ + PORT DES EPI"]
+    };
+    /* actions prévues : branchées plus tard sur les vrais boutons (cahier, Qualité, Déclenchement) */
+    const QQ_BTNS = ["RÉCEPTION › ENREGISTRER", "LIVRAISON › ENREGISTRER", "COMMANDE › VALIDER", "TRANSFORMATION › ENREGISTRER",
+      "CHANTIER › FIN DE TÂCHE", "CHANTIER › COULAGE", "ATTACHEMENT › VALIDER", "FACTURATION › VALIDER"];
+    const QQ_WARN = ["MAÎTRE D'OUVRAGE", "LABORATOIRE EXTÉRIEUR", "BUREAU DE CONTRÔLE", "ARCHITECTE", "BUREAU D'ÉTUDES"];
+    /* FORMAT 104 : colonnes d'un critère (la 1re colonne, en arborescence, porte le titre, le point ou le CRITÈRE) */
+    const QQ_COLS = [
+      ["ev", "ÉLÉMENT VISÉ", 170, "pick"], ["pr", "PRESCRIPTION", 200, "txt"], ["ref", "RÉFÉRENCE", 130, "txt"],
+      ["how", "COMMENT", 100, "pick"], ["who", "PAR QUI", 110, "pick"], ["proof", "PAR QUOI", 150, "pick"],
+      ["dec", "DÉCLENCHEMENT", 210, "win"], ["app", "APPEL", 180, "win"], ["nc", "SI NON CONFORME", 130, "pick"],
+      ["tol", "TOLÉRANCE", 100, "txt"], ["lrm", "LIMITE REMARQUE", 110, "txt"], ["nra", "REMARQUES AVANT AUDIT", 120, "num"]
+    ];
+    const QQ_TREE_W = 300;
+    const qqData = () => {
+      INS.qq = INS.qq || {};
+      const Q = INS.qq;
+      Q.T = Q.T || {}; Q.ext = Q.ext || []; Q.per = Q.per || {};
+      return Q;
+    };
+    /* FORMAT 102 : titres par défaut — les interfaces, et les 6 M sous CHANTIER */
+    const qqDefault = () => {
+      const n = [], t = (v, d) => n.push({ id: insId(), k: "t", d, v, def: 1 });
+      t("CHANTIER", 0); QQ_M.forEach(m => t(m, 1)); t("FACTURATION", 0);
+      return n;
+    };
+    const qqKey = () => insDlyKey() || "";   /* "" = MODÈLE COMMUN */
+    const qqList = key => {
+      const Q = qqData();
+      if (!key) { if (!Q.M) { if (!INS_EDIT) return qqDefault(); Q.M = qqDefault(); } return Q.M; }
+      if (!Q.T[key]) { if (!INS_EDIT) return qqDefault(); Q.T[key] = qqDefault(); }
+      return Q.T[key];
+    };
+    const qqEnd = (L, i) => { let j = i + 1; while (j < L.length && L[j].d > L[i].d) j++; return j; };
+    const qqHasPts = (L, i) => L.slice(i + 1, qqEnd(L, i)).some(x => x.k !== "t");
+    const qqHasSubT = (L, i) => L.slice(i + 1, qqEnd(L, i)).some(x => x.k === "t");
+    const qqCrit = L => (L || []).filter(x => x.k === "c");
+    const qqCount = key => qqCrit(key === undefined ? qqList(qqKey()) : qqList(key)).length;
+    /* tâche (clé « lot|sec ») : ses produits et charges, pour ÉLÉMENT VISÉ et la fréquence par quantité */
+    const qqElems = key => {
+      if (!key) return [];
+      const [lo, se] = key.split("|"), out = [], seen = new Set();
+      (INS.links || []).filter(l => l.lot === lo && l.sec === se).forEach(l => ["prd", "chg"].forEach(k => (l[k] || []).forEach(x => {
+        const r = INS[k].find(y => y.id === x.id);
+        if (!r || seen.has(k + ":" + r.id)) return;
+        seen.add(k + ":" + r.id);
+        out.push({ v: k + ":" + r.id, k, r, lab: (k === "prd" ? "PRODUIT · " : "CHARGE · ") + U_(r.des) + (r.u ? " (" + U_(r.u) + ")" : "") });
+      })));
+      return out;
+    };
+    const qqEvLab = (key, v) => {
+      if (!v) return "";
+      if (v === "T") return "TÂCHE (GÉNÉRAL)";
+      if (v === "P*") return "TOUS LES PRODUITS";
+      if (v === "C*") return "TOUTES LES CHARGES";
+      const [k, id] = String(v).split(":"), r = (INS[k] || []).find(x => x.id === id);
+      return r ? (k === "prd" ? "PRODUIT · " : "CHARGE · ") + U_(r.des) + (r.u ? " (" + U_(r.u) + ")" : "") : "";
+    };
+    const qqEvQty = v => {
+      const [k, id] = String(v || "").split(":"), r = (INS[k] || []).find(x => x.id === id);
+      if (!r || (k !== "prd" && k !== "chg")) return null;
+      const q = Number(insCalc(k, r, "q")) || 0;
+      return { q, u: U_(r.u) };
+    };
+    const qqDur = key => { if (!key) return 0; const a = dlyDeb(key), b = dlyFin(key); return a && b ? Number(dDur(a, b)) || 0 : 0; };
+    const qqSeuil = (key, pv) => {
+      const d = qqDur(key), p = Number(String(pv ?? "").replace(",", ".")) || 0;
+      if (!p) return "";
+      if (!key) return "SEUIL CALCULÉ SUR LA DURÉE DE CHAQUE TÂCHE";
+      if (!d) return "SEUIL CALCULÉ QUAND LA TÂCHE AURA SES DATES";
+      const s = Math.max(0, Math.round((1 - p / d) * 100));
+      return s <= 0 ? "APPEL DÈS LE DÉBUT DE LA TÂCHE" : "APPEL À " + s + " % DE LA QUANTITÉ RÉALISÉE";
+    };
+    const qqDecLab = (key, n) => {
+      const b = (n.btn || []).join(" · "), fq = Number(n.fq) || 0;
+      let f = "";
+      if (fq) { const e = qqEvQty(n.ev); f = "1/" + insFmt(fq).replace(/,00$/, "") + (e && e.u ? " " + e.u : ""); }
+      return [b, f].filter(Boolean).join(" · ");
+    };
+    const qqAppLab = n => n.pv ? insFmt(n.pv).replace(/,00$/, "") + " J" + (n.pw ? " · " + n.pw : "") : "";
+    /* tâches qui portent un point d'arrêt (FORMAT 107 : ■ sur le Gantt) — modèle commun compris */
+    const qqArret = key => {
+      const Q = INS.qq;
+      if (!Q) return false;
+      const has = L => (L || []).some(x => x.k === "c" && x.nc === "ARRÊT");
+      return has(Q.T && Q.T[key]) || has(Q.M);
+    };
+    let qqSub = "ctl";   /* sous-onglet : CONTRÔLES / ESSAIS EXTERNES / PERSONNEL (FORMAT 110) */
+    const qqCell = (key, n, c) => {
+      const [f, , , type] = c, ro = !INS_EDIT;
+      if (type === "txt" || type === "num")
+        return `<td class="qq-td${type === "num" ? " number" : ""}"><input class="qq-in${type === "num" ? " number" : ""}" data-f="${f}" ${type === "num" ? 'inputmode="decimal"' : ""} value="${esc(n[f] ?? "")}" ${ro ? "disabled" : ""} autocomplete="off" spellcheck="false" enterkeyhint="next"></td>`;
+      let v = "";
+      if (f === "ev") v = qqEvLab(key, n.ev);
+      else if (f === "dec") v = qqDecLab(key, n);
+      else if (f === "app") v = qqAppLab(n);
+      else v = n[f] || "";
+      const arr = f === "nc" && v === "ARRÊT";
+      return `<td class="qq-td qq-${type}${ro ? " qq-ro" : ""}" data-f="${f}"><span class="qq-v${arr ? " qq-arr" : ""}">${esc(arr ? "■ ARRÊT" : v)}</span></td>`;
+    };
+    const qqCtlHTML = key => {
+      const L = qqList(key), ro = !INS_EDIT, nc = QQ_COLS.length;
+      const w = 36 + QQ_TREE_W + QQ_COLS.reduce((t, c) => t + c[2], 0) + (ro ? 0 : 40);
+      const ind = d => `padding-left:${6 + 20 * d}px`;
+      const cb = n => ro ? "" : `<td class="center qq-cbtd"><input type="checkbox" class="qq-cb" ${n.on ? "checked" : ""}></td>`;
+      const newRow = (pid, d, kind) => ro ? "" : `<tr class="qq-new" data-pid="${pid}" data-kind="${kind}"><td></td><td class="qq-tree" style="${ind(d)}"><input class="qq-in qq-nin" data-f="v" placeholder="SAISIR ICI… (${kind === "p" ? "POINT DE CONTRÔLE" : "CRITÈRE"})" autocomplete="off" spellcheck="false" enterkeyhint="next"></td><td colspan="${nc}"></td>${ro ? "" : "<td></td>"}</tr>`;
+      let rows = "";
+      /* lignes SAISIR ICI… à placer à la fin des branches (index de fin → lignes) */
+      const tail = {}, vis = [];
+      { let h = -1; L.forEach((n, i) => { vis[i] = i >= h; if (vis[i] && n.f && n.k !== "c") h = qqEnd(L, i); }); }
+      L.forEach((n, i) => {
+        if (!vis[i] || n.f || (n.k === "t" && qqHasSubT(L, i))) return;
+        if (n.k === "t") (tail[qqEnd(L, i)] = tail[qqEnd(L, i)] || []).unshift(newRow(n.id, n.d + 1, "p"));
+        else if (n.k === "p") (tail[qqEnd(L, i)] = tail[qqEnd(L, i)] || []).unshift(newRow(n.id, n.d + 1, "c"));
+      });
+      L.forEach((n, i) => {
+        if (tail[i]) rows += tail[i].join("");
+        if (!vis[i]) return;
+        const fold = n.k !== "c" ? `<span class="qq-fold" data-id="${n.id}">${n.f ? "›" : "⌄"}</span>` : "";
+        if (n.k === "t" || n.k === "p") {
+          const empty = n.k === "t" && !qqHasPts(L, i);
+          rows += `<tr class="qq-${n.k}${empty ? " qq-empty" : ""}" data-id="${n.id}"><td class="center">${fold}</td>
+            <td class="qq-tree" style="${ind(n.d)}"><input class="qq-in qq-lab" data-f="v" value="${esc(n.v || "")}" ${ro ? "disabled" : ""} autocomplete="off" spellcheck="false" enterkeyhint="next"></td>
+            <td colspan="${nc}" class="qq-span"></td>${cb(n)}</tr>`;
+          return;
+        }
+        rows += `<tr class="qq-c" data-id="${n.id}"><td></td>
+          <td class="qq-tree" style="${ind(n.d)}"><input class="qq-in" data-f="v" value="${esc(n.v || "")}" ${ro ? "disabled" : ""} placeholder="CRITÈRE" autocomplete="off" spellcheck="false" enterkeyhint="next"></td>
+          ${QQ_COLS.map(c => qqCell(key, n, c)).join("")}${cb(n)}</tr>`;
+      });
+      if (tail[L.length]) rows += tail[L.length].join("");
+      const head = `<tr><th></th><th>POINT DE CONTRÔLE / CRITÈRE</th>${QQ_COLS.map(c => `<th>${esc(c[1])}</th>`).join("")}${ro ? "" : `<th class="center"><input type="checkbox" class="qq-cball" ${L.length && L.every(x => x.on) ? "checked" : ""}></th>`}</tr>`;
+      return `<table class="bdg-d-table qq-table" style="width:${w}px"><colgroup><col style="width:36px"><col style="width:${QQ_TREE_W}px">${QQ_COLS.map(c => `<col style="width:${c[2]}px">`).join("")}${ro ? "" : '<col style="width:40px">'}</colgroup>
+        <thead>${head}</thead><tbody>${rows}</tbody></table>`;
+    };
+    /* ESSAIS EXTERNES (FORMAT 110) : un essai par ligne, tâches cochées dans une fenêtre lots / activités */
+    const qqTaskKeys = () => {
+      const s = new Set();
+      (INS.links || []).forEach(l => l.lot && l.sec && s.add(l.lot + "|" + l.sec));
+      try { dlyKeys().forEach(k => s.add(k)); } catch (e) {}
+      return [...s].filter(k => { const [lo, se] = k.split("|"); return INS.lot.some(x => x.id === lo) && INS.sec.some(x => x.id === se); });
+    };
+    const qqExtQty = (e, key) => {
+      if (!e.cad || !(Number(e.cad) > 0)) return 1;
+      const [lo, se] = key.split("|");
+      let q = 0;
+      (INS.links || []).filter(l => l.lot === lo && l.sec === se).forEach(l => (l.prd || []).forEach(x => {
+        const r = INS.prd.find(y => y.id === x.id);
+        if (r && (!e.u2 || U_(r.u) === U_(e.u2))) q += Number(insCalc("prd", r, "q")) || 0;
+      }));
+      return Math.ceil(q / Number(e.cad)) || 0;
+    };
+    const qqExtHTML = () => {
+      const Q = qqData(), ro = !INS_EDIT;
+      const inp = (e, f, num) => `<input class="qq-xin${num ? " number" : ""}" data-f="${f}" value="${esc(e[f] ?? "")}" ${num ? 'inputmode="decimal"' : ""} ${ro ? "disabled" : ""} autocomplete="off" spellcheck="false">`;
+      const rows = Q.ext.map(e => {
+        const n = (e.tasks || []).length, tot = (e.tasks || []).reduce((t, k) => t + qqExtQty(e, k), 0);
+        return `<tr data-xid="${e.id}"><td>${inp(e, "v")}</td><td class="center">${inp(e, "u")}</td><td class="number">${inp(e, "p", 1)}</td>
+          <td class="number">${inp(e, "cad", 1)}</td><td class="center">${inp(e, "u2")}</td>
+          <td class="center qq-xt${ro ? " qq-ro" : ""}">${svCnt(n)}</td><td class="number">${n ? tot : ""}</td>${ro ? "" : `<td class="center"><input type="checkbox" class="qq-xcb" ${e.on ? "checked" : ""}></td>`}</tr>`;
+      }).join("");
+      const nw = ro ? "" : `<tr class="qq-xnew"><td><input class="qq-xin" data-f="v" placeholder="SAISIR ICI… (ESSAI)" autocomplete="off" spellcheck="false"></td><td colspan="${ro ? 6 : 7}"></td></tr>`;
+      return `<table class="bdg-d-table qq-table" style="width:${ro ? 830 : 870}px"><colgroup><col style="width:300px"><col style="width:70px"><col style="width:100px"><col style="width:130px"><col style="width:80px"><col style="width:80px"><col style="width:70px">${ro ? "" : '<col style="width:40px">'}</colgroup>
+        <thead><tr><th>ESSAI</th><th>UNITÉ</th><th>PRIX</th><th>1 TOUS LES (VIDE = PAR TÂCHE)</th><th>UNITÉ DU PRODUIT</th><th>TÂCHES</th><th>NB ESSAIS</th>${ro ? "" : "<th></th>"}</tr></thead>
+        <tbody>${rows}${nw}</tbody></table>`;
+    };
+    /* PERSONNEL (FORMAT 110) : exigences facultatives de la tâche choisie (ou du modèle commun) */
+    const QQ_PER = [["bag", "BAGAGE EXIGÉ (DIPLÔME, FORMATION)", "txt"], ["vid", "FORMATION INTERNE (VIDÉOS)", "txt"], ["tps", "TEMPS DE VISIONNAGE EXIGÉ (MIN)", "num"],
+      ["qst", "QUESTIONS PAR ARRÊT DE LA VIDÉO", "num"], ["note", "NOTE MINIMALE (/20)", "num"], ["exp", "EXPÉRIENCE EXIGÉE (TÂCHES OU QUANTITÉ)", "txt"],
+      ["niv", "NIVEAU MINIMAL", "pick"], ["val", "VALIDITÉ DE L'AGRÉMENT (MOIS)", "num"], ["sec", "SÉCURITÉ", "pick"]];
+    const qqPerHTML = key => {
+      const P = qqData().per[key] || {}, ro = !INS_EDIT;
+      return `<table class="bdg-d-table qq-table" style="width:640px"><colgroup><col style="width:330px"><col style="width:310px"></colgroup>
+        <thead><tr><th>EXIGENCE (TOUT EST FACULTATIF)</th><th>VALEUR</th></tr></thead><tbody>${QQ_PER.map(([f, lab, t]) => `<tr data-pf="${f}"><td>${esc(lab)}</td>${
+          t === "pick" ? `<td class="qq-td qq-pick${ro ? " qq-ro" : ""}" data-f="${f}"><span class="qq-v">${esc(P[f] || "")}</span></td>`
+            : `<td><input class="qq-pin${t === "num" ? " number" : ""}" data-f="${f}" value="${esc(P[f] ?? "")}" ${t === "num" ? 'inputmode="decimal"' : ""} ${ro ? "disabled" : ""} autocomplete="off" spellcheck="false"></td>`}</tr>`).join("")}</tbody></table>`;
+    };
+    const qqTaskName = key => { if (!key) return ""; const [lo, se] = key.split("|"); return lkName("lot", lo) + " › " + lkName("sec", se); };
+    const qqHTML = () => {
+      const key = qqKey();
+      const scope = key ? "TÂCHE : " + esc(qqTaskName(key)) : "MODÈLE COMMUN — S'APPLIQUE À TOUTES LES TÂCHES";
+      const sub = (v, lab) => `<button type="button" class="qq-sub${qqSub === v ? " on" : ""}" data-sub="${v}">${lab}</button>`;
+      const inner = qqSub === "ext" ? qqExtHTML() : qqSub === "per" ? qqPerHTML(key) : qqCtlHTML(key);
+      return `<div class="qq-bar">${sub("ctl", "CONTRÔLES")}${sub("ext", "ESSAIS EXTERNES")}${sub("per", "PERSONNEL")}<span class="qq-scope">${qqSub === "ext" ? "TOUT LE BUDGET" : scope}</span></div>
+        <div class="bdg-d-scroll qq-scroll">${inner}</div>`;
+    };
+    const qqRender = keepFocus => {
+      const sc = body.querySelector(".qq-scroll"), top = sc ? sc.scrollTop : 0, left = sc ? sc.scrollLeft : 0;
+      body.innerHTML = qqHTML();
+      const ns = body.querySelector(".qq-scroll");
+      if (ns) { ns.scrollTop = top; ns.scrollLeft = left; }
+      const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="qlt"]`);
+      if (b) b.innerHTML = (SVI_ICON.qlt || "") + "DÉTAIL QUALITÉ " + svCnt(qqCount());
+      if (keepFocus) { const t = body.querySelector(keepFocus); if (t) t.focus(); }
+    };
+    const qqSave = () => insSave();
+    /* petite liste au format de l'application sous la case (comme les unités, FORMAT 50) */
+    const qqPick = (td, items, cur, done) => {
+      document.getElementById("qqPick")?.remove();
+      const m = document.createElement("div");
+      m.id = "qqPick";
+      m.innerHTML = items.map(it => `<button type="button" data-v="${esc(it.v)}" class="${it.v === cur ? "on" : ""}">${esc(it.lab)}</button>`).join("")
+        + (cur ? '<button type="button" data-v="" class="qq-clr">EFFACER</button>' : "");
+      document.body.appendChild(m);
+      const r = td.getBoundingClientRect();
+      sviPlaceMenu(m, { top: r.top, bottom: r.bottom, right: r.left + Math.max(r.width, m.offsetWidth), left: r.left });
+      const close = ev => { if (!m.contains(ev.target)) { m.remove(); document.removeEventListener("pointerdown", close, true); } };
+      setTimeout(() => document.addEventListener("pointerdown", close, true), 0);
+      m.addEventListener("click", ev => {
+        const b = ev.target.closest("[data-v]");
+        if (!b) return;
+        m.remove(); document.removeEventListener("pointerdown", close, true);
+        done(b.dataset.v);
+      });
+    };
+    const qqNode = (key, id) => qqList(key).find(x => x.id === id);
+    /* fenêtres DÉCLENCHEMENT et APPEL (FORMAT 105 et 106), au format INF */
+    const qqWin = (title, html, onOk, onLive) => {
+      document.getElementById("svConf")?.remove();
+      const d = document.createElement("div");
+      d.id = "svConf";
+      d.innerHTML = `<div class="svc-card qq-win" role="dialog" aria-modal="true">
+          <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
+          <div class="svc-t">${esc(title)}</div><div class="svc-x svc-html">${html}</div>
+          <div class="svc-f"><button type="button" class="svc-b" data-r="0">ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-r="1">ENREGISTRER</button></div></div>`;
+      document.body.appendChild(d);
+      if (onLive) { d.addEventListener("input", () => onLive(d)); d.addEventListener("change", () => onLive(d)); onLive(d); }
+      let lp = null;
+      d.addEventListener("pointerdown", e => { const g = e.target.closest(".qq-dis"); if (g) lp = setTimeout(() => svToast(g.dataset.why || "", 3500, g), 500); });
+      ["pointerup", "pointercancel"].forEach(t => d.addEventListener(t, () => clearTimeout(lp)));
+      d.addEventListener("click", e => {
+        const b = e.target.closest("[data-r]");
+        if (!b && e.target !== d) return;
+        if (b && b.dataset.r === "1") onOk(d);
+        d.remove();
+      });
+    };
+    const qqDecWin = (key, n) => {
+      const e = qqEvQty(n.ev), sel = new Set(n.btn || []);
+      const html = `<div class="svc-sub">BOUTONS ${svCnt(sel.size)}</div><div class="qq-wl">${QQ_BTNS.map(b => `<label><input type="checkbox" value="${esc(b)}" ${sel.has(b) ? "checked" : ""}> ${esc(b)}</label>`).join("")}</div>
+        <div class="svc-sub">FRÉQUENCE</div><div class="qq-wr">1 TOUS LES <input class="qq-wi" data-w="fq" inputmode="decimal" value="${esc(n.fq ?? "")}"> ${esc(e && e.u ? e.u : "")} <span class="qq-wcalc"></span></div>
+        <div class="svc-sub">PONCTUEL</div><div class="qq-wr"><label class="qq-dis" data-why="LE CONTRÔLE PONCTUEL SE DÉCLENCHE À LA MAIN, EN RÉALISATION"><input type="checkbox" disabled ${n.pon ? "checked" : ""}> DÉCLENCHÉ À LA MAIN (RÉALISATION)</label></div>`;
+      qqWin("DÉCLENCHEMENT", html, d => {
+        n.btn = [...d.querySelectorAll(".qq-wl input:checked")].map(x => x.value);
+        n.fq = insNum(d.querySelector('[data-w="fq"]').value);
+        qqSave(); qqRender();
+      }, d => {
+        const c = d.querySelectorAll(".qq-wl input:checked").length, s = d.querySelector(".svc-sub .svi-cnt");
+        if (s) s.outerHTML = svCnt(c);
+        const fq = Number(insNum(d.querySelector('[data-w="fq"]').value)) || 0, out = d.querySelector(".qq-wcalc");
+        out.textContent = fq && e ? "→ " + Math.max(1, Math.ceil(e.q / fq)) + " CONTRÔLE(S) POUR " + insFmt(e.q) + " " + e.u : fq ? "→ ÉLÉMENT VISÉ SANS QUANTITÉ" : "VIDE = UN CONTRÔLE À CHAQUE FOIS";
+      });
+    };
+    const qqAppWin = (key, n) => {
+      const html = `<div class="svc-sub">PRÉAVIS (J)</div><div class="qq-wr"><input class="qq-wi" data-w="pv" inputmode="decimal" value="${esc(n.pv ?? "")}"></div>
+        <div class="svc-sub">PRÉVENIR</div><div class="qq-wl">${QQ_WARN.map(w => `<label><input type="radio" name="qqpw" value="${esc(w)}" ${n.pw === w ? "checked" : ""}> ${esc(w)}</label>`).join("")}</div>
+        <div class="qq-wcalc qq-seuil"></div>`;
+      qqWin("APPEL", html, d => {
+        n.pv = insNum(d.querySelector('[data-w="pv"]').value);
+        n.pw = (d.querySelector('input[name="qqpw"]:checked') || {}).value || "";
+        qqSave(); qqRender();
+      }, d => { d.querySelector(".qq-seuil").textContent = qqSeuil(key, d.querySelector('[data-w="pv"]').value); });
+    };
+    /* DESCRIPTIF d'une désignation client (FORMAT 109) */
+    const qqDescWin = id => {
+      const r = INS.des.find(x => x.id === id);
+      if (!r) return;
+      const ro = !INS_EDIT;
+      document.getElementById("svConf")?.remove();
+      const d = document.createElement("div");
+      d.id = "svConf";
+      d.innerHTML = `<div class="svc-card qq-win qq-desc" role="dialog" aria-modal="true">
+          <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
+          <div class="svc-t">DESCRIPTIF</div>
+          <div class="svc-sub">${esc(((r.art || ART_AUTO.get(r.id) || "") + " " + (r.des || "")).trim().toUpperCase())}</div>
+          <div class="svc-x svc-html"><textarea class="qq-dta" ${ro ? "disabled" : ""} placeholder="EXTRAIT DU CONTRAT QUI DÉFINIT L'ARTICLE…">${esc(r.dsc || "")}</textarea></div>
+          <div class="svc-f">${ro ? '<button type="button" class="svc-b svc-ok svc-neutral" data-r="0">FERMER</button>'
+            : '<button type="button" class="svc-b" data-r="0">ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-r="1">ENREGISTRER</button>'}</div></div>`;
+      document.body.appendChild(d);
+      d.addEventListener("click", e => {
+        const b = e.target.closest("[data-r]");
+        if (!b && e.target !== d) return;
+        if (b && b.dataset.r === "1") {
+          r.dsc = U_(d.querySelector(".qq-dta").value);
+          insSave();
+          document.querySelectorAll(`.des-i[data-did="${id}"]`).forEach(x => x.classList.toggle("on", !!r.dsc));
+          histLog("QUALITÉ", "DESCRIPTIF", (r.des || "").toUpperCase());
+        }
+        d.remove();
+      });
+    };
+    shell.__qqDesc = qqDescWin;
+    if (!shell.__qqDescBound) {
+      shell.__qqDescBound = true;
+      /* icône i de la désignation : ouvre le DESCRIPTIF sans lancer la saisie ni le glissement */
+      shell.addEventListener("pointerdown", e => { if (e.target.closest(".des-i")) e.stopPropagation(); }, true);
+      shell.addEventListener("touchstart", e => { if (e.target.closest(".des-i")) e.stopPropagation(); }, true);
+      shell.addEventListener("click", e => {
+        const b = e.target.closest(".des-i");
+        if (!b) return;
+        e.preventDefault(); e.stopPropagation();
+        if (shell.__qqDesc) shell.__qqDesc(b.dataset.did);
+      }, true);
+    }
+    /* fenêtre TÂCHES d'un essai externe : lots à gauche, activités secondaires à droite (comme FORMAT 66) */
+    const qqExtTasks = e => {
+      const keys = qqTaskKeys(), byLot = new Map();
+      keys.forEach(k => { const [lo] = k.split("|"); if (!byLot.has(lo)) byLot.set(lo, []); byLot.get(lo).push(k); });
+      const sel = new Set(e.tasks || []);
+      let cur = [...byLot.keys()][0] || null;
+      const html = () => `<div class="qq-x2"><div class="qq-x2l">${[...byLot.keys()].map(lo => { const n = byLot.get(lo).filter(k => sel.has(k)).length;
+          return `<button type="button" class="qq-x2lot${lo === cur ? " cur" : ""}${n ? " on" : ""}" data-lo="${lo}">${esc(lkName("lot", lo))} ${n ? svCnt(n) : ""}</button>`; }).join("") || '<div class="empty">AUCUNE TÂCHE</div>'}</div>
+        <div class="qq-x2r">${cur ? byLot.get(cur).map(k => `<label><input type="checkbox" data-k="${esc(k)}" ${sel.has(k) ? "checked" : ""}> ${esc(lkName("sec", k.split("|")[1]))}</label>`).join("") : ""}</div></div>`;
+      qqWin("TÂCHES SOUMISES À L'ESSAI : " + U_(e.v), `<div class="qq-x2w">${html()}</div>`, () => { e.tasks = [...sel]; qqSave(); qqRender(); });
+      const d = document.getElementById("svConf"), w = d.querySelector(".qq-x2w");
+      w.addEventListener("click", ev => { const b = ev.target.closest(".qq-x2lot"); if (!b) return; ev.stopPropagation(); cur = b.dataset.lo; w.innerHTML = html(); });
+      w.addEventListener("change", ev => { const c = ev.target.closest("input[data-k]"); if (!c) return; if (c.checked) sel.add(c.dataset.k); else sel.delete(c.dataset.k); w.innerHTML = html(); });
+    };
+    /* événements (une seule fois, sur le corps des onglets) */
+    if (!body.__qqBound) {
+      body.__qqBound = true;
+      body.addEventListener("click", e => {
+        if (active !== "qlt" || !INS) return;
+        const sb = e.target.closest(".qq-sub");
+        if (sb) { qqSub = sb.dataset.sub; qqRender(); return; }
+        const key = qqKey();
+        const fo = e.target.closest(".qq-fold");
+        if (fo) { const n = qqNode(key, fo.dataset.id); if (n) { n.f = !n.f; qqSave(); qqRender(); } return; }
+        if (!INS_EDIT) return;
+        const xt = e.target.closest(".qq-xt");
+        if (xt) { const ex = qqData().ext.find(x => x.id === xt.closest("tr").dataset.xid); if (ex) qqExtTasks(ex); return; }
+        const td = e.target.closest("td.qq-pick, td.qq-win");
+        if (!td || td.classList.contains("qq-ro")) return;
+        const f = td.dataset.f;
+        const pf = td.closest("tr[data-pf]");
+        if (pf) {
+          const P = (qqData().per[key] = qqData().per[key] || {});
+          qqPick(td, QQ_LISTS[f].map(v => ({ v, lab: v })), P[f] || "", v => { P[f] = v; qqSave(); qqRender(); });
+          return;
+        }
+        const n = qqNode(key, td.closest("tr").dataset.id);
+        if (!n) return;
+        if (f === "dec") return qqDecWin(key, n);
+        if (f === "app") return qqAppWin(key, n);
+        const items = f === "ev" ? [{ v: "T", lab: "TÂCHE (GÉNÉRAL)" }, ...(key ? qqElems(key).map(x => ({ v: x.v, lab: x.lab })) : [{ v: "P*", lab: "TOUS LES PRODUITS" }, { v: "C*", lab: "TOUTES LES CHARGES" }])]
+          : QQ_LISTS[f].map(v => ({ v, lab: v }));
+        qqPick(td, items, n[f] || "", v => { n[f] = v; qqSave(); qqRender(); });
+      });
+      body.addEventListener("change", e => {
+        if (active !== "qlt" || !INS || !INS_EDIT) return;
+        const key = qqKey();
+        const pin = e.target.closest(".qq-pin");
+        if (pin) { const P = (qqData().per[key] = qqData().per[key] || {}); P[pin.dataset.f] = pin.classList.contains("number") ? insNum(pin.value) : U_(pin.value); qqSave(); return; }
+        const xin = e.target.closest(".qq-xin");
+        if (xin) {
+          const Q = qqData(), tr = xin.closest("tr"), f = xin.dataset.f, val = ["p", "cad"].includes(f) ? insNum(xin.value) : U_(xin.value);
+          if (tr.classList.contains("qq-xnew")) { if (val) { Q.ext.push({ id: insId(), v: val, u: "ESSAI", p: "", cad: "", u2: "", tasks: [] }); qqSave(); qqRender(".qq-xnew .qq-xin"); } return; }
+          const ex = Q.ext.find(x => x.id === tr.dataset.xid);
+          if (ex) { ex[f] = val; qqSave(); qqRender(); }
+          return;
+        }
+        const cb = e.target.closest(".qq-cb, .qq-cball, .qq-xcb");
+        if (cb) {
+          if (cb.classList.contains("qq-xcb")) { const ex = qqData().ext.find(x => x.id === cb.closest("tr").dataset.xid); if (ex) ex.on = cb.checked; qqSave(); return; }
+          const L = qqList(key);
+          if (cb.classList.contains("qq-cball")) L.forEach(x => x.on = cb.checked);
+          else { const i = L.findIndex(x => x.id === cb.closest("tr").dataset.id); if (i >= 0) L.slice(i, qqEnd(L, i)).forEach(x => x.on = cb.checked); }
+          qqSave(); qqRender();
+          return;
+        }
+        const inp = e.target.closest(".qq-in");
+        if (!inp) return;
+        const L = qqList(key), tr = inp.closest("tr"), f = inp.dataset.f;
+        const val = f === "nra" ? insNum(inp.value) : U_(inp.value);
+        if (tr.classList.contains("qq-new")) {
+          if (!val) return;
+          const pi = L.findIndex(x => x.id === tr.dataset.pid);
+          if (pi < 0) return;
+          const p = L[pi], node = { id: insId(), k: tr.dataset.kind, d: p.d + 1, v: val };
+          if (node.k === "c") Object.assign(node, { ev: key ? "T" : "", nc: "RIEN" });
+          L.splice(qqEnd(L, pi), 0, node);
+          histLog("QUALITÉ", node.k === "p" ? "POINT DE CONTRÔLE AJOUTÉ" : "CRITÈRE AJOUTÉ", val);
+          qqSave();
+          qqRender(`tr.qq-new[data-pid="${tr.dataset.pid}"] .qq-nin`);
+          return;
+        }
+        const i = L.findIndex(x => x.id === tr.dataset.id);
+        if (i < 0) return;
+        const n = L[i];
+        n[f] = val;
+        /* point ou critère entièrement effacé (sans critère dessous) : retiré */
+        if (f === "v" && !val && n.k !== "t" && !(n.k === "p" && qqEnd(L, i) > i + 1)
+          && (n.k === "p" || QQ_COLS.every(c => !n[c[0]] || (c[0] === "ev" && n.ev === "T") || (c[0] === "nc" && n.nc === "RIEN")))) L.splice(i, 1);
+        qqSave(); qqRender();
+      });
+      /* Entrée = case suivante (FORMAT 48) */
+      body.addEventListener("keydown", e => {
+        if (active !== "qlt" || e.key !== "Enter") return;
+        const inp = e.target.closest(".qq-in, .qq-xin, .qq-pin");
+        if (!inp) return;
+        e.preventDefault();
+        inp.blur();
+      }, true);
+    }
+    /* menu ⋯ du bloc détail quand DÉTAIL QUALITÉ est ouvert : ajouter un titre, supprimer les lignes cochées */
+    shell.__qq = {
+      on: () => active === "qlt" && !!INS,
+      edit: () => INS_EDIT,
+      nChecked: () => qqSub === "ext" ? qqData().ext.filter(x => x.on).length : qqSub === "ctl" ? qqList(qqKey()).filter(x => x.on).length : 0,
+      addTitle: () => {
+        if (qqSub !== "ctl") { qqSub = "ctl"; }
+        const L = qqList(qqKey());
+        L.push({ id: insId(), k: "t", d: 0, v: "NOUVEAU TITRE" });
+        qqSave(); qqRender();
+        const t = body.querySelector(`tr[data-id="${L[L.length - 1].id}"] .qq-lab`);
+        if (t) { t.focus(); t.select(); }
+      },
+      addSub: () => {
+        /* sous-titre sous le titre coché (le premier) */
+        const L = qqList(qqKey()), i = L.findIndex(x => x.on && x.k === "t");
+        if (i < 0) return svToast("COCHER D'ABORD LE TITRE QUI RECEVRA LE SOUS-TITRE");
+        const n = { id: insId(), k: "t", d: L[i].d + 1, v: "NOUVEAU SOUS-TITRE" };
+        L.splice(qqEnd(L, i), 0, n); L.forEach(x => x.on = false);
+        qqSave(); qqRender();
+        const t = body.querySelector(`tr[data-id="${n.id}"] .qq-lab`);
+        if (t) { t.focus(); t.select(); }
+      },
+      del: async () => {
+        if (qqSub === "ext") {
+          const Q = qqData(), n = Q.ext.filter(x => x.on).length;
+          if (!n || !(await svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", text: n + " ESSAI(S) EXTERNE(S) SERONT SUPPRIMÉS.", ok: "SUPPRIMER" }))) return;
+          Q.ext = Q.ext.filter(x => !x.on); qqSave(); qqRender(); return;
+        }
+        const key = qqKey(), L = qqList(key), n = L.filter(x => x.on).length;
+        if (!n) return;
+        const c = { t: 0, p: 0, c: 0 }; L.filter(x => x.on).forEach(x => c[x.k]++);
+        const txt = [c.t && c.t + " TITRE(S)", c.p && c.p + " POINT(S) DE CONTRÔLE", c.c && c.c + " CRITÈRE(S)"].filter(Boolean).join(", ") + " SERONT SUPPRIMÉS.";
+        if (!(await svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", text: txt, ok: "SUPPRIMER" }))) return;
+        const keep = L.filter(x => !x.on);
+        L.length = 0; keep.forEach(x => L.push(x));
+        histLog("QUALITÉ", "LIGNES SUPPRIMÉES", txt);
+        qqSave(); qqRender();
+      },
+      render: () => qqRender(),
+      /* FORMAT 112 : aperçu du bloc = tableau affiché (tâche choisie ou modèle commun), jamais de prix */
+      data: () => {
+        const key = qqKey();
+        if (qqSub === "ext") return { head: ["ESSAI", "UNITÉ", "RYTHME", "TÂCHES", "NB ESSAIS"],
+          rows: qqData().ext.map(e => [e.v, e.u, e.cad ? "1 TOUS LES " + e.cad + (e.u2 ? " " + e.u2 : "") : "PAR TÂCHE", String((e.tasks || []).length), String((e.tasks || []).reduce((t, k) => t + qqExtQty(e, k), 0))]) };
+        if (qqSub === "per") { const P = qqData().per[key] || {}; return { head: ["EXIGENCE", "VALEUR"], rows: QQ_PER.filter(([f]) => P[f] !== undefined && P[f] !== "").map(([f, lab]) => [lab, String(P[f])]) }; }
+        const C = QQ_COLS.filter(c => !["tol", "lrm", "nra"].includes(c[0]));
+        const L = qqList(key), rows = [];
+        L.forEach(n => {
+          const lab = "\u00a0".repeat(3 * n.d) + (n.v || "");
+          if (n.k !== "c") { if (n.k === "t" && !L.slice(L.indexOf(n) + 1, qqEnd(L, L.indexOf(n))).some(x => x.k !== "t")) return; rows.push([lab, ...C.map(() => "")]); return; }
+          rows.push([lab, ...C.map(([f]) => f === "ev" ? qqEvLab(key, n.ev) : f === "dec" ? qqDecLab(key, n) : f === "app" ? qqAppLab(n) : String(n[f] ?? ""))]);
+        });
+        return { head: ["POINT DE CONTRÔLE / CRITÈRE", ...C.map(c => c[1])], rows };
+      }
+    };
     const insRenderTab = () => {
       { const tl = document.querySelector("#bdgTabs > .blk-tools");
         if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (active === "chg" || active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(active)); } }
-      ["chg", "prd", "qlt"].forEach(k => {
+      ["chg", "prd"].forEach(k => {
         const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
         if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + (k === "prd" ? ' <b class="req-star">*</b>' : "") + " " + svCnt(insShown(k).length, INS[k].filter(r => !r.t).length);
       });
+      { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="qlt"]`);
+        if (b) b.innerHTML = (SVI_ICON.qlt || "") + "DÉTAIL QUALITÉ " + svCnt(qqCount()); }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
         if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(INS_EDIT ? (insDlyKey() ? insDlyList(insDlyKey()).length : insDlyRecap() ? insDlyRecap().filter(x => x.deb || x.fin).length : dlyKeys().length) : insTasks().length); }
       /* IMPORT NON CRÉÉ : visible seulement s'il reste des lignes */
@@ -7137,6 +7611,7 @@ function renderBudgetList() {
         body.innerHTML = `<div class="bdg-d-scroll">${insDlyHTML(INS_EDIT, shell.__insDly && shell.__insDly.err)}</div>`;
         return;
       }
+      if (active === "qlt") { qqRender(); lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
       if (active === "lnk") { body.innerHTML = `<div class="bdg-d-scroll">${insLinksHTML()}</div>`; return; }
       if (active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
       if (active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
@@ -8046,8 +8521,8 @@ function renderBudgetList() {
         bars += `<div class="gb${crit ? " crit" : ""}${inside ? " gb-tin" : ""}${w < 30 ? " gb-nar" : ""}" data-key="${esc(x.key)}" style="left:${left}px;width:${w}px;top:${y}px;--c:${col}">`
           + (inside ? `<span class="gb-ti">${nm}</span>` : "")
           + `<span class="gb-s"></span><span class="gb-e"></span></div>`
-          + (inside ? (x.jal ? `<span class="gb-n gb-out" style="left:${left + w + 5}px;top:${ty}px"><span class="gjal">★</span></span>` : "")
-            : `<span class="gb-n gb-out gb-ren" data-key="${esc(x.key)}" style="left:${left + w + 5}px;top:${ty}px">${nm}${x.jal ? ' <span class="gjal">★</span>' : ""}</span>`);
+          + (inside ? (x.jal || qqArret(x.key) ? `<span class="gb-n gb-out" style="left:${left + w + 5}px;top:${ty}px">${x.jal ? '<span class="gjal">★</span>' : ""}${qqArret(x.key) ? '<span class="garr">■</span>' : ""}</span>` : "")
+            : `<span class="gb-n gb-out gb-ren" data-key="${esc(x.key)}" style="left:${left + w + 5}px;top:${ty}px">${nm}${x.jal ? ' <span class="gjal">★</span>' : ""}${qqArret(x.key) ? ' <span class="garr">■</span>' : ""}</span>`);
       });
       /* liaisons : fils fléchés (FIN → DÉBUT depuis la fin, DÉBUT → DÉBUT depuis le début) ; toucher le fil = fenêtre LIAISON */
       let lk = "";
@@ -11529,6 +12004,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
     const blkData = blk => {
       if (blk === "budget") return budgetFlat();
       if (blk === "detail" && active === "qlt" && !INS) return { head: [], rows: [] };
+      if (blk === "detail" && active === "qlt" && INS && shell.__qq) return shell.__qq.data();
       if (blk === "detail" && active === "dly") {
         /* délais : tableau affiché (filtres compris), dates JJ/MM/AAAA */
         const src = lastShown.detail && lastShown.detail.kind === "dly" ? lastShown.detail : { cols: DLY_COLS, rows: [] };
@@ -14817,11 +15293,11 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
     const printGeneric = blk => {
       const label = String(blkLabel(blk)).toUpperCase();
       let cols, rows, end = "";
-      if ((blk === "detail" && active === "dly") || blk === "hist") {
+      if ((blk === "detail" && (active === "dly" || (active === "qlt" && INS))) || blk === "hist") {
         const d = blkData(blk);
         if (!d.rows.length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         /* historique : date, branche et action étroites, détail large */
-        cols = d.head.map((h, i) => [blk === "hist" ? ["hdt", "hbr", "hac", "hde"][i] : "c" + i, h, r => r[i], blk === "hist" && i ? "" : "center"]);
+        cols = d.head.map((h, i) => [blk === "hist" ? ["hdt", "hbr", "hac", "hde"][i] : "c" + i, h, r => r[i], (blk === "hist" && i) || (active === "qlt" && !i) ? "" : "center"]);
         rows = d.rows;
       } else if (REC_KINDS.includes(blk)) {
         if (!recLoad(blk).length) { sviAlert("Aucune donnée dans " + label + "."); return; }
@@ -16270,7 +16746,10 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       const tools = btn.closest(".blk-tools");
       /* budget validé (ou figé) : lecture seule, pas d'import */
       const readOnly = !budget.inst || (budget.inst.state || "instance") !== "instance";
-      const acts = [...tools.querySelectorAll(".blk-btn")].filter(a => !(readOnly && a.dataset.act === "import"));
+      /* DÉTAIL QUALITÉ (FORMAT, section U) : ses propres commandes, pas d'import ni de copier / coller de lignes */
+      const QQm = shell.__qq && shell.__qq.on() && tools.querySelector('.blk-btn[data-blk="detail"]') ? shell.__qq : null;
+      const acts = [...tools.querySelectorAll(".blk-btn")].filter(a => !(readOnly && a.dataset.act === "import"))
+        .filter(a => !(QQm && ["import", "del", "copy", "cut", "paste", "export"].includes(a.dataset.act)));
       const m = document.createElement("div");
       m.id = "blkMenu";
       m.dataset.for = btn.dataset.for;
@@ -16344,6 +16823,21 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           m.remove();
           const v = b.dataset.dly;
           if (v === "gen") DX.gen(); else if (v === "sort") DX.sortDeb(); else if (v === "lev") DX.level(); else DX.scale(v.slice(3));
+        }, true);
+      }
+      if (QQm && QQm.edit()) {
+        const n = QQm.nChecked();
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-qq="title"><span>+ AJOUTER UN TITRE</span></button>
+          <button type="button" data-qq="sub"><span>+ AJOUTER UN SOUS-TITRE (SOUS LE TITRE COCHÉ)</span></button>
+          <button type="button" data-qq="del" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}><span>SUPPRIMER LES LIGNES COCHÉES</span>${svCnt(n)}</button><div class="blk-sep"></div>`);
+        m.addEventListener("click", e => {
+          const b = e.target.closest("[data-qq]");
+          if (!b) return;
+          e.stopPropagation();
+          if (b.disabled) return;
+          m.remove();
+          const v = b.dataset.qq;
+          if (v === "title") QQm.addTitle(); else if (v === "sub") QQm.addSub(); else QQm.del();
         }, true);
       }
       document.body.appendChild(m);

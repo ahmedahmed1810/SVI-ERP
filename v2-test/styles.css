@@ -1660,3 +1660,51 @@ détail technique en petit */
 #dlyAddW tr.dlw-newr td { background: var(--inst-bg, #fef2f2); }
 #dlyAddW input.dlw-new:focus { box-shadow: inset 0 0 0 2px var(--inst, #b42318); background: #fff; }
 #dlyGantt .gb-lv { color: #98a2b3; font-weight: 700; margin-right: 3px; }
+
+/* ===== DÉTAIL QUALITÉ (FORMAT, section U) — v438 ===== */
+.qq-bar { display: flex; align-items: center; gap: 6px; padding: 4px 6px; flex-wrap: wrap; }
+.qq-sub { border: 1px solid #cbd5e1; background: #f8fafc; color: #475569; font: 600 11px/1 inherit; padding: 6px 10px; border-radius: 6px; text-transform: uppercase; }
+.qq-sub.on { background: #fff; color: var(--inst, #111); box-shadow: inset 0 -2px 0 var(--inst, #111); }
+.qq-scope { margin-left: auto; font-size: 11px; color: #64748b; font-weight: 600; }
+.qq-scroll { padding-right: 9px; }
+.qq-table td, .qq-table th { height: 21px; }
+.qq-table th { white-space: normal; }
+.qq-table :is(input.qq-in, input.qq-xin, input.qq-pin) { width: 100%; box-sizing: border-box; border: 0; background: transparent; font: inherit; color: inherit; padding: 2px 4px; text-transform: uppercase; }
+.qq-table :is(input.qq-in, input.qq-xin, input.qq-pin):focus { box-shadow: inset 0 0 0 2px var(--inst, #b91c1c); background: #fff; outline: 0; }
+.qq-table input.number { text-align: right; }
+.qq-table td.qq-tree { white-space: nowrap; }
+.qq-table tr.qq-t td { background: #f1f5f9; }
+.qq-table tr.qq-t input.qq-lab { font-weight: 700; }
+.qq-table tr.qq-p input.qq-lab { font-weight: 700; }
+.qq-table tr.qq-empty input.qq-lab { color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8 !important; font-weight: 600; }
+.qq-table tr.qq-new input { font-style: italic; }
+.qq-fold { display: inline-block; width: 20px; text-align: center; cursor: pointer; font-weight: 700; color: #475569; user-select: none; -webkit-user-select: none; }
+.qq-table td.qq-pick, .qq-table td.qq-win, .qq-table td.qq-xt { cursor: pointer; }
+.qq-table td.qq-win { background: #fafafa; }
+.qq-table td.qq-ro { cursor: default; }
+.qq-v { display: block; overflow: hidden; text-overflow: clip; white-space: nowrap; padding: 0 4px; }
+.qq-arr { color: #b91c1c; font-weight: 700; }
+#qqPick { position: fixed; z-index: 100020; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.18); padding: 4px; min-width: 160px; max-width: 420px; overflow: auto; }
+#qqPick button { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 7px 10px; font: 600 12px/1.2 inherit; text-transform: uppercase; border-radius: 6px; color: #111; }
+#qqPick button.on { background: #eef2ff; }
+#qqPick button.qq-clr { color: #b91c1c; border-top: 1px solid #e2e8f0; border-radius: 0; }
+.qq-win .qq-wl { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 10px; }
+.qq-win .qq-wl label, .qq-win .qq-wr label { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.qq-win .qq-wr { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 10px; font-size: 13px; }
+.qq-win .qq-wi { width: 80px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: right; font: inherit; }
+.qq-win .qq-wcalc { color: #64748b; font-size: 12px; }
+.qq-win .qq-dis { color: #94a3b8; }
+.qq-desc .qq-dta { width: 100%; min-height: 200px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; font: inherit; text-transform: uppercase; }
+.qq-x2 { display: flex; gap: 10px; min-height: 180px; }
+.qq-x2l, .qq-x2r { flex: 1; display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow: auto; }
+.qq-x2lot { text-align: left; border: 0; background: transparent; padding: 6px 8px; font: 600 12px/1.2 inherit; border-radius: 6px; color: #111; }
+.qq-x2lot.on { color: #1d4ed8; }
+.qq-x2lot.cur { box-shadow: inset 3px 0 0 var(--inst, #111); background: #f8fafc; }
+.qq-x2r label { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+/* DESCRIPTIF : icône i au bout de la désignation (FORMAT 109) */
+td.ins-tdv { position: relative; }
+.des-i { position: absolute; right: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; border: 1px solid #94a3b8; background: #fff; color: #94a3b8; font: italic 700 10px/14px Georgia, serif; padding: 0; z-index: 2; }
+.des-i.on { border-color: #111; color: #111; }
+/* point d'arrêt qualité sur le Gantt (FORMAT 107) */
+.garr { color: #b91c1c; font-size: 10px; margin-left: 3px; }
+.qq-table thead th { white-space: normal !important; text-overflow: clip !important; overflow: visible !important; line-height: 1.15; }
