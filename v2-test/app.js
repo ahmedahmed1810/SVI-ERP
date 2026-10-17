@@ -8269,9 +8269,16 @@ function renderBudgetList() {
         const d0 = ds[0] || "", f0 = fs[fs.length - 1] || "", fold = dlyIsFolded(g.path);
         out.push({ grp: true, lvl, name: g.name, path: g.path, fold, deb: d0, fin: f0, dur: d0 && f0 ? dDur(d0, f0) : "", all: g.all });
         if (fold) return;
-        g.tasks.forEach(t => out.push({ ...t, lvl: lvl + 1 }));
-        walk(g, lvl + 1);
+        /* v446 : tâches et sous-niveaux mêlés dans l'ordre du PLANNING (un niveau reste là où il a été créé,
+           au rang de sa première tâche) — il ne descend plus après les tâches de son lot */
+        walkIn(g, lvl + 1);
       });
+      const pos = new Map(flat.map((t, i) => [t.key, i]));
+      const first = n => Math.min(...n.all.map(t => pos.get(t.key)).filter(v => v !== undefined), Infinity);
+      const walkIn = (g, lvl) => {
+        const items = [...g.tasks.map(t => ({ t, o: pos.get(t.key) })), ...[...g.kids.values()].map(k => ({ k, o: first(k) }))].sort((a, b) => a.o - b.o);
+        items.forEach(it => { if (it.t) out.push({ ...it.t, lvl }); else walk({ kids: new Map([[it.k.name, it.k]]) }, lvl); });
+      };
       walk(root, 0);
       return { rows: out, flat };
     };
