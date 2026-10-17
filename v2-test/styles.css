@@ -1720,3 +1720,6 @@ td.ins-tdv { position: relative; }
 /* le nom des parents se réduit par la gauche quand la colonne est étroite ; le nom du niveau reste entier */
 .dly-lotc .lvl-pre, .lot-in .lvl-pre { flex: 0 1 auto; min-width: 0; overflow: hidden; direction: rtl; text-align: left; }
 .dly-lotc { min-width: 0; overflow: hidden; }
+/* v452 : dates du projet dans INF */
+.inf-grid .inf-sep { border-top: 1px solid #e5e7eb; padding-top: 8px; }
+.inf-grid .inf-late { color: #b91c1c !important; font-weight: 700; }
