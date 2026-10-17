@@ -1736,3 +1736,5 @@ td.ins-tdv { position: relative; }
 .dlyg.tbl-hid .dlyg-sp { margin-right: 24px; }
 /* signe › / ⌄ des lots sur le Gantt : zone de toucher agrandie */
 #dlyGantt .gb-fsg { padding: 4px 7px; margin: -4px 0 0 -7px; font-size: 14px; }
+/* v456 : menu qui défile — flèche ▼ collée en bas tant qu'il reste des entrées plus bas */
+#blkMenu.sv-more::after, #bdgListMenu.sv-more::after { content: "▼"; position: sticky; bottom: -4px; display: block; flex: none; margin: 0 -4px -4px; padding: 6px 0 4px; text-align: center; font-size: 11px; color: #64748b; background: linear-gradient(rgba(255,255,255,0), #fff 45%); pointer-events: none; }
