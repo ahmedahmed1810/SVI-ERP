@@ -16175,6 +16175,68 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
     };
 
     /* fenêtre INF : informations du budget */
+    /* ===== INF : dates du projet (v452) — DÉBUT (modifiable : tout le planning se décale), FIN et DURÉE calculées,
+       DATE OBJECTIF et DATE BUTOIR (déplacées depuis PARAMÉTRAGE) ===== */
+    const infProj = () => {
+      const ks = dlyKeys().filter(k => dlyDeb(k) && dlyFin(k));
+      const deb = ks.map(dlyDeb).sort()[0] || INS.gdeb || "", fin = ks.map(dlyFin).sort().pop() || "";
+      return { ks, deb, fin, dur: deb && fin ? sviWDur(insCal(), deb, fin) : "" };
+    };
+    const infDatesHTML = ed => {
+      const P = infProj();
+      const din = (f, v, extra = "") => ed ? `<input class="doc-in inf-date" type="date" data-f="${f}" value="${esc(v)}"${extra}>` : `<span class="doc-in doc-ro inf-val">${esc(dFr(v))}</span>`;
+      return `<span class="doc-lab">DATE DE DÉBUT DU PROJET</span>${din("deb", P.deb)}
+        <span class="doc-lab">DATE DE FIN DU PROJET</span><span class="doc-in doc-ro inf-val" data-v="fin">${esc(dFr(P.fin))}</span>
+        <span class="doc-lab">DURÉE (J)</span><span class="doc-in doc-ro inf-val" data-v="dur">${esc(P.dur)}</span>
+        <span class="doc-lab">DATE OBJECTIF</span>${din("obj", INS.dobj || "", INS.dbut ? ` max="${esc(INS.dbut)}"` : "")}
+        <span class="doc-lab">DATE BUTOIR</span>${din("but", INS.dbut || "", INS.dobj ? ` min="${esc(INS.dobj)}"` : "")}`;
+    };
+    const infDatesBind = (p, ed) => {
+      if (!ed) return;
+      p.querySelectorAll("input.inf-date").forEach(sviDateField);
+      const paint = () => {
+        const P = infProj();
+        const f = p.querySelector('[data-v="fin"]'), d = p.querySelector('[data-v="dur"]');
+        if (f) { f.textContent = dFr(P.fin); f.classList.toggle("inf-late", !!(INS.dbut && P.fin && P.fin > INS.dbut)); }
+        if (d) d.textContent = P.dur;
+      };
+      paint();
+      p.addEventListener("change", e => {
+        const i = e.target.closest && e.target.closest("input.inf-date");
+        if (!i) return;
+        const f = i.dataset.f, v = i.value;
+        if (f === "obj" || f === "but") {
+          if (f === "obj") INS.dobj = v; else INS.dbut = v;
+          const io = p.querySelector('[data-f="obj"]'), ib = p.querySelector('[data-f="but"]');
+          if (INS.dbut) io.setAttribute("max", INS.dbut); else io.removeAttribute("max");
+          if (INS.dobj) ib.setAttribute("min", INS.dobj); else ib.removeAttribute("min");
+          insSave(); histLog("INF", f === "obj" ? "DATE OBJECTIF" : "DATE BUTOIR", dFr(v) || "—");
+          paint(); keepScroll(() => refreshAll());
+          return;
+        }
+        /* DÉBUT du projet changé : toutes les tâches datées décalées du même nombre de jours travaillés,
+           durées et liaisons gardées ; enregistré aussitôt */
+        const cal = insCal(), P = infProj();
+        if (!v) { i.value = P.deb; return; }
+        const nv = sviWNear(cal, v, 1);
+        if (!P.ks.length) { INS.gdeb = nv; i.value = nv; insSave(); histLog("INF", "DATE DE DÉBUT DU PROJET", dFr(nv)); paint(); return; }
+        if (nv === P.deb) { i.value = nv; return; }
+        const from = sviWNear(cal, P.deb, 1);
+        const n = nv > from ? sviWDur(cal, from, nv) - 1 : -(sviWDur(cal, nv, from) - 1);
+        P.ks.forEach(k => {
+          const L = (INS.dlp[k] || []);
+          L.forEach(q => { if (!q.deb || !q.fin) return; const du = sviWDur(cal, q.deb, q.fin) || 1; q.deb = sviWAdd(cal, sviWNear(cal, q.deb, 1), n); q.fin = sviWFin(cal, q.deb, du); });
+          if (LK.dlpDraft && LK.dlpDraft[k]) delete LK.dlpDraft[k];
+        });
+        INS.gdeb = nv; i.value = nv;
+        insSave();
+        histLog("INF", "PROJET DÉCALÉ", dFr(P.deb) + " → " + dFr(nv) + " (" + (n > 0 ? "+" : "") + n + " J TRAVAILLÉS, " + P.ks.length + " TÂCHE(S))");
+        paint();
+        keepScroll(() => refreshAll());
+        const P2 = infProj();
+        if (INS.dbut && P2.fin > INS.dbut) svToast("AVEC CE DÉCALAGE, LA FIN DU PROJET (" + dFr(P2.fin) + ") DÉPASSE LA DATE BUTOIR (" + dFr(INS.dbut) + ").", 6000, i);
+      });
+    };
     const openInfo = () => {
       const dt = typeof budgetDate === "function" ? budgetDate(ref) : null;
       const prd = lines.filter(l => l.kind === "prd");
@@ -16212,6 +16274,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
                 ${(k === "INTITULÉ" || k === "CLIENT") && editInt
                   ? `<input class="doc-in inf-int" id="${k === "CLIENT" ? "infCli" : "infInt"}" value="${esc(v === "À COMPLÉTER" ? "" : v)}" placeholder="À COMPLÉTER" autocomplete="off">`
                   : `<span class="doc-in doc-ro inf-val">${esc(v)}</span>`}`).join("")}
+              ${INS ? infDatesHTML(editInt) : ""}
             </div>
           </div>
           <div class="doc-foot">
@@ -16220,6 +16283,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         </div>`;
       document.body.appendChild(p);
       popEnhance(p, "inf");
+      if (INS) infDatesBind(p, editInt);
       /* INTITULÉ et CLIENT : enregistrés à la fermeture de la fenêtre */
       const saveInt = () => {
         [["#infInt", "intitule", "INTITULÉ", "À COMPLÉTER"], ["#infCli", "client", "CLIENT", ""]].forEach(([sel, f, lab, def]) => {
@@ -19518,7 +19582,7 @@ function sviParamTabs() {
   const bar = document.createElement("div");
   bar.className = "prm-tabs";
   bar.innerHTML = `<button type="button" class="prm-tab on" data-prm="chs">CHS — CHARGES STANDARDS</button><button type="button" class="prm-tab" data-prm="unit">UNITÉS</button>`
-    + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal">CALENDRIER</button><button type="button" class="prm-tab prm-bdg" data-bdg="dates">DATES DU BUDGET</button>`;
+    + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal">CALENDRIER</button>`;
   /* CALENDRIER et DATES DU BUDGET : pour le budget ouvert ; grisés sans budget ouvert (appui long = raison) */
   const why = () => { const L = window.__sviBdgLive; return !L ? "OUVRIR UN BUDGET D'ABORD" : !L.edit ? "BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE" : ""; };
   const paint = () => bar.querySelectorAll(".prm-bdg").forEach(b => b.classList.toggle("off", !!why()));
