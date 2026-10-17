@@ -7797,7 +7797,27 @@ function renderBudgetList() {
       INS[k] = INS[k].filter(r => !empty(r));
       return INS[k].length !== before;
     };
-    shell.__ins = INS_EDIT ? { INS, rowErr: (k, r) => insRowErr(k, r), cleanLinks: () => insCleanLinks(), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles,
+    shell.__ins = INS_EDIT ? { INS,
+      /* v468 : mise à jour JUSTE APRÈS une saisie (ENTRÉE ou case quittée), sans attendre de toucher hors du tableau :
+         la liste où l'on saisit garde le clavier (seul son compteur change) ; tout le reste est redessiné aussitôt */
+      afterEntry: (k, box) => {
+        const inBox = el => !!(el && box && box.contains(el));
+        if (k === "prim" && insTwins()) insSave();
+        ["lot", "prim", "sec"].filter(x => x !== k).forEach(x => { const c = $("bdgHier")?.querySelector(`.ins-hcol[data-ik="${x}"]`); if (c && !c.contains(document.activeElement)) insRenderHier(x); });
+        if (k !== "des") { const c = shell.querySelector(".bdg-d-client-scroll"); if (c && !c.contains(document.activeElement)) insRenderClient(); }
+        const lab = box && box.querySelector(".svi-cnt"); if (lab && ["lot", "prim", "sec"].includes(k)) lab.outerHTML = svCnt(box.querySelectorAll(":scope > .ins-li[data-iid]").length, INS[k].length);
+        const bd = $("bdgTabBody");
+        if (bd && !bd.contains(document.activeElement)) {
+          /* redessin sans quitter la case en cours (keepScroll la ferait perdre) : défilements gardés à la main */
+          const sel = ".bdg-d-tabbody .bdg-d-scroll, .bdg-d-tabbody .dlyg-l, .bdg-d-tabbody .dlyg-r";
+          const sv = [...shell.querySelectorAll(sel)].map(el => [el.scrollTop, el.scrollLeft]), wx = window.scrollX, wy = window.scrollY;
+          renderTab();
+          [...shell.querySelectorAll(sel)].forEach((el, i) => { if (sv[i]) { el.scrollTop = sv[i][0]; el.scrollLeft = sv[i][1]; } });
+          window.scrollTo(wx, wy);
+        }
+        insMarkUnlinked();
+      },
+      rowErr: (k, r) => insRowErr(k, r), cleanLinks: () => insCleanLinks(), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles,
       /* ligne utilisée par une liaison (validée, ou déliée mais pas encore validée) : suppression interdite */
       isUsed: (k, id) => {
         if (!["des", "lot", "prim", "sec", "prd", "chg"].includes(k)) return false;
@@ -7953,6 +7973,15 @@ function renderBudgetList() {
       }, true);
       /* touche Entrée : case suivante (fin de ligne : 1re case de la ligne suivante) */
       /* (Entrée / Tab : voir la règle générale FORMAT 93, plus bas) */
+      shell.addEventListener("change", e => {
+        const X = shell.__ins;
+        const inp = e.target.closest && e.target.closest(".ins-in");
+        if (!X || !X.afterEntry || !inp || !inp.closest("[data-ik]")) return;
+        const box = inp.closest("table.ins-table, .ins-hcol");
+        const k = box?.dataset.ik;
+        if (!k) return;
+        setTimeout(() => { if (!shell.__insDragging && box.isConnected) X.afterEntry(k, box); }, 0);
+      });
       /* le doigt quitte un bloc : lignes vidées retirées, titres et sous-totaux remis en place */
       shell.addEventListener("focusout", e => {
         const X = shell.__ins;
