@@ -19105,7 +19105,7 @@ function svToast(msg, ms = 3500, anchor) {
     t.style.right = "auto";
     t.style.visibility = "hidden";
     t.classList.add("on");
-    const w = t.offsetWidth, h = t.offsetHeight, vw = window.innerWidth, vh = window.innerHeight;
+    const w = t.offsetWidth, h = t.offsetHeight, vw = window.innerWidth, vh = sviViewH();
     const left = Math.max(8, Math.min(r.left, vw - w - 8));
     const top = r.bottom + 6 + h <= vh - 8 ? r.bottom + 6 : Math.max(8, r.top - h - 6);
     t.style.left = left + "px";
@@ -19165,8 +19165,10 @@ function sviWatchState(shell) {
 }
 /* message au format de l'application (jamais de fenêtre Safari) : titre, texte, FERMER */
 /* menus ⋯ (FORMAT 107) : sous le bouton s'il y a la place, sinon au-dessus ; sinon hauteur disponible avec défilement */
+/* v453 (FORMAT 28) : hauteur réellement visible — sur iPad, window.innerHeight peut compter la zone cachée par la barre de Safari */
+function sviViewH() { const v = window.visualViewport; return Math.min(window.innerHeight, v ? v.height + (v.offsetTop || 0) : window.innerHeight); }
 function sviPlaceMenu(m, r) {
-  const vh = window.innerHeight, M = 8;
+  const vh = sviViewH(), M = 12;
   m.style.maxHeight = ""; m.style.top = "0px";
   const h = m.offsetHeight, below = vh - r.bottom - 4 - M, above = r.top - 4 - M;
   if (h <= below) m.style.top = r.bottom + 4 + "px";
@@ -19174,6 +19176,17 @@ function sviPlaceMenu(m, r) {
   else if (below >= above) { m.style.top = r.bottom + 4 + "px"; m.style.maxHeight = below + "px"; }
   else { m.style.top = M + "px"; m.style.maxHeight = above + "px"; }
   m.style.left = Math.max(M, Math.min(window.innerWidth - m.offsetWidth - M, r.right - m.offsetWidth)) + "px";
+  /* garde finale : le menu ne dépasse jamais le bas de la partie visible (défilement interne) */
+  const b = m.getBoundingClientRect();
+  if (b.bottom > vh - M) m.style.maxHeight = Math.max(120, vh - M - b.top) + "px";
+  /* mise en page tardive (polices, iPad) : replacé une fois affiché, et si la zone visible change */
+  if (!m.__svPlaced) {
+    m.__svPlaced = true;
+    const again = () => { if (m.isConnected) sviPlaceMenu(m, r); };
+    requestAnimationFrame(again); setTimeout(again, 150);
+    const vv = window.visualViewport;
+    if (vv) { const f = () => { if (!m.isConnected) { vv.removeEventListener("resize", f); vv.removeEventListener("scroll", f); return; } again(); }; vv.addEventListener("resize", f); vv.addEventListener("scroll", f); }
+  }
 }
 function sviAlert(msg, title = "INFORMATION") {
   if (window.__sviQuiet) return;   /* contrôle silencieux (état du bouton APERÇU PDF) */
@@ -19440,7 +19453,7 @@ document.addEventListener("input", e => {
   b.innerHTML = L.map(x => `<button type="button" data-u="${esc(x.a)}"><b>${esc(x.a)}</b><span>${esc(x.n)}</span></button>`).join("");
   const r = i.getBoundingClientRect();
   b.style.left = Math.max(8, Math.min(r.left, window.innerWidth - b.offsetWidth - 8)) + "px";
-  b.style.top = (r.bottom + 4 + b.offsetHeight <= window.innerHeight - 8 ? r.bottom + 4 : Math.max(8, r.top - b.offsetHeight - 4)) + "px";
+  b.style.top = (r.bottom + 4 + b.offsetHeight <= sviViewH() - 8 ? r.bottom + 4 : Math.max(8, r.top - b.offsetHeight - 4)) + "px";
 });
 document.addEventListener("pointerdown", e => {
   const b = document.getElementById("svUnitSug");
@@ -19827,7 +19840,7 @@ function sviCal(anchor, { iso = "", dis = null, onPick }) {
   document.body.appendChild(box);
   const r = anchor.getBoundingClientRect(), h = box.offsetHeight, w = box.offsetWidth;
   box.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + "px";
-  box.style.top = (r.bottom + 6 + h <= window.innerHeight - 8 ? r.bottom + 6 : Math.max(8, r.top - h - 6)) + "px";
+  box.style.top = (r.bottom + 6 + h <= sviViewH() - 8 ? r.bottom + 6 : Math.max(8, r.top - h - 6)) + "px";
   const close = () => { box.remove(); document.removeEventListener("pointerdown", out, true); };
   const out = e => { if (!box.contains(e.target) && e.target !== anchor) close(); };
   setTimeout(() => document.addEventListener("pointerdown", out, true), 0);
