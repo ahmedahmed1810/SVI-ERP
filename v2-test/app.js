@@ -9539,7 +9539,7 @@ function renderBudgetList() {
           ind = Math.max(0, Math.min(g.width - 40, ind));
         }
         const y = (h.after ? h.r.bottom : h.r.top) - 1.5;
-        l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${g.left + ind}px;width:${Math.max(40, g.width - ind)}px;top:${y}px`;
+        l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:${h.keep === true ? "#2563eb" : h.keep === false ? "#111827" : "var(--inst,#12355b)"};left:${g.left + ind}px;width:${Math.max(40, g.width - ind)}px;top:${y}px`;
         l.innerHTML = "";
       };
       /* lot glissé en hauteur (tableau ou Gantt) : endroit et niveau d'arrivée (FORMAT 64 / 44) —
@@ -9572,10 +9572,11 @@ function renderBudgetList() {
         if (L > 0) for (let k = i - 1; k >= 0; k--) if (rows[k].x.grp && rows[k].x.lvl === L - 1) { parent = rows[k].x.path; break; }
         const nx = rows.slice(i).find(q => !q.x.grp);
         const ref = next || prev;
-        void parent; void L;
-        /* v461 : le parent ne change pas : le trait suit le titre parent du lot glissé */
-        const own = P.slice(0, -1).join(" / ");
-        return { parent: own, into: !!own, before: nx ? nx.x.key : "", tr: ref.tr, r: ref.r, after: !next, lvl: P.length - 1, line: true };
+        /* v463 : doigt resté au niveau de départ = trait BLEU : le lot garde son titre d'origine et son numéro, seule sa place change ;
+           doigt décalé à gauche / à droite = trait NOIR aligné sur le titre visé : il y entre (nouveau numéro) ; plus à gauche = niveau supérieur */
+        const keep = Math.round((ev.clientX - x0) / 30) === 0;
+        if (keep) { const own = P.slice(0, -1).join(" / "); return { keep: true, parent: own, into: !!own, before: nx ? nx.x.key : "", tr: ref.tr, r: ref.r, after: !next, lvl: P.length - 1, line: true }; }
+        return { keep: false, parent, into: !!parent, before: nx ? nx.x.key : "", tr: ref.tr, r: ref.r, after: !next, lvl: L, line: true };
       };
       /* tâche glissée : au milieu d'une autre tâche (ligne encadrée) = superposer ; sinon trait (rang / lot) */
       /* tâche glissée (tableau ou Gantt), même logique que DÉSIGNATIONS CLIENT (FORMAT 44 / 64) :
@@ -10080,7 +10081,7 @@ function renderBudgetList() {
         const L = INS.lot, src = dlyLotPath(path);
         /* v461 : glissé entre deux lignes = la PLACE change, jamais le parent (le numéro garde l'appartenance ; placé hors du
            bloc de son parent, il s'affiche seul à sa place) ; superposé sur un titre = rangé dans ce titre */
-        let base = plan.on ? [] : src.slice(0, -1), extra = null, N = "";
+        let base = plan.on ? [] : plan.keep ? src.slice(0, -1) : plan.parent ? dlyLotPath(plan.parent) : [], extra = null, N = "";
         const under = (v, P) => { const s2 = dlyLotPath(v); return s2.length >= P.length && P.every((g, i) => U_(g) === U_(s2[i])); };
         if (plan.on) {
           const T = dlyLotPath(plan.on);
@@ -10093,7 +10094,7 @@ function renderBudgetList() {
         }
         if (base.length >= src.length && src.every((g, i) => U_(g) === U_(base[i]))) { renderTabK(); return; }   /* pas dans sa propre branche */
         /* déjà rangé là (même parent) : on le dit, au lieu de ne rien faire en silence */
-        if (!extra && plan.on && U_(src.slice(0, -1).join(" / ")) === U_(base.join(" / "))) { svToast(src[src.length - 1] + (base.length ? " EST DÉJÀ DANS " + base[base.length - 1] : " EST DÉJÀ AU PREMIER NIVEAU") + ".", 3500, anchor); }
+        if (!extra && !plan.keep && U_(src.slice(0, -1).join(" / ")) === U_(base.join(" / ")) && (plan.on || !plan.before)) { svToast(src[src.length - 1] + (base.length ? " EST DÉJÀ DANS " + base[base.length - 1] : " EST DÉJÀ AU PREMIER NIVEAU") + ".", 3500, anchor); }
         const ren = new Map();
         const add = (P0, b0) => L.filter(x => !x.t && under(x.v, P0)).forEach(x => ren.set(x.id, b0.concat(dlyLotPath(x.v).slice(P0.length - 1)).join(" / ")));
         add(src, base); if (extra) add(extra.P, extra.base);
@@ -10110,7 +10111,7 @@ function renderBudgetList() {
         rest.splice(j, 0, ...mine);
         INS.dord = rest;
         dlyTasksFromPlan(); insSave();
-        histLog("DÉLAIS", N ? "NIVEAU DE LOT CRÉÉ" : plan.on ? "LOT DÉPLACÉ" : "LOT DÉPLACÉ (PLACE)", dlyLotPath(path).pop() + (plan.on || N ? " → " + (base.length ? base.join(" / ") : "RACINE") : ""));
+        histLog("DÉLAIS", N ? "NIVEAU DE LOT CRÉÉ" : plan.keep ? "LOT DÉPLACÉ (PLACE, MÊME TITRE)" : "LOT DÉPLACÉ", dlyLotPath(path).pop() + (plan.keep ? "" : " → " + (base.length ? base.join(" / ") : "RACINE")));
         refreshAll();
         if (N) setTimeout(() => { const i = [...shell.querySelectorAll("input.dly-nm")].find(x => x.dataset.path === base.join(" / ")); if (i) { i.focus(); try { i.select(); } catch (e) {} } }, 80);
       },
