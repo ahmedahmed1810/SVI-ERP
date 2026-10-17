@@ -1708,3 +1708,5 @@ td.ins-tdv { position: relative; }
 /* point d'arrêt qualité sur le Gantt (FORMAT 107) */
 .garr { color: #b91c1c; font-size: 10px; margin-left: 3px; }
 .qq-table thead th { white-space: normal !important; text-overflow: clip !important; overflow: visible !important; line-height: 1.15; }
+/* v441 : nom du lot d'arrivée surligné pendant un glissement sur le Gantt */
+.gb-grp.gb-grp-tgt { background: #fde68a; border-radius: 4px; box-shadow: 0 0 0 2px #fde68a; }
