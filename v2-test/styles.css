@@ -1738,3 +1738,23 @@ td.ins-tdv { position: relative; }
 #dlyGantt .gb-fsg { padding: 4px 7px; margin: -4px 0 0 -7px; font-size: 14px; }
 /* v456 : menu qui défile — flèche ▼ collée en bas tant qu'il reste des entrées plus bas */
 #blkMenu.sv-more::after, #bdgListMenu.sv-more::after { content: "▼"; position: sticky; bottom: -4px; display: block; flex: none; margin: 0 -4px -4px; padding: 6px 0 4px; text-align: center; font-size: 11px; color: #64748b; background: linear-gradient(rgba(255,255,255,0), #fff 45%); pointer-events: none; }
+/* v457 : INF (dates du projet), bouton ⚠ À COMPLÉTER */
+.inf-sub { display: block; font-size: 9.5px; font-weight: 700; color: #64748b; letter-spacing: .02em; margin-top: 1px; }
+.inf-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.inf-cell.inf-dt { flex-direction: row; gap: 6px; }
+.inf-cell.inf-dt .inf-cre { flex: 1 1 auto; min-width: 0; }
+.inf-cell.inf-dt .inf-cre-h { flex: 0 0 92px; }
+.inf-sub.inf-late { color: #b91c1c; }
+.inst-act.inst-todo { position: relative; color: #b45309; }
+.inst-act.inst-todo.ok { color: #15803d; }
+.inst-act.inst-todo b { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #dc2626; color: #fff; font-size: 10px; line-height: 16px; font-weight: 800; text-align: center; }
+.inst-act.inst-todo b:empty { display: none; }
+#svConf .fz-why.fz-opt { border-style: dashed; color: #475569; }
+#svConf .fz-why small { font-size: 9.5px; color: #64748b; font-weight: 700; }
+#svConf .fz-none { padding: 12px 4px; font-weight: 800; font-size: 12px; color: #15803d; text-align: center; }
+.inf-cell.inf-dt { width: 100%; }
+.inf-cell.inf-dt > .inf-cre, .inf-cell.inf-dt > input:first-child { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; }
+.inf-cell.inf-dt > .inf-cre-h { flex: 0 0 96px !important; width: 96px !important; min-width: 96px !important; }
+.inf-cell.inf-dt > .fld-wrap { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; }
+.inf-cell.inf-dt > .fld-wrap:last-child { flex: 0 0 104px !important; width: 104px !important; }
+.inf-cell.inf-dt > .fld-wrap > input { width: 100% !important; }
