@@ -19322,13 +19322,18 @@ function sviViewH() {
   return Math.min(window.innerHeight, de && de.clientHeight ? de.clientHeight : window.innerHeight, v ? v.height + (v.offsetTop || 0) : window.innerHeight);
 }
 function sviPlaceMenu(m, r) {
-  const vh = sviViewH(), M = 20;
+  const vh = sviViewH(), M = 24;
   m.style.maxHeight = ""; m.style.top = "0px";
-  const h = m.offsetHeight, below = vh - r.bottom - 4 - M, above = r.top - 4 - M;
+  m.classList.remove("sv-2col");
+  let h = m.offsetHeight;
+  const below = vh - r.bottom - 4 - M, above = r.top - 4 - M, full = vh - 2 * M;
+  /* v459 : le menu est TOUJOURS vu en entier — sous le bouton, sinon au-dessus, sinon sur toute la hauteur
+     (il recouvre alors le bouton), sinon sur deux colonnes ; défilement interne en tout dernier recours */
+  if (h > below && h > above && h > full && m.id === "blkMenu") { m.classList.add("sv-2col"); h = m.offsetHeight; }
   if (h <= below) m.style.top = r.bottom + 4 + "px";
   else if (h <= above) m.style.top = r.top - 4 - h + "px";
-  else if (below >= above) { m.style.top = r.bottom + 4 + "px"; m.style.maxHeight = below + "px"; }
-  else { m.style.top = M + "px"; m.style.maxHeight = above + "px"; }
+  else if (h <= full) m.style.top = Math.max(M, Math.min(r.bottom + 4, vh - M - h)) + "px";
+  else { m.style.top = M + "px"; m.style.maxHeight = full + "px"; }
   m.style.left = Math.max(M, Math.min(window.innerWidth - m.offsetWidth - M, r.right - m.offsetWidth)) + "px";
   /* garde finale : le menu ne dépasse jamais le bas de la partie visible (défilement interne) */
   const b = m.getBoundingClientRect();
