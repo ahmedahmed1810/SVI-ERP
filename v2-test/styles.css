@@ -1713,3 +1713,10 @@ td.ins-tdv { position: relative; }
 /* v443 : nom d'un lot écrit dans sa barre quand il y tient */
 .gb-grp.gb-gin { background: color-mix(in srgb, var(--c) 30%, #fff); border-radius: 4px; padding: 0 5px; z-index: 4; }
 .gb-grp.gb-gin.gb-grp-tgt { background: #fde68a; }
+/* v450 : nom des parents devant un niveau nommé automatiquement */
+.lvl-pre { color: #94a3b8; font-weight: 600; white-space: nowrap; margin-right: 2px; }
+.dly-lotc, .lot-in { white-space: nowrap; }
+.dly-lotc .lvl-pre + input.dly-nm, .lot-in .lvl-pre + input { flex: 1; min-width: 60px; }
+/* le nom des parents se réduit par la gauche quand la colonne est étroite ; le nom du niveau reste entier */
+.dly-lotc .lvl-pre, .lot-in .lvl-pre { flex: 0 1 auto; min-width: 0; overflow: hidden; direction: rtl; text-align: left; }
+.dly-lotc { min-width: 0; overflow: hidden; }

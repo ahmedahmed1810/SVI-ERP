@@ -689,6 +689,11 @@ function money(v) {
   });
 }
 
+/* v450 : un niveau nommé automatiquement (NIVEAU 2, NIVEAU 2.1…) s'affiche précédé du nom de ses parents (« FONDATION / ») */
+function sviLvlPre(segs) {
+  const sg = (segs || []).map(x => String(x || "").trim()).filter(Boolean);
+  return sg.length > 1 && /^(NOUVEAU )?NIVEAU \d+(\.\d+)*$/i.test(sg[sg.length - 1]) ? sg.slice(0, -1).join(" / ").toUpperCase() + " / " : "";
+}
 function esc(v) {
   return String(v ?? "").replace(
     /[&<>"']/g,
@@ -6450,9 +6455,16 @@ function renderBudgetList() {
     /* ===== LOTS en arborescence (« / ») dans le bloc TÂCHES : niveaux repliables › / ⌄, nom du dernier niveau ===== */
     const lotSegs = r => String(r && r.v || "").split("/").map(x => x.trim()).filter(Boolean);
     /* nom d'un nouveau niveau de lot (16/10/2026) : « NIVEAU n », numéro suivant dans le budget (anciens « NOUVEAU NIVEAU n » comptés) */
-    const insNextLevel = () => {
-      const used = INS.lot.flatMap(x => lotSegs(x)).map(g => (String(g).match(/^(?:NOUVEAU )?NIVEAU (\d+)$/) || [])[1]).filter(Boolean).map(Number);
-      return "NIVEAU " + ((used.length ? Math.max(...used) : 0) + 1);
+    /* v450 : nom d'un niveau créé selon l'arborescence — sous un lot : NIVEAU 1, NIVEAU 2… (rang parmi les niveaux du même parent) ;
+       sous un niveau « NIVEAU 2 » : NIVEAU 2.1, NIVEAU 2.2… ; affiché avec le nom des parents (« FONDATION / NIVEAU 2 ») tant qu'on ne lui donne pas un intitulé */
+    const insNextLevel = (parent = []) => {
+      const P = parent.map(U_), last = P.length ? P[P.length - 1] : "";
+      const m = last.match(/^NIVEAU (\d+(?:\.\d+)*)$/), base = m ? m[1] + "." : "";
+      const kids = new Set();
+      INS.lot.forEach(x => { const sg = lotSegs(x).map(U_); if (sg.length > P.length && P.every((g, i) => g === sg[i])) kids.add(sg[P.length]); });
+      const re = new RegExp("^(?:NOUVEAU )?NIVEAU " + base.replace(/\./g, "\\.") + "(\\d+)$");
+      const used = [...kids].map(g => (g.match(re) || [])[1]).filter(Boolean).map(Number);
+      return "NIVEAU " + base + ((used.length ? Math.max(...used) : 0) + 1);
     };
     const lotCmp = (a, b) => { const A = lotSegs(a), B = lotSegs(b); for (let i = 0; i < Math.min(A.length, B.length); i++) { const c = natCmp(A[i], B[i]); if (c) return c; } return A.length - B.length; };
     const lotUnder = (r, P) => { const s2 = lotSegs(r); return s2.length >= P.length && P.every((g, i) => U_(g) === U_(s2[i])); };
@@ -6496,15 +6508,15 @@ function renderBudgetList() {
         /* niveau sans lot à lui : nom modifiable, case = toute sa branche */
         const br = INS.lot.filter(r => !r.t && lotUnder(r, x.segs));
         const all = br.length && br.every(r => r.on === true);
-        return `<div class="ins-li lot-grp" data-path="${esc(x.path)}"><span class="ins-rdc"></span><span class="lot-in" ${pad}>${fold}${INS_EDIT ? `<input class="lot-gname" data-kind="grp" data-path="${esc(x.path)}" value="${esc(x.segs[x.segs.length - 1])}" autocomplete="off">` : `<span>${esc(x.segs[x.segs.length - 1])}</span>`}</span>
+        return `<div class="ins-li lot-grp" data-path="${esc(x.path)}"><span class="ins-rdc"></span><span class="lot-in" ${pad}>${fold}${sviLvlPre(x.segs) ? `<span class="lvl-pre"><span dir="ltr">${esc(sviLvlPre(x.segs))}</span></span>` : ""}${INS_EDIT ? `<input class="lot-gname" data-kind="grp" data-path="${esc(x.path)}" value="${esc(x.segs[x.segs.length - 1])}" autocomplete="off">` : `<span>${esc(x.segs[x.segs.length - 1])}</span>`}</span>
           ${INS_EDIT ? `<span class="ins-delc"><input type="checkbox" class="lot-gcb" data-path="${esc(x.path)}"${all ? " checked" : ""}></span>` : ""}</div>`;
       }
       const r = x.r, k = "lot";
       const pre = x.segs.length > 1 ? x.segs.slice(0, -1).join(" / ") + " / " : "";
       const nm = x.segs.length ? x.segs[x.segs.length - 1] : (r.v || "");
       return `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
-          ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><span class="lot-in" ${pad}>${fold}<input class="ins-in" data-f="v" enterkeyhint="next" data-pre="${esc(pre)}" value="${esc(nm)}" autocomplete="off"></span>
-            <span class="ins-delc">${insDelCell(r)}</span>` : `<span class="lot-in" ${pad}>${fold}<span>${esc(nm)}</span></span>`}
+          ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><span class="lot-in" ${pad}>${fold}${sviLvlPre(x.segs) ? `<span class="lvl-pre"><span dir="ltr">${esc(sviLvlPre(x.segs))}</span></span>` : ""}<input class="ins-in" data-f="v" enterkeyhint="next" data-pre="${esc(pre)}" value="${esc(nm)}" autocomplete="off"></span>
+            <span class="ins-delc">${insDelCell(r)}</span>` : `<span class="lot-in" ${pad}>${fold}<span>${esc(sviLvlPre(x.segs) + nm)}</span></span>`}
         </div>`;
     }).join("");
     /* glissement d'un lot (FORMAT 26, 44) : dans un niveau = passe dessous ; avant / après = même niveau que la ligne visée ;
@@ -6517,7 +6529,7 @@ function renderBudgetList() {
       let base, extra = null, N = "";
       if (mode === "on" && tEl.classList.contains("lot-grp")) base = tSegs;
       else if (mode === "on") {
-        N = insNextLevel();
+        N = insNextLevel(tSegs.slice(0, -1));
         base = tSegs.slice(0, -1).concat(N);
         extra = { P: tSegs, base };
       } else base = tSegs.slice(0, -1);
@@ -8545,8 +8557,8 @@ function renderBudgetList() {
             /* nom court (sans le parent) ; un lot rangé dans un autre est décalé et marqué ↳ selon son niveau (comme le bloc LOT) */
             + (() => {
               /* v443 : nom du lot dans sa barre quand il y tient en entier (comme les tâches), sinon juste à droite */
-              const bw = r - 5 - l, need = dlyTxtW(x.name) + (x.lvl ? 14 : 0) + 12, inb = l > 0 && bw >= need;
-              return `<span class="gb-n gb-out gb-grp gb-ren${inb ? " gb-gin" : ""}" data-path="${esc(x.path)}" style="left:${inb ? l + 4 : r + x.lvl * 14}px;top:${ty}px;--c:${gcolOf()}">${x.lvl ? '<span class="gb-lv">↳</span>' : ""}${esc(x.name)}</span>`;
+              const pre = sviLvlPre(dlyLotPath(x.path)), bw = r - 5 - l, need = dlyTxtW(pre + x.name) + (x.lvl ? 14 : 0) + 12, inb = l > 0 && bw >= need;
+              return `<span class="gb-n gb-out gb-grp gb-ren${inb ? " gb-gin" : ""}" data-path="${esc(x.path)}" style="left:${inb ? l + 4 : r + x.lvl * 14}px;top:${ty}px;--c:${gcolOf()}">${x.lvl ? '<span class="gb-lv">↳</span>' : ""}${pre ? `<span class="lvl-pre">${esc(pre)}</span>` : ""}${esc(x.name)}</span>`;
             })();
           const gcolOf = () => dlyLotColor((x.all.find(t => t.lo) || {}).lo);
           if (!segs.length) { bars += gname(17, 20); return; }
@@ -8807,7 +8819,7 @@ function renderBudgetList() {
           const tbl = dlyTable(PR.rows.concat(INS_EDIT ? [{ nw: true }] : []), x => x.nw
             ? { lot: newIn("lot", "dlyLotDl"), sec: newIn("sec", "dlySecDl"), pred: "", deb: "", fin: "", dur: "", marge: "", jal: "", __cb: "", __td_marge: " dly-calc" }
             : x.grp
-            ? { lot: `<span class="dly-lotc" ${ind(x.lvl)}><span class="dly-fold" data-path="${esc(x.path)}"><b>${x.fold ? "›" : "⌄"}</b></span>${nm("grp", `data-path="${esc(x.path)}"`, x.name)}</span>`, sec: "", pred: "",
+            ? { lot: `<span class="dly-lotc" ${ind(x.lvl)}><span class="dly-fold" data-path="${esc(x.path)}"><b>${x.fold ? "›" : "⌄"}</b></span>${sviLvlPre(dlyLotPath(x.path)) ? `<span class="lvl-pre"><span dir="ltr">${esc(sviLvlPre(dlyLotPath(x.path)))}</span></span>` : ""}${nm("grp", `data-path="${esc(x.path)}"${sviLvlPre(dlyLotPath(x.path)) ? ` style="flex:0 0 ${Math.ceil(dlyTxtW(x.name) * 1.3) + 16}px"` : ""}`, x.name)}</span>`, sec: "", pred: "",
                 deb: `<b>${esc(dFr(x.deb))}</b>`, fin: `<b>${esc(dFr(x.fin))}</b>`, dur: x.dur === "" ? "" : `<b>${x.dur}</b>`, marge: "", jal: "", __td_marge: " dly-calc",
                 __cb: `<input type="checkbox" class="dlyp-cb" data-path="${esc(x.path)}"${x.all.length && x.all.every(t => SEL.has(t.key)) ? " checked" : ""}${x.all.some(t => SEL.has(t.key)) && !x.all.every(t => SEL.has(t.key)) ? " data-part=\"1\"" : ""}>` }
             : { lot: "", sec: `<span class="dly-lotc" ${ind(x.lvl)}>${nm("sec", `data-sid="${esc(x.key.split("|")[1])}"`, x.sec)}</span>`, pred: `<span class="dly-pred" data-key="${esc(x.key)}">${esc(x.pred) || "<i>CHOISIR…</i>"}</span>`,
@@ -9862,7 +9874,7 @@ function renderBudgetList() {
           const own = L.some(x => U_(x.v) === U_(T.join(" / "))), kids = L.some(x => dlyLotPath(x.v).length > T.length && under(x.v, T));
           if (own && !kids) {
             /* superposé sur un lot simple : nouveau niveau qui regroupe les deux (comme dans TÂCHES) */
-            N = insNextLevel();
+            N = insNextLevel(T.slice(0, -1));
             base = T.slice(0, -1).concat(N); extra = { P: T, base };
           } else base = T;
         }
@@ -9973,7 +9985,7 @@ function renderBudgetList() {
       },
       /* CRÉER UN NIVEAU : sous-lot « NIVEAU n » du lot de A ; A puis B y passent (seul le lot change) */
       supLevel: (B, A) => {
-        const X = shell.__insDly, la = A.split("|")[0], N = insNextLevel();
+        const X = shell.__insDly, la = A.split("|")[0], N = insNextLevel(dlyLotPath(lkName("lot", la)));
         const nl = { id: insId(), v: dlyLotPath(lkName("lot", la)).concat(N).join(" / ") };
         const i = INS.lot.findIndex(x => x.id === la);
         INS.lot.splice(i < 0 ? INS.lot.length : i + 1, 0, nl);
