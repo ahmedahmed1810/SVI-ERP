@@ -8316,6 +8316,14 @@ function renderBudgetList() {
       return new Map(INS.dord.map((k, i) => [k, i]));
     };
     const dlySortByDeb = () => { INS.dord = dlyByDeb(dlyKeys()); dlyTasksFromPlan(); };
+    /* v462 : déjà classé par début (PLANNING, puis lots et activités secondaires de TÂCHES) → CLASSER PAR DÉBUT grisé */
+    const dlyIsSorted = () => {
+      const keys = [...dlyOrder(dlyKeys()).keys()], want = dlyByDeb(keys);
+      if (keys.join("\n") !== want.join("\n")) return false;
+      const uniq = a => [...new Set(a)];
+      const same = (arr, ids) => { const S = new Set(ids); return arr.filter(r => S.has(r.id)).map(r => r.id).join("\n") === ids.join("\n"); };
+      return same(INS.lot, uniq(want.map(k => k.split("|")[0]))) && same(INS.sec, uniq(want.map(k => k.split("|")[1])));
+    };
     /* un seul ordre (cahier, Planning budgétaire) : PLANNING → bloc TÂCHES — lots dans l'ordre de leur première tâche,
        activités secondaires dans l'ordre de leur première tâche, activités primaires dans l'ordre de leur première
        activité secondaire ; lignes hors planning à la suite, dans leur ordre */
@@ -9927,6 +9935,7 @@ function renderBudgetList() {
         });
       },
       isoOff: () => { shell.__dlyIso = null; refreshAll(); },
+      sorted: () => { try { return dlyIsSorted(); } catch (e) { return false; } },
       moveRow: (k, t, after) => shell.__insDly.moveKeys([k], [t], after),
       /* déplacer un bloc de lignes (une tâche, ou toutes les tâches d'un lot) avant / après un autre */
       moveKeys: (ks, ts, after) => {
@@ -17315,11 +17324,11 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         const sc = DX.scaleOf(), lev = DX.canLev();
         const opt = (v, lab) => `<button type="button" data-dly="sc-${v}" class="dly-sc${sc === v ? " on" : ""}"><span>${sc === v ? "✓ " : ""}${lab}</span></button>`;
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-dly="gen"><span>GÉNÉRER LE PLANNING</span></button>
-          <button type="button" data-dly="sort"><span>CLASSER PAR DÉBUT</span></button>
+          <button type="button" data-dly="sort" class="${DX.sorted() ? "off" : ""}"><span>CLASSER PAR DÉBUT</span></button>
           <button type="button" data-dly="lev" class="${lev ? "" : "off"}" ${lev ? "" : 'aria-disabled="true"'}><span>APPLIQUER LE NIVELLEMENT</span></button>
           <div class="blk-sep"></div><div class="blk-hint">AFFICHAGE DU GANTT</div>${opt("j", "JOUR")}${opt("s", "SEMAINE")}${opt("m", "MOIS")}<div class="blk-sep"></div>`);
         let lp = null;
-        m.addEventListener("pointerdown", e => { const b = e.target.closest('[data-dly="lev"].off'); if (!b) return; lp = setTimeout(() => svToast("RIEN À NIVELER : AUCUN JOUR NE DÉPASSE LE PLAFOND DE MAIN D'ŒUVRE (OU PAS DE PLAFOND / PAS DE MAIN D'ŒUVRE).", 4000, b), 550); });
+        m.addEventListener("pointerdown", e => { const so = e.target.closest('[data-dly="sort"].off'); if (so) { lp = setTimeout(() => svToast("DÉJÀ CLASSÉ PAR DÉBUT : LE BOUTON REDEVIENT ACTIF DÈS QU'UNE LIGNE DÉPLACÉE NE RESPECTE PLUS CET ORDRE.", 4000, so), 550); return; } const b = e.target.closest('[data-dly="lev"].off'); if (!b) return; lp = setTimeout(() => svToast("RIEN À NIVELER : AUCUN JOUR NE DÉPASSE LE PLAFOND DE MAIN D'ŒUVRE (OU PAS DE PLAFOND / PAS DE MAIN D'ŒUVRE).", 4000, b), 550); });
         ["pointerup", "pointercancel"].forEach(t => m.addEventListener(t, () => clearTimeout(lp)));
         m.addEventListener("click", e => {
           const b = e.target.closest("[data-dly]");
@@ -17333,8 +17342,12 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       }
       /* v461 : bloc TÂCHES — CLASSER PAR DÉBUT (même ordre que le PLANNING : lots, activités, puis le planning) */
       if (DX && INS_EDIT && acts.some(a => a.dataset.blk === "hier")) {
-        m.insertAdjacentHTML("afterbegin", `<button type="button" data-hs="sort"><span>CLASSER PAR DÉBUT</span></button><div class="blk-sep"></div>`);
-        m.addEventListener("click", e => { const b = e.target.closest("[data-hs]"); if (!b) return; e.stopPropagation(); m.remove(); DX.sortDeb(); }, true);
+        const srt = DX.sorted();
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-hs="sort" class="${srt ? "off" : ""}"><span>CLASSER PAR DÉBUT</span></button><div class="blk-sep"></div>`);
+        let lph = null;
+        m.addEventListener("pointerdown", e => { const so = e.target.closest('[data-hs].off'); if (!so) return; lph = setTimeout(() => svToast("DÉJÀ CLASSÉ PAR DÉBUT : LE BOUTON REDEVIENT ACTIF DÈS QU'UNE LIGNE DÉPLACÉE NE RESPECTE PLUS CET ORDRE.", 4000, so), 550); });
+        ["pointerup", "pointercancel"].forEach(t => m.addEventListener(t, () => clearTimeout(lph)));
+        m.addEventListener("click", e => { const b = e.target.closest("[data-hs]"); if (!b) return; e.stopPropagation(); if (b.classList.contains("off")) return; m.remove(); DX.sortDeb(); }, true);
       }
       if (QQm && QQm.edit()) {
         const n = QQm.nChecked();
