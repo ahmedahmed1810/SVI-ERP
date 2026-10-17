@@ -1716,6 +1716,8 @@ function initNav() {
           );
           /* dernier module ouvert, retrouvé à la prochaine ouverture */
           try { localStorage.setItem("svi_view_v1", btn.dataset.view || ""); } catch (e) {}
+          if (window.__sviViewSave) window.__sviViewSave();
+          setTimeout(() => window.__sviViewRestore && window.__sviViewRestore("view:" + (btn.dataset.view || "")), 0);
 
           const view =
             $(btn.dataset.view);
@@ -4851,6 +4853,9 @@ function renderBudgetList() {
     if (!budget) return;
     /* dernier budget consulté : rouvert à la prochaine ouverture */
     try { localStorage.setItem("svi_lastbdg_v1", ref); } catch (e) {}
+    /* dernière vue de ce budget (v448) : enregistrée en partant, retrouvée à l'ouverture */
+    if (window.__sviViewSave && window.__sviCtx !== "bdg:" + ref) window.__sviViewSave();
+    setTimeout(() => window.__sviViewRestore && window.__sviViewRestore("bdg:" + ref), 0);
 
     /* balayage gauche / droite : budget suivant / précédent (ordre des références) */
     {
@@ -5748,6 +5753,8 @@ function renderBudgetList() {
           budget.inst.data || {}))
       : null;
     const INS_EDIT = !!INS && (budget.inst.state || "instance") === "instance";
+    /* v448 : largeur tableau / Gantt tirée à la main, retrouvée à l'ouverture de ce budget */
+    if (INS) { const vs = window.__sviViewGet && window.__sviViewGet("bdg:" + budget.inst.ref); if (vs && vs.w > 0) shell.__dlygW = { ins: INS, w: vs.w, auto: false }; if (vs && vs.gx !== undefined) shell.__dlyGx = vs.gx; }
     const INS_DLP_MIG = !!INS && (sviDlpSec(INS) | sviDlpOne(INS) | sviDpredTyped(INS)) > 0;
     /* calendrier du budget (jours travaillés) : durées et décalages en jours travaillés */
     const insCal = () => sviCalOf(INS);
@@ -17270,7 +17277,9 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           shell.oninput = null;
           /* retour volontaire à la liste : elle sera l'écran d'ouverture */
           try { localStorage.removeItem("svi_lastbdg_v1"); } catch (e) {}
+          if (window.__sviViewSave) window.__sviViewSave();
           window.__sviBdgLive = null;
+          setTimeout(() => window.__sviViewRestore && window.__sviViewRestore("list:bdg"), 0);
           shell.innerHTML = listHTML;
           renderBudgetList();
         }
@@ -17290,7 +17299,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         const nav = window.__sviBdgNav;
         if (!nav) return;
         const j = nav.refs.indexOf(nav.cur) + d;
-        if (j >= 0 && j < nav.refs.length) { nav.open(nav.refs[j]); window.scrollTo(0, 0); }
+        if (j >= 0 && j < nav.refs.length) nav.open(nav.refs[j]);
       };
       /* sortie avec une liaison modifiée non validée : on propose de valider d'abord */
       const guarded = fn => () => (shell.__lkGuard ? shell.__lkGuard() : Promise.resolve(true)).then(ok => { if (ok) fn(); });
@@ -19908,3 +19917,53 @@ function sviDlyRoSync() {
   b.className = "g-ro-band"; b.style.top = (r.top - g.top) + "px"; b.style.height = r.height + "px";
   body.insertBefore(b, body.firstChild);
 }
+/* =========================================================
+   DERNIÈRE VUE (v448) : à l'ouverture de n'importe quelle interface, on retrouve la dernière vue —
+   défilement de la page, des blocs, du tableau et du Gantt du PLANNING, largeur tableau / Gantt.
+   Mémorisé par budget (« bdg:<réf> ») et par écran (« view:<module> »).
+   ========================================================= */
+(() => {
+  const KEY = "svi_vstate_v1";
+  const SEL = ".bdg-d-client-scroll, .bdg-h-col, .ins-hcol, .bdg-d-tabbody .bdg-d-scroll, .bdg-d-tabbody .dlyg-l, .bdg-d-tabbody .dlyg-r, #dlyGantt, .rec-scroll, .table-wrap, .chs-scroll";
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { return {}; } };
+  const shellOf = () => [...document.querySelectorAll(".novapp-list-shell")].find(x => x.offsetParent !== null) || null;
+  const els = () => { const root = shellOf() || document.querySelector(".view.active-view") || document; return [...root.querySelectorAll(SEL)]; };
+  let restoring = 0, saveT = null;
+  const save = () => {
+    const k = window.__sviCtx;
+    if (!k || Date.now() < restoring) return;
+    const all = load();
+    const sh = shellOf();
+    const o = { y: Math.round(window.scrollY), s: els().map(e => [Math.round(e.scrollTop), Math.round(e.scrollLeft)]), t: Date.now() };
+    if (sh && sh.__dlygW && !sh.__dlygW.auto) o.w = sh.__dlygW.w;
+    { const gg = document.querySelector("#dlyGantt"); if (gg) o.gx = Math.round(gg.scrollLeft); }
+    all[k] = o;
+    /* 80 vues au plus (les plus anciennes oubliées) */
+    const ks = Object.keys(all);
+    if (ks.length > 80) ks.sort((a, b) => (all[a].t || 0) - (all[b].t || 0)).slice(0, ks.length - 80).forEach(x => delete all[x]);
+    try { localStorage.setItem(KEY, JSON.stringify(all)); } catch (e) {}
+  };
+  const later = () => { clearTimeout(saveT); saveT = setTimeout(save, 350); };
+  document.addEventListener("scroll", later, true);
+  window.addEventListener("pagehide", save);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
+  /* le doigt reprend la main : la restauration s'arrête */
+  const stop = () => { restoring = 0; };
+  ["touchstart", "wheel", "pointerdown", "keydown"].forEach(t => document.addEventListener(t, stop, { capture: true, passive: true }));
+  window.__sviViewSave = save;
+  window.__sviViewGet = k => load()[k] || null;
+  window.__sviViewRestore = k => {
+    window.__sviCtx = k;
+    const o = load()[k];
+    const until = Date.now() + 2200;
+    restoring = until;
+    const apply = () => {
+      if (restoring !== until) return;
+      if (!o) { window.scrollTo(window.scrollX, 0); return; }
+      els().forEach((e, i) => { const v = o.s && o.s[i]; if (v) { e.scrollTop = v[0]; e.scrollLeft = v[1]; } });
+      window.scrollTo(window.scrollX, o.y || 0);
+    };
+    [30, 250, 700, 1300, 2000].forEach(ms => setTimeout(apply, ms));
+    setTimeout(() => { if (restoring === until) restoring = 0; }, 2250);
+  };
+})();
