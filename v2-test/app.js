@@ -12059,7 +12059,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       });
       return out;
     };
-    const desDrop = async (arr, ids, tid, mode) => {
+    const desDrop = async (arr, ids, tid, mode, outD) => {
       insNorm();
       const snap = arr.map(r => ({ ...r }));
       const D = r => Number(r.d) || 0;
@@ -12088,9 +12088,10 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         /* titre replié, doigt à droite : ajouté à la fin de ses lignes ; le titre reste replié */
         shift(block, D(T) + 1); arr.splice(branchEnd(j), 0, ...block);
       } else if (T.t) {
-        shift(block, D(T)); arr.splice(branchEnd(j), 0, ...block);
+        shift(block, outD != null ? outD : D(T)); arr.splice(branchEnd(j), 0, ...block);
       } else {
-        shift(block, D(T)); arr.splice(j + 1, 0, ...block);
+        /* v466 : après la dernière ligne d'un titre, doigt vers la gauche = niveau supérieur (sort du titre) */
+        shift(block, outD != null ? outD : D(T)); arr.splice(j + 1, 0, ...block);
       }
       insNorm();
       /* titres vides (sans aucune ligne, sous-titres vides compris) */
@@ -12152,7 +12153,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         ? [...el.parentElement.querySelectorAll("tr[data-iid]")]
         : [...el.parentElement.querySelectorAll(k === "lot" ? ".ins-li[data-iid], .ins-li.lot-grp" : ".ins-li[data-iid]")];
       const x0 = event.clientX, y0 = event.clientY;
-      let on = false, moved = false, target = null, after = false, over = false, inside = false;
+      let on = false, moved = false, target = null, after = false, over = false, inside = false, outD = null;
       /* repères de glissement effacés partout (même si le tableau a été redessiné entre-temps) */
       const clear = () => {
         shell.querySelectorAll(".ro-before, .ro-after, .ro-in, .ro-on").forEach(x => x.classList.remove("ro-before", "ro-after", "ro-in", "ro-on"));
@@ -12212,8 +12213,17 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
                   const c = (x.querySelector('[data-f="des"]')?.closest("td") || x).getBoundingClientRect();
                   inside = e.clientX > c.left + 8 + d0 * 20 + 24;
                 }
+                /* v466 : après la dernière ligne d'un titre (ligne suivante moins profonde ou fin du tableau) :
+                   doigt vers la gauche = trait plus long = niveau supérieur, jusqu'au niveau de la ligne suivante */
+                outD = null;
+                if (after && !over && tr0 && !(tr0.t && (!foldGet()[tr0.id] || inside))) {
+                  const list = sibs().filter(s2 => s2 !== el), ix = list.indexOf(x), nx = list[ix + 1];
+                  const nr = nx && X.INS.des.find(q => q.id === nx.dataset.iid);
+                  const minD = nr ? Math.min(d0, Number(nr.d) || 0) : 0;
+                  if (minD < d0) outD = Math.max(minD, Math.min(d0, d0 + Math.round((e.clientX - x0) / 30)));
+                }
                 if (over) x.classList.add("ro-on");
-                else roLine(x, after ? r.bottom : r.top, !after ? d0 : (tr0 && tr0.t && (!foldGet()[tr0.id] || inside)) ? d0 + 1 : d0);
+                else roLine(x, after ? r.bottom : r.top, outD != null ? outD : !after ? d0 : (tr0 && tr0.t && (!foldGet()[tr0.id] || inside)) ? d0 + 1 : d0);
               } else if (k === "lot") {
                 /* lots : haut = avant, milieu = dans le niveau (ou nouveau niveau), bas = après — un seul trait */
                 const f = (e.clientY - r.top) / (r.height || 1);
@@ -12276,7 +12286,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         const sel = insSelIds(k);
         if (sel.has(arr[i0].id) && sel.size > 1) blockIds = arr.filter(r => sel.has(r.id)).map(r => r.id);
         if (blockIds.includes(target.dataset.iid)) return;
-        if (k === "des") { desDrop(arr, blockIds, target.dataset.iid, over ? "on" : after ? (inside ? "afterIn" : "after") : "before"); return; }
+        if (k === "des") { desDrop(arr, blockIds, target.dataset.iid, over ? "on" : after ? (inside ? "afterIn" : "after") : "before", over || !after ? null : outD); return; }
         if (k === "lot") { lotDrop(el.dataset.iid, target, over ? "on" : after ? "after" : "before"); return; }
         const bset = new Set(blockIds);
         const block = arr.filter(r => bset.has(r.id));
