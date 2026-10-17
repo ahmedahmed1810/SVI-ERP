@@ -8419,7 +8419,8 @@ function renderBudgetList() {
       {
         const fit = () => {
           const o = shell.__dlygW, L = host.isConnected && host.parentElement.querySelector(".dlyg-l");
-          if (!L || (o && o.ins === INS && !o.auto)) return;
+          /* v444 : largeur calculée une seule fois à l'ouverture, puis gardée — la poignée ne bouge plus quand on glisse une barre */
+          if (!L || (o && o.ins === INS && (!o.auto || o.fixed))) return;
           const th = [...L.querySelectorAll("thead th")].find(t => /^DURÉE/.test((t.textContent || "").trim()));
           if (!th) return;
           let w = 0;
@@ -8431,7 +8432,7 @@ function renderBudgetList() {
           }
           if (w > 60) shell.__dlygW = { ins: INS, w, auto: true };
         };
-        fit(); setTimeout(fit, 250); setTimeout(fit, 900);
+        fit(); setTimeout(fit, 250); setTimeout(() => { fit(); const o = shell.__dlygW; if (o && o.ins === INS) o.fixed = true; }, 900);
       }
       /* hauteur du tableau changée ensuite (police, repli, largeur) : le Gantt se redessine */
       if (window.ResizeObserver && !host.__ro2) {
@@ -9270,7 +9271,7 @@ function renderBudgetList() {
         try { sp.setPointerCapture(e.pointerId); } catch (err) {}
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });
-        const mv = ev => { if (ev.pointerId !== e.pointerId) return; ev.preventDefault(); w = Math.max(0, Math.min(gw.width - 3, w0 + ev.clientX - x0)); L.style.width = w + "px"; L.style.maxWidth = "none"; };
+        const mv = ev => { if (ev.pointerId !== e.pointerId) return; ev.preventDefault(); w = Math.round(Math.max(0, Math.min(gw.width - 3, w0 + ev.clientX - x0))); L.style.width = w + "px"; L.style.maxWidth = "none"; };
         const up = ev => {
           if (ev && ev.pointerId !== e.pointerId) return;
           document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
