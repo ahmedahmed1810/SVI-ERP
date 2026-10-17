@@ -8600,9 +8600,8 @@ function renderBudgetList() {
       const run = () => {
         const g = sc.querySelector(".dlyg");
         if (!g) return;
-        const off = Math.max(0, sc.scrollTop - g.offsetTop);
-        const v = off ? "translateY(" + off + "px)" : "";
-        g.querySelectorAll(".dlyg-l thead th, .dlyg-r > .gh").forEach(h => { if (h.style.transform !== v) h.style.transform = v; });
+        /* FORMAT 21 : en-têtes du PLANNING et du Gantt placés par le suivi général (défilement du bloc ET de la page) */
+        document.dispatchEvent(new Event("scroll"));
       };
       if (!sc.__dlyStick) { sc.__dlyStick = true; sc.addEventListener("scroll", run, { passive: true }); }
       run();
@@ -9636,12 +9635,14 @@ function renderBudgetList() {
       if (key && !LK.dlpDraft[key]) LK.dlpDraft[key] = ((INS.dlp || {})[key] || []).map(p => ({ ...p }));
       return LK.dlpDraft;
     };
+    /* FORMAT 22 : actions du planning (Gantt compris) — l'écran ne bouge jamais */
+    const renderTabK = () => keepScroll(() => renderTab());
     shell.__insDly = INS && INS_EDIT ? { INS, dAdd, dDiff, dParse, dFr, insId, insSave, err: "", draft: dlyDraft,
       predFin: k => dlyPredFin(k), succs: k => dlySuccs(k), deb: k => dlyDeb(k), name: k => dlyName(k), shift: (k, g) => dlyShift(k, g),
       cal: () => insCal(), glued: k => dlyGlued(k), links: k => dlyLinks(k), apply: (k, q, o) => dlyApply(k, q, o),
       /* FORMAT 22 : replier / déplier sans faire bouger l'écran */
       fold: p => { dlyFoldToggle(p); keepScroll(() => renderTab()); },
-      jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTab(); },
+      jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTabK(); },
       linkWin: (p, k) => dlyLinkWin(p, k), reach: (a, b) => dlyReach(a, b), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
       gen: () => dlyGenWin(), level: () => dlyApplyLevel(),
       back: () => { LK.lot = LK.prim = LK.sec = null; refreshAll(); },
@@ -9694,7 +9695,7 @@ function renderBudgetList() {
             <ul class="svc-list"><li>${line(ek)}</li><li>${line(key)} (TÂCHE LÂCHÉE)</li></ul>
             ${plan.err ? `<div class="svc-sub svc-warn">IMPOSSIBLE : ${esc(plan.err)}</div>` : ""}`,
           buttons: [{ v: "rep", label: "REMPLACER", tone: "neutral", disabled: !!plan.err }, { v: "fus", label: "FUSIONNER", tone: "neutral", disabled: !!plan.err }] });
-        if (!v || plan.err) { renderTab(); return ""; }
+        if (!v || plan.err) { renderTabK(); return ""; }
         return X.mergeDo(key, ek, plan, v === "fus" ? "fus" : "rep");
       },
       /* plan de la fusion : tâche gardée (la primaire s'il y en a une, sinon celle du lot) et liaisons du budget réunies */
@@ -9759,14 +9760,14 @@ function renderBudgetList() {
          au plus tôt à la date permise par les prédécesseurs hors du lot ; successeurs décalés (cahier, Planning budgétaire) */
       shiftGroup: (path, nCal, anchor) => {
         const g = (shell.__dlyRows || []).find(x => x.grp && x.path === path);
-        if (!g || !nCal) { renderTab(); return; }
+        if (!g || !nCal) { renderTabK(); return; }
         const cal = insCal(), G = new Set(g.all.map(t => t.key));
         const ks = [...G].filter(k => dlyDeb(k) && dlyFin(k));
-        if (!ks.length) { renderTab(); return; }
+        if (!ks.length) { renderTabK(); return; }
         const d0 = ks.map(dlyDeb).sort()[0];
         const nd = sviWNear(cal, sviIsoAdd(d0, nCal), nCal > 0 ? 1 : -1);
         let w = nd >= d0 ? (sviWDur(cal, d0, nd) || 1) - 1 : -((sviWDur(cal, nd, d0) || 1) - 1);
-        if (!w) { renderTab(); return; }
+        if (!w) { renderTabK(); return; }
         const need = k => dlyLinks(k).filter(x => !G.has(x.k)).map(x => {
           if (x.t === "DD") { const a = dlyDeb(x.k); return a ? sviWAdd(cal, sviWNear(cal, a, 1), Math.max(0, x.o || 0)) : ""; }
           const f = dlyFin(x.k); return f ? sviWAdd(cal, f, 1 + Math.max(0, x.o || 0)) : "";
@@ -9774,7 +9775,7 @@ function renderBudgetList() {
         const ok = w2 => ks.every(k => { const n = need(k); return !n || sviWAdd(cal, sviWNear(cal, dlyDeb(k), 1), w2) >= n; });
         let stop = false;
         while (w < 0 && !ok(w)) { w++; stop = true; }
-        if (!w) { svToast("DÉPLACEMENT REFUSÉ : LES LIAISONS NE PERMETTENT PAS DE COMMENCER PLUS TÔT.", 3500, anchor); renderTab(); return; }
+        if (!w) { svToast("DÉPLACEMENT REFUSÉ : LES LIAISONS NE PERMETTENT PAS DE COMMENCER PLUS TÔT.", 3500, anchor); renderTabK(); return; }
         ks.forEach(k => {
           const L = dlyDraftKey(k), p = L[0];
           const dur = sviWDur(cal, p.deb, p.fin) || 1, deb = sviWAdd(cal, sviWNear(cal, p.deb, 1), w);
@@ -9782,7 +9783,7 @@ function renderBudgetList() {
         });
         dlyRespect(true);
         histLog("DÉLAIS", "LOT DÉPLACÉ", g.name + " : " + (w > 0 ? "+" : "") + w + " J" + (stop ? " (ARRÊTÉ À LA DATE PERMISE PAR LES LIAISONS)" : ""));
-        insSave(); renderTab(); insRenderChain();
+        insSave(); renderTabK(); insRenderChain();
       },
       /* lot (ou titre) déplacé en hauteur : rang, et titre d'arrivée (son nom prend le chemin du titre, comme dans TÂCHES) ;
          plan = { parent: chemin du titre d'arrivée ("" = racine), before: clé de la tâche devant laquelle il se place, on: chemin superposé } */
@@ -9799,7 +9800,7 @@ function renderBudgetList() {
             base = T.slice(0, -1).concat(N); extra = { P: T, base };
           } else base = T;
         }
-        if (base.length >= src.length && src.every((g, i) => U_(g) === U_(base[i]))) { renderTab(); return; }   /* pas dans sa propre branche */
+        if (base.length >= src.length && src.every((g, i) => U_(g) === U_(base[i]))) { renderTabK(); return; }   /* pas dans sa propre branche */
         /* déjà rangé là (même parent) : on le dit, au lieu de ne rien faire en silence */
         if (!extra && U_(src.slice(0, -1).join(" / ")) === U_(base.join(" / ")) && (plan.on || !plan.before)) { svToast(src[src.length - 1] + (base.length ? " EST DÉJÀ DANS " + base[base.length - 1] : " EST DÉJÀ AU PREMIER NIVEAU") + ".", 3500, anchor); }
         const ren = new Map();
@@ -9807,7 +9808,7 @@ function renderBudgetList() {
         add(src, base); if (extra) add(extra.P, extra.base);
         const ids = new Set(ren.keys()), vals = [...ren.values()].map(U_);
         const clash = [...ren.values()].find(v => L.some(y => !ids.has(y.id) && U_(y.v) === U_(v))) || vals.find((v, i) => vals.indexOf(v) !== i);
-        if (clash) { svToast("LOT « " + clash + " » EXISTE DÉJÀ : DÉPLACEMENT REFUSÉ.", 4000, anchor); renderTab(); return; }
+        if (clash) { svToast("LOT « " + clash + " » EXISTE DÉJÀ : DÉPLACEMENT REFUSÉ.", 4000, anchor); renderTabK(); return; }
         const moved = new Set([...ren.keys()].filter(id => !(extra && under((L.find(x => x.id === id) || {}).v, extra.P) && !under((L.find(x => x.id === id) || {}).v, src))));
         ren.forEach((v, id) => { L.find(x => x.id === id).v = v; });
         /* rang : les tâches du bloc se placent devant « before » (sinon à la fin) */
@@ -9828,7 +9829,7 @@ function renderBudgetList() {
          / IGNORER (doublons de B supprimés) / ANNULER */
       superpose: (B, A, anchor) => {
         const X = shell.__insDly;
-        if (!A || !B || A === B) { renderTab(); return; }
+        if (!A || !B || A === B) { renderTabK(); return; }
         const linksOf = k => (INS.links || []).filter(l => l.lot + "|" + l.sec === k);
         const nm = (k, i) => lkName(i ? "sec" : "lot", k.split("|")[i ? 1 : 0]);
         const lvlErr = () => {
@@ -9868,7 +9869,7 @@ function renderBudgetList() {
           if (b && b.disabled) return;
           const v = b ? b.dataset.v : "";
           d.remove();
-          if (!v) { renderTab(); return; }
+          if (!v) { renderTabK(); return; }
           X.supDups(B, A, () => v === "lvl" ? X.supLevel(B, A) : X.mergeDo(B, A, X.mergePlan(B, A), "fus"), anchor);
         });
       },
@@ -9883,7 +9884,7 @@ function renderBudgetList() {
         svChoose({ title: "DOUBLONS DE PRODUITS",
           html: `<div class="svc-sub">${dup.length} PRODUIT(S) DE ${esc(dlyName(B))} EXISTE(NT) DÉJÀ DANS ${esc(dlyName(A))} :</div><ul class="svc-list">${names.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`,
           buttons: [{ v: "ign", label: "IGNORER", tone: "neutral" }, { v: "keep", label: "GARDER LES DOUBLONS", tone: "neutral" }] }).then(v => {
-          if (!v) { renderTab(); return; }
+          if (!v) { renderTabK(); return; }
           const ids = new Set(dup), V = (k, id) => (INS[k].find(x => x.id === id) || {});
           if (v === "keep") {
             /* doublons gardés dans l'onglet IMPORT NON CRÉÉ, avec leur chaîne, pour être revus */
@@ -9924,16 +9925,16 @@ function renderBudgetList() {
       dropTaskTo: (key, h, anchor) => {
         const X = shell.__insDly;
         const lt = INS.lot.find(l => !l.t && dlyLotPath(l.v).join(" / ") === h.parent);
-        if (!lt) { renderTab(); return; }
+        if (!lt) { renderTabK(); return; }
         let k = key;
         if (lt.id !== key.split("|")[0]) {
           const ek = X.sameIn(key, lt.id);
           if (ek) { X.mergeAsk(key, ek, anchor); return; }
-          k = X.changeLot(key, lt.id, anchor); if (!k) { renderTab(); return; } insSave(); insRenderChain();
+          k = X.changeLot(key, lt.id, anchor); if (!k) { renderTabK(); return; } insSave(); insRenderChain();
         }
         if (h.before && h.before !== k) X.moveKeys([k], [h.before], false);
         else if (h.afterKey && h.afterKey !== k) X.moveKeys([k], [h.afterKey], true);
-        else renderTab();
+        else renderTabK();
       },
       dropTask: (key, tr, after) => {
         const X = shell.__insDly;
@@ -9948,11 +9949,11 @@ function renderBudgetList() {
         if (nl && nl !== key.split("|")[0]) {
           const ek = X.sameIn(key, nl);
           if (ek) { X.mergeAsk(key, ek, tr); return; }
-          k = X.changeLot(key, nl, tr); if (!k) { renderTab(); return; } insSave(); insRenderChain();
+          k = X.changeLot(key, nl, tr); if (!k) { renderTabK(); return; } insSave(); insRenderChain();
         }
         const g = tr.classList.contains("dly-task") ? null : (shell.__dlyRows || []).find(x => x.grp && x.path === tr.dataset.path);
         const ts = (g ? g.all.map(t => t.key) : [tr.dataset.key]).map(t => t === key ? k : t).filter(t => t && t !== k);
-        if (ts.length) X.moveKeys([k], ts, after); else renderTab();
+        if (ts.length) X.moveKeys([k], ts, after); else renderTabK();
       },
       linked: k => (INS.links || []).some(l => l.lot + "|" + l.sec === k),
       /* tâches retirées du planning (non liées seulement, règle G) : dates, liaisons de planning et jalon */
@@ -9970,7 +9971,7 @@ function renderBudgetList() {
       /* nom modifié dans le PLANNING : même lot / même activité que dans TÂCHES (doublons refusés) */
       rename: inp => {
         const v = U_(sviClean(inp.value));
-        const back = () => { renderTab(); };
+        const back = () => { renderTabK(); };
         if (inp.dataset.kind === "sec") {
           const id = inp.dataset.sid, r = INS.sec.find(x => x.id === id);
           if (!r || v === U_(r.v)) { back(); return; }
@@ -10016,7 +10017,7 @@ function renderBudgetList() {
         refreshAll();
         setTimeout(() => dlyAddWin(lo.id, se.id), 60);
       },
-      plaf: P => { INS.plaf = P; insSave(); histLog("DÉLAIS", "PLAFOND MAIN D'ŒUVRE", String(P)); renderTab(); },
+      plaf: P => { INS.plaf = P; insSave(); histLog("DÉLAIS", "PLAFOND MAIN D'ŒUVRE", String(P)); renderTabK(); },
       /* barre glissée de n jours : FIN seule (bout tiré) ou tâche entière, durée gardée (jours travaillés) */
       dragTo: (k, mode, n, a) => {
         const cal = insCal(), d0 = dlyDeb(k), f0 = dlyFin(k);
@@ -10026,13 +10027,13 @@ function renderBudgetList() {
         let d = sviWNear(cal, sviIsoAdd(d0, n), n > 0 ? 1 : -1);
         /* glissée trop tôt : la barre revient à la première date permise par ses liaisons */
         if (pf && d < pf) d = sviWNear(cal, pf, 1);
-        if (d === d0) { renderTab(); insRenderChain(); return; }
+        if (d === d0) { renderTabK(); insRenderChain(); return; }
         dlyApply(k, { deb: d, fin: sviWFin(cal, d, dur) }, { anchor: a });
       },
       pickPreds: k => dlyPickPreds(k), addWin: () => dlyAddWin(),
       scale: v => { try { localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} keepScroll(() => renderTab()); }, scaleOf: () => dlyScale(), canLev: () => !!shell.__dlyCanLev,
       go: k => { const [lo, se] = k.split("|"); LK.lot = lo; LK.sec = se; LK.prim = null; refreshAll(); },
-      render: () => { renderTab(); insRenderChain(); } } : null;
+      render: () => { renderTabK(); insRenderChain(); } } : null;
     /* budget ouvert, pour PARAMÉTRAGE › CALENDRIER et DATES DU BUDGET (15/10/2026) */
     window.__sviBdgLive = INS ? {
       ref: budget.inst.ref, project: budget.project || "", edit: INS_EDIT,
@@ -19263,13 +19264,17 @@ document.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === "
     const top = band ? band.getBoundingClientRect().bottom : 0;
     blocks.forEach(bl => {
       const ttl = bl.querySelector(":scope > .blk-head, :scope > .bdg-d-block-title, :scope > .bdg-d-tabs, :scope > #bdgTabs");
-      const heads = [...bl.querySelectorAll("thead th, .bdg-h-head")];
+      /* FORMAT 21 : l'en-tête du Gantt (calendrier) reste lui aussi en place */
+      const heads = [...bl.querySelectorAll("thead th, .bdg-h-head, .dlyg-r > .gh")];
       const parts = (ttl ? [ttl] : []).concat(heads);
       const cur = el => { const m = /translateY\((-?[\d.]+)px\)/.exec(el.style.transform || ""); return m ? +m[1] : 0; };
       const br = bl.getBoundingClientRect();
       const tH = ttl ? ttl.offsetHeight : 0, hH = heads.length ? Math.max(...heads.map(h => h.offsetHeight)) : 0;
       const room = br.bottom - (tH + hH + 30);
       const set = (el, want) => {
+        /* dans un bloc qui défile lui-même : jamais au-dessus du haut de sa zone de défilement */
+        const sc = el.closest(".dlyg-l, .dlyg-r") && el.closest(".bdg-d-scroll, .lk-scroll");
+        if (sc) want = Math.max(want, sc.getBoundingClientRect().top);
         const t0 = el.getBoundingClientRect().top - cur(el);
         const off = Math.max(0, Math.min(want - t0, room - t0));
         const v = off > 0.5 ? "translateY(" + off.toFixed(1) + "px)" : "";
