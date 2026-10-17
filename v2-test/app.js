@@ -9316,15 +9316,14 @@ function renderBudgetList() {
         /* Gantt (v441) : le trait part sous le NOM du lot d'arrivée (au bout de sa barre, décalé ↳ selon le niveau), nom surligné */
         box.querySelectorAll(".gb-grp.gb-grp-tgt").forEach(n => n.classList.remove("gb-grp-tgt"));
         if (onG && h.parent !== undefined) {
+          /* Gantt (v442) : trait par niveau, 20 px par niveau comme le tableau, compté depuis le signe ⌄ le plus à gauche
+             des lots visibles (trait court = plus profond, long = plus haut) ; nom du lot d'arrivée surligné en jaune */
+          const signs = [...box.querySelectorAll(".dlyg-r .gb-fsg")].map(n => n.getBoundingClientRect()).filter(r => r.width && r.right > g.left && r.left < g.right);
+          const base = signs.length ? Math.max(g.left + 4, Math.min(...signs.map(r => r.left))) : g.left + 8;
+          ind = Math.max(0, Math.min(g.width - 40, base - g.left + (h.lvl || 0) * 20));
           const esc2 = v => (window.CSS && CSS.escape ? CSS.escape(v) : String(v).replace(/"/g, '\\"'));
           const nm = h.parent ? box.querySelector(`.dlyg-r .gb-grp[data-path="${esc2(h.parent)}"]`) : null;
-          if (nm) { nm.classList.add("gb-grp-tgt"); ind = nm.getBoundingClientRect().left - g.left; }
-          else if (!h.parent) {
-            /* racine : sous le nom du premier lot de niveau 0 visible */
-            const r0 = [...box.querySelectorAll('.dlyg-r .gb-grp')].find(n => !n.querySelector(".gb-lv"));
-            ind = r0 ? r0.getBoundingClientRect().left - g.left : 8;
-          }
-          ind = Math.max(0, Math.min(g.width - 40, ind));
+          if (nm) nm.classList.add("gb-grp-tgt");
         }
         const y = (h.after ? h.r.bottom : h.r.top) - 1.5;
         l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${g.left + ind}px;width:${Math.max(40, g.width - ind)}px;top:${y}px`;
