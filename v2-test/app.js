@@ -20254,3 +20254,46 @@ function sviDlyRoSync() {
     setTimeout(() => { if (restoring === until) restoring = 0; }, 2250);
   };
 })();
+
+/* =========================================================
+   FORMAT 116 (v460) : toucher ailleurs = ENTRÉE, partout.
+   Sur iPad, toucher une zone non saisissable ne quitte pas la case : la saisie restait en suspens.
+   Un vrai toucher (sans glisser) hors de la case en cours la valide (perte du focus → enregistrement
+   comme par ENTRÉE), puis ce qui a été touché agit. Défilement : rien. ✕ / FERMER / ANNULER : saisie
+   abandonnée. Saisie refusée (message affiché) : la case reste, le toucher n'agit pas.
+   ========================================================= */
+(() => {
+  const TXT = 'input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]), textarea';
+  const CANCEL = '[data-x], .svc-close, [data-cancel], button[data-v=""], button[data-r="0"]';
+  const KEEP = "#svCal, #cfMenu, #svToast, .unit-sug, datalist";
+  let st = null;
+  const toastOn = () => { const t = document.getElementById("svToast"); return !!(t && t.classList.contains("on")) ? t.querySelector(".svt-m").textContent : ""; };
+  document.addEventListener("pointerdown", e => {
+    st = null;
+    const a = document.activeElement, t = e.target;
+    if (!a || !a.matches || !a.matches(TXT) || a.readOnly || !t || !t.closest) return;
+    if (a === t || a.contains(t) || t.closest(KEEP)) return;
+    /* fermer / annuler : ce qui était tapé est abandonné */
+    if (t.closest(CANCEL)) { if (a.value !== a.defaultValue) a.value = a.defaultValue; return; }
+    /* une autre case saisissable : le navigateur change lui-même de case (enregistrement normal) */
+    if (t.matches(TXT + ", select") && !t.readOnly) return;
+    st = { a, t, x: e.clientX, y: e.clientY, toast: toastOn() };
+  }, true);
+  document.addEventListener("pointermove", e => { if (st && Math.hypot(e.clientX - st.x, e.clientY - st.y) > 10) st = null; }, true);
+  document.addEventListener("pointercancel", () => { st = null; }, true);
+  document.addEventListener("pointerup", () => {
+    if (!st) return;
+    const { a, toast } = st; st = null;
+    if (!a.isConnected || document.activeElement !== a) return;
+    const v0 = a.value;
+    a.blur();
+    /* refusée : un message vient d'apparaître et la case garde sa saisie → on y reste, le toucher n'agit pas */
+    const msg = toastOn();
+    if (msg && msg !== toast && a.isConnected && a.value === v0 && v0 !== a.defaultValue) {
+      const stop = ev => { ev.preventDefault(); ev.stopPropagation(); };
+      document.addEventListener("click", stop, { capture: true, once: true });
+      setTimeout(() => document.removeEventListener("click", stop, true), 400);
+      setTimeout(() => { if (a.isConnected) a.focus(); }, 0);
+    }
+  }, true);
+})();
