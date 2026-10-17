@@ -9312,7 +9312,20 @@ function renderBudgetList() {
            décalé de 20 px par niveau comme DÉSIGNATIONS CLIENT ; sur le Gantt = trait sur le Gantt, 40 px par niveau, petit trait vertical au départ */
         const box = h.tr.closest(".dlyg"), onG = !!shell.__dlySrcG;
         const pane = box.querySelector(onG ? ".dlyg-r" : ".dlyg-l") || box, g = pane.getBoundingClientRect();
-        const ind = onG ? 8 + (h.lvl || 0) * 40 : (h.lvl ? 6 + h.lvl * 20 : 0);
+        let ind = onG ? 8 + (h.lvl || 0) * 40 : (h.lvl ? 6 + h.lvl * 20 : 0);
+        /* Gantt (v441) : le trait part sous le NOM du lot d'arrivée (au bout de sa barre, décalé ↳ selon le niveau), nom surligné */
+        box.querySelectorAll(".gb-grp.gb-grp-tgt").forEach(n => n.classList.remove("gb-grp-tgt"));
+        if (onG && h.parent !== undefined) {
+          const esc2 = v => (window.CSS && CSS.escape ? CSS.escape(v) : String(v).replace(/"/g, '\\"'));
+          const nm = h.parent ? box.querySelector(`.dlyg-r .gb-grp[data-path="${esc2(h.parent)}"]`) : null;
+          if (nm) { nm.classList.add("gb-grp-tgt"); ind = nm.getBoundingClientRect().left - g.left; }
+          else if (!h.parent) {
+            /* racine : sous le nom du premier lot de niveau 0 visible */
+            const r0 = [...box.querySelectorAll('.dlyg-r .gb-grp')].find(n => !n.querySelector(".gb-lv"));
+            ind = r0 ? r0.getBoundingClientRect().left - g.left : 8;
+          }
+          ind = Math.max(0, Math.min(g.width - 40, ind));
+        }
         const y = (h.after ? h.r.bottom : h.r.top) - 1.5;
         l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${g.left + ind}px;width:${Math.max(40, g.width - ind)}px;top:${y}px`;
         l.innerHTML = "";
@@ -9347,7 +9360,7 @@ function renderBudgetList() {
         if (L > 0) for (let k = i - 1; k >= 0; k--) if (rows[k].x.grp && rows[k].x.lvl === L - 1) { parent = rows[k].x.path; break; }
         const nx = rows.slice(i).find(q => !q.x.grp);
         const ref = next || prev;
-        return { parent, before: nx ? nx.x.key : "", tr: ref.tr, r: ref.r, after: !next, lvl: L, line: true };
+        return { parent, into: !!parent, before: nx ? nx.x.key : "", tr: ref.tr, r: ref.r, after: !next, lvl: L, line: true };
       };
       /* tâche glissée : au milieu d'une autre tâche (ligne encadrée) = superposer ; sinon trait (rang / lot) */
       /* tâche glissée (tableau ou Gantt), même logique que DÉSIGNATIONS CLIENT (FORMAT 44 / 64) :
@@ -19787,6 +19800,8 @@ document.addEventListener("pointerdown", e => {
 }, true);
 
 /* FORMAT 64 : superposition dans le PLANNING / Gantt = ligne visée en jaune, comme DÉSIGNATIONS CLIENT ; bande jaune sur la ligne de la barre */
+document.addEventListener("pointerup", () => setTimeout(() => document.querySelectorAll(".gb-grp.gb-grp-tgt").forEach(n => n.classList.remove("gb-grp-tgt")), 0), true);
+document.addEventListener("pointercancel", () => document.querySelectorAll(".gb-grp.gb-grp-tgt").forEach(n => n.classList.remove("gb-grp-tgt")), true);
 function sviDlyRoSync() {
   document.querySelectorAll(".g-ro-band").forEach(b => b.remove());
   const tr = document.querySelector(".dlyg-l tr.ro-on"), body = document.querySelector("#dlyGantt .gbody");
