@@ -1779,3 +1779,6 @@ td.ins-tdv { position: relative; }
 .dlyg.dly-picking #dlyGantt .gb-dim { opacity: .22; filter: grayscale(1); }
 .dlyg.dly-picking #dlyGantt .gb.gb-pick { box-shadow: 0 0 0 2px #f59e0b; }
 .dlyg.dly-picking #dlyGantt .gb-n.gb-pick { font-weight: 800; color: #92400e; }
+/* v469 : une seule case encadrée à la fois — pendant la saisie dans une ligne, seul le cadre de la case en cours se voit ;
+   la case fautive de cette ligne reprend son cadre dès qu'on quitte la ligne */
+.ins-table tr:focus-within td.ins-bad { box-shadow: none !important; background: transparent !important; }
