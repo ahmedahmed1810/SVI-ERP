@@ -5248,6 +5248,7 @@ function renderBudgetList() {
           <button type="button" class="inst-nav" id="instNext" title="Budget suivant" aria-label="Suivant"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           ${budget.inst.state !== "fige" ? `<button type="button" class="inst-act" id="instUndo" title="Annuler" aria-label="Annuler" disabled><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 4.5 11.5 9 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11.5h9.5a5 5 0 0 1 0 10H11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button>
           <button type="button" class="inst-act" id="instRedo" title="Rétablir" aria-label="Rétablir" disabled><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l4.5 4.5L15 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 11.5H9.5a5 5 0 0 0 0 10H13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button>` : ""}
+          ${budget.inst.state !== "fige" ? `<button type="button" class="inst-act inst-todo" id="instTodo" title="À compléter" aria-label="À compléter"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 2.8 19.5h18.4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.1" fill="currentColor"/></svg><b></b></button>` : ""}
           <button type="button" class="inst-act" id="instLock"
             title="${budget.inst.state === "fige" ? "Revenir en édition" : "Figer (lecture seule)"}"
             aria-label="Figer">${budget.inst.state === "fige" ? `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 7.5-1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>` : `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>`}</button>
@@ -7979,6 +7980,7 @@ function renderBudgetList() {
       if (nD) out.push({ lab: "DÉSIGNATIONS CLIENT SANS UPB", n: nD, go: "des" });
       ["prd", "chg"].forEach(k => { const n = INS[k].filter(r => !r.t && insRowErr(k, r)).length; if (n) out.push({ lab: "LIGNES EN ERREUR — " + (k === "prd" ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"), n, go: k }); });
       try { if (lkPending()) out.push({ lab: "MODIFICATION EN ATTENTE DE ✓ VALIDER", n: 1, go: "" }); } catch (e) {}
+      try { infMissing().filter(x => x.req).forEach(x => out.push(x)); } catch (e) {}
       return out;
     };
     const insFigeWhy = () => {
@@ -7997,13 +7999,46 @@ function renderBudgetList() {
         if (!it) return;
         const b = B[+it.dataset.i];
         d.remove();
-        if (!b.go) return;
+        figeGo(b);
+      });
+    };
+    const figeGo = b => {
+        if (!b || !b.go) return;
+        if (b.go === "inf") { openInfo(); return; }
         if (b.go === "des") { shell.querySelector(".bdg-d-client-scroll")?.scrollIntoView({ block: "start", behavior: "smooth" }); return; }
         if (b.go === "dly") { LK.lot = LK.sec = LK.prim = null; }
         const t = shell.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${b.go}"]`);
         if (t) { t.click(); t.scrollIntoView({ block: "start", behavior: "smooth" }); }
+    };
+    /* ===== ⚠ À COMPLÉTER (v457) : tout ce qui manque, bloquant ou non ; toucher une ligne y mène ===== */
+    const insTodo = () => {
+      const out = [];
+      const fb = insFigeBlocks();
+      const inf = infMissing();
+      inf.forEach(x => out.push(x));
+      fb.filter(b => b.go !== "inf").forEach(b => out.push({ ...b, req: true }));
+      return out;
+    };
+    const insTodoWhy = () => {
+      const B = insTodo();
+      document.getElementById("svConf")?.remove();
+      const d = document.createElement("div");
+      d.id = "svConf";
+      d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true"><button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
+        <div class="svc-t">À COMPLÉTER</div>
+        <div class="svc-x">${B.length ? B.map((b, i) => `<button type="button" class="fz-why${b.req ? "" : " fz-opt"}" data-i="${i}"><span>${esc(b.lab)}${b.list ? " : " + esc(b.list.slice(0, 3).map(dlyName).join(" ; ")) + (b.list.length > 3 ? "…" : "") : ""}${b.req ? "" : " <small>(NON BLOQUANT)</small>"}</span>${svCnt(b.n)}</button>`).join("")
+          : `<div class="fz-none">TOUT EST COMPLET : LE BUDGET PEUT ÊTRE FIGÉ.</div>`}</div>
+        <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button></div></div>`;
+      document.body.appendChild(d);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        const it = e.target.closest(".fz-why");
+        if (!it) return;
+        d.remove();
+        figeGo(B[+it.dataset.i]);
       });
     };
+    shell.__todoWhy = () => insTodoWhy();
     shell.__figeWhy = () => insFigeWhy();
     shell.__figeBlocks = () => insFigeBlocks();
     const insUnlCount = () => { const n = insUnlinked(); return INS_LINKED_KINDS.reduce((t, k) => t + n[k].length, 0); };
@@ -8025,6 +8060,8 @@ function renderBudgetList() {
       });
       /* FIGER grisé tant que l'onglet LIGNES NON LIÉES n'est pas à 0 */
       const lk = $("instLock");
+      const td = $("instTodo");
+      if (td) { const n = insTodo().reduce((t, b) => t + (+b.n || 1), 0); td.querySelector("b").textContent = n || ""; td.classList.toggle("ok", !n); td.title = n ? n + " ÉLÉMENT(S) À COMPLÉTER" : "TOUT EST COMPLET"; }
       if (lk && INS_EDIT) { const B = insFigeBlocks(); lk.disabled = false; lk.classList.toggle("off", B.length > 0); lk.title = B.length ? "FIGER IMPOSSIBLE : TOUCHER POUR VOIR POURQUOI" : "Figer (lecture seule)"; }
       const tb = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="unl"]`);
       /* LIGNES NON LIÉES : visible seulement s'il reste des lignes */
@@ -8835,6 +8872,15 @@ function renderBudgetList() {
         }
         if (true) {
           dlyCommitDrafts();
+          /* v457 : tâche sans dates = DATE DE DÉBUT DU PROJET, 1 jour (sa barre paraît au Gantt) */
+          if (INS_EDIT) {
+            const p0 = INS.pdeb || INS.gdeb || "";
+            if (p0) {
+              const d0 = sviWNear(insCal(), p0, 1); let n = 0;
+              dlyKeys().forEach(k => { if (!dlyDeb(k) && !dlyFin(k)) { const L = INS.dlp[k] || []; if (L[0]) { L[0].deb = d0; L[0].fin = d0; L.splice(1); } else L.push({ id: insId(), deb: d0, fin: d0 }); INS.dlp[k] = L; n++; } });
+              if (n) { dlyRespect(false); setTimeout(() => insSave(), 0); }
+            }
+          }
           /* PLANNING (FORMAT 64, 90) : tableau à gauche (lots repliables, tâches), Gantt à droite, lignes alignées */
           /* liaisons non respectées (anciennes dates, import) : corrigées à l'ouverture du planning */
           if (INS_EDIT && dlyRespect(false)) setTimeout(() => insSave(), 0);
@@ -16219,30 +16265,44 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
     /* fenêtre INF : informations du budget */
     /* ===== INF : dates du projet (v452) — DÉBUT (modifiable : tout le planning se décale), FIN et DURÉE calculées,
        DATE OBJECTIF et DATE BUTOIR (déplacées depuis PARAMÉTRAGE) ===== */
+    /* ===== INF (v457) : DÉBUT* (modifiable : tout le planning se décale), FIN DU PROJET* (= date objectif), DURÉE (calculée,
+       jours du calendrier, en années / mois / jours), DATE BUTOIR* ; DATE CRÉATION* (date, heure) et PROJET* modifiables en instance ===== */
     const infProj = () => {
       const ks = dlyKeys().filter(k => dlyDeb(k) && dlyFin(k));
-      const deb = ks.map(dlyDeb).sort()[0] || INS.gdeb || "", fin = ks.map(dlyFin).sort().pop() || "";
-      return { ks, deb, fin, dur: deb && fin ? sviWDur(insCal(), deb, fin) : "" };
+      const deb = INS.pdeb || ks.map(dlyDeb).sort()[0] || INS.gdeb || "", pfin = ks.map(dlyFin).sort().pop() || "";
+      return { ks, deb, pfin, fin: INS.dobj || "" };
     };
+    /* durée en jours du calendrier, début et fin compris : « 1 AN 2 MOIS 20 JOURS » */
+    const infYMD = (a, b) => {
+      if (!a || !b || b < a) return "";
+      const D = x => new Date(x + "T12:00:00");
+      const end = D(b); end.setDate(end.getDate() + 1);
+      let y = 0, m = 0, c = D(a);
+      const add = (d, yy, mm) => { const n = new Date(d); n.setFullYear(n.getFullYear() + yy); n.setMonth(n.getMonth() + mm); return n; };
+      while (add(c, 1, 0) <= end) { c = add(c, 1, 0); y++; }
+      while (add(c, 0, 1) <= end) { c = add(c, 0, 1); m++; }
+      const d = Math.round((end - c) / 86400000);
+      return [y ? y + (y > 1 ? " ANS" : " AN") : "", m ? m + " MOIS" : "", d ? d + (d > 1 ? " JOURS" : " JOUR") : ""].filter(Boolean).join(" ") || "0 JOUR";
+    };
+    const STAR = ' <b class="req-star">*</b>';
     const infDatesHTML = ed => {
       const P = infProj();
       const din = (f, v, extra = "") => ed ? `<input class="doc-in inf-date" type="date" data-f="${f}" value="${esc(v)}"${extra}>` : `<span class="doc-in doc-ro inf-val">${esc(dFr(v))}</span>`;
-      return `<span class="doc-lab">DATE DE DÉBUT DU PROJET</span>${din("deb", P.deb)}
-        <span class="doc-lab">DATE DE FIN DU PROJET</span><span class="doc-in doc-ro inf-val" data-v="fin">${esc(dFr(P.fin))}</span>
-        <span class="doc-lab">DURÉE (J)</span><span class="doc-in doc-ro inf-val" data-v="dur">${esc(P.dur)}</span>
-        <span class="doc-lab">DATE OBJECTIF</span>${din("obj", INS.dobj || "", INS.dbut ? ` max="${esc(INS.dbut)}"` : "")}
-        <span class="doc-lab">DATE BUTOIR</span>${din("but", INS.dbut || "", INS.dobj ? ` min="${esc(INS.dobj)}"` : "")}`;
+      return `<span class="doc-lab">DATE DE DÉBUT DU PROJET${STAR}</span>${din("deb", P.deb)}
+        <span class="doc-lab">DATE DE FIN DU PROJET${STAR}<small class="inf-sub">(DATE OBJECTIF)</small></span><span class="inf-cell">${din("obj", P.fin, [P.deb ? ` min="${esc(P.deb)}"` : "", INS.dbut ? ` max="${esc(INS.dbut)}"` : ""].join(""))}<small class="inf-sub" data-v="pfin"></small></span>
+        <span class="doc-lab">DURÉE</span><span class="doc-in doc-ro inf-val" data-v="dur">${esc(infYMD(P.deb, P.fin))}</span>
+        <span class="doc-lab">DATE BUTOIR${STAR}</span>${din("but", INS.dbut || "", P.fin ? ` min="${esc(P.fin)}"` : "")}`;
     };
     const infDatesBind = (p, ed) => {
-      if (!ed) return;
-      p.querySelectorAll("input.inf-date").forEach(sviDateField);
       const paint = () => {
         const P = infProj();
-        const f = p.querySelector('[data-v="fin"]'), d = p.querySelector('[data-v="dur"]');
-        if (f) { f.textContent = dFr(P.fin); f.classList.toggle("inf-late", !!(INS.dbut && P.fin && P.fin > INS.dbut)); }
-        if (d) d.textContent = P.dur;
+        const d = p.querySelector('[data-v="dur"]'), pf = p.querySelector('[data-v="pfin"]');
+        if (d) d.textContent = infYMD(P.deb, P.fin);
+        if (pf) { pf.textContent = P.pfin ? "FIN DU PLANNING : " + dFr(P.pfin) : ""; pf.classList.toggle("inf-late", !!(P.pfin && ((INS.dbut && P.pfin > INS.dbut) || (P.fin && P.pfin > P.fin)))); }
       };
       paint();
+      if (!ed) return;
+      p.querySelectorAll("input.inf-date").forEach(sviDateField);
       p.addEventListener("change", e => {
         const i = e.target.closest && e.target.closest("input.inf-date");
         if (!i) return;
@@ -16252,7 +16312,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           const io = p.querySelector('[data-f="obj"]'), ib = p.querySelector('[data-f="but"]');
           if (INS.dbut) io.setAttribute("max", INS.dbut); else io.removeAttribute("max");
           if (INS.dobj) ib.setAttribute("min", INS.dobj); else ib.removeAttribute("min");
-          insSave(); histLog("INF", f === "obj" ? "DATE OBJECTIF" : "DATE BUTOIR", dFr(v) || "—");
+          insSave(); histLog("INF", f === "obj" ? "DATE DE FIN DU PROJET (OBJECTIF)" : "DATE BUTOIR", dFr(v) || "—");
           paint(); keepScroll(() => refreshAll());
           return;
         }
@@ -16261,23 +16321,39 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         const cal = insCal(), P = infProj();
         if (!v) { i.value = P.deb; return; }
         const nv = sviWNear(cal, v, 1);
-        if (!P.ks.length) { INS.gdeb = nv; i.value = nv; insSave(); histLog("INF", "DATE DE DÉBUT DU PROJET", dFr(nv)); paint(); return; }
-        if (nv === P.deb) { i.value = nv; return; }
-        const from = sviWNear(cal, P.deb, 1);
-        const n = nv > from ? sviWDur(cal, from, nv) - 1 : -(sviWDur(cal, nv, from) - 1);
-        P.ks.forEach(k => {
-          const L = (INS.dlp[k] || []);
-          L.forEach(q => { if (!q.deb || !q.fin) return; const du = sviWDur(cal, q.deb, q.fin) || 1; q.deb = sviWAdd(cal, sviWNear(cal, q.deb, 1), n); q.fin = sviWFin(cal, q.deb, du); });
-          if (LK.dlpDraft && LK.dlpDraft[k]) delete LK.dlpDraft[k];
-        });
-        INS.gdeb = nv; i.value = nv;
+        const old = P.ks.map(dlyDeb).sort()[0] || P.deb;
+        INS.pdeb = nv; INS.gdeb = nv; i.value = nv;
+        if (P.ks.length && old && nv !== sviWNear(cal, old, 1)) {
+          const from = sviWNear(cal, old, 1);
+          const n = nv > from ? sviWDur(cal, from, nv) - 1 : -(sviWDur(cal, nv, from) - 1);
+          P.ks.forEach(k => {
+            (INS.dlp[k] || []).forEach(q => { if (!q.deb || !q.fin) return; const du = sviWDur(cal, q.deb, q.fin) || 1; q.deb = sviWAdd(cal, sviWNear(cal, q.deb, 1), n); q.fin = sviWFin(cal, q.deb, du); });
+            if (LK.dlpDraft && LK.dlpDraft[k]) delete LK.dlpDraft[k];
+          });
+          histLog("INF", "PROJET DÉCALÉ", dFr(old) + " → " + dFr(nv) + " (" + (n > 0 ? "+" : "") + n + " J TRAVAILLÉS, " + P.ks.length + " TÂCHE(S))");
+        } else histLog("INF", "DATE DE DÉBUT DU PROJET", dFr(nv));
+        const io = p.querySelector('[data-f="obj"]'); if (io) io.setAttribute("min", nv);
         insSave();
-        histLog("INF", "PROJET DÉCALÉ", dFr(P.deb) + " → " + dFr(nv) + " (" + (n > 0 ? "+" : "") + n + " J TRAVAILLÉS, " + P.ks.length + " TÂCHE(S))");
         paint();
         keepScroll(() => refreshAll());
         const P2 = infProj();
-        if (INS.dbut && P2.fin > INS.dbut) svToast("AVEC CE DÉCALAGE, LA FIN DU PROJET (" + dFr(P2.fin) + ") DÉPASSE LA DATE BUTOIR (" + dFr(INS.dbut) + ").", 6000, i);
+        if (INS.dbut && P2.pfin > INS.dbut) svToast("AVEC CE DÉCALAGE, LA FIN DU PLANNING (" + dFr(P2.pfin) + ") DÉPASSE LA DATE BUTOIR (" + dFr(INS.dbut) + ").", 6000, i);
       });
+    };
+    /* champs d'INF à compléter (bouton ⚠ et FIGER) : étoile = exigé pour FIGER */
+    const infMissing = () => {
+      if (!INS) return [];
+      const P = infProj(), out = [];
+      const add = (lab, req) => out.push({ lab: "INF : " + lab, n: 1, go: "inf", req });
+      if (!String(budget.project || "").trim()) add("PROJET", true);
+      if (!budget.inst.created) add("DATE CRÉATION", true);
+      if (!P.deb) add("DATE DE DÉBUT DU PROJET", true);
+      if (!INS.dobj) add("DATE DE FIN DU PROJET", true);
+      if (!INS.dbut) add("DATE BUTOIR", true);
+      const it = String(budget.inst.intitule || "").trim();
+      if (!it || it === "À COMPLÉTER") add("INTITULÉ", false);
+      if (!String(budget.inst.client || "").trim()) add("CLIENT", false);
+      return out;
     };
     const openInfo = () => {
       const dt = typeof budgetDate === "function" ? budgetDate(ref) : null;
@@ -16293,7 +16369,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       const tafLate = taf.filter(r => Date.now() > new Date(r.prevu)).length;
       const obs = recLoad("obs");
       const items = [
-        ["DATE CRÉATION", (dt && dt.label) || ""],
+        ["DATE CRÉATION", budget.inst && budget.inst.created ? String(budget.inst.created).replace(/^(\d{4})-(\d{2})-(\d{2})T?(\d{2}:\d{2})?.*$/, (m0, y, mo, d, h) => d + "/" + mo + "/" + y + (h ? " À " + h : "")) : (dt && dt.label) || ""],
         ["PROJET", budget.project],
         ["INTITULÉ", sviIntitule(ref, budget.project, budget.inst)],
         ["CLIENT", sviClient(budget.inst)],
@@ -16312,8 +16388,12 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           <div class="doc-body">
             <div class="doc-grid inf-grid">
               ${items.map(([k, v]) => `
-                <span class="doc-lab">${esc(k)}</span>
-                ${(k === "INTITULÉ" || k === "CLIENT") && editInt
+                <span class="doc-lab">${esc(k)}${INS && (k === "DATE CRÉATION" || k === "PROJET") ? STAR : ""}</span>
+                ${k === "DATE CRÉATION" && editInt
+                  ? `<span class="inf-cell inf-dt"><input class="doc-in inf-cre" type="date" value="${esc(String(budget.inst.created || "").slice(0, 10) || ((dt && dt.key) || ""))}"><input class="doc-in inf-cre-h" type="time" value="${esc(String(budget.inst.created || "").slice(11, 16))}"></span>`
+                  : k === "PROJET" && editInt
+                  ? `<input class="doc-in inf-int" id="infPrj" value="${esc(v || "")}" autocomplete="off">`
+                  : (k === "INTITULÉ" || k === "CLIENT") && editInt
                   ? `<input class="doc-in inf-int" id="${k === "CLIENT" ? "infCli" : "infInt"}" value="${esc(v === "À COMPLÉTER" ? "" : v)}" placeholder="À COMPLÉTER" autocomplete="off">`
                   : `<span class="doc-in doc-ro inf-val">${esc(v)}</span>`}`).join("")}
               ${INS ? infDatesHTML(editInt) : ""}
@@ -16326,6 +16406,29 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       document.body.appendChild(p);
       popEnhance(p, "inf");
       if (INS) infDatesBind(p, editInt);
+      if (editInt) {
+        const cd = p.querySelector("input.inf-cre"), ch = p.querySelector("input.inf-cre-h");
+        if (cd) sviDateField(cd);
+        const saveCre = () => {
+          const v = (cd.value || "") + (cd.value ? "T" + (ch.value || "00:00") : "");
+          if (v === (budget.inst.created || "")) return;
+          budget.inst.created = v;
+          sviInstSet(sviInstGet().map(x => x.ref === ref ? { ...x, created: v } : x));
+          histLog("INF", "DATE CRÉATION", v.replace("T", " À "));
+        };
+        cd && cd.addEventListener("change", saveCre); ch && ch.addEventListener("change", saveCre);
+        const pj = p.querySelector("#infPrj");
+        pj && pj.addEventListener("input", e => { e.target.value = e.target.value.toUpperCase(); });
+        pj && pj.addEventListener("change", () => {
+          const v = pj.value.trim().toUpperCase().replace(/\s+/g, " ");
+          if (!v) { pj.value = budget.project || ""; svToast("PROJET OBLIGATOIRE.", 3000, pj); return; }
+          if (v === String(budget.project || "")) return;
+          budget.project = v; budget.inst.project = v;
+          sviInstSet(sviInstGet().map(x => x.ref === ref ? { ...x, project: v } : x));
+          const h1 = shell.querySelector(".bdg-d-h1"); if (h1) h1.textContent = v;
+          histLog("INF", "PROJET", v);
+        });
+      }
       /* INTITULÉ et CLIENT : enregistrés à la fermeture de la fenêtre */
       const saveInt = () => {
         [["#infInt", "intitule", "INTITULÉ", "À COMPLÉTER"], ["#infCli", "client", "CLIENT", ""]].forEach(([sel, f, lab, def]) => {
@@ -17500,6 +17603,10 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         insCleanLinks(); insSave();
         histLog("SAISIE", "LIGNES NON LIÉES SUPPRIMÉES", n + " LIGNE(S)");
         refreshAll();
+      });
+      $("instTodo")?.addEventListener("click", async () => {
+        if (shell.__lkGuard && !(await shell.__lkGuard())) return;
+        shell.__todoWhy && shell.__todoWhy();
       });
       $("instLock")?.addEventListener("click", async () => {
         /* liaison modifiée non validée : valider ou abandonner d'abord */
