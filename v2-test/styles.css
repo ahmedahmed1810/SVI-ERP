@@ -1763,3 +1763,14 @@ td.ins-tdv { position: relative; }
 #blkMenu.sv-2col > * { break-inside: avoid; -webkit-column-break-inside: avoid; }
 #blkMenu.sv-2col > button { display: flex; width: 100%; box-sizing: border-box; }
 #blkMenu.sv-2col .blk-sep { height: 1px; }
+/* v461 : numéro d'ordre des lots et niveaux ; ISOLER */
+.lvl-no { flex: none; font-weight: 800; color: #475467; margin-right: 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#dlyGantt .gb-grp .lvl-no { margin-right: 4px; color: inherit; opacity: .8; }
+.dly-lotc .lvl-no { align-self: center; }
+.dly-iso { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 6px; padding: 7px 10px; border: 1px solid #f2c94c; background: #fff8e1; border-radius: 8px; font-size: 12px; font-weight: 700; color: #172033; }
+.dly-iso small { font-size: 10px; color: #6b7280; font-weight: 700; flex: 1 1 auto; }
+.dly-iso .dly-iso-x { border: 1px solid #12355b; background: #12355b; color: #fff; border-radius: 6px; padding: 5px 10px; font-weight: 800; font-size: 11px; cursor: pointer; }
+.dlyg-l tr.dly-ext td { color: #9aa3af; background: #f7f8fa; }
+.dlyg-l tr.dly-ext .dly-extn { font-weight: 600; }
+#dlyGantt .gb.gb-ext { opacity: .35; filter: grayscale(1); cursor: default; }
+#dlyGantt .gb-extn { color: #9aa3af; }
