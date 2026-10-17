@@ -4883,16 +4883,10 @@ function renderBudgetList() {
           /* bloc agrandi (16/10/2026) : le balayage y change de budget en restant sur le même bloc et le même onglet ;
              un tableau ou le Gantt qui défile garde le geste tant qu'il n'est pas arrivé au bout */
           const pg = document.querySelector(".bdg-d-page"), mx = pg && [...pg.classList].find(c => /^max-/.test(c));
-          if (mx && !t.closest("#docPop, #blkPop, #cfMenu, #blkMenu, #svConf, #dlyAddW, #svCal, input, textarea, select, .blk-rsz, .blk-grip, .col-rs, .dlyg-sp, #dlyGantt .gh, #dlyGantt .gb, #dlyGantt .gsum, #dlyGantt .gseg, .gplaf")) {
-            let sc = null;
-            for (let n = t; n && n !== document.body; n = n.parentElement) if (n.scrollWidth > n.clientWidth + 2 && /(auto|scroll)/.test(getComputedStyle(n).overflowX)) { sc = n; break; }
-            st = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), max: mx.slice(4), sc, sl: sc ? sc.scrollLeft : 0 };
-            return;
-          }
-          /* pas depuis un tableau qui défile, une fenêtre, un champ ou une poignée */
-          /* balayage seulement hors des blocs : un geste dans un tableau, le Gantt ou les tâches sert à défiler, jamais à changer de budget */
-          if (scrollsX(t) || t.closest("#docPop, #blkPop, #cfMenu, #blkMenu, #svConf, #dlyAddW, #svCal, input, textarea, select, .blk-rsz, .blk-grip, .col-rs, th, .bdg-d-tab, .rec-tab, .imp-tab, .hist-f, .bdg-d-block, .bdg-d-tabbody, .ins-hcol, #bdgHier, .dlyg, table")) { st = null; return; }
-          st = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
+          /* v455 (Ahmed) : le balayage change de budget SEULEMENT dans l'en-tête du budget (référence, DOC, TAF, OBS, INF) ;
+             dans tous les blocs (tableaux, Gantt…), il fait seulement défiler */
+          if (!t.closest(".bdg-d-sticky") || t.closest("#docPop, #blkPop, #blkMenu, #svConf, #svCal, input, textarea, select")) { st = null; return; }
+          st = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), max: mx ? mx.slice(4) : "" };
         }, { passive: true });
         document.addEventListener("touchend", e => {
           const nav = window.__sviBdgNav;
@@ -8881,7 +8875,7 @@ function renderBudgetList() {
           shell.__dlyCanLev = canLev;
           const dls = dl("dlyLotDl", [...new Set(INS.lot.filter(x => !x.t).map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")))
             + dl("dlySecDl", [...new Set(INS.sec.map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")));
-          return dls + `<div class="dlyg"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
+          return dls + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
             + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE OU SES DÉLAIS</button></div>`;
         }
         const ps = key ? [...insDlyList(key)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9"))) : [];
@@ -9334,7 +9328,8 @@ function renderBudgetList() {
       }, true);
       /* séparation tableau / Gantt (FORMAT 90) : poignée ‖ tirée au doigt ; largeur du tableau mémorisée */
       shell.addEventListener("pointerdown", e => {
-        const sp = e.target.closest && e.target.closest(".dlyg-sp");
+        /* v455 : la poignée ne réagit que sur sa pastille ‖ (le reste du trait est insensible) */
+        const sp = e.target.closest && e.target.closest(".dlyg-hd") && e.target.closest(".dlyg-sp");
         if (!sp) return;
         e.preventDefault(); e.stopPropagation();
         const g = sp.closest(".dlyg"), L = g.querySelector(".dlyg-l"), gw = g.getBoundingClientRect();
@@ -9353,8 +9348,16 @@ function renderBudgetList() {
           document.removeEventListener("touchmove", tmv);
           sp.classList.remove("on");
           /* v451 : tableau caché (poignée tout à gauche) + simple toucher de la poignée = le tableau revient à sa largeur d'avant */
-          if (w0 < 3 && Math.abs(w - w0) < 3) { w = shell.__dlygPrevW || Math.round(gw.width * 0.55); L.style.width = w + "px"; L.style.maxWidth = "none"; }
+          if (w0 < 3 && Math.abs(w - w0) < 3) {
+            /* v455 : tableau caché + simple toucher de la pastille = tableau ouvert jusqu'à la colonne DURÉE (J) */
+            L.style.width = Math.round(gw.width - 3) + "px"; L.style.maxWidth = "none";
+            const th = [...L.querySelectorAll("thead th")].find(t => /^DURÉE/.test((t.textContent || "").trim()));
+            w = th ? Math.round(th.getBoundingClientRect().right - L.getBoundingClientRect().left + L.scrollLeft + 1) : (shell.__dlygPrevW || Math.round(gw.width * 0.55));
+            w = Math.max(60, Math.min(Math.round(gw.width - 3), w));
+            L.scrollLeft = 0; L.style.width = w + "px";
+          }
           if (w > 2) shell.__dlygPrevW = Math.round(w);
+          g.classList.toggle("tbl-hid", w < 3);
           /* largeur gardée (et retrouvée à l'ouverture, FORMAT 114) ; seule la poignée la change */
           shell.__dlygW = { ins: shell.__insDly && shell.__insDly.INS, ref: DLYG_REF, w: Math.round(w), auto: false };
           if (window.__sviViewSave) window.__sviViewSave();
