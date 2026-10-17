@@ -8526,7 +8526,12 @@ function renderBudgetList() {
           /* signe à gauche de la barre du lot, nom à droite ; les deux se touchent pour replier / déplier */
           const gname = (l, r) => `<span class="gb-n gb-out gb-fold gb-fsg" data-path="${esc(x.path)}" style="left:${Math.max(0, l - 17)}px;top:${ty}px">${x.fold ? "›" : "⌄"}</span>`
             /* nom court (sans le parent) ; un lot rangé dans un autre est décalé et marqué ↳ selon son niveau (comme le bloc LOT) */
-            + `<span class="gb-n gb-out gb-grp gb-ren" data-path="${esc(x.path)}" style="left:${r + x.lvl * 14}px;top:${ty}px">${x.lvl ? '<span class="gb-lv">↳</span>' : ""}${esc(x.name)}</span>`;
+            + (() => {
+              /* v443 : nom du lot dans sa barre quand il y tient en entier (comme les tâches), sinon juste à droite */
+              const bw = r - 5 - l, need = dlyTxtW(x.name) + (x.lvl ? 14 : 0) + 12, inb = l > 0 && bw >= need;
+              return `<span class="gb-n gb-out gb-grp gb-ren${inb ? " gb-gin" : ""}" data-path="${esc(x.path)}" style="left:${inb ? l + 4 : r + x.lvl * 14}px;top:${ty}px;--c:${gcolOf()}">${x.lvl ? '<span class="gb-lv">↳</span>' : ""}${esc(x.name)}</span>`;
+            })();
+          const gcolOf = () => dlyLotColor((x.all.find(t => t.lo) || {}).lo);
           if (!segs.length) { bars += gname(17, 20); return; }
           const a0 = segs[0].a, b0 = segs[segs.length - 1].b;
           /* couleur d'un lot (FORMAT 91, 93) : celle de son lot, ou de son premier lot pour un niveau qui en regroupe plusieurs */
@@ -9318,9 +9323,21 @@ function renderBudgetList() {
         if (onG && h.parent !== undefined) {
           /* Gantt (v442) : trait par niveau, 20 px par niveau comme le tableau, compté depuis le signe ⌄ le plus à gauche
              des lots visibles (trait court = plus profond, long = plus haut) ; nom du lot d'arrivée surligné en jaune */
-          const signs = [...box.querySelectorAll(".dlyg-r .gb-fsg")].map(n => n.getBoundingClientRect()).filter(r => r.width && r.right > g.left && r.left < g.right);
+          const vis = r => r.width && r.right > g.left && r.left < g.right;
+          const signs = [...box.querySelectorAll(".dlyg-r .gb-fsg")].map(n => n.getBoundingClientRect()).filter(vis);
           const base = signs.length ? Math.max(g.left + 4, Math.min(...signs.map(r => r.left))) : g.left + 8;
-          ind = Math.max(0, Math.min(g.width - 40, base - g.left + (h.lvl || 0) * 20));
+          ind = base - g.left + (h.lvl || 0) * 20;
+          /* v443 (Ahmed) : le trait commence aligné sur le NOM DES TÂCHES du lot d'arrivée (jamais sur le titre du lot) —
+             trait court = noms des tâches du sous-lot, trait long = noms des tâches du lot parent */
+          const ids = new Set(INS.lot.filter(l => !l.t && dlyLotPath(l.v).join(" / ") === (h.parent || "")).map(l => l.id));
+          const xs = [];
+          if (ids.size) dlyKeys().filter(k => ids.has(k.split("|")[0])).forEach(k => {
+            const e2 = box.querySelector(`.dlyg-r .gb[data-key="${CSS.escape(k)}"] .gb-ti`) || box.querySelector(`.dlyg-r .gb-ren[data-key="${CSS.escape(k)}"]`);
+            const r2 = e2 && e2.getBoundingClientRect();
+            if (r2 && vis(r2)) xs.push(r2.left);
+          });
+          if (xs.length) ind = Math.min(...xs) - g.left;
+          ind = Math.max(0, Math.min(g.width - 40, ind));
           const esc2 = v => (window.CSS && CSS.escape ? CSS.escape(v) : String(v).replace(/"/g, '\\"'));
           const nm = h.parent ? box.querySelector(`.dlyg-r .gb-grp[data-path="${esc2(h.parent)}"]`) : null;
           if (nm) nm.classList.add("gb-grp-tgt");

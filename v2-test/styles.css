@@ -1710,3 +1710,6 @@ td.ins-tdv { position: relative; }
 .qq-table thead th { white-space: normal !important; text-overflow: clip !important; overflow: visible !important; line-height: 1.15; }
 /* v441 : nom du lot d'arrivée surligné pendant un glissement sur le Gantt */
 .gb-grp.gb-grp-tgt { background: #fde68a; border-radius: 4px; box-shadow: 0 0 0 2px #fde68a; }
+/* v443 : nom d'un lot écrit dans sa barre quand il y tient */
+.gb-grp.gb-gin { background: color-mix(in srgb, var(--c) 30%, #fff); border-radius: 4px; padding: 0 5px; z-index: 4; }
+.gb-grp.gb-gin.gb-grp-tgt { background: #fde68a; }
