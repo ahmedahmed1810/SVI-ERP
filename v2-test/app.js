@@ -5242,6 +5242,8 @@ function renderBudgetList() {
           ${INST_LIVE ? `
           <button type="button" class="inst-nav" id="instPrev" title="Budget précédent" aria-label="Précédent"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button type="button" class="inst-nav" id="instNext" title="Budget suivant" aria-label="Suivant"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          ${budget.inst.state !== "fige" ? `<button type="button" class="inst-act" id="instUndo" title="Annuler" aria-label="Annuler" disabled><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 4.5 11.5 9 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11.5h9.5a5 5 0 0 1 0 10H11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button>
+          <button type="button" class="inst-act" id="instRedo" title="Rétablir" aria-label="Rétablir" disabled><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l4.5 4.5L15 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 11.5H9.5a5 5 0 0 0 0 10H13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button>` : ""}
           <button type="button" class="inst-act" id="instLock"
             title="${budget.inst.state === "fige" ? "Revenir en édition" : "Figer (lecture seule)"}"
             aria-label="Figer">${budget.inst.state === "fige" ? `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 7.5-1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>` : `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>`}</button>
@@ -5780,7 +5782,7 @@ function renderBudgetList() {
       }, 60);
     };
     const insSave = () => {
-      if (INS_EDIT) { sviDlpOne(INS); sviDpredTyped(INS); insLiveSync(); }
+      if (INS_EDIT) { sviDlpOne(INS); sviDpredTyped(INS); insLiveSync(); if (shell.__undoTick) shell.__undoTick(); }
       clearTimeout(insTimer);
       insTimer = setTimeout(() => {
         const list = instLoad();
@@ -10069,6 +10071,76 @@ function renderBudgetList() {
       go: k => { const [lo, se] = k.split("|"); LK.lot = lo; LK.sec = se; LK.prim = null; refreshAll(); },
       render: () => { renderTabK(); insRenderChain(); } } : null;
     /* budget ouvert, pour PARAMÉTRAGE › CALENDRIER et DATES DU BUDGET (15/10/2026) */
+    /* =========================================================
+       ANNULER / RÉTABLIR (cahier, section Annuler / rétablir ; FORMAT 113) — v447
+       une étape = les changements enregistrés sans pause de plus de 0,4 s (une frappe continue = une étape) ;
+       50 étapes par budget, gardées tant que l'application reste ouverte
+       ========================================================= */
+    if (INS && INS_EDIT) {
+      const UR = (window.__sviUndo = window.__sviUndo || {});
+      const ref = budget.inst.ref;
+      const snapNow = () => JSON.stringify(INS);
+      let st = UR[ref];
+      { const s0 = snapNow(); if (!st || st.cur !== s0) st = UR[ref] = { u: [], r: [], cur: s0, quiet: 0 }; }
+      /* mises en ordre faites à l'ouverture (migrations, liaisons respectées…) : pas une étape à annuler */
+      st.quiet = Date.now() + 2500;
+      let tm = null;
+      const paint = () => {
+        const a = $("instUndo"), b = $("instRedo");
+        if (a) { a.disabled = !st.u.length; a.classList.toggle("off", !st.u.length); }
+        if (b) { b.disabled = !st.r.length; b.classList.toggle("off", !st.r.length); }
+      };
+      shell.__undoTick = () => {
+        clearTimeout(tm);
+        tm = setTimeout(() => {
+          const s = snapNow();
+          if (Date.now() < st.quiet) { st.cur = s; shell.__undoLab = ""; return; }
+          if (s === st.cur) return;
+          st.u.push({ snap: st.cur, lab: shell.__undoLab || "MODIFICATION" });
+          if (st.u.length > 50) st.u.shift();
+          st.r = []; st.cur = s; shell.__undoLab = "";
+          paint();
+        }, 400);
+      };
+      const apply = snap => {
+        clearTimeout(tm);
+        const o = JSON.parse(snap);
+        Object.keys(INS).forEach(k => { delete INS[k]; });
+        Object.assign(INS, o);
+        /* choix en cours (ronds, délier en attente) abandonnés */
+        LK.des = LK.lot = LK.prim = LK.sec = null; LK.prd = {}; LK.chg = {}; LK.dlpDraft = null; LK.all = {}; LK.allm = {}; LK.linksBak = null; LK.unlinked = null;
+        st.cur = snap; st.quiet = Date.now() + 900;
+        insSave();
+        keepScroll(() => refreshAll());
+        paint();
+      };
+      const go = dir => {
+        const from = dir < 0 ? st.u : st.r, to = dir < 0 ? st.r : st.u;
+        if (!from.length) return;
+        const e = from.pop();
+        to.push({ snap: st.cur, lab: e.lab });
+        apply(e.snap);
+        histLog("BUDGET", dir < 0 ? "ANNULER" : "RÉTABLIR", e.lab);
+        shell.__undoLab = "";
+      };
+      const bind = (id, dir) => {
+        const b = $(id);
+        if (!b) return;
+        let lp = null, shown = false;
+        b.addEventListener("pointerdown", () => {
+          shown = false;
+          lp = setTimeout(() => {
+            const L = dir < 0 ? st.u : st.r, e = L[L.length - 1];
+            shown = true;
+            svToast(e ? (dir < 0 ? "ANNULER : " : "RÉTABLIR : ") + e.lab : (dir < 0 ? "RIEN À ANNULER" : "RIEN À RÉTABLIR"), 3500, b);
+          }, 500);
+        });
+        ["pointerup", "pointercancel", "pointerleave"].forEach(t => b.addEventListener(t, () => clearTimeout(lp)));
+        b.addEventListener("click", e => { e.preventDefault(); if (shown) { shown = false; return; } go(dir); });
+      };
+      bind("instUndo", -1); bind("instRedo", 1);
+      paint();
+    }
     window.__sviBdgLive = INS ? {
       ref: budget.inst.ref, project: budget.project || "", edit: INS_EDIT,
       cal: () => insCal(), dates: () => ({ but: INS.dbut || "", obj: INS.dobj || "" }),
@@ -15514,6 +15586,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       try {
         const l = histLoad();
         l.push({ t: new Date().toISOString(), b: branche, a: action, d: String(detail || "").toUpperCase() });
+        /* libellé de l'étape pour ANNULER / RÉTABLIR (appui long) */
+        if (action !== "ANNULER" && action !== "RÉTABLIR") shell.__undoLab = String(action).toUpperCase() + (detail ? " — " + String(detail).toUpperCase().slice(0, 80) : "");
         localStorage.setItem(HIST_KEY, JSON.stringify(l.slice(-1000)));
       } catch (e) {}
     };
