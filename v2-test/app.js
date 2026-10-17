@@ -9462,7 +9462,7 @@ function renderBudgetList() {
           X.render();
           return;
         }
-        const n = e.target.closest && e.target.closest("input.dly-nm");
+        const n = e.target.closest && e.target.closest("input.dly-nm:not(.dly-gin)");
         if (n) { X.rename(n); return; }
         const ni = e.target.closest && e.target.closest("input.dly-newin");
         if (ni) {
@@ -9526,20 +9526,31 @@ function renderBudgetList() {
       const dlyGEdit = el => {
         const host = el.closest("#dlyGantt"), body = host && host.querySelector(".gbody");
         if (!body) return;
-        body.querySelector("input.dly-gin")?.remove();
+        document.querySelector("input.dly-gin")?.remove();
         const key = el.dataset.key, path = el.dataset.path;
-        const sid = key ? key.split("|")[1] : "", val = key ? lkName("sec", sid) : dlyLotPath(path).pop() || "";
-        const r = el.getBoundingClientRect(), b = body.getBoundingClientRect();
+        const sid = key ? key.split("|")[1] : "", val = key ? lkName("sec", sid) : lotLab(dlyLotPath(path)).name || "";
+        const r = el.getBoundingClientRect();
+        /* v465 : case posée sur la page (pas dans le Gantt) : un redessin du Gantt (clavier de l'iPad qui s'ouvre…) ne l'efface plus ;
+           enregistrée à la sortie de la case (ENTRÉE ou toucher ailleurs), après la fin de la saisie prédictive (mot sans espace) */
         const i = document.createElement("input");
-        i.className = "dly-nm dly-gin"; i.autocomplete = "off"; i.setAttribute("enterkeyhint", "done");
+        i.className = "dly-nm dly-gin"; i.autocomplete = "off"; i.setAttribute("enterkeyhint", "done"); i.setAttribute("autocapitalize", "characters");
         i.dataset.kind = key ? "sec" : "grp";
         if (key) i.dataset.sid = sid; else i.dataset.path = path;
         i.value = val;
-        i.style.cssText = `position:absolute;left:${Math.max(0, r.left - b.left - 2)}px;top:${r.top - b.top + r.height / 2 - 12}px;width:${Math.max(160, dlyTxtW(val) + 40)}px;height:24px;z-index:20`;
-        body.appendChild(i);
+        i.style.cssText = `position:fixed;left:${Math.max(4, r.left - 2)}px;top:${r.top + r.height / 2 - 12}px;width:${Math.max(160, dlyTxtW(val) + 40)}px;height:24px;z-index:10050`;
+        document.body.appendChild(i);
         i.focus(); try { i.select(); } catch (err) {}
-        i.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === "Tab") { ev.preventDefault(); ev.stopPropagation(); i.blur(); } else if (ev.key === "Escape") { i.value = val; i.blur(); } });
-        i.addEventListener("blur", () => setTimeout(() => i.remove(), 0));
+        let done = false, cancel = false;
+        const commit = () => {
+          if (done) return; done = true;
+          setTimeout(() => {
+            const v = i.value; i.remove();
+            if (cancel || U_(sviClean(v)) === U_(val)) return;
+            const X = shell.__insDly; if (X) X.rename(i);
+          }, 40);
+        };
+        i.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === "Tab") { ev.preventDefault(); ev.stopPropagation(); i.blur(); } else if (ev.key === "Escape") { cancel = true; i.value = val; i.blur(); } });
+        i.addEventListener("blur", commit);
       };
       /* PLANNING : appui long sur une tâche ou un lot puis glisser = la / le déplacer (un seul trait) */
       const dlyRowKeys = tr => { if (!tr) return []; if (tr.classList.contains("dly-task")) return [tr.dataset.key]; const g = (shell.__dlyRows || []).find(x => x.grp && x.path === tr.dataset.path); return g ? g.all.map(t => t.key) : []; };
