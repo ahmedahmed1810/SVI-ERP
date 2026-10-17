@@ -9319,29 +9319,26 @@ function renderBudgetList() {
         const box = h.tr.closest(".dlyg"), onG = !!shell.__dlySrcG;
         const pane = box.querySelector(onG ? ".dlyg-r" : ".dlyg-l") || box, g = pane.getBoundingClientRect();
         let ind = onG ? 8 + (h.lvl || 0) * 40 : (h.lvl ? 6 + h.lvl * 20 : 0);
-        /* Gantt (v441) : le trait part sous le NOM du lot d'arrivée (au bout de sa barre, décalé ↳ selon le niveau), nom surligné */
+        /* v445 (Ahmed) : le trait part du TITRE PARENT (lot d'arrivée) et file jusqu'au bord droit —
+           tableau : aligné sur le titre du lot dans la colonne LOT ; Gantt : aligné sur la date de début du lot (bord gauche de sa barre).
+           Racine (pas de lot parent) : titres / barres de premier niveau. Nom du lot d'arrivée surligné en jaune sur le Gantt. */
         box.querySelectorAll(".gb-grp.gb-grp-tgt").forEach(n => n.classList.remove("gb-grp-tgt"));
-        if (onG && h.parent !== undefined) {
-          /* Gantt (v442) : trait par niveau, 20 px par niveau comme le tableau, compté depuis le signe ⌄ le plus à gauche
-             des lots visibles (trait court = plus profond, long = plus haut) ; nom du lot d'arrivée surligné en jaune */
-          const vis = r => r.width && r.right > g.left && r.left < g.right;
-          const signs = [...box.querySelectorAll(".dlyg-r .gb-fsg")].map(n => n.getBoundingClientRect()).filter(vis);
-          const base = signs.length ? Math.max(g.left + 4, Math.min(...signs.map(r => r.left))) : g.left + 8;
-          ind = base - g.left + (h.lvl || 0) * 20;
-          /* v443 (Ahmed) : le trait commence aligné sur le NOM DES TÂCHES du lot d'arrivée (jamais sur le titre du lot) —
-             trait court = noms des tâches du sous-lot, trait long = noms des tâches du lot parent */
-          const ids = new Set(INS.lot.filter(l => !l.t && dlyLotPath(l.v).join(" / ") === (h.parent || "")).map(l => l.id));
-          const xs = [];
-          if (ids.size) dlyKeys().filter(k => ids.has(k.split("|")[0])).forEach(k => {
-            const e2 = box.querySelector(`.dlyg-r .gb[data-key="${CSS.escape(k)}"] .gb-ti`) || box.querySelector(`.dlyg-r .gb-ren[data-key="${CSS.escape(k)}"]`);
-            const r2 = e2 && e2.getBoundingClientRect();
-            if (r2 && vis(r2)) xs.push(r2.left);
-          });
+        if (h.parent !== undefined) {
+          const E = v => (window.CSS && CSS.escape ? CSS.escape(v) : String(v).replace(/"/g, '\\"'));
+          const vis = r => r && r.width && r.right > g.left && r.left < g.right;
+          const lefts = els => els.map(e2 => e2.getBoundingClientRect()).filter(vis).map(r => r.left);
+          let xs;
+          if (onG) {
+            xs = h.parent ? lefts([...box.querySelectorAll(`.dlyg-r :is(.gsum, .gseg, .gdot)[data-path="${E(h.parent)}"]`)])
+              : lefts([...box.querySelectorAll(".dlyg-r :is(.gsum, .gseg, .gdot)")]);
+            const nm = h.parent ? box.querySelector(`.dlyg-r .gb-grp[data-path="${E(h.parent)}"]`) : null;
+            if (nm) nm.classList.add("gb-grp-tgt");
+          } else {
+            xs = h.parent ? lefts([...box.querySelectorAll(`.dlyg-l tr.dly-grp[data-path="${E(h.parent)}"] .dly-lotc .dly-fold`)])
+              : lefts([...box.querySelectorAll(".dlyg-l tr.dly-grp .dly-lotc .dly-fold")]);
+          }
           if (xs.length) ind = Math.min(...xs) - g.left;
           ind = Math.max(0, Math.min(g.width - 40, ind));
-          const esc2 = v => (window.CSS && CSS.escape ? CSS.escape(v) : String(v).replace(/"/g, '\\"'));
-          const nm = h.parent ? box.querySelector(`.dlyg-r .gb-grp[data-path="${esc2(h.parent)}"]`) : null;
-          if (nm) nm.classList.add("gb-grp-tgt");
         }
         const y = (h.after ? h.r.bottom : h.r.top) - 1.5;
         l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${g.left + ind}px;width:${Math.max(40, g.width - ind)}px;top:${y}px`;
