@@ -6005,6 +6005,18 @@ function renderBudgetList() {
       }
       return null;
     };
+    /* v470 : désignation client d'un produit lié dans une liaison primaire (ou null) ; UPB des produits recalée sur elle */
+    const prdPrimDes = id => { const l = (INS.links || []).find(l => (l.prd || []).some(x => x.id === id) && insLinkPrim(INS, l)); return l ? INS.des.find(d => d.id === l.des) || null : null; };
+    const prdSyncU = () => {
+      let ch = false;
+      (INS.links || []).filter(l => insLinkPrim(INS, l)).forEach(l => {
+        const d = INS.des.find(x => x.id === l.des), du = d ? U_(d.u) : "";
+        if (!du) return;
+        (l.prd || []).forEach(x => { const p = INS.prd.find(q => q.id === x.id); if (p && U_(p.u) !== du) { p.u = du; ch = true; } });
+      });
+      return ch;
+    };
+    shell.__prdSyncU = () => { if (INS && INS_EDIT && prdSyncU()) insSave(); };
     /* une cellule : champ saisissable, ou verrouillé (titre, calculé) */
     const insCell = (k, r, c) => {
       const [f, , cls, type] = c;
@@ -6014,7 +6026,9 @@ function renderBudgetList() {
       const qAuto = (f === "q" && (k === "prd" || k === "des")) || (f === "p" && k === "prd");
       const locked = !INS_EDIT || type === "calc" || qAuto || (INS_LOCK[k] || []).includes(f) || (k === "chg" && (f === "p" || f === "u") && !!r.chs) || (r.t && f !== "art" && f !== "des")
         /* DIM que l'unité n'autorise pas : grisées (FORMAT 74, R10) */
-        || (k === "prd" && /^d[123]$/.test(f) && !isNew && +f[1] > sviUnitDims(r.u));
+        || (k === "prd" && /^d[123]$/.test(f) && !isNew && +f[1] > sviUnitDims(r.u))
+        /* v470 : produit d'une liaison primaire — UPB = celle de la désignation client (comme le PPB) : grisée */
+        || (k === "prd" && f === "u" && !isNew && !!prdPrimDes(r.id));
       const er = !isNew && INS_EDIT ? insRowErr(k, r) : null;
       let val = "";
       /* ligne vide « SAISIR ICI » des désignations : TVA 20 % affichée par défaut */
@@ -7710,6 +7724,7 @@ function renderBudgetList() {
       if (active === "lnk") { body.innerHTML = `<div class="bdg-d-scroll">${insLinksHTML()}</div>`; return; }
       if (active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
       if (active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
+      if (active === "prd" && shell.__prdSyncU) shell.__prdSyncU();
       body.innerHTML = `<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
       shell.__insMore = () => insMoreRows(active);
       lastShown.detail = { cols: insCfCols(active), rows: insShown(active), kind: active, ins: true };
@@ -7806,16 +7821,18 @@ function renderBudgetList() {
         ["lot", "prim", "sec"].filter(x => x !== k).forEach(x => { const c = $("bdgHier")?.querySelector(`.ins-hcol[data-ik="${x}"]`); if (c && !c.contains(document.activeElement)) insRenderHier(x); });
         if (k !== "des") { const c = shell.querySelector(".bdg-d-client-scroll"); if (c && !c.contains(document.activeElement)) insRenderClient(); }
         const lab = box && box.querySelector(".svi-cnt"); if (lab && ["lot", "prim", "sec"].includes(k)) lab.outerHTML = svCnt(box.querySelectorAll(":scope > .ins-li[data-iid]").length, INS[k].length);
-        const bd = $("bdgTabBody");
-        if (bd && !bd.contains(document.activeElement)) {
-          /* redessin sans quitter la case en cours (keepScroll la ferait perdre) : défilements gardés à la main */
-          const sel = ".bdg-d-tabbody .bdg-d-scroll, .bdg-d-tabbody .dlyg-l, .bdg-d-tabbody .dlyg-r";
-          const sv = [...shell.querySelectorAll(sel)].map(el => [el.scrollTop, el.scrollLeft]), wx = window.scrollX, wy = window.scrollY;
-          renderTab();
-          [...shell.querySelectorAll(sel)].forEach((el, i) => { if (sv[i]) { el.scrollTop = sv[i][0]; el.scrollLeft = sv[i][1]; } });
-          window.scrollTo(wx, wy);
-        }
+        shell.__ins.tabNoBlur();
         insMarkUnlinked();
+      },
+      /* onglet de détail redessiné sans quitter la case en cours (keepScroll la ferait perdre) : défilements gardés à la main */
+      tabNoBlur: () => {
+        const bd = $("bdgTabBody");
+        if (!bd || bd.contains(document.activeElement)) return;
+        const sel = ".bdg-d-tabbody .bdg-d-scroll, .bdg-d-tabbody .dlyg-l, .bdg-d-tabbody .dlyg-r";
+        const sv = [...shell.querySelectorAll(sel)].map(el => [el.scrollTop, el.scrollLeft]), wx = window.scrollX, wy = window.scrollY;
+        renderTab();
+        [...shell.querySelectorAll(sel)].forEach((el, i) => { if (sv[i]) { el.scrollTop = sv[i][0]; el.scrollLeft = sv[i][1]; } });
+        window.scrollTo(wx, wy);
       },
       rowErr: (k, r) => insRowErr(k, r), cleanLinks: () => insCleanLinks(), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles,
       /* ligne utilisée par une liaison (validée, ou déliée mais pas encore validée) : suppression interdite */
@@ -7879,6 +7896,8 @@ function renderBudgetList() {
         if (isNum) r[f] = r[f] === "" ? "" : X.insNum(r[f]);
         if (c) X.insLive(k, holder, r);
         X.insSave();
+        /* v470 : UPB / PPB / TVA d'une désignation tapés → produits de ses liaisons primaires (DÉTAIL PRODUITS) à jour à la frappe */
+        if (k === "des" && ["u", "p", "tva"].includes(f) && X.tabNoBlur) { clearTimeout(shell.__prdLiveT); shell.__prdLiveT = setTimeout(() => { if (f === "u" && shell.__prdSyncU) shell.__prdSyncU(); X.tabNoBlur(); }, 120); }
       });
       /* v467 : garde-fou — jamais deux lignes SAISIR ICI… dans une même liste (on garde la dernière) */
       shell.addEventListener("focusout", () => setTimeout(() => {
