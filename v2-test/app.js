@@ -7272,6 +7272,36 @@ function renderBudgetList() {
       }));
       return Math.ceil(q / Number(e.cad)) || 0;
     };
+    /* essai EXTERNE → une seule charge dans le budget (quantité = somme des tâches cochées, prix de l'essai),
+       liée à chaque tâche cochée ; le détail par tâche reste dans ESSAIS EXTERNES (décision du 17/10/2026) */
+    const qqExtSync = () => {
+      const Q = qqData();
+      const drop = e => {
+        const c = e.cid && INS.chg.find(x => x.id === e.cid);
+        (INS.links || []).forEach(l => { if (l.chg) l.chg = l.chg.filter(y => y.id !== e.cid); });
+        if (c && c.qq) INS.chg = INS.chg.filter(x => x.id !== c.id);
+        e.cid = "";
+      };
+      (Q.extGone || []).forEach(drop); Q.extGone = [];
+      Q.ext.forEach(e => {
+        const keys = (e.tasks || []).filter(k => (INS.links || []).some(l => l.lot + "|" + l.sec === k));
+        if (!U_(e.v) || !keys.length) { drop(e); return; }
+        const tot = keys.reduce((t, k) => t + qqExtQty(e, k), 0);
+        let c = e.cid && INS.chg.find(x => x.id === e.cid);
+        if (!c) {
+          c = INS.chg.find(x => !x.t && U_(x.des) === U_(e.v) && U_(x.u) === U_(e.u || "ESSAI"));
+          if (!c) { c = { id: insId(), art: "", des: U_(e.v), u: U_(e.u || "ESSAI"), q: tot, p: e.p, qq: 1, on: false }; INS.chg.push(c); }
+          e.cid = c.id;
+        }
+        if (c.qq) { c.des = U_(e.v); c.u = U_(e.u || "ESSAI"); c.p = e.p; }
+        c.q = tot || "";
+        (INS.links || []).forEach(l => {
+          const k = l.lot + "|" + l.sec, has = (l.chg || []).some(y => y.id === c.id);
+          if (keys.includes(k)) { if (!has && !(INS.links || []).some(o => o !== l && o.lot === l.lot && o.sec === l.sec && (o.chg || []).some(y => y.id === c.id))) (l.chg = l.chg || []).push({ id: c.id, q: "" }); }
+          else if (has && c.qq) l.chg = l.chg.filter(y => y.id !== c.id);
+        });
+      });
+    };
     const qqExtHTML = () => {
       const Q = qqData(), ro = !INS_EDIT;
       const inp = (e, f, num) => `<input class="qq-xin${num ? " number" : ""}" data-f="${f}" value="${esc(e[f] ?? "")}" ${num ? 'inputmode="decimal"' : ""} ${ro ? "disabled" : ""} autocomplete="off" spellcheck="false">`;
@@ -7433,7 +7463,7 @@ function renderBudgetList() {
       const html = () => `<div class="qq-x2"><div class="qq-x2l">${[...byLot.keys()].map(lo => { const n = byLot.get(lo).filter(k => sel.has(k)).length;
           return `<button type="button" class="qq-x2lot${lo === cur ? " cur" : ""}${n ? " on" : ""}" data-lo="${lo}">${esc(lkName("lot", lo))} ${n ? svCnt(n) : ""}</button>`; }).join("") || '<div class="empty">AUCUNE TÂCHE</div>'}</div>
         <div class="qq-x2r">${cur ? byLot.get(cur).map(k => `<label><input type="checkbox" data-k="${esc(k)}" ${sel.has(k) ? "checked" : ""}> ${esc(lkName("sec", k.split("|")[1]))}</label>`).join("") : ""}</div></div>`;
-      qqWin("TÂCHES SOUMISES À L'ESSAI : " + U_(e.v), `<div class="qq-x2w">${html()}</div>`, () => { e.tasks = [...sel]; qqSave(); qqRender(); });
+      qqWin("TÂCHES SOUMISES À L'ESSAI : " + U_(e.v), `<div class="qq-x2w">${html()}</div>`, () => { e.tasks = [...sel]; qqExtSync(); histLog("QUALITÉ", "ESSAI EXTERNE", U_(e.v) + " — " + sel.size + " TÂCHE(S)"); qqSave(); qqRender(); });
       const d = document.getElementById("svConf"), w = d.querySelector(".qq-x2w");
       w.addEventListener("click", ev => { const b = ev.target.closest(".qq-x2lot"); if (!b) return; ev.stopPropagation(); cur = b.dataset.lo; w.innerHTML = html(); });
       w.addEventListener("change", ev => { const c = ev.target.closest("input[data-k]"); if (!c) return; if (c.checked) sel.add(c.dataset.k); else sel.delete(c.dataset.k); w.innerHTML = html(); });
@@ -7478,7 +7508,7 @@ function renderBudgetList() {
           const Q = qqData(), tr = xin.closest("tr"), f = xin.dataset.f, val = ["p", "cad"].includes(f) ? insNum(xin.value) : U_(xin.value);
           if (tr.classList.contains("qq-xnew")) { if (val) { Q.ext.push({ id: insId(), v: val, u: "ESSAI", p: "", cad: "", u2: "", tasks: [] }); qqSave(); qqRender(".qq-xnew .qq-xin"); } return; }
           const ex = Q.ext.find(x => x.id === tr.dataset.xid);
-          if (ex) { ex[f] = val; qqSave(); qqRender(); }
+          if (ex) { ex[f] = val; qqExtSync(); qqSave(); qqRender(); }
           return;
         }
         const cb = e.target.closest(".qq-cb, .qq-cball, .qq-xcb");
@@ -7551,7 +7581,7 @@ function renderBudgetList() {
         if (qqSub === "ext") {
           const Q = qqData(), n = Q.ext.filter(x => x.on).length;
           if (!n || !(await svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", text: n + " ESSAI(S) EXTERNE(S) SERONT SUPPRIMÉS.", ok: "SUPPRIMER" }))) return;
-          Q.ext = Q.ext.filter(x => !x.on); qqSave(); qqRender(); return;
+          Q.extGone = Q.ext.filter(x => x.on); Q.ext = Q.ext.filter(x => !x.on); qqExtSync(); qqSave(); qqRender(); return;
         }
         const key = qqKey(), L = qqList(key), n = L.filter(x => x.on).length;
         if (!n) return;
