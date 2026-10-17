@@ -8512,7 +8512,7 @@ function renderBudgetList() {
       if (window.ResizeObserver && !host.__ro2) {
         /* hauteur du tableau ou du bloc (agrandi / réduit) changée : le Gantt se redessine */
         const scr0 = host.closest(".bdg-d-scroll");
-        const hk = () => tbl.getBoundingClientRect().height + "|" + (scr0 ? scr0.clientHeight : 0);
+        const hk = () => tbl.getBoundingClientRect().height + "|" + (scr0 ? scr0.clientHeight : 0) + "|" + Math.ceil(host.clientWidth / (DLY_DW || 1));
         let h0 = hk();
         host.__ro2 = new ResizeObserver(() => {
           if (!host.isConnected) { host.__ro2.disconnect(); return; }
@@ -8522,7 +8522,7 @@ function renderBudgetList() {
           cancelAnimationFrame(host.__raf);
           host.__raf = requestAnimationFrame(() => { host.__drawn = false; dlyGanttDraw(); });
         });
-        host.__ro2.observe(tbl); if (scr0) host.__ro2.observe(scr0);
+        host.__ro2.observe(tbl); host.__ro2.observe(host); if (scr0) host.__ro2.observe(scr0);
       }
       const cal = insCal(), tr0 = tbl.getBoundingClientRect();
       const thH = tbl.querySelector("thead").getBoundingClientRect().height;
@@ -8551,11 +8551,13 @@ function renderBudgetList() {
       if (INS.dbut) dates.push(INS.dbut); if (INS.dobj) dates.push(INS.dobj);
       dates.sort();
       const today = sviIsoOf(new Date());
-      const d0 = sviIsoAdd(dates[0] || today, -3), d1 = sviIsoAdd(dates[dates.length - 1] || sviIsoAdd(today, 30), 10);
+      const d0 = sviIsoAdd(dates[0] || today, -3);
       DLY_DW = dlyDwGet();
       const SC = dlyScale();
       host.style.setProperty("--dw", DLY_DW + "px");
-      const nD = dDiff(d0, d1) + 1, W = nD * DLY_DW;
+      /* v458 : le calendrier va au moins jusqu'au bord droit du Gantt visible (tableau caché, poignée, échelle, rotation) */
+      const nD = Math.max(dDiff(d0, sviIsoAdd(dates[dates.length - 1] || sviIsoAdd(today, 30), 10)) + 1, Math.ceil((host.clientWidth || 0) / DLY_DW) + 1), W = nD * DLY_DW;
+      const d1 = sviIsoAdd(d0, nD - 1);
       const X = iso => dDiff(d0, iso) * DLY_DW;
       let head = "", bg = "";
       for (let i = 0; i < nD; i++) {
