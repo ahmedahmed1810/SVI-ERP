@@ -5759,7 +5759,9 @@ function renderBudgetList() {
       : null;
     const INS_EDIT = !!INS && (budget.inst.state || "instance") === "instance";
     /* v448 : largeur tableau / Gantt tirée à la main, retrouvée à l'ouverture de ce budget */
-    if (INS) { const vs = window.__sviViewGet && window.__sviViewGet("bdg:" + budget.inst.ref); if (vs && vs.w > 0) shell.__dlygW = { ins: INS, w: vs.w, auto: false }; if (vs && vs.gx !== undefined) shell.__dlyGx = vs.gx; }
+    const DLYG_REF = (budget.inst && budget.inst.ref) || budget.ref || "";
+    const dlygMine = o => !!o && (o.ins === INS || (DLYG_REF && o.ref === DLYG_REF));
+    if (INS) { const vs = window.__sviViewGet && window.__sviViewGet("bdg:" + budget.inst.ref); if (vs && typeof vs.w === "number" && vs.w >= 0) { shell.__dlygW = { ins: INS, ref: DLYG_REF, w: vs.w, auto: false }; if (vs.pw) shell.__dlygPrevW = vs.pw; } if (vs && vs.gx !== undefined) shell.__dlyGx = vs.gx; }
     const INS_DLP_MIG = !!INS && (sviDlpSec(INS) | sviDlpOne(INS) | sviDpredTyped(INS)) > 0;
     /* calendrier du budget (jours travaillés) : durées et décalages en jours travaillés */
     const insCal = () => sviCalOf(INS);
@@ -6459,7 +6461,10 @@ function renderBudgetList() {
        sous un niveau « NIVEAU 2 » : NIVEAU 2.1, NIVEAU 2.2… ; affiché avec le nom des parents (« FONDATION / NIVEAU 2 ») tant qu'on ne lui donne pas un intitulé */
     const insNextLevel = (parent = []) => {
       const P = parent.map(U_), last = P.length ? P[P.length - 1] : "";
-      const m = last.match(/^NIVEAU (\d+(?:\.\d+)*)$/), base = m ? m[1] + "." : "";
+      /* v451 : tous les lots principaux sont au niveau 1 → dessous NIVEAU 1.1, 1.2… ; sous NIVEAU 1.1 → 1.1.1… ;
+         sous un sous-lot portant un intitulé : numéro selon sa profondeur (1.1 pour le 2e niveau, etc.) */
+      const m = last.match(/^NIVEAU (\d+(?:\.\d+)*)$/);
+      const base = m ? m[1] + "." : P.length ? ["1"].concat(Array(P.length - 1).fill("1")).join(".") + "." : "";
       const kids = new Set();
       INS.lot.forEach(x => { const sg = lotSegs(x).map(U_); if (sg.length > P.length && P.every((g, i) => g === sg[i])) kids.add(sg[P.length]); });
       const re = new RegExp("^(?:NOUVEAU )?NIVEAU " + base.replace(/\./g, "\\.") + "(\\d+)$");
@@ -8448,7 +8453,7 @@ function renderBudgetList() {
         const fit = () => {
           const o = shell.__dlygW, L = host.isConnected && host.parentElement.querySelector(".dlyg-l");
           /* v444 : largeur calculée une seule fois à l'ouverture, puis gardée — la poignée ne bouge plus quand on glisse une barre */
-          if (!L || (o && o.ins === INS && (!o.auto || o.fixed))) return;
+          if (!L || (dlygMine(o) && (!o.auto || o.fixed))) return;
           const th = [...L.querySelectorAll("thead th")].find(t => /^DURÉE/.test((t.textContent || "").trim()));
           if (!th) return;
           let w = 0;
@@ -8458,9 +8463,10 @@ function renderBudgetList() {
             w = Math.round(L.getBoundingClientRect().width + d + 1);
             L.style.width = w + "px"; L.style.maxWidth = "none";
           }
-          if (w > 60) shell.__dlygW = { ins: INS, w, auto: true };
+          if (w > 60) { shell.__dlygW = { ins: INS, ref: DLYG_REF, w, auto: true }; shell.__dlygPrevW = shell.__dlygPrevW || w; }
         };
-        fit(); setTimeout(fit, 250); setTimeout(() => { fit(); const o = shell.__dlygW; if (o && o.ins === INS) o.fixed = true; }, 900);
+        /* v451 : une seule mise à la largeur, avant le premier affichage du planning (pas de saut visible), puis plus jamais */
+        fit(); { const o = shell.__dlygW; if (dlygMine(o)) o.fixed = true; }
       }
       /* hauteur du tableau changée ensuite (police, repli, largeur) : le Gantt se redessine */
       if (window.ResizeObserver && !host.__ro2) {
@@ -8836,7 +8842,7 @@ function renderBudgetList() {
           shell.__dlyCanLev = canLev;
           const dls = dl("dlyLotDl", [...new Set(INS.lot.filter(x => !x.t).map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")))
             + dl("dlySecDl", [...new Set(INS.sec.map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")));
-          return dls + `<div class="dlyg"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return o && o.ins === INS ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
+          return dls + `<div class="dlyg"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
             + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE OU SES DÉLAIS</button></div>`;
         }
         const ps = key ? [...insDlyList(key)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9"))) : [];
@@ -9307,8 +9313,12 @@ function renderBudgetList() {
           document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
           document.removeEventListener("touchmove", tmv);
           sp.classList.remove("on");
-          /* largeur gardée tant que le budget reste ouvert ; à l'ouverture : tableau jusqu'à DURÉE (J) */
-          shell.__dlygW = { ins: shell.__insDly && shell.__insDly.INS, w: Math.round(w), auto: false };
+          /* v451 : tableau caché (poignée tout à gauche) + simple toucher de la poignée = le tableau revient à sa largeur d'avant */
+          if (w0 < 3 && Math.abs(w - w0) < 3) { w = shell.__dlygPrevW || Math.round(gw.width * 0.55); L.style.width = w + "px"; L.style.maxWidth = "none"; }
+          if (w > 2) shell.__dlygPrevW = Math.round(w);
+          /* largeur gardée (et retrouvée à l'ouverture, FORMAT 114) ; seule la poignée la change */
+          shell.__dlygW = { ins: shell.__insDly && shell.__insDly.INS, ref: DLYG_REF, w: Math.round(w), auto: false };
+          if (window.__sviViewSave) window.__sviViewSave();
         };
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       });
@@ -9589,7 +9599,7 @@ function renderBudgetList() {
           /* v449 : toucher bref à deux doigts (sans écarter) n'importe où sur le Gantt = Gantt sur toute la largeur ↔ tableau de nouveau affiché */
           const tap = !P0.mode && Date.now() - P0.t0 < 450 && e.type === "touchend";
           P0 = null; setTimeout(() => { shell.__dlyPinch = false; }, 50);
-          if (tap) dlyToggleTable();
+          void tap;   /* v451 : les deux doigts ne servent qu'au pincement (le tableau ne revient que par la poignée) */
         };
         shell.addEventListener("touchend", end); shell.addEventListener("touchcancel", end);
       }
@@ -19970,7 +19980,9 @@ function sviDlyRoSync() {
     const all = load();
     const sh = shellOf();
     const o = { y: Math.round(window.scrollY), s: els().map(e => [Math.round(e.scrollTop), Math.round(e.scrollLeft)]), t: Date.now() };
-    if (sh && sh.__dlygW && !sh.__dlygW.auto) o.w = sh.__dlygW.w;
+    /* largeur du tableau gardée telle qu'elle est (choisie à la poignée, ou calculée à la 1re ouverture) : la prochaine ouverture la reprend sans recalcul */
+    if (sh && sh.__dlygW && typeof sh.__dlygW.w === "number") o.w = sh.__dlygW.w;
+    if (sh && sh.__dlygPrevW) o.pw = sh.__dlygPrevW;
     { const gg = document.querySelector("#dlyGantt"); if (gg) o.gx = Math.round(gg.scrollLeft); }
     all[k] = o;
     /* 80 vues au plus (les plus anciennes oubliées) */
