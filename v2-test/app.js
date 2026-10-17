@@ -7646,7 +7646,7 @@ function renderBudgetList() {
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="qlt"]`);
         if (b) b.innerHTML = (SVI_ICON.qlt || "") + "DÉTAIL QUALITÉ " + svCnt(qqCount()); }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
-        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(INS_EDIT ? (insDlyKey() ? insDlyList(insDlyKey()).length : insDlyRecap() ? insDlyRecap().filter(x => x.deb || x.fin).length : dlyKeys().length) : insTasks().length); }
+        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(INS_EDIT ? dlyKeys().length : insTasks().length); }
       /* IMPORT NON CRÉÉ : visible seulement s'il reste des lignes */
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="inc"]`), n = (INS.inc || []).length;
         if (b) { b.innerHTML = (SVI_ICON.hier || "") + "IMPORT NON CRÉÉ " + svCnt(n); b.hidden = !n; b.style.display = n ? "" : "none"; }
@@ -7665,6 +7665,14 @@ function renderBudgetList() {
       if (active === "dly") {
         /* délais : saisis ici (périodes par tâche secondaire ; tâche primaire choisie = récapitulatif) */
         body.innerHTML = `<div class="bdg-d-scroll">${insDlyHTML(INS_EDIT, shell.__insDly && shell.__insDly.err)}</div>`;
+        /* v454 : nouvelle tâche choisie par les ronds → le PLANNING défile jusqu'à sa ligne (surlignée) */
+        { const pk = [LK.lot, LK.prim, LK.sec].join("|");
+          if (pk !== shell.__dlyPickK) { shell.__dlyPickK = pk; setTimeout(() => {
+            const tr = body.querySelector("tr.dly-pick"), sc = body.querySelector(".bdg-d-scroll");
+            if (!tr || !sc) return;
+            const r = tr.getBoundingClientRect(), b = sc.getBoundingClientRect();
+            if (r.top < b.top + 40 || r.bottom > b.bottom - 10) sc.scrollTop += r.top - b.top - Math.max(40, (b.height - r.height) / 2);
+          }, 60); } }
         return;
       }
       if (active === "qlt") { qqRender(); lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
@@ -8164,6 +8172,7 @@ function renderBudgetList() {
       Object.keys(INS.dlp || {}).forEach(k => { if ((INS.dlp[k] || []).length) S.add(k); });
       Object.keys(LK.dlpDraft || {}).forEach(k => { if ((LK.dlpDraft[k] || []).length) S.add(k); });
       Object.keys(INS.dpred || {}).forEach(k => { S.add(k); dlyPreds(k).forEach(x => S.add(x)); });
+      { const ck = typeof insDlyKey === "function" ? insDlyKey() : null; if (ck) S.add(ck); }
       const ok = k => { const [lo, se] = k.split("|"); return INS.lot.some(x => x.id === lo) && INS.sec.some(x => x.id === se); };
       return [...S].filter(ok);
     };
@@ -8788,12 +8797,40 @@ function renderBudgetList() {
     };
     /* périodes affichées : brouillon en cours (à valider) ou périodes validées */
     const insDlyList = key => (LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
+    /* v454 : dates saisies dans le PLANNING (ou sur le Gantt) enregistrées aussitôt (annulables par ↶) */
+    const dlyCommitDrafts = () => {
+      if (!INS_EDIT || !LK.dlpDraft) return;
+      let ch = false;
+      Object.keys(LK.dlpDraft).forEach(k => {
+        INS.dlp[k] = (LK.dlpDraft[k] || []).filter(p => p.deb || p.fin).map(p => ({ id: p.id, deb: p.deb || "", fin: p.fin || "" }));
+        if (!INS.dlp[k].length) delete INS.dlp[k];
+        delete LK.dlpDraft[k]; ch = true;
+      });
+      if (ch) setTimeout(() => insSave(), 0);
+    };
+    /* tâche choisie par les ronds (lot + activité secondaire), ou tâches de l'activité primaire choisie : surlignées */
+    const dlyPicked = k => {
+      if (!LK.lot) return false;
+      const [lo, se] = String(k).split("|");
+      if (lo !== LK.lot) return false;
+      if (LK.sec) return se === LK.sec;
+      return !!LK.prim && (INS.links || []).some(l => l.lot === lo && l.sec === se && l.prim === LK.prim);
+    };
+    const dlyCellIn = (x, f) => {
+      if (!INS_EDIT) return esc(f === "dur" ? x.dur : dFr(x[f]));
+      const p = (insDlyList(x.key) || [])[0] || {};
+      const nw = !x.deb && !x.fin;
+      return `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${esc(x.key)}" data-pid="${esc(p.id || "")}" data-f="${f}" type="text"
+        ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${nw && f !== "dur" ? "SAISIR ICI…" : ""}" value="${esc(f === "dur" ? (x.dur || (shell.__dlyPendDur || {})[x.key] || "") : dFr(x[f]))}">`;
+    };
     const insDlyHTML = (edit, err) => {
       INS.dlp = INS.dlp || {};
       if (edit) {
         /* saisie : les périodes de la tâche primaire choisie (les ronds du haut disent laquelle) */
+        /* v454 : plus d'écran de saisie d'une seule tâche ni de récapitulatif — toujours le PLANNING ;
+           la tâche choisie (ou les tâches de l'activité primaire choisie) y est surlignée */
         const key = insDlyKey();
-        const rc = !key && insDlyRecap();
+        const rc = false;
         if (rc) {
           const rows = cfApply("dlyr", DLY_COLS_R, rc);
           lastShown.detail = { cols: DLY_COLS_R, rows, kind: "dly" };
@@ -8802,7 +8839,8 @@ function renderBudgetList() {
           return `<div class="dly-recap-t"><button type="button" class="dly-back">‹ PLANNING</button>RÉCAPITULATIF — ${esc(lkName("lot", LK.lot))} › ${esc(lkName("prim", LK.prim))}</div>` + dlyTable(rows, x => ({ sec: esc(x.sec), deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur }), () => "", false, DLY_COLS_R)
             + `<div class="dly-recap-f"><span>DÉBUT : <b>${esc(dFr(d0)) || "—"}</b></span><span>FIN : <b>${esc(dFr(f0)) || "—"}</b></span><span>DURÉE : <b>${d0 && f0 ? dDur(d0, f0) + " J" : "—"}</b></span></div>`;
         }
-        if (!key) {
+        if (true) {
+          dlyCommitDrafts();
           /* PLANNING (FORMAT 64, 90) : tableau à gauche (lots repliables, tâches), Gantt à droite, lignes alignées */
           /* liaisons non respectées (anciennes dates, import) : corrigées à l'ouverture du planning */
           if (INS_EDIT && dlyRespect(false)) setTimeout(() => insSave(), 0);
@@ -8829,10 +8867,11 @@ function renderBudgetList() {
                 deb: `<b>${esc(dFr(x.deb))}</b>`, fin: `<b>${esc(dFr(x.fin))}</b>`, dur: x.dur === "" ? "" : `<b>${x.dur}</b>`, marge: "", jal: "", __td_marge: " dly-calc",
                 __cb: `<input type="checkbox" class="dlyp-cb" data-path="${esc(x.path)}"${x.all.length && x.all.every(t => SEL.has(t.key)) ? " checked" : ""}${x.all.some(t => SEL.has(t.key)) && !x.all.every(t => SEL.has(t.key)) ? " data-part=\"1\"" : ""}>` }
             : { lot: "", sec: `<span class="dly-lotc" ${ind(x.lvl)}>${nm("sec", `data-sid="${esc(x.key.split("|")[1])}"`, x.sec)}</span>`, pred: `<span class="dly-pred" data-key="${esc(x.key)}">${esc(x.pred) || "<i>CHOISIR…</i>"}</span>`,
-                deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur, marge: x.marge === "" ? "" : x.marge,
+                deb: dlyCellIn(x, "deb"), fin: dlyCellIn(x, "fin"), dur: dlyCellIn(x, "dur"), marge: x.marge === "" ? "" : x.marge,
+                __td_deb: INS_EDIT ? " ins-td" : "", __td_fin: INS_EDIT ? " ins-td" : "", __td_dur: INS_EDIT ? " ins-td" : "",
                 jal: `<span class="dly-jal${x.jal ? " on" : ""}" data-key="${esc(x.key)}">${x.jal ? "★" : "☆"}</span>`, __td_marge: " dly-calc",
                 __cb: `<input type="checkbox" class="dlyp-cb" data-key="${esc(x.key)}"${SEL.has(x.key) ? " checked" : ""}>` },
-            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp" data-path="${esc(x.path)}"` : `class="dly-task${x.marge === 0 ? " dly-crit" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P);
+            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp" data-path="${esc(x.path)}"` : `class="dly-task${x.marge === 0 ? " dly-crit" : ""}${dlyPicked(x.key) ? " dly-pick" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P);
           /* histogramme MAIN D'ŒUVRE sous le Gantt (FORMAT 98, 99) : libellé à gauche, sous le tableau */
           const LD = dlyLoad(dlyCurDates()), mx = Math.max(0, ...Object.values(LD));
           const P = Number(INS.plaf) || 0;
@@ -8905,7 +8944,7 @@ function renderBudgetList() {
         if (!i || !X) return;
         const D = X.draft();
         const task = i.dataset.task;
-        const list = D[task] = D[task] || [];
+        const list = D[task] = D[task] || ((X.INS.dlp || {})[task] || []).map(p => ({ ...p }));
         /* une seule période par tâche (fragmentation reportée) */
         let p = list.find(x => x.id === i.dataset.pid) || list[0];
         const q = p ? { ...p } : { id: X.insId(), deb: "", fin: "" };
@@ -9253,7 +9292,7 @@ function renderBudgetList() {
         const gl = e.target.closest && e.target.closest(".gl-hit");
         if (gl) { e.stopPropagation(); X.linkWin(gl.dataset.p, gl.dataset.s); return; }
         const tr = e.target.closest && e.target.closest("tr.dly-task");
-        if (tr && !e.target.closest(".cf-btn, input")) X.go(tr.dataset.key);
+        void tr;   /* v454 : les dates se saisissent dans la ligne ; toucher la ligne ne change plus les choix des ronds */
       });
       /* gestes sur le Gantt (FORMAT 96) : glisser une barre = la déplacer ; tirer son bout = changer la FIN ;
          appui long sur la fin (ou le début) puis glisser jusqu'à une autre barre = liaison FIN → DÉBUT (ou DÉBUT → DÉBUT) */
