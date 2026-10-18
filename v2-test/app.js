@@ -7195,7 +7195,11 @@ function renderBudgetList() {
       if (pl.mode === "del") btn = `<button type="button" class="lk-go lk-del-go">✕ DÉLIER (${pl.n})</button>`;
       else if (pl.mode === "add") {
         const ok = lkDlyDirty() || (pl.same || nPrd > 0);
-        btn = `<button type="button" class="lk-go" ${ok ? "" : "disabled"}>${pl.same || (!pl.full && lkDlyDirty()) ? "✓ VALIDER LES MODIFICATIONS" : "✓ VALIDER LA LIAISON"}</button>`;
+        /* v474 : validation qui serait refusée (produit déjà dans la tâche, règle A / D…) → bouton grisé d'avance ; un toucher dit pourquoi */
+        let why = "";
+        if (ok && pl.full && (nPrd > 0 || Object.keys(LK.chg).length)) { try { why = lkCheck() || ""; } catch (e) { why = ""; } }
+        if (why) btn = `<button type="button" class="lk-go lk-off" data-why="${esc(why)}">${pl.same || (!pl.full && lkDlyDirty()) ? "✓ VALIDER LES MODIFICATIONS" : "✓ VALIDER LA LIAISON"}</button>`;
+        else btn = `<button type="button" class="lk-go" ${ok ? "" : "disabled"}>${pl.same || (!pl.full && lkDlyDirty()) ? "✓ VALIDER LES MODIFICATIONS" : "✓ VALIDER LA LIAISON"}</button>`;
       } else if (pl.mode === "mix") btn = `<button type="button" class="lk-go lk-mix">✓ VALIDER LA LIAISON</button>`;
       else btn = `<button type="button" class="lk-go" disabled>✓ VALIDER LA LIAISON</button>`;
       el.innerHTML = `${LK.des ? '<button type="button" class="lk-info" title="Voir la liaison" aria-label="Voir la liaison">i</button>' : ""}${btn}`;
@@ -10935,6 +10939,8 @@ function renderBudgetList() {
         }
         if (e.target.closest("#insChain .lk-info")) { X.info(); return; }
         if (e.target.closest("#insChain .lk-go")) {
+          const g = e.target.closest("#insChain .lk-go");
+          if (g.classList.contains("lk-off")) { svToast(g.dataset.why || "VALIDATION IMPOSSIBLE.", 4000, g); return; }
           X.commit();
           return;
         }
