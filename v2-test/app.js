@@ -1,3 +1,4 @@
+/* ⟪ src/00-socle.js ⟫ */
 const API_URL = "https://script.google.com/macros/s/AKfycbzFgUloyiRJe-QmR7nRqJ4bfWqvfA_6LSgotJRrRt87yeRfWtdY7nxXMR9avafSJUPg4Q/exec";
 const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
 
@@ -439,6 +440,7 @@ const chsFind = (art, des) => {
   return null;
 };
 const chsById = id => ((typeof db !== "undefined" && db.chs) || []).find(c => String(c.id) === String(id)) || null;
+/* ⟪ src/01-onglets-donnees-outils.js ⟫ */
 /* =========================================================
    ONGLETS DÉPLAÇABLES (comme les colonnes) : on glisse un onglet
    pour changer l'ordre ; ordre mémorisé par jeu d'onglets
@@ -725,6 +727,7 @@ function sum(rows, field) {
   );
 }
 
+/* ⟪ src/02-stockage-instance.js ⟫ */
 /* =========================================================
    BUDGETS EN INSTANCE : enregistrés dans IndexedDB (le stockage local de Safari
    est limité à ~5 Mo par site : les gros imports y étaient perdus sans message).
@@ -776,6 +779,7 @@ const SVI_INST_READY = sviIdbGet(SVI_INST_KEY).then(v => {
 document.addEventListener("visibilitychange", () => { if (document.hidden && sviInstTimer) sviInstFlush(); });
 window.addEventListener("pagehide", () => { if (sviInstTimer) sviInstFlush(); });
 
+/* ⟪ src/03-api-drive.js ⟫ */
 /* =========================================================
    API GET CHS / BDS
    ========================================================= */
@@ -1163,6 +1167,7 @@ function driveErrText(e) {
     : m;
 }
 
+/* ⟪ src/04-chs-bds-donnees.js ⟫ */
 /* =========================================================
    BOOTSTRAP CHS / BDS
    ========================================================= */
@@ -1685,6 +1690,7 @@ function removeLocalBDS(type, id) {
   }
 }
 
+/* ⟪ src/05-navigation-chs.js ⟫ */
 /* =========================================================
    NAVIGATION
    ========================================================= */
@@ -1894,6 +1900,7 @@ function chsForm(
   );
 }
 
+/* ⟪ src/06-bds-configuration.js ⟫ */
 /* =========================================================
    CONFIGURATION BDS
    ========================================================= */
@@ -2602,6 +2609,7 @@ function brdForm(
   );
 }
 
+/* ⟪ src/07-bdg-chargement.js ⟫ */
 /* =========================================================
    BASE V3 → lignes au format de l'ancien onglet BDG (colonnes A:Z),
    pour que tout l'écran du budget fonctionne sans changement
@@ -2800,6 +2808,7 @@ function budgetReference(row, index) {
   );
 }
 
+/* ⟪ src/10-bdg-liste.js ⟫ */
 /* =========================================================
    BDG — LISTE
    ========================================================= */
@@ -3192,34 +3201,6 @@ function renderBudgetList() {
         padding: 22px 14px;
         color: #9aa3af;
         font-size: 11px;
-      }
-
-      .bdg-d-delay {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 14px;
-        padding: 14px;
-      }
-
-      .bdg-d-delay label {
-        display: block;
-        color: #6b7480;
-        font-size: 10px;
-        font-weight: 800;
-      }
-
-      .bdg-d-delay input,
-      .bdg-d-delay div {
-        display: block;
-        min-width: 150px;
-        min-height: 30px;
-        margin-top: 4px;
-        padding: 6px 9px;
-        border: 1px solid #dfe4eb;
-        border-radius: 8px;
-        background: #fff;
-        color: #303947;
-        font-size: 12px;
       }
 
       .bdg-d-totals {
@@ -3820,7 +3801,6 @@ function renderBudgetList() {
       .bdg-d-page .bdg-d-totals strong,
       .bdg-d-page .bdg-h-item,
       .bdg-d-page .bdg-tva-input,
-      .bdg-d-page .bdg-d-delay,
       .bdg-d-page .bdg-d-reserved {
         font-size: 12px !important;
       }
@@ -4100,8 +4080,6 @@ function renderBudgetList() {
      ------------------------------------------------------- */
 
   function budgetData(budget) {
-    const first =
-      budget.first;
 
     /*
       BUDGET :
@@ -4579,111 +4557,6 @@ function renderBudgetList() {
     th.classList.toggle("cf-on", !!state.search[key] || state.sortKey === key);
   }
 
-  /* -------------------------------------------------------
-     RECHERCHE DANS L'ENTÊTE
-     ------------------------------------------------------- */
-
-  function activateSearch(key) {
-    const column =
-      columns.find(
-        item =>
-          item.key === key
-      );
-
-    const th =
-      thead.querySelector(
-        `[data-bdg-column="${key}"]`
-      );
-
-    if (!column || !th) return;
-
-    const content =
-      th.querySelector(
-        ".bdg-head-content"
-      );
-
-    if (!content) return;
-
-    content.innerHTML = `
-      <input
-        type="search"
-        class="bdg-column-search"
-        data-bdg-search-input="${key}"
-        value="${esc(state.search[key])}"
-        placeholder="${column.title}"
-        autocomplete="off"
-      >
-    `;
-
-    const input =
-      content.querySelector(
-        "input"
-      );
-
-    if (!input) return;
-
-    input.focus();
-
-    try {
-      input.setSelectionRange(
-        input.value.length,
-        input.value.length
-      );
-    } catch (_) {}
-
-    input.addEventListener(
-      "input",
-      () => {
-
-        state.search[key] =
-          input.value;
-
-        renderRows();
-
-        /*
-          Dès que la zone devient vide,
-          on revient à l'intitulé.
-        */
-
-        if (
-          input.value === ""
-        ) {
-          restoreHeader(key);
-        }
-      }
-    );
-
-    input.addEventListener(
-      "search",
-      () => {
-
-        state.search[key] =
-          input.value;
-
-        renderRows();
-
-        if (
-          input.value === ""
-        ) {
-          restoreHeader(key);
-        }
-      }
-    );
-
-    input.addEventListener(
-      "keydown",
-      event => {
-
-        if (
-          event.key === "Escape"
-        ) {
-          state.search[key] = "";
-          renderRows();
-          restoreHeader(key);
-        }
-      }
-    );
-  }
 
   /* -------------------------------------------------------
      CLICS SUR ENTÊTES
@@ -4851,6 +4724,7 @@ function renderBudgetList() {
      DÉTAIL D'UN BUDGET
      ------------------------------------------------------- */
 
+/* ⟪ src/11-budget-ouverture.js ⟫ */
   function openBudgetDetail(ref) {
     const budget =
       groups.get(ref);
@@ -4870,12 +4744,6 @@ function renderBudgetList() {
       if (!window.__sviSwipe) {
         window.__sviSwipe = true;
         let st = null;
-        const scrollsX = el => {
-          for (let n = el; n && n !== document.body; n = n.parentElement) {
-            if (n.scrollWidth > n.clientWidth + 2 && /(auto|scroll)/.test(getComputedStyle(n).overflowX)) return true;
-          }
-          return false;
-        };
         document.addEventListener("touchstart", e => {
           const nav = window.__sviBdgNav;
           if (!nav || e.touches.length !== 1 || !document.querySelector(".bdg-d-page")) { st = null; return; }
@@ -5376,6 +5244,7 @@ function renderBudgetList() {
 
     const body = $("bdgTabBody");
 
+/* ⟪ src/12-tableaux-colonnes.js ⟫ */
     /* ===== tri et filtre par colonne (façon tableur) ===== */
     const CF = {};          /* CF[table] = { sort:{col,dir}|null, f:{col:Set} } */
     const cfSrc = {};       /* dernières lignes et colonnes de chaque tableau */
@@ -5738,6 +5607,7 @@ function renderBudgetList() {
     document.addEventListener("click", window.__cfDocHandler, true);
     document.getElementById("cfMenu")?.remove();
 
+/* ⟪ src/13-instance-saisie.js ⟫ */
     /* =========================================================
        BUDGET EN INSTANCE : SAISIE DIRECTE
        - dernière ligne de chaque bloc vide : on la touche et on écrit,
@@ -6059,17 +5929,6 @@ function renderBudgetList() {
       }
       return null;
     };
-    /* v470 : désignation client d'un produit lié dans une liaison primaire (ou null) ; UPB des produits recalée sur elle */
-    const prdPrimDes = id => { const l = (INS.links || []).find(l => (l.prd || []).some(x => x.id === id) && insLinkPrim(INS, l)); return l ? INS.des.find(d => d.id === l.des) || null : null; };
-    const prdSyncU = () => {
-      let ch = false;
-      (INS.links || []).filter(l => insLinkPrim(INS, l)).forEach(l => {
-        const d = INS.des.find(x => x.id === l.des), du = d ? U_(d.u) : "";
-        if (!du) return;
-        (l.prd || []).forEach(x => { const p = INS.prd.find(q => q.id === x.id); if (p && U_(p.u) !== du) { p.u = du; ch = true; } });
-      });
-      return ch;
-    };
     shell.__prdSyncU = () => { if (INS && INS_EDIT && actUnitSync()) { insSave(); return true; } return false; };
     /* une cellule : champ saisissable, ou verrouillé (titre, calculé) */
     const insCell = (k, r, c) => {
@@ -6344,12 +6203,6 @@ function renderBudgetList() {
         insMore[k] = rows.slice(first.length);
         html = first.map(r => insRowHTML(k, r, 0)).join("");
       } else {
-        const sub = t => {
-          const { ht, ttc } = insSubOf(t);
-          return `<tr class="ins-sub lv${Math.min(3, dOf(t) + 1)}" data-sub="${t.id}" style="--d:${dOf(t)}"><td></td><td></td>
-            <td colspan="4" class="number">TOTAL ${esc(t.des || t.art || "")}</td>
-            <td class="number ins-sht">${money(ht)}</td><td></td><td class="number ins-sttc">${money(ttc)}</td>${INS_EDIT ? "<td></td>" : ""}</tr>`;
-        };
         /* désignations : les lignes choisies puis cochées montent en haut avec leur titre ;
            les autres lignes du même titre restent à leur place */
         const top = INS_EDIT ? rows.map((r, i) => ({ r, i })).filter(o => !o.r.t && lkRank(k, o.r) < 4)
@@ -6528,27 +6381,8 @@ function renderBudgetList() {
       insDim();
       clientFit();
     };
-    /* une désignation cochée : les autres lignes se grisent (une seule à la fois) */
-    const insDim = () => {
-      return;   /* mode SAISIE : la case sert à choisir des lignes ; le choix unique est en mode LIAISONS */
-      const body = $("bdgClientBody");
-      if (!body) return;
-      const on = new Set(INS.des.filter(r => r.on === true && !r.t).map(r => r.id));
-      /* les titres de la ligne cochée restent normaux */
-      const stack = [];
-      INS.des.forEach(r => {
-        if (r.t) {
-          while (stack.length && insLevel(stack[stack.length - 1].art) >= insLevel(r.art)) stack.pop();
-          stack.push(r);
-        } else if (r.on === true) stack.forEach(t => on.add(t.id));
-      });
-      body.querySelectorAll("tr[data-iid]").forEach(tr => {
-        const dim = on.size > 0 && !on.has(tr.dataset.iid);
-        tr.classList.toggle("ins-dim", dim);
-        const cb = tr.querySelector("input.ins-cb");
-        if (cb && INS_EDIT) cb.disabled = dim;
-      });
-    };
+    /* mode SAISIE : la case sert à choisir des lignes (plus de grisé des autres) ; le choix unique est en mode LIAISONS */
+    const insDim = () => {};
     /* ===== LOTS en arborescence (« / ») dans le bloc TÂCHES : niveaux repliables › / ⌄, nom du dernier niveau ===== */
     const lotSegs = r => String(r && r.v || "").split("/").map(x => x.trim()).filter(Boolean);
     /* v461 : NUMÉRO D'ORDRE des lots et niveaux (cahier, Planning budgétaire) — lots principaux 1, 2, 3… dans l'ordre des lots,
@@ -6594,7 +6428,6 @@ function renderBudgetList() {
       const used = [...kids].map(g => (g.match(re) || [])[1]).filter(Boolean).map(Number);
       return "NIVEAU " + base + ((used.length ? Math.max(...used) : 0) + 1);
     };
-    const lotCmp = (a, b) => { const A = lotSegs(a), B = lotSegs(b); for (let i = 0; i < Math.min(A.length, B.length); i++) { const c = natCmp(A[i], B[i]); if (c) return c; } return A.length - B.length; };
     const lotUnder = (r, P) => { const s2 = lotSegs(r); return s2.length >= P.length && P.every((g, i) => U_(g) === U_(s2[i])); };
     /* arborescence dans l'ordre des lots (classés par ordre alphabétique au départ, puis ordre libre) :
        un niveau prend la place de son premier lot */
@@ -6855,6 +6688,7 @@ function renderBudgetList() {
       });
     }
     shell.__incX = INS && INS_EDIT ? { INS, save: () => insSave(), refresh: () => refreshAll(), tryIt: it => incTry(it) } : null;
+/* ⟪ src/14-doublons-classement.js ⟫ */
     /* ===== AUCUN DOUBLON (FORMAT) : lots / activités / qualité = même intitulé ;
        désignations et charges = ART + DÉSIGNATION + UNITÉ ; produits = DÉSIGNATION + UNITÉ.
        Une saisie qui crée un doublon ouvre la fenêtre DOUBLON : RÉTABLIR ou FUSIONNER (liaisons reportées) ===== */
@@ -7265,6 +7099,7 @@ function renderBudgetList() {
       else btn = `<button type="button" class="lk-go" disabled>✓ VALIDER LA LIAISON</button>`;
       el.innerHTML = `${LK.des ? '<button type="button" class="lk-info" title="Voir la liaison" aria-label="Voir la liaison">i</button>' : ""}${btn}`;
     };
+/* ⟪ src/15-qualite.js ⟫ */
     /* =========================================================
        DÉTAIL QUALITÉ (cahier, section Qualité ; FORMAT, section U, points 102 à 112) — v438
        INS.qq = { M: [nœuds du MODÈLE COMMUN], T: { "lot|sec": [nœuds de la tâche] }, ext: [essais externes], per: { clé: personnel } }
@@ -7934,7 +7769,6 @@ function renderBudgetList() {
       /* v468 : mise à jour JUSTE APRÈS une saisie (ENTRÉE ou case quittée), sans attendre de toucher hors du tableau :
          la liste où l'on saisit garde le clavier (seul son compteur change) ; tout le reste est redessiné aussitôt */
       afterEntry: (k, box) => {
-        const inBox = el => !!(el && box && box.contains(el));
         if (actUnitSync()) insSave();
         if (k === "prim" && insTwins()) insSave();
         ["lot", "prim", "sec"].filter(x => x !== k).forEach(x => { const c = $("bdgHier")?.querySelector(`.ins-hcol[data-ik="${x}"]`); if (c && !c.contains(document.activeElement)) insRenderHier(x); });
@@ -8116,11 +7950,6 @@ function renderBudgetList() {
           /* ligne cochée : elle remonte (après les lignes au rond coché) */
           X.insRedraw(k); X.insFoots && X.insFoots();
           return;
-          /* case d'en-tête à jour */
-          const box = cb.closest("table.ins-table, .ins-hcol");
-          const all = box?.querySelector("input.ins-cball");
-          if (all) all.checked = [...box.querySelectorAll("[data-iid] input.ins-cb")].every(c => c.checked);
-          return;
         }
         /* ligne titre : unité, quantité, prix, TVA masqués et verrouillés, mais gardés
            (retour possible) ; seule la validation du budget les efface */
@@ -8159,16 +7988,6 @@ function renderBudgetList() {
       });
     }
 
-    /* =========================================================
-       BUDGET EN INSTANCE : MODE SAISIE / MODE LIAISONS
-       - SAISIE : les 8 tableaux (désignations, lots, activités primaires,
-         secondaires, charges, produits, qualité, délais) ; lignes non liées
-         hachurées, à supprimer avant FIGER ;
-       - LIAISONS : chaîne désignation › lot › primaire › secondaire › produits
-         (+ charges facultatives), validée par ✓ ; liste des liaisons, délier.
-       ========================================================= */
-    /* page unique : la saisie et les liaisons se font sur la même page */
-    const INS_MODE = () => "saisie";
     /* lignes utilisées par au moins une liaison validée */
     const insUsed = () => {
       const u = { des: new Set(), lot: new Set(), prim: new Set(), sec: new Set(), chg: new Set(), prd: new Set() };
@@ -8244,6 +8063,7 @@ function renderBudgetList() {
         const t = shell.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${b.go}"]`);
         if (t) { t.click(); t.scrollIntoView({ block: "start", behavior: "smooth" }); }
     };
+/* ⟪ src/16-a-completer.js ⟫ */
     /* ===== ⚠ À COMPLÉTER (v457) : tout ce qui manque, bloquant ou non ; toucher une ligne y mène ===== */
     const insTodo = () => {
       const out = [];
@@ -8344,6 +8164,7 @@ function renderBudgetList() {
     /* tâche SECONDAIRE choisie (désignation + lot + activité secondaire), seulement si elle est déjà liée */
     /* tâche secondaire choisie par les ronds (lot + activité secondaire), liée ou non : le planning peut précéder les liaisons */
     const insDlyKey = () => LK.lot && LK.sec ? LK.lot + "|" + LK.sec : null;
+/* ⟪ src/17-planning-gantt.js ⟫ */
     /* ===== PLANNING (FORMAT 94) : prédécesseurs (plusieurs, communs à toutes les périodes de la tâche) ;
        une tâche commence au plus tôt le jour de la fin de tous ses prédécesseurs ===== */
     const dlyName = key => { const [lo, se] = String(key).split("|"); return lkName("lot", lo) + " › " + lkName("sec", se); };
@@ -8454,20 +8275,6 @@ function renderBudgetList() {
         if (n.length !== INS.dpred[k].length) { INS.dpred[k] = n; ch = true; }
       });
       return ch;
-    };
-    /* tâche primaire choisie (sans activité secondaire) : récapitulatif des dates de ses tâches secondaires */
-    const insDlyRecap = () => {
-      if (!(LK.des && LK.lot && LK.prim && !LK.sec)) return null;
-      const secs = [...new Set((INS.links || []).filter(l => l.des === LK.des && l.lot === LK.lot && l.prim === LK.prim).map(l => l.sec))];
-      if (!secs.length) return null;
-      const rows = [];
-      secs.forEach(se => {
-        const ps = [...insDlyList(LK.lot + "|" + se)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")));
-        const sv = (INS.sec.find(x => x.id === se) || {}).v || "";
-        if (!ps.length) rows.push({ sec: sv, deb: "", fin: "", dur: "" });
-        ps.forEach(p => rows.push({ sec: sv, deb: p.deb || "", fin: p.fin || "", dur: p.deb && p.fin ? dDur(p.deb, p.fin) : "" }));
-      });
-      return rows;
     };
     /* ===== PLANNING (v401) : MARGE, JALON, LOTS EN ARBORESCENCE (« / »), GANTT ===== */
     const dlyLotPath = name => String(name || "").split("/").map(x => x.trim()).filter(Boolean);
@@ -9962,16 +9769,6 @@ function renderBudgetList() {
         };
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       });
-      /* tableau caché (Gantt sur toute la largeur) ou de nouveau affiché à sa largeur d'avant */
-      const dlyToggleTable = () => {
-        const L = shell.querySelector(".dlyg-l");
-        if (!L) return;
-        const X = shell.__insDly, ins = X ? X.INS : (shell.__dlygW || {}).ins;
-        const w = L.getBoundingClientRect().width;
-        if (w > 2) { shell.__dlygPrevW = Math.round(w); L.style.width = "0px"; L.style.maxWidth = "none"; shell.__dlygW = { ins, w: 0, auto: false }; }
-        else { const nw = shell.__dlygPrevW || 600; L.style.width = nw + "px"; L.style.maxWidth = "none"; shell.__dlygW = { ins, w: nw, auto: false }; }
-        if (window.__sviViewSave) window.__sviViewSave();
-      };
       if (!shell.__dlyPinchBound) {
         shell.__dlyPinchBound = true;
         /* plusieurs doigts sur le Gantt : noté, pour ne pas prendre la fin du geste pour un toucher (calendrier) */
@@ -10577,6 +10374,7 @@ function renderBudgetList() {
       go: k => { const [lo, se] = k.split("|"); LK.lot = lo; LK.sec = se; LK.prim = null; refreshAll(); },
       render: () => { renderTabK(); insRenderChain(); } } : null;
     /* budget ouvert, pour PARAMÉTRAGE › CALENDRIER et DATES DU BUDGET (15/10/2026) */
+/* ⟪ src/18-annuler-liaisons.js ⟫ */
     /* =========================================================
        ANNULER / RÉTABLIR (cahier, section Annuler / rétablir ; FORMAT 113) — v447
        une étape = les changements enregistrés sans pause de plus de 0,4 s (une frappe continue = une étape) ;
@@ -11316,8 +11114,6 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       if (INS) { insRenderClient(); return; }
       const groupsMap = new Map();
 
-      const U = v => String(v ?? "").trim().toUpperCase();
-      const lineUnit = l => U(l.dunit) || U(l.unit);
 
       clientLines().forEach(l => {
         const key = desigKey(l);
@@ -11399,12 +11195,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       $("bdgClientHead").innerHTML =
         "<tr>" + ccols.map(([k, lab, , cls]) => cfHead("client", k, lab, cls)).join("") + "</tr>";
 
-      const MIN_ROWS = 10;
 
-      const filler = n =>
-        Array.from({ length: Math.max(0, n) }, () =>
-          `<tr class="bdg-d-filler">${"<td>&nbsp;</td>".repeat(8)}</tr>`
-        ).join("");
 
       $("bdgClientBody").innerHTML =
         (list.length
@@ -11494,8 +11285,6 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       if (INS) { insRenderHier(); return; }
       const { lots, prims, secs } = hierLists();
 
-      const hFill = n =>
-        `<div class="bdg-h-fill"></div>`.repeat(Math.max(0, n));
 
       const col = (title, level, all) => {
         const hcols = [["v", title, v => stripLevelPrefix(v), ""]];
@@ -11598,12 +11387,6 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       setTimeout(() => { if (keepScroll.pend && performance.now() >= keepScroll.pend.until) keepScroll.pend = null; }, 220);
     };
 
-    /* titre en bleu quand le bloc est filtré (toucher de ligne
-       ou filtre / tri de colonne) */
-    const cfActive = t => {
-      const st = CF[t];
-      return !!st && Object.keys(st.f).length > 0;
-    };
     const markFiltered = () => {
       const rowsOf = kind =>
         [...selRows].some(g => g.startsWith(kind.toUpperCase() + "|"));
@@ -11670,22 +11453,6 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         </tr>`;
     };
 
-    const totalsHTML = list => {
-      const ht =
-        list.reduce((t, l) => t + l.amount, 0);
-
-      const tva =
-        list.reduce((t, l) => t + tvaFor(l), 0);
-
-      return `
-        <div class="bdg-d-totals">
-          <div class="bdg-d-total-ttc">
-            <span>MONTANT TTC</span>
-            <strong id="bdgTotTTC">${money(ht + tva)}</strong>
-          </div>
-        </div>
-      `;
-    };
 
     const tcolsFor = prd => [
       /* détail produits : pas de colonne ART (FORMAT 6) */
@@ -11731,6 +11498,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       });
     };
 
+/* ⟪ src/19-delais-disposition.js ⟫ */
     /* ===== DÉTAIL DÉLAIS : colonnes (tri / filtre, largeur et ordre réglables) ===== */
     /* une ligne par période d'une TÂCHE PRIMAIRE (lot + activité primaire) */
     const DLY_COLS = [
@@ -11902,22 +11670,6 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           .reduce((o, k) => (o[k] = k === "deb" || k === "fin" ? fr(x[k]) : esc(x[k] ?? ""), o), {}))}</div>`;
         return;
       }
-      body.innerHTML = `
-        <div class="bdg-d-delay">
-          <label>
-            DATE DÉBUT
-            <input type="date" id="bdgDelayStart">
-          </label>
-          <label>
-            DATE FIN
-            <input type="date" id="bdgDelayEnd">
-          </label>
-          <label>
-            DÉLAI
-            <div id="bdgDelayDays">—</div>
-          </label>
-        </div>
-      `;
     };
 
     /* ===== disposition des blocs : ordre et hauteur, mémorisés ===== */
@@ -12266,6 +12018,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       document.addEventListener("pointercancel", up);
     };
 
+/* ⟪ src/20-glisser-lignes.js ⟫ */
     /* ===== budget en instance : appui long sur une ligne saisie = glisser la ligne
        (un titre emmène ses lignes et sous-titres) ===== */
     /* désignations : dépôt d'une ligne ou d'un titre (avec sa branche) — FORMAT 61
@@ -12669,6 +12422,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       document.addEventListener("pointercancel", up);
     };
 
+/* ⟪ src/21-export-import.js ⟫ */
     /* ===== export / import / aperçu PDF par bloc ===== */
     const lastShown = { client: null, detail: null, hier: {} };
     const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL",
@@ -12864,7 +12618,6 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
         "septembre", "octobre", "novembre", "décembre"];
       const d0 = new Date();
-      const N = v => String(v ?? "").trim().toUpperCase();
       const projet = (() => { const it = sviIntitule(ref, budget.project, budget.inst); return it !== "À COMPLÉTER" ? it : budget.project; })();
       return {
         date: "Agadir, le " + String(d0.getDate()).padStart(2, "0") + " " + mois[d0.getMonth()] + " " + d0.getFullYear(),
@@ -12952,18 +12705,6 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       }
     };
 
-    const openDriveExport = (blk, docName) => {
-      fileDialog({
-        title: "GOOGLE SHEETS — " + String(blkLabel(blk)).toUpperCase(),
-        name: docName, path: driveLastPath(budget.project, fullRef),
-        buttons: [{ key: "paste", label: "COPIER (FEUILLE SANS NOM)" }, { key: "go", label: "CRÉER DANS LE DRIVE", primary: true, drive: true }],
-        onAct: (k, v, ui) => {
-          ui.close();
-          if (k === "go") sendToDrive(blk, v.name, v.path);
-          else doExport(blk, "gsheet", v.name);
-        }
-      });
-    };
 
     /* fichier prêt : sur l'iPad ou dans le Drive (fenêtre d'export fusionnée),
        sinon fenêtre d'enregistrement */
@@ -13096,7 +12837,6 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
             "septembre", "octobre", "novembre", "décembre"];
           const d0 = new Date();
-          const N = v => String(v ?? "").trim().toUpperCase();
           const projet = (() => { const it = sviIntitule(ref, budget.project, budget.inst); return it !== "À COMPLÉTER" ? it : budget.project; })();
           const top = [
             ["Agadir, le " + String(d0.getDate()).padStart(2, "0") + " " + mois[d0.getMonth()] + " " + d0.getFullYear()],
@@ -13429,7 +13169,6 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
        désignations / charges : ART + DÉSIGNATION + UNITÉ (+ titre) ;
        produits : idem (ART + DÉSIGNATION + UNITÉ) */
     const impId = (k, r) => {
-      const n = v => v === "" || v === undefined || v === null ? "" : (Math.round(num(v) * 1000) / 1000).toString();
       /* produits : sans article — DÉSIGNATION + UNITÉ */
       /* FORMAT 89 : une désignation (et une charge) se reconnaît par sa DÉSIGNATION + UNITÉ, sans l'ART ;
          seuls les titres gardent leur ART */
@@ -14759,6 +14498,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         if (!e.target.closest("#blkMenu")) { m.remove(); document.removeEventListener("click", off, true); }
       }, true), 0);
     };
+/* ⟪ src/22-saisie-directe.js ⟫ */
     /* ===== v476 (remarque 4) : SAISIE DIRECTE — le tableau d'import, dans l'application =====
        toutes les lignes déjà saisies (une par produit / charge avec sa chaîne), modifiables et filtrables ; lignes nouvelles en bas ;
        ENTRÉE = case suivante, sur la dernière case la ligne est recopiée (curseur sur la désignation produit / charge) ;
@@ -15183,58 +14923,6 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       inp.click();
     };
 
-    /* ===== impression DÉSIGNATIONS CLIENT : modèle de la société
-       (logo, date d'édition, en-tête, tableau, totaux, pied de page) ===== */
-    /* options d'impression, mémorisées */
-    const PO_KEY = "svi_printopt_v1";
-    const poLoad = () => {
-      try { return Object.assign({ head: true, stamp: false }, JSON.parse(localStorage.getItem(PO_KEY) || "{}")); }
-      catch (e) { return { head: true, stamp: false }; }
-    };
-    const openPrintOptions = () => {
-      const o = poLoad();
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
-      const yn = (name, on) => `
-        <span class="po-yn" data-name="${name}">
-          <button type="button" data-v="1" class="${on ? "on" : ""}">OUI</button>
-          <button type="button" data-v="0" class="${on ? "" : "on"}">NON</button>
-        </span>`;
-      p.innerHTML = `
-        <div class="doc-card po-card" role="dialog" aria-modal="true">
-          <div class="doc-head">
-            <span class="doc-title">${esc(budget.project)} : IMPRESSION DÉSIGNATIONS CLIENT</span>
-            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
-          </div>
-          <div class="doc-body">
-            <div class="doc-grid doc-grid-2">
-              <span class="doc-lab">EN-TÊTE ET PIED DE PAGE</span>${yn("head", o.head)}
-              <span class="doc-lab">CACHET ET SIGNATURE</span>${yn("stamp", o.stamp)}
-            </div>
-          </div>
-          <div class="doc-foot">
-            <button type="button" class="doc-btn" data-cancel>ANNULER</button>
-            <button type="button" class="doc-btn doc-save" id="poGo">IMPRIMER</button>
-          </div>
-        </div>`;
-      document.body.appendChild(p);
-      p.addEventListener("click", e => {
-        const b = e.target.closest(".po-yn button");
-        if (b) {
-          b.parentElement.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
-          return;
-        }
-        if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
-        if (e.target.closest("#poGo")) {
-          const val = n => p.querySelector(`.po-yn[data-name="${n}"] .on`)?.dataset.v === "1";
-          const opt = { head: val("head"), stamp: val("stamp") };
-          try { localStorage.setItem(PO_KEY, JSON.stringify(opt)); } catch (err) {}
-          p.remove();
-          printClient(opt);
-        }
-      });
-    };
 
     /* texte principal sans doublon (intitulé DOC / OBS, descriptif TAF) */
     const dupKey = v => String(v ?? "").trim().toUpperCase().replace(/\s+/g, " ");
@@ -15293,6 +14981,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
     };
     window.__sviDrivePathDefault = () => driveLastPath(budget.project, fullRef);
 
+/* ⟪ src/23-apercus-impression.js ⟫ */
     /* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :
        volet « OPTIONS PDF » à gauche, aperçu des pages à droite,
        bouton GÉNÉRER PDF ; aucune impression lancée ===== */
@@ -15325,7 +15014,6 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       if (PM_DRY) { PM_DRY.doc = exDoc ? exDoc.ref : ""; return; }
       if (exDoc) { sviAlert("DÉJÀ ÉDITÉ ET CLASSÉ DANS DOCUMENTS : " + exDoc.ref + ". LE CONSULTER DEPUIS DOCUMENTS.", "APERÇU PDF"); return; }
       histLog(cfg.branch, "APERÇU PDF");
-      const N = v => String(v ?? "").trim().toUpperCase();
       const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
         "août", "septembre", "octobre", "novembre", "décembre"];
       const now = new Date();
@@ -16104,72 +15792,6 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       return { head, rows, bold };
     };
 
-    /* DÉTAIL DÉLAIS : colonnes des tâches (lot, activités, unité) sans ART,
-       DÉSIGNATION ni UPB, suivies des colonnes du délai */
-    const printDelay = () => {
-      const U = v => String(v ?? "").trim().toUpperCase();
-      const lotOrd = new Map((db.lots || []).map(x => [U(stripLevelPrefix(x.name)), Number(x.order) || 0]));
-      const primOrd = new Map((db.primaries || []).map(x => [U(stripLevelPrefix(x.name)), Number(x.order) || 0]));
-      const secOrd = new Map((db.secondaries || []).map(x => [U(stripLevelPrefix(x.name)), Number(x.order) || 0]));
-      const o = (m, v) => m.has(U(v)) ? m.get(U(v)) : 1e9;
-      const src = (lastShown.client && lastShown.client.rows) || [];
-      const ls = src.flatMap(g => g.members || []);
-      const combos = new Map();
-      ls.forEach(l => {
-        const k = [l.lot, l.prim, l.sec].map(U).join("||");
-        if (!combos.has(k)) combos.set(k, { lot: l.lot, prim: l.prim, sec: l.sec, ls: [] });
-        combos.get(k).ls.push(l);
-      });
-      const list = [...combos.values()].sort((a, b) =>
-        o(lotOrd, a.lot) - o(lotOrd, b.lot) || o(primOrd, a.prim) - o(primOrd, b.prim) || o(secOrd, a.sec) - o(secOrd, b.sec));
-      if (!list.length) { sviAlert("Aucune tâche à afficher."); return; }
-      const unitOf = c => {
-        const pref = c.ls.filter(l => l.kind === "prd" && l.cprice !== 0);
-        const use = pref.length ? pref : c.ls.filter(l => l.kind === "prd").length ? c.ls.filter(l => l.kind === "prd") : c.ls;
-        return [...new Set(use.map(l => U(l.dunit || l.unit)).filter(Boolean))].join(" / ");
-      };
-      const fmtD = v => { const m = String(v || "").match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : ""; };
-      const a = $("bdgDelayStart")?.value || "", b = $("bdgDelayEnd")?.value || "";
-      const days = ($("bdgDelayDays")?.textContent || "").replace("—", "").trim();
-      /* diagramme de Gantt à droite : une colonne par période
-         (mois entre début et fin du budget, sinon 12 semaines) */
-      const per = [];
-      const da = a ? new Date(a + "T00:00") : null, db2 = b ? new Date(b + "T00:00") : null;
-      const MO = ["JAN", "FÉV", "MAR", "AVR", "MAI", "JUN", "JUL", "AOÛ", "SEP", "OCT", "NOV", "DÉC"];
-      if (da && db2 && db2 >= da) {
-        const d = new Date(da.getFullYear(), da.getMonth(), 1);
-        while (d <= db2 && per.length < 24) { per.push(MO[d.getMonth()] + " " + String(d.getFullYear()).slice(2)); d.setMonth(d.getMonth() + 1); }
-      }
-      if (!per.length) for (let k = 1; k <= 12; k++) per.push("S" + k);
-      const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
-      /* une ligne par lot / activité secondaire (activité primaire non affichée) */
-      const seen = new Set();
-      const rowsL = list.filter(c => { const k = U(c.lot) + "||" + U(c.sec); if (seen.has(k)) return false; seen.add(k); return true; });
-      let body = "", prev = null;
-      rowsL.forEach((c, i) => {
-        const sameLot = prev && U(prev.lot) === U(c.lot);
-        const rep = esc(JSON.stringify([String(c.lot ?? "")]));
-        body += `<tr class="${sameLot ? "lnext" : "gfirst"}"${i ? ` data-rep="${rep}"` : ""}>` +
-          td(sameLot ? "" : esc(c.lot), "lc") + td(esc(c.sec)) + td(esc(unitOf(c)), "c") +
-          td("", "c") + td("", "c") + td("", "r") + per.map(() => td("", "gt")).join("") + "</tr>";
-        prev = c;
-      });
-      const left = [12, 18, 4, 7, 7, 5], gw = (100 - left.reduce((t, x) => t + x, 0)) / per.length;
-      printModel({
-        branch: "DÉTAIL DÉLAIS", docTitle: "DÉTAIL DÉLAIS", fileTag: "DETAIL DELAIS", headLine: "DÉTAIL DÉLAIS",
-        table: `<table id="tpl"><colgroup>${left.map(w => `<col style="width:${w}%">`).join("")}${per.map(() => `<col style="width:${gw.toFixed(2)}%">`).join("")}</colgroup>
-          <thead><tr><th colspan="3">TÂCHES</th><th colspan="3">DÉLAIS</th><th colspan="${per.length}">DIAGRAMME DE GANTT</th></tr>
-            <tr><th class="sub">LOT</th><th class="sub">ACTIVITÉ SECONDAIRE</th><th class="sub">U</th>
-            <th class="sub">DÉBUT</th><th class="sub">FIN</th><th class="sub">JOURS</th>
-            ${per.map(x => `<th class="sub">${esc(x)}</th>`).join("")}</tr></thead>
-          <tbody>${body}</tbody></table>`,
-        end: `<div class="tot">
-            <div><span>DATE DÉBUT DU BUDGET :</span><b>${esc(fmtD(a))}</b></div>
-            <div><span>DATE FIN DU BUDGET :</span><b>${esc(fmtD(b))}</b></div>
-            <div><span>DÉLAI GLOBAL (JOURS) :</span><b>${esc(days)}</b></div>
-          </div>`
-      });
-    };
 
     /* FORMAT MÉTRÉ (modèle « Détail métré ») : pour chaque désignation client,
        la quantité (clés primaires), puis par lot / activité les lignes de calcul
@@ -16507,6 +16129,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       setTimeout(close, 5000);
     };
 
+/* ⟪ src/24-doc-historique-fenetres.js ⟫ */
     /* ===== fenêtre DOC : ajout d'un document au budget ===== */
     /* ===== HISTORIQUE (bouton H) : journal des changements du budget
        et de ses branches (DOC, TAF, OBS, impressions, exports, disposition…) ===== */
@@ -16981,13 +16604,6 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       if (isNaN(d)) return String(v);
       return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} À ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
-    /* colonne DOCUMENT : type et taille seulement (l'intitulé dit déjà de quoi il s'agit) */
-    const docShort = r => {
-      const ext = (String(r.name || "").match(/\.([a-z0-9]{1,5})$/i) || [])[1] ||
-        (String(r.type || "").split("/")[1] || "FICHIER");
-      const ko = r.size ? " · " + (r.size >= 1048576 ? money(r.size / 1048576) + " MO" : Math.max(1, Math.round(r.size / 1024)) + " KO") : "";
-      return ext.toUpperCase() + ko;
-    };
     /* colonnes : [clé, libellé, accesseur, classe] (même moteur que les autres tableaux) */
     const recCols = {
       doc: [["rref", "RÉFÉRENCE", r => r.ref, ""],
@@ -17055,6 +16671,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
     };
 
     /* fenêtre INF : informations du budget */
+/* ⟪ src/25-inf.js ⟫ */
     /* ===== INF : dates du projet (v452) — DÉBUT (modifiable : tout le planning se décale), FIN et DURÉE calculées,
        DATE OBJECTIF et DATE BUTOIR (déplacées depuis PARAMÉTRAGE) ===== */
     /* ===== INF (v457) : DÉBUT* (modifiable : tout le planning se décale), FIN DU PROJET* (= date objectif), DURÉE (calculée,
@@ -17154,7 +16771,6 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       const prdHT = sum(prd, l => l.amount), prdTTC = sum(prd, l => l.ttcAmount);
       const chgHT = sum(chg, l => l.amount), chgTTC = sum(chg, l => l.ttcAmount);
       const marge = prdHT - chgHT;
-      const uniq = f => new Set(lines.map(f).map(v => String(v ?? "").trim()).filter(Boolean)).size;
       const desig = new Set(lines.map(l => desigKey(l))).size;
       const taf = recLoad("taf");
       const tafLate = taf.filter(r => Date.now() > new Date(r.prevu)).length;
@@ -17654,6 +17270,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         if (rows.length) lastShown.detail = { ...lastShown.detail, rows };
       }
     };
+/* ⟪ src/26-copier-coller.js ⟫ */
     /* ===== COPIER / COUPER / COLLER (FORMAT) : lignes cochées d'un bloc ;
        collées à la fin du même bloc, dans ce budget ou un autre, sans liaison ;
        « COPIE DE » seulement en cas de doublon ; COUPER = lignes non liées, retirées au COLLER ;
@@ -18302,29 +17919,9 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
 
         return;
       }
-
-      if (
-        event.target.id === "bdgDelayStart" ||
-        event.target.id === "bdgDelayEnd"
-      ) {
-        const a = $("bdgDelayStart").value;
-        const b = $("bdgDelayEnd").value;
-
-        if (a && b) {
-          const days =
-            Math.round(
-              (new Date(b) - new Date(a)) /
-              86400000
-            ) + 1;   /* FORMAT 139 : jours de début et de fin compris */
-
-          $("bdgDelayDays").textContent =
-            days + " JOUR" + (Math.abs(days) > 1 ? "S" : "");
-        } else {
-          $("bdgDelayDays").textContent = "—";
-        }
-      }
     };
 
+/* ⟪ src/27-etat-fin-budget.js ⟫ */
     /* ===== état mémorisé sur l'appareil, par budget ===== */
     const ST_KEY = "svi_bdgstate_v1:" + String(ref);
 
@@ -18763,6 +18360,7 @@ function openProjectPopup(ref) {
   document.body.appendChild(back);
 }
 
+/* ⟪ src/30-bdg-produits-charges-analyse.js ⟫ */
 /* =========================================================
    BDG — SELECTEURS
    ========================================================= */
@@ -19437,6 +19035,7 @@ function renderAnalysis(rows) {
   `;
 }
 
+/* ⟪ src/31-formulaires-appui-long.js ⟫ */
 /* =========================================================
    FORMULAIRES CHS / BDS
    ========================================================= */
@@ -19782,6 +19381,7 @@ function infoRow(ctx) {
   sviAlert(lines);
 }
 
+/* ⟪ src/32-demarrage.js ⟫ */
 /* =========================================================
    DEMARRAGE
    ========================================================= */
@@ -20084,6 +19684,7 @@ function budgetDate(ref) {
 }
 
 
+/* ⟪ src/33-confirmations-sources.js ⟫ */
 /* =========================================================
    CONFIRMATION AU FORMAT DE L'APPLICATION (jamais de message Safari)
    svConfirm({ title, text, ok }) → Promise<boolean>
@@ -20433,6 +20034,7 @@ document.addEventListener("click", e => {
 });
 
 
+/* ⟪ src/34-parametrage.js ⟫ */
 /* =========================================================
    PARAMÉTRAGE : CHS + UNITÉS (12/10/2026)
    UNITÉS : intitulé et abréviation ; l'abréviation est celle utilisée dans les tableaux.
@@ -20803,6 +20405,7 @@ function sviBdgDatesWin() {
 }
 
 
+/* ⟪ src/35-calendrier-saisie.js ⟫ */
 /* =========================================================
    CALENDRIER DE L'APPLICATION (FORMAT 76) : toutes les dates se choisissent dans un calendrier ;
    affichage JJ/MM/AAAA ; les dates refusées sont grisées.

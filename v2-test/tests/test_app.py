@@ -42,7 +42,15 @@ def check(name, ok, info=""):
     RESULTS.append((name, bool(ok)))
     print(("OK    " if ok else "ÉCHEC ") + name + ("" if ok else "  → " + str(info)))
 
+def static_checks():
+    import subprocess
+    r = subprocess.run([sys.executable, os.path.join(ROOT, "outils", "assembler.py"), "--verifier"], capture_output=True, text=True)
+    check("app.js assemblé à partir de src/ (à jour)", r.returncode == 0, r.stdout.strip())
+    r = subprocess.run(["node", "--check", os.path.join(ROOT, "app.js")], capture_output=True, text=True)
+    check("app.js : syntaxe valide", r.returncode == 0, r.stderr[:300])
+
 def main():
+    static_checks()
     srv = serve()
     with sync_playwright() as p:
         b = p.chromium.launch()
