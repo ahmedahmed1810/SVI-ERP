@@ -15000,15 +15000,38 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         });
         /* 2. lignes nouvelles (et lignes non liées dont la chaîne est remplie) : importées avec les règles de l'import */
         const H = ["PROJET", "DÉSIGNATION CLIENT", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE", "TYPE (PRD / CHG)", "ARTICLE", "DÉSIGNATION PRODUIT / CHARGE", "UNITÉ", "NBR", "DIM 1", "DIM 2", "DIM 3", "QTE"];
+        /* v482 (remarque 22) : déplacement ligne par ligne ;
+           — une charge qui arrive sur une combinaison sans produit y emmène une copie des produits de son ancienne tâche (mêmes quantités) ;
+           — une tâche qui perd son dernier produit : ses charges partent avec lui sur la nouvelle combinaison */
+        const extra = [];
+        const fN = v => v === "" || v === undefined || v === null ? "" : String(v).replace(".", ",");
+        const chainOf = r => [r.dc, r.lot, r.prim, r.sec].map(U_).join("|");
+        const hasPrd = r => (INS.links || []).some(l => (l.prd || []).length && [nm("des", l.des), nm("lot", l.lot), nm("prim", l.prim), nm("sec", l.sec)].map(U_).join("|") === chainOf(r));
+        const cpDone = new Set(), goneChg = new Set();
+        const rowOf = (r, typ, x) => [budget.project || "", r.dc, r.upb, r.lot, r.prim, r.sec, typ, x.art || "", x.des || "", x.u || "", fN(x.nbr), fN(x.d1), fN(x.d2), fN(x.d3), fN(x.q)];
+        if (!P) moved.forEach(r => {
+          const l = r._l; if (!l || hasPrd(r)) return;
+          const key = (l.id || INS.links.indexOf(l)) + ">" + chainOf(r);
+          if (cpDone.has(key)) return; cpDone.add(key);
+          (l.prd || []).forEach(x => { const pr = (INS.prd || []).find(q => q.id === x.id); if (pr) extra.push(rowOf(r, "PRD", { ...pr, u: secU(r.sec, r) || pr.u })); });
+        });
         moved.forEach(r => {
           const l = r._l;
-          if (l) { l[kind] = (l[kind] || []).filter(x => x.id !== r._id); if (!(l.prd || []).length) INS.links = (INS.links || []).filter(q => q !== l); }
+          if (l) {
+            l[kind] = (l[kind] || []).filter(x => x.id !== r._id);
+            if (!(l.prd || []).length) {
+              if (P) (l.chg || []).forEach(x => { const c = (INS.chg || []).find(q => q.id === x.id); if (!c) return; extra.push(rowOf(r, "CHG", c)); goneChg.add(c.id); });
+              INS.links = (INS.links || []).filter(q => q !== l);
+            }
+          }
           histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE — CHAÎNE CHANGÉE", r.des + " → " + [r.dc, r.lot, r.prim, r.sec].join(" › "));
         });
+        if (goneChg.size) INS.chg = INS.chg.filter(x => !goneChg.has(x.id));
+        if (extra.length) histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE — " + (P ? "CHARGES DÉPLACÉES AVEC LE DERNIER PRODUIT" : "PRODUITS RECOPIÉS"), extra.length + " LIGNE(S)");
         const neu = rows.filter(r => !r._del && ((!r._id && COLS.some(c => r[c[0]])) || (r._id && !r._lid && r.dc && r.lot && r.prim && r.sec) || moved.includes(r)));
-        const aoa = [H].concat(neu.map(r => [budget.project || "", r.dc, r.upb, r.lot, r.prim, r.sec, P ? "PRD" : "CHG", r.art || "", r.des, P ? (secU(r.sec, r) || r.u) : r.u, r.nbr, r.d1, r.d2, r.d3, r.q]));
+        const aoa = [H].concat(neu.map(r => [budget.project || "", r.dc, r.upb, r.lot, r.prim, r.sec, P ? "PRD" : "CHG", r.art || "", r.des, P ? (secU(r.sec, r) || r.u) : r.u, r.nbr, r.d1, r.d2, r.d3, r.q]), extra);
         if (upd) { insSave(); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE", upd + " LIGNE(S) MODIFIÉE(S)"); }
-        if (neu.length) {
+        if (neu.length || extra.length) {
           let m; try { m = bfModel(aoa); } catch (err) { svToast("SAISIE DIRECTE : " + (err.message || err), 4000); return; }
           const plan = bfRuleA(m, "add"); if (!(await bfRuleAAsk(plan))) return; plan.ok = true;
           /* lignes non liées devenues complètes : l'ancienne ligne seule est remplacée par la ligne importée */
