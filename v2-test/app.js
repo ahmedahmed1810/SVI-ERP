@@ -11531,6 +11531,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         if (window.__sviImpRefresh) window.__sviImpRefresh();
         if (window.__sviDpkRefresh) window.__sviDpkRefresh();
         if (window.__sviInfoRefresh) window.__sviInfoRefresh();
+        if (window.__sviSdRefresh) window.__sviSdRefresh();
         if (INS) insApplyMode();
       });
       if (typeof stateSave === "function") stateSave();
@@ -14683,7 +14684,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       rows.forEach(r => { r._o = JSON.stringify(COLS.map(c => r[c[0]])); });
       const blank = () => ({ dc: "", upb: "", lot: "", prim: "", sec: "", art: "", des: "", u: "", nbr: "", d1: "", d2: "", d3: "", q: "" });
       rows.push(blank());
-      const flt = {};
+      const TK = "sd_" + kind;
       const lists = {
         dc: [...new Set(INS.des.filter(x => !x.t).map(x => x.des))], upb: [...new Set(INS.des.map(x => U_(x.u)).filter(Boolean))],
         lot: [...new Set(INS.lot.filter(x => !x.t).map(x => x.v))], prim: [...new Set(INS.prim.map(x => x.v))], sec: [...new Set(INS.sec.map(x => x.v))],
@@ -14695,49 +14696,109 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       const linkedChanged = r => r._lid && ["dc", "lot", "prim", "sec"].some(f => U_(r[f]) !== U_((JSON.parse(r._o))[COLS.findIndex(c => c[0] === f)]));
       const d = document.createElement("div");
       d.id = "sdW";
-      let big = true;
-      const vis = () => rows.map((r, i) => ({ r, i })).filter(({ r }) => !r._id || Object.keys(flt).every(f => !flt[f] || U_(r[f]).includes(U_(flt[f]))));
+      /* taille de la fenêtre et largeurs de colonnes mémorisées (FORMAT : fenêtres et colonnes réglables) */
+      const SZK = "svi_sdw_v1";
+      const sz = (() => { try { return JSON.parse(localStorage.getItem(SZK) || "{}") || {}; } catch (e) { return {}; } })();
+      const szSave = () => { try { localStorage.setItem(SZK, JSON.stringify(sz)); } catch (e) {} };
+      let big = sz.big !== false;
+      let selCol = "";
+      const CFC = COLS.map(c => [c[0], c[1], r => r[c[0]] || "", NUMF.has(c[0]) ? "number" : ""]);
+      /* lignes existantes : filtres / tri de l'en-tête (loupe) ; lignes nouvelles toujours en bas */
+      const vis = () => {
+        const old = rows.map((r, i) => ({ ...r, __i: i })).filter(r => r._id);
+        const shown = cfApply(TK, CFC, old);
+        return shown.map(r => ({ r: rows[r.__i], i: r.__i })).concat(rows.map((r, i) => ({ r, i })).filter(x => !x.r._id));
+      };
       const cell = (r, i, c) => {
         const f = c[0];
         const lockU = P && f === "u" && (!!secU(r.sec) || (r._lid && !!r.u));
         const lockChain = r._lid && ["dc", "upb", "lot", "prim", "sec"].includes(f);
         const ro = lockU || lockChain;
-        return `<td class="${NUMF.has(f) ? "number" : ""}${ro ? " sd-ro" : ""}"><input class="sd-in" data-i="${i}" data-f="${f}" value="${esc(lockU && secU(r.sec) ? secU(r.sec) : r[f] || "")}"${ro ? " readonly tabindex=\"-1\"" : ""}${NUMF.has(f) ? ' inputmode="decimal"' : ` list="sdl_${f}"`} autocomplete="off" enterkeyhint="next"></td>`;
+        return `<td class="${NUMF.has(f) ? "number" : ""}${ro ? " sd-ro" : ""}${selCol === f ? " sd-sel" : ""}"><input class="sd-in" data-i="${i}" data-f="${f}" value="${esc(lockU && secU(r.sec) ? secU(r.sec) : r[f] || "")}"${ro ? " readonly tabindex=\"-1\"" : ""}${NUMF.has(f) ? ' inputmode="decimal"' : ""} autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"></td>`;
       };
       const draw = () => {
+        if (!d.isConnected) { window.__sviSdRefresh = null; return; }
         const sc = d.querySelector(".sd-scroll"), st = sc ? sc.scrollTop : 0, sl = sc ? sc.scrollLeft : 0;
         const V = vis();
-        d.innerHTML = `<div class="sd-card${big ? " big" : ""}" role="dialog" aria-modal="true">
+        /* FORMAT 6 : un intitulé de colonne n'est jamais coupé — largeur au moins celle de l'intitulé */
+        const W = {}; COLS.forEach(c => { W[c[0]] = Math.max((sz.cols || {})[c[0]] || c[2], Math.ceil(c[1].length * 7.6) + 46); });
+        d.innerHTML = `<div class="sd-card${big ? " big" : ""}" role="dialog" aria-modal="true" style="${!big && sz.w ? "width:" + sz.w + "px;height:" + sz.h + "px" : ""}">
           <div class="sd-head"><span class="sd-title">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"}</span>
             <span class="sd-n">${svCnt(V.filter(x => x.r._id).length, rows.filter(x => x._id).length)}</span>
+            ${selCol ? `<span class="sd-colbar">COLONNE « ${esc((COLS.find(c => c[0] === selCol) || [])[1] || "")} » : <button type="button" data-ca="copy">COPIER</button><button type="button" data-ca="paste">COLLER</button><button type="button" data-ca="clear">EFFACER</button></span>` : ""}
             <button type="button" class="sd-size">${big ? "RÉDUIRE" : "AGRANDIR"}</button><button type="button" class="svc-close sd-x" data-x aria-label="Fermer">✕</button></div>
-          <div class="sd-scroll"><table class="sd-t"><thead><tr>${COLS.map(c => `<th style="min-width:${c[2]}px">${c[1]}</th>`).join("")}</tr>
-            <tr class="sd-flt">${COLS.map(c => `<th><input class="sd-f" data-f="${c[0]}" value="${esc(flt[c[0]] || "")}" placeholder="FILTRE" autocomplete="off"></th>`).join("")}</tr></thead>
+          <div class="sd-scroll"><table class="sd-t"><colgroup>${COLS.map(c => `<col data-c="${c[0]}" style="width:${W[c[0]] || c[2]}px">`).join("")}</colgroup>
+            <thead><tr>${COLS.map(c => cfHead(TK, c[0], c[1], (NUMF.has(c[0]) ? "number" : "") + (selCol === c[0] ? " sd-sel" : "")).replace("<th ", `<th data-c="${c[0]}" `)).join("")}</tr></thead>
             <tbody>${V.map(({ r, i }) => `<tr class="${r._id ? (r._lid ? "sd-old sd-lk" : "sd-old") : "sd-new"}">${COLS.map(c => cell(r, i, c)).join("")}</tr>`).join("")}</tbody></table></div>
-          ${Object.keys(lists).map(f => `<datalist id="sdl_${f}">${lists[f].map(v => `<option value="${esc(v)}"></option>`).join("")}</datalist>`).join("")}
           <div class="sd-foot"><small>LIGNES GRISÉES : LIÉES (CHAÎNE MODIFIABLE APRÈS ✕ DÉLIER). ENTRÉE SUR LA DERNIÈRE CASE = LIGNE RECOPIÉE.</small><span style="flex:1"></span>
-            <button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral sd-ok">VALIDER</button></div></div>`;
+            <button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral sd-ok">VALIDER</button></div>
+          ${big ? "" : '<div class="sd-rsz" title="Largeur et hauteur"></div>'}</div>`;
+        const tb = d.querySelector(".sd-t");
+        if (tb) tb.style.width = COLS.reduce((t, c) => t + (W[c[0]] || c[2]), 0) + "px";
         const s2 = d.querySelector(".sd-scroll"); if (s2) { s2.scrollTop = st; s2.scrollLeft = sl; }
       };
       document.getElementById("sdW")?.remove();
       document.body.appendChild(d);
+      window.__sviSdRefresh = draw;
       draw();
       const focusAt = (i, f) => { const el = d.querySelector(`.sd-in[data-i="${i}"][data-f="${f}"]`); if (el) { el.focus(); try { el.select(); } catch (e) {} } };
+      /* liste de choix au format de l'application (jamais la bulle de Safari, FORMAT 50) : sous la case, après la 1re lettre, 8 au plus */
+      const sugHide = () => d.querySelector(".sd-sug")?.remove();
+      const sugShow = inp => {
+        sugHide();
+        const f = inp.dataset.f, q = U_(inp.value);
+        if (!q || NUMF.has(f) || inp.readOnly) return;
+        const L = (lists[f] || []).filter(v => U_(v) !== q && U_(v).includes(q)).sort((a, b) => (U_(a).startsWith(q) ? 0 : 1) - (U_(b).startsWith(q) ? 0 : 1)).slice(0, 8);
+        if (!L.length) return;
+        const b = document.createElement("div");
+        b.className = "sd-sug";
+        b.innerHTML = L.map(v => `<button type="button" data-v="${esc(v)}">${esc(v)}</button>`).join("");
+        d.appendChild(b);
+        const r = inp.getBoundingClientRect();
+        b.style.left = Math.max(8, Math.min(r.left, window.innerWidth - b.offsetWidth - 8)) + "px";
+        b.style.top = (r.bottom + 2 + b.offsetHeight <= sviViewH() - 8 ? r.bottom + 2 : Math.max(8, r.top - b.offsetHeight - 2)) + "px";
+        b.__for = inp;
+      };
+      d.addEventListener("pointerdown", e => {
+        const sb = e.target.closest(".sd-sug button");
+        if (sb) { e.preventDefault(); const inp = d.querySelector(".sd-sug").__for; sugHide(); if (inp && inp.isConnected) { inp.value = sb.dataset.v; inp.dispatchEvent(new Event("input", { bubbles: true })); sugHide(); inp.focus(); } return; }
+        if (!e.target.closest(".sd-sug")) sugHide();
+        /* largeur d'une colonne : bord droit de l'en-tête */
+        const h = e.target.closest(".col-rs");
+        if (h) {
+          e.preventDefault(); e.stopPropagation();
+          const key = h.dataset.col, col = d.querySelector(`col[data-c="${key}"]`), tb = d.querySelector(".sd-t");
+          const x0 = e.clientX, w0 = col.getBoundingClientRect().width || parseFloat(col.style.width) || 80;
+          const lab = (COLS.find(c => c[0] === key) || ["", ""])[1], wMin = Math.ceil(lab.length * 7.6) + 46;
+          const mv = ev => { const w = Math.max(wMin, Math.round(w0 + ev.clientX - x0)); col.style.width = w + "px"; sz.cols = sz.cols || {}; sz.cols[key] = w; tb.style.width = [...d.querySelectorAll(".sd-t col")].reduce((t, x) => t + (parseFloat(x.style.width) || 0), 0) + "px"; };
+          const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); szSave(); };
+          document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+          return;
+        }
+        /* taille de la fenêtre : coin bas droit */
+        if (e.target.closest(".sd-rsz")) {
+          e.preventDefault();
+          const card = d.querySelector(".sd-card"), r0 = card.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY;
+          const mv = ev => { sz.w = Math.max(420, Math.min(window.innerWidth - 8, Math.round(r0.width + 2 * (ev.clientX - x0)))); sz.h = Math.max(300, Math.min(window.innerHeight - 8, Math.round(r0.height + 2 * (ev.clientY - y0)))); card.style.width = sz.w + "px"; card.style.height = sz.h + "px"; };
+          const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); szSave(); };
+          document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+        }
+      }, true);
       d.addEventListener("input", e => {
-        const ff = e.target.closest(".sd-f");
-        if (ff) { flt[ff.dataset.f] = ff.value; if (!ff.value) delete flt[ff.dataset.f]; const pos = ff.selectionStart; draw(); const n = d.querySelector(`.sd-f[data-f="${ff.dataset.f}"]`); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (err) {} } return; }
         const inp = e.target.closest(".sd-in"); if (!inp) return;
         const r = rows[+inp.dataset.i], f = inp.dataset.f;
         r[f] = NUMF.has(f) ? inp.value : inp.value.toUpperCase();
         if (!NUMF.has(f)) { const p0 = inp.selectionStart; inp.value = r[f]; try { inp.setSelectionRange(p0, p0); } catch (err) {} }
         if (f === "sec" && P) { const u = secU(r.sec), ui = inp.closest("tr").querySelector('.sd-in[data-f="u"]'); if (ui) { if (u) { r.u = u; ui.value = u; ui.readOnly = true; ui.closest("td").classList.add("sd-ro"); } else { ui.readOnly = false; ui.closest("td").classList.remove("sd-ro"); } } }
         if (!r._id && rows[rows.length - 1] === r && COLS.some(c => r[c[0]])) { rows.push(blank()); const tb = d.querySelector(".sd-t tbody"); const tmp = document.createElement("tbody"); tmp.innerHTML = `<tr class="sd-new">${COLS.map(c => cell(rows[rows.length - 1], rows.length - 1, c)).join("")}</tr>`; tb.appendChild(tmp.firstElementChild); }
+        sugShow(inp);
       });
+      d.addEventListener("focusout", () => setTimeout(() => { const b = d.querySelector(".sd-sug"); if (b && document.activeElement !== b.__for) sugHide(); }, 200));
       d.addEventListener("keydown", e => {
         const inp = e.target.closest(".sd-in");
         if (!inp || e.key !== "Enter") return;
-        e.preventDefault(); e.stopPropagation();
-        const i = +inp.dataset.i, f = inp.dataset.f, tr = inp.closest("tr");
+        e.preventDefault(); e.stopPropagation(); sugHide();
+        const i = +inp.dataset.i, tr = inp.closest("tr");
         const ins = [...tr.querySelectorAll(".sd-in")].filter(x => !x.readOnly);
         const k = ins.indexOf(inp);
         if (k >= 0 && k < ins.length - 1) { ins[k + 1].focus(); try { ins[k + 1].select(); } catch (err) {} return; }
@@ -14747,11 +14808,28 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         let j = rows.findIndex((r, n) => n > i && !r._id && COLS.every(cc => !r[cc[0]]));
         if (j < 0) { rows.push(c); j = rows.length - 1; } else rows.splice(j, 0, c);
         if (rows[rows.length - 1] === c) rows.push(blank());
-        draw(); focusAt(j, "des"); void f;
+        draw(); focusAt(j, "des");
+      }, true);
+      /* sélection d'une colonne (FORMAT 61) : un toucher sur l'intitulé ; COPIER / COLLER / EFFACER sur les lignes affichées */
+      let clip = null;
+      d.addEventListener("click", e => {
+        const cfb = e.target.closest(".cf-btn");
+        if (cfb) { e.stopPropagation(); cfOpenMenu(cfb); return; }
+        const ca = e.target.closest("[data-ca]");
+        if (ca && selCol) {
+          e.stopPropagation();
+          const V = vis().filter(x => x.r._id || COLS.some(c => x.r[c[0]]));
+          const editable = r => !(r._lid && ["dc", "upb", "lot", "prim", "sec"].includes(selCol)) && !(P && selCol === "u" && secU(r.sec));
+          if (ca.dataset.ca === "copy") { clip = V.map(x => x.r[selCol] || ""); try { navigator.clipboard && navigator.clipboard.writeText(clip.join("\n")); } catch (err) {} svToast(clip.length + " VALEUR(S) COPIÉE(S).", 2000, ca); return; }
+          if (ca.dataset.ca === "paste") { if (!clip || !clip.length) { svToast("RIEN À COLLER : COPIER D'ABORD UNE COLONNE.", 2500, ca); return; } let n = 0; V.forEach((x, j) => { if (!editable(x.r)) return; x.r[selCol] = clip.length === 1 ? clip[0] : (clip[j] ?? x.r[selCol]); n++; }); draw(); svToast(n + " CASE(S) COLLÉE(S).", 2000); return; }
+          if (ca.dataset.ca === "clear") { let n = 0; V.forEach(x => { if (!editable(x.r)) return; x.r[selCol] = ""; n++; }); draw(); svToast(n + " CASE(S) EFFACÉE(S).", 2000); return; }
+        }
+        const th = e.target.closest(".sd-t thead th");
+        if (th && !e.target.closest(".col-rs")) { const c = th.dataset.c; selCol = selCol === c ? "" : c; draw(); return; }
       }, true);
       d.addEventListener("click", async e => {
-        if (e.target.closest(".sd-size")) { big = !big; draw(); return; }
-        if (e.target.closest("[data-x]")) { d.remove(); return; }
+        if (e.target.closest(".sd-size")) { big = !big; sz.big = big; szSave(); draw(); return; }
+        if (e.target.closest("[data-x]")) { d.remove(); window.__sviSdRefresh = null; return; }
         if (!e.target.closest(".sd-ok")) return;
         /* 1. lignes existantes modifiées */
         let upd = 0; const refused = [];
@@ -16733,12 +16811,17 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         <span class="doc-lab">DURÉE</span><span class="doc-in doc-ro inf-val" data-v="dur">${esc(infYMD(P.deb, P.fin))}</span>
         <span class="doc-lab">DATE BUTOIR${STAR}</span>${din("but", INS.dbut || "", P.fin ? ` min="${esc(P.fin)}"` : "")}`;
     };
-    const infDatesBind = (p, ed) => {
+    /* v477 (remarque 5) : rien n'est retenu avant ENREGISTRER — les dates saisies vont dans pend, appliquées par infApply */
+    const infDatesBind = (p, ed, pend) => {
+      const cur = () => { const P = infProj(); return { deb: pend.deb ?? P.deb, fin: pend.obj ?? P.fin, but: pend.but ?? (INS.dbut || ""), pfin: P.pfin }; };
       const paint = () => {
-        const P = infProj();
+        const P = cur();
         const d = p.querySelector('[data-v="dur"]'), pf = p.querySelector('[data-v="pfin"]');
         if (d) d.textContent = infYMD(P.deb, P.fin);
-        if (pf) { pf.textContent = P.pfin ? "FIN DU PLANNING : " + dFr(P.pfin) : ""; pf.classList.toggle("inf-late", !!(P.pfin && ((INS.dbut && P.pfin > INS.dbut) || (P.fin && P.pfin > P.fin)))); }
+        if (pf) { pf.textContent = P.pfin ? "FIN DU PLANNING : " + dFr(P.pfin) : ""; pf.classList.toggle("inf-late", !!(P.pfin && ((P.but && P.pfin > P.but) || (P.fin && P.pfin > P.fin)))); }
+        const io = p.querySelector('[data-f="obj"]'), ib = p.querySelector('[data-f="but"]');
+        if (io) { if (P.but) io.setAttribute("max", P.but); else io.removeAttribute("max"); if (P.deb) io.setAttribute("min", P.deb); }
+        if (ib) { if (P.fin) ib.setAttribute("min", P.fin); else ib.removeAttribute("min"); }
       };
       paint();
       if (!ed) return;
@@ -16746,39 +16829,33 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       p.addEventListener("change", e => {
         const i = e.target.closest && e.target.closest("input.inf-date");
         if (!i) return;
-        const f = i.dataset.f, v = i.value;
-        if (f === "obj" || f === "but") {
-          if (f === "obj") INS.dobj = v; else INS.dbut = v;
-          const io = p.querySelector('[data-f="obj"]'), ib = p.querySelector('[data-f="but"]');
-          if (INS.dbut) io.setAttribute("max", INS.dbut); else io.removeAttribute("max");
-          if (INS.dobj) ib.setAttribute("min", INS.dobj); else ib.removeAttribute("min");
-          insSave(); histLog("INF", f === "obj" ? "DATE DE FIN DU PROJET (OBJECTIF)" : "DATE BUTOIR", dFr(v) || "—");
-          paint(); keepScroll(() => refreshAll());
-          return;
-        }
-        /* DÉBUT du projet changé : toutes les tâches datées décalées du même nombre de jours travaillés,
-           durées et liaisons gardées ; enregistré aussitôt */
-        const cal = insCal(), P = infProj();
-        if (!v) { i.value = P.deb; return; }
+        pend[i.dataset.f] = i.value;
+        paint();
+      });
+    };
+    /* applique les dates d'INF (ENREGISTRER) : DÉBUT décale tout le planning, FIN DU PROJET (objectif), BUTOIR */
+    const infApplyDates = (pend, anchor) => {
+      if (pend.obj !== undefined && pend.obj !== (INS.dobj || "")) { INS.dobj = pend.obj; histLog("INF", "DATE DE FIN DU PROJET (OBJECTIF)", dFr(pend.obj) || "—"); }
+      if (pend.but !== undefined && pend.but !== (INS.dbut || "")) { INS.dbut = pend.but; histLog("INF", "DATE BUTOIR", dFr(pend.but) || "—"); }
+      if (pend.deb !== undefined && pend.deb) {
+        const cal = insCal(), P = infProj(), v = pend.deb;
         const nv = sviWNear(cal, v, 1);
         const old = P.ks.map(dlyDeb).sort()[0] || P.deb;
-        INS.pdeb = nv; INS.gdeb = nv; i.value = nv;
-        if (P.ks.length && old && nv !== sviWNear(cal, old, 1)) {
-          const from = sviWNear(cal, old, 1);
-          const n = nv > from ? sviWDur(cal, from, nv) - 1 : -(sviWDur(cal, nv, from) - 1);
-          P.ks.forEach(k => {
-            (INS.dlp[k] || []).forEach(q => { if (!q.deb || !q.fin) return; const du = sviWDur(cal, q.deb, q.fin) || 1; q.deb = sviWAdd(cal, sviWNear(cal, q.deb, 1), n); q.fin = sviWFin(cal, q.deb, du); });
-            if (LK.dlpDraft && LK.dlpDraft[k]) delete LK.dlpDraft[k];
-          });
-          histLog("INF", "PROJET DÉCALÉ", dFr(old) + " → " + dFr(nv) + " (" + (n > 0 ? "+" : "") + n + " J TRAVAILLÉS, " + P.ks.length + " TÂCHE(S))");
-        } else histLog("INF", "DATE DE DÉBUT DU PROJET", dFr(nv));
-        const io = p.querySelector('[data-f="obj"]'); if (io) io.setAttribute("min", nv);
-        insSave();
-        paint();
-        keepScroll(() => refreshAll());
-        const P2 = infProj();
-        if (INS.dbut && P2.pfin > INS.dbut) svToast("AVEC CE DÉCALAGE, LA FIN DU PLANNING (" + dFr(P2.pfin) + ") DÉPASSE LA DATE BUTOIR (" + dFr(INS.dbut) + ").", 6000, i);
-      });
+        if (nv !== (INS.pdeb || "")) {
+          INS.pdeb = nv; INS.gdeb = nv;
+          if (P.ks.length && old && nv !== sviWNear(cal, old, 1)) {
+            const from = sviWNear(cal, old, 1);
+            const n = nv > from ? sviWDur(cal, from, nv) - 1 : -(sviWDur(cal, nv, from) - 1);
+            P.ks.forEach(k => {
+              (INS.dlp[k] || []).forEach(q => { if (!q.deb || !q.fin) return; const du = sviWDur(cal, q.deb, q.fin) || 1; q.deb = sviWAdd(cal, sviWNear(cal, q.deb, 1), n); q.fin = sviWFin(cal, q.deb, du); });
+              if (LK.dlpDraft && LK.dlpDraft[k]) delete LK.dlpDraft[k];
+            });
+            histLog("INF", "PROJET DÉCALÉ", dFr(old) + " → " + dFr(nv) + " (" + (n > 0 ? "+" : "") + n + " J TRAVAILLÉS, " + P.ks.length + " TÂCHE(S))");
+          } else histLog("INF", "DATE DE DÉBUT DU PROJET", dFr(nv));
+          const P2 = infProj();
+          if (INS.dbut && P2.pfin > INS.dbut) svToast("AVEC CE DÉCALAGE, LA FIN DU PLANNING (" + dFr(P2.pfin) + ") DÉPASSE LA DATE BUTOIR (" + dFr(INS.dbut) + ").", 6000, anchor);
+        }
+      }
     };
     /* champs d'INF à compléter (bouton ⚠ et FIGER) : étoile = exigé pour FIGER */
     const infMissing = () => {
@@ -16840,50 +16917,60 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
             </div>
           </div>
           <div class="doc-foot">
-            <button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>
+            ${editInt ? `<button type="button" class="doc-btn" data-cancel>FERMER</button><button type="button" class="doc-btn doc-save inf-save">ENREGISTRER</button>` : `<button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>`}
           </div>
         </div>`;
       document.body.appendChild(p);
       popEnhance(p, "inf");
-      if (INS) infDatesBind(p, editInt);
-      if (editInt) {
-        const cd = p.querySelector("input.inf-cre"), ch = p.querySelector("input.inf-cre-h");
-        if (cd) sviDateField(cd);
-        const saveCre = () => {
-          const v = (cd.value || "") + (cd.value ? "T" + (ch.value || "00:00") : "");
-          if (v === (budget.inst.created || "")) return;
-          budget.inst.created = v;
-          sviInstSet(sviInstGet().map(x => x.ref === ref ? { ...x, created: v } : x));
-          histLog("INF", "DATE CRÉATION", v.replace("T", " À "));
-        };
-        cd && cd.addEventListener("change", saveCre); ch && ch.addEventListener("change", saveCre);
-        const pj = p.querySelector("#infPrj");
-        pj && pj.addEventListener("input", e => { e.target.value = e.target.value.toUpperCase(); });
-        pj && pj.addEventListener("change", () => {
-          const v = pj.value.trim().toUpperCase().replace(/\s+/g, " ");
-          if (!v) { pj.value = budget.project || ""; svToast("PROJET OBLIGATOIRE.", 3000, pj); return; }
-          if (v === String(budget.project || "")) return;
-          budget.project = v; budget.inst.project = v;
-          sviInstSet(sviInstGet().map(x => x.ref === ref ? { ...x, project: v } : x));
-          const h1 = shell.querySelector(".bdg-d-h1"); if (h1) h1.textContent = v;
-          histLog("INF", "PROJET", v);
-        });
-      }
-      /* INTITULÉ et CLIENT : enregistrés à la fermeture de la fenêtre */
-      const saveInt = () => {
-        [["#infInt", "intitule", "INTITULÉ", "À COMPLÉTER"], ["#infCli", "client", "CLIENT", ""]].forEach(([sel, f, lab, def]) => {
-          const i = p.querySelector(sel);
-          if (!i) return;
-          const v = i.value.trim().toUpperCase();
-          if (v === String(budget.inst[f] || "").trim().toUpperCase()) return;
-          budget.inst[f] = v || def;
-          sviInstSet(sviInstGet().map(x => x.ref === ref ? { ...x, [f]: budget.inst[f] } : x));
-          histLog("INF", lab, budget.inst[f] || "—");
-        });
+      /* v477 (remarque 5) : tout est modifiable en instance ; rien n'est retenu avant ENREGISTRER */
+      const pend = {};
+      if (INS) infDatesBind(p, editInt, pend);
+      p.querySelectorAll("#infInt, #infCli, #infPrj").forEach(i => i.addEventListener("input", e => { const c = e.target.selectionStart; e.target.value = e.target.value.toUpperCase(); try { e.target.setSelectionRange(c, c); } catch (err) {} }));
+      const cd = p.querySelector("input.inf-cre"), chh = p.querySelector("input.inf-cre-h");
+      if (cd) sviDateField(cd);
+      const collect = () => {
+        const out = { ...pend };
+        const pj = p.querySelector("#infPrj"); if (pj) out.project = pj.value.trim().toUpperCase().replace(/\s+/g, " ");
+        const ii = p.querySelector("#infInt"); if (ii) out.intitule = ii.value.trim().toUpperCase();
+        const ic = p.querySelector("#infCli"); if (ic) out.client = ic.value.trim().toUpperCase();
+        if (cd) out.created = (cd.value || "") + (cd.value ? "T" + ((chh && chh.value) || "00:00") : "");
+        return out;
       };
-      p.querySelectorAll("#infInt, #infCli").forEach(i => i.addEventListener("input", e => { e.target.value = e.target.value.toUpperCase(); }));
-      p.addEventListener("click", e => {
-        if (e.target === p || e.target.closest("[data-cancel]")) { saveInt(); p.remove(); }
+      const changed = o => (o.project !== undefined && o.project !== String(budget.project || ""))
+        || (o.intitule !== undefined && o.intitule !== String(budget.inst.intitule === "À COMPLÉTER" ? "" : budget.inst.intitule || "").trim().toUpperCase())
+        || (o.client !== undefined && o.client !== String(budget.inst.client || "").trim().toUpperCase())
+        || (o.created !== undefined && o.created && o.created !== String(budget.inst.created || ""))
+        || ["deb", "obj", "but"].some(f => o[f] !== undefined);
+      const save = () => {
+        const o = collect();
+        if (o.project !== undefined && !o.project) { svToast("PROJET OBLIGATOIRE.", 3000, p.querySelector("#infPrj")); return false; }
+        const patch = {};
+        if (o.project !== undefined && o.project !== String(budget.project || "")) {
+          budget.project = o.project; budget.inst.project = o.project; patch.project = o.project;
+          const h1 = shell.querySelector(".bdg-d-h1"); if (h1) h1.textContent = o.project;
+          histLog("INF", "PROJET", o.project);
+        }
+        if (o.created && o.created !== String(budget.inst.created || "")) { budget.inst.created = o.created; patch.created = o.created; histLog("INF", "DATE CRÉATION", o.created.replace("T", " À ")); }
+        [["intitule", "INTITULÉ", "À COMPLÉTER"], ["client", "CLIENT", ""]].forEach(([f, lab, def]) => {
+          if (o[f] === undefined || o[f] === String(budget.inst[f] === "À COMPLÉTER" ? "" : budget.inst[f] || "").trim().toUpperCase()) return;
+          budget.inst[f] = o[f] || def; patch[f] = budget.inst[f]; histLog("INF", lab, budget.inst[f] || "—");
+        });
+        if (Object.keys(patch).length) sviInstSet(sviInstGet().map(x => x.ref === ref ? { ...x, ...patch } : x));
+        if (INS) { infApplyDates(pend, p.querySelector(".doc-foot")); insSave(); }
+        /* partout où l'information est affichée : en-tête, listes, aperçus */
+        try { keepScroll(() => refreshAll()); } catch (e) {}
+        try { document.title = (budget.project || "") + " " + (fullRef || ""); } catch (e) {}
+        return true;
+      };
+      p.addEventListener("click", async e => {
+        if (e.target.closest(".inf-save")) { if (save()) { p.remove(); svToast("ENREGISTRÉ.", 1800); } return; }
+        if (!(e.target === p || e.target.closest("[data-cancel]"))) return;
+        if (editInt && changed(collect())) {
+          const v = await svChoose({ title: "MODIFICATIONS NON ENREGISTRÉES", text: "ENREGISTRER LES MODIFICATIONS D'INF ?", buttons: [{ v: "drop", label: "ABANDONNER", tone: "danger" }, { v: "save", label: "ENREGISTRER", tone: "neutral" }] });
+          if (!v) return;
+          if (v === "save" && !save()) return;
+        }
+        p.remove();
       });
     };
 
