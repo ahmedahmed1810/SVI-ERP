@@ -11051,7 +11051,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           if (!Object.keys(L.prd).length) { svToast("UNE LIAISON DOIT AVOIR AU MOINS UN PRODUIT."); return false; }
           INS.links.push({ id: insId(), des: L.des, lot: L.lot, prim: L.prim, sec: L.sec, prd: ent(L.prd), chg: ent(L.chg) });
         }
-        L.prd = {}; L.chg = {};
+        /* v473 : après ✓ VALIDER, ronds et cases restent comme ils sont (à l'utilisateur de les libérer) */
       }
       if (lkDlyDirty()) {
         INS.dlp = INS.dlp || {};
@@ -11062,8 +11062,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         L.linksBak = null; L.unlinked = null;
       }
       L.dlpDraft = null; L.err = "";
-      /* après validation : seule la désignation reste choisie ; lot et activités repassent en « liés » (bleu) */
-      L.lot = L.prim = L.sec = null;
+      /* v473 : après validation, tous les choix (ronds) restent en place ; l'utilisateur les libère lui-même */
       insSave(); histLog("LIAISONS", "LIAISON VALIDÉE", lkName("des", L.des));
       refreshAll();
       return true;
