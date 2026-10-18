@@ -1847,3 +1847,11 @@ td.ins-tdv { position: relative; }
 #sdW .sd-more { margin-left: auto; width: 32px; height: 28px; border: 1px solid #d6dbe3; background: #fff; border-radius: 6px; font-size: 16px; font-weight: 900; cursor: pointer; }
 #sdW .sd-more + .sd-size { margin-left: 0; }
 #blkMenu[data-for="sd"] { z-index: 10090 !important; }
+/* v481 : SAISIE DIRECTE — unité de l'activité obligatoire ; fenêtre réduite en étiquette */
+#sdW td.sd-need { box-shadow: inset 0 0 0 2px #dc2626; background: #fef2f2; }
+#sdW.sd-min { inset: auto 16px 16px auto; background: none; display: block; }
+#sdW.sd-min .sd-card { display: none; }
+#sdW .sd-tag { display: none; }
+#sdW.sd-min .sd-tag { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 10px; background: #12355b; color: #fff; font-weight: 800; font-size: 12px; box-shadow: 0 8px 22px rgba(15,23,42,.3); cursor: pointer; border: 0; }
+#sdW .sd-mini { border: 1px solid #d6dbe3; background: #fff; border-radius: 6px; padding: 5px 10px; font-weight: 800; font-size: 11px; cursor: pointer; }
+#sdW .sd-size { margin-left: 0; }
