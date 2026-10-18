@@ -14847,8 +14847,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         d.innerHTML = `<div class="sd-card${big ? " big" : ""}" role="dialog" aria-modal="true" style="${!big && sz.w ? "width:" + sz.w + "px;height:" + sz.h + "px" : ""}">
           <div class="sd-head"><span class="sd-title">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"}</span>
             <span class="sd-n">${svCnt(V.filter(x => x.r._id).length, rows.filter(x => x._id).length)}</span>
-            ${selCol ? `<span class="sd-colbar">COLONNE « ${esc((COLS.find(c => c[0] === selCol) || [])[1] || "")} » : <button type="button" data-ca="copy">COPIER</button><button type="button" data-ca="paste">COLLER</button><button type="button" data-ca="clear">EFFACER</button></span>` : ""}
-            <button type="button" class="sd-more blk-more" aria-label="Menu">⋯</button><button type="button" class="sd-mini">RÉDUIRE</button><button type="button" class="sd-size">${big ? "FENÊTRE" : "PLEIN ÉCRAN"}</button><button type="button" class="svc-close sd-x" data-x aria-label="Fermer">✕</button></div>
+            ${selCol ? `<span class="sd-colbar">COLONNE « ${esc((COLS.find(c => c[0] === selCol) || [])[1] || "")} » SÉLECTIONNÉE : ⋯</span>` : ""}
+            <button type="button" class="sd-more blk-more" aria-label="Menu">⋯</button><button type="button" class="svc-close sd-x" data-x aria-label="Fermer">✕</button></div>
           <div class="sd-scroll"><table class="sd-t"><colgroup>${COLS.map(c => `<col data-c="${c[0]}" style="width:${W[c[0]] || c[2]}px">`).join("")}<col style="width:40px"></colgroup>
             <thead><tr>${COLS.map(c => cfHead(TK, c[0], c[1], (NUMF.has(c[0]) ? "number" : "") + (selCol === c[0] ? " sd-sel" : "")).replace("<th ", `<th data-c="${c[0]}" `)).join("")}<th class="sd-cbc"><input type="checkbox" class="sd-cball"${V.some(x => x.r._on) && V.filter(x => x.r._id || COLS.some(c => x.r[c[0]])).every(x => x.r._on) ? " checked" : ""}></th></tr></thead>
             <tbody>${V.map(({ r, i }) => `<tr class="${r._id ? (r._lid ? "sd-old sd-lk" : "sd-old") : "sd-new"}${r._del ? " sd-del" : ""}">${COLS.map(c => cell(r, i, c)).join("")}<td class="sd-cbc">${r._id || COLS.some(c => r[c[0]]) ? `<input type="checkbox" class="sd-cb" data-i="${i}"${r._on ? " checked" : ""}>` : ""}</td></tr>`).join("")}</tbody></table></div>
@@ -14952,7 +14952,16 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         const n = rows.filter(r => r._on).length;
         const m = document.createElement("div");
         m.id = "blkMenu"; m.dataset.for = "sd";
-        m.innerHTML = `<button type="button" data-sm="del" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}><span>SUPPRIMER LES LIGNES COCHÉES</span>${svCnt(n)}</button>
+        /* v485 (remarque 25) : un seul ⋯ — colonne, lignes, cases, taille de la fenêtre */
+        const cl = selCol ? esc((COLS.find(c => c[0] === selCol) || [])[1] || "") : "";
+        const dis = on => on ? "" : ` class="off" disabled`;
+        m.innerHTML = (selCol ? `<button type="button" data-sm="ccopy"><span>COPIER LA COLONNE « ${cl} »</span></button>
+          <button type="button" data-sm="cpaste"><span>COLLER DANS LA COLONNE « ${cl} »</span><small class="del-split">À PARTIR DE LA 1RE LIGNE AFFICHÉE ; LIGNES CRÉÉES EN BAS S'IL EN MANQUE</small></button>
+          <button type="button" data-sm="cclear"><span>EFFACER LA COLONNE « ${cl} »</span></button><div class="blk-sep"></div>` : "")
+          + `<button type="button" data-sm="rcopy"${dis(n)}><span>COPIER LES LIGNES COCHÉES</span>${svCnt(n)}</button>
+          <button type="button" data-sm="rcut"${dis(n)}><span>COUPER LES LIGNES COCHÉES</span>${svCnt(n)}</button>
+          <button type="button" data-sm="rpaste"><span>COLLER LES LIGNES</span><small class="del-split">AJOUTÉES EN BAS, COLONNE PAR COLONNE DANS L'ORDRE DU TABLEAU (EXCEL, GOOGLE SHEETS OU CETTE FENÊTRE)</small></button>
+          <div class="blk-sep"></div><button type="button" data-sm="del" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}><span>SUPPRIMER LES LIGNES COCHÉES</span>${svCnt(n)}</button>
           <button type="button" data-sm="all"><span>TOUT COCHER (LIGNES AFFICHÉES)</span></button>
           <button type="button" data-sm="none" class="${n ? "" : "off"}" ${n ? "" : "disabled"}><span>TOUT DÉCOCHER</span></button>
           <div class="blk-sep"></div><button type="button" data-sm="mini"><span>RÉDUIRE (ÉTIQUETTE EN BAS À DROITE)</span></button><button type="button" data-sm="size"><span>${big ? "FENÊTRE" : "PLEIN ÉCRAN"}</span></button>`;
@@ -14967,7 +14976,10 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           if (v === "all") { vis().forEach(x => { if (x.r._id || COLS.some(c => x.r[c[0]])) x.r._on = true; }); draw(); return; }
           if (v === "none") { rows.forEach(r => { r._on = false; }); draw(); return; }
           if (v === "size") { big = !big; sz.big = big; szSave(); draw(); return; }
-          if (v === "mini") { d.classList.add("sd-min"); return; }
+          if (v === "mini") { sugHide(); d.classList.add("sd-min"); return; }
+          if (v === "ccopy" || v === "cpaste" || v === "cclear") return colAct(v.slice(1));
+          if (v === "rcopy" || v === "rcut") return rowCopy(v === "rcut");
+          if (v === "rpaste") return rowPaste();
           if (v === "del") {
             const L = rows.filter(r => r._on), lk = L.filter(r => r._lid);
             if (!(await svConfirm({ title: "SUPPRIMER", text: (L.length - lk.length) + " LIGNE(S) SERONT SUPPRIMÉES À LA VALIDATION" + (lk.length ? " ; " + lk.length + " LIGNE(S) LIÉE(S) GARDÉE(S) (✕ DÉLIER D'ABORD)" : "") + ".", ok: "SUPPRIMER" }))) return;
@@ -14979,19 +14991,67 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       };
       d.addEventListener("click", e => { const b = e.target.closest(".sd-more"); if (b) { e.stopPropagation(); sdMenu(b); } }, true);
       /* sélection d'une colonne (FORMAT 61) : un toucher sur l'intitulé ; COPIER / COLLER / EFFACER sur les lignes affichées */
-      let clip = null;
+      let clip = null, clipTxt = "";
+      const readClip = async () => { try { return navigator.clipboard && navigator.clipboard.readText ? (await navigator.clipboard.readText()) || "" : ""; } catch (e) { return ""; } };
+      const nonEmpty = r => r._id || COLS.some(c => r[c[0]]);
+      const tailBlank = () => { if (!rows.length || nonEmpty(rows[rows.length - 1])) rows.push(blank()); };
+      /* v485 (remarque 24) : colonne — COPIER / COLLER (presse-papiers de l'iPad d'abord : Excel, Google Sheets) / EFFACER */
+      const colAct = async act => {
+        if (!selCol) return;
+        const editable = r => !(P && selCol === "u" && secU(r.sec, r)) && !(selCol === "su" && suFixed(r));
+        const V = vis().filter(x => !x.r._del && nonEmpty(x.r));
+        if (act === "copy") { clip = V.map(x => x.r[selCol] || ""); clipTxt = clip.join("\n"); try { navigator.clipboard && navigator.clipboard.writeText(clipTxt); } catch (err) {} svToast(clip.length + " VALEUR(S) COPIÉE(S).", 2000); return; }
+        if (act === "clear") { let n = 0; V.forEach(x => { if (!editable(x.r)) return; x.r[selCol] = ""; n++; }); dirty = dirty || n > 0; draw(); svToast(n + " CASE(S) EFFACÉE(S).", 2000); return; }
+        const t = await readClip();
+        let vals = t.trim() && t.trim() !== clipTxt.trim() ? t.replace(/\r/g, "").replace(/\n+$/, "").split("\n").map(l => l.split("\t")[0].trim()) : clip;
+        if (!vals || !vals.length) { svToast("RIEN À COLLER : COPIER D'ABORD UNE COLONNE.", 2500); return; }
+        let n = 0;
+        if (vals.length === 1) V.forEach(x => { if (!editable(x.r)) return; x.r[selCol] = vals[0]; n++; });
+        else {
+          vals.forEach((v, j) => {
+            let r = V[j] ? V[j].r : null;
+            if (!r) { rows = rows.filter(q => nonEmpty(q)); r = blank(); rows.push(r); }
+            if (!editable(r)) return;
+            r[selCol] = v; n++;
+          });
+          tailBlank();
+        }
+        dirty = dirty || n > 0; draw(); svToast(n + " CASE(S) COLLÉE(S).", 2000);
+      };
+      /* v485 (remarques 24 et 25) : lignes cochées — COPIER / COUPER ; COLLER LES LIGNES = ajoutées en bas, colonne par colonne */
+      const rowCopy = async cut => {
+        const L = rows.filter(r => r._on && !r._del);
+        if (!L.length) return;
+        clipTxt = L.map(r => COLS.map(c => String(r[c[0]] ?? "").replace(/[\t\n]/g, " ")).join("\t")).join("\n");
+        clip = null;
+        try { navigator.clipboard && navigator.clipboard.writeText(clipTxt); } catch (err) {}
+        if (!cut) { svToast(L.length + " LIGNE(S) COPIÉE(S).", 2000); return; }
+        const lk = L.filter(r => r._lid);
+        for (let n = rows.length - 1; n >= 0; n--) { const r = rows[n]; if (!r._on || r._lid) continue; if (r._id) { r._del = true; r._on = false; dirty = true; } else rows.splice(n, 1); }
+        tailBlank(); draw();
+        svToast((L.length - lk.length) + " LIGNE(S) COUPÉE(S) (SUPPRIMÉES À LA VALIDATION)" + (lk.length ? " ; " + lk.length + " LIGNE(S) LIÉE(S) COPIÉE(S) SEULEMENT (✕ DÉLIER D'ABORD)" : "") + ".", 4000);
+      };
+      const rowPaste = async () => {
+        let t = await readClip();
+        if (!t.trim()) t = clipTxt;
+        const lines = String(t || "").replace(/\r/g, "").split("\n").filter(l => l.trim() !== "").map(l => l.split("\t"));
+        if (!lines.length) { svToast("RIEN À COLLER : COPIER D'ABORD DES LIGNES.", 2500); return; }
+        const labs = COLS.map(c => U_(c[1]));
+        if (lines[0].filter(v => U_(v) && labs.includes(U_(v))).length >= 2) lines.shift();
+        rows = rows.filter(q => nonEmpty(q));
+        let n = 0, extra = 0;
+        lines.forEach(cells => {
+          const r = blank();
+          COLS.forEach((c, i) => { const v = String(cells[i] ?? "").trim(); if (v !== "") r[c[0]] = v; });
+          if (cells.length > COLS.length) extra++;
+          if (COLS.some(c => r[c[0]])) { rows.push(r); n++; }
+        });
+        tailBlank(); dirty = dirty || n > 0; draw();
+        svToast(n + " LIGNE(S) AJOUTÉE(S) EN BAS" + (extra ? " ; COLONNES EN TROP IGNORÉES" : "") + ". VALIDER POUR LES ENREGISTRER.", 3500);
+      };
       d.addEventListener("click", e => {
         const cfb = e.target.closest(".cf-btn");
         if (cfb) { e.stopPropagation(); cfOpenMenu(cfb); return; }
-        const ca = e.target.closest("[data-ca]");
-        if (ca && selCol) {
-          e.stopPropagation();
-          const V = vis().filter(x => x.r._id || COLS.some(c => x.r[c[0]]));
-          const editable = r => !(P && selCol === "u" && secU(r.sec, r));
-          if (ca.dataset.ca === "copy") { clip = V.map(x => x.r[selCol] || ""); try { navigator.clipboard && navigator.clipboard.writeText(clip.join("\n")); } catch (err) {} svToast(clip.length + " VALEUR(S) COPIÉE(S).", 2000, ca); return; }
-          if (ca.dataset.ca === "paste") { if (!clip || !clip.length) { svToast("RIEN À COLLER : COPIER D'ABORD UNE COLONNE.", 2500, ca); return; } let n = 0; V.forEach((x, j) => { if (!editable(x.r)) return; x.r[selCol] = clip.length === 1 ? clip[0] : (clip[j] ?? x.r[selCol]); n++; }); dirty = dirty || n > 0; draw(); svToast(n + " CASE(S) COLLÉE(S).", 2000); return; }
-          if (ca.dataset.ca === "clear") { let n = 0; V.forEach(x => { if (!editable(x.r)) return; x.r[selCol] = ""; n++; }); dirty = dirty || n > 0; draw(); svToast(n + " CASE(S) EFFACÉE(S).", 2000); return; }
-        }
         const th = e.target.closest(".sd-t thead th");
         if (th && !e.target.closest(".col-rs")) { const c = th.dataset.c; selCol = selCol === c ? "" : c; draw(); return; }
       }, true);
@@ -17678,7 +17738,9 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       return out;
     };
     const clipCount = (blk, act) => {
-      if (act === "paste") { const c = clipGet(); return c ? clipKinds(blk).reduce((t, k) => t + ((c.items || {})[k] || []).length, 0) : 0; }
+      if (act === "paste") { const c = clipGet(); const n = c ? clipKinds(blk).reduce((t, k) => t + ((c.items || {})[k] || []).length, 0) : 0;
+        /* v485 (remarque 24) : lignes copiées dans Excel / Google Sheets → COLLER toujours proposé (presse-papiers lu au toucher) */
+        return n || (clipKinds(blk).length && navigator.clipboard && navigator.clipboard.readText ? -1 : 0); }
       const p = clipPick(blk, act === "cut");
       return Object.values(p).reduce((t, a) => t + a.length, 0);
     };
@@ -17700,7 +17762,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         } else { tsv.push({ lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" }[k] || k.toUpperCase()); p[k].forEach(r => tsv.push(r.v || "")); }
         tsv.push("");
       });
-      clipSet({ items, cut: cut ? { ref, ids: Object.fromEntries(Object.keys(p).map(k => [k, p[k].map(r => r.id)])) } : null, from: fullRef });
+      clipSet({ items, tsv: tsv.join("\n").trim(), cut: cut ? { ref, ids: Object.fromEntries(Object.keys(p).map(k => [k, p[k].map(r => r.id)])) } : null, from: fullRef });
       try { navigator.clipboard && navigator.clipboard.writeText(tsv.join("\n").trim()).catch(() => {}); } catch (e) {}
       histLog("SAISIE", cut ? "COUPER" : "COPIER", Object.values(p).reduce((t, a) => t + a.length, 0) + " LIGNE(S)");
       insMarkCut();
@@ -17711,9 +17773,55 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       shell.querySelectorAll(".ins-table tr[data-iid], .ins-hcol .ins-li[data-iid]").forEach(el => el.classList.toggle("ins-cut", ids.has(el.dataset.iid)));
     };
     shell.__markCut = insMarkCut;
-    const clipPaste = blk => {
-      const X = shell.__ins, c = clipGet();
-      if (!X || !c) return;
+    /* v485 (remarque 24) : COLLER des lignes venues d'Excel / Google Sheets : ajoutées en bas, colonne par colonne
+       dans l'ordre de l'écran ; colonnes en trop ignorées (jamais de colonne créée) ; ligne d'en-tête sautée */
+    const clipPasteText = (blk, txt) => {
+      const X = shell.__ins; if (!X) return false;
+      const ks = clipKinds(blk);
+      const k = blk === "detail" ? active : ks.find(x => x === "des") || ks.find(x => shell.querySelector(`.ins-hcol[data-ik="${x}"] .ins-li.on, .ins-hcol[data-ik="${x}"]:focus-within`)) || ks[0];
+      if (!k || !X.INS[k]) return false;
+      const lines = String(txt).replace(/\r/g, "").split("\n").filter(l => l.trim() !== "").map(l => l.split("\t"));
+      if (!lines.length) return false;
+      let CO;
+      if (INS_COLS[k]) {
+        const tbl = shell.querySelector(`.ins-table[data-ik="${k}"]`);
+        const keys = tbl ? [...tbl.querySelectorAll("thead tr:first-child > th .cf-btn[data-col]")].map(b => b.dataset.col) : [];
+        CO = keys.length ? keys.map(x => INS_COLS[k].find(c => c[4] === x)).filter(Boolean) : INS_COLS[k];
+      } else CO = [["v", "INTITULÉ", "", "txt"]];
+      const labs = CO.map(c => U_(c[1]));
+      if (lines[0].some((v, i) => U_(v) && U_(v) === labs[i])) lines.shift();
+      const ent = INS_ENTRY[k] || ["v"];
+      const bad = [];
+      const fresh = [];
+      lines.forEach((cells, n) => {
+        const x = { id: insId(), on: false };
+        if (k === "des") x.d = 0;
+        CO.forEach((c, i) => {
+          if (!ent.includes(c[0])) return;
+          const v = String(cells[i] ?? "").trim();
+          if (v === "") return;
+          if (c[3] === "txt") x[c[0]] = sviClean(v).toUpperCase();
+          else if (sviNumOk(v)) x[c[0]] = insNum(v);
+          else bad.push("LIGNE " + (n + 1) + " : « " + v + " » N'EST PAS UN NOMBRE (" + c[1] + ")");
+        });
+        if (ent.some(f => String(x[f] ?? "") !== "")) fresh.push(x);
+      });
+      if (!fresh.length) { svToast("RIEN À COLLER.", 2500); return true; }
+      X.INS[k].push(...fresh);
+      insNorm(); X.cleanLinks(); X.insSave();
+      histLog("SAISIE", "COLLER LES LIGNES", fresh.length + " LIGNE(S) — PRESSE-PAPIERS");
+      refreshAll();
+      if (bad.length) sviAlert([fresh.length + " LIGNE(S) AJOUTÉE(S) EN BAS.", "CASES REFUSÉES :", ...bad.map(b => "— " + b)].join("\n"), "COLLER LES LIGNES");
+      else svToast(fresh.length + " LIGNE(S) AJOUTÉE(S) EN BAS.", 2500);
+      return true;
+    };
+    const clipPaste = async blk => {
+      const X = shell.__ins; let c = clipGet();
+      if (!X) return;
+      let txt = "";
+      try { if (navigator.clipboard && navigator.clipboard.readText) txt = await navigator.clipboard.readText(); } catch (e) { txt = ""; }
+      if (txt && txt.trim() && (!c || !c.tsv || c.tsv !== txt.trim())) { if (clipPasteText(blk, txt)) return; }
+      if (!c) { svToast("RIEN À COLLER : COPIER D'ABORD DES LIGNES.", 3000); return; }
       let n = 0;
       clipKinds(blk).forEach(k => {
         const rows = (c.items || {})[k] || [];
