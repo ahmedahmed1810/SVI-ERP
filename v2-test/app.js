@@ -14700,8 +14700,13 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           : [["art", "ARTICLE", 80], ["des", "DÉSIGNATION CHARGE", 200], ["u", "UNITÉ", 54], ["q", "QTE", 70]]);
       const NUMF = new Set(["nbr", "d1", "d2", "d3", "q"]);
       const fmtN = v => v === "" || v === undefined || v === null ? "" : String(v).replace(".", ",");
-      const rows = [];
-      const recs = INS[kind] || [];
+      let rows = [];
+      let recs = INS[kind] || [];
+      const blank = () => ({ dc: "", upb: "", lot: "", prim: "", sec: "", art: "", des: "", u: "", nbr: "", d1: "", d2: "", d3: "", q: "" });
+      /* v480 (remarques 14 et 16) : lignes relues depuis le budget (à l'ouverture et après chaque VALIDER) */
+      let dirty = false;
+      const loadRows = () => {
+      rows = []; recs = INS[kind] || [];
       const seen = new Set();
       (INS.links || []).forEach(l => (l[kind] || []).forEach(x => {
         const r = recs.find(q => q.id === x.id); if (!r) return; seen.add(r.id);
@@ -14710,9 +14715,13 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q) });
       }));
       recs.filter(r => !r.t && !seen.has(r.id)).forEach(r => rows.push({ _id: r.id, dc: "", upb: "", lot: "", prim: "", sec: "", art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q) }));
-      rows.forEach(r => { r._o = JSON.stringify(COLS.map(c => r[c[0]])); });
-      const blank = () => ({ dc: "", upb: "", lot: "", prim: "", sec: "", art: "", des: "", u: "", nbr: "", d1: "", d2: "", d3: "", q: "" });
+      rows.forEach(r => { r._o = JSON.stringify(COLS.map(c => r[c[0]])); r._l = l0(r); });
       rows.push(blank());
+      dirty = false;
+      };
+      /* ancienne chaîne d'une ligne liée (pour la délier si elle change) */
+      const l0 = r => { if (!r._lid) return null; return (INS.links || []).find((l, n) => (l.id || "L" + n) === r._lid) || null; };
+      loadRows();
       const TK = "sd_" + kind;
       const lists = {
         dc: [...new Set(INS.des.filter(x => !x.t).map(x => x.des))], upb: [...new Set(INS.des.map(x => U_(x.u)).filter(Boolean))],
@@ -14745,7 +14754,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         const f = c[0];
         curRow = r;
         const lockU = P && f === "u" && (!!secU(r.sec, r) || (r._lid && !!r.u));
-        const lockChain = r._lid && ["dc", "upb", "lot", "prim", "sec"].includes(f);
+        const lockChain = false;   /* v480 (remarque 15) : en instance, la chaîne d'une ligne liée se change ici aussi */
         const ro = lockU || lockChain;
         return `<td class="${NUMF.has(f) ? "number" : ""}${ro ? " sd-ro" : ""}${selCol === f ? " sd-sel" : ""}"><input class="sd-in" data-i="${i}" data-f="${f}" value="${esc(lockU && secU(r.sec, r) ? secU(r.sec, r) : r[f] || "")}"${ro ? " readonly tabindex=\"-1\"" : ""}${NUMF.has(f) ? ' inputmode="decimal"' : ""} autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"></td>`;
       };
@@ -14763,8 +14772,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           <div class="sd-scroll"><table class="sd-t"><colgroup>${COLS.map(c => `<col data-c="${c[0]}" style="width:${W[c[0]] || c[2]}px">`).join("")}<col style="width:40px"></colgroup>
             <thead><tr>${COLS.map(c => cfHead(TK, c[0], c[1], (NUMF.has(c[0]) ? "number" : "") + (selCol === c[0] ? " sd-sel" : "")).replace("<th ", `<th data-c="${c[0]}" `)).join("")}<th class="sd-cbc"><input type="checkbox" class="sd-cball"${V.some(x => x.r._on) && V.filter(x => x.r._id || COLS.some(c => x.r[c[0]])).every(x => x.r._on) ? " checked" : ""}></th></tr></thead>
             <tbody>${V.map(({ r, i }) => `<tr class="${r._id ? (r._lid ? "sd-old sd-lk" : "sd-old") : "sd-new"}${r._del ? " sd-del" : ""}">${COLS.map(c => cell(r, i, c)).join("")}<td class="sd-cbc">${r._id || COLS.some(c => r[c[0]]) ? `<input type="checkbox" class="sd-cb" data-i="${i}"${r._on ? " checked" : ""}>` : ""}</td></tr>`).join("")}</tbody></table></div>
-          <div class="sd-foot"><small>LIGNES GRISÉES : LIÉES (CHAÎNE MODIFIABLE APRÈS ✕ DÉLIER). ENTRÉE SUR LA DERNIÈRE CASE = LIGNE RECOPIÉE.</small><span style="flex:1"></span>
-            <button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral sd-ok">VALIDER</button></div>
+          <div class="sd-foot"><small>CHAÎNE CHANGÉE SUR UNE LIGNE LIÉE : DÉLIÉE PUIS LIÉE À LA NOUVELLE CHAÎNE À LA VALIDATION. ENTRÉE SUR LA DERNIÈRE CASE = LIGNE RECOPIÉE.</small><span style="flex:1"></span>
+            <button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral sd-ok"${dirty ? "" : " disabled"}>VALIDER</button></div>
           ${big ? "" : '<div class="sd-rsz" title="Largeur et hauteur"></div>'}</div>`;
         const tb = d.querySelector(".sd-t");
         if (tb) tb.style.width = COLS.reduce((t, c) => t + (W[c[0]] || c[2]), 0) + 40 + "px";
@@ -14820,6 +14829,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       d.addEventListener("input", e => {
         const inp = e.target.closest(".sd-in"); if (!inp) return;
         const r = rows[+inp.dataset.i], f = inp.dataset.f;
+        if (!dirty) { dirty = true; const ok = d.querySelector(".sd-ok"); if (ok) ok.disabled = false; }
         r[f] = NUMF.has(f) ? inp.value : inp.value.toUpperCase();
         if (!NUMF.has(f)) { const p0 = inp.selectionStart; inp.value = r[f]; try { inp.setSelectionRange(p0, p0); } catch (err) {} }
         if (["sec", "prim", "upb"].includes(f) && P) { const u = secU(r.sec, r), ui = inp.closest("tr").querySelector('.sd-in[data-f="u"]'); if (ui) { if (u) { r.u = u; ui.value = u; ui.readOnly = true; ui.closest("td").classList.add("sd-ro"); } else { ui.readOnly = false; ui.closest("td").classList.remove("sd-ro"); } } }
@@ -14874,7 +14884,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           if (v === "del") {
             const L = rows.filter(r => r._on), lk = L.filter(r => r._lid);
             if (!(await svConfirm({ title: "SUPPRIMER", text: (L.length - lk.length) + " LIGNE(S) SERONT SUPPRIMÉES À LA VALIDATION" + (lk.length ? " ; " + lk.length + " LIGNE(S) LIÉE(S) GARDÉE(S) (✕ DÉLIER D'ABORD)" : "") + ".", ok: "SUPPRIMER" }))) return;
-            for (let n = rows.length - 1; n >= 0; n--) { const r = rows[n]; if (!r._on || r._lid) continue; if (r._id) { r._del = true; r._on = false; } else rows.splice(n, 1); }
+            for (let n = rows.length - 1; n >= 0; n--) { const r = rows[n]; if (!r._on || r._lid) continue; if (r._id) { r._del = true; r._on = false; dirty = true; } else rows.splice(n, 1); }
             if (!rows.length || rows[rows.length - 1]._id || COLS.some(c => rows[rows.length - 1][c[0]])) rows.push(blank());
             draw();
           }
@@ -14890,10 +14900,10 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         if (ca && selCol) {
           e.stopPropagation();
           const V = vis().filter(x => x.r._id || COLS.some(c => x.r[c[0]]));
-          const editable = r => !(r._lid && ["dc", "upb", "lot", "prim", "sec"].includes(selCol)) && !(P && selCol === "u" && secU(r.sec, r));
+          const editable = r => !(P && selCol === "u" && secU(r.sec, r));
           if (ca.dataset.ca === "copy") { clip = V.map(x => x.r[selCol] || ""); try { navigator.clipboard && navigator.clipboard.writeText(clip.join("\n")); } catch (err) {} svToast(clip.length + " VALEUR(S) COPIÉE(S).", 2000, ca); return; }
-          if (ca.dataset.ca === "paste") { if (!clip || !clip.length) { svToast("RIEN À COLLER : COPIER D'ABORD UNE COLONNE.", 2500, ca); return; } let n = 0; V.forEach((x, j) => { if (!editable(x.r)) return; x.r[selCol] = clip.length === 1 ? clip[0] : (clip[j] ?? x.r[selCol]); n++; }); draw(); svToast(n + " CASE(S) COLLÉE(S).", 2000); return; }
-          if (ca.dataset.ca === "clear") { let n = 0; V.forEach(x => { if (!editable(x.r)) return; x.r[selCol] = ""; n++; }); draw(); svToast(n + " CASE(S) EFFACÉE(S).", 2000); return; }
+          if (ca.dataset.ca === "paste") { if (!clip || !clip.length) { svToast("RIEN À COLLER : COPIER D'ABORD UNE COLONNE.", 2500, ca); return; } let n = 0; V.forEach((x, j) => { if (!editable(x.r)) return; x.r[selCol] = clip.length === 1 ? clip[0] : (clip[j] ?? x.r[selCol]); n++; }); dirty = dirty || n > 0; draw(); svToast(n + " CASE(S) COLLÉE(S).", 2000); return; }
+          if (ca.dataset.ca === "clear") { let n = 0; V.forEach(x => { if (!editable(x.r)) return; x.r[selCol] = ""; n++; }); dirty = dirty || n > 0; draw(); svToast(n + " CASE(S) EFFACÉE(S).", 2000); return; }
         }
         const th = e.target.closest(".sd-t thead th");
         if (th && !e.target.closest(".col-rs")) { const c = th.dataset.c; selCol = selCol === c ? "" : c; draw(); return; }
@@ -14907,8 +14917,11 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         if (delIds.size) { INS[kind] = INS[kind].filter(x => !delIds.has(x.id)); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE — SUPPRESSION", delIds.size + " LIGNE(S)"); insSave(); }
         /* 1. lignes existantes modifiées */
         let upd = 0; const refused = [];
+        if (!dirty || e.target.closest(".sd-ok").disabled) return;
+        const moved = [];
         rows.filter(r => r._id && !r._del && JSON.stringify(COLS.map(c => r[c[0]])) !== r._o).forEach(r => {
-          if (linkedChanged(r)) { refused.push(r.des); return; }
+          /* v480 (remarque 15) : chaîne changée sur une ligne liée → déliée de l'ancienne, réimportée sur la nouvelle */
+          if (linkedChanged(r)) { moved.push(r); return; }
           const x = recs.find(q => q.id === r._id); if (!x) return;
           x.des = U_(sviClean(r.des)); if (!r._lid) x.u = U_(r.u);
           if (P) ["nbr", "d1", "d2", "d3"].forEach(f => { x[f] = r[f] === "" ? "" : insNum(r[f]); });
@@ -14917,21 +14930,32 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         });
         /* 2. lignes nouvelles (et lignes non liées dont la chaîne est remplie) : importées avec les règles de l'import */
         const H = ["PROJET", "DÉSIGNATION CLIENT", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE", "TYPE (PRD / CHG)", "ARTICLE", "DÉSIGNATION PRODUIT / CHARGE", "UNITÉ", "NBR", "DIM 1", "DIM 2", "DIM 3", "QTE"];
-        const neu = rows.filter(r => (!r._id && COLS.some(c => r[c[0]])) || (r._id && !r._lid && r.dc && r.lot && r.prim && r.sec));
+        moved.forEach(r => {
+          const l = r._l;
+          if (l) { l[kind] = (l[kind] || []).filter(x => x.id !== r._id); if (!(l.prd || []).length) INS.links = (INS.links || []).filter(q => q !== l); }
+          histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE — CHAÎNE CHANGÉE", r.des + " → " + [r.dc, r.lot, r.prim, r.sec].join(" › "));
+        });
+        const neu = rows.filter(r => !r._del && ((!r._id && COLS.some(c => r[c[0]])) || (r._id && !r._lid && r.dc && r.lot && r.prim && r.sec) || moved.includes(r)));
         const aoa = [H].concat(neu.map(r => [budget.project || "", r.dc, r.upb, r.lot, r.prim, r.sec, P ? "PRD" : "CHG", r.art || "", r.des, P ? (secU(r.sec, r) || r.u) : r.u, r.nbr, r.d1, r.d2, r.d3, r.q]));
         if (upd) { insSave(); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE", upd + " LIGNE(S) MODIFIÉE(S)"); }
         if (neu.length) {
           let m; try { m = bfModel(aoa); } catch (err) { svToast("SAISIE DIRECTE : " + (err.message || err), 4000); return; }
           const plan = bfRuleA(m, "add"); if (!(await bfRuleAAsk(plan))) return; plan.ok = true;
           /* lignes non liées devenues complètes : l'ancienne ligne seule est remplacée par la ligne importée */
+          const inc0 = (INS.inc || []).length;
           const gone = new Set(neu.filter(r => r._id).map(r => r._id));
           if (gone.size) INS[kind] = INS[kind].filter(x => !gone.has(x.id));
           bfApply(m, "add", "SAISIE DIRECTE", false, plan);
+          const nInc = (INS.inc || []).length - inc0;
+          if (nInc > 0) setTimeout(() => svToast(nInc + " LIGNE(S) EN ERREUR : VOIR L'ONGLET IMPORT NON CRÉÉ.", 5000), 300);
         }
-        d.remove();
-        if (refused.length) svToast("LIGNE(S) LIÉE(S) : CHAÎNE NON CHANGÉE (✕ DÉLIER D'ABORD) — " + refused.slice(0, 3).join(", "), 5000);
+        void refused;
         if (actUnitSync()) insSave();
+        insSave();
         refreshAll();
+        /* v480 (remarque 14) : la saisie directe reste ouverte, relue depuis le budget ; VALIDER grisé jusqu'à la prochaine modification */
+        if (!d.isConnected) document.body.appendChild(d);
+        loadRows(); draw(); svToast("VALIDÉ.", 1500);
       });
       setTimeout(() => { const last = rows.length - 1; focusAt(last, "dc"); }, 60);
     };
