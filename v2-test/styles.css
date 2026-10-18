@@ -1782,3 +1782,9 @@ td.ins-tdv { position: relative; }
 /* v469 : une seule case encadrée à la fois — pendant la saisie dans une ligne, seul le cadre de la case en cours se voit ;
    la case fautive de cette ligne reprend son cadre dès qu'on quitte la ligne */
 .ins-table tr:focus-within td.ins-bad { box-shadow: none !important; background: transparent !important; }
+/* v472 : unité des activités (bloc TÂCHES) */
+.ins-hcol .act-uh { flex: none; width: 46px; text-align: center; font-size: 11px; font-weight: 800; color: #475467; margin-left: auto; }
+.ins-hcol .ins-li .act-u { flex: none; width: 46px; padding: 0 !important; display: inline-flex; }
+.ins-hcol .ins-li .act-u .act-uin { width: 100%; text-align: center; flex: 1; }
+.ins-hcol .ins-li .act-uro { justify-content: center; color: #6b7280; font-weight: 700; font-size: 12px; background: #f3f4f6; border-radius: 4px; min-height: 18px; align-items: center; }
+.ins-hcol .ins-li .act-u.act-umiss { box-shadow: inset 0 0 0 2px #dc2626; border-radius: 3px; background: #fef2f2; }
