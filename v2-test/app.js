@@ -6387,12 +6387,26 @@ function renderBudgetList() {
       if (!rows.length && !INS_EDIT) html += `<tr><td colspan="${ncol}" class="empty">AUCUNE LIGNE</td></tr>`;
       return html;
     };
+    const insRoundSet = k => {
+      if (!INS_EDIT || !LK || !["des", "prd", "chg"].includes(k)) return null;
+      const any = ["des", "lot", "prim", "sec"].some(x => LK[x]) || Object.keys(LK.prd || {}).length || Object.keys(LK.chg || {}).length;
+      if (!any) return null;
+      const H = lkHits() || {}, S = new Set(H[k] || []);
+      if (k === "des" && LK.des) S.add(LK.des);
+      if ((k === "prd" || k === "chg") && LK[k]) Object.keys(LK[k]).forEach(id => S.add(id));
+      return S;
+    };
     const insFootHTML = k => {
       if (k === "qlt") return "";
       /* FORMAT 126 : lignes affichées, ou seulement les cases carrées cochées ; « TOTAL PARTIEL » si une partie seulement */
-      const shown = insShown(k).filter(r => !r.t), on = shown.filter(r => r.on === true);
+      /* v478 (remarque 10) : trois filtres combinés — filtres de colonne (lignes affichées), ronds (lignes choisies ou liées
+         à ce qui est choisi), cases cochées ; « TOTAL PARTIEL » dès que l'un d'eux agit */
+      let shown = insShown(k).filter(r => !r.t);
+      const rs = insRoundSet(k);
+      if (rs) shown = shown.filter(r => rs.has(r.id));
+      const on = shown.filter(r => r.on === true);
       const rows = on.length ? on : shown;
-      const partial = on.length > 0 || shown.length < INS[k].filter(r => !r.t).length;
+      const partial = !!rs || on.length > 0 || shown.length < INS[k].filter(r => !r.t).length;
       const ht = rows.reduce((t, r) => t + insHT(k, r), 0);
       const ttc = rows.reduce((t, r) => t + insTTC(k, r), 0);
       /* pied aligné sur l'ordre des colonnes de l'écran */
@@ -6819,6 +6833,8 @@ function renderBudgetList() {
       if (k === "lot" || k === "prim" || k === "sec" || k === "qlt") return U_(r.v);
       if (!U_(r.des)) return "";
       /* FORMAT 117 : un même produit dans des tâches différentes n'est pas un doublon */
+      /* v478 (remarque 7) : une charge est propre à sa tâche secondaire — même charge dans deux tâches différentes ≠ doublon */
+      if (k === "chg") { const T = [...new Set((INS.links || []).filter(l => (l.chg || []).some(x => x.id === r.id)).map(l => l.lot + "|" + l.sec))].sort().join(","); return impId(k, r) + "#" + T; }
       return k === "prd" ? impId(k, r) + "#" + prdChainKey(r.id) : impId(k, r);
     };
     const dupName = (k, r) => (k === "lot" || k === "prim" || k === "sec" || k === "qlt") ? U_(r.v) : [r.art, r.des].filter(Boolean).join(" — ") + (r.u ? " (" + U_(r.u) + ")" : "");
@@ -7900,7 +7916,9 @@ function renderBudgetList() {
         const f = inp.dataset.f;
         const c = (X.insRowHTML && ["des", "chg", "prd"].includes(k)) ? true : false;
         let r = holder.dataset.iid ? X.INS[k].find(x => x.id === holder.dataset.iid) : null;
+        let created = false;
         if (!r) {
+          created = true;
           /* première frappe dans la ligne vide : la ligne est créée */
           r = { id: X.insId(), on: false };   /* nouvelle ligne : décochée par défaut */
           if (k === "des") {
@@ -7942,6 +7960,19 @@ function renderBudgetList() {
         r[f] = isNum ? inp.value.trim() : (inp.dataset.pre || "") + inp.value.toUpperCase();
         if (isNum) r[f] = r[f] === "" ? "" : X.insNum(r[f]);
         if (c) X.insLive(k, holder, r);
+        /* v478 (remarque 8) : ligne créée dès la 1re lettre avec tout son équipement (rond, case à cocher, cases grises) ;
+           la case en cours de saisie n'est pas touchée (le clavier reste) */
+        if (created && c && X.insRowHTML && holder.tagName === "TR") {
+          try {
+            const tmp = document.createElement("tbody");
+            tmp.innerHTML = X.insRowHTML(k, r, Number(r.d) || 0);
+            const nt = tmp.firstElementChild;
+            if (nt && nt.children.length === holder.children.length) {
+              [...nt.children].forEach((td, j) => { const old = holder.children[j]; if (!old.contains(document.activeElement)) old.replaceWith(td); });
+              holder.className = nt.className; [...nt.attributes].forEach(a => { if (a.name.startsWith("data-")) holder.setAttribute(a.name, a.value); });
+            }
+          } catch (err) {}
+        }
         X.insSave();
         /* v470 : UPB / PPB / TVA d'une désignation tapés → produits de ses liaisons primaires (DÉTAIL PRODUITS) à jour à la frappe */
         /* v472 : activité secondaire — unité obligatoire dès l'intitulé (cadre à jour à la frappe) ; unité changée → produits liés à jour */
@@ -10941,9 +10972,7 @@ function renderBudgetList() {
             if (multi) { if (L[k][id] !== undefined) delete L[k][id]; else L[k][id] = ""; }
             else {
               L[k] = L[k] === id ? null : id;      /* 2e toucher : le choix est libéré */
-              if (k === "des" && !L.des) { L.lot = L.prim = L.sec = null; L.prd = {}; L.chg = {}; }
-              if (k === "lot" && !L.lot) { L.prim = L.sec = null; }
-              if (k === "prim" && !L.prim) { L.sec = null; }
+              /* v478 (remarque 9) : libérer un rond laisse les autres ronds de la chaîne en place */
             }
             L.err = "";
             X.light(k);
@@ -14692,7 +14721,10 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         art: P ? [] : [...new Set(((typeof db !== "undefined" && db.chs) || []).map(c => c.article).filter(Boolean))],
         u: [...new Set(INS.sec.map(x => U_(x.u)).concat(recs.map(x => U_(x.u))).filter(Boolean))]
       };
-      const secU = v => { const se = INS.sec.find(x => U_(x.v) === U_(v)); return U_(se && se.u); };
+      const secU0 = v => { const se = INS.sec.find(x => U_(x.v) === U_(v)); return U_(se && se.u); };
+      /* v479 (remarque 13) : ligne de tâche primaire (activité primaire = activité secondaire) : unité = UPB de la désignation, grisée */
+      let curRow = null;
+      const secU = (v, r) => { const rr = r || curRow; if (rr && U_(rr.prim) && U_(rr.prim) === U_(rr.sec) && U_(rr.upb)) return U_(rr.upb); return secU0(v); };
       const linkedChanged = r => r._lid && ["dc", "lot", "prim", "sec"].some(f => U_(r[f]) !== U_((JSON.parse(r._o))[COLS.findIndex(c => c[0] === f)]));
       const d = document.createElement("div");
       d.id = "sdW";
@@ -14711,10 +14743,11 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       };
       const cell = (r, i, c) => {
         const f = c[0];
-        const lockU = P && f === "u" && (!!secU(r.sec) || (r._lid && !!r.u));
+        curRow = r;
+        const lockU = P && f === "u" && (!!secU(r.sec, r) || (r._lid && !!r.u));
         const lockChain = r._lid && ["dc", "upb", "lot", "prim", "sec"].includes(f);
         const ro = lockU || lockChain;
-        return `<td class="${NUMF.has(f) ? "number" : ""}${ro ? " sd-ro" : ""}${selCol === f ? " sd-sel" : ""}"><input class="sd-in" data-i="${i}" data-f="${f}" value="${esc(lockU && secU(r.sec) ? secU(r.sec) : r[f] || "")}"${ro ? " readonly tabindex=\"-1\"" : ""}${NUMF.has(f) ? ' inputmode="decimal"' : ""} autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"></td>`;
+        return `<td class="${NUMF.has(f) ? "number" : ""}${ro ? " sd-ro" : ""}${selCol === f ? " sd-sel" : ""}"><input class="sd-in" data-i="${i}" data-f="${f}" value="${esc(lockU && secU(r.sec, r) ? secU(r.sec, r) : r[f] || "")}"${ro ? " readonly tabindex=\"-1\"" : ""}${NUMF.has(f) ? ' inputmode="decimal"' : ""} autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"></td>`;
       };
       const draw = () => {
         if (!d.isConnected) { window.__sviSdRefresh = null; return; }
@@ -14726,15 +14759,15 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           <div class="sd-head"><span class="sd-title">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"}</span>
             <span class="sd-n">${svCnt(V.filter(x => x.r._id).length, rows.filter(x => x._id).length)}</span>
             ${selCol ? `<span class="sd-colbar">COLONNE « ${esc((COLS.find(c => c[0] === selCol) || [])[1] || "")} » : <button type="button" data-ca="copy">COPIER</button><button type="button" data-ca="paste">COLLER</button><button type="button" data-ca="clear">EFFACER</button></span>` : ""}
-            <button type="button" class="sd-size">${big ? "RÉDUIRE" : "AGRANDIR"}</button><button type="button" class="svc-close sd-x" data-x aria-label="Fermer">✕</button></div>
-          <div class="sd-scroll"><table class="sd-t"><colgroup>${COLS.map(c => `<col data-c="${c[0]}" style="width:${W[c[0]] || c[2]}px">`).join("")}</colgroup>
-            <thead><tr>${COLS.map(c => cfHead(TK, c[0], c[1], (NUMF.has(c[0]) ? "number" : "") + (selCol === c[0] ? " sd-sel" : "")).replace("<th ", `<th data-c="${c[0]}" `)).join("")}</tr></thead>
-            <tbody>${V.map(({ r, i }) => `<tr class="${r._id ? (r._lid ? "sd-old sd-lk" : "sd-old") : "sd-new"}">${COLS.map(c => cell(r, i, c)).join("")}</tr>`).join("")}</tbody></table></div>
+            <button type="button" class="sd-more blk-more" aria-label="Menu">⋯</button><button type="button" class="sd-size">${big ? "RÉDUIRE" : "AGRANDIR"}</button><button type="button" class="svc-close sd-x" data-x aria-label="Fermer">✕</button></div>
+          <div class="sd-scroll"><table class="sd-t"><colgroup>${COLS.map(c => `<col data-c="${c[0]}" style="width:${W[c[0]] || c[2]}px">`).join("")}<col style="width:40px"></colgroup>
+            <thead><tr>${COLS.map(c => cfHead(TK, c[0], c[1], (NUMF.has(c[0]) ? "number" : "") + (selCol === c[0] ? " sd-sel" : "")).replace("<th ", `<th data-c="${c[0]}" `)).join("")}<th class="sd-cbc"><input type="checkbox" class="sd-cball"${V.some(x => x.r._on) && V.filter(x => x.r._id || COLS.some(c => x.r[c[0]])).every(x => x.r._on) ? " checked" : ""}></th></tr></thead>
+            <tbody>${V.map(({ r, i }) => `<tr class="${r._id ? (r._lid ? "sd-old sd-lk" : "sd-old") : "sd-new"}${r._del ? " sd-del" : ""}">${COLS.map(c => cell(r, i, c)).join("")}<td class="sd-cbc">${r._id || COLS.some(c => r[c[0]]) ? `<input type="checkbox" class="sd-cb" data-i="${i}"${r._on ? " checked" : ""}>` : ""}</td></tr>`).join("")}</tbody></table></div>
           <div class="sd-foot"><small>LIGNES GRISÉES : LIÉES (CHAÎNE MODIFIABLE APRÈS ✕ DÉLIER). ENTRÉE SUR LA DERNIÈRE CASE = LIGNE RECOPIÉE.</small><span style="flex:1"></span>
             <button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral sd-ok">VALIDER</button></div>
           ${big ? "" : '<div class="sd-rsz" title="Largeur et hauteur"></div>'}</div>`;
         const tb = d.querySelector(".sd-t");
-        if (tb) tb.style.width = COLS.reduce((t, c) => t + (W[c[0]] || c[2]), 0) + "px";
+        if (tb) tb.style.width = COLS.reduce((t, c) => t + (W[c[0]] || c[2]), 0) + 40 + "px";
         const s2 = d.querySelector(".sd-scroll"); if (s2) { s2.scrollTop = st; s2.scrollLeft = sl; }
       };
       document.getElementById("sdW")?.remove();
@@ -14789,7 +14822,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         const r = rows[+inp.dataset.i], f = inp.dataset.f;
         r[f] = NUMF.has(f) ? inp.value : inp.value.toUpperCase();
         if (!NUMF.has(f)) { const p0 = inp.selectionStart; inp.value = r[f]; try { inp.setSelectionRange(p0, p0); } catch (err) {} }
-        if (f === "sec" && P) { const u = secU(r.sec), ui = inp.closest("tr").querySelector('.sd-in[data-f="u"]'); if (ui) { if (u) { r.u = u; ui.value = u; ui.readOnly = true; ui.closest("td").classList.add("sd-ro"); } else { ui.readOnly = false; ui.closest("td").classList.remove("sd-ro"); } } }
+        if (["sec", "prim", "upb"].includes(f) && P) { const u = secU(r.sec, r), ui = inp.closest("tr").querySelector('.sd-in[data-f="u"]'); if (ui) { if (u) { r.u = u; ui.value = u; ui.readOnly = true; ui.closest("td").classList.add("sd-ro"); } else { ui.readOnly = false; ui.closest("td").classList.remove("sd-ro"); } } }
         if (!r._id && rows[rows.length - 1] === r && COLS.some(c => r[c[0]])) { rows.push(blank()); const tb = d.querySelector(".sd-t tbody"); const tmp = document.createElement("tbody"); tmp.innerHTML = `<tr class="sd-new">${COLS.map(c => cell(rows[rows.length - 1], rows.length - 1, c)).join("")}</tr>`; tb.appendChild(tmp.firstElementChild); }
         sugShow(inp);
       });
@@ -14810,6 +14843,44 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         if (rows[rows.length - 1] === c) rows.push(blank());
         draw(); focusAt(j, "des");
       }, true);
+      /* v479 (remarques 11 et 12) : case à cocher par ligne et menu ⋯ (SUPPRIMER LES LIGNES COCHÉES…) */
+      d.addEventListener("change", e => {
+        const cb = e.target.closest(".sd-cb, .sd-cball");
+        if (!cb) return;
+        if (cb.classList.contains("sd-cball")) vis().forEach(x => { if (x.r._id || COLS.some(c => x.r[c[0]])) x.r._on = cb.checked; });
+        else rows[+cb.dataset.i]._on = cb.checked;
+        draw();
+      });
+      const sdMenu = btn => {
+        document.getElementById("blkMenu")?.remove();
+        const n = rows.filter(r => r._on).length;
+        const m = document.createElement("div");
+        m.id = "blkMenu"; m.dataset.for = "sd";
+        m.innerHTML = `<button type="button" data-sm="del" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}><span>SUPPRIMER LES LIGNES COCHÉES</span>${svCnt(n)}</button>
+          <button type="button" data-sm="all"><span>TOUT COCHER (LIGNES AFFICHÉES)</span></button>
+          <button type="button" data-sm="none" class="${n ? "" : "off"}" ${n ? "" : "disabled"}><span>TOUT DÉCOCHER</span></button>
+          <div class="blk-sep"></div><button type="button" data-sm="size"><span>${big ? "RÉDUIRE" : "AGRANDIR"}</span></button>`;
+        document.body.appendChild(m);
+        sviPlaceMenu(m, btn.getBoundingClientRect());
+        const off = ev => { if (!m.contains(ev.target)) { m.remove(); document.removeEventListener("pointerdown", off, true); } };
+        setTimeout(() => document.addEventListener("pointerdown", off, true), 0);
+        m.addEventListener("click", async ev => {
+          const b = ev.target.closest("[data-sm]"); if (!b || b.disabled) return;
+          m.remove(); document.removeEventListener("pointerdown", off, true);
+          const v = b.dataset.sm;
+          if (v === "all") { vis().forEach(x => { if (x.r._id || COLS.some(c => x.r[c[0]])) x.r._on = true; }); draw(); return; }
+          if (v === "none") { rows.forEach(r => { r._on = false; }); draw(); return; }
+          if (v === "size") { big = !big; sz.big = big; szSave(); draw(); return; }
+          if (v === "del") {
+            const L = rows.filter(r => r._on), lk = L.filter(r => r._lid);
+            if (!(await svConfirm({ title: "SUPPRIMER", text: (L.length - lk.length) + " LIGNE(S) SERONT SUPPRIMÉES À LA VALIDATION" + (lk.length ? " ; " + lk.length + " LIGNE(S) LIÉE(S) GARDÉE(S) (✕ DÉLIER D'ABORD)" : "") + ".", ok: "SUPPRIMER" }))) return;
+            for (let n = rows.length - 1; n >= 0; n--) { const r = rows[n]; if (!r._on || r._lid) continue; if (r._id) { r._del = true; r._on = false; } else rows.splice(n, 1); }
+            if (!rows.length || rows[rows.length - 1]._id || COLS.some(c => rows[rows.length - 1][c[0]])) rows.push(blank());
+            draw();
+          }
+        });
+      };
+      d.addEventListener("click", e => { const b = e.target.closest(".sd-more"); if (b) { e.stopPropagation(); sdMenu(b); } }, true);
       /* sélection d'une colonne (FORMAT 61) : un toucher sur l'intitulé ; COPIER / COLLER / EFFACER sur les lignes affichées */
       let clip = null;
       d.addEventListener("click", e => {
@@ -14819,7 +14890,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         if (ca && selCol) {
           e.stopPropagation();
           const V = vis().filter(x => x.r._id || COLS.some(c => x.r[c[0]]));
-          const editable = r => !(r._lid && ["dc", "upb", "lot", "prim", "sec"].includes(selCol)) && !(P && selCol === "u" && secU(r.sec));
+          const editable = r => !(r._lid && ["dc", "upb", "lot", "prim", "sec"].includes(selCol)) && !(P && selCol === "u" && secU(r.sec, r));
           if (ca.dataset.ca === "copy") { clip = V.map(x => x.r[selCol] || ""); try { navigator.clipboard && navigator.clipboard.writeText(clip.join("\n")); } catch (err) {} svToast(clip.length + " VALEUR(S) COPIÉE(S).", 2000, ca); return; }
           if (ca.dataset.ca === "paste") { if (!clip || !clip.length) { svToast("RIEN À COLLER : COPIER D'ABORD UNE COLONNE.", 2500, ca); return; } let n = 0; V.forEach((x, j) => { if (!editable(x.r)) return; x.r[selCol] = clip.length === 1 ? clip[0] : (clip[j] ?? x.r[selCol]); n++; }); draw(); svToast(n + " CASE(S) COLLÉE(S).", 2000); return; }
           if (ca.dataset.ca === "clear") { let n = 0; V.forEach(x => { if (!editable(x.r)) return; x.r[selCol] = ""; n++; }); draw(); svToast(n + " CASE(S) EFFACÉE(S).", 2000); return; }
@@ -14831,9 +14902,12 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         if (e.target.closest(".sd-size")) { big = !big; sz.big = big; szSave(); draw(); return; }
         if (e.target.closest("[data-x]")) { d.remove(); window.__sviSdRefresh = null; return; }
         if (!e.target.closest(".sd-ok")) return;
+        /* 0. lignes supprimées (non liées) */
+        const delIds = new Set(rows.filter(r => r._del && r._id && !r._lid).map(r => r._id));
+        if (delIds.size) { INS[kind] = INS[kind].filter(x => !delIds.has(x.id)); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE — SUPPRESSION", delIds.size + " LIGNE(S)"); insSave(); }
         /* 1. lignes existantes modifiées */
         let upd = 0; const refused = [];
-        rows.filter(r => r._id && JSON.stringify(COLS.map(c => r[c[0]])) !== r._o).forEach(r => {
+        rows.filter(r => r._id && !r._del && JSON.stringify(COLS.map(c => r[c[0]])) !== r._o).forEach(r => {
           if (linkedChanged(r)) { refused.push(r.des); return; }
           const x = recs.find(q => q.id === r._id); if (!x) return;
           x.des = U_(sviClean(r.des)); if (!r._lid) x.u = U_(r.u);
@@ -14844,7 +14918,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         /* 2. lignes nouvelles (et lignes non liées dont la chaîne est remplie) : importées avec les règles de l'import */
         const H = ["PROJET", "DÉSIGNATION CLIENT", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE", "TYPE (PRD / CHG)", "ARTICLE", "DÉSIGNATION PRODUIT / CHARGE", "UNITÉ", "NBR", "DIM 1", "DIM 2", "DIM 3", "QTE"];
         const neu = rows.filter(r => (!r._id && COLS.some(c => r[c[0]])) || (r._id && !r._lid && r.dc && r.lot && r.prim && r.sec));
-        const aoa = [H].concat(neu.map(r => [budget.project || "", r.dc, r.upb, r.lot, r.prim, r.sec, P ? "PRD" : "CHG", r.art || "", r.des, P ? (secU(r.sec) || r.u) : r.u, r.nbr, r.d1, r.d2, r.d3, r.q]));
+        const aoa = [H].concat(neu.map(r => [budget.project || "", r.dc, r.upb, r.lot, r.prim, r.sec, P ? "PRD" : "CHG", r.art || "", r.des, P ? (secU(r.sec, r) || r.u) : r.u, r.nbr, r.d1, r.d2, r.d3, r.q]));
         if (upd) { insSave(); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE", upd + " LIGNE(S) MODIFIÉE(S)"); }
         if (neu.length) {
           let m; try { m = bfModel(aoa); } catch (err) { svToast("SAISIE DIRECTE : " + (err.message || err), 4000); return; }
