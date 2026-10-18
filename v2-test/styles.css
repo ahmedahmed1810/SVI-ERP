@@ -894,7 +894,7 @@ tfoot td {
 .bdg-inst-instance .ins-t:not(.on), .bdg-inst-fige .ins-t:not(.on) { color: var(--inst) !important; border-color: var(--inst); opacity: .55; }
 .bdg-inst-instance .ins-t.on, .bdg-inst-fige .ins-t.on { color: #fff !important; }
 .bdg-inst-instance .bdg-d-tabbody .bdg-d-reserved, .bdg-inst-fige .bdg-d-tabbody .bdg-d-reserved,
-.bdg-inst-instance .bdg-d-delay, .bdg-inst-fige .bdg-d-delay { color: var(--inst); }
+
 /* glisser une ligne saisie (appui long) */
 .ins-table tr.ro-src td, .ins-hcol .ins-li.ro-src { background: #e7edf5 !important; opacity: .7; }
 .ins-table tr.ro-before td, .ins-hcol .ins-li.ro-before { box-shadow: inset 0 3px 0 var(--inst, #12355b); }
