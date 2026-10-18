@@ -5848,6 +5848,38 @@ function renderBudgetList() {
     };
     /* activité primaire = aussi une activité secondaire (sa jumelle, même intitulé) : créée avec elle,
        renommée et supprimée avec elle tant qu'elle n'est liée à rien d'autre */
+    /* v472 : UNITÉ DES ACTIVITÉS (cahier, Unité des activités) — saisie sur l'activité secondaire (obligatoire),
+       activité primaire = unité de sa jumelle ; tâche primaire : unité de l'activité = UPB de la désignation ;
+       produits liés : UPB = unité de l'activité secondaire de leur tâche */
+    const actU = (k, r) => !r ? "" : k === "sec" ? U_(r.u) : k === "prim" ? U_((INS.sec.find(x => x.id === r.tw) || INS.sec.find(x => U_(x.v) === U_(r.v)) || {}).u) : "";
+    const actUCell = (k, r) => k === "sec" ? (INS_EDIT
+        ? `<span class="act-u${U_(r.v) && !U_(r.u) ? " act-umiss" : ""}"${U_(r.v) && !U_(r.u) ? ' data-why="UNITÉ OBLIGATOIRE"' : ""}><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" value="${esc(r.u || "")}" autocomplete="off"></span>`
+        : `<span class="act-u act-uro">${esc(r.u || "")}</span>`)
+      : k === "prim" ? `<span class="act-u act-uro">${esc(actU(k, r))}</span>` : "";
+    const prdLinkU = id => { const l = (INS.links || []).find(l => (l.prd || []).some(x => x.id === id)); if (!l) return ""; const se = INS.sec.find(x => x.id === l.sec); return U_(se && se.u); };
+    const actUnitSync = () => {
+      let ch = false;
+      /* budgets existants : unité d'une activité vide reprise une fois (désignation de sa liaison primaire, sinon unité la plus fréquente de ses produits) */
+      if (!INS.secUV1) {
+        INS.secUV1 = true; ch = true;
+        INS.sec.forEach(se => {
+          if (U_(se.u) || !U_(se.v)) return;
+          const L = (INS.links || []).filter(l => l.sec === se.id);
+          const pl = L.find(l => insLinkPrim(INS, l)), d = pl && INS.des.find(x => x.id === pl.des);
+          let u = U_(d && d.u);
+          if (!u) { const n = {}; L.forEach(l => (l.prd || []).forEach(x => { const p = INS.prd.find(q => q.id === x.id), pu = U_(p && p.u); if (pu) n[pu] = (n[pu] || 0) + 1; })); u = Object.keys(n).sort((a, b) => n[b] - n[a])[0] || ""; }
+          if (u) se.u = u;
+        });
+      }
+      (INS.links || []).forEach(l => {
+        const se = INS.sec.find(x => x.id === l.sec);
+        if (!se) return;
+        if (insLinkPrim(INS, l)) { const d = INS.des.find(x => x.id === l.des), du = U_(d && d.u); if (du && U_(se.u) !== du) { se.u = du; ch = true; } }
+        const su = U_(se.u);
+        if (su) (l.prd || []).forEach(x => { const p = INS.prd.find(q => q.id === x.id); if (p && U_(p.u) !== su) { p.u = su; ch = true; } });
+      });
+      return ch;
+    };
     const insTwins = () => {
       if (!INS || !INS.prim || !INS.sec) return false;
       let ch = false;
@@ -5902,6 +5934,7 @@ function renderBudgetList() {
     const insNorm = () => {
       if (!INS) return;
       if (insTwins()) insSave();
+      if (INS_EDIT && actUnitSync()) insSave();
       if (insPrdSplit() && INS_EDIT) insSave();
       try { artRefresh(); } catch (e) {}
       /* FORMAT 108 : DIM à 0 = DIM vide */
@@ -6016,7 +6049,7 @@ function renderBudgetList() {
       });
       return ch;
     };
-    shell.__prdSyncU = () => { if (INS && INS_EDIT && prdSyncU()) { insSave(); return true; } return false; };
+    shell.__prdSyncU = () => { if (INS && INS_EDIT && actUnitSync()) { insSave(); return true; } return false; };
     /* une cellule : champ saisissable, ou verrouillé (titre, calculé) */
     const insCell = (k, r, c) => {
       const [f, , cls, type] = c;
@@ -6028,7 +6061,7 @@ function renderBudgetList() {
         /* DIM que l'unité n'autorise pas : grisées (FORMAT 74, R10) */
         || (k === "prd" && /^d[123]$/.test(f) && !isNew && +f[1] > sviUnitDims(r.u))
         /* v470 : produit d'une liaison primaire — UPB = celle de la désignation client (comme le PPB) : grisée */
-        || (k === "prd" && f === "u" && !isNew && !!prdPrimDes(r.id));
+        || (k === "prd" && f === "u" && !isNew && !!prdLinkU(r.id));
       const er = !isNew && INS_EDIT ? insRowErr(k, r) : null;
       let val = "";
       /* ligne vide « SAISIR ICI » des désignations : TVA 20 % affichée par défaut */
@@ -6630,14 +6663,14 @@ function renderBudgetList() {
         return `
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
           <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length, INS[k].length)}</span>${onlyBtn(k, true)}<span class="cf-btn"
-            data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${INS_EDIT
+            data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${k === "sec" || k === "prim" ? `<span class="act-uh">U</span>` : ""}${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
           ${k === "lot" ? lotTreeHTML(list) : list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
-              ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">
-                <span class="ins-delc">${insDelCell(r)}</span>` : `<span>${esc(r.v || "")}</span>`}
+              ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">${actUCell(k, r)}
+                <span class="ins-delc">${insDelCell(r)}</span>` : `<span>${esc(r.v || "")}</span>${actUCell(k, r)}`}
             </div>`).join("")}
           ${INS_EDIT ? `<div class="ins-li ins-new" data-ik="${k}"><span class="ins-rdc"></span>
-              <input class="ins-in" data-f="v" enterkeyhint="next" placeholder="SAISIR ICI…" autocomplete="off"><span class="ins-delc"></span></div>`
+              <input class="ins-in" data-f="v" enterkeyhint="next" placeholder="SAISIR ICI…" autocomplete="off">${k === "sec" ? `<span class="act-u"><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" autocomplete="off"></span>` : k === "prim" ? `<span class="act-u act-uro"></span>` : ""}<span class="ins-delc"></span></div>`
             : (list.length ? "" : `<div class="bdg-h-item" style="opacity:.5;cursor:default">—</div>`)}
         </div>`;
       };
@@ -7811,6 +7844,7 @@ function renderBudgetList() {
          la liste où l'on saisit garde le clavier (seul son compteur change) ; tout le reste est redessiné aussitôt */
       afterEntry: (k, box) => {
         const inBox = el => !!(el && box && box.contains(el));
+        if (actUnitSync()) insSave();
         if (k === "prim" && insTwins()) insSave();
         ["lot", "prim", "sec"].filter(x => x !== k).forEach(x => { const c = $("bdgHier")?.querySelector(`.ins-hcol[data-ik="${x}"]`); if (c && !c.contains(document.activeElement)) insRenderHier(x); });
         if (k !== "des") { const c = shell.querySelector(".bdg-d-client-scroll"); if (c && !c.contains(document.activeElement)) insRenderClient(); }
@@ -7875,7 +7909,7 @@ function renderBudgetList() {
             const d = document.createElement("div");
             d.className = "ins-li ins-new";
             d.dataset.ik = k;
-            d.innerHTML = `<span class="ins-rdc"></span><input class="ins-in" data-f="v" enterkeyhint="next" placeholder="SAISIR ICI…" autocomplete="off"><span class="ins-delc"></span>`;
+            d.innerHTML = `<span class="ins-rdc"></span><input class="ins-in" data-f="v" enterkeyhint="next" placeholder="SAISIR ICI…" autocomplete="off">${k === "sec" ? `<span class="act-u"><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" autocomplete="off"></span>` : k === "prim" ? `<span class="act-u act-uro"></span>` : ""}<span class="ins-delc"></span>`;
             /* v467 : une seule ligne SAISIR ICI… par liste — l'ancienne (restée vide) disparaît, la nouvelle va en bas */
             const col = holder.closest(".ins-hcol");
             if (col) col.querySelectorAll(".ins-new").forEach(o => { if (o !== d && !o.dataset.iid) o.remove(); });
@@ -7891,6 +7925,9 @@ function renderBudgetList() {
         if (c) X.insLive(k, holder, r);
         X.insSave();
         /* v470 : UPB / PPB / TVA d'une désignation tapés → produits de ses liaisons primaires (DÉTAIL PRODUITS) à jour à la frappe */
+        /* v472 : activité secondaire — unité obligatoire dès l'intitulé (cadre à jour à la frappe) ; unité changée → produits liés à jour */
+        if (k === "sec") { const uc = holder.querySelector(".act-u"); if (uc) { const miss = !!U_(r.v) && !U_(r.u); uc.classList.toggle("act-umiss", miss); if (miss) uc.dataset.why = "UNITÉ OBLIGATOIRE"; else delete uc.dataset.why; } }
+        if (k === "sec" && f === "u" && X.tabNoBlur) { clearTimeout(shell.__prdLiveT); shell.__prdLiveT = setTimeout(() => { if (shell.__prdSyncU) shell.__prdSyncU(); X.tabNoBlur(); }, 120); }
         if (k === "des" && ["u", "p", "tva"].includes(f) && X.tabNoBlur) { clearTimeout(shell.__prdLiveT); shell.__prdLiveT = setTimeout(() => { if (f === "u" && shell.__prdSyncU) shell.__prdSyncU(); X.tabNoBlur(); }, 120); }
       });
       /* v467 : garde-fou — jamais deux lignes SAISIR ICI… dans une même liste (on garde la dernière) */
@@ -8066,6 +8103,7 @@ function renderBudgetList() {
       ["prd", "chg"].forEach(k => { const n = INS[k].filter(r => !r.t && insRowErr(k, r)).length; if (n) out.push({ lab: "LIGNES EN ERREUR — " + (k === "prd" ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"), n, go: k }); });
       try { if (lkPending()) out.push({ lab: "MODIFICATION EN ATTENTE DE ✓ VALIDER", n: 1, go: "" }); } catch (e) {}
       try { infMissing().filter(x => x.req).forEach(x => out.push(x)); } catch (e) {}
+      { const nu = INS.sec.filter(x => U_(x.v) && !U_(x.u)); if (nu.length) out.push({ lab: "ACTIVITÉS SECONDAIRES SANS UNITÉ", n: nu.length, go: "hier" }); }
       return out;
     };
     const insFigeWhy = () => {
@@ -8090,6 +8128,7 @@ function renderBudgetList() {
     const figeGo = b => {
         if (!b || !b.go) return;
         if (b.go === "inf") { openInfo(); return; }
+        if (b.go === "hier") { const c = shell.querySelector('.ins-hcol[data-ik="sec"]'); if (c) { c.scrollIntoView({ block: "center", behavior: "smooth" }); const m = c.querySelector(".act-umiss input"); if (m) setTimeout(() => m.focus(), 350); } return; }
         if (b.go === "des") { shell.querySelector(".bdg-d-client-scroll")?.scrollIntoView({ block: "start", behavior: "smooth" }); return; }
         if (b.go === "dly") { LK.lot = LK.sec = LK.prim = null; }
         const t = shell.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${b.go}"]`);
