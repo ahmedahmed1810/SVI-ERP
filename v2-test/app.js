@@ -5939,6 +5939,16 @@ function renderBudgetList() {
       if (insTwins()) insSave();
       if (INS_EDIT && actUnitSync()) insSave();
       if (insPrdSplit() && INS_EDIT) insSave();
+      /* v482 : une charge liée à plusieurs liaisons de tâches différentes → une copie (même quantité) par tâche supplémentaire */
+      if (INS_EDIT) { let ch = false; const seen = new Map();
+        (INS.links || []).forEach(l => (l.chg || []).forEach(x => {
+          const t = l.lot + "|" + l.sec;
+          if (!seen.has(x.id)) { seen.set(x.id, t); return; }
+          if (seen.get(x.id) === t) return;
+          const c0 = INS.chg.find(q => q.id === x.id); if (!c0) return;
+          const c = { ...c0, id: insId(), on: false }; INS.chg.splice(INS.chg.indexOf(c0) + 1, 0, c); x.id = c.id; ch = true;
+        }));
+        if (ch) insSave(); }
       try { artRefresh(); } catch (e) {}
       /* FORMAT 108 : DIM à 0 = DIM vide */
       { let ch = false;
@@ -7873,7 +7883,33 @@ function renderBudgetList() {
       INS[k] = INS[k].filter(r => !empty(r));
       return INS[k].length !== before;
     };
-    shell.__ins = INS_EDIT ? { INS,
+    /* v482 (remarque 20) : une ligne dont on tape l'ART prend sa place selon cet ART (même s'il est en erreur, rouge) :
+       sous le titre dont l'ART est le préfixe (sinon au premier niveau), avant le premier voisin d'ART plus grand */
+    const desPlaceByArt = id => {
+      const L = INS.des, r = L.find(x => x.id === id);
+      if (!r || r.t) return false;
+      const a = String(r.art ?? "").trim();
+      if (!a) return false;
+      try { artRefresh(); } catch (e) {}
+      const segs = a.split(".").filter(Boolean), pre = segs.slice(0, -1).join(".");
+      const D = x => Number(x.d) || 0;
+      const rest = L.filter(x => x !== r);
+      let pi = -1, pd = -1;
+      if (pre) { pi = rest.findIndex(x => x.t && artOf(x) === pre); if (pi >= 0) pd = D(rest[pi]); }
+      if (pre && pi < 0) return false;   /* titre parent introuvable : la ligne reste où elle est */
+      const start = pi + 1;
+      let end = start; while (end < rest.length && (pi < 0 || D(rest[end]) > pd)) end++;
+      let at = end;
+      for (let j = start; j < end; j++) { const x = rest[j]; if (D(x) !== pd + 1) continue; if (natCmp(artOf(x), a) > 0) { at = j; break; } }
+      const old = L.indexOf(r);
+      rest.splice(at, 0, r);
+      r.d = pd + 1;
+      if (rest.indexOf(r) === old && L.every((x, n) => x === rest[n])) return false;
+      L.splice(0, L.length, ...rest);
+      insNorm(); insSave();
+      return true;
+    };
+    shell.__ins = INS_EDIT ? { INS, artPlace: id => { if (desPlaceByArt(id)) { const c = shell.querySelector(".bdg-d-client-scroll"); if (c && !c.contains(document.activeElement)) insRedraw("des"); } },
       /* v468 : mise à jour JUSTE APRÈS une saisie (ENTRÉE ou case quittée), sans attendre de toucher hors du tableau :
          la liste où l'on saisit garde le clavier (seul son compteur change) ; tout le reste est redessiné aussitôt */
       afterEntry: (k, box) => {
@@ -8080,7 +8116,10 @@ function renderBudgetList() {
         const box = inp.closest("table.ins-table, .ins-hcol");
         const k = box?.dataset.ik;
         if (!k) return;
-        setTimeout(() => { if (!shell.__insDragging && box.isConnected) X.afterEntry(k, box); }, 0);
+        setTimeout(() => {
+          if (k === "des" && inp.dataset.f === "art" && X.artPlace) { const h = inp.closest("[data-iid]"); if (h) X.artPlace(h.dataset.iid); }
+          if (!shell.__insDragging && box.isConnected) X.afterEntry(k, box);
+        }, 0);
       });
       /* le doigt quitte un bloc : lignes vidées retirées, titres et sous-totaux remis en place */
       shell.addEventListener("focusout", e => {
@@ -11091,7 +11130,18 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
             INS.prd.splice(INS.prd.indexOf(p) + 1, 0, c);
             re[c.id] = L.prd[id];
           });
-          L.prd = re; }
+          L.prd = re;
+          /* v482 (remarque 21) : charge déjà liée à une autre tâche → nouvelle ligne pour cette tâche (même quantité au départ) */
+          const rc = {};
+          Object.keys(L.chg).forEach(id => {
+            if (!INS.links.some(l => l !== tgt && (l.chg || []).some(x => x.id === id))) { rc[id] = L.chg[id]; return; }
+            const c0 = INS.chg.find(x => x.id === id);
+            if (!c0) return;
+            const c = { ...c0, id: insId(), on: false };
+            INS.chg.splice(INS.chg.indexOf(c0) + 1, 0, c);
+            rc[c.id] = L.chg[id];
+          });
+          L.chg = rc; }
         const ent = o => Object.keys(o).map(id => ({ id, q: "" }));
         const same = INS.links.find(l => l.des === L.des && l.lot === L.lot && l.prim === L.prim && l.sec === L.sec);
         if (same) {
