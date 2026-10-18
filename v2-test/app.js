@@ -14121,7 +14121,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         .map(x => ({ ...x, by: W.p.get(x.pk).dk !== x.dk ? { g: "p", w: W.p.get(x.pk) } : { g: "s", w: W.s.get(x.sk) } }));
       return { W, lose, names };
     };
-    const bfRuleAWhy = (g, w) => "RÈGLE A : " + (g === "p" ? "TÂCHE PRIMAIRE" : "TÂCHE SECONDAIRE") + " LIÉE À " + w.name + " (" + w.n + " LIGNE" + (w.n > 1 ? "S" : "") + ")";
+    /* v481 (remarque 18) : message compréhensible par tout lecteur — quelle tâche bloque et quoi changer */
+    const bfRuleAWhy = (g, w, task) => (g === "p" ? "TÂCHE PRIMAIRE " : "TÂCHE SECONDAIRE ") + (task ? task + " " : "") + "DÉJÀ LIÉE À " + w.name + " (" + w.n + " LIGNE" + (w.n > 1 ? "S" : "") + "). UNE TÂCHE N'A QU'UNE DÉSIGNATION CLIENT : CHANGER LE LOT OU L'ACTIVITÉ " + (g === "p" ? "PRIMAIRE" : "SECONDAIRE") + ".";
     /* fenêtre de confirmation : liaisons du budget à délier */
     const bfRuleAAsk = plan => {
       if (!plan.lose.length) return Promise.resolve(true);
@@ -14203,10 +14204,11 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         if ((pid && had.has(ch0 + "|p|" + pid)) || (cid && had.has(ch0 + "|c|" + cid))) { rej.push({ src: l.src, bad: ["des"], why: "DOUBLON : EXISTE DÉJÀ DANS LE BUDGET (SEULS NBR / DIM / QTE PEUVENT DIFFÉRER)" }); return; }
         /* règle A : la désignation qui a le plus de lignes l'emporte (activité primaire, puis tâche secondaire) */
         const wp = plan.W.p.get(l.lot + "#" + l.prim), ws = plan.W.s.get(l.lot + "#" + l.sec);
-        if (wp && wp.dk !== l.dk) { rej.push({ src: l.src, bad: ["lot", "prim"], why: bfRuleAWhy("p", wp) }); return; }
-        if (ws && ws.dk !== l.dk) { rej.push({ src: l.src, bad: ["lot", "sec"], why: bfRuleAWhy("s", ws) }); return; }
+        const tLab = x => (byId("lot", lot).v || "") + " › " + (byId(x, x === "prim" ? prim : sec).v || "");
+        if (wp && wp.dk !== l.dk) { rej.push({ src: l.src, bad: ["lot", "prim"], why: bfRuleAWhy("p", wp, tLab("prim")) }); return; }
+        if (ws && ws.dk !== l.dk) { rej.push({ src: l.src, bad: ["lot", "sec"], why: bfRuleAWhy("s", ws, tLab("sec")) }); return; }
         const other = INS.links.find(x => x.lot === lot && x.prim === prim && x.des !== des);
-        if (other) { rej.push({ src: l.src, bad: ["lot", "prim"], why: "RÈGLE A : TÂCHE PRIMAIRE DÉJÀ LIÉE À " + (byId("des", other.des).des || "") }); return; }
+        if (other) { const n = INS.links.filter(x => x.lot === lot && x.prim === prim && x.des === other.des).reduce((t, x) => t + (x.prd || []).length + (x.chg || []).length, 0); rej.push({ src: l.src, bad: ["lot", "prim"], why: bfRuleAWhy("p", { name: byId("des", other.des).des || "", n }, tLab("prim")) }); return; }
         /* règle D : un produit / une charge une seule fois dans une tâche secondaire (lot + act. scd) */
         const dD = INS.links.find(x => x.lot === lot && x.sec === sec && !(x.des === des && x.prim === prim)
           && ((pid && (x.prd || []).some(y => y.id === pid)) || (cid && (x.chg || []).some(y => y.id === cid))));
@@ -14695,14 +14697,15 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       if (!INS || !INS_EDIT) return;
       const P = kind === "prd";
       const nm = (k, id) => { const r = (INS[k] || []).find(x => x.id === id); return r ? (k === "des" ? r.des || "" : r.v || "") : ""; };
-      const COLS = [["dc", "DÉSIGNATION CLIENT", 220], ["upb", "UPB", 54], ["lot", "LOT", 140], ["prim", "ACTIVITÉ PRIMAIRE", 150], ["sec", "ACTIVITÉ SECONDAIRE", 150]]
+      /* v481 (remarque 17) : U = unité de l'activité secondaire (obligatoire ; tâche primaire : UPB de la désignation, grisée) */
+      const COLS = [["dc", "DÉSIGNATION CLIENT", 220], ["upb", "UPB", 54], ["lot", "LOT", 140], ["prim", "ACTIVITÉ PRIMAIRE", 150], ["sec", "ACTIVITÉ SECONDAIRE", 150], ["su", "U", 46]]
         .concat(P ? [["des", "DÉSIGNATION PRODUIT", 170], ["u", "UNITÉ", 54], ["nbr", "NBR", 60], ["d1", "DIM 1", 60], ["d2", "DIM 2", 60], ["d3", "DIM 3", 60]]
           : [["art", "ARTICLE", 80], ["des", "DÉSIGNATION CHARGE", 200], ["u", "UNITÉ", 54], ["q", "QTE", 70]]);
       const NUMF = new Set(["nbr", "d1", "d2", "d3", "q"]);
       const fmtN = v => v === "" || v === undefined || v === null ? "" : String(v).replace(".", ",");
       let rows = [];
       let recs = INS[kind] || [];
-      const blank = () => ({ dc: "", upb: "", lot: "", prim: "", sec: "", art: "", des: "", u: "", nbr: "", d1: "", d2: "", d3: "", q: "" });
+      const blank = () => ({ dc: "", upb: "", lot: "", prim: "", sec: "", su: "", art: "", des: "", u: "", nbr: "", d1: "", d2: "", d3: "", q: "" });
       /* v480 (remarques 14 et 16) : lignes relues depuis le budget (à l'ouverture et après chaque VALIDER) */
       let dirty = false;
       const loadRows = () => {
@@ -14711,10 +14714,10 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       (INS.links || []).forEach(l => (l[kind] || []).forEach(x => {
         const r = recs.find(q => q.id === x.id); if (!r) return; seen.add(r.id);
         const d = INS.des.find(q => q.id === l.des) || {};
-        rows.push({ _id: r.id, _lid: l.id || "L" + (INS.links || []).indexOf(l), dc: d.des || "", upb: d.u || "", lot: nm("lot", l.lot), prim: nm("prim", l.prim), sec: nm("sec", l.sec),
+        rows.push({ _id: r.id, _lid: l.id || "L" + (INS.links || []).indexOf(l), dc: d.des || "", upb: d.u || "", lot: nm("lot", l.lot), prim: nm("prim", l.prim), sec: nm("sec", l.sec), su: U_(((INS.sec || []).find(q => q.id === l.sec) || {}).u),
           art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q) });
       }));
-      recs.filter(r => !r.t && !seen.has(r.id)).forEach(r => rows.push({ _id: r.id, dc: "", upb: "", lot: "", prim: "", sec: "", art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q) }));
+      recs.filter(r => !r.t && !seen.has(r.id)).forEach(r => rows.push({ _id: r.id, dc: "", upb: "", lot: "", prim: "", sec: "", su: "", art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q) }));
       rows.forEach(r => { r._o = JSON.stringify(COLS.map(c => r[c[0]])); r._l = l0(r); });
       rows.push(blank());
       dirty = false;
@@ -14730,10 +14733,13 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         art: P ? [] : [...new Set(((typeof db !== "undefined" && db.chs) || []).map(c => c.article).filter(Boolean))],
         u: [...new Set(INS.sec.map(x => U_(x.u)).concat(recs.map(x => U_(x.u))).filter(Boolean))]
       };
+      lists.su = lists.u;
       const secU0 = v => { const se = INS.sec.find(x => U_(x.v) === U_(v)); return U_(se && se.u); };
       /* v479 (remarque 13) : ligne de tâche primaire (activité primaire = activité secondaire) : unité = UPB de la désignation, grisée */
       let curRow = null;
-      const secU = (v, r) => { const rr = r || curRow; if (rr && U_(rr.prim) && U_(rr.prim) === U_(rr.sec) && U_(rr.upb)) return U_(rr.upb); return secU0(v); };
+      const secU = (v, r) => { const rr = r || curRow; if (rr && U_(rr.prim) && U_(rr.prim) === U_(rr.sec) && U_(rr.upb)) return U_(rr.upb); return secU0(v) || (rr ? U_(rr.su) : ""); };
+      /* U de l'activité : imposée (tâche primaire ou activité qui a déjà son unité) → grisée */
+      const suFixed = r => (U_(r.prim) && U_(r.prim) === U_(r.sec) && U_(r.upb)) ? U_(r.upb) : secU0(r.sec);
       const linkedChanged = r => r._lid && ["dc", "lot", "prim", "sec"].some(f => U_(r[f]) !== U_((JSON.parse(r._o))[COLS.findIndex(c => c[0] === f)]));
       const d = document.createElement("div");
       d.id = "sdW";
@@ -14753,6 +14759,10 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       const cell = (r, i, c) => {
         const f = c[0];
         curRow = r;
+        if (f === "su") {
+          const fx = suFixed(r), need = !fx && !!U_(r.sec) && !U_(r.su);
+          return `<td class="center${fx ? " sd-ro" : ""}${need ? " sd-need" : ""}"${need ? ' data-why="UNITÉ DE L\'ACTIVITÉ OBLIGATOIRE"' : ""}><input class="sd-in" data-i="${i}" data-f="su" value="${esc(fx || r.su || "")}"${fx ? " readonly tabindex=\"-1\"" : ""} autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"></td>`;
+        }
         const lockU = P && f === "u" && (!!secU(r.sec, r) || (r._lid && !!r.u));
         const lockChain = false;   /* v480 (remarque 15) : en instance, la chaîne d'une ligne liée se change ici aussi */
         const ro = lockU || lockChain;
@@ -14768,13 +14778,14 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           <div class="sd-head"><span class="sd-title">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"}</span>
             <span class="sd-n">${svCnt(V.filter(x => x.r._id).length, rows.filter(x => x._id).length)}</span>
             ${selCol ? `<span class="sd-colbar">COLONNE « ${esc((COLS.find(c => c[0] === selCol) || [])[1] || "")} » : <button type="button" data-ca="copy">COPIER</button><button type="button" data-ca="paste">COLLER</button><button type="button" data-ca="clear">EFFACER</button></span>` : ""}
-            <button type="button" class="sd-more blk-more" aria-label="Menu">⋯</button><button type="button" class="sd-size">${big ? "RÉDUIRE" : "AGRANDIR"}</button><button type="button" class="svc-close sd-x" data-x aria-label="Fermer">✕</button></div>
+            <button type="button" class="sd-more blk-more" aria-label="Menu">⋯</button><button type="button" class="sd-mini">RÉDUIRE</button><button type="button" class="sd-size">${big ? "FENÊTRE" : "PLEIN ÉCRAN"}</button><button type="button" class="svc-close sd-x" data-x aria-label="Fermer">✕</button></div>
           <div class="sd-scroll"><table class="sd-t"><colgroup>${COLS.map(c => `<col data-c="${c[0]}" style="width:${W[c[0]] || c[2]}px">`).join("")}<col style="width:40px"></colgroup>
             <thead><tr>${COLS.map(c => cfHead(TK, c[0], c[1], (NUMF.has(c[0]) ? "number" : "") + (selCol === c[0] ? " sd-sel" : "")).replace("<th ", `<th data-c="${c[0]}" `)).join("")}<th class="sd-cbc"><input type="checkbox" class="sd-cball"${V.some(x => x.r._on) && V.filter(x => x.r._id || COLS.some(c => x.r[c[0]])).every(x => x.r._on) ? " checked" : ""}></th></tr></thead>
             <tbody>${V.map(({ r, i }) => `<tr class="${r._id ? (r._lid ? "sd-old sd-lk" : "sd-old") : "sd-new"}${r._del ? " sd-del" : ""}">${COLS.map(c => cell(r, i, c)).join("")}<td class="sd-cbc">${r._id || COLS.some(c => r[c[0]]) ? `<input type="checkbox" class="sd-cb" data-i="${i}"${r._on ? " checked" : ""}>` : ""}</td></tr>`).join("")}</tbody></table></div>
           <div class="sd-foot"><small>CHAÎNE CHANGÉE SUR UNE LIGNE LIÉE : DÉLIÉE PUIS LIÉE À LA NOUVELLE CHAÎNE À LA VALIDATION. ENTRÉE SUR LA DERNIÈRE CASE = LIGNE RECOPIÉE.</small><span style="flex:1"></span>
             <button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral sd-ok"${dirty ? "" : " disabled"}>VALIDER</button></div>
-          ${big ? "" : '<div class="sd-rsz" title="Largeur et hauteur"></div>'}</div>`;
+          ${big ? "" : '<div class="sd-rsz" title="Largeur et hauteur"></div>'}</div>
+          <button type="button" class="sd-tag">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"} ▲</button>`;
         const tb = d.querySelector(".sd-t");
         if (tb) tb.style.width = COLS.reduce((t, c) => t + (W[c[0]] || c[2]), 0) + 40 + "px";
         const s2 = d.querySelector(".sd-scroll"); if (s2) { s2.scrollTop = st; s2.scrollLeft = sl; }
@@ -14832,7 +14843,12 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         if (!dirty) { dirty = true; const ok = d.querySelector(".sd-ok"); if (ok) ok.disabled = false; }
         r[f] = NUMF.has(f) ? inp.value : inp.value.toUpperCase();
         if (!NUMF.has(f)) { const p0 = inp.selectionStart; inp.value = r[f]; try { inp.setSelectionRange(p0, p0); } catch (err) {} }
-        if (["sec", "prim", "upb"].includes(f) && P) { const u = secU(r.sec, r), ui = inp.closest("tr").querySelector('.sd-in[data-f="u"]'); if (ui) { if (u) { r.u = u; ui.value = u; ui.readOnly = true; ui.closest("td").classList.add("sd-ro"); } else { ui.readOnly = false; ui.closest("td").classList.remove("sd-ro"); } } }
+        if (["sec", "prim", "upb", "su"].includes(f)) {
+          const tr = inp.closest("tr"), si = tr.querySelector('.sd-in[data-f="su"]');
+          if (si && f !== "su") { const fx = suFixed(r); si.readOnly = !!fx; si.closest("td").classList.toggle("sd-ro", !!fx); if (fx) si.value = fx; }
+          if (si) { const need = !suFixed(r) && !!U_(r.sec) && !U_(r.su); si.closest("td").classList.toggle("sd-need", need); }
+        }
+        if (["sec", "prim", "upb", "su"].includes(f) && P) { const u = secU(r.sec, r), ui = inp.closest("tr").querySelector('.sd-in[data-f="u"]'); if (ui) { if (u) { r.u = u; ui.value = u; ui.readOnly = true; ui.closest("td").classList.add("sd-ro"); } else { ui.readOnly = false; ui.closest("td").classList.remove("sd-ro"); } } }
         if (!r._id && rows[rows.length - 1] === r && COLS.some(c => r[c[0]])) { rows.push(blank()); const tb = d.querySelector(".sd-t tbody"); const tmp = document.createElement("tbody"); tmp.innerHTML = `<tr class="sd-new">${COLS.map(c => cell(rows[rows.length - 1], rows.length - 1, c)).join("")}</tr>`; tb.appendChild(tmp.firstElementChild); }
         sugShow(inp);
       });
@@ -14869,7 +14885,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         m.innerHTML = `<button type="button" data-sm="del" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}><span>SUPPRIMER LES LIGNES COCHÉES</span>${svCnt(n)}</button>
           <button type="button" data-sm="all"><span>TOUT COCHER (LIGNES AFFICHÉES)</span></button>
           <button type="button" data-sm="none" class="${n ? "" : "off"}" ${n ? "" : "disabled"}><span>TOUT DÉCOCHER</span></button>
-          <div class="blk-sep"></div><button type="button" data-sm="size"><span>${big ? "RÉDUIRE" : "AGRANDIR"}</span></button>`;
+          <div class="blk-sep"></div><button type="button" data-sm="mini"><span>RÉDUIRE (ÉTIQUETTE EN BAS À DROITE)</span></button><button type="button" data-sm="size"><span>${big ? "FENÊTRE" : "PLEIN ÉCRAN"}</span></button>`;
         document.body.appendChild(m);
         sviPlaceMenu(m, btn.getBoundingClientRect());
         const off = ev => { if (!m.contains(ev.target)) { m.remove(); document.removeEventListener("pointerdown", off, true); } };
@@ -14881,6 +14897,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           if (v === "all") { vis().forEach(x => { if (x.r._id || COLS.some(c => x.r[c[0]])) x.r._on = true; }); draw(); return; }
           if (v === "none") { rows.forEach(r => { r._on = false; }); draw(); return; }
           if (v === "size") { big = !big; sz.big = big; szSave(); draw(); return; }
+          if (v === "mini") { d.classList.add("sd-min"); return; }
           if (v === "del") {
             const L = rows.filter(r => r._on), lk = L.filter(r => r._lid);
             if (!(await svConfirm({ title: "SUPPRIMER", text: (L.length - lk.length) + " LIGNE(S) SERONT SUPPRIMÉES À LA VALIDATION" + (lk.length ? " ; " + lk.length + " LIGNE(S) LIÉE(S) GARDÉE(S) (✕ DÉLIER D'ABORD)" : "") + ".", ok: "SUPPRIMER" }))) return;
@@ -14910,6 +14927,9 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       }, true);
       d.addEventListener("click", async e => {
         if (e.target.closest(".sd-size")) { big = !big; sz.big = big; szSave(); draw(); return; }
+        /* v481 (remarque 19) : RÉDUIRE = petite étiquette en bas à droite ; on travaille sur le budget ; un toucher la rouvre telle quelle */
+        if (e.target.closest(".sd-mini")) { sugHide(); d.classList.add("sd-min"); return; }
+        if (e.target.closest(".sd-tag")) { d.classList.remove("sd-min"); draw(); return; }
         if (e.target.closest("[data-x]")) { d.remove(); window.__sviSdRefresh = null; return; }
         if (!e.target.closest(".sd-ok")) return;
         /* 0. lignes supprimées (non liées) */
@@ -14950,6 +14970,8 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           if (nInc > 0) setTimeout(() => svToast(nInc + " LIGNE(S) EN ERREUR : VOIR L'ONGLET IMPORT NON CRÉÉ.", 5000), 300);
         }
         void refused;
+        /* unité saisie pour une activité secondaire qui n'en avait pas */
+        rows.forEach(r => { if (!U_(r.sec) || !U_(r.su)) return; const se = INS.sec.find(x => U_(x.v) === U_(r.sec)); if (se && !U_(se.u)) se.u = U_(r.su); });
         if (actUnitSync()) insSave();
         insSave();
         refreshAll();
