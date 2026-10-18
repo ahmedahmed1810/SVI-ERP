@@ -5966,7 +5966,14 @@ function renderBudgetList() {
       if (k === "des") { const lq = r.id ? insLinkedQ(INS, r.id) : null; return lq !== null ? lq : 0; }
       return r.q === "" || r.q === undefined ? 0 : num(r.q);
     };
-    const insPrice = (k, r) => k === "prd" ? insPrdPrice(INS, r.id) : r.p;
+    /* v476 (remarque 3) : produit pas encore lié — tâche primaire choisie (ronds) : PPB de la désignation, sinon vide */
+    const lkPrimPrice = r => {
+      if (!INS_EDIT || !LK || !LK.des || !LK.prim || !LK.sec || !insIsPrimLink(LK.prim, LK.sec)) return "";
+      if (r && r.id && !(LK.prd && r.id in LK.prd)) return "";
+      const d = INS.des.find(x => x.id === LK.des);
+      return d && d.p !== "" && d.p !== undefined ? num(d.p) : "";
+    };
+    const insPrice = (k, r) => { if (k !== "prd") return r.p; const v = insPrdPrice(INS, r.id); return v !== "" ? v : (INS.links || []).some(l => (l.prd || []).some(x => x.id === r.id)) ? "" : lkPrimPrice(r); };
     const insHT = (k, r) => r.t ? 0 : insQty(k, r) * num(insPrice(k, r) || 0);
     const insTVA = r => (r.tva === "" || r.tva === undefined) ? 20 : num(r.tva);
     /* TVA de la ligne : produits = celle de la désignation liée (vide sans liaison) */
@@ -6072,6 +6079,7 @@ function renderBudgetList() {
       /* ligne vide « SAISIR ICI » des désignations : TVA 20 % affichée par défaut */
       if (isNew && f === "tva" && k !== "prd") val = "20,00";
       if (isNew && k === "prd" && f === "u" && lkSecU()) val = lkSecU();
+      if (isNew && k === "prd" && f === "p") { const pp = lkPrimPrice(null); val = pp === "" ? "" : insFmt(pp); }
       if (!isNew) {
         if (r.t && f !== "art" && f !== "des") val = "";
         else if (f === "tache") val = insCalc(k, r, f) || "";
@@ -11132,16 +11140,26 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           && (INS.links || []).find(l => l.des === LK.des && l.lot === LK.lot && l.prim === LK.prim && l.sec === LK.sec);
         const st = same ? "LIAISON DÉJÀ ÉTABLIE" + (Object.keys(LK.prd).length || Object.keys(LK.chg).length || lkDlyDirty() || LK.linksBak ? " — MODIFICATIONS À VALIDER" : "")
           : LK.des && LK.lot && LK.prim && LK.sec ? "NOUVELLE LIAISON — À VALIDER" : "LIAISON INCOMPLÈTE";
+        /* v476 (remarque 1) : bouton ✓ VALIDER grisé → la cause, ici */
+        const why = (() => {
+          const pl = lkPlan();
+          if (pl.mode === "mix") return "CHOISIR SOIT DES LIGNES À AJOUTER, SOIT DES LIGNES À DÉLIER (EN DEUX FOIS).";
+          if (pl.mode === "incomplete") return "LIAISON INCOMPLÈTE : CHOISIR " + [["des", "LA DÉSIGNATION"], ["lot", "LE LOT"], ["prim", "L'ACTIVITÉ PRIMAIRE"], ["sec", "L'ACTIVITÉ SECONDAIRE"]].filter(([k]) => !LK[k]).map(x => x[1]).join(", ") + ".";
+          if (pl.mode === "add" && pl.full && (Object.keys(LK.prd).length || Object.keys(LK.chg).length)) { try { return lkCheck() || ""; } catch (e) { return ""; } }
+          if (pl.mode === "add" && !pl.same && !Object.keys(LK.prd).length && !lkDlyDirty()) return "UNE LIAISON DOIT AVOIR AU MOINS UN PRODUIT.";
+          if (pl.mode === "none" && LK.des && !(LK.lot && LK.prim && LK.sec)) return "LIAISON INCOMPLÈTE : CHOISIR " + [["lot", "LE LOT"], ["prim", "L'ACTIVITÉ PRIMAIRE"], ["sec", "L'ACTIVITÉ SECONDAIRE"]].filter(([k]) => !LK[k]).map(x => x[1]).join(", ") + ".";
+          return "";
+        })();
         /* tableaux de la fenêtre : tri / filtre sur chaque colonne (consigne 7) */
         const list = k => [...(same ? (same[k] || []).map(x => ({ id: x.id, st: "LIÉ" })) : []), ...Object.keys(LK[k]).map(id => ({ id, st: "À AJOUTER" }))]
-          .map(o => { const r = INS[k].find(x => x.id === o.id) || {}; return { des: r.des || "", u: r.u || "", q: k === "prd" ? insPrdQ(r) : num(r.q || 0), st: o.st }; });
+          .map(o => { const r = INS[k].find(x => x.id === o.id) || {}; return { id: o.id, des: r.des || "", u: r.u || "", q: k === "prd" ? insPrdQ(r) : num(r.q || 0), st: o.st }; });
         const C = k => [["des", k === "prd" ? "DÉSIGNATION PRODUIT" : "DÉSIGNATION CHARGE", x => x.des, ""], ["u", k === "prd" ? "UPB" : "UCB", x => x.u, "center"],
           ["q", k === "prd" ? "QPB" : "QCB", x => x.q, "number"], ["st", "ÉTAT", x => x.st, "center"]];
         const tbl = (k, lab) => {
           const t = "lki_" + k, rows = cfApply(t, C(k), list(k));
           return `<div class="doc-lab" style="margin-top:12px">${lab} ${svCnt(rows.length)}</div>
             <table class="bdg-d-table" style="width:100%;margin-top:6px"><thead><tr>${C(k).map(c => cfHead(t, c[0], c[1], c[3])).join("")}</tr></thead>
-            <tbody>${rows.map(x => `<tr>${C(k).map(c => `<td class="${c[3]}">${c[0] === "q" ? insFmt(x.q) : esc(c[2](x))}</td>`).join("")}</tr>`).join("")
+            <tbody>${rows.map(x => `<tr class="lk-go-row" data-gk="${k}" data-gid="${esc(x.id)}">${C(k).map(c => `<td class="${c[3]}">${c[0] === "q" ? insFmt(x.q) : esc(c[2](x))}</td>`).join("")}</tr>`).join("")
               || `<tr><td colspan="4" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
         };
         const p = document.createElement("div");
@@ -11149,12 +11167,12 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         p.innerHTML = `<div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
             <div class="doc-head"><span class="doc-title">LIAISON EN COURS</span><button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button></div>
             <div class="doc-body">
-              <div class="lk-info-st${same ? " ok" : ""}">${st}</div>
+              <div class="lk-info-st${same ? " ok" : ""}">${st}</div>${why ? `<div class="lk-info-why">VALIDATION IMPOSSIBLE : ${esc(why)}</div>` : ""}
               <div class="doc-grid">
-                <span class="doc-lab">DÉSIGNATION</span><span class="lk-info-v">${n("des", LK.des)}</span>
-                <span class="doc-lab">LOT</span><span class="lk-info-v">${n("lot", LK.lot)}</span>
-                <span class="doc-lab">ACTIVITÉ PRIMAIRE</span><span class="lk-info-v">${n("prim", LK.prim)}</span>
-                <span class="doc-lab">ACTIVITÉ SECONDAIRE</span><span class="lk-info-v">${n("sec", LK.sec)}</span>
+                <span class="doc-lab">DÉSIGNATION</span><span class="lk-info-v lk-go-row" data-gk="des" data-gid="${esc(LK.des || "")}">${n("des", LK.des)}</span>
+                <span class="doc-lab">LOT</span><span class="lk-info-v lk-go-row" data-gk="lot" data-gid="${esc(LK.lot || "")}">${n("lot", LK.lot)}</span>
+                <span class="doc-lab">ACTIVITÉ PRIMAIRE</span><span class="lk-info-v lk-go-row" data-gk="prim" data-gid="${esc(LK.prim || "")}">${n("prim", LK.prim)}</span>
+                <span class="doc-lab">ACTIVITÉ SECONDAIRE</span><span class="lk-info-v lk-go-row" data-gk="sec" data-gid="${esc(LK.sec || "")}">${n("sec", LK.sec)}</span>
               </div>
               <div class="lk-info-t">${tbl("prd", "DÉTAIL PRODUITS")}${tbl("chg", "DÉTAIL CHARGES")}</div>
             </div>
@@ -11165,7 +11183,22 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         p.addEventListener("click", e => {
           const cfb = e.target.closest(".cf-btn");
           if (cfb) { e.stopPropagation(); cfOpenMenu(cfb); return; }
-          if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); window.__sviInfoRefresh = null; }
+          if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); window.__sviInfoRefresh = null; return; }
+          /* v476 (remarque 2) : toucher une ligne = aller à cette ligne dans son bloc */
+          const g = e.target.closest(".lk-go-row");
+          if (!g || !g.dataset.gid) return;
+          p.remove(); window.__sviInfoRefresh = null;
+          const k = g.dataset.gk, id = g.dataset.gid;
+          const go = () => {
+            const el = k === "des" ? shell.querySelector(`#bdgClientBody tr[data-iid="${CSS.escape(id)}"]`)
+              : ["lot", "prim", "sec"].includes(k) ? shell.querySelector(`.ins-hcol[data-ik="${k}"] .ins-li[data-iid="${CSS.escape(id)}"]`)
+              : shell.querySelector(`#bdgTabBody tr[data-iid="${CSS.escape(id)}"]`);
+            if (!el) { svToast("LIGNE NON AFFICHÉE (FILTRE ?).", 3000); return; }
+            el.scrollIntoView({ block: "center", behavior: "smooth" });
+            el.classList.add("lk-flash"); setTimeout(() => el.classList.remove("lk-flash"), 1600);
+          };
+          if (k === "prd" || k === "chg") { const t = shell.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`); if (t && !t.classList.contains("active")) { t.click(); setTimeout(go, 250); return; } }
+          go();
         });
         window.__sviInfoRefresh = () => { const b = p.isConnected && p.querySelector(".lk-info-t"); if (b) b.innerHTML = tbl("prd", "DÉTAIL PRODUITS") + tbl("chg", "DÉTAIL CHARGES"); };
       },
@@ -14623,6 +14656,134 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         if (!e.target.closest("#blkMenu")) { m.remove(); document.removeEventListener("click", off, true); }
       }, true), 0);
     };
+    /* ===== v476 (remarque 4) : SAISIE DIRECTE — le tableau d'import, dans l'application =====
+       toutes les lignes déjà saisies (une par produit / charge avec sa chaîne), modifiables et filtrables ; lignes nouvelles en bas ;
+       ENTRÉE = case suivante, sur la dernière case la ligne est recopiée (curseur sur la désignation produit / charge) ;
+       VALIDER : lignes existantes mises à jour (chaîne d'une ligne liée : délier d'abord), lignes nouvelles importées avec les règles
+       de l'import (erreurs dans IMPORT NON CRÉÉ, doublons signalés) */
+    const openDirectEntry = kind => {
+      if (!INS || !INS_EDIT) return;
+      const P = kind === "prd";
+      const nm = (k, id) => { const r = (INS[k] || []).find(x => x.id === id); return r ? (k === "des" ? r.des || "" : r.v || "") : ""; };
+      const COLS = [["dc", "DÉSIGNATION CLIENT", 220], ["upb", "UPB", 54], ["lot", "LOT", 140], ["prim", "ACTIVITÉ PRIMAIRE", 150], ["sec", "ACTIVITÉ SECONDAIRE", 150]]
+        .concat(P ? [["des", "DÉSIGNATION PRODUIT", 170], ["u", "UNITÉ", 54], ["nbr", "NBR", 60], ["d1", "DIM 1", 60], ["d2", "DIM 2", 60], ["d3", "DIM 3", 60]]
+          : [["art", "ARTICLE", 80], ["des", "DÉSIGNATION CHARGE", 200], ["u", "UNITÉ", 54], ["q", "QTE", 70]]);
+      const NUMF = new Set(["nbr", "d1", "d2", "d3", "q"]);
+      const fmtN = v => v === "" || v === undefined || v === null ? "" : String(v).replace(".", ",");
+      const rows = [];
+      const recs = INS[kind] || [];
+      const seen = new Set();
+      (INS.links || []).forEach(l => (l[kind] || []).forEach(x => {
+        const r = recs.find(q => q.id === x.id); if (!r) return; seen.add(r.id);
+        const d = INS.des.find(q => q.id === l.des) || {};
+        rows.push({ _id: r.id, _lid: l.id || "L" + (INS.links || []).indexOf(l), dc: d.des || "", upb: d.u || "", lot: nm("lot", l.lot), prim: nm("prim", l.prim), sec: nm("sec", l.sec),
+          art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q) });
+      }));
+      recs.filter(r => !r.t && !seen.has(r.id)).forEach(r => rows.push({ _id: r.id, dc: "", upb: "", lot: "", prim: "", sec: "", art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q) }));
+      rows.forEach(r => { r._o = JSON.stringify(COLS.map(c => r[c[0]])); });
+      const blank = () => ({ dc: "", upb: "", lot: "", prim: "", sec: "", art: "", des: "", u: "", nbr: "", d1: "", d2: "", d3: "", q: "" });
+      rows.push(blank());
+      const flt = {};
+      const lists = {
+        dc: [...new Set(INS.des.filter(x => !x.t).map(x => x.des))], upb: [...new Set(INS.des.map(x => U_(x.u)).filter(Boolean))],
+        lot: [...new Set(INS.lot.filter(x => !x.t).map(x => x.v))], prim: [...new Set(INS.prim.map(x => x.v))], sec: [...new Set(INS.sec.map(x => x.v))],
+        des: [...new Set(recs.map(x => x.des).concat(P ? [] : ((typeof db !== "undefined" && db.chs) || []).map(c => c.designation)).filter(Boolean))],
+        art: P ? [] : [...new Set(((typeof db !== "undefined" && db.chs) || []).map(c => c.article).filter(Boolean))],
+        u: [...new Set(INS.sec.map(x => U_(x.u)).concat(recs.map(x => U_(x.u))).filter(Boolean))]
+      };
+      const secU = v => { const se = INS.sec.find(x => U_(x.v) === U_(v)); return U_(se && se.u); };
+      const linkedChanged = r => r._lid && ["dc", "lot", "prim", "sec"].some(f => U_(r[f]) !== U_((JSON.parse(r._o))[COLS.findIndex(c => c[0] === f)]));
+      const d = document.createElement("div");
+      d.id = "sdW";
+      let big = true;
+      const vis = () => rows.map((r, i) => ({ r, i })).filter(({ r }) => !r._id || Object.keys(flt).every(f => !flt[f] || U_(r[f]).includes(U_(flt[f]))));
+      const cell = (r, i, c) => {
+        const f = c[0];
+        const lockU = P && f === "u" && (!!secU(r.sec) || (r._lid && !!r.u));
+        const lockChain = r._lid && ["dc", "upb", "lot", "prim", "sec"].includes(f);
+        const ro = lockU || lockChain;
+        return `<td class="${NUMF.has(f) ? "number" : ""}${ro ? " sd-ro" : ""}"><input class="sd-in" data-i="${i}" data-f="${f}" value="${esc(lockU && secU(r.sec) ? secU(r.sec) : r[f] || "")}"${ro ? " readonly tabindex=\"-1\"" : ""}${NUMF.has(f) ? ' inputmode="decimal"' : ` list="sdl_${f}"`} autocomplete="off" enterkeyhint="next"></td>`;
+      };
+      const draw = () => {
+        const sc = d.querySelector(".sd-scroll"), st = sc ? sc.scrollTop : 0, sl = sc ? sc.scrollLeft : 0;
+        const V = vis();
+        d.innerHTML = `<div class="sd-card${big ? " big" : ""}" role="dialog" aria-modal="true">
+          <div class="sd-head"><span class="sd-title">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"}</span>
+            <span class="sd-n">${svCnt(V.filter(x => x.r._id).length, rows.filter(x => x._id).length)}</span>
+            <button type="button" class="sd-size">${big ? "RÉDUIRE" : "AGRANDIR"}</button><button type="button" class="svc-close sd-x" data-x aria-label="Fermer">✕</button></div>
+          <div class="sd-scroll"><table class="sd-t"><thead><tr>${COLS.map(c => `<th style="min-width:${c[2]}px">${c[1]}</th>`).join("")}</tr>
+            <tr class="sd-flt">${COLS.map(c => `<th><input class="sd-f" data-f="${c[0]}" value="${esc(flt[c[0]] || "")}" placeholder="FILTRE" autocomplete="off"></th>`).join("")}</tr></thead>
+            <tbody>${V.map(({ r, i }) => `<tr class="${r._id ? (r._lid ? "sd-old sd-lk" : "sd-old") : "sd-new"}">${COLS.map(c => cell(r, i, c)).join("")}</tr>`).join("")}</tbody></table></div>
+          ${Object.keys(lists).map(f => `<datalist id="sdl_${f}">${lists[f].map(v => `<option value="${esc(v)}"></option>`).join("")}</datalist>`).join("")}
+          <div class="sd-foot"><small>LIGNES GRISÉES : LIÉES (CHAÎNE MODIFIABLE APRÈS ✕ DÉLIER). ENTRÉE SUR LA DERNIÈRE CASE = LIGNE RECOPIÉE.</small><span style="flex:1"></span>
+            <button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral sd-ok">VALIDER</button></div></div>`;
+        const s2 = d.querySelector(".sd-scroll"); if (s2) { s2.scrollTop = st; s2.scrollLeft = sl; }
+      };
+      document.getElementById("sdW")?.remove();
+      document.body.appendChild(d);
+      draw();
+      const focusAt = (i, f) => { const el = d.querySelector(`.sd-in[data-i="${i}"][data-f="${f}"]`); if (el) { el.focus(); try { el.select(); } catch (e) {} } };
+      d.addEventListener("input", e => {
+        const ff = e.target.closest(".sd-f");
+        if (ff) { flt[ff.dataset.f] = ff.value; if (!ff.value) delete flt[ff.dataset.f]; const pos = ff.selectionStart; draw(); const n = d.querySelector(`.sd-f[data-f="${ff.dataset.f}"]`); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (err) {} } return; }
+        const inp = e.target.closest(".sd-in"); if (!inp) return;
+        const r = rows[+inp.dataset.i], f = inp.dataset.f;
+        r[f] = NUMF.has(f) ? inp.value : inp.value.toUpperCase();
+        if (!NUMF.has(f)) { const p0 = inp.selectionStart; inp.value = r[f]; try { inp.setSelectionRange(p0, p0); } catch (err) {} }
+        if (f === "sec" && P) { const u = secU(r.sec), ui = inp.closest("tr").querySelector('.sd-in[data-f="u"]'); if (ui) { if (u) { r.u = u; ui.value = u; ui.readOnly = true; ui.closest("td").classList.add("sd-ro"); } else { ui.readOnly = false; ui.closest("td").classList.remove("sd-ro"); } } }
+        if (!r._id && rows[rows.length - 1] === r && COLS.some(c => r[c[0]])) { rows.push(blank()); const tb = d.querySelector(".sd-t tbody"); const tmp = document.createElement("tbody"); tmp.innerHTML = `<tr class="sd-new">${COLS.map(c => cell(rows[rows.length - 1], rows.length - 1, c)).join("")}</tr>`; tb.appendChild(tmp.firstElementChild); }
+      });
+      d.addEventListener("keydown", e => {
+        const inp = e.target.closest(".sd-in");
+        if (!inp || e.key !== "Enter") return;
+        e.preventDefault(); e.stopPropagation();
+        const i = +inp.dataset.i, f = inp.dataset.f, tr = inp.closest("tr");
+        const ins = [...tr.querySelectorAll(".sd-in")].filter(x => !x.readOnly);
+        const k = ins.indexOf(inp);
+        if (k >= 0 && k < ins.length - 1) { ins[k + 1].focus(); try { ins[k + 1].select(); } catch (err) {} return; }
+        /* dernière case : ligne recopiée (chaîne et valeurs), curseur sur la désignation produit / charge */
+        const src = rows[i], c = { ...blank() };
+        COLS.forEach(cc => { c[cc[0]] = src[cc[0]] || ""; });
+        let j = rows.findIndex((r, n) => n > i && !r._id && COLS.every(cc => !r[cc[0]]));
+        if (j < 0) { rows.push(c); j = rows.length - 1; } else rows.splice(j, 0, c);
+        if (rows[rows.length - 1] === c) rows.push(blank());
+        draw(); focusAt(j, "des"); void f;
+      }, true);
+      d.addEventListener("click", async e => {
+        if (e.target.closest(".sd-size")) { big = !big; draw(); return; }
+        if (e.target.closest("[data-x]")) { d.remove(); return; }
+        if (!e.target.closest(".sd-ok")) return;
+        /* 1. lignes existantes modifiées */
+        let upd = 0; const refused = [];
+        rows.filter(r => r._id && JSON.stringify(COLS.map(c => r[c[0]])) !== r._o).forEach(r => {
+          if (linkedChanged(r)) { refused.push(r.des); return; }
+          const x = recs.find(q => q.id === r._id); if (!x) return;
+          x.des = U_(sviClean(r.des)); if (!r._lid) x.u = U_(r.u);
+          if (P) ["nbr", "d1", "d2", "d3"].forEach(f => { x[f] = r[f] === "" ? "" : insNum(r[f]); });
+          else { x.art = U_(r.art); x.q = r.q === "" ? "" : insNum(r.q); }
+          upd++;
+        });
+        /* 2. lignes nouvelles (et lignes non liées dont la chaîne est remplie) : importées avec les règles de l'import */
+        const H = ["PROJET", "DÉSIGNATION CLIENT", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE", "TYPE (PRD / CHG)", "ARTICLE", "DÉSIGNATION PRODUIT / CHARGE", "UNITÉ", "NBR", "DIM 1", "DIM 2", "DIM 3", "QTE"];
+        const neu = rows.filter(r => (!r._id && COLS.some(c => r[c[0]])) || (r._id && !r._lid && r.dc && r.lot && r.prim && r.sec));
+        const aoa = [H].concat(neu.map(r => [budget.project || "", r.dc, r.upb, r.lot, r.prim, r.sec, P ? "PRD" : "CHG", r.art || "", r.des, P ? (secU(r.sec) || r.u) : r.u, r.nbr, r.d1, r.d2, r.d3, r.q]));
+        if (upd) { insSave(); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE", upd + " LIGNE(S) MODIFIÉE(S)"); }
+        if (neu.length) {
+          let m; try { m = bfModel(aoa); } catch (err) { svToast("SAISIE DIRECTE : " + (err.message || err), 4000); return; }
+          const plan = bfRuleA(m, "add"); if (!(await bfRuleAAsk(plan))) return; plan.ok = true;
+          /* lignes non liées devenues complètes : l'ancienne ligne seule est remplacée par la ligne importée */
+          const gone = new Set(neu.filter(r => r._id).map(r => r._id));
+          if (gone.size) INS[kind] = INS[kind].filter(x => !gone.has(x.id));
+          bfApply(m, "add", "SAISIE DIRECTE", false, plan);
+        }
+        d.remove();
+        if (refused.length) svToast("LIGNE(S) LIÉE(S) : CHAÎNE NON CHANGÉE (✕ DÉLIER D'ABORD) — " + refused.slice(0, 3).join(", "), 5000);
+        if (actUnitSync()) insSave();
+        refreshAll();
+      });
+      setTimeout(() => { const last = rows.length - 1; focusAt(last, "dc"); }, 60);
+    };
+    shell.__sd = k => openDirectEntry(k);
     const openImportMenu = blk => {
       const p = popup(`
         <div class="blk-card">
@@ -14631,11 +14792,13 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
           <button type="button" class="blk-choice" data-src="file">Fichier (Excel, CSV, JSON)</button>
           <button type="button" class="blk-choice" data-src="gsheet">Google Sheets (lien)</button>
           ${INS ? `<button type="button" class="blk-choice" data-src="bdg">Autre budget de l'application</button>` : ""}
+          ${INS && INS_EDIT && blk === "detail" && (active === "prd" || active === "chg") ? `<button type="button" class="blk-choice" data-src="direct">SAISIE DIRECTE (${active === "prd" ? "PRODUITS" : "CHARGES"})</button>` : ""}
         </div>`);
       p.addEventListener("click", e => {
         const b = e.target.closest("[data-src]");
         if (!b) return;
         p.remove();
+        if (b.dataset.src === "direct") { openDirectEntry(active); return; }
         if (b.dataset.src === "gsheet") importGSheet();
         else if (b.dataset.src === "bdg") openImportBudget(blk);
         else doImport(blk);
