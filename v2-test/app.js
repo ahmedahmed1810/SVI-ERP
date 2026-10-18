@@ -5856,6 +5856,8 @@ function renderBudgetList() {
         ? `<span class="act-u${U_(r.v) && !U_(r.u) ? " act-umiss" : ""}"${U_(r.v) && !U_(r.u) ? ' data-why="UNITÉ OBLIGATOIRE"' : ""}><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" value="${esc(r.u || "")}" autocomplete="off"></span>`
         : `<span class="act-u act-uro">${esc(r.u || "")}</span>`)
       : k === "prim" ? `<span class="act-u act-uro">${esc(actU(k, r))}</span>` : "";
+    const lkSecU = () => { if (!INS_EDIT || !LK || !LK.sec) return ""; const se = INS.sec.find(x => x.id === LK.sec); return U_(se && se.u); };
+    shell.__lkSecU = () => lkSecU();
     const prdLinkU = id => { const l = (INS.links || []).find(l => (l.prd || []).some(x => x.id === id)); if (!l) return ""; const se = INS.sec.find(x => x.id === l.sec); return U_(se && se.u); };
     const actUnitSync = () => {
       let ch = false;
@@ -5871,6 +5873,7 @@ function renderBudgetList() {
           if (u) se.u = u;
         });
       }
+      { const su = lkSecU(); if (su) Object.keys(LK.prd || {}).forEach(id => { if (prdLinkU(id)) return; const p = INS.prd.find(q => q.id === id); if (p && U_(p.u) !== su) { p.u = su; ch = true; } }); }
       (INS.links || []).forEach(l => {
         const se = INS.sec.find(x => x.id === l.sec);
         if (!se) return;
@@ -6061,11 +6064,14 @@ function renderBudgetList() {
         /* DIM que l'unité n'autorise pas : grisées (FORMAT 74, R10) */
         || (k === "prd" && /^d[123]$/.test(f) && !isNew && +f[1] > sviUnitDims(r.u))
         /* v470 : produit d'une liaison primaire — UPB = celle de la désignation client (comme le PPB) : grisée */
-        || (k === "prd" && f === "u" && !isNew && !!prdLinkU(r.id));
+        || (k === "prd" && f === "u" && !isNew && !!prdLinkU(r.id))
+        /* v475 : activité secondaire choisie (rond) avec une unité : nouvelle ligne et produits choisis non liés prennent cette unité, grisée */
+        || (k === "prd" && f === "u" && !!lkSecU() && (isNew || (LK.prd && r.id in LK.prd && !prdLinkU(r.id))));
       const er = !isNew && INS_EDIT ? insRowErr(k, r) : null;
       let val = "";
       /* ligne vide « SAISIR ICI » des désignations : TVA 20 % affichée par défaut */
       if (isNew && f === "tva" && k !== "prd") val = "20,00";
+      if (isNew && k === "prd" && f === "u" && lkSecU()) val = lkSecU();
       if (!isNew) {
         if (r.t && f !== "art" && f !== "des") val = "";
         else if (f === "tache") val = insCalc(k, r, f) || "";
@@ -7895,6 +7901,7 @@ function renderBudgetList() {
             const last = X.INS.des[X.INS.des.length - 1];
             r.d = !last ? 0 : last.t ? (Number(last.d) || 0) + 1 : (Number(last.d) || 0);
           }
+          if (k === "prd" && shell.__lkSecU && shell.__lkSecU()) r.u = shell.__lkSecU();
           X.INS[k].push(r);
           holder.dataset.iid = r.id;
           holder.classList.remove("ins-new");
