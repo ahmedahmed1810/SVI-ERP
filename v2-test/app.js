@@ -5856,7 +5856,8 @@ function renderBudgetList() {
         ? `<span class="act-u${U_(r.v) && !U_(r.u) ? " act-umiss" : ""}"${U_(r.v) && !U_(r.u) ? ' data-why="UNITÉ OBLIGATOIRE"' : ""}><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" value="${esc(r.u || "")}" autocomplete="off"></span>`
         : `<span class="act-u act-uro">${esc(r.u || "")}</span>`)
       : k === "prim" ? `<span class="act-u act-uro">${esc(actU(k, r))}</span>` : "";
-    const lkSecU = () => { if (!INS_EDIT || !LK || !LK.sec) return ""; const se = INS.sec.find(x => x.id === LK.sec); return U_(se && se.u); };
+    /* LK est déclaré plus bas : à l'ouverture d'un budget (tri des lignes avant sa déclaration), pas encore de liaison choisie */
+    const lkSecU = () => { let L = null; try { L = LK; } catch (e) { return ""; } if (!INS_EDIT || !L || !L.sec) return ""; const se = INS.sec.find(x => x.id === L.sec); return U_(se && se.u); };
     shell.__lkSecU = () => lkSecU();
     const prdLinkU = id => { const l = (INS.links || []).find(l => (l.prd || []).some(x => x.id === id)); if (!l) return ""; const se = INS.sec.find(x => x.id === l.sec); return U_(se && se.u); };
     const actUnitSync = () => {
