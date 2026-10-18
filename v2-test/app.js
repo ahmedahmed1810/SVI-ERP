@@ -6406,6 +6406,24 @@ function renderBudgetList() {
       if ((k === "prd" || k === "chg") && LK[k]) Object.keys(LK[k]).forEach(id => S.add(id));
       return S;
     };
+    /* v484 (remarque 23) : cases cochées dans les AUTRES blocs (désignation, lot, activités, produits, charges) :
+       seules les lignes liées à ce qui y est coché comptent (blocs combinés : ET) */
+    const insCheckSet = k => {
+      if (!INS || !["des", "prd", "chg"].includes(k)) return null;
+      const B = ["des", "lot", "prim", "sec", "prd", "chg"].filter(x => x !== k);
+      const C = {};
+      B.forEach(x => { const ids = (INS[x] || []).filter(r => !r.t && r.on === true).map(r => r.id); if (ids.length) C[x] = new Set(ids); });
+      const ks = Object.keys(C);
+      if (!ks.length) return null;
+      const S = new Set();
+      (INS.links || []).forEach(l => {
+        const ok = ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]));
+        if (!ok) return;
+        if (k === "des") S.add(l.des); else (l[k] || []).forEach(y => S.add(y.id));
+      });
+      return S;
+    };
+    const insFoots = () => shell.querySelectorAll("table.ins-table[data-ik]").forEach(t => { const ft = t.querySelector("tfoot"); if (ft) ft.innerHTML = insFootHTML(t.dataset.ik); });
     const insFootHTML = k => {
       if (k === "qlt") return "";
       /* FORMAT 126 : lignes affichées, ou seulement les cases carrées cochées ; « TOTAL PARTIEL » si une partie seulement */
@@ -6414,9 +6432,11 @@ function renderBudgetList() {
       let shown = insShown(k).filter(r => !r.t);
       const rs = insRoundSet(k);
       if (rs) shown = shown.filter(r => rs.has(r.id));
+      const cs = insCheckSet(k);
+      if (cs) shown = shown.filter(r => cs.has(r.id));
       const on = shown.filter(r => r.on === true);
       const rows = on.length ? on : shown;
-      const partial = !!rs || on.length > 0 || shown.length < INS[k].filter(r => !r.t).length;
+      const partial = !!rs || !!cs || on.length > 0 || shown.length < INS[k].filter(r => !r.t).length;
       const ht = rows.reduce((t, r) => t + insHT(k, r), 0);
       const ttc = rows.reduce((t, r) => t + insTTC(k, r), 0);
       /* pied aligné sur l'ordre des colonnes de l'écran */
@@ -7909,7 +7929,7 @@ function renderBudgetList() {
       insNorm(); insSave();
       return true;
     };
-    shell.__ins = INS_EDIT ? { INS, artPlace: id => { if (desPlaceByArt(id)) { const c = shell.querySelector(".bdg-d-client-scroll"); if (c && !c.contains(document.activeElement)) insRedraw("des"); } },
+    shell.__ins = INS_EDIT ? { INS, insFoots, artPlace: id => { if (desPlaceByArt(id)) { const c = shell.querySelector(".bdg-d-client-scroll"); if (c && !c.contains(document.activeElement)) insRedraw("des"); } },
       /* v468 : mise à jour JUSTE APRÈS une saisie (ENTRÉE ou case quittée), sans attendre de toucher hors du tableau :
          la liste où l'on saisit garde le clavier (seul son compteur change) ; tout le reste est redessiné aussitôt */
       afterEntry: (k, box) => {
@@ -8058,7 +8078,7 @@ function renderBudgetList() {
           if (ca) {
             /* FORMAT 125 : tout cocher coche aussi les titres (désignations) */
             (k === "des" ? X.insShown(k) : vis).forEach(r => { r.on = ca.checked; });
-            X.insSave(); X.insRedraw(k);
+            X.insSave(); X.insRedraw(k); X.insFoots && X.insFoots();
             return;
           }
           const del = vis.filter(r => r.on === true);
@@ -8087,13 +8107,13 @@ function renderBudgetList() {
           const br = X.insBranch(r);
           r.on = cb.checked;   /* le titre lui-même est coché (copier / couper / déplacer l'emportent) */
           br.forEach(x => { x.on = cb.checked; });
-          X.insSave(); X.insRedraw(k);
+          X.insSave(); X.insRedraw(k); X.insFoots && X.insFoots();
           return;
         }
         if (cb) {
           r.on = cb.checked; X.insSave(); if (k === "des") { X.insDim(); X.insSyncTitles(); }
           /* ligne cochée : elle remonte (après les lignes au rond coché) */
-          X.insRedraw(k);
+          X.insRedraw(k); X.insFoots && X.insFoots();
           return;
           /* case d'en-tête à jour */
           const box = cb.closest("table.ins-table, .ins-hcol");
