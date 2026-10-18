@@ -1822,3 +1822,21 @@ td.ins-tdv { position: relative; }
 #sdW .svc-b.sd-ok { background: #12355b; border-color: #12355b; color: #fff; }
 #sdW tr.sd-lk td:nth-child(-n+5) { background: #f3f4f6; }
 #sdW tr.sd-lk td:nth-child(-n+5) .sd-in { color: #6b7280; }
+/* v477 (remarque 6) : SAISIE DIRECTE au FORMAT des tableaux */
+#sdW .sd-t { border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: 0; }
+#sdW .sd-t thead th { position: sticky; top: 0; z-index: 3; background: #f6f7f9 !important; height: 26px; padding: 0 6px; box-shadow: inset 0 -1px 0 #e4e7ec; overflow: hidden; }
+#sdW .sd-t thead th .cf-wrap { display: flex; align-items: center; gap: 4px; }
+#sdW .sd-t thead th .col-rs { position: absolute; right: 0; top: 0; bottom: 0; width: 10px; cursor: col-resize; touch-action: none; }
+#sdW .sd-t thead th { position: sticky; }
+#sdW .sd-t td { height: 21px; }
+#sdW .sd-in { height: 20px; padding: 0 6px; line-height: 20px; font-size: 12px; }
+#sdW .sd-in:not(:focus) { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+#sdW .sd-t th.sd-sel, #sdW .sd-t td.sd-sel { background: #e8f0fe !important; }
+#sdW .sd-t th.sd-sel .cf-lab { text-decoration: underline; color: #1d4ed8; }
+#sdW .sd-colbar { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; color: #1d4ed8; margin-left: 12px; }
+#sdW .sd-colbar button { border: 1px solid #c7d2fe; background: #fff; border-radius: 6px; padding: 3px 8px; font-weight: 800; font-size: 11px; color: #1d4ed8; cursor: pointer; }
+#sdW .sd-card { position: relative; }
+#sdW .sd-rsz { position: absolute; right: 0; bottom: 0; width: 22px; height: 22px; cursor: nwse-resize; touch-action: none; background: linear-gradient(135deg, transparent 50%, #c3cad5 50%, #c3cad5 58%, transparent 58%, transparent 70%, #c3cad5 70%, #c3cad5 78%, transparent 78%); }
+#sdW .sd-sug { position: fixed; z-index: 10070; background: #fff; border: 1px solid #d6dbe3; border-radius: 8px; box-shadow: 0 8px 22px rgba(15,23,42,.18); padding: 3px; display: flex; flex-direction: column; max-width: 360px; }
+#sdW .sd-sug button { text-align: left; border: 0; background: none; padding: 5px 9px; font-size: 12px; font-weight: 700; color: #172033; border-radius: 5px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#sdW .sd-sug button:hover { background: #eef3fb; }
