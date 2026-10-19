@@ -431,7 +431,8 @@
         const n = QQm.nChecked();
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-qq="title"><span>+ AJOUTER UN TITRE</span></button>
           <button type="button" data-qq="sub"><span>+ AJOUTER UN SOUS-TITRE (SOUS LE TITRE COCHÉ)</span></button>
-          <button type="button" data-qq="del" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}><span>SUPPRIMER LES LIGNES COCHÉES</span>${svCnt(n)}</button><div class="blk-sep"></div>`);
+          <button type="button" data-qq="del" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}><span>SUPPRIMER LES LIGNES COCHÉES</span>${svCnt(n)}</button>
+          <button type="button" data-qq="cfg"><span>RÉGLAGES QUALITÉ DU BUDGET</span></button><div class="blk-sep"></div>`);
         m.addEventListener("click", e => {
           const b = e.target.closest("[data-qq]");
           if (!b) return;
@@ -439,7 +440,7 @@
           if (b.disabled) return;
           m.remove();
           const v = b.dataset.qq;
-          if (v === "title") QQm.addTitle(); else if (v === "sub") QQm.addSub(); else QQm.del();
+          if (v === "title") QQm.addTitle(); else if (v === "sub") QQm.addSub(); else if (v === "cfg") QQm.cfg(); else QQm.del();
         }, true);
       }
       document.body.appendChild(m);
