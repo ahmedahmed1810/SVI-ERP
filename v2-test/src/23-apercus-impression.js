@@ -139,6 +139,10 @@
   th { font-weight: bold; text-align: center; background: #d9dee6; padding-top: 2mm; padding-bottom: 2mm; }
   th.sub { font-size: 10pt; padding: 1mm 0.4mm; }
   td.c { text-align: center; } td.r { text-align: right; }
+  /* PAQ (FORMAT 112) : parties en bandeau gris, sous-titres de colonnes, intitulés de tâche */
+  table.paq tr.paq-s td { background: #d9dee6; font-size: 11pt !important; padding-top: 2mm; padding-bottom: 2mm; }
+  table.paq tr.paq-h td { background: #eef1f6; }
+  table.paq tr.paq-t td { background: #f4f6f9; }
   td.rep { color: #555; font-style: italic; }
   tr.gfirst td { border-top: 1.6px solid #000; }
   td.gc, td.lc, td.pc, td.sc { vertical-align: top; }

@@ -97,6 +97,43 @@ def main():
         got = pg.evaluate(f"() => {ins}.INS.des.slice(-2).map(r => r.des + '/' + (r.u || '')).join(',')")
         check("COLLER : lignes d'Excel ajoutées en bas (remarque 24)", got == "ENDUIT/M2,PEINTURE/M2", [n0, got])
 
+        # FORMAT 111 : AGRÉMENT EXIGÉ sur la charge CIMENT (liée à RDC › BETONNAGE) → contrôle d'office sous MATIÈRE
+        pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"chg\"]'); t && t.click(); }")
+        pg.wait_for_timeout(500)
+        has_chk = pg.evaluate("() => !!document.querySelector('[data-iid=\"c1\"] input.ins-chk')")
+        check("DÉTAIL CHARGES : case AGRÉMENT EXIGÉ (FORMAT 111)", has_chk)
+        if has_chk:
+            pg.evaluate("() => document.querySelector('[data-iid=\"c1\"] input.ins-chk').click()")
+            pg.wait_for_timeout(300)
+        auto = pg.evaluate(f"""() => {{ const X = {ins}; const L = (X.INS.qq && X.INS.qq.T && X.INS.qq.T['l1|s1']) || [];
+            const i = L.findIndex(n => n.k === 't' && n.v === 'MATIÈRE'); const p = L.find(n => n.k === 'p' && n.auto === 'agr');
+            return {{ mat: i, p: p ? p.v : null, pIdx: L.indexOf(p), c: L.filter(n => n.k === 'c' && n.auto === 'agr').length }}; }}""")
+        check("AGRÉMENT EXIGÉ : « AGRÉMENT FOURNI » ajouté sous MATIÈRE (FORMAT 111)", auto["p"] == "AGRÉMENT FOURNI — CIMENT" and auto["pIdx"] > auto["mat"] >= 0 and auto["c"] == 1, auto)
+        pg.evaluate(f"""() => {{ const X = {ins}; X.INS.chg.find(c => c.id === 'c1').qex = 'SOUDEUR CERTIFIÉ'; X.insSave(); }}""")
+        q = pg.evaluate(f"() => ({ins}.INS.qq.T['l1|s1'] || []).filter(n => n.auto === 'qex').map(n => n.v).join(' / ')")
+        check("QUALIFICATION EXIGÉE : « HABILITATION VÉRIFIÉE » ajouté (FORMAT 111)", "HABILITATION VÉRIFIÉE — CIMENT" in q and "SOUDEUR CERTIFIÉ" in q, q)
+        if os.environ.get("SVI_SHOTS"):
+            pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"qlt\"]'); t && t.click(); }"); pg.wait_for_timeout(300)
+            pg.screenshot(path=os.environ["SVI_SHOTS"] + "/qlt.png", full_page=True)
+        pg.evaluate(f"""() => {{ const X = {ins}; const c = X.INS.chg.find(c => c.id === 'c1'); c.agr = false; c.qex = ''; X.insSave(); }}""")
+        n_auto = pg.evaluate(f"() => ({ins}.INS.qq.T['l1|s1'] || []).filter(n => n.auto).length")
+        check("case vidée : contrôles d'office retirés (FORMAT 111)", n_auto == 0, n_auto)
+
+        # FORMAT 112 : PAQ dans le menu ⋯ du haut, aperçu sans prix
+        pg.evaluate("() => { const s = [...document.querySelectorAll('*')].find(e => e.__paq); s && s.__paq(); }")
+        pg.wait_for_timeout(300)
+        win = pg.evaluate("() => document.querySelector('#svConf .svc-t')?.textContent || ''")
+        check("PAQ : fenêtre DÉMARCHE QUALITÉ (FORMAT 112)", "DÉMARCHE QUALITÉ" in win, win)
+        with ctx.expect_page(timeout=5000) as pi:
+            pg.evaluate("() => document.querySelector('#svConf .svc-ok').click()")
+        pv = pi.value; pv.wait_for_timeout(1200)
+        txt = pv.evaluate("() => document.body.innerText")
+        okp = all(x in txt for x in ["PLAN D'ASSURANCE QUALITÉ", "1. DÉMARCHE QUALITÉ", "2. DÉCOMPOSITION DU PROJET", "3. PLANNING", "4. POINTS DE CONTRÔLE", "5. MATÉRIAUX ET AGRÉMENTS", "BETON B25"])
+        check("PAQ : aperçu avec ses cinq parties (FORMAT 112)", okp, txt[:300])
+        check("PAQ : aucun prix (1 000,00 / 1 500,00 absents)", "1 000,00" not in txt and "1 500,00" not in txt and "1000,00" not in txt)
+        if os.environ.get("SVI_SHOTS"): pv.screenshot(path=os.environ["SVI_SHOTS"] + "/paq.png", full_page=False)
+        pv.close()
+
         # remarque 21 : une charge déjà liée à une autre tâche est copiée au chargement
         n = pg.evaluate(f"() => {ins}.INS.chg.length")
         check("charges lues", n >= 2, n)

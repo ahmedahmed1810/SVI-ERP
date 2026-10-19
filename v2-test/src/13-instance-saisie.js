@@ -51,7 +51,7 @@
       }, 60);
     };
     const insSave = () => {
-      if (INS_EDIT) { sviDlpOne(INS); sviDpredTyped(INS); insLiveSync(); if (shell.__undoTick) shell.__undoTick(); }
+      if (INS_EDIT) { sviDlpOne(INS); sviDpredTyped(INS); insLiveSync(); try { qqAutoSync(); } catch (e) {} if (shell.__undoTick) shell.__undoTick(); }
       clearTimeout(insTimer);
       insTimer = setTimeout(() => {
         const list = instLoad();
@@ -70,7 +70,7 @@
       const s = String(v ?? "").trim();
       return s === "" ? "" : num(s);
     };
-    const insFmt = v => (v === "" || v === null || v === undefined) ? "" : money(v);
+    const insFmt = v => (v === "" || v === null || v === undefined) ? "" : (typeof v === "string" && /[A-Z]/i.test(v) && !/^[\d\s.,+-]+$/.test(v)) ? v : money(v);
     /* niveau d'un titre d'après sa numérotation : I = 1, I.1 = 2, I.1.1 = 3 */
     const insLevel = art => Math.min(3, String(art || "").split(".").filter(x => x.trim() !== "").length || 1);
     /* niveau enregistré à part (FORMAT 61) : r.d = nombre de titres au-dessus de la ligne.
@@ -272,7 +272,10 @@
         ["p", "PCB", "number", "num", "price"],
         ["ht", "MCB HT", "number", "calc", "amount"],
         ["tva", "TVA %", "number", "num", "tva"],
-        ["ttc", "MCB TTC", "number", "calc", "ttc"]
+        ["ttc", "MCB TTC", "number", "calc", "ttc"],
+        /* FORMAT 111 (v488) : contrôles ajoutés d'office dans le DÉTAIL QUALITÉ de la tâche */
+        ["agr", "AGRÉMENT EXIGÉ", "center", "chk", "agr"],
+        ["qex", "QUALIFICATION EXIGÉE", "", "txt", "qex"]
       ],
       prd: [   /* pas de colonne ART : un produit n'a pas d'article */
         ["des", "DÉSIGNATION PRODUIT", "", "txt", "detail"],
@@ -296,7 +299,7 @@
     const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "tva", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
-        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? prdTaskName(r.id) : r[f];
+        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? prdTaskName(r.id) : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
     /* erreur d'une ligne (FORMAT 75) : on ne passe pas à la ligne suivante tant qu'elle reste */
     const insRowErr = (k, r) => {
       /* FORMAT 124 : ART en double (saisi ou calculé) — titres compris */
@@ -334,6 +337,10 @@
         || (k === "prd" && f === "u" && !isNew && !!prdLinkU(r.id))
         /* v475 : activité secondaire choisie (rond) avec une unité : nouvelle ligne et produits choisis non liés prennent cette unité, grisée */
         || (k === "prd" && f === "u" && !!lkSecU() && (isNew || (LK.prd && r.id in LK.prd && !prdLinkU(r.id))));
+      /* FORMAT 111 : case AGRÉMENT EXIGÉ (charge) */
+      if (type === "chk") return INS_EDIT && !isNew && !r.t
+        ? `<td class="${cls} ins-td"><input type="checkbox" class="ins-chk" data-f="${f}"${r[f] ? " checked" : ""}></td>`
+        : `<td class="${cls}">${!isNew && r[f] ? "OUI" : ""}</td>`;
       const er = !isNew && INS_EDIT ? insRowErr(k, r) : null;
       let val = "";
       /* ligne vide « SAISIR ICI » des désignations : TVA 20 % affichée par défaut */
