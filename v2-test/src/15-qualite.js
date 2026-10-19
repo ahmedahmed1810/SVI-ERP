@@ -21,7 +21,9 @@
       ["ev", "ÉLÉMENT VISÉ", 170, "pick"], ["pr", "PRESCRIPTION", 200, "txt"], ["ref", "RÉFÉRENCE", 130, "txt"],
       ["how", "COMMENT", 100, "pick"], ["who", "PAR QUI", 110, "pick"], ["proof", "PAR QUOI", 150, "pick"],
       ["dec", "DÉCLENCHEMENT", 210, "win"], ["app", "APPEL", 180, "win"], ["nc", "SI NON CONFORME", 130, "pick"],
-      ["tol", "TOLÉRANCE", 100, "txt"], ["lrm", "LIMITE REMARQUE", 110, "txt"], ["nra", "REMARQUES AVANT AUDIT", 120, "num"]
+      ["tol", "TOLÉRANCE", 100, "txt"], ["lrm", "LIMITE REMARQUE", 110, "txt"], ["nra", "REMARQUES AVANT AUDIT", 120, "num"],
+      /* FORMAT 131 (v489) : contrôles de suite sans remarque, après un audit soldé, pour remettre le compteur à zéro */
+      ["nrz", "CONTRÔLES SANS REMARQUE", 130, "num"]
     ];
     const QQ_TREE_W = 300;
     const qqData = () => {
@@ -220,6 +222,115 @@
       const ok = document.querySelector("#svConf .svc-ok"); if (ok) ok.textContent = "ENREGISTRER ET VOIR L'APERÇU";
     };
     shell.__paq = () => qqPaqOpen();
+    /* FORMAT 132 (v489) : RÉGLAGES QUALITÉ du budget — valeurs par défaut reçues par tout nouveau critère */
+    const qqCfg = () => { const Q = qqData(); Q.cfg = Q.cfg || { nra: 3, nrz: 3 }; return Q.cfg; };
+    const qqCfgDef = () => { const c = qqCfg(), o = {}; if (c.nra !== "" && c.nra !== undefined) o.nra = c.nra; if (c.nrz !== "" && c.nrz !== undefined) o.nrz = c.nrz; return o; };
+    const qqCfgWin = () => {
+      const c = qqCfg(), ro = !INS_EDIT;
+      qqWin("RÉGLAGES QUALITÉ DU BUDGET", `<div class="svc-sub">VALEURS PAR DÉFAUT REÇUES PAR TOUT NOUVEAU CRITÈRE ; UN CRITÈRE SENSIBLE SE CHANGE À LA MAIN DANS LE TABLEAU.</div>
+          <div class="doc-grid doc-grid-2">
+            <label class="doc-lab">REMARQUES AVANT AUDIT</label><input class="doc-in qq-cnra number" inputmode="numeric" value="${esc(c.nra ?? "")}" ${ro ? "disabled" : ""}>
+            <label class="doc-lab">CONTRÔLES SANS REMARQUE (REMISE À ZÉRO APRÈS UN AUDIT SOLDÉ)</label><input class="doc-in qq-cnrz number" inputmode="numeric" value="${esc(c.nrz ?? "")}" ${ro ? "disabled" : ""}>
+          </div>`, d => {
+        if (ro) return;
+        const g = s => { const v = String(d.querySelector(s).value || "").trim(); return v === "" ? "" : Math.max(0, Math.round(insNum(v)) || 0); };
+        c.nra = g(".qq-cnra"); c.nrz = g(".qq-cnrz");
+        histLog("QUALITÉ", "RÉGLAGES DU BUDGET", "REMARQUES AVANT AUDIT " + (c.nra === "" ? "—" : c.nra) + " · CONTRÔLES SANS REMARQUE " + (c.nrz === "" ? "—" : c.nrz));
+        qqSave();
+      });
+    };
+    /* import / export de l'onglet QUALITÉ (décision du 19/10/2026) : une ligne par critère */
+    const QQ_IO = ["PROJET", "LOT", "ACTIVITÉ SECONDAIRE", "TITRE", "POINT DE CONTRÔLE", "CRITÈRE", "ÉLÉMENT VISÉ", "PRESCRIPTION", "RÉFÉRENCE", "COMMENT", "PAR QUI", "PAR QUOI",
+      "DÉCLENCHEMENT", "FRÉQUENCE", "PRÉAVIS (J)", "PRÉVENIR", "SI NON CONFORME", "TOLÉRANCE", "LIMITE REMARQUE", "REMARQUES AVANT AUDIT", "CONTRÔLES SANS REMARQUE"];
+    const qqExportRows = () => {
+      const Q = qqData(), out = [], PJ = U_(budget.project || "");
+      const fN = v => v === "" || v === undefined || v === null ? "" : String(v).replace(".", ",");
+      const one = (key, L) => {
+        const [lo, se] = key ? key.split("|") : ["", ""];
+        const LOT = key ? lkName("lot", lo) : "", SEC = key ? lkName("sec", se) : "";
+        const path = [];
+        let pt = null, ptUsed = false;
+        const flushPt = () => { if (pt && !ptUsed) out.push([PJ, LOT, SEC, path.map(t => t.v).join(" / "), pt.v || "", "", ...Array(15).fill("")]); };
+        L.forEach(n => {
+          if (n.k === "t") { flushPt(); pt = null; while (path.length && path[path.length - 1].d >= n.d) path.pop(); path.push(n); return; }
+          if (n.k === "p") { flushPt(); pt = n; ptUsed = false; return; }
+          ptUsed = true;
+          out.push([PJ, LOT, SEC, path.filter(t => t.d < n.d).map(t => t.v).join(" / "), pt ? pt.v || "" : "", n.v || "", qqEvLab(key, n.ev), n.pr || "", n.ref || "", n.how || "", n.who || "", n.proof || "",
+            (n.btn || []).join(" ; "), fN(n.fq), fN(n.pv), n.pw || "", n.nc || "", n.tol || "", n.lrm || "", fN(n.nra), fN(n.nrz)]);
+        });
+        flushPt();
+      };
+      if (Q.M) one("", Q.M);
+      qqTaskKeys().forEach(k => { if (Q.T[k]) one(k, Q.T[k]); });
+      return out;
+    };
+    /* import : ligne d'en-tête avec CRITÈRE (sinon l'ancien format PROJET, QUALITÉ, TITRE) ; replace = la source remplace les contrôles */
+    const qqImportAoa = (aoa, srcName, quiet, replace) => {
+      const hi = (aoa || []).findIndex(r => (r || []).map(bfNorm).includes("CRITERE"));
+      if (hi < 0) return -1;
+      const H = aoa[hi].map(bfNorm), col = n => H.indexOf(bfNorm(n));
+      const C = {}; QQ_IO.forEach(h => { C[h] = col(h); });
+      const get = (r, h) => C[h] >= 0 ? sviClean(r[C[h]] ?? "") : "";
+      const PJ = U_(budget.project || ""), Q = qqData();
+      if (replace) { Q.M = qqDefault(); Object.keys(Q.T).forEach(k => { Q.T[k] = qqDefault(); }); }
+      let n = 0; const bad = [];
+      const evOf = (key, v) => {
+        const V = U_(v); if (!V) return "";
+        if (V === "TÂCHE (GÉNÉRAL)" || V === "TACHE (GENERAL)") return "T";
+        if (V === "TOUS LES PRODUITS") return "P*"; if (V === "TOUTES LES CHARGES") return "C*";
+        const E = qqElems(key);
+        const hit = E.find(e => U_(e.lab) === V) || E.find(e => U_(e.r.des) === V.replace(/^(PRODUIT|CHARGE) · /, "").replace(/ \([^)]*\)$/, ""));
+        return hit ? hit.v : "";
+      };
+      aoa.slice(hi + 1).forEach((r, i) => {
+        if (!r || !r.some(x => String(x ?? "").trim())) return;
+        if (C.PROJET >= 0 && PJ && get(r, "PROJET") && U_(get(r, "PROJET")) !== PJ) return;
+        const ln = hi + i + 2, lot = U_(get(r, "LOT")), sec = U_(get(r, "ACTIVITÉ SECONDAIRE"));
+        let key = "";
+        if (lot || sec) {
+          const lo = INS.lot.find(x => !x.t && U_(x.v) === lot), se = INS.sec.find(x => !x.t && U_(x.v) === sec);
+          if (!lo || !se) { bad.push("LIGNE " + ln + " : TÂCHE " + lot + " › " + sec + " INCONNUE DANS LE BUDGET"); return; }
+          key = lo.id + "|" + se.id;
+        }
+        const L = qqList(key);
+        /* chemin des titres : créé s'il manque */
+        let pi = -1, d = 0;
+        U_(get(r, "TITRE")).split("/").map(s => s.trim()).filter(Boolean).forEach(t => {
+          const a = pi + 1, b = pi < 0 ? L.length : qqEnd(L, pi);
+          let j = -1; for (let x = a; x < b; x++) if (L[x].k === "t" && L[x].d === d && U_(L[x].v) === t) { j = x; break; }
+          if (j < 0) { j = b; L.splice(j, 0, { id: insId(), k: "t", d, v: t }); }
+          pi = j; d++;
+        });
+        const P = U_(get(r, "POINT DE CONTRÔLE")), CR = U_(get(r, "CRITÈRE"));
+        if (!P) { if (CR) bad.push("LIGNE " + ln + " : CRITÈRE SANS POINT DE CONTRÔLE"); return; }
+        /* contrôle ajouté d'office : il redonne la case de la charge (AGRÉMENT EXIGÉ / QUALIFICATION EXIGÉE) */
+        const am = P.match(/^(AGRÉMENT FOURNI|HABILITATION VÉRIFIÉE) — (.+)$/);
+        if (am && key) {
+          const c = qqElems(key).find(e => e.k === "chg" && U_(e.r.des) === am[2]);
+          if (c) { if (am[1] === "AGRÉMENT FOURNI") c.r.agr = true; else { const q = CR.replace(/^QUALIFICATION : /, ""); if (q) c.r.qex = q; } n++; return; }
+        }
+        const a = pi + 1, b = pi < 0 ? L.length : qqEnd(L, pi);
+        let p = -1; for (let x = a; x < b; x++) if (L[x].k === "p" && U_(L[x].v) === P) { p = x; break; }
+        if (p < 0) { p = b; L.splice(p, 0, { id: insId(), k: "p", d, v: P }); }
+        if (!CR) return;
+        const e = qqEnd(L, p);
+        let c = null; for (let x = p + 1; x < e; x++) if (L[x].k === "c" && U_(L[x].v) === CR) { c = L[x]; break; }
+        if (!c) { c = { id: insId(), k: "c", d: L[p].d + 1, v: CR, nc: "RIEN" }; L.splice(e, 0, c); }
+        const pick = (h, list) => { const v = U_(get(r, h)); return list.includes(v) ? v : (v ? (bad.push("LIGNE " + ln + " : " + h + " « " + v + " » INCONNU"), "") : ""); };
+        const numv = h => { const v = get(r, h); return v === "" ? "" : sviNumOk(v) ? insNum(v) : (bad.push("LIGNE " + ln + " : " + h + " « " + v + " » N'EST PAS UN NOMBRE"), ""); };
+        Object.assign(c, {
+          ev: evOf(key, get(r, "ÉLÉMENT VISÉ")) || c.ev || (key ? "T" : ""), pr: U_(get(r, "PRESCRIPTION")), ref: U_(get(r, "RÉFÉRENCE")),
+          how: pick("COMMENT", QQ_LISTS.how), who: pick("PAR QUI", QQ_LISTS.who), proof: pick("PAR QUOI", QQ_LISTS.proof),
+          btn: U_(get(r, "DÉCLENCHEMENT")).split(/\s*[;·]\s*/).filter(Boolean), fq: numv("FRÉQUENCE"), pv: numv("PRÉAVIS (J)"), pw: U_(get(r, "PRÉVENIR")),
+          nc: pick("SI NON CONFORME", QQ_LISTS.nc) || "RIEN", tol: U_(get(r, "TOLÉRANCE")), lrm: U_(get(r, "LIMITE REMARQUE")), nra: numv("REMARQUES AVANT AUDIT"), nrz: numv("CONTRÔLES SANS REMARQUE")
+        });
+        n++;
+      });
+      if (!quiet) histLog("IMPORT", "QUALITÉ", (srcName || "") + " — " + n + " LIGNE(S)" + (bad.length ? " — " + bad.length + " REFUSÉE(S)" : ""));
+      insSave(); refreshAll();
+      if (bad.length) setTimeout(() => sviAlert(["ONGLET QUALITÉ : " + n + " LIGNE(S) IMPORTÉE(S).", "REFUSÉES OU INCOMPLÈTES :", ...bad.slice(0, 40).map(x => "— " + x), bad.length > 40 ? "… ET " + (bad.length - 40) + " AUTRE(S)" : ""].filter(Boolean).join("\n"), "IMPORT QUALITÉ"), 300);
+      return n;
+    };
     let qqSub = "ctl";   /* sous-onglet : CONTRÔLES / ESSAIS EXTERNES / PERSONNEL (FORMAT 110) */
     const qqCell = (key, n, c) => {
       const [f, , , type] = c, ro = !INS_EDIT;
@@ -538,13 +649,13 @@
         const inp = e.target.closest(".qq-in");
         if (!inp) return;
         const L = qqList(key), tr = inp.closest("tr"), f = inp.dataset.f;
-        const val = f === "nra" ? insNum(inp.value) : U_(inp.value);
+        const val = f === "nra" || f === "nrz" ? insNum(inp.value) : U_(inp.value);
         if (tr.classList.contains("qq-new")) {
           if (!val) return;
           const pi = L.findIndex(x => x.id === tr.dataset.pid);
           if (pi < 0) return;
           const p = L[pi], node = { id: insId(), k: tr.dataset.kind, d: p.d + 1, v: val };
-          if (node.k === "c") Object.assign(node, { ev: key ? "T" : "", nc: "RIEN" });
+          if (node.k === "c") Object.assign(node, { ev: key ? "T" : "", nc: "RIEN" }, qqCfgDef());
           L.splice(qqEnd(L, pi), 0, node);
           histLog("QUALITÉ", node.k === "p" ? "POINT DE CONTRÔLE AJOUTÉ" : "CRITÈRE AJOUTÉ", val);
           qqSave();
@@ -572,6 +683,8 @@
     /* menu ⋯ du bloc détail quand DÉTAIL QUALITÉ est ouvert : ajouter un titre, supprimer les lignes cochées */
     shell.__qq = {
       on: () => active === "qlt" && !!INS,
+      cfg: () => qqCfgWin(),
+      io: { head: QQ_IO, exp: () => qqExportRows(), imp: (aoa, rep) => qqImportAoa(aoa, "TEST", true, rep) },
       edit: () => INS_EDIT,
       nChecked: () => qqSub === "ext" ? qqData().ext.filter(x => x.on).length : qqSub === "ctl" ? qqList(qqKey()).filter(x => x.on).length : 0,
       addTitle: () => {

@@ -473,8 +473,9 @@
             const DH = ["PROJET", ...DLY_HEAD], DR = dlyExportRows().map(r => [U_(budget.project || ""), ...r]);
             X.utils.book_append_sheet(wb, tab("DÉTAIL DÉLAIS", DH, DR, c => c >= 3 && c <= 6 ? "center" : "left", [10, 24, 40, 9, 12, 12, 10, 48], () => false), "DÉLAIS");
             /* 3e onglet QUALITÉ (FORMAT 132) */
-            const QH = ["PROJET", "QUALITÉ", "TITRE"], QR = (INS.qlt || []).filter(r => U_(r.v)).map(r => [U_(budget.project || ""), U_(r.v), r.t ? "OUI" : ""]);
-            X.utils.book_append_sheet(wb, tab("DÉTAIL QUALITÉ", QH, QR, c => c === 2 ? "center" : "left", [10, 70, 8], row => !!row[2]), "QUALITÉ");
+            /* v489 : une ligne par critère (décision du 19/10/2026) */
+            const QH = QQ_IO, QR = qqExportRows();
+            X.utils.book_append_sheet(wb, tab("DÉTAIL QUALITÉ", QH, QR, c => c >= 13 && c <= 14 || c >= 19 ? "center" : "left", [10, 18, 22, 24, 30, 30, 26, 26, 16, 10, 12, 18, 30, 10, 10, 20, 14, 12, 12, 12, 12], () => false), "QUALITÉ");
           }
           const out = X.write(wb, { bookType: "xlsx", type: "array" });
           await deliver(base + ".xlsx", new Blob([out], {
@@ -1678,13 +1679,16 @@
     /* nature d'un onglet : budget (DÉSIGNATION CLIENT) ou délais (ACTIVITÉ SECONDAIRE + DÉBUT / FIN, sans DÉSIGNATION CLIENT) */
     const sheetKind = aoa => {
       const rows = (aoa || []).slice(0, 15).map(r => (r || []).map(bfNorm));
+      if (rows.some(r => r.includes("CRITERE") && r.includes("POINT DE CONTROLE"))) return "qlt";   /* v489 : onglet QUALITÉ, une ligne par critère */
       if (rows.some(r => r.includes("DESIGNATION CLIENT"))) return "budget";
       if (rows.some(r => r.includes("ACTIVITE SECONDAIRE") && (r.includes("DEBUT") || r.includes("FIN") || r.includes("PREDECESSEURS")))) return "dly";
       if (rows.some(r => r.includes("QUALITE"))) return "qlt";
       return "";
     };
     /* import de l'onglet QUALITÉ (FORMAT 132) : une ligne par libellé, TITRE = OUI pour un titre ; doublons ignorés */
-    const qltImportAoa = (aoa, srcName, quiet) => {
+    const qltImportAoa = (aoa, srcName, quiet, replace) => {
+      /* v489 : nouveau format (une ligne par critère) → DÉTAIL QUALITÉ ; sinon l'ancienne liste (PROJET, QUALITÉ, TITRE) */
+      { const nq = qqImportAoa(aoa, srcName, quiet, replace); if (nq >= 0) return nq; }
       const hi = (aoa || []).findIndex(r => (r || []).map(bfNorm).includes("QUALITE"));
       if (hi < 0) return 0;
       const H = aoa[hi].map(bfNorm), cv = H.indexOf("QUALITE"), ct = H.indexOf("TITRE"), cp = H.findIndex(h => h === "PROJET" || h === "PRJ");
@@ -1959,7 +1963,7 @@
       /* onglet absent : ce bloc n'est pas touché, dit en une ligne */
       const absent = [];
       if (kinds.has("dly")) { if (got.daoa) { INS.dlp = {}; INS.dpred = {}; INS.inc = (INS.inc || []).filter(x => U_((x.src || {}).type || "") !== "DÉLAI"); dlyImportAoa(got.daoa, got.name); } else { absent.push("DÉLAIS"); kinds.delete("dly"); } }
-      if (kinds.has("qlt")) { if (got.qaoa) { INS.qlt = []; qltImportAoa(got.qaoa, got.name, true); } else { absent.push("QUALITÉ"); kinds.delete("qlt"); } }
+      if (kinds.has("qlt")) { if (got.qaoa) { INS.qlt = []; qltImportAoa(got.qaoa, got.name, true, true); } else { absent.push("QUALITÉ"); kinds.delete("qlt"); } }
       if (absent.length) svToast("ONGLET " + absent.join(" ET ") + " INTROUVABLE DANS LA SOURCE : NON ACTUALISÉ.", 6000);
       srcRemember({ ...S, name: S.kind === "file" ? (got.name.split(" › ")[0] || S.name) : S.name, ...(got.dsheet ? { dsheet: got.dsheet } : {}), ...(got.qsheet ? { qsheet: got.qsheet } : {}) });
       if (kinds.size) histLog("IMPORT", "ACTUALISATION DEPUIS LA SOURCE", got.name + " — " + [...kinds].map(k => ({ prd: "PRODUITS", chg: "CHARGES", des: "DÉSIGNATIONS", hier: "TÂCHES", dly: "DÉLAIS", qlt: "QUALITÉ" })[k]).join(", "));
