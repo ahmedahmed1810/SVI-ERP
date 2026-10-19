@@ -456,7 +456,9 @@
       const busy = multi ? (Object.keys(LK[k]).length > 0 && !on) : !!LK[k];
       return `<span class="lk-rd lk-rdall${on ? " on" : ""}${busy ? " off" : ""}" data-rdall="${k}" role="button" aria-label="Choisir toutes les lignes liées"></span>`;
     };
-    const lkRd = (k, r) => INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${LK.des && lkIsLinked(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
+    /* v490 (remarque 4) : quel que soit le rond choisi (désignation, lot, activité, produit, charge), les lignes liées
+       à ce choix ont le point dans leur rond (avant : seulement quand une désignation était choisie) */
+    const lkRd = (k, r) => INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${(LK.des && lkIsLinked(k, r.id)) || lkHit(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
     /* case à droite : elle coche seulement (suppression, export, aperçu passent par le menu ⋯ du bloc) */
     const insDelCell = r => !r ? "" : `<input type="checkbox" class="ins-cb${r.t ? " ins-tcb" : ""}" ${!r.t && r.on === true ? "checked" : ""}>`;
     const insQCol = k => false;   /* plus de colonne QUANTITÉ DE LA TÂCHE : la quantité liée est la QPB du produit */

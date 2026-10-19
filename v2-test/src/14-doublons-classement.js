@@ -12,7 +12,18 @@
       return k === "prd" ? impId(k, r) + "#" + prdChainKey(r.id) : impId(k, r);
     };
     const dupName = (k, r) => (k === "lot" || k === "prim" || k === "sec" || k === "qlt") ? U_(r.v) : [r.art, r.des].filter(Boolean).join(" — ") + (r.u ? " (" + U_(r.u) + ")" : "");
-    const dupLinks = (k, id) => (INS.links || []).filter(l => k === "prd" || k === "chg" ? (l[k] || []).some(x => x.id === id) : l[k] === id).length;
+    /* v490 (remarque 1) : chaque ligne de la fenêtre DOUBLON montre ses combinaisons complètes, sur une ligne :
+       DÉSIGNATION CLIENT / LOT / ACTIVITÉ PRIMAIRE / ACTIVITÉ SECONDAIRE ; produit : + UNITÉ · NBR · QPB ; « NON LIÉ » sans liaison */
+    const dupChains = (k, r) => {
+      const L = (INS.links || []).filter(l => k === "prd" || k === "chg" ? (l[k] || []).some(x => x.id === r.id) : l[k] === r.id);
+      const nm = (kk, id) => kk === "des" ? (((INS.des || []).find(x => x.id === id) || {}).des || "") : lkName(kk, id);
+      return L.map(l => ["des", "lot", "prim", "sec"].map(kk => U_(nm(kk, l[kk]))).join(" / "));
+    };
+    const dupLi = (k, r, tag) => {
+      const ch = dupChains(k, r);
+      const pq = k === "prd" ? " — NBR " + insFmt(r.nbr) + " · QPB " + insFmt(insCalc("prd", r, "q")) : k === "chg" ? " — QCB " + insFmt(r.q) : "";
+      return `<li><b>${esc(dupName(k, r))}</b>${esc(pq)}${tag ? " " + esc(tag) : ""}<div class="dup-ch">${ch.length ? ch.map(c => `<div>${esc(c)}</div>`).join("") : "<div>NON LIÉ</div>"}</div></li>`;
+    };
     /* liaisons après fusion (drop → keep), avec contrôle de la règle A */
     const dupMerged = (k, keep, drop) => {
       const L = JSON.parse(JSON.stringify(INS.links || []));
@@ -57,7 +68,7 @@
       const m = dupMerged(k, keepR.id, dropR.id);
       const v = await svChoose({ title: opts.title || "DOUBLON",
         html: `<div class="svc-sub">${esc(DUP_LAB[k])} : CE LIBELLÉ EXISTE DÉJÀ</div>
-          <ul class="svc-list"><li>${esc(dupName(k, keepR))} — ${dupLinks(k, keepR.id)} LIAISON(S)</li><li>${esc(dupName(k, dropR))} — ${dupLinks(k, dropR.id)} LIAISON(S)${opts.typed ? " (SAISIE)" : ""}</li></ul>
+          <ul class="svc-list dup-ul">${dupLi(k, keepR)}${dupLi(k, dropR, opts.typed ? "(SAISIE)" : "")}</ul>
           ${m.err ? `<div class="svc-sub svc-warn">FUSION IMPOSSIBLE : ${esc(m.err)}</div>` : `<div class="svc-sub">FUSIONNER : UNE SEULE LIGNE, TOUTES LES LIAISONS REPORTÉES.</div>`}`,
         noCancel: true,
         buttons: [{ v: "back", label: opts.backLabel || "RÉTABLIR", tone: "neutral" }, { v: "merge", label: "FUSIONNER", tone: "danger", disabled: !!m.err }] });
@@ -90,6 +101,15 @@
             r[f] = old ? (old[f] ?? "") : "";
             X.save(); X.refresh();
             return;
+          }
+        }
+        /* v490 (remarque 2) : intitulé presque identique à un existant → VOULEZ-VOUS DIRE … ? */
+        if (r && X.near && ["v", "des"].includes(inp.dataset.f) && !X.INS[k].some(x => x.id !== r.id && dupKeyOf(k, x) === dupKeyOf(k, r))) {
+          const ex = X.near(k, r);
+          if (ex && !X.nearSkipped(k, X.nearName(k, ex), X.nearName(k, r))) {
+            const a = await X.nearAsk(k, ex, r);
+            if (a === "take") { r[inp.dataset.f] = X.nearName(k, ex); if (k !== "lot" && k !== "prim" && k !== "sec" && k !== "qlt" && ex.art && !r.art) r.art = ex.art; }
+            else { X.save(); X.refresh(); return; }
           }
         }
         const key = dupKeyOf(k, r);
@@ -139,7 +159,87 @@
       INS.cleanV1 = true; insSave();
     }
     if (INS && INS_EDIT && !INS.sortedV1) { insSortAll(); INS.sortedV1 = true; insSave(); }
-    shell.__dupX = INS && INS_EDIT ? { INS, ask: (k, a, b, o) => dupAsk(k, a, b, o), save: () => insSave(), refresh: () => refreshAll() } : null;
+    /* v490 (remarque 2) : INTITULÉS PRESQUE IDENTIQUES — même texte aux accents, tirets, espaces ou ponctuation près,
+       ou une lettre en plus / en moins / changée, ou deux lettres inversées (ENDUI 20 / ENDUIT 20, ÉTANCHÉITÉ / ÉTANCHIÉTÉ).
+       Les nombres doivent être les mêmes (ENDUIT 10 et ENDUIT 20 restent distincts). Ce n'est pas un doublon :
+       on choisit PRENDRE L'EXISTANT ou GARDER LA NOUVELLE (ouverture du budget : FUSIONNER ou IGNORER) */
+    const nearNorm = s => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/Œ/g, "OE").replace(/[^A-Z0-9]+/g, "");
+    const nearDigits = s => (String(s ?? "").match(/\d+/g) || []).map(x => String(+x)).join(",");
+    const nearDist1 = (a, b) => {   /* vrai si une seule faute : insertion, suppression, remplacement ou inversion de deux lettres voisines */
+      if (a === b) return false;
+      const la = a.length, lb = b.length;
+      if (Math.abs(la - lb) > 1) return false;
+      if (la === lb) {
+        const diff = []; for (let i = 0; i < la; i++) if (a[i] !== b[i]) { diff.push(i); if (diff.length > 2) return false; }
+        if (diff.length === 1) return true;
+        return diff.length === 2 && diff[1] === diff[0] + 1 && a[diff[0]] === b[diff[1]] && a[diff[1]] === b[diff[0]];
+      }
+      const [s, l] = la < lb ? [a, b] : [b, a];
+      let i = 0; while (i < s.length && s[i] === l[i]) i++;
+      return s.slice(i) === l.slice(i + 1);
+    };
+    const nearName = (k, r) => (k === "lot" || k === "prim" || k === "sec" || k === "qlt") ? r.v : r.des;
+    const nearCtx = (k, r) => {
+      if (k === "lot" || k === "prim" || k === "sec" || k === "qlt") return "";
+      if (k === "des") return U_(r.u);
+      const key = dupKeyOf(k, r); return U_(r.u) + "#" + String(key).split("#").slice(1).join("#");
+    };
+    const isNear = (a, b) => {
+      if (!a || !b || U_(a) === U_(b)) return false;
+      if (nearDigits(a) !== nearDigits(b)) return false;
+      const na = nearNorm(a), nb = nearNorm(b);
+      if (!na || !nb) return false;
+      if (na === nb) return true;
+      return Math.min(na.length, nb.length) >= 5 && nearDist1(na, nb);
+    };
+    const NEAR_K = ["des", "lot", "prim", "sec", "chg", "prd"];
+    /* la ligne existante la plus proche d'une saisie (celle qui a le plus de liaisons) */
+    const nearOf = (k, r) => {
+      if (!NEAR_K.includes(k) || !r || r.t) return null;
+      const n = nearName(k, r), c = nearCtx(k, r);
+      const cand = (INS[k] || []).filter(x => x !== r && !x.t && nearCtx(k, x) === c && isNear(nearName(k, x), n));
+      if (!cand.length) return null;
+      const nl = x => (INS.links || []).filter(l => k === "prd" || k === "chg" ? (l[k] || []).some(y => y.id === x.id) : l[k] === x.id).length;
+      return cand.sort((x, y) => nl(y) - nl(x))[0];
+    };
+    const nearSkipKey = (k, a, b) => ref + "|near|" + k + "|" + [nearNorm(a), nearNorm(b)].sort().join("|");
+    const nearSkipped = (k, a, b) => { try { return !!JSON.parse(localStorage.getItem("svi_nearskip_v1") || "{}")[nearSkipKey(k, a, b)]; } catch (e) { return false; } };
+    const nearSkip = (k, a, b) => { try { const o = JSON.parse(localStorage.getItem("svi_nearskip_v1") || "{}"); o[nearSkipKey(k, a, b)] = 1; localStorage.setItem("svi_nearskip_v1", JSON.stringify(o)); } catch (e) {} };
+    /* saisie : « VOULEZ-VOUS DIRE … ? » */
+    const nearAsk = async (k, ex, r) => {
+      const v = await svChoose({ title: "VOULEZ-VOUS DIRE « " + U_(nearName(k, ex)) + " » ?",
+        html: `<div class="svc-sub">${esc(DUP_LAB[k])} : « ${esc(U_(nearName(k, r)))} » RESSEMBLE À UN INTITULÉ EXISTANT (ACCENTS, TIRETS, ESPACES OU UNE LETTRE PRÈS).</div>
+          <ul class="svc-list dup-ul">${dupLi(k, ex, "(EXISTANT)")}${dupLi(k, r, "(SAISIE)")}</ul>`,
+        noCancel: true,
+        buttons: [{ v: "keep", label: "GARDER LA NOUVELLE", tone: "neutral" }, { v: "take", label: "PRENDRE L'EXISTANT", tone: "danger" }] });
+      if (v === "take") return "take";
+      nearSkip(k, nearName(k, ex), nearName(k, r));
+      histLog("SAISIE", "INTITULÉ PROCHE GARDÉ", DUP_LAB[k] + " — " + U_(nearName(k, r)) + " (EXISTANT : " + U_(nearName(k, ex)) + ")");
+      return "keep";
+    };
+    /* ouverture du budget (et après un import) : paires proches déjà présentes, dans la fenêtre DOUBLON EXISTANT */
+    const nearPairs = () => {
+      const out = [];
+      NEAR_K.forEach(k => {
+        const by = new Map();
+        (INS[k] || []).forEach(r => { if (r.t || !U_(nearName(k, r))) return; const c = nearCtx(k, r); if (!by.has(c)) by.set(c, []); by.get(c).push(r); });
+        by.forEach(L => {
+          const names = new Map();
+          L.forEach(r => { const n = U_(nearName(k, r)); if (!names.has(n)) names.set(n, r); });
+          const U = [...names.values()];
+          for (let i = 0; i < U.length; i++) for (let j = i + 1; j < U.length; j++) {
+            const a = nearName(k, U[i]), b = nearName(k, U[j]);
+            if (Math.abs(nearNorm(a).length - nearNorm(b).length) > 1 && nearNorm(a) !== nearNorm(b)) continue;
+            if (!isNear(a, b) || nearSkipped(k, a, b)) continue;
+            const nl = x => (INS.links || []).filter(l => k === "prd" || k === "chg" ? (l[k] || []).some(y => y.id === x.id) : l[k] === x.id).length;
+            const [keep, drop] = nl(U[j]) > nl(U[i]) ? [U[j], U[i]] : [U[i], U[j]];
+            out.push({ k, keep, drop, near: true });
+          }
+        });
+      });
+      return out;
+    };
+    shell.__dupX = INS && INS_EDIT ? { INS, ask: (k, a, b, o) => dupAsk(k, a, b, o), near: (k, r) => nearOf(k, r), nearAsk: (k, ex, r) => nearAsk(k, ex, r), nearSkipped: (k, a, b) => nearSkipped(k, a, b), nearName: (k, r) => nearName(k, r), isNear: (a, b) => isNear(a, b), save: () => insSave(), refresh: () => refreshAll() } : null;
     /* doublons déjà présents (anciens budgets, imports) : proposés à l'ouverture, un par un ; IGNORER = plus redemandé pendant la séance */
     /* DOUBLON EXISTANT (FORMAT 103) : une seule fenêtre pour tous les doublons du budget ;
        sélecteur ‹ i/N › (liste au toucher du numéro), IGNORER / FUSIONNER / IGNORER TOUS / FUSIONNER TOUS */
@@ -159,11 +259,13 @@
           if (!skip[sk]) items.push({ k, keep: first, drop: r, sk });
         });
       });
+      /* v490 (remarque 2) : intitulés presque identiques, proposés dans la même fenêtre */
+      try { nearPairs().forEach(x => { x.sk = ref + "|near|" + x.k + "|" + x.keep.id + "|" + x.drop.id; if (!skip[x.sk]) items.push(x); }); } catch (e) {}
       if (!items.length) return;
       shell.__dupBusy = true;
       let cur = 0, showList = false, changed = false;
       const alive = it => INS[it.k].includes(it.keep) && INS[it.k].includes(it.drop);
-      const ignore = it => { skip[it.sk] = 1; try { sessionStorage.setItem("svi_dupskip", JSON.stringify(skip)); } catch (e) {} };
+      const ignore = it => { skip[it.sk] = 1; try { sessionStorage.setItem("svi_dupskip", JSON.stringify(skip)); } catch (e) {} if (it.near) nearSkip(it.k, nearName(it.k, it.keep), nearName(it.k, it.drop)); };
       const d = document.createElement("div");
       d.id = "svConf";
       const finish = () => { d.remove(); shell.__dupBusy = false; if (changed) { insSave(); refreshAll(); } };
@@ -176,8 +278,8 @@
           <div class="svc-t dupx-head">DOUBLON EXISTANT
             <span class="dupx-nav"><button type="button" data-nav="-1"${cur ? "" : " disabled"}>‹</button><button type="button" class="dupx-num" data-list>${cur + 1}/${items.length}</button><button type="button" data-nav="1"${cur < items.length - 1 ? "" : " disabled"}>›</button></span></div>
           ${showList ? `<div class="dupx-list">${items.map((x, n) => `<button type="button" class="dupx-li${n === cur ? " on" : ""}" data-go="${n}"><b>${n + 1}</b> ${esc(DUP_LAB[x.k])} — ${esc(dupName(x.k, x.drop))}</button>`).join("")}</div>` : ""}
-          <div class="svc-x"><div class="svc-sub">${esc(DUP_LAB[it.k])} : CE LIBELLÉ EXISTE DÉJÀ</div>
-            <ul class="svc-list"><li>${esc(dupName(it.k, it.keep))} — ${dupLinks(it.k, it.keep.id)} LIAISON(S)</li><li>${esc(dupName(it.k, it.drop))} — ${dupLinks(it.k, it.drop.id)} LIAISON(S)</li></ul>
+          <div class="svc-x"><div class="svc-sub">${it.near ? `${esc(DUP_LAB[it.k])} : INTITULÉS PRESQUE IDENTIQUES — VOULEZ-VOUS DIRE « ${esc(U_(nearName(it.k, it.keep)))} » ? (FUSIONNER = PRENDRE L'EXISTANT ; IGNORER = GARDER LES DEUX)` : `${esc(DUP_LAB[it.k])} : CE LIBELLÉ EXISTE DÉJÀ`}</div>
+            <ul class="svc-list dup-ul svc-scroll">${dupLi(it.k, it.keep)}${dupLi(it.k, it.drop)}</ul>
             ${m.err ? `<div class="svc-sub svc-warn">FUSION IMPOSSIBLE : ${esc(m.err)}</div>` : `<div class="svc-sub">FUSIONNER : UNE SEULE LIGNE, TOUTES LES LIAISONS REPORTÉES.</div>`}</div>
           <div class="svc-f dupx-f">
             <button type="button" class="svc-b" data-a="ignall">IGNORER TOUS</button>

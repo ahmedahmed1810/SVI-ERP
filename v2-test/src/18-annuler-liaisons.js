@@ -520,6 +520,9 @@
     /* ✕ DÉLIER : fenêtre de confirmation (liaisons concernées, délais supprimés), puis destruction */
     const lkDestroy = pl => {
       const tag = l => [lkName("des", l.des), lkName("lot", l.lot), lkName("prim", l.prim), lkName("sec", l.sec)].join(" › ");
+      /* v490 (remarque 3) : chaque liaison citée — DÉSIGNATION CLIENT / LOT / ACTIVITÉ PRIMAIRE / ACTIVITÉ SECONDAIRE, produits et charges */
+      const tag2 = l => [lkName("des", l.des), lkName("lot", l.lot), lkName("prim", l.prim), lkName("sec", l.sec)].map(U_).join(" / ")
+        + " — " + (l.prd || []).length + " PRODUIT(S), " + (l.chg || []).length + " CHARGE(S)";
       const rem = pl.remP.length || pl.remC.length;
       const names = [...pl.remP.map(id => lkName("prd", id)), ...pl.remC.map(id => lkName("chg", id))];
       const ids = new Set(pl.links.map(l => l.id));
@@ -536,9 +539,9 @@
       const nDes = new Set(pl.links.map(l => l.des)).size;
       const html = `<div class="svc-sub"><b>${pl.links.length} LIAISON(S) ${rem ? "TOUCHÉE(S)" : "SERONT DÉLIÉES"}</b> (${nDes} DÉSIGNATION(S) CLIENT${rem ? ", " + names.length + " PRODUIT(S) / CHARGE(S) RETIRÉ(S)" + (gone.length ? ", " + gone.length + " LIAISON(S) SANS PRODUIT DÉLIÉE(S)" : "") : ""}).</div>
         <div class="svc-sub">LES LIGNES DÉLIÉES RESTENT DANS LEURS TABLEAUX (LIGNES NON LIÉES).</div>
-        ${rem && names.length <= 5 ? `<div class="svc-sub">À RETIRER : ${esc(names.join(", "))}</div>` : ""}
-${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISONS DÉLIÉES"} ${svCnt(pl.links.length)} :</div>
-        <ul class="svc-list">${pl.links.map(l => `<li>${esc(tag(l))}${rem && gone.includes(l) ? " <b>(PLUS AUCUN PRODUIT : DÉLIÉE)</b>" : ""}</li>`).join("")}</ul>` : ""}
+        ${rem ? `<div class="svc-sub">À RETIRER : ${esc(names.join(", "))}</div>` : ""}
+        <div class="svc-sub">${rem ? "DANS" : "LIAISONS DÉLIÉES"} ${svCnt(pl.links.length)} :</div>
+        <ul class="svc-list">${pl.links.map(l => `<li>${esc(tag2(l))}${rem && gone.includes(l) ? " <b>(PLUS AUCUN PRODUIT : DÉLIÉE)</b>" : ""}</li>`).join("")}</ul>
         ${nD ? `<div class="svc-sub svc-warn">LES DATES DE ${nD} TÂCHE${nD > 1 ? "S" : ""} ${nD > 1 ? "SERONT SUPPRIMÉES" : "SERONT SUPPRIMÉES"}.</div>` : ""}`;
       return svConfirm({ title: rem ? "RETIRER DES LIAISONS" : "DÉLIER", html, ok: "✕ DÉLIER" }).then(go => {
         if (!go) return false;
