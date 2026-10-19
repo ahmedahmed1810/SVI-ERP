@@ -1862,3 +1862,8 @@ td.ins-tdv { position: relative; }
 .qq-table tr.qq-auto input:disabled { color: #4b5563; -webkit-text-fill-color: #4b5563; opacity: 1; }
 .paq-dem { width: 100%; min-height: 180px; text-transform: uppercase; }
 .qq-table tr.qq-auto input:disabled { pointer-events: none; }   /* le toucher atteint la case : raison affichée */
+
+/* v490 — remarque 3 : listes des fenêtres jusqu'à la moitié de l'écran, puis défilement ; remarque 1 : combinaisons sous chaque ligne */
+#svConf .svc-list.svc-scroll, #dlyAddW .svc-list.svc-scroll { max-height: 50vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 6px; }
+#svConf .dup-ul li { margin-bottom: 6px; }
+#svConf .dup-ch { font-weight: 600; color: #4b5563; font-size: 11.5px; line-height: 1.4; white-space: normal; }

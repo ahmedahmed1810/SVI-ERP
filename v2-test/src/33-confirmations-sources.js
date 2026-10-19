@@ -159,14 +159,10 @@ function svChoose({ title = "", text = "", html = "", buttons = [], noCancel = f
     });
   });
 }
-/* FORMAT 123 : fenêtres de confirmation — une liste de plus de 5 lignes n'est pas affichée (le nombre suffit) */
+/* v490 (remarque 3, remplace la règle des 5 lignes) : une liste de fenêtre est toujours affichée ;
+   elle occupe au plus la moitié de l'écran, puis défile (classe svc-scroll) */
 function svShortLists(d) {
-  d.querySelectorAll(".svc-list").forEach(ul => {
-    if (ul.children.length <= 5) return;
-    const prev = ul.previousElementSibling;
-    if (prev && prev.classList.contains("svc-sub")) prev.innerHTML = prev.innerHTML.replace(/\s*:\s*$/, ".");
-    ul.remove();
-  });
+  d.querySelectorAll(".svc-list").forEach(ul => ul.classList.add("svc-scroll"));
 }
 function svConfirm({ title = "CONFIRMER", text = "", html = "", ok = "OK", tone = "danger" } = {}) {
   return new Promise(res => {
