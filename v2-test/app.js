@@ -5661,7 +5661,7 @@ function renderBudgetList() {
       }, 60);
     };
     const insSave = () => {
-      if (INS_EDIT) { sviDlpOne(INS); sviDpredTyped(INS); insLiveSync(); if (shell.__undoTick) shell.__undoTick(); }
+      if (INS_EDIT) { sviDlpOne(INS); sviDpredTyped(INS); insLiveSync(); try { qqAutoSync(); } catch (e) {} if (shell.__undoTick) shell.__undoTick(); }
       clearTimeout(insTimer);
       insTimer = setTimeout(() => {
         const list = instLoad();
@@ -5680,7 +5680,7 @@ function renderBudgetList() {
       const s = String(v ?? "").trim();
       return s === "" ? "" : num(s);
     };
-    const insFmt = v => (v === "" || v === null || v === undefined) ? "" : money(v);
+    const insFmt = v => (v === "" || v === null || v === undefined) ? "" : (typeof v === "string" && /[A-Z]/i.test(v) && !/^[\d\s.,+-]+$/.test(v)) ? v : money(v);
     /* niveau d'un titre d'après sa numérotation : I = 1, I.1 = 2, I.1.1 = 3 */
     const insLevel = art => Math.min(3, String(art || "").split(".").filter(x => x.trim() !== "").length || 1);
     /* niveau enregistré à part (FORMAT 61) : r.d = nombre de titres au-dessus de la ligne.
@@ -5882,7 +5882,10 @@ function renderBudgetList() {
         ["p", "PCB", "number", "num", "price"],
         ["ht", "MCB HT", "number", "calc", "amount"],
         ["tva", "TVA %", "number", "num", "tva"],
-        ["ttc", "MCB TTC", "number", "calc", "ttc"]
+        ["ttc", "MCB TTC", "number", "calc", "ttc"],
+        /* FORMAT 111 (v488) : contrôles ajoutés d'office dans le DÉTAIL QUALITÉ de la tâche */
+        ["agr", "AGRÉMENT EXIGÉ", "center", "chk", "agr"],
+        ["qex", "QUALIFICATION EXIGÉE", "", "txt", "qex"]
       ],
       prd: [   /* pas de colonne ART : un produit n'a pas d'article */
         ["des", "DÉSIGNATION PRODUIT", "", "txt", "detail"],
@@ -5906,7 +5909,7 @@ function renderBudgetList() {
     const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "tva", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
-        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? prdTaskName(r.id) : r[f];
+        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? prdTaskName(r.id) : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
     /* erreur d'une ligne (FORMAT 75) : on ne passe pas à la ligne suivante tant qu'elle reste */
     const insRowErr = (k, r) => {
       /* FORMAT 124 : ART en double (saisi ou calculé) — titres compris */
@@ -5944,6 +5947,10 @@ function renderBudgetList() {
         || (k === "prd" && f === "u" && !isNew && !!prdLinkU(r.id))
         /* v475 : activité secondaire choisie (rond) avec une unité : nouvelle ligne et produits choisis non liés prennent cette unité, grisée */
         || (k === "prd" && f === "u" && !!lkSecU() && (isNew || (LK.prd && r.id in LK.prd && !prdLinkU(r.id))));
+      /* FORMAT 111 : case AGRÉMENT EXIGÉ (charge) */
+      if (type === "chk") return INS_EDIT && !isNew && !r.t
+        ? `<td class="${cls} ins-td"><input type="checkbox" class="ins-chk" data-f="${f}"${r[f] ? " checked" : ""}></td>`
+        : `<td class="${cls}">${!isNew && r[f] ? "OUI" : ""}</td>`;
       const er = !isNew && INS_EDIT ? insRowErr(k, r) : null;
       let val = "";
       /* ligne vide « SAISIR ICI » des désignations : TVA 20 % affichée par défaut */
@@ -7116,7 +7123,7 @@ function renderBudgetList() {
     };
     /* actions prévues : branchées plus tard sur les vrais boutons (cahier, Qualité, Déclenchement) */
     const QQ_BTNS = ["RÉCEPTION › ENREGISTRER", "LIVRAISON › ENREGISTRER", "COMMANDE › VALIDER", "TRANSFORMATION › ENREGISTRER",
-      "CHANTIER › FIN DE TÂCHE", "CHANTIER › COULAGE", "ATTACHEMENT › VALIDER", "FACTURATION › VALIDER"];
+      "CHANTIER › DÉBUT DE TÂCHE", "CHANTIER › FIN DE TÂCHE", "CHANTIER › COULAGE", "ATTACHEMENT › VALIDER", "FACTURATION › VALIDER"];
     const QQ_WARN = ["MAÎTRE D'OUVRAGE", "LABORATOIRE EXTÉRIEUR", "BUREAU DE CONTRÔLE", "ARCHITECTE", "BUREAU D'ÉTUDES"];
     /* FORMAT 104 : colonnes d'un critère (la 1re colonne, en arborescence, porte le titre, le point ou le CRITÈRE) */
     const QQ_COLS = [
@@ -7199,6 +7206,129 @@ function renderBudgetList() {
       const has = L => (L || []).some(x => x.k === "c" && x.nc === "ARRÊT");
       return has(Q.T && Q.T[key]) || has(Q.M);
     };
+    /* FORMAT 111 (v488) : contrôles ajoutés d'office — charge avec AGRÉMENT EXIGÉ → « AGRÉMENT FOURNI » sous MATIÈRE ;
+       charge avec QUALIFICATION EXIGÉE → « HABILITATION VÉRIFIÉE » sous MAIN D'ŒUVRE, dans chaque tâche où la charge est liée.
+       Fond gris, non supprimables à la main tant que la case reste remplie ; retirés d'office quand elle est vidée ou la charge déliée. */
+    const QQ_AUTO = {
+      agr: { t: "MATIÈRE", p: c => "AGRÉMENT FOURNI — " + U_(c.des), c: () => "AGRÉMENT FOURNI ET EN COURS DE VALIDITÉ", btn: "RÉCEPTION › ENREGISTRER", why: c => "AJOUTÉ D'OFFICE : AGRÉMENT EXIGÉ SUR LA CHARGE " + U_(c.des) + " (DÉTAIL CHARGES). DÉCOCHER LA CASE POUR LE RETIRER." },
+      qex: { t: "MAIN D'ŒUVRE", p: c => "HABILITATION VÉRIFIÉE — " + U_(c.des), c: c => "QUALIFICATION : " + U_(c.qex), btn: "CHANTIER › DÉBUT DE TÂCHE", why: c => "AJOUTÉ D'OFFICE : QUALIFICATION EXIGÉE (" + U_(c.qex) + ") SUR LA CHARGE " + U_(c.des) + " (DÉTAIL CHARGES). VIDER LA CASE POUR LE RETIRER." }
+    };
+    const qqAutoWhy = n => { const c = n && n.auto && INS.chg.find(x => x.id === n.cid); return c && QQ_AUTO[n.auto] ? QQ_AUTO[n.auto].why(c) : ""; };
+    const qqAutoSync = () => {
+      if (!INS || !INS_EDIT) return false;
+      const Q = qqData(); let ch = false;
+      const want = {};   /* clé tâche → [{ a: "agr" | "qex", c }] */
+      (INS.links || []).forEach(l => (l.chg || []).forEach(x => {
+        const c = INS.chg.find(y => y.id === x.id); if (!c || c.t) return;
+        const key = l.lot + "|" + l.sec;
+        ["agr", "qex"].forEach(a => { if (a === "agr" ? !!c.agr : !!U_(c.qex)) { const w = want[key] = want[key] || []; if (!w.some(z => z.a === a && z.c === c)) w.push({ a, c }); } });
+      }));
+      const keys = new Set([...Object.keys(want), ...Object.keys(Q.T).filter(k => (Q.T[k] || []).some(n => n.auto))]);
+      keys.forEach(key => {
+        const W = want[key] || [];
+        if (!Q.T[key]) { if (!W.length) return; Q.T[key] = qqDefault(); ch = true; }
+        const L = Q.T[key];
+        /* contrôles d'office devenus sans objet : retirés (point et ses critères) */
+        for (let i = L.length - 1; i >= 0; i--) {
+          const n = L[i];
+          if (n.k !== "p" || !n.auto) continue;
+          const c = W.find(z => z.a === n.auto && z.c.id === n.cid);
+          if (!c) { L.splice(i, qqEnd(L, i) - i); ch = true; continue; }
+          const A = QQ_AUTO[n.auto], v = A.p(c.c), cv = A.c(c.c);
+          if (n.v !== v) { n.v = v; ch = true; }
+          L.slice(i + 1, qqEnd(L, i)).forEach(x => { if (x.auto && x.v !== cv) { x.v = cv; ch = true; } });
+        }
+        /* contrôles d'office manquants : ajoutés sous MATIÈRE / MAIN D'ŒUVRE */
+        W.forEach(({ a, c }) => {
+          if (L.some(n => n.k === "p" && n.auto === a && n.cid === c.id)) return;
+          const A = QQ_AUTO[a];
+          let ti = L.findIndex(n => n.k === "t" && U_(n.v) === A.t);
+          if (ti < 0) { const ci = L.findIndex(n => n.k === "t" && U_(n.v) === "CHANTIER"); const d = ci >= 0 ? L[ci].d + 1 : 0; const at = ci >= 0 ? qqEnd(L, ci) : L.length; L.splice(at, 0, { id: insId(), k: "t", d, v: A.t, def: 1 }); ti = at; }
+          const t = L[ti]; t.f = false;
+          L.splice(qqEnd(L, ti), 0,
+            { id: insId(), k: "p", d: t.d + 1, v: A.p(c), auto: a, cid: c.id },
+            { id: insId(), k: "c", d: t.d + 2, v: A.c(c), auto: a, cid: c.id, ev: "chg:" + c.id, how: "VISUEL", who: "INTÉRIEUR", proof: "PV", btn: [A.btn], nc: "ARRÊT" });
+          ch = true;
+        });
+      });
+      return ch;
+    };
+    /* FORMAT 112 (v488) : PAQ — PLAN D'ASSURANCE QUALITÉ du budget, aperçu au format DEVIS ; jamais un prix ni un montant.
+       Parties : DÉMARCHE QUALITÉ (texte du budget, INS.qq.dem), DÉCOMPOSITION DU PROJET (quantités), PLANNING,
+       POINTS DE CONTRÔLE (modèle commun puis chaque tâche), MATÉRIAUX ET AGRÉMENTS */
+    const qqDemDefault = () => {
+      const Q = qqData(), keys = qqTaskKeys();
+      const nc = qqCrit(Q.M).length + keys.reduce((t, k) => t + qqCrit(Q.T[k]).length, 0);
+      const na = [Q.M, ...keys.map(k => Q.T[k])].reduce((t, L) => t + qqCrit(L).filter(x => x.nc === "ARRÊT").length, 0);
+      return "LA QUALITÉ DU PROJET EST TENUE PAR DES POINTS DE CONTRÔLE PRÉPARÉS AU BUDGET, TÂCHE PAR TÂCHE, CLASSÉS PAR INTERFACE ET SELON LES 6 M (MATIÈRE, MAIN D'ŒUVRE, MATÉRIEL, MÉTHODE, MILIEU, MESURE). "
+        + "CHAQUE CRITÈRE DIT CE QUI DOIT ÊTRE VRAI, COMMENT IL EST CONTRÔLÉ, PAR QUI ET AVEC QUELLE PREUVE ; UN RÉSULTAT NON CONFORME OUVRE UN TRAVAIL À FAIRE ET PEUT ARRÊTER LA SUITE DES TRAVAUX. "
+        + "CE PLAN COMPTE " + nc + " CRITÈRE(S) DE CONTRÔLE, DONT " + na + " POINT(S) D'ARRÊT" + (Q.ext.length ? ", ET " + Q.ext.length + " ESSAI(S) EXTERNE(S)" : "") + ".";
+    };
+    const qqPaqPrint = () => {
+      const Q = qqData(), keys = qqTaskKeys();
+      const E = v => esc(String(v ?? ""));
+      const sec = t => `<tr class="paq-s"><td colspan="4"><b>${E(t)}</b></td></tr>`;
+      const sub = (a, b, c, d) => `<tr class="paq-h"><td><b>${E(a)}</b></td><td><b>${E(b)}</b></td><td class="r"><b>${E(c)}</b></td><td><b>${E(d)}</b></td></tr>`;
+      const row = (a, b, c, d, ind = 0) => `<tr><td style="padding-left:${6 + 14 * ind}px">${E(a)}</td><td>${E(b)}</td><td class="r">${E(c)}</td><td>${E(d)}</td></tr>`;
+      const fq = v => insFmt(v).replace(/,00$/, "");
+      let b = "";
+      /* 1. démarche */
+      b += sec("1. DÉMARCHE QUALITÉ") + `<tr><td colspan="4" style="white-space:normal;line-height:1.45">${E(Q.dem || qqDemDefault()).replace(/\n/g, "<br>")}</td></tr>`;
+      /* 2. décomposition du projet : désignations (quantités) et leurs tâches, produits avec quantités */
+      b += sec("2. DÉCOMPOSITION DU PROJET") + sub("DÉSIGNATION / TÂCHE / PRODUIT", "UNITÉ", "QUANTITÉ", "ART");
+      INS.des.forEach(r => {
+        if (r.t) { b += `<tr><td colspan="4" style="padding-left:${6 + 14 * (Number(r.d) || 0)}px"><b>${E((artOf(r) ? artOf(r) + " " : "") + (r.des || ""))}</b></td></tr>`; return; }
+        b += row(r.des || "", r.u || "", fq(insCalc("des", r, "q")), artOf(r), Number(r.d) || 0);
+        (INS.links || []).filter(l => l.des === r.id).forEach(l => {
+          b += row(lkName("lot", l.lot) + " › " + lkName("prim", l.prim) + " › " + lkName("sec", l.sec), "", "", "", (Number(r.d) || 0) + 1);
+          (l.prd || []).forEach(x => { const pr = INS.prd.find(q => q.id === x.id); if (pr) b += row(pr.des || "", pr.u || "", fq(insCalc("prd", pr, "q")), "", (Number(r.d) || 0) + 2); });
+        });
+      });
+      /* 3. planning */
+      const dfr = iso => iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : "";
+      const dk = keys.filter(k => dlyDeb(k) || dlyFin(k)).sort((x, y) => String(dlyDeb(x) || "9").localeCompare(String(dlyDeb(y) || "9")));
+      b += sec("3. PLANNING") + sub("TÂCHE (LOT › ACTIVITÉ SECONDAIRE)", "DÉBUT", "DURÉE (J)", "FIN");
+      if (!dk.length) b += row("AUCUNE TÂCHE DATÉE", "", "", "");
+      dk.forEach(k => b += row(qqTaskName(k), dfr(dlyDeb(k)), dlyDeb(k) && dlyFin(k) ? String(dDur(dlyDeb(k), dlyFin(k))) : "", dfr(dlyFin(k))));
+      /* 4. points de contrôle */
+      b += sec("4. POINTS DE CONTRÔLE") + sub("POINT DE CONTRÔLE / CRITÈRE", "COMMENT · PAR QUI · PAR QUOI", "", "DÉCLENCHEMENT · APPEL · SI NON CONFORME");
+      const ctl = (title, key, L) => {
+        if (!qqCrit(L).length) return;
+        b += `<tr class="paq-t"><td colspan="4"><b>${E(title)}</b></td></tr>`;
+        L.forEach((n, i) => {
+          if (n.k === "t" && !L.slice(i + 1, qqEnd(L, i)).some(x => x.k === "c")) return;
+          if (n.k !== "c") { b += `<tr><td colspan="4" style="padding-left:${6 + 14 * (n.d + 1)}px"><b>${E(n.v)}</b></td></tr>`; return; }
+          b += row([n.v, n.pr].filter(Boolean).join(" — ") + (n.ref ? " (" + n.ref + ")" : "") + (n.ev ? " · " + qqEvLab(key, n.ev) : ""),
+            [n.how, n.who, n.proof].filter(Boolean).join(" · "), "", [qqDecLab(key, n), qqAppLab(n), n.nc === "ARRÊT" ? "■ ARRÊT" : n.nc].filter(Boolean).join(" · "), n.d + 1);
+        });
+      };
+      ctl("MODÈLE COMMUN — S'APPLIQUE À TOUTES LES TÂCHES", "", Q.M || []);
+      keys.forEach(k => ctl(qqTaskName(k), k, Q.T[k] || []));
+      if (Q.ext.length) {
+        b += `<tr class="paq-t"><td colspan="4"><b>ESSAIS EXTERNES</b></td></tr>`;
+        Q.ext.forEach(e => b += row(e.v || "", e.cad ? "1 TOUS LES " + e.cad + (e.u2 ? " " + e.u2 : "") : "PAR TÂCHE", String((e.tasks || []).reduce((t, k) => t + qqExtQty(e, k), 0)), (e.tasks || []).map(qqTaskName).join(" · "), 1));
+      }
+      /* 5. matériaux et agréments */
+      b += sec("5. MATÉRIAUX ET AGRÉMENTS") + sub("CHARGE", "UNITÉ", "QUANTITÉ", "AGRÉMENT / QUALIFICATION");
+      const ch = INS.chg.filter(c => !c.t && !c.qq);
+      if (!ch.length) b += row("AUCUNE CHARGE", "", "", "");
+      ch.forEach(c => b += row(c.des || "", c.u || "", fq(insCalc("chg", c, "q")), [c.agr ? "AGRÉMENT EXIGÉ" : "", U_(c.qex) ? "QUALIFICATION : " + U_(c.qex) : ""].filter(Boolean).join(" · ") || "—"));
+      histLog("QUALITÉ", "PAQ — APERÇU");
+      printModel({ branch: "PLAN D'ASSURANCE QUALITÉ", docTitle: "PLAN D'ASSURANCE QUALITÉ", fileTag: "PAQ", headLine: "PLAN D'ASSURANCE QUALITÉ", portrait: true,
+        table: `<table id="tpl" class="paq"><colgroup><col style="width:46%"><col style="width:14%"><col style="width:14%"><col style="width:26%"></colgroup>
+          <thead><tr><th colspan="4">PLAN D'ASSURANCE QUALITÉ — ${E(budget.project || "")}</th></tr></thead><tbody>${b}</tbody></table>`, end: "" });
+    };
+    /* PAQ : la démarche qualité se relit (et se corrige en instance) avant l'aperçu */
+    const qqPaqOpen = () => {
+      const Q = qqData();
+      if (!INS_EDIT) return qqPaqPrint();
+      qqWin("PLAN D'ASSURANCE QUALITÉ — DÉMARCHE QUALITÉ", `<label class="doc-lab">DÉMARCHE QUALITÉ (COMMENT LA QUALITÉ EST ATTAQUÉE SUR CE PROJET)</label>
+          <textarea class="doc-in doc-ta paq-dem" rows="9">${esc(Q.dem || qqDemDefault())}</textarea>
+          <div class="svc-sub">L'APERÇU REPREND AUSSI LA DÉCOMPOSITION DU PROJET (QUANTITÉS), LE PLANNING, LES POINTS DE CONTRÔLE ET LES MATÉRIAUX ; JAMAIS UN PRIX.</div>`,
+        d => { const v = String(d.querySelector(".paq-dem").value || "").replace(/[ \t]+/g, " ").trim().toUpperCase(); Q.dem = v === qqDemDefault() ? "" : v; qqSave(); setTimeout(qqPaqPrint, 0); });
+      const ok = document.querySelector("#svConf .svc-ok"); if (ok) ok.textContent = "ENREGISTRER ET VOIR L'APERÇU";
+    };
+    shell.__paq = () => qqPaqOpen();
     let qqSub = "ctl";   /* sous-onglet : CONTRÔLES / ESSAIS EXTERNES / PERSONNEL (FORMAT 110) */
     const qqCell = (key, n, c) => {
       const [f, , , type] = c, ro = !INS_EDIT;
@@ -7233,13 +7363,15 @@ function renderBudgetList() {
         const fold = n.k !== "c" ? `<span class="qq-fold" data-id="${n.id}">${n.f ? "›" : "⌄"}</span>` : "";
         if (n.k === "t" || n.k === "p") {
           const empty = n.k === "t" && !qqHasPts(L, i);
-          rows += `<tr class="qq-${n.k}${empty ? " qq-empty" : ""}" data-id="${n.id}"><td class="center">${fold}</td>
-            <td class="qq-tree" style="${ind(n.d)}"><input class="qq-in qq-lab" data-f="v" value="${esc(n.v || "")}" ${ro ? "disabled" : ""} autocomplete="off" spellcheck="false" enterkeyhint="next"></td>
+          const aw = qqAutoWhy(n);
+          rows += `<tr class="qq-${n.k}${empty ? " qq-empty" : ""}${aw ? " qq-auto" : ""}" data-id="${n.id}"><td class="center">${fold}</td>
+            <td class="qq-tree" style="${ind(n.d)}"${aw ? ` data-why="${esc(aw)}"` : ""}><input class="qq-in qq-lab" data-f="v" value="${esc(n.v || "")}" ${ro || aw ? "disabled" : ""} autocomplete="off" spellcheck="false" enterkeyhint="next"></td>
             <td colspan="${nc}" class="qq-span"></td>${cb(n)}</tr>`;
           return;
         }
-        rows += `<tr class="qq-c" data-id="${n.id}"><td></td>
-          <td class="qq-tree" style="${ind(n.d)}"><input class="qq-in" data-f="v" value="${esc(n.v || "")}" ${ro ? "disabled" : ""} placeholder="CRITÈRE" autocomplete="off" spellcheck="false" enterkeyhint="next"></td>
+        const awc = qqAutoWhy(n);
+        rows += `<tr class="qq-c${awc ? " qq-auto" : ""}" data-id="${n.id}"><td></td>
+          <td class="qq-tree" style="${ind(n.d)}"${awc ? ` data-why="${esc(awc)}"` : ""}><input class="qq-in" data-f="v" value="${esc(n.v || "")}" ${ro || awc ? "disabled" : ""} placeholder="CRITÈRE" autocomplete="off" spellcheck="false" enterkeyhint="next"></td>
           ${QQ_COLS.map(c => qqCell(key, n, c)).join("")}${cb(n)}</tr>`;
       });
       if (tail[L.length]) rows += tail[L.length].join("");
@@ -7575,8 +7707,12 @@ function renderBudgetList() {
           if (!n || !(await svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", text: n + " ESSAI(S) EXTERNE(S) SERONT SUPPRIMÉS.", ok: "SUPPRIMER" }))) return;
           Q.extGone = Q.ext.filter(x => x.on); Q.ext = Q.ext.filter(x => !x.on); qqExtSync(); qqSave(); qqRender(); return;
         }
-        const key = qqKey(), L = qqList(key), n = L.filter(x => x.on).length;
-        if (!n) return;
+        const key = qqKey(), L = qqList(key);
+        /* FORMAT 111 : un contrôle ajouté d'office ne se supprime pas à la main */
+        const au = L.filter(x => x.on && qqAutoWhy(x));
+        if (au.length) { au.forEach(x => { x.on = false; }); svToast(au.length + " LIGNE(S) AJOUTÉE(S) D'OFFICE GARDÉE(S) : " + qqAutoWhy(au[0]), 6000); }
+        const n = L.filter(x => x.on).length;
+        if (!n) { if (au.length) qqRender(); return; }
         const c = { t: 0, p: 0, c: 0 }; L.filter(x => x.on).forEach(x => c[x.k]++);
         const txt = [c.t && c.t + " TITRE(S)", c.p && c.p + " POINT(S) DE CONTRÔLE", c.c && c.c + " CRITÈRE(S)"].filter(Boolean).join(", ") + " SERONT SUPPRIMÉS.";
         if (!(await svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", text: txt, ok: "SUPPRIMER" }))) return;
@@ -7795,6 +7931,21 @@ function renderBudgetList() {
         try { bak = LK.linksBak; } catch (e) {}
         return [INS.links || [], bak || []].some(L => L.some(l => k === "prd" || k === "chg" ? (l[k] || []).some(x => x.id === id) : l[k] === id));
       } } : null;
+    /* FORMAT 111 : case AGRÉMENT EXIGÉ d'une charge */
+    if (!shell.__chkBound) {
+      shell.__chkBound = true;
+      shell.addEventListener("change", e => {
+        const cb = e.target.closest && e.target.closest("input.ins-chk");
+        const X = shell.__ins;
+        if (!cb || !X) return;
+        const h = cb.closest("[data-iid]"), k = cb.closest("[data-ik]")?.dataset.ik;
+        const r = h && k && X.INS[k] ? X.INS[k].find(x => x.id === h.dataset.iid) : null;
+        if (!r) return;
+        r[cb.dataset.f] = cb.checked;
+        X.insSave();
+        svToast(cb.checked ? "AGRÉMENT EXIGÉ : CONTRÔLE « AGRÉMENT FOURNI » AJOUTÉ SOUS MATIÈRE DANS LE DÉTAIL QUALITÉ DE SES TÂCHES." : "AGRÉMENT N'EST PLUS EXIGÉ : CONTRÔLE « AGRÉMENT FOURNI » RETIRÉ.", 3500, cb);
+      }, true);
+    }
     if (!shell.__insBound) {
       shell.__insBound = true;
       shell.addEventListener("input", e => {
@@ -14473,6 +14624,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
       const items = [
         { a: "dup", lab: "DUPLIQUER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>' },
         { a: "lay", lab: "DISPOSITION PAR DÉFAUT", off: !rb || rb.disabled, ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
+        ...(INS ? [{ a: "paq", lab: "PLAN D'ASSURANCE QUALITÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
         { a: "exp", lab: "EXPORTER LE BUDGET", ic: '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
         ...(INS_EDIT ? [{ a: "imp", lab: "IMPORTER UN BUDGET", ic: '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
         ...(INS_EDIT && INS && INS.src ? [{ a: "src", lab: "ACTUALISER DEPUIS LA SOURCE", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.7-4.4M4 4v4h4M4 13a8 8 0 0 0 14.7 4.4M20 20v-4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
@@ -14490,6 +14642,7 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
         m.remove();
         if (it.dataset.a === "dup") $("instDup")?.click();
         else if (it.dataset.a === "lay") $("layResetBtn")?.click();
+        else if (it.dataset.a === "paq") qqPaqOpen();
         else if (it.dataset.a === "exp") openExportMenu("budget");
         else if (it.dataset.a === "imp") openBudgetImport();
         else if (it.dataset.a === "src") srcRefresh();
@@ -15123,6 +15276,10 @@ ${pl.links.length <= 5 ? `        <div class="svc-sub">${rem ? "DANS" : "LIAISON
   th { font-weight: bold; text-align: center; background: #d9dee6; padding-top: 2mm; padding-bottom: 2mm; }
   th.sub { font-size: 10pt; padding: 1mm 0.4mm; }
   td.c { text-align: center; } td.r { text-align: right; }
+  /* PAQ (FORMAT 112) : parties en bandeau gris, sous-titres de colonnes, intitulés de tâche */
+  table.paq tr.paq-s td { background: #d9dee6; font-size: 11pt !important; padding-top: 2mm; padding-bottom: 2mm; }
+  table.paq tr.paq-h td { background: #eef1f6; }
+  table.paq tr.paq-t td { background: #f4f6f9; }
   td.rep { color: #555; font-style: italic; }
   tr.gfirst td { border-top: 1.6px solid #000; }
   td.gc, td.lc, td.pc, td.sc { vertical-align: top; }
