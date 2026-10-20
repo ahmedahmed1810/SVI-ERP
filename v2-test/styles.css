@@ -1901,3 +1901,12 @@ tr.ins-grp td { background: #eef3fa; color: #1f3b63; font-weight: 700; }
 .cf-btn::before { content: ""; position: absolute; inset: -7px -5px; }
 /* v494 — remarque 18 : boutons ANNULER / VALIDER de la saisie directe remontés de 6 px */
 #sdW .sd-foot { padding: 6px 14px 14px; }
+/* v496 — remarque 25 : onglets du bloc détail tous visibles dans la largeur (plus de défilement), onglet EXPLOITATION */
+#bdgTabs { overflow-x: visible; }
+#bdgTabs > .bdg-d-tab { flex: 1 1 0; min-width: 0; padding: 6px 6px; white-space: normal; text-align: center; line-height: 1.15; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+#bdgTabs > .bdg-d-tab .ico { flex: none; }
+.xpl-table td.xpl-pct { font-weight: 700; }
+.xpl-table tr.xpl-sub td { background: #e9edf3; font-weight: 800; }
+.xpl-table th.xpl-sort { cursor: pointer; }
+.xpl-empty { padding: 16px; font-weight: 700; color: #6b7280; }
+.xpl-table td.xpl-b { font-weight: 900; }

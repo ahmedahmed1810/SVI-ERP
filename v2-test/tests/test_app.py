@@ -171,6 +171,27 @@ def main():
         check("QUALITÉ : tâche inconnue refusée et signalée", rt["n"] == 2 and al, [rt["n"], al])
         pg.evaluate("() => document.querySelectorAll('#svConf .svc-close, #svConf [data-r=\"0\"], .sva-ok, [data-cancel]').forEach(b => { try { b.click(); } catch (e) {} })")
 
+        # remarque 25 : onglet EXPLOITATION (marges, rendement), onglets tous visibles
+        pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"xpl\"]'); t && t.click(); }"); pg.wait_for_timeout(400)
+        pg.evaluate("() => document.querySelector('[data-xsub=\"prm\"]')?.click()"); pg.wait_for_timeout(300)
+        xr = pg.evaluate("() => { const t = document.querySelector('.xpl-table'); if (!t) return null; const r = [...t.tBodies[0].rows].map(tr => [...tr.cells].map(c => c.textContent.replace(/\u202f/g, ' ').trim())); return r; }")
+        okx = bool(xr) and any("BETON EN FONDATION" in " ".join(r) and "10 000,00" in r and "4 500,00" in r and "5 500,00" in r and "55,00 %" in r for r in xr)
+        check("remarque 25 : PAR TÂCHE PRIMAIRE — vendu 10 000, charges 4 500, marge 5 500, 55 %", okx, xr)
+        pg.evaluate("() => document.querySelector('[data-xsub=\"rnd\"]')?.click()"); pg.wait_for_timeout(300)
+        rr = pg.evaluate("() => { const t = document.querySelector('.xpl-table'); return t ? t.tBodies[0].innerText : ''; }")
+        check("remarque 25 : RENDEMENT — 3,33 M3 DE BETONNAGE (RDC) / T CIMENT", "3,33 M3 DE BETONNAGE (RDC) / T CIMENT" in rr, rr[:200])
+        pg.evaluate("() => document.querySelector('[data-xsub=\"lot\"]')?.click()"); pg.wait_for_timeout(300)
+        sub = pg.evaluate("() => [...document.querySelectorAll('.xpl-table tr.xpl-sub')].map(t => t.cells[0].textContent)")
+        if os.environ.get("SVI_SHOTS"): pg.evaluate("() => document.getElementById('bdgTabs').scrollIntoView()"); pg.wait_for_timeout(200); pg.screenshot(path=os.environ["SVI_SHOTS"] + "/xpl.png") if os.environ.get("SVI_SHOTS") else None
+        check("remarque 25 : PAR LOT avec sous-total par lot", any("TOTAL RDC" in x for x in sub), sub)
+        pg.evaluate("() => document.querySelector('[data-xsub=\"prm\"]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('.xpl-table input.xpl-cb')?.click()"); pg.wait_for_timeout(400)
+        dd = pg.evaluate("() => [...document.querySelectorAll('#bdgClientBody tr[data-iid]')].filter(t => !t.classList.contains('ins-title')).map(t => t.dataset.iid)")
+        check("remarque 25 : case de l'EXPLOITATION filtre les désignations", dd == ["d1"], dd)
+        pg.evaluate("() => document.querySelector('.xpl-table input.xpl-cb:checked')?.click()"); pg.wait_for_timeout(300)
+        fitx = pg.evaluate("() => { const b = document.getElementById('bdgTabs'); return [b.scrollWidth, b.clientWidth]; }")
+        check("remarque 25 : tous les onglets du bloc visibles sans balayer", fitx[0] <= fitx[1] + 1, fitx)
+
         # remarque 2 : intitulés presque identiques
         dx = "(() => { const s = [...document.querySelectorAll('*')].find(e => e.__dupX); return s && s.__dupX; })()"
         nr = pg.evaluate(f"""() => {{ const X = {dx}; const t = (a, b) => X.isNear(a, b);

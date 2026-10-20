@@ -204,7 +204,9 @@
       /* ordre libre des lignes (INS.dord) ; une tâche nouvelle se place à la fin */
       const O = dlyOrder(keys);
       P.sort((a, b) => O.get(a.key) - O.get(b.key));
-      const flat = cfApply("dlyp", DLY_COLS_P, P);
+      /* v496 (remarque 25) : cases cochées des autres blocs → seules les tâches liées */
+      const CLd = insCheckLinks("dly"), KD = CLd ? new Set(CLd.map(l => l.lot + "|" + l.sec)) : null;
+      const flat = cfApply("dlyp", DLY_COLS_P, P).filter(t => !KD || KD.has(t.key));
       const root = { kids: new Map(), tasks: [] };
       flat.forEach(t => {
         let n = root, path = "";

@@ -335,7 +335,7 @@
       { key: "qlt", title: "DÉTAIL QUALITÉ" },
       { key: "dly", title: "DÉTAIL DÉLAIS" },
       /* budget en instance : les liaisons validées sont un onglet du détail */
-      ...(budget.inst ? [{ key: "lnk", title: "LIAISONS VALIDÉES" }, { key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }] : [])
+      ...(budget.inst ? [{ key: "lnk", title: "LIAISONS VALIDÉES" }, { key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "xpl", title: "EXPLOITATION" }] : [])
     ];
 
     /* dernier onglet du détail ouvert (charges, produits, qualité, délais) */

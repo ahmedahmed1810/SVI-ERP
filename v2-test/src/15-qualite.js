@@ -803,6 +803,7 @@
       }
       if (active === "qlt") { qqRender(); lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
       if (active === "lnk") { body.innerHTML = `<div class="bdg-d-scroll">${insLinksHTML()}</div>`; return; }
+      if (active === "xpl") { body.innerHTML = `<div class="bdg-d-scroll">${xplHTML()}</div>`; return; }
       if (active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
       if (active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
       if (active === "prd" && shell.__prdSyncU) shell.__prdSyncU();
