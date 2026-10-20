@@ -615,7 +615,7 @@
       const v = { art: g[0].art || "", des: g[0].des || "", u: g[0].u || "", q: money(g.reduce((t, r) => t + (Number(insCalc("chg", r, "q")) || 0), 0)),
         p: ps.size === 1 ? [...ps][0] : "", ht: money(ht), tva: ht ? money((ttc - ht) / ht * 100) : "", ttc: money(ttc), tache: "" };
       const why = "LIGNES REGROUPÉES : " + g.length + " TÂCHES (" + [...new Set(g.map(r => chgTaskName(r.id)).filter(Boolean))].join(" · ") + "). RETIRER LE FILTRE POUR LES MODIFIER UNE PAR UNE.";
-      return `<tr class="ins-row ins-grp" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn" title="${esc(why)}">${g.length}</span></td>${cols.map(c => `<td class="${c[2]}${c[0] === "des" ? "" : ""}" data-why="${esc(why)}">${esc(v[c[0]] ?? "")}</td>`).join("")}${INS_EDIT ? "<td></td>" : ""}</tr>`;
+      return `<tr class="ins-row ins-grp" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn" title="${esc(why)}">${g.length}</span></td>${cols.map(c => `<td class="${c[2]}${c[0] === "des" ? "" : ""}" data-why="${esc(why)}">${esc(v[c[0]] ?? "")}</td>`).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${g.every(r => r.on === true) ? " checked" : ""}></td>` : ""}</tr>`;   /* v495 (remarque 24) : case des lignes regroupées */
     };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
