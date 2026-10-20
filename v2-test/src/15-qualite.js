@@ -756,6 +756,37 @@
       const d = Math.max(180, Math.round(free * 0.55)), t = Math.max(95, free - d);
       cd.style.width = d + "px"; ct.style.width = t + "px"; tbl.style.width = others + d + t + "px";
     };
+    const cfHasF = t => !!(CF[t] && Object.keys(CF[t].f || {}).length);
+    const insTabFilt = () => {
+      if (!INS) return {};
+      const own = k => (INS[k] || []).some(r => !r.t && r.on === true);
+      return {
+        chg: cfHasF(insCfT("chg")) || !!ONLYC.chg || !!insCheckSet("chg") || own("chg"),
+        prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || !!insCheckSet("prd") || own("prd"),
+        dly: ["dly", "dlyp", "dlyr", "dlyi", "dlys"].some(cfHasF) || !!insCheckLinks("dly"),
+        lnk: cfHasF("lk_marge") || !!insCheckLinks("lnk") || (INS.links || []).some(l => l.on === true),
+        unl: cfHasF("lk_unl"),
+        inc: cfHasF("lk_inc") || (INS.inc || []).some(x => x.on === true)
+      };
+    };
+    /* v499 (remarque 42) : EFFACER TOUS LES FILTRES d'un bloc (menu ⋯) — filtres de loupe et cases cochées */
+    const insFiltPlan = blk => {
+      const T = blk === "client" ? ["client"] : blk === "hier" ? ["lot", "prim", "sec"] : blk === "detail" ? [insCfT("chg"), insCfT("prd"), "dly", "dlyp", "dlyr", "dlyi", "dlys", "lk_marge", "lk_unl", "lk_inc"] : [];
+      const K = !INS || !INS_EDIT ? [] : blk === "client" ? ["des"] : blk === "hier" ? ["lot", "prim", "sec"] : blk === "detail" ? ["chg", "prd"] : [];
+      const nf = T.filter(cfHasF).length;
+      const nc = K.reduce((t, k) => t + (INS[k] || []).filter(r => !r.t && r.on === true).length, 0)
+        + (blk === "detail" && INS && INS_EDIT ? (INS.links || []).filter(l => l.on === true).length + (INS.inc || []).filter(x => x.on === true).length : 0);
+      return { T, K, n: nf + nc };
+    };
+    const insFiltClear = blk => {
+      const P = insFiltPlan(blk);
+      P.T.forEach(t => { if (CF[t]) CF[t].f = {}; });
+      P.K.forEach(k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; });
+      if (blk === "detail" && INS && INS_EDIT) { (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }); (INS.inc || []).forEach(x => { if (x.on === true) x.on = false; }); }
+      if (INS && INS_EDIT) insSave();
+      ICL = null; refreshAll();
+      svToast("FILTRES ET CASES COCHÉES DU BLOC EFFACÉS.", 2000);
+    };
     const insRenderTab = () => {
       { const tl = document.querySelector("#bdgTabs > .blk-tools");
         if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (active === "chg" || active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(active)); } }
@@ -774,6 +805,12 @@
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
         if (b) b.innerHTML = (SVI_ICON.xpl || "") + "MARGE " + svCnt((INS.links || []).length); }
       sviMarkEmptyTabs(shell);
+      /* v499 (remarque 40) : onglet en bleu quand son tableau est filtré (loupe d'une colonne, cases cochées de ce tableau
+         ou d'un autre bloc) — on voit où enlever un filtre sans ouvrir les onglets un par un */
+      try {
+        const TF = insTabFilt();
+        document.querySelectorAll("#bdgTabs .bdg-d-tab").forEach(b => { const on = !!TF[b.dataset.tab]; b.classList.toggle("tab-filt", on); if (on) b.title = "FILTRE APPLIQUÉ"; else if (b.title === "FILTRE APPLIQUÉ") b.removeAttribute("title"); });
+      } catch (e) {}
       /* onglet actif (liaisons validées, lignes non liées, import non créé) : « retenues/total » une fois dessiné */
       setTimeout(() => {
         const ls = lastShown.detail;

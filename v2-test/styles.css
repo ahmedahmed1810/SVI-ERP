@@ -1930,3 +1930,8 @@ tr.ins-grp td { background: #eef3fa; color: #1f3b63; font-weight: 700; }
 .mg-table tr.mg-grp.mg-l2 td { background: #f8f9fb; }
 .mg-table td.xpl-pct { font-weight: 700; }
 .mg-table td.xpl-b { font-weight: 900; }
+
+/* v499 (remarques 40 et 41) : onglet filtré et colonne des cases cochées en bleu */
+.bdg-d-tab.tab-filt, .rec-tab.tab-filt, .imp-tab.tab-filt { color: #1d4ed8 !important; background: #e8efff !important; box-shadow: inset 0 -3px 0 #1d4ed8; }
+.bdg-d-tab.tab-filt svg, .rec-tab.tab-filt svg, .imp-tab.tab-filt svg { color: #1d4ed8; }
+th.cb-filt, .ins-hdel.cb-filt { background: #dbe6ff !important; box-shadow: inset 0 0 0 2px #1d4ed8; }

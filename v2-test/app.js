@@ -8015,6 +8015,37 @@ function renderBudgetList() {
       const d = Math.max(180, Math.round(free * 0.55)), t = Math.max(95, free - d);
       cd.style.width = d + "px"; ct.style.width = t + "px"; tbl.style.width = others + d + t + "px";
     };
+    const cfHasF = t => !!(CF[t] && Object.keys(CF[t].f || {}).length);
+    const insTabFilt = () => {
+      if (!INS) return {};
+      const own = k => (INS[k] || []).some(r => !r.t && r.on === true);
+      return {
+        chg: cfHasF(insCfT("chg")) || !!ONLYC.chg || !!insCheckSet("chg") || own("chg"),
+        prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || !!insCheckSet("prd") || own("prd"),
+        dly: ["dly", "dlyp", "dlyr", "dlyi", "dlys"].some(cfHasF) || !!insCheckLinks("dly"),
+        lnk: cfHasF("lk_marge") || !!insCheckLinks("lnk") || (INS.links || []).some(l => l.on === true),
+        unl: cfHasF("lk_unl"),
+        inc: cfHasF("lk_inc") || (INS.inc || []).some(x => x.on === true)
+      };
+    };
+    /* v499 (remarque 42) : EFFACER TOUS LES FILTRES d'un bloc (menu ⋯) — filtres de loupe et cases cochées */
+    const insFiltPlan = blk => {
+      const T = blk === "client" ? ["client"] : blk === "hier" ? ["lot", "prim", "sec"] : blk === "detail" ? [insCfT("chg"), insCfT("prd"), "dly", "dlyp", "dlyr", "dlyi", "dlys", "lk_marge", "lk_unl", "lk_inc"] : [];
+      const K = !INS || !INS_EDIT ? [] : blk === "client" ? ["des"] : blk === "hier" ? ["lot", "prim", "sec"] : blk === "detail" ? ["chg", "prd"] : [];
+      const nf = T.filter(cfHasF).length;
+      const nc = K.reduce((t, k) => t + (INS[k] || []).filter(r => !r.t && r.on === true).length, 0)
+        + (blk === "detail" && INS && INS_EDIT ? (INS.links || []).filter(l => l.on === true).length + (INS.inc || []).filter(x => x.on === true).length : 0);
+      return { T, K, n: nf + nc };
+    };
+    const insFiltClear = blk => {
+      const P = insFiltPlan(blk);
+      P.T.forEach(t => { if (CF[t]) CF[t].f = {}; });
+      P.K.forEach(k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; });
+      if (blk === "detail" && INS && INS_EDIT) { (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }); (INS.inc || []).forEach(x => { if (x.on === true) x.on = false; }); }
+      if (INS && INS_EDIT) insSave();
+      ICL = null; refreshAll();
+      svToast("FILTRES ET CASES COCHÉES DU BLOC EFFACÉS.", 2000);
+    };
     const insRenderTab = () => {
       { const tl = document.querySelector("#bdgTabs > .blk-tools");
         if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (active === "chg" || active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(active)); } }
@@ -8033,6 +8064,12 @@ function renderBudgetList() {
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
         if (b) b.innerHTML = (SVI_ICON.xpl || "") + "MARGE " + svCnt((INS.links || []).length); }
       sviMarkEmptyTabs(shell);
+      /* v499 (remarque 40) : onglet en bleu quand son tableau est filtré (loupe d'une colonne, cases cochées de ce tableau
+         ou d'un autre bloc) — on voit où enlever un filtre sans ouvrir les onglets un par un */
+      try {
+        const TF = insTabFilt();
+        document.querySelectorAll("#bdgTabs .bdg-d-tab").forEach(b => { const on = !!TF[b.dataset.tab]; b.classList.toggle("tab-filt", on); if (on) b.title = "FILTRE APPLIQUÉ"; else if (b.title === "FILTRE APPLIQUÉ") b.removeAttribute("title"); });
+      } catch (e) {}
       /* onglet actif (liaisons validées, lignes non liées, import non créé) : « retenues/total » une fois dessiné */
       setTimeout(() => {
         const ls = lastShown.detail;
@@ -13894,7 +13931,7 @@ function renderBudgetList() {
         const n = IMP_TABS.reduce((t, [k]) => t + pk[k].size, 0);
         p.querySelector(".imp-tabs").innerHTML = IMP_TABS.map(([k, lab]) =>
           /* pastille grise : lignes disponibles ; pastille rouge : lignes retenues */
-          `<button type="button" class="imp-tab${k === tab ? " on" : ""}" data-tab="${k}">${lab} ${svCnt(model[k].length)}${pk[k].size ? `<span class="imp-selcnt">${pk[k].size}</span>` : ""}</button>`).join("");
+          `<button type="button" class="imp-tab${k === tab ? " on" : ""}${Object.keys(cfT("imp_" + k).f || {}).length ? " tab-filt" : ""}" data-tab="${k}">${lab} ${svCnt(model[k].length)}${pk[k].size ? `<span class="imp-selcnt">${pk[k].size}</span>` : ""}</button>`).join("");
         sviMarkEmptyTabs(p.querySelector(".imp-tabs"));
         const box = p.querySelector(".imp-scroll");
         /* TÂCHES : trois blocs côte à côte (lots, activités primaires, secondaires) */
@@ -17352,6 +17389,7 @@ function renderBudgetList() {
       recShown[kind] = list;
       const title = $("recTitle-" + kind);
       if (title) title.innerHTML = SVI_ICON[kind] + esc(blkName[kind]) + " " + svCnt(list.length, all.length);
+      if (title) title.classList.toggle("tab-filt", Object.keys(cfT(kind).f || {}).length > 0);   /* v499 (remarque 40) */
       const st = cfT(kind);
       title?.classList.remove("cf-on");   /* pas de bleu d'onglet pour un filtre (loupe) */
       if (title) sviMarkEmptyTabs(title.parentNode);
@@ -18427,6 +18465,13 @@ function renderBudgetList() {
           if (v === "title") QQm.addTitle(); else if (v === "sub") QQm.addSub(); else if (v === "cfg") QQm.cfg(); else QQm.del();
         }, true);
       }
+      /* v499 (remarque 42) : EFFACER TOUS LES FILTRES (loupes et cases cochées du bloc) */
+      { const blk = (acts.find(a => ["client", "hier", "detail"].includes(a.dataset.blk)) || {}).dataset?.blk;
+        if (blk && typeof insFiltPlan === "function" && INS) {
+          const n = insFiltPlan(blk).n;
+          m.insertAdjacentHTML("beforeend", `<div class="blk-sep"></div><button type="button" data-fclr="${blk}" class="${n ? "" : "off"}" ${n ? "" : "disabled"}><span>EFFACER TOUS LES FILTRES</span>${svCnt(n)}</button>`);
+          m.addEventListener("click", e => { const b = e.target.closest("[data-fclr]"); if (!b) return; e.stopPropagation(); if (b.disabled) return; m.remove(); insFiltClear(b.dataset.fclr); }, true);
+        } }
       document.body.appendChild(m);
       const r = btn.getBoundingClientRect();
       sviPlaceMenu(m, r);
@@ -20846,6 +20891,10 @@ document.addEventListener("keydown", e => {
       const all = rows.length > 0 && n === rows.length, part = n > 0 && n < rows.length;
       if (hd.checked !== all) hd.checked = all;
       if (hd.indeterminate !== part) hd.indeterminate = part;
+      /* v499 (remarque 41) : en-tête de la colonne des cases en bleu dès qu'une case est cochée */
+      const hc = hd.closest("th, .ins-hdel, .bdg-h-head");
+      const anyOn = n > 0 || rows.some(c => c.checked);
+      if (hc && hc.classList.contains("cb-filt") !== anyOn) hc.classList.toggle("cb-filt", anyOn);
     });
   };
   const go = () => { if (!raf) raf = requestAnimationFrame(run); };

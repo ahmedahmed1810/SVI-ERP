@@ -101,6 +101,10 @@ document.addEventListener("keydown", e => {
       const all = rows.length > 0 && n === rows.length, part = n > 0 && n < rows.length;
       if (hd.checked !== all) hd.checked = all;
       if (hd.indeterminate !== part) hd.indeterminate = part;
+      /* v499 (remarque 41) : en-tête de la colonne des cases en bleu dès qu'une case est cochée */
+      const hc = hd.closest("th, .ins-hdel, .bdg-h-head");
+      const anyOn = n > 0 || rows.some(c => c.checked);
+      if (hc && hc.classList.contains("cb-filt") !== anyOn) hc.classList.toggle("cb-filt", anyOn);
     });
   };
   const go = () => { if (!raf) raf = requestAnimationFrame(run); };
