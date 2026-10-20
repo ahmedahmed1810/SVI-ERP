@@ -950,6 +950,17 @@
         try { bak = LK.linksBak; } catch (e) {}
         return [INS.links || [], bak || []].some(L => L.some(l => k === "prd" || k === "chg" ? (l[k] || []).some(x => x.id === id) : l[k] === id));
       } } : null;
+    /* v495 (remarque 24) : case d'une ligne regroupée = coche / décoche toutes les charges qu'elle réunit */
+    if (!shell.__gcbBound) {
+      shell.__gcbBound = true;
+      shell.addEventListener("change", e => {
+        const cb = e.target.closest && e.target.closest("input.ins-gcb"), X = shell.__ins;
+        if (!cb || !X) return;
+        const ids = new Set((cb.closest("tr[data-grp]")?.dataset.grp || "").split(",").filter(Boolean));
+        X.INS.chg.forEach(r => { if (ids.has(r.id)) r.on = cb.checked; });
+        X.insSave(); X.refreshAll();
+      }, true);
+    }
     /* FORMAT 111 : case AGRÉMENT EXIGÉ d'une charge */
     if (!shell.__chkBound) {
       shell.__chkBound = true;
