@@ -1867,3 +1867,15 @@ td.ins-tdv { position: relative; }
 #svConf .svc-list.svc-scroll, #dlyAddW .svc-list.svc-scroll { max-height: 50vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 6px; }
 #svConf .dup-ul li { margin-bottom: 6px; }
 #svConf .dup-ch { font-weight: 600; color: #4b5563; font-size: 11.5px; line-height: 1.4; white-space: normal; }
+
+/* v491 — remarque 5 : proposition en surbrillance (flèches) dans les listes de choix */
+#svUnitSug button.on, .sd-sug button.on { background: #12355b; color: #fff; }
+#svUnitSug button.on span { color: #dbe4ee; }
+/* v491 — remarque 2 : zone de toucher des ronds agrandie (taille visible inchangée) */
+.lk-rd { position: relative; }
+.lk-rd::before { content: ""; position: absolute; inset: -7px -11px; }
+/* v491 — remarque 6 : cases sélectionnées et poignée ronde (doigt) */
+td.svi-cs { background: #dbe7f7 !important; box-shadow: inset 0 0 0 1px #1d4ed8; }
+td.svi-cs input, td.svi-cs textarea { background: transparent !important; }
+#sviSelHandle { position: absolute; display: none; width: 14px; height: 14px; border-radius: 50%; background: #1d4ed8; border: 2px solid #fff; box-shadow: 0 0 0 1px #1d4ed8; z-index: 10095; touch-action: none; }
+#sviSelHandle::before { content: ""; position: absolute; inset: -12px; }

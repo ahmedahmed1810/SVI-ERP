@@ -54,7 +54,40 @@ document.addEventListener("pointerdown", e => {
   i.dispatchEvent(new Event("change", { bubbles: true }));
 }, true);
 document.addEventListener("focusout", e => { if (e.target.closest && e.target.closest(SVI_UNIT_SEL)) setTimeout(() => { const b = document.getElementById("svUnitSug"); if (b && b.__for === e.target && document.activeElement !== e.target) sviUnitSugHide(); }, 150); });
-document.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === "Escape") sviUnitSugHide(); }, true);
+/* v491 (remarque 5) : listes de choix comme dans les tableurs — flèches haut / bas = proposition suivante / précédente ;
+   Entrée ou Tab = la proposition en surbrillance, ou la seule proposée, puis la case suivante ; Échap = fermer */
+document.addEventListener("keydown", e => {
+  const b = document.querySelector("#svUnitSug, .sd-sug");
+  if (!b || b.__for !== e.target) { if (e.key === "Enter" || e.key === "Escape") sviUnitSugHide(); return; }
+  const B = [...b.querySelectorAll("button")];
+  let k = B.findIndex(x => x.classList.contains("on"));
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault(); e.stopPropagation();
+    k = e.key === "ArrowDown" ? Math.min(B.length - 1, k + 1) : Math.max(0, k < 0 ? 0 : k - 1);
+    B.forEach((x, n) => x.classList.toggle("on", n === k));
+    B[k] && B[k].scrollIntoView({ block: "nearest" });
+    return;
+  }
+  if (e.key === "Escape") { e.preventDefault(); b.remove(); return; }
+  if (e.key !== "Enter" && e.key !== "Tab") return;
+  const pick = k >= 0 ? B[k] : B.length === 1 ? B[0] : null;
+  const i = b.__for;
+  b.remove();
+  if (!pick || !i) return;
+  i.value = pick.dataset.u || pick.dataset.v || "";
+  i.dispatchEvent(new Event("input", { bubbles: true }));
+  document.querySelector("#svUnitSug, .sd-sug")?.remove();
+  i.dispatchEvent(new Event("change", { bubbles: true }));
+  /* Tab : la touche continue (case à droite) ; Entrée : choisie puis case suivante, à droite (pas la ligne du dessous) */
+  if (e.key === "Enter") {
+    e.preventDefault(); e.stopPropagation();
+    const tr = i.closest("tr, .ins-li");
+    const ok = x => x.offsetParent !== null && !x.disabled && !x.readOnly && !x.matches('[type="checkbox"], [type="radio"], [type="hidden"]');
+    const L = tr ? [...tr.querySelectorAll("input, select, textarea")].filter(x => x === i || ok(x)) : [];
+    const nx = L[L.indexOf(i) + 1];
+    if (nx) { nx.focus(); try { nx.select(); } catch (err) {} }
+  }
+}, true);
 /* FORMAT 129 : case « tout cocher » à trois états — vide / à moitié (une partie cochée) / cochée (toutes) */
 (() => {
   let raf = 0;

@@ -116,11 +116,56 @@ document.addEventListener("focusin", e => {
    cases grisées sautées ; dans une fenêtre, Entrée ne valide jamais toute seule ;
    IMPORT NON CRÉÉ : case encadrée (fautive) suivante
    ========================================================= */
+/* v491 (remarque 5) : dans les tableaux, comme Excel / Google Sheets — Tab = case à droite, Entrée = case du dessous
+   (dans la colonne où la suite de Tab a commencé ; s'il n'y a pas de ligne dessous, case suivante comme avant),
+   Maj + Entrée = au-dessus ; flèches haut / bas = ligne voisine, gauche / droite = case voisine au bord du texte */
+let sviTabStart = null;
+const sviGridBox = el => el.closest("table.ins-table, table.dly-table, table.prm-table");
+const sviGridOk = x => x && x.offsetParent !== null && !x.disabled && !x.readOnly && !x.matches('[type="checkbox"], [type="radio"], [type="file"], [type="hidden"]');
+const sviGridCell = (tr, ci, dir) => {
+  for (let t = dir > 0 ? tr.nextElementSibling : tr.previousElementSibling; t; t = dir > 0 ? t.nextElementSibling : t.previousElementSibling) {
+    const td = t.cells && t.cells[ci];
+    const x = td && [...td.querySelectorAll("input, select, textarea")].find(sviGridOk);
+    if (x) return x;
+  }
+  return null;
+};
+const sviGo = nx => { nx.focus(); try { if (nx.matches("input:not(.sv-date):not(.dlp-in)")) nx.select(); } catch (err) {} nx.scrollIntoView({ block: "nearest", inline: "nearest" }); };
+document.addEventListener("keydown", e => {
+  if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) || e.shiftKey) return;
+  const el = e.target;
+  if (!el || !el.matches || !el.matches("input:not([type=checkbox]):not([type=radio])") || el.closest("#cfMenu, #svCal")) return;
+  const box = sviGridBox(el), td = el.closest("td"), tr = el.closest("tr");
+  if (!box || !td || !tr) return;
+  if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+    const nx = sviGridCell(tr, td.cellIndex, e.key === "ArrowDown" ? 1 : -1);
+    e.preventDefault(); if (nx) sviGo(nx); return;
+  }
+  const L = (el.value || "").length, a = el.selectionStart, b = el.selectionEnd;
+  if (a === null) return;
+  const all = a === 0 && b === L;
+  if (!(all || (e.key === "ArrowLeft" ? a === 0 && b === 0 : a === L && b === L))) return;
+  const list = [...box.querySelectorAll("input, select, textarea")].filter(x => x === el || sviGridOk(x));
+  const nx = list[list.indexOf(el) + (e.key === "ArrowLeft" ? -1 : 1)];
+  e.preventDefault(); if (nx) sviGo(nx);
+}, true);
 document.addEventListener("keydown", e => {
   if (e.key !== "Enter" && e.key !== "Tab") return;
   const el = e.target;
   if (!el || !el.matches || !el.matches("input, select, textarea.ins-in")) return;
   if (el.matches('[type="checkbox"], [type="radio"], [type="file"], .cf-q') || el.closest("#cfMenu, #svCal")) return;
+  /* tableaux : Entrée descend */
+  { const box = sviGridBox(el), td = el.closest("td"), tr = el.closest("tr");
+    if (box && td && tr) {
+      if (e.key === "Tab") { if (!sviTabStart || sviTabStart.tr !== tr) sviTabStart = { tr, ci: td.cellIndex }; }
+      else {
+        const ci = sviTabStart && sviTabStart.tr === tr ? sviTabStart.ci : td.cellIndex;
+        sviTabStart = null;
+        const nx = sviGridCell(tr, ci, e.shiftKey ? -1 : 1);
+        if (nx) { e.preventDefault(); sviGo(nx); return; }
+        if (e.shiftKey) { e.preventDefault(); return; }
+      }
+    } }
   const back = e.key === "Tab" && e.shiftKey;
   const ok = x => x.offsetParent !== null && !x.disabled && !(x.readOnly && !x.classList.contains("sv-date") && !x.classList.contains("dlp-in")) && !x.matches('[type="checkbox"], [type="radio"], [type="file"], [type="hidden"]');
   let list = null;
@@ -142,6 +187,23 @@ document.addEventListener("keydown", e => {
   try { if (nx.matches("input:not(.sv-date):not(.dlp-in)")) nx.select(); } catch (err) {}
   nx.scrollIntoView({ block: "nearest", inline: "nearest" });
 }, true);
+/* v491 (remarque 1) : la case où l'on saisit reste visible — si elle est cachée (bas du tableau, clavier de l'iPad),
+   le tableau remonte juste assez ; si elle est déjà visible, rien ne bouge */
+const sviKeepVisible = el => {
+  if (!el || !el.isConnected || el.offsetParent === null) return;
+  el.scrollIntoView({ block: "nearest", inline: "nearest" });
+  const vv = window.visualViewport, bottom = vv ? vv.offsetTop + vv.height : window.innerHeight, top = vv ? vv.offsetTop : 0;
+  const r = el.getBoundingClientRect();
+  if (r.bottom > bottom - 10) window.scrollBy(0, r.bottom - bottom + 40);
+  else if (r.top < top + 4) window.scrollBy(0, r.top - top - 40);
+};
+{
+  let raf = 0;
+  const SEL = ".ins-table input, .ins-table textarea, .ins-hcol input, .sd-t input, .dly-table input, .qq-table input, .inc-table input, .prm-table input";
+  const run = e => { const el = e.target; if (!el || !el.matches || !el.matches(SEL)) return; cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setTimeout(() => sviKeepVisible(document.activeElement === el ? el : document.activeElement), 60)); };
+  document.addEventListener("focusin", run);
+  document.addEventListener("input", run);
+}
 /* clavier de l'iPad : touche « Suivant » */
 document.addEventListener("focusin", e => {
   const el = e.target;
@@ -376,3 +438,115 @@ document.addEventListener("input", e => {
   try { el.setSelectionRange(pos, pos); } catch (err) {}
   if (typeof svToast === "function") svToast(dec ? "CHIFFRES SEULEMENT (UNE VIRGULE PERMISE)." : "CHIFFRES SEULEMENT.", 2200, el);
 }, true);
+
+/* =========================================================
+   v491 (remarque 6) : SÉLECTION DE PLUSIEURS CASES, comme Excel / Google Sheets — dans tous les tableaux de saisie
+   clavier : Maj + toucher (ou Maj + flèches) = plage depuis la case active ; Commande (Ctrl) + toucher = ajoute / retire une case ;
+   au doigt : petite poignée ronde au coin de la case active, à tirer pour étendre la plage.
+   Commande + C = copier la sélection (tableau, pour Excel / Google Sheets) ; SAISIE DIRECTE : Commande + V = coller à partir
+   du coin haut gauche, Effacer (⌫) = vider les cases sélectionnées
+   ========================================================= */
+(() => {
+  const TSEL = "table.ins-table, table.sd-t, table.dly-table, table.qq-table, table.inc-table, table.prm-table";
+  const S = { tbl: null, a: null, b: null, extra: new Set(), cut: new Set() };
+  const posOf = td => { const tr = td.closest("tr"); return tr && tr.parentElement && tr.parentElement.tagName === "TBODY" ? { r: tr.sectionRowIndex, c: td.cellIndex } : null; };
+  const tdAt = (tbl, r, c) => { const tr = tbl.tBodies[0] && tbl.tBodies[0].rows[r]; return tr ? tr.cells[c] || null : null; };
+  const cells = () => {
+    if (!S.tbl || !S.a) return [];
+    const out = [], b = S.b || S.a;
+    if (S.b) for (let r = Math.min(S.a.r, b.r); r <= Math.max(S.a.r, b.r); r++) for (let c = Math.min(S.a.c, b.c); c <= Math.max(S.a.c, b.c); c++) { const td = tdAt(S.tbl, r, c); if (td) out.push(td); }
+    S.extra.forEach(k => { const [r, c] = k.split(":").map(Number); const td = tdAt(S.tbl, r, c); if (td && !out.includes(td)) out.push(td); });
+    return out;
+  };
+  const paint = () => {
+    document.querySelectorAll("td.svi-cs").forEach(td => td.classList.remove("svi-cs"));
+    const C = cells();
+    if (C.length > 1) C.forEach(td => td.classList.add("svi-cs"));
+    handle();
+  };
+  const clear = () => { S.b = null; S.extra.clear(); paint(); };
+  /* poignée ronde (doigt) au coin bas droit de la dernière case de la plage */
+  let H = null;
+  const handle = () => {
+    const act = document.activeElement, td = act && act.closest && act.closest("td");
+    if (!S.tbl || !S.a || !td || !td.closest(TSEL) || td.closest("table") !== S.tbl || !matchMedia("(pointer: coarse)").matches) { if (H) H.style.display = "none"; return; }
+    const end = tdAt(S.tbl, (S.b || S.a).r, (S.b || S.a).c) || td;
+    if (!H) {
+      H = document.createElement("div"); H.id = "sviSelHandle"; document.body.appendChild(H);
+      H.addEventListener("pointerdown", e => {
+        e.preventDefault(); e.stopPropagation(); try { H.setPointerCapture(e.pointerId); } catch (err) {}
+        const mv = ev => { const el = document.elementFromPoint(ev.clientX, ev.clientY), t2 = el && el.closest && el.closest("td"); if (t2 && t2.closest("table") === S.tbl) { const p = posOf(t2); if (p) { S.b = p; paint(); } } };
+        const up = () => { H.removeEventListener("pointermove", mv); H.removeEventListener("pointerup", up); H.removeEventListener("pointercancel", up); };
+        H.addEventListener("pointermove", mv); H.addEventListener("pointerup", up); H.addEventListener("pointercancel", up);
+      });
+    }
+    const r = end.getBoundingClientRect();
+    H.style.display = "block"; H.style.left = (r.right - 7 + window.scrollX) + "px"; H.style.top = (r.bottom - 7 + window.scrollY) + "px";
+  };
+  document.addEventListener("focusin", e => {
+    const td = e.target.closest && e.target.closest("td"), tbl = td && td.closest(TSEL);
+    if (!tbl) { if (H) H.style.display = "none"; return; }
+    if (S.keep) { S.keep = false; handle(); return; }
+    const p = posOf(td); if (!p) return;
+    if (S.tbl !== tbl || !S.a || S.a.r !== p.r || S.a.c !== p.c) { S.tbl = tbl; S.a = p; S.b = null; S.extra.clear(); paint(); }
+    else handle();
+  });
+  document.addEventListener("pointerdown", e => {
+    if (e.target === H) return;
+    const td = e.target.closest && e.target.closest("td"), tbl = td && td.closest(TSEL);
+    if (!tbl) { if (!e.target.closest || !e.target.closest("#blkMenu")) { S.b = null; S.extra.clear(); paint(); } return; }
+    const p = posOf(td); if (!p) return;
+    if ((e.shiftKey || e.metaKey || e.ctrlKey) && S.tbl === tbl && S.a) {
+      e.preventDefault(); S.keep = true;
+      if (e.shiftKey) S.b = p;
+      else { const k = p.r + ":" + p.c; if (S.extra.has(k)) S.extra.delete(k); else S.extra.add(k); }
+      paint();
+    }
+  }, true);
+  window.addEventListener("scroll", () => { if (H && H.style.display === "block") handle(); }, true);
+  const valOf = td => { const i = td.querySelector("input:not([type=checkbox]), textarea, select"); return String(i ? i.value : td.textContent || "").replace(/[\t\n]/g, " ").trim(); };
+  document.addEventListener("keydown", e => {
+    const act = document.activeElement, td0 = act && act.closest && act.closest("td"), tbl = td0 && td0.closest(TSEL);
+    if (!tbl || S.tbl !== tbl || !S.a) return;
+    /* Maj + flèches : étendre la plage */
+    if (e.shiftKey && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+      e.preventDefault(); e.stopPropagation();
+      const b = S.b || { ...S.a };
+      if (e.key === "ArrowUp") b.r = Math.max(0, b.r - 1); else if (e.key === "ArrowDown") b.r = Math.min(tbl.tBodies[0].rows.length - 1, b.r + 1);
+      else if (e.key === "ArrowLeft") b.c = Math.max(0, b.c - 1); else b.c = b.c + 1;
+      S.b = b; paint(); return;
+    }
+    const C = cells();
+    if (C.length < 2) return;
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && (e.key === "c" || e.key === "C")) {
+      e.preventDefault();
+      const rs = [...new Set(C.map(td => td.parentElement))].sort((x, y) => x.sectionRowIndex - y.sectionRowIndex);
+      const cs = [...new Set(C.map(td => td.cellIndex))].sort((x, y) => x - y);
+      const txt = rs.map(tr => cs.map(c => { const td = tr.cells[c]; return td && C.includes(td) ? valOf(td) : ""; }).join("\t")).join("\n");
+      try { navigator.clipboard && navigator.clipboard.writeText(txt); } catch (err) {}
+      if (typeof svToast === "function") svToast(C.length + " CASE(S) COPIÉE(S).", 1800);
+      return;
+    }
+    if (!tbl.classList.contains("sd-t")) return;
+    const put = (td, v) => { const i = td.querySelector("input.sd-in"); if (!i || i.readOnly) return false; i.value = v; i.dispatchEvent(new Event("input", { bubbles: true })); return true; };
+    if (!mod && (e.key === "Backspace" || e.key === "Delete")) {
+      e.preventDefault(); let n = 0; C.forEach(td => { if (put(td, "")) n++; });
+      document.querySelector(".sd-sug")?.remove();
+      if (typeof svToast === "function") svToast(n + " CASE(S) VIDÉE(S).", 1800);
+      return;
+    }
+    if (mod && (e.key === "v" || e.key === "V")) {
+      e.preventDefault();
+      const r0 = Math.min(...C.map(td => td.parentElement.sectionRowIndex)), c0 = Math.min(...C.map(td => td.cellIndex));
+      (navigator.clipboard && navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.resolve("")).then(t => {
+        const lines = String(t || "").replace(/\r/g, "").replace(/\n+$/, "").split("\n").map(l => l.split("\t"));
+        let n = 0;
+        lines.forEach((cl, i) => cl.forEach((v, j) => { const td = tdAt(tbl, r0 + i, c0 + j); if (td && put(td, v.trim())) n++; }));
+        document.querySelector(".sd-sug")?.remove();
+        if (typeof svToast === "function") svToast(n + " CASE(S) COLLÉE(S).", 1800);
+      }).catch(() => {});
+    }
+  }, true);
+})();
+

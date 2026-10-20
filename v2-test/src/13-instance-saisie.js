@@ -175,6 +175,8 @@
       return [v("lot", l.lot), v("sec", l.sec)].filter(Boolean).join(" › ");
     };
     const prdTaskName = id => { const l = prdLinks(id)[0]; return l ? prdLinkName(l) : ""; };
+    /* v491 (remarque 3) : tâche(s) d'une charge (LOT › ACTIVITÉ SECONDAIRE) */
+    const chgTaskName = id => [...new Set((INS.links || []).filter(l => (l.chg || []).some(x => x.id === id)).map(prdLinkName).filter(Boolean))].join(" · ");
     const prdChainKey = id => {
       const l = prdLinks(id)[0];
       if (!l) return "";
@@ -267,15 +269,16 @@
       chg: [
         ["art", "ART", "center", "txt", "article"],
         ["des", "DÉSIGNATION CHARGE", "", "txt", "detail"],
+        /* v491 (remarque 3) : colonne TÂCHE, comme dans DÉTAIL PRODUITS */
+        ["tache", "TÂCHE", "", "calc", "tache"],
         ["u", "UCB", "center", "txt", "unit"],
         ["q", "QCB", "number", "num", "qty"],
         ["p", "PCB", "number", "num", "price"],
         ["ht", "MCB HT", "number", "calc", "amount"],
         ["tva", "TVA %", "number", "num", "tva"],
         ["ttc", "MCB TTC", "number", "calc", "ttc"],
-        /* FORMAT 111 (v488) : contrôles ajoutés d'office dans le DÉTAIL QUALITÉ de la tâche */
-        ["agr", "AGRÉMENT EXIGÉ", "center", "chk", "agr"],
-        ["qex", "QUALIFICATION EXIGÉE", "", "txt", "qex"]
+        /* FORMAT 111 (v488) : AGRÉMENT EXIGÉ / QUALIFICATION EXIGÉE — colonnes masquées pour l'instant (v491, remarque 3),
+           à remettre plus tard : ["agr", "AGRÉMENT EXIGÉ", "center", "chk", "agr"], ["qex", "QUALIFICATION EXIGÉE", "", "txt", "qex"] */
       ],
       prd: [   /* pas de colonne ART : un produit n'a pas d'article */
         ["des", "DÉSIGNATION PRODUIT", "", "txt", "detail"],
@@ -299,7 +302,7 @@
     const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "tva", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
-        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? prdTaskName(r.id) : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
+        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
     /* erreur d'une ligne (FORMAT 75) : on ne passe pas à la ligne suivante tant qu'elle reste */
     const insRowErr = (k, r) => {
       /* FORMAT 124 : ART en double (saisi ou calculé) — titres compris */

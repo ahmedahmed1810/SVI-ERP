@@ -12,7 +12,9 @@
         .concat(P ? [["des", "DÉSIGNATION PRODUIT", 170], ["u", "UNITÉ", 54], ["nbr", "NBR", 60], ["d1", "DIM 1", 60], ["d2", "DIM 2", 60], ["d3", "DIM 3", 60]]
           : [["art", "ARTICLE", 80], ["des", "DÉSIGNATION CHARGE", 200], ["u", "UNITÉ", 54], ["q", "QTE", 70]]);
       const NUMF = new Set(["nbr", "d1", "d2", "d3", "q"]);
-      const fmtN = v => v === "" || v === undefined || v === null ? "" : String(v).replace(".", ",");
+      /* v491 (remarque 4) : nombres au format des tableaux (milliers et deux décimales : 1 234,56) */
+      const fmtN = v => v === "" || v === undefined || v === null ? "" : money(v);
+      const CENTER = new Set(["upb", "su", "u"]);   /* v491 (remarque 4) : unités centrées */
       let rows = [];
       let recs = INS[kind] || [];
       const blank = () => ({ dc: "", upb: "", lot: "", prim: "", sec: "", su: "", art: "", des: "", u: "", nbr: "", d1: "", d2: "", d3: "", q: "" });
@@ -76,7 +78,7 @@
         const lockU = P && f === "u" && (!!secU(r.sec, r) || (r._lid && !!r.u));
         const lockChain = false;   /* v480 (remarque 15) : en instance, la chaîne d'une ligne liée se change ici aussi */
         const ro = lockU || lockChain;
-        return `<td class="${NUMF.has(f) ? "number" : ""}${ro ? " sd-ro" : ""}${selCol === f ? " sd-sel" : ""}"><input class="sd-in" data-i="${i}" data-f="${f}" value="${esc(lockU && secU(r.sec, r) ? secU(r.sec, r) : r[f] || "")}"${ro ? " readonly tabindex=\"-1\"" : ""}${NUMF.has(f) ? ' inputmode="decimal"' : ""} autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"></td>`;
+        return `<td class="${NUMF.has(f) ? "number" : CENTER.has(f) ? "center" : ""}${ro ? " sd-ro" : ""}${selCol === f ? " sd-sel" : ""}"><input class="sd-in" data-i="${i}" data-f="${f}" value="${esc(lockU && secU(r.sec, r) ? secU(r.sec, r) : r[f] || "")}"${ro ? " readonly tabindex=\"-1\"" : ""}${NUMF.has(f) ? ' inputmode="decimal"' : ""} autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"></td>`;
       };
       const draw = () => {
         if (!d.isConnected) { window.__sviSdRefresh = null; return; }
@@ -92,7 +94,7 @@
           <div class="sd-scroll"><table class="sd-t"><colgroup>${COLS.map(c => `<col data-c="${c[0]}" style="width:${W[c[0]] || c[2]}px">`).join("")}<col style="width:40px"></colgroup>
             <thead><tr>${COLS.map(c => cfHead(TK, c[0], c[1], (NUMF.has(c[0]) ? "number" : "") + (selCol === c[0] ? " sd-sel" : "")).replace("<th ", `<th data-c="${c[0]}" `)).join("")}<th class="sd-cbc"><input type="checkbox" class="sd-cball"${V.some(x => x.r._on) && V.filter(x => x.r._id || COLS.some(c => x.r[c[0]])).every(x => x.r._on) ? " checked" : ""}></th></tr></thead>
             <tbody>${V.map(({ r, i }) => `<tr class="${r._id ? (r._lid ? "sd-old sd-lk" : "sd-old") : "sd-new"}${r._del ? " sd-del" : ""}">${COLS.map(c => cell(r, i, c)).join("")}<td class="sd-cbc">${r._id || COLS.some(c => r[c[0]]) ? `<input type="checkbox" class="sd-cb" data-i="${i}"${r._on ? " checked" : ""}>` : ""}</td></tr>`).join("")}</tbody></table></div>
-          <div class="sd-foot"><small>CHAÎNE CHANGÉE SUR UNE LIGNE LIÉE : DÉLIÉE PUIS LIÉE À LA NOUVELLE CHAÎNE À LA VALIDATION. ENTRÉE SUR LA DERNIÈRE CASE = LIGNE RECOPIÉE.</small><span style="flex:1"></span>
+          <div class="sd-foot"><small>CHAÎNE CHANGÉE SUR UNE LIGNE LIÉE : DÉLIÉE PUIS LIÉE À LA NOUVELLE CHAÎNE À LA VALIDATION. TAB = À DROITE, ENTRÉE = EN DESSOUS ; ENTRÉE SUR UNE LIGNE NOUVELLE = LIGNE SUIVANTE AVEC LA MÊME COMBINAISON.</small><span style="flex:1"></span>
             <button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral sd-ok"${dirty ? "" : " disabled"}>VALIDER</button></div>
           ${big ? "" : '<div class="sd-rsz" title="Largeur et hauteur"></div>'}</div>
           <button type="button" class="sd-tag">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"} ▲</button>`;
@@ -163,21 +165,53 @@
         sugShow(inp);
       });
       d.addEventListener("focusout", () => setTimeout(() => { const b = d.querySelector(".sd-sug"); if (b && document.activeElement !== b.__for) sugHide(); }, 200));
+      /* v491 (remarque 5) : clavier comme Excel / Google Sheets — Tab = case à droite (Maj + Tab : à gauche) ;
+         Entrée = case du dessous, dans la colonne où la suite de Tab a commencé (Maj + Entrée : au-dessus) ;
+         flèches haut / bas = ligne du dessus / dessous ; gauche / droite = case voisine quand le curseur est au bord du texte.
+         v491 (remarque 4) : Entrée sur une ligne nouvelle remplie → la ligne suivante reprend la combinaison
+         (DÉSIGNATION CLIENT, UPB, LOT, ACTIVITÉS, U) et le curseur va sur la désignation produit / charge */
+      let tabStart = null;
+      const go = el => { if (!el) return false; el.focus(); try { el.select(); } catch (err) {} el.scrollIntoView({ block: "nearest", inline: "nearest" }); return true; };
+      const cellsOf = tr => tr ? [...tr.querySelectorAll(".sd-in")].filter(x => !x.readOnly) : [];
+      const sameCol = (tr, f, dir) => { for (let t = dir > 0 ? tr.nextElementSibling : tr.previousElementSibling; t; t = dir > 0 ? t.nextElementSibling : t.previousElementSibling) { const x = t.querySelector(`.sd-in[data-f="${f}"]`); if (x && !x.readOnly) return x; } return null; };
+      const COMBO = ["dc", "upb", "lot", "prim", "sec", "su"];
       d.addEventListener("keydown", e => {
         const inp = e.target.closest(".sd-in");
-        if (!inp || e.key !== "Enter") return;
+        if (!inp || !["Enter", "Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
+        if (d.querySelector(".sd-sug") && (e.key === "ArrowUp" || e.key === "ArrowDown")) return;   /* flèches : dans la liste de choix */
+        const tr = inp.closest("tr"), f = inp.dataset.f, i = +inp.dataset.i;
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          const L = inp.value.length, a = inp.selectionStart, b = inp.selectionEnd, all = a === 0 && b === L;
+          if (!(all || (e.key === "ArrowLeft" ? a === 0 && b === 0 : a === L && b === L))) return;
+        }
         e.preventDefault(); e.stopPropagation(); sugHide();
-        const i = +inp.dataset.i, tr = inp.closest("tr");
-        const ins = [...tr.querySelectorAll(".sd-in")].filter(x => !x.readOnly);
-        const k = ins.indexOf(inp);
-        if (k >= 0 && k < ins.length - 1) { ins[k + 1].focus(); try { ins[k + 1].select(); } catch (err) {} return; }
-        /* dernière case : ligne recopiée (chaîne et valeurs), curseur sur la désignation produit / charge */
-        const src = rows[i], c = { ...blank() };
-        COLS.forEach(cc => { c[cc[0]] = src[cc[0]] || ""; });
-        let j = rows.findIndex((r, n) => n > i && !r._id && COLS.every(cc => !r[cc[0]]));
-        if (j < 0) { rows.push(c); j = rows.length - 1; } else rows.splice(j, 0, c);
-        if (rows[rows.length - 1] === c) rows.push(blank());
-        draw(); focusAt(j, "des");
+        if (e.key === "Tab" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          const back = e.key === "ArrowLeft" || (e.key === "Tab" && e.shiftKey);
+          if (e.key === "Tab" && (!tabStart || tabStart.tr !== tr)) tabStart = { tr, f };
+          const C = cellsOf(tr), k = C.indexOf(inp);
+          if (back) { if (k > 0) go(C[k - 1]); else { const p = cellsOf(tr.previousElementSibling); go(p[p.length - 1]); } }
+          else if (k < C.length - 1) go(C[k + 1]); else go(cellsOf(tr.nextElementSibling)[0]);
+          return;
+        }
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") { go(sameCol(tr, f, e.key === "ArrowDown" ? 1 : -1)); return; }
+        /* Entrée */
+        const col = tabStart && tabStart.tr === tr ? tabStart.f : f;
+        tabStart = null;
+        if (e.shiftKey) { go(sameCol(tr, col, -1)); return; }
+        const src = rows[i];
+        const nxt = tr.nextElementSibling, nr = nxt && rows[+((nxt.querySelector(".sd-in") || {}).dataset || {}).i];
+        if (src && !src._id && COLS.some(cc => src[cc[0]]) && (!nr || (!nr._id && COLS.every(cc => !nr[cc[0]])))) {
+          /* ligne nouvelle remplie : la suivante reprend la combinaison et ses unités */
+          let j = nr ? rows.indexOf(nr) : -1;
+          if (j < 0) { rows.push(blank()); j = rows.length - 1; }
+          COMBO.forEach(c => { rows[j][c] = src[c] || ""; });
+          if (P && secU(rows[j].sec, rows[j])) rows[j].u = secU(rows[j].sec, rows[j]);
+          if (rows[rows.length - 1] === rows[j]) rows.push(blank());
+          dirty = true;
+          draw(); focusAt(j, "des");
+          return;
+        }
+        go(sameCol(tr, col, 1));
       }, true);
       /* v479 (remarques 11 et 12) : case à cocher par ligne et menu ⋯ (SUPPRIMER LES LIGNES COCHÉES…) */
       d.addEventListener("change", e => {
@@ -348,7 +382,8 @@
         });
         if (goneChg.size) INS.chg = INS.chg.filter(x => !goneChg.has(x.id));
         if (extra.length) histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE — " + (P ? "CHARGES DÉPLACÉES AVEC LE DERNIER PRODUIT" : "PRODUITS RECOPIÉS"), extra.length + " LIGNE(S)");
-        const neu = rows.filter(r => !r._del && ((!r._id && COLS.some(c => r[c[0]])) || (r._id && !r._lid && r.dc && r.lot && r.prim && r.sec) || moved.includes(r)));
+        /* v491 : une ligne nouvelle sans désignation produit / charge (combinaison reprise seulement) est ignorée */
+        const neu = rows.filter(r => !r._del && ((!r._id && U_(r.des)) || (r._id && !r._lid && r.dc && r.lot && r.prim && r.sec) || moved.includes(r)));
         const aoa = [H].concat(neu.map(r => [budget.project || "", r.dc, r.upb, r.lot, r.prim, r.sec, P ? "PRD" : "CHG", r.art || "", r.des, P ? (secU(r.sec, r) || r.u) : r.u, r.nbr, r.d1, r.d2, r.d3, r.q]), extra);
         if (upd) { insSave(); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE", upd + " LIGNE(S) MODIFIÉE(S)"); }
         if (neu.length || extra.length) {
