@@ -32,6 +32,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `20-glisser-lignes.js` | 403 |
 | `21-export-import.js` | 2075 |
 | `22-saisie-directe.js` | 482 |
+| `22b-exploitation.js` | onglet EXPLOITATION (v496) |
 | `23-apercus-impression.js` | 1147 |
 | `24-doc-historique-fenetres.js` | 541 |
 | `25-inf.js` | 598 |

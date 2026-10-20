@@ -276,7 +276,8 @@ const SVI_ICON = (() => {
     chg: w('<circle cx="12" cy="12" r="9"/><path d="M12 7v10M8 13l4 4 4-4"/>'),
     prd: w('<circle cx="12" cy="12" r="9"/><path d="M12 17V7M8 11l4-4 4 4"/>'),
     qlt: w('<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>'),
-    dly: w('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>')
+    dly: w('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>'),
+    xpl: w('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>')
   };
 })();
 
@@ -5062,7 +5063,7 @@ function renderBudgetList() {
       { key: "qlt", title: "DÉTAIL QUALITÉ" },
       { key: "dly", title: "DÉTAIL DÉLAIS" },
       /* budget en instance : les liaisons validées sont un onglet du détail */
-      ...(budget.inst ? [{ key: "lnk", title: "LIAISONS VALIDÉES" }, { key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }] : [])
+      ...(budget.inst ? [{ key: "lnk", title: "LIAISONS VALIDÉES" }, { key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "xpl", title: "EXPLOITATION" }] : [])
     ];
 
     /* dernier onglet du détail ouvert (charges, produits, qualité, délais) */
@@ -6303,6 +6304,8 @@ function renderBudgetList() {
        seules les lignes liées à ce qui y est coché comptent (blocs combinés : ET) */
     /* liaisons retenues par les cases cochées des blocs autres que k (null : aucune case cochée ailleurs) ; mémorisé un instant */
     var ICL = null;
+    /* v496 (remarque 25) : lignes cochées de l'onglet EXPLOITATION (tâches primaires « des|lot|prim », ou « des|lot|* ») */
+    var XON = new Set();
     const insCheckLinks = k => {
       if (!INS) return null;
       /* mémoire valable pour un seul dessin (vidée dès la fin de la tâche en cours) */
@@ -6311,8 +6314,10 @@ function renderBudgetList() {
       const B = ["des", "lot", "prim", "sec", "prd", "chg"].filter(x => x !== k);
       const C = {};
       B.forEach(x => { const ids = (INS[x] || []).filter(r => !r.t && r.on === true).map(r => r.id); if (ids.length) C[x] = new Set(ids); });
+      const xk = k !== "xpl" && XON && XON.size ? XON : null;
       const ks = Object.keys(C);
-      const out = !ks.length ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x])));
+      const out = !ks.length && !xk ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
+        && (!xk || xk.has(l.des + "|" + l.lot + "|" + l.prim) || xk.has(l.des + "|" + l.lot + "|*")));
       ICL.m[k] = out;
       return out;
     };
@@ -6660,7 +6665,7 @@ function renderBudgetList() {
       const oc = coOrder("lk_links", LC);
       const w = k => cwLoad()["lk_links." + k] || W[k] || 120;
       const D2 = id => INS.des.find(x => x.id === id) || {};
-      const rows = cfApply("lk_links", LC, (INS.links || []).slice().sort((a, b) => desCmp(D2(a.des), D2(b.des)) || natCmp(lkName("lot", a.lot), lkName("lot", b.lot))));
+      const rows = cfApply("lk_links", LC, (insCheckLinks("lnk") || INS.links || []).slice().sort((a, b) => desCmp(D2(a.des), D2(b.des)) || natCmp(lkName("lot", a.lot), lkName("lot", b.lot))));
       lastShown.detail = { cols: LC, rows, kind: "lnk" };
       /* case à droite (cocher seulement) : ✕ DÉLIER LES LIGNES COCHÉES par le menu ⋯ */
       const dw = INS_EDIT ? 40 : 0;
@@ -8065,6 +8070,7 @@ function renderBudgetList() {
       }
       if (active === "qlt") { qqRender(); lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
       if (active === "lnk") { body.innerHTML = `<div class="bdg-d-scroll">${insLinksHTML()}</div>`; return; }
+      if (active === "xpl") { body.innerHTML = `<div class="bdg-d-scroll">${xplHTML()}</div>`; return; }
       if (active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
       if (active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
       if (active === "prd" && shell.__prdSyncU) shell.__prdSyncU();
@@ -8814,7 +8820,9 @@ function renderBudgetList() {
       /* ordre libre des lignes (INS.dord) ; une tâche nouvelle se place à la fin */
       const O = dlyOrder(keys);
       P.sort((a, b) => O.get(a.key) - O.get(b.key));
-      const flat = cfApply("dlyp", DLY_COLS_P, P);
+      /* v496 (remarque 25) : cases cochées des autres blocs → seules les tâches liées */
+      const CLd = insCheckLinks("dly"), KD = CLd ? new Set(CLd.map(l => l.lot + "|" + l.sec)) : null;
+      const flat = cfApply("dlyp", DLY_COLS_P, P).filter(t => !KD || KD.has(t.key));
       const root = { kids: new Map(), tasks: [] };
       flat.forEach(t => {
         let n = root, path = "";
@@ -15527,6 +15535,155 @@ function renderBudgetList() {
     };
     window.__sviDrivePathDefault = () => driveLastPath(budget.project, fullRef);
 
+/* ⟪ src/22b-exploitation.js ⟫ */
+    /* =========================================================
+       v496 (remarque 25) : onglet EXPLOITATION du bloc détail — marges du budget et rendements
+       PAR DÉSIGNATION, PAR LOT, PAR TÂCHE PRIMAIRE (charges, vendu, marge, %), RENDEMENT (par charge d'une tâche secondaire).
+       Une tâche primaire = désignation + lot + activité primaire : VENDU = QPB de la désignation dans ce lot (produits des
+       liaisons primaires) × PPB ; CHARGES = montants HT de toutes les charges de ses liaisons (activités secondaires comprises).
+       Filtré par les cases cochées des autres blocs ; ses propres cases filtrent les autres blocs (XON).
+       Couleur du % : dégradé continu, du rouge foncé (pire marge affichée) au vert foncé (meilleure).
+       ========================================================= */
+    let xplSub = "prm";
+    try { xplSub = localStorage.getItem("svi_xplsub_v1") || "prm"; } catch (e) {}
+    let xplSort = "";   /* "" = ordre naturel ; "pct" = pire marge en haut */
+    const xplTasks = () => {
+      const CL = insCheckLinks("xpl");
+      const keys = new Set((CL || INS.links || []).map(l => l.des + "|" + l.lot + "|" + l.prim));
+      const G = new Map();
+      (INS.links || []).forEach(l => {
+        const k = l.des + "|" + l.lot + "|" + l.prim;
+        if (!keys.has(k)) return;
+        if (!G.has(k)) G.set(k, { k, des: l.des, lot: l.lot, prim: l.prim, links: [] });
+        G.get(k).links.push(l);
+      });
+      return [...G.values()].map(g => {
+        const d = INS.des.find(x => x.id === g.des) || {};
+        let q = 0; const seenP = new Set();
+        g.links.filter(l => insLinkPrim(INS, l)).forEach(l => (l.prd || []).forEach(x => { if (seenP.has(x.id)) return; seenP.add(x.id); const p = INS.prd.find(r => r.id === x.id); if (p) q += insPrdQ(p); }));
+        const prd = q * num(d.p || 0);
+        let chg = 0; const seenC = new Set();
+        g.links.forEach(l => (l.chg || []).forEach(x => { if (seenC.has(x.id)) return; seenC.add(x.id); const c = INS.chg.find(r => r.id === x.id); if (c) chg += insHT("chg", c); }));
+        return { ...g, d, art: artOf(d), dn: d.des || "", u: d.u || "", q, ppb: d.p, prd, chg, mg: prd - chg, pct: prd ? (prd - chg) / prd * 100 : (chg ? -100 : 0) };
+      });
+    };
+    /* dégradé rouge foncé → vert foncé (bornes : pire et meilleure marge du tableau) */
+    const xplColor = (p, lo, hi) => {
+      const t = hi > lo ? Math.max(0, Math.min(1, (p - lo) / (hi - lo))) : (p >= 0 ? 1 : 0);
+      const hue = Math.round(120 * t), light = Math.round(32 + 52 * (1 - Math.abs(2 * t - 1)));
+      return `background:hsl(${hue},62%,${light}%) !important;color:${light < 52 ? "#fff" : "#172033"} !important`;
+    };
+    const xplPctTd = (p, lo, hi, bold) => `<td class="number xpl-pct${bold ? " xpl-b" : ""}" style="${xplColor(p, lo, hi)}">${money(p)} %</td>`;
+    const xplCb = key => INS_EDIT ? `<td class="center"><input type="checkbox" class="xpl-cb" data-x="${esc(key)}"${XON.has(key) ? " checked" : ""}></td>` : "";
+    const xplTable = (head, body, foot, widths) => {
+      const cg = widths.map(w => `<col style="width:${w}px">`).join("") + (INS_EDIT ? '<col style="width:40px">' : "");
+      const tw = widths.reduce((t, w) => t + w, 0) + (INS_EDIT ? 40 : 0);
+      return `<table class="bdg-d-table xpl-table" style="width:${tw}px"><colgroup>${cg}</colgroup><thead><tr>${head}${INS_EDIT ? '<th class="center"></th>' : ""}</tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot></table>`;
+    };
+    const xplTh = (lab, cls, key) => `<th class="${cls || ""}${key ? " xpl-sort" : ""}"${key ? ` data-xs="${key}"` : ""}>${esc(lab)}${key ? (xplSort === key ? " ▲" : " ⇅") : ""}</th>`;
+    const xplHTML = () => {
+      const T = xplTasks();
+      const all = (INS.links || []).length && T.length < new Set((INS.links || []).map(l => l.des + "|" + l.lot + "|" + l.prim)).size;
+      const bar = `<div class="qq-bar xpl-bar">${[["dsg", "PAR DÉSIGNATION"], ["lot", "PAR LOT"], ["prm", "PAR TÂCHE PRIMAIRE"], ["rnd", "RENDEMENT"]].map(([k, l]) => `<button type="button" class="qq-sub${xplSub === k ? " on" : ""}" data-xsub="${k}">${l}</button>`).join("")}<span class="qq-scope">${all ? "FILTRÉ PAR LES CASES COCHÉES" : "TOUT LE BUDGET"}</span></div>`;
+      if (xplSub === "rnd") return bar + xplRndHTML();
+      const sum = L => L.reduce((a, t) => ({ chg: a.chg + t.chg, prd: a.prd + t.prd }), { chg: 0, prd: 0 });
+      const pctOf = s => s.prd ? (s.prd - s.chg) / s.prd * 100 : (s.chg ? -100 : 0);
+      const tot = sum(T), lab = all ? "TOTAL PARTIEL" : "TOTAL";
+      const nm = (k, id) => lkName(k, id);
+      const sortP = L => xplSort === "pct" ? L.slice().sort((a, b) => a.pct - b.pct) : L;
+      let head, body = "", foot, W, lo, hi;
+      const money0 = v => money(v);
+      if (xplSub === "prm") {
+        const L = sortP(T.slice().sort((a, b) => natCmp(nm("lot", a.lot), nm("lot", b.lot)) || natCmp(a.art, b.art) || natCmp(nm("prim", a.prim), nm("prim", b.prim))));
+        lo = Math.min(0, ...L.map(t => t.pct)); hi = Math.max(0, ...L.map(t => t.pct));
+        head = xplTh("LOT") + xplTh("ACTIVITÉ PRIMAIRE") + xplTh("ART", "center") + xplTh("DÉSIGNATION CLIENT") + xplTh("UPB", "center") + xplTh("QPB", "number") + xplTh("CHARGES", "number") + xplTh("VENDU", "number") + xplTh("MARGE", "number") + xplTh("%", "number", "pct");
+        W = [150, 170, 50, 260, 50, 90, 110, 110, 110, 90];
+        body = L.map(t => `<tr><td>${esc(nm("lot", t.lot))}</td><td>${esc(nm("prim", t.prim))}</td><td class="center">${esc(t.art)}</td><td>${esc(t.dn)}</td><td class="center">${esc(t.u)}</td><td class="number">${money0(t.q)}</td><td class="number">${money0(t.chg)}</td><td class="number">${money0(t.prd)}</td><td class="number">${money0(t.mg)}</td>${xplPctTd(t.pct, lo, hi)}${xplCb(t.k)}</tr>`).join("");
+        foot = `<tr class="bdg-d-total-row"><td colspan="6" class="number">${lab}</td><td class="number">${money0(tot.chg)}</td><td class="number">${money0(tot.prd)}</td><td class="number">${money0(tot.prd - tot.chg)}</td>${xplPctTd(pctOf(tot), lo, hi, true)}${INS_EDIT ? "<td></td>" : ""}</tr>`;
+      } else {
+        /* PAR LOT : lot → désignations ; PAR DÉSIGNATION : désignation → lots — sous-totaux */
+        const byLot = xplSub === "lot";
+        const A = new Map();
+        T.forEach(t => { const k = t.des + "|" + t.lot; if (!A.has(k)) A.set(k, { k: k + "|*", des: t.des, lot: t.lot, dn: t.dn, art: t.art, u: t.u, prims: [], chg: 0, prd: 0, q: 0 }); const a = A.get(k); a.chg += t.chg; a.prd += t.prd; a.q += t.q; a.prims.push(nm("prim", t.prim)); });
+        const rows = [...A.values()].map(a => ({ ...a, mg: a.prd - a.chg, pct: pctOf(a) }));
+        const grpKey = r => byLot ? r.lot : r.des;
+        const groups = new Map();
+        rows.forEach(r => { const g = grpKey(r); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(r); });
+        const gl = [...groups.entries()].sort((a, b) => byLot ? natCmp(nm("lot", a[0]), nm("lot", b[0])) : natCmp(a[1][0].art, b[1][0].art) || natCmp(a[1][0].dn, b[1][0].dn));
+        const pcts = rows.map(r => r.pct).concat(gl.map(([, L]) => pctOf(sum(L))));
+        lo = Math.min(0, ...pcts); hi = Math.max(0, ...pcts);
+        if (byLot) {
+          head = xplTh("LOT") + xplTh("ART", "center") + xplTh("DÉSIGNATION CLIENT") + xplTh("UPB", "center") + xplTh("QPB", "number") + xplTh("CHARGES", "number") + xplTh("VENDU", "number") + xplTh("MARGE", "number") + xplTh("%", "number", "pct");
+          W = [170, 50, 300, 50, 90, 110, 110, 110, 90];
+        } else {
+          head = xplTh("ART", "center") + xplTh("DÉSIGNATION CLIENT") + xplTh("LOT") + xplTh("ACTIVITÉ PRIMAIRE") + xplTh("UPB", "center") + xplTh("QPB", "number") + xplTh("CHARGES", "number") + xplTh("VENDU", "number") + xplTh("MARGE", "number") + xplTh("%", "number", "pct");
+          W = [50, 260, 160, 170, 50, 90, 110, 110, 110, 90];
+        }
+        const nc = W.length;
+        (xplSort === "pct" ? gl.slice().sort((a, b) => pctOf(sum(a[1])) - pctOf(sum(b[1]))) : gl).forEach(([g, L0]) => {
+          const L = xplSort === "pct" ? L0.slice().sort((a, b) => a.pct - b.pct) : L0.slice().sort((a, b) => byLot ? natCmp(a.art, b.art) : natCmp(nm("lot", a.lot), nm("lot", b.lot)));
+          L.forEach(r => {
+            body += byLot
+              ? `<tr><td>${esc(nm("lot", r.lot))}</td><td class="center">${esc(r.art)}</td><td>${esc(r.dn)}</td><td class="center">${esc(r.u)}</td><td class="number">${money0(r.q)}</td><td class="number">${money0(r.chg)}</td><td class="number">${money0(r.prd)}</td><td class="number">${money0(r.mg)}</td>${xplPctTd(r.pct, lo, hi)}${xplCb(r.k)}</tr>`
+              : `<tr><td class="center">${esc(r.art)}</td><td>${esc(r.dn)}</td><td>${esc(nm("lot", r.lot))}</td><td>${esc([...new Set(r.prims)].join(" · "))}</td><td class="center">${esc(r.u)}</td><td class="number">${money0(r.q)}</td><td class="number">${money0(r.chg)}</td><td class="number">${money0(r.prd)}</td><td class="number">${money0(r.mg)}</td>${xplPctTd(r.pct, lo, hi)}${xplCb(r.k)}</tr>`;
+          });
+          const s = sum(L);
+          body += `<tr class="xpl-sub"><td colspan="${nc - 4}">TOTAL ${esc(byLot ? nm("lot", g) : (L[0].art ? L[0].art + " " : "") + L[0].dn)}</td><td class="number">${money0(s.chg)}</td><td class="number">${money0(s.prd)}</td><td class="number">${money0(s.prd - s.chg)}</td>${xplPctTd(pctOf(s), lo, hi, true)}${INS_EDIT ? "<td></td>" : ""}</tr>`;
+        });
+        foot = `<tr class="bdg-d-total-row"><td colspan="${nc - 4}" class="number">${lab}</td><td class="number">${money0(tot.chg)}</td><td class="number">${money0(tot.prd)}</td><td class="number">${money0(tot.prd - tot.chg)}</td>${xplPctTd(pctOf(tot), lo, hi, true)}${INS_EDIT ? "<td></td>" : ""}</tr>`;
+      }
+      lastShown.detail = { cols: [], rows: [], kind: "xpl" };
+      return bar + (T.length ? xplTable(head, body, foot, W) : `<div class="xpl-empty">AUCUNE TÂCHE PRIMAIRE LIÉE${all ? " POUR LES CASES COCHÉES" : ""}.</div>`);
+    };
+    /* RENDEMENT : par charge d'une tâche secondaire — quantité produite par la tâche ÷ quantité de la charge */
+    const xplRndHTML = () => {
+      const CL = insCheckLinks("xpl") || INS.links || [];
+      const rows = [], seen = new Set();
+      CL.forEach(l => (l.chg || []).forEach(x => {
+        const key = l.lot + "|" + l.sec + "|" + x.id;
+        if (seen.has(key)) return; seen.add(key);
+        const c = INS.chg.find(r => r.id === x.id); if (!c) return;
+        const T = (INS.links || []).filter(m => m.lot === l.lot && m.sec === l.sec);
+        let q = 0; const sp = new Set();
+        T.forEach(m => (m.prd || []).forEach(y => { if (sp.has(y.id)) return; sp.add(y.id); const p = INS.prd.find(r => r.id === y.id); if (p) q += insPrdQ(p); }));
+        const se = INS.sec.find(s => s.id === l.sec) || {}, qc = Number(insCalc("chg", c, "q")) || 0;
+        const rdb = qc ? q / qc : 0;
+        rows.push({ lot: lkName("lot", l.lot), sec: lkName("sec", l.sec), su: U_(se.u), c, cid: c.id, des: c.des || "", u: U_(c.u), qc, q, rdb,
+          txt: money(rdb) + " " + U_(se.u) + " DE " + U_(lkName("sec", l.sec)) + " (" + U_(lkName("lot", l.lot)) + ") / " + U_(c.u) + " " + U_(c.des) });
+      }));
+      rows.sort((a, b) => natCmp(a.lot, b.lot) || natCmp(a.sec, b.sec) || natCmp(a.des, b.des));
+      if (!rows.length) return `<div class="xpl-empty">AUCUNE CHARGE LIÉE${insCheckLinks("xpl") ? " POUR LES CASES COCHÉES" : ""}.</div>`;
+      const head = xplTh("LOT") + xplTh("ACTIVITÉ SECONDAIRE") + xplTh("DÉSIGNATION CHARGE") + xplTh("UNITÉ", "center") + xplTh("QCB", "number") + xplTh("QUANTITÉ PRODUITE", "number") + xplTh("RENDEMENT BUDGÉTÉ") + xplTh("RDB", "number");
+      const W = [150, 190, 220, 60, 90, 120, 380, 80];
+      const body = rows.map(r => `<tr><td>${esc(r.lot)}</td><td>${esc(r.sec)}</td><td>${esc(r.des)}</td><td class="center">${esc(r.u)}</td><td class="number">${money(r.qc)}</td><td class="number">${money(r.q)} ${esc(r.su)}</td><td>${esc(r.txt)}</td><td class="number"><b>${money(r.rdb)}</b></td>${INS_EDIT ? `<td class="center"><input type="checkbox" class="xpl-ccb" data-cid="${esc(r.cid)}"${r.c.on === true ? " checked" : ""}></td>` : ""}</tr>`).join("");
+      return xplTable(head, body, "", W);
+    };
+    /* sous-onglets, tri par marge, cases à cocher */
+    if (!shell.__xplBound) {
+      shell.__xplBound = true;
+      shell.addEventListener("click", e => {
+        const X = shell.__xpl; if (!X) return;
+        const sb = e.target.closest && e.target.closest("[data-xsub]");
+        if (sb) { X.sub(sb.dataset.xsub); return; }
+        const so = e.target.closest && e.target.closest(".xpl-table th[data-xs]");
+        if (so) X.sort(so.dataset.xs);
+      });
+      shell.addEventListener("change", e => {
+        const X = shell.__xpl; if (!X) return;
+        const cb = e.target.closest && e.target.closest("input.xpl-cb, input.xpl-ccb");
+        if (cb) X.check(cb);
+      });
+    }
+    shell.__xpl = {
+      sub: k => { xplSub = k; try { localStorage.setItem("svi_xplsub_v1", k); } catch (e) {} renderTab(); },
+      sort: k => { xplSort = xplSort === k ? "" : k; renderTab(); },
+      check: cb => {
+        if (cb.classList.contains("xpl-ccb")) { const c = INS.chg.find(r => r.id === cb.dataset.cid); if (c) { c.on = cb.checked; insSave(); } }
+        else { if (cb.checked) XON.add(cb.dataset.x); else XON.delete(cb.dataset.x); }
+        ICL = null; refreshAll();
+      },
+      data: () => xplTasks()
+    };
 /* ⟪ src/23-apercus-impression.js ⟫ */
     /* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :
        volet « OPTIONS PDF » à gauche, aperçu des pages à droite,

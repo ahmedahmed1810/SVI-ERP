@@ -693,6 +693,8 @@
        seules les lignes liées à ce qui y est coché comptent (blocs combinés : ET) */
     /* liaisons retenues par les cases cochées des blocs autres que k (null : aucune case cochée ailleurs) ; mémorisé un instant */
     var ICL = null;
+    /* v496 (remarque 25) : lignes cochées de l'onglet EXPLOITATION (tâches primaires « des|lot|prim », ou « des|lot|* ») */
+    var XON = new Set();
     const insCheckLinks = k => {
       if (!INS) return null;
       /* mémoire valable pour un seul dessin (vidée dès la fin de la tâche en cours) */
@@ -701,8 +703,10 @@
       const B = ["des", "lot", "prim", "sec", "prd", "chg"].filter(x => x !== k);
       const C = {};
       B.forEach(x => { const ids = (INS[x] || []).filter(r => !r.t && r.on === true).map(r => r.id); if (ids.length) C[x] = new Set(ids); });
+      const xk = k !== "xpl" && XON && XON.size ? XON : null;
       const ks = Object.keys(C);
-      const out = !ks.length ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x])));
+      const out = !ks.length && !xk ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
+        && (!xk || xk.has(l.des + "|" + l.lot + "|" + l.prim) || xk.has(l.des + "|" + l.lot + "|*")));
       ICL.m[k] = out;
       return out;
     };
@@ -1050,7 +1054,7 @@
       const oc = coOrder("lk_links", LC);
       const w = k => cwLoad()["lk_links." + k] || W[k] || 120;
       const D2 = id => INS.des.find(x => x.id === id) || {};
-      const rows = cfApply("lk_links", LC, (INS.links || []).slice().sort((a, b) => desCmp(D2(a.des), D2(b.des)) || natCmp(lkName("lot", a.lot), lkName("lot", b.lot))));
+      const rows = cfApply("lk_links", LC, (insCheckLinks("lnk") || INS.links || []).slice().sort((a, b) => desCmp(D2(a.des), D2(b.des)) || natCmp(lkName("lot", a.lot), lkName("lot", b.lot))));
       lastShown.detail = { cols: LC, rows, kind: "lnk" };
       /* case à droite (cocher seulement) : ✕ DÉLIER LES LIGNES COCHÉES par le menu ⋯ */
       const dw = INS_EDIT ? 40 : 0;
