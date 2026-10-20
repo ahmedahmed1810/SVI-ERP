@@ -742,6 +742,20 @@
         return { head: ["POINT DE CONTRÔLE / CRITÈRE", ...C.map(c => c[1])], rows };
       }
     };
+    /* v491 (remarque 3) : DÉTAIL CHARGES tient dans la largeur du bloc (cases à cocher visibles) — DÉSIGNATION CHARGE et TÂCHE
+       se partagent la place restante, sauf largeur réglée à la main */
+    const chgFit = () => {
+      const sc = body.querySelector(".bdg-d-scroll"), tbl = sc && sc.querySelector('table.ins-table[data-ik="chg"]');
+      if (!tbl || sc.clientWidth < 300) return;
+      const W = cwLoad(), cd = tbl.querySelector('col[data-w="chg.detail"]'), ct = tbl.querySelector('col[data-w="chg.tache"]');
+      if (!cd || !ct || W["chg.detail"] || W["chg.tache"]) return;
+      const cols = [...tbl.querySelectorAll("colgroup col")];
+      const others = cols.filter(c => c !== cd && c !== ct).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
+      const pr = parseFloat(getComputedStyle(sc).paddingRight) || 0;
+      const free = Math.floor(sc.clientWidth - pr - others - 6);
+      const d = Math.max(150, Math.round(free * 0.55)), t = Math.max(130, free - d);
+      cd.style.width = d + "px"; ct.style.width = t + "px"; tbl.style.width = others + d + t + "px";
+    };
     const insRenderTab = () => {
       { const tl = document.querySelector("#bdgTabs > .blk-tools");
         if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (active === "chg" || active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(active)); } }
@@ -793,6 +807,7 @@
       if (active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
       if (active === "prd" && shell.__prdSyncU) shell.__prdSyncU();
       body.innerHTML = `<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
+      if (active === "chg") chgFit();
       shell.__insMore = () => insMoreRows(active);
       lastShown.detail = { cols: insCfCols(active), rows: insShown(active), kind: active, ins: true };
       insMarkUnlinked();

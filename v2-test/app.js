@@ -5332,7 +5332,7 @@ function renderBudgetList() {
     /* FORMAT 113 : disposition par défaut = largeurs réglées par Ahmed sur l'iPad (13/10/2026) */
     const CW_DEF_T = {
       "client.article": 69, "client.designation": 660, "client.unit": 70, "client.qty": 71, "client.price": 86, "client.ht": 96, "client.tva": 81, "client.ttc": 97,
-      "chg.article": 69, "chg.detail": 545, "chg.unit": 70, "chg.qty": 109, "chg.price": 107, "chg.amount": 120, "chg.tva": 80, "chg.ttc": 130,
+      "chg.article": 69, "chg.detail": 300, "chg.tache": 246, "chg.unit": 70, "chg.qty": 109, "chg.price": 107, "chg.amount": 120, "chg.tva": 80, "chg.ttc": 130,
       "prd.detail": 176, "prd.tache": 246, "prd.unit": 70, "prd.nbr": 77, "prd.d1": 79, "prd.d2": 79, "prd.d3": 79, "prd.qty": 72, "prd.price": 72, "prd.amount": 92, "prd.tva": 82, "prd.ttc": 109
     };
     const cwGet = (t, k) => cwLoad()[t + "." + k] || CW_DEF_T[t + "." + k] || CW_DEF[k] || 100;
@@ -5785,6 +5785,8 @@ function renderBudgetList() {
       return [v("lot", l.lot), v("sec", l.sec)].filter(Boolean).join(" › ");
     };
     const prdTaskName = id => { const l = prdLinks(id)[0]; return l ? prdLinkName(l) : ""; };
+    /* v491 (remarque 3) : tâche(s) d'une charge (LOT › ACTIVITÉ SECONDAIRE) */
+    const chgTaskName = id => [...new Set((INS.links || []).filter(l => (l.chg || []).some(x => x.id === id)).map(prdLinkName).filter(Boolean))].join(" · ");
     const prdChainKey = id => {
       const l = prdLinks(id)[0];
       if (!l) return "";
@@ -5877,15 +5879,16 @@ function renderBudgetList() {
       chg: [
         ["art", "ART", "center", "txt", "article"],
         ["des", "DÉSIGNATION CHARGE", "", "txt", "detail"],
+        /* v491 (remarque 3) : colonne TÂCHE, comme dans DÉTAIL PRODUITS */
+        ["tache", "TÂCHE", "", "calc", "tache"],
         ["u", "UCB", "center", "txt", "unit"],
         ["q", "QCB", "number", "num", "qty"],
         ["p", "PCB", "number", "num", "price"],
         ["ht", "MCB HT", "number", "calc", "amount"],
         ["tva", "TVA %", "number", "num", "tva"],
         ["ttc", "MCB TTC", "number", "calc", "ttc"],
-        /* FORMAT 111 (v488) : contrôles ajoutés d'office dans le DÉTAIL QUALITÉ de la tâche */
-        ["agr", "AGRÉMENT EXIGÉ", "center", "chk", "agr"],
-        ["qex", "QUALIFICATION EXIGÉE", "", "txt", "qex"]
+        /* FORMAT 111 (v488) : AGRÉMENT EXIGÉ / QUALIFICATION EXIGÉE — colonnes masquées pour l'instant (v491, remarque 3),
+           à remettre plus tard : ["agr", "AGRÉMENT EXIGÉ", "center", "chk", "agr"], ["qex", "QUALIFICATION EXIGÉE", "", "txt", "qex"] */
       ],
       prd: [   /* pas de colonne ART : un produit n'a pas d'article */
         ["des", "DÉSIGNATION PRODUIT", "", "txt", "detail"],
@@ -5909,7 +5912,7 @@ function renderBudgetList() {
     const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "tva", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
-        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? prdTaskName(r.id) : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
+        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
     /* erreur d'une ligne (FORMAT 75) : on ne passe pas à la ligne suivante tant qu'elle reste */
     const insRowErr = (k, r) => {
       /* FORMAT 124 : ART en double (saisi ou calculé) — titres compris */
@@ -7955,6 +7958,20 @@ function renderBudgetList() {
         return { head: ["POINT DE CONTRÔLE / CRITÈRE", ...C.map(c => c[1])], rows };
       }
     };
+    /* v491 (remarque 3) : DÉTAIL CHARGES tient dans la largeur du bloc (cases à cocher visibles) — DÉSIGNATION CHARGE et TÂCHE
+       se partagent la place restante, sauf largeur réglée à la main */
+    const chgFit = () => {
+      const sc = body.querySelector(".bdg-d-scroll"), tbl = sc && sc.querySelector('table.ins-table[data-ik="chg"]');
+      if (!tbl || sc.clientWidth < 300) return;
+      const W = cwLoad(), cd = tbl.querySelector('col[data-w="chg.detail"]'), ct = tbl.querySelector('col[data-w="chg.tache"]');
+      if (!cd || !ct || W["chg.detail"] || W["chg.tache"]) return;
+      const cols = [...tbl.querySelectorAll("colgroup col")];
+      const others = cols.filter(c => c !== cd && c !== ct).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
+      const pr = parseFloat(getComputedStyle(sc).paddingRight) || 0;
+      const free = Math.floor(sc.clientWidth - pr - others - 6);
+      const d = Math.max(150, Math.round(free * 0.55)), t = Math.max(130, free - d);
+      cd.style.width = d + "px"; ct.style.width = t + "px"; tbl.style.width = others + d + t + "px";
+    };
     const insRenderTab = () => {
       { const tl = document.querySelector("#bdgTabs > .blk-tools");
         if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (active === "chg" || active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(active)); } }
@@ -8006,6 +8023,7 @@ function renderBudgetList() {
       if (active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
       if (active === "prd" && shell.__prdSyncU) shell.__prdSyncU();
       body.innerHTML = `<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
+      if (active === "chg") chgFit();
       shell.__insMore = () => insMoreRows(active);
       lastShown.detail = { cols: insCfCols(active), rows: insShown(active), kind: active, ins: true };
       insMarkUnlinked();
@@ -14892,7 +14910,9 @@ function renderBudgetList() {
         .concat(P ? [["des", "DÉSIGNATION PRODUIT", 170], ["u", "UNITÉ", 54], ["nbr", "NBR", 60], ["d1", "DIM 1", 60], ["d2", "DIM 2", 60], ["d3", "DIM 3", 60]]
           : [["art", "ARTICLE", 80], ["des", "DÉSIGNATION CHARGE", 200], ["u", "UNITÉ", 54], ["q", "QTE", 70]]);
       const NUMF = new Set(["nbr", "d1", "d2", "d3", "q"]);
-      const fmtN = v => v === "" || v === undefined || v === null ? "" : String(v).replace(".", ",");
+      /* v491 (remarque 4) : nombres au format des tableaux (milliers et deux décimales : 1 234,56) */
+      const fmtN = v => v === "" || v === undefined || v === null ? "" : money(v);
+      const CENTER = new Set(["upb", "su", "u"]);   /* v491 (remarque 4) : unités centrées */
       let rows = [];
       let recs = INS[kind] || [];
       const blank = () => ({ dc: "", upb: "", lot: "", prim: "", sec: "", su: "", art: "", des: "", u: "", nbr: "", d1: "", d2: "", d3: "", q: "" });
@@ -14956,7 +14976,7 @@ function renderBudgetList() {
         const lockU = P && f === "u" && (!!secU(r.sec, r) || (r._lid && !!r.u));
         const lockChain = false;   /* v480 (remarque 15) : en instance, la chaîne d'une ligne liée se change ici aussi */
         const ro = lockU || lockChain;
-        return `<td class="${NUMF.has(f) ? "number" : ""}${ro ? " sd-ro" : ""}${selCol === f ? " sd-sel" : ""}"><input class="sd-in" data-i="${i}" data-f="${f}" value="${esc(lockU && secU(r.sec, r) ? secU(r.sec, r) : r[f] || "")}"${ro ? " readonly tabindex=\"-1\"" : ""}${NUMF.has(f) ? ' inputmode="decimal"' : ""} autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"></td>`;
+        return `<td class="${NUMF.has(f) ? "number" : CENTER.has(f) ? "center" : ""}${ro ? " sd-ro" : ""}${selCol === f ? " sd-sel" : ""}"><input class="sd-in" data-i="${i}" data-f="${f}" value="${esc(lockU && secU(r.sec, r) ? secU(r.sec, r) : r[f] || "")}"${ro ? " readonly tabindex=\"-1\"" : ""}${NUMF.has(f) ? ' inputmode="decimal"' : ""} autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"></td>`;
       };
       const draw = () => {
         if (!d.isConnected) { window.__sviSdRefresh = null; return; }
@@ -14972,7 +14992,7 @@ function renderBudgetList() {
           <div class="sd-scroll"><table class="sd-t"><colgroup>${COLS.map(c => `<col data-c="${c[0]}" style="width:${W[c[0]] || c[2]}px">`).join("")}<col style="width:40px"></colgroup>
             <thead><tr>${COLS.map(c => cfHead(TK, c[0], c[1], (NUMF.has(c[0]) ? "number" : "") + (selCol === c[0] ? " sd-sel" : "")).replace("<th ", `<th data-c="${c[0]}" `)).join("")}<th class="sd-cbc"><input type="checkbox" class="sd-cball"${V.some(x => x.r._on) && V.filter(x => x.r._id || COLS.some(c => x.r[c[0]])).every(x => x.r._on) ? " checked" : ""}></th></tr></thead>
             <tbody>${V.map(({ r, i }) => `<tr class="${r._id ? (r._lid ? "sd-old sd-lk" : "sd-old") : "sd-new"}${r._del ? " sd-del" : ""}">${COLS.map(c => cell(r, i, c)).join("")}<td class="sd-cbc">${r._id || COLS.some(c => r[c[0]]) ? `<input type="checkbox" class="sd-cb" data-i="${i}"${r._on ? " checked" : ""}>` : ""}</td></tr>`).join("")}</tbody></table></div>
-          <div class="sd-foot"><small>CHAÎNE CHANGÉE SUR UNE LIGNE LIÉE : DÉLIÉE PUIS LIÉE À LA NOUVELLE CHAÎNE À LA VALIDATION. ENTRÉE SUR LA DERNIÈRE CASE = LIGNE RECOPIÉE.</small><span style="flex:1"></span>
+          <div class="sd-foot"><small>CHAÎNE CHANGÉE SUR UNE LIGNE LIÉE : DÉLIÉE PUIS LIÉE À LA NOUVELLE CHAÎNE À LA VALIDATION. TAB = À DROITE, ENTRÉE = EN DESSOUS ; ENTRÉE SUR UNE LIGNE NOUVELLE = LIGNE SUIVANTE AVEC LA MÊME COMBINAISON.</small><span style="flex:1"></span>
             <button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral sd-ok"${dirty ? "" : " disabled"}>VALIDER</button></div>
           ${big ? "" : '<div class="sd-rsz" title="Largeur et hauteur"></div>'}</div>
           <button type="button" class="sd-tag">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"} ▲</button>`;
@@ -15043,21 +15063,53 @@ function renderBudgetList() {
         sugShow(inp);
       });
       d.addEventListener("focusout", () => setTimeout(() => { const b = d.querySelector(".sd-sug"); if (b && document.activeElement !== b.__for) sugHide(); }, 200));
+      /* v491 (remarque 5) : clavier comme Excel / Google Sheets — Tab = case à droite (Maj + Tab : à gauche) ;
+         Entrée = case du dessous, dans la colonne où la suite de Tab a commencé (Maj + Entrée : au-dessus) ;
+         flèches haut / bas = ligne du dessus / dessous ; gauche / droite = case voisine quand le curseur est au bord du texte.
+         v491 (remarque 4) : Entrée sur une ligne nouvelle remplie → la ligne suivante reprend la combinaison
+         (DÉSIGNATION CLIENT, UPB, LOT, ACTIVITÉS, U) et le curseur va sur la désignation produit / charge */
+      let tabStart = null;
+      const go = el => { if (!el) return false; el.focus(); try { el.select(); } catch (err) {} el.scrollIntoView({ block: "nearest", inline: "nearest" }); return true; };
+      const cellsOf = tr => tr ? [...tr.querySelectorAll(".sd-in")].filter(x => !x.readOnly) : [];
+      const sameCol = (tr, f, dir) => { for (let t = dir > 0 ? tr.nextElementSibling : tr.previousElementSibling; t; t = dir > 0 ? t.nextElementSibling : t.previousElementSibling) { const x = t.querySelector(`.sd-in[data-f="${f}"]`); if (x && !x.readOnly) return x; } return null; };
+      const COMBO = ["dc", "upb", "lot", "prim", "sec", "su"];
       d.addEventListener("keydown", e => {
         const inp = e.target.closest(".sd-in");
-        if (!inp || e.key !== "Enter") return;
+        if (!inp || !["Enter", "Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
+        if (d.querySelector(".sd-sug") && (e.key === "ArrowUp" || e.key === "ArrowDown")) return;   /* flèches : dans la liste de choix */
+        const tr = inp.closest("tr"), f = inp.dataset.f, i = +inp.dataset.i;
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          const L = inp.value.length, a = inp.selectionStart, b = inp.selectionEnd, all = a === 0 && b === L;
+          if (!(all || (e.key === "ArrowLeft" ? a === 0 && b === 0 : a === L && b === L))) return;
+        }
         e.preventDefault(); e.stopPropagation(); sugHide();
-        const i = +inp.dataset.i, tr = inp.closest("tr");
-        const ins = [...tr.querySelectorAll(".sd-in")].filter(x => !x.readOnly);
-        const k = ins.indexOf(inp);
-        if (k >= 0 && k < ins.length - 1) { ins[k + 1].focus(); try { ins[k + 1].select(); } catch (err) {} return; }
-        /* dernière case : ligne recopiée (chaîne et valeurs), curseur sur la désignation produit / charge */
-        const src = rows[i], c = { ...blank() };
-        COLS.forEach(cc => { c[cc[0]] = src[cc[0]] || ""; });
-        let j = rows.findIndex((r, n) => n > i && !r._id && COLS.every(cc => !r[cc[0]]));
-        if (j < 0) { rows.push(c); j = rows.length - 1; } else rows.splice(j, 0, c);
-        if (rows[rows.length - 1] === c) rows.push(blank());
-        draw(); focusAt(j, "des");
+        if (e.key === "Tab" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          const back = e.key === "ArrowLeft" || (e.key === "Tab" && e.shiftKey);
+          if (e.key === "Tab" && (!tabStart || tabStart.tr !== tr)) tabStart = { tr, f };
+          const C = cellsOf(tr), k = C.indexOf(inp);
+          if (back) { if (k > 0) go(C[k - 1]); else { const p = cellsOf(tr.previousElementSibling); go(p[p.length - 1]); } }
+          else if (k < C.length - 1) go(C[k + 1]); else go(cellsOf(tr.nextElementSibling)[0]);
+          return;
+        }
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") { go(sameCol(tr, f, e.key === "ArrowDown" ? 1 : -1)); return; }
+        /* Entrée */
+        const col = tabStart && tabStart.tr === tr ? tabStart.f : f;
+        tabStart = null;
+        if (e.shiftKey) { go(sameCol(tr, col, -1)); return; }
+        const src = rows[i];
+        const nxt = tr.nextElementSibling, nr = nxt && rows[+((nxt.querySelector(".sd-in") || {}).dataset || {}).i];
+        if (src && !src._id && COLS.some(cc => src[cc[0]]) && (!nr || (!nr._id && COLS.every(cc => !nr[cc[0]])))) {
+          /* ligne nouvelle remplie : la suivante reprend la combinaison et ses unités */
+          let j = nr ? rows.indexOf(nr) : -1;
+          if (j < 0) { rows.push(blank()); j = rows.length - 1; }
+          COMBO.forEach(c => { rows[j][c] = src[c] || ""; });
+          if (P && secU(rows[j].sec, rows[j])) rows[j].u = secU(rows[j].sec, rows[j]);
+          if (rows[rows.length - 1] === rows[j]) rows.push(blank());
+          dirty = true;
+          draw(); focusAt(j, "des");
+          return;
+        }
+        go(sameCol(tr, col, 1));
       }, true);
       /* v479 (remarques 11 et 12) : case à cocher par ligne et menu ⋯ (SUPPRIMER LES LIGNES COCHÉES…) */
       d.addEventListener("change", e => {
@@ -15228,7 +15280,8 @@ function renderBudgetList() {
         });
         if (goneChg.size) INS.chg = INS.chg.filter(x => !goneChg.has(x.id));
         if (extra.length) histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE — " + (P ? "CHARGES DÉPLACÉES AVEC LE DERNIER PRODUIT" : "PRODUITS RECOPIÉS"), extra.length + " LIGNE(S)");
-        const neu = rows.filter(r => !r._del && ((!r._id && COLS.some(c => r[c[0]])) || (r._id && !r._lid && r.dc && r.lot && r.prim && r.sec) || moved.includes(r)));
+        /* v491 : une ligne nouvelle sans désignation produit / charge (combinaison reprise seulement) est ignorée */
+        const neu = rows.filter(r => !r._del && ((!r._id && U_(r.des)) || (r._id && !r._lid && r.dc && r.lot && r.prim && r.sec) || moved.includes(r)));
         const aoa = [H].concat(neu.map(r => [budget.project || "", r.dc, r.upb, r.lot, r.prim, r.sec, P ? "PRD" : "CHG", r.art || "", r.des, P ? (secU(r.sec, r) || r.u) : r.u, r.nbr, r.d1, r.d2, r.d3, r.q]), extra);
         if (upd) { insSave(); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE", upd + " LIGNE(S) MODIFIÉE(S)"); }
         if (neu.length || extra.length) {
@@ -20471,7 +20524,40 @@ document.addEventListener("pointerdown", e => {
   i.dispatchEvent(new Event("change", { bubbles: true }));
 }, true);
 document.addEventListener("focusout", e => { if (e.target.closest && e.target.closest(SVI_UNIT_SEL)) setTimeout(() => { const b = document.getElementById("svUnitSug"); if (b && b.__for === e.target && document.activeElement !== e.target) sviUnitSugHide(); }, 150); });
-document.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === "Escape") sviUnitSugHide(); }, true);
+/* v491 (remarque 5) : listes de choix comme dans les tableurs — flèches haut / bas = proposition suivante / précédente ;
+   Entrée ou Tab = la proposition en surbrillance, ou la seule proposée, puis la case suivante ; Échap = fermer */
+document.addEventListener("keydown", e => {
+  const b = document.querySelector("#svUnitSug, .sd-sug");
+  if (!b || b.__for !== e.target) { if (e.key === "Enter" || e.key === "Escape") sviUnitSugHide(); return; }
+  const B = [...b.querySelectorAll("button")];
+  let k = B.findIndex(x => x.classList.contains("on"));
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault(); e.stopPropagation();
+    k = e.key === "ArrowDown" ? Math.min(B.length - 1, k + 1) : Math.max(0, k < 0 ? 0 : k - 1);
+    B.forEach((x, n) => x.classList.toggle("on", n === k));
+    B[k] && B[k].scrollIntoView({ block: "nearest" });
+    return;
+  }
+  if (e.key === "Escape") { e.preventDefault(); b.remove(); return; }
+  if (e.key !== "Enter" && e.key !== "Tab") return;
+  const pick = k >= 0 ? B[k] : B.length === 1 ? B[0] : null;
+  const i = b.__for;
+  b.remove();
+  if (!pick || !i) return;
+  i.value = pick.dataset.u || pick.dataset.v || "";
+  i.dispatchEvent(new Event("input", { bubbles: true }));
+  document.querySelector("#svUnitSug, .sd-sug")?.remove();
+  i.dispatchEvent(new Event("change", { bubbles: true }));
+  /* Tab : la touche continue (case à droite) ; Entrée : choisie puis case suivante, à droite (pas la ligne du dessous) */
+  if (e.key === "Enter") {
+    e.preventDefault(); e.stopPropagation();
+    const tr = i.closest("tr, .ins-li");
+    const ok = x => x.offsetParent !== null && !x.disabled && !x.readOnly && !x.matches('[type="checkbox"], [type="radio"], [type="hidden"]');
+    const L = tr ? [...tr.querySelectorAll("input, select, textarea")].filter(x => x === i || ok(x)) : [];
+    const nx = L[L.indexOf(i) + 1];
+    if (nx) { nx.focus(); try { nx.select(); } catch (err) {} }
+  }
+}, true);
 /* FORMAT 129 : case « tout cocher » à trois états — vide / à moitié (une partie cochée) / cochée (toutes) */
 (() => {
   let raf = 0;
@@ -20904,11 +20990,56 @@ document.addEventListener("focusin", e => {
    cases grisées sautées ; dans une fenêtre, Entrée ne valide jamais toute seule ;
    IMPORT NON CRÉÉ : case encadrée (fautive) suivante
    ========================================================= */
+/* v491 (remarque 5) : dans les tableaux, comme Excel / Google Sheets — Tab = case à droite, Entrée = case du dessous
+   (dans la colonne où la suite de Tab a commencé ; s'il n'y a pas de ligne dessous, case suivante comme avant),
+   Maj + Entrée = au-dessus ; flèches haut / bas = ligne voisine, gauche / droite = case voisine au bord du texte */
+let sviTabStart = null;
+const sviGridBox = el => el.closest("table.ins-table, table.dly-table, table.prm-table");
+const sviGridOk = x => x && x.offsetParent !== null && !x.disabled && !x.readOnly && !x.matches('[type="checkbox"], [type="radio"], [type="file"], [type="hidden"]');
+const sviGridCell = (tr, ci, dir) => {
+  for (let t = dir > 0 ? tr.nextElementSibling : tr.previousElementSibling; t; t = dir > 0 ? t.nextElementSibling : t.previousElementSibling) {
+    const td = t.cells && t.cells[ci];
+    const x = td && [...td.querySelectorAll("input, select, textarea")].find(sviGridOk);
+    if (x) return x;
+  }
+  return null;
+};
+const sviGo = nx => { nx.focus(); try { if (nx.matches("input:not(.sv-date):not(.dlp-in)")) nx.select(); } catch (err) {} nx.scrollIntoView({ block: "nearest", inline: "nearest" }); };
+document.addEventListener("keydown", e => {
+  if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) || e.shiftKey) return;
+  const el = e.target;
+  if (!el || !el.matches || !el.matches("input:not([type=checkbox]):not([type=radio])") || el.closest("#cfMenu, #svCal")) return;
+  const box = sviGridBox(el), td = el.closest("td"), tr = el.closest("tr");
+  if (!box || !td || !tr) return;
+  if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+    const nx = sviGridCell(tr, td.cellIndex, e.key === "ArrowDown" ? 1 : -1);
+    e.preventDefault(); if (nx) sviGo(nx); return;
+  }
+  const L = (el.value || "").length, a = el.selectionStart, b = el.selectionEnd;
+  if (a === null) return;
+  const all = a === 0 && b === L;
+  if (!(all || (e.key === "ArrowLeft" ? a === 0 && b === 0 : a === L && b === L))) return;
+  const list = [...box.querySelectorAll("input, select, textarea")].filter(x => x === el || sviGridOk(x));
+  const nx = list[list.indexOf(el) + (e.key === "ArrowLeft" ? -1 : 1)];
+  e.preventDefault(); if (nx) sviGo(nx);
+}, true);
 document.addEventListener("keydown", e => {
   if (e.key !== "Enter" && e.key !== "Tab") return;
   const el = e.target;
   if (!el || !el.matches || !el.matches("input, select, textarea.ins-in")) return;
   if (el.matches('[type="checkbox"], [type="radio"], [type="file"], .cf-q') || el.closest("#cfMenu, #svCal")) return;
+  /* tableaux : Entrée descend */
+  { const box = sviGridBox(el), td = el.closest("td"), tr = el.closest("tr");
+    if (box && td && tr) {
+      if (e.key === "Tab") { if (!sviTabStart || sviTabStart.tr !== tr) sviTabStart = { tr, ci: td.cellIndex }; }
+      else {
+        const ci = sviTabStart && sviTabStart.tr === tr ? sviTabStart.ci : td.cellIndex;
+        sviTabStart = null;
+        const nx = sviGridCell(tr, ci, e.shiftKey ? -1 : 1);
+        if (nx) { e.preventDefault(); sviGo(nx); return; }
+        if (e.shiftKey) { e.preventDefault(); return; }
+      }
+    } }
   const back = e.key === "Tab" && e.shiftKey;
   const ok = x => x.offsetParent !== null && !x.disabled && !(x.readOnly && !x.classList.contains("sv-date") && !x.classList.contains("dlp-in")) && !x.matches('[type="checkbox"], [type="radio"], [type="file"], [type="hidden"]');
   let list = null;
@@ -20930,6 +21061,23 @@ document.addEventListener("keydown", e => {
   try { if (nx.matches("input:not(.sv-date):not(.dlp-in)")) nx.select(); } catch (err) {}
   nx.scrollIntoView({ block: "nearest", inline: "nearest" });
 }, true);
+/* v491 (remarque 1) : la case où l'on saisit reste visible — si elle est cachée (bas du tableau, clavier de l'iPad),
+   le tableau remonte juste assez ; si elle est déjà visible, rien ne bouge */
+const sviKeepVisible = el => {
+  if (!el || !el.isConnected || el.offsetParent === null) return;
+  el.scrollIntoView({ block: "nearest", inline: "nearest" });
+  const vv = window.visualViewport, bottom = vv ? vv.offsetTop + vv.height : window.innerHeight, top = vv ? vv.offsetTop : 0;
+  const r = el.getBoundingClientRect();
+  if (r.bottom > bottom - 10) window.scrollBy(0, r.bottom - bottom + 40);
+  else if (r.top < top + 4) window.scrollBy(0, r.top - top - 40);
+};
+{
+  let raf = 0;
+  const SEL = ".ins-table input, .ins-table textarea, .ins-hcol input, .sd-t input, .dly-table input, .qq-table input, .inc-table input, .prm-table input";
+  const run = e => { const el = e.target; if (!el || !el.matches || !el.matches(SEL)) return; cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setTimeout(() => sviKeepVisible(document.activeElement === el ? el : document.activeElement), 60)); };
+  document.addEventListener("focusin", run);
+  document.addEventListener("input", run);
+}
 /* clavier de l'iPad : touche « Suivant » */
 document.addEventListener("focusin", e => {
   const el = e.target;
@@ -21164,3 +21312,115 @@ document.addEventListener("input", e => {
   try { el.setSelectionRange(pos, pos); } catch (err) {}
   if (typeof svToast === "function") svToast(dec ? "CHIFFRES SEULEMENT (UNE VIRGULE PERMISE)." : "CHIFFRES SEULEMENT.", 2200, el);
 }, true);
+
+/* =========================================================
+   v491 (remarque 6) : SÉLECTION DE PLUSIEURS CASES, comme Excel / Google Sheets — dans tous les tableaux de saisie
+   clavier : Maj + toucher (ou Maj + flèches) = plage depuis la case active ; Commande (Ctrl) + toucher = ajoute / retire une case ;
+   au doigt : petite poignée ronde au coin de la case active, à tirer pour étendre la plage.
+   Commande + C = copier la sélection (tableau, pour Excel / Google Sheets) ; SAISIE DIRECTE : Commande + V = coller à partir
+   du coin haut gauche, Effacer (⌫) = vider les cases sélectionnées
+   ========================================================= */
+(() => {
+  const TSEL = "table.ins-table, table.sd-t, table.dly-table, table.qq-table, table.inc-table, table.prm-table";
+  const S = { tbl: null, a: null, b: null, extra: new Set(), cut: new Set() };
+  const posOf = td => { const tr = td.closest("tr"); return tr && tr.parentElement && tr.parentElement.tagName === "TBODY" ? { r: tr.sectionRowIndex, c: td.cellIndex } : null; };
+  const tdAt = (tbl, r, c) => { const tr = tbl.tBodies[0] && tbl.tBodies[0].rows[r]; return tr ? tr.cells[c] || null : null; };
+  const cells = () => {
+    if (!S.tbl || !S.a) return [];
+    const out = [], b = S.b || S.a;
+    if (S.b) for (let r = Math.min(S.a.r, b.r); r <= Math.max(S.a.r, b.r); r++) for (let c = Math.min(S.a.c, b.c); c <= Math.max(S.a.c, b.c); c++) { const td = tdAt(S.tbl, r, c); if (td) out.push(td); }
+    S.extra.forEach(k => { const [r, c] = k.split(":").map(Number); const td = tdAt(S.tbl, r, c); if (td && !out.includes(td)) out.push(td); });
+    return out;
+  };
+  const paint = () => {
+    document.querySelectorAll("td.svi-cs").forEach(td => td.classList.remove("svi-cs"));
+    const C = cells();
+    if (C.length > 1) C.forEach(td => td.classList.add("svi-cs"));
+    handle();
+  };
+  const clear = () => { S.b = null; S.extra.clear(); paint(); };
+  /* poignée ronde (doigt) au coin bas droit de la dernière case de la plage */
+  let H = null;
+  const handle = () => {
+    const act = document.activeElement, td = act && act.closest && act.closest("td");
+    if (!S.tbl || !S.a || !td || !td.closest(TSEL) || td.closest("table") !== S.tbl || !matchMedia("(pointer: coarse)").matches) { if (H) H.style.display = "none"; return; }
+    const end = tdAt(S.tbl, (S.b || S.a).r, (S.b || S.a).c) || td;
+    if (!H) {
+      H = document.createElement("div"); H.id = "sviSelHandle"; document.body.appendChild(H);
+      H.addEventListener("pointerdown", e => {
+        e.preventDefault(); e.stopPropagation(); try { H.setPointerCapture(e.pointerId); } catch (err) {}
+        const mv = ev => { const el = document.elementFromPoint(ev.clientX, ev.clientY), t2 = el && el.closest && el.closest("td"); if (t2 && t2.closest("table") === S.tbl) { const p = posOf(t2); if (p) { S.b = p; paint(); } } };
+        const up = () => { H.removeEventListener("pointermove", mv); H.removeEventListener("pointerup", up); H.removeEventListener("pointercancel", up); };
+        H.addEventListener("pointermove", mv); H.addEventListener("pointerup", up); H.addEventListener("pointercancel", up);
+      });
+    }
+    const r = end.getBoundingClientRect();
+    H.style.display = "block"; H.style.left = (r.right - 7 + window.scrollX) + "px"; H.style.top = (r.bottom - 7 + window.scrollY) + "px";
+  };
+  document.addEventListener("focusin", e => {
+    const td = e.target.closest && e.target.closest("td"), tbl = td && td.closest(TSEL);
+    if (!tbl) { if (H) H.style.display = "none"; return; }
+    if (S.keep) { S.keep = false; handle(); return; }
+    const p = posOf(td); if (!p) return;
+    if (S.tbl !== tbl || !S.a || S.a.r !== p.r || S.a.c !== p.c) { S.tbl = tbl; S.a = p; S.b = null; S.extra.clear(); paint(); }
+    else handle();
+  });
+  document.addEventListener("pointerdown", e => {
+    if (e.target === H) return;
+    const td = e.target.closest && e.target.closest("td"), tbl = td && td.closest(TSEL);
+    if (!tbl) { if (!e.target.closest || !e.target.closest("#blkMenu")) { S.b = null; S.extra.clear(); paint(); } return; }
+    const p = posOf(td); if (!p) return;
+    if ((e.shiftKey || e.metaKey || e.ctrlKey) && S.tbl === tbl && S.a) {
+      e.preventDefault(); S.keep = true;
+      if (e.shiftKey) S.b = p;
+      else { const k = p.r + ":" + p.c; if (S.extra.has(k)) S.extra.delete(k); else S.extra.add(k); }
+      paint();
+    }
+  }, true);
+  window.addEventListener("scroll", () => { if (H && H.style.display === "block") handle(); }, true);
+  const valOf = td => { const i = td.querySelector("input:not([type=checkbox]), textarea, select"); return String(i ? i.value : td.textContent || "").replace(/[\t\n]/g, " ").trim(); };
+  document.addEventListener("keydown", e => {
+    const act = document.activeElement, td0 = act && act.closest && act.closest("td"), tbl = td0 && td0.closest(TSEL);
+    if (!tbl || S.tbl !== tbl || !S.a) return;
+    /* Maj + flèches : étendre la plage */
+    if (e.shiftKey && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+      e.preventDefault(); e.stopPropagation();
+      const b = S.b || { ...S.a };
+      if (e.key === "ArrowUp") b.r = Math.max(0, b.r - 1); else if (e.key === "ArrowDown") b.r = Math.min(tbl.tBodies[0].rows.length - 1, b.r + 1);
+      else if (e.key === "ArrowLeft") b.c = Math.max(0, b.c - 1); else b.c = b.c + 1;
+      S.b = b; paint(); return;
+    }
+    const C = cells();
+    if (C.length < 2) return;
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && (e.key === "c" || e.key === "C")) {
+      e.preventDefault();
+      const rs = [...new Set(C.map(td => td.parentElement))].sort((x, y) => x.sectionRowIndex - y.sectionRowIndex);
+      const cs = [...new Set(C.map(td => td.cellIndex))].sort((x, y) => x - y);
+      const txt = rs.map(tr => cs.map(c => { const td = tr.cells[c]; return td && C.includes(td) ? valOf(td) : ""; }).join("\t")).join("\n");
+      try { navigator.clipboard && navigator.clipboard.writeText(txt); } catch (err) {}
+      if (typeof svToast === "function") svToast(C.length + " CASE(S) COPIÉE(S).", 1800);
+      return;
+    }
+    if (!tbl.classList.contains("sd-t")) return;
+    const put = (td, v) => { const i = td.querySelector("input.sd-in"); if (!i || i.readOnly) return false; i.value = v; i.dispatchEvent(new Event("input", { bubbles: true })); return true; };
+    if (!mod && (e.key === "Backspace" || e.key === "Delete")) {
+      e.preventDefault(); let n = 0; C.forEach(td => { if (put(td, "")) n++; });
+      document.querySelector(".sd-sug")?.remove();
+      if (typeof svToast === "function") svToast(n + " CASE(S) VIDÉE(S).", 1800);
+      return;
+    }
+    if (mod && (e.key === "v" || e.key === "V")) {
+      e.preventDefault();
+      const r0 = Math.min(...C.map(td => td.parentElement.sectionRowIndex)), c0 = Math.min(...C.map(td => td.cellIndex));
+      (navigator.clipboard && navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.resolve("")).then(t => {
+        const lines = String(t || "").replace(/\r/g, "").replace(/\n+$/, "").split("\n").map(l => l.split("\t"));
+        let n = 0;
+        lines.forEach((cl, i) => cl.forEach((v, j) => { const td = tdAt(tbl, r0 + i, c0 + j); if (td && put(td, v.trim())) n++; }));
+        document.querySelector(".sd-sug")?.remove();
+        if (typeof svToast === "function") svToast(n + " CASE(S) COLLÉE(S).", 1800);
+      }).catch(() => {});
+    }
+  }, true);
+})();
+
