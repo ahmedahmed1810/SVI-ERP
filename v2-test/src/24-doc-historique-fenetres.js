@@ -509,6 +509,7 @@
       recShown[kind] = list;
       const title = $("recTitle-" + kind);
       if (title) title.innerHTML = SVI_ICON[kind] + esc(blkName[kind]) + " " + svCnt(list.length, all.length);
+      if (title) title.classList.toggle("tab-filt", Object.keys(cfT(kind).f || {}).length > 0);   /* v499 (remarque 40) */
       const st = cfT(kind);
       title?.classList.remove("cf-on");   /* pas de bleu d'onglet pour un filtre (loupe) */
       if (title) sviMarkEmptyTabs(title.parentNode);

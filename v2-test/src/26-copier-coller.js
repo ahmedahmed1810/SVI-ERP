@@ -443,6 +443,13 @@
           if (v === "title") QQm.addTitle(); else if (v === "sub") QQm.addSub(); else if (v === "cfg") QQm.cfg(); else QQm.del();
         }, true);
       }
+      /* v499 (remarque 42) : EFFACER TOUS LES FILTRES (loupes et cases cochées du bloc) */
+      { const blk = (acts.find(a => ["client", "hier", "detail"].includes(a.dataset.blk)) || {}).dataset?.blk;
+        if (blk && typeof insFiltPlan === "function" && INS) {
+          const n = insFiltPlan(blk).n;
+          m.insertAdjacentHTML("beforeend", `<div class="blk-sep"></div><button type="button" data-fclr="${blk}" class="${n ? "" : "off"}" ${n ? "" : "disabled"}><span>EFFACER TOUS LES FILTRES</span>${svCnt(n)}</button>`);
+          m.addEventListener("click", e => { const b = e.target.closest("[data-fclr]"); if (!b) return; e.stopPropagation(); if (b.disabled) return; m.remove(); insFiltClear(b.dataset.fclr); }, true);
+        } }
       document.body.appendChild(m);
       const r = btn.getBoundingClientRect();
       sviPlaceMenu(m, r);
