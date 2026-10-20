@@ -495,8 +495,13 @@ document.addEventListener("input", e => {
   document.addEventListener("pointerdown", e => {
     if (e.target === H) return;
     const td = e.target.closest && e.target.closest("td"), tbl = td && td.closest(TSEL);
-    /* v492 (remarque 11) : la sélection reste (menu ⋯, boutons) ; seul un toucher sur une autre case l'annule */
-    if (!tbl) return;
+    /* v492 (remarque 11) : la sélection reste pour le menu ⋯ (copier / coller / effacer) ;
+       v493 (remarque 14) : un toucher hors du tableau (ailleurs que sur un menu ⋯) l'annule et cache la poignée */
+    if (!tbl) {
+      if (e.target.closest && e.target.closest("#blkMenu, .sd-more, .blk-more, .blk-btn")) return;
+      S.b = null; S.extra.clear(); S.a = null; S.tbl = null; paint(); if (H) H.style.display = "none";
+      return;
+    }
     const p = posOf(td); if (!p) return;
     if ((e.shiftKey || e.metaKey || e.ctrlKey) && S.tbl === tbl && S.a) {
       e.preventDefault(); S.keep = true;

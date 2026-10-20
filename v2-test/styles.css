@@ -1885,3 +1885,13 @@ tr.ins-grp td { background: #eef3fa; color: #1f3b63; font-weight: 700; }
 /* v492 — remarque 12 : pied de la saisie directe sans texte, boutons remontés ; remarque 13 : filtre du tableau d'origine */
 #sdW .sd-foot { padding: 6px 14px 8px; }
 #sdW .sd-srcf { border: 1px solid #1d4ed8; background: #e8f0fe; color: #1d4ed8; border-radius: 12px; padding: 2px 10px; font-size: 11px; font-weight: 800; cursor: pointer; }
+/* v493 — remarque 14 : poignée de sélection plus petite, sans anneau, grande zone de toucher */
+#sviSelHandle { width: 9px; height: 9px; border: 0; box-shadow: none; background: #1d4ed8; }
+#sviSelHandle::before { inset: -16px; }
+/* v493 — remarque 15 : trait de largeur des colonnes plus facile à attraper (saisie directe) */
+#sdW .sd-t thead th .col-rs { width: 26px; }
+/* v493 — remarque 17 : unités centrées (saisie directe) */
+#sdW td.center .sd-in { text-align: center; }
+/* v493 — remarque 16 : en-tête abrégé « … » quand la colonne est très étroite */
+#sdW .sd-t thead th { overflow: hidden; }
+#sdW .sd-t thead th .cf-lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

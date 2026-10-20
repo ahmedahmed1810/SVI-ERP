@@ -3150,7 +3150,7 @@ function renderBudgetList() {
       }
       /* FORMAT 113 : zone de réglage large au toucher (trait fin à l'œil) */
       .col-rs {
-        position: absolute; top: 0; right: 0; width: 18px; height: 100%;
+        position: absolute; top: 0; right: 0; width: 26px; height: 100%;   /* v493 (remarque 15) : zone de toucher élargie */
         cursor: col-resize; z-index: 4; touch-action: none;
       }
       .col-rs::after {
@@ -12811,7 +12811,7 @@ function renderBudgetList() {
         const w0 = parseFloat(col.style.width) || col.getBoundingClientRect().width;
         let w = w0;
         apply = x => {
-          w = Math.max(40, Math.round(w0 + x - x0));
+          w = Math.max(28, Math.round(w0 + x - x0));   /* v493 (remarque 16) : réduite au maximum */
           col.style.width = w + "px";
           const total = [...table.querySelectorAll("col")]
             .reduce((sum, c) => sum + (parseFloat(c.style.width) || 0), 0);
@@ -15014,7 +15014,8 @@ function renderBudgetList() {
         const sc = d.querySelector(".sd-scroll"), st = sc ? sc.scrollTop : 0, sl = sc ? sc.scrollLeft : 0;
         const V = vis();
         /* FORMAT 6 : un intitulé de colonne n'est jamais coupé — largeur au moins celle de l'intitulé */
-        const W = {}; COLS.forEach(c => { W[c[0]] = Math.max((sz.cols || {})[c[0]] || c[2], Math.ceil(c[1].length * 7.6) + 46); });
+        /* v493 (remarque 16) : une colonne se réduit au maximum, comme dans DÉSIGNATIONS CLIENT (intitulé abrégé « … ») */
+        const W = {}; COLS.forEach(c => { W[c[0]] = Math.max(28, (sz.cols || {})[c[0]] || Math.max(c[2], Math.ceil(c[1].length * 7.6) + 46)); });
         d.innerHTML = `<div class="sd-card${big ? " big" : ""}" role="dialog" aria-modal="true" style="${!big && sz.w ? "width:" + sz.w + "px;height:" + sz.h + "px" : ""}">
           <div class="sd-head"><span class="sd-title">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"}</span>
             <span class="sd-n">${svCnt(V.filter(x => x.r._id).length, rows.filter(x => x._id).length)}</span>
@@ -15064,7 +15065,7 @@ function renderBudgetList() {
           e.preventDefault(); e.stopPropagation();
           const key = h.dataset.col, col = d.querySelector(`col[data-c="${key}"]`), tb = d.querySelector(".sd-t");
           const x0 = e.clientX, w0 = col.getBoundingClientRect().width || parseFloat(col.style.width) || 80;
-          const lab = (COLS.find(c => c[0] === key) || ["", ""])[1], wMin = Math.ceil(lab.length * 7.6) + 46;
+          const wMin = 28;
           const mv = ev => { const w = Math.max(wMin, Math.round(w0 + ev.clientX - x0)); col.style.width = w + "px"; sz.cols = sz.cols || {}; sz.cols[key] = w; tb.style.width = [...d.querySelectorAll(".sd-t col")].reduce((t, x) => t + (parseFloat(x.style.width) || 0), 0) + "px"; };
           const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); szSave(); };
           document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
@@ -21428,8 +21429,13 @@ document.addEventListener("input", e => {
   document.addEventListener("pointerdown", e => {
     if (e.target === H) return;
     const td = e.target.closest && e.target.closest("td"), tbl = td && td.closest(TSEL);
-    /* v492 (remarque 11) : la sélection reste (menu ⋯, boutons) ; seul un toucher sur une autre case l'annule */
-    if (!tbl) return;
+    /* v492 (remarque 11) : la sélection reste pour le menu ⋯ (copier / coller / effacer) ;
+       v493 (remarque 14) : un toucher hors du tableau (ailleurs que sur un menu ⋯) l'annule et cache la poignée */
+    if (!tbl) {
+      if (e.target.closest && e.target.closest("#blkMenu, .sd-more, .blk-more, .blk-btn")) return;
+      S.b = null; S.extra.clear(); S.a = null; S.tbl = null; paint(); if (H) H.style.display = "none";
+      return;
+    }
     const p = posOf(td); if (!p) return;
     if ((e.shiftKey || e.metaKey || e.ctrlKey) && S.tbl === tbl && S.a) {
       e.preventDefault(); S.keep = true;
