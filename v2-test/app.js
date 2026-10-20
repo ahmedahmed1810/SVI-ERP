@@ -5068,7 +5068,7 @@ function renderBudgetList() {
       { key: "qlt", title: "DÉTAIL QUALITÉ" },
       { key: "dly", title: "DÉTAIL DÉLAIS" },
       /* budget en instance : les liaisons validées sont un onglet du détail */
-      ...(budget.inst ? [{ key: "lnk", title: "LIAISONS VALIDÉES" }, { key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "xpl", title: "EXPLOITATION" }] : [])
+      ...(budget.inst ? [{ key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "lnk", title: "MARGE", ico: "xpl" }] : [])   /* v498 (remarque 37) : MARGE remplace LIAISONS VALIDÉES et EXPLOITATION */
     ];
 
     /* dernier onglet du détail ouvert (charges, produits, qualité, délais) */
@@ -5210,7 +5210,7 @@ function renderBudgetList() {
                 class="bdg-d-tab"
                 data-tab="${t.key}"
               >
-                ${SVI_ICON[t.key] || ""}${t.title}
+                ${SVI_ICON[t.ico || t.key] || ""}${t.title}
               </button>
             `).join("")
           }
@@ -5338,7 +5338,7 @@ function renderBudgetList() {
     /* FORMAT 113 : disposition par défaut = largeurs réglées par Ahmed sur l'iPad (13/10/2026) */
     const CW_DEF_T = {
       "client.article": 69, "client.designation": 660, "client.unit": 70, "client.qty": 71, "client.price": 86, "client.ht": 96, "client.tva": 81, "client.ttc": 97,
-      "chg.article": 69, "chg.detail": 300, "chg.tache": 246, "chg.unit": 70, "chg.qty": 109, "chg.price": 107, "chg.amount": 120, "chg.tva": 80, "chg.ttc": 130,
+      "chg.article": 69, "chg.detail": 300, "chg.rdb": 120, "chg.tache": 246, "chg.unit": 70, "chg.qty": 95, "chg.price": 95, "chg.amount": 105, "chg.tva": 80, "chg.ttc": 110,
       "prd.detail": 176, "prd.tache": 246, "prd.unit": 70, "prd.nbr": 77, "prd.d1": 79, "prd.d2": 79, "prd.d3": 79, "prd.qty": 72, "prd.price": 72, "prd.amount": 92, "prd.tva": 82, "prd.ttc": 109
     };
     const cwGet = (t, k) => cwLoad()[t + "." + k] || CW_DEF_T[t + "." + k] || CW_DEF[k] || 100;
@@ -5792,6 +5792,18 @@ function renderBudgetList() {
     };
     const prdTaskName = id => { const l = prdLinks(id)[0]; return l ? prdLinkName(l) : ""; };
     /* v491 (remarque 3) : tâche(s) d'une charge (LOT › ACTIVITÉ SECONDAIRE) */
+    const chgRdb = r => {
+      const qc = num(r && r.q), out = [], seen = new Set();
+      if (!r || !qc) return "";
+      (INS.links || []).filter(l => (l.chg || []).some(x => x.id === r.id)).forEach(l => {
+        const tk = l.lot + "|" + l.sec; if (seen.has(tk)) return; seen.add(tk);
+        let q = 0; const sp = new Set();
+        (INS.links || []).filter(m => m.lot === l.lot && m.sec === l.sec).forEach(m => (m.prd || []).forEach(y => { if (sp.has(y.id)) return; sp.add(y.id); const p = INS.prd.find(x => x.id === y.id); if (p) q += insPrdQ(p); }));
+        const se = (INS.sec || []).find(x => x.id === l.sec) || {};
+        out.push(money(q / qc) + " " + U_(se.u) + " / " + U_(r.u));
+      });
+      return out.join(" · ");
+    };
     const chgTaskName = id => [...new Set((INS.links || []).filter(l => (l.chg || []).some(x => x.id === id)).map(prdLinkName).filter(Boolean))].join(" · ");
     const prdChainKey = id => {
       const l = prdLinks(id)[0];
@@ -5902,6 +5914,9 @@ function renderBudgetList() {
         ["tva", "TVA %", "number", "num", "tva"],
         ["ttc", "MCB TTC", "number", "calc", "ttc"],
         /* v491 (remarque 3) : colonne TÂCHE ; v492 (remarque 8) : à la fin */
+        /* v498 (remarque 38) : RENDEMENT budgété de la charge dans sa tâche secondaire — quantité produite par la tâche ÷ QCB,
+           unité de l'activité secondaire / unité de la charge (ex. 0,50 M2 / L) */
+        ["rdb", "RENDEMENT", "number", "calc", "rdb"],
         ["tache", "TÂCHE", "", "calc", "tache"],
         /* FORMAT 111 (v488) : AGRÉMENT EXIGÉ / QUALIFICATION EXIGÉE — colonnes masquées pour l'instant (v491, remarque 3),
            à remettre plus tard : ["agr", "AGRÉMENT EXIGÉ", "center", "chk", "agr"], ["qex", "QUALIFICATION EXIGÉE", "", "txt", "qex"] */
@@ -5928,7 +5943,7 @@ function renderBudgetList() {
     const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "tva", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
-        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
+        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "rdb" ? (k === "chg" ? chgRdb(r) : "") : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
     /* erreur d'une ligne (FORMAT 75) : on ne passe pas à la ligne suivante tant qu'elle reste */
     const insRowErr = (k, r) => {
       /* FORMAT 124 : ART en double (saisi ou calculé) — titres compris */
@@ -6309,8 +6324,6 @@ function renderBudgetList() {
        seules les lignes liées à ce qui y est coché comptent (blocs combinés : ET) */
     /* liaisons retenues par les cases cochées des blocs autres que k (null : aucune case cochée ailleurs) ; mémorisé un instant */
     var ICL = null;
-    /* v496 (remarque 25) : lignes cochées de l'onglet EXPLOITATION (tâches primaires « des|lot|prim », ou « des|lot|* ») */
-    var XON = new Set();
     const insCheckLinks = k => {
       if (!INS) return null;
       /* mémoire valable pour un seul dessin (vidée dès la fin de la tâche en cours) */
@@ -6319,10 +6332,11 @@ function renderBudgetList() {
       const B = ["des", "lot", "prim", "sec", "prd", "chg"].filter(x => x !== k);
       const C = {};
       B.forEach(x => { const ids = (INS[x] || []).filter(r => !r.t && r.on === true).map(r => r.id); if (ids.length) C[x] = new Set(ids); });
-      const xk = k !== "xpl" && XON && XON.size ? XON : null;
+      /* v498 (remarque 37) : liaisons cochées de l'onglet MARGE — elles filtrent aussi les autres blocs */
+      const lon = k !== "lnk" && (INS.links || []).some(l => l.on === true);
       const ks = Object.keys(C);
-      const out = !ks.length && !xk ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
-        && (!xk || xk.has(l.des + "|" + l.lot + "|" + l.prim) || xk.has(l.des + "|" + l.lot + "|*")));
+      const out = !ks.length && !lon ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
+        && (!lon || l.on === true));
       ICL.m[k] = out;
       return out;
     };
@@ -6655,33 +6669,6 @@ function renderBudgetList() {
         if (sc.scrollTop + sc.clientHeight > sc.scrollHeight - 300) shell.__insMore();
       }, true);
     }
-    /* LIAISONS VALIDÉES (onglet du détail) : chaîne, produits, charges, quantité, PPB, MPB HT ; DÉLIER */
-    const insLinksHTML = () => {
-      const D = id => INS.des.find(x => x.id === id) || {};
-      /* quantité = somme des QPB de ses produits ; prix = PPB de la désignation si la liaison est primaire */
-      const qOf = l => (l.prd || []).reduce((t, x) => { const p = INS.prd.find(r => r.id === x.id); return t + (p ? insPrdQ(p) : 0); }, 0);
-      const pOf = l => insLinkPrim(INS, l) ? num(D(l.des).p || 0) : "";
-      const LC = [["art", "ART", l => D(l.des).art || "", "center"], ["des", "DÉSIGNATION", l => D(l.des).des || "", ""],
-        ["lot", "LOT", l => lkName("lot", l.lot), ""], ["prim", "ACTIVITÉ PRIMAIRE", l => lkName("prim", l.prim), ""],
-        ["sec", "ACTIVITÉ SECONDAIRE", l => lkName("sec", l.sec), ""], ["np", "PRODUITS", l => (l.prd || []).length, "center"],
-        ["nc", "CHARGES", l => (l.chg || []).length, "center"], ["lq", "QUANTITÉ", l => insFmt(qOf(l)), "number"],
-        ["lp", "PPB", l => pOf(l) === "" ? "" : insFmt(pOf(l)), "number"], ["lm", "MPB HT", l => pOf(l) === "" ? "" : insFmt(qOf(l) * pOf(l)), "number"]];
-      const W = { art: 70, des: 227, lot: 133, prim: 170, sec: 190, np: 104, nc: 102, lq: 104, lp: 71, lm: 97 };   /* FORMAT 113 */
-      const oc = coOrder("lk_links", LC);
-      const w = k => cwLoad()["lk_links." + k] || W[k] || 120;
-      const D2 = id => INS.des.find(x => x.id === id) || {};
-      const rows = cfApply("lk_links", LC, (insCheckLinks("lnk") || INS.links || []).slice().sort((a, b) => desCmp(D2(a.des), D2(b.des)) || natCmp(lkName("lot", a.lot), lkName("lot", b.lot))));
-      lastShown.detail = { cols: LC, rows, kind: "lnk" };
-      /* case à droite (cocher seulement) : ✕ DÉLIER LES LIGNES COCHÉES par le menu ⋯ */
-      const dw = INS_EDIT ? 40 : 0;
-      const allOn = rows.length && rows.every(l => l.on === true);
-      return `<table class="bdg-d-table lk-table lnk-table" style="width:${oc.reduce((t, c) => t + w(c[0]), 0) + dw}px">
-        <colgroup>${oc.map(c => `<col data-w="lk_links.${c[0]}" style="width:${w(c[0])}px">`).join("")}${dw ? `<col style="width:${dw}px">` : ""}</colgroup>
-        <thead><tr>${oc.map(c => cfHead("lk_links", c[0], c[1], c[3])).join("")}${dw ? `<th class="center"><input type="checkbox" class="lnk-cball"${allOn ? " checked" : ""}></th>` : ""}</tr></thead>
-        <tbody>${rows.map(l => `<tr data-lid="${l.id}">${oc.map(c => `<td class="${c[3]}">${esc(c[2](l))}</td>`).join("")}${dw
-          ? `<td class="center"><input type="checkbox" class="lnk-cb"${l.on === true ? " checked" : ""}></td>` : ""}</tr>`).join("")
-          || `<tr><td colspan="${oc.length + (dw ? 1 : 0)}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
-    };
     /* IMPORT NON CRÉÉ (onglet du détail) : lignes du fichier qui n'ont pas pu être liées ;
        corrigées ici (case fautive encadrée), elles créent leur liaison et sortent de l'onglet */
     const INC_COLS = [["art", "ART", 60, "center"], ["dc", "DÉSIGNATION CLIENT", 240, ""], ["upb", "UPB", 60, "center"], ["lot", "LOT", 150, ""],
@@ -7196,7 +7183,7 @@ function renderBudgetList() {
     if (!shell.__lnkCbBound) {
       shell.__lnkCbBound = true;
       shell.addEventListener("change", e => {
-        const cb = e.target.closest && e.target.closest("input.lnk-cb, input.lnk-cball");
+        const cb = e.target.closest && e.target.closest("input.lnk-cb");   /* v498 : tout cocher et lignes regroupées de MARGE : 22b */
         if (!cb || !shell.__unl) return;
         const L = shell.__unl.INS.links || [];
         const trs = cb.classList.contains("lnk-cball") ? [...cb.closest("table").querySelectorAll("tbody tr[data-lid]")] : [cb.closest("tr[data-lid]")];
@@ -8024,8 +8011,8 @@ function renderBudgetList() {
       const cols = [...tbl.querySelectorAll("colgroup col")];
       const others = cols.filter(c => c !== cd && c !== ct).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
       const pr = parseFloat(getComputedStyle(sc).paddingRight) || 0;
-      const free = Math.floor(sc.clientWidth - pr - others - 6);
-      const d = Math.max(150, Math.round(free * 0.55)), t = Math.max(130, free - d);
+      const free = Math.floor(sc.clientWidth - pr - others - 22);   /* marge : en-têtes jamais tronqués (quelques px de plus) */
+      const d = Math.max(180, Math.round(free * 0.55)), t = Math.max(95, free - d);
       cd.style.width = d + "px"; ct.style.width = t + "px"; tbl.style.width = others + d + t + "px";
     };
     const insRenderTab = () => {
@@ -8044,7 +8031,7 @@ function renderBudgetList() {
         if (b) { b.innerHTML = (SVI_ICON.hier || "") + "IMPORT NON CRÉÉ " + svCnt(n); b.hidden = !n; b.style.display = n ? "" : "none"; }
         if (!n && active === "inc") { active = "prd"; try { localStorage.setItem("svi_dtab_v1", "prd"); } catch (e) {} document.querySelectorAll("#bdgTabs .bdg-d-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === active)); } }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
-        if (b) b.innerHTML = (SVI_ICON.hier || "") + "LIAISONS VALIDÉES " + svCnt((INS.links || []).length); }
+        if (b) b.innerHTML = (SVI_ICON.xpl || "") + "MARGE " + svCnt((INS.links || []).length); }
       sviMarkEmptyTabs(shell);
       /* onglet actif (liaisons validées, lignes non liées, import non créé) : « retenues/total » une fois dessiné */
       setTimeout(() => {
@@ -8074,8 +8061,7 @@ function renderBudgetList() {
         return;
       }
       if (active === "qlt") { qqRender(); lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
-      if (active === "lnk") { body.innerHTML = `<div class="bdg-d-scroll">${insLinksHTML()}</div>`; return; }
-      if (active === "xpl") { body.innerHTML = `<div class="bdg-d-scroll">${xplHTML()}</div>`; return; }
+      if (active === "lnk") { body.innerHTML = `<div class="bdg-d-scroll">${xplHTML()}</div>`; return; }
       if (active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
       if (active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
       if (active === "prd" && shell.__prdSyncU) shell.__prdSyncU();
@@ -15546,182 +15532,161 @@ function renderBudgetList() {
 
 /* ⟪ src/22b-exploitation.js ⟫ */
     /* =========================================================
-       v496 (remarque 25) : onglet EXPLOITATION du bloc détail — marges du budget et rendements
-       PAR DÉSIGNATION, PAR LOT, PAR TÂCHE PRIMAIRE (charges, vendu, marge, %), RENDEMENT (par charge d'une tâche secondaire).
-       Une tâche primaire = désignation + lot + activité primaire : VENDU = QPB de la désignation dans ce lot (produits des
-       liaisons primaires) × PPB ; CHARGES = montants HT de toutes les charges de ses liaisons (activités secondaires comprises).
-       Filtré par les cases cochées des autres blocs ; ses propres cases filtrent les autres blocs (XON).
-       Couleur du % : dégradé continu, du rouge foncé (pire marge affichée) au vert foncé (meilleure).
+       v498 (remarques 37 à 39) : onglet MARGE du bloc détail — il remplace LIAISONS VALIDÉES et EXPLOITATION (v496-v497).
+       Une ligne par liaison (désignation client › lot › activité primaire › activité secondaire) : CHARGES (montants HT de ses
+       charges), PRODUITS (liaison primaire : quantité de ses produits × PPB de la désignation), MARGE = PRODUITS − CHARGES,
+       % = MARGE ÷ PRODUITS (vides quand il n'y a pas de produits : activité secondaire qui n'a que des charges).
+       REGROUPEMENT par les en-têtes : le signe › d'un en-tête (DÉSIGNATION CLIENT, LOT, ACTIVITÉ PRIMAIRE, ACTIVITÉ SECONDAIRE)
+       le met en 1, les autres suivent (2, 3, 4) ; retoucher le 1 = plus de regroupement (une ligne par liaison).
+       Regroupé : seules les lignes du niveau 1 sont affichées, chacune avec ses totaux et son signe › / ⌄ ; la déplier
+       montre dessous les lignes du niveau suivant (cases des autres niveaux vides) ; dernier niveau = les liaisons.
+       Cases à cocher : liaisons (✕ DÉLIER, COPIER, filtre des autres blocs) ; ligne regroupée = toutes ses liaisons.
+       Compteur des liaisons sur l'onglet (FIGER). Couleur du % : dégradé du rouge foncé au vert foncé.
        ========================================================= */
-    let xplSub = "prm";
-    try { xplSub = localStorage.getItem("svi_xplsub_v1") || "prm"; } catch (e) {}
-    const xplTasks = () => {
-      const CL = insCheckLinks("xpl");
-      const keys = new Set((CL || INS.links || []).map(l => l.des + "|" + l.lot + "|" + l.prim));
-      const G = new Map();
-      (INS.links || []).forEach(l => {
-        const k = l.des + "|" + l.lot + "|" + l.prim;
-        if (!keys.has(k)) return;
-        if (!G.has(k)) G.set(k, { k, des: l.des, lot: l.lot, prim: l.prim, links: [] });
-        G.get(k).links.push(l);
+    const MG_DIMS = ["des", "lot", "prim", "sec"];
+    let mgGrp = [];
+    try { const g = JSON.parse(localStorage.getItem("svi_mggrp_v1") || "[]"); if (Array.isArray(g) && g.length === 4 && MG_DIMS.every(d => g.includes(d))) mgGrp = g; } catch (e) {}
+    const mgOpen = new Set();   /* lignes regroupées dépliées (chemin « /des:d1/lot:l2 ») */
+    const mgD = id => INS.des.find(x => x.id === id) || {};
+    const mgSecU = id => U_(((INS.sec || []).find(x => x.id === id) || {}).u);
+    /* charges et produits d'un ensemble de liaisons (chaque charge / produit compté une fois) */
+    const mgAgg = L => {
+      let chg = 0, prd = 0;
+      const sc = new Set(), sp = new Set();
+      L.forEach(l => {
+        (l.chg || []).forEach(x => { if (sc.has(x.id)) return; sc.add(x.id); const c = INS.chg.find(r => r.id === x.id); if (c) chg += insHT("chg", c); });
+        if (insLinkPrim(INS, l)) {
+          const pp = num(mgD(l.des).p || 0);
+          (l.prd || []).forEach(x => { const k = l.des + "|" + x.id; if (sp.has(k)) return; sp.add(k); const p = INS.prd.find(r => r.id === x.id); if (p) prd += insPrdQ(p) * pp; });
+        }
       });
-      return [...G.values()].map(g => {
-        const d = INS.des.find(x => x.id === g.des) || {};
-        let q = 0; const seenP = new Set();
-        g.links.filter(l => insLinkPrim(INS, l)).forEach(l => (l.prd || []).forEach(x => { if (seenP.has(x.id)) return; seenP.add(x.id); const p = INS.prd.find(r => r.id === x.id); if (p) q += insPrdQ(p); }));
-        const prd = q * num(d.p || 0);
-        let chg = 0; const seenC = new Set();
-        g.links.forEach(l => (l.chg || []).forEach(x => { if (seenC.has(x.id)) return; seenC.add(x.id); const c = INS.chg.find(r => r.id === x.id); if (c) chg += insHT("chg", c); }));
-        return { ...g, d, art: artOf(d), dn: d.des || "", u: d.u || "", q, ppb: d.p, prd, chg, mg: prd - chg, pct: prd ? (prd - chg) / prd * 100 : (chg ? -100 : 0) };
-      });
+      return { chg, prd, mg: prd - chg, pct: prd ? (prd - chg) / prd * 100 : null };
     };
-    /* dégradé rouge foncé → vert foncé (bornes : pire et meilleure marge du tableau) */
+    /* dégradé rouge foncé → vert foncé (bornes : pire et meilleure marge affichées) */
     const xplColor = (p, lo, hi) => {
       const t = hi > lo ? Math.max(0, Math.min(1, (p - lo) / (hi - lo))) : (p >= 0 ? 1 : 0);
       const hue = Math.round(120 * t), light = Math.round(32 + 52 * (1 - Math.abs(2 * t - 1)));
       return `background:hsl(${hue},62%,${light}%) !important;color:${light < 52 ? "#fff" : "#172033"} !important`;
     };
-    const xplPctTd = (p, lo, hi, bold) => `<td class="number xpl-pct${bold ? " xpl-b" : ""}" style="${xplColor(p, lo, hi)}">${money(p)} %</td>`;
-    /* v497 (remarques 26 à 29) : tableaux au format standard — en-têtes avec loupe (tri / filtre), largeurs réglables et
-       mémorisées, colonnes déplaçables ; case « tout cocher » à trois états en haut ; un toucher sur une ligne ne fait rien ;
-       unités centrées ; VENDU devient PRODUITS */
-    const xplCb = (key, cls = "xpl-cb", on) => INS_EDIT ? `<td class="center"><input type="checkbox" class="${cls}" data-x="${esc(key)}"${on ? " checked" : ""}></td>` : "";
-    const xplTable = (t, oc, W, body, foot, allCls) => {
-      const w = k => cwLoad()[t + "." + k] || W[k] || 100;
-      const dw = INS_EDIT ? 40 : 0;
-      return `<table class="bdg-d-table xpl-table" data-xt="${t}" style="width:${oc.reduce((s, c) => s + w(c[0]), 0) + dw}px">
-        <colgroup>${oc.map(c => `<col data-w="${t}.${c[0]}" style="width:${w(c[0])}px">`).join("")}${dw ? `<col style="width:${dw}px">` : ""}</colgroup>
-        <thead><tr>${oc.map(c => cfHead(t, c[0], c[1], c[3])).join("")}${dw ? `<th class="center"><input type="checkbox" class="${allCls}"></th>` : ""}</tr></thead>
-        <tbody>${body || `<tr><td colspan="${oc.length + (dw ? 1 : 0)}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody>${foot ? `<tfoot>${foot}</tfoot>` : ""}</table>`;
-    };
-    /* une ligne : cellules dans l'ordre des colonnes affichées */
-    const xplRow = (oc, r, extra, cls) => `<tr${cls ? ` class="${cls}"` : ""}>${oc.map(c => c[0] === "pct" ? xplPctTd(r.pct, r.__lo, r.__hi) : `<td class="${c[3]}">${esc(c[4] ? c[4](r) : c[2](r))}</td>`).join("")}${extra || ""}</tr>`;
-    /* ligne de total / sous-total : libellé sur les colonnes de texte, montants sous leurs colonnes */
-    const xplSumRow = (oc, lab, s, lo, hi, cls) => {
-      const NUM = { chg: s.chg, prd: s.prd, mg: s.prd - s.chg };
-      const pct = s.prd ? (s.prd - s.chg) / s.prd * 100 : (s.chg ? -100 : 0);
-      let out = "", span = 0, labDone = false;
-      const flush = () => { if (span) { out += `<td colspan="${span}" class="${labDone ? "" : "xpl-lab"}">${labDone ? "" : esc(lab)}</td>`; labDone = true; span = 0; } };
-      oc.forEach(c => {
-        if (c[0] in NUM) { flush(); out += `<td class="number">${money(NUM[c[0]])}</td>`; }
-        else if (c[0] === "pct") { flush(); out += xplPctTd(pct, lo, hi, true); }
-        else span++;
-      });
-      flush();
-      return `<tr class="${cls}">${out}${INS_EDIT ? "<td></td>" : ""}</tr>`;
-    };
     const xplHTML = () => {
-      const T = xplTasks();
-      const all = (INS.links || []).length && T.length < new Set((INS.links || []).map(l => l.des + "|" + l.lot + "|" + l.prim)).size;
-      const bar = `<div class="qq-bar xpl-bar">${[["dsg", "PAR DÉSIGNATION"], ["lot", "PAR LOT"], ["prm", "PAR TÂCHE PRIMAIRE"], ["rnd", "RENDEMENT"]].map(([k, l]) => `<button type="button" class="qq-sub${xplSub === k ? " on" : ""}" data-xsub="${k}">${l}</button>`).join("")}<span class="qq-scope">${all ? "FILTRÉ PAR LES CASES COCHÉES" : "TOUT LE BUDGET"}</span></div>`;
-      lastShown.detail = { cols: [], rows: [], kind: "xpl" };
-      if (xplSub === "rnd") return bar + xplRndHTML();
-      if (!T.length) return bar + `<div class="xpl-empty">AUCUNE TÂCHE PRIMAIRE LIÉE${all ? " POUR LES CASES COCHÉES" : ""}.</div>`;
-      const sum = L => L.reduce((a, t) => ({ chg: a.chg + t.chg, prd: a.prd + t.prd }), { chg: 0, prd: 0 });
-      const pctOf = s => s.prd ? (s.prd - s.chg) / s.prd * 100 : (s.chg ? -100 : 0);
-      const nm = (k, id) => lkName(k, id);
-      /* colonnes : [clé, libellé, valeur (tri / filtre), classe, texte affiché] */
-      const C = {
-        lot: ["lot", "LOT", r => nm("lot", r.lot), ""],
-        prim: ["prim", "ACTIVITÉ PRIMAIRE", r => r.prims ? [...new Set(r.prims)].join(" · ") : nm("prim", r.prim), ""],
-        art: ["art", "ART", r => r.art || "", "center"],
-        dn: ["dn", "DÉSIGNATION CLIENT", r => r.dn || "", ""],
-        u: ["u", "UPB", r => U_(r.u), "center"],
-        q: ["q", "QPB", r => r.q, "number", r => money(r.q)],
-        chg: ["chg", "CHARGES", r => r.chg, "number", r => money(r.chg)],
-        prd: ["prd", "PRODUITS", r => r.prd, "number", r => money(r.prd)],
-        mg: ["mg", "MARGE", r => r.mg, "number", r => money(r.mg)],
-        pct: ["pct", "%", r => r.pct, "number", r => money(r.pct) + " %"]
+      const ALL = INS.links || [];
+      const M = new Map(ALL.map(l => [l.id, mgAgg([l])]));
+      const nm = (k, id) => k === "des" ? (mgD(id).des || "") : lkName(k, id);
+      const blank = v => v === null || v === undefined;
+      /* colonnes : [clé, libellé, valeur (tri, filtre, copie), classe, niveau] */
+      const LC = [
+        ["art", "ART", l => mgD(l.des).art || "", "center", "des"],
+        ["des", "DÉSIGNATION CLIENT", l => nm("des", l.des), "", "des"],
+        ["upb", "UPB", l => U_(mgD(l.des).u), "center", "des"],
+        ["lot", "LOT", l => nm("lot", l.lot), "", "lot"],
+        ["prim", "ACTIVITÉ PRIMAIRE", l => nm("prim", l.prim), "", "prim"],
+        ["sec", "ACTIVITÉ SECONDAIRE", l => nm("sec", l.sec), "", "sec"],
+        ["su", "U", l => mgSecU(l.sec), "center", "sec"],
+        ["chg", "CHARGES", l => M.get(l.id).chg, "number", ""],
+        ["prd", "PRODUITS", l => M.get(l.id).prd || "", "number", ""],
+        ["mg", "MARGE", l => M.get(l.id).prd ? M.get(l.id).mg : "", "number", ""],
+        ["pct", "%", l => blank(M.get(l.id).pct) ? "" : M.get(l.id).pct, "number", ""]
+      ];
+      const W = { art: 60, des: 240, upb: 55, lot: 140, prim: 170, sec: 170, su: 50, chg: 110, prd: 110, mg: 110, pct: 80 };
+      const t = "lk_marge";
+      const oc = coOrder(t, LC);
+      const D2 = l => mgD(l.des);
+      const base = (insCheckLinks("lnk") || ALL).slice().sort((a, b) => desCmp(D2(a), D2(b)) || natCmp(nm("lot", a.lot), nm("lot", b.lot)) || natCmp(nm("prim", a.prim), nm("prim", b.prim)) || natCmp(nm("sec", a.sec), nm("sec", b.sec)));
+      const rows = cfApply(t, LC, base);
+      lastShown.detail = { cols: LC, rows, kind: "lnk" };
+      const dw = INS_EDIT ? 40 : 0;
+      const w = k => cwLoad()[t + "." + k] || W[k] || 100;
+      /* lignes à afficher : groupes (dépliés ou non) et liaisons */
+      const out = [];
+      const G = mgGrp;
+      const walk = (L, i, path) => {
+        if (!G.length || i >= G.length - 1) { L.forEach(l => out.push({ leaf: true, l, lvl: i, dim: G.length ? G[G.length - 1] : "" })); return; }
+        const d = G[i], seen = new Map();
+        L.forEach(l => { if (!seen.has(l[d])) seen.set(l[d], []); seen.get(l[d]).push(l); });
+        seen.forEach((LL, id) => {
+          const p = path + "/" + d + ":" + id;
+          out.push({ leaf: false, dim: d, id, lvl: i, path: p, links: LL, open: mgOpen.has(p) });
+          if (mgOpen.has(p)) walk(LL, i + 1, p);
+        });
       };
-      const W = { lot: 150, prim: 170, art: 60, dn: 260, u: 60, q: 90, chg: 110, prd: 110, mg: 110, pct: 90 };
-      const t = "xpl_" + xplSub;
-      const cols = xplSub === "prm" ? ["lot", "prim", "art", "dn", "u", "q", "chg", "prd", "mg", "pct"]
-        : xplSub === "lot" ? ["lot", "art", "dn", "u", "q", "chg", "prd", "mg", "pct"] : ["art", "dn", "lot", "prim", "u", "q", "chg", "prd", "mg", "pct"];
-      const LC = cols.map(k => C[k]);
-      const oc = coOrder(t, LC);
-      let rows, body = "";
-      if (xplSub === "prm") {
-        rows = T.slice().sort((a, b) => natCmp(nm("lot", a.lot), nm("lot", b.lot)) || natCmp(a.art, b.art) || natCmp(nm("prim", a.prim), nm("prim", b.prim)));
-        rows = cfApply(t, LC, rows);
-        const lo = Math.min(0, ...rows.map(r => r.pct)), hi = Math.max(0, ...rows.map(r => r.pct));
-        rows.forEach(r => { body += xplRow(oc, { ...r, __lo: lo, __hi: hi }, xplCb(r.k, "xpl-cb", XON.has(r.k))); });
-        const tot = sum(rows);
-        return bar + xplTable(t, oc, W, body, xplSumRow(oc, rows.length < T.length || all ? "TOTAL PARTIEL" : "TOTAL", tot, lo, hi, "bdg-d-total-row"), "xpl-cball");
-      }
-      /* PAR LOT : lot → désignations ; PAR DÉSIGNATION : désignation → lots — sous-totaux */
-      const byLot = xplSub === "lot";
-      const A = new Map();
-      T.forEach(x => { const k = x.des + "|" + x.lot; if (!A.has(k)) A.set(k, { k: k + "|*", des: x.des, lot: x.lot, dn: x.dn, art: x.art, u: x.u, prims: [], chg: 0, prd: 0, q: 0 }); const a = A.get(k); a.chg += x.chg; a.prd += x.prd; a.q += x.q; a.prims.push(nm("prim", x.prim)); });
-      const R0 = [...A.values()].map(a => ({ ...a, mg: a.prd - a.chg, pct: pctOf(a) }));
-      const base = R0.slice().sort((a, b) => byLot ? natCmp(nm("lot", a.lot), nm("lot", b.lot)) || natCmp(a.art, b.art) : natCmp(a.art, b.art) || natCmp(a.dn, b.dn) || natCmp(nm("lot", a.lot), nm("lot", b.lot)));
-      rows = cfApply(t, LC, base);
-      const grpKey = r => byLot ? r.lot : r.des;
-      const groups = new Map();   /* groupes dans l'ordre de leur première ligne (tri choisi compris) */
-      rows.forEach(r => { const g = grpKey(r); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(r); });
-      const pcts = rows.map(r => r.pct).concat([...groups.values()].map(L => pctOf(sum(L))));
-      const lo = Math.min(0, ...pcts), hi = Math.max(0, ...pcts);
-      groups.forEach((L, g) => {
-        L.forEach(r => { body += xplRow(oc, { ...r, __lo: lo, __hi: hi }, xplCb(r.k, "xpl-cb", XON.has(r.k))); });
-        body += xplSumRow(oc, "TOTAL " + (byLot ? nm("lot", g) : (L[0].art ? L[0].art + " " : "") + L[0].dn), sum(L), lo, hi, "xpl-sub");
-      });
-      return bar + xplTable(t, oc, W, body, xplSumRow(oc, rows.length < R0.length || all ? "TOTAL PARTIEL" : "TOTAL", sum(rows), lo, hi, "bdg-d-total-row"), "xpl-cball");
+      walk(rows, 0, "");
+      const aggOf = r => r.leaf ? M.get(r.l.id) : mgAgg(r.links);
+      const P = out.map(r => aggOf(r).pct).filter(p => !blank(p));
+      const lo = Math.min(0, ...P), hi = Math.max(0, ...P);
+      const pctTd = (p, bold) => blank(p) ? `<td class="number"></td>` : `<td class="number xpl-pct${bold ? " xpl-b" : ""}" style="${xplColor(p, lo, hi)}">${money(p)} %</td>`;
+      const numTd = (v, show) => `<td class="number">${show ? money(v) : ""}</td>`;
+      const metr = (a, bold) => ({ chg: numTd(a.chg, true), prd: numTd(a.prd, !!a.prd), mg: numTd(a.mg, !!a.prd), pct: pctTd(a.pct, bold) });
+      const fold = r => `<span class="mg-f" data-p="${esc(r.path)}" role="button" aria-label="Plier / déplier">${r.open ? "⌄" : "›"}</span>`;
+      const firstOf = d => oc.find(c => c[0] === d);   /* colonne qui porte le signe : DÉSIGNATION CLIENT, LOT, ACTIVITÉ PRIMAIRE, ACTIVITÉ SECONDAIRE */
+      const rowHTML = r => {
+        const a = aggOf(r), m = metr(a, !r.leaf);
+        const showDim = d => r.leaf ? (!G.length || d === r.dim) : d === r.dim;
+        const l0 = r.leaf ? r.l : r.links[0];
+        const cells = oc.map(c => {
+          if (c[0] in m) return m[c[0]];
+          if (!showDim(c[4])) return `<td class="${c[3]}"></td>`;
+          return `<td class="${c[3]}">${!r.leaf && firstOf(r.dim) === c ? fold(r) : ""}${esc(c[2](l0))}</td>`;
+        }).join("");
+        if (r.leaf) return `<tr data-lid="${r.l.id}" class="mg-leaf${G.length ? " mg-l" + r.lvl : ""}">${cells}${dw ? `<td class="center"><input type="checkbox" class="lnk-cb"${r.l.on === true ? " checked" : ""}></td>` : ""}</tr>`;
+        const on = r.links.every(l => l.on === true);
+        return `<tr class="mg-grp mg-l${r.lvl}" data-p="${esc(r.path)}">${cells}${dw ? `<td class="center"><input type="checkbox" class="mg-gcb" data-p="${esc(r.path)}"${on ? " checked" : ""}></td>` : ""}</tr>`;
+      };
+      /* en-tête : loupe (tri / filtre), largeur réglable, et signe de regroupement numéroté */
+      const head = c => {
+        let h = cfHead(t, c[0], c[1], c[3]);
+        if (MG_DIMS.includes(c[0])) {
+          const n = G.indexOf(c[0]) + 1;
+          h = h.replace(`<span class="cf-lab">${c[1]}</span>`, `<span class="cf-lab">${c[1]}</span><span class="mg-g${n ? " on" : ""}" data-g="${c[0]}" role="button" title="Regrouper">›${n ? `<b>${n}</b>` : ""}</span>`);
+        }
+        return h;
+      };
+      const tot = mgAgg(rows), tm = metr(tot, true);
+      let span = 0, foot = "", done = false;
+      oc.forEach(c => { if (c[0] in tm) { if (span) { foot += `<td colspan="${span}">${done ? "" : (rows.length < ALL.length ? "TOTAL PARTIEL" : "TOTAL")}</td>`; done = true; span = 0; } foot += tm[c[0]]; } else span++; });
+      if (span) foot += `<td colspan="${span}"></td>`;
+      const allOn = rows.length && rows.every(l => l.on === true);
+      return `<table class="bdg-d-table lk-table lnk-table mg-table" data-xt="${t}" style="width:${oc.reduce((s, c) => s + w(c[0]), 0) + dw}px">
+        <colgroup>${oc.map(c => `<col data-w="${t}.${c[0]}" style="width:${w(c[0])}px">`).join("")}${dw ? `<col style="width:${dw}px">` : ""}</colgroup>
+        <thead><tr>${oc.map(head).join("")}${dw ? `<th class="center"><input type="checkbox" class="lnk-cball"${allOn ? " checked" : ""}></th>` : ""}</tr></thead>
+        <tbody>${out.map(rowHTML).join("") || `<tr><td colspan="${oc.length + (dw ? 1 : 0)}" class="empty">AUCUNE LIAISON${insCheckLinks("lnk") ? " POUR LES CASES COCHÉES" : ""}</td></tr>`}</tbody>
+        <tfoot><tr class="bdg-d-total-row">${foot}${dw ? "<td></td>" : ""}</tr></tfoot></table>`;
     };
-    /* RENDEMENT : par charge d'une tâche secondaire — quantité produite par la tâche ÷ quantité de la charge */
-    const xplRndHTML = () => {
-      const CL = insCheckLinks("xpl") || INS.links || [];
-      const rows = [], seen = new Set();
-      CL.forEach(l => (l.chg || []).forEach(x => {
-        const key = l.lot + "|" + l.sec + "|" + x.id;
-        if (seen.has(key)) return; seen.add(key);
-        const c = INS.chg.find(r => r.id === x.id); if (!c) return;
-        const T = (INS.links || []).filter(m => m.lot === l.lot && m.sec === l.sec);
-        let q = 0; const sp = new Set();
-        T.forEach(m => (m.prd || []).forEach(y => { if (sp.has(y.id)) return; sp.add(y.id); const p = INS.prd.find(r => r.id === y.id); if (p) q += insPrdQ(p); }));
-        const se = INS.sec.find(s => s.id === l.sec) || {}, qc = Number(insCalc("chg", c, "q")) || 0;
-        const rdb = qc ? q / qc : 0;
-        rows.push({ lot: lkName("lot", l.lot), sec: lkName("sec", l.sec), su: U_(se.u), c, cid: c.id, des: c.des || "", u: U_(c.u), qc, q, rdb,
-          txt: money(rdb) + " " + U_(se.u) + " DE " + U_(lkName("sec", l.sec)) + " (" + U_(lkName("lot", l.lot)) + ") / " + U_(c.u) + " " + U_(c.des) });
-      }));
-      rows.sort((a, b) => natCmp(a.lot, b.lot) || natCmp(a.sec, b.sec) || natCmp(a.des, b.des));
-      if (!rows.length) return `<div class="xpl-empty">AUCUNE CHARGE LIÉE${insCheckLinks("xpl") ? " POUR LES CASES COCHÉES" : ""}.</div>`;
-      const t = "xpl_rnd";
-      const LC = [["lot", "LOT", r => r.lot, ""], ["sec", "ACTIVITÉ SECONDAIRE", r => r.sec, ""], ["des", "DÉSIGNATION CHARGE", r => r.des, ""],
-        ["u", "UCB", r => r.u, "center"], ["qc", "QCB", r => r.qc, "number", r => money(r.qc)], ["q", "QUANTITÉ PRODUITE", r => r.q, "number", r => money(r.q)],
-        ["su", "U PRODUITE", r => r.su, "center"], ["txt", "RENDEMENT BUDGÉTÉ", r => r.txt, ""], ["rdb", "RDB", r => r.rdb, "number", r => money(r.rdb)]];
-      const W = { lot: 150, sec: 190, des: 220, u: 60, qc: 90, q: 120, su: 80, txt: 380, rdb: 80 };
-      const oc = coOrder(t, LC);
-      const R = cfApply(t, LC, rows);
-      const body = R.map(r => xplRow(oc, r, xplCb(r.cid, "xpl-ccb", r.c.on === true))).join("");
-      return xplTable(t, oc, W, body, "", "xpl-ccball");
-    };
-    /* sous-onglets, cases à cocher (un toucher sur une ligne ne fait rien) */
-    if (!shell.__xplBound) {
-      shell.__xplBound = true;
+    /* regroupement, pliage, cases à cocher (un toucher sur une ligne ne fait rien) */
+    if (!shell.__mgBound) {
+      shell.__mgBound = true;
       shell.addEventListener("click", e => {
-        const X = shell.__xpl; if (!X) return;
-        const sb = e.target.closest && e.target.closest("[data-xsub]");
-        if (sb) X.sub(sb.dataset.xsub);
-      });
+        const X = shell.__mg; if (!X) return;
+        const g = e.target.closest && e.target.closest(".mg-g");
+        if (g) { e.preventDefault(); e.stopPropagation(); X.group(g.dataset.g); return; }
+        const f = e.target.closest && e.target.closest(".mg-f");
+        if (f) { e.preventDefault(); e.stopPropagation(); X.fold(f.dataset.p); }
+      }, true);
       shell.addEventListener("change", e => {
-        const X = shell.__xpl; if (!X) return;
-        const cb = e.target.closest && e.target.closest("input.xpl-cb, input.xpl-ccb, input.xpl-cball, input.xpl-ccball");
+        const X = shell.__mg; if (!X) return;
+        const cb = e.target.closest && e.target.closest("input.mg-gcb, .mg-table input.lnk-cball");
         if (cb) X.check(cb);
       });
     }
-    shell.__xpl = {
-      sub: k => { xplSub = k; try { localStorage.setItem("svi_xplsub_v1", k); } catch (e) {} renderTab(); },
-      check: cb => {
-        const tbl = cb.closest("table");
-        const set = (c, on) => {
-          if (c.classList.contains("xpl-ccb")) { const r = INS.chg.find(x => x.id === c.dataset.x); if (r) r.on = on; }
-          else if (on) XON.add(c.dataset.x); else XON.delete(c.dataset.x);
-        };
-        if (/-cball$/.test(cb.className)) tbl.querySelectorAll("tbody input.xpl-cb, tbody input.xpl-ccb").forEach(c => set(c, cb.checked));
-        else set(cb, cb.checked);
-        if (tbl.querySelector("input.xpl-ccb")) insSave();
-        ICL = null; refreshAll();
+    shell.__mg = {
+      group: d => {
+        if (mgGrp[0] === d) mgGrp = [];
+        else mgGrp = [d, ...(mgGrp.length ? mgGrp : MG_DIMS).filter(x => x !== d)];
+        mgOpen.clear();
+        try { localStorage.setItem("svi_mggrp_v1", JSON.stringify(mgGrp)); } catch (e) {}
+        renderTab();
       },
-      data: () => xplTasks()
+      fold: p => { if (mgOpen.has(p)) [...mgOpen].forEach(x => { if (x === p || x.startsWith(p + "/")) mgOpen.delete(x); }); else mgOpen.add(p); renderTab(); },
+      check: cb => {
+        const ls = lastShown.detail && lastShown.detail.kind === "lnk" ? lastShown.detail.rows : [];
+        let L = ls;
+        if (cb.classList.contains("mg-gcb")) {
+          const parts = cb.dataset.p.split("/").filter(Boolean).map(x => x.split(":"));
+          L = ls.filter(l => parts.every(([d, id]) => l[d] === id));
+        }
+        L.forEach(l => { l.on = cb.checked; });
+        insSave(); ICL = null; refreshAll();
+      },
+      grp: () => mgGrp.slice()
     };
 /* ⟪ src/23-apercus-impression.js ⟫ */
     /* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :

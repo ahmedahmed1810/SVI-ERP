@@ -1905,10 +1905,7 @@ tr.ins-grp td { background: #eef3fa; color: #1f3b63; font-weight: 700; }
 #bdgTabs { overflow-x: visible; }
 #bdgTabs > .bdg-d-tab { flex: 1 1 0; min-width: 0; padding: 6px 6px; white-space: normal; text-align: center; line-height: 1.15; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
 #bdgTabs > .bdg-d-tab .ico { flex: none; }
-.xpl-table td.xpl-pct { font-weight: 700; }
-.xpl-table tr.xpl-sub td { background: #e9edf3; font-weight: 800; }
 .xpl-empty { padding: 16px; font-weight: 700; color: #6b7280; }
-.xpl-table td.xpl-b { font-weight: 900; }
 
 /* v497 (remarques 33 et 35) : case sélectionnée comme dans Google Sheets — cadre, pas de curseur ; cases grisées sélectionnables */
 :is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) :is(input, textarea).svi-nav { caret-color: transparent !important; }
@@ -1919,3 +1916,17 @@ tr.ins-grp td { background: #eef3fa; color: #1f3b63; font-weight: 700; }
 /* v497 (remarque 34) : rangée d'onglets serrée — tous les intitulés entiers */
 .tab-eq.tab-tight { font-size: 10.5px !important; padding-left: 4px !important; padding-right: 6px !important; gap: 2px !important; }
 .tab-eq.tab-tight > svg, .tab-eq.tab-tight > .ico { display: none !important; }
+
+/* v498 (remarques 37 et 39) : onglet MARGE — regroupement par les en-têtes, lignes regroupées pliables */
+.mg-table th .mg-g { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 18px; margin-left: 4px; padding: 0 4px; border-radius: 9px; border: 1px solid #c7ced9; color: #475467; font-size: 13px; font-weight: 800; line-height: 1; cursor: pointer; position: relative; z-index: 5; }
+.mg-table th .mg-g::before { content: ""; position: absolute; inset: -8px -4px; }
+.mg-table th .mg-g.on { background: var(--inst, #b91c1c); border-color: var(--inst, #b91c1c); color: #fff; }
+.mg-table th .mg-g b { font-size: 10px; margin-left: 2px; }
+.mg-table .mg-f { display: inline-block; width: 18px; margin-right: 4px; text-align: center; font-weight: 900; cursor: pointer; position: relative; }
+.mg-table .mg-f::before { content: ""; position: absolute; inset: -8px -6px; }
+.mg-table tr.mg-grp td { font-weight: 800; }
+.mg-table tr.mg-grp.mg-l0 td { background: #e9edf3; }
+.mg-table tr.mg-grp.mg-l1 td { background: #f2f4f8; }
+.mg-table tr.mg-grp.mg-l2 td { background: #f8f9fb; }
+.mg-table td.xpl-pct { font-weight: 700; }
+.mg-table td.xpl-b { font-weight: 900; }

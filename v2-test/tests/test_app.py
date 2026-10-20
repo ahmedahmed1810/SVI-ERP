@@ -171,26 +171,33 @@ def main():
         check("QUALITÉ : tâche inconnue refusée et signalée", rt["n"] == 2 and al, [rt["n"], al])
         pg.evaluate("() => document.querySelectorAll('#svConf .svc-close, #svConf [data-r=\"0\"], .sva-ok, [data-cancel]').forEach(b => { try { b.click(); } catch (e) {} })")
 
-        # remarque 25 : onglet EXPLOITATION (marges, rendement), onglets tous visibles
-        pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"xpl\"]'); t && t.click(); }"); pg.wait_for_timeout(400)
-        pg.evaluate("() => document.querySelector('[data-xsub=\"prm\"]')?.click()"); pg.wait_for_timeout(300)
-        xr = pg.evaluate("() => { const t = document.querySelector('.xpl-table'); if (!t) return null; const r = [...t.tBodies[0].rows].map(tr => [...tr.cells].map(c => c.textContent.replace(/\u202f/g, ' ').trim())); return r; }")
-        okx = bool(xr) and any("BETON EN FONDATION" in " ".join(r) and "10 000,00" in r and "4 500,00" in r and "5 500,00" in r and "55,00 %" in r for r in xr)
-        check("remarque 25 : PAR TÂCHE PRIMAIRE — vendu 10 000, charges 4 500, marge 5 500, 55 %", okx, xr)
-        hx = pg.evaluate("() => { const t = document.querySelector('.xpl-table'); return t ? [[...t.tHead.rows[0].cells].map(c => c.textContent.trim()), t.querySelectorAll('thead .cf-btn').length, t.querySelectorAll('thead .col-rs').length, !!t.querySelector('thead input.xpl-cball'), getComputedStyle([...t.tBodies[0].rows[0].cells][4]).textAlign] : null; }")
-        check("remarques 26 à 29 : EXPLOITATION — en-têtes avec loupe et largeur réglable, tout cocher, UPB centrée, PRODUITS", bool(hx) and "PRODUITS" in hx[0] and "VENDU" not in hx[0] and hx[1] >= 9 and hx[2] >= 9 and hx[3] and hx[4] == "center", hx)
-        pg.evaluate("() => document.querySelector('[data-xsub=\"rnd\"]')?.click()"); pg.wait_for_timeout(300)
-        rr = pg.evaluate("() => { const t = document.querySelector('.xpl-table'); return t ? t.tBodies[0].innerText : ''; }")
-        check("remarque 25 : RENDEMENT — 3,33 M3 DE BETONNAGE (RDC) / T CIMENT", "3,33 M3 DE BETONNAGE (RDC) / T CIMENT" in rr, rr[:200])
-        pg.evaluate("() => document.querySelector('[data-xsub=\"lot\"]')?.click()"); pg.wait_for_timeout(300)
-        sub = pg.evaluate("() => [...document.querySelectorAll('.xpl-table tr.xpl-sub')].map(t => t.cells[0].textContent)")
-        if os.environ.get("SVI_SHOTS"): pg.evaluate("() => document.getElementById('bdgTabs').scrollIntoView()"); pg.wait_for_timeout(200); pg.screenshot(path=os.environ["SVI_SHOTS"] + "/xpl.png") if os.environ.get("SVI_SHOTS") else None
-        check("remarque 25 : PAR LOT avec sous-total par lot", any("TOTAL RDC" in x for x in sub), sub)
-        pg.evaluate("() => document.querySelector('[data-xsub=\"prm\"]')?.click()"); pg.wait_for_timeout(300)
-        pg.evaluate("() => document.querySelector('.xpl-table input.xpl-cb')?.click()"); pg.wait_for_timeout(400)
+        # remarques 37 à 39 (v498) : onglet MARGE (remplace LIAISONS VALIDÉES et EXPLOITATION), regroupement par les en-têtes
+        tb = pg.evaluate("() => [...document.querySelectorAll('#bdgTabs .bdg-d-tab')].map(t => t.dataset.tab + ':' + t.textContent.trim())")
+        check("remarque 37 : un seul onglet MARGE, avec le compteur des liaisons (plus de LIAISONS VALIDÉES ni d'EXPLOITATION)", any(x.startswith("lnk:MARGE") and x.endswith("1") for x in tb) and not any("xpl" in x or "LIAISONS VALIDÉES" in x for x in tb), tb)
+        pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"lnk\"]'); t && t.click(); }"); pg.wait_for_timeout(400)
+        xr = pg.evaluate("() => { const t = document.querySelector('.mg-table'); if (!t) return null; return [[...t.tHead.rows[0].cells].map(c => c.textContent.trim()), [...t.tBodies[0].rows].map(tr => [...tr.cells].map(c => c.textContent.replace(/ /g, ' ').trim()))]; }")
+        okx = bool(xr) and any("BETON EN FONDATION" in r and "M2" not in r and "4 500,00" in r and "10 000,00" in r and "5 500,00" in r and "55,00 %" in r for r in xr[1]) and "PRODUITS" in " ".join(xr[0]) and "QUANTITÉ" not in " ".join(xr[0]) and "PPB" not in " ".join(xr[0])
+        check("remarque 37 : MARGE — une ligne par liaison : charges 4 500, produits 10 000, marge 5 500, 55 %", okx, xr)
+        # regroupement : signe de LOT → 1 ; une ligne par lot, dépliée → ses désignations
+        pg.evaluate("() => document.querySelector('.mg-table .mg-g[data-g=\"lot\"]')?.click()"); pg.wait_for_timeout(300)
+        g1 = pg.evaluate("() => { const t = document.querySelector('.mg-table'); return [[...t.querySelectorAll('thead .mg-g')].map(g => g.dataset.g + (g.querySelector('b') ? g.querySelector('b').textContent : '')), [...t.tBodies[0].rows].map(r => r.className + '|' + r.textContent.replace(/\s+/g, ' ').trim())]; }")
+        pg.evaluate("() => document.querySelector('.mg-table tr.mg-grp .mg-f')?.click()"); pg.wait_for_timeout(300)
+        g2 = pg.evaluate("() => [...document.querySelector('.mg-table').tBodies[0].rows].map(r => r.className)")
+        check("remarque 39 : regroupement par LOT (1) puis désignation (2)… ; ligne de lot dépliée → ses désignations", g1[0] == ["des2", "lot1", "prim3", "sec4"] and len(g1[1]) == 1 and "mg-grp" in g1[1][0] and "RDC" in g1[1][0] and g2 == ["mg-grp mg-l0", "mg-grp mg-l1"], [g1, g2])
+        pg.evaluate("() => document.querySelector('.mg-table .mg-g[data-g=\"lot\"]')?.click()"); pg.wait_for_timeout(300)
+        g3 = pg.evaluate("() => [...document.querySelector('.mg-table').tBodies[0].rows].map(r => r.className)")
+        check("remarque 39 : retoucher le 1 = une ligne par liaison", g3 == ["mg-leaf"], g3)
+        # case d'une liaison : filtre les autres blocs
+        pg.evaluate("() => document.querySelector('.mg-table input.lnk-cb')?.click()"); pg.wait_for_timeout(400)
         dd = pg.evaluate("() => [...document.querySelectorAll('#bdgClientBody tr[data-iid]')].filter(t => !t.classList.contains('ins-title')).map(t => t.dataset.iid)")
-        check("remarque 25 : case de l'EXPLOITATION filtre les désignations", dd == ["d1"], dd)
-        pg.evaluate("() => document.querySelector('.xpl-table input.xpl-cb:checked')?.click()"); pg.wait_for_timeout(300)
+        check("remarque 37 : case d'une liaison de MARGE filtre les désignations", dd == ["d1"], dd)
+        pg.evaluate("() => document.querySelector('.mg-table input.lnk-cb:checked')?.click()"); pg.wait_for_timeout(300)
+        # remarque 38 : RENDEMENT dans DÉTAIL CHARGES, avant TÂCHE
+        pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"chg\"]'); t && t.click(); }"); pg.wait_for_timeout(400)
+        rd = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'); const hs = [...t.tHead.rows[0].cells].map(c => c.textContent.trim());
+            const i = hs.findIndex(h => h.startsWith('RENDEMENT')); const tr = t.querySelector('tr[data-iid="c1"]'); const c = tr && tr.cells[i];
+            return [i >= 0 && hs[i + 1].startsWith('TÂCHE'), c ? (c.querySelector('input') ? c.querySelector('input').value : c.textContent).trim() : null]; }""")
+        check("remarque 38 : DÉTAIL CHARGES — colonne RENDEMENT avant TÂCHE : 3,33 M3 / T", rd == [True, "3,33 M3 / T"], rd)
         fitx = pg.evaluate("() => { const b = document.getElementById('bdgTabs'); return [b.scrollWidth, b.clientWidth]; }")
         check("remarque 25 : tous les onglets du bloc visibles sans balayer", fitx[0] <= fitx[1] + 1, fitx)
         # remarque 34 : à la largeur de l'iPad, avec une largeur d'onglet mémorisée trop grande, tous les onglets restent entiers
@@ -199,7 +206,7 @@ def main():
         t34 = pg.evaluate("() => { const b = document.getElementById('bdgTabs'); const ts = [...b.querySelectorAll('.bdg-d-tab')].filter(t => t.offsetParent !== null); const tools = b.querySelector('.blk-tools').getBoundingClientRect(); return [b.scrollWidth <= b.clientWidth + 1, ts.every(t => t.scrollWidth <= t.clientWidth + 1), ts.every(t => t.getBoundingClientRect().right <= tools.left + 1)]; }")
         pg.evaluate("() => localStorage.removeItem('svi_tabw_v1')")
         pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
-        check("remarque 34 : onglets entiers à la largeur de l'iPad (EXPLOITATION non coupé)", t34 == [True, True, True], t34)
+        check("remarque 34 : onglets entiers à la largeur de l'iPad (aucun intitulé coupé)", t34 == [True, True, True], t34)
 
         # remarque 2 : intitulés presque identiques
         dx = "(() => { const s = [...document.querySelectorAll('*')].find(e => e.__dupX); return s && s.__dupX; })()"

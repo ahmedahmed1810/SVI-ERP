@@ -176,6 +176,18 @@
     };
     const prdTaskName = id => { const l = prdLinks(id)[0]; return l ? prdLinkName(l) : ""; };
     /* v491 (remarque 3) : tâche(s) d'une charge (LOT › ACTIVITÉ SECONDAIRE) */
+    const chgRdb = r => {
+      const qc = num(r && r.q), out = [], seen = new Set();
+      if (!r || !qc) return "";
+      (INS.links || []).filter(l => (l.chg || []).some(x => x.id === r.id)).forEach(l => {
+        const tk = l.lot + "|" + l.sec; if (seen.has(tk)) return; seen.add(tk);
+        let q = 0; const sp = new Set();
+        (INS.links || []).filter(m => m.lot === l.lot && m.sec === l.sec).forEach(m => (m.prd || []).forEach(y => { if (sp.has(y.id)) return; sp.add(y.id); const p = INS.prd.find(x => x.id === y.id); if (p) q += insPrdQ(p); }));
+        const se = (INS.sec || []).find(x => x.id === l.sec) || {};
+        out.push(money(q / qc) + " " + U_(se.u) + " / " + U_(r.u));
+      });
+      return out.join(" · ");
+    };
     const chgTaskName = id => [...new Set((INS.links || []).filter(l => (l.chg || []).some(x => x.id === id)).map(prdLinkName).filter(Boolean))].join(" · ");
     const prdChainKey = id => {
       const l = prdLinks(id)[0];
@@ -286,6 +298,9 @@
         ["tva", "TVA %", "number", "num", "tva"],
         ["ttc", "MCB TTC", "number", "calc", "ttc"],
         /* v491 (remarque 3) : colonne TÂCHE ; v492 (remarque 8) : à la fin */
+        /* v498 (remarque 38) : RENDEMENT budgété de la charge dans sa tâche secondaire — quantité produite par la tâche ÷ QCB,
+           unité de l'activité secondaire / unité de la charge (ex. 0,50 M2 / L) */
+        ["rdb", "RENDEMENT", "number", "calc", "rdb"],
         ["tache", "TÂCHE", "", "calc", "tache"],
         /* FORMAT 111 (v488) : AGRÉMENT EXIGÉ / QUALIFICATION EXIGÉE — colonnes masquées pour l'instant (v491, remarque 3),
            à remettre plus tard : ["agr", "AGRÉMENT EXIGÉ", "center", "chk", "agr"], ["qex", "QUALIFICATION EXIGÉE", "", "txt", "qex"] */
@@ -312,7 +327,7 @@
     const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "tva", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
-        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
+        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "rdb" ? (k === "chg" ? chgRdb(r) : "") : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
     /* erreur d'une ligne (FORMAT 75) : on ne passe pas à la ligne suivante tant qu'elle reste */
     const insRowErr = (k, r) => {
       /* FORMAT 124 : ART en double (saisi ou calculé) — titres compris */
@@ -693,8 +708,6 @@
        seules les lignes liées à ce qui y est coché comptent (blocs combinés : ET) */
     /* liaisons retenues par les cases cochées des blocs autres que k (null : aucune case cochée ailleurs) ; mémorisé un instant */
     var ICL = null;
-    /* v496 (remarque 25) : lignes cochées de l'onglet EXPLOITATION (tâches primaires « des|lot|prim », ou « des|lot|* ») */
-    var XON = new Set();
     const insCheckLinks = k => {
       if (!INS) return null;
       /* mémoire valable pour un seul dessin (vidée dès la fin de la tâche en cours) */
@@ -703,10 +716,11 @@
       const B = ["des", "lot", "prim", "sec", "prd", "chg"].filter(x => x !== k);
       const C = {};
       B.forEach(x => { const ids = (INS[x] || []).filter(r => !r.t && r.on === true).map(r => r.id); if (ids.length) C[x] = new Set(ids); });
-      const xk = k !== "xpl" && XON && XON.size ? XON : null;
+      /* v498 (remarque 37) : liaisons cochées de l'onglet MARGE — elles filtrent aussi les autres blocs */
+      const lon = k !== "lnk" && (INS.links || []).some(l => l.on === true);
       const ks = Object.keys(C);
-      const out = !ks.length && !xk ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
-        && (!xk || xk.has(l.des + "|" + l.lot + "|" + l.prim) || xk.has(l.des + "|" + l.lot + "|*")));
+      const out = !ks.length && !lon ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
+        && (!lon || l.on === true));
       ICL.m[k] = out;
       return out;
     };
@@ -1039,33 +1053,6 @@
         if (sc.scrollTop + sc.clientHeight > sc.scrollHeight - 300) shell.__insMore();
       }, true);
     }
-    /* LIAISONS VALIDÉES (onglet du détail) : chaîne, produits, charges, quantité, PPB, MPB HT ; DÉLIER */
-    const insLinksHTML = () => {
-      const D = id => INS.des.find(x => x.id === id) || {};
-      /* quantité = somme des QPB de ses produits ; prix = PPB de la désignation si la liaison est primaire */
-      const qOf = l => (l.prd || []).reduce((t, x) => { const p = INS.prd.find(r => r.id === x.id); return t + (p ? insPrdQ(p) : 0); }, 0);
-      const pOf = l => insLinkPrim(INS, l) ? num(D(l.des).p || 0) : "";
-      const LC = [["art", "ART", l => D(l.des).art || "", "center"], ["des", "DÉSIGNATION", l => D(l.des).des || "", ""],
-        ["lot", "LOT", l => lkName("lot", l.lot), ""], ["prim", "ACTIVITÉ PRIMAIRE", l => lkName("prim", l.prim), ""],
-        ["sec", "ACTIVITÉ SECONDAIRE", l => lkName("sec", l.sec), ""], ["np", "PRODUITS", l => (l.prd || []).length, "center"],
-        ["nc", "CHARGES", l => (l.chg || []).length, "center"], ["lq", "QUANTITÉ", l => insFmt(qOf(l)), "number"],
-        ["lp", "PPB", l => pOf(l) === "" ? "" : insFmt(pOf(l)), "number"], ["lm", "MPB HT", l => pOf(l) === "" ? "" : insFmt(qOf(l) * pOf(l)), "number"]];
-      const W = { art: 70, des: 227, lot: 133, prim: 170, sec: 190, np: 104, nc: 102, lq: 104, lp: 71, lm: 97 };   /* FORMAT 113 */
-      const oc = coOrder("lk_links", LC);
-      const w = k => cwLoad()["lk_links." + k] || W[k] || 120;
-      const D2 = id => INS.des.find(x => x.id === id) || {};
-      const rows = cfApply("lk_links", LC, (insCheckLinks("lnk") || INS.links || []).slice().sort((a, b) => desCmp(D2(a.des), D2(b.des)) || natCmp(lkName("lot", a.lot), lkName("lot", b.lot))));
-      lastShown.detail = { cols: LC, rows, kind: "lnk" };
-      /* case à droite (cocher seulement) : ✕ DÉLIER LES LIGNES COCHÉES par le menu ⋯ */
-      const dw = INS_EDIT ? 40 : 0;
-      const allOn = rows.length && rows.every(l => l.on === true);
-      return `<table class="bdg-d-table lk-table lnk-table" style="width:${oc.reduce((t, c) => t + w(c[0]), 0) + dw}px">
-        <colgroup>${oc.map(c => `<col data-w="lk_links.${c[0]}" style="width:${w(c[0])}px">`).join("")}${dw ? `<col style="width:${dw}px">` : ""}</colgroup>
-        <thead><tr>${oc.map(c => cfHead("lk_links", c[0], c[1], c[3])).join("")}${dw ? `<th class="center"><input type="checkbox" class="lnk-cball"${allOn ? " checked" : ""}></th>` : ""}</tr></thead>
-        <tbody>${rows.map(l => `<tr data-lid="${l.id}">${oc.map(c => `<td class="${c[3]}">${esc(c[2](l))}</td>`).join("")}${dw
-          ? `<td class="center"><input type="checkbox" class="lnk-cb"${l.on === true ? " checked" : ""}></td>` : ""}</tr>`).join("")
-          || `<tr><td colspan="${oc.length + (dw ? 1 : 0)}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
-    };
     /* IMPORT NON CRÉÉ (onglet du détail) : lignes du fichier qui n'ont pas pu être liées ;
        corrigées ici (case fautive encadrée), elles créent leur liaison et sortent de l'onglet */
     const INC_COLS = [["art", "ART", 60, "center"], ["dc", "DÉSIGNATION CLIENT", 240, ""], ["upb", "UPB", 60, "center"], ["lot", "LOT", 150, ""],
