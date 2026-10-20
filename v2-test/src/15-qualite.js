@@ -920,7 +920,7 @@
       insNorm(); insSave();
       return true;
     };
-    shell.__ins = INS_EDIT ? { INS, insFoots, artPlace: id => { if (desPlaceByArt(id)) { const c = shell.querySelector(".bdg-d-client-scroll"); if (c && !c.contains(document.activeElement)) insRedraw("des"); } },
+    shell.__ins = INS_EDIT ? { INS, insFoots, refreshAll: () => refreshAll(), artPlace: id => { if (desPlaceByArt(id)) { const c = shell.querySelector(".bdg-d-client-scroll"); if (c && !c.contains(document.activeElement)) insRedraw("des"); } },
       /* v468 : mise à jour JUSTE APRÈS une saisie (ENTRÉE ou case quittée), sans attendre de toucher hors du tableau :
          la liste où l'on saisit garde le clavier (seul son compteur change) ; tout le reste est redessiné aussitôt */
       afterEntry: (k, box) => {
@@ -1083,7 +1083,7 @@
           if (ca) {
             /* FORMAT 125 : tout cocher coche aussi les titres (désignations) */
             (k === "des" ? X.insShown(k) : vis).forEach(r => { r.on = ca.checked; });
-            X.insSave(); X.insRedraw(k); X.insFoots && X.insFoots();
+            X.insSave(); (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots()));
             return;
           }
           const del = vis.filter(r => r.on === true);
@@ -1112,13 +1112,13 @@
           const br = X.insBranch(r);
           r.on = cb.checked;   /* le titre lui-même est coché (copier / couper / déplacer l'emportent) */
           br.forEach(x => { x.on = cb.checked; });
-          X.insSave(); X.insRedraw(k); X.insFoots && X.insFoots();
+          X.insSave(); (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots()));
           return;
         }
         if (cb) {
           r.on = cb.checked; X.insSave(); if (k === "des") { X.insDim(); X.insSyncTitles(); }
           /* ligne cochée : elle remonte (après les lignes au rond coché) */
-          X.insRedraw(k); X.insFoots && X.insFoots();
+          (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots()));
           return;
         }
         /* ligne titre : unité, quantité, prix, TVA masqués et verrouillés, mais gardés

@@ -5879,14 +5879,14 @@ function renderBudgetList() {
       chg: [
         ["art", "ART", "center", "txt", "article"],
         ["des", "DÉSIGNATION CHARGE", "", "txt", "detail"],
-        /* v491 (remarque 3) : colonne TÂCHE, comme dans DÉTAIL PRODUITS */
-        ["tache", "TÂCHE", "", "calc", "tache"],
         ["u", "UCB", "center", "txt", "unit"],
         ["q", "QCB", "number", "num", "qty"],
         ["p", "PCB", "number", "num", "price"],
         ["ht", "MCB HT", "number", "calc", "amount"],
         ["tva", "TVA %", "number", "num", "tva"],
         ["ttc", "MCB TTC", "number", "calc", "ttc"],
+        /* v491 (remarque 3) : colonne TÂCHE ; v492 (remarque 8) : à la fin */
+        ["tache", "TÂCHE", "", "calc", "tache"],
         /* FORMAT 111 (v488) : AGRÉMENT EXIGÉ / QUALIFICATION EXIGÉE — colonnes masquées pour l'instant (v491, remarque 3),
            à remettre plus tard : ["agr", "AGRÉMENT EXIGÉ", "center", "chk", "agr"], ["qex", "QUALIFICATION EXIGÉE", "", "txt", "qex"] */
       ],
@@ -6107,10 +6107,12 @@ function renderBudgetList() {
       const t = insCfT(k);
       const normal = INS[k].filter(r => !r.t);
       if (ONLYC[k] && !normal.some(r => r.on === true)) ONLYC[k] = false;
-      const shown = cfApply(t, insCfCols(k), normal).filter(r => !ONLYC[k] || r.on === true);
+      /* v492 (remarque 7) : la case de droite filtre l'affichage des autres blocs — seules les lignes liées à ce qui y est coché */
+      const cs = insCheckSet(k);
+      const shown = cfApply(t, insCfCols(k), normal).filter(r => (!ONLYC[k] || r.on === true) && (!cs || cs.has(r.id)));
       const st = cfT(t);
       const sorting = !!(st.sort && !st.sort.def);
-      const filtering = Object.keys(st.f).length > 0 || !!ONLYC[k];
+      const filtering = Object.keys(st.f).length > 0 || !!ONLYC[k] || !!cs;
       if (k !== "des" || sorting) return shown;
       if (!filtering) return INS.des;
       const keep = new Set(shown.map(r => r.id));
@@ -6205,12 +6207,36 @@ function renderBudgetList() {
     /* grands tableaux (détail produits / charges) : lignes dessinées par paquets, au fil du défilement (rapidité) */
     const INS_CHUNK = 120;
     const insMore = {};
+    /* v492 (remarque 10) : DÉTAIL CHARGES filtré (filtre de colonne, cases cochées d'un autre bloc, « seulement les cochées ») */
+    const insChgFiltered = () => { const st = cfT(insCfT("chg")); return Object.keys(st.f || {}).length > 0 || !!ONLYC.chg || !!insCheckSet("chg"); };
+    const insGrpRowHTML = g => {
+      const cols = insColsOrd("chg"), ht = g.reduce((t, r) => t + insHT("chg", r), 0), ttc = g.reduce((t, r) => t + insTTC("chg", r), 0);
+      const ps = new Set(g.map(r => money(Number(insCalc("chg", r, "p")) || 0)));
+      const v = { art: g[0].art || "", des: g[0].des || "", u: g[0].u || "", q: money(g.reduce((t, r) => t + (Number(insCalc("chg", r, "q")) || 0), 0)),
+        p: ps.size === 1 ? [...ps][0] : "", ht: money(ht), tva: ht ? money((ttc - ht) / ht * 100) : "", ttc: money(ttc), tache: "" };
+      const why = "LIGNES REGROUPÉES : " + g.length + " TÂCHES (" + [...new Set(g.map(r => chgTaskName(r.id)).filter(Boolean))].join(" · ") + "). RETIRER LE FILTRE POUR LES MODIFIER UNE PAR UNE.";
+      return `<tr class="ins-row ins-grp" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn" title="${esc(why)}">${g.length}</span></td>${cols.map(c => `<td class="${c[2]}${c[0] === "des" ? "" : ""}" data-why="${esc(why)}">${esc(v[c[0]] ?? "")}</td>`).join("")}${INS_EDIT ? "<td></td>" : ""}</tr>`;
+    };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
       const rows = k === "des" ? insShown(k) : lkTop(k, insShown(k));
       const ncol = INS_COLS[k].length + 1;
       let html = "";
-      if (k !== "des") {
+      if (k === "chg" && insChgFiltered()) {
+        /* v492 (remarque 10) : tableau filtré — charges identiques (même désignation, même unité, même article) regroupées
+           sur une ligne : quantités et montants additionnés, case TÂCHE vide ; lecture seule (retirer le filtre pour modifier) */
+        insMore[k] = [];
+        const G = new Map();
+        rows.forEach(r => { const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"); if (!G.has(key)) G.set(key, []); G.get(key).push(r); });
+        const done = new Set();
+        html = rows.map(r => {
+          const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"), g = G.get(key);
+          if (g.length < 2) return insRowHTML(k, r, 0);
+          if (done.has(key)) return "";
+          done.add(key);
+          return insGrpRowHTML(g);
+        }).join("");
+      } else if (k !== "des") {
         const first = rows.length > INS_CHUNK * 1.5 ? rows.slice(0, INS_CHUNK) : rows;
         insMore[k] = rows.slice(first.length);
         html = first.map(r => insRowHTML(k, r, 0)).join("");
@@ -6263,19 +6289,10 @@ function renderBudgetList() {
       if (!rows.length && !INS_EDIT) html += `<tr><td colspan="${ncol}" class="empty">AUCUNE LIGNE</td></tr>`;
       return html;
     };
-    const insRoundSet = k => {
-      if (!INS_EDIT || !LK || !["des", "prd", "chg"].includes(k)) return null;
-      const any = ["des", "lot", "prim", "sec"].some(x => LK[x]) || Object.keys(LK.prd || {}).length || Object.keys(LK.chg || {}).length;
-      if (!any) return null;
-      const H = lkHits() || {}, S = new Set(H[k] || []);
-      if (k === "des" && LK.des) S.add(LK.des);
-      if ((k === "prd" || k === "chg") && LK[k]) Object.keys(LK[k]).forEach(id => S.add(id));
-      return S;
-    };
     /* v484 (remarque 23) : cases cochées dans les AUTRES blocs (désignation, lot, activités, produits, charges) :
        seules les lignes liées à ce qui y est coché comptent (blocs combinés : ET) */
     const insCheckSet = k => {
-      if (!INS || !["des", "prd", "chg"].includes(k)) return null;
+      if (!INS || !["des", "prd", "chg", "lot", "prim", "sec"].includes(k)) return null;
       const B = ["des", "lot", "prim", "sec", "prd", "chg"].filter(x => x !== k);
       const C = {};
       B.forEach(x => { const ids = (INS[x] || []).filter(r => !r.t && r.on === true).map(r => r.id); if (ids.length) C[x] = new Set(ids); });
@@ -6285,7 +6302,7 @@ function renderBudgetList() {
       (INS.links || []).forEach(l => {
         const ok = ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]));
         if (!ok) return;
-        if (k === "des") S.add(l.des); else (l[k] || []).forEach(y => S.add(y.id));
+        if (k === "prd" || k === "chg") (l[k] || []).forEach(y => S.add(y.id)); else S.add(l[k]);
       });
       return S;
     };
@@ -6295,18 +6312,18 @@ function renderBudgetList() {
       /* FORMAT 126 : lignes affichées, ou seulement les cases carrées cochées ; « TOTAL PARTIEL » si une partie seulement */
       /* v478 (remarque 10) : trois filtres combinés — filtres de colonne (lignes affichées), ronds (lignes choisies ou liées
          à ce qui est choisi), cases cochées ; « TOTAL PARTIEL » dès que l'un d'eux agit */
-      let shown = insShown(k).filter(r => !r.t);
-      const rs = insRoundSet(k);
-      if (rs) shown = shown.filter(r => rs.has(r.id));
-      const cs = insCheckSet(k);
-      if (cs) shown = shown.filter(r => cs.has(r.id));
+      /* v492 (remarque 7) : le total compte les lignes affichées (filtres de colonne, cases cochées des autres blocs ;
+         dans le bloc lui-même, ses lignes cochées) ; les ronds ne filtrent plus. « TOTAL » quand tout le tableau est affiché,
+         « TOTAL PARTIEL » dès qu'une partie seulement compte */
+      const shown = insShown(k).filter(r => !r.t);
       const on = shown.filter(r => r.on === true);
       const rows = on.length ? on : shown;
-      const partial = !!rs || !!cs || on.length > 0 || shown.length < INS[k].filter(r => !r.t).length;
+      const partial = on.length > 0 || shown.length < INS[k].filter(r => !r.t).length;
       const ht = rows.reduce((t, r) => t + insHT(k, r), 0);
       const ttc = rows.reduce((t, r) => t + insTTC(k, r), 0);
       /* pied aligné sur l'ordre des colonnes de l'écran */
-      const cols = insColsOrd(k), val = { ht: money(ht), tva: money(ttc - ht), ttc: money(ttc) };
+      /* v492 (remarque 9) : case TVA % du total = taux moyen pondéré (montant de TVA ÷ montant HT) */
+      const cols = insColsOrd(k), val = { ht: money(ht), tva: ht ? money((ttc - ht) / ht * 100) + " %" : "", ttc: money(ttc) };
       /* même unité → unité + somme des quantités ; même unité et même prix → le prix */
       const us = new Set(rows.map(r => U_(r.u || "")));
       if (rows.length && us.size === 1 && [...us][0]) {
@@ -6561,7 +6578,8 @@ function renderBudgetList() {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
       const col = (title, k) => {
         if (ONLYC[k] && !INS[k].some(r => r.on === true)) ONLYC[k] = false;
-        const list = lkTop(k, cfApply(k, [["v", title, r => r.v || "", ""]], INS[k]).filter(r => !ONLYC[k] || r.on === true));
+        const csk = insCheckSet(k);   /* v492 (remarque 7) : cases cochées des autres blocs */
+        const list = lkTop(k, cfApply(k, [["v", title, r => r.v || "", ""]], INS[k]).filter(r => (!ONLYC[k] || r.on === true) && (!csk || r.t || csk.has(r.id))));
         lastShown.hier[k] = list.map(r => r.v || "");
         const on = !!cfT(k).f.v;
         return `
@@ -6815,6 +6833,18 @@ function renderBudgetList() {
             else { X.save(); X.refresh(); return; }
           }
         }
+        /* v492 (remarque 10) : une désignation de charge n'a qu'une unité et qu'un article dans tout le budget
+           (deux façons d'acheter : le préciser dans la désignation, ex. CIMENT (EN SAC) / CIMENT (EN VRAC)) */
+        if (k === "chg" && r && !r.t && U_(r.des)) {
+          const o = X.INS.chg.find(x => x.id !== r.id && !x.t && U_(x.des) === U_(r.des) && ((U_(x.u) && U_(r.u) && U_(x.u) !== U_(r.u)) || (U_(x.art) && U_(r.art) && U_(x.art) !== U_(r.art))));
+          if (o) {
+            const f = inp.dataset.f, old = shell.__dupOld && shell.__dupOld.id === r.id ? shell.__dupOld.row : null;
+            svToast(U_(r.des) + " EXISTE DÉJÀ" + (U_(o.art) ? " (ARTICLE " + U_(o.art) + ")" : "") + " EN " + U_(o.u) + " : UNE DÉSIGNATION N'A QU'UNE UNITÉ ET UN ARTICLE. POUR UNE AUTRE FAÇON D'ACHETER, LE PRÉCISER ENTRE PARENTHÈSES (EX. « " + U_(r.des) + " (EN SAC) »).", 6000, inp);
+            r[f] = old ? (old[f] ?? "") : "";
+            X.save(); X.refresh();
+            return;
+          }
+        }
         const key = dupKeyOf(k, r);
         if (!key) return;
         const other = X.INS[k].find(x => x.id !== r.id && dupKeyOf(k, x) === key);
@@ -7008,10 +7038,8 @@ function renderBudgetList() {
         if (a.dataset.a === "merge") { const m = dupMerged(it.k, it.keep.id, it.drop.id); if (!m.err) { dupMerge(it.k, it.keep.id, it.drop.id, m.links); changed = true; } items.splice(cur, 1); draw(); return; }
         if (a.dataset.a === "ignall") { items.forEach(ignore); items.length = 0; finish(); return; }
         if (a.dataset.a === "mergeall") {
-          d.style.display = "none";
+          /* v492 (remarque 11) : FUSIONNER TOUS sans seconde confirmation (↶ ANNULER permet de revenir en arrière) */
           const n = items.length;
-          const ok = await svConfirm({ title: "FUSIONNER TOUS", text: n + " DOUBLON(S) SERONT FUSIONNÉS (LIAISONS ET DÉLAIS REPORTÉS).", ok: "FUSIONNER TOUS" });
-          if (!ok) { document.body.appendChild(d); d.style.display = ""; draw(); return; }
           const blocked = [];
           items.slice().forEach(x => {
             if (!alive(x)) return;
@@ -8136,7 +8164,7 @@ function renderBudgetList() {
       insNorm(); insSave();
       return true;
     };
-    shell.__ins = INS_EDIT ? { INS, insFoots, artPlace: id => { if (desPlaceByArt(id)) { const c = shell.querySelector(".bdg-d-client-scroll"); if (c && !c.contains(document.activeElement)) insRedraw("des"); } },
+    shell.__ins = INS_EDIT ? { INS, insFoots, refreshAll: () => refreshAll(), artPlace: id => { if (desPlaceByArt(id)) { const c = shell.querySelector(".bdg-d-client-scroll"); if (c && !c.contains(document.activeElement)) insRedraw("des"); } },
       /* v468 : mise à jour JUSTE APRÈS une saisie (ENTRÉE ou case quittée), sans attendre de toucher hors du tableau :
          la liste où l'on saisit garde le clavier (seul son compteur change) ; tout le reste est redessiné aussitôt */
       afterEntry: (k, box) => {
@@ -8299,7 +8327,7 @@ function renderBudgetList() {
           if (ca) {
             /* FORMAT 125 : tout cocher coche aussi les titres (désignations) */
             (k === "des" ? X.insShown(k) : vis).forEach(r => { r.on = ca.checked; });
-            X.insSave(); X.insRedraw(k); X.insFoots && X.insFoots();
+            X.insSave(); (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots()));
             return;
           }
           const del = vis.filter(r => r.on === true);
@@ -8328,13 +8356,13 @@ function renderBudgetList() {
           const br = X.insBranch(r);
           r.on = cb.checked;   /* le titre lui-même est coché (copier / couper / déplacer l'emportent) */
           br.forEach(x => { x.on = cb.checked; });
-          X.insSave(); X.insRedraw(k); X.insFoots && X.insFoots();
+          X.insSave(); (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots()));
           return;
         }
         if (cb) {
           r.on = cb.checked; X.insSave(); if (k === "des") { X.insDim(); X.insSyncTitles(); }
           /* ligne cochée : elle remonte (après les lignes au rond coché) */
-          X.insRedraw(k); X.insFoots && X.insFoots();
+          (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots()));
           return;
         }
         /* ligne titre : unité, quantité, prix, TVA masqués et verrouillés, mais gardés
@@ -14908,14 +14936,14 @@ function renderBudgetList() {
       /* v481 (remarque 17) : U = unité de l'activité secondaire (obligatoire ; tâche primaire : UPB de la désignation, grisée) */
       const COLS = [["dc", "DÉSIGNATION CLIENT", 220], ["upb", "UPB", 54], ["lot", "LOT", 140], ["prim", "ACTIVITÉ PRIMAIRE", 150], ["sec", "ACTIVITÉ SECONDAIRE", 150], ["su", "U", 46]]
         .concat(P ? [["des", "DÉSIGNATION PRODUIT", 170], ["u", "UNITÉ", 54], ["nbr", "NBR", 60], ["d1", "DIM 1", 60], ["d2", "DIM 2", 60], ["d3", "DIM 3", 60]]
-          : [["art", "ARTICLE", 80], ["des", "DÉSIGNATION CHARGE", 200], ["u", "UNITÉ", 54], ["q", "QTE", 70]]);
-      const NUMF = new Set(["nbr", "d1", "d2", "d3", "q"]);
+          : [["art", "ARTICLE", 80], ["des", "DÉSIGNATION CHARGE", 200], ["u", "UNITÉ", 54], ["q", "QTE", 70], ["p", "PCB", 80]]);   /* v492 (remarque 13) : PCB */
+      const NUMF = new Set(["nbr", "d1", "d2", "d3", "q", "p"]);
       /* v491 (remarque 4) : nombres au format des tableaux (milliers et deux décimales : 1 234,56) */
       const fmtN = v => v === "" || v === undefined || v === null ? "" : money(v);
       const CENTER = new Set(["upb", "su", "u"]);   /* v491 (remarque 4) : unités centrées */
       let rows = [];
       let recs = INS[kind] || [];
-      const blank = () => ({ dc: "", upb: "", lot: "", prim: "", sec: "", su: "", art: "", des: "", u: "", nbr: "", d1: "", d2: "", d3: "", q: "" });
+      const blank = () => ({ dc: "", upb: "", lot: "", prim: "", sec: "", su: "", art: "", des: "", u: "", nbr: "", d1: "", d2: "", d3: "", q: "", p: "" });
       /* v480 (remarques 14 et 16) : lignes relues depuis le budget (à l'ouverture et après chaque VALIDER) */
       let dirty = false;
       const loadRows = () => {
@@ -14925,9 +14953,9 @@ function renderBudgetList() {
         const r = recs.find(q => q.id === x.id); if (!r) return; seen.add(r.id);
         const d = INS.des.find(q => q.id === l.des) || {};
         rows.push({ _id: r.id, _lid: l.id || "L" + (INS.links || []).indexOf(l), dc: d.des || "", upb: d.u || "", lot: nm("lot", l.lot), prim: nm("prim", l.prim), sec: nm("sec", l.sec), su: U_(((INS.sec || []).find(q => q.id === l.sec) || {}).u),
-          art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q) });
+          art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q), p: P ? "" : fmtN(r.p), _chs: !!r.chs });
       }));
-      recs.filter(r => !r.t && !seen.has(r.id)).forEach(r => rows.push({ _id: r.id, dc: "", upb: "", lot: "", prim: "", sec: "", su: "", art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q) }));
+      recs.filter(r => !r.t && !seen.has(r.id)).forEach(r => rows.push({ _id: r.id, dc: "", upb: "", lot: "", prim: "", sec: "", su: "", art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q), p: P ? "" : fmtN(r.p), _chs: !!r.chs }));
       rows.forEach(r => { r._o = JSON.stringify(COLS.map(c => r[c[0]])); r._l = l0(r); });
       rows.push(blank());
       dirty = false;
@@ -14961,8 +14989,11 @@ function renderBudgetList() {
       let selCol = "";
       const CFC = COLS.map(c => [c[0], c[1], r => r[c[0]] || "", NUMF.has(c[0]) ? "number" : ""]);
       /* lignes existantes : filtres / tri de l'en-tête (loupe) ; lignes nouvelles toujours en bas */
+      /* v492 (remarque 13) : la saisie directe s'ouvre avec le filtre du tableau d'où l'on vient (retirable : ✕ dans l'en-tête) */
+      let srcIds = null;
+      { const sh = insShown(kind).filter(r => !r.t), tot = (INS[kind] || []).filter(r => !r.t).length; if (sh.length < tot) srcIds = new Set(sh.map(r => r.id)); }
       const vis = () => {
-        const old = rows.map((r, i) => ({ ...r, __i: i })).filter(r => r._id);
+        const old = rows.map((r, i) => ({ ...r, __i: i })).filter(r => r._id && (!srcIds || srcIds.has(r._id)));
         const shown = cfApply(TK, CFC, old);
         return shown.map(r => ({ r: rows[r.__i], i: r.__i })).concat(rows.map((r, i) => ({ r, i })).filter(x => !x.r._id));
       };
@@ -14973,7 +15004,7 @@ function renderBudgetList() {
           const fx = suFixed(r), need = !fx && !!U_(r.sec) && !U_(r.su);
           return `<td class="center${fx ? " sd-ro" : ""}${need ? " sd-need" : ""}"${need ? ' data-why="UNITÉ DE L\'ACTIVITÉ OBLIGATOIRE"' : ""}><input class="sd-in" data-i="${i}" data-f="su" value="${esc(fx || r.su || "")}"${fx ? " readonly tabindex=\"-1\"" : ""} autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"></td>`;
         }
-        const lockU = P && f === "u" && (!!secU(r.sec, r) || (r._lid && !!r.u));
+        const lockU = (P && f === "u" && (!!secU(r.sec, r) || (r._lid && !!r.u))) || (f === "p" && !!r._chs);   /* PCB venu de CHS : grisé */
         const lockChain = false;   /* v480 (remarque 15) : en instance, la chaîne d'une ligne liée se change ici aussi */
         const ro = lockU || lockChain;
         return `<td class="${NUMF.has(f) ? "number" : CENTER.has(f) ? "center" : ""}${ro ? " sd-ro" : ""}${selCol === f ? " sd-sel" : ""}"><input class="sd-in" data-i="${i}" data-f="${f}" value="${esc(lockU && secU(r.sec, r) ? secU(r.sec, r) : r[f] || "")}"${ro ? " readonly tabindex=\"-1\"" : ""}${NUMF.has(f) ? ' inputmode="decimal"' : ""} autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"></td>`;
@@ -14987,12 +15018,13 @@ function renderBudgetList() {
         d.innerHTML = `<div class="sd-card${big ? " big" : ""}" role="dialog" aria-modal="true" style="${!big && sz.w ? "width:" + sz.w + "px;height:" + sz.h + "px" : ""}">
           <div class="sd-head"><span class="sd-title">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"}</span>
             <span class="sd-n">${svCnt(V.filter(x => x.r._id).length, rows.filter(x => x._id).length)}</span>
+            ${srcIds ? `<button type="button" class="sd-srcf" title="Retirer le filtre">FILTRE DU TABLEAU ✕</button>` : ""}
             ${selCol ? `<span class="sd-colbar">COLONNE « ${esc((COLS.find(c => c[0] === selCol) || [])[1] || "")} » SÉLECTIONNÉE : ⋯</span>` : ""}
             <button type="button" class="sd-more blk-more" aria-label="Menu">⋯</button><button type="button" class="svc-close sd-x" data-x aria-label="Fermer">✕</button></div>
           <div class="sd-scroll"><table class="sd-t"><colgroup>${COLS.map(c => `<col data-c="${c[0]}" style="width:${W[c[0]] || c[2]}px">`).join("")}<col style="width:40px"></colgroup>
             <thead><tr>${COLS.map(c => cfHead(TK, c[0], c[1], (NUMF.has(c[0]) ? "number" : "") + (selCol === c[0] ? " sd-sel" : "")).replace("<th ", `<th data-c="${c[0]}" `)).join("")}<th class="sd-cbc"><input type="checkbox" class="sd-cball"${V.some(x => x.r._on) && V.filter(x => x.r._id || COLS.some(c => x.r[c[0]])).every(x => x.r._on) ? " checked" : ""}></th></tr></thead>
             <tbody>${V.map(({ r, i }) => `<tr class="${r._id ? (r._lid ? "sd-old sd-lk" : "sd-old") : "sd-new"}${r._del ? " sd-del" : ""}">${COLS.map(c => cell(r, i, c)).join("")}<td class="sd-cbc">${r._id || COLS.some(c => r[c[0]]) ? `<input type="checkbox" class="sd-cb" data-i="${i}"${r._on ? " checked" : ""}>` : ""}</td></tr>`).join("")}</tbody></table></div>
-          <div class="sd-foot"><small>CHAÎNE CHANGÉE SUR UNE LIGNE LIÉE : DÉLIÉE PUIS LIÉE À LA NOUVELLE CHAÎNE À LA VALIDATION. TAB = À DROITE, ENTRÉE = EN DESSOUS ; ENTRÉE SUR UNE LIGNE NOUVELLE = LIGNE SUIVANTE AVEC LA MÊME COMBINAISON.</small><span style="flex:1"></span>
+          <div class="sd-foot"><span style="flex:1"></span>
             <button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral sd-ok"${dirty ? "" : " disabled"}>VALIDER</button></div>
           ${big ? "" : '<div class="sd-rsz" title="Largeur et hauteur"></div>'}</div>
           <button type="button" class="sd-tag">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"} ▲</button>`;
@@ -15068,14 +15100,37 @@ function renderBudgetList() {
          flèches haut / bas = ligne du dessus / dessous ; gauche / droite = case voisine quand le curseur est au bord du texte.
          v491 (remarque 4) : Entrée sur une ligne nouvelle remplie → la ligne suivante reprend la combinaison
          (DÉSIGNATION CLIENT, UPB, LOT, ACTIVITÉS, U) et le curseur va sur la désignation produit / charge */
-      let tabStart = null;
       const go = el => { if (!el) return false; el.focus(); try { el.select(); } catch (err) {} el.scrollIntoView({ block: "nearest", inline: "nearest" }); return true; };
       const cellsOf = tr => tr ? [...tr.querySelectorAll(".sd-in")].filter(x => !x.readOnly) : [];
       const sameCol = (tr, f, dir) => { for (let t = dir > 0 ? tr.nextElementSibling : tr.previousElementSibling; t; t = dir > 0 ? t.nextElementSibling : t.previousElementSibling) { const x = t.querySelector(`.sd-in[data-f="${f}"]`); if (x && !x.readOnly) return x; } return null; };
       const COMBO = ["dc", "upb", "lot", "prim", "sec", "su"];
+      /* v492 (remarque 11) : ANNULER / RÉTABLIR dans la saisie directe (menu ⋯, Commande + Z / Maj + Commande + Z) */
+      const UNDO = [], REDO = [];
+      const mark = () => { UNDO.push(JSON.stringify(rows)); if (UNDO.length > 60) UNDO.shift(); REDO.length = 0; };
+      d.addEventListener("svimark", () => mark());
+      const undo = () => { if (!UNDO.length) return; REDO.push(JSON.stringify(rows)); rows = JSON.parse(UNDO.pop()); dirty = true; draw(); svToast("ANNULÉ.", 1200); };
+      const redo = () => { if (!REDO.length) return; UNDO.push(JSON.stringify(rows)); rows = JSON.parse(REDO.pop()); dirty = true; draw(); svToast("RÉTABLI.", 1200); };
+      d.addEventListener("focusin", e => { const i = e.target.closest && e.target.closest(".sd-in"); if (i) i.__mk = false; });
+      d.addEventListener("input", e => { const i = e.target.closest && e.target.closest(".sd-in"); if (i && !i.__mk && !i.__sel) { i.__mk = true; UNDO.push(i.__snap || JSON.stringify(rows)); if (UNDO.length > 60) UNDO.shift(); REDO.length = 0; } }, true);
+      d.addEventListener("focusin", e => { const i = e.target.closest && e.target.closest(".sd-in"); if (i) i.__snap = JSON.stringify(rows); });
+      /* v492 (remarque 12) : Tab / flèche droite = à droite ; flèches haut / bas = ligne voisine ; Entrée descend toujours
+         (dernière ligne : une ligne vide est ajoutée, même colonne) ; Tab sur la dernière case d'une ligne nouvelle remplie =
+         ligne suivante avec la même combinaison (DÉSIGNATION CLIENT, UPB, LOT, ACTIVITÉS, U), curseur sur la désignation */
+      const comboNext = i => {
+        const src = rows[i];
+        let j = rows.findIndex((r, n) => n > i && !r._id && COLS.every(cc => !r[cc[0]]));
+        if (j < 0) { rows.push(blank()); j = rows.length - 1; }
+        mark();
+        COMBO.forEach(c => { rows[j][c] = src[c] || ""; });
+        if (P && secU(rows[j].sec, rows[j])) rows[j].u = secU(rows[j].sec, rows[j]);
+        if (rows[rows.length - 1] === rows[j]) rows.push(blank());
+        dirty = true;
+        draw(); focusAt(j, "des");
+      };
       d.addEventListener("keydown", e => {
+        if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z")) { e.preventDefault(); e.stopPropagation(); if (e.shiftKey) redo(); else undo(); return; }
         const inp = e.target.closest(".sd-in");
-        if (!inp || !["Enter", "Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
+        if (!inp || !["Enter", "Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) || (e.shiftKey && e.key.startsWith("Arrow"))) return;
         if (d.querySelector(".sd-sug") && (e.key === "ArrowUp" || e.key === "ArrowDown")) return;   /* flèches : dans la liste de choix */
         const tr = inp.closest("tr"), f = inp.dataset.f, i = +inp.dataset.i;
         if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
@@ -15085,31 +15140,19 @@ function renderBudgetList() {
         e.preventDefault(); e.stopPropagation(); sugHide();
         if (e.key === "Tab" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
           const back = e.key === "ArrowLeft" || (e.key === "Tab" && e.shiftKey);
-          if (e.key === "Tab" && (!tabStart || tabStart.tr !== tr)) tabStart = { tr, f };
           const C = cellsOf(tr), k = C.indexOf(inp);
-          if (back) { if (k > 0) go(C[k - 1]); else { const p = cellsOf(tr.previousElementSibling); go(p[p.length - 1]); } }
-          else if (k < C.length - 1) go(C[k + 1]); else go(cellsOf(tr.nextElementSibling)[0]);
+          if (back) { if (k > 0) go(C[k - 1]); else { const p = cellsOf(tr.previousElementSibling); go(p[p.length - 1]); } return; }
+          if (k < C.length - 1) { go(C[k + 1]); return; }
+          const src = rows[i];
+          if (e.key === "Tab" && src && !src._id && COLS.some(cc => src[cc[0]])) { comboNext(i); return; }
+          go(cellsOf(tr.nextElementSibling)[0]);
           return;
         }
         if (e.key === "ArrowUp" || e.key === "ArrowDown") { go(sameCol(tr, f, e.key === "ArrowDown" ? 1 : -1)); return; }
-        /* Entrée */
-        const col = tabStart && tabStart.tr === tr ? tabStart.f : f;
-        tabStart = null;
-        if (e.shiftKey) { go(sameCol(tr, col, -1)); return; }
-        const src = rows[i];
-        const nxt = tr.nextElementSibling, nr = nxt && rows[+((nxt.querySelector(".sd-in") || {}).dataset || {}).i];
-        if (src && !src._id && COLS.some(cc => src[cc[0]]) && (!nr || (!nr._id && COLS.every(cc => !nr[cc[0]])))) {
-          /* ligne nouvelle remplie : la suivante reprend la combinaison et ses unités */
-          let j = nr ? rows.indexOf(nr) : -1;
-          if (j < 0) { rows.push(blank()); j = rows.length - 1; }
-          COMBO.forEach(c => { rows[j][c] = src[c] || ""; });
-          if (P && secU(rows[j].sec, rows[j])) rows[j].u = secU(rows[j].sec, rows[j]);
-          if (rows[rows.length - 1] === rows[j]) rows.push(blank());
-          dirty = true;
-          draw(); focusAt(j, "des");
-          return;
-        }
-        go(sameCol(tr, col, 1));
+        /* Entrée : en dessous, toujours */
+        if (e.shiftKey) { go(sameCol(tr, f, -1)); return; }
+        if (go(sameCol(tr, f, 1))) return;
+        rows.push(blank()); draw(); focusAt(rows.length - 1, f);
       }, true);
       /* v479 (remarques 11 et 12) : case à cocher par ligne et menu ⋯ (SUPPRIMER LES LIGNES COCHÉES…) */
       d.addEventListener("change", e => {
@@ -15127,7 +15170,12 @@ function renderBudgetList() {
         /* v485 (remarque 25) : un seul ⋯ — colonne, lignes, cases, taille de la fenêtre */
         const cl = selCol ? esc((COLS.find(c => c[0] === selCol) || [])[1] || "") : "";
         const dis = on => on ? "" : ` class="off" disabled`;
-        m.innerHTML = (selCol ? `<button type="button" data-sm="ccopy"><span>COPIER LA COLONNE « ${cl} »</span></button>
+        const ns = window.__sviSel && d.querySelector("td.svi-cs, :focus") ? window.__sviSel.count() : 0;
+        m.innerHTML = `<button type="button" data-sm="undo"${dis(UNDO.length)}><span>↶ ANNULER</span></button>
+          <button type="button" data-sm="redo"${dis(REDO.length)}><span>↷ RÉTABLIR</span></button><div class="blk-sep"></div>
+          <button type="button" data-sm="scopy"${dis(ns)}><span>COPIER LA SÉLECTION</span>${svCnt(ns)}</button>
+          <button type="button" data-sm="spaste"${dis(ns)}><span>COLLER (À PARTIR DE LA SÉLECTION)</span></button>
+          <button type="button" data-sm="sclear"${dis(ns)}><span>EFFACER LA SÉLECTION</span>${svCnt(ns)}</button><div class="blk-sep"></div>` + (selCol ? `<button type="button" data-sm="ccopy"><span>COPIER LA COLONNE « ${cl} »</span></button>
           <button type="button" data-sm="cpaste"><span>COLLER DANS LA COLONNE « ${cl} »</span><small class="del-split">À PARTIR DE LA 1RE LIGNE AFFICHÉE ; LIGNES CRÉÉES EN BAS S'IL EN MANQUE</small></button>
           <button type="button" data-sm="cclear"><span>EFFACER LA COLONNE « ${cl} »</span></button><div class="blk-sep"></div>` : "")
           + `<button type="button" data-sm="rcopy"${dis(n)}><span>COPIER LES LIGNES COCHÉES</span>${svCnt(n)}</button>
@@ -15145,16 +15193,24 @@ function renderBudgetList() {
           const b = ev.target.closest("[data-sm]"); if (!b || b.disabled) return;
           m.remove(); document.removeEventListener("pointerdown", off, true);
           const v = b.dataset.sm;
+          if (v === "undo") return undo();
+          if (v === "redo") return redo();
+          if (v === "scopy") { const n2 = window.__sviSel.copy(); svToast(n2 + " CASE(S) COPIÉE(S).", 1800); return; }
+          if (v === "sclear") { mark(); const n2 = window.__sviSel.clear(); svToast(n2 + " CASE(S) VIDÉE(S).", 1800); return; }
+          if (v === "spaste") { mark(); const n2 = await window.__sviSel.paste(); svToast(n2 + " CASE(S) COLLÉE(S).", 1800); return; }
           if (v === "all") { vis().forEach(x => { if (x.r._id || COLS.some(c => x.r[c[0]])) x.r._on = true; }); draw(); return; }
           if (v === "none") { rows.forEach(r => { r._on = false; }); draw(); return; }
           if (v === "size") { big = !big; sz.big = big; szSave(); draw(); return; }
           if (v === "mini") { sugHide(); d.classList.add("sd-min"); return; }
+          if (v === "cpaste" || v === "cclear") mark();
           if (v === "ccopy" || v === "cpaste" || v === "cclear") return colAct(v.slice(1));
+          if (v === "rcut" || v === "rpaste") mark();
           if (v === "rcopy" || v === "rcut") return rowCopy(v === "rcut");
           if (v === "rpaste") return rowPaste();
           if (v === "del") {
             const L = rows.filter(r => r._on), lk = L.filter(r => r._lid);
             if (!(await svConfirm({ title: "SUPPRIMER", text: (L.length - lk.length) + " LIGNE(S) SERONT SUPPRIMÉES À LA VALIDATION" + (lk.length ? " ; " + lk.length + " LIGNE(S) LIÉE(S) GARDÉE(S) (✕ DÉLIER D'ABORD)" : "") + ".", ok: "SUPPRIMER" }))) return;
+            mark();
             for (let n = rows.length - 1; n >= 0; n--) { const r = rows[n]; if (!r._on || r._lid) continue; if (r._id) { r._del = true; r._on = false; dirty = true; } else rows.splice(n, 1); }
             if (!rows.length || rows[rows.length - 1]._id || COLS.some(c => rows[rows.length - 1][c[0]])) rows.push(blank());
             draw();
@@ -15228,6 +15284,7 @@ function renderBudgetList() {
         if (th && !e.target.closest(".col-rs")) { const c = th.dataset.c; selCol = selCol === c ? "" : c; draw(); return; }
       }, true);
       d.addEventListener("click", async e => {
+        if (e.target.closest(".sd-srcf")) { srcIds = null; draw(); return; }
         if (e.target.closest(".sd-size")) { big = !big; sz.big = big; szSave(); draw(); return; }
         /* v481 (remarque 19) : RÉDUIRE = petite étiquette en bas à droite ; on travaille sur le budget ; un toucher la rouvre telle quelle */
         if (e.target.closest(".sd-mini")) { sugHide(); d.classList.add("sd-min"); return; }
@@ -15247,7 +15304,7 @@ function renderBudgetList() {
           const x = recs.find(q => q.id === r._id); if (!x) return;
           x.des = U_(sviClean(r.des)); if (!r._lid) x.u = U_(r.u);
           if (P) ["nbr", "d1", "d2", "d3"].forEach(f => { x[f] = r[f] === "" ? "" : insNum(r[f]); });
-          else { x.art = U_(r.art); x.q = r.q === "" ? "" : insNum(r.q); }
+          else { x.art = U_(r.art); x.q = r.q === "" ? "" : insNum(r.q); if (!x.chs) x.p = r.p === "" ? "" : insNum(r.p); }
           upd++;
         });
         /* 2. lignes nouvelles (et lignes non liées dont la chaîne est remplie) : importées avec les règles de l'import */
@@ -15292,6 +15349,8 @@ function renderBudgetList() {
           const gone = new Set(neu.filter(r => r._id).map(r => r._id));
           if (gone.size) INS[kind] = INS[kind].filter(x => !gone.has(x.id));
           bfApply(m, "add", "SAISIE DIRECTE", false, plan);
+          /* v492 (remarque 13) : PCB saisi d'une charge nouvelle hors CHS (l'import ne le porte pas) */
+          if (!P) neu.forEach(r => { if (r.p === "" || r.p === undefined) return; INS.chg.filter(x => !x.t && !x.chs && U_(x.des) === U_(r.des) && U_(x.u) === U_(r.u) && (x.p === "" || x.p === undefined || num(x.p) === 0)).forEach(x => { x.p = insNum(r.p); }); });
           const nInc = (INS.inc || []).length - inc0;
           if (nInc > 0) setTimeout(() => svToast(nInc + " LIGNE(S) EN ERREUR : VOIR L'ONGLET IMPORT NON CRÉÉ.", 5000), 300);
         }
@@ -21330,6 +21389,7 @@ document.addEventListener("input", e => {
     const out = [], b = S.b || S.a;
     if (S.b) for (let r = Math.min(S.a.r, b.r); r <= Math.max(S.a.r, b.r); r++) for (let c = Math.min(S.a.c, b.c); c <= Math.max(S.a.c, b.c); c++) { const td = tdAt(S.tbl, r, c); if (td) out.push(td); }
     S.extra.forEach(k => { const [r, c] = k.split(":").map(Number); const td = tdAt(S.tbl, r, c); if (td && !out.includes(td)) out.push(td); });
+    if (!out.length) { const td = tdAt(S.tbl, S.a.r, S.a.c); if (td) out.push(td); }
     return out;
   };
   const paint = () => {
@@ -21368,7 +21428,8 @@ document.addEventListener("input", e => {
   document.addEventListener("pointerdown", e => {
     if (e.target === H) return;
     const td = e.target.closest && e.target.closest("td"), tbl = td && td.closest(TSEL);
-    if (!tbl) { if (!e.target.closest || !e.target.closest("#blkMenu")) { S.b = null; S.extra.clear(); paint(); } return; }
+    /* v492 (remarque 11) : la sélection reste (menu ⋯, boutons) ; seul un toucher sur une autre case l'annule */
+    if (!tbl) return;
     const p = posOf(td); if (!p) return;
     if ((e.shiftKey || e.metaKey || e.ctrlKey) && S.tbl === tbl && S.a) {
       e.preventDefault(); S.keep = true;
@@ -21379,6 +21440,29 @@ document.addEventListener("input", e => {
   }, true);
   window.addEventListener("scroll", () => { if (H && H.style.display === "block") handle(); }, true);
   const valOf = td => { const i = td.querySelector("input:not([type=checkbox]), textarea, select"); return String(i ? i.value : td.textContent || "").replace(/[\t\n]/g, " ").trim(); };
+  const selTsv = C => {
+    const rs = [...new Set(C.map(td => td.parentElement))].sort((x, y) => x.sectionRowIndex - y.sectionRowIndex);
+    const cs = [...new Set(C.map(td => td.cellIndex))].sort((x, y) => x - y);
+    return rs.map(tr => cs.map(c => { const td = tr.cells[c]; return td && C.includes(td) ? valOf(td) : ""; }).join("\t")).join("\n");
+  };
+  const putIn = (td, v) => { const i = td.querySelector("input.sd-in"); if (!i || i.readOnly) return false; i.__sel = true; i.value = v; i.dispatchEvent(new Event("input", { bubbles: true })); i.__sel = false; return true; };
+  const markSd = () => { if (S.tbl) S.tbl.dispatchEvent(new CustomEvent("svimark", { bubbles: true })); };
+  /* API de la sélection (menu ⋯ de la SAISIE DIRECTE) */
+  window.__sviSel = {
+    count: () => cells().length,
+    copy: () => { const C = cells(); if (!C.length) return 0; const t = selTsv(C); try { navigator.clipboard && navigator.clipboard.writeText(t); } catch (err) {} window.__sviSelClip = t; return C.length; },
+    clear: () => { let n = 0; cells().forEach(td => { if (putIn(td, "")) n++; }); document.querySelector(".sd-sug")?.remove(); return n; },
+    paste: async () => {
+      const C = cells(); if (!C.length || !S.tbl) return 0;
+      let t = ""; try { t = navigator.clipboard && navigator.clipboard.readText ? await navigator.clipboard.readText() : ""; } catch (err) { t = ""; }
+      if (!t) t = window.__sviSelClip || "";
+      const r0 = Math.min(...C.map(td => td.parentElement.sectionRowIndex)), c0 = Math.min(...C.map(td => td.cellIndex));
+      const lines = String(t || "").replace(/\r/g, "").replace(/\n+$/, "").split("\n").map(l => l.split("\t"));
+      let n = 0; lines.forEach((cl, i) => cl.forEach((v, j) => { const td = tdAt(S.tbl, r0 + i, c0 + j); if (td && putIn(td, v.trim())) n++; }));
+      document.querySelector(".sd-sug")?.remove();
+      return n;
+    }
+  };
   document.addEventListener("keydown", e => {
     const act = document.activeElement, td0 = act && act.closest && act.closest("td"), tbl = td0 && td0.closest(TSEL);
     if (!tbl || S.tbl !== tbl || !S.a) return;
@@ -21403,15 +21487,15 @@ document.addEventListener("input", e => {
       return;
     }
     if (!tbl.classList.contains("sd-t")) return;
-    const put = (td, v) => { const i = td.querySelector("input.sd-in"); if (!i || i.readOnly) return false; i.value = v; i.dispatchEvent(new Event("input", { bubbles: true })); return true; };
+    const put = (td, v) => putIn(td, v);
     if (!mod && (e.key === "Backspace" || e.key === "Delete")) {
-      e.preventDefault(); let n = 0; C.forEach(td => { if (put(td, "")) n++; });
+      e.preventDefault(); markSd(); let n = 0; C.forEach(td => { if (put(td, "")) n++; });
       document.querySelector(".sd-sug")?.remove();
       if (typeof svToast === "function") svToast(n + " CASE(S) VIDÉE(S).", 1800);
       return;
     }
     if (mod && (e.key === "v" || e.key === "V")) {
-      e.preventDefault();
+      e.preventDefault(); markSd();
       const r0 = Math.min(...C.map(td => td.parentElement.sectionRowIndex)), c0 = Math.min(...C.map(td => td.cellIndex));
       (navigator.clipboard && navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.resolve("")).then(t => {
         const lines = String(t || "").replace(/\r/g, "").replace(/\n+$/, "").split("\n").map(l => l.split("\t"));

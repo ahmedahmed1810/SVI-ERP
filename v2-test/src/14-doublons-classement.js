@@ -112,6 +112,18 @@
             else { X.save(); X.refresh(); return; }
           }
         }
+        /* v492 (remarque 10) : une désignation de charge n'a qu'une unité et qu'un article dans tout le budget
+           (deux façons d'acheter : le préciser dans la désignation, ex. CIMENT (EN SAC) / CIMENT (EN VRAC)) */
+        if (k === "chg" && r && !r.t && U_(r.des)) {
+          const o = X.INS.chg.find(x => x.id !== r.id && !x.t && U_(x.des) === U_(r.des) && ((U_(x.u) && U_(r.u) && U_(x.u) !== U_(r.u)) || (U_(x.art) && U_(r.art) && U_(x.art) !== U_(r.art))));
+          if (o) {
+            const f = inp.dataset.f, old = shell.__dupOld && shell.__dupOld.id === r.id ? shell.__dupOld.row : null;
+            svToast(U_(r.des) + " EXISTE DÉJÀ" + (U_(o.art) ? " (ARTICLE " + U_(o.art) + ")" : "") + " EN " + U_(o.u) + " : UNE DÉSIGNATION N'A QU'UNE UNITÉ ET UN ARTICLE. POUR UNE AUTRE FAÇON D'ACHETER, LE PRÉCISER ENTRE PARENTHÈSES (EX. « " + U_(r.des) + " (EN SAC) »).", 6000, inp);
+            r[f] = old ? (old[f] ?? "") : "";
+            X.save(); X.refresh();
+            return;
+          }
+        }
         const key = dupKeyOf(k, r);
         if (!key) return;
         const other = X.INS[k].find(x => x.id !== r.id && dupKeyOf(k, x) === key);
@@ -305,10 +317,8 @@
         if (a.dataset.a === "merge") { const m = dupMerged(it.k, it.keep.id, it.drop.id); if (!m.err) { dupMerge(it.k, it.keep.id, it.drop.id, m.links); changed = true; } items.splice(cur, 1); draw(); return; }
         if (a.dataset.a === "ignall") { items.forEach(ignore); items.length = 0; finish(); return; }
         if (a.dataset.a === "mergeall") {
-          d.style.display = "none";
+          /* v492 (remarque 11) : FUSIONNER TOUS sans seconde confirmation (↶ ANNULER permet de revenir en arrière) */
           const n = items.length;
-          const ok = await svConfirm({ title: "FUSIONNER TOUS", text: n + " DOUBLON(S) SERONT FUSIONNÉS (LIAISONS ET DÉLAIS REPORTÉS).", ok: "FUSIONNER TOUS" });
-          if (!ok) { document.body.appendChild(d); d.style.display = ""; draw(); return; }
           const blocked = [];
           items.slice().forEach(x => {
             if (!alive(x)) return;

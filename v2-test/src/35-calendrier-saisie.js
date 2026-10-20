@@ -456,6 +456,7 @@ document.addEventListener("input", e => {
     const out = [], b = S.b || S.a;
     if (S.b) for (let r = Math.min(S.a.r, b.r); r <= Math.max(S.a.r, b.r); r++) for (let c = Math.min(S.a.c, b.c); c <= Math.max(S.a.c, b.c); c++) { const td = tdAt(S.tbl, r, c); if (td) out.push(td); }
     S.extra.forEach(k => { const [r, c] = k.split(":").map(Number); const td = tdAt(S.tbl, r, c); if (td && !out.includes(td)) out.push(td); });
+    if (!out.length) { const td = tdAt(S.tbl, S.a.r, S.a.c); if (td) out.push(td); }
     return out;
   };
   const paint = () => {
@@ -494,7 +495,8 @@ document.addEventListener("input", e => {
   document.addEventListener("pointerdown", e => {
     if (e.target === H) return;
     const td = e.target.closest && e.target.closest("td"), tbl = td && td.closest(TSEL);
-    if (!tbl) { if (!e.target.closest || !e.target.closest("#blkMenu")) { S.b = null; S.extra.clear(); paint(); } return; }
+    /* v492 (remarque 11) : la sélection reste (menu ⋯, boutons) ; seul un toucher sur une autre case l'annule */
+    if (!tbl) return;
     const p = posOf(td); if (!p) return;
     if ((e.shiftKey || e.metaKey || e.ctrlKey) && S.tbl === tbl && S.a) {
       e.preventDefault(); S.keep = true;
@@ -505,6 +507,29 @@ document.addEventListener("input", e => {
   }, true);
   window.addEventListener("scroll", () => { if (H && H.style.display === "block") handle(); }, true);
   const valOf = td => { const i = td.querySelector("input:not([type=checkbox]), textarea, select"); return String(i ? i.value : td.textContent || "").replace(/[\t\n]/g, " ").trim(); };
+  const selTsv = C => {
+    const rs = [...new Set(C.map(td => td.parentElement))].sort((x, y) => x.sectionRowIndex - y.sectionRowIndex);
+    const cs = [...new Set(C.map(td => td.cellIndex))].sort((x, y) => x - y);
+    return rs.map(tr => cs.map(c => { const td = tr.cells[c]; return td && C.includes(td) ? valOf(td) : ""; }).join("\t")).join("\n");
+  };
+  const putIn = (td, v) => { const i = td.querySelector("input.sd-in"); if (!i || i.readOnly) return false; i.__sel = true; i.value = v; i.dispatchEvent(new Event("input", { bubbles: true })); i.__sel = false; return true; };
+  const markSd = () => { if (S.tbl) S.tbl.dispatchEvent(new CustomEvent("svimark", { bubbles: true })); };
+  /* API de la sélection (menu ⋯ de la SAISIE DIRECTE) */
+  window.__sviSel = {
+    count: () => cells().length,
+    copy: () => { const C = cells(); if (!C.length) return 0; const t = selTsv(C); try { navigator.clipboard && navigator.clipboard.writeText(t); } catch (err) {} window.__sviSelClip = t; return C.length; },
+    clear: () => { let n = 0; cells().forEach(td => { if (putIn(td, "")) n++; }); document.querySelector(".sd-sug")?.remove(); return n; },
+    paste: async () => {
+      const C = cells(); if (!C.length || !S.tbl) return 0;
+      let t = ""; try { t = navigator.clipboard && navigator.clipboard.readText ? await navigator.clipboard.readText() : ""; } catch (err) { t = ""; }
+      if (!t) t = window.__sviSelClip || "";
+      const r0 = Math.min(...C.map(td => td.parentElement.sectionRowIndex)), c0 = Math.min(...C.map(td => td.cellIndex));
+      const lines = String(t || "").replace(/\r/g, "").replace(/\n+$/, "").split("\n").map(l => l.split("\t"));
+      let n = 0; lines.forEach((cl, i) => cl.forEach((v, j) => { const td = tdAt(S.tbl, r0 + i, c0 + j); if (td && putIn(td, v.trim())) n++; }));
+      document.querySelector(".sd-sug")?.remove();
+      return n;
+    }
+  };
   document.addEventListener("keydown", e => {
     const act = document.activeElement, td0 = act && act.closest && act.closest("td"), tbl = td0 && td0.closest(TSEL);
     if (!tbl || S.tbl !== tbl || !S.a) return;
@@ -529,15 +554,15 @@ document.addEventListener("input", e => {
       return;
     }
     if (!tbl.classList.contains("sd-t")) return;
-    const put = (td, v) => { const i = td.querySelector("input.sd-in"); if (!i || i.readOnly) return false; i.value = v; i.dispatchEvent(new Event("input", { bubbles: true })); return true; };
+    const put = (td, v) => putIn(td, v);
     if (!mod && (e.key === "Backspace" || e.key === "Delete")) {
-      e.preventDefault(); let n = 0; C.forEach(td => { if (put(td, "")) n++; });
+      e.preventDefault(); markSd(); let n = 0; C.forEach(td => { if (put(td, "")) n++; });
       document.querySelector(".sd-sug")?.remove();
       if (typeof svToast === "function") svToast(n + " CASE(S) VIDÉE(S).", 1800);
       return;
     }
     if (mod && (e.key === "v" || e.key === "V")) {
-      e.preventDefault();
+      e.preventDefault(); markSd();
       const r0 = Math.min(...C.map(td => td.parentElement.sectionRowIndex)), c0 = Math.min(...C.map(td => td.cellIndex));
       (navigator.clipboard && navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.resolve("")).then(t => {
         const lines = String(t || "").replace(/\r/g, "").replace(/\n+$/, "").split("\n").map(l => l.split("\t"));
