@@ -335,7 +335,7 @@
       { key: "qlt", title: "DÉTAIL QUALITÉ" },
       { key: "dly", title: "DÉTAIL DÉLAIS" },
       /* budget en instance : les liaisons validées sont un onglet du détail */
-      ...(budget.inst ? [{ key: "lnk", title: "LIAISONS VALIDÉES" }, { key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "xpl", title: "EXPLOITATION" }] : [])
+      ...(budget.inst ? [{ key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "lnk", title: "MARGE", ico: "xpl" }] : [])   /* v498 (remarque 37) : MARGE remplace LIAISONS VALIDÉES et EXPLOITATION */
     ];
 
     /* dernier onglet du détail ouvert (charges, produits, qualité, délais) */
@@ -477,7 +477,7 @@
                 class="bdg-d-tab"
                 data-tab="${t.key}"
               >
-                ${SVI_ICON[t.key] || ""}${t.title}
+                ${SVI_ICON[t.ico || t.key] || ""}${t.title}
               </button>
             `).join("")
           }

@@ -447,7 +447,7 @@
     if (!shell.__lnkCbBound) {
       shell.__lnkCbBound = true;
       shell.addEventListener("change", e => {
-        const cb = e.target.closest && e.target.closest("input.lnk-cb, input.lnk-cball");
+        const cb = e.target.closest && e.target.closest("input.lnk-cb");   /* v498 : tout cocher et lignes regroupées de MARGE : 22b */
         if (!cb || !shell.__unl) return;
         const L = shell.__unl.INS.links || [];
         const trs = cb.classList.contains("lnk-cball") ? [...cb.closest("table").querySelectorAll("tbody tr[data-lid]")] : [cb.closest("tr[data-lid]")];
