@@ -1907,6 +1907,15 @@ tr.ins-grp td { background: #eef3fa; color: #1f3b63; font-weight: 700; }
 #bdgTabs > .bdg-d-tab .ico { flex: none; }
 .xpl-table td.xpl-pct { font-weight: 700; }
 .xpl-table tr.xpl-sub td { background: #e9edf3; font-weight: 800; }
-.xpl-table th.xpl-sort { cursor: pointer; }
 .xpl-empty { padding: 16px; font-weight: 700; color: #6b7280; }
 .xpl-table td.xpl-b { font-weight: 900; }
+
+/* v497 (remarques 33 et 35) : case sélectionnée comme dans Google Sheets — cadre, pas de curseur ; cases grisées sélectionnables */
+:is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) :is(input, textarea).svi-nav { caret-color: transparent !important; }
+:is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) :is(input, textarea).svi-nav::selection { background: transparent; }
+:is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) td.svi-tdf { outline: 2px solid var(--inst, #b91c1c); outline-offset: -2px; }
+:is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) tbody td :is(input, textarea):disabled { pointer-events: none; }
+
+/* v497 (remarque 34) : rangée d'onglets serrée — tous les intitulés entiers */
+.tab-eq.tab-tight { font-size: 10.5px !important; padding-left: 4px !important; padding-right: 6px !important; gap: 2px !important; }
+.tab-eq.tab-tight > svg, .tab-eq.tab-tight > .ico { display: none !important; }

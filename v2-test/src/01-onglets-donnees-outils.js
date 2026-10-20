@@ -25,11 +25,13 @@ const sviEqualTabs = () => {
     if (c.offsetParent === null) return;
     const ts = sviTabsOf(set, c);
     if (ts.length < 2) return;
-    let w = saved[set.c];
-    if (!w) {
+    /* v497 (remarque 34) : une largeur mémorisée ne fait jamais déborder la rangée — tous les onglets restent entiers */
+    let w = saved[set.c], nat = 0, fit = 0;
+    ts.forEach(t => t.classList.remove("tab-tight"));
+    {
       /* largeur naturelle du plus long intitulé */
       ts.forEach(t => { t.style.width = ""; t.style.flex = "none"; t.style.whiteSpace = "nowrap"; });
-      const nat = Math.ceil(Math.max(...ts.map(t => t.getBoundingClientRect().width)));
+      nat = Math.ceil(Math.max(...ts.map(t => t.getBoundingClientRect().width)));
       /* place disponible : le bloc, moins ce qui n'est pas un onglet (⋯, poignée…) */
       const par = c.parentElement;
       let avail = c.clientWidth;
@@ -39,11 +41,14 @@ const sviEqualTabs = () => {
         avail = par.clientWidth - [...par.children].filter(x => x !== c).reduce((t, x) => t + x.getBoundingClientRect().width, 0);
       }
       const gap = parseFloat(getComputedStyle(c).columnGap) || 0;
-      const fit = Math.floor((avail - others - 16 - gap * ts.length) / ts.length);
-      w = Math.max(80, Math.min(nat, fit));
+      const nv = ts.filter(t => t.offsetParent !== null).length || ts.length;
+      fit = Math.floor((avail - others - 16 - gap * nv) / nv);
+      w = w ? Math.max(70, Math.min(w, fit)) : Math.max(70, Math.min(nat, fit));
     }
     ts.forEach(t => { t.style.boxSizing = "border-box"; t.style.width = w + "px"; t.style.flex = "none";
       t.style.whiteSpace = "normal"; t.style.justifyContent = "center"; t.style.textAlign = "center"; t.classList.add("tab-eq"); });
+    /* rangée serrée : intitulé un peu plus petit et sans pictogramme, pour qu'aucun mot ne soit coupé */
+    if (ts.some(t => t.offsetParent !== null && t.scrollWidth > t.clientWidth + 1)) ts.forEach(t => t.classList.add("tab-tight"));
     /* même hauteur pour tous les onglets de la rangée (celle du plus haut) */
     ts.forEach(t => { t.style.height = ""; t.style.alignSelf = "flex-end"; });
     const hMax = Math.ceil(Math.max(...ts.filter(t => t.offsetParent !== null).map(t => t.getBoundingClientRect().height)));
