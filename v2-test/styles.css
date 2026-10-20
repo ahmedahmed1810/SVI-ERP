@@ -1889,9 +1889,15 @@ tr.ins-grp td { background: #eef3fa; color: #1f3b63; font-weight: 700; }
 #sviSelHandle { width: 9px; height: 9px; border: 0; box-shadow: none; background: #1d4ed8; }
 #sviSelHandle::before { inset: -16px; }
 /* v493 — remarque 15 : trait de largeur des colonnes plus facile à attraper (saisie directe) */
-#sdW .sd-t thead th .col-rs { width: 26px; }
+#sdW .sd-t thead th .col-rs { width: 16px; }
 /* v493 — remarque 17 : unités centrées (saisie directe) */
 #sdW td.center .sd-in { text-align: center; }
 /* v493 — remarque 16 : en-tête abrégé « … » quand la colonne est très étroite */
 #sdW .sd-t thead th { overflow: hidden; }
 #sdW .sd-t thead th .cf-lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* v494 — remarque 22 : la loupe (tri / filtre) passe devant le trait de largeur et garde une bonne zone de toucher */
+.cf-wrap .cf-btn { margin-right: 16px; position: relative; z-index: 5; }
+.cf-btn::before { content: ""; position: absolute; inset: -7px -5px; }
+/* v494 — remarque 18 : boutons ANNULER / VALIDER de la saisie directe remontés de 6 px */
+#sdW .sd-foot { padding: 6px 14px 14px; }

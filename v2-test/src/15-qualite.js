@@ -920,7 +920,7 @@
       insNorm(); insSave();
       return true;
     };
-    shell.__ins = INS_EDIT ? { INS, insFoots, refreshAll: () => refreshAll(), artPlace: id => { if (desPlaceByArt(id)) { const c = shell.querySelector(".bdg-d-client-scroll"); if (c && !c.contains(document.activeElement)) insRedraw("des"); } },
+    shell.__ins = INS_EDIT ? { INS, insFoots, refreshAll: () => { ICL = null; refreshAll(); }, artPlace: id => { if (desPlaceByArt(id)) { const c = shell.querySelector(".bdg-d-client-scroll"); if (c && !c.contains(document.activeElement)) insRedraw("des"); } },
       /* v468 : mise à jour JUSTE APRÈS une saisie (ENTRÉE ou case quittée), sans attendre de toucher hors du tableau :
          la liste où l'on saisit garde le clavier (seul son compteur change) ; tout le reste est redessiné aussitôt */
       afterEntry: (k, box) => {

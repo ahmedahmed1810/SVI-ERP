@@ -3150,7 +3150,7 @@ function renderBudgetList() {
       }
       /* FORMAT 113 : zone de réglage large au toucher (trait fin à l'œil) */
       .col-rs {
-        position: absolute; top: 0; right: 0; width: 26px; height: 100%;   /* v493 (remarque 15) : zone de toucher élargie */
+        position: absolute; top: 0; right: 0; width: 16px; height: 100%;   /* v494 (remarque 22) : partagé avec la loupe (qui passe devant) */
         cursor: col-resize; z-index: 4; touch-action: none;
       }
       .col-rs::after {
@@ -5846,7 +5846,17 @@ function renderBudgetList() {
     const insQty = (k, r) => {
       if (k === "prd") return insPrdQ(r);
       /* QPB désignation : toujours calculée = somme des produits de ses tâches primaires (0 sans liaison) */
-      if (k === "des") { const lq = r.id ? insLinkedQ(INS, r.id) : null; return lq !== null ? lq : 0; }
+      if (k === "des") {
+        /* v494 (remarque 23) : cases cochées dans d'autres blocs → QPB limitée aux tâches concernées
+           (produits des liaisons primaires des mêmes désignation / lot / activité primaire que les liaisons retenues) */
+        let CL = null; try { CL = r.id ? insCheckLinks("des") : null; } catch (e) { CL = null; }   /* déclarée plus bas (ouverture) */
+        if (CL) {
+          const keep = new Set(CL.filter(l => l.des === r.id).map(l => l.lot + "|" + l.prim));
+          return (INS.links || []).filter(l => l.des === r.id && keep.has(l.lot + "|" + l.prim) && insLinkPrim(INS, l))
+            .reduce((t, l) => t + (l.prd || []).reduce((a, x) => { const p = INS.prd.find(q => q.id === x.id); return a + (p ? insPrdQ(p) : 0); }, 0), 0);
+        }
+        const lq = r.id ? insLinkedQ(INS, r.id) : null; return lq !== null ? lq : 0;
+      }
       return r.q === "" || r.q === undefined ? 0 : num(r.q);
     };
     /* v476 (remarque 3) : produit pas encore lié — tâche primaire choisie (ronds) : PPB de la désignation, sinon vide */
@@ -6291,22 +6301,30 @@ function renderBudgetList() {
     };
     /* v484 (remarque 23) : cases cochées dans les AUTRES blocs (désignation, lot, activités, produits, charges) :
        seules les lignes liées à ce qui y est coché comptent (blocs combinés : ET) */
-    const insCheckSet = k => {
-      if (!INS || !["des", "prd", "chg", "lot", "prim", "sec"].includes(k)) return null;
+    /* liaisons retenues par les cases cochées des blocs autres que k (null : aucune case cochée ailleurs) ; mémorisé un instant */
+    var ICL = null;
+    const insCheckLinks = k => {
+      if (!INS) return null;
+      /* mémoire valable pour un seul dessin (vidée dès la fin de la tâche en cours) */
+      if (!ICL) { ICL = { m: {} }; queueMicrotask(() => { ICL = null; }); }
+      if (k in ICL.m) return ICL.m[k];
       const B = ["des", "lot", "prim", "sec", "prd", "chg"].filter(x => x !== k);
       const C = {};
       B.forEach(x => { const ids = (INS[x] || []).filter(r => !r.t && r.on === true).map(r => r.id); if (ids.length) C[x] = new Set(ids); });
       const ks = Object.keys(C);
-      if (!ks.length) return null;
+      const out = !ks.length ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x])));
+      ICL.m[k] = out;
+      return out;
+    };
+    const insCheckSet = k => {
+      if (!INS || !["des", "prd", "chg", "lot", "prim", "sec"].includes(k)) return null;
+      const L = insCheckLinks(k);
+      if (!L) return null;
       const S = new Set();
-      (INS.links || []).forEach(l => {
-        const ok = ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]));
-        if (!ok) return;
-        if (k === "prd" || k === "chg") (l[k] || []).forEach(y => S.add(y.id)); else S.add(l[k]);
-      });
+      L.forEach(l => { if (k === "prd" || k === "chg") (l[k] || []).forEach(y => S.add(y.id)); else S.add(l[k]); });
       return S;
     };
-    const insFoots = () => shell.querySelectorAll("table.ins-table[data-ik]").forEach(t => { const ft = t.querySelector("tfoot"); if (ft) ft.innerHTML = insFootHTML(t.dataset.ik); });
+    const insFoots = () => (ICL = null, shell).querySelectorAll("table.ins-table[data-ik]").forEach(t => { const ft = t.querySelector("tfoot"); if (ft) ft.innerHTML = insFootHTML(t.dataset.ik); });
     const insFootHTML = k => {
       if (k === "qlt") return "";
       /* FORMAT 126 : lignes affichées, ou seulement les cases carrées cochées ; « TOTAL PARTIEL » si une partie seulement */
@@ -8164,7 +8182,7 @@ function renderBudgetList() {
       insNorm(); insSave();
       return true;
     };
-    shell.__ins = INS_EDIT ? { INS, insFoots, refreshAll: () => refreshAll(), artPlace: id => { if (desPlaceByArt(id)) { const c = shell.querySelector(".bdg-d-client-scroll"); if (c && !c.contains(document.activeElement)) insRedraw("des"); } },
+    shell.__ins = INS_EDIT ? { INS, insFoots, refreshAll: () => { ICL = null; refreshAll(); }, artPlace: id => { if (desPlaceByArt(id)) { const c = shell.querySelector(".bdg-d-client-scroll"); if (c && !c.contains(document.activeElement)) insRedraw("des"); } },
       /* v468 : mise à jour JUSTE APRÈS une saisie (ENTRÉE ou case quittée), sans attendre de toucher hors du tableau :
          la liste où l'on saisit garde le clavier (seul son compteur change) ; tout le reste est redessiné aussitôt */
       afterEntry: (k, box) => {
@@ -15096,6 +15114,26 @@ function renderBudgetList() {
         sugShow(inp);
       });
       d.addEventListener("focusout", () => setTimeout(() => { const b = d.querySelector(".sd-sug"); if (b && document.activeElement !== b.__for) sugHide(); }, 200));
+      /* v494 (remarque 21) : la case à cocher apparaît dès la première lettre d'une ligne nouvelle */
+      d.addEventListener("input", e => {
+        const inp = e.target.closest && e.target.closest(".sd-in"); if (!inp) return;
+        const tr = inp.closest("tr"), td = tr && tr.querySelector("td.sd-cbc"), r = rows[+inp.dataset.i];
+        if (td && !td.querySelector(".sd-cb") && r && COLS.some(c => r[c[0]])) td.innerHTML = `<input type="checkbox" class="sd-cb" data-i="${inp.dataset.i}">`;
+      });
+      /* v494 (remarque 19) : une ligne nouvelle vidée entièrement se supprime quand on la quitte (une seule ligne vide, en bas) */
+      let lastRow = null;
+      d.addEventListener("focusin", e => {
+        const inp = e.target.closest && e.target.closest(".sd-in"); if (!inp) return;
+        const i = +inp.dataset.i, f = inp.dataset.f, prev = lastRow;
+        lastRow = i;
+        if (prev === null || prev === i) return;
+        const r = rows[prev];
+        if (!r || r._id || prev === rows.length - 1 || COLS.some(c => r[c[0]])) return;
+        rows.splice(prev, 1);
+        const ni = i > prev ? i - 1 : i;
+        lastRow = ni;
+        setTimeout(() => { draw(); focusAt(ni, f); }, 0);
+      });
       /* v491 (remarque 5) : clavier comme Excel / Google Sheets — Tab = case à droite (Maj + Tab : à gauche) ;
          Entrée = case du dessous, dans la colonne où la suite de Tab a commencé (Maj + Entrée : au-dessus) ;
          flèches haut / bas = ligne du dessus / dessous ; gauche / droite = case voisine quand le curseur est au bord du texte.
@@ -15150,9 +15188,14 @@ function renderBudgetList() {
           return;
         }
         if (e.key === "ArrowUp" || e.key === "ArrowDown") { go(sameCol(tr, f, e.key === "ArrowDown" ? 1 : -1)); return; }
-        /* Entrée : en dessous, toujours */
+        /* Entrée : en dessous, toujours ; v494 (remarque 19) : sur la dernière case d'une ligne nouvelle remplie,
+           Entrée (touche « Suivant » de l'iPad) recopie la combinaison comme Tab */
         if (e.shiftKey) { go(sameCol(tr, f, -1)); return; }
+        { const C = cellsOf(tr), src = rows[i]; if (C.indexOf(inp) === C.length - 1 && src && !src._id && COLS.some(cc => src[cc[0]])) { comboNext(i); return; } }
         if (go(sameCol(tr, f, 1))) return;
+        /* une seule ligne vide en bas : pas de seconde ligne vide */
+        const cur = rows[i];
+        if (cur && !cur._id && COLS.every(cc => !cur[cc[0]])) return;
         rows.push(blank()); draw(); focusAt(rows.length - 1, f);
       }, true);
       /* v479 (remarques 11 et 12) : case à cocher par ligne et menu ⋯ (SUPPRIMER LES LIGNES COCHÉES…) */
@@ -21512,5 +21555,23 @@ document.addEventListener("input", e => {
       }).catch(() => {});
     }
   }, true);
+})();
+
+/* v494 (remarque 20) : comme Excel — un premier toucher sur une case d'un tableau sélectionne tout son contenu
+   (ce qu'on tape remplace la valeur) ; un second toucher place le curseur pour corriger */
+(() => {
+  const TS = "table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table";
+  let arm = null;
+  document.addEventListener("pointerdown", e => {
+    const i = e.target.closest && e.target.closest("input:not([type=checkbox]):not([type=radio]), textarea.ins-in");
+    arm = i && i.closest(TS) && document.activeElement !== i && !i.readOnly && !i.disabled ? i : null;
+  }, true);
+  document.addEventListener("focusin", e => {
+    const i = e.target; if (!arm || i !== arm) return;
+    const sel = () => { try { i.setSelectionRange(0, String(i.value || "").length); } catch (err) { try { i.select(); } catch (e2) {} } };
+    sel(); setTimeout(sel, 0); setTimeout(sel, 60);
+  });
+  document.addEventListener("mouseup", e => { if (arm && e.target === arm) { e.preventDefault(); arm = null; } }, true);
+  document.addEventListener("pointerup", () => { setTimeout(() => { arm = null; }, 80); }, true);
 })();
 

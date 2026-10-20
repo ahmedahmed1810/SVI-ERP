@@ -170,6 +170,26 @@
         sugShow(inp);
       });
       d.addEventListener("focusout", () => setTimeout(() => { const b = d.querySelector(".sd-sug"); if (b && document.activeElement !== b.__for) sugHide(); }, 200));
+      /* v494 (remarque 21) : la case à cocher apparaît dès la première lettre d'une ligne nouvelle */
+      d.addEventListener("input", e => {
+        const inp = e.target.closest && e.target.closest(".sd-in"); if (!inp) return;
+        const tr = inp.closest("tr"), td = tr && tr.querySelector("td.sd-cbc"), r = rows[+inp.dataset.i];
+        if (td && !td.querySelector(".sd-cb") && r && COLS.some(c => r[c[0]])) td.innerHTML = `<input type="checkbox" class="sd-cb" data-i="${inp.dataset.i}">`;
+      });
+      /* v494 (remarque 19) : une ligne nouvelle vidée entièrement se supprime quand on la quitte (une seule ligne vide, en bas) */
+      let lastRow = null;
+      d.addEventListener("focusin", e => {
+        const inp = e.target.closest && e.target.closest(".sd-in"); if (!inp) return;
+        const i = +inp.dataset.i, f = inp.dataset.f, prev = lastRow;
+        lastRow = i;
+        if (prev === null || prev === i) return;
+        const r = rows[prev];
+        if (!r || r._id || prev === rows.length - 1 || COLS.some(c => r[c[0]])) return;
+        rows.splice(prev, 1);
+        const ni = i > prev ? i - 1 : i;
+        lastRow = ni;
+        setTimeout(() => { draw(); focusAt(ni, f); }, 0);
+      });
       /* v491 (remarque 5) : clavier comme Excel / Google Sheets — Tab = case à droite (Maj + Tab : à gauche) ;
          Entrée = case du dessous, dans la colonne où la suite de Tab a commencé (Maj + Entrée : au-dessus) ;
          flèches haut / bas = ligne du dessus / dessous ; gauche / droite = case voisine quand le curseur est au bord du texte.
@@ -224,9 +244,14 @@
           return;
         }
         if (e.key === "ArrowUp" || e.key === "ArrowDown") { go(sameCol(tr, f, e.key === "ArrowDown" ? 1 : -1)); return; }
-        /* Entrée : en dessous, toujours */
+        /* Entrée : en dessous, toujours ; v494 (remarque 19) : sur la dernière case d'une ligne nouvelle remplie,
+           Entrée (touche « Suivant » de l'iPad) recopie la combinaison comme Tab */
         if (e.shiftKey) { go(sameCol(tr, f, -1)); return; }
+        { const C = cellsOf(tr), src = rows[i]; if (C.indexOf(inp) === C.length - 1 && src && !src._id && COLS.some(cc => src[cc[0]])) { comboNext(i); return; } }
         if (go(sameCol(tr, f, 1))) return;
+        /* une seule ligne vide en bas : pas de seconde ligne vide */
+        const cur = rows[i];
+        if (cur && !cur._id && COLS.every(cc => !cur[cc[0]])) return;
         rows.push(blank()); draw(); focusAt(rows.length - 1, f);
       }, true);
       /* v479 (remarques 11 et 12) : case à cocher par ligne et menu ⋯ (SUPPRIMER LES LIGNES COCHÉES…) */

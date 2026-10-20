@@ -236,7 +236,17 @@
     const insQty = (k, r) => {
       if (k === "prd") return insPrdQ(r);
       /* QPB désignation : toujours calculée = somme des produits de ses tâches primaires (0 sans liaison) */
-      if (k === "des") { const lq = r.id ? insLinkedQ(INS, r.id) : null; return lq !== null ? lq : 0; }
+      if (k === "des") {
+        /* v494 (remarque 23) : cases cochées dans d'autres blocs → QPB limitée aux tâches concernées
+           (produits des liaisons primaires des mêmes désignation / lot / activité primaire que les liaisons retenues) */
+        let CL = null; try { CL = r.id ? insCheckLinks("des") : null; } catch (e) { CL = null; }   /* déclarée plus bas (ouverture) */
+        if (CL) {
+          const keep = new Set(CL.filter(l => l.des === r.id).map(l => l.lot + "|" + l.prim));
+          return (INS.links || []).filter(l => l.des === r.id && keep.has(l.lot + "|" + l.prim) && insLinkPrim(INS, l))
+            .reduce((t, l) => t + (l.prd || []).reduce((a, x) => { const p = INS.prd.find(q => q.id === x.id); return a + (p ? insPrdQ(p) : 0); }, 0), 0);
+        }
+        const lq = r.id ? insLinkedQ(INS, r.id) : null; return lq !== null ? lq : 0;
+      }
       return r.q === "" || r.q === undefined ? 0 : num(r.q);
     };
     /* v476 (remarque 3) : produit pas encore lié — tâche primaire choisie (ronds) : PPB de la désignation, sinon vide */
@@ -681,22 +691,30 @@
     };
     /* v484 (remarque 23) : cases cochées dans les AUTRES blocs (désignation, lot, activités, produits, charges) :
        seules les lignes liées à ce qui y est coché comptent (blocs combinés : ET) */
-    const insCheckSet = k => {
-      if (!INS || !["des", "prd", "chg", "lot", "prim", "sec"].includes(k)) return null;
+    /* liaisons retenues par les cases cochées des blocs autres que k (null : aucune case cochée ailleurs) ; mémorisé un instant */
+    var ICL = null;
+    const insCheckLinks = k => {
+      if (!INS) return null;
+      /* mémoire valable pour un seul dessin (vidée dès la fin de la tâche en cours) */
+      if (!ICL) { ICL = { m: {} }; queueMicrotask(() => { ICL = null; }); }
+      if (k in ICL.m) return ICL.m[k];
       const B = ["des", "lot", "prim", "sec", "prd", "chg"].filter(x => x !== k);
       const C = {};
       B.forEach(x => { const ids = (INS[x] || []).filter(r => !r.t && r.on === true).map(r => r.id); if (ids.length) C[x] = new Set(ids); });
       const ks = Object.keys(C);
-      if (!ks.length) return null;
+      const out = !ks.length ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x])));
+      ICL.m[k] = out;
+      return out;
+    };
+    const insCheckSet = k => {
+      if (!INS || !["des", "prd", "chg", "lot", "prim", "sec"].includes(k)) return null;
+      const L = insCheckLinks(k);
+      if (!L) return null;
       const S = new Set();
-      (INS.links || []).forEach(l => {
-        const ok = ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]));
-        if (!ok) return;
-        if (k === "prd" || k === "chg") (l[k] || []).forEach(y => S.add(y.id)); else S.add(l[k]);
-      });
+      L.forEach(l => { if (k === "prd" || k === "chg") (l[k] || []).forEach(y => S.add(y.id)); else S.add(l[k]); });
       return S;
     };
-    const insFoots = () => shell.querySelectorAll("table.ins-table[data-ik]").forEach(t => { const ft = t.querySelector("tfoot"); if (ft) ft.innerHTML = insFootHTML(t.dataset.ik); });
+    const insFoots = () => (ICL = null, shell).querySelectorAll("table.ins-table[data-ik]").forEach(t => { const ft = t.querySelector("tfoot"); if (ft) ft.innerHTML = insFootHTML(t.dataset.ik); });
     const insFootHTML = k => {
       if (k === "qlt") return "";
       /* FORMAT 126 : lignes affichées, ou seulement les cases carrées cochées ; « TOTAL PARTIEL » si une partie seulement */

@@ -339,7 +339,7 @@ function renderBudgetList() {
       }
       /* FORMAT 113 : zone de réglage large au toucher (trait fin à l'œil) */
       .col-rs {
-        position: absolute; top: 0; right: 0; width: 26px; height: 100%;   /* v493 (remarque 15) : zone de toucher élargie */
+        position: absolute; top: 0; right: 0; width: 16px; height: 100%;   /* v494 (remarque 22) : partagé avec la loupe (qui passe devant) */
         cursor: col-resize; z-index: 4; touch-action: none;
       }
       .col-rs::after {
