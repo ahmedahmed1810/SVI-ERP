@@ -1879,3 +1879,9 @@ td.svi-cs { background: #dbe7f7 !important; box-shadow: inset 0 0 0 1px #1d4ed8;
 td.svi-cs input, td.svi-cs textarea { background: transparent !important; }
 #sviSelHandle { position: absolute; display: none; width: 14px; height: 14px; border-radius: 50%; background: #1d4ed8; border: 2px solid #fff; box-shadow: 0 0 0 1px #1d4ed8; z-index: 10095; touch-action: none; }
 #sviSelHandle::before { content: ""; position: absolute; inset: -12px; }
+/* v492 — remarque 10 : charges regroupées (tableau filtré) */
+tr.ins-grp td { background: #eef3fa; color: #1f3b63; font-weight: 700; }
+.ins-grpn { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #1d4ed8; color: #fff; font-size: 10px; font-weight: 800; }
+/* v492 — remarque 12 : pied de la saisie directe sans texte, boutons remontés ; remarque 13 : filtre du tableau d'origine */
+#sdW .sd-foot { padding: 6px 14px 8px; }
+#sdW .sd-srcf { border: 1px solid #1d4ed8; background: #e8f0fe; color: #1d4ed8; border-radius: 12px; padding: 2px 10px; font-size: 11px; font-weight: 800; cursor: pointer; }

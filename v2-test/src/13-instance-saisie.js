@@ -269,14 +269,14 @@
       chg: [
         ["art", "ART", "center", "txt", "article"],
         ["des", "DÉSIGNATION CHARGE", "", "txt", "detail"],
-        /* v491 (remarque 3) : colonne TÂCHE, comme dans DÉTAIL PRODUITS */
-        ["tache", "TÂCHE", "", "calc", "tache"],
         ["u", "UCB", "center", "txt", "unit"],
         ["q", "QCB", "number", "num", "qty"],
         ["p", "PCB", "number", "num", "price"],
         ["ht", "MCB HT", "number", "calc", "amount"],
         ["tva", "TVA %", "number", "num", "tva"],
         ["ttc", "MCB TTC", "number", "calc", "ttc"],
+        /* v491 (remarque 3) : colonne TÂCHE ; v492 (remarque 8) : à la fin */
+        ["tache", "TÂCHE", "", "calc", "tache"],
         /* FORMAT 111 (v488) : AGRÉMENT EXIGÉ / QUALIFICATION EXIGÉE — colonnes masquées pour l'instant (v491, remarque 3),
            à remettre plus tard : ["agr", "AGRÉMENT EXIGÉ", "center", "chk", "agr"], ["qex", "QUALIFICATION EXIGÉE", "", "txt", "qex"] */
       ],
@@ -497,10 +497,12 @@
       const t = insCfT(k);
       const normal = INS[k].filter(r => !r.t);
       if (ONLYC[k] && !normal.some(r => r.on === true)) ONLYC[k] = false;
-      const shown = cfApply(t, insCfCols(k), normal).filter(r => !ONLYC[k] || r.on === true);
+      /* v492 (remarque 7) : la case de droite filtre l'affichage des autres blocs — seules les lignes liées à ce qui y est coché */
+      const cs = insCheckSet(k);
+      const shown = cfApply(t, insCfCols(k), normal).filter(r => (!ONLYC[k] || r.on === true) && (!cs || cs.has(r.id)));
       const st = cfT(t);
       const sorting = !!(st.sort && !st.sort.def);
-      const filtering = Object.keys(st.f).length > 0 || !!ONLYC[k];
+      const filtering = Object.keys(st.f).length > 0 || !!ONLYC[k] || !!cs;
       if (k !== "des" || sorting) return shown;
       if (!filtering) return INS.des;
       const keep = new Set(shown.map(r => r.id));
@@ -595,12 +597,36 @@
     /* grands tableaux (détail produits / charges) : lignes dessinées par paquets, au fil du défilement (rapidité) */
     const INS_CHUNK = 120;
     const insMore = {};
+    /* v492 (remarque 10) : DÉTAIL CHARGES filtré (filtre de colonne, cases cochées d'un autre bloc, « seulement les cochées ») */
+    const insChgFiltered = () => { const st = cfT(insCfT("chg")); return Object.keys(st.f || {}).length > 0 || !!ONLYC.chg || !!insCheckSet("chg"); };
+    const insGrpRowHTML = g => {
+      const cols = insColsOrd("chg"), ht = g.reduce((t, r) => t + insHT("chg", r), 0), ttc = g.reduce((t, r) => t + insTTC("chg", r), 0);
+      const ps = new Set(g.map(r => money(Number(insCalc("chg", r, "p")) || 0)));
+      const v = { art: g[0].art || "", des: g[0].des || "", u: g[0].u || "", q: money(g.reduce((t, r) => t + (Number(insCalc("chg", r, "q")) || 0), 0)),
+        p: ps.size === 1 ? [...ps][0] : "", ht: money(ht), tva: ht ? money((ttc - ht) / ht * 100) : "", ttc: money(ttc), tache: "" };
+      const why = "LIGNES REGROUPÉES : " + g.length + " TÂCHES (" + [...new Set(g.map(r => chgTaskName(r.id)).filter(Boolean))].join(" · ") + "). RETIRER LE FILTRE POUR LES MODIFIER UNE PAR UNE.";
+      return `<tr class="ins-row ins-grp" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn" title="${esc(why)}">${g.length}</span></td>${cols.map(c => `<td class="${c[2]}${c[0] === "des" ? "" : ""}" data-why="${esc(why)}">${esc(v[c[0]] ?? "")}</td>`).join("")}${INS_EDIT ? "<td></td>" : ""}</tr>`;
+    };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
       const rows = k === "des" ? insShown(k) : lkTop(k, insShown(k));
       const ncol = INS_COLS[k].length + 1;
       let html = "";
-      if (k !== "des") {
+      if (k === "chg" && insChgFiltered()) {
+        /* v492 (remarque 10) : tableau filtré — charges identiques (même désignation, même unité, même article) regroupées
+           sur une ligne : quantités et montants additionnés, case TÂCHE vide ; lecture seule (retirer le filtre pour modifier) */
+        insMore[k] = [];
+        const G = new Map();
+        rows.forEach(r => { const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"); if (!G.has(key)) G.set(key, []); G.get(key).push(r); });
+        const done = new Set();
+        html = rows.map(r => {
+          const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"), g = G.get(key);
+          if (g.length < 2) return insRowHTML(k, r, 0);
+          if (done.has(key)) return "";
+          done.add(key);
+          return insGrpRowHTML(g);
+        }).join("");
+      } else if (k !== "des") {
         const first = rows.length > INS_CHUNK * 1.5 ? rows.slice(0, INS_CHUNK) : rows;
         insMore[k] = rows.slice(first.length);
         html = first.map(r => insRowHTML(k, r, 0)).join("");
@@ -653,19 +679,10 @@
       if (!rows.length && !INS_EDIT) html += `<tr><td colspan="${ncol}" class="empty">AUCUNE LIGNE</td></tr>`;
       return html;
     };
-    const insRoundSet = k => {
-      if (!INS_EDIT || !LK || !["des", "prd", "chg"].includes(k)) return null;
-      const any = ["des", "lot", "prim", "sec"].some(x => LK[x]) || Object.keys(LK.prd || {}).length || Object.keys(LK.chg || {}).length;
-      if (!any) return null;
-      const H = lkHits() || {}, S = new Set(H[k] || []);
-      if (k === "des" && LK.des) S.add(LK.des);
-      if ((k === "prd" || k === "chg") && LK[k]) Object.keys(LK[k]).forEach(id => S.add(id));
-      return S;
-    };
     /* v484 (remarque 23) : cases cochées dans les AUTRES blocs (désignation, lot, activités, produits, charges) :
        seules les lignes liées à ce qui y est coché comptent (blocs combinés : ET) */
     const insCheckSet = k => {
-      if (!INS || !["des", "prd", "chg"].includes(k)) return null;
+      if (!INS || !["des", "prd", "chg", "lot", "prim", "sec"].includes(k)) return null;
       const B = ["des", "lot", "prim", "sec", "prd", "chg"].filter(x => x !== k);
       const C = {};
       B.forEach(x => { const ids = (INS[x] || []).filter(r => !r.t && r.on === true).map(r => r.id); if (ids.length) C[x] = new Set(ids); });
@@ -675,7 +692,7 @@
       (INS.links || []).forEach(l => {
         const ok = ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]));
         if (!ok) return;
-        if (k === "des") S.add(l.des); else (l[k] || []).forEach(y => S.add(y.id));
+        if (k === "prd" || k === "chg") (l[k] || []).forEach(y => S.add(y.id)); else S.add(l[k]);
       });
       return S;
     };
@@ -685,18 +702,18 @@
       /* FORMAT 126 : lignes affichées, ou seulement les cases carrées cochées ; « TOTAL PARTIEL » si une partie seulement */
       /* v478 (remarque 10) : trois filtres combinés — filtres de colonne (lignes affichées), ronds (lignes choisies ou liées
          à ce qui est choisi), cases cochées ; « TOTAL PARTIEL » dès que l'un d'eux agit */
-      let shown = insShown(k).filter(r => !r.t);
-      const rs = insRoundSet(k);
-      if (rs) shown = shown.filter(r => rs.has(r.id));
-      const cs = insCheckSet(k);
-      if (cs) shown = shown.filter(r => cs.has(r.id));
+      /* v492 (remarque 7) : le total compte les lignes affichées (filtres de colonne, cases cochées des autres blocs ;
+         dans le bloc lui-même, ses lignes cochées) ; les ronds ne filtrent plus. « TOTAL » quand tout le tableau est affiché,
+         « TOTAL PARTIEL » dès qu'une partie seulement compte */
+      const shown = insShown(k).filter(r => !r.t);
       const on = shown.filter(r => r.on === true);
       const rows = on.length ? on : shown;
-      const partial = !!rs || !!cs || on.length > 0 || shown.length < INS[k].filter(r => !r.t).length;
+      const partial = on.length > 0 || shown.length < INS[k].filter(r => !r.t).length;
       const ht = rows.reduce((t, r) => t + insHT(k, r), 0);
       const ttc = rows.reduce((t, r) => t + insTTC(k, r), 0);
       /* pied aligné sur l'ordre des colonnes de l'écran */
-      const cols = insColsOrd(k), val = { ht: money(ht), tva: money(ttc - ht), ttc: money(ttc) };
+      /* v492 (remarque 9) : case TVA % du total = taux moyen pondéré (montant de TVA ÷ montant HT) */
+      const cols = insColsOrd(k), val = { ht: money(ht), tva: ht ? money((ttc - ht) / ht * 100) + " %" : "", ttc: money(ttc) };
       /* même unité → unité + somme des quantités ; même unité et même prix → le prix */
       const us = new Set(rows.map(r => U_(r.u || "")));
       if (rows.length && us.size === 1 && [...us][0]) {
@@ -951,7 +968,8 @@
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
       const col = (title, k) => {
         if (ONLYC[k] && !INS[k].some(r => r.on === true)) ONLYC[k] = false;
-        const list = lkTop(k, cfApply(k, [["v", title, r => r.v || "", ""]], INS[k]).filter(r => !ONLYC[k] || r.on === true));
+        const csk = insCheckSet(k);   /* v492 (remarque 7) : cases cochées des autres blocs */
+        const list = lkTop(k, cfApply(k, [["v", title, r => r.v || "", ""]], INS[k]).filter(r => (!ONLYC[k] || r.on === true) && (!csk || r.t || csk.has(r.id))));
         lastShown.hier[k] = list.map(r => r.v || "");
         const on = !!cfT(k).f.v;
         return `
