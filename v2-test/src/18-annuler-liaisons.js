@@ -411,6 +411,9 @@
         const er = r && X.rowErr(prev.k, r);
         if (!er) return;
         const back = shell.querySelector(`tr[data-ik="${prev.k}"][data-iid="${prev.id}"] input[data-f="${er.f}"]`);
+        /* v497 (remarque 31) : PCB manquant (charge absente de CHS) — on peut sortir ; la case reste encadrée en rouge,
+           la ligne est signalée dans À COMPLÉTER et empêche seulement de figer */
+        if (prev.k === "chg" && er.f === "p") { svToast(er.m + " (À COMPLÉTER)", 2500, back || undefined); return; }
         if (!back || back.disabled) return;
         lastRow = prev;
         e.preventDefault();

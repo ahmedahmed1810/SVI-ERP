@@ -111,7 +111,7 @@
       document.body.appendChild(d);
       window.__sviSdRefresh = draw;
       draw();
-      const focusAt = (i, f) => { const el = d.querySelector(`.sd-in[data-i="${i}"][data-f="${f}"]`); if (el) { el.focus(); try { el.select(); } catch (e) {} } };
+      const focusAt = (i, f) => { const el = d.querySelector(`.sd-in[data-i="${i}"][data-f="${f}"]`); if (el) { el.focus(); try { if (!el.classList.contains("svi-nav")) el.select(); } catch (e) {} } };
       /* liste de choix au format de l'application (jamais la bulle de Safari, FORMAT 50) : sous la case, après la 1re lettre, 8 au plus */
       const sugHide = () => d.querySelector(".sd-sug")?.remove();
       const sugShow = inp => {
@@ -195,7 +195,7 @@
          flèches haut / bas = ligne du dessus / dessous ; gauche / droite = case voisine quand le curseur est au bord du texte.
          v491 (remarque 4) : Entrée sur une ligne nouvelle remplie → la ligne suivante reprend la combinaison
          (DÉSIGNATION CLIENT, UPB, LOT, ACTIVITÉS, U) et le curseur va sur la désignation produit / charge */
-      const go = el => { if (!el) return false; el.focus(); try { el.select(); } catch (err) {} el.scrollIntoView({ block: "nearest", inline: "nearest" }); return true; };
+      const go = el => { if (!el) return false; el.focus(); try { if (!el.classList.contains("svi-nav")) el.select(); } catch (err) {} if (typeof sviKeepVisible === "function") sviKeepVisible(el); else el.scrollIntoView({ block: "nearest", inline: "nearest" }); return true; };
       const cellsOf = tr => tr ? [...tr.querySelectorAll(".sd-in")].filter(x => !x.readOnly) : [];
       const sameCol = (tr, f, dir) => { for (let t = dir > 0 ? tr.nextElementSibling : tr.previousElementSibling; t; t = dir > 0 ? t.nextElementSibling : t.previousElementSibling) { const x = t.querySelector(`.sd-in[data-f="${f}"]`); if (x && !x.readOnly) return x; } return null; };
       const COMBO = ["dc", "upb", "lot", "prim", "sec", "su"];
@@ -227,6 +227,7 @@
         const inp = e.target.closest(".sd-in");
         if (!inp || !["Enter", "Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) || (e.shiftKey && e.key.startsWith("Arrow"))) return;
         if (d.querySelector(".sd-sug") && (e.key === "ArrowUp" || e.key === "ArrowDown")) return;   /* flèches : dans la liste de choix */
+        if (e.key.startsWith("Arrow")) return;   /* v497 (remarque 33) : flèches — case sélectionnée : case voisine (mode Google Sheets) ; en saisie : dans le texte */
         const tr = inp.closest("tr"), f = inp.dataset.f, i = +inp.dataset.i;
         if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
           const L = inp.value.length, a = inp.selectionStart, b = inp.selectionEnd, all = a === 0 && b === L;

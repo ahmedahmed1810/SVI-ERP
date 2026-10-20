@@ -177,6 +177,8 @@ def main():
         xr = pg.evaluate("() => { const t = document.querySelector('.xpl-table'); if (!t) return null; const r = [...t.tBodies[0].rows].map(tr => [...tr.cells].map(c => c.textContent.replace(/\u202f/g, ' ').trim())); return r; }")
         okx = bool(xr) and any("BETON EN FONDATION" in " ".join(r) and "10 000,00" in r and "4 500,00" in r and "5 500,00" in r and "55,00 %" in r for r in xr)
         check("remarque 25 : PAR TÂCHE PRIMAIRE — vendu 10 000, charges 4 500, marge 5 500, 55 %", okx, xr)
+        hx = pg.evaluate("() => { const t = document.querySelector('.xpl-table'); return t ? [[...t.tHead.rows[0].cells].map(c => c.textContent.trim()), t.querySelectorAll('thead .cf-btn').length, t.querySelectorAll('thead .col-rs').length, !!t.querySelector('thead input.xpl-cball'), getComputedStyle([...t.tBodies[0].rows[0].cells][4]).textAlign] : null; }")
+        check("remarques 26 à 29 : EXPLOITATION — en-têtes avec loupe et largeur réglable, tout cocher, UPB centrée, PRODUITS", bool(hx) and "PRODUITS" in hx[0] and "VENDU" not in hx[0] and hx[1] >= 9 and hx[2] >= 9 and hx[3] and hx[4] == "center", hx)
         pg.evaluate("() => document.querySelector('[data-xsub=\"rnd\"]')?.click()"); pg.wait_for_timeout(300)
         rr = pg.evaluate("() => { const t = document.querySelector('.xpl-table'); return t ? t.tBodies[0].innerText : ''; }")
         check("remarque 25 : RENDEMENT — 3,33 M3 DE BETONNAGE (RDC) / T CIMENT", "3,33 M3 DE BETONNAGE (RDC) / T CIMENT" in rr, rr[:200])
@@ -191,6 +193,13 @@ def main():
         pg.evaluate("() => document.querySelector('.xpl-table input.xpl-cb:checked')?.click()"); pg.wait_for_timeout(300)
         fitx = pg.evaluate("() => { const b = document.getElementById('bdgTabs'); return [b.scrollWidth, b.clientWidth]; }")
         check("remarque 25 : tous les onglets du bloc visibles sans balayer", fitx[0] <= fitx[1] + 1, fitx)
+        # remarque 34 : à la largeur de l'iPad, avec une largeur d'onglet mémorisée trop grande, tous les onglets restent entiers
+        pg.evaluate("() => localStorage.setItem('svi_tabw_v1', JSON.stringify({ '#bdgTabs': 220 }))")
+        pg.set_viewport_size({"width": 1000, "height": 820}); pg.wait_for_timeout(400)
+        t34 = pg.evaluate("() => { const b = document.getElementById('bdgTabs'); const ts = [...b.querySelectorAll('.bdg-d-tab')].filter(t => t.offsetParent !== null); const tools = b.querySelector('.blk-tools').getBoundingClientRect(); return [b.scrollWidth <= b.clientWidth + 1, ts.every(t => t.scrollWidth <= t.clientWidth + 1), ts.every(t => t.getBoundingClientRect().right <= tools.left + 1)]; }")
+        pg.evaluate("() => localStorage.removeItem('svi_tabw_v1')")
+        pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
+        check("remarque 34 : onglets entiers à la largeur de l'iPad (EXPLOITATION non coupé)", t34 == [True, True, True], t34)
 
         # remarque 2 : intitulés presque identiques
         dx = "(() => { const s = [...document.querySelectorAll('*')].find(e => e.__dupX); return s && s.__dupX; })()"
@@ -318,10 +327,57 @@ def main():
             return [all, f]; }}""")
         check("remarque 23 : QPB filtrée par la charge cochée (15 → 10)", q23 == ["15,00", "10,00"], q23)
 
-        # remarque 20 : premier toucher = tout le contenu sélectionné
-        pg.click('table.ins-table[data-ik="des"] tr[data-iid="d2"] input.ins-in[data-f="art"]'); pg.wait_for_timeout(150)
-        s20 = pg.evaluate("() => { const a = document.activeElement; return [a.selectionStart, a.selectionEnd, (a.value || '').length]; }")
-        check("remarque 20 : premier toucher sélectionne toute la case", s20[0] == 0 and s20[1] == s20[2] and s20[2] > 0, s20)
+        # remarque 33 (v497) : comme Google Sheets — 1er toucher = case sélectionnée (sans curseur), 2e = saisie, flèches = case voisine
+        P = 'table.ins-table[data-ik="des"] tr[data-iid="d1"] input.ins-in[data-f="p"]'
+        pg.click(P); pg.wait_for_timeout(200)
+        n1 = pg.evaluate("() => document.activeElement.classList.contains('svi-nav')")
+        pg.keyboard.press("ArrowDown"); pg.wait_for_timeout(150)
+        n2 = pg.evaluate("() => { const a = document.activeElement; return [a.dataset.f, a.closest('tr').dataset.iid, a.classList.contains('svi-nav')]; }")
+        pg.keyboard.press("ArrowUp"); pg.wait_for_timeout(150)
+        pg.click(P); pg.wait_for_timeout(150)
+        n3 = pg.evaluate("() => document.activeElement.classList.contains('svi-nav')")
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(100)
+        n4 = pg.evaluate("() => document.activeElement.classList.contains('svi-nav')")
+        check("remarque 33 : case sélectionnée, flèche = case du dessous, 2e toucher = saisie, Échap = sélection",
+              n1 and n2[0] == "p" and n2[1] != "d1" and n2[2] and not n3 and n4, [n1, n2, n3, n4])
+        # remarque 36 : 35 → 35,00 en quittant la case ; la frappe remplace le contenu
+        pg.keyboard.type("35"); pg.keyboard.press("Tab"); pg.wait_for_timeout(200)
+        f36 = pg.evaluate(f"""() => {{ const X = {ins}; return [document.querySelector('{P}').value, X.INS.des.find(r => r.id === 'd1').p]; }}""")
+        check("remarque 36 : la frappe remplace, 35 → 35,00 en quittant la case", f36 == ["35,00", 35], f36)
+        # remarque 32 : collage de plusieurs valeurs = une par case, vers le bas
+        pg.click(P); pg.wait_for_timeout(150)
+        p32 = pg.evaluate(f"""() => {{ const X = {ins}; const el = document.activeElement; const dt = new DataTransfer(); dt.setData('text/plain', '11\\n22\\n'); 
+            el.dispatchEvent(new ClipboardEvent('paste', {{ clipboardData: dt, bubbles: true, cancelable: true }}));
+            const rows = [...document.querySelectorAll('table.ins-table[data-ik="des"] tbody tr')].filter(t => t.offsetParent !== null);
+            const i = rows.findIndex(t => t.dataset.iid === 'd1'); const nid = rows[i + 1] && rows[i + 1].dataset.iid;
+            const P = id => (X.INS.des.find(r => r.id === id) || {{}}).p;
+            const out = [P('d1'), P(nid)];
+            X.INS.des.find(r => r.id === 'd1').p = 1000; X.INS.des.find(r => r.id === 'd3').p = 15; X.INS.des.find(r => r.id === 'd2').p = 1200; X.insSave(); X.refreshAll();
+            return out; }}""")
+        check("remarque 32 : coller 2 valeurs = une par case, vers le bas", p32 == [11, 22], p32)
+        # remarque 31 : PCB manquant (charge absente de CHS) — on peut sortir de la case
+        pg.evaluate(f"""() => {{ const X = {ins}; X.INS.chg.find(r => r.id === 'c1').p = ''; X.insSave(); X.refreshAll();
+            document.querySelector('.bdg-d-tab[data-tab="chg"]')?.click(); }}"""); pg.wait_for_timeout(400)
+        pg.click('table.ins-table[data-ik="chg"] tr[data-iid="c1"] input.ins-in[data-f="p"]'); pg.wait_for_timeout(150)
+        pg.click('table.ins-table[data-ik="chg"] tr[data-iid="c2"] input.ins-in[data-f="q"]'); pg.wait_for_timeout(300)
+        p31 = pg.evaluate(f"""() => {{ const X = {ins}; const a = document.activeElement; const out = [a.closest('tr') && a.closest('tr').dataset.iid,
+            !!document.querySelector('table.ins-table[data-ik="chg"] tr[data-iid="c1"] td.ins-bad')];
+            X.INS.chg.find(r => r.id === 'c1').p = 1500; X.insSave(); X.refreshAll(); return out; }}""")
+        check("remarque 31 : PCB manquant — on sort de la case, elle reste encadrée en rouge", p31 == ["c2", True], p31)
+        # remarque 30 : en descendant avec les flèches, la case reste visible (jamais sous la ligne TOTAL fixée)
+        pg.evaluate(f"""() => {{ const X = {ins}; for (let i = 0; i < 25; i++) X.INS.chg.push({{ id: 'zz' + i, des: 'CHARGE ' + (100 + i), u: 'U', q: 1, p: 1 }}); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        pg.click('table.ins-table[data-ik="chg"] tr[data-iid="c1"] input.ins-in[data-f="q"]'); pg.wait_for_timeout(150)
+        for _ in range(14): pg.keyboard.press("ArrowDown"); pg.wait_for_timeout(40)
+        pg.wait_for_timeout(300)
+        v30 = pg.evaluate("""() => { const a = document.activeElement, td = a.closest('td'), t = td.closest('table'), r = td.getBoundingClientRect();
+            const f = t.tFoot ? t.tFoot.getBoundingClientRect().top : 1e9, h = t.tHead.getBoundingClientRect().bottom, sc = t.closest('.bdg-d-scroll').getBoundingClientRect();
+            return [a.closest('tr').dataset.iid !== 'c1', r.bottom <= f + 1, r.top >= h - 1, r.bottom <= sc.bottom + 1, r.bottom <= innerHeight]; }""")
+        pg.evaluate(f"""() => {{ const X = {ins}; X.INS.chg = X.INS.chg.filter(r => !/^zz/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        check("remarque 30 : flèche bas — la case reste visible (au-dessus du TOTAL et de l'écran)", v30 == [True] * 5, v30)
+        # remarque 35 : case grisée (QPB) sélectionnable pour la copier
+        pg.click('table.ins-table[data-ik="des"] tr[data-iid="d1"] td:has(input[data-f="q"])'); pg.wait_for_timeout(150)
+        g35 = pg.evaluate("() => { const a = document.activeElement; return [a.tagName, a.classList.contains('svi-tdf')]; }")
+        check("remarque 35 : case grisée sélectionnable (copie)", g35 == ["TD", True], g35)
 
         # remarque 21 : une charge déjà liée à une autre tâche est copiée au chargement
         n = pg.evaluate(f"() => {ins}.INS.chg.length")

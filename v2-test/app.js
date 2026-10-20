@@ -469,11 +469,13 @@ const sviEqualTabs = () => {
     if (c.offsetParent === null) return;
     const ts = sviTabsOf(set, c);
     if (ts.length < 2) return;
-    let w = saved[set.c];
-    if (!w) {
+    /* v497 (remarque 34) : une largeur mémorisée ne fait jamais déborder la rangée — tous les onglets restent entiers */
+    let w = saved[set.c], nat = 0, fit = 0;
+    ts.forEach(t => t.classList.remove("tab-tight"));
+    {
       /* largeur naturelle du plus long intitulé */
       ts.forEach(t => { t.style.width = ""; t.style.flex = "none"; t.style.whiteSpace = "nowrap"; });
-      const nat = Math.ceil(Math.max(...ts.map(t => t.getBoundingClientRect().width)));
+      nat = Math.ceil(Math.max(...ts.map(t => t.getBoundingClientRect().width)));
       /* place disponible : le bloc, moins ce qui n'est pas un onglet (⋯, poignée…) */
       const par = c.parentElement;
       let avail = c.clientWidth;
@@ -483,11 +485,14 @@ const sviEqualTabs = () => {
         avail = par.clientWidth - [...par.children].filter(x => x !== c).reduce((t, x) => t + x.getBoundingClientRect().width, 0);
       }
       const gap = parseFloat(getComputedStyle(c).columnGap) || 0;
-      const fit = Math.floor((avail - others - 16 - gap * ts.length) / ts.length);
-      w = Math.max(80, Math.min(nat, fit));
+      const nv = ts.filter(t => t.offsetParent !== null).length || ts.length;
+      fit = Math.floor((avail - others - 16 - gap * nv) / nv);
+      w = w ? Math.max(70, Math.min(w, fit)) : Math.max(70, Math.min(nat, fit));
     }
     ts.forEach(t => { t.style.boxSizing = "border-box"; t.style.width = w + "px"; t.style.flex = "none";
       t.style.whiteSpace = "normal"; t.style.justifyContent = "center"; t.style.textAlign = "center"; t.classList.add("tab-eq"); });
+    /* rangée serrée : intitulé un peu plus petit et sans pictogramme, pour qu'aucun mot ne soit coupé */
+    if (ts.some(t => t.offsetParent !== null && t.scrollWidth > t.clientWidth + 1)) ts.forEach(t => t.classList.add("tab-tight"));
     /* même hauteur pour tous les onglets de la rangée (celle du plus haut) */
     ts.forEach(t => { t.style.height = ""; t.style.alignSelf = "flex-end"; });
     const hMax = Math.ceil(Math.max(...ts.filter(t => t.offsetParent !== null).map(t => t.getBoundingClientRect().height)));
@@ -11239,6 +11244,9 @@ function renderBudgetList() {
         const er = r && X.rowErr(prev.k, r);
         if (!er) return;
         const back = shell.querySelector(`tr[data-ik="${prev.k}"][data-iid="${prev.id}"] input[data-f="${er.f}"]`);
+        /* v497 (remarque 31) : PCB manquant (charge absente de CHS) — on peut sortir ; la case reste encadrée en rouge,
+           la ligne est signalée dans À COMPLÉTER et empêche seulement de figer */
+        if (prev.k === "chg" && er.f === "p") { svToast(er.m + " (À COMPLÉTER)", 2500, back || undefined); return; }
         if (!back || back.disabled) return;
         lastRow = prev;
         e.preventDefault();
@@ -15074,7 +15082,7 @@ function renderBudgetList() {
       document.body.appendChild(d);
       window.__sviSdRefresh = draw;
       draw();
-      const focusAt = (i, f) => { const el = d.querySelector(`.sd-in[data-i="${i}"][data-f="${f}"]`); if (el) { el.focus(); try { el.select(); } catch (e) {} } };
+      const focusAt = (i, f) => { const el = d.querySelector(`.sd-in[data-i="${i}"][data-f="${f}"]`); if (el) { el.focus(); try { if (!el.classList.contains("svi-nav")) el.select(); } catch (e) {} } };
       /* liste de choix au format de l'application (jamais la bulle de Safari, FORMAT 50) : sous la case, après la 1re lettre, 8 au plus */
       const sugHide = () => d.querySelector(".sd-sug")?.remove();
       const sugShow = inp => {
@@ -15158,7 +15166,7 @@ function renderBudgetList() {
          flèches haut / bas = ligne du dessus / dessous ; gauche / droite = case voisine quand le curseur est au bord du texte.
          v491 (remarque 4) : Entrée sur une ligne nouvelle remplie → la ligne suivante reprend la combinaison
          (DÉSIGNATION CLIENT, UPB, LOT, ACTIVITÉS, U) et le curseur va sur la désignation produit / charge */
-      const go = el => { if (!el) return false; el.focus(); try { el.select(); } catch (err) {} el.scrollIntoView({ block: "nearest", inline: "nearest" }); return true; };
+      const go = el => { if (!el) return false; el.focus(); try { if (!el.classList.contains("svi-nav")) el.select(); } catch (err) {} if (typeof sviKeepVisible === "function") sviKeepVisible(el); else el.scrollIntoView({ block: "nearest", inline: "nearest" }); return true; };
       const cellsOf = tr => tr ? [...tr.querySelectorAll(".sd-in")].filter(x => !x.readOnly) : [];
       const sameCol = (tr, f, dir) => { for (let t = dir > 0 ? tr.nextElementSibling : tr.previousElementSibling; t; t = dir > 0 ? t.nextElementSibling : t.previousElementSibling) { const x = t.querySelector(`.sd-in[data-f="${f}"]`); if (x && !x.readOnly) return x; } return null; };
       const COMBO = ["dc", "upb", "lot", "prim", "sec", "su"];
@@ -15190,6 +15198,7 @@ function renderBudgetList() {
         const inp = e.target.closest(".sd-in");
         if (!inp || !["Enter", "Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) || (e.shiftKey && e.key.startsWith("Arrow"))) return;
         if (d.querySelector(".sd-sug") && (e.key === "ArrowUp" || e.key === "ArrowDown")) return;   /* flèches : dans la liste de choix */
+        if (e.key.startsWith("Arrow")) return;   /* v497 (remarque 33) : flèches — case sélectionnée : case voisine (mode Google Sheets) ; en saisie : dans le texte */
         const tr = inp.closest("tr"), f = inp.dataset.f, i = +inp.dataset.i;
         if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
           const L = inp.value.length, a = inp.selectionStart, b = inp.selectionEnd, all = a === 0 && b === L;
@@ -15546,7 +15555,6 @@ function renderBudgetList() {
        ========================================================= */
     let xplSub = "prm";
     try { xplSub = localStorage.getItem("svi_xplsub_v1") || "prm"; } catch (e) {}
-    let xplSort = "";   /* "" = ordre naturel ; "pct" = pire marge en haut */
     const xplTasks = () => {
       const CL = insCheckLinks("xpl");
       const keys = new Set((CL || INS.links || []).map(l => l.des + "|" + l.lot + "|" + l.prim));
@@ -15574,66 +15582,89 @@ function renderBudgetList() {
       return `background:hsl(${hue},62%,${light}%) !important;color:${light < 52 ? "#fff" : "#172033"} !important`;
     };
     const xplPctTd = (p, lo, hi, bold) => `<td class="number xpl-pct${bold ? " xpl-b" : ""}" style="${xplColor(p, lo, hi)}">${money(p)} %</td>`;
-    const xplCb = key => INS_EDIT ? `<td class="center"><input type="checkbox" class="xpl-cb" data-x="${esc(key)}"${XON.has(key) ? " checked" : ""}></td>` : "";
-    const xplTable = (head, body, foot, widths) => {
-      const cg = widths.map(w => `<col style="width:${w}px">`).join("") + (INS_EDIT ? '<col style="width:40px">' : "");
-      const tw = widths.reduce((t, w) => t + w, 0) + (INS_EDIT ? 40 : 0);
-      return `<table class="bdg-d-table xpl-table" style="width:${tw}px"><colgroup>${cg}</colgroup><thead><tr>${head}${INS_EDIT ? '<th class="center"></th>' : ""}</tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot></table>`;
+    /* v497 (remarques 26 à 29) : tableaux au format standard — en-têtes avec loupe (tri / filtre), largeurs réglables et
+       mémorisées, colonnes déplaçables ; case « tout cocher » à trois états en haut ; un toucher sur une ligne ne fait rien ;
+       unités centrées ; VENDU devient PRODUITS */
+    const xplCb = (key, cls = "xpl-cb", on) => INS_EDIT ? `<td class="center"><input type="checkbox" class="${cls}" data-x="${esc(key)}"${on ? " checked" : ""}></td>` : "";
+    const xplTable = (t, oc, W, body, foot, allCls) => {
+      const w = k => cwLoad()[t + "." + k] || W[k] || 100;
+      const dw = INS_EDIT ? 40 : 0;
+      return `<table class="bdg-d-table xpl-table" data-xt="${t}" style="width:${oc.reduce((s, c) => s + w(c[0]), 0) + dw}px">
+        <colgroup>${oc.map(c => `<col data-w="${t}.${c[0]}" style="width:${w(c[0])}px">`).join("")}${dw ? `<col style="width:${dw}px">` : ""}</colgroup>
+        <thead><tr>${oc.map(c => cfHead(t, c[0], c[1], c[3])).join("")}${dw ? `<th class="center"><input type="checkbox" class="${allCls}"></th>` : ""}</tr></thead>
+        <tbody>${body || `<tr><td colspan="${oc.length + (dw ? 1 : 0)}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody>${foot ? `<tfoot>${foot}</tfoot>` : ""}</table>`;
     };
-    const xplTh = (lab, cls, key) => `<th class="${cls || ""}${key ? " xpl-sort" : ""}"${key ? ` data-xs="${key}"` : ""}>${esc(lab)}${key ? (xplSort === key ? " ▲" : " ⇅") : ""}</th>`;
+    /* une ligne : cellules dans l'ordre des colonnes affichées */
+    const xplRow = (oc, r, extra, cls) => `<tr${cls ? ` class="${cls}"` : ""}>${oc.map(c => c[0] === "pct" ? xplPctTd(r.pct, r.__lo, r.__hi) : `<td class="${c[3]}">${esc(c[4] ? c[4](r) : c[2](r))}</td>`).join("")}${extra || ""}</tr>`;
+    /* ligne de total / sous-total : libellé sur les colonnes de texte, montants sous leurs colonnes */
+    const xplSumRow = (oc, lab, s, lo, hi, cls) => {
+      const NUM = { chg: s.chg, prd: s.prd, mg: s.prd - s.chg };
+      const pct = s.prd ? (s.prd - s.chg) / s.prd * 100 : (s.chg ? -100 : 0);
+      let out = "", span = 0, labDone = false;
+      const flush = () => { if (span) { out += `<td colspan="${span}" class="${labDone ? "" : "xpl-lab"}">${labDone ? "" : esc(lab)}</td>`; labDone = true; span = 0; } };
+      oc.forEach(c => {
+        if (c[0] in NUM) { flush(); out += `<td class="number">${money(NUM[c[0]])}</td>`; }
+        else if (c[0] === "pct") { flush(); out += xplPctTd(pct, lo, hi, true); }
+        else span++;
+      });
+      flush();
+      return `<tr class="${cls}">${out}${INS_EDIT ? "<td></td>" : ""}</tr>`;
+    };
     const xplHTML = () => {
       const T = xplTasks();
       const all = (INS.links || []).length && T.length < new Set((INS.links || []).map(l => l.des + "|" + l.lot + "|" + l.prim)).size;
       const bar = `<div class="qq-bar xpl-bar">${[["dsg", "PAR DÉSIGNATION"], ["lot", "PAR LOT"], ["prm", "PAR TÂCHE PRIMAIRE"], ["rnd", "RENDEMENT"]].map(([k, l]) => `<button type="button" class="qq-sub${xplSub === k ? " on" : ""}" data-xsub="${k}">${l}</button>`).join("")}<span class="qq-scope">${all ? "FILTRÉ PAR LES CASES COCHÉES" : "TOUT LE BUDGET"}</span></div>`;
+      lastShown.detail = { cols: [], rows: [], kind: "xpl" };
       if (xplSub === "rnd") return bar + xplRndHTML();
+      if (!T.length) return bar + `<div class="xpl-empty">AUCUNE TÂCHE PRIMAIRE LIÉE${all ? " POUR LES CASES COCHÉES" : ""}.</div>`;
       const sum = L => L.reduce((a, t) => ({ chg: a.chg + t.chg, prd: a.prd + t.prd }), { chg: 0, prd: 0 });
       const pctOf = s => s.prd ? (s.prd - s.chg) / s.prd * 100 : (s.chg ? -100 : 0);
-      const tot = sum(T), lab = all ? "TOTAL PARTIEL" : "TOTAL";
       const nm = (k, id) => lkName(k, id);
-      const sortP = L => xplSort === "pct" ? L.slice().sort((a, b) => a.pct - b.pct) : L;
-      let head, body = "", foot, W, lo, hi;
-      const money0 = v => money(v);
+      /* colonnes : [clé, libellé, valeur (tri / filtre), classe, texte affiché] */
+      const C = {
+        lot: ["lot", "LOT", r => nm("lot", r.lot), ""],
+        prim: ["prim", "ACTIVITÉ PRIMAIRE", r => r.prims ? [...new Set(r.prims)].join(" · ") : nm("prim", r.prim), ""],
+        art: ["art", "ART", r => r.art || "", "center"],
+        dn: ["dn", "DÉSIGNATION CLIENT", r => r.dn || "", ""],
+        u: ["u", "UPB", r => U_(r.u), "center"],
+        q: ["q", "QPB", r => r.q, "number", r => money(r.q)],
+        chg: ["chg", "CHARGES", r => r.chg, "number", r => money(r.chg)],
+        prd: ["prd", "PRODUITS", r => r.prd, "number", r => money(r.prd)],
+        mg: ["mg", "MARGE", r => r.mg, "number", r => money(r.mg)],
+        pct: ["pct", "%", r => r.pct, "number", r => money(r.pct) + " %"]
+      };
+      const W = { lot: 150, prim: 170, art: 60, dn: 260, u: 60, q: 90, chg: 110, prd: 110, mg: 110, pct: 90 };
+      const t = "xpl_" + xplSub;
+      const cols = xplSub === "prm" ? ["lot", "prim", "art", "dn", "u", "q", "chg", "prd", "mg", "pct"]
+        : xplSub === "lot" ? ["lot", "art", "dn", "u", "q", "chg", "prd", "mg", "pct"] : ["art", "dn", "lot", "prim", "u", "q", "chg", "prd", "mg", "pct"];
+      const LC = cols.map(k => C[k]);
+      const oc = coOrder(t, LC);
+      let rows, body = "";
       if (xplSub === "prm") {
-        const L = sortP(T.slice().sort((a, b) => natCmp(nm("lot", a.lot), nm("lot", b.lot)) || natCmp(a.art, b.art) || natCmp(nm("prim", a.prim), nm("prim", b.prim))));
-        lo = Math.min(0, ...L.map(t => t.pct)); hi = Math.max(0, ...L.map(t => t.pct));
-        head = xplTh("LOT") + xplTh("ACTIVITÉ PRIMAIRE") + xplTh("ART", "center") + xplTh("DÉSIGNATION CLIENT") + xplTh("UPB", "center") + xplTh("QPB", "number") + xplTh("CHARGES", "number") + xplTh("VENDU", "number") + xplTh("MARGE", "number") + xplTh("%", "number", "pct");
-        W = [150, 170, 50, 260, 50, 90, 110, 110, 110, 90];
-        body = L.map(t => `<tr><td>${esc(nm("lot", t.lot))}</td><td>${esc(nm("prim", t.prim))}</td><td class="center">${esc(t.art)}</td><td>${esc(t.dn)}</td><td class="center">${esc(t.u)}</td><td class="number">${money0(t.q)}</td><td class="number">${money0(t.chg)}</td><td class="number">${money0(t.prd)}</td><td class="number">${money0(t.mg)}</td>${xplPctTd(t.pct, lo, hi)}${xplCb(t.k)}</tr>`).join("");
-        foot = `<tr class="bdg-d-total-row"><td colspan="6" class="number">${lab}</td><td class="number">${money0(tot.chg)}</td><td class="number">${money0(tot.prd)}</td><td class="number">${money0(tot.prd - tot.chg)}</td>${xplPctTd(pctOf(tot), lo, hi, true)}${INS_EDIT ? "<td></td>" : ""}</tr>`;
-      } else {
-        /* PAR LOT : lot → désignations ; PAR DÉSIGNATION : désignation → lots — sous-totaux */
-        const byLot = xplSub === "lot";
-        const A = new Map();
-        T.forEach(t => { const k = t.des + "|" + t.lot; if (!A.has(k)) A.set(k, { k: k + "|*", des: t.des, lot: t.lot, dn: t.dn, art: t.art, u: t.u, prims: [], chg: 0, prd: 0, q: 0 }); const a = A.get(k); a.chg += t.chg; a.prd += t.prd; a.q += t.q; a.prims.push(nm("prim", t.prim)); });
-        const rows = [...A.values()].map(a => ({ ...a, mg: a.prd - a.chg, pct: pctOf(a) }));
-        const grpKey = r => byLot ? r.lot : r.des;
-        const groups = new Map();
-        rows.forEach(r => { const g = grpKey(r); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(r); });
-        const gl = [...groups.entries()].sort((a, b) => byLot ? natCmp(nm("lot", a[0]), nm("lot", b[0])) : natCmp(a[1][0].art, b[1][0].art) || natCmp(a[1][0].dn, b[1][0].dn));
-        const pcts = rows.map(r => r.pct).concat(gl.map(([, L]) => pctOf(sum(L))));
-        lo = Math.min(0, ...pcts); hi = Math.max(0, ...pcts);
-        if (byLot) {
-          head = xplTh("LOT") + xplTh("ART", "center") + xplTh("DÉSIGNATION CLIENT") + xplTh("UPB", "center") + xplTh("QPB", "number") + xplTh("CHARGES", "number") + xplTh("VENDU", "number") + xplTh("MARGE", "number") + xplTh("%", "number", "pct");
-          W = [170, 50, 300, 50, 90, 110, 110, 110, 90];
-        } else {
-          head = xplTh("ART", "center") + xplTh("DÉSIGNATION CLIENT") + xplTh("LOT") + xplTh("ACTIVITÉ PRIMAIRE") + xplTh("UPB", "center") + xplTh("QPB", "number") + xplTh("CHARGES", "number") + xplTh("VENDU", "number") + xplTh("MARGE", "number") + xplTh("%", "number", "pct");
-          W = [50, 260, 160, 170, 50, 90, 110, 110, 110, 90];
-        }
-        const nc = W.length;
-        (xplSort === "pct" ? gl.slice().sort((a, b) => pctOf(sum(a[1])) - pctOf(sum(b[1]))) : gl).forEach(([g, L0]) => {
-          const L = xplSort === "pct" ? L0.slice().sort((a, b) => a.pct - b.pct) : L0.slice().sort((a, b) => byLot ? natCmp(a.art, b.art) : natCmp(nm("lot", a.lot), nm("lot", b.lot)));
-          L.forEach(r => {
-            body += byLot
-              ? `<tr><td>${esc(nm("lot", r.lot))}</td><td class="center">${esc(r.art)}</td><td>${esc(r.dn)}</td><td class="center">${esc(r.u)}</td><td class="number">${money0(r.q)}</td><td class="number">${money0(r.chg)}</td><td class="number">${money0(r.prd)}</td><td class="number">${money0(r.mg)}</td>${xplPctTd(r.pct, lo, hi)}${xplCb(r.k)}</tr>`
-              : `<tr><td class="center">${esc(r.art)}</td><td>${esc(r.dn)}</td><td>${esc(nm("lot", r.lot))}</td><td>${esc([...new Set(r.prims)].join(" · "))}</td><td class="center">${esc(r.u)}</td><td class="number">${money0(r.q)}</td><td class="number">${money0(r.chg)}</td><td class="number">${money0(r.prd)}</td><td class="number">${money0(r.mg)}</td>${xplPctTd(r.pct, lo, hi)}${xplCb(r.k)}</tr>`;
-          });
-          const s = sum(L);
-          body += `<tr class="xpl-sub"><td colspan="${nc - 4}">TOTAL ${esc(byLot ? nm("lot", g) : (L[0].art ? L[0].art + " " : "") + L[0].dn)}</td><td class="number">${money0(s.chg)}</td><td class="number">${money0(s.prd)}</td><td class="number">${money0(s.prd - s.chg)}</td>${xplPctTd(pctOf(s), lo, hi, true)}${INS_EDIT ? "<td></td>" : ""}</tr>`;
-        });
-        foot = `<tr class="bdg-d-total-row"><td colspan="${nc - 4}" class="number">${lab}</td><td class="number">${money0(tot.chg)}</td><td class="number">${money0(tot.prd)}</td><td class="number">${money0(tot.prd - tot.chg)}</td>${xplPctTd(pctOf(tot), lo, hi, true)}${INS_EDIT ? "<td></td>" : ""}</tr>`;
+        rows = T.slice().sort((a, b) => natCmp(nm("lot", a.lot), nm("lot", b.lot)) || natCmp(a.art, b.art) || natCmp(nm("prim", a.prim), nm("prim", b.prim)));
+        rows = cfApply(t, LC, rows);
+        const lo = Math.min(0, ...rows.map(r => r.pct)), hi = Math.max(0, ...rows.map(r => r.pct));
+        rows.forEach(r => { body += xplRow(oc, { ...r, __lo: lo, __hi: hi }, xplCb(r.k, "xpl-cb", XON.has(r.k))); });
+        const tot = sum(rows);
+        return bar + xplTable(t, oc, W, body, xplSumRow(oc, rows.length < T.length || all ? "TOTAL PARTIEL" : "TOTAL", tot, lo, hi, "bdg-d-total-row"), "xpl-cball");
       }
-      lastShown.detail = { cols: [], rows: [], kind: "xpl" };
-      return bar + (T.length ? xplTable(head, body, foot, W) : `<div class="xpl-empty">AUCUNE TÂCHE PRIMAIRE LIÉE${all ? " POUR LES CASES COCHÉES" : ""}.</div>`);
+      /* PAR LOT : lot → désignations ; PAR DÉSIGNATION : désignation → lots — sous-totaux */
+      const byLot = xplSub === "lot";
+      const A = new Map();
+      T.forEach(x => { const k = x.des + "|" + x.lot; if (!A.has(k)) A.set(k, { k: k + "|*", des: x.des, lot: x.lot, dn: x.dn, art: x.art, u: x.u, prims: [], chg: 0, prd: 0, q: 0 }); const a = A.get(k); a.chg += x.chg; a.prd += x.prd; a.q += x.q; a.prims.push(nm("prim", x.prim)); });
+      const R0 = [...A.values()].map(a => ({ ...a, mg: a.prd - a.chg, pct: pctOf(a) }));
+      const base = R0.slice().sort((a, b) => byLot ? natCmp(nm("lot", a.lot), nm("lot", b.lot)) || natCmp(a.art, b.art) : natCmp(a.art, b.art) || natCmp(a.dn, b.dn) || natCmp(nm("lot", a.lot), nm("lot", b.lot)));
+      rows = cfApply(t, LC, base);
+      const grpKey = r => byLot ? r.lot : r.des;
+      const groups = new Map();   /* groupes dans l'ordre de leur première ligne (tri choisi compris) */
+      rows.forEach(r => { const g = grpKey(r); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(r); });
+      const pcts = rows.map(r => r.pct).concat([...groups.values()].map(L => pctOf(sum(L))));
+      const lo = Math.min(0, ...pcts), hi = Math.max(0, ...pcts);
+      groups.forEach((L, g) => {
+        L.forEach(r => { body += xplRow(oc, { ...r, __lo: lo, __hi: hi }, xplCb(r.k, "xpl-cb", XON.has(r.k))); });
+        body += xplSumRow(oc, "TOTAL " + (byLot ? nm("lot", g) : (L[0].art ? L[0].art + " " : "") + L[0].dn), sum(L), lo, hi, "xpl-sub");
+      });
+      return bar + xplTable(t, oc, W, body, xplSumRow(oc, rows.length < R0.length || all ? "TOTAL PARTIEL" : "TOTAL", sum(rows), lo, hi, "bdg-d-total-row"), "xpl-cball");
     };
     /* RENDEMENT : par charge d'une tâche secondaire — quantité produite par la tâche ÷ quantité de la charge */
     const xplRndHTML = () => {
@@ -15653,33 +15684,41 @@ function renderBudgetList() {
       }));
       rows.sort((a, b) => natCmp(a.lot, b.lot) || natCmp(a.sec, b.sec) || natCmp(a.des, b.des));
       if (!rows.length) return `<div class="xpl-empty">AUCUNE CHARGE LIÉE${insCheckLinks("xpl") ? " POUR LES CASES COCHÉES" : ""}.</div>`;
-      const head = xplTh("LOT") + xplTh("ACTIVITÉ SECONDAIRE") + xplTh("DÉSIGNATION CHARGE") + xplTh("UNITÉ", "center") + xplTh("QCB", "number") + xplTh("QUANTITÉ PRODUITE", "number") + xplTh("RENDEMENT BUDGÉTÉ") + xplTh("RDB", "number");
-      const W = [150, 190, 220, 60, 90, 120, 380, 80];
-      const body = rows.map(r => `<tr><td>${esc(r.lot)}</td><td>${esc(r.sec)}</td><td>${esc(r.des)}</td><td class="center">${esc(r.u)}</td><td class="number">${money(r.qc)}</td><td class="number">${money(r.q)} ${esc(r.su)}</td><td>${esc(r.txt)}</td><td class="number"><b>${money(r.rdb)}</b></td>${INS_EDIT ? `<td class="center"><input type="checkbox" class="xpl-ccb" data-cid="${esc(r.cid)}"${r.c.on === true ? " checked" : ""}></td>` : ""}</tr>`).join("");
-      return xplTable(head, body, "", W);
+      const t = "xpl_rnd";
+      const LC = [["lot", "LOT", r => r.lot, ""], ["sec", "ACTIVITÉ SECONDAIRE", r => r.sec, ""], ["des", "DÉSIGNATION CHARGE", r => r.des, ""],
+        ["u", "UCB", r => r.u, "center"], ["qc", "QCB", r => r.qc, "number", r => money(r.qc)], ["q", "QUANTITÉ PRODUITE", r => r.q, "number", r => money(r.q)],
+        ["su", "U PRODUITE", r => r.su, "center"], ["txt", "RENDEMENT BUDGÉTÉ", r => r.txt, ""], ["rdb", "RDB", r => r.rdb, "number", r => money(r.rdb)]];
+      const W = { lot: 150, sec: 190, des: 220, u: 60, qc: 90, q: 120, su: 80, txt: 380, rdb: 80 };
+      const oc = coOrder(t, LC);
+      const R = cfApply(t, LC, rows);
+      const body = R.map(r => xplRow(oc, r, xplCb(r.cid, "xpl-ccb", r.c.on === true))).join("");
+      return xplTable(t, oc, W, body, "", "xpl-ccball");
     };
-    /* sous-onglets, tri par marge, cases à cocher */
+    /* sous-onglets, cases à cocher (un toucher sur une ligne ne fait rien) */
     if (!shell.__xplBound) {
       shell.__xplBound = true;
       shell.addEventListener("click", e => {
         const X = shell.__xpl; if (!X) return;
         const sb = e.target.closest && e.target.closest("[data-xsub]");
-        if (sb) { X.sub(sb.dataset.xsub); return; }
-        const so = e.target.closest && e.target.closest(".xpl-table th[data-xs]");
-        if (so) X.sort(so.dataset.xs);
+        if (sb) X.sub(sb.dataset.xsub);
       });
       shell.addEventListener("change", e => {
         const X = shell.__xpl; if (!X) return;
-        const cb = e.target.closest && e.target.closest("input.xpl-cb, input.xpl-ccb");
+        const cb = e.target.closest && e.target.closest("input.xpl-cb, input.xpl-ccb, input.xpl-cball, input.xpl-ccball");
         if (cb) X.check(cb);
       });
     }
     shell.__xpl = {
       sub: k => { xplSub = k; try { localStorage.setItem("svi_xplsub_v1", k); } catch (e) {} renderTab(); },
-      sort: k => { xplSort = xplSort === k ? "" : k; renderTab(); },
       check: cb => {
-        if (cb.classList.contains("xpl-ccb")) { const c = INS.chg.find(r => r.id === cb.dataset.cid); if (c) { c.on = cb.checked; insSave(); } }
-        else { if (cb.checked) XON.add(cb.dataset.x); else XON.delete(cb.dataset.x); }
+        const tbl = cb.closest("table");
+        const set = (c, on) => {
+          if (c.classList.contains("xpl-ccb")) { const r = INS.chg.find(x => x.id === c.dataset.x); if (r) r.on = on; }
+          else if (on) XON.add(c.dataset.x); else XON.delete(c.dataset.x);
+        };
+        if (/-cball$/.test(cb.className)) tbl.querySelectorAll("tbody input.xpl-cb, tbody input.xpl-ccb").forEach(c => set(c, cb.checked));
+        else set(cb, cb.checked);
+        if (tbl.querySelector("input.xpl-ccb")) insSave();
         ICL = null; refreshAll();
       },
       data: () => xplTasks()
@@ -21275,25 +21314,8 @@ const sviGridCell = (tr, ci, dir) => {
   }
   return null;
 };
-const sviGo = nx => { nx.focus(); try { if (nx.matches("input:not(.sv-date):not(.dlp-in)")) nx.select(); } catch (err) {} nx.scrollIntoView({ block: "nearest", inline: "nearest" }); };
-document.addEventListener("keydown", e => {
-  if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) || e.shiftKey) return;
-  const el = e.target;
-  if (!el || !el.matches || !el.matches("input:not([type=checkbox]):not([type=radio])") || el.closest("#cfMenu, #svCal")) return;
-  const box = sviGridBox(el), td = el.closest("td"), tr = el.closest("tr");
-  if (!box || !td || !tr) return;
-  if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-    const nx = sviGridCell(tr, td.cellIndex, e.key === "ArrowDown" ? 1 : -1);
-    e.preventDefault(); if (nx) sviGo(nx); return;
-  }
-  const L = (el.value || "").length, a = el.selectionStart, b = el.selectionEnd;
-  if (a === null) return;
-  const all = a === 0 && b === L;
-  if (!(all || (e.key === "ArrowLeft" ? a === 0 && b === 0 : a === L && b === L))) return;
-  const list = [...box.querySelectorAll("input, select, textarea")].filter(x => x === el || sviGridOk(x));
-  const nx = list[list.indexOf(el) + (e.key === "ArrowLeft" ? -1 : 1)];
-  e.preventDefault(); if (nx) sviGo(nx);
-}, true);
+const sviGo = nx => { nx.focus(); try { if (nx.matches("input:not(.sv-date):not(.dlp-in)") && !nx.classList.contains("svi-nav")) nx.select(); } catch (err) {} sviKeepVisible(nx); };
+/* v497 (remarques 30 et 33) : les flèches sont gérées par le mode « case sélectionnée » (comme Google Sheets), plus bas */
 document.addEventListener("keydown", e => {
   if (e.key !== "Enter" && e.key !== "Tab") return;
   const el = e.target;
@@ -21329,23 +21351,47 @@ document.addEventListener("keydown", e => {
   if (!nx) return;
   if (inc) { const tr = nx.closest("tr[data-inc]"); const sh = inc.closest(".novapp-list-shell") || document.body; sh.__incNext = { id: tr && tr.dataset.inc, f: nx.dataset.f, t: Date.now() }; }
   nx.focus();
-  try { if (nx.matches("input:not(.sv-date):not(.dlp-in)")) nx.select(); } catch (err) {}
-  nx.scrollIntoView({ block: "nearest", inline: "nearest" });
+  try { if (nx.matches("input:not(.sv-date):not(.dlp-in)") && !nx.classList.contains("svi-nav")) nx.select(); } catch (err) {}
+  sviKeepVisible(nx);
 }, true);
 /* v491 (remarque 1) : la case où l'on saisit reste visible — si elle est cachée (bas du tableau, clavier de l'iPad),
    le tableau remonte juste assez ; si elle est déjà visible, rien ne bouge */
+/* v497 (remarque 30) : la case reste visible partout — dans le tableau (jamais sous l'en-tête ni sous la ligne TOTAL fixées),
+   puis dans la page (au-dessus du clavier ou de la barre de raccourcis de l'iPad) */
 const sviKeepVisible = el => {
   if (!el || !el.isConnected || el.offsetParent === null) return;
-  el.scrollIntoView({ block: "nearest", inline: "nearest" });
-  const vv = window.visualViewport, bottom = vv ? vv.offsetTop + vv.height : window.innerHeight, top = vv ? vv.offsetTop : 0;
-  const r = el.getBoundingClientRect();
-  if (r.bottom > bottom - 10) window.scrollBy(0, r.bottom - bottom + 40);
+  const td = (el.closest && el.closest("td, th")) || el;
+  let sc = td.parentElement;
+  while (sc && sc !== document.body && sc !== document.documentElement) {
+    const cs = getComputedStyle(sc);
+    if ((/(auto|scroll)/.test(cs.overflowY) && sc.scrollHeight > sc.clientHeight + 1) || (/(auto|scroll)/.test(cs.overflowX) && sc.scrollWidth > sc.clientWidth + 1)) break;
+    sc = sc.parentElement;
+  }
+  const tbl = td.closest && td.closest("table");
+  const stuck = (row, side) => { const c = row && row.cells && row.cells[0]; if (!c) return 0; const cs = getComputedStyle(c); return cs.position === "sticky" ? row.getBoundingClientRect().height : 0; };
+  if (sc && sc !== document.body && sc !== document.documentElement) {
+    const R = sc.getBoundingClientRect(), r = td.getBoundingClientRect();
+    const hd = tbl && tbl.tHead ? [...tbl.tHead.rows].reduce((t, x) => t + stuck(x), 0) : 0;
+    const ft = tbl && tbl.tFoot ? [...tbl.tFoot.rows].reduce((t, x) => t + stuck(x), 0) : 0;
+    const hsb = sc.offsetHeight - sc.clientHeight;
+    const top = R.top + hd, bot = R.bottom - hsb - ft;
+    if (r.bottom > bot - 1) sc.scrollTop += r.bottom - bot + 4;
+    else if (r.top < top + 1) sc.scrollTop -= top - r.top + 4;
+    if (r.width < R.width) { if (r.right > R.right - 1) sc.scrollLeft += r.right - R.right + 6; else if (r.left < R.left + 1) sc.scrollLeft -= R.left - r.left + 6; }
+  }
+  const vv = window.visualViewport, coarse = matchMedia("(pointer: coarse)").matches;
+  const bottom = (vv ? vv.offsetTop + vv.height : window.innerHeight) - (coarse ? 80 : 10);
+  let top = vv ? vv.offsetTop : 0;
+  const tb = document.querySelector(".topbar");
+  if (tb && /sticky|fixed/.test(getComputedStyle(tb).position)) top = Math.max(top, tb.getBoundingClientRect().bottom);
+  const r = td.getBoundingClientRect();
+  if (r.bottom > bottom) window.scrollBy(0, r.bottom - bottom + 30);
   else if (r.top < top + 4) window.scrollBy(0, r.top - top - 40);
 };
 {
   let raf = 0;
   const SEL = ".ins-table input, .ins-table textarea, .ins-hcol input, .sd-t input, .dly-table input, .qq-table input, .inc-table input, .prm-table input";
-  const run = e => { const el = e.target; if (!el || !el.matches || !el.matches(SEL)) return; cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setTimeout(() => sviKeepVisible(document.activeElement === el ? el : document.activeElement), 60)); };
+  const run = e => { const el = e.target; if (!el || !el.matches || !(el.matches(SEL) || el.matches("td.svi-tdf"))) return; cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setTimeout(() => sviKeepVisible(document.activeElement === el ? el : document.activeElement), 60)); };
   document.addEventListener("focusin", run);
   document.addEventListener("input", run);
 }
@@ -21662,8 +21708,66 @@ document.addEventListener("input", e => {
     const cs = [...new Set(C.map(td => td.cellIndex))].sort((x, y) => x - y);
     return rs.map(tr => cs.map(c => { const td = tr.cells[c]; return td && C.includes(td) ? valOf(td) : ""; }).join("\t")).join("\n");
   };
-  const putIn = (td, v) => { const i = td.querySelector("input.sd-in"); if (!i || i.readOnly) return false; i.__sel = true; i.value = v; i.dispatchEvent(new Event("input", { bubbles: true })); i.__sel = false; return true; };
+  /* v497 (remarque 32) : coller / effacer dans tous les tableaux de saisie (cases saisissables seulement) */
+  const editIn = td => { const i = td && td.querySelector('input:not([type=checkbox]):not([type=radio]):not([type=file]):not(.sv-date):not(.dlp-in), textarea'); return i && !i.readOnly && !i.disabled ? i : null; };
+  const putIn = (td, v) => {
+    const i = editIn(td); if (!i) return false;
+    i.__sel = true; i.value = v; i.dispatchEvent(new Event("input", { bubbles: true }));
+    if (!i.classList.contains("sd-in")) {
+      i.dispatchEvent(new Event("change", { bubbles: true }));
+      if (i.isConnected && i.getAttribute("inputmode") === "decimal" && String(i.value).trim() !== "" && typeof money === "function") i.value = money(i.value);
+    }
+    i.__sel = false; return true;
+  };
   const markSd = () => { if (S.tbl) S.tbl.dispatchEvent(new CustomEvent("svimark", { bubbles: true })); };
+  /* v497 (remarque 32) : collage comme Excel — plusieurs valeurs = une par case, vers le bas (lignes) et vers la droite (colonnes),
+     à partir de la case active (ou du coin haut gauche de la sélection) ; une seule valeur et plusieurs cases sélectionnées =
+     la valeur dans chacune. Lignes manquantes : la ligne vide « SAISIR ICI » en crée de nouvelles. Cases grisées sautées. */
+  const shown = tbl => [...(tbl.tBodies[0] ? tbl.tBodies[0].rows : [])].filter(tr => tr.offsetParent !== null);
+  const pasteText = (t, tbl, C) => {
+    if (!tbl || !C || !C.length) return 0;
+    const lines = String(t || "").replace(/\r/g, "").replace(/\n+$/, "").split("\n").map(l => l.split("\t"));
+    let n = 0;
+    if (tbl.classList.contains("sd-t")) markSd();
+    if (lines.length === 1 && lines[0].length === 1 && C.length > 1) { C.forEach(td => { if (putIn(td, lines[0][0].trim())) n++; }); return n; }
+    const R0 = shown(tbl), rs = C.map(td => R0.indexOf(td.parentElement)).filter(x => x >= 0);
+    const r0 = rs.length ? Math.min(...rs) : 0, c0 = Math.min(...C.map(td => td.cellIndex));
+    lines.forEach((cl, i) => {
+      if (!tbl.isConnected) return;
+      const tr = shown(tbl)[r0 + i]; if (!tr) return;
+      cl.forEach((v, j) => { const td = tr.cells[c0 + j]; if (td && putIn(td, v.trim())) n++; });
+    });
+    document.querySelector(".sd-sug")?.remove();
+    if (typeof sviUnitSugHide === "function") sviUnitSugHide();
+    return n;
+  };
+  const isNav = el => !!el && (el.tagName === "TD" || (el.classList && el.classList.contains("svi-nav")));
+  document.addEventListener("paste", e => {
+    const act = document.activeElement, td0 = act && act.closest && act.closest("td"), tbl = td0 && td0.closest(TSEL);
+    if (!tbl) return;
+    const t = (e.clipboardData && e.clipboardData.getData("text/plain")) || "";
+    const multi = /[\t\n]/.test(t.replace(/\r/g, "").replace(/\n+$/, ""));
+    const C = S.tbl === tbl && S.a ? cells() : [td0];
+    if (!multi && !isNav(act) && C.length < 2) return;   /* saisie en cours : collage normal dans le texte */
+    e.preventDefault();
+    const n = pasteText(t, tbl, C.length ? C : [td0]);
+    if (typeof svToast === "function" && (multi || C.length > 1)) svToast(n + " CASE(S) COLLÉE(S).", 1800);
+  }, true);
+  /* v497 (remarques 33 et 35) : copier une case sélectionnée (même grisée) ou une plage, pour Excel / Google Sheets */
+  const copyEv = cut => e => {
+    const act = document.activeElement, td0 = act && act.closest && act.closest("td"), tbl = td0 && td0.closest(TSEL);
+    if (!tbl) return;
+    const C = S.tbl === tbl && S.a ? cells() : [td0];
+    if (!isNav(act) && C.length < 2) return;   /* texte sélectionné dans la saisie : copie normale */
+    const txt = C.length > 1 ? selTsv(C) : valOf(td0);
+    e.preventDefault();
+    try { e.clipboardData.setData("text/plain", txt); } catch (err) {}
+    window.__sviSelClip = txt;
+    if (cut) { if (tbl.classList.contains("sd-t")) markSd(); C.forEach(td => putIn(td, "")); }
+    if (typeof svToast === "function" && C.length > 1) svToast(C.length + " CASE(S) " + (cut ? "COUPÉE(S)" : "COPIÉE(S)") + ".", 1800);
+  };
+  document.addEventListener("copy", copyEv(false), true);
+  document.addEventListener("cut", copyEv(true), true);
   /* API de la sélection (menu ⋯ de la SAISIE DIRECTE) */
   window.__sviSel = {
     count: () => cells().length,
@@ -21673,73 +21777,181 @@ document.addEventListener("input", e => {
       const C = cells(); if (!C.length || !S.tbl) return 0;
       let t = ""; try { t = navigator.clipboard && navigator.clipboard.readText ? await navigator.clipboard.readText() : ""; } catch (err) { t = ""; }
       if (!t) t = window.__sviSelClip || "";
-      const r0 = Math.min(...C.map(td => td.parentElement.sectionRowIndex)), c0 = Math.min(...C.map(td => td.cellIndex));
-      const lines = String(t || "").replace(/\r/g, "").replace(/\n+$/, "").split("\n").map(l => l.split("\t"));
-      let n = 0; lines.forEach((cl, i) => cl.forEach((v, j) => { const td = tdAt(S.tbl, r0 + i, c0 + j); if (td && putIn(td, v.trim())) n++; }));
-      document.querySelector(".sd-sug")?.remove();
-      return n;
-    }
+      return pasteText(t, S.tbl, C);
+    },
+    pasteText: (t, tbl, C) => pasteText(t, tbl, C)
   };
   document.addEventListener("keydown", e => {
     const act = document.activeElement, td0 = act && act.closest && act.closest("td"), tbl = td0 && td0.closest(TSEL);
     if (!tbl || S.tbl !== tbl || !S.a) return;
-    /* Maj + flèches : étendre la plage */
+    /* Maj + flèches : étendre la plage (case sélectionnée seulement ; en saisie, Maj + flèches sélectionne le texte) */
     if (e.shiftKey && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+      if (!isNav(act)) return;
       e.preventDefault(); e.stopPropagation();
       const b = S.b || { ...S.a };
       if (e.key === "ArrowUp") b.r = Math.max(0, b.r - 1); else if (e.key === "ArrowDown") b.r = Math.min(tbl.tBodies[0].rows.length - 1, b.r + 1);
       else if (e.key === "ArrowLeft") b.c = Math.max(0, b.c - 1); else b.c = b.c + 1;
-      S.b = b; paint(); return;
+      S.b = b; paint();
+      const end = tdAt(tbl, b.r, b.c); if (end && typeof sviKeepVisible === "function") sviKeepVisible(end);
+      return;
     }
     const C = cells();
-    if (C.length < 2) return;
+    if (C.length < 2 || !isNav(act)) return;
     const mod = e.metaKey || e.ctrlKey;
-    if (mod && (e.key === "c" || e.key === "C")) {
-      e.preventDefault();
-      const rs = [...new Set(C.map(td => td.parentElement))].sort((x, y) => x.sectionRowIndex - y.sectionRowIndex);
-      const cs = [...new Set(C.map(td => td.cellIndex))].sort((x, y) => x - y);
-      const txt = rs.map(tr => cs.map(c => { const td = tr.cells[c]; return td && C.includes(td) ? valOf(td) : ""; }).join("\t")).join("\n");
-      try { navigator.clipboard && navigator.clipboard.writeText(txt); } catch (err) {}
-      if (typeof svToast === "function") svToast(C.length + " CASE(S) COPIÉE(S).", 1800);
-      return;
-    }
-    if (!tbl.classList.contains("sd-t")) return;
-    const put = (td, v) => putIn(td, v);
     if (!mod && (e.key === "Backspace" || e.key === "Delete")) {
-      e.preventDefault(); markSd(); let n = 0; C.forEach(td => { if (put(td, "")) n++; });
+      e.preventDefault(); e.stopPropagation();
+      if (tbl.classList.contains("sd-t")) markSd();
+      let n = 0; C.forEach(td => { if (putIn(td, "")) n++; });
       document.querySelector(".sd-sug")?.remove();
       if (typeof svToast === "function") svToast(n + " CASE(S) VIDÉE(S).", 1800);
-      return;
-    }
-    if (mod && (e.key === "v" || e.key === "V")) {
-      e.preventDefault(); markSd();
-      const r0 = Math.min(...C.map(td => td.parentElement.sectionRowIndex)), c0 = Math.min(...C.map(td => td.cellIndex));
-      (navigator.clipboard && navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.resolve("")).then(t => {
-        const lines = String(t || "").replace(/\r/g, "").replace(/\n+$/, "").split("\n").map(l => l.split("\t"));
-        let n = 0;
-        lines.forEach((cl, i) => cl.forEach((v, j) => { const td = tdAt(tbl, r0 + i, c0 + j); if (td && put(td, v.trim())) n++; }));
-        document.querySelector(".sd-sug")?.remove();
-        if (typeof svToast === "function") svToast(n + " CASE(S) COLLÉE(S).", 1800);
-      }).catch(() => {});
     }
   }, true);
 })();
 
-/* v494 (remarque 20) : comme Excel — un premier toucher sur une case d'un tableau sélectionne tout son contenu
-   (ce qu'on tape remplace la valeur) ; un second toucher place le curseur pour corriger */
+/* v497 (remarques 30, 33 et 35) : CASES COMME GOOGLE SHEETS, dans tous les tableaux de saisie
+   - un premier toucher (ou les flèches, Tab, Entrée, les flèches de la barre du clavier de l'iPad) SÉLECTIONNE la case :
+     cadre, sans curseur ; ce qu'on tape remplace le contenu ; Commande + C / X / V copient, coupent, collent la case
+     (plusieurs valeurs collées : une par case, vers le bas et vers la droite) ; ⌫ vide la case ;
+   - un second toucher (double toucher), F2 ou la frappe passent EN SAISIE : curseur dans le texte ; les flèches, Maj + flèches,
+     Commande + A / C / V agissent alors dans le texte ; Échap = revenir à la valeur d'avant et à la case sélectionnée ;
+   - flèches (case sélectionnée) : case voisine, cases grisées comprises (elles se sélectionnent et se copient, sans saisie) ;
+   - la case choisie reste toujours visible (en-tête et TOTAL fixés, clavier ou barre de l'iPad) */
 (() => {
   const TS = "table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table";
-  let arm = null;
+  const ED = 'input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]):not(.sv-date):not(.dlp-in), textarea.ins-in';
+  const editable = i => !!i && i.matches && i.matches(ED) && !i.readOnly && !i.disabled && !!i.closest(TS) && !!i.closest("tbody");
+  const NOSEL = "button, a, label, .lk-rd, .lk-rdall, [role=button], input[type=checkbox], input[type=radio], .ins-grip, .blk-grip";
+  let nav = null;
+  const end = i => { try { const L = String(i.value || "").length; i.setSelectionRange(L, L); } catch (err) {} };
+  const on = i => {
+    if (nav && nav !== i) off(nav);
+    nav = i; i.classList.add("svi-nav"); i.__v0 = i.value; end(i);
+  };
+  const off = i => { i.classList.remove("svi-nav"); if (nav === i) nav = null; };
+  window.__sviNav = { on, off, isNav: i => !!i && i.classList.contains("svi-nav") };
+  /* toucher : 1er = sélection ; 2e sur la même case = saisie (le navigateur place le curseur) */
+  let tap = null;
   document.addEventListener("pointerdown", e => {
-    const i = e.target.closest && e.target.closest("input:not([type=checkbox]):not([type=radio]), textarea.ins-in");
-    arm = i && i.closest(TS) && document.activeElement !== i && !i.readOnly && !i.disabled ? i : null;
+    const i = e.target.closest && e.target.closest(ED);
+    tap = null;
+    if (!editable(i)) return;
+    if (document.activeElement === i) { if (i.classList.contains("svi-nav")) off(i); return; }
+    tap = i;
   }, true);
+  document.addEventListener("mouseup", e => { if (tap && e.target === tap) e.preventDefault(); }, true);
+  document.addEventListener("pointerup", () => { const t = tap; setTimeout(() => { if (tap === t) tap = null; }, 120); }, true);
   document.addEventListener("focusin", e => {
-    const i = e.target; if (!arm || i !== arm) return;
-    const sel = () => { try { i.setSelectionRange(0, String(i.value || "").length); } catch (err) { try { i.select(); } catch (e2) {} } };
-    sel(); setTimeout(sel, 0); setTimeout(sel, 60);
+    const i = e.target;
+    if (!editable(i)) return;
+    if (i.__edit) { i.__edit = false; off(i); return; }
+    on(i);
+    /* l'iPad place le curseur après la prise de focus : on le retire encore */
+    setTimeout(() => { if (nav === i && document.activeElement === i) end(i); }, 0);
+    setTimeout(() => { if (nav === i && document.activeElement === i) end(i); }, 80);
   });
-  document.addEventListener("mouseup", e => { if (arm && e.target === arm) { e.preventDefault(); arm = null; } }, true);
-  document.addEventListener("pointerup", () => { setTimeout(() => { arm = null; }, 80); }, true);
+  document.addEventListener("focusout", e => { const i = e.target; if (i && i.classList && i.classList.contains("svi-nav")) off(i); });
+  /* frappe sur une case sélectionnée : remplace le contenu, puis saisie */
+  document.addEventListener("beforeinput", e => {
+    const i = e.target;
+    if (!i || i !== nav || !i.classList.contains("svi-nav")) return;
+    const t = e.inputType || "";
+    if (t === "insertText" || t === "insertReplacementText") {
+      e.preventDefault();
+      off(i);
+      i.value = e.data || "";
+      end(i);
+      i.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: e.data || "" }));
+      return;
+    }
+    if (t.startsWith("delete")) {
+      e.preventDefault();
+      off(i);
+      i.value = "";
+      i.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: t }));
+      return;
+    }
+    if (t === "insertFromPaste" || t === "insertFromDrop") return;   /* collage : géré à part (une valeur par case) */
+    off(i);
+  }, true);
+  /* lettres accentuées (composition) : la case est vidée d'abord */
+  document.addEventListener("compositionstart", e => { const i = e.target; if (i && i === nav && i.classList.contains("svi-nav")) { off(i); i.value = ""; } }, true);
+  document.addEventListener("input", e => { const i = e.target; if (e.isTrusted && i && i === nav && i.classList.contains("svi-nav")) off(i); }, true);
+  /* case grisée (ou sans saisie) : elle se sélectionne aussi, pour la copier */
+  const tdOk = td => !!td && td.tagName === "TD" && !!td.closest(TS) && !!td.closest("tbody") && td.offsetParent !== null
+    && !td.querySelector('input[type=checkbox], .lk-rd') && !td.classList.contains("ins-rdc") && !td.classList.contains("ins-delc") && !td.classList.contains("sd-cbc");
+  const focusTd = td => {
+    td.classList.add("svi-tdf");
+    if (!td.hasAttribute("tabindex")) td.setAttribute("tabindex", "-1");
+    td.focus({ preventScroll: true });
+  };
+  document.addEventListener("focusout", e => { const t = e.target; if (t && t.classList && t.classList.contains("svi-tdf")) t.classList.remove("svi-tdf"); });
+  document.addEventListener("click", e => {
+    if (e.defaultPrevented || !e.target.closest || e.target.closest(NOSEL)) return;
+    const td = e.target.closest("td");
+    if (!tdOk(td)) return;
+    const i = td.querySelector(ED);
+    if (i && !i.disabled && !i.readOnly) return;   /* case saisissable : son champ s'en charge */
+    if (document.activeElement === td) return;
+    focusTd(td);
+  });
+  const goCell = (td, dir) => {
+    if (!td) return;
+    const i = td.querySelector(ED);
+    if (i && editable(i) && i.offsetParent !== null) { i.focus({ preventScroll: true }); }
+    else focusTd(td);
+    if (typeof sviKeepVisible === "function") sviKeepVisible(td);
+  };
+  const near = (td, dr, dc) => {
+    const tbl = td.closest("table"), R = [...(tbl.tBodies[0] ? tbl.tBodies[0].rows : [])].filter(tr => tr.offsetParent !== null);
+    let r = R.indexOf(td.parentElement), c = td.cellIndex;
+    if (r < 0) return null;
+    if (dc) {
+      for (c += dc; c >= 0 && c < td.parentElement.cells.length; c += dc) { const x = td.parentElement.cells[c]; if (tdOk(x)) return x; }
+      return null;
+    }
+    for (r += dr; r >= 0 && r < R.length; r += dr) { const x = R[r].cells[c]; if (x && tdOk(x)) return x; }
+    return null;
+  };
+  document.addEventListener("keydown", e => {
+    const el = e.target;
+    if (!el || !el.closest) return;
+    const td = el.tagName === "TD" ? el : el.closest("td");
+    if (!td || !td.closest(TS)) return;
+    const isTd = el.tagName === "TD", isNav = isTd || (el.classList && el.classList.contains("svi-nav"));
+    const mod = e.metaKey || e.ctrlKey || e.altKey;
+    /* en saisie : Échap = valeur d'avant, case sélectionnée */
+    if (!isNav) {
+      if (e.key === "Escape" && editable(el) && el.__v0 !== undefined && !document.querySelector("#svUnitSug, .sd-sug")) {
+        e.preventDefault();
+        if (el.value !== el.__v0) { el.value = el.__v0; el.dispatchEvent(new Event("input", { bubbles: true })); }
+        on(el);
+      }
+      return;
+    }
+    if (e.key === "F2" && !isTd) { e.preventDefault(); off(el); end(el); return; }
+    if (mod || e.shiftKey) return;
+    const k = e.key;
+    if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(k)) {
+      /* case grisée : Entrée / Tab = case voisine */
+      if (isTd && (k === "Enter" || k === "Tab")) { e.preventDefault(); goCell(near(td, k === "Enter" ? 1 : 0, k === "Tab" ? 1 : 0)); }
+      return;
+    }
+    if (document.querySelector("#svUnitSug, .sd-sug")) return;   /* flèches : dans la liste de choix */
+    e.preventDefault(); e.stopPropagation();
+    const nx = near(td, k === "ArrowDown" ? 1 : k === "ArrowUp" ? -1 : 0, k === "ArrowRight" ? 1 : k === "ArrowLeft" ? -1 : 0);
+    if (nx) goCell(nx);
+  }, true);
 })();
 
+
+/* v497 (remarque 36) : nombres au format de l'application en quittant la case — 35 → 35,00 (virgule, deux décimales,
+   espace des milliers), dans DÉSIGNATIONS CLIENT, DÉTAIL PRODUITS / CHARGES, IMPORT NON CRÉÉ et SAISIE DIRECTE */
+document.addEventListener("focusout", e => {
+  const i = e.target;
+  if (!i || i.tagName !== "INPUT" || i.getAttribute("inputmode") !== "decimal" || i.readOnly || i.disabled) return;
+  if (!i.closest("table.ins-table, table.inc-table, table.sd-t")) return;
+  const v = String(i.value || "").trim();
+  if (!v || !/^-?[\d\s  ]*[.,]?\d*$/.test(v) || !/\d/.test(v)) return;
+  const m = money(v);
+  if (m !== i.value) { i.value = m; i.defaultValue = m; }
+});
