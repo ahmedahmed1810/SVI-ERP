@@ -225,6 +225,18 @@ def main():
         check("remarque 4 : UPB centrée", "center" in cen, cen)
         fq = pg.evaluate("() => [...document.querySelectorAll('#sdW tr.sd-old .sd-in[data-f=\"q\"]')].map(i => i.value)")
         check("remarque 4 : QTE au format 1 234,56", all("," in v for v in fq) and len(fq) > 0, fq)
+        # remarques 19 et 21 : case à cocher dès la 1re lettre ; une seule ligne vide ; ligne vidée supprimée en la quittant
+        nb0 = pg.evaluate("() => document.querySelectorAll('#sdW tr.sd-new').length")
+        pg.focus('#sdW tr.sd-new:last-child .sd-in[data-f="art"]'); pg.keyboard.press("Enter"); pg.wait_for_timeout(200)
+        nb1 = pg.evaluate("() => document.querySelectorAll('#sdW tr.sd-new').length")
+        check("remarque 19 : Entrée sur la ligne vide ne crée pas une seconde ligne vide", nb1 == nb0, [nb0, nb1])
+        pg.focus('#sdW tr.sd-new:last-child .sd-in[data-f="art"]'); pg.keyboard.type("X"); pg.wait_for_timeout(150)
+        cb21 = pg.evaluate("() => { const trs = [...document.querySelectorAll('#sdW tr.sd-new')]; const t = trs[trs.length - 2]; return !!(t && t.querySelector('.sd-cb')); }")
+        check("remarque 21 : case à cocher dès la première lettre", cb21)
+        pg.keyboard.press("Backspace"); pg.wait_for_timeout(100)
+        pg.click('#sdW tr.sd-old .sd-in[data-f="des"]'); pg.wait_for_timeout(250)
+        nb2 = pg.evaluate("() => document.querySelectorAll('#sdW tr.sd-new').length")
+        check("remarque 19 : ligne vidée supprimée en la quittant", nb2 == nb0, [nb0, nb2])
         # remarque 11 : annuler dans la saisie directe
         pg.focus('#sdW tr.sd-old .sd-in[data-f="art"]'); pg.keyboard.type("ZZ"); pg.wait_for_timeout(100)
         v1 = pg.evaluate("() => document.querySelector('#sdW tr.sd-old .sd-in[data-f=\"art\"]').value")
@@ -270,6 +282,21 @@ def main():
         grp = pg.evaluate("() => { const g = document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-grp'); return g ? [g.dataset.grp, g.innerText.replace(/\s+/g, ' ')] : null; }")
         check("remarque 10 : CIMENT de deux tâches regroupé (QCB additionnée)", grp is not None and set(grp[0].split(",")) >= {"c9"} and "CIMENT" in grp[1], grp)
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.sec.forEach(x => x.on = false); X.refreshAll(); }}"); pg.wait_for_timeout(200)
+
+        # remarque 23 : QPB d'une désignation limitée aux tâches de la charge cochée
+        q23 = pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;
+            I.prd.push({{ id: 'x5', des: 'BETON B25', u: 'M3', nbr: 5, d1: 1, d2: 1, d3: 1 }});
+            I.links.push({{ id: 'L10', des: 'd1', lot: 'l2', prim: 'p1', sec: 's1', prd: [{{ id: 'x5' }}], chg: [] }});
+            X.refreshAll();
+            const qpb = () => {{ const tr = document.querySelector('#bdgClientBody tr[data-iid="d1"]'); const i = tr && tr.querySelector('[data-f="q"]'); return i ? (i.value || i.textContent) : null; }};
+            const all = qpb(); I.chg.find(c => c.id === 'c1').on = true; X.refreshAll(); const f = qpb(); I.chg.forEach(c => c.on = false); X.refreshAll();
+            return [all, f]; }}""")
+        check("remarque 23 : QPB filtrée par la charge cochée (15 → 10)", q23 == ["15,00", "10,00"], q23)
+
+        # remarque 20 : premier toucher = tout le contenu sélectionné
+        pg.click('table.ins-table[data-ik="des"] tr[data-iid="d2"] input.ins-in[data-f="art"]'); pg.wait_for_timeout(150)
+        s20 = pg.evaluate("() => { const a = document.activeElement; return [a.selectionStart, a.selectionEnd, (a.value || '').length]; }")
+        check("remarque 20 : premier toucher sélectionne toute la case", s20[0] == 0 and s20[1] == s20[2] and s20[2] > 0, s20)
 
         # remarque 21 : une charge déjà liée à une autre tâche est copiée au chargement
         n = pg.evaluate(f"() => {ins}.INS.chg.length")

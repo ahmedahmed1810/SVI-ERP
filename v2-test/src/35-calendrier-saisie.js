@@ -580,3 +580,21 @@ document.addEventListener("input", e => {
   }, true);
 })();
 
+/* v494 (remarque 20) : comme Excel — un premier toucher sur une case d'un tableau sélectionne tout son contenu
+   (ce qu'on tape remplace la valeur) ; un second toucher place le curseur pour corriger */
+(() => {
+  const TS = "table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table";
+  let arm = null;
+  document.addEventListener("pointerdown", e => {
+    const i = e.target.closest && e.target.closest("input:not([type=checkbox]):not([type=radio]), textarea.ins-in");
+    arm = i && i.closest(TS) && document.activeElement !== i && !i.readOnly && !i.disabled ? i : null;
+  }, true);
+  document.addEventListener("focusin", e => {
+    const i = e.target; if (!arm || i !== arm) return;
+    const sel = () => { try { i.setSelectionRange(0, String(i.value || "").length); } catch (err) { try { i.select(); } catch (e2) {} } };
+    sel(); setTimeout(sel, 0); setTimeout(sel, 60);
+  });
+  document.addEventListener("mouseup", e => { if (arm && e.target === arm) { e.preventDefault(); arm = null; } }, true);
+  document.addEventListener("pointerup", () => { setTimeout(() => { arm = null; }, 80); }, true);
+})();
+
