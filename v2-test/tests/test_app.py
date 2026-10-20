@@ -242,6 +242,12 @@ def main():
         pg.keyboard.press("Control+c"); pg.wait_for_timeout(200)
         clip = pg.evaluate("() => navigator.clipboard.readText()")
         check("remarque 6 : sélection de plusieurs cases et copie", nsel == 2 and "\t" in clip, [nsel, clip[:60]])
+        # remarque 17 : unités centrées (texte de la case) ; remarque 14 : toucher hors du tableau = sélection annulée
+        ta = pg.evaluate("() => getComputedStyle(document.querySelector('#sdW .sd-in[data-f=\"upb\"]')).textAlign")
+        check("remarque 17 : UPB centrée (texte)", ta == "center", ta)
+        pg.mouse.click(5, 5); pg.wait_for_timeout(150)
+        nsel2 = pg.evaluate("() => document.querySelectorAll('td.svi-cs').length")
+        check("remarque 14 : toucher hors du tableau annule la sélection", nsel2 == 0, nsel2)
         pg.evaluate("() => document.querySelector('#sdW [data-x]')?.click()"); pg.wait_for_timeout(200)
 
         # remarque 7 : case de droite = filtre des autres blocs

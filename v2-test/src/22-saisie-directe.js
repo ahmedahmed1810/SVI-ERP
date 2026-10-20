@@ -88,7 +88,8 @@
         const sc = d.querySelector(".sd-scroll"), st = sc ? sc.scrollTop : 0, sl = sc ? sc.scrollLeft : 0;
         const V = vis();
         /* FORMAT 6 : un intitulé de colonne n'est jamais coupé — largeur au moins celle de l'intitulé */
-        const W = {}; COLS.forEach(c => { W[c[0]] = Math.max((sz.cols || {})[c[0]] || c[2], Math.ceil(c[1].length * 7.6) + 46); });
+        /* v493 (remarque 16) : une colonne se réduit au maximum, comme dans DÉSIGNATIONS CLIENT (intitulé abrégé « … ») */
+        const W = {}; COLS.forEach(c => { W[c[0]] = Math.max(28, (sz.cols || {})[c[0]] || Math.max(c[2], Math.ceil(c[1].length * 7.6) + 46)); });
         d.innerHTML = `<div class="sd-card${big ? " big" : ""}" role="dialog" aria-modal="true" style="${!big && sz.w ? "width:" + sz.w + "px;height:" + sz.h + "px" : ""}">
           <div class="sd-head"><span class="sd-title">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"}</span>
             <span class="sd-n">${svCnt(V.filter(x => x.r._id).length, rows.filter(x => x._id).length)}</span>
@@ -138,7 +139,7 @@
           e.preventDefault(); e.stopPropagation();
           const key = h.dataset.col, col = d.querySelector(`col[data-c="${key}"]`), tb = d.querySelector(".sd-t");
           const x0 = e.clientX, w0 = col.getBoundingClientRect().width || parseFloat(col.style.width) || 80;
-          const lab = (COLS.find(c => c[0] === key) || ["", ""])[1], wMin = Math.ceil(lab.length * 7.6) + 46;
+          const wMin = 28;
           const mv = ev => { const w = Math.max(wMin, Math.round(w0 + ev.clientX - x0)); col.style.width = w + "px"; sz.cols = sz.cols || {}; sz.cols[key] = w; tb.style.width = [...d.querySelectorAll(".sd-t col")].reduce((t, x) => t + (parseFloat(x.style.width) || 0), 0) + "px"; };
           const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); szSave(); };
           document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
