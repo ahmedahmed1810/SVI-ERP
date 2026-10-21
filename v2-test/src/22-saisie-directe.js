@@ -3,8 +3,11 @@
        ENTRÉE = case suivante, sur la dernière case la ligne est recopiée (curseur sur la désignation produit / charge) ;
        VALIDER : lignes existantes mises à jour (chaîne d'une ligne liée : délier d'abord), lignes nouvelles importées avec les règles
        de l'import (erreurs dans IMPORT NON CRÉÉ, doublons signalés) */
-    const openDirectEntry = kind => {
+    /* v511 (remarque 75) : AGRANDIR (DÉTAIL CHARGES / PRODUITS) ouvre la SAISIE DIRECTE sur place, dans le bloc (opt.inplace) ;
+       elle n'est plus dans le menu IMPORTER ; la poignée du bas du bloc agrandit comme avant */
+    const openDirectEntry = (kind, opt = {}) => {
       if (!INS || !INS_EDIT) return;
+      const IN = !!opt.inplace;
       const P = kind === "prd";
       const nm = (k, id) => { const r = (INS[k] || []).find(x => x.id === id); return r ? (k === "des" ? r.des || "" : r.v || "") : ""; };
       /* v481 (remarque 17) : U = unité de l'activité secondaire (obligatoire ; tâche primaire : UPB de la désignation, grisée) */
@@ -108,7 +111,14 @@
         const s2 = d.querySelector(".sd-scroll"); if (s2) { s2.scrollTop = st; s2.scrollLeft = sl; }
       };
       document.getElementById("sdW")?.remove();
-      document.body.appendChild(d);
+      shell.querySelector(".bdg-d-page")?.classList.remove("sd-on");
+      if (IN) {
+        const tbody = $("bdgTabBody"), page = shell.querySelector(".bdg-d-page");
+        d.classList.add("sd-inplace"); big = false;
+        if (tbody && tbody.parentNode) { tbody.parentNode.insertBefore(d, tbody); page && page.classList.add("sd-on"); }
+        else document.body.appendChild(d);
+        shell.querySelector('.blk-max-btn[data-blk="detail"]')?.classList.add("on");
+      } else document.body.appendChild(d);
       window.__sviSdRefresh = draw;
       draw();
       const focusAt = (i, f) => { const el = d.querySelector(`.sd-in[data-i="${i}"][data-f="${f}"]`); if (el) { el.focus(); try { if (!el.classList.contains("svi-nav")) el.select(); } catch (e) {} } };
@@ -285,7 +295,7 @@
           <div class="blk-sep"></div><button type="button" data-sm="del" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}><span>SUPPRIMER LES LIGNES COCHÉES</span>${svCnt(n)}</button>
           <button type="button" data-sm="all"><span>TOUT COCHER (LIGNES AFFICHÉES)</span></button>
           <button type="button" data-sm="none" class="${n ? "" : "off"}" ${n ? "" : "disabled"}><span>TOUT DÉCOCHER</span></button>
-          <div class="blk-sep"></div><button type="button" data-sm="mini"><span>RÉDUIRE (ÉTIQUETTE EN BAS À DROITE)</span></button><button type="button" data-sm="size"><span>${big ? "FENÊTRE" : "PLEIN ÉCRAN"}</span></button>`;
+          ${IN ? "" : `<div class="blk-sep"></div><button type="button" data-sm="mini"><span>RÉDUIRE (ÉTIQUETTE EN BAS À DROITE)</span></button><button type="button" data-sm="size"><span>${big ? "FENÊTRE" : "PLEIN ÉCRAN"}</span></button>`}`;
         document.body.appendChild(m);
         sviPlaceMenu(m, btn.getBoundingClientRect());
         const off = ev => { if (!m.contains(ev.target)) { m.remove(); document.removeEventListener("pointerdown", off, true); } };
@@ -390,7 +400,7 @@
         /* v481 (remarque 19) : RÉDUIRE = petite étiquette en bas à droite ; on travaille sur le budget ; un toucher la rouvre telle quelle */
         if (e.target.closest(".sd-mini")) { sugHide(); d.classList.add("sd-min"); return; }
         if (e.target.closest(".sd-tag")) { d.classList.remove("sd-min"); draw(); return; }
-        if (e.target.closest("[data-x]")) { d.remove(); window.__sviSdRefresh = null; return; }
+        if (e.target.closest("[data-x]")) { d.remove(); window.__sviSdRefresh = null; if (IN) sdInplaceOff(); return; }
         if (!e.target.closest(".sd-ok")) return;
         /* 0. lignes supprimées (non liées) */
         const delIds = new Set(rows.filter(r => r._del && r._id && !r._lid).map(r => r._id));
@@ -467,6 +477,20 @@
       });
       setTimeout(() => { const last = rows.length - 1; focusAt(last, "dc"); }, 60);
     };
+    /* fermeture de la SAISIE DIRECTE sur place : le tableau habituel revient */
+    const sdInplaceOff = () => {
+      shell.querySelector(".bdg-d-page")?.classList.remove("sd-on");
+      shell.querySelector('.blk-max-btn[data-blk="detail"]')?.classList.remove("on");
+      try { refreshAll(); } catch (e) {}
+    };
+    const sdInplaceClose = () => { const w = document.querySelector("#sdW.sd-inplace"); if (w) { w.remove(); window.__sviSdRefresh = null; sdInplaceOff(); return true; } return false; };
+    if (!shell.__sdTabBound) {
+      shell.__sdTabBound = true;
+      /* changer d'onglet ferme la SAISIE DIRECTE sur place */
+      shell.addEventListener("click", e => { if (e.target.closest && e.target.closest("#bdgTabs .bdg-d-tab") && document.querySelector("#sdW.sd-inplace")) shell.__sdClose && shell.__sdClose(); }, true);
+    }
+    shell.__sdClose = () => sdInplaceClose();
+    shell.__sdOpen = k => openDirectEntry(k, { inplace: true });
     shell.__sd = k => openDirectEntry(k);
     const openImportMenu = blk => {
       const p = popup(`
@@ -476,7 +500,6 @@
           <button type="button" class="blk-choice" data-src="file">Fichier (Excel, CSV, JSON)</button>
           <button type="button" class="blk-choice" data-src="gsheet">Google Sheets (lien)</button>
           ${INS ? `<button type="button" class="blk-choice" data-src="bdg">Autre budget de l'application</button>` : ""}
-          ${INS && INS_EDIT && blk === "detail" && (active === "prd" || active === "chg") ? `<button type="button" class="blk-choice" data-src="direct">SAISIE DIRECTE (${active === "prd" ? "PRODUITS" : "CHARGES"})</button>` : ""}
         </div>`);
       p.addEventListener("click", e => {
         const b = e.target.closest("[data-src]");

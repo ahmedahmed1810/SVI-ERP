@@ -391,6 +391,22 @@ def main():
         g63 = pg.evaluate("() => { const t = document.querySelector('table.ins-table[data-ik=\"chg\"]'); return [...t.querySelectorAll('tr[data-iid=\"c1\"] .lk-rd, tr[data-iid=\"c9\"] .lk-rd')].map(r => r.classList.contains('on') || !!r.closest('tr').classList.contains('lk-sel')); }")
         pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle .ins-grd')?.click()"); pg.wait_for_timeout(300)
         check("remarque 63 : pastille du titre = choisir toutes ses charges", g63 == [True, True], g63)
+        # remarque 72 : zone du signe › / ⌄ du titre de charges (toute la hauteur, 40 px)
+        pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle .ins-gfz')?.click()"); pg.wait_for_timeout(300)
+        g72 = pg.evaluate("() => { const g = document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle'); return g ? [!(g.nextElementSibling && ['c1', 'c9'].includes(g.nextElementSibling.dataset.iid)), Math.round(g.querySelector('.ins-gfz').getBoundingClientRect().width)] : null; }")
+        pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle .ins-gfz')?.click()"); pg.wait_for_timeout(300)
+        check("remarque 72 : zone du signe du titre de charges (40 px) = plier / déplier", g72 == [True, 40], g72)
+        # remarque 74 : cadre sur toute la cellule
+        pg.click('table.ins-table[data-ik="chg"] tr[data-iid="c2"] input.ins-in[data-f="q"]'); pg.wait_for_timeout(150)
+        g74 = pg.evaluate("() => { const a = document.activeElement, td = a.closest('td'); return [td.classList.contains('svi-tdon'), getComputedStyle(td).boxShadow !== 'none']; }")
+        pg.keyboard.press("Escape")
+        check("remarque 74 : cadre de la case sélectionnée sur toute la cellule", g74 == [True, True], g74)
+        # remarque 75 : AGRANDIR = SAISIE DIRECTE sur place ; plus dans IMPORTER
+        pg.evaluate("() => { const b = document.querySelector('.blk-max-btn[data-blk=\"detail\"]'); b && b.click(); }"); pg.wait_for_timeout(600)
+        g75 = pg.evaluate("() => { const w = document.querySelector('#sdW.sd-inplace'); const tb = document.getElementById('bdgTabBody'); return [!!w, !!(w && w.closest('.bdg-d-page')), tb ? getComputedStyle(tb).display : '']; }")
+        pg.evaluate("() => { const b = document.querySelector('.blk-max-btn[data-blk=\"detail\"]'); b && b.click(); }"); pg.wait_for_timeout(400)
+        g75b = pg.evaluate("() => [!!document.querySelector('#sdW'), getComputedStyle(document.getElementById('bdgTabBody')).display]")
+        check("remarque 75 : AGRANDIR = SAISIE DIRECTE sur place dans le bloc, retoucher = retour au tableau", g75 == [True, True, "none"] and g75b[0] is False and g75b[1] != "none", [g75, g75b])
 
         # remarque 23 : QPB d'une désignation limitée aux tâches de la charge cochée
         q23 = pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;

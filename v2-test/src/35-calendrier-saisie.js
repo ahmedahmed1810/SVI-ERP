@@ -479,6 +479,10 @@ document.addEventListener("input", e => {
     const act = document.activeElement, td = act && act.closest && act.closest("td");
     if (!S.tbl || !S.a || !td || !td.closest(TSEL) || td.closest("table") !== S.tbl || !matchMedia("(pointer: coarse)").matches) { if (H) H.style.display = "none"; return; }
     const end = tdAt(S.tbl, (S.b || S.a).r, (S.b || S.a).c) || td;
+    /* v511 (remarque 73) : tableau détaché ou case hors de l'écran / de son tableau défilant → pas de point */
+    if (!S.tbl.isConnected || !end.isConnected) { if (H) H.style.display = "none"; return; }
+    { const er = end.getBoundingClientRect(), sc = end.closest(".bdg-d-scroll, .sd-scroll, .bdg-h-col"); const R = sc ? sc.getBoundingClientRect() : { top: 0, bottom: innerHeight, left: 0, right: innerWidth };
+      if (er.bottom < R.top || er.top > R.bottom || er.right < R.left || er.left > R.right || er.bottom < 0 || er.top > innerHeight) { if (H) H.style.display = "none"; return; } }
     if (!H) {
       H = document.createElement("div"); H.id = "sviSelHandle"; document.body.appendChild(H);
       H.addEventListener("pointerdown", e => {
@@ -519,6 +523,11 @@ document.addEventListener("input", e => {
     }
   }, true);
   window.addEventListener("scroll", () => { if (H && H.style.display === "block") handle(); }, true);
+  /* v511 (remarque 73) : le point n'existe que s'il y a une case sélectionnée à l'écran — tableau redessiné, case quittée,
+     onglet changé ou case sortie de l'écran : il disparaît */
+  { let q = 0; const chk = () => { q = 0; if (H && H.style.display === "block") handle(); };
+    new MutationObserver(() => { if (!q && H && H.style.display === "block") q = requestAnimationFrame(chk); }).observe(document.documentElement, { childList: true, subtree: true });
+    document.addEventListener("focusout", () => setTimeout(chk, 0), true); }
   const valOf = td => { const i = td.querySelector("input:not([type=checkbox]), textarea, select"); return String(i ? i.value : td.textContent || "").replace(/[\t\n]/g, " ").trim(); };
   const selTsv = C => {
     const rs = [...new Set(C.map(td => td.parentElement))].sort((x, y) => x.sectionRowIndex - y.sectionRowIndex);
@@ -667,6 +676,9 @@ document.addEventListener("input", e => {
     setTimeout(() => { if (nav === i && document.activeElement === i) end(i); }, 80);
   });
   document.addEventListener("focusout", e => { const i = e.target; if (i && i.classList && i.classList.contains("svi-nav")) off(i); });
+  /* v511 (remarque 74) : la cellule entière porte le cadre de la case sélectionnée ou en saisie */
+  document.addEventListener("focusin", e => { const i = e.target; if (!i || !i.matches || !i.matches("input, textarea")) return; const td = i.closest("td"); if (td && td.closest(TS) && td.closest("tbody")) td.classList.add("svi-tdon"); });
+  document.addEventListener("focusout", e => { const i = e.target; const td = i && i.closest && i.closest("td.svi-tdon"); if (td) td.classList.remove("svi-tdon"); });
   /* frappe sur une case sélectionnée : remplace le contenu, puis saisie */
   document.addEventListener("beforeinput", e => {
     const i = e.target;
@@ -707,7 +719,8 @@ document.addEventListener("input", e => {
     const td = e.target.closest("td");
     if (!tdOk(td)) return;
     const i = td.querySelector(ED);
-    if (i && !i.disabled && !i.readOnly) return;   /* case saisissable : son champ s'en charge */
+    /* v511 (remarque 74) : toucher la cellule hors de sa zone de texte = la sélectionner aussi */
+    if (i && !i.disabled && !i.readOnly) { if (e.target !== i && !i.contains(e.target) && document.activeElement !== i) i.focus(); return; }
     if (document.activeElement === td) return;
     focusTd(td);
   });
