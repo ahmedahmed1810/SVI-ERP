@@ -6521,8 +6521,9 @@ function renderBudgetList() {
     /* arborescence dans l'ordre des lots (classés par ordre alphabétique au départ, puis ordre libre) :
        un niveau prend la place de son premier lot */
     const lotTreeRows = list => {
-      const ids = new Set(list.map(r => r.id));
-      const flat = INS.lot.filter(r => ids.has(r.id));
+      /* v506 (remarque 59) : ordre de la liste affichée (lots choisis / liés en haut, tri de colonne) — le lot choisi remonte
+         avec son chemin, comme une désignation avec ses titres */
+      const flat = list.filter(r => INS.lot.includes(r));
       const root = { kids: [], map: new Map() };
       flat.forEach(r => {
         let n = root;
@@ -15722,6 +15723,12 @@ function renderBudgetList() {
         let E = [...seen.entries()].map(([id, LL]) => ({ id, LL, a: mgAgg(LL) }));
         if (mgSort) E.sort((x, y) => byS(x.a, y.a));
         E.forEach(({ id, LL, a }, si) => {
+          /* v506 (remarque 60) : activité primaire dont la seule activité secondaire est sa jumelle — pas de niveau de plus,
+             la ligne est directement la liaison */
+          if (i === G.length - 2 && G[G.length - 1] === "sec" && d === "prim" && LL.length === 1 && insLinkPrim(INS, LL[0])) {
+            out.push({ leaf: true, l: LL[0], lvl: i, dim: d, band: si % 2 });
+            return;
+          }
           const p = path + "/" + d + ":" + id;
           mgAll.push(p);
           out.push({ leaf: false, dim: d, id, lvl: i, path: p, links: LL, agg: a, open: mgOpen.has(p), band: si % 2 });
