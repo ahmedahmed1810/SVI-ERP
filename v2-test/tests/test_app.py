@@ -570,6 +570,59 @@ def main():
                 const l = X.INS.links.find(l => l.des === d3.id); if (!l) return 'PAS DE LIAISON ' + JSON.stringify({{ inc: X.INS.inc, links: X.INS.links, chg: X.INS.chg, txt: document.body.innerText.slice(-600) }});
                 return {{ prd: l.prd.length, chg: l.chg.map(x => (X.INS.chg.find(c => c.id === x.id) || {{}}).des).join(','), old: X.INS.links.filter(q => q.des === 'd1').length }}; }}""")
             check("charge déplacée : produits recopiés sur la nouvelle combinaison (remarque 22)", ok1 and isinstance(res, dict) and res["prd"] == 1 and "CIMENT" in res["chg"] and res["old"] == 1, res)
+        # ===== v513 : sélection, 2e toucher, sélection multiple des listes, collage sans doublons, copie filtrée =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        for _ in range(3):
+            if not pg.evaluate("() => !!document.getElementById('sdW')"): break
+            pg.evaluate("() => { const d = document.getElementById('sdW'); d && d.querySelector('[data-x]')?.click(); }"); pg.wait_for_timeout(500)
+            pg.evaluate("() => document.querySelectorAll('.svc-ok, [data-ok]').forEach(b => b.click())"); pg.wait_for_timeout(400)
+        P = 'table.ins-table[data-ik="des"] tr[data-iid="d1"] input.ins-in[data-f="p"]'
+        pg.click(P); pg.wait_for_timeout(150)
+        s1 = pg.evaluate("() => { const a = document.activeElement; return [a.classList.contains('svi-nav'), getComputedStyle(a).caretColor]; }")
+        pg.click(P); pg.wait_for_timeout(200)
+        s2 = pg.evaluate("() => { const a = document.activeElement; return [a.classList.contains('svi-nav'), a.selectionStart, a.selectionEnd, a.value.length]; }")
+        check("v513 : 1er toucher = sélection sans curseur ; 2e toucher = TOUT le contenu sélectionné",
+              s1[0] and s1[1] in ("transparent", "rgba(0, 0, 0, 0)") and not s2[0] and s2[1] == 0 and s2[2] == s2[3] and s2[3] > 0, [s1, s2])
+        pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        # 1er toucher dans une LISTE (LOT) : pas de curseur non plus
+        pg.click('.ins-hcol[data-ik="lot"] .ins-li[data-iid="l1"] input.ins-in'); pg.wait_for_timeout(150)
+        s3 = pg.evaluate("() => { const a = document.activeElement; return [a.classList.contains('svi-nav'), getComputedStyle(a).caretColor]; }")
+        check("v513 : liste LOT — 1er toucher = sélection, sans curseur", s3[0] and s3[1] in ("transparent", "rgba(0, 0, 0, 0)"), s3)
+        # sélection multiple dans la liste LOT : Maj + toucher, copie = une ligne par lot
+        pg.keyboard.down("Shift"); pg.click('.ins-hcol[data-ik="lot"] .ins-li[data-iid="l2"] input.ins-in'); pg.keyboard.up("Shift"); pg.wait_for_timeout(150)
+        cp = pg.evaluate("""() => { const dt = new DataTransfer(); const ev = new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true });
+            document.activeElement.dispatchEvent(ev); return [document.querySelectorAll('.ins-hcol .svi-ls').length, dt.getData('text/plain')]; }""")
+        check("v513 : sélection multiple dans la liste LOT (Maj + toucher) et copie des lots", cp[0] == 2 and sorted(cp[1].split("\n")) == ["ETAGE 1", "RDC"], cp)
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        # coller dans ACTIVITÉ PRIMAIRE : doublons ignorés (déjà présent, ou répété dans ce qui est collé)
+        pg.click('.ins-hcol[data-ik="prim"] .ins-li.ins-new input.ins-in'); pg.wait_for_timeout(150)
+        dp = pg.evaluate(f"""() => {{ const el = document.activeElement; const dt = new DataTransfer(); dt.setData('text/plain', 'BETONNAGE\\nENDUIT\\nenduit\\n\\nPEINTURE\\n');
+            el.dispatchEvent(new ClipboardEvent('paste', {{ clipboardData: dt, bubbles: true, cancelable: true }}));
+            const X = {ins}; const out = X.INS.prim.map(r => r.v);
+            X.INS.prim = X.INS.prim.filter(r => !['ENDUIT', 'PEINTURE'].includes(r.v)); X.insSave(); X.refreshAll(); return out; }}""")
+        check("v513 : coller des activités — doublons ignorés", sorted(dp) == ["BETONNAGE", "ENDUIT", "PEINTURE"], dp)
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        # coller dans DÉSIGNATIONS CLIENT (ligne SAISIR ICI…) : une désignation déjà présente n'est pas recréée
+        nd = 'table.ins-table[data-ik="des"] tr.ins-new textarea.ins-in[data-f="des"]'
+        if pg.evaluate("s => !!document.querySelector(s)", nd):
+            pg.click(nd); pg.wait_for_timeout(150)
+            dd = pg.evaluate(f"""() => {{ const X = {ins}; const n0 = X.INS.des.length; const el = document.activeElement; const dt = new DataTransfer(); dt.setData('text/plain', 'ACIER\\nGRAVIER\\nGRAVIER\\n');
+                el.dispatchEvent(new ClipboardEvent('paste', {{ clipboardData: dt, bubbles: true, cancelable: true }}));
+                const out = [X.INS.des.length - n0, X.INS.des.filter(r => r.des === 'ACIER').length, X.INS.des.filter(r => r.des === 'GRAVIER').length];
+                X.INS.des = X.INS.des.filter(r => r.des !== 'GRAVIER'); X.insSave(); X.refreshAll(); return out; }}""")
+            check("v513 : coller des désignations client — doublons ignorés", dd == [1, 1, 1], dd)
+        else:
+            check("v513 : ligne SAISIR ICI des désignations présente", False, "absente")
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        # copie d'un tableau filtré : seules les lignes visibles
+        pg.click(P); pg.wait_for_timeout(150)
+        pg.evaluate("() => { const tr = document.querySelector('table.ins-table[data-ik=\"des\"] tr[data-iid=\"d3\"]'); tr.style.display = 'none'; }")
+        pg.keyboard.down("Shift"); pg.click('table.ins-table[data-ik="des"] tr[data-iid="d2"] input.ins-in[data-f="p"]'); pg.keyboard.up("Shift"); pg.wait_for_timeout(150)
+        cf = pg.evaluate("""() => { const dt = new DataTransfer(); document.activeElement.dispatchEvent(new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true }));
+            document.querySelector('table.ins-table[data-ik="des"] tr[data-iid="d3"]').style.display = ''; return dt.getData('text/plain'); }""")
+        check("v513 : copier un tableau filtré = lignes visibles seulement", ["".join(x.split()).replace("\u202f", "").replace("\xa0", "").replace(",00", "") for x in cf.split("\n")] == ["1000", "1200"], cf)
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

@@ -1,6 +1,13 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzFgUloyiRJe-QmR7nRqJ4bfWqvfA_6LSgotJRrRt87yeRfWtdY7nxXMR9avafSJUPg4Q/exec";
 const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
 
+/* v513 : clavier d'une case — une case seulement SÉLECTIONNÉE (1er toucher) porte inputmode="none" pour que le clavier de l'iPad
+   ne s'ouvre pas ; son clavier d'origine (decimal, numeric…) est gardé dans data-sv-im et c'est lui qu'on lit partout */
+function sviIm(el) {
+  if (!el) return null;
+  return el.dataset && el.dataset.svIm !== undefined ? (el.dataset.svIm || null) : el.getAttribute("inputmode");
+}
+
 /* =========================================================
    MISE À JOUR AUTOMATIQUE : Safari garde parfois l'ancienne page.
    À l'ouverture (et au retour sur l'onglet), la page publiée est relue

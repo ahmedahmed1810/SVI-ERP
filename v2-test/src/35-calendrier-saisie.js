@@ -429,7 +429,7 @@ function sviDlyRoSync() {
 document.addEventListener("input", e => {
   const el = e.target;
   if (!el || el.tagName !== "INPUT" || el.readOnly) return;
-  const m = el.getAttribute("inputmode");
+  const m = sviIm(el);
   if (m !== "decimal" && m !== "numeric") return;
   const v0 = el.value, dec = m === "decimal", neg = el.hasAttribute("data-neg");
   let out = "", sep = false, bad = false;
@@ -566,6 +566,15 @@ window.sviFrame = sviFrame;
   new MutationObserver(later).observe(document.documentElement, { childList: true, subtree: true });
 }
 
+/* v513 : collage — valeur comparée pour reconnaître un doublon (majuscules, sans accents, espaces réduits ; nombres : 1 000,00 = 1000) */
+const sviPasteNorm = v => {
+  let s = String(v == null ? "" : v).replace(/[\u00a0\u202f]/g, " ").replace(/\s+/g, " ").trim();
+  if (/^-?[\d ]+([.,]\d+)?$/.test(s) && /\d/.test(s)) { const n = parseFloat(s.replace(/ /g, "").replace(",", ".")); if (isFinite(n)) return String(n); }
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+};
+/* une ligne de tableau encore vide (SAISIR ICI…, nouvelle ligne de la SAISIE DIRECTE) */
+const sviRowFree = tr => tr.matches(".ins-new, .qq-new, .qq-xnew, .dlw-newr") || ![...tr.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]), textarea')].some(i => String(i.value || "").trim());
+
 /* =========================================================
    v491 (remarque 6) : SÉLECTION DE PLUSIEURS CASES, comme Excel / Google Sheets — dans tous les tableaux de saisie
    clavier : Maj + toucher (ou Maj + flèches) = plage depuis la case active ; Commande (Ctrl) + toucher = ajoute / retire une case ;
@@ -583,8 +592,10 @@ window.sviFrame = sviFrame;
     const out = [], b = S.b || S.a;
     if (S.b) for (let r = Math.min(S.a.r, b.r); r <= Math.max(S.a.r, b.r); r++) for (let c = Math.min(S.a.c, b.c); c <= Math.max(S.a.c, b.c); c++) { const td = tdAt(S.tbl, r, c); if (td) out.push(td); }
     S.extra.forEach(k => { const [r, c] = k.split(":").map(Number); const td = tdAt(S.tbl, r, c); if (td && !out.includes(td)) out.push(td); });
-    if (!out.length) { const td = tdAt(S.tbl, S.a.r, S.a.c); if (td) out.push(td); }
-    return out;
+    if (!out.length) { const td = tdAt(S.tbl, S.a.r, S.a.c); if (td) out.push(td); return out; }
+    /* v513 : tableau filtré — seules les lignes visibles à l'écran comptent (copier, coller, vider), comme Google Sheets */
+    const vis = out.filter(td => td.parentElement.offsetParent !== null);
+    return vis.length ? vis : out;
   };
   const paint = () => {
     document.querySelectorAll("td.svi-cs").forEach(td => td.classList.remove("svi-cs"));
@@ -603,13 +614,14 @@ window.sviFrame = sviFrame;
     const td = cell.tagName === "TD" ? cell : null;
     let end = cell;
     if (td && S.tbl && S.a && td.closest("table") === S.tbl) end = tdAt(S.tbl, (S.b || S.a).r, (S.b || S.a).c) || td;
+    else if (!td && window.__sviLS) end = window.__sviLS.end(cell) || cell;   /* v513 : fin de la plage d'une liste */
     const vis = sviCellVis(end);
     if (!vis) { if (H) H.style.display = "none"; return; }
     if (!H) {
       H = document.createElement("div"); H.id = "sviSelHandle"; document.body.appendChild(H);
       H.addEventListener("pointerdown", e => {
         e.preventDefault(); e.stopPropagation(); try { H.setPointerCapture(e.pointerId); } catch (err) {}
-        const mv = ev => { const el = document.elementFromPoint(ev.clientX, ev.clientY), t2 = el && el.closest && el.closest("td"); if (t2 && t2.closest("table") === S.tbl) { const p = posOf(t2); if (p) { S.b = p; paint(); } } };
+        const mv = ev => { const el = document.elementFromPoint(ev.clientX, ev.clientY), t2 = el && el.closest && el.closest("td"); if (t2 && t2.closest("table") === S.tbl) { const p = posOf(t2); if (p) { S.b = p; paint(); } } else if (window.__sviLS) { window.__sviLS.drag(el); handle(); } };
         const up = () => { H.removeEventListener("pointermove", mv); H.removeEventListener("pointerup", up); H.removeEventListener("pointercancel", up); };
         H.addEventListener("pointermove", mv); H.addEventListener("pointerup", up); H.addEventListener("pointercancel", up);
       });
@@ -659,7 +671,7 @@ window.sviFrame = sviFrame;
     i.__sel = true; i.value = v; i.dispatchEvent(new Event("input", { bubbles: true }));
     if (!i.classList.contains("sd-in")) {
       i.dispatchEvent(new Event("change", { bubbles: true }));
-      if (i.isConnected && i.getAttribute("inputmode") === "decimal" && String(i.value).trim() !== "" && typeof money === "function") i.value = money(i.value);
+      if (i.isConnected && sviIm(i) === "decimal" && String(i.value).trim() !== "" && typeof money === "function") i.value = money(i.value);
     }
     i.__sel = false; return true;
   };
@@ -676,11 +688,27 @@ window.sviFrame = sviFrame;
     if (lines.length === 1 && lines[0].length === 1 && C.length > 1) { C.forEach(td => { if (putIn(td, lines[0][0].trim())) n++; }); return n; }
     const R0 = shown(tbl), rs = C.map(td => R0.indexOf(td.parentElement)).filter(x => x >= 0);
     const r0 = rs.length ? Math.min(...rs) : 0, c0 = Math.min(...C.map(td => td.cellIndex));
-    lines.forEach((cl, i) => {
+    /* v513 : DOUBLONS IGNORÉS — une ligne collée qui irait sur une ligne NOUVELLE (vide) alors qu'une ligne identique existe déjà
+       (mêmes valeurs dans les mêmes colonnes), ou qu'elle a déjà été collée, est simplement sautée. Les lignes existantes
+       qu'on recouvre (ex. une colonne de prix) sont remplies comme avant, sans contrôle. */
+    const w = Math.max(...lines.map(l => l.length));
+    const keyOf = vs => vs.map(sviPasteNorm).join("\t");
+    const rowKey = tr => keyOf(Array.from({ length: w }, (_, j) => { const td = tr.cells[c0 + j]; return td ? valOf(td) : ""; }));
+    const seen = new Set(R0.filter(tr => !sviRowFree(tr)).map(rowKey));
+    let ri = r0, skip = 0;
+    lines.forEach(cl => {
       if (!tbl.isConnected) return;
-      const tr = shown(tbl)[r0 + i]; if (!tr) return;
+      const tr = shown(tbl)[ri]; if (!tr) return;
+      const k = keyOf(Array.from({ length: w }, (_, j) => (cl[j] || "").trim()));
+      if (sviRowFree(tr)) {
+        if (!k.replace(/\t/g, "")) return;                  /* ligne vide : rien à créer */
+        if (seen.has(k)) { skip++; return; }                  /* doublon : ignoré, la ligne nouvelle reste pour la suite */
+      }
+      seen.add(k);
       cl.forEach((v, j) => { const td = tr.cells[c0 + j]; if (td && putIn(td, v.trim())) n++; });
+      ri++;
     });
+    pasteText.skipped = skip;
     document.querySelector(".sd-sug")?.remove();
     if (typeof sviUnitSugHide === "function") sviUnitSugHide();
     return n;
@@ -694,8 +722,9 @@ window.sviFrame = sviFrame;
     const C = S.tbl === tbl && S.a ? cells() : [td0];
     if (!multi && !isNav(act) && C.length < 2) return;   /* saisie en cours : collage normal dans le texte */
     e.preventDefault();
+    pasteText.skipped = 0;
     const n = pasteText(t, tbl, C.length ? C : [td0]);
-    if (typeof svToast === "function" && (multi || C.length > 1)) svToast(n + " CASE(S) COLLÉE(S).", 1800);
+    if (typeof svToast === "function" && (multi || C.length > 1)) svToast(n + " CASE(S) COLLÉE(S)." + (pasteText.skipped ? " " + pasteText.skipped + " DOUBLON(S) IGNORÉ(S)." : ""), 2200);
   }, true);
   /* v497 (remarques 33 et 35) : copier une case sélectionnée (même grisée) ou une plage, pour Excel / Google Sheets */
   const copyEv = cut => e => {
@@ -767,23 +796,40 @@ window.sviFrame = sviFrame;
   const NOSEL = "button, a, label, .lk-rd, .lk-rdall, [role=button], input[type=checkbox], input[type=radio], .ins-grip, .blk-grip, .ins-fold, .ins-gfz";
   let nav = null;
   const end = i => { try { const L = String(i.value || "").length; i.setSelectionRange(L, L); } catch (err) {} };
+  /* v513 : au doigt, une case seulement sélectionnée n'ouvre pas le clavier (inputmode="none", clavier d'origine gardé) */
+  const touch = () => matchMedia("(pointer: coarse)").matches;
+  const kbOff = i => { if (!touch() || i.dataset.svIm !== undefined) return; i.dataset.svIm = i.getAttribute("inputmode") || ""; i.setAttribute("inputmode", "none"); };
+  const kbOn = i => { if (i.dataset.svIm === undefined) return; const m = i.dataset.svIm; delete i.dataset.svIm; if (m) i.setAttribute("inputmode", m); else i.removeAttribute("inputmode"); };
   const on = i => {
     if (nav && nav !== i) off(nav);
-    nav = i; i.classList.add("svi-nav"); i.__v0 = i.value; end(i);
+    nav = i; i.classList.add("svi-nav"); i.__v0 = i.value; kbOff(i); end(i);
   };
-  const off = i => { i.classList.remove("svi-nav"); if (nav === i) nav = null; };
+  const off = i => { i.classList.remove("svi-nav"); kbOn(i); if (nav === i) nav = null; };
+  /* v513 : tout le contenu sélectionné (2e toucher) — on tape directement la nouvelle valeur par-dessus */
+  const all = i => { try { i.setSelectionRange(0, String(i.value || "").length); } catch (err) {} };
   window.__sviNav = { on, off, isNav: i => !!i && i.classList.contains("svi-nav") };
-  /* toucher : 1er = sélection ; 2e sur la même case = saisie (le navigateur place le curseur) */
-  let tap = null;
+  /* toucher : 1er = sélection (cadre, ni curseur ni clavier) ; 2e sur la même case = saisie, TOUT LE CONTENU SÉLECTIONNÉ (v513) ;
+     3e = curseur placé dans le texte */
+  let tap = null, tap2 = null;
   document.addEventListener("pointerdown", e => {
     const i = e.target.closest && e.target.closest(ED);
-    tap = null;
+    tap = null; tap2 = null;
     if (!editable(i)) return;
-    if (document.activeElement === i) { if (i.classList.contains("svi-nav")) off(i); return; }
+    if (document.activeElement === i) { if (i.classList.contains("svi-nav")) { off(i); tap2 = i; } return; }
     tap = i;
   }, true);
-  document.addEventListener("mouseup", e => { if (tap && e.target === tap) e.preventDefault(); }, true);
+  document.addEventListener("mouseup", e => { if ((tap && e.target === tap) || (tap2 && e.target === tap2)) e.preventDefault(); }, true);
   document.addEventListener("pointerup", () => { const t = tap; setTimeout(() => { if (tap === t) tap = null; }, 120); }, true);
+  document.addEventListener("click", e => {
+    const i = tap2; tap2 = null;
+    if (!i || e.target !== i || !i.isConnected) return;
+    /* iPad : le clavier ne revient qu'avec une nouvelle prise de focus, faite pendant le toucher */
+    if (touch() && document.activeElement === i) { i.__edit = true; i.blur(); i.focus({ preventScroll: true }); }
+    all(i);
+    /* l'iPad place le curseur après le toucher : on resélectionne tout */
+    setTimeout(() => { if (document.activeElement === i && !i.classList.contains("svi-nav")) all(i); }, 0);
+    setTimeout(() => { if (document.activeElement === i && !i.classList.contains("svi-nav")) all(i); }, 80);
+  }, true);
   document.addEventListener("focusin", e => {
     const i = e.target;
     if (!editable(i)) return;
@@ -890,39 +936,127 @@ window.sviFrame = sviFrame;
     else { nx = sviNear(c, 0, back ? -1 : 1); if (!nx) { const r = sviNear(c, back ? -1 : 1, 0); if (r) { const cs = sviRowCells(sviRowOf(r), false); nx = back ? cs[cs.length - 1] : cs[0]; } } }
     if (nx) goCell(nx);
   }, true);
-  /* v512 (remarque 80) : coller plusieurs valeurs dans une liste = une par ligne, vers le bas (lignes créées par SAISIR ICI…) */
-  document.addEventListener("paste", e => {
-    const a = document.activeElement, c = sviCellOf(a);
+  /* v513 : SÉLECTION DE PLUSIEURS CASES DANS LES LISTES LOT / ACTIVITÉ PRIMAIRE / ACTIVITÉ SECONDAIRE, comme dans les tableaux :
+     Maj + toucher (ou Maj + flèches) = plage depuis la case active ; au doigt, le point au coin de la case se tire vers le bas ;
+     Commande + C = copier la plage (une ligne par case, unités en 2e colonne) ; coller = à partir du haut de la plage */
+  const LS = { a: null, b: null, keep: false };
+  const lsRows = c => sviGridRows(c).filter(r => !r.classList.contains("ins-new"));
+  const lsCells = () => {
+    const { a, b } = LS;
+    if (!a || !b || !a.isConnected || !b.isConnected || a.closest(".ins-hcol") !== b.closest(".ins-hcol")) return a && a.isConnected ? [a] : [];
+    const R = sviGridRows(a), ra = R.indexOf(sviRowOf(a)), rb = R.indexOf(sviRowOf(b));
+    if (ra < 0 || rb < 0) return [a];
+    const fa = sviRowCells(sviRowOf(a), false).indexOf(a), fb = sviRowCells(sviRowOf(b), false).indexOf(b);
+    const out = [];
+    for (let r = Math.min(ra, rb); r <= Math.max(ra, rb); r++) {
+      if (R[r].classList.contains("ins-new")) continue;
+      const cs = sviRowCells(R[r], false);
+      for (let j = Math.min(fa, fb); j <= Math.max(fa, fb); j++) if (cs[j]) out.push(cs[j]);
+    }
+    return out.length ? out : [a];
+  };
+  const lsPaint = () => {
+    document.querySelectorAll(".ins-hcol .svi-ls").forEach(x => x.classList.remove("svi-ls"));
+    const C = lsCells(); if (C.length > 1) C.forEach(x => x.classList.add("svi-ls"));
+  };
+  const lsClear = () => { LS.a = null; LS.b = null; lsPaint(); };
+  const lsTsv = C => {
+    const rows = [...new Set(C.map(sviRowOf))];
+    return rows.map(r => C.filter(x => sviRowOf(x) === r).map(x => { const i = sviCellInput(x); return String(i ? i.value : x.textContent || "").replace(/[\t\n]/g, " ").trim(); }).join("\t")).join("\n");
+  };
+  window.__sviLS = {
+    end: c => (LS.b && LS.b.isConnected && LS.a === c ? LS.b : null),
+    /* point tiré au doigt : la plage va jusqu'à la case sous le doigt (même liste) */
+    drag: el => {
+      const a = sviCellOf(document.activeElement), t = el && sviCellOf(el);
+      if (!a || a.tagName === "TD" || !t || t.tagName === "TD" || t.closest(".ins-hcol") !== a.closest(".ins-hcol")) return;
+      if (sviRowOf(t).classList.contains("ins-new")) return;
+      LS.a = a; LS.b = t; lsPaint();
+    },
+    count: () => lsCells().length
+  };
+  document.addEventListener("pointerdown", e => {
+    if (e.target && e.target.id === "sviSelHandle") return;
+    const t = sviCellOf(e.target), a = sviCellOf(document.activeElement);
+    if (t && t.tagName !== "TD" && e.shiftKey && a && a.tagName !== "TD" && a.closest(".ins-hcol") === t.closest(".ins-hcol")) {
+      e.preventDefault(); LS.a = LS.a && LS.a.isConnected ? LS.a : a; LS.b = t; LS.keep = true; lsPaint(); return;
+    }
+    if (e.target.closest && e.target.closest("#blkMenu, .blk-more, .blk-btn")) return;
+    if (LS.b) lsClear();
+  }, true);
+  document.addEventListener("focusin", e => {
+    const c = sviCellOf(e.target);
     if (!c || c.tagName === "TD") return;
+    if (LS.keep) { LS.keep = false; return; }
+    if (LS.a !== c) { LS.a = c; LS.b = null; lsPaint(); }
+  });
+  document.addEventListener("keydown", e => {
+    if (!e.shiftKey || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) return;
+    const el = e.target, c = el && sviCellOf(el);
+    if (!c || c.tagName === "TD" || !(el.classList && el.classList.contains("svi-nav"))) return;
+    e.preventDefault(); e.stopPropagation();
+    if (!LS.a || !LS.a.isConnected) LS.a = c;
+    const nx = sviNear(LS.b && LS.b.isConnected ? LS.b : LS.a, e.key === "ArrowDown" ? 1 : -1, 0);
+    if (nx && !sviRowOf(nx).classList.contains("ins-new")) { LS.b = nx; lsPaint(); if (typeof sviKeepVisible === "function") sviKeepVisible(nx); }
+  }, true);
+  /* v512 (remarque 80) : coller plusieurs valeurs dans une liste = une par ligne, vers le bas (lignes créées par SAISIR ICI…)
+     v513 : DOUBLONS IGNORÉS — un intitulé déjà présent dans la liste (ou déjà collé) n'est pas recréé, il est simplement sauté */
+  document.addEventListener("paste", e => {
+    const a = document.activeElement, c0 = sviCellOf(a);
+    if (!c0 || c0.tagName === "TD") return;
     const t = (e.clipboardData && e.clipboardData.getData("text/plain")) || "";
     const L = t.replace(/\r/g, "").replace(/\n+$/, "").split("\n").map(l => l.split("\t"));
-    if (L.length < 2 && L[0].length < 2 && !(a.classList && a.classList.contains("svi-nav"))) return;
+    const sel = lsCells();
+    if (L.length < 2 && L[0].length < 2 && !(a.classList && a.classList.contains("svi-nav")) && sel.length < 2) return;
     e.preventDefault();
-    let cur = c, n = 0;
+    /* à partir du haut de la plage sélectionnée, sinon de la case active */
+    const c = sel.length > 1 ? sel[0] : c0;
+    let cur = c, n = 0, skip = 0;
     const col = c.closest(".ins-hcol"), k0 = col && col.dataset.ik;
+    /* intitulés déjà présents (seulement quand on colle dans la colonne des intitulés, pas dans les unités) */
+    const label = r => { const x = sviRowCells(r, false)[0], i = x && sviCellInput(x); return i ? sviPasteNorm(i.value) : ""; };
+    const onLabel = sviRowCells(sviRowOf(c), false)[0] === c;
+    const seen = new Set(onLabel ? lsRows(c).map(label).filter(Boolean) : []);
+    const newCell = () => {
+      const box = document.querySelector(`.ins-hcol[data-ik="${k0}"]`);
+      const nw = box && [...box.querySelectorAll(".ins-li.ins-new")].pop();
+      return nw ? sviCellOf(nw.querySelector("input.ins-in")) : null;
+    };
     for (const line of L) {
-      if (!cur) {
-        const box = document.querySelector(`.ins-hcol[data-ik="${k0}"]`);
-        const nw = box && [...box.querySelectorAll(".ins-li.ins-new")].pop();
-        cur = nw ? sviCellOf(nw.querySelector("input.ins-in")) : null;
-        if (!cur) break;
+      if (!cur || !cur.isConnected) { cur = newCell(); if (!cur) break; }
+      const row = sviRowOf(cur), isNew = row.classList.contains("ins-new");
+      if (onLabel) {
+        const v = sviPasteNorm(line[0]);
+        if (!v) continue;                                        /* ligne vide : rien à créer, rien à effacer */
+        if (v === label(row) && !isNew) { cur = sviNear(cur, 1, 0); continue; }   /* déjà la même valeur à cette place */
+        else if (seen.has(v)) { skip++; continue; }             /* doublon : ignoré */
+        if (!isNew) seen.delete(label(row));
+        if (v) seen.add(v);
       }
+      const key = !isNew ? sviCellKey(sviCellInput(cur)) : null;
       let cc = cur;
       line.forEach((v, j) => {
         if (!cc) return;
         const i = sviCellInput(cc);
         if (i && !i.readOnly && !i.disabled) { i.__sel = true; i.value = v.trim(); i.dispatchEvent(new Event("input", { bubbles: true })); i.dispatchEvent(new Event("change", { bubbles: true })); i.__sel = false; n++; }
-        cc = j < line.length - 1 ? sviNear(cc, 0, 1) : cc;
+        cc = j < line.length - 1 && cc.isConnected ? sviNear(cc, 0, 1) : cc;
       });
-      cur = cur.isConnected ? sviNear(cur, 1, 0) : null;
+      if (cur.isConnected) cur = sviNear(cur, 1, 0);
+      else if (key) { const x = sviCellFind(key); cur = x ? sviNear(sviCellOf(x), 1, 0) : null; }
+      else cur = null;
     }
-    if (typeof svToast === "function") svToast(n + " CASE(S) COLLÉE(S).", 1800);
+    lsClear();
+    if (typeof svToast === "function") svToast(n + " CASE(S) COLLÉE(S)." + (skip ? " " + skip + " DOUBLON(S) IGNORÉ(S)." : ""), 2200);
   }, true);
-  /* copier une cellule de liste sélectionnée */
+  /* copier une cellule de liste sélectionnée, ou la plage (v513) */
   document.addEventListener("copy", e => {
     const a = document.activeElement, c = sviCellOf(a);
     if (!c || c.tagName === "TD" || !(a.classList && a.classList.contains("svi-nav"))) return;
-    const i = sviCellInput(c); e.preventDefault(); try { e.clipboardData.setData("text/plain", i ? i.value : ""); } catch (err) {}
+    const C = lsCells();
+    const txt = C.length > 1 ? lsTsv(C) : (() => { const i = sviCellInput(c); return i ? i.value : ""; })();
+    e.preventDefault(); try { e.clipboardData.setData("text/plain", txt); } catch (err) {}
+    window.__sviSelClip = txt;
+    if (C.length > 1 && typeof svToast === "function") svToast(C.length + " CASE(S) COPIÉE(S).", 1800);
   }, true);
 })();
 
@@ -931,7 +1065,7 @@ window.sviFrame = sviFrame;
    espace des milliers), dans DÉSIGNATIONS CLIENT, DÉTAIL PRODUITS / CHARGES, IMPORT NON CRÉÉ et SAISIE DIRECTE */
 document.addEventListener("focusout", e => {
   const i = e.target;
-  if (!i || i.tagName !== "INPUT" || i.getAttribute("inputmode") !== "decimal" || i.readOnly || i.disabled) return;
+  if (!i || i.tagName !== "INPUT" || sviIm(i) !== "decimal" || i.readOnly || i.disabled) return;
   if (!i.closest("table.ins-table, table.inc-table, table.sd-t")) return;
   const v = String(i.value || "").trim();
   if (!v || !/^-?[\d\s  ]*[.,]?\d*$/.test(v) || !/\d/.test(v)) return;

@@ -1098,7 +1098,7 @@
             if (lab) lab.textContent = X.INS[k].length;
           }
         }
-        const isNum = inp.getAttribute("inputmode") === "decimal";
+        const isNum = sviIm(inp) === "decimal";
         /* LOTS en arborescence : la case montre le dernier niveau, le chemin du dessus est gardé (data-pre) */
         r[f] = isNum ? inp.value.trim() : (inp.dataset.pre || "") + inp.value.toUpperCase();
         if (isNum) r[f] = r[f] === "" ? "" : X.insNum(r[f]);
