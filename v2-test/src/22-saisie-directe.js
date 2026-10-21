@@ -115,7 +115,19 @@
       if (IN) {
         const tbody = $("bdgTabBody"), page = shell.querySelector(".bdg-d-page");
         d.classList.add("sd-inplace"); big = false;
-        if (tbody && tbody.parentNode) { tbody.parentNode.insertBefore(d, tbody); page && page.classList.add("sd-on"); }
+        if (tbody && tbody.parentNode) {
+          tbody.parentNode.insertBefore(d, tbody); page && page.classList.add("sd-on");
+          /* v512 (remarque 78) : à la place du tableau, sous les onglets (même rang dans la disposition des blocs) */
+          d.style.order = getComputedStyle(tbody).order;
+          d.__fit = () => {
+            if (!d.isConnected) { window.removeEventListener("resize", d.__fit); return; }
+            const tabs = $("bdgTabs");
+            let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
+            const th = tabs ? tabs.getBoundingClientRect().height : 0;
+            d.style.setProperty("--sdh", Math.max(300, window.innerHeight - lim - th - 12) + "px");
+          };
+          window.addEventListener("resize", d.__fit);
+        }
         else document.body.appendChild(d);
         shell.querySelector('.blk-max-btn[data-blk="detail"]')?.classList.add("on");
       } else document.body.appendChild(d);

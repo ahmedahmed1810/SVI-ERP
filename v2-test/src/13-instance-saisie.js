@@ -586,6 +586,12 @@
     const FOLD_KEY = "svi_fold_v1";
     const foldAll = () => { try { return JSON.parse(localStorage.getItem(FOLD_KEY) || "{}") || {}; } catch (e) { return {}; } };
     const foldGet = () => foldAll()[ref] || {};
+    /* v512 (remarque 76) : première ouverture d'un budget — titres des désignations pliés (état mémorisé ensuite) */
+    if (INS && !(ref in foldAll())) {
+      const a0 = foldAll(), m0 = {};
+      (INS.des || []).forEach(r => { if (r.t) m0[r.id] = 1; });
+      a0[ref] = m0; try { localStorage.setItem(FOLD_KEY, JSON.stringify(a0)); } catch (e) {}
+    }
     const foldSet = (id, on) => {
       const a = foldAll(), m = a[ref] || {};
       if (on) m[id] = 1; else delete m[id];
@@ -629,7 +635,12 @@
     /* v499 (remarque 45) : charges identiques regroupées = un TITRE (gras, fond gris) — QCB, MCB HT et TTC cumulés,
        PCB moyen pondéré (MCB HT ÷ QCB), TÂCHE = nombre de tâches ; signe › / ⌄ pour plier / déplier ses lignes (affichées dessous,
        modifiables une par une) ; sa case coche / décoche toutes ses lignes (à moitié cochée si une partie seulement) */
-    const CHG_GFOLD = shell.__chgGFold = shell.__chgGFold || new Set();
+    /* v512 (remarque 76) : titres de charges regroupées PLIÉS à la première ouverture ; ceux qu'on déplie sont mémorisés (par budget) */
+    const CHG_GK = "svi_chggopen_v1";
+    const chgOpenLoad = () => { try { return new Set(((JSON.parse(localStorage.getItem(CHG_GK) || "{}") || {})[ref]) || []); } catch (e) { return new Set(); } };
+    shell.__chgGOpen = chgOpenLoad();
+    shell.__chgGSave = () => { try { const o = JSON.parse(localStorage.getItem(CHG_GK) || "{}") || {}; o[ref] = [...shell.__chgGOpen]; localStorage.setItem(CHG_GK, JSON.stringify(o)); } catch (e) {} };
+    const CHG_GFOLD = { has: k => !shell.__chgGOpen.has(k) };
     const insGrpRowHTML = (g, key) => {
       const cols = insColsOrd("chg"), ht = g.reduce((t, r) => t + insHT("chg", r), 0), ttc = g.reduce((t, r) => t + insTTC("chg", r), 0);
       const qs = g.reduce((t, r) => t + (Number(insCalc("chg", r, "q")) || 0), 0);

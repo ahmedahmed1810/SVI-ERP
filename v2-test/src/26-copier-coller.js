@@ -320,7 +320,14 @@
       if (act === "max" && blk === "detail" && INS && INS_EDIT && (active === "prd" || active === "chg") && shell.__sdOpen) {
         if (shell.__sdClose && shell.__sdClose()) return;
         shell.__sdOpen(active);
-        setTimeout(() => document.querySelector("#sdW.sd-inplace")?.scrollIntoView({ block: "start" }), 30);
+        /* v512 (remarque 78) : onglets juste sous le bandeau, SAISIE DIRECTE à la hauteur de l'écran (en-têtes et boutons visibles) */
+        setTimeout(() => {
+          const w = document.querySelector("#sdW.sd-inplace"), tabs = $("bdgTabs");
+          if (!w || !tabs) return;
+          let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
+          window.scrollBy(0, tabs.getBoundingClientRect().top - lim);
+          if (w.__fit) w.__fit();
+        }, 30);
         return;
       }
       if (act === "max") return toggleMax(blk);

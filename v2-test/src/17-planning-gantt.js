@@ -146,6 +146,17 @@
     const dlyFoldAll = () => { try { return JSON.parse(localStorage.getItem("svi_lotfold_v1") || "{}") || {}; } catch (e) { return {}; } };
     const dlyFoldK = p => (budget.project || "") + "|" + p;
     const dlyIsFolded = p => !!dlyFoldAll()[dlyFoldK(p)];
+    /* v512 (remarque 76) : première ouverture d'un budget — niveaux de LOT pliés (état mémorisé ensuite) */
+    if (INS && INS.lot) {
+      const f0 = dlyFoldAll(), mk = (budget.project || "") + "|__init__";
+      if (!f0[mk]) {
+        const paths = new Set();
+        INS.lot.forEach(r => { const sg = String(r.v || "").split("/").map(x => x.trim()).filter(Boolean); for (let i = 1; i < sg.length; i++) paths.add(sg.slice(0, i).join(" / ")); });
+        paths.forEach(p => { f0[dlyFoldK(p)] = 1; });
+        f0[mk] = 1;
+        try { localStorage.setItem("svi_lotfold_v1", JSON.stringify(f0)); } catch (e) {}
+      }
+    }
     /* v461 : branche ISOLÉE (lot ou niveau) — pour ce budget, jusqu'à TOUT AFFICHER */
     const dlyIsoPath = () => { const o = shell.__dlyIso; if (!o || o.ref !== DLYG_REF) return ""; const P = U_(o.path); return INS.lot.some(x => !x.t && (U_(x.v) === P || U_(x.v).startsWith(P + " / "))) ? o.path : ""; };
     const dlyFoldToggle = p => { const f = dlyFoldAll(), k = dlyFoldK(p); if (f[k]) delete f[k]; else f[k] = 1; try { localStorage.setItem("svi_lotfold_v1", JSON.stringify(f)); } catch (e) {} };
