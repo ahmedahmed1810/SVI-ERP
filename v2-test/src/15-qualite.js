@@ -1028,7 +1028,8 @@
         const cb = e.target.closest && e.target.closest("input.ins-gcb"), X = shell.__ins;
         if (!cb || !X) return;
         const ids = new Set((cb.closest("tr[data-grp]")?.dataset.grp || "").split(",").filter(Boolean));
-        X.INS.chg.forEach(r => { if (ids.has(r.id)) r.on = cb.checked; });
+        const gk = cb.closest("table[data-ik]")?.dataset.ik === "prd" ? "prd" : "chg";   /* v516 : produits regroupés aussi */
+        X.INS[gk].forEach(r => { if (ids.has(r.id)) r.on = cb.checked; });
         X.insSave(); X.refreshAll();
       }, true);
     }
