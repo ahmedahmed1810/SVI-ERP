@@ -176,22 +176,36 @@ def main():
         check("remarque 37 : un seul onglet MARGE, avec le compteur des liaisons (plus de LIAISONS VALIDÉES ni d'EXPLOITATION)", any(x.startswith("lnk:MARGE") and x.endswith("1") for x in tb) and not any("xpl" in x or "LIAISONS VALIDÉES" in x for x in tb), tb)
         pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"lnk\"]'); t && t.click(); }"); pg.wait_for_timeout(400)
         xr = pg.evaluate("() => { const t = document.querySelector('.mg-table'); if (!t) return null; return [[...t.tHead.rows[0].cells].map(c => c.textContent.trim()), [...t.tBodies[0].rows].map(tr => [...tr.cells].map(c => c.textContent.replace(/ /g, ' ').trim()))]; }")
-        okx = bool(xr) and any("BETON EN FONDATION" in r and "M2" not in r and "4 500,00" in r and "10 000,00" in r and "5 500,00" in r and "55,00 %" in r for r in xr[1]) and "PRODUITS" in " ".join(xr[0]) and "QUANTITÉ" not in " ".join(xr[0]) and "PPB" not in " ".join(xr[0])
+        okx = bool(xr) and any("BETON EN FONDATION" in " ".join(r) and "M2" not in r and "4 500,00" in r and "10 000,00" in r and "5 500,00" in r and "55,00 %" in r for r in xr[1]) and "PRODUITS" in " ".join(xr[0]) and "QUANTITÉ" not in " ".join(xr[0]) and "PPB" not in " ".join(xr[0])
         check("remarque 37 : MARGE — une ligne par liaison : charges 4 500, produits 10 000, marge 5 500, 55 %", okx, xr)
-        # regroupement : signe de LOT → 1 ; une ligne par lot, dépliée → ses désignations
-        pg.evaluate("() => document.querySelector('.mg-table .mg-g[data-g=\"lot\"]')?.click()"); pg.wait_for_timeout(300)
-        g1 = pg.evaluate("() => { const t = document.querySelector('.mg-table'); return [[...t.querySelectorAll('thead .mg-g')].map(g => g.dataset.g + (g.querySelector('b') ? g.querySelector('b').textContent : '')), [...t.tBodies[0].rows].map(r => r.className + '|' + r.textContent.replace(/\s+/g, ' ').trim())]; }")
-        pg.evaluate("() => document.querySelector('.mg-table tr.mg-grp .mg-f')?.click()"); pg.wait_for_timeout(300)
+        # remarque 46 : regroupement = ordre des colonnes (désignation, lot, activités) ; unités collées ; TOUT DÉPLIER
+        g1 = pg.evaluate("() => [...document.querySelector('.mg-table').tBodies[0].rows].map(r => r.className)")
+        pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#blkMenu [data-mgf=\"open\"]')?.click()"); pg.wait_for_timeout(300)
         g2 = pg.evaluate("() => [...document.querySelector('.mg-table').tBodies[0].rows].map(r => r.className)")
-        check("remarque 39 : regroupement par LOT (1) puis désignation (2)… ; ligne de lot dépliée → ses désignations", g1[0] == ["des2", "lot1", "prim3", "sec4"] and len(g1[1]) == 1 and "mg-grp" in g1[1][0] and "RDC" in g1[1][0] and g2 == ["mg-grp mg-l0", "mg-grp mg-l1"], [g1, g2])
-        pg.evaluate("() => document.querySelector('.mg-table .mg-g[data-g=\"lot\"]')?.click()"); pg.wait_for_timeout(300)
-        g3 = pg.evaluate("() => [...document.querySelector('.mg-table').tBodies[0].rows].map(r => r.className)")
-        check("remarque 39 : retoucher le 1 = une ligne par liaison", g3 == ["mg-leaf"], g3)
+        pg.evaluate("""() => { const o = JSON.parse(localStorage.getItem('svi_colorder_v1') || '{}'); o.lk_marge = ['lot', 'art', 'des', 'upb', 'prim', 'sec', 'su', 'chg', 'prd', 'mg', 'pct']; localStorage.setItem('svi_colorder_v1', JSON.stringify(o)); }""")
+        pg.evaluate(f"() => {ins}.refreshAll()"); pg.wait_for_timeout(300)
+        g3 = pg.evaluate("() => { const t = document.querySelector('.mg-table'); return [[...t.tHead.rows[0].cells].map(c => (c.querySelector('.cf-btn') || {}).dataset?.col).filter(Boolean), t.tBodies[0].rows[0].textContent.replace(/\\s+/g, ' ').trim()]; }")
+        pg.evaluate("""() => { const o = JSON.parse(localStorage.getItem('svi_colorder_v1') || '{}'); o.lk_marge = ['lot', 'upb', 'art', 'su', 'des', 'prim', 'sec', 'chg', 'prd', 'mg', 'pct']; localStorage.setItem('svi_colorder_v1', JSON.stringify(o)); }""")
+        pg.evaluate(f"() => {ins}.refreshAll()"); pg.wait_for_timeout(300)
+        g4 = pg.evaluate("() => [...document.querySelector('.mg-table').tHead.rows[0].cells].map(c => (c.querySelector('.cf-btn') || {}).dataset?.col).filter(Boolean)")
+        pg.evaluate("""() => { const o = JSON.parse(localStorage.getItem('svi_colorder_v1') || '{}'); delete o.lk_marge; localStorage.setItem('svi_colorder_v1', JSON.stringify(o)); }""")
+        pg.evaluate(f"() => {ins}.refreshAll()"); pg.wait_for_timeout(300)
+        check("remarque 46 : regroupement par l'ordre des colonnes, TOUT DÉPLIER, unités collées à leur colonne",
+              g1 == ["mg-grp mg-l0"] and g2 == ["mg-grp mg-l0", "mg-grp mg-l1", "mg-grp mg-l2", "mg-leaf mg-l3"] and g3[0][0] == "lot" and g3[1].startswith("⌄ RDC") is False and "RDC" in g3[1]
+              and g4[:6] == ["lot", "art", "des", "upb", "prim", "sec"] and g4[6] == "su", [g1, g2, g3, g4])
+        # remarque 48 : toucher l'en-tête % = croissant ▲, décroissant ▼, normal
+        def tap_pct():
+            box = pg.evaluate("() => { const th = [...document.querySelector('.mg-table').tHead.rows[0].cells].find(c => (c.querySelector('.cf-btn') || {}).dataset?.col === 'pct'); th.scrollIntoView({ block: 'center', inline: 'center' }); const r = th.querySelector('.cf-lab').getBoundingClientRect(); return [r.left + 4, r.top + r.height / 2]; }")
+            pg.mouse.click(box[0], box[1]); pg.wait_for_timeout(300)
+            return pg.evaluate("() => { const X = [...document.querySelectorAll('*')].find(e => e.__mg).__mg; const s = X.sorted(); return s ? s.col + s.dir : ''; }")
+        s48 = [tap_pct(), tap_pct(), tap_pct()]
+        check("remarque 48 : toucher % = croissant, décroissant, ordre normal", s48 == ["pct1", "pct-1", ""], s48)
         # case d'une liaison : filtre les autres blocs
-        pg.evaluate("() => document.querySelector('.mg-table input.lnk-cb')?.click()"); pg.wait_for_timeout(400)
+        pg.evaluate("() => document.querySelector('.mg-table input.mg-gcb')?.click()"); pg.wait_for_timeout(400)
         dd = pg.evaluate("() => [...document.querySelectorAll('#bdgClientBody tr[data-iid]')].filter(t => !t.classList.contains('ins-title')).map(t => t.dataset.iid)")
         check("remarque 37 : case d'une liaison de MARGE filtre les désignations", dd == ["d1"], dd)
-        pg.evaluate("() => document.querySelector('.mg-table input.lnk-cb:checked')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('.mg-table input.mg-gcb:checked')?.click()"); pg.wait_for_timeout(300)
         # remarques 40 à 42 (v499) : onglet filtré en bleu, colonne des cases en bleu, EFFACER TOUS LES FILTRES
         pg.evaluate(f"""() => {{ const X = {ins}; X.INS.chg.find(r => r.id === 'c2').on = true; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
         f40 = pg.evaluate("() => [...document.querySelectorAll('#bdgTabs .bdg-d-tab.tab-filt')].map(b => b.dataset.tab).sort()")
