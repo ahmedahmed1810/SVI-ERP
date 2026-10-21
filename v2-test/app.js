@@ -6253,7 +6253,18 @@ function renderBudgetList() {
       const fo = CHG_GFOLD.has(key);
       const fb = `<span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier">${fo ? "›" : "⌄"}</span>`;
       const non = g.filter(r => r.on === true).length;
-      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn">${g.length}</span></td>${cols.map(c => `<td class="${c[2]}">${c[0] === "des" ? fb : ""}${esc(v[c[0]] ?? "")}</td>`).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      /* v505 (remarque 56) : ART, DÉSIGNATION, UCB, PCB et TVA du titre modifiables — la valeur va à toutes ses lignes
+         (PCB, UCB et TVA grisés si une de ses charges vient de CHS) ; QCB, montants, RENDEMENT et TÂCHE restent calculés */
+      const chs = g.some(r => !!r.chs);
+      const edOk = f => INS_EDIT && (["art", "des"].includes(f) || (["u", "p", "tva"].includes(f) && !chs));
+      const ps = new Set(g.map(r => money(num(r.p || 0)))), ts = new Set(g.map(r => money(insTVA(r))));
+      const ev = { art: v.art, des: v.des, u: v.u, p: ps.size === 1 ? [...ps][0] : v.p, tva: ts.size === 1 ? [...ts][0] : v.tva };
+      const cell = c => {
+        const f = c[0];
+        if (edOk(f)) return `<td class="${c[2]} ins-td">${f === "des" ? fb : ""}<input class="ins-gin ${c[2]}" data-f="${f}" enterkeyhint="next"${["p", "tva"].includes(f) ? ' inputmode="decimal"' : ""} value="${esc(ev[f] ?? "")}" autocomplete="off" spellcheck="false"></td>`;
+        return `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}">${f === "des" ? fb : ""}${esc(v[f] ?? "")}</td>`;
+      };
+      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
@@ -8258,6 +8269,26 @@ function renderBudgetList() {
     /* v495 (remarque 24) : case d'une ligne regroupée = coche / décoche toutes les charges qu'elle réunit */
     if (!shell.__gcbBound) {
       shell.__gcbBound = true;
+      /* v505 (remarque 56) : case du titre de charges regroupées modifiée = toutes ses lignes */
+      shell.addEventListener("change", e => {
+        const i = e.target.closest && e.target.closest("input.ins-gin"), X = shell.__ins;
+        if (!i || !X) return;
+        e.stopPropagation();
+        const ids = new Set((i.closest("tr[data-grp]")?.dataset.grp || "").split(",").filter(Boolean));
+        const G = X.INS.chg.filter(r => ids.has(r.id));
+        const f = i.dataset.f, num1 = f === "p" || f === "tva";
+        const val = num1 ? X.insNum(i.value) : sviClean(String(i.value || "")).toUpperCase();
+        if (!G.length) return;
+        if (f === "des" && !val) { svToast("DÉSIGNATION OBLIGATOIRE.", 2500, i); X.refreshAll(); return; }
+        /* une désignation de charge n'a qu'une unité et qu'un article dans tout le budget (remarque 10) */
+        const nx = { des: f === "des" ? val : G[0].des, u: f === "u" ? val : G[0].u, art: f === "art" ? val : G[0].art };
+        const o = X.INS.chg.find(x => !ids.has(x.id) && !x.t && U_(x.des) === U_(nx.des) && ((U_(x.u) && U_(nx.u) && U_(x.u) !== U_(nx.u)) || (U_(x.art) && U_(nx.art) && U_(x.art) !== U_(nx.art))));
+        if (o) { svToast(U_(nx.des) + " EXISTE DÉJÀ" + (U_(o.art) ? " (ARTICLE " + U_(o.art) + ")" : "") + " EN " + U_(o.u) + " : UNE DÉSIGNATION N'A QU'UNE UNITÉ ET UN ARTICLE.", 5000, i); X.refreshAll(); return; }
+        G.forEach(r => { r[f] = val; });
+        X.insSave();
+        if (typeof histLog === "function") histLog("SAISIE", "CHARGES REGROUPÉES", G.length + " LIGNE(S) — " + f.toUpperCase() + " = " + (num1 ? money(val || 0) : val));
+        X.refreshAll();
+      }, true);
       /* v499 (remarque 45) : plier / déplier un titre de charges regroupées */
       shell.addEventListener("click", e => {
         const b = e.target.closest && e.target.closest(".ins-gfold"), X = shell.__ins;
@@ -15658,7 +15689,16 @@ function renderBudgetList() {
         else oc.push(c);
       });
       const D2 = l => mgD(l.des);
-      const base = (insCheckLinks("lnk") || ALL).slice().sort((a, b) => desCmp(D2(a), D2(b)) || natCmp(nm("lot", a.lot), nm("lot", b.lot)) || natCmp(nm("prim", a.prim), nm("prim", b.prim)) || natCmp(nm("sec", a.sec), nm("sec", b.sec)));
+      /* v505 (remarque 57) : MARGE suit aussi les filtres de loupe des autres tableaux (désignations, lots, activités, produits,
+         charges) — seules les liaisons qui les passent ; leurs chiffres restent entiers (toutes leurs charges et tous leurs produits) */
+      const LF = {};
+      try {
+        if (cfHasF("client")) LF.des = new Set(insShown("des").filter(r => !r.t).map(r => r.id));
+        ["lot", "prim", "sec"].forEach(k => { if (cfHasF(k)) LF[k] = new Set(cfApply(k, [["v", "", r => r.v || "", ""]], INS[k], true).map(r => r.id)); });
+        ["chg", "prd"].forEach(k => { if (cfHasF(insCfT(k))) LF[k] = new Set(cfApply(insCfT(k), insCfCols(k), INS[k].filter(r => !r.t), true).map(r => r.id)); });
+      } catch (e) {}
+      const lfOk = l => Object.keys(LF).every(k => (k === "chg" || k === "prd") ? (l[k] || []).some(x => LF[k].has(x.id)) : LF[k].has(l[k]));
+      const base = (insCheckLinks("lnk") || ALL).filter(lfOk).slice().sort((a, b) => desCmp(D2(a), D2(b)) || natCmp(nm("lot", a.lot), nm("lot", b.lot)) || natCmp(nm("prim", a.prim), nm("prim", b.prim)) || natCmp(nm("sec", a.sec), nm("sec", b.sec)));
       const rows = cfApply(t, LC, base);
       lastShown.detail = { cols: LC, rows, kind: "lnk" };
       const dw = INS_EDIT ? 40 : 0;
@@ -21734,6 +21774,7 @@ document.addEventListener("input", e => {
       });
     }
     const r = end.getBoundingClientRect();
+    { const c = getComputedStyle(end).getPropertyValue("--inst").trim(); H.style.background = c || "#111827"; }   /* v505 (remarque 55) */
     H.style.display = "block"; H.style.left = (r.right - 7 + window.scrollX) + "px"; H.style.top = (r.bottom - 7 + window.scrollY) + "px";
   };
   document.addEventListener("focusin", e => {
