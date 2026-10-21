@@ -752,9 +752,13 @@
       const cols = [...tbl.querySelectorAll("colgroup col")];
       const others = cols.filter(c => c !== cd && c !== ct).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
       const pr = parseFloat(getComputedStyle(sc).paddingRight) || 0;
+      /* v507 (remarque 62) : largeurs calculées une fois pour une largeur de bloc donnée, puis gardées (le tableau ne bouge plus) */
+      const M0 = shell.__chgFitM;
+      if (M0 && M0.w === sc.offsetWidth && M0.o === others) { cd.style.width = M0.d + "px"; ct.style.width = M0.t + "px"; tbl.style.width = others + M0.d + M0.t + "px"; return; }
       const free = Math.floor(sc.clientWidth - pr - others - 22);   /* marge : en-têtes jamais tronqués (quelques px de plus) */
       const d = Math.max(180, Math.round(free * 0.55)), t = Math.max(95, free - d);
       cd.style.width = d + "px"; ct.style.width = t + "px"; tbl.style.width = others + d + t + "px";
+      shell.__chgFitM = { w: sc.offsetWidth, o: others, d, t };
     };
     const cfHasF = t => !!(CF[t] && Object.keys(CF[t].f || {}).length);
     /* v502 (remarque 53) : seul l'onglet source d'un filtre est en bleu — loupe d'une de ses colonnes, « cochées seulement »

@@ -1981,3 +1981,15 @@ td.svi-cs { background: var(--inst-bg, #eef0f3) !important; box-shadow: inset 0 
 .bdg-d-page .ins-table tr.ins-gtitle td, .bdg-d-page .ins-table tr.ins-gtitle td * { color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important; }
 .bdg-d-page .ins-table tr.ins-gtitle input.ins-gin { color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important; }
 .bdg-d-page .ins-table tr.ins-gtitle .ins-grpn { color: #fff !important; -webkit-text-fill-color: #fff !important; background: #1e3a8a; }
+
+/* v507 (remarque 61) : signes › / ⌄ — zone de toucher élargie (sans changer leur taille) */
+:is(.ins-fold, .dly-fold, .qq-fold, .mg-f) { position: relative; }
+:is(.ins-fold, .dly-fold, .qq-fold, .mg-f)::after { content: ""; position: absolute; inset: -6px -14px; }
+/* v507 (remarque 62) : ▲ / ▼ de MARGE sans élargir la colonne */
+.mg-table th .cf-lab { position: relative; overflow: visible; }
+.mg-table th .mg-dir { position: absolute; right: -14px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 10px; }
+/* v507 (remarque 63) : pastille-rond du titre de charges regroupées */
+.bdg-d-page .ins-table tr.ins-gtitle .ins-grpn.ins-grd { cursor: pointer; position: relative; background: #fff !important; color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important; box-shadow: inset 0 0 0 2px #1e3a8a; }
+.bdg-d-page .ins-table tr.ins-gtitle .ins-grpn.ins-grd::after { content: ""; position: absolute; inset: -8px -10px; }
+.bdg-d-page .ins-table tr.ins-gtitle .ins-grpn.ins-grd.on { background: #1d4ed8 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; box-shadow: none; }
+.bdg-d-page .ins-table tr.ins-gtitle .ins-grpn.ins-grd.part { background: linear-gradient(90deg, #1d4ed8 50%, #fff 50%) !important; color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important; }

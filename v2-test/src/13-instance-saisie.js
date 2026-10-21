@@ -648,7 +648,9 @@
         if (edOk(f)) return `<td class="${c[2]} ins-td">${f === "des" ? fb : ""}<input class="ins-gin ${c[2]}" data-f="${f}" enterkeyhint="next"${["p", "tva"].includes(f) ? ' inputmode="decimal"' : ""} value="${esc(ev[f] ?? "")}" autocomplete="off" spellcheck="false"></td>`;
         return `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}">${f === "des" ? fb : ""}${esc(v[f] ?? "")}</td>`;
       };
-      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      /* v507 (remarque 63) : la pastille (nombre de lignes) sert de rond — toucher = choisir / libérer toutes ses charges */
+      const nch = INS_EDIT && LK && LK.chg ? g.filter(r => LK.chg[r.id] !== undefined).length : 0;
+      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}" role="button" aria-label="Choisir toutes les charges">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
