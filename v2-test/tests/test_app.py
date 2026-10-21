@@ -623,6 +623,45 @@ def main():
         check("v513 : copier un tableau filtré = lignes visibles seulement", ["".join(x.split()).replace("\u202f", "").replace("\xa0", "").replace(",00", "") for x in cf.split("\n")] == ["1000", "1200"], cf)
         pg.mouse.click(5, 5); pg.wait_for_timeout(200)
 
+        # ===== v514 : la sélection reste quand on touche ⋯ ; COPIER / EFFACER (menu, barre, touche ⌫) =====
+        pg.click(P); pg.wait_for_timeout(150)
+        pg.keyboard.down("Shift"); pg.click('table.ins-table[data-ik="des"] tr[data-iid="d2"] input.ins-in[data-f="p"]'); pg.keyboard.up("Shift"); pg.wait_for_timeout(250)
+        bar = pg.evaluate("() => { const b = document.getElementById('sviSelBar'); return !!b && b.style.display === 'flex'; }")
+        more = pg.evaluate("() => { const b = document.querySelector('.blk-client .blk-more'); if (!b) return null; const r = b.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }")
+        if more: pg.mouse.click(more[0], more[1]); pg.wait_for_timeout(300)
+        mm = pg.evaluate("() => [document.querySelector('#blkMenu')?.textContent || '', document.querySelectorAll('td.svi-cs').length]")
+        check("v514 : barre affichée, sélection gardée en touchant ⋯, commandes des cases dans le menu", bar and "COPIER LES CASES" in mm[0] and mm[1] >= 2, [bar, more, mm[0][:80], mm[1]])
+        pg.evaluate("() => { window.__sviSelClip = ''; document.querySelector('#blkMenu [data-cs=\"copy\"]')?.click(); }"); pg.wait_for_timeout(200)
+        clip = pg.evaluate("() => window.__sviSelClip || ''")
+        check("v514 : COPIER LES CASES (menu ⋯) — texte prêt pour Google Sheets", len(clip.split("\n")) == mm[1] >= 2, [clip, mm[1]])
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        # touche ⌫ sur une plage du DÉTAIL CHARGES
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(300)
+        ids = pg.evaluate("() => [...document.querySelectorAll('table.ins-table[data-ik=\"chg\"] tbody tr[data-iid]')].filter(t => t.offsetParent !== null).map(t => t.dataset.iid).slice(0, 2)")
+        Q1 = f'table.ins-table[data-ik="chg"] tr[data-iid="{ids[0]}"] input.ins-in[data-f="q"]'
+        Q2 = f'table.ins-table[data-ik="chg"] tr[data-iid="{ids[1]}"] input.ins-in[data-f="q"]'
+        pg.click(Q1); pg.wait_for_timeout(150)
+        pg.keyboard.down("Shift"); pg.click(Q2); pg.keyboard.up("Shift"); pg.wait_for_timeout(200)
+        pg.keyboard.press("Backspace"); pg.wait_for_timeout(300)
+        bk = pg.evaluate(f"""ids => {{ const X = {ins}; const R = ids.map(id => X.INS.chg.find(r => r.id === id)); const out = R.map(r => r.q);
+            R.forEach(r => r.q = 1); X.insSave(); X.refreshAll(); return out; }}""", ids)
+        check("v514 : touche ⌫ — les cases sélectionnées sont vidées", all(v in ("", None, 0) for v in bk), bk)
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        # barre EFFACER sur une plage de la liste ACTIVITÉ SECONDAIRE (unités)
+        U1 = '.ins-hcol[data-ik="sec"] .ins-li[data-iid="s1"] input.ins-in[data-f="u"]'
+        U2 = '.ins-hcol[data-ik="sec"] .ins-li[data-iid="s2"] input.ins-in[data-f="u"]'
+        if pg.evaluate("([a, b]) => !!document.querySelector(a) && !!document.querySelector(b)", [U1, U2]):
+            pg.click(U1); pg.wait_for_timeout(150)
+            pg.keyboard.down("Shift"); pg.click(U2); pg.keyboard.up("Shift"); pg.wait_for_timeout(250)
+            pg.evaluate("() => document.querySelector('#sviSelBar [data-sb=\"clear\"]')?.click()"); pg.wait_for_timeout(400)
+            ul = pg.evaluate(f"""() => {{ const X = {ins}; const out = X.INS.sec.filter(r => ['s1', 's2'].includes(r.id)).map(r => r.u || '');
+                X.INS.sec.find(r => r.id === 's1').u = 'M3'; X.INS.sec.find(r => r.id === 's2').u = 'M2'; X.insSave(); X.refreshAll(); return out; }}""")
+            # s1 est utilisée par une liaison : son unité reste obligatoire (règle existante) ; s2 libre est vidée
+            check("v514 : bouton EFFACER de la barre — liste ACTIVITÉ SECONDAIRE", ul[1] == "", ul)
+        else:
+            check("v514 : unités de la liste ACTIVITÉ SECONDAIRE présentes", False, "absentes")
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
