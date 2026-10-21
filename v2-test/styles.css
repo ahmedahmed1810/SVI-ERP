@@ -1989,7 +1989,8 @@ td.svi-cs { background: var(--inst-bg, #eef0f3) !important; box-shadow: inset 0 
 .mg-table th .cf-lab { position: relative; overflow: visible; }
 .mg-table th .mg-dir { position: absolute; right: -14px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 10px; }
 /* v507 (remarque 63) : pastille-rond du titre de charges regroupées */
-.bdg-d-page .ins-table tr.ins-gtitle .ins-grpn.ins-grd { cursor: pointer; position: relative; background: #fff !important; color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important; box-shadow: inset 0 0 0 2px #1e3a8a; }
+.bdg-d-page .ins-table tr.ins-gtitle .ins-grpn.ins-grd { --gc: var(--inst, #b91c1c); cursor: pointer; position: relative; background: #fff !important; color: var(--gc) !important; -webkit-text-fill-color: var(--gc) !important; box-shadow: inset 0 0 0 2px var(--gc); }
+.bdg-d-page .ins-table tr.ins-gtitle .ins-grpn.ins-grd.blu { --gc: #1d4ed8; }
 .bdg-d-page .ins-table tr.ins-gtitle .ins-grpn.ins-grd::after { content: ""; position: absolute; inset: -8px -10px; }
-.bdg-d-page .ins-table tr.ins-gtitle .ins-grpn.ins-grd.on { background: #1d4ed8 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; box-shadow: none; }
-.bdg-d-page .ins-table tr.ins-gtitle .ins-grpn.ins-grd.part { background: linear-gradient(90deg, #1d4ed8 50%, #fff 50%) !important; color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important; }
+.bdg-d-page .ins-table tr.ins-gtitle .ins-grpn.ins-grd.on { background: var(--gc) !important; color: #fff !important; -webkit-text-fill-color: #fff !important; box-shadow: none; }
+.bdg-d-page .ins-table tr.ins-gtitle .ins-grpn.ins-grd.part { background: linear-gradient(90deg, var(--gc) 50%, #fff 50%) !important; }
