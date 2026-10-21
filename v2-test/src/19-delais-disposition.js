@@ -489,6 +489,8 @@
         th.classList.remove("co-src");
         ghost?.remove();
         /* FORMAT 116 : simple toucher sur le titre = sélection de la colonne */
+        /* v500 (remarque 48) : MARGE — toucher CHARGES, PRODUITS, MARGE ou % = croissant, décroissant, ordre normal */
+        if (!on && mv < 8 && th.closest(".mg-table") && shell.__mg && shell.__mg.sortable(keyOf(th))) { shell.__mg.sort(keyOf(th)); return; }
         if (!on && mv < 8) { try { colSelToggle(th); } catch (e) {} return; }
         if (!on || !target) return;
         const keys = ths().map(keyOf);

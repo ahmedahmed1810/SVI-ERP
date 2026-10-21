@@ -1924,10 +1924,6 @@ tr.ins-grp td { background: #eef3fa; color: #1f3b63; font-weight: 700; }
 .mg-table th .mg-g b { font-size: 10px; margin-left: 2px; }
 .mg-table .mg-f { display: inline-block; width: 18px; margin-right: 4px; text-align: center; font-weight: 900; cursor: pointer; position: relative; }
 .mg-table .mg-f::before { content: ""; position: absolute; inset: -8px -6px; }
-.mg-table tr.mg-grp td { font-weight: 800; }
-.mg-table tr.mg-grp.mg-l0 td { background: #e9edf3; }
-.mg-table tr.mg-grp.mg-l1 td { background: #f2f4f8; }
-.mg-table tr.mg-grp.mg-l2 td { background: #f8f9fb; }
 .mg-table td.xpl-pct { font-weight: 700; }
 .mg-table td.xpl-b { font-weight: 900; }
 
@@ -1942,3 +1938,11 @@ th.cb-filt, .ins-hdel.cb-filt { background: #dbe6ff !important; box-shadow: inse
 /* v499 (remarque 45) : titre de charges regroupées */
 tr.ins-gtitle td { background: #e4e9f1 !important; color: #1f2937; font-weight: 800; }
 tr.ins-gtitle .ins-gfold { margin-right: 6px; }
+
+/* v500 (remarque 47) : MARGE aux couleurs des autres tableaux — liaisons comme les lignes liées (fond bleu clair, texte bleu),
+   lignes regroupées comme les titres (gras, fond gris) ; v500 (remarque 48) : en-têtes classables d'un toucher */
+.bdg-d-page .mg-table tr.mg-leaf td:not(.xpl-pct) { background: #dbeafe !important; color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; font-weight: 700; }
+.bdg-d-page .mg-table tr.mg-grp td:not(.xpl-pct) { color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important; font-weight: 800; }
+.bdg-d-page .mg-table tr.mg-grp.mg-l0 td:not(.xpl-pct) { background: #eceff3 !important; }
+.bdg-d-page .mg-table tr.mg-grp:not(.mg-l0) td:not(.xpl-pct) { background: #f5f6f8 !important; }
+.mg-table th.mg-s .cf-lab { cursor: pointer; }

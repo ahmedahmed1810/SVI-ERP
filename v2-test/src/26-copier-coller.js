@@ -443,6 +443,11 @@
           if (v === "title") QQm.addTitle(); else if (v === "sub") QQm.addSub(); else if (v === "cfg") QQm.cfg(); else QQm.del();
         }, true);
       }
+      /* v500 (remarque 46) : MARGE — TOUT DÉPLIER / TOUT REPLIER */
+      if (active === "lnk" && shell.__mg && acts.some(a => a.dataset.blk === "detail")) {
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-mgf="open"><span>TOUT DÉPLIER</span></button><button type="button" data-mgf="close"><span>TOUT REPLIER</span></button><div class="blk-sep"></div>`);
+        m.addEventListener("click", e => { const b = e.target.closest("[data-mgf]"); if (!b) return; e.stopPropagation(); m.remove(); if (b.dataset.mgf === "open") shell.__mg.openAll(); else shell.__mg.closeAll(); }, true);
+      }
       /* v499 (remarque 42) : EFFACER TOUS LES FILTRES (loupes et cases cochées du bloc) */
       { const blk = (acts.find(a => ["client", "hier", "detail"].includes(a.dataset.blk)) || {}).dataset?.blk;
         if (blk && typeof insFiltPlan === "function" && INS) {
