@@ -671,6 +671,17 @@
       const blu = stt.has("b") && !stt.has("r"), vio = stt.has("b") && stt.has("r");
       return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
+    /* v516 : DÉTAIL PRODUITS — produits de même DÉSIGNATION regroupés sous un titre (même si NBR, DIM 1 à 3 ou unité diffèrent),
+       pour retrouver d'un coup tout ce qui concerne un élément (un poteau…) et les activités qui l'ont touché.
+       Titre : pastille (nombre de lignes), signe › / ⌄, désignation ; AUCUN total (unités différentes : rien ne se cumule) ;
+       sa case coche / décoche toutes ses lignes. Plié à la première ouverture, dépliés mémorisés (par budget). */
+    const insPrdGrpRowHTML = (g, key) => {
+      const cols = insColsOrd("prd"), fo = CHG_GFOLD.has(key);
+      const fb = `<span class="ins-gfz" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier"><span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}">${fo ? "›" : "⌄"}</span></span>`;
+      const non = g.filter(r => r.on === true).length;
+      const cell = c => `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}${c[0] === "des" ? " ins-gtd" : ""}">${c[0] === "des" ? fb + esc(g[0].des || "") : ""}</td>`;
+      return `<tr class="ins-row ins-grp ins-gtitle ins-pgrp${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+    };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
       const rows = k === "des" ? insShown(k) : lkTop(k, insShown(k));
@@ -689,6 +700,19 @@
           if (done.has(key)) return "";
           done.add(key);
           return insGrpRowHTML(g, key) + (CHG_GFOLD.has(key) ? "" : g.map(x => insRowHTML(k, x, 1)).join(""));
+        }).join("");
+      } else if (k === "prd") {
+        insMore[k] = [];
+        const kOf = r => "P|" + U_(r.des);
+        const G = new Map();
+        rows.forEach(r => { const key = kOf(r); if (!G.has(key)) G.set(key, []); G.get(key).push(r); });
+        const done = new Set();
+        html = rows.map(r => {
+          const key = kOf(r), g = G.get(key);
+          if (g.length < 2 || !U_(r.des)) return insRowHTML(k, r, 0);
+          if (done.has(key)) return "";
+          done.add(key);
+          return insPrdGrpRowHTML(g, key) + (CHG_GFOLD.has(key) ? "" : g.map(x => insRowHTML(k, x, 1)).join(""));
         }).join("");
       } else if (k !== "des") {
         const first = rows.length > INS_CHUNK * 1.5 ? rows.slice(0, INS_CHUNK) : rows;

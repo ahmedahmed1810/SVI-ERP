@@ -441,6 +441,9 @@ def main():
         # (cadre posé sur toute la cellule), flèche bas = case du dessous, 2e toucher = saisie, toucher ailleurs = plus de cadre
         def grid_check(tab, sel):
             if tab: pg.evaluate("t => { const b = document.querySelector('.bdg-d-tab[data-tab=\"' + t + '\"]'); b && b.click(); }", tab); pg.wait_for_timeout(400)
+            for _ in range(5):   # v516 : produits regroupés pliés — on déplie pour atteindre la ligne
+                if not pg.evaluate("() => { const b = document.querySelector('tr.ins-pgrp .ins-gfold:not(.open)'); if (!b) return false; b.closest('.ins-gfz').click(); return true; }"): break
+                pg.wait_for_timeout(300)
             if not pg.evaluate("s => !!document.querySelector(s)", sel): return "absent"
             pg.click(sel); pg.wait_for_timeout(200)
             a = pg.evaluate("""() => { const a = document.activeElement, c = window.sviCellOf(a), f = document.getElementById('sviSelFrame');
@@ -661,6 +664,19 @@ def main():
         else:
             check("v514 : unités de la liste ACTIVITÉ SECONDAIRE présentes", False, "absentes")
         pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+
+        # ===== v516 : DÉTAIL PRODUITS — même désignation regroupée (dimensions / unité différentes), sans totaux =====
+        pg.evaluate(f"""() => {{ const X = {ins}; X.INS.prd.push({{ id: 'x7', des: 'beton b25', u: 'M2', nbr: 2, d1: 3, d2: 1, d3: 1 }}); X.insSave(); X.refreshAll();
+            document.querySelector('.bdg-d-tab[data-tab="prd"]')?.click(); }}"""); pg.wait_for_timeout(500)
+        g1 = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="prd"] tr.ins-pgrp'); if (!t) return null;
+            const txt = [...t.cells].map(c => c.textContent.trim()).filter(Boolean);
+            return [t.dataset.grp.split(',').length, txt, !!document.querySelector('table.ins-table[data-ik="prd"] tr[data-iid="x7"]')]; }""")
+        pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"prd\"] tr.ins-pgrp .ins-gfz')?.click()"); pg.wait_for_timeout(400)
+        g2 = pg.evaluate("() => !!document.querySelector('table.ins-table[data-ik=\"prd\"] tr[data-iid=\"x7\"]')")
+        pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"prd\"] tr.ins-pgrp .ins-gfz')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.prd = X.INS.prd.filter(r => r.id !== 'x7'); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v516 : produits de même désignation regroupés (titre : nombre, signe, désignation, sans total), pliés puis dépliables",
+              g1 is not None and g1[0] >= 2 and len(g1[1]) == 2 and "BETON" in g1[1][1].upper() and g1[2] != g2, [g1, g2])
 
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
