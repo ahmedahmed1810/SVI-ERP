@@ -230,6 +230,17 @@ def main():
         o59 = pg.evaluate("() => [...document.querySelectorAll('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid]')].map(x => x.dataset.iid)")
         pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid=\"l1\"] .lk-rd')?.click()"); pg.wait_for_timeout(300)
         check("remarque 59 : lot choisi en haut de la liste", bool(o59) and o59[0] == "l1", o59)
+        # remarque 70 : condition sur une colonne de nombres (QCB > 3,5)
+        pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"chg\"]'); t && t.click(); }"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('.cf-btn[data-cf=\"chg\"][data-col=\"qty\"]')?.click()"); pg.wait_for_timeout(300)
+        c70 = pg.evaluate("() => { const m = document.getElementById('cfMenu'); const op = m && m.querySelector('.cf-op'); if (!op) return null; op.value = 'gt'; op.dispatchEvent(new Event('change', { bubbles: true })); m.querySelector('.cf-ca[data-n=\"a\"]').value = '3,5'; m.querySelector('.cf-ok').click(); return true; }")
+        pg.wait_for_timeout(400)
+        r70 = pg.evaluate("() => [...document.querySelectorAll('table.ins-table[data-ik=\"chg\"] tbody tr[data-iid]')].map(t => t.dataset.iid)")
+        pg.evaluate("() => document.querySelector('.cf-btn[data-cf=\"chg\"][data-col=\"qty\"]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#cfMenu .cf-clear')?.click()"); pg.wait_for_timeout(200)
+        pg.evaluate("() => document.querySelector('#cfMenu .cf-ok')?.click()"); pg.wait_for_timeout(300)
+        r70b = pg.evaluate("() => document.querySelectorAll('table.ins-table[data-ik=\"chg\"] tbody tr[data-iid]').length")
+        check("remarque 70 : condition SUPÉRIEUR À sur une colonne de nombres", c70 and r70 == ["c2"] and r70b >= 2, [c70, r70, r70b])
         # remarque 38 : RENDEMENT dans DÉTAIL CHARGES, avant TÂCHE
         pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"chg\"]'); t && t.click(); }"); pg.wait_for_timeout(400)
         rd = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'); const hs = [...t.tHead.rows[0].cells].map(c => c.textContent.trim());

@@ -5406,6 +5406,37 @@ function renderBudgetList() {
       cfOpen = null;
     };
 
+    /* v510 (remarque 70) : CONDITION sur une colonne de nombres ou de dates (égal, différent, supérieur, inférieur, entre ;
+       le, avant le, après le, entre) — combinée aux cases de valeurs ; le filtre garde la forme d'un ensemble (has) */
+    const cfKind = vals => {
+      const v = vals.filter(x => String(x).trim() !== "");
+      if (!v.length) return "";
+      if (v.every(x => /^-?[\d\s\u00a0\u202f]+(,\d+)?( ?%)?$/.test(String(x).trim()))) return "num";
+      if (v.every(x => /^\d{2}\/\d{2}\/\d{4}$/.test(String(x).trim()) || /^\d{4}-\d{2}-\d{2}$/.test(String(x).trim()))) return "date";
+      return "";
+    };
+    const cfNum = x => num(String(x).replace(/%/g, ""));
+    const cfDate = x => { const s = String(x || "").trim(); const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); if (m) return m[3] + "-" + m[2] + "-" + m[1]; return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : ""; };
+    const cfCondOk = (c, v) => {
+      if (!c) return true;
+      if (String(v).trim() === "") return false;
+      const x = c.kind === "num" ? cfNum(v) : cfDate(v);
+      if (c.kind === "date" && !x) return false;
+      const a = c.a, b = c.b;
+      switch (c.op) {
+        case "eq": return x === a;
+        case "ne": return x !== a;
+        case "gt": return x > a;
+        case "ge": return x >= a;
+        case "lt": return x < a;
+        case "le": return x <= a;
+        case "bt": { const lo = a < b ? a : b, hi = a < b ? b : a; return x >= lo && x <= hi; }
+        default: return true;
+      }
+    };
+    const cfMakeF = (vals, cond) => ({ cond, vals, has: v => (!vals || vals.has(v)) && cfCondOk(cond, v), [Symbol.iterator]: function* () { if (vals) yield* vals; } });
+    const cfCondLab = c => !c ? "" : ({ eq: c.kind === "date" ? "LE" : "=", ne: "≠", gt: c.kind === "date" ? "APRÈS LE" : ">", ge: "≥", lt: c.kind === "date" ? "AVANT LE" : "<", le: "≤", bt: "ENTRE" })[c.op] || "";
+
     const cfValues = (t, key) => {
       const src = cfSrc[t];
       if (!src) return [];
@@ -5452,6 +5483,38 @@ function renderBudgetList() {
       );
     };
 
+    /* partie CONDITION du menu (colonne de nombres ou de dates) */
+    const cfCondUI = m => {
+      const box = m.querySelector(".cf-cond");
+      if (!box || !cfOpen) return;
+      const kind = cfKind(cfValues(cfOpen.t, cfOpen.key));
+      cfOpen.kind = kind;
+      if (!kind) { box.innerHTML = ""; return; }
+      const c = cfOpen.cond && cfOpen.cond.kind === kind ? cfOpen.cond : null;
+      const ops = kind === "num" ? [["", "AUCUNE"], ["eq", "ÉGAL À"], ["ne", "DIFFÉRENT DE"], ["gt", "SUPÉRIEUR À"], ["ge", "SUPÉRIEUR OU ÉGAL À"], ["lt", "INFÉRIEUR À"], ["le", "INFÉRIEUR OU ÉGAL À"], ["bt", "ENTRE … ET …"]]
+        : [["", "AUCUNE"], ["eq", "LE"], ["lt", "AVANT LE"], ["gt", "APRÈS LE"], ["bt", "ENTRE LE … ET LE …"]];
+      const fmt = v => v === undefined || v === null || v === "" ? "" : kind === "num" ? money(v) : v;
+      const inp = (n, v) => kind === "num" ? `<input class="cf-ca" data-n="${n}" inputmode="decimal" value="${esc(fmt(v))}" placeholder="VALEUR">` : `<input type="date" class="cf-ca" data-n="${n}" value="${esc(v || "")}">`;
+      box.innerHTML = `<div class="cf-ct">CONDITION (${kind === "num" ? "NOMBRES" : "DATES"})</div><select class="cf-op">${ops.map(([k, l]) => `<option value="${k}"${c && c.op === k ? " selected" : ""}>${l}</option>`).join("")}</select>
+        <div class="cf-cv${c ? "" : " off"}">${inp("a", c && c.a)}<span class="cf-et${c && c.op === "bt" ? "" : " off"}"> ET </span>${`<span class="cf-bw${c && c.op === "bt" ? "" : " off"}">${inp("b", c && c.b)}</span>`}</div>`;
+      box.querySelector(".cf-op").addEventListener("change", ev => {
+        const op = ev.target.value;
+        box.querySelector(".cf-cv").classList.toggle("off", !op);
+        box.querySelectorAll(".cf-et, .cf-bw").forEach(x => x.classList.toggle("off", op !== "bt"));
+      });
+    };
+    /* condition lue dans le menu : null (aucune), false (incomplète) ou { kind, op, a, b } */
+    const cfReadCond = m => {
+      const box = m.querySelector(".cf-cond"), kind = cfOpen && cfOpen.kind;
+      if (!box || !kind) return null;
+      const op = (box.querySelector(".cf-op") || {}).value || "";
+      if (!op) return null;
+      const rd = n => { const i = box.querySelector(`.cf-ca[data-n="${n}"]`); const v = i ? String(i.value || "").trim() : ""; if (!v) return null; return kind === "num" ? cfNum(v) : cfDate(v) || v; };
+      const a = rd("a"), b = op === "bt" ? rd("b") : null;
+      if (a === null || (op === "bt" && b === null)) return false;
+      return { kind, op, a, b };
+    };
+
     const cfAfterChange = () => {
       refreshAll();
       cfRenderList();
@@ -5463,8 +5526,8 @@ function renderBudgetList() {
       if (cfOpen && cfOpen.t === t && cfOpen.key === key) { cfClose(); return; }
       cfClose();
       {
-        const st0 = cfT(t);
-        cfOpen = { t, key, draft: new Set(st0.f[key] ? [...st0.f[key]] : cfValues(t, key)) };
+        const st0 = cfT(t), f0 = st0.f[key];
+        cfOpen = { t, key, cond: f0 && f0.cond ? { ...f0.cond } : null, draft: new Set(f0 ? (f0.cond && !f0.vals ? cfValues(t, key) : [...f0]) : cfValues(t, key)) };
       }
       const m = document.createElement("div");
       m.id = "cfMenu";
@@ -5474,6 +5537,7 @@ function renderBudgetList() {
         <button type="button" class="cf-sort" data-dir="asc">↑ TRI CROISSANT</button>
         <button type="button" class="cf-sort" data-dir="desc">↓ TRI DÉCROISSANT</button>
         <div class="cf-search">🔍 <input type="search" class="cf-q" placeholder="RECHERCHER…"></div>
+        <div class="cf-cond"></div>
         <div class="cf-list"></div>
         <div class="cf-foot">
           <button type="button" class="cf-clear">EFFACER</button>
@@ -5550,7 +5614,10 @@ function renderBudgetList() {
         if (e.target.closest(".cf-ok")) {
           const all = cfValues(t, key);
           const keep = new Set(all.filter(v => cfOpen.draft.has(v)));
-          if (keep.size === all.length) delete st.f[key]; else st.f[key] = keep;
+          const cond = cfReadCond(m);
+          if (cond === false) { svToast("CONDITION INCOMPLÈTE : SAISIR LA OU LES VALEURS.", 2500); return; }
+          if (keep.size === all.length && !cond) delete st.f[key];
+          else st.f[key] = cond ? cfMakeF(keep.size === all.length ? null : keep, cond) : keep;
           cfClose();
           keepScroll.toTop = true;
           refreshAll();
@@ -5564,6 +5631,7 @@ function renderBudgetList() {
           delete st.f[key];
           if (st.sort && st.sort.col === key) st.sort = null;
           m.querySelector(".cf-q").value = "";
+          cfOpen.cond = null; cfCondUI(m);
           cfOpen.draft = new Set(cfValues(t, key));
           cfAfterChange();
         }
@@ -5595,6 +5663,7 @@ function renderBudgetList() {
         cfPlace();
       });
 
+      cfCondUI(m);
       cfRenderList();
       /* placement APRÈS remplissage de la liste (hauteur réelle connue) */
       cfPlace();
@@ -5607,7 +5676,7 @@ function renderBudgetList() {
     }
     window.__cfDocHandler = e => {
       if (!cfOpen) return;
-      if (e.target.closest("#cfMenu") || e.target.closest(".cf-btn") || window.__cfRsz) return;
+      if (e.target.closest("#cfMenu") || e.target.closest(".cf-btn") || e.target.closest("#svCal") || window.__cfRsz) return;
       cfClose();
     };
     document.addEventListener("click", window.__cfDocHandler, true);
@@ -6234,7 +6303,9 @@ function renderBudgetList() {
         shell.__fold(b.dataset.fold);
       }, true);
     }
-    const foldBtn = r => r && r.t ? `<span class="ins-fold${foldGet()[r.id] ? "" : " open"}" data-fold="${r.id}" role="button" aria-label="Replier / déplier">${foldGet()[r.id] ? "›" : "⌄"}</span>` : "";
+    /* v510 (remarque 68) : état d'une branche pour la couleur de son signe ou de sa pastille */
+    const sviFoldState = (red, blue) => red && blue ? " fs-vio" : red ? " fs-red" : blue ? " fs-blu" : "";
+    const foldBtn = r => r && r.t ? `<span class="ins-fold${foldGet()[r.id] ? "" : " open"}${INS_EDIT ? (() => { const B = insBranch(r).filter(x => !x.t); return sviFoldState(B.some(x => LK.des === x.id), B.some(x => lkHit("des", x.id))); })() : ""}" data-fold="${r.id}" role="button" aria-label="Replier / déplier">${foldGet()[r.id] ? "›" : "⌄"}</span>` : "";
     /* grands tableaux (détail produits / charges) : lignes dessinées par paquets, au fil du défilement (rapidité) */
     const INS_CHUNK = 120;
     const insMore = {};
@@ -6268,8 +6339,10 @@ function renderBudgetList() {
       const nch = INS_EDIT && LK && LK.chg ? g.filter(r => LK.chg[r.id] !== undefined).length : 0;
       /* v508 (remarque 65) : couleur des ronds de ses lignes — rouge (choisies), bleu (liées à ce qui est choisi) */
       const isB = r => INS_EDIT && ((LK.des && lkIsLinked("chg", r.id)) || lkHit("chg", r.id));
-      const blu = nch ? g.filter(r => LK.chg[r.id] !== undefined).every(isB) : g.some(isB);
-      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : ""}" role="button" aria-label="Choisir toutes les charges">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      /* v510 (remarque 67) : mélange de rouge (choisies) et de bleu (liées) = violet */
+      const stt = new Set(g.map(r => LK && LK.chg && LK.chg[r.id] !== undefined ? (isB(r) ? "b" : "r") : (isB(r) ? "b" : "")).filter(Boolean));
+      const blu = stt.has("b") && !stt.has("r"), vio = stt.has("b") && stt.has("r");
+      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
@@ -6559,13 +6632,17 @@ function renderBudgetList() {
     };
     const lotTreeHTML = list => lotTreeRows(list).map(x => {
       const pad = `style="margin-left:${x.lvl * 16}px"`;
-      const fold = x.kids ? `<span class="ins-fold lot-fold" data-path="${esc(x.path)}">${dlyIsFolded(x.path) ? "›" : "⌄"}</span>` : `<span class="lot-fold-sp"></span>`;
+      /* v510 (remarque 68) : signe d'un niveau aux couleurs des ronds de sa branche (rouge choisi, bleu lié, violet mélange) */
+      const UB = INS.lot.filter(r => !r.t && lotUnder(r, x.segs));
+      const fst = x.kids && INS_EDIT ? sviFoldState(UB.some(r => LK.lot === r.id), UB.some(r => lkHit("lot", r.id))) : "";
+      const fold = x.kids ? `<span class="ins-fold lot-fold${fst}" data-path="${esc(x.path)}">${dlyIsFolded(x.path) ? "›" : "⌄"}</span>` : `<span class="lot-fold-sp"></span>`;
       if (x.grp) {
         /* niveau sans lot à lui : nom modifiable, case = toute sa branche */
         const br = INS.lot.filter(r => !r.t && lotUnder(r, x.segs));
         const all = br.length && br.every(r => r.on === true);
         const GL = lotLab(x.segs);
-        return `<div class="ins-li lot-grp" data-path="${esc(x.path)}"><span class="ins-rdc"></span><span class="lot-in" ${pad}>${fold}${lotNoHTML(GL)}${INS_EDIT ? `<input class="lot-gname" data-kind="grp" data-path="${esc(x.path)}" value="${esc(GL.name)}" autocomplete="off">` : `<span>${esc(GL.name)}</span>`}</span>
+        /* v510 (remarque 68) : niveau replié qui cache un lot coché = bleu */
+        return `<div class="ins-li lot-grp${dlyIsFolded(x.path) && br.some(r => r.on === true) ? " ins-hasck" : ""}" data-path="${esc(x.path)}"><span class="ins-rdc"></span><span class="lot-in" ${pad}>${fold}${lotNoHTML(GL)}${INS_EDIT ? `<input class="lot-gname" data-kind="grp" data-path="${esc(x.path)}" value="${esc(GL.name)}" autocomplete="off">` : `<span>${esc(GL.name)}</span>`}</span>
           ${INS_EDIT ? `<span class="ins-delc"><input type="checkbox" class="lot-gcb" data-path="${esc(x.path)}"${all ? " checked" : ""}></span>` : ""}</div>`;
       }
       const r = x.r, k = "lot";
@@ -15787,7 +15864,8 @@ function renderBudgetList() {
       const head = c => {
         let h = cfHead(t, c[0], c[1], c[3] + (["chg", "prd", "mg", "pct"].includes(c[0]) ? " mg-s" : ""));
         /* v507 (remarque 62) : ▲ / ▼ posé à côté de l'intitulé sans élargir la colonne */
-        if (mgSort && mgSort.col === c[0]) h = h.replace(`<span class="cf-lab">${c[1]}</span>`, `<span class="cf-lab">${c[1]}<i class="mg-dir">${mgSort.dir > 0 ? "▲" : "▼"}</i></span>`);
+        /* v510 (remarque 69) : le signe est posé dans l'en-tête, hors de l'intitulé (il ne compte jamais dans la largeur) */
+        if (mgSort && mgSort.col === c[0]) h = h.replace(`<span class="cf-wrap">`, `<i class="mg-dir">${mgSort.dir > 0 ? "▲" : "▼"}</i><span class="cf-wrap">`);
         return h;
       };
       const tot = mgAgg(rows), tm = metr(tot, true);
@@ -18805,7 +18883,7 @@ function renderBudgetList() {
         const cf = {};
         Object.entries(CF).forEach(([t, st]) => {
           const f = {};
-          Object.entries(st.f).forEach(([k, set]) => { f[k] = [...set]; });
+          Object.entries(st.f).forEach(([k, set]) => { f[k] = set && set.cond ? { vals: set.vals ? [...set.vals] : null, cond: set.cond } : [...set]; });   /* v510 : condition gardée */
           cf[t] = { sort: st.sort, f };
         });
         localStorage.setItem(ST_KEY, JSON.stringify({
@@ -18834,7 +18912,7 @@ function renderBudgetList() {
         const x = cfT(t);
         x.sort = v.sort || null;
         x.f = {};
-        Object.entries(v.f || {}).forEach(([k, arr]) => { x.f[k] = new Set(arr); });
+        Object.entries(v.f || {}).forEach(([k, arr]) => { x.f[k] = Array.isArray(arr) ? new Set(arr) : arr && arr.cond ? cfMakeF(arr.vals ? new Set(arr.vals) : null, arr.cond) : new Set(); });
       });
       (st.desig || []).forEach(v => selDesig.add(v));
       (st.rows || []).forEach(v => selRows.add(v));

@@ -153,6 +153,37 @@
       cfOpen = null;
     };
 
+    /* v510 (remarque 70) : CONDITION sur une colonne de nombres ou de dates (égal, différent, supérieur, inférieur, entre ;
+       le, avant le, après le, entre) — combinée aux cases de valeurs ; le filtre garde la forme d'un ensemble (has) */
+    const cfKind = vals => {
+      const v = vals.filter(x => String(x).trim() !== "");
+      if (!v.length) return "";
+      if (v.every(x => /^-?[\d\s\u00a0\u202f]+(,\d+)?( ?%)?$/.test(String(x).trim()))) return "num";
+      if (v.every(x => /^\d{2}\/\d{2}\/\d{4}$/.test(String(x).trim()) || /^\d{4}-\d{2}-\d{2}$/.test(String(x).trim()))) return "date";
+      return "";
+    };
+    const cfNum = x => num(String(x).replace(/%/g, ""));
+    const cfDate = x => { const s = String(x || "").trim(); const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); if (m) return m[3] + "-" + m[2] + "-" + m[1]; return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : ""; };
+    const cfCondOk = (c, v) => {
+      if (!c) return true;
+      if (String(v).trim() === "") return false;
+      const x = c.kind === "num" ? cfNum(v) : cfDate(v);
+      if (c.kind === "date" && !x) return false;
+      const a = c.a, b = c.b;
+      switch (c.op) {
+        case "eq": return x === a;
+        case "ne": return x !== a;
+        case "gt": return x > a;
+        case "ge": return x >= a;
+        case "lt": return x < a;
+        case "le": return x <= a;
+        case "bt": { const lo = a < b ? a : b, hi = a < b ? b : a; return x >= lo && x <= hi; }
+        default: return true;
+      }
+    };
+    const cfMakeF = (vals, cond) => ({ cond, vals, has: v => (!vals || vals.has(v)) && cfCondOk(cond, v), [Symbol.iterator]: function* () { if (vals) yield* vals; } });
+    const cfCondLab = c => !c ? "" : ({ eq: c.kind === "date" ? "LE" : "=", ne: "≠", gt: c.kind === "date" ? "APRÈS LE" : ">", ge: "≥", lt: c.kind === "date" ? "AVANT LE" : "<", le: "≤", bt: "ENTRE" })[c.op] || "";
+
     const cfValues = (t, key) => {
       const src = cfSrc[t];
       if (!src) return [];
@@ -199,6 +230,38 @@
       );
     };
 
+    /* partie CONDITION du menu (colonne de nombres ou de dates) */
+    const cfCondUI = m => {
+      const box = m.querySelector(".cf-cond");
+      if (!box || !cfOpen) return;
+      const kind = cfKind(cfValues(cfOpen.t, cfOpen.key));
+      cfOpen.kind = kind;
+      if (!kind) { box.innerHTML = ""; return; }
+      const c = cfOpen.cond && cfOpen.cond.kind === kind ? cfOpen.cond : null;
+      const ops = kind === "num" ? [["", "AUCUNE"], ["eq", "ÉGAL À"], ["ne", "DIFFÉRENT DE"], ["gt", "SUPÉRIEUR À"], ["ge", "SUPÉRIEUR OU ÉGAL À"], ["lt", "INFÉRIEUR À"], ["le", "INFÉRIEUR OU ÉGAL À"], ["bt", "ENTRE … ET …"]]
+        : [["", "AUCUNE"], ["eq", "LE"], ["lt", "AVANT LE"], ["gt", "APRÈS LE"], ["bt", "ENTRE LE … ET LE …"]];
+      const fmt = v => v === undefined || v === null || v === "" ? "" : kind === "num" ? money(v) : v;
+      const inp = (n, v) => kind === "num" ? `<input class="cf-ca" data-n="${n}" inputmode="decimal" value="${esc(fmt(v))}" placeholder="VALEUR">` : `<input type="date" class="cf-ca" data-n="${n}" value="${esc(v || "")}">`;
+      box.innerHTML = `<div class="cf-ct">CONDITION (${kind === "num" ? "NOMBRES" : "DATES"})</div><select class="cf-op">${ops.map(([k, l]) => `<option value="${k}"${c && c.op === k ? " selected" : ""}>${l}</option>`).join("")}</select>
+        <div class="cf-cv${c ? "" : " off"}">${inp("a", c && c.a)}<span class="cf-et${c && c.op === "bt" ? "" : " off"}"> ET </span>${`<span class="cf-bw${c && c.op === "bt" ? "" : " off"}">${inp("b", c && c.b)}</span>`}</div>`;
+      box.querySelector(".cf-op").addEventListener("change", ev => {
+        const op = ev.target.value;
+        box.querySelector(".cf-cv").classList.toggle("off", !op);
+        box.querySelectorAll(".cf-et, .cf-bw").forEach(x => x.classList.toggle("off", op !== "bt"));
+      });
+    };
+    /* condition lue dans le menu : null (aucune), false (incomplète) ou { kind, op, a, b } */
+    const cfReadCond = m => {
+      const box = m.querySelector(".cf-cond"), kind = cfOpen && cfOpen.kind;
+      if (!box || !kind) return null;
+      const op = (box.querySelector(".cf-op") || {}).value || "";
+      if (!op) return null;
+      const rd = n => { const i = box.querySelector(`.cf-ca[data-n="${n}"]`); const v = i ? String(i.value || "").trim() : ""; if (!v) return null; return kind === "num" ? cfNum(v) : cfDate(v) || v; };
+      const a = rd("a"), b = op === "bt" ? rd("b") : null;
+      if (a === null || (op === "bt" && b === null)) return false;
+      return { kind, op, a, b };
+    };
+
     const cfAfterChange = () => {
       refreshAll();
       cfRenderList();
@@ -210,8 +273,8 @@
       if (cfOpen && cfOpen.t === t && cfOpen.key === key) { cfClose(); return; }
       cfClose();
       {
-        const st0 = cfT(t);
-        cfOpen = { t, key, draft: new Set(st0.f[key] ? [...st0.f[key]] : cfValues(t, key)) };
+        const st0 = cfT(t), f0 = st0.f[key];
+        cfOpen = { t, key, cond: f0 && f0.cond ? { ...f0.cond } : null, draft: new Set(f0 ? (f0.cond && !f0.vals ? cfValues(t, key) : [...f0]) : cfValues(t, key)) };
       }
       const m = document.createElement("div");
       m.id = "cfMenu";
@@ -221,6 +284,7 @@
         <button type="button" class="cf-sort" data-dir="asc">↑ TRI CROISSANT</button>
         <button type="button" class="cf-sort" data-dir="desc">↓ TRI DÉCROISSANT</button>
         <div class="cf-search">🔍 <input type="search" class="cf-q" placeholder="RECHERCHER…"></div>
+        <div class="cf-cond"></div>
         <div class="cf-list"></div>
         <div class="cf-foot">
           <button type="button" class="cf-clear">EFFACER</button>
@@ -297,7 +361,10 @@
         if (e.target.closest(".cf-ok")) {
           const all = cfValues(t, key);
           const keep = new Set(all.filter(v => cfOpen.draft.has(v)));
-          if (keep.size === all.length) delete st.f[key]; else st.f[key] = keep;
+          const cond = cfReadCond(m);
+          if (cond === false) { svToast("CONDITION INCOMPLÈTE : SAISIR LA OU LES VALEURS.", 2500); return; }
+          if (keep.size === all.length && !cond) delete st.f[key];
+          else st.f[key] = cond ? cfMakeF(keep.size === all.length ? null : keep, cond) : keep;
           cfClose();
           keepScroll.toTop = true;
           refreshAll();
@@ -311,6 +378,7 @@
           delete st.f[key];
           if (st.sort && st.sort.col === key) st.sort = null;
           m.querySelector(".cf-q").value = "";
+          cfOpen.cond = null; cfCondUI(m);
           cfOpen.draft = new Set(cfValues(t, key));
           cfAfterChange();
         }
@@ -342,6 +410,7 @@
         cfPlace();
       });
 
+      cfCondUI(m);
       cfRenderList();
       /* placement APRÈS remplissage de la liste (hauteur réelle connue) */
       cfPlace();
@@ -354,7 +423,7 @@
     }
     window.__cfDocHandler = e => {
       if (!cfOpen) return;
-      if (e.target.closest("#cfMenu") || e.target.closest(".cf-btn") || window.__cfRsz) return;
+      if (e.target.closest("#cfMenu") || e.target.closest(".cf-btn") || e.target.closest("#svCal") || window.__cfRsz) return;
       cfClose();
     };
     document.addEventListener("click", window.__cfDocHandler, true);
