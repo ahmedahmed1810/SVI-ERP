@@ -2056,3 +2056,8 @@ td.svi-cs { background: var(--inst-bg, #eef0f3) !important; box-shadow: inset 0 
 /* v513 : plage sélectionnée dans une liste LOT / ACTIVITÉ PRIMAIRE / ACTIVITÉ SECONDAIRE */
 .ins-hcol input.svi-ls, .ins-hcol .act-u.svi-ls { background: #dbe7f7 !important; box-shadow: inset 0 0 0 1px #1d4ed8; }
 .ins-hcol .act-u.svi-ls input { background: transparent !important; }
+/* v514 : barre COPIER · COLLER · EFFACER au-dessus des cases sélectionnées */
+#sviSelBar { position: fixed; display: none; z-index: 10098; gap: 2px; padding: 3px; background: #111827; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.25); touch-action: manipulation; }
+#sviSelBar button { border: 0; background: transparent; color: #fff; font: 800 12px/1 inherit; letter-spacing: .02em; padding: 9px 12px; border-radius: 7px; cursor: pointer; -webkit-user-select: none; user-select: none; }
+#sviSelBar button:active { background: #374151; }
+#sviSelBar .sb-del { color: #fca5a5; }

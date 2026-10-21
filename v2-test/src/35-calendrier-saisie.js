@@ -387,7 +387,7 @@ function sviDlyRoSync() {
 (() => {
   const TXT = 'input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]), textarea';
   const CANCEL = '[data-x], .svc-close, [data-cancel], button[data-v=""], button[data-r="0"]';
-  const KEEP = "#svCal, #cfMenu, #svToast, .unit-sug, datalist";
+  const KEEP = "#svCal, #cfMenu, #svToast, .unit-sug, datalist, .blk-more, #blkMenu, #sviSelBar";   /* v514 : ⋯ et sa liste gardent la case (et la sélection) */
   let st = null;
   const toastOn = () => { const t = document.getElementById("svToast"); return !!(t && t.classList.contains("on")) ? t.querySelector(".svt-m").textContent : ""; };
   document.addEventListener("pointerdown", e => {
@@ -575,6 +575,35 @@ const sviPasteNorm = v => {
 /* une ligne de tableau encore vide (SAISIR ICI…, nouvelle ligne de la SAISIE DIRECTE) */
 const sviRowFree = tr => tr.matches(".ins-new, .qq-new, .qq-xnew, .dlw-newr") || ![...tr.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]), textarea')].some(i => String(i.value || "").trim());
 
+/* v514 : PRESSE-PAPIERS — texte (colonnes séparées par tabulation, une ligne par ligne) ET tableau HTML,
+   pour que Google Sheets / Excel (iPad compris) collent bien case par case. Écrit pendant le toucher (exigé par Safari). */
+const sviTsvHtml = t => "<table>" + String(t || "").split("\n").map(l => "<tr>" + l.split("\t").map(v => "<td>" + String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</td>").join("") + "</tr>").join("") + "</table>";
+function sviClipWrite(t) {
+  window.__sviSelClip = t;
+  /* 1) copie classique (marche partout, y compris Safari iPad, pendant un toucher) */
+  let ok = false;
+  try {
+    const h = e => { e.preventDefault(); e.stopImmediatePropagation(); try { e.clipboardData.setData("text/plain", t); e.clipboardData.setData("text/html", sviTsvHtml(t)); ok = true; } catch (err) {} };
+    window.addEventListener("copy", h, true);   /* avant tous les autres (fenêtre, phase de capture) */
+    const ta = document.createElement("textarea");
+    ta.value = t; ta.setAttribute("readonly", ""); ta.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;";
+    const back = document.activeElement, wasNav = !!(back && back.classList && back.classList.contains("svi-nav"));
+    document.body.appendChild(ta); try { ta.focus({ preventScroll: true }); } catch (err) {} ta.select(); try { ta.setSelectionRange(0, t.length); } catch (err) {}
+    try { document.execCommand("copy"); } catch (err) {}
+    window.removeEventListener("copy", h, true);
+    ta.remove();
+    if (back && back.focus && back.isConnected) { back.__edit = !wasNav && !!sviCellOf(back); try { back.focus({ preventScroll: true }); } catch (err) {} }
+  } catch (err) {}
+  /* 2) API du presse-papiers (en plus, quand elle existe) */
+  try {
+    if (navigator.clipboard && window.ClipboardItem && navigator.clipboard.write) {
+      navigator.clipboard.write([new ClipboardItem({ "text/plain": new Blob([t], { type: "text/plain" }), "text/html": new Blob([sviTsvHtml(t)], { type: "text/html" }) })]).catch(() => { if (!ok) try { navigator.clipboard.writeText(t); } catch (err) {} });
+    } else if (!ok && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).catch(() => {});
+  } catch (err) {}
+  return ok;
+}
+window.sviClipWrite = sviClipWrite;
+
 /* =========================================================
    v491 (remarque 6) : SÉLECTION DE PLUSIEURS CASES, comme Excel / Google Sheets — dans tous les tableaux de saisie
    clavier : Maj + toucher (ou Maj + flèches) = plage depuis la case active ; Commande (Ctrl) + toucher = ajoute / retire une case ;
@@ -588,7 +617,9 @@ const sviRowFree = tr => tr.matches(".ins-new, .qq-new, .qq-xnew, .dlw-newr") ||
   const posOf = td => { const tr = td.closest("tr"); return tr && tr.parentElement && tr.parentElement.tagName === "TBODY" ? { r: tr.sectionRowIndex, c: td.cellIndex } : null; };
   const tdAt = (tbl, r, c) => { const tr = tbl.tBodies[0] && tbl.tBodies[0].rows[r]; return tr ? tr.cells[c] || null : null; };
   const cells = () => {
-    if (!S.tbl || !S.a) return [];
+    /* v514 : tableau redessiné (en quittant une case, au retour du menu ⋯) — la sélection est retrouvée sur le nouveau tableau */
+    if (S.tbl && !S.tbl.isConnected && S.tk) { const t2 = document.querySelector(S.tk); if (t2) S.tbl = t2; }
+    if (!S.tbl || !S.a || !S.tbl.isConnected) return [];
     const out = [], b = S.b || S.a;
     if (S.b) for (let r = Math.min(S.a.r, b.r); r <= Math.max(S.a.r, b.r); r++) for (let c = Math.min(S.a.c, b.c); c <= Math.max(S.a.c, b.c); c++) { const td = tdAt(S.tbl, r, c); if (td) out.push(td); }
     S.extra.forEach(k => { const [r, c] = k.split(":").map(Number); const td = tdAt(S.tbl, r, c); if (td && !out.includes(td)) out.push(td); });
@@ -629,14 +660,14 @@ const sviRowFree = tr => tr.matches(".ins-new, .qq-new, .qq-xnew, .dlw-newr") ||
     { const c = getComputedStyle(end).getPropertyValue("--inst").trim(); H.style.background = c || "#111827"; }   /* v505 (remarque 55) */
     H.style.display = "block"; H.style.left = (vis.right - 7 + window.scrollX) + "px"; H.style.top = (vis.bottom - 7 + window.scrollY) + "px";
   };
-  window.__sviHandle = () => handle();
+  window.__sviHandle = () => { if (S.b || S.extra.size) { const C = cells(); if (C.length > 1 && !C[0].classList.contains("svi-cs")) C.forEach(td => td.classList.add("svi-cs")); } handle(); };
   window.__sviHandleZ = z => { if (H) H.style.zIndex = z; };
   document.addEventListener("focusin", e => {
     const td = e.target.closest && e.target.closest("td"), tbl = td && td.closest(TSEL);
     if (!tbl) { handle(); return; }
     if (S.keep) { S.keep = false; handle(); return; }
     const p = posOf(td); if (!p) return;
-    if (S.tbl !== tbl || !S.a || S.a.r !== p.r || S.a.c !== p.c) { S.tbl = tbl; S.a = p; S.b = null; S.extra.clear(); paint(); }
+    if (S.tbl !== tbl || !S.a || S.a.r !== p.r || S.a.c !== p.c) { S.tbl = tbl; S.tk = (sviCellKey(td) || {}).t || null; S.a = p; S.b = null; S.extra.clear(); paint(); }
     else handle();
   });
   document.addEventListener("pointerdown", e => {
@@ -645,7 +676,7 @@ const sviRowFree = tr => tr.matches(".ins-new, .qq-new, .qq-xnew, .dlw-newr") ||
     /* v492 (remarque 11) : la sélection reste pour le menu ⋯ (copier / coller / effacer) ;
        v493 (remarque 14) : un toucher hors du tableau (ailleurs que sur un menu ⋯) l'annule et cache la poignée */
     if (!tbl) {
-      if (e.target.closest && e.target.closest("#blkMenu, .sd-more, .blk-more, .blk-btn")) return;
+      if (e.target.closest && e.target.closest("#blkMenu, .sd-more, .blk-more, .blk-btn, #sviSelBar")) return;
       S.b = null; S.extra.clear(); S.a = null; S.tbl = null; paint(); if (H) H.style.display = "none";
       return;
     }
@@ -734,7 +765,7 @@ const sviRowFree = tr => tr.matches(".ins-new, .qq-new, .qq-xnew, .dlw-newr") ||
     if (!isNav(act) && C.length < 2) return;   /* texte sélectionné dans la saisie : copie normale */
     const txt = C.length > 1 ? selTsv(C) : valOf(td0);
     e.preventDefault();
-    try { e.clipboardData.setData("text/plain", txt); } catch (err) {}
+    try { e.clipboardData.setData("text/plain", txt); e.clipboardData.setData("text/html", sviTsvHtml(txt)); } catch (err) {}
     window.__sviSelClip = txt;
     if (cut) { if (tbl.classList.contains("sd-t")) markSd(); C.forEach(td => putIn(td, "")); }
     if (typeof svToast === "function" && C.length > 1) svToast(C.length + " CASE(S) " + (cut ? "COUPÉE(S)" : "COPIÉE(S)") + ".", 1800);
@@ -744,7 +775,8 @@ const sviRowFree = tr => tr.matches(".ins-new, .qq-new, .qq-xnew, .dlw-newr") ||
   /* API de la sélection (menu ⋯ de la SAISIE DIRECTE) */
   window.__sviSel = {
     count: () => cells().length,
-    copy: () => { const C = cells(); if (!C.length) return 0; const t = selTsv(C); try { navigator.clipboard && navigator.clipboard.writeText(t); } catch (err) {} window.__sviSelClip = t; return C.length; },
+    copy: () => { const C = cells(); if (!C.length) return 0; const t = selTsv(C); sviClipWrite(t); return C.length; },
+    tsv: () => { const C = cells(); return C.length ? selTsv(C) : ""; },
     clear: () => { let n = 0; cells().forEach(td => { if (putIn(td, "")) n++; }); document.querySelector(".sd-sug")?.remove(); return n; },
     paste: async () => {
       const C = cells(); if (!C.length || !S.tbl) return 0;
@@ -973,7 +1005,12 @@ const sviRowFree = tr => tr.matches(".ins-new, .qq-new, .qq-xnew, .dlw-newr") ||
       if (sviRowOf(t).classList.contains("ins-new")) return;
       LS.a = a; LS.b = t; lsPaint();
     },
-    count: () => lsCells().length
+    count: () => lsCells().length,
+    /* v514 : pour le menu ⋯ et la barre COPIER / COLLER / EFFACER */
+    has: () => !!(LS.a && LS.a.isConnected),
+    copy: () => { const C = lsCells(); if (!C.length) return 0; sviClipWrite(lsTsv(C)); return C.length; },
+    clear: () => { const C = lsCells(); const n = lsEmpty(C); lsClear(); return n; },
+    paste: t => lsPaste(t, LS.a && LS.a.isConnected ? LS.a : sviCellOf(document.activeElement))
   };
   document.addEventListener("pointerdown", e => {
     if (e.target && e.target.id === "sviSelHandle") return;
@@ -981,7 +1018,7 @@ const sviRowFree = tr => tr.matches(".ins-new, .qq-new, .qq-xnew, .dlw-newr") ||
     if (t && t.tagName !== "TD" && e.shiftKey && a && a.tagName !== "TD" && a.closest(".ins-hcol") === t.closest(".ins-hcol")) {
       e.preventDefault(); LS.a = LS.a && LS.a.isConnected ? LS.a : a; LS.b = t; LS.keep = true; lsPaint(); return;
     }
-    if (e.target.closest && e.target.closest("#blkMenu, .blk-more, .blk-btn")) return;
+    if (e.target.closest && e.target.closest("#blkMenu, .sd-more, .blk-more, .blk-btn, #sviSelBar")) return;
     if (LS.b) lsClear();
   }, true);
   document.addEventListener("focusin", e => {
@@ -1009,8 +1046,14 @@ const sviRowFree = tr => tr.matches(".ins-new, .qq-new, .qq-xnew, .dlw-newr") ||
     const sel = lsCells();
     if (L.length < 2 && L[0].length < 2 && !(a.classList && a.classList.contains("svi-nav")) && sel.length < 2) return;
     e.preventDefault();
-    /* à partir du haut de la plage sélectionnée, sinon de la case active */
+    lsPaste(t, c0);
+  }, true);
+  /* coller un texte dans une liste, à partir du haut de la plage sélectionnée (sinon de la case donnée) ; renvoie le nombre de cases */
+  const lsPaste = (t, c0) => {
+    const L = String(t || "").replace(/\r/g, "").replace(/\n+$/, "").split("\n").map(l => l.split("\t"));
+    const sel = lsCells();
     const c = sel.length > 1 ? sel[0] : c0;
+    if (!c) return 0;
     let cur = c, n = 0, skip = 0;
     const col = c.closest(".ins-hcol"), k0 = col && col.dataset.ik;
     /* intitulés déjà présents (seulement quand on colle dans la colonne des intitulés, pas dans les unités) */
@@ -1047,6 +1090,24 @@ const sviRowFree = tr => tr.matches(".ins-new, .qq-new, .qq-xnew, .dlw-newr") ||
     }
     lsClear();
     if (typeof svToast === "function") svToast(n + " CASE(S) COLLÉE(S)." + (skip ? " " + skip + " DOUBLON(S) IGNORÉ(S)." : ""), 2200);
+    return n;
+  };
+  /* v514 : vider les cases sélectionnées d'une liste (une ligne dont l'intitulé est vidé disparaît, comme à la main) */
+  const lsEmpty = C => {
+    let n = 0;
+    /* une liste peut se redessiner après chaque case vidée : chaque case est retrouvée par sa clé */
+    const K = C.map(x => sviCellKey(sviCellInput(x) || x)).filter(Boolean);
+    K.map(k => sviCellFind(k)).forEach(x => { const i = x && (sviCellInput(sviCellOf(x) || x) || x); if (i && i.isConnected && !i.readOnly && !i.disabled && i.value !== "") { i.__sel = true; i.value = ""; i.dispatchEvent(new Event("input", { bubbles: true })); i.dispatchEvent(new Event("change", { bubbles: true })); i.__sel = false; n++; } });
+    return n;
+  };
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Backspace" && e.key !== "Delete") return;
+    const el = e.target, c = el && sviCellOf(el);
+    if (!c || c.tagName === "TD" || !(el.classList && el.classList.contains("svi-nav"))) return;
+    const C = lsCells(); if (C.length < 2) return;
+    e.preventDefault(); e.stopPropagation();
+    const n = lsEmpty(C); lsClear();
+    if (typeof svToast === "function") svToast(n + " CASE(S) VIDÉE(S).", 1800);
   }, true);
   /* copier une cellule de liste sélectionnée, ou la plage (v513) */
   document.addEventListener("copy", e => {
@@ -1054,12 +1115,102 @@ const sviRowFree = tr => tr.matches(".ins-new, .qq-new, .qq-xnew, .dlw-newr") ||
     if (!c || c.tagName === "TD" || !(a.classList && a.classList.contains("svi-nav"))) return;
     const C = lsCells();
     const txt = C.length > 1 ? lsTsv(C) : (() => { const i = sviCellInput(c); return i ? i.value : ""; })();
-    e.preventDefault(); try { e.clipboardData.setData("text/plain", txt); } catch (err) {}
+    e.preventDefault(); try { e.clipboardData.setData("text/plain", txt); e.clipboardData.setData("text/html", sviTsvHtml(txt)); } catch (err) {}
     window.__sviSelClip = txt;
     if (C.length > 1 && typeof svToast === "function") svToast(C.length + " CASE(S) COPIÉE(S).", 1800);
   }, true);
 })();
 
+
+/* =========================================================
+   v514 : CASES SÉLECTIONNÉES — COPIER / COLLER / EFFACER au doigt, dans tous les tableaux et les listes LOT / ACTIVITÉS
+   - une petite barre COPIER · COLLER · EFFACER apparaît au-dessus de la sélection dès que plusieurs cases sont sélectionnées ;
+   - les mêmes commandes sont en tête du menu ⋯ du bloc (la sélection est gardée quand on touche ⋯) ;
+   - touche ⌫ (clavier) : vide les cases sélectionnées.
+   ========================================================= */
+window.__sviCells = (() => {
+  const LS = () => window.__sviLS, TS = () => window.__sviSel;
+  /* la sélection en cours : liste (plage) ou tableau */
+  const kind = () => {
+    const l = LS(), t = TS();
+    if (l && l.has() && l.count() > 1) return "list";
+    if (t && t.count() > 0) return "table";
+    if (l && l.has()) return "list";
+    return null;
+  };
+  const count = () => { const k = kind(); return k === "list" ? LS().count() : k === "table" ? TS().count() : 0; };
+  const copy = () => { const k = kind(); const n = k === "list" ? LS().copy() : k === "table" ? TS().copy() : 0; if (n && typeof svToast === "function") svToast(n + " CASE(S) COPIÉE(S) — PRÊTES À COLLER (GOOGLE SHEETS, EXCEL…).", 2200); return n; };
+  const clear = () => {
+    const k = kind(); if (!k) return 0;
+    if (k === "table") { const tbl = document.querySelector("td.svi-cs, :focus")?.closest("table.sd-t"); if (tbl) tbl.dispatchEvent(new CustomEvent("svimark", { bubbles: true })); }
+    const n = k === "list" ? LS().clear() : TS().clear();
+    if (typeof svToast === "function") svToast(n + " CASE(S) VIDÉE(S).", 1800);
+    return n;
+  };
+  const paste = async () => {
+    const k = kind(); if (!k) return 0;
+    if (k === "table") {
+      const n = await TS().paste();
+      if (typeof svToast === "function") svToast(n ? n + " CASE(S) COLLÉE(S)." : "RIEN À COLLER : COPIEZ D'ABORD DES CASES.", 1800);
+      return n;
+    }
+    let t = ""; try { t = navigator.clipboard && navigator.clipboard.readText ? await navigator.clipboard.readText() : ""; } catch (err) { t = ""; }
+    if (!t) t = window.__sviSelClip || "";
+    if (!t) { if (typeof svToast === "function") svToast("RIEN À COLLER : COPIEZ D'ABORD DES CASES.", 2200); return 0; }
+    return LS().paste(t);
+  };
+  return { kind, count, copy, clear, paste };
+})();
+(() => {
+  let B = null;
+  const build = () => {
+    B = document.createElement("div"); B.id = "sviSelBar";
+    B.innerHTML = '<button type="button" data-sb="copy">COPIER</button><button type="button" data-sb="paste">COLLER</button><button type="button" data-sb="clear" class="sb-del">EFFACER</button>';
+    /* la case garde le focus (et la sélection) quand on touche la barre */
+    B.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); });
+    B.addEventListener("mousedown", e => e.preventDefault());
+    B.addEventListener("click", e => {
+      const b = e.target.closest("[data-sb]"); if (!b) return;
+      e.preventDefault(); e.stopPropagation();
+      const v = b.dataset.sb, X = window.__sviCells;
+      if (v === "copy") X.copy(); else if (v === "clear") X.clear(); else X.paste();
+      setTimeout(place, 50);
+    });
+    document.body.appendChild(B);
+  };
+  const place = () => {
+    const X = window.__sviCells;
+    const n = X ? X.count() : 0;
+    const sel = [...document.querySelectorAll("td.svi-cs, .ins-hcol .svi-ls")].filter(x => x.offsetParent !== null);
+    if (n < 2 || !sel.length) { if (B) B.style.display = "none"; return; }
+    if (!B) build();
+    let top = Infinity, left = Infinity, bottom = -Infinity;
+    sel.forEach(x => { const r = x.getBoundingClientRect(); top = Math.min(top, r.top); left = Math.min(left, r.left); bottom = Math.max(bottom, r.bottom); });
+    B.style.display = "flex";
+    const h = B.offsetHeight || 32, w = B.offsetWidth || 220;
+    let y = top - h - 6; if (y < 70) y = bottom + 6;
+    y = Math.max(4, Math.min(window.innerHeight - h - 4, y));
+    const x = Math.max(4, Math.min(window.innerWidth - w - 4, left));
+    B.style.top = y + "px"; B.style.left = x + "px";
+  };
+  window.__sviSelBar = place;
+  let q = 0; const later = () => { if (!q) q = requestAnimationFrame(() => { q = 0; try { place(); } catch (e) {} }); };
+  ["focusin", "pointerup", "keyup", "scroll", "resize"].forEach(t => (t === "resize" ? window : document).addEventListener(t, () => setTimeout(later, 0), true));
+  new MutationObserver(later).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+})();
+/* clavier (Mac, ou clavier de l'iPad) : la touche retour arrière vide aussi la sélection quand le bouton ⋯ ou la barre ont la main */
+document.addEventListener("keydown", e => {
+  if (e.key !== "Backspace" && e.key !== "Delete") return;
+  const a = document.activeElement;
+  if (!a || !a.closest || !a.closest("#sviSelBar, #blkMenu")) return;
+  if (!window.__sviCells || window.__sviCells.count() < 2) return;
+  e.preventDefault(); window.__sviCells.clear();
+}, true);
+/* empêche ⋯ et son menu de prendre le focus (au clavier / souris) : la case et la sélection restent */
+document.addEventListener("mousedown", e => {
+  if (!e.target.closest || !e.target.closest(".blk-more, #blkMenu, #sviSelBar")) return;
+  if (sviCellOf(document.activeElement)) e.preventDefault();
+}, true);
 
 /* v497 (remarque 36) : nombres au format de l'application en quittant la case — 35 → 35,00 (virgule, deux décimales,
    espace des milliers), dans DÉSIGNATIONS CLIENT, DÉTAIL PRODUITS / CHARGES, IMPORT NON CRÉÉ et SAISIE DIRECTE */

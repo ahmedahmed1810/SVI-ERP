@@ -469,6 +469,22 @@
           m.insertAdjacentHTML("beforeend", `<div class="blk-sep"></div><button type="button" data-fclr="${blk}" class="${n ? "" : "off"}" ${n ? "" : "disabled"}><span>EFFACER TOUS LES FILTRES</span>${svCnt(n)}</button>`);
           m.addEventListener("click", e => { const b = e.target.closest("[data-fclr]"); if (!b) return; e.stopPropagation(); if (b.disabled) return; m.remove(); insFiltClear(b.dataset.fclr); }, true);
         } }
+      /* v514 : CASES SÉLECTIONNÉES de ce bloc (tableau ou liste LOT / ACTIVITÉS) — copier (Google Sheets, Excel…), coller, effacer */
+      { const X = window.__sviCells, n = X ? X.count() : 0;
+        const selEl = document.querySelector("td.svi-cs, .ins-hcol .svi-ls") || (typeof sviCellOf === "function" ? sviCellOf(document.activeElement) : null);
+        const blkEl = btn.closest(".bdg-d-block");
+        if (n && selEl && (!blkEl || blkEl.contains(selEl))) {
+          m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">${n} CASE(S) SÉLECTIONNÉE(S)</div>
+            <button type="button" data-cs="copy"><span>COPIER LES CASES</span>${svCnt(n)}</button>
+            <button type="button" data-cs="paste"><span>COLLER DANS LES CASES</span></button>
+            <button type="button" data-cs="clear" class="blk-del"><span>EFFACER LES CASES</span>${svCnt(n)}</button><div class="blk-sep"></div>`);
+          m.addEventListener("click", e => {
+            const b = e.target.closest("[data-cs]"); if (!b) return;
+            e.stopPropagation(); m.remove();
+            const v = b.dataset.cs;
+            if (v === "copy") X.copy(); else if (v === "clear") X.clear(); else X.paste();
+          }, true);
+        } }
       document.body.appendChild(m);
       const r = btn.getBoundingClientRect();
       sviPlaceMenu(m, r);
