@@ -650,7 +650,10 @@
       };
       /* v507 (remarque 63) : la pastille (nombre de lignes) sert de rond — toucher = choisir / libérer toutes ses charges */
       const nch = INS_EDIT && LK && LK.chg ? g.filter(r => LK.chg[r.id] !== undefined).length : 0;
-      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}" role="button" aria-label="Choisir toutes les charges">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      /* v508 (remarque 65) : couleur des ronds de ses lignes — rouge (choisies), bleu (liées à ce qui est choisi) */
+      const isB = r => INS_EDIT && ((LK.des && lkIsLinked("chg", r.id)) || lkHit("chg", r.id));
+      const blu = nch ? g.filter(r => LK.chg[r.id] !== undefined).every(isB) : g.some(isB);
+      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : ""}" role="button" aria-label="Choisir toutes les charges">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
