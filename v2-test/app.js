@@ -8023,14 +8023,16 @@ function renderBudgetList() {
       cd.style.width = d + "px"; ct.style.width = t + "px"; tbl.style.width = others + d + t + "px";
     };
     const cfHasF = t => !!(CF[t] && Object.keys(CF[t].f || {}).length);
+    /* v502 (remarque 53) : seul l'onglet source d'un filtre est en bleu — loupe d'une de ses colonnes, « cochées seulement »
+       ou cases cochées dans son propre tableau (pas le filtrage venu des cases d'un autre bloc) */
     const insTabFilt = () => {
       if (!INS) return {};
       const own = k => (INS[k] || []).some(r => !r.t && r.on === true);
       return {
-        chg: cfHasF(insCfT("chg")) || !!ONLYC.chg || !!insCheckSet("chg") || own("chg"),
-        prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || !!insCheckSet("prd") || own("prd"),
-        dly: ["dly", "dlyp", "dlyr", "dlyi", "dlys"].some(cfHasF) || !!insCheckLinks("dly"),
-        lnk: cfHasF("lk_marge") || !!insCheckLinks("lnk") || (INS.links || []).some(l => l.on === true),
+        chg: cfHasF(insCfT("chg")) || !!ONLYC.chg || own("chg"),
+        prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || own("prd"),
+        dly: ["dly", "dlyp", "dlyr", "dlyi", "dlys"].some(cfHasF),
+        lnk: cfHasF("lk_marge") || (INS.links || []).some(l => l.on === true),
         unl: cfHasF("lk_unl"),
         inc: cfHasF("lk_inc") || (INS.inc || []).some(x => x.on === true)
       };
