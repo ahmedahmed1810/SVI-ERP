@@ -996,6 +996,13 @@
       const x = P ? P.x : window.scrollX, y = P ? P.y : window.scrollY;
       keepScroll.pend = { saved, toTop, x, y, until: performance.now() + 200 };
       const active = document.activeElement;
+      /* v512 (remarque 79) : la cellule active (ou celle qu'Entrée / Tab / les flèches viennent de viser) est retrouvée après le redessin */
+      let fk = null;
+      try {
+        fk = window.sviCellKey ? window.sviCellKey(active) : null;
+        const lg = window.__sviLastGo;
+        if (!fk && lg && performance.now() - lg.t < 500) fk = lg.k;
+      } catch (e) { fk = null; }
       if (active && active.blur &&
           !active.classList.contains("bdg-tva-input") &&
           !active.closest("#cfMenu")) {
@@ -1014,6 +1021,10 @@
         window.scrollTo(x, y);
       };
       restore();
+      if (fk && window.sviCellFind && window.__sviGrid) {
+        const back = () => { const a = document.activeElement; if (a && a !== document.body && window.sviCellOf && sviCellOf(a)) return; const el = window.sviCellFind(fk); if (el && el.isConnected) window.__sviGrid.go(el.tagName === "TD" ? el : (sviCellOf(el) || el), true); };
+        back(); setTimeout(back, 0);
+      }
       requestAnimationFrame(restore);
       /* un tableau qui s'élargit juste après (largeur des en-têtes) : position remise avant l'affichage */
       if (window.ResizeObserver) {

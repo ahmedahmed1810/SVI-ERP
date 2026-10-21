@@ -100,7 +100,10 @@ const sviMinHeadCols = () => {
     const ths = tb.querySelectorAll(":scope > thead > tr:first-child > th");
     if (!cols.length || cols.length !== ths.length) return;
     let add = 0;
+    /* v512 (remarque 77) : une largeur réglée à la poignée est gardée telle quelle (jamais réélargie après un redessin) */
+    let CW = {}; try { CW = JSON.parse(localStorage.getItem("svi_colw_v1") || "{}") || {}; } catch (e) {}
     ths.forEach((th, i) => {
+      if (cols[i] && cols[i].dataset && cols[i].dataset.w && CW[cols[i].dataset.w]) return;
       const lab = th.querySelector(".cf-lab");
       if (!lab || lab.scrollWidth <= lab.clientWidth + 1) return;   /* intitulé déjà entier */
       const need = Math.ceil(lab.scrollWidth + (th.clientWidth - lab.clientWidth)) + 2;

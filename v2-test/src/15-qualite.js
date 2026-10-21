@@ -1021,7 +1021,7 @@
         const b = e.target.closest && e.target.closest(".ins-gfold, .ins-gfz"), X = shell.__ins;
         if (!b || !X) return;
         e.stopPropagation(); e.preventDefault();
-        const F = shell.__chgGFold; if (F.has(b.dataset.gk)) F.delete(b.dataset.gk); else F.add(b.dataset.gk);
+        const O = shell.__chgGOpen; if (O.has(b.dataset.gk)) O.delete(b.dataset.gk); else O.add(b.dataset.gk); shell.__chgGSave();
         X.refreshAll();
       }, true);
       shell.addEventListener("change", e => {

@@ -2035,3 +2035,17 @@ td.svi-cs { background: var(--inst-bg, #eef0f3) !important; box-shadow: inset 0 
 :is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) td.svi-tdon { box-shadow: inset 0 0 0 2px var(--inst, #b91c1c) !important; }
 :is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) td.svi-tdon :is(input, textarea):focus { box-shadow: none !important; }
 #sdW .sd-t td.svi-tdon .sd-in:focus { box-shadow: none !important; }
+
+/* v512 (remarques 74, 80, 81) : CADRE de la cellule active posé par-dessus (toute la cellule, jamais masqué) ;
+   les anciens cadres intérieurs (case, cellule) ne servent plus */
+#sviSelFrame { position: absolute; display: none; box-sizing: border-box; border: 2px solid #b91c1c; pointer-events: none; z-index: 45; border-radius: 1px; }
+:is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) td:is(.svi-tdon, .svi-tdf) { box-shadow: none !important; outline: none !important; }
+:is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) tbody :is(input, textarea):focus,
+.ins-hcol .ins-li :is(input.ins-in, input.lot-gname):focus, #sdW .sd-in:focus { box-shadow: none !important; outline: none !important; }
+/* v512 (remarque 81) : un fin trait gris visible autour de chaque cellule, quel que soit son fond */
+:is(table.ins-table, table.dly-table, table.inc-table, table.prm-table, table.qq-table) tbody td { border-right: 1px solid #d9dee6 !important; border-bottom: 1px solid #d9dee6 !important; }
+.ins-hcol .ins-li { border-bottom: 1px solid #d9dee6 !important; }
+.ins-hcol .ins-li .act-u { border-left: 1px solid #d9dee6; }
+
+/* v512 (remarque 78) : SAISIE DIRECTE sur place à la hauteur de l'écran (sous le bandeau et les onglets) */
+#sdW.sd-inplace .sd-card { height: var(--sdh, calc(100vh - 130px)) !important; min-height: 300px; }

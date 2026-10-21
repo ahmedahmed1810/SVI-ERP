@@ -72,6 +72,10 @@ def main():
         pg.evaluate("""async () => { await SVI_INST_READY; bdgRows = []; bdgLoaded = true;
             document.querySelectorAll('[data-cancel], .svc-close').forEach(x => { try { x.click(); } catch (e) {} }); renderBudgetList(); }""")
         pg.wait_for_timeout(1500)
+        # remarque 76 : première ouverture — titres des désignations pliés ; on déplie pour la suite
+        f76 = pg.evaluate("() => { const b = document.querySelector('#bdgClientBody .ins-fold[data-fold=\"t1\"]'); return [!!b, b ? b.textContent.trim() : '', !document.querySelector('#bdgClientBody tr[data-iid=\"d1\"]')]; }")
+        pg.evaluate("() => document.querySelector('#bdgClientBody .ins-fold[data-fold=\"t1\"]')?.click()"); pg.wait_for_timeout(400)
+        check("remarque 76 : à la première ouverture, titres des désignations pliés", f76 == [True, "›", True], f76)
         has = pg.evaluate("() => !!(document.querySelector('.bdg-d-client-scroll') && document.querySelector('[data-iid=\"d1\"]'))")
         check("budget en instance ouvert (DÉSIGNATIONS CLIENT)", has)
         check("ouverture sans erreur JavaScript", not errs, errs[:3])
@@ -367,6 +371,9 @@ def main():
         pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"chg\"]'); t && t.click(); }"); pg.wait_for_timeout(400)
         grp = pg.evaluate("() => { const g = document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-grp'); return g ? [g.dataset.grp, [...g.cells].map(c => { const i = c.querySelector('input.ins-gin'); return i ? i.value : c.textContent; }).join(' ').replace(/\s+/g, ' ')] : null; }")
         check("remarque 10 : CIMENT de deux tâches regroupé (QCB additionnée)", grp is not None and set(grp[0].split(",")) >= {"c9"} and "CIMENT" in grp[1], grp)
+        f76c = pg.evaluate("() => { const g = document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle'); const n = g && g.nextElementSibling; return !!g && !(n && ['c1', 'c9'].includes(n.dataset.iid)); }")
+        check("remarque 76 : titre de charges regroupées plié au départ", f76c, f76c)
+        pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle .ins-gfz')?.click()"); pg.wait_for_timeout(300)   # remarque 76 : plié au départ → on déplie
         g45 = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'); const g = t.querySelector('tr.ins-gtitle'); if (!g) return null;
             const kids = []; for (let r = g.nextElementSibling; r && !r.classList.contains('ins-grp'); r = r.nextElementSibling) if (r.dataset.iid) kids.push(r.dataset.iid);
             return [[...g.cells].map(c => { const i = c.querySelector('input.ins-gin'); return i ? i.value : c.textContent; }).join(' ').replace(/\u202f/g, ' ').replace(/\s+/g, ' '), kids.length, !!g.querySelector('.ins-gfold')]; }""")
@@ -398,15 +405,80 @@ def main():
         check("remarque 72 : zone du signe du titre de charges (40 px) = plier / déplier", g72 == [True, 40], g72)
         # remarque 74 : cadre sur toute la cellule
         pg.click('table.ins-table[data-ik="chg"] tr[data-iid="c2"] input.ins-in[data-f="q"]'); pg.wait_for_timeout(150)
-        g74 = pg.evaluate("() => { const a = document.activeElement, td = a.closest('td'); return [td.classList.contains('svi-tdon'), getComputedStyle(td).boxShadow !== 'none']; }")
+        pg.wait_for_timeout(100)
+        g74 = pg.evaluate("() => { const a = document.activeElement, td = a.closest('td'), f = document.getElementById('sviSelFrame'); if (!f) return [false, false]; const r = td.getBoundingClientRect(), q = f.getBoundingClientRect(); return [f.style.display === 'block', Math.abs(r.height - q.height) < 2 && Math.abs(r.width - q.width) < 2]; }")
         pg.keyboard.press("Escape")
         check("remarque 74 : cadre de la case sélectionnée sur toute la cellule", g74 == [True, True], g74)
         # remarque 75 : AGRANDIR = SAISIE DIRECTE sur place ; plus dans IMPORTER
         pg.evaluate("() => { const b = document.querySelector('.blk-max-btn[data-blk=\"detail\"]'); b && b.click(); }"); pg.wait_for_timeout(600)
         g75 = pg.evaluate("() => { const w = document.querySelector('#sdW.sd-inplace'); const tb = document.getElementById('bdgTabBody'); return [!!w, !!(w && w.closest('.bdg-d-page')), tb ? getComputedStyle(tb).display : '']; }")
+        g78 = pg.evaluate("""() => { const w = document.querySelector('#sdW.sd-inplace'), tabs = document.getElementById('bdgTabs'); if (!w || !tabs) return null;
+            const tr = tabs.getBoundingClientRect(), wr = w.getBoundingClientRect(), th = w.querySelector('thead').getBoundingClientRect(), ok = w.querySelector('.sd-ok').getBoundingClientRect();
+            return [tr.height > 0 && tr.bottom <= wr.top + 2, th.top >= 0 && th.bottom <= innerHeight, ok.bottom <= innerHeight + 1]; }""")
+        check("remarque 78 : SAISIE DIRECTE sur place sous les onglets, en-têtes et VALIDER visibles", g78 == [True, True, True], g78)
         pg.evaluate("() => { const b = document.querySelector('.blk-max-btn[data-blk=\"detail\"]'); b && b.click(); }"); pg.wait_for_timeout(400)
         g75b = pg.evaluate("() => [!!document.querySelector('#sdW'), getComputedStyle(document.getElementById('bdgTabBody')).display]")
         check("remarque 75 : AGRANDIR = SAISIE DIRECTE sur place dans le bloc, retoucher = retour au tableau", g75 == [True, True, "none"] and g75b[0] is False and g75b[1] != "none", [g75, g75b])
+        # remarque 79 : Entrée sur un titre de charges groupé (valeur changée → tableau redessiné) : la case du dessous reste sélectionnée
+        pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"chg\"]'); t && t.click(); }"); pg.wait_for_timeout(300)
+        pg.click('table.ins-table[data-ik="chg"] tr.ins-gtitle input.ins-gin[data-f="p"]'); pg.wait_for_timeout(150)
+        pg.keyboard.type("1500"); pg.keyboard.press("Enter"); pg.wait_for_timeout(500)
+        g79 = pg.evaluate("() => { const a = document.activeElement; const tr = a && a.closest('tr'); return [a.tagName, a.dataset.f || '', tr ? (tr.dataset.iid || tr.dataset.grp || '') : '']; }")
+        pg.keyboard.press("ArrowUp"); pg.wait_for_timeout(200)
+        g79b = pg.evaluate("() => { const a = document.activeElement; return [a.className.includes('ins-gin'), a.dataset.f || '']; }")
+        check("remarque 79 : Entrée et flèches sur un titre groupé (focus gardé après redessin)", g79[0] == "INPUT" and g79[1] == "p" and g79[2] in ("c1", "c9") and g79b == [True, "p"], [g79, g79b])
+        # remarque 77 : largeur réglée à la poignée gardée après un redessin (pliage, menu ⋯)
+        pg.evaluate("""() => { const o = JSON.parse(localStorage.getItem('svi_colw_v1') || '{}'); o['chg.article'] = 30; localStorage.setItem('svi_colw_v1', JSON.stringify(o)); }""")
+        pg.evaluate(f"() => {ins}.refreshAll()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle .ins-gfz')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
+        w77 = pg.evaluate("() => Math.round(document.querySelector('table.ins-table[data-ik=\"chg\"] col[data-w=\"chg.article\"]').getBoundingClientRect().width)")
+        pg.evaluate("""() => { const o = JSON.parse(localStorage.getItem('svi_colw_v1') || '{}'); delete o['chg.article']; localStorage.setItem('svi_colw_v1', JSON.stringify(o)); }""")
+        pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle .ins-gfz')?.click()"); pg.wait_for_timeout(300)
+        check("remarque 77 : largeur réglée (ARTICLE réduit) gardée après pliage et menu ⋯", w77 == 30, w77)
+        # remarques 74, 80, 81 : MÊME COMPORTEMENT DANS CHAQUE TABLEAU ET CHAQUE LISTE — 1er toucher = case sélectionnée
+        # (cadre posé sur toute la cellule), flèche bas = case du dessous, 2e toucher = saisie, toucher ailleurs = plus de cadre
+        def grid_check(tab, sel):
+            if tab: pg.evaluate("t => { const b = document.querySelector('.bdg-d-tab[data-tab=\"' + t + '\"]'); b && b.click(); }", tab); pg.wait_for_timeout(400)
+            if not pg.evaluate("s => !!document.querySelector(s)", sel): return "absent"
+            pg.click(sel); pg.wait_for_timeout(200)
+            a = pg.evaluate("""() => { const a = document.activeElement, c = window.sviCellOf(a), f = document.getElementById('sviSelFrame');
+                if (!c || !f) return null; const r = c.getBoundingClientRect(), q = f.getBoundingClientRect();
+                return [a.classList.contains('svi-nav') || (a.tagName === 'TD' && a.classList.contains('svi-tdf')), f.style.display === 'block' && Math.abs(r.height - q.height) < 3 && Math.abs(r.width - q.width) < 3, window.sviCellKey(a), [r.top, r.height, r.width, q.top, q.height, q.width, f.style.display].map(x => typeof x === 'number' ? Math.round(x) : x)]; }""")
+            if a and not a[1]: print("RECT", sel, a[3])
+            pg.keyboard.press("ArrowDown"); pg.wait_for_timeout(200)
+            b = pg.evaluate("k => { const a = document.activeElement; const c = window.sviCellOf(a); return !!c && JSON.stringify(window.sviCellKey(a)) !== JSON.stringify(k); }", a[2] if a else None)
+            pg.keyboard.press("ArrowUp"); pg.wait_for_timeout(150)
+            el = pg.evaluate_handle("() => document.activeElement")
+            pg.evaluate("e => e.click()", el); pg.wait_for_timeout(100)
+            pg.mouse.click(5, 5); pg.wait_for_timeout(250)
+            d = pg.evaluate("() => { const f = document.getElementById('sviSelFrame'); return !f || f.style.display !== 'block'; }")
+            return [bool(a and a[0]), bool(a and a[1]), b, d]
+        GR = [("DÉSIGNATIONS CLIENT", None, 'table.ins-table[data-ik="des"] tr[data-iid="d1"] input.ins-in[data-f="p"]'),
+              ("DÉTAIL CHARGES", "chg", 'table.ins-table[data-ik="chg"] tr[data-iid="c2"] input.ins-in[data-f="q"]'),
+              ("DÉTAIL PRODUITS", "prd", 'table.ins-table[data-ik="prd"] tr[data-iid="x1"] input.ins-in[data-f="nbr"]'),
+              ("LOT", None, '.ins-hcol[data-ik="lot"] .ins-li[data-iid] input.ins-in'),
+              ("ACTIVITÉ PRIMAIRE", None, '.ins-hcol[data-ik="prim"] .ins-li[data-iid] input.ins-in'),
+              ("ACTIVITÉ SECONDAIRE", None, '.ins-hcol[data-ik="sec"] .ins-li[data-iid] input.ins-in[data-f="v"]')]
+        res = {n: grid_check(t, q) for n, t, q in GR}
+        res["DÉTAIL DÉLAIS"] = grid_check("dly", 'table.dly-table tbody tr:first-child td:nth-child(2)') if pg.evaluate("() => { const b = document.querySelector('.bdg-d-tab[data-tab=\"dly\"]'); b && b.click(); return true; }") else None
+        res["DÉTAIL QUALITÉ"] = grid_check("qlt", 'table.qq-table tbody tr td input:not([type=checkbox])')
+        pg.evaluate(f"""() => {{ const X = {ins}; X.INS.inc = [{{ id: 'i1', src: {{ type: 'CHG', dc: 'BETON EN FONDATION', upb: 'M3', lot: 'RDC', prim: 'BETONNAGE', sec: 'BETONNAGE', des: 'GRAVIER', u: 'T', q: '2' }}, bad: ['lot'], why: 'TEST' }}, {{ id: 'i2', src: {{ type: 'CHG', dc: 'BETON EN FONDATION', upb: 'M3', lot: 'RDC', prim: 'BETONNAGE', sec: 'BETONNAGE', des: 'EAU', u: 'L', q: '5' }}, bad: ['lot'], why: 'TEST' }}]; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        res["IMPORT NON CRÉÉ"] = grid_check("inc", 'table.inc-table tbody tr:first-child input.inc-in[data-f="des"]')
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.inc = []; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        pg.evaluate("() => { const s = [...document.querySelectorAll('*')].find(e => e.__sd); s && s.__sd('chg'); }"); pg.wait_for_timeout(600)
+        res["SAISIE DIRECTE"] = grid_check(None, '#sdW .sd-t tbody tr:first-child input.sd-in[data-f="des"]')
+        pg.evaluate("() => document.querySelector('#sdW [data-x]')?.click()"); pg.wait_for_timeout(300)
+        print("TABLEAUX CONTRÔLÉS :", json.dumps(res, ensure_ascii=False))
+        # remarque 80 : coller une liste copiée d'Excel / Google Sheets dans ACTIVITÉ PRIMAIRE (une activité par ligne)
+        pg.click('.ins-hcol[data-ik="prim"] .ins-li.ins-new input.ins-in'); pg.wait_for_timeout(150)
+        p80 = pg.evaluate(f"""() => {{ const el = document.activeElement; const dt = new DataTransfer(); dt.setData('text/plain', 'ENDUIT\\nPEINTURE\\n');
+            el.dispatchEvent(new ClipboardEvent('paste', {{ clipboardData: dt, bubbles: true, cancelable: true }}));
+            const X = {ins}; const out = X.INS.prim.map(r => r.v);
+            X.INS.prim = X.INS.prim.filter(r => !['ENDUIT', 'PEINTURE'].includes(r.v)); X.insSave(); X.refreshAll(); return out; }}""")
+        check("remarque 80 : coller une liste d'activités primaires (une par ligne)", "ENDUIT" in p80 and "PEINTURE" in p80, p80)
+        check("remarques 74, 80, 81 : sélection, cadre sur la cellule, flèches, fin du cadre — dans CHAQUE tableau et liste", all(v == [True, True, True, True] for v in res.values()), res)
 
         # remarque 23 : QPB d'une désignation limitée aux tâches de la charge cochée
         q23 = pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;
@@ -466,8 +538,8 @@ def main():
         pg.evaluate(f"""() => {{ const X = {ins}; X.INS.chg = X.INS.chg.filter(r => !/^zz/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
         check("remarque 30 : flèche bas — la case reste visible (au-dessus du TOTAL et de l'écran)", v30 == [True] * 5, v30)
         # remarque 35 : case grisée (QPB) sélectionnable pour la copier
-        pg.click('table.ins-table[data-ik="des"] tr[data-iid="d1"] td:has(input[data-f="q"])'); pg.wait_for_timeout(150)
-        g35 = pg.evaluate("() => { const a = document.activeElement; return [a.tagName, a.classList.contains('svi-tdf'), getComputedStyle(a).boxShadow !== 'none']; }")
+        pg.click('table.ins-table[data-ik="des"] tr[data-iid="d1"] td:has(input[data-f="q"])'); pg.wait_for_timeout(250)
+        g35 = pg.evaluate("() => { const a = document.activeElement; const f = document.getElementById('sviSelFrame'); return [a.tagName, a.classList.contains('svi-tdf'), !!f && f.style.display === 'block']; }")
         check("remarques 35 et 44 : case grisée sélectionnable (copie), cadre visible", g35 == ["TD", True, True], g35)
 
         # remarque 21 : une charge déjà liée à une autre tâche est copiée au chargement
