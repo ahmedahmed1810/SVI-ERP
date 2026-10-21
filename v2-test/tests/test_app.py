@@ -702,6 +702,19 @@ def main():
         check("v517 : tâche déplacée dans son lot — le lot reste à sa place", isinstance(dd, list) and dd[0] == ["l1|s1", "l1|s2", "l2|s1"], dd)
         check("v517 : tâche suivante collée — elle suit, sans fausse alerte", isinstance(dd, list) and dd[1] is False and dd[2] == "2026-10-08", dd)
 
+        # ===== v519 : MARGE regroupée par LOT — un sous-lot se range juste sous son lot =====
+        mo = pg.evaluate(f"""async () => {{ const X = {ins}; const I = X.INS; const save = JSON.stringify({{ lot: I.lot, links: I.links }});
+            I.lot.push({{ id: 'lz', v: 'ETAGE 1 / ZONE A' }}, {{ id: 'la', v: 'AAA' }});
+            /* sous-lot lié à une désignation plus loin (d2) que son lot (d1) : avant, il arrivait en bas */
+            [['l2', 'd1'], ['la', 'd1'], ['lz', 'd2']].forEach(([lo, de], n) => I.links.push({{ id: 'Lq' + n, des: de, lot: lo, prim: 'p1', sec: 's2', prd: [], chg: [{{ id: 'c2' }}] }}));
+            const CK = 'svi_colorder_v1'; let co0 = null; try {{ co0 = localStorage.getItem(CK); const o = JSON.parse(co0 || '{{}}'); o.lk_marge = ['lot', 'des', 'prim', 'sec']; localStorage.setItem(CK, JSON.stringify(o)); }} catch (e) {{}}
+            X.insSave(); X.refreshAll(); document.querySelector('.bdg-d-tab[data-tab="lnk"]')?.click();
+            await new Promise(r => setTimeout(r, 500));
+            const names = [...document.querySelectorAll('.mg-table tr.mg-grp.mg-l0')].map(t => [...t.cells].map(c => c.textContent.replace(/[›⌄]/g, '').trim()).find(Boolean));
+            const o = JSON.parse(save); I.lot = o.lot; I.links = o.links; try {{ if (co0 === null) localStorage.removeItem(CK); else localStorage.setItem(CK, co0); }} catch (e) {{}} X.insSave(); X.refreshAll(); return names; }}""")
+        ok519 = isinstance(mo, list) and "ETAGE 1 / ZONE A" in mo and "ETAGE 1" in mo and mo.index("ETAGE 1 / ZONE A") == mo.index("ETAGE 1") + 1
+        check("v519 : MARGE — sous-lot juste sous son lot", ok519, mo)
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

@@ -15977,6 +15977,12 @@ function renderBudgetList() {
         const d = G[i], seen = new Map();
         L.forEach(l => { if (!seen.has(l[d])) seen.set(l[d], []); seen.get(l[d]).push(l); });
         let E = [...seen.entries()].map(([id, LL]) => ({ id, LL, a: mgAgg(LL) }));
+        /* v519 : regroupement par LOT — les lots dans l'ordre de leur nom, niveau par niveau : un sous-lot (« LOT / SOUS-LOT »)
+           se range juste sous son lot, au lieu d'arriver en bas du tableau */
+        if (d === "lot") {
+          const segs = id => String(nm("lot", id) || "").split("/").map(x => x.trim()).filter(Boolean);
+          E.sort((x, y) => { const A = segs(x.id), B = segs(y.id); for (let k = 0; k < Math.min(A.length, B.length); k++) { const c = natCmp(A[k], B[k]); if (c) return c; } return A.length - B.length; });
+        }
         if (mgSort) E.sort((x, y) => byS(x.a, y.a));
         E.forEach(({ id, LL, a }, si) => {
           /* v506 (remarque 60) : activité primaire dont la seule activité secondaire est sa jumelle — pas de niveau de plus,
