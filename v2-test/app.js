@@ -6322,7 +6322,8 @@ function renderBudgetList() {
       const v = { art: g[0].art || "", des: g[0].des || "", u: g[0].u || "", q: money(qs), p: qs ? money(ht / qs) : "", ht: money(ht),
         tva: ht ? money((ttc - ht) / ht * 100) : "", ttc: money(ttc), rdb: "", tache: nt + " TÂCHE" + (nt > 1 ? "S" : "") };
       const fo = CHG_GFOLD.has(key);
-      const fb = `<span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier">${fo ? "›" : "⌄"}</span>`;
+      /* v511 (remarque 72) : le signe a sa propre zone (toute la hauteur, 40 px), que la case de la désignation ne recouvre pas */
+      const fb = `<span class="ins-gfz" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier"><span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}">${fo ? "›" : "⌄"}</span></span>`;
       const non = g.filter(r => r.on === true).length;
       /* v505 (remarque 56) : ART, DÉSIGNATION, UCB, PCB et TVA du titre modifiables — la valeur va à toutes ses lignes
          (PCB, UCB et TVA grisés si une de ses charges vient de CHS) ; QCB, montants, RENDEMENT et TÂCHE restent calculés */
@@ -6332,8 +6333,8 @@ function renderBudgetList() {
       const ev = { art: v.art, des: v.des, u: v.u, p: ps.size === 1 ? [...ps][0] : v.p, tva: ts.size === 1 ? [...ts][0] : v.tva };
       const cell = c => {
         const f = c[0];
-        if (edOk(f)) return `<td class="${c[2]} ins-td">${f === "des" ? fb : ""}<input class="ins-gin ${c[2]}" data-f="${f}" enterkeyhint="next"${["p", "tva"].includes(f) ? ' inputmode="decimal"' : ""} value="${esc(ev[f] ?? "")}" autocomplete="off" spellcheck="false"></td>`;
-        return `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}">${f === "des" ? fb : ""}${esc(v[f] ?? "")}</td>`;
+        if (edOk(f)) return `<td class="${c[2]} ins-td${f === "des" ? " ins-gtd" : ""}">${f === "des" ? fb : ""}<input class="ins-gin ${c[2]}" data-f="${f}" enterkeyhint="next"${["p", "tva"].includes(f) ? ' inputmode="decimal"' : ""} value="${esc(ev[f] ?? "")}" autocomplete="off" spellcheck="false"></td>`;
+        return `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}${f === "des" ? " ins-gtd" : ""}">${f === "des" ? fb : ""}${esc(v[f] ?? "")}</td>`;
       };
       /* v507 (remarque 63) : la pastille (nombre de lignes) sert de rond — toucher = choisir / libérer toutes ses charges */
       const nch = INS_EDIT && LK && LK.chg ? g.filter(r => LK.chg[r.id] !== undefined).length : 0;
@@ -8378,7 +8379,7 @@ function renderBudgetList() {
       }, true);
       /* v499 (remarque 45) : plier / déplier un titre de charges regroupées */
       shell.addEventListener("click", e => {
-        const b = e.target.closest && e.target.closest(".ins-gfold"), X = shell.__ins;
+        const b = e.target.closest && e.target.closest(".ins-gfold, .ins-gfz"), X = shell.__ins;
         if (!b || !X) return;
         e.stopPropagation(); e.preventDefault();
         const F = shell.__chgGFold; if (F.has(b.dataset.gk)) F.delete(b.dataset.gk); else F.add(b.dataset.gk);
@@ -15144,8 +15145,11 @@ function renderBudgetList() {
        ENTRÉE = case suivante, sur la dernière case la ligne est recopiée (curseur sur la désignation produit / charge) ;
        VALIDER : lignes existantes mises à jour (chaîne d'une ligne liée : délier d'abord), lignes nouvelles importées avec les règles
        de l'import (erreurs dans IMPORT NON CRÉÉ, doublons signalés) */
-    const openDirectEntry = kind => {
+    /* v511 (remarque 75) : AGRANDIR (DÉTAIL CHARGES / PRODUITS) ouvre la SAISIE DIRECTE sur place, dans le bloc (opt.inplace) ;
+       elle n'est plus dans le menu IMPORTER ; la poignée du bas du bloc agrandit comme avant */
+    const openDirectEntry = (kind, opt = {}) => {
       if (!INS || !INS_EDIT) return;
+      const IN = !!opt.inplace;
       const P = kind === "prd";
       const nm = (k, id) => { const r = (INS[k] || []).find(x => x.id === id); return r ? (k === "des" ? r.des || "" : r.v || "") : ""; };
       /* v481 (remarque 17) : U = unité de l'activité secondaire (obligatoire ; tâche primaire : UPB de la désignation, grisée) */
@@ -15249,7 +15253,14 @@ function renderBudgetList() {
         const s2 = d.querySelector(".sd-scroll"); if (s2) { s2.scrollTop = st; s2.scrollLeft = sl; }
       };
       document.getElementById("sdW")?.remove();
-      document.body.appendChild(d);
+      shell.querySelector(".bdg-d-page")?.classList.remove("sd-on");
+      if (IN) {
+        const tbody = $("bdgTabBody"), page = shell.querySelector(".bdg-d-page");
+        d.classList.add("sd-inplace"); big = false;
+        if (tbody && tbody.parentNode) { tbody.parentNode.insertBefore(d, tbody); page && page.classList.add("sd-on"); }
+        else document.body.appendChild(d);
+        shell.querySelector('.blk-max-btn[data-blk="detail"]')?.classList.add("on");
+      } else document.body.appendChild(d);
       window.__sviSdRefresh = draw;
       draw();
       const focusAt = (i, f) => { const el = d.querySelector(`.sd-in[data-i="${i}"][data-f="${f}"]`); if (el) { el.focus(); try { if (!el.classList.contains("svi-nav")) el.select(); } catch (e) {} } };
@@ -15426,7 +15437,7 @@ function renderBudgetList() {
           <div class="blk-sep"></div><button type="button" data-sm="del" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}><span>SUPPRIMER LES LIGNES COCHÉES</span>${svCnt(n)}</button>
           <button type="button" data-sm="all"><span>TOUT COCHER (LIGNES AFFICHÉES)</span></button>
           <button type="button" data-sm="none" class="${n ? "" : "off"}" ${n ? "" : "disabled"}><span>TOUT DÉCOCHER</span></button>
-          <div class="blk-sep"></div><button type="button" data-sm="mini"><span>RÉDUIRE (ÉTIQUETTE EN BAS À DROITE)</span></button><button type="button" data-sm="size"><span>${big ? "FENÊTRE" : "PLEIN ÉCRAN"}</span></button>`;
+          ${IN ? "" : `<div class="blk-sep"></div><button type="button" data-sm="mini"><span>RÉDUIRE (ÉTIQUETTE EN BAS À DROITE)</span></button><button type="button" data-sm="size"><span>${big ? "FENÊTRE" : "PLEIN ÉCRAN"}</span></button>`}`;
         document.body.appendChild(m);
         sviPlaceMenu(m, btn.getBoundingClientRect());
         const off = ev => { if (!m.contains(ev.target)) { m.remove(); document.removeEventListener("pointerdown", off, true); } };
@@ -15531,7 +15542,7 @@ function renderBudgetList() {
         /* v481 (remarque 19) : RÉDUIRE = petite étiquette en bas à droite ; on travaille sur le budget ; un toucher la rouvre telle quelle */
         if (e.target.closest(".sd-mini")) { sugHide(); d.classList.add("sd-min"); return; }
         if (e.target.closest(".sd-tag")) { d.classList.remove("sd-min"); draw(); return; }
-        if (e.target.closest("[data-x]")) { d.remove(); window.__sviSdRefresh = null; return; }
+        if (e.target.closest("[data-x]")) { d.remove(); window.__sviSdRefresh = null; if (IN) sdInplaceOff(); return; }
         if (!e.target.closest(".sd-ok")) return;
         /* 0. lignes supprimées (non liées) */
         const delIds = new Set(rows.filter(r => r._del && r._id && !r._lid).map(r => r._id));
@@ -15608,6 +15619,20 @@ function renderBudgetList() {
       });
       setTimeout(() => { const last = rows.length - 1; focusAt(last, "dc"); }, 60);
     };
+    /* fermeture de la SAISIE DIRECTE sur place : le tableau habituel revient */
+    const sdInplaceOff = () => {
+      shell.querySelector(".bdg-d-page")?.classList.remove("sd-on");
+      shell.querySelector('.blk-max-btn[data-blk="detail"]')?.classList.remove("on");
+      try { refreshAll(); } catch (e) {}
+    };
+    const sdInplaceClose = () => { const w = document.querySelector("#sdW.sd-inplace"); if (w) { w.remove(); window.__sviSdRefresh = null; sdInplaceOff(); return true; } return false; };
+    if (!shell.__sdTabBound) {
+      shell.__sdTabBound = true;
+      /* changer d'onglet ferme la SAISIE DIRECTE sur place */
+      shell.addEventListener("click", e => { if (e.target.closest && e.target.closest("#bdgTabs .bdg-d-tab") && document.querySelector("#sdW.sd-inplace")) shell.__sdClose && shell.__sdClose(); }, true);
+    }
+    shell.__sdClose = () => sdInplaceClose();
+    shell.__sdOpen = k => openDirectEntry(k, { inplace: true });
     shell.__sd = k => openDirectEntry(k);
     const openImportMenu = blk => {
       const p = popup(`
@@ -15617,7 +15642,6 @@ function renderBudgetList() {
           <button type="button" class="blk-choice" data-src="file">Fichier (Excel, CSV, JSON)</button>
           <button type="button" class="blk-choice" data-src="gsheet">Google Sheets (lien)</button>
           ${INS ? `<button type="button" class="blk-choice" data-src="bdg">Autre budget de l'application</button>` : ""}
-          ${INS && INS_EDIT && blk === "detail" && (active === "prd" || active === "chg") ? `<button type="button" class="blk-choice" data-src="direct">SAISIE DIRECTE (${active === "prd" ? "PRODUITS" : "CHARGES"})</button>` : ""}
         </div>`);
       p.addEventListener("click", e => {
         const b = e.target.closest("[data-src]");
@@ -18529,6 +18553,13 @@ function renderBudgetList() {
       return r;
     };
     const runBlkAct = (blk, act) => {
+      /* v511 (remarque 75) : AGRANDIR du bloc détail (charges / produits) = SAISIE DIRECTE sur place ; retoucher = la fermer */
+      if (act === "max" && blk === "detail" && INS && INS_EDIT && (active === "prd" || active === "chg") && shell.__sdOpen) {
+        if (shell.__sdClose && shell.__sdClose()) return;
+        shell.__sdOpen(active);
+        setTimeout(() => document.querySelector("#sdW.sd-inplace")?.scrollIntoView({ block: "start" }), 30);
+        return;
+      }
       if (act === "max") return toggleMax(blk);
       if (act === "del") return insDelRun(blk);
       { const cs = ["copy", "cut", "paste"].includes(act) && colSelFor(blk); if (cs) return colOp(act, cs); }
@@ -21874,6 +21905,10 @@ document.addEventListener("input", e => {
     const act = document.activeElement, td = act && act.closest && act.closest("td");
     if (!S.tbl || !S.a || !td || !td.closest(TSEL) || td.closest("table") !== S.tbl || !matchMedia("(pointer: coarse)").matches) { if (H) H.style.display = "none"; return; }
     const end = tdAt(S.tbl, (S.b || S.a).r, (S.b || S.a).c) || td;
+    /* v511 (remarque 73) : tableau détaché ou case hors de l'écran / de son tableau défilant → pas de point */
+    if (!S.tbl.isConnected || !end.isConnected) { if (H) H.style.display = "none"; return; }
+    { const er = end.getBoundingClientRect(), sc = end.closest(".bdg-d-scroll, .sd-scroll, .bdg-h-col"); const R = sc ? sc.getBoundingClientRect() : { top: 0, bottom: innerHeight, left: 0, right: innerWidth };
+      if (er.bottom < R.top || er.top > R.bottom || er.right < R.left || er.left > R.right || er.bottom < 0 || er.top > innerHeight) { if (H) H.style.display = "none"; return; } }
     if (!H) {
       H = document.createElement("div"); H.id = "sviSelHandle"; document.body.appendChild(H);
       H.addEventListener("pointerdown", e => {
@@ -21914,6 +21949,11 @@ document.addEventListener("input", e => {
     }
   }, true);
   window.addEventListener("scroll", () => { if (H && H.style.display === "block") handle(); }, true);
+  /* v511 (remarque 73) : le point n'existe que s'il y a une case sélectionnée à l'écran — tableau redessiné, case quittée,
+     onglet changé ou case sortie de l'écran : il disparaît */
+  { let q = 0; const chk = () => { q = 0; if (H && H.style.display === "block") handle(); };
+    new MutationObserver(() => { if (!q && H && H.style.display === "block") q = requestAnimationFrame(chk); }).observe(document.documentElement, { childList: true, subtree: true });
+    document.addEventListener("focusout", () => setTimeout(chk, 0), true); }
   const valOf = td => { const i = td.querySelector("input:not([type=checkbox]), textarea, select"); return String(i ? i.value : td.textContent || "").replace(/[\t\n]/g, " ").trim(); };
   const selTsv = C => {
     const rs = [...new Set(C.map(td => td.parentElement))].sort((x, y) => x.sectionRowIndex - y.sectionRowIndex);
@@ -22062,6 +22102,9 @@ document.addEventListener("input", e => {
     setTimeout(() => { if (nav === i && document.activeElement === i) end(i); }, 80);
   });
   document.addEventListener("focusout", e => { const i = e.target; if (i && i.classList && i.classList.contains("svi-nav")) off(i); });
+  /* v511 (remarque 74) : la cellule entière porte le cadre de la case sélectionnée ou en saisie */
+  document.addEventListener("focusin", e => { const i = e.target; if (!i || !i.matches || !i.matches("input, textarea")) return; const td = i.closest("td"); if (td && td.closest(TS) && td.closest("tbody")) td.classList.add("svi-tdon"); });
+  document.addEventListener("focusout", e => { const i = e.target; const td = i && i.closest && i.closest("td.svi-tdon"); if (td) td.classList.remove("svi-tdon"); });
   /* frappe sur une case sélectionnée : remplace le contenu, puis saisie */
   document.addEventListener("beforeinput", e => {
     const i = e.target;
@@ -22102,7 +22145,8 @@ document.addEventListener("input", e => {
     const td = e.target.closest("td");
     if (!tdOk(td)) return;
     const i = td.querySelector(ED);
-    if (i && !i.disabled && !i.readOnly) return;   /* case saisissable : son champ s'en charge */
+    /* v511 (remarque 74) : toucher la cellule hors de sa zone de texte = la sélectionner aussi */
+    if (i && !i.disabled && !i.readOnly) { if (e.target !== i && !i.contains(e.target) && document.activeElement !== i) i.focus(); return; }
     if (document.activeElement === td) return;
     focusTd(td);
   });

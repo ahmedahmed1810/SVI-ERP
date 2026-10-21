@@ -637,7 +637,8 @@
       const v = { art: g[0].art || "", des: g[0].des || "", u: g[0].u || "", q: money(qs), p: qs ? money(ht / qs) : "", ht: money(ht),
         tva: ht ? money((ttc - ht) / ht * 100) : "", ttc: money(ttc), rdb: "", tache: nt + " TÂCHE" + (nt > 1 ? "S" : "") };
       const fo = CHG_GFOLD.has(key);
-      const fb = `<span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier">${fo ? "›" : "⌄"}</span>`;
+      /* v511 (remarque 72) : le signe a sa propre zone (toute la hauteur, 40 px), que la case de la désignation ne recouvre pas */
+      const fb = `<span class="ins-gfz" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier"><span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}">${fo ? "›" : "⌄"}</span></span>`;
       const non = g.filter(r => r.on === true).length;
       /* v505 (remarque 56) : ART, DÉSIGNATION, UCB, PCB et TVA du titre modifiables — la valeur va à toutes ses lignes
          (PCB, UCB et TVA grisés si une de ses charges vient de CHS) ; QCB, montants, RENDEMENT et TÂCHE restent calculés */
@@ -647,8 +648,8 @@
       const ev = { art: v.art, des: v.des, u: v.u, p: ps.size === 1 ? [...ps][0] : v.p, tva: ts.size === 1 ? [...ts][0] : v.tva };
       const cell = c => {
         const f = c[0];
-        if (edOk(f)) return `<td class="${c[2]} ins-td">${f === "des" ? fb : ""}<input class="ins-gin ${c[2]}" data-f="${f}" enterkeyhint="next"${["p", "tva"].includes(f) ? ' inputmode="decimal"' : ""} value="${esc(ev[f] ?? "")}" autocomplete="off" spellcheck="false"></td>`;
-        return `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}">${f === "des" ? fb : ""}${esc(v[f] ?? "")}</td>`;
+        if (edOk(f)) return `<td class="${c[2]} ins-td${f === "des" ? " ins-gtd" : ""}">${f === "des" ? fb : ""}<input class="ins-gin ${c[2]}" data-f="${f}" enterkeyhint="next"${["p", "tva"].includes(f) ? ' inputmode="decimal"' : ""} value="${esc(ev[f] ?? "")}" autocomplete="off" spellcheck="false"></td>`;
+        return `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}${f === "des" ? " ins-gtd" : ""}">${f === "des" ? fb : ""}${esc(v[f] ?? "")}</td>`;
       };
       /* v507 (remarque 63) : la pastille (nombre de lignes) sert de rond — toucher = choisir / libérer toutes ses charges */
       const nch = INS_EDIT && LK && LK.chg ? g.filter(r => LK.chg[r.id] !== undefined).length : 0;

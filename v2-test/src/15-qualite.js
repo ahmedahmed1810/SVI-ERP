@@ -1018,7 +1018,7 @@
       }, true);
       /* v499 (remarque 45) : plier / déplier un titre de charges regroupées */
       shell.addEventListener("click", e => {
-        const b = e.target.closest && e.target.closest(".ins-gfold"), X = shell.__ins;
+        const b = e.target.closest && e.target.closest(".ins-gfold, .ins-gfz"), X = shell.__ins;
         if (!b || !X) return;
         e.stopPropagation(); e.preventDefault();
         const F = shell.__chgGFold; if (F.has(b.dataset.gk)) F.delete(b.dataset.gk); else F.add(b.dataset.gk);

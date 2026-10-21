@@ -316,6 +316,13 @@
       return r;
     };
     const runBlkAct = (blk, act) => {
+      /* v511 (remarque 75) : AGRANDIR du bloc détail (charges / produits) = SAISIE DIRECTE sur place ; retoucher = la fermer */
+      if (act === "max" && blk === "detail" && INS && INS_EDIT && (active === "prd" || active === "chg") && shell.__sdOpen) {
+        if (shell.__sdClose && shell.__sdClose()) return;
+        shell.__sdOpen(active);
+        setTimeout(() => document.querySelector("#sdW.sd-inplace")?.scrollIntoView({ block: "start" }), 30);
+        return;
+      }
       if (act === "max") return toggleMax(blk);
       if (act === "del") return insDelRun(blk);
       { const cs = ["copy", "cut", "paste"].includes(act) && colSelFor(blk); if (cs) return colOp(act, cs); }

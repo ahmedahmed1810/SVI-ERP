@@ -1974,8 +1974,6 @@ td.svi-cs { background: var(--inst-bg, #eef0f3) !important; box-shadow: inset 0 
 .ins-table tr.ins-gtitle input.ins-gin.center { text-align: center; }
 .ins-table tr.ins-gtitle input.ins-gin:focus { box-shadow: inset 0 0 0 2px var(--inst, #b91c1c); background: #fff; }
 .ins-table tr.ins-gtitle td.ins-td { display: table-cell; }
-.ins-table tr.ins-gtitle td:has(> .ins-gfold) { white-space: nowrap; }
-.ins-table tr.ins-gtitle td:has(> .ins-gfold) > input.ins-gin { width: calc(100% - 30px); display: inline-block; }
 
 /* v506 (remarque 58) : titres de charges regroupées en bleu foncé (le rouge est réservé aux lignes non liées) */
 .bdg-d-page .ins-table tr.ins-gtitle td, .bdg-d-page .ins-table tr.ins-gtitle td * { color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important; }
@@ -2022,3 +2020,18 @@ td.svi-cs { background: var(--inst-bg, #eef0f3) !important; box-shadow: inset 0 
 #cfMenu .cf-cv.off, #cfMenu .cf-et.off, #cfMenu .cf-bw.off { display: none; }
 #cfMenu .cf-ca { height: 28px; width: 100px; border: 1px solid #d0d5dd; border-radius: 6px; padding: 0 6px; font: inherit; font-size: 12px; text-align: right; }
 #cfMenu .cf-et { font-size: 11px; font-weight: 800; color: #475467; }
+
+/* v511 (remarque 75) : SAISIE DIRECTE sur place, dans le bloc détail */
+#sdW.sd-inplace { position: relative; inset: auto; z-index: 4; background: none; display: block; margin: 0; }
+#sdW.sd-inplace .sd-card { width: 100% !important; height: calc(100vh - 130px) !important; min-height: 360px; border-radius: 0 0 10px 10px; box-shadow: none; border: 1px solid #e5e9f0; }
+#sdW.sd-inplace .sd-tag, #sdW.sd-inplace .sd-rsz { display: none !important; }
+.bdg-d-page.sd-on #bdgTabBody, .bdg-d-page.sd-on #bdgDetailRsz { display: none !important; }
+
+/* v511 (remarque 72) : zone réservée au signe › / ⌄ des titres de charges regroupées */
+.ins-table tr.ins-gtitle td.ins-gtd { position: relative; padding-left: 40px !important; }
+.ins-table tr.ins-gtitle .ins-gfz { position: absolute; left: 0; top: 0; bottom: 0; width: 40px; display: flex; align-items: center; justify-content: center; z-index: 4; cursor: pointer; }
+.ins-table tr.ins-gtitle .ins-gfz .ins-gfold::after { display: none; }
+/* v511 (remarque 74) : le cadre de la case sélectionnée ou en saisie couvre toute la cellule, dans tous les tableaux */
+:is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) td.svi-tdon { box-shadow: inset 0 0 0 2px var(--inst, #b91c1c) !important; }
+:is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) td.svi-tdon :is(input, textarea):focus { box-shadow: none !important; }
+#sdW .sd-t td.svi-tdon .sd-in:focus { box-shadow: none !important; }
