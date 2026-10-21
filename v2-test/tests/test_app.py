@@ -196,8 +196,8 @@ def main():
         g4 = pg.evaluate("() => [...document.querySelector('.mg-table').tHead.rows[0].cells].map(c => (c.querySelector('.cf-btn') || {}).dataset?.col).filter(Boolean)")
         pg.evaluate("""() => { const o = JSON.parse(localStorage.getItem('svi_colorder_v1') || '{}'); delete o.lk_marge; localStorage.setItem('svi_colorder_v1', JSON.stringify(o)); }""")
         pg.evaluate(f"() => {ins}.refreshAll()"); pg.wait_for_timeout(300)
-        check("remarque 46 : regroupement par l'ordre des colonnes, TOUT DÉPLIER, unités collées à leur colonne",
-              g1 == ["mg-grp mg-l0 mg-b0"] and g2 == ["mg-grp mg-l0 mg-b0", "mg-grp mg-l1 mg-b0", "mg-grp mg-l2 mg-b0", "mg-leaf mg-l3 mg-b0"] and g3[0][0] == "lot" and g3[1].startswith("⌄ RDC") is False and "RDC" in g3[1]
+        check("remarques 46 et 60 : regroupement par l'ordre des colonnes, TOUT DÉPLIER (activité primaire jumelle = liaison), unités collées",
+              g1 == ["mg-grp mg-l0 mg-b0"] and g2 == ["mg-grp mg-l0 mg-b0", "mg-grp mg-l1 mg-b0", "mg-leaf mg-l2 mg-b0"] and g3[0][0] == "lot" and g3[1].startswith("⌄ RDC") is False and "RDC" in g3[1]
               and g4[:6] == ["lot", "art", "des", "upb", "prim", "sec"] and g4[6] == "su", [g1, g2, g3, g4])
         # remarque 48 : toucher l'en-tête % = croissant ▲, décroissant ▼, normal
         def tap_pct():
@@ -223,6 +223,11 @@ def main():
         pg.evaluate("() => document.querySelector('#blkMenu [data-fclr]')?.click()"); pg.wait_for_timeout(400)
         f42 = pg.evaluate(f"""() => {{ const X = {ins}; return [X.INS.chg.some(r => r.on === true), document.querySelectorAll('#bdgTabs .bdg-d-tab.tab-filt').length]; }}""")
         check("remarques 40 à 42 et 53 : seul l'onglet source du filtre en bleu, en-tête des cases en bleu, EFFACER TOUS LES FILTRES", f40 == ["chg"] and f41 and f42 == [False, 0], [f40, f41, f42])
+        # remarque 59 : lot choisi par son rond = en haut de la liste des lots
+        pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid=\"l1\"] .lk-rd')?.click()"); pg.wait_for_timeout(400)
+        o59 = pg.evaluate("() => [...document.querySelectorAll('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid]')].map(x => x.dataset.iid)")
+        pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid=\"l1\"] .lk-rd')?.click()"); pg.wait_for_timeout(300)
+        check("remarque 59 : lot choisi en haut de la liste", bool(o59) and o59[0] == "l1", o59)
         # remarque 38 : RENDEMENT dans DÉTAIL CHARGES, avant TÂCHE
         pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"chg\"]'); t && t.click(); }"); pg.wait_for_timeout(400)
         rd = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'); const hs = [...t.tHead.rows[0].cells].map(c => c.textContent.trim());

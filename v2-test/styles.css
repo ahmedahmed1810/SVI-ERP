@@ -1976,3 +1976,8 @@ td.svi-cs { background: var(--inst-bg, #eef0f3) !important; box-shadow: inset 0 
 .ins-table tr.ins-gtitle td.ins-td { display: table-cell; }
 .ins-table tr.ins-gtitle td:has(> .ins-gfold) { white-space: nowrap; }
 .ins-table tr.ins-gtitle td:has(> .ins-gfold) > input.ins-gin { width: calc(100% - 30px); display: inline-block; }
+
+/* v506 (remarque 58) : titres de charges regroupées en bleu foncé (le rouge est réservé aux lignes non liées) */
+.bdg-d-page .ins-table tr.ins-gtitle td, .bdg-d-page .ins-table tr.ins-gtitle td * { color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important; }
+.bdg-d-page .ins-table tr.ins-gtitle input.ins-gin { color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important; }
+.bdg-d-page .ins-table tr.ins-gtitle .ins-grpn { color: #fff !important; -webkit-text-fill-color: #fff !important; background: #1e3a8a; }

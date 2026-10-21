@@ -905,8 +905,9 @@
     /* arborescence dans l'ordre des lots (classés par ordre alphabétique au départ, puis ordre libre) :
        un niveau prend la place de son premier lot */
     const lotTreeRows = list => {
-      const ids = new Set(list.map(r => r.id));
-      const flat = INS.lot.filter(r => ids.has(r.id));
+      /* v506 (remarque 59) : ordre de la liste affichée (lots choisis / liés en haut, tri de colonne) — le lot choisi remonte
+         avec son chemin, comme une désignation avec ses titres */
+      const flat = list.filter(r => INS.lot.includes(r));
       const root = { kids: [], map: new Map() };
       flat.forEach(r => {
         let n = root;
