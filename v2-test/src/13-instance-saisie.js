@@ -644,7 +644,7 @@
       const rows = k === "des" ? insShown(k) : lkTop(k, insShown(k));
       const ncol = INS_COLS[k].length + 1;
       let html = "";
-      if (k === "chg" && insChgFiltered()) {
+      if (k === "chg") {   /* v501 (remarque 49) : charges identiques regroupées en titres, filtre ou non */
         /* v492 (remarque 10) : tableau filtré — charges identiques (même désignation, même unité, même article) regroupées ;
            v499 (remarque 45) : sous un titre (cumuls), ses lignes dessous, pliables */
         insMore[k] = [];

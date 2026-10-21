@@ -180,6 +180,11 @@ def main():
         check("remarque 37 : MARGE — une ligne par liaison : charges 4 500, produits 10 000, marge 5 500, 55 %", okx, xr)
         # remarque 46 : regroupement = ordre des colonnes (désignation, lot, activités) ; unités collées ; TOUT DÉPLIER
         g1 = pg.evaluate("() => [...document.querySelector('.mg-table').tBodies[0].rows].map(r => r.className)")
+        pg.evaluate("() => document.querySelector('.mg-table tr.mg-grp td[data-k=\"pct\"]')?.click()"); pg.wait_for_timeout(300)
+        g52 = pg.evaluate("() => document.querySelector('.mg-table').tBodies[0].rows.length")
+        pg.evaluate("() => document.querySelector('.mg-table tr.mg-grp td[data-k=\"mg\"]')?.click()"); pg.wait_for_timeout(300)
+        g52b = pg.evaluate("() => document.querySelector('.mg-table').tBodies[0].rows.length")
+        check("remarque 52 : toucher la case % (ou MARGE) d'une ligne regroupée = déplier / replier", g52 == 2 and g52b == 1, [g52, g52b])
         pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
         pg.evaluate("() => document.querySelector('#blkMenu [data-mgf=\"open\"]')?.click()"); pg.wait_for_timeout(300)
         g2 = pg.evaluate("() => [...document.querySelector('.mg-table').tBodies[0].rows].map(r => r.className)")
@@ -192,7 +197,7 @@ def main():
         pg.evaluate("""() => { const o = JSON.parse(localStorage.getItem('svi_colorder_v1') || '{}'); delete o.lk_marge; localStorage.setItem('svi_colorder_v1', JSON.stringify(o)); }""")
         pg.evaluate(f"() => {ins}.refreshAll()"); pg.wait_for_timeout(300)
         check("remarque 46 : regroupement par l'ordre des colonnes, TOUT DÉPLIER, unités collées à leur colonne",
-              g1 == ["mg-grp mg-l0"] and g2 == ["mg-grp mg-l0", "mg-grp mg-l1", "mg-grp mg-l2", "mg-leaf mg-l3"] and g3[0][0] == "lot" and g3[1].startswith("⌄ RDC") is False and "RDC" in g3[1]
+              g1 == ["mg-grp mg-l0 mg-b0"] and g2 == ["mg-grp mg-l0 mg-b0", "mg-grp mg-l1 mg-b0", "mg-grp mg-l2 mg-b0", "mg-leaf mg-l3 mg-b0"] and g3[0][0] == "lot" and g3[1].startswith("⌄ RDC") is False and "RDC" in g3[1]
               and g4[:6] == ["lot", "art", "des", "upb", "prim", "sec"] and g4[6] == "su", [g1, g2, g3, g4])
         # remarque 48 : toucher l'en-tête % = croissant ▲, décroissant ▼, normal
         def tap_pct():
@@ -353,6 +358,8 @@ def main():
         check("remarque 24 : case de la ligne regroupée coche toutes ses charges", len(g24) >= 2 and all(g24), g24)
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.chg.forEach(c => c.on = false); X.refreshAll(); }}")
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.sec.forEach(x => x.on = false); X.refreshAll(); }}"); pg.wait_for_timeout(200)
+        g49 = pg.evaluate("() => { const t = document.querySelector('table.ins-table[data-ik=\"chg\"]'); const g = t && t.querySelector('tr.ins-gtitle'); return g ? g.dataset.grp.split(',').sort() : null; }")
+        check("remarque 49 : charges identiques regroupées en titre aussi sans filtre", g49 == ["c1", "c9"], g49)
 
         # remarque 23 : QPB d'une désignation limitée aux tâches de la charge cochée
         q23 = pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;
