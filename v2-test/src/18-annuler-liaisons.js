@@ -433,6 +433,16 @@
           X.allToggle(ra.dataset.rdall);
           return;
         }
+        /* v507 (remarque 63) : pastille d'un titre de charges regroupées = rond de toutes ses charges */
+        const gr = e.target.closest(".ins-gtitle .ins-grd");
+        if (gr) {
+          e.stopPropagation(); e.preventDefault();
+          const L = X.LK, ids = (gr.closest("tr").dataset.grp || "").split(",").filter(Boolean);
+          const all = ids.length && ids.every(id => L.chg[id] !== undefined);
+          ids.forEach(id => { if (all) delete L.chg[id]; else if (L.chg[id] === undefined) L.chg[id] = ""; });
+          L.err = ""; X.light("chg");
+          return;
+        }
         const rd = e.target.closest(".lk-rd");
         if (rd) {
           e.stopPropagation(); e.preventDefault();

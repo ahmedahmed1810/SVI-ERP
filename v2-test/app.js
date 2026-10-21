@@ -6264,7 +6264,9 @@ function renderBudgetList() {
         if (edOk(f)) return `<td class="${c[2]} ins-td">${f === "des" ? fb : ""}<input class="ins-gin ${c[2]}" data-f="${f}" enterkeyhint="next"${["p", "tva"].includes(f) ? ' inputmode="decimal"' : ""} value="${esc(ev[f] ?? "")}" autocomplete="off" spellcheck="false"></td>`;
         return `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}">${f === "des" ? fb : ""}${esc(v[f] ?? "")}</td>`;
       };
-      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      /* v507 (remarque 63) : la pastille (nombre de lignes) sert de rond — toucher = choisir / libérer toutes ses charges */
+      const nch = INS_EDIT && LK && LK.chg ? g.filter(r => LK.chg[r.id] !== undefined).length : 0;
+      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}" role="button" aria-label="Choisir toutes les charges">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
@@ -8030,9 +8032,13 @@ function renderBudgetList() {
       const cols = [...tbl.querySelectorAll("colgroup col")];
       const others = cols.filter(c => c !== cd && c !== ct).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
       const pr = parseFloat(getComputedStyle(sc).paddingRight) || 0;
+      /* v507 (remarque 62) : largeurs calculées une fois pour une largeur de bloc donnée, puis gardées (le tableau ne bouge plus) */
+      const M0 = shell.__chgFitM;
+      if (M0 && M0.w === sc.offsetWidth && M0.o === others) { cd.style.width = M0.d + "px"; ct.style.width = M0.t + "px"; tbl.style.width = others + M0.d + M0.t + "px"; return; }
       const free = Math.floor(sc.clientWidth - pr - others - 22);   /* marge : en-têtes jamais tronqués (quelques px de plus) */
       const d = Math.max(180, Math.round(free * 0.55)), t = Math.max(95, free - d);
       cd.style.width = d + "px"; ct.style.width = t + "px"; tbl.style.width = others + d + t + "px";
+      shell.__chgFitM = { w: sc.offsetWidth, o: others, d, t };
     };
     const cfHasF = t => !!(CF[t] && Object.keys(CF[t].f || {}).length);
     /* v502 (remarque 53) : seul l'onglet source d'un filtre est en bleu — loupe d'une de ses colonnes, « cochées seulement »
@@ -11336,6 +11342,16 @@ function renderBudgetList() {
           e.stopPropagation(); e.preventDefault();
           if (ra.classList.contains("off")) return;
           X.allToggle(ra.dataset.rdall);
+          return;
+        }
+        /* v507 (remarque 63) : pastille d'un titre de charges regroupées = rond de toutes ses charges */
+        const gr = e.target.closest(".ins-gtitle .ins-grd");
+        if (gr) {
+          e.stopPropagation(); e.preventDefault();
+          const L = X.LK, ids = (gr.closest("tr").dataset.grp || "").split(",").filter(Boolean);
+          const all = ids.length && ids.every(id => L.chg[id] !== undefined);
+          ids.forEach(id => { if (all) delete L.chg[id]; else if (L.chg[id] === undefined) L.chg[id] = ""; });
+          L.err = ""; X.light("chg");
           return;
         }
         const rd = e.target.closest(".lk-rd");
@@ -15740,9 +15756,12 @@ function renderBudgetList() {
       const aggOf = r => r.leaf ? M.get(r.l.id) : r.agg;
       const P = out.map(r => aggOf(r).pct).filter(p => !blank(p));
       const lo = Math.min(0, ...P), hi = Math.max(0, ...P);
+      /* v507 (remarque 64) : colonne MARGE en dégradé, d'après ses propres montants (indépendant du %) */
+      const MV = out.map(r => aggOf(r)).filter(a => a.prd).map(a => a.mg);
+      const loM = Math.min(0, ...MV), hiM = Math.max(0, ...MV);
       const pctTd = (p, bold) => blank(p) ? `<td class="number"></td>` : `<td class="number xpl-pct${bold ? " xpl-b" : ""}" style="${xplColor(p, lo, hi)}">${money(p)} %</td>`;
       const numTd = (v, show) => `<td class="number">${show ? money(v) : ""}</td>`;
-      const metr = (a, bold) => ({ chg: numTd(a.chg, true), prd: numTd(a.prd, !!a.prd), mg: numTd(a.mg, !!a.prd).replace("<td ", '<td data-k="mg" '), pct: pctTd(a.pct, bold).replace("<td ", '<td data-k="pct" ') });
+      const metr = (a, bold) => ({ chg: numTd(a.chg, true), prd: numTd(a.prd, !!a.prd), mg: a.prd ? `<td data-k="mg" class="number xpl-pct${bold ? " xpl-b" : ""}" style="${xplColor(a.mg, loM, hiM)}">${money(a.mg)}</td>` : '<td data-k="mg" class="number"></td>', pct: pctTd(a.pct, bold).replace("<td ", '<td data-k="pct" ') });
       const fold = r => `<span class="mg-f" data-p="${esc(r.path)}" role="button" aria-label="Plier / déplier">${r.open ? "⌄" : "›"}</span>`;
       const firstOf = d => oc.find(c => c[0] === d);   /* colonne qui porte le signe : DÉSIGNATION CLIENT, LOT, ACTIVITÉ PRIMAIRE, ACTIVITÉ SECONDAIRE */
       const rowHTML = r => {
@@ -15762,7 +15781,8 @@ function renderBudgetList() {
       /* en-tête : loupe (tri / filtre), largeur réglable ; ▲ / ▼ sur la colonne classée par un toucher */
       const head = c => {
         let h = cfHead(t, c[0], c[1], c[3] + (["chg", "prd", "mg", "pct"].includes(c[0]) ? " mg-s" : ""));
-        if (mgSort && mgSort.col === c[0]) h = h.replace(`<span class="cf-lab">${c[1]}</span>`, `<span class="cf-lab">${c[1]} ${mgSort.dir > 0 ? "▲" : "▼"}</span>`);
+        /* v507 (remarque 62) : ▲ / ▼ posé à côté de l'intitulé sans élargir la colonne */
+        if (mgSort && mgSort.col === c[0]) h = h.replace(`<span class="cf-lab">${c[1]}</span>`, `<span class="cf-lab">${c[1]}<i class="mg-dir">${mgSort.dir > 0 ? "▲" : "▼"}</i></span>`);
         return h;
       };
       const tot = mgAgg(rows), tm = metr(tot, true);
