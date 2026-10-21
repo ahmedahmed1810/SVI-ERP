@@ -2063,3 +2063,7 @@ td.svi-cs { background: var(--inst-bg, #eef0f3) !important; box-shadow: inset 0 
 #sviSelBar .sb-del { color: #fca5a5; }
 /* v515 : plus de rectangle bleu sur la case à cocher d'en-tête quand des lignes sont cochées (le badge COCHÉES suffit) */
 th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: none !important; }
+/* v517 : bouts de barre du Gantt plus faciles à attraper au doigt (appui long = liaison) */
+.gb-s::before, .gb-e::before { content: ""; position: absolute; top: -10px; bottom: -10px; width: 22px; }
+.gb-s::before { left: -14px; }
+.gb-e::before { right: -14px; }

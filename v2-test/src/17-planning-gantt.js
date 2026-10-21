@@ -343,13 +343,18 @@
       const glued = dlyGlued(task), back = p ? { ...p } : null;
       if (p) Object.assign(p, q); else if (q.deb || q.fin) { L.splice(0, L.length, q); p = q; }
       const undo = () => { if (back) Object.assign(p, back); else L.splice(0, L.length); };
-      const late = dlySuccs(task).filter(S => { const n = dlyPredFin(S), d0 = dlyDeb(S); return n && d0 && d0 < n; });
+      /* v517 : une tâche suivante « collée » (elle commençait pile à la date exigée) suit toute seule (dlyShift plus bas) :
+         ce n'est pas un conflit, pas de fenêtre. Seules les autres, qui commencent trop tôt, sont signalées. */
+      const late = dlySuccs(task).filter(S => { if (glued.has(S)) return false; const n = dlyPredFin(S), d0 = dlyDeb(S); return n && d0 && d0 < n; });
+      /* v517 : tâche suivante absente du planning affiché (filtre, branche isolée, lot replié) — dit dans la fenêtre */
+      const shown = new Set((shell.__dlyRows || []).filter(x => !x.grp).map(x => x.key));
+      const hidTxt = k => shown.size && !shown.has(k) ? " (MASQUÉE À L'ÉCRAN : FILTRE OU LOT REPLIÉ)" : "";
       if (late.length) {
         const fromDur = opts.fromDur || (durOld && q.deb && q.fin && sviWDur(cal, q.deb, q.fin) !== durOld);
         const maxFin = dlySuccs(task).map(S => { const l = dlyLinks(S).find(x => x.k === task), d0 = dlyDeb(S);
           return l && l.t !== "DD" && d0 ? sviWAdd(cal, d0, -(1 + Math.max(0, l.o || 0))) : ""; }).filter(Boolean).sort()[0] || "";
         const canCut = fromDur && maxFin && q.deb && maxFin >= q.deb;
-        svChoose({ title: "TÂCHES SUIVANTES", html: `<div class="svc-sub">LA FIN DU ${esc(dFr(q.fin))} NE RESPECTE PLUS LA LIAISON AVEC :</div><ul class="svc-list">${late.map(k => `<li>${esc(dlyName(k))} — ${esc(dFr(dlyDeb(k)))}</li>`).join("")}</ul>`,
+        svChoose({ title: "TÂCHES SUIVANTES", html: `<div class="svc-sub">LA FIN DU ${esc(dFr(q.fin))} NE RESPECTE PLUS LA LIAISON AVEC :</div><ul class="svc-list">${late.map(k => `<li>${esc(dlyName(k))} — DÉBUT ${esc(dFr(dlyDeb(k)))}, AU PLUS TÔT ${esc(dFr(dlyPredFin(k)))}${esc(hidTxt(k))}</li>`).join("")}</ul>`,
           buttons: [...(canCut ? [{ v: "cut", label: "RÉDUIRE LA DURÉE", tone: "neutral" }] : []), { v: "shift", label: "DÉCALER LES TÂCHES SUIVANTES", tone: "neutral" }] }).then(r => {
           if (r === "shift") { const mv = dlyShift(task, glued); if (mv.length) svToast(mv.length + " TÂCHE(S) DÉCALÉE(S) — À VALIDER.", 3000); }
           else if (r === "cut") { p.fin = maxFin; if (glued.size) dlyShift(task, glued); }
@@ -1731,7 +1736,18 @@
            fin → début = FD ; début → fin = FD dans l'autre sens ; début → début = DD ; fin → fin = rien */
         const linkPlan = ev => {
           /* les fils (flèches) peuvent couvrir le bout d'une barre : on prend la première barre sous le doigt */
-          const tg = document.elementsFromPoint(ev.clientX, ev.clientY).map(e => e.closest && e.closest("#dlyGantt .gb")).find(Boolean);
+          let tg = document.elementsFromPoint(ev.clientX, ev.clientY).map(e => e.closest && e.closest("#dlyGantt .gb")).find(Boolean);
+          /* v517 : plus de sensibilité — sans barre exactement sous le doigt, la barre la plus proche (jusqu'à 26 px) est visée */
+          if (!tg || tg.dataset.key === key) {
+            let best = null, bd = 26;
+            host.querySelectorAll(".gb:not(.gb-ext)").forEach(b => {
+              if (b.dataset.key === key || !b.dataset.key) return;
+              const q = b.getBoundingClientRect();
+              const dx = Math.max(q.left - ev.clientX, 0, ev.clientX - q.right), dy = Math.max(q.top - ev.clientY, 0, ev.clientY - q.bottom);
+              const d = Math.hypot(dx, dy); if (d < bd) { bd = d; best = b; }
+            });
+            tg = best;
+          }
           if (!tg || tg.dataset.key === key) return null;
           const r = tg.getBoundingClientRect(), side = ev.clientX > r.left + r.width / 2 ? "end" : "start", o = tg.dataset.key;
           let P = null;
@@ -2116,6 +2132,33 @@
           const ek = X.sameIn(key, lt.id);
           if (ek) { X.mergeAsk(key, ek, anchor); return; }
           k = X.changeLot(key, lt.id, anchor); if (!k) { renderTabK(); return; } insSave(); insRenderChain();
+        }
+        /* v517 : tâche déplacée DANS SON LOT — seul son rang change dans le lot ; le lot reste à sa place
+           (avant : ses tâches, dispersées dans l'ordre général, pouvaient faire descendre tout le lot en bas) */
+        { const lo = k.split("|")[0];
+          dlyOrder(dlyKeys());
+          const D = INS.dord || [], S = D.filter(x => x.split("|")[0] === lo);
+          const inS = x => !!x && x !== k && S.includes(x);
+          if (S.length > 1 && (inS(h.before) || inS(h.afterKey) || (!h.before && !h.afterKey))) {
+            const seq = S.filter(x => x !== k);
+            if (inS(h.before)) seq.splice(seq.indexOf(h.before), 0, k);
+            else if (inS(h.afterKey)) seq.splice(seq.indexOf(h.afterKey) + 1, 0, k);
+            else seq.push(k);
+            const at = D.findIndex(x => S.includes(x));
+            const rest = D.filter(x => !S.includes(x)), nb = D.slice(0, at).filter(x => !S.includes(x)).length;
+            rest.splice(nb, 0, ...seq);
+            if (rest.join("\n") === D.join("\n")) { renderTabK(); return; }
+            INS.dord = rest; dlyTasksFromPlan(); insSave();
+            histLog("DÉLAIS", "ORDRE DES LIGNES", dlyName(k) + " (DANS SON LOT)");
+            refreshAll(); return;
+          }
+          /* déposée à la limite du lot (devant la première tâche du lot suivant) : dernière de son lot */
+          if (S.length > 1 && h.before && !S.includes(h.before)) {
+            const seq = S.filter(x => x !== k).concat(k), at = D.findIndex(x => S.includes(x));
+            const rest = D.filter(x => !S.includes(x)), nb = D.slice(0, at).filter(x => !S.includes(x)).length;
+            rest.splice(nb, 0, ...seq);
+            INS.dord = rest; dlyTasksFromPlan(); insSave(); histLog("DÉLAIS", "ORDRE DES LIGNES", dlyName(k) + " (DANS SON LOT)"); refreshAll(); return;
+          }
         }
         if (h.before && h.before !== k) X.moveKeys([k], [h.before], false);
         else if (h.afterKey && h.afterKey !== k) X.moveKeys([k], [h.afterKey], true);

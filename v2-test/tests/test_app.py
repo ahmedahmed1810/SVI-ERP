@@ -678,6 +678,30 @@ def main():
         check("v516 : produits de même désignation regroupés (titre : nombre, signe, désignation, sans total), pliés puis dépliables",
               g1 is not None and g1[0] >= 2 and len(g1[1]) == 2 and "BETON" in g1[1][1].upper() and g1[2] != g2, [g1, g2])
 
+        # ===== v517 : PLANNING — tâche déplacée dans son lot (le lot reste en place) ; tâche suivante collée = pas d'alerte =====
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(500)
+        dd = pg.evaluate(f"""async () => {{ const X = {ins}; const sh = [...document.querySelectorAll('*')].find(e => e.__insDly); const D = sh && sh.__insDly; if (!D) return 'pas de planning';
+            const I = X.INS; const save = JSON.stringify({{ dlp: I.dlp, dord: I.dord, dpred: I.dpred }});
+            I.dlp = {{ 'l1|s1': [{{ id: 'q1', deb: '2026-10-05', fin: '2026-10-06' }}], 'l1|s2': [{{ id: 'q2', deb: '2026-10-07', fin: '2026-10-08' }}], 'l2|s1': [{{ id: 'q3', deb: '2026-10-05', fin: '2026-10-05' }}] }};
+            I.dord = ['l1|s2', 'l2|s1', 'l1|s1']; I.dpred = {{}};
+            const lot = I.lot.find(l => l.id === 'l1').v;
+            D.dropTaskTo('l1|s2', {{ parent: lot, before: '', afterKey: 'l1|s1' }}, document.body);
+            await new Promise(r => setTimeout(r, 300));
+            const o1 = I.dord.filter(k => ['l1|s1', 'l1|s2', 'l2|s1'].includes(k));
+            /* liaison FIN → DÉBUT, s2 collée à s1 : allonger s1 d'un jour = s2 suit, sans fenêtre */
+            I.dpred = {{ 'l1|s2': [{{ k: 'l1|s1', t: 'FD', o: 0 }}] }}; if (sh.__ins) {{}}
+            I.dlp['l1|s2'] = [{{ id: 'q2', deb: '2026-10-07', fin: '2026-10-08' }}];
+            const LKd = D.draft(); Object.keys(LKd).forEach(k => delete LKd[k]);
+            D.apply('l1|s1', {{ deb: '2026-10-05', fin: '2026-10-07' }}, {{ fromDur: true }});
+            await new Promise(r => setTimeout(r, 300));
+            const dlg = !!document.querySelector('#svConf') && /TÂCHES SUIVANTES/.test(document.querySelector('#svConf').textContent);
+            document.querySelectorAll('#svConf [data-x], #svConf [data-v=""]').forEach(b => b.click());
+            const s2 = D.deb('l1|s2');
+            const o = JSON.parse(save); I.dlp = o.dlp; I.dord = o.dord; I.dpred = o.dpred; Object.keys(LKd).forEach(k => delete LKd[k]); X.insSave(); X.refreshAll();
+            return [o1, dlg, s2]; }}""")
+        check("v517 : tâche déplacée dans son lot — le lot reste à sa place", isinstance(dd, list) and dd[0] == ["l1|s1", "l1|s2", "l2|s1"], dd)
+        check("v517 : tâche suivante collée — elle suit, sans fausse alerte", isinstance(dd, list) and dd[1] is False and dd[2] == "2026-10-08", dd)
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
