@@ -6113,7 +6113,7 @@ function renderBudgetList() {
       const dim = k === "des" && r && !r.t && LK.des && !sel;
       const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
       const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* bleu = liée (à n'importe quelle désignation) */
-      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
+      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}${k === "des" && r ? ` style="--d:${dOf(r)}"` : ""}>
         <td class="center ins-rdc">${k === "des" && r && r.t ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
           ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>`;
@@ -6253,7 +6253,7 @@ function renderBudgetList() {
       const fo = CHG_GFOLD.has(key);
       const fb = `<span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier">${fo ? "›" : "⌄"}</span>`;
       const non = g.filter(r => r.on === true).length;
-      return `<tr class="ins-row ins-grp ins-gtitle" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn">${g.length}</span></td>${cols.map(c => `<td class="${c[2]}">${c[0] === "des" ? fb : ""}${esc(v[c[0]] ?? "")}</td>`).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn">${g.length}</span></td>${cols.map(c => `<td class="${c[2]}">${c[0] === "des" ? fb : ""}${esc(v[c[0]] ?? "")}</td>`).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
@@ -15669,22 +15669,22 @@ function renderBudgetList() {
       const sv = a => { const v = mgSort.col === "pct" ? a.pct : mgSort.col === "prd" ? (a.prd || null) : mgSort.col === "mg" ? (a.prd ? a.mg : null) : a.chg; return v === null || v === undefined ? null : v; };
       const byS = (x, y) => { const a = sv(x), b = sv(y); if (a === null && b === null) return 0; if (a === null) return 1; if (b === null) return -1; return (a - b) * mgSort.dir; };
       mgAll = [];
-      let band = -1;   /* v501 (remarque 50) : nuance de gris alternée par groupe de 1er niveau */
+      /* v503 (remarque 50 revue) : à chaque niveau, groupes voisins (et lignes voisines d'un groupe) en nuances alternées ;
+         trait de séparation au début de chaque groupe, plus marqué au 1er niveau */
       const walk = (L, i, path) => {
         if (i >= G.length - 1) {
           const LL = mgSort ? L.slice().sort((x, y) => byS(M.get(x.id), M.get(y.id))) : L;
-          LL.forEach(l => out.push({ leaf: true, l, lvl: i, dim: G[G.length - 1], band }));
+          LL.forEach((l, si) => out.push({ leaf: true, l, lvl: i, dim: G[G.length - 1], band: si % 2 }));
           return;
         }
         const d = G[i], seen = new Map();
         L.forEach(l => { if (!seen.has(l[d])) seen.set(l[d], []); seen.get(l[d]).push(l); });
         let E = [...seen.entries()].map(([id, LL]) => ({ id, LL, a: mgAgg(LL) }));
         if (mgSort) E.sort((x, y) => byS(x.a, y.a));
-        E.forEach(({ id, LL, a }) => {
+        E.forEach(({ id, LL, a }, si) => {
           const p = path + "/" + d + ":" + id;
           mgAll.push(p);
-          if (i === 0) band++;
-          out.push({ leaf: false, dim: d, id, lvl: i, path: p, links: LL, agg: a, open: mgOpen.has(p), band });
+          out.push({ leaf: false, dim: d, id, lvl: i, path: p, links: LL, agg: a, open: mgOpen.has(p), band: si % 2 });
           if (mgOpen.has(p)) walk(LL, i + 1, p);
           else (function sub(L2, j, p2) { if (j >= G.length - 1) return; const d2 = G[j], S = new Map(); L2.forEach(l => { if (!S.has(l[d2])) S.set(l[d2], []); S.get(l[d2]).push(l); }); S.forEach((L3, id3) => { const q = p2 + "/" + d2 + ":" + id3; mgAll.push(q); sub(L3, j + 1, q); }); })(LL, i + 1, p);
         });
@@ -15708,8 +15708,9 @@ function renderBudgetList() {
           return `<td class="${c[3]}">${!r.leaf && firstOf(r.dim) === c ? fold(r) : ""}${esc(c[2](l0))}</td>`;
         }).join("");
         if (r.leaf) return `<tr data-lid="${r.l.id}" class="mg-leaf mg-l${r.lvl} mg-b${r.band % 2}">${cells}${dw ? `<td class="center"><input type="checkbox" class="lnk-cb"${r.l.on === true ? " checked" : ""}></td>` : ""}</tr>`;
-        const on = r.links.every(l => l.on === true);
-        return `<tr class="mg-grp mg-l${r.lvl} mg-b${r.band % 2}" data-p="${esc(r.path)}">${cells}${dw ? `<td class="center"><input type="checkbox" class="mg-gcb" data-p="${esc(r.path)}"${on ? " checked" : ""}></td>` : ""}</tr>`;
+        const non = r.links.filter(l => l.on === true).length, on = non === r.links.length;
+        /* v503 (remarque 54) : ligne regroupée qui contient une liaison cochée = bleue (on suit le bleu jusqu'à la ligne cochée) */
+        return `<tr class="mg-grp mg-l${r.lvl} mg-b${r.band % 2}${non ? " mg-ck" : ""}" data-p="${esc(r.path)}">${cells}${dw ? `<td class="center"><input type="checkbox" class="mg-gcb" data-p="${esc(r.path)}"${on ? " checked" : ""}${non && !on ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
       };
       /* en-tête : loupe (tri / filtre), largeur réglable ; ▲ / ▼ sur la colonne classée par un toucher */
       const head = c => {
@@ -20928,7 +20929,7 @@ document.addEventListener("keydown", e => {
   let raf = 0;
   const run = () => {
     raf = 0;
-    document.querySelectorAll("input.ins-gcb").forEach(c => { const p = c.dataset.part === "1"; if (c.indeterminate !== p) c.indeterminate = p; });   /* v499 (remarque 45) */
+    document.querySelectorAll("input.ins-gcb, input.mg-gcb, input.ins-tcb[data-part]").forEach(c => { const p = c.dataset.part === "1"; if (c.indeterminate !== p) c.indeterminate = p; });   /* v499 (remarque 45) */
     document.querySelectorAll('input[type="checkbox"][class$="-cball"]').forEach(hd => {
       const box = hd.closest("table, .ins-hcol");
       if (!box) return;

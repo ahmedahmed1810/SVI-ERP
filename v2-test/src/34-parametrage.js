@@ -93,7 +93,7 @@ document.addEventListener("keydown", e => {
   let raf = 0;
   const run = () => {
     raf = 0;
-    document.querySelectorAll("input.ins-gcb").forEach(c => { const p = c.dataset.part === "1"; if (c.indeterminate !== p) c.indeterminate = p; });   /* v499 (remarque 45) */
+    document.querySelectorAll("input.ins-gcb, input.mg-gcb, input.ins-tcb[data-part]").forEach(c => { const p = c.dataset.part === "1"; if (c.indeterminate !== p) c.indeterminate = p; });   /* v499 (remarque 45) */
     document.querySelectorAll('input[type="checkbox"][class$="-cball"]').forEach(hd => {
       const box = hd.closest("table, .ins-hcol");
       if (!box) return;
