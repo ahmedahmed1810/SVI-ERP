@@ -8940,7 +8940,18 @@ function renderBudgetList() {
     /* une couleur par lot (FORMAT 91), partagée par toutes ses tâches */
     /* pas de rouge : le rouge est réservé aux tâches critiques */
     const DLY_PAL = ["#6fa8dc", "#93c47d", "#f6b26b", "#8e9fd6", "#76c5c0", "#c9a0dc", "#e8c468", "#9fb7c9", "#a8d5a2", "#8db3e2", "#d7b98e", "#7fc3e0"];
-    const dlyLotColor = lotId => { const i = INS.lot.filter(x => !x.t).findIndex(x => x.id === lotId); return DLY_PAL[Math.max(0, i) % DLY_PAL.length]; };
+    /* v518 : couleur FIXE par lot — donnée une fois (celle de son rang à ce moment-là, donc les couleurs actuelles ne changent pas),
+       puis gardée dans le budget (INS.lcol) : déplacer un lot ne change plus sa couleur */
+    const dlyLotColor = lotId => {
+      INS.lcol = INS.lcol || {};
+      let c = INS.lcol[lotId];
+      if (c === undefined) {
+        const i = INS.lot.filter(x => !x.t).findIndex(x => x.id === lotId);
+        c = INS.lcol[lotId] = Math.max(0, i) % DLY_PAL.length;
+        /* enregistrée avec la prochaine modification du budget (pas d'étape d'annulation pour une simple couleur) */
+      }
+      return DLY_PAL[c % DLY_PAL.length];
+    };
     /* MARGE = jours travaillés dont la tâche peut glisser sans repousser la fin du chantier (calcul au plus tard) */
     const dlyMarges = keys => {
       const cal = insCal();
