@@ -1965,3 +1965,14 @@ tr.ins-gtitle .ins-gfold { margin-right: 6px; }
 /* v503 (remarque 54) : ligne pliée qui cache une ligne cochée = bleue */
 .bdg-d-page .mg-table tr.mg-grp.mg-ck td:not(.xpl-pct), .bdg-d-page .ins-table tr.ins-hasck td { background: #c7d7fe !important; color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; }
 .bdg-d-page .ins-table tr.ins-hasck td :is(input, textarea, .ins-dv) { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; }
+
+/* v505 (remarque 55) : sélection à la couleur du tableau (rouge en instance, vert figé, noir validé) */
+td.svi-cs { background: var(--inst-bg, #eef0f3) !important; box-shadow: inset 0 0 0 1px var(--inst, #111827) !important; }
+/* v505 (remarque 56) : cases modifiables du titre de charges regroupées */
+.ins-table tr.ins-gtitle input.ins-gin { width: 100%; box-sizing: border-box; border: 0; background: transparent; font: inherit; font-weight: 800; padding: 0 8px; height: 20px; line-height: 20px; margin: 0; outline: none; border-radius: 0; -webkit-appearance: none; color: var(--inst, #1f2937); -webkit-text-fill-color: var(--inst, #1f2937); text-transform: uppercase; }
+.ins-table tr.ins-gtitle input.ins-gin.number { text-align: right; }
+.ins-table tr.ins-gtitle input.ins-gin.center { text-align: center; }
+.ins-table tr.ins-gtitle input.ins-gin:focus { box-shadow: inset 0 0 0 2px var(--inst, #b91c1c); background: #fff; }
+.ins-table tr.ins-gtitle td.ins-td { display: table-cell; }
+.ins-table tr.ins-gtitle td:has(> .ins-gfold) { white-space: nowrap; }
+.ins-table tr.ins-gtitle td:has(> .ins-gfold) > input.ins-gin { width: calc(100% - 30px); display: inline-block; }

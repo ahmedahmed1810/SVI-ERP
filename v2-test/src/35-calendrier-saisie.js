@@ -489,6 +489,7 @@ document.addEventListener("input", e => {
       });
     }
     const r = end.getBoundingClientRect();
+    { const c = getComputedStyle(end).getPropertyValue("--inst").trim(); H.style.background = c || "#111827"; }   /* v505 (remarque 55) */
     H.style.display = "block"; H.style.left = (r.right - 7 + window.scrollX) + "px"; H.style.top = (r.bottom - 7 + window.scrollY) + "px";
   };
   document.addEventListener("focusin", e => {

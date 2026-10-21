@@ -347,11 +347,11 @@ def main():
             I.links.push({{ id: 'L9', des: 'd2', lot: 'l2', prim: 'p1', sec: 's1', prd: [{{ id: 'x1' }}], chg: [{{ id: 'c9' }}] }});
             I.sec.find(x => x.id === 's1').on = true; X.refreshAll(); }}""")
         pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"chg\"]'); t && t.click(); }"); pg.wait_for_timeout(400)
-        grp = pg.evaluate("() => { const g = document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-grp'); return g ? [g.dataset.grp, g.innerText.replace(/\s+/g, ' ')] : null; }")
+        grp = pg.evaluate("() => { const g = document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-grp'); return g ? [g.dataset.grp, [...g.cells].map(c => { const i = c.querySelector('input.ins-gin'); return i ? i.value : c.textContent; }).join(' ').replace(/\s+/g, ' ')] : null; }")
         check("remarque 10 : CIMENT de deux tâches regroupé (QCB additionnée)", grp is not None and set(grp[0].split(",")) >= {"c9"} and "CIMENT" in grp[1], grp)
         g45 = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'); const g = t.querySelector('tr.ins-gtitle'); if (!g) return null;
             const kids = []; for (let r = g.nextElementSibling; r && !r.classList.contains('ins-grp'); r = r.nextElementSibling) if (r.dataset.iid) kids.push(r.dataset.iid);
-            return [g.innerText.replace(/\u202f/g, ' ').replace(/\s+/g, ' '), kids.length, !!g.querySelector('.ins-gfold')]; }""")
+            return [[...g.cells].map(c => { const i = c.querySelector('input.ins-gin'); return i ? i.value : c.textContent; }).join(' ').replace(/\u202f/g, ' ').replace(/\s+/g, ' '), kids.length, !!g.querySelector('.ins-gfold')]; }""")
         pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle .ins-gfold')?.click()"); pg.wait_for_timeout(300)
         g45b = pg.evaluate("() => { const g = document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle'); const n = g && g.nextElementSibling; return n ? !!n.dataset.iid && ['c1', 'c9'].includes(n.dataset.iid) : false; }")
         pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle .ins-gfold')?.click()"); pg.wait_for_timeout(300)
@@ -363,6 +363,12 @@ def main():
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.sec.forEach(x => x.on = false); X.refreshAll(); }}"); pg.wait_for_timeout(200)
         g49 = pg.evaluate("() => { const t = document.querySelector('table.ins-table[data-ik=\"chg\"]'); const g = t && t.querySelector('tr.ins-gtitle'); return g ? g.dataset.grp.split(',').sort() : null; }")
         check("remarque 49 : charges identiques regroupées en titre aussi sans filtre", g49 == ["c1", "c9"], g49)
+        pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"chg\"]'); t && t.click(); }"); pg.wait_for_timeout(300)
+        pg.click('table.ins-table[data-ik="chg"] tr.ins-gtitle input.ins-gin[data-f="p"]'); pg.wait_for_timeout(150)
+        pg.keyboard.type("1600"); pg.keyboard.press("Enter"); pg.wait_for_timeout(400)
+        g56 = pg.evaluate(f"() => {ins}.INS.chg.filter(c => c.des === 'CIMENT').map(c => c.p)")
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.chg.forEach(c => {{ if (c.des === 'CIMENT') c.p = 1500; }}); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(200)
+        check("remarque 56 : PCB tapé sur le titre des charges regroupées = PCB de toutes ses lignes", g56 == [1600, 1600], g56)
 
         # remarque 23 : QPB d'une désignation limitée aux tâches de la charge cochée
         q23 = pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;

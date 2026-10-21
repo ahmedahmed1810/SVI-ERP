@@ -992,6 +992,26 @@
     /* v495 (remarque 24) : case d'une ligne regroupée = coche / décoche toutes les charges qu'elle réunit */
     if (!shell.__gcbBound) {
       shell.__gcbBound = true;
+      /* v505 (remarque 56) : case du titre de charges regroupées modifiée = toutes ses lignes */
+      shell.addEventListener("change", e => {
+        const i = e.target.closest && e.target.closest("input.ins-gin"), X = shell.__ins;
+        if (!i || !X) return;
+        e.stopPropagation();
+        const ids = new Set((i.closest("tr[data-grp]")?.dataset.grp || "").split(",").filter(Boolean));
+        const G = X.INS.chg.filter(r => ids.has(r.id));
+        const f = i.dataset.f, num1 = f === "p" || f === "tva";
+        const val = num1 ? X.insNum(i.value) : sviClean(String(i.value || "")).toUpperCase();
+        if (!G.length) return;
+        if (f === "des" && !val) { svToast("DÉSIGNATION OBLIGATOIRE.", 2500, i); X.refreshAll(); return; }
+        /* une désignation de charge n'a qu'une unité et qu'un article dans tout le budget (remarque 10) */
+        const nx = { des: f === "des" ? val : G[0].des, u: f === "u" ? val : G[0].u, art: f === "art" ? val : G[0].art };
+        const o = X.INS.chg.find(x => !ids.has(x.id) && !x.t && U_(x.des) === U_(nx.des) && ((U_(x.u) && U_(nx.u) && U_(x.u) !== U_(nx.u)) || (U_(x.art) && U_(nx.art) && U_(x.art) !== U_(nx.art))));
+        if (o) { svToast(U_(nx.des) + " EXISTE DÉJÀ" + (U_(o.art) ? " (ARTICLE " + U_(o.art) + ")" : "") + " EN " + U_(o.u) + " : UNE DÉSIGNATION N'A QU'UNE UNITÉ ET UN ARTICLE.", 5000, i); X.refreshAll(); return; }
+        G.forEach(r => { r[f] = val; });
+        X.insSave();
+        if (typeof histLog === "function") histLog("SAISIE", "CHARGES REGROUPÉES", G.length + " LIGNE(S) — " + f.toUpperCase() + " = " + (num1 ? money(val || 0) : val));
+        X.refreshAll();
+      }, true);
       /* v499 (remarque 45) : plier / déplier un titre de charges regroupées */
       shell.addEventListener("click", e => {
         const b = e.target.closest && e.target.closest(".ins-gfold"), X = shell.__ins;

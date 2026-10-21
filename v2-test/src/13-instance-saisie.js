@@ -637,7 +637,18 @@
       const fo = CHG_GFOLD.has(key);
       const fb = `<span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier">${fo ? "›" : "⌄"}</span>`;
       const non = g.filter(r => r.on === true).length;
-      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn">${g.length}</span></td>${cols.map(c => `<td class="${c[2]}">${c[0] === "des" ? fb : ""}${esc(v[c[0]] ?? "")}</td>`).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      /* v505 (remarque 56) : ART, DÉSIGNATION, UCB, PCB et TVA du titre modifiables — la valeur va à toutes ses lignes
+         (PCB, UCB et TVA grisés si une de ses charges vient de CHS) ; QCB, montants, RENDEMENT et TÂCHE restent calculés */
+      const chs = g.some(r => !!r.chs);
+      const edOk = f => INS_EDIT && (["art", "des"].includes(f) || (["u", "p", "tva"].includes(f) && !chs));
+      const ps = new Set(g.map(r => money(num(r.p || 0)))), ts = new Set(g.map(r => money(insTVA(r))));
+      const ev = { art: v.art, des: v.des, u: v.u, p: ps.size === 1 ? [...ps][0] : v.p, tva: ts.size === 1 ? [...ts][0] : v.tva };
+      const cell = c => {
+        const f = c[0];
+        if (edOk(f)) return `<td class="${c[2]} ins-td">${f === "des" ? fb : ""}<input class="ins-gin ${c[2]}" data-f="${f}" enterkeyhint="next"${["p", "tva"].includes(f) ? ' inputmode="decimal"' : ""} value="${esc(ev[f] ?? "")}" autocomplete="off" spellcheck="false"></td>`;
+        return `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}">${f === "des" ? fb : ""}${esc(v[f] ?? "")}</td>`;
+      };
+      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
