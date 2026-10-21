@@ -2049,3 +2049,10 @@ td.svi-cs { background: var(--inst-bg, #eef0f3) !important; box-shadow: inset 0 
 
 /* v512 (remarque 78) : SAISIE DIRECTE sur place à la hauteur de l'écran (sous le bandeau et les onglets) */
 #sdW.sd-inplace .sd-card { height: var(--sdh, calc(100vh - 130px)) !important; min-height: 300px; }
+
+/* v513 : case seulement SÉLECTIONNÉE (1er toucher) — ni curseur ni texte surligné, dans les tableaux ET les listes LOT / ACTIVITÉS */
+:is(input, textarea).svi-nav { caret-color: transparent !important; }
+:is(input, textarea).svi-nav::selection { background: transparent; }
+/* v513 : plage sélectionnée dans une liste LOT / ACTIVITÉ PRIMAIRE / ACTIVITÉ SECONDAIRE */
+.ins-hcol input.svi-ls, .ins-hcol .act-u.svi-ls { background: #dbe7f7 !important; box-shadow: inset 0 0 0 1px #1d4ed8; }
+.ins-hcol .act-u.svi-ls input { background: transparent !important; }

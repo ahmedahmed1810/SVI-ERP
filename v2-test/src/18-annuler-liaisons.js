@@ -370,12 +370,12 @@
         /* ligne liée entièrement vidée : refusée, la valeur revient (FORMAT 90) */
         if (insRowEmpty(k, r) && X.isUsed(k, r.id)) {
           const old = shell.__dupOld && shell.__dupOld.id === r.id ? shell.__dupOld.row : null;
-          if (old) { r[inp.dataset.f] = old[inp.dataset.f] ?? ""; inp.value = inp.getAttribute("inputmode") === "decimal" ? insFmt(r[inp.dataset.f]) : String(r[inp.dataset.f] ?? ""); }
+          if (old) { r[inp.dataset.f] = old[inp.dataset.f] ?? ""; inp.value = sviIm(inp) === "decimal" ? insFmt(r[inp.dataset.f]) : String(r[inp.dataset.f] ?? ""); }
           svToast("LIGNE LIÉE : DÉLIER D'ABORD.", 3500, inp);
           X.insSave();
           return;
         }
-        if (inp.getAttribute("inputmode") === "decimal" && !sviNumOk(inp.value)) {
+        if (sviIm(inp) === "decimal" && !sviNumOk(inp.value)) {
           svToast("NOMBRE NON VALIDE : CHIFFRES SEULEMENT (EX. 1 234,56).", 3500, inp);
           inp.value = ""; r[inp.dataset.f] = ""; X.insSave();
           setTimeout(() => inp.focus(), 0);
