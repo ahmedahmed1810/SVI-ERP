@@ -1946,3 +1946,9 @@ tr.ins-gtitle .ins-gfold { margin-right: 6px; }
 .bdg-d-page .mg-table tr.mg-grp.mg-l0 td:not(.xpl-pct) { background: #eceff3 !important; }
 .bdg-d-page .mg-table tr.mg-grp:not(.mg-l0) td:not(.xpl-pct) { background: #f5f6f8 !important; }
 .mg-table th.mg-s .cf-lab { cursor: pointer; }
+
+/* v501 (remarque 50) : MARGE — nuance de gris alternée par groupe de 1er niveau (lui et tout ce qui est déplié dessous) */
+.bdg-d-page .mg-table tr.mg-leaf.mg-b1 td:not(.xpl-pct) { background: #cfdff7 !important; }
+.bdg-d-page .mg-table tr.mg-grp.mg-l0.mg-b1 td:not(.xpl-pct) { background: #e0e4ea !important; }
+.bdg-d-page .mg-table tr.mg-grp:not(.mg-l0).mg-b1 td:not(.xpl-pct) { background: #eaedf1 !important; }
+.mg-table tr.mg-grp td[data-k] { cursor: pointer; }
