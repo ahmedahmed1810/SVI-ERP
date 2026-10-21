@@ -6,7 +6,7 @@
         const cf = {};
         Object.entries(CF).forEach(([t, st]) => {
           const f = {};
-          Object.entries(st.f).forEach(([k, set]) => { f[k] = [...set]; });
+          Object.entries(st.f).forEach(([k, set]) => { f[k] = set && set.cond ? { vals: set.vals ? [...set.vals] : null, cond: set.cond } : [...set]; });   /* v510 : condition gardée */
           cf[t] = { sort: st.sort, f };
         });
         localStorage.setItem(ST_KEY, JSON.stringify({
@@ -35,7 +35,7 @@
         const x = cfT(t);
         x.sort = v.sort || null;
         x.f = {};
-        Object.entries(v.f || {}).forEach(([k, arr]) => { x.f[k] = new Set(arr); });
+        Object.entries(v.f || {}).forEach(([k, arr]) => { x.f[k] = Array.isArray(arr) ? new Set(arr) : arr && arr.cond ? cfMakeF(arr.vals ? new Set(arr.vals) : null, arr.cond) : new Set(); });
       });
       (st.desig || []).forEach(v => selDesig.add(v));
       (st.rows || []).forEach(v => selRows.add(v));

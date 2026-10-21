@@ -618,7 +618,9 @@
         shell.__fold(b.dataset.fold);
       }, true);
     }
-    const foldBtn = r => r && r.t ? `<span class="ins-fold${foldGet()[r.id] ? "" : " open"}" data-fold="${r.id}" role="button" aria-label="Replier / déplier">${foldGet()[r.id] ? "›" : "⌄"}</span>` : "";
+    /* v510 (remarque 68) : état d'une branche pour la couleur de son signe ou de sa pastille */
+    const sviFoldState = (red, blue) => red && blue ? " fs-vio" : red ? " fs-red" : blue ? " fs-blu" : "";
+    const foldBtn = r => r && r.t ? `<span class="ins-fold${foldGet()[r.id] ? "" : " open"}${INS_EDIT ? (() => { const B = insBranch(r).filter(x => !x.t); return sviFoldState(B.some(x => LK.des === x.id), B.some(x => lkHit("des", x.id))); })() : ""}" data-fold="${r.id}" role="button" aria-label="Replier / déplier">${foldGet()[r.id] ? "›" : "⌄"}</span>` : "";
     /* grands tableaux (détail produits / charges) : lignes dessinées par paquets, au fil du défilement (rapidité) */
     const INS_CHUNK = 120;
     const insMore = {};
@@ -652,8 +654,10 @@
       const nch = INS_EDIT && LK && LK.chg ? g.filter(r => LK.chg[r.id] !== undefined).length : 0;
       /* v508 (remarque 65) : couleur des ronds de ses lignes — rouge (choisies), bleu (liées à ce qui est choisi) */
       const isB = r => INS_EDIT && ((LK.des && lkIsLinked("chg", r.id)) || lkHit("chg", r.id));
-      const blu = nch ? g.filter(r => LK.chg[r.id] !== undefined).every(isB) : g.some(isB);
-      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : ""}" role="button" aria-label="Choisir toutes les charges">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      /* v510 (remarque 67) : mélange de rouge (choisies) et de bleu (liées) = violet */
+      const stt = new Set(g.map(r => LK && LK.chg && LK.chg[r.id] !== undefined ? (isB(r) ? "b" : "r") : (isB(r) ? "b" : "")).filter(Boolean));
+      const blu = stt.has("b") && !stt.has("r"), vio = stt.has("b") && stt.has("r");
+      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
@@ -943,13 +947,17 @@
     };
     const lotTreeHTML = list => lotTreeRows(list).map(x => {
       const pad = `style="margin-left:${x.lvl * 16}px"`;
-      const fold = x.kids ? `<span class="ins-fold lot-fold" data-path="${esc(x.path)}">${dlyIsFolded(x.path) ? "›" : "⌄"}</span>` : `<span class="lot-fold-sp"></span>`;
+      /* v510 (remarque 68) : signe d'un niveau aux couleurs des ronds de sa branche (rouge choisi, bleu lié, violet mélange) */
+      const UB = INS.lot.filter(r => !r.t && lotUnder(r, x.segs));
+      const fst = x.kids && INS_EDIT ? sviFoldState(UB.some(r => LK.lot === r.id), UB.some(r => lkHit("lot", r.id))) : "";
+      const fold = x.kids ? `<span class="ins-fold lot-fold${fst}" data-path="${esc(x.path)}">${dlyIsFolded(x.path) ? "›" : "⌄"}</span>` : `<span class="lot-fold-sp"></span>`;
       if (x.grp) {
         /* niveau sans lot à lui : nom modifiable, case = toute sa branche */
         const br = INS.lot.filter(r => !r.t && lotUnder(r, x.segs));
         const all = br.length && br.every(r => r.on === true);
         const GL = lotLab(x.segs);
-        return `<div class="ins-li lot-grp" data-path="${esc(x.path)}"><span class="ins-rdc"></span><span class="lot-in" ${pad}>${fold}${lotNoHTML(GL)}${INS_EDIT ? `<input class="lot-gname" data-kind="grp" data-path="${esc(x.path)}" value="${esc(GL.name)}" autocomplete="off">` : `<span>${esc(GL.name)}</span>`}</span>
+        /* v510 (remarque 68) : niveau replié qui cache un lot coché = bleu */
+        return `<div class="ins-li lot-grp${dlyIsFolded(x.path) && br.some(r => r.on === true) ? " ins-hasck" : ""}" data-path="${esc(x.path)}"><span class="ins-rdc"></span><span class="lot-in" ${pad}>${fold}${lotNoHTML(GL)}${INS_EDIT ? `<input class="lot-gname" data-kind="grp" data-path="${esc(x.path)}" value="${esc(GL.name)}" autocomplete="off">` : `<span>${esc(GL.name)}</span>`}</span>
           ${INS_EDIT ? `<span class="ins-delc"><input type="checkbox" class="lot-gcb" data-path="${esc(x.path)}"${all ? " checked" : ""}></span>` : ""}</div>`;
       }
       const r = x.r, k = "lot";
