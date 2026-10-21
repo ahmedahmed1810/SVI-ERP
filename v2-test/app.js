@@ -16019,7 +16019,7 @@ function renderBudgetList() {
           if (!showDim(c[4])) return `<td class="${c[3]}"></td>`;
           /* v520 : sous-lot (« LOT / SOUS-LOT ») décalé vers la droite, 20 px par niveau, comme les DÉSIGNATIONS CLIENT */
           const dep = c[0] === "lot" ? Math.max(0, String(c[2](l0) || "").split("/").filter(x => x.trim()).length - 1) : 0;
-          return `<td class="${c[3]}"${dep ? ` style="padding-left:${8 + dep * 20}px"` : ""}>${!r.leaf && firstOf(r.dim) === c ? fold(r) : ""}${esc(c[2](l0))}</td>`;
+          return `<td class="${c[3]}"${dep ? ` style="padding-left:${8 + dep * 20}px !important"` : ""}>${!r.leaf && firstOf(r.dim) === c ? fold(r) : ""}${esc(c[2](l0))}</td>`;
         }).join("");
         if (r.leaf) return `<tr data-lid="${r.l.id}" class="mg-leaf mg-l${r.lvl} mg-b${r.band % 2}">${cells}${dw ? `<td class="center"><input type="checkbox" class="lnk-cb"${r.l.on === true ? " checked" : ""}></td>` : ""}</tr>`;
         const non = r.links.filter(l => l.on === true).length, on = non === r.links.length;

@@ -711,9 +711,13 @@ def main():
             X.insSave(); X.refreshAll(); document.querySelector('.bdg-d-tab[data-tab="lnk"]')?.click();
             await new Promise(r => setTimeout(r, 500));
             const names = [...document.querySelectorAll('.mg-table tr.mg-grp.mg-l0')].map(t => [...t.cells].map(c => c.textContent.replace(/[›⌄]/g, '').trim()).find(Boolean));
-            const o = JSON.parse(save); I.lot = o.lot; I.links = o.links; try {{ if (co0 === null) localStorage.removeItem(CK); else localStorage.setItem(CK, co0); }} catch (e) {{}} X.insSave(); X.refreshAll(); return names; }}""")
+            const pad = [...document.querySelectorAll('.mg-table tr.mg-grp.mg-l0')].map(t => {{ const c = [...t.cells].find(c => c.textContent.trim()); return getComputedStyle(c).paddingLeft + '/' + Math.round(c.querySelector('.mg-f').getBoundingClientRect().left - c.getBoundingClientRect().left); }});
+            window.__pad519 = pad;
+            const o = JSON.parse(save); I.lot = o.lot; I.links = o.links; try {{ if (co0 === null) localStorage.removeItem(CK); else localStorage.setItem(CK, co0); }} catch (e) {{}} X.insSave(); X.refreshAll(); return [names, window.__pad519]; }}""")
+        pads = mo[1] if isinstance(mo, list) else None; mo = mo[0] if isinstance(mo, list) else mo
         ok519 = isinstance(mo, list) and "ETAGE 1 / ZONE A" in mo and "ETAGE 1" in mo and mo.index("ETAGE 1 / ZONE A") == mo.index("ETAGE 1") + 1
         check("v519 : MARGE — sous-lot juste sous son lot", ok519, mo)
+        check("v520 : MARGE — sous-lot décalé vers la droite", isinstance(pads, list) and int(str(pads[mo.index("ETAGE 1 / ZONE A")]).split("/")[-1]) >= int(str(pads[mo.index("ETAGE 1")]).split("/")[-1]) + 15, [mo, pads])
 
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
