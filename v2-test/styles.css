@@ -1952,3 +1952,16 @@ tr.ins-gtitle .ins-gfold { margin-right: 6px; }
 .bdg-d-page .mg-table tr.mg-grp.mg-l0.mg-b1 td:not(.xpl-pct) { background: #e0e4ea !important; }
 .bdg-d-page .mg-table tr.mg-grp:not(.mg-l0).mg-b1 td:not(.xpl-pct) { background: #eaedf1 !important; }
 .mg-table tr.mg-grp td[data-k] { cursor: pointer; }
+
+/* v503 (remarque 50 revue) : MARGE — à chaque niveau, nuances alternées entre voisins ; trait au début de chaque groupe */
+.bdg-d-page .mg-table tr.mg-grp.mg-l0 td:not(.xpl-pct) { background: #e6eaf0 !important; border-top: 2px solid #8b95a5; }
+.bdg-d-page .mg-table tr.mg-grp.mg-l0.mg-b1 td:not(.xpl-pct) { background: #dce1e9 !important; }
+.bdg-d-page .mg-table tr.mg-grp.mg-l1 td:not(.xpl-pct) { background: #f0f2f6 !important; border-top: 1px solid #aab3c0; }
+.bdg-d-page .mg-table tr.mg-grp.mg-l1.mg-b1 td:not(.xpl-pct) { background: #e7eaf0 !important; }
+.bdg-d-page .mg-table tr.mg-grp.mg-l2 td:not(.xpl-pct) { background: #f7f8fa !important; border-top: 1px solid #c9d0da; }
+.bdg-d-page .mg-table tr.mg-grp.mg-l2.mg-b1 td:not(.xpl-pct) { background: #eff1f5 !important; }
+.bdg-d-page .mg-table tr.mg-leaf td:not(.xpl-pct) { background: #dbeafe !important; }
+.bdg-d-page .mg-table tr.mg-leaf.mg-b1 td:not(.xpl-pct) { background: #cfe0fa !important; }
+/* v503 (remarque 54) : ligne pliée qui cache une ligne cochée = bleue */
+.bdg-d-page .mg-table tr.mg-grp.mg-ck td:not(.xpl-pct), .bdg-d-page .ins-table tr.ins-hasck td { background: #c7d7fe !important; color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; }
+.bdg-d-page .ins-table tr.ins-hasck td :is(input, textarea, .ins-dv) { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; }
