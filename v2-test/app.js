@@ -6240,13 +6240,20 @@ function renderBudgetList() {
     const insMore = {};
     /* v492 (remarque 10) : DÉTAIL CHARGES filtré (filtre de colonne, cases cochées d'un autre bloc, « seulement les cochées ») */
     const insChgFiltered = () => { const st = cfT(insCfT("chg")); return Object.keys(st.f || {}).length > 0 || !!ONLYC.chg || !!insCheckSet("chg"); };
-    const insGrpRowHTML = g => {
+    /* v499 (remarque 45) : charges identiques regroupées = un TITRE (gras, fond gris) — QCB, MCB HT et TTC cumulés,
+       PCB moyen pondéré (MCB HT ÷ QCB), TÂCHE = nombre de tâches ; signe › / ⌄ pour plier / déplier ses lignes (affichées dessous,
+       modifiables une par une) ; sa case coche / décoche toutes ses lignes (à moitié cochée si une partie seulement) */
+    const CHG_GFOLD = shell.__chgGFold = shell.__chgGFold || new Set();
+    const insGrpRowHTML = (g, key) => {
       const cols = insColsOrd("chg"), ht = g.reduce((t, r) => t + insHT("chg", r), 0), ttc = g.reduce((t, r) => t + insTTC("chg", r), 0);
-      const ps = new Set(g.map(r => money(Number(insCalc("chg", r, "p")) || 0)));
-      const v = { art: g[0].art || "", des: g[0].des || "", u: g[0].u || "", q: money(g.reduce((t, r) => t + (Number(insCalc("chg", r, "q")) || 0), 0)),
-        p: ps.size === 1 ? [...ps][0] : "", ht: money(ht), tva: ht ? money((ttc - ht) / ht * 100) : "", ttc: money(ttc), tache: "" };
-      const why = "LIGNES REGROUPÉES : " + g.length + " TÂCHES (" + [...new Set(g.map(r => chgTaskName(r.id)).filter(Boolean))].join(" · ") + "). RETIRER LE FILTRE POUR LES MODIFIER UNE PAR UNE.";
-      return `<tr class="ins-row ins-grp" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn" title="${esc(why)}">${g.length}</span></td>${cols.map(c => `<td class="${c[2]}${c[0] === "des" ? "" : ""}" data-why="${esc(why)}">${esc(v[c[0]] ?? "")}</td>`).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${g.every(r => r.on === true) ? " checked" : ""}></td>` : ""}</tr>`;   /* v495 (remarque 24) : case des lignes regroupées */
+      const qs = g.reduce((t, r) => t + (Number(insCalc("chg", r, "q")) || 0), 0);
+      const nt = new Set(g.map(r => chgTaskName(r.id)).filter(Boolean)).size;
+      const v = { art: g[0].art || "", des: g[0].des || "", u: g[0].u || "", q: money(qs), p: qs ? money(ht / qs) : "", ht: money(ht),
+        tva: ht ? money((ttc - ht) / ht * 100) : "", ttc: money(ttc), rdb: "", tache: nt + " TÂCHE" + (nt > 1 ? "S" : "") };
+      const fo = CHG_GFOLD.has(key);
+      const fb = `<span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier">${fo ? "›" : "⌄"}</span>`;
+      const non = g.filter(r => r.on === true).length;
+      return `<tr class="ins-row ins-grp ins-gtitle" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn">${g.length}</span></td>${cols.map(c => `<td class="${c[2]}">${c[0] === "des" ? fb : ""}${esc(v[c[0]] ?? "")}</td>`).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
@@ -6254,8 +6261,8 @@ function renderBudgetList() {
       const ncol = INS_COLS[k].length + 1;
       let html = "";
       if (k === "chg" && insChgFiltered()) {
-        /* v492 (remarque 10) : tableau filtré — charges identiques (même désignation, même unité, même article) regroupées
-           sur une ligne : quantités et montants additionnés, case TÂCHE vide ; lecture seule (retirer le filtre pour modifier) */
+        /* v492 (remarque 10) : tableau filtré — charges identiques (même désignation, même unité, même article) regroupées ;
+           v499 (remarque 45) : sous un titre (cumuls), ses lignes dessous, pliables */
         insMore[k] = [];
         const G = new Map();
         rows.forEach(r => { const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"); if (!G.has(key)) G.set(key, []); G.get(key).push(r); });
@@ -6265,7 +6272,7 @@ function renderBudgetList() {
           if (g.length < 2) return insRowHTML(k, r, 0);
           if (done.has(key)) return "";
           done.add(key);
-          return insGrpRowHTML(g);
+          return insGrpRowHTML(g, key) + (CHG_GFOLD.has(key) ? "" : g.map(x => insRowHTML(k, x, 1)).join(""));
         }).join("");
       } else if (k !== "des") {
         const first = rows.length > INS_CHUNK * 1.5 ? rows.slice(0, INS_CHUNK) : rows;
@@ -8249,6 +8256,14 @@ function renderBudgetList() {
     /* v495 (remarque 24) : case d'une ligne regroupée = coche / décoche toutes les charges qu'elle réunit */
     if (!shell.__gcbBound) {
       shell.__gcbBound = true;
+      /* v499 (remarque 45) : plier / déplier un titre de charges regroupées */
+      shell.addEventListener("click", e => {
+        const b = e.target.closest && e.target.closest(".ins-gfold"), X = shell.__ins;
+        if (!b || !X) return;
+        e.stopPropagation(); e.preventDefault();
+        const F = shell.__chgGFold; if (F.has(b.dataset.gk)) F.delete(b.dataset.gk); else F.add(b.dataset.gk);
+        X.refreshAll();
+      }, true);
       shell.addEventListener("change", e => {
         const cb = e.target.closest && e.target.closest("input.ins-gcb"), X = shell.__ins;
         if (!cb || !X) return;
@@ -20883,6 +20898,7 @@ document.addEventListener("keydown", e => {
   let raf = 0;
   const run = () => {
     raf = 0;
+    document.querySelectorAll("input.ins-gcb").forEach(c => { const p = c.dataset.part === "1"; if (c.indeterminate !== p) c.indeterminate = p; });   /* v499 (remarque 45) */
     document.querySelectorAll('input[type="checkbox"][class$="-cball"]').forEach(hd => {
       const box = hd.closest("table, .ins-hcol");
       if (!box) return;
