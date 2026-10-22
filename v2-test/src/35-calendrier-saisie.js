@@ -1295,7 +1295,7 @@ document.addEventListener("focusout", e => {
    plus vite à mesure que le doigt s'approche du bord ; le trait de dépôt suit
    ========================================================= */
 (() => {
-  let last = null, raf = 0, sc0 = null;
+  let last = null, raf = 0, sc0 = null, y0 = null;   /* y0 : doigt au début du glisser — rien ne défile tant qu'il n'a pas bougé */
   const E = 56;
   const scrollAnc = el => {
     for (let x = el && el.parentElement; x && x !== document.body && x !== document.documentElement; x = x.parentElement) {
@@ -1307,18 +1307,21 @@ document.addEventListener("focusout", e => {
   const speed = over => Math.min(24, Math.ceil(over / 3) + 2);
   const step = () => {
     raf = 0;
-    if (!last || !document.body.classList.contains("svi-dragging")) { sc0 = null; return; }
+    if (!last || !document.body.classList.contains("svi-dragging")) { sc0 = null; y0 = null; return; }
+    if (y0 === null) y0 = last.y;
+    if (Math.abs(last.y - y0) < 12) return;
     if (!sc0 || !sc0.isConnected) { const src = document.querySelector(".ro-src, .gb-lift"); sc0 = src ? scrollAnc(src) : null; }
     const y = last.y;
-    let moved = false;
+    let moved = false, inside = false;
     if (sc0) {
       /* zone de bord proportionnée à la hauteur de la zone (petite liste : petite zone, pour pouvoir viser ses lignes) */
       const r = sc0.getBoundingClientRect(), b = sc0.scrollTop, e = Math.max(14, Math.min(E, r.height * 0.16));
       if (y < r.top + e) sc0.scrollTop -= speed(r.top + e - y);
       else if (y > r.bottom - e) sc0.scrollTop += speed(y - (r.bottom - e));
+      else inside = true;   /* doigt dans la zone, loin de ses bords : la page ne bouge pas */
       moved = sc0.scrollTop !== b;
     }
-    if (!moved) {
+    if (!moved && !inside) {
       let top = 0; const tb = document.querySelector(".topbar, .bdg-d-sticky");
       if (tb && /sticky|fixed/.test(getComputedStyle(tb).position)) top = Math.max(0, tb.getBoundingClientRect().bottom);
       const b = window.scrollY;
@@ -1334,9 +1337,11 @@ document.addEventListener("focusout", e => {
   document.addEventListener("pointermove", e => {
     if (!e.isTrusted) return;
     last = { x: e.clientX, y: e.clientY, id: e.pointerId, t: e.pointerType };
-    if (document.body.classList.contains("svi-dragging") && !raf) raf = requestAnimationFrame(step);
+    if (!document.body.classList.contains("svi-dragging")) { y0 = null; return; }
+    if (y0 === null) y0 = last.y;
+    if (!raf) raf = requestAnimationFrame(step);
   }, true);
-  const stop = () => { last = null; sc0 = null; if (raf) { cancelAnimationFrame(raf); raf = 0; } };
+  const stop = () => { last = null; sc0 = null; y0 = null; if (raf) { cancelAnimationFrame(raf); raf = 0; } };
   document.addEventListener("pointerup", stop, true);
   document.addEventListener("pointercancel", stop, true);
 })();
