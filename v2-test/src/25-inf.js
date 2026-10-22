@@ -572,7 +572,8 @@
           histLog("SAISIE", "LIGNES SUPPRIMÉES", pl.del[k].size + " LIGNE(S)");
         });
         X.cleanLinks(); X.insSave();
-        if (blk === "detail" && active === "unl") refreshAll(); else Object.keys(pl.del).forEach(k => X.insRedraw(k));
+        /* v523 (remarque 4) : TOUS les tableaux et listes redessinés — les lignes cochées supprimées ne filtrent plus les autres blocs */
+        refreshAll();
       });
     };
     /* export / aperçu : s'il y a des lignes cochées dans le bloc, seulement celles-là */

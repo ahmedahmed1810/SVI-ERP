@@ -1050,6 +1050,15 @@
     };
 
     const refreshAll = () => {
+      /* v523 (remarque 4) : après une suppression, plus de filtre sur des lignes disparues — la mémoire des cases cochées
+         est vidée et un rond choisi sur une ligne supprimée est libéré (tous les tableaux et listes) */
+      ICL = null;
+      try {
+        if (INS && LK) {
+          ["des", "lot", "prim", "sec"].forEach(k => { if (LK[k] && !(INS[k] || []).some(r => r.id === LK[k])) LK[k] = null; });
+          ["chg", "prd"].forEach(k => { if (LK[k] && typeof LK[k] === "object") Object.keys(LK[k]).forEach(id => { if (!(INS[k] || []).some(r => r.id === id)) delete LK[k][id]; }); });
+        }
+      } catch (e) {}
       keepScroll(() => {
         computeCons(false);
         pruneHier();
