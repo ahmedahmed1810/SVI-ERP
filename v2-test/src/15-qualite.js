@@ -1177,8 +1177,10 @@
           const box = e.target.closest("table.ins-table, .ins-hcol");
           const k = box?.dataset.ik;
           if (!k) return;
+          /* v528 (remarque 2) : case carrée d'en-tête = TOUTES les lignes de la liste, y compris celles des groupes repliés */
+          const HL = shell.__hierList && shell.__hierList[k];
           const vis = k === "lot" || k === "prim" || k === "sec"
-            ? [...box.querySelectorAll(".ins-li[data-iid]")].map(li => X.INS[k].find(x => x.id === li.dataset.iid)).filter(Boolean)
+            ? (HL ? HL.map(id => X.INS[k].find(x => x.id === id)) : [...box.querySelectorAll(".ins-li[data-iid]")].map(li => X.INS[k].find(x => x.id === li.dataset.iid))).filter(Boolean)
             : X.insShown(k).filter(x => !x.t);
           if (ca) {
             /* FORMAT 125 : tout cocher coche aussi les titres (désignations) */
