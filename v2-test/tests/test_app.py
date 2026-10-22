@@ -965,6 +965,74 @@ def main():
         pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => !['na', 'nb', 'nc'].includes(r.id)); I.lot.forEach(r => r.on = false); I.links = I.links.filter(l => !/^LN/.test(l.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
         check("v528 remarque 2 : case carrée d'en-tête accessible (activités) et coche les lots des groupes repliés", h2 == [True, True] and all(h2b), [h2, h2b])
 
+        # ===== v529 : titres, sous-groupes, noms de groupe, glisser dans la liste des lots =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.set_viewport_size({"width": 1180, "height": 1400}); pg.wait_for_timeout(300)
+        S29 = f"""() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id)); I.lot.forEach(r => r.on = false);
+            I.lot.push({{ id: 'mv', v: 'MOVE' }}, {{ id: 'ga', v: 'GROUPE 4 / ZONE A' }}, {{ id: 'gb', v: 'GROUPE 4 / ZONE B' }}, {{ id: 'gs', v: 'GROUPE 4 / GROUPE 4.1 / ZONE S' }}, {{ id: 'gc', v: 'GROUPE 5 / ZONE C' }});
+            I.links = I.links.filter(l => !/^L9/.test(l.id)); ['ga', 'gs'].forEach((lo, n) => I.links.push({{ id: 'L9' + n, des: 'd2', lot: lo, prim: 'p1', sec: 's2', prd: [], chg: [{{ id: 'c2' }}] }}));
+            X.insSave(); X.refreshAll(); }}"""
+        def set29(fold=()):
+            pg.evaluate(S29); pg.wait_for_timeout(300)
+            for _ in range(8):
+                if not pg.evaluate(UNF): break
+                pg.wait_for_timeout(250)
+            for p_ in fold:
+                pg.evaluate("p => document.querySelector('.lot-fold[data-path=\"' + p + '\"]')?.click()", p_); pg.wait_for_timeout(250)
+            pg.evaluate("""() => { const b = document.querySelector('.ins-hcol[data-ik="lot"] .ins-li[data-iid="mv"]'); b.scrollIntoView({ block: 'center' });
+                let sc = b.parentElement; while (sc && !(sc.scrollHeight > sc.clientHeight + 2 && /(auto|scroll)/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
+                if (sc) { sc.style.maxHeight = 'none'; sc.style.height = (sc.scrollHeight + 40) + 'px'; sc.scrollTop = 0; } }"""); pg.wait_for_timeout(250)
+        def drag29(sel, frac, dx):
+            a = pg.evaluate("""() => { const r = document.querySelector('.ins-li[data-iid="mv"] input.ins-in').getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; }""")
+            t = pg.evaluate("""([s, f]) => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return r.top + r.height * f; }""", [sel, frac])
+            if t is None: return None
+            pg.mouse.move(a[0], a[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+            pg.mouse.move(a[0], t - 3, steps=6); pg.wait_for_timeout(100); pg.mouse.move(a[0] + dx, t, steps=4); pg.wait_for_timeout(150)
+            pg.mouse.up(); pg.wait_for_timeout(500)
+            return pg.evaluate(f"() => {{ const L = {ins}.INS.lot; const m = L.find(r => r.id === 'mv'); return [m.v, L.indexOf(m)]; }}")
+        LG = '.ins-hcol[data-ik="lot"] '
+        set29(); g1 = drag29(LG + '.lot-grp[data-path="GROUPE 4 / GROUPE 4.1"]', .9, -80)
+        set29(); g1b = drag29(LG + '.lot-grp[data-path="GROUPE 4"]', .9, -80)
+        check("v529 remarques 4-5 : déposé juste sous un titre de groupe = dans ce groupe, sans choix (doigt à gauche compris)",
+              g1 and g1[0] == "GROUPE 4 / GROUPE 4.1 / MOVE" and g1b and g1b[0] == "GROUPE 4 / MOVE", [g1, g1b])
+        set29(); g2 = drag29(LG + '.ins-li[data-iid="gb"]', .1, -80)
+        check("v529 remarque 4 : déposé entre deux lignes d'un groupe = reste dans le groupe", g2 and g2[0] == "GROUPE 4 / MOVE", g2)
+        set29(); g3a = drag29(LG + '.ins-li[data-iid="gs"]', .9, 0)
+        set29(); g3b = drag29(LG + '.ins-li[data-iid="gs"]', .9, -30)
+        set29(); g3c = drag29(LG + '.ins-li[data-iid="gs"]', .9, -80)
+        check("v529 remarques 4-5 : sous la dernière ligne d'un groupe déplié : trait court = dedans, plus long = rang du dessus, puis premier rang",
+              [g3a and g3a[0], g3b and g3b[0], g3c and g3c[0]] == ["GROUPE 4 / GROUPE 4.1 / MOVE", "GROUPE 4 / MOVE", "MOVE"], [g3a, g3b, g3c])
+        set29(("GROUPE 4", "GROUPE 5")); g4a = drag29(LG + '.lot-grp[data-path="GROUPE 4"]', .9, 0)
+        set29(("GROUPE 4", "GROUPE 5")); g4b = drag29(LG + '.lot-grp[data-path="GROUPE 4"]', .9, -80)
+        o4 = pg.evaluate(f"() => {{ const L = {ins}.INS.lot; return [L.findIndex(r => r.id === 'mv'), L.findIndex(r => r.id === 'gs'), L.findIndex(r => r.id === 'gc')]; }}")
+        check("v529 remarque 4 : entre deux groupes repliés : trait court = dans le groupe du dessus, trait long = même rang, entre les deux",
+              g4a and g4a[0] == "GROUPE 4 / MOVE" and g4b and g4b[0] == "MOVE" and o4[1] < o4[0] < o4[2], [g4a, g4b, o4])
+        # remarque 1 : rond d'un groupe = ses sous-groupes allumés aussi
+        set29()
+        pg.evaluate("() => document.querySelector('.lot-grp[data-path=\"GROUPE 4\"] .lk-rdgrp')?.click()"); pg.wait_for_timeout(400)
+        s1 = pg.evaluate("() => ['GROUPE 4', 'GROUPE 4 / GROUPE 4.1', 'GROUPE 5'].map(p => !!document.querySelector('.lot-grp[data-path=\"' + p + '\"] .lk-rdgrp.on'))")
+        pg.evaluate("() => document.querySelector('.lot-grp[data-path=\"GROUPE 4\"] .lk-rdgrp')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('.lot-grp[data-path=\"GROUPE 4\"] .lot-gcb')?.click()"); pg.wait_for_timeout(400)
+        s1b = pg.evaluate("() => [!!document.querySelector('.lot-grp[data-path=\"GROUPE 4 / GROUPE 4.1\"] .lot-gcb:checked'), !!document.querySelector('.lot-grp[data-path=\"GROUPE 5\"] .lot-gcb:checked')]")
+        pg.evaluate("() => document.querySelector('.lot-grp[data-path=\"GROUPE 4\"] .lot-gcb')?.click()"); pg.wait_for_timeout(300)
+        check("v529 remarque 1 : rond ou case carrée d'un groupe = ses sous-groupes aussi", s1 == [True, True, False] and s1b == [True, False], [s1, s1b])
+        # remarque 2 : titres bleu foncé sur ligne grisée (lots, désignations, planning)
+        C2 = """s => { const e = document.querySelector(s); if (!e) return null; const c = getComputedStyle(e); return c.webkitTextFillColor; }"""
+        t2 = [pg.evaluate(C2, '.lot-grp input.lot-gname'), pg.evaluate("() => getComputedStyle(document.querySelector('.ins-hcol .lot-grp')).backgroundColor"),
+              pg.evaluate(C2, '#bdgClientBody tr.ins-title input.ins-in') or pg.evaluate(C2, '#bdgClientBody tr.ins-title td')]
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(500)
+        t2.append(pg.evaluate(C2, '#bdgTabBody tr.dly-grp input.dly-nm') or pg.evaluate(C2, '#bdgTabBody tr.dly-grp td'))
+        check("v529 remarque 2 : titres en bleu foncé sur ligne grisée partout (lots, désignations, planning)",
+              t2 == ["rgb(30, 58, 138)", "rgb(228, 233, 241)", "rgb(30, 58, 138)", "rgb(30, 58, 138)"], t2)
+        # remarque 3 : nom tapé sur un titre gardé même si l'écran est redessiné sans quitter la case (iPad)
+        pg.evaluate("() => { const i = document.querySelector('.lot-grp[data-path=\"GROUPE 5\"] input.lot-gname'); i.focus(); i.value = 'SOUS-SOL'; i.dispatchEvent(new Event('input', { bubbles: true })); }")
+        pg.evaluate("() => document.querySelector('.lot-fold[data-path=\"GROUPE 4\"]')?.click()"); pg.wait_for_timeout(500)
+        pg.evaluate("() => document.querySelector('.lot-fold[data-path=\"GROUPE 4\"]')?.click()"); pg.wait_for_timeout(300)
+        n3 = pg.evaluate(f"() => [{ins}.INS.lot.find(r => r.id === 'gc').v, (document.querySelector('.lot-grp[data-path=\"SOUS-SOL\"] input.lot-gname') || {{}}).value]")
+        check("v529 remarque 3 : nom SOUS-SOL tapé sur un titre de groupe gardé (plus de retour à GROUPE n)", n3 == ["SOUS-SOL / ZONE C", "SOUS-SOL"], n3)
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id)); I.links = I.links.filter(l => !/^L9/.test(l.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

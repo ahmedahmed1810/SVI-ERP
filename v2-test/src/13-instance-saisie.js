@@ -478,8 +478,11 @@
       if (!INS_EDIT) return "";
       /* v528 (remarque 1) : rond d'en-tête actif = tous les titres aussi ; rond d'un titre parent d'un titre choisi = choisi aussi */
       const pk = LK.allp && LK.allp[k];
-      const inPk = k === "lot" && pk && (U_(pk) === U_(key) || U_(pk).startsWith(U_(key) + " / "));
-      const on = !!(LK.all && LK.all[k] && (!pk || pk === key));
+      /* v529 (remarque 1) : titre choisi = ses sous-titres (sous-groupes) choisis aussi ; ses titres parents = « en partie » */
+      const desIn = (top, id) => { const t = INS.des.find(x => x.id === top); return !!t && insBranch(t).some(x => x.id === id); };
+      const inPk = !!pk && (k === "lot" ? (U_(pk) === U_(key) || U_(pk).startsWith(U_(key) + " / ")) : k === "des" ? desIn(key, pk) : false);
+      const subPk = !!pk && (k === "lot" ? U_(key).startsWith(U_(pk) + " / ") : k === "des" ? key !== pk && desIn(pk, key) : false);
+      const on = !!(LK.all && LK.all[k] && (!pk || pk === key || subPk));
       const part = !!(LK.all && LK.all[k] && inPk && pk !== key);
       const busy = !!LK[k] || (!!(LK.all && LK.all[k]) && !on && !part);
       return `<span class="lk-rd lk-rdgrp${on ? " on" : ""}${part ? " part" : ""}${busy ? " off" : ""}" data-rdgrp="${k}" data-key="${esc(key)}" role="button" aria-label="Choisir toutes les lignes liées du titre"></span>`;
@@ -1096,14 +1099,29 @@
       const pre = x.segs.length > 1 ? x.segs.slice(0, -1).join(" / ") + " / " : "";
       const LL = lotLab(x.segs);
       const nm = x.segs.length ? LL.name : (r.v || "");
-      return `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
+      return `<div class="ins-li${x.kids ? " lot-par" : ""}${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
           ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><span class="lot-in" ${pad}>${fold}${lotNoHTML(LL)}<input class="ins-in" data-f="v" enterkeyhint="next" data-pre="${esc(pre)}" value="${esc(nm)}" autocomplete="off"></span>
             <span class="ins-delc">${insDelCell(r)}</span>` : `<span class="lot-in" ${pad}>${fold}<span>${esc(x.segs.length ? LL.full : nm)}</span></span>`}
         </div>`;
     }).join("");
     /* glissement d'un lot (FORMAT 26, 44) : dans un niveau = passe dessous ; avant / après = même niveau que la ligne visée ;
        superposé à un lot = nouveau niveau « NIVEAU n » qui regroupe les deux */
-    const lotDrop = (srcId, tEl, mode) => {
+    /* v529 : lots rangés dans l'ordre de l'arborescence affichée (un niveau prend la place de son premier lot) */
+    const lotTreeOrder = arr => {
+      const first = new Map();
+      arr.forEach((r, i) => { const s2 = lotSegs(r); for (let j = 1; j <= s2.length; j++) { const p = U_(s2.slice(0, j).join(" / ")); if (!first.has(p)) first.set(p, i); } });
+      const key = r => { const s2 = lotSegs(r); return s2.map((_, j) => first.get(U_(s2.slice(0, j + 1).join(" / ")))); };
+      const K = new Map(arr.map(r => [r, key(r)]));
+      const pos = new Map(arr.map((r, i) => [r, i]));
+      return arr.slice().sort((a, b) => {
+        const A = K.get(a), B = K.get(b);
+        for (let i = 0; i < Math.min(A.length, B.length); i++) if (A[i] !== B[i]) return A[i] - B[i];
+        return A.length - B.length || pos.get(a) - pos.get(b);
+      });
+    };
+    /* v529 (remarques 4 et 5) : dépôt ENTRE deux lignes de la liste des lots — gap = { prev: chemin de la ligne du dessus (ou null),
+       inStart: ligne du dessus = titre déplié (on entre dedans, en premier), D: rang d'arrivée (0 = premier rang) } */
+    const lotDrop = (srcId, tEl, mode, gap) => {
       /* v525 : « @chemin » = un titre de niveau (sans lot à lui) et toute sa branche */
       const gP = String(srcId || "").startsWith("@") ? dlyLotPath(String(srcId).slice(1)) : null;
       const L = INS.lot, src = gP ? { v: gP.join(" / ") } : L.find(x => x.id === srcId);
@@ -1111,7 +1129,8 @@
       const P = gP || lotSegs(src);
       const tSegs = tEl.classList.contains("lot-grp") ? dlyLotPath(tEl.dataset.path) : lotSegs(L.find(x => x.id === tEl.dataset.iid));
       let base, extra = null, N = "";
-      if (mode === "on" && tEl.classList.contains("lot-grp")) base = tSegs;
+      if (mode === "gap") base = !gap.prev ? [] : gap.inStart ? gap.prev.slice() : gap.prev.slice(0, gap.D);
+      else if (mode === "on" && tEl.classList.contains("lot-grp")) base = tSegs;
       else if (mode === "on") {
         N = insNextLevel(tSegs.slice(0, -1));
         base = tSegs.slice(0, -1).concat(N);
@@ -1131,13 +1150,19 @@
       }
       /* ordre : le bloc déplacé se place à l'endroit du dépôt */
       {
-        const mv = L.filter(x => plan.has(x.id) && !(extra && lotUnder(x, extra.P) && !lotUnder(x, P)));
-        const rest = L.filter(x => !mv.includes(x));
+        const mv = lotTreeOrder(L).filter(x => plan.has(x.id) && !(extra && lotUnder(x, extra.P) && !lotUnder(x, P)));
+        const rest = lotTreeOrder(L.filter(x => !mv.includes(x)));
         const nodeOf = tEl.classList.contains("lot-grp") ? lotSegs({ v: tEl.dataset.path }) : null;
         const tId = tEl.dataset.iid;
         const under = r => nodeOf ? lotUnder(r, nodeOf) : r.id === tId || lotUnder(r, lotSegs(L.find(x => x.id === tId)));
         let idx;
-        if (mode === "before") idx = rest.findIndex(under);
+        if (mode === "gap") {
+          const pv = gap.prev;
+          if (!pv) idx = 0;
+          else if (gap.inStart) { idx = rest.findIndex(r => lotUnder(r, pv) && lotSegs(r).length > pv.length); if (idx < 0) { let last = -1; rest.forEach((r, i) => { if (lotUnder(r, pv)) last = i; }); idx = last + 1; } }
+          else { const Nd = gap.D >= pv.length ? pv : pv.slice(0, gap.D + 1); let last = -1; rest.forEach((r, i) => { if (lotUnder(r, Nd)) last = i; }); idx = last + 1; }
+        }
+        else if (mode === "before") idx = rest.findIndex(under);
         else { let last = -1; rest.forEach((r, i) => { if (under(r)) last = i; }); idx = last + 1; }
         if (idx < 0) idx = rest.length;
         rest.splice(idx, 0, ...mv);
@@ -1163,10 +1188,20 @@
         const g = e.target.closest && e.target.closest("input.lot-gcb");
         if (g) { const P = dlyLotPath(g.dataset.path); INS.lot.forEach(r => { if (!r.t && lotUnder(r, P)) r.on = g.checked; }); insSave(); refreshAll(); return; }
         const n = e.target.closest && e.target.closest("input.lot-gname");
-        if (n && shell.__insDly) shell.__insDly.rename(n);
+        if (n && shell.__insDly && !n.__gnDone) { n.__gnDone = true; shell.__insDly.rename(n); }
       });
     }
+    /* v529 (remarque 3) : nom tapé sur un titre de groupe gardé même si l'écran est redessiné avant que la case ne soit quittée
+       (iPad : toucher un rond, un signe de pliage ou un autre groupe ne fait pas toujours perdre le focus) — LOTS et PLANNING */
+    const grpFlush = () => {
+      const a = document.activeElement;
+      if (!a || !a.matches || !a.matches("input.lot-gname, input.dly-nm:not(.dly-gin)") || !shell.contains(a) || a.__gnDone) return;
+      if (a.value === a.defaultValue || !shell.__insDly) return;
+      a.__gnDone = true;
+      shell.__insDly.rename(a);
+    };
     const insRenderHier = only => {
+      grpFlush();
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
       const col = (title, k) => {
         if (ONLYC[k] && !INS[k].some(r => r.on === true)) ONLYC[k] = false;

@@ -1330,7 +1330,7 @@
           return;
         }
         const n = e.target.closest && e.target.closest("input.dly-nm:not(.dly-gin)");
-        if (n) { X.rename(n); return; }
+        if (n && !n.__gnDone) { n.__gnDone = true; X.rename(n); return; }
         const ni = e.target.closest && e.target.closest("input.dly-newin");
         if (ni) {
           const tr = ni.closest("tr"), g = f => tr.querySelector(`input.dly-newin[data-f="${f}"]`);
@@ -1822,7 +1822,7 @@
       return LK.dlpDraft;
     };
     /* FORMAT 22 : actions du planning (Gantt compris) — l'écran ne bouge jamais */
-    const renderTabK = () => keepScroll(() => renderTab());
+    const renderTabK = () => { grpFlush(); keepScroll(() => renderTab()); };
     shell.__insDly = INS && INS_EDIT ? { INS, dAdd, dDiff, dParse, dFr, insId, insSave, err: "", draft: dlyDraft,
       predFin: k => dlyPredFin(k), succs: k => dlySuccs(k), deb: k => dlyDeb(k), name: k => dlyName(k), shift: (k, g) => dlyShift(k, g),
       cal: () => insCal(), glued: k => dlyGlued(k), links: k => dlyLinks(k), apply: (k, q, o) => dlyApply(k, q, o),

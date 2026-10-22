@@ -6173,8 +6173,11 @@ function renderBudgetList() {
       if (!INS_EDIT) return "";
       /* v528 (remarque 1) : rond d'en-tête actif = tous les titres aussi ; rond d'un titre parent d'un titre choisi = choisi aussi */
       const pk = LK.allp && LK.allp[k];
-      const inPk = k === "lot" && pk && (U_(pk) === U_(key) || U_(pk).startsWith(U_(key) + " / "));
-      const on = !!(LK.all && LK.all[k] && (!pk || pk === key));
+      /* v529 (remarque 1) : titre choisi = ses sous-titres (sous-groupes) choisis aussi ; ses titres parents = « en partie » */
+      const desIn = (top, id) => { const t = INS.des.find(x => x.id === top); return !!t && insBranch(t).some(x => x.id === id); };
+      const inPk = !!pk && (k === "lot" ? (U_(pk) === U_(key) || U_(pk).startsWith(U_(key) + " / ")) : k === "des" ? desIn(key, pk) : false);
+      const subPk = !!pk && (k === "lot" ? U_(key).startsWith(U_(pk) + " / ") : k === "des" ? key !== pk && desIn(pk, key) : false);
+      const on = !!(LK.all && LK.all[k] && (!pk || pk === key || subPk));
       const part = !!(LK.all && LK.all[k] && inPk && pk !== key);
       const busy = !!LK[k] || (!!(LK.all && LK.all[k]) && !on && !part);
       return `<span class="lk-rd lk-rdgrp${on ? " on" : ""}${part ? " part" : ""}${busy ? " off" : ""}" data-rdgrp="${k}" data-key="${esc(key)}" role="button" aria-label="Choisir toutes les lignes liées du titre"></span>`;
@@ -6791,14 +6794,29 @@ function renderBudgetList() {
       const pre = x.segs.length > 1 ? x.segs.slice(0, -1).join(" / ") + " / " : "";
       const LL = lotLab(x.segs);
       const nm = x.segs.length ? LL.name : (r.v || "");
-      return `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
+      return `<div class="ins-li${x.kids ? " lot-par" : ""}${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
           ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><span class="lot-in" ${pad}>${fold}${lotNoHTML(LL)}<input class="ins-in" data-f="v" enterkeyhint="next" data-pre="${esc(pre)}" value="${esc(nm)}" autocomplete="off"></span>
             <span class="ins-delc">${insDelCell(r)}</span>` : `<span class="lot-in" ${pad}>${fold}<span>${esc(x.segs.length ? LL.full : nm)}</span></span>`}
         </div>`;
     }).join("");
     /* glissement d'un lot (FORMAT 26, 44) : dans un niveau = passe dessous ; avant / après = même niveau que la ligne visée ;
        superposé à un lot = nouveau niveau « NIVEAU n » qui regroupe les deux */
-    const lotDrop = (srcId, tEl, mode) => {
+    /* v529 : lots rangés dans l'ordre de l'arborescence affichée (un niveau prend la place de son premier lot) */
+    const lotTreeOrder = arr => {
+      const first = new Map();
+      arr.forEach((r, i) => { const s2 = lotSegs(r); for (let j = 1; j <= s2.length; j++) { const p = U_(s2.slice(0, j).join(" / ")); if (!first.has(p)) first.set(p, i); } });
+      const key = r => { const s2 = lotSegs(r); return s2.map((_, j) => first.get(U_(s2.slice(0, j + 1).join(" / ")))); };
+      const K = new Map(arr.map(r => [r, key(r)]));
+      const pos = new Map(arr.map((r, i) => [r, i]));
+      return arr.slice().sort((a, b) => {
+        const A = K.get(a), B = K.get(b);
+        for (let i = 0; i < Math.min(A.length, B.length); i++) if (A[i] !== B[i]) return A[i] - B[i];
+        return A.length - B.length || pos.get(a) - pos.get(b);
+      });
+    };
+    /* v529 (remarques 4 et 5) : dépôt ENTRE deux lignes de la liste des lots — gap = { prev: chemin de la ligne du dessus (ou null),
+       inStart: ligne du dessus = titre déplié (on entre dedans, en premier), D: rang d'arrivée (0 = premier rang) } */
+    const lotDrop = (srcId, tEl, mode, gap) => {
       /* v525 : « @chemin » = un titre de niveau (sans lot à lui) et toute sa branche */
       const gP = String(srcId || "").startsWith("@") ? dlyLotPath(String(srcId).slice(1)) : null;
       const L = INS.lot, src = gP ? { v: gP.join(" / ") } : L.find(x => x.id === srcId);
@@ -6806,7 +6824,8 @@ function renderBudgetList() {
       const P = gP || lotSegs(src);
       const tSegs = tEl.classList.contains("lot-grp") ? dlyLotPath(tEl.dataset.path) : lotSegs(L.find(x => x.id === tEl.dataset.iid));
       let base, extra = null, N = "";
-      if (mode === "on" && tEl.classList.contains("lot-grp")) base = tSegs;
+      if (mode === "gap") base = !gap.prev ? [] : gap.inStart ? gap.prev.slice() : gap.prev.slice(0, gap.D);
+      else if (mode === "on" && tEl.classList.contains("lot-grp")) base = tSegs;
       else if (mode === "on") {
         N = insNextLevel(tSegs.slice(0, -1));
         base = tSegs.slice(0, -1).concat(N);
@@ -6826,13 +6845,19 @@ function renderBudgetList() {
       }
       /* ordre : le bloc déplacé se place à l'endroit du dépôt */
       {
-        const mv = L.filter(x => plan.has(x.id) && !(extra && lotUnder(x, extra.P) && !lotUnder(x, P)));
-        const rest = L.filter(x => !mv.includes(x));
+        const mv = lotTreeOrder(L).filter(x => plan.has(x.id) && !(extra && lotUnder(x, extra.P) && !lotUnder(x, P)));
+        const rest = lotTreeOrder(L.filter(x => !mv.includes(x)));
         const nodeOf = tEl.classList.contains("lot-grp") ? lotSegs({ v: tEl.dataset.path }) : null;
         const tId = tEl.dataset.iid;
         const under = r => nodeOf ? lotUnder(r, nodeOf) : r.id === tId || lotUnder(r, lotSegs(L.find(x => x.id === tId)));
         let idx;
-        if (mode === "before") idx = rest.findIndex(under);
+        if (mode === "gap") {
+          const pv = gap.prev;
+          if (!pv) idx = 0;
+          else if (gap.inStart) { idx = rest.findIndex(r => lotUnder(r, pv) && lotSegs(r).length > pv.length); if (idx < 0) { let last = -1; rest.forEach((r, i) => { if (lotUnder(r, pv)) last = i; }); idx = last + 1; } }
+          else { const Nd = gap.D >= pv.length ? pv : pv.slice(0, gap.D + 1); let last = -1; rest.forEach((r, i) => { if (lotUnder(r, Nd)) last = i; }); idx = last + 1; }
+        }
+        else if (mode === "before") idx = rest.findIndex(under);
         else { let last = -1; rest.forEach((r, i) => { if (under(r)) last = i; }); idx = last + 1; }
         if (idx < 0) idx = rest.length;
         rest.splice(idx, 0, ...mv);
@@ -6858,10 +6883,20 @@ function renderBudgetList() {
         const g = e.target.closest && e.target.closest("input.lot-gcb");
         if (g) { const P = dlyLotPath(g.dataset.path); INS.lot.forEach(r => { if (!r.t && lotUnder(r, P)) r.on = g.checked; }); insSave(); refreshAll(); return; }
         const n = e.target.closest && e.target.closest("input.lot-gname");
-        if (n && shell.__insDly) shell.__insDly.rename(n);
+        if (n && shell.__insDly && !n.__gnDone) { n.__gnDone = true; shell.__insDly.rename(n); }
       });
     }
+    /* v529 (remarque 3) : nom tapé sur un titre de groupe gardé même si l'écran est redessiné avant que la case ne soit quittée
+       (iPad : toucher un rond, un signe de pliage ou un autre groupe ne fait pas toujours perdre le focus) — LOTS et PLANNING */
+    const grpFlush = () => {
+      const a = document.activeElement;
+      if (!a || !a.matches || !a.matches("input.lot-gname, input.dly-nm:not(.dly-gin)") || !shell.contains(a) || a.__gnDone) return;
+      if (a.value === a.defaultValue || !shell.__insDly) return;
+      a.__gnDone = true;
+      shell.__insDly.rename(a);
+    };
     const insRenderHier = only => {
+      grpFlush();
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
       const col = (title, k) => {
         if (ONLYC[k] && !INS[k].some(r => r.on === true)) ONLYC[k] = false;
@@ -10280,7 +10315,7 @@ function renderBudgetList() {
           return;
         }
         const n = e.target.closest && e.target.closest("input.dly-nm:not(.dly-gin)");
-        if (n) { X.rename(n); return; }
+        if (n && !n.__gnDone) { n.__gnDone = true; X.rename(n); return; }
         const ni = e.target.closest && e.target.closest("input.dly-newin");
         if (ni) {
           const tr = ni.closest("tr"), g = f => tr.querySelector(`input.dly-newin[data-f="${f}"]`);
@@ -10772,7 +10807,7 @@ function renderBudgetList() {
       return LK.dlpDraft;
     };
     /* FORMAT 22 : actions du planning (Gantt compris) — l'écran ne bouge jamais */
-    const renderTabK = () => keepScroll(() => renderTab());
+    const renderTabK = () => { grpFlush(); keepScroll(() => renderTab()); };
     shell.__insDly = INS && INS_EDIT ? { INS, dAdd, dDiff, dParse, dFr, insId, insSave, err: "", draft: dlyDraft,
       predFin: k => dlyPredFin(k), succs: k => dlySuccs(k), deb: k => dlyDeb(k), name: k => dlyName(k), shift: (k, g) => dlyShift(k, g),
       cal: () => insCal(), glued: k => dlyGlued(k), links: k => dlyLinks(k), apply: (k, q, o) => dlyApply(k, q, o),
@@ -12295,6 +12330,7 @@ function renderBudgetList() {
     };
 
     const refreshAll = () => {
+      grpFlush();
       /* v523 (remarque 4) : après une suppression, plus de filtre sur des lignes disparues — la mémoire des cases cochées
          est vidée et un rond choisi sur une ligne supprimée est libéré (tous les tableaux et listes) */
       ICL = null;
@@ -13099,7 +13135,17 @@ function renderBudgetList() {
         ? [...el.parentElement.querySelectorAll("tr[data-iid]")]
         : [...el.parentElement.querySelectorAll(k === "lot" ? ".ins-li[data-iid], .ins-li.lot-grp" : ".ins-li[data-iid]")];
       const x0 = event.clientX, y0 = event.clientY;
-      let on = false, moved = false, target = null, after = false, over = false, inside = false, outD = null;
+      let on = false, moved = false, target = null, after = false, over = false, inside = false, outD = null, gap = null;
+      /* v529 : lignes visibles de la liste des lots (chemin, a des sous-lignes, replié) — sans la ligne déplacée ni sa branche */
+      const lotRows = () => {
+        if (k !== "lot") return [];
+        const srcP = el.classList.contains("lot-grp") ? dlyLotPath(el.dataset.path) : lotSegs(X.INS.lot.find(q => q.id === el.dataset.iid));
+        return sibs().map(x2 => {
+          const segs = x2.classList.contains("lot-grp") ? dlyLotPath(x2.dataset.path) : lotSegs(X.INS.lot.find(q => q.id === x2.dataset.iid));
+          const fd = x2.querySelector(".lot-fold");
+          return { el: x2, segs, kids: !!fd, folded: !!fd && fd.textContent.trim() === "›" };
+        }).filter(o => o.el !== el && !(srcP.length && o.segs.length >= srcP.length && srcP.every((g, i) => U_(g) === U_(o.segs[i]))));
+      };
       /* repères de glissement effacés partout (même si le tableau a été redessiné entre-temps) */
       const clear = () => {
         shell.querySelectorAll(".ro-before, .ro-after, .ro-in, .ro-on").forEach(x => x.classList.remove("ro-before", "ro-after", "ro-in", "ro-on"));
@@ -13171,16 +13217,33 @@ function renderBudgetList() {
                 if (over) x.classList.add("ro-on");
                 else roLine(x, after ? r.bottom : r.top, outD != null ? outD : !after ? d0 : (tr0 && tr0.t && (!foldGet()[tr0.id] || inside)) ? d0 + 1 : d0);
               } else if (k === "lot") {
-                /* lots : haut = avant, milieu = dans le niveau (ou nouveau niveau), bas = après — un seul trait */
+                /* lots : milieu = dans le groupe (ou nouveau groupe) ; haut / bas = ENTRE deux lignes, un seul trait.
+                   v529 (remarques 4 et 5) : juste sous un titre déplié, ou entre deux lignes d'un même groupe = dans ce groupe, sans choix ;
+                   sous la dernière ligne d'un groupe déplié, ou sous un groupe replié = choix au doigt :
+                   vers la droite = trait court = dans le groupe du dessus ; vers la gauche = trait long = même rang que lui */
                 const f = (e.clientY - r.top) / (r.height || 1);
                 over = f > .25 && f < .75;
                 after = f >= .75;
+                gap = null;
                 if (over) x.classList.add("ro-on");
                 else {
+                  const rows = lotRows(), ix = rows.findIndex(o => o.el === x);
+                  if (ix < 0) { target = null; break; }   /* ligne de la branche déplacée : pas de dépôt */
+                  const pv = after ? rows[ix] : rows[ix - 1], nx = after ? rows[ix + 1] : rows[ix];
+                  let D, Dmin, Dmax, inStart = false;
+                  if (!pv) { D = Dmin = Dmax = 0; }
+                  else if (pv.kids && !pv.folded) { inStart = true; D = Dmin = Dmax = pv.segs.length; }
+                  else {
+                    Dmax = pv.kids ? pv.segs.length : pv.segs.length - 1;
+                    Dmin = nx ? Math.min(Dmax, nx.segs.length - 1) : 0;
+                    D = Math.max(Dmin, Math.min(Dmax, Dmax + Math.round((e.clientX - x0) / 28)));
+                  }
+                  gap = { prev: pv ? pv.segs : null, D, inStart, el: pv ? pv.el : x };
                   let l = document.getElementById("roLine");
                   if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); }
-                  const ip = (x.querySelector(".lot-in") || x).getBoundingClientRect(), cr = x.getBoundingClientRect();
-                  l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${ip.left}px;width:${Math.max(20, cr.right - ip.left)}px;top:${(after ? r.bottom : r.top) - 1.5}px`;
+                  const ref = pv || rows[ix], ip = (ref.el.querySelector(".lot-in") || ref.el).getBoundingClientRect(), cr = ref.el.getBoundingClientRect();
+                  const left = ip.left + (D - (ref.segs.length - 1)) * 16;
+                  l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${left}px;width:${Math.max(20, cr.right - left)}px;top:${(after ? r.bottom : r.top) - 1.5}px`;
                 }
               } else {
                 /* déplacement simple : un seul trait à l'endroit du dépôt */
@@ -13220,7 +13283,7 @@ function renderBudgetList() {
         setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 350);
         if (!drop || !target) return;
         /* v525 (remarque 5) : titre de niveau déplacé = toute sa branche */
-        if (k === "lot" && el.classList.contains("lot-grp")) { lotDrop("@" + el.dataset.path, target, over ? "on" : after ? "after" : "before"); return; }
+        if (k === "lot" && el.classList.contains("lot-grp")) { if (!over && gap) lotDrop("@" + el.dataset.path, gap.el, "gap", gap); else if (over) lotDrop("@" + el.dataset.path, target, "on"); return; }
         const arr = X.INS[k];
         const i0 = arr.findIndex(r => r.id === el.dataset.iid);
         if (i0 < 0) return;
@@ -13235,7 +13298,7 @@ function renderBudgetList() {
         if (sel.has(arr[i0].id) && sel.size > 1) blockIds = arr.filter(r => sel.has(r.id)).map(r => r.id);
         if (blockIds.includes(target.dataset.iid)) return;
         if (k === "des") { desDrop(arr, blockIds, target.dataset.iid, over ? "on" : after ? (inside ? "afterIn" : "after") : "before", over || !after ? null : outD); return; }
-        if (k === "lot") { lotDrop(el.dataset.iid, target, over ? "on" : after ? "after" : "before"); return; }
+        if (k === "lot") { if (!over && gap) lotDrop(el.dataset.iid, gap.el, "gap", gap); else if (over) lotDrop(el.dataset.iid, target, "on"); return; }
         const bset = new Set(blockIds);
         const block = arr.filter(r => bset.has(r.id));
         arr.splice(0, arr.length, ...arr.filter(r => !bset.has(r.id)));

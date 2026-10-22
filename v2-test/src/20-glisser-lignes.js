@@ -120,7 +120,17 @@
         ? [...el.parentElement.querySelectorAll("tr[data-iid]")]
         : [...el.parentElement.querySelectorAll(k === "lot" ? ".ins-li[data-iid], .ins-li.lot-grp" : ".ins-li[data-iid]")];
       const x0 = event.clientX, y0 = event.clientY;
-      let on = false, moved = false, target = null, after = false, over = false, inside = false, outD = null;
+      let on = false, moved = false, target = null, after = false, over = false, inside = false, outD = null, gap = null;
+      /* v529 : lignes visibles de la liste des lots (chemin, a des sous-lignes, replié) — sans la ligne déplacée ni sa branche */
+      const lotRows = () => {
+        if (k !== "lot") return [];
+        const srcP = el.classList.contains("lot-grp") ? dlyLotPath(el.dataset.path) : lotSegs(X.INS.lot.find(q => q.id === el.dataset.iid));
+        return sibs().map(x2 => {
+          const segs = x2.classList.contains("lot-grp") ? dlyLotPath(x2.dataset.path) : lotSegs(X.INS.lot.find(q => q.id === x2.dataset.iid));
+          const fd = x2.querySelector(".lot-fold");
+          return { el: x2, segs, kids: !!fd, folded: !!fd && fd.textContent.trim() === "›" };
+        }).filter(o => o.el !== el && !(srcP.length && o.segs.length >= srcP.length && srcP.every((g, i) => U_(g) === U_(o.segs[i]))));
+      };
       /* repères de glissement effacés partout (même si le tableau a été redessiné entre-temps) */
       const clear = () => {
         shell.querySelectorAll(".ro-before, .ro-after, .ro-in, .ro-on").forEach(x => x.classList.remove("ro-before", "ro-after", "ro-in", "ro-on"));
@@ -192,16 +202,33 @@
                 if (over) x.classList.add("ro-on");
                 else roLine(x, after ? r.bottom : r.top, outD != null ? outD : !after ? d0 : (tr0 && tr0.t && (!foldGet()[tr0.id] || inside)) ? d0 + 1 : d0);
               } else if (k === "lot") {
-                /* lots : haut = avant, milieu = dans le niveau (ou nouveau niveau), bas = après — un seul trait */
+                /* lots : milieu = dans le groupe (ou nouveau groupe) ; haut / bas = ENTRE deux lignes, un seul trait.
+                   v529 (remarques 4 et 5) : juste sous un titre déplié, ou entre deux lignes d'un même groupe = dans ce groupe, sans choix ;
+                   sous la dernière ligne d'un groupe déplié, ou sous un groupe replié = choix au doigt :
+                   vers la droite = trait court = dans le groupe du dessus ; vers la gauche = trait long = même rang que lui */
                 const f = (e.clientY - r.top) / (r.height || 1);
                 over = f > .25 && f < .75;
                 after = f >= .75;
+                gap = null;
                 if (over) x.classList.add("ro-on");
                 else {
+                  const rows = lotRows(), ix = rows.findIndex(o => o.el === x);
+                  if (ix < 0) { target = null; break; }   /* ligne de la branche déplacée : pas de dépôt */
+                  const pv = after ? rows[ix] : rows[ix - 1], nx = after ? rows[ix + 1] : rows[ix];
+                  let D, Dmin, Dmax, inStart = false;
+                  if (!pv) { D = Dmin = Dmax = 0; }
+                  else if (pv.kids && !pv.folded) { inStart = true; D = Dmin = Dmax = pv.segs.length; }
+                  else {
+                    Dmax = pv.kids ? pv.segs.length : pv.segs.length - 1;
+                    Dmin = nx ? Math.min(Dmax, nx.segs.length - 1) : 0;
+                    D = Math.max(Dmin, Math.min(Dmax, Dmax + Math.round((e.clientX - x0) / 28)));
+                  }
+                  gap = { prev: pv ? pv.segs : null, D, inStart, el: pv ? pv.el : x };
                   let l = document.getElementById("roLine");
                   if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); }
-                  const ip = (x.querySelector(".lot-in") || x).getBoundingClientRect(), cr = x.getBoundingClientRect();
-                  l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${ip.left}px;width:${Math.max(20, cr.right - ip.left)}px;top:${(after ? r.bottom : r.top) - 1.5}px`;
+                  const ref = pv || rows[ix], ip = (ref.el.querySelector(".lot-in") || ref.el).getBoundingClientRect(), cr = ref.el.getBoundingClientRect();
+                  const left = ip.left + (D - (ref.segs.length - 1)) * 16;
+                  l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${left}px;width:${Math.max(20, cr.right - left)}px;top:${(after ? r.bottom : r.top) - 1.5}px`;
                 }
               } else {
                 /* déplacement simple : un seul trait à l'endroit du dépôt */
@@ -241,7 +268,7 @@
         setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 350);
         if (!drop || !target) return;
         /* v525 (remarque 5) : titre de niveau déplacé = toute sa branche */
-        if (k === "lot" && el.classList.contains("lot-grp")) { lotDrop("@" + el.dataset.path, target, over ? "on" : after ? "after" : "before"); return; }
+        if (k === "lot" && el.classList.contains("lot-grp")) { if (!over && gap) lotDrop("@" + el.dataset.path, gap.el, "gap", gap); else if (over) lotDrop("@" + el.dataset.path, target, "on"); return; }
         const arr = X.INS[k];
         const i0 = arr.findIndex(r => r.id === el.dataset.iid);
         if (i0 < 0) return;
@@ -256,7 +283,7 @@
         if (sel.has(arr[i0].id) && sel.size > 1) blockIds = arr.filter(r => sel.has(r.id)).map(r => r.id);
         if (blockIds.includes(target.dataset.iid)) return;
         if (k === "des") { desDrop(arr, blockIds, target.dataset.iid, over ? "on" : after ? (inside ? "afterIn" : "after") : "before", over || !after ? null : outD); return; }
-        if (k === "lot") { lotDrop(el.dataset.iid, target, over ? "on" : after ? "after" : "before"); return; }
+        if (k === "lot") { if (!over && gap) lotDrop(el.dataset.iid, gap.el, "gap", gap); else if (over) lotDrop(el.dataset.iid, target, "on"); return; }
         const bset = new Set(blockIds);
         const block = arr.filter(r => bset.has(r.id));
         arr.splice(0, arr.length, ...arr.filter(r => !bset.has(r.id)));
