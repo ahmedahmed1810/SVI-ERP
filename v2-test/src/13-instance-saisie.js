@@ -1126,7 +1126,7 @@
     const INC_COLS = [["art", "ART", 60, "center"], ["dc", "DÉSIGNATION CLIENT", 240, ""], ["upb", "UPB", 60, "center"], ["lot", "LOT", 150, ""],
       ["prim", "ACTIVITÉ PRIMAIRE", 170, ""], ["sec", "ACTIVITÉ SECONDAIRE", 170, ""], ["type", "TYPE", 70, "center"], ["article", "ARTICLE", 80, "center"],
       ["des", "DÉSIGNATION PRODUIT / CHARGE", 220, ""], ["u", "UNITÉ", 60, "center"], ["nbr", "NBR", 60, "number"], ["d1", "DIM 1", 60, "number"], ["d2", "DIM 2", 60, "number"],
-      ["d3", "DIM 3", 60, "number"], ["q", "QTE", 70, "number"], ["deb", "DÉBUT", 100, "center"], ["fin", "FIN", 100, "center"], ["pred", "PRÉDÉCESSEURS", 220, ""]];
+      ["d3", "DIM 3", 60, "number"], ["q", "QTE", 70, "number"], ["p", "PCB", 80, "number"], ["deb", "DÉBUT", 100, "center"], ["fin", "FIN", 100, "center"], ["pred", "PRÉDÉCESSEURS", 220, ""]];
     const insIncHTML = () => {
       /* justificatif : numéro de la ligne dans le tableau source + raison */
       const why = x => (x.line ? "LIGNE " + x.line + " — " : "") + (x.why || "");
