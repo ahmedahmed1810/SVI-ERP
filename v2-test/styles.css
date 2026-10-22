@@ -2104,3 +2104,9 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 /* v527 (remarque 4) : unité du rendement dans la couleur de la ligne (plus de rouge) */
 .ins-table td.ins-rdbc .ins-rdbu { color: inherit !important; -webkit-text-fill-color: currentColor !important; }
 .svi-empty .svi-empty-k { background: #fff; color: #1d4ed8; }
+/* v528 (remarque 2) : la zone de toucher de la loupe U reste dans la colonne U (elle couvrait la case d'en-tête) */
+.ins-hcol .act-uh { position: relative; }
+.ins-hcol .act-uh .cf-btn { position: relative !important; }
+.ins-hcol .bdg-h-head .ins-hdel { position: relative; z-index: 6; }
+/* v528 : rond d'un titre dont un sous-groupe est choisi (à moitié) */
+.lk-rd.lk-rdgrp.part { background: radial-gradient(circle, var(--inst, #b91c1c) 0 35%, transparent 38%); }

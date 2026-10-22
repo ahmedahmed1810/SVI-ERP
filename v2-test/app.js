@@ -6171,8 +6171,13 @@ function renderBudgetList() {
     const lkOn = (k, id) => (k === "prd" || k === "chg") ? LK[k][id] !== undefined : (LK.all && LK.all[k] ? lkAllLinked(k, id) && lkInPart(k, id) : LK[k] === id);
     const lkRdPart = (k, key) => {
       if (!INS_EDIT) return "";
-      const on = !!(LK.all && LK.all[k] && LK.allp && LK.allp[k] === key), busy = !!LK[k] || (!!(LK.all && LK.all[k]) && !on);
-      return `<span class="lk-rd lk-rdgrp${on ? " on" : ""}${busy ? " off" : ""}" data-rdgrp="${k}" data-key="${esc(key)}" role="button" aria-label="Choisir toutes les lignes liées du titre"></span>`;
+      /* v528 (remarque 1) : rond d'en-tête actif = tous les titres aussi ; rond d'un titre parent d'un titre choisi = choisi aussi */
+      const pk = LK.allp && LK.allp[k];
+      const inPk = k === "lot" && pk && (U_(pk) === U_(key) || U_(pk).startsWith(U_(key) + " / "));
+      const on = !!(LK.all && LK.all[k] && (!pk || pk === key));
+      const part = !!(LK.all && LK.all[k] && inPk && pk !== key);
+      const busy = !!LK[k] || (!!(LK.all && LK.all[k]) && !on && !part);
+      return `<span class="lk-rd lk-rdgrp${on ? " on" : ""}${part ? " part" : ""}${busy ? " off" : ""}" data-rdgrp="${k}" data-key="${esc(key)}" role="button" aria-label="Choisir toutes les lignes liées du titre"></span>`;
     };
     /* lignes déjà liées à la désignation choisie (comme le choix du budget validé, niveau par niveau) :
        lots de la désignation ; activités primaires du lot choisi ; secondaires de la primaire choisie ;
@@ -6255,7 +6260,7 @@ function renderBudgetList() {
     const lkRdAll = k => {
       if (!INS_EDIT || !["des", "lot", "prim", "sec", "prd", "chg"].includes(k)) return "";
       const multi = k === "prd" || k === "chg";
-      const on = multi ? (Object.keys(LK[k]).length > 0 && LK.allm && LK.allm[k]) : !!(LK.all && LK.all[k]);
+      const on = multi ? (Object.keys(LK[k]).length > 0 && LK.allm && LK.allm[k]) : !!(LK.all && LK.all[k] && !(LK.allp && LK.allp[k]));
       const busy = multi ? (Object.keys(LK[k]).length > 0 && !on) : !!LK[k];
       return `<span class="lk-rd lk-rdall${on ? " on" : ""}${busy ? " off" : ""}" data-rdall="${k}" role="button" aria-label="Choisir toutes les lignes liées"></span>`;
     };
@@ -6711,7 +6716,8 @@ function renderBudgetList() {
     const lotLab = segs => {
       const sg = (segs || []).map(x => String(x || "").trim()).filter(Boolean);
       const no = lotNumMap().get(sg.map(U_).join(" / ")) || "", last = sg[sg.length - 1] || "";
-      const auto = sg.length > 1 && LVL_AUTO.test(last);
+      /* v528 (remarque 4) : un titre « NIVEAU … » (même au premier rang) s'affiche « GROUPE » + son numéro */
+      const auto = LVL_AUTO.test(last);
       const name = auto ? "GROUPE " + no : last;
       return { no, auto, name, full: auto ? name : (no ? no + " " : "") + last };
     };
@@ -6862,8 +6868,11 @@ function renderBudgetList() {
         const csk = insCheckSet(k);   /* v492 (remarque 7) : cases cochées des autres blocs */
         /* v525 (remarque 4) : colonne U des activités triable et filtrable (loupe), comme toutes les colonnes */
         const hcols = [["v", title, r => r.v || "", ""]].concat(k === "sec" ? [["u", "U", r => U_(r.u), "center"]] : k === "prim" ? [["u", "U", r => U_(actU(k, r)), "center"]] : []);
-        const list = lkTop(k, cfApply(k, hcols, INS[k]).filter(r => (!ONLYC[k] || r.on === true) && (!csk || r.t || csk.has(r.id))));
+        /* v528 (remarque 3) : la liste des LOTS (arborescence) garde son ordre quand on choisit un lot ou un groupe */
+        const list = (k === "lot" ? (k2, rows) => rows : lkTop)(k, cfApply(k, hcols, INS[k]).filter(r => (!ONLYC[k] || r.on === true) && (!csk || r.t || csk.has(r.id))));
         lastShown.hier[k] = list.map(r => r.v || "");
+        /* v528 (remarque 2) : lignes de la liste (lots repliés compris) — pour la case carrée d'en-tête */
+        shell.__hierList = shell.__hierList || {}; shell.__hierList[k] = list.map(r => r.id);
         const on = !!cfT(k).f.v;
         return `
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
@@ -8679,8 +8688,10 @@ function renderBudgetList() {
           const box = e.target.closest("table.ins-table, .ins-hcol");
           const k = box?.dataset.ik;
           if (!k) return;
+          /* v528 (remarque 2) : case carrée d'en-tête = TOUTES les lignes de la liste, y compris celles des groupes repliés */
+          const HL = shell.__hierList && shell.__hierList[k];
           const vis = k === "lot" || k === "prim" || k === "sec"
-            ? [...box.querySelectorAll(".ins-li[data-iid]")].map(li => X.INS[k].find(x => x.id === li.dataset.iid)).filter(Boolean)
+            ? (HL ? HL.map(id => X.INS[k].find(x => x.id === id)) : [...box.querySelectorAll(".ins-li[data-iid]")].map(li => X.INS[k].find(x => x.id === li.dataset.iid))).filter(Boolean)
             : X.insShown(k).filter(x => !x.t);
           if (ca) {
             /* FORMAT 125 : tout cocher coche aussi les titres (désignations) */

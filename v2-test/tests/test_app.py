@@ -229,11 +229,12 @@ def main():
         pg.evaluate("() => document.querySelector('#blkMenu [data-fclr]')?.click()"); pg.wait_for_timeout(400)
         f42 = pg.evaluate(f"""() => {{ const X = {ins}; return [X.INS.chg.some(r => r.on === true), document.querySelectorAll('#bdgTabs .bdg-d-tab.tab-filt').length]; }}""")
         check("remarques 40 à 42 et 53 : seul l'onglet source du filtre en bleu, en-tête des cases en bleu, EFFACER TOUS LES FILTRES", f40 == ["chg"] and f41 and f42 == [False, 0], [f40, f41, f42])
-        # remarque 59 : lot choisi par son rond = en haut de la liste des lots
+        # remarque 59 (remplacée en v528) : lot choisi par son rond — la liste ne change plus d'ordre
         pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid=\"l1\"] .lk-rd')?.click()"); pg.wait_for_timeout(400)
         o59 = pg.evaluate("() => [...document.querySelectorAll('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid]')].map(x => x.dataset.iid)")
         pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid=\"l1\"] .lk-rd')?.click()"); pg.wait_for_timeout(300)
-        check("remarque 59 : lot choisi en haut de la liste", bool(o59) and o59[0] == "l1", o59)
+        # v528 (remarque 3) : la liste des lots garde désormais son ordre quand on choisit un lot
+        check("remarque 59 → v528 : lot choisi, la liste des lots garde son ordre", bool(o59) and o59.index("l1") > o59.index("l2"), o59)
         # remarque 70 : condition sur une colonne de nombres (QCB > 3,5)
         pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"chg\"]'); t && t.click(); }"); pg.wait_for_timeout(300)
         pg.evaluate("() => document.querySelector('.cf-btn[data-cf=\"chg\"][data-col=\"qty\"]')?.click()"); pg.wait_for_timeout(300)
@@ -930,6 +931,39 @@ def main():
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(500)
         t6 = pg.evaluate("() => [...document.querySelectorAll('th')].map(t => t.textContent.trim()).filter(t => /BATTEMENT|^MARGE$/.test(t))")
         check("v527 remarque 6 : marge de délai = BATTEMENT", "BATTEMENT" in t6 and "MARGE" not in t6, t6)
+
+        # ===== v528 : bloc TÂCHES =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.evaluate("() => document.querySelector('.svi-empty [data-clrall]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;
+            I.lot.push({{ id: 'na', v: 'NIVEAU 2 / ZONE A' }}, {{ id: 'nb', v: 'NIVEAU 2 / ZONE B' }}, {{ id: 'nc', v: 'NIVEAU 3 / ZONE C' }});
+            ['na', 'nb', 'nc'].forEach((lo, n) => I.links.push({{ id: 'LN' + n, des: 'd2', lot: lo, prim: 'p1', sec: 's2', prd: [], chg: [{{ id: 'c2' }}] }}));
+            X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        for _ in range(8):
+            if not pg.evaluate(UNF): break
+            pg.wait_for_timeout(300)
+        # remarque 4 : anciens titres « NIVEAU n » (premier rang) affichés « GROUPE n »
+        t4 = pg.evaluate("() => ['NIVEAU 2', 'NIVEAU 3'].map(p => { const i = document.querySelector('.lot-grp[data-path=\"' + p + '\"] input.lot-gname'); return i ? i.value : null; })")
+        check("v528 remarque 4 : anciens titres « NIVEAU » affichés « GROUPE » + numéro", all(isinstance(x, str) and x.startswith("GROUPE ") for x in t4), t4)
+        # remarque 3 : choisir un groupe ne change pas l'ordre de la liste
+        ordr = "() => [...document.querySelectorAll('.ins-hcol[data-ik=\"lot\"] .ins-li')].map(x => x.dataset.path || x.dataset.iid).join('|')"
+        o0 = pg.evaluate(ordr)
+        pg.evaluate("() => document.querySelector('.lot-grp[data-path=\"NIVEAU 2\"] .lk-rdgrp')?.click()"); pg.wait_for_timeout(400)
+        o1 = pg.evaluate(ordr)
+        pg.evaluate("() => document.querySelector('.lot-grp[data-path=\"NIVEAU 2\"] .lk-rdgrp')?.click()"); pg.wait_for_timeout(300)
+        check("v528 remarque 3 : choisir un groupe ne change pas l'ordre de la liste des lots", o0 == o1, [o0, o1])
+        # remarque 1 : rond d'en-tête = ronds des titres aussi
+        pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"lot\"] .lk-rdall')?.click()"); pg.wait_for_timeout(400)
+        r1 = pg.evaluate("() => [...document.querySelectorAll('.ins-hcol[data-ik=\"lot\"] .lk-rdgrp')].map(x => x.classList.contains('on'))")
+        pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"lot\"] .lk-rdall')?.click()"); pg.wait_for_timeout(300)
+        check("v528 remarque 1 : rond d'en-tête = ronds des titres de groupe marqués aussi", len(r1) >= 2 and all(r1), r1)
+        # remarque 2 : case carrée d'en-tête (activités : la loupe U ne la couvre plus ; lots : groupes repliés compris)
+        h2 = pg.evaluate("""() => ['prim', 'sec'].map(k => { const cb = document.querySelector('.ins-hcol[data-ik="' + k + '"] .ins-cball'); const r = cb.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === cb; })""")
+        pg.evaluate("() => document.querySelector('.lot-fold[data-path=\"NIVEAU 3\"]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"lot\"] .ins-cball')?.click()"); pg.wait_for_timeout(400)
+        h2b = pg.evaluate(f"() => {{ const X = {ins}; return ['na', 'nb', 'nc', 'l1'].map(id => X.INS.lot.find(r => r.id === id).on === true); }}")
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => !['na', 'nb', 'nc'].includes(r.id)); I.lot.forEach(r => r.on = false); I.links = I.links.filter(l => !/^LN/.test(l.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v528 remarque 2 : case carrée d'en-tête accessible (activités) et coche les lots des groupes repliés", h2 == [True, True] and all(h2b), [h2, h2b])
 
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
