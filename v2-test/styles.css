@@ -2092,3 +2092,12 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .ins-table tr.ins-gtitle td.ins-rdbc { font-style: italic; white-space: nowrap; }
 .ins-table tr.ins-gtitle td.ins-rdbc input.ins-rdbin { font-style: italic; width: 52% !important; display: inline-block; text-align: right; background: transparent; }
 .ins-table tr.ins-gtitle td.ins-rdbc .ins-rdbu { font-size: 10px; font-weight: 700; padding: 0 4px 0 2px; }
+/* v525 (remarque 4) : loupe de la colonne U des activités */
+.ins-hcol .act-uh { width: 54px !important; display: inline-flex; align-items: center; justify-content: center; gap: 2px; }
+.ins-hcol .act-uh .cf-btn { margin: 0 !important; }
+.ins-hcol .act-uh.cf-on { color: #1d4ed8; }
+.ins-hcol .ins-li .act-u { width: 54px !important; }
+/* v525 (remarque 1) : rendement modifiable sur une ligne de charge */
+.ins-table td.ins-rdbc { white-space: nowrap; }
+.ins-table td.ins-rdbc input.ins-rdbl { width: 52% !important; display: inline-block; text-align: right; }
+.ins-table td.ins-rdbc .ins-rdbu { font-size: 10px; font-weight: 700; padding: 0 4px 0 2px; }

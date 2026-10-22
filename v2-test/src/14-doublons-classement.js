@@ -480,7 +480,9 @@
       const full = keys.length === 4;
       const anyAll = Object.values(LK.all || {}).some(Boolean);
       if (!keys.length && !P.length && !C.length && !anyAll) return { mode: "none" };
-      const M = L.filter(l => keys.every(k => l[k] === LK[k]));
+      /* v525 : rond d'un titre — seules les liaisons des lignes de ce titre */
+      const allK = Object.keys(LK.all || {}).filter(k => LK.all[k] && LK.allp && LK.allp[k]);
+      const M = L.filter(l => keys.every(k => l[k] === LK[k]) && allK.every(k => lkOn(k, l[k])));
       const inM = (k, id) => M.some(l => (l[k] || []).some(x => x.id === id));
       const addP = P.filter(id => !inM("prd", id)), addC = C.filter(id => !inM("chg", id));
       const remP = P.filter(id => inM("prd", id)), remC = C.filter(id => inM("chg", id));

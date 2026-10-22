@@ -249,7 +249,7 @@ def main():
         pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"chg\"]'); t && t.click(); }"); pg.wait_for_timeout(400)
         rd = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'); const hs = [...t.tHead.rows[0].cells].map(c => c.textContent.trim());
             const i = hs.findIndex(h => h.startsWith('RENDEMENT')); const tr = t.querySelector('tr[data-iid="c1"]'); const c = tr && tr.cells[i];
-            return [i >= 0 && hs[i + 1].startsWith('TÂCHE'), c ? (c.querySelector('input') ? c.querySelector('input').value : c.textContent).trim() : null]; }""")
+            return [i >= 0 && hs[i + 1].startsWith('TÂCHE'), c ? (c.querySelector('input') ? c.querySelector('input').value + ' ' + (c.querySelector('.ins-rdbu') || { textContent: '' }).textContent : c.textContent).trim() : null]; }""")
         check("remarque 38 : DÉTAIL CHARGES — colonne RENDEMENT avant TÂCHE : 3,33 M3 / T", rd == [True, "3,33 M3 / T"], rd)
         fitx = pg.evaluate("() => { const b = document.getElementById('bdgTabs'); return [b.scrollWidth, b.clientWidth]; }")
         check("remarque 25 : tous les onglets du bloc visibles sans balayer", fitx[0] <= fitx[1] + 1, fitx)
@@ -832,6 +832,66 @@ def main():
             const ft = getComputedStyle(t.tFoot.querySelector('td')), td = getComputedStyle(i.closest('td')), tr = getComputedStyle(i.closest('tr'));
             return [Number(ft.zIndex), Number(getComputedStyle(i).zIndex), td.zIndex, tr.zIndex, ft.position]; }""")
         check("v524 remarque 1 : le i d'une désignation passe sous la ligne TOTAL", isinstance(r1, list) and r1[0] > r1[1] and r1[2] == "auto" and r1[3] == "auto" and r1[4] == "sticky", r1)
+
+        # ===== v525 : remarques 1 à 7 (soir) =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.evaluate("() => document.querySelector('.svi-empty [data-clrall]')?.click()"); pg.wait_for_timeout(300)
+        # remarque 1 : rendement tapé sur une ligne de charge
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;
+            I.chg.push({{ id: 'h1', des: 'GRAVETTE TEST', u: 'M3', q: 2, p: 10 }});
+            I.links.find(l => l.id === 'L1').chg.push({{ id: 'h1' }}); X.insSave(); X.refreshAll(); document.querySelector('.bdg-d-tab[data-tab="chg"]')?.click(); }}"""); pg.wait_for_timeout(500)
+        q0 = pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; const l = I.links.find(l => l.id === 'L1'); const sp = new Set(); let q = 0;
+            I.links.filter(m => m.lot === l.lot && m.sec === l.sec).forEach(m => (m.prd || []).forEach(y => {{ if (sp.has(y.id)) return; sp.add(y.id); const p = I.prd.find(x => x.id === y.id); if (p) q += insPrdQ(p); }})); return q; }}""")
+        e1 = pg.evaluate("""() => { const i = document.querySelector('table.ins-table[data-ik="chg"] tr[data-iid="h1"] input.ins-rdbl'); if (!i) return null;
+            const v0 = i.value; i.focus(); i.value = '4'; i.dispatchEvent(new Event('change', { bubbles: true })); return v0; }"""); pg.wait_for_timeout(400)
+        q1 = pg.evaluate(f"() => {{ const X = {ins}; return X.INS.chg.find(r => r.id === 'h1').q; }}")
+        check("v525 remarque 1 : rendement tapé sur une ligne = QCB recalculée (arrondie à 0,5)", e1 is not None and q1 == max(0.5, round(q0 / 4 * 2) / 2), [e1, q0, q1])
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.chg = I.chg.filter(r => r.id !== 'h1'); const l = I.links.find(l => l.id === 'L1'); l.chg = l.chg.filter(x => x.id !== 'h1'); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        # remarque 2 : rond d'un titre de niveau = toutes les lignes liées dessous ; remarque 5 : titre de niveau déplaçable
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;
+            I.lot.push({{ id: 'ta', v: 'TOIT / NIVEAU 1 / ZONE A' }}, {{ id: 'tb', v: 'TOIT / NIVEAU 1 / ZONE B' }}, {{ id: 'tc', v: 'TOIT / NIVEAU 2 / ZONE C' }});
+            ['ta', 'tb'].forEach((lo, n) => I.links.push({{ id: 'LT' + n, des: 'd2', lot: lo, prim: 'p1', sec: 's2', prd: [], chg: [{{ id: 'c2' }}] }}));
+            X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        UNF = """() => { const f = [...document.querySelectorAll('.ins-hcol[data-ik="lot"] .lot-fold')].find(x => x.textContent.trim() === '›'); if (!f) return false; f.click(); return true; }"""
+        for _ in range(6):
+            if not pg.evaluate(UNF): break
+            pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"lot\"] .lot-grp[data-path=\"TOIT / NIVEAU 1\"] .lk-rdgrp')?.click()"); pg.wait_for_timeout(400)
+        r2 = pg.evaluate("""() => { const on = id => !!document.querySelector('.ins-hcol[data-ik="lot"] .ins-li[data-iid="' + id + '"] .lk-rd.on');
+            return [!!document.querySelector('.lot-grp[data-path="TOIT / NIVEAU 1"] .lk-rdgrp.on'), on('ta'), on('tb'), on('tc'), on('l1')]; }""")
+        pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"lot\"] .lot-grp[data-path=\"TOIT / NIVEAU 1\"] .lk-rdgrp')?.click()"); pg.wait_for_timeout(400)
+        r2b = pg.evaluate("() => !!document.querySelector('.ins-hcol[data-ik=\"lot\"] .lk-rd.on')")
+        check("v525 remarque 2 : rond du titre de niveau = toutes ses lignes liées ; retoucher = libérer", r2 == [True, True, True, False, False] and r2b is False, [r2, r2b])
+        pg.evaluate("""() => { const b = document.querySelector('.lot-grp[data-path="TOIT / NIVEAU 1"]'); if (!b) return; b.scrollIntoView({ block: 'center' });
+            let sc = b.parentElement; while (sc && !(sc.scrollHeight > sc.clientHeight + 2 && /(auto|scroll)/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
+            if (sc) sc.scrollTop += b.getBoundingClientRect().top - sc.getBoundingClientRect().top - 40; }"""); pg.wait_for_timeout(300)
+        g = pg.evaluate("""() => { const a = document.querySelector('.lot-grp[data-path="TOIT / NIVEAU 2"]'), b = document.querySelector('.lot-grp[data-path="TOIT / NIVEAU 1"]'); if (!a || !b) return null;
+            const ia = a.querySelector('input.lot-gname').getBoundingClientRect(), rb = b.getBoundingClientRect(); return [ia.left + ia.width / 2, ia.top + ia.height / 2, ia.left + ia.width / 2, rb.top + 2]; }""")
+        if g:
+            pg.mouse.move(g[0], g[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+            pg.mouse.move(g[2], g[3] + 3, steps=6); pg.wait_for_timeout(150); pg.mouse.move(g[2], g[3], steps=3); pg.wait_for_timeout(150); pg.mouse.up(); pg.wait_for_timeout(500)
+        r5 = pg.evaluate(f"() => {{ const X = {ins}; const ids = X.INS.lot.map(r => r.id); return [ids.indexOf('tc'), ids.indexOf('ta'), (X.INS.lot.find(r => r.id === 'tc') || {{}}).v]; }}")
+        check("v525 remarque 5 : titre de niveau glissé avec ses lots (NIVEAU 2 au-dessus de NIVEAU 1)", g is not None and r5[0] >= 0 and r5[0] < r5[1] and r5[2] == "TOIT / NIVEAU 2 / ZONE C", [g, r5])
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => !['ta', 'tb', 'tc'].includes(r.id)); I.links = I.links.filter(l => !/^LT/.test(l.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        # remarque 4 : loupe sur la colonne U des activités
+        r4 = pg.evaluate("""() => ['prim', 'sec'].map(k => { const b = document.querySelector('.ins-hcol[data-ik="' + k + '"] .act-uh .cf-btn[data-col="u"]'); return !!b; })""")
+        pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"sec\"] .act-uh .cf-btn')?.click()"); pg.wait_for_timeout(300)
+        r4b = pg.evaluate("() => !!document.getElementById('cfMenu')")
+        pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        check("v525 remarque 4 : loupe (tri / filtre) sur la colonne U des activités", r4 == [True, True] and r4b, [r4, r4b])
+        # remarque 6 : glisser une ligne jusqu'au bord = le tableau défile tout seul
+        pg.evaluate(f"""() => {{ const X = {ins}; for (let i = 0; i < 30; i++) X.INS.chg.push({{ id: 'ww' + i, des: 'CHARGE W' + (10 + i), u: 'U', q: 1, p: 1 }}); X.insSave(); X.refreshAll();
+            document.querySelector('.bdg-d-tab[data-tab="chg"]')?.click(); }}"""); pg.wait_for_timeout(500)
+        d6 = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'), sc = t.closest('.bdg-d-scroll'); sc.scrollTop = 0;
+            const tr = t.querySelector('tr[data-iid="ww0"]') || [...t.tBodies[0].rows].find(r => r.dataset.iid); const c = tr.cells[2].getBoundingClientRect(), s = sc.getBoundingClientRect();
+            return [c.left + 10, c.top + c.height / 2, s.bottom - 6, sc.scrollHeight > sc.clientHeight + 40]; }""")
+        pg.mouse.move(d6[0], d6[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+        pg.mouse.move(d6[0], d6[2], steps=8); pg.wait_for_timeout(700)
+        s6 = pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"]').closest('.bdg-d-scroll').scrollTop")
+        pg.keyboard.press("Escape"); pg.mouse.up(); pg.wait_for_timeout(400)
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.chg = X.INS.chg.filter(r => !/^ww/.test(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v525 remarque 6 : glisser près du bord bas = défilement automatique", d6[3] and s6 > 20, [d6, s6])
 
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()

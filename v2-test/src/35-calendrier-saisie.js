@@ -1288,3 +1288,55 @@ document.addEventListener("focusout", e => {
   const m = money(v);
   if (m !== i.value) { i.value = m; i.defaultValue = m; }
 });
+
+/* =========================================================
+   v525 (remarque 6) : GLISSER UNE LIGNE PRÈS D'UN BORD = DÉFILEMENT AUTOMATIQUE, partout
+   (désignations, lots, activités, détails, planning, blocs) : le tableau (ou la page) défile vers le haut / le bas,
+   plus vite à mesure que le doigt s'approche du bord ; le trait de dépôt suit
+   ========================================================= */
+(() => {
+  let last = null, raf = 0, sc0 = null;
+  const E = 56;
+  const scrollAnc = el => {
+    for (let x = el && el.parentElement; x && x !== document.body && x !== document.documentElement; x = x.parentElement) {
+      const cs = getComputedStyle(x);
+      if (/(auto|scroll)/.test(cs.overflowY) && x.scrollHeight > x.clientHeight + 1) return x;
+    }
+    return null;
+  };
+  const speed = over => Math.min(24, Math.ceil(over / 3) + 2);
+  const step = () => {
+    raf = 0;
+    if (!last || !document.body.classList.contains("svi-dragging")) { sc0 = null; return; }
+    if (!sc0 || !sc0.isConnected) { const src = document.querySelector(".ro-src, .gb-lift"); sc0 = src ? scrollAnc(src) : null; }
+    const y = last.y;
+    let moved = false;
+    if (sc0) {
+      /* zone de bord proportionnée à la hauteur de la zone (petite liste : petite zone, pour pouvoir viser ses lignes) */
+      const r = sc0.getBoundingClientRect(), b = sc0.scrollTop, e = Math.max(14, Math.min(E, r.height * 0.16));
+      if (y < r.top + e) sc0.scrollTop -= speed(r.top + e - y);
+      else if (y > r.bottom - e) sc0.scrollTop += speed(y - (r.bottom - e));
+      moved = sc0.scrollTop !== b;
+    }
+    if (!moved) {
+      let top = 0; const tb = document.querySelector(".topbar, .bdg-d-sticky");
+      if (tb && /sticky|fixed/.test(getComputedStyle(tb).position)) top = Math.max(0, tb.getBoundingClientRect().bottom);
+      const b = window.scrollY;
+      if (y < top + E) window.scrollBy(0, -speed(top + E - y));
+      else if (y > window.innerHeight - E) window.scrollBy(0, speed(y - (window.innerHeight - E)));
+      moved = window.scrollY !== b;
+    }
+    if (moved) {
+      try { document.dispatchEvent(new PointerEvent("pointermove", { clientX: last.x, clientY: last.y, bubbles: true, cancelable: true, pointerId: last.id, pointerType: last.t, isPrimary: true })); } catch (e) {}
+      raf = requestAnimationFrame(step);
+    }
+  };
+  document.addEventListener("pointermove", e => {
+    if (!e.isTrusted) return;
+    last = { x: e.clientX, y: e.clientY, id: e.pointerId, t: e.pointerType };
+    if (document.body.classList.contains("svi-dragging") && !raf) raf = requestAnimationFrame(step);
+  }, true);
+  const stop = () => { last = null; sc0 = null; if (raf) { cancelAnimationFrame(raf); raf = 0; } };
+  document.addEventListener("pointerup", stop, true);
+  document.addEventListener("pointercancel", stop, true);
+})();

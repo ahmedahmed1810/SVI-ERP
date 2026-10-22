@@ -5921,6 +5921,27 @@ function renderBudgetList() {
         refreshAll();
       });
     };
+    /* v525 (remarque 1) : rendement tapé sur une ligne */
+    const chgRdbLine = (id, R, anchor) => {
+      const r = INS.chg.find(x => x.id === id); if (!r) return;
+      if (!(R > 0)) { svToast("RENDEMENT NON VALIDE : NOMBRE > 0.", 3000, anchor); refreshAll(); return; }
+      const qp = chgTaskQ(r).q; if (!(qp > 0)) { refreshAll(); return; }
+      const q = Math.max(0.5, Math.round(qp / R * 2) / 2);
+      if (num(r.q) !== q) { r.q = q; insSave(); histLog("SAISIE", "RENDEMENT D'UNE CHARGE", (r.des || "") + " : " + money(R) + " → QCB " + money(q)); }
+      refreshAll();
+    };
+    shell.__chgRdbLine = (id, R, a) => chgRdbLine(id, R, a);
+    if (!shell.__rdblBound) {
+      shell.__rdblBound = true;
+      /* la frappe dans le rendement d'une ligne ne touche rien ; la valeur est appliquée en quittant la case (ou Entrée) */
+      document.addEventListener("input", e => { if (e.target && e.target.matches && e.target.matches("input.ins-rdbl")) e.stopPropagation(); }, true);
+      document.addEventListener("change", e => {
+        const i = e.target; if (!i || !i.matches || !i.matches("input.ins-rdbl")) return;
+        e.stopPropagation();
+        const id = i.closest("tr[data-iid]")?.dataset.iid; if (!id || !shell.__chgRdbLine) return;
+        shell.__chgRdbLine(id, num(i.value), i);
+      }, true);
+    }
     const chgTaskName = id => [...new Set((INS.links || []).filter(l => (l.chg || []).some(x => x.id === id)).map(prdLinkName).filter(Boolean))].join(" · ");
     const prdChainKey = id => {
       const l = prdLinks(id)[0];
@@ -6118,6 +6139,15 @@ function renderBudgetList() {
       }
       const artA = k === "des" && f === "art" && !isNew && !String(r.art ?? "").trim() ? (ART_AUTO.get(r.id) || "") : "";
       if (!INS_EDIT) return `<td class="${cls}${k === "des" && f === "des" ? " c-wrap ins-tdv" : ""}${artA ? " art-auto" : ""}">${esc(artA || val)}${f === "tva" && val ? " %" : ""}${k === "des" && f === "des" && !isNew && !r.t ? `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>` : ""}</td>`;
+      /* v525 (remarque 1) : RENDEMENT d'une ligne de charge modifiable (une seule tâche avec des produits) —
+         taper un rendement = QCB de la ligne recalculée (produit de sa tâche ÷ rendement, arrondie à 0,5) */
+      if (k === "chg" && f === "rdb" && !isNew && !r.t) {
+        const T = chgTaskQ(r), qc = num(r.q);
+        if (T.u.size === 1 && T.q > 0) {
+          const u = [...T.u][0] + " / " + U_(r.u);
+          return `<td class="${cls} ins-td ins-rdbc"><input class="ins-in ins-rdbl" data-f="rdb" enterkeyhint="next" inputmode="decimal" value="${qc ? esc(money(T.q / qc)) : ""}" autocomplete="off"><span class="ins-rdbu">${esc(u)}</span></td>`;
+        }
+      }
       /* FORMAT 109 : DÉSIGNATION client sur plusieurs lignes si elle est trop longue (la ligne devient plus haute) */
       /* FORMAT 122 : ligne existante — texte affiché (appui long = glisser), un toucher ouvre la saisie */
       if (k === "des" && f === "des" && !isNew) return `<td class="${cls} ins-td ins-tdv${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><div class="ins-dv" data-f="des">${esc(val)}</div><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea>${r.t ? "" : `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>`}</td>`;
@@ -6131,7 +6161,19 @@ function renderBudgetList() {
        case à droite = suppression (cochée, elle devient 🗑 ; ANNULER la décoche) */
     /* rond d'en-tête (FORMAT) : « toutes les lignes déjà liées » du bloc sont choisies, pour les délier d'un coup */
     const lkAllLinked = (k, id) => LK.des && k !== "des" ? lkIsLinked(k, id) : lkAnyLinked(k, id);
-    const lkOn = (k, id) => (k === "prd" || k === "chg") ? LK[k][id] !== undefined : (LK.all && LK.all[k] ? lkAllLinked(k, id) : LK[k] === id);
+    /* v525 (remarque 2) : rond d'un TITRE (niveau de lot, titre de désignations) = toutes les lignes liées SOUS ce titre, même repliées */
+    const lkInPart = (k, id) => {
+      const p = LK.allp && LK.allp[k]; if (!p) return true;
+      if (k === "lot") { const r = INS.lot.find(x => x.id === id); return !!r && lotUnder(r, dlyLotPath(p)); }
+      if (k === "des") { const t = INS.des.find(x => x.id === p); return !!t && insBranch(t).some(x => x.id === id); }
+      return true;
+    };
+    const lkOn = (k, id) => (k === "prd" || k === "chg") ? LK[k][id] !== undefined : (LK.all && LK.all[k] ? lkAllLinked(k, id) && lkInPart(k, id) : LK[k] === id);
+    const lkRdPart = (k, key) => {
+      if (!INS_EDIT) return "";
+      const on = !!(LK.all && LK.all[k] && LK.allp && LK.allp[k] === key), busy = !!LK[k] || (!!(LK.all && LK.all[k]) && !on);
+      return `<span class="lk-rd lk-rdgrp${on ? " on" : ""}${busy ? " off" : ""}" data-rdgrp="${k}" data-key="${esc(key)}" role="button" aria-label="Choisir toutes les lignes liées du titre"></span>`;
+    };
     /* lignes déjà liées à la désignation choisie (comme le choix du budget validé, niveau par niveau) :
        lots de la désignation ; activités primaires du lot choisi ; secondaires de la primaire choisie ;
        produits / charges de la secondaire choisie */
@@ -6219,7 +6261,7 @@ function renderBudgetList() {
     };
     /* v490 (remarque 4) : quel que soit le rond choisi (désignation, lot, activité, produit, charge), les lignes liées
        à ce choix ont le point dans leur rond (avant : seulement quand une désignation était choisie) */
-    const lkRd = (k, r) => INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${(LK.des && lkIsLinked(k, r.id)) || lkHit(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
+    const lkRd = (k, r) => INS_EDIT && r && r.t && k === "des" ? lkRdPart("des", r.id) : INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${(LK.des && lkIsLinked(k, r.id)) || lkHit(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
     /* case à droite : elle coche seulement (suppression, export, aperçu passent par le menu ⋯ du bloc) */
     const insDelCell = r => !r ? "" : `<input type="checkbox" class="ins-cb${r.t ? " ins-tcb" : ""}" ${!r.t && r.on === true ? "checked" : ""}>`;
     const insQCol = k => false;   /* plus de colonne QUANTITÉ DE LA TÂCHE : la quantité liée est la QPB du produit */
@@ -6735,7 +6777,7 @@ function renderBudgetList() {
         const all = br.length && br.every(r => r.on === true);
         const GL = lotLab(x.segs);
         /* v510 (remarque 68) : niveau replié qui cache un lot coché = bleu */
-        return `<div class="ins-li lot-grp${dlyIsFolded(x.path) && br.some(r => r.on === true) ? " ins-hasck" : ""}" data-path="${esc(x.path)}"><span class="ins-rdc"></span><span class="lot-in" ${pad}>${fold}${lotNoHTML(GL)}${INS_EDIT ? `<input class="lot-gname" data-kind="grp" data-path="${esc(x.path)}" value="${esc(GL.name)}" autocomplete="off">` : `<span>${esc(GL.name)}</span>`}</span>
+        return `<div class="ins-li lot-grp${dlyIsFolded(x.path) && br.some(r => r.on === true) ? " ins-hasck" : ""}" data-path="${esc(x.path)}"><span class="ins-rdc">${lkRdPart("lot", x.path)}</span><span class="lot-in" ${pad}>${fold}${lotNoHTML(GL)}${INS_EDIT ? `<input class="lot-gname" data-kind="grp" data-path="${esc(x.path)}" value="${esc(GL.name)}" autocomplete="off">` : `<span>${esc(GL.name)}</span>`}</span>
           ${INS_EDIT ? `<span class="ins-delc"><input type="checkbox" class="lot-gcb" data-path="${esc(x.path)}"${all ? " checked" : ""}></span>` : ""}</div>`;
       }
       const r = x.r, k = "lot";
@@ -6750,9 +6792,11 @@ function renderBudgetList() {
     /* glissement d'un lot (FORMAT 26, 44) : dans un niveau = passe dessous ; avant / après = même niveau que la ligne visée ;
        superposé à un lot = nouveau niveau « NIVEAU n » qui regroupe les deux */
     const lotDrop = (srcId, tEl, mode) => {
-      const L = INS.lot, src = L.find(x => x.id === srcId);
+      /* v525 : « @chemin » = un titre de niveau (sans lot à lui) et toute sa branche */
+      const gP = String(srcId || "").startsWith("@") ? dlyLotPath(String(srcId).slice(1)) : null;
+      const L = INS.lot, src = gP ? { v: gP.join(" / ") } : L.find(x => x.id === srcId);
       if (!src || !tEl) return;
-      const P = lotSegs(src);
+      const P = gP || lotSegs(src);
       const tSegs = tEl.classList.contains("lot-grp") ? dlyLotPath(tEl.dataset.path) : lotSegs(L.find(x => x.id === tEl.dataset.iid));
       let base, extra = null, N = "";
       if (mode === "on" && tEl.classList.contains("lot-grp")) base = tSegs;
@@ -6815,13 +6859,15 @@ function renderBudgetList() {
       const col = (title, k) => {
         if (ONLYC[k] && !INS[k].some(r => r.on === true)) ONLYC[k] = false;
         const csk = insCheckSet(k);   /* v492 (remarque 7) : cases cochées des autres blocs */
-        const list = lkTop(k, cfApply(k, [["v", title, r => r.v || "", ""]], INS[k]).filter(r => (!ONLYC[k] || r.on === true) && (!csk || r.t || csk.has(r.id))));
+        /* v525 (remarque 4) : colonne U des activités triable et filtrable (loupe), comme toutes les colonnes */
+        const hcols = [["v", title, r => r.v || "", ""]].concat(k === "sec" ? [["u", "U", r => U_(r.u), "center"]] : k === "prim" ? [["u", "U", r => U_(actU(k, r)), "center"]] : []);
+        const list = lkTop(k, cfApply(k, hcols, INS[k]).filter(r => (!ONLYC[k] || r.on === true) && (!csk || r.t || csk.has(r.id))));
         lastShown.hier[k] = list.map(r => r.v || "");
         const on = !!cfT(k).f.v;
         return `
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
           <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length, INS[k].length)}</span>${onlyBtn(k, true)}<span class="cf-btn"
-            data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${k === "sec" || k === "prim" ? `<span class="act-uh">U</span>` : ""}${INS_EDIT
+            data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${k === "sec" || k === "prim" ? `<span class="act-uh${cfT(k).f.u || (cfT(k).sort && cfT(k).sort.col === "u" && !cfT(k).sort.def) ? " cf-on" : ""}"><span class="act-uhl">U</span><span class="cf-btn" data-cf="${k}" data-col="u" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>` : ""}${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
           ${k === "lot" ? lotTreeHTML(list) : list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
               ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">${actUCell(k, r)}
@@ -7410,7 +7456,9 @@ function renderBudgetList() {
       const full = keys.length === 4;
       const anyAll = Object.values(LK.all || {}).some(Boolean);
       if (!keys.length && !P.length && !C.length && !anyAll) return { mode: "none" };
-      const M = L.filter(l => keys.every(k => l[k] === LK[k]));
+      /* v525 : rond d'un titre — seules les liaisons des lignes de ce titre */
+      const allK = Object.keys(LK.all || {}).filter(k => LK.all[k] && LK.allp && LK.allp[k]);
+      const M = L.filter(l => keys.every(k => l[k] === LK[k]) && allK.every(k => lkOn(k, l[k])));
       const inM = (k, id) => M.some(l => (l[k] || []).some(x => x.id === id));
       const addP = P.filter(id => !inM("prd", id)), addC = C.filter(id => !inM("chg", id));
       const remP = P.filter(id => inM("prd", id)), remC = C.filter(id => inM("chg", id));
@@ -11202,7 +11250,7 @@ function renderBudgetList() {
         Object.keys(INS).forEach(k => { delete INS[k]; });
         Object.assign(INS, o);
         /* choix en cours (ronds, délier en attente) abandonnés */
-        LK.des = LK.lot = LK.prim = LK.sec = null; LK.prd = {}; LK.chg = {}; LK.dlpDraft = null; LK.all = {}; LK.allm = {}; LK.linksBak = null; LK.unlinked = null;
+        LK.des = LK.lot = LK.prim = LK.sec = null; LK.prd = {}; LK.chg = {}; LK.dlpDraft = null; LK.all = {}; LK.allm = {}; LK.allp = {}; LK.linksBak = null; LK.unlinked = null;
         st.cur = snap; st.quiet = Date.now() + 900;
         insSave();
         keepScroll(() => refreshAll());
@@ -11600,6 +11648,13 @@ function renderBudgetList() {
           X.allToggle(ra.dataset.rdall);
           return;
         }
+        const rg = e.target.closest(".lk-rdgrp");
+        if (rg) {
+          e.stopPropagation(); e.preventDefault();
+          if (rg.classList.contains("off")) { svToast("UNE LIGNE (OU UN AUTRE TITRE) EST DÉJÀ CHOISIE : LIBÉREZ-LA D'ABORD.", 3000, rg); return; }
+          X.partToggle(rg.dataset.rdgrp, rg.dataset.key);
+          return;
+        }
         /* v507 (remarque 63) : pastille d'un titre de charges regroupées = rond de toutes ses charges */
         const gr = e.target.closest(".ins-gtitle .ins-grd");
         if (gr) {
@@ -11728,7 +11783,7 @@ function renderBudgetList() {
         INS.links = after;
         dK.forEach(k => { delete INS.dlp[k]; });
         histLog("LIAISONS", "DÉLIER", (rem ? names.join(", ") + " — " : "") + pl.links.map(tag).join(" ; "));
-        LK.prd = {}; LK.chg = {}; LK.lot = LK.prim = LK.sec = null; LK.dlpDraft = null; LK.all = {}; LK.allm = {};
+        LK.prd = {}; LK.chg = {}; LK.lot = LK.prim = LK.sec = null; LK.dlpDraft = null; LK.all = {}; LK.allm = {}; LK.allp = {};
         if (LK.des && !INS.des.some(x => x.id === LK.des)) LK.des = null;
         insSave();
         refreshAll();
@@ -11808,7 +11863,7 @@ function renderBudgetList() {
         .then(v => {
           if (v === "ok") return lkCommit();
           if (v === "drop") {
-            LK.prd = {}; LK.chg = {}; LK.dlpDraft = null; LK.all = {}; LK.allm = {};
+            LK.prd = {}; LK.chg = {}; LK.dlpDraft = null; LK.all = {}; LK.allm = {}; LK.allp = {};
             LK.lot = LK.prim = LK.sec = null;
             if (LK.linksBak) { INS.links = LK.linksBak; LK.linksBak = null; LK.unlinked = null; insSave(); }
             return true;
@@ -11823,12 +11878,23 @@ function renderBudgetList() {
         if (LK.allm[k]) { LK[k] = {}; LK.allm[k] = false; }
         else { insShown(k).filter(r => !r.t && lkAllLinked(k, r.id)).forEach(r => { LK[k][r.id] = ""; }); LK.allm[k] = Object.keys(LK[k]).length > 0; }
       } else {
-        LK.all[k] = !LK.all[k];
+        /* rond d'en-tête : toutes les lignes ; il remplace un choix par titre (v525) */
+        LK.allp = LK.allp || {};
+        if (LK.allp[k]) { LK.allp[k] = null; LK.all[k] = true; }
+        else LK.all[k] = !LK.all[k];
         if (LK.all[k]) LK[k] = null;
       }
       lkLight(k);
     };
+    /* v525 (remarque 2) : rond d'un titre — toutes les lignes liées sous ce titre (même repliées) ; retoucher = libérer */
+    const lkPartToggle = (k, key) => {
+      LK.all = LK.all || {}; LK.allp = LK.allp || {};
+      if (LK.all[k] && LK.allp[k] === key) { LK.all[k] = false; LK.allp[k] = null; }
+      else { LK.all[k] = true; LK.allp[k] = key; LK[k] = null; }
+      lkLight(k);
+    };
     shell.__fuse = INS && INS_EDIT ? { INS, LK, insId, check: lkCheck, allToggle: k => lkAllToggle(k), chain: () => insRenderChain(), refresh: () => refreshAll(),
+      partToggle: (k, key) => lkPartToggle(k, key),
       commit: () => { const r0 = lkCommit(); if (shell.__prdSyncU && shell.__prdSyncU()) refreshAll(); return r0; }, guard: () => lkGuard(), pending: () => lkPending(), ruleA: (k, id) => lkRuleA(k, id),
       light: k => lkLight(k), unlink: (k, id) => lkUnlink(k, id), name: (k, id) => lkName(k, id),
       unitErr: id => {
@@ -12999,8 +13065,10 @@ function renderBudgetList() {
           document.addEventListener("pointermove", mvv); document.addEventListener("pointerup", off); document.addEventListener("pointercancel", off);
           return;
         } }
+      /* v525 : titre de niveau — pas de prise de focus à l'appui (la liste ne bouge pas pendant l'appui long) ; un simple toucher ouvre la saisie */
+      if (el.classList.contains("lot-grp") && event.target.closest("input.lot-gname") && event.target !== document.activeElement) event.preventDefault();
       const dv = event.target.closest(".ins-dv");
-      const inp = event.target.closest(".ins-in") || (dv && dv.parentElement.querySelector(".ins-in"));
+      const inp = event.target.closest(".ins-in, .lot-gname") || (dv && dv.parentElement.querySelector(".ins-in"));
       const tapFocus = inp && inp !== document.activeElement ? inp : null;
       const sibs = () => isRow
         ? [...el.parentElement.querySelectorAll("tr[data-iid]")]
@@ -13126,6 +13194,8 @@ function renderBudgetList() {
         shell.addEventListener("click", stop, { capture: true, once: true });
         setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 350);
         if (!drop || !target) return;
+        /* v525 (remarque 5) : titre de niveau déplacé = toute sa branche */
+        if (k === "lot" && el.classList.contains("lot-grp")) { lotDrop("@" + el.dataset.path, target, over ? "on" : after ? "after" : "before"); return; }
         const arr = X.INS[k];
         const i0 = arr.findIndex(r => r.id === el.dataset.iid);
         if (i0 < 0) return;
@@ -13205,7 +13275,8 @@ function renderBudgetList() {
         document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
         return;
       }
-      const insEl = INS_EDIT && event.target.closest(".ins-table tr[data-iid], .ins-hcol .ins-li[data-iid]");
+      /* v525 (remarque 5) : un titre de niveau de lot (créé) se glisse aussi, avec ses lots */
+      const insEl = INS_EDIT && event.target.closest(".ins-table tr[data-iid], .ins-hcol .ins-li[data-iid], .ins-hcol .ins-li.lot-grp");
       if (insEl && insEl.classList.contains("lk-ban") && !event.target.closest("input.ins-cb, .ins-t")) {
         const x0 = event.clientX, y0 = event.clientY;
         const tmr = setTimeout(() => { svToast(insEl.dataset.ban || "", 3500, insEl); off(); }, 450);
@@ -13214,8 +13285,8 @@ function renderBudgetList() {
         document.addEventListener("pointermove", mv); document.addEventListener("pointerup", off); document.addEventListener("pointercancel", off);
         return;
       }
-      if (insEl && !event.target.closest(".ins-t, .ins-cb, .ins-x, .lk-rd, .lk-q, .ins-fold") &&
-          event.target.closest(".ins-in") !== document.activeElement) { insDrag(event, insEl); return; }
+      if (insEl && !event.target.closest(".ins-t, .ins-cb, .ins-x, .lk-rd, .lk-q, .ins-fold, input[type=checkbox]") &&
+          event.target.closest(".ins-in, .lot-gname") !== document.activeElement) { insDrag(event, insEl); return; }
       const rz = event.target.closest(".blk-rsz");
       if (rz) { layResize(event, rz); return; }
       const gp = event.target.closest(".blk-grip");
@@ -23008,3 +23079,55 @@ document.addEventListener("focusout", e => {
   const m = money(v);
   if (m !== i.value) { i.value = m; i.defaultValue = m; }
 });
+
+/* =========================================================
+   v525 (remarque 6) : GLISSER UNE LIGNE PRÈS D'UN BORD = DÉFILEMENT AUTOMATIQUE, partout
+   (désignations, lots, activités, détails, planning, blocs) : le tableau (ou la page) défile vers le haut / le bas,
+   plus vite à mesure que le doigt s'approche du bord ; le trait de dépôt suit
+   ========================================================= */
+(() => {
+  let last = null, raf = 0, sc0 = null;
+  const E = 56;
+  const scrollAnc = el => {
+    for (let x = el && el.parentElement; x && x !== document.body && x !== document.documentElement; x = x.parentElement) {
+      const cs = getComputedStyle(x);
+      if (/(auto|scroll)/.test(cs.overflowY) && x.scrollHeight > x.clientHeight + 1) return x;
+    }
+    return null;
+  };
+  const speed = over => Math.min(24, Math.ceil(over / 3) + 2);
+  const step = () => {
+    raf = 0;
+    if (!last || !document.body.classList.contains("svi-dragging")) { sc0 = null; return; }
+    if (!sc0 || !sc0.isConnected) { const src = document.querySelector(".ro-src, .gb-lift"); sc0 = src ? scrollAnc(src) : null; }
+    const y = last.y;
+    let moved = false;
+    if (sc0) {
+      /* zone de bord proportionnée à la hauteur de la zone (petite liste : petite zone, pour pouvoir viser ses lignes) */
+      const r = sc0.getBoundingClientRect(), b = sc0.scrollTop, e = Math.max(14, Math.min(E, r.height * 0.16));
+      if (y < r.top + e) sc0.scrollTop -= speed(r.top + e - y);
+      else if (y > r.bottom - e) sc0.scrollTop += speed(y - (r.bottom - e));
+      moved = sc0.scrollTop !== b;
+    }
+    if (!moved) {
+      let top = 0; const tb = document.querySelector(".topbar, .bdg-d-sticky");
+      if (tb && /sticky|fixed/.test(getComputedStyle(tb).position)) top = Math.max(0, tb.getBoundingClientRect().bottom);
+      const b = window.scrollY;
+      if (y < top + E) window.scrollBy(0, -speed(top + E - y));
+      else if (y > window.innerHeight - E) window.scrollBy(0, speed(y - (window.innerHeight - E)));
+      moved = window.scrollY !== b;
+    }
+    if (moved) {
+      try { document.dispatchEvent(new PointerEvent("pointermove", { clientX: last.x, clientY: last.y, bubbles: true, cancelable: true, pointerId: last.id, pointerType: last.t, isPrimary: true })); } catch (e) {}
+      raf = requestAnimationFrame(step);
+    }
+  };
+  document.addEventListener("pointermove", e => {
+    if (!e.isTrusted) return;
+    last = { x: e.clientX, y: e.clientY, id: e.pointerId, t: e.pointerType };
+    if (document.body.classList.contains("svi-dragging") && !raf) raf = requestAnimationFrame(step);
+  }, true);
+  const stop = () => { last = null; sc0 = null; if (raf) { cancelAnimationFrame(raf); raf = 0; } };
+  document.addEventListener("pointerup", stop, true);
+  document.addEventListener("pointercancel", stop, true);
+})();
