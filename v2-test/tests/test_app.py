@@ -881,18 +881,55 @@ def main():
         r4b = pg.evaluate("() => !!document.getElementById('cfMenu')")
         pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(200)
         check("v525 remarque 4 : loupe (tri / filtre) sur la colonne U des activités", r4 == [True, True] and r4b, [r4, r4b])
-        # remarque 6 : glisser une ligne jusqu'au bord = le tableau défile tout seul
-        pg.evaluate(f"""() => {{ const X = {ins}; for (let i = 0; i < 30; i++) X.INS.chg.push({{ id: 'ww' + i, des: 'CHARGE W' + (10 + i), u: 'U', q: 1, p: 1 }}); X.insSave(); X.refreshAll();
-            document.querySelector('.bdg-d-tab[data-tab="chg"]')?.click(); }}"""); pg.wait_for_timeout(500)
-        d6 = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'), sc = t.closest('.bdg-d-scroll'); sc.scrollTop = 0;
-            const tr = t.querySelector('tr[data-iid="ww0"]') || [...t.tBodies[0].rows].find(r => r.dataset.iid); const c = tr.cells[2].getBoundingClientRect(), s = sc.getBoundingClientRect();
-            return [c.left + 10, c.top + c.height / 2, s.bottom - 6, sc.scrollHeight > sc.clientHeight + 40]; }""")
-        pg.mouse.move(d6[0], d6[1]); pg.mouse.down(); pg.wait_for_timeout(500)
-        pg.mouse.move(d6[0], d6[2], steps=8); pg.wait_for_timeout(700)
-        s6 = pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"]').closest('.bdg-d-scroll').scrollTop")
-        pg.keyboard.press("Escape"); pg.mouse.up(); pg.wait_for_timeout(400)
-        pg.evaluate(f"() => {{ const X = {ins}; X.INS.chg = X.INS.chg.filter(r => !/^ww/.test(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
-        check("v525 remarque 6 : glisser près du bord bas = défilement automatique", d6[3] and s6 > 20, [d6, s6])
+        # remarque 6 : glisser une ligne jusqu'au bord = le tableau défile tout seul (DÉSIGNATIONS CLIENT)
+        pg.evaluate(f"""() => {{ const X = {ins}; for (let i = 0; i < 25; i++) X.INS.des.push({{ id: 'dw' + i, d: 1, art: '8.' + i, des: 'DESIG W' + i, u: 'U', q: 1, p: 1, tva: 20 }}); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(500)
+        d6 = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="des"]'); let sc = t.parentElement; while (sc && !(sc.scrollHeight > sc.clientHeight + 2 && /(auto|scroll)/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
+            if (!sc) return null; sc.scrollIntoView({ block: 'center' }); sc.scrollTop = 0;
+            const tr = [...t.tBodies[0].rows].filter(r => r.dataset.iid && r.offsetParent !== null)[1]; const c = tr.querySelector('.ins-dv') || tr.cells[2]; const r = c.getBoundingClientRect(), s = sc.getBoundingClientRect();
+            return [r.left + 20, r.top + r.height / 2, s.bottom - 4, sc.scrollHeight > sc.clientHeight + 40]; }""")
+        if d6:
+            pg.mouse.move(d6[0], d6[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+            pg.mouse.move(d6[0], d6[2], steps=8); pg.wait_for_timeout(700)
+        s6 = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="des"]'); let sc = t.parentElement; while (sc && !(sc.scrollHeight > sc.clientHeight + 2 && /(auto|scroll)/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement; return sc ? sc.scrollTop : -1; }""")
+        pg.keyboard.press("Escape"); pg.mouse.move(5, 5); pg.mouse.up(); pg.wait_for_timeout(400)
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.des = X.INS.des.filter(r => !/^dw/.test(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v525 remarque 6 : glisser près du bord bas = défilement automatique", d6 is not None and d6[3] and s6 > 20, [d6, s6])
+
+        # ===== v527 : remarques du 22/10 (fin de journée) =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.evaluate("() => document.querySelector('.svi-empty [data-clrall]')?.click()"); pg.wait_for_timeout(300)
+        # remarque 1 : appui long sur une ligne du DÉTAIL CHARGES = pas de trait de déplacement
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(400)
+        c1 = pg.evaluate("""() => { const tr = [...document.querySelectorAll('table.ins-table[data-ik="chg"] tbody tr[data-iid]')].find(t => t.offsetParent !== null); tr.scrollIntoView({ block: 'center' }); const r = tr.cells[2].getBoundingClientRect(); return [r.left + 10, r.top + r.height / 2]; }""")
+        pg.mouse.move(c1[0], c1[1]); pg.mouse.down(); pg.wait_for_timeout(500); pg.mouse.move(c1[0], c1[1] + 30, steps=5); pg.wait_for_timeout(200)
+        n1 = pg.evaluate("() => [!!document.getElementById('roLine'), document.body.classList.contains('svi-dragging')]")
+        pg.mouse.up(); pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(300)
+        check("v527 remarque 1 : appui long sur une ligne de charge = aucun trait (pas de déplacement)", n1 == [False, False], n1)
+        # remarque 2 : titre « DÉTAIL CHARGES — FORMAT TABLEAU »
+        pg.evaluate("() => { const s = [...document.querySelectorAll('*')].find(e => e.__sd); s && s.__sd('chg'); }"); pg.wait_for_timeout(600)
+        t2 = pg.evaluate("() => (document.querySelector('#sdW .sd-title') || {}).textContent || ''")
+        pg.evaluate("() => document.querySelector('#sdW [data-x]')?.click()"); pg.wait_for_timeout(400)
+        check("v527 remarque 2 : titre « DÉTAIL CHARGES — FORMAT TABLEAU »", t2.strip() == "DÉTAIL CHARGES — FORMAT TABLEAU", t2)
+        # remarque 3 : GROUPE au lieu de NIVEAU (anciens noms NIVEAU n affichés GROUPE n)
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.lot.push({{ id: 'gv', v: 'TOIT / NIVEAU 1 / ZONE V' }}); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        for _ in range(6):
+            if not pg.evaluate(UNF): break
+            pg.wait_for_timeout(300)
+        t3 = pg.evaluate("() => { const i = document.querySelector('.lot-grp[data-path=\"TOIT / NIVEAU 1\"] input.lot-gname'); return i ? i.value : null; }")
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.lot = X.INS.lot.filter(r => r.id !== 'gv'); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v527 remarque 3 : titre de groupe affiché « GROUPE … »", isinstance(t3, str) and t3.startswith("GROUPE "), t3)
+        # remarque 5 : cases cochées qui se contredisent → bandeau avec DÉCOCHER par bloc
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.find(r => r.id === 'c2').on = true; I.lot.find(r => r.id === 'l2').on = true; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(500)
+        b5 = pg.evaluate("() => [...document.querySelectorAll('.svi-empty [data-clrk]')].map(b => b.dataset.clrk)")
+        pg.evaluate("() => document.querySelector('.svi-empty [data-clrk=\"lot\"]')?.click()"); pg.wait_for_timeout(500)
+        b5b = pg.evaluate(f"() => {{ const X = {ins}; return [X.INS.lot.some(r => r.on === true), X.INS.chg.find(r => r.id === 'c2').on === true]; }}")
+        pg.evaluate("() => document.querySelector('.svi-empty [data-clrall]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.chg.forEach(r => r.on = false); X.INS.lot.forEach(r => r.on = false); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v527 remarque 5 : bandeau qui nomme les cases contradictoires, DÉCOCHER LOTS ne décoche que les lots", "lot" in b5 and b5b == [False, True], [b5, b5b])
+        # remarque 6 : BATTEMENT dans le planning
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(500)
+        t6 = pg.evaluate("() => [...document.querySelectorAll('th')].map(t => t.textContent.trim()).filter(t => /BATTEMENT|^MARGE$/.test(t))")
+        check("v527 remarque 6 : marge de délai = BATTEMENT", "BATTEMENT" in t6 and "MARGE" not in t6, t6)
 
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()

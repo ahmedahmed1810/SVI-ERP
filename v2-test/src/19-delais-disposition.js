@@ -15,7 +15,7 @@
     /* planning : lot, activité secondaire, prédécesseurs, début, fin, durée */
     const DLY_COLS_P = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ["pred", "PRÉDÉCESSEURS", x => x.pred || "", ""],
       ["deb", "DÉBUT", x => x.deb || "", "center"], ["fin", "FIN", x => x.fin || "", "center"], ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "center"],
-      ["marge", "MARGE", x => x.marge === "" || x.marge === undefined ? "" : Number(x.marge), "center"], ["jal", "JALON", x => x.jal || "", "center"]];
+      ["marge", "BATTEMENT", x => x.marge === "" || x.marge === undefined ? "" : Number(x.marge), "center"], ["jal", "JALON", x => x.jal || "", "center"]];
     /* budget en instance : la tâche est donnée par les ronds du haut (pas de colonnes LOT / ACT. PRIMAIRE) */
     const DLY_COLS_I = DLY_COLS.filter(c => c[0] !== "lot" && c[0] !== "prim");
     /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */

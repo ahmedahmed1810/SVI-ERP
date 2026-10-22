@@ -2101,3 +2101,6 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .ins-table td.ins-rdbc { white-space: nowrap; }
 .ins-table td.ins-rdbc input.ins-rdbl { width: 52% !important; display: inline-block; text-align: right; }
 .ins-table td.ins-rdbc .ins-rdbu { font-size: 10px; font-weight: 700; padding: 0 4px 0 2px; }
+/* v527 (remarque 4) : unité du rendement dans la couleur de la ligne (plus de rouge) */
+.ins-table td.ins-rdbc .ins-rdbu { color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+.svi-empty .svi-empty-k { background: #fff; color: #1d4ed8; }

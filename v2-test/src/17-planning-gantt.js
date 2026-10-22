@@ -2014,7 +2014,7 @@
         }
         if (base.length >= src.length && src.every((g, i) => U_(g) === U_(base[i]))) { renderTabK(); return; }   /* pas dans sa propre branche */
         /* déjà rangé là (même parent) : on le dit, au lieu de ne rien faire en silence */
-        if (!extra && !plan.keep && U_(src.slice(0, -1).join(" / ")) === U_(base.join(" / ")) && (plan.on || !plan.before)) { svToast(src[src.length - 1] + (base.length ? " EST DÉJÀ DANS " + base[base.length - 1] : " EST DÉJÀ AU PREMIER NIVEAU") + ".", 3500, anchor); }
+        if (!extra && !plan.keep && U_(src.slice(0, -1).join(" / ")) === U_(base.join(" / ")) && (plan.on || !plan.before)) { svToast(src[src.length - 1] + (base.length ? " EST DÉJÀ DANS " + base[base.length - 1] : " N'EST DANS AUCUN GROUPE") + ".", 3500, anchor); }
         const ren = new Map();
         const add = (P0, b0) => L.filter(x => !x.t && under(x.v, P0)).forEach(x => ren.set(x.id, b0.concat(dlyLotPath(x.v).slice(P0.length - 1)).join(" / ")));
         add(src, base); if (extra) add(extra.P, extra.base);
@@ -2031,7 +2031,7 @@
         rest.splice(j, 0, ...mine);
         INS.dord = rest;
         dlyTasksFromPlan(); insSave();
-        histLog("DÉLAIS", N ? "NIVEAU DE LOT CRÉÉ" : plan.keep ? "LOT DÉPLACÉ (PLACE, MÊME TITRE)" : "LOT DÉPLACÉ", dlyLotPath(path).pop() + (plan.keep ? "" : " → " + (base.length ? base.join(" / ") : "RACINE")));
+        histLog("DÉLAIS", N ? "GROUPE DE LOTS CRÉÉ" : plan.keep ? "LOT DÉPLACÉ (PLACE, MÊME TITRE)" : "LOT DÉPLACÉ", dlyLotPath(path).pop() + (plan.keep ? "" : " → " + (base.length ? base.join(" / ") : "RACINE")));
         refreshAll();
         if (N) setTimeout(() => { const i = [...shell.querySelectorAll("input.dly-nm")].find(x => x.dataset.path === base.join(" / ")); if (i) { i.focus(); try { i.select(); } catch (e) {} } }, 80);
       },
@@ -2063,12 +2063,12 @@
             <button type="button" class="svc-close" data-v="" aria-label="Fermer">✕</button>
             <div class="svc-t">SUPERPOSER</div>
             <div class="svc-x svc-html">${row(A, "TÂCHE VISÉE")}${row(B, "TÂCHE GLISSÉE")}
-              ${same ? `<div class="svc-sub svc-warn">MÊME ACTIVITÉ « ${esc(nm(A, 1))} » : CHANGER UN INTITULÉ POUR CRÉER UN NIVEAU (OU FUSIONNER).</div>` : ""}
-              ${eL ? `<div class="svc-sub svc-warn">CRÉER UN NIVEAU IMPOSSIBLE : ${esc(eL)}</div>` : ""}
+              ${same ? `<div class="svc-sub svc-warn">MÊME ACTIVITÉ « ${esc(nm(A, 1))} » : CHANGER UN INTITULÉ POUR CRÉER UN GROUPE (OU FUSIONNER).</div>` : ""}
+              ${eL ? `<div class="svc-sub svc-warn">CRÉER UN GROUPE IMPOSSIBLE : ${esc(eL)}</div>` : ""}
               ${eF ? `<div class="svc-sub svc-warn">FUSIONNER IMPOSSIBLE : ${esc(eF)}</div>` : ""}</div>
             <div class="svc-f"><button type="button" class="svc-b" data-v="">ANNULER</button>
               <button type="button" class="svc-b svc-ok svc-neutral" data-v="fus"${eF ? " disabled" : ""}>FUSIONNER</button>
-              <button type="button" class="svc-b svc-ok svc-neutral" data-v="lvl"${same || eL ? " disabled" : ""}>CRÉER UN NIVEAU</button></div></div>`;
+              <button type="button" class="svc-b svc-ok svc-neutral" data-v="lvl"${same || eL ? " disabled" : ""}>CRÉER UN GROUPE</button></div></div>`;
         };
         document.getElementById("svConf")?.remove();
         document.body.appendChild(d);
@@ -2128,7 +2128,7 @@
         INS.dord = (INS.dord || []).filter(x => x !== kB);
         INS.dord.splice(INS.dord.indexOf(kA) + 1, 0, kB);
         dlyTasksFromPlan(); insSave();
-        histLog("DÉLAIS", "NIVEAU DE LOT CRÉÉ", dlyName(kA) + " + " + dlyName(kB));
+        histLog("DÉLAIS", "GROUPE DE LOTS CRÉÉ", dlyName(kA) + " + " + dlyName(kB));
         refreshAll();
         setTimeout(() => { const inp = [...shell.querySelectorAll("input.dly-nm")].find(x => x.dataset.path === nl.v); if (inp) { inp.focus(); try { inp.select(); } catch (e) {} } }, 80);
       },
@@ -2181,7 +2181,7 @@
         if (tr.classList.contains("dly-task")) nl = String(tr.dataset.key).split("|")[0];
         else if (after) {
           const lt = INS.lot.find(x => dlyLotPath(x.v).join(" / ") === tr.dataset.path);
-          if (!lt) { svToast("CHANGEMENT REFUSÉ : " + tr.dataset.path + " EST UN NIVEAU, PAS UN LOT. LÂCHER LA TÂCHE PARMI LES TÂCHES D'UN LOT.", 4500, tr); return; }
+          if (!lt) { svToast("CHANGEMENT REFUSÉ : " + tr.dataset.path + " EST UN GROUPE, PAS UN LOT. LÂCHER LA TÂCHE PARMI LES TÂCHES D'UN LOT.", 4500, tr); return; }
           nl = lt.id;
         }
         let k = key;
@@ -2226,7 +2226,7 @@
         }
         /* lot ou niveau de lot (« / ») : toutes les tâches dessous suivent */
         const segs = dlyLotPath(inp.dataset.path), lvl = segs.length;
-        if (!v || v.includes("/")) { svToast(!v ? "NOM VIDE REFUSÉ." : "« / » SÉPARE LES NIVEAUX : NOM REFUSÉ.", 3500, inp); back(); return; }
+        if (!v || v.includes("/")) { svToast(!v ? "NOM VIDE REFUSÉ." : "« / » SÉPARE LES GROUPES : NOM REFUSÉ.", 3500, inp); back(); return; }
         if (v === segs[lvl - 1] || (LVL_AUTO.test(segs[lvl - 1] || "") && v === U_(lotLab(segs).name))) { back(); return; }
         const hit = INS.lot.filter(x => !x.t && (() => { const p = dlyLotPath(x.v); return p.length >= lvl && segs.every((sg, i) => U_(p[i]) === U_(sg)); })());
         const nv = x => { const p = dlyLotPath(x.v); p[lvl - 1] = v; return p.join(" / "); };

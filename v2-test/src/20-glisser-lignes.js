@@ -322,7 +322,8 @@
         return;
       }
       /* v525 (remarque 5) : un titre de niveau de lot (créé) se glisse aussi, avec ses lots */
-      const insEl = INS_EDIT && event.target.closest(".ins-table tr[data-iid], .ins-hcol .ins-li[data-iid], .ins-hcol .ins-li.lot-grp");
+      /* v527 (remarque 1) : les lignes du DÉTAIL CHARGES et du DÉTAIL PRODUITS ne se déplacent pas — pas de trait à l'appui long */
+      const insEl = INS_EDIT && event.target.closest('.ins-table:not([data-ik="chg"]):not([data-ik="prd"]) tr[data-iid], .ins-hcol .ins-li[data-iid], .ins-hcol .ins-li.lot-grp');
       if (insEl && insEl.classList.contains("lk-ban") && !event.target.closest("input.ins-cb, .ins-t")) {
         const x0 = event.clientX, y0 = event.clientY;
         const tmr = setTimeout(() => { svToast(insEl.dataset.ban || "", 3500, insEl); off(); }, 450);
