@@ -111,8 +111,10 @@
           document.addEventListener("pointermove", mvv); document.addEventListener("pointerup", off); document.addEventListener("pointercancel", off);
           return;
         } }
+      /* v525 : titre de niveau — pas de prise de focus à l'appui (la liste ne bouge pas pendant l'appui long) ; un simple toucher ouvre la saisie */
+      if (el.classList.contains("lot-grp") && event.target.closest("input.lot-gname") && event.target !== document.activeElement) event.preventDefault();
       const dv = event.target.closest(".ins-dv");
-      const inp = event.target.closest(".ins-in") || (dv && dv.parentElement.querySelector(".ins-in"));
+      const inp = event.target.closest(".ins-in, .lot-gname") || (dv && dv.parentElement.querySelector(".ins-in"));
       const tapFocus = inp && inp !== document.activeElement ? inp : null;
       const sibs = () => isRow
         ? [...el.parentElement.querySelectorAll("tr[data-iid]")]
@@ -238,6 +240,8 @@
         shell.addEventListener("click", stop, { capture: true, once: true });
         setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 350);
         if (!drop || !target) return;
+        /* v525 (remarque 5) : titre de niveau déplacé = toute sa branche */
+        if (k === "lot" && el.classList.contains("lot-grp")) { lotDrop("@" + el.dataset.path, target, over ? "on" : after ? "after" : "before"); return; }
         const arr = X.INS[k];
         const i0 = arr.findIndex(r => r.id === el.dataset.iid);
         if (i0 < 0) return;
@@ -317,7 +321,8 @@
         document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
         return;
       }
-      const insEl = INS_EDIT && event.target.closest(".ins-table tr[data-iid], .ins-hcol .ins-li[data-iid]");
+      /* v525 (remarque 5) : un titre de niveau de lot (créé) se glisse aussi, avec ses lots */
+      const insEl = INS_EDIT && event.target.closest(".ins-table tr[data-iid], .ins-hcol .ins-li[data-iid], .ins-hcol .ins-li.lot-grp");
       if (insEl && insEl.classList.contains("lk-ban") && !event.target.closest("input.ins-cb, .ins-t")) {
         const x0 = event.clientX, y0 = event.clientY;
         const tmr = setTimeout(() => { svToast(insEl.dataset.ban || "", 3500, insEl); off(); }, 450);
@@ -326,8 +331,8 @@
         document.addEventListener("pointermove", mv); document.addEventListener("pointerup", off); document.addEventListener("pointercancel", off);
         return;
       }
-      if (insEl && !event.target.closest(".ins-t, .ins-cb, .ins-x, .lk-rd, .lk-q, .ins-fold") &&
-          event.target.closest(".ins-in") !== document.activeElement) { insDrag(event, insEl); return; }
+      if (insEl && !event.target.closest(".ins-t, .ins-cb, .ins-x, .lk-rd, .lk-q, .ins-fold, input[type=checkbox]") &&
+          event.target.closest(".ins-in, .lot-gname") !== document.activeElement) { insDrag(event, insEl); return; }
       const rz = event.target.closest(".blk-rsz");
       if (rz) { layResize(event, rz); return; }
       const gp = event.target.closest(".blk-grip");

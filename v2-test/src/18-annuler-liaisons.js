@@ -35,7 +35,7 @@
         Object.keys(INS).forEach(k => { delete INS[k]; });
         Object.assign(INS, o);
         /* choix en cours (ronds, délier en attente) abandonnés */
-        LK.des = LK.lot = LK.prim = LK.sec = null; LK.prd = {}; LK.chg = {}; LK.dlpDraft = null; LK.all = {}; LK.allm = {}; LK.linksBak = null; LK.unlinked = null;
+        LK.des = LK.lot = LK.prim = LK.sec = null; LK.prd = {}; LK.chg = {}; LK.dlpDraft = null; LK.all = {}; LK.allm = {}; LK.allp = {}; LK.linksBak = null; LK.unlinked = null;
         st.cur = snap; st.quiet = Date.now() + 900;
         insSave();
         keepScroll(() => refreshAll());
@@ -433,6 +433,13 @@
           X.allToggle(ra.dataset.rdall);
           return;
         }
+        const rg = e.target.closest(".lk-rdgrp");
+        if (rg) {
+          e.stopPropagation(); e.preventDefault();
+          if (rg.classList.contains("off")) { svToast("UNE LIGNE (OU UN AUTRE TITRE) EST DÉJÀ CHOISIE : LIBÉREZ-LA D'ABORD.", 3000, rg); return; }
+          X.partToggle(rg.dataset.rdgrp, rg.dataset.key);
+          return;
+        }
         /* v507 (remarque 63) : pastille d'un titre de charges regroupées = rond de toutes ses charges */
         const gr = e.target.closest(".ins-gtitle .ins-grd");
         if (gr) {
@@ -561,7 +568,7 @@
         INS.links = after;
         dK.forEach(k => { delete INS.dlp[k]; });
         histLog("LIAISONS", "DÉLIER", (rem ? names.join(", ") + " — " : "") + pl.links.map(tag).join(" ; "));
-        LK.prd = {}; LK.chg = {}; LK.lot = LK.prim = LK.sec = null; LK.dlpDraft = null; LK.all = {}; LK.allm = {};
+        LK.prd = {}; LK.chg = {}; LK.lot = LK.prim = LK.sec = null; LK.dlpDraft = null; LK.all = {}; LK.allm = {}; LK.allp = {};
         if (LK.des && !INS.des.some(x => x.id === LK.des)) LK.des = null;
         insSave();
         refreshAll();
@@ -641,7 +648,7 @@
         .then(v => {
           if (v === "ok") return lkCommit();
           if (v === "drop") {
-            LK.prd = {}; LK.chg = {}; LK.dlpDraft = null; LK.all = {}; LK.allm = {};
+            LK.prd = {}; LK.chg = {}; LK.dlpDraft = null; LK.all = {}; LK.allm = {}; LK.allp = {};
             LK.lot = LK.prim = LK.sec = null;
             if (LK.linksBak) { INS.links = LK.linksBak; LK.linksBak = null; LK.unlinked = null; insSave(); }
             return true;
@@ -656,12 +663,23 @@
         if (LK.allm[k]) { LK[k] = {}; LK.allm[k] = false; }
         else { insShown(k).filter(r => !r.t && lkAllLinked(k, r.id)).forEach(r => { LK[k][r.id] = ""; }); LK.allm[k] = Object.keys(LK[k]).length > 0; }
       } else {
-        LK.all[k] = !LK.all[k];
+        /* rond d'en-tête : toutes les lignes ; il remplace un choix par titre (v525) */
+        LK.allp = LK.allp || {};
+        if (LK.allp[k]) { LK.allp[k] = null; LK.all[k] = true; }
+        else LK.all[k] = !LK.all[k];
         if (LK.all[k]) LK[k] = null;
       }
       lkLight(k);
     };
+    /* v525 (remarque 2) : rond d'un titre — toutes les lignes liées sous ce titre (même repliées) ; retoucher = libérer */
+    const lkPartToggle = (k, key) => {
+      LK.all = LK.all || {}; LK.allp = LK.allp || {};
+      if (LK.all[k] && LK.allp[k] === key) { LK.all[k] = false; LK.allp[k] = null; }
+      else { LK.all[k] = true; LK.allp[k] = key; LK[k] = null; }
+      lkLight(k);
+    };
     shell.__fuse = INS && INS_EDIT ? { INS, LK, insId, check: lkCheck, allToggle: k => lkAllToggle(k), chain: () => insRenderChain(), refresh: () => refreshAll(),
+      partToggle: (k, key) => lkPartToggle(k, key),
       commit: () => { const r0 = lkCommit(); if (shell.__prdSyncU && shell.__prdSyncU()) refreshAll(); return r0; }, guard: () => lkGuard(), pending: () => lkPending(), ruleA: (k, id) => lkRuleA(k, id),
       light: k => lkLight(k), unlink: (k, id) => lkUnlink(k, id), name: (k, id) => lkName(k, id),
       unitErr: id => {
