@@ -2110,3 +2110,17 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .ins-hcol .bdg-h-head .ins-hdel { position: relative; z-index: 6; }
 /* v528 : rond d'un titre dont un sous-groupe est choisi (à moitié) */
 .lk-rd.lk-rdgrp.part { background: radial-gradient(circle, var(--inst, #b91c1c) 0 35%, transparent 38%); }
+
+/* v529 (remarque 2) : TOUS les titres (groupes de lots, titres des désignations, groupes du planning, points de contrôle
+   de la qualité, lots qui ont des sous-lots) = style des titres du DÉTAIL CHARGES : texte bleu foncé, ligne légèrement grisée.
+   Les états (choisi, lié, coché replié) gardent leurs couleurs. */
+:root { --ttl-c: #1e3a8a; --ttl-bg: #e4e9f1; }
+.ins-hcol .ins-li:is(.lot-grp, .lot-par):not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit) { background: var(--ttl-bg) !important; }
+.ins-hcol .ins-li:is(.lot-grp, .lot-par):not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit) :is(input.lot-gname, input.ins-in, .lot-in > span:not(.ins-fold):not(.lot-fold-sp), .lvl-no) {
+  color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c) !important; font-weight: 800; }
+.ins-table tr.ins-title:not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit) td { background: var(--ttl-bg) !important; color: var(--ttl-c) !important; font-weight: 800; }
+.ins-table tr.ins-title:not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit) td :is(input.ins-in, textarea.ins-in, .ins-dv, .ins-art, span:not(.lk-rd):not(.ins-fold)) { color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c) !important; }
+.dly-grp:not(.ins-hasck) td { background: var(--ttl-bg) !important; color: var(--ttl-c) !important; font-weight: 800; }
+.dly-grp:not(.ins-hasck) td :is(input.dly-nm, .lvl-no, span:not(.lk-rd):not(.ins-fold):not(.dly-fold)) { color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c) !important; font-weight: 800; }
+.qq-table tr.qq-t td { background: var(--ttl-bg) !important; color: var(--ttl-c) !important; }
+.qq-table tr.qq-t td :is(input.qq-lab, input.qq-in) { color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c) !important; font-weight: 800; }
