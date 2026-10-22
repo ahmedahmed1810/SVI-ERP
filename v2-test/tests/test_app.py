@@ -1137,6 +1137,35 @@ def main():
         check("v531 : nouveau titre créé à la place de la ligne visée, sans que la liste ni la page ne bougent",
               s31[0] is not None and abs(s31[0] - round(st[3])) <= 2 and s31[1] and abs(s31[2] - round(st[4])) <= 2, [st, s31])
 
+        # ===== v532 : les titres de groupe ne changent plus tout seuls (glissement, création d'un autre titre…) =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id));
+            I.lot.push({{ id: 'ka', v: 'ZONE A' }}, {{ id: 'kb', v: 'GROUPE 6 / ZONE B' }}, {{ id: 'kc', v: 'GROUPE 6 / ZONE C' }}, {{ id: 'kd', v: 'ZONE D' }}, {{ id: 'ke', v: 'ZONE E' }}); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        for _ in range(6):
+            if not pg.evaluate(UNF): break
+            pg.wait_for_timeout(250)
+        NM = """() => [...document.querySelectorAll('.ins-hcol[data-ik="lot"] .ins-li')].map(x => x.classList.contains('lot-grp') ? x.querySelector('input.lot-gname').value : ((x.querySelector('.lvl-no') || {}).textContent || '') + ' ' + (x.querySelector('input.ins-in') || {}).value).join(' | ')"""
+        n0 = pg.evaluate(NM)
+        pg.evaluate("""() => { const c = document.querySelector('.ins-hcol[data-ik="lot"]'); c.style.maxHeight = 'none'; c.style.height = 'auto'; c.scrollIntoView({ block: 'center' }); }"""); pg.wait_for_timeout(200)
+        def dr32(src, dst, frac):
+            a = pg.evaluate("s => { const r = document.querySelector('.ins-li[data-iid=\"' + s + '\"] input.ins-in').getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; }", src)
+            t = pg.evaluate("([s, f]) => { const r = document.querySelector('.ins-li[data-iid=\"' + s + '\"]').getBoundingClientRect(); return r.top + r.height * f; }", [dst, frac])
+            pg.mouse.move(a[0], a[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+            pg.mouse.move(a[0], t - 2, steps=6); pg.wait_for_timeout(100); pg.mouse.move(a[0], t, steps=2); pg.wait_for_timeout(150)
+            pg.mouse.up(); pg.wait_for_timeout(600); pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        dr32("ke", "ka", .05)          # ZONE E glissée tout en haut
+        n1 = pg.evaluate(NM)
+        pg.evaluate("""() => { const c = document.querySelector('.ins-hcol[data-ik="lot"]'); c.style.maxHeight = 'none'; c.style.height = 'auto'; }"""); pg.wait_for_timeout(100)
+        dr32("kd", "ka", .5)           # ZONE D posée sur ZONE A = nouveau titre
+        n2 = pg.evaluate(NM)
+        pg.evaluate("""() => { const c = document.querySelector('.ins-hcol[data-ik="lot"]'); c.style.maxHeight = 'none'; c.style.height = 'auto'; }"""); pg.wait_for_timeout(100)
+        dr32("ke", "kd", .95)
+        n3 = pg.evaluate(NM)
+        grp = lambda t: [x for x in t.split(" | ") if x.startswith("GROUPE")]
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v532 : « GROUPE 6 » reste « GROUPE 6 » ; un nouveau titre garde son nom après d'autres glissements ; ses lots numérotés 6.1, 6.2",
+              "GROUPE 6" in grp(n0) and "GROUPE 6" in grp(n1) and len(grp(n2)) == 2 and grp(n3) == grp(n2) and "6.1 ZONE B" in n0, [n0, n1, n2, n3])
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
