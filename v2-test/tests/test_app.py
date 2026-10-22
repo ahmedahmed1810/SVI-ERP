@@ -791,6 +791,48 @@ def main():
         r6 = pg.evaluate("() => [...document.querySelectorAll('.bdg-d-hright .inst-act:not([hidden]), .bdg-d-hright .inst-nav, .blk-more')].filter(b => b.offsetParent !== null).map(b => Math.round(b.getBoundingClientRect().width) + 'x' + Math.round(b.getBoundingClientRect().height))")
         check("v523 remarque 6 : boutons-icônes à la même taille (36 × 36)", len(r6) > 3 and all(x == "36x36" for x in r6), r6)
 
+        # ===== v524 : remarques 1 à 5 (bis) =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        # remarque 3 / 4 / 5 : rendement du titre de charges regroupées (une seule désignation client)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;
+            I.prd.push({{ id: 'x8', des: 'BETON B25', u: 'M3', nbr: 20, d1: 1, d2: 1, d3: 1 }});
+            I.chg.push({{ id: 'g1', des: 'SABLE TEST', u: 'M3', q: 2, p: 10 }}, {{ id: 'g2', des: 'SABLE TEST', u: 'M3', q: 3, p: 10 }});
+            I.links.find(l => l.id === 'L1').chg.push({{ id: 'g1' }});
+            I.links.push({{ id: 'L11', des: 'd1', lot: 'l2', prim: 'p1', sec: 's1', prd: [{{ id: 'x8' }}], chg: [{{ id: 'g2' }}] }});
+            X.insSave(); X.refreshAll(); document.querySelector('.bdg-d-tab[data-tab="chg"]')?.click(); }}"""); pg.wait_for_timeout(500)
+        RI = 'table.ins-table[data-ik="chg"] tr.ins-gtitle[data-grp="g1,g2"] input.ins-rdbin'
+        # quantités de produit de la tâche de chaque ligne (même calcul que l'écran)
+        QP = pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; return ['g1', 'g2'].map(id => {{ const l = I.links.find(l => (l.chg || []).some(x => x.id === id)); const sp = new Set(); let q = 0;
+            I.links.filter(m => m.lot === l.lot && m.sec === l.sec).forEach(m => (m.prd || []).forEach(y => {{ if (sp.has(y.id)) return; sp.add(y.id); const p = I.prd.find(x => x.id === y.id); if (p) q += insPrdQ(p); }})); return q; }}); }}""")
+        R3x = (QP[0] + QP[1]) / 5
+        R4x = [max(0.5, round(q / 7 * 2) / 2) for q in QP]
+        r3 = pg.evaluate("s => { const i = document.querySelector(s); return i ? [i.value, getComputedStyle(i).fontStyle] : null; }", RI)
+        check("v524 remarque 3 : rendement en italique sur le titre (une seule désignation)", r3 is not None and abs(float(r3[0].replace(" ", "").replace(",", ".")) - R3x) < 0.006 and r3[1] == "italic", [r3, R3x])
+        pg.evaluate("s => { const i = document.querySelector(s); i.focus(); i.value = '7'; i.dispatchEvent(new Event('change', { bubbles: true })); }", RI); pg.wait_for_timeout(400)
+        pg.evaluate("() => document.querySelector('#svConf [data-r=\"1\"]')?.click()"); pg.wait_for_timeout(500)
+        r4 = pg.evaluate(f"() => {{ const X = {ins}; return ['g1', 'g2'].map(id => X.INS.chg.find(r => r.id === id).q); }}")
+        check("v524 remarque 4 : rendement tapé = quantités recalculées par tâche (produit de sa tâche ÷ rendement), arrondies à 0,5", r4 == R4x, [r4, R4x, QP])
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.evaluate("s => { const i = document.querySelector(s); i.focus(); }", RI); pg.wait_for_timeout(150)
+        pg.keyboard.press("Enter"); pg.wait_for_timeout(400)
+        r5 = pg.evaluate("() => { const d = document.querySelector('#svConf'); return d ? /RENDEMENT/.test(d.textContent) : false; }")
+        pg.evaluate("() => document.querySelector('#svConf [data-x], #svConf .svc-close')?.click()"); pg.wait_for_timeout(300)
+        check("v524 remarque 5 : Entrée sur le rendement inchangé = proposer de l'appliquer aux lignes", r5 is True, r5)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg = I.chg.filter(r => !['g1', 'g2'].includes(r.id)); I.prd = I.prd.filter(r => r.id !== 'x8');
+            I.links = I.links.filter(l => l.id !== 'L11'); I.links.find(l => l.id === 'L1').chg = I.links.find(l => l.id === 'L1').chg.filter(x => x.id !== 'g1'); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        # remarque 2 : bloc vidé par les cases cochées des autres blocs → bandeau + TOUT RÉAFFICHER
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.find(r => r.id === 'c2').on = true; I.lot.find(r => r.id === 'l2').on = true; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(500)
+        r2 = pg.evaluate("() => document.querySelectorAll('.svi-empty').length")
+        pg.evaluate("() => document.querySelector('.svi-empty [data-clrall]')?.click()"); pg.wait_for_timeout(500)
+        r2b = pg.evaluate(f"() => {{ const X = {ins}; return [document.querySelectorAll('.svi-empty').length, ['des', 'lot', 'chg'].every(k => !X.INS[k].some(r => r.on === true))]; }}")
+        check("v524 remarque 2 : bloc vidé par les cases cochées → bandeau, TOUT RÉAFFICHER rend tout", r2 >= 1 and r2b == [0, True], [r2, r2b])
+        # remarque 1 : le i d'une désignation passe sous la ligne TOTAL (même contexte d'empilement, TOTAL au-dessus)
+        r1 = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="des"]'), i = t.querySelector('tbody .des-i'); if (!i) return 'pas de i';
+            const ft = getComputedStyle(t.tFoot.querySelector('td')), td = getComputedStyle(i.closest('td')), tr = getComputedStyle(i.closest('tr'));
+            return [Number(ft.zIndex), Number(getComputedStyle(i).zIndex), td.zIndex, tr.zIndex, ft.position]; }""")
+        check("v524 remarque 1 : le i d'une désignation passe sous la ligne TOTAL", isinstance(r1, list) and r1[0] > r1[1] and r1[2] == "auto" and r1[3] == "auto" and r1[4] == "sticky", r1)
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

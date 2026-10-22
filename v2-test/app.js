@@ -5883,6 +5883,44 @@ function renderBudgetList() {
       });
       return out.join(" · ");
     };
+    /* v524 : quantité de produit de la (ou des) tâche(s) d'une ligne de charge, unités d'activité et désignations client touchées */
+    const chgTaskQ = r => {
+      const o = { q: 0, u: new Set(), des: new Set() }, seen = new Set();
+      if (!r) return o;
+      (INS.links || []).filter(l => (l.chg || []).some(x => x.id === r.id)).forEach(l => {
+        o.des.add(l.des);
+        const tk = l.lot + "|" + l.sec; if (seen.has(tk)) return; seen.add(tk);
+        const sp = new Set();
+        (INS.links || []).filter(m => m.lot === l.lot && m.sec === l.sec).forEach(m => (m.prd || []).forEach(y => { if (sp.has(y.id)) return; sp.add(y.id); const p = INS.prd.find(x => x.id === y.id); if (p) o.q += insPrdQ(p); }));
+        const se = (INS.sec || []).find(x => x.id === l.sec) || {}; o.u.add(U_(se.u));
+      });
+      return o;
+    };
+    /* v524 (remarques 3 à 5) : RENDEMENT d'un titre de charges regroupées — seulement si ses lignes (celles affichées : le filtre compte)
+       touchent UNE seule désignation client et une seule unité d'activité : Σ quantités de produit ÷ Σ quantités de charge */
+    const chgGrpRdb = g => {
+      const T = g.map(chgTaskQ), D = new Set(), U = new Set();
+      T.forEach(t => { t.des.forEach(x => D.add(x)); t.u.forEach(x => U.add(x)); });
+      const qp = T.reduce((a, t) => a + t.q, 0), qc = g.reduce((a, r) => a + (num(r.q) || 0), 0);
+      if (D.size !== 1 || U.size !== 1 || !qp || !qc) return null;
+      return { v: qp / qc, u: [...U][0] + " / " + U_(g[0].u) };
+    };
+    /* rendement tapé (ou revalidé) sur le titre : chaque ligne = quantité de produit de SA tâche ÷ rendement, arrondie à 0,5 près ;
+       les quantités de produit ne bougent pas */
+    const chgRdbApply = (ids, R, anchor) => {
+      const G = INS.chg.filter(r => ids.has(r.id));
+      if (!(R > 0)) { svToast("RENDEMENT NON VALIDE : NOMBRE > 0.", 3000, anchor); refreshAll(); return; }
+      const todo = G.map(r => ({ r, qp: chgTaskQ(r).q })).filter(x => x.qp > 0);
+      if (!todo.length) { svToast("AUCUNE LIGNE À RECALCULER : PAS DE QUANTITÉ DE PRODUIT DANS LEURS TÂCHES.", 3500, anchor); refreshAll(); return; }
+      svConfirm({ title: "RENDEMENT", text: "APPLIQUER CE RENDEMENT (" + money(R) + ") AUX " + todo.length + " LIGNE(S) ? LEURS QUANTITÉS DE CHARGE SERONT RECALCULÉES (ARRONDIES À 0,5 PRÈS).", ok: "APPLIQUER", tone: "neutral" }).then(go => {
+        if (go) {
+          todo.forEach(x => { x.r.q = Math.max(0.5, Math.round(x.qp / R * 2) / 2); });
+          insSave();
+          histLog("SAISIE", "RENDEMENT APPLIQUÉ", (G[0] && G[0].des || "") + " : " + money(R) + " — " + todo.length + " LIGNE(S)");
+        }
+        refreshAll();
+      });
+    };
     const chgTaskName = id => [...new Set((INS.links || []).filter(l => (l.chg || []).some(x => x.id === id)).map(prdLinkName).filter(Boolean))].join(" · ");
     const prdChainKey = id => {
       const l = prdLinks(id)[0];
@@ -6342,6 +6380,8 @@ function renderBudgetList() {
       const nt = new Set(g.map(r => chgTaskName(r.id)).filter(Boolean)).size;
       const v = { art: g[0].art || "", des: g[0].des || "", u: g[0].u || "", q: money(qs), p: qs ? money(ht / qs) : "", ht: money(ht),
         tva: ht ? money((ttc - ht) / ht * 100) : "", ttc: money(ttc), rdb: "", tache: nt + " TÂCHE" + (nt > 1 ? "S" : "") };
+      const RD = chgGrpRdb(g);
+      if (RD) v.rdb = money(RD.v) + " " + RD.u;
       const fo = CHG_GFOLD.has(key);
       /* v511 (remarque 72) : le signe a sa propre zone (toute la hauteur, 40 px), que la case de la désignation ne recouvre pas */
       const fb = `<span class="ins-gfz" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier"><span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}">${fo ? "›" : "⌄"}</span></span>`;
@@ -6354,6 +6394,13 @@ function renderBudgetList() {
       const ev = { art: v.art, des: v.des, u: v.u, p: ps.size === 1 ? [...ps][0] : v.p, tva: ts.size === 1 ? [...ts][0] : v.tva };
       const cell = c => {
         const f = c[0];
+        /* v524 : rendement du titre — en italique (valeur calculée), modifiable : revalider l'applique à toutes les lignes */
+        if (f === "rdb") {
+          if (!RD) return `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}"></td>`;
+          const tip = "RENDEMENT CALCULÉ : UNE SEULE DÉSIGNATION CLIENT. LE MODIFIER RECALCULE LES QUANTITÉS DE CHARGE.";
+          if (INS_EDIT) return `<td class="${c[2]} ins-td ins-rdbc" title="${tip}"><input class="ins-gin ins-rdbin" data-f="rdb" enterkeyhint="next" inputmode="decimal" value="${esc(money(RD.v))}" autocomplete="off"><span class="ins-rdbu">${esc(RD.u)}</span></td>`;
+          return `<td class="${c[2]} ins-rdbc" title="${tip}"><i>${esc(v.rdb)}</i></td>`;
+        }
         if (edOk(f)) return `<td class="${c[2]} ins-td${f === "des" ? " ins-gtd" : ""}">${f === "des" ? fb : ""}<input class="ins-gin ${c[2]}" data-f="${f}" enterkeyhint="next"${["p", "tva"].includes(f) ? ' inputmode="decimal"' : ""} value="${esc(ev[f] ?? "")}" autocomplete="off" spellcheck="false"></td>`;
         return `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}${f === "des" ? " ins-gtd" : ""}">${f === "des" ? fb : ""}${esc(v[f] ?? "")}</td>`;
       };
@@ -8391,7 +8438,7 @@ function renderBudgetList() {
         [...shell.querySelectorAll(sel)].forEach((el, i) => { if (sv[i]) { el.scrollTop = sv[i][0]; el.scrollLeft = sv[i][1]; } });
         window.scrollTo(wx, wy);
       },
-      rowErr: (k, r) => insRowErr(k, r), cleanLinks: () => insCleanLinks(), lkRd: (k, r) => lkRd(k, r), insDelCell: r => insDelCell(r), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles,
+      rowErr: (k, r) => insRowErr(k, r), cleanLinks: () => insCleanLinks(), rdbApply: (ids, R, a) => chgRdbApply(ids, R, a), lkRd: (k, r) => lkRd(k, r), insDelCell: r => insDelCell(r), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles,
       /* ligne utilisée par une liaison (validée, ou déliée mais pas encore validée) : suppression interdite */
       isUsed: (k, id) => {
         if (!["des", "lot", "prim", "sec", "prd", "chg"].includes(k)) return false;
@@ -8408,6 +8455,8 @@ function renderBudgetList() {
         if (!i || !X) return;
         e.stopPropagation();
         const ids = new Set((i.closest("tr[data-grp]")?.dataset.grp || "").split(",").filter(Boolean));
+        /* v524 : rendement tapé sur le titre */
+        if (i.dataset.f === "rdb") { i.__rdbDone = true; X.rdbApply(ids, X.insNum(i.value), i); return; }
         const G = X.INS.chg.filter(r => ids.has(r.id));
         const f = i.dataset.f, num1 = f === "p" || f === "tva";
         const val = num1 ? X.insNum(i.value) : sviClean(String(i.value || "")).toUpperCase();
@@ -8421,6 +8470,14 @@ function renderBudgetList() {
         X.insSave();
         if (typeof histLog === "function") histLog("SAISIE", "CHARGES REGROUPÉES", G.length + " LIGNE(S) — " + f.toUpperCase() + " = " + (num1 ? money(val || 0) : val));
         X.refreshAll();
+      }, true);
+      /* v524 (remarque 5) : Entrée sur le rendement du titre SANS l'avoir changé = l'appliquer quand même à toutes ses lignes */
+      shell.addEventListener("keydown", e => {
+        if (e.key !== "Enter") return;
+        const i = e.target.closest && e.target.closest("input.ins-rdbin"), X = shell.__ins;
+        if (!i || !X || String(i.value).trim() !== String(i.defaultValue).trim()) return;
+        const ids = new Set((i.closest("tr[data-grp]")?.dataset.grp || "").split(",").filter(Boolean));
+        X.rdbApply(ids, X.insNum(i.value), i);
       }, true);
       /* v499 (remarque 45) : plier / déplier un titre de charges regroupées */
       shell.addEventListener("click", e => {
@@ -12188,6 +12245,45 @@ function renderBudgetList() {
       });
       if (typeof stateSave === "function") stateSave();
     };
+    /* v524 (remarque 2) : un tableau ou une liste vidé(e) par les cases cochées / filtres des AUTRES blocs ne reste jamais muet :
+       un bandeau dit pourquoi et TOUT RÉAFFICHER décoche tout et efface les filtres de tous les blocs (tous les tableaux et listes) */
+    const insEmptyHints = () => {
+      if (!INS || !INS_EDIT) return;
+      const spots = [
+        ["des", () => shell.querySelector('table.ins-table[data-ik="des"]')],
+        ["chg", () => shell.querySelector('table.ins-table[data-ik="chg"]')],
+        ["prd", () => shell.querySelector('table.ins-table[data-ik="prd"]')],
+        ["lot", () => shell.querySelector('.ins-hcol[data-ik="lot"]')],
+        ["prim", () => shell.querySelector('.ins-hcol[data-ik="prim"]')],
+        ["sec", () => shell.querySelector('.ins-hcol[data-ik="sec"]')]];
+      spots.forEach(([k, get]) => {
+        const box = get(); if (!box || box.offsetParent === null) return;
+        const total = (INS[k] || []).filter(r => !r.t).length;
+        const shown = box.tagName === "TABLE" ? box.querySelectorAll("tbody tr[data-iid], tbody tr[data-grp]").length : box.querySelectorAll(".ins-li[data-iid]").length;
+        const want = total > 0 && shown === 0;
+        const host = box.tagName === "TABLE" ? box.parentElement : box;
+        let h = host.querySelector(":scope > .svi-empty");
+        if (!want) { if (h) h.remove(); return; }
+        if (h) return;
+        h = document.createElement("div"); h.className = "svi-empty";
+        h.innerHTML = `<span>AUCUNE LIGNE AFFICHÉE SUR ${total} : CASES COCHÉES OU FILTRES DES AUTRES BLOCS.</span><button type="button" class="svi-empty-b" data-clrall>TOUT RÉAFFICHER</button>`;
+        if (box.tagName === "TABLE") box.after(h); else box.appendChild(h);
+      });
+    };
+    shell.__insClrAll = () => {
+      ["des", "lot", "prim", "sec", "chg", "prd"].forEach(k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; });
+      (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }); (INS.inc || []).forEach(x => { if (x.on === true) x.on = false; });
+      try { ["client", "hier", "detail"].forEach(b => insFiltPlan(b).T.forEach(t => { if (CF[t]) CF[t].f = {}; })); } catch (e) {}
+      insSave(); refreshAll();
+      svToast("TOUTES LES CASES DÉCOCHÉES ET TOUS LES FILTRES EFFACÉS.", 2200);
+    };
+    if (!shell.__emptyBound) {
+      shell.__emptyBound = true;
+      shell.addEventListener("click", e => { if (!e.target.closest || !e.target.closest("[data-clrall]")) return; e.preventDefault(); e.stopPropagation(); if (shell.__insClrAll) shell.__insClrAll(); }, true);
+      let q = 0;
+      new MutationObserver(() => { if (q) return; q = requestAnimationFrame(() => { q = 0; try { shell.__insEmptyHints && shell.__insEmptyHints(); } catch (e) {} }); }).observe(shell, { childList: true, subtree: true });
+    }
+    shell.__insEmptyHints = insEmptyHints;
 
     const tvaFor = l =>
       l.ttcAmount !== undefined ? l.ttcAmount - l.amount : l.amount * l.tva / 100;
