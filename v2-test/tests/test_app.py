@@ -1166,6 +1166,27 @@ def main():
         check("v532 : « GROUPE 6 » reste « GROUPE 6 » ; un nouveau titre garde son nom après d'autres glissements ; ses lots numérotés 6.1, 6.2",
               "GROUPE 6" in grp(n0) and "GROUPE 6" in grp(n1) and len(grp(n2)) == 2 and grp(n3) == grp(n2) and "6.1 ZONE B" in n0, [n0, n1, n2, n3])
 
+        # ===== v533 : nom tapé sur un titre (RDC HAUT) gardé quand on glisse aussitôt une autre ligne =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id));
+            I.lot.push({{ id: 'a1', v: 'GROUPE 2 / GROUPE 2.1 / ESC' }}, {{ id: 'a2', v: 'GROUPE 2 / GROUPE 2.1 / SDB' }}, {{ id: 'b1', v: 'GROUPE 2 / RDC BA' }}, {{ id: 'b2', v: 'GROUPE 2 / RDC BA / X' }}); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        for _ in range(6):
+            if not pg.evaluate(UNF): break
+            pg.wait_for_timeout(250)
+        pg.evaluate("""() => { const c = document.querySelector('.ins-hcol[data-ik="lot"]'); c.style.maxHeight = 'none'; c.style.height = 'auto'; c.scrollIntoView({ block: 'center' }); }"""); pg.wait_for_timeout(200)
+        a = pg.evaluate("""() => { const i = document.querySelector('.lot-grp[data-path="GROUPE 2 / GROUPE 2.1"] input.lot-gname'); const r = i.getBoundingClientRect(); return [r.left + 30, r.top + r.height / 2]; }""")
+        pg.mouse.click(a[0], a[1]); pg.wait_for_timeout(300); pg.mouse.click(a[0], a[1]); pg.wait_for_timeout(300)
+        pg.keyboard.type("RDC HAUT"); pg.wait_for_timeout(200)
+        s3 = pg.evaluate("""() => { const r = document.querySelector('.ins-li[data-iid="b1"] input.ins-in').getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; }""")
+        t3 = pg.evaluate("""() => { const r = document.querySelector('.lot-grp[data-path="GROUPE 2 / GROUPE 2.1"]').getBoundingClientRect(); return r.top + 3; }""")
+        pg.mouse.move(s3[0], s3[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+        pg.mouse.move(s3[0], t3 - 2, steps=6); pg.wait_for_timeout(100); pg.mouse.move(s3[0], t3, steps=2); pg.wait_for_timeout(150)
+        pg.mouse.up(); pg.wait_for_timeout(700); pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(300)
+        r33 = pg.evaluate(f"() => {{ const I = {ins}.INS; return [I.lot.map(r => r.v).join(' | '), [...document.querySelectorAll('.ins-hcol[data-ik=\"lot\"] input.lot-gname')].map(i => i.value)]; }}")
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v533 : nom RDC HAUT gardé et ligne RDC BA déplacée quand on glisse juste après avoir tapé le nom",
+              "GROUPE 2 / RDC HAUT / ESC" in r33[0] and r33[0].index("GROUPE 2 / RDC BA") < r33[0].index("GROUPE 2 / RDC HAUT") and "RDC HAUT" in r33[1], r33)
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

@@ -6911,17 +6911,28 @@ function renderBudgetList() {
         const g = e.target.closest && e.target.closest("input.lot-gcb");
         if (g) { const P = dlyLotPath(g.dataset.path); INS.lot.forEach(r => { if (!r.t && lotUnder(r, P)) r.on = g.checked; }); insSave(); refreshAll(); return; }
         const n = e.target.closest && e.target.closest("input.lot-gname");
-        if (n && shell.__insDly && !n.__gnDone) { n.__gnDone = true; shell.__insDly.rename(n); }
+        /* v533 : doigt (ou souris) encore posé = un glissement peut commencer : nom gardé sans redessiner sous le doigt */
+        if (n && shell.__insDly && !n.__gnDone && n.value !== n.defaultValue) { n.__gnDone = true; shell.__gnPend = null; shell.__insDly.rename(n, { quiet: !!shell.__ptrDown }); }
       });
     }
     /* v529 (remarque 3) : nom tapé sur un titre de groupe gardé même si l'écran est redessiné avant que la case ne soit quittée
        (iPad : toucher un rond, un signe de pliage ou un autre groupe ne fait pas toujours perdre le focus) — LOTS et PLANNING */
-    const grpFlush = () => {
-      const a = document.activeElement;
-      if (!a || !a.matches || !a.matches("input.lot-gname, input.dly-nm:not(.dly-gin)") || !shell.contains(a) || a.__gnDone) return;
+    /* v533 : la case du nom tapé est suivie à la frappe (même si elle a perdu le focus, iPad) */
+    const GN_SEL = "input.lot-gname, input.dly-nm:not(.dly-gin)";
+    if (!shell.__gnBound) {
+      shell.__gnBound = true;
+      shell.addEventListener("input", e => { const i = e.target.closest && e.target.closest(GN_SEL); if (i) { i.__gnDone = false; shell.__gnPend = i; } }, true);
+      document.addEventListener("pointerdown", () => { shell.__ptrDown = true; }, true);
+      const upP = () => { shell.__ptrDown = false; setTimeout(() => { if (shell.__gnRefresh && !shell.__insDragging) { shell.__gnRefresh = false; refreshAll(); } }, 0); };
+      document.addEventListener("pointerup", upP, true); document.addEventListener("pointercancel", upP, true);
+    }
+    const grpFlush = (quiet = false) => {
+      const P = shell.__gnPend, A = document.activeElement;
+      const a = P && P.isConnected ? P : A && A.matches && A.matches(GN_SEL) ? A : null;
+      if (!a || !shell.contains(a) || a.__gnDone) return;
       if (a.value === a.defaultValue || !shell.__insDly) return;
-      a.__gnDone = true;
-      shell.__insDly.rename(a);
+      a.__gnDone = true; shell.__gnPend = null;
+      shell.__insDly.rename(a, { quiet });
     };
     const insRenderHier = only => {
       grpFlush();
@@ -10323,7 +10334,7 @@ function renderBudgetList() {
           return;
         }
         const n = e.target.closest && e.target.closest("input.dly-nm:not(.dly-gin)");
-        if (n && !n.__gnDone) { n.__gnDone = true; X.rename(n); return; }
+        if (n && !n.__gnDone && n.value !== n.defaultValue) { n.__gnDone = true; shell.__gnPend = null; X.rename(n); return; }
         const ni = e.target.closest && e.target.closest("input.dly-newin");
         if (ni) {
           const tr = ni.closest("tr"), g = f => tr.querySelector(`input.dly-newin[data-f="${f}"]`);
@@ -10546,7 +10557,7 @@ function renderBudgetList() {
         if (!X || !tr || tr.classList.contains("dly-ext") || e.target.closest("input[type=checkbox], .dly-pred, .dly-jal, .dly-fold, .cf-btn")) return;
         const x0 = e.clientX, y0 = e.clientY;
         let on = false, hit = null, far = false;
-        const tm = setTimeout(() => { on = true; tr.classList.add("ro-src"); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); try { window.getSelection().removeAllRanges(); } catch (err) {} document.body.classList.add("svi-dragging"); }, 350);
+        const tm = setTimeout(() => { on = true; tr.classList.add("ro-src"); grpFlush(true); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); try { window.getSelection().removeAllRanges(); } catch (err) {} document.body.classList.add("svi-dragging"); }, 350);
         const tmv = ev => { if (on) ev.preventDefault(); };
         document.addEventListener("touchmove", tmv, { passive: false });
         const isG = tr.classList.contains("dly-grp"), gRow = isG ? (shell.__dlyRows || []).find(r => r.grp && r.path === tr.dataset.path) : null;
@@ -10563,6 +10574,7 @@ function renderBudgetList() {
         };
         const end = drop => {
           clearTimeout(tm);
+          if (shell.__gnRefresh) { shell.__gnRefresh = false; setTimeout(() => refreshAll(), 0); }
           document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", cc);
           setTimeout(() => document.removeEventListener("touchmove", tmv), 0);
           document.getElementById("roLine")?.remove(); tr.classList.remove("ro-src"); document.body.classList.remove("svi-dragging");
@@ -11215,9 +11227,12 @@ function renderBudgetList() {
         insSave();
       },
       /* nom modifié dans le PLANNING : même lot / même activité que dans TÂCHES (doublons refusés) */
-      rename: inp => {
+      /* v533 : quiet = nom gardé sans redessiner (au début d'un glissement : la ligne sous le doigt ne doit pas disparaître) ;
+         les chemins affichés sont mis à jour sur place, le tableau est redessiné à la fin du glissement */
+      rename: (inp, opts = {}) => {
         const v = U_(sviClean(inp.value));
-        const back = () => { renderTabK(); };
+        const back = () => { if (opts.quiet) { inp.value = inp.defaultValue; return; } renderTabK(); };
+        const done = () => { if (opts.quiet) { inp.defaultValue = inp.value = v; shell.__gnRefresh = true; } else refreshAll(); };
         if (inp.dataset.kind === "sec") {
           const id = inp.dataset.sid, r = INS.sec.find(x => x.id === id);
           if (!r || v === U_(r.v)) { back(); return; }
@@ -11228,7 +11243,7 @@ function renderBudgetList() {
           if (tw && INS.prim.some(p => p !== tw && U_(p.v) === v)) { svToast("ACTIVITÉ PRIMAIRE « " + v + " » EXISTE DÉJÀ.", 3500, inp); back(); return; }
           r.v = v; if (tw) tw.v = v;
           insSave(); histLog("SAISIE", "ACTIVITÉ SECONDAIRE RENOMMÉE", old + " → " + v + (tw ? " (AVEC L'ACTIVITÉ PRIMAIRE)" : ""));
-          refreshAll();
+          done();
           return;
         }
         /* lot ou niveau de lot (« / ») : toutes les tâches dessous suivent */
@@ -11244,7 +11259,11 @@ function renderBudgetList() {
         /* l'état replié suit le nouveau nom */
         { const f = dlyFoldAll(), o = dlyFoldK(inp.dataset.path); if (f[o]) { delete f[o]; f[dlyFoldK(segs.slice(0, lvl - 1).concat(v).join(" / "))] = 1; try { localStorage.setItem("svi_lotfold_v1", JSON.stringify(f)); } catch (e) {} } }
         insSave(); histLog("SAISIE", "LOT RENOMMÉ", inp.dataset.path + " → " + v + " (" + hit.length + " LOT(S))");
-        refreshAll();
+        if (opts.quiet) {
+          const oldP = inp.dataset.path, newP = segs.slice(0, lvl - 1).concat(v).join(" / "), O = U_(oldP);
+          shell.querySelectorAll("[data-path]").forEach(el => { const p = el.dataset.path, P = U_(p); if (P === O || P.startsWith(O + " / ")) el.dataset.path = newP + p.slice(oldP.length); });
+        }
+        done();
       },
       /* nouvelle tâche tapée dans le PLANNING : lot et activité secondaire repris s'ils existent, sinon créés (sans liaison) */
       newTask: (lv, sv, anchor) => {
@@ -13375,6 +13394,8 @@ function renderBudgetList() {
         /* le doigt est bloqué seulement pendant le glissement (le défilement normal reste libre) */
         document.addEventListener("touchmove", tm, { passive: false });
         shell.__insDragging = true;
+        /* v533 : un nom de titre en cours de saisie est gardé AVANT le glissement (sans redessiner sous le doigt) */
+        grpFlush(true);
         if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
         /* pas de sélection de texte (poignées bleues) pendant le glissement */
         try { window.getSelection && window.getSelection().removeAllRanges(); } catch (e) {}
@@ -13464,6 +13485,7 @@ function renderBudgetList() {
       };
       const end = drop => {
         clearTimeout(timer);
+        if (shell.__gnRefresh) { shell.__gnRefresh = false; setTimeout(() => refreshAll(), 0); }
         document.removeEventListener("pointermove", move);
         document.removeEventListener("pointerup", up);
         document.removeEventListener("pointercancel", cancel);
