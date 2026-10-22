@@ -6686,16 +6686,25 @@ function renderBudgetList() {
     /* v527 (remarque 3) : « GROUPE » au lieu de « NIVEAU » (anciens noms « NIVEAU n » reconnus et affichés « GROUPE n ») */
     const LVL_AUTO = /^(NOUVEAU )?(NIVEAU|GROUPE) \d+(\.\d+)*$/i;
     let lotNumC = { k: null, M: null };
+    /* v532 : un titre de groupe garde le numéro de son nom (« GROUPE 6 » reste « GROUPE 6 » quoi qu'on fasse dans le tableau) ;
+       les lots sont numérotés selon leur place, en sautant les numéros déjà pris par les groupes du même niveau */
+    const lotAutoNo = g => { const m = String(g || "").trim().match(/^(?:NOUVEAU )?(?:NIVEAU|GROUPE) (\d+(?:\.\d+)*)$/i); return m ? m[1] : ""; };
     const lotNumMap = () => {
       const k = INS.lot.map(x => (x.t ? "#" : "") + x.v).join("\n");
       if (lotNumC.k === k) return lotNumC.M;
-      const M = new Map(), cnt = new Map();
-      INS.lot.filter(x => !x.t).forEach(x => {
+      const M = new Map(), cnt = new Map(), res = new Map();
+      const L = INS.lot.filter(x => !x.t);
+      L.forEach(x => { let p = ""; lotSegs(x).forEach(g => { const par = p; p = p ? p + " / " + U_(g) : U_(g); const a = lotAutoNo(g); if (a) { if (!res.has(par)) res.set(par, new Set()); res.get(par).add(a.split(".").pop()); } }); });
+      L.forEach(x => {
         let p = "";
         lotSegs(x).forEach(g => {
           const par = p; p = p ? p + " / " + U_(g) : U_(g);
           if (M.has(p)) return;
-          const n = (cnt.get(par) || 0) + 1; cnt.set(par, n);
+          const a = lotAutoNo(g);
+          if (a) { M.set(p, a); return; }
+          let n = cnt.get(par) || 0;
+          do n++; while (res.has(par) && res.get(par).has(String(n)));
+          cnt.set(par, n);
           M.set(p, (par ? M.get(par) + "." : "") + n);
         });
       });
@@ -6705,9 +6714,9 @@ function renderBudgetList() {
     const lotLab = segs => {
       const sg = (segs || []).map(x => String(x || "").trim()).filter(Boolean);
       const no = lotNumMap().get(sg.map(U_).join(" / ")) || "", last = sg[sg.length - 1] || "";
-      /* v528 (remarque 4) : un titre « NIVEAU … » (même au premier rang) s'affiche « GROUPE » + son numéro */
+      /* v528 (remarque 4) : un titre « NIVEAU … » (même au premier rang) s'affiche « GROUPE » + son numéro ; v532 : celui de son nom */
       const auto = LVL_AUTO.test(last);
-      const name = auto ? "GROUPE " + no : last;
+      const name = auto ? "GROUPE " + lotAutoNo(last) : last;
       return { no, auto, name, full: auto ? name : (no ? no + " " : "") + last };
     };
     const lotNoHTML = L => L.auto || !L.no ? "" : `<span class="lvl-no">${esc(L.no)}</span>`;
@@ -6718,13 +6727,16 @@ function renderBudgetList() {
       const P = parent.map(U_), last = P.length ? P[P.length - 1] : "";
       /* v451 : tous les lots principaux sont au niveau 1 → dessous NIVEAU 1.1, 1.2… ; sous NIVEAU 1.1 → 1.1.1… ;
          sous un sous-lot portant un intitulé : numéro selon sa profondeur (1.1 pour le 2e niveau, etc.) */
-      const m = last.match(/^(?:NIVEAU|GROUPE) (\d+(?:\.\d+)*)$/);
-      const base = m ? m[1] + "." : P.length ? ["1"].concat(Array(P.length - 1).fill("1")).join(".") + "." : "";
+      /* v532 : numéro = celui du parent (tel qu'affiché) + le suivant libre parmi ses lignes ; il ne changera plus */
+      void last;
+      const M = lotNumMap(), pn = P.length ? M.get(P.join(" / ")) || "" : "";
+      const base = pn ? pn + "." : "";
       const kids = new Set();
-      INS.lot.forEach(x => { const sg = lotSegs(x).map(U_); if (sg.length > P.length && P.every((g, i) => g === sg[i])) kids.add(sg[P.length]); });
-      const re = new RegExp("^(?:NOUVEAU )?(?:NIVEAU|GROUPE) " + base.replace(/\./g, "\\.") + "(\\d+)$");
-      const used = [...kids].map(g => (g.match(re) || [])[1]).filter(Boolean).map(Number);
-      return "GROUPE " + base + ((used.length ? Math.max(...used) : 0) + 1);
+      INS.lot.forEach(x => { const sg = lotSegs(x).map(U_); if (sg.length > P.length && P.every((g, i) => g === sg[i])) kids.add(sg.slice(0, P.length + 1).join(" / ")); });
+      const used = [...kids].map(p => Number(String(M.get(p) || "").split(".").pop()) || 0);
+      let n = (used.length ? Math.max(...used) : 0) + 1;
+      while (kids.has(P.concat("GROUPE " + base + n).join(" / "))) n++;
+      return "GROUPE " + base + n;
     };
     const lotUnder = (r, P) => { const s2 = lotSegs(r); return s2.length >= P.length && P.every((g, i) => U_(g) === U_(s2[i])); };
     /* arborescence dans l'ordre des lots (classés par ordre alphabétique au départ, puis ordre libre) :
