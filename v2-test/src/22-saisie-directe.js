@@ -94,7 +94,7 @@
         /* v493 (remarque 16) : une colonne se réduit au maximum, comme dans DÉSIGNATIONS CLIENT (intitulé abrégé « … ») */
         const W = {}; COLS.forEach(c => { W[c[0]] = Math.max(28, (sz.cols || {})[c[0]] || Math.max(c[2], Math.ceil(c[1].length * 7.6) + 46)); });
         d.innerHTML = `<div class="sd-card${big ? " big" : ""}" role="dialog" aria-modal="true" style="${!big && sz.w ? "width:" + sz.w + "px;height:" + sz.h + "px" : ""}">
-          <div class="sd-head"><span class="sd-title">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"}</span>
+          <div class="sd-head"><span class="sd-title">${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"} — FORMAT TABLEAU</span>
             <span class="sd-n">${svCnt(V.filter(x => x.r._id).length, rows.filter(x => x._id).length)}</span>
             ${srcIds ? `<button type="button" class="sd-srcf" title="Retirer le filtre">FILTRE DU TABLEAU ✕</button>` : ""}
             ${selCol ? `<span class="sd-colbar">COLONNE « ${esc((COLS.find(c => c[0] === selCol) || [])[1] || "")} » SÉLECTIONNÉE : ⋯</span>` : ""}
@@ -105,7 +105,7 @@
           <div class="sd-foot"><span style="flex:1"></span>
             <button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral sd-ok"${dirty ? "" : " disabled"}>VALIDER</button></div>
           ${big ? "" : '<div class="sd-rsz" title="Largeur et hauteur"></div>'}</div>
-          <button type="button" class="sd-tag">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"} ▲</button>`;
+          <button type="button" class="sd-tag">${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"} — FORMAT TABLEAU ▲</button>`;
         const tb = d.querySelector(".sd-t");
         if (tb) tb.style.width = COLS.reduce((t, c) => t + (W[c[0]] || c[2]), 0) + 40 + "px";
         const s2 = d.querySelector(".sd-scroll"); if (s2) { s2.scrollTop = st; s2.scrollLeft = sl; }
@@ -416,7 +416,7 @@
         if (!e.target.closest(".sd-ok")) return;
         /* 0. lignes supprimées (non liées) */
         const delIds = new Set(rows.filter(r => r._del && r._id && !r._lid).map(r => r._id));
-        if (delIds.size) { INS[kind] = INS[kind].filter(x => !delIds.has(x.id)); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE — SUPPRESSION", delIds.size + " LIGNE(S)"); insSave(); }
+        if (delIds.size) { INS[kind] = INS[kind].filter(x => !delIds.has(x.id)); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "FORMAT TABLEAU — SUPPRESSION", delIds.size + " LIGNE(S)"); insSave(); }
         /* 1. lignes existantes modifiées */
         let upd = 0; const refused = [];
         if (!dirty || e.target.closest(".sd-ok").disabled) return;
@@ -456,22 +456,22 @@
               INS.links = (INS.links || []).filter(q => q !== l);
             }
           }
-          histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE — CHAÎNE CHANGÉE", r.des + " → " + [r.dc, r.lot, r.prim, r.sec].join(" › "));
+          histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "FORMAT TABLEAU — CHAÎNE CHANGÉE", r.des + " → " + [r.dc, r.lot, r.prim, r.sec].join(" › "));
         });
         if (goneChg.size) INS.chg = INS.chg.filter(x => !goneChg.has(x.id));
-        if (extra.length) histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE — " + (P ? "CHARGES DÉPLACÉES AVEC LE DERNIER PRODUIT" : "PRODUITS RECOPIÉS"), extra.length + " LIGNE(S)");
+        if (extra.length) histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "FORMAT TABLEAU — " + (P ? "CHARGES DÉPLACÉES AVEC LE DERNIER PRODUIT" : "PRODUITS RECOPIÉS"), extra.length + " LIGNE(S)");
         /* v491 : une ligne nouvelle sans désignation produit / charge (combinaison reprise seulement) est ignorée */
         const neu = rows.filter(r => !r._del && ((!r._id && U_(r.des)) || (r._id && !r._lid && r.dc && r.lot && r.prim && r.sec) || moved.includes(r)));
         const aoa = [H].concat(neu.map(r => [budget.project || "", r.dc, r.upb, r.lot, r.prim, r.sec, P ? "PRD" : "CHG", r.art || "", r.des, P ? (secU(r.sec, r) || r.u) : r.u, r.nbr, r.d1, r.d2, r.d3, r.q, P ? "" : (r.p ?? "")]), extra);   /* v522 : PCB tapé sur une ligne nouvelle gardé */
-        if (upd) { insSave(); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE", upd + " LIGNE(S) MODIFIÉE(S)"); }
+        if (upd) { insSave(); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "FORMAT TABLEAU", upd + " LIGNE(S) MODIFIÉE(S)"); }
         if (neu.length || extra.length) {
-          let m; try { m = bfModel(aoa); } catch (err) { svToast("SAISIE DIRECTE : " + (err.message || err), 4000); return; }
+          let m; try { m = bfModel(aoa); } catch (err) { svToast("FORMAT TABLEAU : " + (err.message || err), 4000); return; }
           const plan = bfRuleA(m, "add"); if (!(await bfRuleAAsk(plan))) return; plan.ok = true;
           /* lignes non liées devenues complètes : l'ancienne ligne seule est remplacée par la ligne importée */
           const inc0 = (INS.inc || []).length;
           const gone = new Set(neu.filter(r => r._id).map(r => r._id));
           if (gone.size) INS[kind] = INS[kind].filter(x => !gone.has(x.id));
-          bfApply(m, "add", "SAISIE DIRECTE", false, plan);
+          bfApply(m, "add", "FORMAT TABLEAU", false, plan);
           /* v492 (remarque 13) : PCB saisi d'une charge nouvelle hors CHS (l'import ne le porte pas) */
           if (!P) neu.forEach(r => { if (r.p === "" || r.p === undefined) return; INS.chg.filter(x => !x.t && !x.chs && U_(x.des) === U_(r.des) && U_(x.u) === U_(r.u) && (x.p === "" || x.p === undefined || num(x.p) === 0)).forEach(x => { x.p = insNum(r.p); }); });
           const nInc = (INS.inc || []).length - inc0;

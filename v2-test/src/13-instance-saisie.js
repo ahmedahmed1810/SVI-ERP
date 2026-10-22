@@ -994,7 +994,8 @@
     const lotSegs = r => String(r && r.v || "").split("/").map(x => x.trim()).filter(Boolean);
     /* v461 : NUMÉRO D'ORDRE des lots et niveaux (cahier, Planning budgétaire) — lots principaux 1, 2, 3… dans l'ordre des lots,
        puis 1.1, 1.2, 1.1.1… selon l'arborescence ; écrit devant le nom (« 1.1 BAS ») ; niveau sans nom = « NIVEAU 1.1 » */
-    const LVL_AUTO = /^(NOUVEAU )?NIVEAU \d+(\.\d+)*$/i;
+    /* v527 (remarque 3) : « GROUPE » au lieu de « NIVEAU » (anciens noms « NIVEAU n » reconnus et affichés « GROUPE n ») */
+    const LVL_AUTO = /^(NOUVEAU )?(NIVEAU|GROUPE) \d+(\.\d+)*$/i;
     let lotNumC = { k: null, M: null };
     const lotNumMap = () => {
       const k = INS.lot.map(x => (x.t ? "#" : "") + x.v).join("\n");
@@ -1016,7 +1017,7 @@
       const sg = (segs || []).map(x => String(x || "").trim()).filter(Boolean);
       const no = lotNumMap().get(sg.map(U_).join(" / ")) || "", last = sg[sg.length - 1] || "";
       const auto = sg.length > 1 && LVL_AUTO.test(last);
-      const name = auto ? "NIVEAU " + no : last;
+      const name = auto ? "GROUPE " + no : last;
       return { no, auto, name, full: auto ? name : (no ? no + " " : "") + last };
     };
     const lotNoHTML = L => L.auto || !L.no ? "" : `<span class="lvl-no">${esc(L.no)}</span>`;
@@ -1027,13 +1028,13 @@
       const P = parent.map(U_), last = P.length ? P[P.length - 1] : "";
       /* v451 : tous les lots principaux sont au niveau 1 → dessous NIVEAU 1.1, 1.2… ; sous NIVEAU 1.1 → 1.1.1… ;
          sous un sous-lot portant un intitulé : numéro selon sa profondeur (1.1 pour le 2e niveau, etc.) */
-      const m = last.match(/^NIVEAU (\d+(?:\.\d+)*)$/);
+      const m = last.match(/^(?:NIVEAU|GROUPE) (\d+(?:\.\d+)*)$/);
       const base = m ? m[1] + "." : P.length ? ["1"].concat(Array(P.length - 1).fill("1")).join(".") + "." : "";
       const kids = new Set();
       INS.lot.forEach(x => { const sg = lotSegs(x).map(U_); if (sg.length > P.length && P.every((g, i) => g === sg[i])) kids.add(sg[P.length]); });
-      const re = new RegExp("^(?:NOUVEAU )?NIVEAU " + base.replace(/\./g, "\\.") + "(\\d+)$");
+      const re = new RegExp("^(?:NOUVEAU )?(?:NIVEAU|GROUPE) " + base.replace(/\./g, "\\.") + "(\\d+)$");
       const used = [...kids].map(g => (g.match(re) || [])[1]).filter(Boolean).map(Number);
-      return "NIVEAU " + base + ((used.length ? Math.max(...used) : 0) + 1);
+      return "GROUPE " + base + ((used.length ? Math.max(...used) : 0) + 1);
     };
     const lotUnder = (r, P) => { const s2 = lotSegs(r); return s2.length >= P.length && P.every((g, i) => U_(g) === U_(s2[i])); };
     /* arborescence dans l'ordre des lots (classés par ordre alphabétique au départ, puis ordre libre) :
@@ -1138,7 +1139,7 @@
       }
       dlyPlanFromTasks("lot");
       insSave();
-      histLog("TÂCHES", N ? "NIVEAU DE LOT CRÉÉ" : same ? "ORDRE DES LOTS" : "LOT DÉPLACÉ", (src.v || "") + (N ? " — " + N : ""));
+      histLog("TÂCHES", N ? "GROUPE DE LOTS CRÉÉ" : same ? "ORDRE DES LOTS" : "LOT DÉPLACÉ", (src.v || "") + (N ? " — " + N : ""));
       refreshAll();
       /* nouveau niveau : son nom est prêt à être saisi */
       if (N) setTimeout(() => { const i = [...shell.querySelectorAll("input.lot-gname")].find(x => x.dataset.path === base.join(" / ")); if (i) { i.focus(); try { i.select(); } catch (e) {} } }, 60);

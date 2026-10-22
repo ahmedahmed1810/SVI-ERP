@@ -710,7 +710,7 @@ function money(v) {
 /* v450 : un niveau nommé automatiquement (NIVEAU 2, NIVEAU 2.1…) s'affiche précédé du nom de ses parents (« FONDATION / ») */
 function sviLvlPre(segs) {
   const sg = (segs || []).map(x => String(x || "").trim()).filter(Boolean);
-  return sg.length > 1 && /^(NOUVEAU )?NIVEAU \d+(\.\d+)*$/i.test(sg[sg.length - 1]) ? sg.slice(0, -1).join(" / ").toUpperCase() + " / " : "";
+  return sg.length > 1 && /^(NOUVEAU )?(NIVEAU|GROUPE) \d+(\.\d+)*$/i.test(sg[sg.length - 1]) ? sg.slice(0, -1).join(" / ").toUpperCase() + " / " : "";
 }
 function esc(v) {
   return String(v ?? "").replace(
@@ -6689,7 +6689,8 @@ function renderBudgetList() {
     const lotSegs = r => String(r && r.v || "").split("/").map(x => x.trim()).filter(Boolean);
     /* v461 : NUMÉRO D'ORDRE des lots et niveaux (cahier, Planning budgétaire) — lots principaux 1, 2, 3… dans l'ordre des lots,
        puis 1.1, 1.2, 1.1.1… selon l'arborescence ; écrit devant le nom (« 1.1 BAS ») ; niveau sans nom = « NIVEAU 1.1 » */
-    const LVL_AUTO = /^(NOUVEAU )?NIVEAU \d+(\.\d+)*$/i;
+    /* v527 (remarque 3) : « GROUPE » au lieu de « NIVEAU » (anciens noms « NIVEAU n » reconnus et affichés « GROUPE n ») */
+    const LVL_AUTO = /^(NOUVEAU )?(NIVEAU|GROUPE) \d+(\.\d+)*$/i;
     let lotNumC = { k: null, M: null };
     const lotNumMap = () => {
       const k = INS.lot.map(x => (x.t ? "#" : "") + x.v).join("\n");
@@ -6711,7 +6712,7 @@ function renderBudgetList() {
       const sg = (segs || []).map(x => String(x || "").trim()).filter(Boolean);
       const no = lotNumMap().get(sg.map(U_).join(" / ")) || "", last = sg[sg.length - 1] || "";
       const auto = sg.length > 1 && LVL_AUTO.test(last);
-      const name = auto ? "NIVEAU " + no : last;
+      const name = auto ? "GROUPE " + no : last;
       return { no, auto, name, full: auto ? name : (no ? no + " " : "") + last };
     };
     const lotNoHTML = L => L.auto || !L.no ? "" : `<span class="lvl-no">${esc(L.no)}</span>`;
@@ -6722,13 +6723,13 @@ function renderBudgetList() {
       const P = parent.map(U_), last = P.length ? P[P.length - 1] : "";
       /* v451 : tous les lots principaux sont au niveau 1 → dessous NIVEAU 1.1, 1.2… ; sous NIVEAU 1.1 → 1.1.1… ;
          sous un sous-lot portant un intitulé : numéro selon sa profondeur (1.1 pour le 2e niveau, etc.) */
-      const m = last.match(/^NIVEAU (\d+(?:\.\d+)*)$/);
+      const m = last.match(/^(?:NIVEAU|GROUPE) (\d+(?:\.\d+)*)$/);
       const base = m ? m[1] + "." : P.length ? ["1"].concat(Array(P.length - 1).fill("1")).join(".") + "." : "";
       const kids = new Set();
       INS.lot.forEach(x => { const sg = lotSegs(x).map(U_); if (sg.length > P.length && P.every((g, i) => g === sg[i])) kids.add(sg[P.length]); });
-      const re = new RegExp("^(?:NOUVEAU )?NIVEAU " + base.replace(/\./g, "\\.") + "(\\d+)$");
+      const re = new RegExp("^(?:NOUVEAU )?(?:NIVEAU|GROUPE) " + base.replace(/\./g, "\\.") + "(\\d+)$");
       const used = [...kids].map(g => (g.match(re) || [])[1]).filter(Boolean).map(Number);
-      return "NIVEAU " + base + ((used.length ? Math.max(...used) : 0) + 1);
+      return "GROUPE " + base + ((used.length ? Math.max(...used) : 0) + 1);
     };
     const lotUnder = (r, P) => { const s2 = lotSegs(r); return s2.length >= P.length && P.every((g, i) => U_(g) === U_(s2[i])); };
     /* arborescence dans l'ordre des lots (classés par ordre alphabétique au départ, puis ordre libre) :
@@ -6833,7 +6834,7 @@ function renderBudgetList() {
       }
       dlyPlanFromTasks("lot");
       insSave();
-      histLog("TÂCHES", N ? "NIVEAU DE LOT CRÉÉ" : same ? "ORDRE DES LOTS" : "LOT DÉPLACÉ", (src.v || "") + (N ? " — " + N : ""));
+      histLog("TÂCHES", N ? "GROUPE DE LOTS CRÉÉ" : same ? "ORDRE DES LOTS" : "LOT DÉPLACÉ", (src.v || "") + (N ? " — " + N : ""));
       refreshAll();
       /* nouveau niveau : son nom est prêt à être saisi */
       if (N) setTimeout(() => { const i = [...shell.querySelectorAll("input.lot-gname")].find(x => x.dataset.path === base.join(" / ")); if (i) { i.focus(); try { i.select(); } catch (e) {} } }, 60);
@@ -10952,7 +10953,7 @@ function renderBudgetList() {
         }
         if (base.length >= src.length && src.every((g, i) => U_(g) === U_(base[i]))) { renderTabK(); return; }   /* pas dans sa propre branche */
         /* déjà rangé là (même parent) : on le dit, au lieu de ne rien faire en silence */
-        if (!extra && !plan.keep && U_(src.slice(0, -1).join(" / ")) === U_(base.join(" / ")) && (plan.on || !plan.before)) { svToast(src[src.length - 1] + (base.length ? " EST DÉJÀ DANS " + base[base.length - 1] : " EST DÉJÀ AU PREMIER NIVEAU") + ".", 3500, anchor); }
+        if (!extra && !plan.keep && U_(src.slice(0, -1).join(" / ")) === U_(base.join(" / ")) && (plan.on || !plan.before)) { svToast(src[src.length - 1] + (base.length ? " EST DÉJÀ DANS " + base[base.length - 1] : " N'EST DANS AUCUN GROUPE") + ".", 3500, anchor); }
         const ren = new Map();
         const add = (P0, b0) => L.filter(x => !x.t && under(x.v, P0)).forEach(x => ren.set(x.id, b0.concat(dlyLotPath(x.v).slice(P0.length - 1)).join(" / ")));
         add(src, base); if (extra) add(extra.P, extra.base);
@@ -10969,7 +10970,7 @@ function renderBudgetList() {
         rest.splice(j, 0, ...mine);
         INS.dord = rest;
         dlyTasksFromPlan(); insSave();
-        histLog("DÉLAIS", N ? "NIVEAU DE LOT CRÉÉ" : plan.keep ? "LOT DÉPLACÉ (PLACE, MÊME TITRE)" : "LOT DÉPLACÉ", dlyLotPath(path).pop() + (plan.keep ? "" : " → " + (base.length ? base.join(" / ") : "RACINE")));
+        histLog("DÉLAIS", N ? "GROUPE DE LOTS CRÉÉ" : plan.keep ? "LOT DÉPLACÉ (PLACE, MÊME TITRE)" : "LOT DÉPLACÉ", dlyLotPath(path).pop() + (plan.keep ? "" : " → " + (base.length ? base.join(" / ") : "RACINE")));
         refreshAll();
         if (N) setTimeout(() => { const i = [...shell.querySelectorAll("input.dly-nm")].find(x => x.dataset.path === base.join(" / ")); if (i) { i.focus(); try { i.select(); } catch (e) {} } }, 80);
       },
@@ -11001,12 +11002,12 @@ function renderBudgetList() {
             <button type="button" class="svc-close" data-v="" aria-label="Fermer">✕</button>
             <div class="svc-t">SUPERPOSER</div>
             <div class="svc-x svc-html">${row(A, "TÂCHE VISÉE")}${row(B, "TÂCHE GLISSÉE")}
-              ${same ? `<div class="svc-sub svc-warn">MÊME ACTIVITÉ « ${esc(nm(A, 1))} » : CHANGER UN INTITULÉ POUR CRÉER UN NIVEAU (OU FUSIONNER).</div>` : ""}
-              ${eL ? `<div class="svc-sub svc-warn">CRÉER UN NIVEAU IMPOSSIBLE : ${esc(eL)}</div>` : ""}
+              ${same ? `<div class="svc-sub svc-warn">MÊME ACTIVITÉ « ${esc(nm(A, 1))} » : CHANGER UN INTITULÉ POUR CRÉER UN GROUPE (OU FUSIONNER).</div>` : ""}
+              ${eL ? `<div class="svc-sub svc-warn">CRÉER UN GROUPE IMPOSSIBLE : ${esc(eL)}</div>` : ""}
               ${eF ? `<div class="svc-sub svc-warn">FUSIONNER IMPOSSIBLE : ${esc(eF)}</div>` : ""}</div>
             <div class="svc-f"><button type="button" class="svc-b" data-v="">ANNULER</button>
               <button type="button" class="svc-b svc-ok svc-neutral" data-v="fus"${eF ? " disabled" : ""}>FUSIONNER</button>
-              <button type="button" class="svc-b svc-ok svc-neutral" data-v="lvl"${same || eL ? " disabled" : ""}>CRÉER UN NIVEAU</button></div></div>`;
+              <button type="button" class="svc-b svc-ok svc-neutral" data-v="lvl"${same || eL ? " disabled" : ""}>CRÉER UN GROUPE</button></div></div>`;
         };
         document.getElementById("svConf")?.remove();
         document.body.appendChild(d);
@@ -11066,7 +11067,7 @@ function renderBudgetList() {
         INS.dord = (INS.dord || []).filter(x => x !== kB);
         INS.dord.splice(INS.dord.indexOf(kA) + 1, 0, kB);
         dlyTasksFromPlan(); insSave();
-        histLog("DÉLAIS", "NIVEAU DE LOT CRÉÉ", dlyName(kA) + " + " + dlyName(kB));
+        histLog("DÉLAIS", "GROUPE DE LOTS CRÉÉ", dlyName(kA) + " + " + dlyName(kB));
         refreshAll();
         setTimeout(() => { const inp = [...shell.querySelectorAll("input.dly-nm")].find(x => x.dataset.path === nl.v); if (inp) { inp.focus(); try { inp.select(); } catch (e) {} } }, 80);
       },
@@ -11119,7 +11120,7 @@ function renderBudgetList() {
         if (tr.classList.contains("dly-task")) nl = String(tr.dataset.key).split("|")[0];
         else if (after) {
           const lt = INS.lot.find(x => dlyLotPath(x.v).join(" / ") === tr.dataset.path);
-          if (!lt) { svToast("CHANGEMENT REFUSÉ : " + tr.dataset.path + " EST UN NIVEAU, PAS UN LOT. LÂCHER LA TÂCHE PARMI LES TÂCHES D'UN LOT.", 4500, tr); return; }
+          if (!lt) { svToast("CHANGEMENT REFUSÉ : " + tr.dataset.path + " EST UN GROUPE, PAS UN LOT. LÂCHER LA TÂCHE PARMI LES TÂCHES D'UN LOT.", 4500, tr); return; }
           nl = lt.id;
         }
         let k = key;
@@ -11164,7 +11165,7 @@ function renderBudgetList() {
         }
         /* lot ou niveau de lot (« / ») : toutes les tâches dessous suivent */
         const segs = dlyLotPath(inp.dataset.path), lvl = segs.length;
-        if (!v || v.includes("/")) { svToast(!v ? "NOM VIDE REFUSÉ." : "« / » SÉPARE LES NIVEAUX : NOM REFUSÉ.", 3500, inp); back(); return; }
+        if (!v || v.includes("/")) { svToast(!v ? "NOM VIDE REFUSÉ." : "« / » SÉPARE LES GROUPES : NOM REFUSÉ.", 3500, inp); back(); return; }
         if (v === segs[lvl - 1] || (LVL_AUTO.test(segs[lvl - 1] || "") && v === U_(lotLab(segs).name))) { back(); return; }
         const hit = INS.lot.filter(x => !x.t && (() => { const p = dlyLotPath(x.v); return p.length >= lvl && segs.every((sg, i) => U_(p[i]) === U_(sg)); })());
         const nv = x => { const p = dlyLotPath(x.v); p[lvl - 1] = v; return p.join(" / "); };
@@ -12330,10 +12331,18 @@ function renderBudgetList() {
         const host = box.tagName === "TABLE" ? box.parentElement : box;
         let h = host.querySelector(":scope > .svi-empty");
         if (!want) { if (h) h.remove(); return; }
-        if (h) return;
-        h = document.createElement("div"); h.className = "svi-empty";
-        h.innerHTML = `<span>AUCUNE LIGNE AFFICHÉE SUR ${total} : CASES COCHÉES OU FILTRES DES AUTRES BLOCS.</span><button type="button" class="svi-empty-b" data-clrall>TOUT RÉAFFICHER</button>`;
-        if (box.tagName === "TABLE") box.after(h); else box.appendChild(h);
+        /* v527 (remarque 5) : rien n'est décoché tout seul — le bandeau dit QUELLES cases cochées se contredisent,
+           avec un bouton par bloc pour les décocher (et TOUT RÉAFFICHER) */
+        const NM = { des: "DÉSIGNATION(S)", lot: "LOT(S)", prim: "ACTIVITÉ(S) PRIMAIRE(S)", sec: "ACTIVITÉ(S) SECONDAIRE(S)", chg: "CHARGE(S)", prd: "PRODUIT(S)" };
+        const ck = ["des", "lot", "prim", "sec", "chg", "prd"].filter(x => x !== k).map(x => [x, (INS[x] || []).filter(r => !r.t && r.on === true).length]).filter(([, n]) => n);
+        const sig = k + ":" + ck.map(([x, n]) => x + n).join(",") + ":" + total;
+        if (h && h.dataset.sig === sig) return;
+        if (!h) { h = document.createElement("div"); h.className = "svi-empty"; if (box.tagName === "TABLE") box.after(h); else box.appendChild(h); }
+        h.dataset.sig = sig;
+        const why = ck.length ? "AUCUNE LIGNE NE CORRESPOND À TOUTES LES CASES COCHÉES : " + ck.map(([x, n]) => n + " " + NM[x]).join(" + ") + "." : "AUCUNE LIGNE : FILTRES (LOUPES) DES BLOCS.";
+        h.innerHTML = `<span>${esc(why)}</span>${ck.map(([x, n]) => `<button type="button" class="svi-empty-b svi-empty-k" data-clrk="${x}">DÉCOCHER ${esc(NM[x])} (${n})</button>`).join("")}<button type="button" class="svi-empty-b" data-clrall>TOUT RÉAFFICHER</button>`;
+        /* message aussitôt, près du bloc vidé (une fois par situation) */
+        if (ck.length && shell.__emptySig !== sig) { shell.__emptySig = sig; try { svToast(why, 4000, h); } catch (e) {} }
       });
     };
     shell.__insClrAll = () => {
@@ -12345,11 +12354,16 @@ function renderBudgetList() {
     };
     if (!shell.__emptyBound) {
       shell.__emptyBound = true;
-      shell.addEventListener("click", e => { if (!e.target.closest || !e.target.closest("[data-clrall]")) return; e.preventDefault(); e.stopPropagation(); if (shell.__insClrAll) shell.__insClrAll(); }, true);
+      shell.addEventListener("click", e => {
+        const k1 = e.target.closest && e.target.closest("[data-clrk]");
+        if (k1) { e.preventDefault(); e.stopPropagation(); if (shell.__insClrK) shell.__insClrK(k1.dataset.clrk); return; }
+        if (!e.target.closest || !e.target.closest("[data-clrall]")) return; e.preventDefault(); e.stopPropagation(); if (shell.__insClrAll) shell.__insClrAll(); }, true);
       let q = 0;
       new MutationObserver(() => { if (q) return; q = requestAnimationFrame(() => { q = 0; try { shell.__insEmptyHints && shell.__insEmptyHints(); } catch (e) {} }); }).observe(shell, { childList: true, subtree: true });
     }
     shell.__insEmptyHints = insEmptyHints;
+    /* décocher un seul bloc */
+    shell.__insClrK = k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; insSave(); refreshAll(); };
 
     const tvaFor = l =>
       l.ttcAmount !== undefined ? l.ttcAmount - l.amount : l.amount * l.tva / 100;
@@ -12447,7 +12461,7 @@ function renderBudgetList() {
     /* planning : lot, activité secondaire, prédécesseurs, début, fin, durée */
     const DLY_COLS_P = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ["pred", "PRÉDÉCESSEURS", x => x.pred || "", ""],
       ["deb", "DÉBUT", x => x.deb || "", "center"], ["fin", "FIN", x => x.fin || "", "center"], ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "center"],
-      ["marge", "MARGE", x => x.marge === "" || x.marge === undefined ? "" : Number(x.marge), "center"], ["jal", "JALON", x => x.jal || "", "center"]];
+      ["marge", "BATTEMENT", x => x.marge === "" || x.marge === undefined ? "" : Number(x.marge), "center"], ["jal", "JALON", x => x.jal || "", "center"]];
     /* budget en instance : la tâche est donnée par les ronds du haut (pas de colonnes LOT / ACT. PRIMAIRE) */
     const DLY_COLS_I = DLY_COLS.filter(c => c[0] !== "lot" && c[0] !== "prim");
     /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */
@@ -13276,7 +13290,8 @@ function renderBudgetList() {
         return;
       }
       /* v525 (remarque 5) : un titre de niveau de lot (créé) se glisse aussi, avec ses lots */
-      const insEl = INS_EDIT && event.target.closest(".ins-table tr[data-iid], .ins-hcol .ins-li[data-iid], .ins-hcol .ins-li.lot-grp");
+      /* v527 (remarque 1) : les lignes du DÉTAIL CHARGES et du DÉTAIL PRODUITS ne se déplacent pas — pas de trait à l'appui long */
+      const insEl = INS_EDIT && event.target.closest('.ins-table:not([data-ik="chg"]):not([data-ik="prd"]) tr[data-iid], .ins-hcol .ins-li[data-iid], .ins-hcol .ins-li.lot-grp');
       if (insEl && insEl.classList.contains("lk-ban") && !event.target.closest("input.ins-cb, .ins-t")) {
         const x0 = event.clientX, y0 = event.clientY;
         const tmr = setTimeout(() => { svToast(insEl.dataset.ban || "", 3500, insEl); off(); }, 450);
@@ -15557,7 +15572,7 @@ function renderBudgetList() {
         /* v493 (remarque 16) : une colonne se réduit au maximum, comme dans DÉSIGNATIONS CLIENT (intitulé abrégé « … ») */
         const W = {}; COLS.forEach(c => { W[c[0]] = Math.max(28, (sz.cols || {})[c[0]] || Math.max(c[2], Math.ceil(c[1].length * 7.6) + 46)); });
         d.innerHTML = `<div class="sd-card${big ? " big" : ""}" role="dialog" aria-modal="true" style="${!big && sz.w ? "width:" + sz.w + "px;height:" + sz.h + "px" : ""}">
-          <div class="sd-head"><span class="sd-title">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"}</span>
+          <div class="sd-head"><span class="sd-title">${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"} — FORMAT TABLEAU</span>
             <span class="sd-n">${svCnt(V.filter(x => x.r._id).length, rows.filter(x => x._id).length)}</span>
             ${srcIds ? `<button type="button" class="sd-srcf" title="Retirer le filtre">FILTRE DU TABLEAU ✕</button>` : ""}
             ${selCol ? `<span class="sd-colbar">COLONNE « ${esc((COLS.find(c => c[0] === selCol) || [])[1] || "")} » SÉLECTIONNÉE : ⋯</span>` : ""}
@@ -15568,7 +15583,7 @@ function renderBudgetList() {
           <div class="sd-foot"><span style="flex:1"></span>
             <button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral sd-ok"${dirty ? "" : " disabled"}>VALIDER</button></div>
           ${big ? "" : '<div class="sd-rsz" title="Largeur et hauteur"></div>'}</div>
-          <button type="button" class="sd-tag">SAISIE DIRECTE — ${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"} ▲</button>`;
+          <button type="button" class="sd-tag">${P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES"} — FORMAT TABLEAU ▲</button>`;
         const tb = d.querySelector(".sd-t");
         if (tb) tb.style.width = COLS.reduce((t, c) => t + (W[c[0]] || c[2]), 0) + 40 + "px";
         const s2 = d.querySelector(".sd-scroll"); if (s2) { s2.scrollTop = st; s2.scrollLeft = sl; }
@@ -15879,7 +15894,7 @@ function renderBudgetList() {
         if (!e.target.closest(".sd-ok")) return;
         /* 0. lignes supprimées (non liées) */
         const delIds = new Set(rows.filter(r => r._del && r._id && !r._lid).map(r => r._id));
-        if (delIds.size) { INS[kind] = INS[kind].filter(x => !delIds.has(x.id)); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE — SUPPRESSION", delIds.size + " LIGNE(S)"); insSave(); }
+        if (delIds.size) { INS[kind] = INS[kind].filter(x => !delIds.has(x.id)); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "FORMAT TABLEAU — SUPPRESSION", delIds.size + " LIGNE(S)"); insSave(); }
         /* 1. lignes existantes modifiées */
         let upd = 0; const refused = [];
         if (!dirty || e.target.closest(".sd-ok").disabled) return;
@@ -15919,22 +15934,22 @@ function renderBudgetList() {
               INS.links = (INS.links || []).filter(q => q !== l);
             }
           }
-          histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE — CHAÎNE CHANGÉE", r.des + " → " + [r.dc, r.lot, r.prim, r.sec].join(" › "));
+          histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "FORMAT TABLEAU — CHAÎNE CHANGÉE", r.des + " → " + [r.dc, r.lot, r.prim, r.sec].join(" › "));
         });
         if (goneChg.size) INS.chg = INS.chg.filter(x => !goneChg.has(x.id));
-        if (extra.length) histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE — " + (P ? "CHARGES DÉPLACÉES AVEC LE DERNIER PRODUIT" : "PRODUITS RECOPIÉS"), extra.length + " LIGNE(S)");
+        if (extra.length) histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "FORMAT TABLEAU — " + (P ? "CHARGES DÉPLACÉES AVEC LE DERNIER PRODUIT" : "PRODUITS RECOPIÉS"), extra.length + " LIGNE(S)");
         /* v491 : une ligne nouvelle sans désignation produit / charge (combinaison reprise seulement) est ignorée */
         const neu = rows.filter(r => !r._del && ((!r._id && U_(r.des)) || (r._id && !r._lid && r.dc && r.lot && r.prim && r.sec) || moved.includes(r)));
         const aoa = [H].concat(neu.map(r => [budget.project || "", r.dc, r.upb, r.lot, r.prim, r.sec, P ? "PRD" : "CHG", r.art || "", r.des, P ? (secU(r.sec, r) || r.u) : r.u, r.nbr, r.d1, r.d2, r.d3, r.q, P ? "" : (r.p ?? "")]), extra);   /* v522 : PCB tapé sur une ligne nouvelle gardé */
-        if (upd) { insSave(); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "SAISIE DIRECTE", upd + " LIGNE(S) MODIFIÉE(S)"); }
+        if (upd) { insSave(); histLog(P ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES", "FORMAT TABLEAU", upd + " LIGNE(S) MODIFIÉE(S)"); }
         if (neu.length || extra.length) {
-          let m; try { m = bfModel(aoa); } catch (err) { svToast("SAISIE DIRECTE : " + (err.message || err), 4000); return; }
+          let m; try { m = bfModel(aoa); } catch (err) { svToast("FORMAT TABLEAU : " + (err.message || err), 4000); return; }
           const plan = bfRuleA(m, "add"); if (!(await bfRuleAAsk(plan))) return; plan.ok = true;
           /* lignes non liées devenues complètes : l'ancienne ligne seule est remplacée par la ligne importée */
           const inc0 = (INS.inc || []).length;
           const gone = new Set(neu.filter(r => r._id).map(r => r._id));
           if (gone.size) INS[kind] = INS[kind].filter(x => !gone.has(x.id));
-          bfApply(m, "add", "SAISIE DIRECTE", false, plan);
+          bfApply(m, "add", "FORMAT TABLEAU", false, plan);
           /* v492 (remarque 13) : PCB saisi d'une charge nouvelle hors CHS (l'import ne le porte pas) */
           if (!P) neu.forEach(r => { if (r.p === "" || r.p === undefined) return; INS.chg.filter(x => !x.t && !x.chs && U_(x.des) === U_(r.des) && U_(x.u) === U_(r.u) && (x.p === "" || x.p === undefined || num(x.p) === 0)).forEach(x => { x.p = insNum(r.p); }); });
           const nInc = (INS.inc || []).length - inc0;

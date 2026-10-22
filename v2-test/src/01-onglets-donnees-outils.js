@@ -259,7 +259,7 @@ function money(v) {
 /* v450 : un niveau nommé automatiquement (NIVEAU 2, NIVEAU 2.1…) s'affiche précédé du nom de ses parents (« FONDATION / ») */
 function sviLvlPre(segs) {
   const sg = (segs || []).map(x => String(x || "").trim()).filter(Boolean);
-  return sg.length > 1 && /^(NOUVEAU )?NIVEAU \d+(\.\d+)*$/i.test(sg[sg.length - 1]) ? sg.slice(0, -1).join(" / ").toUpperCase() + " / " : "";
+  return sg.length > 1 && /^(NOUVEAU )?(NIVEAU|GROUPE) \d+(\.\d+)*$/i.test(sg[sg.length - 1]) ? sg.slice(0, -1).join(" / ").toUpperCase() + " / " : "";
 }
 function esc(v) {
   return String(v ?? "").replace(

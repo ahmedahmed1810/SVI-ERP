@@ -1115,10 +1115,18 @@
         const host = box.tagName === "TABLE" ? box.parentElement : box;
         let h = host.querySelector(":scope > .svi-empty");
         if (!want) { if (h) h.remove(); return; }
-        if (h) return;
-        h = document.createElement("div"); h.className = "svi-empty";
-        h.innerHTML = `<span>AUCUNE LIGNE AFFICHÉE SUR ${total} : CASES COCHÉES OU FILTRES DES AUTRES BLOCS.</span><button type="button" class="svi-empty-b" data-clrall>TOUT RÉAFFICHER</button>`;
-        if (box.tagName === "TABLE") box.after(h); else box.appendChild(h);
+        /* v527 (remarque 5) : rien n'est décoché tout seul — le bandeau dit QUELLES cases cochées se contredisent,
+           avec un bouton par bloc pour les décocher (et TOUT RÉAFFICHER) */
+        const NM = { des: "DÉSIGNATION(S)", lot: "LOT(S)", prim: "ACTIVITÉ(S) PRIMAIRE(S)", sec: "ACTIVITÉ(S) SECONDAIRE(S)", chg: "CHARGE(S)", prd: "PRODUIT(S)" };
+        const ck = ["des", "lot", "prim", "sec", "chg", "prd"].filter(x => x !== k).map(x => [x, (INS[x] || []).filter(r => !r.t && r.on === true).length]).filter(([, n]) => n);
+        const sig = k + ":" + ck.map(([x, n]) => x + n).join(",") + ":" + total;
+        if (h && h.dataset.sig === sig) return;
+        if (!h) { h = document.createElement("div"); h.className = "svi-empty"; if (box.tagName === "TABLE") box.after(h); else box.appendChild(h); }
+        h.dataset.sig = sig;
+        const why = ck.length ? "AUCUNE LIGNE NE CORRESPOND À TOUTES LES CASES COCHÉES : " + ck.map(([x, n]) => n + " " + NM[x]).join(" + ") + "." : "AUCUNE LIGNE : FILTRES (LOUPES) DES BLOCS.";
+        h.innerHTML = `<span>${esc(why)}</span>${ck.map(([x, n]) => `<button type="button" class="svi-empty-b svi-empty-k" data-clrk="${x}">DÉCOCHER ${esc(NM[x])} (${n})</button>`).join("")}<button type="button" class="svi-empty-b" data-clrall>TOUT RÉAFFICHER</button>`;
+        /* message aussitôt, près du bloc vidé (une fois par situation) */
+        if (ck.length && shell.__emptySig !== sig) { shell.__emptySig = sig; try { svToast(why, 4000, h); } catch (e) {} }
       });
     };
     shell.__insClrAll = () => {
@@ -1130,11 +1138,16 @@
     };
     if (!shell.__emptyBound) {
       shell.__emptyBound = true;
-      shell.addEventListener("click", e => { if (!e.target.closest || !e.target.closest("[data-clrall]")) return; e.preventDefault(); e.stopPropagation(); if (shell.__insClrAll) shell.__insClrAll(); }, true);
+      shell.addEventListener("click", e => {
+        const k1 = e.target.closest && e.target.closest("[data-clrk]");
+        if (k1) { e.preventDefault(); e.stopPropagation(); if (shell.__insClrK) shell.__insClrK(k1.dataset.clrk); return; }
+        if (!e.target.closest || !e.target.closest("[data-clrall]")) return; e.preventDefault(); e.stopPropagation(); if (shell.__insClrAll) shell.__insClrAll(); }, true);
       let q = 0;
       new MutationObserver(() => { if (q) return; q = requestAnimationFrame(() => { q = 0; try { shell.__insEmptyHints && shell.__insEmptyHints(); } catch (e) {} }); }).observe(shell, { childList: true, subtree: true });
     }
     shell.__insEmptyHints = insEmptyHints;
+    /* décocher un seul bloc */
+    shell.__insClrK = k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; insSave(); refreshAll(); };
 
     const tvaFor = l =>
       l.ttcAmount !== undefined ? l.ttcAmount - l.amount : l.amount * l.tva / 100;
