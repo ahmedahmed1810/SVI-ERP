@@ -1032,6 +1032,8 @@
       fn();
 
       const restore = () => {
+        /* v531 : une ligne ancrée (dépôt dans la liste des lots) garde sa place : pas de remise en position par-dessus */
+        if (keepScroll.hold && performance.now() < keepScroll.hold) return;
         shell.querySelectorAll(sel).forEach((el, i) => {
           if (saved[i] === undefined) return;
           /* après un filtre : si la partie regardée n'existe plus, premières lignes retenues */

@@ -1141,6 +1141,9 @@
       const L = INS.lot, src = gP ? { v: gP.join(" / ") } : L.find(x => x.id === srcId);
       if (!src || !tEl) return;
       const P = gP || lotSegs(src);
+      /* v531 : le tableau reste stable à l'endroit de la ligne de destination (création d'un titre comprise) */
+      const y0 = tEl.getBoundingClientRect().top, sc0 = tEl.closest(".bdg-h-col"), st0 = sc0 ? sc0.scrollTop : 0, wy0 = window.scrollY;
+      const tKey = tEl.classList.contains("lot-grp") ? { path: tEl.dataset.path } : { iid: tEl.dataset.iid };
       const tSegs = tEl.classList.contains("lot-grp") ? dlyLotPath(tEl.dataset.path) : lotSegs(L.find(x => x.id === tEl.dataset.iid));
       let base, extra = null, N = "";
       if (mode === "gap") base = !gap.prev ? [] : gap.inStart ? gap.prev.slice() : gap.prev.slice(0, gap.D);
@@ -1155,6 +1158,9 @@
       const add = (P0, b0) => L.filter(x => !x.t && lotUnder(x, P0)).forEach(x => { plan.set(x.id, b0.concat(lotSegs(x).slice(P0.length - 1)).join(" / ")); });
       add(P, base);
       if (extra) add(extra.P, extra.base);
+      /* v531 : lots de la ligne visée (nouveau titre) repérés AVANT le renommage — ils restent à leur place, le bloc déplacé vient à côté
+         (avant : le nouveau titre partait en haut de la liste) */
+      const keepIds = new Set(extra ? L.filter(x => !x.t && lotUnder(x, extra.P) && !lotUnder(x, P)).map(x => x.id) : []);
       const same = [...plan].every(([id, v]) => U_((L.find(x => x.id === id) || {}).v) === U_(v));
       if (!same) {
         const ids = new Set(plan.keys()), vals = [...plan.values()].map(U_);
@@ -1164,7 +1170,7 @@
       }
       /* ordre : le bloc déplacé se place à l'endroit du dépôt */
       {
-        const mv = lotTreeOrder(L).filter(x => plan.has(x.id) && !(extra && lotUnder(x, extra.P) && !lotUnder(x, P)));
+        const mv = lotTreeOrder(L).filter(x => plan.has(x.id) && !keepIds.has(x.id));
         const rest = lotTreeOrder(L.filter(x => !mv.includes(x)));
         const nodeOf = tEl.classList.contains("lot-grp") ? lotSegs({ v: tEl.dataset.path }) : null;
         const tId = tEl.dataset.iid;
@@ -1186,8 +1192,30 @@
       insSave();
       histLog("TÂCHES", N ? "GROUPE DE LOTS CRÉÉ" : same ? "ORDRE DES LOTS" : "LOT DÉPLACÉ", (src.v || "") + (N ? " — " + N : ""));
       refreshAll();
-      /* nouveau niveau : son nom est prêt à être saisi */
-      if (N) setTimeout(() => { const i = [...shell.querySelectorAll("input.lot-gname")].find(x => x.dataset.path === base.join(" / ")); if (i) { i.focus(); try { i.select(); } catch (e) {} } }, 60);
+      /* ligne ancrée : le nouveau titre (ou la ligne visée) revient à la hauteur où était la ligne de destination */
+      const col = () => shell.querySelector('.ins-hcol[data-ik="lot"]');
+      const anchorEl = () => {
+        const c = col(); if (!c) return null;
+        if (N) return [...c.querySelectorAll(".ins-li.lot-grp")].find(x => x.dataset.path === base.join(" / "));
+        if (tKey.iid) return c.querySelector(`.ins-li[data-iid="${tKey.iid}"]`);
+        return [...c.querySelectorAll(".ins-li.lot-grp")].find(x => x.dataset.path === tKey.path) || null;
+      };
+      const fix = () => {
+        const el = anchorEl(); if (!el) return;
+        /* la liste peut avoir été redessinée (défilement remis à zéro) : on repart de la position d'avant le dépôt */
+        const c0 = col(); if (c0 && c0.__lotFix !== drop0) { c0.__lotFix = drop0; c0.scrollTop = st0; window.scrollTo(window.scrollX, wy0); }
+        let d = el.getBoundingClientRect().top - y0;
+        if (Math.abs(d) < 1) return;
+        const sc = el.closest(".bdg-h-col");
+        if (sc && sc.scrollHeight > sc.clientHeight + 1) { const t0 = sc.scrollTop; sc.scrollTop = t0 + d; d -= sc.scrollTop - t0; }
+        if (Math.abs(d) >= 1) window.scrollBy(0, d);
+      };
+      const drop0 = performance.now();
+      keepScroll.hold = performance.now() + 450;
+      fix(); requestAnimationFrame(fix);
+      [70, 160, 300].forEach(t => setTimeout(fix, t));
+      /* nouveau niveau : son nom est prêt à être saisi (sans faire défiler l'écran) */
+      if (N) setTimeout(() => { const i = [...shell.querySelectorAll("input.lot-gname")].find(x => x.dataset.path === base.join(" / ")); if (i) { try { i.focus({ preventScroll: true }); } catch (e) { i.focus(); } try { i.select(); } catch (e) {} fix(); } }, 60);
     };
     if (!shell.__lotTreeBound) {
       shell.__lotTreeBound = true;

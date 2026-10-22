@@ -1121,6 +1121,22 @@ def main():
               cb is not None and _re.search(r"^4\s", k1.split("\n")[1] if "\n" in k1 else "") and "12,50 %" in k1 and _re.search(r"\t3\t", k2) and "75,00 %" in k2, [cb, k1[:120], k2[:120]])
         pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
 
+        # ===== v531 : création d'un titre dans la liste des lots — le tableau reste stable à l'endroit de la ligne de destination =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; for (let i = 0; i < 30; i++) I.lot.push({{ id: 'z' + i, v: 'ZONE ' + String(i).padStart(2, '0') }}); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        st = pg.evaluate("""() => { const stl = document.createElement('style'); stl.id = 'tst531'; stl.textContent = '.ins-hcol[data-ik="lot"]{max-height:380px!important;height:380px!important}'; document.head.appendChild(stl);
+            const c = document.querySelector('.ins-hcol[data-ik="lot"]'); c.scrollIntoView({ block: 'center' }); c.scrollTop = 300; const s = document.querySelector('.ins-li[data-iid="z14"]'), t = document.querySelector('.ins-li[data-iid="z16"]');
+            const a = s.querySelector('input.ins-in').getBoundingClientRect(), b = t.getBoundingClientRect(); return [a.left + 20, a.top + a.height / 2, b.top + b.height / 2, b.top, window.scrollY]; }""")
+        pg.mouse.move(st[0], st[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+        pg.mouse.move(st[0], st[2] - 2, steps=6); pg.wait_for_timeout(100); pg.mouse.move(st[0], st[2], steps=2); pg.wait_for_timeout(150)
+        pg.mouse.up(); pg.wait_for_timeout(700)
+        s31 = pg.evaluate("""() => { const c = document.querySelector('.ins-hcol[data-ik="lot"]'); const g = [...c.querySelectorAll('.lot-grp')].find(x => /^GROUPE/.test(x.dataset.path)); const ids = [...c.querySelectorAll('.ins-li')].map(x => x.dataset.path || x.dataset.iid);
+            return [g ? Math.round(g.getBoundingClientRect().top) : null, ids.indexOf(g && g.dataset.path) === ids.indexOf('z15') + 1, Math.round(window.scrollY)]; }""")
+        pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.evaluate(f"() => {{ document.getElementById('tst531')?.remove(); const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v531 : nouveau titre créé à la place de la ligne visée, sans que la liste ni la page ne bougent",
+              s31[0] is not None and abs(s31[0] - round(st[3])) <= 2 and s31[1] and abs(s31[2] - round(st[4])) <= 2, [st, s31])
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
