@@ -1288,12 +1288,12 @@
 
     /* ===== BUDGET ENTIER SUR UN SEUL ONGLET (export / import)
        une ligne par produit ou charge, avec toute sa chaîne ; les lignes non liées figurent seules.
-       Ni prix, ni montant, ni TVA, ni délais ; QTE seulement pour les charges. ===== */
+       Ni montant, ni TVA, ni délais ; QTE et PCB (prix) seulement pour les charges (v522). ===== */
     const BF_HEAD = ["ART", "DÉSIGNATION CLIENT", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE",
-      "TYPE (PRD / CHG)", "ARTICLE", "DÉSIGNATION PRODUIT", "DÉSIGNATION CHARGE", "UNITÉ", "NBR", "DIM 1", "DIM 2", "DIM 3", "QTE"];
+      "TYPE (PRD / CHG)", "ARTICLE", "DÉSIGNATION PRODUIT", "DÉSIGNATION CHARGE", "UNITÉ", "NBR", "DIM 1", "DIM 2", "DIM 3", "QTE", "PCB"];
     /* lignes refaites en interne (IMPORT NON CRÉÉ) : une seule colonne de désignation du détail */
     const BF_HEAD_IN = ["ART", "DÉSIGNATION CLIENT", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE",
-      "TYPE (PRD / CHG)", "ARTICLE", "DÉSIGNATION PRODUIT / CHARGE", "UNITÉ", "NBR", "DIM 1", "DIM 2", "DIM 3", "QTE"];
+      "TYPE (PRD / CHG)", "ARTICLE", "DÉSIGNATION PRODUIT / CHARGE", "UNITÉ", "NBR", "DIM 1", "DIM 2", "DIM 3", "QTE", "PCB"];
     const budgetFlat = () => {
       const d = dupData();
       const by = (k, id) => (d[k] || []).find(x => x.id === id) || {};
@@ -1301,8 +1301,8 @@
       const AA = artAutoOf(d.des || []);   /* FORMAT 124 : ART calculé exporté */
       const desC = D => [D.art || AA.get(D.id) || "", U_(D.des), D.t ? "" : U_(D.u)];
       /* produits : pas d'article (FORMAT 6) — colonne ARTICLE vide sur les lignes PRD */
-      const prdC = P => ["PRD", "", U_(P.des), "", U_(P.u), n(P.nbr), n(P.d1), n(P.d2), n(P.d3), ""];
-      const chgC = (C, q) => ["CHG", C.art || "", "", U_(C.des), U_(C.u), "", "", "", "", n(q !== "" && q !== undefined ? q : C.q)];
+      const prdC = P => ["PRD", "", U_(P.des), "", U_(P.u), n(P.nbr), n(P.d1), n(P.d2), n(P.d3), "", ""];
+      const chgC = (C, q) => ["CHG", C.art || "", "", U_(C.des), U_(C.u), "", "", "", "", n(q !== "" && q !== undefined ? q : C.q), n(C.p)];
       const rows = [], used = { lot: new Set(), prim: new Set(), sec: new Set(), prd: new Set(), chg: new Set() };
       (d.des || []).forEach(D => {
         const L = (d.links || []).filter(l => l.des === D.id);
@@ -1334,7 +1334,9 @@
       const col = (...names) => H.findIndex(h => names.some(x => h === x || (x.endsWith("*") && h.startsWith(x.slice(0, -1)))));
       const C = { art: col("ART"), dc: col("DESIGNATION CLIENT"), upb: col("UPB"), lot: col("LOT"), prim: col("ACTIVITE PRIMAIRE"),
         sec: col("ACTIVITE SECONDAIRE"), type: col("TYPE*"), article: col("ARTICLE"), des: col("DESIGNATION PRODUIT / CHARGE", "DESIGNATION"), desP: col("DESIGNATION PRODUIT"), desC: col("DESIGNATION CHARGE"), u: col("UNITE"),
-        nbr: col("NBR"), d1: col("DIM 1", "DIM1"), d2: col("DIM 2", "DIM2"), d3: col("DIM 3", "DIM3"), q: col("QTE", "QUANTITE"), prj: col("PROJET", "PRJ") };
+        nbr: col("NBR"), d1: col("DIM 1", "DIM1"), d2: col("DIM 2", "DIM2"), d3: col("DIM 3", "DIM3"), q: col("QTE", "QUANTITE"), prj: col("PROJET", "PRJ"),
+        /* v522 : prix des charges (facultatif) */
+        p: col("PCB", "PRIX", "PRIX UNITAIRE", "PRIX HT", "PU", "PUB", "PU HT") };
       /* colonnes recherchées absentes (ART et ARTICLE facultatifs) ; colonnes en trop ignorées */
       const NEED = [["prj", "PROJET"], ["dc", "DÉSIGNATION CLIENT"], ["upb", "UPB"], ["lot", "LOT"], ["prim", "ACTIVITÉ PRIMAIRE"], ["sec", "ACTIVITÉ SECONDAIRE"],
         ["type", "TYPE (PRD / CHG)"], ["des", "DÉSIGNATION PRODUIT / CHARGE"], ["u", "UNITÉ"], ["nbr", "NBR"], ["d1", "DIM 1"], ["d2", "DIM 2"], ["d3", "DIM 3"], ["q", "QTE"]];
@@ -1354,8 +1356,9 @@
       const nn = v => String(v ?? "").trim() === "" ? "" : num(v);
       const m = { des: [], hier: [], chg: [], prd: [], qlt: [], dly: [], links: [], rej: [], miss, prjCol: C.prj >= 0, prj: PJ };
       const seen = new Map();
-      const RAW = ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u", "nbr", "d1", "d2", "d3", "q"];
+      const RAW = ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u", "nbr", "d1", "d2", "d3", "q", "p"];
       const put = (k, key, row, hier) => { if (!seen.has(key)) { seen.set(key, true); hier ? m.hier.push({ key, lvl: k, row }) : m[k].push({ key, row }); } return key; };
+      const pDone = new Set();   /* v522 : charges dont le PCB vient déjà de la feuille */
       const seenLine = new Map();   /* doublons dans le fichier : tout identique sauf NBR / DIM / QTE */
       /* FORMAT 88 : une même désignation (ART + DÉSIGNATION) / un même produit (DÉSIGNATION) n'a qu'une unité ;
          la plus fréquente l'emporte (budget compris ; égalité : le budget, puis l'ordre du fichier) */
@@ -1409,6 +1412,7 @@
             }
             if (isC) {
               if (z(g(r, "q"))) { bad.push("q"); why.push("QTE VIDE OU 0"); }
+              if (!sviNumOk(g(r, "p"))) { bad.push("p"); why.push("NOMBRE NON VALIDE : PCB"); }
               const c = chsFind(String(g(r, "article") ?? "").trim(), dn);
               if (c && U_(g(r, "u")) && U_(c.unit) && U_(g(r, "u")) !== U_(c.unit)) { bad.push("u"); why.push("UNITÉ " + U_(g(r, "u")) + " ≠ UNITÉ DE CHS (" + U_(c.unit) + ")"); }
             }
@@ -1432,10 +1436,16 @@
           pk = put("prd", "prd|" + impId("prd", row) + (ch ? "#" + ch : ""), row);
         } else if (dn && t.startsWith("CHG")) {
           const row = { art: String(g(r, "article") ?? "").trim(), des: dn, u: U_(g(r, "u")), q: nn(g(r, "q")), tva: 20 };
-          /* prix et TVA : depuis CHS */
-          const c = chsFind(row.art, row.des);
-          if (c) { row.chs = c.id; row.p = c.pcs; row.tva = c.tva; row.u = row.u || U_(c.unit); }
+          /* prix et TVA : depuis CHS ;
+             v522 : PCB rempli dans la feuille = ce prix-là (CHS ne sert alors qu'à la TVA, et la charge n'est rattachée à CHS
+             que si les deux prix sont égaux) ; PCB vide = prix de CHS, comme avant */
+          const c = chsFind(row.art, row.des), ps = String(g(r, "p") ?? "").trim() !== "" ? num(g(r, "p")) : null;
+          if (c) { row.tva = c.tva; row.u = row.u || U_(c.unit); }
+          if (ps !== null && isFinite(ps)) { row.p = ps; if (c && Math.abs(num(c.pcs) - ps) < 0.005) row.chs = c.id; }
+          else if (c) { row.chs = c.id; row.p = c.pcs; }
           ck = put("chg", "chg|" + impId("chg", row), row);
+          /* même charge sur plusieurs lignes : le premier PCB rempli l'emporte */
+          if (ps !== null && isFinite(ps) && !pDone.has(ck)) { const e = m.chg.find(x => x.key === ck); pDone.add(ck); if (e && e.row !== row) { e.row.p = ps; if (c && Math.abs(num(c.pcs) - ps) < 0.005) e.row.chs = c.id; else delete e.row.chs; } }
         }
         const src = Object.fromEntries(RAW.map(k => [k, String(g(r, k) ?? "").trim()]));
         src.__line = aoa.__lineFix || lineNo;
@@ -1522,6 +1532,8 @@
       return svConfirm({ title: "RÈGLE A — LIAISONS À DÉLIER", html, ok: "IMPORTER" });
     };
     /* ajoute le modèle au budget : AJOUTER / METTRE À JOUR / REMPLACER */
+    /* lecture d'un tableau importé, sans rien créer (contrôles et tests) */
+    shell.__bfModel = aoa => bfModel(aoa);
     const bfApply = (m, mode, srcName, quiet, plan, only) => {
       let added = 0, upd = 0, skip = 0, nl = 0;
       const kid = new Map();
@@ -1539,9 +1551,13 @@
           const old = INS[k].find(o => hierK ? U_(o.v) === U_(r.v) : impId(k, o) === impId(k, r) && (k !== "prd" || prdChainKey(o.id) === ch));
           if (old) {
             kid.set(x.key, old.id);
+            /* v522 : charge déjà dans le budget SANS prix — le PCB importé la complète, même en simple ajout */
+            if (k === "chg" && mode !== "update" && (old.p === "" || old.p === undefined || old.p === null) && r.p !== undefined && r.p !== "") { old.p = r.p; if (r.chs) old.chs = r.chs; upd++; return; }
             if (mode !== "update" || hierK) { skip++; return; }
             let ch = false;
             ["q", "nbr", "d1", "d2", "d3", "p", "tva", "chs"].forEach(f => { if (r[f] !== undefined && String(r[f]) !== String(old[f] ?? "")) { old[f] = r[f]; ch = true; } });
+            /* v522 : prix de la feuille différent de CHS — la charge n'est plus rattachée à CHS (son PCB redevient modifiable) */
+            if (k === "chg" && r.p !== undefined && r.chs === undefined && old.chs) { delete old.chs; ch = true; }
             ch ? upd++ : skip++;
             return;
           }
@@ -1650,7 +1666,7 @@
         insSave(); refreshAll();
         return;
       }
-      const aoa = [BF_HEAD_IN, ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u", "nbr", "d1", "d2", "d3", "q"].map(k => s0[k] ?? "")];
+      const aoa = [BF_HEAD_IN, ["art", "dc", "upb", "lot", "prim", "sec", "type", "article", "des", "u", "nbr", "d1", "d2", "d3", "q", "p"].map(k => s0[k] ?? "")];
       aoa.__lineFix = s0.__line || item.line || "";
       const before = (INS.inc || []).length;
       bfApply(bfModel(aoa), "add", "CORRECTION", true);

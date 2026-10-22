@@ -719,6 +719,15 @@ def main():
         check("v519 : MARGE — sous-lot juste sous son lot", ok519, mo)
         check("v520 : MARGE — sous-lot décalé vers la droite", isinstance(pads, list) and int(str(pads[mo.index("ETAGE 1 / ZONE A")]).split("/")[-1]) >= int(str(pads[mo.index("ETAGE 1")]).split("/")[-1]) + 15, [mo, pads])
 
+        # ===== v522 : import d'un tableau — PCB des charges lu dans la feuille (CHS en secours) ; exporté =====
+        im = pg.evaluate("""() => { const sh = [...document.querySelectorAll('*')].find(e => e.__bfModel); if (!sh) return 'pas de lecture';
+            const H = ['PROJET', 'DÉSIGNATION CLIENT', 'UPB', 'LOT', 'ACTIVITÉ PRIMAIRE', 'ACTIVITÉ SECONDAIRE', 'TYPE (PRD / CHG)', 'ARTICLE', 'DÉSIGNATION', 'UNITÉ', 'NBR', 'DIM 1', 'DIM 2', 'DIM 3', 'QTE', 'PCB'];
+            const R = (des, q, p) => ['PROJET TEST', 'BETON EN FONDATION', 'M3', 'RDC', 'BETONNAGE', 'BETONNAGE', 'CHG', '', des, 'KG', '', '', '', '', q, p];
+            const m = sh.__bfModel([H, R('FER TOR', '10', '12,50'), R('FER TOR', '5', ''), R('POINTES', '2', ''), R('FIL', '3', 'ABC')]);
+            const P = d => (m.chg.find(x => x.row.des === d) || {}).row;
+            return [P('FER TOR') && P('FER TOR').p, P('POINTES') ? (P('POINTES').p ?? '') : 'absent', m.rej.map(x => x.why).join(' ; ')]; }""")
+        check("v522 : import — PCB de la charge lu dans la feuille, nombre non valide refusé", isinstance(im, list) and im[0] == 12.5 and im[1] in ("", None) and "PCB" in im[2], im)
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
