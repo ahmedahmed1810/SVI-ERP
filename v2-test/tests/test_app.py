@@ -870,7 +870,8 @@ def main():
             const ia = a.querySelector('input.lot-gname').getBoundingClientRect(), rb = b.getBoundingClientRect(); return [ia.left + ia.width / 2, ia.top + ia.height / 2, ia.left + ia.width / 2, rb.top + 2]; }""")
         if g:
             pg.mouse.move(g[0], g[1]); pg.mouse.down(); pg.wait_for_timeout(500)
-            pg.mouse.move(g[2], g[3] + 3, steps=6); pg.wait_for_timeout(150); pg.mouse.move(g[2], g[3], steps=3); pg.wait_for_timeout(150); pg.mouse.up(); pg.wait_for_timeout(500)
+            pg.mouse.move(g[2], g[3] + 3, steps=6); pg.wait_for_timeout(150); pg.mouse.move(g[2], g[3], steps=3); pg.wait_for_timeout(150)
+            pg.mouse.up(); pg.wait_for_timeout(500)
         r5 = pg.evaluate(f"() => {{ const X = {ins}; const ids = X.INS.lot.map(r => r.id); return [ids.indexOf('tc'), ids.indexOf('ta'), (X.INS.lot.find(r => r.id === 'tc') || {{}}).v]; }}")
         check("v525 remarque 5 : titre de niveau glissé avec ses lots (NIVEAU 2 au-dessus de NIVEAU 1)", g is not None and r5[0] >= 0 and r5[0] < r5[1] and r5[2] == "TOIT / NIVEAU 2 / ZONE C", [g, r5])
         pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => !['ta', 'tb', 'tc'].includes(r.id)); I.links = I.links.filter(l => !/^LT/.test(l.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
