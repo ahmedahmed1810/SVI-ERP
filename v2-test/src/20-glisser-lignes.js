@@ -155,6 +155,8 @@
         /* le doigt est bloqué seulement pendant le glissement (le défilement normal reste libre) */
         document.addEventListener("touchmove", tm, { passive: false });
         shell.__insDragging = true;
+        /* v533 : un nom de titre en cours de saisie est gardé AVANT le glissement (sans redessiner sous le doigt) */
+        grpFlush(true);
         if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
         /* pas de sélection de texte (poignées bleues) pendant le glissement */
         try { window.getSelection && window.getSelection().removeAllRanges(); } catch (e) {}
@@ -244,6 +246,7 @@
       };
       const end = drop => {
         clearTimeout(timer);
+        if (shell.__gnRefresh) { shell.__gnRefresh = false; setTimeout(() => refreshAll(), 0); }
         document.removeEventListener("pointermove", move);
         document.removeEventListener("pointerup", up);
         document.removeEventListener("pointercancel", cancel);

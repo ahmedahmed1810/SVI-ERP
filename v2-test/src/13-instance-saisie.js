@@ -1242,17 +1242,28 @@
         const g = e.target.closest && e.target.closest("input.lot-gcb");
         if (g) { const P = dlyLotPath(g.dataset.path); INS.lot.forEach(r => { if (!r.t && lotUnder(r, P)) r.on = g.checked; }); insSave(); refreshAll(); return; }
         const n = e.target.closest && e.target.closest("input.lot-gname");
-        if (n && shell.__insDly && !n.__gnDone) { n.__gnDone = true; shell.__insDly.rename(n); }
+        /* v533 : doigt (ou souris) encore posé = un glissement peut commencer : nom gardé sans redessiner sous le doigt */
+        if (n && shell.__insDly && !n.__gnDone && n.value !== n.defaultValue) { n.__gnDone = true; shell.__gnPend = null; shell.__insDly.rename(n, { quiet: !!shell.__ptrDown }); }
       });
     }
     /* v529 (remarque 3) : nom tapé sur un titre de groupe gardé même si l'écran est redessiné avant que la case ne soit quittée
        (iPad : toucher un rond, un signe de pliage ou un autre groupe ne fait pas toujours perdre le focus) — LOTS et PLANNING */
-    const grpFlush = () => {
-      const a = document.activeElement;
-      if (!a || !a.matches || !a.matches("input.lot-gname, input.dly-nm:not(.dly-gin)") || !shell.contains(a) || a.__gnDone) return;
+    /* v533 : la case du nom tapé est suivie à la frappe (même si elle a perdu le focus, iPad) */
+    const GN_SEL = "input.lot-gname, input.dly-nm:not(.dly-gin)";
+    if (!shell.__gnBound) {
+      shell.__gnBound = true;
+      shell.addEventListener("input", e => { const i = e.target.closest && e.target.closest(GN_SEL); if (i) { i.__gnDone = false; shell.__gnPend = i; } }, true);
+      document.addEventListener("pointerdown", () => { shell.__ptrDown = true; }, true);
+      const upP = () => { shell.__ptrDown = false; setTimeout(() => { if (shell.__gnRefresh && !shell.__insDragging) { shell.__gnRefresh = false; refreshAll(); } }, 0); };
+      document.addEventListener("pointerup", upP, true); document.addEventListener("pointercancel", upP, true);
+    }
+    const grpFlush = (quiet = false) => {
+      const P = shell.__gnPend, A = document.activeElement;
+      const a = P && P.isConnected ? P : A && A.matches && A.matches(GN_SEL) ? A : null;
+      if (!a || !shell.contains(a) || a.__gnDone) return;
       if (a.value === a.defaultValue || !shell.__insDly) return;
-      a.__gnDone = true;
-      shell.__insDly.rename(a);
+      a.__gnDone = true; shell.__gnPend = null;
+      shell.__insDly.rename(a, { quiet });
     };
     const insRenderHier = only => {
       grpFlush();
