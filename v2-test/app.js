@@ -708,10 +708,6 @@ function money(v) {
 }
 
 /* v450 : un niveau nommé automatiquement (NIVEAU 2, NIVEAU 2.1…) s'affiche précédé du nom de ses parents (« FONDATION / ») */
-function sviLvlPre(segs) {
-  const sg = (segs || []).map(x => String(x || "").trim()).filter(Boolean);
-  return sg.length > 1 && /^(NOUVEAU )?(NIVEAU|GROUPE) \d+(\.\d+)*$/i.test(sg[sg.length - 1]) ? sg.slice(0, -1).join(" / ").toUpperCase() + " / " : "";
-}
 function esc(v) {
   return String(v ?? "").replace(
     /[&<>"']/g,
@@ -2804,25 +2800,6 @@ function firstValue(row, names) {
   return "";
 }
 
-function budgetReference(row, index) {
-  return (
-    firstValue(
-      row,
-      [
-        "BDG",
-        "REFERENCE BDG",
-        "RÉFÉRENCE BDG",
-        "REFERENCE",
-        "RÉFÉRENCE"
-      ]
-    ) ||
-    (
-      "BDG-" +
-      String(index + 1)
-        .padStart(4, "0")
-    )
-  );
-}
 
 /* ⟪ src/10-bdg-liste.js ⟫ */
 /* =========================================================
@@ -5069,8 +5046,6 @@ function renderBudgetList() {
       };
     };
 
-    const unclassified =
-      lines.filter(l => !l.kind).length;
 
     const tabs = [
       { key: "chg", title: "DÉTAIL CHARGES" },
@@ -5445,7 +5420,6 @@ function renderBudgetList() {
       }
     };
     const cfMakeF = (vals, cond) => ({ cond, vals, has: v => (!vals || vals.has(v)) && cfCondOk(cond, v), [Symbol.iterator]: function* () { if (vals) yield* vals; } });
-    const cfCondLab = c => !c ? "" : ({ eq: c.kind === "date" ? "LE" : "=", ne: "≠", gt: c.kind === "date" ? "APRÈS LE" : ">", ge: "≥", lt: c.kind === "date" ? "AVANT LE" : "<", le: "≤", bt: "ENTRE" })[c.op] || "";
 
     const cfValues = (t, key) => {
       const src = cfSrc[t];
@@ -6138,7 +6112,7 @@ function renderBudgetList() {
         else val = r[f] || "";
       }
       const artA = k === "des" && f === "art" && !isNew && !String(r.art ?? "").trim() ? (ART_AUTO.get(r.id) || "") : "";
-      if (!INS_EDIT) return `<td class="${cls}${k === "des" && f === "des" ? " c-wrap ins-tdv" : ""}${artA ? " art-auto" : ""}">${esc(artA || val)}${f === "tva" && val ? " %" : ""}${k === "des" && f === "des" && !isNew && !r.t ? `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>` : ""}</td>`;
+      if (!INS_EDIT) return `<td class="${cls}${k === "des" && f === "des" ? " c-wrap ins-tdv" : ""}${k === "chg" && f === "des" && !isNew && !r.t ? " ins-pkc" : ""}${artA ? " art-auto" : ""}">${esc(artA || val)}${k === "chg" && f === "des" && !isNew && !r.t ? condBtn(r) : ""}${f === "tva" && val ? " %" : ""}${k === "des" && f === "des" && !isNew && !r.t ? `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>` : ""}</td>`;
       /* v525 (remarque 1) : RENDEMENT d'une ligne de charge modifiable (une seule tâche avec des produits) —
          taper un rendement = QCB de la ligne recalculée (produit de sa tâche ÷ rendement, arrondie à 0,5) */
       if (k === "chg" && f === "rdb" && !isNew && !r.t) {
@@ -6150,12 +6124,15 @@ function renderBudgetList() {
       }
       /* FORMAT 109 : DÉSIGNATION client sur plusieurs lignes si elle est trop longue (la ligne devient plus haute) */
       /* FORMAT 122 : ligne existante — texte affiché (appui long = glisser), un toucher ouvre la saisie */
-      if (k === "des" && f === "des" && !isNew) return `<td class="${cls} ins-td ins-tdv${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><div class="ins-dv" data-f="des">${esc(val)}</div><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea>${r.t ? "" : `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>`}</td>`;
+      if (k === "des" && f === "des" && !isNew) return `<td class="${cls} ins-td ins-tdv${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}>${r.t ? `<span class="ins-tfz">${foldBtn(r)}</span>` : ""}<div class="ins-dv" data-f="des">${esc(val)}</div><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea>${r.t ? "" : `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>`}</td>`;
       if (k === "des" && f === "des") return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} ${isNew ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea></td>`;
-      return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
+      /* v530 : bouton CONDITIONNEMENT dans la case DÉSIGNATION d'une charge */
+      const pk = k === "chg" && f === "des" && !isNew && !r.t;
+      return `<td class="${cls} ins-td${pk ? " ins-pkc" : ""}${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
         ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
-        value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off"></td>`;
+        value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off">${pk ? condBtn(r) : ""}</td>`;
     };
+    const condBtn = r => `<button type="button" class="chg-pk${(INS.cond || {})[U_(r.des) + "|" + U_(r.u)] ? " on" : ""}" tabindex="-1" data-cid="${r.id}" aria-label="Conditionnement"><svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg></button>`;
     const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     /* page unique : rond à gauche = choix pour la liaison (2e toucher = libère le choix) ;
        case à droite = suppression (cochée, elle devient 🗑 ; ANNULER la décoche) */
@@ -6169,6 +6146,8 @@ function renderBudgetList() {
       return true;
     };
     const lkOn = (k, id) => (k === "prd" || k === "chg") ? LK[k][id] !== undefined : (LK.all && LK.all[k] ? lkAllLinked(k, id) && lkInPart(k, id) : LK[k] === id);
+    /* v530 : chiffre d'une pastille (à moitié remplie : blanc sur la partie colorée, couleur sur la partie blanche) */
+    const pstNum = n => `<b class="pst-n">${n}</b>`;
     const lkRdPart = (k, key) => {
       if (!INS_EDIT) return "";
       /* v528 (remarque 1) : rond d'en-tête actif = tous les titres aussi ; rond d'un titre parent d'un titre choisi = choisi aussi */
@@ -6180,7 +6159,10 @@ function renderBudgetList() {
       const on = !!(LK.all && LK.all[k] && (!pk || pk === key || subPk));
       const part = !!(LK.all && LK.all[k] && inPk && pk !== key);
       const busy = !!LK[k] || (!!(LK.all && LK.all[k]) && !on && !part);
-      return `<span class="lk-rd lk-rdgrp${on ? " on" : ""}${part ? " part" : ""}${busy ? " off" : ""}" data-rdgrp="${k}" data-key="${esc(key)}" role="button" aria-label="Choisir toutes les lignes liées du titre"></span>`;
+      /* v530 (remarque 1) : rond d'un titre = pastille avec le nombre de ses lignes (comme le DÉTAIL CHARGES), dans tous les tableaux */
+      const n = k === "lot" ? INS.lot.filter(r => !r.t && lotUnder(r, dlyLotPath(key))).length
+        : k === "des" ? (() => { const t = INS.des.find(x => x.id === key); return t ? insBranch(t).filter(x => !x.t).length : 0; })() : 0;
+      return `<span class="lk-rd lk-rdgrp lk-pst${on ? " on" : ""}${part ? " part" : ""}${busy ? " off" : ""}" data-rdgrp="${k}" data-key="${esc(key)}" role="button" aria-label="Choisir toutes les lignes liées du titre">${pstNum(n)}</span>`;
     };
     /* lignes déjà liées à la désignation choisie (comme le choix du budget validé, niveau par niveau) :
        lots de la désignation ; activités primaires du lot choisi ; secondaires de la primaire choisie ;
@@ -6282,7 +6264,7 @@ function renderBudgetList() {
       const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* bleu = liée (à n'importe quelle désignation) */
       return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}${k === "des" && r ? ` style="--d:${dOf(r)}"` : ""}>
-        <td class="center ins-rdc">${k === "des" && r && r.t ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
+        <td class="center ins-rdc">${k === "des" && r && r.t && !INS_EDIT ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
           ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>`;
     };
     /* lignes + sous-totaux de titres (désignations) */
@@ -6414,7 +6396,6 @@ function renderBudgetList() {
     const INS_CHUNK = 120;
     const insMore = {};
     /* v492 (remarque 10) : DÉTAIL CHARGES filtré (filtre de colonne, cases cochées d'un autre bloc, « seulement les cochées ») */
-    const insChgFiltered = () => { const st = cfT(insCfT("chg")); return Object.keys(st.f || {}).length > 0 || !!ONLYC.chg || !!insCheckSet("chg"); };
     /* v499 (remarque 45) : charges identiques regroupées = un TITRE (gras, fond gris) — QCB, MCB HT et TTC cumulés,
        PCB moyen pondéré (MCB HT ÷ QCB), TÂCHE = nombre de tâches ; signe › / ⌄ pour plier / déplier ses lignes (affichées dessous,
        modifiables une par une) ; sa case coche / décoche toutes ses lignes (à moitié cochée si une partie seulement) */
@@ -6461,7 +6442,7 @@ function renderBudgetList() {
       /* v510 (remarque 67) : mélange de rouge (choisies) et de bleu (liées) = violet */
       const stt = new Set(g.map(r => LK && LK.chg && LK.chg[r.id] !== undefined ? (isB(r) ? "b" : "r") : (isB(r) ? "b" : "")).filter(Boolean));
       const blu = stt.has("b") && !stt.has("r"), vio = stt.has("b") && stt.has("r");
-      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${pstNum(g.length)}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     /* v516 : DÉTAIL PRODUITS — produits de même DÉSIGNATION regroupés sous un titre (même si NBR, DIM 1 à 3 ou unité diffèrent),
        pour retrouver d'un coup tout ce qui concerne un élément (un poteau…) et les activités qui l'ont touché.
@@ -6472,7 +6453,12 @@ function renderBudgetList() {
       const fb = `<span class="ins-gfz" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier"><span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}">${fo ? "›" : "⌄"}</span></span>`;
       const non = g.filter(r => r.on === true).length;
       const cell = c => `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}${c[0] === "des" ? " ins-gtd" : ""}">${c[0] === "des" ? fb + esc(g[0].des || "") : ""}</td>`;
-      return `<tr class="ins-row ins-grp ins-gtitle ins-pgrp${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      /* v530 (remarque 1) : la pastille du titre choisit / libère tous ses produits, comme celle des charges */
+      const nch = INS_EDIT && LK && LK.prd ? g.filter(r => LK.prd[r.id] !== undefined).length : 0;
+      const isB = r => INS_EDIT && ((LK.des && lkIsLinked("prd", r.id)) || lkHit("prd", r.id));
+      const stt = new Set(g.map(r => LK && LK.prd && LK.prd[r.id] !== undefined ? (isB(r) ? "b" : "r") : (isB(r) ? "b" : "")).filter(Boolean));
+      const blu = stt.has("b") && !stt.has("r"), vio = stt.has("b") && stt.has("r");
+      return `<tr class="ins-row ins-grp ins-gtitle ins-pgrp${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir tous les produits">${pstNum(g.length)}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
@@ -6776,7 +6762,9 @@ function renderBudgetList() {
       return out.filter(x => { for (let i = 1; i < x.segs.length; i++) if (folded(x.segs.slice(0, i).join(" / "))) return false; return true; });
     };
     const lotTreeHTML = list => lotTreeRows(list).map(x => {
-      const pad = `style="margin-left:${x.lvl * 16}px"`;
+      /* v530 (remarque 2) : un sous-groupe (titre sans lot à lui) est décalé au niveau des numéros de ses lots frères (5.1, 7.1…),
+         pour ne plus paraître au rang des lots du dessus */
+      const pad = `style="margin-left:${x.lvl * 16 + (x.grp && x.lvl ? 14 : 0)}px"`;
       /* v510 (remarque 68) : signe d'un niveau aux couleurs des ronds de sa branche (rouge choisi, bleu lié, violet mélange) */
       const UB = INS.lot.filter(r => !r.t && lotUnder(r, x.segs));
       const fst = x.kids && INS_EDIT ? sviFoldState(UB.some(r => LK.lot === r.id), UB.some(r => lkHit("lot", r.id))) : "";
@@ -8992,7 +8980,7 @@ function renderBudgetList() {
     const dlySuccs = key => Object.keys(INS.dpred || {}).filter(k => dlyLinks(k).some(x => x.k === key));
     const dlyLinkTxt = x => (x.t === "DD" ? "DD" : "FD") + "+" + (x.o || 0);
     /* PRÉDÉCESSEURS affichés : « LOT › ACTIVITÉ SECONDAIRE », avec le type et le décalage s'ils ne sont pas FIN → DÉBUT + 0 */
-    const dlyPredTxt = k => dlyLinks(k).map(x => dlyName(x.k) + (x.t === "DD" || x.o ? " (" + (x.t === "DD" ? "DÉBUT → DÉBUT" : "FIN → DÉBUT") + (x.o ? " + " + x.o + " J" : "") + ")" : "")).join(" ; ");
+    const dlyPredTxt = k => dlyLinks(k).map(x => dlyName(x.k) + (x.t === "DD" || x.o ? " (" + (x.t === "DD" ? "DÉBUT → DÉBUT" : "FIN → DÉBUT") + (x.o < 0 ? " − " + (-x.o) + " J, CHEVAUCHEMENT" : x.o ? " + " + x.o + " J" : "") + ")" : "")).join(" ; ");
     const dlyList = key => (LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
     const dlyFin = key => dlyList(key).map(p => p.fin).filter(Boolean).sort().pop() || "";
     const dlyDeb = key => dlyList(key).map(p => p.deb).filter(Boolean).sort()[0] || "";
@@ -9002,7 +8990,8 @@ function renderBudgetList() {
       const cal = insCal();
       return dlyLinks(key).map(x => {
         if (x.t === "DD") { const d0 = debOf(x.k); return d0 ? sviWAdd(cal, sviWNear(cal, d0, 1), Math.max(0, x.o || 0)) : ""; }
-        const f0 = finOf(x.k); return f0 ? sviWAdd(cal, f0, 1 + Math.max(0, x.o || 0)) : "";
+        /* v530 : décalage −1 (posé par GÉNÉRER / COMPRESSER) = la tâche peut commencer le jour même de la fin du prédécesseur */
+        const f0 = finOf(x.k); return f0 ? sviWAdd(cal, f0, 1 + Math.max(-1, x.o || 0)) : "";
       }).filter(Boolean).sort().pop() || "";
     };
     const dlyPredFin = key => dlyNeedOf(key, dlyFin, dlyDeb);
@@ -9206,7 +9195,8 @@ function renderBudgetList() {
     const dlyPlanRows = () => {
       const keys = dlyKeys(), M = dlyMarges(keys), J = INS.jal || {};
       const P = keys.map(k => { const d0 = dlyDeb(k), f0 = dlyFin(k); const [lo, se] = k.split("|");
-        return { key: k, lo, lot: lkName("lot", lo), sec: lkName("sec", se), pred: dlyPredTxt(k), deb: d0, fin: f0, dur: d0 && f0 ? dDur(d0, f0) : "",
+        const p1 = dlyList(k).length === 1 ? dlyList(k)[0] : null;
+        return { key: k, lo, lot: lkName("lot", lo), sec: lkName("sec", se), pred: dlyPredTxt(k), deb: d0, fin: f0, dur: dlyDurK(k), hs: dlyHalfS(p1), he: dlyHalfE(p1),
           marge: M[k] === undefined ? "" : M[k], jal: J[k] ? "★" : "" }; });
       /* ordre libre des lignes (INS.dord) ; une tâche nouvelle se place à la fin */
       const O = dlyOrder(keys);
@@ -9348,7 +9338,7 @@ function renderBudgetList() {
       if (late.length) {
         const fromDur = opts.fromDur || (durOld && q.deb && q.fin && sviWDur(cal, q.deb, q.fin) !== durOld);
         const maxFin = dlySuccs(task).map(S => { const l = dlyLinks(S).find(x => x.k === task), d0 = dlyDeb(S);
-          return l && l.t !== "DD" && d0 ? sviWAdd(cal, d0, -(1 + Math.max(0, l.o || 0))) : ""; }).filter(Boolean).sort()[0] || "";
+          return l && l.t !== "DD" && d0 ? sviWAdd(cal, d0, -(1 + Math.max(-1, l.o || 0))) : ""; }).filter(Boolean).sort()[0] || "";
         const canCut = fromDur && maxFin && q.deb && maxFin >= q.deb;
         svChoose({ title: "TÂCHES SUIVANTES", html: `<div class="svc-sub">LA FIN DU ${esc(dFr(q.fin))} NE RESPECTE PLUS LA LIAISON AVEC :</div><ul class="svc-list">${late.map(k => `<li>${esc(dlyName(k))} — DÉBUT ${esc(dFr(dlyDeb(k)))}, AU PLUS TÔT ${esc(dFr(dlyPredFin(k)))}${esc(hidTxt(k))}</li>`).join("")}</ul>`,
           buttons: [...(canCut ? [{ v: "cut", label: "RÉDUIRE LA DURÉE", tone: "neutral" }] : []), { v: "shift", label: "DÉCALER LES TÂCHES SUIVANTES", tone: "neutral" }] }).then(r => {
@@ -9543,7 +9533,8 @@ function renderBudgetList() {
           return;
         }
         if (!x.deb || !x.fin) return;
-        const left = X(x.deb), w = X(x.fin) - left + DLY_DW - 1, col = dlyLotColor(x.lo);
+        /* v530 : demi-journée de début ou de fin = demi-case */
+        const left = X(x.deb) + (x.hs ? DLY_DW / 2 : 0), w = Math.max(3, X(x.fin) - X(x.deb) + DLY_DW - 1 - (x.hs ? DLY_DW / 2 : 0) - (x.he ? DLY_DW / 2 : 0)), col = dlyLotColor(x.lo);
         const crit = x.marge === 0;
         const nm = esc(x.sec);
         /* FORMAT 91 : barre fine et arrondie, nom juste à droite */
@@ -9577,13 +9568,16 @@ function renderBudgetList() {
       let hist = "";
       const LD = dlyLoad(dlyCurDates()), vals = Object.values(LD), mx = vals.length ? Math.max(...vals) : 0;
       if (mx > 0) {
-        const P = Number(INS.plaf) || Math.ceil(mx), top = Math.max(mx, P) + 1, sc = (DLY_HH - 16) / top;
+        const P = Number(INS.plaf) || Math.ceil(mx), SG = INS.plaf ? dlyCapSegs() : [{ d: "", n: P }], PM = Math.max(...SG.map(x => Number(x.n))), top = Math.max(mx, PM) + 1, sc = (DLY_HH - 16) / top;
+        const capAt = di => { let n = P; SG.forEach(x => { if (x.d && x.d <= di) n = Number(x.n); }); return n; };
         let hb = "";
         Object.keys(LD).forEach(di => { if (di < d0 || di > d1) return; const v = LD[di];
-          hb += `<div class="ghb${v > P + 1e-9 ? " over" : ""}" style="left:${X(di) + (DLY_DW > 10 ? 3 : 0)}px;width:${Math.max(1, DLY_DW - (DLY_DW > 10 ? 6 : 0))}px;height:${Math.max(1, v * sc)}px" title="${Math.round(v * 100) / 100} J-H"></div>`; });
+          hb += `<div class="ghb${v > capAt(di) + 1e-9 ? " over" : ""}" style="left:${X(di) + (DLY_DW > 10 ? 3 : 0)}px;width:${Math.max(1, DLY_DW - (DLY_DW > 10 ? 6 : 0))}px;height:${Math.max(1, v * sc)}px" title="${Math.round(v * 100) / 100} J-H"></div>`; });
         const late = INS.plaf && INS.dbut && dlyEnd(dlyLevel(P)) > INS.dbut;
         hist = `<div class="ghist" style="width:${W}px;height:${DLY_HH}px" data-sc="${sc}">${bg}${hb}
-          <div class="gplaf" style="top:${DLY_HH - P * sc}px"><span class="gplaf-v">PLAFOND ${P}</span>${late ? `<span class="gplaf-w">${DLY_BUT_MSG}</span>` : ""}</div></div>`;
+          ${SG.map((g2, i) => { const l = g2.d ? Math.max(0, X(g2.d)) : 0, r = SG[i + 1] ? Math.max(0, X(SG[i + 1].d)) : W;
+            /* v530 : un morceau de plafond par période (appui long = couper ; chaque morceau se tire seul) */
+            return r > l ? `<div class="gplaf${i ? " gplaf-cut" : ""}" data-seg="${i}" style="top:${DLY_HH - Number(g2.n) * sc}px;left:${l}px;right:auto;width:${r - l}px"><span class="gplaf-v">${i ? dFr(g2.d) + " : " : "PLAFOND "}${g2.n}</span>${!i && late ? `<span class="gplaf-w">${DLY_BUT_MSG}</span>` : ""}</div>` : ""; }).join("")}</div>`;
       }
       host.innerHTML = `<div class="gh" style="width:${W}px;height:${thH}px">${head}</div>
         <div class="gbody" style="width:${W}px;height:${bodyH}px">${bg}${vline(today, "gv-today", "")}${vline(INS.dobj, "gv-obj", "OBJECTIF")}${vline(INS.dbut, "gv-but", "BUTOIR")}
@@ -9638,41 +9632,21 @@ function renderBudgetList() {
     };
     /* date exigée par les liaisons, d'après des dates calculées (D[k] = { deb, fin }) */
     const dlyNeedIn = (k, D) => dlyNeedOf(k, x => (D[x] || {}).fin || "", x => (D[x] || {}).deb || "");
-    /* GÉNÉRER : durée = ⌈ J-H ÷ ouvriers ⌉ ; une tâche de main d'œuvre prend toute l'équipe (pas deux à la fois) ;
-       tâche sans main d'œuvre : sa durée actuelle (1 J si elle n'a pas de dates) ; liaisons et calendrier respectés */
-    const dlyGenerate = (start, N) => {
-      const cal = insCal(), keys = dlyKeys(), D = {}, busy = new Set();
-      dlyTopo(keys, dlyDeb).forEach(k => {
-        const jh = dlyJH(k), d0 = dlyDeb(k), f0 = dlyFin(k);
-        const dur = jh > 0 ? Math.max(1, Math.ceil(jh / N)) : (d0 && f0 ? sviWDur(cal, d0, f0) || 1 : 1);
-        let d = sviWNear(cal, start, 1);
-        const need = dlyNeedIn(k, D);
-        if (need && need > d) d = sviWNear(cal, need, 1);
-        if (jh > 0) {
-          for (let g = 0; g < 3000; g++) {
-            let ok = true;
-            for (let i = 0, x = d; i < dur; i++, x = sviWAdd(cal, x, 1)) if (busy.has(x)) { ok = false; break; }
-            if (ok) break;
-            d = sviWAdd(cal, d, 1);
-          }
-          for (let i = 0, x = d; i < dur; i++, x = sviWAdd(cal, x, 1)) busy.add(x);
-        }
-        D[k] = { deb: d, fin: sviWFin(cal, d, dur) };
-      });
-      return D;
-    };
     /* charge de main d'œuvre par jour (J-H / jour) : J-H de chaque tâche répartis sur ses jours travaillés */
     const dlyLoad = (D) => {
       const cal = insCal(), L = {};
       Object.keys(D).forEach(k => {
         const jh = dlyJH(k), p = D[k];
         if (!(jh > 0) || !p.deb || !p.fin) return;
-        const n = sviWDur(cal, p.deb, p.fin) || 1, r = jh / n;
-        for (let i = 0, x = p.deb; i < n; i++, x = sviWAdd(cal, x, 1)) L[x] = (L[x] || 0) + r;
+        /* v530 : demi-journées de début / de fin comptées pour moitié */
+        const n = sviWDur(cal, p.deb, p.fin) || 1, fr = i => (i === 0 && p.hs ? .5 : 1) * (i === n - 1 && p.he ? .5 : 1);
+        let tot = 0; for (let i = 0; i < n; i++) tot += fr(i);
+        const r = jh / (tot || 1);
+        for (let i = 0, x = sviWNear(cal, p.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) L[x] = (L[x] || 0) + r * fr(i);
       });
       return L;
     };
-    const dlyCurDates = () => { const D = {}; dlyKeys().forEach(k => { const d = dlyDeb(k), f = dlyFin(k); if (d && f) D[k] = { deb: d, fin: f }; }); return D; };
+    const dlyCurDates = () => { const D = {}; dlyKeys().forEach(k => { const d = dlyDeb(k), f = dlyFin(k), L = dlyList(k); if (d && f) D[k] = { deb: d, fin: f, hs: L.length === 1 && dlyHalfS(L[0]), he: L.length === 1 && dlyHalfE(L[0]) }; }); return D; };
     /* NIVELLEMENT sous un plafond entier P : il ne réduit jamais le travail ; une tâche n'est jamais avancée ;
        elle recule tant que la charge du jour dépasserait P ; une tâche qui demande plus que P ouvriers s'allonge (⌈ J-H ÷ P ⌉) ;
        liaisons, décalages et calendrier respectés ; les jours vides sont gardés */
@@ -9687,9 +9661,11 @@ function renderBudgetList() {
         if (jh > 0) {
           if (jh / dur > P) dur = Math.max(1, Math.ceil(jh / P));
           const r = jh / dur;
+          /* v530 : plafond par période (coupé) */
+          const PX = x => INS.plafs && INS.plafs.length ? dlyCapOf(x) : P;
           for (let g = 0; g < 3000; g++) {
             let ok = true;
-            for (let i = 0, x = d; i < dur; i++, x = sviWAdd(cal, x, 1)) if ((L[x] || 0) + r > P + 1e-9) { ok = false; break; }
+            for (let i = 0, x = d; i < dur; i++, x = sviWAdd(cal, x, 1)) if ((L[x] || 0) + r > PX(x) + 1e-9) { ok = false; break; }
             if (ok) break;
             d = sviWAdd(cal, d, 1);
           }
@@ -9710,6 +9686,7 @@ function renderBudgetList() {
     const dlyGenWin = () => {
       const keys = dlyKeys();
       if (!keys.length) { svToast("AUCUNE TÂCHE AU PLANNING.", 3000); return; }
+      if (keys.every(k => dlyDeb(k) && dlyFin(k))) { svToast("TOUTES LES TÂCHES ONT DÉJÀ DES DATES : UTILISER COMPRESSER LE PLANNING.", 4000); return; }
       const d0 = INS.gdeb || keys.map(dlyDeb).filter(Boolean).sort()[0] || sviIsoOf(new Date());
       const d = document.createElement("div");
       d.id = "svConf";
@@ -9717,8 +9694,9 @@ function renderBudgetList() {
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">GÉNÉRER LE PLANNING</div>
         <div class="bdt-row"><span>DATE DE DÉBUT DU PROJET</span><input type="date" class="gen-d" value="${esc(d0)}"></div>
-        <div class="bdt-row"><span>NOMBRE D'OUVRIERS</span><input class="gen-n" inputmode="numeric" value="${esc(String(INS.ouv || 5))}"></div>
-        <div class="svc-sub svc-warn">LE PLANNING EXISTANT SERA REMPLACÉ.</div>
+        <div class="bdt-row"><span>NOMBRE D'OUVRIERS</span><input class="gen-n" inputmode="numeric" value="${esc(String(INS.plaf || INS.ouv || 5))}"></div>
+        <div class="svc-sub">SEULES LES TÂCHES SANS DATES SONT PLACÉES (${keys.filter(k => !dlyDeb(k) || !dlyFin(k)).length}), DE HAUT EN BAS, LIÉES FIN → DÉBUT À LA TÂCHE DU DESSOUS ; DURÉE = J-H ÷ OUVRIERS, EN DEMI-JOURNÉES ; DES OUVRIERS LIBRES PRENNENT LA TÂCHE SUIVANTE. LES TÂCHES DATÉES RESTENT EN PLACE.</div>
+        <div class="svc-sub">EFFECTIF DIFFÉRENT SELON LA PÉRIODE : APPUI LONG SUR LA BARRE DU PLAFOND POUR LA COUPER.</div>
         <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok" data-ok>GÉNÉRER</button></div></div>`;
       document.getElementById("svConf")?.remove();
       document.body.appendChild(d);
@@ -9730,10 +9708,10 @@ function renderBudgetList() {
         if (!st) { svToast("CHOISIR LA DATE DE DÉBUT.", 3000, d.querySelector(".gen-d")); return; }
         if (!/^\d+$/.test(nv) || Number(nv) < 1) { svToast("NOMBRE D'OUVRIERS : ENTIER ≥ 1.", 3000, d.querySelector(".gen-n")); return; }
         d.remove();
-        INS.gdeb = st; INS.ouv = Number(nv);
-        const D = dlyGenerate(st, Number(nv));
-        dlyWrite(D, true);
-        dlySortByDeb();
+        INS.gdeb = st;
+        /* v530 : GÉNÉRER ne place que les tâches sans dates (voir 17b) */
+        const D = dlyAutoGen(st, Number(nv));
+        if (!D) { svToast("TOUTES LES TÂCHES ONT DÉJÀ DES DATES : UTILISER COMPRESSER LE PLANNING.", 4000); return; }
         insSave();
         histLog("DÉLAIS", "GÉNÉRER LE PLANNING", "DÉBUT " + dFr(st) + " — " + nv + " OUVRIER(S) — FIN " + dFr(dlyEnd(D)));
         renderTab(); insRenderChain();
@@ -9756,7 +9734,8 @@ function renderBudgetList() {
       if (!INS_EDIT || !LK.dlpDraft) return;
       let ch = false;
       Object.keys(LK.dlpDraft).forEach(k => {
-        INS.dlp[k] = (LK.dlpDraft[k] || []).filter(p => p.deb || p.fin).map(p => ({ id: p.id, deb: p.deb || "", fin: p.fin || "" }));
+        /* v530 : demi-journées gardées tant que la date n'a pas changé */
+        INS.dlp[k] = (LK.dlpDraft[k] || []).filter(p => p.deb || p.fin).map(p => ({ id: p.id, deb: p.deb || "", fin: p.fin || "", ...(dlyHalfS(p) ? { dmd: p.deb } : {}), ...(dlyHalfE(p) ? { fmd: p.fin } : {}) }));
         if (!INS.dlp[k].length) delete INS.dlp[k];
         delete LK.dlpDraft[k]; ch = true;
       });
@@ -9999,17 +9978,6 @@ function renderBudgetList() {
         if (xa && X) {
           e.stopPropagation();
           shell.__insDlyDel();
-          return;
-        }
-        if (false) {
-          const D = X.draft();
-          const n = Object.values(D).reduce((t, l) => t + l.filter(p => p.on === true).length, 0);
-          if (!n) return;
-          svConfirm({ title: "SUPPRIMER LES PÉRIODES COCHÉES", text: n + " PÉRIODE(S) SERONT SUPPRIMÉES.", ok: "SUPPRIMER" }).then(go => {
-            if (!go) return;
-            Object.keys(D).forEach(k => { D[k] = D[k].filter(p => p.on !== true); });
-            X.render();
-          });
           return;
         }
         const b = e.target.closest && e.target.closest(".dlp-x");
@@ -10574,11 +10542,25 @@ function renderBudgetList() {
         if (!X || !pl) return;
         e.preventDefault(); e.stopPropagation();
         const h = pl.closest(".ghist"), sc = Number(h.dataset.sc) || 1, HH = h.offsetHeight, r0 = h.getBoundingClientRect();
-        const v0 = pl.querySelector(".gplaf-v");
-        let P = 0;
-        const mv = ev => { P = Math.max(1, Math.round((HH - (ev.clientY - r0.top)) / sc)); pl.style.top = (HH - P * sc) + "px"; v0.textContent = "PLAFOND " + P; };
-        const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); if (P) X.plaf(P); };
-        document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+        const v0 = pl.querySelector(".gplaf-v"), seg = Number(pl.dataset.seg) || 0, lab0 = v0.textContent.replace(/\d+$/, "");
+        let P = 0, cut = false;
+        const x0 = e.clientX, y0 = e.clientY, host = pl.closest("#dlyGantt");
+        /* v530 : appui long sans bouger = couper le plafond à ce jour */
+        const lt = setTimeout(() => {
+          if (P) return;
+          cut = true; off();
+          const n = Math.floor((x0 - h.getBoundingClientRect().left) / DLY_DW), iso = sviIsoAdd(host.__d0, Math.max(0, n));
+          svChoose({ title: "COUPER LE PLAFOND", html: `<div class="svc-sub">À PARTIR DU ${esc(dFr(iso))}, LE PLAFOND (NOMBRE D'OUVRIERS) POURRA ÊTRE CHANGÉ SEUL : TIRER LE MORCEAU DE DROITE VERS LE HAUT OU LE BAS.</div>`,
+            buttons: [{ v: "cut", label: "COUPER ICI", tone: "neutral" }] }).then(r => { if (r === "cut") X.cutPlaf(iso); });
+        }, 600);
+        const mv = ev => {
+          if (!P && Math.abs(ev.clientY - y0) < 6 && Math.abs(ev.clientX - x0) < 6) return;
+          clearTimeout(lt);
+          P = Math.max(1, Math.round((HH - (ev.clientY - r0.top)) / sc)); pl.style.top = (HH - P * sc) + "px"; v0.textContent = lab0 + P;
+        };
+        const off = () => { clearTimeout(lt); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", off); };
+        const up = () => { off(); if (P && !cut) X.plafSeg(seg, P); };
+        document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", off);
       });
       /* FORMAT 91 : largeur des jours — glisser horizontalement sur l'en-tête, ou pincer le Gantt ;
          le jour sous le doigt reste en place ; largeur mémorisée ; un toucher simple ouvre toujours le calendrier */
@@ -10815,7 +10797,7 @@ function renderBudgetList() {
       fold: p => { dlyFoldToggle(p); keepScroll(() => renderTab()); },
       jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTabK(); },
       linkWin: (p, k) => dlyLinkWin(p, k), reach: (a, b) => dlyReach(a, b), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
-      gen: () => dlyGenWin(), level: () => dlyApplyLevel(),
+      gen: () => dlyGenWin(), level: () => dlyApplyLevel(), comp: () => dlyCompWin(), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n) => dlySetPlaf(i, n),
       back: () => { LK.lot = LK.prim = LK.sec = null; refreshAll(); },
       sortDeb: () => { dlySortByDeb(); insSave(); histLog("DÉLAIS", "CLASSER PAR DÉBUT", ""); refreshAll(); },
       /* v461 : menu d'un lot ou d'un niveau (appui long) : ISOLER / TOUT AFFICHER */
@@ -10965,7 +10947,7 @@ function renderBudgetList() {
         if (!w) { renderTabK(); return; }
         const need = k => dlyLinks(k).filter(x => !G.has(x.k)).map(x => {
           if (x.t === "DD") { const a = dlyDeb(x.k); return a ? sviWAdd(cal, sviWNear(cal, a, 1), Math.max(0, x.o || 0)) : ""; }
-          const f = dlyFin(x.k); return f ? sviWAdd(cal, f, 1 + Math.max(0, x.o || 0)) : "";
+          const f = dlyFin(x.k); return f ? sviWAdd(cal, f, 1 + Math.max(-1, x.o || 0)) : "";
         }).filter(Boolean).sort().pop() || "";
         const ok = w2 => ks.every(k => { const n = need(k); return !n || sviWAdd(cal, sviWNear(cal, dlyDeb(k), 1), w2) >= n; });
         let stop = false;
@@ -11259,6 +11241,185 @@ function renderBudgetList() {
       go: k => { const [lo, se] = k.split("|"); LK.lot = lo; LK.sec = se; LK.prim = null; refreshAll(); },
       render: () => { renderTabK(); insRenderChain(); } } : null;
     /* budget ouvert, pour PARAMÉTRAGE › CALENDRIER et DATES DU BUDGET (15/10/2026) */
+/* ⟪ src/17b-planning-auto.js ⟫ */
+    /* ===== v530 : GÉNÉRER / COMPRESSER LE PLANNING, PLAFOND PAR PÉRIODES, DEMI-JOURNÉES =====
+       - effectif (plafond) par périodes : INS.plaf = première période ; INS.plafs = [{ d: date de début, n: ouvriers }]
+         (appui long sur la barre du plafond = la couper à cette date ; chaque morceau se tire seul, par ouvrier entier)
+       - demi-journées : une période de tâche peut commencer à midi (p.dmd === p.deb) ou finir à midi (p.fmd === p.fin)
+       - GÉNÉRER : tâches SANS dates, de haut en bas (lot puis ses activités secondaires) ; durée = J-H ÷ ouvriers ;
+         une demi-journée où des ouvriers restent libres est prise par la tâche suivante (chevauchement) ;
+         liaison FIN → DÉBUT posée entre chaque tâche et celle du dessous (décalage −1 J = même jour)
+       - COMPRESSER : tâches AVEC dates, dans l'ordre de leur début, resserrées pour ne laisser aucun ouvrier sans travail */
+    const dlyCapBase = () => Math.max(1, Math.round(Number(INS.plaf) || Number(INS.ouv) || 1));
+    const dlyCapSegs = () => [{ d: "", n: dlyCapBase() }].concat((INS.plafs || []).filter(s => s && s.d && Number(s.n) >= 1).sort((a, b) => a.d.localeCompare(b.d)));
+    const dlyCapOf = iso => { let n = dlyCapBase(); dlyCapSegs().forEach(s => { if (s.d && s.d <= iso) n = Number(s.n); }); return n; };
+    /* demi-journées d'une période : début à midi, fin à midi */
+    const dlyHalfS = p => !!(p && p.deb && p.dmd === p.deb);
+    const dlyHalfE = p => !!(p && p.fin && p.fmd === p.fin);
+    /* DURÉE (J) d'une tâche : jours travaillés, moins les demi-journées (1,5 J…) */
+    const dlyDurK = k => {
+      const L = dlyList(k), p = L[0], d0 = dlyDeb(k), f0 = dlyFin(k);
+      if (!d0 || !f0) return "";
+      const n = dDur(d0, f0);
+      if (n === "" || L.length !== 1) return n;
+      const v = n - (dlyHalfS(p) ? .5 : 0) - (dlyHalfE(p) ? .5 : 0);
+      return v === Math.round(v) ? v : String(v).replace(".", ",");
+    };
+    /* tâches de haut en bas, comme elles s'affichent (arborescence des lots, ordre du PLANNING) */
+    const dlyTopDown = keys => {
+      const O = dlyOrder(keys), ord = keys.slice().sort((a, b) => O.get(a) - O.get(b));
+      const first = new Map();
+      const lotP = k => dlyLotPath(lkName("lot", k.split("|")[0]));
+      ord.forEach((k, i) => { const s = lotP(k); for (let j = 1; j <= s.length; j++) { const p = U_(s.slice(0, j).join(" / ")); if (!first.has(p)) first.set(p, i); } });
+      const pos = new Map(ord.map((k, i) => [k, i]));
+      const key = k => { const s = lotP(k); return s.map((_, j) => first.get(U_(s.slice(0, j + 1).join(" / ")))).concat(pos.get(k)); };
+      const K = new Map(ord.map(k => [k, key(k)]));
+      return ord.slice().sort((a, b) => { const A = K.get(a), B = K.get(b); for (let i = 0; i < Math.min(A.length, B.length); i++) if (A[i] !== B[i]) return A[i] - B[i]; return A.length - B.length; });
+    };
+    /* ordonnancement en demi-journées : order = tâches à placer (dans cet ordre), fixed = tâches gardées (elles occupent des ouvriers),
+       start = premier jour ; chain = lier chaque tâche à la précédente de la liste ; pre = tâche (gardée) juste au-dessus de chacune */
+    const dlyPack = (order, fixed, start, opts = {}) => {
+      const cal = insCal(), days = [sviWNear(cal, start, 1)];
+      const dayAt = i => { while (days.length <= i) days.push(sviWAdd(cal, days[days.length - 1], 1)); return days[i]; };
+      const dayIx = iso => { if (!iso || iso <= days[0]) return 0; let i = 0; while (dayAt(i) < iso && i < 20000) i++; return i; };
+      const used = {}, cap = s => dlyCapOf(dayAt(s >> 1)) * .5, free = s => cap(s) - (used[s] || 0);
+      const D = {}, S = {};   /* D : dates ; S : demi-journées de début et de fin */
+      /* tâches gardées : leurs J-H occupent leurs demi-journées */
+      fixed.forEach(k => {
+        const L = dlyList(k), p = L[0], d0 = dlyDeb(k), f0 = dlyFin(k);
+        if (!d0 || !f0) return;
+        if (f0 < days[0]) { S[k] = { a: -2, b: -1 }; D[k] = { deb: d0, fin: f0 }; return; }   /* finie avant le début : n'occupe personne */
+        const a = dayIx(d0) * 2 + (L.length === 1 && dlyHalfS(p) ? 1 : 0), b = dayIx(f0) * 2 + (L.length === 1 && dlyHalfE(p) ? 0 : 1);
+        S[k] = { a, b }; D[k] = { deb: d0, fin: f0 };
+        const jh = dlyJH(k), n = Math.max(1, b - a + 1);
+        if (jh > 0) for (let s = a; s <= b; s++) used[s] = (used[s] || 0) + jh / n;
+      });
+      let ptr = 0, prevK = null;
+      const slotOf = iso => dayIx(iso) * 2;
+      order.forEach(k => {
+        /* tâche juste au-dessus (placée ou gardée) : la suivante commence dès sa dernière demi-journée si des ouvriers y restent libres */
+        const pk = opts.pre ? opts.pre(k) : prevK;
+        let e = ptr;
+        if (pk && S[pk]) { const lab = dlyJH(pk) > 0; e = Math.max(opts.pre ? 0 : e, lab ? S[pk].b : S[pk].b + 1); }
+        else if (opts.pre) e = 0;
+        /* autres liaisons de la tâche (hors tâche du dessus) : respectées */
+        dlyLinks(k).forEach(x => {
+          if (x.k === pk || !D[x.k]) return;
+          if (x.t === "DD") e = Math.max(e, slotOf(sviWAdd(cal, sviWNear(cal, D[x.k].deb, 1), Math.max(0, x.o || 0))));
+          else e = Math.max(e, (opts.relax && S[x.k] ? S[x.k].b : slotOf(sviWAdd(cal, D[x.k].fin, 1 + Math.max(-1, x.o || 0)))));
+        });
+        const jh = dlyJH(k);
+        let a, b;
+        if (jh > 0) {
+          let s = e, rem = jh, g = 0;
+          while (free(s) <= 1e-9 && g++ < 40000) s++;
+          a = s;
+          for (g = 0; rem > 1e-9 && g < 40000; g++) {
+            const f = free(s);
+            if (f > 1e-9) { const t = Math.min(f, rem); used[s] = (used[s] || 0) + t; rem -= t; b = s; }
+            if (rem > 1e-9) s++;
+          }
+          ptr = free(b) > 1e-9 ? b : b + 1;
+        } else {
+          /* sans main d'œuvre : sa durée actuelle (1 J sinon), sans occuper d'ouvriers */
+          const d0 = dlyDeb(k), f0 = dlyFin(k), n = d0 && f0 ? Math.max(1, Math.round((Number(String(dlyDurK(k)).replace(",", ".")) || 1) * 2)) : 2;
+          a = e; b = e + n - 1; ptr = b + 1;
+        }
+        S[k] = { a, b };
+        D[k] = { deb: dayAt(a >> 1), fin: dayAt(b >> 1), dm: a & 1, fm: (b & 1) ? 0 : 1 };
+        prevK = k;
+      });
+      return { D, S };
+    };
+    /* dates calculées → brouillon de la tâche (une seule période), demi-journées comprises */
+    const dlyWriteH = D => {
+      Object.keys(D).forEach(k => {
+        const x = D[k], L = dlyDraftKey(k);
+        const p = L[0] || { id: insId() };
+        L.splice(0, L.length, p);
+        p.deb = x.deb; p.fin = x.fin;
+        if (x.dm) p.dmd = x.deb; else delete p.dmd;
+        if (x.fm) p.fmd = x.fin; else delete p.fmd;
+      });
+    };
+    /* liaison FIN → DÉBUT de b vers a (remplacée si elle existe) : décalage = jours travaillés entre la fin de a et le début de b, −1 = même jour */
+    const dlyChainLink = (a, b, D) => {
+      if (!a || !b || a === b || dlyReach(a, b)) return;
+      const cal = insCal(), fa = D[a] ? D[a].fin : dlyFin(a), db = D[b] ? D[b].deb : dlyDeb(b);
+      if (!fa || !db) return;
+      const o = db >= fa ? Math.max(-1, (Number(sviWDur(cal, fa, db)) || 1) - 2) : -1;
+      INS.dpred = INS.dpred || {};
+      const L = dlyLinks(b).filter(x => x.k !== a);
+      L.push({ k: a, t: "FD", o });
+      INS.dpred[b] = L;
+    };
+    /* GÉNÉRER : seules les tâches sans dates sont placées ; celles qui ont déjà des dates restent où elles sont */
+    const dlyAutoGen = (start, N) => {
+      INS.ouv = N; INS.plaf = N;
+      const all = dlyTopDown(dlyKeys()), todo = all.filter(k => !dlyDeb(k) || !dlyFin(k)), fixed = all.filter(k => !todo.includes(k));
+      if (!todo.length) return null;
+      const above = new Map(all.map((k, i) => [k, i ? all[i - 1] : null]));
+      /* ordre de placement : de haut en bas ; la tâche du dessus (gardée ou placée) sert de point de départ */
+      const { D } = dlyPack(todo, fixed, start, { pre: k => above.get(k) });
+      dlyWriteH(D);
+      dlyCommitDrafts();
+      todo.forEach(k => { const a = above.get(k); if (a) dlyChainLink(a, k, D); });
+      return D;
+    };
+    /* COMPRESSER : tâches avec dates, dans l'ordre de leur début (puis de haut en bas), resserrées sous le plafond ;
+       les liaisons restent respectées (une liaison FIN → DÉBUT peut chevaucher la dernière demi-journée) */
+    const dlyCompress = () => {
+      const td = dlyTopDown(dlyKeys()), ti = new Map(td.map((k, i) => [k, i]));
+      const dated = td.filter(k => dlyDeb(k) && dlyFin(k)).sort((a, b) => dlyDeb(a).localeCompare(dlyDeb(b)) || ti.get(a) - ti.get(b));
+      if (!dated.length) return null;
+      const start = dlyDeb(dated[0]);
+      const ord = dlyTopo(dated, dlyDeb);
+      const { D } = dlyPack(ord, [], start, { relax: true });
+      dlyWriteH(D);
+      dlyCommitDrafts();
+      /* décalages des liaisons FIN → DÉBUT ramenés à l'écart réel (jamais plus grands qu'avant) */
+      const cal = insCal();
+      Object.keys(INS.dpred || {}).forEach(b => {
+        if (!D[b]) return;
+        INS.dpred[b] = dlyLinks(b).map(x => {
+          if (x.t === "DD" || !D[x.k]) return x;
+          const g = D[b].deb >= D[x.k].fin ? (Number(sviWDur(cal, D[x.k].fin, D[b].deb)) || 1) - 2 : -1;
+          return { ...x, o: Math.min(x.o || 0, Math.max(-1, g)) };
+        });
+      });
+      return D;
+    };
+    /* fenêtre COMPRESSER LE PLANNING */
+    const dlyCompWin = () => {
+      const n = dlyKeys().filter(k => dlyDeb(k) && dlyFin(k)).length;
+      if (!n) { svToast("AUCUNE TÂCHE DATÉE À COMPRESSER : UTILISER GÉNÉRER LE PLANNING.", 3500); return; }
+      const f0 = dlyEnd(dlyCurDates());
+      svChoose({ title: "COMPRESSER LE PLANNING", html: `<div class="svc-sub">${n} TÂCHE(S) DATÉE(S) RESSERRÉE(S) POUR QU'AUCUN OUVRIER NE RESTE SANS TRAVAIL, SOUS LE PLAFOND (EFFECTIF PAR PÉRIODE), EN DEMI-JOURNÉES. LES LIAISONS SONT GARDÉES.</div><div class="svc-sub">FIN ACTUELLE : ${esc(dFr(f0))}</div>`,
+        buttons: [{ v: "go", label: "COMPRESSER", tone: "neutral" }] }).then(r => {
+        if (r !== "go") return;
+        const D = dlyCompress();
+        if (!D) return;
+        insSave();
+        histLog("DÉLAIS", "COMPRESSER LE PLANNING", n + " TÂCHE(S) — FIN " + dFr(f0) + " → " + dFr(dlyEnd(D)));
+        renderTab(); insRenderChain();
+        svToast("PLANNING COMPRESSÉ — FIN LE " + dFr(dlyEnd(dlyCurDates())) + ".", 3500);
+      });
+    };
+    /* couper le plafond à une date : la partie de droite garde l'effectif, puis se tire seule */
+    const dlyCutPlaf = iso => {
+      const cal = insCal(), d = sviWNear(cal, iso, 1);
+      if (dlyCapSegs().some(s => s.d === d)) { svToast("LE PLAFOND EST DÉJÀ COUPÉ LE " + dFr(d) + ".", 3000); return; }
+      INS.plafs = (INS.plafs || []).concat([{ d, n: dlyCapOf(d) }]);
+      insSave(); histLog("DÉLAIS", "PLAFOND COUPÉ", dFr(d)); renderTabK();
+    };
+    /* morceau de plafond tiré : n ouvriers (entier ≥ 1) ; i = 0 : première période */
+    const dlySetPlaf = (i, n) => {
+      if (!i) { INS.plaf = n; }
+      else { const S = dlyCapSegs(), s = S[i]; if (!s) return; INS.plafs = (INS.plafs || []).map(x => x === s ? { ...x, n } : x); }
+      /* deux morceaux voisins au même effectif : réunis */
+      const S2 = dlyCapSegs(); INS.plafs = S2.slice(1).filter((s, j) => Number(s.n) !== Number(S2[j].n)).map(s => ({ d: s.d, n: Number(s.n) }));
+      insSave(); histLog("DÉLAIS", "PLAFOND MAIN D'ŒUVRE", (i ? "À PARTIR DU " + dFr((dlyCapSegs()[i] || {}).d || "") + " : " : "") + n); renderTabK();
+    };
 /* ⟪ src/18-annuler-liaisons.js ⟫ */
     /* =========================================================
        ANNULER / RÉTABLIR (cahier, section Annuler / rétablir ; FORMAT 113) — v447
@@ -11706,10 +11867,12 @@ function renderBudgetList() {
         const gr = e.target.closest(".ins-gtitle .ins-grd");
         if (gr) {
           e.stopPropagation(); e.preventDefault();
+          /* v530 : même pastille pour les titres du DÉTAIL PRODUITS */
+          const gk = gr.closest("table")?.dataset.ik === "prd" ? "prd" : "chg";
           const L = X.LK, ids = (gr.closest("tr").dataset.grp || "").split(",").filter(Boolean);
-          const all = ids.length && ids.every(id => L.chg[id] !== undefined);
-          ids.forEach(id => { if (all) delete L.chg[id]; else if (L.chg[id] === undefined) L.chg[id] = ""; });
-          L.err = ""; X.light("chg");
+          const all = ids.length && ids.every(id => L[gk][id] !== undefined);
+          ids.forEach(id => { if (all) delete L[gk][id]; else if (L[gk][id] === undefined) L[gk][id] = ""; });
+          L.err = ""; X.light(gk);
           return;
         }
         const rd = e.target.closest(".lk-rd");
@@ -13241,8 +13404,8 @@ function renderBudgetList() {
                   gap = { prev: pv ? pv.segs : null, D, inStart, el: pv ? pv.el : x };
                   let l = document.getElementById("roLine");
                   if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); }
-                  const ref = pv || rows[ix], ip = (ref.el.querySelector(".lot-in") || ref.el).getBoundingClientRect(), cr = ref.el.getBoundingClientRect();
-                  const left = ip.left + (D - (ref.segs.length - 1)) * 16;
+                  const ref = pv || rows[ix], li = ref.el.querySelector(".lot-in") || ref.el, ip = li.getBoundingClientRect(), cr = ref.el.getBoundingClientRect();
+                  const left = ip.left - (parseFloat(getComputedStyle(li).marginLeft) || 0) + D * 16;
                   l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${left}px;width:${Math.max(20, cr.right - left)}px;top:${(after ? r.bottom : r.top) - 1.5}px`;
                 }
               } else {
@@ -14975,8 +15138,6 @@ function renderBudgetList() {
     const bfRuleAAsk = plan => {
       if (!plan.lose.length) return Promise.resolve(true);
       const byIdK = (k, id) => INS[k].find(x => x.id === id) || {};
-      const nDl = new Set(plan.lose.map(x => x.l.lot + "|" + x.l.sec).filter(k => (INS.dlp || {})[k] && INS.dlp[k].length
-        && !(INS.links || []).some(l => !plan.lose.some(y => y.l === l) && l.lot + "|" + l.sec === k))).size;
       const html = `<div class="svc-sub">LIAISONS DU BUDGET À DÉLIER ${svCnt(plan.lose.length)} :</div>
         <ul class="svc-list">${plan.lose.map(x => `<li>${esc([x.name, byIdK("lot", x.l.lot).v, byIdK("prim", x.l.prim).v, byIdK("sec", x.l.sec).v].join(" › "))} — ${x.n} LIGNE${x.n > 1 ? "S" : ""}<br><b>GARDÉE : ${esc(x.by.w.name)} — ${x.by.w.n} LIGNE${x.by.w.n > 1 ? "S" : ""}</b></li>`).join("")}</ul>
         <div class="svc-sub">LES LIGNES DÉLIÉES VONT DANS L'ONGLET IMPORT NON CRÉÉ.</div>
@@ -18167,7 +18328,6 @@ function renderBudgetList() {
       const marge = prdHT - chgHT;
       const desig = new Set(lines.map(l => desigKey(l))).size;
       const taf = recLoad("taf");
-      const tafLate = taf.filter(r => Date.now() > new Date(r.prevu)).length;
       const obs = recLoad("obs");
       const items = [
         ["DATE CRÉATION", budget.inst && budget.inst.created ? String(budget.inst.created).replace(/^(\d{4})-(\d{2})-(\d{2})T?(\d{2}:\d{2})?.*$/, (m0, y, mo, d, h) => d + "/" + mo + "/" + y + (h ? " À " + h : "")) : (dt && dt.label) || ""],
@@ -19071,10 +19231,6 @@ function renderBudgetList() {
           const dp = insDelPlan(a.dataset.blk), n = dp.n, sp = Object.keys(dp.del).length > 1 ? insDelSplit(dp) : "";
           return dl + `<button type="button" data-i="${i}" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}${sp ? `<small class="del-split">${esc(sp)}</small>` : ""}</span>${svCnt(n)}</button>`;
         }
-        if (false) {
-          const n = 0;
-          return `<button type="button" data-i="${i}" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}</span>${svCnt(n)}</button>`;
-        }
         return `<button type="button" data-i="${i}">${a.innerHTML}<span>${esc(lab)}${a.__hint ? `<small class="del-split">${esc(a.__hint)}</small>` : ""}</span></button>`;
       }).join("");
       if (m.__hint) m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">${esc(m.__hint)}</div>`);
@@ -19084,6 +19240,7 @@ function renderBudgetList() {
         const sc = DX.scaleOf(), lev = DX.canLev();
         const opt = (v, lab) => `<button type="button" data-dly="sc-${v}" class="dly-sc${sc === v ? " on" : ""}"><span>${sc === v ? "✓ " : ""}${lab}</span></button>`;
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-dly="gen"><span>GÉNÉRER LE PLANNING</span></button>
+          <button type="button" data-dly="comp"><span>COMPRESSER LE PLANNING</span></button>
           <button type="button" data-dly="sort" class="${DX.sorted() ? "off" : ""}"><span>CLASSER PAR DÉBUT</span></button>
           <button type="button" data-dly="lev" class="${lev ? "" : "off"}" ${lev ? "" : 'aria-disabled="true"'}><span>APPLIQUER LE NIVELLEMENT</span></button>
           <div class="blk-sep"></div><div class="blk-hint">AFFICHAGE DU GANTT</div>${opt("j", "JOUR")}${opt("s", "SEMAINE")}${opt("m", "MOIS")}<div class="blk-sep"></div>`);
@@ -19097,7 +19254,7 @@ function renderBudgetList() {
           if (b.classList.contains("off")) return;
           m.remove();
           const v = b.dataset.dly;
-          if (v === "gen") DX.gen(); else if (v === "sort") DX.sortDeb(); else if (v === "lev") DX.level(); else DX.scale(v.slice(3));
+          if (v === "gen") DX.gen(); else if (v === "comp") DX.comp(); else if (v === "sort") DX.sortDeb(); else if (v === "lev") DX.level(); else DX.scale(v.slice(3));
         }, true);
       }
       /* v461 : bloc TÂCHES — CLASSER PAR DÉBUT (même ordre que le PLANNING : lots, activités, puis le planning) */
@@ -19359,6 +19516,155 @@ function renderBudgetList() {
       }
     };
 
+/* ⟪ src/26b-conditionnement.js ⟫ */
+    /* ===== v530 : CONDITIONNEMENT (premier essai) — bouton dans la case DÉSIGNATION d'une charge =====
+       Une seule fenêtre pour toutes les charges : la charge (et ses lignes identiques : même désignation, même unité)
+       s'achète par UNITÉ D'ACHAT (barre, palette, sac…) puis se transporte par CAMION.
+       - PAR QUANTITÉ TOTALE : unités d'achat = ⌈ quantité ÷ contenu d'une unité ⌉ ; camions = ⌈ unités ÷ unités par camion ⌉
+       - PAR MORCEAUX (DÉCOUPE) : barres de longueur L (12 m) ; morceaux = DIM 1 × NBR des produits liés à cette charge
+         (modifiables) ; découpe cherchée pour acheter le moins de barres et laisser le moins de chutes
+       Réglages gardés par désignation de charge (INS.cond). Même tableau de résultat pour les deux modes. */
+    const COND_K = r => U_(r.des) + "|" + U_(r.u);
+    const condRows = id => { const r = INS.chg.find(x => x.id === id); return r ? INS.chg.filter(x => !x.t && COND_K(x) === COND_K(r)) : []; };
+    /* morceaux : produits des liaisons de ces charges — longueur = DIM 1, nombre = NBR (× quantité liée si plusieurs) */
+    const condPieces = rows => {
+      const ids = new Set(rows.map(r => r.id)), out = new Map();
+      (INS.links || []).filter(l => (l.chg || []).some(x => ids.has(x.id))).forEach(l => (l.prd || []).forEach(x => {
+        const p = INS.prd.find(q => q.id === x.id);
+        if (!p) return;
+        const L = num(p.d1), n = Math.max(1, Math.round(num(p.nbr) || 1));
+        if (!(L > 0)) return;
+        const k = String(Math.round(L * 1000) / 1000);
+        out.set(k, (out.get(k) || 0) + n);
+      }));
+      return [...out].map(([L, n]) => ({ L: Number(L), n })).sort((a, b) => b.L - a.L);
+    };
+    /* découpe : premier emplacement possible, morceaux du plus long au plus court, puis essai d'améliorer
+       (une barre vidée et ses morceaux remis ailleurs) — assez bon pour un chantier, rapide sur iPad */
+    const condCut = (pieces, BL, kerf = 0) => {
+      const all = [];
+      pieces.forEach(p => { for (let i = 0; i < p.n; i++) all.push(p.L); });
+      all.sort((a, b) => b - a);
+      if (all.some(L => L > BL + 1e-9)) return { err: "UN MORCEAU EST PLUS LONG QUE LA BARRE (" + money(Math.max(...all)) + " M)." };
+      const pack = list => {
+        const bars = [];
+        list.forEach(L => {
+          let best = -1, rest = Infinity;
+          bars.forEach((b, i) => { const r = BL - b.used - (b.cuts.length ? kerf : 0) - L; if (r >= -1e-9 && r < rest) { rest = r; best = i; } });
+          if (best < 0) bars.push({ used: L, cuts: [L] });
+          else { const b = bars[best]; b.used += L + (b.cuts.length ? kerf : 0); b.cuts.push(L); }
+        });
+        return bars;
+      };
+      let bars = pack(all);
+      /* amélioration : vider la barre la moins remplie et replacer ses morceaux dans les autres */
+      for (let g = 0; g < 30 && bars.length > 1; g++) {
+        const sorted = bars.slice().sort((a, b) => a.used - b.used), low = sorted[0];
+        const others = bars.filter(b => b !== low).map(b => ({ used: b.used, cuts: b.cuts.slice() }));
+        let ok = true;
+        low.cuts.slice().sort((a, b) => b - a).forEach(L => {
+          let best = -1, rest = Infinity;
+          others.forEach((b, i) => { const r = BL - b.used - kerf - L; if (r >= -1e-9 && r < rest) { rest = r; best = i; } });
+          if (best < 0) ok = false; else { others[best].used += L + kerf; others[best].cuts.push(L); }
+        });
+        if (!ok) break;
+        bars = others;
+      }
+      /* plan : barres identiques regroupées */
+      const plan = new Map();
+      bars.forEach(b => { const k = b.cuts.slice().sort((a, c) => c - a).map(x => money(x)).join(" + "); plan.set(k, { n: ((plan.get(k) || {}).n || 0) + 1, chute: BL - b.used }); });
+      const need = all.reduce((a, b) => a + b, 0), chute = bars.length * BL - need;
+      return { bars: bars.length, plan: [...plan].map(([k, v]) => ({ k, n: v.n, chute: v.chute })), need, chute, pct: bars.length ? chute / (bars.length * BL) * 100 : 0 };
+    };
+    const condWin = id => {
+      const rows = condRows(id);
+      if (!rows.length) return;
+      const r0 = rows[0], key = COND_K(r0), Q = rows.reduce((a, r) => a + (num(r.q) || 0), 0);
+      INS.cond = INS.cond || {};
+      const st = { mode: "q", ua: "", per: "", perT: "", BL: 12, kerf: 0, kgm: "", ...(INS.cond[key] || {}) };
+      let pcs = condPieces(rows);
+      const d = document.createElement("div");
+      d.id = "svConf";
+      const f2 = v => v === "" || v === undefined || v === null ? "" : money(v);
+      const res = () => {
+        const per = num(st.per), perT = num(st.perT);
+        if (st.mode === "q") {
+          if (!(per > 0)) return `<div class="svc-sub">SAISIR LE CONTENU D'UNE UNITÉ D'ACHAT (EX. 1 PALETTE = 500 BRIQUES, 1 SAC = 50 KG).</div>`;
+          const nu = Math.ceil(Q / per - 1e-9), fill = Q / (nu * per) * 100;
+          const nt = perT > 0 ? Math.ceil(nu / perT - 1e-9) : 0, fillT = perT > 0 ? nu / (nt * perT) * 100 : 0;
+          return `<table class="cond-t"><tr><th>QUANTITÉ</th><th>${esc(st.ua || "UNITÉS D'ACHAT")}</th><th>REMPLISSAGE</th>${perT > 0 ? "<th>CAMIONS</th><th>REMPLISSAGE CAMIONS</th>" : ""}</tr>
+            <tr><td>${esc(money(Q))} ${esc(U_(r0.u))}</td><td><b>${nu}</b></td><td>${money(fill)} %</td>${perT > 0 ? `<td><b>${nt}</b></td><td>${money(fillT)} %</td>` : ""}</tr></table>
+            ${nu * per > Q ? `<div class="svc-sub">EN TROP : ${esc(money(nu * per - Q))} ${esc(U_(r0.u))}.</div>` : ""}`;
+        }
+        const BL = num(st.BL);
+        if (!(BL > 0)) return `<div class="svc-sub">SAISIR LA LONGUEUR D'UNE BARRE.</div>`;
+        if (!pcs.length) return `<div class="svc-sub">AUCUN MORCEAU : AJOUTER LES LONGUEURS (DIM 1) ET LEUR NOMBRE.</div>`;
+        const R = condCut(pcs, BL, num(st.kerf) || 0);
+        if (R.err) return `<div class="svc-sub svc-warn">${esc(R.err)}</div>`;
+        const kgm = num(st.kgm), nt = perT > 0 ? Math.ceil(R.bars / perT - 1e-9) : 0;
+        return `<table class="cond-t"><tr><th>BARRES DE ${esc(money(BL))} M</th><th>LONGUEUR UTILE</th><th>CHUTES</th>${kgm > 0 ? "<th>POIDS ACHETÉ</th>" : ""}${perT > 0 ? "<th>PAQUETS / CAMIONS</th>" : ""}</tr>
+          <tr><td><b>${R.bars}</b></td><td>${esc(money(R.need))} M</td><td>${esc(money(R.chute))} M (${money(R.pct)} %)</td>${kgm > 0 ? `<td>${esc(money(R.bars * BL * kgm))} KG</td>` : ""}${perT > 0 ? `<td><b>${nt}</b></td>` : ""}</tr></table>
+          <div class="cond-h">PLAN DE COUPE</div><table class="cond-t"><tr><th>NOMBRE DE BARRES</th><th>MORCEAUX (M)</th><th>CHUTE PAR BARRE</th></tr>
+          ${R.plan.map(p => `<tr><td><b>${p.n}</b></td><td class="l">${esc(p.k)}</td><td>${esc(money(p.chute))} M</td></tr>`).join("")}</table>`;
+      };
+      const draw = () => {
+        d.innerHTML = `<div class="svc-card cond-card" role="dialog" aria-modal="true">
+          <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
+          <div class="svc-t">CONDITIONNEMENT — ${esc(U_(r0.des))}</div>
+          <div class="svc-sub">${rows.length} LIGNE(S) DE CHARGE — QUANTITÉ TOTALE ${esc(money(Q))} ${esc(U_(r0.u))}</div>
+          <div class="cond-mode"><button type="button" data-m="q" class="${st.mode === "q" ? "on" : ""}">PAR QUANTITÉ TOTALE</button><button type="button" data-m="c" class="${st.mode === "c" ? "on" : ""}">PAR MORCEAUX (DÉCOUPE)</button></div>
+          ${st.mode === "q" ? `
+            <div class="bdt-row"><span>UNITÉ D'ACHAT</span><input data-k="ua" value="${esc(st.ua)}" placeholder="PALETTE, SAC, BARRE…" autocomplete="off"></div>
+            <div class="bdt-row"><span>CONTENU D'UNE UNITÉ (${esc(U_(r0.u))})</span><input data-k="per" inputmode="decimal" value="${esc(f2(st.per))}" autocomplete="off"></div>
+            <div class="bdt-row"><span>UNITÉS PAR CAMION</span><input data-k="perT" inputmode="decimal" value="${esc(f2(st.perT))}" placeholder="FACULTATIF" autocomplete="off"></div>`
+          : `
+            <div class="bdt-row"><span>LONGUEUR D'UNE BARRE (M)</span><input data-k="BL" inputmode="decimal" value="${esc(f2(st.BL))}" autocomplete="off"></div>
+            <div class="bdt-row"><span>PERTE PAR COUPE (M)</span><input data-k="kerf" inputmode="decimal" value="${esc(f2(st.kerf))}" autocomplete="off"></div>
+            <div class="bdt-row"><span>POIDS (KG / M)</span><input data-k="kgm" inputmode="decimal" value="${esc(f2(st.kgm))}" placeholder="FACULTATIF" autocomplete="off"></div>
+            <div class="bdt-row"><span>BARRES PAR PAQUET / CAMION</span><input data-k="perT" inputmode="decimal" value="${esc(f2(st.perT))}" placeholder="FACULTATIF" autocomplete="off"></div>
+            <div class="cond-h">MORCEAUX (PRODUITS LIÉS : DIM 1 × NBR)</div>
+            <table class="cond-t cond-pcs"><tr><th>LONGUEUR (M)</th><th>NOMBRE</th><th></th></tr>
+            ${pcs.map((p, i) => `<tr><td><input data-pi="${i}" data-pf="L" inputmode="decimal" value="${esc(money(p.L))}"></td><td><input data-pi="${i}" data-pf="n" inputmode="numeric" value="${p.n}"></td><td><button type="button" class="cond-del" data-pd="${i}" aria-label="Retirer">✕</button></td></tr>`).join("")}
+            <tr><td colspan="3"><button type="button" class="cond-add">+ AJOUTER UN MORCEAU</button></td></tr></table>`}
+          <div class="cond-h">RÉSULTAT</div><div class="cond-res">${res()}</div>
+          <div class="svc-f"><button type="button" class="svc-b svc-ok" data-x>FERMER</button></div></div>`;
+      };
+      const save = () => { INS.cond[key] = { mode: st.mode, ua: st.ua, per: st.per, perT: st.perT, BL: st.BL, kerf: st.kerf, kgm: st.kgm }; insSave(); };
+      draw();
+      document.getElementById("svConf")?.remove();
+      document.body.appendChild(d);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { save(); d.remove(); return; }
+        const m = e.target.closest("[data-m]");
+        if (m) { st.mode = m.dataset.m; save(); draw(); return; }
+        if (e.target.closest(".cond-add")) { pcs.push({ L: 1, n: 1 }); draw(); return; }
+        const dl = e.target.closest("[data-pd]");
+        if (dl) { pcs.splice(Number(dl.dataset.pd), 1); draw(); }
+      });
+      /* résultat recalculé à la frappe (la case garde le focus) */
+      d.addEventListener("input", e => {
+        const i = e.target;
+        if (i.dataset.k) st[i.dataset.k] = i.dataset.k === "ua" ? U_(i.value) : i.value === "" ? "" : num(i.value);
+        else if (i.dataset.pi !== undefined) { const p = pcs[Number(i.dataset.pi)]; if (p) p[i.dataset.pf] = i.dataset.pf === "n" ? Math.max(0, Math.round(num(i.value) || 0)) : num(i.value) || 0; }
+        else return;
+        d.querySelector(".cond-res").innerHTML = res();
+      });
+      d.addEventListener("change", () => save());
+    };
+    shell.__condWin = condWin;
+    if (!shell.__condBound) {
+      shell.__condBound = true;
+      /* pas de prise de focus (la case de la charge n'est pas sélectionnée et rien ne bouge sous le doigt) */
+      shell.addEventListener("pointerdown", e => { if (e.target.closest(".chg-pk")) { e.stopPropagation(); e.preventDefault(); } }, true);
+      shell.addEventListener("mousedown", e => { if (e.target.closest(".chg-pk")) { e.stopPropagation(); e.preventDefault(); } }, true);
+      shell.addEventListener("touchstart", e => { if (e.target.closest(".chg-pk")) e.stopPropagation(); }, true);
+      shell.addEventListener("click", e => {
+        const b = e.target.closest(".chg-pk");
+        if (!b) return;
+        e.preventDefault(); e.stopPropagation();
+        if (shell.__condWin) shell.__condWin(b.dataset.cid);
+      }, true);
+    }
 /* ⟪ src/27-etat-fin-budget.js ⟫ */
     /* ===== état mémorisé sur l'appareil, par budget ===== */
     const ST_KEY = "svi_bdgstate_v1:" + String(ref);
@@ -19852,28 +20158,6 @@ function fillSelect(
   });
 }
 
-function initialiseBDGSelectors() {
-  const projects =
-    unique(
-      bdgRows.map(
-        r => r["PRJ"]
-      )
-    );
-
-  fillSelect(
-    $("project"),
-    projects
-  );
-
-  if (
-    projects.includes("H88")
-  ) {
-    $("project").value =
-      "H88";
-  }
-
-  updateBDGLots();
-}
 
 function updateBDGLots() {
   const project =
@@ -21486,11 +21770,6 @@ function sviUnitsSave(list) {
   try { localStorage.setItem(SVI_UNITS_KEY, JSON.stringify(list)); } catch (e) {}
 }
 /* liste proposée dans les cases d'unité (UPB, UNITÉ) */
-function sviUnitsList() {
-  let dl = document.getElementById("sviUnitsDl");
-  if (!dl) { dl = document.createElement("datalist"); dl.id = "sviUnitsDl"; document.body.appendChild(dl); }
-  dl.innerHTML = sviUnits().filter(x => x.a).map(x => `<option value="${esc(x.a)}">${esc(x.n)}</option>`).join("");
-}
 /* proposition d'unités au format de l'application (plus de bulle Safari) : après la 1re lettre tapée,
    6 unités au plus qui commencent par la saisie ; un toucher choisit ; continuer à taper la fait suivre */
 const SVI_UNIT_SEL = 'input.ins-in[data-f="u"], input.inc-in[data-f="u"], input.inc-in[data-f="upb"]';

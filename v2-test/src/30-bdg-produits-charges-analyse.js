@@ -51,28 +51,6 @@ function fillSelect(
   });
 }
 
-function initialiseBDGSelectors() {
-  const projects =
-    unique(
-      bdgRows.map(
-        r => r["PRJ"]
-      )
-    );
-
-  fillSelect(
-    $("project"),
-    projects
-  );
-
-  if (
-    projects.includes("H88")
-  ) {
-    $("project").value =
-      "H88";
-  }
-
-  updateBDGLots();
-}
 
 function updateBDGLots() {
   const project =

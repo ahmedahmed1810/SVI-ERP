@@ -182,7 +182,6 @@
       }
     };
     const cfMakeF = (vals, cond) => ({ cond, vals, has: v => (!vals || vals.has(v)) && cfCondOk(cond, v), [Symbol.iterator]: function* () { if (vals) yield* vals; } });
-    const cfCondLab = c => !c ? "" : ({ eq: c.kind === "date" ? "LE" : "=", ne: "≠", gt: c.kind === "date" ? "APRÈS LE" : ">", ge: "≥", lt: c.kind === "date" ? "AVANT LE" : "<", le: "≤", bt: "ENTRE" })[c.op] || "";
 
     const cfValues = (t, key) => {
       const src = cfSrc[t];

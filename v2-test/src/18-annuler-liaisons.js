@@ -444,10 +444,12 @@
         const gr = e.target.closest(".ins-gtitle .ins-grd");
         if (gr) {
           e.stopPropagation(); e.preventDefault();
+          /* v530 : même pastille pour les titres du DÉTAIL PRODUITS */
+          const gk = gr.closest("table")?.dataset.ik === "prd" ? "prd" : "chg";
           const L = X.LK, ids = (gr.closest("tr").dataset.grp || "").split(",").filter(Boolean);
-          const all = ids.length && ids.every(id => L.chg[id] !== undefined);
-          ids.forEach(id => { if (all) delete L.chg[id]; else if (L.chg[id] === undefined) L.chg[id] = ""; });
-          L.err = ""; X.light("chg");
+          const all = ids.length && ids.every(id => L[gk][id] !== undefined);
+          ids.forEach(id => { if (all) delete L[gk][id]; else if (L[gk][id] === undefined) L[gk][id] = ""; });
+          L.err = ""; X.light(gk);
           return;
         }
         const rd = e.target.closest(".lk-rd");

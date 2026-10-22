@@ -176,23 +176,4 @@ function firstValue(row, names) {
   return "";
 }
 
-function budgetReference(row, index) {
-  return (
-    firstValue(
-      row,
-      [
-        "BDG",
-        "REFERENCE BDG",
-        "RÉFÉRENCE BDG",
-        "REFERENCE",
-        "RÉFÉRENCE"
-      ]
-    ) ||
-    (
-      "BDG-" +
-      String(index + 1)
-        .padStart(4, "0")
-    )
-  );
-}
 
