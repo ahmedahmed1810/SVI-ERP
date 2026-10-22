@@ -1078,6 +1078,45 @@
       });
       if (typeof stateSave === "function") stateSave();
     };
+    /* v524 (remarque 2) : un tableau ou une liste vidé(e) par les cases cochées / filtres des AUTRES blocs ne reste jamais muet :
+       un bandeau dit pourquoi et TOUT RÉAFFICHER décoche tout et efface les filtres de tous les blocs (tous les tableaux et listes) */
+    const insEmptyHints = () => {
+      if (!INS || !INS_EDIT) return;
+      const spots = [
+        ["des", () => shell.querySelector('table.ins-table[data-ik="des"]')],
+        ["chg", () => shell.querySelector('table.ins-table[data-ik="chg"]')],
+        ["prd", () => shell.querySelector('table.ins-table[data-ik="prd"]')],
+        ["lot", () => shell.querySelector('.ins-hcol[data-ik="lot"]')],
+        ["prim", () => shell.querySelector('.ins-hcol[data-ik="prim"]')],
+        ["sec", () => shell.querySelector('.ins-hcol[data-ik="sec"]')]];
+      spots.forEach(([k, get]) => {
+        const box = get(); if (!box || box.offsetParent === null) return;
+        const total = (INS[k] || []).filter(r => !r.t).length;
+        const shown = box.tagName === "TABLE" ? box.querySelectorAll("tbody tr[data-iid], tbody tr[data-grp]").length : box.querySelectorAll(".ins-li[data-iid]").length;
+        const want = total > 0 && shown === 0;
+        const host = box.tagName === "TABLE" ? box.parentElement : box;
+        let h = host.querySelector(":scope > .svi-empty");
+        if (!want) { if (h) h.remove(); return; }
+        if (h) return;
+        h = document.createElement("div"); h.className = "svi-empty";
+        h.innerHTML = `<span>AUCUNE LIGNE AFFICHÉE SUR ${total} : CASES COCHÉES OU FILTRES DES AUTRES BLOCS.</span><button type="button" class="svi-empty-b" data-clrall>TOUT RÉAFFICHER</button>`;
+        if (box.tagName === "TABLE") box.after(h); else box.appendChild(h);
+      });
+    };
+    shell.__insClrAll = () => {
+      ["des", "lot", "prim", "sec", "chg", "prd"].forEach(k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; });
+      (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }); (INS.inc || []).forEach(x => { if (x.on === true) x.on = false; });
+      try { ["client", "hier", "detail"].forEach(b => insFiltPlan(b).T.forEach(t => { if (CF[t]) CF[t].f = {}; })); } catch (e) {}
+      insSave(); refreshAll();
+      svToast("TOUTES LES CASES DÉCOCHÉES ET TOUS LES FILTRES EFFACÉS.", 2200);
+    };
+    if (!shell.__emptyBound) {
+      shell.__emptyBound = true;
+      shell.addEventListener("click", e => { if (!e.target.closest || !e.target.closest("[data-clrall]")) return; e.preventDefault(); e.stopPropagation(); if (shell.__insClrAll) shell.__insClrAll(); }, true);
+      let q = 0;
+      new MutationObserver(() => { if (q) return; q = requestAnimationFrame(() => { q = 0; try { shell.__insEmptyHints && shell.__insEmptyHints(); } catch (e) {} }); }).observe(shell, { childList: true, subtree: true });
+    }
+    shell.__insEmptyHints = insEmptyHints;
 
     const tvaFor = l =>
       l.ttcAmount !== undefined ? l.ttcAmount - l.amount : l.amount * l.tva / 100;

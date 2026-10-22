@@ -985,7 +985,7 @@
         [...shell.querySelectorAll(sel)].forEach((el, i) => { if (sv[i]) { el.scrollTop = sv[i][0]; el.scrollLeft = sv[i][1]; } });
         window.scrollTo(wx, wy);
       },
-      rowErr: (k, r) => insRowErr(k, r), cleanLinks: () => insCleanLinks(), lkRd: (k, r) => lkRd(k, r), insDelCell: r => insDelCell(r), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles,
+      rowErr: (k, r) => insRowErr(k, r), cleanLinks: () => insCleanLinks(), rdbApply: (ids, R, a) => chgRdbApply(ids, R, a), lkRd: (k, r) => lkRd(k, r), insDelCell: r => insDelCell(r), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles,
       /* ligne utilisée par une liaison (validée, ou déliée mais pas encore validée) : suppression interdite */
       isUsed: (k, id) => {
         if (!["des", "lot", "prim", "sec", "prd", "chg"].includes(k)) return false;
@@ -1002,6 +1002,8 @@
         if (!i || !X) return;
         e.stopPropagation();
         const ids = new Set((i.closest("tr[data-grp]")?.dataset.grp || "").split(",").filter(Boolean));
+        /* v524 : rendement tapé sur le titre */
+        if (i.dataset.f === "rdb") { i.__rdbDone = true; X.rdbApply(ids, X.insNum(i.value), i); return; }
         const G = X.INS.chg.filter(r => ids.has(r.id));
         const f = i.dataset.f, num1 = f === "p" || f === "tva";
         const val = num1 ? X.insNum(i.value) : sviClean(String(i.value || "")).toUpperCase();
@@ -1015,6 +1017,14 @@
         X.insSave();
         if (typeof histLog === "function") histLog("SAISIE", "CHARGES REGROUPÉES", G.length + " LIGNE(S) — " + f.toUpperCase() + " = " + (num1 ? money(val || 0) : val));
         X.refreshAll();
+      }, true);
+      /* v524 (remarque 5) : Entrée sur le rendement du titre SANS l'avoir changé = l'appliquer quand même à toutes ses lignes */
+      shell.addEventListener("keydown", e => {
+        if (e.key !== "Enter") return;
+        const i = e.target.closest && e.target.closest("input.ins-rdbin"), X = shell.__ins;
+        if (!i || !X || String(i.value).trim() !== String(i.defaultValue).trim()) return;
+        const ids = new Set((i.closest("tr[data-grp]")?.dataset.grp || "").split(",").filter(Boolean));
+        X.rdbApply(ids, X.insNum(i.value), i);
       }, true);
       /* v499 (remarque 45) : plier / déplier un titre de charges regroupées */
       shell.addEventListener("click", e => {

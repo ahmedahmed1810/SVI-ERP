@@ -188,6 +188,44 @@
       });
       return out.join(" · ");
     };
+    /* v524 : quantité de produit de la (ou des) tâche(s) d'une ligne de charge, unités d'activité et désignations client touchées */
+    const chgTaskQ = r => {
+      const o = { q: 0, u: new Set(), des: new Set() }, seen = new Set();
+      if (!r) return o;
+      (INS.links || []).filter(l => (l.chg || []).some(x => x.id === r.id)).forEach(l => {
+        o.des.add(l.des);
+        const tk = l.lot + "|" + l.sec; if (seen.has(tk)) return; seen.add(tk);
+        const sp = new Set();
+        (INS.links || []).filter(m => m.lot === l.lot && m.sec === l.sec).forEach(m => (m.prd || []).forEach(y => { if (sp.has(y.id)) return; sp.add(y.id); const p = INS.prd.find(x => x.id === y.id); if (p) o.q += insPrdQ(p); }));
+        const se = (INS.sec || []).find(x => x.id === l.sec) || {}; o.u.add(U_(se.u));
+      });
+      return o;
+    };
+    /* v524 (remarques 3 à 5) : RENDEMENT d'un titre de charges regroupées — seulement si ses lignes (celles affichées : le filtre compte)
+       touchent UNE seule désignation client et une seule unité d'activité : Σ quantités de produit ÷ Σ quantités de charge */
+    const chgGrpRdb = g => {
+      const T = g.map(chgTaskQ), D = new Set(), U = new Set();
+      T.forEach(t => { t.des.forEach(x => D.add(x)); t.u.forEach(x => U.add(x)); });
+      const qp = T.reduce((a, t) => a + t.q, 0), qc = g.reduce((a, r) => a + (num(r.q) || 0), 0);
+      if (D.size !== 1 || U.size !== 1 || !qp || !qc) return null;
+      return { v: qp / qc, u: [...U][0] + " / " + U_(g[0].u) };
+    };
+    /* rendement tapé (ou revalidé) sur le titre : chaque ligne = quantité de produit de SA tâche ÷ rendement, arrondie à 0,5 près ;
+       les quantités de produit ne bougent pas */
+    const chgRdbApply = (ids, R, anchor) => {
+      const G = INS.chg.filter(r => ids.has(r.id));
+      if (!(R > 0)) { svToast("RENDEMENT NON VALIDE : NOMBRE > 0.", 3000, anchor); refreshAll(); return; }
+      const todo = G.map(r => ({ r, qp: chgTaskQ(r).q })).filter(x => x.qp > 0);
+      if (!todo.length) { svToast("AUCUNE LIGNE À RECALCULER : PAS DE QUANTITÉ DE PRODUIT DANS LEURS TÂCHES.", 3500, anchor); refreshAll(); return; }
+      svConfirm({ title: "RENDEMENT", text: "APPLIQUER CE RENDEMENT (" + money(R) + ") AUX " + todo.length + " LIGNE(S) ? LEURS QUANTITÉS DE CHARGE SERONT RECALCULÉES (ARRONDIES À 0,5 PRÈS).", ok: "APPLIQUER", tone: "neutral" }).then(go => {
+        if (go) {
+          todo.forEach(x => { x.r.q = Math.max(0.5, Math.round(x.qp / R * 2) / 2); });
+          insSave();
+          histLog("SAISIE", "RENDEMENT APPLIQUÉ", (G[0] && G[0].des || "") + " : " + money(R) + " — " + todo.length + " LIGNE(S)");
+        }
+        refreshAll();
+      });
+    };
     const chgTaskName = id => [...new Set((INS.links || []).filter(l => (l.chg || []).some(x => x.id === id)).map(prdLinkName).filter(Boolean))].join(" · ");
     const prdChainKey = id => {
       const l = prdLinks(id)[0];
@@ -647,6 +685,8 @@
       const nt = new Set(g.map(r => chgTaskName(r.id)).filter(Boolean)).size;
       const v = { art: g[0].art || "", des: g[0].des || "", u: g[0].u || "", q: money(qs), p: qs ? money(ht / qs) : "", ht: money(ht),
         tva: ht ? money((ttc - ht) / ht * 100) : "", ttc: money(ttc), rdb: "", tache: nt + " TÂCHE" + (nt > 1 ? "S" : "") };
+      const RD = chgGrpRdb(g);
+      if (RD) v.rdb = money(RD.v) + " " + RD.u;
       const fo = CHG_GFOLD.has(key);
       /* v511 (remarque 72) : le signe a sa propre zone (toute la hauteur, 40 px), que la case de la désignation ne recouvre pas */
       const fb = `<span class="ins-gfz" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier"><span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}">${fo ? "›" : "⌄"}</span></span>`;
@@ -659,6 +699,13 @@
       const ev = { art: v.art, des: v.des, u: v.u, p: ps.size === 1 ? [...ps][0] : v.p, tva: ts.size === 1 ? [...ts][0] : v.tva };
       const cell = c => {
         const f = c[0];
+        /* v524 : rendement du titre — en italique (valeur calculée), modifiable : revalider l'applique à toutes les lignes */
+        if (f === "rdb") {
+          if (!RD) return `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}"></td>`;
+          const tip = "RENDEMENT CALCULÉ : UNE SEULE DÉSIGNATION CLIENT. LE MODIFIER RECALCULE LES QUANTITÉS DE CHARGE.";
+          if (INS_EDIT) return `<td class="${c[2]} ins-td ins-rdbc" title="${tip}"><input class="ins-gin ins-rdbin" data-f="rdb" enterkeyhint="next" inputmode="decimal" value="${esc(money(RD.v))}" autocomplete="off"><span class="ins-rdbu">${esc(RD.u)}</span></td>`;
+          return `<td class="${c[2]} ins-rdbc" title="${tip}"><i>${esc(v.rdb)}</i></td>`;
+        }
         if (edOk(f)) return `<td class="${c[2]} ins-td${f === "des" ? " ins-gtd" : ""}">${f === "des" ? fb : ""}<input class="ins-gin ${c[2]}" data-f="${f}" enterkeyhint="next"${["p", "tva"].includes(f) ? ' inputmode="decimal"' : ""} value="${esc(ev[f] ?? "")}" autocomplete="off" spellcheck="false"></td>`;
         return `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}${f === "des" ? " ins-gtd" : ""}">${f === "des" ? fb : ""}${esc(v[f] ?? "")}</td>`;
       };
