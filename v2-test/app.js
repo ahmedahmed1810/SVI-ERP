@@ -8391,7 +8391,7 @@ function renderBudgetList() {
         [...shell.querySelectorAll(sel)].forEach((el, i) => { if (sv[i]) { el.scrollTop = sv[i][0]; el.scrollLeft = sv[i][1]; } });
         window.scrollTo(wx, wy);
       },
-      rowErr: (k, r) => insRowErr(k, r), cleanLinks: () => insCleanLinks(), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles,
+      rowErr: (k, r) => insRowErr(k, r), cleanLinks: () => insCleanLinks(), lkRd: (k, r) => lkRd(k, r), insDelCell: r => insDelCell(r), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles,
       /* ligne utilisée par une liaison (validée, ou déliée mais pas encore validée) : suppression interdite */
       isUsed: (k, id) => {
         if (!["des", "lot", "prim", "sec", "prd", "chg"].includes(k)) return false;
@@ -8503,6 +8503,12 @@ function renderBudgetList() {
             (col || holder.parentElement).appendChild(d);
             const lab = holder.closest(".ins-hcol")?.querySelector(".svi-cnt");
             if (lab) lab.textContent = X.INS[k].length;
+            /* v523 (remarque 3) : ligne de liste créée dès la 1re lettre avec son rond et sa case à cocher (la case en saisie n'est pas touchée) */
+            try {
+              const rd = holder.querySelector(":scope > .ins-rdc"), dc = holder.querySelector(":scope > .ins-delc");
+              if (rd && X.lkRd && !rd.querySelector(".lk-rd")) rd.innerHTML = X.lkRd(k, r);
+              if (dc && X.insDelCell && !dc.querySelector("input")) dc.innerHTML = X.insDelCell(r);
+            } catch (err) {}
           }
         }
         const isNum = sviIm(inp) === "decimal";
@@ -8551,10 +8557,11 @@ function renderBudgetList() {
           if (used.length) { svToast("SUPPRESSION REFUSÉE : " + (used[0].des || used[0].v || used[0].art || "") + (used.length > 1 ? " ET " + (used.length - 1) + " AUTRE(S)" : "") + " EST LIÉ(E). DÉLIEZ D'ABORD."); return; }
           svConfirm({ title: r.t ? "SUPPRIMER LE TITRE" : "SUPPRIMER LA LIGNE", text: (r.des || r.v || r.art || "") + (br.length ? " ET " + br.length + " LIGNE(S) COCHÉE(S)" : ""), ok: "SUPPRIMER" }).then(go => {
             /* ANNULER : la ligne est décochée (la case revient à la place du 🗑) */
-            if (!go) { if (r.t) X.insBranch(r).forEach(x => { x.on = false; }); r.on = false; X.insSave(); X.insRedraw(k); return; }
+            if (!go) { if (r.t) X.insBranch(r).forEach(x => { x.on = false; }); r.on = false; X.insSave(); (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots())); return; }
             const gone = new Set([r.id, ...br.map(x => x.id)]);
             X.INS[k] = X.INS[k].filter(x => !gone.has(x.id));
-            X.cleanLinks(); X.insSave(); X.insRedraw(k);
+            /* v523 (remarque 4) : tous les blocs redessinés (plus de filtre sur une ligne supprimée) */
+            X.cleanLinks(); X.insSave(); (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots()));
           });
           return;
         }
@@ -8581,10 +8588,10 @@ function renderBudgetList() {
           if (used.length) { svToast("SUPPRESSION REFUSÉE : " + used.length + " LIGNE(S) COCHÉE(S) SONT LIÉES. DÉLIEZ-LES D'ABORD."); return; }
           svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", text: del.length + " LIGNE(S) SERONT SUPPRIMÉES.", ok: "SUPPRIMER" }).then(go => {
             /* ANNULER : toutes les lignes sont décochées */
-            if (!go) { vis.forEach(r => { r.on = false; }); X.insSave(); X.insRedraw(k); return; }
+            if (!go) { vis.forEach(r => { r.on = false; }); X.insSave(); (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots())); return; }
             const ids = new Set(del.map(r => r.id));
             X.INS[k] = X.INS[k].filter(x => !ids.has(x.id));
-            X.cleanLinks(); X.insSave(); X.insRedraw(k);
+            X.cleanLinks(); X.insSave(); (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots()));
           });
           return;
         }
@@ -12153,6 +12160,15 @@ function renderBudgetList() {
     };
 
     const refreshAll = () => {
+      /* v523 (remarque 4) : après une suppression, plus de filtre sur des lignes disparues — la mémoire des cases cochées
+         est vidée et un rond choisi sur une ligne supprimée est libéré (tous les tableaux et listes) */
+      ICL = null;
+      try {
+        if (INS && LK) {
+          ["des", "lot", "prim", "sec"].forEach(k => { if (LK[k] && !(INS[k] || []).some(r => r.id === LK[k])) LK[k] = null; });
+          ["chg", "prd"].forEach(k => { if (LK[k] && typeof LK[k] === "object") Object.keys(LK[k]).forEach(id => { if (!(INS[k] || []).some(r => r.id === id)) delete LK[k][id]; }); });
+        }
+      } catch (e) {}
       keepScroll(() => {
         computeCons(false);
         pruneHier();
@@ -18368,7 +18384,8 @@ function renderBudgetList() {
           histLog("SAISIE", "LIGNES SUPPRIMÉES", pl.del[k].size + " LIGNE(S)");
         });
         X.cleanLinks(); X.insSave();
-        if (blk === "detail" && active === "unl") refreshAll(); else Object.keys(pl.del).forEach(k => X.insRedraw(k));
+        /* v523 (remarque 4) : TOUS les tableaux et listes redessinés — les lignes cochées supprimées ne filtrent plus les autres blocs */
+        refreshAll();
       });
     };
     /* export / aperçu : s'il y a des lignes cochées dans le bloc, seulement celles-là */
@@ -21752,6 +21769,19 @@ document.addEventListener("keydown", e => {
       else {
         const ci = sviTabStart && sviTabStart.tr === tr ? sviTabStart.ci : td.cellIndex;
         sviTabStart = null;
+        /* v523 (remarque 2) : Entrée = la ligne JUSTE en dessous, même si sa case est grisée (titre de charges regroupées,
+           cumul…) — elle est alors sélectionnée (copie possible), et Entrée continue de descendre ligne par ligne */
+        { const c0 = tr.cells[ci], cc = c0 && sviCellOf(c0);
+          if (cc && cc.tagName === "TD" && window.__sviGrid) {
+            const nt = sviNear(cc, e.shiftKey ? -1 : 1, 0);
+            if (nt) {
+              e.preventDefault();
+              /* la case visée est notée AVANT de quitter la case (la valeur changée redessine le tableau tout de suite) */
+              const ni = sviCellInput(nt);
+              try { window.__sviLastGo = { k: sviCellKey(ni && !ni.readOnly && !ni.disabled ? ni : nt), t: performance.now() }; } catch (err) {}
+              window.__sviGrid.go(nt); return;
+            }
+          } }
         const nx = sviGridCell(tr, ci, e.shiftKey ? -1 : 1);
         if (nx) { e.preventDefault(); sviGo(nx); return; }
         if (e.shiftKey) { e.preventDefault(); return; }
@@ -21797,9 +21827,11 @@ const sviKeepVisible = el => {
   if (sc && sc !== document.body && sc !== document.documentElement) {
     const R = sc.getBoundingClientRect(), r = td.getBoundingClientRect();
     const hd = tbl && tbl.tHead ? [...tbl.tHead.rows].reduce((t, x) => t + stuck(x), 0) : 0;
-    const ft = tbl && tbl.tFoot ? [...tbl.tFoot.rows].reduce((t, x) => t + stuck(x), 0) : 0;
     const hsb = sc.offsetHeight - sc.clientHeight;
-    const top = R.top + hd, bot = R.bottom - hsb - ft;
+    /* v523 (remarque 1) : bas utile = haut réel de la ligne TOTAL quand elle est dans la zone visible */
+    let bot = R.bottom - hsb;
+    if (tbl && tbl.tFoot && td.closest("tbody")) { const fr = tbl.tFoot.getBoundingClientRect(); if (fr.height && fr.top < bot && fr.bottom > R.top) bot = Math.min(bot, fr.top); }
+    const top = R.top + hd;
     if (r.bottom > bot - 1) sc.scrollTop += r.bottom - bot + 4;
     else if (r.top < top + 1) sc.scrollTop -= top - r.top + 4;
     if (r.width < R.width) { if (r.right > R.right - 1) sc.scrollLeft += r.right - R.right + 6; else if (r.left < R.left + 1) sc.scrollLeft -= R.left - r.left + 6; }
@@ -22146,7 +22178,8 @@ const sviCellVis = c => {
   if (sc) { const R = sc.getBoundingClientRect(); top = Math.max(top, R.top); bottom = Math.min(bottom, R.bottom); left = Math.max(left, R.left); right = Math.min(right, R.right); }
   const tbl = c.closest("table");
   if (tbl && tbl.tHead) { const hr = tbl.tHead.getBoundingClientRect(); if (hr.bottom > top && hr.top <= top + 2) top = Math.max(top, hr.bottom); }
-  if (tbl && tbl.tFoot && tbl.tFoot.rows[0] && getComputedStyle(tbl.tFoot.rows[0].cells[0] || tbl.tFoot).position === "sticky") { const fr = tbl.tFoot.getBoundingClientRect(); if (fr.top < bottom) bottom = Math.min(bottom, fr.top); }
+  /* v523 (remarque 1) : jamais sur la ligne TOTAL — on prend sa vraie place à l'écran (fixée ou non, Safari compris) */
+  if (tbl && tbl.tFoot && c.closest("tbody")) { const fr = tbl.tFoot.getBoundingClientRect(); if (fr.height && fr.top < bottom) bottom = Math.min(bottom, fr.top); }
   const hd = c.closest(".ins-hcol") && c.closest(".ins-hcol").querySelector(".bdg-h-head");
   if (hd) { const hr = hd.getBoundingClientRect(); if (hr.bottom > top) top = Math.max(top, hr.bottom); }
   const T = Math.max(r.top, top), B = Math.min(r.bottom, bottom), L = Math.max(r.left, left), Rr = Math.min(r.right, right);
@@ -22211,6 +22244,22 @@ function sviClipWrite(t) {
 }
 window.sviClipWrite = sviClipWrite;
 
+/* v523 (remarque 1) : en bas d'un tableau qui défile, la dernière ligne ne reste jamais cachée sous la ligne TOTAL fixée
+   (Safari de l'iPad) : s'il le faut, la zone de défilement reçoit juste la place qui manque */
+const sviFootRoom = sc => {
+  if (!sc || !sc.isConnected || sc.scrollHeight <= sc.clientHeight + 2) return;
+  if (sc.scrollTop < sc.scrollHeight - sc.clientHeight - 3) return;
+  sc.querySelectorAll(":scope table").forEach(t => {
+    if (!t.tFoot || !t.tBodies[0] || t.closest(".bdg-d-scroll, .bdg-d-client-scroll, .sd-scroll, .lk-scroll") !== sc) return;
+    const rows = [...t.tBodies[0].rows].filter(r => r.offsetParent !== null); if (!rows.length) return;
+    const lb = rows[rows.length - 1].getBoundingClientRect().bottom, ft = t.tFoot.getBoundingClientRect().top;
+    const over = Math.ceil(lb - ft);
+    if (over > 1) { const p = (parseFloat(sc.style.paddingBottom) || 0) + over; sc.style.setProperty("padding-bottom", p + "px", "important"); }
+  });
+};
+window.sviFootRoom = sviFootRoom;
+document.addEventListener("scroll", e => { const sc = e.target && e.target.closest && e.target.closest(".bdg-d-scroll, .bdg-d-client-scroll, .sd-scroll, .lk-scroll"); if (sc === e.target) sviFootRoom(sc); }, true);
+
 /* =========================================================
    v491 (remarque 6) : SÉLECTION DE PLUSIEURS CASES, comme Excel / Google Sheets — dans tous les tableaux de saisie
    clavier : Maj + toucher (ou Maj + flèches) = plage depuis la case active ; Commande (Ctrl) + toucher = ajoute / retire une case ;
@@ -22229,7 +22278,9 @@ window.sviClipWrite = sviClipWrite;
     if (!S.tbl || !S.a || !S.tbl.isConnected) return [];
     const out = [], b = S.b || S.a;
     if (S.b) for (let r = Math.min(S.a.r, b.r); r <= Math.max(S.a.r, b.r); r++) for (let c = Math.min(S.a.c, b.c); c <= Math.max(S.a.c, b.c); c++) { const td = tdAt(S.tbl, r, c); if (td) out.push(td); }
-    S.extra.forEach(k => { const [r, c] = k.split(":").map(Number); const td = tdAt(S.tbl, r, c); if (td && !out.includes(td)) out.push(td); });
+    /* v523 (remarque 5) : Ctrl / Cmd + toucher — la case de départ fait partie de la sélection (sauf si on l'a retirée) */
+    if (!S.b && S.extra.size && !S.extra.has("-" + S.a.r + ":" + S.a.c)) { const td = tdAt(S.tbl, S.a.r, S.a.c); if (td) out.push(td); }
+    S.extra.forEach(k => { if (k[0] === "-") return; const [r, c] = k.split(":").map(Number); const td = tdAt(S.tbl, r, c); if (td && !out.includes(td)) out.push(td); });
     if (!out.length) { const td = tdAt(S.tbl, S.a.r, S.a.c); if (td) out.push(td); return out; }
     /* v513 : tableau filtré — seules les lignes visibles à l'écran comptent (copier, coller, vider), comme Google Sheets */
     const vis = out.filter(td => td.parentElement.offsetParent !== null);
@@ -22291,8 +22342,17 @@ window.sviClipWrite = sviClipWrite;
     if ((e.shiftKey || e.metaKey || e.ctrlKey) && S.tbl === tbl && S.a) {
       e.preventDefault(); S.keep = true;
       if (e.shiftKey) S.b = p;
-      else { const k = p.r + ":" + p.c; if (S.extra.has(k)) S.extra.delete(k); else S.extra.add(k); }
+      else {
+        /* v523 (remarque 5) : ajoute / retire une case, sans perdre les autres (une plage déjà faite est gardée case par case) */
+        if (S.b) { cells().forEach(td => { const q = posOf(td); if (q) S.extra.add(q.r + ":" + q.c); }); S.b = null; }
+        const k = p.r + ":" + p.c, isA = p.r === S.a.r && p.c === S.a.c;
+        if (isA) { const m = "-" + k; if (S.extra.has(m)) S.extra.delete(m); else S.extra.add(m); }
+        else if (S.extra.has(k)) S.extra.delete(k); else S.extra.add(k);
+      }
       paint();
+    } else if ((e.metaKey || e.ctrlKey) && !S.a) {
+      /* première case touchée avec Ctrl / Cmd : elle devient la case de départ */
+      S.tbl = tbl; S.a = p; S.b = null; S.extra.clear(); S.tk = (sviCellKey(td) || {}).t || null; paint();
     }
   }, true);
   window.addEventListener("scroll", () => { if (H && H.style.display === "block") handle(); }, true);
@@ -22578,9 +22638,18 @@ window.sviClipWrite = sviClipWrite;
   /* v513 : SÉLECTION DE PLUSIEURS CASES DANS LES LISTES LOT / ACTIVITÉ PRIMAIRE / ACTIVITÉ SECONDAIRE, comme dans les tableaux :
      Maj + toucher (ou Maj + flèches) = plage depuis la case active ; au doigt, le point au coin de la case se tire vers le bas ;
      Commande + C = copier la plage (une ligne par case, unités en 2e colonne) ; coller = à partir du haut de la plage */
-  const LS = { a: null, b: null, keep: false };
+  const LS = { a: null, b: null, keep: false, x: [] };   /* v523 (remarque 5) : x = cases ajoutées par Ctrl / Cmd + toucher */
   const lsRows = c => sviGridRows(c).filter(r => !r.classList.contains("ins-new"));
   const lsCells = () => {
+    const base = lsRange();
+    const X = (LS.x || []).filter(c => c.isConnected && LS.a && c.closest(".ins-hcol") === LS.a.closest(".ins-hcol"));
+    if (!X.length) return base;
+    const off = X.filter(c => c.__lsOff), on = X.filter(c => !c.__lsOff);
+    const out = base.filter(c => !off.includes(c)); on.forEach(c => { if (!out.includes(c)) out.push(c); });
+    const R = LS.a ? sviGridRows(LS.a) : [];
+    return out.sort((p, q) => R.indexOf(sviRowOf(p)) - R.indexOf(sviRowOf(q)));
+  };
+  const lsRange = () => {
     const { a, b } = LS;
     if (!a || !b || !a.isConnected || !b.isConnected || a.closest(".ins-hcol") !== b.closest(".ins-hcol")) return a && a.isConnected ? [a] : [];
     const R = sviGridRows(a), ra = R.indexOf(sviRowOf(a)), rb = R.indexOf(sviRowOf(b));
@@ -22598,7 +22667,7 @@ window.sviClipWrite = sviClipWrite;
     document.querySelectorAll(".ins-hcol .svi-ls").forEach(x => x.classList.remove("svi-ls"));
     const C = lsCells(); if (C.length > 1) C.forEach(x => x.classList.add("svi-ls"));
   };
-  const lsClear = () => { LS.a = null; LS.b = null; lsPaint(); };
+  const lsClear = () => { LS.a = null; LS.b = null; LS.x = []; lsPaint(); };
   const lsTsv = C => {
     const rows = [...new Set(C.map(sviRowOf))];
     return rows.map(r => C.filter(x => sviRowOf(x) === r).map(x => { const i = sviCellInput(x); return String(i ? i.value : x.textContent || "").replace(/[\t\n]/g, " ").trim(); }).join("\t")).join("\n");
@@ -22623,16 +22692,26 @@ window.sviClipWrite = sviClipWrite;
     if (e.target && e.target.id === "sviSelHandle") return;
     const t = sviCellOf(e.target), a = sviCellOf(document.activeElement);
     if (t && t.tagName !== "TD" && e.shiftKey && a && a.tagName !== "TD" && a.closest(".ins-hcol") === t.closest(".ins-hcol")) {
-      e.preventDefault(); LS.a = LS.a && LS.a.isConnected ? LS.a : a; LS.b = t; LS.keep = true; lsPaint(); return;
+      e.preventDefault(); LS.a = LS.a && LS.a.isConnected ? LS.a : a; LS.b = t; LS.x = []; LS.keep = true; lsPaint(); return;
+    }
+    /* v523 (remarque 5) : Ctrl / Cmd + toucher dans une liste = ajouter / retirer une case de la sélection */
+    if (t && t.tagName !== "TD" && (e.metaKey || e.ctrlKey) && !sviRowOf(t).classList.contains("ins-new")) {
+      e.preventDefault();
+      if (!a || a.tagName === "TD" || a.closest(".ins-hcol") !== t.closest(".ins-hcol")) { LS.a = t; LS.b = null; LS.x = []; const i = sviCellInput(t); if (i) i.focus({ preventScroll: true }); lsPaint(); return; }
+      LS.a = LS.a && LS.a.isConnected ? LS.a : a; LS.keep = true;
+      const cur = lsCells();
+      if (cur.includes(t)) { if (!LS.x.includes(t)) LS.x.push(t); t.__lsOff = true; }
+      else { if (!LS.x.includes(t)) LS.x.push(t); t.__lsOff = false; }
+      lsPaint(); return;
     }
     if (e.target.closest && e.target.closest("#blkMenu, .sd-more, .blk-more, .blk-btn, #sviSelBar")) return;
-    if (LS.b) lsClear();
+    if (LS.b || (LS.x && LS.x.length)) lsClear();
   }, true);
   document.addEventListener("focusin", e => {
     const c = sviCellOf(e.target);
     if (!c || c.tagName === "TD") return;
     if (LS.keep) { LS.keep = false; return; }
-    if (LS.a !== c) { LS.a = c; LS.b = null; lsPaint(); }
+    if (LS.a !== c) { LS.a = c; LS.b = null; LS.x = []; lsPaint(); }
   });
   document.addEventListener("keydown", e => {
     if (!e.shiftKey || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) return;
@@ -22696,6 +22775,9 @@ window.sviClipWrite = sviClipWrite;
       else cur = null;
     }
     lsClear();
+    /* v523 (remarque 3) : lignes collées aussitôt complètes (numéro, rond, case à cocher) — la liste est redessinée */
+    if (n) { let sh = col; while (sh && !sh.__ins) sh = sh.parentElement; const X = sh && sh.__ins;
+      if (X && X.insRedraw && k0) setTimeout(() => { try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); X.insClean(k0); X.insSave(); X.insRedraw(k0); } catch (err) {} }, 0); }
     if (typeof svToast === "function") svToast(n + " CASE(S) COLLÉE(S)." + (skip ? " " + skip + " DOUBLON(S) IGNORÉ(S)." : ""), 2200);
     return n;
   };

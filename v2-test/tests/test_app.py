@@ -728,6 +728,69 @@ def main():
             return [P('FER TOR') && P('FER TOR').p, P('POINTES') ? (P('POINTES').p ?? '') : 'absent', m.rej.map(x => x.why).join(' ; ')]; }""")
         check("v522 : import — PCB de la charge lu dans la feuille, nombre non valide refusé", isinstance(im, list) and im[0] == 12.5 and im[1] in ("", None) and "PCB" in im[2], im)
 
+        # ===== v523 : remarques 1 à 6 =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.evaluate(f"""() => {{ const X = {ins}; for (let i = 0; i < 20; i++) X.INS.chg.push({{ id: 'yy' + i, des: 'CHARGE Y' + (10 + i), u: 'U', q: 1, p: 1 }});
+            X.INS.chg.push({{ id: 'yg1', des: 'SABLE FIN', u: 'M3', q: 1, p: 1 }}, {{ id: 'yg2', des: 'SABLE FIN', u: 'M3', q: 2, p: 1 }}); X.insSave(); X.refreshAll();
+            document.querySelector('.bdg-d-tab[data-tab="chg"]')?.click(); }}"""); pg.wait_for_timeout(500)
+        # remarque 1 : ligne TOTAL devant les lignes ; cadre jamais sur le TOTAL
+        r1 = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'), sc = t.closest('.bdg-d-scroll'); sc.scrollTop = 0;
+            const z = getComputedStyle(t.tFoot.querySelector('td')).zIndex;
+            if (sc.scrollHeight <= sc.clientHeight + 30) return [z, 'tableau sans défilement ' + sc.scrollHeight + '/' + sc.clientHeight];
+            /* une ligne du milieu amenée exactement sous la ligne TOTAL fixée */
+            const R = [...t.tBodies[0].rows].filter(r => r.offsetParent !== null && r.querySelector('input.ins-in[data-f="q"]'));
+            const under = R[Math.floor(R.length / 2)];
+            sc.scrollTop += under.getBoundingClientRect().top - t.tFoot.getBoundingClientRect().top;
+            const i = under.querySelector('input.ins-in[data-f="q"]') || under.cells[3]; window.__r1 = i; return [z, !!i]; }""")
+        if isinstance(r1, list) and r1[1] is True:
+            pg.evaluate("() => window.__r1.focus({ preventScroll: true })"); pg.wait_for_timeout(250)
+            r1b = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'), f = document.getElementById('sviSelFrame'); const ft = t.tFoot.getBoundingClientRect();
+                return !f || f.style.display !== 'block' || f.getBoundingClientRect().bottom <= ft.top + 1; }""")
+        else: r1b = None
+        check("v523 remarque 1 : TOTAL devant les lignes, cadre jamais sur le TOTAL", isinstance(r1, list) and r1[0] == "9" and r1b is True, [r1, r1b])
+        pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        # remarque 2 : Entrée descend sur la ligne juste en dessous, même un titre regroupé (case grisée)
+        r2 = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'); const g = t.querySelector('tr.ins-gtitle');
+            if (!g) return 'pas de titre'; let p = g.previousElementSibling; while (p && !p.querySelector('input.ins-in[data-f="q"]')) p = p.previousElementSibling;
+            if (!p) return 'pas de ligne au-dessus'; p.dataset.r2 = '1'; g.dataset.r2g = '1'; return [p.dataset.iid, g.nextElementSibling === null || true]; }""")
+        if isinstance(r2, list):
+            pg.click('table.ins-table[data-ik="chg"] tr[data-r2="1"] input.ins-in[data-f="q"]'); pg.wait_for_timeout(150)
+            pg.click('table.ins-table[data-ik="chg"] tr[data-r2="1"] input.ins-in[data-f="q"]'); pg.wait_for_timeout(150)
+            pg.keyboard.press("Enter"); pg.wait_for_timeout(400)
+            r2b = pg.evaluate("() => { const a = document.activeElement, tr = a && a.closest('tr'); return [!!tr && tr.classList.contains('ins-gtitle'), a.tagName]; }")
+        else: r2b = None
+        check("v523 remarque 2 : Entrée = ligne juste en dessous (titre regroupé compris)", r2b is not None and r2b[0] is True, [r2, r2b])
+        pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        # remarque 5 : Ctrl + toucher = sélection de cases qui ne se suivent pas (tableau) ; Cmd + toucher dans une liste
+        Q = lambda iid: f'table.ins-table[data-ik="chg"] tr[data-iid="{iid}"] input.ins-in[data-f="q"]'
+        pg.click(Q("yy0")); pg.wait_for_timeout(150)
+        pg.keyboard.down("Control"); pg.click(Q("yy3")); pg.click(Q("yy5")); pg.keyboard.up("Control"); pg.wait_for_timeout(200)
+        r5 = pg.evaluate("() => [window.__sviSel.count(), document.querySelectorAll('td.svi-cs').length]")
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        L = lambda iid: f'.ins-hcol[data-ik="sec"] .ins-li[data-iid="{iid}"] input.ins-in[data-f="v"]'
+        pg.click(L("s1")); pg.wait_for_timeout(150)
+        pg.keyboard.down("Meta"); pg.click(L("s2")); pg.keyboard.up("Meta"); pg.wait_for_timeout(200)
+        r5b = pg.evaluate("() => window.__sviLS.count()")
+        check("v523 remarque 5 : Ctrl / Cmd + toucher = cases ajoutées à la sélection (tableau et liste)", r5 == [3, 3] and r5b == 2, [r5, r5b])
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.chg = X.INS.chg.filter(r => !/^y/.test(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        # remarque 3 : ligne tapée dans une liste = rond et case à cocher tout de suite
+        pg.click('.ins-hcol[data-ik="lot"] .ins-li.ins-new input.ins-in'); pg.wait_for_timeout(150)
+        pg.keyboard.type("ZZ ESSAI"); pg.wait_for_timeout(250)
+        r3 = pg.evaluate("""() => { const i = document.activeElement, li = i.closest('.ins-li'); return [!!li.dataset.iid, !!li.querySelector('.lk-rd'), !!li.querySelector('input.ins-cb')]; }""")
+        pg.mouse.click(5, 5); pg.wait_for_timeout(300)
+        check("v523 remarque 3 : nouvelle ligne de liste avec rond et case à cocher", r3 == [True, True, True], r3)
+        # remarque 4 : cocher puis supprimer des lots — les autres blocs ne restent pas vides
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.lot.forEach(r => r.on = false); X.INS.lot.filter(r => /ZZ ESSAI/.test(r.v)).forEach(r => r.on = true); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('.blk-hier .blk-more')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => [...document.querySelectorAll('#blkMenu button')].find(b => /supprimer/i.test(b.textContent))?.click()"); pg.wait_for_timeout(500)
+        pg.evaluate("() => document.querySelector('#svConf [data-ok], #svConf .svc-ok')?.click()"); pg.wait_for_timeout(700)
+        r4 = pg.evaluate(f"""() => {{ const X = {ins}; const t = document.querySelector('.blk-client .ttl')?.parentElement?.textContent || ''; return [X.INS.lot.some(r => /ZZ ESSAI/.test(r.v)), document.querySelectorAll('#bdgClientBody tr[data-iid]').length > 0]; }}""")
+        check("v523 remarque 4 : lots cochés supprimés — les autres tableaux s'affichent", r4 == [False, True], r4)
+        # remarque 6 : boutons-icônes à la même taille
+        r6 = pg.evaluate("() => [...document.querySelectorAll('.bdg-d-hright .inst-act:not([hidden]), .bdg-d-hright .inst-nav, .blk-more')].filter(b => b.offsetParent !== null).map(b => Math.round(b.getBoundingClientRect().width) + 'x' + Math.round(b.getBoundingClientRect().height))")
+        check("v523 remarque 6 : boutons-icônes à la même taille (36 × 36)", len(r6) > 3 and all(x == "36x36" for x in r6), r6)
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

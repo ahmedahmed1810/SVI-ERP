@@ -985,7 +985,7 @@
         [...shell.querySelectorAll(sel)].forEach((el, i) => { if (sv[i]) { el.scrollTop = sv[i][0]; el.scrollLeft = sv[i][1]; } });
         window.scrollTo(wx, wy);
       },
-      rowErr: (k, r) => insRowErr(k, r), cleanLinks: () => insCleanLinks(), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles,
+      rowErr: (k, r) => insRowErr(k, r), cleanLinks: () => insCleanLinks(), lkRd: (k, r) => lkRd(k, r), insDelCell: r => insDelCell(r), insDim, insShown, insId, insSave, insNum, insLive, insRedraw, insClean, insRowHTML, insLevel, insBranch, insSyncTitles,
       /* ligne utilisée par une liaison (validée, ou déliée mais pas encore validée) : suppression interdite */
       isUsed: (k, id) => {
         if (!["des", "lot", "prim", "sec", "prd", "chg"].includes(k)) return false;
@@ -1097,6 +1097,12 @@
             (col || holder.parentElement).appendChild(d);
             const lab = holder.closest(".ins-hcol")?.querySelector(".svi-cnt");
             if (lab) lab.textContent = X.INS[k].length;
+            /* v523 (remarque 3) : ligne de liste créée dès la 1re lettre avec son rond et sa case à cocher (la case en saisie n'est pas touchée) */
+            try {
+              const rd = holder.querySelector(":scope > .ins-rdc"), dc = holder.querySelector(":scope > .ins-delc");
+              if (rd && X.lkRd && !rd.querySelector(".lk-rd")) rd.innerHTML = X.lkRd(k, r);
+              if (dc && X.insDelCell && !dc.querySelector("input")) dc.innerHTML = X.insDelCell(r);
+            } catch (err) {}
           }
         }
         const isNum = sviIm(inp) === "decimal";
@@ -1145,10 +1151,11 @@
           if (used.length) { svToast("SUPPRESSION REFUSÉE : " + (used[0].des || used[0].v || used[0].art || "") + (used.length > 1 ? " ET " + (used.length - 1) + " AUTRE(S)" : "") + " EST LIÉ(E). DÉLIEZ D'ABORD."); return; }
           svConfirm({ title: r.t ? "SUPPRIMER LE TITRE" : "SUPPRIMER LA LIGNE", text: (r.des || r.v || r.art || "") + (br.length ? " ET " + br.length + " LIGNE(S) COCHÉE(S)" : ""), ok: "SUPPRIMER" }).then(go => {
             /* ANNULER : la ligne est décochée (la case revient à la place du 🗑) */
-            if (!go) { if (r.t) X.insBranch(r).forEach(x => { x.on = false; }); r.on = false; X.insSave(); X.insRedraw(k); return; }
+            if (!go) { if (r.t) X.insBranch(r).forEach(x => { x.on = false; }); r.on = false; X.insSave(); (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots())); return; }
             const gone = new Set([r.id, ...br.map(x => x.id)]);
             X.INS[k] = X.INS[k].filter(x => !gone.has(x.id));
-            X.cleanLinks(); X.insSave(); X.insRedraw(k);
+            /* v523 (remarque 4) : tous les blocs redessinés (plus de filtre sur une ligne supprimée) */
+            X.cleanLinks(); X.insSave(); (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots()));
           });
           return;
         }
@@ -1175,10 +1182,10 @@
           if (used.length) { svToast("SUPPRESSION REFUSÉE : " + used.length + " LIGNE(S) COCHÉE(S) SONT LIÉES. DÉLIEZ-LES D'ABORD."); return; }
           svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", text: del.length + " LIGNE(S) SERONT SUPPRIMÉES.", ok: "SUPPRIMER" }).then(go => {
             /* ANNULER : toutes les lignes sont décochées */
-            if (!go) { vis.forEach(r => { r.on = false; }); X.insSave(); X.insRedraw(k); return; }
+            if (!go) { vis.forEach(r => { r.on = false; }); X.insSave(); (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots())); return; }
             const ids = new Set(del.map(r => r.id));
             X.INS[k] = X.INS[k].filter(x => !ids.has(x.id));
-            X.cleanLinks(); X.insSave(); X.insRedraw(k);
+            X.cleanLinks(); X.insSave(); (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots()));
           });
           return;
         }

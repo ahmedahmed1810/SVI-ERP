@@ -2067,3 +2067,21 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .gb-s::before, .gb-e::before { content: ""; position: absolute; top: -10px; bottom: -10px; width: 22px; }
 .gb-s::before { left: -14px; }
 .gb-e::before { right: -14px; }
+/* v523 (remarque 1) : la ligne TOTAL fixée passe toujours devant les lignes qui défilent (pastilles, signes ›, cadres compris) */
+.bdg-d-table tfoot td { z-index: 9 !important; }
+
+/* v523 (remarque 6) : TOUS LES BOUTONS-ICÔNES À LA MÊME TAILLE, un peu plus petits —
+   barre du haut (‹ › annuler, rétablir, alerte, figer, poubelle, ✕, ⋯) et boutons des blocs / tableaux (⋯, réduire) */
+:root { --svi-ib: 36px; --svi-ii: 18px; }
+.bdg-d-hright .inst-nav, .bdg-d-hright .inst-act,
+.blk-more, #sdW .sd-more, .blk-tools .blk-btn.blk-max-btn.on {
+  width: var(--svi-ib) !important; height: var(--svi-ib) !important; min-width: 0 !important; min-height: 0 !important;
+  padding: 0 !important; border-radius: 9px !important; box-sizing: border-box !important;
+  display: inline-flex !important; align-items: center !important; justify-content: center !important;
+  font-size: 17px !important; line-height: 1 !important;
+}
+.bdg-d-hright .inst-nav svg, .bdg-d-hright .inst-act svg, .blk-tools .blk-btn.blk-max-btn.on svg { width: var(--svi-ii) !important; height: var(--svi-ii) !important; }
+.bdg-d-hright .inst-nav, .bdg-d-hright .inst-act { margin-left: 5px !important; }
+.bdg-more-btn { font-size: 17px !important; }
+.blk-more, #sdW .sd-more { color: #374151; }
+.bdg-d-hright .inst-nav[hidden], .bdg-d-hright .inst-act[hidden], .blk-more[hidden], #sdW .sd-more[hidden] { display: none !important; }
