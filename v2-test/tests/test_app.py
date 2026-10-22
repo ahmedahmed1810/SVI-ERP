@@ -1033,6 +1033,94 @@ def main():
         pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id)); I.links = I.links.filter(l => !/^L9/.test(l.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
         pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
 
+        # ===== v530 : pastilles des titres, sous-groupes décalés, planning GÉNÉRER / COMPRESSER / plafond, conditionnement =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.set_viewport_size({"width": 1180, "height": 1100}); pg.wait_for_timeout(300)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id));
+            I.lot.push({{ id: 'pa', v: 'GROUPE 4 / ZONE A' }}, {{ id: 'ps', v: 'GROUPE 4 / GROUPE 4.1 / ZONE S' }}, {{ id: 'pt', v: 'GROUPE 4 / GROUPE 4.1 / ZONE T' }});
+            X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        for _ in range(8):
+            if not pg.evaluate(UNF): break
+            pg.wait_for_timeout(250)
+        pg.evaluate("() => document.querySelector('.lot-grp[data-path=\"GROUPE 4 / GROUPE 4.1\"] .lk-rdgrp')?.click()"); pg.wait_for_timeout(400)
+        q1 = pg.evaluate("""() => ['GROUPE 4', 'GROUPE 4 / GROUPE 4.1'].map(p => { const b = document.querySelector('.lot-grp[data-path="' + p + '"] .lk-rdgrp'); return b ? [b.textContent.trim(), b.classList.contains('lk-pst'), b.classList.contains('on'), b.classList.contains('part')] : null; })""")
+        pg.evaluate("() => document.querySelector('.lot-grp[data-path=\"GROUPE 4 / GROUPE 4.1\"] .lk-rdgrp')?.click()"); pg.wait_for_timeout(300)
+        q1b = pg.evaluate("() => { const b = document.querySelector('#bdgClientBody tr.ins-title .lk-rdgrp'); return b ? [b.textContent.trim(), !!b.closest('td.ins-rdc'), !!document.querySelector('#bdgClientBody tr.ins-title td.ins-tdv .ins-fold')] : null; }")
+        check("v530 remarque 1 : pastille chiffrée sur les titres (groupe parent à moitié, sous-groupe plein ; DÉSIGNATIONS CLIENT aussi)",
+              q1 == [["3", True, False, True], ["2", True, True, False]] and q1b and q1b[1] and q1b[2], [q1, q1b])
+        q2 = pg.evaluate("""() => { const m = s => { const e = document.querySelector(s); return e ? parseFloat(getComputedStyle(e).marginLeft) : null; };
+            return [m('.lot-grp[data-path="GROUPE 4"] .lot-in'), m('.lot-grp[data-path="GROUPE 4 / GROUPE 4.1"] .lot-in'), m('.ins-li[data-iid="pa"] .lot-in')]; }""")
+        check("v530 remarque 2 : sous-groupe décalé au niveau des numéros de ses lots frères", q2 == [0, 30, 16], q2)
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        # DÉTAIL PRODUITS : la pastille du titre choisit / libère tous ses produits
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.prd.push({{ id: 'x9', des: 'BETON B25', u: 'M3', nbr: 2, d1: 1, d2: 1, d3: 1 }}); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"prd\"]')?.click()"); pg.wait_for_timeout(500)
+        pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"prd\"] .ins-grpn.ins-grd')?.click()"); pg.wait_for_timeout(400)
+        q3 = pg.evaluate("() => (document.querySelector('table.ins-table[data-ik=\"prd\"] .ins-grpn') || {}).className || ''")
+        pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"prd\"] .ins-grpn.ins-grd')?.click()"); pg.wait_for_timeout(400)
+        q3b = pg.evaluate("() => (document.querySelector('table.ins-table[data-ik=\"prd\"] .ins-grpn') || {}).className || ''")
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.prd = X.INS.prd.filter(r => r.id !== 'x9'); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v530 remarque 1 : pastille d'un titre du DÉTAIL PRODUITS = choisir / libérer tous ses produits", " on" in q3 and " on" not in q3b and "ins-grd" in q3, [q3, q3b])
+        # planning : GÉNÉRER (tâches sans dates, J-H ÷ ouvriers, demi-journées, liaison FD −1 = même jour)
+        DXJ = "[...document.querySelectorAll('*')].find(e => e.__insDly).__insDly"
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;
+            I.chg.push({{ id: 'j1', des: 'MAIN D OEUVRE A', u: 'JH', q: 4, p: 100 }}, {{ id: 'j2', des: 'MAIN D OEUVRE B', u: 'JH', q: 1, p: 100 }}, {{ id: 'j3', des: 'MAIN D OEUVRE C', u: 'JH', q: 3, p: 100 }});
+            I.__lk = I.links; I.__dlp = I.dlp; I.__dp = I.dpred;
+            I.links = [{{ id: 'G1', des: 'd1', lot: 'l2', prim: 'p1', sec: 's1', prd: [], chg: [{{ id: 'j1' }}] }}, {{ id: 'G2', des: 'd1', lot: 'l2', prim: 'p1', sec: 's2', prd: [], chg: [{{ id: 'j2' }}] }},
+              {{ id: 'G3', des: 'd2', lot: 'l1', prim: 'p1', sec: 's1', prd: [], chg: [{{ id: 'j3' }}] }}];
+            I.dlp = {{}}; I.dpred = {{}}; I.plaf = 0; I.plafs = []; I.dord = ['l2|s1', 'l2|s2', 'l1|s1'];
+            X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(600)
+        pg.evaluate(f"() => {DXJ}.gen()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => { const d = document.getElementById('svConf'); d.querySelector('.gen-d').value = '2026-11-02'; d.querySelector('.gen-n').value = '2'; d.querySelector('[data-ok]').click(); }"); pg.wait_for_timeout(800)
+        g5 = pg.evaluate(f"() => {{ const I = {ins}.INS, P = k => {{ const p = (I.dlp[k] || [])[0] || {{}}; return [p.deb, p.fin, !!p.dmd, !!p.fmd]; }}; return [P('l2|s1'), P('l2|s2'), P('l1|s1'), JSON.stringify(I.dpred['l2|s2'] || []), JSON.stringify(I.dpred['l1|s1'] || [])]; }}")
+        check("v530 planning : GÉNÉRER — J-H ÷ ouvriers en demi-journées, tâche suivante dans la demi-journée libre, liaisons FIN → DÉBUT",
+              g5[:3] == [["2026-11-02", "2026-11-03", False, False], ["2026-11-04", "2026-11-04", False, True], ["2026-11-04", "2026-11-05", True, False]]
+              and '"o":0' in g5[3] and '"o":-1' in g5[4], g5)
+        # plafond coupé (appui long) puis morceau tiré : 4 ouvriers à partir du 04/11 ; COMPRESSER
+        pg.evaluate("() => document.querySelector('.ghist')?.scrollIntoView({ block: 'center' })"); pg.wait_for_timeout(300)
+        pl = pg.evaluate("() => { const g = document.querySelector('#dlyGantt .gplaf'); const h = document.querySelector('#dlyGantt'); if (!g) return null; const x0 = h.__d0; const r = g.getBoundingClientRect(); return [r.left, r.top, r.width, x0]; }")
+        cutok = False
+        if pl:
+            dw = pg.evaluate("() => parseFloat(getComputedStyle(document.querySelector('#dlyGantt')).getPropertyValue('--dw')) || 22")
+            n = pg.evaluate("d0 => Math.round((new Date('2026-11-04T00:00:00') - new Date(d0 + 'T00:00:00')) / 864e5)", pl[3])
+            hx = pg.evaluate("() => document.querySelector('#dlyGantt .ghist').getBoundingClientRect().left")
+            x = hx + n * dw + dw / 2
+            pg.evaluate("x => { const h = document.querySelector('#dlyGantt'); h.scrollLeft = Math.max(0, x - h.getBoundingClientRect().left - 200); }", x); pg.wait_for_timeout(200)
+            hx = pg.evaluate("() => document.querySelector('#dlyGantt .ghist').getBoundingClientRect().left"); x = hx + n * dw + dw / 2
+            y = pg.evaluate("() => { const r = document.querySelector('#dlyGantt .gplaf').getBoundingClientRect(); return r.top + 1; }")
+            pg.mouse.move(x, y); pg.mouse.down(); pg.wait_for_timeout(800); pg.mouse.up(); pg.wait_for_timeout(300)
+            cutok = pg.evaluate("() => !!document.querySelector('#svConf [data-v=\"cut\"]')")
+            pg.evaluate("() => document.querySelector('#svConf [data-v=\"cut\"]')?.click()"); pg.wait_for_timeout(500)
+        segs = pg.evaluate(f"() => JSON.stringify({ins}.INS.plafs || [])")
+        pg.evaluate(f"() => {DXJ}.plafSeg(1, 4)"); pg.wait_for_timeout(300)
+        pg.evaluate(f"""() => {{ const I = {ins}.INS; I.dpred = {{}}; I.dlp['l2|s2'] = [{{ id: 'b', deb: '2026-11-09', fin: '2026-11-09' }}]; I.dlp['l1|s1'] = [{{ id: 'c', deb: '2026-11-12', fin: '2026-11-13' }}]; {ins}.insSave(); {ins}.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        pg.evaluate(f"() => {DXJ}.comp()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf [data-v=\"go\"]')?.click()"); pg.wait_for_timeout(800)
+        c5 = pg.evaluate(f"() => {{ const I = {ins}.INS, P = k => {{ const p = (I.dlp[k] || [])[0] || {{}}; return [p.deb, p.fin, !!p.dmd, !!p.fmd]; }}; return [P('l2|s2'), P('l1|s1'), document.querySelectorAll('#dlyGantt .gplaf').length]; }}")
+        check("v530 planning : appui long sur le plafond = le couper ; morceau à 4 ouvriers ; COMPRESSER resserre les tâches datées",
+              cutok and '"2026-11-04"' in segs and c5 == [["2026-11-04", "2026-11-04", False, True], ["2026-11-04", "2026-11-04", False, False], 2], [cutok, segs, c5])
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk; I.dlp = I.__dlp; I.dpred = I.__dp; delete I.__lk; delete I.__dlp; delete I.__dp; I.plaf = 0; I.plafs = []; I.chg = I.chg.filter(r => !/^j/.test(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(400)
+        # conditionnement : barres de 12 m (découpe), puis palettes et camions
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.push({{ id: 'a1', des: 'ACIER HA12', u: 'KG', q: 120, p: 12 }});
+            I.prd.push({{ id: 'r1', des: 'BARRE POTEAU', u: 'ML', nbr: 6, d1: 4.5 }}, {{ id: 'r2', des: 'BARRE POUTRE', u: 'ML', nbr: 5, d1: 3 }});
+            I.links.push({{ id: 'AC', des: 'd1', lot: 'l1', prim: 'p1', sec: 's1', prd: [{{ id: 'r1' }}, {{ id: 'r2' }}], chg: [{{ id: 'a1' }}] }}); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(500)
+        cb = pg.evaluate("""() => { const b = document.querySelector('table.ins-table[data-ik="chg"] .chg-pk[data-cid="a1"]'); if (!b) return null; b.scrollIntoView({ block: 'center' }); const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }""")
+        if cb: pg.mouse.click(cb[0], cb[1]); pg.wait_for_timeout(400)
+        pg.evaluate("() => document.querySelector('#svConf [data-m=\"c\"]')?.click()"); pg.wait_for_timeout(300)
+        k1 = pg.evaluate("() => (document.querySelector('#svConf .cond-res') || {}).innerText || ''")
+        pg.evaluate("() => document.querySelector('#svConf [data-m=\"q\"]')?.click()"); pg.wait_for_timeout(300)
+        if pg.evaluate("() => !!document.querySelector('#svConf input[data-k=\"per\"]')"):
+            pg.fill('#svConf input[data-k="per"]', '50'); pg.fill('#svConf input[data-k="perT"]', '2'); pg.wait_for_timeout(200)
+        k2 = pg.evaluate("() => (document.querySelector('#svConf .cond-res') || {}).innerText || ''")
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.chg = I.chg.filter(r => r.id !== 'a1'); I.prd = I.prd.filter(r => !/^r[12]$/.test(r.id)); I.links = I.links.filter(l => l.id !== 'AC'); delete I.cond; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        import re as _re
+        check("v530 conditionnement : 4 barres de 12 m pour 6 × 4,50 + 5 × 3,00 (12,5 % de chutes) ; 3 unités de 50 KG, 2 camions",
+              cb is not None and _re.search(r"^4\s", k1.split("\n")[1] if "\n" in k1 else "") and "12,50 %" in k1 and _re.search(r"\t3\t", k2) and "75,00 %" in k2, [cb, k1[:120], k2[:120]])
+        pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

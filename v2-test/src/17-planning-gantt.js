@@ -7,7 +7,7 @@
     const dlySuccs = key => Object.keys(INS.dpred || {}).filter(k => dlyLinks(k).some(x => x.k === key));
     const dlyLinkTxt = x => (x.t === "DD" ? "DD" : "FD") + "+" + (x.o || 0);
     /* PRÉDÉCESSEURS affichés : « LOT › ACTIVITÉ SECONDAIRE », avec le type et le décalage s'ils ne sont pas FIN → DÉBUT + 0 */
-    const dlyPredTxt = k => dlyLinks(k).map(x => dlyName(x.k) + (x.t === "DD" || x.o ? " (" + (x.t === "DD" ? "DÉBUT → DÉBUT" : "FIN → DÉBUT") + (x.o ? " + " + x.o + " J" : "") + ")" : "")).join(" ; ");
+    const dlyPredTxt = k => dlyLinks(k).map(x => dlyName(x.k) + (x.t === "DD" || x.o ? " (" + (x.t === "DD" ? "DÉBUT → DÉBUT" : "FIN → DÉBUT") + (x.o < 0 ? " − " + (-x.o) + " J, CHEVAUCHEMENT" : x.o ? " + " + x.o + " J" : "") + ")" : "")).join(" ; ");
     const dlyList = key => (LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
     const dlyFin = key => dlyList(key).map(p => p.fin).filter(Boolean).sort().pop() || "";
     const dlyDeb = key => dlyList(key).map(p => p.deb).filter(Boolean).sort()[0] || "";
@@ -17,7 +17,8 @@
       const cal = insCal();
       return dlyLinks(key).map(x => {
         if (x.t === "DD") { const d0 = debOf(x.k); return d0 ? sviWAdd(cal, sviWNear(cal, d0, 1), Math.max(0, x.o || 0)) : ""; }
-        const f0 = finOf(x.k); return f0 ? sviWAdd(cal, f0, 1 + Math.max(0, x.o || 0)) : "";
+        /* v530 : décalage −1 (posé par GÉNÉRER / COMPRESSER) = la tâche peut commencer le jour même de la fin du prédécesseur */
+        const f0 = finOf(x.k); return f0 ? sviWAdd(cal, f0, 1 + Math.max(-1, x.o || 0)) : "";
       }).filter(Boolean).sort().pop() || "";
     };
     const dlyPredFin = key => dlyNeedOf(key, dlyFin, dlyDeb);
@@ -221,7 +222,8 @@
     const dlyPlanRows = () => {
       const keys = dlyKeys(), M = dlyMarges(keys), J = INS.jal || {};
       const P = keys.map(k => { const d0 = dlyDeb(k), f0 = dlyFin(k); const [lo, se] = k.split("|");
-        return { key: k, lo, lot: lkName("lot", lo), sec: lkName("sec", se), pred: dlyPredTxt(k), deb: d0, fin: f0, dur: d0 && f0 ? dDur(d0, f0) : "",
+        const p1 = dlyList(k).length === 1 ? dlyList(k)[0] : null;
+        return { key: k, lo, lot: lkName("lot", lo), sec: lkName("sec", se), pred: dlyPredTxt(k), deb: d0, fin: f0, dur: dlyDurK(k), hs: dlyHalfS(p1), he: dlyHalfE(p1),
           marge: M[k] === undefined ? "" : M[k], jal: J[k] ? "★" : "" }; });
       /* ordre libre des lignes (INS.dord) ; une tâche nouvelle se place à la fin */
       const O = dlyOrder(keys);
@@ -363,7 +365,7 @@
       if (late.length) {
         const fromDur = opts.fromDur || (durOld && q.deb && q.fin && sviWDur(cal, q.deb, q.fin) !== durOld);
         const maxFin = dlySuccs(task).map(S => { const l = dlyLinks(S).find(x => x.k === task), d0 = dlyDeb(S);
-          return l && l.t !== "DD" && d0 ? sviWAdd(cal, d0, -(1 + Math.max(0, l.o || 0))) : ""; }).filter(Boolean).sort()[0] || "";
+          return l && l.t !== "DD" && d0 ? sviWAdd(cal, d0, -(1 + Math.max(-1, l.o || 0))) : ""; }).filter(Boolean).sort()[0] || "";
         const canCut = fromDur && maxFin && q.deb && maxFin >= q.deb;
         svChoose({ title: "TÂCHES SUIVANTES", html: `<div class="svc-sub">LA FIN DU ${esc(dFr(q.fin))} NE RESPECTE PLUS LA LIAISON AVEC :</div><ul class="svc-list">${late.map(k => `<li>${esc(dlyName(k))} — DÉBUT ${esc(dFr(dlyDeb(k)))}, AU PLUS TÔT ${esc(dFr(dlyPredFin(k)))}${esc(hidTxt(k))}</li>`).join("")}</ul>`,
           buttons: [...(canCut ? [{ v: "cut", label: "RÉDUIRE LA DURÉE", tone: "neutral" }] : []), { v: "shift", label: "DÉCALER LES TÂCHES SUIVANTES", tone: "neutral" }] }).then(r => {
@@ -558,7 +560,8 @@
           return;
         }
         if (!x.deb || !x.fin) return;
-        const left = X(x.deb), w = X(x.fin) - left + DLY_DW - 1, col = dlyLotColor(x.lo);
+        /* v530 : demi-journée de début ou de fin = demi-case */
+        const left = X(x.deb) + (x.hs ? DLY_DW / 2 : 0), w = Math.max(3, X(x.fin) - X(x.deb) + DLY_DW - 1 - (x.hs ? DLY_DW / 2 : 0) - (x.he ? DLY_DW / 2 : 0)), col = dlyLotColor(x.lo);
         const crit = x.marge === 0;
         const nm = esc(x.sec);
         /* FORMAT 91 : barre fine et arrondie, nom juste à droite */
@@ -592,13 +595,16 @@
       let hist = "";
       const LD = dlyLoad(dlyCurDates()), vals = Object.values(LD), mx = vals.length ? Math.max(...vals) : 0;
       if (mx > 0) {
-        const P = Number(INS.plaf) || Math.ceil(mx), top = Math.max(mx, P) + 1, sc = (DLY_HH - 16) / top;
+        const P = Number(INS.plaf) || Math.ceil(mx), SG = INS.plaf ? dlyCapSegs() : [{ d: "", n: P }], PM = Math.max(...SG.map(x => Number(x.n))), top = Math.max(mx, PM) + 1, sc = (DLY_HH - 16) / top;
+        const capAt = di => { let n = P; SG.forEach(x => { if (x.d && x.d <= di) n = Number(x.n); }); return n; };
         let hb = "";
         Object.keys(LD).forEach(di => { if (di < d0 || di > d1) return; const v = LD[di];
-          hb += `<div class="ghb${v > P + 1e-9 ? " over" : ""}" style="left:${X(di) + (DLY_DW > 10 ? 3 : 0)}px;width:${Math.max(1, DLY_DW - (DLY_DW > 10 ? 6 : 0))}px;height:${Math.max(1, v * sc)}px" title="${Math.round(v * 100) / 100} J-H"></div>`; });
+          hb += `<div class="ghb${v > capAt(di) + 1e-9 ? " over" : ""}" style="left:${X(di) + (DLY_DW > 10 ? 3 : 0)}px;width:${Math.max(1, DLY_DW - (DLY_DW > 10 ? 6 : 0))}px;height:${Math.max(1, v * sc)}px" title="${Math.round(v * 100) / 100} J-H"></div>`; });
         const late = INS.plaf && INS.dbut && dlyEnd(dlyLevel(P)) > INS.dbut;
         hist = `<div class="ghist" style="width:${W}px;height:${DLY_HH}px" data-sc="${sc}">${bg}${hb}
-          <div class="gplaf" style="top:${DLY_HH - P * sc}px"><span class="gplaf-v">PLAFOND ${P}</span>${late ? `<span class="gplaf-w">${DLY_BUT_MSG}</span>` : ""}</div></div>`;
+          ${SG.map((g2, i) => { const l = g2.d ? Math.max(0, X(g2.d)) : 0, r = SG[i + 1] ? Math.max(0, X(SG[i + 1].d)) : W;
+            /* v530 : un morceau de plafond par période (appui long = couper ; chaque morceau se tire seul) */
+            return r > l ? `<div class="gplaf${i ? " gplaf-cut" : ""}" data-seg="${i}" style="top:${DLY_HH - Number(g2.n) * sc}px;left:${l}px;right:auto;width:${r - l}px"><span class="gplaf-v">${i ? dFr(g2.d) + " : " : "PLAFOND "}${g2.n}</span>${!i && late ? `<span class="gplaf-w">${DLY_BUT_MSG}</span>` : ""}</div>` : ""; }).join("")}</div>`;
       }
       host.innerHTML = `<div class="gh" style="width:${W}px;height:${thH}px">${head}</div>
         <div class="gbody" style="width:${W}px;height:${bodyH}px">${bg}${vline(today, "gv-today", "")}${vline(INS.dobj, "gv-obj", "OBJECTIF")}${vline(INS.dbut, "gv-but", "BUTOIR")}
@@ -653,41 +659,21 @@
     };
     /* date exigée par les liaisons, d'après des dates calculées (D[k] = { deb, fin }) */
     const dlyNeedIn = (k, D) => dlyNeedOf(k, x => (D[x] || {}).fin || "", x => (D[x] || {}).deb || "");
-    /* GÉNÉRER : durée = ⌈ J-H ÷ ouvriers ⌉ ; une tâche de main d'œuvre prend toute l'équipe (pas deux à la fois) ;
-       tâche sans main d'œuvre : sa durée actuelle (1 J si elle n'a pas de dates) ; liaisons et calendrier respectés */
-    const dlyGenerate = (start, N) => {
-      const cal = insCal(), keys = dlyKeys(), D = {}, busy = new Set();
-      dlyTopo(keys, dlyDeb).forEach(k => {
-        const jh = dlyJH(k), d0 = dlyDeb(k), f0 = dlyFin(k);
-        const dur = jh > 0 ? Math.max(1, Math.ceil(jh / N)) : (d0 && f0 ? sviWDur(cal, d0, f0) || 1 : 1);
-        let d = sviWNear(cal, start, 1);
-        const need = dlyNeedIn(k, D);
-        if (need && need > d) d = sviWNear(cal, need, 1);
-        if (jh > 0) {
-          for (let g = 0; g < 3000; g++) {
-            let ok = true;
-            for (let i = 0, x = d; i < dur; i++, x = sviWAdd(cal, x, 1)) if (busy.has(x)) { ok = false; break; }
-            if (ok) break;
-            d = sviWAdd(cal, d, 1);
-          }
-          for (let i = 0, x = d; i < dur; i++, x = sviWAdd(cal, x, 1)) busy.add(x);
-        }
-        D[k] = { deb: d, fin: sviWFin(cal, d, dur) };
-      });
-      return D;
-    };
     /* charge de main d'œuvre par jour (J-H / jour) : J-H de chaque tâche répartis sur ses jours travaillés */
     const dlyLoad = (D) => {
       const cal = insCal(), L = {};
       Object.keys(D).forEach(k => {
         const jh = dlyJH(k), p = D[k];
         if (!(jh > 0) || !p.deb || !p.fin) return;
-        const n = sviWDur(cal, p.deb, p.fin) || 1, r = jh / n;
-        for (let i = 0, x = p.deb; i < n; i++, x = sviWAdd(cal, x, 1)) L[x] = (L[x] || 0) + r;
+        /* v530 : demi-journées de début / de fin comptées pour moitié */
+        const n = sviWDur(cal, p.deb, p.fin) || 1, fr = i => (i === 0 && p.hs ? .5 : 1) * (i === n - 1 && p.he ? .5 : 1);
+        let tot = 0; for (let i = 0; i < n; i++) tot += fr(i);
+        const r = jh / (tot || 1);
+        for (let i = 0, x = sviWNear(cal, p.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) L[x] = (L[x] || 0) + r * fr(i);
       });
       return L;
     };
-    const dlyCurDates = () => { const D = {}; dlyKeys().forEach(k => { const d = dlyDeb(k), f = dlyFin(k); if (d && f) D[k] = { deb: d, fin: f }; }); return D; };
+    const dlyCurDates = () => { const D = {}; dlyKeys().forEach(k => { const d = dlyDeb(k), f = dlyFin(k), L = dlyList(k); if (d && f) D[k] = { deb: d, fin: f, hs: L.length === 1 && dlyHalfS(L[0]), he: L.length === 1 && dlyHalfE(L[0]) }; }); return D; };
     /* NIVELLEMENT sous un plafond entier P : il ne réduit jamais le travail ; une tâche n'est jamais avancée ;
        elle recule tant que la charge du jour dépasserait P ; une tâche qui demande plus que P ouvriers s'allonge (⌈ J-H ÷ P ⌉) ;
        liaisons, décalages et calendrier respectés ; les jours vides sont gardés */
@@ -702,9 +688,11 @@
         if (jh > 0) {
           if (jh / dur > P) dur = Math.max(1, Math.ceil(jh / P));
           const r = jh / dur;
+          /* v530 : plafond par période (coupé) */
+          const PX = x => INS.plafs && INS.plafs.length ? dlyCapOf(x) : P;
           for (let g = 0; g < 3000; g++) {
             let ok = true;
-            for (let i = 0, x = d; i < dur; i++, x = sviWAdd(cal, x, 1)) if ((L[x] || 0) + r > P + 1e-9) { ok = false; break; }
+            for (let i = 0, x = d; i < dur; i++, x = sviWAdd(cal, x, 1)) if ((L[x] || 0) + r > PX(x) + 1e-9) { ok = false; break; }
             if (ok) break;
             d = sviWAdd(cal, d, 1);
           }
@@ -725,6 +713,7 @@
     const dlyGenWin = () => {
       const keys = dlyKeys();
       if (!keys.length) { svToast("AUCUNE TÂCHE AU PLANNING.", 3000); return; }
+      if (keys.every(k => dlyDeb(k) && dlyFin(k))) { svToast("TOUTES LES TÂCHES ONT DÉJÀ DES DATES : UTILISER COMPRESSER LE PLANNING.", 4000); return; }
       const d0 = INS.gdeb || keys.map(dlyDeb).filter(Boolean).sort()[0] || sviIsoOf(new Date());
       const d = document.createElement("div");
       d.id = "svConf";
@@ -732,8 +721,9 @@
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">GÉNÉRER LE PLANNING</div>
         <div class="bdt-row"><span>DATE DE DÉBUT DU PROJET</span><input type="date" class="gen-d" value="${esc(d0)}"></div>
-        <div class="bdt-row"><span>NOMBRE D'OUVRIERS</span><input class="gen-n" inputmode="numeric" value="${esc(String(INS.ouv || 5))}"></div>
-        <div class="svc-sub svc-warn">LE PLANNING EXISTANT SERA REMPLACÉ.</div>
+        <div class="bdt-row"><span>NOMBRE D'OUVRIERS</span><input class="gen-n" inputmode="numeric" value="${esc(String(INS.plaf || INS.ouv || 5))}"></div>
+        <div class="svc-sub">SEULES LES TÂCHES SANS DATES SONT PLACÉES (${keys.filter(k => !dlyDeb(k) || !dlyFin(k)).length}), DE HAUT EN BAS, LIÉES FIN → DÉBUT À LA TÂCHE DU DESSOUS ; DURÉE = J-H ÷ OUVRIERS, EN DEMI-JOURNÉES ; DES OUVRIERS LIBRES PRENNENT LA TÂCHE SUIVANTE. LES TÂCHES DATÉES RESTENT EN PLACE.</div>
+        <div class="svc-sub">EFFECTIF DIFFÉRENT SELON LA PÉRIODE : APPUI LONG SUR LA BARRE DU PLAFOND POUR LA COUPER.</div>
         <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok" data-ok>GÉNÉRER</button></div></div>`;
       document.getElementById("svConf")?.remove();
       document.body.appendChild(d);
@@ -745,10 +735,10 @@
         if (!st) { svToast("CHOISIR LA DATE DE DÉBUT.", 3000, d.querySelector(".gen-d")); return; }
         if (!/^\d+$/.test(nv) || Number(nv) < 1) { svToast("NOMBRE D'OUVRIERS : ENTIER ≥ 1.", 3000, d.querySelector(".gen-n")); return; }
         d.remove();
-        INS.gdeb = st; INS.ouv = Number(nv);
-        const D = dlyGenerate(st, Number(nv));
-        dlyWrite(D, true);
-        dlySortByDeb();
+        INS.gdeb = st;
+        /* v530 : GÉNÉRER ne place que les tâches sans dates (voir 17b) */
+        const D = dlyAutoGen(st, Number(nv));
+        if (!D) { svToast("TOUTES LES TÂCHES ONT DÉJÀ DES DATES : UTILISER COMPRESSER LE PLANNING.", 4000); return; }
         insSave();
         histLog("DÉLAIS", "GÉNÉRER LE PLANNING", "DÉBUT " + dFr(st) + " — " + nv + " OUVRIER(S) — FIN " + dFr(dlyEnd(D)));
         renderTab(); insRenderChain();
@@ -771,7 +761,8 @@
       if (!INS_EDIT || !LK.dlpDraft) return;
       let ch = false;
       Object.keys(LK.dlpDraft).forEach(k => {
-        INS.dlp[k] = (LK.dlpDraft[k] || []).filter(p => p.deb || p.fin).map(p => ({ id: p.id, deb: p.deb || "", fin: p.fin || "" }));
+        /* v530 : demi-journées gardées tant que la date n'a pas changé */
+        INS.dlp[k] = (LK.dlpDraft[k] || []).filter(p => p.deb || p.fin).map(p => ({ id: p.id, deb: p.deb || "", fin: p.fin || "", ...(dlyHalfS(p) ? { dmd: p.deb } : {}), ...(dlyHalfE(p) ? { fmd: p.fin } : {}) }));
         if (!INS.dlp[k].length) delete INS.dlp[k];
         delete LK.dlpDraft[k]; ch = true;
       });
@@ -1014,17 +1005,6 @@
         if (xa && X) {
           e.stopPropagation();
           shell.__insDlyDel();
-          return;
-        }
-        if (false) {
-          const D = X.draft();
-          const n = Object.values(D).reduce((t, l) => t + l.filter(p => p.on === true).length, 0);
-          if (!n) return;
-          svConfirm({ title: "SUPPRIMER LES PÉRIODES COCHÉES", text: n + " PÉRIODE(S) SERONT SUPPRIMÉES.", ok: "SUPPRIMER" }).then(go => {
-            if (!go) return;
-            Object.keys(D).forEach(k => { D[k] = D[k].filter(p => p.on !== true); });
-            X.render();
-          });
           return;
         }
         const b = e.target.closest && e.target.closest(".dlp-x");
@@ -1589,11 +1569,25 @@
         if (!X || !pl) return;
         e.preventDefault(); e.stopPropagation();
         const h = pl.closest(".ghist"), sc = Number(h.dataset.sc) || 1, HH = h.offsetHeight, r0 = h.getBoundingClientRect();
-        const v0 = pl.querySelector(".gplaf-v");
-        let P = 0;
-        const mv = ev => { P = Math.max(1, Math.round((HH - (ev.clientY - r0.top)) / sc)); pl.style.top = (HH - P * sc) + "px"; v0.textContent = "PLAFOND " + P; };
-        const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); if (P) X.plaf(P); };
-        document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+        const v0 = pl.querySelector(".gplaf-v"), seg = Number(pl.dataset.seg) || 0, lab0 = v0.textContent.replace(/\d+$/, "");
+        let P = 0, cut = false;
+        const x0 = e.clientX, y0 = e.clientY, host = pl.closest("#dlyGantt");
+        /* v530 : appui long sans bouger = couper le plafond à ce jour */
+        const lt = setTimeout(() => {
+          if (P) return;
+          cut = true; off();
+          const n = Math.floor((x0 - h.getBoundingClientRect().left) / DLY_DW), iso = sviIsoAdd(host.__d0, Math.max(0, n));
+          svChoose({ title: "COUPER LE PLAFOND", html: `<div class="svc-sub">À PARTIR DU ${esc(dFr(iso))}, LE PLAFOND (NOMBRE D'OUVRIERS) POURRA ÊTRE CHANGÉ SEUL : TIRER LE MORCEAU DE DROITE VERS LE HAUT OU LE BAS.</div>`,
+            buttons: [{ v: "cut", label: "COUPER ICI", tone: "neutral" }] }).then(r => { if (r === "cut") X.cutPlaf(iso); });
+        }, 600);
+        const mv = ev => {
+          if (!P && Math.abs(ev.clientY - y0) < 6 && Math.abs(ev.clientX - x0) < 6) return;
+          clearTimeout(lt);
+          P = Math.max(1, Math.round((HH - (ev.clientY - r0.top)) / sc)); pl.style.top = (HH - P * sc) + "px"; v0.textContent = lab0 + P;
+        };
+        const off = () => { clearTimeout(lt); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", off); };
+        const up = () => { off(); if (P && !cut) X.plafSeg(seg, P); };
+        document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", off);
       });
       /* FORMAT 91 : largeur des jours — glisser horizontalement sur l'en-tête, ou pincer le Gantt ;
          le jour sous le doigt reste en place ; largeur mémorisée ; un toucher simple ouvre toujours le calendrier */
@@ -1830,7 +1824,7 @@
       fold: p => { dlyFoldToggle(p); keepScroll(() => renderTab()); },
       jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTabK(); },
       linkWin: (p, k) => dlyLinkWin(p, k), reach: (a, b) => dlyReach(a, b), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
-      gen: () => dlyGenWin(), level: () => dlyApplyLevel(),
+      gen: () => dlyGenWin(), level: () => dlyApplyLevel(), comp: () => dlyCompWin(), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n) => dlySetPlaf(i, n),
       back: () => { LK.lot = LK.prim = LK.sec = null; refreshAll(); },
       sortDeb: () => { dlySortByDeb(); insSave(); histLog("DÉLAIS", "CLASSER PAR DÉBUT", ""); refreshAll(); },
       /* v461 : menu d'un lot ou d'un niveau (appui long) : ISOLER / TOUT AFFICHER */
@@ -1980,7 +1974,7 @@
         if (!w) { renderTabK(); return; }
         const need = k => dlyLinks(k).filter(x => !G.has(x.k)).map(x => {
           if (x.t === "DD") { const a = dlyDeb(x.k); return a ? sviWAdd(cal, sviWNear(cal, a, 1), Math.max(0, x.o || 0)) : ""; }
-          const f = dlyFin(x.k); return f ? sviWAdd(cal, f, 1 + Math.max(0, x.o || 0)) : "";
+          const f = dlyFin(x.k); return f ? sviWAdd(cal, f, 1 + Math.max(-1, x.o || 0)) : "";
         }).filter(Boolean).sort().pop() || "";
         const ok = w2 => ks.every(k => { const n = need(k); return !n || sviWAdd(cal, sviWNear(cal, dlyDeb(k), 1), w2) >= n; });
         let stop = false;

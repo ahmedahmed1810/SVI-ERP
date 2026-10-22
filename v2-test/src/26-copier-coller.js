@@ -403,10 +403,6 @@
           const dp = insDelPlan(a.dataset.blk), n = dp.n, sp = Object.keys(dp.del).length > 1 ? insDelSplit(dp) : "";
           return dl + `<button type="button" data-i="${i}" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}${sp ? `<small class="del-split">${esc(sp)}</small>` : ""}</span>${svCnt(n)}</button>`;
         }
-        if (false) {
-          const n = 0;
-          return `<button type="button" data-i="${i}" class="blk-del${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}</span>${svCnt(n)}</button>`;
-        }
         return `<button type="button" data-i="${i}">${a.innerHTML}<span>${esc(lab)}${a.__hint ? `<small class="del-split">${esc(a.__hint)}</small>` : ""}</span></button>`;
       }).join("");
       if (m.__hint) m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">${esc(m.__hint)}</div>`);
@@ -416,6 +412,7 @@
         const sc = DX.scaleOf(), lev = DX.canLev();
         const opt = (v, lab) => `<button type="button" data-dly="sc-${v}" class="dly-sc${sc === v ? " on" : ""}"><span>${sc === v ? "✓ " : ""}${lab}</span></button>`;
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-dly="gen"><span>GÉNÉRER LE PLANNING</span></button>
+          <button type="button" data-dly="comp"><span>COMPRESSER LE PLANNING</span></button>
           <button type="button" data-dly="sort" class="${DX.sorted() ? "off" : ""}"><span>CLASSER PAR DÉBUT</span></button>
           <button type="button" data-dly="lev" class="${lev ? "" : "off"}" ${lev ? "" : 'aria-disabled="true"'}><span>APPLIQUER LE NIVELLEMENT</span></button>
           <div class="blk-sep"></div><div class="blk-hint">AFFICHAGE DU GANTT</div>${opt("j", "JOUR")}${opt("s", "SEMAINE")}${opt("m", "MOIS")}<div class="blk-sep"></div>`);
@@ -429,7 +426,7 @@
           if (b.classList.contains("off")) return;
           m.remove();
           const v = b.dataset.dly;
-          if (v === "gen") DX.gen(); else if (v === "sort") DX.sortDeb(); else if (v === "lev") DX.level(); else DX.scale(v.slice(3));
+          if (v === "gen") DX.gen(); else if (v === "comp") DX.comp(); else if (v === "sort") DX.sortDeb(); else if (v === "lev") DX.level(); else DX.scale(v.slice(3));
         }, true);
       }
       /* v461 : bloc TÂCHES — CLASSER PAR DÉBUT (même ordre que le PLANNING : lots, activités, puis le planning) */

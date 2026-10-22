@@ -99,7 +99,6 @@
       const marge = prdHT - chgHT;
       const desig = new Set(lines.map(l => desigKey(l))).size;
       const taf = recLoad("taf");
-      const tafLate = taf.filter(r => Date.now() > new Date(r.prevu)).length;
       const obs = recLoad("obs");
       const items = [
         ["DATE CRÉATION", budget.inst && budget.inst.created ? String(budget.inst.created).replace(/^(\d{4})-(\d{2})-(\d{2})T?(\d{2}:\d{2})?.*$/, (m0, y, mo, d, h) => d + "/" + mo + "/" + y + (h ? " À " + h : "")) : (dt && dt.label) || ""],

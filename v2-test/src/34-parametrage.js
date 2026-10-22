@@ -15,11 +15,6 @@ function sviUnitsSave(list) {
   try { localStorage.setItem(SVI_UNITS_KEY, JSON.stringify(list)); } catch (e) {}
 }
 /* liste proposée dans les cases d'unité (UPB, UNITÉ) */
-function sviUnitsList() {
-  let dl = document.getElementById("sviUnitsDl");
-  if (!dl) { dl = document.createElement("datalist"); dl.id = "sviUnitsDl"; document.body.appendChild(dl); }
-  dl.innerHTML = sviUnits().filter(x => x.a).map(x => `<option value="${esc(x.a)}">${esc(x.n)}</option>`).join("");
-}
 /* proposition d'unités au format de l'application (plus de bulle Safari) : après la 1re lettre tapée,
    6 unités au plus qui commencent par la saisie ; un toucher choisit ; continuer à taper la fait suivre */
 const SVI_UNIT_SEL = 'input.ins-in[data-f="u"], input.inc-in[data-f="u"], input.inc-in[data-f="upb"]';

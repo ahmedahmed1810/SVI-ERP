@@ -326,8 +326,6 @@
       };
     };
 
-    const unclassified =
-      lines.filter(l => !l.kind).length;
 
     const tabs = [
       { key: "chg", title: "DÉTAIL CHARGES" },

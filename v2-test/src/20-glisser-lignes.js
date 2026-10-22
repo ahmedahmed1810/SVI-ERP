@@ -226,8 +226,8 @@
                   gap = { prev: pv ? pv.segs : null, D, inStart, el: pv ? pv.el : x };
                   let l = document.getElementById("roLine");
                   if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); }
-                  const ref = pv || rows[ix], ip = (ref.el.querySelector(".lot-in") || ref.el).getBoundingClientRect(), cr = ref.el.getBoundingClientRect();
-                  const left = ip.left + (D - (ref.segs.length - 1)) * 16;
+                  const ref = pv || rows[ix], li = ref.el.querySelector(".lot-in") || ref.el, ip = li.getBoundingClientRect(), cr = ref.el.getBoundingClientRect();
+                  const left = ip.left - (parseFloat(getComputedStyle(li).marginLeft) || 0) + D * 16;
                   l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${left}px;width:${Math.max(20, cr.right - left)}px;top:${(after ? r.bottom : r.top) - 1.5}px`;
                 }
               } else {

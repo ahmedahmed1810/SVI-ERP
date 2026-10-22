@@ -1523,8 +1523,6 @@
     const bfRuleAAsk = plan => {
       if (!plan.lose.length) return Promise.resolve(true);
       const byIdK = (k, id) => INS[k].find(x => x.id === id) || {};
-      const nDl = new Set(plan.lose.map(x => x.l.lot + "|" + x.l.sec).filter(k => (INS.dlp || {})[k] && INS.dlp[k].length
-        && !(INS.links || []).some(l => !plan.lose.some(y => y.l === l) && l.lot + "|" + l.sec === k))).size;
       const html = `<div class="svc-sub">LIAISONS DU BUDGET À DÉLIER ${svCnt(plan.lose.length)} :</div>
         <ul class="svc-list">${plan.lose.map(x => `<li>${esc([x.name, byIdK("lot", x.l.lot).v, byIdK("prim", x.l.prim).v, byIdK("sec", x.l.sec).v].join(" › "))} — ${x.n} LIGNE${x.n > 1 ? "S" : ""}<br><b>GARDÉE : ${esc(x.by.w.name)} — ${x.by.w.n} LIGNE${x.by.w.n > 1 ? "S" : ""}</b></li>`).join("")}</ul>
         <div class="svc-sub">LES LIGNES DÉLIÉES VONT DANS L'ONGLET IMPORT NON CRÉÉ.</div>

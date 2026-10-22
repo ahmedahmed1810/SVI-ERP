@@ -443,7 +443,7 @@
         else val = r[f] || "";
       }
       const artA = k === "des" && f === "art" && !isNew && !String(r.art ?? "").trim() ? (ART_AUTO.get(r.id) || "") : "";
-      if (!INS_EDIT) return `<td class="${cls}${k === "des" && f === "des" ? " c-wrap ins-tdv" : ""}${artA ? " art-auto" : ""}">${esc(artA || val)}${f === "tva" && val ? " %" : ""}${k === "des" && f === "des" && !isNew && !r.t ? `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>` : ""}</td>`;
+      if (!INS_EDIT) return `<td class="${cls}${k === "des" && f === "des" ? " c-wrap ins-tdv" : ""}${k === "chg" && f === "des" && !isNew && !r.t ? " ins-pkc" : ""}${artA ? " art-auto" : ""}">${esc(artA || val)}${k === "chg" && f === "des" && !isNew && !r.t ? condBtn(r) : ""}${f === "tva" && val ? " %" : ""}${k === "des" && f === "des" && !isNew && !r.t ? `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>` : ""}</td>`;
       /* v525 (remarque 1) : RENDEMENT d'une ligne de charge modifiable (une seule tâche avec des produits) —
          taper un rendement = QCB de la ligne recalculée (produit de sa tâche ÷ rendement, arrondie à 0,5) */
       if (k === "chg" && f === "rdb" && !isNew && !r.t) {
@@ -455,12 +455,15 @@
       }
       /* FORMAT 109 : DÉSIGNATION client sur plusieurs lignes si elle est trop longue (la ligne devient plus haute) */
       /* FORMAT 122 : ligne existante — texte affiché (appui long = glisser), un toucher ouvre la saisie */
-      if (k === "des" && f === "des" && !isNew) return `<td class="${cls} ins-td ins-tdv${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><div class="ins-dv" data-f="des">${esc(val)}</div><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea>${r.t ? "" : `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>`}</td>`;
+      if (k === "des" && f === "des" && !isNew) return `<td class="${cls} ins-td ins-tdv${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}>${r.t ? `<span class="ins-tfz">${foldBtn(r)}</span>` : ""}<div class="ins-dv" data-f="des">${esc(val)}</div><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea>${r.t ? "" : `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>`}</td>`;
       if (k === "des" && f === "des") return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} ${isNew ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea></td>`;
-      return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
+      /* v530 : bouton CONDITIONNEMENT dans la case DÉSIGNATION d'une charge */
+      const pk = k === "chg" && f === "des" && !isNew && !r.t;
+      return `<td class="${cls} ins-td${pk ? " ins-pkc" : ""}${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
         ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
-        value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off"></td>`;
+        value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off">${pk ? condBtn(r) : ""}</td>`;
     };
+    const condBtn = r => `<button type="button" class="chg-pk${(INS.cond || {})[U_(r.des) + "|" + U_(r.u)] ? " on" : ""}" tabindex="-1" data-cid="${r.id}" aria-label="Conditionnement"><svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg></button>`;
     const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     /* page unique : rond à gauche = choix pour la liaison (2e toucher = libère le choix) ;
        case à droite = suppression (cochée, elle devient 🗑 ; ANNULER la décoche) */
@@ -474,6 +477,8 @@
       return true;
     };
     const lkOn = (k, id) => (k === "prd" || k === "chg") ? LK[k][id] !== undefined : (LK.all && LK.all[k] ? lkAllLinked(k, id) && lkInPart(k, id) : LK[k] === id);
+    /* v530 : chiffre d'une pastille (à moitié remplie : blanc sur la partie colorée, couleur sur la partie blanche) */
+    const pstNum = n => `<b class="pst-n">${n}</b>`;
     const lkRdPart = (k, key) => {
       if (!INS_EDIT) return "";
       /* v528 (remarque 1) : rond d'en-tête actif = tous les titres aussi ; rond d'un titre parent d'un titre choisi = choisi aussi */
@@ -485,7 +490,10 @@
       const on = !!(LK.all && LK.all[k] && (!pk || pk === key || subPk));
       const part = !!(LK.all && LK.all[k] && inPk && pk !== key);
       const busy = !!LK[k] || (!!(LK.all && LK.all[k]) && !on && !part);
-      return `<span class="lk-rd lk-rdgrp${on ? " on" : ""}${part ? " part" : ""}${busy ? " off" : ""}" data-rdgrp="${k}" data-key="${esc(key)}" role="button" aria-label="Choisir toutes les lignes liées du titre"></span>`;
+      /* v530 (remarque 1) : rond d'un titre = pastille avec le nombre de ses lignes (comme le DÉTAIL CHARGES), dans tous les tableaux */
+      const n = k === "lot" ? INS.lot.filter(r => !r.t && lotUnder(r, dlyLotPath(key))).length
+        : k === "des" ? (() => { const t = INS.des.find(x => x.id === key); return t ? insBranch(t).filter(x => !x.t).length : 0; })() : 0;
+      return `<span class="lk-rd lk-rdgrp lk-pst${on ? " on" : ""}${part ? " part" : ""}${busy ? " off" : ""}" data-rdgrp="${k}" data-key="${esc(key)}" role="button" aria-label="Choisir toutes les lignes liées du titre">${pstNum(n)}</span>`;
     };
     /* lignes déjà liées à la désignation choisie (comme le choix du budget validé, niveau par niveau) :
        lots de la désignation ; activités primaires du lot choisi ; secondaires de la primaire choisie ;
@@ -587,7 +595,7 @@
       const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* bleu = liée (à n'importe quelle désignation) */
       return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}${k === "des" && r ? ` style="--d:${dOf(r)}"` : ""}>
-        <td class="center ins-rdc">${k === "des" && r && r.t ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
+        <td class="center ins-rdc">${k === "des" && r && r.t && !INS_EDIT ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
           ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>`;
     };
     /* lignes + sous-totaux de titres (désignations) */
@@ -719,7 +727,6 @@
     const INS_CHUNK = 120;
     const insMore = {};
     /* v492 (remarque 10) : DÉTAIL CHARGES filtré (filtre de colonne, cases cochées d'un autre bloc, « seulement les cochées ») */
-    const insChgFiltered = () => { const st = cfT(insCfT("chg")); return Object.keys(st.f || {}).length > 0 || !!ONLYC.chg || !!insCheckSet("chg"); };
     /* v499 (remarque 45) : charges identiques regroupées = un TITRE (gras, fond gris) — QCB, MCB HT et TTC cumulés,
        PCB moyen pondéré (MCB HT ÷ QCB), TÂCHE = nombre de tâches ; signe › / ⌄ pour plier / déplier ses lignes (affichées dessous,
        modifiables une par une) ; sa case coche / décoche toutes ses lignes (à moitié cochée si une partie seulement) */
@@ -766,7 +773,7 @@
       /* v510 (remarque 67) : mélange de rouge (choisies) et de bleu (liées) = violet */
       const stt = new Set(g.map(r => LK && LK.chg && LK.chg[r.id] !== undefined ? (isB(r) ? "b" : "r") : (isB(r) ? "b" : "")).filter(Boolean));
       const blu = stt.has("b") && !stt.has("r"), vio = stt.has("b") && stt.has("r");
-      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${pstNum(g.length)}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     /* v516 : DÉTAIL PRODUITS — produits de même DÉSIGNATION regroupés sous un titre (même si NBR, DIM 1 à 3 ou unité diffèrent),
        pour retrouver d'un coup tout ce qui concerne un élément (un poteau…) et les activités qui l'ont touché.
@@ -777,7 +784,12 @@
       const fb = `<span class="ins-gfz" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier"><span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}">${fo ? "›" : "⌄"}</span></span>`;
       const non = g.filter(r => r.on === true).length;
       const cell = c => `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}${c[0] === "des" ? " ins-gtd" : ""}">${c[0] === "des" ? fb + esc(g[0].des || "") : ""}</td>`;
-      return `<tr class="ins-row ins-grp ins-gtitle ins-pgrp${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn">${g.length}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      /* v530 (remarque 1) : la pastille du titre choisit / libère tous ses produits, comme celle des charges */
+      const nch = INS_EDIT && LK && LK.prd ? g.filter(r => LK.prd[r.id] !== undefined).length : 0;
+      const isB = r => INS_EDIT && ((LK.des && lkIsLinked("prd", r.id)) || lkHit("prd", r.id));
+      const stt = new Set(g.map(r => LK && LK.prd && LK.prd[r.id] !== undefined ? (isB(r) ? "b" : "r") : (isB(r) ? "b" : "")).filter(Boolean));
+      const blu = stt.has("b") && !stt.has("r"), vio = stt.has("b") && stt.has("r");
+      return `<tr class="ins-row ins-grp ins-gtitle ins-pgrp${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir tous les produits">${pstNum(g.length)}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
@@ -1081,7 +1093,9 @@
       return out.filter(x => { for (let i = 1; i < x.segs.length; i++) if (folded(x.segs.slice(0, i).join(" / "))) return false; return true; });
     };
     const lotTreeHTML = list => lotTreeRows(list).map(x => {
-      const pad = `style="margin-left:${x.lvl * 16}px"`;
+      /* v530 (remarque 2) : un sous-groupe (titre sans lot à lui) est décalé au niveau des numéros de ses lots frères (5.1, 7.1…),
+         pour ne plus paraître au rang des lots du dessus */
+      const pad = `style="margin-left:${x.lvl * 16 + (x.grp && x.lvl ? 14 : 0)}px"`;
       /* v510 (remarque 68) : signe d'un niveau aux couleurs des ronds de sa branche (rouge choisi, bleu lié, violet mélange) */
       const UB = INS.lot.filter(r => !r.t && lotUnder(r, x.segs));
       const fst = x.kids && INS_EDIT ? sviFoldState(UB.some(r => LK.lot === r.id), UB.some(r => lkHit("lot", r.id))) : "";
