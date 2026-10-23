@@ -1500,6 +1500,17 @@ def main():
         pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
         check("v549 : plus de bouton AJOUTER sous le planning (menu ⋯ : + AJOUTER UNE TÂCHE…) ; rubrique GRAPHIQUE ; barre marron limitée au Gantt",
               v549 == [False, True] and "add" in v549m and "GRAPHIQUE" in v549m, [v549, v549m])
+        # v550 : graphique plein écran — défiler la page ne l'agrandit pas ; caché (0) = barre « = » au bas de l'écran
+        pg.evaluate(f"() => {DXJ}.hh('full')"); pg.wait_for_timeout(800)
+        g0 = []
+        for _ in range(3):
+            pg.evaluate("() => window.scrollBy(0, 150)"); pg.wait_for_timeout(600)
+            g0.append(pg.evaluate("() => { const h = document.querySelector('#dlyGantt .ghist'); return h ? h.offsetHeight : 0; }"))
+        pg.evaluate(f"() => {DXJ}.hh(0)"); pg.wait_for_timeout(800)
+        g1 = pg.evaluate("() => { const hh = document.querySelector('.dlyg-hh'), vv = window.visualViewport, b = vv ? vv.offsetTop + vv.height : innerHeight; const r = hh.getBoundingClientRect(); return [Math.round(r.top), Math.round(b)]; }")
+        pg.evaluate("() => localStorage.removeItem('svi_dlyhh_v1')"); pg.evaluate(f"() => {DXJ}.hh(110)"); pg.wait_for_timeout(500)
+        check("v550 : graphique plein écran stable quand la page défile ; graphique caché = barre « = » visible au bas de l'écran",
+              len(set(g0)) == 1 and g0[0] > 0 and g1[0] < g1[1] and g1[1] - g1[0] < 60, [g0, g1])
         check("v547 R22 : COMPRESSER coupe la tâche autour de la pénurie (02-03 / 05-06) ; deux barres, pastille 2 ; MORCEAUX → RECOLLER = un seul morceau de 4 jours",
               m1[0] == '[["2026-11-02","2026-11-03"],["2026-11-05","2026-11-06"]]' and m1[1] == 2 and m1[2] == "2" and m2[0].startswith("MORCEAUX") and m2[1] == 2 and m3 == '[["2026-11-02","2026-11-05"]]', [m1, m2, m3])
 
