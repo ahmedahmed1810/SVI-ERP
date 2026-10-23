@@ -244,11 +244,8 @@ document.addEventListener("focusin", e => {
     if (!t || !t.closest) return;
     if (t.closest("input, textarea, select, .blk-tools, .cf-btn, [data-onlyc], .col-rs, th, .gh, .blk-grip, .blk-rsz")) { last = null; return; }
     let zone = "", act = null;
-    const head = t.closest(".blk-head, .bdg-d-block-title, .bdg-d-tabs");
-    if (head) {
-      const blk = head.closest(".bdg-d-block"), mb = head.querySelector(".blk-max-btn[data-blk]") || (blk && blk.querySelector(".blk-max-btn[data-blk]"));
-      if (mb) { const b = mb.dataset.blk; zone = "b:" + b; act = () => { const m = document.querySelector(`.blk-max-btn[data-blk="${b}"]`); if (m) m.click(); }; }
-    } else {
+    /* v545 (remarque 1) : plus de double toucher sur la barre de titre des blocs (bouton agrandir / réduire visible) */
+    {
       const tt = t.closest(".svc-card .svc-t"), card = tt && tt.closest(".svc-card");
       if (card && card.querySelector('[class$="-rsz"]')) { zone = "w"; act = () => card.classList.toggle("svc-full"); }
     }

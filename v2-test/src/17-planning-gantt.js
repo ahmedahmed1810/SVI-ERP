@@ -470,13 +470,25 @@
       let bodyH = rowsH + 2 * (geo.length ? geo[geo.length - 1].h : 24);
       {
         const gg = host.closest(".dlyg"), scr = gg && gg.closest(".bdg-d-scroll");
+        /* v545 (remarque 2) : le bloc du PLANNING prend la hauteur visible de l'écran sous le bandeau et les onglets */
+        if (scr && scr.classList.contains("dly-scroll")) {
+          let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
+          const tabs = document.getElementById("bdgTabs"), want = Math.max(240, Math.floor(dlyVpB() - lim - (tabs ? tabs.offsetHeight : 0) - 6));
+          if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 1) scr.style.setProperty("height", want + "px", "important");
+        }
         if (scr && scr.clientHeight) {
-          const top = gg.getBoundingClientRect().top - scr.getBoundingClientRect().top + scr.scrollTop;
+          const sr = scr.getBoundingClientRect(), top = gg.getBoundingClientRect().top - sr.top + scr.scrollTop;
           const addH = gg.nextElementSibling ? gg.nextElementSibling.getBoundingClientRect().height : 0;
+          /* v545 (remarque 2) : hauteur VISIBLE du bloc (jamais sous le bas de l'écran) — planning et histogramme y tiennent ensemble */
+          const visH = Math.max(160, Math.min(scr.clientHeight, dlyVpB() - Math.max(0, sr.top)));
           /* R12 : histogramme plein écran (à la place du Gantt) ou à la hauteur tirée à la poignée « = » */
-          if (dlyHHGet() === "full") dlyHHpx = Math.max(80, Math.floor(scr.clientHeight - top - thH - addH - 10));
+          const capH = Math.max(80, Math.floor(Math.min(sr.bottom, dlyVpB()) - tbl.querySelector("thead").getBoundingClientRect().bottom - 4));
+          if (dlyHHGet() === "full") dlyHHpx = capH;
+          else dlyHHpx = Math.max(28, Math.min(dlyHHpx, capH));
           const histH = gg.querySelector(".dlyh-lab") ? dlyHHpx : 0;
-          bodyH = Math.max(bodyH, Math.floor(scr.clientHeight - top - thH - histH - addH - 10));
+          /* les tâches en trop défilent dans le planning, sous l'histogramme gardé en bas de l'écran ; place gardée pour voir les dernières */
+          const ovB = rowsH > visH ? Math.max(0, Math.ceil(sr.bottom - dlyVpB())) : 0;
+          bodyH = Math.max(bodyH + ovB, Math.floor(visH - top - thH - histH - addH - 10));
         }
         const L = gg && gg.querySelector(".dlyg-l");
         if (L) {
@@ -630,11 +642,14 @@
           const vis = days.filter(di => di >= d0 && di <= d1);
           const mx = Math.max(0, ...vis.filter(inR).map(di => val[di]), ...vis.map(di => val[di]));
           const SG = canP ? dlyCapSegs() : [];
+          /* v545 (remarque 5) : capacité jamais réglée = barre rouge posée juste au-dessus du jour le plus chargé, avec son nombre */
+          const capDef = canP && SG.length === 1 && dlyCapDef(), mxAll = Math.max(0, ...days.map(di => val[di]));
+          if (capDef) SG[0] = { ...SG[0], n: Math.max(1, Math.ceil(mxAll - 1e-9)), def: true };
           const PM = Math.max(0, ...SG.map(x => x.n));
           const top = (Math.max(mx, PM, VL.max || 0) || 1) * 1.08, sc = (HH - 16 - IB) / top, Y0 = HH - IB;
           const pass = di => inR(di) && (VL.min === null || val[di] >= VL.min - 1e-9) && (VL.max === null || val[di] <= VL.max + 1e-9);
           const bw = Math.max(1, DLY_DW - (DLY_DW > 10 ? 6 : 0)), bo = DLY_DW > 10 ? 3 : 0;
-          const capAt = di => { let n = -1; SG.forEach(x => { if (!x.d || x.d <= di) n = x.n; }); return n; };
+          const capAt = di => { let n = -1; SG.forEach(x => { if (!x.def && (!x.d || x.d <= di)) n = x.n; }); return n; };
           let hb = "", svg = "";
           if (C) vis.forEach(di => { hb += `<div class="ghb ghc${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, val[di] * sc)}px;bottom:${IB}px"></div>`; });
           else if (!cum) vis.forEach(di => {
@@ -657,7 +672,7 @@
           const pl = SG.map((g2, j) => {
             const l = g2.d ? Math.max(0, X(g2.d)) : 0, r = SG[j + 1] ? Math.max(0, X(SG[j + 1].d)) : W;
             if (r <= l) return "";
-            const n = g2.n, y = n < 0 ? HH - IB / 2 : Y0 - n * sc, cls = n < 0 ? " gcap-inf" : n === 0 ? " gcap-zero" : "";
+            const n = g2.n, y = n < 0 ? HH - IB / 2 : Y0 - n * sc, cls = (n < 0 ? " gcap-inf" : n === 0 ? " gcap-zero" : "") + (g2.def ? " gcap-def" : "");
             const lab = n < 0 ? "ILLIMITÉ" : n === 0 ? "CAPACITÉ 0 — PÉNURIE" : "CAPACITÉ " + n;
             return `<div class="gplaf${cls}" data-seg="${g2.i}" style="top:${y}px;left:${l}px;right:auto;width:${r - l}px"><span class="gplaf-v">${g2.d && j ? dFr(g2.d) + " : " : ""}${lab}</span>${!j && late ? `<span class="gplaf-w">${DLY_BUT_MSG}</span>` : ""}</div>`
               + (j && g2.d ? `<span class="gcut" data-i="${g2.i}" style="left:${l - 6}px;top:${Math.max(0, Math.min(y, Y0) - 18)}px" role="button" title="SUPPRIMER LA COUPE">/</span>` : "");
@@ -672,7 +687,11 @@
           /* R20 : lignes MIN et MAX (filtre par valeur) */
           const vl = (r, v, off) => `<div class="gval${off ? " gval-off" : ""}" data-v="${r}" style="top:${off ? (r === "max" ? 2 : Y0 - 1) : Y0 - v * sc}px"><span>${r.toUpperCase()}${off ? "" : " " + fmtV(v)}</span></div>`;
           const vals = vl("max", VL.max, VL.max === null) + vl("min", VL.min, VL.min === null);
-          hist = `<div class="ghist${C ? " ghist-cmd" : ""}${cum ? " ghist-cum" : ""}" style="width:${W}px;height:${HH}px" data-sc="${sc}" data-y0="${Y0}" data-ib="${IB}" data-top="${top}">${bg}${leg}${C ? `<div class="ghist-leg"><span>${esc(C.lab)}</span></div>` : ""}${IB ? `<div class="ghist-inf" style="height:${IB}px"></div>` : ""}${hb}${svg ? `<svg class="ghist-svg" width="${W}" height="${HH}">${svg}</svg>` : ""}${pl}${rng}${vals}</div>`;
+          /* v545 (remarque 5) : petite échelle des valeurs à gauche (reste visible quand le Gantt défile) */
+          const stp = (() => { const raw = top / 4, p = Math.pow(10, Math.floor(Math.log10(raw || 1))), m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; })();
+          let ax = ""; if (HH >= 50) for (let v = stp; v * sc <= Y0 - 8; v += stp) ax += `<span class="gax-t" style="top:${Y0 - v * sc}px">${fmtV(v)}</span>`;
+          ax = `<div class="ghist-ax" style="height:${HH}px">${ax}<span class="gax-t gax-0" style="top:${Y0}px">0</span></div>`;
+          hist = `<div class="ghist${C ? " ghist-cmd" : ""}${cum ? " ghist-cum" : ""}" style="width:${W}px;height:${HH}px" data-sc="${sc}" data-y0="${Y0}" data-ib="${IB}" data-top="${top}">${ax}${bg}${leg}${C ? `<div class="ghist-leg"><span>${esc(C.lab)}</span></div>` : ""}${IB ? `<div class="ghist-inf" style="height:${IB}px"></div>` : ""}${hb}${svg ? `<svg class="ghist-svg" width="${W}" height="${HH}">${svg}</svg>` : ""}${pl}${rng}${vals}</div>`;
         }
       }
       host.innerHTML = `<div class="gh" style="width:${W}px;height:${thH}px">${head}</div>
@@ -688,7 +707,30 @@
       if (shell.__dlyGx !== undefined) host.scrollLeft = shell.__dlyGx;
       host.addEventListener("scroll", () => { shell.__dlyGx = host.scrollLeft; }, { passive: true });
       dlyStick(host.closest(".bdg-d-scroll, .lk-scroll"));
+      dlyLift();
     };
+    /* v545 (remarque 2) : bas de l'écran visible (clavier de l'iPad compris) */
+    const dlyVpB = () => { const vv = window.visualViewport; return vv ? vv.offsetTop + vv.height : window.innerHeight; };
+    /* histogramme (et son libellé, et la poignée « = ») gardé en bas de la zone visible du planning : les tâches défilent dessous */
+    const dlyLift = () => {
+      const g = shell.querySelector(".dlyg"); if (!g) return;
+      const hist = g.querySelector("#dlyGantt .ghist"), lab = g.querySelector(".dlyh-lab"), hh = g.querySelector(".dlyg-hh"), gh = g.querySelector("#dlyGantt > .gh");
+      if (!hist) return;
+      const els = [hist, lab, hh].filter(Boolean);
+      const cur = el => { const m = /translateY\((-?[\d.]+)px\)/.exec(el.style.transform || ""); return m ? +m[1] : 0; };
+      const r = hist.getBoundingClientRect(), nb = r.bottom - cur(hist), nt = r.top - cur(hist);
+      const scr = g.closest(".bdg-d-scroll, .lk-scroll"), visB = Math.min(scr ? scr.getBoundingClientRect().bottom : 1e9, dlyVpB());
+      const minT = gh ? gh.getBoundingClientRect().bottom : nt;
+      const lift = g.classList.contains("dly-hfull") ? 0 : Math.max(0, Math.min(nb - visB, nt - minT));
+      const v = lift > 0.5 ? "translateY(" + (-lift).toFixed(1) + "px)" : "";
+      els.forEach(el => { if (el.style.transform !== v) el.style.transform = v; el.classList.toggle("dly-lift", !!v); });
+    };
+    if (!shell.__dlyLiftBound) {
+      shell.__dlyLiftBound = true;
+      let raf = 0; const go = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; dlyLift(); }); };
+      document.addEventListener("scroll", go, true); window.addEventListener("resize", go);
+      if (window.visualViewport) window.visualViewport.addEventListener("resize", go);
+    }
     /* en-têtes du tableau et du Gantt fixés en haut quand le bloc défile verticalement */
     const dlyStick = sc => {
       if (!sc) return;
@@ -831,7 +873,7 @@
             + dl("dlySecDl", [...new Set(INS.sec.map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")));
           const viewB = dlyView() === "d" ? `<div class="dly-iso dly-vd"><span>VUE PAR DÉBUT <small>(LECTURE DE L'ORDRE : LES LIGNES NE SE DÉPLACENT PAS)</small></span><button type="button" class="dly-vd-x">AFFICHER PAR LOT</button></div>` : "";
           const isoB = viewB + (PR.iso ? `<div class="dly-iso"><span>ISOLÉ : <b>${esc(lotLab(dlyLotPath(PR.iso)).full)}</b></span><small>LIAISONS, DÉCALAGES ET CALENDRIER RESTENT APPLIQUÉS · TÂCHES LIÉES HORS DE LA BRANCHE EN GRIS (LECTURE SEULE)</small><button type="button" class="dly-iso-x">TOUT AFFICHER</button></div>` : "");
-          return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${shell.__dlyZone ? " dz-" + shell.__dlyZone : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}${PR.flat.length ? `<div class="dlyh-lab">${dlyHistLab()}</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">=</span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur de l'histogramme">=</span></div>` : ""}</div>`
+          return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${shell.__dlyZone ? " dz-" + shell.__dlyZone : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}${PR.flat.length ? `<div class="dlyh-lab">${dlyHistLab()}</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur de l'histogramme">=</span></div>` : ""}</div>`
             + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE OU SES DÉLAIS</button></div>`;
         }
       }
@@ -1693,18 +1735,22 @@
         if (!X || !pill) return;
         e.preventDefault(); e.stopPropagation();
         const g = pill.closest(".dlyg"), hist = g.querySelector("#dlyGantt .ghist"), y0 = e.clientY, h0 = hist ? hist.offsetHeight : 110;
-        const scr = g.closest(".bdg-d-scroll"), maxH = scr ? Math.max(120, scr.clientHeight - 60) : 600;
+        /* v545 (remarque 4) : la poignée reste où on la lâche — hauteur la plus grande = du bas de l'écran visible jusque sous l'en-tête du Gantt */
+        const scr = g.closest(".bdg-d-scroll"), ghd = g.querySelector("#dlyGantt > .gh"), hr0 = hist ? hist.getBoundingClientRect() : null;
+        const visB = Math.min(scr ? scr.getBoundingClientRect().bottom : 1e9, dlyVpB());
+        const maxH = hr0 && ghd ? Math.max(80, Math.floor(visB - ghd.getBoundingClientRect().bottom - 4)) : (scr ? Math.max(120, scr.clientHeight - 60) : 600);
         let h = h0, on = false;
         const bar = pill.closest(".dlyg-hh"), t0 = parseFloat(bar.style.top) || 0;
         try { pill.setPointerCapture(e.pointerId); } catch (err) {}
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });
-        const mv = ev => { const dy = ev.clientY - y0; if (!on && Math.abs(dy) < 6) return; on = true; ev.preventDefault(); h = Math.round(Math.max(28, Math.min(maxH, h0 - dy))); bar.style.top = (t0 + (h0 - h)) + "px"; };
+        /* tout mouvement compte comme un glissement ; seul un toucher net bascule d'un bord à l'autre */
+        const mv = ev => { const dy = ev.clientY - y0; if (!on && !dy) return; on = true; ev.preventDefault(); h = Math.round(Math.max(28, Math.min(maxH, h0 - dy))); bar.style.top = (t0 + (h0 - h)) + "px"; };
         const up = () => {
           document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
           setTimeout(() => document.removeEventListener("touchmove", tmv), 0);
           if (!on) { X.hh(X.hhGet() === "full" ? 28 : "full"); return; }
-          X.hh(h >= maxH - 4 ? "full" : h);
+          X.hh(h >= maxH ? "full" : h);
         };
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       });
