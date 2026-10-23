@@ -589,7 +589,7 @@
             + (() => {
               /* v443 : nom du lot dans sa barre quand il y tient en entier (comme les tâches), sinon juste à droite */
               const LB = x.lab || lotLab(dlyLotPath(x.path)), bw = r - 5 - l, need = dlyTxtW(LB.full) + (x.lvl ? 14 : 0) + 16, inb = l > 0 && bw >= need;
-              return `<span class="gb-n gb-out gb-grp gb-ren${inb ? " gb-gin" : ""}${x.fold ? " gb-gfd" : ""}" data-path="${esc(x.path)}" style="left:${inb ? l + 4 : r + x.lvl * 14}px;top:${ty}px;--c:${gcolOf()}">${x.lvl ? '<span class="gb-lv">↳</span>' : ""}${lotNoHTML(LB)}${esc(LB.name)}</span>`;
+              return `<span class="gb-n gb-out gb-grp gb-ren${inb ? " gb-gin" : ""}${x.fold ? " gb-gfd" : ""}" data-path="${esc(x.path)}" style="left:${inb ? l + 4 : r + x.lvl * 14}px;top:${ty}px;--c:${gcolOf()}">${x.lvl ? '<span class="gb-lv">↳</span>' : ""}${lotNoHTML(LB)}${esc(LB.name)}</span>`.replace(x.fold ? `top:${ty}px;--c` : "@@", `top:${y}px;height:${BH}px;line-height:${BH}px;font-size:${Math.max(8, Math.min(11, BH - 2))}px;--c`);
             })();
           const gcolOf = () => dlyLotColor((x.all.find(t => t.lo) || {}).lo);
           if (!segs.length) { bars += gname(17, 20); return; }
@@ -761,7 +761,7 @@
             + `<div class="grng${RG.b ? "" : " grng-off"}" data-r="b" style="left:${xb}px"><span>FIN${RG.b ? " " + dFr(RG.b).slice(0, 5) : ""}</span></div>`
             + (RG.a || RG.b || VL.min !== null || VL.max !== null ? `<div class="grng-tot" style="left:${(xa + xb) / 2}px">${fmtA(sum)} ${esc(HD.unit)}</div>` : "");
           /* R20 : lignes MIN et MAX (filtre par valeur, sur les charges) */
-          const vl = (r, v, off) => `<div class="gval${off ? " gval-off" : ""}" data-v="${r}" style="top:${off ? (r === "max" ? 2 : Y0 - 1) : Y0 - v * sc}px"><span>${r.toUpperCase()}${off ? "" : " " + fmtA(v)}</span></div>`;
+          const vl = (r, v, off) => `<div class="gval${off ? " gval-off" : ""}" data-v="${r}" style="top:${off ? (r === "max" ? 22 : Y0 - 1) : Y0 - v * sc}px"><span>${r.toUpperCase()}${off ? "" : " " + fmtA(v)}</span></div>`;
           const vals = multi ? "" : vl("max", VL.max, VL.max === null) + vl("min", VL.min, VL.min === null);
           /* échelle (R24) : unité en tête, nombres abrégés, toujours visible à gauche */
           const stp = (() => { const raw = top / 4, p = Math.pow(10, Math.floor(Math.log10(raw || 1))), m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; })();
@@ -972,8 +972,9 @@
           /* v546 (R26) : plus de bandeau VUE PAR DÉBUT (la vue se choisit dans le menu ⋯) */
           const viewB = "";
           const isoB = viewB + (PR.iso ? `<div class="dly-iso"><span>ISOLÉ : <b>${esc(lotLab(dlyLotPath(PR.iso)).full)}</b></span><small>LIAISONS, DÉCALAGES ET CALENDRIER RESTENT APPLIQUÉS · TÂCHES LIÉES HORS DE LA BRANCHE EN GRIS (LECTURE SEULE)</small><button type="button" class="dly-iso-x">TOUT AFFICHER</button></div>` : "");
-          return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur de l'histogramme">=</span>${dlyHHGet() !== 0 ? `<span class="dlyhh-cfg" role="button" title="RÉGLAGES DE L'HISTOGRAMME">⚙</span>` : ""}</div>` : ""}</div>`
-            + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE OU SES DÉLAIS</button></div>`;
+          return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur du graphique">=</span>${dlyHHGet() !== 0 ? `<span class="dlyhh-cfg" role="button" title="RÉGLAGES DU GRAPHIQUE">⚙</span>` : ""}</div>` : ""}</div>`
+            /* v549 : plus de bouton « + AJOUTER UNE TÂCHE OU SES DÉLAIS » sous le planning (ligne SAISIR ICI… et menu ⋯) */
+            ;
         }
       }
       const all = [];

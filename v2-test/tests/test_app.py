@@ -1348,7 +1348,7 @@ def main():
         mn = pg.evaluate("() => (document.getElementById('blkMenu') || {}).textContent || ''")
         pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
         check("v542 R2 / R5 : plafond recompresse aussitôt (4 J-H ÷ 4 = 1 jour), même nombre = AUCUN GAIN ; menu (v546) : vue, CLASSER PAR DÉBUT, APPROVISIONNEMENT — plus de COMPRESSER ni de JOUR / SEMAINE / MOIS",
-              t2[0] == "2026-11-02" and "AUCUN GAIN" in t2[1] and "COMPRESSER LE PLANNING" not in mn and "GÉNÉRER" not in mn and "NIVELLEMENT" not in mn and "JOUR" not in mn.replace("PAR LOT", "").replace("CLASSER", "").split("HISTOGRAMME")[0].replace("AFFICHER PAR DÉBUT", "") and "CLASSER PAR DÉBUT" in mn and "APPROVISIONNEMENT PRÉVISIONNEL" in mn, [t2, mn[:200]])
+              t2[0] == "2026-11-02" and "AUCUN GAIN" in t2[1] and "COMPRESSER LE PLANNING" not in mn and "GÉNÉRER" not in mn and "NIVELLEMENT" not in mn and "JOUR" not in mn.replace("PAR LOT", "").replace("CLASSER", "").split("GRAPHIQUE")[0].replace("AFFICHER PAR DÉBUT", "") and "CLASSER PAR DÉBUT" in mn and "APPROVISIONNEMENT PRÉVISIONNEL" in mn, [t2, mn[:200]])
         # R10 : COMMANDES par fréquence (7 jours, 2 jours d'avance)
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.appro = {{ dl: 2, cov: 'n', nj: 7, dep: '', on: true }}; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
         c10 = pg.evaluate("() => [[...document.querySelectorAll('#dlyGantt .ghb.ghc')].map(b => b.dataset.d), /APPROVISIONNEMENT/.test((document.querySelector('#dlyGantt .ghist-cmd') || {}).textContent || '')]")
@@ -1458,7 +1458,7 @@ def main():
         pg.evaluate(f"() => {DXJ}.viewSet('l')"); pg.wait_for_timeout(400)
         vl = pg.evaluate("() => [...document.querySelectorAll('#bdgTabBody .dlyg-l tr.dly-task')].map(t => t.dataset.key)")
         check("v543 R29 / v546 R26, R35 : menu PLANNING / HISTOGRAMME, sans liseré ; vue PAR DÉBUT en escalier (numéro du lot, sans bandeau) sans changer l'ordre enregistré",
-              z1 == ["PLANNING", "HISTOGRAMME"] and not z1b and vd[0] == ["l2|s1", "l1|s1"] and vd[1] and not vd[2] and vd[3] == '["l1|s1","l2|s1"]' and vl == ["l1|s1", "l2|s1"], [z1, z1b, vd, vl])
+              z1 == ["PLANNING", "GRAPHIQUE"] and not z1b and vd[0] == ["l2|s1", "l1|s1"] and vd[1] and not vd[2] and vd[3] == '["l1|s1","l2|s1"]' and vl == ["l1|s1", "l2|s1"], [z1, z1b, vd, vl])
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk3; I.dlp = I.__dlp3; I.dpred = I.__dp3; I.dord = I.__ord3; I.pdeb = I.__pd3;
             ['__lk3', '__dlp3', '__dp3', '__ord3', '__pd3'].forEach(k => delete I[k]); I.dinc = {{}}; I.dlim = {{}}; I.plafR = {{}}; I.appro = null; I.hset = null; I.hrange = null; I.hval = null;
             I.chg = I.chg.filter(r => !/^n[123]$/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
@@ -1493,6 +1493,13 @@ def main():
         pg.evaluate("() => document.querySelector('.blk-max-btn[data-blk=\"detail\"]')?.click()"); pg.wait_for_timeout(800)
         check("v548 FORMAT 197 : bloc agrandi — l'histogramme est au bas de l'écran visible, le bloc ne dépasse pas l'écran",
               f197 and f197[1] <= f197[2] + 1 and f197[0] <= f197[2] + 1 and f197[2] - f197[0] <= 70, f197)
+        # v549 : plus de bouton AJOUTER sous le planning (entrée du menu ⋯) ; barre marron limitée au Gantt quand le tableau est affiché
+        v549 = pg.evaluate("() => { const hh = document.querySelector('.dlyg-hh'), G = document.querySelector('#dlyGantt'); return [!!document.querySelector('.dly-add'), hh && G ? Math.abs(hh.getBoundingClientRect().left - G.getBoundingClientRect().left) < 2 : null]; }")
+        pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
+        v549m = pg.evaluate("() => [...document.querySelectorAll('#blkMenu [data-dly]')].map(b => b.dataset.dly).join(',') + '|' + [...document.querySelectorAll('#blkMenu .blk-hint')].map(e => e.textContent).join(',')")
+        pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
+        check("v549 : plus de bouton AJOUTER sous le planning (menu ⋯ : + AJOUTER UNE TÂCHE…) ; rubrique GRAPHIQUE ; barre marron limitée au Gantt",
+              v549 == [False, True] and "add" in v549m and "GRAPHIQUE" in v549m, [v549, v549m])
         check("v547 R22 : COMPRESSER coupe la tâche autour de la pénurie (02-03 / 05-06) ; deux barres, pastille 2 ; MORCEAUX → RECOLLER = un seul morceau de 4 jours",
               m1[0] == '[["2026-11-02","2026-11-03"],["2026-11-05","2026-11-06"]]' and m1[1] == 2 and m1[2] == "2" and m2[0].startswith("MORCEAUX") and m2[1] == 2 and m3 == '[["2026-11-02","2026-11-05"]]', [m1, m2, m3])
 
@@ -1558,7 +1565,7 @@ def main():
         check("v546 R19 : coupe — trait vertical en pointillés entre deux morceaux différents ; « / » déplacé quand les morceaux sont égaux",
               cv[0] and cv[1] == "0" and '"2026-11-05"' in mc, [cv, mc])
         check("v546 R28 / R29 : CUMULÉ = une seule courbe ; ⚙ ouvre RÉGLAGES DE L'HISTOGRAMME ; PRODUITS et MARGE dans la légende",
-              nl == 1 and hw == "RÉGLAGES DE L'HISTOGRAMME" and pm[0] == '["c","p","g"]' and "PRODUITS" in pm[1] and "MARGE" in pm[1], [nl, hw, pm])
+              nl == 1 and hw == "RÉGLAGES DU GRAPHIQUE" and pm[0] == '["c","p","g"]' and "PRODUITS" in pm[1] and "MARGE" in pm[1], [nl, hw, pm])
         check("v546 R25 / R17 / R23 / R30 : histogramme caché à 0 ; JOUR / SEMAINE / MOIS dans CALENDRIER DU BUDGET ; SEMAINE remplit la largeur ; DATE DE FIN DU PROJET calculée",
               h0 == [True, 0] and sc0 == "JOUR*,SEMAINE,MOIS" and sw[0] == "s" and sw[1] > 9 and not inf[0] and inf[1] != "", [h0, sc0, sw, inf])
 

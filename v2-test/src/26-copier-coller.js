@@ -417,7 +417,7 @@
         const vw = DX.view();
         const ck = (v, lab, on, off) => `<button type="button" data-dly="${v}" class="dly-sc${on ? " on" : ""}${off ? " off" : ""}"${off ? ` data-why="${esc(off)}"` : ""}><span>${on ? "✓ " : ""}${lab}</span></button>`;
         m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">PLANNING</div>${ck("v-l", "AFFICHER PAR LOT", vw !== "d")}${ck("v-d", "AFFICHER PAR DÉBUT", vw === "d")}<button type="button" data-dly="sort"><span>CLASSER PAR DÉBUT</span></button>`
-          + `<div class="blk-sep"></div><div class="blk-hint">HISTOGRAMME</div><button type="button" data-dly="appr" class="${DX.hasSel() ? "" : "off"}"${DX.hasSel() ? "" : ' data-why="COCHER DES CHARGES : L\'APPROVISIONNEMENT PORTE SUR LES CHARGES COCHÉES."'}><span>APPROVISIONNEMENT PRÉVISIONNEL</span></button><div class="blk-sep"></div>`);
+          + `<button type="button" data-dly="add"><span>+ AJOUTER UNE TÂCHE OU SES DÉLAIS</span></button><div class="blk-sep"></div><div class="blk-hint">GRAPHIQUE</div><button type="button" data-dly="appr" class="${DX.hasSel() ? "" : "off"}"${DX.hasSel() ? "" : ' data-why="COCHER DES CHARGES : L\'APPROVISIONNEMENT PORTE SUR LES CHARGES COCHÉES."'}><span>APPROVISIONNEMENT PRÉVISIONNEL</span></button><div class="blk-sep"></div>`);
         let lp = null;
         m.addEventListener("pointerdown", e => { const so = e.target.closest("[data-dly].off[data-why]"); if (!so) return; lp = setTimeout(() => svToast(so.dataset.why, 4000, so), 550); });
         ["pointerup", "pointercancel"].forEach(t => m.addEventListener(t, () => clearTimeout(lp)));
@@ -428,7 +428,7 @@
           if (b.classList.contains("off")) { if (b.dataset.why) svToast(b.dataset.why, 3500, b); return; }
           m.remove();
           const v = b.dataset.dly;
-          if (v === "appr") DX.apprWin(); else if (v === "sort") DX.sortDeb();
+          if (v === "appr") DX.apprWin(); else if (v === "sort") DX.sortDeb(); else if (v === "add") DX.addWin();
           else if (v === "v-l" || v === "v-d") DX.viewSet(v.slice(2));
         }, true);
       }
