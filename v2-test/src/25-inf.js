@@ -5,7 +5,8 @@
     const infProj = () => {
       const ks = dlyKeys().filter(k => dlyDeb(k) && dlyFin(k));
       const deb = INS.pdeb || ks.map(dlyDeb).sort()[0] || INS.gdeb || "", pfin = ks.map(dlyFin).sort().pop() || "";
-      return { ks, deb, pfin, fin: INS.dobj || "" };
+      /* v546 (R30) : DATE DE FIN DU PROJET = fin du planning (plus de date objectif saisie) */
+      return { ks, deb, pfin, fin: pfin };
     };
     /* durée en jours du calendrier, début et fin compris : « 1 AN 2 MOIS 20 JOURS » */
     const infYMD = (a, b) => {
@@ -24,9 +25,9 @@
       const P = infProj();
       const din = (f, v, extra = "") => ed ? `<input class="doc-in inf-date" type="date" data-f="${f}" value="${esc(v)}"${extra}>` : `<span class="doc-in doc-ro inf-val">${esc(dFr(v))}</span>`;
       return `<span class="doc-lab">DATE DE DÉBUT DU PROJET${STAR}</span>${din("deb", P.deb)}
-        <span class="doc-lab">DATE DE FIN DU PROJET${STAR}<small class="inf-sub">(DATE OBJECTIF)</small></span><span class="inf-cell">${din("obj", P.fin, [P.deb ? ` min="${esc(P.deb)}"` : "", INS.dbut ? ` max="${esc(INS.dbut)}"` : ""].join(""))}<small class="inf-sub" data-v="pfin"></small></span>
+        <span class="doc-lab">DATE DE FIN DU PROJET<small class="inf-sub">(FIN DU PLANNING)</small></span><span class="inf-cell"><span class="doc-in doc-ro inf-val" data-v="pfin0">${esc(dFr(P.fin))}</span><small class="inf-sub" data-v="pfin"></small></span>
         <span class="doc-lab">DURÉE</span><span class="doc-in doc-ro inf-val" data-v="dur">${esc(infYMD(P.deb, P.fin))}</span>
-        <span class="doc-lab">DATE BUTOIR${STAR}</span>${din("but", INS.dbut || "", P.fin ? ` min="${esc(P.fin)}"` : "")}`;
+        <span class="doc-lab">DATE BUTOIR${STAR}</span>${din("but", INS.dbut || "")}`;
     };
     /* v477 (remarque 5) : rien n'est retenu avant ENREGISTRER — les dates saisies vont dans pend, appliquées par infApply */
     const infDatesBind = (p, ed, pend) => {
@@ -35,10 +36,10 @@
         const P = cur();
         const d = p.querySelector('[data-v="dur"]'), pf = p.querySelector('[data-v="pfin"]');
         if (d) d.textContent = infYMD(P.deb, P.fin);
-        if (pf) { pf.textContent = P.pfin ? "FIN DU PLANNING : " + dFr(P.pfin) : ""; pf.classList.toggle("inf-late", !!(P.pfin && ((P.but && P.pfin > P.but) || (P.fin && P.pfin > P.fin)))); }
+        if (pf) { pf.textContent = P.pfin && P.but && P.pfin > P.but ? "DÉPASSE LA DATE BUTOIR" : ""; pf.classList.toggle("inf-late", !!(P.pfin && ((P.but && P.pfin > P.but) || (P.fin && P.pfin > P.fin)))); }
         const io = p.querySelector('[data-f="obj"]'), ib = p.querySelector('[data-f="but"]');
         if (io) { if (P.but) io.setAttribute("max", P.but); else io.removeAttribute("max"); if (P.deb) io.setAttribute("min", P.deb); }
-        if (ib) { if (P.fin) ib.setAttribute("min", P.fin); else ib.removeAttribute("min"); }
+        if (ib) ib.removeAttribute("min");
       };
       paint();
       if (!ed) return;
@@ -82,7 +83,7 @@
       if (!String(budget.project || "").trim()) add("PROJET", true);
       if (!budget.inst.created) add("DATE CRÉATION", true);
       if (!P.deb) add("DATE DE DÉBUT DU PROJET", true);
-      if (!INS.dobj) add("DATE DE FIN DU PROJET", true);
+      /* v546 (R30) : DATE DE FIN DU PROJET calculée — n'est plus exigée */
       if (!INS.dbut) add("DATE BUTOIR", true);
       const it = String(budget.inst.intitule || "").trim();
       if (!it || it === "À COMPLÉTER") add("INTITULÉ", false);

@@ -7,11 +7,11 @@
       ["fin", "FIN", x => x.fin || "", "center"],
       ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "number"]
     ];
-    const DLY_W = { lot: 160, prim: 280, sec: 170, pred: 180, per: 120, deb: 90, fin: 90, dur: 80, marge: 70, jal: 62 };
+    const DLY_W = { lot: 160, prim: 280, sec: 170, pred: 180, succ: 180, per: 120, deb: 90, fin: 90, dur: 80, marge: 70, jal: 62 };
     /* budget en instance / figé : une ligne par période d'une TÂCHE SECONDAIRE (lot + activité secondaire) */
     const DLY_COLS_S = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ...DLY_COLS.slice(2)];
     /* planning : lot, activité secondaire, prédécesseurs, début, fin, durée */
-    const DLY_COLS_P = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ["pred", "PRÉDÉCESSEURS", x => x.pred || "", ""],
+    const DLY_COLS_P = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ["pred", "PRÉDÉCESSEURS", x => x.pred || "", ""], ["succ", "SUCCESSEURS", x => x.succ || "", ""],
       ["deb", "DÉBUT", x => x.deb || "", "center"], ["fin", "FIN", x => x.fin || "", "center"], ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "center"],
       ["marge", "BATTEMENT", x => x.marge === "" || x.marge === undefined ? "" : Number(x.marge), "center"], ["jal", "JALON", x => x.jal || "", "center"]];
     /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */
@@ -27,7 +27,16 @@
         <tbody>${rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}${del ? `<td class="center ins-cbc">${h.__cb || ""}</td>` : ""}</tr>`; }).join("")
           || ""}</tbody></table>`;
     };
-    const renderTab = () => { renderTab0(); sviMarkEmptyTabs(shell); };
+    /* v546 (R33) : bouton ↻ AJUSTER À LA CAPACITÉ, seulement sur DÉTAIL DÉLAIS ; grisé quand il n'y a rien à ajuster */
+    const dlyAdjPaint = () => {
+      const b = shell.querySelector(".blk-adj-btn"); if (!b) return;
+      const on = active === "dly" && INS_EDIT && !!shell.__insDly;
+      b.classList.toggle("dly-on", on);
+      if (!on) return;
+      let c = { ok: false, why: "" }; try { c = shell.__insDly.canComp(); } catch (e) {}
+      b.classList.toggle("off", !c.ok); if (c.ok) delete b.dataset.why; else b.dataset.why = c.why;
+    };
+    const renderTab = () => { renderTab0(); sviMarkEmptyTabs(shell); try { dlyAdjPaint(); } catch (e) {} };
     const renderTab0 = () => {
       shell
         .querySelectorAll("#bdgTabs .bdg-d-tab")
