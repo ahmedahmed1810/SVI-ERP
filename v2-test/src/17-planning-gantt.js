@@ -507,14 +507,15 @@
           const sr = scr.getBoundingClientRect(), top = gg.getBoundingClientRect().top - sr.top + scr.scrollTop;
           const addH = gg.nextElementSibling ? gg.nextElementSibling.getBoundingClientRect().height : 0;
           /* v545 (remarque 2) : hauteur VISIBLE du bloc (jamais sous le bas de l'écran) — planning et histogramme y tiennent ensemble */
-          const visH = Math.max(160, Math.min(scr.clientHeight, dlyVpB() - Math.max(0, sr.top)));
+          /* v550 : sans dépendre du défilement de la page (sinon, en glissant, le graphique grandissait sans fin) */
+          const visH = Math.max(160, scr.clientHeight);
           /* R12 : histogramme plein écran (à la place du Gantt) ou à la hauteur tirée à la poignée « = » */
-          const capH = Math.max(80, Math.floor(Math.min(sr.bottom, dlyVpB()) - tbl.querySelector("thead").getBoundingClientRect().bottom - 4));
+          const capH = Math.max(80, Math.floor(scr.clientHeight - top - thH - addH - 8));
           if (dlyHHGet() === "full") dlyHHpx = capH;
           else if (dlyHHpx) dlyHHpx = Math.max(28, Math.min(dlyHHpx, capH));
           const histH = hasH ? dlyHHpx : 0;
           /* les tâches en trop défilent dans le planning, sous l'histogramme gardé en bas de l'écran ; place gardée pour voir les dernières */
-          const ovB = rowsH > visH ? Math.max(0, Math.ceil(sr.bottom - dlyVpB())) : 0;
+          const ovB = 0;
           bodyH = Math.max(bodyH + ovB, Math.floor(visH - top - thH - histH - addH - 10));
         }
         const L = gg && gg.querySelector(".dlyg-l");
@@ -794,7 +795,8 @@
       if (!scr || !scr.classList.contains("dly-scroll")) return false;
       let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
       const tabs = document.getElementById("bdgTabs"), sr = scr.getBoundingClientRect();
-      const st = scr.closest(".max-detail") ? sr.top : lim + (tabs ? Math.max(0, sr.top - tabs.getBoundingClientRect().top) : 0);
+      /* bloc agrandi : sa place dans la page en haut de l'écran (sans dépendre du défilement) */
+      const st = scr.closest(".max-detail") ? sr.top + (window.scrollY || 0) : lim + (tabs ? Math.max(0, sr.top - tabs.getBoundingClientRect().top) : 0);
       const want = Math.max(240, Math.floor(dlyVpB() - st - 6));
       if (Math.abs((parseFloat(scr.style.height) || 0) - want) <= 1) return false;
       scr.style.setProperty("height", want + "px", "important");
@@ -806,10 +808,12 @@
       /* v548 : la hauteur suit les changements de mise en page (bloc agrandi / réduit, rotation, clavier) */
       { const sc = g.closest(".dly-scroll"), h = shell.querySelector("#dlyGantt"); if (sc && dlyFitScr(sc) && h) { h.__drawn = false; try { dlyGanttDraw(); } catch (e) {} return; } }
       const hist = g.querySelector("#dlyGantt .ghist"), lab = g.querySelector(".dlyh-lab"), hh = g.querySelector(".dlyg-hh"), gh = g.querySelector("#dlyGantt > .gh");
-      if (!hist) return;
+      /* v550 : graphique caché (poignée tout en bas) = la barre marron « = » reste au bas de l'écran */
+      const ref = hist || hh;
+      if (!ref) return;
       const els = [hist, lab, hh].filter(Boolean);
       const cur = el => { const m = /translateY\((-?[\d.]+)px\)/.exec(el.style.transform || ""); return m ? +m[1] : 0; };
-      const r = hist.getBoundingClientRect(), nb = r.bottom - cur(hist), nt = r.top - cur(hist);
+      const r = ref.getBoundingClientRect(), nb = r.bottom - cur(ref) + (hist ? 0 : 14), nt = r.top - cur(ref);
       const scr = g.closest(".bdg-d-scroll, .lk-scroll"), visB = Math.min(scr ? scr.getBoundingClientRect().bottom : 1e9, dlyVpB());
       const minT = gh ? gh.getBoundingClientRect().bottom : nt;
       const lift = g.classList.contains("dly-hfull") ? 0 : Math.max(0, Math.min(nb - visB, nt - minT));
