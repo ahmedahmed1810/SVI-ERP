@@ -365,11 +365,19 @@ const sviDpredTyped = d => {
   Object.keys(d.dpred).forEach(k => {
     const L = d.dpred[k] || [];
     if (L.some(x => typeof x === "string")) {
-      d.dpred[k] = L.map(x => typeof x === "string" ? { k: x, t: "FD", o: 0 } : x);
+      d.dpred[k] = L.map(x => typeof x === "string" ? { k: x, t: "FD", o: d.fdV2 ? 1 : 0 } : x);
       ch = true;
     }
   });
   return ch;
+};
+/* v544 (23/10/2026) : décalage FIN → DÉBUT — 0 = le jour même où finit la précédente, 1 = le lendemain, jamais négatif.
+   Avant : 0 = le lendemain, −1 = le même jour. Conversion unique (les dates ne bougent pas) : nouveau = ancien + 1 */
+const sviDpredV2 = d => {
+  if (!d || d.fdV2) return false;
+  Object.keys(d.dpred || {}).forEach(k => { d.dpred[k] = (d.dpred[k] || []).map(x => x && typeof x === "object" && x.t !== "DD" ? { ...x, o: Math.max(0, (Number(x.o) || 0) + 1) } : x); });
+  d.fdV2 = true;
+  return true;
 };
 /* ===== CALENDRIER DU BUDGET (15/10/2026) : jours non travaillés récurrents (0 = dimanche … 6 = samedi),
    dates non travaillées (off) et dates rendues travaillées (on). Par défaut : le dimanche. ===== */

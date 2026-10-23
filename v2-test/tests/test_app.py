@@ -690,7 +690,7 @@ def main():
             await new Promise(r => setTimeout(r, 300));
             const o1 = I.dord.filter(k => ['l1|s1', 'l1|s2', 'l2|s1'].includes(k));
             /* liaison FIN → DÉBUT, s2 collée à s1 : allonger s1 d'un jour = s2 suit, sans fenêtre */
-            I.dpred = {{ 'l1|s2': [{{ k: 'l1|s1', t: 'FD', o: 0 }}] }}; if (sh.__ins) {{}}
+            I.dpred = {{ 'l1|s2': [{{ k: 'l1|s1', t: 'FD', o: 1 }}] }}; if (sh.__ins) {{}}
             I.dlp['l1|s2'] = [{{ id: 'q2', deb: '2026-10-07', fin: '2026-10-08' }}];
             const LKd = D.draft(); Object.keys(LKd).forEach(k => delete LKd[k]);
             D.apply('l1|s1', {{ deb: '2026-10-05', fin: '2026-10-07' }}, {{ fromDur: true }});
@@ -1078,7 +1078,7 @@ def main():
         g5 = pg.evaluate(f"() => {{ const I = {ins}.INS, P = k => {{ const p = (I.dlp[k] || [])[0] || {{}}; return [p.deb, p.fin, !!p.dmd, !!p.fmd]; }}; return [P('l2|s1'), P('l2|s2'), P('l1|s1'), JSON.stringify(I.dpred['l2|s2'] || []), JSON.stringify(I.dpred['l1|s1'] || [])]; }}")
         check("v530 planning : GÉNÉRER — J-H ÷ ouvriers en demi-journées, tâche suivante dans la demi-journée libre, liaisons FIN → DÉBUT",
               g5[:3] == [["2026-11-02", "2026-11-03", False, False], ["2026-11-04", "2026-11-04", False, True], ["2026-11-04", "2026-11-05", True, False]]
-              and '"o":0' in g5[3] and '"o":-1' in g5[4], g5)
+              and '"o":1' in g5[3] and '"o":0' in g5[4], g5)
         # plafond coupé (appui long) puis morceau tiré : 4 ouvriers à partir du 04/11 ; COMPRESSER
         pg.evaluate("() => document.querySelector('.ghist')?.scrollIntoView({ block: 'center' })"); pg.wait_for_timeout(300)
         pl = pg.evaluate("() => { const g = document.querySelector('#dlyGantt .gplaf'); const h = document.querySelector('#dlyGantt'); if (!g) return null; const x0 = h.__d0; const r = g.getBoundingClientRect(); return [r.left, r.top, r.width, x0]; }")
@@ -1371,7 +1371,7 @@ def main():
         # lot glissé vers la gauche : prédécesseur hors du lot poussé ; début du projet atteint → AVANCER LE DÉBUT DU PROJET
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.forEach(r => {{ r.on = false; }});
             I.dlp = {{ 'l1|s1': [{{ id: 'a', deb: '2026-11-02', fin: '2026-11-03' }}], 'l2|s1': [{{ id: 'b', deb: '2026-11-04', fin: '2026-11-04' }}] }};
-            I.dpred = {{ 'l2|s1': [{{ k: 'l1|s1', t: 'FD', o: 0 }}] }}; I.dinc = {{}}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(500)
+            I.dpred = {{ 'l2|s1': [{{ k: 'l1|s1', t: 'FD', o: 1 }}] }}; I.dinc = {{}}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(500)
         p2 = pg.evaluate("() => { const t = document.querySelector('#bdgTabBody tr[data-key=\"l2|s1\"]'); let g = t && t.previousElementSibling; while (g && !g.classList.contains('dly-grp')) g = g.previousElementSibling; return g ? g.dataset.path : ''; }")
         pg.evaluate(f"p => {DXJ}.shiftGroup(p, -1)", p2); pg.wait_for_timeout(400)
         sw = pg.evaluate("() => [(document.querySelector('#svConf .svc-t') || {}).textContent || '']")
@@ -1463,6 +1463,9 @@ def main():
             I.chg = I.chg.filter(r => !/^n[123]$/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
         pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
 
+        # v544 : décalage FIN → DÉBUT — 0 = le jour même, 1 = le lendemain ; anciennes liaisons converties (dates inchangées)
+        mg = pg.evaluate("() => { const d = { dpred: { a: [{ k: 'x', t: 'FD', o: -1 }, { k: 'y', t: 'FD', o: 0 }, { k: 'z', t: 'DD', o: 2 }] } }; sviDpredV2(d); const again = sviDpredV2(d); return [d.dpred.a.map(x => x.o), d.fdV2, again]; }")
+        check("v544 : liaisons FIN → DÉBUT converties une fois (−1 → 0 = même jour, 0 → 1 = lendemain ; DÉBUT → DÉBUT inchangé)", mg == [[0, 1, 2], True, False], mg)
         # remarque 4 : conditionnement sur le titre des charges regroupées (pas sur leurs lignes), sur une charge seule ; réglage de l'article
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.push({{ id: 'm1', des: 'BRIQUE 8T', u: 'U', q: 100, p: 2 }}, {{ id: 'm2', des: 'BRIQUE 8T', u: 'U', q: 50, p: 2 }}, {{ id: 'm3', des: 'SABLE FIN', u: 'M3', q: 4, p: 150 }}); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(500)

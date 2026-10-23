@@ -2,12 +2,12 @@
        une tâche commence au plus tôt le jour de la fin de tous ses prédécesseurs ===== */
     const dlyName = key => { const [lo, se] = String(key).split("|"); return lkName("lot", lo) + " › " + lkName("sec", se); };
     /* liaisons typées : { k, t: FD | DD, o } (cahier, Planning budgétaire, Liaisons) */
-    const dlyLinks = key => ((INS.dpred || {})[key] || []).map(x => typeof x === "string" ? { k: x, t: "FD", o: 0 } : x);
+    const dlyLinks = key => ((INS.dpred || {})[key] || []).map(x => typeof x === "string" ? { k: x, t: "FD", o: 1 } : x);
     const dlyPreds = key => dlyLinks(key).map(x => x.k);
     const dlySuccs = key => Object.keys(INS.dpred || {}).filter(k => dlyLinks(k).some(x => x.k === key));
     const dlyLinkTxt = x => (x.t === "DD" ? "DD" : "FD") + "+" + (x.o || 0);
     /* PRÉDÉCESSEURS affichés : « LOT › ACTIVITÉ SECONDAIRE », avec le type et le décalage s'ils ne sont pas FIN → DÉBUT + 0 */
-    const dlyPredTxt = k => dlyLinks(k).map(x => dlyName(x.k) + (x.t === "DD" || x.o ? " (" + (x.t === "DD" ? "DÉBUT → DÉBUT" : "FIN → DÉBUT") + (x.o < 0 ? " − " + (-x.o) + " J, CHEVAUCHEMENT" : x.o ? " + " + x.o + " J" : "") + ")" : "")).join(" ; ");
+    const dlyPredTxt = k => dlyLinks(k).map(x => dlyName(x.k) + (x.t === "DD" ? (x.o ? " (DÉBUT → DÉBUT + " + x.o + " J)" : " (DÉBUT → DÉBUT)") : (x.o || 0) === 1 ? "" : " (FIN → DÉBUT" + (!(x.o > 0) ? ", MÊME JOUR" : " + " + x.o + " J") + ")")).join(" ; ");
     const dlyList = key => (LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
     const dlyFin = key => dlyList(key).map(p => p.fin).filter(Boolean).sort().pop() || "";
     const dlyDeb = key => dlyList(key).map(p => p.deb).filter(Boolean).sort()[0] || "";
@@ -17,8 +17,8 @@
       const cal = insCal();
       return dlyLinks(key).map(x => {
         if (x.t === "DD") { const d0 = debOf(x.k); return d0 ? sviWAdd(cal, sviWNear(cal, d0, 1), Math.max(0, x.o || 0)) : ""; }
-        /* v530 : décalage −1 (posé par GÉNÉRER / COMPRESSER) = la tâche peut commencer le jour même de la fin du prédécesseur */
-        const f0 = finOf(x.k); return f0 ? sviWAdd(cal, f0, 1 + Math.max(-1, x.o || 0)) : "";
+        /* v544 : FIN → DÉBUT, décalage 0 = le jour même où finit le prédécesseur, 1 = le lendemain… (jamais négatif) */
+        const f0 = finOf(x.k); return f0 ? sviWAdd(cal, f0, Math.max(0, x.o || 0)) : "";
       }).filter(Boolean).sort().pop() || "";
     };
     const dlyPredFin = key => dlyNeedOf(key, dlyFin, dlyDeb);
@@ -283,7 +283,7 @@
       INS.dpred = INS.dpred || {};
       const L = INS.dpred[succ] = (INS.dpred[succ] || []).map(x => typeof x === "string" ? { k: x, t: "FD", o: 0 } : x);
       if (L.some(x => x.k === pred)) { dlyLinkWin(pred, succ); return; }
-      L.push({ k: pred, t, o: 0 });
+      L.push({ k: pred, t, o: t === "FD" ? 1 : 0 });   /* v544 : FIN → DÉBUT créée au doigt = le lendemain */
       insSave();
       histLog("DÉLAIS", "LIAISON", dlyName(pred) + " → " + dlyName(succ) + " (" + (t === "DD" ? "DÉBUT → DÉBUT" : "FIN → DÉBUT") + ")");
       dlyAfterLink(succ);
@@ -309,6 +309,7 @@
         <div class="svc-sub">${esc(dlyName(pred))} → ${esc(dlyName(succ))}</div>
         <div class="bdt-row"><span>TYPE</span><select class="lkw-t"><option value="FD"${l.t !== "DD" ? " selected" : ""}>FIN → DÉBUT</option><option value="DD"${l.t === "DD" ? " selected" : ""}>DÉBUT → DÉBUT</option></select></div>
         <div class="bdt-row"><span>DÉCALAGE (J)</span><input class="lkw-o" inputmode="numeric" value="${Math.max(0, Number(l.o) || 0)}"></div>
+        <div class="svc-sub lkw-hint">FIN → DÉBUT : 0 = LE JOUR MÊME OÙ FINIT LA PRÉCÉDENTE, 1 = LE LENDEMAIN, 2 = UN JOUR LIBRE ENTRE LES DEUX.</div>
         <div class="svc-f"><button type="button" class="svc-b svc-ok lkw-del">✕ DÉLIER</button><span style="flex:1"></span><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
       document.getElementById("svConf")?.remove();
       document.body.appendChild(d);
@@ -363,7 +364,7 @@
       if (late.length) {
         const fromDur = opts.fromDur || (durOld && q.deb && q.fin && sviWDur(cal, q.deb, q.fin) !== durOld);
         const maxFin = dlySuccs(task).map(S => { const l = dlyLinks(S).find(x => x.k === task), d0 = dlyDeb(S);
-          return l && l.t !== "DD" && d0 ? sviWAdd(cal, d0, -(1 + Math.max(-1, l.o || 0))) : ""; }).filter(Boolean).sort()[0] || "";
+          return l && l.t !== "DD" && d0 ? sviWAdd(cal, d0, -Math.max(0, l.o || 0)) : ""; }).filter(Boolean).sort()[0] || "";
         const canCut = fromDur && maxFin && q.deb && maxFin >= q.deb;
         svChoose({ title: "TÂCHES SUIVANTES", html: `<div class="svc-sub">LA FIN DU ${esc(dFr(q.fin))} NE RESPECTE PLUS LA LIAISON AVEC :</div><ul class="svc-list">${late.map(k => `<li>${esc(dlyName(k))} — DÉBUT ${esc(dFr(dlyDeb(k)))}, AU PLUS TÔT ${esc(dFr(dlyPredFin(k)))}${esc(hidTxt(k))}</li>`).join("")}</ul>`,
           buttons: [...(canCut ? [{ v: "cut", label: "RÉDUIRE LA DURÉE", tone: "neutral" }] : []), { v: "shift", label: "DÉCALER LES TÂCHES SUIVANTES", tone: "neutral" }] }).then(r => {
@@ -973,7 +974,7 @@
       /* type et décalage de chaque liaison (FIN → DÉBUT, 0 par défaut ; jamais négatif) */
       const meta = {};
       if (!add) dlyLinks(key).forEach(x => { meta[x.k] = { t: x.t === "DD" ? "DD" : "FD", o: Math.max(0, Number(x.o) || 0) }; });
-      const mt = k => meta[k] || (meta[k] = { t: "FD", o: 0 });
+      const mt = k => meta[k] || (meta[k] = { t: "FD", o: 1 });
       let lot = ([...sel][0] || "").split("|")[0] || (INS.lot.find(x => !x.t) || {}).id || "";
       const d = document.createElement("div");
       d.id = "svConf";
@@ -2135,7 +2136,7 @@
               const pdur = pc.fin ? sviWDur(cal, pc.deb, pc.fin) || 1 : 0;
               let nf = null;
               if (x.t === "DD") { const lim = sviWAdd(cal, sviWNear(cal, c.deb, 1), -Math.max(0, x.o || 0)); if (pc.deb > lim) nf = { deb: lim }; }
-              else { const lim = sviWAdd(cal, c.deb, -(1 + Math.max(-1, x.o || 0))), f = pc.fin || pc.deb; if (f > lim) nf = { fin: sviWNear(cal, lim, -1) }; }
+              else { const lim = sviWAdd(cal, c.deb, -Math.max(0, x.o || 0)), f = pc.fin || pc.deb; if (f > lim) nf = { fin: sviWNear(cal, lim, -1) }; }
               if (!nf) return;
               if (nf.deb) N[x.k] = { deb: nf.deb, fin: pdur ? sviWFin(cal, nf.deb, pdur) : "" };
               else N[x.k] = pdur ? { deb: sviWDeb(cal, nf.fin, pdur), fin: nf.fin } : { deb: nf.fin, fin: "" };
