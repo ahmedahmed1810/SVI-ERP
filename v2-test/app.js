@@ -9644,7 +9644,7 @@ function renderBudgetList() {
             + (() => {
               /* v443 : nom du lot dans sa barre quand il y tient en entier (comme les tâches), sinon juste à droite */
               const LB = x.lab || lotLab(dlyLotPath(x.path)), bw = r - 5 - l, need = dlyTxtW(LB.full) + (x.lvl ? 14 : 0) + 16, inb = l > 0 && bw >= need;
-              return `<span class="gb-n gb-out gb-grp gb-ren${inb ? " gb-gin" : ""}${x.fold ? " gb-gfd" : ""}" data-path="${esc(x.path)}" style="left:${inb ? l + 4 : r + x.lvl * 14}px;top:${ty}px;--c:${gcolOf()}">${x.lvl ? '<span class="gb-lv">↳</span>' : ""}${lotNoHTML(LB)}${esc(LB.name)}</span>`;
+              return `<span class="gb-n gb-out gb-grp gb-ren${inb ? " gb-gin" : ""}${x.fold ? " gb-gfd" : ""}" data-path="${esc(x.path)}" style="left:${inb ? l + 4 : r + x.lvl * 14}px;top:${ty}px;--c:${gcolOf()}">${x.lvl ? '<span class="gb-lv">↳</span>' : ""}${lotNoHTML(LB)}${esc(LB.name)}</span>`.replace(x.fold ? `top:${ty}px;--c` : "@@", `top:${y}px;height:${BH}px;line-height:${BH}px;font-size:${Math.max(8, Math.min(11, BH - 2))}px;--c`);
             })();
           const gcolOf = () => dlyLotColor((x.all.find(t => t.lo) || {}).lo);
           if (!segs.length) { bars += gname(17, 20); return; }
@@ -9816,7 +9816,7 @@ function renderBudgetList() {
             + `<div class="grng${RG.b ? "" : " grng-off"}" data-r="b" style="left:${xb}px"><span>FIN${RG.b ? " " + dFr(RG.b).slice(0, 5) : ""}</span></div>`
             + (RG.a || RG.b || VL.min !== null || VL.max !== null ? `<div class="grng-tot" style="left:${(xa + xb) / 2}px">${fmtA(sum)} ${esc(HD.unit)}</div>` : "");
           /* R20 : lignes MIN et MAX (filtre par valeur, sur les charges) */
-          const vl = (r, v, off) => `<div class="gval${off ? " gval-off" : ""}" data-v="${r}" style="top:${off ? (r === "max" ? 2 : Y0 - 1) : Y0 - v * sc}px"><span>${r.toUpperCase()}${off ? "" : " " + fmtA(v)}</span></div>`;
+          const vl = (r, v, off) => `<div class="gval${off ? " gval-off" : ""}" data-v="${r}" style="top:${off ? (r === "max" ? 22 : Y0 - 1) : Y0 - v * sc}px"><span>${r.toUpperCase()}${off ? "" : " " + fmtA(v)}</span></div>`;
           const vals = multi ? "" : vl("max", VL.max, VL.max === null) + vl("min", VL.min, VL.min === null);
           /* échelle (R24) : unité en tête, nombres abrégés, toujours visible à gauche */
           const stp = (() => { const raw = top / 4, p = Math.pow(10, Math.floor(Math.log10(raw || 1))), m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; })();
@@ -10027,8 +10027,9 @@ function renderBudgetList() {
           /* v546 (R26) : plus de bandeau VUE PAR DÉBUT (la vue se choisit dans le menu ⋯) */
           const viewB = "";
           const isoB = viewB + (PR.iso ? `<div class="dly-iso"><span>ISOLÉ : <b>${esc(lotLab(dlyLotPath(PR.iso)).full)}</b></span><small>LIAISONS, DÉCALAGES ET CALENDRIER RESTENT APPLIQUÉS · TÂCHES LIÉES HORS DE LA BRANCHE EN GRIS (LECTURE SEULE)</small><button type="button" class="dly-iso-x">TOUT AFFICHER</button></div>` : "");
-          return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur de l'histogramme">=</span>${dlyHHGet() !== 0 ? `<span class="dlyhh-cfg" role="button" title="RÉGLAGES DE L'HISTOGRAMME">⚙</span>` : ""}</div>` : ""}</div>`
-            + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE OU SES DÉLAIS</button></div>`;
+          return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur du graphique">=</span>${dlyHHGet() !== 0 ? `<span class="dlyhh-cfg" role="button" title="RÉGLAGES DU GRAPHIQUE">⚙</span>` : ""}</div>` : ""}</div>`
+            /* v549 : plus de bouton « + AJOUTER UNE TÂCHE OU SES DÉLAIS » sous le planning (ligne SAISIR ICI… et menu ⋯) */
+            ;
         }
       }
       const all = [];
@@ -12192,7 +12193,7 @@ function renderBudgetList() {
       d.id = "svConf";
       d.innerHTML = `<div class="svc-card hcf-card" role="dialog" aria-modal="true">
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
-        <div class="svc-t">RÉGLAGES DE L'HISTOGRAMME</div>
+        <div class="svc-t">RÉGLAGES DU GRAPHIQUE</div>
         <div class="bdt-row"><span>UNITÉ</span><span class="cmd-g">${rad("hcu", "q", "QUANTITÉ", h.u === "q" && q, !q)}${rad("hcu", "m", "MONTANT (DH)", h.u !== "q" || !q)}</span></div>
         <div class="bdt-row"><span>AFFICHAGE</span><span class="cmd-g">${rad("hca", "j", "JOUR PAR JOUR", h.aff !== "c")}${rad("hca", "c", "CUMULÉ", h.aff === "c")}</span></div>
         <div class="bdt-row"><span>DÉPART DU CUMUL</span><span class="cmd-g">${rad("hcc", "r", "RELATIF", h.cum !== "a")}${rad("hcc", "a", "ABSOLU", h.cum === "a")}</span></div>
@@ -12212,7 +12213,7 @@ function renderBudgetList() {
         const v = n => (d.querySelector(`input[name="${n}"]:checked`) || {}).value;
         INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc) };
         d.remove();
-        insSave(); histLog("DÉLAIS", "RÉGLAGES DE L'HISTOGRAMME", c.map(x => ({ c: "CHARGES", p: "PRODUITS", g: "MARGE" })[x]).join(" + ")); renderTabK();
+        insSave(); histLog("DÉLAIS", "RÉGLAGES DU GRAPHIQUE", c.map(x => ({ c: "CHARGES", p: "PRODUITS", g: "MARGE" })[x]).join(" + ")); renderTabK();
       });
     };
     /* v547 (R22, FORMAT 196) : fenêtre MORCEAUX d'une tâche coupée — DÉBUT, FIN, DURÉE de chaque morceau, ✕, + AJOUTER UN MORCEAU, RECOLLER */
@@ -20125,7 +20126,7 @@ function renderBudgetList() {
         const vw = DX.view();
         const ck = (v, lab, on, off) => `<button type="button" data-dly="${v}" class="dly-sc${on ? " on" : ""}${off ? " off" : ""}"${off ? ` data-why="${esc(off)}"` : ""}><span>${on ? "✓ " : ""}${lab}</span></button>`;
         m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">PLANNING</div>${ck("v-l", "AFFICHER PAR LOT", vw !== "d")}${ck("v-d", "AFFICHER PAR DÉBUT", vw === "d")}<button type="button" data-dly="sort"><span>CLASSER PAR DÉBUT</span></button>`
-          + `<div class="blk-sep"></div><div class="blk-hint">HISTOGRAMME</div><button type="button" data-dly="appr" class="${DX.hasSel() ? "" : "off"}"${DX.hasSel() ? "" : ' data-why="COCHER DES CHARGES : L\'APPROVISIONNEMENT PORTE SUR LES CHARGES COCHÉES."'}><span>APPROVISIONNEMENT PRÉVISIONNEL</span></button><div class="blk-sep"></div>`);
+          + `<button type="button" data-dly="add"><span>+ AJOUTER UNE TÂCHE OU SES DÉLAIS</span></button><div class="blk-sep"></div><div class="blk-hint">GRAPHIQUE</div><button type="button" data-dly="appr" class="${DX.hasSel() ? "" : "off"}"${DX.hasSel() ? "" : ' data-why="COCHER DES CHARGES : L\'APPROVISIONNEMENT PORTE SUR LES CHARGES COCHÉES."'}><span>APPROVISIONNEMENT PRÉVISIONNEL</span></button><div class="blk-sep"></div>`);
         let lp = null;
         m.addEventListener("pointerdown", e => { const so = e.target.closest("[data-dly].off[data-why]"); if (!so) return; lp = setTimeout(() => svToast(so.dataset.why, 4000, so), 550); });
         ["pointerup", "pointercancel"].forEach(t => m.addEventListener(t, () => clearTimeout(lp)));
@@ -20136,7 +20137,7 @@ function renderBudgetList() {
           if (b.classList.contains("off")) { if (b.dataset.why) svToast(b.dataset.why, 3500, b); return; }
           m.remove();
           const v = b.dataset.dly;
-          if (v === "appr") DX.apprWin(); else if (v === "sort") DX.sortDeb();
+          if (v === "appr") DX.apprWin(); else if (v === "sort") DX.sortDeb(); else if (v === "add") DX.addWin();
           else if (v === "v-l" || v === "v-d") DX.viewSet(v.slice(2));
         }, true);
       }

@@ -464,7 +464,7 @@
       d.id = "svConf";
       d.innerHTML = `<div class="svc-card hcf-card" role="dialog" aria-modal="true">
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
-        <div class="svc-t">RÉGLAGES DE L'HISTOGRAMME</div>
+        <div class="svc-t">RÉGLAGES DU GRAPHIQUE</div>
         <div class="bdt-row"><span>UNITÉ</span><span class="cmd-g">${rad("hcu", "q", "QUANTITÉ", h.u === "q" && q, !q)}${rad("hcu", "m", "MONTANT (DH)", h.u !== "q" || !q)}</span></div>
         <div class="bdt-row"><span>AFFICHAGE</span><span class="cmd-g">${rad("hca", "j", "JOUR PAR JOUR", h.aff !== "c")}${rad("hca", "c", "CUMULÉ", h.aff === "c")}</span></div>
         <div class="bdt-row"><span>DÉPART DU CUMUL</span><span class="cmd-g">${rad("hcc", "r", "RELATIF", h.cum !== "a")}${rad("hcc", "a", "ABSOLU", h.cum === "a")}</span></div>
@@ -484,7 +484,7 @@
         const v = n => (d.querySelector(`input[name="${n}"]:checked`) || {}).value;
         INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc) };
         d.remove();
-        insSave(); histLog("DÉLAIS", "RÉGLAGES DE L'HISTOGRAMME", c.map(x => ({ c: "CHARGES", p: "PRODUITS", g: "MARGE" })[x]).join(" + ")); renderTabK();
+        insSave(); histLog("DÉLAIS", "RÉGLAGES DU GRAPHIQUE", c.map(x => ({ c: "CHARGES", p: "PRODUITS", g: "MARGE" })[x]).join(" + ")); renderTabK();
       });
     };
     /* v547 (R22, FORMAT 196) : fenêtre MORCEAUX d'une tâche coupée — DÉBUT, FIN, DURÉE de chaque morceau, ✕, + AJOUTER UN MORCEAU, RECOLLER */
