@@ -1189,7 +1189,9 @@
         const rest = lotTreeOrder(L.filter(x => !mv.includes(x)));
         const nodeOf = tEl.classList.contains("lot-grp") ? lotSegs({ v: tEl.dataset.path }) : null;
         const tId = tEl.dataset.iid;
-        const under = r => nodeOf ? lotUnder(r, nodeOf) : r.id === tId || lotUnder(r, lotSegs(L.find(x => x.id === tId)));
+        /* v536 : nouveau titre (ligne visée renommée) : le bloc se place juste après les lignes de la ligne visée, là où elles étaient
+           (avant : chemin d'avant le renommage introuvable → nouveau titre envoyé en haut du tableau) */
+        const under = r => keepIds.size ? keepIds.has(r.id) : nodeOf ? lotUnder(r, nodeOf) : r.id === tId || lotUnder(r, lotSegs(L.find(x => x.id === tId)));
         let idx;
         if (mode === "gap") {
           const pv = gap.prev;
