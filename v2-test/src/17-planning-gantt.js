@@ -872,7 +872,7 @@
             : x.ext
             ? { lot: "", sec: `<span class="dly-lotc dly-extn" ${ind(0)}>${esc(lotLab(dlyLotPath(x.lot)).full)} › ${esc(x.sec)}</span>`, pred: esc(x.pred), deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur === "" ? "" : x.dur,
                 marge: x.marge === "" ? "" : x.marge, jal: x.jal ? "★" : "", __cb: "", __td_marge: " dly-calc" }
-            : { lot: "", sec: `<span class="dly-lotc" ${ind(x.lvl)}>${nm("sec", `data-sid="${esc(x.key.split("|")[1])}"`, x.sec)}</span>`, pred: `<span class="dly-pred" data-key="${esc(x.key)}">${esc(x.pred) || "<i>CHOISIR…</i>"}</span>`,
+            : { lot: "", sec: `<span class="dly-lotc" ${ind(x.lvl)}>${INS_EDIT ? `<span class="lk-rd dly-rd${LK.lot === x.key.split("|")[0] && LK.sec === x.key.split("|")[1] ? " on" : dlyPicked(x.key) ? " lnk" : ""}" data-dkey="${esc(x.key)}" role="button" aria-label="Voir ce qui est lié à la tâche"></span>` : ""}${nm("sec", `data-sid="${esc(x.key.split("|")[1])}"`, x.sec)}</span>`, pred: `<span class="dly-pred" data-key="${esc(x.key)}">${esc(x.pred) || "<i>CHOISIR…</i>"}</span>`,
                 deb: dlyCellIn(x, "deb"), fin: dlyCellIn(x, "fin"), dur: dlyCellIn(x, "dur"), marge: x.marge === "" ? "" : x.marge,
                 __td_deb: INS_EDIT ? " ins-td" : "", __td_fin: INS_EDIT ? " ins-td" : "", __td_dur: INS_EDIT ? " ins-td" : "",
                 jal: `<span class="dly-jal${x.jal ? " on" : ""}" data-key="${esc(x.key)}">${x.jal ? "★" : "☆"}</span>`, __td_marge: " dly-calc",
@@ -1306,7 +1306,8 @@
           else if (c.dataset.path) { const g = R.find(x => x.grp && x.path === c.dataset.path); keys = g ? g.all.map(t => t.key) : []; }
           else keys = [c.dataset.key];
           keys.forEach(k => { if (c.checked) S.add(k); else S.delete(k); });
-          X.render();
+          /* v537 : les autres blocs suivent (filtre des cases cochées) */
+          refreshAll();
           return;
         }
         const n = e.target.closest && e.target.closest("input.dly-nm:not(.dly-gin)");
