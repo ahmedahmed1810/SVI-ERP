@@ -180,9 +180,9 @@
           const P = S[x.k];
           if (!P) return;
           if (x.t === "DD") e = Math.max(e, slotOf(sviWAdd(cal, D[x.k].deb, Math.max(0, x.o || 0))) + (D[x.k].dm ? 1 : 0));
-          else if ((x.o || 0) <= -1) e = Math.max(e, hasR(x.k) && P.b >= P.a ? P.b : P.b + 1);
-          else if (!x.o) e = Math.max(e, P.b + 1);
-          else e = Math.max(e, slotOf(sviWAdd(cal, D[x.k].fin || D[x.k].deb, 1 + x.o)));
+          /* v544 : 0 = le jour même (dès qu'il reste des ouvriers libres), n = n jours travaillés après la fin */
+          else if (!(x.o > 0)) e = Math.max(e, hasR(x.k) && P.b >= P.a ? P.b : P.b + 1);
+          else e = Math.max(e, slotOf(sviWAdd(cal, D[x.k].fin || D[x.k].deb, x.o)));
         });
         /* une seule date : elle sert d'ancrage (R26) */
         const d0 = deb(k), f0 = dlyFin(k);
@@ -195,10 +195,10 @@
       });
       return { D, S, links, lim };
     };
-    /* décalage d'une liaison FIN → DÉBUT créée : jours travaillés entre la fin de a et le début de b ; −1 = même jour */
+    /* décalage d'une liaison FIN → DÉBUT créée (v544) : 0 = le jour même où finit a, 1 = le lendemain… */
     const dlyChainO = (a, b, D) => {
       const cal = insCal(), fa = D[a].fin || D[a].deb, db = D[b].deb;
-      return db > fa ? Math.max(0, (Number(sviWDur(cal, fa, db)) || 2) - 2) : -1;
+      return db > fa ? Math.max(1, (Number(sviWDur(cal, fa, db)) || 2) - 1) : 0;
     };
     /* y a-t-il quelque chose à gagner ? (R27) */
     const dlyCanCompress = () => {
