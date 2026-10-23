@@ -1207,6 +1207,25 @@ def main():
         check("v534 : titre RDC BA posé sur le titre RDC HAUT = un nouveau titre GROUPE qui contient les deux ; destination en jaune",
               y4 == [True, "rgb(253, 230, 138)"] and len(top) == 1 and list(top)[0].startswith("GROUPE") and all(" / RDC HAUT / " in v or " / RDC BA / " in v for v in v4), [y4, v4])
 
+        # ===== v535 : un sous-titre posé sur son titre parent = nouveau titre où les deux sont au même rang =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id));
+            I.lot.push({{ id: 'm1', v: 'RDC / ESC' }}, {{ id: 'm2', v: 'RDC / HAUT / SDB' }}, {{ id: 'm3', v: 'RDC / HAUT / TOIT' }}); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        for _ in range(6):
+            if not pg.evaluate(UNF): break
+            pg.wait_for_timeout(250)
+        pg.evaluate("""() => { const c = document.querySelector('.ins-hcol[data-ik="lot"]'); c.style.maxHeight = 'none'; c.style.height = 'auto'; c.scrollIntoView({ block: 'center' }); }"""); pg.wait_for_timeout(200)
+        s5 = pg.evaluate("""() => { const i = document.querySelector('.lot-grp[data-path="RDC / HAUT"] input.lot-gname').getBoundingClientRect(); return [i.left + 30, i.top + i.height / 2]; }""")
+        t5 = pg.evaluate("""() => { const r = document.querySelector('.ins-li[data-iid="l1"]').getBoundingClientRect(); return r.top + r.height / 2; }""")
+        pg.mouse.move(s5[0], s5[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+        pg.mouse.move(s5[0], t5 + 3, steps=6); pg.wait_for_timeout(100); pg.mouse.move(s5[0], t5, steps=2); pg.wait_for_timeout(150)
+        pg.mouse.up(); pg.wait_for_timeout(700); pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(300)
+        v5 = pg.evaluate(f"() => {ins}.INS.lot.filter(r => /^(m|l1)/.test(r.id)).map(r => r.v)")
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => !/^m/.test(r.id)); I.lot.find(r => r.id === 'l1').v = 'RDC'; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        g5 = v5[0].split(" / ")[0] if v5 else ""
+        check("v535 : sous-titre HAUT posé sur son parent RDC = nouveau titre GROUPE avec RDC et HAUT au même rang",
+              g5.startswith("GROUPE") and sorted(v5) == sorted([g5 + " / RDC", g5 + " / RDC / ESC", g5 + " / HAUT / SDB", g5 + " / HAUT / TOIT"]), v5)
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

@@ -6829,7 +6829,8 @@ function renderBudgetList() {
       let base, extra = null, N = "";
       if (mode === "gap") base = !gap.prev ? [] : gap.inStart ? gap.prev.slice() : gap.prev.slice(0, gap.D);
       /* v534 : un lot posé sur un titre entre dans ce titre ; un TITRE posé sur un autre titre = nouveau titre qui regroupe les deux */
-      else if (mode === "on" && tEl.classList.contains("lot-grp") && (!gP || (tSegs.length < P.length && tSegs.every((g, i) => U_(g) === U_(P[i]))))) base = tSegs;
+      /* v535 : un titre posé sur son propre titre parent = nouveau titre où les deux se retrouvent au même rang */
+      else if (mode === "on" && tEl.classList.contains("lot-grp") && !gP) base = tSegs;
       else if (mode === "on") {
         N = insNextLevel(tSegs.slice(0, -1));
         base = tSegs.slice(0, -1).concat(N);
@@ -6838,8 +6839,9 @@ function renderBudgetList() {
       if (base.length >= P.length && P.every((g, i) => U_(g) === U_(base[i]))) return;   /* pas dans sa propre branche */
       const plan = new Map();
       const add = (P0, b0) => L.filter(x => !x.t && lotUnder(x, P0)).forEach(x => { plan.set(x.id, b0.concat(lotSegs(x).slice(P0.length - 1)).join(" / ")); });
-      add(P, base);
+      /* la ligne visée d'abord, la ligne déplacée ensuite (elle sort de son parent si on l'a posée sur lui) */
       if (extra) add(extra.P, extra.base);
+      add(P, base);
       /* v531 : lots de la ligne visée (nouveau titre) repérés AVANT le renommage — ils restent à leur place, le bloc déplacé vient à côté
          (avant : le nouveau titre partait en haut de la liste) */
       const keepIds = new Set(extra ? L.filter(x => !x.t && lotUnder(x, extra.P) && !lotUnder(x, P)).map(x => x.id) : []);
