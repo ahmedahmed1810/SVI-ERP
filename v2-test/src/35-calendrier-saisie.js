@@ -218,9 +218,29 @@ const sviKeepVisible = el => {
   const tb = document.querySelector(".topbar");
   if (tb && /sticky|fixed/.test(getComputedStyle(tb).position)) top = Math.max(top, tb.getBoundingClientRect().bottom);
   const r = td.getBoundingClientRect();
+  /* v546 (R32) : dans le PLANNING, la page ne glisse pas — c'est le planning qui défile (au-dessus du clavier et de l'histogramme) */
+  const dsc = td.closest && td.closest(".dly-scroll");
+  if (dsc) {
+    const hi = dsc.querySelector("#dlyGantt .ghist"), hb = hi ? hi.getBoundingClientRect().top : 1e9;
+    const lim = Math.min(bottom, hb - 4), dt = dsc.getBoundingClientRect().top + 60;
+    if (r.bottom > lim) dsc.scrollTop += r.bottom - lim + 8;
+    else if (r.top < dt) dsc.scrollTop -= dt - r.top + 8;
+    return;
+  }
   if (r.bottom > bottom) window.scrollBy(0, r.bottom - bottom + 30);
   else if (r.top < top + 4) window.scrollBy(0, r.top - top - 40);
 };
+/* v546 (R32) : saisie dans le PLANNING — si l'iPad fait glisser la page en ouvrant le clavier, elle est remise en place */
+{
+  let Y = null, T = 0;
+  document.addEventListener("pointerdown", e => { if (e.target.closest && e.target.closest(".dly-scroll")) { Y = window.scrollY; T = Date.now(); } }, true);
+  document.addEventListener("focusin", e => {
+    const el = e.target;
+    if (Y === null || Date.now() - T > 1500 || !el.closest || !el.closest(".dly-scroll") || !el.matches("input, textarea")) return;
+    const y = Y;
+    [60, 350, 700].forEach(ms => setTimeout(() => { if (document.activeElement === el && Math.abs(window.scrollY - y) > 2) { window.scrollTo(0, y); sviKeepVisible(el); } }, ms));
+  });
+}
 {
   let raf = 0;
   const SEL = ".ins-table input, .ins-table textarea, .ins-hcol input, .sd-t input, .dly-table input, .qq-table input, .inc-table input, .prm-table input";

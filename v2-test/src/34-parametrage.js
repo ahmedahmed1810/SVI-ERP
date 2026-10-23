@@ -331,6 +331,7 @@ function sviBdgCalWin(iso) {
       <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
       <div class="svc-t">CALENDRIER DU BUDGET</div>
       <div class="svc-sub">${esc(L.ref || "")}</div>
+      ${window.__sviDlyScale ? `<div class="bcal-sc"><span>AFFICHAGE DU GANTT</span>${[["j", "JOUR"], ["s", "SEMAINE"], ["m", "MOIS"]].map(([v, l]) => `<button type="button" data-sc="${v}" class="${window.__sviDlyScale.get() === v ? "on" : ""}">${l}</button>`).join("")}</div>` : ""}
       <div class="bcal-h"><button type="button" data-m="-1" aria-label="Mois précédent">‹</button><b>${SVI_MOIS[m]} ${y}</b><button type="button" data-m="1" aria-label="Mois suivant">›</button></div>
       <div class="bcal-w"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
       <div class="bcal-g">${cells}</div>
@@ -353,6 +354,9 @@ function sviBdgCalWin(iso) {
   });
   d.addEventListener("click", e => {
     if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+    /* v546 (R17) : affichage du Gantt choisi ici (aussitôt, sans ENREGISTRER) */
+    const sb = e.target.closest("[data-sc]");
+    if (sb && window.__sviDlyScale) { window.__sviDlyScale.set(sb.dataset.sc); draw(); return; }
     const mb = e.target.closest("[data-m]");
     if (mb) { cur.setMonth(cur.getMonth() + Number(mb.dataset.m)); draw(); return; }
     const db = e.target.closest("[data-d]");

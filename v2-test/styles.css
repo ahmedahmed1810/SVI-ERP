@@ -2274,3 +2274,42 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .gplaf.gcap-zero .gplaf-v::before { background: #101828; }
 .gplaf.gcap-inf .gplaf-v::before { background: #98a2b3; }
 .gplaf.gcap-inf .gplaf-v { margin-top: -10px; }
+
+/* ===== v546 (remarques 14 à 35) ===== */
+/* R25 : poignée « = » tout en bas = histogramme entièrement caché */
+.dlyg.dly-hnone #dlyGantt .ghist { display: none; }
+/* R29 : ⚙ réglages de l'histogramme, en haut à droite de l'histogramme */
+.dlyhh-cfg { pointer-events: auto; position: absolute; right: 8px; top: 9px; width: 24px; height: 24px; border-radius: 7px; background: #fff; border: 1px solid #d0d5dd; color: #344054; font-size: 14px; line-height: 22px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.15); cursor: pointer; }
+.dlyhh-cfg::after { content: ""; position: absolute; inset: -8px; }
+/* R16 : étiquette d'un lot replié = couleur de sa barre */
+#dlyGantt .gb-grp.gb-gfd { background: var(--c); color: #101828; border-radius: 6px; padding: 0 6px; }
+/* R19 : « / » traversé par la barre ; trait vertical en pointillés entre deux morceaux */
+.gcut { font-size: 20px; line-height: 20px; padding: 0 3px; text-align: center; }
+.gcut-v { position: absolute; width: 0; border-left: 2px dashed #b42318; z-index: 4; pointer-events: none; }
+/* R20 : valeur au-dessus de chaque morceau de la capacité */
+.gseg-v { position: absolute; transform: translateX(-50%); z-index: 5; font-size: 10px; font-weight: 800; color: #344054; background: rgba(255,255,255,.9); padding: 0 4px; border-radius: 3px; white-space: nowrap; pointer-events: none; }
+/* R24 : légende à droite de l'échelle ; unité en tête de l'échelle */
+.ghist-leg { left: 44px; }
+.ghist-ax .gax-u { position: absolute; left: 0; top: 2px; font-size: 8px; font-weight: 800; color: #475467; background: rgba(255,255,255,.9); padding: 0 3px; white-space: nowrap; }
+.gplaf-v { left: 44px; }
+/* R29 : barres côte à côte (CHARGES, PRODUITS, MARGE) */
+.ghb.ghb-m { border-radius: 1px; }
+/* R15 : bulle — une ligne par tâche, largeur de la plus longue */
+#dlyHb { width: max-content; max-width: calc(100vw - 24px); overflow-x: auto; }
+#dlyHb > div { white-space: nowrap; }
+/* R17 : AFFICHAGE DU GANTT dans CALENDRIER DU BUDGET */
+.bcal-sc { display: flex; align-items: center; gap: 6px; margin: 6px 0 8px; font-size: 11px; font-weight: 800; color: #475467; }
+.bcal-sc > span { margin-right: auto; }
+.bcal-sc button { border: 1px solid #d0d5dd; background: #fff; border-radius: 6px; padding: 4px 10px; font-weight: 800; font-size: 11px; color: #344054; }
+.bcal-sc button.on { background: var(--svst, #b42318); border-color: var(--svst, #b42318); color: #fff; }
+/* R27 : SUCCESSEURS (lecture seule) */
+.dly-succ { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #475467; cursor: pointer; }
+/* R33 : bouton ↻ AJUSTER À LA CAPACITÉ, seulement sur DÉTAIL DÉLAIS */
+.blk-tools .blk-btn.blk-adj-btn { display: none !important; }
+.blk-tools .blk-btn.blk-adj-btn.dly-on { display: inline-flex !important; align-items: center; justify-content: center; width: var(--svi-ib, 36px); height: var(--svi-ib, 36px); border-radius: 9px; background: #fff; color: #12355b; border: 1px solid #d6dbe3; margin-right: 6px; padding: 0; }
+.blk-tools .blk-btn.blk-adj-btn.dly-on svg { width: var(--svi-ii, 18px); height: var(--svi-ii, 18px); }
+.blk-tools .blk-btn.blk-adj-btn.dly-on.off { opacity: .4; }
+/* RÉGLAGES DE L'HISTOGRAMME */
+.hcf-card .cmd-g { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.hcf-card label.off { opacity: .45; }
+.hcf-pct { width: 70px; }

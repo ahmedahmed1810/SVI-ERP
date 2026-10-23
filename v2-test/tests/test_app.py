@@ -1321,10 +1321,10 @@ def main():
         e14 = pg.evaluate("() => (document.querySelector('#dlyGantt .ghist-empty') || {}).textContent || ''")
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.find(r => r.id === 'k1').on = true; I.chg.find(r => r.id === 'k3').on = true; I.dlp['l1|s2'] = [{{ id: 'c', deb: '2026-11-04', fin: '' }}]; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(600)
         e15 = pg.evaluate("""() => [document.querySelectorAll('#dlyGantt .ghb').length > 0, !!document.querySelector('#bdgTabBody tr.dly-task[data-key="l2|s1"].dly-off'), !!document.querySelector('#dlyGantt .gb.gb-off[data-key="l2|s1"]'),
-            !!document.querySelector('#dlyGantt .gb.gb0[data-key="l1|s2"]'), (document.querySelector('#bdgTabBody tr[data-key="l1|s2"] input.dlp-in[data-f="dur"]') || {}).value, (document.querySelector('.dlyh-lab') || {}).textContent]""")
+            !!document.querySelector('#dlyGantt .gb.gb0[data-key="l1|s2"]'), (document.querySelector('#bdgTabBody tr[data-key="l1|s2"] input.dlp-in[data-f="dur"]') || {}).value, (document.querySelector('#dlyGantt .gax-u') || {}).textContent]""")
         e15b = pg.evaluate(f"() => JSON.stringify({ins}.INS.dlp['l1|s2'])")
         check("v542 R14 / R15 : SÉLECTIONNER DES CHARGES ; charges cochées = histogramme, tâche non liée en gris à sa place ; tâche sans FIN = repère de 0 jour (rien d'inventé)",
-              "SÉLECTIONNER DES CHARGES" in e14 and e15[:4] == [True, True, True, True] and e15[4] == "" and "MACON" in (e15[5] or "") and '"fin":""' in e15b, [e14, e15, e15b])
+              "SÉLECTIONNER DES CHARGES" in e14 and e15[:4] == [True, True, True, True] and e15[4] == "" and "J-H / JOUR" in (e15[5] or "") and '"fin":""' in e15b, [e14, e15, e15b])
         # R8 : bulle d'un jour de l'histogramme
         pg.evaluate("() => document.querySelector('#dlyGantt .ghb[data-d=\"2026-11-02\"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))"); pg.wait_for_timeout(300)
         hb = pg.evaluate("() => (document.getElementById('dlyHb') || {}).innerText || ''")
@@ -1347,8 +1347,8 @@ def main():
         pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
         mn = pg.evaluate("() => (document.getElementById('blkMenu') || {}).textContent || ''")
         pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
-        check("v542 R2 / R5 : plafond recompresse aussitôt (4 J-H ÷ 4 = 1 jour), même nombre = AUCUN GAIN ; menu : COMPRESSER LE PLANNING + APPROVISIONNEMENT (v543), plus de nivellement",
-              t2[0] == "2026-11-02" and "AUCUN GAIN" in t2[1] and "COMPRESSER LE PLANNING" in mn and "GÉNÉRER" not in mn and "NIVELLEMENT" not in mn and "APPROVISIONNEMENT PRÉVISIONNEL" in mn, [t2, mn[:200]])
+        check("v542 R2 / R5 : plafond recompresse aussitôt (4 J-H ÷ 4 = 1 jour), même nombre = AUCUN GAIN ; menu (v546) : vue, CLASSER PAR DÉBUT, APPROVISIONNEMENT — plus de COMPRESSER ni de JOUR / SEMAINE / MOIS",
+              t2[0] == "2026-11-02" and "AUCUN GAIN" in t2[1] and "COMPRESSER LE PLANNING" not in mn and "GÉNÉRER" not in mn and "NIVELLEMENT" not in mn and "JOUR" not in mn.replace("PAR LOT", "").replace("CLASSER", "").split("HISTOGRAMME")[0].replace("AFFICHER PAR DÉBUT", "") and "CLASSER PAR DÉBUT" in mn and "APPROVISIONNEMENT PRÉVISIONNEL" in mn, [t2, mn[:200]])
         # R10 : COMMANDES par fréquence (7 jours, 2 jours d'avance)
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.appro = {{ dl: 2, cov: 'n', nj: 7, dep: '', on: true }}; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
         c10 = pg.evaluate("() => [[...document.querySelectorAll('#dlyGantt .ghb.ghc')].map(b => b.dataset.d), /APPROVISIONNEMENT/.test((document.querySelector('#dlyGantt .ghist-cmd') || {}).textContent || '')]")
@@ -1366,7 +1366,7 @@ def main():
         tap(".dlyhh-pill"); hh2 = pg.evaluate("() => [localStorage.getItem('svi_dlyhh_v1'), !!document.querySelector('.dlyg.dly-hfull')]")
         pg.evaluate("() => localStorage.removeItem('svi_dlyhh_v1')")
         check("v542 R12 / R13 : poignée tableau / Gantt et poignée Gantt / histogramme — toucher « = » = d'un bord à l'autre",
-              w0 > 50 and ((w1 < 3 and w2[0] > w2[1] - 10) or (w1 > w2[1] - 10 and w2[0] < 3)) and hh1 == ["full", True] and hh2 == ["28", False], [w0, w1, w2, hh1, hh2])
+              w0 > 50 and ((w1 < 3 and w2[0] > w2[1] - 10) or (w1 > w2[1] - 10 and w2[0] < 3)) and hh1 == ["full", True] and hh2 == ["0", False], [w0, w1, w2, hh1, hh2])
         tap(".dlyg-hd")
         # lot glissé vers la gauche : prédécesseur hors du lot poussé ; début du projet atteint → AVANCER LE DÉBUT DU PROJET
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.forEach(r => {{ r.on = false; }});
@@ -1405,8 +1405,8 @@ def main():
         pg.evaluate(f"() => {DXJ}.comp()"); pg.wait_for_timeout(700)
         r24 = pg.evaluate(f"""() => {{ const I = {ins}.INS, p = I.dlp['l1|s1'][0]; return [p.deb, p.fin, (I.dlim || {{}})['l1|s1'] || '', !!document.querySelector('#dlyGantt .gb-lim[data-key="l1|s1"]'), {DXJ}.limTxt('l1|s1')]; }}""")
         r27 = pg.evaluate(f"() => {DXJ}.canComp()")
-        check("v543 R24 / R27 : la ressource la plus limitante (sable) fixe la durée, repère ⧖ ; ensuite COMPRESSER grisé (DÉJÀ COMPRESSÉ)",
-              r24[:3] == ["2026-11-02", "2026-11-03", GS] and r24[3] and "SABLE" in r24[4] and r27.get("ok") is False and "DÉJÀ COMPRESSÉ" in r27.get("why", ""), [r24, r27])
+        check("v543 R24 / R27 : la ressource la plus limitante (sable) fixe la durée, repère ⧖ ; ensuite ↻ grisé (RIEN À AJUSTER)",
+              r24[:3] == ["2026-11-02", "2026-11-03", GS] and r24[3] and "SABLE" in r24[4] and r27.get("ok") is False and "RIEN À AJUSTER" in r27.get("why", ""), [r24, r27])
         r26 = pg.evaluate(f"() => {{ const I = {ins}.INS; return [JSON.stringify(I.dpred['l2|s1'] || []), I.dlp['l2|s1'][0].deb]; }}")
         check("v543 R26 : COMPRESSER crée la liaison FIN → DÉBUT avec la tâche du dessus et resserre la suivante (ouvriers libres l'après-midi du 03)", '"k":"l1|s1"' in r26[0] and r26[1] == "2026-11-03", r26)
         # R21 / R23 : sable illimité ; MACON 1 → coupe le 06/11 (rattachée à la 1re tâche) ; MACON 4 → la coupe suit la fin de la 1re tâche
@@ -1429,7 +1429,7 @@ def main():
         # R18 / R19 / R20 : cumulé, plage DÉBUT – FIN, filtre MIN – MAX qui coche les charges des jours retenus
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.plafR = {{}}; I.dlp = {{ 'l1|s1': [{{ id: 'a', deb: '2026-11-02', fin: '2026-11-02' }}], 'l2|s1': [{{ id: 'b', deb: '2026-11-04', fin: '2026-11-04' }}] }}; I.dpred = {{}};
             I.chg.filter(r => /^n[123]$/.test(r.id)).forEach(r => {{ r.on = true; }}); I.hset = {{ u: 'm', aff: 'c', cum: 'r' }}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(600)
-        cu = pg.evaluate("() => [!!document.querySelector('#dlyGantt .ghist-cum polyline'), (document.querySelector('.dlyh-lab') || {}).textContent || '']")
+        cu = pg.evaluate("() => [!!document.querySelector('#dlyGantt .ghist-cum polyline'), (document.querySelector('#dlyGantt .gax-u') || {}).textContent || '']")
         pg.evaluate(f"() => {DXJ}.hrangeSet({{ a: '2026-11-04', b: '' }})"); pg.wait_for_timeout(500)
         rg = pg.evaluate("() => [(document.querySelector('#dlyGantt .grng-tot') || {}).textContent || '', !!document.querySelector('#dlyGantt .grng[data-r=\"a\"]:not(.grng-off)')]")
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.hset = {{ u: 'm', aff: 'j', cum: 'r' }}; X.INS.hrange = null; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
@@ -1457,12 +1457,76 @@ def main():
         vd = pg.evaluate(f"""() => [[...document.querySelectorAll('#bdgTabBody .dlyg-l tr.dly-task')].map(t => t.dataset.key), !!document.querySelector('#bdgTabBody .dly-vno'), !!document.querySelector('#bdgTabBody .dly-vd'), JSON.stringify({ins}.INS.dord)]""")
         pg.evaluate(f"() => {DXJ}.viewSet('l')"); pg.wait_for_timeout(400)
         vl = pg.evaluate("() => [...document.querySelectorAll('#bdgTabBody .dlyg-l tr.dly-task')].map(t => t.dataset.key)")
-        check("v543 R28 / R29 : histogramme touché = sa rubrique en premier + liseré ; vue PAR DÉBUT en escalier (numéro du lot, bandeau) sans changer l'ordre enregistré",
-              z1 and z1[0] == "HISTOGRAMME" and z1b and vd[0] == ["l2|s1", "l1|s1"] and vd[1] and vd[2] and vd[3] == '["l1|s1","l2|s1"]' and vl == ["l1|s1", "l2|s1"], [z1, z1b, vd, vl])
+        check("v543 R29 / v546 R26, R35 : menu PLANNING / HISTOGRAMME, sans liseré ; vue PAR DÉBUT en escalier (numéro du lot, sans bandeau) sans changer l'ordre enregistré",
+              z1 == ["PLANNING", "HISTOGRAMME"] and not z1b and vd[0] == ["l2|s1", "l1|s1"] and vd[1] and not vd[2] and vd[3] == '["l1|s1","l2|s1"]' and vl == ["l1|s1", "l2|s1"], [z1, z1b, vd, vl])
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk3; I.dlp = I.__dlp3; I.dpred = I.__dp3; I.dord = I.__ord3; I.pdeb = I.__pd3;
             ['__lk3', '__dlp3', '__dp3', '__ord3', '__pd3'].forEach(k => delete I[k]); I.dinc = {{}}; I.dlim = {{}}; I.plafR = {{}}; I.appro = null; I.hset = null; I.hrange = null; I.hval = null;
             I.chg = I.chg.filter(r => !/^n[123]$/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
         pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
+
+        # v546 : remarques 14 à 35 (sauf 22)
+        DXJ = "[...document.querySelectorAll('*')].find(e => e.__insDly).__insDly"
+        pg.set_viewport_size({"width": 1180, "height": 900}); pg.wait_for_timeout(300)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;
+            I.chg.forEach(r => {{ r.on = false; }});
+            I.chg.push({{ id: 'w1', des: 'MACON', u: 'JH', q: 4, p: 100, on: true }}, {{ id: 'w2', des: 'MACON', u: 'JH', q: 2, p: 100, on: true }}, {{ id: 'w3', des: 'SABLE', u: 'M3', q: 10, p: 50, on: true }});
+            I.__lk6 = I.links; I.__dlp6 = I.dlp; I.__dp6 = I.dpred; I.__ord6 = I.dord;
+            I.links = [{{ id: 'W1', des: 'd1', lot: 'l1', prim: 'p1', sec: 's1', prd: [], chg: [{{ id: 'w1' }}, {{ id: 'w3' }}] }}, {{ id: 'W2', des: 'd1', lot: 'l2', prim: 'p1', sec: 's1', prd: [], chg: [{{ id: 'w2' }}] }}];
+            I.dlp = {{ 'l1|s1': [{{ id: 'a', deb: '2026-11-02', fin: '2026-11-03' }}], 'l2|s1': [{{ id: 'b', deb: '2026-11-04', fin: '2026-11-05' }}], 'l1|s2': [{{ id: 'c', deb: '2026-11-06', fin: '2026-11-06' }}] }};
+            I.dpred = {{ 'l2|s1': [{{ k: 'l1|s1', t: 'FD', o: 1 }}] }}; I.plafR = {{}}; I.hset = {{ u: 'm', aff: 'j', cum: 'r' }}; I.dord = ['l1|s1', 'l2|s1', 'l1|s2']; I.dinc = {{}};
+            X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        pg.evaluate("() => localStorage.setItem('svi_dlyhh_v1', '160')")
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(900)
+        q = pg.evaluate("""() => { const G = document.querySelector('#dlyGantt'), sc = document.querySelector('.dly-scroll'), L = document.querySelector('.dlyg-l'), h = G.querySelector('.ghist');
+            return { z0: !!G.querySelector('.gb.gb0[data-key="l1|s2"]'), succ: (document.querySelector('tr[data-key="l1|s1"] .dly-succ') || {}).textContent || '', succH: !!document.querySelector('.dly-table th .cf-btn[data-col="succ"]'),
+              cap: (G.querySelector('.gplaf.gcap-def .gplaf-v') || {}).textContent || '', segv: (G.querySelector('.gseg-v') || {}).textContent || '', unit: (G.querySelector('.gax-u') || {}).textContent || '',
+              leftBottom: Math.round(L.getBoundingClientRect().bottom), histBottom: Math.round(h.getBoundingClientRect().bottom), cfg: !!document.querySelector('.dlyhh-cfg'), vd: !!document.querySelector('.dly-vd'),
+              adj: [!!document.querySelector('.blk-adj-btn.dly-on'), document.querySelector('.blk-adj-btn').classList.contains('off')], dz: !!document.querySelector('.dlyg[class*="dz-"]'), obj: !!G.querySelector('.gv-obj') }; }""")
+        # R24 : abréviation (capacité en DH : 400 DH + 500 DH le 02 → « K » quand ≥ 10 000) ; R19 : coupe, trait vertical, déplacement
+        pg.evaluate(f"""() => {{ const I = {ins}.INS; I.chg.find(r => r.id === 'w3').p = 5000; {ins}.insSave(); {ins}.refreshAll(); }}"""); pg.wait_for_timeout(500)
+        kfmt = pg.evaluate("() => [...document.querySelectorAll('#dlyGantt .gax-t')].map(e => e.textContent).join('|')")
+        GK = pg.evaluate(f"() => {DXJ}.hasSel() && Object.keys({ins}.INS.plafR || {{}}).length")
+        pg.evaluate(f"() => {DXJ}.cutPlaf('2026-11-04')"); pg.wait_for_timeout(400)
+        pg.evaluate(f"() => {DXJ}.plafSeg(1, 30000)"); pg.wait_for_timeout(500)
+        cv = pg.evaluate("() => [!!document.querySelector('#dlyGantt .gcut-v'), (document.querySelector('#dlyGantt .gcut') || {dataset: {}}).dataset.eq]")
+        pg.evaluate(f"() => {DXJ}.plafSeg(1, Math.round(({ins}.INS.plafR[Object.keys({ins}.INS.plafR)[0]].plaf)))"); pg.wait_for_timeout(500)
+        pg.evaluate(f"() => {DXJ}.moveCut(1, '2026-11-05')"); pg.wait_for_timeout(500)
+        mc = pg.evaluate(f"() => JSON.stringify(Object.values({ins}.INS.plafR).map(x => (x.plafs || []).map(c => c.d)))")
+        # R28 / R29 : cumulé = une courbe ; ⚙ : PRODUITS et MARGE
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.plafR = {{}}; X.INS.hset = {{ u: 'm', aff: 'c', cum: 'r' }}; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
+        nl = pg.evaluate("() => document.querySelectorAll('#dlyGantt .ghist-cum polyline').length")
+        pg.evaluate("() => document.querySelector('.dlyhh-cfg')?.click()"); pg.wait_for_timeout(300)
+        hw = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
+        pg.evaluate("() => { const d = document.getElementById('svConf'); d.querySelectorAll('.hcf-c').forEach(i => { i.checked = true; }); d.querySelector('input[name=\"hca\"][value=\"j\"]').checked = true; d.querySelector('[data-ok]').click(); }"); pg.wait_for_timeout(600)
+        pm = pg.evaluate(f"() => [JSON.stringify({ins}.INS.hset.crb), (document.querySelector('#dlyGantt .ghist-leg') || {{}}).textContent || '']")
+        # R25 : 0 = histogramme caché ; R17 : JOUR / SEMAINE / MOIS dans CALENDRIER DU BUDGET, SEMAINE remplit la largeur (R23)
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.hset = null; X.insSave(); }}")
+        pg.evaluate(f"() => {DXJ}.hh(0)"); pg.wait_for_timeout(500)
+        h0 = pg.evaluate("() => [!!document.querySelector('.dlyg.dly-hnone'), (() => { const h = document.querySelector('#dlyGantt .ghist'); return h ? h.offsetHeight : 0; })()]")
+        pg.evaluate("() => localStorage.removeItem('svi_dlyhh_v1')")
+        pg.evaluate("() => sviBdgCalWin('2026-11-02')"); pg.wait_for_timeout(300)
+        sc0 = pg.evaluate("() => [...document.querySelectorAll('#svConf .bcal-sc button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',')")
+        pg.evaluate("() => document.querySelector('#svConf .bcal-sc [data-sc=\"s\"]')?.click()"); pg.wait_for_timeout(600)
+        sw = pg.evaluate("() => { const G = document.querySelector('#dlyGantt'); const dw = parseFloat(getComputedStyle(G).getPropertyValue('--dw')); return [localStorage.getItem('svi_dlyg_sc_v1'), dw, G.clientWidth]; }")
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()")
+        pg.evaluate("() => { window.__sviDlyScale.set('j'); localStorage.removeItem('svi_dlyg_dw_s_v1'); }"); pg.wait_for_timeout(500)
+        # R30 : INF — DATE DE FIN DU PROJET = fin du planning (non saisissable)
+        pg.evaluate("() => document.querySelector('[data-pill=\"inf\"]')?.click()"); pg.wait_for_timeout(400)
+        inf = pg.evaluate("() => [!!document.querySelector('#docPop input[data-f=\"obj\"]'), (document.querySelector('#docPop [data-v=\"pfin0\"]') || {}).textContent || '']")
+        pg.evaluate("() => document.querySelector('#docPop [data-cancel]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk6; I.dlp = I.__dlp6; I.dpred = I.__dp6; I.dord = I.__ord6;
+            ['__lk6', '__dlp6', '__dp6', '__ord6'].forEach(k => delete I[k]); I.plafR = {{}}; I.hset = null; I.dinc = {{}}; I.chg = I.chg.filter(r => !/^w[123]$/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
+        check("v546 R14 / R27 / R30 / R26 / R35 : tâche sans ouvriers ni délai = trait de 0 jour ; colonne SUCCESSEURS ; plus de trait OBJECTIF ; plus de bandeau ni de liseré",
+              q["z0"] and q["succ"] != "" and q["succH"] and not q["obj"] and not q["vd"] and not q["dz"], q)
+        check("v546 R20 / R21 / R24 / R33 : CAPACITÉ en MONTANT avec valeur du morceau ; unité seule sur l'axe ; tableau jusqu'en bas ; bouton ↻ sur DÉTAIL DÉLAIS ; nombres abrégés",
+              q["cap"].startswith("CAPACITÉ") and "DH" in q["segv"] and q["unit"] == "DH / JOUR" and abs(q["leftBottom"] - q["histBottom"]) <= 3 and q["adj"][0] and q["cfg"] and " K" in kfmt, [q, kfmt])
+        check("v546 R19 : coupe — trait vertical en pointillés entre deux morceaux différents ; « / » déplacé quand les morceaux sont égaux",
+              cv[0] and cv[1] == "0" and '"2026-11-05"' in mc, [cv, mc])
+        check("v546 R28 / R29 : CUMULÉ = une seule courbe ; ⚙ ouvre RÉGLAGES DE L'HISTOGRAMME ; PRODUITS et MARGE dans la légende",
+              nl == 1 and hw == "RÉGLAGES DE L'HISTOGRAMME" and pm[0] == '["c","p","g"]' and "PRODUITS" in pm[1] and "MARGE" in pm[1], [nl, hw, pm])
+        check("v546 R25 / R17 / R23 / R30 : histogramme caché à 0 ; JOUR / SEMAINE / MOIS dans CALENDRIER DU BUDGET ; SEMAINE remplit la largeur ; DATE DE FIN DU PROJET calculée",
+              h0 == [True, 0] and sc0 == "JOUR*,SEMAINE,MOIS" and sw[0] == "s" and sw[1] > 9 and not inf[0] and inf[1] != "", [h0, sc0, sw, inf])
 
         # v545 : remarques 1 à 5 (bouton agrandir visible, planning à la hauteur de l'écran, poignées, capacité visible, échelle)
         DXJ = "[...document.querySelectorAll('*')].find(e => e.__insDly).__insDly"

@@ -37,19 +37,25 @@
       return out;
     };
     /* groupe de capacité de la sélection : les charges cochées, si elles ont une même unité (sinon pas de capacité) */
-    const dlyCurGK = () => { const R = dlyResSel(); return R && dlySameU(R) ? [...new Set(R.map(dlyResK))].sort().join(" § ") : ""; };
-    const dlyGName = gk => [...new Set(String(gk).split(" § ").map(x => x.split("|")[0]))].join(" + ");
-    /* quantité d'un groupe dans une tâche (charges de ses liaisons dont la clé est dans le groupe) */
-    const dlyGQ = (k, keys) => {
+    /* v546 (R24) : en MONTANT, la capacité est une capacité de financement (DH par jour), même avec des unités différentes ;
+       clé de groupe « DH: … » ; en QUANTITÉ, seulement des charges de même unité */
+    const dlyCurGK = () => { const R = dlyResSel(); if (!R) return ""; const ks = [...new Set(R.map(dlyResK))].sort().join(" § "); return dlyResMode(R) === "q" ? ks : "DH: " + ks; };
+    const dlyGM = gk => /^DH: /.test(String(gk));
+    const dlyGKeys = gk => new Set(String(gk).replace(/^DH: /, "").split(" § "));
+    const dlyGName = gk => (dlyGM(gk) ? "DH : " : "") + [...new Set(String(gk).replace(/^DH: /, "").split(" § ").map(x => x.split("|")[0]))].join(" + ");
+    /* quantité (ou montant, m) d'un groupe dans une tâche (charges de ses liaisons dont la clé est dans le groupe) */
+    const dlyGQ = (k, keys, m) => {
       let t = 0; const seen = new Set();
       (INS.links || []).forEach(l => {
         if (l.lot + "|" + l.sec !== k) return;
-        (l.chg || []).forEach(e => { if (seen.has(e.id)) return; seen.add(e.id); const r = INS.chg.find(x => x.id === e.id); if (r && !r.t && keys.has(dlyResK(r))) t += dlyResQty(r); });
+        (l.chg || []).forEach(e => { if (seen.has(e.id)) return; seen.add(e.id); const r = INS.chg.find(x => x.id === e.id); if (r && !r.t && keys.has(dlyResK(r))) t += m ? (num(r.q || 0) || 0) * (num(r.p || 0) || 0) : dlyResQty(r); });
       });
       return Math.round(t * 1000) / 1000;
     };
+    /* R14 : tâche sans ouvriers (aucune charge de main-d'œuvre liée) */
+    const dlyNoLab = k => !(INS.links || []).some(l => l.lot + "|" + l.sec === k && (l.chg || []).some(e => { const r = INS.chg.find(x => x.id === e.id); return r && !r.t && dlyIsLab(r); }));
     /* quantité de la sélection dans une tâche (aucune case cochée = 0 : R25) */
-    const dlyResQ = k => { const gk = dlyCurGK(); return gk ? dlyGQ(k, new Set(gk.split(" § "))) : 0; };
+    const dlyResQ = k => { const gk = dlyCurGK(); return gk ? dlyGQ(k, dlyGKeys(gk), dlyGM(gk)) : 0; };
     /* réglage de capacité d'un groupe (créé à la demande) */
     const dlyCapSt = (gk = dlyCurGK()) => { if (!gk) return null; INS.plafR = INS.plafR || {}; return (INS.plafR[gk] = INS.plafR[gk] || {}); };
     /* valeur d'un morceau : nombre ≥ 1, 0 (pénurie) ou −1 (ILLIMITÉ, aussi quand rien n'est réglé) */
@@ -58,8 +64,8 @@
     const dlyGroups = () => {
       const cur = dlyCurGK(), out = [];
       const has = st => st && (dlyCapV(st.plaf) >= 0 || (st.plafs || []).some(s => dlyCapV(s.n) >= 0));
-      Object.keys(INS.plafR || {}).forEach(gk => { const st = INS.plafR[gk]; if (gk === cur || has(st)) out.push({ gk, keys: new Set(gk.split(" § ")), st: st || {} }); });
-      if (cur && !out.some(g => g.gk === cur)) out.push({ gk: cur, keys: new Set(cur.split(" § ")), st: {} });
+      Object.keys(INS.plafR || {}).forEach(gk => { const st = INS.plafR[gk]; if (gk === cur || has(st)) out.push({ gk, keys: dlyGKeys(gk), m: dlyGM(gk), st: st || {} }); });
+      if (cur && !out.some(g => g.gk === cur)) out.push({ gk: cur, keys: dlyGKeys(cur), m: dlyGM(cur), st: {} });
       return out;
     };
     /* coupes d'un groupe : { d, n, after } ; une coupe rattachée à des tâches (after) se place juste après leur fin (R23) */
@@ -148,13 +154,21 @@
         return n < 0 ? Infinity : n * .5;
       };
       const place = (k, s0, dry) => {
-        const q = G.map(g => dlyGQ(k, g.keys)), rel = G.map((g, i) => i).filter(i => q[i] > 0);
+        const q = G.map(g => dlyGQ(k, g.keys, g.m)), rel = G.map((g, i) => i).filter(i => q[i] > 0);
         const own = deb(k) && dlyFin(k) ? dlyHalves(k) : 0;
         const over = dry ? G.map(() => ({})) : used, U = (i, s) => (used[i][s] || 0) + (dry ? (over[i][s] || 0) : 0);
         const take = (i, s, v) => { over[i][s] = (over[i][s] || 0) + v; };
         if ((dlyInc(k) && own) || (!rel.length && own)) {
-          rel.forEach(i => { for (let s = s0; s < s0 + own; s++) take(i, s, q[i] / own); });
-          return { a: s0, b: s0 + own - 1 };
+          /* v546 (R33) : une tâche INCOMPRESSIBLE garde sa durée mais attend la première place où elle tient sous les capacités
+             (si elle ne tient nulle part : à sa place, pic accepté) */
+          let st = s0;
+          if (rel.length) {
+            const fits = a => rel.every(i => { for (let s = a; s < a + own; s++) if (U(i, s) + q[i] / own > capAt(G[i], s) + 1e-9) return false; return true; });
+            let t = s0; for (let g = 0; g < 2000 && !fits(t); g++) t++;
+            if (fits(t)) st = t;
+          }
+          rel.forEach(i => { for (let s = st; s < st + own; s++) take(i, s, q[i] / own); });
+          return { a: st, b: st + own - 1 };
         }
         if (!rel.length) return { a: s0, b: s0 - 1, zero: true };
         let rem = 1, a = null, b = s0, s = s0;
@@ -172,7 +186,7 @@
         if (!dry) { const best = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0]; if (best !== undefined) lim[k] = G[best].gk; }
         return { a: a === null ? s0 : a, b };
       };
-      const hasR = k => G.some(g => dlyGQ(k, g.keys) > 0);
+      const hasR = k => G.some(g => dlyGQ(k, g.keys, g.m) > 0);
       const links = [];
       L.forEach((k, idx) => {
         const pre = idx ? L[idx - 1] : null;
@@ -212,7 +226,7 @@
         if (L.length > 1) return false;
         return (dlyDeb(k) || "") === x.deb && (dlyFin(k) || "") === (x.fin || "") && !!(p && dlyHalfS(p)) === !!x.dm && !!(p && dlyHalfE(p)) === !!(x.fm && x.fin);
       });
-      return same && !P.links.length ? { ok: false, why: "DÉJÀ COMPRESSÉ : AUCUN JOUR À GAGNER." } : { ok: true, P };
+      return same && !P.links.length ? { ok: false, why: "RIEN À AJUSTER : AUCUN JOUR NE DÉPASSE LA CAPACITÉ ET AUCUN JOUR À GAGNER." } : { ok: true, P };
     };
     const dlyHasDates = () => dlyKeys().some(k => dlyDeb(k) && dlyFin(k));
     /* dates calculées → brouillon de la tâche (une seule période), demi-journées comprises */
@@ -261,7 +275,7 @@
     /* couper la barre à une date : les tâches qui commencent avant restent dans le morceau de gauche (la coupe les suit) */
     const dlyCutPlaf = iso => {
       const st = dlyCapSt();
-      if (!st) { svToast("COCHER DES CHARGES DE MÊME UNITÉ POUR RÉGLER UNE CAPACITÉ.", 3000); return; }
+      if (!st) { svToast("COCHER DES CHARGES POUR RÉGLER UNE CAPACITÉ.", 3000); return; }
       const cal = insCal(), d = sviWNear(cal, iso, 1);
       if (dlyCapSegs().some(s => s.d === d)) { svToast("LA CAPACITÉ EST DÉJÀ COUPÉE LE " + dFr(d) + ".", 3000); return; }
       const after = dlyKeys().filter(k => dlyDeb(k) && dlyDeb(k) < d && dlyResQ(k) > 0);
@@ -279,6 +293,16 @@
         dlyCompressRun({ plaf: dlyCapOf(s.d), quiet: true });
       });
     };
+    /* v546 (R19) : coupe déplacée à une autre date (seulement si les deux morceaux ont la même capacité) */
+    const dlyMoveCut = (i, iso) => {
+      const st = dlyCapSt(), c = st && (st.plafs || [])[i - 1];
+      if (!c) return;
+      const d = sviWNear(insCal(), iso, 1);
+      if (dlyCapSegs().some(x => x.d === d && x.i !== i)) { svToast("LA CAPACITÉ EST DÉJÀ COUPÉE LE " + dFr(d) + ".", 3000); return; }
+      c.d = d; c.after = dlyKeys().filter(k => dlyDeb(k) && dlyDeb(k) < d && dlyResQ(k) > 0);
+      histLog("DÉLAIS", "COUPE DÉPLACÉE", dFr(d));
+      dlyCompressRun({ plaf: dlyCapOf(d), quiet: true });
+    };
     /* morceau tiré : n (≥ 1, 0 = pénurie, −1 = ILLIMITÉ) ; i = 0 : premier morceau ; le planning est recompressé (R2) */
     const dlySetPlaf = (i, n, anchor) => {
       const st = dlyCapSt();
@@ -293,19 +317,42 @@
     /* ---------- histogramme : données, R17 approvisionnement, R18 réglages ---------- */
     const DLY_SER = ["#2e90fa", "#f79009", "#12b76a", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#667085"];
     /* hauteur de l'histogramme : nombre de pixels (28 = miniaturisé en bas) ou « full » (plein écran, à la place du Gantt) */
-    const dlyHHGet = () => { let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : Math.max(28, Math.min(2000, Number(v) || 110)); };
+    /* v546 (R25) : 0 = histogramme entièrement caché (poignée tout en bas) */
+    const dlyHHGet = () => { let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : v === "0" ? 0 : Math.max(28, Math.min(2000, Number(v) || 110)); };
     const dlyHHSet = v => { try { localStorage.setItem("svi_dlyhh_v1", String(v)); } catch (e) {} };
     const dlyHSetPut = o => { INS.hset = { ...dlyHSet(), ...o }; insSave(); renderTabK(); };
     /* R19 / R20 : plage DÉBUT – FIN et filtre MIN – MAX (mémorisés par budget) */
     const dlyHRange = () => ({ a: "", b: "", ...(INS.hrange || {}) });
     const dlyHVal = () => ({ min: null, max: null, ...(INS.hval || {}) });
     /* consommation jour par jour de chaque charge cochée (répartie sur les jours travaillés de chaque tâche, demi-journées comprises) */
+    /* v546 (R29) : courbes affichées — c = CHARGES, p = PRODUITS, g = MARGE (PRODUITS et MARGE : en MONTANT) */
+    const dlyCrb = () => { const c = dlyHSet().crb; return Array.isArray(c) && c.length ? c : ["c"]; };
+    /* produits retenus : cochés dans DÉTAIL PRODUITS, sinon ceux des lignes cochées des autres blocs, sinon tous */
+    const dlyPrdSel = () => {
+      const all = (INS.prd || []).filter(r => !r.t), on = all.filter(r => r.on === true);
+      if (on.length) return on;
+      let S = null; try { S = insCheckSet("prd"); } catch (e) { S = null; }
+      return S ? all.filter(r => S.has(r.id)) : all;
+    };
+    /* valeur des produits par jour (répartie sur les jours de leur tâche) */
+    const dlyPrdDays = cur => {
+      const cal = insCal(), out = {}, det = {};
+      dlyPrdSel().forEach(r => {
+        const l = (INS.links || []).find(x => (x.prd || []).some(y => y.id === r.id));
+        const k = l && l.lot + "|" + l.sec, p = k && cur[k], v = insHT("prd", r);
+        if (!p || !v) return;
+        const n = sviWDur(cal, p.deb, p.fin) || 1;
+        for (let i = 0, x = sviWNear(cal, p.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) { out[x] = (out[x] || 0) + v / n; (det[x] = det[x] || {})[k] = ((det[x] || {})[k] || 0) + v / n; }
+      });
+      return { L: out, det };
+    };
     const dlyHistData = () => {
+      const crb = dlyCrb(), money = crb.some(c => c !== "c");
       const R = dlyResSel();
-      if (!R) return null;
-      const mode = dlyResMode(R), cal = insCal(), cur = dlyCurDates(), ser = new Map(), det = {}, tot = {};
-      [...new Set(R.map(dlyResK))].forEach(sk => ser.set(sk, { L: {} }));
-      Object.keys(cur).forEach(k => {
+      if (!R && !money) return null;
+      const mode = money || !R ? "m" : dlyResMode(R), cal = insCal(), cur = dlyCurDates(), ser = new Map(), det = {}, tot = {};
+      if (R) [...new Set(R.map(dlyResK))].forEach(sk => ser.set(sk, { L: {} }));
+      if (R) Object.keys(cur).forEach(k => {
         const p = cur[k], m = dlyResOf(k, R, mode);
         if (!m.size) return;
         const n = sviWDur(cal, p.deb, p.fin) || 1, fr = i => (i === 0 && p.hs ? .5 : 1) * (i === n - 1 && p.he ? .5 : 1);
@@ -317,8 +364,9 @@
           (det[x] = det[x] || []).push({ k, v: sum, inc: dlyInc(k), per });
         }
       });
-      const H = { R, mode, ser, det, tot, unit: mode === "q" ? dlyResU(R[0]) : "DH" };
-      H.cmd = dlyOrders(H);
+      const H = { R, mode, ser, det, tot, unit: mode === "q" ? dlyResU(R[0]) : "DH", crb };
+      if (money) { const P = dlyPrdDays(cur); H.prd = P.L; H.pdet = P.det; }
+      H.cmd = R ? dlyOrders(H) : null;
       return H;
     };
     /* R17 : APPROVISIONNEMENT PRÉVISIONNEL — réglages mémorisés par budget */
@@ -357,11 +405,11 @@
       return { L, det, lab: "APPROVISIONNEMENT PRÉVISIONNEL — " + cv + (dl ? " — " + dl + " J D'AVANCE" : "") };
     };
     /* libellé à gauche de l'histogramme (sous le tableau) */
-    const dlyHistLab = () => {
-      const R = dlyResSel();
-      if (!R) return "CHARGES";
-      const ks = [...new Set(R.map(r => U_(r.des)))], hs = dlyHSet();
-      return esc(ks[0]) + (ks.length > 1 ? " + " + (ks.length - 1) : "") + "<br>(" + esc(dlyAppro().on ? "COMMANDES" : (dlyResMode(R) === "q" ? dlyResU(R[0]) : "DH") + (hs.aff === "c" ? " CUMULÉS" : " / JOUR")) + ")";
+    /* v546 (R21) : titre de l'axe = l'unité seule (J-H / JOUR, DH / JOUR, DH CUMULÉS…) */
+    const dlyHistLab = H => {
+      if (!H) return "";
+      const hs = dlyHSet();
+      return H.cmd ? "COMMANDES" : H.unit + (hs.aff === "c" ? " CUMULÉS" : " / JOUR");
     };
     /* fenêtre APPROVISIONNEMENT PRÉVISIONNEL (menu ⋯, FORMAT 163) */
     const dlyApproWin = () => {
@@ -397,3 +445,34 @@
         insSave(); histLog("DÉLAIS", "APPROVISIONNEMENT PRÉVISIONNEL", INS.appro.on ? "AFFICHÉ" : "MASQUÉ"); renderTabK();
       });
     };
+    /* v546 (R29) : fenêtre RÉGLAGES DE L'HISTOGRAMME (icône ⚙) — UNITÉ, AFFICHAGE, DÉPART DU CUMUL, COURBES, % de la légende */
+    const dlyHCfgWin = () => {
+      const h = dlyHSet(), R = dlyResSel(), q = !!R && dlySameU(R), crb = dlyCrb(), d = document.createElement("div");
+      const rad = (n, v, l, on, dis) => `<label${dis ? ' class="off"' : ""}><input type="radio" name="${n}" value="${v}"${on ? " checked" : ""}${dis ? " disabled" : ""}> ${l}</label>`;
+      d.id = "svConf";
+      d.innerHTML = `<div class="svc-card hcf-card" role="dialog" aria-modal="true">
+        <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
+        <div class="svc-t">RÉGLAGES DE L'HISTOGRAMME</div>
+        <div class="bdt-row"><span>UNITÉ</span><span class="cmd-g">${rad("hcu", "q", "QUANTITÉ", h.u === "q" && q, !q)}${rad("hcu", "m", "MONTANT (DH)", h.u !== "q" || !q)}</span></div>
+        <div class="bdt-row"><span>AFFICHAGE</span><span class="cmd-g">${rad("hca", "j", "JOUR PAR JOUR", h.aff !== "c")}${rad("hca", "c", "CUMULÉ", h.aff === "c")}</span></div>
+        <div class="bdt-row"><span>DÉPART DU CUMUL</span><span class="cmd-g">${rad("hcc", "r", "RELATIF", h.cum !== "a")}${rad("hcc", "a", "ABSOLU", h.cum === "a")}</span></div>
+        <div class="bdt-row"><span>COURBES</span><span class="cmd-g">${[["c", "CHARGES"], ["p", "PRODUITS"], ["g", "MARGE"]].map(([v, l]) => `<label><input type="checkbox" class="hcf-c" value="${v}"${crb.includes(v) ? " checked" : ""}> ${l}</label>`).join("")}</span></div>
+        <div class="svc-sub">PRODUITS ET MARGE : EN MONTANT (DH) ; PRODUITS = PRODUITS COCHÉS (OU CEUX DES LIGNES COCHÉES).</div>
+        <div class="bdt-row"><span>LÉGENDE : CHARGES QUI FONT (%)</span><input class="hcf-pct" inputmode="numeric" value="${esc(String(h.pct || 70))}"></div>
+        <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
+      document.getElementById("svConf")?.remove();
+      document.body.appendChild(d);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        if (!e.target.closest("[data-ok]")) return;
+        const pc = String(d.querySelector(".hcf-pct").value).trim();
+        if (!/^\d+$/.test(pc) || Number(pc) < 1 || Number(pc) > 100) { svToast("% DE LA LÉGENDE : NOMBRE ENTIER DE 1 À 100.", 3000, d.querySelector(".hcf-pct")); return; }
+        const c = [...d.querySelectorAll(".hcf-c:checked")].map(i => i.value);
+        if (!c.length) { svToast("COCHER AU MOINS UNE COURBE.", 3000, d.querySelector(".hcf-c")); return; }
+        const v = n => (d.querySelector(`input[name="${n}"]:checked`) || {}).value;
+        INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc) };
+        d.remove();
+        insSave(); histLog("DÉLAIS", "RÉGLAGES DE L'HISTOGRAMME", c.map(x => ({ c: "CHARGES", p: "PRODUITS", g: "MARGE" })[x]).join(" + ")); renderTabK();
+      });
+    };
+
