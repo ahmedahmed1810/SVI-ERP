@@ -113,6 +113,8 @@
     const dlyDurK = k => {
       const L = dlyList(k), p = L[0], d0 = dlyDeb(k), f0 = dlyFin(k);
       if (!d0 || !f0) return "";
+      /* v547 (R22) : tâche en morceaux = somme des morceaux */
+      if (L.length > 1) { const t = L.filter(q => q.deb && q.fin).reduce((a, q) => a + (Number(dDur(q.deb, q.fin)) || 0) - (dlyHalfS(q) ? .5 : 0) - (dlyHalfE(q) ? .5 : 0), 0); return t === Math.round(t) ? t : String(t).replace(".", ","); }
       const n = dDur(d0, f0);
       if (n === "" || L.length !== 1) return n;
       const v = n - (dlyHalfS(p) ? .5 : 0) - (dlyHalfE(p) ? .5 : 0);
@@ -172,7 +174,7 @@
         }
         if (!rel.length) return { a: s0, b: s0 - 1, zero: true };
         let rem = 1, a = null, b = s0, s = s0;
-        const cnt = {};
+        const cnt = {}, got = [];
         for (let g = 0; rem > 1e-9 && g < 40000; g++, s++) {
           let f = rem, li = -1;
           rel.forEach(i => {
@@ -181,10 +183,10 @@
             if (al < f - 1e-12) { f = al; li = i; }
           });
           if (li >= 0) cnt[li] = (cnt[li] || 0) + 1;
-          if (f > 1e-9) { rel.forEach(i => take(i, s, f * q[i])); rem -= f; if (a === null) a = s; b = s; }
+          if (f > 1e-9) { rel.forEach(i => take(i, s, f * q[i])); rem -= f; if (a === null) a = s; b = s; got.push(s); }
         }
         if (!dry) { const best = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0]; if (best !== undefined) lim[k] = G[best].gk; }
-        return { a: a === null ? s0 : a, b };
+        return { a: a === null ? s0 : a, b, got };
       };
       const hasR = k => G.some(g => dlyGQ(k, g.keys, g.m) > 0);
       const links = [];
@@ -207,6 +209,11 @@
         const r = place(k, e, false);
         S[k] = r;
         D[k] = r.zero ? { deb: dayAt(r.a >> 1), fin: "", dm: r.a & 1, fm: 0 } : { deb: dayAt(r.a >> 1), fin: dayAt(r.b >> 1), dm: r.a & 1, fm: (r.b & 1) ? 0 : 1 };
+        /* v547 (R22) : la tâche est coupée quand des demi-journées sans place l'interrompent (ses ouvriers vont ailleurs) */
+        if (r.got && r.got.length && r.got[r.got.length - 1] - r.got[0] + 1 > r.got.length) {
+          const runs = []; r.got.forEach(s => { const u = runs[runs.length - 1]; if (u && s === u[1] + 1) u[1] = s; else runs.push([s, s]); });
+          D[k].per = runs.map(([s1, s2]) => ({ deb: dayAt(s1 >> 1), fin: dayAt(s2 >> 1), dm: s1 & 1, fm: (s2 & 1) ? 0 : 1 }));
+        }
         if (pre && !dlyLinks(k).some(x => x.k === pre) && !dlyLinks(pre).some(x => x.k === k) && !dlyReach(pre, k)) links.push([pre, k]);
       });
       return { D, S, links, lim };
@@ -221,11 +228,10 @@
       if (!dlyResSel()) return { ok: false, why: "COCHER DES CHARGES : COMPRESSER NE PORTE QUE SUR LES CHARGES COCHÉES." };
       if (!dlyKeys().length) return { ok: false, why: "AUCUNE TÂCHE AU PLANNING." };
       const P = dlyPlanCompute();
-      const same = Object.keys(P.D).every(k => {
-        const x = P.D[k], L = dlyList(k), p = L[0];
-        if (L.length > 1) return false;
-        return (dlyDeb(k) || "") === x.deb && (dlyFin(k) || "") === (x.fin || "") && !!(p && dlyHalfS(p)) === !!x.dm && !!(p && dlyHalfE(p)) === !!(x.fm && x.fin);
-      });
+      /* v547 (R22) : comparaison morceau par morceau */
+      const sigC = k => dlyList(k).map(p => [p.deb || "", p.fin || "", dlyHalfS(p) ? 1 : 0, dlyHalfE(p) ? 1 : 0].join(",")).join(";");
+      const sigP = x => (x.per || [x]).map(q => [q.deb || "", q.fin || "", q.dm ? 1 : 0, q.fm && q.fin ? 1 : 0].join(",")).join(";");
+      const same = Object.keys(P.D).every(k => sigC(k) === sigP(P.D[k]));
       return same && !P.links.length ? { ok: false, why: "RIEN À AJUSTER : AUCUN JOUR NE DÉPASSE LA CAPACITÉ ET AUCUN JOUR À GAGNER." } : { ok: true, P };
     };
     const dlyHasDates = () => dlyKeys().some(k => dlyDeb(k) && dlyFin(k));
@@ -233,11 +239,15 @@
     const dlyWriteH = D => {
       Object.keys(D).forEach(k => {
         const x = D[k], L = dlyDraftKey(k);
-        const p = L[0] || { id: insId() };
-        L.splice(0, L.length, p);
-        p.deb = x.deb; p.fin = x.fin || "";
-        if (x.dm) p.dmd = x.deb; else delete p.dmd;
-        if (x.fm && x.fin) p.fmd = x.fin; else delete p.fmd;
+        /* v547 (R22) : un morceau par période calculée */
+        const nl = (x.per || [x]).map((q, i) => {
+          const p = { ...(L[i] || {}), id: (L[i] || {}).id || insId() };
+          p.deb = q.deb; p.fin = q.fin || "";
+          if (q.dm) p.dmd = q.deb; else delete p.dmd;
+          if (q.fm && q.fin) p.fmd = q.fin; else delete p.fmd;
+          return p;
+        });
+        L.splice(0, L.length, ...nl);
       });
     };
     const DLY_BUT_MSG = "AVEC CE NOMBRE VOUS RISQUEZ DE DÉPASSER LA DATE BUTOIR";
@@ -341,8 +351,8 @@
         const l = (INS.links || []).find(x => (x.prd || []).some(y => y.id === r.id));
         const k = l && l.lot + "|" + l.sec, p = k && cur[k], v = insHT("prd", r);
         if (!p || !v) return;
-        const n = sviWDur(cal, p.deb, p.fin) || 1;
-        for (let i = 0, x = sviWNear(cal, p.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) { out[x] = (out[x] || 0) + v / n; (det[x] = det[x] || {})[k] = ((det[x] || {})[k] || 0) + v / n; }
+        const D2 = []; (p.per && p.per.length ? p.per : [p]).forEach(q => { const n = sviWDur(cal, q.deb, q.fin) || 1; for (let i = 0, x = sviWNear(cal, q.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) D2.push(x); });
+        D2.forEach(x => { out[x] = (out[x] || 0) + v / D2.length; (det[x] = det[x] || {})[k] = ((det[x] || {})[k] || 0) + v / D2.length; });
       });
       return { L: out, det };
     };
@@ -355,11 +365,13 @@
       if (R) Object.keys(cur).forEach(k => {
         const p = cur[k], m = dlyResOf(k, R, mode);
         if (!m.size) return;
-        const n = sviWDur(cal, p.deb, p.fin) || 1, fr = i => (i === 0 && p.hs ? .5 : 1) * (i === n - 1 && p.he ? .5 : 1);
-        let t = 0; for (let i = 0; i < n; i++) t += fr(i);
-        for (let i = 0, x = sviWNear(cal, p.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) {
+        /* v547 (R22) : jours de chaque morceau (demi-journées comprises) */
+        const SL = [];
+        (p.per && p.per.length ? p.per : [p]).forEach(q => { const n = sviWDur(cal, q.deb, q.fin) || 1; for (let i = 0, x = sviWNear(cal, q.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) SL.push({ x, f: (i === 0 && q.hs ? .5 : 1) * (i === n - 1 && q.he ? .5 : 1) }); });
+        let t = 0; SL.forEach(o => { t += o.f; });
+        for (const { x, f: fi } of SL) {
           let sum = 0; const per = {};
-          m.forEach((v, sk) => { const w = v / (t || 1) * fr(i), S = ser.get(sk); if (S) S.L[x] = (S.L[x] || 0) + w; sum += w; per[sk] = w; });
+          m.forEach((v, sk) => { const w = v / (t || 1) * fi, S = ser.get(sk); if (S) S.L[x] = (S.L[x] || 0) + w; sum += w; per[sk] = w; });
           tot[x] = (tot[x] || 0) + sum;
           (det[x] = det[x] || []).push({ k, v: sum, inc: dlyInc(k), per });
         }
@@ -473,6 +485,58 @@
         INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc) };
         d.remove();
         insSave(); histLog("DÉLAIS", "RÉGLAGES DE L'HISTOGRAMME", c.map(x => ({ c: "CHARGES", p: "PRODUITS", g: "MARGE" })[x]).join(" + ")); renderTabK();
+      });
+    };
+    /* v547 (R22, FORMAT 196) : fenêtre MORCEAUX d'une tâche coupée — DÉBUT, FIN, DURÉE de chaque morceau, ✕, + AJOUTER UN MORCEAU, RECOLLER */
+    const dlyPiecesWin = k => {
+      const cal = insCal();
+      let rows = dlyList(k).filter(p => p.deb).map(p => ({ id: p.id || insId(), deb: p.deb, fin: p.fin || p.deb }));
+      const d = document.createElement("div");
+      d.id = "svConf";
+      const draw = () => {
+        const tot = rows.reduce((t, r) => t + (Number(dDur(r.deb, r.fin)) || 0), 0);
+        d.innerHTML = `<div class="svc-card pcs-card" role="dialog" aria-modal="true">
+          <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
+          <div class="svc-t">MORCEAUX — ${esc(dlyName(k))}</div>
+          <div class="pcs-g"><b>DÉBUT</b><b>FIN</b><b class="center">DURÉE (J)</b><b></b>${rows.map((r, i) => `<span><input type="date" class="pcs-d" data-i="${i}" data-f="deb" value="${esc(r.deb)}"></span><span><input type="date" class="pcs-d" data-i="${i}" data-f="fin" value="${esc(r.fin)}"></span><span class="center">${esc(String(dDur(r.deb, r.fin)))}</span><button type="button" class="pcs-x" data-i="${i}"${rows.length < 2 ? " disabled" : ""} aria-label="Supprimer le morceau">✕</button>`).join("")}
+          <i class="pcs-tot">TOTAL</i><i></i><i class="pcs-tot center">${tot}</i><i></i></div>
+          <div class="pcs-acts"><button type="button" class="svc-b" data-add>+ AJOUTER UN MORCEAU</button><button type="button" class="svc-b" data-glue${rows.length < 2 ? " disabled" : ""}>RECOLLER</button></div>
+          <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
+        d.querySelectorAll('input[type="date"]').forEach(sviDateField);
+      };
+      document.getElementById("svConf")?.remove();
+      document.body.appendChild(d);
+      draw();
+      d.addEventListener("change", e => { const i = e.target.closest(".pcs-d"); if (!i) return; rows[Number(i.dataset.i)][i.dataset.f] = i.value; draw(); });
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        const x = e.target.closest(".pcs-x");
+        if (x && rows.length > 1) { rows.splice(Number(x.dataset.i), 1); draw(); return; }
+        if (e.target.closest("[data-add]")) { const l = rows[rows.length - 1], a = sviWAdd(cal, l.fin, 2); rows.push({ id: insId(), deb: a, fin: a }); draw(); return; }
+        if (e.target.closest("[data-glue]") && rows.length > 1) {
+          const tot = rows.reduce((t, r) => t + (Number(dDur(r.deb, r.fin)) || 1), 0), a = rows[0].deb;
+          rows = [{ id: rows[0].id, deb: a, fin: sviWFin(cal, a, tot) }]; draw(); return;
+        }
+        if (!e.target.closest("[data-ok]")) return;
+        const R = rows.map(r => ({ ...r })).sort((a, b) => a.deb.localeCompare(b.deb));
+        let err = "";
+        const pf = dlyPredFin(k);
+        R.forEach((r, i) => {
+          if (err) return;
+          if (!r.deb || !r.fin) err = "MORCEAU " + (i + 1) + " : DÉBUT ET FIN OBLIGATOIRES.";
+          else if (!sviWork(cal, r.deb) || !sviWork(cal, r.fin)) err = "MORCEAU " + (i + 1) + " : JOUR NON TRAVAILLÉ DU CALENDRIER DU BUDGET.";
+          else if (r.fin < r.deb) err = "MORCEAU " + (i + 1) + " : LA FIN EST AVANT LE DÉBUT.";
+          else if (i && r.deb <= R[i - 1].fin) err = "LES MORCEAUX " + i + " ET " + (i + 1) + " SE CHEVAUCHENT.";
+          else if (INS.dbut && r.fin > INS.dbut) err = "FIN REFUSÉE : APRÈS LA DATE BUTOIR DU " + dFr(INS.dbut) + ".";
+        });
+        if (!err && pf && R[0].deb < pf) err = "DÉBUT REFUSÉ : LES LIAISONS IMPOSENT LE " + dFr(pf) + " AU PLUS TÔT.";
+        if (err) { svToast(err, 3500, d.querySelector("[data-ok]")); return; }
+        const L = dlyDraftKey(k);
+        L.splice(0, L.length, ...R.map(r => ({ id: r.id, deb: r.deb, fin: r.fin })));
+        d.remove();
+        dlyCommitDrafts(); dlyRespect(false); insSave();
+        histLog("DÉLAIS", R.length > 1 ? "MORCEAUX" : "MORCEAUX RECOLLÉS", dlyName(k) + " : " + R.map(r => dFr(r.deb) + " → " + dFr(r.fin)).join(" ; "));
+        renderTabK(); insRenderChain();
       });
     };
 

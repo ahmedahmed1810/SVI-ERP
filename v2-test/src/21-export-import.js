@@ -1686,9 +1686,10 @@
       keys.map(k => ({ k, n: dlyName(k) })).sort((a, b) => String(((INS.dlp[a.k] || [])[0] || {}).deb || "9").localeCompare(String(((INS.dlp[b.k] || [])[0] || {}).deb || "9")) || natCmp(a.n, b.n)).forEach(({ k }) => {
         const [lo, se] = k.split("|");
         const L = dlyLinks(k);
-        const p = ((INS.dlp || {})[k] || [])[0] || {};
-        out.push([lkName("lot", lo), lkName("sec", se), dFr(p.deb || ""), dFr(p.fin || ""), p.deb && p.fin ? dDur(p.deb, p.fin) : "",
-          L.map(x => dlyName(x.k)).join(" ; "), L.map(x => DLY_TY[x.t === "DD" ? "DD" : "FD"]).join(" ; "), L.map(x => x.o || 0).join(" ; ")]);
+        /* v547 (R22) : une ligne par morceau ; liaisons sur la première */
+        const PL = ((INS.dlp || {})[k] || []).length ? INS.dlp[k] : [{}];
+        PL.forEach((p, i) => out.push([lkName("lot", lo), lkName("sec", se), dFr(p.deb || ""), dFr(p.fin || ""), p.deb && p.fin ? dDur(p.deb, p.fin) : "",
+          i ? "" : L.map(x => dlyName(x.k)).join(" ; "), i ? "" : L.map(x => DLY_TY[x.t === "DD" ? "DD" : "FD"]).join(" ; "), i ? "" : L.map(x => x.o || 0).join(" ; ")]));
       });
       return out;
     };
@@ -1792,18 +1793,25 @@
         added.push({ key, deb, fin, src });
       });
       /* une seule période par tâche : lignes d'une même tâche fusionnées (début le plus tôt, fin la plus tardive) */
+      /* v547 (R22) : plusieurs lignes d'une même tâche = ses morceaux (les morceaux qui se chevauchent sont réunis) */
       const one = new Map();
-      added.forEach(c => { const x = one.get(c.key); if (!x) one.set(c.key, { ...c }); else { if (c.deb < x.deb) x.deb = c.deb; if (c.fin > x.fin) x.fin = c.fin; } });
+      added.slice().sort((a, b) => a.deb.localeCompare(b.deb)).forEach(c => {
+        const x = one.get(c.key);
+        if (!x) { one.set(c.key, { ...c, per: [{ deb: c.deb, fin: c.fin }] }); return; }
+        const l = x.per[x.per.length - 1];
+        if (c.deb <= l.fin) { if (c.fin > l.fin) l.fin = c.fin; } else x.per.push({ deb: c.deb, fin: c.fin });
+        if (c.fin > x.fin) x.fin = c.fin;
+      });
       const cand = [...one.values()];
       /* la tâche commence au plus tôt à la date exigée par ses liaisons (dates connues : fichier, sinon budget) */
-      const finOf = k => { const c = one.get(k); return c ? c.fin : (((INS.dlp || {})[k] || [])[0] || {}).fin || ""; };
+      const finOf = k => { const c = one.get(k); return c ? c.fin : (((INS.dlp || {})[k] || []).slice(-1)[0] || {}).fin || ""; };
       const debOf = k => { const c = one.get(k); return c ? c.deb : (((INS.dlp || {})[k] || [])[0] || {}).deb || ""; };
       let nAdd = 0;
       cand.forEach(c => {
         const pf = dlyNeedOf(c.key, finOf, debOf);
         if (pf && c.deb < pf) { rej.push({ src: c.src, bad: ["deb"], why: "DÉBUT AVANT LA DATE IMPOSÉE PAR LES LIAISONS (" + dFr(pf) + ")" }); return; }
         const list = INS.dlp[c.key] = INS.dlp[c.key] || [];
-        if (list.length) { list.splice(1); list[0].deb = c.deb; list[0].fin = c.fin; } else list.push({ id: insId(), deb: c.deb, fin: c.fin });
+        list.splice(0, list.length, ...c.per.map((q, i) => ({ id: (list[i] || {}).id || insId(), deb: q.deb, fin: q.fin })));
         nAdd++;
       });
       const kk = x => JSON.stringify(["lot", "sec", "type", "deb", "fin", "pred"].map(f => U_((x.src || {})[f])));

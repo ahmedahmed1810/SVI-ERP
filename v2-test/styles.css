@@ -2313,3 +2313,33 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .hcf-card .cmd-g { display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .hcf-card label.off { opacity: .45; }
 .hcf-pct { width: 70px; }
+/* ===== v547 (R22) : tâche en morceaux ===== */
+#dlyGantt .gpc { position: absolute; height: 0; border-top: 1px dashed var(--c, #667085); z-index: 1; pointer-events: none; }
+#dlyGantt .gpc-n { font-size: 9px; font-weight: 800; color: #667085; background: #f2f4f7; border-radius: 8px; padding: 0 5px; }
+.dlp-multi { display: inline-flex; align-items: center; gap: 4px; justify-content: center; width: 100%; cursor: pointer; text-decoration: underline dotted; }
+.dlp-pcn { display: inline-block; min-width: 14px; height: 14px; line-height: 14px; border-radius: 7px; background: #e4e7ec; color: #344054; font-size: 9px; text-align: center; }
+.pcs-t { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 12px; }
+.pcs-t th { font-size: 10px; color: #667085; text-align: left; padding: 2px 4px; }
+.pcs-t td { padding: 2px 4px; }
+.pcs-t input { width: 100%; box-sizing: border-box; }
+.pcs-tot td { font-weight: 800; border-top: 1px solid #e4e7ec; }
+.pcs-x { border: 0; background: none; color: #b42318; font-size: 13px; cursor: pointer; }
+.pcs-x:disabled { opacity: .3; }
+.pcs-acts { display: flex; gap: 8px; margin: 4px 0 6px; }
+/* v547 : unité sous l'étiquette MAX ; étiquettes de la CAPACITÉ toujours sur une ligne (R23) */
+.ghist-ax .gax-u { top: 15px; }
+.gplaf-v, .gplaf-w { white-space: nowrap; }
+.pcs-t { table-layout: fixed; }
+.pcs-t th:nth-child(1), .pcs-t th:nth-child(2) { width: 38%; }
+.pcs-t th:nth-child(3) { width: 16%; }
+.pcs-t th:nth-child(4) { width: 8%; }
+.pcs-t td { overflow: hidden; }
+.pcs-t td > * { max-width: 100%; box-sizing: border-box; }
+.pcs-card .pcs-t { width: 100% !important; max-width: 100% !important; }
+.pcs-card .pcs-t input, .pcs-card .pcs-t .sv-date { min-width: 0 !important; width: 100% !important; }
+.pcs-g { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 70px 28px; gap: 4px 6px; align-items: center; margin: 6px 0; font-size: 12px; }
+.pcs-g > b { font-size: 10px; color: #667085; }
+.pcs-g > i { font-style: normal; }
+.pcs-g .pcs-tot { font-weight: 800; border-top: 1px solid #e4e7ec; padding-top: 3px; }
+.pcs-g span { min-width: 0; overflow: hidden; }
+.pcs-g input, .pcs-g .sv-date { width: 100% !important; min-width: 0 !important; box-sizing: border-box; }

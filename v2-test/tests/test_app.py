@@ -1464,6 +1464,32 @@ def main():
             I.chg = I.chg.filter(r => !/^n[123]$/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
         pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
 
+        # v547 (R22) : COMPRESSER coupe une tâche (capacité 0 le 04/11) ; Gantt en morceaux ; fenêtre MORCEAUX, RECOLLER
+        DXJ = "[...document.querySelectorAll('*')].find(e => e.__insDly).__insDly"
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;
+            I.chg.forEach(r => {{ r.on = false; }});
+            I.chg.push({{ id: 'v1', des: 'MACON', u: 'JH', q: 8, p: 100, on: true }});
+            I.__lk7 = I.links; I.__dlp7 = I.dlp; I.__dp7 = I.dpred; I.__ord7 = I.dord; I.__pd7 = I.pdeb || '';
+            I.links = [{{ id: 'V1', des: 'd1', lot: 'l1', prim: 'p1', sec: 's1', prd: [], chg: [{{ id: 'v1' }}] }}];
+            I.dlp = {{ 'l1|s1': [] }}; I.dpred = {{}}; I.dinc = {{}}; I.pdeb = '2026-11-02'; I.dord = ['l1|s1']; I.hset = {{ u: 'q', aff: 'j', cum: 'r' }};
+            I.plafR = {{ 'MACON|J-H': {{ plaf: 2, plafs: [{{ d: '2026-11-04', n: 0, after: [] }}, {{ d: '2026-11-05', n: 2, after: [] }}] }} }};
+            X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(700)
+        pg.evaluate(f"() => {DXJ}.gen()"); pg.wait_for_timeout(800)
+        m1 = pg.evaluate(f"""() => [JSON.stringify(({ins}.INS.dlp['l1|s1'] || []).map(p => [p.deb, p.fin])), document.querySelectorAll('#dlyGantt .gb.gb-pc[data-key="l1|s1"]').length,
+            (document.querySelector('tr[data-key="l1|s1"] .dlp-multi .dlp-pcn') || {{}}).textContent || '', (document.querySelector('tr[data-key="l1|s1"] td:nth-last-child(4) .dlp-multi, tr[data-key="l1|s1"] .dlp-multi') || {{}}).textContent || '']""")
+        if os.environ.get("SHOT"): pg.screenshot(path=os.environ["SHOT"] + "v547a.png")
+        pg.evaluate("() => document.querySelector('tr[data-key=\"l1|s1\"] .dlp-multi')?.click()"); pg.wait_for_timeout(400)
+        if os.environ.get("SHOT"): pg.screenshot(path=os.environ["SHOT"] + "v547b.png")
+        m2 = pg.evaluate("() => [(document.querySelector('#svConf .svc-t') || {}).textContent || '', document.querySelectorAll('#svConf .pcs-d[data-f=\"deb\"]').length]")
+        pg.evaluate("() => document.querySelector('#svConf [data-glue]')?.click()"); pg.wait_for_timeout(200)
+        pg.evaluate("() => document.querySelector('#svConf [data-ok]')?.click()"); pg.wait_for_timeout(600)
+        m3 = pg.evaluate(f"() => JSON.stringify(({ins}.INS.dlp['l1|s1'] || []).map(p => [p.deb, p.fin]))")
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk7; I.dlp = I.__dlp7; I.dpred = I.__dp7; I.dord = I.__ord7; I.pdeb = I.__pd7;
+            ['__lk7', '__dlp7', '__dp7', '__ord7', '__pd7'].forEach(k => delete I[k]); I.plafR = {{}}; I.hset = null; I.dinc = {{}}; I.dlim = {{}}; I.chg = I.chg.filter(r => r.id !== 'v1'); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        check("v547 R22 : COMPRESSER coupe la tâche autour de la pénurie (02-03 / 05-06) ; deux barres, pastille 2 ; MORCEAUX → RECOLLER = un seul morceau de 4 jours",
+              m1[0] == '[["2026-11-02","2026-11-03"],["2026-11-05","2026-11-06"]]' and m1[1] == 2 and m1[2] == "2" and m2[0].startswith("MORCEAUX") and m2[1] == 2 and m3 == '[["2026-11-02","2026-11-05"]]', [m1, m2, m3])
+
         # v546 : remarques 14 à 35 (sauf 22)
         DXJ = "[...document.querySelectorAll('*')].find(e => e.__insDly).__insDly"
         pg.set_viewport_size({"width": 1180, "height": 900}); pg.wait_for_timeout(300)
@@ -1477,6 +1503,7 @@ def main():
             X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
         pg.evaluate("() => localStorage.setItem('svi_dlyhh_v1', '160')")
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(900)
+        if os.environ.get("SHOT"): pg.screenshot(path=os.environ["SHOT"] + "v546a.png")
         q = pg.evaluate("""() => { const G = document.querySelector('#dlyGantt'), sc = document.querySelector('.dly-scroll'), L = document.querySelector('.dlyg-l'), h = G.querySelector('.ghist');
             return { z0: !!G.querySelector('.gb.gb0[data-key="l1|s2"]'), succ: (document.querySelector('tr[data-key="l1|s1"] .dly-succ') || {}).textContent || '', succH: !!document.querySelector('.dly-table th .cf-btn[data-col="succ"]'),
               cap: (G.querySelector('.gplaf.gcap-def .gplaf-v') || {}).textContent || '', segv: (G.querySelector('.gseg-v') || {}).textContent || '', unit: (G.querySelector('.gax-u') || {}).textContent || '',
@@ -1495,6 +1522,7 @@ def main():
         # R28 / R29 : cumulé = une courbe ; ⚙ : PRODUITS et MARGE
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.plafR = {{}}; X.INS.hset = {{ u: 'm', aff: 'c', cum: 'r' }}; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
         nl = pg.evaluate("() => document.querySelectorAll('#dlyGantt .ghist-cum polyline').length")
+        if os.environ.get("SHOT"): pg.screenshot(path=os.environ["SHOT"] + "v546b.png")
         pg.evaluate("() => document.querySelector('.dlyhh-cfg')?.click()"); pg.wait_for_timeout(300)
         hw = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
         pg.evaluate("() => { const d = document.getElementById('svConf'); d.querySelectorAll('.hcf-c').forEach(i => { i.checked = true; }); d.querySelector('input[name=\"hca\"][value=\"j\"]').checked = true; d.querySelector('[data-ok]').click(); }"); pg.wait_for_timeout(600)
