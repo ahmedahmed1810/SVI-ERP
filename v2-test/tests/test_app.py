@@ -1227,6 +1227,21 @@ def main():
         check("v535 : sous-titre HAUT posé sur son parent RDC = nouveau titre GROUPE avec RDC et HAUT au même rang",
               g5.startswith("GROUPE") and sorted(v5) == sorted([g5 + " / RDC", g5 + " / RDC / ESC", g5 + " / HAUT / SDB", g5 + " / HAUT / TOIT"]), v5)
 
+        # ===== v537 : DÉTAIL DÉLAIS — case carrée = filtre des autres blocs (et inversement) ; rond = ce qui est lié à la tâche =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.links.filter(l => l.id !== 'L37').concat([{{ id: 'L37', des: 'd3', lot: 'l2', prim: 'p1', sec: 's2', prd: [], chg: [{{ id: 'c2' }}] }}]); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(600)
+        pg.evaluate("() => { const c = document.querySelector('#bdgTabBody input.dlyp-cb[data-key=\"l1|s1\"]'); if (c) { c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); } }"); pg.wait_for_timeout(500)
+        f37 = pg.evaluate("() => [[...document.querySelectorAll('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid]')].map(x => x.dataset.iid), [...document.querySelectorAll('#bdgClientBody tr[data-iid]')].filter(t => t.offsetParent !== null).map(t => t.dataset.iid)]")
+        pg.evaluate("() => { const c = document.querySelector('#bdgTabBody input.dlyp-cb[data-key=\"l1|s1\"]'); if (c) { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); } }"); pg.wait_for_timeout(400)
+        pg.evaluate("() => document.querySelector('#bdgTabBody .dly-rd[data-dkey=\"l2|s2\"]')?.click()"); pg.wait_for_timeout(500)
+        r37 = pg.evaluate("() => [!!document.querySelector('#bdgTabBody .dly-rd[data-dkey=\"l2|s2\"].on'), !!document.querySelector('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid=\"l2\"] .lk-rd.on'), !!document.querySelector('#bdgClientBody tr[data-iid=\"d3\"].lk-hit, #bdgClientBody tr[data-iid=\"d3\"] .lk-rd.lnk')]")
+        pg.evaluate("() => document.querySelector('#bdgTabBody .dly-rd[data-dkey=\"l2|s2\"]')?.click()"); pg.wait_for_timeout(400)
+        r37b = pg.evaluate("() => !!document.querySelector('#bdgTabBody .dly-rd.on')")
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.links = I.links.filter(l => l.id !== 'L37'); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v537 : tâche cochée du PLANNING = filtre des autres blocs ; rond d'une tâche = ce qui lui est lié s'allume, retoucher = libérer",
+              f37[0] == ["l1"] and "d3" not in f37[1] and "d1" in f37[1] and r37 == [True, True, True] and r37b is False, [f37, r37, r37b])
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

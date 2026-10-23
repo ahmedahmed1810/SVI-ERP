@@ -2147,3 +2147,5 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .cond-t td.l { text-align: left; }
 .cond-pcs input { width: 100%; box-sizing: border-box; border: 0; text-align: center; font: inherit; background: transparent; }
 .cond-add, .cond-del { border: 0; background: none; color: #1e3a8a; font: inherit; font-weight: 800; cursor: pointer; }
+/* v537 : rond d'une tâche du PLANNING (à quoi elle est liée) */
+.dly-lotc .dly-rd { margin-right: 6px; align-self: center; }

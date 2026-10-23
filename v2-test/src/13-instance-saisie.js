@@ -890,9 +890,11 @@
       B.forEach(x => { const ids = (INS[x] || []).filter(r => !r.t && r.on === true).map(r => r.id); if (ids.length) C[x] = new Set(ids); });
       /* v498 (remarque 37) : liaisons cochées de l'onglet MARGE — elles filtrent aussi les autres blocs */
       const lon = k !== "lnk" && (INS.links || []).some(l => l.on === true);
+      /* v537 : tâches cochées du PLANNING (DÉTAIL DÉLAIS) — elles filtrent aussi les autres blocs, comme toutes les cases carrées */
+      const DS = k !== "dly" && shell.__dlySel && shell.__dlySel.size ? shell.__dlySel : null;
       const ks = Object.keys(C);
-      const out = !ks.length && !lon ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
-        && (!lon || l.on === true));
+      const out = !ks.length && !lon && !DS ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
+        && (!lon || l.on === true) && (!DS || DS.has(l.lot + "|" + l.sec)));
       ICL.m[k] = out;
       return out;
     };

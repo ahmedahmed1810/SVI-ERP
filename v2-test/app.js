@@ -6559,9 +6559,11 @@ function renderBudgetList() {
       B.forEach(x => { const ids = (INS[x] || []).filter(r => !r.t && r.on === true).map(r => r.id); if (ids.length) C[x] = new Set(ids); });
       /* v498 (remarque 37) : liaisons cochées de l'onglet MARGE — elles filtrent aussi les autres blocs */
       const lon = k !== "lnk" && (INS.links || []).some(l => l.on === true);
+      /* v537 : tâches cochées du PLANNING (DÉTAIL DÉLAIS) — elles filtrent aussi les autres blocs, comme toutes les cases carrées */
+      const DS = k !== "dly" && shell.__dlySel && shell.__dlySel.size ? shell.__dlySel : null;
       const ks = Object.keys(C);
-      const out = !ks.length && !lon ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
-        && (!lon || l.on === true));
+      const out = !ks.length && !lon && !DS ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
+        && (!lon || l.on === true) && (!DS || DS.has(l.lot + "|" + l.sec)));
       ICL.m[k] = out;
       return out;
     };
@@ -9901,7 +9903,7 @@ function renderBudgetList() {
             : x.ext
             ? { lot: "", sec: `<span class="dly-lotc dly-extn" ${ind(0)}>${esc(lotLab(dlyLotPath(x.lot)).full)} › ${esc(x.sec)}</span>`, pred: esc(x.pred), deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur === "" ? "" : x.dur,
                 marge: x.marge === "" ? "" : x.marge, jal: x.jal ? "★" : "", __cb: "", __td_marge: " dly-calc" }
-            : { lot: "", sec: `<span class="dly-lotc" ${ind(x.lvl)}>${nm("sec", `data-sid="${esc(x.key.split("|")[1])}"`, x.sec)}</span>`, pred: `<span class="dly-pred" data-key="${esc(x.key)}">${esc(x.pred) || "<i>CHOISIR…</i>"}</span>`,
+            : { lot: "", sec: `<span class="dly-lotc" ${ind(x.lvl)}>${INS_EDIT ? `<span class="lk-rd dly-rd${LK.lot === x.key.split("|")[0] && LK.sec === x.key.split("|")[1] ? " on" : dlyPicked(x.key) ? " lnk" : ""}" data-dkey="${esc(x.key)}" role="button" aria-label="Voir ce qui est lié à la tâche"></span>` : ""}${nm("sec", `data-sid="${esc(x.key.split("|")[1])}"`, x.sec)}</span>`, pred: `<span class="dly-pred" data-key="${esc(x.key)}">${esc(x.pred) || "<i>CHOISIR…</i>"}</span>`,
                 deb: dlyCellIn(x, "deb"), fin: dlyCellIn(x, "fin"), dur: dlyCellIn(x, "dur"), marge: x.marge === "" ? "" : x.marge,
                 __td_deb: INS_EDIT ? " ins-td" : "", __td_fin: INS_EDIT ? " ins-td" : "", __td_dur: INS_EDIT ? " ins-td" : "",
                 jal: `<span class="dly-jal${x.jal ? " on" : ""}" data-key="${esc(x.key)}">${x.jal ? "★" : "☆"}</span>`, __td_marge: " dly-calc",
@@ -10335,7 +10337,8 @@ function renderBudgetList() {
           else if (c.dataset.path) { const g = R.find(x => x.grp && x.path === c.dataset.path); keys = g ? g.all.map(t => t.key) : []; }
           else keys = [c.dataset.key];
           keys.forEach(k => { if (c.checked) S.add(k); else S.delete(k); });
-          X.render();
+          /* v537 : les autres blocs suivent (filtre des cases cochées) */
+          refreshAll();
           return;
         }
         const n = e.target.closest && e.target.closest("input.dly-nm:not(.dly-gin)");
@@ -11939,6 +11942,17 @@ function renderBudgetList() {
           L.err = ""; X.light(gk);
           return;
         }
+        /* v537 : rond d'une tâche du PLANNING = son lot et son activité secondaire choisis : tout ce qui lui est lié s'allume
+           (désignations, activités, produits, charges) ; retoucher = libérer */
+        const dr = e.target.closest(".dly-rd");
+        if (dr) {
+          e.stopPropagation(); e.preventDefault();
+          const L = X.LK, [lo, se] = String(dr.dataset.dkey || "").split("|");
+          if (L.lot === lo && L.sec === se) { L.lot = L.sec = null; L.prim = null; X.light("lot"); return; }
+          if (L.des || L.lot || L.prim || L.sec || (L.all && Object.values(L.all).some(Boolean))) { svToast("UNE LIGNE (OU UN TITRE) EST DÉJÀ CHOISIE : LIBÉREZ-LA D'ABORD.", 3000, dr); return; }
+          L.lot = lo; L.sec = se; X.light("lot");
+          return;
+        }
         const rd = e.target.closest(".lk-rd");
         if (rd) {
           e.stopPropagation(); e.preventDefault();
@@ -12609,8 +12623,9 @@ function renderBudgetList() {
         if (!want) { if (h) h.remove(); return; }
         /* v527 (remarque 5) : rien n'est décoché tout seul — le bandeau dit QUELLES cases cochées se contredisent,
            avec un bouton par bloc pour les décocher (et TOUT RÉAFFICHER) */
-        const NM = { des: "DÉSIGNATION(S)", lot: "LOT(S)", prim: "ACTIVITÉ(S) PRIMAIRE(S)", sec: "ACTIVITÉ(S) SECONDAIRE(S)", chg: "CHARGE(S)", prd: "PRODUIT(S)" };
-        const ck = ["des", "lot", "prim", "sec", "chg", "prd"].filter(x => x !== k).map(x => [x, (INS[x] || []).filter(r => !r.t && r.on === true).length]).filter(([, n]) => n);
+        const NM = { des: "DÉSIGNATION(S)", lot: "LOT(S)", prim: "ACTIVITÉ(S) PRIMAIRE(S)", sec: "ACTIVITÉ(S) SECONDAIRE(S)", chg: "CHARGE(S)", prd: "PRODUIT(S)", dly: "TÂCHE(S) DU PLANNING" };
+        const ck = ["des", "lot", "prim", "sec", "chg", "prd"].filter(x => x !== k).map(x => [x, (INS[x] || []).filter(r => !r.t && r.on === true).length]).filter(([, n]) => n)
+          .concat(shell.__dlySel && shell.__dlySel.size ? [["dly", shell.__dlySel.size]] : []);
         const sig = k + ":" + ck.map(([x, n]) => x + n).join(",") + ":" + total;
         if (h && h.dataset.sig === sig) return;
         if (!h) { h = document.createElement("div"); h.className = "svi-empty"; if (box.tagName === "TABLE") box.after(h); else box.appendChild(h); }
@@ -12623,6 +12638,7 @@ function renderBudgetList() {
     };
     shell.__insClrAll = () => {
       ["des", "lot", "prim", "sec", "chg", "prd"].forEach(k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; });
+      if (shell.__dlySel) shell.__dlySel.clear();
       (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }); (INS.inc || []).forEach(x => { if (x.on === true) x.on = false; });
       try { ["client", "hier", "detail"].forEach(b => insFiltPlan(b).T.forEach(t => { if (CF[t]) CF[t].f = {}; })); } catch (e) {}
       insSave(); refreshAll();
@@ -12639,7 +12655,7 @@ function renderBudgetList() {
     }
     shell.__insEmptyHints = insEmptyHints;
     /* décocher un seul bloc */
-    shell.__insClrK = k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; insSave(); refreshAll(); };
+    shell.__insClrK = k => { if (k === "dly") { if (shell.__dlySel) shell.__dlySel.clear(); refreshAll(); return; } (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; insSave(); refreshAll(); };
 
     const tvaFor = l =>
       l.ttcAmount !== undefined ? l.ttcAmount - l.amount : l.amount * l.tva / 100;
