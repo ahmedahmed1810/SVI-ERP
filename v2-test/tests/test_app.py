@@ -1187,6 +1187,26 @@ def main():
         check("v533 : nom RDC HAUT gardé et ligne RDC BA déplacée quand on glisse juste après avoir tapé le nom",
               "GROUPE 2 / RDC HAUT / ESC" in r33[0] and r33[0].index("GROUPE 2 / RDC BA") < r33[0].index("GROUPE 2 / RDC HAUT") and "RDC HAUT" in r33[1], r33)
 
+        # ===== v534 : un titre posé sur un autre titre = nouveau titre qui regroupe les deux ; destination en jaune =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id));
+            I.lot.push({{ id: 'h1', v: 'RDC HAUT / ESC' }}, {{ id: 'h2', v: 'RDC HAUT / SDB' }}, {{ id: 'h3', v: 'RDC BA / ESC' }}, {{ id: 'h4', v: 'RDC BA / SDB' }}); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        for _ in range(6):
+            if not pg.evaluate(UNF): break
+            pg.wait_for_timeout(250)
+        pg.evaluate("""() => { const c = document.querySelector('.ins-hcol[data-ik="lot"]'); c.style.maxHeight = 'none'; c.style.height = 'auto'; c.scrollIntoView({ block: 'center' }); }"""); pg.wait_for_timeout(200)
+        s4 = pg.evaluate("""() => { const r = document.querySelector('.ins-li.lot-par[data-iid], .lot-grp[data-path="RDC BA"]'); const i = document.querySelector('.lot-grp[data-path="RDC BA"] input.lot-gname').getBoundingClientRect(); return [i.left + 30, i.top + i.height / 2]; }""")
+        t4 = pg.evaluate("""() => { const r = document.querySelector('.lot-grp[data-path="RDC HAUT"]').getBoundingClientRect(); return r.top + r.height / 2; }""")
+        pg.mouse.move(s4[0], s4[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+        pg.mouse.move(s4[0], t4 - 3, steps=6); pg.wait_for_timeout(100); pg.mouse.move(s4[0], t4, steps=2); pg.wait_for_timeout(150)
+        y4 = pg.evaluate("() => { const r = document.querySelector('.lot-grp[data-path=\"RDC HAUT\"]'); return r ? [r.classList.contains('ro-on'), getComputedStyle(r).backgroundColor] : null; }")
+        pg.mouse.up(); pg.wait_for_timeout(700); pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(300)
+        v4 = pg.evaluate(f"() => {ins}.INS.lot.filter(r => /^h/.test(r.id)).map(r => r.v)")
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        top = set(v.split(" / ")[0] for v in v4)
+        check("v534 : titre RDC BA posé sur le titre RDC HAUT = un nouveau titre GROUPE qui contient les deux ; destination en jaune",
+              y4 == [True, "rgb(253, 230, 138)"] and len(top) == 1 and list(top)[0].startswith("GROUPE") and all(" / RDC HAUT / " in v or " / RDC BA / " in v for v in v4), [y4, v4])
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
