@@ -409,34 +409,37 @@
       /* FORMAT 97 : DÉTAIL DÉLAIS ouvert (PLANNING) — commandes du planning et affichage JOUR / SEMAINE / MOIS en tête du menu */
       const DX = shell.__insDly;
       if (DX && active === "dly" && acts.some(a => a.dataset.blk === "detail") && shell.querySelector("#dlyGantt")) {
-        const sc = DX.scaleOf();
-        const opt = (v, lab) => `<button type="button" data-dly="sc-${v}" class="dly-sc${sc === v ? " on" : ""}"><span>${sc === v ? "✓ " : ""}${lab}</span></button>`;
-        /* R5 : une seule entrée — GÉNÉRER sur un planning sans dates, sinon COMPRESSER ; plus d'APPLIQUER LE NIVELLEMENT (barre en direct, R2) */
-        m.insertAdjacentHTML("afterbegin", `<button type="button" data-dly="gen"><span>${DX.hasDates() ? "COMPRESSER LE PLANNING" : "GÉNÉRER LE PLANNING"}</span></button>
-          <button type="button" data-dly="sort" class="${DX.sorted() ? "off" : ""}"><span>CLASSER PAR DÉBUT</span></button>
-          <div class="blk-sep"></div><div class="blk-hint">AFFICHAGE DU GANTT</div>${opt("j", "JOUR")}${opt("s", "SEMAINE")}${opt("m", "MOIS")}<div class="blk-sep"></div>
-          <button type="button" data-dly="cmd"><span>COMMANDES</span></button><div class="blk-sep"></div>`);
+        /* R28 (FORMAT 162) : rubriques TABLEAU, GANTT, HISTOGRAMME ; celle de la zone touchée en dernier vient en premier */
+        const sc = DX.scaleOf(), hs = DX.hset(), vw = DX.view(), cc = DX.canComp();
+        const ck = (v, lab, on, off) => `<button type="button" data-dly="${v}" class="dly-sc${on ? " on" : ""}${off ? " off" : ""}"${off ? ` data-why="${esc(off)}"` : ""}><span>${on ? "✓ " : ""}${lab}</span></button>`;
+        const R = {
+          tab: `<div class="blk-hint">TABLEAU</div>${ck("v-l", "AFFICHER PAR LOT", vw !== "d")}${ck("v-d", "AFFICHER PAR DÉBUT", vw === "d")}`,
+          gantt: `<div class="blk-hint">GANTT</div><button type="button" data-dly="gen" class="${cc.ok ? "" : "off"}"${cc.ok ? "" : ` data-why="${esc(cc.why)}"`}><span>${DX.hasDates() ? "COMPRESSER LE PLANNING" : "GÉNÉRER LE PLANNING"}</span></button>`
+            + `${ck("sc-j", "JOUR", sc === "j")}${ck("sc-s", "SEMAINE", sc === "s")}${ck("sc-m", "MOIS", sc === "m")}`,
+          hist: `<div class="blk-hint">HISTOGRAMME</div><button type="button" data-dly="appr" class="${DX.hasSel() ? "" : "off"}"${DX.hasSel() ? "" : ' data-why="COCHER DES CHARGES : L\'APPROVISIONNEMENT PORTE SUR LES CHARGES COCHÉES."'}><span>APPROVISIONNEMENT PRÉVISIONNEL</span></button>`
+            + `<div class="blk-sub">UNITÉ</div>${ck("u-m", "MONTANT (DH)", hs.u === "m" || !DX.sameU())}${ck("u-q", "QUANTITÉ", hs.u === "q" && DX.sameU(), DX.sameU() ? "" : "QUANTITÉ IMPOSSIBLE : LES CHARGES COCHÉES N'ONT PAS LA MÊME UNITÉ.")}`
+            + `<div class="blk-sub">AFFICHAGE</div>${ck("a-j", "JOUR PAR JOUR", hs.aff !== "c")}${ck("a-c", "CUMULÉ", hs.aff === "c")}`
+            + (hs.aff === "c" ? `<div class="blk-sub">DÉPART DU CUMUL</div>${ck("c-r", "RELATIF", hs.cum !== "a")}${ck("c-a", "ABSOLU", hs.cum === "a")}` : "")
+        };
+        const z = DX.zone(), ord = [z].concat(["tab", "gantt", "hist"].filter(x => x !== z));
+        m.insertAdjacentHTML("afterbegin", ord.map(x => R[x]).join('<div class="blk-sep"></div>') + '<div class="blk-sep"></div>');
         let lp = null;
-        m.addEventListener("pointerdown", e => { const so = e.target.closest('[data-dly="sort"].off'); if (!so) return; lp = setTimeout(() => svToast("DÉJÀ CLASSÉ PAR DÉBUT : LE BOUTON REDEVIENT ACTIF DÈS QU'UNE LIGNE DÉPLACÉE NE RESPECTE PLUS CET ORDRE.", 4000, so), 550); });
+        m.addEventListener("pointerdown", e => { const so = e.target.closest("[data-dly].off[data-why]"); if (!so) return; lp = setTimeout(() => svToast(so.dataset.why, 4000, so), 550); });
         ["pointerup", "pointercancel"].forEach(t => m.addEventListener(t, () => clearTimeout(lp)));
         m.addEventListener("click", e => {
           const b = e.target.closest("[data-dly]");
           if (!b) return;
           e.stopPropagation();
-          if (b.classList.contains("off")) return;
+          if (b.classList.contains("off")) { if (b.dataset.why) svToast(b.dataset.why, 3500, b); return; }
           m.remove();
           const v = b.dataset.dly;
-          if (v === "gen") DX.gen(); else if (v === "sort") DX.sortDeb(); else if (v === "cmd") DX.cmdWin(); else DX.scale(v.slice(3));
+          if (v === "gen") DX.gen(); else if (v === "appr") DX.apprWin();
+          else if (v === "v-l" || v === "v-d") DX.viewSet(v.slice(2));
+          else if (v[0] === "u" && v[1] === "-") DX.hsetPut({ u: v.slice(2) });
+          else if (v[0] === "a" && v[1] === "-") DX.hsetPut({ aff: v.slice(2) });
+          else if (v[0] === "c" && v[1] === "-") DX.hsetPut({ cum: v.slice(2) });
+          else DX.scale(v.slice(3));
         }, true);
-      }
-      /* v461 : bloc TÂCHES — CLASSER PAR DÉBUT (même ordre que le PLANNING : lots, activités, puis le planning) */
-      if (DX && INS_EDIT && acts.some(a => a.dataset.blk === "hier")) {
-        const srt = DX.sorted();
-        m.insertAdjacentHTML("afterbegin", `<button type="button" data-hs="sort" class="${srt ? "off" : ""}"><span>CLASSER PAR DÉBUT</span></button><div class="blk-sep"></div>`);
-        let lph = null;
-        m.addEventListener("pointerdown", e => { const so = e.target.closest('[data-hs].off'); if (!so) return; lph = setTimeout(() => svToast("DÉJÀ CLASSÉ PAR DÉBUT : LE BOUTON REDEVIENT ACTIF DÈS QU'UNE LIGNE DÉPLACÉE NE RESPECTE PLUS CET ORDRE.", 4000, so), 550); });
-        ["pointerup", "pointercancel"].forEach(t => m.addEventListener(t, () => clearTimeout(lph)));
-        m.addEventListener("click", e => { const b = e.target.closest("[data-hs]"); if (!b) return; e.stopPropagation(); if (b.classList.contains("off")) return; m.remove(); DX.sortDeb(); }, true);
       }
       if (QQm && QQm.edit()) {
         const n = QQm.nChecked();
