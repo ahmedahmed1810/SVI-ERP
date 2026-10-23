@@ -10,18 +10,14 @@
     const DLY_W = { lot: 160, prim: 280, sec: 170, pred: 180, per: 120, deb: 90, fin: 90, dur: 80, marge: 70, jal: 62 };
     /* budget en instance / figé : une ligne par période d'une TÂCHE SECONDAIRE (lot + activité secondaire) */
     const DLY_COLS_S = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ...DLY_COLS.slice(2)];
-    /* récapitulatif d'une tâche primaire : ses tâches secondaires */
-    const DLY_COLS_R = DLY_COLS_S.slice(1);
     /* planning : lot, activité secondaire, prédécesseurs, début, fin, durée */
     const DLY_COLS_P = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ["pred", "PRÉDÉCESSEURS", x => x.pred || "", ""],
       ["deb", "DÉBUT", x => x.deb || "", "center"], ["fin", "FIN", x => x.fin || "", "center"], ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "center"],
       ["marge", "BATTEMENT", x => x.marge === "" || x.marge === undefined ? "" : Number(x.marge), "center"], ["jal", "JALON", x => x.jal || "", "center"]];
-    /* budget en instance : la tâche est donnée par les ronds du haut (pas de colonnes LOT / ACT. PRIMAIRE) */
-    const DLY_COLS_I = DLY_COLS.filter(c => c[0] !== "lot" && c[0] !== "prim");
     /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */
     /* del : mode modifiable (case au début de chaque période, 🗑 à la fin, case et 🗑 en tête) */
     const dlyTable = (rows, cells, trAttr = () => "", del = false, base = DLY_COLS) => {
-      const tk = base === DLY_COLS ? "dly" : base === DLY_COLS_S ? "dlys" : base === DLY_COLS_R ? "dlyr" : base === DLY_COLS_P ? "dlyp" : "dlyi";
+      const tk = base === DLY_COLS ? "dly" : base === DLY_COLS_S ? "dlys" : "dlyp";
       const cols = coOrder(tk, base);
       const w = k => cwLoad()["dly." + k] || DLY_W[k];
       /* FORMAT : case à droite de chaque ligne (cocher seulement) ; suppression par le menu ⋯ */

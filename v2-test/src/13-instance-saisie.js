@@ -457,13 +457,17 @@
       /* FORMAT 122 : ligne existante — texte affiché (appui long = glisser), un toucher ouvre la saisie */
       if (k === "des" && f === "des" && !isNew) return `<td class="${cls} ins-td ins-tdv${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}>${r.t ? `<span class="ins-tfz">${foldBtn(r)}</span>` : ""}<div class="ins-dv" data-f="des">${esc(val)}</div><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea>${r.t ? "" : `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>`}</td>`;
       if (k === "des" && f === "des") return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} ${isNew ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea></td>`;
-      /* v530 : bouton CONDITIONNEMENT dans la case DÉSIGNATION d'une charge */
-      const pk = k === "chg" && f === "des" && !isNew && !r.t;
+      /* v530 : bouton CONDITIONNEMENT dans la case DÉSIGNATION d'une charge ; remarque 4 (v542) : seulement sur une charge sans titre
+         (les charges regroupées l'ont sur la ligne de leur titre) */
+      const pk = k === "chg" && f === "des" && !isNew && !r.t && !INS_CELL_LVL;
       return `<td class="${cls} ins-td${pk ? " ins-pkc" : ""}${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
         ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
         value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off">${pk ? condBtn(r) : ""}</td>`;
     };
-    const condBtn = r => `<button type="button" class="chg-pk${(INS.cond || {})[U_(r.des) + "|" + U_(r.u)] ? " on" : ""}" tabindex="-1" data-cid="${r.id}" aria-label="Conditionnement"><svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg></button>`;
+    let INS_CELL_LVL = 0;
+    /* remarque 4 (v542) : conditionnement réglé sur l'article (tous les budgets, voir 26b) ou, avant, sur ce budget */
+    const condHas = r => { const k = U_(r.des) + "|" + U_(r.u); let A = {}; try { A = JSON.parse(localStorage.getItem("svi_cond_chs_v1") || "{}") || {}; } catch (e) {} return !!(A[k] || (INS.cond || {})[k]); };
+    const condBtn = r => `<button type="button" class="chg-pk${condHas(r) ? " on" : ""}" tabindex="-1" data-cid="${r.id}" aria-label="Conditionnement"><svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg></button>`;
     const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     /* page unique : rond à gauche = choix pour la liaison (2e toucher = libère le choix) ;
        case à droite = suppression (cochée, elle devient 🗑 ; ANNULER la décoche) */
@@ -593,6 +597,7 @@
       const dim = k === "des" && r && !r.t && LK.des && !sel;
       const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
       const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* bleu = liée (à n'importe quelle désignation) */
+      INS_CELL_LVL = lvl || 0;
       return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}${k === "des" && r ? ` style="--d:${dOf(r)}"` : ""}>
         <td class="center ins-rdc">${k === "des" && r && r.t && !INS_EDIT ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
@@ -763,7 +768,7 @@
           if (INS_EDIT) return `<td class="${c[2]} ins-td ins-rdbc" title="${tip}"><input class="ins-gin ins-rdbin" data-f="rdb" enterkeyhint="next" inputmode="decimal" value="${esc(money(RD.v))}" autocomplete="off"><span class="ins-rdbu">${esc(RD.u)}</span></td>`;
           return `<td class="${c[2]} ins-rdbc" title="${tip}"><i>${esc(v.rdb)}</i></td>`;
         }
-        if (edOk(f)) return `<td class="${c[2]} ins-td${f === "des" ? " ins-gtd" : ""}">${f === "des" ? fb : ""}<input class="ins-gin ${c[2]}" data-f="${f}" enterkeyhint="next"${["p", "tva"].includes(f) ? ' inputmode="decimal"' : ""} value="${esc(ev[f] ?? "")}" autocomplete="off" spellcheck="false"></td>`;
+        if (edOk(f)) return `<td class="${c[2]} ins-td${f === "des" ? " ins-gtd ins-pkc" : ""}">${f === "des" ? fb : ""}<input class="ins-gin ${c[2]}" data-f="${f}" enterkeyhint="next"${["p", "tva"].includes(f) ? ' inputmode="decimal"' : ""} value="${esc(ev[f] ?? "")}" autocomplete="off" spellcheck="false">${f === "des" ? condBtn(g[0]) : ""}</td>`;
         return `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}${f === "des" ? " ins-gtd" : ""}">${f === "des" ? fb : ""}${esc(v[f] ?? "")}</td>`;
       };
       /* v507 (remarque 63) : la pastille (nombre de lignes) sert de rond — toucher = choisir / libérer toutes ses charges */

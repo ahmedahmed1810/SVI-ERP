@@ -1321,8 +1321,6 @@ input[type=checkbox], input[type=radio] { accent-color: var(--svst); }
 #svCal .svcal-g button.on { background: var(--svst, #172033); color: #fff; }
 #svCal .svcal-g button:disabled { color: #c3c9d2; background: #f3f4f6; text-decoration: line-through; }
 input.sv-date, input.dlp-in[readonly] { cursor: pointer; }
-.dly-recap-t { font-weight: 800; font-size: 11px; color: #6b7280; padding: 8px 4px; }
-.dly-recap-f { display: flex; gap: 22px; padding: 8px 6px; font-size: 12px; font-weight: 700; border-top: 2px solid #e5e9f0; }
 /* LIGNES NON LIÉES : toucher = aller à la ligne */
 tr.unl-go { cursor: pointer; }
 .unl-flash, .unl-flash > td { animation: unlFlash 2.2s ease-out; }
@@ -1493,7 +1491,7 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .dly-tools { display: flex; gap: 8px; padding: 0 4px 8px; }
 .dly-tools button { border: 1.5px solid var(--inst, #b42318); background: #fff; color: var(--inst, #b42318); border-radius: 8px; padding: 6px 12px; font-weight: 800; font-size: 11px; }
 .dly-tools button:disabled { opacity: .4; }
-.dlyh-lab { border-top: 1px solid #e4e7ec; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; font-size: 10px; font-weight: 800; color: #6b7280; text-align: right; box-sizing: border-box; background: #f9fafb; }
+.dlyh-lab { height: var(--dly-hh, 110px); border-top: 1px solid #e4e7ec; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; font-size: 10px; font-weight: 800; color: #6b7280; text-align: right; box-sizing: border-box; background: #f9fafb; }
 .ghist { position: relative; border-top: 1px solid #e4e7ec; box-sizing: border-box; background: #fff; }
 .ghb { position: absolute; bottom: 0; background: #98a2b3; border-radius: 2px 2px 0 0; }
 .ghb.over { background: #d92d20; }
@@ -1531,7 +1529,6 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 /* PLANNING : pas de sélection de texte ni de loupe à l'appui long (glissement des lignes) */
 
 /* ‹ PLANNING (retour) et fenêtre plein écran (double toucher sur le titre) */
-.dly-back { border: 1.5px solid var(--inst, #b42318); background: #fff; color: var(--inst, #b42318); border-radius: 8px; padding: 3px 10px; margin-right: 8px; font-weight: 800; font-size: 11px; }
 .svc-card.svc-full { width: calc(100vw - 16px) !important; height: calc(100vh - 16px) !important; max-width: none !important; max-height: none !important; }
 .gb-n.gb-grp { font-weight: 800; color: #1f2937; }
 
@@ -2049,9 +2046,10 @@ td.svi-cs { background: var(--inst-bg, #eef0f3) !important; box-shadow: inset 0 
 /* v515 : plus de rectangle bleu sur la case à cocher d'en-tête quand des lignes sont cochées (le badge COCHÉES suffit) */
 th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: none !important; }
 /* v517 : bouts de barre du Gantt plus faciles à attraper au doigt (appui long = liaison) */
-.gb-s::before, .gb-e::before { content: ""; position: absolute; top: -10px; bottom: -10px; width: 22px; }
-.gb-s::before { left: -14px; }
-.gb-e::before { right: -14px; }
+.gb-s::before, .gb-e::before { content: ""; position: absolute; top: -10px; bottom: -10px; width: 32px; }
+/* 23/10/2026 (FORMAT 96) : zone de toucher des bouts agrandie, environ 16 px de chaque côté du bout */
+.gb-s::before { left: -16px; }
+.gb-e::before { right: -16px; }
 /* v523 (remarque 1) : la ligne TOTAL fixée passe toujours devant les lignes qui défilent (pastilles, signes ›, cadres compris) */
 .bdg-d-table tfoot td { z-index: 9 !important; }
 
@@ -2161,3 +2159,52 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
    une tâche sans liaison reste en rouge */
 .dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td { background: #dbeafe !important; }
 .dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td :is(input, span:not(.lk-rd):not(.dly-pred), b) { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; font-weight: 700; }
+
+/* ===== v542 : remarques du planning 1 à 16 (23/10/2026) ===== */
+/* R16 / FORMAT 119 : tâche placée plus bas que des tâches d'un autre lot — pastille de la couleur de son lot */
+.dly-ldot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c, #98a2b3); margin-right: 5px; align-self: center; }
+/* R3 / FORMAT 158 : tâche incompressible */
+.dly-inc { flex: none; margin-right: 4px; color: #344054; font-weight: 800; cursor: pointer; align-self: center; }
+.gb-inc { font-weight: 800; }
+/* R15 / FORMAT 157 : tâches hors sélection en gris pâle, à leur place, avec leurs liaisons */
+.dlyg-l tr.dly-off > td { opacity: .38; }
+#dlyGantt .gb.gb-off { --c: #d0d5dd !important; background: #e4e7ec !important; }
+#dlyGantt .gb-offn { opacity: .45; }
+#dlyGantt .gl.gl-off { opacity: .3; }
+/* R15 / FORMAT 158 : tâche sans dates complètes = 0 jour */
+.dlyg-l tr.dly-nod > td { color: #98a2b3; }
+#dlyGantt .gb.gb0 { width: 2px; min-width: 2px; background: #98a2b3; border-radius: 1px; box-shadow: none; }
+#dlyGantt .gb.gb0 .gb-e { right: -1px; width: 4px; }
+#dlyGantt .gb0n { color: #98a2b3; }
+/* R14 / FORMAT 157 : rien de coché */
+.ghist-empty { display: flex; align-items: center; }
+.ghist-msg { position: sticky; left: 0; width: min(100%, 60vw); text-align: center; font-size: 11px; font-weight: 800; color: #98a2b3; }
+/* R11 : plusieurs charges — barres empilées, une couleur par charge, légende */
+.ghist-leg { position: sticky; left: 4px; top: 2px; z-index: 3; display: inline-flex; flex-wrap: wrap; gap: 4px 10px; padding: 1px 6px; font-size: 9px; font-weight: 800; color: #475467; background: rgba(255,255,255,.85); border-radius: 3px; }
+.ghist-leg b { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 3px; vertical-align: -1px; }
+.ghb.ghb-st { background: transparent; display: flex; flex-direction: column-reverse; overflow: hidden; }
+.ghb.ghb-st i { display: block; width: 100%; flex: none; }
+.ghb.over-inc { background: #7a5af8; }
+.ghb.ghb-st.over { box-shadow: inset 0 0 0 2px #d92d20; }
+.ghb.ghb-st.over-inc { box-shadow: inset 0 0 0 2px #7a5af8; }
+.ghb.ghc { background: #0e9384; }
+.ghb[data-d] { cursor: pointer; }
+.gplaf.gplaf-free { border-top-style: dashed; opacity: .75; }
+/* R12 / R13 : poignée « = » entre le Gantt et l'histogramme ; histogramme plein écran */
+.dlyg-hh { position: absolute; left: 0; right: 0; height: 14px; z-index: 7; pointer-events: none; }
+.dlyg-hh::before { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 3px; background: #8a5a3c; }
+.dlyhh-pill { pointer-events: auto; position: absolute; left: 50%; top: -8px; width: 30px; height: 30px; margin-left: -15px; border-radius: 50%; background: #475467; color: #fff; font-size: 13px; font-weight: 800; line-height: 30px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.25); touch-action: none; cursor: row-resize; }
+.dlyhh-pill::after { content: ""; position: absolute; inset: -10px; border-radius: 50%; }
+.dlyg.dly-hfull .dlyg-l table tbody, .dlyg.dly-hfull .dlyg-fill, .dlyg.dly-hfull #dlyGantt .gbody { display: none; }
+/* R8 / FORMAT 160 : bulle d'un jour de l'histogramme */
+#dlyHb { position: fixed; z-index: 10070; min-width: 200px; max-width: 360px; background: #fff; border: 1px solid #d0d5dd; border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.18); padding: 6px 26px 6px 8px; font-size: 11px; color: #101828; }
+#dlyHb > div { display: flex; justify-content: space-between; gap: 10px; padding: 1px 0; }
+#dlyHb .hb-t { font-weight: 800; }
+#dlyHb .hb-tot { border-top: 1px solid #e4e7ec; margin-top: 3px; padding-top: 3px; font-weight: 800; }
+#dlyHb .svt-x { position: absolute; top: 4px; right: 6px; border: 0; background: none; font-size: 13px; cursor: pointer; }
+/* R2 / FORMAT 99 : « / » et bulle COUPER ICI qui suivent le doigt */
+#dlyCutTip .ct-sl { position: fixed; z-index: 10070; font-size: 20px; font-weight: 800; color: #b42318; pointer-events: none; }
+#dlyCutTip .ct-b { position: fixed; z-index: 10070; width: 100px; text-align: center; background: #b42318; color: #fff; font-size: 10px; font-weight: 800; border-radius: 4px; padding: 3px; pointer-events: none; }
+/* FORMAT 159 : fenêtre COMMANDES */
+.cmd-g { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.cmd-g label { white-space: nowrap; font-size: 11px; }
