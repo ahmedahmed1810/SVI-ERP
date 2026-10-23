@@ -1159,7 +1159,8 @@
       const tSegs = tEl.classList.contains("lot-grp") ? dlyLotPath(tEl.dataset.path) : lotSegs(L.find(x => x.id === tEl.dataset.iid));
       let base, extra = null, N = "";
       if (mode === "gap") base = !gap.prev ? [] : gap.inStart ? gap.prev.slice() : gap.prev.slice(0, gap.D);
-      else if (mode === "on" && tEl.classList.contains("lot-grp")) base = tSegs;
+      /* v534 : un lot posé sur un titre entre dans ce titre ; un TITRE posé sur un autre titre = nouveau titre qui regroupe les deux */
+      else if (mode === "on" && tEl.classList.contains("lot-grp") && (!gP || (tSegs.length < P.length && tSegs.every((g, i) => U_(g) === U_(P[i]))))) base = tSegs;
       else if (mode === "on") {
         N = insNextLevel(tSegs.slice(0, -1));
         base = tSegs.slice(0, -1).concat(N);
