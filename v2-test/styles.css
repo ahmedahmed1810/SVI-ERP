@@ -2149,3 +2149,5 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .cond-add, .cond-del { border: 0; background: none; color: #1e3a8a; font: inherit; font-weight: 800; cursor: pointer; }
 /* v537 : rond d'une tâche du PLANNING (à quoi elle est liée) */
 .dly-lotc .dly-rd { margin-right: 6px; align-self: center; }
+/* v538 : ronds / pastilles des lots du PLANNING (mêmes règles que le bloc TÂCHES) */
+.dly-lotc .dly-grd { margin-right: 6px; align-self: center; flex: none; }
