@@ -501,14 +501,8 @@
       let bodyH = rowsH + 2 * (geo.length ? geo[geo.length - 1].h : 24);
       {
         const gg = host.closest(".dlyg"), scr = gg && gg.closest(".bdg-d-scroll");
-        /* v545 (remarque 2) : le bloc du PLANNING prend la hauteur visible de l'écran sous le bandeau et les onglets */
-        if (scr && scr.classList.contains("dly-scroll")) {
-          let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
-          /* v546 : haut réel du bloc à l'écran (page non défilée, bloc agrandi) — jamais au-dessus du bandeau et des onglets */
-          const tabs = document.getElementById("bdgTabs"), st = Math.max(scr.getBoundingClientRect().top, lim + (tabs ? tabs.offsetHeight : 0));
-          const want = Math.max(240, Math.floor(dlyVpB() - st - 6));
-          if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 1) scr.style.setProperty("height", want + "px", "important");
-        }
+        /* v545 (remarque 2), v548 (FORMAT 197) : le bloc du PLANNING prend la hauteur visible de l'écran sous le bandeau et les onglets */
+        dlyFitScr(scr);
         if (scr && scr.clientHeight) {
           const sr = scr.getBoundingClientRect(), top = gg.getBoundingClientRect().top - sr.top + scr.scrollTop;
           const addH = gg.nextElementSibling ? gg.nextElementSibling.getBoundingClientRect().height : 0;
@@ -783,7 +777,7 @@
           ${bars}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>${hist}`;
       host.__X = X; host.__d0 = d0; host.__HD = HD;
       /* R12 : poignée « = » entre le Gantt et l'histogramme, posée à la hauteur du haut de l'histogramme */
-      { const hh = host.parentElement.querySelector(".dlyg-hh"); if (hh) hh.style.top = (host.offsetTop + thH + (dlyHHGet() === "full" ? 0 : bodyH) - 7) + "px"; shell.style.setProperty("--dly-hh", dlyHHpx + "px"); }
+      { const hh = host.parentElement.querySelector(".dlyg-hh"); if (hh) hh.style.left = host.offsetLeft + "px"; if (hh) hh.style.top = (host.offsetTop + thH + (dlyHHGet() === "full" ? 0 : bodyH) - 7) + "px"; shell.style.setProperty("--dly-hh", dlyHHpx + "px"); }
       try { dlyPickPaint(); } catch (e) {}
       host.parentElement.querySelectorAll("input.dlyp-cb[data-part]").forEach(c => { c.indeterminate = true; });
       /* défilement horizontal du Gantt gardé d'un dessin à l'autre */
@@ -794,9 +788,23 @@
     };
     /* v545 (remarque 2) : bas de l'écran visible (clavier de l'iPad compris) */
     const dlyVpB = () => { const vv = window.visualViewport; return vv ? vv.offsetTop + vv.height : window.innerHeight; };
+    /* v548 (FORMAT 197) : hauteur du bloc du PLANNING = l'écran visible sous le bandeau et les onglets (bloc agrandi : sous ses onglets) ;
+       ne dépend pas du défilement de la page ; true si elle a changé */
+    const dlyFitScr = scr => {
+      if (!scr || !scr.classList.contains("dly-scroll")) return false;
+      let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
+      const tabs = document.getElementById("bdgTabs"), sr = scr.getBoundingClientRect();
+      const st = scr.closest(".max-detail") ? sr.top : lim + (tabs ? Math.max(0, sr.top - tabs.getBoundingClientRect().top) : 0);
+      const want = Math.max(240, Math.floor(dlyVpB() - st - 6));
+      if (Math.abs((parseFloat(scr.style.height) || 0) - want) <= 1) return false;
+      scr.style.setProperty("height", want + "px", "important");
+      return true;
+    };
     /* histogramme (et son libellé, et la poignée « = ») gardé en bas de la zone visible du planning : les tâches défilent dessous */
     const dlyLift = () => {
       const g = shell.querySelector(".dlyg"); if (!g) return;
+      /* v548 : la hauteur suit les changements de mise en page (bloc agrandi / réduit, rotation, clavier) */
+      { const sc = g.closest(".dly-scroll"), h = shell.querySelector("#dlyGantt"); if (sc && dlyFitScr(sc) && h) { h.__drawn = false; try { dlyGanttDraw(); } catch (e) {} return; } }
       const hist = g.querySelector("#dlyGantt .ghist"), lab = g.querySelector(".dlyh-lab"), hh = g.querySelector(".dlyg-hh"), gh = g.querySelector("#dlyGantt > .gh");
       if (!hist) return;
       const els = [hist, lab, hh].filter(Boolean);
@@ -812,7 +820,10 @@
       shell.__dlyLiftBound = true;
       let raf = 0; const go = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; dlyLift(); }); };
       document.addEventListener("scroll", go, true); window.addEventListener("resize", go);
-      if (window.visualViewport) window.visualViewport.addEventListener("resize", go);
+      if (window.visualViewport) { window.visualViewport.addEventListener("resize", go); window.visualViewport.addEventListener("scroll", go); }
+      /* v548 : aussi après tout changement de mise en page (bloc agrandi / réduit, onglets, redessin) */
+      try { const ro = new ResizeObserver(go); ro.observe(document.documentElement); shell.__dlyLiftRO = ro; } catch (e) {}
+      setInterval(() => { if (shell.isConnected && shell.querySelector(".dlyg")) go(); }, 400);
     }
     /* en-têtes du tableau et du Gantt fixés en haut quand le bloc défile verticalement */
     const dlyStick = sc => {

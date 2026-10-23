@@ -1487,6 +1487,12 @@ def main():
         m3 = pg.evaluate(f"() => JSON.stringify(({ins}.INS.dlp['l1|s1'] || []).map(p => [p.deb, p.fin]))")
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk7; I.dlp = I.__dlp7; I.dpred = I.__dp7; I.dord = I.__ord7; I.pdeb = I.__pd7;
             ['__lk7', '__dlp7', '__dp7', '__ord7', '__pd7'].forEach(k => delete I[k]); I.plafR = {{}}; I.hset = null; I.dinc = {{}}; I.dlim = {{}}; I.chg = I.chg.filter(r => r.id !== 'v1'); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        # v548 (FORMAT 197) : bloc agrandi — planning et histogramme dans l'écran visible, histogramme au bas de l'écran
+        pg.evaluate("() => document.querySelector('.blk-max-btn[data-blk=\"detail\"]')?.click()"); pg.wait_for_timeout(1200)
+        f197 = pg.evaluate("() => { const h = document.querySelector('#dlyGantt .ghist'), sc = document.querySelector('.dly-scroll'); const vv = window.visualViewport, b = vv ? vv.offsetTop + vv.height : innerHeight; return h && sc ? [Math.round(h.getBoundingClientRect().bottom), Math.round(sc.getBoundingClientRect().bottom), Math.round(b)] : null; }")
+        pg.evaluate("() => document.querySelector('.blk-max-btn[data-blk=\"detail\"]')?.click()"); pg.wait_for_timeout(800)
+        check("v548 FORMAT 197 : bloc agrandi — l'histogramme est au bas de l'écran visible, le bloc ne dépasse pas l'écran",
+              f197 and f197[1] <= f197[2] + 1 and f197[0] <= f197[2] + 1 and f197[2] - f197[0] <= 70, f197)
         check("v547 R22 : COMPRESSER coupe la tâche autour de la pénurie (02-03 / 05-06) ; deux barres, pastille 2 ; MORCEAUX → RECOLLER = un seul morceau de 4 jours",
               m1[0] == '[["2026-11-02","2026-11-03"],["2026-11-05","2026-11-06"]]' and m1[1] == 2 and m1[2] == "2" and m2[0].startswith("MORCEAUX") and m2[1] == 2 and m3 == '[["2026-11-02","2026-11-05"]]', [m1, m2, m3])
 
@@ -1507,7 +1513,7 @@ def main():
         q = pg.evaluate("""() => { const G = document.querySelector('#dlyGantt'), sc = document.querySelector('.dly-scroll'), L = document.querySelector('.dlyg-l'), h = G.querySelector('.ghist');
             return { z0: !!G.querySelector('.gb.gb0[data-key="l1|s2"]'), succ: (document.querySelector('tr[data-key="l1|s1"] .dly-succ') || {}).textContent || '', succH: !!document.querySelector('.dly-table th .cf-btn[data-col="succ"]'),
               cap: (G.querySelector('.gplaf.gcap-def .gplaf-v') || {}).textContent || '', segv: (G.querySelector('.gseg-v') || {}).textContent || '', unit: (G.querySelector('.gax-u') || {}).textContent || '',
-              leftBottom: Math.round(L.getBoundingClientRect().bottom), histBottom: Math.round(h.getBoundingClientRect().bottom), cfg: !!document.querySelector('.dlyhh-cfg'), vd: !!document.querySelector('.dly-vd'),
+              leftBottom: L.offsetHeight, histBottom: G.offsetHeight, cfg: !!document.querySelector('.dlyhh-cfg'), vd: !!document.querySelector('.dly-vd'),
               adj: [!!document.querySelector('.blk-adj-btn.dly-on'), document.querySelector('.blk-adj-btn').classList.contains('off')], dz: !!document.querySelector('.dlyg[class*="dz-"]'), obj: !!G.querySelector('.gv-obj') }; }""")
         # R24 : abréviation (capacité en DH : 400 DH + 500 DH le 02 → « K » quand ≥ 10 000) ; R19 : coupe, trait vertical, déplacement
         pg.evaluate(f"""() => {{ const I = {ins}.INS; I.chg.find(r => r.id === 'w3').p = 5000; {ins}.insSave(); {ins}.refreshAll(); }}"""); pg.wait_for_timeout(500)
