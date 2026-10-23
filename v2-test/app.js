@@ -346,15 +346,17 @@ const sviDlpSec = d => {
 };
 /* ===== PLANNING (15/10/2026) : une seule période par tâche secondaire (fragmentation reportée) ;
    des périodes déjà saisies en plusieurs morceaux sont fusionnées : début de la première, fin de la dernière ===== */
+/* v547 (R22, 23/10/2026) : une tâche peut avoir plusieurs morceaux — plus de fusion ; les morceaux sont seulement rangés par date
+   (un morceau sans date n'est gardé que s'il est seul) */
 const sviDlpOne = d => {
   if (!d || !d.dlp) return false;
   let ch = false;
   Object.keys(d.dlp).forEach(k => {
     const L = d.dlp[k] || [];
     if (L.length <= 1) return;
-    const ds = L.map(p => p.deb).filter(Boolean).sort(), fs = L.map(p => p.fin).filter(Boolean).sort();
-    d.dlp[k] = [{ id: L[0].id, deb: ds[0] || "", fin: fs[fs.length - 1] || "" }];
-    ch = true;
+    const keep = L.filter(p => p.deb).sort((a, b) => a.deb.localeCompare(b.deb));
+    const nx = keep.length ? keep : [L[0]];
+    if (nx.length !== L.length || nx.some((p, i) => p !== L[i])) { d.dlp[k] = nx; ch = true; }
   });
   return ch;
 };
@@ -9084,9 +9086,24 @@ function renderBudgetList() {
     const dlyMoveTo = (k, deb) => {
       const cal = insCal(), L = dlyDraftKey(k), p = L[0];
       if (!p || !p.deb) return;
+      if (L.length > 1) { dlyShiftList(L, deb); return; }
       const dur = p.fin ? sviWDur(cal, p.deb, p.fin) || 1 : 0;
       p.deb = sviWNear(cal, deb, 1);
       if (dur) p.fin = sviWFin(cal, p.deb, dur);
+    };
+    /* v547 (R22) : décaler tous les morceaux d'une tâche (durées et creux gardés, jours travaillés) pour que le premier commence à deb */
+    const dlyShiftList = (L, deb) => {
+      const cal = insCal(); if (!L.length || !L[0].deb) return;
+      const a0 = sviWNear(cal, L[0].deb, 1), nd = sviWNear(cal, deb, 1);
+      const w = nd >= a0 ? (sviWDur(cal, a0, nd) || 1) - 1 : -((sviWDur(cal, nd, a0) || 1) - 1);
+      if (!w) return;
+      L.forEach(p => {
+        if (!p.deb) return;
+        const dur = p.fin ? sviWDur(cal, p.deb, p.fin) || 1 : 0, hs = p.dmd === p.deb, he = p.fin && p.fmd === p.fin;
+        p.deb = sviWAdd(cal, sviWNear(cal, p.deb, 1), w); p.fin = dur ? sviWFin(cal, p.deb, dur) : "";
+        if (hs) p.dmd = p.deb; else delete p.dmd;
+        if (he) p.fmd = p.fin; else delete p.fmd;
+      });
     };
     /* liaisons toujours respectées (cahier, Planning budgétaire) : toute tâche qui commence avant la date exigée
        par ses liaisons est décalée à cette date (durée gardée, jours travaillés), de proche en proche ;
@@ -9101,8 +9118,10 @@ function renderBudgetList() {
           if (!need || !p0 || !p0.deb || p0.deb >= need) return;
           const dur = p0.fin ? sviWDur(cal, p0.deb, p0.fin) || 1 : 0, deb = sviWNear(cal, need, 1), fin = dur ? sviWFin(cal, deb, dur) : p0.fin;
           if (!moved.has(k)) moved.set(k, p0.deb);
+          INS.dlp = INS.dlp || {};
+          if (L.length > 1) { const nl = L.map(p => ({ ...p })); dlyShiftList(nl, deb); INS.dlp[k] = nl; if (LK.dlpDraft && LK.dlpDraft[k]) LK.dlpDraft[k] = nl.map(p => ({ ...p })); ch = true; return; }
           const np = { id: p0.id || insId(), deb, fin: fin || "" };
-          INS.dlp = INS.dlp || {}; INS.dlp[k] = [np];
+          INS.dlp[k] = [np];
           if (LK.dlpDraft && LK.dlpDraft[k]) LK.dlpDraft[k] = [{ ...LK.dlpDraft[k][0], deb, fin: fin || "" }];
           ch = true;
         });
@@ -9275,7 +9294,9 @@ function renderBudgetList() {
       const keys = dlyKeys(), M = dlyMarges(keys), J = INS.jal || {};
       const P = keys.map(k => { const d0 = dlyDeb(k), f0 = dlyFin(k); const [lo, se] = k.split("|");
         const p1 = dlyList(k).length === 1 ? dlyList(k)[0] : null;
-        return { key: k, lo, lot: lkName("lot", lo), sec: lkName("sec", se), pred: dlyPredTxt(k), succ: dlySuccTxt(k), deb: d0, fin: f0, dur: dlyDurK(k), hs: dlyHalfS(p1), he: dlyHalfE(p1),
+        /* v547 (R22) : morceaux d'une tâche coupée */
+        const per = dlyList(k).length > 1 ? dlyList(k).filter(p => p.deb && p.fin).map(p => ({ deb: p.deb, fin: p.fin, hs: dlyHalfS(p), he: dlyHalfE(p) })) : null;
+        return { key: k, lo, lot: lkName("lot", lo), sec: lkName("sec", se), pred: dlyPredTxt(k), succ: dlySuccTxt(k), per, deb: d0, fin: f0, dur: dlyDurK(k), hs: dlyHalfS(p1), he: dlyHalfE(p1),
           marge: M[k] === undefined ? "" : M[k], jal: J[k] ? "★" : "" }; });
       /* ordre libre des lignes (INS.dord) ; une tâche nouvelle se place à la fin */
       const O = dlyOrder(keys), VD = dlyView() === "d";
@@ -9658,6 +9679,20 @@ function renderBudgetList() {
             + `<span class="gb-n gb-out gb-ren gb0n" data-key="${esc(x.key)}" style="left:${left + 6}px;top:${ty}px">${esc(x.sec)}</span>`;
           return;
         }
+        /* v547 (R22) : tâche en plusieurs morceaux — une barre par morceau, reliées par un trait fin en pointillé ;
+           glisser un morceau = déplacer toute la tâche ; le bout du dernier morceau = sa FIN */
+        if (x.per && x.per.length > 1) {
+          const col = dlyLotColor(x.lo), P = x.per, last = P[P.length - 1];
+          const L0 = X(P[0].deb) + (P[0].hs ? DLY_DW / 2 : 0), R0 = X(last.fin) + DLY_DW - 1 - (last.he ? DLY_DW / 2 : 0);
+          pos[x.key] = { l: L0, r: R0, y: y + BH / 2 };
+          bars += `<div class="gpc" style="left:${L0}px;width:${Math.max(0, R0 - L0)}px;top:${y + BH / 2 - 0.5}px;--c:${col}"></div>`;
+          P.forEach((q, j) => {
+            const l = X(q.deb) + (q.hs ? DLY_DW / 2 : 0), w = Math.max(3, X(q.fin) - X(q.deb) + DLY_DW - 1 - (q.hs ? DLY_DW / 2 : 0) - (q.he ? DLY_DW / 2 : 0));
+            bars += `<div class="gb gb-pc${x.off ? " gb-off" : ""}${x.marge === 0 ? " crit" : ""}${w < 30 ? " gb-nar" : ""}" data-key="${esc(x.key)}" data-pc="${j}" style="left:${l}px;width:${w}px;top:${y}px;--c:${col}">${j === 0 ? '<span class="gb-s"></span>' : ""}${j === P.length - 1 ? '<span class="gb-e"></span>' : ""}</div>`;
+          });
+          bars += `<span class="gb-n gb-out gb-ren${x.off ? " gb-offn" : ""}" data-key="${esc(x.key)}" style="left:${R0 + 5}px;top:${ty}px">${dlyIncHTML(x.key)}${esc(x.sec)} <span class="gpc-n">${P.length} MORCEAUX</span>${x.jal ? ' <span class="gjal">★</span>' : ""}${dlyLimHTML(x.key)}</span>`;
+          return;
+        }
         /* v530 : demi-journée de début ou de fin = demi-case */
         const left = X(x.deb) + (x.hs ? DLY_DW / 2 : 0), w = Math.max(3, X(x.fin) - X(x.deb) + DLY_DW - 1 - (x.hs ? DLY_DW / 2 : 0) - (x.he ? DLY_DW / 2 : 0)), col = dlyLotColor(x.lo);
         const crit = x.marge === 0;
@@ -9852,7 +9887,9 @@ function renderBudgetList() {
     const dlyLabU = r => U_(r.u).replace(/[^A-Z]/g, "");
     const dlyIsLab = r => ["JH", "HJ", "J", "JR", "JOUR", "JOURS", "JOURHOMME", "JOURSHOMME", "H", "HR", "HEURE", "HEURES"].includes(dlyLabU(r)) || /MAIN\s*D.?\s*(Œ|OE)UVRE/.test(U_(r.des));
     const dlyJHof = r => { const q = num(r.q || 0) || 0; return ["H", "HR", "HEURE", "HEURES"].includes(dlyLabU(r)) ? q / 8 : q; };
-    const dlyCurDates = () => { const D = {}; dlyKeys().forEach(k => { const d = dlyDeb(k), f = dlyFin(k), L = dlyList(k); if (d && f) D[k] = { deb: d, fin: f, hs: L.length === 1 && dlyHalfS(L[0]), he: L.length === 1 && dlyHalfE(L[0]) }; }); return D; };
+    /* v547 (R22) : per = morceaux datés de la tâche (un seul le plus souvent) */
+    const dlyCurDates = () => { const D = {}; dlyKeys().forEach(k => { const d = dlyDeb(k), f = dlyFin(k), L = dlyList(k); if (d && f) D[k] = { deb: d, fin: f, hs: L.length === 1 && dlyHalfS(L[0]), he: L.length === 1 && dlyHalfE(L[0]),
+      per: L.filter(p => p.deb && p.fin).map(p => ({ deb: p.deb, fin: p.fin, hs: dlyHalfS(p), he: dlyHalfE(p) })) }; }); return D; };
     const dlyEnd = D => Object.values(D).map(x => x.fin).filter(Boolean).sort().pop() || "";
     /* périodes affichées : brouillon en cours (à valider) ou périodes validées */
     const insDlyList = key => (LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
@@ -9913,6 +9950,8 @@ function renderBudgetList() {
     shell.__dlyOpenToDur = dlyOpenToDur;
     const dlyCellIn = (x, f) => {
       if (!INS_EDIT) return esc(f === "dur" ? x.dur : dFr(x[f]));
+      /* v547 (R22) : tâche en morceaux — DÉBUT du premier, FIN du dernier (pastille du nombre de morceaux), DURÉE = somme ; un toucher = fenêtre MORCEAUX */
+      if (x.per && x.per.length > 1) return `<span class="dlp-multi" data-task="${esc(x.key)}" role="button">${esc(f === "dur" ? String(x.dur) : dFr(x[f]))}${f === "fin" ? `<b class="dlp-pcn">${x.per.length}</b>` : ""}</span>`;
       const p = (insDlyList(x.key) || [])[0] || {};
       const nw = !x.deb && !x.fin;
       return `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${esc(x.key)}" data-pid="${esc(p.id || "")}" data-f="${f}" type="text"
@@ -10765,6 +10804,8 @@ function renderBudgetList() {
         };
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       }, true);
+      /* v547 (R22) : DÉBUT / FIN / DURÉE d'une tâche en morceaux = fenêtre MORCEAUX */
+      shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dlp-multi[data-task]"); const X = shell.__insDly; if (!b || !X) return; e.stopPropagation(); X.piecesWin(b.dataset.task); }, true);
       /* v546 (R29) : ⚙ = RÉGLAGES DE L'HISTOGRAMME */
       shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dlyhh-cfg"); const X = shell.__insDly; if (!b || !X) return; e.stopPropagation(); X.hcfgWin(b); }, true);
       /* v546 (R27) : toucher la case SUCCESSEURS = leur liste */
@@ -11149,7 +11190,7 @@ function renderBudgetList() {
       jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTabK(); },
       linkWin: (p, k) => dlyLinkWin(p, k), reach: (a, b) => dlyReach(a, b), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
       gen: () => dlyGenComp(), comp: () => dlyCompressRun(), hasDates: () => dlyHasDates(), canComp: () => dlyCanCompress(),
-      moveCut: (i, iso) => dlyMoveCut(i, iso), sortDeb: () => { dlySortByDeb(); insSave(); histLog("DÉLAIS", "CLASSER PAR DÉBUT", ""); keepScroll(() => renderTab()); }, hcfgWin: () => dlyHCfgWin(), succs: k => dlySuccs(k).map(dlyName), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n, a) => dlySetPlaf(i, n, a), delCut: i => dlyDelCut(i), limTxt: k => dlyLimTxt(k),
+      moveCut: (i, iso) => dlyMoveCut(i, iso), piecesWin: k => dlyPiecesWin(k), sortDeb: () => { dlySortByDeb(); insSave(); histLog("DÉLAIS", "CLASSER PAR DÉBUT", ""); keepScroll(() => renderTab()); }, hcfgWin: () => dlyHCfgWin(), succs: k => dlySuccs(k).map(dlyName), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n, a) => dlySetPlaf(i, n, a), delCut: i => dlyDelCut(i), limTxt: k => dlyLimTxt(k),
       incWin: k => dlyIncWin(k), apprWin: () => dlyApproWin(), hh: v => { dlyHHSet(v); keepScroll(() => renderTab()); }, hhGet: () => dlyHHGet(),
       /* R18 : réglages de l'histogramme ; R19 / R20 : plage et filtre */
       hset: () => dlyHSet(), hsetPut: o => dlyHSetPut(o), sameU: () => dlySameU(dlyResSel()), hasSel: () => !!dlyResSel(),
@@ -11351,6 +11392,7 @@ function renderBudgetList() {
           const back = JSON.stringify({ dlp: INS.dlp || {}, dr: LK.dlpDraft || {} });
           Object.keys(N).forEach(k => {
             const L = dlyDraftKey(k);
+            if (L.length > 1 && N[k].deb) { dlyShiftList(L, N[k].deb); return; }
             if (!L[0]) L.push({ id: insId() });
             L.splice(1); L[0].deb = N[k].deb; L[0].fin = N[k].fin || ""; delete L[0].dmd; delete L[0].fmd;
           });
@@ -11652,6 +11694,13 @@ function renderBudgetList() {
       dragTo: (k, mode, n, a) => {
         const cal = insCal(), d0 = dlyDeb(k), f0 = dlyFin(k);
         if (!d0 || !f0) return;
+        /* v547 (R22) : tâche en morceaux — glisser = tous les morceaux ; bout = FIN du dernier morceau */
+        if (dlyList(k).length > 1) {
+          const L = dlyDraftKey(k), last = L[L.length - 1];
+          if (mode === "end") { let f = sviWNear(cal, sviIsoAdd(f0, n), n > 0 ? 1 : -1); if (f < last.deb) f = last.deb; if (INS.dbut && f > INS.dbut) { svToast("FIN REFUSÉE : APRÈS LA DATE BUTOIR DU " + dFr(INS.dbut) + ".", 3500, a); renderTabK(); return; } last.fin = f; delete last.fmd; }
+          else { const pf = dlyPredFin(k); let d = sviWNear(cal, sviIsoAdd(d0, n), n > 0 ? 1 : -1); if (pf && d < pf) d = sviWNear(cal, pf, 1); dlyShiftList(L, d); }
+          dlyCommitDrafts(); dlyRespect(false); insSave(); histLog("DÉLAIS", "TÂCHE EN MORCEAUX", dlyName(k) + " : " + dFr(dlyDeb(k)) + " → " + dFr(dlyFin(k))); renderTabK(); insRenderChain(); return;
+        }
         if (mode === "end") { let f = sviWNear(cal, sviIsoAdd(f0, n), n > 0 ? 1 : -1); if (f < d0) f = d0; dlyApply(k, { deb: d0, fin: f }, { anchor: a, fromDur: true }); return; }
         const dur = sviWDur(cal, d0, f0) || 1, pf = dlyPredFin(k);
         let d = sviWNear(cal, sviIsoAdd(d0, n), n > 0 ? 1 : -1);
@@ -11781,6 +11830,8 @@ function renderBudgetList() {
     const dlyDurK = k => {
       const L = dlyList(k), p = L[0], d0 = dlyDeb(k), f0 = dlyFin(k);
       if (!d0 || !f0) return "";
+      /* v547 (R22) : tâche en morceaux = somme des morceaux */
+      if (L.length > 1) { const t = L.filter(q => q.deb && q.fin).reduce((a, q) => a + (Number(dDur(q.deb, q.fin)) || 0) - (dlyHalfS(q) ? .5 : 0) - (dlyHalfE(q) ? .5 : 0), 0); return t === Math.round(t) ? t : String(t).replace(".", ","); }
       const n = dDur(d0, f0);
       if (n === "" || L.length !== 1) return n;
       const v = n - (dlyHalfS(p) ? .5 : 0) - (dlyHalfE(p) ? .5 : 0);
@@ -11840,7 +11891,7 @@ function renderBudgetList() {
         }
         if (!rel.length) return { a: s0, b: s0 - 1, zero: true };
         let rem = 1, a = null, b = s0, s = s0;
-        const cnt = {};
+        const cnt = {}, got = [];
         for (let g = 0; rem > 1e-9 && g < 40000; g++, s++) {
           let f = rem, li = -1;
           rel.forEach(i => {
@@ -11849,10 +11900,10 @@ function renderBudgetList() {
             if (al < f - 1e-12) { f = al; li = i; }
           });
           if (li >= 0) cnt[li] = (cnt[li] || 0) + 1;
-          if (f > 1e-9) { rel.forEach(i => take(i, s, f * q[i])); rem -= f; if (a === null) a = s; b = s; }
+          if (f > 1e-9) { rel.forEach(i => take(i, s, f * q[i])); rem -= f; if (a === null) a = s; b = s; got.push(s); }
         }
         if (!dry) { const best = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0]; if (best !== undefined) lim[k] = G[best].gk; }
-        return { a: a === null ? s0 : a, b };
+        return { a: a === null ? s0 : a, b, got };
       };
       const hasR = k => G.some(g => dlyGQ(k, g.keys, g.m) > 0);
       const links = [];
@@ -11875,6 +11926,11 @@ function renderBudgetList() {
         const r = place(k, e, false);
         S[k] = r;
         D[k] = r.zero ? { deb: dayAt(r.a >> 1), fin: "", dm: r.a & 1, fm: 0 } : { deb: dayAt(r.a >> 1), fin: dayAt(r.b >> 1), dm: r.a & 1, fm: (r.b & 1) ? 0 : 1 };
+        /* v547 (R22) : la tâche est coupée quand des demi-journées sans place l'interrompent (ses ouvriers vont ailleurs) */
+        if (r.got && r.got.length && r.got[r.got.length - 1] - r.got[0] + 1 > r.got.length) {
+          const runs = []; r.got.forEach(s => { const u = runs[runs.length - 1]; if (u && s === u[1] + 1) u[1] = s; else runs.push([s, s]); });
+          D[k].per = runs.map(([s1, s2]) => ({ deb: dayAt(s1 >> 1), fin: dayAt(s2 >> 1), dm: s1 & 1, fm: (s2 & 1) ? 0 : 1 }));
+        }
         if (pre && !dlyLinks(k).some(x => x.k === pre) && !dlyLinks(pre).some(x => x.k === k) && !dlyReach(pre, k)) links.push([pre, k]);
       });
       return { D, S, links, lim };
@@ -11889,11 +11945,10 @@ function renderBudgetList() {
       if (!dlyResSel()) return { ok: false, why: "COCHER DES CHARGES : COMPRESSER NE PORTE QUE SUR LES CHARGES COCHÉES." };
       if (!dlyKeys().length) return { ok: false, why: "AUCUNE TÂCHE AU PLANNING." };
       const P = dlyPlanCompute();
-      const same = Object.keys(P.D).every(k => {
-        const x = P.D[k], L = dlyList(k), p = L[0];
-        if (L.length > 1) return false;
-        return (dlyDeb(k) || "") === x.deb && (dlyFin(k) || "") === (x.fin || "") && !!(p && dlyHalfS(p)) === !!x.dm && !!(p && dlyHalfE(p)) === !!(x.fm && x.fin);
-      });
+      /* v547 (R22) : comparaison morceau par morceau */
+      const sigC = k => dlyList(k).map(p => [p.deb || "", p.fin || "", dlyHalfS(p) ? 1 : 0, dlyHalfE(p) ? 1 : 0].join(",")).join(";");
+      const sigP = x => (x.per || [x]).map(q => [q.deb || "", q.fin || "", q.dm ? 1 : 0, q.fm && q.fin ? 1 : 0].join(",")).join(";");
+      const same = Object.keys(P.D).every(k => sigC(k) === sigP(P.D[k]));
       return same && !P.links.length ? { ok: false, why: "RIEN À AJUSTER : AUCUN JOUR NE DÉPASSE LA CAPACITÉ ET AUCUN JOUR À GAGNER." } : { ok: true, P };
     };
     const dlyHasDates = () => dlyKeys().some(k => dlyDeb(k) && dlyFin(k));
@@ -11901,11 +11956,15 @@ function renderBudgetList() {
     const dlyWriteH = D => {
       Object.keys(D).forEach(k => {
         const x = D[k], L = dlyDraftKey(k);
-        const p = L[0] || { id: insId() };
-        L.splice(0, L.length, p);
-        p.deb = x.deb; p.fin = x.fin || "";
-        if (x.dm) p.dmd = x.deb; else delete p.dmd;
-        if (x.fm && x.fin) p.fmd = x.fin; else delete p.fmd;
+        /* v547 (R22) : un morceau par période calculée */
+        const nl = (x.per || [x]).map((q, i) => {
+          const p = { ...(L[i] || {}), id: (L[i] || {}).id || insId() };
+          p.deb = q.deb; p.fin = q.fin || "";
+          if (q.dm) p.dmd = q.deb; else delete p.dmd;
+          if (q.fm && q.fin) p.fmd = q.fin; else delete p.fmd;
+          return p;
+        });
+        L.splice(0, L.length, ...nl);
       });
     };
     const DLY_BUT_MSG = "AVEC CE NOMBRE VOUS RISQUEZ DE DÉPASSER LA DATE BUTOIR";
@@ -12009,8 +12068,8 @@ function renderBudgetList() {
         const l = (INS.links || []).find(x => (x.prd || []).some(y => y.id === r.id));
         const k = l && l.lot + "|" + l.sec, p = k && cur[k], v = insHT("prd", r);
         if (!p || !v) return;
-        const n = sviWDur(cal, p.deb, p.fin) || 1;
-        for (let i = 0, x = sviWNear(cal, p.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) { out[x] = (out[x] || 0) + v / n; (det[x] = det[x] || {})[k] = ((det[x] || {})[k] || 0) + v / n; }
+        const D2 = []; (p.per && p.per.length ? p.per : [p]).forEach(q => { const n = sviWDur(cal, q.deb, q.fin) || 1; for (let i = 0, x = sviWNear(cal, q.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) D2.push(x); });
+        D2.forEach(x => { out[x] = (out[x] || 0) + v / D2.length; (det[x] = det[x] || {})[k] = ((det[x] || {})[k] || 0) + v / D2.length; });
       });
       return { L: out, det };
     };
@@ -12023,11 +12082,13 @@ function renderBudgetList() {
       if (R) Object.keys(cur).forEach(k => {
         const p = cur[k], m = dlyResOf(k, R, mode);
         if (!m.size) return;
-        const n = sviWDur(cal, p.deb, p.fin) || 1, fr = i => (i === 0 && p.hs ? .5 : 1) * (i === n - 1 && p.he ? .5 : 1);
-        let t = 0; for (let i = 0; i < n; i++) t += fr(i);
-        for (let i = 0, x = sviWNear(cal, p.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) {
+        /* v547 (R22) : jours de chaque morceau (demi-journées comprises) */
+        const SL = [];
+        (p.per && p.per.length ? p.per : [p]).forEach(q => { const n = sviWDur(cal, q.deb, q.fin) || 1; for (let i = 0, x = sviWNear(cal, q.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) SL.push({ x, f: (i === 0 && q.hs ? .5 : 1) * (i === n - 1 && q.he ? .5 : 1) }); });
+        let t = 0; SL.forEach(o => { t += o.f; });
+        for (const { x, f: fi } of SL) {
           let sum = 0; const per = {};
-          m.forEach((v, sk) => { const w = v / (t || 1) * fr(i), S = ser.get(sk); if (S) S.L[x] = (S.L[x] || 0) + w; sum += w; per[sk] = w; });
+          m.forEach((v, sk) => { const w = v / (t || 1) * fi, S = ser.get(sk); if (S) S.L[x] = (S.L[x] || 0) + w; sum += w; per[sk] = w; });
           tot[x] = (tot[x] || 0) + sum;
           (det[x] = det[x] || []).push({ k, v: sum, inc: dlyInc(k), per });
         }
@@ -12141,6 +12202,58 @@ function renderBudgetList() {
         INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc) };
         d.remove();
         insSave(); histLog("DÉLAIS", "RÉGLAGES DE L'HISTOGRAMME", c.map(x => ({ c: "CHARGES", p: "PRODUITS", g: "MARGE" })[x]).join(" + ")); renderTabK();
+      });
+    };
+    /* v547 (R22, FORMAT 196) : fenêtre MORCEAUX d'une tâche coupée — DÉBUT, FIN, DURÉE de chaque morceau, ✕, + AJOUTER UN MORCEAU, RECOLLER */
+    const dlyPiecesWin = k => {
+      const cal = insCal();
+      let rows = dlyList(k).filter(p => p.deb).map(p => ({ id: p.id || insId(), deb: p.deb, fin: p.fin || p.deb }));
+      const d = document.createElement("div");
+      d.id = "svConf";
+      const draw = () => {
+        const tot = rows.reduce((t, r) => t + (Number(dDur(r.deb, r.fin)) || 0), 0);
+        d.innerHTML = `<div class="svc-card pcs-card" role="dialog" aria-modal="true">
+          <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
+          <div class="svc-t">MORCEAUX — ${esc(dlyName(k))}</div>
+          <div class="pcs-g"><b>DÉBUT</b><b>FIN</b><b class="center">DURÉE (J)</b><b></b>${rows.map((r, i) => `<span><input type="date" class="pcs-d" data-i="${i}" data-f="deb" value="${esc(r.deb)}"></span><span><input type="date" class="pcs-d" data-i="${i}" data-f="fin" value="${esc(r.fin)}"></span><span class="center">${esc(String(dDur(r.deb, r.fin)))}</span><button type="button" class="pcs-x" data-i="${i}"${rows.length < 2 ? " disabled" : ""} aria-label="Supprimer le morceau">✕</button>`).join("")}
+          <i class="pcs-tot">TOTAL</i><i></i><i class="pcs-tot center">${tot}</i><i></i></div>
+          <div class="pcs-acts"><button type="button" class="svc-b" data-add>+ AJOUTER UN MORCEAU</button><button type="button" class="svc-b" data-glue${rows.length < 2 ? " disabled" : ""}>RECOLLER</button></div>
+          <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
+        d.querySelectorAll('input[type="date"]').forEach(sviDateField);
+      };
+      document.getElementById("svConf")?.remove();
+      document.body.appendChild(d);
+      draw();
+      d.addEventListener("change", e => { const i = e.target.closest(".pcs-d"); if (!i) return; rows[Number(i.dataset.i)][i.dataset.f] = i.value; draw(); });
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        const x = e.target.closest(".pcs-x");
+        if (x && rows.length > 1) { rows.splice(Number(x.dataset.i), 1); draw(); return; }
+        if (e.target.closest("[data-add]")) { const l = rows[rows.length - 1], a = sviWAdd(cal, l.fin, 2); rows.push({ id: insId(), deb: a, fin: a }); draw(); return; }
+        if (e.target.closest("[data-glue]") && rows.length > 1) {
+          const tot = rows.reduce((t, r) => t + (Number(dDur(r.deb, r.fin)) || 1), 0), a = rows[0].deb;
+          rows = [{ id: rows[0].id, deb: a, fin: sviWFin(cal, a, tot) }]; draw(); return;
+        }
+        if (!e.target.closest("[data-ok]")) return;
+        const R = rows.map(r => ({ ...r })).sort((a, b) => a.deb.localeCompare(b.deb));
+        let err = "";
+        const pf = dlyPredFin(k);
+        R.forEach((r, i) => {
+          if (err) return;
+          if (!r.deb || !r.fin) err = "MORCEAU " + (i + 1) + " : DÉBUT ET FIN OBLIGATOIRES.";
+          else if (!sviWork(cal, r.deb) || !sviWork(cal, r.fin)) err = "MORCEAU " + (i + 1) + " : JOUR NON TRAVAILLÉ DU CALENDRIER DU BUDGET.";
+          else if (r.fin < r.deb) err = "MORCEAU " + (i + 1) + " : LA FIN EST AVANT LE DÉBUT.";
+          else if (i && r.deb <= R[i - 1].fin) err = "LES MORCEAUX " + i + " ET " + (i + 1) + " SE CHEVAUCHENT.";
+          else if (INS.dbut && r.fin > INS.dbut) err = "FIN REFUSÉE : APRÈS LA DATE BUTOIR DU " + dFr(INS.dbut) + ".";
+        });
+        if (!err && pf && R[0].deb < pf) err = "DÉBUT REFUSÉ : LES LIAISONS IMPOSENT LE " + dFr(pf) + " AU PLUS TÔT.";
+        if (err) { svToast(err, 3500, d.querySelector("[data-ok]")); return; }
+        const L = dlyDraftKey(k);
+        L.splice(0, L.length, ...R.map(r => ({ id: r.id, deb: r.deb, fin: r.fin })));
+        d.remove();
+        dlyCommitDrafts(); dlyRespect(false); insSave();
+        histLog("DÉLAIS", R.length > 1 ? "MORCEAUX" : "MORCEAUX RECOLLÉS", dlyName(k) + " : " + R.map(r => dFr(r.deb) + " → " + dFr(r.fin)).join(" ; "));
+        renderTabK(); insRenderChain();
       });
     };
 
@@ -16048,9 +16161,10 @@ function renderBudgetList() {
       keys.map(k => ({ k, n: dlyName(k) })).sort((a, b) => String(((INS.dlp[a.k] || [])[0] || {}).deb || "9").localeCompare(String(((INS.dlp[b.k] || [])[0] || {}).deb || "9")) || natCmp(a.n, b.n)).forEach(({ k }) => {
         const [lo, se] = k.split("|");
         const L = dlyLinks(k);
-        const p = ((INS.dlp || {})[k] || [])[0] || {};
-        out.push([lkName("lot", lo), lkName("sec", se), dFr(p.deb || ""), dFr(p.fin || ""), p.deb && p.fin ? dDur(p.deb, p.fin) : "",
-          L.map(x => dlyName(x.k)).join(" ; "), L.map(x => DLY_TY[x.t === "DD" ? "DD" : "FD"]).join(" ; "), L.map(x => x.o || 0).join(" ; ")]);
+        /* v547 (R22) : une ligne par morceau ; liaisons sur la première */
+        const PL = ((INS.dlp || {})[k] || []).length ? INS.dlp[k] : [{}];
+        PL.forEach((p, i) => out.push([lkName("lot", lo), lkName("sec", se), dFr(p.deb || ""), dFr(p.fin || ""), p.deb && p.fin ? dDur(p.deb, p.fin) : "",
+          i ? "" : L.map(x => dlyName(x.k)).join(" ; "), i ? "" : L.map(x => DLY_TY[x.t === "DD" ? "DD" : "FD"]).join(" ; "), i ? "" : L.map(x => x.o || 0).join(" ; ")]));
       });
       return out;
     };
@@ -16154,18 +16268,25 @@ function renderBudgetList() {
         added.push({ key, deb, fin, src });
       });
       /* une seule période par tâche : lignes d'une même tâche fusionnées (début le plus tôt, fin la plus tardive) */
+      /* v547 (R22) : plusieurs lignes d'une même tâche = ses morceaux (les morceaux qui se chevauchent sont réunis) */
       const one = new Map();
-      added.forEach(c => { const x = one.get(c.key); if (!x) one.set(c.key, { ...c }); else { if (c.deb < x.deb) x.deb = c.deb; if (c.fin > x.fin) x.fin = c.fin; } });
+      added.slice().sort((a, b) => a.deb.localeCompare(b.deb)).forEach(c => {
+        const x = one.get(c.key);
+        if (!x) { one.set(c.key, { ...c, per: [{ deb: c.deb, fin: c.fin }] }); return; }
+        const l = x.per[x.per.length - 1];
+        if (c.deb <= l.fin) { if (c.fin > l.fin) l.fin = c.fin; } else x.per.push({ deb: c.deb, fin: c.fin });
+        if (c.fin > x.fin) x.fin = c.fin;
+      });
       const cand = [...one.values()];
       /* la tâche commence au plus tôt à la date exigée par ses liaisons (dates connues : fichier, sinon budget) */
-      const finOf = k => { const c = one.get(k); return c ? c.fin : (((INS.dlp || {})[k] || [])[0] || {}).fin || ""; };
+      const finOf = k => { const c = one.get(k); return c ? c.fin : (((INS.dlp || {})[k] || []).slice(-1)[0] || {}).fin || ""; };
       const debOf = k => { const c = one.get(k); return c ? c.deb : (((INS.dlp || {})[k] || [])[0] || {}).deb || ""; };
       let nAdd = 0;
       cand.forEach(c => {
         const pf = dlyNeedOf(c.key, finOf, debOf);
         if (pf && c.deb < pf) { rej.push({ src: c.src, bad: ["deb"], why: "DÉBUT AVANT LA DATE IMPOSÉE PAR LES LIAISONS (" + dFr(pf) + ")" }); return; }
         const list = INS.dlp[c.key] = INS.dlp[c.key] || [];
-        if (list.length) { list.splice(1); list[0].deb = c.deb; list[0].fin = c.fin; } else list.push({ id: insId(), deb: c.deb, fin: c.fin });
+        list.splice(0, list.length, ...c.per.map((q, i) => ({ id: (list[i] || {}).id || insId(), deb: q.deb, fin: q.fin })));
         nAdd++;
       });
       const kk = x => JSON.stringify(["lot", "sec", "type", "deb", "fin", "pred"].map(f => U_((x.src || {})[f])));

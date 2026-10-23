@@ -345,15 +345,17 @@ const sviDlpSec = d => {
 };
 /* ===== PLANNING (15/10/2026) : une seule période par tâche secondaire (fragmentation reportée) ;
    des périodes déjà saisies en plusieurs morceaux sont fusionnées : début de la première, fin de la dernière ===== */
+/* v547 (R22, 23/10/2026) : une tâche peut avoir plusieurs morceaux — plus de fusion ; les morceaux sont seulement rangés par date
+   (un morceau sans date n'est gardé que s'il est seul) */
 const sviDlpOne = d => {
   if (!d || !d.dlp) return false;
   let ch = false;
   Object.keys(d.dlp).forEach(k => {
     const L = d.dlp[k] || [];
     if (L.length <= 1) return;
-    const ds = L.map(p => p.deb).filter(Boolean).sort(), fs = L.map(p => p.fin).filter(Boolean).sort();
-    d.dlp[k] = [{ id: L[0].id, deb: ds[0] || "", fin: fs[fs.length - 1] || "" }];
-    ch = true;
+    const keep = L.filter(p => p.deb).sort((a, b) => a.deb.localeCompare(b.deb));
+    const nx = keep.length ? keep : [L[0]];
+    if (nx.length !== L.length || nx.some((p, i) => p !== L[i])) { d.dlp[k] = nx; ch = true; }
   });
   return ch;
 };
