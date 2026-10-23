@@ -2157,3 +2157,7 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .dlyg-l tr.dly-pick > td, .dlyg-l tr.dly-pick > td :is(input, span:not(.lk-rd), b) { color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important; font-weight: 700; }
 .dlyg-l tr.dly-pick.dly-sel > td { background: #fde8e8 !important; }
 .dlyg-l tr.dly-pick.dly-sel > td :is(input, span:not(.lk-rd), b) { color: var(--inst, #b91c1c) !important; -webkit-text-fill-color: var(--inst, #b91c1c) !important; font-weight: 800; }
+/* v541 : PLANNING — une tâche liée (désignation, lot, activités) en bleu comme les lignes liées des autres tableaux ;
+   une tâche sans liaison reste en rouge */
+.dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td { background: #dbeafe !important; }
+.dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td :is(input, span:not(.lk-rd):not(.dly-pred), b) { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; font-weight: 700; }

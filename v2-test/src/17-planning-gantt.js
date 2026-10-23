@@ -887,7 +887,7 @@
                 __td_deb: INS_EDIT ? " ins-td" : "", __td_fin: INS_EDIT ? " ins-td" : "", __td_dur: INS_EDIT ? " ins-td" : "",
                 jal: `<span class="dly-jal${x.jal ? " on" : ""}" data-key="${esc(x.key)}">${x.jal ? "★" : "☆"}</span>`, __td_marge: " dly-calc",
                 __cb: `<input type="checkbox" class="dlyp-cb" data-key="${esc(x.key)}"${SEL.has(x.key) ? " checked" : ""}>` },
-            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp${x.det ? " dly-det" : ""}" data-path="${esc(x.path)}"` : `class="dly-task${x.ext ? " dly-ext" : ""}${x.marge === 0 ? " dly-crit" : ""}${dlyPicked(x.key) ? " dly-pick" : ""}${LK.lot && LK.sec && x.key === LK.lot + "|" + LK.sec ? " dly-sel" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P);
+            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp${x.det ? " dly-det" : ""}" data-path="${esc(x.path)}"` : `class="dly-task${x.ext ? " dly-ext" : ""}${x.marge === 0 ? " dly-crit" : ""}${dlyPicked(x.key) ? " dly-pick" : ""}${LK.lot && LK.sec && x.key === LK.lot + "|" + LK.sec ? " dly-sel" : ""}${(INS.links || []).some(l => l.lot + "|" + l.sec === x.key) ? " dly-lnk" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P);
           /* histogramme MAIN D'ŒUVRE sous le Gantt (FORMAT 98, 99) : libellé à gauche, sous le tableau */
           const LD = dlyLoad(dlyCurDates()), mx = Math.max(0, ...Object.values(LD));
           const P = Number(INS.plaf) || 0;
