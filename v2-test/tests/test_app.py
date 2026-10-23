@@ -1356,7 +1356,8 @@ def main():
         check("v542 R10 : COMMANDES tous les 7 jours, 2 jours d'avance = une commande le 31/10 pour la semaine du 02/11", c10 == [["2026-10-31"], True], c10)
         # R12 / R13 : poignées « = » — toucher = d'un bord à l'autre
         def tap(sel):
-            r = pg.evaluate("s => { const e = document.querySelector(s); if (!e) return null; e.scrollIntoView({ block: 'center' }); const q = e.getBoundingClientRect(); return [q.left + q.width / 2, q.top + q.height / 2]; }", sel)
+            pg.evaluate("s => { const e = document.querySelector(s); if (e) e.scrollIntoView({ block: 'center' }); }", sel); pg.wait_for_timeout(500)
+            r = pg.evaluate("s => { const e = document.querySelector(s); if (!e) return null; const q = e.getBoundingClientRect(); return [q.left + q.width / 2, q.top + q.height / 2]; }", sel)
             if r: pg.mouse.move(r[0], r[1]); pg.mouse.down(); pg.wait_for_timeout(80); pg.mouse.up(); pg.wait_for_timeout(500)
             return r is not None
         w0 = pg.evaluate("() => document.querySelector('.dlyg-l').getBoundingClientRect().width")
@@ -1508,6 +1509,9 @@ def main():
             g0.append(pg.evaluate("() => { const h = document.querySelector('#dlyGantt .ghist'); return h ? h.offsetHeight : 0; }"))
         pg.evaluate(f"() => {DXJ}.hh(0)"); pg.wait_for_timeout(800)
         g1 = pg.evaluate("() => { const hh = document.querySelector('.dlyg-hh'), vv = window.visualViewport, b = vv ? vv.offsetTop + vv.height : innerHeight; const r = hh.getBoundingClientRect(); return [Math.round(r.top), Math.round(b)]; }")
+        g2 = pg.evaluate("() => { const sc = document.querySelector('.dly-scroll'), hh = document.querySelector('.dlyg-hh'), vv = window.visualViewport, b = vv ? vv.offsetTop + vv.height : innerHeight; const r = sc.getBoundingClientRect(); return [Math.round(r.bottom), Math.round(b), Math.round(hh.getBoundingClientRect().bottom)]; }")
+        check("v551 FORMAT 200 : le cadre du PLANNING se ferme au bas de l'écran ; la barre « = » est posée sur sa limite (rien en dessous)",
+              g2[0] <= g2[1] + 1 and g2[1] - g2[0] <= 8 and 0 <= g2[0] - g2[2] <= 12, g2)
         pg.evaluate("() => localStorage.removeItem('svi_dlyhh_v1')"); pg.evaluate(f"() => {DXJ}.hh(110)"); pg.wait_for_timeout(500)
         check("v550 : graphique plein écran stable quand la page défile ; graphique caché = barre « = » visible au bas de l'écran",
               len(set(g0)) == 1 and g0[0] > 0 and g1[0] < g1[1] and g1[1] - g1[0] < 60, [g0, g1])
@@ -1601,7 +1605,7 @@ def main():
             I.dpred = {{}}; I.plafR = {{}}; I.dord = ['l1|s1', 'l2|s1']; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
         pg.evaluate("() => localStorage.setItem('svi_dlyhh_v1', '120')")
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(800)
-        pg.evaluate("() => document.querySelector('.dlyg').scrollIntoView({ block: 'start' })"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#bdgTabs').scrollIntoView({ block: 'start' })"); pg.wait_for_timeout(700)
         r5 = pg.evaluate("""() => { const p = document.querySelector('#dlyGantt .gplaf.gcap-def'); return [!!p, p ? p.querySelector('.gplaf-v').textContent : '', document.querySelectorAll('#dlyGantt .ghist-ax .gax-t').length,
             p ? getComputedStyle(p).borderTopColor : '']; }""")
         r2 = pg.evaluate("() => { const h = document.querySelector('#dlyGantt .ghist'), vv = window.visualViewport; const b = vv ? vv.offsetTop + vv.height : innerHeight; return h ? [Math.round(h.getBoundingClientRect().bottom), Math.round(b)] : null; }")
