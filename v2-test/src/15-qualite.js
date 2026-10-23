@@ -766,10 +766,12 @@
     const insTabFilt = () => {
       if (!INS) return {};
       const own = k => (INS[k] || []).some(r => !r.t && r.on === true);
+      /* v539 : onglet en bleu quand SON tableau a une loupe ou une case cochée (remarque 53 : seul l'onglet source) —
+         les tâches cochées du DÉTAIL DÉLAIS comptent maintenant aussi */
       return {
         chg: cfHasF(insCfT("chg")) || !!ONLYC.chg || own("chg"),
         prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || own("prd"),
-        dly: ["dly", "dlyp", "dlyr", "dlyi", "dlys"].some(cfHasF),
+        dly: ["dly", "dlyp", "dlyr", "dlyi", "dlys"].some(cfHasF) || !!(shell.__dlySel && shell.__dlySel.size),
         lnk: cfHasF("lk_marge") || (INS.links || []).some(l => l.on === true),
         unl: cfHasF("lk_unl"),
         inc: cfHasF("lk_inc") || (INS.inc || []).some(x => x.on === true)

@@ -1259,6 +1259,40 @@ def main():
         pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => r.id !== 'q1'); I.links = I.links.filter(l => l.id !== 'L38'); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
         check("v538 : lots du PLANNING — titre = pastille chiffrée (toutes ses lignes, comme TÂCHES) ; lot = son rond", a38 == ["1", True] and b38 == [True, True, True] and c38 == [True, True], [a38, b38, c38])
 
+        # ===== v539 : PLANNING — glisser des lots / titres avec les règles du bloc TÂCHES ; onglet bleu quand cases cochées =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.set_viewport_size({"width": 1180, "height": 1100}); pg.wait_for_timeout(300)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id));
+            I.lot.push({{ id: 'w1', v: 'RDC HAUT / ESC' }}, {{ id: 'w2', v: 'RDC HAUT / SDB' }}, {{ id: 'w3', v: 'RDC BA / ESC' }}, {{ id: 'w4', v: 'ZONE X' }});
+            I.__lk9 = I.links; I.links = I.links.concat(['w1', 'w2', 'w3', 'w4'].map((lo, n) => ({{ id: 'W' + n, des: 'd2', lot: lo, prim: 'p1', sec: 's2', prd: [], chg: [] }})));
+            I.dord = null; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(700)
+        pg.evaluate("""() => { const st = document.createElement('style'); st.id = 'tst539'; st.textContent = '.bdg-d-tabbody .bdg-d-scroll{max-height:none!important;height:auto!important;overflow:visible!important}'; document.head.appendChild(st);
+            const t = document.querySelector('.dlyg-l'); if (t) t.scrollIntoView({ block: 'start' }); }"""); pg.wait_for_timeout(300)
+        def dpd(src, dst, frac, dx):
+            a = pg.evaluate("p => { const r = document.querySelector('.dlyg-l tr.dly-grp[data-path=\"' + p + '\"] .dly-lotc').getBoundingClientRect(); return [r.left + r.width - 30, r.top + r.height / 2]; }", src)
+            t = pg.evaluate("([p, f]) => { const r = document.querySelector('.dlyg-l tr.dly-grp[data-path=\"' + p + '\"]').getBoundingClientRect(); return r.top + r.height * f; }", [dst, frac])
+            pg.mouse.move(a[0], a[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+            pg.mouse.move(a[0], a[1] + 12, steps=3); pg.wait_for_timeout(150)
+            for _ in range(4):
+                t = pg.evaluate("([p, f]) => { const r = document.querySelector('.dlyg-l tr.dly-grp[data-path=\"' + p + '\"]').getBoundingClientRect(); return r.top + r.height * f; }", [dst, frac])
+                pg.mouse.move(a[0] + dx, t, steps=3); pg.wait_for_timeout(200)
+            st = pg.evaluate("p => { const r = document.querySelector('.dlyg-l tr.dly-grp[data-path=\"' + p + '\"]'); return [r ? r.classList.contains('ro-on') : null, !!document.getElementById('roLine')]; }", dst)
+            pg.mouse.up(); pg.wait_for_timeout(700); pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(300)
+            return st
+        st1 = dpd("RDC BA", "RDC HAUT", .5, 0)
+        v39 = pg.evaluate(f"() => {ins}.INS.lot.filter(r => /^w[123]/.test(r.id)).map(r => r.v)")
+        g39 = v39[0].split(" / ")[0] if v39 else ""
+        lot39 = pg.evaluate("g => !!document.querySelector('.ins-hcol[data-ik=\"lot\"] .lot-grp[data-path=\"' + g + '\"]')", g39)
+        pg.evaluate("() => document.querySelector('#bdgTabBody input.dlyp-cb[data-key]') && (() => { const c = document.querySelector('#bdgTabBody input.dlyp-cb[data-key]'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); })()"); pg.wait_for_timeout(500)
+        tb39 = pg.evaluate("() => ['dly', 'chg', 'prd'].map(t => document.querySelector('#bdgTabs .bdg-d-tab[data-tab=\"' + t + '\"]').classList.contains('tab-filt'))")
+        pg.evaluate("() => { const c = document.querySelector('#bdgTabBody input.dlyp-cb[data-key]:checked'); if (c) { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); } }"); pg.wait_for_timeout(400)
+        tb39b = pg.evaluate("() => document.querySelector('#bdgTabs .bdg-d-tab[data-tab=\"dly\"]').classList.contains('tab-filt')")
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id)); I.links = I.__lk9; delete I.__lk9; I.dord = null; X.insSave(); X.refreshAll(); document.getElementById('tst539')?.remove(); }}"); pg.wait_for_timeout(300)
+        pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
+        check("v539 : PLANNING — titre RDC BA posé sur RDC HAUT = nouveau titre (aussi dans le bloc TÂCHES), destination en jaune ; onglet DÉTAIL DÉLAIS (seul) en bleu avec une tâche cochée",
+              st1 == [True, False] and g39.startswith("GROUPE") and all(v.startswith(g39 + " / RDC ") for v in v39) and lot39 and tb39 == [True, False, False] and tb39b is False, [st1, v39, lot39, tb39, tb39b])
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

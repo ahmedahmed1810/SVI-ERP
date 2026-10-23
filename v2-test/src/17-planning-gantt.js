@@ -1529,6 +1529,47 @@
         return h;
       };
       const dlyGrpShow = h => { if (h && h.line) dlyRowLine(h); else document.getElementById("roLine")?.remove(); };
+      /* v539 : lots et titres du PLANNING glissés avec les MÊMES règles que la liste des lots du bloc TÂCHES :
+         milieu d'un titre / d'un lot = regroupement (titre sur titre ou lot sur lot = nouveau titre ; lot sur titre = dedans) ;
+         juste sous un titre déplié ou entre deux lignes d'un groupe = dans ce groupe ; sous la dernière ligne d'un groupe
+         ou sous un groupe replié : doigt à droite = trait court = dedans, à gauche = trait long = même rang */
+      const dlyFakeT = tr => {
+        const path = tr.dataset.path, rec = INS.lot.find(l => !l.t && U_(l.v) === U_(path));
+        const base = { getBoundingClientRect: () => tr.getBoundingClientRect(), closest: () => null };
+        return rec ? { ...base, classList: { contains: () => false }, dataset: { iid: rec.id } } : { ...base, classList: { contains: c => c === "lot-grp" }, dataset: { path } };
+      };
+      const dlyLotHit = (ev, srcP, x0) => {
+        const tb = shell.querySelector(".dlyg-l table tbody");
+        if (!tb) return null;
+        const all = [...tb.querySelectorAll("tr.dly-grp, tr.dly-task")].filter(t => !t.classList.contains("dly-ext"));
+        const inSrc = sg => sg.length >= srcP.length && srcP.every((g, i) => U_(g) === U_(sg[i]));
+        const G = all.filter(t => t.classList.contains("dly-grp")).map(t => { const segs = dlyLotPath(t.dataset.path);
+          return { el: t, segs, kids: INS.lot.some(l => !l.t && lotSegs(l).length > segs.length && lotUnder(l, segs)), folded: dlyIsFolded(t.dataset.path) }; }).filter(o => !inSrc(o.segs));
+        const tr = all.find(t => { const r = t.getBoundingClientRect(); return ev.clientY >= r.top && ev.clientY <= r.bottom; });
+        if (!tr) return null;
+        const r = tr.getBoundingClientRect(), f = (ev.clientY - r.top) / (r.height || 1);
+        let x, pos;
+        if (tr.classList.contains("dly-grp")) { x = G.find(o => o.el === tr); pos = f > .25 && f < .75 ? "on" : f >= .75 ? "after" : "before"; }
+        else { let g = tr.previousElementSibling; while (g && !g.classList.contains("dly-grp")) g = g.previousElementSibling; x = G.find(o => o.el === g); pos = "after"; }
+        if (!x) return null;
+        if (pos === "on") return { on: true, x };
+        const ix = G.indexOf(x), pv = pos === "after" ? G[ix] : G[ix - 1], nx = pos === "after" ? G[ix + 1] : G[ix];
+        let D, Dmin, Dmax, inStart = false;
+        if (!pv) D = Dmin = Dmax = 0;
+        else if (pv.kids && !pv.folded) { inStart = true; D = Dmin = Dmax = pv.segs.length; }
+        else {
+          Dmax = pv.kids ? pv.segs.length : pv.segs.length - 1;
+          Dmin = nx ? Math.min(Dmax, nx.segs.length - 1) : 0;
+          D = Math.max(Dmin, Math.min(Dmax, Dmax + Math.round((ev.clientX - x0) / 28)));
+        }
+        const cell = (x.el.querySelector(".dly-lotc") || x.el).getBoundingClientRect(), rowR = tr.getBoundingClientRect();
+        const left = cell.left + 6 + D * 20, y = pos === "before" ? rowR.top : rowR.bottom;
+        let l = document.getElementById("roLine");
+        if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); }
+        const tbr = tb.getBoundingClientRect();
+        l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${left}px;width:${Math.max(20, tbr.right - left)}px;top:${y - 1.5}px`;
+        return { gap: { prev: pv ? pv.segs : null, D, inStart, el: pv ? pv.el : x.el } };
+      };
       shell.__dlyRowDrag = (e, srcTr, onDrop) => {};
       /* + AJOUTER UNE TÂCHE grisé : appui long = la raison (FORMAT 56) */
       shell.addEventListener("pointerdown", e => {
@@ -1554,7 +1595,13 @@
           if (!far && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 10) return;
           far = true;
           shell.__dlySrcG = window.__sviDlySrcG = false;
-          if (gRow) { hit = dlyGrpHit(ev, gRow.path, gRow.lvl, x0); dlyGrpShow(hit); return; }
+          if (gRow) {
+            shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on"));
+            hit = dlyLotHit(ev, dlyLotPath(gRow.path), x0);
+            if (!hit) document.getElementById("roLine")?.remove();
+            else if (hit.on) { document.getElementById("roLine")?.remove(); hit.x.el.classList.add("ro-on"); }
+            return;
+          }
           if (tr.classList.contains("dly-task")) { hit = dlyTaskHit(ev, tr, tr.dataset.key, x0); if (!hit) document.getElementById("roLine")?.remove(); return; }
           hit = dlyRowAt(ev.clientY, tr);
           if (hit) dlyRowLine(hit); else document.getElementById("roLine")?.remove();
@@ -1569,6 +1616,12 @@
           if (on) { const stop = ev => { ev.stopPropagation(); ev.preventDefault(); }; shell.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => shell.removeEventListener("click", stop, { capture: true }), 350); }
           /* v461 : appui long sans glisser sur un lot ou un niveau = son menu (ISOLER) */
           if (drop && on && !far && gRow) { X.grpMenu(gRow.path, tr.querySelector(".dly-lotc") || tr); return; }
+          if (drop && on && hit && far && gRow) {
+            const rec = INS.lot.find(l => !l.t && U_(l.v) === U_(gRow.path)), sid = rec ? rec.id : "@" + gRow.path;
+            if (hit.on) lotDrop(sid, dlyFakeT(hit.x.el), "on", null, { plan: true });
+            else lotDrop(sid, dlyFakeT(hit.gap.el), "gap", hit.gap, { plan: true });
+            return;
+          }
           if (drop && on && hit && far) { if (gRow) X.moveGroup(gRow.path, hit, tr); else if (hit.on) X.superpose(tr.dataset.key, hit.on, tr); else if (tr.classList.contains("dly-task")) X.dropTaskTo(tr.dataset.key, hit, tr); else X.moveKeys(dlyRowKeys(tr), dlyRowKeys(hit.tr), hit.after); }
         };
         const up = () => end(true), cc = () => end(false);

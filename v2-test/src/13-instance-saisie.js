@@ -1149,7 +1149,7 @@
     };
     /* v529 (remarques 4 et 5) : dépôt ENTRE deux lignes de la liste des lots — gap = { prev: chemin de la ligne du dessus (ou null),
        inStart: ligne du dessus = titre déplié (on entre dedans, en premier), D: rang d'arrivée (0 = premier rang) } */
-    const lotDrop = (srcId, tEl, mode, gap) => {
+    const lotDrop = (srcId, tEl, mode, gap, opts = {}) => {
       /* v525 : « @chemin » = un titre de niveau (sans lot à lui) et toute sa branche */
       const gP = String(srcId || "").startsWith("@") ? dlyLotPath(String(srcId).slice(1)) : null;
       const L = INS.lot, src = gP ? { v: gP.join(" / ") } : L.find(x => x.id === srcId);
@@ -1230,6 +1230,11 @@
         if (Math.abs(d) >= 1) window.scrollBy(0, d);
       };
       const drop0 = performance.now();
+      /* v539 : dépôt fait dans le PLANNING : pas d'ancrage de la liste des lots ; le nom du nouveau titre se tape dans le PLANNING */
+      if (opts.plan) {
+        if (N) setTimeout(() => { const i = [...shell.querySelectorAll("input.dly-nm")].find(x => x.dataset.path === base.join(" / ")); if (i) { try { i.focus({ preventScroll: true }); } catch (e) { i.focus(); } try { i.select(); } catch (e) {} } }, 80);
+        return;
+      }
       keepScroll.hold = performance.now() + 450;
       fix(); requestAnimationFrame(fix);
       [70, 160, 300].forEach(t => setTimeout(fix, t));
