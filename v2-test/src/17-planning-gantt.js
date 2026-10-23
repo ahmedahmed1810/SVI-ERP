@@ -774,6 +774,8 @@
     const dlyPickSet = () => {
       const ch = ["des", "lot", "prim", "sec"].filter(k => LK[k]);
       const cp = Object.keys(LK.prd || {}), cc = Object.keys(LK.chg || {});
+      /* v538 : rond d'un titre de lots (ou rond d'en-tête) = ses tâches surlignées dans le PLANNING */
+      if (!ch.length && !cp.length && !cc.length && LK.all && LK.all.lot) return new Set(dlyKeys().filter(k => lkOn("lot", k.split("|")[0])));
       if (!ch.length && !cp.length && !cc.length) return null;
       const S = new Set();
       (INS.links || []).filter(l => ch.every(k => l[k] === LK[k]) && cp.every(id => (l.prd || []).some(x => x.id === id)) && cc.every(id => (l.chg || []).some(x => x.id === id)))
@@ -854,6 +856,14 @@
           lastShown.detail = { cols: DLY_COLS_P, rows: PR.flat, kind: "dly" };
           requestAnimationFrame(() => dlyGanttDraw());
           const ind = n => `style="padding-left:${6 + n * 20}px"`;
+          /* v538 : lots du PLANNING = mêmes ronds que les lots du bloc TÂCHES — un lot : son rond (le choisir) ;
+             un titre (ou un lot qui a des sous-lots) : pastille chiffrée = toutes ses lignes, sous-titres allumés, parent à moitié */
+          const dlyGrpRd = path => {
+            if (!INS_EDIT) return "";
+            const P = dlyLotPath(path), r = INS.lot.find(l => !l.t && U_(l.v) === U_(P.join(" / ")));
+            const kids = INS.lot.some(l => !l.t && l !== r && lotUnder(l, P));
+            return r && !kids ? lkRd("lot", r).replace('<span class="lk-rd', `<span data-iid="${r.id}" class="dly-grd lk-rd`) : `<span class="dly-grd">${lkRdPart("lot", P.join(" / "))}</span>`;
+          };
           /* cases à cocher (FORMAT 64) : la case d'un lot coche toutes ses tâches */
           const SEL = shell.__dlySel = shell.__dlySel || new Set();
           const allK = new Set(PR.flat.map(x => x.key));
@@ -866,7 +876,7 @@
           const tbl = dlyTable(PR.rows.concat(INS_EDIT ? [{ nw: true }] : []), x => x.nw
             ? { lot: newIn("lot", "dlyLotDl"), sec: newIn("sec", "dlySecDl"), pred: "", deb: "", fin: "", dur: "", marge: "", jal: "", __cb: "", __td_marge: " dly-calc" }
             : x.grp
-            ? { lot: `<span class="dly-lotc" ${ind(x.lvl)}><span class="dly-fold" data-path="${esc(x.path)}"><b>${x.fold ? "›" : "⌄"}</b></span>${lotNoHTML(x.lab)}${nm("grp", `data-path="${esc(x.path)}"`, x.lab.name)}</span>`, sec: "", pred: "",
+            ? { lot: `<span class="dly-lotc" ${ind(x.lvl)}>${dlyGrpRd(x.path)}<span class="dly-fold" data-path="${esc(x.path)}"><b>${x.fold ? "›" : "⌄"}</b></span>${lotNoHTML(x.lab)}${nm("grp", `data-path="${esc(x.path)}"`, x.lab.name)}</span>`, sec: "", pred: "",
                 deb: `<b>${esc(dFr(x.deb))}</b>`, fin: `<b>${esc(dFr(x.fin))}</b>`, dur: x.dur === "" ? "" : `<b>${x.dur}</b>`, marge: "", jal: "", __td_marge: " dly-calc",
                 __cb: `<input type="checkbox" class="dlyp-cb" data-path="${esc(x.path)}"${x.all.length && x.all.every(t => SEL.has(t.key)) ? " checked" : ""}${x.all.some(t => SEL.has(t.key)) && !x.all.every(t => SEL.has(t.key)) ? " data-part=\"1\"" : ""}>` }
             : x.ext

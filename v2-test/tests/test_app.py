@@ -1242,6 +1242,23 @@ def main():
         check("v537 : tâche cochée du PLANNING = filtre des autres blocs ; rond d'une tâche = ce qui lui est lié s'allume, retoucher = libérer",
               f37[0] == ["l1"] and "d3" not in f37[1] and "d1" in f37[1] and r37 == [True, True, True] and r37b is False, [f37, r37, r37b])
 
+        # ===== v538 : lots du PLANNING = mêmes ronds que le bloc TÂCHES (lot : rond ; titre : pastille chiffrée) =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.lot.push({{ id: 'q1', v: 'GROUPE 9 / ZONE Q' }});
+            I.links = I.links.filter(l => l.id !== 'L38').concat([{{ id: 'L38', des: 'd3', lot: 'q1', prim: 'p1', sec: 's2', prd: [], chg: [{{ id: 'c2' }}] }}]); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(600)
+        a38 = pg.evaluate("""() => { const g = document.querySelector('#bdgTabBody tr.dly-grp[data-path="GROUPE 9"] .lk-rdgrp'), l = document.querySelector('#bdgTabBody tr.dly-grp[data-path="RDC"] .lk-rd[data-rd="lot"]');
+            return [g ? g.textContent.trim() : null, !!l]; }""")
+        pg.evaluate("() => document.querySelector('#bdgTabBody tr.dly-grp[data-path=\"GROUPE 9\"] .lk-rdgrp')?.click()"); pg.wait_for_timeout(500)
+        b38 = pg.evaluate("""() => [!!document.querySelector('#bdgTabBody tr.dly-grp[data-path="GROUPE 9"] .lk-rdgrp.on'), !!document.querySelector('.ins-hcol[data-ik="lot"] .lot-grp[data-path="GROUPE 9"] .lk-rdgrp.on'),
+            !!document.querySelector('#bdgTabBody tr.dly-task[data-key="q1|s2"].dly-pick')]""")
+        pg.evaluate("() => document.querySelector('#bdgTabBody tr.dly-grp[data-path=\"GROUPE 9\"] .lk-rdgrp')?.click()"); pg.wait_for_timeout(400)
+        pg.evaluate("() => document.querySelector('#bdgTabBody tr.dly-grp[data-path=\"RDC\"] .lk-rd[data-rd=\"lot\"]')?.click()"); pg.wait_for_timeout(500)
+        c38 = pg.evaluate("() => [!!document.querySelector('#bdgTabBody tr.dly-grp[data-path=\"RDC\"] .lk-rd.on'), !!document.querySelector('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid=\"l1\"] .lk-rd.on')]")
+        pg.evaluate("() => document.querySelector('#bdgTabBody tr.dly-grp[data-path=\"RDC\"] .lk-rd[data-rd=\"lot\"]')?.click()"); pg.wait_for_timeout(400)
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => r.id !== 'q1'); I.links = I.links.filter(l => l.id !== 'L38'); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v538 : lots du PLANNING — titre = pastille chiffrée (toutes ses lignes, comme TÂCHES) ; lot = son rond", a38 == ["1", True] and b38 == [True, True, True] and c38 == [True, True], [a38, b38, c38])
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
