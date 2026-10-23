@@ -409,15 +409,15 @@
       /* FORMAT 97 : DÉTAIL DÉLAIS ouvert (PLANNING) — commandes du planning et affichage JOUR / SEMAINE / MOIS en tête du menu */
       const DX = shell.__insDly;
       if (DX && active === "dly" && acts.some(a => a.dataset.blk === "detail") && shell.querySelector("#dlyGantt")) {
-        const sc = DX.scaleOf(), lev = DX.canLev();
+        const sc = DX.scaleOf();
         const opt = (v, lab) => `<button type="button" data-dly="sc-${v}" class="dly-sc${sc === v ? " on" : ""}"><span>${sc === v ? "✓ " : ""}${lab}</span></button>`;
-        m.insertAdjacentHTML("afterbegin", `<button type="button" data-dly="gen"><span>GÉNÉRER LE PLANNING</span></button>
-          <button type="button" data-dly="comp"><span>COMPRESSER LE PLANNING</span></button>
+        /* R5 : une seule entrée — GÉNÉRER sur un planning sans dates, sinon COMPRESSER ; plus d'APPLIQUER LE NIVELLEMENT (barre en direct, R2) */
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-dly="gen"><span>${DX.hasDates() ? "COMPRESSER LE PLANNING" : "GÉNÉRER LE PLANNING"}</span></button>
           <button type="button" data-dly="sort" class="${DX.sorted() ? "off" : ""}"><span>CLASSER PAR DÉBUT</span></button>
-          <button type="button" data-dly="lev" class="${lev ? "" : "off"}" ${lev ? "" : 'aria-disabled="true"'}><span>APPLIQUER LE NIVELLEMENT</span></button>
-          <div class="blk-sep"></div><div class="blk-hint">AFFICHAGE DU GANTT</div>${opt("j", "JOUR")}${opt("s", "SEMAINE")}${opt("m", "MOIS")}<div class="blk-sep"></div>`);
+          <div class="blk-sep"></div><div class="blk-hint">AFFICHAGE DU GANTT</div>${opt("j", "JOUR")}${opt("s", "SEMAINE")}${opt("m", "MOIS")}<div class="blk-sep"></div>
+          <button type="button" data-dly="cmd"><span>COMMANDES</span></button><div class="blk-sep"></div>`);
         let lp = null;
-        m.addEventListener("pointerdown", e => { const so = e.target.closest('[data-dly="sort"].off'); if (so) { lp = setTimeout(() => svToast("DÉJÀ CLASSÉ PAR DÉBUT : LE BOUTON REDEVIENT ACTIF DÈS QU'UNE LIGNE DÉPLACÉE NE RESPECTE PLUS CET ORDRE.", 4000, so), 550); return; } const b = e.target.closest('[data-dly="lev"].off'); if (!b) return; lp = setTimeout(() => svToast("RIEN À NIVELER : AUCUN JOUR NE DÉPASSE LE PLAFOND DE MAIN D'ŒUVRE (OU PAS DE PLAFOND / PAS DE MAIN D'ŒUVRE).", 4000, b), 550); });
+        m.addEventListener("pointerdown", e => { const so = e.target.closest('[data-dly="sort"].off'); if (!so) return; lp = setTimeout(() => svToast("DÉJÀ CLASSÉ PAR DÉBUT : LE BOUTON REDEVIENT ACTIF DÈS QU'UNE LIGNE DÉPLACÉE NE RESPECTE PLUS CET ORDRE.", 4000, so), 550); });
         ["pointerup", "pointercancel"].forEach(t => m.addEventListener(t, () => clearTimeout(lp)));
         m.addEventListener("click", e => {
           const b = e.target.closest("[data-dly]");
@@ -426,7 +426,7 @@
           if (b.classList.contains("off")) return;
           m.remove();
           const v = b.dataset.dly;
-          if (v === "gen") DX.gen(); else if (v === "comp") DX.comp(); else if (v === "sort") DX.sortDeb(); else if (v === "lev") DX.level(); else DX.scale(v.slice(3));
+          if (v === "gen") DX.gen(); else if (v === "sort") DX.sortDeb(); else if (v === "cmd") DX.cmdWin(); else DX.scale(v.slice(3));
         }, true);
       }
       /* v461 : bloc TÂCHES — CLASSER PAR DÉBUT (même ordre que le PLANNING : lots, activités, puis le planning) */

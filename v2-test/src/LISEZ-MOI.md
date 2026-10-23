@@ -26,7 +26,8 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `14-doublons-classement.js` | 410 |
 | `15-qualite.js` | 963 |
 | `16-a-completer.js` | 100 |
-| `17-planning-gantt.js` | 2209 |
+| `17-planning-gantt.js` | PLANNING : tableau, Gantt, histogramme, gestes |
+| `17b-planning-auto.js` | GÉNÉRER / COMPRESSER, plafond, ressource cochée, tâches incompressibles, commandes (v530, v542) |
 | `18-annuler-liaisons.js` | 1123 |
 | `19-delais-disposition.js` | 519 |
 | `20-glisser-lignes.js` | 403 |
@@ -37,6 +38,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `24-doc-historique-fenetres.js` | 541 |
 | `25-inf.js` | 598 |
 | `26-copier-coller.js` | 650 |
+| `26b-conditionnement.js` | conditionnement / emballage d'un article (v530, remarque 4 en v542) |
 | `27-etat-fin-budget.js` | 438 |
 | `30-bdg-produits-charges-analyse.js` | 674 |
 | `31-formulaires-appui-long.js` | 345 |

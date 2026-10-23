@@ -6126,13 +6126,17 @@ function renderBudgetList() {
       /* FORMAT 122 : ligne existante — texte affiché (appui long = glisser), un toucher ouvre la saisie */
       if (k === "des" && f === "des" && !isNew) return `<td class="${cls} ins-td ins-tdv${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}>${r.t ? `<span class="ins-tfz">${foldBtn(r)}</span>` : ""}<div class="ins-dv" data-f="des">${esc(val)}</div><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea>${r.t ? "" : `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>`}</td>`;
       if (k === "des" && f === "des") return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} ${isNew ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea></td>`;
-      /* v530 : bouton CONDITIONNEMENT dans la case DÉSIGNATION d'une charge */
-      const pk = k === "chg" && f === "des" && !isNew && !r.t;
+      /* v530 : bouton CONDITIONNEMENT dans la case DÉSIGNATION d'une charge ; remarque 4 (v542) : seulement sur une charge sans titre
+         (les charges regroupées l'ont sur la ligne de leur titre) */
+      const pk = k === "chg" && f === "des" && !isNew && !r.t && !INS_CELL_LVL;
       return `<td class="${cls} ins-td${pk ? " ins-pkc" : ""}${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
         ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
         value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off">${pk ? condBtn(r) : ""}</td>`;
     };
-    const condBtn = r => `<button type="button" class="chg-pk${(INS.cond || {})[U_(r.des) + "|" + U_(r.u)] ? " on" : ""}" tabindex="-1" data-cid="${r.id}" aria-label="Conditionnement"><svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg></button>`;
+    let INS_CELL_LVL = 0;
+    /* remarque 4 (v542) : conditionnement réglé sur l'article (tous les budgets, voir 26b) ou, avant, sur ce budget */
+    const condHas = r => { const k = U_(r.des) + "|" + U_(r.u); let A = {}; try { A = JSON.parse(localStorage.getItem("svi_cond_chs_v1") || "{}") || {}; } catch (e) {} return !!(A[k] || (INS.cond || {})[k]); };
+    const condBtn = r => `<button type="button" class="chg-pk${condHas(r) ? " on" : ""}" tabindex="-1" data-cid="${r.id}" aria-label="Conditionnement"><svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg></button>`;
     const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     /* page unique : rond à gauche = choix pour la liaison (2e toucher = libère le choix) ;
        case à droite = suppression (cochée, elle devient 🗑 ; ANNULER la décoche) */
@@ -6262,6 +6266,7 @@ function renderBudgetList() {
       const dim = k === "des" && r && !r.t && LK.des && !sel;
       const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
       const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* bleu = liée (à n'importe quelle désignation) */
+      INS_CELL_LVL = lvl || 0;
       return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}${k === "des" && r ? ` style="--d:${dOf(r)}"` : ""}>
         <td class="center ins-rdc">${k === "des" && r && r.t && !INS_EDIT ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
@@ -6432,7 +6437,7 @@ function renderBudgetList() {
           if (INS_EDIT) return `<td class="${c[2]} ins-td ins-rdbc" title="${tip}"><input class="ins-gin ins-rdbin" data-f="rdb" enterkeyhint="next" inputmode="decimal" value="${esc(money(RD.v))}" autocomplete="off"><span class="ins-rdbu">${esc(RD.u)}</span></td>`;
           return `<td class="${c[2]} ins-rdbc" title="${tip}"><i>${esc(v.rdb)}</i></td>`;
         }
-        if (edOk(f)) return `<td class="${c[2]} ins-td${f === "des" ? " ins-gtd" : ""}">${f === "des" ? fb : ""}<input class="ins-gin ${c[2]}" data-f="${f}" enterkeyhint="next"${["p", "tva"].includes(f) ? ' inputmode="decimal"' : ""} value="${esc(ev[f] ?? "")}" autocomplete="off" spellcheck="false"></td>`;
+        if (edOk(f)) return `<td class="${c[2]} ins-td${f === "des" ? " ins-gtd ins-pkc" : ""}">${f === "des" ? fb : ""}<input class="ins-gin ${c[2]}" data-f="${f}" enterkeyhint="next"${["p", "tva"].includes(f) ? ' inputmode="decimal"' : ""} value="${esc(ev[f] ?? "")}" autocomplete="off" spellcheck="false">${f === "des" ? condBtn(g[0]) : ""}</td>`;
         return `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}${f === "des" ? " ins-gtd" : ""}">${f === "des" ? fb : ""}${esc(v[f] ?? "")}</td>`;
       };
       /* v507 (remarque 63) : la pastille (nombre de lignes) sert de rond — toucher = choisir / libérer toutes ses charges */
@@ -8368,7 +8373,7 @@ function renderBudgetList() {
       return {
         chg: cfHasF(insCfT("chg")) || !!ONLYC.chg || own("chg"),
         prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || own("prd"),
-        dly: ["dly", "dlyp", "dlyr", "dlyi", "dlys"].some(cfHasF) || !!(shell.__dlySel && shell.__dlySel.size),
+        dly: ["dly", "dlyp", "dlys"].some(cfHasF) || !!(shell.__dlySel && shell.__dlySel.size),
         lnk: cfHasF("lk_marge") || (INS.links || []).some(l => l.on === true),
         unl: cfHasF("lk_unl"),
         inc: cfHasF("lk_inc") || (INS.inc || []).some(x => x.on === true)
@@ -9216,8 +9221,9 @@ function renderBudgetList() {
     const dlyOrder = keys => {
       const K = new Set(keys);
       const cur = (INS.dord || []).filter(k => K.has(k));
-      const miss = dlyByDeb(keys.filter(k => !cur.includes(k)));
-      INS.dord = cur.concat(miss);
+      /* tâche nouvelle : juste après la dernière tâche de son lot (sinon à la fin) */
+      dlyByDeb(keys.filter(k => !cur.includes(k))).forEach(k => { const lo = k.split("|")[0]; let i = -1; cur.forEach((c, j) => { if (c.split("|")[0] === lo) i = j; }); if (i < 0) cur.push(k); else cur.splice(i + 1, 0, k); });
+      INS.dord = cur;
       return new Map(INS.dord.map((k, i) => [k, i]));
     };
     const dlySortByDeb = () => { INS.dord = dlyByDeb(dlyKeys()); dlyTasksFromPlan(); };
@@ -9266,39 +9272,36 @@ function renderBudgetList() {
       /* ordre libre des lignes (INS.dord) ; une tâche nouvelle se place à la fin */
       const O = dlyOrder(keys);
       P.sort((a, b) => O.get(a.key) - O.get(b.key));
-      /* v496 (remarque 25) : cases cochées des autres blocs → seules les tâches liées */
+      /* R15 (23/10/2026) : cases cochées des autres blocs → les tâches non liées restent à leur place, en gris pâle (remplace v496) */
       const CLd = insCheckLinks("dly"), KD = CLd ? new Set(CLd.map(l => l.lot + "|" + l.sec)) : null;
-      const flat = cfApply("dlyp", DLY_COLS_P, P).filter(t => !KD || KD.has(t.key));
-      const root = { kids: new Map(), tasks: [] };
+      const flat = cfApply("dlyp", DLY_COLS_P, P).map(t => KD && !KD.has(t.key) ? { ...t, off: true } : t);
+      /* R16 (23/10/2026) : lignes dans l'ordre du PLANNING, tâche par tâche (CLASSER PAR DÉBUT ne regroupe plus par lot) ;
+         le titre d'un lot (et de chacun de ses niveaux) se place à la ligne de sa première tâche ; un lot replié ne cache que ses tâches */
+      const G = new Map();
+      flat.forEach(t => { const sg = dlyLotPath(t.lot); for (let j = 1; j <= sg.length; j++) { const p = sg.slice(0, j).join(" / "); if (!G.has(p)) G.set(p, { name: sg[j - 1], path: p, all: [] }); G.get(p).all.push(t); } });
+      const out = [], seen = new Set();
+      const anc = sg => { for (let i = 1; i < sg.length; i++) if (dlyIsFolded(sg.slice(0, i).join(" / "))) return true; return false; };
+      const within = (x, p) => !!x && (x === p || x.startsWith(p + " / "));
+      let ctx = null;
       flat.forEach(t => {
-        let n = root, path = "";
-        dlyLotPath(t.lot).forEach(seg => { path = path ? path + " / " + seg : seg; if (!n.kids.has(seg)) n.kids.set(seg, { name: seg, path, kids: new Map(), tasks: [] }); n = n.kids.get(seg); });
-        n.tasks.push(t);
+        const sg = dlyLotPath(t.lot), own = sg.join(" / ");
+        for (let j = 1; j <= sg.length; j++) {
+          const p = sg.slice(0, j).join(" / ");
+          if (seen.has(p)) continue;
+          seen.add(p);
+          if (anc(sg.slice(0, j))) continue;
+          const g = G.get(p), ds = g.all.map(x => x.deb).filter(Boolean).sort(), fs = g.all.map(x => x.fin).filter(Boolean).sort();
+          const d0 = ds[0] || "", f0 = fs[fs.length - 1] || "";
+          /* niveau placé hors du bloc de son parent : affiché seul à sa place (v461) */
+          const det = j > 1 && !within(ctx, sg.slice(0, j - 1).join(" / "));
+          out.push({ grp: true, lvl: j - 1, name: g.name, path: p, fold: dlyIsFolded(p), det, lab: lotLab(sg.slice(0, j)), deb: d0, fin: f0, dur: d0 && f0 ? dDur(d0, f0) : "", all: g.all });
+          ctx = p;
+        }
+        if (anc(sg.concat("·"))) return;
+        /* tâche placée plus bas que des tâches d'un autre lot (après CLASSER PAR DÉBUT) : pastille de la couleur de son lot (FORMAT 119) */
+        out.push({ ...t, lvl: sg.length, away: !!ctx && !within(ctx, own) });
+        ctx = own;
       });
-      const gather = n => (n.all = [...n.tasks, ...[...n.kids.values()].flatMap(gather)]);
-      gather(root);
-      const pos = new Map(flat.map((t, i) => [t.key, i]));
-      const first = n => Math.min(...n.all.map(t => pos.get(t.key)).filter(v => v !== undefined), Infinity);
-      /* v461 : un niveau peut être placé n'importe où (même tout en bas) : s'il est rangé hors du bloc de son parent
-         (après une tâche d'un autre lot), il s'affiche à sa place, seul, et reste lié à son parent par son numéro */
-      const runEnd = n => { const S = new Set(n.all.map(t => t.key)); let i = first(n); if (!isFinite(i)) return i; while (i < flat.length && S.has(flat[i].key)) i++; return i; };
-      const det = [];
-      const mark = n => { const e = runEnd(n); [...n.kids.values()].forEach(k => { const f = first(k); k.det = isFinite(f) && isFinite(e) && f >= e; if (k.det) det.push(k); mark(k); }); };
-      [...root.kids.values()].forEach(mark);
-      const out = [];
-      const hidden = path => { const sg = dlyLotPath(path); for (let i = 1; i < sg.length; i++) if (dlyIsFolded(sg.slice(0, i).join(" / "))) return true; return false; };
-      const emit = (g, lvl) => {
-        const ds = g.all.map(x => x.deb).filter(Boolean).sort(), fs = g.all.map(x => x.fin).filter(Boolean).sort();
-        const d0 = ds[0] || "", f0 = fs[fs.length - 1] || "", fold = dlyIsFolded(g.path);
-        out.push({ grp: true, lvl, name: g.name, path: g.path, fold, det: !!g.det, lab: lotLab(dlyLotPath(g.path)), deb: d0, fin: f0, dur: d0 && f0 ? dDur(d0, f0) : "", all: g.all });
-        if (fold) return;
-        /* v446 : tâches et sous-niveaux mêlés dans l'ordre du PLANNING (un niveau reste là où il a été créé) */
-        const items = [...g.tasks.map(t => ({ t, o: pos.get(t.key) })), ...[...g.kids.values()].filter(k => !k.det).map(k => ({ k, o: first(k) }))].sort((a, b) => a.o - b.o);
-        items.forEach(it => { if (it.t) out.push({ ...it.t, lvl: lvl + 1 }); else emit(it.k, lvl + 1); });
-      };
-      const top = [...root.tasks.map(t => ({ t, o: pos.get(t.key) })), ...[...root.kids.values()].map(k => ({ k, o: first(k) })),
-        ...det.filter(k => !hidden(k.path)).map(k => ({ k, o: first(k) }))].sort((a, b) => a.o - b.o);
-      top.forEach(it => { if (it.t) out.push({ ...it.t, lvl: 0 }); else emit(it.k, dlyLotPath(it.k.path).length - 1); });
       /* v461 : ISOLER une branche — seules ses lignes restent, plus les tâches liées hors de la branche (gris, lecture seule) */
       const iso = dlyIsoPath();
       if (iso) {
@@ -9391,9 +9394,11 @@ function renderBudgetList() {
       const draw = () => { renderTab(); insRenderChain(); };
       if (err) { svToast(err, 4000, anchor); draw(); return false; }
       const durOld = p && p.deb && p.fin ? sviWDur(cal, p.deb, p.fin) : 0;
-      const glued = dlyGlued(task), back = p ? { ...p } : null;
+      const glued = dlyGlued(task), back = p ? { ...p } : null, inc0 = dlyInc(task);
       if (p) Object.assign(p, q); else if (q.deb || q.fin) { L.splice(0, L.length, q); p = q; }
-      const undo = () => { if (back) Object.assign(p, back); else L.splice(0, L.length); };
+      /* R3 : date ou durée changée à la main = tâche INCOMPRESSIBLE */
+      if (q.deb && q.fin) dlyIncSet(task, true);
+      const undo = () => { if (back) Object.assign(p, back); else L.splice(0, L.length); if (!inc0) dlyIncSet(task, false); };
       /* v517 : une tâche suivante « collée » (elle commençait pile à la date exigée) suit toute seule (dlyShift plus bas) :
          ce n'est pas un conflit, pas de fenêtre. Seules les autres, qui commencent trop tôt, sont signalées. */
       const late = dlySuccs(task).filter(S => { if (glued.has(S)) return false; const n = dlyPredFin(S), d0 = dlyDeb(S); return n && d0 && d0 < n; });
@@ -9427,7 +9432,6 @@ function renderBudgetList() {
     let DLY_DW_MIN = DLY_SC[dlyScale()].min, DLY_DW_MAX = DLY_SC[dlyScale()].max;
     const dlyDwGet = () => { const c = DLY_SC[dlyScale()]; DLY_DW_MIN = c.min; DLY_DW_MAX = c.max; let v = c.def; try { v = Number(localStorage.getItem(c.k)) || c.def; } catch (e) {} return Math.max(c.min, Math.min(c.max, Math.round(v))); };
     let DLY_DW = dlyDwGet();
-    const DLY_HH = 110;
     /* hauteur des lignes du PLANNING (tableau et Gantt) : pincement vertical à deux doigts ; 24 px au moins (taille d'origine), 64 au plus */
     const DLY_RH_KEY = "svi_dly_rh_v1";
     const dlyRhGet = () => { const v = Number(localStorage.getItem(DLY_RH_KEY)); return v >= 24 && v <= 64 ? v : 24; };
@@ -9500,6 +9504,8 @@ function renderBudgetList() {
         host.__ro2.observe(tbl); host.__ro2.observe(host); if (scr0) host.__ro2.observe(scr0);
       }
       const cal = insCal(), tr0 = tbl.getBoundingClientRect();
+      let dlyHHpx = dlyHHGet() === "full" ? 300 : dlyHHGet();
+      const HD = dlyHistData();
       const thH = tbl.querySelector("thead").getBoundingClientRect().height;
       const trs = [...tbl.querySelectorAll("tbody tr")];
       const geo = trs.map(tr => { const r = tr.getBoundingClientRect(); return { y: r.top - tr0.top - thH, h: r.height }; });
@@ -9511,7 +9517,9 @@ function renderBudgetList() {
         if (scr && scr.clientHeight) {
           const top = gg.getBoundingClientRect().top - scr.getBoundingClientRect().top + scr.scrollTop;
           const addH = gg.nextElementSibling ? gg.nextElementSibling.getBoundingClientRect().height : 0;
-          const histH = gg.querySelector(".dlyh-lab") ? DLY_HH : 0;
+          /* R12 : histogramme plein écran (à la place du Gantt) ou à la hauteur tirée à la poignée « = » */
+          if (dlyHHGet() === "full") dlyHHpx = Math.max(80, Math.floor(scr.clientHeight - top - thH - addH - 10));
+          const histH = gg.querySelector(".dlyh-lab") ? dlyHHpx : 0;
           bodyH = Math.max(bodyH, Math.floor(scr.clientHeight - top - thH - histH - addH - 10));
         }
         const L = gg && gg.querySelector(".dlyg-l");
@@ -9524,6 +9532,7 @@ function renderBudgetList() {
       const dates = [];
       R.forEach(x => { if (x.deb) dates.push(x.deb); if (x.fin) dates.push(x.fin); });
       if (INS.dbut) dates.push(INS.dbut); if (INS.dobj) dates.push(INS.dobj);
+      if (HD && HD.cmd) dates.push(...Object.keys(HD.cmd.L));
       dates.sort();
       const today = sviIsoOf(new Date());
       const d0 = sviIsoAdd(dates[0] || today, -3);
@@ -9597,7 +9606,17 @@ function renderBudgetList() {
             + gname(X(a0), X(b0) + DLY_DW + 5);
           return;
         }
-        if (!x.deb || !x.fin) return;
+        if (!x.deb || !x.fin) {
+          /* R15 : tâche sans dates complètes = 0 jour — repère fin et gris à sa date (seul DÉBUT, seule FIN, ou date exigée par ses liaisons) ;
+             la glisser vers la droite lui donne une durée */
+          const at = x.deb || x.fin || dlyPredFin(x.key);
+          if (!at || x.ext) return;
+          const left = X(at) + (!x.deb && x.fin ? DLY_DW : 0);
+          pos[x.key] = { l: left, r: left, y: y + BH / 2 };
+          bars += `<div class="gb gb0${x.off ? " gb-off" : ""}" data-key="${esc(x.key)}" data-at="${esc(at)}" style="left:${left - 1}px;top:${y}px"><span class="gb-e"></span></div>`
+            + `<span class="gb-n gb-out gb-ren gb0n" data-key="${esc(x.key)}" style="left:${left + 6}px;top:${ty}px">${esc(x.sec)}</span>`;
+          return;
+        }
         /* v530 : demi-journée de début ou de fin = demi-case */
         const left = X(x.deb) + (x.hs ? DLY_DW / 2 : 0), w = Math.max(3, X(x.fin) - X(x.deb) + DLY_DW - 1 - (x.hs ? DLY_DW / 2 : 0) - (x.he ? DLY_DW / 2 : 0)), col = dlyLotColor(x.lo);
         const crit = x.marge === 0;
@@ -9606,11 +9625,11 @@ function renderBudgetList() {
         pos[x.key] = { l: left, r: left + w, y: y + BH / 2 };
         /* FORMAT 91 : nom dans la barre quand il y tient en entier, sinon juste à droite */
         const inside = dlyTxtW(x.sec) + 12 <= w;
-        bars += `<div class="gb${x.ext ? " gb-ext" : ""}${crit ? " crit" : ""}${inside ? " gb-tin" : ""}${w < 30 ? " gb-nar" : ""}" data-key="${esc(x.key)}" style="left:${left}px;width:${w}px;top:${y}px;--c:${col}">`
-          + (inside ? `<span class="gb-ti">${nm}</span>` : "")
+        bars += `<div class="gb${x.ext ? " gb-ext" : ""}${x.off ? " gb-off" : ""}${crit ? " crit" : ""}${inside ? " gb-tin" : ""}${w < 30 ? " gb-nar" : ""}" data-key="${esc(x.key)}" style="left:${left}px;width:${w}px;top:${y}px;--c:${col}">`
+          + (inside ? `<span class="gb-ti">${dlyInc(x.key) ? '<span class="gb-inc">▣ </span>' : ""}${nm}</span>` : "")
           + `<span class="gb-s"></span><span class="gb-e"></span></div>`
           + (inside ? (x.jal || qqArret(x.key) ? `<span class="gb-n gb-out" style="left:${left + w + 5}px;top:${ty}px">${x.jal ? '<span class="gjal">★</span>' : ""}${qqArret(x.key) ? '<span class="garr">■</span>' : ""}</span>` : "")
-            : `<span class="gb-n gb-out${x.ext ? " gb-extn" : " gb-ren"}" data-key="${esc(x.key)}" style="left:${left + w + 5}px;top:${ty}px">${x.ext ? esc(lotLab(dlyLotPath(x.lot)).full) + " › " : ""}${nm}${x.jal ? ' <span class="gjal">★</span>' : ""}${qqArret(x.key) ? ' <span class="garr">■</span>' : ""}</span>`);
+            : `<span class="gb-n gb-out${x.ext ? " gb-extn" : " gb-ren"}${x.off ? " gb-offn" : ""}" data-key="${esc(x.key)}" style="left:${left + w + 5}px;top:${ty}px">${x.ext ? esc(lotLab(dlyLotPath(x.lot)).full) + " › " : ""}${dlyInc(x.key) ? '<span class="gb-inc">▣ </span>' : ""}${nm}${x.jal ? ' <span class="gjal">★</span>' : ""}${qqArret(x.key) ? ' <span class="garr">■</span>' : ""}</span>`);
       });
       /* liaisons : fils fléchés (FIN → DÉBUT depuis la fin, DÉBUT → DÉBUT depuis le début) ; toucher le fil = fenêtre LIAISON */
       let lk = "";
@@ -9626,29 +9645,47 @@ function renderBudgetList() {
             const x1 = a.r;
             dpath = x2 - 8 >= x1 + 6 ? `M${x1} ${a.y} H${x1 + 6} V${y2} H${x2 - 1}` : `M${x1} ${a.y} H${x1 + 6} V${(a.y + y2) / 2} H${x2 - 10} V${y2} H${x2 - 1}`;
           }
-          lk += `<path class="gl" d="${dpath}" marker-end="url(#gArr)"/><path class="gl-hit" data-p="${esc(l.k)}" data-s="${esc(x.key)}" d="${dpath}"/>`;
+          lk += `<path class="gl${x.off || (R.find(r => !r.grp && r.key === l.k) || {}).off ? " gl-off" : ""}" d="${dpath}" marker-end="url(#gArr)"/><path class="gl-hit" data-p="${esc(l.k)}" data-s="${esc(x.key)}" d="${dpath}"/>`;
         });
       });
-      /* histogramme MAIN D'ŒUVRE (J-H / jour), même échelle de jours ; barre de plafond tirée au doigt, par paliers entiers */
+      /* histogramme de la ressource cochée (R9, R11, R14) : charges cochées du DÉTAIL CHARGES, une couleur par charge ;
+         rien de coché = « SÉLECTIONNER DES CHARGES » ; barre de plafond (R2) seulement en QUANTITÉ ; COMMANDES (R10) */
       let hist = "";
-      const LD = dlyLoad(dlyCurDates()), vals = Object.values(LD), mx = vals.length ? Math.max(...vals) : 0;
-      if (mx > 0) {
-        const P = Number(INS.plaf) || Math.ceil(mx), SG = INS.plaf ? dlyCapSegs() : [{ d: "", n: P }], PM = Math.max(...SG.map(x => Number(x.n))), top = Math.max(mx, PM) + 1, sc = (DLY_HH - 16) / top;
-        const capAt = di => { let n = P; SG.forEach(x => { if (x.d && x.d <= di) n = Number(x.n); }); return n; };
-        let hb = "";
-        Object.keys(LD).forEach(di => { if (di < d0 || di > d1) return; const v = LD[di];
-          hb += `<div class="ghb${v > capAt(di) + 1e-9 ? " over" : ""}" style="left:${X(di) + (DLY_DW > 10 ? 3 : 0)}px;width:${Math.max(1, DLY_DW - (DLY_DW > 10 ? 6 : 0))}px;height:${Math.max(1, v * sc)}px" title="${Math.round(v * 100) / 100} J-H"></div>`; });
-        const late = INS.plaf && INS.dbut && dlyEnd(dlyLevel(P)) > INS.dbut;
-        hist = `<div class="ghist" style="width:${W}px;height:${DLY_HH}px" data-sc="${sc}">${bg}${hb}
-          ${SG.map((g2, i) => { const l = g2.d ? Math.max(0, X(g2.d)) : 0, r = SG[i + 1] ? Math.max(0, X(SG[i + 1].d)) : W;
-            /* v530 : un morceau de plafond par période (appui long = couper ; chaque morceau se tire seul) */
-            return r > l ? `<div class="gplaf${i ? " gplaf-cut" : ""}" data-seg="${i}" style="top:${DLY_HH - Number(g2.n) * sc}px;left:${l}px;right:auto;width:${r - l}px"><span class="gplaf-v">${i ? dFr(g2.d) + " : " : "PLAFOND "}${g2.n}</span>${!i && late ? `<span class="gplaf-w">${DLY_BUT_MSG}</span>` : ""}</div>` : ""; }).join("")}</div>`;
+      {
+        const HH = dlyHHpx;
+        if (!HD) hist = `<div class="ghist ghist-empty" style="width:${W}px;height:${HH}px"><div class="ghist-msg">SÉLECTIONNER DES CHARGES</div></div>`;
+        else {
+          const C = HD.cmd, ks = [...HD.ser.keys()], tot = HD.tot;
+          const vals = Object.values(C ? C.L : tot), mx = vals.length ? Math.max(...vals) : 0;
+          const st = dlyCapSt(), P0 = Number(st.plaf) || 0, canP = !C && HD.mode === "q" && mx > 0;
+          const SG = canP ? (P0 ? dlyCapSegs() : [{ d: "", n: Math.ceil(mx), free: true }]) : [];
+          const PM = SG.length ? Math.max(...SG.map(x => Number(x.n))) : 0, top = (Math.max(mx, PM) || 1) * 1.08, sc = (HH - 16) / top;
+          const capAt = di => { let n = Infinity; SG.forEach(x => { if (!x.d || x.d <= di) n = Number(x.n); }); return n; };
+          const bw = Math.max(1, DLY_DW - (DLY_DW > 10 ? 6 : 0)), bo = DLY_DW > 10 ? 3 : 0;
+          let hb = "";
+          if (C) Object.keys(C.L).forEach(di => { if (di < d0 || di > d1) return; const v = C.L[di];
+            hb += `<div class="ghb ghc" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, v * sc)}px"></div>`; });
+          else Object.keys(tot).forEach(di => {
+            if (di < d0 || di > d1) return;
+            const v = tot[di], over = P0 && v > capAt(di) + 1e-9, inc = over && (HD.det[di] || []).some(x => x.inc);
+            const parts = ks.length > 1 ? ks.map((sk, j) => { const w = HD.ser.get(sk).L[di] || 0; return w ? `<i style="height:${w * sc}px;background:${DLY_SER[j % DLY_SER.length]}"></i>` : ""; }).join("") : "";
+            hb += `<div class="ghb${over ? (inc ? " over-inc" : " over") : ""}${ks.length > 1 ? " ghb-st" : ""}" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, v * sc)}px">${parts}</div>`;
+          });
+          const late = INS.dbut && dlyEnd(dlyCurDates()) > INS.dbut;
+          const leg = !C && ks.length > 1 ? `<div class="ghist-leg">${ks.map((sk, j) => `<span><b style="background:${DLY_SER[j % DLY_SER.length]}"></b>${esc(sk.split("|")[0])}</span>`).join("")}</div>` : "";
+          const pl = SG.map((g2, i) => { const l = g2.d ? Math.max(0, X(g2.d)) : 0, r = SG[i + 1] ? Math.max(0, X(SG[i + 1].d)) : W;
+            /* un morceau de plafond par période ; au départ la barre est tout en haut et ne limite rien */
+            return r > l ? `<div class="gplaf${i ? " gplaf-cut" : ""}${g2.free ? " gplaf-free" : ""}" data-seg="${i}" style="top:${HH - Number(g2.n) * sc}px;left:${l}px;right:auto;width:${r - l}px"><span class="gplaf-v">${g2.free ? "PLAFOND : AUCUN" : (i ? dFr(g2.d) + " : " : "PLAFOND ") + g2.n}</span>${!i && late ? `<span class="gplaf-w">${DLY_BUT_MSG}</span>` : ""}</div>` : ""; }).join("");
+          hist = `<div class="ghist${C ? " ghist-cmd" : ""}" style="width:${W}px;height:${HH}px" data-sc="${sc}">${bg}${leg}${C ? `<div class="ghist-leg"><span>${esc(C.lab)}</span></div>` : ""}${hb}${pl}</div>`;
+        }
       }
       host.innerHTML = `<div class="gh" style="width:${W}px;height:${thH}px">${head}</div>
         <div class="gbody" style="width:${W}px;height:${bodyH}px">${bg}${vline(today, "gv-today", "")}${vline(INS.dobj, "gv-obj", "OBJECTIF")}${vline(INS.dbut, "gv-but", "BUTOIR")}
           <svg class="glinks" width="${W}" height="${bodyH}"><defs><marker id="gArr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#475467"/></marker></defs>${lk}</svg>
           ${bars}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>${hist}`;
-      host.__X = X; host.__d0 = d0;
+      host.__X = X; host.__d0 = d0; host.__HD = HD;
+      /* R12 : poignée « = » entre le Gantt et l'histogramme, posée à la hauteur du haut de l'histogramme */
+      { const hh = host.parentElement.querySelector(".dlyg-hh"); if (hh) hh.style.top = (host.offsetTop + thH + (dlyHHGet() === "full" ? 0 : bodyH) - 7) + "px"; shell.style.setProperty("--dly-hh", dlyHHpx + "px"); }
       try { dlyPickPaint(); } catch (e) {}
       host.parentElement.querySelectorAll("input.dlyp-cb[data-part]").forEach(c => { c.indeterminate = true; });
       /* défilement horizontal du Gantt gardé d'un dessin à l'autre */
@@ -9695,57 +9732,8 @@ function renderBudgetList() {
       }
       return out;
     };
-    /* date exigée par les liaisons, d'après des dates calculées (D[k] = { deb, fin }) */
-    const dlyNeedIn = (k, D) => dlyNeedOf(k, x => (D[x] || {}).fin || "", x => (D[x] || {}).deb || "");
-    /* charge de main d'œuvre par jour (J-H / jour) : J-H de chaque tâche répartis sur ses jours travaillés */
-    const dlyLoad = (D) => {
-      const cal = insCal(), L = {};
-      Object.keys(D).forEach(k => {
-        const jh = dlyJH(k), p = D[k];
-        if (!(jh > 0) || !p.deb || !p.fin) return;
-        /* v530 : demi-journées de début / de fin comptées pour moitié */
-        const n = sviWDur(cal, p.deb, p.fin) || 1, fr = i => (i === 0 && p.hs ? .5 : 1) * (i === n - 1 && p.he ? .5 : 1);
-        let tot = 0; for (let i = 0; i < n; i++) tot += fr(i);
-        const r = jh / (tot || 1);
-        for (let i = 0, x = sviWNear(cal, p.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) L[x] = (L[x] || 0) + r * fr(i);
-      });
-      return L;
-    };
     const dlyCurDates = () => { const D = {}; dlyKeys().forEach(k => { const d = dlyDeb(k), f = dlyFin(k), L = dlyList(k); if (d && f) D[k] = { deb: d, fin: f, hs: L.length === 1 && dlyHalfS(L[0]), he: L.length === 1 && dlyHalfE(L[0]) }; }); return D; };
-    /* NIVELLEMENT sous un plafond entier P : il ne réduit jamais le travail ; une tâche n'est jamais avancée ;
-       elle recule tant que la charge du jour dépasserait P ; une tâche qui demande plus que P ouvriers s'allonge (⌈ J-H ÷ P ⌉) ;
-       liaisons, décalages et calendrier respectés ; les jours vides sont gardés */
-    const dlyLevel = P => {
-      const cal = insCal(), cur = dlyCurDates(), D = {}, L = {};
-      dlyTopo(Object.keys(cur), k => cur[k].deb).forEach(k => {
-        const jh = dlyJH(k);
-        let dur = sviWDur(cal, cur[k].deb, cur[k].fin) || 1;
-        let d = cur[k].deb;
-        const need = dlyNeedIn(k, D);
-        if (need && need > d) d = sviWNear(cal, need, 1);
-        if (jh > 0) {
-          if (jh / dur > P) dur = Math.max(1, Math.ceil(jh / P));
-          const r = jh / dur;
-          /* v530 : plafond par période (coupé) */
-          const PX = x => INS.plafs && INS.plafs.length ? dlyCapOf(x) : P;
-          for (let g = 0; g < 3000; g++) {
-            let ok = true;
-            for (let i = 0, x = d; i < dur; i++, x = sviWAdd(cal, x, 1)) if ((L[x] || 0) + r > PX(x) + 1e-9) { ok = false; break; }
-            if (ok) break;
-            d = sviWAdd(cal, d, 1);
-          }
-          for (let i = 0, x = d; i < dur; i++, x = sviWAdd(cal, x, 1)) L[x] = (L[x] || 0) + r;
-        }
-        D[k] = { deb: d, fin: sviWFin(cal, d, dur) };
-      });
-      return D;
-    };
     const dlyEnd = D => Object.values(D).map(x => x.fin).filter(Boolean).sort().pop() || "";
-    /* écrit des dates calculées dans le brouillon (à valider) */
-    const dlyWrite = (D, all) => {
-      if (all) dlyKeys().forEach(k => { if (!D[k]) dlyDraftKey(k).splice(0); });
-      Object.keys(D).forEach(k => { const L = dlyDraftKey(k); if (L[0]) { L.splice(1); L[0].deb = D[k].deb; L[0].fin = D[k].fin; } else L.push({ id: insId(), deb: D[k].deb, fin: D[k].fin }); });
-    };
     const DLY_BUT_MSG = "AVEC CE NOMBRE VOUS RISQUEZ DE DÉPASSER LA DATE BUTOIR";
     /* fenêtre GÉNÉRER LE PLANNING (FORMAT 97) : date de début, nombre d'ouvriers ; le planning existant est remplacé */
     const dlyGenWin = () => {
@@ -9782,15 +9770,6 @@ function renderBudgetList() {
         renderTab(); insRenderChain();
         if (INS.dbut && dlyEnd(D) > INS.dbut) sviAlert(DLY_BUT_MSG + " (FIN CALCULÉE LE " + dFr(dlyEnd(D)) + ", BUTOIR LE " + dFr(INS.dbut) + ").");
       });
-    };
-    /* APPLIQUER LE NIVELLEMENT (FORMAT 97) : plafond de la barre (FORMAT 99) */
-    const dlyApplyLevel = () => {
-      const P = Number(INS.plaf) || 0;
-      if (!P) return;
-      const D = dlyLevel(P);
-      dlyWrite(D, false);
-      histLog("DÉLAIS", "NIVELLEMENT", "PLAFOND " + P + " — FIN " + dFr(dlyEnd(D)));
-      renderTab(); insRenderChain();
     };
     /* périodes affichées : brouillon en cours (à valider) ou périodes validées */
     const insDlyList = key => (LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
@@ -9862,27 +9841,9 @@ function renderBudgetList() {
         /* saisie : les périodes de la tâche primaire choisie (les ronds du haut disent laquelle) */
         /* v454 : plus d'écran de saisie d'une seule tâche ni de récapitulatif — toujours le PLANNING ;
            la tâche choisie (ou les tâches de l'activité primaire choisie) y est surlignée */
-        const key = insDlyKey();
-        const rc = false;
-        if (rc) {
-          const rows = cfApply("dlyr", DLY_COLS_R, rc);
-          lastShown.detail = { cols: DLY_COLS_R, rows, kind: "dly" };
-          const ds = rc.map(x => x.deb).filter(Boolean).sort(), fs = rc.map(x => x.fin).filter(Boolean).sort();
-          const d0 = ds[0] || "", f0 = fs[fs.length - 1] || "";
-          return `<div class="dly-recap-t"><button type="button" class="dly-back">‹ PLANNING</button>RÉCAPITULATIF — ${esc(lkName("lot", LK.lot))} › ${esc(lkName("prim", LK.prim))}</div>` + dlyTable(rows, x => ({ sec: esc(x.sec), deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur }), () => "", false, DLY_COLS_R)
-            + `<div class="dly-recap-f"><span>DÉBUT : <b>${esc(dFr(d0)) || "—"}</b></span><span>FIN : <b>${esc(dFr(f0)) || "—"}</b></span><span>DURÉE : <b>${d0 && f0 ? dDur(d0, f0) + " J" : "—"}</b></span></div>`;
-        }
-        if (true) {
+        {
           dlyCommitDrafts();
-          /* v457 : tâche sans dates = DATE DE DÉBUT DU PROJET, 1 jour (sa barre paraît au Gantt) */
-          if (INS_EDIT) {
-            const p0 = INS.pdeb || INS.gdeb || "";
-            if (p0) {
-              const d0 = sviWNear(insCal(), p0, 1); let n = 0;
-              dlyKeys().forEach(k => { if (!dlyDeb(k) && !dlyFin(k)) { const L = INS.dlp[k] || []; if (L[0]) { L[0].deb = d0; L[0].fin = d0; L.splice(1); } else L.push({ id: insId(), deb: d0, fin: d0 }); INS.dlp[k] = L; n++; } });
-              if (n) { dlyRespect(false); setTimeout(() => insSave(), 0); }
-            }
-          }
+          /* R15 (23/10/2026) : une tâche sans dates n'est plus mise au début du projet pour 1 jour (v457 retiré) : 0 jour, à son rang */
           /* PLANNING (FORMAT 64, 90) : tableau à gauche (lots repliables, tâches), Gantt à droite, lignes alignées */
           /* liaisons non respectées (anciennes dates, import) : corrigées à l'ouverture du planning */
           if (INS_EDIT && dlyRespect(false)) setTimeout(() => insSave(), 0);
@@ -9920,40 +9881,20 @@ function renderBudgetList() {
             : x.ext
             ? { lot: "", sec: `<span class="dly-lotc dly-extn" ${ind(0)}>${esc(lotLab(dlyLotPath(x.lot)).full)} › ${esc(x.sec)}</span>`, pred: esc(x.pred), deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur === "" ? "" : x.dur,
                 marge: x.marge === "" ? "" : x.marge, jal: x.jal ? "★" : "", __cb: "", __td_marge: " dly-calc" }
-            : { lot: "", sec: `<span class="dly-lotc" ${ind(x.lvl)}>${INS_EDIT ? `<span class="lk-rd dly-rd${LK.lot === x.key.split("|")[0] && LK.sec === x.key.split("|")[1] ? " on" : dlyPicked(x.key) ? " lnk" : ""}" data-dkey="${esc(x.key)}" role="button" aria-label="Voir ce qui est lié à la tâche"></span>` : ""}${nm("sec", `data-sid="${esc(x.key.split("|")[1])}"`, x.sec)}</span>`, pred: `<span class="dly-pred" data-key="${esc(x.key)}">${esc(x.pred) || "<i>CHOISIR…</i>"}</span>`,
+            : { lot: "", sec: `<span class="dly-lotc" ${ind(x.lvl)}>${x.away ? `<span class="dly-ldot" style="--c:${dlyLotColor(x.lo)}" title="${esc(lotLab(dlyLotPath(x.lot)).full)}"></span>` : ""}${dlyIncHTML(x.key)}${INS_EDIT ? `<span class="lk-rd dly-rd${LK.lot === x.key.split("|")[0] && LK.sec === x.key.split("|")[1] ? " on" : dlyPicked(x.key) ? " lnk" : ""}" data-dkey="${esc(x.key)}" role="button" aria-label="Voir ce qui est lié à la tâche"></span>` : ""}${nm("sec", `data-sid="${esc(x.key.split("|")[1])}"`, x.sec)}</span>`, pred: `<span class="dly-pred" data-key="${esc(x.key)}">${esc(x.pred) || "<i>CHOISIR…</i>"}</span>`,
                 deb: dlyCellIn(x, "deb"), fin: dlyCellIn(x, "fin"), dur: dlyCellIn(x, "dur"), marge: x.marge === "" ? "" : x.marge,
                 __td_deb: INS_EDIT ? " ins-td" : "", __td_fin: INS_EDIT ? " ins-td" : "", __td_dur: INS_EDIT ? " ins-td" : "",
                 jal: `<span class="dly-jal${x.jal ? " on" : ""}" data-key="${esc(x.key)}">${x.jal ? "★" : "☆"}</span>`, __td_marge: " dly-calc",
                 __cb: `<input type="checkbox" class="dlyp-cb" data-key="${esc(x.key)}"${SEL.has(x.key) ? " checked" : ""}>` },
-            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp${x.det ? " dly-det" : ""}" data-path="${esc(x.path)}"` : `class="dly-task${x.ext ? " dly-ext" : ""}${x.marge === 0 ? " dly-crit" : ""}${dlyPicked(x.key) ? " dly-pick" : ""}${LK.lot && LK.sec && x.key === LK.lot + "|" + LK.sec ? " dly-sel" : ""}${(INS.links || []).some(l => l.lot + "|" + l.sec === x.key) ? " dly-lnk" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P);
-          /* histogramme MAIN D'ŒUVRE sous le Gantt (FORMAT 98, 99) : libellé à gauche, sous le tableau */
-          const LD = dlyLoad(dlyCurDates()), mx = Math.max(0, ...Object.values(LD));
-          const P = Number(INS.plaf) || 0;
-          const canLev = mx > 0 && P > 0 && mx > P + 1e-9;
+            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp${x.det ? " dly-det" : ""}" data-path="${esc(x.path)}"` : `class="dly-task${x.ext ? " dly-ext" : ""}${x.off ? " dly-off" : ""}${!x.deb || !x.fin ? " dly-nod" : ""}${x.marge === 0 ? " dly-crit" : ""}${dlyPicked(x.key) ? " dly-pick" : ""}${LK.lot && LK.sec && x.key === LK.lot + "|" + LK.sec ? " dly-sel" : ""}${(INS.links || []).some(l => l.lot + "|" + l.sec === x.key) ? " dly-lnk" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P);
           /* FORMAT 64 / 33 : pas de ligne d'explication au-dessus du PLANNING */
           /* FORMAT 97 : commandes du planning dans le menu ⋯ du bloc détail (plus de rangée de boutons) */
-          shell.__dlyCanLev = canLev;
           const dls = dl("dlyLotDl", [...new Set(INS.lot.filter(x => !x.t).map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")))
             + dl("dlySecDl", [...new Set(INS.sec.map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")));
           const isoB = PR.iso ? `<div class="dly-iso"><span>ISOLÉ : <b>${esc(lotLab(dlyLotPath(PR.iso)).full)}</b></span><small>LIAISONS, DÉCALAGES ET CALENDRIER RESTENT APPLIQUÉS · TÂCHES LIÉES HORS DE LA BRANCHE EN GRIS (LECTURE SEULE)</small><button type="button" class="dly-iso-x">TOUT AFFICHER</button></div>` : "";
-          return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}${mx > 0 ? `<div class="dlyh-lab" style="height:${DLY_HH}px">MAIN D'ŒUVRE<br>(J-H / JOUR)</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">‖</span></div><div class="dlyg-r" id="dlyGantt"></div></div>`
+          return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}${PR.flat.length ? `<div class="dlyh-lab">${dlyHistLab()}</div>` : ""}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt">=</span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur de l'histogramme">=</span></div>` : ""}</div>`
             + `<div class="dly-add"><button type="button" class="dly-pred-new">+ AJOUTER UNE TÂCHE OU SES DÉLAIS</button></div>`;
         }
-        const ps = key ? [...insDlyList(key)].sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9"))) : [];
-        /* une seule période par tâche : sa ligne, ou une ligne vide SAISIR ICI… */
-        const all = ps.slice(0, 1).map(p => ({ task: key, pid: p.id, on: p.on === true, deb: p.deb || "", fin: p.fin || "", dur: p.deb && p.fin ? dDur(p.deb, p.fin) : "" }));
-        if (key && !all.length) all.push({ task: key, pid: "", deb: "", fin: "", dur: "", nw: true });
-        const rows = cfApply("dlyi", DLY_COLS_I, all);
-        lastShown.detail = { cols: DLY_COLS_I, rows: rows.filter(x => !x.nw), kind: "dly" };
-        const inp = (x, f) => `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${x.task}" data-pid="${x.pid}" data-f="${f}" type="text"
-            ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${x.nw && (f === "deb" || f === "fin") ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? (x.dur || (shell.__dlyPendDur || {})[x.task] || "") : dFr(x[f]))}">`;
-        const pf = dlyPredFin(key);
-        return `<div class="dly-recap-t"><button type="button" class="dly-back">‹ PLANNING</button>${esc(dlyName(key))} — PRÉDÉCESSEURS : <span class="dly-pred" data-key="${esc(key)}">${esc(dlyPredTxt(key)) || "<i>CHOISIR…</i>"}</span>${pf ? " — DÉBUT AU PLUS TÔT LE " + esc(dFr(pf)) : ""}</div>`
-          + dlyTable(rows, x => ({ deb: inp(x, "deb"), fin: inp(x, "fin"), dur: inp(x, "dur"),
-          __td_deb: " ins-td", __td_fin: " ins-td", __td_dur: " ins-td",
-          __cb: x.pid ? `<input type="checkbox" class="dlp-cb" data-task="${x.task}" data-pid="${x.pid}" ${x.on ? "checked" : ""}>` : "",
-          __x: "" }),
-          x => `class="${x.nw ? "ins-new" : ""}"`, true, DLY_COLS_I);
       }
       const all = [];
       insTasks().forEach(t => {
@@ -10313,7 +10254,6 @@ function renderBudgetList() {
         if (e.target.closest && e.target.closest(".dly-sortd")) { X.sortDeb(); return; }
         if (e.target.closest && e.target.closest(".dly-iso-x")) { X.isoOff(); return; }
         /* ‹ PLANNING : retour au PLANNING (lot et activités libérés, la désignation reste choisie ; brouillon gardé) */
-        if (e.target.closest && e.target.closest(".dly-back")) { e.stopPropagation(); X.back(); return; }
         /* en-tête du Gantt : calendrier du budget, ouvert sur le mois touché */
         /* nom d'un lot ou d'une activité sur le Gantt : toucher = le modifier sur place */
         const gr = e.target.closest && e.target.closest("#dlyGantt .gb-ren");
@@ -10400,14 +10340,10 @@ function renderBudgetList() {
           document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
           document.removeEventListener("touchmove", tmv);
           sp.classList.remove("on");
-          /* v451 : tableau caché (poignée tout à gauche) + simple toucher de la poignée = le tableau revient à sa largeur d'avant */
-          if (w0 < 3 && Math.abs(w - w0) < 3) {
-            /* v455 : tableau caché + simple toucher de la pastille = tableau ouvert jusqu'à la colonne DURÉE (J) */
-            L.style.width = Math.round(gw.width - 3) + "px"; L.style.maxWidth = "none";
-            const th = [...L.querySelectorAll("thead th")].find(t => /^DURÉE/.test((t.textContent || "").trim()));
-            w = th ? Math.round(th.getBoundingClientRect().right - L.getBoundingClientRect().left + L.scrollLeft + 1) : (shell.__dlygPrevW || Math.round(gw.width * 0.55));
-            w = Math.max(60, Math.min(Math.round(gw.width - 3), w));
-            L.scrollLeft = 0; L.style.width = w + "px";
+          /* R13 : simple toucher du signe « = » = la poignée va d'un bord à l'autre (tableau caché ↔ Gantt caché) */
+          if (Math.abs(w - w0) < 3) {
+            w = w0 > (gw.width - 3) / 2 ? 0 : Math.round(gw.width - 3);
+            L.scrollLeft = 0; L.style.width = w + "px"; L.style.maxWidth = "none";
           }
           if (w > 2) shell.__dlygPrevW = Math.round(w);
           g.classList.toggle("tbl-hid", w < 3);
@@ -10665,32 +10601,86 @@ function renderBudgetList() {
         const up = () => end(true), cc = () => end(false);
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", cc);
       });
-      /* barre de plafond (FORMAT 99) : tirée au doigt, par paliers entiers (1 au moins) */
+      /* barre de plafond (FORMAT 99, R2) : tirée au doigt, par paliers entiers (1 au moins pour la première période, 0 possible
+         pour un morceau coupé) ; au lâcher, le planning est recompressé. Appui long sans bouger = « / » et bulle COUPER ICI qui suit
+         le doigt jour par jour ; lâcher = couper à ce jour */
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
         const pl = e.target.closest && e.target.closest("#dlyGantt .gplaf");
         if (!X || !pl) return;
         e.preventDefault(); e.stopPropagation();
         const h = pl.closest(".ghist"), sc = Number(h.dataset.sc) || 1, HH = h.offsetHeight, r0 = h.getBoundingClientRect();
-        const v0 = pl.querySelector(".gplaf-v"), seg = Number(pl.dataset.seg) || 0, lab0 = v0.textContent.replace(/\d+$/, "");
-        let P = 0, cut = false;
+        const v0 = pl.querySelector(".gplaf-v"), seg = Number(pl.dataset.seg) || 0, lab0 = seg ? v0.textContent.replace(/\d+$/, "") : "PLAFOND ";
+        const min = seg ? 0 : 1;
+        let P = null, cut = null;
         const x0 = e.clientX, y0 = e.clientY, host = pl.closest("#dlyGantt");
-        /* v530 : appui long sans bouger = couper le plafond à ce jour */
-        const lt = setTimeout(() => {
-          if (P) return;
-          cut = true; off();
-          const n = Math.floor((x0 - h.getBoundingClientRect().left) / DLY_DW), iso = sviIsoAdd(host.__d0, Math.max(0, n));
-          svChoose({ title: "COUPER LE PLAFOND", html: `<div class="svc-sub">À PARTIR DU ${esc(dFr(iso))}, LE PLAFOND (NOMBRE D'OUVRIERS) POURRA ÊTRE CHANGÉ SEUL : TIRER LE MORCEAU DE DROITE VERS LE HAUT OU LE BAS.</div>`,
-            buttons: [{ v: "cut", label: "COUPER ICI", tone: "neutral" }] }).then(r => { if (r === "cut") X.cutPlaf(iso); });
-        }, 600);
-        const mv = ev => {
-          if (!P && Math.abs(ev.clientY - y0) < 6 && Math.abs(ev.clientX - x0) < 6) return;
-          clearTimeout(lt);
-          P = Math.max(1, Math.round((HH - (ev.clientY - r0.top)) / sc)); pl.style.top = (HH - P * sc) + "px"; v0.textContent = lab0 + P;
+        const dayAt = cx => { const n = Math.floor((cx - h.getBoundingClientRect().left) / DLY_DW); return sviIsoAdd(host.__d0, Math.max(0, n)); };
+        const showCut = cx => {
+          const iso = sviWNear(X.cal(), dayAt(cx), 1);
+          let m = document.getElementById("dlyCutTip");
+          if (!m) { m = document.createElement("div"); m.id = "dlyCutTip"; document.body.appendChild(m); }
+          const hr = h.getBoundingClientRect(), xi = hr.left + dDiff(host.__d0, iso) * DLY_DW;
+          m.innerHTML = `<span class="ct-sl" style="left:${xi - 4}px;top:${pl.getBoundingClientRect().top - 9}px">/</span><span class="ct-b" style="left:${xi - 50}px;top:${pl.getBoundingClientRect().top - 40}px">COUPER ICI<br><b>${esc(dFr(iso))}</b></span>`;
+          cut = iso;
         };
-        const off = () => { clearTimeout(lt); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", off); };
-        const up = () => { off(); if (P && !cut) X.plafSeg(seg, P); };
-        document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", off);
+        const lt = setTimeout(() => { if (P === null) showCut(x0); }, 600);
+        const tmv = ev => ev.preventDefault();
+        document.addEventListener("touchmove", tmv, { passive: false });
+        const mv = ev => {
+          if (cut) { ev.preventDefault(); showCut(ev.clientX); return; }
+          if (P === null && Math.abs(ev.clientY - y0) < 6 && Math.abs(ev.clientX - x0) < 6) return;
+          clearTimeout(lt);
+          P = Math.max(min, Math.round((HH - (ev.clientY - r0.top)) / sc)); pl.style.top = (HH - P * sc) + "px"; v0.textContent = lab0 + P;
+        };
+        const off = () => { clearTimeout(lt); document.getElementById("dlyCutTip")?.remove(); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", off); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); };
+        const up = () => { const c = cut; off(); if (c) X.cutPlaf(c); else if (P !== null) X.plafSeg(seg, P, pl); };
+        document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", off);
+      });
+      /* R8 : toucher une barre de l'histogramme = bulle des tâches de ce jour (répartition, fractions comprises) */
+      shell.addEventListener("click", e => {
+        const b = e.target.closest && e.target.closest("#dlyGantt .ghb[data-d]");
+        document.getElementById("dlyHb")?.remove();
+        if (!b) return;
+        const host = b.closest("#dlyGantt"), H = host && host.__HD, di = b.dataset.d;
+        if (!H) return;
+        const fmt = v => (Math.round(v * 100) / 100).toLocaleString("fr-FR");
+        let rows = "", tot = 0;
+        if (H.cmd) { tot = H.cmd.L[di] || 0; rows = `<div>${esc(H.cmd.lab)}</div>`; }
+        else (H.det[di] || []).forEach(x => { tot += x.v; rows += `<div><span>${esc(lotLab(dlyLotPath(lkName("lot", x.k.split("|")[0]))).full)} › ${esc(lkName("sec", x.k.split("|")[1]))}${x.inc ? " ▣" : ""}</span><b>${fmt(x.v)}</b></div>`; });
+        const m = document.createElement("div");
+        m.id = "dlyHb";
+        m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}</div>${rows}<div class="hb-tot"><span>TOTAL (${esc(H.cmd ? "COMMANDE" : H.unit)})</span><b>${fmt(tot)}</b></div>`;
+        document.body.appendChild(m);
+        const r = b.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
+        m.style.left = Math.max(8, Math.min(window.innerWidth - mw - 8, r.left + r.width / 2 - mw / 2)) + "px";
+        m.style.top = Math.max(8, r.top - mh - 6) + "px";
+        m.addEventListener("click", ev => { if (ev.target.closest(".svt-x")) m.remove(); ev.stopPropagation(); });
+      });
+      document.addEventListener("pointerdown", e => { const m = document.getElementById("dlyHb"); if (m && !m.contains(e.target) && !(e.target.closest && e.target.closest(".ghb"))) m.remove(); }, true);
+      /* R3 : signe ▣ d'une tâche incompressible = fenêtre RENDRE COMPRESSIBLE */
+      shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dlyg-l .dly-inc[data-key]"); const X = shell.__insDly; if (!b || !X) return; e.stopPropagation(); X.incWin(b.dataset.key); }, true);
+      /* R12, R13 : poignée « = » entre le Gantt et l'histogramme — toucher = d'un bord à l'autre (miniaturisé en bas ↔ plein écran) ;
+         glisser = hauteur choisie (mémorisée) */
+      shell.addEventListener("pointerdown", e => {
+        const X = shell.__insDly;
+        const pill = e.target.closest && e.target.closest(".dlyg-hh .dlyhh-pill");
+        if (!X || !pill) return;
+        e.preventDefault(); e.stopPropagation();
+        const g = pill.closest(".dlyg"), hist = g.querySelector("#dlyGantt .ghist"), y0 = e.clientY, h0 = hist ? hist.offsetHeight : 110;
+        const scr = g.closest(".bdg-d-scroll"), maxH = scr ? Math.max(120, scr.clientHeight - 60) : 600;
+        let h = h0, on = false;
+        const bar = pill.closest(".dlyg-hh"), t0 = parseFloat(bar.style.top) || 0;
+        try { pill.setPointerCapture(e.pointerId); } catch (err) {}
+        const tmv = ev => ev.preventDefault();
+        document.addEventListener("touchmove", tmv, { passive: false });
+        const mv = ev => { const dy = ev.clientY - y0; if (!on && Math.abs(dy) < 6) return; on = true; ev.preventDefault(); h = Math.round(Math.max(28, Math.min(maxH, h0 - dy))); bar.style.top = (t0 + (h0 - h)) + "px"; };
+        const up = () => {
+          document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
+          setTimeout(() => document.removeEventListener("touchmove", tmv), 0);
+          if (!on) { X.hh(X.hhGet() === "full" ? 28 : "full"); return; }
+          X.hh(h >= maxH - 4 ? "full" : h);
+        };
+        document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       });
       /* FORMAT 91 : largeur des jours — glisser horizontalement sur l'en-tête, ou pincer le Gantt ;
          le jour sous le doigt reste en place ; largeur mémorisée ; un toucher simple ouvre toujours le calendrier */
@@ -10833,7 +10823,8 @@ function renderBudgetList() {
         if (!X || !bar || e.button > 0) return;
         if (bar.classList.contains("gb-ext")) { e.preventDefault(); svToast("TÂCHE HORS DE LA BRANCHE ISOLÉE : LECTURE SEULE (TOUT AFFICHER POUR LA MODIFIER).", 3000, bar); return; }
         const host = bar.closest("#dlyGantt"), body = host.querySelector(".gbody"), tmp = host.querySelector(".gtmp");
-        const key = bar.dataset.key, mode = e.target.closest(".gb-e") ? "end" : e.target.closest(".gb-s") ? "start" : "body";
+        const zero = bar.classList.contains("gb0");
+        const key = bar.dataset.key, mode = zero || e.target.closest(".gb-e") ? "end" : e.target.closest(".gb-s") ? "start" : "body";
         e.preventDefault();
         const x0 = e.clientX, y0b = e.clientY, L0 = bar.offsetLeft, W0 = bar.offsetWidth;
         let moved = false, link = false, days = 0, vert = false, hitV = null;
@@ -10905,6 +10896,7 @@ function renderBudgetList() {
           }
           if (!moved && mode === "body" && bar.classList.contains("gb-tin")) { dlyGEdit(bar); return; }   /* nom dans la barre : toucher = le modifier */
           if (!moved || !days) { X.render(); return; }
+          if (zero) { if (days > 0) X.giveDur(key, bar.dataset.at, days, bar); else X.render(); return; }
           X.dragTo(key, mode, days, bar);
         };
         document.addEventListener("pointermove", mv);
@@ -10927,8 +10919,10 @@ function renderBudgetList() {
       fold: p => { dlyFoldToggle(p); keepScroll(() => renderTab()); },
       jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTabK(); },
       linkWin: (p, k) => dlyLinkWin(p, k), reach: (a, b) => dlyReach(a, b), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
-      gen: () => dlyGenWin(), level: () => dlyApplyLevel(), comp: () => dlyCompWin(), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n) => dlySetPlaf(i, n),
-      back: () => { LK.lot = LK.prim = LK.sec = null; refreshAll(); },
+      gen: () => dlyGenComp(), genWin: () => dlyGenWin(), comp: () => dlyCompressRun(), hasDates: () => dlyHasDates(), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n, a) => dlySetPlaf(i, n, a),
+      incWin: k => dlyIncWin(k), cmdWin: () => dlyCmdWin(), hh: v => { dlyHHSet(v); keepScroll(() => renderTab()); }, hhGet: () => dlyHHGet(),
+      /* R15 : repère d'une tâche à 0 jour glissé vers la droite = lui donner une durée (n jours travaillés) */
+      giveDur: (k, at, n, a) => { const cal = insCal(), deb = sviWNear(cal, at, 1); dlyApply(k, { deb, fin: sviWFin(cal, deb, Math.max(1, n)) }, { anchor: a }); },
       sortDeb: () => { dlySortByDeb(); insSave(); histLog("DÉLAIS", "CLASSER PAR DÉBUT", ""); refreshAll(); },
       /* v461 : menu d'un lot ou d'un niveau (appui long) : ISOLER / TOUT AFFICHER */
       grpMenu: (path, el) => {
@@ -11063,8 +11057,9 @@ function renderBudgetList() {
         dlyTasksFromPlan(); insSave(); refreshAll();
         return S;
       },
-      /* lot (ou titre) déplacé dans le temps : toutes ses tâches du même nombre de jours travaillés, durées gardées ;
-         au plus tôt à la date permise par les prédécesseurs hors du lot ; successeurs décalés (cahier, Planning budgétaire) */
+      /* lot (ou titre) déplacé dans le temps (23/10/2026) : toutes ses tâches du même nombre de jours travaillés, durées gardées ;
+         vers la droite, les tâches suivantes sont poussées ; vers la gauche, les prédécesseurs hors du lot sont poussés plus tôt,
+         de proche en proche ; début du projet atteint : fenêtre DÉBUT DU PROJET ATTEINT ; date butoir jamais dépassée */
       shiftGroup: (path, nCal, anchor) => {
         const g = (shell.__dlyRows || []).find(x => x.grp && x.path === path);
         if (!g || !nCal) { renderTabK(); return; }
@@ -11073,24 +11068,60 @@ function renderBudgetList() {
         if (!ks.length) { renderTabK(); return; }
         const d0 = ks.map(dlyDeb).sort()[0];
         const nd = sviWNear(cal, sviIsoAdd(d0, nCal), nCal > 0 ? 1 : -1);
-        let w = nd >= d0 ? (sviWDur(cal, d0, nd) || 1) - 1 : -((sviWDur(cal, nd, d0) || 1) - 1);
+        const w = nd >= d0 ? (sviWDur(cal, d0, nd) || 1) - 1 : -((sviWDur(cal, nd, d0) || 1) - 1);
         if (!w) { renderTabK(); return; }
-        const need = k => dlyLinks(k).filter(x => !G.has(x.k)).map(x => {
-          if (x.t === "DD") { const a = dlyDeb(x.k); return a ? sviWAdd(cal, sviWNear(cal, a, 1), Math.max(0, x.o || 0)) : ""; }
-          const f = dlyFin(x.k); return f ? sviWAdd(cal, f, 1 + Math.max(-1, x.o || 0)) : "";
-        }).filter(Boolean).sort().pop() || "";
-        const ok = w2 => ks.every(k => { const n = need(k); return !n || sviWAdd(cal, sviWNear(cal, dlyDeb(k), 1), w2) >= n; });
-        let stop = false;
-        while (w < 0 && !ok(w)) { w++; stop = true; }
-        if (!w) { svToast("DÉPLACEMENT REFUSÉ : LES LIAISONS NE PERMETTENT PAS DE COMMENCER PLUS TÔT.", 3500, anchor); renderTabK(); return; }
-        ks.forEach(k => {
-          const L = dlyDraftKey(k), p = L[0];
-          const dur = sviWDur(cal, p.deb, p.fin) || 1, deb = sviWAdd(cal, sviWNear(cal, p.deb, 1), w);
-          p.deb = deb; p.fin = sviWFin(cal, deb, dur);
-        });
-        dlyRespect(true);
-        histLog("DÉLAIS", "LOT DÉPLACÉ", g.name + " : " + (w > 0 ? "+" : "") + w + " J" + (stop ? " (ARRÊTÉ À LA DATE PERMISE PAR LES LIAISONS)" : ""));
-        insSave(); renderTabK(); insRenderChain();
+        const N = {}, cur = k => N[k] || { deb: dlyDeb(k), fin: dlyFin(k) };
+        ks.forEach(k => { const c = cur(k), dur = sviWDur(cal, c.deb, c.fin) || 1, deb = sviWAdd(cal, sviWNear(cal, c.deb, 1), w); N[k] = { deb, fin: sviWFin(cal, deb, dur) }; });
+        if (w < 0) {
+          const q = [...ks];
+          for (let guard = 0; q.length && guard < 5000; guard++) {
+            const k = q.shift(), c = cur(k);
+            dlyLinks(k).forEach(x => {
+              const pc = cur(x.k);
+              if (!pc.deb) return;
+              const pdur = pc.fin ? sviWDur(cal, pc.deb, pc.fin) || 1 : 0;
+              let nf = null;
+              if (x.t === "DD") { const lim = sviWAdd(cal, sviWNear(cal, c.deb, 1), -Math.max(0, x.o || 0)); if (pc.deb > lim) nf = { deb: lim }; }
+              else { const lim = sviWAdd(cal, c.deb, -(1 + Math.max(-1, x.o || 0))), f = pc.fin || pc.deb; if (f > lim) nf = { fin: sviWNear(cal, lim, -1) }; }
+              if (!nf) return;
+              if (nf.deb) N[x.k] = { deb: nf.deb, fin: pdur ? sviWFin(cal, nf.deb, pdur) : "" };
+              else N[x.k] = pdur ? { deb: sviWDeb(cal, nf.fin, pdur), fin: nf.fin } : { deb: nf.fin, fin: "" };
+              q.push(x.k);
+            });
+          }
+        }
+        const apply = () => {
+          const back = JSON.stringify({ dlp: INS.dlp || {}, dr: LK.dlpDraft || {} });
+          Object.keys(N).forEach(k => {
+            const L = dlyDraftKey(k);
+            if (!L[0]) L.push({ id: insId() });
+            L.splice(1); L[0].deb = N[k].deb; L[0].fin = N[k].fin || ""; delete L[0].dmd; delete L[0].fmd;
+          });
+          dlyCommitDrafts(); dlyRespect(false);
+          const f1 = dlyEnd(dlyCurDates());
+          if (INS.dbut && f1 > INS.dbut) {
+            const b = JSON.parse(back); INS.dlp = b.dlp; LK.dlpDraft = b.dr;
+            svToast("DÉPLACEMENT REFUSÉ : LA DATE BUTOIR DU " + dFr(INS.dbut) + " SERAIT DÉPASSÉE (FIN LE " + dFr(f1) + ").", 4500, anchor);
+            renderTabK(); return;
+          }
+          const pushed = Object.keys(N).filter(k => !G.has(k)).length;
+          histLog("DÉLAIS", "LOT DÉPLACÉ", g.name + " : " + (w > 0 ? "+" : "") + w + " J" + (pushed ? " (" + pushed + " TÂCHE(S) POUSSÉE(S))" : ""));
+          insSave(); renderTabK(); insRenderChain();
+        };
+        const p0 = INS.pdeb || INS.gdeb || "", minD = Object.values(N).map(v => v.deb).filter(Boolean).sort()[0] || "";
+        if (w < 0 && p0 && minD && minD < p0) {
+          const first = Object.keys(N).find(k => N[k].deb === minD);
+          svChoose({ title: "DÉBUT DU PROJET ATTEINT",
+            html: `<div class="svc-sub">LA TÂCHE ${esc(dlyName(first))} DEVRAIT COMMENCER LE ${esc(dFr(minD))}, AVANT LE DÉBUT DU PROJET (${esc(dFr(p0))}).</div>`,
+            buttons: [{ v: "go", label: "AVANCER LE DÉBUT DU PROJET", tone: "neutral" }] }).then(r => {
+            if (r !== "go") { renderTabK(); return; }
+            INS.pdeb = minD; INS.gdeb = minD;
+            histLog("DÉLAIS", "DÉBUT DU PROJET AVANCÉ", dFr(p0) + " → " + dFr(minD));
+            apply();
+          });
+          return;
+        }
+        apply();
       },
       /* lot (ou titre) déplacé en hauteur : rang, et titre d'arrivée (son nom prend le chemin du titre, comme dans TÂCHES) ;
          plan = { parent: chemin du titre d'arrivée ("" = racine), before: clé de la tâche devant laquelle il se place, on: chemin superposé } */
@@ -11360,7 +11391,6 @@ function renderBudgetList() {
         refreshAll();
         setTimeout(() => dlyAddWin(lo.id, se.id), 60);
       },
-      plaf: P => { INS.plaf = P; insSave(); histLog("DÉLAIS", "PLAFOND MAIN D'ŒUVRE", String(P)); renderTabK(); },
       /* barre glissée de n jours : FIN seule (bout tiré) ou tâche entière, durée gardée (jours travaillés) */
       dragTo: (k, mode, n, a) => {
         const cal = insCal(), d0 = dlyDeb(k), f0 = dlyFin(k);
@@ -11374,22 +11404,69 @@ function renderBudgetList() {
         dlyApply(k, { deb: d, fin: sviWFin(cal, d, dur) }, { anchor: a });
       },
       pickPreds: k => dlyPickPreds(k), addWin: () => dlyAddWin(),
-      scale: v => { try { localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} keepScroll(() => renderTab()); }, scaleOf: () => dlyScale(), canLev: () => !!shell.__dlyCanLev,
+      scale: v => { try { localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} keepScroll(() => renderTab()); }, scaleOf: () => dlyScale(),
       go: k => { const [lo, se] = k.split("|"); LK.lot = lo; LK.sec = se; LK.prim = null; refreshAll(); },
       render: () => { renderTabK(); insRenderChain(); } } : null;
     /* budget ouvert, pour PARAMÉTRAGE › CALENDRIER et DATES DU BUDGET (15/10/2026) */
 /* ⟪ src/17b-planning-auto.js ⟫ */
     /* ===== v530 : GÉNÉRER / COMPRESSER LE PLANNING, PLAFOND PAR PÉRIODES, DEMI-JOURNÉES =====
-       - effectif (plafond) par périodes : INS.plaf = première période ; INS.plafs = [{ d: date de début, n: ouvriers }]
-         (appui long sur la barre du plafond = la couper à cette date ; chaque morceau se tire seul, par ouvrier entier)
+       - effectif (plafond) par périodes : st.plaf = première période ; st.plafs = [{ d: date de début, n: ouvriers }]
+         (st = INS sans charge cochée ; sinon un plafond par ressource cochée dans INS.plafR — v542, R9)
        - demi-journées : une période de tâche peut commencer à midi (p.dmd === p.deb) ou finir à midi (p.fmd === p.fin)
-       - GÉNÉRER : tâches SANS dates, de haut en bas (lot puis ses activités secondaires) ; durée = J-H ÷ ouvriers ;
+       - GÉNÉRER : tâches SANS dates, dans l'ordre du PLANNING ; durée = quantité ÷ plafond ;
          une demi-journée où des ouvriers restent libres est prise par la tâche suivante (chevauchement) ;
          liaison FIN → DÉBUT posée entre chaque tâche et celle du dessous (décalage −1 J = même jour)
-       - COMPRESSER : tâches AVEC dates, dans l'ordre de leur début, resserrées pour ne laisser aucun ouvrier sans travail */
-    const dlyCapBase = () => Math.max(1, Math.round(Number(INS.plaf) || Number(INS.ouv) || 1));
-    const dlyCapSegs = () => [{ d: "", n: dlyCapBase() }].concat((INS.plafs || []).filter(s => s && s.d && Number(s.n) >= 1).sort((a, b) => a.d.localeCompare(b.d)));
+       - COMPRESSER : tâches AVEC dates, dans l'ordre de leur début, resserrées pour ne laisser aucun ouvrier sans travail
+       v542 (remarques du planning 1 à 16, 23/10/2026) : un seul bouton GÉNÉRER / COMPRESSER (R5), tâches INCOMPRESSIBLES (R3),
+       ressource = charges cochées (R9, R11, R14), plafond en direct (R2), tâches sans la ressource et sans durée à 0 jour (R6, R15) */
+    /* ressource choisie (R9, R11, R14) : charges cochées du DÉTAIL CHARGES ; sans case cochée : toute la main d'œuvre (J-H) */
+    const dlyResSel = () => { const R = (INS.chg || []).filter(r => !r.t && r.on === true); return R.length ? R : null; };
+    const dlyResU = r => dlyIsLab(r) ? "J-H" : (U_(r.u) || "U");
+    const dlyResK = r => U_(r.des) + "|" + dlyResU(r);
+    /* même unité pour toutes les charges cochées : QUANTITÉ ; sinon MONTANT seulement (R11) */
+    const dlyResMode = R => !R || new Set(R.map(dlyResU)).size === 1 ? "q" : "m";
+    /* part de la ressource dans une tâche, par charge (clé désignation | unité) */
+    const dlyResOf = (k, R) => {
+      const ids = new Set(R.map(r => r.id)), m = dlyResMode(R), out = new Map(), seen = new Set();
+      (INS.links || []).forEach(l => {
+        if (l.lot + "|" + l.sec !== k) return;
+        (l.chg || []).forEach(e => {
+          if (!ids.has(e.id) || seen.has(e.id)) return;
+          seen.add(e.id);
+          const r = INS.chg.find(x => x.id === e.id);
+          if (!r) return;
+          const v = m === "q" ? (dlyIsLab(r) ? dlyJHof(r) : num(r.q || 0) || 0) : (num(r.q || 0) || 0) * (num(r.p || 0) || 0);
+          if (v) out.set(dlyResK(r), (out.get(dlyResK(r)) || 0) + v);
+        });
+      });
+      return out;
+    };
+    /* quantité de la ressource portée par une tâche (GÉNÉRER / COMPRESSER, plafond) */
+    const dlyResQ = k => { const R = dlyResSel(); if (!R || dlyResMode(R) !== "q") return dlyJH(k); let t = 0; dlyResOf(k, R).forEach(v => { t += v; }); return Math.round(t * 100) / 100; };
+    /* plafond de la ressource en cours : un par ressource cochée (R9 : chaque ressource se compresse séparément) */
+    const dlyCapSt = () => {
+      const R = dlyResSel();
+      if (!R || dlyResMode(R) !== "q") return INS;
+      const k = [...new Set(R.map(dlyResK))].sort().join(" § ");
+      INS.plafR = INS.plafR || {};
+      return (INS.plafR[k] = INS.plafR[k] || {});
+    };
+    const dlyCapBase = () => { const st = dlyCapSt(); return Math.max(1, Math.round(Number(st.plaf) || (st === INS ? Number(INS.ouv) : 0) || 1)); };
+    /* R2 : un morceau coupé peut descendre à 0 (personne sur place : les tâches sont repoussées après lui) */
+    const dlyCapSegs = () => [{ d: "", n: dlyCapBase() }].concat((dlyCapSt().plafs || []).filter(s => s && s.d && Number(s.n) >= 0).sort((a, b) => a.d.localeCompare(b.d)));
     const dlyCapOf = iso => { let n = dlyCapBase(); dlyCapSegs().forEach(s => { if (s.d && s.d <= iso) n = Number(s.n); }); return n; };
+    /* R3 : tâche INCOMPRESSIBLE (date ou durée changée à la main) — sa durée est gardée, elle n'obéit pas au plafond */
+    const dlyInc = k => !!(INS.dinc || {})[k];
+    const dlyIncSet = (k, on) => { INS.dinc = INS.dinc || {}; if (on) INS.dinc[k] = 1; else delete INS.dinc[k]; };
+    const dlyIncHTML = k => dlyInc(k) ? `<span class="dly-inc" data-key="${esc(k)}" role="button" title="TÂCHE INCOMPRESSIBLE">▣</span>` : "";
+    const dlyIncWin = k => svChoose({ title: "TÂCHE INCOMPRESSIBLE",
+      html: `<div class="svc-sub"><b>${esc(dlyName(k))}</b></div><div class="svc-sub">SA DATE OU SA DURÉE A ÉTÉ CHANGÉE À LA MAIN : COMPRESSER ET LA BARRE DE PLAFOND GARDENT SA DURÉE, MÊME AU-DESSUS DU PLAFOND.</div>`,
+      buttons: [{ v: "off", label: "RENDRE COMPRESSIBLE", tone: "neutral" }] }).then(r => {
+      if (r !== "off") return;
+      dlyIncSet(k, false); insSave(); histLog("DÉLAIS", "TÂCHE COMPRESSIBLE", dlyName(k)); renderTabK();
+    });
+    /* date de début du projet (INF), sinon celle de la génération, sinon le premier début */
+    const dlyProjStart = () => INS.pdeb || INS.gdeb || dlyKeys().map(dlyDeb).filter(Boolean).sort()[0] || sviIsoOf(new Date());
     /* demi-journées d'une période : début à midi, fin à midi */
     const dlyHalfS = p => !!(p && p.deb && p.dmd === p.deb);
     const dlyHalfE = p => !!(p && p.fin && p.fmd === p.fin);
@@ -11402,17 +11479,8 @@ function renderBudgetList() {
       const v = n - (dlyHalfS(p) ? .5 : 0) - (dlyHalfE(p) ? .5 : 0);
       return v === Math.round(v) ? v : String(v).replace(".", ",");
     };
-    /* tâches de haut en bas, comme elles s'affichent (arborescence des lots, ordre du PLANNING) */
-    const dlyTopDown = keys => {
-      const O = dlyOrder(keys), ord = keys.slice().sort((a, b) => O.get(a) - O.get(b));
-      const first = new Map();
-      const lotP = k => dlyLotPath(lkName("lot", k.split("|")[0]));
-      ord.forEach((k, i) => { const s = lotP(k); for (let j = 1; j <= s.length; j++) { const p = U_(s.slice(0, j).join(" / ")); if (!first.has(p)) first.set(p, i); } });
-      const pos = new Map(ord.map((k, i) => [k, i]));
-      const key = k => { const s = lotP(k); return s.map((_, j) => first.get(U_(s.slice(0, j + 1).join(" / ")))).concat(pos.get(k)); };
-      const K = new Map(ord.map(k => [k, key(k)]));
-      return ord.slice().sort((a, b) => { const A = K.get(a), B = K.get(b); for (let i = 0; i < Math.min(A.length, B.length); i++) if (A[i] !== B[i]) return A[i] - B[i]; return A.length - B.length; });
-    };
+    /* tâches de haut en bas, comme elles s'affichent : l'ordre du PLANNING (R16 : plus de regroupement par lot) */
+    const dlyTopDown = keys => { const K = new Set(keys); return [...dlyOrder(keys).keys()].filter(k => K.has(k)); };
     /* ordonnancement en demi-journées : order = tâches à placer (dans cet ordre), fixed = tâches gardées (elles occupent des ouvriers),
        start = premier jour ; chain = lier chaque tâche à la précédente de la liste ; pre = tâche (gardée) juste au-dessus de chacune */
     const dlyPack = (order, fixed, start, opts = {}) => {
@@ -11428,7 +11496,7 @@ function renderBudgetList() {
         if (f0 < days[0]) { S[k] = { a: -2, b: -1 }; D[k] = { deb: d0, fin: f0 }; return; }   /* finie avant le début : n'occupe personne */
         const a = dayIx(d0) * 2 + (L.length === 1 && dlyHalfS(p) ? 1 : 0), b = dayIx(f0) * 2 + (L.length === 1 && dlyHalfE(p) ? 0 : 1);
         S[k] = { a, b }; D[k] = { deb: d0, fin: f0 };
-        const jh = dlyJH(k), n = Math.max(1, b - a + 1);
+        const jh = dlyResQ(k), n = Math.max(1, b - a + 1);
         if (jh > 0) for (let s = a; s <= b; s++) used[s] = (used[s] || 0) + jh / n;
       });
       let ptr = 0, prevK = null;
@@ -11437,7 +11505,7 @@ function renderBudgetList() {
         /* tâche juste au-dessus (placée ou gardée) : la suivante commence dès sa dernière demi-journée si des ouvriers y restent libres */
         const pk = opts.pre ? opts.pre(k) : prevK;
         let e = ptr;
-        if (pk && S[pk]) { const lab = dlyJH(pk) > 0; e = Math.max(opts.pre ? 0 : e, lab ? S[pk].b : S[pk].b + 1); }
+        if (pk && S[pk]) { const lab = dlyResQ(pk) > 0; e = Math.max(opts.pre ? 0 : e, lab ? S[pk].b : S[pk].b + 1); }
         else if (opts.pre) e = 0;
         /* autres liaisons de la tâche (hors tâche du dessus) : respectées */
         dlyLinks(k).forEach(x => {
@@ -11445,9 +11513,15 @@ function renderBudgetList() {
           if (x.t === "DD") e = Math.max(e, slotOf(sviWAdd(cal, sviWNear(cal, D[x.k].deb, 1), Math.max(0, x.o || 0))));
           else e = Math.max(e, (opts.relax && S[x.k] ? S[x.k].b : slotOf(sviWAdd(cal, D[x.k].fin, 1 + Math.max(-1, x.o || 0)))));
         });
-        const jh = dlyJH(k);
-        let a, b;
-        if (jh > 0) {
+        const jh = dlyResQ(k);
+        let a, b, zero = false;
+        if (dlyInc(k) && dlyDeb(k) && dlyFin(k)) {
+          /* R3 : tâche incompressible — sa durée (demi-journées comprises), sans regarder le plafond */
+          const n = Math.max(1, Math.round((Number(String(dlyDurK(k)).replace(",", ".")) || 1) * 2));
+          a = e; b = e + n - 1;
+          if (jh > 0) for (let s = a; s <= b; s++) used[s] = (used[s] || 0) + jh / n;
+          if (opts.pre) ptr = b + 1;   /* COMPRESSER : elle n'arrête pas les tâches suivantes, qui prennent les ouvriers restés libres */
+        } else if (jh > 0) {
           let s = e, rem = jh, g = 0;
           while (free(s) <= 1e-9 && g++ < 40000) s++;
           a = s;
@@ -11457,14 +11531,18 @@ function renderBudgetList() {
             if (rem > 1e-9) s++;
           }
           ptr = free(b) > 1e-9 ? b : b + 1;
+        } else if (dlyDeb(k) && dlyFin(k)) {
+          /* sans la ressource, déjà datée : sa durée actuelle, sans occuper d'ouvriers */
+          const n = Math.max(1, Math.round((Number(String(dlyDurK(k)).replace(",", ".")) || 1) * 2));
+          a = e; b = e + n - 1; if (opts.pre) ptr = b + 1;
         } else {
-          /* sans main d'œuvre : sa durée actuelle (1 J sinon), sans occuper d'ouvriers */
-          const d0 = dlyDeb(k), f0 = dlyFin(k), n = d0 && f0 ? Math.max(1, Math.round((Number(String(dlyDurK(k)).replace(",", ".")) || 1) * 2)) : 2;
-          a = e; b = e + n - 1; ptr = b + 1;
+          /* R6 / R15 : sans la ressource et sans durée = 0 jour (seul le DÉBUT est posé), à sa place dans la chaîne */
+          a = e; b = e - 1; zero = true;
         }
         S[k] = { a, b };
-        D[k] = { deb: dayAt(a >> 1), fin: dayAt(b >> 1), dm: a & 1, fm: (b & 1) ? 0 : 1 };
-        prevK = k;
+        D[k] = zero ? { deb: dayAt(a >> 1), fin: "", dm: 0, fm: 0 } : { deb: dayAt(a >> 1), fin: dayAt(b >> 1), dm: a & 1, fm: (b & 1) ? 0 : 1 };
+        /* COMPRESSER : une tâche sans la ressource ne retient pas la suivante */
+        if (opts.pre || jh > 0) prevK = k;
       });
       return { D, S };
     };
@@ -11474,15 +11552,15 @@ function renderBudgetList() {
         const x = D[k], L = dlyDraftKey(k);
         const p = L[0] || { id: insId() };
         L.splice(0, L.length, p);
-        p.deb = x.deb; p.fin = x.fin;
+        p.deb = x.deb; p.fin = x.fin || "";
         if (x.dm) p.dmd = x.deb; else delete p.dmd;
-        if (x.fm) p.fmd = x.fin; else delete p.fmd;
+        if (x.fm && x.fin) p.fmd = x.fin; else delete p.fmd;
       });
     };
     /* liaison FIN → DÉBUT de b vers a (remplacée si elle existe) : décalage = jours travaillés entre la fin de a et le début de b, −1 = même jour */
     const dlyChainLink = (a, b, D) => {
       if (!a || !b || a === b || dlyReach(a, b)) return;
-      const cal = insCal(), fa = D[a] ? D[a].fin : dlyFin(a), db = D[b] ? D[b].deb : dlyDeb(b);
+      const cal = insCal(), fa = D[a] ? D[a].fin || D[a].deb : dlyFin(a) || dlyDeb(a), db = D[b] ? D[b].deb : dlyDeb(b);
       if (!fa || !db) return;
       const o = db >= fa ? Math.max(-1, (Number(sviWDur(cal, fa, db)) || 1) - 2) : -1;
       INS.dpred = INS.dpred || {};
@@ -11491,8 +11569,8 @@ function renderBudgetList() {
       INS.dpred[b] = L;
     };
     /* GÉNÉRER : seules les tâches sans dates sont placées ; celles qui ont déjà des dates restent où elles sont */
-    const dlyAutoGen = (start, N) => {
-      INS.ouv = N; INS.plaf = N;
+    const dlyAutoGen = (start, N, keep) => {
+      if (!keep) { INS.ouv = N; dlyCapSt().plaf = N; }
       const all = dlyTopDown(dlyKeys()), todo = all.filter(k => !dlyDeb(k) || !dlyFin(k)), fixed = all.filter(k => !todo.includes(k));
       if (!todo.length) return null;
       const above = new Map(all.map((k, i) => [k, i ? all[i - 1] : null]));
@@ -11507,9 +11585,10 @@ function renderBudgetList() {
        les liaisons restent respectées (une liaison FIN → DÉBUT peut chevaucher la dernière demi-journée) */
     const dlyCompress = () => {
       const td = dlyTopDown(dlyKeys()), ti = new Map(td.map((k, i) => [k, i]));
-      const dated = td.filter(k => dlyDeb(k) && dlyFin(k)).sort((a, b) => dlyDeb(a).localeCompare(dlyDeb(b)) || ti.get(a) - ti.get(b));
-      if (!dated.length) return null;
-      const start = dlyDeb(dated[0]);
+      const dated = td.filter(k => dlyDeb(k) && (dlyFin(k) || !(dlyResQ(k) > 0))).sort((a, b) => dlyDeb(a).localeCompare(dlyDeb(b)) || ti.get(a) - ti.get(b));
+      if (!dated.some(k => dlyFin(k))) return null;
+      /* depuis la date de début du projet (elle ne change pas) */
+      const start = [INS.pdeb || INS.gdeb, dlyDeb(dated[0])].filter(Boolean).sort()[0];
       const ord = dlyTopo(dated, dlyDeb);
       const { D } = dlyPack(ord, [], start, { relax: true });
       dlyWriteH(D);
@@ -11519,43 +11598,132 @@ function renderBudgetList() {
       Object.keys(INS.dpred || {}).forEach(b => {
         if (!D[b]) return;
         INS.dpred[b] = dlyLinks(b).map(x => {
-          if (x.t === "DD" || !D[x.k]) return x;
+          if (x.t === "DD" || !D[x.k] || !D[x.k].fin) return x;
           const g = D[b].deb >= D[x.k].fin ? (Number(sviWDur(cal, D[x.k].fin, D[b].deb)) || 1) - 2 : -1;
           return { ...x, o: Math.min(x.o || 0, Math.max(-1, g)) };
         });
       });
       return D;
     };
-    /* fenêtre COMPRESSER LE PLANNING */
-    const dlyCompWin = () => {
-      const n = dlyKeys().filter(k => dlyDeb(k) && dlyFin(k)).length;
-      if (!n) { svToast("AUCUNE TÂCHE DATÉE À COMPRESSER : UTILISER GÉNÉRER LE PLANNING.", 3500); return; }
-      const f0 = dlyEnd(dlyCurDates());
-      svChoose({ title: "COMPRESSER LE PLANNING", html: `<div class="svc-sub">${n} TÂCHE(S) DATÉE(S) RESSERRÉE(S) POUR QU'AUCUN OUVRIER NE RESTE SANS TRAVAIL, SOUS LE PLAFOND (EFFECTIF PAR PÉRIODE), EN DEMI-JOURNÉES. LES LIAISONS SONT GARDÉES.</div><div class="svc-sub">FIN ACTUELLE : ${esc(dFr(f0))}</div>`,
-        buttons: [{ v: "go", label: "COMPRESSER", tone: "neutral" }] }).then(r => {
-        if (r !== "go") return;
-        const D = dlyCompress();
-        if (!D) return;
-        insSave();
-        histLog("DÉLAIS", "COMPRESSER LE PLANNING", n + " TÂCHE(S) — FIN " + dFr(f0) + " → " + dFr(dlyEnd(D)));
-        renderTab(); insRenderChain();
-        svToast("PLANNING COMPRESSÉ — FIN LE " + dFr(dlyEnd(dlyCurDates())) + ".", 3500);
-      });
+    /* R5 : un seul bouton — GÉNÉRER sur un planning sans dates, sinon COMPRESSER (sans confirmation : ↶ annule) ;
+       les tâches sans dates qui portent la ressource sont d'abord placées comme par GÉNÉRER */
+    const dlyHasDates = () => dlyKeys().some(k => dlyDeb(k) && dlyFin(k));
+    const dlyCompressRun = (opts = {}) => {
+      const snap = () => JSON.stringify(dlyCurDates()), before = snap(), f0 = dlyEnd(dlyCurDates());
+      const und = dlyKeys().filter(k => (!dlyDeb(k) || !dlyFin(k)) && dlyResQ(k) > 0);
+      if (und.length) dlyAutoGen(dlyProjStart(), dlyCapBase(), true);
+      const D = dlyCompress();
+      if (!D && !und.length) { if (!opts.quiet) svToast("AUCUNE TÂCHE DATÉE À COMPRESSER.", 3000); renderTabK(); return null; }
+      insSave();
+      const f1 = dlyEnd(dlyCurDates()), same = snap() === before;
+      histLog("DÉLAIS", "COMPRESSER LE PLANNING", (opts.plaf !== undefined ? "PLAFOND " + opts.plaf + " — " : "") + "FIN " + dFr(f0) + " → " + dFr(f1));
+      renderTabK(); insRenderChain();
+      if (same) svToast(opts.plaf !== undefined ? "AUCUN GAIN AVEC CE NOMBRE." : "RIEN À RESSERRER : LE PLANNING EST DÉJÀ COMPRESSÉ.", 3000, opts.anchor);
+      else if (opts.plaf === undefined) svToast("PLANNING COMPRESSÉ — FIN LE " + dFr(f1) + ".", 3500);
+      if (INS.dbut && f1 > INS.dbut) svToast(DLY_BUT_MSG + " (FIN LE " + dFr(f1) + ", BUTOIR LE " + dFr(INS.dbut) + ").", 5000, opts.anchor);
+      return D;
     };
+    const dlyGenComp = () => dlyHasDates() ? dlyCompressRun() : dlyGenWin();
     /* couper le plafond à une date : la partie de droite garde l'effectif, puis se tire seule */
     const dlyCutPlaf = iso => {
       const cal = insCal(), d = sviWNear(cal, iso, 1);
       if (dlyCapSegs().some(s => s.d === d)) { svToast("LE PLAFOND EST DÉJÀ COUPÉ LE " + dFr(d) + ".", 3000); return; }
-      INS.plafs = (INS.plafs || []).concat([{ d, n: dlyCapOf(d) }]);
+      const st = dlyCapSt();
+      st.plafs = (st.plafs || []).concat([{ d, n: dlyCapOf(d) }]);
       insSave(); histLog("DÉLAIS", "PLAFOND COUPÉ", dFr(d)); renderTabK();
     };
-    /* morceau de plafond tiré : n ouvriers (entier ≥ 1) ; i = 0 : première période */
-    const dlySetPlaf = (i, n) => {
-      if (!i) { INS.plaf = n; }
-      else { const S = dlyCapSegs(), s = S[i]; if (!s) return; INS.plafs = (INS.plafs || []).map(x => x === s ? { ...x, n } : x); }
+    /* morceau de plafond tiré : n (entier ; 1 au moins pour la première période, 0 possible ensuite) ; i = 0 : première période ;
+       R2 : le planning est aussitôt recompressé sous le nouveau plafond (plus de bouton APPLIQUER LE NIVELLEMENT) */
+    const dlySetPlaf = (i, n, anchor) => {
+      const st = dlyCapSt();
+      if (!i) st.plaf = Math.max(1, n);
+      else { const S = dlyCapSegs(), s = S[i]; if (!s) return; st.plafs = (st.plafs || []).map(x => x.d === s.d ? { d: x.d, n: Math.max(0, n) } : x); }
       /* deux morceaux voisins au même effectif : réunis */
-      const S2 = dlyCapSegs(); INS.plafs = S2.slice(1).filter((s, j) => Number(s.n) !== Number(S2[j].n)).map(s => ({ d: s.d, n: Number(s.n) }));
-      insSave(); histLog("DÉLAIS", "PLAFOND MAIN D'ŒUVRE", (i ? "À PARTIR DU " + dFr((dlyCapSegs()[i] || {}).d || "") + " : " : "") + n); renderTabK();
+      const S2 = dlyCapSegs(); st.plafs = S2.slice(1).filter((s, j) => Number(s.n) !== Number(S2[j].n)).map(s => ({ d: s.d, n: Number(s.n) }));
+      histLog("DÉLAIS", "PLAFOND", (i ? "À PARTIR DU " + dFr((dlyCapSegs()[i] || {}).d || "") + " : " : "") + n);
+      if (!dlyHasDates() && !dlyKeys().some(k => dlyResQ(k) > 0)) { insSave(); renderTabK(); return; }
+      dlyCompressRun({ plaf: n, quiet: true, anchor });
+    };
+    /* ===== v542 : histogramme de la ressource cochée (R9, R11, R14), commandes (R10, R11), hauteur réglable (R12) ===== */
+    const DLY_SER = ["#2e90fa", "#f79009", "#12b76a", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#667085"];
+    /* hauteur de l'histogramme : nombre de pixels (28 = miniaturisé en bas) ou « full » (plein écran, à la place du Gantt) */
+    const dlyHHGet = () => { let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : Math.max(28, Math.min(2000, Number(v) || 110)); };
+    const dlyHHSet = v => { try { localStorage.setItem("svi_dlyhh_v1", String(v)); } catch (e) {} };
+    const dlyCmdCfg = () => ({ grp: "f", pv: 0, fq: 30, on: false, ...(INS.cmd || {}) });
+    /* consommation jour par jour de chaque charge cochée (répartie sur les jours travaillés de chaque tâche, demi-journées comprises) */
+    const dlyHistData = () => {
+      const R = dlyResSel();
+      if (!R) return null;
+      const mode = dlyResMode(R), cal = insCal(), cur = dlyCurDates(), ser = new Map(), det = {}, tot = {};
+      [...new Set(R.map(dlyResK))].forEach(sk => ser.set(sk, { L: {} }));
+      Object.keys(cur).forEach(k => {
+        const p = cur[k], m = dlyResOf(k, R);
+        if (!m.size) return;
+        const n = sviWDur(cal, p.deb, p.fin) || 1, fr = i => (i === 0 && p.hs ? .5 : 1) * (i === n - 1 && p.he ? .5 : 1);
+        let t = 0; for (let i = 0; i < n; i++) t += fr(i);
+        for (let i = 0, x = sviWNear(cal, p.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) {
+          let sum = 0;
+          m.forEach((v, sk) => { const w = v / (t || 1) * fr(i), S = ser.get(sk); if (S) S.L[x] = (S.L[x] || 0) + w; sum += w; });
+          tot[x] = (tot[x] || 0) + sum;
+          (det[x] = det[x] || []).push({ k, v: sum, inc: dlyInc(k) });
+        }
+      });
+      const H = { R, mode, ser, det, tot, unit: mode === "q" ? dlyResU(R[0]) : "DH" };
+      H.cmd = dlyOrders(H);
+      return H;
+    };
+    /* commandes (R10, R11) : PAR TÂCHE, PAR GROUPE (lot de 1er niveau) ou PAR FRÉQUENCE (tous les N jours), passées PRÉAVIS jours avant */
+    const dlyOrders = H => {
+      const c = dlyCmdCfg();
+      if (!c.on) return null;
+      const L = {}, pv = Math.max(0, Number(c.pv) || 0), add = (iso, v) => { if (!v) return; const d = sviIsoAdd(iso, -pv); L[d] = (L[d] || 0) + v; };
+      const days = Object.keys(H.tot).sort();
+      if (c.grp === "f") {
+        const fq = Math.max(1, Number(c.fq) || 30), s0 = [dlyProjStart(), days[0]].filter(Boolean).sort()[0];
+        days.forEach(di => add(sviIsoAdd(s0, Math.floor(dDiff(s0, di) / fq) * fq), H.tot[di]));
+      } else {
+        const per = {};
+        Object.keys(H.det).forEach(di => H.det[di].forEach(x => {
+          const gk = c.grp === "t" ? x.k : (dlyLotPath(lkName("lot", x.k.split("|")[0]))[0] || x.k);
+          const o = per[gk] = per[gk] || { d: di, v: 0 };
+          if (di < o.d) o.d = di; o.v += x.v;
+        }));
+        Object.values(per).forEach(o => add(o.d, o.v));
+      }
+      return { L, lab: "COMMANDES " + (c.grp === "f" ? "TOUS LES " + c.fq + " J" : c.grp === "t" ? "PAR TÂCHE" : "PAR GROUPE (LOT)") + (pv ? " — " + pv + " J D'AVANCE" : "") };
+    };
+    /* libellé à gauche de l'histogramme (sous le tableau) */
+    const dlyHistLab = () => {
+      const R = dlyResSel();
+      if (!R) return "CHARGES";
+      const ks = [...new Set(R.map(r => U_(r.des)))];
+      return esc(ks[0]) + (ks.length > 1 ? " + " + (ks.length - 1) : "") + "<br>(" + esc(dlyCmdCfg().on ? "COMMANDES" : dlyResMode(R) === "q" ? dlyResU(R[0]) + " / JOUR" : "DH / JOUR") + ")";
+    };
+    /* fenêtre COMMANDES (menu ⋯, FORMAT 159) */
+    const dlyCmdWin = () => {
+      const c = dlyCmdCfg(), d = document.createElement("div");
+      d.id = "svConf";
+      d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
+        <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
+        <div class="svc-t">COMMANDES</div>
+        <div class="bdt-row"><span>GROUPEMENT</span><span class="cmd-g">${[["t", "PAR TÂCHE"], ["g", "PAR GROUPE (LOT)"], ["f", "PAR FRÉQUENCE"]].map(([v, l]) => `<label><input type="radio" name="cmdg" value="${v}"${c.grp === v ? " checked" : ""}> ${l}</label>`).join("")}</span></div>
+        <div class="bdt-row"><span>PRÉAVIS (J)</span><input class="cmd-pv" inputmode="numeric" value="${esc(String(c.pv))}"></div>
+        <div class="bdt-row"><span>FRÉQUENCE (J)</span><input class="cmd-fq" inputmode="numeric" value="${esc(String(c.fq))}"></div>
+        <div class="bdt-row"><span>AFFICHER LES COMMANDES</span><input type="checkbox" class="cmd-on"${c.on ? " checked" : ""}></div>
+        <div class="svc-sub">CALCUL SUR LES CHARGES COCHÉES ; MÊME CALCUL POUR LA MAIN D'ŒUVRE (EX. FRÉQUENCE 30, PRÉAVIS 0 = J-H PAR MOIS POUR LA PAIE).</div>
+        <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
+      document.getElementById("svConf")?.remove();
+      document.body.appendChild(d);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        if (!e.target.closest("[data-ok]")) return;
+        const pv = String(d.querySelector(".cmd-pv").value).trim(), fq = String(d.querySelector(".cmd-fq").value).trim();
+        if (!/^\d+$/.test(pv)) { svToast("PRÉAVIS : NOMBRE ENTIER DE JOURS.", 3000, d.querySelector(".cmd-pv")); return; }
+        if (!/^\d+$/.test(fq) || Number(fq) < 1) { svToast("FRÉQUENCE : NOMBRE ENTIER DE JOURS (1 AU MOINS).", 3000, d.querySelector(".cmd-fq")); return; }
+        INS.cmd = { grp: (d.querySelector('input[name="cmdg"]:checked') || {}).value || "f", pv: Number(pv), fq: Number(fq), on: d.querySelector(".cmd-on").checked };
+        d.remove();
+        insSave(); histLog("DÉLAIS", "COMMANDES", dlyOrders({ tot: {}, det: {} }) ? "AFFICHÉES" : "MASQUÉES"); renderTabK();
+      });
     };
 /* ⟪ src/18-annuler-liaisons.js ⟫ */
     /* =========================================================
@@ -12818,18 +12986,14 @@ function renderBudgetList() {
     const DLY_W = { lot: 160, prim: 280, sec: 170, pred: 180, per: 120, deb: 90, fin: 90, dur: 80, marge: 70, jal: 62 };
     /* budget en instance / figé : une ligne par période d'une TÂCHE SECONDAIRE (lot + activité secondaire) */
     const DLY_COLS_S = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ...DLY_COLS.slice(2)];
-    /* récapitulatif d'une tâche primaire : ses tâches secondaires */
-    const DLY_COLS_R = DLY_COLS_S.slice(1);
     /* planning : lot, activité secondaire, prédécesseurs, début, fin, durée */
     const DLY_COLS_P = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ["pred", "PRÉDÉCESSEURS", x => x.pred || "", ""],
       ["deb", "DÉBUT", x => x.deb || "", "center"], ["fin", "FIN", x => x.fin || "", "center"], ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "center"],
       ["marge", "BATTEMENT", x => x.marge === "" || x.marge === undefined ? "" : Number(x.marge), "center"], ["jal", "JALON", x => x.jal || "", "center"]];
-    /* budget en instance : la tâche est donnée par les ronds du haut (pas de colonnes LOT / ACT. PRIMAIRE) */
-    const DLY_COLS_I = DLY_COLS.filter(c => c[0] !== "lot" && c[0] !== "prim");
     /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */
     /* del : mode modifiable (case au début de chaque période, 🗑 à la fin, case et 🗑 en tête) */
     const dlyTable = (rows, cells, trAttr = () => "", del = false, base = DLY_COLS) => {
-      const tk = base === DLY_COLS ? "dly" : base === DLY_COLS_S ? "dlys" : base === DLY_COLS_R ? "dlyr" : base === DLY_COLS_P ? "dlyp" : "dlyi";
+      const tk = base === DLY_COLS ? "dly" : base === DLY_COLS_S ? "dlys" : "dlyp";
       const cols = coOrder(tk, base);
       const w = k => cwLoad()["dly." + k] || DLY_W[k];
       /* FORMAT : case à droite de chaque ligne (cocher seulement) ; suppression par le menu ⋯ */
@@ -19392,15 +19556,15 @@ function renderBudgetList() {
       /* FORMAT 97 : DÉTAIL DÉLAIS ouvert (PLANNING) — commandes du planning et affichage JOUR / SEMAINE / MOIS en tête du menu */
       const DX = shell.__insDly;
       if (DX && active === "dly" && acts.some(a => a.dataset.blk === "detail") && shell.querySelector("#dlyGantt")) {
-        const sc = DX.scaleOf(), lev = DX.canLev();
+        const sc = DX.scaleOf();
         const opt = (v, lab) => `<button type="button" data-dly="sc-${v}" class="dly-sc${sc === v ? " on" : ""}"><span>${sc === v ? "✓ " : ""}${lab}</span></button>`;
-        m.insertAdjacentHTML("afterbegin", `<button type="button" data-dly="gen"><span>GÉNÉRER LE PLANNING</span></button>
-          <button type="button" data-dly="comp"><span>COMPRESSER LE PLANNING</span></button>
+        /* R5 : une seule entrée — GÉNÉRER sur un planning sans dates, sinon COMPRESSER ; plus d'APPLIQUER LE NIVELLEMENT (barre en direct, R2) */
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-dly="gen"><span>${DX.hasDates() ? "COMPRESSER LE PLANNING" : "GÉNÉRER LE PLANNING"}</span></button>
           <button type="button" data-dly="sort" class="${DX.sorted() ? "off" : ""}"><span>CLASSER PAR DÉBUT</span></button>
-          <button type="button" data-dly="lev" class="${lev ? "" : "off"}" ${lev ? "" : 'aria-disabled="true"'}><span>APPLIQUER LE NIVELLEMENT</span></button>
-          <div class="blk-sep"></div><div class="blk-hint">AFFICHAGE DU GANTT</div>${opt("j", "JOUR")}${opt("s", "SEMAINE")}${opt("m", "MOIS")}<div class="blk-sep"></div>`);
+          <div class="blk-sep"></div><div class="blk-hint">AFFICHAGE DU GANTT</div>${opt("j", "JOUR")}${opt("s", "SEMAINE")}${opt("m", "MOIS")}<div class="blk-sep"></div>
+          <button type="button" data-dly="cmd"><span>COMMANDES</span></button><div class="blk-sep"></div>`);
         let lp = null;
-        m.addEventListener("pointerdown", e => { const so = e.target.closest('[data-dly="sort"].off'); if (so) { lp = setTimeout(() => svToast("DÉJÀ CLASSÉ PAR DÉBUT : LE BOUTON REDEVIENT ACTIF DÈS QU'UNE LIGNE DÉPLACÉE NE RESPECTE PLUS CET ORDRE.", 4000, so), 550); return; } const b = e.target.closest('[data-dly="lev"].off'); if (!b) return; lp = setTimeout(() => svToast("RIEN À NIVELER : AUCUN JOUR NE DÉPASSE LE PLAFOND DE MAIN D'ŒUVRE (OU PAS DE PLAFOND / PAS DE MAIN D'ŒUVRE).", 4000, b), 550); });
+        m.addEventListener("pointerdown", e => { const so = e.target.closest('[data-dly="sort"].off'); if (!so) return; lp = setTimeout(() => svToast("DÉJÀ CLASSÉ PAR DÉBUT : LE BOUTON REDEVIENT ACTIF DÈS QU'UNE LIGNE DÉPLACÉE NE RESPECTE PLUS CET ORDRE.", 4000, so), 550); });
         ["pointerup", "pointercancel"].forEach(t => m.addEventListener(t, () => clearTimeout(lp)));
         m.addEventListener("click", e => {
           const b = e.target.closest("[data-dly]");
@@ -19409,7 +19573,7 @@ function renderBudgetList() {
           if (b.classList.contains("off")) return;
           m.remove();
           const v = b.dataset.dly;
-          if (v === "gen") DX.gen(); else if (v === "comp") DX.comp(); else if (v === "sort") DX.sortDeb(); else if (v === "lev") DX.level(); else DX.scale(v.slice(3));
+          if (v === "gen") DX.gen(); else if (v === "sort") DX.sortDeb(); else if (v === "cmd") DX.cmdWin(); else DX.scale(v.slice(3));
         }, true);
       }
       /* v461 : bloc TÂCHES — CLASSER PAR DÉBUT (même ordre que le PLANNING : lots, activités, puis le planning) */
@@ -19680,6 +19844,10 @@ function renderBudgetList() {
          (modifiables) ; découpe cherchée pour acheter le moins de barres et laisser le moins de chutes
        Réglages gardés par désignation de charge (INS.cond). Même tableau de résultat pour les deux modes. */
     const COND_K = r => U_(r.des) + "|" + U_(r.u);
+    /* remarque 4 (v542) : le conditionnement appartient à l'ARTICLE (CHS) — gardé pour tous les budgets (sur l'appareil, en attendant
+       la colonne CHS côté Google Sheets) ; la copie du budget (INS.cond) reste lue pour les budgets déjà réglés */
+    const condAll = () => { try { return JSON.parse(localStorage.getItem("svi_cond_chs_v1") || "{}") || {}; } catch (e) { return {}; } };
+    const condGet = key => condAll()[key] || (INS.cond || {})[key] || null;
     const condRows = id => { const r = INS.chg.find(x => x.id === id); return r ? INS.chg.filter(x => !x.t && COND_K(x) === COND_K(r)) : []; };
     /* morceaux : produits des liaisons de ces charges — longueur = DIM 1, nombre = NBR (× quantité liée si plusieurs) */
     const condPieces = rows => {
@@ -19736,7 +19904,7 @@ function renderBudgetList() {
       if (!rows.length) return;
       const r0 = rows[0], key = COND_K(r0), Q = rows.reduce((a, r) => a + (num(r.q) || 0), 0);
       INS.cond = INS.cond || {};
-      const st = { mode: "q", ua: "", per: "", perT: "", BL: 12, kerf: 0, kgm: "", ...(INS.cond[key] || {}) };
+      const st = { mode: "q", ua: "", per: "", perT: "", BL: 12, kerf: 0, kgm: "", ...(condGet(key) || {}) };
       let pcs = condPieces(rows);
       const d = document.createElement("div");
       d.id = "svConf";
@@ -19766,7 +19934,8 @@ function renderBudgetList() {
         d.innerHTML = `<div class="svc-card cond-card" role="dialog" aria-modal="true">
           <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
           <div class="svc-t">CONDITIONNEMENT — ${esc(U_(r0.des))}</div>
-          <div class="svc-sub">${rows.length} LIGNE(S) DE CHARGE — QUANTITÉ TOTALE ${esc(money(Q))} ${esc(U_(r0.u))}</div>
+          <div class="svc-sub">${rows.length} LIGNE(S) DE CHARGE — QUANTITÉ BUDGÉTÉE ${esc(money(Q))} ${esc(U_(r0.u))} — SANS EFFET SUR LE BUDGET</div>
+          <div class="svc-sub cond-chs">RÉGLAGE DE L'ARTICLE : IL VAUT POUR TOUS LES BUDGETS.</div>
           <div class="cond-mode"><button type="button" data-m="q" class="${st.mode === "q" ? "on" : ""}">PAR QUANTITÉ TOTALE</button><button type="button" data-m="c" class="${st.mode === "c" ? "on" : ""}">PAR MORCEAUX (DÉCOUPE)</button></div>
           ${st.mode === "q" ? `
             <div class="bdt-row"><span>UNITÉ D'ACHAT</span><input data-k="ua" value="${esc(st.ua)}" placeholder="PALETTE, SAC, BARRE…" autocomplete="off"></div>
@@ -19784,7 +19953,7 @@ function renderBudgetList() {
           <div class="cond-h">RÉSULTAT</div><div class="cond-res">${res()}</div>
           <div class="svc-f"><button type="button" class="svc-b svc-ok" data-x>FERMER</button></div></div>`;
       };
-      const save = () => { INS.cond[key] = { mode: st.mode, ua: st.ua, per: st.per, perT: st.perT, BL: st.BL, kerf: st.kerf, kgm: st.kgm }; insSave(); };
+      const save = () => { const v = { mode: st.mode, ua: st.ua, per: st.per, perT: st.perT, BL: st.BL, kerf: st.kerf, kgm: st.kgm }; INS.cond[key] = v; const A = condAll(); A[key] = v; try { localStorage.setItem("svi_cond_chs_v1", JSON.stringify(A)); } catch (e) {} insSave(); };
       draw();
       document.getElementById("svConf")?.remove();
       document.body.appendChild(d);

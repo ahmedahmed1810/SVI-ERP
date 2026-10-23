@@ -771,7 +771,7 @@
       return {
         chg: cfHasF(insCfT("chg")) || !!ONLYC.chg || own("chg"),
         prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || own("prd"),
-        dly: ["dly", "dlyp", "dlyr", "dlyi", "dlys"].some(cfHasF) || !!(shell.__dlySel && shell.__dlySel.size),
+        dly: ["dly", "dlyp", "dlys"].some(cfHasF) || !!(shell.__dlySel && shell.__dlySel.size),
         lnk: cfHasF("lk_marge") || (INS.links || []).some(l => l.on === true),
         unl: cfHasF("lk_unl"),
         inc: cfHasF("lk_inc") || (INS.inc || []).some(x => x.on === true)

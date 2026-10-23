@@ -6,6 +6,10 @@
          (modifiables) ; découpe cherchée pour acheter le moins de barres et laisser le moins de chutes
        Réglages gardés par désignation de charge (INS.cond). Même tableau de résultat pour les deux modes. */
     const COND_K = r => U_(r.des) + "|" + U_(r.u);
+    /* remarque 4 (v542) : le conditionnement appartient à l'ARTICLE (CHS) — gardé pour tous les budgets (sur l'appareil, en attendant
+       la colonne CHS côté Google Sheets) ; la copie du budget (INS.cond) reste lue pour les budgets déjà réglés */
+    const condAll = () => { try { return JSON.parse(localStorage.getItem("svi_cond_chs_v1") || "{}") || {}; } catch (e) { return {}; } };
+    const condGet = key => condAll()[key] || (INS.cond || {})[key] || null;
     const condRows = id => { const r = INS.chg.find(x => x.id === id); return r ? INS.chg.filter(x => !x.t && COND_K(x) === COND_K(r)) : []; };
     /* morceaux : produits des liaisons de ces charges — longueur = DIM 1, nombre = NBR (× quantité liée si plusieurs) */
     const condPieces = rows => {
@@ -62,7 +66,7 @@
       if (!rows.length) return;
       const r0 = rows[0], key = COND_K(r0), Q = rows.reduce((a, r) => a + (num(r.q) || 0), 0);
       INS.cond = INS.cond || {};
-      const st = { mode: "q", ua: "", per: "", perT: "", BL: 12, kerf: 0, kgm: "", ...(INS.cond[key] || {}) };
+      const st = { mode: "q", ua: "", per: "", perT: "", BL: 12, kerf: 0, kgm: "", ...(condGet(key) || {}) };
       let pcs = condPieces(rows);
       const d = document.createElement("div");
       d.id = "svConf";
@@ -92,7 +96,8 @@
         d.innerHTML = `<div class="svc-card cond-card" role="dialog" aria-modal="true">
           <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
           <div class="svc-t">CONDITIONNEMENT — ${esc(U_(r0.des))}</div>
-          <div class="svc-sub">${rows.length} LIGNE(S) DE CHARGE — QUANTITÉ TOTALE ${esc(money(Q))} ${esc(U_(r0.u))}</div>
+          <div class="svc-sub">${rows.length} LIGNE(S) DE CHARGE — QUANTITÉ BUDGÉTÉE ${esc(money(Q))} ${esc(U_(r0.u))} — SANS EFFET SUR LE BUDGET</div>
+          <div class="svc-sub cond-chs">RÉGLAGE DE L'ARTICLE : IL VAUT POUR TOUS LES BUDGETS.</div>
           <div class="cond-mode"><button type="button" data-m="q" class="${st.mode === "q" ? "on" : ""}">PAR QUANTITÉ TOTALE</button><button type="button" data-m="c" class="${st.mode === "c" ? "on" : ""}">PAR MORCEAUX (DÉCOUPE)</button></div>
           ${st.mode === "q" ? `
             <div class="bdt-row"><span>UNITÉ D'ACHAT</span><input data-k="ua" value="${esc(st.ua)}" placeholder="PALETTE, SAC, BARRE…" autocomplete="off"></div>
@@ -110,7 +115,7 @@
           <div class="cond-h">RÉSULTAT</div><div class="cond-res">${res()}</div>
           <div class="svc-f"><button type="button" class="svc-b svc-ok" data-x>FERMER</button></div></div>`;
       };
-      const save = () => { INS.cond[key] = { mode: st.mode, ua: st.ua, per: st.per, perT: st.perT, BL: st.BL, kerf: st.kerf, kgm: st.kgm }; insSave(); };
+      const save = () => { const v = { mode: st.mode, ua: st.ua, per: st.per, perT: st.perT, BL: st.BL, kerf: st.kerf, kgm: st.kgm }; INS.cond[key] = v; const A = condAll(); A[key] = v; try { localStorage.setItem("svi_cond_chs_v1", JSON.stringify(A)); } catch (e) {} insSave(); };
       draw();
       document.getElementById("svConf")?.remove();
       document.body.appendChild(d);

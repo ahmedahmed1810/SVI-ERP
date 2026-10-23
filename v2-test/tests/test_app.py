@@ -1068,7 +1068,8 @@ def main():
             I.__lk = I.links; I.__dlp = I.dlp; I.__dp = I.dpred;
             I.links = [{{ id: 'G1', des: 'd1', lot: 'l2', prim: 'p1', sec: 's1', prd: [], chg: [{{ id: 'j1' }}] }}, {{ id: 'G2', des: 'd1', lot: 'l2', prim: 'p1', sec: 's2', prd: [], chg: [{{ id: 'j2' }}] }},
               {{ id: 'G3', des: 'd2', lot: 'l1', prim: 'p1', sec: 's1', prd: [], chg: [{{ id: 'j3' }}] }}];
-            I.dlp = {{}}; I.dpred = {{}}; I.plaf = 0; I.plafs = []; I.dord = ['l2|s1', 'l2|s2', 'l1|s1'];
+            I.dlp = {{}}; I.dpred = {{}}; I.plaf = 0; I.plafs = []; I.plafR = {{}}; I.dinc = {{}}; I.dord = ['l2|s1', 'l2|s2', 'l1|s1'];
+            I.chg.filter(r => /^j[123]$/.test(r.id)).forEach(r => {{ r.on = true; }});
             X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(600)
         pg.evaluate(f"() => {DXJ}.gen()"); pg.wait_for_timeout(300)
@@ -1089,18 +1090,18 @@ def main():
             pg.evaluate("x => { const h = document.querySelector('#dlyGantt'); h.scrollLeft = Math.max(0, x - h.getBoundingClientRect().left - 200); }", x); pg.wait_for_timeout(200)
             hx = pg.evaluate("() => document.querySelector('#dlyGantt .ghist').getBoundingClientRect().left"); x = hx + n * dw + dw / 2
             y = pg.evaluate("() => { const r = document.querySelector('#dlyGantt .gplaf').getBoundingClientRect(); return r.top + 1; }")
-            pg.mouse.move(x, y); pg.mouse.down(); pg.wait_for_timeout(800); pg.mouse.up(); pg.wait_for_timeout(300)
-            cutok = pg.evaluate("() => !!document.querySelector('#svConf [data-v=\"cut\"]')")
-            pg.evaluate("() => document.querySelector('#svConf [data-v=\"cut\"]')?.click()"); pg.wait_for_timeout(500)
-        segs = pg.evaluate(f"() => JSON.stringify({ins}.INS.plafs || [])")
+            # v542 (R2) : appui long = « / » et bulle COUPER ICI qui suivent le doigt ; lâcher = couper à ce jour
+            pg.mouse.move(x, y); pg.mouse.down(); pg.wait_for_timeout(800)
+            cutok = pg.evaluate("() => /COUPER ICI/.test((document.getElementById('dlyCutTip') || {}).textContent || '')")
+            pg.mouse.up(); pg.wait_for_timeout(500)
+        segs = pg.evaluate(f"() => JSON.stringify(Object.values({ins}.INS.plafR || {{}}).map(x => x.plafs || []))")
         pg.evaluate(f"() => {DXJ}.plafSeg(1, 4)"); pg.wait_for_timeout(300)
         pg.evaluate(f"""() => {{ const I = {ins}.INS; I.dpred = {{}}; I.dlp['l2|s2'] = [{{ id: 'b', deb: '2026-11-09', fin: '2026-11-09' }}]; I.dlp['l1|s1'] = [{{ id: 'c', deb: '2026-11-12', fin: '2026-11-13' }}]; {ins}.insSave(); {ins}.refreshAll(); }}"""); pg.wait_for_timeout(400)
-        pg.evaluate(f"() => {DXJ}.comp()"); pg.wait_for_timeout(300)
-        pg.evaluate("() => document.querySelector('#svConf [data-v=\"go\"]')?.click()"); pg.wait_for_timeout(800)
-        c5 = pg.evaluate(f"() => {{ const I = {ins}.INS, P = k => {{ const p = (I.dlp[k] || [])[0] || {{}}; return [p.deb, p.fin, !!p.dmd, !!p.fmd]; }}; return [P('l2|s2'), P('l1|s1'), document.querySelectorAll('#dlyGantt .gplaf').length]; }}")
+        pg.evaluate(f"() => {DXJ}.comp()"); pg.wait_for_timeout(800)
+        c5 = pg.evaluate(f"() => {{ const I = {ins}.INS, P = k => {{ const p = (I.dlp[k] || [])[0] || {{}}; return [p.deb, p.fin, !!p.dmd, !!p.fmd]; }}; return [P('l2|s2'), P('l1|s1'), document.querySelectorAll('#dlyGantt .gplaf').length, JSON.stringify(I.plafR), JSON.stringify(I.dinc || {{}})]; }}")
         check("v530 planning : appui long sur le plafond = le couper ; morceau à 4 ouvriers ; COMPRESSER resserre les tâches datées",
-              cutok and '"2026-11-04"' in segs and c5 == [["2026-11-04", "2026-11-04", False, True], ["2026-11-04", "2026-11-04", False, False], 2], [cutok, segs, c5])
-        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk; I.dlp = I.__dlp; I.dpred = I.__dp; delete I.__lk; delete I.__dlp; delete I.__dp; I.plaf = 0; I.plafs = []; I.chg = I.chg.filter(r => !/^j/.test(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(400)
+              cutok and '"2026-11-04"' in segs and c5[:3] == [["2026-11-04", "2026-11-04", False, True], ["2026-11-04", "2026-11-04", False, False], 2], [cutok, segs, c5])
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk; I.dlp = I.__dlp; I.dpred = I.__dp; delete I.__lk; delete I.__dlp; delete I.__dp; I.plaf = 0; I.plafs = []; I.plafR = {{}}; I.chg = I.chg.filter(r => !/^j/.test(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(400)
         # conditionnement : barres de 12 m (découpe), puis palettes et camions
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.push({{ id: 'a1', des: 'ACIER HA12', u: 'KG', q: 120, p: 12 }});
             I.prd.push({{ id: 'r1', des: 'BARRE POTEAU', u: 'ML', nbr: 6, d1: 4.5 }}, {{ id: 'r2', des: 'BARRE POUTRE', u: 'ML', nbr: 5, d1: 3 }});
@@ -1292,6 +1293,109 @@ def main():
         pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
         check("v539 : PLANNING — titre RDC BA posé sur RDC HAUT = nouveau titre (aussi dans le bloc TÂCHES), destination en jaune ; onglet DÉTAIL DÉLAIS (seul) en bleu avec une tâche cochée",
               st1 == [True, False] and g39.startswith("GROUPE") and all(v.startswith(g39 + " / RDC ") for v in v39) and lot39 and tb39 == [True, False, False] and tb39b is False, [st1, v39, lot39, tb39, tb39b])
+
+        # ===== v542 : remarques du planning 1 à 16 (23/10/2026) =====
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        pg.set_viewport_size({"width": 1180, "height": 1100}); pg.wait_for_timeout(300)
+        DXJ = "[...document.querySelectorAll('*')].find(e => e.__insDly).__insDly"
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;
+            I.chg.forEach(r => {{ r.on = false; }});
+            I.chg.push({{ id: 'k1', des: 'MACON', u: 'JH', q: 4, p: 100 }}, {{ id: 'k2', des: 'CIMENT', u: 'SAC', q: 10, p: 80 }}, {{ id: 'k3', des: 'MACON', u: 'JH', q: 2, p: 100 }});
+            I.__lk2 = I.links; I.__dlp2 = I.dlp; I.__dp2 = I.dpred; I.__ord2 = I.dord; I.__pdeb2 = I.pdeb;
+            I.links = [{{ id: 'P1', des: 'd1', lot: 'l1', prim: 'p1', sec: 's1', prd: [], chg: [{{ id: 'k1' }}] }}, {{ id: 'P2', des: 'd1', lot: 'l2', prim: 'p1', sec: 's1', prd: [], chg: [{{ id: 'k2' }}] }},
+              {{ id: 'P3', des: 'd2', lot: 'l1', prim: 'p1', sec: 's2', prd: [], chg: [{{ id: 'k3' }}] }}];
+            I.dlp = {{ 'l1|s1': [{{ id: 'a', deb: '2026-11-02', fin: '2026-11-03' }}], 'l2|s1': [{{ id: 'b', deb: '2026-11-02', fin: '2026-11-02' }}], 'l1|s2': [{{ id: 'c', deb: '2026-11-04', fin: '2026-11-04' }}] }};
+            I.dpred = {{}}; I.dinc = {{}}; I.plafR = {{}}; I.plaf = 0; I.plafs = []; I.cmd = null; I.pdeb = '2026-11-02';
+            I.dord = ['l1|s1', 'l2|s1', 'l1|s2']; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(700)
+        ROWS = "() => [...document.querySelectorAll('#bdgTabBody .dlyg-l tbody tr')].map(t => t.classList.contains('dly-grp') ? 'G:' + t.dataset.path : t.dataset.key ? 'T:' + t.dataset.key + (t.querySelector('.dly-ldot') ? '*' : '') : '').filter(Boolean)"
+        r16 = pg.evaluate(ROWS)
+        p1 = r16[0][2:] if r16 and r16[0].startswith("G:") else ""
+        pg.evaluate(f"p => {DXJ}.fold(p)", p1); pg.wait_for_timeout(400)
+        r16f = pg.evaluate(ROWS)
+        pg.evaluate(f"p => {DXJ}.fold(p)", p1); pg.wait_for_timeout(400)
+        check("v542 R16 : lignes dans l'ordre du PLANNING (lots mêlés) ; titre à la 1re tâche ; pastille du lot ; replier ne cache que ses tâches",
+              [x[:2] if x.startswith("G:") else x for x in r16] == ["G:", "T:l1|s1", "G:", "T:l2|s1", "T:l1|s2*"] and "T:l2|s1" in r16f and "T:l1|s1" not in r16f and "T:l1|s2*" not in r16f, [r16, r16f])
+        # R14 / R15 : rien de coché = SÉLECTIONNER DES CHARGES ; charge cochée = histogramme, tâches non liées en gris ; tâche à 0 jour
+        e14 = pg.evaluate("() => (document.querySelector('#dlyGantt .ghist-empty') || {}).textContent || ''")
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.find(r => r.id === 'k1').on = true; I.chg.find(r => r.id === 'k3').on = true; I.dlp['l1|s2'] = [{{ id: 'c', deb: '2026-11-04', fin: '' }}]; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(600)
+        e15 = pg.evaluate("""() => [document.querySelectorAll('#dlyGantt .ghb').length > 0, !!document.querySelector('#bdgTabBody tr.dly-task[data-key="l2|s1"].dly-off'), !!document.querySelector('#dlyGantt .gb.gb-off[data-key="l2|s1"]'),
+            !!document.querySelector('#dlyGantt .gb.gb0[data-key="l1|s2"]'), (document.querySelector('#bdgTabBody tr[data-key="l1|s2"] input.dlp-in[data-f="dur"]') || {}).value, (document.querySelector('.dlyh-lab') || {}).textContent]""")
+        e15b = pg.evaluate(f"() => JSON.stringify({ins}.INS.dlp['l1|s2'])")
+        check("v542 R14 / R15 : SÉLECTIONNER DES CHARGES ; charges cochées = histogramme, tâche non liée en gris à sa place ; tâche sans FIN = repère de 0 jour (rien d'inventé)",
+              "SÉLECTIONNER DES CHARGES" in e14 and e15[:4] == [True, True, True, True] and e15[4] == "" and "MACON" in (e15[5] or "") and '"fin":""' in e15b, [e14, e15, e15b])
+        # R8 : bulle d'un jour de l'histogramme
+        pg.evaluate("() => document.querySelector('#dlyGantt .ghb[data-d=\"2026-11-02\"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))"); pg.wait_for_timeout(300)
+        hb = pg.evaluate("() => (document.getElementById('dlyHb') || {}).innerText || ''")
+        pg.evaluate("() => document.getElementById('dlyHb')?.remove()")
+        check("v542 R8 : toucher une barre de l'histogramme = bulle des tâches du jour (avec la quantité)", "02/11/2026" in hb and "TOTAL" in hb and "2" in hb, hb[:200])
+        # R3 : durée changée à la main = INCOMPRESSIBLE ; COMPRESSER garde sa durée ; ▣ = RENDRE COMPRESSIBLE
+        pg.evaluate("""() => { const i = document.querySelector('#bdgTabBody tr[data-key="l1|s1"] input.dlp-in[data-f="dur"]'); i.value = '3'; i.dispatchEvent(new Event('change', { bubbles: true })); }"""); pg.wait_for_timeout(600)
+        i3 = pg.evaluate(f"() => [!!({ins}.INS.dinc || {{}})['l1|s1'], !!document.querySelector('#bdgTabBody tr[data-key=\"l1|s1\"] .dly-inc')]")
+        pg.evaluate(f"() => {DXJ}.plafSeg(0, 4)"); pg.wait_for_timeout(600)
+        i3b = pg.evaluate(f"() => {{ const p = {ins}.INS.dlp['l1|s1'][0]; return [p.deb, p.fin]; }}")
+        pg.evaluate("() => document.querySelector('#bdgTabBody tr[data-key=\"l1|s1\"] .dly-inc')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf [data-v=\"off\"]')?.click()"); pg.wait_for_timeout(400)
+        i3c = pg.evaluate(f"() => !!({ins}.INS.dinc || {{}})['l1|s1']")
+        check("v542 R3 : durée changée à la main = INCOMPRESSIBLE (▣) ; la barre de plafond (4) garde ses 3 jours ; ▣ → RENDRE COMPRESSIBLE",
+              i3 == [True, True] and i3b == ["2026-11-02", "2026-11-04"] and i3c is False, [i3, i3b, i3c])
+        # R2 / R5 : barre en direct (compression), « AUCUN GAIN » ; un seul bouton dans le menu ⋯, plus de nivellement
+        pg.evaluate(f"() => {DXJ}.plafSeg(0, 4)"); pg.wait_for_timeout(300)
+        pg.evaluate(f"() => {DXJ}.plafSeg(0, 4)"); pg.wait_for_timeout(300)
+        t2 = pg.evaluate(f"() => [{ins}.INS.dlp['l1|s1'][0].fin, (document.getElementById('svToast') || {{}}).textContent || '']")
+        pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
+        mn = pg.evaluate("() => (document.getElementById('blkMenu') || {}).textContent || ''")
+        pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
+        check("v542 R2 / R5 : plafond recompresse aussitôt (4 J-H ÷ 4 = 1 jour), même nombre = AUCUN GAIN ; menu : COMPRESSER LE PLANNING + COMMANDES, plus de nivellement",
+              t2[0] == "2026-11-02" and "AUCUN GAIN" in t2[1] and "COMPRESSER LE PLANNING" in mn and "GÉNÉRER" not in mn and "NIVELLEMENT" not in mn and "COMMANDES" in mn, [t2, mn[:200]])
+        # R10 : COMMANDES par fréquence (7 jours, 2 jours d'avance)
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.cmd = {{ grp: 'f', pv: 2, fq: 7, on: true }}; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
+        c10 = pg.evaluate("() => [[...document.querySelectorAll('#dlyGantt .ghb.ghc')].map(b => b.dataset.d), /COMMANDES/.test((document.querySelector('#dlyGantt .ghist-cmd') || {}).textContent || '')]")
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.cmd = null; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(400)
+        check("v542 R10 : COMMANDES tous les 7 jours, 2 jours d'avance = une commande le 31/10 pour la semaine du 02/11", c10 == [["2026-10-31"], True], c10)
+        # R12 / R13 : poignées « = » — toucher = d'un bord à l'autre
+        def tap(sel):
+            r = pg.evaluate("s => { const e = document.querySelector(s); if (!e) return null; e.scrollIntoView({ block: 'center' }); const q = e.getBoundingClientRect(); return [q.left + q.width / 2, q.top + q.height / 2]; }", sel)
+            if r: pg.mouse.move(r[0], r[1]); pg.mouse.down(); pg.wait_for_timeout(80); pg.mouse.up(); pg.wait_for_timeout(500)
+            return r is not None
+        w0 = pg.evaluate("() => document.querySelector('.dlyg-l').getBoundingClientRect().width")
+        tap(".dlyg-hd"); w1 = pg.evaluate("() => document.querySelector('.dlyg-l').getBoundingClientRect().width")
+        tap(".dlyg-hd"); w2 = pg.evaluate("() => [document.querySelector('.dlyg-l').getBoundingClientRect().width, document.querySelector('.dlyg').getBoundingClientRect().width]")
+        hh1 = tap(".dlyhh-pill") and pg.evaluate("() => [localStorage.getItem('svi_dlyhh_v1'), !!document.querySelector('.dlyg.dly-hfull')]")
+        tap(".dlyhh-pill"); hh2 = pg.evaluate("() => [localStorage.getItem('svi_dlyhh_v1'), !!document.querySelector('.dlyg.dly-hfull')]")
+        pg.evaluate("() => localStorage.removeItem('svi_dlyhh_v1')")
+        check("v542 R12 / R13 : poignée tableau / Gantt et poignée Gantt / histogramme — toucher « = » = d'un bord à l'autre",
+              w0 > 50 and ((w1 < 3 and w2[0] > w2[1] - 10) or (w1 > w2[1] - 10 and w2[0] < 3)) and hh1 == ["full", True] and hh2 == ["28", False], [w0, w1, w2, hh1, hh2])
+        tap(".dlyg-hd")
+        # lot glissé vers la gauche : prédécesseur hors du lot poussé ; début du projet atteint → AVANCER LE DÉBUT DU PROJET
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.forEach(r => {{ r.on = false; }});
+            I.dlp = {{ 'l1|s1': [{{ id: 'a', deb: '2026-11-02', fin: '2026-11-03' }}], 'l2|s1': [{{ id: 'b', deb: '2026-11-04', fin: '2026-11-04' }}] }};
+            I.dpred = {{ 'l2|s1': [{{ k: 'l1|s1', t: 'FD', o: 0 }}] }}; I.dinc = {{}}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(500)
+        p2 = pg.evaluate("() => { const t = document.querySelector('#bdgTabBody tr[data-key=\"l2|s1\"]'); let g = t && t.previousElementSibling; while (g && !g.classList.contains('dly-grp')) g = g.previousElementSibling; return g ? g.dataset.path : ''; }")
+        pg.evaluate(f"p => {DXJ}.shiftGroup(p, -1)", p2); pg.wait_for_timeout(400)
+        sw = pg.evaluate("() => [(document.querySelector('#svConf .svc-t') || {}).textContent || '']")
+        pg.evaluate("() => document.querySelector('#svConf [data-v=\"go\"]')?.click()"); pg.wait_for_timeout(500)
+        sg = pg.evaluate(f"() => {{ const I = {ins}.INS; return [I.pdeb, I.dlp['l1|s1'][0].deb, I.dlp['l1|s1'][0].fin, I.dlp['l2|s1'][0].deb]; }}")
+        check("v542 : lot glissé à gauche — prédécesseur poussé plus tôt ; début du projet atteint → fenêtre, AVANCER LE DÉBUT DU PROJET",
+              sw == ["DÉBUT DU PROJET ATTEINT"] and sg == ["2026-10-31", "2026-10-31", "2026-11-02", "2026-11-03"], [p2, sw, sg])
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk2; I.dlp = I.__dlp2; I.dpred = I.__dp2; I.dord = I.__ord2; I.pdeb = I.__pdeb2;
+            ['__lk2', '__dlp2', '__dp2', '__ord2', '__pdeb2'].forEach(k => delete I[k]); I.dinc = {{}}; I.plafR = {{}}; I.cmd = null;
+            I.chg = I.chg.filter(r => !/^k[123]$/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        # remarque 4 : conditionnement sur le titre des charges regroupées (pas sur leurs lignes), sur une charge seule ; réglage de l'article
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.push({{ id: 'm1', des: 'BRIQUE 8T', u: 'U', q: 100, p: 2 }}, {{ id: 'm2', des: 'BRIQUE 8T', u: 'U', q: 50, p: 2 }}, {{ id: 'm3', des: 'SABLE FIN', u: 'M3', q: 4, p: 150 }}); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(500)
+        k4 = pg.evaluate("""() => [!!document.querySelector('table.ins-table[data-ik="chg"] tr.ins-grp .chg-pk'), !!document.querySelector('table.ins-table[data-ik="chg"] tr[data-iid="m1"] .chg-pk'),
+            !!document.querySelector('table.ins-table[data-ik="chg"] tr[data-iid="m3"] .chg-pk')]""")
+        pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"] tr[data-iid=\"m3\"] .chg-pk')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))"); pg.wait_for_timeout(300)
+        k4b = pg.evaluate("() => (document.querySelector('#svConf') || {}).innerText || ''")
+        if pg.evaluate("() => !!document.querySelector('#svConf input[data-k=\"per\"]')"):
+            pg.fill('#svConf input[data-k="per"]', '2'); pg.wait_for_timeout(200)
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(300)
+        k4c = pg.evaluate("() => /SABLE FIN\\|M3/.test(localStorage.getItem('svi_cond_chs_v1') || '')")
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.chg = I.chg.filter(r => !/^m[123]$/.test(r.id)); delete I.cond; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
+        check("v542 remarque 4 : conditionnement sur le titre des charges regroupées et sur une charge seule (pas sur les lignes du titre), réglé pour l'article (tous les budgets)",
+              k4 == [True, False, True] and "TOUS LES BUDGETS" in k4b and k4c, [k4, k4b[:160], k4c])
 
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
