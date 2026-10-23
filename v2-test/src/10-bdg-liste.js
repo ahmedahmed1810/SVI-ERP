@@ -760,11 +760,12 @@ function renderBudgetList() {
 
       /* un seul bouton d'actions par bloc */
       .blk-tools .blk-btn { display: none !important; }
-      /* bloc agrandi : bouton RÉDUIRE toujours visible en haut à droite */
-      .blk-tools .blk-btn.blk-max-btn.on {
+      /* v545 (remarque 1) : bouton AGRANDIR / RÉDUIRE toujours visible, juste à gauche du ⋯ ; foncé quand le bloc est agrandi */
+      .blk-tools .blk-btn.blk-max-btn {
         display: inline-flex !important; width: 30px; height: 26px; padding: 0;
-        background: #12355b; color: #fff; border-color: #12355b; margin-right: 6px;
+        background: #fff; color: #374151; border: 1px solid #d6dbe3; margin-right: 6px;
       }
+      .blk-tools .blk-btn.blk-max-btn.on { background: #12355b; color: #fff; border-color: #12355b; }
       .blk-more {
         width: 28px; height: 22px; border: 1px solid #d6dbe3; border-radius: 6px; background: #fff;
         color: #374151; font-size: 16px; line-height: 18px; font-weight: 900; cursor: pointer; padding: 0;

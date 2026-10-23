@@ -80,6 +80,8 @@
       dlyCutsOf(st).forEach((c, j) => { const d = dlyCutDate(c, fin) || c.d; if (d) segs.push({ d, n: dlyCapV(c.n), i: j + 1 }); });
       return segs.sort((a, b) => (a.d || "").localeCompare(b.d || ""));
     };
+    /* v545 (remarque 5) : capacité de la sélection jamais réglée (ni nombre, ni ILLIMITÉ, ni coupe) */
+    const dlyCapDef = (gk = dlyCurGK()) => { const st = gk ? (INS.plafR || {})[gk] : null; return !st || ((st.plaf === undefined || st.plaf === null || st.plaf === "") && !dlyCutsOf(st).length); };
     const dlyCapOf = (iso, gk) => { let n = -1; dlyCapSegs(gk).forEach(s => { if (!s.d || s.d <= iso) n = s.n; }); return n; };
 
     /* ---------- R3 : tâche INCOMPRESSIBLE ---------- */

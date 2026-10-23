@@ -1269,8 +1269,8 @@ def main():
             I.__lk9 = I.links; I.links = I.links.concat(['w1', 'w2', 'w3', 'w4'].map((lo, n) => ({{ id: 'W' + n, des: 'd2', lot: lo, prim: 'p1', sec: 's2', prd: [], chg: [] }})));
             I.dord = null; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(700)
-        pg.evaluate("""() => { const st = document.createElement('style'); st.id = 'tst539'; st.textContent = '.bdg-d-tabbody .bdg-d-scroll{max-height:none!important;height:auto!important;overflow:visible!important}'; document.head.appendChild(st);
-            const t = document.querySelector('.dlyg-l'); if (t) t.scrollIntoView({ block: 'start' }); }"""); pg.wait_for_timeout(300)
+        pg.evaluate("""() => { const st = document.createElement('style'); st.id = 'tst539'; st.textContent = '.bdg-d-tabbody .bdg-d-scroll{max-height:none!important;height:auto!important;overflow:visible!important} .dly-lift{transform:none!important}'; document.head.appendChild(st);
+            const t = document.querySelector('#bdgTabs'); if (t) { t.scrollIntoView({ block: 'start' }); window.scrollBy(0, -160); } }"""); pg.wait_for_timeout(300)
         def dpd(src, dst, frac, dx):
             a = pg.evaluate("p => { const r = document.querySelector('.dlyg-l tr.dly-grp[data-path=\"' + p + '\"] .dly-lotc').getBoundingClientRect(); return [r.left + r.width - 30, r.top + r.height / 2]; }", src)
             t = pg.evaluate("([p, f]) => { const r = document.querySelector('.dlyg-l tr.dly-grp[data-path=\"' + p + '\"]').getBoundingClientRect(); return r.top + r.height * f; }", [dst, frac])
@@ -1444,7 +1444,8 @@ def main():
         check("v543 R17 : APPROVISIONNEMENT PRÉVISIONNEL — seuil par charge et délai d'approvisionnement (commande le 01/11 pour le 02/11)", ap[0] == ["2026-11-01"] and "APPROVISIONNEMENT PRÉVISIONNEL" in ap[1], ap)
         # R28 : zone touchée = rubrique en premier ; R29 : vue PAR DÉBUT (numéro du lot, rien d'enregistré)
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.appro = null; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(400)
-        hb = pg.evaluate("() => { const h = document.querySelector('#dlyGantt .ghist'); if (!h) return null; h.scrollIntoView({ block: 'center' }); const r = h.getBoundingClientRect(); return [r.left + 40, r.top + 30]; }")
+        pg.evaluate("() => { const h = document.querySelector('#dlyGantt .ghist'); if (h) h.scrollIntoView({ block: 'center' }); }"); pg.wait_for_timeout(200)
+        hb = pg.evaluate("() => { const h = document.querySelector('#dlyGantt .ghist'); if (!h) return null; const r = h.getBoundingClientRect(); return [r.left + 60, r.top + 30]; }")
         if hb: pg.mouse.click(hb[0], hb[1]); pg.wait_for_timeout(300)
         pg.evaluate("() => document.getElementById('dlyHb')?.remove()")
         pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
@@ -1462,6 +1463,48 @@ def main():
             ['__lk3', '__dlp3', '__dp3', '__ord3', '__pd3'].forEach(k => delete I[k]); I.dinc = {{}}; I.dlim = {{}}; I.plafR = {{}}; I.appro = null; I.hset = null; I.hrange = null; I.hval = null;
             I.chg = I.chg.filter(r => !/^n[123]$/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
         pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
+
+        # v545 : remarques 1 à 5 (bouton agrandir visible, planning à la hauteur de l'écran, poignées, capacité visible, échelle)
+        DXJ = "[...document.querySelectorAll('*')].find(e => e.__insDly).__insDly"
+        r1 = pg.evaluate("""() => { const b = document.querySelector('.blk-max-btn[data-blk="client"]'), m = b && b.closest('.blk-tools').querySelector('.blk-more');
+            if (!b || !m) return null; const rb = b.getBoundingClientRect(), rm = m.getBoundingClientRect(); return [rb.width > 0, rb.right <= rm.left + 1, Math.abs(rb.top - rm.top) < 12]; }""")
+        pg.evaluate("() => document.querySelector('.blk-max-btn[data-blk=\"client\"]').closest('.blk-tools').querySelector('.blk-more').click()"); pg.wait_for_timeout(300)
+        r1m = pg.evaluate("() => [...document.querySelectorAll('#blkMenu *')].some(e => /^(AGRANDIR|RÉDUIRE)$/i.test((e.textContent || '').trim()))")
+        pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
+        hd = pg.evaluate("() => { const h = document.querySelector('.ins-hcol .blk-head, .blk-head'); if (!h) return null; h.scrollIntoView({ block: 'center' }); const r = h.getBoundingClientRect(); return [r.left + 60, r.top + r.height / 2]; }")
+        if hd:
+            pg.mouse.click(hd[0], hd[1]); pg.wait_for_timeout(60); pg.mouse.click(hd[0], hd[1]); pg.wait_for_timeout(400)
+        r1d = pg.evaluate("() => document.querySelectorAll('.blk-max-btn.on').length")
+        pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;
+            I.chg.forEach(r => {{ r.on = false; }});
+            I.chg.push({{ id: 'n1', des: 'MACON', u: 'JH', q: 4, p: 100, on: true }}, {{ id: 'n3', des: 'MACON', u: 'JH', q: 2, p: 100, on: true }});
+            I.__lk5 = I.links; I.__dlp5 = I.dlp; I.__dp5 = I.dpred; I.__ord5 = I.dord;
+            I.links = [{{ id: 'Q1', des: 'd1', lot: 'l1', prim: 'p1', sec: 's1', prd: [], chg: [{{ id: 'n1' }}] }}, {{ id: 'Q2', des: 'd1', lot: 'l2', prim: 'p1', sec: 's1', prd: [], chg: [{{ id: 'n3' }}] }}];
+            I.dlp = {{ 'l1|s1': [{{ id: 'a', deb: '2026-11-02', fin: '2026-11-02' }}], 'l2|s1': [{{ id: 'b', deb: '2026-11-03', fin: '2026-11-03' }}] }};
+            I.dpred = {{}}; I.plafR = {{}}; I.dord = ['l1|s1', 'l2|s1']; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        pg.evaluate("() => localStorage.setItem('svi_dlyhh_v1', '120')")
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(800)
+        pg.evaluate("() => document.querySelector('.dlyg').scrollIntoView({ block: 'start' })"); pg.wait_for_timeout(300)
+        r5 = pg.evaluate("""() => { const p = document.querySelector('#dlyGantt .gplaf.gcap-def'); return [!!p, p ? p.querySelector('.gplaf-v').textContent : '', document.querySelectorAll('#dlyGantt .ghist-ax .gax-t').length,
+            p ? getComputedStyle(p).borderTopColor : '']; }""")
+        r2 = pg.evaluate("() => { const h = document.querySelector('#dlyGantt .ghist'), vv = window.visualViewport; const b = vv ? vv.offsetTop + vv.height : innerHeight; return h ? [Math.round(h.getBoundingClientRect().bottom), Math.round(b)] : null; }")
+        r3 = pg.evaluate("() => { const i = document.querySelector('.dlyg-hd i'), p = document.querySelector('.dlyhh-pill'), h = document.querySelector('.dlyg-hd'); return [!!i && getComputedStyle(i).transform !== 'none', Math.round(h.getBoundingClientRect().width) === Math.round(p.getBoundingClientRect().width)]; }")
+        # remarque 4 : petit glissement (4 px vers le haut) = hauteur gardée là où on lâche
+        pq = pg.evaluate("() => { const p = document.querySelector('.dlyhh-pill'), r = p.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, document.querySelector('#dlyGantt .ghist').offsetHeight]; }")
+        pg.mouse.move(pq[0], pq[1]); pg.mouse.down(); pg.mouse.move(pq[0], pq[1] - 4, steps=2); pg.mouse.up(); pg.wait_for_timeout(500)
+        r4 = pg.evaluate("() => [localStorage.getItem('svi_dlyhh_v1'), document.querySelector('#dlyGantt .ghist').offsetHeight, !!document.querySelector('.dlyg.dly-hfull')]")
+        pg.evaluate("() => localStorage.removeItem('svi_dlyhh_v1')")
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk5; I.dlp = I.__dlp5; I.dpred = I.__dp5; I.dord = I.__ord5;
+            ['__lk5', '__dlp5', '__dp5', '__ord5'].forEach(k => delete I[k]); I.plafR = {{}}; I.chg = I.chg.filter(r => !/^n[13]$/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        check("v545 remarque 1 : bouton AGRANDIR / RÉDUIRE visible juste à gauche du ⋯, plus dans le menu ; double toucher sur la barre de titre = rien",
+              r1 == [True, True, True] and r1m is False and r1d == 0, [r1, r1m, r1d])
+        check("v545 remarques 2 et 3 : histogramme dans la hauteur visible de l'écran ; poignée verticale « ‖ » = la poignée « = » tournée, même taille",
+              r2 and r2[0] <= r2[1] + 1 and r3 == [True, True], [r2, r3])
+        check("v545 remarque 4 : poignée « = » glissée de 4 px = hauteur gardée là où on la lâche (ni plein écran, ni miniaturisé)",
+              r4[0] not in ("full", "28") and abs(int(r4[0]) - (pq[2] + 4)) <= 2 and abs(r4[1] - int(r4[0])) <= 2 and r4[2] is False, [pq, r4])
+        check("v545 remarque 5 : capacité jamais réglée = barre rouge au-dessus du jour le plus chargé (CAPACITÉ 4), avec l'échelle des valeurs à gauche",
+              r5[0] and "CAPACITÉ 4" in r5[1] and r5[2] >= 2 and "180, 35, 24" in r5[3], r5)
 
         # v544 : décalage FIN → DÉBUT — 0 = le jour même, 1 = le lendemain ; anciennes liaisons converties (dates inchangées)
         mg = pg.evaluate("() => { const d = { dpred: { a: [{ k: 'x', t: 'FD', o: -1 }, { k: 'y', t: 'FD', o: 0 }, { k: 'z', t: 'DD', o: 2 }] } }; sviDpredV2(d); const again = sviDpredV2(d); return [d.dpred.a.map(x => x.o), d.fdV2, again]; }")

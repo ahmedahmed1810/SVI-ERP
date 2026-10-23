@@ -2057,13 +2057,13 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
    barre du haut (‹ › annuler, rétablir, alerte, figer, poubelle, ✕, ⋯) et boutons des blocs / tableaux (⋯, réduire) */
 :root { --svi-ib: 36px; --svi-ii: 18px; }
 .bdg-d-hright .inst-nav, .bdg-d-hright .inst-act,
-.blk-more, #sdW .sd-more, .blk-tools .blk-btn.blk-max-btn.on {
+.blk-more, #sdW .sd-more, .blk-tools .blk-btn.blk-max-btn {
   width: var(--svi-ib) !important; height: var(--svi-ib) !important; min-width: 0 !important; min-height: 0 !important;
   padding: 0 !important; border-radius: 9px !important; box-sizing: border-box !important;
   display: inline-flex !important; align-items: center !important; justify-content: center !important;
   font-size: 17px !important; line-height: 1 !important;
 }
-.bdg-d-hright .inst-nav svg, .bdg-d-hright .inst-act svg, .blk-tools .blk-btn.blk-max-btn.on svg { width: var(--svi-ii) !important; height: var(--svi-ii) !important; }
+.bdg-d-hright .inst-nav svg, .bdg-d-hright .inst-act svg, .blk-tools .blk-btn.blk-max-btn svg { width: var(--svi-ii) !important; height: var(--svi-ii) !important; }
 .bdg-d-hright .inst-nav, .bdg-d-hright .inst-act { margin-left: 5px !important; }
 .bdg-more-btn { font-size: 17px !important; }
 .blk-more, #sdW .sd-more { color: #374151; }
@@ -2255,3 +2255,22 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .apr-t td { border-bottom: 1px solid #f2f4f7; padding: 2px 4px; }
 .apr-t input { width: 90px; text-align: right; }
 .apr-nj { width: 54px; margin-left: 6px; }
+
+/* ===== v545 ===== */
+/* remarque 3 : poignée verticale « ‖ » = la poignée « = » tournée d'un quart de tour (même taille, même dessin) */
+.dlyg-hd i { display: inline-block; font-style: normal; transform: rotate(90deg); }
+/* remarque 2 : histogramme gardé en bas de la zone visible, au-dessus des tâches qui défilent */
+.ghist.dly-lift, .dlyh-lab.dly-lift { position: relative; z-index: 6; box-shadow: 0 -2px 4px rgba(16,24,40,.12); }
+.dlyh-lab.dly-lift { background: #f9fafb; }
+.dlyg-hh.dly-lift { z-index: 8; }
+/* remarque 5 : échelle des valeurs à gauche de l'histogramme */
+.ghist-ax { position: sticky; left: 0; top: 0; width: 0; height: 0; z-index: 5; pointer-events: none; float: left; }
+.ghist-ax .gax-t { position: absolute; left: 0; transform: translateY(-50%); padding: 0 3px 0 2px; font-size: 8px; font-weight: 800; line-height: 10px; color: #667085; background: rgba(255,255,255,.85); border-right: 4px solid #98a2b3; white-space: nowrap; }
+.ghist-ax .gax-0 { transform: translateY(-100%); }
+/* remarque 5 : barre CAPACITÉ bien visible, avec sa poignée */
+.gplaf { border-top-width: 3px; }
+.gplaf-v { left: 38px; margin-top: -21px; font-size: 10px; padding: 1px 4px 1px 2px; border: 1px solid currentColor; border-radius: 10px; display: inline-flex; align-items: center; gap: 4px; }
+.gplaf-v::before { content: "="; display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: #b42318; color: #fff; font-size: 11px; line-height: 16px; text-align: center; transform: rotate(0deg); }
+.gplaf.gcap-zero .gplaf-v::before { background: #101828; }
+.gplaf.gcap-inf .gplaf-v::before { background: #98a2b3; }
+.gplaf.gcap-inf .gplaf-v { margin-top: -10px; }
