@@ -2452,3 +2452,10 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 
 /* v580 (partie 11, remarques 8 et 12) : graphique, libellé et poignée « = » déplacés par la carte graphique (pas de saut) */
 #dlyGantt .ghist, .dlyh-lab, .dlyg-hh { will-change: transform; backface-visibility: hidden; }
+/* v581 (remarque 8) : fenêtre ⚠ — FILTRES ACTIFS, point bleu, ligne en erreur repérée */
+#svConf .fz-ft { margin-top: 14px; }
+#svConf .fz-blk { font-size: 11px; font-weight: 700; color: #2e90fa; margin: 8px 0 3px; letter-spacing: .03em; }
+#svConf .fz-why.fz-flt { border-color: #b2ddff; background: #f5faff; }
+.inst-todo { position: relative; }
+.inst-todo.flt::after { content: ""; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; border-radius: 50%; background: #2e90fa; box-shadow: 0 0 0 2px #fff; }
+tr.fz-flash > td { background: #fef0c7 !important; transition: background .3s; }

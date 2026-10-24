@@ -1337,9 +1337,13 @@
         if (!b || !b.go) return;
         if (b.go === "inf") { openInfo(); return; }
         if (b.go === "hier") { const c = shell.querySelector('.ins-hcol[data-ik="sec"]'); if (c) { c.scrollIntoView({ block: "center", behavior: "smooth" }); const m = c.querySelector(".act-umiss input"); if (m) setTimeout(() => m.focus(), 350); } return; }
+        /* v581 (remarque 8) : renvoi vers une colonne de la hiérarchie */
+        if (b.go.startsWith("hier:")) { shell.querySelector(`.ins-hcol[data-ik="${b.go.slice(5)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
         if (b.go === "des") { shell.querySelector(".bdg-d-client-scroll")?.scrollIntoView({ block: "start", behavior: "smooth" }); return; }
         if (b.go === "dly") { LK.lot = LK.sec = LK.prim = null; }
         if (b.go === "prdnc") { shell.__prdNc = new Set(b.prd); b = { go: "prd" }; if (active === "prd") { renderTab(); return; } }
         const t = shell.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${b.go}"]`);
         if (t) { t.click(); t.scrollIntoView({ block: "start", behavior: "smooth" }); }
+        /* v581 : première ligne en erreur du bloc */
+        if (b.first) setTimeout(() => { const tr = shell.querySelector(`#bdgTabBody tr[data-iid="${b.first}"]`); if (!tr) return; tr.scrollIntoView({ block: "center", behavior: "smooth" }); tr.classList.add("fz-flash"); setTimeout(() => tr.classList.remove("fz-flash"), 1800); }, 80);
     };
