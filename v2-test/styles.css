@@ -2311,9 +2311,22 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .blk-tools .blk-btn.blk-adj-btn.dly-on svg { width: var(--svi-ii, 18px); height: var(--svi-ii, 18px); }
 .blk-tools .blk-btn.blk-adj-btn.dly-on.off { opacity: .4; }
 /* RÉGLAGES DE L'HISTOGRAMME */
-.hcf-card .cmd-g { display: flex; flex-wrap: wrap; gap: 4px 12px; }
-.hcf-card label.off { opacity: .45; }
-.hcf-pct { width: 70px; }
+/* v565 (remarque 7) : RÉGLAGES DU GRAPHIQUE au format des autres fenêtres — libellé à gauche, interrupteur en deux parties à droite */
+.hcf-card { max-width: 520px; }
+.hcf-g { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 10px 14px; margin: 6px 0 10px; }
+.hcf-k { font-size: 11px; font-weight: 800; color: #475467; }
+.hcf-sw { display: inline-flex; justify-self: start; border: 1.5px solid var(--svst, #12355b); border-radius: 8px; overflow: hidden; }
+.hcf-seg { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 120px; height: 30px; padding: 0 12px; font-size: 11px; font-weight: 800; color: var(--svst, #12355b); background: #fff; cursor: pointer; user-select: none; -webkit-user-select: none; }
+.hcf-seg + .hcf-seg { border-left: 1.5px solid var(--svst, #12355b); }
+.hcf-seg input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.hcf-seg.on { background: var(--svst, #12355b); color: #fff; }
+.hcf-seg.off { color: #b4bcc8; cursor: default; }
+.hcf-cbs { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.hcf-cbs label { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; color: #344054; cursor: pointer; }
+.hcf-cbs input { width: 16px !important; height: 16px !important; margin: 0; accent-color: var(--svst, #12355b); }
+.hcf-pl { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; color: #344054; }
+.hcf-pct { width: 56px !important; height: 28px; text-align: center; border: 1px solid #d0d5dd; border-radius: 6px; font-weight: 800; }
+.hcf-note { font-size: 10px; font-weight: 700; color: #667085; margin: 0 0 10px; }
 /* ===== v547 (R22) : tâche en morceaux ===== */
 #dlyGantt .gpc { position: absolute; height: 0; border-top: 1px dashed var(--c, #667085); z-index: 1; pointer-events: none; }
 #dlyGantt .gpc-n { font-size: 9px; font-weight: 800; color: #667085; background: #f2f4f7; border-radius: 8px; padding: 0 5px; }

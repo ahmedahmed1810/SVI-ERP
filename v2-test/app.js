@@ -12323,21 +12323,26 @@ function renderBudgetList() {
     /* v546 (R29) : fenêtre RÉGLAGES DE L'HISTOGRAMME (icône ⚙) — UNITÉ, AFFICHAGE, DÉPART DU CUMUL, COURBES, % de la légende */
     const dlyHCfgWin = () => {
       const h = dlyHSet(), R = dlyResSel(), q = !!R && dlySameU(R), crb = dlyCrb(), d = document.createElement("div");
-      const rad = (n, v, l, on, dis) => `<label${dis ? ' class="off"' : ""}><input type="radio" name="${n}" value="${v}"${on ? " checked" : ""}${dis ? " disabled" : ""}> ${l}</label>`;
+      /* v565 (remarque 7) : choix à deux options = interrupteur en deux parties collées ; courbes = petites cases sur une ligne */
+      const rad = (n, v, l, on, dis) => `<label class="hcf-seg${on ? " on" : ""}${dis ? " off" : ""}"${dis ? ' data-why="QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ."' : ""}><input type="radio" name="${n}" value="${v}"${on ? " checked" : ""}${dis ? " disabled" : ""}><span>${l}</span></label>`;
       d.id = "svConf";
       d.innerHTML = `<div class="svc-card hcf-card" role="dialog" aria-modal="true">
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">RÉGLAGES DU GRAPHIQUE</div>
-        <div class="bdt-row"><span>UNITÉ</span><span class="cmd-g">${rad("hcu", "q", "QUANTITÉ", h.u === "q" && q, !q)}${rad("hcu", "m", "MONTANT (DH)", h.u !== "q" || !q)}</span></div>
-        <div class="bdt-row"><span>AFFICHAGE</span><span class="cmd-g">${rad("hca", "j", "JOUR PAR JOUR", h.aff !== "c")}${rad("hca", "c", "CUMULÉ", h.aff === "c")}</span></div>
-        <div class="bdt-row"><span>DÉPART DU CUMUL</span><span class="cmd-g">${rad("hcc", "r", "RELATIF", h.cum !== "a")}${rad("hcc", "a", "ABSOLU", h.cum === "a")}</span></div>
-        <div class="bdt-row"><span>COURBES</span><span class="cmd-g">${[["c", "CHARGES"], ["p", "PRODUITS"], ["g", "MARGE"]].map(([v, l]) => `<label><input type="checkbox" class="hcf-c" value="${v}"${crb.includes(v) ? " checked" : ""}> ${l}</label>`).join("")}</span></div>
-        <div class="svc-sub">PRODUITS ET MARGE : EN MONTANT (DH) ; PRODUITS = PRODUITS COCHÉS (OU CEUX DES LIGNES COCHÉES).</div>
-        <div class="bdt-row"><span>LÉGENDE : CHARGES QUI FONT (%)</span><input class="hcf-pct" inputmode="numeric" value="${esc(String(h.pct || 70))}"></div>
+        <div class="hcf-g">
+          <span class="hcf-k">UNITÉ</span><span class="hcf-sw">${rad("hcu", "q", "QUANTITÉ", h.u === "q" && q, !q)}${rad("hcu", "m", "MONTANT (DH)", h.u !== "q" || !q)}</span>
+          <span class="hcf-k">AFFICHAGE</span><span class="hcf-sw">${rad("hca", "j", "JOUR PAR JOUR", h.aff !== "c")}${rad("hca", "c", "CUMULÉ", h.aff === "c")}</span>
+          <span class="hcf-k">DÉPART DU CUMUL</span><span class="hcf-sw">${rad("hcc", "r", "RELATIF", h.cum !== "a")}${rad("hcc", "a", "ABSOLU", h.cum === "a")}</span>
+          <span class="hcf-k">COURBES</span><span class="hcf-cbs">${[["c", "CHARGES"], ["p", "PRODUITS"], ["g", "MARGE"]].map(([v, l]) => `<label><input type="checkbox" class="hcf-c" value="${v}"${crb.includes(v) ? " checked" : ""}><span>${l}</span></label>`).join("")}</span>
+          <span class="hcf-k">LÉGENDE</span><span class="hcf-pl">CHARGES QUI FONT <input class="hcf-pct" inputmode="numeric" value="${esc(String(h.pct || 70))}"> %</span>
+        </div>
+        <div class="hcf-note">PRODUITS ET MARGE : EN MONTANT (DH). PRODUITS = PRODUITS COCHÉS (OU CEUX DES LIGNES COCHÉES).</div>
         <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
       document.getElementById("svConf")?.remove();
       document.body.appendChild(d);
+      d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".hcf-seg input"); if (!i) return; i.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked)); });
       d.addEventListener("click", e => {
+        { const o = e.target.closest && e.target.closest(".hcf-seg.off[data-why]"); if (o) { svToast(o.dataset.why, 3000, o); return; } }
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         if (!e.target.closest("[data-ok]")) return;
         const pc = String(d.querySelector(".hcf-pct").value).trim();
