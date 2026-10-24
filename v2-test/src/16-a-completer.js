@@ -5,6 +5,12 @@
       const inf = infMissing();
       inf.forEach(x => out.push(x));
       fb.filter(b => b.go !== "inf").forEach(b => out.push({ ...b, req: true }));
+      /* v568 (remarque 11) : tâches qui ont des produits mais aucune charge (non bloquant) — mène au DÉTAIL PRODUITS filtré sur elles */
+      { const KP = new Set(), KC = new Set(), P = new Set();
+        (INS.links || []).forEach(l => { const k = l.lot + "|" + l.sec; if ((l.prd || []).length) KP.add(k); if ((l.chg || []).length) KC.add(k); });
+        const K = [...KP].filter(k => !KC.has(k));
+        (INS.links || []).forEach(l => { if (K.includes(l.lot + "|" + l.sec)) (l.prd || []).forEach(x => P.add(x.id)); });
+        if (K.length) out.push({ lab: "TÂCHES SANS CHARGE", n: K.length, go: "prdnc", list: K, prd: P, req: false }); }
       return out;
     };
     const insTodoWhy = () => {
