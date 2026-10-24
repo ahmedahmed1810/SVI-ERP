@@ -209,6 +209,14 @@
       return [...saved, ...LAY_UNITS.filter(u => !saved.includes(u))];
     };
     const layOpenH = {};   /* hauteurs réglées pendant cette ouverture seulement */
+    /* v557 (FORMAT 202) : hauteur du bloc détail par défaut = écran visible sous le bandeau (fixé) et les onglets, moins la poignée */
+    const layDetDef = () => {
+      let lim = 0;
+      document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
+      const vv = window.visualViewport, vb = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      const tabs = $("bdgTabs"), th = tabs ? tabs.getBoundingClientRect().height : 50;
+      return Math.max(200, Math.floor(vb - lim - th - 22));
+    };
     const layApply = () => {
       const pg = page$();
       if (!pg) return;
@@ -218,10 +226,12 @@
       LAY_UNITS.forEach(u => {
         /* SUIVI (DOC / TAF / OBS) : toujours 5 lignes à l'ouverture,
            l'agrandissement ne vaut que pour la séance en cours */
-        const h = u === "suivi" ? layOpenH.suivi : (lay.h || {})[u];
+        const h = u === "suivi" ? layOpenH.suivi : (lay.h || {})[u] || (u === "detail" ? layDetDef() : 0);
         if (h) pg.style.setProperty("--h-" + u, h + "px");
         else pg.style.removeProperty("--h-" + u);
       });
+      /* v557 : hauteur par défaut du détail recalculée si l'écran change (rotation, barre de Safari) */
+      if (!shell.__layDetRs) { shell.__layDetRs = true; let tm = 0; window.addEventListener("resize", () => { clearTimeout(tm); tm = setTimeout(() => { if (shell.isConnected && page$() && !(layLoad().h || {}).detail) layApply(); }, 300); }); }
       const custom = (lay.order && lay.order.join() !== LAY_UNITS.join()) ||
         Object.keys(lay.h || {}).length > 0;
       const rb = $("layResetBtn");
