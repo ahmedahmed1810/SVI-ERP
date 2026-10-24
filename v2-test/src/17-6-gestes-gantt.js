@@ -366,13 +366,19 @@
         const pill = e.target.closest && e.target.closest(".dlyg-hh .dlyhh-pill");
         if (!X || !pill) return;
         e.preventDefault(); e.stopPropagation();
-        const g = pill.closest(".dlyg"), hist = g.querySelector("#dlyGantt .ghist"), y0 = e.clientY, h0 = hist ? hist.offsetHeight : 110;
+        const g = pill.closest(".dlyg"), hist = g.querySelector("#dlyGantt .ghist"), y0 = e.clientY;
+        let h0 = hist ? hist.offsetHeight : 110;
         /* v545 (remarque 4) : la poignée reste où on la lâche — hauteur la plus grande = du bas de l'écran visible jusque sous l'en-tête du Gantt */
         const scr = g.closest(".bdg-d-scroll"), ghd = g.querySelector("#dlyGantt > .gh"), hr0 = hist ? hist.getBoundingClientRect() : null;
         const visB = Math.min(scr ? scr.getBoundingClientRect().bottom : 1e9, dlyVpB());
         const maxH = hr0 && ghd ? Math.max(80, Math.floor(visB - ghd.getBoundingClientRect().bottom - 4)) : (scr ? Math.max(120, scr.clientHeight - 60) : 600);
+        const bar = pill.closest(".dlyg-hh");
+        /* v583 : la poignée suit le doigt dès le premier mouvement (hauteur de départ bornée à la plus grande, décalage sous l'en-tête repris) */
+        const tr = /translateY\((-?[\d.]+)px\)/.exec(bar.style.transform || ""), dn = tr ? +tr[1] : 0;
+        if (dn) { bar.style.transform = ""; bar.style.top = ((parseFloat(bar.style.top) || 0) + dn) + "px"; }
+        const t0 = parseFloat(bar.style.top) || 0;
+        h0 = Math.min(h0, maxH);
         let h = h0, on = false;
-        const bar = pill.closest(".dlyg-hh"), t0 = parseFloat(bar.style.top) || 0;
         try { pill.setPointerCapture(e.pointerId); } catch (err) {}
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });

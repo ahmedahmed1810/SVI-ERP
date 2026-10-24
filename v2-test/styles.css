@@ -2459,3 +2459,10 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 .inst-todo { position: relative; }
 .inst-todo.flt::after { content: ""; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; border-radius: 50%; background: #2e90fa; box-shadow: 0 0 0 2px #fff; }
 tr.fz-flash > td { background: #fef0c7 !important; transition: background .3s; }
+/* v583 : poignée « = » plus grande, plus lisible, zone de toucher élargie */
+.dlyhh-pill { width: 40px; height: 40px; margin-left: -20px; top: -13px; line-height: 36px; font-size: 22px; font-weight: 900; border: 2px solid #fff; box-sizing: border-box; background: #344054; box-shadow: 0 0 0 1px #344054, 0 2px 6px rgba(0,0,0,.3); }
+.dlyhh-pill::after { inset: -14px; }
+.dlyg-hh { z-index: 9; }
+/* v583 : poignée verticale « ‖ » à la même taille que la poignée « = » */
+.dlyg-hd { width: 40px; height: 40px; margin-left: -18.5px; line-height: 36px; font-size: 22px; font-weight: 900; border: 2px solid #fff; box-sizing: border-box; background: #344054; box-shadow: 0 0 0 1px #344054, 0 2px 6px rgba(0,0,0,.3); }
+.dlyg-hd::after { inset: -14px; }

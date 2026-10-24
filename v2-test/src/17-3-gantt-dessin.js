@@ -548,8 +548,16 @@
       const cur = el => { const m = /translateY\((-?[\d.]+)px\)/.exec(el.style.transform || ""); return m ? +m[1] : 0; };
       const r = ref.getBoundingClientRect(), nb = r.bottom - cur(ref) + (hist ? 0 : 8), nt = r.top - cur(ref);
       const scr = g.closest(".bdg-d-scroll, .lk-scroll"), visB = Math.min(scr ? scr.getBoundingClientRect().bottom : 1e9, dlyVpB());
-      const minT = gh ? gh.getBoundingClientRect().bottom : nt;
-      const lift = g.classList.contains("dly-hfull") ? 0 : Math.max(0, Math.min(nb - visB, nt - minT));
+      const fx = shell.querySelector("#bdgTabBody > .gh-fix");
+      const minT = Math.max(gh ? gh.getBoundingClientRect().bottom : nt, fx && fx.offsetParent ? fx.getBoundingClientRect().bottom : -1e9);
+      if (g.classList.contains("dly-hfull")) {
+        /* v583 : graphique sur toute la hauteur — la poignée « = » reste collée sous l'en-tête du calendrier, jamais cachée */
+        els.forEach(el => { if (el !== hh && el.style.transform) { el.style.transform = ""; el.classList.remove("dly-lift"); } });
+        if (hh) { const ht = hh.getBoundingClientRect().top - cur(hh), dn = Math.max(0, Math.min(minT + 14 - ht, visB - 30 - ht));
+          const v = dn > 0.5 ? "translateY(" + dn.toFixed(1) + "px)" : ""; if (hh.style.transform !== v) hh.style.transform = v; hh.classList.toggle("dly-lift", !!v); }
+        return;
+      }
+      const lift = Math.max(0, Math.min(nb - visB, nt - minT));
       const v = lift > 0.5 ? "translateY(" + (-lift).toFixed(1) + "px)" : "";
       els.forEach(el => { if (el.style.transform !== v) el.style.transform = v; el.classList.toggle("dly-lift", !!v); });
     };
