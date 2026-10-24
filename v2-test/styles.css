@@ -2470,3 +2470,5 @@ tr.fz-flash > td { background: #fef0c7 !important; transition: background .3s; }
 .dlyg.dly-gra .dlyg-sp, .dlyg.dly-gra .dlyg-hh { display: none !important; }
 .dlyg.dly-gra .dlyg-l { position: absolute !important; left: -99999px !important; visibility: hidden; pointer-events: none; }   /* gardé mis en page : le dessin lit la hauteur des lignes */
 .dlyg.dly-gra .dlyg-r { flex: 1 1 auto; width: 100%; }
+/* v586 : l'axe des valeurs passe au-dessus du trait DÉBUT (toucher l'axe = règle) ; l'étiquette DÉBUT, en haut, reste à tirer */
+#dlyGantt .ghist-ax { z-index: 6; }
