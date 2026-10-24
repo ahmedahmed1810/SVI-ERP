@@ -304,7 +304,7 @@
       /* v567 (remarque 10) : bulle — rendement du jour, et pour chaque tâche du jour : CHARGES / PRODUITS / DÉLAIS
          (la tâche est choisie par les ronds, l'onglet s'ouvre sur ses lignes surlignées) */
       const dlyRdHb = (HV, di) => { const R = HV && HV.rd; if (!R) return ""; const f = v => (Math.round(v * 100) / 100).toLocaleString("fr-FR");
-        return `<div class="hb-rd"><span>PRODUIT</span><b>${f(R.PQ[di] || 0)} ${esc(R.u)}</b></div><div class="hb-rd"><span>RENDEMENT</span><b>${R.R[di] === null || R.R[di] === undefined ? "—" : f(R.R[di]) + " " + esc(R.u) + " / " + esc(HV.unit)}</b></div>`; };
+        return `<div class="hb-rd"><span>PRODUIT</span><b>${f(R.PQ[di] || 0)} ${esc(R.u)}</b></div>` + (R.S || []).map(s => `<div class="hb-rd" style="color:${s.c}"><span>RENDEMENT ${esc(s.name)}</span><b>${s.R[di] === null || s.R[di] === undefined ? "—" : f(s.R[di]) + " " + esc(R.u) + " / " + esc(s.u)}</b></div>`).join(""); };
       const dlyGoHb = (H, di) => { const K = [...new Set((H.det && H.det[di] || []).map(x => x.k))]; if (!K.length) return "";
         return `<div class="hb-gos">` + K.map(k => `<div class="hb-go"><span>${esc(lotLab(dlyLotPath(lkName("lot", k.split("|")[0]))).full)} › ${esc(lkName("sec", k.split("|")[1]))}</span>${[["chg", "CHARGES"], ["prd", "PRODUITS"], ["dly", "DÉLAIS"]].map(([t, l]) => `<button type="button" class="hb-gob" data-go="${t}" data-k="${esc(k)}">${l}</button>`).join("")}</div>`).join("") + `</div>`; };
       document.addEventListener("click", e => {

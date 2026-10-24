@@ -2408,3 +2408,4 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 .gval.grule { border-top: 1.5px dashed #12355b; }
 /* v568 (remarque 11) : bandeau TÂCHES SANS CHARGE au-dessus du DÉTAIL PRODUITS */
 .dly-iso.prd-nc { background: #fefce8; border-color: #f2c94c; }
+.grd-miss { font-size: 9px; font-weight: 800; color: #98a2b3; }

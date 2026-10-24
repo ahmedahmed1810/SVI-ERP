@@ -356,26 +356,37 @@
       });
       return { L: out, det };
     };
-    /* v567 (remarque 10) : RENDEMENT — quantités produites par jour par les tâches des charges cochées (en QUANTITÉ) ;
-       une seule activité secondaire (un ou plusieurs lots) et une seule unité de produit, sinon la raison */
+    /* v569 (remarque 13) : RENDEMENT par charge — l'activité secondaire choisie dans le bloc TÂCHES (case ou rond ; sinon celle des charges
+       cochées si elle est unique) ; une courbe par charge cochée (un titre coché = toutes ses charges) : quantité produite de l'activité
+       ÷ quantité de la charge, jour par jour ; une charge absente de l'activité reste dans la légende, en gris */
     const dlyRdData = H => {
-      if (!H || H.mode !== "q" || !(H.crb || []).includes("r")) return null;
-      const T = new Set(); Object.values(H.det || {}).forEach(L => L.forEach(x => T.add(x.k)));
-      if (!T.size) return { why: "RENDEMENT : AUCUNE TÂCHE DATÉE AVEC LES CHARGES COCHÉES." };
-      const secs = new Set([...T].map(k => k.split("|")[1]));
-      if (secs.size !== 1) return { why: "RENDEMENT : UNE SEULE ACTIVITÉ SECONDAIRE À LA FOIS (" + secs.size + " DANS LA SÉLECTION)." };
-      const cal = insCal(), cur = dlyCurDates(), L = {}, us = new Set();
+      if (!H || !(H.crb || []).includes("r")) return null;
+      const R = dlyResSel();
+      if (!R) return { why: "RENDEMENT : COCHER DES CHARGES DANS DÉTAIL CHARGES." };
+      const cur = dlyCurDates(), cal = insCal();
+      let A = null;
+      { const on = (INS.sec || []).filter(s => s.on === true).map(s => s.id); if (on.length === 1) A = on[0]; else if (on.length > 1) return { why: "RENDEMENT : UNE SEULE ACTIVITÉ SECONDAIRE À LA FOIS (" + on.length + " COCHÉES DANS TÂCHES)." }; }
+      if (!A && LK && LK.sec) A = LK.sec;
+      if (!A) { const S = new Set(); Object.keys(cur).forEach(k => { if (dlyResOf(k, R, "q").size) S.add(k.split("|")[1]); }); if (S.size === 1) A = [...S][0]; else return { why: "RENDEMENT : CHOISIR UNE ACTIVITÉ SECONDAIRE DANS LE BLOC TÂCHES." }; }
+      const T = Object.keys(cur).filter(k => k.split("|")[1] === A);
+      const us = new Set(), PT = {}, ser = new Map();
       T.forEach(k => {
         const [lo, se] = k.split("|"), P = new Map();
         (INS.links || []).filter(l => l.lot === lo && l.sec === se).forEach(l => (l.prd || []).forEach(x => { const r = INS.prd.find(y => y.id === x.id); if (r) P.set(r.id, r); }));
         let q = 0; P.forEach(r => { us.add(U_(r.u) || "U"); q += insPrdQ(r) || 0; });
-        const p = cur[k]; if (!p || !q) return;
+        const p = cur[k]; if (!p) return;
         const D2 = []; (p.per && p.per.length ? p.per : [p]).forEach(qq => { const n = sviWDur(cal, qq.deb, qq.fin) || 1; for (let i = 0, x = sviWNear(cal, qq.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) D2.push(x); });
-        D2.forEach(x => { L[x] = (L[x] || 0) + q / D2.length; });
+        if (!D2.length) return;
+        D2.forEach(x => { PT[x] = (PT[x] || 0) + q / D2.length; });
+        dlyResOf(k, R, "q").forEach((v, sk) => {
+          if (!ser.has(sk)) ser.set(sk, { sk, P: {}, C: {} });
+          const S = ser.get(sk); D2.forEach(x => { S.C[x] = (S.C[x] || 0) + v / D2.length; S.P[x] = (S.P[x] || 0) + q / D2.length; });
+        });
       });
-      if (!us.size) return { why: "RENDEMENT : AUCUN PRODUIT LIÉ À CETTE ACTIVITÉ." };
-      if (us.size > 1) return { why: "RENDEMENT : PRODUITS DE PLUSIEURS UNITÉS (" + [...us].join(", ") + ")." };
-      return { L, u: [...us][0], sec: [...secs][0] };
+      if (us.size > 1) return { why: "RENDEMENT : PRODUITS DE PLUSIEURS UNITÉS DANS L'ACTIVITÉ (" + [...us].join(", ") + ")." };
+      const all = [...new Set(R.map(dlyResK))], miss = all.filter(sk => !ser.has(sk));
+      if (!ser.size) return { why: "RENDEMENT : AUCUNE CHARGE COCHÉE DANS L'ACTIVITÉ " + lkName("sec", A) + "." , miss };
+      return { L: PT, u: [...us][0] || "U", sec: A, ser: [...ser.values()], miss };
     };
     const dlyHistData = () => {
       const crb = dlyCrb(), money = crb.some(c => c === "p" || c === "g");   /* v567 : RENDEMENT reste en quantité */
@@ -500,7 +511,7 @@
           <span class="hcf-k">UNITÉ</span><span class="hcf-sw">${rad("hcu", "q", "QUANTITÉ", h.u === "q" && q, !q)}${rad("hcu", "m", "MONTANT (DH)", h.u !== "q" || !q)}</span>
           <span class="hcf-k">PRÉSENTATION</span><span class="hcf-sw">${rad("hca", "j", "PAR JOUR", h.aff !== "c")}${rad("hca", "c", "CUMULÉE", h.aff === "c")}</span>
           <span class="hcf-k">POINT DE DÉPART</span><span class="hcf-sw">${rad("hcc", "r", "DEPUIS LE TRAIT DÉBUT", h.cum !== "a")}${rad("hcc", "a", "DEPUIS LE DÉBUT DU PROJET", h.cum === "a")}</span>
-          <span class="hcf-k">COURBES</span><span class="hcf-cbs">${[["c", "CHARGES"], ["p", "PRODUITS"], ["g", "MARGE"], ["r", "RENDEMENT"]].map(([v, l]) => `<label${v === "r" && !q ? ' class="off" data-why="RENDEMENT : CHARGES COCHÉES DE MÊME UNITÉ (EX. MAIN-D\'ŒUVRE EN J-H), UNE SEULE ACTIVITÉ SECONDAIRE."' : ""}><input type="checkbox" class="hcf-c" value="${v}"${crb.includes(v) && (v !== "r" || q) ? " checked" : ""}${v === "r" && !q ? " disabled" : ""}><span>${l}</span></label>`).join("")}</span>
+          <span class="hcf-k">COURBES</span><span class="hcf-cbs">${[["c", "CHARGES"], ["p", "PRODUITS"], ["g", "MARGE"], ["r", "RENDEMENT"]].map(([v, l]) => `<label${v === "r" && !R ? ' class="off" data-why="RENDEMENT : COCHER DES CHARGES DANS DÉTAIL CHARGES ET CHOISIR UNE ACTIVITÉ DANS TÂCHES."' : ""}><input type="checkbox" class="hcf-c" value="${v}"${crb.includes(v) && (v !== "r" || R) ? " checked" : ""}${v === "r" && !R ? " disabled" : ""}><span>${l}</span></label>`).join("")}</span>
           <span class="hcf-k">LÉGENDE</span><span class="hcf-pl">CHARGES QUI FONT <input class="hcf-pct" inputmode="numeric" value="${esc(String(h.pct || 70))}"> %</span>
         </div>
         <div class="hcf-note">PRODUITS ET MARGE : EN MONTANT (DH). PRODUITS = PRODUITS COCHÉS (OU CEUX DES LIGNES COCHÉES).</div>
