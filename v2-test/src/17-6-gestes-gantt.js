@@ -248,6 +248,26 @@
         document.addEventListener("touchmove", tmv, { passive: false });
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", end); document.addEventListener("pointercancel", end);
       });
+      /* v568 (remarque 12) : toucher l'axe des montants = afficher / cacher la RÈGLE ; la règle se tire au doigt (valeur affichée) */
+      shell.addEventListener("click", e => {
+        const a = e.target.closest && e.target.closest("#dlyGantt .gax-hit");
+        if (!a) return;
+        e.stopPropagation();
+        shell.__dlyRule = !shell.__dlyRule; shell.__dlyRuleV = null;
+        const host = a.closest("#dlyGantt"); host.__drawn = false; dlyGanttDraw();
+      }, true);
+      shell.addEventListener("pointerdown", e => {
+        const ln = e.target.closest && e.target.closest("#dlyGantt .grule");
+        if (!ln) return;
+        e.preventDefault(); e.stopPropagation();
+        const h = ln.closest(".ghist"), sc = Number(h.dataset.sc) || 1, Y0 = Number(h.dataset.y0) || h.offsetHeight, sp = ln.querySelector("span");
+        const fmt = v => { const a = Math.abs(v), f = (x, u) => (Math.round(x * 10) / 10).toLocaleString("fr-FR") + " " + u; return a >= 1e9 ? f(v / 1e9, "G") : a >= 1e6 ? f(v / 1e6, "M") : a >= 1e4 ? f(v / 1e3, "K") : (Math.round(v * 100) / 100).toLocaleString("fr-FR"); };
+        const tmv = ev => ev.preventDefault();
+        document.addEventListener("touchmove", tmv, { passive: false });
+        const mv = ev => { ev.preventDefault(); const y = Math.max(4, Math.min(Y0, ev.clientY - h.getBoundingClientRect().top)); const v = (Y0 - y) / sc; shell.__dlyRuleV = v; ln.style.top = y + "px"; sp.textContent = fmt(v); };
+        const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); };
+        document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
+      });
       /* R8 : toucher une barre de l'histogramme = bulle des tâches de ce jour (répartition, fractions comprises) */
       shell.addEventListener("click", e => {
         { const hh = e.target.closest && e.target.closest("#dlyGantt"); if (hh && hh.__dlyXlp) return; }   /* v564 : pas de bulle après un appui long (repères) */

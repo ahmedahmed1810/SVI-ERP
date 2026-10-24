@@ -771,7 +771,7 @@
          les tâches cochées du DÉTAIL DÉLAIS comptent maintenant aussi */
       return {
         chg: cfHasF(insCfT("chg")) || !!ONLYC.chg || own("chg") || !!insRg(),
-        prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || own("prd") || !!insRg(),
+        prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || own("prd") || !!insRg() || !!shell.__prdNc,
         dly: ["dly", "dlyp", "dlys"].some(cfHasF) || !!(shell.__dlySel && shell.__dlySel.size),
         lnk: cfHasF("lk_marge") || (INS.links || []).some(l => l.on === true) || !!insRg(),
         unl: cfHasF("lk_unl"),
@@ -853,7 +853,10 @@
       if (active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
       if (active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
       if (active === "prd" && shell.__prdSyncU) shell.__prdSyncU();
-      body.innerHTML = `<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
+      /* v568 (remarque 11) : DÉTAIL PRODUITS réduit aux tâches sans charge (depuis À COMPLÉTER) — bandeau jaune et TOUT AFFICHER */
+      const ncB = active === "prd" && shell.__prdNc ? `<div class="dly-iso prd-nc"><span><b>TÂCHES SANS CHARGE</b></span><small>PRODUITS DES TÂCHES QUI N'ONT AUCUNE CHARGE</small><button type="button" class="dly-iso-x prd-nc-x">TOUT AFFICHER</button></div>` : "";
+      body.innerHTML = `${ncB}<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
+      if (ncB && !shell.__prdNcB) { shell.__prdNcB = true; shell.addEventListener("click", e => { if (!(e.target.closest && e.target.closest(".prd-nc-x"))) return; e.stopPropagation(); shell.__prdNc = null; refreshAll(); }, true); }
       if (active === "chg") chgFit();
       shell.__insMore = () => insMoreRows(active);
       lastShown.detail = { cols: insCfCols(active), rows: insShown(active), kind: active, ins: true };
@@ -1336,6 +1339,7 @@
         if (b.go === "hier") { const c = shell.querySelector('.ins-hcol[data-ik="sec"]'); if (c) { c.scrollIntoView({ block: "center", behavior: "smooth" }); const m = c.querySelector(".act-umiss input"); if (m) setTimeout(() => m.focus(), 350); } return; }
         if (b.go === "des") { shell.querySelector(".bdg-d-client-scroll")?.scrollIntoView({ block: "start", behavior: "smooth" }); return; }
         if (b.go === "dly") { LK.lot = LK.sec = LK.prim = null; }
+        if (b.go === "prdnc") { shell.__prdNc = new Set(b.prd); b = { go: "prd" }; if (active === "prd") { renderTab(); return; } }
         const t = shell.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${b.go}"]`);
         if (t) { t.click(); t.scrollIntoView({ block: "start", behavior: "smooth" }); }
     };

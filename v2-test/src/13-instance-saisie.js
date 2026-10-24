@@ -656,10 +656,11 @@
       /* v492 (remarque 7) : la case de droite filtre l'affichage des autres blocs — seules les lignes liées à ce qui y est coché */
       const cs = insCheckSet(k);
       const RG = (k === "chg" || k === "prd") && insRg();
-      const shown = cfApply(t, insCfCols(k), normal).filter(r => (!ONLYC[k] || r.on === true) && (!cs || cs.has(r.id)) && (!RG || insRgF(k, r.id) > 0));
+      const NC = k === "prd" && shell.__prdNc ? shell.__prdNc : null;   /* v568 (remarque 11) : produits des tâches sans charge */
+      const shown = cfApply(t, insCfCols(k), normal).filter(r => (!ONLYC[k] || r.on === true) && (!cs || cs.has(r.id)) && (!RG || insRgF(k, r.id) > 0) && (!NC || NC.has(r.id)));
       const st = cfT(t);
       const sorting = !!(st.sort && !st.sort.def);
-      const filtering = Object.keys(st.f).length > 0 || !!ONLYC[k] || !!cs || !!RG;
+      const filtering = Object.keys(st.f).length > 0 || !!ONLYC[k] || !!cs || !!RG || !!NC;
       if (k !== "des" || sorting) return shown;
       if (!filtering) return INS.des;
       const keep = new Set(shown.map(r => r.id));

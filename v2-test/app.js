@@ -6340,10 +6340,11 @@ function renderBudgetList() {
       /* v492 (remarque 7) : la case de droite filtre l'affichage des autres blocs — seules les lignes liées à ce qui y est coché */
       const cs = insCheckSet(k);
       const RG = (k === "chg" || k === "prd") && insRg();
-      const shown = cfApply(t, insCfCols(k), normal).filter(r => (!ONLYC[k] || r.on === true) && (!cs || cs.has(r.id)) && (!RG || insRgF(k, r.id) > 0));
+      const NC = k === "prd" && shell.__prdNc ? shell.__prdNc : null;   /* v568 (remarque 11) : produits des tâches sans charge */
+      const shown = cfApply(t, insCfCols(k), normal).filter(r => (!ONLYC[k] || r.on === true) && (!cs || cs.has(r.id)) && (!RG || insRgF(k, r.id) > 0) && (!NC || NC.has(r.id)));
       const st = cfT(t);
       const sorting = !!(st.sort && !st.sort.def);
-      const filtering = Object.keys(st.f).length > 0 || !!ONLYC[k] || !!cs || !!RG;
+      const filtering = Object.keys(st.f).length > 0 || !!ONLYC[k] || !!cs || !!RG || !!NC;
       if (k !== "des" || sorting) return shown;
       if (!filtering) return INS.des;
       const keep = new Set(shown.map(r => r.id));
@@ -8421,7 +8422,7 @@ function renderBudgetList() {
          les tâches cochées du DÉTAIL DÉLAIS comptent maintenant aussi */
       return {
         chg: cfHasF(insCfT("chg")) || !!ONLYC.chg || own("chg") || !!insRg(),
-        prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || own("prd") || !!insRg(),
+        prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || own("prd") || !!insRg() || !!shell.__prdNc,
         dly: ["dly", "dlyp", "dlys"].some(cfHasF) || !!(shell.__dlySel && shell.__dlySel.size),
         lnk: cfHasF("lk_marge") || (INS.links || []).some(l => l.on === true) || !!insRg(),
         unl: cfHasF("lk_unl"),
@@ -8503,7 +8504,10 @@ function renderBudgetList() {
       if (active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
       if (active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
       if (active === "prd" && shell.__prdSyncU) shell.__prdSyncU();
-      body.innerHTML = `<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
+      /* v568 (remarque 11) : DÉTAIL PRODUITS réduit aux tâches sans charge (depuis À COMPLÉTER) — bandeau jaune et TOUT AFFICHER */
+      const ncB = active === "prd" && shell.__prdNc ? `<div class="dly-iso prd-nc"><span><b>TÂCHES SANS CHARGE</b></span><small>PRODUITS DES TÂCHES QUI N'ONT AUCUNE CHARGE</small><button type="button" class="dly-iso-x prd-nc-x">TOUT AFFICHER</button></div>` : "";
+      body.innerHTML = `${ncB}<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
+      if (ncB && !shell.__prdNcB) { shell.__prdNcB = true; shell.addEventListener("click", e => { if (!(e.target.closest && e.target.closest(".prd-nc-x"))) return; e.stopPropagation(); shell.__prdNc = null; refreshAll(); }, true); }
       if (active === "chg") chgFit();
       shell.__insMore = () => insMoreRows(active);
       lastShown.detail = { cols: insCfCols(active), rows: insShown(active), kind: active, ins: true };
@@ -8986,6 +8990,7 @@ function renderBudgetList() {
         if (b.go === "hier") { const c = shell.querySelector('.ins-hcol[data-ik="sec"]'); if (c) { c.scrollIntoView({ block: "center", behavior: "smooth" }); const m = c.querySelector(".act-umiss input"); if (m) setTimeout(() => m.focus(), 350); } return; }
         if (b.go === "des") { shell.querySelector(".bdg-d-client-scroll")?.scrollIntoView({ block: "start", behavior: "smooth" }); return; }
         if (b.go === "dly") { LK.lot = LK.sec = LK.prim = null; }
+        if (b.go === "prdnc") { shell.__prdNc = new Set(b.prd); b = { go: "prd" }; if (active === "prd") { renderTab(); return; } }
         const t = shell.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${b.go}"]`);
         if (t) { t.click(); t.scrollIntoView({ block: "start", behavior: "smooth" }); }
     };
@@ -8997,6 +9002,12 @@ function renderBudgetList() {
       const inf = infMissing();
       inf.forEach(x => out.push(x));
       fb.filter(b => b.go !== "inf").forEach(b => out.push({ ...b, req: true }));
+      /* v568 (remarque 11) : tâches qui ont des produits mais aucune charge (non bloquant) — mène au DÉTAIL PRODUITS filtré sur elles */
+      { const KP = new Set(), KC = new Set(), P = new Set();
+        (INS.links || []).forEach(l => { const k = l.lot + "|" + l.sec; if ((l.prd || []).length) KP.add(k); if ((l.chg || []).length) KC.add(k); });
+        const K = [...KP].filter(k => !KC.has(k));
+        (INS.links || []).forEach(l => { if (K.includes(l.lot + "|" + l.sec)) (l.prd || []).forEach(x => P.add(x.id)); });
+        if (K.length) out.push({ lab: "TÂCHES SANS CHARGE", n: K.length, go: "prdnc", list: K, prd: P, req: false }); }
       return out;
     };
     const insTodoWhy = () => {
@@ -9781,7 +9792,7 @@ function renderBudgetList() {
              R29 courbes CHARGES / PRODUITS / MARGE */
           const C = HD.cmd, ks = [...HD.ser.keys()], hs = dlyHSet(), cum = hs.aff === "c", crb = HD.crb || ["c"];   /* v566 (remarque 9) : COMMANDES aussi en CUMULÉE */
           const sC = crb.includes("c") && !!HD.R, sP = crb.includes("p"), sG = crb.includes("g"), multi = !C && (sP || sG);
-          const RG = dlyHRange(), VL = dlyHVal(), inR = di => (!RG.a || di >= RG.a) && (!RG.b || di <= RG.b);
+          const RG = dlyHRange(), VL = { min: null, max: null }, inR = di => (!RG.a || di >= RG.a) && (!RG.b || di <= RG.b);
           const cur = dlyCurGK(), canP = !C && !cum && !multi && !!cur && !!HD.R, IB = canP ? 14 : 0;
           const days = [...new Set(Object.keys(C ? C.L : HD.tot).concat(multi ? Object.keys(HD.prd || {}) : []))].sort();
           /* valeurs par jour (ou cumul : relatif = repart de 0 au trait DÉBUT) */
@@ -9894,12 +9905,16 @@ function renderBudgetList() {
             + (RG.a || RG.b || VL.min !== null || VL.max !== null ? `<div class="grng-tot" style="left:${(xa + xb) / 2}px">${sumTxt}</div>` : "");
           /* R20 : lignes MIN et MAX (filtre par valeur, sur les charges) */
           const vl = (r, v, off) => `<div class="gval${off ? " gval-off" : ""}" data-v="${r}" style="top:${off ? (r === "max" ? 22 : Y0 - 1) : Y0 - v * sc}px"><span>${r.toUpperCase()}${off ? "" : " " + fmtA(v)}</span></div>`;
-          const vals = multi ? "" : vl("max", VL.max, VL.max === null) + vl("min", VL.min, VL.min === null);
+          /* v568 (remarque 12) : plus de lignes MIN / MAX (filtre) — une RÈGLE horizontale pour comparer à l'œil : sa valeur seule,
+             tirée au doigt, affichée / cachée en touchant l'axe des montants ; au départ au niveau de la plus grande valeur */
+          const rv = shell.__dlyRuleV !== undefined && shell.__dlyRuleV !== null ? shell.__dlyRuleV : mx;
+          const vals = shell.__dlyRule ? `<div class="gval grule" style="top:${Y0 - rv * sc}px"><span>${fmtA(rv)}</span></div>` : "";
+          void vl;
           /* échelle (R24) : unité en tête, nombres abrégés, toujours visible à gauche */
           const stp = (() => { const raw = top / 4, p = Math.pow(10, Math.floor(Math.log10(raw || 1))), m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; })();
           let ax = "";
           if (HH >= 50) { for (let v = stp; Y0 - v * sc >= 18; v += stp) ax += `<span class="gax-t" style="top:${Y0 - v * sc}px">${fmtA(v)}</span>`; for (let v = -stp; Y0 - v * sc <= HH - 6; v -= stp) ax += `<span class="gax-t" style="top:${Y0 - v * sc}px">${fmtA(v)}</span>`; }
-          ax = `<div class="ghist-ax" style="height:${HH}px"><span class="gax-u">${esc(dlyHistLab(HD))}</span>${ax}<span class="gax-t gax-0" style="top:${Y0}px">0</span></div>`;
+          ax = `<div class="ghist-ax" style="height:${HH}px"><span class="gax-hit${shell.__dlyRule ? " on" : ""}" style="height:${HH}px" role="button" aria-label="Règle"></span><span class="gax-u">${esc(dlyHistLab(HD))}</span>${ax}<span class="gax-t gax-0" style="top:${Y0}px">0</span></div>`;
           hist = `<div class="ghist${C ? " ghist-cmd" : ""}${cum ? " ghist-cum" : ""}" style="width:${W}px;height:${HH}px" data-sc="${sc}" data-y0="${Y0}" data-ib="${IB}" data-top="${top}">${ax}${bg}${leg}${C ? `<div class="ghist-leg"><span>${esc(C.lab)}</span></div>` : ""}${IB ? `<div class="ghist-inf" style="height:${IB}px"></div>` : ""}${hb}${svg ? `<svg class="ghist-svg" width="${W}" height="${HH}">${svg}</svg>` : ""}${pl}${rng}${vals}</div>`;
         }
       }
@@ -11040,6 +11055,26 @@ function renderBudgetList() {
         const end = () => { clearTimeout(tm); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", end); document.removeEventListener("pointercancel", end); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); if (on) setTimeout(() => { host.__dlyXlp = false; }, 400); };
         document.addEventListener("touchmove", tmv, { passive: false });
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", end); document.addEventListener("pointercancel", end);
+      });
+      /* v568 (remarque 12) : toucher l'axe des montants = afficher / cacher la RÈGLE ; la règle se tire au doigt (valeur affichée) */
+      shell.addEventListener("click", e => {
+        const a = e.target.closest && e.target.closest("#dlyGantt .gax-hit");
+        if (!a) return;
+        e.stopPropagation();
+        shell.__dlyRule = !shell.__dlyRule; shell.__dlyRuleV = null;
+        const host = a.closest("#dlyGantt"); host.__drawn = false; dlyGanttDraw();
+      }, true);
+      shell.addEventListener("pointerdown", e => {
+        const ln = e.target.closest && e.target.closest("#dlyGantt .grule");
+        if (!ln) return;
+        e.preventDefault(); e.stopPropagation();
+        const h = ln.closest(".ghist"), sc = Number(h.dataset.sc) || 1, Y0 = Number(h.dataset.y0) || h.offsetHeight, sp = ln.querySelector("span");
+        const fmt = v => { const a = Math.abs(v), f = (x, u) => (Math.round(x * 10) / 10).toLocaleString("fr-FR") + " " + u; return a >= 1e9 ? f(v / 1e9, "G") : a >= 1e6 ? f(v / 1e6, "M") : a >= 1e4 ? f(v / 1e3, "K") : (Math.round(v * 100) / 100).toLocaleString("fr-FR"); };
+        const tmv = ev => ev.preventDefault();
+        document.addEventListener("touchmove", tmv, { passive: false });
+        const mv = ev => { ev.preventDefault(); const y = Math.max(4, Math.min(Y0, ev.clientY - h.getBoundingClientRect().top)); const v = (Y0 - y) / sc; shell.__dlyRuleV = v; ln.style.top = y + "px"; sp.textContent = fmt(v); };
+        const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); };
+        document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       });
       /* R8 : toucher une barre de l'histogramme = bulle des tâches de ce jour (répartition, fractions comprises) */
       shell.addEventListener("click", e => {

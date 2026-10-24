@@ -2401,3 +2401,10 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 #dlyHb .hb-go > span { flex: 1 1 100%; font-size: 10px; font-weight: 800; }
 #dlyHb .hb-gob { border: 1px solid #12355b; background: #fff; color: #12355b; border-radius: 5px; font-size: 9px; font-weight: 800; padding: 3px 7px; cursor: pointer; }
 .hcf-cbs label.off { color: #b4bcc8; }
+
+/* v568 (remarque 12) : RÈGLE horizontale (valeur seule) ; zone de l'axe des montants qui l'affiche / la cache */
+.ghist-ax .gax-hit { position: absolute; left: 0; top: 0; width: 46px; pointer-events: auto; cursor: pointer; }
+.ghist-ax .gax-hit.on { background: linear-gradient(90deg, rgba(18,53,91,.06), transparent); }
+.gval.grule { border-top: 1.5px dashed #12355b; }
+/* v568 (remarque 11) : bandeau TÂCHES SANS CHARGE au-dessus du DÉTAIL PRODUITS */
+.dly-iso.prd-nc { background: #fefce8; border-color: #f2c94c; }
