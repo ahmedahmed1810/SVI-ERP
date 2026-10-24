@@ -75,7 +75,6 @@
     const dlyViewAll = () => { try { return JSON.parse(localStorage.getItem("svi_dlyview_v1") || "{}") || {}; } catch (e) { return {}; } };
     const dlyView = () => dlyViewAll()[DLYG_REF] === "d" ? "d" : "l";
     const dlyViewSet = v => { const A = dlyViewAll(); if (v === "d") A[DLYG_REF] = "d"; else delete A[DLYG_REF]; try { localStorage.setItem("svi_dlyview_v1", JSON.stringify(A)); } catch (e) {} };
-    const dlySortByDeb = () => { INS.dord = dlyByDeb(dlyKeys()); dlyTasksFromPlan(); };
     /* un seul ordre (cahier, Planning budgétaire) : PLANNING → bloc TÂCHES — lots dans l'ordre de leur première tâche,
        activités secondaires dans l'ordre de leur première tâche, activités primaires dans l'ordre de leur première
        activité secondaire ; lignes hors planning à la suite, dans leur ordre */
