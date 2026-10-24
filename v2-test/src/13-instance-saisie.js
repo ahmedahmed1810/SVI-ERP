@@ -331,6 +331,7 @@
       INS_RGM.set(mk, f);
       return f;
     };
+    const insRgKeyIn = key => { const R = insRg(); return !R || insRgTask(key, R) > 0; };   /* v564 (remarque 5) : tâche avec au moins un jour dans la plage */
     const insRgView = fn => { const o = INS_RGV; INS_RGV = true; try { return fn(); } finally { INS_RGV = o; } };
     const insQty = (k, r) => {
       if (k === "prd") return insPrdQ(r) * (INS_RGV ? insRgF("prd", r.id) : 1);

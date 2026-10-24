@@ -456,11 +456,12 @@
     const qqTaskName = key => { if (!key) return ""; const [lo, se] = key.split("|"); return lkName("lot", lo) + " › " + lkName("sec", se); };
     const qqHTML = () => {
       const key = qqKey();
-      const scope = key ? "TÂCHE : " + esc(qqTaskName(key)) : "MODÈLE COMMUN — S'APPLIQUE À TOUTES LES TÂCHES";
+      const qOff = !!key && !insRgKeyIn(key);   /* v564 (remarque 5) : tâche hors de la plage DÉBUT – FIN = tableau en gris */
+      const scope = (key ? "TÂCHE : " + esc(qqTaskName(key)) : "MODÈLE COMMUN — S'APPLIQUE À TOUTES LES TÂCHES") + (qOff ? " — HORS DE LA PLAGE DÉBUT – FIN" : "");
       const sub = (v, lab) => `<button type="button" class="qq-sub${qqSub === v ? " on" : ""}" data-sub="${v}">${lab}</button>`;
       const inner = qqSub === "ext" ? qqExtHTML() : qqSub === "per" ? qqPerHTML(key) : qqCtlHTML(key);
       return `<div class="qq-bar">${sub("ctl", "CONTRÔLES")}${sub("ext", "ESSAIS EXTERNES")}${sub("per", "PERSONNEL")}<span class="qq-scope">${qqSub === "ext" ? "TOUT LE BUDGET" : scope}</span></div>
-        <div class="bdg-d-scroll qq-scroll">${inner}</div>`;
+        <div class="bdg-d-scroll qq-scroll${qOff ? " qq-rgoff" : ""}">${inner}</div>`;
     };
     const qqRender = keepFocus => {
       const sc = body.querySelector(".qq-scroll"), top = sc ? sc.scrollTop : 0, left = sc ? sc.scrollLeft : 0;
@@ -806,13 +807,13 @@
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="qlt"]`);
         if (b) b.innerHTML = (SVI_ICON.qlt || "") + "DÉTAIL QUALITÉ " + svCnt(qqCount()); }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
-        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(INS_EDIT ? dlyKeys().length : insTasks().length); }
+        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + (() => { const K = INS_EDIT ? dlyKeys() : insTasks(); return insRg() && INS_EDIT ? svCnt(K.filter(insRgKeyIn).length, K.length) : svCnt(K.length); })(); }
       /* IMPORT NON CRÉÉ : visible seulement s'il reste des lignes */
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="inc"]`), n = (INS.inc || []).length;
         if (b) { b.innerHTML = (SVI_ICON.hier || "") + "IMPORT NON CRÉÉ " + svCnt(n); b.hidden = !n; b.style.display = n ? "" : "none"; }
         if (!n && active === "inc") { active = "prd"; try { localStorage.setItem("svi_dtab_v1", "prd"); } catch (e) {} document.querySelectorAll("#bdgTabs .bdg-d-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === active)); } }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
-        if (b) b.innerHTML = (SVI_ICON.xpl || "") + "MARGE " + svCnt((INS.links || []).length); }
+        if (b) b.innerHTML = (SVI_ICON.xpl || "") + "MARGE " + (insRg() ? svCnt((INS.links || []).filter(l => insRgKeyIn(l.lot + "|" + l.sec)).length, (INS.links || []).length) : svCnt((INS.links || []).length)); }
       sviMarkEmptyTabs(shell);
       /* v499 (remarque 40) : onglet en bleu quand son tableau est filtré (loupe d'une colonne, cases cochées de ce tableau
          ou d'un autre bloc) — on voit où enlever un filtre sans ouvrir les onglets un par un */
