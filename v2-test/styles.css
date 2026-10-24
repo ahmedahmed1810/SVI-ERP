@@ -1492,7 +1492,7 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .dly-tools button { border: 1.5px solid var(--inst, #b42318); background: #fff; color: var(--inst, #b42318); border-radius: 8px; padding: 6px 12px; font-weight: 800; font-size: 11px; }
 .dly-tools button:disabled { opacity: .4; }
 .dlyh-lab { height: var(--dly-hh, 110px); border-top: 1px solid #e4e7ec; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; font-size: 10px; font-weight: 800; color: #6b7280; text-align: right; box-sizing: border-box; background: #f9fafb; }
-.ghist { position: relative; border-top: 1px solid #e4e7ec; box-sizing: border-box; background: #fff; }
+.ghist { position: relative; border-top: 1px solid #e4e7ec; box-sizing: border-box; background: #fff; overflow-x: clip; overflow-y: visible; }   /* v559 : rien ne dépasse à droite du trait FIN */
 .ghb { position: absolute; bottom: 0; background: #98a2b3; border-radius: 2px 2px 0 0; }
 .ghb.over { background: #d92d20; }
 .gplaf { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid #b42318; cursor: ns-resize; touch-action: none; z-index: 4; }
@@ -2226,6 +2226,7 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .grng.grng-off > span { opacity: .45; }
 .grng[data-r="a"].grng-off > span { transform: none; }
 .grng[data-r="b"].grng-off > span { transform: translateX(-100%); }
+.grng[data-r="b"].grng-off::before { left: -22px; }   /* v559 : zone de toucher dans le Gantt (pas de défilement en plus) */
 .grng-tot { position: absolute; top: 18px; transform: translateX(-50%); z-index: 5; font-size: 10px; font-weight: 800; color: #12355b; background: rgba(255,255,255,.9); padding: 0 4px; border-radius: 3px; pointer-events: none; white-space: nowrap; }
 /* R20 / FORMAT 166 : lignes MIN et MAX */
 .gval { position: absolute; left: 0; right: 0; height: 0; border-top: 2px dashed #12355b; z-index: 5; cursor: ns-resize; touch-action: none; }

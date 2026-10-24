@@ -1577,6 +1577,17 @@ def main():
               p2[0] >= 1 and p2[0] <= 2 and p2[1] <= p2[2] * 7, p2)
         pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()")
         pg.evaluate("() => { window.__sviDlyScale.set('j'); localStorage.removeItem('svi_dlyg_dw_s_v1'); }"); pg.wait_for_timeout(500)
+        # v559 : changer d'échelle = tout le projet dans la largeur visible, trait FIN au bord droit ; à l'ouverture, dernier zoom repris
+        fitR = []
+        for sc in ("m", "s", "j"):
+            pg.evaluate(f"() => window.__sviDlyScale.set('{sc}')"); pg.wait_for_timeout(600)
+            fitR.append(pg.evaluate("() => { const G = document.querySelector('#dlyGantt'), gh = G && G.querySelector('.gh'); return G ? [Math.round(G.clientWidth), Math.round(G.scrollWidth), Math.round(gh ? gh.scrollWidth : 0)] : null; }"))
+        pg.evaluate("() => localStorage.setItem('svi_dlyg_dw_v1', '40')"); pg.evaluate(f"() => {{ const X = {ins}; X.refreshAll(); }}"); pg.wait_for_timeout(600)
+        z40 = pg.evaluate("() => parseFloat(getComputedStyle(document.querySelector('#dlyGantt')).getPropertyValue('--dw'))")
+        sto = pg.evaluate("() => localStorage.getItem('svi_dlyg_dw_v1')")
+        pg.evaluate("() => window.__sviDlyScale.set('j')"); pg.wait_for_timeout(500)
+        check("v559 : JOUR / SEMAINE / MOIS choisi = Gantt ajusté à la largeur (FIN au bord droit, sans défilement) ; dernier zoom repris à l'ouverture",
+              all(r and abs(r[1] - r[0]) <= 1 and abs(r[2] - r[0]) <= 1 for r in fitR) and z40 >= 40 and sto == "40", [fitR, z40, sto])
         # v556 : défilement de la page et de la hauteur visible (barre de Safari) sans redessin complet du Gantt à chaque fois
         pg.evaluate("""() => { const G = document.querySelector('#dlyGantt'); window.__rd = 0;
             window.__mo = new MutationObserver(m => { if (m.some(x => x.type === 'childList' && x.target === G)) window.__rd++; }); window.__mo.observe(G, { childList: true }); }""")
