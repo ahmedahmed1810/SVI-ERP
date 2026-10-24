@@ -6015,6 +6015,7 @@ function renderBudgetList() {
       INS_RGM.set(mk, f);
       return f;
     };
+    const insRgKeyIn = key => { const R = insRg(); return !R || insRgTask(key, R) > 0; };   /* v564 (remarque 5) : tâche avec au moins un jour dans la plage */
     const insRgView = fn => { const o = INS_RGV; INS_RGV = true; try { return fn(); } finally { INS_RGV = o; } };
     const insQty = (k, r) => {
       if (k === "prd") return insPrdQ(r) * (INS_RGV ? insRgF("prd", r.id) : 1);
@@ -8105,11 +8106,12 @@ function renderBudgetList() {
     const qqTaskName = key => { if (!key) return ""; const [lo, se] = key.split("|"); return lkName("lot", lo) + " › " + lkName("sec", se); };
     const qqHTML = () => {
       const key = qqKey();
-      const scope = key ? "TÂCHE : " + esc(qqTaskName(key)) : "MODÈLE COMMUN — S'APPLIQUE À TOUTES LES TÂCHES";
+      const qOff = !!key && !insRgKeyIn(key);   /* v564 (remarque 5) : tâche hors de la plage DÉBUT – FIN = tableau en gris */
+      const scope = (key ? "TÂCHE : " + esc(qqTaskName(key)) : "MODÈLE COMMUN — S'APPLIQUE À TOUTES LES TÂCHES") + (qOff ? " — HORS DE LA PLAGE DÉBUT – FIN" : "");
       const sub = (v, lab) => `<button type="button" class="qq-sub${qqSub === v ? " on" : ""}" data-sub="${v}">${lab}</button>`;
       const inner = qqSub === "ext" ? qqExtHTML() : qqSub === "per" ? qqPerHTML(key) : qqCtlHTML(key);
       return `<div class="qq-bar">${sub("ctl", "CONTRÔLES")}${sub("ext", "ESSAIS EXTERNES")}${sub("per", "PERSONNEL")}<span class="qq-scope">${qqSub === "ext" ? "TOUT LE BUDGET" : scope}</span></div>
-        <div class="bdg-d-scroll qq-scroll">${inner}</div>`;
+        <div class="bdg-d-scroll qq-scroll${qOff ? " qq-rgoff" : ""}">${inner}</div>`;
     };
     const qqRender = keepFocus => {
       const sc = body.querySelector(".qq-scroll"), top = sc ? sc.scrollTop : 0, left = sc ? sc.scrollLeft : 0;
@@ -8455,13 +8457,13 @@ function renderBudgetList() {
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="qlt"]`);
         if (b) b.innerHTML = (SVI_ICON.qlt || "") + "DÉTAIL QUALITÉ " + svCnt(qqCount()); }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
-        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(INS_EDIT ? dlyKeys().length : insTasks().length); }
+        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + (() => { const K = INS_EDIT ? dlyKeys() : insTasks(); return insRg() && INS_EDIT ? svCnt(K.filter(insRgKeyIn).length, K.length) : svCnt(K.length); })(); }
       /* IMPORT NON CRÉÉ : visible seulement s'il reste des lignes */
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="inc"]`), n = (INS.inc || []).length;
         if (b) { b.innerHTML = (SVI_ICON.hier || "") + "IMPORT NON CRÉÉ " + svCnt(n); b.hidden = !n; b.style.display = n ? "" : "none"; }
         if (!n && active === "inc") { active = "prd"; try { localStorage.setItem("svi_dtab_v1", "prd"); } catch (e) {} document.querySelectorAll("#bdgTabs .bdg-d-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === active)); } }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
-        if (b) b.innerHTML = (SVI_ICON.xpl || "") + "MARGE " + svCnt((INS.links || []).length); }
+        if (b) b.innerHTML = (SVI_ICON.xpl || "") + "MARGE " + (insRg() ? svCnt((INS.links || []).filter(l => insRgKeyIn(l.lot + "|" + l.sec)).length, (INS.links || []).length) : svCnt((INS.links || []).length)); }
       sviMarkEmptyTabs(shell);
       /* v499 (remarque 40) : onglet en bleu quand son tableau est filtré (loupe d'une colonne, cases cochées de ce tableau
          ou d'un autre bloc) — on voit où enlever un filtre sans ouvrir les onglets un par un */
@@ -9341,7 +9343,8 @@ function renderBudgetList() {
       else P.sort((a, b) => O.get(a.key) - O.get(b.key));
       /* R15 (23/10/2026) : cases cochées des autres blocs → les tâches non liées restent à leur place, en gris pâle (remplace v496) */
       const CLd = insCheckLinks("dly"), KD = CLd ? new Set(CLd.map(l => l.lot + "|" + l.sec)) : null;
-      const flat = cfApply("dlyp", DLY_COLS_P, P).map(t => KD && !KD.has(t.key) ? { ...t, off: true } : t);
+      /* v564 (remarque 5) : plage DÉBUT – FIN du graphique — tâches sans jour dans la plage en gris pâle, à leur place */
+      const flat = cfApply("dlyp", DLY_COLS_P, P).map(t => (KD && !KD.has(t.key)) || !insRgKeyIn(t.key) ? { ...t, off: true } : t);
       /* R16 (23/10/2026) : lignes dans l'ordre du PLANNING, tâche par tâche (CLASSER PAR DÉBUT ne regroupe plus par lot) ;
          le titre d'un lot (et de chacun de ses niveaux) se place à la ligne de sa première tâche ; un lot replié ne cache que ses tâches */
       const G = new Map();
@@ -10983,8 +10986,44 @@ function renderBudgetList() {
         };
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       });
+      /* v564 (remarque 6) : appui long sur une courbe en S (CUMULÉ) = repères en pointillés : horizontal vers l'axe des montants (valeur),
+         vertical jusqu'à l'en-tête des dates (jour) ; ils suivent le doigt tant qu'il reste posé, et restent affichés au lâcher */
+      const dlyXClear = () => document.querySelectorAll(".dlyx-v, .dlyx-h, .dlyx-pt, .dlyx-l").forEach(x => x.remove());
+      document.addEventListener("pointerdown", e => { if (!(e.target.closest && e.target.closest("#dlyGantt .ghist-cum"))) dlyXClear(); }, true);
+      shell.addEventListener("pointerdown", e => {
+        const hit = e.target.closest && e.target.closest("#dlyGantt .ghist-cum .ghb-hit");
+        if (!hit) return;
+        const host = hit.closest("#dlyGantt"), h = hit.closest(".ghist"), HV = host.__HV || {}, H = host.__HD || {};
+        if (!HV.cum) return;
+        let on = false, x0 = e.clientX, y0 = e.clientY;
+        const S = [["CHARGES", HV.val], ["PRODUITS", HV.vP], ["MARGE", HV.vG]].filter(x => x[1] && Object.keys(x[1]).length && (x[0] === "CHARGES" ? !HV.multi || (H.crb || []).includes("c") : (H.crb || []).includes(x[0] === "PRODUITS" ? "p" : "g")));
+        const fmt = v => { const a = Math.abs(v), f = (x, u) => (Math.round(x * 10) / 10).toLocaleString("fr-FR") + " " + u; return a >= 1e9 ? f(v / 1e9, "G") : a >= 1e6 ? f(v / 1e6, "M") : a >= 1e4 ? f(v / 1e3, "K") : (Math.round(v * 100) / 100).toLocaleString("fr-FR"); };
+        const mk = (c) => { const d = document.createElement("div"); d.className = c; document.body.appendChild(d); return d; };
+        const draw = (cx, cy) => {
+          const hr = h.getBoundingClientRect(), Y0 = Number(h.dataset.y0) || hr.height, sc = Number(h.dataset.sc) || 1;
+          const i = Math.max(0, Math.floor((cx - hr.left) / DLY_DW)), di = sviIsoAdd(host.__d0, i);
+          /* courbe la plus proche du doigt */
+          let best = null; S.forEach(([lab, M]) => { const v = M[di]; if (v === undefined) return; const y = hr.top + Y0 - v * sc; if (!best || Math.abs(y - cy) < Math.abs(best.y - cy)) best = { lab, v, y }; });
+          if (!best) return;
+          dlyXClear();
+          const px = hr.left + i * DLY_DW + DLY_DW / 2, gh = host.querySelector(".gh"), top = gh ? gh.getBoundingClientRect().bottom : hr.top;
+          const ax = Math.max(hr.left, host.getBoundingClientRect().left);
+          const v = mk("dlyx-v"); v.style.left = px + "px"; v.style.top = top + "px"; v.style.height = Math.max(0, best.y - top) + "px";
+          const hz = mk("dlyx-h"); hz.style.left = ax + "px"; hz.style.top = best.y + "px"; hz.style.width = Math.max(0, px - ax) + "px";
+          const p = mk("dlyx-pt"); p.style.left = px + "px"; p.style.top = best.y + "px";
+          const ld = mk("dlyx-l"); ld.textContent = dFr(di); ld.style.left = (px - ld.offsetWidth / 2) + "px"; ld.style.top = (top + 2) + "px";
+          const lv = mk("dlyx-l"); lv.textContent = (S.length > 1 ? best.lab + " " : "") + fmt(best.v) + " " + (HV.unit || "DH"); lv.style.left = (ax + 4) + "px"; lv.style.top = (best.y - lv.offsetHeight - 3) + "px";
+        };
+        const tmv = ev => { if (on) ev.preventDefault(); };
+        const tm = setTimeout(() => { on = true; host.__dlyXlp = true; draw(x0, y0); }, 450);
+        const mv = ev => { if (!on) { if (Math.abs(ev.clientX - x0) > 8 || Math.abs(ev.clientY - y0) > 8) end(); return; } ev.preventDefault(); draw(ev.clientX, ev.clientY); };
+        const end = () => { clearTimeout(tm); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", end); document.removeEventListener("pointercancel", end); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); if (on) setTimeout(() => { host.__dlyXlp = false; }, 400); };
+        document.addEventListener("touchmove", tmv, { passive: false });
+        document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", end); document.addEventListener("pointercancel", end);
+      });
       /* R8 : toucher une barre de l'histogramme = bulle des tâches de ce jour (répartition, fractions comprises) */
       shell.addEventListener("click", e => {
+        { const hh = e.target.closest && e.target.closest("#dlyGantt"); if (hh && hh.__dlyXlp) return; }   /* v564 : pas de bulle après un appui long (repères) */
         const b = e.target.closest && e.target.closest("#dlyGantt .ghb[data-d]");
         document.getElementById("dlyHb")?.remove();
         if (!b) return;
@@ -17457,10 +17496,11 @@ function renderBudgetList() {
           const dep = c[0] === "lot" ? Math.max(0, String(c[2](l0) || "").split("/").filter(x => x.trim()).length - 1) : 0;
           return `<td class="${c[3]}"${dep ? ` style="padding-left:${8 + dep * 20}px !important"` : ""}>${!r.leaf && firstOf(r.dim) === c ? fold(r) : ""}${esc(c[2](l0))}</td>`;
         }).join("");
-        if (r.leaf) return `<tr data-lid="${r.l.id}" class="mg-leaf mg-l${r.lvl} mg-b${r.band % 2}">${cells}${dw ? `<td class="center"><input type="checkbox" class="lnk-cb"${r.l.on === true ? " checked" : ""}></td>` : ""}</tr>`;
+        const rgOff = (r.leaf ? [r.l] : r.links).every(l => !insRgKeyIn(l.lot + "|" + l.sec));   /* v564 (remarque 5) : hors de la plage = gris */
+        if (r.leaf) return `<tr data-lid="${r.l.id}" class="mg-leaf mg-l${r.lvl} mg-b${r.band % 2}${rgOff ? " mg-rgoff" : ""}">${cells}${dw ? `<td class="center"><input type="checkbox" class="lnk-cb"${r.l.on === true ? " checked" : ""}></td>` : ""}</tr>`;
         const non = r.links.filter(l => l.on === true).length, on = non === r.links.length;
         /* v503 (remarque 54) : ligne regroupée qui contient une liaison cochée = bleue (on suit le bleu jusqu'à la ligne cochée) */
-        return `<tr class="mg-grp mg-l${r.lvl} mg-b${r.band % 2}${non ? " mg-ck" : ""}" data-p="${esc(r.path)}">${cells}${dw ? `<td class="center"><input type="checkbox" class="mg-gcb" data-p="${esc(r.path)}"${on ? " checked" : ""}${non && !on ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+        return `<tr class="mg-grp mg-l${r.lvl} mg-b${r.band % 2}${non ? " mg-ck" : ""}${rgOff ? " mg-rgoff" : ""}" data-p="${esc(r.path)}">${cells}${dw ? `<td class="center"><input type="checkbox" class="mg-gcb" data-p="${esc(r.path)}"${on ? " checked" : ""}${non && !on ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
       };
       /* en-tête : loupe (tri / filtre), largeur réglable ; ▲ / ▼ sur la colonne classée par un toucher */
       const head = c => {

@@ -212,8 +212,44 @@
         };
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       });
+      /* v564 (remarque 6) : appui long sur une courbe en S (CUMULÉ) = repères en pointillés : horizontal vers l'axe des montants (valeur),
+         vertical jusqu'à l'en-tête des dates (jour) ; ils suivent le doigt tant qu'il reste posé, et restent affichés au lâcher */
+      const dlyXClear = () => document.querySelectorAll(".dlyx-v, .dlyx-h, .dlyx-pt, .dlyx-l").forEach(x => x.remove());
+      document.addEventListener("pointerdown", e => { if (!(e.target.closest && e.target.closest("#dlyGantt .ghist-cum"))) dlyXClear(); }, true);
+      shell.addEventListener("pointerdown", e => {
+        const hit = e.target.closest && e.target.closest("#dlyGantt .ghist-cum .ghb-hit");
+        if (!hit) return;
+        const host = hit.closest("#dlyGantt"), h = hit.closest(".ghist"), HV = host.__HV || {}, H = host.__HD || {};
+        if (!HV.cum) return;
+        let on = false, x0 = e.clientX, y0 = e.clientY;
+        const S = [["CHARGES", HV.val], ["PRODUITS", HV.vP], ["MARGE", HV.vG]].filter(x => x[1] && Object.keys(x[1]).length && (x[0] === "CHARGES" ? !HV.multi || (H.crb || []).includes("c") : (H.crb || []).includes(x[0] === "PRODUITS" ? "p" : "g")));
+        const fmt = v => { const a = Math.abs(v), f = (x, u) => (Math.round(x * 10) / 10).toLocaleString("fr-FR") + " " + u; return a >= 1e9 ? f(v / 1e9, "G") : a >= 1e6 ? f(v / 1e6, "M") : a >= 1e4 ? f(v / 1e3, "K") : (Math.round(v * 100) / 100).toLocaleString("fr-FR"); };
+        const mk = (c) => { const d = document.createElement("div"); d.className = c; document.body.appendChild(d); return d; };
+        const draw = (cx, cy) => {
+          const hr = h.getBoundingClientRect(), Y0 = Number(h.dataset.y0) || hr.height, sc = Number(h.dataset.sc) || 1;
+          const i = Math.max(0, Math.floor((cx - hr.left) / DLY_DW)), di = sviIsoAdd(host.__d0, i);
+          /* courbe la plus proche du doigt */
+          let best = null; S.forEach(([lab, M]) => { const v = M[di]; if (v === undefined) return; const y = hr.top + Y0 - v * sc; if (!best || Math.abs(y - cy) < Math.abs(best.y - cy)) best = { lab, v, y }; });
+          if (!best) return;
+          dlyXClear();
+          const px = hr.left + i * DLY_DW + DLY_DW / 2, gh = host.querySelector(".gh"), top = gh ? gh.getBoundingClientRect().bottom : hr.top;
+          const ax = Math.max(hr.left, host.getBoundingClientRect().left);
+          const v = mk("dlyx-v"); v.style.left = px + "px"; v.style.top = top + "px"; v.style.height = Math.max(0, best.y - top) + "px";
+          const hz = mk("dlyx-h"); hz.style.left = ax + "px"; hz.style.top = best.y + "px"; hz.style.width = Math.max(0, px - ax) + "px";
+          const p = mk("dlyx-pt"); p.style.left = px + "px"; p.style.top = best.y + "px";
+          const ld = mk("dlyx-l"); ld.textContent = dFr(di); ld.style.left = (px - ld.offsetWidth / 2) + "px"; ld.style.top = (top + 2) + "px";
+          const lv = mk("dlyx-l"); lv.textContent = (S.length > 1 ? best.lab + " " : "") + fmt(best.v) + " " + (HV.unit || "DH"); lv.style.left = (ax + 4) + "px"; lv.style.top = (best.y - lv.offsetHeight - 3) + "px";
+        };
+        const tmv = ev => { if (on) ev.preventDefault(); };
+        const tm = setTimeout(() => { on = true; host.__dlyXlp = true; draw(x0, y0); }, 450);
+        const mv = ev => { if (!on) { if (Math.abs(ev.clientX - x0) > 8 || Math.abs(ev.clientY - y0) > 8) end(); return; } ev.preventDefault(); draw(ev.clientX, ev.clientY); };
+        const end = () => { clearTimeout(tm); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", end); document.removeEventListener("pointercancel", end); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); if (on) setTimeout(() => { host.__dlyXlp = false; }, 400); };
+        document.addEventListener("touchmove", tmv, { passive: false });
+        document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", end); document.addEventListener("pointercancel", end);
+      });
       /* R8 : toucher une barre de l'histogramme = bulle des tâches de ce jour (répartition, fractions comprises) */
       shell.addEventListener("click", e => {
+        { const hh = e.target.closest && e.target.closest("#dlyGantt"); if (hh && hh.__dlyXlp) return; }   /* v564 : pas de bulle après un appui long (repères) */
         const b = e.target.closest && e.target.closest("#dlyGantt .ghb[data-d]");
         document.getElementById("dlyHb")?.remove();
         if (!b) return;

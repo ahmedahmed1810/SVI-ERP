@@ -2365,3 +2365,13 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 .bdg-d-page .dlyg-l tr.dly-grp:not(.ins-hasck):not(.ro-on) td, .bdg-d-page .dlyg-l tr.dly-grp:not(.ins-hasck):not(.ro-on) td *:not(.lk-rd):not(.lk-rd *):not(.dly-grd *) { color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c) !important; }
 .bdg-d-page .dlyg-l tr.dly-grp:not(.ins-hasck):not(.ro-on) td.dly-calc { background: #dfe2e7 !important; }
 .bdg-d-page .dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td, .bdg-d-page .dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td *:not(.lk-rd):not(.lk-rd *) { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; }
+
+/* v564 (remarque 5) : plage DÉBUT – FIN — MARGE et QUALITÉ hors de la plage en gris pâle */
+.bdg-d-page tr.mg-rgoff > td, .bdg-d-page tr.mg-rgoff > td * { color: #b4bcc8 !important; -webkit-text-fill-color: #b4bcc8 !important; }
+.qq-scroll.qq-rgoff { opacity: .45; }
+/* v564 (remarque 6) : appui long sur une courbe cumulée — repères en pointillés vers l'axe des montants et vers les dates */
+.dlyx-v, .dlyx-h { position: fixed; z-index: 9000; pointer-events: none; }
+.dlyx-v { width: 0; border-left: 1.5px dashed #12355b; }
+.dlyx-h { height: 0; border-top: 1.5px dashed #12355b; }
+.dlyx-pt { position: fixed; z-index: 9001; width: 9px; height: 9px; margin: -5px 0 0 -5px; border-radius: 50%; background: #fff; border: 2px solid #12355b; pointer-events: none; }
+.dlyx-l { position: fixed; z-index: 9001; pointer-events: none; white-space: nowrap; font-size: 10px; font-weight: 800; color: #fff; background: #12355b; border-radius: 3px; padding: 2px 5px; }
