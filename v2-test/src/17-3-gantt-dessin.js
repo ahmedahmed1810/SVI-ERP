@@ -313,26 +313,33 @@
             if (sG) svg += line(vG, CG);
             vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           }
-          /* v567 (remarque 10) : RENDEMENT — quantité produite (vert) et rendement (violet, quantité produite ÷ J-H), chacun à sa propre échelle */
-          const RD = !C && !multi && HD.rd && HD.rd.L ? HD.rd : null, rdPQ = {}, rdR = {};
+          /* v569 (remarque 13) : RENDEMENT par charge — quantité produite de l'activité (vert) et une courbe pointillée par charge cochée
+             (sa couleur, sa propre échelle, valeur maximale affichée) */
+          const RD = !C && !multi && HD.rd && HD.rd.ser ? HD.rd : null, rdPQ = {}, rdS = [];
+          const RDC = ["#7a5af8", "#f79009", "#ee46bc", "#06aed4", "#a15c07", "#2e90fa", "#b42318", "#667085"];
           if (RD) {
-            const PQ = cum ? cumOf(di => RD.L[di] || 0) : RD.L;
-            vis.forEach(di => { rdPQ[di] = PQ[di] || 0; const c0 = val[di] || 0; rdR[di] = c0 > 1e-9 ? rdPQ[di] / c0 : null; });
-            const mP = Math.max(1e-9, ...vis.map(di => rdPQ[di])), mR = Math.max(1e-9, ...vis.map(di => rdR[di] || 0));
-            const sP2 = (HH - 36 - IB) / (mP * 1.08), sR2 = (HH - 36 - IB) / (mR * 1.08);
-            const ptP = di => `${X(di) + DLY_DW / 2},${Y0 - rdPQ[di] * sP2}`;
-            svg += `<polyline points="${vis.map(ptP).join(" ")}" fill="none" stroke="#12b76a" stroke-width="2" stroke-linejoin="round"/>`;
-            /* rendement : morceaux continus là où il y a des J-H */
-            let seg = [];
-            const flush = () => { if (seg.length) svg += `<polyline points="${(seg.length > 1 ? seg : [seg[0], seg[0]]).map(di => `${X(di) + DLY_DW / 2},${Y0 - rdR[di] * sR2}`).join(" ")}" fill="none" stroke="#7a5af8" stroke-width="2.5" stroke-dasharray="5 3" stroke-linecap="round" stroke-linejoin="round"/>`; seg = []; };
-            vis.forEach(di => { if (rdR[di] === null) flush(); else seg.push(di); }); flush();
-            const lab = (v, s, c, t) => { const di = vis.filter(x => (t === "r" ? rdR[x] : rdPQ[x]) === v)[0]; return di ? `<div class="grd-mx" style="left:${X(di) + DLY_DW / 2}px;top:${Math.max(2, Y0 - v * s - 18)}px;--c:${c}">${fmtA(v)}</div>` : ""; };
-            hb += lab(mP, sP2, "#12b76a", "p") + lab(mR, sR2, "#7a5af8", "r");
+            const cuM = M => cum ? cumOf(di => M[di] || 0) : M;
+            const PQ = cuM(RD.L); vis.forEach(di => { rdPQ[di] = PQ[di] || 0; });
+            const lab = (v, s, c, di) => di ? `<div class="grd-mx" style="left:${X(di) + DLY_DW / 2}px;top:${Math.max(2, Y0 - v * s - 18)}px;--c:${c}">${fmtA(v)}</div>` : "";
+            const mP = Math.max(1e-9, ...vis.map(di => rdPQ[di])), sP2 = (HH - 36 - IB) / (mP * 1.08);
+            svg += `<polyline points="${vis.map(di => `${X(di) + DLY_DW / 2},${Y0 - rdPQ[di] * sP2}`).join(" ")}" fill="none" stroke="#12b76a" stroke-width="2" stroke-linejoin="round"/>`;
+            hb += lab(mP, sP2, "#12b76a", vis.find(di => rdPQ[di] === mP));
+            RD.ser.forEach((S, j) => {
+              const c = RDC[j % RDC.length], P2 = cuM(S.P), C2 = cuM(S.C), Rr = {};
+              vis.forEach(di => { const cq = C2[di] || 0; Rr[di] = cq > 1e-9 ? (P2[di] || 0) / cq : null; });
+              const mR = Math.max(1e-9, ...vis.map(di => Rr[di] || 0)), sR2 = (HH - 36 - IB) / (mR * 1.08);
+              let seg = [];
+              const flush = () => { if (seg.length) svg += `<polyline points="${(seg.length > 1 ? seg : [seg[0], seg[0]]).map(di => `${X(di) + DLY_DW / 2},${Y0 - Rr[di] * sR2}`).join(" ")}" fill="none" stroke="${c}" stroke-width="2.5" stroke-dasharray="5 3" stroke-linecap="round" stroke-linejoin="round"/>`; seg = []; };
+              vis.forEach(di => { if (Rr[di] === null) flush(); else seg.push(di); }); flush();
+              hb += lab(mR, sR2, c, vis.find(di => Rr[di] === mR));
+              rdS.push({ name: S.sk.split("|")[0], u: S.sk.split("|")[1], c, R: Rr });
+            });
           }
-          host.__HV = { cum, multi, val, vP, vG, unit: HD.unit, rd: RD ? { PQ: rdPQ, R: rdR, u: RD.u } : null };
+          host.__HV = { cum, multi, val, vP, vG, unit: HD.unit, rd: RD ? { PQ: rdPQ, S: rdS, u: RD.u } : null };
           const late = INS.dbut && dlyEnd(dlyCurDates()) > INS.dbut;
           const legI = (c, t) => `<span><b style="background:${c}"></b>${esc(t)}</span>`;
-          const legRd = HD.rd ? (HD.rd.L ? legI("#12b76a", "PRODUIT (" + HD.rd.u + ")") + legI("#7a5af8", "RENDEMENT (" + HD.rd.u + " / " + HD.unit + ")") : `<span class="grd-why">${esc(HD.rd.why)}</span>`) : "";
+          const legRd = HD.rd ? (HD.rd.ser ? legI("#12b76a", "PRODUIT — " + lkName("sec", HD.rd.sec) + " (" + HD.rd.u + ")") + rdS.map(s => legI(s.c, "RENDEMENT " + s.name + " (" + HD.rd.u + " / " + s.u + ")")).join("")
+              + (HD.rd.miss || []).map(sk => `<span class="grd-miss">${esc(sk.split("|")[0])} — PAS DANS CETTE ACTIVITÉ</span>`).join("") : `<span class="grd-why">${esc(HD.rd.why)}</span>`) : "";
           const leg0 = C ? "" : multi ? `<div class="ghist-leg">${(sC ? legI(CC, "CHARGES") : "") + (sP ? legI(CP, "PRODUITS") : "") + (sG ? legI(CG, "MARGE") : "")}</div>`
             : cum ? (ks.length > 1 ? `<div class="ghist-leg">${legI("#344054", "TOTAL DES " + ks.length + " CHARGES")}</div>` : "")
             : ks.length > 1 ? `<div class="ghist-leg">${totS.filter(x => keep.has(x[0])).map(([sk]) => legI(col[sk], sk.split("|")[0])).join("")}${totS.some(x => !keep.has(x[0])) ? legI("#98a2b3", "AUTRES (" + totS.filter(x => !keep.has(x[0])).length + ")") : ""}</div>` : "";
