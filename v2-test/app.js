@@ -9830,11 +9830,14 @@ function renderBudgetList() {
           } else {
             /* R28 : une seule courbe par grandeur (le total), plus une par charge */
             const pt = (di, v) => `${X(di) + DLY_DW / 2},${Y0 - v * sc}`;
-            const line = (M, c) => `<polyline points="${vis.map(di => pt(di, M[di] || 0)).join(" ")}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round"/>`;
+            /* v562 : courbe continue — grise sur toute la durée, puis en couleur seulement sur les jours retenus (plage DÉBUT – FIN, MIN – MAX) ;
+               plus de voile blanc jour par jour (rayures quand la largeur d'un jour n'est pas entière) */
+            const runs = []; { let cur = []; vis.forEach(di => { if (pass(di)) cur.push(di); else { if (cur.length) runs.push(cur); cur = []; } }); if (cur.length) runs.push(cur); }
+            const poly = (L, M, c) => `<polyline points="${L.map(di => pt(di, M[di] || 0)).join(" ")}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+            const line = (M, c) => (runs.length === 1 && runs[0].length === vis.length ? "" : poly(vis, M, "#c0c6d0")) + runs.map(L => poly(L.length > 1 ? L : [L[0], L[0]], M, c)).join("");
             if (!multi || sC) svg += line(val, multi ? CC : "#344054");
             if (sP) svg += line(vP, CP);
             if (sG) svg += line(vG, CG);
-            vis.forEach(di => { if (!pass(di)) svg += `<rect x="${X(di)}" y="0" width="${DLY_DW}" height="${HH}" fill="rgba(255,255,255,.65)"/>`; });
             vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           }
           host.__HV = { cum, multi, val, vP, vG, unit: HD.unit };
@@ -10466,8 +10469,9 @@ function renderBudgetList() {
         if (pc) { e.stopPropagation(); X.pickPreds(pc.dataset.key); return; }
         if (e.target.closest && e.target.closest(".dly-pred-new")) { X.addWin(); return; }
         if (e.target.closest && e.target.closest(".dly-gen")) { X.gen(); return; }
-        if (e.target.closest && e.target.closest(".dly-iso-x")) { X.isoOff(); return; }
+        /* v562 : AFFICHER PAR LOT du bandeau d'abord (il porte aussi la classe dly-iso-x) */
         if (e.target.closest && e.target.closest(".dly-vd-x")) { X.viewSet("l"); return; }
+        if (e.target.closest && e.target.closest(".dly-iso-x")) { X.isoOff(); return; }
         /* ‹ PLANNING : retour au PLANNING (lot et activités libérés, la désignation reste choisie ; brouillon gardé) */
         /* en-tête du Gantt : calendrier du budget, ouvert sur le mois touché */
         /* nom d'un lot ou d'une activité sur le Gantt : toucher = le modifier sur place */
