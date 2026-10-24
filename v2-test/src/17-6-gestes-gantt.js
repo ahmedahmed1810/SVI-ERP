@@ -285,7 +285,9 @@
         const a = e.target.closest && e.target.closest("#dlyGantt .gax-hit");
         if (!a) return;
         e.stopPropagation();
-        shell.__dlyRule = !shell.__dlyRule; shell.__dlyRuleV = null;
+        /* v584 : toucher l'axe = faire apparaître la règle (l'appui long sur la ligne la fait disparaître) */
+        if (shell.__dlyRule) return;
+        shell.__dlyRule = true; shell.__dlyRuleV = null;
         const host = a.closest("#dlyGantt"); host.__drawn = false; dlyGanttDraw();
       }, true);
       shell.addEventListener("pointerdown", e => {
@@ -298,11 +300,13 @@
         document.addEventListener("touchmove", tmv, { passive: false });
         /* v577 (remarque 6) : la règle s'aimante sur les valeurs rondes (10 K, 11 K, 12 K…) : petit arrêt ; en continuant à tirer, elle se détache */
         const stp = Number(h.dataset.stp) || 0, p10 = stp ? Math.pow(10, Math.floor(Math.log10(stp))) : 0, fine = p10 ? (stp / p10 <= 1.0001 ? p10 / 10 : p10) : 0;
-        const mv = ev => { ev.preventDefault(); let y = Math.max(4, Math.min(Y0, ev.clientY - h.getBoundingClientRect().top)); let v = (Y0 - y) / sc;
+        const x0 = e.clientX, y0 = e.clientY;
+        const lp = setTimeout(() => { up(); shell.__dlyRule = false; shell.__dlyRuleV = null; const host = h.closest("#dlyGantt"); if (host) { host.__drawn = false; dlyGanttDraw(); } }, 550);
+        const mv = ev => { ev.preventDefault(); if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return; clearTimeout(lp); let y = Math.max(4, Math.min(Y0, ev.clientY - h.getBoundingClientRect().top)); let v = (Y0 - y) / sc;
           let snap = false;
           if (fine > 0) { const r = Math.round(v / fine) * fine, yr = Y0 - r * sc; if (Math.abs(yr - y) <= 7) { v = r; y = yr; snap = true; } }
           shell.__dlyRuleV = v; ln.style.top = y + "px"; sp.textContent = fmt(v); ln.classList.toggle("grule-snap", snap); };
-        const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); };
+        const up = () => { clearTimeout(lp); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); };
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       });
       /* R8 : toucher une barre de l'histogramme = bulle des tâches de ce jour (répartition, fractions comprises) */

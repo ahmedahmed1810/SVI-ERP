@@ -391,7 +391,7 @@
     const DLY_SER = ["#2e90fa", "#f79009", "#12b76a", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#667085"];
     /* hauteur de l'histogramme : nombre de pixels (28 = miniaturisé en bas) ou « full » (plein écran, à la place du Gantt) */
     /* v546 (R25) : 0 = histogramme entièrement caché (poignée tout en bas) */
-    const dlyHHGet = () => { let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : v === "0" ? 0 : Math.max(28, Math.min(2000, Number(v) || 110)); };
+    const dlyHHGet = () => { if (active === "gra") return "full"; let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : v === "0" ? 0 : Math.max(28, Math.min(2000, Number(v) || 110)); };
     const dlyHHSet = v => { try { localStorage.setItem("svi_dlyhh_v1", String(v)); } catch (e) {} };
     const dlyHSetPut = o => { INS.hset = { ...dlyHSet(), ...o }; insSave(); renderTabK(); };
     /* R19 / R20 : plage DÉBUT – FIN et filtre MIN – MAX (mémorisés par budget) */

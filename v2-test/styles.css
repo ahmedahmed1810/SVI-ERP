@@ -2466,3 +2466,7 @@ tr.fz-flash > td { background: #fef0c7 !important; transition: background .3s; }
 /* v583 : poignée verticale « ‖ » à la même taille que la poignée « = » */
 .dlyg-hd { width: 40px; height: 40px; margin-left: -18.5px; line-height: 36px; font-size: 22px; font-weight: 900; border: 2px solid #fff; box-sizing: border-box; background: #344054; box-shadow: 0 0 0 1px #344054, 0 2px 6px rgba(0,0,0,.3); }
 .dlyg-hd::after { inset: -14px; }
+/* v584 : onglet GRAPHIQUE — seul le graphique, sur tout le bloc */
+.dlyg.dly-gra .dlyg-sp, .dlyg.dly-gra .dlyg-hh { display: none !important; }
+.dlyg.dly-gra .dlyg-l { position: absolute !important; left: -99999px !important; visibility: hidden; pointer-events: none; }   /* gardé mis en page : le dessin lit la hauteur des lignes */
+.dlyg.dly-gra .dlyg-r { flex: 1 1 auto; width: 100%; }
