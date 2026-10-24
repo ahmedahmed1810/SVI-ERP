@@ -7,8 +7,9 @@
         if (pc) { e.stopPropagation(); X.pickPreds(pc.dataset.key); return; }
         if (e.target.closest && e.target.closest(".dly-pred-new")) { X.addWin(); return; }
         if (e.target.closest && e.target.closest(".dly-gen")) { X.gen(); return; }
-        if (e.target.closest && e.target.closest(".dly-iso-x")) { X.isoOff(); return; }
+        /* v562 : AFFICHER PAR LOT du bandeau d'abord (il porte aussi la classe dly-iso-x) */
         if (e.target.closest && e.target.closest(".dly-vd-x")) { X.viewSet("l"); return; }
+        if (e.target.closest && e.target.closest(".dly-iso-x")) { X.isoOff(); return; }
         /* ‹ PLANNING : retour au PLANNING (lot et activités libérés, la désignation reste choisie ; brouillon gardé) */
         /* en-tête du Gantt : calendrier du budget, ouvert sur le mois touché */
         /* nom d'un lot ou d'une activité sur le Gantt : toucher = le modifier sur place */
