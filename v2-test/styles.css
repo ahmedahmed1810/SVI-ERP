@@ -2414,3 +2414,7 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 .gc-cbs { margin: 6px 0 8px; gap: 8px 24px; }
 .gc-t td:last-child { width: 120px; }
 .gc-cut { font-size: 9px; font-weight: 800; color: #98a2b3; }
+
+/* v571 (remarque 15) : interrupteurs de même largeur, deux parties égales, alignés en colonne */
+.hcf-card:not(.apr-card) .hcf-sw { width: 380px; }
+.hcf-card:not(.apr-card) .hcf-sw .hcf-seg { flex: 1 1 0; min-width: 0; padding: 0 6px; }
