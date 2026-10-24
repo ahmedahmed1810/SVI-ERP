@@ -1613,6 +1613,28 @@ def main():
         pg.evaluate("() => { const L = JSON.parse(localStorage.getItem('svi_layout_v1') || '{}'); if (L.h) delete L.h.detail; localStorage.setItem('svi_layout_v1', JSON.stringify(L)); }")
         check("v557 FORMAT 202 : bloc détail à la même hauteur pour DÉTAIL DÉLAIS, CHARGES et PRODUITS ; hauteur réglée à la poignée gardée pour tous les onglets",
               min(hs) > 150 and max(hs) - min(hs) <= 2 and abs(h2[0] - h2[1]) <= 2 and h2[0] != hs[0], [hs, h2])
+        # v560 : plage DÉBUT – FIN = charges / produits filtrés, quantités au prorata des jours de la tâche dans la plage
+        rg = pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS;
+            const keysOf = id => [...new Set((I.links || []).filter(l => (l.chg || []).some(x => x.id === id)).map(l => l.lot + '|' + l.sec))];
+            const c = I.chg.find(r => !r.t && keysOf(r.id).length === 1 && Number(r.q) > 0), o = c && I.chg.find(r => !r.t && r !== c && !keysOf(r.id).includes(keysOf(c.id)[0]));
+            if (!c) return null; const K = keysOf(c.id)[0];
+            window.__rg0 = [K, JSON.stringify(I.dlp[K] || null), JSON.stringify(I.hrange || null), JSON.stringify(I.cal || null)];
+            I.cal = {{ we: [0], off: [], on: [] }};
+            I.dlp[K] = [{{ deb: '2030-11-04', fin: '2030-11-07' }}]; I.hrange = {{ ...(I.hrange || {{}}), a: '2030-11-04', b: '2030-11-05' }}; X.insSave(); X.refreshAll();
+            document.querySelector('.bdg-d-tab[data-tab="chg"]')?.click();
+            return [c.id, Number(c.q), o ? o.id : '']; }}""")
+        pg.wait_for_timeout(500)
+        rgD = pg.evaluate("""a => { const t = document.querySelector('table.ins-table[data-ik="chg"]'); const tr = t && t.querySelector('tr[data-iid="' + a[0] + '"]');
+            const qi = [...t.querySelectorAll('thead th')].findIndex(th => /^Q/.test(th.textContent.trim()));
+            const cq = tr && tr.cells[qi]; return [cq ? ((cq.querySelector('input') || {}).value || cq.textContent).trim() : null, a[2] ? !!t.querySelector('tr[data-iid="' + a[2] + '"]') : false, document.querySelector('.bdg-d-tab[data-tab="chg"]').classList.contains('tab-filt'), (t.tFoot.textContent || '').includes('PARTIEL')]; }""", rg)
+        pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#blkMenu [data-fclr]')?.click()"); pg.wait_for_timeout(400)
+        rgC = pg.evaluate(f"() => {{ const I = {ins}.INS; return [I.hrange && I.hrange.a, I.hrange && I.hrange.b]; }}")
+        pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS, R = window.__rg0; const d = JSON.parse(R[1]); if (d) I.dlp[R[0]] = d; else delete I.dlp[R[0]];
+            I.hrange = JSON.parse(R[2]); I.cal = JSON.parse(R[3]); X.insSave(); X.refreshAll(); }}""")
+        got = float(rgD[0].replace("\u202f", "").replace("\xa0", "").replace(" ", "").replace(",", ".")) if rgD[0] else None
+        check("v560 : plage DÉBUT – FIN — charge au prorata (2 jours sur 4 = moitié), charge hors plage cachée, onglet filtré ; EFFACER TOUS LES FILTRES remet les traits aux bords",
+              rg and got is not None and abs(got - rg[1] / 2) < 0.01 and not rgD[1] and rgD[2] and rgD[3] and rgC == ["", ""], [rg, rgD, rgC])
         # R30 : INF — DATE DE FIN DU PROJET = fin du planning (non saisissable)
         pg.evaluate("() => document.querySelector('[data-pill=\"inf\"]')?.click()"); pg.wait_for_timeout(400)
         inf = pg.evaluate("() => [!!document.querySelector('#docPop input[data-f=\"obj\"]'), (document.querySelector('#docPop [data-v=\"pfin0\"]') || {}).textContent || '']")

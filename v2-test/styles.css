@@ -2220,13 +2220,13 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .gcut::after { content: ""; position: absolute; inset: -8px; }
 /* R19 / FORMAT 165 : traits DÉBUT et FIN */
 .grng { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid #12355b; z-index: 5; cursor: ew-resize; touch-action: none; }
-.grng::before { content: ""; position: absolute; top: 0; bottom: 0; left: -12px; width: 24px; }
-.grng > span { position: absolute; top: 2px; left: -1px; transform: translateX(-50%); white-space: nowrap; font-size: 9px; font-weight: 800; color: #fff; background: #12355b; border-radius: 3px; padding: 1px 4px; pointer-events: none; }
+.grng::before { content: ""; position: absolute; top: 0; bottom: 0; left: -22px; width: 44px; }   /* v560 : zone de toucher élargie */
+.grng > span { position: absolute; top: 2px; left: -1px; transform: translateX(-50%); white-space: nowrap; font-size: 9px; font-weight: 800; color: #fff; background: #12355b; border-radius: 3px; padding: 4px 6px; pointer-events: auto; touch-action: none; }   /* v560 : l'étiquette se tire aussi */
 .grng.grng-off { border-left-color: transparent; }
 .grng.grng-off > span { opacity: .45; }
 .grng[data-r="a"].grng-off > span { transform: none; }
 .grng[data-r="b"].grng-off > span { transform: translateX(-100%); }
-.grng[data-r="b"].grng-off::before { left: -22px; }   /* v559 : zone de toucher dans le Gantt (pas de défilement en plus) */
+.grng[data-r="b"].grng-off::before { left: -42px; }   /* v559 : zone de toucher dans le Gantt (pas de défilement en plus) */
 .grng-tot { position: absolute; top: 18px; transform: translateX(-50%); z-index: 5; font-size: 10px; font-weight: 800; color: #12355b; background: rgba(255,255,255,.9); padding: 0 4px; border-radius: 3px; pointer-events: none; white-space: nowrap; }
 /* R20 / FORMAT 166 : lignes MIN et MAX */
 .gval { position: absolute; left: 0; right: 0; height: 0; border-top: 2px dashed #12355b; z-index: 5; cursor: ns-resize; touch-action: none; }

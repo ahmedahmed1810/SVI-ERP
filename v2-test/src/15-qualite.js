@@ -769,10 +769,10 @@
       /* v539 : onglet en bleu quand SON tableau a une loupe ou une case cochée (remarque 53 : seul l'onglet source) —
          les tâches cochées du DÉTAIL DÉLAIS comptent maintenant aussi */
       return {
-        chg: cfHasF(insCfT("chg")) || !!ONLYC.chg || own("chg"),
-        prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || own("prd"),
+        chg: cfHasF(insCfT("chg")) || !!ONLYC.chg || own("chg") || !!insRg(),
+        prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || own("prd") || !!insRg(),
         dly: ["dly", "dlyp", "dlys"].some(cfHasF) || !!(shell.__dlySel && shell.__dlySel.size),
-        lnk: cfHasF("lk_marge") || (INS.links || []).some(l => l.on === true),
+        lnk: cfHasF("lk_marge") || (INS.links || []).some(l => l.on === true) || !!insRg(),
         unl: cfHasF("lk_unl"),
         inc: cfHasF("lk_inc") || (INS.inc || []).some(x => x.on === true)
       };
@@ -784,13 +784,14 @@
       const nf = T.filter(cfHasF).length;
       const nc = K.reduce((t, k) => t + (INS[k] || []).filter(r => !r.t && r.on === true).length, 0)
         + (blk === "detail" && INS && INS_EDIT ? (INS.links || []).filter(l => l.on === true).length + (INS.inc || []).filter(x => x.on === true).length : 0);
-      return { T, K, n: nf + nc };
+      return { T, K, n: nf + nc + (blk === "detail" && INS && insRg() ? 1 : 0) };
     };
     const insFiltClear = blk => {
       const P = insFiltPlan(blk);
       P.T.forEach(t => { if (CF[t]) CF[t].f = {}; });
       P.K.forEach(k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; });
       if (blk === "detail" && INS && INS_EDIT) { (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }); (INS.inc || []).forEach(x => { if (x.on === true) x.on = false; }); }
+      if (blk === "detail" && INS && insRg()) INS.hrange = { ...INS.hrange, a: "", b: "" };   /* v560 : traits DÉBUT et FIN remis aux bords */
       if (INS && INS_EDIT) insSave();
       ICL = null; refreshAll();
       svToast("FILTRES ET CASES COCHÉES DU BLOC EFFACÉS.", 2000);
@@ -847,7 +848,7 @@
         return;
       }
       if (active === "qlt") { qqRender(); lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
-      if (active === "lnk") { body.innerHTML = `<div class="bdg-d-scroll">${xplHTML()}</div>`; return; }
+      if (active === "lnk") { body.innerHTML = `<div class="bdg-d-scroll">${insRgView(xplHTML)}</div>`; return; }
       if (active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
       if (active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
       if (active === "prd" && shell.__prdSyncU) shell.__prdSyncU();
