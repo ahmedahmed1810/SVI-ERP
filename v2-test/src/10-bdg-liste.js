@@ -974,10 +974,12 @@ function renderBudgetList() {
       }
       /* détail charge / produit : au plus 8 lignes visibles,
          pour laisser apparaître les totaux */
+      /* v557 (FORMAT 202) : une seule hauteur pour tous les onglets du bloc détail (réglée à la poignée du bas, mémorisée ;
+         au départ : hauteur de l'écran sous le bandeau et les onglets) — le cadre ne saute plus en changeant d'onglet */
       .bdg-d-tabbody > .bdg-d-scroll,
       .bdg-d-tabbody .bdg-d-scroll {
-        height: auto !important;
-        max-height: var(--h-detail, 148px) !important;
+        height: var(--h-detail, 60vh) !important;
+        max-height: none !important;
         overflow-y: auto;
       }
 

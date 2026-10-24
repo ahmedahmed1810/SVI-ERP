@@ -373,6 +373,13 @@
       let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
       const tabs = document.getElementById("bdgTabs"), sr = scr.getBoundingClientRect(), vb = dlyVpB();
       const mx = !!scr.closest(".max-detail");
+      /* v557 (FORMAT 202) : bloc non agrandi = hauteur commune du bloc détail (poignée du bas), plus la hauteur de l'écran */
+      if (!mx) {
+        if (scr.style.height) scr.style.removeProperty("height");
+        const c = Math.max(160, Math.round(scr.clientHeight));
+        if (Math.abs((scr.__capMax || 0) - c) > 1) { scr.__capMax = c; return 2; }
+        return 0;
+      }
       const top0 = mx ? sr.top + (window.scrollY || 0) : lim + (tabs ? Math.max(0, sr.top - tabs.getBoundingClientRect().top) : 0);
       const cap = Math.max(200, Math.floor(vb - top0 - 2));
       const want = Math.max(160, Math.min(cap, Math.floor(vb - Math.max(sr.top, mx ? 0 : top0) - 2)));

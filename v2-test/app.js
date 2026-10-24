@@ -3788,10 +3788,12 @@ function renderBudgetList() {
       }
       /* détail charge / produit : au plus 8 lignes visibles,
          pour laisser apparaître les totaux */
+      /* v557 (FORMAT 202) : une seule hauteur pour tous les onglets du bloc détail (réglée à la poignée du bas, mémorisée ;
+         au départ : hauteur de l'écran sous le bandeau et les onglets) — le cadre ne saute plus en changeant d'onglet */
       .bdg-d-tabbody > .bdg-d-scroll,
       .bdg-d-tabbody .bdg-d-scroll {
-        height: auto !important;
-        max-height: var(--h-detail, 148px) !important;
+        height: var(--h-detail, 60vh) !important;
+        max-height: none !important;
         overflow-y: auto;
       }
 
@@ -9864,6 +9866,13 @@ function renderBudgetList() {
       let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
       const tabs = document.getElementById("bdgTabs"), sr = scr.getBoundingClientRect(), vb = dlyVpB();
       const mx = !!scr.closest(".max-detail");
+      /* v557 (FORMAT 202) : bloc non agrandi = hauteur commune du bloc détail (poignée du bas), plus la hauteur de l'écran */
+      if (!mx) {
+        if (scr.style.height) scr.style.removeProperty("height");
+        const c = Math.max(160, Math.round(scr.clientHeight));
+        if (Math.abs((scr.__capMax || 0) - c) > 1) { scr.__capMax = c; return 2; }
+        return 0;
+      }
       const top0 = mx ? sr.top + (window.scrollY || 0) : lim + (tabs ? Math.max(0, sr.top - tabs.getBoundingClientRect().top) : 0);
       const cap = Math.max(200, Math.floor(vb - top0 - 2));
       const want = Math.max(160, Math.min(cap, Math.floor(vb - Math.max(sr.top, mx ? 0 : top0) - 2)));
@@ -13757,6 +13766,14 @@ function renderBudgetList() {
       return [...saved, ...LAY_UNITS.filter(u => !saved.includes(u))];
     };
     const layOpenH = {};   /* hauteurs réglées pendant cette ouverture seulement */
+    /* v557 (FORMAT 202) : hauteur du bloc détail par défaut = écran visible sous le bandeau (fixé) et les onglets, moins la poignée */
+    const layDetDef = () => {
+      let lim = 0;
+      document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
+      const vv = window.visualViewport, vb = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      const tabs = $("bdgTabs"), th = tabs ? tabs.getBoundingClientRect().height : 50;
+      return Math.max(200, Math.floor(vb - lim - th - 22));
+    };
     const layApply = () => {
       const pg = page$();
       if (!pg) return;
@@ -13766,10 +13783,12 @@ function renderBudgetList() {
       LAY_UNITS.forEach(u => {
         /* SUIVI (DOC / TAF / OBS) : toujours 5 lignes à l'ouverture,
            l'agrandissement ne vaut que pour la séance en cours */
-        const h = u === "suivi" ? layOpenH.suivi : (lay.h || {})[u];
+        const h = u === "suivi" ? layOpenH.suivi : (lay.h || {})[u] || (u === "detail" ? layDetDef() : 0);
         if (h) pg.style.setProperty("--h-" + u, h + "px");
         else pg.style.removeProperty("--h-" + u);
       });
+      /* v557 : hauteur par défaut du détail recalculée si l'écran change (rotation, barre de Safari) */
+      if (!shell.__layDetRs) { shell.__layDetRs = true; let tm = 0; window.addEventListener("resize", () => { clearTimeout(tm); tm = setTimeout(() => { if (shell.isConnected && page$() && !(layLoad().h || {}).detail) layApply(); }, 300); }); }
       const custom = (lay.order && lay.order.join() !== LAY_UNITS.join()) ||
         Object.keys(lay.h || {}).length > 0;
       const rb = $("layResetBtn");

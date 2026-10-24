@@ -733,6 +733,7 @@ def main():
         pg.mouse.click(5, 5); pg.wait_for_timeout(200)
         pg.evaluate(f"""() => {{ const X = {ins}; for (let i = 0; i < 20; i++) X.INS.chg.push({{ id: 'yy' + i, des: 'CHARGE Y' + (10 + i), u: 'U', q: 1, p: 1 }});
             X.INS.chg.push({{ id: 'yg1', des: 'SABLE FIN', u: 'M3', q: 1, p: 1 }}, {{ id: 'yg2', des: 'SABLE FIN', u: 'M3', q: 2, p: 1 }}); X.insSave(); X.refreshAll();
+            const pgD = document.querySelector('.bdg-d-page'); window.__hd0 = pgD.style.getPropertyValue('--h-detail'); pgD.style.setProperty('--h-detail', '300px');
             document.querySelector('.bdg-d-tab[data-tab="chg"]')?.click(); }}"""); pg.wait_for_timeout(500)
         # remarque 1 : ligne TOTAL devant les lignes ; cadre jamais sur le TOTAL
         r1 = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'), sc = t.closest('.bdg-d-scroll'); sc.scrollTop = 0;
@@ -749,6 +750,7 @@ def main():
                 return !f || f.style.display !== 'block' || f.getBoundingClientRect().bottom <= ft.top + 1; }""")
         else: r1b = None
         check("v523 remarque 1 : TOTAL devant les lignes, cadre jamais sur le TOTAL", isinstance(r1, list) and r1[0] == "9" and r1b is True, [r1, r1b])
+        pg.evaluate("() => document.querySelector('.bdg-d-page').style.setProperty('--h-detail', window.__hd0 || '')")
         pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(200)
         # remarque 2 : Entrée descend sur la ligne juste en dessous, même un titre regroupé (case grisée)
         r2 = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'); const g = t.querySelector('tr.ins-gtitle');
@@ -1586,6 +1588,20 @@ def main():
         pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(700)
         rd = pg.evaluate("() => { window.__mo.disconnect(); window.scrollTo(0, 0); return window.__rd; }")
         check("v556 : défilement sans redessin du Gantt ; changement de hauteur de l'écran = redessin limité (avant : à chaque défilement, iPad figé)", rs == 0 and rd - rs <= 3, [rs, rd])
+        # v557 (FORMAT 202) : même hauteur du bloc détail pour tous les onglets (DÉLAIS, CHARGES, PRODUITS…), réglée à la poignée, mémorisée
+        def tabH(k):
+            pg.evaluate(f"() => document.querySelector('#bdgTabs [data-tab=\"{k}\"]')?.click()"); pg.wait_for_timeout(500)
+            return pg.evaluate("() => { const s = document.querySelector('#bdgTabBody .bdg-d-scroll'); return s ? Math.round(s.getBoundingClientRect().height) : -1; }")
+        hs = [tabH(k) for k in ("dly", "chg", "prd", "dly")]
+        pg.evaluate("() => { const L = JSON.parse(localStorage.getItem('svi_layout_v1') || '{}'); L.h = Object.assign(L.h || {}, { detail: 333 }); localStorage.setItem('svi_layout_v1', JSON.stringify(L)); }")
+        pg.evaluate("() => document.querySelector('#bdgTabs [data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => { const r = document.getElementById('bdgDetailRsz'); const b = r.getBoundingClientRect(); const o = { bubbles: true, clientX: b.x + 20, clientY: b.y + 5, pointerId: 9 };"
+                    " r.dispatchEvent(new PointerEvent('pointerdown', o)); document.dispatchEvent(new PointerEvent('pointermove', { ...o, clientY: o.clientY + 1 })); document.dispatchEvent(new PointerEvent('pointerup', o)); }")
+        pg.wait_for_timeout(300)
+        h2 = [tabH(k) for k in ("chg", "dly")]
+        pg.evaluate("() => { const L = JSON.parse(localStorage.getItem('svi_layout_v1') || '{}'); if (L.h) delete L.h.detail; localStorage.setItem('svi_layout_v1', JSON.stringify(L)); }")
+        check("v557 FORMAT 202 : bloc détail à la même hauteur pour DÉTAIL DÉLAIS, CHARGES et PRODUITS ; hauteur réglée à la poignée gardée pour tous les onglets",
+              min(hs) > 150 and max(hs) - min(hs) <= 2 and abs(h2[0] - h2[1]) <= 2 and h2[0] != hs[0], [hs, h2])
         # R30 : INF — DATE DE FIN DU PROJET = fin du planning (non saisissable)
         pg.evaluate("() => document.querySelector('[data-pill=\"inf\"]')?.click()"); pg.wait_for_timeout(400)
         inf = pg.evaluate("() => [!!document.querySelector('#docPop input[data-f=\"obj\"]'), (document.querySelector('#docPop [data-v=\"pfin0\"]') || {}).textContent || '']")
