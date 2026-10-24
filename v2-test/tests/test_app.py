@@ -1426,8 +1426,17 @@ def main():
         il = pg.evaluate("() => [!!document.querySelector('#dlyGantt .gplaf.gcap-inf'), (document.querySelector('#dlyGantt .gplaf.gcap-inf .gplaf-v') || {}).textContent || '']")
         pg.evaluate("() => document.querySelector('#dlyGantt .gcut[data-i]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))"); pg.wait_for_timeout(300)
         dc = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
-        pg.evaluate("() => document.querySelector('#svConf [data-v=\"go\"]')?.click()"); pg.wait_for_timeout(600)
+        pg.evaluate("() => document.querySelector('#svConf [data-v=\"go\"], #svConf [data-v=\"l\"]')?.click()"); pg.wait_for_timeout(600)
         dc2 = pg.evaluate(f"() => ({ins}.INS.plafR['{GM}'].plafs || []).length")
+        # v585 : capacité 0 puis coupe à 1 ; SUPPRIMER LA COUPE → le morceau fusionné prend 1, réponse en moins d'une seconde ; capacité 0 jusqu'à la fin → arrêt immédiat
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.plafR['{GM}'] = {{ plaf: 0, plafs: [{{ d: '2026-11-04', n: 1, after: [] }}] }}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        pg.evaluate(f"() => {DXJ}.delCut(1)"); pg.wait_for_timeout(300)
+        z1 = pg.evaluate(f"""() => {{ const b = document.querySelector('#svConf [data-v="go"]'); const t0 = performance.now(); if (b) b.click(); return new Promise(r => setTimeout(() => {{ const st = {ins}.INS.plafR['{GM}']; r([!!b, Math.round(performance.now() - t0), st.plaf, (st.plafs || []).length]); }}, 50)); }}""")
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.plafR['{GM}'] = {{ plaf: 0 }}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        z2 = pg.evaluate(f"""() => {{ const t0 = performance.now(); const r = {DXJ}.comp(); const ts = [...document.querySelectorAll('.sv-toast, #svToast, .svt')].map(e => e.textContent).join(' '); return [r === null || r === undefined, Math.round(performance.now() - t0), ts]; }}""")
+        pg.evaluate(f"""() => {{ const X = {ins}; X.INS.plafR['{GM}'] = {{ plaf: -1 }}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        check("v585 : capacité 0 puis coupe à 1, SUPPRIMER LA COUPE → morceau fusionné à 1, réponse en moins d'une seconde ; capacité 0 jusqu'à la fin → calcul arrêté tout de suite",
+              z1[0] and z1[1] < 1000 and z1[2] == 1 and z1[3] == 0 and z2[0] and z2[1] < 1000 and "CAPACITÉ 0 JUSQU'À LA FIN" in z2[2], [z1, z2])
         check("v543 R21 / R22 : morceau sous le zéro = ILLIMITÉ ; toucher le « / » = SUPPRIMER LA COUPE", il[0] and "ILLIMITÉ" in il[1] and dc == "SUPPRIMER LA COUPE" and dc2 == 0, [il, dc, dc2])
         # R18 / R19 / R20 : cumulé, plage DÉBUT – FIN, filtre MIN – MAX qui coche les charges des jours retenus
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.plafR = {{}}; I.dlp = {{ 'l1|s1': [{{ id: 'a', deb: '2026-11-02', fin: '2026-11-02' }}], 'l2|s1': [{{ id: 'b', deb: '2026-11-04', fin: '2026-11-04' }}] }}; I.dpred = {{}};
