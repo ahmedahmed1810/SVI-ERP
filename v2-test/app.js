@@ -9885,8 +9885,20 @@ function renderBudgetList() {
           let hb = "", svg = "";
           /* v572 (remarque 16) : couleurs usuelles — PRODUITS en bleu, CHARGES en orange, MARGE en vert (rouge quand elle est négative) */
           const CC = "#f79009", CP = "#2e90fa", CG = "#12b76a", CGN = "#d92d20";
+          /* v589 : une charge garde sa couleur partout — orange si elle est seule, sinon celle de la légende */
+          const colOf = (sk, j) => ks.length > 1 ? (col[sk] || DLY_SER[j % DLY_SER.length]) : CC;
           if (hideC) vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
-          else if (C && !curve) vis.forEach(di => { hb += `<div class="ghb ghc${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, val[di] * sc)}px;bottom:${IB}px"></div>`; });
+          else if (C && !curve) {
+            /* v589 : commandes prévisionnelles — barres fines hachurées, empilées à la couleur de chaque charge commandée */
+            const cw = Math.max(1, Math.round(bw * .55)), co = bo + Math.round((bw - cw) / 2), acc = {};
+            vis.forEach(di => {
+              const P = {}; (C.det[di] || []).forEach(x => { P[x.sk] = (P[x.sk] || 0) + x.v; });
+              if (cum) { Object.keys(P).forEach(sk => { acc[sk] = (acc[sk] || 0) + P[sk]; }); Object.keys(acc).forEach(sk => { P[sk] = acc[sk]; }); }
+              const v = val[di] || 0; if (!v) return;
+              const parts = Object.keys(P).map((sk, j) => P[sk] ? `<i style="height:${P[sk] * sc}px;background-color:${colOf(sk, j)}"></i>` : "").join("");
+              hb += `<div class="ghb ghc ghb-st${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + co}px;width:${cw}px;height:${Math.max(1, v * sc)}px;bottom:${HH - Y0}px">${parts}</div>`;
+            });
+          }
           else if (!curve && !multi) vis.forEach(di => {
             const v = val[di], n = capAt(di), over = !cum && n >= 0 && v > n + 1e-9, inc = over && (HD.det[di] || []).some(x => x.inc);
             const parts = ks.length > 1 && !cum ? order.map(j => { const w = sval[j][di]; return w ? `<i style="height:${w * sc}px;background:${col[ks[j]]}"></i>` : ""; }).join("") : "";
@@ -9922,7 +9934,6 @@ function renderBudgetList() {
           /* v569 (remarque 13) : RENDEMENT par charge — quantité produite de l'activité (vert) et une courbe pointillée par charge cochée
              (sa couleur, sa propre échelle, valeur maximale affichée) */
           const RD = !C && !multi && HD.rd && HD.rd.ser ? HD.rd : null, rdPQ = {}, rdS = [];
-          const RDC = ["#7a5af8", "#f79009", "#ee46bc", "#06aed4", "#a15c07", "#2e90fa", "#b42318", "#667085"];
           if (RD) {
             const cuM = M => cum ? cumOf(di => M[di] || 0) : M;
             const PQ = cuM(RD.L); vis.forEach(di => { rdPQ[di] = PQ[di] || 0; });
@@ -9932,12 +9943,12 @@ function renderBudgetList() {
             const barS = (M, s, c, j) => vis.forEach(di => { const v = M[di]; if (!v) return; hb += `<div class="ghb ghb-m${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo + j * w1}px;width:${w1}px;top:${Y0 - v * s}px;bottom:auto;height:${Math.max(1, v * s)}px;background:${c}"></div>`; });
             if (showP) {
               const mP = Math.max(1e-9, ...vis.map(di => rdPQ[di])), sP2 = (HH - 36 - IB) / (mP * 1.08); rdPQ.__s = sP2;
-              if (curve) svg += `<polyline points="${vis.map(di => `${X(di) + DLY_DW / 2},${Y0 - rdPQ[di] * sP2}`).join(" ")}" fill="none" stroke="#12b76a" stroke-width="2" stroke-linejoin="round"/>`;
-              else barS(rdPQ, sP2, "#12b76a", 0);
-              hb += lab(mP, sP2, "#12b76a", vis.find(di => rdPQ[di] === mP));
+              if (curve) svg += `<polyline points="${vis.map(di => `${X(di) + DLY_DW / 2},${Y0 - rdPQ[di] * sP2}`).join(" ")}" fill="none" stroke="#2e90fa" stroke-width="2" stroke-linejoin="round"/>`;
+              else barS(rdPQ, sP2, "#2e90fa", 0);
+              hb += lab(mP, sP2, "#2e90fa", vis.find(di => rdPQ[di] === mP));
             }
             RD.ser.forEach((S, j0) => { const j = j0;
-              const c = RDC[j % RDC.length], P2 = cuM(S.P), C2 = cuM(S.C), Rr = {};
+              const c = colOf(S.sk, j), P2 = cuM(S.P), C2 = cuM(S.C), Rr = {};
               vis.forEach(di => { const cq = C2[di] || 0; Rr[di] = cq > 1e-9 ? (P2[di] || 0) / cq : null; });
               const mR = Math.max(1e-9, ...vis.map(di => Rr[di] || 0)), sR2 = (HH - 36 - IB) / (mR * 1.08);
               let seg = [];
@@ -9951,7 +9962,7 @@ function renderBudgetList() {
           host.__HV = { cum, curve, hideC, multi, val, vP, vG, unit: HD.unit, rd: RD ? { PQ: rdPQ, PQs: rdPQ.__s || 0, S: rdS, u: RD.u } : null };
           const late = INS.dbut && dlyEnd(dlyCurDates()) > INS.dbut;
           const legI = (c, t) => `<span><b style="background:${c}"></b>${esc(t)}</span>`;
-          const legRd = HD.rd ? (HD.rd.ser ? (crb.includes("p") ? legI("#12b76a", "PRODUIT — " + lkName("sec", HD.rd.sec) + " (" + HD.rd.u + ")") : "") + rdS.map(s => legI(s.c, "RENDEMENT " + s.name + " (" + HD.rd.u + " / " + s.u + ")")).join("")
+          const legRd = HD.rd ? (HD.rd.ser ? (crb.includes("p") ? legI("#2e90fa", "PRODUIT — " + lkName("sec", HD.rd.sec) + " (" + HD.rd.u + ")") : "") + rdS.map(s => legI(s.c, "RENDEMENT " + s.name + " (" + HD.rd.u + " / " + s.u + ")")).join("")
               + (HD.rd.miss || []).map(sk => `<span class="grd-miss">${esc(sk.split("|")[0])} — PAS DANS CETTE ACTIVITÉ</span>`).join("") : `<span class="grd-why">${esc(HD.rd.why)}</span>`) : "";
           const leg0 = C ? "" : multi ? `<div class="ghist-leg">${(sC ? legI(CC, "CHARGES") : "") + (sP ? legI(CP, "PRODUITS") : "") + (sG ? legI(CG, "MARGE") : "")}</div>`
             : cum ? (ks.length > 1 ? `<div class="ghist-leg">${legI("#f79009", "TOTAL DES " + ks.length + " CHARGES")}</div>` : "")
@@ -11206,7 +11217,7 @@ function renderBudgetList() {
         if (HV.multi && (H.crb || []).includes("p")) add("PRODUITS", HV.vP, "#2e90fa", 0, HV.unit);
         if (HV.multi && (H.crb || []).includes("g")) add("MARGE", HV.vG, "#12b76a", 0, HV.unit);
         if (HV.rd) {
-          if (HV.rd.PQs) add("PRODUIT", HV.rd.PQ, "#12b76a", HV.rd.PQs, HV.rd.u);
+          if (HV.rd.PQs) add("PRODUIT", HV.rd.PQ, "#2e90fa", HV.rd.PQs, HV.rd.u);
           (HV.rd.S || []).forEach(s => add("RENDEMENT " + s.name, s.R, s.c, s.s, HV.rd.u + " / " + s.u));
         }
         return out;
@@ -12596,7 +12607,7 @@ function renderBudgetList() {
     };
 
     /* ---------- histogramme : données, R17 approvisionnement, R18 réglages ---------- */
-    const DLY_SER = ["#2e90fa", "#f79009", "#12b76a", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#84cc16"];   /* v588 : plus de gris dans les séries (le gris = hors DÉBUT – FIN) */
+    const DLY_SER = ["#f79009", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#fdb022", "#9e165f"];   /* v588 : plus de gris dans les séries (le gris = hors DÉBUT – FIN) */
     /* hauteur de l'histogramme : nombre de pixels (28 = miniaturisé en bas) ou « full » (plein écran, à la place du Gantt) */
     /* v546 (R25) : 0 = histogramme entièrement caché (poignée tout en bas) */
     const dlyHHGet = () => { if (active === "gra") return "full"; let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : v === "0" ? 0 : Math.max(28, Math.min(2000, Number(v) || 110)); };

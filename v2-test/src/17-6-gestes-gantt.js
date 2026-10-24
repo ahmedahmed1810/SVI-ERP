@@ -231,7 +231,7 @@
         if (HV.multi && (H.crb || []).includes("p")) add("PRODUITS", HV.vP, "#2e90fa", 0, HV.unit);
         if (HV.multi && (H.crb || []).includes("g")) add("MARGE", HV.vG, "#12b76a", 0, HV.unit);
         if (HV.rd) {
-          if (HV.rd.PQs) add("PRODUIT", HV.rd.PQ, "#12b76a", HV.rd.PQs, HV.rd.u);
+          if (HV.rd.PQs) add("PRODUIT", HV.rd.PQ, "#2e90fa", HV.rd.PQs, HV.rd.u);
           (HV.rd.S || []).forEach(s => add("RENDEMENT " + s.name, s.R, s.c, s.s, HV.rd.u + " / " + s.u));
         }
         return out;
