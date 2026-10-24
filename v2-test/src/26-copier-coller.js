@@ -418,7 +418,7 @@
            affichage du Gantt = CALENDRIER DU BUDGET, réglages de l'histogramme = ⚙ */
         const vw = DX.view();
         const ck = (v, lab, on, off) => `<button type="button" data-dly="${v}" class="dly-sc${on ? " on" : ""}${off ? " off" : ""}"${off ? ` data-why="${esc(off)}"` : ""}><span>${on ? "✓ " : ""}${lab}</span></button>`;
-        m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">PLANNING</div>${ck("v-l", "AFFICHER PAR LOT", vw !== "d")}${ck("v-d", "AFFICHER PAR DÉBUT", vw === "d")}<button type="button" data-dly="sort"><span>CLASSER PAR DÉBUT</span></button>`
+        m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">PLANNING</div>${ck("v-d", "AFFICHER PAR DÉBUT", vw === "d")}`   /* v561 : plus d'AFFICHER PAR LOT ni de CLASSER PAR DÉBUT ; AFFICHER PAR DÉBUT à deux états */
           /* v553 (partie 11, remarque 3) : plus d'entrée « + AJOUTER UNE TÂCHE OU SES DÉLAIS » */
           + `<div class="blk-sep"></div><div class="blk-hint">GRAPHIQUE</div><button type="button" data-dly="appr" class="${DX.hasSel() ? "" : "off"}"${DX.hasSel() ? "" : ' data-why="COCHER DES CHARGES : L\'APPROVISIONNEMENT PORTE SUR LES CHARGES COCHÉES."'}><span>APPROVISIONNEMENT PRÉVISIONNEL</span></button><div class="blk-sep"></div>`);
         let lp = null;
@@ -431,8 +431,8 @@
           if (b.classList.contains("off")) { if (b.dataset.why) svToast(b.dataset.why, 3500, b); return; }
           m.remove();
           const v = b.dataset.dly;
-          if (v === "appr") DX.apprWin(); else if (v === "sort") DX.sortDeb(); else if (v === "add") DX.addWin();
-          else if (v === "v-l" || v === "v-d") DX.viewSet(v.slice(2));
+          if (v === "appr") DX.apprWin(); else if (v === "add") DX.addWin();
+          else if (v === "v-d") DX.viewSet(DX.view() === "d" ? "l" : "d");
         }, true);
       }
       if (QQm && QQm.edit()) {

@@ -1818,7 +1818,7 @@
       const inK = new Set((INS.inc || []).map(kk));
       INS.inc = (INS.inc || []).concat(rej.filter(x => { const k = kk(x); if (inK.has(k)) return false; inK.add(k); return true; })
         .map(x => ({ id: insId(), on: false, src: x.src, bad: x.bad, why: x.why, line: x.src.__line || "" })));
-      dlySortByDeb();
+      /* v561 : plus de classement par date à l'import (l'ordre reste celui des lots) */
       if (!quiet) {
         histLog("IMPORT", "DÉLAIS", (srcName || "") + " — " + nAdd + " TÂCHE(S) DATÉE(S)" + (rej.length ? " — " + rej.length + " NON CRÉÉE(S)" : ""));
         if (rej.length) { active = "inc"; try { localStorage.setItem("svi_dtab_v1", "inc"); } catch (e) {} }

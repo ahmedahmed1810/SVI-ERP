@@ -2249,7 +2249,7 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 /* R29 / FORMAT 169 : vue PAR DÉBUT */
 .dly-vno { margin-right: 3px; align-self: center; }
 .dly-vsep { margin-right: 4px; color: #98a2b3; align-self: center; }
-.dly-iso.dly-vd { background: #eef4ff; }
+.dly-iso.dly-vd { background: #fefce8; border-color: #f2c94c; }
 /* R17 / FORMAT 163 : fenêtre APPROVISIONNEMENT PRÉVISIONNEL */
 .apr-t { width: 100%; border-collapse: collapse; font-size: 11px; margin: 4px 0 8px; }
 .apr-t th { font-size: 9px; color: #667085; text-align: left; border-bottom: 1px solid #e4e7ec; padding: 2px 4px; }
@@ -2360,3 +2360,8 @@ input.sv-date:focus, input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:fo
 .dlyg-l td.ins-td input.dlp-in:is([data-f=deb], [data-f=fin]):focus { outline: none !important; box-shadow: none !important; }
 td:has(> input.sv-date:focus, > input.dlp-in[data-f=deb]:focus, > input.dlp-in[data-f=fin]:focus),
 td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-date:focus) { outline: none !important; box-shadow: none !important; }
+
+/* v561 : PLANNING — le rouge est réservé aux tâches non liées ; titres (lots) à la couleur des titres, dates calculées sur fond gris */
+.bdg-d-page .dlyg-l tr.dly-grp:not(.ins-hasck):not(.ro-on) td, .bdg-d-page .dlyg-l tr.dly-grp:not(.ins-hasck):not(.ro-on) td *:not(.lk-rd):not(.lk-rd *):not(.dly-grd *) { color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c) !important; }
+.bdg-d-page .dlyg-l tr.dly-grp:not(.ins-hasck):not(.ro-on) td.dly-calc { background: #dfe2e7 !important; }
+.bdg-d-page .dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td, .bdg-d-page .dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td *:not(.lk-rd):not(.lk-rd *) { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; }
