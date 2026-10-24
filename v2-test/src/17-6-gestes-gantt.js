@@ -286,8 +286,9 @@
         if (!a) return;
         e.stopPropagation();
         /* v584 : toucher l'axe = faire apparaître la règle (l'appui long sur la ligne la fait disparaître) */
-        if (shell.__dlyRule) return;
-        shell.__dlyRule = true; shell.__dlyRuleV = null;
+        /* v588 : la règle apparaît (ou se pose) à la hauteur touchée */
+        const h = a.closest(".ghist"), sc = Number(h.dataset.sc) || 1, Y0 = Number(h.dataset.y0) || h.offsetHeight;
+        shell.__dlyRule = true; shell.__dlyRuleV = (Y0 - (e.clientY - h.getBoundingClientRect().top)) / sc;
         const host = a.closest("#dlyGantt"); host.__drawn = false; dlyGanttDraw();
       }, true);
       shell.addEventListener("pointerdown", e => {

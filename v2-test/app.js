@@ -9880,7 +9880,7 @@ function renderBudgetList() {
           const allOn = (INS.chg || []).filter(r => !r.t).every(r => r.on === true);
           const pct = Math.max(1, Math.min(100, Number(hs.pct) || 70)), grand = totS.reduce((t, x) => t + x[1], 0) || 1;
           const keep = new Set(); { let acc = 0; totS.forEach(([sk, v]) => { if (!allOn || acc < grand * pct / 100 - 1e-9) keep.add(sk); acc += v; }); }
-          const col = {}; let ci = 0; totS.forEach(([sk]) => { col[sk] = keep.has(sk) ? DLY_SER[ci++ % DLY_SER.length] : "#98a2b3"; });
+          const col = {}; let ci = 0; totS.forEach(([sk]) => { col[sk] = keep.has(sk) ? DLY_SER[ci++ % DLY_SER.length] : "#7f5539"; });
           const order = totS.map(x => ks.indexOf(x[0]));
           let hb = "", svg = "";
           /* v572 (remarque 16) : couleurs usuelles — PRODUITS en bleu, CHARGES en orange, MARGE en vert (rouge quand elle est négative) */
@@ -9955,7 +9955,7 @@ function renderBudgetList() {
               + (HD.rd.miss || []).map(sk => `<span class="grd-miss">${esc(sk.split("|")[0])} — PAS DANS CETTE ACTIVITÉ</span>`).join("") : `<span class="grd-why">${esc(HD.rd.why)}</span>`) : "";
           const leg0 = C ? "" : multi ? `<div class="ghist-leg">${(sC ? legI(CC, "CHARGES") : "") + (sP ? legI(CP, "PRODUITS") : "") + (sG ? legI(CG, "MARGE") : "")}</div>`
             : cum ? (ks.length > 1 ? `<div class="ghist-leg">${legI("#f79009", "TOTAL DES " + ks.length + " CHARGES")}</div>` : "")
-            : ks.length > 1 ? `<div class="ghist-leg">${totS.filter(x => keep.has(x[0])).map(([sk]) => legI(col[sk], sk.split("|")[0])).join("")}${totS.some(x => !keep.has(x[0])) ? legI("#98a2b3", "AUTRES (" + totS.filter(x => !keep.has(x[0])).length + ")") : ""}</div>` : "";
+            : ks.length > 1 ? `<div class="ghist-leg">${totS.filter(x => keep.has(x[0])).map(([sk]) => legI(col[sk], sk.split("|")[0])).join("")}${totS.some(x => !keep.has(x[0])) ? legI("#7f5539", "AUTRES (" + totS.filter(x => !keep.has(x[0])).length + ")") : ""}</div>` : "";
           const leg = legRd ? (hideC ? `<div class="ghist-leg">${legRd}</div>` : leg0 ? leg0.replace(/<\/div>$/, legRd + "</div>") : `<div class="ghist-leg">${legI(cum ? "#f79009" : "#f79009", "CHARGES (" + HD.unit + ")")}${legRd}</div>`) : leg0;
           /* R21 à R23 : CAPACITÉ ; v546 : « / » traversé par la barre, trait vertical en pointillés entre deux morceaux, valeur du morceau au-dessus (R19, R20) */
           const yOf = n => n < 0 ? HH - IB / 2 : Y0 - n * sc;
@@ -11261,8 +11261,9 @@ function renderBudgetList() {
         if (!a) return;
         e.stopPropagation();
         /* v584 : toucher l'axe = faire apparaître la règle (l'appui long sur la ligne la fait disparaître) */
-        if (shell.__dlyRule) return;
-        shell.__dlyRule = true; shell.__dlyRuleV = null;
+        /* v588 : la règle apparaît (ou se pose) à la hauteur touchée */
+        const h = a.closest(".ghist"), sc = Number(h.dataset.sc) || 1, Y0 = Number(h.dataset.y0) || h.offsetHeight;
+        shell.__dlyRule = true; shell.__dlyRuleV = (Y0 - (e.clientY - h.getBoundingClientRect().top)) / sc;
         const host = a.closest("#dlyGantt"); host.__drawn = false; dlyGanttDraw();
       }, true);
       shell.addEventListener("pointerdown", e => {
@@ -12595,7 +12596,7 @@ function renderBudgetList() {
     };
 
     /* ---------- histogramme : données, R17 approvisionnement, R18 réglages ---------- */
-    const DLY_SER = ["#2e90fa", "#f79009", "#12b76a", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#667085"];
+    const DLY_SER = ["#2e90fa", "#f79009", "#12b76a", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#84cc16"];   /* v588 : plus de gris dans les séries (le gris = hors DÉBUT – FIN) */
     /* hauteur de l'histogramme : nombre de pixels (28 = miniaturisé en bas) ou « full » (plein écran, à la place du Gantt) */
     /* v546 (R25) : 0 = histogramme entièrement caché (poignée tout en bas) */
     const dlyHHGet = () => { if (active === "gra") return "full"; let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : v === "0" ? 0 : Math.max(28, Math.min(2000, Number(v) || 110)); };
