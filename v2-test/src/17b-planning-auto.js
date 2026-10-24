@@ -161,6 +161,8 @@
         cs.forEach(c => { if (c.d <= iso) n = c.n; });
         return n < 0 ? Infinity : n * .5;
       };
+      const dead = (g, s) => { const iso = dayAt(s >> 1);
+        return !dlyCutsOf(g.st).some(c => { const d = dlyCutDate(c, finOf); return dlyCapV(c.n) !== 0 && (!d || d > iso); }); };
       const place = (k, s0, dry) => {
         const q = G.map(g => dlyGQ(k, g.keys, g.m)), rel = G.map((g, i) => i).filter(i => q[i] > 0);
         const own = deb(k) && dlyFin(k) ? dlyHalves(k) : 0;
@@ -189,6 +191,8 @@
             if (al < f - 1e-12) { f = al; li = i; }
           });
           if (li >= 0) cnt[li] = (cnt[li] || 0) + 1;
+          /* v585 : plus aucune capacité plus loin pour ce groupe = la tâche ne pourra jamais être placée : arrêt (au lieu de 40 000 essais) */
+          if (f <= 1e-9 && li >= 0 && capAt(G[li], s) === 0 && dead(G[li], s)) throw { dlyStuck: true };
           if (f > 1e-9) { rel.forEach(i => take(i, s, f * q[i])); rem -= f; if (a === null) a = s; b = s; got.push(s); }
         }
         if (!dry) { const best = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0]; if (best !== undefined) lim[k] = G[best].gk; }
@@ -249,7 +253,9 @@
     const dlyCanCompress = (opts = {}) => {
       if (!dlyKeys().length) return { ok: false, why: "AUCUNE TÂCHE AU PLANNING." };
       if (opts.gen && !dlyKeys().some(k => !(dlyDeb(k) && dlyFin(k)))) return { ok: false, why: "TOUTES LES TÂCHES ONT DÉJÀ LEURS DATES." };
-      const P = dlyPlanCompute(opts);
+      let P;
+      /* v585 : capacité 0 jusqu'à la fin = arrêt immédiat du calcul, planning inchangé */
+      try { P = dlyPlanCompute(opts); } catch (e) { if (e && e.dlyStuck) return { ok: false, stuck: true, why: "CAPACITÉ 0 JUSQU'À LA FIN : AUCUNE TÂCHE NE PEUT ÊTRE PLACÉE." }; throw e; }
       /* v547 (R22) : comparaison morceau par morceau */
       const sigC = k => dlyList(k).map(p => [p.deb || "", p.fin || "", dlyHalfS(p) ? 1 : 0, dlyHalfE(p) ? 1 : 0].join(",")).join(";");
       const sigP = x => (x.per || [x]).map(q => [q.deb || "", q.fin || "", q.dm ? 1 : 0, q.fm && q.fin ? 1 : 0].join(",")).join(";");
@@ -277,6 +283,7 @@
     const dlyCompressRun = (opts = {}) => {
       const C = dlyCanCompress({ gen: !!opts.gen });
       if (!C.ok) {
+        if (C.stuck) { svToast(C.why, 5000, opts.anchor); insSave(); renderTabK(); return null; }
         if (opts.plaf !== undefined) {
           /* R24 : la capacité de la sélection n'a plus d'effet — dire quelle ressource bloque */
           const cur = dlyCurGK(), by = cur ? [...new Set(dlyKeys().filter(k => dlyResQ(k) > 0).map(k => (INS.dlim || {})[k]).filter(g => g && g !== cur))] : [];
@@ -359,8 +366,15 @@
     const dlyDelCut = i => {
       const S = dlyCapSegs(), s = S.find(x => x.i === i), st = dlyCapSt();
       if (!s || !st) return;
-      svChoose({ title: "SUPPRIMER LA COUPE", html: `<div class="svc-sub">SUPPRIMER LA COUPE DU ${esc(dFr(s.d))} ?</div>`, buttons: [{ v: "go", label: "SUPPRIMER", tone: "danger" }] }).then(r => {
-        if (r !== "go") return;
+      /* v585 : le morceau fusionné garde une capacité qui permet de travailler — celle de droite quand la gauche est à 0,
+         sinon au choix (pas de question quand les deux sont égales) */
+      const L = S[S.indexOf(s) - 1] || S[0], nl = L.n, nr = s.n, lab = n => n < 0 ? "ILLIMITÉE" : String(n);
+      const ask = nl !== nr && nl !== 0;
+      svChoose({ title: "SUPPRIMER LA COUPE", html: `<div class="svc-sub">SUPPRIMER LA COUPE DU ${esc(dFr(s.d))} ?${ask ? "<br>CAPACITÉ À GARDER POUR LE MORCEAU FUSIONNÉ :" : ""}</div>`,
+        buttons: ask ? [{ v: "l", label: "GAUCHE : " + lab(nl) }, { v: "r", label: "DROITE : " + lab(nr) }] : [{ v: "go", label: "SUPPRIMER", tone: "danger" }] }).then(r => {
+        if (r !== "go" && r !== "l" && r !== "r") return;
+        const keep = r === "l" ? nl : r === "r" || nl === 0 ? nr : nl;
+        if (keep !== nl) { if (!L.i) st.plaf = keep; else if ((st.plafs || [])[L.i - 1]) st.plafs[L.i - 1].n = keep; }
         st.plafs = (st.plafs || []).filter((c, j) => j + 1 !== i);
         histLog("DÉLAIS", "COUPE SUPPRIMÉE", dFr(s.d));
         dlyCompressRun({ plaf: dlyCapOf(s.d), quiet: true });
