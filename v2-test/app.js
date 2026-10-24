@@ -9964,6 +9964,7 @@ function renderBudgetList() {
       dlyStick(host.closest(".bdg-d-scroll, .lk-scroll"));
       dlyCfgPaint();
       requestAnimationFrame(dlyRngEdge);
+      dlyKbPaint();
       requestAnimationFrame(() => { try { dlyGhFix(); } catch (e) {} });
       if (!host.__ghFixS) { host.__ghFixS = true; host.addEventListener("scroll", () => { const f = shell.querySelector("#bdgTabBody > .gh-fix > .gh-fix-in"); if (f) f.style.transform = "translateX(" + (-host.scrollLeft) + "px)"; }, { passive: true }); }
       dlyLift();
@@ -10031,6 +10032,39 @@ function renderBudgetList() {
       inn.style.transform = "translateX(" + (-host.scrollLeft) + "px)";
       gh.classList.add("gh-under");
     };
+    /* v579 (partie 11, remarque 13) : clavier sur le PLANNING — ↓, Tab, Entrée = tâche suivante ; ↑, Maj + Tab = précédente ;
+       la tâche choisie est encadrée dans le tableau et sur le Gantt, et l'écran la suit (← → ne font rien) */
+    const dlyKbPaint = (scroll) => {
+      const k = shell.__dlyKb;
+      shell.querySelectorAll(".dlyg-l tr.dly-kb, #dlyGantt .gb.gb-kb").forEach(x => x.classList.remove("dly-kb", "gb-kb"));
+      if (!k) return;
+      const tr = shell.querySelector(`.dlyg-l tr.dly-task[data-key="${CSS.escape(k)}"]`), b = shell.querySelector(`#dlyGantt .gb[data-key="${CSS.escape(k)}"]`);
+      if (tr) tr.classList.add("dly-kb");
+      shell.querySelectorAll(`#dlyGantt .gb[data-key="${CSS.escape(k)}"]`).forEach(x => x.classList.add("gb-kb"));
+      if (scroll && tr) {
+        const sc = tr.closest(".dly-scroll"), r = tr.getBoundingClientRect(), sr = sc ? sc.getBoundingClientRect() : null;
+        if (sc && sr) { const head = 40, hist = (shell.querySelector("#dlyGantt .ghist") || {}).offsetHeight || 0; if (r.top < sr.top + head) sc.scrollTop -= sr.top + head - r.top; else if (r.bottom > sr.bottom - hist - 8) sc.scrollTop += r.bottom - (sr.bottom - hist - 8); }
+        if (b) { const H = shell.querySelector("#dlyGantt"), bl = b.offsetLeft, bw = b.offsetWidth; if (bl < H.scrollLeft || bl + Math.min(bw, H.clientWidth) > H.scrollLeft + H.clientWidth) H.scrollLeft = Math.max(0, bl - 40); }
+      }
+    };
+    if (!shell.__dlyKbBound) {
+      shell.__dlyKbBound = true;
+      document.addEventListener("pointerdown", e => { shell.__dlyKbOn = !!(e.target.closest && e.target.closest(".dlyg")) && !(e.target.closest && e.target.closest("input, textarea, select")); const g = e.target.closest && e.target.closest(".dlyg [data-key]"); if (shell.__dlyKbOn && g && g.dataset.key && g.dataset.key.includes("|")) shell.__dlyKb = g.dataset.key; }, true);
+      document.addEventListener("keydown", e => {
+        if (!shell.__dlyKbOn || !shell.isConnected || !shell.querySelector(".dlyg")) return;
+        const a = document.activeElement; if (a && a.matches && a.matches("input, textarea, select, [contenteditable]")) return;
+        if (document.getElementById("svConf") || document.getElementById("blkMenu")) return;
+        const down = e.key === "ArrowDown" || e.key === "Enter" || (e.key === "Tab" && !e.shiftKey), up = e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey);
+        if (!down && !up) return;
+        const K = (shell.__dlyRows || []).filter(r => !r.grp && r.key).map(r => r.key);
+        if (!K.length) return;
+        e.preventDefault(); e.stopPropagation();
+        let i = K.indexOf(shell.__dlyKb);
+        i = i < 0 ? (down ? 0 : K.length - 1) : Math.max(0, Math.min(K.length - 1, i + (down ? 1 : -1)));
+        shell.__dlyKb = K[i];
+        dlyKbPaint(true);
+      }, true);
+    }
     const dlyLift = () => {
       dlyCfgPaint();
       dlyRngEdge();
