@@ -2449,3 +2449,6 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 .dlyg-l tr.dly-kb > td { box-shadow: inset 0 2px 0 #12355b, inset 0 -2px 0 #12355b; }
 .dlyg-l tr.dly-kb > td:first-child { box-shadow: inset 3px 0 0 #12355b, inset 0 2px 0 #12355b, inset 0 -2px 0 #12355b; }
 #dlyGantt .gb.gb-kb { outline: 2.5px solid #12355b; outline-offset: 2px; }
+
+/* v580 (partie 11, remarques 8 et 12) : graphique, libellé et poignée « = » déplacés par la carte graphique (pas de saut) */
+#dlyGantt .ghist, .dlyh-lab, .dlyg-hh { will-change: transform; backface-visibility: hidden; }
