@@ -2195,7 +2195,7 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .dlyg-hh::before { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 3px; background: #8a5a3c; }
 .dlyhh-pill { pointer-events: auto; position: absolute; left: 50%; top: -8px; width: 30px; height: 30px; margin-left: -15px; border-radius: 50%; background: #475467; color: #fff; font-size: 13px; font-weight: 800; line-height: 30px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.25); touch-action: none; cursor: row-resize; }
 .dlyhh-pill::after { content: ""; position: absolute; inset: -10px; border-radius: 50%; }
-.dlyg.dly-hfull .dlyg-l table tbody, .dlyg.dly-hfull .dlyg-fill, .dlyg.dly-hfull #dlyGantt .gbody { display: none; }
+.dlyg.dly-hfull #dlyGantt .gbody { display: none; }   /* v579 (partie 11, remarque 9) : le tableau du planning reste affiché */
 /* R8 / FORMAT 160 : bulle d'un jour de l'histogramme */
 #dlyHb { position: fixed; z-index: 10070; min-width: 200px; max-width: 360px; background: #fff; border: 1px solid #d0d5dd; border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.18); padding: 6px 26px 6px 8px; font-size: 11px; color: #101828; }
 #dlyHb > div { display: flex; justify-content: space-between; gap: 10px; padding: 1px 0; }
@@ -2444,3 +2444,8 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 /* v578 (partie 11, remarque 11) : fenêtre LIAISON — PRÉDÉCESSEUR / SUCCESSEUR sur deux lignes */
 .lkw-ps { display: grid; gap: 4px; }
 .lkw-ps b { color: #475467; }
+
+/* v579 (partie 11, remarque 13) : tâche choisie au clavier (Tab, Entrée, flèches) */
+.dlyg-l tr.dly-kb > td { box-shadow: inset 0 2px 0 #12355b, inset 0 -2px 0 #12355b; }
+.dlyg-l tr.dly-kb > td:first-child { box-shadow: inset 3px 0 0 #12355b, inset 0 2px 0 #12355b, inset 0 -2px 0 #12355b; }
+#dlyGantt .gb.gb-kb { outline: 2.5px solid #12355b; outline-offset: 2px; }
