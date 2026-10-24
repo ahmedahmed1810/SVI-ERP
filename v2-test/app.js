@@ -9536,7 +9536,8 @@ function renderBudgetList() {
       if (window.ResizeObserver && !host.__ro2) {
         /* hauteur du tableau ou du bloc (agrandi / réduit) changée : le Gantt se redessine */
         const scr0 = host.closest(".bdg-d-scroll");
-        const hk = () => tbl.getBoundingClientRect().height + "|" + (scr0 ? scr0.clientHeight : 0) + "|" + Math.ceil(host.clientWidth / (DLY_DW || 1));
+        /* v556 : hauteur gardée (capMax), pas la hauteur réelle qui suit le défilement — sinon redessin complet à chaque défilement (iPad figé) */
+        const hk = () => tbl.getBoundingClientRect().height + "|" + (scr0 ? (scr0.__capMax || 0) : 0) + "|" + Math.ceil(host.clientWidth / (DLY_DW || 1));
         let h0 = hk();
         host.__ro2 = new ResizeObserver(() => {
           if (!host.isConnected) { host.__ro2.disconnect(); return; }
@@ -9875,7 +9876,11 @@ function renderBudgetList() {
     const dlyLift = () => {
       const g = shell.querySelector(".dlyg"); if (!g) return;
       /* v548 : la hauteur suit les changements de mise en page (bloc agrandi / réduit, rotation, clavier) */
-      { const sc = g.closest(".dly-scroll"), h = shell.querySelector("#dlyGantt"); if (sc && dlyFitScr(sc) === 2 && h) { h.__drawn = false; try { dlyGanttDraw(); } catch (e) {} return; } }
+      { const sc = g.closest(".dly-scroll"), h = shell.querySelector("#dlyGantt"); if (sc && dlyFitScr(sc) === 2 && h) {
+        /* v556 : un seul redessin, quand la hauteur de l'écran est stable (barre de Safari, rotation, clavier), jamais pendant le défilement */
+        clearTimeout(shell.__dlyCapT);
+        shell.__dlyCapT = setTimeout(() => { const h2 = shell.querySelector("#dlyGantt"); if (h2 && h2.isConnected) { h2.__drawn = false; try { dlyGanttDraw(); } catch (e) {} } }, 300);
+      } }
       const hist = g.querySelector("#dlyGantt .ghist"), lab = g.querySelector(".dlyh-lab"), hh = g.querySelector(".dlyg-hh"), gh = g.querySelector("#dlyGantt > .gh");
       /* v550 : graphique caché (poignée tout en bas) = la barre marron « = » reste au bas de l'écran */
       const ref = hist || hh;
@@ -9896,7 +9901,7 @@ function renderBudgetList() {
       if (window.visualViewport) { window.visualViewport.addEventListener("resize", go); window.visualViewport.addEventListener("scroll", go); }
       /* v548 : aussi après tout changement de mise en page (bloc agrandi / réduit, onglets, redessin) */
       try { const ro = new ResizeObserver(go); ro.observe(document.documentElement); shell.__dlyLiftRO = ro; } catch (e) {}
-      setInterval(() => { if (shell.isConnected && shell.querySelector(".dlyg")) go(); }, 400);
+      /* v556 : plus de vérification toutes les 0,4 s (calcul permanent, iPad figé) ; défilement, taille et ResizeObserver suffisent */
     }
     /* en-têtes du tableau et du Gantt fixés en haut quand le bloc défile verticalement */
     const dlyStick = sc => {

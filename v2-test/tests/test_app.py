@@ -1575,6 +1575,17 @@ def main():
               p2[0] >= 1 and p2[0] <= 2 and p2[1] <= p2[2] * 7, p2)
         pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()")
         pg.evaluate("() => { window.__sviDlyScale.set('j'); localStorage.removeItem('svi_dlyg_dw_s_v1'); }"); pg.wait_for_timeout(500)
+        # v556 : défilement de la page et de la hauteur visible (barre de Safari) sans redessin complet du Gantt à chaque fois
+        pg.evaluate("""() => { const G = document.querySelector('#dlyGantt'); window.__rd = 0;
+            window.__mo = new MutationObserver(m => { if (m.some(x => x.type === 'childList' && x.target === G)) window.__rd++; }); window.__mo.observe(G, { childList: true }); }""")
+        for i in range(24):
+            pg.evaluate(f"() => {{ window.scrollTo(0, {(i % 6) * 40}); const s = document.querySelector('.dly-scroll'); if (s) s.scrollTop = {(i % 4) * 30}; }}")
+            pg.wait_for_timeout(60)
+        pg.wait_for_timeout(500); rs = pg.evaluate("() => window.__rd")
+        pg.set_viewport_size({"width": 1180, "height": 760}); pg.wait_for_timeout(120)
+        pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(700)
+        rd = pg.evaluate("() => { window.__mo.disconnect(); window.scrollTo(0, 0); return window.__rd; }")
+        check("v556 : défilement sans redessin du Gantt ; changement de hauteur de l'écran = redessin limité (avant : à chaque défilement, iPad figé)", rs == 0 and rd - rs <= 3, [rs, rd])
         # R30 : INF — DATE DE FIN DU PROJET = fin du planning (non saisissable)
         pg.evaluate("() => document.querySelector('[data-pill=\"inf\"]')?.click()"); pg.wait_for_timeout(400)
         inf = pg.evaluate("() => [!!document.querySelector('#docPop input[data-f=\"obj\"]'), (document.querySelector('#docPop [data-v=\"pfin0\"]') || {}).textContent || '']")
