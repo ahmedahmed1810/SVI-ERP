@@ -1,14 +1,14 @@
       const dlyDwSet = (host, w, ax, p) => {
         w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w)));
         if (w === DLY_DW) return;
-        try { localStorage.setItem(DLY_SC[dlyScale()].k, String(w)); } catch (e) {}
+        try { localStorage.setItem(DLY_SC[dlyScale()].k, DLY_FILL && w <= DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}   /* v559 : réduit au maximum = ajusté à l'écran */
         host.__drawn = false; dlyGanttDraw();
         const h2 = shell.querySelector("#dlyGantt");
         if (h2) h2.scrollLeft = Math.max(0, p * w - ax);
         let lab = document.getElementById("dlyDwLab");
         if (!lab) { lab = document.createElement("div"); lab.id = "dlyDwLab"; document.body.appendChild(lab); }
         const r = (h2 || host).getBoundingClientRect();
-        lab.textContent = "1 JOUR = " + w + " PX";
+        lab.textContent = "1 JOUR = " + Math.round(w * 10) / 10 + " PX";
         lab.style.left = (r.left + ax) + "px"; lab.style.top = (r.top + 4) + "px";
         clearTimeout(lab.__tm); lab.__tm = setTimeout(() => lab.remove(), 900);
       };

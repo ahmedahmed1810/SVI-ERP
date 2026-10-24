@@ -273,18 +273,21 @@
     /* GANTT (FORMAT 90 à 96) : à droite du tableau du PLANNING, lignes alignées ; jours en abscisse */
     /* largeur d'un jour du Gantt (FORMAT 91) : réglable en glissant sur l'en-tête ou en pinçant, 14 à 60 px, mémorisée */
     /* affichage du Gantt (FORMAT 91, 97) : JOUR / SEMAINE / MOIS — largeur d'un jour propre à chaque affichage, mémorisée */
-    const DLY_SC = { j: { min: 14, max: 100, def: 22, k: "svi_dlyg_dw_v1" }, s: { min: 4, max: 100, def: 9, k: "svi_dlyg_dw_s_v1", fit: 1 }, m: { min: 1, max: 100, def: 2, k: "svi_dlyg_dw_m_v1", fit: 1 } };
+    const DLY_SC = { j: { min: 14, max: 100, def: 22, k: "svi_dlyg_dw_v1", fit: 1 }, s: { min: 4, max: 100, def: 9, k: "svi_dlyg_dw_s_v1", fit: 1 }, m: { min: 1, max: 100, def: 2, k: "svi_dlyg_dw_m_v1", fit: 1 } };
     const dlyScale = () => { let v = "j"; try { v = localStorage.getItem("svi_dlyg_sc_v1") || "j"; } catch (e) {} return DLY_SC[v] ? v : "j"; };
     /* v546 (R17) : choix JOUR / SEMAINE / MOIS dans la fenêtre CALENDRIER DU BUDGET ; SEMAINE et MOIS partent de la largeur qui remplit l'écran (R23) */
-    window.__sviDlyScale = { get: () => dlyScale(), set: v => { const c = DLY_SC[v]; if (!c) return; try { if (c.fit) localStorage.setItem(c.k, "fit"); localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} keepScroll(() => renderTab()); } };
+    window.__sviDlyScale = { get: () => dlyScale(), set: v => { const c = DLY_SC[v]; if (!c) return; try { localStorage.setItem(c.k, "fit"); localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} keepScroll(() => renderTab()); } };
     let DLY_DW_MIN = DLY_SC[dlyScale()].min, DLY_DW_MAX = DLY_SC[dlyScale()].max;
     /* v546 (R23, R34) : maximum = 100 px par jour, ou plus si c'est la largeur qui remplit l'écran ; « fit » = remplir (départ en SEMAINE / MOIS) */
     let DLY_FILL = 0;
     const dlyDwGet = () => {
       const c = DLY_SC[dlyScale()]; DLY_DW_MIN = c.min; DLY_DW_MAX = Math.max(100, DLY_FILL);
       let s0 = null; try { s0 = localStorage.getItem(c.k); } catch (e) {}
-      const v = s0 === null ? (c.fit && DLY_FILL ? DLY_FILL : c.def) : s0 === "fit" ? (DLY_FILL || c.def) : Number(s0) || c.def;
+      /* v559 : changer d'échelle (JOUR / SEMAINE / MOIS) = « fit » : tout le projet dans la largeur visible, trait FIN au bord droit
+         (largeur d'un jour non arrondie) ; à l'ouverture, le dernier zoom réglé au doigt est repris */
       DLY_DW_MIN = Math.max(c.min, DLY_FILL || 0);   /* v553 (P11 R2) : jamais plus étroit que la largeur qui remplit le Gantt */
+      if ((s0 === null || s0 === "fit") && DLY_FILL) return Math.min(DLY_DW_MAX, DLY_FILL);
+      const v = Number(s0) || c.def;
       return Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v)));
     };
     let DLY_DW = dlyDwGet();

@@ -9463,18 +9463,21 @@ function renderBudgetList() {
     /* GANTT (FORMAT 90 à 96) : à droite du tableau du PLANNING, lignes alignées ; jours en abscisse */
     /* largeur d'un jour du Gantt (FORMAT 91) : réglable en glissant sur l'en-tête ou en pinçant, 14 à 60 px, mémorisée */
     /* affichage du Gantt (FORMAT 91, 97) : JOUR / SEMAINE / MOIS — largeur d'un jour propre à chaque affichage, mémorisée */
-    const DLY_SC = { j: { min: 14, max: 100, def: 22, k: "svi_dlyg_dw_v1" }, s: { min: 4, max: 100, def: 9, k: "svi_dlyg_dw_s_v1", fit: 1 }, m: { min: 1, max: 100, def: 2, k: "svi_dlyg_dw_m_v1", fit: 1 } };
+    const DLY_SC = { j: { min: 14, max: 100, def: 22, k: "svi_dlyg_dw_v1", fit: 1 }, s: { min: 4, max: 100, def: 9, k: "svi_dlyg_dw_s_v1", fit: 1 }, m: { min: 1, max: 100, def: 2, k: "svi_dlyg_dw_m_v1", fit: 1 } };
     const dlyScale = () => { let v = "j"; try { v = localStorage.getItem("svi_dlyg_sc_v1") || "j"; } catch (e) {} return DLY_SC[v] ? v : "j"; };
     /* v546 (R17) : choix JOUR / SEMAINE / MOIS dans la fenêtre CALENDRIER DU BUDGET ; SEMAINE et MOIS partent de la largeur qui remplit l'écran (R23) */
-    window.__sviDlyScale = { get: () => dlyScale(), set: v => { const c = DLY_SC[v]; if (!c) return; try { if (c.fit) localStorage.setItem(c.k, "fit"); localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} keepScroll(() => renderTab()); } };
+    window.__sviDlyScale = { get: () => dlyScale(), set: v => { const c = DLY_SC[v]; if (!c) return; try { localStorage.setItem(c.k, "fit"); localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} keepScroll(() => renderTab()); } };
     let DLY_DW_MIN = DLY_SC[dlyScale()].min, DLY_DW_MAX = DLY_SC[dlyScale()].max;
     /* v546 (R23, R34) : maximum = 100 px par jour, ou plus si c'est la largeur qui remplit l'écran ; « fit » = remplir (départ en SEMAINE / MOIS) */
     let DLY_FILL = 0;
     const dlyDwGet = () => {
       const c = DLY_SC[dlyScale()]; DLY_DW_MIN = c.min; DLY_DW_MAX = Math.max(100, DLY_FILL);
       let s0 = null; try { s0 = localStorage.getItem(c.k); } catch (e) {}
-      const v = s0 === null ? (c.fit && DLY_FILL ? DLY_FILL : c.def) : s0 === "fit" ? (DLY_FILL || c.def) : Number(s0) || c.def;
+      /* v559 : changer d'échelle (JOUR / SEMAINE / MOIS) = « fit » : tout le projet dans la largeur visible, trait FIN au bord droit
+         (largeur d'un jour non arrondie) ; à l'ouverture, le dernier zoom réglé au doigt est repris */
       DLY_DW_MIN = Math.max(c.min, DLY_FILL || 0);   /* v553 (P11 R2) : jamais plus étroit que la largeur qui remplit le Gantt */
+      if ((s0 === null || s0 === "fit") && DLY_FILL) return Math.min(DLY_DW_MAX, DLY_FILL);
+      const v = Number(s0) || c.def;
       return Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v)));
     };
     let DLY_DW = dlyDwGet();
@@ -9604,7 +9607,7 @@ function renderBudgetList() {
       const d0 = SC === "s" ? sviIsoAdd(dA, -wd(dA)) : SC === "m" ? dA.slice(0, 8) + "01" : sviIsoAdd(dA, -3);
       const dE = SC === "s" ? sviIsoAdd(dZ, 6 - wd(dZ)) : SC === "m" ? (() => { const y = Number(dZ.slice(0, 4)), m = Number(dZ.slice(5, 7)); return dZ.slice(0, 8) + String(new Date(y, m, 0).getDate()).padStart(2, "0"); })() : sviIsoAdd(dZ, 3);
       const nD = dDiff(d0, dE) + 1;
-      DLY_FILL = Math.floor((host.clientWidth || 600) / nD);
+      DLY_FILL = Math.floor((host.clientWidth || 600) / nD * 1000) / 1000;   /* v559 : non arrondi — FIN pile au bord droit */
       DLY_DW = dlyDwGet();
       host.style.setProperty("--dw", DLY_DW + "px");
       const W = nD * DLY_DW;
@@ -9823,7 +9826,7 @@ function renderBudgetList() {
               + (j && g2.d ? `<span class="gcut" data-i="${g2.i}" data-eq="${prev && prev.n === n ? 1 : 0}" style="left:${l - 7}px;top:${y - 10}px" role="button" title="SUPPRIMER LA COUPE (APPUI LONG : DÉPLACER)">/</span>` : "");
           }).join("");
           /* R19 : traits DÉBUT et FIN ; total de la plage seulement quand une plage est posée */
-          const xa = RG.a ? X(RG.a) : 0, xb = RG.b ? X(RG.b) + DLY_DW : W;
+          const xa = RG.a ? X(RG.a) : 0, xb = RG.b ? X(RG.b) + DLY_DW : W - 2;   /* v559 : FIN au bord droit, sans déborder */
           const sum = days.filter(di => inR(di) && pass(di)).reduce((t, di) => t + (C ? C.L[di] : gC(di)), 0);
           const rng = `<div class="grng${RG.a ? "" : " grng-off"}" data-r="a" style="left:${xa}px"><span>DÉBUT${RG.a ? " " + dFr(RG.a).slice(0, 5) : ""}</span></div>`
             + `<div class="grng${RG.b ? "" : " grng-off"}" data-r="b" style="left:${xb}px"><span>FIN${RG.b ? " " + dFr(RG.b).slice(0, 5) : ""}</span></div>`
@@ -11008,14 +11011,14 @@ function renderBudgetList() {
       const dlyDwSet = (host, w, ax, p) => {
         w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w)));
         if (w === DLY_DW) return;
-        try { localStorage.setItem(DLY_SC[dlyScale()].k, String(w)); } catch (e) {}
+        try { localStorage.setItem(DLY_SC[dlyScale()].k, DLY_FILL && w <= DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}   /* v559 : réduit au maximum = ajusté à l'écran */
         host.__drawn = false; dlyGanttDraw();
         const h2 = shell.querySelector("#dlyGantt");
         if (h2) h2.scrollLeft = Math.max(0, p * w - ax);
         let lab = document.getElementById("dlyDwLab");
         if (!lab) { lab = document.createElement("div"); lab.id = "dlyDwLab"; document.body.appendChild(lab); }
         const r = (h2 || host).getBoundingClientRect();
-        lab.textContent = "1 JOUR = " + w + " PX";
+        lab.textContent = "1 JOUR = " + Math.round(w * 10) / 10 + " PX";
         lab.style.left = (r.left + ax) + "px"; lab.style.top = (r.top + 4) + "px";
         clearTimeout(lab.__tm); lab.__tm = setTimeout(() => lab.remove(), 900);
       };
