@@ -211,13 +211,14 @@
         const pre = idx ? L[idx - 1] : null;
         if (FX.has(k)) return;
         let e = 0;
-        if (pre && S[pre]) e = Math.max(e, hasR(pre) && S[pre].b >= S[pre].a ? S[pre].b : S[pre].b + 1);
+        /* v578 (partie 11, remarque 10) : FIN → DÉBUT respecté — la suivante commence au plus tôt la demi-journée qui suit la fin de la précédente */
+        if (pre && S[pre]) e = Math.max(e, S[pre].b + 1);
         dlyLinks(k).forEach(x => {
           const P = S[x.k];
           if (!P) return;
           if (x.t === "DD") e = Math.max(e, slotOf(sviWAdd(cal, D[x.k].deb, Math.max(0, x.o || 0))) + (D[x.k].dm ? 1 : 0));
           /* v544 : 0 = le jour même (dès qu'il reste des ouvriers libres), n = n jours travaillés après la fin */
-          else if (!(x.o > 0)) e = Math.max(e, hasR(x.k) && P.b >= P.a ? P.b : P.b + 1);
+          else if (!(x.o > 0)) e = Math.max(e, P.b + 1);
           else e = Math.max(e, slotOf(sviWAdd(cal, D[x.k].fin || D[x.k].deb, x.o)));
         });
         /* une seule date : elle sert d'ancrage (R26) */

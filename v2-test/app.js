@@ -9432,7 +9432,7 @@ function renderBudgetList() {
       d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">LIAISON</div>
-        <div class="svc-sub">${esc(dlyName(pred))} → ${esc(dlyName(succ))}</div>
+        <div class="svc-sub lkw-ps"><span><b>PRÉDÉCESSEUR :</b> ${esc(dlyName(pred))}</span><span><b>SUCCESSEUR :</b> ${esc(dlyName(succ))}</span></div>
         <div class="bdt-row"><span>TYPE</span><select class="lkw-t"><option value="FD"${l.t !== "DD" ? " selected" : ""}>FIN → DÉBUT</option><option value="DD"${l.t === "DD" ? " selected" : ""}>DÉBUT → DÉBUT</option></select></div>
         <div class="bdt-row"><span>DÉCALAGE (J)</span><input class="lkw-o" inputmode="numeric" value="${Math.max(0, Number(l.o) || 0)}"></div>
         <div class="svc-sub lkw-hint">FIN → DÉBUT : 0 = LE JOUR MÊME OÙ FINIT LA PRÉCÉDENTE, 1 = LE LENDEMAIN, 2 = UN JOUR LIBRE ENTRE LES DEUX.</div>
@@ -12245,13 +12245,14 @@ function renderBudgetList() {
         const pre = idx ? L[idx - 1] : null;
         if (FX.has(k)) return;
         let e = 0;
-        if (pre && S[pre]) e = Math.max(e, hasR(pre) && S[pre].b >= S[pre].a ? S[pre].b : S[pre].b + 1);
+        /* v578 (partie 11, remarque 10) : FIN → DÉBUT respecté — la suivante commence au plus tôt la demi-journée qui suit la fin de la précédente */
+        if (pre && S[pre]) e = Math.max(e, S[pre].b + 1);
         dlyLinks(k).forEach(x => {
           const P = S[x.k];
           if (!P) return;
           if (x.t === "DD") e = Math.max(e, slotOf(sviWAdd(cal, D[x.k].deb, Math.max(0, x.o || 0))) + (D[x.k].dm ? 1 : 0));
           /* v544 : 0 = le jour même (dès qu'il reste des ouvriers libres), n = n jours travaillés après la fin */
-          else if (!(x.o > 0)) e = Math.max(e, hasR(x.k) && P.b >= P.a ? P.b : P.b + 1);
+          else if (!(x.o > 0)) e = Math.max(e, P.b + 1);
           else e = Math.max(e, slotOf(sviWAdd(cal, D[x.k].fin || D[x.k].deb, x.o)));
         });
         /* une seule date : elle sert d'ancrage (R26) */
