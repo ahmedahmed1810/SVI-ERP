@@ -20094,7 +20094,7 @@ function renderBudgetList() {
       /* DÉTAIL QUALITÉ (FORMAT, section U) : ses propres commandes, pas d'import ni de copier / coller de lignes */
       const QQm = shell.__qq && shell.__qq.on() && tools.querySelector('.blk-btn[data-blk="detail"]') ? shell.__qq : null;
       /* v545 (remarque 1) : AGRANDIR / RÉDUIRE n'est plus dans le menu (bouton visible à gauche du ⋯) */
-      const acts = [...tools.querySelectorAll(".blk-btn")].filter(a => !["max", "adj"].includes(a.dataset.act) && !(readOnly && a.dataset.act === "import"))
+      const acts = [...tools.querySelectorAll(".blk-btn")].filter(a => !["max", "adj", "cfg"].includes(a.dataset.act) && !(readOnly && a.dataset.act === "import"))
         .filter(a => !(QQm && ["import", "del", "copy", "cut", "paste", "export"].includes(a.dataset.act)));
       const m = document.createElement("div");
       m.id = "blkMenu";
