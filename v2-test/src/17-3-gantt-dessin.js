@@ -335,9 +335,13 @@
           /* R19 : traits DÉBUT et FIN ; total de la plage seulement quand une plage est posée */
           const xa = RG.a ? X(RG.a) : 0, xb = RG.b ? X(RG.b) + DLY_DW : W - 2;   /* v559 : FIN au bord droit, sans déborder */
           const sum = days.filter(di => inR(di) && pass(di)).reduce((t, di) => t + (C ? C.L[di] : gC(di)), 0);
+          /* v563 (remarque 3) : total de la plage pour chaque courbe affichée (CHARGES, PRODUITS, MARGE), pas seulement les charges */
+          const sumOf = g => days.filter(di => inR(di) && pass(di)).reduce((t, di) => t + g(di), 0);
+          const sumTxt = C || !multi ? fmtA(sum) + " " + esc(HD.unit)
+            : [...(sC ? [["CHARGES", gC]] : []), ...(sP ? [["PRODUITS", gP]] : []), ...(sG ? [["MARGE", gG]] : [])].map(([l, g]) => l + " " + fmtA(sumOf(g)) + " DH").join(" · ");
           const rng = `<div class="grng${RG.a ? "" : " grng-off"}" data-r="a" style="left:${xa}px"><span>DÉBUT${RG.a ? " " + dFr(RG.a).slice(0, 5) : ""}</span></div>`
             + `<div class="grng${RG.b ? "" : " grng-off"}" data-r="b" style="left:${xb}px"><span>FIN${RG.b ? " " + dFr(RG.b).slice(0, 5) : ""}</span></div>`
-            + (RG.a || RG.b || VL.min !== null || VL.max !== null ? `<div class="grng-tot" style="left:${(xa + xb) / 2}px">${fmtA(sum)} ${esc(HD.unit)}</div>` : "");
+            + (RG.a || RG.b || VL.min !== null || VL.max !== null ? `<div class="grng-tot" style="left:${(xa + xb) / 2}px">${sumTxt}</div>` : "");
           /* R20 : lignes MIN et MAX (filtre par valeur, sur les charges) */
           const vl = (r, v, off) => `<div class="gval${off ? " gval-off" : ""}" data-v="${r}" style="top:${off ? (r === "max" ? 22 : Y0 - 1) : Y0 - v * sc}px"><span>${r.toUpperCase()}${off ? "" : " " + fmtA(v)}</span></div>`;
           const vals = multi ? "" : vl("max", VL.max, VL.max === null) + vl("min", VL.min, VL.min === null);

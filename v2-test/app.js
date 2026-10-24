@@ -9863,9 +9863,13 @@ function renderBudgetList() {
           /* R19 : traits DÉBUT et FIN ; total de la plage seulement quand une plage est posée */
           const xa = RG.a ? X(RG.a) : 0, xb = RG.b ? X(RG.b) + DLY_DW : W - 2;   /* v559 : FIN au bord droit, sans déborder */
           const sum = days.filter(di => inR(di) && pass(di)).reduce((t, di) => t + (C ? C.L[di] : gC(di)), 0);
+          /* v563 (remarque 3) : total de la plage pour chaque courbe affichée (CHARGES, PRODUITS, MARGE), pas seulement les charges */
+          const sumOf = g => days.filter(di => inR(di) && pass(di)).reduce((t, di) => t + g(di), 0);
+          const sumTxt = C || !multi ? fmtA(sum) + " " + esc(HD.unit)
+            : [...(sC ? [["CHARGES", gC]] : []), ...(sP ? [["PRODUITS", gP]] : []), ...(sG ? [["MARGE", gG]] : [])].map(([l, g]) => l + " " + fmtA(sumOf(g)) + " DH").join(" · ");
           const rng = `<div class="grng${RG.a ? "" : " grng-off"}" data-r="a" style="left:${xa}px"><span>DÉBUT${RG.a ? " " + dFr(RG.a).slice(0, 5) : ""}</span></div>`
             + `<div class="grng${RG.b ? "" : " grng-off"}" data-r="b" style="left:${xb}px"><span>FIN${RG.b ? " " + dFr(RG.b).slice(0, 5) : ""}</span></div>`
-            + (RG.a || RG.b || VL.min !== null || VL.max !== null ? `<div class="grng-tot" style="left:${(xa + xb) / 2}px">${fmtA(sum)} ${esc(HD.unit)}</div>` : "");
+            + (RG.a || RG.b || VL.min !== null || VL.max !== null ? `<div class="grng-tot" style="left:${(xa + xb) / 2}px">${sumTxt}</div>` : "");
           /* R20 : lignes MIN et MAX (filtre par valeur, sur les charges) */
           const vl = (r, v, off) => `<div class="gval${off ? " gval-off" : ""}" data-v="${r}" style="top:${off ? (r === "max" ? 22 : Y0 - 1) : Y0 - v * sc}px"><span>${r.toUpperCase()}${off ? "" : " " + fmtA(v)}</span></div>`;
           const vals = multi ? "" : vl("max", VL.max, VL.max === null) + vl("min", VL.min, VL.min === null);
@@ -12174,7 +12178,11 @@ function renderBudgetList() {
     };
     const dlyHistData = () => {
       const crb = dlyCrb(), money = crb.some(c => c !== "c");
-      const R = dlyResSel();
+      const R0 = dlyResSel();
+      /* v563 (remarque 4) : courbes en MONTANT avec CHARGES — sans charge cochée, toutes les charges retenues (celles des lignes cochées
+         des autres blocs, sinon toutes), comme pour les produits */
+      let R = R0;
+      if (!R && money && crb.includes("c")) { const all = (INS.chg || []).filter(r => !r.t); let S = null; try { S = insCheckSet("chg"); } catch (e) { S = null; } R = S ? all.filter(r => S.has(r.id)) : all; if (!R.length) R = null; }
       if (!R && !money) return null;
       const mode = money || !R ? "m" : dlyResMode(R), cal = insCal(), cur = dlyCurDates(), ser = new Map(), det = {}, tot = {};
       if (R) [...new Set(R.map(dlyResK))].forEach(sk => ser.set(sk, { L: {} }));
@@ -12194,7 +12202,7 @@ function renderBudgetList() {
       });
       const H = { R, mode, ser, det, tot, unit: mode === "q" ? dlyResU(R[0]) : "DH", crb };
       if (money) { const P = dlyPrdDays(cur); H.prd = P.L; H.pdet = P.det; }
-      H.cmd = R ? dlyOrders(H) : null;
+      H.cmd = R0 ? dlyOrders(H) : null;
       return H;
     };
     /* R17 : APPROVISIONNEMENT PRÉVISIONNEL — réglages mémorisés par budget */
