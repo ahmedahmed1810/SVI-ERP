@@ -221,9 +221,9 @@
         const hit = e.target.closest && e.target.closest("#dlyGantt .ghist-cum .ghb-hit");
         if (!hit) return;
         const host = hit.closest("#dlyGantt"), h = hit.closest(".ghist"), HV = host.__HV || {}, H = host.__HD || {};
-        if (!HV.cum) return;
+        if (!HV.curve && !HV.hideC) return;
         let on = false, x0 = e.clientX, y0 = e.clientY;
-        const S = [["CHARGES", HV.val], ["PRODUITS", HV.vP], ["MARGE", HV.vG]].filter(x => x[1] && Object.keys(x[1]).length && (x[0] === "CHARGES" ? !HV.multi || (H.crb || []).includes("c") : (H.crb || []).includes(x[0] === "PRODUITS" ? "p" : "g")));
+        const S = [["CHARGES", HV.val], ["PRODUITS", HV.vP], ["MARGE", HV.vG]].filter(x => x[1] && Object.keys(x[1]).length && (x[0] === "CHARGES" ? !HV.hideC && (!HV.multi || (H.crb || []).includes("c")) : (H.crb || []).includes(x[0] === "PRODUITS" ? "p" : "g")));
         const fmt = v => { const a = Math.abs(v), f = (x, u) => (Math.round(x * 10) / 10).toLocaleString("fr-FR") + " " + u; return a >= 1e9 ? f(v / 1e9, "G") : a >= 1e6 ? f(v / 1e6, "M") : a >= 1e4 ? f(v / 1e3, "K") : (Math.round(v * 100) / 100).toLocaleString("fr-FR"); };
         const mk = (c) => { const d = document.createElement("div"); d.className = c; document.body.appendChild(d); return d; };
         const draw = (cx, cy) => {
@@ -282,7 +282,7 @@
         if (HV.cum || HV.multi) {
           /* v546 (R15, R29) : en CUMULÉ, la date et le total à ce jour ; avec PRODUITS / MARGE, une ligne par grandeur */
           const m = document.createElement("div"); m.id = "dlyHb";
-          const L = [["CHARGES", HV.val], ["PRODUITS", HV.vP], ["MARGE", HV.vG]].filter(x => x[1] && Object.keys(x[1]).length && (x[0] === "CHARGES" ? !HV.multi || (H.crb || []).includes("c") : (H.crb || []).includes(x[0] === "PRODUITS" ? "p" : "g")));
+          const L = [["CHARGES", HV.val], ["PRODUITS", HV.vP], ["MARGE", HV.vG]].filter(x => x[1] && Object.keys(x[1]).length && (x[0] === "CHARGES" ? !HV.hideC && (!HV.multi || (H.crb || []).includes("c")) : (H.crb || []).includes(x[0] === "PRODUITS" ? "p" : "g")));
           m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}${HV.cum ? " — CUMUL À CE JOUR" : ""}</div>` + L.map(([t, M]) => `<div><span>${t}</span><b>${fmt(M[di] || 0)} ${esc(HV.unit)}</b></div>`).join("") + dlyRdHb(HV, di) + dlyGoHb(H, di);
           document.body.appendChild(m);
           const r = b.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;

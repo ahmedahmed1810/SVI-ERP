@@ -249,9 +249,13 @@
           /* v546 : R20 valeur par morceau, R24 capacité en MONTANT, échelle abrégée, légende (70 %), R28 cumul = une courbe,
              R29 courbes CHARGES / PRODUITS / MARGE */
           const C = HD.cmd, ks = [...HD.ser.keys()], hs = dlyHSet(), cum = hs.aff === "c", crb = HD.crb || ["c"];   /* v566 (remarque 9) : COMMANDES aussi en CUMULÉE */
-          const sC = crb.includes("c") && !!HD.R, sP = crb.includes("p"), sG = crb.includes("g"), multi = !C && (sP || sG);
+          /* v571 (remarques 14 et 15) : FORME HISTOGRAMME / COURBES pour tout ce qui est affiché (départ : histogramme pour les commandes,
+             courbes avec RENDEMENT, sinon selon la présentation) ; avec RENDEMENT, CHARGES et PRODUITS (quantité produite) sont facultatifs */
+          const hasRd = crb.includes("r"), curve = hs.forme ? hs.forme === "c" : (C ? false : hasRd ? true : cum);
+          const sC = crb.includes("c") && !!HD.R, sP = crb.includes("p") && !hasRd, sG = crb.includes("g") && !hasRd, multi = !C && (sP || sG);
+          const hideC = hasRd && !crb.includes("c") && !C;
           const RG = dlyHRange(), VL = { min: null, max: null }, inR = di => (!RG.a || di >= RG.a) && (!RG.b || di <= RG.b);
-          const cur = dlyCurGK(), canP = !C && !cum && !multi && !!cur && !!HD.R, IB = canP ? 14 : 0;
+          const cur = dlyCurGK(), canP = !C && !cum && !curve && !multi && !hideC && !!cur && !!HD.R, IB = canP ? 14 : 0;
           const days = [...new Set(Object.keys(C ? C.L : HD.tot).concat(multi ? Object.keys(HD.prd || {}) : []))].sort();
           /* valeurs par jour (ou cumul : relatif = repart de 0 au trait DÉBUT) */
           const cumOf = get => { const o = {}; let t = 0, b = 0; days.forEach(di => { const v = get(di); if (hs.cum === "r" && RG.a && di < RG.a) b += v; t += v; o[di] = t - b; }); return o; };
@@ -288,13 +292,14 @@
           const order = totS.map(x => ks.indexOf(x[0]));
           let hb = "", svg = "";
           const CC = "#2e90fa", CP = "#12b76a", CG = "#7a5af8";
-          if (C && !cum) vis.forEach(di => { hb += `<div class="ghb ghc${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, val[di] * sc)}px;bottom:${IB}px"></div>`; });
-          else if (!cum && !multi) vis.forEach(di => {
-            const v = val[di], n = capAt(di), over = n >= 0 && v > n + 1e-9, inc = over && (HD.det[di] || []).some(x => x.inc);
-            const parts = ks.length > 1 ? order.map(j => { const w = sval[j][di]; return w ? `<i style="height:${w * sc}px;background:${col[ks[j]]}"></i>` : ""; }).join("") : "";
-            hb += `<div class="ghb${over ? (inc ? " over-inc" : " over") : ""}${ks.length > 1 ? " ghb-st" : ""}${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, v * sc)}px;bottom:${HH - Y0}px">${parts}</div>`;
+          if (hideC) vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
+          else if (C && !curve) vis.forEach(di => { hb += `<div class="ghb ghc${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, val[di] * sc)}px;bottom:${IB}px"></div>`; });
+          else if (!curve && !multi) vis.forEach(di => {
+            const v = val[di], n = capAt(di), over = !cum && n >= 0 && v > n + 1e-9, inc = over && (HD.det[di] || []).some(x => x.inc);
+            const parts = ks.length > 1 && !cum ? order.map(j => { const w = sval[j][di]; return w ? `<i style="height:${w * sc}px;background:${col[ks[j]]}"></i>` : ""; }).join("") : "";
+            hb += `<div class="ghb${over ? (inc ? " over-inc" : " over") : ""}${ks.length > 1 && !cum ? " ghb-st" : ""}${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, v * sc)}px;bottom:${HH - Y0}px">${parts}</div>`;
           });
-          else if (!cum) {
+          else if (!curve) {
             /* R29 : barres côte à côte dans le jour — CHARGES, PRODUITS, MARGE (signée, sous le zéro si négative) */
             const S = [...(sC ? [[val, CC]] : []), ...(sP ? [[vP, CP]] : []), ...(sG ? [[vG, CG]] : [])], w1 = Math.max(1, bw / (S.length || 1));
             vis.forEach(di => {
@@ -321,29 +326,36 @@
             const cuM = M => cum ? cumOf(di => M[di] || 0) : M;
             const PQ = cuM(RD.L); vis.forEach(di => { rdPQ[di] = PQ[di] || 0; });
             const lab = (v, s, c, di) => di ? `<div class="grd-mx" style="left:${X(di) + DLY_DW / 2}px;top:${Math.max(2, Y0 - v * s - 18)}px;--c:${c}">${fmtA(v)}</div>` : "";
-            const mP = Math.max(1e-9, ...vis.map(di => rdPQ[di])), sP2 = (HH - 36 - IB) / (mP * 1.08);
-            svg += `<polyline points="${vis.map(di => `${X(di) + DLY_DW / 2},${Y0 - rdPQ[di] * sP2}`).join(" ")}" fill="none" stroke="#12b76a" stroke-width="2" stroke-linejoin="round"/>`;
-            hb += lab(mP, sP2, "#12b76a", vis.find(di => rdPQ[di] === mP));
-            RD.ser.forEach((S, j) => {
+            const showP = crb.includes("p"), nB = RD.ser.length + (showP ? 1 : 0), w1 = Math.max(1, bw / (nB || 1));
+            /* v571 : barres côte à côte dans le jour (HISTOGRAMME) ou courbes (COURBES), chacune à sa propre échelle */
+            const barS = (M, s, c, j) => vis.forEach(di => { const v = M[di]; if (!v) return; hb += `<div class="ghb ghb-m${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo + j * w1}px;width:${w1}px;top:${Y0 - v * s}px;bottom:auto;height:${Math.max(1, v * s)}px;background:${c}"></div>`; });
+            if (showP) {
+              const mP = Math.max(1e-9, ...vis.map(di => rdPQ[di])), sP2 = (HH - 36 - IB) / (mP * 1.08);
+              if (curve) svg += `<polyline points="${vis.map(di => `${X(di) + DLY_DW / 2},${Y0 - rdPQ[di] * sP2}`).join(" ")}" fill="none" stroke="#12b76a" stroke-width="2" stroke-linejoin="round"/>`;
+              else barS(rdPQ, sP2, "#12b76a", 0);
+              hb += lab(mP, sP2, "#12b76a", vis.find(di => rdPQ[di] === mP));
+            }
+            RD.ser.forEach((S, j0) => { const j = j0;
               const c = RDC[j % RDC.length], P2 = cuM(S.P), C2 = cuM(S.C), Rr = {};
               vis.forEach(di => { const cq = C2[di] || 0; Rr[di] = cq > 1e-9 ? (P2[di] || 0) / cq : null; });
               const mR = Math.max(1e-9, ...vis.map(di => Rr[di] || 0)), sR2 = (HH - 36 - IB) / (mR * 1.08);
               let seg = [];
-              const flush = () => { if (seg.length) svg += `<polyline points="${(seg.length > 1 ? seg : [seg[0], seg[0]]).map(di => `${X(di) + DLY_DW / 2},${Y0 - Rr[di] * sR2}`).join(" ")}" fill="none" stroke="${c}" stroke-width="2.5" stroke-dasharray="5 3" stroke-linecap="round" stroke-linejoin="round"/>`; seg = []; };
-              vis.forEach(di => { if (Rr[di] === null) flush(); else seg.push(di); }); flush();
+              const flush = () => { if (seg.length) svg += `<polyline points="${(seg.length > 1 ? seg : [seg[0], seg[0]]).map(di => `${X(di) + DLY_DW / 2},${Y0 - Rr[di] * sR2}`).join(" ")}" fill="none" stroke="${c}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`; seg = []; };
+              if (curve) { vis.forEach(di => { if (Rr[di] === null) flush(); else seg.push(di); }); flush(); }
+              else barS(Rr, sR2, c, j + (showP ? 1 : 0));
               hb += lab(mR, sR2, c, vis.find(di => Rr[di] === mR));
               rdS.push({ name: S.sk.split("|")[0], u: S.sk.split("|")[1], c, R: Rr });
             });
           }
-          host.__HV = { cum, multi, val, vP, vG, unit: HD.unit, rd: RD ? { PQ: rdPQ, S: rdS, u: RD.u } : null };
+          host.__HV = { cum, curve, hideC, multi, val, vP, vG, unit: HD.unit, rd: RD ? { PQ: rdPQ, S: rdS, u: RD.u } : null };
           const late = INS.dbut && dlyEnd(dlyCurDates()) > INS.dbut;
           const legI = (c, t) => `<span><b style="background:${c}"></b>${esc(t)}</span>`;
-          const legRd = HD.rd ? (HD.rd.ser ? legI("#12b76a", "PRODUIT — " + lkName("sec", HD.rd.sec) + " (" + HD.rd.u + ")") + rdS.map(s => legI(s.c, "RENDEMENT " + s.name + " (" + HD.rd.u + " / " + s.u + ")")).join("")
+          const legRd = HD.rd ? (HD.rd.ser ? (crb.includes("p") ? legI("#12b76a", "PRODUIT — " + lkName("sec", HD.rd.sec) + " (" + HD.rd.u + ")") : "") + rdS.map(s => legI(s.c, "RENDEMENT " + s.name + " (" + HD.rd.u + " / " + s.u + ")")).join("")
               + (HD.rd.miss || []).map(sk => `<span class="grd-miss">${esc(sk.split("|")[0])} — PAS DANS CETTE ACTIVITÉ</span>`).join("") : `<span class="grd-why">${esc(HD.rd.why)}</span>`) : "";
           const leg0 = C ? "" : multi ? `<div class="ghist-leg">${(sC ? legI(CC, "CHARGES") : "") + (sP ? legI(CP, "PRODUITS") : "") + (sG ? legI(CG, "MARGE") : "")}</div>`
             : cum ? (ks.length > 1 ? `<div class="ghist-leg">${legI("#344054", "TOTAL DES " + ks.length + " CHARGES")}</div>` : "")
             : ks.length > 1 ? `<div class="ghist-leg">${totS.filter(x => keep.has(x[0])).map(([sk]) => legI(col[sk], sk.split("|")[0])).join("")}${totS.some(x => !keep.has(x[0])) ? legI("#98a2b3", "AUTRES (" + totS.filter(x => !keep.has(x[0])).length + ")") : ""}</div>` : "";
-          const leg = legRd ? (leg0 ? leg0.replace(/<\/div>$/, legRd + "</div>") : `<div class="ghist-leg">${legI(cum ? "#344054" : "#6fa8dc", "CHARGES (" + HD.unit + ")")}${legRd}</div>`) : leg0;
+          const leg = legRd ? (hideC ? `<div class="ghist-leg">${legRd}</div>` : leg0 ? leg0.replace(/<\/div>$/, legRd + "</div>") : `<div class="ghist-leg">${legI(cum ? "#344054" : "#6fa8dc", "CHARGES (" + HD.unit + ")")}${legRd}</div>`) : leg0;
           /* R21 à R23 : CAPACITÉ ; v546 : « / » traversé par la barre, trait vertical en pointillés entre deux morceaux, valeur du morceau au-dessus (R19, R20) */
           const yOf = n => n < 0 ? HH - IB / 2 : Y0 - n * sc;
           const pl = SG.map((g2, j) => {
@@ -380,7 +392,7 @@
           let ax = "";
           if (HH >= 50) { for (let v = stp; Y0 - v * sc >= 18; v += stp) ax += `<span class="gax-t" style="top:${Y0 - v * sc}px">${fmtA(v)}</span>`; for (let v = -stp; Y0 - v * sc <= HH - 6; v -= stp) ax += `<span class="gax-t" style="top:${Y0 - v * sc}px">${fmtA(v)}</span>`; }
           ax = `<div class="ghist-ax" style="height:${HH}px"><span class="gax-hit${shell.__dlyRule ? " on" : ""}" style="height:${HH}px" role="button" aria-label="Règle"></span><span class="gax-u">${esc(dlyHistLab(HD))}</span>${ax}<span class="gax-t gax-0" style="top:${Y0}px">0</span></div>`;
-          hist = `<div class="ghist${C ? " ghist-cmd" : ""}${cum ? " ghist-cum" : ""}" style="width:${W}px;height:${HH}px" data-sc="${sc}" data-y0="${Y0}" data-ib="${IB}" data-top="${top}">${ax}${bg}${leg}${C ? `<div class="ghist-leg"><span>${esc(C.lab)}</span></div>` : ""}${IB ? `<div class="ghist-inf" style="height:${IB}px"></div>` : ""}${hb}${svg ? `<svg class="ghist-svg" width="${W}" height="${HH}">${svg}</svg>` : ""}${pl}${rng}${vals}</div>`;
+          hist = `<div class="ghist${C ? " ghist-cmd" : ""}${curve || hideC ? " ghist-cum" : ""}" style="width:${W}px;height:${HH}px" data-sc="${sc}" data-y0="${Y0}" data-ib="${IB}" data-top="${top}">${ax}${bg}${leg}${C ? `<div class="ghist-leg"><span>${esc(C.lab)}</span></div>` : ""}${IB ? `<div class="ghist-inf" style="height:${IB}px"></div>` : ""}${hb}${svg ? `<svg class="ghist-svg" width="${W}" height="${HH}">${svg}</svg>` : ""}${pl}${rng}${vals}</div>`;
         }
       }
       host.innerHTML = `<div class="gh" style="width:${W}px;height:${thH}px">${head}</div>
