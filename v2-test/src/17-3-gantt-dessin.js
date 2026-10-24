@@ -291,7 +291,8 @@
           const col = {}; let ci = 0; totS.forEach(([sk]) => { col[sk] = keep.has(sk) ? DLY_SER[ci++ % DLY_SER.length] : "#98a2b3"; });
           const order = totS.map(x => ks.indexOf(x[0]));
           let hb = "", svg = "";
-          const CC = "#2e90fa", CP = "#12b76a", CG = "#7a5af8";
+          /* v572 (remarque 16) : couleurs usuelles — PRODUITS en bleu, CHARGES en orange, MARGE en vert (rouge quand elle est négative) */
+          const CC = "#f79009", CP = "#2e90fa", CG = "#12b76a", CGN = "#d92d20";
           if (hideC) vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           else if (C && !curve) vis.forEach(di => { hb += `<div class="ghb ghc${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, val[di] * sc)}px;bottom:${IB}px"></div>`; });
           else if (!curve && !multi) vis.forEach(di => {
@@ -303,7 +304,7 @@
             /* R29 : barres côte à côte dans le jour — CHARGES, PRODUITS, MARGE (signée, sous le zéro si négative) */
             const S = [...(sC ? [[val, CC]] : []), ...(sP ? [[vP, CP]] : []), ...(sG ? [[vG, CG]] : [])], w1 = Math.max(1, bw / (S.length || 1));
             vis.forEach(di => {
-              S.forEach(([M, c], j) => { const v = M[di] || 0; if (!v) return; hb += `<div class="ghb ghb-m${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo + j * w1}px;width:${w1}px;top:${Y0 - Math.max(v, 0) * sc}px;bottom:auto;height:${Math.max(1, Math.abs(v) * sc)}px;background:${c}"></div>`; });
+              S.forEach(([M, c], j) => { const v = M[di] || 0; if (!v) return; hb += `<div class="ghb ghb-m${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo + j * w1}px;width:${w1}px;top:${Y0 - Math.max(v, 0) * sc}px;bottom:auto;height:${Math.max(1, Math.abs(v) * sc)}px;background:${c === CG && v < 0 ? CGN : c}"></div>`; });
             });
           } else {
             /* R28 : une seule courbe par grandeur (le total), plus une par charge */
@@ -315,7 +316,10 @@
             const line = (M, c) => (runs.length === 1 && runs[0].length === vis.length ? "" : poly(vis, M, "#c0c6d0")) + runs.map(L => poly(L.length > 1 ? L : [L[0], L[0]], M, c)).join("");
             if (!multi || sC) svg += line(val, multi ? CC : "#344054");
             if (sP) svg += line(vP, CP);
-            if (sG) svg += line(vG, CG);
+            if (sG) { svg += line(vG, CG);
+              /* marge négative : en rouge */
+              let ng = []; const fl = () => { if (ng.length > 1) svg += `<polyline points="${ng.map(di => pt(di, vG[di] || 0)).join(" ")}" fill="none" stroke="${CGN}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`; ng = []; };
+              vis.forEach((di, i) => { if ((vG[di] || 0) < 0 && pass(di)) { if (!ng.length && i) ng.push(vis[i - 1]); ng.push(di); } else { if (ng.length) { ng.push(di); fl(); } } }); fl(); }
             vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           }
           /* v569 (remarque 13) : RENDEMENT par charge — quantité produite de l'activité (vert) et une courbe pointillée par charge cochée

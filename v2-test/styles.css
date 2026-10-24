@@ -2418,3 +2418,10 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 /* v571 (remarque 15) : interrupteurs de même largeur, deux parties égales, alignés en colonne */
 .hcf-card:not(.apr-card) .hcf-sw { width: 380px; }
 .hcf-card:not(.apr-card) .hcf-sw .hcf-seg { flex: 1 1 0; min-width: 0; padding: 0 6px; }
+
+/* v572 (remarque 17) : réglages des COMMANDES dans RÉGLAGES DU GRAPHIQUE */
+.hcf-g [hidden] { display: none !important; }
+.hcf-card:not(.apr-card) .hcf-sw.hcf-sw3 { width: 300px; }
+.hcf-k2 { margin-left: 14px; }
+.hcf-card .apr-dep { width: 140px; height: 28px; border: 1px solid #d0d5dd; border-radius: 6px; font-weight: 800; padding: 0 8px; }
+.hcf-card .apr-nj:disabled { opacity: .4; }
