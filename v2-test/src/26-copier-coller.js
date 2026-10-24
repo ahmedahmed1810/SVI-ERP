@@ -334,7 +334,7 @@
       /* v546 (R33) : ↻ AJUSTER À LA CAPACITÉ (DÉTAIL DÉLAIS) */
       /* v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE, en haut à côté de ↻, AGRANDIR et ⋯ */
       if (act === "cfg") { const DX = shell.__insDly; if (DX) DX.hcfgWin(); return; }
-      if (act === "adj") { const b = shell.querySelector(".blk-adj-btn"), DX = shell.__insDly; if (b && b.classList.contains("off")) { svToast(b.dataset.why || "RIEN À AJUSTER.", 3500, b); return; } if (DX) DX.gen(); return; }
+      if (act === "adj") { const b = shell.querySelector(".blk-adj-btn"), DX = shell.__insDly; if (b && b.classList.contains("off")) { svToast(b.dataset.why || "RIEN À AJUSTER.", 3500, b); return; } if (DX) DX.gcWin(); return; }
       if (act === "del") return insDelRun(blk);
       { const cs = ["copy", "cut", "paste"].includes(act) && colSelFor(blk); if (cs) return colOp(act, cs); }
       if (ctlTab(blk) && (act === "copy" || act === "cut")) return ctlCopy(act === "cut");

@@ -5219,7 +5219,7 @@ function renderBudgetList() {
               ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="detail" data-act="copy" title="Copier les lignes cochées">${SVI_COPY_ICON}</button><button type="button" class="blk-btn" data-blk="detail" data-act="cut" title="Couper les lignes cochées">${SVI_CUT_ICON}</button><button type="button" class="blk-btn" data-blk="detail" data-act="paste" title="Coller">${SVI_PASTE_ICON}</button>` : ""}
               ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="detail" data-act="del" title="Supprimer les lignes cochées">${SVI_DEL_ICON}</button>` : ""}
               <button type="button" class="blk-btn blk-cfg-btn" data-blk="detail" data-act="cfg" title="RÉGLAGES DU GRAPHIQUE" aria-label="Réglages du graphique">⚙</button>
-              <button type="button" class="blk-btn blk-adj-btn" data-blk="detail" data-act="adj" title="AJUSTER À LA CAPACITÉ" aria-label="Ajuster à la capacité"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 2.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn blk-adj-btn" data-blk="detail" data-act="adj" title="GÉNÉRER / COMPRESSER" aria-label="Générer ou compresser"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 2.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn blk-max-btn" data-blk="detail" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
         </div>
@@ -11409,7 +11409,7 @@ function renderBudgetList() {
       fold: p => { dlyFoldToggle(p); keepScroll(() => renderTab()); },
       jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTabK(); },
       linkWin: (p, k) => dlyLinkWin(p, k), reach: (a, b) => dlyReach(a, b), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
-      gen: () => dlyGenComp(), comp: () => dlyCompressRun(), hasDates: () => dlyHasDates(), canComp: () => dlyCanCompress(),
+      gen: () => dlyCompressRun(), gcWin: () => dlyGCWin(), genOnly: () => dlyCompressRun({ gen: true }), keys: () => dlyKeys(), comp: () => dlyCompressRun(), hasDates: () => dlyHasDates(), canComp: () => dlyCanCompress(),
       moveCut: (i, iso) => dlyMoveCut(i, iso), piecesWin: k => dlyPiecesWin(k), hcfgWin: () => dlyHCfgWin(), succs: k => dlySuccs(k).map(dlyName), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n, a) => dlySetPlaf(i, n, a), delCut: i => dlyDelCut(i), limTxt: k => dlyLimTxt(k),
       incWin: k => dlyIncWin(k), apprWin: () => dlyApproWin(), hh: v => { dlyHHSet(v); keepScroll(() => renderTab()); }, hhGet: () => dlyHHGet(),
       /* R18 : réglages de l'histogramme ; R19 / R20 : plage et filtre */
@@ -12065,7 +12065,9 @@ function renderBudgetList() {
        ordre : l'ordre du PLANNING ; les tâches datées y sont rangées par date de début, les autres restent à leur rang ;
        les liaisons existantes passent avant (prédécesseurs d'abord). Chaque tâche part de la tâche du dessus, en demi-journées,
        sous toutes les capacités (R24) ; liaison FIN → DÉBUT créée avec la tâche du dessus si aucune n'existe entre elles. */
-    const dlyPlanCompute = () => {
+    /* v570 (remarque longue 1) : opts.gen = GÉNÉRER seul — les tâches déjà datées ne bougent pas (elles occupent leurs ouvriers),
+       seules les tâches sans dates (ou sans FIN : leur DÉBUT est gardé) sont placées ; liaisons manquantes proposées autour d'elles */
+    const dlyPlanCompute = (opts = {}) => {
       const cal = insCal(), keys = dlyKeys(), td = dlyTopDown(keys);
       const deb = k => dlyDeb(k), dated = td.filter(deb).sort((a, b) => deb(a).localeCompare(deb(b)));
       let di = 0; const L0 = td.map(k => deb(k) ? dated[di++] : k);
@@ -12081,7 +12083,11 @@ function renderBudgetList() {
       const dayAt = i => { while (days.length <= i) days.push(sviWAdd(cal, days[days.length - 1], 1)); return days[Math.max(0, i)]; };
       const dayIx = iso => { if (!iso || iso <= days[0]) return 0; let i = 0; while (dayAt(i) < iso && i < 20000) i++; return i; };
       const slotOf = iso => dayIx(iso) * 2;
-      const G = dlyGroups(), used = G.map(() => ({}));
+      const G = dlyGroups();
+      /* v570 : chaque charge de main-d'œuvre est aussi un groupe (sans limite si sa CAPACITÉ est vide) — sa durée en découle */
+      { const seen = new Set(); G.forEach(g => g.keys.forEach(x => seen.add(x)));
+        (INS.chg || []).filter(r => !r.t && dlyIsLab(r)).forEach(r => { const sk = dlyResK(r); if (seen.has(sk)) return; seen.add(sk); G.push({ gk: sk, keys: new Set([sk]), m: false, st: (INS.plafR || {})[sk] || {} }); }); }
+      const used = G.map(() => ({}));
       const S = {}, D = {}, lim = {};
       /* capacité d'un groupe pour une demi-journée : coupes rattachées aux tâches déjà placées (R23) */
       const finOf = k => S[k] ? (S[k].b >= S[k].a ? dayAt(S[k].b >> 1) : dayAt(S[k].a >> 1)) : (pos.has(k) ? null : (dlyFin(k) || ""));
@@ -12126,9 +12132,21 @@ function renderBudgetList() {
         return { a: a === null ? s0 : a, b, got };
       };
       const hasR = k => G.some(g => dlyGQ(k, g.keys, g.m) > 0);
-      const links = [];
+      const links = [], FX = new Set();
+      /* v570 : GÉNÉRER seul — les tâches complètes sont posées d'abord, à leurs dates, et occupent la capacité */
+      if (opts.gen) L.forEach(k => {
+        const P0 = dlyList(k).filter(p => p.deb && p.fin);
+        if (!P0.length) return;
+        FX.add(k);
+        const sl = P0.map(p => ({ a: slotOf(p.deb) + (dlyHalfS(p) ? 1 : 0), b: slotOf(p.fin) + (dlyHalfE(p) ? 0 : 1) }));
+        S[k] = { a: Math.min(...sl.map(x => x.a)), b: Math.max(...sl.map(x => x.b)) };
+        D[k] = { deb: P0[0].deb, fin: P0[P0.length - 1].fin, dm: dlyHalfS(P0[0]) ? 1 : 0, fm: dlyHalfE(P0[P0.length - 1]) ? 1 : 0 };
+        const n = sl.reduce((t, x) => t + (x.b - x.a + 1), 0) || 1;
+        G.forEach((g, i) => { const q = dlyGQ(k, g.keys, g.m); if (q > 0) sl.forEach(x => { for (let s = x.a; s <= x.b; s++) used[i][s] = (used[i][s] || 0) + q / n; }); });
+      });
       L.forEach((k, idx) => {
         const pre = idx ? L[idx - 1] : null;
+        if (FX.has(k)) return;
         let e = 0;
         if (pre && S[pre]) e = Math.max(e, hasR(pre) && S[pre].b >= S[pre].a ? S[pre].b : S[pre].b + 1);
         dlyLinks(k).forEach(x => {
@@ -12141,7 +12159,7 @@ function renderBudgetList() {
         });
         /* une seule date : elle sert d'ancrage (R26) */
         const d0 = deb(k), f0 = dlyFin(k);
-        if (d0 && !f0) e = Math.max(e, slotOf(d0));
+        if (d0 && !f0) e = opts.gen ? slotOf(d0) : Math.max(e, slotOf(d0));
         if (!d0 && f0) { const t = place(k, e, true), n = t.b - t.a + 1, end = dayIx(f0) * 2 + 1; e = Math.max(e, end - n + 1); }
         const r = place(k, e, false);
         S[k] = r;
@@ -12153,18 +12171,21 @@ function renderBudgetList() {
         }
         if (pre && !dlyLinks(k).some(x => x.k === pre) && !dlyLinks(pre).some(x => x.k === k) && !dlyReach(pre, k)) links.push([pre, k]);
       });
+      /* v570 : GÉNÉRER seul — on n'écrit que les tâches placées ; liaisons proposées seulement si l'une des deux était sans dates */
+      if (opts.gen) { FX.forEach(k => { delete D[k]; }); return { D, S, links: links.filter(([a, b]) => !FX.has(a) || !FX.has(b)), lim, gen: true }; }
       return { D, S, links, lim };
     };
     /* décalage d'une liaison FIN → DÉBUT créée (v544) : 0 = le jour même où finit a, 1 = le lendemain… */
     const dlyChainO = (a, b, D) => {
-      const cal = insCal(), fa = D[a].fin || D[a].deb, db = D[b].deb;
+      const da = D[a] || { deb: dlyDeb(a), fin: dlyFin(a) }, dbb = D[b] || { deb: dlyDeb(b) };
+      const cal = insCal(), fa = da.fin || da.deb, db = dbb.deb;
       return db > fa ? Math.max(1, (Number(sviWDur(cal, fa, db)) || 2) - 1) : 0;
     };
     /* y a-t-il quelque chose à gagner ? (R27) */
-    const dlyCanCompress = () => {
-      if (!dlyResSel()) return { ok: false, why: "COCHER DES CHARGES : COMPRESSER NE PORTE QUE SUR LES CHARGES COCHÉES." };
+    const dlyCanCompress = (opts = {}) => {
       if (!dlyKeys().length) return { ok: false, why: "AUCUNE TÂCHE AU PLANNING." };
-      const P = dlyPlanCompute();
+      if (opts.gen && !dlyKeys().some(k => !(dlyDeb(k) && dlyFin(k)))) return { ok: false, why: "TOUTES LES TÂCHES ONT DÉJÀ LEURS DATES." };
+      const P = dlyPlanCompute(opts);
       /* v547 (R22) : comparaison morceau par morceau */
       const sigC = k => dlyList(k).map(p => [p.deb || "", p.fin || "", dlyHalfS(p) ? 1 : 0, dlyHalfE(p) ? 1 : 0].join(",")).join(";");
       const sigP = x => (x.per || [x]).map(q => [q.deb || "", q.fin || "", q.dm ? 1 : 0, q.fm && q.fin ? 1 : 0].join(",")).join(";");
@@ -12190,7 +12211,7 @@ function renderBudgetList() {
     const DLY_BUT_MSG = "AVEC CE NOMBRE VOUS RISQUEZ DE DÉPASSER LA DATE BUTOIR";
     /* R26 : GÉNÉRER = COMPRESSER — un seul calcul, enregistré aussitôt (↶ annule) */
     const dlyCompressRun = (opts = {}) => {
-      const C = dlyCanCompress();
+      const C = dlyCanCompress({ gen: !!opts.gen });
       if (!C.ok) {
         if (opts.plaf !== undefined) {
           /* R24 : la capacité de la sélection n'a plus d'effet — dire quelle ressource bloque */
@@ -12200,23 +12221,64 @@ function renderBudgetList() {
         } else if (!opts.quiet) svToast(C.why, 3500, opts.anchor);
         return null;
       }
-      const P = C.P, f0 = dlyEnd(dlyCurDates()), gen = !dlyHasDates();
+      const P = C.P, f0 = dlyEnd(dlyCurDates()), gen = !!opts.gen || !dlyHasDates();
       dlyWriteH(P.D);
       dlyCommitDrafts();
       INS.dpred = INS.dpred || {};
       P.links.forEach(([a, b]) => { INS.dpred[b] = dlyLinks(b).concat([{ k: a, t: "FD", o: dlyChainO(a, b, P.D) }]); });
       const cur = dlyCurGK();
-      INS.dlim = {}; Object.keys(P.lim).forEach(k => { if (P.lim[k] !== cur) INS.dlim[k] = P.lim[k]; });
+      if (!opts.gen) INS.dlim = {};
+      INS.dlim = INS.dlim || {}; Object.keys(P.lim).forEach(k => { if (P.lim[k] !== cur) INS.dlim[k] = P.lim[k]; });
       if (!INS.gdeb) INS.gdeb = dlyProjStart();
       insSave();
       const f1 = dlyEnd(dlyCurDates());
       histLog("DÉLAIS", gen ? "GÉNÉRER LE PLANNING" : "COMPRESSER LE PLANNING", (opts.plaf !== undefined ? "CAPACITÉ " + (opts.plaf < 0 ? "ILLIMITÉE" : opts.plaf) + " — " : "") + "FIN " + dFr(f0) + " → " + dFr(f1) + (P.links.length ? " — " + P.links.length + " LIAISON(S) CRÉÉE(S)" : ""));
       renderTabK(); insRenderChain();
-      if (opts.plaf === undefined) svToast((gen ? "PLANNING GÉNÉRÉ" : "PLANNING COMPRESSÉ") + " — FIN LE " + dFr(f1) + ".", 3500);
+      if (opts.plaf === undefined) svToast((opts.gen ? "TÂCHES SANS DATES GÉNÉRÉES" : gen ? "PLANNING GÉNÉRÉ" : "PLANNING COMPRESSÉ") + " — FIN LE " + dFr(f1) + (P.links.length ? " — " + P.links.length + " LIAISON(S) PROPOSÉE(S)" : "") + ".", 3500);
       if (INS.dbut && f1 > INS.dbut) svToast(DLY_BUT_MSG + " (FIN LE " + dFr(f1) + ", BUTOIR LE " + dFr(INS.dbut) + ").", 5000, opts.anchor);
       return P.D;
     };
-    const dlyGenComp = () => dlyCompressRun();
+    /* v570 (remarque longue 1) : une seule commande ↻ = fenêtre GÉNÉRER / COMPRESSER — deux cases et la liste des CAPACITÉS
+       (une ligne par charge de main-d'œuvre ; vide = sans limite ; la même valeur que le trait CAPACITÉ du graphique) */
+    const dlyGCWin = () => {
+      const miss = dlyKeys().filter(k => !(dlyDeb(k) && dlyFin(k))).length;
+      const labs = []; { const seen = new Set(); (INS.chg || []).filter(r => !r.t && dlyIsLab(r)).forEach(r => { const sk = dlyResK(r); if (!seen.has(sk)) { seen.add(sk); labs.push(sk); } }); }
+      labs.sort((a, b) => a.localeCompare(b, "fr"));
+      const capTxt = sk => { const st = (INS.plafR || {})[sk]; const v = st ? dlyCapV(st.plaf) : -1; return v >= 0 ? String(v) : ""; };
+      const cut = sk => dlyCutsOf((INS.plafR || {})[sk]).length > 0;
+      const d = document.createElement("div");
+      d.id = "svConf";
+      d.innerHTML = `<div class="svc-card hcf-card gc-card" role="dialog" aria-modal="true">
+        <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
+        <div class="svc-t">GÉNÉRER / COMPRESSER</div>
+        <div class="hcf-cbs gc-cbs">
+          <label${miss ? "" : ' class="off" data-why="TOUTES LES TÂCHES ONT DÉJÀ LEURS DATES."'}><input type="checkbox" class="gc-gen"${miss ? " checked" : " disabled"}><span>GÉNÉRER${miss ? " (" + miss + " TÂCHE" + (miss > 1 ? "S" : "") + " SANS DATES)" : ""}</span></label>
+          <label><input type="checkbox" class="gc-comp"${miss ? "" : " checked"}><span>COMPRESSER</span></label>
+        </div>
+        <div class="hcf-note">GÉNÉRER : COMPLÈTE SEULEMENT CE QUI MANQUE (UN DÉBUT DÉJÀ SAISI EST GARDÉ). COMPRESSER : FAIT AVANCER TOUTES LES TÂCHES POUR REMPLIR LES JOURNÉES, LIAISONS ET TÂCHES INCOMPRESSIBLES RESPECTÉES. LES LIAISONS EXISTANTES SONT GARDÉES ; LES LIAISONS FIN → DÉBUT MANQUANTES SONT PROPOSÉES.</div>
+        <div class="svc-sub">CAPACITÉS (OUVRIERS PAR JOUR) — VIDE = SANS LIMITE</div>
+        ${labs.length ? `<table class="apr-t gc-t"><tr><th>MAIN-D'ŒUVRE</th><th>UNITÉ</th><th>CAPACITÉ</th></tr>${labs.map(sk => `<tr><td>${esc(sk.split("|")[0])}</td><td class="center">${esc(sk.split("|")[1])}</td><td>${cut(sk) ? '<span class="gc-cut">COUPÉE SUR LE GRAPHIQUE</span>' : `<input class="gc-cap hcf-pct" data-sk="${esc(sk)}" inputmode="numeric" value="${esc(capTxt(sk))}">`}</td></tr>`).join("")}</table>` : `<div class="hcf-note">AUCUNE CHARGE DE MAIN-D'ŒUVRE DANS LE BUDGET.</div>`}
+        <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>LANCER</button></div></div>`;
+      document.getElementById("svConf")?.remove();
+      document.body.appendChild(d);
+      const g = d.querySelector(".gc-gen"), c = d.querySelector(".gc-comp");
+      /* COMPRESSER seul impossible tant qu'il manque des dates : cocher COMPRESSER coche GÉNÉRER */
+      c.addEventListener("change", () => { if (c.checked && miss) g.checked = true; });
+      g.addEventListener("change", () => { if (!g.checked && c.checked && miss) c.checked = false; });
+      d.addEventListener("click", e => {
+        { const o = e.target.closest && e.target.closest("label.off[data-why]"); if (o) { svToast(o.dataset.why, 3000, o); return; } }
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        if (!e.target.closest("[data-ok]")) return;
+        const bad = [...d.querySelectorAll(".gc-cap")].find(i => String(i.value).trim() !== "" && !/^\d+$/.test(String(i.value).trim()));
+        if (bad) { svToast("CAPACITÉ : NOMBRE ENTIER D'OUVRIERS (VIDE = SANS LIMITE).", 3000, bad); return; }
+        if (!g.checked && !c.checked) { svToast("COCHER GÉNÉRER OU COMPRESSER.", 3000, g); return; }
+        INS.plafR = INS.plafR || {};
+        d.querySelectorAll(".gc-cap").forEach(i => { const v = String(i.value).trim(), sk = i.dataset.sk; if (v === "") { if (INS.plafR[sk]) delete INS.plafR[sk].plaf; } else (INS.plafR[sk] = INS.plafR[sk] || {}).plaf = Number(v); });
+        d.remove();
+        if (c.checked) dlyCompressRun(); else dlyCompressRun({ gen: true });
+      });
+    };
+    const dlyGenComp = () => dlyGCWin();
 
     /* ---------- R21 à R23 : CAPACITÉ ---------- */
     /* couper la barre à une date : les tâches qui commencent avant restent dans le morceau de gauche (la coupe les suit) */
@@ -13816,7 +13878,8 @@ function renderBudgetList() {
       const on = active === "dly" && INS_EDIT && !!shell.__insDly;
       b.classList.toggle("dly-on", on);
       if (!on) return;
-      let c = { ok: false, why: "" }; try { c = shell.__insDly.canComp(); } catch (e) {}
+      /* v570 : ↻ = fenêtre GÉNÉRER / COMPRESSER, active dès qu'il y a des tâches */
+      let c = { ok: false, why: "" }; try { c = shell.__insDly.keys().length ? { ok: true } : { ok: false, why: "AUCUNE TÂCHE AU PLANNING." }; } catch (e) {}
       b.classList.toggle("off", !c.ok); if (c.ok) delete b.dataset.why; else b.dataset.why = c.why;
     };
     const renderTab = () => { renderTab0(); sviMarkEmptyTabs(shell); try { dlyAdjPaint(); } catch (e) {} };
@@ -20317,7 +20380,7 @@ function renderBudgetList() {
       /* v546 (R33) : ↻ AJUSTER À LA CAPACITÉ (DÉTAIL DÉLAIS) */
       /* v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE, en haut à côté de ↻, AGRANDIR et ⋯ */
       if (act === "cfg") { const DX = shell.__insDly; if (DX) DX.hcfgWin(); return; }
-      if (act === "adj") { const b = shell.querySelector(".blk-adj-btn"), DX = shell.__insDly; if (b && b.classList.contains("off")) { svToast(b.dataset.why || "RIEN À AJUSTER.", 3500, b); return; } if (DX) DX.gen(); return; }
+      if (act === "adj") { const b = shell.querySelector(".blk-adj-btn"), DX = shell.__insDly; if (b && b.classList.contains("off")) { svToast(b.dataset.why || "RIEN À AJUSTER.", 3500, b); return; } if (DX) DX.gcWin(); return; }
       if (act === "del") return insDelRun(blk);
       { const cs = ["copy", "cut", "paste"].includes(act) && colSelFor(blk); if (cs) return colOp(act, cs); }
       if (ctlTab(blk) && (act === "copy" || act === "cut")) return ctlCopy(act === "cut");

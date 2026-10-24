@@ -1401,7 +1401,7 @@ def main():
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(700)
         # R25 : rien de coché = rien à compresser
         r25 = pg.evaluate(f"() => {DXJ}.canComp()")
-        check("v543 R25 : aucune charge cochée = GÉNÉRER / COMPRESSER grisé (COCHER DES CHARGES)", r25 and r25.get("ok") is False and "COCHER DES CHARGES" in r25.get("why", ""), r25)
+        check("v570 (remarque longue 1) : sans charge cochée, GÉNÉRER / COMPRESSER reste possible (capacités de la main-d'œuvre, liaisons proposées)", r25 and r25.get("ok") is True, r25)
         # R24 : capacités MACON 4 et SABLE 5 actives ensemble ; MACON coché — le sable (10 M3) fixe la durée à 2 jours
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.plafR = {{ '{GM}': {{ plaf: 4 }}, '{GS}': {{ plaf: 5 }} }};
             I.chg.filter(r => /^n[13]$/.test(r.id)).forEach(r => {{ r.on = true; }}); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(500)
@@ -1659,6 +1659,16 @@ def main():
             I.links = I.links.filter(l => l.id !== 'Lrz'); I.chg = I.chg.filter(r => r.id !== 'rz1'); I.prd = I.prd.filter(r => r.id !== 'rp1'); X.insSave(); X.refreshAll(); }}""")
         check("v567 R10 / v569 R13 : RENDEMENT de la charge du jour = produit ÷ charge, bulle avec CHARGES / PRODUITS / DÉLAIS",
               r10 and r10[0] and r10[1] is not None and r10[2] is not None and abs(r10[2] - r10[1] / r10[0]) < 0.02 and r10[3] >= 3, r10)
+        # v570 (remarque longue 1) : GÉNÉRER seul — tâche datée inchangée, tâche sans dates placée, DÉBUT seul gardé
+        gl = pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS, D = {DXJ}; const K = D.keys(); if (K.length < 2) return 'pas assez de tâches';
+            window.__gl = [JSON.stringify(I.dlp), JSON.stringify(I.dpred || {{}})];
+            const a = K[0], b = K[1]; I.dlp[a] = [{{ id: 'g1', deb: '2026-11-02', fin: '2026-11-03' }}]; I.dlp[b] = [{{ id: 'g2', deb: '2026-11-10', fin: '' }}];
+            K.slice(2).forEach(k => {{ I.dlp[k] = []; }}); X.insSave();
+            D.genOnly();
+            const r = [I.dlp[a].map(p => p.deb + '>' + p.fin).join(), (I.dlp[b][0] || {{}}).deb, !!(I.dlp[b][0] || {{}}).fin];
+            const d0 = JSON.parse(window.__gl[0]), p0 = JSON.parse(window.__gl[1]); I.dlp = d0; I.dpred = p0; X.insSave(); X.refreshAll(); return r; }}""")
+        check("v570 (remarque longue 1) : GÉNÉRER seul garde la tâche datée, garde le DÉBUT saisi et calcule la FIN",
+              isinstance(gl, list) and gl[0] == "2026-11-02>2026-11-03" and gl[1] == "2026-11-10" and gl[2], gl)
         # R30 : INF — DATE DE FIN DU PROJET = fin du planning (non saisissable)
         pg.evaluate("() => document.querySelector('[data-pill=\"inf\"]')?.click()"); pg.wait_for_timeout(400)
         inf = pg.evaluate("() => [!!document.querySelector('#docPop input[data-f=\"obj\"]'), (document.querySelector('#docPop [data-v=\"pfin0\"]') || {}).textContent || '']")

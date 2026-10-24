@@ -2409,3 +2409,8 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 /* v568 (remarque 11) : bandeau TÂCHES SANS CHARGE au-dessus du DÉTAIL PRODUITS */
 .dly-iso.prd-nc { background: #fefce8; border-color: #f2c94c; }
 .grd-miss { font-size: 9px; font-weight: 800; color: #98a2b3; }
+
+/* v570 (remarque longue 1) : fenêtre GÉNÉRER / COMPRESSER */
+.gc-cbs { margin: 6px 0 8px; gap: 8px 24px; }
+.gc-t td:last-child { width: 120px; }
+.gc-cut { font-size: 9px; font-weight: 800; color: #98a2b3; }
