@@ -9053,7 +9053,7 @@ function renderBudgetList() {
     /* tâche SECONDAIRE choisie (désignation + lot + activité secondaire), seulement si elle est déjà liée */
     /* tâche secondaire choisie par les ronds (lot + activité secondaire), liée ou non : le planning peut précéder les liaisons */
     const insDlyKey = () => LK.lot && LK.sec ? LK.lot + "|" + LK.sec : null;
-/* ⟪ src/17-planning-gantt.js ⟫ */
+/* ⟪ src/17-1-liaisons.js ⟫ */
     /* ===== PLANNING (FORMAT 94) : prédécesseurs (plusieurs, communs à toutes les périodes de la tâche) ;
        une tâche commence au plus tôt le jour de la fin de tous ses prédécesseurs ===== */
     const dlyName = key => { const [lo, se] = String(key).split("|"); return lkName("lot", lo) + " › " + lkName("sec", se); };
@@ -9185,6 +9185,7 @@ function renderBudgetList() {
       });
       return ch;
     };
+/* ⟪ src/17-2-lignes-ordre.js ⟫ */
     /* ===== PLANNING (v401) : MARGE, JALON, LOTS EN ARBORESCENCE (« / »), GANTT ===== */
     const dlyLotPath = name => String(name || "").split("/").map(x => x.trim()).filter(Boolean);
     /* une couleur par lot (FORMAT 91), partagée par toutes ses tâches */
@@ -9487,6 +9488,7 @@ function renderBudgetList() {
       c.font = dlyTxtW.f;
       return c.measureText(String(t || "").toUpperCase()).width;
     };
+/* ⟪ src/17-3-gantt-dessin.js ⟫ */
     const dlyGanttDraw = () => {
       const host = shell.querySelector("#dlyGantt");
       if (!host || host.__drawn) return;
@@ -9908,6 +9910,7 @@ function renderBudgetList() {
       if (!sc.__dlyStick) { sc.__dlyStick = true; sc.addEventListener("scroll", run, { passive: true }); }
       run();
     };
+/* ⟪ src/17-4-tableau-fenetres.js ⟫ */
     /* ===== GÉNÉRER LE PLANNING, MAIN D'ŒUVRE, NIVELLEMENT (v403) ===== */
     /* une charge de main d'œuvre : unité en journées-homme (JH, J/H, JOUR…) ou en heures (H, comptées 8 par jour),
        ou désignation « MAIN D'ŒUVRE … » (sous-traitance comprise) */
@@ -10394,6 +10397,7 @@ function renderBudgetList() {
         if (s2) { sec = sec === s2.dataset.sec ? "" : s2.dataset.sec; draw(); if (lot && sec) setTimeout(() => { const i = d.querySelector('input.dlw-in[data-f="deb"]'); if (i && !i.value) i.focus(); }, 0); return; }
       });
     };
+/* ⟪ src/17-5-gestes-tableau.js ⟫ */
     if (!shell.__dlyPlanBound) {
       shell.__dlyPlanBound = true;
       shell.addEventListener("click", e => {
@@ -10696,6 +10700,7 @@ function renderBudgetList() {
         l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${left}px;width:${Math.max(20, tbr.right - left)}px;top:${y - 1.5}px`;
         return { gap: { prev: pv ? pv.segs : null, D, inStart, el: pv ? pv.el : x.el } };
       };
+/* ⟪ src/17-6-gestes-gantt.js ⟫ */
       shell.__dlyRowDrag = (e, srcTr, onDrop) => {};
       /* + AJOUTER UNE TÂCHE grisé : appui long = la raison (FORMAT 56) */
       shell.addEventListener("pointerdown", e => {
@@ -10975,6 +10980,7 @@ function renderBudgetList() {
       });
       /* FORMAT 91 : largeur des jours — glisser horizontalement sur l'en-tête, ou pincer le Gantt ;
          le jour sous le doigt reste en place ; largeur mémorisée ; un toucher simple ouvre toujours le calendrier */
+/* ⟪ src/17-7-gestes-echelle.js ⟫ */
       const dlyDwSet = (host, w, ax, p) => {
         w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w)));
         if (w === DLY_DW) return;
@@ -11202,6 +11208,7 @@ function renderBudgetList() {
         document.addEventListener("pointercancel", up);
       });
     }
+/* ⟪ src/17-8-actions.js ⟫ */
     const dlyDraft = () => {
       const key = insDlyKey();
       LK.dlpDraft = LK.dlpDraft || {};

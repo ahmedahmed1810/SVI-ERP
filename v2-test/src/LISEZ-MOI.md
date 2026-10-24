@@ -26,7 +26,14 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `14-doublons-classement.js` | 410 |
 | `15-qualite.js` | 963 |
 | `16-a-completer.js` | 100 |
-| `17-planning-gantt.js` | PLANNING : tableau, Gantt, histogramme, gestes |
+| `17-1-liaisons.js` | PLANNING : prédécesseurs, liaisons, décalages, respect des liaisons |
+| `17-2-lignes-ordre.js` | PLANNING : lots, couleurs, marges, replis, ordre, lignes, liens, dlyApply, échelle |
+| `17-3-gantt-dessin.js` | PLANNING : dessin du Gantt et de l'histogramme, hauteur à l'écran |
+| `17-4-tableau-fenetres.js` | PLANNING : dates, tableau (insDlyHTML), fenêtres PRÉDÉCESSEURS et AJOUTER |
+| `17-5-gestes-tableau.js` | PLANNING : gestes 1 — clic, saisie, clavier, glisser des lignes et des lots |
+| `17-6-gestes-gantt.js` | PLANNING : gestes 2 — barres du Gantt, liaisons au doigt, histogramme, bulle |
+| `17-7-gestes-echelle.js` | PLANNING : gestes 3 — largeur des jours, pincement, poignées |
+| `17-8-actions.js` | PLANNING : actions (shell.__insDly, objet X) |
 | `17b-planning-auto.js` | GÉNÉRER / COMPRESSER, plafond, ressource cochée, tâches incompressibles, commandes (v530, v542) |
 | `18-annuler-liaisons.js` | 1123 |
 | `19-delais-disposition.js` | 519 |
