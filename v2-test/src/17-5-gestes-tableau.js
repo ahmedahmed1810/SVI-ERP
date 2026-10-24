@@ -103,6 +103,7 @@
           }
           if (w > 2) shell.__dlygPrevW = Math.round(w);
           g.classList.toggle("tbl-hid", w < 3);
+          requestAnimationFrame(dlyCfgPaint);
           /* largeur gardée (et retrouvée à l'ouverture, FORMAT 114) ; seule la poignée la change */
           shell.__dlygW = { ins: shell.__insDly && shell.__insDly.INS, ref: DLYG_REF, w: Math.round(w), auto: false };
           if (window.__sviViewSave) window.__sviViewSave();

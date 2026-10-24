@@ -9853,6 +9853,7 @@ function renderBudgetList() {
       if (shell.__dlyGx !== undefined) host.scrollLeft = shell.__dlyGx;
       host.addEventListener("scroll", () => { shell.__dlyGx = host.scrollLeft; }, { passive: true });
       dlyStick(host.closest(".bdg-d-scroll, .lk-scroll"));
+      dlyCfgPaint();
       dlyLift();
     };
     /* v545 (remarque 2) : bas de l'écran visible (clavier de l'iPad compris) */
@@ -9881,8 +9882,16 @@ function renderBudgetList() {
       if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 1) { scr.style.setProperty("height", want + "px", "important"); r = r || 1; }
       return r;
     };
+    /* v558 : ⚙ (réglages du graphique) visible seulement quand l'histogramme est affiché : pas en vue tableau seul, ni graphique caché */
+    const dlyCfgPaint = () => {
+      const g = shell.querySelector(".blk-cfg-btn"); if (!g) return;
+      const host = shell.querySelector("#dlyGantt"), h = host && host.querySelector(".ghist");
+      const on = active === "dly" && !!shell.__insDly && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone");
+      if (g.classList.contains("dly-on") !== on) g.classList.toggle("dly-on", on);
+    };
     /* histogramme (et son libellé, et la poignée « = ») gardé en bas de la zone visible du planning : les tâches défilent dessous */
     const dlyLift = () => {
+      dlyCfgPaint();
       const g = shell.querySelector(".dlyg"); if (!g) return;
       /* v548 : la hauteur suit les changements de mise en page (bloc agrandi / réduit, rotation, clavier) */
       { const sc = g.closest(".dly-scroll"), h = shell.querySelector("#dlyGantt"); if (sc && dlyFitScr(sc) === 2 && h) {
@@ -10517,6 +10526,7 @@ function renderBudgetList() {
           }
           if (w > 2) shell.__dlygPrevW = Math.round(w);
           g.classList.toggle("tbl-hid", w < 3);
+          requestAnimationFrame(dlyCfgPaint);
           /* largeur gardée (et retrouvée à l'ouverture, FORMAT 114) ; seule la poignée la change */
           shell.__dlygW = { ins: shell.__insDly && shell.__insDly.INS, ref: DLYG_REF, w: Math.round(w), auto: false };
           if (window.__sviViewSave) window.__sviViewSave();
@@ -13587,7 +13597,7 @@ function renderBudgetList() {
     /* v546 (R33) : bouton ↻ AJUSTER À LA CAPACITÉ, seulement sur DÉTAIL DÉLAIS ; grisé quand il n'y a rien à ajuster */
     const dlyAdjPaint = () => {
       /* v553 (partie 11, remarque 4) : ⚙ visible sur DÉTAIL DÉLAIS quand le planning a un graphique */
-      { const g = shell.querySelector(".blk-cfg-btn"); if (g) g.classList.toggle("dly-on", active === "dly" && !!shell.__insDly && !!shell.querySelector("#dlyGantt")); }
+      dlyCfgPaint();
       const b = shell.querySelector(".blk-adj-btn"); if (!b) return;
       const on = active === "dly" && INS_EDIT && !!shell.__insDly;
       b.classList.toggle("dly-on", on);
