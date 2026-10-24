@@ -565,6 +565,10 @@
         /* FORMAT 21 : en-têtes du PLANNING et du Gantt placés par le suivi général (défilement du bloc ET de la page) */
         document.dispatchEvent(new Event("scroll"));
       };
-      if (!sc.__dlyStick) { sc.__dlyStick = true; sc.addEventListener("scroll", run, { passive: true }); }
+      if (!sc.__dlyStick) { sc.__dlyStick = true; sc.addEventListener("scroll", run, { passive: true });
+        /* v580 (partie 11, remarques 8 et 12) : graphique et poignée « = » recalés AU MÊME MOMENT que le défilement des tâches
+           (et non une image plus tard), pour qu'ils ne tremblent plus, rebond compris */
+        sc.addEventListener("scroll", () => { try { dlyLift(); } catch (e) {} }, { passive: true });
+        sc.addEventListener("touchmove", () => { try { dlyLift(); } catch (e) {} }, { passive: true }); }
       run();
     };
