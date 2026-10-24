@@ -1560,7 +1560,7 @@ def main():
         if os.environ.get("SHOT"): pg.screenshot(path=os.environ["SHOT"] + "v546b.png")
         pg.evaluate("() => document.querySelector('.blk-cfg-btn')?.click()"); pg.wait_for_timeout(300)
         hw = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
-        pg.evaluate("() => { const d = document.getElementById('svConf'); d.querySelectorAll('.hcf-c').forEach(i => { i.checked = true; }); d.querySelector('input[name=\"hca\"][value=\"j\"]').checked = true; d.querySelector('[data-ok]').click(); }"); pg.wait_for_timeout(600)
+        pg.evaluate("() => { const d = document.getElementById('svConf'); d.querySelectorAll('.hcf-c:not([value=r])').forEach(i => { i.checked = true; }); d.querySelector('input[name=\"hca\"][value=\"j\"]').checked = true; d.querySelector('[data-ok]').click(); }"); pg.wait_for_timeout(600)
         pm = pg.evaluate(f"() => [JSON.stringify({ins}.INS.hset.crb), (document.querySelector('#dlyGantt .ghist-leg') || {{}}).textContent || '']")
         # R25 : 0 = histogramme caché ; R17 : JOUR / SEMAINE / MOIS dans CALENDRIER DU BUDGET, SEMAINE remplit la largeur (R23)
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.hset = null; X.insSave(); }}")
@@ -1643,6 +1643,22 @@ def main():
         pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS, R = window.__r34; I.hset = JSON.parse(R[0]); I.hrange = JSON.parse(R[1]); I.chg.forEach(r => {{ if (R[2].includes(r.id)) r.on = true; }}); X.insSave(); X.refreshAll(); }}""")
         check("v563 R3 / R4 : sans charge cochée, courbe CHARGES affichée avec PRODUITS ; total de la plage pour chaque courbe (plus de « 0 DH »)",
               "CHARGES" in r34[0] and "PRODUITS" in r34[0] and "CHARGES" in r34[1] and "PRODUITS" in r34[1], r34)
+        # v567 (remarque 10) : RENDEMENT = quantité produite ÷ charge du jour (en QUANTITÉ, une seule activité)
+        pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS; window.__r10 = [JSON.stringify(I.hset || null), JSON.stringify(I.hrange || null), I.chg.filter(r => r.on === true).map(r => r.id), JSON.stringify(I.dlp['l1|s1'] || null)];
+            I.chg.push({{ id: 'rz1', des: 'MACON RZ', u: 'J', q: 8, p: 100 }}); I.prd.push({{ id: 'rp1', des: 'DALLE RZ', u: 'M3', nbr: 1, d1: 4, d2: 2, d3: 1 }});
+            const lo = I.lot.find(x => !x.t).id, se = I.sec[0].id, pr = I.prim[0].id, de = I.des.find(x => !x.t).id;
+            I.links.push({{ id: 'Lrz', des: de, lot: lo, prim: pr, sec: se, prd: [{{ id: 'rp1' }}], chg: [{{ id: 'rz1' }}] }});
+            const K = lo + '|' + se, cid = 'rz1'; window.__r10.push(K, JSON.stringify(I.dlp[K] || null));
+            I.chg.forEach(r => {{ r.on = r.id === cid; }}); I.hrange = null; I.hset = {{ u: 'q', aff: 'j', crb: ['c', 'r'] }}; I.dlp[K] = [{{ deb: '2026-11-02', fin: '2026-11-05' }}]; X.insSave(); X.refreshAll(); }}""")
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(700)
+        pg.evaluate("() => document.querySelector('#dlyGantt .ghb[data-d]')?.click()"); pg.wait_for_timeout(300)
+        r10 = pg.evaluate("""() => { const m = document.getElementById('dlyHb'); if (!m) return null; const g = s => { const r = [...m.querySelectorAll('div')].find(d => d.firstElementChild && d.firstElementChild.textContent === s); return r ? parseFloat(r.querySelector('b').textContent.replace(/\u202f|\s/g, '').replace(',', '.')) : null; };
+            const tot = parseFloat((m.querySelector('.hb-tot b') || {}).textContent.replace(/\u202f|\s/g, '').replace(',', '.')); return [tot, g('PRODUIT'), g('RENDEMENT'), m.querySelectorAll('.hb-gob').length]; }""")
+        pg.evaluate("() => document.getElementById('dlyHb')?.remove()")
+        pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS, R = window.__r10; I.hset = JSON.parse(R[0]); I.hrange = JSON.parse(R[1]); I.chg.forEach(r => {{ r.on = R[2].includes(r.id); }}); const d = JSON.parse(R[3]); if (d) I.dlp['l1|s1'] = d; else delete I.dlp['l1|s1']; if (R[4]) {{ const d2 = JSON.parse(R[5]); if (d2) I.dlp[R[4]] = d2; else delete I.dlp[R[4]]; }}
+            I.links = I.links.filter(l => l.id !== 'Lrz'); I.chg = I.chg.filter(r => r.id !== 'rz1'); I.prd = I.prd.filter(r => r.id !== 'rp1'); X.insSave(); X.refreshAll(); }}""")
+        check("v567 R10 : RENDEMENT du jour = produit ÷ charge, bulle avec CHARGES / PRODUITS / DÉLAIS",
+              r10 and r10[0] and r10[1] is not None and r10[2] is not None and abs(r10[2] - r10[1] / r10[0]) < 0.02 and r10[3] >= 3, r10)
         # R30 : INF — DATE DE FIN DU PROJET = fin du planning (non saisissable)
         pg.evaluate("() => document.querySelector('[data-pill=\"inf\"]')?.click()"); pg.wait_for_timeout(400)
         inf = pg.evaluate("() => [!!document.querySelector('#docPop input[data-f=\"obj\"]'), (document.querySelector('#docPop [data-v=\"pfin0\"]') || {}).textContent || '']")

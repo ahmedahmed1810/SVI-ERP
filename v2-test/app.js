@@ -9844,12 +9844,30 @@ function renderBudgetList() {
             if (sG) svg += line(vG, CG);
             vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           }
-          host.__HV = { cum, multi, val, vP, vG, unit: HD.unit };
+          /* v567 (remarque 10) : RENDEMENT — quantité produite (vert) et rendement (violet, quantité produite ÷ J-H), chacun à sa propre échelle */
+          const RD = !C && !multi && HD.rd && HD.rd.L ? HD.rd : null, rdPQ = {}, rdR = {};
+          if (RD) {
+            const PQ = cum ? cumOf(di => RD.L[di] || 0) : RD.L;
+            vis.forEach(di => { rdPQ[di] = PQ[di] || 0; const c0 = val[di] || 0; rdR[di] = c0 > 1e-9 ? rdPQ[di] / c0 : null; });
+            const mP = Math.max(1e-9, ...vis.map(di => rdPQ[di])), mR = Math.max(1e-9, ...vis.map(di => rdR[di] || 0));
+            const sP2 = (HH - 36 - IB) / (mP * 1.08), sR2 = (HH - 36 - IB) / (mR * 1.08);
+            const ptP = di => `${X(di) + DLY_DW / 2},${Y0 - rdPQ[di] * sP2}`;
+            svg += `<polyline points="${vis.map(ptP).join(" ")}" fill="none" stroke="#12b76a" stroke-width="2" stroke-linejoin="round"/>`;
+            /* rendement : morceaux continus là où il y a des J-H */
+            let seg = [];
+            const flush = () => { if (seg.length) svg += `<polyline points="${(seg.length > 1 ? seg : [seg[0], seg[0]]).map(di => `${X(di) + DLY_DW / 2},${Y0 - rdR[di] * sR2}`).join(" ")}" fill="none" stroke="#7a5af8" stroke-width="2.5" stroke-dasharray="5 3" stroke-linecap="round" stroke-linejoin="round"/>`; seg = []; };
+            vis.forEach(di => { if (rdR[di] === null) flush(); else seg.push(di); }); flush();
+            const lab = (v, s, c, t) => { const di = vis.filter(x => (t === "r" ? rdR[x] : rdPQ[x]) === v)[0]; return di ? `<div class="grd-mx" style="left:${X(di) + DLY_DW / 2}px;top:${Math.max(2, Y0 - v * s - 18)}px;--c:${c}">${fmtA(v)}</div>` : ""; };
+            hb += lab(mP, sP2, "#12b76a", "p") + lab(mR, sR2, "#7a5af8", "r");
+          }
+          host.__HV = { cum, multi, val, vP, vG, unit: HD.unit, rd: RD ? { PQ: rdPQ, R: rdR, u: RD.u } : null };
           const late = INS.dbut && dlyEnd(dlyCurDates()) > INS.dbut;
           const legI = (c, t) => `<span><b style="background:${c}"></b>${esc(t)}</span>`;
-          const leg = C ? "" : multi ? `<div class="ghist-leg">${(sC ? legI(CC, "CHARGES") : "") + (sP ? legI(CP, "PRODUITS") : "") + (sG ? legI(CG, "MARGE") : "")}</div>`
+          const legRd = HD.rd ? (HD.rd.L ? legI("#12b76a", "PRODUIT (" + HD.rd.u + ")") + legI("#7a5af8", "RENDEMENT (" + HD.rd.u + " / " + HD.unit + ")") : `<span class="grd-why">${esc(HD.rd.why)}</span>`) : "";
+          const leg0 = C ? "" : multi ? `<div class="ghist-leg">${(sC ? legI(CC, "CHARGES") : "") + (sP ? legI(CP, "PRODUITS") : "") + (sG ? legI(CG, "MARGE") : "")}</div>`
             : cum ? (ks.length > 1 ? `<div class="ghist-leg">${legI("#344054", "TOTAL DES " + ks.length + " CHARGES")}</div>` : "")
             : ks.length > 1 ? `<div class="ghist-leg">${totS.filter(x => keep.has(x[0])).map(([sk]) => legI(col[sk], sk.split("|")[0])).join("")}${totS.some(x => !keep.has(x[0])) ? legI("#98a2b3", "AUTRES (" + totS.filter(x => !keep.has(x[0])).length + ")") : ""}</div>` : "";
+          const leg = legRd ? (leg0 ? leg0.replace(/<\/div>$/, legRd + "</div>") : `<div class="ghist-leg">${legI(cum ? "#344054" : "#6fa8dc", "CHARGES (" + HD.unit + ")")}${legRd}</div>`) : leg0;
           /* R21 à R23 : CAPACITÉ ; v546 : « / » traversé par la barre, trait vertical en pointillés entre deux morceaux, valeur du morceau au-dessus (R19, R20) */
           const yOf = n => n < 0 ? HH - IB / 2 : Y0 - n * sc;
           const pl = SG.map((g2, j) => {
@@ -11038,7 +11056,7 @@ function renderBudgetList() {
           /* v546 (R15, R29) : en CUMULÉ, la date et le total à ce jour ; avec PRODUITS / MARGE, une ligne par grandeur */
           const m = document.createElement("div"); m.id = "dlyHb";
           const L = [["CHARGES", HV.val], ["PRODUITS", HV.vP], ["MARGE", HV.vG]].filter(x => x[1] && Object.keys(x[1]).length && (x[0] === "CHARGES" ? !HV.multi || (H.crb || []).includes("c") : (H.crb || []).includes(x[0] === "PRODUITS" ? "p" : "g")));
-          m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}${HV.cum ? " — CUMUL À CE JOUR" : ""}</div>` + L.map(([t, M]) => `<div><span>${t}</span><b>${fmt(M[di] || 0)} ${esc(HV.unit)}</b></div>`).join("");
+          m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}${HV.cum ? " — CUMUL À CE JOUR" : ""}</div>` + L.map(([t, M]) => `<div><span>${t}</span><b>${fmt(M[di] || 0)} ${esc(HV.unit)}</b></div>`).join("") + dlyRdHb(HV, di) + dlyGoHb(H, di);
           document.body.appendChild(m);
           const r = b.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
           m.style.left = Math.max(8, Math.min(window.innerWidth - mw - 8, r.left + r.width / 2 - mw / 2)) + "px"; m.style.top = Math.max(8, Math.min(r.top, e.clientY) - mh - 6) + "px";
@@ -11049,13 +11067,29 @@ function renderBudgetList() {
         else (H.det[di] || []).forEach(x => { tot += x.v; rows += `<div><span>${esc(lotLab(dlyLotPath(lkName("lot", x.k.split("|")[0]))).full)} › ${esc(lkName("sec", x.k.split("|")[1]))}${x.inc ? " ▣" : ""}</span><b>${fmt(x.v)}</b></div>`; });
         const m = document.createElement("div");
         m.id = "dlyHb";
-        m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}</div>${rows}<div class="hb-tot"><span>TOTAL (${esc(H.cmd ? "COMMANDE" : H.unit)})</span><b>${fmt(tot)}</b></div>`;
+        m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}</div>${rows}<div class="hb-tot"><span>TOTAL (${esc(H.cmd ? "COMMANDE" : H.unit)})</span><b>${fmt(tot)}</b></div>${dlyRdHb(HV, di)}${H.cmd ? "" : dlyGoHb(H, di)}`;
         document.body.appendChild(m);
         const r = b.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
         m.style.left = Math.max(8, Math.min(window.innerWidth - mw - 8, r.left + r.width / 2 - mw / 2)) + "px";
         m.style.top = Math.max(8, r.top - mh - 6) + "px";
         m.addEventListener("click", ev => { if (ev.target.closest(".svt-x")) m.remove(); ev.stopPropagation(); });
       });
+      /* v567 (remarque 10) : bulle — rendement du jour, et pour chaque tâche du jour : CHARGES / PRODUITS / DÉLAIS
+         (la tâche est choisie par les ronds, l'onglet s'ouvre sur ses lignes surlignées) */
+      const dlyRdHb = (HV, di) => { const R = HV && HV.rd; if (!R) return ""; const f = v => (Math.round(v * 100) / 100).toLocaleString("fr-FR");
+        return `<div class="hb-rd"><span>PRODUIT</span><b>${f(R.PQ[di] || 0)} ${esc(R.u)}</b></div><div class="hb-rd"><span>RENDEMENT</span><b>${R.R[di] === null || R.R[di] === undefined ? "—" : f(R.R[di]) + " " + esc(R.u) + " / " + esc(HV.unit)}</b></div>`; };
+      const dlyGoHb = (H, di) => { const K = [...new Set((H.det && H.det[di] || []).map(x => x.k))]; if (!K.length) return "";
+        return `<div class="hb-gos">` + K.map(k => `<div class="hb-go"><span>${esc(lotLab(dlyLotPath(lkName("lot", k.split("|")[0]))).full)} › ${esc(lkName("sec", k.split("|")[1]))}</span>${[["chg", "CHARGES"], ["prd", "PRODUITS"], ["dly", "DÉLAIS"]].map(([t, l]) => `<button type="button" class="hb-gob" data-go="${t}" data-k="${esc(k)}">${l}</button>`).join("")}</div>`).join("") + `</div>`; };
+      document.addEventListener("click", e => {
+        const b = e.target.closest && e.target.closest("#dlyHb .hb-gob[data-go]");
+        if (!b) return;
+        e.stopPropagation(); document.getElementById("dlyHb")?.remove();
+        const [lo, se] = b.dataset.k.split("|");
+        LK.lot = lo; LK.sec = se; LK.prim = null;
+        const tb = document.querySelector(`.bdg-d-tab[data-tab="${b.dataset.go}"]`);
+        if (tb && active !== b.dataset.go) tb.click(); else refreshAll();
+        setTimeout(() => { const r = document.querySelector("#bdgTabBody tr.lk-hit, #bdgTabBody tr.lk-link.lk-hit, #bdgTabBody tr.dly-sel"); if (r) r.scrollIntoView({ block: "center" }); }, 350);
+      }, true);
       document.addEventListener("pointerdown", e => { const m = document.getElementById("dlyHb"); if (m && !m.contains(e.target) && !(e.target.closest && e.target.closest(".ghb"))) m.remove(); }, true);
       /* R3 : signe ▣ d'une tâche incompressible = fenêtre RENDRE COMPRESSIBLE */
       shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dlyg-l .dly-inc[data-key]"); const X = shell.__insDly; if (!b || !X) return; e.stopPropagation(); X.incWin(b.dataset.key); }, true);
@@ -12217,8 +12251,29 @@ function renderBudgetList() {
       });
       return { L: out, det };
     };
+    /* v567 (remarque 10) : RENDEMENT — quantités produites par jour par les tâches des charges cochées (en QUANTITÉ) ;
+       une seule activité secondaire (un ou plusieurs lots) et une seule unité de produit, sinon la raison */
+    const dlyRdData = H => {
+      if (!H || H.mode !== "q" || !(H.crb || []).includes("r")) return null;
+      const T = new Set(); Object.values(H.det || {}).forEach(L => L.forEach(x => T.add(x.k)));
+      if (!T.size) return { why: "RENDEMENT : AUCUNE TÂCHE DATÉE AVEC LES CHARGES COCHÉES." };
+      const secs = new Set([...T].map(k => k.split("|")[1]));
+      if (secs.size !== 1) return { why: "RENDEMENT : UNE SEULE ACTIVITÉ SECONDAIRE À LA FOIS (" + secs.size + " DANS LA SÉLECTION)." };
+      const cal = insCal(), cur = dlyCurDates(), L = {}, us = new Set();
+      T.forEach(k => {
+        const [lo, se] = k.split("|"), P = new Map();
+        (INS.links || []).filter(l => l.lot === lo && l.sec === se).forEach(l => (l.prd || []).forEach(x => { const r = INS.prd.find(y => y.id === x.id); if (r) P.set(r.id, r); }));
+        let q = 0; P.forEach(r => { us.add(U_(r.u) || "U"); q += insPrdQ(r) || 0; });
+        const p = cur[k]; if (!p || !q) return;
+        const D2 = []; (p.per && p.per.length ? p.per : [p]).forEach(qq => { const n = sviWDur(cal, qq.deb, qq.fin) || 1; for (let i = 0, x = sviWNear(cal, qq.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) D2.push(x); });
+        D2.forEach(x => { L[x] = (L[x] || 0) + q / D2.length; });
+      });
+      if (!us.size) return { why: "RENDEMENT : AUCUN PRODUIT LIÉ À CETTE ACTIVITÉ." };
+      if (us.size > 1) return { why: "RENDEMENT : PRODUITS DE PLUSIEURS UNITÉS (" + [...us].join(", ") + ")." };
+      return { L, u: [...us][0], sec: [...secs][0] };
+    };
     const dlyHistData = () => {
-      const crb = dlyCrb(), money = crb.some(c => c !== "c");
+      const crb = dlyCrb(), money = crb.some(c => c === "p" || c === "g");   /* v567 : RENDEMENT reste en quantité */
       const R0 = dlyResSel();
       /* v563 (remarque 4) : courbes en MONTANT avec CHARGES — sans charge cochée, toutes les charges retenues (celles des lignes cochées
          des autres blocs, sinon toutes), comme pour les produits */
@@ -12244,6 +12299,7 @@ function renderBudgetList() {
       const H = { R, mode, ser, det, tot, unit: mode === "q" ? dlyResU(R[0]) : "DH", crb };
       if (money) { const P = dlyPrdDays(cur); H.prd = P.L; H.pdet = P.det; }
       H.cmd = R0 ? dlyOrders(H) : null;
+      H.rd = dlyRdData(H);
       return H;
     };
     /* R17 : APPROVISIONNEMENT PRÉVISIONNEL — réglages mémorisés par budget */
@@ -12339,7 +12395,7 @@ function renderBudgetList() {
           <span class="hcf-k">UNITÉ</span><span class="hcf-sw">${rad("hcu", "q", "QUANTITÉ", h.u === "q" && q, !q)}${rad("hcu", "m", "MONTANT (DH)", h.u !== "q" || !q)}</span>
           <span class="hcf-k">PRÉSENTATION</span><span class="hcf-sw">${rad("hca", "j", "PAR JOUR", h.aff !== "c")}${rad("hca", "c", "CUMULÉE", h.aff === "c")}</span>
           <span class="hcf-k">POINT DE DÉPART</span><span class="hcf-sw">${rad("hcc", "r", "DEPUIS LE TRAIT DÉBUT", h.cum !== "a")}${rad("hcc", "a", "DEPUIS LE DÉBUT DU PROJET", h.cum === "a")}</span>
-          <span class="hcf-k">COURBES</span><span class="hcf-cbs">${[["c", "CHARGES"], ["p", "PRODUITS"], ["g", "MARGE"]].map(([v, l]) => `<label><input type="checkbox" class="hcf-c" value="${v}"${crb.includes(v) ? " checked" : ""}><span>${l}</span></label>`).join("")}</span>
+          <span class="hcf-k">COURBES</span><span class="hcf-cbs">${[["c", "CHARGES"], ["p", "PRODUITS"], ["g", "MARGE"], ["r", "RENDEMENT"]].map(([v, l]) => `<label${v === "r" && !q ? ' class="off" data-why="RENDEMENT : CHARGES COCHÉES DE MÊME UNITÉ (EX. MAIN-D\'ŒUVRE EN J-H), UNE SEULE ACTIVITÉ SECONDAIRE."' : ""}><input type="checkbox" class="hcf-c" value="${v}"${crb.includes(v) && (v !== "r" || q) ? " checked" : ""}${v === "r" && !q ? " disabled" : ""}><span>${l}</span></label>`).join("")}</span>
           <span class="hcf-k">LÉGENDE</span><span class="hcf-pl">CHARGES QUI FONT <input class="hcf-pct" inputmode="numeric" value="${esc(String(h.pct || 70))}"> %</span>
         </div>
         <div class="hcf-note">PRODUITS ET MARGE : EN MONTANT (DH). PRODUITS = PRODUITS COCHÉS (OU CEUX DES LIGNES COCHÉES).</div>
@@ -12348,13 +12404,19 @@ function renderBudgetList() {
       document.body.appendChild(d);
       d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".hcf-seg input"); if (!i) return; i.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked)); });
       d.addEventListener("click", e => {
-        { const o = e.target.closest && e.target.closest(".hcf-seg.off[data-why]"); if (o) { svToast(o.dataset.why, 3000, o); return; } }
+        { const o = e.target.closest && e.target.closest(".hcf-seg.off[data-why], .hcf-cbs label.off[data-why]"); if (o) { svToast(o.dataset.why, 3500, o); return; } }
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         if (!e.target.closest("[data-ok]")) return;
         const pc = String(d.querySelector(".hcf-pct").value).trim();
         if (!/^\d+$/.test(pc) || Number(pc) < 1 || Number(pc) > 100) { svToast("% DE LA LÉGENDE : NOMBRE ENTIER DE 1 À 100.", 3000, d.querySelector(".hcf-pct")); return; }
         const c = [...d.querySelectorAll(".hcf-c:checked")].map(i => i.value);
         if (!c.length) { svToast("COCHER AU MOINS UNE COURBE.", 3000, d.querySelector(".hcf-c")); return; }
+        /* v567 (remarque 10) : RENDEMENT = en QUANTITÉ, avec les CHARGES, sans PRODUITS ni MARGE en montant */
+        if (c.includes("r")) {
+          if (c.includes("p") || c.includes("g")) { svToast("RENDEMENT : EN QUANTITÉ — DÉCOCHER PRODUITS ET MARGE (EN MONTANT).", 3500, d.querySelector('.hcf-c[value="r"]')); return; }
+          if (!c.includes("c")) c.unshift("c");
+          const qq = d.querySelector('input[name="hcu"][value="q"]'); if (qq && !qq.disabled) qq.checked = true;
+        }
         const v = n => (d.querySelector(`input[name="${n}"]:checked`) || {}).value;
         INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc) };
         INS.appro = { ...dlyAppro(), on: v("hcd") === "o" };   /* v566 (remarque 9) : COMMANDES = données du graphique (plus de case à part) */

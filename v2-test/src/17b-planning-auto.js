@@ -356,8 +356,29 @@
       });
       return { L: out, det };
     };
+    /* v567 (remarque 10) : RENDEMENT — quantités produites par jour par les tâches des charges cochées (en QUANTITÉ) ;
+       une seule activité secondaire (un ou plusieurs lots) et une seule unité de produit, sinon la raison */
+    const dlyRdData = H => {
+      if (!H || H.mode !== "q" || !(H.crb || []).includes("r")) return null;
+      const T = new Set(); Object.values(H.det || {}).forEach(L => L.forEach(x => T.add(x.k)));
+      if (!T.size) return { why: "RENDEMENT : AUCUNE TÂCHE DATÉE AVEC LES CHARGES COCHÉES." };
+      const secs = new Set([...T].map(k => k.split("|")[1]));
+      if (secs.size !== 1) return { why: "RENDEMENT : UNE SEULE ACTIVITÉ SECONDAIRE À LA FOIS (" + secs.size + " DANS LA SÉLECTION)." };
+      const cal = insCal(), cur = dlyCurDates(), L = {}, us = new Set();
+      T.forEach(k => {
+        const [lo, se] = k.split("|"), P = new Map();
+        (INS.links || []).filter(l => l.lot === lo && l.sec === se).forEach(l => (l.prd || []).forEach(x => { const r = INS.prd.find(y => y.id === x.id); if (r) P.set(r.id, r); }));
+        let q = 0; P.forEach(r => { us.add(U_(r.u) || "U"); q += insPrdQ(r) || 0; });
+        const p = cur[k]; if (!p || !q) return;
+        const D2 = []; (p.per && p.per.length ? p.per : [p]).forEach(qq => { const n = sviWDur(cal, qq.deb, qq.fin) || 1; for (let i = 0, x = sviWNear(cal, qq.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) D2.push(x); });
+        D2.forEach(x => { L[x] = (L[x] || 0) + q / D2.length; });
+      });
+      if (!us.size) return { why: "RENDEMENT : AUCUN PRODUIT LIÉ À CETTE ACTIVITÉ." };
+      if (us.size > 1) return { why: "RENDEMENT : PRODUITS DE PLUSIEURS UNITÉS (" + [...us].join(", ") + ")." };
+      return { L, u: [...us][0], sec: [...secs][0] };
+    };
     const dlyHistData = () => {
-      const crb = dlyCrb(), money = crb.some(c => c !== "c");
+      const crb = dlyCrb(), money = crb.some(c => c === "p" || c === "g");   /* v567 : RENDEMENT reste en quantité */
       const R0 = dlyResSel();
       /* v563 (remarque 4) : courbes en MONTANT avec CHARGES — sans charge cochée, toutes les charges retenues (celles des lignes cochées
          des autres blocs, sinon toutes), comme pour les produits */
@@ -383,6 +404,7 @@
       const H = { R, mode, ser, det, tot, unit: mode === "q" ? dlyResU(R[0]) : "DH", crb };
       if (money) { const P = dlyPrdDays(cur); H.prd = P.L; H.pdet = P.det; }
       H.cmd = R0 ? dlyOrders(H) : null;
+      H.rd = dlyRdData(H);
       return H;
     };
     /* R17 : APPROVISIONNEMENT PRÉVISIONNEL — réglages mémorisés par budget */
@@ -478,7 +500,7 @@
           <span class="hcf-k">UNITÉ</span><span class="hcf-sw">${rad("hcu", "q", "QUANTITÉ", h.u === "q" && q, !q)}${rad("hcu", "m", "MONTANT (DH)", h.u !== "q" || !q)}</span>
           <span class="hcf-k">PRÉSENTATION</span><span class="hcf-sw">${rad("hca", "j", "PAR JOUR", h.aff !== "c")}${rad("hca", "c", "CUMULÉE", h.aff === "c")}</span>
           <span class="hcf-k">POINT DE DÉPART</span><span class="hcf-sw">${rad("hcc", "r", "DEPUIS LE TRAIT DÉBUT", h.cum !== "a")}${rad("hcc", "a", "DEPUIS LE DÉBUT DU PROJET", h.cum === "a")}</span>
-          <span class="hcf-k">COURBES</span><span class="hcf-cbs">${[["c", "CHARGES"], ["p", "PRODUITS"], ["g", "MARGE"]].map(([v, l]) => `<label><input type="checkbox" class="hcf-c" value="${v}"${crb.includes(v) ? " checked" : ""}><span>${l}</span></label>`).join("")}</span>
+          <span class="hcf-k">COURBES</span><span class="hcf-cbs">${[["c", "CHARGES"], ["p", "PRODUITS"], ["g", "MARGE"], ["r", "RENDEMENT"]].map(([v, l]) => `<label${v === "r" && !q ? ' class="off" data-why="RENDEMENT : CHARGES COCHÉES DE MÊME UNITÉ (EX. MAIN-D\'ŒUVRE EN J-H), UNE SEULE ACTIVITÉ SECONDAIRE."' : ""}><input type="checkbox" class="hcf-c" value="${v}"${crb.includes(v) && (v !== "r" || q) ? " checked" : ""}${v === "r" && !q ? " disabled" : ""}><span>${l}</span></label>`).join("")}</span>
           <span class="hcf-k">LÉGENDE</span><span class="hcf-pl">CHARGES QUI FONT <input class="hcf-pct" inputmode="numeric" value="${esc(String(h.pct || 70))}"> %</span>
         </div>
         <div class="hcf-note">PRODUITS ET MARGE : EN MONTANT (DH). PRODUITS = PRODUITS COCHÉS (OU CEUX DES LIGNES COCHÉES).</div>
@@ -487,13 +509,19 @@
       document.body.appendChild(d);
       d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".hcf-seg input"); if (!i) return; i.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked)); });
       d.addEventListener("click", e => {
-        { const o = e.target.closest && e.target.closest(".hcf-seg.off[data-why]"); if (o) { svToast(o.dataset.why, 3000, o); return; } }
+        { const o = e.target.closest && e.target.closest(".hcf-seg.off[data-why], .hcf-cbs label.off[data-why]"); if (o) { svToast(o.dataset.why, 3500, o); return; } }
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         if (!e.target.closest("[data-ok]")) return;
         const pc = String(d.querySelector(".hcf-pct").value).trim();
         if (!/^\d+$/.test(pc) || Number(pc) < 1 || Number(pc) > 100) { svToast("% DE LA LÉGENDE : NOMBRE ENTIER DE 1 À 100.", 3000, d.querySelector(".hcf-pct")); return; }
         const c = [...d.querySelectorAll(".hcf-c:checked")].map(i => i.value);
         if (!c.length) { svToast("COCHER AU MOINS UNE COURBE.", 3000, d.querySelector(".hcf-c")); return; }
+        /* v567 (remarque 10) : RENDEMENT = en QUANTITÉ, avec les CHARGES, sans PRODUITS ni MARGE en montant */
+        if (c.includes("r")) {
+          if (c.includes("p") || c.includes("g")) { svToast("RENDEMENT : EN QUANTITÉ — DÉCOCHER PRODUITS ET MARGE (EN MONTANT).", 3500, d.querySelector('.hcf-c[value="r"]')); return; }
+          if (!c.includes("c")) c.unshift("c");
+          const qq = d.querySelector('input[name="hcu"][value="q"]'); if (qq && !qq.disabled) qq.checked = true;
+        }
         const v = n => (d.querySelector(`input[name="${n}"]:checked`) || {}).value;
         INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc) };
         INS.appro = { ...dlyAppro(), on: v("hcd") === "o" };   /* v566 (remarque 9) : COMMANDES = données du graphique (plus de case à part) */
