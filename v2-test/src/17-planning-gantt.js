@@ -779,7 +779,8 @@
           ${bars}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>${hist}`;
       host.__X = X; host.__d0 = d0; host.__HD = HD;
       /* R12 : poignée « = » entre le Gantt et l'histogramme, posée à la hauteur du haut de l'histogramme */
-      { const hh = host.parentElement.querySelector(".dlyg-hh"); if (hh) hh.style.left = host.offsetLeft + "px"; if (hh) hh.style.top = (host.offsetTop + thH + (dlyHHGet() === "full" ? 0 : bodyH) - 7) + "px"; shell.style.setProperty("--dly-hh", dlyHHpx + "px"); }
+      { const hh = host.parentElement.querySelector(".dlyg-hh"); /* v552 (FORMAT 201) : la barre marron horizontale part de la barre marron verticale et va jusqu'au bord droit du cadre */
+        if (hh) { const sp = host.parentElement.querySelector(".dlyg-sp"), sc = host.closest(".bdg-d-scroll"); hh.style.left = (sp ? sp.offsetLeft : host.offsetLeft) + "px"; hh.style.right = sc ? -(parseFloat(getComputedStyle(sc).paddingRight) || 0) + "px" : "0px"; } if (hh) hh.style.top = (host.offsetTop + thH + (dlyHHGet() === "full" ? 0 : bodyH) - 7) + "px"; shell.style.setProperty("--dly-hh", dlyHHpx + "px"); }
       try { dlyPickPaint(); } catch (e) {}
       host.parentElement.querySelectorAll("input.dlyp-cb[data-part]").forEach(c => { c.indeterminate = true; });
       /* défilement horizontal du Gantt gardé d'un dessin à l'autre */

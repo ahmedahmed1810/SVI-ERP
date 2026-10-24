@@ -1495,11 +1495,11 @@ def main():
         check("v548 FORMAT 197 : bloc agrandi — l'histogramme est au bas de l'écran visible, le bloc ne dépasse pas l'écran",
               f197 and f197[1] <= f197[2] + 1 and f197[0] <= f197[2] + 1 and f197[2] - f197[0] <= 70, f197)
         # v549 : plus de bouton AJOUTER sous le planning (entrée du menu ⋯) ; barre marron limitée au Gantt quand le tableau est affiché
-        v549 = pg.evaluate("() => { const hh = document.querySelector('.dlyg-hh'), G = document.querySelector('#dlyGantt'); return [!!document.querySelector('.dly-add'), hh && G ? Math.abs(hh.getBoundingClientRect().left - G.getBoundingClientRect().left) < 2 : null]; }")
+        v549 = pg.evaluate("() => { const hh = document.querySelector('.dlyg-hh'), sp = document.querySelector('.dlyg-sp'), sc = document.querySelector('.dly-scroll'); return [!!document.querySelector('.dly-add'), hh && sp ? Math.abs(hh.getBoundingClientRect().left - sp.getBoundingClientRect().left) < 2 && Math.abs(hh.getBoundingClientRect().right - sc.getBoundingClientRect().right) < 3 : null]; }")
         pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
         v549m = pg.evaluate("() => [...document.querySelectorAll('#blkMenu [data-dly]')].map(b => b.dataset.dly).join(',') + '|' + [...document.querySelectorAll('#blkMenu .blk-hint')].map(e => e.textContent).join(',')")
         pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
-        check("v549 : plus de bouton AJOUTER sous le planning (menu ⋯ : + AJOUTER UNE TÂCHE…) ; rubrique GRAPHIQUE ; barre marron limitée au Gantt",
+        check("v549 : plus de bouton AJOUTER sous le planning (menu ⋯ : + AJOUTER UNE TÂCHE…) ; rubrique GRAPHIQUE ; barre marron de la barre verticale au bord droit du cadre (v552)",
               v549 == [False, True] and "add" in v549m and "GRAPHIQUE" in v549m, [v549, v549m])
         # v550 : graphique plein écran — défiler la page ne l'agrandit pas ; caché (0) = barre « = » au bas de l'écran
         pg.evaluate(f"() => {DXJ}.hh('full')"); pg.wait_for_timeout(800)
