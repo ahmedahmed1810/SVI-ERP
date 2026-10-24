@@ -278,7 +278,13 @@
           const PM = Math.max(0, ...SG.map(x => x.n));
           /* v577 (remarque 7) : échelle des valeurs agrandie au pincement vertical (shell.__dlyYZ) */
           const YZ = Math.max(1, shell.__dlyYZ || 1);
-          const top = ((Math.max(mx, PM, VL.max || 0) - mn) || 1) * 1.08 / YZ, sc = (HH - 36 - IB) / top, Y0 = HH - IB - Math.min(-mn, top) * sc;
+          const YRG = ((Math.max(mx, PM, VL.max || 0) - mn) || 1) * 1.08;
+          const top = YRG / YZ, sc = (HH - 36 - IB) / top, Y0b = HH - IB - Math.min(-mn, top) * sc;
+          /* v582 : après le zoom, l'échelle peut monter ou descendre (shell.__dlyYO, en valeur) pour voir le haut des barres */
+          const YO = YZ > 1.01 ? Math.max(0, Math.min(YRG - top, shell.__dlyYO || 0)) : 0;
+          shell.__dlyYO = YO;
+          const Y0 = Y0b + YO * sc;
+          shell.__dlyYGeo = { RG: YRG, mn, HH, IB };
           const pass = di => inR(di) && (multi || ((VL.min === null || val[di] >= VL.min - 1e-9) && (VL.max === null || val[di] <= VL.max + 1e-9)));
           const bw = Math.max(1, DLY_DW - (DLY_DW > 10 ? 6 : 0)), bo = DLY_DW > 10 ? 3 : 0;
           const capAt = di => { let n = -1; SG.forEach(x => { if (!x.def && (!x.d || x.d <= di)) n = x.n; }); return n; };
@@ -396,8 +402,8 @@
           /* échelle (R24) : unité en tête, nombres abrégés, toujours visible à gauche */
           const stp = (() => { const raw = top / 4, p = Math.pow(10, Math.floor(Math.log10(raw || 1))), m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; })();
           let ax = "";
-          if (HH >= 50) { for (let v = stp; Y0 - v * sc >= 18; v += stp) ax += `<span class="gax-t" style="top:${Y0 - v * sc}px">${fmtA(v)}</span>`; for (let v = -stp; Y0 - v * sc <= HH - 6; v -= stp) ax += `<span class="gax-t" style="top:${Y0 - v * sc}px">${fmtA(v)}</span>`; }
-          ax = `<div class="ghist-ax" style="height:${HH}px"><span class="gax-hit${shell.__dlyRule ? " on" : ""}" style="height:${HH}px" role="button" aria-label="Règle"></span><span class="gax-u">${esc(dlyHistLab(HD))}</span>${ax}<span class="gax-t gax-0" style="top:${Y0}px">0</span></div>`;
+          if (HH >= 50) { for (let v = stp; Y0 - v * sc >= 18; v += stp) if (Y0 - v * sc <= HH - 6) ax += `<span class="gax-t" style="top:${Y0 - v * sc}px">${fmtA(v)}</span>`; for (let v = -stp; Y0 - v * sc <= HH - 6; v -= stp) ax += `<span class="gax-t" style="top:${Y0 - v * sc}px">${fmtA(v)}</span>`; }
+          ax = `<div class="ghist-ax" style="height:${HH}px"><span class="gax-hit${shell.__dlyRule ? " on" : ""}" style="height:${HH}px" role="button" aria-label="Règle"></span><span class="gax-u">${esc(dlyHistLab(HD))}</span>${ax}${Y0 <= HH ? `<span class="gax-t gax-0" style="top:${Y0}px">0</span>` : ""}</div>`;
           hist = `<div class="ghist${YZ > 1.01 ? " ghist-zoom" : ""}${C ? " ghist-cmd" : ""}${curve || hideC ? " ghist-cum" : ""}" style="width:${W}px;height:${HH}px" data-sc="${sc}" data-y0="${Y0}" data-stp="${stp}" data-ib="${IB}" data-top="${top}">${ax}${bg}${leg}${C ? `<div class="ghist-leg"><span>${esc(C.lab)}</span></div>` : ""}${IB ? `<div class="ghist-inf" style="height:${IB}px"></div>` : ""}${hb}${svg ? `<svg class="ghist-svg" width="${W}" height="${HH}">${svg}</svg>` : ""}${pl}${rng}${vals}</div>`;
         }
       }
