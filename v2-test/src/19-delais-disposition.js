@@ -30,7 +30,7 @@
     /* v546 (R33) : bouton ↻ AJUSTER À LA CAPACITÉ, seulement sur DÉTAIL DÉLAIS ; grisé quand il n'y a rien à ajuster */
     const dlyAdjPaint = () => {
       /* v553 (partie 11, remarque 4) : ⚙ visible sur DÉTAIL DÉLAIS quand le planning a un graphique */
-      { const g = shell.querySelector(".blk-cfg-btn"); if (g) g.classList.toggle("dly-on", active === "dly" && !!shell.__insDly && !!shell.querySelector("#dlyGantt")); }
+      dlyCfgPaint();
       const b = shell.querySelector(".blk-adj-btn"); if (!b) return;
       const on = active === "dly" && INS_EDIT && !!shell.__insDly;
       b.classList.toggle("dly-on", on);
