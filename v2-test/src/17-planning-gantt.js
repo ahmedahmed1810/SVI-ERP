@@ -415,7 +415,8 @@
       const c = DLY_SC[dlyScale()]; DLY_DW_MIN = c.min; DLY_DW_MAX = Math.max(100, DLY_FILL);
       let s0 = null; try { s0 = localStorage.getItem(c.k); } catch (e) {}
       const v = s0 === null ? (c.fit && DLY_FILL ? DLY_FILL : c.def) : s0 === "fit" ? (DLY_FILL || c.def) : Number(s0) || c.def;
-      return Math.max(c.min, Math.min(DLY_DW_MAX, Math.round(v)));
+      DLY_DW_MIN = Math.max(c.min, DLY_FILL || 0);   /* v553 (P11 R2) : jamais plus étroit que la largeur qui remplit le Gantt */
+      return Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v)));
     };
     let DLY_DW = dlyDwGet();
     /* hauteur des lignes du PLANNING (tableau et Gantt) : pincement vertical à deux doigts ; 24 px au moins (taille d'origine), 64 au plus */
@@ -533,15 +534,19 @@
       if (HD && HD.cmd) dates.push(...Object.keys(HD.cmd.L));
       dates.sort();
       const today = sviIsoOf(new Date());
-      const d0 = sviIsoAdd(dates[0] || today, -3);
-      /* v546 (R23, R34) : largeur des jours qui fait remplir au projet toute la largeur visible du Gantt */
-      { const pd = R.filter(x => !x.grp).flatMap(x => [x.deb, x.fin]).filter(Boolean).sort();
-        DLY_FILL = pd.length ? Math.floor((host.clientWidth || 600) / (dDiff(pd[0], pd[pd.length - 1]) + 7)) : 0; }
-      DLY_DW = dlyDwGet();
+      /* v553 (partie 11, remarque 2) : le calendrier du Gantt (jours, semaines, mois) va seulement du début à la fin du projet :
+         JOUR = 3 jours avant et après ; SEMAINE = du lundi de la 1re semaine au dimanche de la dernière ; MOIS = du 1er du 1er mois à la fin du dernier.
+         La largeur d'un jour ne descend pas sous celle qui fait remplir la largeur du Gantt (pas de semaines vides au bout). */
       const SC = dlyScale();
+      const dA = dates[0] || today, dZ = dates[dates.length - 1] || sviIsoAdd(today, 30);
+      const wd = iso => (new Date(iso + "T00:00:00").getDay() + 6) % 7;   /* 0 = lundi */
+      const d0 = SC === "s" ? sviIsoAdd(dA, -wd(dA)) : SC === "m" ? dA.slice(0, 8) + "01" : sviIsoAdd(dA, -3);
+      const dE = SC === "s" ? sviIsoAdd(dZ, 6 - wd(dZ)) : SC === "m" ? (() => { const y = Number(dZ.slice(0, 4)), m = Number(dZ.slice(5, 7)); return dZ.slice(0, 8) + String(new Date(y, m, 0).getDate()).padStart(2, "0"); })() : sviIsoAdd(dZ, 3);
+      const nD = dDiff(d0, dE) + 1;
+      DLY_FILL = Math.floor((host.clientWidth || 600) / nD);
+      DLY_DW = dlyDwGet();
       host.style.setProperty("--dw", DLY_DW + "px");
-      /* v458 : le calendrier va au moins jusqu'au bord droit du Gantt visible (tableau caché, poignée, échelle, rotation) */
-      const nD = Math.max(dDiff(d0, sviIsoAdd(dates[dates.length - 1] || sviIsoAdd(today, 30), 10)) + 1, Math.ceil((host.clientWidth || 0) / DLY_DW) + 1), W = nD * DLY_DW;
+      const W = nD * DLY_DW;
       const d1 = sviIsoAdd(d0, nD - 1);
       const X = iso => dDiff(d0, iso) * DLY_DW;
       let head = "", bg = "";
@@ -982,7 +987,7 @@
           /* v546 (R26) : plus de bandeau VUE PAR DÉBUT (la vue se choisit dans le menu ⋯) */
           const viewB = "";
           const isoB = viewB + (PR.iso ? `<div class="dly-iso"><span>ISOLÉ : <b>${esc(lotLab(dlyLotPath(PR.iso)).full)}</b></span><small>LIAISONS, DÉCALAGES ET CALENDRIER RESTENT APPLIQUÉS · TÂCHES LIÉES HORS DE LA BRANCHE EN GRIS (LECTURE SEULE)</small><button type="button" class="dly-iso-x">TOUT AFFICHER</button></div>` : "");
-          return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur du graphique">=</span>${dlyHHGet() !== 0 ? `<span class="dlyhh-cfg" role="button" title="RÉGLAGES DU GRAPHIQUE">⚙</span>` : ""}</div>` : ""}</div>`
+          return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur du graphique">=</span></div>` : ""}</div>`
             /* v549 : plus de bouton « + AJOUTER UNE TÂCHE OU SES DÉLAIS » sous le planning (ligne SAISIR ICI… et menu ⋯) */
             ;
         }

@@ -2351,3 +2351,11 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 /* lot replié : étiquette à la hauteur de la barre */
 #dlyGantt .gb-grp.gb-gfd { padding: 0 6px; display: inline-flex; align-items: center; box-sizing: border-box; }
 .dlyhh-cfg { top: 9px; right: 58px; }
+/* ===== v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE en haut, à gauche de ↻ ===== */
+.blk-tools .blk-btn.blk-cfg-btn { display: none !important; }
+.blk-tools .blk-btn.blk-cfg-btn.dly-on { display: inline-flex !important; align-items: center; justify-content: center; width: var(--svi-ib, 36px); height: var(--svi-ib, 36px); border-radius: 9px; background: #fff; color: #12355b; border: 1px solid #d6dbe3; margin-right: 6px; padding: 0; font-size: 17px; line-height: 1; }
+/* ===== v553 (partie 11, remarque 5) : case de date active (calendrier ouvert) sans contour rouge ===== */
+input.sv-date:focus, input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus,
+.dlyg-l td.ins-td input.dlp-in:is([data-f=deb], [data-f=fin]):focus { outline: none !important; box-shadow: none !important; }
+td:has(> input.sv-date:focus, > input.dlp-in[data-f=deb]:focus, > input.dlp-in[data-f=fin]:focus),
+td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-date:focus) { outline: none !important; box-shadow: none !important; }

@@ -5216,6 +5216,7 @@ function renderBudgetList() {
               <button type="button" class="blk-btn" data-blk="detail" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
               ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="detail" data-act="copy" title="Copier les lignes cochées">${SVI_COPY_ICON}</button><button type="button" class="blk-btn" data-blk="detail" data-act="cut" title="Couper les lignes cochées">${SVI_CUT_ICON}</button><button type="button" class="blk-btn" data-blk="detail" data-act="paste" title="Coller">${SVI_PASTE_ICON}</button>` : ""}
               ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="detail" data-act="del" title="Supprimer les lignes cochées">${SVI_DEL_ICON}</button>` : ""}
+              <button type="button" class="blk-btn blk-cfg-btn" data-blk="detail" data-act="cfg" title="RÉGLAGES DU GRAPHIQUE" aria-label="Réglages du graphique">⚙</button>
               <button type="button" class="blk-btn blk-adj-btn" data-blk="detail" data-act="adj" title="AJUSTER À LA CAPACITÉ" aria-label="Ajuster à la capacité"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 2.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn blk-max-btn" data-blk="detail" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
@@ -9470,7 +9471,8 @@ function renderBudgetList() {
       const c = DLY_SC[dlyScale()]; DLY_DW_MIN = c.min; DLY_DW_MAX = Math.max(100, DLY_FILL);
       let s0 = null; try { s0 = localStorage.getItem(c.k); } catch (e) {}
       const v = s0 === null ? (c.fit && DLY_FILL ? DLY_FILL : c.def) : s0 === "fit" ? (DLY_FILL || c.def) : Number(s0) || c.def;
-      return Math.max(c.min, Math.min(DLY_DW_MAX, Math.round(v)));
+      DLY_DW_MIN = Math.max(c.min, DLY_FILL || 0);   /* v553 (P11 R2) : jamais plus étroit que la largeur qui remplit le Gantt */
+      return Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v)));
     };
     let DLY_DW = dlyDwGet();
     /* hauteur des lignes du PLANNING (tableau et Gantt) : pincement vertical à deux doigts ; 24 px au moins (taille d'origine), 64 au plus */
@@ -9588,15 +9590,19 @@ function renderBudgetList() {
       if (HD && HD.cmd) dates.push(...Object.keys(HD.cmd.L));
       dates.sort();
       const today = sviIsoOf(new Date());
-      const d0 = sviIsoAdd(dates[0] || today, -3);
-      /* v546 (R23, R34) : largeur des jours qui fait remplir au projet toute la largeur visible du Gantt */
-      { const pd = R.filter(x => !x.grp).flatMap(x => [x.deb, x.fin]).filter(Boolean).sort();
-        DLY_FILL = pd.length ? Math.floor((host.clientWidth || 600) / (dDiff(pd[0], pd[pd.length - 1]) + 7)) : 0; }
-      DLY_DW = dlyDwGet();
+      /* v553 (partie 11, remarque 2) : le calendrier du Gantt (jours, semaines, mois) va seulement du début à la fin du projet :
+         JOUR = 3 jours avant et après ; SEMAINE = du lundi de la 1re semaine au dimanche de la dernière ; MOIS = du 1er du 1er mois à la fin du dernier.
+         La largeur d'un jour ne descend pas sous celle qui fait remplir la largeur du Gantt (pas de semaines vides au bout). */
       const SC = dlyScale();
+      const dA = dates[0] || today, dZ = dates[dates.length - 1] || sviIsoAdd(today, 30);
+      const wd = iso => (new Date(iso + "T00:00:00").getDay() + 6) % 7;   /* 0 = lundi */
+      const d0 = SC === "s" ? sviIsoAdd(dA, -wd(dA)) : SC === "m" ? dA.slice(0, 8) + "01" : sviIsoAdd(dA, -3);
+      const dE = SC === "s" ? sviIsoAdd(dZ, 6 - wd(dZ)) : SC === "m" ? (() => { const y = Number(dZ.slice(0, 4)), m = Number(dZ.slice(5, 7)); return dZ.slice(0, 8) + String(new Date(y, m, 0).getDate()).padStart(2, "0"); })() : sviIsoAdd(dZ, 3);
+      const nD = dDiff(d0, dE) + 1;
+      DLY_FILL = Math.floor((host.clientWidth || 600) / nD);
+      DLY_DW = dlyDwGet();
       host.style.setProperty("--dw", DLY_DW + "px");
-      /* v458 : le calendrier va au moins jusqu'au bord droit du Gantt visible (tableau caché, poignée, échelle, rotation) */
-      const nD = Math.max(dDiff(d0, sviIsoAdd(dates[dates.length - 1] || sviIsoAdd(today, 30), 10)) + 1, Math.ceil((host.clientWidth || 0) / DLY_DW) + 1), W = nD * DLY_DW;
+      const W = nD * DLY_DW;
       const d1 = sviIsoAdd(d0, nD - 1);
       const X = iso => dDiff(d0, iso) * DLY_DW;
       let head = "", bg = "";
@@ -10037,7 +10043,7 @@ function renderBudgetList() {
           /* v546 (R26) : plus de bandeau VUE PAR DÉBUT (la vue se choisit dans le menu ⋯) */
           const viewB = "";
           const isoB = viewB + (PR.iso ? `<div class="dly-iso"><span>ISOLÉ : <b>${esc(lotLab(dlyLotPath(PR.iso)).full)}</b></span><small>LIAISONS, DÉCALAGES ET CALENDRIER RESTENT APPLIQUÉS · TÂCHES LIÉES HORS DE LA BRANCHE EN GRIS (LECTURE SEULE)</small><button type="button" class="dly-iso-x">TOUT AFFICHER</button></div>` : "");
-          return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur du graphique">=</span>${dlyHHGet() !== 0 ? `<span class="dlyhh-cfg" role="button" title="RÉGLAGES DU GRAPHIQUE">⚙</span>` : ""}</div>` : ""}</div>`
+          return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur du graphique">=</span></div>` : ""}</div>`
             /* v549 : plus de bouton « + AJOUTER UNE TÂCHE OU SES DÉLAIS » sous le planning (ligne SAISIR ICI… et menu ⋯) */
             ;
         }
@@ -13559,6 +13565,8 @@ function renderBudgetList() {
     };
     /* v546 (R33) : bouton ↻ AJUSTER À LA CAPACITÉ, seulement sur DÉTAIL DÉLAIS ; grisé quand il n'y a rien à ajuster */
     const dlyAdjPaint = () => {
+      /* v553 (partie 11, remarque 4) : ⚙ visible sur DÉTAIL DÉLAIS quand le planning a un graphique */
+      { const g = shell.querySelector(".blk-cfg-btn"); if (g) g.classList.toggle("dly-on", active === "dly" && !!shell.__insDly && !!shell.querySelector("#dlyGantt")); }
       const b = shell.querySelector(".blk-adj-btn"); if (!b) return;
       const on = active === "dly" && INS_EDIT && !!shell.__insDly;
       b.classList.toggle("dly-on", on);
@@ -20051,6 +20059,8 @@ function renderBudgetList() {
       }
       if (act === "max") return toggleMax(blk);
       /* v546 (R33) : ↻ AJUSTER À LA CAPACITÉ (DÉTAIL DÉLAIS) */
+      /* v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE, en haut à côté de ↻, AGRANDIR et ⋯ */
+      if (act === "cfg") { const DX = shell.__insDly; if (DX) DX.hcfgWin(); return; }
       if (act === "adj") { const b = shell.querySelector(".blk-adj-btn"), DX = shell.__insDly; if (b && b.classList.contains("off")) { svToast(b.dataset.why || "RIEN À AJUSTER.", 3500, b); return; } if (DX) DX.gen(); return; }
       if (act === "del") return insDelRun(blk);
       { const cs = ["copy", "cut", "paste"].includes(act) && colSelFor(blk); if (cs) return colOp(act, cs); }
@@ -20136,7 +20146,8 @@ function renderBudgetList() {
         const vw = DX.view();
         const ck = (v, lab, on, off) => `<button type="button" data-dly="${v}" class="dly-sc${on ? " on" : ""}${off ? " off" : ""}"${off ? ` data-why="${esc(off)}"` : ""}><span>${on ? "✓ " : ""}${lab}</span></button>`;
         m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">PLANNING</div>${ck("v-l", "AFFICHER PAR LOT", vw !== "d")}${ck("v-d", "AFFICHER PAR DÉBUT", vw === "d")}<button type="button" data-dly="sort"><span>CLASSER PAR DÉBUT</span></button>`
-          + `<button type="button" data-dly="add"><span>+ AJOUTER UNE TÂCHE OU SES DÉLAIS</span></button><div class="blk-sep"></div><div class="blk-hint">GRAPHIQUE</div><button type="button" data-dly="appr" class="${DX.hasSel() ? "" : "off"}"${DX.hasSel() ? "" : ' data-why="COCHER DES CHARGES : L\'APPROVISIONNEMENT PORTE SUR LES CHARGES COCHÉES."'}><span>APPROVISIONNEMENT PRÉVISIONNEL</span></button><div class="blk-sep"></div>`);
+          /* v553 (partie 11, remarque 3) : plus d'entrée « + AJOUTER UNE TÂCHE OU SES DÉLAIS » */
+          + `<div class="blk-sep"></div><div class="blk-hint">GRAPHIQUE</div><button type="button" data-dly="appr" class="${DX.hasSel() ? "" : "off"}"${DX.hasSel() ? "" : ' data-why="COCHER DES CHARGES : L\'APPROVISIONNEMENT PORTE SUR LES CHARGES COCHÉES."'}><span>APPROVISIONNEMENT PRÉVISIONNEL</span></button><div class="blk-sep"></div>`);
         let lp = null;
         m.addEventListener("pointerdown", e => { const so = e.target.closest("[data-dly].off[data-why]"); if (!so) return; lp = setTimeout(() => svToast(so.dataset.why, 4000, so), 550); });
         ["pointerup", "pointercancel"].forEach(t => m.addEventListener(t, () => clearTimeout(lp)));
@@ -23745,7 +23756,9 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     /* v512 (remarques 73, 80, 81) : point au coin de la cellule active (tableaux ET listes du bloc TÂCHES), ou de la fin de la plage ;
        seulement s'il y a une cellule active visible */
     const act = document.activeElement, cell = sviCellOf(act);
-    if (!cell || !matchMedia("(pointer: coarse)").matches) { if (H) H.style.display = "none"; return; }
+    /* v553 (partie 11, remarque 5) : case de date (calendrier) = ni contour ni point au coin */
+    const isDate = !!(act && act.matches && act.matches("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]"));
+    if (!cell || isDate || !matchMedia("(pointer: coarse)").matches) { if (H) H.style.display = "none"; return; }
     const td = cell.tagName === "TD" ? cell : null;
     let end = cell;
     if (td && S.tbl && S.a && td.closest("table") === S.tbl) end = tdAt(S.tbl, (S.b || S.a).r, (S.b || S.a).c) || td;

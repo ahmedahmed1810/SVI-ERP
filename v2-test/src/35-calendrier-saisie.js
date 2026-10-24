@@ -692,7 +692,9 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     /* v512 (remarques 73, 80, 81) : point au coin de la cellule active (tableaux ET listes du bloc TÂCHES), ou de la fin de la plage ;
        seulement s'il y a une cellule active visible */
     const act = document.activeElement, cell = sviCellOf(act);
-    if (!cell || !matchMedia("(pointer: coarse)").matches) { if (H) H.style.display = "none"; return; }
+    /* v553 (partie 11, remarque 5) : case de date (calendrier) = ni contour ni point au coin */
+    const isDate = !!(act && act.matches && act.matches("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]"));
+    if (!cell || isDate || !matchMedia("(pointer: coarse)").matches) { if (H) H.style.display = "none"; return; }
     const td = cell.tagName === "TD" ? cell : null;
     let end = cell;
     if (td && S.tbl && S.a && td.closest("table") === S.tbl) end = tdAt(S.tbl, (S.b || S.a).r, (S.b || S.a).c) || td;

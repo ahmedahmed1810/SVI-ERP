@@ -1499,8 +1499,13 @@ def main():
         pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
         v549m = pg.evaluate("() => [...document.querySelectorAll('#blkMenu [data-dly]')].map(b => b.dataset.dly).join(',') + '|' + [...document.querySelectorAll('#blkMenu .blk-hint')].map(e => e.textContent).join(',')")
         pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
-        check("v549 : plus de bouton AJOUTER sous le planning (menu ⋯ : + AJOUTER UNE TÂCHE…) ; rubrique GRAPHIQUE ; barre marron de la barre verticale au bord droit du cadre (v552)",
-              v549 == [False, True] and "add" in v549m and "GRAPHIQUE" in v549m, [v549, v549m])
+        check("v549 / v553 : plus de bouton AJOUTER sous le planning ni dans le menu ⋯ (P11 R3) ; rubrique GRAPHIQUE ; barre marron de la barre verticale au bord droit du cadre (v552)",
+              v549 == [False, True] and "add" not in v549m and "GRAPHIQUE" in v549m, [v549, v549m])
+        # v553 (partie 11, R5) : case de date active (calendrier ouvert) = ni contour rouge ni point au coin
+        r5 = pg.evaluate("""() => { const i = document.querySelector('.dlyg-l input.dlp-in[data-f="deb"]'); if (!i) return null; i.click(); i.focus();
+            const td = i.closest('td'), H = document.getElementById('sviSelHandle'); const r = [getComputedStyle(i).boxShadow, getComputedStyle(td).boxShadow, !H || H.style.display === 'none'];
+            document.querySelectorAll('#svCal, .sv-cal, #sviCal').forEach(e => e.remove()); i.blur(); return r; }""")
+        check("v553 P11 R5 : case de date active sans contour rouge ni point au coin", r5 is not None and r5[0] == "none" and r5[1] == "none" and r5[2], r5)
         # v550 : graphique plein écran — défiler la page ne l'agrandit pas ; caché (0) = barre « = » au bas de l'écran
         pg.evaluate(f"() => {DXJ}.hh('full')"); pg.wait_for_timeout(800)
         g0 = []
@@ -1535,7 +1540,7 @@ def main():
         q = pg.evaluate("""() => { const G = document.querySelector('#dlyGantt'), sc = document.querySelector('.dly-scroll'), L = document.querySelector('.dlyg-l'), h = G.querySelector('.ghist');
             return { z0: !!G.querySelector('.gb.gb0[data-key="l1|s2"]'), succ: (document.querySelector('tr[data-key="l1|s1"] .dly-succ') || {}).textContent || '', succH: !!document.querySelector('.dly-table th .cf-btn[data-col="succ"]'),
               cap: (G.querySelector('.gplaf.gcap-def .gplaf-v') || {}).textContent || '', segv: (G.querySelector('.gseg-v') || {}).textContent || '', unit: (G.querySelector('.gax-u') || {}).textContent || '',
-              leftBottom: L.offsetHeight, histBottom: G.offsetHeight, cfg: !!document.querySelector('.dlyhh-cfg'), vd: !!document.querySelector('.dly-vd'),
+              leftBottom: L.offsetHeight, histBottom: G.offsetHeight, cfg: !!document.querySelector('.blk-cfg-btn.dly-on') && !document.querySelector('.dlyhh-cfg'), vd: !!document.querySelector('.dly-vd'),
               adj: [!!document.querySelector('.blk-adj-btn.dly-on'), document.querySelector('.blk-adj-btn').classList.contains('off')], dz: !!document.querySelector('.dlyg[class*="dz-"]'), obj: !!G.querySelector('.gv-obj') }; }""")
         # R24 : abréviation (capacité en DH : 400 DH + 500 DH le 02 → « K » quand ≥ 10 000) ; R19 : coupe, trait vertical, déplacement
         pg.evaluate(f"""() => {{ const I = {ins}.INS; I.chg.find(r => r.id === 'w3').p = 5000; {ins}.insSave(); {ins}.refreshAll(); }}"""); pg.wait_for_timeout(500)
@@ -1551,7 +1556,7 @@ def main():
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.plafR = {{}}; X.INS.hset = {{ u: 'm', aff: 'c', cum: 'r' }}; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
         nl = pg.evaluate("() => document.querySelectorAll('#dlyGantt .ghist-cum polyline').length")
         if os.environ.get("SHOT"): pg.screenshot(path=os.environ["SHOT"] + "v546b.png")
-        pg.evaluate("() => document.querySelector('.dlyhh-cfg')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('.blk-cfg-btn')?.click()"); pg.wait_for_timeout(300)
         hw = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
         pg.evaluate("() => { const d = document.getElementById('svConf'); d.querySelectorAll('.hcf-c').forEach(i => { i.checked = true; }); d.querySelector('input[name=\"hca\"][value=\"j\"]').checked = true; d.querySelector('[data-ok]').click(); }"); pg.wait_for_timeout(600)
         pm = pg.evaluate(f"() => [JSON.stringify({ins}.INS.hset.crb), (document.querySelector('#dlyGantt .ghist-leg') || {{}}).textContent || '']")
@@ -1564,6 +1569,10 @@ def main():
         sc0 = pg.evaluate("() => [...document.querySelectorAll('#svConf .bcal-sc button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',')")
         pg.evaluate("() => document.querySelector('#svConf .bcal-sc [data-sc=\"s\"]')?.click()"); pg.wait_for_timeout(600)
         sw = pg.evaluate("() => { const G = document.querySelector('#dlyGantt'); const dw = parseFloat(getComputedStyle(G).getPropertyValue('--dw')); return [localStorage.getItem('svi_dlyg_sc_v1'), dw, G.clientWidth]; }")
+        # v553 (partie 11, R2) : SEMAINE — le calendrier s'arrête au dimanche de la dernière semaine du projet (pas de semaines vides) ; zoom arrière bloqué au remplissage
+        p2 = pg.evaluate("() => { const G = document.querySelector('#dlyGantt'), dw = parseFloat(getComputedStyle(G).getPropertyValue('--dw')); const ws = [...G.querySelectorAll('.gh-w')]; return [ws.length, Math.round(G.scrollWidth - G.clientWidth), dw]; }")
+        check("v553 P11 R2 : Gantt en SEMAINE limité du début à la fin du projet (lundi de la 1re semaine au dimanche de la dernière), aucune semaine vide au bout",
+              p2[0] >= 1 and p2[0] <= 2 and p2[1] <= p2[2] * 7, p2)
         pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()")
         pg.evaluate("() => { window.__sviDlyScale.set('j'); localStorage.removeItem('svi_dlyg_dw_s_v1'); }"); pg.wait_for_timeout(500)
         # R30 : INF — DATE DE FIN DU PROJET = fin du planning (non saisissable)
