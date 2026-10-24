@@ -220,38 +220,62 @@
         };
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       });
-      /* v564 (remarque 6) : appui long sur une courbe en S (CUMULÉ) = repères en pointillés : horizontal vers l'axe des montants (valeur),
-         vertical jusqu'à l'en-tête des dates (jour) ; ils suivent le doigt tant qu'il reste posé, et restent affichés au lâcher */
-      const dlyXClear = () => document.querySelectorAll(".dlyx-v, .dlyx-h, .dlyx-pt, .dlyx-l").forEach(x => x.remove());
-      /* v566 (remarque 8) : un toucher ailleurs, dans le graphique ou en dehors, efface les repères (un nouvel appui long les remet) */
-      document.addEventListener("pointerdown", () => dlyXClear(), true);
+      /* v564 (remarque 6) : appui long sur une courbe = repères en pointillés : horizontal vers l'axe des montants (valeur),
+         vertical jusqu'à l'en-tête des dates (jour) ; ils suivent le doigt tant qu'il reste posé, et restent affichés au lâcher.
+         v576 (remarques 4 et 5) : repères de la couleur de la courbe choisie ; un nouveau toucher au même endroit passe à la courbe suivante */
+      const dlyXClear = () => { document.querySelectorAll(".dlyx-v, .dlyx-h, .dlyx-pt, .dlyx-l").forEach(x => x.remove()); };
+      const dlyXSeries = (host, H, HV) => {
+        const out = [];
+        const add = (lab, M, c, s, u) => { if (M && Object.keys(M).length) out.push({ lab, M, c, s, u }); };
+        if (!HV.hideC && (!HV.multi || (H.crb || []).includes("c"))) add("CHARGES", HV.val, HV.multi ? "#f79009" : "#344054", 0, HV.unit);
+        if (HV.multi && (H.crb || []).includes("p")) add("PRODUITS", HV.vP, "#2e90fa", 0, HV.unit);
+        if (HV.multi && (H.crb || []).includes("g")) add("MARGE", HV.vG, "#12b76a", 0, HV.unit);
+        if (HV.rd) {
+          if (HV.rd.PQs) add("PRODUIT", HV.rd.PQ, "#12b76a", HV.rd.PQs, HV.rd.u);
+          (HV.rd.S || []).forEach(s => add("RENDEMENT " + s.name, s.R, s.c, s.s, HV.rd.u + " / " + s.u));
+        }
+        return out;
+      };
+      const dlyXFmt = v => { const a = Math.abs(v), f = (x, u) => (Math.round(x * 10) / 10).toLocaleString("fr-FR") + " " + u; return a >= 1e9 ? f(v / 1e9, "G") : a >= 1e6 ? f(v / 1e6, "M") : a >= 1e4 ? f(v / 1e3, "K") : (Math.round(v * 100) / 100).toLocaleString("fr-FR"); };
+      const dlyXDraw = (host, h, cx, cy, step) => {
+        const HV = host.__HV || {}, H = host.__HD || {}, S = dlyXSeries(host, H, HV);
+        const hr = h.getBoundingClientRect(), Y0 = Number(h.dataset.y0) || hr.height, sc = Number(h.dataset.sc) || 1;
+        const i = Math.max(0, Math.floor((cx - hr.left) / DLY_DW)), di = sviIsoAdd(host.__d0, i);
+        /* courbes de ce jour, de la plus proche du doigt à la plus loin */
+        const C = S.map(x => { const v = x.M[di]; return v === undefined || v === null ? null : { ...x, v, y: hr.top + Y0 - v * (x.s || sc) }; }).filter(Boolean).sort((a, b) => Math.abs(a.y - cy) - Math.abs(b.y - cy));
+        if (!C.length) return;
+        const k = step ? ((shell.__dlyX && shell.__dlyX.i === i ? shell.__dlyX.k : 0) + step) % C.length : 0, best = C[k];
+        dlyXClear();
+        const mk = (c) => { const d = document.createElement("div"); d.className = c; document.body.appendChild(d); return d; };
+        const px = hr.left + i * DLY_DW + DLY_DW / 2, gh = document.querySelector("#bdgTabBody > .gh-fix") || host.querySelector(".gh"), top = gh ? gh.getBoundingClientRect().bottom : hr.top;
+        const ax = Math.max(hr.left, host.getBoundingClientRect().left);
+        const v = mk("dlyx-v"); v.style.left = px + "px"; v.style.top = top + "px"; v.style.height = Math.max(0, best.y - top) + "px"; v.style.borderLeftColor = best.c;
+        const hz = mk("dlyx-h"); hz.style.left = ax + "px"; hz.style.top = best.y + "px"; hz.style.width = Math.max(0, px - ax) + "px"; hz.style.borderTopColor = best.c;
+        const p = mk("dlyx-pt"); p.style.left = px + "px"; p.style.top = best.y + "px"; p.style.borderColor = best.c;
+        const ld = mk("dlyx-l"); ld.textContent = dFr(di); ld.style.left = (px - ld.offsetWidth / 2) + "px"; ld.style.top = (top + 2) + "px"; ld.style.background = best.c;
+        const lv = mk("dlyx-l"); lv.textContent = (S.length > 1 ? best.lab + " " : "") + dlyXFmt(best.v) + " " + (best.u || "DH") + (C.length > 1 ? "  (" + (k + 1) + "/" + C.length + ")" : ""); lv.style.left = (ax + 4) + "px"; lv.style.top = (best.y - lv.offsetHeight - 3) + "px"; lv.style.background = best.c;
+        shell.__dlyX = { host, h, i, k, cy, px, y: best.y };
+      };
+      /* v566 (remarque 8) : un toucher ailleurs efface les repères ; v576 : un toucher sur le point des repères passe à la courbe suivante */
+      document.addEventListener("pointerdown", e => {
+        const X0 = shell.__dlyX;
+        if (X0 && X0.host.isConnected && document.querySelector(".dlyx-pt") && Math.abs(e.clientX - X0.px) < 30 && Math.abs(e.clientY - X0.y) < 30) {
+          e.stopPropagation(); e.preventDefault();
+          X0.host.__dlyXlp = true; setTimeout(() => { X0.host.__dlyXlp = false; }, 450);
+          dlyXDraw(X0.host, X0.h, X0.px, X0.cy, 1);
+          return;
+        }
+        dlyXClear(); shell.__dlyX = null;
+      }, true);
       shell.addEventListener("pointerdown", e => {
         const hit = e.target.closest && e.target.closest("#dlyGantt .ghist-cum .ghb-hit");
         if (!hit) return;
-        const host = hit.closest("#dlyGantt"), h = hit.closest(".ghist"), HV = host.__HV || {}, H = host.__HD || {};
+        const host = hit.closest("#dlyGantt"), h = hit.closest(".ghist"), HV = host.__HV || {};
         if (!HV.curve && !HV.hideC) return;
-        let on = false, x0 = e.clientX, y0 = e.clientY;
-        const S = [["CHARGES", HV.val], ["PRODUITS", HV.vP], ["MARGE", HV.vG]].filter(x => x[1] && Object.keys(x[1]).length && (x[0] === "CHARGES" ? !HV.hideC && (!HV.multi || (H.crb || []).includes("c")) : (H.crb || []).includes(x[0] === "PRODUITS" ? "p" : "g")));
-        const fmt = v => { const a = Math.abs(v), f = (x, u) => (Math.round(x * 10) / 10).toLocaleString("fr-FR") + " " + u; return a >= 1e9 ? f(v / 1e9, "G") : a >= 1e6 ? f(v / 1e6, "M") : a >= 1e4 ? f(v / 1e3, "K") : (Math.round(v * 100) / 100).toLocaleString("fr-FR"); };
-        const mk = (c) => { const d = document.createElement("div"); d.className = c; document.body.appendChild(d); return d; };
-        const draw = (cx, cy) => {
-          const hr = h.getBoundingClientRect(), Y0 = Number(h.dataset.y0) || hr.height, sc = Number(h.dataset.sc) || 1;
-          const i = Math.max(0, Math.floor((cx - hr.left) / DLY_DW)), di = sviIsoAdd(host.__d0, i);
-          /* courbe la plus proche du doigt */
-          let best = null; S.forEach(([lab, M]) => { const v = M[di]; if (v === undefined) return; const y = hr.top + Y0 - v * sc; if (!best || Math.abs(y - cy) < Math.abs(best.y - cy)) best = { lab, v, y }; });
-          if (!best) return;
-          dlyXClear();
-          const px = hr.left + i * DLY_DW + DLY_DW / 2, gh = host.querySelector(".gh"), top = gh ? gh.getBoundingClientRect().bottom : hr.top;
-          const ax = Math.max(hr.left, host.getBoundingClientRect().left);
-          const v = mk("dlyx-v"); v.style.left = px + "px"; v.style.top = top + "px"; v.style.height = Math.max(0, best.y - top) + "px";
-          const hz = mk("dlyx-h"); hz.style.left = ax + "px"; hz.style.top = best.y + "px"; hz.style.width = Math.max(0, px - ax) + "px";
-          const p = mk("dlyx-pt"); p.style.left = px + "px"; p.style.top = best.y + "px";
-          const ld = mk("dlyx-l"); ld.textContent = dFr(di); ld.style.left = (px - ld.offsetWidth / 2) + "px"; ld.style.top = (top + 2) + "px";
-          const lv = mk("dlyx-l"); lv.textContent = (S.length > 1 ? best.lab + " " : "") + fmt(best.v) + " " + (HV.unit || "DH"); lv.style.left = (ax + 4) + "px"; lv.style.top = (best.y - lv.offsetHeight - 3) + "px";
-        };
+        let on = false; const x0 = e.clientX, y0 = e.clientY;
         const tmv = ev => { if (on) ev.preventDefault(); };
-        const tm = setTimeout(() => { on = true; host.__dlyXlp = true; draw(x0, y0); }, 450);
-        const mv = ev => { if (!on) { if (Math.abs(ev.clientX - x0) > 8 || Math.abs(ev.clientY - y0) > 8) end(); return; } ev.preventDefault(); draw(ev.clientX, ev.clientY); };
+        const tm = setTimeout(() => { on = true; host.__dlyXlp = true; dlyXDraw(host, h, x0, y0, 0); }, 450);
+        const mv = ev => { if (!on) { if (Math.abs(ev.clientX - x0) > 8 || Math.abs(ev.clientY - y0) > 8) end(); return; } ev.preventDefault(); dlyXDraw(host, h, ev.clientX, ev.clientY, 0); };
         const end = () => { clearTimeout(tm); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", end); document.removeEventListener("pointercancel", end); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); if (on) setTimeout(() => { host.__dlyXlp = false; }, 400); };
         document.addEventListener("touchmove", tmv, { passive: false });
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", end); document.addEventListener("pointercancel", end);
