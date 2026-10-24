@@ -334,7 +334,7 @@
             /* v571 : barres côte à côte dans le jour (HISTOGRAMME) ou courbes (COURBES), chacune à sa propre échelle */
             const barS = (M, s, c, j) => vis.forEach(di => { const v = M[di]; if (!v) return; hb += `<div class="ghb ghb-m${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo + j * w1}px;width:${w1}px;top:${Y0 - v * s}px;bottom:auto;height:${Math.max(1, v * s)}px;background:${c}"></div>`; });
             if (showP) {
-              const mP = Math.max(1e-9, ...vis.map(di => rdPQ[di])), sP2 = (HH - 36 - IB) / (mP * 1.08);
+              const mP = Math.max(1e-9, ...vis.map(di => rdPQ[di])), sP2 = (HH - 36 - IB) / (mP * 1.08); rdPQ.__s = sP2;
               if (curve) svg += `<polyline points="${vis.map(di => `${X(di) + DLY_DW / 2},${Y0 - rdPQ[di] * sP2}`).join(" ")}" fill="none" stroke="#12b76a" stroke-width="2" stroke-linejoin="round"/>`;
               else barS(rdPQ, sP2, "#12b76a", 0);
               hb += lab(mP, sP2, "#12b76a", vis.find(di => rdPQ[di] === mP));
@@ -348,10 +348,10 @@
               if (curve) { vis.forEach(di => { if (Rr[di] === null) flush(); else seg.push(di); }); flush(); }
               else barS(Rr, sR2, c, j + (showP ? 1 : 0));
               hb += lab(mR, sR2, c, vis.find(di => Rr[di] === mR));
-              rdS.push({ name: S.sk.split("|")[0], u: S.sk.split("|")[1], c, R: Rr });
+              rdS.push({ name: S.sk.split("|")[0], u: S.sk.split("|")[1], c, R: Rr, s: sR2 });
             });
           }
-          host.__HV = { cum, curve, hideC, multi, val, vP, vG, unit: HD.unit, rd: RD ? { PQ: rdPQ, S: rdS, u: RD.u } : null };
+          host.__HV = { cum, curve, hideC, multi, val, vP, vG, unit: HD.unit, rd: RD ? { PQ: rdPQ, PQs: rdPQ.__s || 0, S: rdS, u: RD.u } : null };
           const late = INS.dbut && dlyEnd(dlyCurDates()) > INS.dbut;
           const legI = (c, t) => `<span><b style="background:${c}"></b>${esc(t)}</span>`;
           const legRd = HD.rd ? (HD.rd.ser ? (crb.includes("p") ? legI("#12b76a", "PRODUIT — " + lkName("sec", HD.rd.sec) + " (" + HD.rd.u + ")") : "") + rdS.map(s => legI(s.c, "RENDEMENT " + s.name + " (" + HD.rd.u + " / " + s.u + ")")).join("")
