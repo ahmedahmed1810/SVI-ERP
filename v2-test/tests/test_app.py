@@ -1635,6 +1635,14 @@ def main():
         got = float(rgD[0].replace("\u202f", "").replace("\xa0", "").replace(" ", "").replace(",", ".")) if rgD[0] else None
         check("v560 : plage DÉBUT – FIN — charge au prorata (2 jours sur 4 = moitié), charge hors plage cachée, onglet filtré ; EFFACER TOUS LES FILTRES remet les traits aux bords",
               rg and got is not None and abs(got - rg[1] / 2) < 0.01 and not rgD[1] and rgD[2] and rgD[3] and rgC == ["", ""], [rg, rgD, rgC])
+        # v563 (remarques 3 et 4) : courbes CHARGES + PRODUITS sans charge cochée ; total de la plage pour chaque courbe
+        pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS; window.__r34 = [JSON.stringify(I.hset || null), JSON.stringify(I.hrange || null), I.chg.filter(r => r.on === true).map(r => r.id)];
+            I.chg.forEach(r => {{ if (r.on === true) r.on = false; }}); I.hset = {{ ...(I.hset || {{}}), crb: ['c', 'p'], aff: 'c' }}; I.hrange = {{ a: '2026-10-01', b: '2027-12-31' }}; X.insSave(); X.refreshAll(); }}""")
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(700)
+        r34 = pg.evaluate("() => [(document.querySelector('#dlyGantt .ghist-leg') || {}).textContent || '', (document.querySelector('#dlyGantt .grng-tot') || {}).textContent || '']")
+        pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS, R = window.__r34; I.hset = JSON.parse(R[0]); I.hrange = JSON.parse(R[1]); I.chg.forEach(r => {{ if (R[2].includes(r.id)) r.on = true; }}); X.insSave(); X.refreshAll(); }}""")
+        check("v563 R3 / R4 : sans charge cochée, courbe CHARGES affichée avec PRODUITS ; total de la plage pour chaque courbe (plus de « 0 DH »)",
+              "CHARGES" in r34[0] and "PRODUITS" in r34[0] and "CHARGES" in r34[1] and "PRODUITS" in r34[1], r34)
         # R30 : INF — DATE DE FIN DU PROJET = fin du planning (non saisissable)
         pg.evaluate("() => document.querySelector('[data-pill=\"inf\"]')?.click()"); pg.wait_for_timeout(400)
         inf = pg.evaluate("() => [!!document.querySelector('#docPop input[data-f=\"obj\"]'), (document.querySelector('#docPop [data-v=\"pfin0\"]') || {}).textContent || '']")

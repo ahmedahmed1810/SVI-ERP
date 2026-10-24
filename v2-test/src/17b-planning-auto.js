@@ -358,7 +358,11 @@
     };
     const dlyHistData = () => {
       const crb = dlyCrb(), money = crb.some(c => c !== "c");
-      const R = dlyResSel();
+      const R0 = dlyResSel();
+      /* v563 (remarque 4) : courbes en MONTANT avec CHARGES — sans charge cochée, toutes les charges retenues (celles des lignes cochées
+         des autres blocs, sinon toutes), comme pour les produits */
+      let R = R0;
+      if (!R && money && crb.includes("c")) { const all = (INS.chg || []).filter(r => !r.t); let S = null; try { S = insCheckSet("chg"); } catch (e) { S = null; } R = S ? all.filter(r => S.has(r.id)) : all; if (!R.length) R = null; }
       if (!R && !money) return null;
       const mode = money || !R ? "m" : dlyResMode(R), cal = insCal(), cur = dlyCurDates(), ser = new Map(), det = {}, tot = {};
       if (R) [...new Set(R.map(dlyResK))].forEach(sk => ser.set(sk, { L: {} }));
@@ -378,7 +382,7 @@
       });
       const H = { R, mode, ser, det, tot, unit: mode === "q" ? dlyResU(R[0]) : "DH", crb };
       if (money) { const P = dlyPrdDays(cur); H.prd = P.L; H.pdet = P.det; }
-      H.cmd = R ? dlyOrders(H) : null;
+      H.cmd = R0 ? dlyOrders(H) : null;
       return H;
     };
     /* R17 : APPROVISIONNEMENT PRÉVISIONNEL — réglages mémorisés par budget */
