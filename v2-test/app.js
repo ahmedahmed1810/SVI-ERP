@@ -9956,6 +9956,7 @@ function renderBudgetList() {
       host.addEventListener("scroll", () => { shell.__dlyGx = host.scrollLeft; }, { passive: true });
       dlyStick(host.closest(".bdg-d-scroll, .lk-scroll"));
       dlyCfgPaint();
+      requestAnimationFrame(dlyRngEdge);
       dlyLift();
     };
     /* v545 (remarque 2) : bas de l'écran visible (clavier de l'iPad compris) */
@@ -9992,8 +9993,17 @@ function renderBudgetList() {
       if (g.classList.contains("dly-on") !== on) g.classList.toggle("dly-on", on);
     };
     /* histogramme (et son libellé, et la poignée « = ») gardé en bas de la zone visible du planning : les tâches défilent dessous */
+    /* v573 (remarque 18) : traits DÉBUT / FIN non posés = collés aux bords gauche et droit de la partie visible du Gantt (suivent le défilement) */
+    const dlyRngEdge = () => {
+      const host = shell.querySelector("#dlyGantt"); if (!host) return;
+      const a = host.querySelector('.grng.grng-off[data-r="a"]'), b = host.querySelector('.grng.grng-off[data-r="b"]');
+      const L = host.scrollLeft, W = host.clientWidth, full = host.scrollWidth;
+      if (a && !a.__drag) { const x = Math.round(L) + "px"; if (a.style.left !== x) a.style.left = x; }
+      if (b && !b.__drag) { const x = Math.round(Math.min(full - 2, L + W - 2)) + "px"; if (b.style.left !== x) b.style.left = x; }
+    };
     const dlyLift = () => {
       dlyCfgPaint();
+      dlyRngEdge();
       const g = shell.querySelector(".dlyg"); if (!g) return;
       /* v548 : la hauteur suit les changements de mise en page (bloc agrandi / réduit, rotation, clavier) */
       { const sc = g.closest(".dly-scroll"), h = shell.querySelector("#dlyGantt"); if (sc && dlyFitScr(sc) === 2 && h) {
@@ -10981,6 +10991,7 @@ function renderBudgetList() {
         e.preventDefault(); e.stopPropagation();
         const h = ln.closest(".ghist"), host = h.closest("#dlyGantt"), W = h.offsetWidth, sp = ln.querySelector("span");
         const R0 = X.hrange(), other = ln.dataset.r === "a" ? R0.b : R0.a;
+        ln.__drag = true;
         let iso = R0[ln.dataset.r] || "", edge = "";
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });
@@ -20393,6 +20404,8 @@ function renderBudgetList() {
     };
     const runBlkAct = (blk, act) => {
       /* v511 (remarque 75) : AGRANDIR du bloc détail (charges / produits) = SAISIE DIRECTE sur place ; retoucher = la fermer */
+      /* v573 (remarque 19) : plein écran du bloc détail encore ouvert (agrandi sur un autre onglet) : le bouton réduit d'abord */
+      if (act === "max" && blk === "detail" && shell.querySelector(".bdg-d-page.max-detail")) return toggleMax(blk);
       if (act === "max" && blk === "detail" && INS && INS_EDIT && (active === "prd" || active === "chg") && shell.__sdOpen) {
         if (shell.__sdClose && shell.__sdClose()) return;
         shell.__sdOpen(active);

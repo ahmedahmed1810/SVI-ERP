@@ -150,6 +150,7 @@
         e.preventDefault(); e.stopPropagation();
         const h = ln.closest(".ghist"), host = h.closest("#dlyGantt"), W = h.offsetWidth, sp = ln.querySelector("span");
         const R0 = X.hrange(), other = ln.dataset.r === "a" ? R0.b : R0.a;
+        ln.__drag = true;
         let iso = R0[ln.dataset.r] || "", edge = "";
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });

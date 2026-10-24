@@ -414,6 +414,7 @@
       host.addEventListener("scroll", () => { shell.__dlyGx = host.scrollLeft; }, { passive: true });
       dlyStick(host.closest(".bdg-d-scroll, .lk-scroll"));
       dlyCfgPaint();
+      requestAnimationFrame(dlyRngEdge);
       dlyLift();
     };
     /* v545 (remarque 2) : bas de l'écran visible (clavier de l'iPad compris) */
@@ -450,8 +451,17 @@
       if (g.classList.contains("dly-on") !== on) g.classList.toggle("dly-on", on);
     };
     /* histogramme (et son libellé, et la poignée « = ») gardé en bas de la zone visible du planning : les tâches défilent dessous */
+    /* v573 (remarque 18) : traits DÉBUT / FIN non posés = collés aux bords gauche et droit de la partie visible du Gantt (suivent le défilement) */
+    const dlyRngEdge = () => {
+      const host = shell.querySelector("#dlyGantt"); if (!host) return;
+      const a = host.querySelector('.grng.grng-off[data-r="a"]'), b = host.querySelector('.grng.grng-off[data-r="b"]');
+      const L = host.scrollLeft, W = host.clientWidth, full = host.scrollWidth;
+      if (a && !a.__drag) { const x = Math.round(L) + "px"; if (a.style.left !== x) a.style.left = x; }
+      if (b && !b.__drag) { const x = Math.round(Math.min(full - 2, L + W - 2)) + "px"; if (b.style.left !== x) b.style.left = x; }
+    };
     const dlyLift = () => {
       dlyCfgPaint();
+      dlyRngEdge();
       const g = shell.querySelector(".dlyg"); if (!g) return;
       /* v548 : la hauteur suit les changements de mise en page (bloc agrandi / réduit, rotation, clavier) */
       { const sc = g.closest(".dly-scroll"), h = shell.querySelector("#dlyGantt"); if (sc && dlyFitScr(sc) === 2 && h) {
