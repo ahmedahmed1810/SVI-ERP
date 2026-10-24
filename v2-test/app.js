@@ -9779,7 +9779,7 @@ function renderBudgetList() {
         else {
           /* v546 : R20 valeur par morceau, R24 capacité en MONTANT, échelle abrégée, légende (70 %), R28 cumul = une courbe,
              R29 courbes CHARGES / PRODUITS / MARGE */
-          const C = HD.cmd, ks = [...HD.ser.keys()], hs = dlyHSet(), cum = !C && hs.aff === "c", crb = HD.crb || ["c"];
+          const C = HD.cmd, ks = [...HD.ser.keys()], hs = dlyHSet(), cum = hs.aff === "c", crb = HD.crb || ["c"];   /* v566 (remarque 9) : COMMANDES aussi en CUMULÉE */
           const sC = crb.includes("c") && !!HD.R, sP = crb.includes("p"), sG = crb.includes("g"), multi = !C && (sP || sG);
           const RG = dlyHRange(), VL = dlyHVal(), inR = di => (!RG.a || di >= RG.a) && (!RG.b || di <= RG.b);
           const cur = dlyCurGK(), canP = !C && !cum && !multi && !!cur && !!HD.R, IB = canP ? 14 : 0;
@@ -9788,7 +9788,8 @@ function renderBudgetList() {
           const cumOf = get => { const o = {}; let t = 0, b = 0; days.forEach(di => { const v = get(di); if (hs.cum === "r" && RG.a && di < RG.a) b += v; t += v; o[di] = t - b; }); return o; };
           const gC = di => HD.tot[di] || 0, gP = di => (HD.prd || {})[di] || 0, gG = di => gP(di) - gC(di);
           const val = {}, sval = ks.map(() => ({}));
-          if (C) days.forEach(di => { val[di] = C.L[di]; });
+          if (C && cum) Object.assign(val, cumOf(di => C.L[di] || 0));
+          else if (C) days.forEach(di => { val[di] = C.L[di]; });
           else if (!cum) days.forEach(di => { val[di] = gC(di); ks.forEach((sk, j) => { sval[j][di] = HD.ser.get(sk).L[di] || 0; }); });
           else Object.assign(val, cumOf(gC));
           const vP = multi ? (cum ? cumOf(gP) : Object.fromEntries(days.map(di => [di, gP(di)]))) : {};
@@ -9818,7 +9819,7 @@ function renderBudgetList() {
           const order = totS.map(x => ks.indexOf(x[0]));
           let hb = "", svg = "";
           const CC = "#2e90fa", CP = "#12b76a", CG = "#7a5af8";
-          if (C) vis.forEach(di => { hb += `<div class="ghb ghc${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, val[di] * sc)}px;bottom:${IB}px"></div>`; });
+          if (C && !cum) vis.forEach(di => { hb += `<div class="ghb ghc${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, val[di] * sc)}px;bottom:${IB}px"></div>`; });
           else if (!cum && !multi) vis.forEach(di => {
             const v = val[di], n = capAt(di), over = n >= 0 && v > n + 1e-9, inc = over && (HD.det[di] || []).some(x => x.inc);
             const parts = ks.length > 1 ? order.map(j => { const w = sval[j][di]; return w ? `<i style="height:${w * sc}px;background:${col[ks[j]]}"></i>` : ""; }).join("") : "";
@@ -10989,7 +10990,8 @@ function renderBudgetList() {
       /* v564 (remarque 6) : appui long sur une courbe en S (CUMULÉ) = repères en pointillés : horizontal vers l'axe des montants (valeur),
          vertical jusqu'à l'en-tête des dates (jour) ; ils suivent le doigt tant qu'il reste posé, et restent affichés au lâcher */
       const dlyXClear = () => document.querySelectorAll(".dlyx-v, .dlyx-h, .dlyx-pt, .dlyx-l").forEach(x => x.remove());
-      document.addEventListener("pointerdown", e => { if (!(e.target.closest && e.target.closest("#dlyGantt .ghist-cum"))) dlyXClear(); }, true);
+      /* v566 (remarque 8) : un toucher ailleurs, dans le graphique ou en dehors, efface les repères (un nouvel appui long les remet) */
+      document.addEventListener("pointerdown", () => dlyXClear(), true);
       shell.addEventListener("pointerdown", e => {
         const hit = e.target.closest && e.target.closest("#dlyGantt .ghist-cum .ghb-hit");
         if (!hit) return;
@@ -12293,19 +12295,22 @@ function renderBudgetList() {
       const c = dlyAppro(), mode = dlyResMode(R), d = document.createElement("div");
       const ks = [...new Set(R.map(dlyResK))];
       d.id = "svConf";
-      d.innerHTML = `<div class="svc-card apr-card" role="dialog" aria-modal="true">
+      /* v566 (remarque 9) : même format que RÉGLAGES DU GRAPHIQUE ; l'affichage des commandes se choisit dans RÉGLAGES DU GRAPHIQUE (DONNÉES) */
+      d.innerHTML = `<div class="svc-card apr-card hcf-card" role="dialog" aria-modal="true">
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">APPROVISIONNEMENT PRÉVISIONNEL</div>
-        <div class="bdt-row"><span>DÉLAI D'APPROVISIONNEMENT (J)</span><input class="apr-dl" inputmode="numeric" value="${esc(String(c.dl))}"></div>
-        <div class="bdt-row"><span>PÉRIODE DE COUVERTURE</span><span class="cmd-g">${[["w", "SEMAINE"], ["m", "MOIS"], ["n", "N JOURS"]].map(([v, l]) => `<label><input type="radio" name="aprc" value="${v}"${c.cov === v ? " checked" : ""}> ${l}</label>`).join("")}<input class="apr-nj" inputmode="numeric" value="${esc(String(c.nj))}" title="NOMBRE DE JOURS"></span></div>
-        <div class="bdt-row"><span>DATE DE DÉPART</span><input type="date" class="apr-dep" value="${esc(c.dep || "")}"></div>
-        <div class="svc-sub">SEUIL DE COMMANDE (${mode === "q" ? "QUANTITÉ" : "MONTANT DH"}) — VIDE = SANS SEUIL</div>
+        <div class="hcf-g">
+        <span class="hcf-k">DÉLAI (JOURS AVANT)</span><span class="hcf-pl"><input class="apr-dl hcf-pct" inputmode="numeric" value="${esc(String(c.dl))}"> J</span>
+        <span class="hcf-k">COUVERTURE</span><span class="hcf-pl"><span class="hcf-sw">${[["w", "SEMAINE"], ["m", "MOIS"], ["n", "N JOURS"]].map(([v, l]) => `<label class="hcf-seg${c.cov === v ? " on" : ""}"><input type="radio" name="aprc" value="${v}"${c.cov === v ? " checked" : ""}><span>${l}</span></label>`).join("")}</span><input class="apr-nj hcf-pct" inputmode="numeric" value="${esc(String(c.nj))}" title="NOMBRE DE JOURS"${c.cov === "n" ? "" : " disabled"}></span>
+        <span class="hcf-k">DATE DE DÉPART</span><span class="hcf-pl"><input type="date" class="apr-dep" value="${esc(c.dep || "")}"></span>
+        </div>
+        <div class="hcf-note">SEUIL DE COMMANDE (${mode === "q" ? "QUANTITÉ" : "MONTANT DH"}) — VIDE = SANS SEUIL. AFFICHER LES COMMANDES : RÉGLAGES DU GRAPHIQUE ⚙, DONNÉES = COMMANDES.</div>
         <table class="apr-t"><tr><th>DÉSIGNATION CHARGE</th><th>UNITÉ</th><th>SEUIL</th></tr>${ks.map(sk => `<tr><td>${esc(sk.split("|")[0])}</td><td class="center">${esc(mode === "q" ? sk.split("|")[1] : "DH")}</td><td><input class="apr-s" data-sk="${esc(sk)}" inputmode="decimal" value="${esc(String((c.seuil || {})[sk] ?? ""))}"></td></tr>`).join("")}</table>
-        <div class="bdt-row"><span>AFFICHER LES COMMANDES PRÉVISIONNELLES</span><input type="checkbox" class="apr-on"${c.on ? " checked" : ""}></div>
         <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
       document.getElementById("svConf")?.remove();
       document.body.appendChild(d);
       d.querySelectorAll('input[type="date"]').forEach(sviDateField);
+      d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".hcf-seg input"); if (!i) return; d.querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked)); d.querySelector(".apr-nj").disabled = i.value !== "n"; });
       d.addEventListener("click", e => {
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         if (!e.target.closest("[data-ok]")) return;
@@ -12315,7 +12320,7 @@ function renderBudgetList() {
         if (cov === "n" && (!/^\d+$/.test(nj) || Number(nj) < 1)) { svToast("NOMBRE DE JOURS : ENTIER, 1 AU MOINS.", 3000, d.querySelector(".apr-nj")); return; }
         const seuil = { ...(c.seuil || {}) };
         d.querySelectorAll(".apr-s").forEach(i => { const v = String(i.value).trim(); if (v === "") delete seuil[i.dataset.sk]; else seuil[i.dataset.sk] = num(v); });
-        INS.appro = { dl: Number(dl), cov, nj: Number(nj) || 30, dep: d.querySelector(".apr-dep").value || "", seuil, on: d.querySelector(".apr-on").checked };
+        INS.appro = { dl: Number(dl), cov, nj: Number(nj) || 30, dep: d.querySelector(".apr-dep").value || "", seuil, on: c.on };
         d.remove();
         insSave(); histLog("DÉLAIS", "APPROVISIONNEMENT PRÉVISIONNEL", INS.appro.on ? "AFFICHÉ" : "MASQUÉ"); renderTabK();
       });
@@ -12330,9 +12335,10 @@ function renderBudgetList() {
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">RÉGLAGES DU GRAPHIQUE</div>
         <div class="hcf-g">
+          <span class="hcf-k">DONNÉES</span><span class="hcf-sw">${rad("hcd", "c", "CONSOMMATION", !(dlyAppro().on && R))}${rad("hcd", "o", "COMMANDES", !!(dlyAppro().on && R), !R).replace("QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ.", "COMMANDES : COCHER DES CHARGES DANS DÉTAIL CHARGES.")}</span>
           <span class="hcf-k">UNITÉ</span><span class="hcf-sw">${rad("hcu", "q", "QUANTITÉ", h.u === "q" && q, !q)}${rad("hcu", "m", "MONTANT (DH)", h.u !== "q" || !q)}</span>
-          <span class="hcf-k">AFFICHAGE</span><span class="hcf-sw">${rad("hca", "j", "JOUR PAR JOUR", h.aff !== "c")}${rad("hca", "c", "CUMULÉ", h.aff === "c")}</span>
-          <span class="hcf-k">DÉPART DU CUMUL</span><span class="hcf-sw">${rad("hcc", "r", "RELATIF", h.cum !== "a")}${rad("hcc", "a", "ABSOLU", h.cum === "a")}</span>
+          <span class="hcf-k">PRÉSENTATION</span><span class="hcf-sw">${rad("hca", "j", "PAR JOUR", h.aff !== "c")}${rad("hca", "c", "CUMULÉE", h.aff === "c")}</span>
+          <span class="hcf-k">POINT DE DÉPART</span><span class="hcf-sw">${rad("hcc", "r", "DEPUIS LE TRAIT DÉBUT", h.cum !== "a")}${rad("hcc", "a", "DEPUIS LE DÉBUT DU PROJET", h.cum === "a")}</span>
           <span class="hcf-k">COURBES</span><span class="hcf-cbs">${[["c", "CHARGES"], ["p", "PRODUITS"], ["g", "MARGE"]].map(([v, l]) => `<label><input type="checkbox" class="hcf-c" value="${v}"${crb.includes(v) ? " checked" : ""}><span>${l}</span></label>`).join("")}</span>
           <span class="hcf-k">LÉGENDE</span><span class="hcf-pl">CHARGES QUI FONT <input class="hcf-pct" inputmode="numeric" value="${esc(String(h.pct || 70))}"> %</span>
         </div>
@@ -12351,6 +12357,7 @@ function renderBudgetList() {
         if (!c.length) { svToast("COCHER AU MOINS UNE COURBE.", 3000, d.querySelector(".hcf-c")); return; }
         const v = n => (d.querySelector(`input[name="${n}"]:checked`) || {}).value;
         INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc) };
+        INS.appro = { ...dlyAppro(), on: v("hcd") === "o" };   /* v566 (remarque 9) : COMMANDES = données du graphique (plus de case à part) */
         d.remove();
         insSave(); histLog("DÉLAIS", "RÉGLAGES DU GRAPHIQUE", c.map(x => ({ c: "CHARGES", p: "PRODUITS", g: "MARGE" })[x]).join(" + ")); renderTabK();
       });

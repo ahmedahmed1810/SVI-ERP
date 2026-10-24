@@ -2312,11 +2312,11 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .blk-tools .blk-btn.blk-adj-btn.dly-on.off { opacity: .4; }
 /* RÉGLAGES DE L'HISTOGRAMME */
 /* v565 (remarque 7) : RÉGLAGES DU GRAPHIQUE au format des autres fenêtres — libellé à gauche, interrupteur en deux parties à droite */
-.hcf-card { max-width: 520px; }
+.hcf-card { max-width: 640px !important; width: min(640px, calc(100vw - 32px)) !important; }
 .hcf-g { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 10px 14px; margin: 6px 0 10px; }
 .hcf-k { font-size: 11px; font-weight: 800; color: #475467; }
 .hcf-sw { display: inline-flex; justify-self: start; border: 1.5px solid var(--svst, #12355b); border-radius: 8px; overflow: hidden; }
-.hcf-seg { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 120px; height: 30px; padding: 0 12px; font-size: 11px; font-weight: 800; color: var(--svst, #12355b); background: #fff; cursor: pointer; user-select: none; -webkit-user-select: none; }
+.hcf-seg { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 96px; height: 30px; padding: 0 12px; white-space: nowrap; font-size: 11px; font-weight: 800; color: var(--svst, #12355b); background: #fff; cursor: pointer; user-select: none; -webkit-user-select: none; }
 .hcf-seg + .hcf-seg { border-left: 1.5px solid var(--svst, #12355b); }
 .hcf-seg input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
 .hcf-seg.on { background: var(--svst, #12355b); color: #fff; }
@@ -2388,3 +2388,6 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 .dlyx-h { height: 0; border-top: 1.5px dashed #12355b; }
 .dlyx-pt { position: fixed; z-index: 9001; width: 9px; height: 9px; margin: -5px 0 0 -5px; border-radius: 50%; background: #fff; border: 2px solid #12355b; pointer-events: none; }
 .dlyx-l { position: fixed; z-index: 9001; pointer-events: none; white-space: nowrap; font-size: 10px; font-weight: 800; color: #fff; background: #12355b; border-radius: 3px; padding: 2px 5px; }
+.apr-card .hcf-pl { flex-wrap: wrap; }
+.apr-card .apr-dep { width: 150px; height: 28px; border: 1px solid #d0d5dd; border-radius: 6px; font-weight: 800; padding: 0 8px; }
+.apr-card .apr-nj:disabled { opacity: .4; }
