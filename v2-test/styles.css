@@ -2479,3 +2479,8 @@ tr.fz-flash > td { background: #fef0c7 !important; transition: background .3s; }
 /* v589 : commandes prévisionnelles — couleur de la charge commandée, barre fine hachurée */
 .ghb.ghc.ghb-st { background: transparent; box-shadow: inset 0 0 0 1px rgba(16,24,40,.25); }
 .ghb.ghc i { background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.6) 0 2px, transparent 2px 5px); }
+/* v590 : poignées « = » et « ‖ » revenues à leur taille d'avant (30), zone de toucher gardée large (≈ 62) */
+.dlyhh-pill { width: 30px; height: 30px; margin-left: -15px; top: -8px; line-height: 30px; font-size: 13px; font-weight: 800; border: 0; background: #475467; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+.dlyhh-pill::after { inset: -16px; }
+.dlyg-hd { width: 30px; height: 30px; margin-left: -13.5px; line-height: 30px; font-size: 13px; font-weight: 800; border: 0; background: #475467; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+.dlyg-hd::after { inset: -16px; }
