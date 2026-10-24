@@ -46,7 +46,7 @@
           if (!host || e.touches.length !== 2) return;
           const hr = host.getBoundingClientRect(), mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - hr.left;
           /* écarter à l'horizontale = largeur des jours ; à la verticale = hauteur des lignes et des barres (sens choisi au premier mouvement) */
-          P0 = { t0: Date.now(), host, d: Math.max(20, dist(e.touches)), dy: Math.max(20, distY(e.touches)), rh0: dlyRhGet(), mode: "", rx: dist(e.touches), ry: distY(e.touches), w0: DLY_DW, ax: mx, p: (mx + host.scrollLeft) / DLY_DW };
+          P0 = { y1: e.touches[0].clientY, y2: e.touches[1].clientY, t0: Date.now(), host, d: Math.max(20, dist(e.touches)), dy: Math.max(20, distY(e.touches)), rh0: dlyRhGet(), mode: "", rx: dist(e.touches), ry: distY(e.touches), w0: DLY_DW, ax: mx, p: (mx + host.scrollLeft) / DLY_DW };
           shell.__dlyPinch = true; shell.__dlyPinched = true;
           P0.tg = e.target; e.target.addEventListener("touchmove", pmv, { passive: false }); e.target.addEventListener("touchend", end); e.target.addEventListener("touchcancel", end);
           e.preventDefault();
@@ -65,9 +65,18 @@
           if (P0.mode === "v" && P0.tg && P0.tg.closest && P0.tg.closest(".ghist")) {
             /* v577 (remarque 7) : sur le graphique, écarter à la verticale = agrandir l'échelle des valeurs (les petites barres deviennent
                lisibles, les grandes dépassent en haut) ; rapprocher = réduire ; l'axe suit (la hauteur du graphique se règle à la poignée « = ») */
-            if (P0.z0 === undefined) P0.z0 = shell.__dlyYZ || 1;
+            if (P0.z0 === undefined) {
+              P0.z0 = shell.__dlyYZ || 1;
+              /* v582 : la valeur entre les deux doigts au début du pincement reste à la même hauteur */
+              const gh = P0.tg.closest(".ghist"), r = gh.getBoundingClientRect();
+              P0.my = (P0.y1 + P0.y2) / 2 - r.top;
+              P0.vm = ((+gh.dataset.y0 || 0) - P0.my) / (+gh.dataset.sc || 1);
+            }
             const z = Math.max(1, Math.min(50, P0.z0 * Math.max(20, distY(e.touches)) / P0.dy));
-            if (Math.abs(z - (shell.__dlyYZ || 1)) > 0.02) { shell.__dlyYZ = z; clearTimeout(P0.ht); P0.ht = setTimeout(() => { const H = shell.querySelector("#dlyGantt"); if (H) { H.__drawn = false; dlyGanttDraw(); } }, 30); }
+            if (Math.abs(z - (shell.__dlyYZ || 1)) > 0.02) { shell.__dlyYZ = z;
+              const G = shell.__dlyYGeo;
+              if (G) { const tp = G.RG / z, sc2 = (G.HH - 36 - G.IB) / tp, y0b = G.HH - G.IB - Math.min(-G.mn, tp) * sc2;
+                shell.__dlyYO = z > 1.01 ? Math.max(0, Math.min(G.RG - tp, (P0.my + P0.vm * sc2 - y0b) / sc2)) : 0; } clearTimeout(P0.ht); P0.ht = setTimeout(() => { const H = shell.querySelector("#dlyGantt"); if (H) { H.__drawn = false; dlyGanttDraw(); } }, 30); }
             return;
           }
           if (P0.mode === "v") {
@@ -86,6 +95,43 @@
           void tap;   /* v451 : les deux doigts ne servent qu'au pincement (le tableau ne revient que par la poignée) */
         };
         shell.addEventListener("touchend", end); shell.addEventListener("touchcancel", end);
+        /* v582 : graphique zoomé — un doigt à la verticale fait monter ou descendre l'échelle (le sens dominant du geste décide) ;
+           double toucher = échelle entière */
+        const yRedraw = () => { if (shell.__dlyYRaf) return; shell.__dlyYRaf = requestAnimationFrame(() => { shell.__dlyYRaf = 0; const H = shell.querySelector("#dlyGantt"); if (H) { H.__drawn = false; dlyGanttDraw(); } }); };
+        const yFull = () => { document.getElementById("dlyHb")?.remove(); shell.__dlyYZ = 1; shell.__dlyYO = 0; yRedraw(); };
+        let V = null, lastTap = null;
+        const NOV = ".gplaf, .gcut, .grng, .grng-h, .grule, .gax-hit, .gval, .dlyg-hh";
+        shell.addEventListener("touchstart", e => {
+          V = null;
+          const gh = e.target.closest && e.target.closest("#dlyGantt .ghist");
+          if (!gh || e.touches.length !== 1) return;
+          const t = e.touches[0];
+          V = { x: t.clientX, y: t.clientY, t: Date.now(), gh, zoom: (shell.__dlyYZ || 1) > 1.01 && !e.target.closest(NOV), mode: "", yo: shell.__dlyYO || 0, sc: +gh.dataset.sc || 1, mv: false };
+          if (V.zoom) { const tg = e.target; V.tg = tg; tg.addEventListener("touchmove", vmv, { passive: false }); }
+        }, { capture: true, passive: true });
+        const vmv = e => {
+          if (!V || e.touches.length !== 1 || e.__sviV) return;
+          e.__sviV = true;
+          const t = e.touches[0], dx = t.clientX - V.x, dy = t.clientY - V.y;
+          if (Math.hypot(dx, dy) > 6) V.mv = true;
+          if (!V.zoom || shell.__dlyPinch) return;
+          if (!V.mode) { if (Math.max(Math.abs(dx), Math.abs(dy)) < 4) { e.preventDefault(); return; } V.mode = Math.abs(dy) > Math.abs(dx) ? "v" : "h"; }
+          if (V.mode !== "v") return;
+          e.preventDefault(); e.stopPropagation();
+          shell.__dlyYO = Math.max(0, V.yo + dy / V.sc);
+          yRedraw();
+        };
+        shell.addEventListener("touchmove", e => { if (V) { const t = e.touches[0]; if (t && Math.hypot(t.clientX - V.x, t.clientY - V.y) > 6) V.mv = true; if (V.zoom) vmv(e); } }, { capture: true, passive: false });
+        shell.addEventListener("touchend", e => {
+          if (!V) return;
+          if (V.tg) V.tg.removeEventListener("touchmove", vmv);
+          const tap = !V.mv && Date.now() - V.t < 350 && !e.touches.length, x = V.x, y = V.y;
+          V = null;
+          if (!tap) { lastTap = null; return; }
+          if (lastTap && Date.now() - lastTap.t < 350 && Math.hypot(x - lastTap.x, y - lastTap.y) < 30) { lastTap = null; setTimeout(yFull, 0); return; }
+          lastTap = { t: Date.now(), x, y };
+        }, { capture: true, passive: true });
+        shell.addEventListener("dblclick", e => { if (e.target.closest && e.target.closest("#dlyGantt .ghist") && !e.target.closest(NOV)) yFull(); });
       }
       /* v461 : appui long sur le NOM d'un lot ou d'un niveau sur le Gantt = son menu (ISOLER) */
       shell.addEventListener("pointerdown", e => {
