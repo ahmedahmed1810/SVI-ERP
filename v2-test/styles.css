@@ -2435,3 +2435,8 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 
 /* v575 (remarque 3) : Gantt estompé hors de la plage DÉBUT – FIN */
 .g-rgsh { position: absolute; top: 0; z-index: 4; background: rgba(255,255,255,.6); pointer-events: none; }
+
+/* v577 : graphique à l'échelle agrandie (rien ne déborde sur le Gantt) ; règle posée sur une valeur ronde */
+.ghist.ghist-zoom { overflow: clip; }
+.gval.grule.grule-snap { border-top-style: solid; }
+.gval.grule.grule-snap > span { background: #12355b; color: #fff; }

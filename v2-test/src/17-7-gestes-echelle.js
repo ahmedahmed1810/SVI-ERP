@@ -63,10 +63,11 @@
             P0.mode = ey > ex ? "v" : "h";
           }
           if (P0.mode === "v" && P0.tg && P0.tg.closest && P0.tg.closest(".ghist")) {
-            /* v546 (R34) : sur l'histogramme, écarter à la verticale = sa hauteur (la poignée « = » suit) */
-            if (P0.hh0 === undefined) { const hh = shell.querySelector("#dlyGantt .ghist"); P0.hh0 = hh ? hh.offsetHeight : 110; }
-            const h = Math.round(Math.max(28, Math.min(2000, P0.hh0 * Math.max(20, distY(e.touches)) / P0.dy)));
-            clearTimeout(P0.ht); P0.ht = setTimeout(() => { const X = shell.__insDly; if (X) X.hh(h); }, 60);
+            /* v577 (remarque 7) : sur le graphique, écarter à la verticale = agrandir l'échelle des valeurs (les petites barres deviennent
+               lisibles, les grandes dépassent en haut) ; rapprocher = réduire ; l'axe suit (la hauteur du graphique se règle à la poignée « = ») */
+            if (P0.z0 === undefined) P0.z0 = shell.__dlyYZ || 1;
+            const z = Math.max(1, Math.min(50, P0.z0 * Math.max(20, distY(e.touches)) / P0.dy));
+            if (Math.abs(z - (shell.__dlyYZ || 1)) > 0.02) { shell.__dlyYZ = z; clearTimeout(P0.ht); P0.ht = setTimeout(() => { const H = shell.querySelector("#dlyGantt"); if (H) { H.__drawn = false; dlyGanttDraw(); } }, 30); }
             return;
           }
           if (P0.mode === "v") {
