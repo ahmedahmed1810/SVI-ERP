@@ -9818,7 +9818,9 @@ function renderBudgetList() {
           const capDef = canP && SG.length === 1 && dlyCapDef(), mxAll = Math.max(0, ...days.map(di => val[di] || 0));
           if (capDef) SG[0] = { ...SG[0], n: Math.max(1, Math.ceil(mxAll - 1e-9)), def: true };
           const PM = Math.max(0, ...SG.map(x => x.n));
-          const top = ((Math.max(mx, PM, VL.max || 0) - mn) || 1) * 1.08, sc = (HH - 36 - IB) / top, Y0 = HH - IB - (-mn) * sc;
+          /* v577 (remarque 7) : échelle des valeurs agrandie au pincement vertical (shell.__dlyYZ) */
+          const YZ = Math.max(1, shell.__dlyYZ || 1);
+          const top = ((Math.max(mx, PM, VL.max || 0) - mn) || 1) * 1.08 / YZ, sc = (HH - 36 - IB) / top, Y0 = HH - IB - Math.min(-mn, top) * sc;
           const pass = di => inR(di) && (multi || ((VL.min === null || val[di] >= VL.min - 1e-9) && (VL.max === null || val[di] <= VL.max + 1e-9)));
           const bw = Math.max(1, DLY_DW - (DLY_DW > 10 ? 6 : 0)), bo = DLY_DW > 10 ? 3 : 0;
           const capAt = di => { let n = -1; SG.forEach(x => { if (!x.def && (!x.d || x.d <= di)) n = x.n; }); return n; };
@@ -9938,7 +9940,7 @@ function renderBudgetList() {
           let ax = "";
           if (HH >= 50) { for (let v = stp; Y0 - v * sc >= 18; v += stp) ax += `<span class="gax-t" style="top:${Y0 - v * sc}px">${fmtA(v)}</span>`; for (let v = -stp; Y0 - v * sc <= HH - 6; v -= stp) ax += `<span class="gax-t" style="top:${Y0 - v * sc}px">${fmtA(v)}</span>`; }
           ax = `<div class="ghist-ax" style="height:${HH}px"><span class="gax-hit${shell.__dlyRule ? " on" : ""}" style="height:${HH}px" role="button" aria-label="Règle"></span><span class="gax-u">${esc(dlyHistLab(HD))}</span>${ax}<span class="gax-t gax-0" style="top:${Y0}px">0</span></div>`;
-          hist = `<div class="ghist${C ? " ghist-cmd" : ""}${curve || hideC ? " ghist-cum" : ""}" style="width:${W}px;height:${HH}px" data-sc="${sc}" data-y0="${Y0}" data-ib="${IB}" data-top="${top}">${ax}${bg}${leg}${C ? `<div class="ghist-leg"><span>${esc(C.lab)}</span></div>` : ""}${IB ? `<div class="ghist-inf" style="height:${IB}px"></div>` : ""}${hb}${svg ? `<svg class="ghist-svg" width="${W}" height="${HH}">${svg}</svg>` : ""}${pl}${rng}${vals}</div>`;
+          hist = `<div class="ghist${YZ > 1.01 ? " ghist-zoom" : ""}${C ? " ghist-cmd" : ""}${curve || hideC ? " ghist-cum" : ""}" style="width:${W}px;height:${HH}px" data-sc="${sc}" data-y0="${Y0}" data-stp="${stp}" data-ib="${IB}" data-top="${top}">${ax}${bg}${leg}${C ? `<div class="ghist-leg"><span>${esc(C.lab)}</span></div>` : ""}${IB ? `<div class="ghist-inf" style="height:${IB}px"></div>` : ""}${hb}${svg ? `<svg class="ghist-svg" width="${W}" height="${HH}">${svg}</svg>` : ""}${pl}${rng}${vals}</div>`;
         }
       }
       host.innerHTML = `<div class="gh" style="width:${W}px;height:${thH}px">${head}</div>
@@ -11166,7 +11168,12 @@ function renderBudgetList() {
         const fmt = v => { const a = Math.abs(v), f = (x, u) => (Math.round(x * 10) / 10).toLocaleString("fr-FR") + " " + u; return a >= 1e9 ? f(v / 1e9, "G") : a >= 1e6 ? f(v / 1e6, "M") : a >= 1e4 ? f(v / 1e3, "K") : (Math.round(v * 100) / 100).toLocaleString("fr-FR"); };
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });
-        const mv = ev => { ev.preventDefault(); const y = Math.max(4, Math.min(Y0, ev.clientY - h.getBoundingClientRect().top)); const v = (Y0 - y) / sc; shell.__dlyRuleV = v; ln.style.top = y + "px"; sp.textContent = fmt(v); };
+        /* v577 (remarque 6) : la règle s'aimante sur les valeurs rondes (10 K, 11 K, 12 K…) : petit arrêt ; en continuant à tirer, elle se détache */
+        const stp = Number(h.dataset.stp) || 0, p10 = stp ? Math.pow(10, Math.floor(Math.log10(stp))) : 0, fine = p10 ? (stp / p10 <= 1.0001 ? p10 / 10 : p10) : 0;
+        const mv = ev => { ev.preventDefault(); let y = Math.max(4, Math.min(Y0, ev.clientY - h.getBoundingClientRect().top)); let v = (Y0 - y) / sc;
+          let snap = false;
+          if (fine > 0) { const r = Math.round(v / fine) * fine, yr = Y0 - r * sc; if (Math.abs(yr - y) <= 7) { v = r; y = yr; snap = true; } }
+          shell.__dlyRuleV = v; ln.style.top = y + "px"; sp.textContent = fmt(v); ln.classList.toggle("grule-snap", snap); };
         const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); };
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       });
@@ -11320,10 +11327,11 @@ function renderBudgetList() {
             P0.mode = ey > ex ? "v" : "h";
           }
           if (P0.mode === "v" && P0.tg && P0.tg.closest && P0.tg.closest(".ghist")) {
-            /* v546 (R34) : sur l'histogramme, écarter à la verticale = sa hauteur (la poignée « = » suit) */
-            if (P0.hh0 === undefined) { const hh = shell.querySelector("#dlyGantt .ghist"); P0.hh0 = hh ? hh.offsetHeight : 110; }
-            const h = Math.round(Math.max(28, Math.min(2000, P0.hh0 * Math.max(20, distY(e.touches)) / P0.dy)));
-            clearTimeout(P0.ht); P0.ht = setTimeout(() => { const X = shell.__insDly; if (X) X.hh(h); }, 60);
+            /* v577 (remarque 7) : sur le graphique, écarter à la verticale = agrandir l'échelle des valeurs (les petites barres deviennent
+               lisibles, les grandes dépassent en haut) ; rapprocher = réduire ; l'axe suit (la hauteur du graphique se règle à la poignée « = ») */
+            if (P0.z0 === undefined) P0.z0 = shell.__dlyYZ || 1;
+            const z = Math.max(1, Math.min(50, P0.z0 * Math.max(20, distY(e.touches)) / P0.dy));
+            if (Math.abs(z - (shell.__dlyYZ || 1)) > 0.02) { shell.__dlyYZ = z; clearTimeout(P0.ht); P0.ht = setTimeout(() => { const H = shell.querySelector("#dlyGantt"); if (H) { H.__drawn = false; dlyGanttDraw(); } }, 30); }
             return;
           }
           if (P0.mode === "v") {
