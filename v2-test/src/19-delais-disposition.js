@@ -35,7 +35,8 @@
       const on = active === "dly" && INS_EDIT && !!shell.__insDly;
       b.classList.toggle("dly-on", on);
       if (!on) return;
-      let c = { ok: false, why: "" }; try { c = shell.__insDly.canComp(); } catch (e) {}
+      /* v570 : ↻ = fenêtre GÉNÉRER / COMPRESSER, active dès qu'il y a des tâches */
+      let c = { ok: false, why: "" }; try { c = shell.__insDly.keys().length ? { ok: true } : { ok: false, why: "AUCUNE TÂCHE AU PLANNING." }; } catch (e) {}
       b.classList.toggle("off", !c.ok); if (c.ok) delete b.dataset.why; else b.dataset.why = c.why;
     };
     const renderTab = () => { renderTab0(); sviMarkEmptyTabs(shell); try { dlyAdjPaint(); } catch (e) {} };
