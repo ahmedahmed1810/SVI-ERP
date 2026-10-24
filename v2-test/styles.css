@@ -2432,3 +2432,6 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 #bdgTabBody > .gh-fix > .gh-fix-in { position: relative; height: 100%; will-change: transform; overflow: visible; flex: none; min-width: 0; }
 #bdgTabBody > .gh-fix .gh { position: relative !important; transform: none !important; }
 #dlyGantt > .gh.gh-under { opacity: 0; }
+
+/* v575 (remarque 3) : Gantt estompé hors de la plage DÉBUT – FIN */
+.g-rgsh { position: absolute; top: 0; z-index: 4; background: rgba(255,255,255,.6); pointer-events: none; }
