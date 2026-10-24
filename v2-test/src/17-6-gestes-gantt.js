@@ -154,10 +154,14 @@
         let iso = R0[ln.dataset.r] || "", edge = "";
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });
+        /* v575 (remarque 8) : deux états — au repos (collé au bord visible, sans effet) ; touché ou glissé dans la partie visible = posé,
+           même sur le dernier jour visible ; il ne revient au repos que tiré au-delà du bord visible du Gantt */
+        let moved = false;
         const mv = ev => {
           ev.preventDefault();
-          const x = ev.clientX - h.getBoundingClientRect().left;
-          edge = x <= DLY_DW / 2 ? "l" : x >= W - DLY_DW / 2 ? "r" : "";
+          moved = true;
+          const x = ev.clientX - h.getBoundingClientRect().left, hr = host.getBoundingClientRect();
+          edge = ev.clientX < hr.left + 2 || x <= 0 ? "l" : ev.clientX > hr.right - 2 || x >= W ? "r" : "";
           iso = edge ? "" : sviIsoAdd(host.__d0, Math.max(0, Math.floor(x / DLY_DW)));
           ln.style.left = Math.max(0, Math.min(W, x)) + "px"; ln.classList.toggle("grng-off", !!edge);
           const lab = other && iso && (ln.dataset.r === "a" ? iso > other : iso < other) ? (ln.dataset.r === "a" ? "FIN" : "DÉBUT") : (ln.dataset.r === "a" ? "DÉBUT" : "FIN");
@@ -167,6 +171,9 @@
           document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
           setTimeout(() => document.removeEventListener("touchmove", tmv), 0);
           const R = { ...R0 };
+          ln.__drag = false;
+          /* simple toucher sur un trait au repos = posé au jour où il se trouve (bord de la partie visible) */
+          if (!moved) { if (R0[ln.dataset.r]) return; const x = parseFloat(ln.style.left) || 0; iso = sviIsoAdd(host.__d0, Math.max(0, Math.floor((ln.dataset.r === "b" ? Math.max(0, x - 1) : x) / DLY_DW))); edge = ""; }
           if (edge === "l") R.a = ""; else if (edge === "r") R.b = ""; else R[ln.dataset.r] = iso;
           if (R.a && R.b && R.a > R.b) { const t = R.a; R.a = R.b; R.b = t; }
           X.hrangeSet(R);

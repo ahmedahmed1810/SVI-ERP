@@ -9944,7 +9944,12 @@ function renderBudgetList() {
       host.innerHTML = `<div class="gh" style="width:${W}px;height:${thH}px">${head}</div>
         <div class="gbody" style="width:${W}px;height:${bodyH}px">${bg}${vline(today, "gv-today", "")}${vline(INS.dbut, "gv-but", "BUTOIR")}
           <svg class="glinks" width="${W}" height="${bodyH}"><defs><marker id="gArr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#475467"/></marker></defs>${lk}</svg>
-          ${bars}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>${hist}`;
+          ${bars}${(() => {
+            /* v575 (remarque 3) : plage DÉBUT – FIN posée — tout le Gantt (barres des lots comprises) estompé avant DÉBUT et après FIN */
+            const R = dlyHRange(); let s = "";
+            if (R.a) { const x = Math.max(0, X(R.a)); if (x > 0) s += `<div class="g-rgsh" style="left:0;width:${x}px;height:${bodyH}px"></div>`; }
+            if (R.b) { const x = Math.min(W, X(R.b) + DLY_DW); if (x < W) s += `<div class="g-rgsh" style="left:${x}px;width:${W - x}px;height:${bodyH}px"></div>`; }
+            return s; })()}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>${hist}`;
       host.__X = X; host.__d0 = d0; host.__HD = HD;
       /* R12 : poignée « = » entre le Gantt et l'histogramme, posée à la hauteur du haut de l'histogramme */
       { const hh = host.parentElement.querySelector(".dlyg-hh"); /* v552 (FORMAT 201) : la barre marron horizontale part de la barre marron verticale et va jusqu'au bord droit du cadre */
@@ -11019,10 +11024,14 @@ function renderBudgetList() {
         let iso = R0[ln.dataset.r] || "", edge = "";
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });
+        /* v575 (remarque 8) : deux états — au repos (collé au bord visible, sans effet) ; touché ou glissé dans la partie visible = posé,
+           même sur le dernier jour visible ; il ne revient au repos que tiré au-delà du bord visible du Gantt */
+        let moved = false;
         const mv = ev => {
           ev.preventDefault();
-          const x = ev.clientX - h.getBoundingClientRect().left;
-          edge = x <= DLY_DW / 2 ? "l" : x >= W - DLY_DW / 2 ? "r" : "";
+          moved = true;
+          const x = ev.clientX - h.getBoundingClientRect().left, hr = host.getBoundingClientRect();
+          edge = ev.clientX < hr.left + 2 || x <= 0 ? "l" : ev.clientX > hr.right - 2 || x >= W ? "r" : "";
           iso = edge ? "" : sviIsoAdd(host.__d0, Math.max(0, Math.floor(x / DLY_DW)));
           ln.style.left = Math.max(0, Math.min(W, x)) + "px"; ln.classList.toggle("grng-off", !!edge);
           const lab = other && iso && (ln.dataset.r === "a" ? iso > other : iso < other) ? (ln.dataset.r === "a" ? "FIN" : "DÉBUT") : (ln.dataset.r === "a" ? "DÉBUT" : "FIN");
@@ -11032,6 +11041,9 @@ function renderBudgetList() {
           document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
           setTimeout(() => document.removeEventListener("touchmove", tmv), 0);
           const R = { ...R0 };
+          ln.__drag = false;
+          /* simple toucher sur un trait au repos = posé au jour où il se trouve (bord de la partie visible) */
+          if (!moved) { if (R0[ln.dataset.r]) return; const x = parseFloat(ln.style.left) || 0; iso = sviIsoAdd(host.__d0, Math.max(0, Math.floor((ln.dataset.r === "b" ? Math.max(0, x - 1) : x) / DLY_DW))); edge = ""; }
           if (edge === "l") R.a = ""; else if (edge === "r") R.b = ""; else R[ln.dataset.r] = iso;
           if (R.a && R.b && R.a > R.b) { const t = R.a; R.a = R.b; R.b = t; }
           X.hrangeSet(R);

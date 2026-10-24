@@ -402,7 +402,12 @@
       host.innerHTML = `<div class="gh" style="width:${W}px;height:${thH}px">${head}</div>
         <div class="gbody" style="width:${W}px;height:${bodyH}px">${bg}${vline(today, "gv-today", "")}${vline(INS.dbut, "gv-but", "BUTOIR")}
           <svg class="glinks" width="${W}" height="${bodyH}"><defs><marker id="gArr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#475467"/></marker></defs>${lk}</svg>
-          ${bars}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>${hist}`;
+          ${bars}${(() => {
+            /* v575 (remarque 3) : plage DÉBUT – FIN posée — tout le Gantt (barres des lots comprises) estompé avant DÉBUT et après FIN */
+            const R = dlyHRange(); let s = "";
+            if (R.a) { const x = Math.max(0, X(R.a)); if (x > 0) s += `<div class="g-rgsh" style="left:0;width:${x}px;height:${bodyH}px"></div>`; }
+            if (R.b) { const x = Math.min(W, X(R.b) + DLY_DW); if (x < W) s += `<div class="g-rgsh" style="left:${x}px;width:${W - x}px;height:${bodyH}px"></div>`; }
+            return s; })()}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>${hist}`;
       host.__X = X; host.__d0 = d0; host.__HD = HD;
       /* R12 : poignée « = » entre le Gantt et l'histogramme, posée à la hauteur du haut de l'histogramme */
       { const hh = host.parentElement.querySelector(".dlyg-hh"); /* v552 (FORMAT 201) : la barre marron horizontale part de la barre marron verticale et va jusqu'au bord droit du cadre */
