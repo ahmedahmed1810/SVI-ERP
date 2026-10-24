@@ -2425,3 +2425,10 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 .hcf-k2 { margin-left: 14px; }
 .hcf-card .apr-dep { width: 140px; height: 28px; border: 1px solid #d0d5dd; border-radius: 6px; font-weight: 800; padding: 0 8px; }
 .hcf-card .apr-nj:disabled { opacity: .4; }
+
+/* v574 (partie 11, remarque 7) : en-tête du calendrier du Gantt fixe (copie hors de la zone qui défile) */
+#bdgTabBody { position: relative; }
+#bdgTabBody > .gh-fix { position: absolute; z-index: 7; overflow: hidden; pointer-events: none; background: #f6f7f9; }
+#bdgTabBody > .gh-fix > .gh-fix-in { position: relative; height: 100%; will-change: transform; overflow: visible; flex: none; min-width: 0; }
+#bdgTabBody > .gh-fix .gh { position: relative !important; transform: none !important; }
+#dlyGantt > .gh.gh-under { opacity: 0; }

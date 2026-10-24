@@ -9957,6 +9957,8 @@ function renderBudgetList() {
       dlyStick(host.closest(".bdg-d-scroll, .lk-scroll"));
       dlyCfgPaint();
       requestAnimationFrame(dlyRngEdge);
+      requestAnimationFrame(() => { try { dlyGhFix(); } catch (e) {} });
+      if (!host.__ghFixS) { host.__ghFixS = true; host.addEventListener("scroll", () => { const f = shell.querySelector("#bdgTabBody > .gh-fix > .gh-fix-in"); if (f) f.style.transform = "translateX(" + (-host.scrollLeft) + "px)"; }, { passive: true }); }
       dlyLift();
     };
     /* v545 (remarque 2) : bas de l'écran visible (clavier de l'iPad compris) */
@@ -10001,9 +10003,31 @@ function renderBudgetList() {
       if (a && !a.__drag) { const x = Math.round(L) + "px"; if (a.style.left !== x) a.style.left = x; }
       if (b && !b.__drag) { const x = Math.round(Math.min(full - 2, L + W - 2)) + "px"; if (b.style.left !== x) b.style.left = x; }
     };
+    /* v574 (partie 11, remarque 7) : en-tête du calendrier du Gantt parfaitement fixe pendant le défilement des tâches (rebond compris) —
+       une copie de l'en-tête posée HORS de la zone qui défile (dans le bloc détail), alignée sur le Gantt, qui ne suit que le défilement
+       horizontal ; le vrai en-tête, transparent, reste dessous et reçoit les touchers (calendrier, largeur des jours, pincement) */
+    const dlyGhFix = () => {
+      const host = shell.querySelector("#dlyGantt"), body = shell.querySelector("#bdgTabBody");
+      let fx = body && body.querySelector(":scope > .gh-fix");
+      const gh = host && host.querySelector(":scope > .gh"), scr = host && host.closest(".dly-scroll");
+      if (!host || !gh || !scr || !body) { if (fx) fx.remove(); return; }
+      if (!fx) { fx = document.createElement("div"); fx.className = "gh-fix"; fx.innerHTML = '<div class="gh-fix-in dlyg-r"></div>'; body.appendChild(fx); }
+      const inn = fx.firstChild;
+      if (gh.__fixSrc !== gh.innerHTML) { gh.__fixSrc = gh.innerHTML; inn.innerHTML = gh.outerHTML; const c = inn.firstChild; c.style.transform = ""; c.classList.remove("sv-stuck"); }
+      const br = body.getBoundingClientRect(), hr = host.getBoundingClientRect(), sr = scr.getBoundingClientRect();
+      let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
+      const top = Math.max(sr.top, Math.min(lim, sr.bottom - gh.offsetHeight)) - br.top;
+      const s = fx.style;
+      s.top = top + "px"; s.left = (hr.left - br.left) + "px"; s.width = host.clientWidth + "px"; s.height = gh.offsetHeight + "px";
+      inn.style.width = gh.offsetWidth + "px";
+      { const dw = host.style.getPropertyValue("--dw"); if (fx.style.getPropertyValue("--dw") !== dw) fx.style.setProperty("--dw", dw); }
+      inn.style.transform = "translateX(" + (-host.scrollLeft) + "px)";
+      gh.classList.add("gh-under");
+    };
     const dlyLift = () => {
       dlyCfgPaint();
       dlyRngEdge();
+      try { dlyGhFix(); } catch (e) {}
       const g = shell.querySelector(".dlyg"); if (!g) return;
       /* v548 : la hauteur suit les changements de mise en page (bloc agrandi / réduit, rotation, clavier) */
       { const sc = g.closest(".dly-scroll"), h = shell.querySelector("#dlyGantt"); if (sc && dlyFitScr(sc) === 2 && h) {
@@ -11147,8 +11171,10 @@ function renderBudgetList() {
          (la tâche est choisie par les ronds, l'onglet s'ouvre sur ses lignes surlignées) */
       const dlyRdHb = (HV, di) => { const R = HV && HV.rd; if (!R) return ""; const f = v => (Math.round(v * 100) / 100).toLocaleString("fr-FR");
         return `<div class="hb-rd"><span>PRODUIT</span><b>${f(R.PQ[di] || 0)} ${esc(R.u)}</b></div>` + (R.S || []).map(s => `<div class="hb-rd" style="color:${s.c}"><span>RENDEMENT ${esc(s.name)}</span><b>${s.R[di] === null || s.R[di] === undefined ? "—" : f(s.R[di]) + " " + esc(R.u) + " / " + esc(s.u)}</b></div>`).join(""); };
+      /* v574 : nom de la tâche pris dans la ligne du PLANNING (lot et activité tels qu'affichés), sinon dans les listes */
+      const dlyHbName = k => { const x = (shell.__dlyRows || []).find(r => !r.grp && r.key === k); if (x && (x.lot || x.sec)) return (x.lot ? lotLab(dlyLotPath(x.lot)).full : "") + " › " + (x.sec || ""); const [lo, se] = k.split("|"); return (lkName("lot", lo) || lo) + " › " + (lkName("sec", se) || se); };
       const dlyGoHb = (H, di) => { const K = [...new Set((H.det && H.det[di] || []).map(x => x.k))]; if (!K.length) return "";
-        return `<div class="hb-gos">` + K.map(k => `<div class="hb-go"><span>${esc(lotLab(dlyLotPath(lkName("lot", k.split("|")[0]))).full)} › ${esc(lkName("sec", k.split("|")[1]))}</span>${[["chg", "CHARGES"], ["prd", "PRODUITS"], ["dly", "DÉLAIS"]].map(([t, l]) => `<button type="button" class="hb-gob" data-go="${t}" data-k="${esc(k)}">${l}</button>`).join("")}</div>`).join("") + `</div>`; };
+        return `<div class="hb-gos">` + K.map(k => `<div class="hb-go"><span>${esc(dlyHbName(k))}</span>${[["chg", "CHARGES"], ["prd", "PRODUITS"], ["dly", "DÉLAIS"]].map(([t, l]) => `<button type="button" class="hb-gob" data-go="${t}" data-k="${esc(k)}">${l}</button>`).join("")}</div>`).join("") + `</div>`; };
       document.addEventListener("click", e => {
         const b = e.target.closest && e.target.closest("#dlyHb .hb-gob[data-go]");
         if (!b) return;

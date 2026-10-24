@@ -415,6 +415,8 @@
       dlyStick(host.closest(".bdg-d-scroll, .lk-scroll"));
       dlyCfgPaint();
       requestAnimationFrame(dlyRngEdge);
+      requestAnimationFrame(() => { try { dlyGhFix(); } catch (e) {} });
+      if (!host.__ghFixS) { host.__ghFixS = true; host.addEventListener("scroll", () => { const f = shell.querySelector("#bdgTabBody > .gh-fix > .gh-fix-in"); if (f) f.style.transform = "translateX(" + (-host.scrollLeft) + "px)"; }, { passive: true }); }
       dlyLift();
     };
     /* v545 (remarque 2) : bas de l'écran visible (clavier de l'iPad compris) */
@@ -459,9 +461,31 @@
       if (a && !a.__drag) { const x = Math.round(L) + "px"; if (a.style.left !== x) a.style.left = x; }
       if (b && !b.__drag) { const x = Math.round(Math.min(full - 2, L + W - 2)) + "px"; if (b.style.left !== x) b.style.left = x; }
     };
+    /* v574 (partie 11, remarque 7) : en-tête du calendrier du Gantt parfaitement fixe pendant le défilement des tâches (rebond compris) —
+       une copie de l'en-tête posée HORS de la zone qui défile (dans le bloc détail), alignée sur le Gantt, qui ne suit que le défilement
+       horizontal ; le vrai en-tête, transparent, reste dessous et reçoit les touchers (calendrier, largeur des jours, pincement) */
+    const dlyGhFix = () => {
+      const host = shell.querySelector("#dlyGantt"), body = shell.querySelector("#bdgTabBody");
+      let fx = body && body.querySelector(":scope > .gh-fix");
+      const gh = host && host.querySelector(":scope > .gh"), scr = host && host.closest(".dly-scroll");
+      if (!host || !gh || !scr || !body) { if (fx) fx.remove(); return; }
+      if (!fx) { fx = document.createElement("div"); fx.className = "gh-fix"; fx.innerHTML = '<div class="gh-fix-in dlyg-r"></div>'; body.appendChild(fx); }
+      const inn = fx.firstChild;
+      if (gh.__fixSrc !== gh.innerHTML) { gh.__fixSrc = gh.innerHTML; inn.innerHTML = gh.outerHTML; const c = inn.firstChild; c.style.transform = ""; c.classList.remove("sv-stuck"); }
+      const br = body.getBoundingClientRect(), hr = host.getBoundingClientRect(), sr = scr.getBoundingClientRect();
+      let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
+      const top = Math.max(sr.top, Math.min(lim, sr.bottom - gh.offsetHeight)) - br.top;
+      const s = fx.style;
+      s.top = top + "px"; s.left = (hr.left - br.left) + "px"; s.width = host.clientWidth + "px"; s.height = gh.offsetHeight + "px";
+      inn.style.width = gh.offsetWidth + "px";
+      { const dw = host.style.getPropertyValue("--dw"); if (fx.style.getPropertyValue("--dw") !== dw) fx.style.setProperty("--dw", dw); }
+      inn.style.transform = "translateX(" + (-host.scrollLeft) + "px)";
+      gh.classList.add("gh-under");
+    };
     const dlyLift = () => {
       dlyCfgPaint();
       dlyRngEdge();
+      try { dlyGhFix(); } catch (e) {}
       const g = shell.querySelector(".dlyg"); if (!g) return;
       /* v548 : la hauteur suit les changements de mise en page (bloc agrandi / réduit, rotation, clavier) */
       { const sc = g.closest(".dly-scroll"), h = shell.querySelector("#dlyGantt"); if (sc && dlyFitScr(sc) === 2 && h) {
