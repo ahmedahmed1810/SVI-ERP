@@ -215,7 +215,8 @@
       /* v564 (remarque 6) : appui long sur une courbe en S (CUMULÉ) = repères en pointillés : horizontal vers l'axe des montants (valeur),
          vertical jusqu'à l'en-tête des dates (jour) ; ils suivent le doigt tant qu'il reste posé, et restent affichés au lâcher */
       const dlyXClear = () => document.querySelectorAll(".dlyx-v, .dlyx-h, .dlyx-pt, .dlyx-l").forEach(x => x.remove());
-      document.addEventListener("pointerdown", e => { if (!(e.target.closest && e.target.closest("#dlyGantt .ghist-cum"))) dlyXClear(); }, true);
+      /* v566 (remarque 8) : un toucher ailleurs, dans le graphique ou en dehors, efface les repères (un nouvel appui long les remet) */
+      document.addEventListener("pointerdown", () => dlyXClear(), true);
       shell.addEventListener("pointerdown", e => {
         const hit = e.target.closest && e.target.closest("#dlyGantt .ghist-cum .ghb-hit");
         if (!hit) return;

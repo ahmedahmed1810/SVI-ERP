@@ -248,7 +248,7 @@
         else {
           /* v546 : R20 valeur par morceau, R24 capacité en MONTANT, échelle abrégée, légende (70 %), R28 cumul = une courbe,
              R29 courbes CHARGES / PRODUITS / MARGE */
-          const C = HD.cmd, ks = [...HD.ser.keys()], hs = dlyHSet(), cum = !C && hs.aff === "c", crb = HD.crb || ["c"];
+          const C = HD.cmd, ks = [...HD.ser.keys()], hs = dlyHSet(), cum = hs.aff === "c", crb = HD.crb || ["c"];   /* v566 (remarque 9) : COMMANDES aussi en CUMULÉE */
           const sC = crb.includes("c") && !!HD.R, sP = crb.includes("p"), sG = crb.includes("g"), multi = !C && (sP || sG);
           const RG = dlyHRange(), VL = dlyHVal(), inR = di => (!RG.a || di >= RG.a) && (!RG.b || di <= RG.b);
           const cur = dlyCurGK(), canP = !C && !cum && !multi && !!cur && !!HD.R, IB = canP ? 14 : 0;
@@ -257,7 +257,8 @@
           const cumOf = get => { const o = {}; let t = 0, b = 0; days.forEach(di => { const v = get(di); if (hs.cum === "r" && RG.a && di < RG.a) b += v; t += v; o[di] = t - b; }); return o; };
           const gC = di => HD.tot[di] || 0, gP = di => (HD.prd || {})[di] || 0, gG = di => gP(di) - gC(di);
           const val = {}, sval = ks.map(() => ({}));
-          if (C) days.forEach(di => { val[di] = C.L[di]; });
+          if (C && cum) Object.assign(val, cumOf(di => C.L[di] || 0));
+          else if (C) days.forEach(di => { val[di] = C.L[di]; });
           else if (!cum) days.forEach(di => { val[di] = gC(di); ks.forEach((sk, j) => { sval[j][di] = HD.ser.get(sk).L[di] || 0; }); });
           else Object.assign(val, cumOf(gC));
           const vP = multi ? (cum ? cumOf(gP) : Object.fromEntries(days.map(di => [di, gP(di)]))) : {};
@@ -287,7 +288,7 @@
           const order = totS.map(x => ks.indexOf(x[0]));
           let hb = "", svg = "";
           const CC = "#2e90fa", CP = "#12b76a", CG = "#7a5af8";
-          if (C) vis.forEach(di => { hb += `<div class="ghb ghc${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, val[di] * sc)}px;bottom:${IB}px"></div>`; });
+          if (C && !cum) vis.forEach(di => { hb += `<div class="ghb ghc${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, val[di] * sc)}px;bottom:${IB}px"></div>`; });
           else if (!cum && !multi) vis.forEach(di => {
             const v = val[di], n = capAt(di), over = n >= 0 && v > n + 1e-9, inc = over && (HD.det[di] || []).some(x => x.inc);
             const parts = ks.length > 1 ? order.map(j => { const w = sval[j][di]; return w ? `<i style="height:${w * sc}px;background:${col[ks[j]]}"></i>` : ""; }).join("") : "";
