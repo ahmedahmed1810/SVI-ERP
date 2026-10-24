@@ -2440,3 +2440,7 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 .ghist.ghist-zoom { overflow: clip; }
 .gval.grule.grule-snap { border-top-style: solid; }
 .gval.grule.grule-snap > span { background: #12355b; color: #fff; }
+
+/* v578 (partie 11, remarque 11) : fenêtre LIAISON — PRÉDÉCESSEUR / SUCCESSEUR sur deux lignes */
+.lkw-ps { display: grid; gap: 4px; }
+.lkw-ps b { color: #475467; }
