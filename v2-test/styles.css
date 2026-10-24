@@ -2472,3 +2472,7 @@ tr.fz-flash > td { background: #fef0c7 !important; transition: background .3s; }
 .dlyg.dly-gra .dlyg-r { flex: 1 1 auto; width: 100%; }
 /* v586 : l'axe des valeurs passe au-dessus du trait DÉBUT (toucher l'axe = règle) ; l'étiquette DÉBUT, en haut, reste à tirer */
 #dlyGantt .ghist-ax { z-index: 6; }
+/* v587 : barres des CHARGES toujours en orange ; étiquettes DÉBUT / FIN sous l'en-tête quand on défile */
+.ghb { background: #f79009; }
+.grng > span { top: var(--rng-top, 2px); }
+.grng-tot { top: calc(var(--rng-top, 2px) + 16px); }

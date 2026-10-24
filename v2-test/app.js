@@ -9905,13 +9905,18 @@ function renderBudgetList() {
                plus de voile blanc jour par jour (rayures quand la largeur d'un jour n'est pas entière) */
             const runs = []; { let cur = []; vis.forEach(di => { if (pass(di)) cur.push(di); else { if (cur.length) runs.push(cur); cur = []; } }); if (cur.length) runs.push(cur); }
             const poly = (L, M, c) => `<polyline points="${L.map(di => pt(di, M[di] || 0)).join(" ")}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
-            const line = (M, c) => (runs.length === 1 && runs[0].length === vis.length ? "" : poly(vis, M, "#c0c6d0")) + runs.map(L => poly(L.length > 1 ? L : [L[0], L[0]], M, c)).join("");
-            if (!multi || sC) svg += line(val, multi ? CC : "#344054");
+            /* v587 : la couleur s'arrête exactement aux traits DÉBUT et FIN (gris à l'extérieur seulement) */
+            const cxa = RG.a ? X(RG.a) : 0, cxb = RG.b ? X(RG.b) + DLY_DW : W, part = !!(RG.a || RG.b);
+            if (part) svg += `<defs><clipPath id="ghRgClip"><rect x="${cxa}" y="-10" width="${Math.max(0, cxb - cxa)}" height="${HH + 20}"/></clipPath></defs>`;
+            const clip = h => part ? `<g clip-path="url(#ghRgClip)">${h}</g>` : h;
+            const line = (M, c) => (part ? poly(vis, M, "#c0c6d0") : "") + clip(poly(vis, M, c));
+            /* v587 : CHARGES toujours en orange, quel que soit le réglage */
+            if (!multi || sC) svg += line(val, CC);
             if (sP) svg += line(vP, CP);
             if (sG) { svg += line(vG, CG);
               /* marge négative : en rouge */
-              let ng = []; const fl = () => { if (ng.length > 1) svg += `<polyline points="${ng.map(di => pt(di, vG[di] || 0)).join(" ")}" fill="none" stroke="${CGN}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`; ng = []; };
-              vis.forEach((di, i) => { if ((vG[di] || 0) < 0 && pass(di)) { if (!ng.length && i) ng.push(vis[i - 1]); ng.push(di); } else { if (ng.length) { ng.push(di); fl(); } } }); fl(); }
+              let ng = []; const fl = () => { if (ng.length > 1) svg += clip(`<polyline points="${ng.map(di => pt(di, vG[di] || 0)).join(" ")}" fill="none" stroke="${CGN}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`); ng = []; };
+              vis.forEach((di, i) => { if ((vG[di] || 0) < 0) { if (!ng.length && i) ng.push(vis[i - 1]); ng.push(di); } else { if (ng.length) { ng.push(di); fl(); } } }); fl(); }
             vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           }
           /* v569 (remarque 13) : RENDEMENT par charge — quantité produite de l'activité (vert) et une courbe pointillée par charge cochée
@@ -9949,9 +9954,9 @@ function renderBudgetList() {
           const legRd = HD.rd ? (HD.rd.ser ? (crb.includes("p") ? legI("#12b76a", "PRODUIT — " + lkName("sec", HD.rd.sec) + " (" + HD.rd.u + ")") : "") + rdS.map(s => legI(s.c, "RENDEMENT " + s.name + " (" + HD.rd.u + " / " + s.u + ")")).join("")
               + (HD.rd.miss || []).map(sk => `<span class="grd-miss">${esc(sk.split("|")[0])} — PAS DANS CETTE ACTIVITÉ</span>`).join("") : `<span class="grd-why">${esc(HD.rd.why)}</span>`) : "";
           const leg0 = C ? "" : multi ? `<div class="ghist-leg">${(sC ? legI(CC, "CHARGES") : "") + (sP ? legI(CP, "PRODUITS") : "") + (sG ? legI(CG, "MARGE") : "")}</div>`
-            : cum ? (ks.length > 1 ? `<div class="ghist-leg">${legI("#344054", "TOTAL DES " + ks.length + " CHARGES")}</div>` : "")
+            : cum ? (ks.length > 1 ? `<div class="ghist-leg">${legI("#f79009", "TOTAL DES " + ks.length + " CHARGES")}</div>` : "")
             : ks.length > 1 ? `<div class="ghist-leg">${totS.filter(x => keep.has(x[0])).map(([sk]) => legI(col[sk], sk.split("|")[0])).join("")}${totS.some(x => !keep.has(x[0])) ? legI("#98a2b3", "AUTRES (" + totS.filter(x => !keep.has(x[0])).length + ")") : ""}</div>` : "";
-          const leg = legRd ? (hideC ? `<div class="ghist-leg">${legRd}</div>` : leg0 ? leg0.replace(/<\/div>$/, legRd + "</div>") : `<div class="ghist-leg">${legI(cum ? "#344054" : "#6fa8dc", "CHARGES (" + HD.unit + ")")}${legRd}</div>`) : leg0;
+          const leg = legRd ? (hideC ? `<div class="ghist-leg">${legRd}</div>` : leg0 ? leg0.replace(/<\/div>$/, legRd + "</div>") : `<div class="ghist-leg">${legI(cum ? "#f79009" : "#f79009", "CHARGES (" + HD.unit + ")")}${legRd}</div>`) : leg0;
           /* R21 à R23 : CAPACITÉ ; v546 : « / » traversé par la barre, trait vertical en pointillés entre deux morceaux, valeur du morceau au-dessus (R19, R20) */
           const yOf = n => n < 0 ? HH - IB / 2 : Y0 - n * sc;
           const pl = SG.map((g2, j) => {
@@ -10134,16 +10139,20 @@ function renderBudgetList() {
       const scr = g.closest(".bdg-d-scroll, .lk-scroll"), visB = Math.min(scr ? scr.getBoundingClientRect().bottom : 1e9, dlyVpB());
       const fx = shell.querySelector("#bdgTabBody > .gh-fix");
       const minT = Math.max(gh ? gh.getBoundingClientRect().bottom : nt, fx && fx.offsetParent ? fx.getBoundingClientRect().bottom : -1e9);
+      /* v587 : étiquettes DÉBUT / FIN gardées visibles sous l'en-tête du calendrier quand on défile */
+      const rngTop = () => { if (!hist) return; const off = Math.max(2, Math.min(hist.offsetHeight - 40, Math.round(minT - hist.getBoundingClientRect().top + 2))); const v = off + "px"; if (hist.style.getPropertyValue("--rng-top") !== v) hist.style.setProperty("--rng-top", v); };
       if (g.classList.contains("dly-hfull")) {
         /* v583 : graphique sur toute la hauteur — la poignée « = » reste collée sous l'en-tête du calendrier, jamais cachée */
         els.forEach(el => { if (el !== hh && el.style.transform) { el.style.transform = ""; el.classList.remove("dly-lift"); } });
         if (hh) { const ht = hh.getBoundingClientRect().top - cur(hh), dn = Math.max(0, Math.min(minT + 14 - ht, visB - 30 - ht));
           const v = dn > 0.5 ? "translateY(" + dn.toFixed(1) + "px)" : ""; if (hh.style.transform !== v) hh.style.transform = v; hh.classList.toggle("dly-lift", !!v); }
+        rngTop();
         return;
       }
       const lift = Math.max(0, Math.min(nb - visB, nt - minT));
       const v = lift > 0.5 ? "translateY(" + (-lift).toFixed(1) + "px)" : "";
       els.forEach(el => { if (el.style.transform !== v) el.style.transform = v; el.classList.toggle("dly-lift", !!v); });
+      rngTop();
     };
     if (!shell.__dlyLiftBound) {
       shell.__dlyLiftBound = true;
@@ -11193,7 +11202,7 @@ function renderBudgetList() {
       const dlyXSeries = (host, H, HV) => {
         const out = [];
         const add = (lab, M, c, s, u) => { if (M && Object.keys(M).length) out.push({ lab, M, c, s, u }); };
-        if (!HV.hideC && (!HV.multi || (H.crb || []).includes("c"))) add("CHARGES", HV.val, HV.multi ? "#f79009" : "#344054", 0, HV.unit);
+        if (!HV.hideC && (!HV.multi || (H.crb || []).includes("c"))) add("CHARGES", HV.val, "#f79009", 0, HV.unit);
         if (HV.multi && (H.crb || []).includes("p")) add("PRODUITS", HV.vP, "#2e90fa", 0, HV.unit);
         if (HV.multi && (H.crb || []).includes("g")) add("MARGE", HV.vG, "#12b76a", 0, HV.unit);
         if (HV.rd) {

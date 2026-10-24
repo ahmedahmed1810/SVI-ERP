@@ -227,7 +227,7 @@
       const dlyXSeries = (host, H, HV) => {
         const out = [];
         const add = (lab, M, c, s, u) => { if (M && Object.keys(M).length) out.push({ lab, M, c, s, u }); };
-        if (!HV.hideC && (!HV.multi || (H.crb || []).includes("c"))) add("CHARGES", HV.val, HV.multi ? "#f79009" : "#344054", 0, HV.unit);
+        if (!HV.hideC && (!HV.multi || (H.crb || []).includes("c"))) add("CHARGES", HV.val, "#f79009", 0, HV.unit);
         if (HV.multi && (H.crb || []).includes("p")) add("PRODUITS", HV.vP, "#2e90fa", 0, HV.unit);
         if (HV.multi && (H.crb || []).includes("g")) add("MARGE", HV.vG, "#12b76a", 0, HV.unit);
         if (HV.rd) {
