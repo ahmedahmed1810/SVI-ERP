@@ -569,18 +569,25 @@
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">RÉGLAGES DU GRAPHIQUE</div>
         <div class="hcf-g">
-          <span class="hcf-k">DONNÉES</span><span class="hcf-sw">${rad("hcd", "c", "CONSOMMATION", !(dlyAppro().on && R))}${rad("hcd", "o", "COMMANDES", !!(dlyAppro().on && R), !R).replace("QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ.", "COMMANDES : COCHER DES CHARGES DANS DÉTAIL CHARGES.")}</span>
           <span class="hcf-k">UNITÉ</span><span class="hcf-sw">${rad("hcu", "q", "QUANTITÉ", h.u === "q" && q, !q)}${rad("hcu", "m", "MONTANT (DH)", h.u !== "q" || !q)}</span>
           <span class="hcf-k">PRÉSENTATION</span><span class="hcf-sw">${rad("hca", "j", "PAR JOUR", h.aff !== "c")}${rad("hca", "c", "CUMULÉE", h.aff === "c")}</span>
           <span class="hcf-k">FORME</span><span class="hcf-sw">${(() => { const fo = h.forme || (dlyAppro().on && R ? "h" : crb.includes("r") ? "c" : h.aff === "c" ? "c" : "h"); return rad("hcf", "h", "HISTOGRAMME", fo === "h") + rad("hcf", "c", "COURBES", fo === "c"); })()}</span>
           <span class="hcf-k">POINT DE DÉPART</span><span class="hcf-sw">${rad("hcc", "r", "DEPUIS LE TRAIT DÉBUT", h.cum !== "a")}${rad("hcc", "a", "DEPUIS LE DÉBUT DU PROJET", h.cum === "a")}</span>
           <span class="hcf-k">COURBES</span><span class="hcf-cbs">${[["c", "CHARGES"], ["p", "PRODUITS"], ["g", "MARGE"], ["r", "RENDEMENT"]].map(([v, l]) => `<label${v === "r" && !R ? ' class="off" data-why="RENDEMENT : COCHER DES CHARGES DANS DÉTAIL CHARGES ET CHOISIR UNE ACTIVITÉ DANS TÂCHES."' : ""}><input type="checkbox" class="hcf-c" value="${v}"${crb.includes(v) && (v !== "r" || R) ? " checked" : ""}${v === "r" && !R ? " disabled" : ""}><span>${l}</span></label>`).join("")}</span>
           <span class="hcf-k">LÉGENDE</span><span class="hcf-pl">CHARGES QUI FONT <input class="hcf-pct" inputmode="numeric" value="${esc(String(h.pct || 70))}"> %</span>
+          <span class="hcf-k">DONNÉES</span><span class="hcf-sw">${rad("hcd", "c", "CONSOMMATION", !(dlyAppro().on && R))}${rad("hcd", "o", "COMMANDES", !!(dlyAppro().on && R), !R).replace("QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ.", "COMMANDES : COCHER DES CHARGES DANS DÉTAIL CHARGES.")}</span>
+          ${(() => { const a = dlyAppro(), hid = a.on && R ? "" : " hidden";
+            /* v572 (remarque 17) : réglages des COMMANDES dans la même fenêtre, en dessous (plus de fenêtre APPROVISIONNEMENT ni de liste des charges) */
+            return `<span class="hcf-k hcf-apr"${hid}>COUVERTURE</span><span class="hcf-pl hcf-apr"${hid}><span class="hcf-sw hcf-sw3">${[["w", "SEMAINE"], ["m", "MOIS"], ["n", "N JOURS"]].map(([v, l]) => `<label class="hcf-seg${a.cov === v ? " on" : ""}"><input type="radio" name="aprc" value="${v}"${a.cov === v ? " checked" : ""}><span>${l}</span></label>`).join("")}</span><input class="apr-nj hcf-pct" inputmode="numeric" value="${esc(String(a.nj))}"${a.cov === "n" ? "" : " disabled"}></span>
+              <span class="hcf-k hcf-apr"${hid}>DÉLAI D'APPROVISIONNEMENT (J)</span><span class="hcf-pl hcf-apr"${hid}><input class="apr-dl hcf-pct" inputmode="numeric" value="${esc(String(a.dl))}"><span class="hcf-k hcf-k2">DATE DE DÉPART</span><input type="date" class="apr-dep" value="${esc(a.dep || "")}"></span>`; })()}
         </div>
         <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
       document.getElementById("svConf")?.remove();
       document.body.appendChild(d);
-      d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".hcf-seg input"); if (!i) return; i.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked)); });
+      d.querySelectorAll('input[type="date"]').forEach(sviDateField);
+      d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".hcf-seg input"); if (!i) return; i.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked));
+        if (i.name === "hcd") d.querySelectorAll(".hcf-apr").forEach(x => { x.hidden = i.value !== "o"; });
+        if (i.name === "aprc") d.querySelector(".apr-nj").disabled = i.value !== "n"; });
       d.addEventListener("click", e => {
         { const o = e.target.closest && e.target.closest(".hcf-seg.off[data-why], .hcf-cbs label.off[data-why]"); if (o) { svToast(o.dataset.why, 3500, o); return; } }
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
@@ -597,7 +604,14 @@
         }
         const v = n => (d.querySelector(`input[name="${n}"]:checked`) || {}).value;
         INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc), forme: v("hcf") || "h" };
-        INS.appro = { ...dlyAppro(), on: v("hcd") === "o" };   /* v566 (remarque 9) : COMMANDES = données du graphique (plus de case à part) */
+        /* v566 (remarque 9) / v572 (remarque 17) : COMMANDES = données du graphique ; ses réglages sont lus ici */
+        const on = v("hcd") === "o", A0 = dlyAppro();
+        if (on) {
+          const dl = String(d.querySelector(".apr-dl").value).trim(), nj = String(d.querySelector(".apr-nj").value).trim(), cov = v("aprc") || "m";
+          if (!/^\d+$/.test(dl)) { svToast("DÉLAI D'APPROVISIONNEMENT : NOMBRE ENTIER DE JOURS.", 3000, d.querySelector(".apr-dl")); return; }
+          if (cov === "n" && (!/^\d+$/.test(nj) || Number(nj) < 1)) { svToast("NOMBRE DE JOURS : ENTIER, 1 AU MOINS.", 3000, d.querySelector(".apr-nj")); return; }
+          INS.appro = { ...A0, on, dl: Number(dl), cov, nj: Number(nj) || 30, dep: d.querySelector(".apr-dep").value || "" };
+        } else INS.appro = { ...A0, on };
         d.remove();
         insSave(); histLog("DÉLAIS", "RÉGLAGES DU GRAPHIQUE", c.map(x => ({ c: "CHARGES", p: "PRODUITS", g: "MARGE" })[x]).join(" + ")); renderTabK();
       });

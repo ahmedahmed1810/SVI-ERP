@@ -9833,7 +9833,8 @@ function renderBudgetList() {
           const col = {}; let ci = 0; totS.forEach(([sk]) => { col[sk] = keep.has(sk) ? DLY_SER[ci++ % DLY_SER.length] : "#98a2b3"; });
           const order = totS.map(x => ks.indexOf(x[0]));
           let hb = "", svg = "";
-          const CC = "#2e90fa", CP = "#12b76a", CG = "#7a5af8";
+          /* v572 (remarque 16) : couleurs usuelles — PRODUITS en bleu, CHARGES en orange, MARGE en vert (rouge quand elle est négative) */
+          const CC = "#f79009", CP = "#2e90fa", CG = "#12b76a", CGN = "#d92d20";
           if (hideC) vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           else if (C && !curve) vis.forEach(di => { hb += `<div class="ghb ghc${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, val[di] * sc)}px;bottom:${IB}px"></div>`; });
           else if (!curve && !multi) vis.forEach(di => {
@@ -9845,7 +9846,7 @@ function renderBudgetList() {
             /* R29 : barres côte à côte dans le jour — CHARGES, PRODUITS, MARGE (signée, sous le zéro si négative) */
             const S = [...(sC ? [[val, CC]] : []), ...(sP ? [[vP, CP]] : []), ...(sG ? [[vG, CG]] : [])], w1 = Math.max(1, bw / (S.length || 1));
             vis.forEach(di => {
-              S.forEach(([M, c], j) => { const v = M[di] || 0; if (!v) return; hb += `<div class="ghb ghb-m${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo + j * w1}px;width:${w1}px;top:${Y0 - Math.max(v, 0) * sc}px;bottom:auto;height:${Math.max(1, Math.abs(v) * sc)}px;background:${c}"></div>`; });
+              S.forEach(([M, c], j) => { const v = M[di] || 0; if (!v) return; hb += `<div class="ghb ghb-m${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo + j * w1}px;width:${w1}px;top:${Y0 - Math.max(v, 0) * sc}px;bottom:auto;height:${Math.max(1, Math.abs(v) * sc)}px;background:${c === CG && v < 0 ? CGN : c}"></div>`; });
             });
           } else {
             /* R28 : une seule courbe par grandeur (le total), plus une par charge */
@@ -9857,7 +9858,10 @@ function renderBudgetList() {
             const line = (M, c) => (runs.length === 1 && runs[0].length === vis.length ? "" : poly(vis, M, "#c0c6d0")) + runs.map(L => poly(L.length > 1 ? L : [L[0], L[0]], M, c)).join("");
             if (!multi || sC) svg += line(val, multi ? CC : "#344054");
             if (sP) svg += line(vP, CP);
-            if (sG) svg += line(vG, CG);
+            if (sG) { svg += line(vG, CG);
+              /* marge négative : en rouge */
+              let ng = []; const fl = () => { if (ng.length > 1) svg += `<polyline points="${ng.map(di => pt(di, vG[di] || 0)).join(" ")}" fill="none" stroke="${CGN}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`; ng = []; };
+              vis.forEach((di, i) => { if ((vG[di] || 0) < 0 && pass(di)) { if (!ng.length && i) ng.push(vis[i - 1]); ng.push(di); } else { if (ng.length) { ng.push(di); fl(); } } }); fl(); }
             vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           }
           /* v569 (remarque 13) : RENDEMENT par charge — quantité produite de l'activité (vert) et une courbe pointillée par charge cochée
@@ -12518,18 +12522,25 @@ function renderBudgetList() {
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">RÉGLAGES DU GRAPHIQUE</div>
         <div class="hcf-g">
-          <span class="hcf-k">DONNÉES</span><span class="hcf-sw">${rad("hcd", "c", "CONSOMMATION", !(dlyAppro().on && R))}${rad("hcd", "o", "COMMANDES", !!(dlyAppro().on && R), !R).replace("QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ.", "COMMANDES : COCHER DES CHARGES DANS DÉTAIL CHARGES.")}</span>
           <span class="hcf-k">UNITÉ</span><span class="hcf-sw">${rad("hcu", "q", "QUANTITÉ", h.u === "q" && q, !q)}${rad("hcu", "m", "MONTANT (DH)", h.u !== "q" || !q)}</span>
           <span class="hcf-k">PRÉSENTATION</span><span class="hcf-sw">${rad("hca", "j", "PAR JOUR", h.aff !== "c")}${rad("hca", "c", "CUMULÉE", h.aff === "c")}</span>
           <span class="hcf-k">FORME</span><span class="hcf-sw">${(() => { const fo = h.forme || (dlyAppro().on && R ? "h" : crb.includes("r") ? "c" : h.aff === "c" ? "c" : "h"); return rad("hcf", "h", "HISTOGRAMME", fo === "h") + rad("hcf", "c", "COURBES", fo === "c"); })()}</span>
           <span class="hcf-k">POINT DE DÉPART</span><span class="hcf-sw">${rad("hcc", "r", "DEPUIS LE TRAIT DÉBUT", h.cum !== "a")}${rad("hcc", "a", "DEPUIS LE DÉBUT DU PROJET", h.cum === "a")}</span>
           <span class="hcf-k">COURBES</span><span class="hcf-cbs">${[["c", "CHARGES"], ["p", "PRODUITS"], ["g", "MARGE"], ["r", "RENDEMENT"]].map(([v, l]) => `<label${v === "r" && !R ? ' class="off" data-why="RENDEMENT : COCHER DES CHARGES DANS DÉTAIL CHARGES ET CHOISIR UNE ACTIVITÉ DANS TÂCHES."' : ""}><input type="checkbox" class="hcf-c" value="${v}"${crb.includes(v) && (v !== "r" || R) ? " checked" : ""}${v === "r" && !R ? " disabled" : ""}><span>${l}</span></label>`).join("")}</span>
           <span class="hcf-k">LÉGENDE</span><span class="hcf-pl">CHARGES QUI FONT <input class="hcf-pct" inputmode="numeric" value="${esc(String(h.pct || 70))}"> %</span>
+          <span class="hcf-k">DONNÉES</span><span class="hcf-sw">${rad("hcd", "c", "CONSOMMATION", !(dlyAppro().on && R))}${rad("hcd", "o", "COMMANDES", !!(dlyAppro().on && R), !R).replace("QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ.", "COMMANDES : COCHER DES CHARGES DANS DÉTAIL CHARGES.")}</span>
+          ${(() => { const a = dlyAppro(), hid = a.on && R ? "" : " hidden";
+            /* v572 (remarque 17) : réglages des COMMANDES dans la même fenêtre, en dessous (plus de fenêtre APPROVISIONNEMENT ni de liste des charges) */
+            return `<span class="hcf-k hcf-apr"${hid}>COUVERTURE</span><span class="hcf-pl hcf-apr"${hid}><span class="hcf-sw hcf-sw3">${[["w", "SEMAINE"], ["m", "MOIS"], ["n", "N JOURS"]].map(([v, l]) => `<label class="hcf-seg${a.cov === v ? " on" : ""}"><input type="radio" name="aprc" value="${v}"${a.cov === v ? " checked" : ""}><span>${l}</span></label>`).join("")}</span><input class="apr-nj hcf-pct" inputmode="numeric" value="${esc(String(a.nj))}"${a.cov === "n" ? "" : " disabled"}></span>
+              <span class="hcf-k hcf-apr"${hid}>DÉLAI D'APPROVISIONNEMENT (J)</span><span class="hcf-pl hcf-apr"${hid}><input class="apr-dl hcf-pct" inputmode="numeric" value="${esc(String(a.dl))}"><span class="hcf-k hcf-k2">DATE DE DÉPART</span><input type="date" class="apr-dep" value="${esc(a.dep || "")}"></span>`; })()}
         </div>
         <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
       document.getElementById("svConf")?.remove();
       document.body.appendChild(d);
-      d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".hcf-seg input"); if (!i) return; i.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked)); });
+      d.querySelectorAll('input[type="date"]').forEach(sviDateField);
+      d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".hcf-seg input"); if (!i) return; i.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked));
+        if (i.name === "hcd") d.querySelectorAll(".hcf-apr").forEach(x => { x.hidden = i.value !== "o"; });
+        if (i.name === "aprc") d.querySelector(".apr-nj").disabled = i.value !== "n"; });
       d.addEventListener("click", e => {
         { const o = e.target.closest && e.target.closest(".hcf-seg.off[data-why], .hcf-cbs label.off[data-why]"); if (o) { svToast(o.dataset.why, 3500, o); return; } }
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
@@ -12546,7 +12557,14 @@ function renderBudgetList() {
         }
         const v = n => (d.querySelector(`input[name="${n}"]:checked`) || {}).value;
         INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc), forme: v("hcf") || "h" };
-        INS.appro = { ...dlyAppro(), on: v("hcd") === "o" };   /* v566 (remarque 9) : COMMANDES = données du graphique (plus de case à part) */
+        /* v566 (remarque 9) / v572 (remarque 17) : COMMANDES = données du graphique ; ses réglages sont lus ici */
+        const on = v("hcd") === "o", A0 = dlyAppro();
+        if (on) {
+          const dl = String(d.querySelector(".apr-dl").value).trim(), nj = String(d.querySelector(".apr-nj").value).trim(), cov = v("aprc") || "m";
+          if (!/^\d+$/.test(dl)) { svToast("DÉLAI D'APPROVISIONNEMENT : NOMBRE ENTIER DE JOURS.", 3000, d.querySelector(".apr-dl")); return; }
+          if (cov === "n" && (!/^\d+$/.test(nj) || Number(nj) < 1)) { svToast("NOMBRE DE JOURS : ENTIER, 1 AU MOINS.", 3000, d.querySelector(".apr-nj")); return; }
+          INS.appro = { ...A0, on, dl: Number(dl), cov, nj: Number(nj) || 30, dep: d.querySelector(".apr-dep").value || "" };
+        } else INS.appro = { ...A0, on };
         d.remove();
         insSave(); histLog("DÉLAIS", "RÉGLAGES DU GRAPHIQUE", c.map(x => ({ c: "CHARGES", p: "PRODUITS", g: "MARGE" })[x]).join(" + ")); renderTabK();
       });
@@ -20478,7 +20496,7 @@ function renderBudgetList() {
         const ck = (v, lab, on, off) => `<button type="button" data-dly="${v}" class="dly-sc${on ? " on" : ""}${off ? " off" : ""}"${off ? ` data-why="${esc(off)}"` : ""}><span>${on ? "✓ " : ""}${lab}</span></button>`;
         m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">PLANNING</div>${ck("v-d", "AFFICHER PAR DÉBUT", vw === "d")}`   /* v561 : plus d'AFFICHER PAR LOT ni de CLASSER PAR DÉBUT ; AFFICHER PAR DÉBUT à deux états */
           /* v553 (partie 11, remarque 3) : plus d'entrée « + AJOUTER UNE TÂCHE OU SES DÉLAIS » */
-          + `<div class="blk-sep"></div><div class="blk-hint">GRAPHIQUE</div><button type="button" data-dly="appr" class="${DX.hasSel() ? "" : "off"}"${DX.hasSel() ? "" : ' data-why="COCHER DES CHARGES : L\'APPROVISIONNEMENT PORTE SUR LES CHARGES COCHÉES."'}><span>APPROVISIONNEMENT PRÉVISIONNEL</span></button><div class="blk-sep"></div>`);
+          + `<div class="blk-sep"></div>`   /* v572 (remarque 17) : réglages des commandes dans RÉGLAGES DU GRAPHIQUE ⚙ */);
         let lp = null;
         m.addEventListener("pointerdown", e => { const so = e.target.closest("[data-dly].off[data-why]"); if (!so) return; lp = setTimeout(() => svToast(so.dataset.why, 4000, so), 550); });
         ["pointerup", "pointercancel"].forEach(t => m.addEventListener(t, () => clearTimeout(lp)));

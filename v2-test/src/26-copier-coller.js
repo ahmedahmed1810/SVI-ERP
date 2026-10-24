@@ -420,7 +420,7 @@
         const ck = (v, lab, on, off) => `<button type="button" data-dly="${v}" class="dly-sc${on ? " on" : ""}${off ? " off" : ""}"${off ? ` data-why="${esc(off)}"` : ""}><span>${on ? "✓ " : ""}${lab}</span></button>`;
         m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">PLANNING</div>${ck("v-d", "AFFICHER PAR DÉBUT", vw === "d")}`   /* v561 : plus d'AFFICHER PAR LOT ni de CLASSER PAR DÉBUT ; AFFICHER PAR DÉBUT à deux états */
           /* v553 (partie 11, remarque 3) : plus d'entrée « + AJOUTER UNE TÂCHE OU SES DÉLAIS » */
-          + `<div class="blk-sep"></div><div class="blk-hint">GRAPHIQUE</div><button type="button" data-dly="appr" class="${DX.hasSel() ? "" : "off"}"${DX.hasSel() ? "" : ' data-why="COCHER DES CHARGES : L\'APPROVISIONNEMENT PORTE SUR LES CHARGES COCHÉES."'}><span>APPROVISIONNEMENT PRÉVISIONNEL</span></button><div class="blk-sep"></div>`);
+          + `<div class="blk-sep"></div>`   /* v572 (remarque 17) : réglages des commandes dans RÉGLAGES DU GRAPHIQUE ⚙ */);
         let lp = null;
         m.addEventListener("pointerdown", e => { const so = e.target.closest("[data-dly].off[data-why]"); if (!so) return; lp = setTimeout(() => svToast(so.dataset.why, 4000, so), 550); });
         ["pointerup", "pointercancel"].forEach(t => m.addEventListener(t, () => clearTimeout(lp)));

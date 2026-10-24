@@ -1350,7 +1350,7 @@ def main():
         mn = pg.evaluate("() => (document.getElementById('blkMenu') || {}).textContent || ''")
         pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
         check("v542 R2 / R5 : plafond recompresse aussitôt (4 J-H ÷ 4 = 1 jour), même nombre = AUCUN GAIN ; menu (v546) : vue, CLASSER PAR DÉBUT, APPROVISIONNEMENT — plus de COMPRESSER ni de JOUR / SEMAINE / MOIS",
-              t2[0] == "2026-11-02" and "AUCUN GAIN" in t2[1] and "COMPRESSER LE PLANNING" not in mn and "GÉNÉRER" not in mn and "NIVELLEMENT" not in mn and "JOUR" not in mn.replace("PAR LOT", "").replace("CLASSER", "").split("GRAPHIQUE")[0].replace("AFFICHER PAR DÉBUT", "") and "CLASSER PAR DÉBUT" not in mn and "AFFICHER PAR LOT" not in mn and "AFFICHER PAR DÉBUT" in mn and "APPROVISIONNEMENT PRÉVISIONNEL" in mn, [t2, mn[:200]])
+              t2[0] == "2026-11-02" and "AUCUN GAIN" in t2[1] and "COMPRESSER LE PLANNING" not in mn and "GÉNÉRER" not in mn and "NIVELLEMENT" not in mn and "JOUR" not in mn.replace("PAR LOT", "").replace("CLASSER", "").split("GRAPHIQUE")[0].replace("AFFICHER PAR DÉBUT", "") and "CLASSER PAR DÉBUT" not in mn and "AFFICHER PAR LOT" not in mn and "AFFICHER PAR DÉBUT" in mn and "APPROVISIONNEMENT PRÉVISIONNEL" not in mn, [t2, mn[:200]])
         # R10 : COMMANDES par fréquence (7 jours, 2 jours d'avance)
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.appro = {{ dl: 2, cov: 'n', nj: 7, dep: '', on: true }}; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
         c10 = pg.evaluate("() => [[...document.querySelectorAll('#dlyGantt .ghb.ghc')].map(b => b.dataset.d), /APPROVISIONNEMENT/.test((document.querySelector('#dlyGantt .ghist-cmd') || {}).textContent || '')]")
@@ -1461,7 +1461,7 @@ def main():
         pg.evaluate(f"() => {DXJ}.viewSet('l')"); pg.wait_for_timeout(400)
         vl = pg.evaluate("() => [...document.querySelectorAll('#bdgTabBody .dlyg-l tr.dly-task')].map(t => t.dataset.key)")
         check("v543 R29 / v561 : menu PLANNING / GRAPHIQUE, sans liseré ; vue PAR DÉBUT en escalier (numéro du lot) avec bandeau AFFICHÉ PAR DÉBUT, sans changer l'ordre enregistré",
-              z1 == ["PLANNING", "GRAPHIQUE"] and not z1b and vd[0] == ["l2|s1", "l1|s1"] and vd[1] and vd[2] and vd[3] == '["l1|s1","l2|s1"]' and vl == ["l1|s1", "l2|s1"], [z1, z1b, vd, vl])
+              z1 == ["PLANNING"] and not z1b and vd[0] == ["l2|s1", "l1|s1"] and vd[1] and vd[2] and vd[3] == '["l1|s1","l2|s1"]' and vl == ["l1|s1", "l2|s1"], [z1, z1b, vd, vl])
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk3; I.dlp = I.__dlp3; I.dpred = I.__dp3; I.dord = I.__ord3; I.pdeb = I.__pd3;
             ['__lk3', '__dlp3', '__dp3', '__ord3', '__pd3'].forEach(k => delete I[k]); I.dinc = {{}}; I.dlim = {{}}; I.plafR = {{}}; I.appro = null; I.hset = null; I.hrange = null; I.hval = null;
             I.chg = I.chg.filter(r => !/^n[123]$/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
@@ -1502,7 +1502,7 @@ def main():
         v549m = pg.evaluate("() => [...document.querySelectorAll('#blkMenu [data-dly]')].map(b => b.dataset.dly).join(',') + '|' + [...document.querySelectorAll('#blkMenu .blk-hint')].map(e => e.textContent).join(',') + '|' + (document.getElementById('blkMenu') || {}).textContent")
         pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
         check("v549 / v553 / v555 : plus de bouton AJOUTER sous le planning ni dans le menu ⋯ (P11 R3), ni RÉGLAGES DU GRAPHIQUE dans le menu (P11 R6) ; rubrique GRAPHIQUE ; barre marron de la barre verticale au bord droit du cadre (v552)",
-              v549 == [False, True] and "add" not in v549m and "GRAPHIQUE" in v549m and "RÉGLAGES DU GRAPHIQUE" not in v549m, [v549, v549m])
+              v549 == [False, True] and "add" not in v549m and "appr" not in v549m and "RÉGLAGES DU GRAPHIQUE" not in v549m, [v549, v549m])
         # v553 (partie 11, R5) : case de date active (calendrier ouvert) = ni contour rouge ni point au coin
         r5 = pg.evaluate("""() => { const i = document.querySelector('.dlyg-l input.dlp-in[data-f="deb"]'); if (!i) return null; i.click(); i.focus();
             const td = i.closest('td'), H = document.getElementById('sviSelHandle'); const r = [getComputedStyle(i).boxShadow, getComputedStyle(td).boxShadow, !H || H.style.display === 'none'];
