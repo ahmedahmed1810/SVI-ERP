@@ -402,7 +402,7 @@
     };
 
     /* ---------- histogramme : données, R17 approvisionnement, R18 réglages ---------- */
-    const DLY_SER = ["#2e90fa", "#f79009", "#12b76a", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#667085"];
+    const DLY_SER = ["#2e90fa", "#f79009", "#12b76a", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#84cc16"];   /* v588 : plus de gris dans les séries (le gris = hors DÉBUT – FIN) */
     /* hauteur de l'histogramme : nombre de pixels (28 = miniaturisé en bas) ou « full » (plein écran, à la place du Gantt) */
     /* v546 (R25) : 0 = histogramme entièrement caché (poignée tout en bas) */
     const dlyHHGet = () => { if (active === "gra") return "full"; let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : v === "0" ? 0 : Math.max(28, Math.min(2000, Number(v) || 110)); };
