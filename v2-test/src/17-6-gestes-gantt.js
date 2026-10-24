@@ -263,7 +263,7 @@
           /* v546 (R15, R29) : en CUMULÉ, la date et le total à ce jour ; avec PRODUITS / MARGE, une ligne par grandeur */
           const m = document.createElement("div"); m.id = "dlyHb";
           const L = [["CHARGES", HV.val], ["PRODUITS", HV.vP], ["MARGE", HV.vG]].filter(x => x[1] && Object.keys(x[1]).length && (x[0] === "CHARGES" ? !HV.multi || (H.crb || []).includes("c") : (H.crb || []).includes(x[0] === "PRODUITS" ? "p" : "g")));
-          m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}${HV.cum ? " — CUMUL À CE JOUR" : ""}</div>` + L.map(([t, M]) => `<div><span>${t}</span><b>${fmt(M[di] || 0)} ${esc(HV.unit)}</b></div>`).join("");
+          m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}${HV.cum ? " — CUMUL À CE JOUR" : ""}</div>` + L.map(([t, M]) => `<div><span>${t}</span><b>${fmt(M[di] || 0)} ${esc(HV.unit)}</b></div>`).join("") + dlyRdHb(HV, di) + dlyGoHb(H, di);
           document.body.appendChild(m);
           const r = b.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
           m.style.left = Math.max(8, Math.min(window.innerWidth - mw - 8, r.left + r.width / 2 - mw / 2)) + "px"; m.style.top = Math.max(8, Math.min(r.top, e.clientY) - mh - 6) + "px";
@@ -274,13 +274,29 @@
         else (H.det[di] || []).forEach(x => { tot += x.v; rows += `<div><span>${esc(lotLab(dlyLotPath(lkName("lot", x.k.split("|")[0]))).full)} › ${esc(lkName("sec", x.k.split("|")[1]))}${x.inc ? " ▣" : ""}</span><b>${fmt(x.v)}</b></div>`; });
         const m = document.createElement("div");
         m.id = "dlyHb";
-        m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}</div>${rows}<div class="hb-tot"><span>TOTAL (${esc(H.cmd ? "COMMANDE" : H.unit)})</span><b>${fmt(tot)}</b></div>`;
+        m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}</div>${rows}<div class="hb-tot"><span>TOTAL (${esc(H.cmd ? "COMMANDE" : H.unit)})</span><b>${fmt(tot)}</b></div>${dlyRdHb(HV, di)}${H.cmd ? "" : dlyGoHb(H, di)}`;
         document.body.appendChild(m);
         const r = b.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
         m.style.left = Math.max(8, Math.min(window.innerWidth - mw - 8, r.left + r.width / 2 - mw / 2)) + "px";
         m.style.top = Math.max(8, r.top - mh - 6) + "px";
         m.addEventListener("click", ev => { if (ev.target.closest(".svt-x")) m.remove(); ev.stopPropagation(); });
       });
+      /* v567 (remarque 10) : bulle — rendement du jour, et pour chaque tâche du jour : CHARGES / PRODUITS / DÉLAIS
+         (la tâche est choisie par les ronds, l'onglet s'ouvre sur ses lignes surlignées) */
+      const dlyRdHb = (HV, di) => { const R = HV && HV.rd; if (!R) return ""; const f = v => (Math.round(v * 100) / 100).toLocaleString("fr-FR");
+        return `<div class="hb-rd"><span>PRODUIT</span><b>${f(R.PQ[di] || 0)} ${esc(R.u)}</b></div><div class="hb-rd"><span>RENDEMENT</span><b>${R.R[di] === null || R.R[di] === undefined ? "—" : f(R.R[di]) + " " + esc(R.u) + " / " + esc(HV.unit)}</b></div>`; };
+      const dlyGoHb = (H, di) => { const K = [...new Set((H.det && H.det[di] || []).map(x => x.k))]; if (!K.length) return "";
+        return `<div class="hb-gos">` + K.map(k => `<div class="hb-go"><span>${esc(lotLab(dlyLotPath(lkName("lot", k.split("|")[0]))).full)} › ${esc(lkName("sec", k.split("|")[1]))}</span>${[["chg", "CHARGES"], ["prd", "PRODUITS"], ["dly", "DÉLAIS"]].map(([t, l]) => `<button type="button" class="hb-gob" data-go="${t}" data-k="${esc(k)}">${l}</button>`).join("")}</div>`).join("") + `</div>`; };
+      document.addEventListener("click", e => {
+        const b = e.target.closest && e.target.closest("#dlyHb .hb-gob[data-go]");
+        if (!b) return;
+        e.stopPropagation(); document.getElementById("dlyHb")?.remove();
+        const [lo, se] = b.dataset.k.split("|");
+        LK.lot = lo; LK.sec = se; LK.prim = null;
+        const tb = document.querySelector(`.bdg-d-tab[data-tab="${b.dataset.go}"]`);
+        if (tb && active !== b.dataset.go) tb.click(); else refreshAll();
+        setTimeout(() => { const r = document.querySelector("#bdgTabBody tr.lk-hit, #bdgTabBody tr.lk-link.lk-hit, #bdgTabBody tr.dly-sel"); if (r) r.scrollIntoView({ block: "center" }); }, 350);
+      }, true);
       document.addEventListener("pointerdown", e => { const m = document.getElementById("dlyHb"); if (m && !m.contains(e.target) && !(e.target.closest && e.target.closest(".ghb"))) m.remove(); }, true);
       /* R3 : signe ▣ d'une tâche incompressible = fenêtre RENDRE COMPRESSIBLE */
       shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dlyg-l .dly-inc[data-key]"); const X = shell.__insDly; if (!b || !X) return; e.stopPropagation(); X.incWin(b.dataset.key); }, true);
