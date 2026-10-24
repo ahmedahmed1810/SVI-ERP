@@ -5066,7 +5066,7 @@ function renderBudgetList() {
       { key: "qlt", title: "DÉTAIL QUALITÉ" },
       { key: "dly", title: "DÉTAIL DÉLAIS" },
       /* budget en instance : les liaisons validées sont un onglet du détail */
-      ...(budget.inst ? [{ key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "lnk", title: "MARGE", ico: "xpl" }] : [])   /* v498 (remarque 37) : MARGE remplace LIAISONS VALIDÉES et EXPLOITATION */
+      ...(budget.inst ? [{ key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "lnk", title: "MARGE", ico: "xpl" }, { key: "gra", title: "GRAPHIQUE", ico: "xpl" }] : [])   /* v498 (remarque 37) : MARGE remplace LIAISONS VALIDÉES et EXPLOITATION */
     ];
 
     /* dernier onglet du détail ouvert (charges, produits, qualité, délais) */
@@ -8480,7 +8480,8 @@ function renderBudgetList() {
         const tot = active === "lnk" ? (INS.links || []).length : active === "inc" ? (INS.inc || []).length : insUnlCount();
         if (b) b.outerHTML = svCnt(ls.rows.length, tot);
       }, 0);
-      if (active === "dly") {
+      /* v584 : onglet GRAPHIQUE = le graphique du DÉTAIL DÉLAIS sur tout le bloc (il reste aussi sous le Gantt) */
+      if (active === "dly" || active === "gra") {
         /* délais : saisis ici (périodes par tâche secondaire ; tâche primaire choisie = récapitulatif) */
         body.innerHTML = `<div class="bdg-d-scroll dly-scroll">${insDlyHTML(INS_EDIT, shell.__insDly && shell.__insDly.err)}</div>`;
         /* v454 : nouvelle tâche choisie par les ronds → le PLANNING défile jusqu'à sa ligne (surlignée) */
@@ -10046,7 +10047,7 @@ function renderBudgetList() {
     const dlyCfgPaint = () => {
       const g = shell.querySelector(".blk-cfg-btn"); if (!g) return;
       const host = shell.querySelector("#dlyGantt"), h = host && host.querySelector(".ghist");
-      const on = active === "dly" && !!shell.__insDly && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone");
+      const on = (active === "dly" || active === "gra") && !!shell.__insDly && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone");
       if (g.classList.contains("dly-on") !== on) g.classList.toggle("dly-on", on);
     };
     /* histogramme (et son libellé, et la poignée « = ») gardé en bas de la zone visible du planning : les tâches défilent dessous */
@@ -10306,7 +10307,7 @@ function renderBudgetList() {
           /* v561 : vue PAR DÉBUT = bandeau jaune pâle avec retour AFFICHER PAR LOT (comme ISOLER) */
           const viewB = dlyView() === "d" ? `<div class="dly-iso dly-vd"><span><b>AFFICHÉ PAR DÉBUT</b></span><small>VUE SEULEMENT : L'ORDRE DES LOTS N'EST PAS CHANGÉ</small><button type="button" class="dly-iso-x dly-vd-x">AFFICHER PAR LOT</button></div>` : "";
           const isoB = viewB + (PR.iso ? `<div class="dly-iso"><span>ISOLÉ : <b>${esc(lotLab(dlyLotPath(PR.iso)).full)}</b></span><small>LIAISONS, DÉCALAGES ET CALENDRIER RESTENT APPLIQUÉS · TÂCHES LIÉES HORS DE LA BRANCHE EN GRIS (LECTURE SEULE)</small><button type="button" class="dly-iso-x">TOUT AFFICHER</button></div>` : "");
-          return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur du graphique">=</span></div>` : ""}</div>`
+          return dls + isoB + `<div class="dlyg${active === "gra" ? " dly-gra tbl-hid" : ""}${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur du graphique">=</span></div>` : ""}</div>`
             /* v549 : plus de bouton « + AJOUTER UNE TÂCHE OU SES DÉLAIS » sous le planning (ligne SAISIR ICI… et menu ⋯) */
             ;
         }
@@ -11250,7 +11251,9 @@ function renderBudgetList() {
         const a = e.target.closest && e.target.closest("#dlyGantt .gax-hit");
         if (!a) return;
         e.stopPropagation();
-        shell.__dlyRule = !shell.__dlyRule; shell.__dlyRuleV = null;
+        /* v584 : toucher l'axe = faire apparaître la règle (l'appui long sur la ligne la fait disparaître) */
+        if (shell.__dlyRule) return;
+        shell.__dlyRule = true; shell.__dlyRuleV = null;
         const host = a.closest("#dlyGantt"); host.__drawn = false; dlyGanttDraw();
       }, true);
       shell.addEventListener("pointerdown", e => {
@@ -11263,11 +11266,13 @@ function renderBudgetList() {
         document.addEventListener("touchmove", tmv, { passive: false });
         /* v577 (remarque 6) : la règle s'aimante sur les valeurs rondes (10 K, 11 K, 12 K…) : petit arrêt ; en continuant à tirer, elle se détache */
         const stp = Number(h.dataset.stp) || 0, p10 = stp ? Math.pow(10, Math.floor(Math.log10(stp))) : 0, fine = p10 ? (stp / p10 <= 1.0001 ? p10 / 10 : p10) : 0;
-        const mv = ev => { ev.preventDefault(); let y = Math.max(4, Math.min(Y0, ev.clientY - h.getBoundingClientRect().top)); let v = (Y0 - y) / sc;
+        const x0 = e.clientX, y0 = e.clientY;
+        const lp = setTimeout(() => { up(); shell.__dlyRule = false; shell.__dlyRuleV = null; const host = h.closest("#dlyGantt"); if (host) { host.__drawn = false; dlyGanttDraw(); } }, 550);
+        const mv = ev => { ev.preventDefault(); if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return; clearTimeout(lp); let y = Math.max(4, Math.min(Y0, ev.clientY - h.getBoundingClientRect().top)); let v = (Y0 - y) / sc;
           let snap = false;
           if (fine > 0) { const r = Math.round(v / fine) * fine, yr = Y0 - r * sc; if (Math.abs(yr - y) <= 7) { v = r; y = yr; snap = true; } }
           shell.__dlyRuleV = v; ln.style.top = y + "px"; sp.textContent = fmt(v); ln.classList.toggle("grule-snap", snap); };
-        const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); };
+        const up = () => { clearTimeout(lp); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); };
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       });
       /* R8 : toucher une barre de l'histogramme = bulle des tâches de ce jour (répartition, fractions comprises) */
@@ -12570,7 +12575,7 @@ function renderBudgetList() {
     const DLY_SER = ["#2e90fa", "#f79009", "#12b76a", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#667085"];
     /* hauteur de l'histogramme : nombre de pixels (28 = miniaturisé en bas) ou « full » (plein écran, à la place du Gantt) */
     /* v546 (R25) : 0 = histogramme entièrement caché (poignée tout en bas) */
-    const dlyHHGet = () => { let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : v === "0" ? 0 : Math.max(28, Math.min(2000, Number(v) || 110)); };
+    const dlyHHGet = () => { if (active === "gra") return "full"; let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : v === "0" ? 0 : Math.max(28, Math.min(2000, Number(v) || 110)); };
     const dlyHHSet = v => { try { localStorage.setItem("svi_dlyhh_v1", String(v)); } catch (e) {} };
     const dlyHSetPut = o => { INS.hset = { ...dlyHSet(), ...o }; insSave(); renderTabK(); };
     /* R19 / R20 : plage DÉBUT – FIN et filtre MIN – MAX (mémorisés par budget) */

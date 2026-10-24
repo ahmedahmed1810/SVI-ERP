@@ -829,7 +829,8 @@
         const tot = active === "lnk" ? (INS.links || []).length : active === "inc" ? (INS.inc || []).length : insUnlCount();
         if (b) b.outerHTML = svCnt(ls.rows.length, tot);
       }, 0);
-      if (active === "dly") {
+      /* v584 : onglet GRAPHIQUE = le graphique du DÉTAIL DÉLAIS sur tout le bloc (il reste aussi sous le Gantt) */
+      if (active === "dly" || active === "gra") {
         /* délais : saisis ici (périodes par tâche secondaire ; tâche primaire choisie = récapitulatif) */
         body.innerHTML = `<div class="bdg-d-scroll dly-scroll">${insDlyHTML(INS_EDIT, shell.__insDly && shell.__insDly.err)}</div>`;
         /* v454 : nouvelle tâche choisie par les ronds → le PLANNING défile jusqu'à sa ligne (surlignée) */
