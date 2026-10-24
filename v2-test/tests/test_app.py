@@ -1454,6 +1454,21 @@ def main():
             I.hset = {{ u: 'q', aff: 'j', cum: 'r' }}; I.appro = {{ dl: 1, cov: 'n', nj: 1, dep: '', seuil: {{ '{GS}': 15 }}, on: true }}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(600)
         ap = pg.evaluate("() => [[...document.querySelectorAll('#dlyGantt .ghb.ghc')].map(b => b.dataset.d), (document.querySelector('#dlyGantt .ghist-cmd .ghist-leg') || {}).textContent || '']")
         check("v543 R17 : APPROVISIONNEMENT PRÉVISIONNEL — seuil par charge et délai d'approvisionnement (commande le 01/11 pour le 02/11)", ap[0] == ["2026-11-01"] and "APPROVISIONNEMENT PRÉVISIONNEL" in ap[1], ap)
+        # v589 : une charge garde sa couleur dans tous les réglages (orange si seule) ; produits bleu, marge verte ; plus de vert ni de gris pour les commandes
+        COLS = """() => { const h = document.querySelector('#dlyGantt .ghist'); if (!h) return null; const S = new Set();
+            h.querySelectorAll('.ghb:not(.ghb-hit):not(.gh-off)').forEach(b => { if (b.classList.contains('ghb-st')) b.querySelectorAll('i').forEach(i => S.add(getComputedStyle(i).backgroundColor)); else S.add(getComputedStyle(b).backgroundColor); });
+            h.querySelectorAll('polyline').forEach(l => S.add(getComputedStyle(l).stroke)); return [...S].filter(c => c && c !== 'none' && c !== 'rgba(0, 0, 0, 0)').sort(); }"""
+        OR, BL, GR, RE, LG = "rgb(247, 144, 9)", "rgb(46, 144, 250)", "rgb(18, 183, 106)", "rgb(217, 45, 32)", "rgb(192, 198, 208)"
+        res = []
+        for cfg, cr, ap_on, allowed in [("{ u: 'q', aff: 'j', cum: 'r', forme: 'h' }", "", True, {OR}), ("{ u: 'q', aff: 'c', cum: 'r', forme: 'h' }", "", True, {OR}),
+                                         ("{ u: 'q', aff: 'c', cum: 'r', forme: 'c' }", "", True, {OR, LG}), ("{ u: 'q', aff: 'j', cum: 'r', forme: 'h' }", "", False, {OR, RE}),
+                                         ("{ u: 'q', aff: 'c', cum: 'r', forme: 'c' }", "", False, {OR, LG}), ("{ u: 'm', aff: 'j', cum: 'r', forme: 'h', crb: ['c', 'p', 'g'] }", "", False, {OR, BL, GR, RE}),
+                                         ("{ u: 'm', aff: 'c', cum: 'r', forme: 'c', crb: ['c', 'p', 'g'] }", "", False, {OR, BL, GR, RE, LG})]:
+            pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.hset = {cfg}; I.appro = {{ dl: 1, cov: 'n', nj: 1, dep: '', seuil: {{}}, on: {'true' if ap_on else 'false'} }}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(500)
+            got = pg.evaluate(COLS) or []
+            res.append([cfg, ap_on, got, set(got) <= allowed and OR in got])
+        check("v589 : CHARGES en orange dans tous les réglages (jour, cumulé, histogramme, courbes, commandes) ; produits bleu, marge verte ; aucune autre couleur",
+              all(r[3] for r in res), [r for r in res if not r[3]])
         # R28 : zone touchée = rubrique en premier ; R29 : vue PAR DÉBUT (numéro du lot, rien d'enregistré)
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.appro = null; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(400)
         pg.evaluate("() => { const h = document.querySelector('#dlyGantt .ghist'); if (h) h.scrollIntoView({ block: 'center' }); }"); pg.wait_for_timeout(200)
