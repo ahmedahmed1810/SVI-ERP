@@ -2511,3 +2511,7 @@ input.dly-gin { box-sizing: border-box; border: 2px solid var(--inst, #b42318) !
 /* v597 : pied du graphique posé sur le bas du Gantt seulement */
 #bdgTabBody > .dlyg-foot { position: absolute; left: 0; width: 0; }
 #bdgTabBody > .dlyg-foot > .dlyf-sc { left: 0 !important; right: 0; width: auto !important; }
+/* v598 : pied du graphique — jamais de sélection de texte ni de loupe de l'iPad ; un glissement vertical ne fait pas défiler la page */
+#bdgTabBody > .dlyg-foot, #bdgTabBody > .dlyg-foot * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#bdgTabBody > .dlyg-foot > .dlyf-sc { touch-action: pan-x; overscroll-behavior: contain; }
+#bdgTabBody > .th-fix, #bdgTabBody > .gh-fix { -webkit-user-select: none; user-select: none; }
