@@ -569,21 +569,34 @@
     const dlyOrders = H => {
       const c = dlyAppro();
       if (!c.on) return null;
-      const dl = Math.max(0, Number(c.dl) || 0), L = {}, det = {};
-      const add = (d, sk, v) => { if (!v) return; L[d] = (L[d] || 0) + v; (det[d] = det[d] || []).push({ sk, v }); };
+      const dl = Math.max(0, Number(c.dl) || 0), L = {}, det = {}, per = {};
+      /* v605 : fin d'une période de couverture ; période couverte par l'envoi d'un jour (bulle : DU … AU …) */
+      const perEnd = p => { if (c.cov === "m") { const [y, m] = p.split("-").map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); } return sviIsoAdd(p, (c.cov === "w" ? 7 : Math.max(1, Number(c.nj) || 30)) - 1); };
+      const span = (d, a, b) => { const o = per[d]; per[d] = o ? { a: a < o.a ? a : o.a, b: b > o.b ? b : o.b } : { a, b }; };
+      const add = (d, sk, v, a, b) => { if (!v) return; L[d] = (L[d] || 0) + v; (det[d] = det[d] || []).push({ sk, v }); span(d, a, b); };
       H.ser.forEach((S, sk) => {
         const per = {};
         Object.keys(S.L).forEach(di => { const p = dlyPerStart(di, c); per[p] = (per[p] || 0) + S.L[di]; });
         const th = Math.max(0, num((c.seuil || {})[sk] || 0) || 0);
-        let acc = 0, first = null;
+        let acc = 0, first = null, last = null;
         Object.keys(per).sort().forEach(p => {
-          acc += per[p]; first = first || p;
-          if (acc >= th - 1e-9) { add(sviIsoAdd(first, -dl), sk, acc); acc = 0; first = null; }
+          acc += per[p]; first = first || p; last = p;
+          if (acc >= th - 1e-9) { add(sviIsoAdd(first, -dl), sk, acc, first, perEnd(last)); acc = 0; first = null; }
         });
-        if (acc > 1e-9 && first) add(sviIsoAdd(first, -dl), sk, acc);
+        if (acc > 1e-9 && first) add(sviIsoAdd(first, -dl), sk, acc, first, perEnd(last));
       });
+      /* v605 (remarque longue 5) : PRODUITS et MARGE de chaque période de couverture (la même pour toutes les charges), posés au jour
+         d'envoi de cette période ; marge = produits − charges consommées dans la période ; les seuils ne jouent que sur les charges */
+      let P = null, G = null;
+      if (H.prd && (H.crb || []).some(x => x === "p" || x === "g")) {
+        const pp = {}, cc = {};
+        Object.keys(H.prd).forEach(di => { const p = dlyPerStart(di, c); pp[p] = (pp[p] || 0) + (H.prd[di] || 0); });
+        Object.keys(H.tot).forEach(di => { const p = dlyPerStart(di, c); cc[p] = (cc[p] || 0) + (H.tot[di] || 0); });
+        P = {}; G = {};
+        new Set([...Object.keys(pp), ...Object.keys(cc)]).forEach(p => { const d = sviIsoAdd(p, -dl); P[d] = (P[d] || 0) + (pp[p] || 0); G[d] = (G[d] || 0) + (pp[p] || 0) - (cc[p] || 0); span(d, p, perEnd(p)); });
+      }
       const cv = c.cov === "w" ? "SEMAINE" : c.cov === "m" ? "MOIS" : (c.nj || 30) + " J";
-      return { L, det, lab: "APPROVISIONNEMENT PRÉVISIONNEL — " + cv + (dl ? " — " + dl + " J D'AVANCE" : "") };
+      return { L, det, per, P, G, lab: "APPROVISIONNEMENT PRÉVISIONNEL — " + cv + (dl ? " — " + dl + " J D'AVANCE" : "") };
     };
     /* libellé à gauche de l'histogramme (sous le tableau) */
     /* v546 (R21) : titre de l'axe = l'unité seule (J-H / JOUR, DH / JOUR, DH CUMULÉS…) */
@@ -686,7 +699,8 @@
         const c3 = [...d.querySelectorAll(".hcf-c:checked")].map(x => x.value);
         d.querySelectorAll(".hcf-mg").forEach(x => { x.hidden = !(c3.length === 1 && c3[0] === "g"); });
         d.querySelectorAll(".hcf-rd").forEach(x => { x.hidden = !c3.includes("r"); });
-        if (setOff(lab('input[name="hcd"][value="o"]'), c3.some(x => x !== "c"), "COMMANDES : SEULEMENT AVEC LA COURBE CHARGES.")) pick("hcd", "c");
+        /* v605 (remarque longue 5) : COMMANDES possibles avec PRODUITS / MARGE (en montant) ; impossibles avec le RENDEMENT ; CHARGES obligatoire */
+        if (setOff(lab('input[name="hcd"][value="o"]'), c3.includes("r") || !c3.includes("c"), c3.includes("r") ? "COMMANDES : IMPOSSIBLE AVEC LE RENDEMENT." : "COMMANDES : COCHER AUSSI LA COURBE CHARGES.")) pick("hcd", "c");
         d.querySelectorAll(".hcf-apr").forEach(x => { x.hidden = val("hcd") !== "o"; });
         segs();
       };

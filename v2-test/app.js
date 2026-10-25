@@ -9861,7 +9861,7 @@ function renderBudgetList() {
           const hideC = hasRd && !crb.includes("c") && !C;
           const RG = dlyHRange(), VL = { min: null, max: null }, inR = di => (!RG.a || di >= RG.a) && (!RG.b || di <= RG.b);
           const cur = dlyCurGK(), canP = !C && !cum && !curve && !multi && !hideC && !!cur && !!HD.R, IB = canP ? 14 : 0;
-          const days = [...new Set(Object.keys(C ? C.L : HD.tot).concat(multi ? Object.keys(HD.prd || {}) : []))].sort();
+          const days = [...new Set(Object.keys(C ? C.L : HD.tot).concat(multi ? Object.keys(HD.prd || {}) : []).concat(C && C.P && (sP || sG) ? Object.keys(C.P) : []))].sort();
           /* valeurs par jour (ou cumul : relatif = repart de 0 au trait DÉBUT) */
           const cumOf = get => { const o = {}; let t = 0, b = 0; days.forEach(di => { const v = get(di); if (hs.cum === "r" && RG.a && di < RG.a) b += v; t += v; o[di] = t - b; }); return o; };
           const gC = di => HD.tot[di] || 0, gP = di => (HD.prd || {})[di] || 0, gG = di => gP(di) - gC(di);
@@ -9872,6 +9872,9 @@ function renderBudgetList() {
           else Object.assign(val, cumOf(gC));
           const vP = multi ? (cum ? cumOf(gP) : Object.fromEntries(days.map(di => [di, gP(di)]))) : {};
           const vG = multi ? (cum ? cumOf(gG) : Object.fromEntries(days.map(di => [di, gG(di)]))) : {};
+          /* v605 (remarque longue 5) : avec les COMMANDES, PRODUITS et MARGE de la période couverte, au jour de l'envoi (cumulés : en escalier) */
+          const cPG = !!(C && C.P && (sP || sG));
+          if (cPG) { const cu = M => cum ? cumOf(di => M[di] || 0) : Object.fromEntries(days.map(di => [di, M[di] || 0])); if (sP) Object.assign(vP, cu(C.P)); if (sG) Object.assign(vG, cu(C.G)); }
           /* v600 : MARGE seule en % = marge ÷ produits × 100 (par jour, ou sur le cumul en CUMULÉE) ; jour sans produit = pas de valeur */
           const mgP = multi && sG && !sC && !sP && hs.mg === "p";
           if (mgP) Object.keys(vG).forEach(di => { const P = vP[di]; if (Math.abs(P || 0) > 1e-9) vG[di] = vG[di] / P * 100; else delete vG[di]; });
@@ -9917,7 +9920,10 @@ function renderBudgetList() {
           if (hideC) vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           else if (C && !curve) {
             /* v589 : commandes prévisionnelles — barres fines hachurées, empilées à la couleur de chaque charge commandée */
-            const cw = Math.max(1, Math.round(bw * .55)), co = bo + Math.round((bw - cw) / 2), acc = {};
+            const nb = 1 + (cPG && sP ? 1 : 0) + (cPG && sG ? 1 : 0), w1 = bw / nb;
+            const cw = nb > 1 ? Math.max(1, w1) : Math.max(1, Math.round(bw * .55)), co = nb > 1 ? bo : bo + Math.round((bw - cw) / 2), acc = {};
+            if (nb > 1) vis.forEach(di => [...(sP ? [[vP, CP]] : []), ...(sG ? [[vG, CG]] : [])].forEach(([M, c], j) => { const v = M[di] || 0; if (!v) return;
+              hb += `<div class="ghb ghb-m${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo + (j + 1) * w1}px;width:${w1}px;top:${Y0 - Math.max(v, 0) * sc}px;bottom:auto;height:${Math.max(1, Math.abs(v) * sc)}px;background:${c === CG && v < 0 ? CGN : c}"></div>`; }));
             vis.forEach(di => {
               const P = {}; (C.det[di] || []).forEach(x => { P[x.sk] = (P[x.sk] || 0) + x.v; });
               if (cum) { Object.keys(P).forEach(sk => { acc[sk] = (acc[sk] || 0) + P[sk]; }); Object.keys(acc).forEach(sk => { P[sk] = acc[sk]; }); }
@@ -9948,7 +9954,9 @@ function renderBudgetList() {
             /* v562 : courbe continue — grise sur toute la durée, puis en couleur seulement sur les jours retenus (plage DÉBUT – FIN, MIN – MAX) ;
                plus de voile blanc jour par jour (rayures quand la largeur d'un jour n'est pas entière) */
             const runs = []; { let cur = []; vis.forEach(di => { if (pass(di)) cur.push(di); else { if (cur.length) runs.push(cur); cur = []; } }); if (cur.length) runs.push(cur); }
-            const poly = (L, M, c) => `<polyline points="${L.map(di => pt(di, M[di] || 0)).join(" ")}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+            /* v605 : commandes cumulées = escalier, une marche à chaque envoi */
+            const stepPts = (L, M) => L.map((di, i) => (i ? `${X(di) + DLY_DW / 2},${Y0 - (M[L[i - 1]] || 0) * sc} ` : "") + pt(di, M[di] || 0)).join(" ");
+            const poly = (L, M, c) => `<polyline points="${C && cum ? stepPts(L, M) : L.map(di => pt(di, M[di] || 0)).join(" ")}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
             /* v587 : la couleur s'arrête exactement aux traits DÉBUT et FIN (gris à l'extérieur seulement) */
             const cxa = RG.a ? X(RG.a) : 0, cxb = RG.b ? X(RG.b) + DLY_DW : W, part = !!(RG.a || RG.b);
             if (part) svg += `<defs><clipPath id="ghRgClip"><rect x="${cxa}" y="-10" width="${Math.max(0, cxb - cxa)}" height="${HH + 20}"/></clipPath></defs>`;
@@ -10008,12 +10016,12 @@ function renderBudgetList() {
               }
             });
           }
-          host.__HV = { hsup, cum, curve, hideC, multi, val, vP, vG, mgP, unit: mgP ? "%" : HD.unit, rd: RD ? { PQ: rdPQ, PQs: rdPQ.__s || 0, S: rdS, u: RD.u } : null };
+          host.__HV = { cPG, hsup, cum, curve, hideC, multi, val, vP, vG, mgP, unit: mgP ? "%" : HD.unit, rd: RD ? { PQ: rdPQ, PQs: rdPQ.__s || 0, S: rdS, u: RD.u } : null };
           const late = INS.dbut && dlyEnd(dlyCurDates()) > INS.dbut;
           const legI = (c, t) => `<span><b style="background:${c}"></b>${esc(t)}</span>`;
           const legRd = HD.rd ? (HD.rd.ser ? (crb.includes("p") ? legI("#2e90fa", "PRODUIT — " + lkName("sec", HD.rd.sec) + " (" + HD.rd.u + ")") : "") + rdS.map(s => legI(s.c, "RENDEMENT " + s.name + " (" + HD.rd.u + " / " + s.u + ")")).join("")
               + (HD.rd.miss || []).map(sk => `<span class="grd-miss">${esc(sk.split("|")[0])} — PAS DANS CETTE ACTIVITÉ</span>`).join("") : `<span class="grd-why">${esc(HD.rd.why)}</span>`) : "";
-          const leg0 = C ? "" : multi ? `<div class="ghist-leg">${(sC ? legI(CC, "CHARGES") : "") + (sP ? legI(CP, "PRODUITS") : "") + (sG ? legI(CG, "MARGE") : "")}</div>`
+          const leg0 = C ? (cPG ? `<div class="ghist-leg">${legI(CC, "COMMANDES") + (sP ? legI(CP, "PRODUITS DE LA PÉRIODE") : "") + (sG ? legI(CG, "MARGE DE LA PÉRIODE") : "")}</div>` : "") : multi ? `<div class="ghist-leg">${(sC ? legI(CC, "CHARGES") : "") + (sP ? legI(CP, "PRODUITS") : "") + (sG ? legI(CG, "MARGE") : "")}</div>`
             : cum ? (ks.length > 1 ? `<div class="ghist-leg">${legI("#f79009", "TOTAL DES " + ks.length + " CHARGES")}</div>` : "")
             : ks.length > 1 ? `<div class="ghist-leg">${totS.filter(x => keep.has(x[0])).map(([sk]) => legI(col[sk], sk.split("|")[0])).join("")}${totS.some(x => !keep.has(x[0])) ? legI("#7f5539", "AUTRES (" + totS.filter(x => !keep.has(x[0])).length + ")") : ""}</div>` : "";
           const leg = legRd ? (hideC ? `<div class="ghist-leg">${legRd}</div>` : leg0 ? leg0.replace(/<\/div>$/, legRd + "</div>") : `<div class="ghist-leg">${legI(cum ? "#f79009" : "#f79009", "CHARGES (" + HD.unit + ")")}${legRd}</div>`) : leg0;
@@ -10037,7 +10045,8 @@ function renderBudgetList() {
           const sum = days.filter(di => inR(di) && pass(di)).reduce((t, di) => t + (C ? C.L[di] : gC(di)), 0);
           /* v563 (remarque 3) : total de la plage pour chaque courbe affichée (CHARGES, PRODUITS, MARGE), pas seulement les charges */
           const sumOf = g => days.filter(di => inR(di) && pass(di)).reduce((t, di) => t + g(di), 0);
-          const sumTxt = C || !multi ? fmtA(sum) + " " + esc(HD.unit)
+          const sumTxt = cPG && !cum ? ["COMMANDES " + fmtA(sum)].concat(sP ? ["PRODUITS " + fmtA(sumOf(di => C.P[di] || 0))] : [], sG ? ["MARGE " + fmtA(sumOf(di => C.G[di] || 0))] : []).join(" · ") + " DH"
+            : C || !multi ? fmtA(sum) + " " + esc(HD.unit)
             : mgP ? (() => { const p = sumOf(gP); return "MARGE " + (Math.abs(p) > 1e-9 ? fmtA(sumOf(gG) / p * 100) + " %" : "—"); })()
             : [...(sC ? [["CHARGES", gC]] : []), ...(sP ? [["PRODUITS", gP]] : []), ...(sG ? [["MARGE", gG]] : [])].map(([l, g]) => l + " " + fmtA(sumOf(g)) + " DH").join(" · ");
           const rng = `<div class="grng${RG.a ? "" : " grng-off"}" data-r="a" style="left:${xa}px"><span>DÉBUT${RG.a ? " " + dFr(RG.a).slice(0, 5) : ""}</span></div>`
@@ -10079,7 +10088,7 @@ function renderBudgetList() {
          la partie qui a des valeurs (du premier au dernier jour non nul) est centrée à l'écran ; plus large que l'écran : son début */
       if ((shell.__dlyCenter || shell.__dlyGx === undefined) && HD) {
         shell.__dlyCenter = false;
-        const nz = new Set(); [HD.tot, HD.prd, HD.cmd && HD.cmd.L].forEach(M => M && Object.keys(M).forEach(k => { if (Math.abs(M[k] || 0) > 1e-9) nz.add(k); }));
+        const nz = new Set(); [HD.tot, HD.prd, HD.cmd && HD.cmd.L, HD.cmd && HD.cmd.P].forEach(M => M && Object.keys(M).forEach(k => { if (Math.abs(M[k] || 0) > 1e-9) nz.add(k); }));
         const L = [...nz].sort();
         if (L.length) { const x1 = X(L[0]), x2 = X(L[L.length - 1]) + DLY_DW, w = host.clientWidth;
           const t = x2 - x1 <= w ? (x1 + x2) / 2 - w / 2 : x1 - 2 * DLY_DW;
@@ -11475,7 +11484,7 @@ function renderBudgetList() {
         if (HV.cum || HV.multi) {
           /* v546 (R15, R29) : en CUMULÉ, la date et le total à ce jour ; avec PRODUITS / MARGE, une ligne par grandeur */
           const m = document.createElement("div"); m.id = "dlyHb";
-          const L = [["CHARGES", HV.val], ["PRODUITS", HV.vP], ["MARGE", HV.vG]].filter(x => x[1] && Object.keys(x[1]).length && (x[0] === "CHARGES" ? !HV.hideC && (!HV.multi || (H.crb || []).includes("c")) : (H.crb || []).includes(x[0] === "PRODUITS" ? "p" : "g")));
+          const L = [[H.cmd ? "COMMANDES" : "CHARGES", HV.val], ["PRODUITS", HV.vP], ["MARGE", HV.vG]].filter(x => x[1] && Object.keys(x[1]).length && (x[0] !== "PRODUITS" && x[0] !== "MARGE" ? !HV.hideC && (!HV.multi || (H.crb || []).includes("c")) : (H.crb || []).includes(x[0] === "PRODUITS" ? "p" : "g")));
           m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}${HV.cum ? " — CUMUL À CE JOUR" : ""}</div>` + L.map(([t, M]) => `<div><span>${t}</span><b>${fmt(M[di] || 0)} ${esc(HV.unit)}</b></div>`).join("") + dlyRdHb(HV, di) + dlyGoHb(H, di);
           document.body.appendChild(m);
           const r = b.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
@@ -11483,11 +11492,14 @@ function renderBudgetList() {
           m.addEventListener("click", ev => { if (ev.target.closest(".svt-x")) m.remove(); ev.stopPropagation(); });
           return;
         }
-        if (H.cmd) { tot = H.cmd.L[di] || 0; rows = `<div>${esc(H.cmd.lab)}</div>` + (H.cmd.det[di] || []).map(x => `<div><span>${esc(x.sk.split("|")[0])}</span><b>${fmt(x.v)}</b></div>`).join(""); }
+        let ext = "";
+        if (H.cmd) { const C = H.cmd, pr = (C.per || {})[di]; tot = C.L[di] || 0; rows = `<div>${esc(C.lab)}</div>` + (pr ? `<div><span>PÉRIODE</span><b>DU ${esc(dFr(pr.a))} AU ${esc(dFr(pr.b))}</b></div>` : "") + (C.det[di] || []).map(x => `<div><span>${esc(x.sk.split("|")[0])}</span><b>${fmt(x.v)}</b></div>`).join("");
+          /* v605 (remarque longue 5) : PRODUITS et MARGE de la période */
+          if (HV.cPG) { if ((H.crb || []).includes("p")) ext += `<div class="hb-tot"><span>PRODUITS (DH)</span><b>${fmt((C.P || {})[di] || 0)}</b></div>`; if ((H.crb || []).includes("g")) { const g = (C.G || {})[di] || 0; ext += `<div class="hb-tot${g < 0 ? " hb-neg" : ""}"><span>MARGE (DH)</span><b>${fmt(g)}</b></div>`; } } }
         else (H.det[di] || []).forEach(x => { tot += x.v; rows += `<div><span>${esc(lotLab(dlyLotPath(lkName("lot", x.k.split("|")[0]))).full)} › ${esc(lkName("sec", x.k.split("|")[1]))}${x.inc ? " ▣" : ""}</span><b>${fmt(x.v)}</b></div>`; });
         const m = document.createElement("div");
         m.id = "dlyHb";
-        m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}</div>${rows}<div class="hb-tot"><span>TOTAL (${esc(H.cmd ? "COMMANDE" : H.unit)})</span><b>${fmt(tot)}</b></div>${HV.hsup && HV.hsup[di] ? `<div class="hb-hs"><span>HEURES SUP (RENDEMENT RÉGLÉ)</span><b>${fmt(HV.hsup[di])} H</b></div>` : ""}${dlyRdHb(HV, di)}${H.cmd ? "" : dlyGoHb(H, di)}`;
+        m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}</div>${rows}<div class="hb-tot"><span>TOTAL (${esc(H.cmd ? "COMMANDE" : H.unit)})</span><b>${fmt(tot)}</b></div>${ext}${HV.hsup && HV.hsup[di] ? `<div class="hb-hs"><span>HEURES SUP (RENDEMENT RÉGLÉ)</span><b>${fmt(HV.hsup[di])} H</b></div>` : ""}${dlyRdHb(HV, di)}${H.cmd ? "" : dlyGoHb(H, di)}`;
         document.body.appendChild(m);
         const r = b.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
         m.style.left = Math.max(8, Math.min(window.innerWidth - mw - 8, r.left + r.width / 2 - mw / 2)) + "px";
@@ -12932,21 +12944,34 @@ function renderBudgetList() {
     const dlyOrders = H => {
       const c = dlyAppro();
       if (!c.on) return null;
-      const dl = Math.max(0, Number(c.dl) || 0), L = {}, det = {};
-      const add = (d, sk, v) => { if (!v) return; L[d] = (L[d] || 0) + v; (det[d] = det[d] || []).push({ sk, v }); };
+      const dl = Math.max(0, Number(c.dl) || 0), L = {}, det = {}, per = {};
+      /* v605 : fin d'une période de couverture ; période couverte par l'envoi d'un jour (bulle : DU … AU …) */
+      const perEnd = p => { if (c.cov === "m") { const [y, m] = p.split("-").map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); } return sviIsoAdd(p, (c.cov === "w" ? 7 : Math.max(1, Number(c.nj) || 30)) - 1); };
+      const span = (d, a, b) => { const o = per[d]; per[d] = o ? { a: a < o.a ? a : o.a, b: b > o.b ? b : o.b } : { a, b }; };
+      const add = (d, sk, v, a, b) => { if (!v) return; L[d] = (L[d] || 0) + v; (det[d] = det[d] || []).push({ sk, v }); span(d, a, b); };
       H.ser.forEach((S, sk) => {
         const per = {};
         Object.keys(S.L).forEach(di => { const p = dlyPerStart(di, c); per[p] = (per[p] || 0) + S.L[di]; });
         const th = Math.max(0, num((c.seuil || {})[sk] || 0) || 0);
-        let acc = 0, first = null;
+        let acc = 0, first = null, last = null;
         Object.keys(per).sort().forEach(p => {
-          acc += per[p]; first = first || p;
-          if (acc >= th - 1e-9) { add(sviIsoAdd(first, -dl), sk, acc); acc = 0; first = null; }
+          acc += per[p]; first = first || p; last = p;
+          if (acc >= th - 1e-9) { add(sviIsoAdd(first, -dl), sk, acc, first, perEnd(last)); acc = 0; first = null; }
         });
-        if (acc > 1e-9 && first) add(sviIsoAdd(first, -dl), sk, acc);
+        if (acc > 1e-9 && first) add(sviIsoAdd(first, -dl), sk, acc, first, perEnd(last));
       });
+      /* v605 (remarque longue 5) : PRODUITS et MARGE de chaque période de couverture (la même pour toutes les charges), posés au jour
+         d'envoi de cette période ; marge = produits − charges consommées dans la période ; les seuils ne jouent que sur les charges */
+      let P = null, G = null;
+      if (H.prd && (H.crb || []).some(x => x === "p" || x === "g")) {
+        const pp = {}, cc = {};
+        Object.keys(H.prd).forEach(di => { const p = dlyPerStart(di, c); pp[p] = (pp[p] || 0) + (H.prd[di] || 0); });
+        Object.keys(H.tot).forEach(di => { const p = dlyPerStart(di, c); cc[p] = (cc[p] || 0) + (H.tot[di] || 0); });
+        P = {}; G = {};
+        new Set([...Object.keys(pp), ...Object.keys(cc)]).forEach(p => { const d = sviIsoAdd(p, -dl); P[d] = (P[d] || 0) + (pp[p] || 0); G[d] = (G[d] || 0) + (pp[p] || 0) - (cc[p] || 0); span(d, p, perEnd(p)); });
+      }
       const cv = c.cov === "w" ? "SEMAINE" : c.cov === "m" ? "MOIS" : (c.nj || 30) + " J";
-      return { L, det, lab: "APPROVISIONNEMENT PRÉVISIONNEL — " + cv + (dl ? " — " + dl + " J D'AVANCE" : "") };
+      return { L, det, per, P, G, lab: "APPROVISIONNEMENT PRÉVISIONNEL — " + cv + (dl ? " — " + dl + " J D'AVANCE" : "") };
     };
     /* libellé à gauche de l'histogramme (sous le tableau) */
     /* v546 (R21) : titre de l'axe = l'unité seule (J-H / JOUR, DH / JOUR, DH CUMULÉS…) */
@@ -13049,7 +13074,8 @@ function renderBudgetList() {
         const c3 = [...d.querySelectorAll(".hcf-c:checked")].map(x => x.value);
         d.querySelectorAll(".hcf-mg").forEach(x => { x.hidden = !(c3.length === 1 && c3[0] === "g"); });
         d.querySelectorAll(".hcf-rd").forEach(x => { x.hidden = !c3.includes("r"); });
-        if (setOff(lab('input[name="hcd"][value="o"]'), c3.some(x => x !== "c"), "COMMANDES : SEULEMENT AVEC LA COURBE CHARGES.")) pick("hcd", "c");
+        /* v605 (remarque longue 5) : COMMANDES possibles avec PRODUITS / MARGE (en montant) ; impossibles avec le RENDEMENT ; CHARGES obligatoire */
+        if (setOff(lab('input[name="hcd"][value="o"]'), c3.includes("r") || !c3.includes("c"), c3.includes("r") ? "COMMANDES : IMPOSSIBLE AVEC LE RENDEMENT." : "COMMANDES : COCHER AUSSI LA COURBE CHARGES.")) pick("hcd", "c");
         d.querySelectorAll(".hcf-apr").forEach(x => { x.hidden = val("hcd") !== "o"; });
         segs();
       };

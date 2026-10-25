@@ -2530,3 +2530,4 @@ input.dly-gin { box-sizing: border-box; border: 2px solid var(--inst, #b42318) !
 .grdm > span { position: sticky; left: 44px; display: inline-block; margin-top: -13px; font-size: 8px; font-weight: 800; color: #667085; background: rgba(255,255,255,.85); padding: 0 3px; }
 .ghb-hs { position: absolute; pointer-events: none; z-index: 2; background: repeating-linear-gradient(45deg, #7a5af8 0 3px, rgba(122,90,248,.25) 3px 6px); box-shadow: inset 0 0 0 1px #7a5af8; }
 #dlyHb .hb-hs { color: #7a5af8; font-weight: 800; }
+#dlyHb .hb-neg b { color: #d92d20; }
