@@ -585,6 +585,9 @@
           <span class="hcf-k">FORME</span><span class="hcf-sw">${(() => { const fo = h.forme || (dlyAppro().on && R ? "h" : crb.includes("r") ? "c" : h.aff === "c" ? "c" : "h"); return rad("hcf", "h", "HISTOGRAMME", fo === "h") + rad("hcf", "c", "COURBES", fo === "c"); })()}</span>
           <span class="hcf-k">POINT DE DÉPART</span><span class="hcf-sw">${rad("hcc", "r", "DEPUIS LE TRAIT DÉBUT", h.cum !== "a")}${rad("hcc", "a", "DEPUIS LE DÉBUT DU PROJET", h.cum === "a")}</span>
           <span class="hcf-k">COURBES</span><span class="hcf-cbs">${[["c", "CHARGES"], ["p", "PRODUITS"], ["g", "MARGE"], ["r", "RENDEMENT"]].map(([v, l]) => `<label${v === "r" && !R ? ' class="off" data-why="RENDEMENT : COCHER DES CHARGES DANS DÉTAIL CHARGES ET CHOISIR UNE ACTIVITÉ DANS TÂCHES."' : ""}><input type="checkbox" class="hcf-c" value="${v}"${crb.includes(v) && (v !== "r" || R) ? " checked" : ""}${v === "r" && !R ? " disabled" : ""}><span>${l}</span></label>`).join("")}</span>
+          ${(() => { const only = crb.length === 1 && crb[0] === "g", hid = only ? "" : " hidden";
+            /* v600 : MARGE cochée seule — NETTE (DH) ou % (marge ÷ produits) */
+            return `<span class="hcf-k hcf-mg"${hid}>MARGE</span><span class="hcf-sw hcf-mg"${hid}>${rad("hcm", "n", "NETTE (DH)", h.mg !== "p")}${rad("hcm", "p", "%", h.mg === "p")}</span>`; })()}
           <span class="hcf-k">LÉGENDE</span><span class="hcf-pl">CHARGES QUI FONT <input class="hcf-pct" inputmode="numeric" value="${esc(String(h.pct || 70))}"> %</span>
           <span class="hcf-k">DONNÉES</span><span class="hcf-sw">${rad("hcd", "c", "CONSOMMATION", !(dlyAppro().on && R))}${rad("hcd", "o", "COMMANDES", !!(dlyAppro().on && R), !R).replace("QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ.", "COMMANDES : COCHER DES CHARGES DANS DÉTAIL CHARGES.")}</span>
           ${(() => { const a = dlyAppro(), hid = a.on && R ? "" : " hidden";
@@ -599,6 +602,8 @@
       d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".hcf-seg input"); if (!i) return; i.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked));
         if (i.name === "hcd") d.querySelectorAll(".hcf-apr").forEach(x => { x.hidden = i.value !== "o"; });
         if (i.name === "aprc") d.querySelector(".apr-nj").disabled = i.value !== "n"; });
+      d.addEventListener("change", e => { if (!(e.target.classList && e.target.classList.contains("hcf-c"))) return;
+        const c = [...d.querySelectorAll(".hcf-c:checked")].map(x => x.value); d.querySelectorAll(".hcf-mg").forEach(x => { x.hidden = !(c.length === 1 && c[0] === "g"); }); });
       d.addEventListener("click", e => {
         { const o = e.target.closest && e.target.closest(".hcf-seg.off[data-why], .hcf-cbs label.off[data-why]"); if (o) { svToast(o.dataset.why, 3500, o); return; } }
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
@@ -614,7 +619,7 @@
           const qq = d.querySelector('input[name="hcu"][value="q"]'); if (qq && !qq.disabled) qq.checked = true;
         }
         const v = n => (d.querySelector(`input[name="${n}"]:checked`) || {}).value;
-        INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc), forme: v("hcf") || "h" };
+        INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc), forme: v("hcf") || "h", mg: v("hcm") || h.mg || "n" };
         /* v566 (remarque 9) / v572 (remarque 17) : COMMANDES = données du graphique ; ses réglages sont lus ici */
         const on = v("hcd") === "o", A0 = dlyAppro();
         if (on) {
