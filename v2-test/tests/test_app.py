@@ -92,6 +92,16 @@ def main():
         check("TOTAL PARTIEL suivant une case cochée ailleurs (remarque 23)", "TOTAL PARTIEL" in foot, foot[:80])
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.sec.forEach(x => x.on = false); X.insFoots(); }}")
 
+        # v593 (remarque longue 3) : le bloc coché en premier garde toute sa liste ; le bloc coché ensuite n'est réduit que par le premier
+        lr3 = pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; const sh = [...document.querySelectorAll('*')].find(e => e.__ins); sh.__ckOrd = [];
+            const n = k => X.insShown(k).filter(r => !r.t).length, all = k => I[k].filter(r => !r.t).length;
+            const s0 = I.des.find(r => !r.t); s0.on = true; X.refreshAll();
+            const a = [n('des') === all('des'), n('chg')];
+            const c0 = I.chg.find(r => !r.t && X.insShown('chg').includes(r)) || I.chg.find(r => !r.t); c0.on = true; X.refreshAll();
+            const b = [n('des') === all('des'), n('chg'), sh.__ckOrd.join(',')];
+            s0.on = false; c0.on = false; X.refreshAll(); return [a, b, sh.__ckOrd.length]; }}""")
+        check("v593 (remarque longue 3) : DÉSIGNATION CLIENT cochée en premier → sa liste reste entière, même après une charge cochée ; DÉTAIL CHARGES réduit par elle seule",
+              lr3[0][0] and lr3[1][0] and lr3[1][1] == lr3[0][1] and lr3[1][2] == "des,chg" and lr3[2] == 0, lr3)
         # remarque 24 : lignes copiées dans Excel collées en bas de DÉSIGNATIONS CLIENT
         n0 = pg.evaluate(f"() => {ins}.INS.des.length")
         pg.evaluate("() => navigator.clipboard.writeText('ART\\tDÉSIGNATION\\tU\\n2\\tENDUIT\\tM2\\n3\\tPEINTURE\\tM2\\tEN TROP')")

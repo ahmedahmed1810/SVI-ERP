@@ -917,21 +917,39 @@
        seules les lignes liées à ce qui y est coché comptent (blocs combinés : ET) */
     /* liaisons retenues par les cases cochées des blocs autres que k (null : aucune case cochée ailleurs) ; mémorisé un instant */
     var ICL = null;
+    /* v593 (remarque longue 3) : ordre dans lequel les blocs ont reçu leur première case cochée (pour ce budget ouvert) */
+    const insIsoPath = () => { try { return dlyIsoPath() || ""; } catch (e) { return ""; } };
+    const insCkOrd = () => {
+      const has = {
+        des: 0, lot: 0, prim: 0, sec: 0, prd: 0, chg: 0,
+        lnk: (INS.links || []).some(l => l.on === true), dly: !!(shell.__dlySel && shell.__dlySel.size), iso: !!insIsoPath()
+      };
+      ["des", "lot", "prim", "sec", "prd", "chg"].forEach(x => { has[x] = (INS[x] || []).some(r => !r.t && r.on === true); });
+      const o = (shell.__ckOrd || []).filter(x => has[x]);
+      Object.keys(has).forEach(x => { if (has[x] && !o.includes(x)) o.push(x); });
+      shell.__ckOrd = o;
+      return o;
+    };
     const insCheckLinks = k => {
       if (!INS) return null;
       /* mémoire valable pour un seul dessin (vidée dès la fin de la tâche en cours) */
       if (!ICL) { ICL = { m: {} }; queueMicrotask(() => { ICL = null; }); }
       if (k in ICL.m) return ICL.m[k];
-      const B = ["des", "lot", "prim", "sec", "prd", "chg"].filter(x => x !== k);
+      /* v593 (remarque longue 3) : le bloc coché en premier garde toute sa liste ; chaque bloc n'est réduit que par les blocs cochés
+         AVANT lui (un bloc sans case cochée est réduit par tous) ; les coches se cumulent. ISOLER (Gantt) réduit aussi les autres blocs. */
+      const ord = insCkOrd(), at = ord.indexOf(k), A = new Set(at >= 0 ? ord.slice(0, at) : ord);
+      const B = ["des", "lot", "prim", "sec", "prd", "chg"].filter(x => x !== k && A.has(x));
       const C = {};
       B.forEach(x => { const ids = (INS[x] || []).filter(r => !r.t && r.on === true).map(r => r.id); if (ids.length) C[x] = new Set(ids); });
       /* v498 (remarque 37) : liaisons cochées de l'onglet MARGE — elles filtrent aussi les autres blocs */
-      const lon = k !== "lnk" && (INS.links || []).some(l => l.on === true);
+      const lon = k !== "lnk" && A.has("lnk");
       /* v537 : tâches cochées du PLANNING (DÉTAIL DÉLAIS) — elles filtrent aussi les autres blocs, comme toutes les cases carrées */
-      const DS = k !== "dly" && shell.__dlySel && shell.__dlySel.size ? shell.__dlySel : null;
+      const DS = k !== "dly" && A.has("dly") ? shell.__dlySel : null;
+      const IP = k !== "dly" && A.has("iso") ? U_(insIsoPath()) : "";
+      const inIso = l => { const v = U_(((INS.lot || []).find(x => x.id === l.lot) || {}).v || ""); return v === IP || v.startsWith(IP + " / "); };
       const ks = Object.keys(C);
-      const out = !ks.length && !lon && !DS ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
-        && (!lon || l.on === true) && (!DS || DS.has(l.lot + "|" + l.sec)));
+      const out = !ks.length && !lon && !DS && !IP ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
+        && (!lon || l.on === true) && (!DS || DS.has(l.lot + "|" + l.sec)) && (!IP || inIso(l)));
       ICL.m[k] = out;
       return out;
     };
