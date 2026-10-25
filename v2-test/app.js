@@ -10010,7 +10010,11 @@ function renderBudgetList() {
                     const l = g2.d ? Math.max(0, X(g2.d)) : 0, nx = segs[j + 1], r = nx ? Math.min(W, X(nx.d)) : W, y = yP(g2.n);
                     if (r <= l) return;
                     hb += `<div class="grdb" data-sk="${esc(S.sk)}" data-sec="${esc(sec)}" data-seg="${g2.i}" data-ref="${ref}" data-s="${sR2}" data-pct="${g2.n}" style="top:${y}px;left:${l}px;width:${r - l}px;--c:${c}"><span class="grdb-v">${g2.d && j ? dFr(g2.d).slice(0, 5) + " : " : ""}RENDEMENT ${esc(labP(g2.n))}${g2.n > 100 ? " — HEURES SUP " + fmtV((g2.n - 100) / 100 * 8) + " H / J" : ""}</span></div>`
-                      + (j && g2.d ? `<span class="grdc" data-sk="${esc(S.sk)}" data-sec="${esc(sec)}" data-i="${g2.i}" style="left:${l - 7}px;top:${y - 10}px" role="button" title="SUPPRIMER LA COUPE">/</span>` : "");
+                      /* v608 (remarque 83) : « / » de la coupe à la couleur de la droite ; trait vertical en pointillés à la coupe,
+                         qui relie le morceau d'avant, celui d'après et les bornes MIN / MAX */
+                      + (j && g2.d ? (() => { const yp = yP(segs[j - 1].n), t = Math.min(yp, y, yP(Lm.max)), b = Math.max(yp, y, yP(Lm.min));
+                          return `<div class="grdj" style="left:${l}px;top:${t}px;height:${b - t}px;--c:${c}"></div>`; })()
+                        + `<span class="grdc" data-sk="${esc(S.sk)}" data-sec="${esc(sec)}" data-i="${g2.i}" style="left:${l - 7}px;top:${y - 10}px;--c:${c}" role="button" title="SUPPRIMER LA COUPE">/</span>` : "");
                   });
                 }
               }
