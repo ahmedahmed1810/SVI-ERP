@@ -42,7 +42,7 @@
         let P0 = null;
         const dist = t => Math.abs(t[0].clientX - t[1].clientX), distY = t => Math.abs(t[0].clientY - t[1].clientY);
         shell.addEventListener("touchstart", e => {
-          const host = e.target.closest && e.target.closest("#dlyGantt");
+          const host = e.target.closest && e.target.closest("#dlyGantt, .dlyg-foot") && shell.querySelector("#dlyGantt");   /* v594 : graphique dans le pied fixe */
           if (!host || e.touches.length !== 2) return;
           const hr = host.getBoundingClientRect(), mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - hr.left;
           /* écarter à l'horizontale = largeur des jours ; à la verticale = hauteur des lignes et des barres (sens choisi au premier mouvement) */
@@ -103,7 +103,7 @@
         const NOV = ".gplaf, .gcut, .grng, .grng-h, .grule, .gax-hit, .gval, .dlyg-hh";
         shell.addEventListener("touchstart", e => {
           V = null;
-          const gh = e.target.closest && e.target.closest("#dlyGantt .ghist");
+          const gh = e.target.closest && e.target.closest(".dlyg-foot .ghist");
           if (!gh || e.touches.length !== 1) return;
           const t = e.touches[0];
           V = { x: t.clientX, y: t.clientY, t: Date.now(), gh, zoom: (shell.__dlyYZ || 1) > 1.01 && !e.target.closest(NOV), mode: "", yo: shell.__dlyYO || 0, sc: +gh.dataset.sc || 1, mv: false };
@@ -131,7 +131,7 @@
           if (lastTap && Date.now() - lastTap.t < 350 && Math.hypot(x - lastTap.x, y - lastTap.y) < 30) { lastTap = null; setTimeout(yFull, 0); return; }
           lastTap = { t: Date.now(), x, y };
         }, { capture: true, passive: true });
-        shell.addEventListener("dblclick", e => { if (e.target.closest && e.target.closest("#dlyGantt .ghist") && !e.target.closest(NOV)) yFull(); });
+        shell.addEventListener("dblclick", e => { if (e.target.closest && e.target.closest(".dlyg-foot .ghist") && !e.target.closest(NOV)) yFull(); });
       }
       /* v461 : appui long sur le NOM d'un lot ou d'un niveau sur le Gantt = son menu (ISOLER) */
       shell.addEventListener("pointerdown", e => {

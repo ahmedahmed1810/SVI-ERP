@@ -8502,6 +8502,8 @@ function renderBudgetList() {
       if (active === "dly" || active === "gra") {
         /* délais : saisis ici (périodes par tâche secondaire ; tâche primaire choisie = récapitulatif) */
         body.innerHTML = `<div class="bdg-d-scroll dly-scroll">${insDlyHTML(INS_EDIT, shell.__insDly && shell.__insDly.err)}</div>`;
+        /* v594 (remarque longue 2) : bandeau ISOLÉ posé AU-DESSUS de la zone qui défile (jamais sur les en-têtes) */
+        { const sc = body.querySelector(".dly-scroll"); if (sc) sc.querySelectorAll(":scope > .dly-iso").forEach(b => sc.before(b)); }
         /* v454 : nouvelle tâche choisie par les ronds → le PLANNING défile jusqu'à sa ligne (surlignée) */
         /* v464 : ronds changés → tableau ouvert s'il était caché, première tâche surlignée en haut du tableau et du Gantt */
         { const pk = [LK.des, LK.lot, LK.prim, LK.sec, Object.keys(LK.prd || {}).join(","), Object.keys(LK.chg || {}).join(",")].join("|");
@@ -9662,7 +9664,7 @@ function renderBudgetList() {
       }
       const cal = insCal(), tr0 = tbl.getBoundingClientRect();
       let dlyHHpx = dlyHHGet() === "full" ? 300 : dlyHHGet();
-      const hasH = !!host.parentElement.querySelector(".dlyg-hh");
+      const hasH = !!shell.querySelector(".dlyg-hh");   /* v594 : la poignée peut déjà être dans le pied (graphique fixe en bas) */
       const HD = dlyHistData();
       const thH = tbl.querySelector("thead").getBoundingClientRect().height;
       const trs = [...tbl.querySelectorAll("tbody tr")];
@@ -9674,28 +9676,26 @@ function renderBudgetList() {
         const gg = host.closest(".dlyg"), scr = gg && gg.closest(".bdg-d-scroll");
         /* v545 (remarque 2), v548 (FORMAT 197) : le bloc du PLANNING prend la hauteur visible de l'écran sous le bandeau et les onglets */
         dlyFitScr(scr);
-        if (scr && scr.clientHeight) {
-          const sr = scr.getBoundingClientRect(), top = gg.getBoundingClientRect().top - sr.top + scr.scrollTop;
-          const addH = gg.nextElementSibling ? gg.nextElementSibling.getBoundingClientRect().height : 0;
-          /* v545 (remarque 2) : hauteur VISIBLE du bloc (jamais sous le bas de l'écran) — planning et histogramme y tiennent ensemble */
-          /* v550 : sans dépendre du défilement de la page (sinon, en glissant, le graphique grandissait sans fin) */
-          const capM = scr.__capMax || scr.clientHeight;
-          const visH = Math.max(160, capM);
-          /* R12 : histogramme plein écran (à la place du Gantt) ou à la hauteur tirée à la poignée « = » */
-          const capH = Math.max(80, Math.floor(capM - top - thH - addH - 8));
-          if (dlyHHGet() === "full") dlyHHpx = capH;
-          else if (dlyHHpx) dlyHHpx = Math.max(28, Math.min(dlyHHpx, capH));
-          const histH = hasH ? dlyHHpx : 0;
-          /* les tâches en trop défilent dans le planning, sous l'histogramme gardé en bas de l'écran ; place gardée pour voir les dernières */
-          const ovB = 0;
-          bodyH = Math.max(bodyH + ovB, Math.floor(visH - top - thH - histH - addH - 10));
+        if (scr && scr.__capMax) {
+          /* v594 (remarque longue 2) : le bloc = zone des tâches (qui défile) + pied fixe en bas (graphique et poignée « = »), hors de la zone qui défile ;
+             tot = hauteur totale du bloc ; le pied prend la hauteur tirée à la poignée (ou tout, sous les en-têtes, en plein écran) */
+          const tot = scr.__capMax;
+          let F = 0;
+          if (hasH) {
+            if (dlyHHGet() === "full") F = Math.max(80, tot - Math.ceil(thH) - 2);
+            else F = dlyHHpx ? Math.max(28, Math.min(dlyHHpx, tot - Math.ceil(thH) - 40)) : 0;
+          }
+          dlyHHpx = F;
+          shell.__dlyFootH = hasH ? Math.max(F, 0) : 0;
+          { const want = Math.max(Math.ceil(thH) + 2, tot - shell.__dlyFootH); if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 0.5) scr.style.setProperty("height", want + "px", "important"); }
+          bodyH = Math.max(bodyH, Math.floor(tot - shell.__dlyFootH - thH - 2));
         }
         const L = gg && gg.querySelector(".dlyg-l");
         if (L) {
           let f = L.querySelector(".dlyg-fill");
           if (!f) { f = document.createElement("div"); f.className = "dlyg-fill"; tbl.after(f); }
           /* v546 (R21) : le tableau descend jusqu'en bas du bloc (l'histogramme n'est que sous le Gantt) */
-          f.style.height = (bodyH - rowsH + (hasH ? dlyHHpx : 0)) + "px";
+          f.style.height = Math.max(0, bodyH - rowsH) + "px";
         }
       }
       const dates = [];
@@ -10035,11 +10035,11 @@ function renderBudgetList() {
             const R = dlyHRange(); let s = "";
             if (R.a) { const x = Math.max(0, X(R.a)); if (x > 0) s += `<div class="g-rgsh" style="left:0;width:${x}px;height:${bodyH}px"></div>`; }
             if (R.b) { const x = Math.min(W, X(R.b) + DLY_DW); if (x < W) s += `<div class="g-rgsh" style="left:${x}px;width:${W - x}px;height:${bodyH}px"></div>`; }
-            return s; })()}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>${hist}`;
+            return s; })()}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>`;
       host.__X = X; host.__d0 = d0; host.__HD = HD;
-      /* R12 : poignée « = » entre le Gantt et l'histogramme, posée à la hauteur du haut de l'histogramme */
-      { const hh = host.parentElement.querySelector(".dlyg-hh"); /* v552 (FORMAT 201) : la barre marron horizontale part de la barre marron verticale et va jusqu'au bord droit du cadre */
-        if (hh) { const sp = host.parentElement.querySelector(".dlyg-sp"), sc = host.closest(".bdg-d-scroll"); hh.style.left = (sp ? sp.offsetLeft : host.offsetLeft) + "px"; hh.style.right = sc ? -(parseFloat(getComputedStyle(sc).paddingRight) || 0) + "px" : "0px"; } if (hh) hh.style.top = (host.offsetTop + thH + (dlyHHGet() === "full" ? 0 : bodyH) - 7) + "px"; shell.style.setProperty("--dly-hh", dlyHHpx + "px"); }
+      /* v594 (remarque longue 2) : graphique et poignée « = » dans un PIED FIXE sous la zone des tâches (hors de ce qui défile) :
+         ils ne bougent plus pendant le défilement vertical ; le pied défile seulement à l'horizontale, avec le Gantt */
+      dlyFoot(host, hist);
       try { dlyPickPaint(); } catch (e) {}
       host.parentElement.querySelectorAll("input.dlyp-cb[data-part]").forEach(c => { c.indeterminate = true; });
       /* défilement horizontal du Gantt gardé d'un dessin à l'autre */
@@ -10049,9 +10049,37 @@ function renderBudgetList() {
       dlyCfgPaint();
       requestAnimationFrame(dlyRngEdge);
       dlyKbPaint();
-      requestAnimationFrame(() => { try { dlyGhFix(); } catch (e) {} });
+      requestAnimationFrame(() => { try { dlyGhFix(); } catch (e) {} try { dlyThFix(); } catch (e) {} });
       if (!host.__ghFixS) { host.__ghFixS = true; host.addEventListener("scroll", () => { const f = shell.querySelector("#bdgTabBody > .gh-fix > .gh-fix-in"); if (f) f.style.transform = "translateX(" + (-host.scrollLeft) + "px)"; }, { passive: true }); }
       dlyLift();
+    };
+    const dlyFoot = (host, hist) => {
+      const body = shell.querySelector("#bdgTabBody"), scr = host.closest(".bdg-d-scroll"), hh = shell.querySelector(".dlyg-hh");
+      let ft = body && body.querySelector(":scope > .dlyg-foot");
+      if (!body || !scr || !hh) { if (ft) ft.remove(); shell.__dlyFootH = 0; return; }
+      if (!ft) {
+        ft = document.createElement("div"); ft.className = "dlyg-foot";
+        ft.innerHTML = '<div class="dlyf-sc"><div class="dlyf-in"></div></div>';
+        const sc0 = ft.firstChild;
+        /* défilement horizontal lié dans les deux sens au Gantt */
+        sc0.addEventListener("scroll", () => { const h = shell.querySelector("#dlyGantt"); if (h && Math.abs(h.scrollLeft - sc0.scrollLeft) > 0.5) h.scrollLeft = sc0.scrollLeft; }, { passive: true });
+      }
+      if (ft.previousElementSibling !== scr) scr.after(ft);
+      if (hh.parentElement !== ft) ft.appendChild(hh);
+      const sc = ft.firstChild, inn = sc.firstChild;
+      inn.innerHTML = hist || "";
+      const F = shell.__dlyFootH || 0;
+      ft.style.height = F + "px";
+      ft.classList.toggle("dlyf-empty", !hist);
+      ft.classList.toggle("dlyf-gra", !!shell.querySelector(".dlyg.dly-gra"));
+      const br = body.getBoundingClientRect(), hr = host.getBoundingClientRect(), sp = shell.querySelector(".dlyg-sp");
+      sc.style.left = (hr.left - br.left) + "px"; sc.style.width = host.clientWidth + "px";
+      inn.style.width = (host.scrollWidth || 0) + "px";
+      { const dw = host.style.getPropertyValue("--dw"); if (ft.style.getPropertyValue("--dw") !== dw) ft.style.setProperty("--dw", dw); }
+      /* la barre marron horizontale part de la barre marron verticale et va jusqu'au bord droit du cadre (FORMAT 201) */
+      hh.style.left = ((sp ? sp.getBoundingClientRect().left : hr.left) - br.left) + "px"; hh.style.right = "0px"; hh.style.top = (F ? -7 : -14) + "px"; hh.style.transform = "";
+      if (Math.abs(sc.scrollLeft - host.scrollLeft) > 0.5) sc.scrollLeft = host.scrollLeft;
+      if (!host.__footS) { host.__footS = true; host.addEventListener("scroll", () => { const f = shell.querySelector("#bdgTabBody > .dlyg-foot > .dlyf-sc"); if (f && Math.abs(f.scrollLeft - host.scrollLeft) > 0.5) f.scrollLeft = host.scrollLeft; }, { passive: true }); }
     };
     /* v545 (remarque 2) : bas de l'écran visible (clavier de l'iPad compris) */
     const dlyVpB = () => { const vv = window.visualViewport; return vv ? vv.offsetTop + vv.height : window.innerHeight; };
@@ -10062,27 +10090,31 @@ function renderBudgetList() {
     const dlyFitScr = scr => {
       if (!scr || !scr.classList.contains("dly-scroll")) return 0;
       let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
-      const tabs = document.getElementById("bdgTabs"), sr = scr.getBoundingClientRect(), vb = dlyVpB();
+      const tabs = document.getElementById("bdgTabs"), vb = dlyVpB();
       const mx = !!scr.closest(".max-detail");
-      /* v557 (FORMAT 202) : bloc non agrandi = hauteur commune du bloc détail (poignée du bas), plus la hauteur de l'écran */
-      if (!mx) {
-        if (scr.style.height) scr.style.removeProperty("height");
-        const c = Math.max(160, Math.round(scr.clientHeight));
-        if (Math.abs((scr.__capMax || 0) - c) > 1) { scr.__capMax = c; return 2; }
-        return 0;
+      document.documentElement.classList.toggle("dly-lock", mx && scr.isConnected);
+      /* v594 (remarque longue 2) : bloc agrandi — la ligne des onglets toujours entière juste sous le bandeau du budget */
+      if (mx && tabs) { const t = tabs.getBoundingClientRect().top; if (t < lim - 0.5 || (t > lim + 0.5 && window.scrollY > 0)) window.scrollBy(0, t - lim); }
+      const sr = scr.getBoundingClientRect();
+      /* tot = hauteur totale du bloc (zone des tâches + pied du graphique) : bloc agrandi = jusqu'au bas de l'écran visible ;
+         sinon la hauteur commune du bloc détail (FORMAT 202), moins les bandeaux posés au-dessus (ISOLÉ…) */
+      let tot;
+      if (mx) tot = Math.max(160, Math.floor(vb - sr.top - 2));
+      else {
+        const hd = parseFloat(getComputedStyle(scr).getPropertyValue("--h-detail")) || 148;
+        let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
+        tot = Math.max(160, Math.round(hd - ban));
       }
-      const top0 = mx ? sr.top + (window.scrollY || 0) : lim + (tabs ? Math.max(0, sr.top - tabs.getBoundingClientRect().top) : 0);
-      const cap = Math.max(200, Math.floor(vb - top0 - 2));
-      const want = Math.max(160, Math.min(cap, Math.floor(vb - Math.max(sr.top, mx ? 0 : top0) - 2)));
       let r = 0;
-      if (Math.abs((scr.__capMax || 0) - cap) > 1) { scr.__capMax = cap; r = 2; }
+      if (Math.abs((scr.__capMax || 0) - tot) > 1) { scr.__capMax = tot; r = 2; }
+      const want = Math.max(40, tot - (shell.__dlyFootH || 0));
       if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 1) { scr.style.setProperty("height", want + "px", "important"); r = r || 1; }
       return r;
     };
     /* v558 : ⚙ (réglages du graphique) visible seulement quand l'histogramme est affiché : pas en vue tableau seul, ni graphique caché */
     const dlyCfgPaint = () => {
       const g = shell.querySelector(".blk-cfg-btn"); if (!g) return;
-      const host = shell.querySelector("#dlyGantt"), h = host && host.querySelector(".ghist");
+      const host = shell.querySelector("#dlyGantt"), h = shell.querySelector(".dlyg-foot .ghist");
       const on = (active === "dly" || active === "gra") && !!shell.__insDly && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone");
       if (g.classList.contains("dly-on") !== on) g.classList.toggle("dly-on", on);
     };
@@ -10090,7 +10122,7 @@ function renderBudgetList() {
     /* v573 (remarque 18) : traits DÉBUT / FIN non posés = collés aux bords gauche et droit de la partie visible du Gantt (suivent le défilement) */
     const dlyRngEdge = () => {
       const host = shell.querySelector("#dlyGantt"); if (!host) return;
-      const a = host.querySelector('.grng.grng-off[data-r="a"]'), b = host.querySelector('.grng.grng-off[data-r="b"]');
+      const a = shell.querySelector('.dlyg-foot .grng.grng-off[data-r="a"]'), b = shell.querySelector('.dlyg-foot .grng.grng-off[data-r="b"]');
       const L = host.scrollLeft, W = host.clientWidth, full = host.scrollWidth;
       if (a && !a.__drag) { const x = Math.round(L) + "px"; if (a.style.left !== x) a.style.left = x; }
       if (b && !b.__drag) { const x = Math.round(Math.min(full - 2, L + W - 2)) + "px"; if (b.style.left !== x) b.style.left = x; }
@@ -10116,6 +10148,32 @@ function renderBudgetList() {
       inn.style.transform = "translateX(" + (-host.scrollLeft) + "px)";
       gh.classList.add("gh-under");
     };
+    /* v594 (remarque longue 2) : en-tête du TABLEAU du planning fixe, comme celui du calendrier — une copie posée hors de la zone qui défile,
+       à la même hauteur que l'en-tête du Gantt (une seule bande d'en-têtes), qui ne suit que le défilement horizontal du tableau ;
+       le vrai en-tête, transparent, reste dessous et reçoit les touchers (loupes, tri, largeur des colonnes) */
+    const dlyThFix = () => {
+      const L = shell.querySelector(".dlyg-l"), body = shell.querySelector("#bdgTabBody"), tbl = L && L.querySelector("table"), th = tbl && tbl.querySelector(":scope > thead"), scr = L && L.closest(".dly-scroll");
+      let fx = body && body.querySelector(":scope > .th-fix");
+      if (!L || !th || !scr || !body || L.clientWidth < 3 || L.closest(".dly-gra")) { if (fx) fx.remove(); if (th) th.classList.remove("th-under"); return; }
+      if (!fx) { fx = document.createElement("div"); fx.className = "th-fix"; fx.innerHTML = '<table></table>'; body.appendChild(fx); }
+      const t = fx.firstChild;
+      if (th.__fixSrc !== th.innerHTML || t.className !== tbl.className + " th-fix-t") {
+        th.__fixSrc = th.innerHTML; t.className = tbl.className + " th-fix-t"; t.innerHTML = th.outerHTML;
+        t.querySelectorAll("thead, tr, th").forEach(x => { x.style.transform = ""; x.classList.remove("sv-stuck"); });
+        th.__wk = "";
+      }
+      const rs = [...th.querySelectorAll("th")], cs = [...t.querySelectorAll("th")];
+      const ws = rs.map(x => x.getBoundingClientRect().width), wk = ws.map(w => w.toFixed(1)).join(",") + "|" + tbl.offsetWidth;
+      if (th.__wk !== wk) { th.__wk = wk; cs.forEach((c, i) => { const w = (ws[i] || 0) + "px"; c.style.width = w; c.style.minWidth = w; c.style.maxWidth = w; c.style.boxSizing = "border-box"; }); t.style.width = tbl.offsetWidth + "px"; }
+      const br = body.getBoundingClientRect(), lr = L.getBoundingClientRect(), sr = scr.getBoundingClientRect();
+      let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
+      const gh = shell.querySelector("#dlyGantt > .gh"), H = Math.max(th.offsetHeight, gh ? gh.offsetHeight : 0);
+      const top = Math.max(sr.top, Math.min(lim, sr.bottom - H)) - br.top, st = fx.style;
+      st.top = top + "px"; st.left = (lr.left - br.left) + "px"; st.width = L.clientWidth + "px"; st.height = H + "px";
+      t.style.transform = "translateX(" + (-L.scrollLeft) + "px)";
+      if (!L.__thFixS) { L.__thFixS = true; L.addEventListener("scroll", () => { const f = shell.querySelector("#bdgTabBody > .th-fix > table"); if (f) f.style.transform = "translateX(" + (-L.scrollLeft) + "px)"; }, { passive: true }); }
+      th.classList.add("th-under");
+    };
     /* v579 (partie 11, remarque 13) : clavier sur le PLANNING — ↓, Tab, Entrée = tâche suivante ; ↑, Maj + Tab = précédente ;
        la tâche choisie est encadrée dans le tableau et sur le Gantt, et l'écran la suit (← → ne font rien) */
     const dlyKbPaint = (scroll) => {
@@ -10127,7 +10185,7 @@ function renderBudgetList() {
       shell.querySelectorAll(`#dlyGantt .gb[data-key="${CSS.escape(k)}"]`).forEach(x => x.classList.add("gb-kb"));
       if (scroll && tr) {
         const sc = tr.closest(".dly-scroll"), r = tr.getBoundingClientRect(), sr = sc ? sc.getBoundingClientRect() : null;
-        if (sc && sr) { const head = 40, hist = (shell.querySelector("#dlyGantt .ghist") || {}).offsetHeight || 0; if (r.top < sr.top + head) sc.scrollTop -= sr.top + head - r.top; else if (r.bottom > sr.bottom - hist - 8) sc.scrollTop += r.bottom - (sr.bottom - hist - 8); }
+        if (sc && sr) { const head = 40, hist = 0; if (r.top < sr.top + head) sc.scrollTop -= sr.top + head - r.top; else if (r.bottom > sr.bottom - hist - 8) sc.scrollTop += r.bottom - (sr.bottom - hist - 8); }
         if (b) { const H = shell.querySelector("#dlyGantt"), bl = b.offsetLeft, bw = b.offsetWidth; if (bl < H.scrollLeft || bl + Math.min(bw, H.clientWidth) > H.scrollLeft + H.clientWidth) H.scrollLeft = Math.max(0, bl - 40); }
       }
     };
@@ -10160,33 +10218,25 @@ function renderBudgetList() {
         clearTimeout(shell.__dlyCapT);
         shell.__dlyCapT = setTimeout(() => { const h2 = shell.querySelector("#dlyGantt"); if (h2 && h2.isConnected) { h2.__drawn = false; try { dlyGanttDraw(); } catch (e) {} } }, 300);
       } }
-      const hist = g.querySelector("#dlyGantt .ghist"), lab = g.querySelector(".dlyh-lab"), hh = g.querySelector(".dlyg-hh"), gh = g.querySelector("#dlyGantt > .gh");
-      /* v550 : graphique caché (poignée tout en bas) = la barre marron « = » reste au bas de l'écran */
-      const ref = hist || hh;
-      if (!ref) return;
-      const els = [hist, lab, hh].filter(Boolean);
-      const cur = el => { const m = /translateY\((-?[\d.]+)px\)/.exec(el.style.transform || ""); return m ? +m[1] : 0; };
-      const r = ref.getBoundingClientRect(), nb = r.bottom - cur(ref) + (hist ? 0 : 8), nt = r.top - cur(ref);
-      const scr = g.closest(".bdg-d-scroll, .lk-scroll"), visB = Math.min(scr ? scr.getBoundingClientRect().bottom : 1e9, dlyVpB());
-      const fx = shell.querySelector("#bdgTabBody > .gh-fix");
-      const minT = Math.max(gh ? gh.getBoundingClientRect().bottom : nt, fx && fx.offsetParent ? fx.getBoundingClientRect().bottom : -1e9);
-      /* v587 : étiquettes DÉBUT / FIN gardées visibles sous l'en-tête du calendrier quand on défile */
-      const rngTop = () => { if (!hist) return; const off = Math.max(2, Math.min(hist.offsetHeight - 40, Math.round(minT - hist.getBoundingClientRect().top + 2))); const v = off + "px"; if (hist.style.getPropertyValue("--rng-top") !== v) hist.style.setProperty("--rng-top", v); };
-      if (g.classList.contains("dly-hfull")) {
-        /* v583 : graphique sur toute la hauteur — la poignée « = » reste collée sous l'en-tête du calendrier, jamais cachée */
-        els.forEach(el => { if (el !== hh && el.style.transform) { el.style.transform = ""; el.classList.remove("dly-lift"); } });
-        if (hh) { const ht = hh.getBoundingClientRect().top - cur(hh), dn = Math.max(0, Math.min(minT + 14 - ht, visB - 30 - ht));
-          const v = dn > 0.5 ? "translateY(" + dn.toFixed(1) + "px)" : ""; if (hh.style.transform !== v) hh.style.transform = v; hh.classList.toggle("dly-lift", !!v); }
-        rngTop();
-        return;
-      }
-      const lift = Math.max(0, Math.min(nb - visB, nt - minT));
-      const v = lift > 0.5 ? "translateY(" + (-lift).toFixed(1) + "px)" : "";
-      els.forEach(el => { if (el.style.transform !== v) el.style.transform = v; el.classList.toggle("dly-lift", !!v); });
-      rngTop();
+      /* v594 (remarque longue 2) : plus de recalage du graphique pendant le défilement — il est dans le pied fixe ; seuls la position
+         horizontale du pied (largeur du tableau changée, rotation) et l'en-tête fixe du tableau sont remis à jour */
+      { const host = shell.querySelector("#dlyGantt"), body = shell.querySelector("#bdgTabBody"), ft = body && body.querySelector(":scope > .dlyg-foot");
+        if (host && ft) { const sc = ft.firstChild, br = body.getBoundingClientRect(), hr = host.getBoundingClientRect(), sp = shell.querySelector(".dlyg-sp"), hh = ft.querySelector(".dlyg-hh");
+          const l = (hr.left - br.left) + "px", w = host.clientWidth + "px"; if (sc.style.left !== l) sc.style.left = l; if (sc.style.width !== w) sc.style.width = w;
+          if (hh) { const x = ((sp ? sp.getBoundingClientRect().left : hr.left) - br.left) + "px"; if (hh.style.left !== x) hh.style.left = x; } } }
+      try { dlyThFix(); } catch (e) {}
     };
     if (!shell.__dlyLiftBound) {
       shell.__dlyLiftBound = true;
+      /* v594 (remarque longue 2) : bloc agrandi sur le PLANNING — la page ne glisse jamais (rebond compris) ; seules les zones qui défilent bougent */
+      document.addEventListener("touchmove", e => {
+        if (!shell.isConnected || e.defaultPrevented || e.touches.length > 1) return;
+        const scr = shell.querySelector("#bdgTabBody > .dly-scroll");
+        if (!scr || !scr.closest(".max-detail")) { document.documentElement.classList.remove("dly-lock"); return; }
+        const t = e.target;
+        if (t.closest && t.closest(".dly-scroll, .dlyf-sc, .dlyg-l, #dlyGantt, #bdgTabs, #svConf, #blkMenu, [role=dialog], input, textarea, select")) return;
+        e.preventDefault();
+      }, { passive: false });
       let raf = 0; const go = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; dlyLift(); }); };
       document.addEventListener("scroll", go, true); window.addEventListener("resize", go);
       if (window.visualViewport) { window.visualViewport.addEventListener("resize", go); window.visualViewport.addEventListener("scroll", go); }
@@ -10345,7 +10395,7 @@ function renderBudgetList() {
           const dls = dl("dlyLotDl", [...new Set(INS.lot.filter(x => !x.t).map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")))
             + dl("dlySecDl", [...new Set(INS.sec.map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")));
           /* v561 : vue PAR DÉBUT = bandeau jaune pâle avec retour AFFICHER PAR LOT (comme ISOLER) */
-          const viewB = dlyView() === "d" ? `<div class="dly-iso dly-vd"><span><b>AFFICHÉ PAR DÉBUT</b></span><small>VUE SEULEMENT : L'ORDRE DES LOTS N'EST PAS CHANGÉ</small><button type="button" class="dly-iso-x dly-vd-x">AFFICHER PAR LOT</button></div>` : "";
+          const viewB = "";   /* v594 (remarque longue 2, FORMAT 188) : plus de bandeau AFFICHÉ PAR DÉBUT — la vue se lit à la coche ✓ du menu ⋯ */
           const isoB = viewB + (PR.iso ? `<div class="dly-iso"><span>ISOLÉ : <b>${esc(lotLab(dlyLotPath(PR.iso)).full)}</b></span><small>LIAISONS, DÉCALAGES ET CALENDRIER RESTENT APPLIQUÉS · TÂCHES LIÉES HORS DE LA BRANCHE EN GRIS (LECTURE SEULE)</small><button type="button" class="dly-iso-x">TOUT AFFICHER</button></div>` : "");
           return dls + isoB + `<div class="dlyg${active === "gra" ? " dly-gra tbl-hid" : ""}${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur du graphique">=</span></div>` : ""}</div>`
             /* v549 : plus de bouton « + AJOUTER UNE TÂCHE OU SES DÉLAIS » sous le planning (ligne SAISIR ICI… et menu ⋯) */
@@ -11067,13 +11117,13 @@ function renderBudgetList() {
          lâcher = couper à ce jour */
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
-        const pl = e.target.closest && e.target.closest("#dlyGantt .gplaf");
+        const pl = e.target.closest && e.target.closest(".dlyg-foot .gplaf");
         if (!X || !pl) return;
         e.preventDefault(); e.stopPropagation();
         const h = pl.closest(".ghist"), sc = Number(h.dataset.sc) || 1, Y0 = Number(h.dataset.y0) || h.offsetHeight, IB = Number(h.dataset.ib) || 0, r0 = h.getBoundingClientRect();
         const v0 = pl.querySelector(".gplaf-v"), seg = Number(pl.dataset.seg) || 0, pre = (v0.textContent.match(/^\d\d\/\d\d\/\d{4} : /) || [""])[0];
         let P = null, cut = null;
-        const x0 = e.clientX, y0 = e.clientY, host = pl.closest("#dlyGantt");
+        const x0 = e.clientX, y0 = e.clientY, host = shell.querySelector("#dlyGantt");
         const dayAt = cx => { const n = Math.floor((cx - h.getBoundingClientRect().left) / DLY_DW); return sviIsoAdd(host.__d0, Math.max(0, n)); };
         const showCut = cx => {
           const iso = sviWNear(X.cal(), dayAt(cx), 1);
@@ -11109,13 +11159,13 @@ function renderBudgetList() {
         shell.__dlyZone = z;   /* v546 (R35) : plus de liseré ni de rubriques par zone */
       }, true);
       /* R22 : toucher le « / » d'une coupe = SUPPRIMER LA COUPE (fenêtre) */
-      shell.addEventListener("click", e => { const c = e.target.closest && e.target.closest("#dlyGantt .gcut[data-i]"); const X = shell.__insDly; if (!c || !X) return; e.stopPropagation(); if (Date.now() - (shell.__dlyCutLong || 0) < 600) return; X.delCut(Number(c.dataset.i)); }, true);
+      shell.addEventListener("click", e => { const c = e.target.closest && e.target.closest(".dlyg-foot .gcut[data-i]"); const X = shell.__insDly; if (!c || !X) return; e.stopPropagation(); if (Date.now() - (shell.__dlyCutLong || 0) < 600) return; X.delCut(Number(c.dataset.i)); }, true);
       /* v546 (R19) : appui long sur le « / » = le déplacer jour par jour (seulement si les deux morceaux ont la même capacité) */
       shell.addEventListener("pointerdown", e => {
-        const X = shell.__insDly, c = e.target.closest && e.target.closest("#dlyGantt .gcut[data-i]");
+        const X = shell.__insDly, c = e.target.closest && e.target.closest(".dlyg-foot .gcut[data-i]");
         if (!X || !c) return;
         e.stopPropagation();
-        const host = c.closest("#dlyGantt"), h = c.closest(".ghist"), x0 = e.clientX, y0 = e.clientY;
+        const host = shell.querySelector("#dlyGantt"), h = c.closest(".ghist"), x0 = e.clientX, y0 = e.clientY;
         let mov = false, iso = null;
         const tip = cx => {
           const n = Math.floor((cx - h.getBoundingClientRect().left) / DLY_DW); iso = sviWNear(X.cal(), sviIsoAdd(host.__d0, Math.max(0, n)), 1);
@@ -11151,10 +11201,10 @@ function renderBudgetList() {
       /* R19 : traits DÉBUT et FIN de l'histogramme — tirés au doigt ; contre un bord = pas de limite ; croisés = noms échangés */
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
-        const ln = e.target.closest && e.target.closest("#dlyGantt .grng[data-r]");
+        const ln = e.target.closest && e.target.closest(".dlyg-foot .grng[data-r]");
         if (!X || !ln) return;
         e.preventDefault(); e.stopPropagation();
-        const h = ln.closest(".ghist"), host = h.closest("#dlyGantt"), W = h.offsetWidth, sp = ln.querySelector("span");
+        const h = ln.closest(".ghist"), host = shell.querySelector("#dlyGantt"), W = h.offsetWidth, sp = ln.querySelector("span");
         const R0 = X.hrange(), other = ln.dataset.r === "a" ? R0.b : R0.a;
         ln.__drag = true;
         let iso = R0[ln.dataset.r] || "", edge = "";
@@ -11190,7 +11240,7 @@ function renderBudgetList() {
          égales = les deux clignotent ; au lâcher, les charges des jours retenus sont cochées */
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
-        const ln = e.target.closest && e.target.closest("#dlyGantt .gval[data-v]");
+        const ln = e.target.closest && e.target.closest(".dlyg-foot .gval[data-v]");
         if (!X || !ln) return;
         e.preventDefault(); e.stopPropagation();
         const h = ln.closest(".ghist"), sc = Number(h.dataset.sc) || 1, Y0 = Number(h.dataset.y0) || h.offsetHeight, top = Number(h.dataset.top) || 1, sp = ln.querySelector("span");
@@ -11253,7 +11303,7 @@ function renderBudgetList() {
         const k = step ? ((shell.__dlyX && shell.__dlyX.i === i ? shell.__dlyX.k : 0) + step) % C.length : 0, best = C[k];
         dlyXClear();
         const mk = (c) => { const d = document.createElement("div"); d.className = c; document.body.appendChild(d); return d; };
-        const px = hr.left + i * DLY_DW + DLY_DW / 2, gh = document.querySelector("#bdgTabBody > .gh-fix") || host.querySelector(".gh"), top = gh ? gh.getBoundingClientRect().bottom : hr.top;
+        const px = hr.left + i * DLY_DW + DLY_DW / 2, top = hr.top;   /* v594 : graphique dans le pied fixe — repères depuis le haut du graphique */
         const ax = Math.max(hr.left, host.getBoundingClientRect().left);
         const v = mk("dlyx-v"); v.style.left = px + "px"; v.style.top = top + "px"; v.style.height = Math.max(0, best.y - top) + "px"; v.style.borderLeftColor = best.c;
         const hz = mk("dlyx-h"); hz.style.left = ax + "px"; hz.style.top = best.y + "px"; hz.style.width = Math.max(0, px - ax) + "px"; hz.style.borderTopColor = best.c;
@@ -11274,9 +11324,9 @@ function renderBudgetList() {
         dlyXClear(); shell.__dlyX = null;
       }, true);
       shell.addEventListener("pointerdown", e => {
-        const hit = e.target.closest && e.target.closest("#dlyGantt .ghist-cum .ghb-hit");
+        const hit = e.target.closest && e.target.closest(".dlyg-foot .ghist-cum .ghb-hit");
         if (!hit) return;
-        const host = hit.closest("#dlyGantt"), h = hit.closest(".ghist"), HV = host.__HV || {};
+        const host = shell.querySelector("#dlyGantt"), h = hit.closest(".ghist"), HV = host.__HV || {};
         if (!HV.curve && !HV.hideC) return;
         let on = false; const x0 = e.clientX, y0 = e.clientY;
         const tmv = ev => { if (on) ev.preventDefault(); };
@@ -11288,17 +11338,17 @@ function renderBudgetList() {
       });
       /* v568 (remarque 12) : toucher l'axe des montants = afficher / cacher la RÈGLE ; la règle se tire au doigt (valeur affichée) */
       shell.addEventListener("click", e => {
-        const a = e.target.closest && e.target.closest("#dlyGantt .gax-hit");
+        const a = e.target.closest && e.target.closest(".dlyg-foot .gax-hit");
         if (!a) return;
         e.stopPropagation();
         /* v584 : toucher l'axe = faire apparaître la règle (l'appui long sur la ligne la fait disparaître) */
         /* v588 : la règle apparaît (ou se pose) à la hauteur touchée */
         const h = a.closest(".ghist"), sc = Number(h.dataset.sc) || 1, Y0 = Number(h.dataset.y0) || h.offsetHeight;
         shell.__dlyRule = true; shell.__dlyRuleV = (Y0 - (e.clientY - h.getBoundingClientRect().top)) / sc;
-        const host = a.closest("#dlyGantt"); host.__drawn = false; dlyGanttDraw();
+        const host = shell.querySelector("#dlyGantt"); host.__drawn = false; dlyGanttDraw();
       }, true);
       shell.addEventListener("pointerdown", e => {
-        const ln = e.target.closest && e.target.closest("#dlyGantt .grule");
+        const ln = e.target.closest && e.target.closest(".dlyg-foot .grule");
         if (!ln) return;
         e.preventDefault(); e.stopPropagation();
         const h = ln.closest(".ghist"), sc = Number(h.dataset.sc) || 1, Y0 = Number(h.dataset.y0) || h.offsetHeight, sp = ln.querySelector("span");
@@ -11308,7 +11358,7 @@ function renderBudgetList() {
         /* v577 (remarque 6) : la règle s'aimante sur les valeurs rondes (10 K, 11 K, 12 K…) : petit arrêt ; en continuant à tirer, elle se détache */
         const stp = Number(h.dataset.stp) || 0, p10 = stp ? Math.pow(10, Math.floor(Math.log10(stp))) : 0, fine = p10 ? (stp / p10 <= 1.0001 ? p10 / 10 : p10) : 0;
         const x0 = e.clientX, y0 = e.clientY;
-        const lp = setTimeout(() => { up(); shell.__dlyRule = false; shell.__dlyRuleV = null; const host = h.closest("#dlyGantt"); if (host) { host.__drawn = false; dlyGanttDraw(); } }, 550);
+        const lp = setTimeout(() => { up(); shell.__dlyRule = false; shell.__dlyRuleV = null; const host = shell.querySelector("#dlyGantt"); if (host) { host.__drawn = false; dlyGanttDraw(); } }, 550);
         const mv = ev => { ev.preventDefault(); if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return; clearTimeout(lp); let y = Math.max(4, Math.min(Y0, ev.clientY - h.getBoundingClientRect().top)); let v = (Y0 - y) / sc;
           let snap = false;
           if (fine > 0) { const r = Math.round(v / fine) * fine, yr = Y0 - r * sc; if (Math.abs(yr - y) <= 7) { v = r; y = yr; snap = true; } }
@@ -11318,11 +11368,11 @@ function renderBudgetList() {
       });
       /* R8 : toucher une barre de l'histogramme = bulle des tâches de ce jour (répartition, fractions comprises) */
       shell.addEventListener("click", e => {
-        { const hh = e.target.closest && e.target.closest("#dlyGantt"); if (hh && hh.__dlyXlp) return; }   /* v564 : pas de bulle après un appui long (repères) */
-        const b = e.target.closest && e.target.closest("#dlyGantt .ghb[data-d]");
+        { const hh = e.target.closest && e.target.closest("#dlyGantt, .dlyg-foot") && shell.querySelector("#dlyGantt"); if (hh && hh.__dlyXlp) return; }   /* v564 : pas de bulle après un appui long (repères) */
+        const b = e.target.closest && e.target.closest(".dlyg-foot .ghb[data-d]");
         document.getElementById("dlyHb")?.remove();
         if (!b) return;
-        const host = b.closest("#dlyGantt"), H = host && host.__HD, di = b.dataset.d;
+        const host = shell.querySelector("#dlyGantt"), H = host && host.__HD, di = b.dataset.d;
         if (!H) return;
         const fmt = v => (Math.round(v * 100) / 100).toLocaleString("fr-FR");
         let rows = "", tot = 0;
@@ -11377,24 +11427,17 @@ function renderBudgetList() {
         const pill = e.target.closest && e.target.closest(".dlyg-hh .dlyhh-pill");
         if (!X || !pill) return;
         e.preventDefault(); e.stopPropagation();
-        const g = pill.closest(".dlyg"), hist = g.querySelector("#dlyGantt .ghist"), y0 = e.clientY;
-        let h0 = hist ? hist.offsetHeight : 110;
-        /* v545 (remarque 4) : la poignée reste où on la lâche — hauteur la plus grande = du bas de l'écran visible jusque sous l'en-tête du Gantt */
-        const scr = g.closest(".bdg-d-scroll"), ghd = g.querySelector("#dlyGantt > .gh"), hr0 = hist ? hist.getBoundingClientRect() : null;
-        const visB = Math.min(scr ? scr.getBoundingClientRect().bottom : 1e9, dlyVpB());
-        const maxH = hr0 && ghd ? Math.max(80, Math.floor(visB - ghd.getBoundingClientRect().bottom - 4)) : (scr ? Math.max(120, scr.clientHeight - 60) : 600);
-        const bar = pill.closest(".dlyg-hh");
-        /* v583 : la poignée suit le doigt dès le premier mouvement (hauteur de départ bornée à la plus grande, décalage sous l'en-tête repris) */
-        const tr = /translateY\((-?[\d.]+)px\)/.exec(bar.style.transform || ""), dn = tr ? +tr[1] : 0;
-        if (dn) { bar.style.transform = ""; bar.style.top = ((parseFloat(bar.style.top) || 0) + dn) + "px"; }
-        const t0 = parseFloat(bar.style.top) || 0;
-        h0 = Math.min(h0, maxH);
+        /* v594 (remarque longue 2) : la poignée est en haut du pied fixe ; glisser = hauteur du pied (le graphique), suivie au doigt */
+        const ft = pill.closest(".dlyg-foot"), bar = pill.closest(".dlyg-hh"), y0 = e.clientY;
+        const scr = shell.querySelector("#bdgTabBody > .dly-scroll"), thH = (shell.querySelector(".dlyg-l thead") || shell.querySelector("#dlyGantt > .gh") || { offsetHeight: 34 }).offsetHeight;
+        const tot = scr ? (scr.__capMax || scr.offsetHeight + (ft ? ft.offsetHeight : 0)) : 600;
+        const maxH = Math.max(80, tot - thH - 2), h0 = Math.min(maxH, ft ? ft.offsetHeight : 110);
         let h = h0, on = false;
         try { pill.setPointerCapture(e.pointerId); } catch (err) {}
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });
         /* tout mouvement compte comme un glissement ; seul un toucher net bascule d'un bord à l'autre */
-        const mv = ev => { const dy = ev.clientY - y0; if (!on && !dy) return; on = true; ev.preventDefault(); h = Math.round(Math.max(0, Math.min(maxH, h0 - dy))); bar.style.top = (t0 + (h0 - h)) + "px"; };
+        const mv = ev => { const dy = ev.clientY - y0; if (!on && !dy) return; on = true; ev.preventDefault(); h = Math.round(Math.max(0, Math.min(maxH, h0 - dy))); bar.style.transform = "translateY(" + (h0 - h) + "px)"; };
         const up = () => {
           document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
           setTimeout(() => document.removeEventListener("touchmove", tmv), 0);
@@ -11451,7 +11494,7 @@ function renderBudgetList() {
         let P0 = null;
         const dist = t => Math.abs(t[0].clientX - t[1].clientX), distY = t => Math.abs(t[0].clientY - t[1].clientY);
         shell.addEventListener("touchstart", e => {
-          const host = e.target.closest && e.target.closest("#dlyGantt");
+          const host = e.target.closest && e.target.closest("#dlyGantt, .dlyg-foot") && shell.querySelector("#dlyGantt");   /* v594 : graphique dans le pied fixe */
           if (!host || e.touches.length !== 2) return;
           const hr = host.getBoundingClientRect(), mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - hr.left;
           /* écarter à l'horizontale = largeur des jours ; à la verticale = hauteur des lignes et des barres (sens choisi au premier mouvement) */
@@ -11512,7 +11555,7 @@ function renderBudgetList() {
         const NOV = ".gplaf, .gcut, .grng, .grng-h, .grule, .gax-hit, .gval, .dlyg-hh";
         shell.addEventListener("touchstart", e => {
           V = null;
-          const gh = e.target.closest && e.target.closest("#dlyGantt .ghist");
+          const gh = e.target.closest && e.target.closest(".dlyg-foot .ghist");
           if (!gh || e.touches.length !== 1) return;
           const t = e.touches[0];
           V = { x: t.clientX, y: t.clientY, t: Date.now(), gh, zoom: (shell.__dlyYZ || 1) > 1.01 && !e.target.closest(NOV), mode: "", yo: shell.__dlyYO || 0, sc: +gh.dataset.sc || 1, mv: false };
@@ -11540,7 +11583,7 @@ function renderBudgetList() {
           if (lastTap && Date.now() - lastTap.t < 350 && Math.hypot(x - lastTap.x, y - lastTap.y) < 30) { lastTap = null; setTimeout(yFull, 0); return; }
           lastTap = { t: Date.now(), x, y };
         }, { capture: true, passive: true });
-        shell.addEventListener("dblclick", e => { if (e.target.closest && e.target.closest("#dlyGantt .ghist") && !e.target.closest(NOV)) yFull(); });
+        shell.addEventListener("dblclick", e => { if (e.target.closest && e.target.closest(".dlyg-foot .ghist") && !e.target.closest(NOV)) yFull(); });
       }
       /* v461 : appui long sur le NOM d'un lot ou d'un niveau sur le Gantt = son menu (ISOLER) */
       shell.addEventListener("pointerdown", e => {
