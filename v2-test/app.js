@@ -12571,15 +12571,10 @@ function renderBudgetList() {
     const dlyDelCut = i => {
       const S = dlyCapSegs(), s = S.find(x => x.i === i), st = dlyCapSt();
       if (!s || !st) return;
-      /* v585 : le morceau fusionné garde une capacité qui permet de travailler — celle de droite quand la gauche est à 0,
-         sinon au choix (pas de question quand les deux sont égales) */
-      const L = S[S.indexOf(s) - 1] || S[0], nl = L.n, nr = s.n, lab = n => n < 0 ? "ILLIMITÉE" : String(n);
-      const ask = nl !== nr && nl !== 0;
-      svChoose({ title: "SUPPRIMER LA COUPE", html: `<div class="svc-sub">SUPPRIMER LA COUPE DU ${esc(dFr(s.d))} ?${ask ? "<br>CAPACITÉ À GARDER POUR LE MORCEAU FUSIONNÉ :" : ""}</div>`,
-        buttons: ask ? [{ v: "l", label: "GAUCHE : " + lab(nl) }, { v: "r", label: "DROITE : " + lab(nr) }] : [{ v: "go", label: "SUPPRIMER", tone: "danger" }] }).then(r => {
-        if (r !== "go" && r !== "l" && r !== "r") return;
-        const keep = r === "l" ? nl : r === "r" || nl === 0 ? nr : nl;
-        if (keep !== nl) { if (!L.i) st.plaf = keep; else if ((st.plafs || [])[L.i - 1]) st.plafs[L.i - 1].n = keep; }
+      /* v591 : à la suppression d'une coupe, le morceau de droite s'aligne toujours sur celui de gauche (pas de fenêtre de choix) ;
+         gauche à 0 jusqu'à la fin = calcul arrêté tout de suite avec message (v585) */
+      svChoose({ title: "SUPPRIMER LA COUPE", html: `<div class="svc-sub">SUPPRIMER LA COUPE DU ${esc(dFr(s.d))} ?</div>`, buttons: [{ v: "go", label: "SUPPRIMER", tone: "danger" }] }).then(r => {
+        if (r !== "go") return;
         st.plafs = (st.plafs || []).filter((c, j) => j + 1 !== i);
         histLog("DÉLAIS", "COUPE SUPPRIMÉE", dFr(s.d));
         dlyCompressRun({ plaf: dlyCapOf(s.d), quiet: true });
