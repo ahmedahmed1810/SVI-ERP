@@ -650,6 +650,7 @@
           INS.appro = { ...A0, on, dl: Number(dl), cov, nj: Number(nj) || 30, dep: d.querySelector(".apr-dep").value || "" };
         } else INS.appro = { ...A0, on };
         d.remove();
+        shell.__dlyCenter = true;   /* v603 : plage remplie centrée après un changement de réglages */
         insSave(); histLog("DÉLAIS", "RÉGLAGES DU GRAPHIQUE", c.map(x => ({ c: "CHARGES", p: "PRODUITS", g: "MARGE" })[x]).join(" + ")); renderTabK();
       });
     };

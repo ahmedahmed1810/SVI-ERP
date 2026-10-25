@@ -10052,6 +10052,16 @@ function renderBudgetList() {
       host.parentElement.querySelectorAll("input.dlyp-cb[data-part]").forEach(c => { c.indeterminate = true; });
       /* défilement horizontal du Gantt gardé d'un dessin à l'autre */
       if (shell.__dlyGx !== undefined) host.scrollLeft = shell.__dlyGx;
+      /* v603 : à l'ouverture du graphique (premier dessin, onglet DÉLAIS ou GRAPHIQUE) et après ENREGISTRER des réglages,
+         la partie qui a des valeurs (du premier au dernier jour non nul) est centrée à l'écran ; plus large que l'écran : son début */
+      if ((shell.__dlyCenter || shell.__dlyGx === undefined) && HD) {
+        shell.__dlyCenter = false;
+        const nz = new Set(); [HD.tot, HD.prd, HD.cmd && HD.cmd.L].forEach(M => M && Object.keys(M).forEach(k => { if (Math.abs(M[k] || 0) > 1e-9) nz.add(k); }));
+        const L = [...nz].sort();
+        if (L.length) { const x1 = X(L[0]), x2 = X(L[L.length - 1]) + DLY_DW, w = host.clientWidth;
+          const t = x2 - x1 <= w ? (x1 + x2) / 2 - w / 2 : x1 - 2 * DLY_DW;
+          host.scrollLeft = Math.max(0, Math.min(host.scrollWidth - w, t)); shell.__dlyGx = host.scrollLeft; }
+      }
       host.addEventListener("scroll", () => { shell.__dlyGx = host.scrollLeft; }, { passive: true });
       dlyStick(host.closest(".bdg-d-scroll, .lk-scroll"));
       dlyCfgPaint();
@@ -12955,6 +12965,7 @@ function renderBudgetList() {
           INS.appro = { ...A0, on, dl: Number(dl), cov, nj: Number(nj) || 30, dep: d.querySelector(".apr-dep").value || "" };
         } else INS.appro = { ...A0, on };
         d.remove();
+        shell.__dlyCenter = true;   /* v603 : plage remplie centrée après un changement de réglages */
         insSave(); histLog("DÉLAIS", "RÉGLAGES DU GRAPHIQUE", c.map(x => ({ c: "CHARGES", p: "PRODUITS", g: "MARGE" })[x]).join(" + ")); renderTabK();
       });
     };
@@ -21059,6 +21070,7 @@ function renderBudgetList() {
 
       if (tab) {
         active = tab.dataset.tab;
+        if (active === "dly" || active === "gra") shell.__dlyCenter = true;   /* v603 : plage remplie centrée à l'ouverture du graphique */
         try { localStorage.setItem("svi_dtab_v1", active); } catch (e) {}
         renderTab();
         return;
