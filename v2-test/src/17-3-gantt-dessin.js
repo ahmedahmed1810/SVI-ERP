@@ -477,6 +477,9 @@
             const R = dlyHRange(); let s = "";
             if (R.a) { const x = Math.max(0, X(R.a)); if (x > 0) s += `<div class="g-rgsh" style="left:0;width:${x}px;height:${bodyH}px"></div>`; }
             if (R.b) { const x = Math.min(W, X(R.b) + DLY_DW); if (x < W) s += `<div class="g-rgsh" style="left:${x}px;width:${W - x}px;height:${bodyH}px"></div>`; }
+            /* v612 (point 12) : les traits DÉBUT et FIN posés traversent aussi le Gantt — une seule plage, tirée de l'un ou de l'autre */
+            if (R.a) s += `<div class="grng grng-g" data-r="a" style="left:${X(R.a)}px;height:${bodyH}px"><span>DÉBUT ${dFr(R.a).slice(0, 5)}</span></div>`;
+            if (R.b) s += `<div class="grng grng-g" data-r="b" style="left:${Math.min(W - 2, X(R.b) + DLY_DW)}px;height:${bodyH}px"><span>FIN ${dFr(R.b).slice(0, 5)}</span></div>`;
             return s; })()}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>`;
       host.__X = X; host.__d0 = d0; host.__HD = HD;
       /* v594 (remarque longue 2) : graphique et poignée « = » dans un PIED FIXE sous la zone des tâches (hors de ce qui défile) :

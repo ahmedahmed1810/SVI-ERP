@@ -2538,3 +2538,7 @@ input.dly-gin { box-sizing: border-box; border: 2px solid var(--inst, #b42318) !
 .gzero { position: absolute; left: 0; height: 0; border-top: 1px solid #98a2b3; pointer-events: none; z-index: 1; }
 /* v611 (point 4) : hors filtre, barres retirées (plus estompées) */
 .ghist .gh-off { display: none; }
+/* v612 (point 12) : traits DÉBUT / FIN sur le Gantt — trait fin, étiquette en haut, zone de toucher étroite sur toute la hauteur */
+#dlyGantt .grng-g { top: 0; bottom: auto; z-index: 6; border-left: 2px dashed #12355b; }
+#dlyGantt .grng-g::before { top: 0 !important; bottom: 0 !important; height: auto !important; left: -9px; width: 18px; }
+#dlyGantt .grng-g > span { top: 2px; }

@@ -6003,12 +6003,27 @@ function renderBudgetList() {
       });
       return tot ? Math.min(1, inn / tot) : 0;
     };
+    /* v612 (point 7) : produits cochés — une charge est affectée à toute sa tâche ; si une partie seulement des produits de la tâche
+       est cochée, la charge compte au prorata de leur quantité (QPB : même unité dans une tâche) ; affichage seulement */
+    const insPrdOn = () => { const on = (INS.prd || []).filter(r => !r.t && r.on === true); return on.length ? new Set(on.map(r => r.id)) : null; };
+    const insPrdLF = (l, P) => {
+      if (!P) return 1;
+      let a = 0, t = 0, hit = false;
+      (l.prd || []).forEach(x => { const p = INS.prd.find(r => r.id === x.id), q = p ? Number(insPrdQ(p)) || 0 : 0; t += q; if (P.has(x.id)) { a += q; hit = true; } });
+      return t > 0 ? a / t : hit ? 1 : 0;
+    };
     const insRgF = (k, id) => {
-      const R = insRg();
-      if (!R || (k !== "chg" && k !== "prd")) return 1;
+      const R = insRg(), P = k === "chg" ? insPrdOn() : null;
+      if ((!R && !P) || (k !== "chg" && k !== "prd")) return 1;
       if (!INS_RGM) { INS_RGM = new Map(); queueMicrotask(() => { INS_RGM = null; }); }
       const mk = k + ":" + id;
       if (INS_RGM.has(mk)) return INS_RGM.get(mk);
+      if (k === "chg") {
+        const Ls = (INS.links || []).filter(l => (l.chg || []).some(x => x.id === id));
+        const f = Ls.length ? Ls.reduce((t, l) => t + (R ? insRgTask(l.lot + "|" + l.sec, R) : 1) * insPrdLF(l, P), 0) / Ls.length : 0;
+        INS_RGM.set(mk, f);
+        return f;
+      }
       const ks = new Set((INS.links || []).filter(l => (l[k] || []).some(x => x.id === id)).map(l => l.lot + "|" + l.sec));
       let s = 0; ks.forEach(x => { s += insRgTask(x, R); });
       const f = ks.size ? s / ks.size : 0;
@@ -6614,14 +6629,16 @@ function renderBudgetList() {
       shell.__ckOrd = o;
       return o;
     };
-    const insCheckLinks = k => {
+    const insCheckLinks = (k, all) => {
       if (!INS) return null;
       /* mémoire valable pour un seul dessin (vidée dès la fin de la tâche en cours) */
       if (!ICL) { ICL = { m: {} }; queueMicrotask(() => { ICL = null; }); }
-      if (k in ICL.m) return ICL.m[k];
+      const ck = all ? k + "*" : k;
+      if (ck in ICL.m) return ICL.m[ck];
       /* v593 (remarque longue 3) : le bloc coché en premier garde toute sa liste ; chaque bloc n'est réduit que par les blocs cochés
          AVANT lui (un bloc sans case cochée est réduit par tous) ; les coches se cumulent. ISOLER (Gantt) réduit aussi les autres blocs. */
-      const ord = insCkOrd(), at = ord.indexOf(k), A = new Set(at >= 0 ? ord.slice(0, at) : ord);
+      /* v612 (point 7) : all = toutes les cases cochées des autres blocs (pour les totaux), pas seulement celles d'avant */
+      const ord = insCkOrd(), at = all ? -1 : ord.indexOf(k), A = new Set(at >= 0 ? ord.slice(0, at) : ord);
       const B = ["des", "lot", "prim", "sec", "prd", "chg"].filter(x => x !== k && A.has(x));
       const C = {};
       B.forEach(x => { const ids = (INS[x] || []).filter(r => !r.t && r.on === true).map(r => r.id); if (ids.length) C[x] = new Set(ids); });
@@ -6634,12 +6651,12 @@ function renderBudgetList() {
       const ks = Object.keys(C);
       const out = !ks.length && !lon && !DS && !IP ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
         && (!lon || l.on === true) && (!DS || DS.has(l.lot + "|" + l.sec)) && (!IP || inIso(l)));
-      ICL.m[k] = out;
+      ICL.m[ck] = out;
       return out;
     };
-    const insCheckSet = k => {
+    const insCheckSet = (k, all) => {
       if (!INS || !["des", "prd", "chg", "lot", "prim", "sec"].includes(k)) return null;
-      const L = insCheckLinks(k);
+      const L = insCheckLinks(k, all);
       if (!L) return null;
       const S = new Set();
       L.forEach(l => { if (k === "prd" || k === "chg") (l[k] || []).forEach(y => S.add(y.id)); else S.add(l[k]); });
@@ -6657,8 +6674,10 @@ function renderBudgetList() {
          « TOTAL PARTIEL » dès qu'une partie seulement compte */
       const shown = insShown(k).filter(r => !r.t);
       const on = shown.filter(r => r.on === true);
-      const rows = on.length ? on : shown;
-      const partial = on.length > 0 || shown.length < INS[k].filter(r => !r.t).length;
+      /* v612 (point 7) : le total tient compte de toutes les cases cochées des autres blocs, même cochés après celui-ci */
+      let SA = null; try { SA = insCheckSet(k, true); } catch (e) { SA = null; }
+      const rows = (on.length ? on : shown).filter(r => !SA || SA.has(r.id));
+      const partial = on.length > 0 || rows.length < INS[k].filter(r => !r.t).length;
       const ht = rows.reduce((t, r) => t + insHT(k, r), 0);
       const ttc = rows.reduce((t, r) => t + insTTC(k, r), 0);
       /* pied aligné sur l'ordre des colonnes de l'écran */
@@ -10081,6 +10100,9 @@ function renderBudgetList() {
             const R = dlyHRange(); let s = "";
             if (R.a) { const x = Math.max(0, X(R.a)); if (x > 0) s += `<div class="g-rgsh" style="left:0;width:${x}px;height:${bodyH}px"></div>`; }
             if (R.b) { const x = Math.min(W, X(R.b) + DLY_DW); if (x < W) s += `<div class="g-rgsh" style="left:${x}px;width:${W - x}px;height:${bodyH}px"></div>`; }
+            /* v612 (point 12) : les traits DÉBUT et FIN posés traversent aussi le Gantt — une seule plage, tirée de l'un ou de l'autre */
+            if (R.a) s += `<div class="grng grng-g" data-r="a" style="left:${X(R.a)}px;height:${bodyH}px"><span>DÉBUT ${dFr(R.a).slice(0, 5)}</span></div>`;
+            if (R.b) s += `<div class="grng grng-g" data-r="b" style="left:${Math.min(W - 2, X(R.b) + DLY_DW)}px;height:${bodyH}px"><span>FIN ${dFr(R.b).slice(0, 5)}</span></div>`;
             return s; })()}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>`;
       host.__X = X; host.__d0 = d0; host.__HD = HD;
       /* v594 (remarque longue 2) : graphique et poignée « = » dans un PIED FIXE sous la zone des tâches (hors de ce qui défile) :
@@ -11286,10 +11308,10 @@ function renderBudgetList() {
       /* R19 : traits DÉBUT et FIN de l'histogramme — tirés au doigt ; contre un bord = pas de limite ; croisés = noms échangés */
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
-        const ln = e.target.closest && e.target.closest(".dlyg-foot .grng[data-r]");
+        const ln = e.target.closest && e.target.closest(".dlyg-foot .grng[data-r], #dlyGantt .grng-g[data-r]");
         if (!X || !ln) return;
         e.preventDefault(); e.stopPropagation();
-        const h = ln.closest(".ghist"), host = shell.querySelector("#dlyGantt"), W = h.offsetWidth, sp = ln.querySelector("span");
+        const h = ln.closest(".ghist") || ln.closest(".gbody"), host = shell.querySelector("#dlyGantt"), W = h.offsetWidth, sp = ln.querySelector("span");
         const R0 = X.hrange(), other = ln.dataset.r === "a" ? R0.b : R0.a;
         ln.__drag = true;
         let iso = R0[ln.dataset.r] || "", edge = "";
@@ -11719,7 +11741,7 @@ function renderBudgetList() {
         const yRedraw = () => { if (shell.__dlyYRaf) return; shell.__dlyYRaf = requestAnimationFrame(() => { shell.__dlyYRaf = 0; const H = shell.querySelector("#dlyGantt"); if (H) { H.__drawn = false; dlyGanttDraw(); } }); };
         const yFull = () => { document.getElementById("dlyHb")?.remove(); shell.__dlyYZ = 1; shell.__dlyYO = 0; yRedraw(); };
         let V = null, lastTap = null;
-        const NOV = ".gplaf, .gcut, .grng, .grng-h, .grule, .gax-hit, .gval, .dlyg-hh, .grdb, .grdc";
+        const NOV = ".gplaf, .gcut, .grng, .grng-g, .grng-h, .grule, .gax-hit, .gval, .dlyg-hh, .grdb, .grdc";
         shell.addEventListener("touchstart", e => {
           V = null;
           const gh = e.target.closest && e.target.closest(".dlyg-foot .ghist");
@@ -12965,8 +12987,11 @@ function renderBudgetList() {
       if (!R && !money) return null;
       const mode = money || !R ? "m" : dlyResMode(R), cal = insCal(), cur = dlyCurDates(), ser = new Map(), det = {}, tot = {};
       if (R) [...new Set(R.map(dlyResK))].forEach(sk => ser.set(sk, { L: {} }));
+      /* v612 (point 7) : produits cochés — charges de chaque tâche au prorata de la quantité des produits cochés (graphique, commandes) */
+      const PON = insPrdOn();
+      const resOfP = k => { if (!PON) return dlyResOf(k, R, mode); const out = new Map(), seen = new Set(); (INS.links || []).forEach(l => { if (l.lot + "|" + l.sec !== k) return; const f = insPrdLF(l, PON); (l.chg || []).forEach(e => { if (seen.has(e.id)) return; const r = R.find(x => x.id === e.id); if (!r) return; seen.add(e.id); const v = (mode === "q" ? dlyResQty(r) : (num(r.q || 0) || 0) * (num(r.p || 0) || 0)) * f; if (v) out.set(dlyResK(r), (out.get(dlyResK(r)) || 0) + v); }); }); return out; };
       if (R) Object.keys(cur).forEach(k => {
-        const p = cur[k], m = dlyResOf(k, R, mode);
+        const p = cur[k], m = resOfP(k);
         if (!m.size) return;
         /* v547 (R22) : jours de chaque morceau (demi-journées comprises) */
         const SL = [];

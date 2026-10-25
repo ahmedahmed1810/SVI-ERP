@@ -530,8 +530,11 @@
       if (!R && !money) return null;
       const mode = money || !R ? "m" : dlyResMode(R), cal = insCal(), cur = dlyCurDates(), ser = new Map(), det = {}, tot = {};
       if (R) [...new Set(R.map(dlyResK))].forEach(sk => ser.set(sk, { L: {} }));
+      /* v612 (point 7) : produits cochés — charges de chaque tâche au prorata de la quantité des produits cochés (graphique, commandes) */
+      const PON = insPrdOn();
+      const resOfP = k => { if (!PON) return dlyResOf(k, R, mode); const out = new Map(), seen = new Set(); (INS.links || []).forEach(l => { if (l.lot + "|" + l.sec !== k) return; const f = insPrdLF(l, PON); (l.chg || []).forEach(e => { if (seen.has(e.id)) return; const r = R.find(x => x.id === e.id); if (!r) return; seen.add(e.id); const v = (mode === "q" ? dlyResQty(r) : (num(r.q || 0) || 0) * (num(r.p || 0) || 0)) * f; if (v) out.set(dlyResK(r), (out.get(dlyResK(r)) || 0) + v); }); }); return out; };
       if (R) Object.keys(cur).forEach(k => {
-        const p = cur[k], m = dlyResOf(k, R, mode);
+        const p = cur[k], m = resOfP(k);
         if (!m.size) return;
         /* v547 (R22) : jours de chaque morceau (demi-journées comprises) */
         const SL = [];
