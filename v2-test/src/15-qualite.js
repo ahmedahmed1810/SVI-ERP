@@ -751,13 +751,18 @@
       const W = cwLoad(), cd = tbl.querySelector('col[data-w="chg.detail"]'), ct = tbl.querySelector('col[data-w="chg.tache"]');
       if (!cd || !ct || W["chg.detail"] || W["chg.tache"]) return;
       const cols = [...tbl.querySelectorAll("colgroup col")];
+      /* v613 : colonne % en plus — chaque colonne d'abord élargie à son intitulé (règle des en-têtes jamais tronqués), puis le reste partagé */
+      try { sviMinHeadCols(); } catch (e) {}
       const others = cols.filter(c => c !== cd && c !== ct).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
+      const ths = [...tbl.querySelectorAll(":scope > thead > tr:first-child > th")];
+      const needN = c => { const th = ths[cols.indexOf(c)], lab = th && th.querySelector(".cf-lab"); if (!lab) return 0; const rg = document.createRange(); rg.selectNodeContents(lab); return Math.ceil(rg.getBoundingClientRect().width + th.clientWidth - lab.clientWidth) + 2; };
+      const dMin = Math.max(150, needN(cd)), tMin = Math.max(80, needN(ct));
       const pr = parseFloat(getComputedStyle(sc).paddingRight) || 0;
       /* v507 (remarque 62) : largeurs calculées une fois pour une largeur de bloc donnée, puis gardées (le tableau ne bouge plus) */
       const M0 = shell.__chgFitM;
       if (M0 && M0.w === sc.offsetWidth && M0.o === others) { cd.style.width = M0.d + "px"; ct.style.width = M0.t + "px"; tbl.style.width = others + M0.d + M0.t + "px"; return; }
       const free = Math.floor(sc.clientWidth - pr - others - 22);   /* marge : en-têtes jamais tronqués (quelques px de plus) */
-      const d = Math.max(180, Math.round(free * 0.55)), t = Math.max(95, free - d);
+      const d = Math.max(dMin, Math.round(free * 0.55)), t = Math.max(tMin, free - d);
       cd.style.width = d + "px"; ct.style.width = t + "px"; tbl.style.width = others + d + t + "px";
       shell.__chgFitM = { w: sc.offsetWidth, o: others, d, t };
     };

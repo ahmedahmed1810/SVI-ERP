@@ -2542,3 +2542,6 @@ input.dly-gin { box-sizing: border-box; border: 2px solid var(--inst, #b42318) !
 #dlyGantt .grng-g { top: 0; bottom: auto; z-index: 6; border-left: 2px dashed #12355b; }
 #dlyGantt .grng-g::before { top: 0 !important; bottom: 0 !important; height: auto !important; left: -9px; width: 18px; }
 #dlyGantt .grng-g > span { top: 2px; }
+/* v613 (point 9) : tout replier / tout déplier — signe dans l'en-tête de la colonne de désignation */
+.fold-all { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; margin-left: 6px; padding: 0 4px; border: 1px solid currentColor; border-radius: 5px; font-weight: 900; font-size: 13px; line-height: 1; cursor: pointer; vertical-align: middle; position: relative; }
+.fold-all::after { content: ""; position: absolute; inset: -8px -6px; }

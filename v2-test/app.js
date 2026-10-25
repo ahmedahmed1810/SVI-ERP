@@ -5316,7 +5316,7 @@ function renderBudgetList() {
       /* en-tête de colonne bleu : filtre ou tri choisi sur cette colonne */
       const on = !!st.f[key] || !!(st.sort && st.sort.col === key && !st.sort.def);
       return `<th class="${cls} ${on ? "cf-on" : ""}">
-        <span class="cf-wrap"><span class="cf-lab">${label}</span><span class="cf-btn" data-cf="${t}" data-col="${key}"
+        <span class="cf-wrap"><span class="cf-lab">${label}${(() => { const k = shell.__faFor && shell.__faFor(t, key); return k && shell.__faHTML ? shell.__faHTML(k) : ""; })()}</span><span class="cf-btn" data-cf="${t}" data-col="${key}"
           role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span
           class="col-rs" data-rs="${t}" data-col="${key}"></span></th>`;
     };
@@ -5338,7 +5338,7 @@ function renderBudgetList() {
     /* FORMAT 113 : disposition par défaut = largeurs réglées par Ahmed sur l'iPad (13/10/2026) */
     const CW_DEF_T = {
       "client.article": 69, "client.designation": 660, "client.unit": 70, "client.qty": 71, "client.price": 86, "client.ht": 96, "client.tva": 81, "client.ttc": 97,
-      "chg.article": 69, "chg.detail": 300, "chg.rdb": 120, "chg.tache": 246, "chg.unit": 70, "chg.qty": 95, "chg.price": 95, "chg.amount": 105, "chg.tva": 80, "chg.ttc": 110,
+      "chg.article": 69, "chg.detail": 300, "chg.rdb": 110, "chg.pct": 58, "chg.tache": 246, "chg.unit": 70, "chg.qty": 84, "chg.price": 84, "chg.amount": 92, "chg.tva": 80, "chg.ttc": 94,
       "prd.detail": 176, "prd.tache": 246, "prd.unit": 70, "prd.nbr": 77, "prd.d1": 79, "prd.d2": 79, "prd.d3": 79, "prd.qty": 72, "prd.price": 72, "prd.amount": 92, "prd.tva": 82, "prd.ttc": 109
     };
     const cwGet = (t, k) => cwLoad()[t + "." + k] || CW_DEF_T[t + "." + k] || CW_DEF[k] || 100;
@@ -6088,6 +6088,8 @@ function renderBudgetList() {
         /* v491 (remarque 3) : colonne TÂCHE ; v492 (remarque 8) : à la fin */
         /* v498 (remarque 38) : RENDEMENT budgété de la charge dans sa tâche secondaire — quantité produite par la tâche ÷ QCB,
            unité de l'activité secondaire / unité de la charge (ex. 0,50 M2 / L) */
+        /* v613 (point 8) : % = part de la charge dans le total des charges retenues (filtres et prorata compris) */
+        ["pct", "%", "number", "calc", "pct"],
         ["rdb", "RENDEMENT", "number", "calc", "rdb"],
         ["tache", "TÂCHE", "", "calc", "tache"],
         /* FORMAT 111 (v488) : AGRÉMENT EXIGÉ / QUALIFICATION EXIGÉE — colonnes masquées pour l'instant (v491, remarque 3),
@@ -6115,7 +6117,7 @@ function renderBudgetList() {
     const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "tva", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
-        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "rdb" ? (k === "chg" ? chgRdb(r) : "") : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
+        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "pct" ? (k === "chg" ? insPctChg(r) : "") : f === "rdb" ? (k === "chg" ? chgRdb(r) : "") : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
     /* erreur d'une ligne (FORMAT 75) : on ne passe pas à la ligne suivante tant qu'elle reste */
     const insRowErr = (k, r) => {
       /* FORMAT 124 : ART en double (saisi ou calculé) — titres compris */
@@ -6166,6 +6168,7 @@ function renderBudgetList() {
       if (!isNew) {
         if (r.t && f !== "art" && f !== "des") val = "";
         else if (f === "tache") val = insCalc(k, r, f) || "";
+        else if (f === "pct") { const v = insCalc(k, r, f); val = v === "" ? "" : money(v) + " %"; }
         else if (type === "calc" || qAuto) val = insFmt(insCalc(k, r, f));
         else if (k === "prd" && f === "tva") val = insFmt(insPrdTVA(INS, r.id));
         else if (type === "num") val = f === "tva" ? (r.tva === "" || r.tva === undefined ? "20,00" : insFmt(r.tva)) : insFmt(r[f]);
@@ -6481,6 +6484,8 @@ function renderBudgetList() {
       const RD = chgGrpRdb(g);
       if (RD) v.rdb = money(RD.v) + " " + RD.u;
       const fo = CHG_GFOLD.has(key);
+      /* v613 (point 8) : titre replié = % de toute sa branche ; titre déplié = pas de % */
+      { const d = insPctDen(); v.pct = fo && d ? money(ht / d * 100) + " %" : ""; }
       /* v511 (remarque 72) : le signe a sa propre zone (toute la hauteur, 40 px), que la case de la désignation ne recouvre pas */
       const fb = `<span class="ins-gfz" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier"><span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}">${fo ? "›" : "⌄"}</span></span>`;
       const non = g.filter(r => r.on === true).length;
@@ -6539,6 +6544,22 @@ function renderBudgetList() {
         const G = new Map();
         rows.forEach(r => { const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"); if (!G.has(key)) G.set(key, []); G.get(key).push(r); });
         const done = new Set();
+        /* v613 (point 8) : tri sur la colonne % — un titre replié est classé comme une seule ligne ; un titre déplié disparaît,
+           ses lignes sont classées avec les autres (reconnues par leur nom) */
+        const stc = cfT(insCfT(k));
+        if (stc.sort && !stc.sort.def && stc.sort.col === "pct") {
+          const dir = stc.sort.dir === "desc" ? -1 : 1, d = insPctDen() || 1, it = [];
+          rows.forEach(r => {
+            const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"), g = G.get(key);
+            if (g.length < 2) { it.push({ r, v: insHT(k, r) / d }); return; }
+            if (done.has(key)) return;
+            done.add(key);
+            if (CHG_GFOLD.has(key)) it.push({ g, key, v: g.reduce((t, x) => t + insHT(k, x), 0) / d });
+            else g.forEach(x => it.push({ r: x, v: insHT(k, x) / d }));
+          });
+          it.sort((a, b) => (a.v - b.v) * dir);
+          html = it.map(o => o.g ? insGrpRowHTML(o.g, o.key) : insRowHTML(k, o.r, 0)).join("");
+        } else
         html = rows.map(r => {
           const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"), g = G.get(key);
           if (g.length < 2) return insRowHTML(k, r, 0);
@@ -6661,6 +6682,57 @@ function renderBudgetList() {
       const S = new Set();
       L.forEach(l => { if (k === "prd" || k === "chg") (l[k] || []).forEach(y => S.add(y.id)); else S.add(l[k]); });
       return S;
+    };
+    /* v613 (point 8) : total des charges retenues (comme le pied : filtres de colonne, cases cochées de tous les blocs, plage, prorata) */
+    let PCT_M = null, PCT_BUSY = false;
+    const insPctDen = () => {
+      if (PCT_M && PCT_M.rgv === INS_RGV) return PCT_M.v;
+      if (PCT_BUSY) return 0;
+      PCT_BUSY = true;
+      let v = 0;
+      try {
+        const shown = insShown("chg").filter(r => !r.t), on = shown.filter(r => r.on === true);
+        let SA = null; try { SA = insCheckSet("chg", true); } catch (e) { SA = null; }
+        v = (on.length ? on : shown).filter(r => !SA || SA.has(r.id)).reduce((t, r) => t + insHT("chg", r), 0);
+      } finally { PCT_BUSY = false; }
+      PCT_M = { rgv: INS_RGV, v }; queueMicrotask(() => { PCT_M = null; });
+      return v;
+    };
+    const insPctChg = r => { const d = insPctDen(); return d ? insHT("chg", r) / d * 100 : ""; };
+    /* v613 (point 9) : signe › / ⌄ dans l'en-tête de la colonne de désignation — un toucher replie tout, un autre déplie tout */
+    const faKeys = kind => {
+      if (kind === "chg" || kind === "prd") {
+        const G = new Map(), kOf = kind === "chg" ? r => [U_(r.des), U_(r.u), U_(r.art)].join("|") : r => "P|" + U_(r.des);
+        (INS[kind] || []).filter(r => !r.t && (kind === "chg" || U_(r.des))).forEach(r => { const q = kOf(r); G.set(q, (G.get(q) || 0) + 1); });
+        return [...G].filter(x => x[1] > 1).map(x => x[0]);
+      }
+      if (kind === "des") return (INS.des || []).filter(r => r.t).map(r => r.id);
+      const P = new Set(); (INS.lot || []).filter(r => !r.t).forEach(r => { const sg = lotSegs(r); for (let j = 1; j <= sg.length; j++) P.add(sg.slice(0, j).join(" / ")); });
+      if (kind === "lot") return [...P].filter(p => [...P].some(q => U_(q).startsWith(U_(p) + " / ")));
+      return [...P];
+    };
+    const faFolded = kind => { const K = faKeys(kind); if (!K.length) return null;
+      return kind === "chg" || kind === "prd" ? K.every(x => !shell.__chgGOpen.has(x)) : kind === "des" ? K.every(x => !!foldGet()[x]) : K.every(x => dlyIsFolded(x)); };
+    shell.__faHTML = kind => { const f = faFolded(kind); return f === null ? "" : `<span class="fold-all" data-fa="${kind}" role="button" aria-label="${f ? "Tout déplier" : "Tout replier"}">${f ? "›" : "⌄"}</span>`; };
+    shell.__faFor = (t, key) => ({ [insCfT("chg") + ".detail"]: "chg", [insCfT("prd") + ".detail"]: "prd", [insCfT("des") + ".designation"]: "des", "dlyp.lot": "dly" })[t + "." + key];
+    if (!shell.__faBound) {
+      shell.__faBound = true;
+      shell.addEventListener("click", e => {
+        const b = e.target.closest && e.target.closest(".fold-all[data-fa]");
+        if (!b) return;
+        e.stopPropagation(); e.preventDefault();
+        shell.__faDo && shell.__faDo(b.dataset.fa);
+      }, true);
+    }
+    shell.__faDo = kind => {
+      if (kind === "mg") { const X = shell.__mg; if (X) { if (shell.querySelector('.fold-all[data-fa="mg"]')?.textContent === "›") X.openAll(); else X.closeAll(); } return; }
+      const f = faFolded(kind), K = faKeys(kind);
+      if (f === null) return;
+      if (kind === "chg" || kind === "prd") { K.forEach(x => { if (f) shell.__chgGOpen.add(x); else shell.__chgGOpen.delete(x); }); shell.__chgGSave(); }
+      else if (kind === "des") K.forEach(x => { if (!!foldGet()[x] === f) foldSet(x, !f); });
+      else { const a = dlyFoldAll(); K.forEach(x => { const q = dlyFoldK(x); if (f) delete a[q]; else a[q] = 1; }); try { localStorage.setItem("svi_lotfold_v1", JSON.stringify(a)); } catch (e) {} }
+      histLog("SAISIE", f ? "TOUT DÉPLIÉ" : "TOUT REPLIÉ", kind.toUpperCase());
+      refreshAll();
     };
     const insFoots = () => (ICL = null, shell).querySelectorAll("table.ins-table[data-ik]").forEach(t => { const ft = t.querySelector("tfoot"); if (ft) ft.innerHTML = insFootHTML(t.dataset.ik); });
     const insFootHTML = k => {
@@ -7053,7 +7125,7 @@ function renderBudgetList() {
         const on = !!cfT(k).f.v;
         return `
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
-          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length, INS[k].length)}</span>${onlyBtn(k, true)}<span class="cf-btn"
+          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length, INS[k].length)}${k === "lot" ? shell.__faHTML("lot") : ""}</span>${onlyBtn(k, true)}<span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${k === "sec" || k === "prim" ? `<span class="act-uh${cfT(k).f.u || (cfT(k).sort && cfT(k).sort.col === "u" && !cfT(k).sort.def) ? " cf-on" : ""}"><span class="act-uhl">U</span><span class="cf-btn" data-cf="${k}" data-col="u" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>` : ""}${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
           ${k === "lot" ? lotTreeHTML(list) : list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
@@ -8439,13 +8511,18 @@ function renderBudgetList() {
       const W = cwLoad(), cd = tbl.querySelector('col[data-w="chg.detail"]'), ct = tbl.querySelector('col[data-w="chg.tache"]');
       if (!cd || !ct || W["chg.detail"] || W["chg.tache"]) return;
       const cols = [...tbl.querySelectorAll("colgroup col")];
+      /* v613 : colonne % en plus — chaque colonne d'abord élargie à son intitulé (règle des en-têtes jamais tronqués), puis le reste partagé */
+      try { sviMinHeadCols(); } catch (e) {}
       const others = cols.filter(c => c !== cd && c !== ct).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
+      const ths = [...tbl.querySelectorAll(":scope > thead > tr:first-child > th")];
+      const needN = c => { const th = ths[cols.indexOf(c)], lab = th && th.querySelector(".cf-lab"); if (!lab) return 0; const rg = document.createRange(); rg.selectNodeContents(lab); return Math.ceil(rg.getBoundingClientRect().width + th.clientWidth - lab.clientWidth) + 2; };
+      const dMin = Math.max(150, needN(cd)), tMin = Math.max(80, needN(ct));
       const pr = parseFloat(getComputedStyle(sc).paddingRight) || 0;
       /* v507 (remarque 62) : largeurs calculées une fois pour une largeur de bloc donnée, puis gardées (le tableau ne bouge plus) */
       const M0 = shell.__chgFitM;
       if (M0 && M0.w === sc.offsetWidth && M0.o === others) { cd.style.width = M0.d + "px"; ct.style.width = M0.t + "px"; tbl.style.width = others + M0.d + M0.t + "px"; return; }
       const free = Math.floor(sc.clientWidth - pr - others - 22);   /* marge : en-têtes jamais tronqués (quelques px de plus) */
-      const d = Math.max(180, Math.round(free * 0.55)), t = Math.max(95, free - d);
+      const d = Math.max(dMin, Math.round(free * 0.55)), t = Math.max(tMin, free - d);
       cd.style.width = d + "px"; ct.style.width = t + "px"; tbl.style.width = others + d + t + "px";
       shell.__chgFitM = { w: sc.offsetWidth, o: others, d, t };
     };
@@ -18215,6 +18292,7 @@ function renderBudgetList() {
        Compteur des liaisons sur l'onglet (FIGER). Couleur du % : dégradé du rouge foncé au vert foncé.
        ========================================================= */
     const MG_DIMS = ["des", "lot", "prim", "sec"];
+    let MG_TOT = 0;   /* v613 : marge totale des liaisons retenues (base du %) */
     let mgSort = null;   /* { col: "chg" | "prd" | "mg" | "pct", dir: 1 | -1 } */
     let mgAll = [];      /* chemins de toutes les lignes regroupées (TOUT DÉPLIER) */
     const mgOpen = new Set();   /* lignes regroupées dépliées (chemin « /des:d1/lot:l2 ») */
@@ -18231,7 +18309,8 @@ function renderBudgetList() {
           (l.prd || []).forEach(x => { const k = l.des + "|" + x.id; if (sp.has(k)) return; sp.add(k); const p = INS.prd.find(r => r.id === x.id); if (p) prd += insPrdQ(p) * (INS_RGV ? insRgF("prd", p.id) : 1) * pp; });
         }
       });
-      return { chg, prd, mg: prd - chg, pct: prd ? (prd - chg) / prd * 100 : null };
+      /* v613 (point 8) : % = part de la marge totale retenue (même règle que le % des charges) */
+      return { chg, prd, mg: prd - chg, pct: prd && MG_TOT ? (prd - chg) / Math.abs(MG_TOT) * 100 : null };
     };
     /* dégradé rouge foncé → vert foncé (bornes : pire et meilleure marge affichées) */
     /* v508 (remarque 66) : deux dégradés séparés par 0 — négatifs en rouge (foncé à la plus faible, clair près de 0),
@@ -18282,6 +18361,8 @@ function renderBudgetList() {
       } catch (e) {}
       const lfOk = l => Object.keys(LF).every(k => (k === "chg" || k === "prd") ? (l[k] || []).some(x => LF[k].has(x.id)) : LF[k].has(l[k]));
       const base = (insCheckLinks("lnk") || ALL).filter(lfOk).slice().sort((a, b) => desCmp(D2(a), D2(b)) || natCmp(nm("lot", a.lot), nm("lot", b.lot)) || natCmp(nm("prim", a.prim), nm("prim", b.prim)) || natCmp(nm("sec", a.sec), nm("sec", b.sec)));
+      MG_TOT = 0; MG_TOT = mgAgg(base).mg;
+      M.forEach((a, id) => { a.pct = a.prd && MG_TOT ? a.mg / Math.abs(MG_TOT) * 100 : null; });
       const rows = cfApply(t, LC, base);
       lastShown.detail = { cols: LC, rows, kind: "lnk" };
       const dw = INS_EDIT ? 40 : 0;
@@ -18324,7 +18405,23 @@ function renderBudgetList() {
           else (function sub(L2, j, p2) { if (j >= G.length - 1) return; const d2 = G[j], S = new Map(); L2.forEach(l => { if (!S.has(l[d2])) S.set(l[d2], []); S.get(l[d2]).push(l); }); S.forEach((L3, id3) => { const q = p2 + "/" + d2 + ":" + id3; mgAll.push(q); sub(L3, j + 1, q); }); })(LL, i + 1, p);
         });
       };
-      walk(rows, 0, "");
+      /* v613 (point 8) : tri actif — une ligne regroupée repliée est classée comme une seule ligne ; dépliée, elle disparaît et ses lignes
+         sont classées avec les autres (reconnues par leur nom) */
+      const flat = (L, i, path, acc) => {
+        if (i >= G.length - 1) { L.forEach(l => acc.push({ leaf: true, l, lvl: 0, dim: G[G.length - 1], band: 0 })); return; }
+        const d = G[i], seen = new Map();
+        L.forEach(l => { if (!seen.has(l[d])) seen.set(l[d], []); seen.get(l[d]).push(l); });
+        seen.forEach((LL, id) => {
+          if (i === G.length - 2 && G[G.length - 1] === "sec" && d === "prim" && LL.length === 1 && insLinkPrim(INS, LL[0])) { acc.push({ leaf: true, l: LL[0], lvl: 0, dim: d, band: 0 }); return; }
+          const p = path + "/" + d + ":" + id;
+          mgAll.push(p);
+          if (mgOpen.has(p)) { flat(LL, i + 1, p, acc); return; }
+          acc.push({ leaf: false, dim: d, id, lvl: 0, path: p, links: LL, agg: mgAgg(LL), open: false, band: 0 });
+          (function sub(L2, j, p2) { if (j >= G.length - 1) return; const d2 = G[j], S = new Map(); L2.forEach(l => { if (!S.has(l[d2])) S.set(l[d2], []); S.get(l[d2]).push(l); }); S.forEach((L3, id3) => { const q = p2 + "/" + d2 + ":" + id3; mgAll.push(q); sub(L3, j + 1, q); }); })(LL, i + 1, p);
+        });
+      };
+      if (mgSort && G.length > 1) { const acc = []; flat(rows, 0, "", acc); acc.sort((x, y) => byS(x.leaf ? M.get(x.l.id) : x.agg, y.leaf ? M.get(y.l.id) : y.agg)); acc.forEach((r, i) => { r.band = i % 2; out.push(r); }); }
+      else walk(rows, 0, "");
       const aggOf = r => r.leaf ? M.get(r.l.id) : r.agg;
       const P = out.map(r => aggOf(r).pct).filter(p => !blank(p));
       const lo = Math.min(0, ...P), hi = Math.max(0, ...P);
@@ -18359,6 +18456,8 @@ function renderBudgetList() {
         /* v507 (remarque 62) : ▲ / ▼ posé à côté de l'intitulé sans élargir la colonne */
         /* v510 (remarque 69) : le signe est posé dans l'en-tête, hors de l'intitulé (il ne compte jamais dans la largeur) */
         if (mgSort && mgSort.col === c[0]) h = h.replace(`<span class="cf-wrap">`, `<i class="mg-dir">${mgSort.dir > 0 ? "▲" : "▼"}</i><span class="cf-wrap">`);
+        /* v613 (point 9) : tout replier / tout déplier, dans l'en-tête de la 1re colonne regroupée */
+        if (mgAll.length && c === oc.find(x => G.includes(x[0]))) h = h.replace(`<span class="cf-lab">${c[1]}`, `<span class="cf-lab">${c[1]}<span class="fold-all" data-fa="mg" role="button">${mgOpen.size ? "⌄" : "›"}</span>`);
         return h;
       };
       const tot = mgAgg(rows), tm = metr(tot, true);
