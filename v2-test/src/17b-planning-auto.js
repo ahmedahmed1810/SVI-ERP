@@ -572,7 +572,7 @@
     };
     /* v546 (R29) : fenêtre RÉGLAGES DE L'HISTOGRAMME (icône ⚙) — UNITÉ, AFFICHAGE, DÉPART DU CUMUL, COURBES, % de la légende */
     const dlyHCfgWin = () => {
-      const h = dlyHSet(), R = dlyResSel(), q = !!R && dlySameU(R), crb = dlyCrb(), d = document.createElement("div");
+      const h = dlyHSet(), R = dlyResSel(), q = !R || dlySameU(R),   /* v602 : sans charge cochée = toutes les charges (v599) */ crb = dlyCrb(), d = document.createElement("div");
       /* v565 (remarque 7) : choix à deux options = interrupteur en deux parties collées ; courbes = petites cases sur une ligne */
       const rad = (n, v, l, on, dis) => `<label class="hcf-seg${on ? " on" : ""}${dis ? " off" : ""}"${dis ? ' data-why="QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ."' : ""}><input type="radio" name="${n}" value="${v}"${on ? " checked" : ""}${dis ? " disabled" : ""}><span>${l}</span></label>`;
       d.id = "svConf";
@@ -582,15 +582,15 @@
         <div class="hcf-g">
           <span class="hcf-k">UNITÉ</span><span class="hcf-sw">${rad("hcu", "q", "QUANTITÉ", h.u === "q" && q, !q)}${rad("hcu", "m", "MONTANT (DH)", h.u !== "q" || !q)}</span>
           <span class="hcf-k">PRÉSENTATION</span><span class="hcf-sw">${rad("hca", "j", "PAR JOUR", h.aff !== "c")}${rad("hca", "c", "CUMULÉE", h.aff === "c")}</span>
-          <span class="hcf-k">FORME</span><span class="hcf-sw">${(() => { const fo = h.forme || (dlyAppro().on && R ? "h" : crb.includes("r") ? "c" : h.aff === "c" ? "c" : "h"); return rad("hcf", "h", "HISTOGRAMME", fo === "h") + rad("hcf", "c", "COURBES", fo === "c"); })()}</span>
+          <span class="hcf-k">FORME</span><span class="hcf-sw">${(() => { const fo = h.forme || (dlyAppro().on ? "h" : crb.includes("r") ? "c" : h.aff === "c" ? "c" : "h"); return rad("hcf", "h", "HISTOGRAMME", fo === "h") + rad("hcf", "c", "COURBES", fo === "c"); })()}</span>
           <span class="hcf-k">POINT DE DÉPART</span><span class="hcf-sw">${rad("hcc", "r", "DEPUIS LE TRAIT DÉBUT", h.cum !== "a")}${rad("hcc", "a", "DEPUIS LE DÉBUT DU PROJET", h.cum === "a")}</span>
           <span class="hcf-k">COURBES</span><span class="hcf-cbs">${[["c", "CHARGES"], ["p", "PRODUITS"], ["g", "MARGE"], ["r", "RENDEMENT"]].map(([v, l]) => `<label${v === "r" && !R ? ' class="off" data-why="RENDEMENT : COCHER DES CHARGES DANS DÉTAIL CHARGES ET CHOISIR UNE ACTIVITÉ DANS TÂCHES."' : ""}><input type="checkbox" class="hcf-c" value="${v}"${crb.includes(v) && (v !== "r" || R) ? " checked" : ""}${v === "r" && !R ? " disabled" : ""}><span>${l}</span></label>`).join("")}</span>
           ${(() => { const only = crb.length === 1 && crb[0] === "g", hid = only ? "" : " hidden";
             /* v600 : MARGE cochée seule — NETTE (DH) ou % (marge ÷ produits) */
             return `<span class="hcf-k hcf-mg"${hid}>MARGE</span><span class="hcf-sw hcf-mg"${hid}>${rad("hcm", "n", "NETTE (DH)", h.mg !== "p")}${rad("hcm", "p", "%", h.mg === "p")}</span>`; })()}
           <span class="hcf-k">LÉGENDE</span><span class="hcf-pl">CHARGES QUI FONT <input class="hcf-pct" inputmode="numeric" value="${esc(String(h.pct || 70))}"> %</span>
-          <span class="hcf-k">DONNÉES</span><span class="hcf-sw">${rad("hcd", "c", "CONSOMMATION", !(dlyAppro().on && R))}${rad("hcd", "o", "COMMANDES", !!(dlyAppro().on && R), !R).replace("QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ.", "COMMANDES : COCHER DES CHARGES DANS DÉTAIL CHARGES.")}</span>
-          ${(() => { const a = dlyAppro(), hid = a.on && R ? "" : " hidden";
+          <span class="hcf-k">DONNÉES</span><span class="hcf-sw">${rad("hcd", "c", "CONSOMMATION", !(dlyAppro().on))}${rad("hcd", "o", "COMMANDES", !!(dlyAppro().on)).replace("QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ.", "COMMANDES : COCHER DES CHARGES DANS DÉTAIL CHARGES.")}</span>
+          ${(() => { const a = dlyAppro(), hid = a.on ? "" : " hidden";
             /* v572 (remarque 17) : réglages des COMMANDES dans la même fenêtre, en dessous (plus de fenêtre APPROVISIONNEMENT ni de liste des charges) */
             return `<span class="hcf-k hcf-apr"${hid}>COUVERTURE</span><span class="hcf-pl hcf-apr"${hid}><span class="hcf-sw hcf-sw3">${[["w", "SEMAINE"], ["m", "MOIS"], ["n", "N JOURS"]].map(([v, l]) => `<label class="hcf-seg${a.cov === v ? " on" : ""}"><input type="radio" name="aprc" value="${v}"${a.cov === v ? " checked" : ""}><span>${l}</span></label>`).join("")}</span><input class="apr-nj hcf-pct" inputmode="numeric" value="${esc(String(a.nj))}"${a.cov === "n" ? "" : " disabled"}></span>
               <span class="hcf-k hcf-apr"${hid}>DÉLAI D'APPROVISIONNEMENT (J)</span><span class="hcf-pl hcf-apr"${hid}><input class="apr-dl hcf-pct" inputmode="numeric" value="${esc(String(a.dl))}"><span class="hcf-k hcf-k2">DATE DE DÉPART</span><input type="date" class="apr-dep" value="${esc(a.dep || "")}"></span>`; })()}
@@ -602,8 +602,33 @@
       d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".hcf-seg input"); if (!i) return; i.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked));
         if (i.name === "hcd") d.querySelectorAll(".hcf-apr").forEach(x => { x.hidden = i.value !== "o"; });
         if (i.name === "aprc") d.querySelector(".apr-nj").disabled = i.value !== "n"; });
-      d.addEventListener("change", e => { if (!(e.target.classList && e.target.classList.contains("hcf-c"))) return;
-        const c = [...d.querySelectorAll(".hcf-c:checked")].map(x => x.value); d.querySelectorAll(".hcf-mg").forEach(x => { x.hidden = !(c.length === 1 && c[0] === "g"); }); });
+      /* v602 : combinaisons impossibles grisées d'avance, de haut en bas (la ligne du dessus a la priorité) ;
+         un choix devenu impossible plus bas est décoché ; un toucher sur un choix grisé donne la raison */
+      d.querySelectorAll(".hcf-seg, .hcf-cbs label").forEach(l => { if (l.dataset.why) l.dataset.why0 = l.dataset.why; if (l.classList.contains("off")) l.dataset.off0 = "1"; });
+      const lab = sel => { const i = d.querySelector(sel); return i ? i.closest("label") : null; };
+      const setOff = (l, off, why) => { if (!l) return false; const i = l.querySelector("input"), o0 = !!l.dataset.off0, o = off || o0;
+        l.classList.toggle("off", o); if (i) i.disabled = o; if (off) l.dataset.why = why; else if (l.dataset.why0) l.dataset.why = l.dataset.why0; else delete l.dataset.why;
+        if (o && i && i.checked) { i.checked = false; return true; } return false; };
+      const pick = (n, v) => { const i = d.querySelector(`input[name="${n}"][value="${v}"]`); if (i && !i.disabled) i.checked = true; };
+      const segs = () => d.querySelectorAll(".hcf-sw").forEach(sw => sw.querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", !!(s.querySelector("input") || {}).checked)));
+      const rules = () => {
+        const val = n => (d.querySelector(`input[name="${n}"]:checked`) || {}).value;
+        const u = val("hcu") || "m", aff = val("hca") || "j";
+        setOff(lab('.hcf-c[value="p"]'), u === "q", "PRODUITS : SEULEMENT EN MONTANT (DH).");
+        setOff(lab('.hcf-c[value="g"]'), u === "q", "MARGE : SEULEMENT EN MONTANT (DH).");
+        setOff(lab('.hcf-c[value="r"]'), u !== "q", "RENDEMENT : SEULEMENT EN QUANTITÉ.");
+        ["r", "a"].forEach(v => setOff(lab(`input[name="hcc"][value="${v}"]`), aff !== "c", "POINT DE DÉPART : SEULEMENT EN PRÉSENTATION CUMULÉE."));
+        if (aff === "c" && !val("hcc")) pick("hcc", "r");
+        if ([...d.querySelectorAll(".hcf-c:checked")].some(x => x.value === "r")) setOff(lab('.hcf-c[value="g"]'), true, "MARGE : IMPOSSIBLE AVEC LE RENDEMENT.");
+        if (!d.querySelector(".hcf-c:checked")) { const f = [...d.querySelectorAll(".hcf-c")].find(x => !x.disabled); if (f) f.checked = true; }
+        const c3 = [...d.querySelectorAll(".hcf-c:checked")].map(x => x.value);
+        d.querySelectorAll(".hcf-mg").forEach(x => { x.hidden = !(c3.length === 1 && c3[0] === "g"); });
+        if (setOff(lab('input[name="hcd"][value="o"]'), c3.some(x => x !== "c"), "COMMANDES : SEULEMENT AVEC LA COURBE CHARGES.")) pick("hcd", "c");
+        d.querySelectorAll(".hcf-apr").forEach(x => { x.hidden = val("hcd") !== "o"; });
+        segs();
+      };
+      d.addEventListener("change", () => rules());
+      rules();
       d.addEventListener("click", e => {
         { const o = e.target.closest && e.target.closest(".hcf-seg.off[data-why], .hcf-cbs label.off[data-why]"); if (o) { svToast(o.dataset.why, 3500, o); return; } }
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
@@ -613,11 +638,7 @@
         const c = [...d.querySelectorAll(".hcf-c:checked")].map(i => i.value);
         if (!c.length) { svToast("COCHER AU MOINS UNE COURBE.", 3000, d.querySelector(".hcf-c")); return; }
         /* v567 (remarque 10) : RENDEMENT = en QUANTITÉ, avec les CHARGES, sans PRODUITS ni MARGE en montant */
-        if (c.includes("r")) {
-          /* v571 (remarque 14) : avec RENDEMENT, CHARGES et PRODUITS (quantité produite) sont facultatifs ; la MARGE (en montant) non */
-          if (c.includes("g")) { svToast("RENDEMENT : EN QUANTITÉ — DÉCOCHER LA MARGE (EN MONTANT).", 3500, d.querySelector('.hcf-c[value="r"]')); return; }
-          const qq = d.querySelector('input[name="hcu"][value="q"]'); if (qq && !qq.disabled) qq.checked = true;
-        }
+
         const v = n => (d.querySelector(`input[name="${n}"]:checked`) || {}).value;
         INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc), forme: v("hcf") || "h", mg: v("hcm") || h.mg || "n" };
         /* v566 (remarque 9) / v572 (remarque 17) : COMMANDES = données du graphique ; ses réglages sont lus ici */
