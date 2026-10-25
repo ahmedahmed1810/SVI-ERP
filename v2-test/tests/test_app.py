@@ -1459,6 +1459,12 @@ def main():
         pg.evaluate(f"""() => {{ const X = {ins}; X.INS.plafR = {{ '{GM}': {{ plaf: -1 }} }}; X.INS.hset = null; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
         check("v604 : MACON 4 J-H, 1 ouvrier : 4 jours à 100 % ; rendement demandé 400 % → borné au MAX 200 % → 2 jours (02 → 03)",
               q0 == "2026-11-05" and q1 == [200, "2026-11-02", "2026-11-03"], [q0, q1])
+        # v612 (point 7) : produits cochés en partie — la charge de la tâche compte au prorata de leur quantité (graphique)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.prd.push({{ id: 'y1', des: 'P1', u: 'M2', q: 10, on: true }}, {{ id: 'y2', des: 'P2', u: 'M2', q: 30 }});
+            I.links[0].prd = [{{ id: 'y1' }}, {{ id: 'y2' }}]; I.chg.forEach(r => {{ r.on = r.id === 'n1'; }}); I.hset = {{ u: 'q', aff: 'j', cum: 'r' }}; I.hrange = null; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(600)
+        pz = pg.evaluate("() => { const D = document.querySelector('#dlyGantt').__HD; return D ? Math.round(Object.values(D.tot).reduce((t, v) => t + v, 0) * 1000) / 1000 : null; }")
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.prd = I.prd.filter(r => !/^y[12]$/.test(r.id)); I.links[0].prd = []; I.hset = null; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        check("v612 : MACON 4 J-H sur une tâche à deux produits (10 et 30 M2), seul le 1er coché → 4 × 10 / 40 = 1 J-H au graphique", pz == 1, pz)
         # R18 / R19 / R20 : cumulé, plage DÉBUT – FIN, filtre MIN – MAX qui coche les charges des jours retenus
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.plafR = {{}}; I.dlp = {{ 'l1|s1': [{{ id: 'a', deb: '2026-11-02', fin: '2026-11-02' }}], 'l2|s1': [{{ id: 'b', deb: '2026-11-04', fin: '2026-11-04' }}] }}; I.dpred = {{}};
             I.chg.filter(r => /^n[123]$/.test(r.id)).forEach(r => {{ r.on = true; }}); I.hset = {{ u: 'm', aff: 'c', cum: 'r' }}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(600)

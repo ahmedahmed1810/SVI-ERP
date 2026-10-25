@@ -319,12 +319,27 @@
       });
       return tot ? Math.min(1, inn / tot) : 0;
     };
+    /* v612 (point 7) : produits cochés — une charge est affectée à toute sa tâche ; si une partie seulement des produits de la tâche
+       est cochée, la charge compte au prorata de leur quantité (QPB : même unité dans une tâche) ; affichage seulement */
+    const insPrdOn = () => { const on = (INS.prd || []).filter(r => !r.t && r.on === true); return on.length ? new Set(on.map(r => r.id)) : null; };
+    const insPrdLF = (l, P) => {
+      if (!P) return 1;
+      let a = 0, t = 0, hit = false;
+      (l.prd || []).forEach(x => { const p = INS.prd.find(r => r.id === x.id), q = p ? Number(insPrdQ(p)) || 0 : 0; t += q; if (P.has(x.id)) { a += q; hit = true; } });
+      return t > 0 ? a / t : hit ? 1 : 0;
+    };
     const insRgF = (k, id) => {
-      const R = insRg();
-      if (!R || (k !== "chg" && k !== "prd")) return 1;
+      const R = insRg(), P = k === "chg" ? insPrdOn() : null;
+      if ((!R && !P) || (k !== "chg" && k !== "prd")) return 1;
       if (!INS_RGM) { INS_RGM = new Map(); queueMicrotask(() => { INS_RGM = null; }); }
       const mk = k + ":" + id;
       if (INS_RGM.has(mk)) return INS_RGM.get(mk);
+      if (k === "chg") {
+        const Ls = (INS.links || []).filter(l => (l.chg || []).some(x => x.id === id));
+        const f = Ls.length ? Ls.reduce((t, l) => t + (R ? insRgTask(l.lot + "|" + l.sec, R) : 1) * insPrdLF(l, P), 0) / Ls.length : 0;
+        INS_RGM.set(mk, f);
+        return f;
+      }
       const ks = new Set((INS.links || []).filter(l => (l[k] || []).some(x => x.id === id)).map(l => l.lot + "|" + l.sec));
       let s = 0; ks.forEach(x => { s += insRgTask(x, R); });
       const f = ks.size ? s / ks.size : 0;
@@ -930,14 +945,16 @@
       shell.__ckOrd = o;
       return o;
     };
-    const insCheckLinks = k => {
+    const insCheckLinks = (k, all) => {
       if (!INS) return null;
       /* mémoire valable pour un seul dessin (vidée dès la fin de la tâche en cours) */
       if (!ICL) { ICL = { m: {} }; queueMicrotask(() => { ICL = null; }); }
-      if (k in ICL.m) return ICL.m[k];
+      const ck = all ? k + "*" : k;
+      if (ck in ICL.m) return ICL.m[ck];
       /* v593 (remarque longue 3) : le bloc coché en premier garde toute sa liste ; chaque bloc n'est réduit que par les blocs cochés
          AVANT lui (un bloc sans case cochée est réduit par tous) ; les coches se cumulent. ISOLER (Gantt) réduit aussi les autres blocs. */
-      const ord = insCkOrd(), at = ord.indexOf(k), A = new Set(at >= 0 ? ord.slice(0, at) : ord);
+      /* v612 (point 7) : all = toutes les cases cochées des autres blocs (pour les totaux), pas seulement celles d'avant */
+      const ord = insCkOrd(), at = all ? -1 : ord.indexOf(k), A = new Set(at >= 0 ? ord.slice(0, at) : ord);
       const B = ["des", "lot", "prim", "sec", "prd", "chg"].filter(x => x !== k && A.has(x));
       const C = {};
       B.forEach(x => { const ids = (INS[x] || []).filter(r => !r.t && r.on === true).map(r => r.id); if (ids.length) C[x] = new Set(ids); });
@@ -950,12 +967,12 @@
       const ks = Object.keys(C);
       const out = !ks.length && !lon && !DS && !IP ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
         && (!lon || l.on === true) && (!DS || DS.has(l.lot + "|" + l.sec)) && (!IP || inIso(l)));
-      ICL.m[k] = out;
+      ICL.m[ck] = out;
       return out;
     };
-    const insCheckSet = k => {
+    const insCheckSet = (k, all) => {
       if (!INS || !["des", "prd", "chg", "lot", "prim", "sec"].includes(k)) return null;
-      const L = insCheckLinks(k);
+      const L = insCheckLinks(k, all);
       if (!L) return null;
       const S = new Set();
       L.forEach(l => { if (k === "prd" || k === "chg") (l[k] || []).forEach(y => S.add(y.id)); else S.add(l[k]); });
@@ -973,8 +990,10 @@
          « TOTAL PARTIEL » dès qu'une partie seulement compte */
       const shown = insShown(k).filter(r => !r.t);
       const on = shown.filter(r => r.on === true);
-      const rows = on.length ? on : shown;
-      const partial = on.length > 0 || shown.length < INS[k].filter(r => !r.t).length;
+      /* v612 (point 7) : le total tient compte de toutes les cases cochées des autres blocs, même cochés après celui-ci */
+      let SA = null; try { SA = insCheckSet(k, true); } catch (e) { SA = null; }
+      const rows = (on.length ? on : shown).filter(r => !SA || SA.has(r.id));
+      const partial = on.length > 0 || rows.length < INS[k].filter(r => !r.t).length;
       const ht = rows.reduce((t, r) => t + insHT(k, r), 0);
       const ttc = rows.reduce((t, r) => t + insTTC(k, r), 0);
       /* pied aligné sur l'ordre des colonnes de l'écran */

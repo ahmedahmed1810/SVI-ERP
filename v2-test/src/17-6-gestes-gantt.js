@@ -145,10 +145,10 @@
       /* R19 : traits DÉBUT et FIN de l'histogramme — tirés au doigt ; contre un bord = pas de limite ; croisés = noms échangés */
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
-        const ln = e.target.closest && e.target.closest(".dlyg-foot .grng[data-r]");
+        const ln = e.target.closest && e.target.closest(".dlyg-foot .grng[data-r], #dlyGantt .grng-g[data-r]");
         if (!X || !ln) return;
         e.preventDefault(); e.stopPropagation();
-        const h = ln.closest(".ghist"), host = shell.querySelector("#dlyGantt"), W = h.offsetWidth, sp = ln.querySelector("span");
+        const h = ln.closest(".ghist") || ln.closest(".gbody"), host = shell.querySelector("#dlyGantt"), W = h.offsetWidth, sp = ln.querySelector("span");
         const R0 = X.hrange(), other = ln.dataset.r === "a" ? R0.b : R0.a;
         ln.__drag = true;
         let iso = R0[ln.dataset.r] || "", edge = "";
