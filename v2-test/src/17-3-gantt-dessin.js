@@ -364,7 +364,7 @@
             /* v571 : barres côte à côte dans le jour (HISTOGRAMME) ou courbes (COURBES), chacune à sa propre échelle */
             const barS = (M, s, c, j) => vis.forEach(di => { const v = M[di]; if (!v) return; hb += `<div class="ghb ghb-m${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo + j * w1}px;width:${w1}px;top:${Y0 - v * s}px;bottom:auto;height:${Math.max(1, v * s)}px;background:${c}"></div>`; });
             if (showP) {
-              const mP = Math.max(1e-9, ...vis.map(di => rdPQ[di])), sP2 = (HH - 36 - IB) / (mP * 1.08); rdPQ.__s = sP2;
+              const mP = Math.max(1e-9, ...vis.map(di => rdPQ[di])), sP2 = (HH - 36 - IB) / (mP * 1.08) * YZ;   /* v601 : le zoom vertical agit aussi sur le RENDEMENT */ rdPQ.__s = sP2;
               if (curve) svg += `<polyline points="${vis.map(di => `${X(di) + DLY_DW / 2},${Y0 - rdPQ[di] * sP2}`).join(" ")}" fill="none" stroke="#2e90fa" stroke-width="2" stroke-linejoin="round"/>`;
               else barS(rdPQ, sP2, "#2e90fa", 0);
               hb += lab(mP, sP2, "#2e90fa", vis.find(di => rdPQ[di] === mP));
@@ -372,7 +372,7 @@
             RD.ser.forEach((S, j0) => { const j = j0;
               const c = colOf(S.sk, j), P2 = cuM(S.P), C2 = cuM(S.C), Rr = {};
               vis.forEach(di => { const cq = C2[di] || 0; Rr[di] = cq > 1e-9 ? (P2[di] || 0) / cq : null; });
-              const mR = Math.max(1e-9, ...vis.map(di => Rr[di] || 0)), sR2 = (HH - 36 - IB) / (mR * 1.08);
+              const mR = Math.max(1e-9, ...vis.map(di => Rr[di] || 0)), sR2 = (HH - 36 - IB) / (mR * 1.08) * YZ;
               let seg = [];
               const flush = () => { if (seg.length) svg += `<polyline points="${(seg.length > 1 ? seg : [seg[0], seg[0]]).map(di => `${X(di) + DLY_DW / 2},${Y0 - Rr[di] * sR2}`).join(" ")}" fill="none" stroke="${c}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`; seg = []; };
               if (curve) { vis.forEach(di => { if (Rr[di] === null) flush(); else seg.push(di); }); flush(); }
@@ -391,7 +391,8 @@
             : ks.length > 1 ? `<div class="ghist-leg">${totS.filter(x => keep.has(x[0])).map(([sk]) => legI(col[sk], sk.split("|")[0])).join("")}${totS.some(x => !keep.has(x[0])) ? legI("#7f5539", "AUTRES (" + totS.filter(x => !keep.has(x[0])).length + ")") : ""}</div>` : "";
           const leg = legRd ? (hideC ? `<div class="ghist-leg">${legRd}</div>` : leg0 ? leg0.replace(/<\/div>$/, legRd + "</div>") : `<div class="ghist-leg">${legI(cum ? "#f79009" : "#f79009", "CHARGES (" + HD.unit + ")")}${legRd}</div>`) : leg0;
           /* R21 à R23 : CAPACITÉ ; v546 : « / » traversé par la barre, trait vertical en pointillés entre deux morceaux, valeur du morceau au-dessus (R19, R20) */
-          const yOf = n => n < 0 ? HH - IB / 2 : Y0 - n * sc;
+          /* v601 : la barre CAPACITÉ reste toujours visible et attrapable, même zoomée (collée au bord haut ou bas du graphique) */
+          const yOf = n => n < 0 ? HH - IB / 2 : Math.max(26, Math.min(HH - IB, Y0 - n * sc));
           const pl = SG.map((g2, j) => {
             const l = g2.d ? Math.max(0, X(g2.d)) : 0, r = SG[j + 1] ? Math.max(0, X(SG[j + 1].d)) : W;
             if (r <= l) return "";
