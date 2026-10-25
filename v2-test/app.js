@@ -9689,8 +9689,9 @@ function renderBudgetList() {
           }
           dlyHHpx = F;
           shell.__dlyFootH = hasH ? Math.max(F, 0) : 0;
-          { const want = Math.max(0, tot - shell.__dlyFootH); if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 0.5) scr.style.setProperty("height", want + "px", "important"); }
-          bodyH = Math.max(bodyH, Math.floor(tot - shell.__dlyFootH - thH - 2));
+          { const want = tot; if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 0.5) scr.style.setProperty("height", want + "px", "important"); }
+          /* v597 : le pied est posé SUR le bas du Gantt (le tableau va jusqu'en bas) : place gardée sous les tâches pour voir les dernières */
+          bodyH = Math.max(bodyH + shell.__dlyFootH, Math.floor(tot - thH - 2));
         }
         const L = gg && gg.querySelector(".dlyg-l");
         if (L) {
@@ -10055,6 +10056,14 @@ function renderBudgetList() {
       if (!host.__ghFixS) { host.__ghFixS = true; host.addEventListener("scroll", () => { const f = shell.querySelector("#bdgTabBody > .gh-fix > .gh-fix-in"); if (f) f.style.transform = "translateX(" + (-host.scrollLeft) + "px)"; }, { passive: true }); }
       dlyLift();
     };
+    /* v597 : pied du graphique posé sous le Gantt seulement (bas du cadre, aligné sur le Gantt) ; le tableau descend jusqu'en bas */
+    const dlyFootPos = () => {
+      const host = shell.querySelector("#dlyGantt"), body = shell.querySelector("#bdgTabBody"), ft = body && body.querySelector(":scope > .dlyg-foot"), scr = body && body.querySelector(":scope > .dly-scroll");
+      if (!host || !ft || !scr) return;
+      const br = body.getBoundingClientRect(), hr = host.getBoundingClientRect(), sr = scr.getBoundingClientRect(), F = ft.offsetHeight;
+      const s = ft.style, l = (hr.left - br.left) + "px", w = host.clientWidth + "px", t = (sr.top - br.top + scr.clientHeight - F) + "px";
+      if (s.left !== l) s.left = l; if (s.width !== w) s.width = w; if (s.top !== t) s.top = t;
+    };
     const dlyFoot = (host, hist) => {
       const body = shell.querySelector("#bdgTabBody"), scr = host.closest(".bdg-d-scroll"), hh = shell.querySelector(".dlyg-hh");
       let ft = body && body.querySelector(":scope > .dlyg-foot");
@@ -10066,20 +10075,20 @@ function renderBudgetList() {
         /* défilement horizontal lié dans les deux sens au Gantt */
         sc0.addEventListener("scroll", () => { const h = shell.querySelector("#dlyGantt"); if (h && Math.abs(h.scrollLeft - sc0.scrollLeft) > 0.5) h.scrollLeft = sc0.scrollLeft; }, { passive: true });
       }
-      if (ft.previousElementSibling !== scr) scr.after(ft);
+      if (ft.parentElement !== body) body.appendChild(ft);
       if (hh.parentElement !== ft) ft.appendChild(hh);
       const sc = ft.firstChild, inn = sc.firstChild;
       inn.innerHTML = hist || "";
       const F = shell.__dlyFootH || 0;
       ft.style.height = F + "px";
       ft.classList.toggle("dlyf-empty", !hist);
+      dlyFootPos();
       ft.classList.toggle("dlyf-gra", !!shell.querySelector(".dlyg.dly-gra"));
       const br = body.getBoundingClientRect(), hr = host.getBoundingClientRect(), sp = shell.querySelector(".dlyg-sp");
-      sc.style.left = (hr.left - br.left) + "px"; sc.style.width = host.clientWidth + "px";
       inn.style.width = (host.scrollWidth || 0) + "px";
       { const dw = host.style.getPropertyValue("--dw"); if (ft.style.getPropertyValue("--dw") !== dw) ft.style.setProperty("--dw", dw); }
       /* la barre marron horizontale part de la barre marron verticale et va jusqu'au bord droit du cadre (FORMAT 201) */
-      hh.style.left = ((sp ? sp.getBoundingClientRect().left : hr.left) - br.left) + "px"; hh.style.right = "0px"; hh.style.top = (F ? -7 : -14) + "px"; hh.style.transform = "";
+      hh.style.left = ((sp ? sp.getBoundingClientRect().left : hr.left) - hr.left) + "px"; hh.style.right = -Math.max(0, scr.getBoundingClientRect().right - (hr.left + host.clientWidth)) + "px"; hh.style.top = (F ? -7 : -15) + "px"; hh.style.transform = "";
       if (Math.abs(sc.scrollLeft - host.scrollLeft) > 0.5) sc.scrollLeft = host.scrollLeft;
       if (!host.__footS) { host.__footS = true; host.addEventListener("scroll", () => { const f = shell.querySelector("#bdgTabBody > .dlyg-foot > .dlyf-sc"); if (f && Math.abs(f.scrollLeft - host.scrollLeft) > 0.5) f.scrollLeft = host.scrollLeft; }, { passive: true }); }
     };
@@ -10109,7 +10118,7 @@ function renderBudgetList() {
       }
       let r = 0;
       if (Math.abs((scr.__capMax || 0) - tot) > 1) { scr.__capMax = tot; r = 2; }
-      const want = Math.max(0, tot - (shell.__dlyFootH || 0));
+      const want = tot;   /* v597 : le pied du graphique est posé par-dessus le bas du Gantt */
       if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 1) { scr.style.setProperty("height", want + "px", "important"); r = r || 1; }
       return r;
     };
@@ -10222,10 +10231,7 @@ function renderBudgetList() {
       } }
       /* v594 (remarque longue 2) : plus de recalage du graphique pendant le défilement — il est dans le pied fixe ; seuls la position
          horizontale du pied (largeur du tableau changée, rotation) et l'en-tête fixe du tableau sont remis à jour */
-      { const host = shell.querySelector("#dlyGantt"), body = shell.querySelector("#bdgTabBody"), ft = body && body.querySelector(":scope > .dlyg-foot");
-        if (host && ft) { const sc = ft.firstChild, br = body.getBoundingClientRect(), hr = host.getBoundingClientRect(), sp = shell.querySelector(".dlyg-sp"), hh = ft.querySelector(".dlyg-hh");
-          const l = (hr.left - br.left) + "px", w = host.clientWidth + "px"; if (sc.style.left !== l) sc.style.left = l; if (sc.style.width !== w) sc.style.width = w;
-          if (hh) { const x = ((sp ? sp.getBoundingClientRect().left : hr.left) - br.left) + "px"; if (hh.style.left !== x) hh.style.left = x; } } }
+      try { dlyFootPos(); } catch (e) {}
       try { dlyThFix(); } catch (e) {}
     };
     if (!shell.__dlyLiftBound) {
@@ -10866,9 +10872,25 @@ function renderBudgetList() {
       });
       /* modifier sur le Gantt le nom d'un lot (titre de barre) ou d'une activité secondaire (barre ou nom à droite) :
          même saisie que dans le tableau (Entrée / quitter = enregistrer ; nom vide ou en double refusé) */
+      /* v597 : nom sur le Gantt — 1er toucher = sélectionné (cadre fin de la forme de la barre, sans clavier),
+         2e toucher = saisie dans un cadre rouge qui épouse la barre (sans grande case ni poignées de sélection de l'iPad) */
+      const dlyGSelOff = () => { document.getElementById("dlyGSelF")?.remove(); shell.__dlyGSel = null; };
+      if (!shell.__dlyGSelB) { shell.__dlyGSelB = true;
+        document.addEventListener("pointerdown", e => { const f = document.getElementById("dlyGSelF"); if (!f) return; const t = e.target.closest && e.target.closest("#dlyGantt .gb-ren, #dlyGantt .gb.gb-tin"); if (!t || (t.dataset.key || t.dataset.path) !== shell.__dlyGSel) dlyGSelOff(); }, true);
+        document.addEventListener("scroll", () => { if (document.getElementById("dlyGSelF")) dlyGSelOff(); }, true); }
+      const dlyGShape = el => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el); return { r, rad: cs.borderRadius && cs.borderRadius !== "0px" ? cs.borderRadius : "6px" }; };
       const dlyGEdit = el => {
         const host = el.closest("#dlyGantt"), body = host && host.querySelector(".gbody");
         if (!body) return;
+        const id = el.dataset.key || el.dataset.path;
+        if (shell.__dlyGSel !== id || !document.getElementById("dlyGSelF")) {
+          dlyGSelOff();
+          const { r, rad } = dlyGShape(el), f = document.createElement("div");
+          f.id = "dlyGSelF"; f.style.cssText = `position:fixed;left:${r.left - 2}px;top:${r.top - 2}px;width:${r.width + 4}px;height:${r.height + 4}px;border-radius:${rad}`;
+          document.body.appendChild(f); shell.__dlyGSel = id;
+          return;
+        }
+        dlyGSelOff();
         document.querySelector("input.dly-gin")?.remove();
         const key = el.dataset.key, path = el.dataset.path;
         const sid = key ? key.split("|")[1] : "", val = key ? lkName("sec", sid) : lotLab(dlyLotPath(path)).name || "";
@@ -10880,9 +10902,10 @@ function renderBudgetList() {
         i.dataset.kind = key ? "sec" : "grp";
         if (key) i.dataset.sid = sid; else i.dataset.path = path;
         i.value = val;
-        i.style.cssText = `position:fixed;left:${Math.max(4, r.left - 2)}px;top:${r.top + r.height / 2 - 12}px;width:${Math.max(160, dlyTxtW(val) + 40)}px;height:24px;z-index:10050`;
+        { const rad = dlyGShape(el).rad, w = Math.max(r.width + 4, dlyTxtW(val) + 24), h = Math.max(18, r.height + 4);
+          i.style.cssText = `position:fixed;left:${Math.max(4, r.left - 2)}px;top:${r.top - 2}px;width:${w}px;height:${h}px;border-radius:${rad};z-index:10050`; }
         document.body.appendChild(i);
-        i.focus(); try { i.select(); } catch (err) {}
+        i.focus(); try { const n = i.value.length; i.setSelectionRange(n, n); } catch (err) {}
         let done = false, cancel = false;
         const commit = () => {
           if (done) return; done = true;

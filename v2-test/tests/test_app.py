@@ -1636,7 +1636,7 @@ def main():
         # v557 (FORMAT 202) : même hauteur du bloc détail pour tous les onglets (DÉLAIS, CHARGES, PRODUITS…), réglée à la poignée, mémorisée
         def tabH(k):
             pg.evaluate(f"() => document.querySelector('#bdgTabs [data-tab=\"{k}\"]')?.click()"); pg.wait_for_timeout(500)
-            return pg.evaluate("() => { const s = document.querySelector('#bdgTabBody .bdg-d-scroll'), f = document.querySelector('#bdgTabBody > .dlyg-foot'); return s ? Math.round(s.getBoundingClientRect().height + (f ? f.getBoundingClientRect().height : 0)) : -1; }")
+            return pg.evaluate("() => { const s = document.querySelector('#bdgTabBody .bdg-d-scroll'); return s ? Math.round(s.getBoundingClientRect().height) : -1; }")
         hs = [tabH(k) for k in ("dly", "chg", "prd", "dly")]
         pg.evaluate("() => { const L = JSON.parse(localStorage.getItem('svi_layout_v1') || '{}'); L.h = Object.assign(L.h || {}, { detail: 333 }); localStorage.setItem('svi_layout_v1', JSON.stringify(L)); }")
         pg.evaluate("() => document.querySelector('#bdgTabs [data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(300)

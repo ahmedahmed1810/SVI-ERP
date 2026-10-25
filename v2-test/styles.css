@@ -2505,3 +2505,9 @@ tr.fz-flash > td { background: #fef0c7 !important; transition: background .3s; }
 #bdgTabBody > .th-fix thead { position: static !important; transform: none !important; }
 .dlyg-l thead.th-under { opacity: 0; }
 html.dly-lock, html.dly-lock body { overscroll-behavior: none; }
+/* v597 : nom sur le Gantt — sélection puis saisie au contour de la barre */
+#dlyGSelF { z-index: 10040; pointer-events: none; box-sizing: border-box; border: 1.5px solid #344054; }
+input.dly-gin { box-sizing: border-box; border: 2px solid var(--inst, #b42318) !important; outline: none; padding: 0 8px; font-size: 11px; font-weight: 800; background: #fff; color: #101828; -webkit-user-select: text; box-shadow: 0 2px 6px rgba(0,0,0,.18); }
+/* v597 : pied du graphique posé sur le bas du Gantt seulement */
+#bdgTabBody > .dlyg-foot { position: absolute; left: 0; width: 0; }
+#bdgTabBody > .dlyg-foot > .dlyf-sc { left: 0 !important; right: 0; width: auto !important; }
