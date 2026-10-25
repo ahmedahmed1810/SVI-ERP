@@ -1093,16 +1093,16 @@ def main():
               and '"o":1' in g5[3] and '"o":0' in g5[4], g5)
         # plafond coupé (appui long) puis morceau tiré : 4 ouvriers à partir du 04/11 ; COMPRESSER
         pg.evaluate("() => document.querySelector('.ghist')?.scrollIntoView({ block: 'center' })"); pg.wait_for_timeout(300)
-        pl = pg.evaluate("() => { const g = document.querySelector('#dlyGantt .gplaf'); const h = document.querySelector('#dlyGantt'); if (!g) return null; const x0 = h.__d0; const r = g.getBoundingClientRect(); return [r.left, r.top, r.width, x0]; }")
+        pl = pg.evaluate("() => { const g = document.querySelector('.dlyg-foot .gplaf'); const h = document.querySelector('#dlyGantt'); if (!g) return null; const x0 = h.__d0; const r = g.getBoundingClientRect(); return [r.left, r.top, r.width, x0]; }")
         cutok = False
         if pl:
             dw = pg.evaluate("() => parseFloat(getComputedStyle(document.querySelector('#dlyGantt')).getPropertyValue('--dw')) || 22")
             n = pg.evaluate("d0 => Math.round((new Date('2026-11-04T00:00:00') - new Date(d0 + 'T00:00:00')) / 864e5)", pl[3])
-            hx = pg.evaluate("() => document.querySelector('#dlyGantt .ghist').getBoundingClientRect().left")
+            hx = pg.evaluate("() => document.querySelector('.dlyg-foot .ghist').getBoundingClientRect().left")
             x = hx + n * dw + dw / 2
             pg.evaluate("x => { const h = document.querySelector('#dlyGantt'); h.scrollLeft = Math.max(0, x - h.getBoundingClientRect().left - 200); }", x); pg.wait_for_timeout(200)
-            hx = pg.evaluate("() => document.querySelector('#dlyGantt .ghist').getBoundingClientRect().left"); x = hx + n * dw + dw / 2
-            y = pg.evaluate("() => { const r = document.querySelector('#dlyGantt .gplaf').getBoundingClientRect(); return r.top + 1; }")
+            hx = pg.evaluate("() => document.querySelector('.dlyg-foot .ghist').getBoundingClientRect().left"); x = hx + n * dw + dw / 2
+            y = pg.evaluate("() => { const r = document.querySelector('.dlyg-foot .gplaf').getBoundingClientRect(); return r.top + 1; }")
             # v542 (R2) : appui long = « / » et bulle COUPER ICI qui suivent le doigt ; lâcher = couper à ce jour
             pg.mouse.move(x, y); pg.mouse.down(); pg.wait_for_timeout(800)
             cutok = pg.evaluate("() => /COUPER ICI/.test((document.getElementById('dlyCutTip') || {}).textContent || '')")
@@ -1111,7 +1111,7 @@ def main():
         pg.evaluate(f"() => {DXJ}.plafSeg(1, 4)"); pg.wait_for_timeout(300)
         pg.evaluate(f"""() => {{ const I = {ins}.INS; I.dpred = {{}}; I.dlp['l2|s2'] = [{{ id: 'b', deb: '2026-11-09', fin: '2026-11-09' }}]; I.dlp['l1|s1'] = [{{ id: 'c', deb: '2026-11-12', fin: '2026-11-13' }}]; {ins}.insSave(); {ins}.refreshAll(); }}"""); pg.wait_for_timeout(400)
         pg.evaluate(f"() => {DXJ}.comp()"); pg.wait_for_timeout(800)
-        c5 = pg.evaluate(f"() => {{ const I = {ins}.INS, P = k => {{ const p = (I.dlp[k] || [])[0] || {{}}; return [p.deb, p.fin, !!p.dmd, !!p.fmd]; }}; return [P('l2|s2'), P('l1|s1'), document.querySelectorAll('#dlyGantt .gplaf').length, JSON.stringify(I.plafR), JSON.stringify(I.dinc || {{}})]; }}")
+        c5 = pg.evaluate(f"() => {{ const I = {ins}.INS, P = k => {{ const p = (I.dlp[k] || [])[0] || {{}}; return [p.deb, p.fin, !!p.dmd, !!p.fmd]; }}; return [P('l2|s2'), P('l1|s1'), document.querySelectorAll('.dlyg-foot .gplaf').length, JSON.stringify(I.plafR), JSON.stringify(I.dinc || {{}})]; }}")
         check("v530 planning : appui long sur le plafond = le couper ; morceau à 4 ouvriers ; COMPRESSER resserre les tâches datées",
               cutok and '"2026-11-04"' in segs and c5[:3] == [["2026-11-04", "2026-11-04", False, True], ["2026-11-04", "2026-11-05", True, True], 2], [cutok, segs, c5])
         pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk; I.dlp = I.__dlp; I.dpred = I.__dp; I.pdeb = I.__pd0; delete I.__lk; delete I.__dlp; delete I.__dp; delete I.__pd0; I.dlim = {{}}; I.plaf = 0; I.plafs = []; I.plafR = {{}}; I.chg = I.chg.filter(r => !/^j/.test(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(400)
@@ -1330,15 +1330,15 @@ def main():
         check("v542 R16 : lignes dans l'ordre du PLANNING (lots mêlés) ; titre à la 1re tâche ; pastille du lot ; replier ne cache que ses tâches",
               [x[:2] if x.startswith("G:") else x for x in r16] == ["G:", "T:l1|s1", "G:", "T:l2|s1", "T:l1|s2*"] and "T:l2|s1" in r16f and "T:l1|s1" not in r16f and "T:l1|s2*" not in r16f, [r16, r16f])
         # R14 / R15 : rien de coché = SÉLECTIONNER DES CHARGES ; charge cochée = histogramme, tâches non liées en gris ; tâche à 0 jour
-        e14 = pg.evaluate("() => (document.querySelector('#dlyGantt .ghist-empty') || {}).textContent || ''")
+        e14 = pg.evaluate("() => (document.querySelector('.dlyg-foot .ghist-empty') || {}).textContent || ''")
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.find(r => r.id === 'k1').on = true; I.chg.find(r => r.id === 'k3').on = true; I.dlp['l1|s2'] = [{{ id: 'c', deb: '2026-11-04', fin: '' }}]; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(600)
-        e15 = pg.evaluate("""() => [document.querySelectorAll('#dlyGantt .ghb').length > 0, !!document.querySelector('#bdgTabBody tr.dly-task[data-key="l2|s1"].dly-off'), !!document.querySelector('#dlyGantt .gb.gb-off[data-key="l2|s1"]'),
-            !!document.querySelector('#dlyGantt .gb.gb0[data-key="l1|s2"]'), (document.querySelector('#bdgTabBody tr[data-key="l1|s2"] input.dlp-in[data-f="dur"]') || {}).value, (document.querySelector('#dlyGantt .gax-u') || {}).textContent]""")
+        e15 = pg.evaluate("""() => [document.querySelectorAll('.dlyg-foot .ghb').length > 0, !!document.querySelector('#bdgTabBody tr.dly-task[data-key="l2|s1"].dly-off'), !!document.querySelector('#dlyGantt .gb.gb-off[data-key="l2|s1"]'),
+            !!document.querySelector('#dlyGantt .gb.gb0[data-key="l1|s2"]'), (document.querySelector('#bdgTabBody tr[data-key="l1|s2"] input.dlp-in[data-f="dur"]') || {}).value, (document.querySelector('.dlyg-foot .gax-u') || {}).textContent]""")
         e15b = pg.evaluate(f"() => JSON.stringify({ins}.INS.dlp['l1|s2'])")
         check("v542 R14 / R15 : SÉLECTIONNER DES CHARGES ; charges cochées = histogramme, tâche non liée en gris à sa place ; tâche sans FIN = repère de 0 jour (rien d'inventé)",
               "SÉLECTIONNER DES CHARGES" in e14 and e15[:4] == [True, True, True, True] and e15[4] == "" and "J-H / JOUR" in (e15[5] or "") and '"fin":""' in e15b, [e14, e15, e15b])
         # R8 : bulle d'un jour de l'histogramme
-        pg.evaluate("() => document.querySelector('#dlyGantt .ghb[data-d=\"2026-11-02\"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('.dlyg-foot .ghb[data-d=\"2026-11-02\"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))"); pg.wait_for_timeout(300)
         hb = pg.evaluate("() => (document.getElementById('dlyHb') || {}).innerText || ''")
         pg.evaluate("() => document.getElementById('dlyHb')?.remove()")
         check("v542 R8 : toucher une barre de l'histogramme = bulle des tâches du jour (avec la quantité)", "02/11/2026" in hb and "TOTAL" in hb and "2" in hb, hb[:200])
@@ -1363,7 +1363,7 @@ def main():
               t2[0] == "2026-11-02" and "AUCUN GAIN" in t2[1] and "COMPRESSER LE PLANNING" not in mn and "GÉNÉRER" not in mn and "NIVELLEMENT" not in mn and "JOUR" not in mn.replace("PAR LOT", "").replace("CLASSER", "").split("GRAPHIQUE")[0].replace("AFFICHER PAR DÉBUT", "") and "CLASSER PAR DÉBUT" not in mn and "AFFICHER PAR LOT" not in mn and "AFFICHER PAR DÉBUT" in mn and "APPROVISIONNEMENT PRÉVISIONNEL" not in mn, [t2, mn[:200]])
         # R10 : COMMANDES par fréquence (7 jours, 2 jours d'avance)
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.appro = {{ dl: 2, cov: 'n', nj: 7, dep: '', on: true }}; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
-        c10 = pg.evaluate("() => [[...document.querySelectorAll('#dlyGantt .ghb.ghc')].map(b => b.dataset.d), /APPROVISIONNEMENT/.test((document.querySelector('#dlyGantt .ghist-cmd') || {}).textContent || '')]")
+        c10 = pg.evaluate("() => [[...document.querySelectorAll('.dlyg-foot .ghb.ghc')].map(b => b.dataset.d), /APPROVISIONNEMENT/.test((document.querySelector('.dlyg-foot .ghist-cmd') || {}).textContent || '')]")
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.appro = null; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(400)
         check("v542 R10 : COMMANDES tous les 7 jours, 2 jours d'avance = une commande le 31/10 pour la semaine du 02/11", c10 == [["2026-10-31"], True], c10)
         # R12 / R13 : poignées « = » — toucher = d'un bord à l'autre
@@ -1428,13 +1428,13 @@ def main():
         a1 = pg.evaluate(f"() => {{ const I = {ins}.INS; return [I.dlp['l1|s1'][0].fin, I.dlp['l2|s1'][0].deb]; }}")
         pg.evaluate(f"() => {DXJ}.cutPlaf('2026-11-06')"); pg.wait_for_timeout(400)
         pg.evaluate(f"() => {DXJ}.plafSeg(0, 4)"); pg.wait_for_timeout(700)
-        a2 = pg.evaluate(f"""() => {{ const I = {ins}.INS; return [I.dlp['l1|s1'][0].fin, I.dlp['l2|s1'][0].deb, JSON.stringify(I.plafR['{GM}'].plafs.map(c => c.after)), [...document.querySelectorAll('#dlyGantt .gplaf .gplaf-v')].map(e => e.textContent).join(' | ')]; }}""")
+        a2 = pg.evaluate(f"""() => {{ const I = {ins}.INS; return [I.dlp['l1|s1'][0].fin, I.dlp['l2|s1'][0].deb, JSON.stringify(I.plafR['{GM}'].plafs.map(c => c.after)), [...document.querySelectorAll('.dlyg-foot .gplaf .gplaf-v')].map(e => e.textContent).join(' | ')]; }}""")
         check("v543 R21 / R23 : capacité 1 puis coupe ; capacité 4 sur le 1er morceau → la 1re tâche finit le 02, la coupe suit (03), le 2e morceau garde 1 ouvrier",
               a1 == ["2026-11-05", "2026-11-06"] and a2[0] == "2026-11-02" and a2[1] == "2026-11-03" and '"l1|s1"' in a2[2] and "03/11/2026 : CAPACITÉ 1" in a2[3], [a1, a2])
         # R21 : morceau sous le zéro = ILLIMITÉ ; R22 : toucher le « / » = SUPPRIMER LA COUPE
         pg.evaluate(f"() => {DXJ}.plafSeg(1, -1)"); pg.wait_for_timeout(600)
-        il = pg.evaluate("() => [!!document.querySelector('#dlyGantt .gplaf.gcap-inf'), (document.querySelector('#dlyGantt .gplaf.gcap-inf .gplaf-v') || {}).textContent || '']")
-        pg.evaluate("() => document.querySelector('#dlyGantt .gcut[data-i]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))"); pg.wait_for_timeout(300)
+        il = pg.evaluate("() => [!!document.querySelector('.dlyg-foot .gplaf.gcap-inf'), (document.querySelector('.dlyg-foot .gplaf.gcap-inf .gplaf-v') || {}).textContent || '']")
+        pg.evaluate("() => document.querySelector('.dlyg-foot .gcut[data-i]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))"); pg.wait_for_timeout(300)
         dc = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
         pg.evaluate("() => document.querySelector('#svConf [data-v=\"go\"]')?.click()"); pg.wait_for_timeout(600)
         dc2 = pg.evaluate(f"() => ({ins}.INS.plafR['{GM}'].plafs || []).length")
@@ -1451,9 +1451,9 @@ def main():
         # R18 / R19 / R20 : cumulé, plage DÉBUT – FIN, filtre MIN – MAX qui coche les charges des jours retenus
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.plafR = {{}}; I.dlp = {{ 'l1|s1': [{{ id: 'a', deb: '2026-11-02', fin: '2026-11-02' }}], 'l2|s1': [{{ id: 'b', deb: '2026-11-04', fin: '2026-11-04' }}] }}; I.dpred = {{}};
             I.chg.filter(r => /^n[123]$/.test(r.id)).forEach(r => {{ r.on = true; }}); I.hset = {{ u: 'm', aff: 'c', cum: 'r' }}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(600)
-        cu = pg.evaluate("() => [!!document.querySelector('#dlyGantt .ghist-cum polyline'), (document.querySelector('#dlyGantt .gax-u') || {}).textContent || '']")
+        cu = pg.evaluate("() => [!!document.querySelector('.dlyg-foot .ghist-cum polyline'), (document.querySelector('.dlyg-foot .gax-u') || {}).textContent || '']")
         pg.evaluate(f"() => {DXJ}.hrangeSet({{ a: '2026-11-04', b: '' }})"); pg.wait_for_timeout(500)
-        rg = pg.evaluate("() => [(document.querySelector('#dlyGantt .grng-tot') || {}).textContent || '', !!document.querySelector('#dlyGantt .grng[data-r=\"a\"]:not(.grng-off)')]")
+        rg = pg.evaluate("() => [(document.querySelector('.dlyg-foot .grng-tot') || {}).textContent || '', !!document.querySelector('.dlyg-foot .grng[data-r=\"a\"]:not(.grng-off)')]")
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.hset = {{ u: 'm', aff: 'j', cum: 'r' }}; X.INS.hrange = null; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
         pg.evaluate(f"() => {DXJ}.hvalSet({{ min: 300, max: null }})"); pg.wait_for_timeout(700)
         mm = pg.evaluate(f"() => {ins}.INS.chg.filter(r => /^n[123]$/.test(r.id)).map(r => r.id + ':' + (r.on === true))")
@@ -1462,10 +1462,10 @@ def main():
         # R17 : approvisionnement — couverture 1 jour, seuil SABLE 15 M3 : 10 M3 le 02, puis rien → une seule commande (reliquat), 1 jour d'avance
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.hval = null; I.chg.filter(r => r.id === 'n2').forEach(r => {{ r.on = true; }}); I.chg.filter(r => r.id !== 'n2').forEach(r => {{ r.on = false; }});
             I.hset = {{ u: 'q', aff: 'j', cum: 'r' }}; I.appro = {{ dl: 1, cov: 'n', nj: 1, dep: '', seuil: {{ '{GS}': 15 }}, on: true }}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(600)
-        ap = pg.evaluate("() => [[...document.querySelectorAll('#dlyGantt .ghb.ghc')].map(b => b.dataset.d), (document.querySelector('#dlyGantt .ghist-cmd .ghist-leg') || {}).textContent || '']")
+        ap = pg.evaluate("() => [[...document.querySelectorAll('.dlyg-foot .ghb.ghc')].map(b => b.dataset.d), (document.querySelector('.dlyg-foot .ghist-cmd .ghist-leg') || {}).textContent || '']")
         check("v543 R17 : APPROVISIONNEMENT PRÉVISIONNEL — seuil par charge et délai d'approvisionnement (commande le 01/11 pour le 02/11)", ap[0] == ["2026-11-01"] and "APPROVISIONNEMENT PRÉVISIONNEL" in ap[1], ap)
         # v589 : une charge garde sa couleur dans tous les réglages (orange si seule) ; produits bleu, marge verte ; plus de vert ni de gris pour les commandes
-        COLS = """() => { const h = document.querySelector('#dlyGantt .ghist'); if (!h) return null; const S = new Set();
+        COLS = """() => { const h = document.querySelector('.dlyg-foot .ghist'); if (!h) return null; const S = new Set();
             h.querySelectorAll('.ghb:not(.ghb-hit):not(.gh-off)').forEach(b => { if (b.classList.contains('ghb-st')) b.querySelectorAll('i').forEach(i => S.add(getComputedStyle(i).backgroundColor)); else S.add(getComputedStyle(b).backgroundColor); });
             h.querySelectorAll('polyline').forEach(l => S.add(getComputedStyle(l).stroke)); return [...S].filter(c => c && c !== 'none' && c !== 'rgba(0, 0, 0, 0)').sort(); }"""
         OR, BL, GR, RE, LG = "rgb(247, 144, 9)", "rgb(46, 144, 250)", "rgb(18, 183, 106)", "rgb(217, 45, 32)", "rgb(192, 198, 208)"
@@ -1481,8 +1481,8 @@ def main():
               all(r[3] for r in res), [r for r in res if not r[3]])
         # R28 : zone touchée = rubrique en premier ; R29 : vue PAR DÉBUT (numéro du lot, rien d'enregistré)
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.appro = null; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(400)
-        pg.evaluate("() => { const h = document.querySelector('#dlyGantt .ghist'); if (h) h.scrollIntoView({ block: 'center' }); }"); pg.wait_for_timeout(200)
-        hb = pg.evaluate("() => { const h = document.querySelector('#dlyGantt .ghist'); if (!h) return null; const r = h.getBoundingClientRect(); return [r.left + 60, r.top + 30]; }")
+        pg.evaluate("() => { const h = document.querySelector('.dlyg-foot .ghist'); if (h) h.scrollIntoView({ block: 'center' }); }"); pg.wait_for_timeout(200)
+        hb = pg.evaluate("() => { const h = document.querySelector('.dlyg-foot .ghist'); if (!h) return null; const r = h.getBoundingClientRect(); return [r.left + 60, r.top + 30]; }")
         if hb: pg.mouse.click(hb[0], hb[1]); pg.wait_for_timeout(300)
         pg.evaluate("() => document.getElementById('dlyHb')?.remove()")
         pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
@@ -1494,8 +1494,8 @@ def main():
         vd = pg.evaluate(f"""() => [[...document.querySelectorAll('#bdgTabBody .dlyg-l tr.dly-task')].map(t => t.dataset.key), !!document.querySelector('#bdgTabBody .dly-vno'), !!document.querySelector('#bdgTabBody .dly-vd'), JSON.stringify({ins}.INS.dord)]""")
         pg.evaluate(f"() => {DXJ}.viewSet('l')"); pg.wait_for_timeout(400)
         vl = pg.evaluate("() => [...document.querySelectorAll('#bdgTabBody .dlyg-l tr.dly-task')].map(t => t.dataset.key)")
-        check("v543 R29 / v561 : menu PLANNING / GRAPHIQUE, sans liseré ; vue PAR DÉBUT en escalier (numéro du lot) avec bandeau AFFICHÉ PAR DÉBUT, sans changer l'ordre enregistré",
-              z1 == ["PLANNING"] and not z1b and vd[0] == ["l2|s1", "l1|s1"] and vd[1] and vd[2] and vd[3] == '["l1|s1","l2|s1"]' and vl == ["l1|s1", "l2|s1"], [z1, z1b, vd, vl])
+        check("v543 R29 / v561 : menu PLANNING / GRAPHIQUE, sans liseré ; vue PAR DÉBUT en escalier (numéro du lot), sans bandeau (v594 : la vue se lit à la coche ✓ du menu), sans changer l'ordre enregistré",
+              z1 == ["PLANNING"] and not z1b and vd[0] == ["l2|s1", "l1|s1"] and vd[1] and not vd[2] and vd[3] == '["l1|s1","l2|s1"]' and vl == ["l1|s1", "l2|s1"], [z1, z1b, vd, vl])
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk3; I.dlp = I.__dlp3; I.dpred = I.__dp3; I.dord = I.__ord3; I.pdeb = I.__pd3;
             ['__lk3', '__dlp3', '__dp3', '__ord3', '__pd3'].forEach(k => delete I[k]); I.dinc = {{}}; I.dlim = {{}}; I.plafR = {{}}; I.appro = null; I.hset = null; I.hrange = null; I.hval = null;
             I.chg = I.chg.filter(r => !/^n[123]$/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
@@ -1526,7 +1526,7 @@ def main():
             ['__lk7', '__dlp7', '__dp7', '__ord7', '__pd7'].forEach(k => delete I[k]); I.plafR = {{}}; I.hset = null; I.dinc = {{}}; I.dlim = {{}}; I.chg = I.chg.filter(r => r.id !== 'v1'); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
         # v548 (FORMAT 197) : bloc agrandi — planning et histogramme dans l'écran visible, histogramme au bas de l'écran
         pg.evaluate("() => document.querySelector('.blk-max-btn[data-blk=\"detail\"]')?.click()"); pg.wait_for_timeout(1200)
-        f197 = pg.evaluate("() => { const h = document.querySelector('#dlyGantt .ghist'), sc = document.querySelector('.dly-scroll'); const vv = window.visualViewport, b = vv ? vv.offsetTop + vv.height : innerHeight; return h && sc ? [Math.round(h.getBoundingClientRect().bottom), Math.round(sc.getBoundingClientRect().bottom), Math.round(b)] : null; }")
+        f197 = pg.evaluate("() => { const h = document.querySelector('.dlyg-foot .ghist'), sc = document.querySelector('.dly-scroll'); const vv = window.visualViewport, b = vv ? vv.offsetTop + vv.height : innerHeight; return h && sc ? [Math.round(h.getBoundingClientRect().bottom), Math.round(sc.getBoundingClientRect().bottom), Math.round(b)] : null; }")
         pg.evaluate("() => document.querySelector('.blk-max-btn[data-blk=\"detail\"]')?.click()"); pg.wait_for_timeout(800)
         check("v548 FORMAT 197 : bloc agrandi — l'histogramme est au bas de l'écran visible, le bloc ne dépasse pas l'écran",
               f197 and f197[1] <= f197[2] + 1 and f197[0] <= f197[2] + 1 and f197[2] - f197[0] <= 70, f197)
@@ -1547,7 +1547,7 @@ def main():
         g0 = []
         for _ in range(3):
             pg.evaluate("() => window.scrollBy(0, 150)"); pg.wait_for_timeout(600)
-            g0.append(pg.evaluate("() => { const h = document.querySelector('#dlyGantt .ghist'); return h ? h.offsetHeight : 0; }"))
+            g0.append(pg.evaluate("() => { const h = document.querySelector('.dlyg-foot .ghist'); return h ? h.offsetHeight : 0; }"))
         pg.evaluate(f"() => {DXJ}.hh(0)"); pg.wait_for_timeout(800)
         g1 = pg.evaluate("() => { const hh = document.querySelector('.dlyg-hh'), vv = window.visualViewport, b = vv ? vv.offsetTop + vv.height : innerHeight; const r = hh.getBoundingClientRect(); return [Math.round(r.top), Math.round(b)]; }")
         g2 = pg.evaluate("() => { const sc = document.querySelector('.dly-scroll'), hh = document.querySelector('.dlyg-hh'), vv = window.visualViewport, b = vv ? vv.offsetTop + vv.height : innerHeight; const r = sc.getBoundingClientRect(); return [Math.round(r.bottom), Math.round(b), Math.round(hh.getBoundingClientRect().bottom)]; }")
@@ -1573,33 +1573,33 @@ def main():
         pg.evaluate("() => localStorage.setItem('svi_dlyhh_v1', '160')")
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(900)
         if os.environ.get("SHOT"): pg.screenshot(path=os.environ["SHOT"] + "v546a.png")
-        q = pg.evaluate("""() => { const G = document.querySelector('#dlyGantt'), sc = document.querySelector('.dly-scroll'), L = document.querySelector('.dlyg-l'), h = G.querySelector('.ghist');
+        q = pg.evaluate("""() => { const G = document.querySelector('#dlyGantt'), FT = document.querySelector('.dlyg-foot') || G, sc = document.querySelector('.dly-scroll'), L = document.querySelector('.dlyg-l'), h = FT.querySelector('.ghist');
             return { z0: !!G.querySelector('.gb.gb0[data-key="l1|s2"]'), succ: (document.querySelector('tr[data-key="l1|s1"] .dly-succ') || {}).textContent || '', succH: !!document.querySelector('.dly-table th .cf-btn[data-col="succ"]'),
-              cap: (G.querySelector('.gplaf.gcap-def .gplaf-v') || {}).textContent || '', segv: (G.querySelector('.gseg-v') || {}).textContent || '', unit: (G.querySelector('.gax-u') || {}).textContent || '',
+              cap: (FT.querySelector('.gplaf.gcap-def .gplaf-v') || {}).textContent || '', segv: (FT.querySelector('.gseg-v') || {}).textContent || '', unit: (FT.querySelector('.gax-u') || {}).textContent || '',
               leftBottom: L.offsetHeight, histBottom: G.offsetHeight, cfg: !!document.querySelector('.blk-cfg-btn.dly-on') && !document.querySelector('.dlyhh-cfg'), vd: !!document.querySelector('.dly-vd'),
               adj: [!!document.querySelector('.blk-adj-btn.dly-on'), document.querySelector('.blk-adj-btn').classList.contains('off')], dz: !!document.querySelector('.dlyg[class*="dz-"]'), obj: !!G.querySelector('.gv-obj') }; }""")
         # R24 : abréviation (capacité en DH : 400 DH + 500 DH le 02 → « K » quand ≥ 10 000) ; R19 : coupe, trait vertical, déplacement
         pg.evaluate(f"""() => {{ const I = {ins}.INS; I.chg.find(r => r.id === 'w3').p = 5000; {ins}.insSave(); {ins}.refreshAll(); }}"""); pg.wait_for_timeout(500)
-        kfmt = pg.evaluate("() => [...document.querySelectorAll('#dlyGantt .gax-t')].map(e => e.textContent).join('|')")
+        kfmt = pg.evaluate("() => [...document.querySelectorAll('.dlyg-foot .gax-t')].map(e => e.textContent).join('|')")
         GK = pg.evaluate(f"() => {DXJ}.hasSel() && Object.keys({ins}.INS.plafR || {{}}).length")
         pg.evaluate(f"() => {DXJ}.cutPlaf('2026-11-04')"); pg.wait_for_timeout(400)
         pg.evaluate(f"() => {DXJ}.plafSeg(1, 30000)"); pg.wait_for_timeout(500)
-        cv = pg.evaluate("() => [!!document.querySelector('#dlyGantt .gcut-v'), (document.querySelector('#dlyGantt .gcut') || {dataset: {}}).dataset.eq]")
+        cv = pg.evaluate("() => [!!document.querySelector('.dlyg-foot .gcut-v'), (document.querySelector('.dlyg-foot .gcut') || {dataset: {}}).dataset.eq]")
         pg.evaluate(f"() => {DXJ}.plafSeg(1, Math.round(({ins}.INS.plafR[Object.keys({ins}.INS.plafR)[0]].plaf)))"); pg.wait_for_timeout(500)
         pg.evaluate(f"() => {DXJ}.moveCut(1, '2026-11-05')"); pg.wait_for_timeout(500)
         mc = pg.evaluate(f"() => JSON.stringify(Object.values({ins}.INS.plafR).map(x => (x.plafs || []).map(c => c.d)))")
         # R28 / R29 : cumulé = une courbe ; ⚙ : PRODUITS et MARGE
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.plafR = {{}}; X.INS.hset = {{ u: 'm', aff: 'c', cum: 'r' }}; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
-        nl = pg.evaluate("() => document.querySelectorAll('#dlyGantt .ghist-cum polyline').length")
+        nl = pg.evaluate("() => document.querySelectorAll('.dlyg-foot .ghist-cum polyline').length")
         if os.environ.get("SHOT"): pg.screenshot(path=os.environ["SHOT"] + "v546b.png")
         pg.evaluate("() => document.querySelector('.blk-cfg-btn')?.click()"); pg.wait_for_timeout(300)
         hw = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
         pg.evaluate("() => { const d = document.getElementById('svConf'); d.querySelectorAll('.hcf-c:not([value=r])').forEach(i => { i.checked = true; }); d.querySelector('input[name=\"hca\"][value=\"j\"]').checked = true; d.querySelector('[data-ok]').click(); }"); pg.wait_for_timeout(600)
-        pm = pg.evaluate(f"() => [JSON.stringify({ins}.INS.hset.crb), (document.querySelector('#dlyGantt .ghist-leg') || {{}}).textContent || '']")
+        pm = pg.evaluate(f"() => [JSON.stringify({ins}.INS.hset.crb), (document.querySelector('.dlyg-foot .ghist-leg') || {{}}).textContent || '']")
         # R25 : 0 = histogramme caché ; R17 : JOUR / SEMAINE / MOIS dans CALENDRIER DU BUDGET, SEMAINE remplit la largeur (R23)
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.hset = null; X.insSave(); }}")
         pg.evaluate(f"() => {DXJ}.hh(0)"); pg.wait_for_timeout(500)
-        h0 = pg.evaluate("() => [!!document.querySelector('.dlyg.dly-hnone'), (() => { const h = document.querySelector('#dlyGantt .ghist'); return h ? h.offsetHeight : 0; })()]")
+        h0 = pg.evaluate("() => [!!document.querySelector('.dlyg.dly-hnone'), (() => { const h = document.querySelector('.dlyg-foot .ghist'); return h ? h.offsetHeight : 0; })()]")
         pg.evaluate("() => localStorage.removeItem('svi_dlyhh_v1')")
         pg.evaluate("() => sviBdgCalWin('2026-11-02')"); pg.wait_for_timeout(300)
         sc0 = pg.evaluate("() => [...document.querySelectorAll('#svConf .bcal-sc button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',')")
@@ -1636,7 +1636,7 @@ def main():
         # v557 (FORMAT 202) : même hauteur du bloc détail pour tous les onglets (DÉLAIS, CHARGES, PRODUITS…), réglée à la poignée, mémorisée
         def tabH(k):
             pg.evaluate(f"() => document.querySelector('#bdgTabs [data-tab=\"{k}\"]')?.click()"); pg.wait_for_timeout(500)
-            return pg.evaluate("() => { const s = document.querySelector('#bdgTabBody .bdg-d-scroll'); return s ? Math.round(s.getBoundingClientRect().height) : -1; }")
+            return pg.evaluate("() => { const s = document.querySelector('#bdgTabBody .bdg-d-scroll'), f = document.querySelector('#bdgTabBody > .dlyg-foot'); return s ? Math.round(s.getBoundingClientRect().height + (f ? f.getBoundingClientRect().height : 0)) : -1; }")
         hs = [tabH(k) for k in ("dly", "chg", "prd", "dly")]
         pg.evaluate("() => { const L = JSON.parse(localStorage.getItem('svi_layout_v1') || '{}'); L.h = Object.assign(L.h || {}, { detail: 333 }); localStorage.setItem('svi_layout_v1', JSON.stringify(L)); }")
         pg.evaluate("() => document.querySelector('#bdgTabs [data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(300)
@@ -1673,7 +1673,7 @@ def main():
         pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS; window.__r34 = [JSON.stringify(I.hset || null), JSON.stringify(I.hrange || null), I.chg.filter(r => r.on === true).map(r => r.id)];
             I.chg.forEach(r => {{ if (r.on === true) r.on = false; }}); I.hset = {{ ...(I.hset || {{}}), crb: ['c', 'p'], aff: 'c' }}; I.hrange = {{ a: '2026-10-01', b: '2027-12-31' }}; X.insSave(); X.refreshAll(); }}""")
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(700)
-        r34 = pg.evaluate("() => [(document.querySelector('#dlyGantt .ghist-leg') || {}).textContent || '', (document.querySelector('#dlyGantt .grng-tot') || {}).textContent || '']")
+        r34 = pg.evaluate("() => [(document.querySelector('.dlyg-foot .ghist-leg') || {}).textContent || '', (document.querySelector('.dlyg-foot .grng-tot') || {}).textContent || '']")
         pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS, R = window.__r34; I.hset = JSON.parse(R[0]); I.hrange = JSON.parse(R[1]); I.chg.forEach(r => {{ if (R[2].includes(r.id)) r.on = true; }}); X.insSave(); X.refreshAll(); }}""")
         check("v563 R3 / R4 : sans charge cochée, courbe CHARGES affichée avec PRODUITS ; total de la plage pour chaque courbe (plus de « 0 DH »)",
               "CHARGES" in r34[0] and "PRODUITS" in r34[0] and "CHARGES" in r34[1] and "PRODUITS" in r34[1], r34)
@@ -1685,7 +1685,7 @@ def main():
             const K = lo + '|' + se, cid = 'rz1'; window.__r10.push(K, JSON.stringify(I.dlp[K] || null));
             I.chg.forEach(r => {{ r.on = r.id === cid; }}); I.hrange = null; I.hset = {{ u: 'q', aff: 'j', crb: ['c', 'r'] }}; I.dlp[K] = [{{ deb: '2026-11-02', fin: '2026-11-05' }}]; X.insSave(); X.refreshAll(); }}""")
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(700)
-        pg.evaluate("() => document.querySelector('#dlyGantt .ghb[data-d]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('.dlyg-foot .ghb[data-d]')?.click()"); pg.wait_for_timeout(300)
         r10 = pg.evaluate("""() => { const m = document.getElementById('dlyHb'); if (!m) return null; const g = s => { const r = [...m.querySelectorAll('div')].find(d => d.firstElementChild && d.firstElementChild.textContent.startsWith(s)); return r ? parseFloat(r.querySelector('b').textContent.replace(/\u202f|\s/g, '').replace(',', '.')) : null; };
             const tot = parseFloat((m.querySelector('.hb-tot b') || {}).textContent.replace(/\u202f|\s/g, '').replace(',', '.')); return [tot, g('PRODUIT'), g('RENDEMENT'), m.querySelectorAll('.hb-gob').length]; }""")
         pg.evaluate("() => document.getElementById('dlyHb')?.remove()")
@@ -1743,14 +1743,14 @@ def main():
         pg.evaluate("() => localStorage.setItem('svi_dlyhh_v1', '120')")
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(800)
         pg.evaluate("() => document.querySelector('#bdgTabs').scrollIntoView({ block: 'start' })"); pg.wait_for_timeout(700)
-        r5 = pg.evaluate("""() => { const p = document.querySelector('#dlyGantt .gplaf.gcap-def'); return [!!p, p ? p.querySelector('.gplaf-v').textContent : '', document.querySelectorAll('#dlyGantt .ghist-ax .gax-t').length,
+        r5 = pg.evaluate("""() => { const p = document.querySelector('.dlyg-foot .gplaf.gcap-def'); return [!!p, p ? p.querySelector('.gplaf-v').textContent : '', document.querySelectorAll('.dlyg-foot .ghist-ax .gax-t').length,
             p ? getComputedStyle(p).borderTopColor : '']; }""")
-        r2 = pg.evaluate("() => { const h = document.querySelector('#dlyGantt .ghist'), vv = window.visualViewport; const b = vv ? vv.offsetTop + vv.height : innerHeight; return h ? [Math.round(h.getBoundingClientRect().bottom), Math.round(b)] : null; }")
+        r2 = pg.evaluate("() => { const h = document.querySelector('.dlyg-foot .ghist'), vv = window.visualViewport; const b = vv ? vv.offsetTop + vv.height : innerHeight; return h ? [Math.round(h.getBoundingClientRect().bottom), Math.round(b)] : null; }")
         r3 = pg.evaluate("() => { const i = document.querySelector('.dlyg-hd i'), p = document.querySelector('.dlyhh-pill'), h = document.querySelector('.dlyg-hd'); return [!!i && getComputedStyle(i).transform !== 'none', Math.round(h.getBoundingClientRect().width) === Math.round(p.getBoundingClientRect().width)]; }")
         # remarque 4 : petit glissement (4 px vers le haut) = hauteur gardée là où on lâche
-        pq = pg.evaluate("() => { const p = document.querySelector('.dlyhh-pill'), r = p.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, document.querySelector('#dlyGantt .ghist').offsetHeight]; }")
+        pq = pg.evaluate("() => { const p = document.querySelector('.dlyhh-pill'), r = p.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, document.querySelector('.dlyg-foot .ghist').offsetHeight]; }")
         pg.mouse.move(pq[0], pq[1]); pg.mouse.down(); pg.mouse.move(pq[0], pq[1] - 4, steps=2); pg.mouse.up(); pg.wait_for_timeout(500)
-        r4 = pg.evaluate("() => [localStorage.getItem('svi_dlyhh_v1'), document.querySelector('#dlyGantt .ghist').offsetHeight, !!document.querySelector('.dlyg.dly-hfull')]")
+        r4 = pg.evaluate("() => [localStorage.getItem('svi_dlyhh_v1'), document.querySelector('.dlyg-foot .ghist').offsetHeight, !!document.querySelector('.dlyg.dly-hfull')]")
         pg.evaluate("() => localStorage.removeItem('svi_dlyhh_v1')")
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk5; I.dlp = I.__dlp5; I.dpred = I.__dp5; I.dord = I.__ord5;
             ['__lk5', '__dlp5', '__dp5', '__ord5'].forEach(k => delete I[k]); I.plafR = {{}}; I.chg = I.chg.filter(r => !/^n[13]$/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)

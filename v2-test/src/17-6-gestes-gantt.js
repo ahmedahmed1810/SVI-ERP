@@ -61,13 +61,13 @@
          lâcher = couper à ce jour */
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
-        const pl = e.target.closest && e.target.closest("#dlyGantt .gplaf");
+        const pl = e.target.closest && e.target.closest(".dlyg-foot .gplaf");
         if (!X || !pl) return;
         e.preventDefault(); e.stopPropagation();
         const h = pl.closest(".ghist"), sc = Number(h.dataset.sc) || 1, Y0 = Number(h.dataset.y0) || h.offsetHeight, IB = Number(h.dataset.ib) || 0, r0 = h.getBoundingClientRect();
         const v0 = pl.querySelector(".gplaf-v"), seg = Number(pl.dataset.seg) || 0, pre = (v0.textContent.match(/^\d\d\/\d\d\/\d{4} : /) || [""])[0];
         let P = null, cut = null;
-        const x0 = e.clientX, y0 = e.clientY, host = pl.closest("#dlyGantt");
+        const x0 = e.clientX, y0 = e.clientY, host = shell.querySelector("#dlyGantt");
         const dayAt = cx => { const n = Math.floor((cx - h.getBoundingClientRect().left) / DLY_DW); return sviIsoAdd(host.__d0, Math.max(0, n)); };
         const showCut = cx => {
           const iso = sviWNear(X.cal(), dayAt(cx), 1);
@@ -103,13 +103,13 @@
         shell.__dlyZone = z;   /* v546 (R35) : plus de liseré ni de rubriques par zone */
       }, true);
       /* R22 : toucher le « / » d'une coupe = SUPPRIMER LA COUPE (fenêtre) */
-      shell.addEventListener("click", e => { const c = e.target.closest && e.target.closest("#dlyGantt .gcut[data-i]"); const X = shell.__insDly; if (!c || !X) return; e.stopPropagation(); if (Date.now() - (shell.__dlyCutLong || 0) < 600) return; X.delCut(Number(c.dataset.i)); }, true);
+      shell.addEventListener("click", e => { const c = e.target.closest && e.target.closest(".dlyg-foot .gcut[data-i]"); const X = shell.__insDly; if (!c || !X) return; e.stopPropagation(); if (Date.now() - (shell.__dlyCutLong || 0) < 600) return; X.delCut(Number(c.dataset.i)); }, true);
       /* v546 (R19) : appui long sur le « / » = le déplacer jour par jour (seulement si les deux morceaux ont la même capacité) */
       shell.addEventListener("pointerdown", e => {
-        const X = shell.__insDly, c = e.target.closest && e.target.closest("#dlyGantt .gcut[data-i]");
+        const X = shell.__insDly, c = e.target.closest && e.target.closest(".dlyg-foot .gcut[data-i]");
         if (!X || !c) return;
         e.stopPropagation();
-        const host = c.closest("#dlyGantt"), h = c.closest(".ghist"), x0 = e.clientX, y0 = e.clientY;
+        const host = shell.querySelector("#dlyGantt"), h = c.closest(".ghist"), x0 = e.clientX, y0 = e.clientY;
         let mov = false, iso = null;
         const tip = cx => {
           const n = Math.floor((cx - h.getBoundingClientRect().left) / DLY_DW); iso = sviWNear(X.cal(), sviIsoAdd(host.__d0, Math.max(0, n)), 1);
@@ -145,10 +145,10 @@
       /* R19 : traits DÉBUT et FIN de l'histogramme — tirés au doigt ; contre un bord = pas de limite ; croisés = noms échangés */
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
-        const ln = e.target.closest && e.target.closest("#dlyGantt .grng[data-r]");
+        const ln = e.target.closest && e.target.closest(".dlyg-foot .grng[data-r]");
         if (!X || !ln) return;
         e.preventDefault(); e.stopPropagation();
-        const h = ln.closest(".ghist"), host = h.closest("#dlyGantt"), W = h.offsetWidth, sp = ln.querySelector("span");
+        const h = ln.closest(".ghist"), host = shell.querySelector("#dlyGantt"), W = h.offsetWidth, sp = ln.querySelector("span");
         const R0 = X.hrange(), other = ln.dataset.r === "a" ? R0.b : R0.a;
         ln.__drag = true;
         let iso = R0[ln.dataset.r] || "", edge = "";
@@ -184,7 +184,7 @@
          égales = les deux clignotent ; au lâcher, les charges des jours retenus sont cochées */
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
-        const ln = e.target.closest && e.target.closest("#dlyGantt .gval[data-v]");
+        const ln = e.target.closest && e.target.closest(".dlyg-foot .gval[data-v]");
         if (!X || !ln) return;
         e.preventDefault(); e.stopPropagation();
         const h = ln.closest(".ghist"), sc = Number(h.dataset.sc) || 1, Y0 = Number(h.dataset.y0) || h.offsetHeight, top = Number(h.dataset.top) || 1, sp = ln.querySelector("span");
@@ -247,7 +247,7 @@
         const k = step ? ((shell.__dlyX && shell.__dlyX.i === i ? shell.__dlyX.k : 0) + step) % C.length : 0, best = C[k];
         dlyXClear();
         const mk = (c) => { const d = document.createElement("div"); d.className = c; document.body.appendChild(d); return d; };
-        const px = hr.left + i * DLY_DW + DLY_DW / 2, gh = document.querySelector("#bdgTabBody > .gh-fix") || host.querySelector(".gh"), top = gh ? gh.getBoundingClientRect().bottom : hr.top;
+        const px = hr.left + i * DLY_DW + DLY_DW / 2, top = hr.top;   /* v594 : graphique dans le pied fixe — repères depuis le haut du graphique */
         const ax = Math.max(hr.left, host.getBoundingClientRect().left);
         const v = mk("dlyx-v"); v.style.left = px + "px"; v.style.top = top + "px"; v.style.height = Math.max(0, best.y - top) + "px"; v.style.borderLeftColor = best.c;
         const hz = mk("dlyx-h"); hz.style.left = ax + "px"; hz.style.top = best.y + "px"; hz.style.width = Math.max(0, px - ax) + "px"; hz.style.borderTopColor = best.c;
@@ -268,9 +268,9 @@
         dlyXClear(); shell.__dlyX = null;
       }, true);
       shell.addEventListener("pointerdown", e => {
-        const hit = e.target.closest && e.target.closest("#dlyGantt .ghist-cum .ghb-hit");
+        const hit = e.target.closest && e.target.closest(".dlyg-foot .ghist-cum .ghb-hit");
         if (!hit) return;
-        const host = hit.closest("#dlyGantt"), h = hit.closest(".ghist"), HV = host.__HV || {};
+        const host = shell.querySelector("#dlyGantt"), h = hit.closest(".ghist"), HV = host.__HV || {};
         if (!HV.curve && !HV.hideC) return;
         let on = false; const x0 = e.clientX, y0 = e.clientY;
         const tmv = ev => { if (on) ev.preventDefault(); };
@@ -282,17 +282,17 @@
       });
       /* v568 (remarque 12) : toucher l'axe des montants = afficher / cacher la RÈGLE ; la règle se tire au doigt (valeur affichée) */
       shell.addEventListener("click", e => {
-        const a = e.target.closest && e.target.closest("#dlyGantt .gax-hit");
+        const a = e.target.closest && e.target.closest(".dlyg-foot .gax-hit");
         if (!a) return;
         e.stopPropagation();
         /* v584 : toucher l'axe = faire apparaître la règle (l'appui long sur la ligne la fait disparaître) */
         /* v588 : la règle apparaît (ou se pose) à la hauteur touchée */
         const h = a.closest(".ghist"), sc = Number(h.dataset.sc) || 1, Y0 = Number(h.dataset.y0) || h.offsetHeight;
         shell.__dlyRule = true; shell.__dlyRuleV = (Y0 - (e.clientY - h.getBoundingClientRect().top)) / sc;
-        const host = a.closest("#dlyGantt"); host.__drawn = false; dlyGanttDraw();
+        const host = shell.querySelector("#dlyGantt"); host.__drawn = false; dlyGanttDraw();
       }, true);
       shell.addEventListener("pointerdown", e => {
-        const ln = e.target.closest && e.target.closest("#dlyGantt .grule");
+        const ln = e.target.closest && e.target.closest(".dlyg-foot .grule");
         if (!ln) return;
         e.preventDefault(); e.stopPropagation();
         const h = ln.closest(".ghist"), sc = Number(h.dataset.sc) || 1, Y0 = Number(h.dataset.y0) || h.offsetHeight, sp = ln.querySelector("span");
@@ -302,7 +302,7 @@
         /* v577 (remarque 6) : la règle s'aimante sur les valeurs rondes (10 K, 11 K, 12 K…) : petit arrêt ; en continuant à tirer, elle se détache */
         const stp = Number(h.dataset.stp) || 0, p10 = stp ? Math.pow(10, Math.floor(Math.log10(stp))) : 0, fine = p10 ? (stp / p10 <= 1.0001 ? p10 / 10 : p10) : 0;
         const x0 = e.clientX, y0 = e.clientY;
-        const lp = setTimeout(() => { up(); shell.__dlyRule = false; shell.__dlyRuleV = null; const host = h.closest("#dlyGantt"); if (host) { host.__drawn = false; dlyGanttDraw(); } }, 550);
+        const lp = setTimeout(() => { up(); shell.__dlyRule = false; shell.__dlyRuleV = null; const host = shell.querySelector("#dlyGantt"); if (host) { host.__drawn = false; dlyGanttDraw(); } }, 550);
         const mv = ev => { ev.preventDefault(); if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return; clearTimeout(lp); let y = Math.max(4, Math.min(Y0, ev.clientY - h.getBoundingClientRect().top)); let v = (Y0 - y) / sc;
           let snap = false;
           if (fine > 0) { const r = Math.round(v / fine) * fine, yr = Y0 - r * sc; if (Math.abs(yr - y) <= 7) { v = r; y = yr; snap = true; } }
@@ -312,11 +312,11 @@
       });
       /* R8 : toucher une barre de l'histogramme = bulle des tâches de ce jour (répartition, fractions comprises) */
       shell.addEventListener("click", e => {
-        { const hh = e.target.closest && e.target.closest("#dlyGantt"); if (hh && hh.__dlyXlp) return; }   /* v564 : pas de bulle après un appui long (repères) */
-        const b = e.target.closest && e.target.closest("#dlyGantt .ghb[data-d]");
+        { const hh = e.target.closest && e.target.closest("#dlyGantt, .dlyg-foot") && shell.querySelector("#dlyGantt"); if (hh && hh.__dlyXlp) return; }   /* v564 : pas de bulle après un appui long (repères) */
+        const b = e.target.closest && e.target.closest(".dlyg-foot .ghb[data-d]");
         document.getElementById("dlyHb")?.remove();
         if (!b) return;
-        const host = b.closest("#dlyGantt"), H = host && host.__HD, di = b.dataset.d;
+        const host = shell.querySelector("#dlyGantt"), H = host && host.__HD, di = b.dataset.d;
         if (!H) return;
         const fmt = v => (Math.round(v * 100) / 100).toLocaleString("fr-FR");
         let rows = "", tot = 0;
@@ -371,24 +371,17 @@
         const pill = e.target.closest && e.target.closest(".dlyg-hh .dlyhh-pill");
         if (!X || !pill) return;
         e.preventDefault(); e.stopPropagation();
-        const g = pill.closest(".dlyg"), hist = g.querySelector("#dlyGantt .ghist"), y0 = e.clientY;
-        let h0 = hist ? hist.offsetHeight : 110;
-        /* v545 (remarque 4) : la poignée reste où on la lâche — hauteur la plus grande = du bas de l'écran visible jusque sous l'en-tête du Gantt */
-        const scr = g.closest(".bdg-d-scroll"), ghd = g.querySelector("#dlyGantt > .gh"), hr0 = hist ? hist.getBoundingClientRect() : null;
-        const visB = Math.min(scr ? scr.getBoundingClientRect().bottom : 1e9, dlyVpB());
-        const maxH = hr0 && ghd ? Math.max(80, Math.floor(visB - ghd.getBoundingClientRect().bottom - 4)) : (scr ? Math.max(120, scr.clientHeight - 60) : 600);
-        const bar = pill.closest(".dlyg-hh");
-        /* v583 : la poignée suit le doigt dès le premier mouvement (hauteur de départ bornée à la plus grande, décalage sous l'en-tête repris) */
-        const tr = /translateY\((-?[\d.]+)px\)/.exec(bar.style.transform || ""), dn = tr ? +tr[1] : 0;
-        if (dn) { bar.style.transform = ""; bar.style.top = ((parseFloat(bar.style.top) || 0) + dn) + "px"; }
-        const t0 = parseFloat(bar.style.top) || 0;
-        h0 = Math.min(h0, maxH);
+        /* v594 (remarque longue 2) : la poignée est en haut du pied fixe ; glisser = hauteur du pied (le graphique), suivie au doigt */
+        const ft = pill.closest(".dlyg-foot"), bar = pill.closest(".dlyg-hh"), y0 = e.clientY;
+        const scr = shell.querySelector("#bdgTabBody > .dly-scroll"), thH = (shell.querySelector(".dlyg-l thead") || shell.querySelector("#dlyGantt > .gh") || { offsetHeight: 34 }).offsetHeight;
+        const tot = scr ? (scr.__capMax || scr.offsetHeight + (ft ? ft.offsetHeight : 0)) : 600;
+        const maxH = Math.max(80, tot - thH - 2), h0 = Math.min(maxH, ft ? ft.offsetHeight : 110);
         let h = h0, on = false;
         try { pill.setPointerCapture(e.pointerId); } catch (err) {}
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });
         /* tout mouvement compte comme un glissement ; seul un toucher net bascule d'un bord à l'autre */
-        const mv = ev => { const dy = ev.clientY - y0; if (!on && !dy) return; on = true; ev.preventDefault(); h = Math.round(Math.max(0, Math.min(maxH, h0 - dy))); bar.style.top = (t0 + (h0 - h)) + "px"; };
+        const mv = ev => { const dy = ev.clientY - y0; if (!on && !dy) return; on = true; ev.preventDefault(); h = Math.round(Math.max(0, Math.min(maxH, h0 - dy))); bar.style.transform = "translateY(" + (h0 - h) + "px)"; };
         const up = () => {
           document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
           setTimeout(() => document.removeEventListener("touchmove", tmv), 0);
