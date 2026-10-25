@@ -319,6 +319,8 @@
             const v = val[di], n = capAt(di), over = !cum && n >= 0 && v > n + 1e-9, inc = over && (HD.det[di] || []).some(x => x.inc);
             const parts = ks.length > 1 && !cum ? order.map(j => { const w = sval[j][di]; return w ? `<i style="height:${w * sc}px;background:${col[ks[j]]}"></i>` : ""; }).join("") : "";
             hb += `<div class="ghb${over ? (inc ? " over-inc" : " over") : ""}${ks.length > 1 && !cum ? " ghb-st" : ""}${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, v * sc)}px;bottom:${HH - Y0}px">${parts}</div>`;
+            /* v592 : la barre garde la couleur de la charge ; seule la partie au-dessus de la CAPACITÉ est hachurée (rouge, violet si INCOMPRESSIBLE) */
+            if (over && pass(di)) hb += `<div class="ghb-ovr${inc ? " ghb-ovr-inc" : ""}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, (v - n) * sc)}px;bottom:${HH - Y0 + n * sc}px"></div>`;
           });
           else if (!curve) {
             /* R29 : barres côte à côte dans le jour — CHARGES, PRODUITS, MARGE (signée, sous le zéro si négative) */
