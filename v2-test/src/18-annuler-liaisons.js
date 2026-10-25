@@ -1126,29 +1126,34 @@
       spots.forEach(([k, get]) => {
         const box = get(); if (!box || box.offsetParent === null) return;
         const total = (INS[k] || []).filter(r => !r.t).length;
-        const shown = box.tagName === "TABLE" ? box.querySelectorAll("tbody tr[data-iid], tbody tr[data-grp]").length : box.querySelectorAll(".ins-li[data-iid]").length;
+        /* v607 (remarque 82) : seules les vraies lignes comptent — des titres (lots, groupes) restés seuls ne font pas un bloc « rempli » */
+        const realId = id => { const r = (INS[k] || []).find(x => x.id === id); return !!r && !r.t; };
+        const shown = box.tagName === "TABLE" ? [...box.querySelectorAll("tbody tr[data-iid], tbody tr[data-grp]")].filter(tr => tr.dataset.grp || realId(tr.dataset.iid)).length
+          : [...box.querySelectorAll(".ins-li[data-iid]")].filter(li => realId(li.dataset.iid)).length;
         const want = total > 0 && shown === 0;
         const host = box.tagName === "TABLE" ? box.parentElement : box;
         let h = host.querySelector(":scope > .svi-empty");
         if (!want) { if (h) h.remove(); return; }
         /* v527 (remarque 5) : rien n'est décoché tout seul — le bandeau dit QUELLES cases cochées se contredisent,
            avec un bouton par bloc pour les décocher (et TOUT RÉAFFICHER) */
-        const NM = { des: "DÉSIGNATION(S)", lot: "LOT(S)", prim: "ACTIVITÉ(S) PRIMAIRE(S)", sec: "ACTIVITÉ(S) SECONDAIRE(S)", chg: "CHARGE(S)", prd: "PRODUIT(S)", dly: "TÂCHE(S) DU PLANNING" };
+        const NM = { des: "DÉSIGNATION(S)", lot: "LOT(S)", prim: "ACTIVITÉ(S) PRIMAIRE(S)", sec: "ACTIVITÉ(S) SECONDAIRE(S)", chg: "CHARGE(S)", prd: "PRODUIT(S)", dly: "TÂCHE(S) DU PLANNING", lnk: "LIAISON(S) DE MARGE", iso: "BRANCHE ISOLÉE" };
+        const nl = (INS.links || []).filter(l => l.on === true).length;
         const ck = ["des", "lot", "prim", "sec", "chg", "prd"].filter(x => x !== k).map(x => [x, (INS[x] || []).filter(r => !r.t && r.on === true).length]).filter(([, n]) => n)
-          .concat(shell.__dlySel && shell.__dlySel.size ? [["dly", shell.__dlySel.size]] : []);
+          .concat(shell.__dlySel && shell.__dlySel.size ? [["dly", shell.__dlySel.size]] : [])
+          .concat(nl ? [["lnk", nl]] : []).concat(shell.__dlyIso ? [["iso", 1]] : []);
         const sig = k + ":" + ck.map(([x, n]) => x + n).join(",") + ":" + total;
         if (h && h.dataset.sig === sig) return;
         if (!h) { h = document.createElement("div"); h.className = "svi-empty"; if (box.tagName === "TABLE") box.after(h); else box.appendChild(h); }
         h.dataset.sig = sig;
-        const why = ck.length ? "AUCUNE LIGNE NE CORRESPOND À TOUTES LES CASES COCHÉES : " + ck.map(([x, n]) => n + " " + NM[x]).join(" + ") + "." : "AUCUNE LIGNE : FILTRES (LOUPES) DES BLOCS.";
-        h.innerHTML = `<span>${esc(why)}</span>${ck.map(([x, n]) => `<button type="button" class="svi-empty-b svi-empty-k" data-clrk="${x}">DÉCOCHER ${esc(NM[x])} (${n})</button>`).join("")}<button type="button" class="svi-empty-b" data-clrall>TOUT RÉAFFICHER</button>`;
+        const why = "AUCUNE LIGNE POUR LES FILTRES EN COURS" + (ck.length ? " : " + ck.map(([x, n]) => (x === "iso" ? "" : n + " ") + NM[x] + (x === "iso" ? "" : " COCHÉE(S)")).join(" + ") + "." : " (LOUPES DES BLOCS).");
+        h.innerHTML = `<span>${esc(why)}</span>${ck.map(([x, n]) => `<button type="button" class="svi-empty-b svi-empty-k" data-clrk="${x}">${x === "iso" ? "RÉAFFICHER TOUTE L'ARBORESCENCE" : "DÉCOCHER " + esc(NM[x]) + " (" + n + ")"}</button>`).join("")}<button type="button" class="svi-empty-b" data-clrall>EFFACER TOUS LES FILTRES</button>`;
         /* message aussitôt, près du bloc vidé (une fois par situation) */
         if (ck.length && shell.__emptySig !== sig) { shell.__emptySig = sig; try { svToast(why, 4000, h); } catch (e) {} }
       });
     };
     shell.__insClrAll = () => {
       ["des", "lot", "prim", "sec", "chg", "prd"].forEach(k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; });
-      if (shell.__dlySel) shell.__dlySel.clear();
+      if (shell.__dlySel) shell.__dlySel.clear(); shell.__dlyIso = null;
       (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }); (INS.inc || []).forEach(x => { if (x.on === true) x.on = false; });
       try { ["client", "hier", "detail"].forEach(b => insFiltPlan(b).T.forEach(t => { if (CF[t]) CF[t].f = {}; })); } catch (e) {}
       insSave(); refreshAll();
@@ -1165,7 +1170,9 @@
     }
     shell.__insEmptyHints = insEmptyHints;
     /* décocher un seul bloc */
-    shell.__insClrK = k => { if (k === "dly") { if (shell.__dlySel) shell.__dlySel.clear(); refreshAll(); return; } (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; insSave(); refreshAll(); };
+    shell.__insClrK = k => { if (k === "iso") { shell.__dlyIso = null; refreshAll(); return; }
+      if (k === "lnk") { (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }); insSave(); refreshAll(); return; }
+      if (k === "dly") { if (shell.__dlySel) shell.__dlySel.clear(); refreshAll(); return; } (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; insSave(); refreshAll(); };
 
     const tvaFor = l =>
       l.ttcAmount !== undefined ? l.ttcAmount - l.amount : l.amount * l.tva / 100;

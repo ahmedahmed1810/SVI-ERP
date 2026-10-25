@@ -837,6 +837,8 @@ def main():
         # remarque 2 : bloc vidé par les cases cochées des autres blocs → bandeau + TOUT RÉAFFICHER
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.find(r => r.id === 'c2').on = true; I.lot.find(r => r.id === 'l2').on = true; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(500)
         r2 = pg.evaluate("() => document.querySelectorAll('.svi-empty').length")
+        r82 = pg.evaluate("() => { const h = document.querySelector('.svi-empty'); return h ? [/AUCUNE LIGNE POUR LES FILTRES EN COURS/.test(h.textContent), h.querySelector('[data-clrall]')?.textContent] : null; }")
+        check("v607 remarque 82 : bloc vidé = « AUCUNE LIGNE POUR LES FILTRES EN COURS » + EFFACER TOUS LES FILTRES", r82 == [True, "EFFACER TOUS LES FILTRES"], r82)
         pg.evaluate("() => document.querySelector('.svi-empty [data-clrall]')?.click()"); pg.wait_for_timeout(500)
         r2b = pg.evaluate(f"() => {{ const X = {ins}; return [document.querySelectorAll('.svi-empty').length, ['des', 'lot', 'chg'].every(k => !X.INS[k].some(r => r.on === true))]; }}")
         check("v524 remarque 2 : bloc vidé par les cases cochées → bandeau, TOUT RÉAFFICHER rend tout", r2 >= 1 and r2b == [0, True], [r2, r2b])
