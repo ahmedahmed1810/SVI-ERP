@@ -9682,12 +9682,14 @@ function renderBudgetList() {
           const tot = scr.__capMax;
           let F = 0;
           if (hasH) {
-            if (dlyHHGet() === "full") F = Math.max(80, tot - Math.ceil(thH) - 2);
-            else F = dlyHHpx ? Math.max(28, Math.min(dlyHHpx, tot - Math.ceil(thH) - 40)) : 0;
+            /* v596 : le pied ne grandit jamais le bloc — il prend sa place dans la hauteur commune */
+            const room = Math.max(0, tot - Math.ceil(thH) - 2);
+            if (dlyHHGet() === "full") F = room;
+            else F = dlyHHpx ? Math.max(0, Math.min(dlyHHpx, room - 24, Math.max(28, room - 24))) : 0;
           }
           dlyHHpx = F;
           shell.__dlyFootH = hasH ? Math.max(F, 0) : 0;
-          { const want = Math.max(Math.ceil(thH) + 2, tot - shell.__dlyFootH); if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 0.5) scr.style.setProperty("height", want + "px", "important"); }
+          { const want = Math.max(0, tot - shell.__dlyFootH); if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 0.5) scr.style.setProperty("height", want + "px", "important"); }
           bodyH = Math.max(bodyH, Math.floor(tot - shell.__dlyFootH - thH - 2));
         }
         const L = gg && gg.querySelector(".dlyg-l");
@@ -10103,11 +10105,11 @@ function renderBudgetList() {
       else {
         const hd = parseFloat(getComputedStyle(scr).getPropertyValue("--h-detail")) || 148;
         let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
-        tot = Math.max(160, Math.round(hd - ban));
+        tot = Math.max(60, Math.round(hd - ban));   /* v596 : exactement la hauteur commune du bloc détail (même hauteur que les autres onglets) */
       }
       let r = 0;
       if (Math.abs((scr.__capMax || 0) - tot) > 1) { scr.__capMax = tot; r = 2; }
-      const want = Math.max(40, tot - (shell.__dlyFootH || 0));
+      const want = Math.max(0, tot - (shell.__dlyFootH || 0));
       if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 1) { scr.style.setProperty("height", want + "px", "important"); r = r || 1; }
       return r;
     };
