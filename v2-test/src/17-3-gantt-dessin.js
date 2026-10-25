@@ -292,6 +292,9 @@
           const pass = di => inR(di) && (multi || ((VL.min === null || val[di] >= VL.min - 1e-9) && (VL.max === null || val[di] <= VL.max + 1e-9)));
           const bw = Math.max(1, DLY_DW - (DLY_DW > 10 ? 6 : 0)), bo = DLY_DW > 10 ? 3 : 0;
           const capAt = di => { let n = -1; SG.forEach(x => { if (!x.def && (!x.d || x.d <= di)) n = x.n; }); return n; };
+          /* v604 : rendement réglé (charge de main-d'œuvre seule sélectionnée) et heures sup du jour */
+          const rdGK = (() => { const g = dlyCurGK(); return g && /\|J-H$/.test(g) && !g.includes(" § ") ? g : ""; })(), rdSt0 = rdGK ? dlyRdSt(rdGK, "", false) : null;
+          const rdDay = di => rdSt0 && dlyRdSet0(rdSt0) ? dlyRdAt(di, rdSt0) / 100 : 1, hsup = {};
           /* nombres abrégés (R24) : 5 K, 1,5 M, 1 G */
           const fmtA = v => { const a = Math.abs(v), f = (x, u) => (Math.round(x * 10) / 10).toLocaleString("fr-FR") + " " + u; return a >= 1e9 ? f(v / 1e9, "G") : a >= 1e6 ? f(v / 1e6, "M") : a >= 1e4 ? f(v / 1e3, "K") : (Math.round(v * 100) / 100).toLocaleString("fr-FR"); };
           const fmtV = v => (Math.round(v * 100) / 100).toLocaleString("fr-FR");
@@ -320,11 +323,14 @@
             });
           }
           else if (!curve && !multi) vis.forEach(di => {
-            const v = val[di], n = capAt(di), over = !cum && n >= 0 && v > n + 1e-9, inc = over && (HD.det[di] || []).some(x => x.inc);
+            /* v604 : rendement réglé > 100 % = la capacité en J-H du jour monte d'autant (heures sup) ; au-delà seulement, dépassement */
+            const v = val[di], n = capAt(di), rf = rdDay(di), over = !cum && n >= 0 && v > n * rf + 1e-9, inc = over && (HD.det[di] || []).some(x => x.inc);
+            const hsv = !cum && n >= 0 && rf > 1 && v > n + 1e-9 ? Math.min(v, n * rf) - n : 0;
+            if (hsv > 1e-9) { hsup[di] = hsv * 8; if (pass(di)) hb += `<div class="ghb-hs" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, hsv * sc)}px;bottom:${HH - Y0 + n * sc}px"></div>`; }
             const parts = ks.length > 1 && !cum ? order.map(j => { const w = sval[j][di]; return w ? `<i style="height:${w * sc}px;background:${col[ks[j]]}"></i>` : ""; }).join("") : "";
             hb += `<div class="ghb${over ? (inc ? " over-inc" : " over") : ""}${ks.length > 1 && !cum ? " ghb-st" : ""}${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, v * sc)}px;bottom:${HH - Y0}px">${parts}</div>`;
             /* v592 : la barre garde la couleur de la charge ; seule la partie au-dessus de la CAPACITÉ est hachurée (rouge, violet si INCOMPRESSIBLE) */
-            if (over && pass(di)) hb += `<div class="ghb-ovr${inc ? " ghb-ovr-inc" : ""}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, (v - n) * sc)}px;bottom:${HH - Y0 + n * sc}px"></div>`;
+            if (over && pass(di)) hb += `<div class="ghb-ovr${inc ? " ghb-ovr-inc" : ""}" style="left:${X(di) + bo}px;width:${bw}px;height:${Math.max(1, (v - n * rf) * sc)}px;bottom:${HH - Y0 + n * rf * sc}px"></div>`;
           });
           else if (!curve) {
             /* R29 : barres côte à côte dans le jour — CHARGES, PRODUITS, MARGE (signée, sous le zéro si négative) */
@@ -355,7 +361,7 @@
           }
           /* v569 (remarque 13) : RENDEMENT par charge — quantité produite de l'activité (vert) et une courbe pointillée par charge cochée
              (sa couleur, sa propre échelle, valeur maximale affichée) */
-          const RD = !C && !multi && HD.rd && HD.rd.ser ? HD.rd : null, rdPQ = {}, rdS = [];
+          const RD = !C && !multi && HD.rd && HD.rd.ser ? HD.rd : null, rdPQ = {}, rdS = []; let rdBar = false;
           if (RD) {
             const cuM = M => cum ? cumOf(di => M[di] || 0) : M;
             const PQ = cuM(RD.L); vis.forEach(di => { rdPQ[di] = PQ[di] || 0; });
@@ -379,9 +385,26 @@
               else barS(Rr, sR2, c, j + (showP ? 1 : 0));
               hb += lab(mR, sR2, c, vis.find(di => Rr[di] === mR));
               rdS.push({ name: S.sk.split("|")[0], u: S.sk.split("|")[1], c, R: Rr, s: sR2 });
+              /* v604 (remarque longue 4) : barre RENDEMENT de la 1re charge de main-d'œuvre — en % (toute la charge) ou en VALEUR (cette activité),
+                 bornes MIN / MAX en pointillés, coupes « / » comme la CAPACITÉ */
+              if (!rdBar && /\|J-H$/.test(S.sk)) {
+                rdBar = true;
+                const sP0 = Object.values(S.P).reduce((t, x) => t + (x || 0), 0), sC0 = Object.values(S.C).reduce((t, x) => t + (x || 0), 0), ref = sC0 > 1e-9 ? sP0 / sC0 : 0;
+                if (ref > 0) {
+                  const byV = hs.rdu === "v", sec = byV ? RD.sec : "", src = byV ? dlyRdSrc(S.sk, RD.sec) : dlyRdSt(S.sk, "", false), segs = dlyRdSegs(src), Lm = dlyRdLim();
+                  const yP = p => Math.max(26, Math.min(HH - IB, Y0 - ref * p / 100 * sR2)), labP = p => byV ? fmtV(ref * p / 100) + " " + RD.u + " / J-H" : p + " %";
+                  [["MIN", Lm.min], ["MAX", Lm.max]].forEach(([t, p]) => { hb += `<div class="grdm" style="top:${yP(p)}px"><span>${t} ${esc(labP(p))}</span></div>`; });
+                  segs.forEach((g2, j) => {
+                    const l = g2.d ? Math.max(0, X(g2.d)) : 0, nx = segs[j + 1], r = nx ? Math.min(W, X(nx.d)) : W, y = yP(g2.n);
+                    if (r <= l) return;
+                    hb += `<div class="grdb" data-sk="${esc(S.sk)}" data-sec="${esc(sec)}" data-seg="${g2.i}" data-ref="${ref}" data-s="${sR2}" data-pct="${g2.n}" style="top:${y}px;left:${l}px;width:${r - l}px;--c:${c}"><span class="grdb-v">${g2.d && j ? dFr(g2.d).slice(0, 5) + " : " : ""}RENDEMENT ${esc(labP(g2.n))}${g2.n > 100 ? " — HEURES SUP " + fmtV((g2.n - 100) / 100 * 8) + " H / J" : ""}</span></div>`
+                      + (j && g2.d ? `<span class="grdc" data-sk="${esc(S.sk)}" data-sec="${esc(sec)}" data-i="${g2.i}" style="left:${l - 7}px;top:${y - 10}px" role="button" title="SUPPRIMER LA COUPE">/</span>` : "");
+                  });
+                }
+              }
             });
           }
-          host.__HV = { cum, curve, hideC, multi, val, vP, vG, mgP, unit: mgP ? "%" : HD.unit, rd: RD ? { PQ: rdPQ, PQs: rdPQ.__s || 0, S: rdS, u: RD.u } : null };
+          host.__HV = { hsup, cum, curve, hideC, multi, val, vP, vG, mgP, unit: mgP ? "%" : HD.unit, rd: RD ? { PQ: rdPQ, PQs: rdPQ.__s || 0, S: rdS, u: RD.u } : null };
           const late = INS.dbut && dlyEnd(dlyCurDates()) > INS.dbut;
           const legI = (c, t) => `<span><b style="background:${c}"></b>${esc(t)}</span>`;
           const legRd = HD.rd ? (HD.rd.ser ? (crb.includes("p") ? legI("#2e90fa", "PRODUIT — " + lkName("sec", HD.rd.sec) + " (" + HD.rd.u + ")") : "") + rdS.map(s => legI(s.c, "RENDEMENT " + s.name + " (" + HD.rd.u + " / " + s.u + ")")).join("")

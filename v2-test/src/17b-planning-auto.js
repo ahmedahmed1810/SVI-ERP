@@ -90,6 +90,55 @@
     const dlyCapDef = (gk = dlyCurGK()) => { const st = gk ? (INS.plafR || {})[gk] : null; return !st || ((st.plaf === undefined || st.plaf === null || st.plaf === "") && !dlyCutsOf(st).length); };
     const dlyCapOf = (iso, gk) => { let n = -1; dlyCapSegs(gk).forEach(s => { if (!s.d || s.d <= iso) n = s.n; }); return n; };
 
+    /* ---------- v604 (remarque longue 4) : RENDEMENT réglé ----------
+       % du rendement du budget (100 % = budget, les J-H du budget ne changent pas), par charge de main-d'œuvre (réglage en %)
+       ou par activité de cette charge (réglage en VALEUR) ; bornes MIN / MAX (80 % / 125 % au départ) ; coupes comme la CAPACITÉ.
+       Durée = quantité ÷ (rendement × ouvriers) ; au-dessus de 100 %, la part en plus = heures sup ((rendement − 100 %) × 8 h). */
+    const dlyRdV = v => v === undefined || v === null || v === "" || !isFinite(Number(v)) ? 100 : Math.max(1, Math.round(Number(v)));
+    const dlyRdLim = () => { const h = dlyHSet(); return { min: Number(h.rdmin) || 80, max: Number(h.rdmax) || 125 }; };
+    const dlyRdSt = (sk, sec, mk) => {
+      INS.plafR = INS.plafR || {};
+      let st = INS.plafR[sk]; if (!st) { if (!mk) return null; st = INS.plafR[sk] = {}; }
+      if (!sec) return st;
+      st.rdA = st.rdA || {}; if (!st.rdA[sec]) { if (!mk) return null; st.rdA[sec] = {}; }
+      return st.rdA[sec];
+    };
+    const dlyRdSet0 = st => !!st && (st.rd !== undefined && st.rd !== null && st.rd !== "" || (st.rds || []).length > 0);
+    const dlyRdCuts = st => ((st && st.rds) || []).filter(s => s && (s.d || (s.after || []).length));
+    const dlyRdSegs = st => {
+      const fin = k => dlyFin(k) || dlyDeb(k) || "";
+      const segs = [{ d: "", n: dlyRdV(st && st.rd), i: 0 }];
+      dlyRdCuts(st).forEach((c, j) => { const d = dlyCutDate(c, fin) || c.d; if (d) segs.push({ d, n: dlyRdV(c.n), i: j + 1 }); });
+      return segs.sort((a, b) => (a.d || "").localeCompare(b.d || ""));
+    };
+    const dlyRdAt = (iso, st) => { let n = 100; dlyRdSegs(st).forEach(s => { if (!s.d || s.d <= iso) n = s.n; }); return n; };
+    /* réglage effectif d'une activité : le sien (VALEUR) s'il existe, sinon celui de la charge (%) */
+    const dlyRdSrc = (sk, sec) => { const A = sec ? dlyRdSt(sk, sec, false) : null; return dlyRdSet0(A) ? A : dlyRdSt(sk, "", false); };
+    const dlyRdSetV = (sk, sec, i, pct) => {
+      const L = dlyRdLim(), st = dlyRdSt(sk, sec, true), v = Math.max(L.min, Math.min(L.max, Math.round(pct)));
+      if (!i) st.rd = v; else if ((st.rds || [])[i - 1]) st.rds[i - 1].n = v;
+      histLog("DÉLAIS", "RENDEMENT", sk.split("|")[0] + (sec ? " — " + lkName("sec", sec) : "") + " : " + v + " %");
+      if (!dlyCompressRun({ quiet: true })) { insSave(); renderTabK(); }
+    };
+    const dlyRdCut = (sk, sec, iso) => {
+      const st = dlyRdSt(sk, sec, true), d = sviWNear(insCal(), iso, 1);
+      if (dlyRdSegs(st).some(s => s.d === d)) { svToast("LE RENDEMENT EST DÉJÀ COUPÉ LE " + dFr(d) + ".", 3000); return; }
+      const after = dlyKeys().filter(k => dlyDeb(k) && dlyDeb(k) < d);
+      st.rds = (st.rds || []).concat([{ d, n: dlyRdAt(d, st), after }]);
+      insSave(); histLog("DÉLAIS", "RENDEMENT COUPÉ", dFr(d)); renderTabK();
+    };
+    const dlyRdDel = (sk, sec, i) => {
+      const st = dlyRdSt(sk, sec, false), s = st && dlyRdSegs(st).find(x => x.i === i);
+      if (!s) return;
+      /* comme la CAPACITÉ (v591) : le morceau de droite s'aligne sur celui de gauche */
+      svChoose({ title: "SUPPRIMER LA COUPE", html: `<div class="svc-sub">SUPPRIMER LA COUPE DU RENDEMENT DU ${esc(dFr(s.d))} ?</div>`, buttons: [{ v: "go", label: "SUPPRIMER", tone: "danger" }] }).then(r => {
+        if (r !== "go") return;
+        st.rds = (st.rds || []).filter((c, j) => j + 1 !== i);
+        histLog("DÉLAIS", "COUPE DU RENDEMENT SUPPRIMÉE", dFr(s.d));
+        if (!dlyCompressRun({ quiet: true })) { insSave(); renderTabK(); }
+      });
+    };
+
     /* ---------- R3 : tâche INCOMPRESSIBLE ---------- */
     const dlyInc = k => !!(INS.dinc || {})[k];
     const dlyIncSet = (k, on) => { INS.dinc = INS.dinc || {}; if (on) INS.dinc[k] = 1; else delete INS.dinc[k]; };
@@ -163,6 +212,15 @@
       };
       const dead = (g, s) => { const iso = dayAt(s >> 1);
         return !dlyCutsOf(g.st).some(c => { const d = dlyCutDate(c, finOf); return dlyCapV(c.n) !== 0 && (!d || d > iso); }); };
+      /* v604 : rendement réglé d'un groupe de main-d'œuvre pour une tâche à une demi-journée (1 = budget) */
+      const rdF = (g, k, s) => {
+        if (g.m || !/\|J-H$/.test(g.gk)) return 1;
+        const src = dlyRdSrc(g.gk, k.split("|")[1]);
+        if (!dlyRdSet0(src)) return 1;
+        const iso = dayAt(s >> 1); let n = dlyRdV(src.rd);
+        dlyRdCuts(src).map(c => ({ d: dlyCutDate(c, finOf), n: dlyRdV(c.n) })).filter(c => c.d).sort((a, b) => a.d.localeCompare(b.d)).forEach(c => { if (c.d <= iso) n = c.n; });
+        return n / 100;
+      };
       const place = (k, s0, dry) => {
         const q = G.map(g => dlyGQ(k, g.keys, g.m)), rel = G.map((g, i) => i).filter(i => q[i] > 0);
         const own = deb(k) && dlyFin(k) ? dlyHalves(k) : 0;
@@ -185,15 +243,16 @@
         const cnt = {}, got = [];
         for (let g = 0; rem > 1e-9 && g < 40000; g++, s++) {
           let f = rem, li = -1;
+          const FR = {};
           rel.forEach(i => {
-            const c = capAt(G[i], s);
-            const al = c === Infinity ? (own ? 1 / own : .5 / q[i]) : Math.max(0, c - U(i, s)) / q[i];
+            const c = capAt(G[i], s), fr = FR[i] = rdF(G[i], k, s);
+            const al = c === Infinity ? (own ? fr / own : .5 * fr / q[i]) : Math.max(0, c - U(i, s)) * fr / q[i];
             if (al < f - 1e-12) { f = al; li = i; }
           });
           if (li >= 0) cnt[li] = (cnt[li] || 0) + 1;
           /* v585 : plus aucune capacité plus loin pour ce groupe = la tâche ne pourra jamais être placée : arrêt (au lieu de 40 000 essais) */
           if (f <= 1e-9 && li >= 0 && capAt(G[li], s) === 0 && dead(G[li], s)) throw { dlyStuck: true };
-          if (f > 1e-9) { rel.forEach(i => take(i, s, f * q[i])); rem -= f; if (a === null) a = s; b = s; got.push(s); }
+          if (f > 1e-9) { rel.forEach(i => take(i, s, f * q[i] / (FR[i] || 1))); rem -= f; if (a === null) a = s; b = s; got.push(s); }
         }
         if (!dry) { const best = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0]; if (best !== undefined) lim[k] = G[best].gk; }
         return { a: a === null ? s0 : a, b, got };
@@ -588,6 +647,9 @@
           ${(() => { const only = crb.length === 1 && crb[0] === "g", hid = only ? "" : " hidden";
             /* v600 : MARGE cochée seule — NETTE (DH) ou % (marge ÷ produits) */
             return `<span class="hcf-k hcf-mg"${hid}>MARGE</span><span class="hcf-sw hcf-mg"${hid}>${rad("hcm", "n", "NETTE (DH)", h.mg !== "p")}${rad("hcm", "p", "%", h.mg === "p")}</span>`; })()}
+          ${(() => { const hid = crb.includes("r") ? "" : " hidden", L = dlyRdLim();
+            /* v604 (remarque longue 4) : barre RENDEMENT en VALEUR (l'activité choisie) ou en % (toutes les tâches de la charge) ; MIN / MAX en % */
+            return `<span class="hcf-k hcf-rd"${hid}>RENDEMENT EN</span><span class="hcf-pl hcf-rd"${hid}><span class="hcf-sw">${rad("hcr", "v", "VALEUR", h.rdu === "v")}${rad("hcr", "p", "%", h.rdu !== "v")}</span><span class="hcf-k hcf-k2">MIN</span><input class="hcf-pct rd-min" inputmode="numeric" value="${L.min}"> %<span class="hcf-k hcf-k2">MAX</span><input class="hcf-pct rd-max" inputmode="numeric" value="${L.max}"> %</span>`; })()}
           <span class="hcf-k">LÉGENDE</span><span class="hcf-pl">CHARGES QUI FONT <input class="hcf-pct" inputmode="numeric" value="${esc(String(h.pct || 70))}"> %</span>
           <span class="hcf-k">DONNÉES</span><span class="hcf-sw">${rad("hcd", "c", "CONSOMMATION", !(dlyAppro().on))}${rad("hcd", "o", "COMMANDES", !!(dlyAppro().on)).replace("QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ.", "COMMANDES : COCHER DES CHARGES DANS DÉTAIL CHARGES.")}</span>
           ${(() => { const a = dlyAppro(), hid = a.on ? "" : " hidden";
@@ -623,6 +685,7 @@
         if (!d.querySelector(".hcf-c:checked")) { const f = [...d.querySelectorAll(".hcf-c")].find(x => !x.disabled); if (f) f.checked = true; }
         const c3 = [...d.querySelectorAll(".hcf-c:checked")].map(x => x.value);
         d.querySelectorAll(".hcf-mg").forEach(x => { x.hidden = !(c3.length === 1 && c3[0] === "g"); });
+        d.querySelectorAll(".hcf-rd").forEach(x => { x.hidden = !c3.includes("r"); });
         if (setOff(lab('input[name="hcd"][value="o"]'), c3.some(x => x !== "c"), "COMMANDES : SEULEMENT AVEC LA COURBE CHARGES.")) pick("hcd", "c");
         d.querySelectorAll(".hcf-apr").forEach(x => { x.hidden = val("hcd") !== "o"; });
         segs();
@@ -633,14 +696,16 @@
         { const o = e.target.closest && e.target.closest(".hcf-seg.off[data-why], .hcf-cbs label.off[data-why]"); if (o) { svToast(o.dataset.why, 3500, o); return; } }
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         if (!e.target.closest("[data-ok]")) return;
-        const pc = String(d.querySelector(".hcf-pct").value).trim();
-        if (!/^\d+$/.test(pc) || Number(pc) < 1 || Number(pc) > 100) { svToast("% DE LA LÉGENDE : NOMBRE ENTIER DE 1 À 100.", 3000, d.querySelector(".hcf-pct")); return; }
+        const pc = String(d.querySelector(".hcf-pct:not(.rd-min):not(.rd-max):not(.apr-dl)").value).trim();
+        const rmn = String(d.querySelector(".rd-min").value).trim(), rmx = String(d.querySelector(".rd-max").value).trim();
+        if (!/^\d+$/.test(rmn) || !/^\d+$/.test(rmx) || Number(rmn) < 1 || Number(rmn) > 100 || Number(rmx) < 100 || Number(rmx) > 300) { svToast("RENDEMENT : MIN DE 1 À 100 %, MAX DE 100 À 300 %.", 3500, d.querySelector(".rd-min")); return; }
+        if (!/^\d+$/.test(pc) || Number(pc) < 1 || Number(pc) > 100) { svToast("% DE LA LÉGENDE : NOMBRE ENTIER DE 1 À 100.", 3000, d.querySelector(".hcf-pct:not(.rd-min):not(.rd-max):not(.apr-dl)")); return; }
         const c = [...d.querySelectorAll(".hcf-c:checked")].map(i => i.value);
         if (!c.length) { svToast("COCHER AU MOINS UNE COURBE.", 3000, d.querySelector(".hcf-c")); return; }
         /* v567 (remarque 10) : RENDEMENT = en QUANTITÉ, avec les CHARGES, sans PRODUITS ni MARGE en montant */
 
         const v = n => (d.querySelector(`input[name="${n}"]:checked`) || {}).value;
-        INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc), forme: v("hcf") || "h", mg: v("hcm") || h.mg || "n" };
+        INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc), forme: v("hcf") || "h", mg: v("hcm") || h.mg || "n", rdu: v("hcr") || h.rdu || "p", rdmin: Number(rmn), rdmax: Number(rmx) };
         /* v566 (remarque 9) / v572 (remarque 17) : COMMANDES = données du graphique ; ses réglages sont lus ici */
         const on = v("hcd") === "o", A0 = dlyAppro();
         if (on) {
