@@ -63,7 +63,7 @@
       /* en-tête de colonne bleu : filtre ou tri choisi sur cette colonne */
       const on = !!st.f[key] || !!(st.sort && st.sort.col === key && !st.sort.def);
       return `<th class="${cls} ${on ? "cf-on" : ""}">
-        <span class="cf-wrap"><span class="cf-lab">${label}</span><span class="cf-btn" data-cf="${t}" data-col="${key}"
+        <span class="cf-wrap"><span class="cf-lab">${label}${(() => { const k = shell.__faFor && shell.__faFor(t, key); return k && shell.__faHTML ? shell.__faHTML(k) : ""; })()}</span><span class="cf-btn" data-cf="${t}" data-col="${key}"
           role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span
           class="col-rs" data-rs="${t}" data-col="${key}"></span></th>`;
     };
@@ -85,7 +85,7 @@
     /* FORMAT 113 : disposition par défaut = largeurs réglées par Ahmed sur l'iPad (13/10/2026) */
     const CW_DEF_T = {
       "client.article": 69, "client.designation": 660, "client.unit": 70, "client.qty": 71, "client.price": 86, "client.ht": 96, "client.tva": 81, "client.ttc": 97,
-      "chg.article": 69, "chg.detail": 300, "chg.rdb": 120, "chg.tache": 246, "chg.unit": 70, "chg.qty": 95, "chg.price": 95, "chg.amount": 105, "chg.tva": 80, "chg.ttc": 110,
+      "chg.article": 69, "chg.detail": 300, "chg.rdb": 110, "chg.pct": 58, "chg.tache": 246, "chg.unit": 70, "chg.qty": 84, "chg.price": 84, "chg.amount": 92, "chg.tva": 80, "chg.ttc": 94,
       "prd.detail": 176, "prd.tache": 246, "prd.unit": 70, "prd.nbr": 77, "prd.d1": 79, "prd.d2": 79, "prd.d3": 79, "prd.qty": 72, "prd.price": 72, "prd.amount": 92, "prd.tva": 82, "prd.ttc": 109
     };
     const cwGet = (t, k) => cwLoad()[t + "." + k] || CW_DEF_T[t + "." + k] || CW_DEF[k] || 100;

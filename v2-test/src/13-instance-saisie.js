@@ -404,6 +404,8 @@
         /* v491 (remarque 3) : colonne TÂCHE ; v492 (remarque 8) : à la fin */
         /* v498 (remarque 38) : RENDEMENT budgété de la charge dans sa tâche secondaire — quantité produite par la tâche ÷ QCB,
            unité de l'activité secondaire / unité de la charge (ex. 0,50 M2 / L) */
+        /* v613 (point 8) : % = part de la charge dans le total des charges retenues (filtres et prorata compris) */
+        ["pct", "%", "number", "calc", "pct"],
         ["rdb", "RENDEMENT", "number", "calc", "rdb"],
         ["tache", "TÂCHE", "", "calc", "tache"],
         /* FORMAT 111 (v488) : AGRÉMENT EXIGÉ / QUALIFICATION EXIGÉE — colonnes masquées pour l'instant (v491, remarque 3),
@@ -431,7 +433,7 @@
     const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "tva", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
-        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "rdb" ? (k === "chg" ? chgRdb(r) : "") : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
+        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "pct" ? (k === "chg" ? insPctChg(r) : "") : f === "rdb" ? (k === "chg" ? chgRdb(r) : "") : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
     /* erreur d'une ligne (FORMAT 75) : on ne passe pas à la ligne suivante tant qu'elle reste */
     const insRowErr = (k, r) => {
       /* FORMAT 124 : ART en double (saisi ou calculé) — titres compris */
@@ -482,6 +484,7 @@
       if (!isNew) {
         if (r.t && f !== "art" && f !== "des") val = "";
         else if (f === "tache") val = insCalc(k, r, f) || "";
+        else if (f === "pct") { const v = insCalc(k, r, f); val = v === "" ? "" : money(v) + " %"; }
         else if (type === "calc" || qAuto) val = insFmt(insCalc(k, r, f));
         else if (k === "prd" && f === "tva") val = insFmt(insPrdTVA(INS, r.id));
         else if (type === "num") val = f === "tva" ? (r.tva === "" || r.tva === undefined ? "20,00" : insFmt(r.tva)) : insFmt(r[f]);
@@ -797,6 +800,8 @@
       const RD = chgGrpRdb(g);
       if (RD) v.rdb = money(RD.v) + " " + RD.u;
       const fo = CHG_GFOLD.has(key);
+      /* v613 (point 8) : titre replié = % de toute sa branche ; titre déplié = pas de % */
+      { const d = insPctDen(); v.pct = fo && d ? money(ht / d * 100) + " %" : ""; }
       /* v511 (remarque 72) : le signe a sa propre zone (toute la hauteur, 40 px), que la case de la désignation ne recouvre pas */
       const fb = `<span class="ins-gfz" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier"><span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}">${fo ? "›" : "⌄"}</span></span>`;
       const non = g.filter(r => r.on === true).length;
@@ -855,6 +860,22 @@
         const G = new Map();
         rows.forEach(r => { const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"); if (!G.has(key)) G.set(key, []); G.get(key).push(r); });
         const done = new Set();
+        /* v613 (point 8) : tri sur la colonne % — un titre replié est classé comme une seule ligne ; un titre déplié disparaît,
+           ses lignes sont classées avec les autres (reconnues par leur nom) */
+        const stc = cfT(insCfT(k));
+        if (stc.sort && !stc.sort.def && stc.sort.col === "pct") {
+          const dir = stc.sort.dir === "desc" ? -1 : 1, d = insPctDen() || 1, it = [];
+          rows.forEach(r => {
+            const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"), g = G.get(key);
+            if (g.length < 2) { it.push({ r, v: insHT(k, r) / d }); return; }
+            if (done.has(key)) return;
+            done.add(key);
+            if (CHG_GFOLD.has(key)) it.push({ g, key, v: g.reduce((t, x) => t + insHT(k, x), 0) / d });
+            else g.forEach(x => it.push({ r: x, v: insHT(k, x) / d }));
+          });
+          it.sort((a, b) => (a.v - b.v) * dir);
+          html = it.map(o => o.g ? insGrpRowHTML(o.g, o.key) : insRowHTML(k, o.r, 0)).join("");
+        } else
         html = rows.map(r => {
           const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"), g = G.get(key);
           if (g.length < 2) return insRowHTML(k, r, 0);
@@ -977,6 +998,57 @@
       const S = new Set();
       L.forEach(l => { if (k === "prd" || k === "chg") (l[k] || []).forEach(y => S.add(y.id)); else S.add(l[k]); });
       return S;
+    };
+    /* v613 (point 8) : total des charges retenues (comme le pied : filtres de colonne, cases cochées de tous les blocs, plage, prorata) */
+    let PCT_M = null, PCT_BUSY = false;
+    const insPctDen = () => {
+      if (PCT_M && PCT_M.rgv === INS_RGV) return PCT_M.v;
+      if (PCT_BUSY) return 0;
+      PCT_BUSY = true;
+      let v = 0;
+      try {
+        const shown = insShown("chg").filter(r => !r.t), on = shown.filter(r => r.on === true);
+        let SA = null; try { SA = insCheckSet("chg", true); } catch (e) { SA = null; }
+        v = (on.length ? on : shown).filter(r => !SA || SA.has(r.id)).reduce((t, r) => t + insHT("chg", r), 0);
+      } finally { PCT_BUSY = false; }
+      PCT_M = { rgv: INS_RGV, v }; queueMicrotask(() => { PCT_M = null; });
+      return v;
+    };
+    const insPctChg = r => { const d = insPctDen(); return d ? insHT("chg", r) / d * 100 : ""; };
+    /* v613 (point 9) : signe › / ⌄ dans l'en-tête de la colonne de désignation — un toucher replie tout, un autre déplie tout */
+    const faKeys = kind => {
+      if (kind === "chg" || kind === "prd") {
+        const G = new Map(), kOf = kind === "chg" ? r => [U_(r.des), U_(r.u), U_(r.art)].join("|") : r => "P|" + U_(r.des);
+        (INS[kind] || []).filter(r => !r.t && (kind === "chg" || U_(r.des))).forEach(r => { const q = kOf(r); G.set(q, (G.get(q) || 0) + 1); });
+        return [...G].filter(x => x[1] > 1).map(x => x[0]);
+      }
+      if (kind === "des") return (INS.des || []).filter(r => r.t).map(r => r.id);
+      const P = new Set(); (INS.lot || []).filter(r => !r.t).forEach(r => { const sg = lotSegs(r); for (let j = 1; j <= sg.length; j++) P.add(sg.slice(0, j).join(" / ")); });
+      if (kind === "lot") return [...P].filter(p => [...P].some(q => U_(q).startsWith(U_(p) + " / ")));
+      return [...P];
+    };
+    const faFolded = kind => { const K = faKeys(kind); if (!K.length) return null;
+      return kind === "chg" || kind === "prd" ? K.every(x => !shell.__chgGOpen.has(x)) : kind === "des" ? K.every(x => !!foldGet()[x]) : K.every(x => dlyIsFolded(x)); };
+    shell.__faHTML = kind => { const f = faFolded(kind); return f === null ? "" : `<span class="fold-all" data-fa="${kind}" role="button" aria-label="${f ? "Tout déplier" : "Tout replier"}">${f ? "›" : "⌄"}</span>`; };
+    shell.__faFor = (t, key) => ({ [insCfT("chg") + ".detail"]: "chg", [insCfT("prd") + ".detail"]: "prd", [insCfT("des") + ".designation"]: "des", "dlyp.lot": "dly" })[t + "." + key];
+    if (!shell.__faBound) {
+      shell.__faBound = true;
+      shell.addEventListener("click", e => {
+        const b = e.target.closest && e.target.closest(".fold-all[data-fa]");
+        if (!b) return;
+        e.stopPropagation(); e.preventDefault();
+        shell.__faDo && shell.__faDo(b.dataset.fa);
+      }, true);
+    }
+    shell.__faDo = kind => {
+      if (kind === "mg") { const X = shell.__mg; if (X) { if (shell.querySelector('.fold-all[data-fa="mg"]')?.textContent === "›") X.openAll(); else X.closeAll(); } return; }
+      const f = faFolded(kind), K = faKeys(kind);
+      if (f === null) return;
+      if (kind === "chg" || kind === "prd") { K.forEach(x => { if (f) shell.__chgGOpen.add(x); else shell.__chgGOpen.delete(x); }); shell.__chgGSave(); }
+      else if (kind === "des") K.forEach(x => { if (!!foldGet()[x] === f) foldSet(x, !f); });
+      else { const a = dlyFoldAll(); K.forEach(x => { const q = dlyFoldK(x); if (f) delete a[q]; else a[q] = 1; }); try { localStorage.setItem("svi_lotfold_v1", JSON.stringify(a)); } catch (e) {} }
+      histLog("SAISIE", f ? "TOUT DÉPLIÉ" : "TOUT REPLIÉ", kind.toUpperCase());
+      refreshAll();
     };
     const insFoots = () => (ICL = null, shell).querySelectorAll("table.ins-table[data-ik]").forEach(t => { const ft = t.querySelector("tfoot"); if (ft) ft.innerHTML = insFootHTML(t.dataset.ik); });
     const insFootHTML = k => {
@@ -1369,7 +1441,7 @@
         const on = !!cfT(k).f.v;
         return `
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
-          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length, INS[k].length)}</span>${onlyBtn(k, true)}<span class="cf-btn"
+          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length, INS[k].length)}${k === "lot" ? shell.__faHTML("lot") : ""}</span>${onlyBtn(k, true)}<span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${k === "sec" || k === "prim" ? `<span class="act-uh${cfT(k).f.u || (cfT(k).sort && cfT(k).sort.col === "u" && !cfT(k).sort.def) ? " cf-on" : ""}"><span class="act-uhl">U</span><span class="cf-btn" data-cf="${k}" data-col="u" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>` : ""}${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
           ${k === "lot" ? lotTreeHTML(list) : list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
