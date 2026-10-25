@@ -6642,14 +6642,20 @@ function renderBudgetList() {
     const insCkOrd = () => {
       const has = {
         des: 0, lot: 0, prim: 0, sec: 0, prd: 0, chg: 0,
-        lnk: (INS.links || []).some(l => l.on === true), dly: !!(shell.__dlySel && shell.__dlySel.size), iso: !!insIsoPath()
+        lnk: (INS.links || []).some(l => l.on === true), dly: !!(shell.__dlySel && shell.__dlySel.size), iso: !!insIsoPath(), rg: !!insRg()
       };
-      ["des", "lot", "prim", "sec", "prd", "chg"].forEach(x => { has[x] = (INS[x] || []).some(r => !r.t && r.on === true); });
+      /* v614 (point 10) : tout coché = pas de filtre (ni numéro d'ordre ni « cochées/total ») */
+      ["des", "lot", "prim", "sec", "prd", "chg"].forEach(x => { const N = (INS[x] || []).filter(r => !r.t), n = N.filter(r => r.on === true).length; has[x] = n > 0 && n < N.length; });
       const o = (shell.__ckOrd || []).filter(x => has[x]);
       Object.keys(has).forEach(x => { if (has[x] && !o.includes(x)) o.push(x); });
       shell.__ckOrd = o;
       return o;
     };
+    /* v614 (points 10 et 11) : numéro d'ordre du filtre d'un bloc (1 = coché en premier) ; DÉTAIL DÉLAIS = ses cases, ISOLER et la plage */
+    const insCkRank = src => { const o = insCkOrd(), S = src === "dly" ? ["dly", "iso", "rg"] : [src], I = S.map(x => o.indexOf(x)).filter(i => i >= 0); return I.length ? Math.min(...I) + 1 : 0; };
+    const insCkBadge = src => { let n = 0; try { n = insCkRank(src); } catch (e) { n = 0; } return n ? `<i class="ck-ord" title="ORDRE DU FILTRE">${n}</i>` : ""; };
+    /* pastille : « cochées/total » dès qu'une partie seulement est cochée (même le bloc coché en premier) ; sinon lignes retenues/total */
+    const insCntOwn = (k, shownN, total) => { const N = (INS[k] || []).filter(r => !r.t), on = N.filter(r => r.on === true).length; return svCnt(on && on < N.length ? on : shownN, total); };
     const insCheckLinks = (k, all) => {
       if (!INS) return null;
       /* mémoire valable pour un seul dessin (vidée dès la fin de la tâche en cours) */
@@ -6822,7 +6828,7 @@ function renderBudgetList() {
       insNorm();
       const t = document.querySelector("#bdgClientTitle .ttl");
       const shownD = insShown("des");
-      if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + svCnt(shownD.filter(r => !r.t).length, INS.des.filter(r => !r.t).length) + onlyBtn("des");
+      if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + insCkBadge("des") + insCntOwn("des", shownD.filter(r => !r.t).length, INS.des.filter(r => !r.t).length) + onlyBtn("des");
       lastShown.client = { cols: insCfCols("des"), rows: shownD, ins: true };
       lastClientKeys = new Set();
       /* même tableau que la version validée (identifiants gardés) */
@@ -7125,7 +7131,7 @@ function renderBudgetList() {
         const on = !!cfT(k).f.v;
         return `
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
-          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length, INS[k].length)}${k === "lot" ? shell.__faHTML("lot") : ""}</span>${onlyBtn(k, true)}<span class="cf-btn"
+          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${insCkBadge(k)}${insCntOwn(k, list.length, INS[k].length)}${k === "lot" ? shell.__faHTML("lot") : ""}</span>${onlyBtn(k, true)}<span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${k === "sec" || k === "prim" ? `<span class="act-uh${cfT(k).f.u || (cfT(k).sort && cfT(k).sort.col === "u" && !cfT(k).sort.def) ? " cf-on" : ""}"><span class="act-uhl">U</span><span class="cf-btn" data-cf="${k}" data-col="u" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>` : ""}${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
           ${k === "lot" ? lotTreeHTML(list) : list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
@@ -8567,18 +8573,23 @@ function renderBudgetList() {
         if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (active === "chg" || active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(active)); } }
       ["chg", "prd"].forEach(k => {
         const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
-        if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + (k === "prd" ? ' <b class="req-star">*</b>' : "") + " " + svCnt(insShown(k).length, INS[k].filter(r => !r.t).length);
+        /* v614 (point 10) : plus d'étoile sur DÉTAIL PRODUITS ; numéro d'ordre du filtre ; « cochées/total » */
+        if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + " " + insCkBadge(k) + insCntOwn(k, insShown(k).length, INS[k].filter(r => !r.t).length);
       });
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="qlt"]`);
         if (b) b.innerHTML = (SVI_ICON.qlt || "") + "DÉTAIL QUALITÉ " + svCnt(qqCount()); }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
-        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + (() => { const K = INS_EDIT ? dlyKeys() : insTasks(); return insRg() && INS_EDIT ? svCnt(K.filter(insRgKeyIn).length, K.length) : svCnt(K.length); })(); }
+        /* v614 (point 11) : un seul numéro et une seule pastille — tâches retenues par ses cases, ISOLER et la plage DÉBUT – FIN */
+        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + insCkBadge("dly") + (() => { const K = INS_EDIT ? dlyKeys() : insTasks(); if (!INS_EDIT) return svCnt(K.length);
+          const S = shell.__dlySel && shell.__dlySel.size ? shell.__dlySel : null, IP = U_(insIsoPath());
+          const inIso = key => { if (!IP) return true; const v = U_(((INS.lot || []).find(x => x.id === String(key).split("|")[0]) || {}).v || ""); return v === IP || v.startsWith(IP + " / "); };
+          return svCnt(K.filter(key => (!S || S.has(key)) && inIso(key) && insRgKeyIn(key)).length, K.length); })(); }
       /* IMPORT NON CRÉÉ : visible seulement s'il reste des lignes */
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="inc"]`), n = (INS.inc || []).length;
         if (b) { b.innerHTML = (SVI_ICON.hier || "") + "IMPORT NON CRÉÉ " + svCnt(n); b.hidden = !n; b.style.display = n ? "" : "none"; }
         if (!n && active === "inc") { active = "prd"; try { localStorage.setItem("svi_dtab_v1", "prd"); } catch (e) {} document.querySelectorAll("#bdgTabs .bdg-d-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === active)); } }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
-        if (b) b.innerHTML = (SVI_ICON.xpl || "") + "MARGE " + (insRg() ? svCnt((INS.links || []).filter(l => insRgKeyIn(l.lot + "|" + l.sec)).length, (INS.links || []).length) : svCnt((INS.links || []).length)); }
+        if (b) b.innerHTML = (SVI_ICON.xpl || "") + "MARGE " + insCkBadge("lnk") + (insRg() ? svCnt((INS.links || []).filter(l => insRgKeyIn(l.lot + "|" + l.sec)).length, (INS.links || []).length) : svCnt((INS.links || []).length)); }
       sviMarkEmptyTabs(shell);
       /* v499 (remarque 40) : onglet en bleu quand son tableau est filtré (loupe d'une colonne, cases cochées de ce tableau
          ou d'un autre bloc) — on voit où enlever un filtre sans ouvrir les onglets un par un */

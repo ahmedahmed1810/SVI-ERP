@@ -2545,3 +2545,5 @@ input.dly-gin { box-sizing: border-box; border: 2px solid var(--inst, #b42318) !
 /* v613 (point 9) : tout replier / tout déplier — signe dans l'en-tête de la colonne de désignation */
 .fold-all { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; margin-left: 6px; padding: 0 4px; border: 1px solid currentColor; border-radius: 5px; font-weight: 900; font-size: 13px; line-height: 1; cursor: pointer; vertical-align: middle; position: relative; }
 .fold-all::after { content: ""; position: absolute; inset: -8px -6px; }
+/* v614 (point 10) : numéro d'ordre du filtre d'un bloc (1 = coché en premier) */
+.ck-ord { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; margin: 0 4px; padding: 0 3px; border-radius: 8px; background: #1570ef; color: #fff; font-style: normal; font-size: 10px; font-weight: 800; line-height: 1; vertical-align: middle; }

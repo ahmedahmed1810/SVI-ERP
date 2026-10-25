@@ -958,14 +958,20 @@
     const insCkOrd = () => {
       const has = {
         des: 0, lot: 0, prim: 0, sec: 0, prd: 0, chg: 0,
-        lnk: (INS.links || []).some(l => l.on === true), dly: !!(shell.__dlySel && shell.__dlySel.size), iso: !!insIsoPath()
+        lnk: (INS.links || []).some(l => l.on === true), dly: !!(shell.__dlySel && shell.__dlySel.size), iso: !!insIsoPath(), rg: !!insRg()
       };
-      ["des", "lot", "prim", "sec", "prd", "chg"].forEach(x => { has[x] = (INS[x] || []).some(r => !r.t && r.on === true); });
+      /* v614 (point 10) : tout coché = pas de filtre (ni numéro d'ordre ni « cochées/total ») */
+      ["des", "lot", "prim", "sec", "prd", "chg"].forEach(x => { const N = (INS[x] || []).filter(r => !r.t), n = N.filter(r => r.on === true).length; has[x] = n > 0 && n < N.length; });
       const o = (shell.__ckOrd || []).filter(x => has[x]);
       Object.keys(has).forEach(x => { if (has[x] && !o.includes(x)) o.push(x); });
       shell.__ckOrd = o;
       return o;
     };
+    /* v614 (points 10 et 11) : numéro d'ordre du filtre d'un bloc (1 = coché en premier) ; DÉTAIL DÉLAIS = ses cases, ISOLER et la plage */
+    const insCkRank = src => { const o = insCkOrd(), S = src === "dly" ? ["dly", "iso", "rg"] : [src], I = S.map(x => o.indexOf(x)).filter(i => i >= 0); return I.length ? Math.min(...I) + 1 : 0; };
+    const insCkBadge = src => { let n = 0; try { n = insCkRank(src); } catch (e) { n = 0; } return n ? `<i class="ck-ord" title="ORDRE DU FILTRE">${n}</i>` : ""; };
+    /* pastille : « cochées/total » dès qu'une partie seulement est cochée (même le bloc coché en premier) ; sinon lignes retenues/total */
+    const insCntOwn = (k, shownN, total) => { const N = (INS[k] || []).filter(r => !r.t), on = N.filter(r => r.on === true).length; return svCnt(on && on < N.length ? on : shownN, total); };
     const insCheckLinks = (k, all) => {
       if (!INS) return null;
       /* mémoire valable pour un seul dessin (vidée dès la fin de la tâche en cours) */
@@ -1138,7 +1144,7 @@
       insNorm();
       const t = document.querySelector("#bdgClientTitle .ttl");
       const shownD = insShown("des");
-      if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + svCnt(shownD.filter(r => !r.t).length, INS.des.filter(r => !r.t).length) + onlyBtn("des");
+      if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + insCkBadge("des") + insCntOwn("des", shownD.filter(r => !r.t).length, INS.des.filter(r => !r.t).length) + onlyBtn("des");
       lastShown.client = { cols: insCfCols("des"), rows: shownD, ins: true };
       lastClientKeys = new Set();
       /* même tableau que la version validée (identifiants gardés) */
@@ -1441,7 +1447,7 @@
         const on = !!cfT(k).f.v;
         return `
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
-          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length, INS[k].length)}${k === "lot" ? shell.__faHTML("lot") : ""}</span>${onlyBtn(k, true)}<span class="cf-btn"
+          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${insCkBadge(k)}${insCntOwn(k, list.length, INS[k].length)}${k === "lot" ? shell.__faHTML("lot") : ""}</span>${onlyBtn(k, true)}<span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${k === "sec" || k === "prim" ? `<span class="act-uh${cfT(k).f.u || (cfT(k).sort && cfT(k).sort.col === "u" && !cfT(k).sort.def) ? " cf-on" : ""}"><span class="act-uhl">U</span><span class="cf-btn" data-cf="${k}" data-col="u" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>` : ""}${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
           ${k === "lot" ? lotTreeHTML(list) : list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>

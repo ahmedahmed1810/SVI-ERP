@@ -807,18 +807,23 @@
         if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (active === "chg" || active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(active)); } }
       ["chg", "prd"].forEach(k => {
         const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
-        if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + (k === "prd" ? ' <b class="req-star">*</b>' : "") + " " + svCnt(insShown(k).length, INS[k].filter(r => !r.t).length);
+        /* v614 (point 10) : plus d'étoile sur DÉTAIL PRODUITS ; numéro d'ordre du filtre ; « cochées/total » */
+        if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + " " + insCkBadge(k) + insCntOwn(k, insShown(k).length, INS[k].filter(r => !r.t).length);
       });
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="qlt"]`);
         if (b) b.innerHTML = (SVI_ICON.qlt || "") + "DÉTAIL QUALITÉ " + svCnt(qqCount()); }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
-        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + (() => { const K = INS_EDIT ? dlyKeys() : insTasks(); return insRg() && INS_EDIT ? svCnt(K.filter(insRgKeyIn).length, K.length) : svCnt(K.length); })(); }
+        /* v614 (point 11) : un seul numéro et une seule pastille — tâches retenues par ses cases, ISOLER et la plage DÉBUT – FIN */
+        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + insCkBadge("dly") + (() => { const K = INS_EDIT ? dlyKeys() : insTasks(); if (!INS_EDIT) return svCnt(K.length);
+          const S = shell.__dlySel && shell.__dlySel.size ? shell.__dlySel : null, IP = U_(insIsoPath());
+          const inIso = key => { if (!IP) return true; const v = U_(((INS.lot || []).find(x => x.id === String(key).split("|")[0]) || {}).v || ""); return v === IP || v.startsWith(IP + " / "); };
+          return svCnt(K.filter(key => (!S || S.has(key)) && inIso(key) && insRgKeyIn(key)).length, K.length); })(); }
       /* IMPORT NON CRÉÉ : visible seulement s'il reste des lignes */
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="inc"]`), n = (INS.inc || []).length;
         if (b) { b.innerHTML = (SVI_ICON.hier || "") + "IMPORT NON CRÉÉ " + svCnt(n); b.hidden = !n; b.style.display = n ? "" : "none"; }
         if (!n && active === "inc") { active = "prd"; try { localStorage.setItem("svi_dtab_v1", "prd"); } catch (e) {} document.querySelectorAll("#bdgTabs .bdg-d-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === active)); } }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
-        if (b) b.innerHTML = (SVI_ICON.xpl || "") + "MARGE " + (insRg() ? svCnt((INS.links || []).filter(l => insRgKeyIn(l.lot + "|" + l.sec)).length, (INS.links || []).length) : svCnt((INS.links || []).length)); }
+        if (b) b.innerHTML = (SVI_ICON.xpl || "") + "MARGE " + insCkBadge("lnk") + (insRg() ? svCnt((INS.links || []).filter(l => insRgKeyIn(l.lot + "|" + l.sec)).length, (INS.links || []).length) : svCnt((INS.links || []).length)); }
       sviMarkEmptyTabs(shell);
       /* v499 (remarque 40) : onglet en bleu quand son tableau est filtré (loupe d'une colonne, cases cochées de ce tableau
          ou d'un autre bloc) — on voit où enlever un filtre sans ouvrir les onglets un par un */
