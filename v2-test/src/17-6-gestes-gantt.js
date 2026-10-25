@@ -383,11 +383,17 @@
         const b = e.target.closest && e.target.closest("#dlyHb .hb-gob[data-go]");
         if (!b) return;
         e.stopPropagation(); document.getElementById("dlyHb")?.remove();
-        const [lo, se] = b.dataset.k.split("|");
-        LK.lot = lo; LK.sec = se; LK.prim = null;
+        /* v610 : les boutons cochent les cases carrées (filtres) de la tâche, jamais les ronds (liaisons) ; la liste de l'onglet ouvert
+           descend jusqu'à la première ligne cochée */
+        const k = b.dataset.k, [lo, se] = k.split("|"), go = b.dataset.go, L = (INS.links || []).filter(l => l.lot === lo && l.sec === se);
+        if (go === "chg" || go === "prd") {
+          const ids = new Set(); L.forEach(l => (l[go] || []).forEach(y => ids.add(y.id)));
+          (INS[go] || []).forEach(r => { if (!r.t) r.on = ids.has(r.id) ? true : (r.on === true ? false : r.on); });
+          insSave(); histLog("DÉLAIS", "CASES COCHÉES", (go === "chg" ? "CHARGES" : "PRODUITS") + " DE " + dlyHbName(k));
+        } else shell.__dlySel = new Set([k]);
         const tb = document.querySelector(`.bdg-d-tab[data-tab="${b.dataset.go}"]`);
         if (tb && active !== b.dataset.go) tb.click(); else refreshAll();
-        setTimeout(() => { const r = document.querySelector("#bdgTabBody tr.lk-hit, #bdgTabBody tr.lk-link.lk-hit, #bdgTabBody tr.dly-sel"); if (r) r.scrollIntoView({ block: "center" }); }, 350);
+        setTimeout(() => { const c = document.querySelector("#bdgTabBody tr input.ins-cb:checked, #bdgTabBody tr input.dlyp-cb[data-key]:checked"), r = c && c.closest("tr"); if (r) r.scrollIntoView({ block: "center" }); }, 350);
       }, true);
       document.addEventListener("pointerdown", e => { const m = document.getElementById("dlyHb"); if (m && !m.contains(e.target) && !(e.target.closest && e.target.closest(".ghb"))) m.remove(); }, true);
       /* R3 : signe ▣ d'une tâche incompressible = fenêtre RENDRE COMPRESSIBLE */

@@ -42,7 +42,7 @@
         let P0 = null;
         const dist = t => Math.abs(t[0].clientX - t[1].clientX), distY = t => Math.abs(t[0].clientY - t[1].clientY);
         shell.addEventListener("touchstart", e => {
-          const host = e.target.closest && e.target.closest("#dlyGantt, .dlyg-foot") && shell.querySelector("#dlyGantt");   /* v594 : graphique dans le pied fixe */
+          const host = e.target.closest && e.target.closest("#dlyGantt, .dlyg-foot, .dlyg-l") && shell.querySelector("#dlyGantt");   /* v594 : graphique dans le pied fixe ; v610 : tableau aussi (pincement vertical seulement) */
           if (!host || e.touches.length !== 2) return;
           const hr = host.getBoundingClientRect(), mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - hr.left;
           /* écarter à l'horizontale = largeur des jours ; à la verticale = hauteur des lignes et des barres (sens choisi au premier mouvement) */
@@ -79,6 +79,7 @@
                 shell.__dlyYO = z > 1.01 ? Math.max(0, Math.min(G.RG - tp, (P0.my + P0.vm * sc2 - y0b) / sc2)) : 0; } clearTimeout(P0.ht); P0.ht = setTimeout(() => { const H = shell.querySelector("#dlyGantt"); if (H) { H.__drawn = false; dlyGanttDraw(); } }, 30); }
             return;
           }
+          if (P0.mode === "h" && P0.tg && P0.tg.closest && P0.tg.closest(".dlyg-l")) return;
           if (P0.mode === "v") {
             const rh = Math.round(Math.max(24, Math.min(64, P0.rh0 * Math.max(20, distY(e.touches)) / P0.dy)));
             if (rh !== dlyRhGet()) { try { localStorage.setItem(DLY_RH_KEY, String(rh)); } catch (err) {} dlyRhApply(rh); }
