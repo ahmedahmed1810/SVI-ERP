@@ -113,9 +113,25 @@
       });
       /* modifier sur le Gantt le nom d'un lot (titre de barre) ou d'une activité secondaire (barre ou nom à droite) :
          même saisie que dans le tableau (Entrée / quitter = enregistrer ; nom vide ou en double refusé) */
+      /* v597 : nom sur le Gantt — 1er toucher = sélectionné (cadre fin de la forme de la barre, sans clavier),
+         2e toucher = saisie dans un cadre rouge qui épouse la barre (sans grande case ni poignées de sélection de l'iPad) */
+      const dlyGSelOff = () => { document.getElementById("dlyGSelF")?.remove(); shell.__dlyGSel = null; };
+      if (!shell.__dlyGSelB) { shell.__dlyGSelB = true;
+        document.addEventListener("pointerdown", e => { const f = document.getElementById("dlyGSelF"); if (!f) return; const t = e.target.closest && e.target.closest("#dlyGantt .gb-ren, #dlyGantt .gb.gb-tin"); if (!t || (t.dataset.key || t.dataset.path) !== shell.__dlyGSel) dlyGSelOff(); }, true);
+        document.addEventListener("scroll", () => { if (document.getElementById("dlyGSelF")) dlyGSelOff(); }, true); }
+      const dlyGShape = el => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el); return { r, rad: cs.borderRadius && cs.borderRadius !== "0px" ? cs.borderRadius : "6px" }; };
       const dlyGEdit = el => {
         const host = el.closest("#dlyGantt"), body = host && host.querySelector(".gbody");
         if (!body) return;
+        const id = el.dataset.key || el.dataset.path;
+        if (shell.__dlyGSel !== id || !document.getElementById("dlyGSelF")) {
+          dlyGSelOff();
+          const { r, rad } = dlyGShape(el), f = document.createElement("div");
+          f.id = "dlyGSelF"; f.style.cssText = `position:fixed;left:${r.left - 2}px;top:${r.top - 2}px;width:${r.width + 4}px;height:${r.height + 4}px;border-radius:${rad}`;
+          document.body.appendChild(f); shell.__dlyGSel = id;
+          return;
+        }
+        dlyGSelOff();
         document.querySelector("input.dly-gin")?.remove();
         const key = el.dataset.key, path = el.dataset.path;
         const sid = key ? key.split("|")[1] : "", val = key ? lkName("sec", sid) : lotLab(dlyLotPath(path)).name || "";
@@ -127,9 +143,10 @@
         i.dataset.kind = key ? "sec" : "grp";
         if (key) i.dataset.sid = sid; else i.dataset.path = path;
         i.value = val;
-        i.style.cssText = `position:fixed;left:${Math.max(4, r.left - 2)}px;top:${r.top + r.height / 2 - 12}px;width:${Math.max(160, dlyTxtW(val) + 40)}px;height:24px;z-index:10050`;
+        { const rad = dlyGShape(el).rad, w = Math.max(r.width + 4, dlyTxtW(val) + 24), h = Math.max(18, r.height + 4);
+          i.style.cssText = `position:fixed;left:${Math.max(4, r.left - 2)}px;top:${r.top - 2}px;width:${w}px;height:${h}px;border-radius:${rad};z-index:10050`; }
         document.body.appendChild(i);
-        i.focus(); try { i.select(); } catch (err) {}
+        i.focus(); try { const n = i.value.length; i.setSelectionRange(n, n); } catch (err) {}
         let done = false, cancel = false;
         const commit = () => {
           if (done) return; done = true;
