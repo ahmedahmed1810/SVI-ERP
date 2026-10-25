@@ -358,7 +358,8 @@
             const cxa = RG.a ? X(RG.a) : 0, cxb = RG.b ? X(RG.b) + DLY_DW : W, part = !!(RG.a || RG.b);
             if (part) svg += `<defs><clipPath id="ghRgClip"><rect x="${cxa}" y="-10" width="${Math.max(0, cxb - cxa)}" height="${HH + 20}"/></clipPath></defs>`;
             const clip = h => part ? `<g clip-path="url(#ghRgClip)">${h}</g>` : h;
-            const line = (M, c) => (part ? poly(vis, M, "#c0c6d0") : "") + clip(poly(vis, M, c));
+            /* v611 (point 4) : hors de la plage, plus de courbe grise — seule la partie retenue est tracée */
+            const line = (M, c) => clip(poly(vis, M, c));
             /* v587 : CHARGES toujours en orange, quel que soit le réglage */
             if (!multi || sC) svg += line(val, CC);
             if (sP) svg += line(vP, CP);

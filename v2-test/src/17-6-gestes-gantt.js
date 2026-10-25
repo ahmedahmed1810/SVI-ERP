@@ -256,22 +256,69 @@
         const lv = mk("dlyx-l"); lv.textContent = (S.length > 1 ? best.lab + " " : "") + dlyXFmt(best.v) + " " + (best.u || "DH") + (C.length > 1 ? "  (" + (k + 1) + "/" + C.length + ")" : ""); lv.style.left = (ax + 4) + "px"; lv.style.top = (best.y - lv.offsetHeight - 3) + "px"; lv.style.background = best.c;
         shell.__dlyX = { host, h, i, k, cy, px, y: best.y };
       };
-      /* v566 (remarque 8) : un toucher ailleurs efface les repères ; v576 : un toucher sur le point des repères passe à la courbe suivante */
+      /* v611 (point 3) : FILTRE DU JOUR — nouvel appui long sur le point des repères : DÉBUT et FIN autour de ce jour, cases des charges
+         de ce jour cochées (tout le reste suit) ; un toucher dans le graphique hors des courbes l'enlève (plage et cases d'avant remises) */
+      const dlyXFilter = di => {
+        const host = shell.querySelector("#dlyGantt"), H = host && host.__HD;
+        if (!H) return;
+        if (!shell.__dlyXF) shell.__dlyXF = { hr: JSON.stringify(INS.hrange || null), on: (INS.chg || []).filter(r => !r.t && r.on === true).map(r => r.id) };
+        INS.hrange = { ...(INS.hrange || {}), a: di, b: di };
+        const R = new Set((H.R || []).map(r => r.id)), K = new Set(((H.det || {})[di] || []).map(x => x.k)), ids = new Set();
+        (INS.links || []).forEach(l => { if (K.has(l.lot + "|" + l.sec)) (l.chg || []).forEach(y => { if (R.has(y.id)) ids.add(y.id); }); });
+        if (ids.size) (INS.chg || []).forEach(r => { if (!r.t) r.on = ids.has(r.id) ? true : (r.on === true ? false : r.on); });
+        insSave(); histLog("DÉLAIS", "FILTRE DU JOUR", dFr(di)); refreshAll();
+        const X0 = shell.__dlyX;
+        if (X0) setTimeout(() => { const h2 = shell.querySelector("#dlyGantt"), g2 = shell.querySelector(".dlyg-foot .ghist"); if (h2 && g2 && shell.__dlyX) dlyXDraw(h2, g2, X0.px, X0.cy, 0); }, 350);
+      };
+      const dlyXUnfilter = () => {
+        const F = shell.__dlyXF; if (!F) return;
+        shell.__dlyXF = null;
+        INS.hrange = JSON.parse(F.hr); const on = new Set(F.on);
+        (INS.chg || []).forEach(r => { if (!r.t) r.on = on.has(r.id) ? true : (r.on === true ? false : r.on); });
+        insSave(); histLog("DÉLAIS", "FILTRE DU JOUR ENLEVÉ", ""); refreshAll();
+      };
+      /* courbe (ou haut de barre) près du doigt, ce jour-là */
+      const dlyXNear = (host, h, cx, cy) => {
+        const HV = host.__HV || {}, S = dlyXSeries(host, host.__HD || {}, HV), hr = h.getBoundingClientRect(), Y0 = Number(h.dataset.y0) || hr.height, sc = Number(h.dataset.sc) || 1;
+        const di = sviIsoAdd(host.__d0, Math.max(0, Math.floor((cx - hr.left) / DLY_DW)));
+        return S.some(x => { const v = x.M[di]; return v !== undefined && v !== null && Math.abs(hr.top + Y0 - v * (x.s || sc) - cy) < 40; });
+      };
+      /* v566 (remarque 8) / v611 : repères posés — toucher le point = courbe suivante, appui long sur le point = FILTRE DU JOUR ;
+         toucher une courbe = le point s'y déplace ; toucher le graphique hors des courbes = repères et filtre enlevés ;
+         toucher ailleurs = repères enlevés (le filtre reste) */
       document.addEventListener("pointerdown", e => {
         const X0 = shell.__dlyX;
-        if (X0 && X0.host.isConnected && document.querySelector(".dlyx-pt") && Math.abs(e.clientX - X0.px) < 30 && Math.abs(e.clientY - X0.y) < 30) {
+        if (!X0 || !document.querySelector(".dlyx-pt")) { shell.__dlyX = null; return; }
+        const host = shell.querySelector("#dlyGantt"), g = shell.querySelector(".dlyg-foot .ghist");
+        if (host && g && Math.abs(e.clientX - X0.px) < 30 && Math.abs(e.clientY - X0.y) < 30) {
           e.stopPropagation(); e.preventDefault();
-          X0.host.__dlyXlp = true; setTimeout(() => { X0.host.__dlyXlp = false; }, 450);
-          dlyXDraw(X0.host, X0.h, X0.px, X0.cy, 1);
+          host.__dlyXlp = true;
+          const x0 = e.clientX, y0 = e.clientY; let fired = false;
+          const tm = setTimeout(() => { fired = true; dlyXFilter(sviIsoAdd(host.__d0, X0.i)); }, 550);
+          const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 8) { clearTimeout(tm); fin(); } };
+          const fin = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", fin); setTimeout(() => { host.__dlyXlp = false; }, 450); };
+          const up = () => { clearTimeout(tm); fin(); if (!fired) dlyXDraw(host, g, X0.px, X0.cy, 1); };
+          document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", fin);
+          return;
+        }
+        const inG = e.target.closest && e.target.closest(".dlyg-foot .ghist");
+        if (inG && host && !e.target.closest(".grng, .gplaf, .gcut, .grdb, .grdc, .gax-hit, .grule, .gval, .dlyg-hh")) {
+          if (dlyXNear(host, inG, e.clientX, e.clientY)) {
+            e.stopPropagation(); e.preventDefault();
+            host.__dlyXlp = true; setTimeout(() => { host.__dlyXlp = false; }, 450);
+            dlyXDraw(host, inG, e.clientX, e.clientY, 0);
+            return;
+          }
+          dlyXClear(); shell.__dlyX = null; dlyXUnfilter();
           return;
         }
         dlyXClear(); shell.__dlyX = null;
       }, true);
       shell.addEventListener("pointerdown", e => {
-        const hit = e.target.closest && e.target.closest(".dlyg-foot .ghist-cum .ghb-hit");
-        if (!hit) return;
-        const host = shell.querySelector("#dlyGantt"), h = hit.closest(".ghist"), HV = host.__HV || {};
-        if (!HV.curve && !HV.hideC) return;
+        /* v611 (point 3) : appui long aussi sur une barre de l'histogramme */
+        const hit = e.target.closest && e.target.closest(".dlyg-foot .ghist .ghb[data-d]");
+        if (!hit || shell.__dlyX) return;
+        const host = shell.querySelector("#dlyGantt"), h = hit.closest(".ghist");
         let on = false; const x0 = e.clientX, y0 = e.clientY;
         const tmv = ev => { if (on) ev.preventDefault(); };
         const tm = setTimeout(() => { on = true; host.__dlyXlp = true; dlyXDraw(host, h, x0, y0, 0); }, 450);
