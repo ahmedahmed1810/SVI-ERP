@@ -466,7 +466,8 @@
       /* v563 (remarque 4) : courbes en MONTANT avec CHARGES — sans charge cochée, toutes les charges retenues (celles des lignes cochées
          des autres blocs, sinon toutes), comme pour les produits */
       let R = R0;
-      if (!R && money && crb.includes("c")) { const all = (INS.chg || []).filter(r => !r.t); let S = null; try { S = insCheckSet("chg"); } catch (e) { S = null; } R = S ? all.filter(r => S.has(r.id)) : all; if (!R.length) R = null; }
+      /* v599 : quelle que soit l'unité — rien de coché = toutes les charges ; lignes cochées ailleurs (lots, activités…) = leurs charges */
+      if (!R) { const all = (INS.chg || []).filter(r => !r.t); let S = null; try { S = insCheckSet("chg"); } catch (e) { S = null; } R = S ? all.filter(r => S.has(r.id)) : all; if (!R.length) R = null; }
       if (!R && !money) return null;
       const mode = money || !R ? "m" : dlyResMode(R), cal = insCal(), cur = dlyCurDates(), ser = new Map(), det = {}, tot = {};
       if (R) [...new Set(R.map(dlyResK))].forEach(sk => ser.set(sk, { L: {} }));
@@ -484,9 +485,9 @@
           (det[x] = det[x] || []).push({ k, v: sum, inc: dlyInc(k), per });
         }
       });
-      const H = { R, mode, ser, det, tot, unit: mode === "q" ? dlyResU(R[0]) : "DH", crb };
+      const H = { R, mode, ser, det, tot, unit: mode === "q" ? dlyResU(R[0]) : "DH", crb, uMix: !money && dlyHSet().u === "q" && mode === "m" };
       if (money) { const P = dlyPrdDays(cur); H.prd = P.L; H.pdet = P.det; }
-      H.cmd = R0 ? dlyOrders(H) : null;
+      H.cmd = R ? dlyOrders(H) : null;
       H.rd = dlyRdData(H);
       return H;
     };
@@ -530,7 +531,7 @@
     const dlyHistLab = H => {
       if (!H) return "";
       const hs = dlyHSet();
-      return H.cmd ? "COMMANDES" : H.unit + (hs.aff === "c" ? " CUMULÉS" : " / JOUR");
+      return (H.cmd ? "COMMANDES" : H.unit + (hs.aff === "c" ? " CUMULÉS" : " / JOUR")) + (H.uMix ? " — UNITÉS DIFFÉRENTES : MONTANT" : "");
     };
     /* fenêtre APPROVISIONNEMENT PRÉVISIONNEL (menu ⋯, FORMAT 163) */
     const dlyApproWin = () => {

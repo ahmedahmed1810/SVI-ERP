@@ -1335,8 +1335,8 @@ def main():
         e15 = pg.evaluate("""() => [document.querySelectorAll('.dlyg-foot .ghb').length > 0, !!document.querySelector('#bdgTabBody tr.dly-task[data-key="l2|s1"].dly-off'), !!document.querySelector('#dlyGantt .gb.gb-off[data-key="l2|s1"]'),
             !!document.querySelector('#dlyGantt .gb.gb0[data-key="l1|s2"]'), (document.querySelector('#bdgTabBody tr[data-key="l1|s2"] input.dlp-in[data-f="dur"]') || {}).value, (document.querySelector('.dlyg-foot .gax-u') || {}).textContent]""")
         e15b = pg.evaluate(f"() => JSON.stringify({ins}.INS.dlp['l1|s2'])")
-        check("v542 R14 / R15 : SÉLECTIONNER DES CHARGES ; charges cochées = histogramme, tâche non liée en gris à sa place ; tâche sans FIN = repère de 0 jour (rien d'inventé)",
-              "SÉLECTIONNER DES CHARGES" in e14 and e15[:4] == [True, True, True, True] and e15[4] == "" and "J-H / JOUR" in (e15[5] or "") and '"fin":""' in e15b, [e14, e15, e15b])
+        check("v542 R15 / v599 : rien de coché = toutes les charges (plus de SÉLECTIONNER DES CHARGES) ; charges cochées = histogramme, tâche non liée en gris à sa place ; tâche sans FIN = repère de 0 jour (rien d'inventé)",
+              "SÉLECTIONNER DES CHARGES" not in e14 and e15[:4] == [True, True, True, True] and e15[4] == "" and "J-H / JOUR" in (e15[5] or "") and '"fin":""' in e15b, [e14, e15, e15b])
         # R8 : bulle d'un jour de l'histogramme
         pg.evaluate("() => document.querySelector('.dlyg-foot .ghb[data-d=\"2026-11-02\"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))"); pg.wait_for_timeout(300)
         hb = pg.evaluate("() => (document.getElementById('dlyHb') || {}).innerText || ''")
