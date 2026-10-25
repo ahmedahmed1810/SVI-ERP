@@ -9872,6 +9872,9 @@ function renderBudgetList() {
           else Object.assign(val, cumOf(gC));
           const vP = multi ? (cum ? cumOf(gP) : Object.fromEntries(days.map(di => [di, gP(di)]))) : {};
           const vG = multi ? (cum ? cumOf(gG) : Object.fromEntries(days.map(di => [di, gG(di)]))) : {};
+          /* v600 : MARGE seule en % = marge ÷ produits × 100 (par jour, ou sur le cumul en CUMULÉE) ; jour sans produit = pas de valeur */
+          const mgP = multi && sG && !sC && !sP && hs.mg === "p";
+          if (mgP) Object.keys(vG).forEach(di => { const P = vP[di]; if (Math.abs(P || 0) > 1e-9) vG[di] = vG[di] / P * 100; else delete vG[di]; });
           const vis = days.filter(di => di >= d0 && di <= d1);
           const shown = di => [...(multi ? [] : [val[di]]), ...(multi && sC ? [val[di]] : []), ...(sP ? [vP[di]] : []), ...(sG ? [vG[di]] : [])];
           const mx = Math.max(0, ...vis.flatMap(di => shown(di)).filter(v => v !== undefined));
@@ -9982,7 +9985,7 @@ function renderBudgetList() {
               rdS.push({ name: S.sk.split("|")[0], u: S.sk.split("|")[1], c, R: Rr, s: sR2 });
             });
           }
-          host.__HV = { cum, curve, hideC, multi, val, vP, vG, unit: HD.unit, rd: RD ? { PQ: rdPQ, PQs: rdPQ.__s || 0, S: rdS, u: RD.u } : null };
+          host.__HV = { cum, curve, hideC, multi, val, vP, vG, mgP, unit: mgP ? "%" : HD.unit, rd: RD ? { PQ: rdPQ, PQs: rdPQ.__s || 0, S: rdS, u: RD.u } : null };
           const late = INS.dbut && dlyEnd(dlyCurDates()) > INS.dbut;
           const legI = (c, t) => `<span><b style="background:${c}"></b>${esc(t)}</span>`;
           const legRd = HD.rd ? (HD.rd.ser ? (crb.includes("p") ? legI("#2e90fa", "PRODUIT — " + lkName("sec", HD.rd.sec) + " (" + HD.rd.u + ")") : "") + rdS.map(s => legI(s.c, "RENDEMENT " + s.name + " (" + HD.rd.u + " / " + s.u + ")")).join("")
@@ -10011,6 +10014,7 @@ function renderBudgetList() {
           /* v563 (remarque 3) : total de la plage pour chaque courbe affichée (CHARGES, PRODUITS, MARGE), pas seulement les charges */
           const sumOf = g => days.filter(di => inR(di) && pass(di)).reduce((t, di) => t + g(di), 0);
           const sumTxt = C || !multi ? fmtA(sum) + " " + esc(HD.unit)
+            : mgP ? (() => { const p = sumOf(gP); return "MARGE " + (Math.abs(p) > 1e-9 ? fmtA(sumOf(gG) / p * 100) + " %" : "—"); })()
             : [...(sC ? [["CHARGES", gC]] : []), ...(sP ? [["PRODUITS", gP]] : []), ...(sG ? [["MARGE", gG]] : [])].map(([l, g]) => l + " " + fmtA(sumOf(g)) + " DH").join(" · ");
           const rng = `<div class="grng${RG.a ? "" : " grng-off"}" data-r="a" style="left:${xa}px"><span>DÉBUT${RG.a ? " " + dFr(RG.a).slice(0, 5) : ""}</span></div>`
             + `<div class="grng${RG.b ? "" : " grng-off"}" data-r="b" style="left:${xb}px"><span>FIN${RG.b ? " " + dFr(RG.b).slice(0, 5) : ""}</span></div>`
@@ -10026,7 +10030,7 @@ function renderBudgetList() {
           const stp = (() => { const raw = top / 4, p = Math.pow(10, Math.floor(Math.log10(raw || 1))), m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; })();
           let ax = "";
           if (HH >= 50) { for (let v = stp; Y0 - v * sc >= 18; v += stp) if (Y0 - v * sc <= HH - 6) ax += `<span class="gax-t" style="top:${Y0 - v * sc}px">${fmtA(v)}</span>`; for (let v = -stp; Y0 - v * sc <= HH - 6; v -= stp) ax += `<span class="gax-t" style="top:${Y0 - v * sc}px">${fmtA(v)}</span>`; }
-          ax = `<div class="ghist-ax" style="height:${HH}px"><span class="gax-hit${shell.__dlyRule ? " on" : ""}" style="top:26px;height:${Math.max(0, HH - 26)}px" role="button" aria-label="Règle"></span><span class="gax-u">${esc(dlyHistLab(HD))}</span>${ax}${Y0 <= HH ? `<span class="gax-t gax-0" style="top:${Y0}px">0</span>` : ""}</div>`;
+          ax = `<div class="ghist-ax" style="height:${HH}px"><span class="gax-hit${shell.__dlyRule ? " on" : ""}" style="top:26px;height:${Math.max(0, HH - 26)}px" role="button" aria-label="Règle"></span><span class="gax-u">${esc((mgP ? "MARGE EN %" + (cum ? " (CUMULÉE)" : " / JOUR") : dlyHistLab(HD)))}</span>${ax}${Y0 <= HH ? `<span class="gax-t gax-0" style="top:${Y0}px">0</span>` : ""}</div>`;
           hist = `<div class="ghist${YZ > 1.01 ? " ghist-zoom" : ""}${C ? " ghist-cmd" : ""}${curve || hideC ? " ghist-cum" : ""}" style="width:${W}px;height:${HH}px" data-sc="${sc}" data-y0="${Y0}" data-stp="${stp}" data-ib="${IB}" data-top="${top}">${ax}${bg}${leg}${C ? `<div class="ghist-leg"><span>${esc(C.lab)}</span></div>` : ""}${IB ? `<div class="ghist-inf" style="height:${IB}px"></div>` : ""}${hb}${svg ? `<svg class="ghist-svg" width="${W}" height="${HH}">${svg}</svg>` : ""}${pl}${rng}${vals}</div>`;
         }
       }
@@ -12885,6 +12889,9 @@ function renderBudgetList() {
           <span class="hcf-k">FORME</span><span class="hcf-sw">${(() => { const fo = h.forme || (dlyAppro().on && R ? "h" : crb.includes("r") ? "c" : h.aff === "c" ? "c" : "h"); return rad("hcf", "h", "HISTOGRAMME", fo === "h") + rad("hcf", "c", "COURBES", fo === "c"); })()}</span>
           <span class="hcf-k">POINT DE DÉPART</span><span class="hcf-sw">${rad("hcc", "r", "DEPUIS LE TRAIT DÉBUT", h.cum !== "a")}${rad("hcc", "a", "DEPUIS LE DÉBUT DU PROJET", h.cum === "a")}</span>
           <span class="hcf-k">COURBES</span><span class="hcf-cbs">${[["c", "CHARGES"], ["p", "PRODUITS"], ["g", "MARGE"], ["r", "RENDEMENT"]].map(([v, l]) => `<label${v === "r" && !R ? ' class="off" data-why="RENDEMENT : COCHER DES CHARGES DANS DÉTAIL CHARGES ET CHOISIR UNE ACTIVITÉ DANS TÂCHES."' : ""}><input type="checkbox" class="hcf-c" value="${v}"${crb.includes(v) && (v !== "r" || R) ? " checked" : ""}${v === "r" && !R ? " disabled" : ""}><span>${l}</span></label>`).join("")}</span>
+          ${(() => { const only = crb.length === 1 && crb[0] === "g", hid = only ? "" : " hidden";
+            /* v600 : MARGE cochée seule — NETTE (DH) ou % (marge ÷ produits) */
+            return `<span class="hcf-k hcf-mg"${hid}>MARGE</span><span class="hcf-sw hcf-mg"${hid}>${rad("hcm", "n", "NETTE (DH)", h.mg !== "p")}${rad("hcm", "p", "%", h.mg === "p")}</span>`; })()}
           <span class="hcf-k">LÉGENDE</span><span class="hcf-pl">CHARGES QUI FONT <input class="hcf-pct" inputmode="numeric" value="${esc(String(h.pct || 70))}"> %</span>
           <span class="hcf-k">DONNÉES</span><span class="hcf-sw">${rad("hcd", "c", "CONSOMMATION", !(dlyAppro().on && R))}${rad("hcd", "o", "COMMANDES", !!(dlyAppro().on && R), !R).replace("QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ.", "COMMANDES : COCHER DES CHARGES DANS DÉTAIL CHARGES.")}</span>
           ${(() => { const a = dlyAppro(), hid = a.on && R ? "" : " hidden";
@@ -12899,6 +12906,8 @@ function renderBudgetList() {
       d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".hcf-seg input"); if (!i) return; i.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked));
         if (i.name === "hcd") d.querySelectorAll(".hcf-apr").forEach(x => { x.hidden = i.value !== "o"; });
         if (i.name === "aprc") d.querySelector(".apr-nj").disabled = i.value !== "n"; });
+      d.addEventListener("change", e => { if (!(e.target.classList && e.target.classList.contains("hcf-c"))) return;
+        const c = [...d.querySelectorAll(".hcf-c:checked")].map(x => x.value); d.querySelectorAll(".hcf-mg").forEach(x => { x.hidden = !(c.length === 1 && c[0] === "g"); }); });
       d.addEventListener("click", e => {
         { const o = e.target.closest && e.target.closest(".hcf-seg.off[data-why], .hcf-cbs label.off[data-why]"); if (o) { svToast(o.dataset.why, 3500, o); return; } }
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
@@ -12914,7 +12923,7 @@ function renderBudgetList() {
           const qq = d.querySelector('input[name="hcu"][value="q"]'); if (qq && !qq.disabled) qq.checked = true;
         }
         const v = n => (d.querySelector(`input[name="${n}"]:checked`) || {}).value;
-        INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc), forme: v("hcf") || "h" };
+        INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc), forme: v("hcf") || "h", mg: v("hcm") || h.mg || "n" };
         /* v566 (remarque 9) / v572 (remarque 17) : COMMANDES = données du graphique ; ses réglages sont lus ici */
         const on = v("hcd") === "o", A0 = dlyAppro();
         if (on) {
