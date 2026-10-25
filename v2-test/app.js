@@ -11523,11 +11523,17 @@ function renderBudgetList() {
         const b = e.target.closest && e.target.closest("#dlyHb .hb-gob[data-go]");
         if (!b) return;
         e.stopPropagation(); document.getElementById("dlyHb")?.remove();
-        const [lo, se] = b.dataset.k.split("|");
-        LK.lot = lo; LK.sec = se; LK.prim = null;
+        /* v610 : les boutons cochent les cases carrées (filtres) de la tâche, jamais les ronds (liaisons) ; la liste de l'onglet ouvert
+           descend jusqu'à la première ligne cochée */
+        const k = b.dataset.k, [lo, se] = k.split("|"), go = b.dataset.go, L = (INS.links || []).filter(l => l.lot === lo && l.sec === se);
+        if (go === "chg" || go === "prd") {
+          const ids = new Set(); L.forEach(l => (l[go] || []).forEach(y => ids.add(y.id)));
+          (INS[go] || []).forEach(r => { if (!r.t) r.on = ids.has(r.id) ? true : (r.on === true ? false : r.on); });
+          insSave(); histLog("DÉLAIS", "CASES COCHÉES", (go === "chg" ? "CHARGES" : "PRODUITS") + " DE " + dlyHbName(k));
+        } else shell.__dlySel = new Set([k]);
         const tb = document.querySelector(`.bdg-d-tab[data-tab="${b.dataset.go}"]`);
         if (tb && active !== b.dataset.go) tb.click(); else refreshAll();
-        setTimeout(() => { const r = document.querySelector("#bdgTabBody tr.lk-hit, #bdgTabBody tr.lk-link.lk-hit, #bdgTabBody tr.dly-sel"); if (r) r.scrollIntoView({ block: "center" }); }, 350);
+        setTimeout(() => { const c = document.querySelector("#bdgTabBody tr input.ins-cb:checked, #bdgTabBody tr input.dlyp-cb[data-key]:checked"), r = c && c.closest("tr"); if (r) r.scrollIntoView({ block: "center" }); }, 350);
       }, true);
       document.addEventListener("pointerdown", e => { const m = document.getElementById("dlyHb"); if (m && !m.contains(e.target) && !(e.target.closest && e.target.closest(".ghb"))) m.remove(); }, true);
       /* R3 : signe ▣ d'une tâche incompressible = fenêtre RENDRE COMPRESSIBLE */
@@ -11606,7 +11612,7 @@ function renderBudgetList() {
         let P0 = null;
         const dist = t => Math.abs(t[0].clientX - t[1].clientX), distY = t => Math.abs(t[0].clientY - t[1].clientY);
         shell.addEventListener("touchstart", e => {
-          const host = e.target.closest && e.target.closest("#dlyGantt, .dlyg-foot") && shell.querySelector("#dlyGantt");   /* v594 : graphique dans le pied fixe */
+          const host = e.target.closest && e.target.closest("#dlyGantt, .dlyg-foot, .dlyg-l") && shell.querySelector("#dlyGantt");   /* v594 : graphique dans le pied fixe ; v610 : tableau aussi (pincement vertical seulement) */
           if (!host || e.touches.length !== 2) return;
           const hr = host.getBoundingClientRect(), mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - hr.left;
           /* écarter à l'horizontale = largeur des jours ; à la verticale = hauteur des lignes et des barres (sens choisi au premier mouvement) */
@@ -11643,6 +11649,7 @@ function renderBudgetList() {
                 shell.__dlyYO = z > 1.01 ? Math.max(0, Math.min(G.RG - tp, (P0.my + P0.vm * sc2 - y0b) / sc2)) : 0; } clearTimeout(P0.ht); P0.ht = setTimeout(() => { const H = shell.querySelector("#dlyGantt"); if (H) { H.__drawn = false; dlyGanttDraw(); } }, 30); }
             return;
           }
+          if (P0.mode === "h" && P0.tg && P0.tg.closest && P0.tg.closest(".dlyg-l")) return;
           if (P0.mode === "v") {
             const rh = Math.round(Math.max(24, Math.min(64, P0.rh0 * Math.max(20, distY(e.touches)) / P0.dy)));
             if (rh !== dlyRhGet()) { try { localStorage.setItem(DLY_RH_KEY, String(rh)); } catch (err) {} dlyRhApply(rh); }
