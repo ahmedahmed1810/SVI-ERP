@@ -75,7 +75,7 @@
             const z = Math.max(1, Math.min(50, P0.z0 * Math.max(20, distY(e.touches)) / P0.dy));
             if (Math.abs(z - (shell.__dlyYZ || 1)) > 0.02) { shell.__dlyYZ = z;
               const G = shell.__dlyYGeo;
-              if (G) { const tp = G.RG / z, sc2 = (G.HH - 36 - G.IB) / tp, y0b = G.HH - G.IB - Math.min(-G.mn, tp) * sc2;
+              if (G) { const tp = G.RG / z, sc2 = (G.HH - 44 - G.IB) / tp, y0b = G.HH - G.IB - 8 - Math.min(-G.mn, tp) * sc2;
                 shell.__dlyYO = z > 1.01 ? Math.max(0, Math.min(G.RG - tp, (P0.my + P0.vm * sc2 - y0b) / sc2)) : 0; } clearTimeout(P0.ht); P0.ht = setTimeout(() => { const H = shell.querySelector("#dlyGantt"); if (H) { H.__drawn = false; dlyGanttDraw(); } }, 30); }
             return;
           }

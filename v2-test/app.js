@@ -5066,7 +5066,7 @@ function renderBudgetList() {
       { key: "qlt", title: "DÉTAIL QUALITÉ" },
       { key: "dly", title: "DÉTAIL DÉLAIS" },
       /* budget en instance : les liaisons validées sont un onglet du détail */
-      ...(budget.inst ? [{ key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "lnk", title: "MARGE", ico: "xpl" }, { key: "gra", title: "GRAPHIQUE", ico: "xpl" }] : [])   /* v498 (remarque 37) : MARGE remplace LIAISONS VALIDÉES et EXPLOITATION */
+      ...(budget.inst ? [{ key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "lnk", title: "MARGE", ico: "xpl" }] : [])   /* v609 : onglet GRAPHIQUE retiré (le graphique sous le planning suffit) ; v498 (remarque 37) : MARGE remplace LIAISONS VALIDÉES et EXPLOITATION */
     ];
 
     /* dernier onglet du détail ouvert (charges, produits, qualité, délais) */
@@ -9890,7 +9890,8 @@ function renderBudgetList() {
           /* v577 (remarque 7) : échelle des valeurs agrandie au pincement vertical (shell.__dlyYZ) */
           const YZ = Math.max(1, shell.__dlyYZ || 1);
           const YRG = ((Math.max(mx, PM, VL.max || 0) - mn) || 1) * 1.08;
-          const top = YRG / YZ, sc = (HH - 36 - IB) / top, Y0b = HH - IB - Math.min(-mn, top) * sc;
+          /* v609 : marge de 8 px sous le zéro (les barres ne semblent plus partir sous le bord) */
+          const top = YRG / YZ, sc = (HH - 44 - IB) / top, Y0b = HH - IB - 8 - Math.min(-mn, top) * sc;
           /* v582 : après le zoom, l'échelle peut monter ou descendre (shell.__dlyYO, en valeur) pour voir le haut des barres */
           const YO = YZ > 1.01 ? Math.max(0, Math.min(YRG - top, shell.__dlyYO || 0)) : 0;
           shell.__dlyYO = YO;
@@ -9982,7 +9983,7 @@ function renderBudgetList() {
             /* v571 : barres côte à côte dans le jour (HISTOGRAMME) ou courbes (COURBES), chacune à sa propre échelle */
             const barS = (M, s, c, j) => vis.forEach(di => { const v = M[di]; if (!v) return; hb += `<div class="ghb ghb-m${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo + j * w1}px;width:${w1}px;top:${Y0 - v * s}px;bottom:auto;height:${Math.max(1, v * s)}px;background:${c}"></div>`; });
             if (showP) {
-              const mP = Math.max(1e-9, ...vis.map(di => rdPQ[di])), sP2 = (HH - 36 - IB) / (mP * 1.08) * YZ;   /* v601 : le zoom vertical agit aussi sur le RENDEMENT */ rdPQ.__s = sP2;
+              const mP = Math.max(1e-9, ...vis.map(di => rdPQ[di])), sP2 = (HH - 44 - IB) / (mP * 1.08) * YZ;   /* v601 : le zoom vertical agit aussi sur le RENDEMENT */ rdPQ.__s = sP2;
               if (curve) svg += `<polyline points="${vis.map(di => `${X(di) + DLY_DW / 2},${Y0 - rdPQ[di] * sP2}`).join(" ")}" fill="none" stroke="#2e90fa" stroke-width="2" stroke-linejoin="round"/>`;
               else barS(rdPQ, sP2, "#2e90fa", 0);
               hb += lab(mP, sP2, "#2e90fa", vis.find(di => rdPQ[di] === mP));
@@ -9990,7 +9991,7 @@ function renderBudgetList() {
             RD.ser.forEach((S, j0) => { const j = j0;
               const c = colOf(S.sk, j), P2 = cuM(S.P), C2 = cuM(S.C), Rr = {};
               vis.forEach(di => { const cq = C2[di] || 0; Rr[di] = cq > 1e-9 ? (P2[di] || 0) / cq : null; });
-              const mR = Math.max(1e-9, ...vis.map(di => Rr[di] || 0)), sR2 = (HH - 36 - IB) / (mR * 1.08) * YZ;
+              const mR = Math.max(1e-9, ...vis.map(di => Rr[di] || 0)), sR2 = (HH - 44 - IB) / (mR * 1.08) * YZ;
               let seg = [];
               const flush = () => { if (seg.length) svg += `<polyline points="${(seg.length > 1 ? seg : [seg[0], seg[0]]).map(di => `${X(di) + DLY_DW / 2},${Y0 - Rr[di] * sR2}`).join(" ")}" fill="none" stroke="${c}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`; seg = []; };
               if (curve) { vis.forEach(di => { if (Rr[di] === null) flush(); else seg.push(di); }); flush(); }
@@ -10067,7 +10068,7 @@ function renderBudgetList() {
           const stp = (() => { const raw = top / 4, p = Math.pow(10, Math.floor(Math.log10(raw || 1))), m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; })();
           let ax = "";
           if (HH >= 50) { for (let v = stp; Y0 - v * sc >= 18; v += stp) if (Y0 - v * sc <= HH - 6) ax += `<span class="gax-t" style="top:${Y0 - v * sc}px">${fmtA(v)}</span>`; for (let v = -stp; Y0 - v * sc <= HH - 6; v -= stp) ax += `<span class="gax-t" style="top:${Y0 - v * sc}px">${fmtA(v)}</span>`; }
-          ax = `<div class="ghist-ax" style="height:${HH}px"><span class="gax-hit${shell.__dlyRule ? " on" : ""}" style="top:26px;height:${Math.max(0, HH - 26)}px" role="button" aria-label="Règle"></span><span class="gax-u">${esc((mgP ? "MARGE EN %" + (cum ? " (CUMULÉE)" : " / JOUR") : dlyHistLab(HD)))}</span>${ax}${Y0 <= HH ? `<span class="gax-t gax-0" style="top:${Y0}px">0</span>` : ""}</div>`;
+          ax = `<div class="ghist-ax" style="height:${HH}px"><span class="gax-hit${shell.__dlyRule ? " on" : ""}" style="top:26px;height:${Math.max(0, HH - 26)}px" role="button" aria-label="Règle"></span><span class="gax-u">${esc((mgP ? "MARGE EN %" + (cum ? " (CUMULÉE)" : " / JOUR") : dlyHistLab(HD)))}</span>${ax}${Y0 <= HH ? `<span class="gax-t gax-0" style="top:${Y0}px">0</span>` : ""}</div>${Y0 <= HH ? `<div class="gzero" style="top:${Y0}px;width:${W}px"></div>` : ""}`;
           hist = `<div class="ghist${YZ > 1.01 ? " ghist-zoom" : ""}${C ? " ghist-cmd" : ""}${curve || hideC ? " ghist-cum" : ""}" style="width:${W}px;height:${HH}px" data-sc="${sc}" data-y0="${Y0}" data-stp="${stp}" data-ib="${IB}" data-top="${top}">${ax}${bg}${leg}${C ? `<div class="ghist-leg"><span>${esc(C.lab)}</span></div>` : ""}${IB ? `<div class="ghist-inf" style="height:${IB}px"></div>` : ""}${hb}${svg ? `<svg class="ghist-svg" width="${W}" height="${HH}">${svg}</svg>` : ""}${pl}${rng}${vals}</div>`;
         }
       }
@@ -11638,7 +11639,7 @@ function renderBudgetList() {
             const z = Math.max(1, Math.min(50, P0.z0 * Math.max(20, distY(e.touches)) / P0.dy));
             if (Math.abs(z - (shell.__dlyYZ || 1)) > 0.02) { shell.__dlyYZ = z;
               const G = shell.__dlyYGeo;
-              if (G) { const tp = G.RG / z, sc2 = (G.HH - 36 - G.IB) / tp, y0b = G.HH - G.IB - Math.min(-G.mn, tp) * sc2;
+              if (G) { const tp = G.RG / z, sc2 = (G.HH - 44 - G.IB) / tp, y0b = G.HH - G.IB - 8 - Math.min(-G.mn, tp) * sc2;
                 shell.__dlyYO = z > 1.01 ? Math.max(0, Math.min(G.RG - tp, (P0.my + P0.vm * sc2 - y0b) / sc2)) : 0; } clearTimeout(P0.ht); P0.ht = setTimeout(() => { const H = shell.querySelector("#dlyGantt"); if (H) { H.__drawn = false; dlyGanttDraw(); } }, 30); }
             return;
           }
