@@ -9689,7 +9689,7 @@ function renderBudgetList() {
           }
           dlyHHpx = F;
           shell.__dlyFootH = hasH ? Math.max(F, 0) : 0;
-          { const want = tot; if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 0.5) scr.style.setProperty("height", want + "px", "important"); }
+          if (scr.closest(".max-detail")) { const want = tot; if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 0.5) scr.style.setProperty("height", want + "px", "important"); }
           /* v597 : le pied est posé SUR le bas du Gantt (le tableau va jusqu'en bas) : place gardée sous les tâches pour voir les dernières */
           bodyH = Math.max(bodyH + shell.__dlyFootH, Math.floor(tot - thH - 2));
         }
@@ -10118,6 +10118,13 @@ function renderBudgetList() {
       }
       let r = 0;
       if (Math.abs((scr.__capMax || 0) - tot) > 1) { scr.__capMax = tot; r = 2; }
+      /* v598 : bloc réduit — la hauteur suit directement la poignée du bas (variable --h-detail), moins les bandeaux posés au-dessus */
+      if (!mx) {
+        let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
+        const v = ban ? `calc(var(--h-detail, 148px) - ${ban}px)` : "";
+        if (scr.style.getPropertyValue("height") !== v) { if (v) scr.style.setProperty("height", v, "important"); else scr.style.removeProperty("height"); }
+        return r;
+      }
       const want = tot;   /* v597 : le pied du graphique est posé par-dessus le bas du Gantt */
       if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 1) { scr.style.setProperty("height", want + "px", "important"); r = r || 1; }
       return r;
