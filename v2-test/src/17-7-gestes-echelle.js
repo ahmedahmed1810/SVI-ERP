@@ -100,7 +100,7 @@
         const yRedraw = () => { if (shell.__dlyYRaf) return; shell.__dlyYRaf = requestAnimationFrame(() => { shell.__dlyYRaf = 0; const H = shell.querySelector("#dlyGantt"); if (H) { H.__drawn = false; dlyGanttDraw(); } }); };
         const yFull = () => { document.getElementById("dlyHb")?.remove(); shell.__dlyYZ = 1; shell.__dlyYO = 0; yRedraw(); };
         let V = null, lastTap = null;
-        const NOV = ".gplaf, .gcut, .grng, .grng-h, .grule, .gax-hit, .gval, .dlyg-hh";
+        const NOV = ".gplaf, .gcut, .grng, .grng-h, .grule, .gax-hit, .gval, .dlyg-hh, .grdb, .grdc";
         shell.addEventListener("touchstart", e => {
           V = null;
           const gh = e.target.closest && e.target.closest(".dlyg-foot .ghist");

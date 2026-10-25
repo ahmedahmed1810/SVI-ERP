@@ -310,6 +310,31 @@
         const up = () => { clearTimeout(lp); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); };
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       });
+      /* v604 (remarque longue 4) : barre RENDEMENT — glisser = régler (entre MIN et MAX, au % près ; recompression au lâcher) ;
+         appui long sans bouger = couper à ce jour ; toucher le « / » = supprimer la coupe */
+      shell.addEventListener("click", e => { const c = e.target.closest && e.target.closest(".dlyg-foot .grdc[data-i]"); const X = shell.__insDly; if (!c || !X) return; e.stopPropagation(); X.rdDel(c.dataset.sk, c.dataset.sec, Number(c.dataset.i)); }, true);
+      shell.addEventListener("pointerdown", e => {
+        const X = shell.__insDly, bar = e.target.closest && e.target.closest(".dlyg-foot .grdb");
+        if (!X || !bar || e.target.closest(".grdc")) return;
+        e.preventDefault(); e.stopPropagation();
+        const h = bar.closest(".ghist"), host = shell.querySelector("#dlyGantt"), Y0 = Number(h.dataset.y0) || h.offsetHeight, s = Number(bar.dataset.s) || 1, ref = Number(bar.dataset.ref) || 1;
+        const L = X.rdLim(), sp = bar.querySelector(".grdb-v"), byV = !!bar.dataset.sec, x0 = e.clientX, y0 = e.clientY, p0 = Number(bar.dataset.pct) || 100;
+        let p = p0, moved = false;
+        const tmv = ev => ev.preventDefault();
+        document.addEventListener("touchmove", tmv, { passive: false });
+        const lp = setTimeout(() => { if (moved) return; done(); const hr = h.getBoundingClientRect(); X.rdCut(bar.dataset.sk, bar.dataset.sec, sviIsoAdd(host.__d0, Math.max(0, Math.floor((x0 - hr.left) / DLY_DW)))); }, 550);
+        const mv = ev => {
+          if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return;
+          moved = true; clearTimeout(lp); ev.preventDefault();
+          const y = ev.clientY - h.getBoundingClientRect().top;
+          p = Math.max(L.min, Math.min(L.max, Math.round((Y0 - y) / s / ref * 100)));
+          bar.style.top = Math.max(26, Math.min(h.offsetHeight, Y0 - ref * p / 100 * s)) + "px";
+          sp.textContent = "RENDEMENT " + (byV ? (Math.round(ref * p) / 100).toLocaleString("fr-FR") + " / J-H" : p + " %") + (p > 100 ? " — HEURES SUP " + (Math.round((p - 100) * 8) / 100).toLocaleString("fr-FR") + " H / J" : "");
+        };
+        const done = () => { clearTimeout(lp); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); };
+        const up = () => { done(); if (moved && p !== p0) X.rdSet(bar.dataset.sk, bar.dataset.sec, Number(bar.dataset.seg) || 0, p); };
+        document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
+      });
       /* R8 : toucher une barre de l'histogramme = bulle des tâches de ce jour (répartition, fractions comprises) */
       shell.addEventListener("click", e => {
         { const hh = e.target.closest && e.target.closest("#dlyGantt, .dlyg-foot") && shell.querySelector("#dlyGantt"); if (hh && hh.__dlyXlp) return; }   /* v564 : pas de bulle après un appui long (repères) */
@@ -336,7 +361,7 @@
         else (H.det[di] || []).forEach(x => { tot += x.v; rows += `<div><span>${esc(lotLab(dlyLotPath(lkName("lot", x.k.split("|")[0]))).full)} › ${esc(lkName("sec", x.k.split("|")[1]))}${x.inc ? " ▣" : ""}</span><b>${fmt(x.v)}</b></div>`; });
         const m = document.createElement("div");
         m.id = "dlyHb";
-        m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}</div>${rows}<div class="hb-tot"><span>TOTAL (${esc(H.cmd ? "COMMANDE" : H.unit)})</span><b>${fmt(tot)}</b></div>${dlyRdHb(HV, di)}${H.cmd ? "" : dlyGoHb(H, di)}`;
+        m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}</div>${rows}<div class="hb-tot"><span>TOTAL (${esc(H.cmd ? "COMMANDE" : H.unit)})</span><b>${fmt(tot)}</b></div>${HV.hsup && HV.hsup[di] ? `<div class="hb-hs"><span>HEURES SUP (RENDEMENT RÉGLÉ)</span><b>${fmt(HV.hsup[di])} H</b></div>` : ""}${dlyRdHb(HV, di)}${H.cmd ? "" : dlyGoHb(H, di)}`;
         document.body.appendChild(m);
         const r = b.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
         m.style.left = Math.max(8, Math.min(window.innerWidth - mw - 8, r.left + r.width / 2 - mw / 2)) + "px";

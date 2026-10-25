@@ -1448,6 +1448,15 @@ def main():
         check("v591 : capacité 2 puis coupe à 0, SUPPRIMER LA COUPE → le morceau de droite s'aligne sur la gauche (2), réponse en moins d'une seconde ; v585 : capacité 0 jusqu'à la fin → calcul arrêté tout de suite",
               z1[0] and z1[1] < 1000 and z1[2] == 2 and z1[3] == 0 and z2[0] and z2[1] < 1000 and "CAPACITÉ 0 JUSQU'À LA FIN" in z2[2], [z1, z2])
         check("v543 R21 / R22 : morceau sous le zéro = ILLIMITÉ ; toucher le « / » = SUPPRIMER LA COUPE", il[0] and "ILLIMITÉ" in il[1] and dc == "SUPPRIMER LA COUPE" and dc2 == 0, [il, dc, dc2])
+        # v604 (remarque longue 4) : rendement réglé — durée = quantité ÷ (rendement × ouvriers), borné au MAX
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.plafR = {{ '{GM}': {{ plaf: 1 }}, '{GS}': {{ plaf: -1 }} }}; I.hset = {{ rdmax: 200 }}; I.dlim = {{}}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        pg.evaluate(f"() => {DXJ}.comp()"); pg.wait_for_timeout(600)
+        q0 = pg.evaluate(f"() => {ins}.INS.dlp['l1|s1'][0].fin")
+        pg.evaluate(f"() => {DXJ}.rdSet('{GM}', '', 0, 400)"); pg.wait_for_timeout(700)
+        q1 = pg.evaluate(f"() => {{ const I = {ins}.INS; return [I.plafR['{GM}'].rd, I.dlp['l1|s1'][0].deb, I.dlp['l1|s1'][0].fin]; }}")
+        pg.evaluate(f"""() => {{ const X = {ins}; X.INS.plafR = {{ '{GM}': {{ plaf: -1 }} }}; X.INS.hset = null; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        check("v604 : MACON 4 J-H, 1 ouvrier : 4 jours à 100 % ; rendement demandé 400 % → borné au MAX 200 % → 2 jours (02 → 03)",
+              q0 == "2026-11-05" and q1 == [200, "2026-11-02", "2026-11-03"], [q0, q1])
         # R18 / R19 / R20 : cumulé, plage DÉBUT – FIN, filtre MIN – MAX qui coche les charges des jours retenus
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.plafR = {{}}; I.dlp = {{ 'l1|s1': [{{ id: 'a', deb: '2026-11-02', fin: '2026-11-02' }}], 'l2|s1': [{{ id: 'b', deb: '2026-11-04', fin: '2026-11-04' }}] }}; I.dpred = {{}};
             I.chg.filter(r => /^n[123]$/.test(r.id)).forEach(r => {{ r.on = true; }}); I.hset = {{ u: 'm', aff: 'c', cum: 'r' }}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(600)
