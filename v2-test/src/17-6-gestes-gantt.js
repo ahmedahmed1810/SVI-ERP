@@ -349,7 +349,7 @@
         if (HV.cum || HV.multi) {
           /* v546 (R15, R29) : en CUMULÉ, la date et le total à ce jour ; avec PRODUITS / MARGE, une ligne par grandeur */
           const m = document.createElement("div"); m.id = "dlyHb";
-          const L = [["CHARGES", HV.val], ["PRODUITS", HV.vP], ["MARGE", HV.vG]].filter(x => x[1] && Object.keys(x[1]).length && (x[0] === "CHARGES" ? !HV.hideC && (!HV.multi || (H.crb || []).includes("c")) : (H.crb || []).includes(x[0] === "PRODUITS" ? "p" : "g")));
+          const L = [[H.cmd ? "COMMANDES" : "CHARGES", HV.val], ["PRODUITS", HV.vP], ["MARGE", HV.vG]].filter(x => x[1] && Object.keys(x[1]).length && (x[0] !== "PRODUITS" && x[0] !== "MARGE" ? !HV.hideC && (!HV.multi || (H.crb || []).includes("c")) : (H.crb || []).includes(x[0] === "PRODUITS" ? "p" : "g")));
           m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}${HV.cum ? " — CUMUL À CE JOUR" : ""}</div>` + L.map(([t, M]) => `<div><span>${t}</span><b>${fmt(M[di] || 0)} ${esc(HV.unit)}</b></div>`).join("") + dlyRdHb(HV, di) + dlyGoHb(H, di);
           document.body.appendChild(m);
           const r = b.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
@@ -357,11 +357,14 @@
           m.addEventListener("click", ev => { if (ev.target.closest(".svt-x")) m.remove(); ev.stopPropagation(); });
           return;
         }
-        if (H.cmd) { tot = H.cmd.L[di] || 0; rows = `<div>${esc(H.cmd.lab)}</div>` + (H.cmd.det[di] || []).map(x => `<div><span>${esc(x.sk.split("|")[0])}</span><b>${fmt(x.v)}</b></div>`).join(""); }
+        let ext = "";
+        if (H.cmd) { const C = H.cmd, pr = (C.per || {})[di]; tot = C.L[di] || 0; rows = `<div>${esc(C.lab)}</div>` + (pr ? `<div><span>PÉRIODE</span><b>DU ${esc(dFr(pr.a))} AU ${esc(dFr(pr.b))}</b></div>` : "") + (C.det[di] || []).map(x => `<div><span>${esc(x.sk.split("|")[0])}</span><b>${fmt(x.v)}</b></div>`).join("");
+          /* v605 (remarque longue 5) : PRODUITS et MARGE de la période */
+          if (HV.cPG) { if ((H.crb || []).includes("p")) ext += `<div class="hb-tot"><span>PRODUITS (DH)</span><b>${fmt((C.P || {})[di] || 0)}</b></div>`; if ((H.crb || []).includes("g")) { const g = (C.G || {})[di] || 0; ext += `<div class="hb-tot${g < 0 ? " hb-neg" : ""}"><span>MARGE (DH)</span><b>${fmt(g)}</b></div>`; } } }
         else (H.det[di] || []).forEach(x => { tot += x.v; rows += `<div><span>${esc(lotLab(dlyLotPath(lkName("lot", x.k.split("|")[0]))).full)} › ${esc(lkName("sec", x.k.split("|")[1]))}${x.inc ? " ▣" : ""}</span><b>${fmt(x.v)}</b></div>`; });
         const m = document.createElement("div");
         m.id = "dlyHb";
-        m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}</div>${rows}<div class="hb-tot"><span>TOTAL (${esc(H.cmd ? "COMMANDE" : H.unit)})</span><b>${fmt(tot)}</b></div>${HV.hsup && HV.hsup[di] ? `<div class="hb-hs"><span>HEURES SUP (RENDEMENT RÉGLÉ)</span><b>${fmt(HV.hsup[di])} H</b></div>` : ""}${dlyRdHb(HV, di)}${H.cmd ? "" : dlyGoHb(H, di)}`;
+        m.innerHTML = `<button type="button" class="svt-x" aria-label="Fermer">✕</button><div class="hb-t">${esc(dFr(di))}</div>${rows}<div class="hb-tot"><span>TOTAL (${esc(H.cmd ? "COMMANDE" : H.unit)})</span><b>${fmt(tot)}</b></div>${ext}${HV.hsup && HV.hsup[di] ? `<div class="hb-hs"><span>HEURES SUP (RENDEMENT RÉGLÉ)</span><b>${fmt(HV.hsup[di])} H</b></div>` : ""}${dlyRdHb(HV, di)}${H.cmd ? "" : dlyGoHb(H, di)}`;
         document.body.appendChild(m);
         const r = b.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
         m.style.left = Math.max(8, Math.min(window.innerWidth - mw - 8, r.left + r.width / 2 - mw / 2)) + "px";

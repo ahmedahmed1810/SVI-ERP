@@ -1696,6 +1696,17 @@ def main():
             const d = ds[0], P = D.prd[d], C = D.tot[d] || 0; return [V.mgP, V.unit, Math.abs(V.vG[d] - (P - C) / P * 100) < 1e-6, Object.keys(V.vG).every(k => Math.abs((D.prd || {})[k] || 0) > 1e-9)]; }""")
         pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; const B = JSON.parse(window.__mg6); I.links = B[0]; I.prd = B[1]; I.sec = B[2]; I.prim = B[3]; I.hset = null; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
         check("v600 : MARGE seule en % = (produits − charges) ÷ produits × 100 par jour ; jour sans produit sans valeur", mp == [True, "%", True, True], mp)
+        # v605 (remarque longue 5) : COMMANDES avec PRODUITS et MARGE de la période couverte (marge = produits − charges consommées)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; window.__mg7 = JSON.stringify([I.links, I.prd, I.sec, I.prim]);
+            const l = I.links[0], x = I.prd.find(r => r.id === 'x1'); x.n = 10; l.prd = [{{ id: 'x1' }}];
+            const pr = I.prim.find(r => r.id === l.prim), sc = I.sec.find(r => r.id === l.sec); if (pr && sc) sc.v = pr.v;
+            I.hset = {{ u: 'm', aff: 'j', cum: 'r', forme: 'h', crb: ['c', 'p', 'g'] }}; I.appro = {{ dl: 0, cov: 'n', nj: 60, dep: '', seuil: {{}}, on: true }}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(600)
+        cg = pg.evaluate("""() => { const h = document.querySelector('#dlyGantt'), D = h && h.__HD, C = D && D.cmd; if (!C || !C.P) return null;
+            const S = M => Object.values(M || {}).reduce((t, v) => t + (v || 0), 0), P = S(D.prd);
+            return [P > 0, Math.abs(S(C.P) - P) < 1e-6, Math.abs(S(C.G) - (P - S(D.tot))) < 1e-6, Object.keys(C.P).filter(d => C.P[d]).length >= 1, !!document.querySelector('.dlyg-foot .ghist-cmd .ghb-m'), !!(C.per[Object.keys(C.P)[0]] || {}).b]; }""")
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; const B = JSON.parse(window.__mg7); I.links = B[0]; I.prd = B[1]; I.sec = B[2]; I.prim = B[3]; I.hset = null; I.appro = null; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v605 : COMMANDES + PRODUITS + MARGE — une période couverte : produits de la période au jour d'envoi, marge = produits − charges consommées, barres à côté de la commande",
+              cg == [True] * 6, cg)
         # v567 (remarque 10) : RENDEMENT = quantité produite ÷ charge du jour (en QUANTITÉ, une seule activité)
         pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS; window.__r10 = [JSON.stringify(I.hset || null), JSON.stringify(I.hrange || null), I.chg.filter(r => r.on === true).map(r => r.id), JSON.stringify(I.dlp['l1|s1'] || null)];
             I.chg.push({{ id: 'rz1', des: 'MACON RZ', u: 'J', q: 8, p: 100 }}); I.prd.push({{ id: 'rp1', des: 'DALLE RZ', u: 'M3', nbr: 1, d1: 4, d2: 2, d3: 1 }});
