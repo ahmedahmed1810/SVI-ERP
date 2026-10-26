@@ -5314,9 +5314,9 @@ function renderBudgetList() {
     const cfHead = (t, key, label, cls = "") => {
       const st = cfT(t);
       /* en-tête de colonne bleu : filtre ou tri choisi sur cette colonne */
-      const on = !!st.f[key] || !!(st.sort && st.sort.col === key && !st.sort.def);
+      const on = !!st.f[key] || !!(st.sort && st.sort.col === key && !st.sort.def) || !!(shell.__cfParOn && shell.__cfParOn(t, key));
       return `<th class="${cls} ${on ? "cf-on" : ""}">
-        <span class="cf-wrap"><span class="cf-lab">${label}${(() => { const k = shell.__faFor && shell.__faFor(t, key); return k && shell.__faHTML ? shell.__faHTML(k) : ""; })()}</span><span class="cf-btn" data-cf="${t}" data-col="${key}"
+        <span class="cf-wrap"><span class="cf-lab">${(() => { const k = shell.__faFor && shell.__faFor(t, key); return k && shell.__faHTML ? shell.__faHTML(k) : ""; })()}${label}</span><span class="cf-btn" data-cf="${t}" data-col="${key}"
           role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span
           class="col-rs" data-rs="${t}" data-col="${key}"></span></th>`;
     };
@@ -5413,12 +5413,16 @@ function renderBudgetList() {
       if (!v.length) return "";
       if (v.every(x => /^-?[\d\s\u00a0\u202f]+(,\d+)?( ?%)?$/.test(String(x).trim()))) return "num";
       if (v.every(x => /^\d{2}\/\d{2}\/\d{4}$/.test(String(x).trim()) || /^\d{4}-\d{2}-\d{2}$/.test(String(x).trim()))) return "date";
-      return "";
+      return "txt";   /* v622 : texte — contient, ne contient pas, commence par, se termine par, égal à */
     };
     const cfNum = x => num(String(x).replace(/%/g, ""));
     const cfDate = x => { const s = String(x || "").trim(); const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); if (m) return m[3] + "-" + m[2] + "-" + m[1]; return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : ""; };
     const cfCondOk = (c, v) => {
       if (!c) return true;
+      if (c.kind === "txt") {
+        const x = U_(String(v || "")), a = U_(String(c.a || ""));
+        switch (c.op) { case "ct": return x.includes(a); case "nc": return !x.includes(a); case "sw": return x.startsWith(a); case "ew": return x.endsWith(a); case "eq": return x === a; default: return true; }
+      }
       if (String(v).trim() === "") return false;
       const x = c.kind === "num" ? cfNum(v) : cfDate(v);
       if (c.kind === "date" && !x) return false;
@@ -5491,15 +5495,26 @@ function renderBudgetList() {
       if (!kind) { box.innerHTML = ""; return; }
       const c = cfOpen.cond && cfOpen.cond.kind === kind ? cfOpen.cond : null;
       const ops = kind === "num" ? [["", "AUCUNE"], ["eq", "ÉGAL À"], ["ne", "DIFFÉRENT DE"], ["gt", "SUPÉRIEUR À"], ["ge", "SUPÉRIEUR OU ÉGAL À"], ["lt", "INFÉRIEUR À"], ["le", "INFÉRIEUR OU ÉGAL À"], ["bt", "ENTRE … ET …"]]
-        : [["", "AUCUNE"], ["eq", "LE"], ["lt", "AVANT LE"], ["gt", "APRÈS LE"], ["bt", "ENTRE LE … ET LE …"]];
+        : kind === "date" ? [["", "AUCUNE"], ["eq", "LE"], ["lt", "AVANT LE"], ["gt", "APRÈS LE"], ["bt", "ENTRE LE … ET LE …"]]
+        : [["", "AUCUNE"], ["ct", "CONTIENT"], ["nc", "NE CONTIENT PAS"], ["sw", "COMMENCE PAR"], ["ew", "SE TERMINE PAR"], ["eq", "ÉGAL À"]];
       const fmt = v => v === undefined || v === null || v === "" ? "" : kind === "num" ? money(v) : v;
-      const inp = (n, v) => kind === "num" ? `<input class="cf-ca" data-n="${n}" inputmode="decimal" value="${esc(fmt(v))}" placeholder="VALEUR">` : `<input type="date" class="cf-ca" data-n="${n}" value="${esc(v || "")}">`;
-      box.innerHTML = `<div class="cf-ct">CONDITION (${kind === "num" ? "NOMBRES" : "DATES"})</div><select class="cf-op">${ops.map(([k, l]) => `<option value="${k}"${c && c.op === k ? " selected" : ""}>${l}</option>`).join("")}</select>
+      const inp = (n, v) => kind === "num" ? `<input class="cf-ca" data-n="${n}" inputmode="decimal" value="${esc(fmt(v))}" placeholder="VALEUR">` : kind === "txt" ? `<input class="cf-ca" data-n="${n}" value="${esc(v || "")}" placeholder="TEXTE" autocomplete="off">` : `<input type="date" class="cf-ca" data-n="${n}" value="${esc(v || "")}">`;
+      /* v622 : liste CONDITION de l'application (plus la grande liste de l'iPad) — petites lignes, ✓ devant le choix en cours */
+      const op0 = c ? c.op : "", lab0 = (ops.find(o => o[0] === op0) || ops[0])[1];
+      box.innerHTML = `<div class="cf-ct">CONDITION (${kind === "num" ? "NOMBRES" : kind === "date" ? "DATES" : "TEXTE"})</div><div class="cf-opw"><button type="button" class="cf-opb"><span>${lab0}</span><i>▾</i></button><div class="cf-opl" hidden>${ops.map(([k, l]) => `<button type="button" class="cf-opi${k === op0 ? " on" : ""}" data-op="${k}"><b>${k === op0 ? "✓" : ""}</b>${l}</button>`).join("")}</div><input type="hidden" class="cf-op" value="${op0}"></div>
         <div class="cf-cv${c ? "" : " off"}">${inp("a", c && c.a)}<span class="cf-et${c && c.op === "bt" ? "" : " off"}"> ET </span>${`<span class="cf-bw${c && c.op === "bt" ? "" : " off"}">${inp("b", c && c.b)}</span>`}</div>`;
-      box.querySelector(".cf-op").addEventListener("change", ev => {
-        const op = ev.target.value;
+      box.addEventListener("click", ev => {
+        if (ev.target.closest(".cf-opb")) { const L = box.querySelector(".cf-opl"); L.hidden = !L.hidden; cfPlace && cfPlace(); return; }
+        const it = ev.target.closest(".cf-opi");
+        if (!it) return;
+        const op = it.dataset.op;
+        box.querySelector(".cf-op").value = op;
+        box.querySelector(".cf-opb span").textContent = (ops.find(o => o[0] === op) || ops[0])[1];
+        box.querySelectorAll(".cf-opi").forEach(b => { b.classList.toggle("on", b === it); b.querySelector("b").textContent = b === it ? "✓" : ""; });
+        box.querySelector(".cf-opl").hidden = true;
         box.querySelector(".cf-cv").classList.toggle("off", !op);
         box.querySelectorAll(".cf-et, .cf-bw").forEach(x => x.classList.toggle("off", op !== "bt"));
+        if (op) setTimeout(() => box.querySelector('.cf-ca[data-n="a"]')?.focus(), 0);
       });
     };
     /* condition lue dans le menu : null (aucune), false (incomplète) ou { kind, op, a, b } */
@@ -5508,7 +5523,7 @@ function renderBudgetList() {
       if (!box || !kind) return null;
       const op = (box.querySelector(".cf-op") || {}).value || "";
       if (!op) return null;
-      const rd = n => { const i = box.querySelector(`.cf-ca[data-n="${n}"]`); const v = i ? String(i.value || "").trim() : ""; if (!v) return null; return kind === "num" ? cfNum(v) : cfDate(v) || v; };
+      const rd = n => { const i = box.querySelector(`.cf-ca[data-n="${n}"]`); const v = i ? String(i.value || "").trim() : ""; if (!v) return null; return kind === "num" ? cfNum(v) : kind === "txt" ? v.toUpperCase() : cfDate(v) || v; };
       const a = rd("a"), b = op === "bt" ? rd("b") : null;
       if (a === null || (op === "bt" && b === null)) return false;
       return { kind, op, a, b };
@@ -5629,6 +5644,7 @@ function renderBudgetList() {
           return;
         }
         if (e.target.closest(".cf-clear")) {
+          if (shell.__cfParClear) shell.__cfParClear(t, key);
           delete st.f[key];
           if (st.sort && st.sort.col === key) st.sort = null;
           m.querySelector(".cf-q").value = "";
@@ -6332,7 +6348,7 @@ function renderBudgetList() {
       const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
       const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* bleu = liée (à n'importe quelle désignation) */
       INS_CELL_LVL = lvl || 0;
-      return `<tr class="ins-row${r ? "" : " ins-new"}${k === "chg" && r && !r.t && INS_RGV && insPar().ids.has(r.id) ? " chg-par" : ""}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
+      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}${k === "des" && r ? ` style="--d:${dOf(r)}"` : ""}>
         <td class="center ins-rdc">${k === "des" && r && r.t && !INS_EDIT ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
           ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>`;
@@ -6361,7 +6377,8 @@ function renderBudgetList() {
       const cs = insCheckSet(k);
       const RG = (k === "chg" || k === "prd") && insRg();
       const NC = k === "prd" && shell.__prdNc ? shell.__prdNc : null;   /* v568 (remarque 11) : produits des tâches sans charge */
-      const shown = cfApply(t, insCfCols(k), normal).filter(r => (!ONLYC[k] || r.on === true) && (!cs || cs.has(r.id)) && (!RG || insRgF(k, r.id) > 0) && (!NC || NC.has(r.id)));
+      const PS = k === "chg" ? insParSet() : null;   /* v622 : CHARGES QUI FONT n % */
+      const shown = cfApply(t, insCfCols(k), normal).filter(r => (!PS || PS.has(r.id)) && (!ONLYC[k] || r.on === true) && (!cs || cs.has(r.id)) && (!RG || insRgF(k, r.id) > 0) && (!NC || NC.has(r.id)));
       const st = cfT(t);
       const sorting = !!(st.sort && !st.sort.def);
       const filtering = Object.keys(st.f).length > 0 || !!ONLYC[k] || !!cs || !!RG || !!NC;
@@ -6516,7 +6533,7 @@ function renderBudgetList() {
       /* v510 (remarque 67) : mélange de rouge (choisies) et de bleu (liées) = violet */
       const stt = new Set(g.map(r => LK && LK.chg && LK.chg[r.id] !== undefined ? (isB(r) ? "b" : "r") : (isB(r) ? "b" : "")).filter(Boolean));
       const blu = stt.has("b") && !stt.has("r"), vio = stt.has("b") && stt.has("r");
-      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}${insPar().keys.has(key) ? " chg-par" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${pstNum(g.length)}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${pstNum(g.length)}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     /* v516 : DÉTAIL PRODUITS — produits de même DÉSIGNATION regroupés sous un titre (même si NBR, DIM 1 à 3 ou unité diffèrent),
        pour retrouver d'un coup tout ce qui concerne un élément (un poteau…) et les activités qui l'ont touché.
@@ -6644,7 +6661,7 @@ function renderBudgetList() {
     const insCkOrd = () => {
       const has = {
         des: 0, lot: 0, prim: 0, sec: 0, prd: 0, chg: 0,
-        lnk: (INS.links || []).some(l => l.on === true), dly: !!(shell.__dlySel && shell.__dlySel.size), iso: !!insIsoPath(), rg: !!insRg()
+        lnk: (INS.links || []).some(l => l.on === true), dly: !!(shell.__dlySel && shell.__dlySel.size), iso: !!insIsoPath(), rg: !!insRg(), par: !!(INS.chgPar)
       };
       /* v614 (point 10) : tout coché = pas de filtre (ni numéro d'ordre ni « cochées/total ») */
       ["des", "lot", "prim", "sec", "prd", "chg"].forEach(x => { const N = (INS[x] || []).filter(r => !r.t), n = N.filter(r => r.on === true).length; has[x] = n > 0 && n < N.length; });
@@ -6654,7 +6671,7 @@ function renderBudgetList() {
       return o;
     };
     /* v614 (points 10 et 11) : numéro d'ordre du filtre d'un bloc (1 = coché en premier) ; DÉTAIL DÉLAIS = ses cases, ISOLER et la plage */
-    const insCkRank = src => { const o = insCkOrd(), S = src === "dly" ? ["dly", "iso", "rg"] : [src], I = S.map(x => o.indexOf(x)).filter(i => i >= 0); return I.length ? Math.min(...I) + 1 : 0; };
+    const insCkRank = src => { const o = insCkOrd(), S = src === "dly" ? ["dly", "iso", "rg"] : src === "chg" ? ["chg", "par"] : [src], I = S.map(x => o.indexOf(x)).filter(i => i >= 0); return I.length ? Math.min(...I) + 1 : 0; };
     const insCkBadge = src => { let n = 0; try { n = insCkRank(src); } catch (e) { n = 0; } return n ? `<i class="ck-ord" title="ORDRE DU FILTRE">${n}</i>` : ""; };
     /* pastille : « cochées/total » dès qu'une partie seulement est cochée (même le bloc coché en premier) ; sinon lignes retenues/total */
     const insCntOwn = (k, shownN, total) => { const N = (INS[k] || []).filter(r => !r.t), on = N.filter(r => r.on === true).length; return svCnt(on && on < N.length ? on : shownN, total); };
@@ -6676,9 +6693,10 @@ function renderBudgetList() {
       /* v537 : tâches cochées du PLANNING (DÉTAIL DÉLAIS) — elles filtrent aussi les autres blocs, comme toutes les cases carrées */
       const DS = k !== "dly" && A.has("dly") ? shell.__dlySel : null;
       const IP = k !== "dly" && A.has("iso") ? U_(insIsoPath()) : "";
+      const PS = k !== "chg" && A.has("par") ? insParSet() : null;   /* v622 : CHARGES QUI FONT n % filtre aussi les autres blocs */
       const inIso = l => { const v = U_(((INS.lot || []).find(x => x.id === l.lot) || {}).v || ""); return v === IP || v.startsWith(IP + " / "); };
       const ks = Object.keys(C);
-      const out = !ks.length && !lon && !DS && !IP ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
+      const out = !ks.length && !lon && !DS && !IP && !PS ? null : (INS.links || []).filter(l => (!PS || (l.chg || []).some(y => PS.has(y.id))) && ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
         && (!lon || l.on === true) && (!DS || DS.has(l.lot + "|" + l.sec)) && (!IP || inIso(l)));
       ICL.m[ck] = out;
       return out;
@@ -6697,37 +6715,46 @@ function renderBudgetList() {
       if (PCT_M && PCT_M.rgv === INS_RGV) return PCT_M.v;
       if (PCT_BUSY) return 0;
       PCT_BUSY = true;
-      let v = 0;
+      let v = 0; const pb = PAR_BUSY; PAR_BUSY = true;   /* v622 : % comptés sur toutes les charges retenues, avant CHARGES QUI FONT n % */
       try {
         const shown = insShown("chg").filter(r => !r.t), on = shown.filter(r => r.on === true);
         let SA = null; try { SA = insCheckSet("chg", true); } catch (e) { SA = null; }
         v = (on.length ? on : shown).filter(r => !SA || SA.has(r.id)).reduce((t, r) => t + insHT("chg", r), 0);
-      } finally { PCT_BUSY = false; }
+      } finally { PCT_BUSY = false; PAR_BUSY = pb; }
       PCT_M = { rgv: INS_RGV, v }; queueMicrotask(() => { PCT_M = null; });
       return v;
     };
     const insPctChg = r => { const d = insPctDen(); return d ? insHT("chg", r) / d * 100 : ""; };
-    /* v621 : CHARGES QUI FONT n % — les plus grosses charges (titre replié = une ligne) dont les % additionnés atteignent n,
-       en fond jaune pâle ; même valeur que la légende du graphique (INS.hset.pct) ; case vide = aucune mise en forme */
-    let PAR_M = null;
-    const insParPct = () => { const h = INS.hset || {}; return h.pct === "" ? 0 : Math.max(1, Math.min(100, Number(h.pct) || 70)); };
+    /* v621 / v622 : CHARGES QUI FONT n % = FILTRE de DÉTAIL CHARGES — seules les plus grosses charges (titre replié = une ligne)
+       dont les % additionnés atteignent n restent ; il agit sur les autres blocs comme une case cochée (numéro d'ordre) ;
+       même valeur pour la légende du graphique ; vide = pas de filtre */
+    let PAR_M = null, PAR_BUSY = false;
+    const insParPct = () => { const v = INS && INS.chgPar; return v ? Math.max(1, Math.min(100, Number(v) || 0)) : 0; };
     const insPar = () => {
       if (PAR_M && PAR_M.rgv === INS_RGV) return PAR_M;
-      const out = { rgv: INS_RGV, ids: new Set(), keys: new Set() }, n = insParPct(), d = insPctDen();
-      if (n && d) {
-        const G = new Map(); insShown("chg").filter(r => !r.t).forEach(r => { const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"); if (!G.has(key)) G.set(key, []); G.get(key).push(r); });
-        const it = []; G.forEach((g, key) => { if (g.length > 1 && CHG_GFOLD.has(key)) it.push({ g, key, v: g.reduce((t, x) => t + insHT("chg", x), 0) }); else g.forEach(r => it.push({ r, v: insHT("chg", r) })); });
-        it.sort((a, b) => b.v - a.v);
-        let acc = 0; for (const o of it) { if (acc >= d * n / 100 - 1e-9) break; acc += o.v; if (o.g) { out.keys.add(o.key); o.g.forEach(x => out.ids.add(x.id)); } else out.ids.add(o.r.id); }
+      const out = { rgv: INS_RGV, ids: new Set(), keys: new Set() }, n = insParPct();
+      if (n && !PAR_BUSY) {
+        PAR_BUSY = true;
+        try {
+          const rows = insShown("chg").filter(r => !r.t), d = rows.reduce((t, r) => t + insHT("chg", r), 0);
+          const G = new Map(); rows.forEach(r => { const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"); if (!G.has(key)) G.set(key, []); G.get(key).push(r); });
+          const it = []; G.forEach((g, key) => { if (g.length > 1 && CHG_GFOLD.has(key)) it.push({ g, key, v: g.reduce((t, x) => t + insHT("chg", x), 0) }); else g.forEach(r => it.push({ r, v: insHT("chg", r) })); });
+          it.sort((a, b) => b.v - a.v);
+          let acc = 0; for (const o of it) { if (acc >= d * n / 100 - 1e-9) break; acc += o.v; if (o.g) { out.keys.add(o.key); o.g.forEach(x => out.ids.add(x.id)); } else out.ids.add(o.r.id); }
+        } finally { PAR_BUSY = false; }
+        PAR_M = out; queueMicrotask(() => { PAR_M = null; });
       }
-      PAR_M = out; queueMicrotask(() => { PAR_M = null; });
       return out;
     };
+    /* ensemble filtrant (null = pas de filtre, ou calcul en cours) */
+    const insParSet = () => insParPct() && !PAR_BUSY ? insRgView(() => insPar()).ids : null;
     shell.__cfPar = (t, key) => t === insCfT("chg") && key === "pct" ? `<div class="cf-par">CHARGES QUI FONT <input class="cf-par-in" inputmode="numeric" value="${insParPct() || ""}"> %</div>` : "";
+    shell.__cfParOn = (t, key) => t === insCfT("chg") && key === "pct" && !!insParPct();
+    shell.__cfParClear = (t, key) => { if (t === insCfT("chg") && key === "pct" && INS && INS.chgPar) { INS.chgPar = ""; insSave(); } };
     shell.__cfParSet = (v, el) => {
       v = String(v || "").trim();
-      if (v !== "" && (!/^\d+$/.test(v) || Number(v) < 1 || Number(v) > 100)) { svToast("NOMBRE ENTIER DE 1 À 100 (VIDE = AUCUNE MISE EN FORME).", 3000, el); return; }
-      INS.hset = { ...(INS.hset || {}), pct: v === "" ? "" : Number(v) }; insSave(); histLog("SAISIE", "CHARGES QUI FONT", v === "" ? "AUCUNE" : v + " %"); refreshAll();
+      if (v !== "" && (!/^\d+$/.test(v) || Number(v) < 1 || Number(v) > 100)) { svToast("NOMBRE ENTIER DE 1 À 100 (VIDE = PAS DE FILTRE).", 3000, el); return; }
+      INS.chgPar = v === "" ? "" : Number(v); insSave(); histLog("SAISIE", "CHARGES QUI FONT", v === "" ? "FILTRE ENLEVÉ" : v + " %"); refreshAll();
     };
     /* v613 (point 9) : signe › / ⌄ dans l'en-tête de la colonne de désignation — un toucher replie tout, un autre déplie tout */
     const faKeys = kind => {
@@ -7155,7 +7182,7 @@ function renderBudgetList() {
         const on = !!cfT(k).f.v;
         return `
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
-          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${insCkBadge(k)}${insCntOwn(k, list.length, INS[k].length)}${k === "lot" ? shell.__faHTML("lot") : ""}</span>${onlyBtn(k, true)}<span class="cf-btn"
+          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${k === "lot" ? shell.__faHTML("lot") : ""}${title}${insCkBadge(k)}${insCntOwn(k, list.length, INS[k].length)}</span>${onlyBtn(k, true)}<span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${k === "sec" || k === "prim" ? `<span class="act-uh${cfT(k).f.u || (cfT(k).sort && cfT(k).sort.col === "u" && !cfT(k).sort.def) ? " cf-on" : ""}"><span class="act-uhl">U</span><span class="cf-btn" data-cf="${k}" data-col="u" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>` : ""}${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
           ${k === "lot" ? lotTreeHTML(list) : list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
@@ -8565,7 +8592,7 @@ function renderBudgetList() {
       /* v539 : onglet en bleu quand SON tableau a une loupe ou une case cochée (remarque 53 : seul l'onglet source) —
          les tâches cochées du DÉTAIL DÉLAIS comptent maintenant aussi */
       return {
-        chg: cfHasF(insCfT("chg")) || !!ONLYC.chg || own("chg") || !!insRg(),
+        chg: cfHasF(insCfT("chg")) || !!ONLYC.chg || own("chg") || !!insRg() || !!(INS.chgPar),
         prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || own("prd") || !!insRg() || !!shell.__prdNc,
         dly: ["dly", "dlyp", "dlys"].some(cfHasF) || !!(shell.__dlySel && shell.__dlySel.size),
         lnk: cfHasF("lk_marge") || (INS.links || []).some(l => l.on === true) || !!insRg(),
@@ -8580,13 +8607,14 @@ function renderBudgetList() {
       const nf = T.filter(cfHasF).length;
       const nc = K.reduce((t, k) => t + (INS[k] || []).filter(r => !r.t && r.on === true).length, 0)
         + (blk === "detail" && INS && INS_EDIT ? (INS.links || []).filter(l => l.on === true).length + (INS.inc || []).filter(x => x.on === true).length : 0);
-      return { T, K, n: nf + nc + (blk === "detail" && INS && insRg() ? 1 : 0) };
+      return { T, K, n: nf + nc + (blk === "detail" && INS && insRg() ? 1 : 0) + (blk === "detail" && INS && INS.chgPar ? 1 : 0) };
     };
     const insFiltClear = blk => {
       const P = insFiltPlan(blk);
       P.T.forEach(t => { if (CF[t]) CF[t].f = {}; });
       P.K.forEach(k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; });
       if (blk === "detail" && INS && INS_EDIT) { (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }); (INS.inc || []).forEach(x => { if (x.on === true) x.on = false; }); }
+      if (blk === "detail" && INS && INS.chgPar) INS.chgPar = "";   /* v622 : CHARGES QUI FONT n % */
       if (blk === "detail" && INS && insRg()) INS.hrange = { ...INS.hrange, a: "", b: "" };   /* v560 : traits DÉBUT et FIN remis aux bords */
       if (INS && INS_EDIT) insSave();
       ICL = null; refreshAll();
@@ -10050,7 +10078,7 @@ function renderBudgetList() {
           /* légende (R24) : par montant décroissant ; toutes les charges cochées = seulement celles qui font le % réglé, le reste en AUTRES */
           const totS = ks.map((sk, j) => [sk, days.reduce((t, di) => t + (HD.ser.get(sk).L[di] || 0), 0)]).sort((a, b) => b[1] - a[1]);
           const allOn = (INS.chg || []).filter(r => !r.t).every(r => r.on === true);
-          const pct = Math.max(1, Math.min(100, Number(hs.pct) || 70)), grand = totS.reduce((t, x) => t + x[1], 0) || 1;
+          const pct = Math.max(1, Math.min(100, Number(INS.chgPar) || 70)), grand = totS.reduce((t, x) => t + x[1], 0) || 1;
           const keep = new Set(); { let acc = 0; totS.forEach(([sk, v]) => { if (!allOn || acc < grand * pct / 100 - 1e-9) keep.add(sk); acc += v; }); }
           const col = {}; let ci = 0; totS.forEach(([sk]) => { col[sk] = keep.has(sk) ? DLY_SER[ci++ % DLY_SER.length] : "#7f5539"; });
           const order = totS.map(x => ks.indexOf(x[0]));
@@ -13136,6 +13164,8 @@ function renderBudgetList() {
       let R = R0;
       /* v599 : quelle que soit l'unité — rien de coché = toutes les charges ; lignes cochées ailleurs (lots, activités…) = leurs charges */
       if (!R) { const all = (INS.chg || []).filter(r => !r.t); let S = null; try { S = insCheckSet("chg"); } catch (e) { S = null; } R = S ? all.filter(r => S.has(r.id)) : all; if (!R.length) R = null; }
+      /* v622 : CHARGES QUI FONT n % — seulement ces charges */
+      { let PS = null; try { PS = insParSet(); } catch (e) { PS = null; } if (PS && R) { R = R.filter(r => PS.has(r.id)); if (!R.length) R = null; } }
       if (!R && !money) return null;
       const mode = money || !R ? "m" : dlyResMode(R), cal = insCal(), cur = dlyCurDates(), ser = new Map(), det = {}, tot = {};
       if (R) [...new Set(R.map(dlyResK))].forEach(sk => ser.set(sk, { L: {} }));
