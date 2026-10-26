@@ -1,6 +1,11 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzFgUloyiRJe-QmR7nRqJ4bfWqvfA_6LSgotJRrRt87yeRfWtdY7nxXMR9avafSJUPg4Q/exec";
 /* v634 : étapes de l'ouverture d'un budget (diagnostic d'un blocage, lues au démarrage suivant) */
-const sviStep = s => { try { localStorage.setItem("svi_step_v1", s); } catch (e) {} };
+const sviStep = s => { try {
+  localStorage.setItem("svi_step_v1", s);
+  /* v635 : 40 dernières étapes, avec l'heure (diagnostic d'ouverture bloquée) */
+  let L = []; try { L = JSON.parse(localStorage.getItem("svi_steps_v1") || "[]") || []; } catch (e) {}
+  L.push(new Date().toISOString().slice(11, 23) + " " + s); localStorage.setItem("svi_steps_v1", JSON.stringify(L.slice(-40)));
+} catch (e) {} };
 const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
 
 /* v513 : clavier d'une case — une case seulement SÉLECTIONNÉE (1er toucher) porte inputmode="none" pour que le clavier de l'iPad

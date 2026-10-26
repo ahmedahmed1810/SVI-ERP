@@ -44,9 +44,10 @@
       );
     };
 
-    stateLoad();
-    layInit();
-    refreshAll();
+    sviStep("RÉGLAGES DU BUDGET"); stateLoad();
+    sviStep("DISPOSITION"); layInit();
+    sviStep("CALCULS ET DESSIN"); refreshAll();
+    sviStep("OUVERT");
     {
       const n = docsLoad().length;
       updPill("doc");
@@ -253,11 +254,22 @@
       if (ref0) setTimeout(async () => { try {
         const v = await svChoose({ title: stuck ? "OUVERTURE BLOQUÉE" : "LISTE SEULE",
           html: `<div class="svc-sub">${stuck ? "LE BUDGET " + esc(stuck) + " N'A PAS PU S'OUVRIR LA DERNIÈRE FOIS : IL N'A PAS ÉTÉ ROUVERT." : "DERNIER BUDGET : " + esc(ref0) + " (NON ROUVERT)."}</div><div class="svc-sub">DERNIÈRE ÉTAPE : ${esc(step || "—")}</div>`,
-          buttons: [{ v: "dl", label: "TÉLÉCHARGER LE BUDGET", tone: "neutral" }, { v: "ok", label: "FERMER", tone: "neutral" }] });
+          buttons: [{ v: "dl", label: "TÉLÉCHARGER LE BUDGET", tone: "neutral" }, { v: "raz", label: "OUVRIR SANS SES RÉGLAGES", tone: "neutral" }, { v: "ok", label: "FERMER", tone: "neutral" }] });
+        /* v635 : essai — filtres, tris et vue mémorisés de CE budget mis de côté (gardés pour le fichier), puis ouverture */
+        if (v === "raz") {
+          const keep = {};
+          try { const k1 = "svi_bdgstate_v1:" + ref0; keep[k1] = localStorage.getItem(k1); localStorage.removeItem(k1);
+            const V = JSON.parse(localStorage.getItem("svi_vstate_v1") || "{}") || {}; keep.vstate = V["bdg:" + ref0] || null; delete V["bdg:" + ref0]; localStorage.setItem("svi_vstate_v1", JSON.stringify(V));
+            localStorage.setItem("svi_diag_old_v1", JSON.stringify(keep)); } catch (e) {}
+          if (groups.has(ref0)) openBudgetDetail(ref0);
+          return;
+        }
         if (v !== "dl") return;
         const b = (sviInstGet() || []).find(x => x.ref === ref0);
         if (!b) { sviAlert("BUDGET " + ref0 + " INTROUVABLE SUR L'APPAREIL.", "TÉLÉCHARGER"); return; }
-        const blob = new Blob([JSON.stringify({ step, budget: b })], { type: "application/json" }), a = document.createElement("a");
+        /* v635 : avec les étapes, l'appareil et tous les réglages gardés sur l'appareil (sauf la liste des budgets, déjà dans « budget ») */
+        const ls = {}; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k === SVI_INST_KEY) continue; const v = localStorage.getItem(k); if (v && v.length < 300000) ls[k] = v; } } catch (e) {}
+        const blob = new Blob([JSON.stringify({ step, steps: localStorage.getItem("svi_steps_v1") || "", ua: navigator.userAgent, vw: innerWidth + "x" + innerHeight, ls, budget: b })], { type: "application/json" }), a = document.createElement("a");
         a.href = URL.createObjectURL(blob); a.download = String(ref0).replace(/[^A-Z0-9-]+/gi, "_") + ".json"; document.body.appendChild(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(a.href); }, 2000);
       } catch (e) {} }, 400);
     } else if (last && groups.has(last)) {
