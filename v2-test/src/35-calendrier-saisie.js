@@ -31,7 +31,7 @@ function sviCal(anchor, { iso = "", dis = null, onPick }) {
   document.getElementById("svCal")?.remove();
   const box = document.createElement("div");
   box.id = "svCal";
-  box.__for = anchor;
+  box.__for = anchor; box.__t = Date.now();
   const today = sviIsoOf(new Date());
   let cur = iso ? new Date(iso + "T00:00:00") : new Date();
   if (isNaN(cur)) cur = new Date();
@@ -73,7 +73,9 @@ function sviCal(anchor, { iso = "", dis = null, onPick }) {
 function sviCalOpen(el) {
   if (!el || el.disabled) return;
   const ex = document.getElementById("svCal");
-  if (ex && ex.__for === el) return;
+  /* v618 (remarque 89) : DÉBUT / FIN du planning — 2e toucher, calendrier ouvert = saisie au clavier (17/10, 17 10 26…) */
+  if (ex && ex.__for === el) { if (el.matches("input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]") && Date.now() - (ex.__t || 0) > 450) sviDateType(el, ex); return; }
+  if (el.__typing) return;
   if (el.classList.contains("sv-date")) {
     const mn = el.getAttribute("min") || "", mx = el.getAttribute("max") || "";
     sviCal(el, { iso: el.value, dis: d => (mn && d < mn) || (mx && d > mx), onPick: d => {
@@ -1364,3 +1366,58 @@ document.addEventListener("focusout", e => {
   document.addEventListener("pointerup", stop, true);
   document.addEventListener("pointercancel", stop, true);
 })();
+
+/* v618 (remarque 89) : date tapée dans DÉBUT / FIN — le calendrier se ferme, la case s'ouvre à la saisie (tout sélectionné) ;
+   formats acceptés : 17/10, 17.10.26, 17 10 2026, 1710, 171026, 17102026 ; mêmes contrôles qu'une date choisie au calendrier */
+function sviDateType(el, cal) {
+  try { cal && cal.remove(); } catch (e) {}
+  el.__typing = true; el.__y0 = (String(el.value).match(/(\d{4})$/) || [])[1] || String(new Date().getFullYear());
+  el.readOnly = false; el.setAttribute("inputmode", "decimal");
+  el.focus(); setTimeout(() => { try { el.setSelectionRange(0, el.value.length); } catch (e) {} }, 0);
+  const off = () => { el.removeEventListener("blur", off); setTimeout(() => { el.__typing = false; el.readOnly = true; el.setAttribute("inputmode", "none"); }, 0); };
+  el.addEventListener("blur", off);
+}
+const sviDateNorm = (v, y0) => {
+  v = String(v || "").trim(); if (!v) return v;
+  let d, m, y;
+  const a = v.match(/^(\d{1,2})\D+(\d{1,2})(?:\D+(\d{2,4}))?$/), b = v.match(/^\d+$/);
+  if (a) { d = a[1]; m = a[2]; y = a[3]; }
+  else if (b && [4, 6, 8].includes(v.length)) { d = v.slice(0, 2); m = v.slice(2, 4); y = v.slice(4) || undefined; }
+  else return v;
+  y = !y ? y0 : y.length === 2 ? "20" + y : y;
+  return String(d).padStart(2, "0") + "/" + String(m).padStart(2, "0") + "/" + y;
+};
+document.addEventListener("change", e => {
+  const el = e.target;
+  if (!el || !el.matches || !el.matches("input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]") || !el.__typing) return;
+  const n = sviDateNorm(el.value, el.__y0);
+  if (n !== el.value) SVI_VAL.set.call(el, n);
+}, true);
+/* v618 (remarque 87, FORMAT 121) : case de nombre — chiffres seulement (une seule virgule pour les décimaux), le reste retiré
+   aussitôt avec « CHIFFRES SEULEMENT » près de la case */
+{
+  let tT = 0;
+  document.addEventListener("input", e => {
+    const el = e.target;
+    if (!el || el.tagName !== "INPUT" || el.__typing || el.matches(".dlp-in[data-f=deb], .dlp-in[data-f=fin]")) return;
+    const im = (el.getAttribute("inputmode") || "").toLowerCase();
+    if (im !== "numeric" && im !== "decimal") return;
+    const v = el.value;
+    let w = v.replace(/[\s\u00a0\u202f]/g, "");
+    if (im === "numeric") w = w.replace(/\D/g, "");
+    else { w = w.replace(/[^\d.,-]/g, "").replace(/(?!^)-/g, ""); let seen = false; w = w.replace(/[.,]/g, c => { if (seen) return ""; seen = true; return ","; }); }
+    const bad = v.replace(/[\s\u00a0\u202f]/g, "").replace(/\./g, ",") !== w;
+    if (w !== v) { SVI_VAL.set.call(el, w); try { el.setSelectionRange(w.length, w.length); } catch (err) {} }
+    if (bad && Date.now() - tT > 1500) { tT = Date.now(); try { svToast("CHIFFRES SEULEMENT", 1500, el); } catch (err) {} }
+  }, true);
+}
+/* v618 (remarque 87) : case seule (fenêtre, réglages, INF…) — un toucher ouvre la saisie avec tout le contenu sélectionné ;
+   dans les tableaux, la règle des deux touchers reste (1er = case choisie, 2e = saisie, tout sélectionné) */
+document.addEventListener("focusin", e => {
+  const el = e.target;
+  if (!el || el.tagName !== "INPUT" || el.readOnly || el.disabled || el.closest("td, th")) return;
+  if (!/^(text|number|search|tel|email|url|)$/.test((el.getAttribute("type") || "").toLowerCase())) return;
+  if (el.matches(".sv-date, .dlp-in")) return;
+  const sel = () => { try { if (document.activeElement === el) el.setSelectionRange(0, el.value.length); } catch (err) {} };
+  setTimeout(sel, 0); setTimeout(sel, 60);
+}, true);
