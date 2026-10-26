@@ -14107,27 +14107,68 @@ function renderBudgetList() {
             <tbody>${rows.map(x => `<tr class="lk-go-row" data-gk="${k}" data-gid="${esc(x.id)}">${C(k).map(c => `<td class="${c[3]}">${c[0] === "q" ? insFmt(x.q) : esc(c[2](x))}</td>`).join("")}</tr>`).join("")
               || `<tr><td colspan="4" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
         };
+        /* v619 (remarque 90) : une rubrique par ligne — produits, charges, délais et qualité de la chaîne ; saisie possible
+           (ligne ajoutée = choisie pour la liaison ; doublon refusé), bouton VALIDER / DÉLIER aussi en bas */
+        const addRow = k => `<div class="lki-add" data-k="${k}"><input class="lki-d" placeholder="${k === "prd" ? "DÉSIGNATION PRODUIT" : "DÉSIGNATION CHARGE"}" autocomplete="off"><input class="lki-u" placeholder="${k === "prd" ? "UPB" : "UCB"}" autocomplete="off"><input class="lki-q" inputmode="decimal" placeholder="${k === "prd" ? "QPB" : "QCB"}" autocomplete="off">${k === "chg" ? '<input class="lki-p" inputmode="decimal" placeholder="PCB" autocomplete="off">' : ""}<button type="button" class="doc-btn lki-plus" data-k="${k}">+ AJOUTER</button></div>`;
+        const tKey = () => LK.lot && LK.sec ? LK.lot + "|" + LK.sec : "";
+        const dlyBlk = () => {
+          const k = tKey();
+          if (!k) return `<div class="doc-lab" style="margin-top:12px">DÉTAIL DÉLAIS</div><div class="lk-info-why">CHOISIR LE LOT ET L'ACTIVITÉ SECONDAIRE.</div>`;
+          const P = ((INS.dlp || {})[k] || [])[0] || {}, cal = insCal(), dur = P.deb && P.fin ? sviWDur(cal, P.deb, P.fin) : "";
+          return `<div class="doc-lab" style="margin-top:12px">DÉTAIL DÉLAIS</div><div class="lki-dly" data-task="${esc(k)}"><span class="doc-lab">DÉBUT</span><input type="date" class="lki-deb" value="${esc(P.deb || "")}"><span class="doc-lab">FIN</span><input type="date" class="lki-fin" value="${esc(P.fin || "")}"><span class="doc-lab">DURÉE (J)</span><b>${esc(String(dur))}</b></div>`;
+        };
+        const body2 = () => tbl("prd", "DÉTAIL PRODUITS") + addRow("prd") + tbl("chg", "DÉTAIL CHARGES") + addRow("chg") + dlyBlk()
+          + `<div class="doc-lab" style="margin-top:12px">DÉTAIL QUALITÉ</div><div><button type="button" class="doc-btn lki-qlt">OUVRIR DÉTAIL QUALITÉ</button></div>`;
+        const goBtn = () => { const b = $("insChain") && $("insChain").querySelector(".lk-go"); return b ? b.outerHTML.replace('class="lk-go', 'class="lk-go lki-gob') : ""; };
         const p = document.createElement("div");
         p.id = "docPop";
         p.innerHTML = `<div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
             <div class="doc-head"><span class="doc-title">LIAISON EN COURS</span><button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button></div>
             <div class="doc-body">
               <div class="lk-info-st${same ? " ok" : ""}">${st}</div>${why ? `<div class="lk-info-why">VALIDATION IMPOSSIBLE : ${esc(why)}</div>` : ""}
-              <div class="doc-grid">
-                <span class="doc-lab">DÉSIGNATION</span><span class="lk-info-v lk-go-row" data-gk="des" data-gid="${esc(LK.des || "")}">${n("des", LK.des)}</span>
+              <div class="doc-grid doc-grid-2">
+                <span class="doc-lab">DÉSIGNATION CLIENT</span><span class="lk-info-v lk-go-row" data-gk="des" data-gid="${esc(LK.des || "")}">${n("des", LK.des)}</span>
                 <span class="doc-lab">LOT</span><span class="lk-info-v lk-go-row" data-gk="lot" data-gid="${esc(LK.lot || "")}">${n("lot", LK.lot)}</span>
                 <span class="doc-lab">ACTIVITÉ PRIMAIRE</span><span class="lk-info-v lk-go-row" data-gk="prim" data-gid="${esc(LK.prim || "")}">${n("prim", LK.prim)}</span>
                 <span class="doc-lab">ACTIVITÉ SECONDAIRE</span><span class="lk-info-v lk-go-row" data-gk="sec" data-gid="${esc(LK.sec || "")}">${n("sec", LK.sec)}</span>
               </div>
-              <div class="lk-info-t">${tbl("prd", "DÉTAIL PRODUITS")}${tbl("chg", "DÉTAIL CHARGES")}</div>
+              <div class="lk-info-t">${body2()}</div>
             </div>
-            <div class="doc-foot"><span></span><button type="button" class="doc-btn" data-cancel>FERMER</button></div>
+            <div class="doc-foot"><span class="lki-go">${goBtn()}</span><button type="button" class="doc-btn" data-cancel>FERMER</button></div>
           </div>`;
         document.body.appendChild(p);
         try { popEnhance(p, "lkinfo"); } catch (e) {}
+        const redraw = () => { if (!p.isConnected) return; const b = p.querySelector(".lk-info-t"); if (b) b.innerHTML = body2(); const g = p.querySelector(".lki-go"); if (g) g.innerHTML = goBtn(); };
+        p.addEventListener("change", e => {
+          const di = e.target.closest(".lki-deb, .lki-fin"), X = shell.__insDly, box = di && di.closest(".lki-dly");
+          if (!di || !box) return;
+          const task = box.dataset.task, P = (((INS.dlp || {})[task] || [])[0]) || {}, q = { id: P.id || insId(), deb: P.deb || "", fin: P.fin || "" };
+          q[di.classList.contains("lki-deb") ? "deb" : "fin"] = di.value;
+          if (q.deb && !sviWork(insCal(), q.deb) || q.fin && !sviWork(insCal(), q.fin)) { svToast("JOUR NON TRAVAILLÉ DANS LE CALENDRIER DU BUDGET.", 3500, di); redraw(); return; }
+          if (q.deb && q.fin && q.fin < q.deb) { svToast("LA FIN EST AVANT LE DÉBUT.", 3500, di); redraw(); return; }
+          if (X && X.apply) X.apply(task, q, { anchor: di }); else { INS.dlp = INS.dlp || {}; INS.dlp[task] = [q]; insSave(); }
+          refreshAll(); setTimeout(redraw, 300);
+        });
         p.addEventListener("click", e => {
           const cfb = e.target.closest(".cf-btn");
           if (cfb) { e.stopPropagation(); cfOpenMenu(cfb); return; }
+          if (e.target.closest(".lki-qlt")) { p.remove(); window.__sviInfoRefresh = null; shell.querySelector('#bdgTabs .bdg-d-tab[data-tab="qlt"]')?.click(); return; }
+          const gb = e.target.closest(".lki-gob");
+          if (gb) { e.stopPropagation(); const b = $("insChain") && $("insChain").querySelector(".lk-go"); if (b) b.click(); setTimeout(redraw, 400); return; }
+          const pl = e.target.closest(".lki-plus");
+          if (pl) {
+            const k = pl.dataset.k, row = pl.closest(".lki-add"), v = c => String((row.querySelector(c) || {}).value || "").trim().toUpperCase();
+            const des = v(".lki-d"), u = v(".lki-u"), qv = v(".lki-q"), pv = v(".lki-p");
+            if (!des || !u) { svToast("DÉSIGNATION ET UNITÉ OBLIGATOIRES.", 3000, pl); return; }
+            const dup = (INS[k] || []).find(r => !r.t && U_(r.des) === U_(des) && U_(r.u) === U_(u));
+            if (dup) { svToast("DOUBLON : " + des + " (" + u + ") EXISTE DÉJÀ — LE CHOISIR DANS " + (k === "prd" ? "DÉTAIL PRODUITS" : "DÉTAIL CHARGES") + ".", 4000, pl); return; }
+            const r = { id: insId(), des, u, q: qv === "" ? "" : num(qv), on: false };
+            if (k === "chg") r.p = pv === "" ? "" : num(pv);
+            INS[k].push(r); LK[k][r.id] = "";
+            insSave(); histLog("LIAISONS", "LIGNE AJOUTÉE (LIAISON EN COURS)", (k === "prd" ? "PRODUIT " : "CHARGE ") + des);
+            refreshAll(); insRenderChain(); setTimeout(redraw, 200);
+            return;
+          }
           if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); window.__sviInfoRefresh = null; return; }
           /* v476 (remarque 2) : toucher une ligne = aller à cette ligne dans son bloc */
           const g = e.target.closest(".lk-go-row");
@@ -14145,7 +14186,7 @@ function renderBudgetList() {
           if (k === "prd" || k === "chg") { const t = shell.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`); if (t && !t.classList.contains("active")) { t.click(); setTimeout(go, 250); return; } }
           go();
         });
-        window.__sviInfoRefresh = () => { const b = p.isConnected && p.querySelector(".lk-info-t"); if (b) b.innerHTML = tbl("prd", "DÉTAIL PRODUITS") + tbl("chg", "DÉTAIL CHARGES"); };
+        window.__sviInfoRefresh = redraw;
       },
       isLinked: (k, id) => { const S = lkLinked(); return !!(S[k] && S[k].has(id)); },
       save: what => { insSave(); histLog("LIAISONS", what, fullRef); } } : null;
@@ -24861,7 +24902,8 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
    du coin haut gauche, Effacer (⌫) = vider les cases sélectionnées
    ========================================================= */
 (() => {
-  const TSEL = "table.ins-table, table.sd-t, table.dly-table, table.qq-table, table.inc-table, table.prm-table";
+  /* v619 (remarque 88) : sélection de cases (Maj = plage, Ctrl / Cmd = case ajoutée ou retirée) dans tous les tableaux, comme en SAISIE DIRECTE */
+  const TSEL = "table.ins-table, table.sd-t, table.dly-table, table.qq-table, table.inc-table, table.prm-table, table.mg-table, table.lk-table, table.dpk-t, table.bdg-d-table";
   const S = { tbl: null, a: null, b: null, extra: new Set(), cut: new Set() };
   const posOf = td => { const tr = td.closest("tr"); return tr && tr.parentElement && tr.parentElement.tagName === "TBODY" ? { r: tr.sectionRowIndex, c: td.cellIndex } : null; };
   const tdAt = (tbl, r, c) => { const tr = tbl.tBodies[0] && tbl.tBodies[0].rows[r]; return tr ? tr.cells[c] || null : null; };
@@ -24945,6 +24987,9 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
         else if (S.extra.has(k)) S.extra.delete(k); else S.extra.add(k);
       }
       paint();
+    } else if (!e.shiftKey && !e.metaKey && !e.ctrlKey && !td.querySelector("input, select, textarea, button")) {
+      /* v619 : case sans saisie (MARGE, LIAISONS…) — un toucher en fait la case de départ */
+      S.tbl = tbl; S.a = p; S.b = null; S.extra.clear(); S.tk = (sviCellKey(td) || {}).t || null; paint();
     } else if ((e.metaKey || e.ctrlKey) && !S.a) {
       /* première case touchée avec Ctrl / Cmd : elle devient la case de départ */
       S.tbl = tbl; S.a = p; S.b = null; S.extra.clear(); S.tk = (sviCellKey(td) || {}).t || null; paint();
