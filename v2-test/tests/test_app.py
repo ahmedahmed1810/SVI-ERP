@@ -120,6 +120,20 @@ def main():
         check("DÉTAIL CHARGES : colonne TÂCHE (remarque 3)", "TÂCHE" in th and "RDC › BETONNAGE" in task, [th[-80:], task[:80]])
         fit = pg.evaluate("() => { const sc = document.querySelector('.bdg-d-tabbody .bdg-d-scroll') || document.querySelector('table.ins-table[data-ik=\"chg\"]').parentElement; const t = sc.querySelector('table'); return [t.getBoundingClientRect().width, sc.clientWidth]; }")
         check("DÉTAIL CHARGES : tableau dans la largeur du bloc (remarque 3)", fit[0] <= fit[1] + 1, fit)
+        # v626 : activités jumelles renommées en doublon — une seule fenêtre DOUBLON, la secondaire ET sa primaire fusionnées ;
+        # ↶ ne remet jamais l'état avec le doublon ; un doublon présent est signalé dans ⚠
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; window.__z6 = JSON.stringify([I.sec, I.prim]); I.sec.push({{ id: 'zs1', v: 'ZZ UN', u: 'M2' }}, {{ id: 'zs2', v: 'ZZ DEUX', u: 'M2' }}); I.prim.push({{ id: 'zp1', v: 'ZZ UN', tw: 'zs1' }}, {{ id: 'zp2', v: 'ZZ DEUX', tw: 'zs2' }}); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(1200)
+        pg.evaluate("""() => { const i = document.querySelector('.ins-hcol[data-ik="sec"] .ins-li[data-iid="zs2"] input.ins-in[data-f="v"]'); if (!i) return; i.focus(); i.value = 'ZZ UN'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); }"""); pg.wait_for_timeout(600)
+        z1 = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
+        pg.evaluate("() => document.querySelector('#svConf [data-v=\"merge\"]')?.click()"); pg.wait_for_timeout(1000)
+        z2 = pg.evaluate(f"() => {{ const I = {ins}.INS; return [!!document.querySelector('#svConf'), I.sec.filter(r => /^ZZ/.test(r.v)).length, I.prim.filter(r => /^ZZ/.test(r.v)).length]; }}")
+        pg.evaluate("() => document.getElementById('instUndo')?.click()"); pg.wait_for_timeout(700)
+        z3 = pg.evaluate(f"() => {{ const I = {ins}.INS; const n = k => {{ const S = I[k].filter(r => /^ZZ/.test(r.v)).map(r => r.v); return S.length - new Set(S).size; }}; return [n('sec'), n('prim')]; }}")
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.prim.push({{ id: 'zp9', v: 'ZZ NEUF' }}, {{ id: 'zp8', v: 'ZZ NEUF' }}); X.refreshAll(); }}"""); pg.wait_for_timeout(500)
+        z4 = pg.evaluate("() => { const t = document.querySelector('#instTodo b'); return t ? t.textContent : ''; }")
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; const B = JSON.parse(window.__z6); I.sec = B[0]; I.prim = B[1]; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(400)
+        check("v626 : jumelles renommées en doublon — une seule fenêtre, secondaire et primaire fusionnées ; ↶ sans doublon ; doublon compté dans ⚠",
+              z1 == "DOUBLON" and z2 == [False, 1, 1] and z3 == [0, 0] and z4 != "", [z1, z2, z3, z4])
         # v613 (point 8) : colonne % = part du total des charges retenues — les lignes affichées (titres repliés compris) font 100 %
         pc = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'); if (!t) return null; const hs = [...t.tHead.rows[0].cells].map(c => c.textContent.trim()); const i = hs.findIndex(h => h.startsWith('%')); if (i < 0) return ['nocol', hs.join('|')];
             const v = [...t.tBodies[0].rows].filter(tr => !tr.classList.contains('ins-new')).map(tr => tr.cells[i] && ((tr.cells[i].querySelector('input') || {}).value || tr.cells[i].textContent).replace(/\u202f|\s|%/g, '').replace(',', '.')).filter(x => x).map(Number);

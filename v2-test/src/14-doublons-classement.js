@@ -51,6 +51,7 @@
       return { links: out, err };
     };
     const dupMerge = (k, keep, drop, links) => {
+      const dupTw = k === "prim" ? INS.sec.find(s => s.id === (INS.prim.find(p => p.id === drop) || {}).tw) || null : null;   /* v626 */
       INS.links = links;
       /* délais : clés « lot|act. scd » reportées */
       if ((k === "lot" || k === "sec") && INS.dlp) {
@@ -62,6 +63,13 @@
       }
       INS[k] = INS[k].filter(r => r.id !== drop);
       histLog("SAISIE", "DOUBLON FUSIONNÉ", DUP_LAB[k] + " — " + dupName(k, INS[k].find(r => r.id === keep) || {}));
+      /* v626 : activités jumelles (primaire ↔ secondaire du même nom) fusionnées ensemble, en une seule confirmation */
+      if (k === "sec" || k === "prim") {
+        const tk = k === "sec" ? "prim" : "sec";
+        const twOf = id => k === "sec" ? INS.prim.find(p => p.tw === id) : (() => { const p0 = INS.prim.find(p => p.id === id); return p0 && INS.sec.find(s => s.id === p0.tw); })();
+        const a = twOf(keep), b = k === "sec" ? INS.prim.find(p => p.tw === drop) : dupTw;
+        if (a && b && a !== b && U_(a.v) === U_(b.v)) { const m2 = dupMerged(tk, a.id, b.id); if (!m2.err) { INS.links = m2.links; INS[tk] = INS[tk].filter(r => r.id !== b.id); if (tk === "prim") a.tw = keep; histLog("SAISIE", "DOUBLON FUSIONNÉ", DUP_LAB[tk] + " — " + U_(a.v) + " (JUMELLE)"); } }
+      }
     };
     /* fenêtre DOUBLON ; renvoie "merge" ou "back" */
     const dupAsk = async (k, keepR, dropR, opts = {}) => {
@@ -92,6 +100,12 @@
         if (!k || !DUP_LAB[k]) return;
         const id = inp.closest("[data-iid]")?.dataset.iid || (X.INS[k][X.INS[k].length - 1] || {}).id;
         const r = X.INS[k].find(x => x.id === id);
+        /* v626 : activité secondaire jumelle d'une primaire — renommées ensemble (comme dans le PLANNING) */
+        let twR = null, twOld = "";
+        if (k === "sec" && r && inp.dataset.f === "v" && shell.__dupOld && shell.__dupOld.id === r.id) {
+          const o = shell.__dupOld.row, p = X.INS.prim.find(q => q.tw === r.id && U_(q.v) === U_(o.v));
+          if (p) { twR = p; twOld = p.v; p.v = r.v; }
+        }
         /* FORMAT 88 : même désignation (ART + DÉSIGNATION ; produit : DÉSIGNATION) avec une autre unité → refusée */
         if (k === "des" && r && !r.t && U_(r.des) && U_(r.u)) {
           const o = X.INS[k].find(x => x.id !== r.id && !x.t && U_(x.des) === U_(r.des) && U_(x.u) && U_(x.u) !== U_(r.u));
@@ -132,6 +146,7 @@
         const v = await X.ask(k, other, r, { typed: true, backLabel: old ? "RÉTABLIR" : "EFFACER LA SAISIE" });
         if (v === "back") {
           if (old) Object.assign(r, old); else X.INS[k] = X.INS[k].filter(x => x.id !== r.id);
+          if (twR) twR.v = twOld;
         }
         X.save(); X.refresh();
       }, true);
@@ -255,10 +270,12 @@
     /* doublons déjà présents (anciens budgets, imports) : proposés à l'ouverture, un par un ; IGNORER = plus redemandé pendant la séance */
     /* DOUBLON EXISTANT (FORMAT 103) : une seule fenêtre pour tous les doublons du budget ;
        sélecteur ‹ i/N › (liste au toucher du numéro), IGNORER / FUSIONNER / IGNORER TOUS / FUSIONNER TOUS */
-    const dupExisting = async () => {
+    const dupExisting = async (force) => {
       if (!INS || !INS_EDIT || shell.__dupBusy) return;
       let skip = {};
       try { skip = JSON.parse(sessionStorage.getItem("svi_dupskip") || "{}"); } catch (e) {}
+      /* v626 : un doublon exact ne s'ignore plus (seulement les intitulés presque identiques) */
+      if (force) Object.keys(skip).forEach(x => { if (!x.includes("|near|")) delete skip[x]; });
       const items = [];
       Object.keys(DUP_LAB).forEach(k => {
         const seen = new Map();
@@ -294,9 +311,9 @@
             <ul class="svc-list dup-ul svc-scroll">${dupLi(it.k, it.keep)}${dupLi(it.k, it.drop)}</ul>
             ${m.err ? `<div class="svc-sub svc-warn">FUSION IMPOSSIBLE : ${esc(m.err)}</div>` : `<div class="svc-sub">FUSIONNER : UNE SEULE LIGNE, TOUTES LES LIAISONS REPORTÉES.</div>`}</div>
           <div class="svc-f dupx-f">
-            <button type="button" class="svc-b" data-a="ignall">IGNORER TOUS</button>
+            ${items.some(x => x.near) ? `<button type="button" class="svc-b" data-a="ignall">IGNORER LES PRESQUE IDENTIQUES</button>` : ""}
             <button type="button" class="svc-b svc-ok" data-a="mergeall">FUSIONNER TOUS</button>
-            <button type="button" class="svc-b" data-a="ign">IGNORER</button>
+            ${it.near ? `<button type="button" class="svc-b" data-a="ign">IGNORER</button>` : ""}
             <button type="button" class="svc-b svc-ok" data-a="merge"${m.err ? " disabled" : ""}>FUSIONNER</button>
           </div></div>`;
       };
@@ -315,7 +332,7 @@
         const it = items[cur];
         if (a.dataset.a === "ign") { ignore(it); items.splice(cur, 1); draw(); return; }
         if (a.dataset.a === "merge") { const m = dupMerged(it.k, it.keep.id, it.drop.id); if (!m.err) { dupMerge(it.k, it.keep.id, it.drop.id, m.links); changed = true; } items.splice(cur, 1); draw(); return; }
-        if (a.dataset.a === "ignall") { items.forEach(ignore); items.length = 0; finish(); return; }
+        if (a.dataset.a === "ignall") { for (let n = items.length - 1; n >= 0; n--) if (items[n].near) { ignore(items[n]); items.splice(n, 1); } cur = 0; draw(); return; }
         if (a.dataset.a === "mergeall") {
           /* v492 (remarque 11) : FUSIONNER TOUS sans seconde confirmation (↶ ANNULER permet de revenir en arrière) */
           const n = items.length;
@@ -333,6 +350,9 @@
         }
       });
     };
+    shell.__dupExisting = f => dupExisting(f);
+    /* v626 : doublons exacts du budget (pour la fenêtre ⚠) — par tableau */
+    const dupCount = () => { const out = []; Object.keys(DUP_LAB).forEach(k => { const seen = new Set(); (INS[k] || []).forEach(r => { const key = dupKeyOf(k, r); if (!key) return; if (seen.has(key)) out.push({ k, r }); else seen.add(key); }); }); return out; };
     /* FORMAT 108 : produits du budget avec NBR vide ou 0 → déliés, retirés, mis dans IMPORT NON CRÉÉ (après confirmation) */
     const insNbrFix = async () => {
       if (!INS || !INS_EDIT || shell.__nbrBusy) return;
