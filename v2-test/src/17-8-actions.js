@@ -44,7 +44,7 @@
         renderTabK();
       },
       /* R29 : affichage PAR LOT / PAR DÉBUT (vue, mémorisée par budget) ; R28 : zone touchée en dernier */
-      view: () => dlyView(), viewSet: v => { dlyViewSet(v); keepScroll(() => renderTab()); }, zone: () => shell.__dlyZone || "gantt",
+      cutOK: () => dlyCutOK(), cutSet: v => dlyCutSet(v), view: () => dlyView(), viewSet: v => { dlyViewSet(v); keepScroll(() => renderTab()); }, zone: () => shell.__dlyZone || "gantt",
       /* R15 : repère d'une tâche à 0 jour glissé vers la droite = lui donner une durée (n jours travaillés) */
       giveDur: (k, at, n, a) => { const cal = insCal(), deb = sviWNear(cal, at, 1); dlyApply(k, { deb, fin: sviWFin(cal, deb, Math.max(1, n)) }, { anchor: a }); },
       /* v461 : menu d'un lot ou d'un niveau (appui long) : ISOLER / TOUT AFFICHER */
@@ -204,7 +204,7 @@
               const pdur = pc.fin ? sviWDur(cal, pc.deb, pc.fin) || 1 : 0;
               let nf = null;
               if (x.t === "DD") { const lim = sviWAdd(cal, sviWNear(cal, c.deb, 1), -Math.max(0, x.o || 0)); if (pc.deb > lim) nf = { deb: lim }; }
-              else { const lim = sviWAdd(cal, c.deb, -Math.max(0, x.o || 0)), f = pc.fin || pc.deb; if (f > lim) nf = { fin: sviWNear(cal, lim, -1) }; }
+              else { const lim = sviWAdd(cal, c.deb, -(1 + Math.max(0, x.o || 0))), f = pc.fin || pc.deb; if (f > lim) nf = { fin: sviWNear(cal, lim, -1) }; }
               if (!nf) return;
               if (nf.deb) N[x.k] = { deb: nf.deb, fin: pdur ? sviWFin(cal, nf.deb, pdur) : "" };
               else N[x.k] = pdur ? { deb: sviWDeb(cal, nf.fin, pdur), fin: nf.fin } : { deb: nf.fin, fin: "" };

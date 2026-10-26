@@ -2,12 +2,15 @@
        une tâche commence au plus tôt le jour de la fin de tous ses prédécesseurs ===== */
     const dlyName = key => { const [lo, se] = String(key).split("|"); return lkName("lot", lo) + " › " + lkName("sec", se); };
     /* liaisons typées : { k, t: FD | DD, o } (cahier, Planning budgétaire, Liaisons) */
-    const dlyLinks = key => ((INS.dpred || {})[key] || []).map(x => typeof x === "string" ? { k: x, t: "FD", o: 1 } : x);
+    /* v617 (remarque 86) : FIN → DÉBUT, le décalage compte depuis la demi-journée qui suit la fin — les anciens décalages n ≥ 1
+       (comptés depuis le jour de fin) deviennent n − 1, une seule fois par budget */
+    const dlyMig86 = () => { if (!INS || INS.dmig86) return; INS.dmig86 = 1; Object.values(INS.dpred || {}).forEach(L => (L || []).forEach(x => { if (x && typeof x === "object" && x.t !== "DD" && x.o > 0) x.o -= 1; })); };
+    const dlyLinks = key => { dlyMig86(); return ((INS.dpred || {})[key] || []).map(x => typeof x === "string" ? { k: x, t: "FD", o: 0 } : x); };
     const dlyPreds = key => dlyLinks(key).map(x => x.k);
     const dlySuccs = key => Object.keys(INS.dpred || {}).filter(k => dlyLinks(k).some(x => x.k === key));
     const dlyLinkTxt = x => (x.t === "DD" ? "DD" : "FD") + "+" + (x.o || 0);
     /* PRÉDÉCESSEURS affichés : « LOT › ACTIVITÉ SECONDAIRE », avec le type et le décalage s'ils ne sont pas FIN → DÉBUT + 0 */
-    const dlyPredTxt = k => dlyLinks(k).map(x => dlyName(x.k) + (x.t === "DD" ? (x.o ? " (DÉBUT → DÉBUT + " + x.o + " J)" : " (DÉBUT → DÉBUT)") : (x.o || 0) === 1 ? "" : " (FIN → DÉBUT" + (!(x.o > 0) ? ", MÊME JOUR" : " + " + x.o + " J") + ")")).join(" ; ");
+    const dlyPredTxt = k => dlyLinks(k).map(x => dlyName(x.k) + (x.t === "DD" ? (x.o ? " (DÉBUT → DÉBUT + " + x.o + " J)" : " (DÉBUT → DÉBUT)") : !(x.o > 0) ? "" : " (FIN → DÉBUT + " + x.o + " J)")).join(" ; ");
     /* v546 (R27) : SUCCESSEURS affichés (lecture seule), avec le type de la liaison */
     const dlySuccTxt = k => dlySuccs(k).map(s2 => { const x = dlyLinks(s2).find(y => y.k === k) || {}; return dlyName(s2) + " (" + (x.t === "DD" ? "DÉBUT → DÉBUT" : "FIN → DÉBUT") + ")"; }).join(" ; ");
     const dlyList = key => (LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
@@ -19,8 +22,11 @@
       const cal = insCal();
       return dlyLinks(key).map(x => {
         if (x.t === "DD") { const d0 = debOf(x.k); return d0 ? sviWAdd(cal, sviWNear(cal, d0, 1), Math.max(0, x.o || 0)) : ""; }
-        /* v544 : FIN → DÉBUT, décalage 0 = le jour même où finit le prédécesseur, 1 = le lendemain… (jamais négatif) */
-        const f0 = finOf(x.k); return f0 ? sviWAdd(cal, f0, Math.max(0, x.o || 0)) : "";
+        /* v617 (remarque 86) : FIN → DÉBUT, décalage 0 = la demi-journée qui suit la fin du prédécesseur (le jour même s'il finit à midi,
+           sinon le lendemain) ; n = n jours travaillés de plus ; jamais négatif */
+        const f0 = finOf(x.k); if (!f0) return "";
+        const lp = dlyList(x.k).find(p => p.fin === f0), base = lp && lp.fmd === lp.fin ? f0 : sviWAdd(cal, f0, 1);
+        return sviWAdd(cal, base, Math.max(0, x.o || 0));
       }).filter(Boolean).sort().pop() || "";
     };
     const dlyPredFin = key => dlyNeedOf(key, dlyFin, dlyDeb);

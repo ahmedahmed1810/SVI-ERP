@@ -278,7 +278,7 @@
       /* type et décalage de chaque liaison (FIN → DÉBUT, 0 par défaut ; jamais négatif) */
       const meta = {};
       if (!add) dlyLinks(key).forEach(x => { meta[x.k] = { t: x.t === "DD" ? "DD" : "FD", o: Math.max(0, Number(x.o) || 0) }; });
-      const mt = k => meta[k] || (meta[k] = { t: "FD", o: 1 });
+      const mt = k => meta[k] || (meta[k] = { t: "FD", o: 0 });
       let lot = ([...sel][0] || "").split("|")[0] || (INS.lot.find(x => !x.t) || {}).id || "";
       const d = document.createElement("div");
       d.id = "svConf";

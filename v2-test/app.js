@@ -9277,12 +9277,15 @@ function renderBudgetList() {
        une tâche commence au plus tôt le jour de la fin de tous ses prédécesseurs ===== */
     const dlyName = key => { const [lo, se] = String(key).split("|"); return lkName("lot", lo) + " › " + lkName("sec", se); };
     /* liaisons typées : { k, t: FD | DD, o } (cahier, Planning budgétaire, Liaisons) */
-    const dlyLinks = key => ((INS.dpred || {})[key] || []).map(x => typeof x === "string" ? { k: x, t: "FD", o: 1 } : x);
+    /* v617 (remarque 86) : FIN → DÉBUT, le décalage compte depuis la demi-journée qui suit la fin — les anciens décalages n ≥ 1
+       (comptés depuis le jour de fin) deviennent n − 1, une seule fois par budget */
+    const dlyMig86 = () => { if (!INS || INS.dmig86) return; INS.dmig86 = 1; Object.values(INS.dpred || {}).forEach(L => (L || []).forEach(x => { if (x && typeof x === "object" && x.t !== "DD" && x.o > 0) x.o -= 1; })); };
+    const dlyLinks = key => { dlyMig86(); return ((INS.dpred || {})[key] || []).map(x => typeof x === "string" ? { k: x, t: "FD", o: 0 } : x); };
     const dlyPreds = key => dlyLinks(key).map(x => x.k);
     const dlySuccs = key => Object.keys(INS.dpred || {}).filter(k => dlyLinks(k).some(x => x.k === key));
     const dlyLinkTxt = x => (x.t === "DD" ? "DD" : "FD") + "+" + (x.o || 0);
     /* PRÉDÉCESSEURS affichés : « LOT › ACTIVITÉ SECONDAIRE », avec le type et le décalage s'ils ne sont pas FIN → DÉBUT + 0 */
-    const dlyPredTxt = k => dlyLinks(k).map(x => dlyName(x.k) + (x.t === "DD" ? (x.o ? " (DÉBUT → DÉBUT + " + x.o + " J)" : " (DÉBUT → DÉBUT)") : (x.o || 0) === 1 ? "" : " (FIN → DÉBUT" + (!(x.o > 0) ? ", MÊME JOUR" : " + " + x.o + " J") + ")")).join(" ; ");
+    const dlyPredTxt = k => dlyLinks(k).map(x => dlyName(x.k) + (x.t === "DD" ? (x.o ? " (DÉBUT → DÉBUT + " + x.o + " J)" : " (DÉBUT → DÉBUT)") : !(x.o > 0) ? "" : " (FIN → DÉBUT + " + x.o + " J)")).join(" ; ");
     /* v546 (R27) : SUCCESSEURS affichés (lecture seule), avec le type de la liaison */
     const dlySuccTxt = k => dlySuccs(k).map(s2 => { const x = dlyLinks(s2).find(y => y.k === k) || {}; return dlyName(s2) + " (" + (x.t === "DD" ? "DÉBUT → DÉBUT" : "FIN → DÉBUT") + ")"; }).join(" ; ");
     const dlyList = key => (LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
@@ -9294,8 +9297,11 @@ function renderBudgetList() {
       const cal = insCal();
       return dlyLinks(key).map(x => {
         if (x.t === "DD") { const d0 = debOf(x.k); return d0 ? sviWAdd(cal, sviWNear(cal, d0, 1), Math.max(0, x.o || 0)) : ""; }
-        /* v544 : FIN → DÉBUT, décalage 0 = le jour même où finit le prédécesseur, 1 = le lendemain… (jamais négatif) */
-        const f0 = finOf(x.k); return f0 ? sviWAdd(cal, f0, Math.max(0, x.o || 0)) : "";
+        /* v617 (remarque 86) : FIN → DÉBUT, décalage 0 = la demi-journée qui suit la fin du prédécesseur (le jour même s'il finit à midi,
+           sinon le lendemain) ; n = n jours travaillés de plus ; jamais négatif */
+        const f0 = finOf(x.k); if (!f0) return "";
+        const lp = dlyList(x.k).find(p => p.fin === f0), base = lp && lp.fmd === lp.fin ? f0 : sviWAdd(cal, f0, 1);
+        return sviWAdd(cal, base, Math.max(0, x.o || 0));
       }).filter(Boolean).sort().pop() || "";
     };
     const dlyPredFin = key => dlyNeedOf(key, dlyFin, dlyDeb);
@@ -9661,7 +9667,7 @@ function renderBudgetList() {
       if (late.length) {
         const fromDur = opts.fromDur || (durOld && q.deb && q.fin && sviWDur(cal, q.deb, q.fin) !== durOld);
         const maxFin = dlySuccs(task).map(S => { const l = dlyLinks(S).find(x => x.k === task), d0 = dlyDeb(S);
-          return l && l.t !== "DD" && d0 ? sviWAdd(cal, d0, -Math.max(0, l.o || 0)) : ""; }).filter(Boolean).sort()[0] || "";
+          return l && l.t !== "DD" && d0 ? sviWAdd(cal, d0, -(1 + Math.max(0, l.o || 0))) : ""; }   /* v617 (remarque 86) */).filter(Boolean).sort()[0] || "";
         const canCut = fromDur && maxFin && q.deb && maxFin >= q.deb;
         svChoose({ title: "TÂCHES SUIVANTES", html: `<div class="svc-sub">LA FIN DU ${esc(dFr(q.fin))} NE RESPECTE PLUS LA LIAISON AVEC :</div><ul class="svc-list">${late.map(k => `<li>${esc(dlyName(k))} — DÉBUT ${esc(dFr(dlyDeb(k)))}, AU PLUS TÔT ${esc(dFr(dlyPredFin(k)))}${esc(hidTxt(k))}</li>`).join("")}</ul>`,
           buttons: [...(canCut ? [{ v: "cut", label: "RÉDUIRE LA DURÉE", tone: "neutral" }] : []), { v: "shift", label: "DÉCALER LES TÂCHES SUIVANTES", tone: "neutral" }] }).then(r => {
@@ -10721,7 +10727,7 @@ function renderBudgetList() {
       /* type et décalage de chaque liaison (FIN → DÉBUT, 0 par défaut ; jamais négatif) */
       const meta = {};
       if (!add) dlyLinks(key).forEach(x => { meta[x.k] = { t: x.t === "DD" ? "DD" : "FD", o: Math.max(0, Number(x.o) || 0) }; });
-      const mt = k => meta[k] || (meta[k] = { t: "FD", o: 1 });
+      const mt = k => meta[k] || (meta[k] = { t: "FD", o: 0 });
       let lot = ([...sel][0] || "").split("|")[0] || (INS.lot.find(x => !x.t) || {}).id || "";
       const d = document.createElement("div");
       d.id = "svConf";
@@ -12052,7 +12058,7 @@ function renderBudgetList() {
         renderTabK();
       },
       /* R29 : affichage PAR LOT / PAR DÉBUT (vue, mémorisée par budget) ; R28 : zone touchée en dernier */
-      view: () => dlyView(), viewSet: v => { dlyViewSet(v); keepScroll(() => renderTab()); }, zone: () => shell.__dlyZone || "gantt",
+      cutOK: () => dlyCutOK(), cutSet: v => dlyCutSet(v), view: () => dlyView(), viewSet: v => { dlyViewSet(v); keepScroll(() => renderTab()); }, zone: () => shell.__dlyZone || "gantt",
       /* R15 : repère d'une tâche à 0 jour glissé vers la droite = lui donner une durée (n jours travaillés) */
       giveDur: (k, at, n, a) => { const cal = insCal(), deb = sviWNear(cal, at, 1); dlyApply(k, { deb, fin: sviWFin(cal, deb, Math.max(1, n)) }, { anchor: a }); },
       /* v461 : menu d'un lot ou d'un niveau (appui long) : ISOLER / TOUT AFFICHER */
@@ -12212,7 +12218,7 @@ function renderBudgetList() {
               const pdur = pc.fin ? sviWDur(cal, pc.deb, pc.fin) || 1 : 0;
               let nf = null;
               if (x.t === "DD") { const lim = sviWAdd(cal, sviWNear(cal, c.deb, 1), -Math.max(0, x.o || 0)); if (pc.deb > lim) nf = { deb: lim }; }
-              else { const lim = sviWAdd(cal, c.deb, -Math.max(0, x.o || 0)), f = pc.fin || pc.deb; if (f > lim) nf = { fin: sviWNear(cal, lim, -1) }; }
+              else { const lim = sviWAdd(cal, c.deb, -(1 + Math.max(0, x.o || 0))), f = pc.fin || pc.deb; if (f > lim) nf = { fin: sviWNear(cal, lim, -1) }; }
               if (!nf) return;
               if (nf.deb) N[x.k] = { deb: nf.deb, fin: pdur ? sviWFin(cal, nf.deb, pdur) : "" };
               else N[x.k] = pdur ? { deb: sviWDeb(cal, nf.fin, pdur), fin: nf.fin } : { deb: nf.fin, fin: "" };
@@ -12705,6 +12711,9 @@ function renderBudgetList() {
     /* date de début du projet (INF), sinon celle de la génération, sinon le premier début */
     const dlyProjStart = () => INS.pdeb || INS.gdeb || dlyKeys().map(dlyDeb).filter(Boolean).sort()[0] || sviIsoOf(new Date());
     /* demi-journées d'une période : début à midi, fin à midi */
+    /* v617 (remarque 85) : AUTORISER LA COUPE DES TÂCHES (menu ⋯ de DÉTAIL DÉLAIS ; cochée au départ) */
+    const dlyCutOK = () => !INS || INS.dcut !== false;
+    const dlyCutSet = on => { INS.dcut = !!on; insSave(); histLog("DÉLAIS", "COUPE DES TÂCHES", on ? "AUTORISÉE" : "INTERDITE"); renderTabK(); };
     const dlyHalfS = p => !!(p && p.deb && p.dmd === p.deb);
     const dlyHalfE = p => !!(p && p.fin && p.fmd === p.fin);
     /* DURÉE (J) d'une tâche : jours travaillés, moins les demi-journées (1,5 J…) */
@@ -12788,6 +12797,28 @@ function renderBudgetList() {
           return { a: st, b: st + own - 1 };
         }
         if (!rel.length) return { a: s0, b: s0 - 1, zero: true };
+        /* v617 (remarque 85) : coupe des tâches interdite — on cherche le premier départ d'où la tâche va au bout sans arrêt
+           (d'autres tâches passent avant, dans le trou, liaisons respectées) */
+        if (!dlyCutOK()) {
+          let st = s0;
+          for (let tr = 0; tr < 4000; tr++) {
+            let rem2 = 1, a2 = null, b2 = st, s2 = st, gap = -1;
+            const tk = [], cn = {}, gt = [], loc = {}, U2 = (i, x) => U(i, x) + ((loc[i] || {})[x] || 0);
+            for (let g = 0; rem2 > 1e-9 && g < 40000; g++, s2++) {
+              let f = rem2, li = -1; const FR = {};
+              rel.forEach(i => { const c = capAt(G[i], s2), fr = FR[i] = rdF(G[i], k, s2); const al = c === Infinity ? (own ? fr / own : .5 * fr / q[i]) : Math.max(0, c - U2(i, s2)) * fr / q[i]; if (al < f - 1e-12) { f = al; li = i; } });
+              if (f <= 1e-9 && li >= 0 && capAt(G[li], s2) === 0 && dead(G[li], s2)) throw { dlyStuck: true };
+              if (f <= 1e-9) { if (a2 !== null) { gap = s2; break; } continue; }
+              if (li >= 0) cn[li] = (cn[li] || 0) + 1;
+              rel.forEach(i => { const v = f * q[i] / (FR[i] || 1); tk.push([i, s2, v]); (loc[i] = loc[i] || {})[s2] = ((loc[i] || {})[s2] || 0) + v; });
+              rem2 -= f; if (a2 === null) a2 = s2; b2 = s2; gt.push(s2);
+            }
+            if (gap >= 0) { st = gap + 1; continue; }
+            tk.forEach(([i, x, v]) => take(i, x, v));
+            if (!dry) { const best = Object.keys(cn).sort((x, y) => cn[y] - cn[x])[0]; if (best !== undefined) lim[k] = G[best].gk; }
+            return { a: a2 === null ? st : a2, b: b2, got: gt };
+          }
+        }
         let rem = 1, a = null, b = s0, s = s0;
         const cnt = {}, got = [];
         for (let g = 0; rem > 1e-9 && g < 40000; g++, s++) {
@@ -12830,8 +12861,8 @@ function renderBudgetList() {
           if (!P) return;
           if (x.t === "DD") e = Math.max(e, slotOf(sviWAdd(cal, D[x.k].deb, Math.max(0, x.o || 0))) + (D[x.k].dm ? 1 : 0));
           /* v544 : 0 = le jour même (dès qu'il reste des ouvriers libres), n = n jours travaillés après la fin */
-          else if (!(x.o > 0)) e = Math.max(e, P.b + 1);
-          else e = Math.max(e, slotOf(sviWAdd(cal, D[x.k].fin || D[x.k].deb, x.o)));
+          /* v617 (remarque 86) : FIN → DÉBUT, décalage 0 = la demi-journée qui suit la fin ; n = n jours travaillés de plus (jamais négatif) */
+          else e = Math.max(e, P.b + 1 + 2 * Math.max(0, x.o || 0));
         });
         /* une seule date : elle sert d'ancrage (R26) */
         const d0 = deb(k), f0 = dlyFin(k);
@@ -12855,7 +12886,10 @@ function renderBudgetList() {
     const dlyChainO = (a, b, D) => {
       const da = D[a] || { deb: dlyDeb(a), fin: dlyFin(a) }, dbb = D[b] || { deb: dlyDeb(b) };
       const cal = insCal(), fa = da.fin || da.deb, db = dbb.deb;
-      return db > fa ? Math.max(1, (Number(sviWDur(cal, fa, db)) || 2) - 1) : 0;
+      /* v617 (remarque 86) : décalage compté depuis la demi-journée qui suit la fin (le jour même si la fin est à midi) */
+      const half = D[a] ? !!D[a].fm : (() => { const lp = dlyList(a).find(p => p.fin === fa); return !!(lp && lp.fmd === lp.fin); })();
+      const base = half ? fa : sviWAdd(cal, fa, 1);
+      return db > base ? Math.max(0, (Number(sviWDur(cal, base, db)) || 1) - 1) : 0;
     };
     /* y a-t-il quelque chose à gagner ? (R27) */
     const dlyCanCompress = (opts = {}) => {
@@ -13310,6 +13344,7 @@ function renderBudgetList() {
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         const x = e.target.closest(".pcs-x");
         if (x && rows.length > 1) { rows.splice(Number(x.dataset.i), 1); draw(); return; }
+        if (e.target.closest("[data-add]") && !dlyCutOK()) { svToast("COUPE DES TÂCHES INTERDITE : COCHER AUTORISER LA COUPE DES TÂCHES (MENU ⋯ DU PLANNING).", 4000, e.target.closest("[data-add]")); return; }
         if (e.target.closest("[data-add]")) { const l = rows[rows.length - 1], a = sviWAdd(cal, l.fin, 2); rows.push({ id: insId(), deb: a, fin: a }); draw(); return; }
         if (e.target.closest("[data-glue]") && rows.length > 1) {
           const tot = rows.reduce((t, r) => t + (Number(dDur(r.deb, r.fin)) || 1), 0), a = rows[0].deb;
@@ -13328,6 +13363,7 @@ function renderBudgetList() {
           else if (INS.dbut && r.fin > INS.dbut) err = "FIN REFUSÉE : APRÈS LA DATE BUTOIR DU " + dFr(INS.dbut) + ".";
         });
         if (!err && pf && R[0].deb < pf) err = "DÉBUT REFUSÉ : LES LIAISONS IMPOSENT LE " + dFr(pf) + " AU PLUS TÔT.";
+        if (!err && R.length > 1 && !dlyCutOK()) err = "COUPE DES TÂCHES INTERDITE : RECOLLER LES MORCEAUX OU AUTORISER LA COUPE (MENU ⋯ DU PLANNING).";
         if (err) { svToast(err, 3500, d.querySelector("[data-ok]")); return; }
         const L = dlyDraftKey(k);
         L.splice(0, L.length, ...R.map(r => ({ id: r.id, deb: r.deb, fin: r.fin })));
@@ -21241,7 +21277,7 @@ function renderBudgetList() {
            affichage du Gantt = CALENDRIER DU BUDGET, réglages de l'histogramme = ⚙ */
         const vw = DX.view();
         const ck = (v, lab, on, off) => `<button type="button" data-dly="${v}" class="dly-sc${on ? " on" : ""}${off ? " off" : ""}"${off ? ` data-why="${esc(off)}"` : ""}><span>${on ? "✓ " : ""}${lab}</span></button>`;
-        m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">PLANNING</div>${ck("v-d", "AFFICHER PAR DÉBUT", vw === "d")}`   /* v561 : plus d'AFFICHER PAR LOT ni de CLASSER PAR DÉBUT ; AFFICHER PAR DÉBUT à deux états */
+        m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">PLANNING</div>${ck("v-d", "AFFICHER PAR DÉBUT", vw === "d")}${ck("cut", "AUTORISER LA COUPE DES TÂCHES", DX.cutOK())}`   /* v561 : plus d'AFFICHER PAR LOT ni de CLASSER PAR DÉBUT ; AFFICHER PAR DÉBUT à deux états */
           /* v553 (partie 11, remarque 3) : plus d'entrée « + AJOUTER UNE TÂCHE OU SES DÉLAIS » */
           + `<div class="blk-sep"></div>`   /* v572 (remarque 17) : réglages des commandes dans RÉGLAGES DU GRAPHIQUE ⚙ */);
         let lp = null;
@@ -21256,6 +21292,7 @@ function renderBudgetList() {
           const v = b.dataset.dly;
           if (v === "appr") DX.apprWin(); else if (v === "add") DX.addWin();
           else if (v === "v-d") DX.viewSet(DX.view() === "d" ? "l" : "d");
+          else if (v === "cut") DX.cutSet(!DX.cutOK());   /* v617 (remarque 85) */
         }, true);
       }
       if (QQm && QQm.edit()) {
