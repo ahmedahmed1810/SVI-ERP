@@ -242,9 +242,18 @@
   renderRows();
 
   /* réouverture du dernier budget consulté */
+  /* v633 : si la dernière ouverture n'est pas allée au bout (application bloquée), le budget n'est PAS rouvert
+     (marque posée avant l'ouverture, enlevée 4 s après) ; « ?liste » dans l'adresse = jamais de réouverture */
   try {
-    const last = localStorage.getItem("svi_lastbdg_v1");
-    if (last && groups.has(last)) openBudgetDetail(last);
+    const last = localStorage.getItem("svi_lastbdg_v1"), stuck = localStorage.getItem("svi_opening_v1");
+    if (stuck || /[?&#]liste\b/i.test(location.href)) {
+      localStorage.removeItem("svi_opening_v1");
+      if (stuck) setTimeout(() => { try { sviAlert("LE BUDGET " + stuck + " N'A PAS PU S'OUVRIR LA DERNIÈRE FOIS : IL N'A PAS ÉTÉ ROUVERT. TOUCHER SA LIGNE POUR RÉESSAYER.", "OUVERTURE BLOQUÉE"); } catch (e) {} }, 400);
+    } else if (last && groups.has(last)) {
+      localStorage.setItem("svi_opening_v1", last);
+      openBudgetDetail(last);
+      setTimeout(() => { try { localStorage.removeItem("svi_opening_v1"); } catch (e) {} }, 4000);
+    }
   } catch (e) {}
 }
 
