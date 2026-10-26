@@ -201,7 +201,7 @@
         <div class="svc-sub lkw-ps"><span><b>PRÉDÉCESSEUR :</b> ${esc(dlyName(pred))}</span><span><b>SUCCESSEUR :</b> ${esc(dlyName(succ))}</span></div>
         <div class="bdt-row"><span>TYPE</span><select class="lkw-t"><option value="FD"${l.t !== "DD" ? " selected" : ""}>FIN → DÉBUT</option><option value="DD"${l.t === "DD" ? " selected" : ""}>DÉBUT → DÉBUT</option></select></div>
         <div class="bdt-row"><span>DÉCALAGE (J)</span><input class="lkw-o" inputmode="numeric" value="${Math.max(0, Number(l.o) || 0)}"></div>
-        <div class="svc-sub lkw-hint">FIN → DÉBUT : 0 = LE JOUR MÊME OÙ FINIT LA PRÉCÉDENTE, 1 = LE LENDEMAIN, 2 = UN JOUR LIBRE ENTRE LES DEUX.</div>
+        <div class="svc-sub lkw-hint">FIN → DÉBUT : 0 = LA DEMI-JOURNÉE QUI SUIT LA FIN DE LA PRÉCÉDENTE, 1 = UN JOUR LIBRE ENTRE LES DEUX, 2 = DEUX JOURS…</div>
         <div class="svc-f"><button type="button" class="svc-b svc-ok lkw-del">✕ DÉLIER</button><span style="flex:1"></span><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
       document.getElementById("svConf")?.remove();
       document.body.appendChild(d);

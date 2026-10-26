@@ -381,6 +381,14 @@ const sviDpredV2 = d => {
   d.fdV2 = true;
   return true;
 };
+/* v625 (remarque 86) : décalage FIN → DÉBUT compté depuis la demi-journée qui suit la fin — conversion unique à l'ouverture
+   (après V2) : ancien n ≥ 1 → n − 1 ; les dates ne bougent pas */
+const sviDpredV3 = d => {
+  if (!d || d.dmig86) return false;
+  Object.keys(d.dpred || {}).forEach(k => { d.dpred[k] = (d.dpred[k] || []).map(x => x && typeof x === "object" && x.t !== "DD" && x.o > 0 ? { ...x, o: x.o - 1 } : x); });
+  d.dmig86 = 1;
+  return true;
+};
 /* ===== CALENDRIER DU BUDGET (15/10/2026) : jours non travaillés récurrents (0 = dimanche … 6 = samedi),
    dates non travaillées (off) et dates rendues travaillées (on). Par défaut : le dimanche. ===== */
 const SVI_CAL_DEF = { we: [0], off: [], on: [] };

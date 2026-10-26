@@ -382,6 +382,14 @@ const sviDpredV2 = d => {
   d.fdV2 = true;
   return true;
 };
+/* v625 (remarque 86) : décalage FIN → DÉBUT compté depuis la demi-journée qui suit la fin — conversion unique à l'ouverture
+   (après V2) : ancien n ≥ 1 → n − 1 ; les dates ne bougent pas */
+const sviDpredV3 = d => {
+  if (!d || d.dmig86) return false;
+  Object.keys(d.dpred || {}).forEach(k => { d.dpred[k] = (d.dpred[k] || []).map(x => x && typeof x === "object" && x.t !== "DD" && x.o > 0 ? { ...x, o: x.o - 1 } : x); });
+  d.dmig86 = 1;
+  return true;
+};
 /* ===== CALENDRIER DU BUDGET (15/10/2026) : jours non travaillés récurrents (0 = dimanche … 6 = samedi),
    dates non travaillées (off) et dates rendues travaillées (on). Par défaut : le dimanche. ===== */
 const SVI_CAL_DEF = { we: [0], off: [], on: [] };
@@ -5719,7 +5727,7 @@ function renderBudgetList() {
     const DLYG_REF = (budget.inst && budget.inst.ref) || budget.ref || "";
     const dlygMine = o => !!o && (o.ins === INS || (DLYG_REF && o.ref === DLYG_REF));
     if (INS) { const vs = window.__sviViewGet && window.__sviViewGet("bdg:" + budget.inst.ref); if (vs && typeof vs.w === "number" && vs.w >= 0) { shell.__dlygW = { ins: INS, ref: DLYG_REF, w: vs.w, auto: false }; if (vs.pw) shell.__dlygPrevW = vs.pw; } if (vs && vs.gx !== undefined) shell.__dlyGx = vs.gx; }
-    const INS_DLP_MIG = !!INS && (sviDlpSec(INS) | sviDlpOne(INS) | sviDpredTyped(INS) | sviDpredV2(INS)) > 0;
+    const INS_DLP_MIG = !!INS && (sviDlpSec(INS) | sviDlpOne(INS) | sviDpredTyped(INS) | sviDpredV2(INS) | sviDpredV3(INS)) > 0;
     /* calendrier du budget (jours travaillés) : durées et décalages en jours travaillés */
     const insCal = () => sviCalOf(INS);
     /* budget en instance (rouge) : les charges venues de CHS suivent CHS (prix, TVA, unité…) ;
@@ -9666,7 +9674,7 @@ function renderBudgetList() {
         <div class="svc-sub lkw-ps"><span><b>PRÉDÉCESSEUR :</b> ${esc(dlyName(pred))}</span><span><b>SUCCESSEUR :</b> ${esc(dlyName(succ))}</span></div>
         <div class="bdt-row"><span>TYPE</span><select class="lkw-t"><option value="FD"${l.t !== "DD" ? " selected" : ""}>FIN → DÉBUT</option><option value="DD"${l.t === "DD" ? " selected" : ""}>DÉBUT → DÉBUT</option></select></div>
         <div class="bdt-row"><span>DÉCALAGE (J)</span><input class="lkw-o" inputmode="numeric" value="${Math.max(0, Number(l.o) || 0)}"></div>
-        <div class="svc-sub lkw-hint">FIN → DÉBUT : 0 = LE JOUR MÊME OÙ FINIT LA PRÉCÉDENTE, 1 = LE LENDEMAIN, 2 = UN JOUR LIBRE ENTRE LES DEUX.</div>
+        <div class="svc-sub lkw-hint">FIN → DÉBUT : 0 = LA DEMI-JOURNÉE QUI SUIT LA FIN DE LA PRÉCÉDENTE, 1 = UN JOUR LIBRE ENTRE LES DEUX, 2 = DEUX JOURS…</div>
         <div class="svc-f"><button type="button" class="svc-b svc-ok lkw-del">✕ DÉLIER</button><span style="flex:1"></span><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
       document.getElementById("svConf")?.remove();
       document.body.appendChild(d);
@@ -19688,7 +19696,7 @@ function renderBudgetList() {
           </div>`;
       }
       const wsum = cols.reduce((t, c) => t + (COLW[c[0]] || 10), 0);
-      const fmt = (v, k) => k === "tva" ? money(Number(v) || 0) + " %" : typeof v === "number" ? money(v) : String(v ?? "");
+      const fmt = (v, k) => k === "tva" || (k === "pct" && v !== "" && v !== null && v !== undefined) ? money(Number(v) || 0) + " %" :   /* v625 : colonne % (DÉTAIL CHARGES, MARGE) */ typeof v === "number" ? money(v) : String(v ?? "");
       const al = c => /number/.test(c[3] || "") ? "r" : /center/.test(c[3] || "") ? "c" : "";
       const body = rows.map(r => "<tr>" + cols.map(c => `<td class="${al(c)}">${esc(fmt(c[2](r), c[0]))}</td>`).join("") + "</tr>").join("");
       printModel({
