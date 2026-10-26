@@ -245,7 +245,7 @@
       {
         const HH = dlyHHpx;
         if (!HH) hist = "";
-        else if (!HD) hist = `<div class="ghist ghist-empty" style="width:${W}px;height:${HH}px"><div class="ghist-msg">SÉLECTIONNER DES CHARGES</div></div>`;
+        else if (!HD) hist = `<div class="ghist ghist-empty" style="width:${W}px;height:${HH}px"><div class="ghist-msg">${(INS.chg || []).some(r => !r.t) ? "AUCUNE CHARGE POUR LES FILTRES EN COURS" : "AUCUNE CHARGE DANS CE BUDGET : SAISIR LE DÉTAIL CHARGES"}</div></div>`;
         else {
           /* v546 : R20 valeur par morceau, R24 capacité en MONTANT, échelle abrégée, légende (70 %), R28 cumul = une courbe,
              R29 courbes CHARGES / PRODUITS / MARGE */
