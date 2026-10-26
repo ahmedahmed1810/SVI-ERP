@@ -1,5 +1,7 @@
 /* ⟪ src/00-socle.js ⟫ */
 const API_URL = "https://script.google.com/macros/s/AKfycbzFgUloyiRJe-QmR7nRqJ4bfWqvfA_6LSgotJRrRt87yeRfWtdY7nxXMR9avafSJUPg4Q/exec";
+/* v634 : étapes de l'ouverture d'un budget (diagnostic d'un blocage, lues au démarrage suivant) */
+const sviStep = s => { try { localStorage.setItem("svi_step_v1", s); } catch (e) {} };
 const API_KEY = "nZYYROPFeFXBims8v4NCPcbXG8Nl";
 
 /* v513 : clavier d'une case — une case seulement SÉLECTIONNÉE (1er toucher) porte inputmode="none" pour que le clavier de l'iPad
@@ -4740,6 +4742,9 @@ function renderBudgetList() {
 
 /* ⟪ src/11-budget-ouverture.js ⟫ */
   function openBudgetDetail(ref) {
+    sviStep("OUVERTURE " + ref);
+    /* v634 : ouverture en cours — si l'application bloque, le budget ne sera pas rouvert au démarrage suivant */
+    try { localStorage.setItem("svi_opening_v1", ref); setTimeout(() => { try { localStorage.removeItem("svi_opening_v1"); } catch (e) {} }, 4000); } catch (e) {}
     const budget =
       groups.get(ref);
 
@@ -9805,6 +9810,7 @@ function renderBudgetList() {
     };
 /* ⟪ src/17-3-gantt-dessin.js ⟫ */
     const dlyGanttDraw = () => {
+      sviStep("PLANNING : DESSIN");
       const host = shell.querySelector("#dlyGantt");
       if (!host || host.__drawn) return;
       dlyRhApply(dlyRhGet());
@@ -9867,7 +9873,9 @@ function renderBudgetList() {
       const cal = insCal(), tr0 = tbl.getBoundingClientRect();
       let dlyHHpx = dlyHHGet() === "full" ? 300 : dlyHHGet();
       const hasH = !!shell.querySelector(".dlyg-hh");   /* v594 : la poignée peut déjà être dans le pied (graphique fixe en bas) */
+      sviStep("PLANNING : DONNÉES DU GRAPHIQUE");
       const HD = dlyHistData();
+      sviStep("PLANNING : BARRES ET GRAPHIQUE");
       const thH = tbl.querySelector("thead").getBoundingClientRect().height;
       const trs = [...tbl.querySelectorAll("tbody tr")];
       const geo = trs.map(tr => { const r = tr.getBoundingClientRect(); return { y: r.top - tr0.top - thH, h: r.height }; });
@@ -10297,7 +10305,9 @@ function renderBudgetList() {
       host.__X = X; host.__d0 = d0; host.__HD = HD;
       /* v594 (remarque longue 2) : graphique et poignée « = » dans un PIED FIXE sous la zone des tâches (hors de ce qui défile) :
          ils ne bougent plus pendant le défilement vertical ; le pied défile seulement à l'horizontale, avec le Gantt */
+      sviStep("PLANNING : PIED DU GRAPHIQUE");
       dlyFoot(host, hist);
+      sviStep("PLANNING : FIN DU DESSIN");
       /* v628 : barre choisie par un appui long (HISTOGRAMME) — gardée en évidence après un nouveau dessin */
       if (shell.__dlyBarSel) shell.querySelectorAll(`.dlyg-foot .ghb[data-d="${shell.__dlyBarSel}"]`).forEach(b => b.classList.add("ghb-sel"));
       try { dlyPickPaint(); } catch (e) {}
@@ -14862,7 +14872,7 @@ function renderBudgetList() {
       let c = { ok: false, why: "" }; try { c = shell.__insDly.keys().length ? { ok: true } : { ok: false, why: "AUCUNE TÂCHE AU PLANNING." }; } catch (e) {}
       b.classList.toggle("off", !c.ok); if (c.ok) delete b.dataset.why; else b.dataset.why = c.why;
     };
-    const renderTab = () => { renderTab0(); sviMarkEmptyTabs(shell); try { dlyAdjPaint(); } catch (e) {} };
+    const renderTab = () => { sviStep("ONGLET : " + active); renderTab0(); sviStep("ONGLET DESSINÉ : " + active); sviMarkEmptyTabs(shell); try { dlyAdjPaint(); } catch (e) {} };
     const renderTab0 = () => {
       shell
         .querySelectorAll("#bdgTabs .bdg-d-tab")
@@ -22145,11 +22155,20 @@ function renderBudgetList() {
     const last = localStorage.getItem("svi_lastbdg_v1"), stuck = localStorage.getItem("svi_opening_v1");
     if (stuck || /[?&#]liste\b/i.test(location.href)) {
       localStorage.removeItem("svi_opening_v1");
-      if (stuck) setTimeout(() => { try { sviAlert("LE BUDGET " + stuck + " N'A PAS PU S'OUVRIR LA DERNIÈRE FOIS : IL N'A PAS ÉTÉ ROUVERT. TOUCHER SA LIGNE POUR RÉESSAYER.", "OUVERTURE BLOQUÉE"); } catch (e) {} }, 400);
+      /* v634 : dernière étape atteinte + TÉLÉCHARGER LE BUDGET (fichier à envoyer pour trouver la cause) */
+      const ref0 = stuck || last, step = localStorage.getItem("svi_step_v1") || "";
+      if (ref0) setTimeout(async () => { try {
+        const v = await svChoose({ title: stuck ? "OUVERTURE BLOQUÉE" : "LISTE SEULE",
+          html: `<div class="svc-sub">${stuck ? "LE BUDGET " + esc(stuck) + " N'A PAS PU S'OUVRIR LA DERNIÈRE FOIS : IL N'A PAS ÉTÉ ROUVERT." : "DERNIER BUDGET : " + esc(ref0) + " (NON ROUVERT)."}</div><div class="svc-sub">DERNIÈRE ÉTAPE : ${esc(step || "—")}</div>`,
+          buttons: [{ v: "dl", label: "TÉLÉCHARGER LE BUDGET", tone: "neutral" }, { v: "ok", label: "FERMER", tone: "neutral" }] });
+        if (v !== "dl") return;
+        const b = (sviInstGet() || []).find(x => x.ref === ref0);
+        if (!b) { sviAlert("BUDGET " + ref0 + " INTROUVABLE SUR L'APPAREIL.", "TÉLÉCHARGER"); return; }
+        const blob = new Blob([JSON.stringify({ step, budget: b })], { type: "application/json" }), a = document.createElement("a");
+        a.href = URL.createObjectURL(blob); a.download = String(ref0).replace(/[^A-Z0-9-]+/gi, "_") + ".json"; document.body.appendChild(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(a.href); }, 2000);
+      } catch (e) {} }, 400);
     } else if (last && groups.has(last)) {
-      localStorage.setItem("svi_opening_v1", last);
       openBudgetDetail(last);
-      setTimeout(() => { try { localStorage.removeItem("svi_opening_v1"); } catch (e) {} }, 4000);
     }
   } catch (e) {}
 }

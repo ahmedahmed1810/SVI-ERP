@@ -1,4 +1,7 @@
   function openBudgetDetail(ref) {
+    sviStep("OUVERTURE " + ref);
+    /* v634 : ouverture en cours — si l'application bloque, le budget ne sera pas rouvert au démarrage suivant */
+    try { localStorage.setItem("svi_opening_v1", ref); setTimeout(() => { try { localStorage.removeItem("svi_opening_v1"); } catch (e) {} }, 4000); } catch (e) {}
     const budget =
       groups.get(ref);
 

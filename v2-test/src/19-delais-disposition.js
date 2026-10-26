@@ -39,7 +39,7 @@
       let c = { ok: false, why: "" }; try { c = shell.__insDly.keys().length ? { ok: true } : { ok: false, why: "AUCUNE TÂCHE AU PLANNING." }; } catch (e) {}
       b.classList.toggle("off", !c.ok); if (c.ok) delete b.dataset.why; else b.dataset.why = c.why;
     };
-    const renderTab = () => { renderTab0(); sviMarkEmptyTabs(shell); try { dlyAdjPaint(); } catch (e) {} };
+    const renderTab = () => { sviStep("ONGLET : " + active); renderTab0(); sviStep("ONGLET DESSINÉ : " + active); sviMarkEmptyTabs(shell); try { dlyAdjPaint(); } catch (e) {} };
     const renderTab0 = () => {
       shell
         .querySelectorAll("#bdgTabs .bdg-d-tab")

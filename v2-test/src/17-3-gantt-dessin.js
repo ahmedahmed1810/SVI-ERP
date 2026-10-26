@@ -1,4 +1,5 @@
     const dlyGanttDraw = () => {
+      sviStep("PLANNING : DESSIN");
       const host = shell.querySelector("#dlyGantt");
       if (!host || host.__drawn) return;
       dlyRhApply(dlyRhGet());
@@ -61,7 +62,9 @@
       const cal = insCal(), tr0 = tbl.getBoundingClientRect();
       let dlyHHpx = dlyHHGet() === "full" ? 300 : dlyHHGet();
       const hasH = !!shell.querySelector(".dlyg-hh");   /* v594 : la poignée peut déjà être dans le pied (graphique fixe en bas) */
+      sviStep("PLANNING : DONNÉES DU GRAPHIQUE");
       const HD = dlyHistData();
+      sviStep("PLANNING : BARRES ET GRAPHIQUE");
       const thH = tbl.querySelector("thead").getBoundingClientRect().height;
       const trs = [...tbl.querySelectorAll("tbody tr")];
       const geo = trs.map(tr => { const r = tr.getBoundingClientRect(); return { y: r.top - tr0.top - thH, h: r.height }; });
@@ -491,7 +494,9 @@
       host.__X = X; host.__d0 = d0; host.__HD = HD;
       /* v594 (remarque longue 2) : graphique et poignée « = » dans un PIED FIXE sous la zone des tâches (hors de ce qui défile) :
          ils ne bougent plus pendant le défilement vertical ; le pied défile seulement à l'horizontale, avec le Gantt */
+      sviStep("PLANNING : PIED DU GRAPHIQUE");
       dlyFoot(host, hist);
+      sviStep("PLANNING : FIN DU DESSIN");
       /* v628 : barre choisie par un appui long (HISTOGRAMME) — gardée en évidence après un nouveau dessin */
       if (shell.__dlyBarSel) shell.querySelectorAll(`.dlyg-foot .ghb[data-d="${shell.__dlyBarSel}"]`).forEach(b => b.classList.add("ghb-sel"));
       try { dlyPickPaint(); } catch (e) {}
