@@ -60,6 +60,7 @@
       }
       const n = body.length, left = (INS.inc || []).length - before;
       histLog("IMPORT", "COLLER (RÉIMPORT)", n + " LIGNE(S)" + (left > 0 ? " — " + left + " NON CRÉÉE(S)" : ""));
+      setTimeout(() => { try { shell.__dupExisting && shell.__dupExisting(true); } catch (e) {} }, 700);   /* v626 : doublons créés par le collage → fenêtre DOUBLON EXISTANT */
       insSave(); refreshAll();
     };
     const clipPick = (blk, cut) => {
@@ -155,6 +156,7 @@
       X.INS[k].push(...fresh);
       insNorm(); X.cleanLinks(); X.insSave();
       histLog("SAISIE", "COLLER LES LIGNES", fresh.length + " LIGNE(S) — PRESSE-PAPIERS");
+      setTimeout(() => { try { shell.__dupExisting && shell.__dupExisting(true); } catch (e) {} }, 700);   /* v626 : doublons créés par le collage → fenêtre DOUBLON EXISTANT */
       refreshAll();
       if (bad.length) sviAlert([fresh.length + " LIGNE(S) AJOUTÉE(S) EN BAS.", "CASES REFUSÉES :", ...bad.map(b => "— " + b)].join("\n"), "COLLER LES LIGNES");
       else svToast(fresh.length + " LIGNE(S) AJOUTÉE(S) EN BAS.", 2500);
@@ -194,6 +196,7 @@
       }
       insSortAll(); insNorm(); X.cleanLinks(); X.insSave();
       histLog("SAISIE", "COLLER", n + " LIGNE(S) — DEPUIS " + (c.from || ""));
+      setTimeout(() => { try { shell.__dupExisting && shell.__dupExisting(true); } catch (e) {} }, 700);   /* v626 : doublons créés par le collage → fenêtre DOUBLON EXISTANT */
       refreshAll();
     };
     /* ===== FORMAT 116 : sélection d'une colonne (toucher sur son titre) → COPIER / COUPER / COLLER LA COLONNE ===== */

@@ -1645,7 +1645,7 @@
       if (rej.length) { active = "inc"; try { localStorage.setItem("svi_dtab_v1", "inc"); } catch (e) {} }
       refreshAll();
       /* v490 (remarque 2) : après un import, doublons et intitulés presque identiques proposés */
-      setTimeout(() => { try { dupExisting(); } catch (e) {} }, rej.length ? 1500 : 500);
+      setTimeout(() => { try { dupExisting(true); } catch (e) {} }, rej.length ? 1500 : 500);
       return rej;
     };
     /* correction dans l'onglet : la ligne est réessayée ; complète et conforme, elle crée sa liaison et sort de l'onglet */

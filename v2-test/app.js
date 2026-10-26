@@ -7351,6 +7351,7 @@ function renderBudgetList() {
       return { links: out, err };
     };
     const dupMerge = (k, keep, drop, links) => {
+      const dupTw = k === "prim" ? INS.sec.find(s => s.id === (INS.prim.find(p => p.id === drop) || {}).tw) || null : null;   /* v626 */
       INS.links = links;
       /* délais : clés « lot|act. scd » reportées */
       if ((k === "lot" || k === "sec") && INS.dlp) {
@@ -7362,6 +7363,13 @@ function renderBudgetList() {
       }
       INS[k] = INS[k].filter(r => r.id !== drop);
       histLog("SAISIE", "DOUBLON FUSIONNÉ", DUP_LAB[k] + " — " + dupName(k, INS[k].find(r => r.id === keep) || {}));
+      /* v626 : activités jumelles (primaire ↔ secondaire du même nom) fusionnées ensemble, en une seule confirmation */
+      if (k === "sec" || k === "prim") {
+        const tk = k === "sec" ? "prim" : "sec";
+        const twOf = id => k === "sec" ? INS.prim.find(p => p.tw === id) : (() => { const p0 = INS.prim.find(p => p.id === id); return p0 && INS.sec.find(s => s.id === p0.tw); })();
+        const a = twOf(keep), b = k === "sec" ? INS.prim.find(p => p.tw === drop) : dupTw;
+        if (a && b && a !== b && U_(a.v) === U_(b.v)) { const m2 = dupMerged(tk, a.id, b.id); if (!m2.err) { INS.links = m2.links; INS[tk] = INS[tk].filter(r => r.id !== b.id); if (tk === "prim") a.tw = keep; histLog("SAISIE", "DOUBLON FUSIONNÉ", DUP_LAB[tk] + " — " + U_(a.v) + " (JUMELLE)"); } }
+      }
     };
     /* fenêtre DOUBLON ; renvoie "merge" ou "back" */
     const dupAsk = async (k, keepR, dropR, opts = {}) => {
@@ -7392,6 +7400,12 @@ function renderBudgetList() {
         if (!k || !DUP_LAB[k]) return;
         const id = inp.closest("[data-iid]")?.dataset.iid || (X.INS[k][X.INS[k].length - 1] || {}).id;
         const r = X.INS[k].find(x => x.id === id);
+        /* v626 : activité secondaire jumelle d'une primaire — renommées ensemble (comme dans le PLANNING) */
+        let twR = null, twOld = "";
+        if (k === "sec" && r && inp.dataset.f === "v" && shell.__dupOld && shell.__dupOld.id === r.id) {
+          const o = shell.__dupOld.row, p = X.INS.prim.find(q => q.tw === r.id && U_(q.v) === U_(o.v));
+          if (p) { twR = p; twOld = p.v; p.v = r.v; }
+        }
         /* FORMAT 88 : même désignation (ART + DÉSIGNATION ; produit : DÉSIGNATION) avec une autre unité → refusée */
         if (k === "des" && r && !r.t && U_(r.des) && U_(r.u)) {
           const o = X.INS[k].find(x => x.id !== r.id && !x.t && U_(x.des) === U_(r.des) && U_(x.u) && U_(x.u) !== U_(r.u));
@@ -7432,6 +7446,7 @@ function renderBudgetList() {
         const v = await X.ask(k, other, r, { typed: true, backLabel: old ? "RÉTABLIR" : "EFFACER LA SAISIE" });
         if (v === "back") {
           if (old) Object.assign(r, old); else X.INS[k] = X.INS[k].filter(x => x.id !== r.id);
+          if (twR) twR.v = twOld;
         }
         X.save(); X.refresh();
       }, true);
@@ -7555,10 +7570,12 @@ function renderBudgetList() {
     /* doublons déjà présents (anciens budgets, imports) : proposés à l'ouverture, un par un ; IGNORER = plus redemandé pendant la séance */
     /* DOUBLON EXISTANT (FORMAT 103) : une seule fenêtre pour tous les doublons du budget ;
        sélecteur ‹ i/N › (liste au toucher du numéro), IGNORER / FUSIONNER / IGNORER TOUS / FUSIONNER TOUS */
-    const dupExisting = async () => {
+    const dupExisting = async (force) => {
       if (!INS || !INS_EDIT || shell.__dupBusy) return;
       let skip = {};
       try { skip = JSON.parse(sessionStorage.getItem("svi_dupskip") || "{}"); } catch (e) {}
+      /* v626 : un doublon exact ne s'ignore plus (seulement les intitulés presque identiques) */
+      if (force) Object.keys(skip).forEach(x => { if (!x.includes("|near|")) delete skip[x]; });
       const items = [];
       Object.keys(DUP_LAB).forEach(k => {
         const seen = new Map();
@@ -7594,9 +7611,9 @@ function renderBudgetList() {
             <ul class="svc-list dup-ul svc-scroll">${dupLi(it.k, it.keep)}${dupLi(it.k, it.drop)}</ul>
             ${m.err ? `<div class="svc-sub svc-warn">FUSION IMPOSSIBLE : ${esc(m.err)}</div>` : `<div class="svc-sub">FUSIONNER : UNE SEULE LIGNE, TOUTES LES LIAISONS REPORTÉES.</div>`}</div>
           <div class="svc-f dupx-f">
-            <button type="button" class="svc-b" data-a="ignall">IGNORER TOUS</button>
+            ${items.some(x => x.near) ? `<button type="button" class="svc-b" data-a="ignall">IGNORER LES PRESQUE IDENTIQUES</button>` : ""}
             <button type="button" class="svc-b svc-ok" data-a="mergeall">FUSIONNER TOUS</button>
-            <button type="button" class="svc-b" data-a="ign">IGNORER</button>
+            ${it.near ? `<button type="button" class="svc-b" data-a="ign">IGNORER</button>` : ""}
             <button type="button" class="svc-b svc-ok" data-a="merge"${m.err ? " disabled" : ""}>FUSIONNER</button>
           </div></div>`;
       };
@@ -7615,7 +7632,7 @@ function renderBudgetList() {
         const it = items[cur];
         if (a.dataset.a === "ign") { ignore(it); items.splice(cur, 1); draw(); return; }
         if (a.dataset.a === "merge") { const m = dupMerged(it.k, it.keep.id, it.drop.id); if (!m.err) { dupMerge(it.k, it.keep.id, it.drop.id, m.links); changed = true; } items.splice(cur, 1); draw(); return; }
-        if (a.dataset.a === "ignall") { items.forEach(ignore); items.length = 0; finish(); return; }
+        if (a.dataset.a === "ignall") { for (let n = items.length - 1; n >= 0; n--) if (items[n].near) { ignore(items[n]); items.splice(n, 1); } cur = 0; draw(); return; }
         if (a.dataset.a === "mergeall") {
           /* v492 (remarque 11) : FUSIONNER TOUS sans seconde confirmation (↶ ANNULER permet de revenir en arrière) */
           const n = items.length;
@@ -7633,6 +7650,9 @@ function renderBudgetList() {
         }
       });
     };
+    shell.__dupExisting = f => dupExisting(f);
+    /* v626 : doublons exacts du budget (pour la fenêtre ⚠) — par tableau */
+    const dupCount = () => { const out = []; Object.keys(DUP_LAB).forEach(k => { const seen = new Set(); (INS[k] || []).forEach(r => { const key = dupKeyOf(k, r); if (!key) return; if (seen.has(key)) out.push({ k, r }); else seen.add(key); }); }); return out; };
     /* FORMAT 108 : produits du budget avec NBR vide ou 0 → déliés, retirés, mis dans IMPORT NON CRÉÉ (après confirmation) */
     const insNbrFix = async () => {
       if (!INS || !INS_EDIT || shell.__nbrBusy) return;
@@ -9177,6 +9197,7 @@ function renderBudgetList() {
     const figeGo = b => {
         if (!b || !b.go) return;
         if (b.go === "inf") { openInfo(); return; }
+        if (b.go === "dup") { shell.__dupExisting && shell.__dupExisting(true); return; }   /* v626 */
         if (b.go === "hier") { const c = shell.querySelector('.ins-hcol[data-ik="sec"]'); if (c) { c.scrollIntoView({ block: "center", behavior: "smooth" }); const m = c.querySelector(".act-umiss input"); if (m) setTimeout(() => m.focus(), 350); } return; }
         /* v581 (remarque 8) : renvoi vers une colonne de la hiérarchie */
         if (b.go.startsWith("hier:")) { shell.querySelector(`.ins-hcol[data-ik="${b.go.slice(5)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
@@ -9208,6 +9229,9 @@ function renderBudgetList() {
         const K = [...KP].filter(k => !KC.has(k));
         (INS.links || []).forEach(l => { if (K.includes(l.lot + "|" + l.sec)) (l.prd || []).forEach(x => P.add(x.id)); });
         if (K.length) out.push({ lab: "TÂCHES SANS CHARGE", n: K.length, go: "prdnc", list: K, prd: P, req: false }); }
+      /* v626 : doublons (jamais acceptés) — toucher = fenêtre DOUBLON EXISTANT, avec FUSIONNER */
+      { let D = []; try { D = dupCount(); } catch (e) { D = []; }
+        if (D.length) out.push({ lab: "DOUBLONS", n: D.length, go: "dup", names: [...new Set(D.map(x => DUP_LAB[x.k] + " — " + dupName(x.k, x.r)))].slice(0, 4), req: true }); }
       return out;
     };
     /* v581 (remarque 8) : FILTRES ACTIFS par bloc — comprendre pourquoi les données affichées sont partielles */
@@ -13482,11 +13506,19 @@ function renderBudgetList() {
         keepScroll(() => refreshAll());
         paint();
       };
+      /* v626 : un état avec un doublon (ex. juste avant une fusion) n'est jamais remis — on passe à l'étape suivante */
+      const snapDup = snap => {
+        let o; try { o = JSON.parse(snap); } catch (e) { return false; }
+        const tasks = (k, id) => [...new Set((o.links || []).filter(l => (l[k] || []).some(x => x.id === id)).map(l => l.lot + "|" + l.sec))].sort().join(",");
+        const key = (k, r) => !r || r.t ? "" : ["lot", "prim", "sec"].includes(k) ? U_(r.v) : !U_(r.des) ? "" : U_(r.des) + "|" + U_(r.u) + (k === "prd" || k === "chg" ? "#" + tasks(k, r.id) : "");
+        return ["des", "lot", "prim", "sec", "prd", "chg"].some(k => { const S = new Set(); return (o[k] || []).some(r => { const x = key(k, r); if (!x) return false; if (S.has(x)) return true; S.add(x); return false; }); });
+      };
       const go = dir => {
         const from = dir < 0 ? st.u : st.r, to = dir < 0 ? st.r : st.u;
         if (!from.length) return;
-        const e = from.pop();
+        let e = from.pop();
         to.push({ snap: st.cur, lab: e.lab });
+        while (from.length && snapDup(e.snap) && !snapDup(st.cur)) { const n = from.pop(); to.push({ snap: e.snap, lab: n.lab }); e = n; }
         apply(e.snap);
         histLog("BUDGET", dir < 0 ? "ANNULER" : "RÉTABLIR", e.lab);
         shell.__undoLab = "";
@@ -17362,7 +17394,7 @@ function renderBudgetList() {
       if (rej.length) { active = "inc"; try { localStorage.setItem("svi_dtab_v1", "inc"); } catch (e) {} }
       refreshAll();
       /* v490 (remarque 2) : après un import, doublons et intitulés presque identiques proposés */
-      setTimeout(() => { try { dupExisting(); } catch (e) {} }, rej.length ? 1500 : 500);
+      setTimeout(() => { try { dupExisting(true); } catch (e) {} }, rej.length ? 1500 : 500);
       return rej;
     };
     /* correction dans l'onglet : la ligne est réessayée ; complète et conforme, elle crée sa liaison et sort de l'onglet */
@@ -21022,6 +21054,7 @@ function renderBudgetList() {
       }
       const n = body.length, left = (INS.inc || []).length - before;
       histLog("IMPORT", "COLLER (RÉIMPORT)", n + " LIGNE(S)" + (left > 0 ? " — " + left + " NON CRÉÉE(S)" : ""));
+      setTimeout(() => { try { shell.__dupExisting && shell.__dupExisting(true); } catch (e) {} }, 700);   /* v626 : doublons créés par le collage → fenêtre DOUBLON EXISTANT */
       insSave(); refreshAll();
     };
     const clipPick = (blk, cut) => {
@@ -21117,6 +21150,7 @@ function renderBudgetList() {
       X.INS[k].push(...fresh);
       insNorm(); X.cleanLinks(); X.insSave();
       histLog("SAISIE", "COLLER LES LIGNES", fresh.length + " LIGNE(S) — PRESSE-PAPIERS");
+      setTimeout(() => { try { shell.__dupExisting && shell.__dupExisting(true); } catch (e) {} }, 700);   /* v626 : doublons créés par le collage → fenêtre DOUBLON EXISTANT */
       refreshAll();
       if (bad.length) sviAlert([fresh.length + " LIGNE(S) AJOUTÉE(S) EN BAS.", "CASES REFUSÉES :", ...bad.map(b => "— " + b)].join("\n"), "COLLER LES LIGNES");
       else svToast(fresh.length + " LIGNE(S) AJOUTÉE(S) EN BAS.", 2500);
@@ -21156,6 +21190,7 @@ function renderBudgetList() {
       }
       insSortAll(); insNorm(); X.cleanLinks(); X.insSave();
       histLog("SAISIE", "COLLER", n + " LIGNE(S) — DEPUIS " + (c.from || ""));
+      setTimeout(() => { try { shell.__dupExisting && shell.__dupExisting(true); } catch (e) {} }, 700);   /* v626 : doublons créés par le collage → fenêtre DOUBLON EXISTANT */
       refreshAll();
     };
     /* ===== FORMAT 116 : sélection d'une colonne (toucher sur son titre) → COPIER / COUPER / COLLER LA COLONNE ===== */

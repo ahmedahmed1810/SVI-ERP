@@ -1352,6 +1352,7 @@
     const figeGo = b => {
         if (!b || !b.go) return;
         if (b.go === "inf") { openInfo(); return; }
+        if (b.go === "dup") { shell.__dupExisting && shell.__dupExisting(true); return; }   /* v626 */
         if (b.go === "hier") { const c = shell.querySelector('.ins-hcol[data-ik="sec"]'); if (c) { c.scrollIntoView({ block: "center", behavior: "smooth" }); const m = c.querySelector(".act-umiss input"); if (m) setTimeout(() => m.focus(), 350); } return; }
         /* v581 (remarque 8) : renvoi vers une colonne de la hiérarchie */
         if (b.go.startsWith("hier:")) { shell.querySelector(`.ins-hcol[data-ik="${b.go.slice(5)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
