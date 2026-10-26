@@ -10309,10 +10309,10 @@ function renderBudgetList() {
         shell.__dlyCenter = false;
         const nz = new Set(); [HD.tot, HD.prd, HD.cmd && HD.cmd.L, HD.cmd && HD.cmd.P].forEach(M => M && Object.keys(M).forEach(k => { if (Math.abs(M[k] || 0) > 1e-9) nz.add(k); }));
         /* v628 : AJUSTÉ À L'OUVERTURE — premier jour au bord gauche, dernier au bord droit (petite marge), plage DÉBUT – FIN si posée,
-           BUTOIR compris s'il tombe après ; une seule barre : au centre, au plus large permis ; le Gantt suit (même échelle) */
+           BUTOIR non compris (v629) ; une seule barre : au centre, au plus large permis ; le Gantt suit (même échelle) */
         { const RGc = dlyHRange(), T = R.filter(x => !x.grp), dd = [...nz].concat(T.map(x => x.deb), T.map(x => x.fin)).filter(Boolean).sort();
           let a = RGc.a || dd[0], b = RGc.b || dd[dd.length - 1];
-          if (a && b && INS.dbut && INS.dbut > b && !RGc.b) b = INS.dbut;
+          /* v629 : calé sur la dernière date utilisée (fin de la dernière tâche), jamais sur le BUTOIR */
           if (a && b && !shell.__dlyFitting) {
             shell.__dlyFitting = true;
             /* après la mise en page : largeur réellement visible du Gantt */
