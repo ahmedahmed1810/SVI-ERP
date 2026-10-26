@@ -9218,7 +9218,7 @@ function renderBudgetList() {
       const rg = insRg(), dF = v => v ? String(v).slice(0, 10).split("-").reverse().join("/") : "…";
       const rgI = rg && { lab: "DÉBUT / FIN : " + dF(rg.a) + " → " + dF(rg.b) };
       add("DÉTAIL PRODUITS", "prd", [...std("prd"), shell.__prdNc && { lab: "TÂCHES SANS CHARGE", n: shell.__prdNc.size }, rgI]);
-      add("DÉTAIL CHARGES", "chg", [...std("chg"), INS.chgPar && { lab: "CHARGES QUI FONT " + INS.chgPar + " %" }, rgI]);   /* v623 */
+      add("DÉTAIL CHARGES", "chg", [...std("chg"), INS.chgPar && { lab: "CHARGES QUI FONT " + INS.chgPar + " %", n: (() => { try { const P = insParSet(); return P ? P.size : 0; } catch (e) { return 0; } })() }, rgI]);   /* v623 */
       const nl = ["dly", "dlyp", "dlys", "dlyr", "dlyi"].filter(cfHasF).reduce((t, x) => t + Object.keys(CF[x].f).length, 0);
       let vd = false; try { vd = dlyView() === "d"; } catch (e) {}
       add("DÉTAIL DÉLAIS", "dly", [shell.__dlySel && shell.__dlySel.size && { lab: "TÂCHES COCHÉES", n: shell.__dlySel.size },
