@@ -798,6 +798,7 @@
       P.K.forEach(k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; });
       if (blk === "detail" && INS && INS_EDIT) { (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }); (INS.inc || []).forEach(x => { if (x.on === true) x.on = false; }); }
       if (blk === "detail" && INS && INS.chgPar) INS.chgPar = "";   /* v622 : CHARGES QUI FONT n % */
+      if (blk === "detail") { shell.__dlyXF = null; shell.__dlyBarSel = null; }   /* v631 : filtre du jour oublié */
       if (blk === "detail" && INS && insRg()) INS.hrange = { ...INS.hrange, a: "", b: "" };   /* v560 : traits DÉBUT et FIN remis aux bords */
       if (INS && INS_EDIT) insSave();
       ICL = null; refreshAll();
