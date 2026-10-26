@@ -248,11 +248,20 @@
     const last = localStorage.getItem("svi_lastbdg_v1"), stuck = localStorage.getItem("svi_opening_v1");
     if (stuck || /[?&#]liste\b/i.test(location.href)) {
       localStorage.removeItem("svi_opening_v1");
-      if (stuck) setTimeout(() => { try { sviAlert("LE BUDGET " + stuck + " N'A PAS PU S'OUVRIR LA DERNIÈRE FOIS : IL N'A PAS ÉTÉ ROUVERT. TOUCHER SA LIGNE POUR RÉESSAYER.", "OUVERTURE BLOQUÉE"); } catch (e) {} }, 400);
+      /* v634 : dernière étape atteinte + TÉLÉCHARGER LE BUDGET (fichier à envoyer pour trouver la cause) */
+      const ref0 = stuck || last, step = localStorage.getItem("svi_step_v1") || "";
+      if (ref0) setTimeout(async () => { try {
+        const v = await svChoose({ title: stuck ? "OUVERTURE BLOQUÉE" : "LISTE SEULE",
+          html: `<div class="svc-sub">${stuck ? "LE BUDGET " + esc(stuck) + " N'A PAS PU S'OUVRIR LA DERNIÈRE FOIS : IL N'A PAS ÉTÉ ROUVERT." : "DERNIER BUDGET : " + esc(ref0) + " (NON ROUVERT)."}</div><div class="svc-sub">DERNIÈRE ÉTAPE : ${esc(step || "—")}</div>`,
+          buttons: [{ v: "dl", label: "TÉLÉCHARGER LE BUDGET", tone: "neutral" }, { v: "ok", label: "FERMER", tone: "neutral" }] });
+        if (v !== "dl") return;
+        const b = (sviInstGet() || []).find(x => x.ref === ref0);
+        if (!b) { sviAlert("BUDGET " + ref0 + " INTROUVABLE SUR L'APPAREIL.", "TÉLÉCHARGER"); return; }
+        const blob = new Blob([JSON.stringify({ step, budget: b })], { type: "application/json" }), a = document.createElement("a");
+        a.href = URL.createObjectURL(blob); a.download = String(ref0).replace(/[^A-Z0-9-]+/gi, "_") + ".json"; document.body.appendChild(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(a.href); }, 2000);
+      } catch (e) {} }, 400);
     } else if (last && groups.has(last)) {
-      localStorage.setItem("svi_opening_v1", last);
       openBudgetDetail(last);
-      setTimeout(() => { try { localStorage.removeItem("svi_opening_v1"); } catch (e) {} }, 4000);
     }
   } catch (e) {}
 }
