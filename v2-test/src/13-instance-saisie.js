@@ -646,7 +646,7 @@
       const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
       const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* bleu = liée (à n'importe quelle désignation) */
       INS_CELL_LVL = lvl || 0;
-      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
+      return `<tr class="ins-row${r ? "" : " ins-new"}${k === "chg" && r && !r.t && INS_RGV && insPar().ids.has(r.id) ? " chg-par" : ""}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}${k === "des" && r ? ` style="--d:${dOf(r)}"` : ""}>
         <td class="center ins-rdc">${k === "des" && r && r.t && !INS_EDIT ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
           ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>`;
@@ -830,7 +830,7 @@
       /* v510 (remarque 67) : mélange de rouge (choisies) et de bleu (liées) = violet */
       const stt = new Set(g.map(r => LK && LK.chg && LK.chg[r.id] !== undefined ? (isB(r) ? "b" : "r") : (isB(r) ? "b" : "")).filter(Boolean));
       const blu = stt.has("b") && !stt.has("r"), vio = stt.has("b") && stt.has("r");
-      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${pstNum(g.length)}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}${insPar().keys.has(key) ? " chg-par" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${pstNum(g.length)}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     /* v516 : DÉTAIL PRODUITS — produits de même DÉSIGNATION regroupés sous un titre (même si NBR, DIM 1 à 3 ou unité diffèrent),
        pour retrouver d'un coup tout ce qui concerne un élément (un poteau…) et les activités qui l'ont touché.
@@ -1021,6 +1021,28 @@
       return v;
     };
     const insPctChg = r => { const d = insPctDen(); return d ? insHT("chg", r) / d * 100 : ""; };
+    /* v621 : CHARGES QUI FONT n % — les plus grosses charges (titre replié = une ligne) dont les % additionnés atteignent n,
+       en fond jaune pâle ; même valeur que la légende du graphique (INS.hset.pct) ; case vide = aucune mise en forme */
+    let PAR_M = null;
+    const insParPct = () => { const h = INS.hset || {}; return h.pct === "" ? 0 : Math.max(1, Math.min(100, Number(h.pct) || 70)); };
+    const insPar = () => {
+      if (PAR_M && PAR_M.rgv === INS_RGV) return PAR_M;
+      const out = { rgv: INS_RGV, ids: new Set(), keys: new Set() }, n = insParPct(), d = insPctDen();
+      if (n && d) {
+        const G = new Map(); insShown("chg").filter(r => !r.t).forEach(r => { const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"); if (!G.has(key)) G.set(key, []); G.get(key).push(r); });
+        const it = []; G.forEach((g, key) => { if (g.length > 1 && CHG_GFOLD.has(key)) it.push({ g, key, v: g.reduce((t, x) => t + insHT("chg", x), 0) }); else g.forEach(r => it.push({ r, v: insHT("chg", r) })); });
+        it.sort((a, b) => b.v - a.v);
+        let acc = 0; for (const o of it) { if (acc >= d * n / 100 - 1e-9) break; acc += o.v; if (o.g) { out.keys.add(o.key); o.g.forEach(x => out.ids.add(x.id)); } else out.ids.add(o.r.id); }
+      }
+      PAR_M = out; queueMicrotask(() => { PAR_M = null; });
+      return out;
+    };
+    shell.__cfPar = (t, key) => t === insCfT("chg") && key === "pct" ? `<div class="cf-par">CHARGES QUI FONT <input class="cf-par-in" inputmode="numeric" value="${insParPct() || ""}"> %</div>` : "";
+    shell.__cfParSet = (v, el) => {
+      v = String(v || "").trim();
+      if (v !== "" && (!/^\d+$/.test(v) || Number(v) < 1 || Number(v) > 100)) { svToast("NOMBRE ENTIER DE 1 À 100 (VIDE = AUCUNE MISE EN FORME).", 3000, el); return; }
+      INS.hset = { ...(INS.hset || {}), pct: v === "" ? "" : Number(v) }; insSave(); histLog("SAISIE", "CHARGES QUI FONT", v === "" ? "AUCUNE" : v + " %"); refreshAll();
+    };
     /* v613 (point 9) : signe › / ⌄ dans l'en-tête de la colonne de désignation — un toucher replie tout, un autre déplie tout */
     const faKeys = kind => {
       if (kind === "chg" || kind === "prd") {

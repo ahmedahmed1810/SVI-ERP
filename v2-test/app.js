@@ -5534,7 +5534,7 @@ function renderBudgetList() {
         <div class="cf-rsz" title="Largeur et hauteur"></div>
         <button type="button" class="cf-x" aria-label="Fermer">✕</button>
         <button type="button" class="cf-sort" data-dir="asc">↑ TRI CROISSANT</button>
-        <button type="button" class="cf-sort" data-dir="desc">↓ TRI DÉCROISSANT</button>
+        <button type="button" class="cf-sort" data-dir="desc">↓ TRI DÉCROISSANT</button>${shell.__cfPar ? shell.__cfPar(t, key) : ""}
         <div class="cf-search">🔍 <input type="search" class="cf-q" placeholder="RECHERCHER…"></div>
         <div class="cf-cond"></div>
         <div class="cf-list"></div>
@@ -5599,6 +5599,8 @@ function renderBudgetList() {
       window.visualViewport?.addEventListener("resize", cfPlace);
       window.visualViewport?.addEventListener("scroll", cfPlace);
 
+      /* v621 : « CHARGES QUI FONT n % » (colonne % de DÉTAIL CHARGES) */
+      m.addEventListener("change", e => { const pi = e.target.closest && e.target.closest(".cf-par-in"); if (pi && shell.__cfParSet) shell.__cfParSet(pi.value, pi); });
       m.addEventListener("click", e => {
         e.stopPropagation();
         const st = cfT(t);
@@ -6330,7 +6332,7 @@ function renderBudgetList() {
       const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
       const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* bleu = liée (à n'importe quelle désignation) */
       INS_CELL_LVL = lvl || 0;
-      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
+      return `<tr class="ins-row${r ? "" : " ins-new"}${k === "chg" && r && !r.t && INS_RGV && insPar().ids.has(r.id) ? " chg-par" : ""}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}${k === "des" && r ? ` style="--d:${dOf(r)}"` : ""}>
         <td class="center ins-rdc">${k === "des" && r && r.t && !INS_EDIT ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
           ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>`;
@@ -6514,7 +6516,7 @@ function renderBudgetList() {
       /* v510 (remarque 67) : mélange de rouge (choisies) et de bleu (liées) = violet */
       const stt = new Set(g.map(r => LK && LK.chg && LK.chg[r.id] !== undefined ? (isB(r) ? "b" : "r") : (isB(r) ? "b" : "")).filter(Boolean));
       const blu = stt.has("b") && !stt.has("r"), vio = stt.has("b") && stt.has("r");
-      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${pstNum(g.length)}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}${insPar().keys.has(key) ? " chg-par" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${pstNum(g.length)}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     /* v516 : DÉTAIL PRODUITS — produits de même DÉSIGNATION regroupés sous un titre (même si NBR, DIM 1 à 3 ou unité diffèrent),
        pour retrouver d'un coup tout ce qui concerne un élément (un poteau…) et les activités qui l'ont touché.
@@ -6705,6 +6707,28 @@ function renderBudgetList() {
       return v;
     };
     const insPctChg = r => { const d = insPctDen(); return d ? insHT("chg", r) / d * 100 : ""; };
+    /* v621 : CHARGES QUI FONT n % — les plus grosses charges (titre replié = une ligne) dont les % additionnés atteignent n,
+       en fond jaune pâle ; même valeur que la légende du graphique (INS.hset.pct) ; case vide = aucune mise en forme */
+    let PAR_M = null;
+    const insParPct = () => { const h = INS.hset || {}; return h.pct === "" ? 0 : Math.max(1, Math.min(100, Number(h.pct) || 70)); };
+    const insPar = () => {
+      if (PAR_M && PAR_M.rgv === INS_RGV) return PAR_M;
+      const out = { rgv: INS_RGV, ids: new Set(), keys: new Set() }, n = insParPct(), d = insPctDen();
+      if (n && d) {
+        const G = new Map(); insShown("chg").filter(r => !r.t).forEach(r => { const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"); if (!G.has(key)) G.set(key, []); G.get(key).push(r); });
+        const it = []; G.forEach((g, key) => { if (g.length > 1 && CHG_GFOLD.has(key)) it.push({ g, key, v: g.reduce((t, x) => t + insHT("chg", x), 0) }); else g.forEach(r => it.push({ r, v: insHT("chg", r) })); });
+        it.sort((a, b) => b.v - a.v);
+        let acc = 0; for (const o of it) { if (acc >= d * n / 100 - 1e-9) break; acc += o.v; if (o.g) { out.keys.add(o.key); o.g.forEach(x => out.ids.add(x.id)); } else out.ids.add(o.r.id); }
+      }
+      PAR_M = out; queueMicrotask(() => { PAR_M = null; });
+      return out;
+    };
+    shell.__cfPar = (t, key) => t === insCfT("chg") && key === "pct" ? `<div class="cf-par">CHARGES QUI FONT <input class="cf-par-in" inputmode="numeric" value="${insParPct() || ""}"> %</div>` : "";
+    shell.__cfParSet = (v, el) => {
+      v = String(v || "").trim();
+      if (v !== "" && (!/^\d+$/.test(v) || Number(v) < 1 || Number(v) > 100)) { svToast("NOMBRE ENTIER DE 1 À 100 (VIDE = AUCUNE MISE EN FORME).", 3000, el); return; }
+      INS.hset = { ...(INS.hset || {}), pct: v === "" ? "" : Number(v) }; insSave(); histLog("SAISIE", "CHARGES QUI FONT", v === "" ? "AUCUNE" : v + " %"); refreshAll();
+    };
     /* v613 (point 9) : signe › / ⌄ dans l'en-tête de la colonne de désignation — un toucher replie tout, un autre déplie tout */
     const faKeys = kind => {
       if (kind === "chg" || kind === "prd") {
@@ -13251,7 +13275,7 @@ function renderBudgetList() {
           ${(() => { const hid = crb.includes("r") ? "" : " hidden", L = dlyRdLim();
             /* v604 (remarque longue 4) : barre RENDEMENT en VALEUR (l'activité choisie) ou en % (toutes les tâches de la charge) ; MIN / MAX en % */
             return `<span class="hcf-k hcf-rd"${hid}>RENDEMENT EN</span><span class="hcf-pl hcf-rd"${hid}><span class="hcf-sw">${rad("hcr", "v", "VALEUR", h.rdu === "v")}${rad("hcr", "p", "%", h.rdu !== "v")}</span></span><span class="hcf-k hcf-rd"${hid}>BORNES DU RENDEMENT</span><span class="hcf-pl hcf-rd"${hid}><span class="hcf-k hcf-k2">MIN</span><input class="hcf-pct rd-min" inputmode="numeric" value="${L.min}"> %<span class="hcf-k hcf-k2">MAX</span><input class="hcf-pct rd-max" inputmode="numeric" value="${L.max}"> %</span>`; })()}
-          <span class="hcf-k">LÉGENDE</span><span class="hcf-pl">CHARGES QUI FONT <input class="hcf-pct" inputmode="numeric" value="${esc(String(h.pct || 70))}"> %</span>
+          <!-- v621 : LÉGENDE réglée dans DÉTAIL CHARGES (colonne %, CHARGES QUI FONT n %) -->
           <span class="hcf-k">DONNÉES</span><span class="hcf-sw">${rad("hcd", "c", "CONSOMMATION", !(dlyAppro().on))}${rad("hcd", "o", "COMMANDES", !!(dlyAppro().on)).replace("QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ.", "COMMANDES : COCHER DES CHARGES DANS DÉTAIL CHARGES.")}</span>
           ${(() => { const a = dlyAppro(), hid = a.on ? "" : " hidden";
             /* v572 (remarque 17) : réglages des COMMANDES dans la même fenêtre, en dessous (plus de fenêtre APPROVISIONNEMENT ni de liste des charges) */
@@ -13298,16 +13322,16 @@ function renderBudgetList() {
         { const o = e.target.closest && e.target.closest(".hcf-seg.off[data-why], .hcf-cbs label.off[data-why]"); if (o) { svToast(o.dataset.why, 3500, o); return; } }
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         if (!e.target.closest("[data-ok]")) return;
-        const pc = String(d.querySelector(".hcf-pct:not(.rd-min):not(.rd-max):not(.apr-dl)").value).trim();
+        const pc = String(h.pct === undefined ? 70 : h.pct);
         const rmn = String(d.querySelector(".rd-min").value).trim(), rmx = String(d.querySelector(".rd-max").value).trim();
         if (!/^\d+$/.test(rmn) || !/^\d+$/.test(rmx) || Number(rmn) < 1 || Number(rmn) > 100 || Number(rmx) < 100 || Number(rmx) > 300) { svToast("RENDEMENT : MIN DE 1 À 100 %, MAX DE 100 À 300 %.", 3500, d.querySelector(".rd-min")); return; }
-        if (!/^\d+$/.test(pc) || Number(pc) < 1 || Number(pc) > 100) { svToast("% DE LA LÉGENDE : NOMBRE ENTIER DE 1 À 100.", 3000, d.querySelector(".hcf-pct:not(.rd-min):not(.rd-max):not(.apr-dl)")); return; }
+
         const c = [...d.querySelectorAll(".hcf-c:checked")].map(i => i.value);
         if (!c.length) { svToast("COCHER AU MOINS UNE COURBE.", 3000, d.querySelector(".hcf-c")); return; }
         /* v567 (remarque 10) : RENDEMENT = en QUANTITÉ, avec les CHARGES, sans PRODUITS ni MARGE en montant */
 
         const v = n => (d.querySelector(`input[name="${n}"]:checked`) || {}).value;
-        INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc), forme: v("hcf") || "h", mg: v("hcm") || h.mg || "n", rdu: v("hcr") || h.rdu || "p", rdmin: Number(rmn), rdmax: Number(rmx) };
+        INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: pc === "" ? "" : Number(pc), forme: v("hcf") || "h", mg: v("hcm") || h.mg || "n", rdu: v("hcr") || h.rdu || "p", rdmin: Number(rmn), rdmax: Number(rmx) };
         /* v566 (remarque 9) / v572 (remarque 17) : COMMANDES = données du graphique ; ses réglages sont lus ici */
         const on = v("hcd") === "o", A0 = dlyAppro();
         if (on) {

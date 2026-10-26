@@ -2554,3 +2554,7 @@ input.dly-gin { box-sizing: border-box; border: 2px solid var(--inst, #b42318) !
 #docPop .lki-dly { display: grid; grid-template-columns: max-content 160px max-content 160px max-content auto; gap: 8px; align-items: center; margin-top: 6px; }
 #docPop .lki-dly input { height: 32px; }
 #docPop .lki-go .lk-go { margin: 0; }
+/* v621 : CHARGES QUI FONT n % — lignes en fond jaune pâle ; case dans le menu de la colonne % */
+.ins-table tr.chg-par > td { background-color: #fef7c3 !important; }
+#cfMenu .cf-par { display: flex; align-items: center; gap: 6px; padding: 6px 4px; font-size: 12px; font-weight: 800; }
+#cfMenu .cf-par-in { width: 52px; height: 28px; text-align: center; border: 1px solid #d0d5dd; border-radius: 6px; font-weight: 800; }

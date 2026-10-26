@@ -125,6 +125,15 @@ def main():
             const v = [...t.tBodies[0].rows].filter(tr => !tr.classList.contains('ins-new')).map(tr => tr.cells[i] && ((tr.cells[i].querySelector('input') || {}).value || tr.cells[i].textContent).replace(/\u202f|\s|%/g, '').replace(',', '.')).filter(x => x).map(Number);
             return [hs[i + 1], Math.round(v.reduce((a, b) => a + b, 0) * 10) / 10, v.length]; }""")
         check("v613 : DÉTAIL CHARGES — colonne % avant RENDEMENT ; les lignes affichées font 100 %", bool(pc) and pc[0].startswith("RENDEMENT") and abs(pc[1] - 100) < 0.2 and pc[2] > 0, pc)
+        # v621 : CHARGES QUI FONT 50 % — les plus grosses lignes jusqu'à 50 % du total, en jaune ; sans la dernière, on reste sous 50 %
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.hset = {{ ...(X.INS.hset || {{}}), pct: 50 }}; X.refreshAll(); }}"); pg.wait_for_timeout(500)
+        par = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'); const hs = [...t.tHead.rows[0].cells].map(c => c.textContent.trim()); const i = hs.findIndex(h => h.startsWith('%'));
+            const val = tr => Number(((tr.cells[i].querySelector('input') || {}).value || tr.cells[i].textContent).replace(/\u202f|\s|%/g, '').replace(',', '.')) || 0;
+            const all = [...t.tBodies[0].rows].filter(tr => !tr.classList.contains('ins-new') && tr.cells[i] && (tr.cells[i].querySelector('input') || {}).value !== undefined ? true : !tr.classList.contains('ins-new'));
+            const on = all.filter(tr => tr.classList.contains('chg-par')).map(val).filter(v => v > 0).sort((a, b) => b - a), off = all.filter(tr => !tr.classList.contains('chg-par')).map(val);
+            const s = on.reduce((a, b) => a + b, 0); return [on.length, Math.round(s * 10) / 10, Math.round((s - (on[on.length - 1] || 0)) * 10) / 10, Math.max(0, ...off) <= (on[on.length - 1] || 0) + 1e-6]; }""")
+        pg.evaluate(f"() => {{ const X = {ins}; delete X.INS.hset.pct; X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v621 : CHARGES QUI FONT 50 % — plus grosses charges en jaune jusqu'à 50 % (sans la dernière : moins de 50 %)", bool(par) and par[0] > 0 and par[1] >= 49.9 and par[2] < 50, par)
         # remarque 5 : Entrée descend dans la colonne (tableau DÉTAIL CHARGES)
         pg.focus('table.ins-table[data-ik="chg"] tr[data-iid="c1"] input.ins-in[data-f="q"]'); pg.keyboard.press("Enter"); pg.wait_for_timeout(200)
         dn = pg.evaluate("() => { const a = document.activeElement; return a && a.closest('tr') ? [a.closest('tr').dataset.iid, a.dataset.f] : null; }")
