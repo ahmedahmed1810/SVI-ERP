@@ -11685,7 +11685,9 @@ function renderBudgetList() {
            descend jusqu'à la première ligne cochée */
         const k = b.dataset.k, [lo, se] = k.split("|"), go = b.dataset.go, L = (INS.links || []).filter(l => l.lot === lo && l.sec === se);
         if (go === "chg" || go === "prd") {
-          const ids = new Set(); L.forEach(l => (l[go] || []).forEach(y => ids.add(y.id)));
+          /* v615 : CHARGES = seulement les charges de la tâche qui sont dans la barre touchée (celles du graphique) */
+          const HR = go === "chg" ? (((shell.querySelector("#dlyGantt") || {}).__HD || {}).R || null) : null, inBar = HR ? new Set(HR.map(r => r.id)) : null;
+          const ids = new Set(); L.forEach(l => (l[go] || []).forEach(y => { if (!inBar || inBar.has(y.id)) ids.add(y.id); }));
           (INS[go] || []).forEach(r => { if (!r.t) r.on = ids.has(r.id) ? true : (r.on === true ? false : r.on); });
           insSave(); histLog("DÉLAIS", "CASES COCHÉES", (go === "chg" ? "CHARGES" : "PRODUITS") + " DE " + dlyHbName(k));
         } else shell.__dlySel = new Set([k]);
