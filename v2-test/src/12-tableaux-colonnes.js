@@ -281,7 +281,7 @@
         <div class="cf-rsz" title="Largeur et hauteur"></div>
         <button type="button" class="cf-x" aria-label="Fermer">✕</button>
         <button type="button" class="cf-sort" data-dir="asc">↑ TRI CROISSANT</button>
-        <button type="button" class="cf-sort" data-dir="desc">↓ TRI DÉCROISSANT</button>
+        <button type="button" class="cf-sort" data-dir="desc">↓ TRI DÉCROISSANT</button>${shell.__cfPar ? shell.__cfPar(t, key) : ""}
         <div class="cf-search">🔍 <input type="search" class="cf-q" placeholder="RECHERCHER…"></div>
         <div class="cf-cond"></div>
         <div class="cf-list"></div>
@@ -346,6 +346,8 @@
       window.visualViewport?.addEventListener("resize", cfPlace);
       window.visualViewport?.addEventListener("scroll", cfPlace);
 
+      /* v621 : « CHARGES QUI FONT n % » (colonne % de DÉTAIL CHARGES) */
+      m.addEventListener("change", e => { const pi = e.target.closest && e.target.closest(".cf-par-in"); if (pi && shell.__cfParSet) shell.__cfParSet(pi.value, pi); });
       m.addEventListener("click", e => {
         e.stopPropagation();
         const st = cfT(t);

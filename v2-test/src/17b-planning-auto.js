@@ -694,7 +694,7 @@
           ${(() => { const hid = crb.includes("r") ? "" : " hidden", L = dlyRdLim();
             /* v604 (remarque longue 4) : barre RENDEMENT en VALEUR (l'activité choisie) ou en % (toutes les tâches de la charge) ; MIN / MAX en % */
             return `<span class="hcf-k hcf-rd"${hid}>RENDEMENT EN</span><span class="hcf-pl hcf-rd"${hid}><span class="hcf-sw">${rad("hcr", "v", "VALEUR", h.rdu === "v")}${rad("hcr", "p", "%", h.rdu !== "v")}</span></span><span class="hcf-k hcf-rd"${hid}>BORNES DU RENDEMENT</span><span class="hcf-pl hcf-rd"${hid}><span class="hcf-k hcf-k2">MIN</span><input class="hcf-pct rd-min" inputmode="numeric" value="${L.min}"> %<span class="hcf-k hcf-k2">MAX</span><input class="hcf-pct rd-max" inputmode="numeric" value="${L.max}"> %</span>`; })()}
-          <span class="hcf-k">LÉGENDE</span><span class="hcf-pl">CHARGES QUI FONT <input class="hcf-pct" inputmode="numeric" value="${esc(String(h.pct || 70))}"> %</span>
+          <!-- v621 : LÉGENDE réglée dans DÉTAIL CHARGES (colonne %, CHARGES QUI FONT n %) -->
           <span class="hcf-k">DONNÉES</span><span class="hcf-sw">${rad("hcd", "c", "CONSOMMATION", !(dlyAppro().on))}${rad("hcd", "o", "COMMANDES", !!(dlyAppro().on)).replace("QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ.", "COMMANDES : COCHER DES CHARGES DANS DÉTAIL CHARGES.")}</span>
           ${(() => { const a = dlyAppro(), hid = a.on ? "" : " hidden";
             /* v572 (remarque 17) : réglages des COMMANDES dans la même fenêtre, en dessous (plus de fenêtre APPROVISIONNEMENT ni de liste des charges) */
@@ -741,16 +741,16 @@
         { const o = e.target.closest && e.target.closest(".hcf-seg.off[data-why], .hcf-cbs label.off[data-why]"); if (o) { svToast(o.dataset.why, 3500, o); return; } }
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         if (!e.target.closest("[data-ok]")) return;
-        const pc = String(d.querySelector(".hcf-pct:not(.rd-min):not(.rd-max):not(.apr-dl)").value).trim();
+        const pc = String(h.pct === undefined ? 70 : h.pct);
         const rmn = String(d.querySelector(".rd-min").value).trim(), rmx = String(d.querySelector(".rd-max").value).trim();
         if (!/^\d+$/.test(rmn) || !/^\d+$/.test(rmx) || Number(rmn) < 1 || Number(rmn) > 100 || Number(rmx) < 100 || Number(rmx) > 300) { svToast("RENDEMENT : MIN DE 1 À 100 %, MAX DE 100 À 300 %.", 3500, d.querySelector(".rd-min")); return; }
-        if (!/^\d+$/.test(pc) || Number(pc) < 1 || Number(pc) > 100) { svToast("% DE LA LÉGENDE : NOMBRE ENTIER DE 1 À 100.", 3000, d.querySelector(".hcf-pct:not(.rd-min):not(.rd-max):not(.apr-dl)")); return; }
+
         const c = [...d.querySelectorAll(".hcf-c:checked")].map(i => i.value);
         if (!c.length) { svToast("COCHER AU MOINS UNE COURBE.", 3000, d.querySelector(".hcf-c")); return; }
         /* v567 (remarque 10) : RENDEMENT = en QUANTITÉ, avec les CHARGES, sans PRODUITS ni MARGE en montant */
 
         const v = n => (d.querySelector(`input[name="${n}"]:checked`) || {}).value;
-        INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: Number(pc), forme: v("hcf") || "h", mg: v("hcm") || h.mg || "n", rdu: v("hcr") || h.rdu || "p", rdmin: Number(rmn), rdmax: Number(rmx) };
+        INS.hset = { ...h, u: v("hcu") || "m", aff: v("hca") || "j", cum: v("hcc") || "r", crb: c, pct: pc === "" ? "" : Number(pc), forme: v("hcf") || "h", mg: v("hcm") || h.mg || "n", rdu: v("hcr") || h.rdu || "p", rdmin: Number(rmn), rdmax: Number(rmx) };
         /* v566 (remarque 9) / v572 (remarque 17) : COMMANDES = données du graphique ; ses réglages sont lus ici */
         const on = v("hcd") === "o", A0 = dlyAppro();
         if (on) {
