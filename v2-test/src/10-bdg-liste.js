@@ -1225,6 +1225,8 @@ function renderBudgetList() {
           <div id="nbErr" class="doc-err"></div>
         </div>
         <div class="doc-foot">
+          <button type="button" class="doc-btn" id="nbFile" style="margin-right:auto">CHARGER UN FICHIER BUDGET</button>
+          <input type="file" id="nbFileIn" accept=".json,application/json" hidden>
           <button type="button" class="doc-btn" data-cancel>ANNULER</button>
           <button type="button" class="doc-btn nb-save" id="nbGo">ENREGISTRER</button>
         </div>
@@ -1245,6 +1247,22 @@ function renderBudgetList() {
       if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
     });
     setTimeout(() => p.querySelector("#nbPrj")?.focus(), 50);
+    /* v636 : budget rechargé depuis un fichier .json (TÉLÉCHARGER LE BUDGET) — ajouté à la liste, sans l'ouvrir */
+    p.querySelector("#nbFile").addEventListener("click", () => p.querySelector("#nbFileIn").click());
+    p.querySelector("#nbFileIn").addEventListener("change", async e => {
+      const f = e.target.files && e.target.files[0]; if (!f) return;
+      let b = null;
+      try { const o = JSON.parse(await f.text()); b = o && o.budget && o.budget.ref ? o.budget : o; } catch (err) { b = null; }
+      if (!b || !b.ref) { p.querySelector("#nbErr").textContent = "FICHIER ILLISIBLE : CE N'EST PAS UN BUDGET."; return; }
+      const list = instLoad(), i = list.findIndex(x => x.ref === b.ref);
+      if (i >= 0 && !(await svConfirm({ title: "CHARGER UN FICHIER BUDGET", text: b.ref + " EXISTE DÉJÀ : IL SERA REMPLACÉ PAR LE FICHIER.", ok: "REMPLACER" }))) return;
+      if (i >= 0) list[i] = b; else list.push(b);
+      instSave(list); await sviInstFlush();
+      try { const k1 = "svi_bdgstate_v1:" + b.ref, v1 = localStorage.getItem(k1); if (v1) { localStorage.setItem("svi_diag_old_v1", JSON.stringify({ [k1]: v1 })); localStorage.removeItem(k1); } localStorage.setItem("svi_listmode_v1", "inst"); } catch (err) {}
+      p.remove();
+      renderBudgetList();
+      svToast(b.ref + " CHARGÉ DANS LA LISTE.", 3000);
+    });
     p.querySelector("#nbGo").addEventListener("click", () => {
       const prj = val("#nbPrj").toUpperCase().replace(/\s+/g, " ");
       const r = refNow();
