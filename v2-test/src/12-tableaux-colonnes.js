@@ -61,9 +61,9 @@
     const cfHead = (t, key, label, cls = "") => {
       const st = cfT(t);
       /* en-tête de colonne bleu : filtre ou tri choisi sur cette colonne */
-      const on = !!st.f[key] || !!(st.sort && st.sort.col === key && !st.sort.def);
+      const on = !!st.f[key] || !!(st.sort && st.sort.col === key && !st.sort.def) || !!(shell.__cfParOn && shell.__cfParOn(t, key));
       return `<th class="${cls} ${on ? "cf-on" : ""}">
-        <span class="cf-wrap"><span class="cf-lab">${label}${(() => { const k = shell.__faFor && shell.__faFor(t, key); return k && shell.__faHTML ? shell.__faHTML(k) : ""; })()}</span><span class="cf-btn" data-cf="${t}" data-col="${key}"
+        <span class="cf-wrap"><span class="cf-lab">${(() => { const k = shell.__faFor && shell.__faFor(t, key); return k && shell.__faHTML ? shell.__faHTML(k) : ""; })()}${label}</span><span class="cf-btn" data-cf="${t}" data-col="${key}"
           role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span
           class="col-rs" data-rs="${t}" data-col="${key}"></span></th>`;
     };
@@ -160,12 +160,16 @@
       if (!v.length) return "";
       if (v.every(x => /^-?[\d\s\u00a0\u202f]+(,\d+)?( ?%)?$/.test(String(x).trim()))) return "num";
       if (v.every(x => /^\d{2}\/\d{2}\/\d{4}$/.test(String(x).trim()) || /^\d{4}-\d{2}-\d{2}$/.test(String(x).trim()))) return "date";
-      return "";
+      return "txt";   /* v622 : texte — contient, ne contient pas, commence par, se termine par, égal à */
     };
     const cfNum = x => num(String(x).replace(/%/g, ""));
     const cfDate = x => { const s = String(x || "").trim(); const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); if (m) return m[3] + "-" + m[2] + "-" + m[1]; return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : ""; };
     const cfCondOk = (c, v) => {
       if (!c) return true;
+      if (c.kind === "txt") {
+        const x = U_(String(v || "")), a = U_(String(c.a || ""));
+        switch (c.op) { case "ct": return x.includes(a); case "nc": return !x.includes(a); case "sw": return x.startsWith(a); case "ew": return x.endsWith(a); case "eq": return x === a; default: return true; }
+      }
       if (String(v).trim() === "") return false;
       const x = c.kind === "num" ? cfNum(v) : cfDate(v);
       if (c.kind === "date" && !x) return false;
@@ -238,15 +242,26 @@
       if (!kind) { box.innerHTML = ""; return; }
       const c = cfOpen.cond && cfOpen.cond.kind === kind ? cfOpen.cond : null;
       const ops = kind === "num" ? [["", "AUCUNE"], ["eq", "ÉGAL À"], ["ne", "DIFFÉRENT DE"], ["gt", "SUPÉRIEUR À"], ["ge", "SUPÉRIEUR OU ÉGAL À"], ["lt", "INFÉRIEUR À"], ["le", "INFÉRIEUR OU ÉGAL À"], ["bt", "ENTRE … ET …"]]
-        : [["", "AUCUNE"], ["eq", "LE"], ["lt", "AVANT LE"], ["gt", "APRÈS LE"], ["bt", "ENTRE LE … ET LE …"]];
+        : kind === "date" ? [["", "AUCUNE"], ["eq", "LE"], ["lt", "AVANT LE"], ["gt", "APRÈS LE"], ["bt", "ENTRE LE … ET LE …"]]
+        : [["", "AUCUNE"], ["ct", "CONTIENT"], ["nc", "NE CONTIENT PAS"], ["sw", "COMMENCE PAR"], ["ew", "SE TERMINE PAR"], ["eq", "ÉGAL À"]];
       const fmt = v => v === undefined || v === null || v === "" ? "" : kind === "num" ? money(v) : v;
-      const inp = (n, v) => kind === "num" ? `<input class="cf-ca" data-n="${n}" inputmode="decimal" value="${esc(fmt(v))}" placeholder="VALEUR">` : `<input type="date" class="cf-ca" data-n="${n}" value="${esc(v || "")}">`;
-      box.innerHTML = `<div class="cf-ct">CONDITION (${kind === "num" ? "NOMBRES" : "DATES"})</div><select class="cf-op">${ops.map(([k, l]) => `<option value="${k}"${c && c.op === k ? " selected" : ""}>${l}</option>`).join("")}</select>
+      const inp = (n, v) => kind === "num" ? `<input class="cf-ca" data-n="${n}" inputmode="decimal" value="${esc(fmt(v))}" placeholder="VALEUR">` : kind === "txt" ? `<input class="cf-ca" data-n="${n}" value="${esc(v || "")}" placeholder="TEXTE" autocomplete="off">` : `<input type="date" class="cf-ca" data-n="${n}" value="${esc(v || "")}">`;
+      /* v622 : liste CONDITION de l'application (plus la grande liste de l'iPad) — petites lignes, ✓ devant le choix en cours */
+      const op0 = c ? c.op : "", lab0 = (ops.find(o => o[0] === op0) || ops[0])[1];
+      box.innerHTML = `<div class="cf-ct">CONDITION (${kind === "num" ? "NOMBRES" : kind === "date" ? "DATES" : "TEXTE"})</div><div class="cf-opw"><button type="button" class="cf-opb"><span>${lab0}</span><i>▾</i></button><div class="cf-opl" hidden>${ops.map(([k, l]) => `<button type="button" class="cf-opi${k === op0 ? " on" : ""}" data-op="${k}"><b>${k === op0 ? "✓" : ""}</b>${l}</button>`).join("")}</div><input type="hidden" class="cf-op" value="${op0}"></div>
         <div class="cf-cv${c ? "" : " off"}">${inp("a", c && c.a)}<span class="cf-et${c && c.op === "bt" ? "" : " off"}"> ET </span>${`<span class="cf-bw${c && c.op === "bt" ? "" : " off"}">${inp("b", c && c.b)}</span>`}</div>`;
-      box.querySelector(".cf-op").addEventListener("change", ev => {
-        const op = ev.target.value;
+      box.addEventListener("click", ev => {
+        if (ev.target.closest(".cf-opb")) { const L = box.querySelector(".cf-opl"); L.hidden = !L.hidden; cfPlace && cfPlace(); return; }
+        const it = ev.target.closest(".cf-opi");
+        if (!it) return;
+        const op = it.dataset.op;
+        box.querySelector(".cf-op").value = op;
+        box.querySelector(".cf-opb span").textContent = (ops.find(o => o[0] === op) || ops[0])[1];
+        box.querySelectorAll(".cf-opi").forEach(b => { b.classList.toggle("on", b === it); b.querySelector("b").textContent = b === it ? "✓" : ""; });
+        box.querySelector(".cf-opl").hidden = true;
         box.querySelector(".cf-cv").classList.toggle("off", !op);
         box.querySelectorAll(".cf-et, .cf-bw").forEach(x => x.classList.toggle("off", op !== "bt"));
+        if (op) setTimeout(() => box.querySelector('.cf-ca[data-n="a"]')?.focus(), 0);
       });
     };
     /* condition lue dans le menu : null (aucune), false (incomplète) ou { kind, op, a, b } */
@@ -255,7 +270,7 @@
       if (!box || !kind) return null;
       const op = (box.querySelector(".cf-op") || {}).value || "";
       if (!op) return null;
-      const rd = n => { const i = box.querySelector(`.cf-ca[data-n="${n}"]`); const v = i ? String(i.value || "").trim() : ""; if (!v) return null; return kind === "num" ? cfNum(v) : cfDate(v) || v; };
+      const rd = n => { const i = box.querySelector(`.cf-ca[data-n="${n}"]`); const v = i ? String(i.value || "").trim() : ""; if (!v) return null; return kind === "num" ? cfNum(v) : kind === "txt" ? v.toUpperCase() : cfDate(v) || v; };
       const a = rd("a"), b = op === "bt" ? rd("b") : null;
       if (a === null || (op === "bt" && b === null)) return false;
       return { kind, op, a, b };
@@ -376,6 +391,7 @@
           return;
         }
         if (e.target.closest(".cf-clear")) {
+          if (shell.__cfParClear) shell.__cfParClear(t, key);
           delete st.f[key];
           if (st.sort && st.sort.col === key) st.sort = null;
           m.querySelector(".cf-q").value = "";

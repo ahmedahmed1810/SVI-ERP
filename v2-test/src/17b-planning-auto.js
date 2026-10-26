@@ -555,6 +555,8 @@
       let R = R0;
       /* v599 : quelle que soit l'unité — rien de coché = toutes les charges ; lignes cochées ailleurs (lots, activités…) = leurs charges */
       if (!R) { const all = (INS.chg || []).filter(r => !r.t); let S = null; try { S = insCheckSet("chg"); } catch (e) { S = null; } R = S ? all.filter(r => S.has(r.id)) : all; if (!R.length) R = null; }
+      /* v622 : CHARGES QUI FONT n % — seulement ces charges */
+      { let PS = null; try { PS = insParSet(); } catch (e) { PS = null; } if (PS && R) { R = R.filter(r => PS.has(r.id)); if (!R.length) R = null; } }
       if (!R && !money) return null;
       const mode = money || !R ? "m" : dlyResMode(R), cal = insCal(), cur = dlyCurDates(), ser = new Map(), det = {}, tot = {};
       if (R) [...new Set(R.map(dlyResK))].forEach(sk => ser.set(sk, { L: {} }));

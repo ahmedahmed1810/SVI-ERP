@@ -646,7 +646,7 @@
       const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
       const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* bleu = liée (à n'importe quelle désignation) */
       INS_CELL_LVL = lvl || 0;
-      return `<tr class="ins-row${r ? "" : " ins-new"}${k === "chg" && r && !r.t && INS_RGV && insPar().ids.has(r.id) ? " chg-par" : ""}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
+      return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}${k === "des" && r ? ` style="--d:${dOf(r)}"` : ""}>
         <td class="center ins-rdc">${k === "des" && r && r.t && !INS_EDIT ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
           ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>`;
@@ -675,7 +675,8 @@
       const cs = insCheckSet(k);
       const RG = (k === "chg" || k === "prd") && insRg();
       const NC = k === "prd" && shell.__prdNc ? shell.__prdNc : null;   /* v568 (remarque 11) : produits des tâches sans charge */
-      const shown = cfApply(t, insCfCols(k), normal).filter(r => (!ONLYC[k] || r.on === true) && (!cs || cs.has(r.id)) && (!RG || insRgF(k, r.id) > 0) && (!NC || NC.has(r.id)));
+      const PS = k === "chg" ? insParSet() : null;   /* v622 : CHARGES QUI FONT n % */
+      const shown = cfApply(t, insCfCols(k), normal).filter(r => (!PS || PS.has(r.id)) && (!ONLYC[k] || r.on === true) && (!cs || cs.has(r.id)) && (!RG || insRgF(k, r.id) > 0) && (!NC || NC.has(r.id)));
       const st = cfT(t);
       const sorting = !!(st.sort && !st.sort.def);
       const filtering = Object.keys(st.f).length > 0 || !!ONLYC[k] || !!cs || !!RG || !!NC;
@@ -830,7 +831,7 @@
       /* v510 (remarque 67) : mélange de rouge (choisies) et de bleu (liées) = violet */
       const stt = new Set(g.map(r => LK && LK.chg && LK.chg[r.id] !== undefined ? (isB(r) ? "b" : "r") : (isB(r) ? "b" : "")).filter(Boolean));
       const blu = stt.has("b") && !stt.has("r"), vio = stt.has("b") && stt.has("r");
-      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}${insPar().keys.has(key) ? " chg-par" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${pstNum(g.length)}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
+      return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${pstNum(g.length)}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
     /* v516 : DÉTAIL PRODUITS — produits de même DÉSIGNATION regroupés sous un titre (même si NBR, DIM 1 à 3 ou unité diffèrent),
        pour retrouver d'un coup tout ce qui concerne un élément (un poteau…) et les activités qui l'ont touché.
@@ -958,7 +959,7 @@
     const insCkOrd = () => {
       const has = {
         des: 0, lot: 0, prim: 0, sec: 0, prd: 0, chg: 0,
-        lnk: (INS.links || []).some(l => l.on === true), dly: !!(shell.__dlySel && shell.__dlySel.size), iso: !!insIsoPath(), rg: !!insRg()
+        lnk: (INS.links || []).some(l => l.on === true), dly: !!(shell.__dlySel && shell.__dlySel.size), iso: !!insIsoPath(), rg: !!insRg(), par: !!(INS.chgPar)
       };
       /* v614 (point 10) : tout coché = pas de filtre (ni numéro d'ordre ni « cochées/total ») */
       ["des", "lot", "prim", "sec", "prd", "chg"].forEach(x => { const N = (INS[x] || []).filter(r => !r.t), n = N.filter(r => r.on === true).length; has[x] = n > 0 && n < N.length; });
@@ -968,7 +969,7 @@
       return o;
     };
     /* v614 (points 10 et 11) : numéro d'ordre du filtre d'un bloc (1 = coché en premier) ; DÉTAIL DÉLAIS = ses cases, ISOLER et la plage */
-    const insCkRank = src => { const o = insCkOrd(), S = src === "dly" ? ["dly", "iso", "rg"] : [src], I = S.map(x => o.indexOf(x)).filter(i => i >= 0); return I.length ? Math.min(...I) + 1 : 0; };
+    const insCkRank = src => { const o = insCkOrd(), S = src === "dly" ? ["dly", "iso", "rg"] : src === "chg" ? ["chg", "par"] : [src], I = S.map(x => o.indexOf(x)).filter(i => i >= 0); return I.length ? Math.min(...I) + 1 : 0; };
     const insCkBadge = src => { let n = 0; try { n = insCkRank(src); } catch (e) { n = 0; } return n ? `<i class="ck-ord" title="ORDRE DU FILTRE">${n}</i>` : ""; };
     /* pastille : « cochées/total » dès qu'une partie seulement est cochée (même le bloc coché en premier) ; sinon lignes retenues/total */
     const insCntOwn = (k, shownN, total) => { const N = (INS[k] || []).filter(r => !r.t), on = N.filter(r => r.on === true).length; return svCnt(on && on < N.length ? on : shownN, total); };
@@ -990,9 +991,10 @@
       /* v537 : tâches cochées du PLANNING (DÉTAIL DÉLAIS) — elles filtrent aussi les autres blocs, comme toutes les cases carrées */
       const DS = k !== "dly" && A.has("dly") ? shell.__dlySel : null;
       const IP = k !== "dly" && A.has("iso") ? U_(insIsoPath()) : "";
+      const PS = k !== "chg" && A.has("par") ? insParSet() : null;   /* v622 : CHARGES QUI FONT n % filtre aussi les autres blocs */
       const inIso = l => { const v = U_(((INS.lot || []).find(x => x.id === l.lot) || {}).v || ""); return v === IP || v.startsWith(IP + " / "); };
       const ks = Object.keys(C);
-      const out = !ks.length && !lon && !DS && !IP ? null : (INS.links || []).filter(l => ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
+      const out = !ks.length && !lon && !DS && !IP && !PS ? null : (INS.links || []).filter(l => (!PS || (l.chg || []).some(y => PS.has(y.id))) && ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
         && (!lon || l.on === true) && (!DS || DS.has(l.lot + "|" + l.sec)) && (!IP || inIso(l)));
       ICL.m[ck] = out;
       return out;
@@ -1011,37 +1013,46 @@
       if (PCT_M && PCT_M.rgv === INS_RGV) return PCT_M.v;
       if (PCT_BUSY) return 0;
       PCT_BUSY = true;
-      let v = 0;
+      let v = 0; const pb = PAR_BUSY; PAR_BUSY = true;   /* v622 : % comptés sur toutes les charges retenues, avant CHARGES QUI FONT n % */
       try {
         const shown = insShown("chg").filter(r => !r.t), on = shown.filter(r => r.on === true);
         let SA = null; try { SA = insCheckSet("chg", true); } catch (e) { SA = null; }
         v = (on.length ? on : shown).filter(r => !SA || SA.has(r.id)).reduce((t, r) => t + insHT("chg", r), 0);
-      } finally { PCT_BUSY = false; }
+      } finally { PCT_BUSY = false; PAR_BUSY = pb; }
       PCT_M = { rgv: INS_RGV, v }; queueMicrotask(() => { PCT_M = null; });
       return v;
     };
     const insPctChg = r => { const d = insPctDen(); return d ? insHT("chg", r) / d * 100 : ""; };
-    /* v621 : CHARGES QUI FONT n % — les plus grosses charges (titre replié = une ligne) dont les % additionnés atteignent n,
-       en fond jaune pâle ; même valeur que la légende du graphique (INS.hset.pct) ; case vide = aucune mise en forme */
-    let PAR_M = null;
-    const insParPct = () => { const h = INS.hset || {}; return h.pct === "" ? 0 : Math.max(1, Math.min(100, Number(h.pct) || 70)); };
+    /* v621 / v622 : CHARGES QUI FONT n % = FILTRE de DÉTAIL CHARGES — seules les plus grosses charges (titre replié = une ligne)
+       dont les % additionnés atteignent n restent ; il agit sur les autres blocs comme une case cochée (numéro d'ordre) ;
+       même valeur pour la légende du graphique ; vide = pas de filtre */
+    let PAR_M = null, PAR_BUSY = false;
+    const insParPct = () => { const v = INS && INS.chgPar; return v ? Math.max(1, Math.min(100, Number(v) || 0)) : 0; };
     const insPar = () => {
       if (PAR_M && PAR_M.rgv === INS_RGV) return PAR_M;
-      const out = { rgv: INS_RGV, ids: new Set(), keys: new Set() }, n = insParPct(), d = insPctDen();
-      if (n && d) {
-        const G = new Map(); insShown("chg").filter(r => !r.t).forEach(r => { const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"); if (!G.has(key)) G.set(key, []); G.get(key).push(r); });
-        const it = []; G.forEach((g, key) => { if (g.length > 1 && CHG_GFOLD.has(key)) it.push({ g, key, v: g.reduce((t, x) => t + insHT("chg", x), 0) }); else g.forEach(r => it.push({ r, v: insHT("chg", r) })); });
-        it.sort((a, b) => b.v - a.v);
-        let acc = 0; for (const o of it) { if (acc >= d * n / 100 - 1e-9) break; acc += o.v; if (o.g) { out.keys.add(o.key); o.g.forEach(x => out.ids.add(x.id)); } else out.ids.add(o.r.id); }
+      const out = { rgv: INS_RGV, ids: new Set(), keys: new Set() }, n = insParPct();
+      if (n && !PAR_BUSY) {
+        PAR_BUSY = true;
+        try {
+          const rows = insShown("chg").filter(r => !r.t), d = rows.reduce((t, r) => t + insHT("chg", r), 0);
+          const G = new Map(); rows.forEach(r => { const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"); if (!G.has(key)) G.set(key, []); G.get(key).push(r); });
+          const it = []; G.forEach((g, key) => { if (g.length > 1 && CHG_GFOLD.has(key)) it.push({ g, key, v: g.reduce((t, x) => t + insHT("chg", x), 0) }); else g.forEach(r => it.push({ r, v: insHT("chg", r) })); });
+          it.sort((a, b) => b.v - a.v);
+          let acc = 0; for (const o of it) { if (acc >= d * n / 100 - 1e-9) break; acc += o.v; if (o.g) { out.keys.add(o.key); o.g.forEach(x => out.ids.add(x.id)); } else out.ids.add(o.r.id); }
+        } finally { PAR_BUSY = false; }
+        PAR_M = out; queueMicrotask(() => { PAR_M = null; });
       }
-      PAR_M = out; queueMicrotask(() => { PAR_M = null; });
       return out;
     };
+    /* ensemble filtrant (null = pas de filtre, ou calcul en cours) */
+    const insParSet = () => insParPct() && !PAR_BUSY ? insRgView(() => insPar()).ids : null;
     shell.__cfPar = (t, key) => t === insCfT("chg") && key === "pct" ? `<div class="cf-par">CHARGES QUI FONT <input class="cf-par-in" inputmode="numeric" value="${insParPct() || ""}"> %</div>` : "";
+    shell.__cfParOn = (t, key) => t === insCfT("chg") && key === "pct" && !!insParPct();
+    shell.__cfParClear = (t, key) => { if (t === insCfT("chg") && key === "pct" && INS && INS.chgPar) { INS.chgPar = ""; insSave(); } };
     shell.__cfParSet = (v, el) => {
       v = String(v || "").trim();
-      if (v !== "" && (!/^\d+$/.test(v) || Number(v) < 1 || Number(v) > 100)) { svToast("NOMBRE ENTIER DE 1 À 100 (VIDE = AUCUNE MISE EN FORME).", 3000, el); return; }
-      INS.hset = { ...(INS.hset || {}), pct: v === "" ? "" : Number(v) }; insSave(); histLog("SAISIE", "CHARGES QUI FONT", v === "" ? "AUCUNE" : v + " %"); refreshAll();
+      if (v !== "" && (!/^\d+$/.test(v) || Number(v) < 1 || Number(v) > 100)) { svToast("NOMBRE ENTIER DE 1 À 100 (VIDE = PAS DE FILTRE).", 3000, el); return; }
+      INS.chgPar = v === "" ? "" : Number(v); insSave(); histLog("SAISIE", "CHARGES QUI FONT", v === "" ? "FILTRE ENLEVÉ" : v + " %"); refreshAll();
     };
     /* v613 (point 9) : signe › / ⌄ dans l'en-tête de la colonne de désignation — un toucher replie tout, un autre déplie tout */
     const faKeys = kind => {
@@ -1469,7 +1480,7 @@
         const on = !!cfT(k).f.v;
         return `
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
-          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${title}${insCkBadge(k)}${insCntOwn(k, list.length, INS[k].length)}${k === "lot" ? shell.__faHTML("lot") : ""}</span>${onlyBtn(k, true)}<span class="cf-btn"
+          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${k === "lot" ? shell.__faHTML("lot") : ""}${title}${insCkBadge(k)}${insCntOwn(k, list.length, INS[k].length)}</span>${onlyBtn(k, true)}<span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${k === "sec" || k === "prim" ? `<span class="act-uh${cfT(k).f.u || (cfT(k).sort && cfT(k).sort.col === "u" && !cfT(k).sort.def) ? " cf-on" : ""}"><span class="act-uhl">U</span><span class="cf-btn" data-cf="${k}" data-col="u" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>` : ""}${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
           ${k === "lot" ? lotTreeHTML(list) : list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
