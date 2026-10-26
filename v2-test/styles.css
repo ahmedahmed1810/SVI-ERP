@@ -2565,3 +2565,5 @@ input.dly-gin { box-sizing: border-box; border: 2px solid var(--inst, #b42318) !
 #cfMenu .cf-opi { display: flex; align-items: center; width: 100%; min-height: 32px; padding: 0 10px; border: 0; border-bottom: 1px solid #f2f4f7; background: #fff; font-size: 12px; font-weight: 700; color: #172033; text-align: left; }
 #cfMenu .cf-opi b { display: inline-block; width: 18px; color: #b42318; }
 #cfMenu .cf-opi.on { background: #eff4ff; }
+/* v627 : AUJOURD'HUI et BUTOIR aussi sur le graphique */
+.ghist .gv { pointer-events: none; }
