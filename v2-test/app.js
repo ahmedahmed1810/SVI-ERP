@@ -11712,7 +11712,9 @@ function renderBudgetList() {
           const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 8) { clearTimeout(tm); fin(); } };
           const fin = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", fin); setTimeout(() => { host.__dlyXlp = false; }, 450); };
           const up = () => { clearTimeout(tm); fin(); if (!fired) dlyXDraw(host, g, X0.px, X0.cy, 1); };
-          document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", fin);
+          /* v637 : toucher repris par l'iPad (défilement, zoom) = rien ; avant, le délai continuait et posait un FILTRE DU JOUR */
+          const cancel = () => { clearTimeout(tm); fin(); };
+          document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", cancel);
           return;
         }
         const inG = e.target.closest && e.target.closest(".dlyg-foot .ghist");
