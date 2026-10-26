@@ -10108,7 +10108,8 @@ function renderBudgetList() {
           const fmtA = v => { const a = Math.abs(v), f = (x, u) => (Math.round(x * 10) / 10).toLocaleString("fr-FR") + " " + u; return a >= 1e9 ? f(v / 1e9, "G") : a >= 1e6 ? f(v / 1e6, "M") : a >= 1e4 ? f(v / 1e3, "K") : (Math.round(v * 100) / 100).toLocaleString("fr-FR"); };
           const fmtV = v => (Math.round(v * 100) / 100).toLocaleString("fr-FR");
           /* légende (R24) : par montant décroissant ; toutes les charges cochées = seulement celles qui font le % réglé, le reste en AUTRES */
-          const totS = ks.map((sk, j) => [sk, days.reduce((t, di) => t + (HD.ser.get(sk).L[di] || 0), 0)]).sort((a, b) => b[1] - a[1]);
+          /* v628 : avec une plage DÉBUT – FIN, la légende est calculée sur la plage seulement (séries absentes de la plage retirées) */
+          const totS = ks.map((sk, j) => [sk, days.filter(inR).reduce((t, di) => t + (HD.ser.get(sk).L[di] || 0), 0)]).filter(x => !(RG.a || RG.b) || x[1] > 1e-9).sort((a, b) => b[1] - a[1]);
           const allOn = (INS.chg || []).filter(r => !r.t).every(r => r.on === true);
           const pct = Math.max(1, Math.min(100, Number(INS.chgPar) || 70)), grand = totS.reduce((t, x) => t + x[1], 0) || 1;
           const keep = new Set(); { let acc = 0; totS.forEach(([sk, v]) => { if (!allOn || acc < grand * pct / 100 - 1e-9) keep.add(sk); acc += v; }); }
@@ -10119,6 +10120,12 @@ function renderBudgetList() {
           const CC = "#f79009", CP = "#2e90fa", CG = "#12b76a", CGN = "#d92d20";
           /* v589 : une charge garde sa couleur partout — orange si elle est seule, sinon celle de la légende */
           const colOf = (sk, j) => ks.length > 1 ? (col[sk] || DLY_SER[j % DLY_SER.length]) : CC;
+          if (!C && !hideC && !curve && !multi && !cum) {
+            /* v628 : jour avec au moins une tâche en cours mais sans charge = barre aplatie à zéro (couleur de la série) */
+            const cal = insCal(), busy = new Set();
+            R.filter(x => !x.grp && x.deb).forEach(x => { const f = x.fin || x.deb; for (let d = x.deb, g = 0; d <= f && g < 2000; d = sviIsoAdd(d, 1), g++) if (d >= d0 && d <= d1 && sviWork(cal, d)) busy.add(d); });
+            vis.forEach(di => { if (busy.has(di) && !(Math.abs(val[di] || 0) > 1e-9) && pass(di)) hb += `<div class="ghb ghb-z" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;bottom:${HH - Y0}px;background:${ks.length === 1 ? colOf(ks[0], 0) : CC}"></div>`; });
+          }
           if (hideC) vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           else if (C && !curve) {
             /* v589 : commandes prévisionnelles — barres fines hachurées, empilées à la couleur de chaque charge commandée */
@@ -10290,6 +10297,8 @@ function renderBudgetList() {
       /* v594 (remarque longue 2) : graphique et poignée « = » dans un PIED FIXE sous la zone des tâches (hors de ce qui défile) :
          ils ne bougent plus pendant le défilement vertical ; le pied défile seulement à l'horizontale, avec le Gantt */
       dlyFoot(host, hist);
+      /* v628 : barre choisie par un appui long (HISTOGRAMME) — gardée en évidence après un nouveau dessin */
+      if (shell.__dlyBarSel) shell.querySelectorAll(`.dlyg-foot .ghb[data-d="${shell.__dlyBarSel}"]`).forEach(b => b.classList.add("ghb-sel"));
       try { dlyPickPaint(); } catch (e) {}
       host.parentElement.querySelectorAll("input.dlyp-cb[data-part]").forEach(c => { c.indeterminate = true; });
       /* défilement horizontal du Gantt gardé d'un dessin à l'autre */
@@ -10299,6 +10308,21 @@ function renderBudgetList() {
       if ((shell.__dlyCenter || shell.__dlyGx === undefined) && HD) {
         shell.__dlyCenter = false;
         const nz = new Set(); [HD.tot, HD.prd, HD.cmd && HD.cmd.L, HD.cmd && HD.cmd.P].forEach(M => M && Object.keys(M).forEach(k => { if (Math.abs(M[k] || 0) > 1e-9) nz.add(k); }));
+        /* v628 : AJUSTÉ À L'OUVERTURE — premier jour au bord gauche, dernier au bord droit (petite marge), plage DÉBUT – FIN si posée,
+           BUTOIR compris s'il tombe après ; une seule barre : au centre, au plus large permis ; le Gantt suit (même échelle) */
+        { const RGc = dlyHRange(), T = R.filter(x => !x.grp), dd = [...nz].concat(T.map(x => x.deb), T.map(x => x.fin)).filter(Boolean).sort();
+          let a = RGc.a || dd[0], b = RGc.b || dd[dd.length - 1];
+          if (a && b && INS.dbut && INS.dbut > b && !RGc.b) b = INS.dbut;
+          if (a && b && !shell.__dlyFitting) {
+            shell.__dlyFitting = true;
+            /* après la mise en page : largeur réellement visible du Gantt */
+            requestAnimationFrame(() => { try {
+              const h2 = shell.querySelector("#dlyGantt"); if (!h2) return;
+              const r = h2.getBoundingClientRect(), vw = Math.min(h2.clientWidth, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0));
+              const n = Math.max(1, dDiff(a, b) + 1), mg = 12, want = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n));
+              if (vw > 60 && Math.abs(want - DLY_DW) > 0.5) (shell.__dlyDwSet || (() => {}))(h2, want, mg + Math.max(0, (vw - 2 * mg - n * Math.round(want)) / 2), dDiff(h2.__d0, a));
+            } finally { shell.__dlyFitting = false; document.getElementById("dlyDwLab")?.remove(); } });
+          } }
         const L = [...nz].sort();
         if (L.length) { const x1 = X(L[0]), x2 = X(L[L.length - 1]) + DLY_DW, w = host.clientWidth;
           const t = x2 - x1 <= w ? (x1 + x2) / 2 - w / 2 : x1 - 2 * DLY_DW;
@@ -11632,6 +11656,12 @@ function renderBudgetList() {
          toucher une courbe = le point s'y déplace ; toucher le graphique hors des courbes = repères et filtre enlevés ;
          toucher ailleurs = repères enlevés (le filtre reste) */
       document.addEventListener("pointerdown", e => {
+        /* v628 : barre choisie (HISTOGRAMME) — toucher ailleurs la libère ; dans le graphique hors des barres : filtre du jour enlevé aussi */
+        if (shell.__dlyBarSel && !(e.target.closest && e.target.closest(".dlyg-foot .ghb[data-d], #dlyHb"))) {
+          const inG = e.target.closest && e.target.closest(".dlyg-foot .ghist") && !e.target.closest(".grng, .gplaf, .gcut, .grdb, .grdc, .gax-hit, .grule, .gval, .dlyg-hh");
+          shell.querySelectorAll(".dlyg-foot .ghb-sel").forEach(b => b.classList.remove("ghb-sel")); shell.__dlyBarSel = null;
+          if (inG) dlyXUnfilter();
+        }
         const X0 = shell.__dlyX;
         if (!X0 || !document.querySelector(".dlyx-pt")) { shell.__dlyX = null; return; }
         const host = shell.querySelector("#dlyGantt"), g = shell.querySelector(".dlyg-foot .ghist");
@@ -11666,8 +11696,19 @@ function renderBudgetList() {
         const host = shell.querySelector("#dlyGantt"), h = hit.closest(".ghist");
         let on = false; const x0 = e.clientX, y0 = e.clientY;
         const tmv = ev => { if (on) ev.preventDefault(); };
-        const tm = setTimeout(() => { on = true; host.__dlyXlp = true; dlyXDraw(host, h, x0, y0, 0); }, 450);
-        const mv = ev => { if (!on) { if (Math.abs(ev.clientX - x0) > 8 || Math.abs(ev.clientY - y0) > 8) end(); return; } ev.preventDefault(); dlyXDraw(host, h, ev.clientX, ev.clientY, 0); };
+        /* v628 : HISTOGRAMME — pas de point ni de pointillés : la barre est mise en évidence et sa bulle s'ouvre ;
+           un second appui long sur la même barre = FILTRE DU JOUR */
+        const barMode = !(host.__HV || {}).curve && !(host.__HV || {}).hideC;
+        const tm = setTimeout(() => {
+          on = true; host.__dlyXlp = true;
+          if (!barMode) { dlyXDraw(host, h, x0, y0, 0); return; }
+          const di = hit.dataset.d;
+          if (shell.__dlyBarSel === di) { document.getElementById("dlyHb")?.remove(); dlyXFilter(di); return; }
+          shell.querySelectorAll(".dlyg-foot .ghb-sel").forEach(b => b.classList.remove("ghb-sel"));
+          shell.__dlyBarSel = di; shell.querySelectorAll(`.dlyg-foot .ghb[data-d="${di}"]`).forEach(b => b.classList.add("ghb-sel"));
+          host.__dlyXlp = false; hit.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: x0, clientY: y0 })); host.__dlyXlp = true;
+        }, 450);
+        const mv = ev => { if (!on) { if (Math.abs(ev.clientX - x0) > 8 || Math.abs(ev.clientY - y0) > 8) end(); return; } ev.preventDefault(); if (!barMode) dlyXDraw(host, h, ev.clientX, ev.clientY, 0); };
         const end = () => { clearTimeout(tm); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", end); document.removeEventListener("pointercancel", end); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); if (on) setTimeout(() => { host.__dlyXlp = false; }, 400); };
         document.addEventListener("touchmove", tmv, { passive: false });
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", end); document.addEventListener("pointercancel", end);
@@ -11836,6 +11877,7 @@ function renderBudgetList() {
         lab.style.left = (r.left + ax) + "px"; lab.style.top = (r.top + 4) + "px";
         clearTimeout(lab.__tm); lab.__tm = setTimeout(() => lab.remove(), 900);
       };
+      shell.__dlyDwSet = dlyDwSet;   /* v628 : ajustement à l'ouverture (17-3) */
       shell.addEventListener("pointerdown", e => {
         const gh = e.target.closest && e.target.closest("#dlyGantt .gh");
         if (!gh || e.button > 0 || shell.__dlyPinch) return;
@@ -11923,7 +11965,8 @@ function renderBudgetList() {
         /* v582 : graphique zoomé — un doigt à la verticale fait monter ou descendre l'échelle (le sens dominant du geste décide) ;
            double toucher = échelle entière */
         const yRedraw = () => { if (shell.__dlyYRaf) return; shell.__dlyYRaf = requestAnimationFrame(() => { shell.__dlyYRaf = 0; const H = shell.querySelector("#dlyGantt"); if (H) { H.__drawn = false; dlyGanttDraw(); } }); };
-        const yFull = () => { document.getElementById("dlyHb")?.remove(); shell.__dlyYZ = 1; shell.__dlyYO = 0; yRedraw(); };
+        /* v628 : double toucher = échelle entière ET ajustement à l'écran (comme à l'ouverture) */
+        const yFull = () => { document.getElementById("dlyHb")?.remove(); shell.__dlyYZ = 1; shell.__dlyYO = 0; shell.__dlyCenter = true; yRedraw(); };
         let V = null, lastTap = null;
         const NOV = ".gplaf, .gcut, .grng, .grng-g, .grng-h, .grule, .gax-hit, .gval, .dlyg-hh, .grdb, .grdc";
         shell.addEventListener("touchstart", e => {

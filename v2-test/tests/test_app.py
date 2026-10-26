@@ -1129,7 +1129,8 @@ def main():
             n = pg.evaluate("d0 => Math.round((new Date('2026-11-04T00:00:00') - new Date(d0 + 'T00:00:00')) / 864e5)", pl[3])
             hx = pg.evaluate("() => document.querySelector('.dlyg-foot .ghist').getBoundingClientRect().left")
             x = hx + n * dw + dw / 2
-            pg.evaluate("x => { const h = document.querySelector('#dlyGantt'); h.scrollLeft = Math.max(0, x - h.getBoundingClientRect().left - 200); }", x); pg.wait_for_timeout(200)
+            # v628 : Gantt ajusté à l'ouverture (jours plus larges) — le jour visé est amené dans la partie visible
+            pg.evaluate("x => { const h = document.querySelector('#dlyGantt'); h.scrollLeft = Math.max(0, x - h.getBoundingClientRect().left - Math.min(200, h.clientWidth / 2)); }", x); pg.wait_for_timeout(200)
             hx = pg.evaluate("() => document.querySelector('.dlyg-foot .ghist').getBoundingClientRect().left"); x = hx + n * dw + dw / 2
             y = pg.evaluate("() => { const r = document.querySelector('.dlyg-foot .gplaf').getBoundingClientRect(); return r.top + 1; }")
             # v542 (R2) : appui long = « / » et bulle COUPER ICI qui suivent le doigt ; lâcher = couper à ce jour

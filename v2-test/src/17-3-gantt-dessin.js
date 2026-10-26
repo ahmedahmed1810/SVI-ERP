@@ -303,7 +303,8 @@
           const fmtA = v => { const a = Math.abs(v), f = (x, u) => (Math.round(x * 10) / 10).toLocaleString("fr-FR") + " " + u; return a >= 1e9 ? f(v / 1e9, "G") : a >= 1e6 ? f(v / 1e6, "M") : a >= 1e4 ? f(v / 1e3, "K") : (Math.round(v * 100) / 100).toLocaleString("fr-FR"); };
           const fmtV = v => (Math.round(v * 100) / 100).toLocaleString("fr-FR");
           /* légende (R24) : par montant décroissant ; toutes les charges cochées = seulement celles qui font le % réglé, le reste en AUTRES */
-          const totS = ks.map((sk, j) => [sk, days.reduce((t, di) => t + (HD.ser.get(sk).L[di] || 0), 0)]).sort((a, b) => b[1] - a[1]);
+          /* v628 : avec une plage DÉBUT – FIN, la légende est calculée sur la plage seulement (séries absentes de la plage retirées) */
+          const totS = ks.map((sk, j) => [sk, days.filter(inR).reduce((t, di) => t + (HD.ser.get(sk).L[di] || 0), 0)]).filter(x => !(RG.a || RG.b) || x[1] > 1e-9).sort((a, b) => b[1] - a[1]);
           const allOn = (INS.chg || []).filter(r => !r.t).every(r => r.on === true);
           const pct = Math.max(1, Math.min(100, Number(INS.chgPar) || 70)), grand = totS.reduce((t, x) => t + x[1], 0) || 1;
           const keep = new Set(); { let acc = 0; totS.forEach(([sk, v]) => { if (!allOn || acc < grand * pct / 100 - 1e-9) keep.add(sk); acc += v; }); }
@@ -314,6 +315,12 @@
           const CC = "#f79009", CP = "#2e90fa", CG = "#12b76a", CGN = "#d92d20";
           /* v589 : une charge garde sa couleur partout — orange si elle est seule, sinon celle de la légende */
           const colOf = (sk, j) => ks.length > 1 ? (col[sk] || DLY_SER[j % DLY_SER.length]) : CC;
+          if (!C && !hideC && !curve && !multi && !cum) {
+            /* v628 : jour avec au moins une tâche en cours mais sans charge = barre aplatie à zéro (couleur de la série) */
+            const cal = insCal(), busy = new Set();
+            R.filter(x => !x.grp && x.deb).forEach(x => { const f = x.fin || x.deb; for (let d = x.deb, g = 0; d <= f && g < 2000; d = sviIsoAdd(d, 1), g++) if (d >= d0 && d <= d1 && sviWork(cal, d)) busy.add(d); });
+            vis.forEach(di => { if (busy.has(di) && !(Math.abs(val[di] || 0) > 1e-9) && pass(di)) hb += `<div class="ghb ghb-z" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;bottom:${HH - Y0}px;background:${ks.length === 1 ? colOf(ks[0], 0) : CC}"></div>`; });
+          }
           if (hideC) vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           else if (C && !curve) {
             /* v589 : commandes prévisionnelles — barres fines hachurées, empilées à la couleur de chaque charge commandée */
@@ -485,6 +492,8 @@
       /* v594 (remarque longue 2) : graphique et poignée « = » dans un PIED FIXE sous la zone des tâches (hors de ce qui défile) :
          ils ne bougent plus pendant le défilement vertical ; le pied défile seulement à l'horizontale, avec le Gantt */
       dlyFoot(host, hist);
+      /* v628 : barre choisie par un appui long (HISTOGRAMME) — gardée en évidence après un nouveau dessin */
+      if (shell.__dlyBarSel) shell.querySelectorAll(`.dlyg-foot .ghb[data-d="${shell.__dlyBarSel}"]`).forEach(b => b.classList.add("ghb-sel"));
       try { dlyPickPaint(); } catch (e) {}
       host.parentElement.querySelectorAll("input.dlyp-cb[data-part]").forEach(c => { c.indeterminate = true; });
       /* défilement horizontal du Gantt gardé d'un dessin à l'autre */
@@ -494,6 +503,21 @@
       if ((shell.__dlyCenter || shell.__dlyGx === undefined) && HD) {
         shell.__dlyCenter = false;
         const nz = new Set(); [HD.tot, HD.prd, HD.cmd && HD.cmd.L, HD.cmd && HD.cmd.P].forEach(M => M && Object.keys(M).forEach(k => { if (Math.abs(M[k] || 0) > 1e-9) nz.add(k); }));
+        /* v628 : AJUSTÉ À L'OUVERTURE — premier jour au bord gauche, dernier au bord droit (petite marge), plage DÉBUT – FIN si posée,
+           BUTOIR compris s'il tombe après ; une seule barre : au centre, au plus large permis ; le Gantt suit (même échelle) */
+        { const RGc = dlyHRange(), T = R.filter(x => !x.grp), dd = [...nz].concat(T.map(x => x.deb), T.map(x => x.fin)).filter(Boolean).sort();
+          let a = RGc.a || dd[0], b = RGc.b || dd[dd.length - 1];
+          if (a && b && INS.dbut && INS.dbut > b && !RGc.b) b = INS.dbut;
+          if (a && b && !shell.__dlyFitting) {
+            shell.__dlyFitting = true;
+            /* après la mise en page : largeur réellement visible du Gantt */
+            requestAnimationFrame(() => { try {
+              const h2 = shell.querySelector("#dlyGantt"); if (!h2) return;
+              const r = h2.getBoundingClientRect(), vw = Math.min(h2.clientWidth, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0));
+              const n = Math.max(1, dDiff(a, b) + 1), mg = 12, want = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n));
+              if (vw > 60 && Math.abs(want - DLY_DW) > 0.5) (shell.__dlyDwSet || (() => {}))(h2, want, mg + Math.max(0, (vw - 2 * mg - n * Math.round(want)) / 2), dDiff(h2.__d0, a));
+            } finally { shell.__dlyFitting = false; document.getElementById("dlyDwLab")?.remove(); } });
+          } }
         const L = [...nz].sort();
         if (L.length) { const x1 = X(L[0]), x2 = X(L[L.length - 1]) + DLY_DW, w = host.clientWidth;
           const t = x2 - x1 <= w ? (x1 + x2) / 2 - w / 2 : x1 - 2 * DLY_DW;
