@@ -2567,3 +2567,6 @@ input.dly-gin { box-sizing: border-box; border: 2px solid var(--inst, #b42318) !
 #cfMenu .cf-opi.on { background: #eff4ff; }
 /* v627 : AUJOURD'HUI et BUTOIR aussi sur le graphique */
 .ghist .gv { pointer-events: none; }
+/* v628 : barre choisie (appui long, HISTOGRAMME) ; barre aplatie à zéro (tâche en cours sans charge) */
+.dlyg-foot .ghb.ghb-sel { outline: 2px solid #12355b; outline-offset: 1px; z-index: 3; }
+.dlyg-foot .ghb.ghb-z { height: 3px !important; border-radius: 1px; }

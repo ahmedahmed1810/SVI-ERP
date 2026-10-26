@@ -12,6 +12,7 @@
         lab.style.left = (r.left + ax) + "px"; lab.style.top = (r.top + 4) + "px";
         clearTimeout(lab.__tm); lab.__tm = setTimeout(() => lab.remove(), 900);
       };
+      shell.__dlyDwSet = dlyDwSet;   /* v628 : ajustement à l'ouverture (17-3) */
       shell.addEventListener("pointerdown", e => {
         const gh = e.target.closest && e.target.closest("#dlyGantt .gh");
         if (!gh || e.button > 0 || shell.__dlyPinch) return;
@@ -99,7 +100,8 @@
         /* v582 : graphique zoomé — un doigt à la verticale fait monter ou descendre l'échelle (le sens dominant du geste décide) ;
            double toucher = échelle entière */
         const yRedraw = () => { if (shell.__dlyYRaf) return; shell.__dlyYRaf = requestAnimationFrame(() => { shell.__dlyYRaf = 0; const H = shell.querySelector("#dlyGantt"); if (H) { H.__drawn = false; dlyGanttDraw(); } }); };
-        const yFull = () => { document.getElementById("dlyHb")?.remove(); shell.__dlyYZ = 1; shell.__dlyYO = 0; yRedraw(); };
+        /* v628 : double toucher = échelle entière ET ajustement à l'écran (comme à l'ouverture) */
+        const yFull = () => { document.getElementById("dlyHb")?.remove(); shell.__dlyYZ = 1; shell.__dlyYO = 0; shell.__dlyCenter = true; yRedraw(); };
         let V = null, lastTap = null;
         const NOV = ".gplaf, .gcut, .grng, .grng-g, .grng-h, .grule, .gax-hit, .gval, .dlyg-hh, .grdb, .grdc";
         shell.addEventListener("touchstart", e => {

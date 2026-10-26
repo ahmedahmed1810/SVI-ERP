@@ -287,6 +287,12 @@
          toucher une courbe = le point s'y déplace ; toucher le graphique hors des courbes = repères et filtre enlevés ;
          toucher ailleurs = repères enlevés (le filtre reste) */
       document.addEventListener("pointerdown", e => {
+        /* v628 : barre choisie (HISTOGRAMME) — toucher ailleurs la libère ; dans le graphique hors des barres : filtre du jour enlevé aussi */
+        if (shell.__dlyBarSel && !(e.target.closest && e.target.closest(".dlyg-foot .ghb[data-d], #dlyHb"))) {
+          const inG = e.target.closest && e.target.closest(".dlyg-foot .ghist") && !e.target.closest(".grng, .gplaf, .gcut, .grdb, .grdc, .gax-hit, .grule, .gval, .dlyg-hh");
+          shell.querySelectorAll(".dlyg-foot .ghb-sel").forEach(b => b.classList.remove("ghb-sel")); shell.__dlyBarSel = null;
+          if (inG) dlyXUnfilter();
+        }
         const X0 = shell.__dlyX;
         if (!X0 || !document.querySelector(".dlyx-pt")) { shell.__dlyX = null; return; }
         const host = shell.querySelector("#dlyGantt"), g = shell.querySelector(".dlyg-foot .ghist");
@@ -321,8 +327,19 @@
         const host = shell.querySelector("#dlyGantt"), h = hit.closest(".ghist");
         let on = false; const x0 = e.clientX, y0 = e.clientY;
         const tmv = ev => { if (on) ev.preventDefault(); };
-        const tm = setTimeout(() => { on = true; host.__dlyXlp = true; dlyXDraw(host, h, x0, y0, 0); }, 450);
-        const mv = ev => { if (!on) { if (Math.abs(ev.clientX - x0) > 8 || Math.abs(ev.clientY - y0) > 8) end(); return; } ev.preventDefault(); dlyXDraw(host, h, ev.clientX, ev.clientY, 0); };
+        /* v628 : HISTOGRAMME — pas de point ni de pointillés : la barre est mise en évidence et sa bulle s'ouvre ;
+           un second appui long sur la même barre = FILTRE DU JOUR */
+        const barMode = !(host.__HV || {}).curve && !(host.__HV || {}).hideC;
+        const tm = setTimeout(() => {
+          on = true; host.__dlyXlp = true;
+          if (!barMode) { dlyXDraw(host, h, x0, y0, 0); return; }
+          const di = hit.dataset.d;
+          if (shell.__dlyBarSel === di) { document.getElementById("dlyHb")?.remove(); dlyXFilter(di); return; }
+          shell.querySelectorAll(".dlyg-foot .ghb-sel").forEach(b => b.classList.remove("ghb-sel"));
+          shell.__dlyBarSel = di; shell.querySelectorAll(`.dlyg-foot .ghb[data-d="${di}"]`).forEach(b => b.classList.add("ghb-sel"));
+          host.__dlyXlp = false; hit.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: x0, clientY: y0 })); host.__dlyXlp = true;
+        }, 450);
+        const mv = ev => { if (!on) { if (Math.abs(ev.clientX - x0) > 8 || Math.abs(ev.clientY - y0) > 8) end(); return; } ev.preventDefault(); if (!barMode) dlyXDraw(host, h, ev.clientX, ev.clientY, 0); };
         const end = () => { clearTimeout(tm); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", end); document.removeEventListener("pointercancel", end); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); if (on) setTimeout(() => { host.__dlyXlp = false; }, 400); };
         document.addEventListener("touchmove", tmv, { passive: false });
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", end); document.addEventListener("pointercancel", end);
