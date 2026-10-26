@@ -817,7 +817,9 @@
         if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + insCkBadge("dly") + (() => { const K = INS_EDIT ? dlyKeys() : insTasks(); if (!INS_EDIT) return svCnt(K.length);
           const S = shell.__dlySel && shell.__dlySel.size ? shell.__dlySel : null, IP = U_(insIsoPath());
           const inIso = key => { if (!IP) return true; const v = U_(((INS.lot || []).find(x => x.id === String(key).split("|")[0]) || {}).v || ""); return v === IP || v.startsWith(IP + " / "); };
-          return svCnt(K.filter(key => (!S || S.has(key)) && inIso(key) && insRgKeyIn(key)).length, K.length); })(); }
+          /* v616 : les cases des autres blocs comptent aussi (tâches de leurs liaisons) */
+          let OL = null; try { OL = insCheckLinks("dly", true); } catch (e) { OL = null; } const OK = OL ? new Set(OL.map(l => l.lot + "|" + l.sec)) : null;
+          return svCnt(K.filter(key => (!OK || OK.has(key)) && (!S || S.has(key)) && inIso(key) && insRgKeyIn(key)).length, K.length); })(); }
       /* IMPORT NON CRÉÉ : visible seulement s'il reste des lignes */
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="inc"]`), n = (INS.inc || []).length;
         if (b) { b.innerHTML = (SVI_ICON.hier || "") + "IMPORT NON CRÉÉ " + svCnt(n); b.hidden = !n; b.style.display = n ? "" : "none"; }
