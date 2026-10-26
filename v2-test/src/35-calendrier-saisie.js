@@ -663,7 +663,8 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
    du coin haut gauche, Effacer (⌫) = vider les cases sélectionnées
    ========================================================= */
 (() => {
-  const TSEL = "table.ins-table, table.sd-t, table.dly-table, table.qq-table, table.inc-table, table.prm-table";
+  /* v619 (remarque 88) : sélection de cases (Maj = plage, Ctrl / Cmd = case ajoutée ou retirée) dans tous les tableaux, comme en SAISIE DIRECTE */
+  const TSEL = "table.ins-table, table.sd-t, table.dly-table, table.qq-table, table.inc-table, table.prm-table, table.mg-table, table.lk-table, table.dpk-t, table.bdg-d-table";
   const S = { tbl: null, a: null, b: null, extra: new Set(), cut: new Set() };
   const posOf = td => { const tr = td.closest("tr"); return tr && tr.parentElement && tr.parentElement.tagName === "TBODY" ? { r: tr.sectionRowIndex, c: td.cellIndex } : null; };
   const tdAt = (tbl, r, c) => { const tr = tbl.tBodies[0] && tbl.tBodies[0].rows[r]; return tr ? tr.cells[c] || null : null; };
@@ -747,6 +748,9 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
         else if (S.extra.has(k)) S.extra.delete(k); else S.extra.add(k);
       }
       paint();
+    } else if (!e.shiftKey && !e.metaKey && !e.ctrlKey && !td.querySelector("input, select, textarea, button")) {
+      /* v619 : case sans saisie (MARGE, LIAISONS…) — un toucher en fait la case de départ */
+      S.tbl = tbl; S.a = p; S.b = null; S.extra.clear(); S.tk = (sviCellKey(td) || {}).t || null; paint();
     } else if ((e.metaKey || e.ctrlKey) && !S.a) {
       /* première case touchée avec Ctrl / Cmd : elle devient la case de départ */
       S.tbl = tbl; S.a = p; S.b = null; S.extra.clear(); S.tk = (sviCellKey(td) || {}).t || null; paint();

@@ -2547,3 +2547,10 @@ input.dly-gin { box-sizing: border-box; border: 2px solid var(--inst, #b42318) !
 .fold-all::after { content: ""; position: absolute; inset: -8px -6px; }
 /* v614 (point 10) : numéro d'ordre du filtre d'un bloc (1 = coché en premier) */
 .ck-ord { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; margin: 0 4px; padding: 0 3px; border-radius: 8px; background: #1570ef; color: #fff; font-style: normal; font-size: 10px; font-weight: 800; line-height: 1; vertical-align: middle; }
+/* v619 (remarque 90) : fenêtre LIAISON EN COURS — ligne d'ajout, délais, bouton de liaison en bas */
+#docPop .lki-add { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+#docPop .lki-add input { flex: 1 1 90px; min-width: 70px; height: 32px; border: 1px solid #d0d5dd; border-radius: 6px; padding: 0 8px; font-size: 13px; text-transform: uppercase; }
+#docPop .lki-add .lki-d { flex: 3 1 220px; }
+#docPop .lki-dly { display: grid; grid-template-columns: max-content 160px max-content 160px max-content auto; gap: 8px; align-items: center; margin-top: 6px; }
+#docPop .lki-dly input { height: 32px; }
+#docPop .lki-go .lk-go { margin: 0; }
