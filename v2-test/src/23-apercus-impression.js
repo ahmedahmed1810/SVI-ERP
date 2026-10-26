@@ -1029,7 +1029,7 @@
           </div>`;
       }
       const wsum = cols.reduce((t, c) => t + (COLW[c[0]] || 10), 0);
-      const fmt = (v, k) => k === "tva" ? money(Number(v) || 0) + " %" : typeof v === "number" ? money(v) : String(v ?? "");
+      const fmt = (v, k) => k === "tva" || (k === "pct" && v !== "" && v !== null && v !== undefined) ? money(Number(v) || 0) + " %" :   /* v625 : colonne % (DÉTAIL CHARGES, MARGE) */ typeof v === "number" ? money(v) : String(v ?? "");
       const al = c => /number/.test(c[3] || "") ? "r" : /center/.test(c[3] || "") ? "c" : "";
       const body = rows.map(r => "<tr>" + cols.map(c => `<td class="${al(c)}">${esc(fmt(c[2](r), c[0]))}</td>`).join("") + "</tr>").join("");
       printModel({

@@ -17,7 +17,7 @@
     const DLYG_REF = (budget.inst && budget.inst.ref) || budget.ref || "";
     const dlygMine = o => !!o && (o.ins === INS || (DLYG_REF && o.ref === DLYG_REF));
     if (INS) { const vs = window.__sviViewGet && window.__sviViewGet("bdg:" + budget.inst.ref); if (vs && typeof vs.w === "number" && vs.w >= 0) { shell.__dlygW = { ins: INS, ref: DLYG_REF, w: vs.w, auto: false }; if (vs.pw) shell.__dlygPrevW = vs.pw; } if (vs && vs.gx !== undefined) shell.__dlyGx = vs.gx; }
-    const INS_DLP_MIG = !!INS && (sviDlpSec(INS) | sviDlpOne(INS) | sviDpredTyped(INS) | sviDpredV2(INS)) > 0;
+    const INS_DLP_MIG = !!INS && (sviDlpSec(INS) | sviDlpOne(INS) | sviDpredTyped(INS) | sviDpredV2(INS) | sviDpredV3(INS)) > 0;
     /* calendrier du budget (jours travaillés) : durées et décalages en jours travaillés */
     const insCal = () => sviCalOf(INS);
     /* budget en instance (rouge) : les charges venues de CHS suivent CHS (prix, TVA, unité…) ;
