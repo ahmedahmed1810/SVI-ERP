@@ -156,6 +156,9 @@
     /* date de début du projet (INF), sinon celle de la génération, sinon le premier début */
     const dlyProjStart = () => INS.pdeb || INS.gdeb || dlyKeys().map(dlyDeb).filter(Boolean).sort()[0] || sviIsoOf(new Date());
     /* demi-journées d'une période : début à midi, fin à midi */
+    /* v617 (remarque 85) : AUTORISER LA COUPE DES TÂCHES (menu ⋯ de DÉTAIL DÉLAIS ; cochée au départ) */
+    const dlyCutOK = () => !INS || INS.dcut !== false;
+    const dlyCutSet = on => { INS.dcut = !!on; insSave(); histLog("DÉLAIS", "COUPE DES TÂCHES", on ? "AUTORISÉE" : "INTERDITE"); renderTabK(); };
     const dlyHalfS = p => !!(p && p.deb && p.dmd === p.deb);
     const dlyHalfE = p => !!(p && p.fin && p.fmd === p.fin);
     /* DURÉE (J) d'une tâche : jours travaillés, moins les demi-journées (1,5 J…) */
@@ -239,6 +242,28 @@
           return { a: st, b: st + own - 1 };
         }
         if (!rel.length) return { a: s0, b: s0 - 1, zero: true };
+        /* v617 (remarque 85) : coupe des tâches interdite — on cherche le premier départ d'où la tâche va au bout sans arrêt
+           (d'autres tâches passent avant, dans le trou, liaisons respectées) */
+        if (!dlyCutOK()) {
+          let st = s0;
+          for (let tr = 0; tr < 4000; tr++) {
+            let rem2 = 1, a2 = null, b2 = st, s2 = st, gap = -1;
+            const tk = [], cn = {}, gt = [], loc = {}, U2 = (i, x) => U(i, x) + ((loc[i] || {})[x] || 0);
+            for (let g = 0; rem2 > 1e-9 && g < 40000; g++, s2++) {
+              let f = rem2, li = -1; const FR = {};
+              rel.forEach(i => { const c = capAt(G[i], s2), fr = FR[i] = rdF(G[i], k, s2); const al = c === Infinity ? (own ? fr / own : .5 * fr / q[i]) : Math.max(0, c - U2(i, s2)) * fr / q[i]; if (al < f - 1e-12) { f = al; li = i; } });
+              if (f <= 1e-9 && li >= 0 && capAt(G[li], s2) === 0 && dead(G[li], s2)) throw { dlyStuck: true };
+              if (f <= 1e-9) { if (a2 !== null) { gap = s2; break; } continue; }
+              if (li >= 0) cn[li] = (cn[li] || 0) + 1;
+              rel.forEach(i => { const v = f * q[i] / (FR[i] || 1); tk.push([i, s2, v]); (loc[i] = loc[i] || {})[s2] = ((loc[i] || {})[s2] || 0) + v; });
+              rem2 -= f; if (a2 === null) a2 = s2; b2 = s2; gt.push(s2);
+            }
+            if (gap >= 0) { st = gap + 1; continue; }
+            tk.forEach(([i, x, v]) => take(i, x, v));
+            if (!dry) { const best = Object.keys(cn).sort((x, y) => cn[y] - cn[x])[0]; if (best !== undefined) lim[k] = G[best].gk; }
+            return { a: a2 === null ? st : a2, b: b2, got: gt };
+          }
+        }
         let rem = 1, a = null, b = s0, s = s0;
         const cnt = {}, got = [];
         for (let g = 0; rem > 1e-9 && g < 40000; g++, s++) {
@@ -281,8 +306,8 @@
           if (!P) return;
           if (x.t === "DD") e = Math.max(e, slotOf(sviWAdd(cal, D[x.k].deb, Math.max(0, x.o || 0))) + (D[x.k].dm ? 1 : 0));
           /* v544 : 0 = le jour même (dès qu'il reste des ouvriers libres), n = n jours travaillés après la fin */
-          else if (!(x.o > 0)) e = Math.max(e, P.b + 1);
-          else e = Math.max(e, slotOf(sviWAdd(cal, D[x.k].fin || D[x.k].deb, x.o)));
+          /* v617 (remarque 86) : FIN → DÉBUT, décalage 0 = la demi-journée qui suit la fin ; n = n jours travaillés de plus (jamais négatif) */
+          else e = Math.max(e, P.b + 1 + 2 * Math.max(0, x.o || 0));
         });
         /* une seule date : elle sert d'ancrage (R26) */
         const d0 = deb(k), f0 = dlyFin(k);
@@ -306,7 +331,10 @@
     const dlyChainO = (a, b, D) => {
       const da = D[a] || { deb: dlyDeb(a), fin: dlyFin(a) }, dbb = D[b] || { deb: dlyDeb(b) };
       const cal = insCal(), fa = da.fin || da.deb, db = dbb.deb;
-      return db > fa ? Math.max(1, (Number(sviWDur(cal, fa, db)) || 2) - 1) : 0;
+      /* v617 (remarque 86) : décalage compté depuis la demi-journée qui suit la fin (le jour même si la fin est à midi) */
+      const half = D[a] ? !!D[a].fm : (() => { const lp = dlyList(a).find(p => p.fin === fa); return !!(lp && lp.fmd === lp.fin); })();
+      const base = half ? fa : sviWAdd(cal, fa, 1);
+      return db > base ? Math.max(0, (Number(sviWDur(cal, base, db)) || 1) - 1) : 0;
     };
     /* y a-t-il quelque chose à gagner ? (R27) */
     const dlyCanCompress = (opts = {}) => {
@@ -761,6 +789,7 @@
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         const x = e.target.closest(".pcs-x");
         if (x && rows.length > 1) { rows.splice(Number(x.dataset.i), 1); draw(); return; }
+        if (e.target.closest("[data-add]") && !dlyCutOK()) { svToast("COUPE DES TÂCHES INTERDITE : COCHER AUTORISER LA COUPE DES TÂCHES (MENU ⋯ DU PLANNING).", 4000, e.target.closest("[data-add]")); return; }
         if (e.target.closest("[data-add]")) { const l = rows[rows.length - 1], a = sviWAdd(cal, l.fin, 2); rows.push({ id: insId(), deb: a, fin: a }); draw(); return; }
         if (e.target.closest("[data-glue]") && rows.length > 1) {
           const tot = rows.reduce((t, r) => t + (Number(dDur(r.deb, r.fin)) || 1), 0), a = rows[0].deb;
@@ -779,6 +808,7 @@
           else if (INS.dbut && r.fin > INS.dbut) err = "FIN REFUSÉE : APRÈS LA DATE BUTOIR DU " + dFr(INS.dbut) + ".";
         });
         if (!err && pf && R[0].deb < pf) err = "DÉBUT REFUSÉ : LES LIAISONS IMPOSENT LE " + dFr(pf) + " AU PLUS TÔT.";
+        if (!err && R.length > 1 && !dlyCutOK()) err = "COUPE DES TÂCHES INTERDITE : RECOLLER LES MORCEAUX OU AUTORISER LA COUPE (MENU ⋯ DU PLANNING).";
         if (err) { svToast(err, 3500, d.querySelector("[data-ok]")); return; }
         const L = dlyDraftKey(k);
         L.splice(0, L.length, ...R.map(r => ({ id: r.id, deb: r.deb, fin: r.fin })));

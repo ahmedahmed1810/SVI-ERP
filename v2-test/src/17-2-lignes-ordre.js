@@ -254,7 +254,7 @@
       if (late.length) {
         const fromDur = opts.fromDur || (durOld && q.deb && q.fin && sviWDur(cal, q.deb, q.fin) !== durOld);
         const maxFin = dlySuccs(task).map(S => { const l = dlyLinks(S).find(x => x.k === task), d0 = dlyDeb(S);
-          return l && l.t !== "DD" && d0 ? sviWAdd(cal, d0, -Math.max(0, l.o || 0)) : ""; }).filter(Boolean).sort()[0] || "";
+          return l && l.t !== "DD" && d0 ? sviWAdd(cal, d0, -(1 + Math.max(0, l.o || 0))) : ""; }   /* v617 (remarque 86) */).filter(Boolean).sort()[0] || "";
         const canCut = fromDur && maxFin && q.deb && maxFin >= q.deb;
         svChoose({ title: "TÂCHES SUIVANTES", html: `<div class="svc-sub">LA FIN DU ${esc(dFr(q.fin))} NE RESPECTE PLUS LA LIAISON AVEC :</div><ul class="svc-list">${late.map(k => `<li>${esc(dlyName(k))} — DÉBUT ${esc(dFr(dlyDeb(k)))}, AU PLUS TÔT ${esc(dFr(dlyPredFin(k)))}${esc(hidTxt(k))}</li>`).join("")}</ul>`,
           buttons: [...(canCut ? [{ v: "cut", label: "RÉDUIRE LA DURÉE", tone: "neutral" }] : []), { v: "shift", label: "DÉCALER LES TÂCHES SUIVANTES", tone: "neutral" }] }).then(r => {

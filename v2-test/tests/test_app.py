@@ -705,7 +705,7 @@ def main():
             await new Promise(r => setTimeout(r, 300));
             const o1 = I.dord.filter(k => ['l1|s1', 'l1|s2', 'l2|s1'].includes(k));
             /* liaison FIN → DÉBUT, s2 collée à s1 : allonger s1 d'un jour = s2 suit, sans fenêtre */
-            I.dpred = {{ 'l1|s2': [{{ k: 'l1|s1', t: 'FD', o: 1 }}] }}; if (sh.__ins) {{}}
+            I.dpred = {{ 'l1|s2': [{{ k: 'l1|s1', t: 'FD', o: 0 }}] }}; I.dmig86 = 1; if (sh.__ins) {{}}
             I.dlp['l1|s2'] = [{{ id: 'q2', deb: '2026-10-07', fin: '2026-10-08' }}];
             const LKd = D.draft(); Object.keys(LKd).forEach(k => delete LKd[k]);
             D.apply('l1|s1', {{ deb: '2026-10-05', fin: '2026-10-07' }}, {{ fromDur: true }});
@@ -1097,7 +1097,7 @@ def main():
         g5 = pg.evaluate(f"() => {{ const I = {ins}.INS, P = k => {{ const p = (I.dlp[k] || [])[0] || {{}}; return [p.deb, p.fin, !!p.dmd, !!p.fmd]; }}; return [P('l2|s1'), P('l2|s2'), P('l1|s1'), JSON.stringify(I.dpred['l2|s2'] || []), JSON.stringify(I.dpred['l1|s1'] || [])]; }}")
         check("v530 planning : GÉNÉRER — J-H ÷ ouvriers en demi-journées, tâche suivante dans la demi-journée libre, liaisons FIN → DÉBUT",
               g5[:3] == [["2026-11-02", "2026-11-03", False, False], ["2026-11-04", "2026-11-04", False, True], ["2026-11-04", "2026-11-05", True, False]]
-              and '"o":1' in g5[3] and '"o":0' in g5[4], g5)
+              and '"o":0' in g5[3] and '"o":0' in g5[4], g5)   # v617 (remarque 86) : 0 = demi-journée suivante
         # plafond coupé (appui long) puis morceau tiré : 4 ouvriers à partir du 04/11 ; COMPRESSER
         pg.evaluate("() => document.querySelector('.ghist')?.scrollIntoView({ block: 'center' })"); pg.wait_for_timeout(300)
         pl = pg.evaluate("() => { const g = document.querySelector('.dlyg-foot .gplaf'); const h = document.querySelector('#dlyGantt'); if (!g) return null; const x0 = h.__d0; const r = g.getBoundingClientRect(); return [r.left, r.top, r.width, x0]; }")
@@ -1391,7 +1391,7 @@ def main():
         # lot glissé vers la gauche : prédécesseur hors du lot poussé ; début du projet atteint → AVANCER LE DÉBUT DU PROJET
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.forEach(r => {{ r.on = false; }});
             I.dlp = {{ 'l1|s1': [{{ id: 'a', deb: '2026-11-02', fin: '2026-11-03' }}], 'l2|s1': [{{ id: 'b', deb: '2026-11-04', fin: '2026-11-04' }}] }};
-            I.dpred = {{ 'l2|s1': [{{ k: 'l1|s1', t: 'FD', o: 1 }}] }}; I.dinc = {{}}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(500)
+            I.dpred = {{ 'l2|s1': [{{ k: 'l1|s1', t: 'FD', o: 0 }}] }}; I.dmig86 = 1; I.dinc = {{}}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(500)
         p2 = pg.evaluate("() => { const t = document.querySelector('#bdgTabBody tr[data-key=\"l2|s1\"]'); let g = t && t.previousElementSibling; while (g && !g.classList.contains('dly-grp')) g = g.previousElementSibling; return g ? g.dataset.path : ''; }")
         pg.evaluate(f"p => {DXJ}.shiftGroup(p, -1)", p2); pg.wait_for_timeout(400)
         sw = pg.evaluate("() => [(document.querySelector('#svConf .svc-t') || {}).textContent || '']")
@@ -1464,6 +1464,15 @@ def main():
         pg.evaluate(f"""() => {{ const X = {ins}; X.INS.plafR = {{ '{GM}': {{ plaf: -1 }} }}; X.INS.hset = null; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
         check("v604 : MACON 4 J-H, 1 ouvrier : 4 jours à 100 % ; rendement demandé 400 % → borné au MAX 200 % → 2 jours (02 → 03)",
               q0 == "2026-11-05" and q1 == [200, "2026-11-02", "2026-11-03"], [q0, q1])
+        # v617 (remarque 85) : coupe interdite — la tâche attend d'aller au bout sans arrêt ; autorisée — elle est coupée
+        def cut_run(allow):
+            pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.plafR = {{ '{GM}': {{ plaf: 1, plafs: [{{ d: '2026-11-04', n: 0, after: [] }}, {{ d: '2026-11-05', n: 1, after: [] }}] }}, '{GS}': {{ plaf: -1 }} }};
+                I.hset = null; I.dlim = {{}}; I.dcut = {'true' if allow else 'false'}; I.chg.forEach(r => {{ r.on = r.id === 'n1' || r.id === 'n3'; }}); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+            pg.evaluate(f"() => {DXJ}.comp()"); pg.wait_for_timeout(600)
+            return pg.evaluate(f"() => {{ const L = {ins}.INS.dlp['l1|s1']; return [L.length, L[0].deb, L[L.length - 1].fin]; }}")
+        c1, c0 = cut_run(True), cut_run(False)
+        pg.evaluate(f"""() => {{ const X = {ins}; X.INS.plafR = {{ '{GM}': {{ plaf: -1 }} }}; X.INS.dcut = true; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        check("v617 : MACON 4 J-H, 1 ouvrier, capacité 0 le 04 — coupe autorisée : 2 morceaux du 02 au 06 ; interdite : un seul tenant du 05 au 09 (dimanche non travaillé)", c1[0] == 2 and c1[1] == "2026-11-02" and c0 == [1, "2026-11-05", "2026-11-09"], [c1, c0])
         # v612 (point 7) : produits cochés en partie — la charge de la tâche compte au prorata de leur quantité (graphique)
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.prd.push({{ id: 'y1', des: 'P1', u: 'M2', q: 10, on: true }}, {{ id: 'y2', des: 'P2', u: 'M2', q: 30 }});
             I.links[0].prd = [{{ id: 'y1' }}, {{ id: 'y2' }}]; I.chg.forEach(r => {{ r.on = r.id === 'n1'; }}); I.hset = {{ u: 'q', aff: 'j', cum: 'r' }}; I.hrange = null; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(600)
