@@ -8643,6 +8643,7 @@ function renderBudgetList() {
       P.K.forEach(k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; });
       if (blk === "detail" && INS && INS_EDIT) { (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }); (INS.inc || []).forEach(x => { if (x.on === true) x.on = false; }); }
       if (blk === "detail" && INS && INS.chgPar) INS.chgPar = "";   /* v622 : CHARGES QUI FONT n % */
+      if (blk === "detail") { shell.__dlyXF = null; shell.__dlyBarSel = null; }   /* v631 : filtre du jour oublié */
       if (blk === "detail" && INS && insRg()) INS.hrange = { ...INS.hrange, a: "", b: "" };   /* v560 : traits DÉBUT et FIN remis aux bords */
       if (INS && INS_EDIT) insSave();
       ICL = null; refreshAll();
@@ -10305,7 +10306,7 @@ function renderBudgetList() {
       if (shell.__dlyGx !== undefined) host.scrollLeft = shell.__dlyGx;
       /* v603 : à l'ouverture du graphique (premier dessin, onglet DÉLAIS ou GRAPHIQUE) et après ENREGISTRER des réglages,
          la partie qui a des valeurs (du premier au dernier jour non nul) est centrée à l'écran ; plus large que l'écran : son début */
-      if ((shell.__dlyCenter || shell.__dlyGx === undefined) && HD) {
+      if ((shell.__dlyCenter || shell.__dlyGx === undefined) && HD && !shell.__dlyNoFit) {
         shell.__dlyCenter = false;
         const nz = new Set(); [HD.tot, HD.prd, HD.cmd && HD.cmd.L, HD.cmd && HD.cmd.P].forEach(M => M && Object.keys(M).forEach(k => { if (Math.abs(M[k] || 0) > 1e-9) nz.add(k); }));
         /* v628 : AJUSTÉ À L'OUVERTURE — premier jour au bord gauche, dernier au bord droit (petite marge), plage DÉBUT – FIN si posée,
@@ -11627,6 +11628,9 @@ function renderBudgetList() {
       };
       /* v611 (point 3) : FILTRE DU JOUR — nouvel appui long sur le point des repères : DÉBUT et FIN autour de ce jour, cases des charges
          de ce jour cochées (tout le reste suit) ; un toucher dans le graphique hors des courbes l'enlève (plage et cases d'avant remises) */
+      /* v631 : filtre du jour posé / enlevé — l'écran reste sur les mêmes jours (pas d'ajustement, pas de saut) */
+      const dlyXKeep = () => { const h = shell.querySelector("#dlyGantt"); shell.__dlyNoFit = true; shell.__dlyKeepD = h && h.__d0 ? sviIsoAdd(h.__d0, Math.round(h.scrollLeft / DLY_DW)) : ""; };
+      const dlyXBack = () => { const d = shell.__dlyKeepD; const go = () => { const h = shell.querySelector("#dlyGantt"); if (h && h.__d0 && d) { h.scrollLeft = Math.max(0, dDiff(h.__d0, d) * DLY_DW); shell.__dlyGx = h.scrollLeft; } }; go(); requestAnimationFrame(() => { go(); setTimeout(() => { go(); shell.__dlyNoFit = false; }, 400); }); };
       const dlyXFilter = di => {
         const host = shell.querySelector("#dlyGantt"), H = host && host.__HD;
         if (!H) return;
@@ -11635,7 +11639,7 @@ function renderBudgetList() {
         const R = new Set((H.R || []).map(r => r.id)), K = new Set(((H.det || {})[di] || []).map(x => x.k)), ids = new Set();
         (INS.links || []).forEach(l => { if (K.has(l.lot + "|" + l.sec)) (l.chg || []).forEach(y => { if (R.has(y.id)) ids.add(y.id); }); });
         if (ids.size) (INS.chg || []).forEach(r => { if (!r.t) r.on = ids.has(r.id) ? true : (r.on === true ? false : r.on); });
-        insSave(); histLog("DÉLAIS", "FILTRE DU JOUR", dFr(di)); refreshAll();
+        dlyXKeep(); insSave(); histLog("DÉLAIS", "FILTRE DU JOUR", dFr(di)); refreshAll(); dlyXBack();
         const X0 = shell.__dlyX;
         if (X0) setTimeout(() => { const h2 = shell.querySelector("#dlyGantt"), g2 = shell.querySelector(".dlyg-foot .ghist"); if (h2 && g2 && shell.__dlyX) dlyXDraw(h2, g2, X0.px, X0.cy, 0); }, 350);
       };
@@ -11644,7 +11648,7 @@ function renderBudgetList() {
         shell.__dlyXF = null;
         INS.hrange = JSON.parse(F.hr); const on = new Set(F.on);
         (INS.chg || []).forEach(r => { if (!r.t) r.on = on.has(r.id) ? true : (r.on === true ? false : r.on); });
-        insSave(); histLog("DÉLAIS", "FILTRE DU JOUR ENLEVÉ", ""); refreshAll();
+        insSave(); histLog("DÉLAIS", "FILTRE DU JOUR ENLEVÉ", ""); dlyXKeep(); refreshAll(); dlyXBack();
       };
       /* courbe (ou haut de barre) près du doigt, ce jour-là */
       const dlyXNear = (host, h, cx, cy) => {
@@ -11660,7 +11664,7 @@ function renderBudgetList() {
         if (shell.__dlyBarSel && !(e.target.closest && e.target.closest(".dlyg-foot .ghb[data-d], #dlyHb"))) {
           const inG = e.target.closest && e.target.closest(".dlyg-foot .ghist") && !e.target.closest(".grng, .gplaf, .gcut, .grdb, .grdc, .gax-hit, .grule, .gval, .dlyg-hh");
           shell.querySelectorAll(".dlyg-foot .ghb-sel").forEach(b => b.classList.remove("ghb-sel")); shell.__dlyBarSel = null;
-          if (inG) dlyXUnfilter();
+          void inG;   /* v631 : un toucher n'enlève plus le filtre du jour (3e appui long, plage élargie, ⚠ ou menu ⋯) */
         }
         const X0 = shell.__dlyX;
         if (!X0 || !document.querySelector(".dlyx-pt")) { shell.__dlyX = null; return; }
@@ -11669,7 +11673,7 @@ function renderBudgetList() {
           e.stopPropagation(); e.preventDefault();
           host.__dlyXlp = true;
           const x0 = e.clientX, y0 = e.clientY; let fired = false;
-          const tm = setTimeout(() => { fired = true; dlyXFilter(sviIsoAdd(host.__d0, X0.i)); }, 550);
+          const tm = setTimeout(() => { fired = true; if (shell.__dlyXF) dlyXUnfilter(); else dlyXFilter(sviIsoAdd(host.__d0, X0.i)); }, 550);
           const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 8) { clearTimeout(tm); fin(); } };
           const fin = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", fin); setTimeout(() => { host.__dlyXlp = false; }, 450); };
           const up = () => { clearTimeout(tm); fin(); if (!fired) dlyXDraw(host, g, X0.px, X0.cy, 1); };
@@ -11684,7 +11688,7 @@ function renderBudgetList() {
             dlyXDraw(host, inG, e.clientX, e.clientY, 0);
             return;
           }
-          dlyXClear(); shell.__dlyX = null; dlyXUnfilter();
+          dlyXClear(); shell.__dlyX = null;   /* v631 : le filtre du jour reste */
           return;
         }
         dlyXClear(); shell.__dlyX = null;
@@ -11703,6 +11707,8 @@ function renderBudgetList() {
           on = true; host.__dlyXlp = true;
           if (!barMode) { dlyXDraw(host, h, x0, y0, 0); return; }
           const di = hit.dataset.d;
+          /* v631 : 1er appui long = barre choisie + bulle ; 2e = filtre du jour ; 3e (filtre du jour en cours) = affichage d'avant */
+          if (shell.__dlyXF) { document.getElementById("dlyHb")?.remove(); shell.querySelectorAll(".dlyg-foot .ghb-sel").forEach(b => b.classList.remove("ghb-sel")); shell.__dlyBarSel = null; dlyXUnfilter(); return; }
           if (shell.__dlyBarSel === di) { document.getElementById("dlyHb")?.remove(); dlyXFilter(di); return; }
           shell.querySelectorAll(".dlyg-foot .ghb-sel").forEach(b => b.classList.remove("ghb-sel"));
           shell.__dlyBarSel = di; shell.querySelectorAll(`.dlyg-foot .ghb[data-d="${di}"]`).forEach(b => b.classList.add("ghb-sel"));
@@ -12161,7 +12167,10 @@ function renderBudgetList() {
       incWin: k => dlyIncWin(k), apprWin: () => dlyApproWin(), hh: v => { dlyHHSet(v); keepScroll(() => renderTab()); }, hhGet: () => dlyHHGet(),
       /* R18 : réglages de l'histogramme ; R19 / R20 : plage et filtre */
       hset: () => dlyHSet(), hsetPut: o => dlyHSetPut(o), sameU: () => dlySameU(dlyResSel()), hasSel: () => !!dlyResSel(),
-      hrange: () => dlyHRange(), hrangeSet: R => { INS.hrange = R; insSave(); renderTabK(); },
+      hrange: () => dlyHRange(), hrangeSet: R => { INS.hrange = R;
+        /* v631 : DÉBUT ou FIN tiré pendant un filtre du jour = plage normale ; les cases cochées par le filtre du jour sont rendues */
+        const F = shell.__dlyXF; if (F) { shell.__dlyXF = null; const on = new Set(F.on); (INS.chg || []).forEach(r => { if (!r.t) r.on = on.has(r.id) ? true : (r.on === true ? false : r.on); }); }
+        insSave(); if (F) refreshAll(); else renderTabK(); },
       hval: () => dlyHVal(),
       hvalSet: V => {
         INS.hval = V; insSave();

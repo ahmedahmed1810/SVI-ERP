@@ -258,6 +258,9 @@
       };
       /* v611 (point 3) : FILTRE DU JOUR — nouvel appui long sur le point des repères : DÉBUT et FIN autour de ce jour, cases des charges
          de ce jour cochées (tout le reste suit) ; un toucher dans le graphique hors des courbes l'enlève (plage et cases d'avant remises) */
+      /* v631 : filtre du jour posé / enlevé — l'écran reste sur les mêmes jours (pas d'ajustement, pas de saut) */
+      const dlyXKeep = () => { const h = shell.querySelector("#dlyGantt"); shell.__dlyNoFit = true; shell.__dlyKeepD = h && h.__d0 ? sviIsoAdd(h.__d0, Math.round(h.scrollLeft / DLY_DW)) : ""; };
+      const dlyXBack = () => { const d = shell.__dlyKeepD; const go = () => { const h = shell.querySelector("#dlyGantt"); if (h && h.__d0 && d) { h.scrollLeft = Math.max(0, dDiff(h.__d0, d) * DLY_DW); shell.__dlyGx = h.scrollLeft; } }; go(); requestAnimationFrame(() => { go(); setTimeout(() => { go(); shell.__dlyNoFit = false; }, 400); }); };
       const dlyXFilter = di => {
         const host = shell.querySelector("#dlyGantt"), H = host && host.__HD;
         if (!H) return;
@@ -266,7 +269,7 @@
         const R = new Set((H.R || []).map(r => r.id)), K = new Set(((H.det || {})[di] || []).map(x => x.k)), ids = new Set();
         (INS.links || []).forEach(l => { if (K.has(l.lot + "|" + l.sec)) (l.chg || []).forEach(y => { if (R.has(y.id)) ids.add(y.id); }); });
         if (ids.size) (INS.chg || []).forEach(r => { if (!r.t) r.on = ids.has(r.id) ? true : (r.on === true ? false : r.on); });
-        insSave(); histLog("DÉLAIS", "FILTRE DU JOUR", dFr(di)); refreshAll();
+        dlyXKeep(); insSave(); histLog("DÉLAIS", "FILTRE DU JOUR", dFr(di)); refreshAll(); dlyXBack();
         const X0 = shell.__dlyX;
         if (X0) setTimeout(() => { const h2 = shell.querySelector("#dlyGantt"), g2 = shell.querySelector(".dlyg-foot .ghist"); if (h2 && g2 && shell.__dlyX) dlyXDraw(h2, g2, X0.px, X0.cy, 0); }, 350);
       };
@@ -275,7 +278,7 @@
         shell.__dlyXF = null;
         INS.hrange = JSON.parse(F.hr); const on = new Set(F.on);
         (INS.chg || []).forEach(r => { if (!r.t) r.on = on.has(r.id) ? true : (r.on === true ? false : r.on); });
-        insSave(); histLog("DÉLAIS", "FILTRE DU JOUR ENLEVÉ", ""); refreshAll();
+        insSave(); histLog("DÉLAIS", "FILTRE DU JOUR ENLEVÉ", ""); dlyXKeep(); refreshAll(); dlyXBack();
       };
       /* courbe (ou haut de barre) près du doigt, ce jour-là */
       const dlyXNear = (host, h, cx, cy) => {
@@ -291,7 +294,7 @@
         if (shell.__dlyBarSel && !(e.target.closest && e.target.closest(".dlyg-foot .ghb[data-d], #dlyHb"))) {
           const inG = e.target.closest && e.target.closest(".dlyg-foot .ghist") && !e.target.closest(".grng, .gplaf, .gcut, .grdb, .grdc, .gax-hit, .grule, .gval, .dlyg-hh");
           shell.querySelectorAll(".dlyg-foot .ghb-sel").forEach(b => b.classList.remove("ghb-sel")); shell.__dlyBarSel = null;
-          if (inG) dlyXUnfilter();
+          void inG;   /* v631 : un toucher n'enlève plus le filtre du jour (3e appui long, plage élargie, ⚠ ou menu ⋯) */
         }
         const X0 = shell.__dlyX;
         if (!X0 || !document.querySelector(".dlyx-pt")) { shell.__dlyX = null; return; }
@@ -300,7 +303,7 @@
           e.stopPropagation(); e.preventDefault();
           host.__dlyXlp = true;
           const x0 = e.clientX, y0 = e.clientY; let fired = false;
-          const tm = setTimeout(() => { fired = true; dlyXFilter(sviIsoAdd(host.__d0, X0.i)); }, 550);
+          const tm = setTimeout(() => { fired = true; if (shell.__dlyXF) dlyXUnfilter(); else dlyXFilter(sviIsoAdd(host.__d0, X0.i)); }, 550);
           const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 8) { clearTimeout(tm); fin(); } };
           const fin = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", fin); setTimeout(() => { host.__dlyXlp = false; }, 450); };
           const up = () => { clearTimeout(tm); fin(); if (!fired) dlyXDraw(host, g, X0.px, X0.cy, 1); };
@@ -315,7 +318,7 @@
             dlyXDraw(host, inG, e.clientX, e.clientY, 0);
             return;
           }
-          dlyXClear(); shell.__dlyX = null; dlyXUnfilter();
+          dlyXClear(); shell.__dlyX = null;   /* v631 : le filtre du jour reste */
           return;
         }
         dlyXClear(); shell.__dlyX = null;
@@ -334,6 +337,8 @@
           on = true; host.__dlyXlp = true;
           if (!barMode) { dlyXDraw(host, h, x0, y0, 0); return; }
           const di = hit.dataset.d;
+          /* v631 : 1er appui long = barre choisie + bulle ; 2e = filtre du jour ; 3e (filtre du jour en cours) = affichage d'avant */
+          if (shell.__dlyXF) { document.getElementById("dlyHb")?.remove(); shell.querySelectorAll(".dlyg-foot .ghb-sel").forEach(b => b.classList.remove("ghb-sel")); shell.__dlyBarSel = null; dlyXUnfilter(); return; }
           if (shell.__dlyBarSel === di) { document.getElementById("dlyHb")?.remove(); dlyXFilter(di); return; }
           shell.querySelectorAll(".dlyg-foot .ghb-sel").forEach(b => b.classList.remove("ghb-sel"));
           shell.__dlyBarSel = di; shell.querySelectorAll(`.dlyg-foot .ghb[data-d="${di}"]`).forEach(b => b.classList.add("ghb-sel"));

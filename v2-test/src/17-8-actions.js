@@ -18,7 +18,10 @@
       incWin: k => dlyIncWin(k), apprWin: () => dlyApproWin(), hh: v => { dlyHHSet(v); keepScroll(() => renderTab()); }, hhGet: () => dlyHHGet(),
       /* R18 : réglages de l'histogramme ; R19 / R20 : plage et filtre */
       hset: () => dlyHSet(), hsetPut: o => dlyHSetPut(o), sameU: () => dlySameU(dlyResSel()), hasSel: () => !!dlyResSel(),
-      hrange: () => dlyHRange(), hrangeSet: R => { INS.hrange = R; insSave(); renderTabK(); },
+      hrange: () => dlyHRange(), hrangeSet: R => { INS.hrange = R;
+        /* v631 : DÉBUT ou FIN tiré pendant un filtre du jour = plage normale ; les cases cochées par le filtre du jour sont rendues */
+        const F = shell.__dlyXF; if (F) { shell.__dlyXF = null; const on = new Set(F.on); (INS.chg || []).forEach(r => { if (!r.t) r.on = on.has(r.id) ? true : (r.on === true ? false : r.on); }); }
+        insSave(); if (F) refreshAll(); else renderTabK(); },
       hval: () => dlyHVal(),
       hvalSet: V => {
         INS.hval = V; insSave();

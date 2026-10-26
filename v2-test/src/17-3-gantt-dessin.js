@@ -500,7 +500,7 @@
       if (shell.__dlyGx !== undefined) host.scrollLeft = shell.__dlyGx;
       /* v603 : à l'ouverture du graphique (premier dessin, onglet DÉLAIS ou GRAPHIQUE) et après ENREGISTRER des réglages,
          la partie qui a des valeurs (du premier au dernier jour non nul) est centrée à l'écran ; plus large que l'écran : son début */
-      if ((shell.__dlyCenter || shell.__dlyGx === undefined) && HD) {
+      if ((shell.__dlyCenter || shell.__dlyGx === undefined) && HD && !shell.__dlyNoFit) {
         shell.__dlyCenter = false;
         const nz = new Set(); [HD.tot, HD.prd, HD.cmd && HD.cmd.L, HD.cmd && HD.cmd.P].forEach(M => M && Object.keys(M).forEach(k => { if (Math.abs(M[k] || 0) > 1e-9) nz.add(k); }));
         /* v628 : AJUSTÉ À L'OUVERTURE — premier jour au bord gauche, dernier au bord droit (petite marge), plage DÉBUT – FIN si posée,
