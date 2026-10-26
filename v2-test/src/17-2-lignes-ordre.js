@@ -119,7 +119,9 @@
       /* R15 (23/10/2026) : cases cochées des autres blocs → les tâches non liées restent à leur place, en gris pâle (remplace v496) */
       const CLd = insCheckLinks("dly"), KD = CLd ? new Set(CLd.map(l => l.lot + "|" + l.sec)) : null;
       /* v564 (remarque 5) : plage DÉBUT – FIN du graphique — tâches sans jour dans la plage en gris pâle, à leur place */
-      const flat = cfApply("dlyp", DLY_COLS_P, P).map(t => (KD && !KD.has(t.key)) || !insRgKeyIn(t.key) ? { ...t, off: true } : t);
+      /* v620 : tâches hors filtre (cases des autres blocs, plage DÉBUT – FIN) retirées du tableau et du Gantt, comme du graphique ;
+         un lot sans tâche retenue disparaît aussi ; tout revient quand on décoche ou qu'on efface les filtres */
+      const flat = cfApply("dlyp", DLY_COLS_P, P).filter(t => !(KD && !KD.has(t.key)) && insRgKeyIn(t.key));
       /* R16 (23/10/2026) : lignes dans l'ordre du PLANNING, tâche par tâche (CLASSER PAR DÉBUT ne regroupe plus par lot) ;
          le titre d'un lot (et de chacun de ses niveaux) se place à la ligne de sa première tâche ; un lot replié ne cache que ses tâches */
       const G = new Map();

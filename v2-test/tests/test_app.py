@@ -1342,8 +1342,12 @@ def main():
         e15 = pg.evaluate("""() => [document.querySelectorAll('.dlyg-foot .ghb').length > 0, !!document.querySelector('#bdgTabBody tr.dly-task[data-key="l2|s1"].dly-off'), !!document.querySelector('#dlyGantt .gb.gb-off[data-key="l2|s1"]'),
             !!document.querySelector('#dlyGantt .gb.gb0[data-key="l1|s2"]'), (document.querySelector('#bdgTabBody tr[data-key="l1|s2"] input.dlp-in[data-f="dur"]') || {}).value, (document.querySelector('.dlyg-foot .gax-u') || {}).textContent]""")
         e15b = pg.evaluate(f"() => JSON.stringify({ins}.INS.dlp['l1|s2'])")
-        check("v542 R15 / v599 : rien de coché = toutes les charges (plus de SÉLECTIONNER DES CHARGES) ; charges cochées = histogramme, tâche non liée en gris à sa place ; tâche sans FIN = repère de 0 jour (rien d'inventé)",
-              "SÉLECTIONNER DES CHARGES" not in e14 and e15[:4] == [True, True, True, True] and e15[4] == "" and "J-H / JOUR" in (e15[5] or "") and '"fin":""' in e15b, [e14, e15, e15b])
+        # v620 : tâches hors filtre retirées (plus en gris) — sans case cochée, la tâche sans FIN redevient visible (repère de 0 jour)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.filter(r => /^k[13]$/.test(r.id)).forEach(r => {{ r.on = false; }}); X.refreshAll(); }}"""); pg.wait_for_timeout(500)
+        e15c = pg.evaluate("() => [!!document.querySelector('#dlyGantt .gb.gb0[data-key=\"l1|s2\"]'), !!document.querySelector('#bdgTabBody tr.dly-task[data-key=\"l2|s1\"]')]")
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.filter(r => /^k[13]$/.test(r.id)).forEach(r => {{ r.on = true; }}); X.refreshAll(); }}"""); pg.wait_for_timeout(500)
+        check("v542 R15 / v599 / v620 : rien de coché = toutes les charges (plus de SÉLECTIONNER DES CHARGES) ; charges cochées = histogramme, tâche non liée retirée du tableau et du Gantt ; tâche sans FIN = repère de 0 jour (rien d'inventé)",
+              "SÉLECTIONNER DES CHARGES" not in e14 and e15[0] and not e15[1] and not e15[2] and e15c == [True, True] and "J-H / JOUR" in (e15[5] or "") and '"fin":""' in e15b, [e14, e15, e15b, e15c])
         # R8 : bulle d'un jour de l'histogramme
         pg.evaluate("() => document.querySelector('.dlyg-foot .ghb[data-d=\"2026-11-02\"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))"); pg.wait_for_timeout(300)
         hb = pg.evaluate("() => (document.getElementById('dlyHb') || {}).innerText || ''")
@@ -1520,11 +1524,12 @@ def main():
         z1 = pg.evaluate("() => [...document.querySelectorAll('#blkMenu .blk-hint')].map(e => e.textContent).slice(0, 3)")
         pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
         z1b = pg.evaluate("() => !!document.querySelector('.dlyg.dz-hist')")
-        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.dlp['l2|s1'] = [{{ id: 'b', deb: '2026-10-30', fin: '2026-10-30' }}]; I.dord = ['l1|s1', 'l2|s1']; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.dlp['l2|s1'] = [{{ id: 'b', deb: '2026-10-30', fin: '2026-10-30' }}]; I.dord = ['l1|s1', 'l2|s1']; window.__r29on = I.chg.filter(r => r.on === true).map(r => r.id); window.__r29hr = JSON.stringify(I.hrange || null); I.chg.forEach(r => {{ r.on = false; }}); I.hrange = null; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
         pg.evaluate(f"() => {DXJ}.viewSet('d')"); pg.wait_for_timeout(500)
         vd = pg.evaluate(f"""() => [[...document.querySelectorAll('#bdgTabBody .dlyg-l tr.dly-task')].map(t => t.dataset.key), !!document.querySelector('#bdgTabBody .dly-vno'), !!document.querySelector('#bdgTabBody .dly-vd'), JSON.stringify({ins}.INS.dord)]""")
         pg.evaluate(f"() => {DXJ}.viewSet('l')"); pg.wait_for_timeout(400)
         vl = pg.evaluate("() => [...document.querySelectorAll('#bdgTabBody .dlyg-l tr.dly-task')].map(t => t.dataset.key)")
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.forEach(r => {{ if ((window.__r29on || []).includes(r.id)) r.on = true; }}); I.hrange = JSON.parse(window.__r29hr || 'null'); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
         check("v543 R29 / v561 : menu PLANNING / GRAPHIQUE, sans liseré ; vue PAR DÉBUT en escalier (numéro du lot), sans bandeau (v594 : la vue se lit à la coche ✓ du menu), sans changer l'ordre enregistré",
               z1 == ["PLANNING"] and not z1b and vd[0] == ["l2|s1", "l1|s1"] and vd[1] and not vd[2] and vd[3] == '["l1|s1","l2|s1"]' and vl == ["l1|s1", "l2|s1"], [z1, z1b, vd, vl])
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk3; I.dlp = I.__dlp3; I.dpred = I.__dp3; I.dord = I.__ord3; I.pdeb = I.__pd3;
@@ -1762,8 +1767,8 @@ def main():
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk6; I.dlp = I.__dlp6; I.dpred = I.__dp6; I.dord = I.__ord6;
             ['__lk6', '__dlp6', '__dp6', '__ord6'].forEach(k => delete I[k]); I.plafR = {{}}; I.hset = null; I.dinc = {{}}; I.chg = I.chg.filter(r => !/^w[123]$/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
         pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
-        check("v546 R14 / R27 / R30 / R26 / R35 : tâche sans ouvriers ni délai = trait de 0 jour ; colonne SUCCESSEURS ; plus de trait OBJECTIF ; plus de bandeau ni de liseré",
-              q["z0"] and q["succ"] != "" and q["succH"] and not q["obj"] and not q["vd"] and not q["dz"], q)
+        check("v546 R14 / R27 / R30 / R26 / R35 / v620 : tâche sans charge cochée retirée du Gantt (0 jour vérifié en R15) ; colonne SUCCESSEURS ; plus de trait OBJECTIF ; plus de bandeau ni de liseré",
+              not q["z0"] and q["succ"] != "" and q["succH"] and not q["obj"] and not q["vd"] and not q["dz"], q)
         check("v546 R20 / R21 / R24 / R33 : CAPACITÉ en MONTANT avec valeur du morceau ; unité seule sur l'axe ; tableau jusqu'en bas ; bouton ↻ sur DÉTAIL DÉLAIS ; nombres abrégés",
               q["cap"].startswith("CAPACITÉ") and "DH" in q["segv"] and q["unit"] == "DH / JOUR" and abs(q["leftBottom"] - q["histBottom"]) <= 3 and q["adj"][0] and q["cfg"] and " K" in kfmt, [q, kfmt])
         check("v546 R19 : coupe — trait vertical en pointillés entre deux morceaux différents ; « / » déplacé quand les morceaux sont égaux",
