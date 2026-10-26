@@ -501,6 +501,8 @@
       /* v603 : à l'ouverture du graphique (premier dessin, onglet DÉLAIS ou GRAPHIQUE) et après ENREGISTRER des réglages,
          la partie qui a des valeurs (du premier au dernier jour non nul) est centrée à l'écran ; plus large que l'écran : son début */
       if ((shell.__dlyCenter || shell.__dlyGx === undefined) && HD && !shell.__dlyNoFit) {
+        /* v632 : l'ajustement ne se fait qu'UNE fois par ouverture (ou double toucher / réglages) — jamais en boucle */
+        const fitNow = !!shell.__dlyCenter || !shell.__dlyFitOnce; shell.__dlyFitOnce = 1;
         shell.__dlyCenter = false;
         const nz = new Set(); [HD.tot, HD.prd, HD.cmd && HD.cmd.L, HD.cmd && HD.cmd.P].forEach(M => M && Object.keys(M).forEach(k => { if (Math.abs(M[k] || 0) > 1e-9) nz.add(k); }));
         /* v628 : AJUSTÉ À L'OUVERTURE — premier jour au bord gauche, dernier au bord droit (petite marge), plage DÉBUT – FIN si posée,
@@ -508,7 +510,7 @@
         { const RGc = dlyHRange(), T = R.filter(x => !x.grp), dd = [...nz].concat(T.map(x => x.deb), T.map(x => x.fin)).filter(Boolean).sort();
           let a = RGc.a || dd[0], b = RGc.b || dd[dd.length - 1];
           /* v629 : calé sur la dernière date utilisée (fin de la dernière tâche), jamais sur le BUTOIR */
-          if (a && b && !shell.__dlyFitting) {
+          if (a && b && fitNow && !shell.__dlyFitting) {
             shell.__dlyFitting = true;
             /* après la mise en page : largeur réellement visible du Gantt */
             requestAnimationFrame(() => { try {
