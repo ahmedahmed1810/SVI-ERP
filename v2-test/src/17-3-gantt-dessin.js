@@ -505,28 +505,33 @@
       if (shell.__dlyGx !== undefined) host.scrollLeft = shell.__dlyGx;
       /* v603 : à l'ouverture du graphique (premier dessin, onglet DÉLAIS ou GRAPHIQUE) et après ENREGISTRER des réglages,
          la partie qui a des valeurs (du premier au dernier jour non nul) est centrée à l'écran ; plus large que l'écran : son début */
-      if ((shell.__dlyCenter || shell.__dlyGx === undefined) && HD && !shell.__dlyNoFit) {
-        /* v632 : l'ajustement ne se fait qu'UNE fois par ouverture (ou double toucher / réglages) — jamais en boucle */
-        const fitNow = !!shell.__dlyCenter || !shell.__dlyFitOnce; shell.__dlyFitOnce = 1;
+      /* v639 : jours utilisés avec les filtres en cours — s'ils changent (case, loupe, ISOLER, DÉBUT / FIN, EFFACER…), nouvel ajustement ;
+         pas pendant un filtre du jour (l'écran reste sur le jour) ; le zoom au doigt est gardé jusqu'au changement suivant */
+      const fNz = new Set(); if (HD) [HD.tot, HD.prd, HD.cmd && HD.cmd.L, HD.cmd && HD.cmd.P].forEach(M => M && Object.keys(M).forEach(k => { if (Math.abs(M[k] || 0) > 1e-9) fNz.add(k); }));
+      const fRg = dlyHRange(), fT = R.filter(x => !x.grp), fDd = [...fNz].concat(fT.map(x => x.deb), fT.map(x => x.fin)).filter(Boolean).sort();
+      const fA = fRg.a || fDd[0], fB = fRg.b || fDd[fDd.length - 1], fitSig = (fA || "") + "|" + (fB || "");
+      const sigNew = !shell.__dlyXF && !shell.__dlyNoFit && shell.__dlyFitSig !== undefined && shell.__dlyFitSig !== fitSig;
+      if (!shell.__dlyXF && !shell.__dlyNoFit) shell.__dlyFitSig = fitSig;
+      if ((shell.__dlyCenter || shell.__dlyGx === undefined || sigNew) && HD && !shell.__dlyNoFit) {
+        /* v632 : l'ajustement ne se fait qu'UNE fois par ouverture (ou double toucher / réglages / v639 : filtres changés) — jamais en boucle */
+        const fitNow = !!shell.__dlyCenter || !shell.__dlyFitOnce || sigNew; shell.__dlyFitOnce = 1;
         shell.__dlyCenter = false;
-        const nz = new Set(); [HD.tot, HD.prd, HD.cmd && HD.cmd.L, HD.cmd && HD.cmd.P].forEach(M => M && Object.keys(M).forEach(k => { if (Math.abs(M[k] || 0) > 1e-9) nz.add(k); }));
         /* v628 : AJUSTÉ À L'OUVERTURE — premier jour au bord gauche, dernier au bord droit (petite marge), plage DÉBUT – FIN si posée,
            BUTOIR non compris (v629) ; une seule barre : au centre, au plus large permis ; le Gantt suit (même échelle) */
-        { const RGc = dlyHRange(), T = R.filter(x => !x.grp), dd = [...nz].concat(T.map(x => x.deb), T.map(x => x.fin)).filter(Boolean).sort();
-          let a = RGc.a || dd[0], b = RGc.b || dd[dd.length - 1];
+        {
           /* v629 : calé sur la dernière date utilisée (fin de la dernière tâche), jamais sur le BUTOIR */
-          if (a && b && fitNow && !shell.__dlyFitting) {
+          if (fA && fB && fitNow && !shell.__dlyFitting) {
             shell.__dlyFitting = true;
             /* après la mise en page : largeur réellement visible du Gantt */
             requestAnimationFrame(() => { try {
               const h2 = shell.querySelector("#dlyGantt"); if (!h2) return;
               const r = h2.getBoundingClientRect(), vw = Math.min(h2.clientWidth, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0));
-              const n = Math.max(1, dDiff(a, b) + 1), mg = 12, want = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n));
-              if (vw > 60 && Math.abs(want - DLY_DW) > 0.5) (shell.__dlyDwSet || (() => {}))(h2, want, mg + Math.max(0, (vw - 2 * mg - n * Math.round(want)) / 2), dDiff(h2.__d0, a));
+              const n = Math.max(1, dDiff(fA, fB) + 1), mg = 12, want = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n));
+              if (vw > 60 && Math.abs(want - DLY_DW) > 0.5) (shell.__dlyDwSet || (() => {}))(h2, want, mg + Math.max(0, (vw - 2 * mg - n * Math.round(want)) / 2), dDiff(h2.__d0, fA));
             } finally { shell.__dlyFitting = false; document.getElementById("dlyDwLab")?.remove(); } });
           } }
-        const L = [...nz].sort();
-        if (L.length) { const x1 = X(L[0]), x2 = X(L[L.length - 1]) + DLY_DW, w = host.clientWidth;
+        /* v639 : plage utilisée (avec DÉBUT / FIN) centrée, même sans changement de zoom */
+        if (fA && fB) { const x1 = X(fA), x2 = X(fB) + DLY_DW, w = host.clientWidth;
           const t = x2 - x1 <= w ? (x1 + x2) / 2 - w / 2 : x1 - 2 * DLY_DW;
           host.scrollLeft = Math.max(0, Math.min(host.scrollWidth - w, t)); shell.__dlyGx = host.scrollLeft; }
       }

@@ -740,6 +740,22 @@ def main():
         check("v517 : tâche déplacée dans son lot — le lot reste à sa place", isinstance(dd, list) and dd[0] == ["l1|s1", "l1|s2", "l2|s1"], dd)
         check("v517 : tâche suivante collée — elle suit, sans fausse alerte", isinstance(dd, list) and dd[1] is False and dd[2] == "2026-10-08", dd)
 
+        # ===== v639 : DÉBUT posé après la FIN = tâche entière déplacée, même durée (jours travaillés) =====
+        mv = pg.evaluate(f"""async () => {{ const X = {ins}; const sh = [...document.querySelectorAll('*')].find(e => e.__insDly); const D = sh && sh.__insDly; if (!D) return 'pas de planning';
+            const I = X.INS; const save = JSON.stringify({{ dlp: I.dlp, dpred: I.dpred, dbut: I.dbut }});
+            I.dpred = {{}}; I.dbut = ''; const cal = D.cal();
+            const d0 = sviWNear(cal, '2026-10-05'), f0 = sviWAdd(cal, d0, 1), n0 = sviWAdd(cal, f0, 5);
+            I.dlp = {{ 'l1|s1': [{{ id: 'q1', deb: d0, fin: f0 }}] }};
+            const LKd = D.draft(); Object.keys(LKd).forEach(k => delete LKd[k]);
+            D.apply('l1|s1', {{ deb: n0, fin: f0 }}, {{}});
+            await new Promise(r => setTimeout(r, 300));
+            document.querySelectorAll('#svConf [data-x]').forEach(b => b.click());
+            const q = (I.dlp['l1|s1'] || [])[0] || (LKd['l1|s1'] || [])[0] || {{}};
+            const r = [q.deb === n0, q.fin === sviWAdd(cal, n0, 1), sviWDur(cal, q.deb, q.fin)];
+            const o = JSON.parse(save); I.dlp = o.dlp; I.dpred = o.dpred; I.dbut = o.dbut; Object.keys(LKd).forEach(k => delete LKd[k]); X.insSave(); X.refreshAll();
+            return r; }}""")
+        check("v639 : DÉBUT après la FIN — tâche déplacée avec sa durée", mv == [True, True, 2], mv)
+
         # ===== v519 : MARGE regroupée par LOT — un sous-lot se range juste sous son lot =====
         mo = pg.evaluate(f"""async () => {{ const X = {ins}; const I = X.INS; const save = JSON.stringify({{ lot: I.lot, links: I.links }});
             I.lot.push({{ id: 'lz', v: 'ETAGE 1 / ZONE A' }}, {{ id: 'la', v: 'AAA' }});

@@ -776,7 +776,8 @@
           const task = box.dataset.task, P = (((INS.dlp || {})[task] || [])[0]) || {}, q = { id: P.id || insId(), deb: P.deb || "", fin: P.fin || "" };
           q[di.classList.contains("lki-deb") ? "deb" : "fin"] = di.value;
           if (q.deb && !sviWork(insCal(), q.deb) || q.fin && !sviWork(insCal(), q.fin)) { svToast("JOUR NON TRAVAILLÉ DANS LE CALENDRIER DU BUDGET.", 3500, di); redraw(); return; }
-          if (q.deb && q.fin && q.fin < q.deb) { svToast("LA FIN EST AVANT LE DÉBUT.", 3500, di); redraw(); return; }
+          /* v639 : DÉBUT après la FIN = tâche déplacée avec sa durée (fait par X.apply) */
+          if (q.deb && q.fin && q.fin < q.deb && !(X && X.apply && di.classList.contains("lki-deb") && P.deb && P.fin)) { svToast("LA FIN EST AVANT LE DÉBUT.", 3500, di); redraw(); return; }
           if (X && X.apply) X.apply(task, q, { anchor: di }); else { INS.dlp = INS.dlp || {}; INS.dlp[task] = [q]; insSave(); }
           refreshAll(); setTimeout(redraw, 300);
         });
