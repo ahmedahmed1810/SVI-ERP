@@ -72,6 +72,19 @@ def main():
         pg.evaluate("""async () => { await SVI_INST_READY; bdgRows = []; bdgLoaded = true;
             document.querySelectorAll('[data-cancel], .svc-close').forEach(x => { try { x.click(); } catch (e) {} }); renderBudgetList(); }""")
         pg.wait_for_timeout(1500)
+        # v644 (refonte, étape 5) : règles de calcul du planning, testées seules (02c, calcul pur ; dimanche non travaillé)
+        rp = pg.evaluate("""() => { const c = sviCalOf({}); const P = (deb, fin, finMidi) => ({ deb, fin, finMidi });
+            return [
+              sviPlanLinkNeed(c, { t: 'FD', o: 0 }, P('2026-10-05', '2026-10-07', false)),
+              sviPlanLinkNeed(c, { t: 'FD', o: 0 }, P('2026-10-05', '2026-10-07', true)),
+              sviPlanLinkNeed(c, { t: 'FD', o: 2 }, P('2026-10-05', '2026-10-07', false)),
+              sviPlanLinkNeed(c, { t: 'FD', o: 0 }, P('2026-10-05', '2026-10-10', false)),
+              sviPlanLinkNeed(c, { t: 'DD', o: 3 }, P('2026-10-05', '2026-10-07', false)),
+              sviPlanNeed(c, [{ k: 'a', t: 'FD', o: 0 }, { k: 'b', t: 'DD', o: 0 }], k => k === 'a' ? P('2026-10-01', '2026-10-02') : P('2026-10-09', '')),
+              sviPlanChainO(c, '2026-10-07', false, '2026-10-08'), sviPlanChainO(c, '2026-10-07', false, '2026-10-10'), sviPlanChainO(c, '2026-10-07', true, '2026-10-07'),
+              sviPlanMove(c, '2026-10-05', '2026-10-06', '2026-10-10').fin ]; }""")
+        check("règle planning : FIN → DÉBUT (0 = demi-journée suivante, midi, décalage, dimanche), DÉBUT → DÉBUT, plusieurs prédécesseurs, décalage créé, tâche déplacée",
+              rp == ["2026-10-08", "2026-10-07", "2026-10-10", "2026-10-12", "2026-10-08", "2026-10-09", 0, 2, 0, "2026-10-12"], rp)
         # remarque 76 : première ouverture — titres des désignations pliés ; on déplie pour la suite
         f76 = pg.evaluate("() => { const b = document.querySelector('#bdgClientBody .ins-fold[data-fold=\"t1\"]'); return [!!b, b ? b.textContent.trim() : '', !document.querySelector('#bdgClientBody tr[data-iid=\"d1\"]')]; }")
         pg.evaluate("() => document.querySelector('#bdgClientBody .ins-fold[data-fold=\"t1\"]')?.click()"); pg.wait_for_timeout(400)

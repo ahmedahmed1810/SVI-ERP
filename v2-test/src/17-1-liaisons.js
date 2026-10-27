@@ -17,17 +17,11 @@
     const dlyDeb = key => dlyList(key).map(p => p.deb).filter(Boolean).sort()[0] || "";
     /* date de début la plus tôt permise par les liaisons (la plus tardive des exigences) :
        FIN → DÉBUT : jour travaillé suivant la fin du prédécesseur + décalage ; DÉBUT → DÉBUT : début du prédécesseur + décalage */
-    const dlyNeedOf = (key, finOf, debOf) => {
-      const cal = insCal();
-      return dlyLinks(key).map(x => {
-        if (x.t === "DD") { const d0 = debOf(x.k); return d0 ? sviWAdd(cal, sviWNear(cal, d0, 1), Math.max(0, x.o || 0)) : ""; }
-        /* v617 (remarque 86) : FIN → DÉBUT, décalage 0 = la demi-journée qui suit la fin du prédécesseur (le jour même s'il finit à midi,
-           sinon le lendemain) ; n = n jours travaillés de plus ; jamais négatif */
-        const f0 = finOf(x.k); if (!f0) return "";
-        const lp = dlyList(x.k).find(p => p.fin === f0), base = lp && lp.fmd === lp.fin ? f0 : sviWAdd(cal, f0, 1);
-        return sviWAdd(cal, base, Math.max(0, x.o || 0));
-      }).filter(Boolean).sort().pop() || "";
-    };
+    /* refonte, étape 5 (v644) : la règle est dans 02c (sviPlanNeed) ; ici, seulement les dates des prédécesseurs */
+    const dlyNeedOf = (key, finOf, debOf) => sviPlanNeed(insCal(), dlyLinks(key), k => {
+      const f0 = finOf(k), lp = f0 && dlyList(k).find(p => p.fin === f0);
+      return { deb: debOf(k), fin: f0, finMidi: !!(lp && lp.fmd === lp.fin) };
+    });
     const dlyPredFin = key => dlyNeedOf(key, dlyFin, dlyDeb);
     /* la tâche k est-elle (de proche en proche) un prédécesseur de c ? (boucle interdite) */
     const dlyReach = (c, k, seen = new Set()) => { if (c === k) return true; if (seen.has(c)) return false; seen.add(c); return dlyPreds(c).some(x => dlyReach(x, k, seen)); };

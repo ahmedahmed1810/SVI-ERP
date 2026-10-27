@@ -329,11 +329,10 @@
     /* décalage d'une liaison FIN → DÉBUT créée (v544) : 0 = le jour même où finit a, 1 = le lendemain… */
     const dlyChainO = (a, b, D) => {
       const da = D[a] || { deb: dlyDeb(a), fin: dlyFin(a) }, dbb = D[b] || { deb: dlyDeb(b) };
-      const cal = insCal(), fa = da.fin || da.deb, db = dbb.deb;
-      /* v617 (remarque 86) : décalage compté depuis la demi-journée qui suit la fin (le jour même si la fin est à midi) */
+      const fa = da.fin || da.deb;
+      /* v617 (remarque 86) : décalage compté depuis la demi-journée qui suit la fin (le jour même si la fin est à midi) — règle : 02c */
       const half = D[a] ? !!D[a].fm : (() => { const lp = dlyList(a).find(p => p.fin === fa); return !!(lp && lp.fmd === lp.fin); })();
-      const base = half ? fa : sviWAdd(cal, fa, 1);
-      return db > base ? Math.max(0, (Number(sviWDur(cal, base, db)) || 1) - 1) : 0;
+      return sviPlanChainO(insCal(), fa, half, dbb.deb);
     };
     /* y a-t-il quelque chose à gagner ? (R27) */
     const dlyCanCompress = (opts = {}) => {
