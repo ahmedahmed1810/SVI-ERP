@@ -13491,17 +13491,17 @@ function renderBudgetList() {
             if (r <= l) return "";
             const n = g2.n, y = yOf(n), cls = (n < 0 ? " gcap-inf" : n === 0 ? " gcap-zero" : "") + (g2.def ? " gcap-def" : "");
             const lab = n < 0 ? "ILLIMITÉ" : n === 0 ? "CAPACITÉ 0 — PÉNURIE" : "CAPACITÉ " + fmtA(n);
-            const sum = days.filter(di => di >= (g2.d || "") && (!SG[j + 1] || di < SG[j + 1].d)).reduce((t, di) => t + (val[di] || 0), 0);
+            const sum = days.filter(di => di >= (g2.d || "") && (!SG[j + 1] || di < SG[j + 1].d) && pass(di)).reduce((t, di) => t + (val[di] || 0), 0);
             const prev = j ? SG[j - 1] : null, py = prev ? yOf(prev.n) : y;
             return `<div class="gplaf${cls}" data-seg="${g2.i}" style="top:${y}px;left:${l}px;right:auto;width:${r - l}px"><span class="gplaf-v">${g2.d && j ? dFr(g2.d) + " : " : ""}${lab}</span>${!j && late ? `<span class="gplaf-w">${DLY_BUT_MSG}</span>` : ""}</div>`
-              /* v651 (FORMAT 245) : total du morceau 4 px au-dessus de son trait CAPACITÉ */
-              + (sum ? `<div class="gseg-v" style="left:${(l + Math.min(r, W)) / 2}px;top:${Math.max(16, y - 4)}px">${fmtA(sum)} ${esc(HD.unit)}</div>` : "")
+              /* v651 (FORMAT 245) : total du morceau 2 px au-dessus de son trait CAPACITÉ (v652 : 2 px ; seulement les jours retenus, plage DÉBUT – FIN comprise) */
+              + (sum ? `<div class="gseg-v" style="left:${(l + Math.min(r, W)) / 2}px;top:${Math.max(16, y - 2)}px">${fmtA(sum)} ${esc(HD.unit)}</div>` : "")
               + (j && g2.d && Math.abs(py - y) > 1 ? `<div class="gcut-v" style="left:${l}px;top:${Math.min(py, y)}px;height:${Math.abs(py - y)}px"></div>` : "")
               + (j && g2.d ? `<span class="gcut" data-i="${g2.i}" data-eq="${prev && prev.n === n ? 1 : 0}" style="left:${l - 7}px;top:${y - 10}px" role="button" title="SUPPRIMER LA COUPE (APPUI LONG : DÉPLACER)">/</span>` : "");
           }).join("");
           /* v651 (FORMAT 245) : capacité coupée = total de tous les morceaux, centré sous la poignée « = » (posé par dlyFoot) */
           { const segs = SG.filter((g2, j) => { const l = g2.d ? Math.max(0, X(g2.d)) : 0, r = SG[j + 1] ? Math.max(0, X(SG[j + 1].d)) : W; return r > l; });
-            const tot = segs.length > 1 ? days.reduce((t, di) => t + (val[di] || 0), 0) : 0;
+            const tot = segs.length > 1 ? days.filter(pass).reduce((t, di) => t + (val[di] || 0), 0) : 0;
             host.__capTot = tot ? "TOTAL " + fmtA(tot) + " " + HD.unit : ""; }
           /* R19 : traits DÉBUT et FIN ; total de la plage seulement quand une plage est posée */
           const xa = RG.a ? X(RG.a) : 0, xb = RG.b ? X(RG.b) + DLY_DW : W - 2;   /* v559 : FIN au bord droit, sans déborder */
@@ -13514,7 +13514,8 @@ function renderBudgetList() {
             : [...(sC ? [["CHARGES", gC]] : []), ...(sP ? [["PRODUITS", gP]] : []), ...(sG ? [["MARGE", gG]] : [])].map(([l, g]) => l + " " + fmtA(sumOf(g)) + " DH").join(" · ");
           const rng = `<div class="grng${RG.a ? "" : " grng-off"}" data-r="a" style="left:${xa}px"><span>DÉBUT${RG.a ? " " + dFr(RG.a).slice(0, 5) : ""}</span></div>`
             + `<div class="grng${RG.b ? "" : " grng-off"}" data-r="b" style="left:${xb}px"><span>FIN${RG.b ? " " + dFr(RG.b).slice(0, 5) : ""}</span></div>`
-            + (RG.a || RG.b || VL.min !== null || VL.max !== null ? `<div class="grng-tot" style="left:${(xa + xb) / 2}px">${sumTxt}</div>` : "");
+            /* v652 : total des charges déjà écrit sur la CAPACITÉ (morceaux, TOTAL) = pas de second total en haut */
+            + ((RG.a || RG.b || VL.min !== null || VL.max !== null) && !(!cPG && (C || !multi) && pl.includes("gseg-v")) ? `<div class="grng-tot" style="left:${(xa + xb) / 2}px">${sumTxt}</div>` : "");
           /* v568 (remarque 12) : plus de lignes MIN / MAX (filtre) — une RÈGLE horizontale pour comparer à l'œil : sa valeur seule,
              tirée au doigt, affichée / cachée en touchant l'axe des montants ; au départ au niveau de la plus grande valeur */
           const rv = shell.__dlyRuleV !== undefined && shell.__dlyRuleV !== null ? shell.__dlyRuleV : mx;
