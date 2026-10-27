@@ -212,10 +212,15 @@
             const sum = days.filter(di => di >= (g2.d || "") && (!SG[j + 1] || di < SG[j + 1].d)).reduce((t, di) => t + (val[di] || 0), 0);
             const prev = j ? SG[j - 1] : null, py = prev ? yOf(prev.n) : y;
             return `<div class="gplaf${cls}" data-seg="${g2.i}" style="top:${y}px;left:${l}px;right:auto;width:${r - l}px"><span class="gplaf-v">${g2.d && j ? dFr(g2.d) + " : " : ""}${lab}</span>${!j && late ? `<span class="gplaf-w">${DLY_BUT_MSG}</span>` : ""}</div>`
-              + (sum ? `<div class="gseg-v" style="left:${(l + Math.min(r, W)) / 2}px;top:${Math.max(0, Math.min(y, Y0) - 34)}px">${fmtA(sum)} ${esc(HD.unit)}</div>` : "")
+              /* v651 (FORMAT 245) : total du morceau 4 px au-dessus de son trait CAPACITÉ */
+              + (sum ? `<div class="gseg-v" style="left:${(l + Math.min(r, W)) / 2}px;top:${Math.max(16, y - 4)}px">${fmtA(sum)} ${esc(HD.unit)}</div>` : "")
               + (j && g2.d && Math.abs(py - y) > 1 ? `<div class="gcut-v" style="left:${l}px;top:${Math.min(py, y)}px;height:${Math.abs(py - y)}px"></div>` : "")
               + (j && g2.d ? `<span class="gcut" data-i="${g2.i}" data-eq="${prev && prev.n === n ? 1 : 0}" style="left:${l - 7}px;top:${y - 10}px" role="button" title="SUPPRIMER LA COUPE (APPUI LONG : DÉPLACER)">/</span>` : "");
           }).join("");
+          /* v651 (FORMAT 245) : capacité coupée = total de tous les morceaux, centré sous la poignée « = » (posé par dlyFoot) */
+          { const segs = SG.filter((g2, j) => { const l = g2.d ? Math.max(0, X(g2.d)) : 0, r = SG[j + 1] ? Math.max(0, X(SG[j + 1].d)) : W; return r > l; });
+            const tot = segs.length > 1 ? days.reduce((t, di) => t + (val[di] || 0), 0) : 0;
+            host.__capTot = tot ? "TOTAL " + fmtA(tot) + " " + HD.unit : ""; }
           /* R19 : traits DÉBUT et FIN ; total de la plage seulement quand une plage est posée */
           const xa = RG.a ? X(RG.a) : 0, xb = RG.b ? X(RG.b) + DLY_DW : W - 2;   /* v559 : FIN au bord droit, sans déborder */
           const sum = days.filter(di => inR(di) && pass(di)).reduce((t, di) => t + (C ? C.L[di] : gC(di)), 0);

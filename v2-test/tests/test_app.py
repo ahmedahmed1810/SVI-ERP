@@ -1694,6 +1694,12 @@ def main():
         pg.evaluate(f"() => {DXJ}.plafSeg(1, Math.round(({ins}.INS.plafR[Object.keys({ins}.INS.plafR)[0]].plaf)))"); pg.wait_for_timeout(500)
         pg.evaluate(f"() => {DXJ}.moveCut(1, '2026-11-05')"); pg.wait_for_timeout(500)
         mc = pg.evaluate(f"() => JSON.stringify(Object.values({ins}.INS.plafR).map(x => (x.plafs || []).map(c => c.d)))")
+        if os.environ.get("SHOT"): pg.screenshot(path=os.environ["SHOT"] + "v651.png")
+        t651 = pg.evaluate("""() => { const t = document.querySelector('.dlyg-hh .dlyhh-tot'), p = document.querySelector('.dlyhh-pill'), v = [...document.querySelectorAll('.dlyg-foot .gseg-v')], c = [...document.querySelectorAll('.dlyg-foot .gplaf')];
+            const r = e => e.getBoundingClientRect(); return { tot: t && !t.hidden ? t.textContent : '', below: t && p ? Math.round(r(t).top - r(p).bottom) : null, cx: t && p ? Math.round((r(t).left + r(t).right - r(p).left - r(p).right) / 2) : null,
+              gap: v.map((e, i) => c[i] ? Math.round(r(c[i]).top - r(e).bottom) : null), n: v.length }; }""")
+        check("v651 FORMAT 245 : capacité coupée = un total par morceau 4 px au-dessus de son trait, TOTAL centré sous la poignée « = »",
+              t651["n"] >= 1 and all(g is not None and 2 <= g <= 6 for g in t651["gap"]) and t651["tot"].startswith("TOTAL") and t651["cx"] is not None and abs(t651["cx"]) <= 1 and 0 <= t651["below"] <= 8, t651)
         # R28 / R29 : cumulé = une courbe ; ⚙ : PRODUITS et MARGE
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.plafR = {{}}; X.INS.hset = {{ u: 'm', aff: 'c', cum: 'r' }}; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
         nl = pg.evaluate("() => document.querySelectorAll('.dlyg-foot .ghist-cum polyline').length")

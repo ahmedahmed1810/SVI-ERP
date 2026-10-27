@@ -2242,7 +2242,7 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .gcut { font-size: 20px; line-height: 20px; padding: 0 3px; text-align: center; }
 .gcut-v { position: absolute; width: 0; border-left: 2px dashed #b42318; z-index: 4; pointer-events: none; }
 /* R20 : valeur au-dessus de chaque morceau de la capacité */
-.gseg-v { position: absolute; transform: translateX(-50%); z-index: 5; font-size: 10px; font-weight: 800; color: #344054; background: rgba(255,255,255,.9); padding: 0 4px; border-radius: 3px; white-space: nowrap; pointer-events: none; }
+.gseg-v { position: absolute; transform: translate(-50%, -100%); line-height: 13px; z-index: 5; font-size: 10px; font-weight: 800; color: #344054; background: rgba(255,255,255,.9); padding: 0 4px; border-radius: 3px; white-space: nowrap; pointer-events: none; }
 /* R24 : légende à droite de l'échelle ; unité en tête de l'échelle */
 .ghist-leg { left: 44px; }
 .ghist-ax .gax-u { position: absolute; left: 0; top: 2px; font-size: 8px; font-weight: 800; color: #475467; background: rgba(255,255,255,.9); padding: 0 3px; white-space: nowrap; }
@@ -2516,3 +2516,6 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 /* v649 : boutons des fenêtres sur une ligne chacun ; trop nombreux = ligne suivante (jamais de texte qui déborde) */
 #svConf .svc-f, #dlyAddW .svc-f { flex-wrap: wrap; }
 #svConf .svc-b, #dlyAddW .svc-b { white-space: nowrap; }
+/* v651 (FORMAT 245) : total de la capacité coupée, centré sous la poignée « = » */
+.dlyhh-tot { position: absolute; left: 50%; top: 27px; transform: translateX(-50%); font-size: 10px; font-weight: 800; color: #344054; background: rgba(255,255,255,.9); padding: 0 5px; border-radius: 3px; white-space: nowrap; pointer-events: none; line-height: 14px; }
+.dlyhh-tot[hidden] { display: none; }

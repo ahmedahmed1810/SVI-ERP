@@ -347,6 +347,9 @@
       { const dw = host.style.getPropertyValue("--dw"); if (ft.style.getPropertyValue("--dw") !== dw) ft.style.setProperty("--dw", dw); }
       /* la barre marron horizontale part de la barre marron verticale et va jusqu'au bord droit du cadre (FORMAT 201) */
       hh.style.left = ((sp ? sp.getBoundingClientRect().left : hr.left) - hr.left) + "px"; hh.style.right = -Math.max(0, scr.getBoundingClientRect().right - (hr.left + host.clientWidth)) + "px"; hh.style.top = (F ? -7 : -15) + "px"; hh.style.transform = "";
+      { let t = hh.querySelector(".dlyhh-tot"); const v = hist ? host.__capTot || "" : "";
+        if (v && !t) { t = document.createElement("span"); t.className = "dlyhh-tot"; hh.appendChild(t); }
+        if (t) { if (t.textContent !== v) t.textContent = v; t.hidden = !v; } }
       if (Math.abs(sc.scrollLeft - host.scrollLeft) > 0.5) sc.scrollLeft = host.scrollLeft;
       if (!host.__footS) { host.__footS = true; host.addEventListener("scroll", () => { const f = shell.querySelector("#bdgTabBody > .dlyg-foot > .dlyf-sc"); if (f && Math.abs(f.scrollLeft - host.scrollLeft) > 0.5) f.scrollLeft = host.scrollLeft; }, { passive: true }); }
     };
