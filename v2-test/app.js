@@ -10638,7 +10638,7 @@ function renderBudgetList() {
     const DLY_SC = { j: { min: 14, max: 100, def: 22, k: "svi_dlyg_dw_v1", fit: 1 }, s: { min: 4, max: 100, def: 9, k: "svi_dlyg_dw_s_v1", fit: 1 }, m: { min: 1, max: 100, def: 2, k: "svi_dlyg_dw_m_v1", fit: 1 } };
     const dlyScale = () => { let v = "j"; try { v = localStorage.getItem("svi_dlyg_sc_v1") || "j"; } catch (e) {} return DLY_SC[v] ? v : "j"; };
     /* v546 (R17) : choix JOUR / SEMAINE / MOIS dans la fenêtre CALENDRIER DU BUDGET ; SEMAINE et MOIS partent de la largeur qui remplit l'écran (R23) */
-    window.__sviDlyScale = { get: () => dlyScale(), set: v => { const c = DLY_SC[v]; if (!c) return; try { localStorage.setItem(c.k, "fit"); localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} keepScroll(() => renderTab()); } };
+    window.__sviDlyScale = { get: () => dlyScale(), set: v => { const c = DLY_SC[v]; if (!c) return; try { localStorage.setItem(c.k, "fit"); localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} { const R0 = dlyHRange(); if (R0.a || R0.b) shell.__dlyCenter = true; } keepScroll(() => renderTab()); } };   /* v660 (FORMAT 252) : plage DÉBUT – FIN posée = elle remplit la largeur dans le nouvel affichage ; sans plage, tout le projet (v559) */
     let DLY_DW_MIN = DLY_SC[dlyScale()].min, DLY_DW_MAX = DLY_SC[dlyScale()].max;
     /* v546 (R23, R34) : maximum = 100 px par jour, ou plus si c'est la largeur qui remplit l'écran ; « fit » = remplir (départ en SEMAINE / MOIS) */
     let DLY_FILL = 0;
@@ -13300,7 +13300,7 @@ function renderBudgetList() {
         dlyApply(k, { deb: d, fin: sviWFin(cal, d, dur) }, { anchor: a });
       },
       pickPreds: k => dlyPickPreds(k), addWin: () => dlyAddWin(),
-      scale: v => { try { localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} keepScroll(() => renderTab()); }, scaleOf: () => dlyScale(),
+      scale: v => { try { localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} { const R0 = dlyHRange(); if (R0.a || R0.b) shell.__dlyCenter = true; } keepScroll(() => renderTab()); }, scaleOf: () => dlyScale(),
       go: k => { const [lo, se] = k.split("|"); LK.lot = lo; LK.sec = se; LK.prim = null; refreshAll(); },
       render: () => { renderTabK(); insRenderChain(); } } : null;
     /* budget ouvert, pour PARAMÉTRAGE › CALENDRIER et DATES DU BUDGET (15/10/2026) */

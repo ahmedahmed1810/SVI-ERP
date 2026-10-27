@@ -536,7 +536,7 @@
         dlyApply(k, { deb: d, fin: sviWFin(cal, d, dur) }, { anchor: a });
       },
       pickPreds: k => dlyPickPreds(k), addWin: () => dlyAddWin(),
-      scale: v => { try { localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} keepScroll(() => renderTab()); }, scaleOf: () => dlyScale(),
+      scale: v => { try { localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} { const R0 = dlyHRange(); if (R0.a || R0.b) shell.__dlyCenter = true; } keepScroll(() => renderTab()); }, scaleOf: () => dlyScale(),
       go: k => { const [lo, se] = k.split("|"); LK.lot = lo; LK.sec = se; LK.prim = null; refreshAll(); },
       render: () => { renderTabK(); insRenderChain(); } } : null;
     /* budget ouvert, pour PARAMÉTRAGE › CALENDRIER et DATES DU BUDGET (15/10/2026) */
