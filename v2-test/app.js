@@ -10782,7 +10782,10 @@ function renderBudgetList() {
             head += `<span class="gh-d gh-w" style="left:${i * DLY_DW}px;width:${nd * DLY_DW}px">${["JANV.", "FÉVR.", "MARS", "AVR.", "MAI", "JUIN", "JUIL.", "AOÛT", "SEPT.", "OCT.", "NOV.", "DÉC."][mo]}</span>`; }
           continue;
         }
-        if (dd === 1 || i === 0) head += `<span class="gh-m" style="left:${i * DLY_DW}px">${SVI_MOIS[mo]} ${di.slice(0, 4)}</span>`;
+        /* v650 : un mois ne déborde jamais sur le suivant (premier mois coupé : nom court, ou rien s'il n'y a pas la place) */
+        if (dd === 1 || i === 0) { const nd = Math.min(nD - i, new Date(Number(di.slice(0, 4)), mo + 1, 0).getDate() - dd + 1), wm = nd * DLY_DW;
+          const full = SVI_MOIS[mo] + " " + di.slice(0, 4), short = ["JANV.", "FÉVR.", "MARS", "AVR.", "MAI", "JUIN", "JUIL.", "AOÛT", "SEPT.", "OCT.", "NOV.", "DÉC."][mo], fit = t => t.length * 6.5 + 8 <= wm;
+          head += `<span class="gh-m" style="left:${i * DLY_DW}px;max-width:${wm}px;overflow:hidden">${fit(full) ? full : fit(short) ? short : ""}</span>`; }
         if (SC === "s") {
           /* SEMAINE : numéro de semaine (ISO) et date du lundi */
           const dt = new Date(di + "T00:00:00");
