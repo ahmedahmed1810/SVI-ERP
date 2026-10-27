@@ -2512,3 +2512,7 @@ input.dly-gin { box-sizing: border-box; border: 2px solid var(--inst, #b42318) !
 .dlyg input, .dlyg textarea { -webkit-user-select: text; user-select: text; }
 /* v638 : case de date choisie (DÉBUT / FIN) — un seul cadre, celui de la case */
 td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
+
+/* v649 : boutons des fenêtres sur une ligne chacun ; trop nombreux = ligne suivante (jamais de texte qui déborde) */
+#svConf .svc-f, #dlyAddW .svc-f { flex-wrap: wrap; }
+#svConf .svc-b, #dlyAddW .svc-b { white-space: nowrap; }

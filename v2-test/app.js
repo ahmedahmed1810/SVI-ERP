@@ -5957,6 +5957,8 @@ function renderBudgetList() {
     sviStep("OUVERTURE " + ref);
     /* v634 : ouverture en cours — si l'application bloque, le budget ne sera pas rouvert au démarrage suivant */
     try { localStorage.setItem("svi_opening_v1", ref); setTimeout(() => { try { localStorage.removeItem("svi_opening_v1"); } catch (e) {} }, 4000); } catch (e) {}
+    /* v649 : page quittée ou rechargée (NOUVELLE VERSION…) pendant l'ouverture = pas un blocage (une page bloquée ne passe pas ici) */
+    if (!window.__sviOpenHide) { window.__sviOpenHide = 1; addEventListener("pagehide", () => { try { localStorage.removeItem("svi_opening_v1"); } catch (e) {} }); }
     const budget =
       groups.get(ref);
 
@@ -10909,7 +10911,7 @@ function renderBudgetList() {
          ils ne bougent plus pendant le défilement vertical ; le pied défile seulement à l'horizontale, avec le Gantt */
       sviStep("PLANNING : PIED DU GRAPHIQUE");
       dlyFoot(host, hist);
-      sviStep("PLANNING : FIN DU DESSIN");
+      sviStep("PLANNING : FIN DU DESSIN"); try { localStorage.removeItem("svi_opening_v1"); } catch (e) {}
       if (host.__hkf) host.__hk0 = host.__hkf();
       /* v628 : barre choisie par un appui long (HISTOGRAMME) — gardée en évidence après un nouveau dessin */
       if (shell.__dlyBarSel) shell.querySelectorAll(`.dlyg-foot .ghb[data-d="${shell.__dlyBarSel}"]`).forEach(b => b.classList.add("ghb-sel"));
@@ -22416,7 +22418,7 @@ function renderBudgetList() {
       if (ref0) setTimeout(async () => { try {
         const v = await svChoose({ title: stuck ? "OUVERTURE BLOQUÉE" : "LISTE SEULE",
           html: `<div class="svc-sub">${stuck ? "LE BUDGET " + esc(stuck) + " N'A PAS PU S'OUVRIR LA DERNIÈRE FOIS : IL N'A PAS ÉTÉ ROUVERT." : "DERNIER BUDGET : " + esc(ref0) + " (NON ROUVERT)."}</div><div class="svc-sub">DERNIÈRE ÉTAPE : ${esc(step || "—")}</div>`,
-          buttons: [{ v: "dl", label: "TÉLÉCHARGER LE BUDGET", tone: "neutral" }, { v: "raz", label: "OUVRIR SANS SES RÉGLAGES", tone: "neutral" }, { v: "ok", label: "FERMER", tone: "neutral" }] });
+          noCancel: true, buttons: [{ v: "dl", label: "TÉLÉCHARGER", tone: "neutral" }, { v: "raz", label: "OUVRIR SANS RÉGLAGES", tone: "neutral" }, { v: "ok", label: "FERMER", tone: "neutral" }] });
         /* v635 : essai — filtres, tris et vue mémorisés de CE budget mis de côté (gardés pour le fichier), puis ouverture */
         if (v === "raz") {
           const keep = {};
