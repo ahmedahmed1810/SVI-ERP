@@ -4,8 +4,7 @@
     /* liaisons typées : { k, t: FD | DD, o } (cahier, Planning budgétaire, Liaisons) */
     /* v617 (remarque 86) : FIN → DÉBUT, le décalage compte depuis la demi-journée qui suit la fin — les anciens décalages n ≥ 1
        (comptés depuis le jour de fin) deviennent n − 1, une seule fois par budget */
-    const dlyMig86 = () => { if (!INS || INS.dmig86) return; INS.dmig86 = 1; Object.values(INS.dpred || {}).forEach(L => (L || []).forEach(x => { if (x && typeof x === "object" && x.t !== "DD" && x.o > 0) x.o -= 1; })); };
-    const dlyLinks = key => { dlyMig86(); return ((INS.dpred || {})[key] || []).map(x => typeof x === "string" ? { k: x, t: "FD", o: 0 } : x); };
+    const dlyLinks = key => { return ((INS.dpred || {})[key] || []).map(x => typeof x === "string" ? { k: x, t: "FD", o: 0 } : x); };
     const dlyPreds = key => dlyLinks(key).map(x => x.k);
     const dlySuccs = key => Object.keys(INS.dpred || {}).filter(k => dlyLinks(k).some(x => x.k === key));
     const dlyLinkTxt = x => (x.t === "DD" ? "DD" : "FD") + "+" + (x.o || 0);
