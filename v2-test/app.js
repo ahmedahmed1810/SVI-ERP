@@ -6713,13 +6713,68 @@ function renderBudgetList() {
     var ICL = null;
     /* v593 (remarque longue 3) : ordre dans lequel les blocs ont reçu leur première case cochée (pour ce budget ouvert) */
     const insIsoPath = () => { try { return dlyIsoPath() || ""; } catch (e) { return ""; } };
+    /* =========================================================
+       REFONTE, ÉTAPE 2 (v642) : MOTEUR UNIQUE DES FILTRES — chaque source de filtre est décrite UNE fois ici ;
+       ordre des filtres, numéros, onglets bleus, EFFACER (bloc et tout), boutons du bandeau « AUCUNE LIGNE… »
+       et point bleu de ⚠ en découlent. Une nouvelle source = une entrée de FSRC (rien à ajouter ailleurs).
+       - on()   : filtre actif (compte dans l'ordre des filtres ; cases : une partie seulement cochée)
+       - mark() : l'onglet source passe en bleu (cases : au moins une cochée)
+       - n()    : nombre à afficher ; clear() : effacer ; blk : bloc de EFFACER TOUS LES FILTRES (menu ⋯) ;
+         tabs : onglets du bloc détail qui le montrent ; lab : nom dans le bandeau d'un bloc vidé ;
+         ord : réduit les autres blocs (ordre des filtres) ; edit : seulement en instance
+       ========================================================= */
+    const fsRows = k => (INS[k] || []).filter(r => !r.t);
+    const fsOnN = k => fsRows(k).filter(r => r.on === true).length;
+    const fsRowSrc = (k, lab, blk, tabs) => ({ k, lab, blk, tabs, ord: true, edit: true,
+      on: () => { const N = fsRows(k).length, n = fsOnN(k); return n > 0 && n < N; }, mark: () => fsOnN(k) > 0, n: () => fsOnN(k),
+      clear: () => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; } });
+    const FSRC = [
+      fsRowSrc("des", "DÉSIGNATION(S)", "client", []),
+      fsRowSrc("lot", "LOT(S)", "hier", []),
+      fsRowSrc("prim", "ACTIVITÉ(S) PRIMAIRE(S)", "hier", []),
+      fsRowSrc("sec", "ACTIVITÉ(S) SECONDAIRE(S)", "hier", []),
+      fsRowSrc("prd", "PRODUIT(S)", "detail", ["prd"]),
+      fsRowSrc("chg", "CHARGE(S)", "detail", ["chg"]),
+      { k: "lnk", lab: "LIAISON(S) DE MARGE", blk: "detail", tabs: ["lnk"], ord: true, edit: true,
+        on: () => (INS.links || []).some(l => l.on === true), n: () => (INS.links || []).filter(l => l.on === true).length,
+        clear: () => (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }) },
+      { k: "dly", lab: "TÂCHE(S) DU PLANNING", blk: "detail", tabs: ["dly"], ord: true,
+        on: () => !!(shell.__dlySel && shell.__dlySel.size), n: () => (shell.__dlySel && shell.__dlySel.size) || 0,
+        clear: () => { if (shell.__dlySel) shell.__dlySel.clear(); } },
+      { k: "iso", lab: "BRANCHE ISOLÉE", one: true, blk: "detail", tabs: [], ord: true,
+        on: () => !!insIsoPath(), n: () => 1, clear: () => { shell.__dlyIso = null; } },
+      { k: "rg", lab: "PLAGE DÉBUT – FIN", one: true, blk: "detail", tabs: ["chg", "prd", "lnk"], ord: true,
+        on: () => !!insRg(), n: () => 1, clear: () => { if (insRg()) INS.hrange = { ...INS.hrange, a: "", b: "" }; } },
+      { k: "par", lab: "CHARGES QUI FONT N %", one: true, blk: "detail", tabs: ["chg"], ord: true,
+        on: () => !!(INS.chgPar), n: () => 1, clear: () => { INS.chgPar = ""; } },
+      /* sans effet sur les autres blocs */
+      { k: "xf", lab: "FILTRE DU JOUR", one: true, blk: "detail", tabs: [], on: () => !!shell.__dlyXF, n: () => 1,
+        clear: () => { shell.__dlyXF = null; shell.__dlyBarSel = null; } },
+      { k: "inc", lab: "LIGNE(S) D'IMPORT NON CRÉÉ", blk: "detail", tabs: ["inc"], edit: true,
+        on: () => (INS.inc || []).some(x => x.on === true), n: () => (INS.inc || []).filter(x => x.on === true).length,
+        clear: () => (INS.inc || []).forEach(x => { if (x.on === true) x.on = false; }) },
+      { k: "nc", lab: "TÂCHES SANS CHARGE", one: true, blk: "", tabs: ["prd"], on: () => !!shell.__prdNc, n: () => (shell.__prdNc && shell.__prdNc.size) || 0,
+        clear: () => { shell.__prdNc = null; } }
+    ];
+    const fsSrc = k => FSRC.find(s => s.k === k);
+    const fsMark = s => (s.mark || s.on)();
+    /* loupes (filtres de colonne) : tableau → bloc de EFFACER et onglet */
+    const FS_CF = () => [["client", "client", ""], ["lot", "hier", ""], ["prim", "hier", ""], ["sec", "hier", ""],
+      [insCfT("chg"), "detail", "chg"], [insCfT("prd"), "detail", "prd"], ["dly", "detail", "dly"], ["dlyp", "detail", "dly"], ["dlyr", "detail", ""],
+      ["dlyi", "detail", ""], ["dlys", "detail", "dly"], ["lk_marge", "detail", "lnk"], ["lk_unl", "detail", "unl"], ["lk_inc", "detail", "inc"]];
+    const fsCfOn = t => !!(CF[t] && Object.keys(CF[t].f || {}).length);
+    /* effacer : un bloc (« client », « hier », « detail ») ou tout (blk vide) */
+    const fsClear = blk => {
+      FSRC.forEach(s => { if ((!blk || s.blk === blk) && (!s.edit || INS_EDIT)) s.clear(); });
+      FS_CF().forEach(([t, b]) => { if ((!blk || b === blk) && CF[t]) CF[t].f = {}; });
+      if (!blk) Object.keys(ONLYC).forEach(k => { ONLYC[k] = false; });
+    };
+    /* nombre de filtres d'un bloc (EFFACER TOUS LES FILTRES du menu ⋯) */
+    const fsCount = blk => FSRC.filter(s => s.blk === blk && (!s.edit || INS_EDIT) && fsMark(s)).reduce((t, s) => t + (s.one ? 1 : s.n()), 0)
+      + FS_CF().filter(([t, b]) => b === blk && fsCfOn(t)).length;
     const insCkOrd = () => {
-      const has = {
-        des: 0, lot: 0, prim: 0, sec: 0, prd: 0, chg: 0,
-        lnk: (INS.links || []).some(l => l.on === true), dly: !!(shell.__dlySel && shell.__dlySel.size), iso: !!insIsoPath(), rg: !!insRg(), par: !!(INS.chgPar)
-      };
-      /* v614 (point 10) : tout coché = pas de filtre (ni numéro d'ordre ni « cochées/total ») */
-      ["des", "lot", "prim", "sec", "prd", "chg"].forEach(x => { const N = (INS[x] || []).filter(r => !r.t), n = N.filter(r => r.on === true).length; has[x] = n > 0 && n < N.length; });
+      /* v614 (point 10) : tout coché = pas de filtre (ni numéro d'ordre ni « cochées/total ») — règle portée par FSRC (on) */
+      const has = {}; FSRC.filter(s => s.ord).forEach(s => { has[s.k] = s.on(); });
       const o = (shell.__ckOrd || []).filter(x => has[x]);
       Object.keys(has).forEach(x => { if (has[x] && !o.includes(x)) o.push(x); });
       shell.__ckOrd = o;
@@ -8662,36 +8717,20 @@ function renderBudgetList() {
        ou cases cochées dans son propre tableau (pas le filtrage venu des cases d'un autre bloc) */
     const insTabFilt = () => {
       if (!INS) return {};
-      const own = k => (INS[k] || []).some(r => !r.t && r.on === true);
-      /* v539 : onglet en bleu quand SON tableau a une loupe ou une case cochée (remarque 53 : seul l'onglet source) —
-         les tâches cochées du DÉTAIL DÉLAIS comptent maintenant aussi */
-      return {
-        chg: cfHasF(insCfT("chg")) || !!ONLYC.chg || own("chg") || !!insRg() || !!(INS.chgPar),
-        prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || own("prd") || !!insRg() || !!shell.__prdNc,
-        dly: ["dly", "dlyp", "dlys"].some(cfHasF) || !!(shell.__dlySel && shell.__dlySel.size),
-        lnk: cfHasF("lk_marge") || (INS.links || []).some(l => l.on === true) || !!insRg(),
-        unl: cfHasF("lk_unl"),
-        inc: cfHasF("lk_inc") || (INS.inc || []).some(x => x.on === true)
-      };
+      /* v539 : onglet en bleu quand SON tableau a une loupe ou une case cochée (remarque 53 : seul l'onglet source) ;
+         v642 (refonte) : sources décrites une fois (FSRC, FS_CF) */
+      const out = { chg: !!ONLYC.chg, prd: !!ONLYC.prd, dly: false, lnk: false, unl: false, inc: false };
+      FSRC.forEach(s => { if (s.tabs.length && fsMark(s)) s.tabs.forEach(t => { out[t] = true; }); });
+      FS_CF().forEach(([t, , tab]) => { if (tab && fsCfOn(t)) out[tab] = true; });
+      return out;
     };
     /* v499 (remarque 42) : EFFACER TOUS LES FILTRES d'un bloc (menu ⋯) — filtres de loupe et cases cochées */
-    const insFiltPlan = blk => {
-      const T = blk === "client" ? ["client"] : blk === "hier" ? ["lot", "prim", "sec"] : blk === "detail" ? [insCfT("chg"), insCfT("prd"), "dly", "dlyp", "dlyr", "dlyi", "dlys", "lk_marge", "lk_unl", "lk_inc"] : [];
-      const K = !INS || !INS_EDIT ? [] : blk === "client" ? ["des"] : blk === "hier" ? ["lot", "prim", "sec"] : blk === "detail" ? ["chg", "prd"] : [];
-      const nf = T.filter(cfHasF).length;
-      const nc = K.reduce((t, k) => t + (INS[k] || []).filter(r => !r.t && r.on === true).length, 0)
-        + (blk === "detail" && INS && INS_EDIT ? (INS.links || []).filter(l => l.on === true).length + (INS.inc || []).filter(x => x.on === true).length : 0);
-      return { T, K, n: nf + nc + (blk === "detail" && INS && insRg() ? 1 : 0) + (blk === "detail" && INS && INS.chgPar ? 1 : 0) };
-    };
+    /* v642 (refonte) : compte et effacement tirés de FSRC / FS_CF (cases, loupes, plage, CHARGES QUI FONT, ISOLER, tâches cochées, filtre du jour) */
+    const insFiltPlan = blk => ({ n: INS ? fsCount(blk) : 0 });
     const insFiltClear = blk => {
-      const P = insFiltPlan(blk);
-      P.T.forEach(t => { if (CF[t]) CF[t].f = {}; });
-      P.K.forEach(k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; });
-      if (blk === "detail" && INS && INS_EDIT) { (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }); (INS.inc || []).forEach(x => { if (x.on === true) x.on = false; }); }
-      if (blk === "detail" && INS && INS.chgPar) INS.chgPar = "";   /* v622 : CHARGES QUI FONT n % */
-      if (blk === "detail") { shell.__dlyXF = null; shell.__dlyBarSel = null; }   /* v631 : filtre du jour oublié */
-      if (blk === "detail" && INS && insRg()) INS.hrange = { ...INS.hrange, a: "", b: "" };   /* v560 : traits DÉBUT et FIN remis aux bords */
-      if (INS && INS_EDIT) insSave();
+      if (!INS) return;
+      fsClear(blk);
+      if (INS_EDIT) insSave();
       ICL = null; refreshAll();
       svToast("FILTRES ET CASES COCHÉES DU BLOC EFFACÉS.", 2000);
     };
@@ -14750,26 +14789,22 @@ function renderBudgetList() {
         if (!want) { if (h) h.remove(); return; }
         /* v527 (remarque 5) : rien n'est décoché tout seul — le bandeau dit QUELLES cases cochées se contredisent,
            avec un bouton par bloc pour les décocher (et TOUT RÉAFFICHER) */
-        const NM = { des: "DÉSIGNATION(S)", lot: "LOT(S)", prim: "ACTIVITÉ(S) PRIMAIRE(S)", sec: "ACTIVITÉ(S) SECONDAIRE(S)", chg: "CHARGE(S)", prd: "PRODUIT(S)", dly: "TÂCHE(S) DU PLANNING", lnk: "LIAISON(S) DE MARGE", iso: "BRANCHE ISOLÉE" };
-        const nl = (INS.links || []).filter(l => l.on === true).length;
-        const ck = ["des", "lot", "prim", "sec", "chg", "prd"].filter(x => x !== k).map(x => [x, (INS[x] || []).filter(r => !r.t && r.on === true).length]).filter(([, n]) => n)
-          .concat(shell.__dlySel && shell.__dlySel.size ? [["dly", shell.__dlySel.size]] : [])
-          .concat(nl ? [["lnk", nl]] : []).concat(shell.__dlyIso ? [["iso", 1]] : []);
+        /* v642 (refonte) : sources prises dans FSRC (celles qui réduisent les autres blocs) */
+        const NM = Object.fromEntries(FSRC.map(s => [s.k, s.k === "par" ? "CHARGES QUI FONT " + (INS.chgPar || "") + " %" : s.lab]));
+        const ck = FSRC.filter(s => s.ord && s.k !== k && fsMark(s)).map(s => [s.k, s.n()]).filter(([, n]) => n);
         const sig = k + ":" + ck.map(([x, n]) => x + n).join(",") + ":" + total;
         if (h && h.dataset.sig === sig) return;
         if (!h) { h = document.createElement("div"); h.className = "svi-empty"; if (box.tagName === "TABLE") box.after(h); else box.appendChild(h); }
         h.dataset.sig = sig;
-        const why = "AUCUNE LIGNE POUR LES FILTRES EN COURS" + (ck.length ? " : " + ck.map(([x, n]) => (x === "iso" ? "" : n + " ") + NM[x] + (x === "iso" ? "" : " COCHÉE(S)")).join(" + ") + "." : " (LOUPES DES BLOCS).");
-        h.innerHTML = `<span>${esc(why)}</span>${ck.map(([x, n]) => `<button type="button" class="svi-empty-b svi-empty-k" data-clrk="${x}">${x === "iso" ? "RÉAFFICHER TOUTE L'ARBORESCENCE" : "DÉCOCHER " + esc(NM[x]) + " (" + n + ")"}</button>`).join("")}<button type="button" class="svi-empty-b" data-clrall>EFFACER TOUS LES FILTRES</button>`;
+        const why = "AUCUNE LIGNE POUR LES FILTRES EN COURS" + (ck.length ? " : " + ck.map(([x, n]) => fsSrc(x).one ? NM[x] : n + " " + NM[x] + " COCHÉE(S)").join(" + ") + "." : " (LOUPES DES BLOCS).");
+        h.innerHTML = `<span>${esc(why)}</span>${ck.map(([x, n]) => `<button type="button" class="svi-empty-b svi-empty-k" data-clrk="${x}">${x === "iso" ? "RÉAFFICHER TOUTE L'ARBORESCENCE" : fsSrc(x).one ? "EFFACER " + esc(NM[x]) : "DÉCOCHER " + esc(NM[x]) + " (" + n + ")"}</button>`).join("")}<button type="button" class="svi-empty-b" data-clrall>EFFACER TOUS LES FILTRES</button>`;
         /* message aussitôt, près du bloc vidé (une fois par situation) */
         if (ck.length && shell.__emptySig !== sig) { shell.__emptySig = sig; try { svToast(why, 4000, h); } catch (e) {} }
       });
     };
+    /* v642 (refonte) : TOUS les filtres (FSRC + loupes), plage DÉBUT – FIN et CHARGES QUI FONT compris */
     shell.__insClrAll = () => {
-      ["des", "lot", "prim", "sec", "chg", "prd"].forEach(k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; });
-      if (shell.__dlySel) shell.__dlySel.clear(); shell.__dlyIso = null;
-      (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }); (INS.inc || []).forEach(x => { if (x.on === true) x.on = false; });
-      try { ["client", "hier", "detail"].forEach(b => insFiltPlan(b).T.forEach(t => { if (CF[t]) CF[t].f = {}; })); } catch (e) {}
+      fsClear("");
       insSave(); refreshAll();
       svToast("TOUTES LES CASES DÉCOCHÉES ET TOUS LES FILTRES EFFACÉS.", 2200);
     };
@@ -14784,9 +14819,7 @@ function renderBudgetList() {
     }
     shell.__insEmptyHints = insEmptyHints;
     /* décocher un seul bloc */
-    shell.__insClrK = k => { if (k === "iso") { shell.__dlyIso = null; refreshAll(); return; }
-      if (k === "lnk") { (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }); insSave(); refreshAll(); return; }
-      if (k === "dly") { if (shell.__dlySel) shell.__dlySel.clear(); refreshAll(); return; } (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; insSave(); refreshAll(); };
+    shell.__insClrK = k => { const s = fsSrc(k); if (!s) return; s.clear(); insSave(); refreshAll(); };
 
     const tvaFor = l =>
       l.ttcAmount !== undefined ? l.ttcAmount - l.amount : l.amount * l.tva / 100;
