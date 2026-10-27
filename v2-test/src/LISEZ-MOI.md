@@ -57,3 +57,5 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `33-confirmations-sources.js` | 349 |
 | `34-parametrage.js` | 370 |
 | `35-calendrier-saisie.js` | 378 |
+
+Document technique (architecture, données, recettes, tests) : `../DOC-TECHNIQUE.md`.
