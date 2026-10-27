@@ -292,9 +292,8 @@
       document.addEventListener("pointerdown", e => {
         /* v628 : barre choisie (HISTOGRAMME) — toucher ailleurs la libère ; dans le graphique hors des barres : filtre du jour enlevé aussi */
         if (shell.__dlyBarSel && !(e.target.closest && e.target.closest(".dlyg-foot .ghb[data-d], #dlyHb"))) {
-          const inG = e.target.closest && e.target.closest(".dlyg-foot .ghist") && !e.target.closest(".grng, .gplaf, .gcut, .grdb, .grdc, .gax-hit, .grule, .gval, .dlyg-hh");
+          /* v631 : un toucher n'enlève plus le filtre du jour (3e appui long, plage élargie, ⚠ ou menu ⋯) */
           shell.querySelectorAll(".dlyg-foot .ghb-sel").forEach(b => b.classList.remove("ghb-sel")); shell.__dlyBarSel = null;
-          void inG;   /* v631 : un toucher n'enlève plus le filtre du jour (3e appui long, plage élargie, ⚠ ou menu ⋯) */
         }
         const X0 = shell.__dlyX;
         if (!X0 || !document.querySelector(".dlyx-pt")) { shell.__dlyX = null; return; }

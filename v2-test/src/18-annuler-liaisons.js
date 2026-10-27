@@ -703,11 +703,7 @@
       partToggle: (k, key) => lkPartToggle(k, key),
       commit: () => { const r0 = lkCommit(); if (shell.__prdSyncU && shell.__prdSyncU()) refreshAll(); return r0; }, guard: () => lkGuard(), pending: () => lkPending(), ruleA: (k, id) => lkRuleA(k, id),
       light: k => lkLight(k), unlink: (k, id) => lkUnlink(k, id), name: (k, id) => lkName(k, id),
-      unitErr: id => {
-        const D = INS.des.find(x => x.id === LK.des), P = INS.prd.find(x => x.id === id);
-        const du = String((D && D.u) || "").trim().toUpperCase(), pu = String((P && P.u) || "").trim().toUpperCase();
-        void du; void pu; return "";
-      },
+      unitErr: () => "",   /* v471 : plus de refus d'unité */
       info: () => {
         /* fenêtre au format INF : titre, ✕, libellés à gauche, état de la liaison, produits et charges, FERMER */
         document.getElementById("docPop")?.remove();

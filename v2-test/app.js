@@ -6332,10 +6332,7 @@ function renderBudgetList() {
         const a = lkRuleA(k, id);
         if (a) return a;
         /* règle B : la liaison primaire (act. scd = act. prm) n'a que des produits de l'unité de la désignation */
-        const D = LK.des && INS.des.find(x => x.id === LK.des), du = U_(D && D.u);
-        const pid = k === "prim" ? id : LK.prim, sid = k === "sec" ? id : LK.sec;
         /* v471 (règle B revue) : plus de refus — les produits de la liaison primaire prennent l'UPB et le PPB de la désignation */
-        void du; void pid; void sid;
         return "";
       }
 
@@ -6668,11 +6665,8 @@ function renderBudgetList() {
         const rest = rows.filter(r => !topIds.has(r.id));
         /* plus de total par titre (seulement le total général) ; un titre n'apparaît qu'une fois,
            sauf s'il garde des lignes plus bas */
-        const restIds = new Set(rest.filter(r => !r.t).map(r => r.id));
-        const hasRest = t => { for (let i = INS.des.indexOf(t) + 1; i < INS.des.length && dOf(INS.des[i]) > dOf(t); i++) if (restIds.has(INS.des[i].id) && !hid(INS.des[i])) return true; return false; };
         /* FORMAT 130 : une ligne n'apparaît jamais seule — ses titres sont toujours affichés au-dessus d'elle
            (titre en deux exemplaires si une partie de sa branche est remontée en haut) */
-        void hasRest;
         const emitted = new Set();
         const ancOf = r => { const a = []; for (let i = INS.des.indexOf(r) - 1, L = dOf(r); i >= 0 && L > 0; i--) { const t = INS.des[i]; if (t.t && dOf(t) < L) { a.unshift(t); L = dOf(t); } } return a; };
         let body2 = "";
@@ -6982,11 +6976,10 @@ function renderBudgetList() {
     /* v450 : nom d'un niveau créé selon l'arborescence — sous un lot : NIVEAU 1, NIVEAU 2… (rang parmi les niveaux du même parent) ;
        sous un niveau « NIVEAU 2 » : NIVEAU 2.1, NIVEAU 2.2… ; affiché avec le nom des parents (« FONDATION / NIVEAU 2 ») tant qu'on ne lui donne pas un intitulé */
     const insNextLevel = (parent = []) => {
-      const P = parent.map(U_), last = P.length ? P[P.length - 1] : "";
+      const P = parent.map(U_);
       /* v451 : tous les lots principaux sont au niveau 1 → dessous NIVEAU 1.1, 1.2… ; sous NIVEAU 1.1 → 1.1.1… ;
          sous un sous-lot portant un intitulé : numéro selon sa profondeur (1.1 pour le 2e niveau, etc.) */
       /* v532 : numéro = celui du parent (tel qu'affiché) + le suivant libre parmi ses lignes ; il ne changera plus */
-      void last;
       const M = lotNumMap(), pn = P.length ? M.get(P.join(" / ")) || "" : "";
       const base = pn ? pn + "." : "";
       const kids = new Set();
@@ -8717,7 +8710,7 @@ function renderBudgetList() {
         if (b) b.outerHTML = svCnt(ls.rows.length, tot);
       }, 0);
       /* v584 : onglet GRAPHIQUE = le graphique du DÉTAIL DÉLAIS sur tout le bloc (il reste aussi sous le Gantt) */
-      if (active === "dly" || active === "gra") {
+      if (active === "dly") {
         /* délais : saisis ici (périodes par tâche secondaire ; tâche primaire choisie = récapitulatif) */
         body.innerHTML = `<div class="bdg-d-scroll dly-scroll">${insDlyHTML(INS_EDIT, shell.__insDly && shell.__insDly.err)}</div>`;
         /* v594 (remarque longue 2) : bandeau ISOLÉ posé AU-DESSUS de la zone qui défile (jamais sur les en-têtes) */
@@ -10302,13 +10295,10 @@ function renderBudgetList() {
           const rng = `<div class="grng${RG.a ? "" : " grng-off"}" data-r="a" style="left:${xa}px"><span>DÉBUT${RG.a ? " " + dFr(RG.a).slice(0, 5) : ""}</span></div>`
             + `<div class="grng${RG.b ? "" : " grng-off"}" data-r="b" style="left:${xb}px"><span>FIN${RG.b ? " " + dFr(RG.b).slice(0, 5) : ""}</span></div>`
             + (RG.a || RG.b || VL.min !== null || VL.max !== null ? `<div class="grng-tot" style="left:${(xa + xb) / 2}px">${sumTxt}</div>` : "");
-          /* R20 : lignes MIN et MAX (filtre par valeur, sur les charges) */
-          const vl = (r, v, off) => `<div class="gval${off ? " gval-off" : ""}" data-v="${r}" style="top:${off ? (r === "max" ? 22 : Y0 - 1) : Y0 - v * sc}px"><span>${r.toUpperCase()}${off ? "" : " " + fmtA(v)}</span></div>`;
           /* v568 (remarque 12) : plus de lignes MIN / MAX (filtre) — une RÈGLE horizontale pour comparer à l'œil : sa valeur seule,
              tirée au doigt, affichée / cachée en touchant l'axe des montants ; au départ au niveau de la plus grande valeur */
           const rv = shell.__dlyRuleV !== undefined && shell.__dlyRuleV !== null ? shell.__dlyRuleV : mx;
           const vals = shell.__dlyRule ? `<div class="gval grule" style="top:${Y0 - rv * sc}px"><span>${fmtA(rv)}</span></div>` : "";
-          void vl;
           /* échelle (R24) : unité en tête, nombres abrégés, toujours visible à gauche */
           const stp = (() => { const raw = top / 4, p = Math.pow(10, Math.floor(Math.log10(raw || 1))), m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; })();
           let ax = "";
@@ -10409,7 +10399,6 @@ function renderBudgetList() {
       ft.style.height = F + "px";
       ft.classList.toggle("dlyf-empty", !hist);
       dlyFootPos();
-      ft.classList.toggle("dlyf-gra", !!shell.querySelector(".dlyg.dly-gra"));
       const br = body.getBoundingClientRect(), hr = host.getBoundingClientRect(), sp = shell.querySelector(".dlyg-sp");
       inn.style.width = (host.scrollWidth || 0) + "px";
       { const dw = host.style.getPropertyValue("--dw"); if (ft.style.getPropertyValue("--dw") !== dw) ft.style.setProperty("--dw", dw); }
@@ -10459,7 +10448,7 @@ function renderBudgetList() {
     const dlyCfgPaint = () => {
       const g = shell.querySelector(".blk-cfg-btn"); if (!g) return;
       const host = shell.querySelector("#dlyGantt"), h = shell.querySelector(".dlyg-foot .ghist");
-      const on = (active === "dly" || active === "gra") && !!shell.__insDly && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone");
+      const on = active === "dly" && !!shell.__insDly && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone");
       if (g.classList.contains("dly-on") !== on) g.classList.toggle("dly-on", on);
     };
     /* histogramme (et son libellé, et la poignée « = ») gardé en bas de la zone visible du planning : les tâches défilent dessous */
@@ -10498,7 +10487,7 @@ function renderBudgetList() {
     const dlyThFix = () => {
       const L = shell.querySelector(".dlyg-l"), body = shell.querySelector("#bdgTabBody"), tbl = L && L.querySelector("table"), th = tbl && tbl.querySelector(":scope > thead"), scr = L && L.closest(".dly-scroll");
       let fx = body && body.querySelector(":scope > .th-fix");
-      if (!L || !th || !scr || !body || L.clientWidth < 3 || L.closest(".dly-gra")) { if (fx) fx.remove(); if (th) th.classList.remove("th-under"); return; }
+      if (!L || !th || !scr || !body || L.clientWidth < 3) { if (fx) fx.remove(); if (th) th.classList.remove("th-under"); return; }
       if (!fx) { fx = document.createElement("div"); fx.className = "th-fix"; fx.innerHTML = '<table></table>'; body.appendChild(fx); }
       const t = fx.firstChild;
       if (th.__fixSrc !== th.innerHTML || t.className !== tbl.className + " th-fix-t") {
@@ -10739,7 +10728,7 @@ function renderBudgetList() {
           /* v561 : vue PAR DÉBUT = bandeau jaune pâle avec retour AFFICHER PAR LOT (comme ISOLER) */
           const viewB = "";   /* v594 (remarque longue 2, FORMAT 188) : plus de bandeau AFFICHÉ PAR DÉBUT — la vue se lit à la coche ✓ du menu ⋯ */
           const isoB = viewB + (PR.iso ? `<div class="dly-iso"><span>ISOLÉ : <b>${esc(lotLab(dlyLotPath(PR.iso)).full)}</b></span><small>LIAISONS, DÉCALAGES ET CALENDRIER RESTENT APPLIQUÉS · TÂCHES LIÉES HORS DE LA BRANCHE EN GRIS (LECTURE SEULE)</small><button type="button" class="dly-iso-x">TOUT AFFICHER</button></div>` : "");
-          return dls + isoB + `<div class="dlyg${active === "gra" ? " dly-gra tbl-hid" : ""}${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur du graphique">=</span></div>` : ""}</div>`
+          return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur du graphique">=</span></div>` : ""}</div>`
             /* v549 : plus de bouton « + AJOUTER UNE TÂCHE OU SES DÉLAIS » sous le planning (ligne SAISIR ICI… et menu ⋯) */
             ;
         }
@@ -11129,8 +11118,7 @@ function renderBudgetList() {
         /* fil d'une liaison sur le Gantt : fenêtre LIAISON */
         const gl = e.target.closest && e.target.closest(".gl-hit");
         if (gl) { e.stopPropagation(); X.linkWin(gl.dataset.p, gl.dataset.s); return; }
-        const tr = e.target.closest && e.target.closest("tr.dly-task");
-        void tr;   /* v454 : les dates se saisissent dans la ligne ; toucher la ligne ne change plus les choix des ronds */
+        /* v454 : les dates se saisissent dans la ligne ; toucher la ligne ne change plus les choix des ronds */
       });
       /* gestes sur le Gantt (FORMAT 96) : glisser une barre = la déplacer ; tirer son bout = changer la FIN ;
          appui long sur la fin (ou le début) puis glisser jusqu'à une autre barre = liaison FIN → DÉBUT (ou DÉBUT → DÉBUT) */
@@ -11709,9 +11697,8 @@ function renderBudgetList() {
       document.addEventListener("pointerdown", e => {
         /* v628 : barre choisie (HISTOGRAMME) — toucher ailleurs la libère ; dans le graphique hors des barres : filtre du jour enlevé aussi */
         if (shell.__dlyBarSel && !(e.target.closest && e.target.closest(".dlyg-foot .ghb[data-d], #dlyHb"))) {
-          const inG = e.target.closest && e.target.closest(".dlyg-foot .ghist") && !e.target.closest(".grng, .gplaf, .gcut, .grdb, .grdc, .gax-hit, .grule, .gval, .dlyg-hh");
+          /* v631 : un toucher n'enlève plus le filtre du jour (3e appui long, plage élargie, ⚠ ou menu ⋯) */
           shell.querySelectorAll(".dlyg-foot .ghb-sel").forEach(b => b.classList.remove("ghb-sel")); shell.__dlyBarSel = null;
-          void inG;   /* v631 : un toucher n'enlève plus le filtre du jour (3e appui long, plage élargie, ⚠ ou menu ⋯) */
         }
         const X0 = shell.__dlyX;
         if (!X0 || !document.querySelector(".dlyx-pt")) { shell.__dlyX = null; return; }
@@ -12011,10 +11998,8 @@ function renderBudgetList() {
         };
         shell.addEventListener("touchmove", pmv, { passive: false });
         const end = e => { if (!P0 || (e.touches && e.touches.length >= 2)) return; const tg = P0.tg; if (tg) { tg.removeEventListener("touchmove", pmv); tg.removeEventListener("touchend", end); tg.removeEventListener("touchcancel", end); }
-          /* v449 : toucher bref à deux doigts (sans écarter) n'importe où sur le Gantt = Gantt sur toute la largeur ↔ tableau de nouveau affiché */
-          const tap = !P0.mode && Date.now() - P0.t0 < 450 && e.type === "touchend";
+          /* v451 : les deux doigts ne servent qu'au pincement (le tableau ne revient que par la poignée) */
           P0 = null; setTimeout(() => { shell.__dlyPinch = false; }, 50);
-          void tap;   /* v451 : les deux doigts ne servent qu'au pincement (le tableau ne revient que par la poignée) */
         };
         shell.addEventListener("touchend", end); shell.addEventListener("touchcancel", end);
         /* v582 : graphique zoomé — un doigt à la verticale fait monter ou descendre l'échelle (le sens dominant du geste décide) ;
@@ -13024,7 +13009,6 @@ function renderBudgetList() {
         if (!dry) { const best = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0]; if (best !== undefined) lim[k] = G[best].gk; }
         return { a: a === null ? s0 : a, b, got };
       };
-      const hasR = k => G.some(g => dlyGQ(k, g.keys, g.m) > 0);
       const links = [], FX = new Set();
       /* v570 : GÉNÉRER seul — les tâches complètes sont posées d'abord, à leurs dates, et occupent la capacité */
       if (opts.gen) L.forEach(k => {
@@ -13178,7 +13162,6 @@ function renderBudgetList() {
         if (c.checked) dlyCompressRun(); else dlyCompressRun({ gen: true });
       });
     };
-    const dlyGenComp = () => dlyGCWin();
 
     /* ---------- R21 à R23 : CAPACITÉ ---------- */
     /* couper la barre à une date : les tâches qui commencent avant restent dans le morceau de gauche (la coupe les suit) */
@@ -13229,7 +13212,7 @@ function renderBudgetList() {
     const DLY_SER = ["#f79009", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#fdb022", "#9e165f"];   /* v588 : plus de gris dans les séries (le gris = hors DÉBUT – FIN) */
     /* hauteur de l'histogramme : nombre de pixels (28 = miniaturisé en bas) ou « full » (plein écran, à la place du Gantt) */
     /* v546 (R25) : 0 = histogramme entièrement caché (poignée tout en bas) */
-    const dlyHHGet = () => { if (active === "gra") return "full"; let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : v === "0" ? 0 : Math.max(28, Math.min(2000, Number(v) || 110)); };
+    const dlyHHGet = () => { let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : v === "0" ? 0 : Math.max(28, Math.min(2000, Number(v) || 110)); };
     const dlyHHSet = v => { try { localStorage.setItem("svi_dlyhh_v1", String(v)); } catch (e) {} };
     const dlyHSetPut = o => { INS.hset = { ...dlyHSet(), ...o }; insSave(); renderTabK(); };
     /* R19 / R20 : plage DÉBUT – FIN et filtre MIN – MAX (mémorisés par budget) */
@@ -14269,11 +14252,7 @@ function renderBudgetList() {
       partToggle: (k, key) => lkPartToggle(k, key),
       commit: () => { const r0 = lkCommit(); if (shell.__prdSyncU && shell.__prdSyncU()) refreshAll(); return r0; }, guard: () => lkGuard(), pending: () => lkPending(), ruleA: (k, id) => lkRuleA(k, id),
       light: k => lkLight(k), unlink: (k, id) => lkUnlink(k, id), name: (k, id) => lkName(k, id),
-      unitErr: id => {
-        const D = INS.des.find(x => x.id === LK.des), P = INS.prd.find(x => x.id === id);
-        const du = String((D && D.u) || "").trim().toUpperCase(), pu = String((P && P.u) || "").trim().toUpperCase();
-        void du; void pu; return "";
-      },
+      unitErr: () => "",   /* v471 : plus de refus d'unité */
       info: () => {
         /* fenêtre au format INF : titre, ✕, libellés à gauche, état de la liaison, produits et charges, FERMER */
         document.getElementById("docPop")?.remove();
@@ -21694,7 +21673,7 @@ function renderBudgetList() {
 
       if (tab) {
         active = tab.dataset.tab;
-        if (active === "dly" || active === "gra") shell.__dlyCenter = true;   /* v603 : plage remplie centrée à l'ouverture du graphique */
+        if (active === "dly") shell.__dlyCenter = true;   /* v603 : plage remplie centrée à l'ouverture du graphique */
         try { localStorage.setItem("svi_dtab_v1", active); } catch (e) {}
         renderTab();
         return;

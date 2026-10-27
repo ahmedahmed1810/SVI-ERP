@@ -594,10 +594,7 @@
         const a = lkRuleA(k, id);
         if (a) return a;
         /* règle B : la liaison primaire (act. scd = act. prm) n'a que des produits de l'unité de la désignation */
-        const D = LK.des && INS.des.find(x => x.id === LK.des), du = U_(D && D.u);
-        const pid = k === "prim" ? id : LK.prim, sid = k === "sec" ? id : LK.sec;
         /* v471 (règle B revue) : plus de refus — les produits de la liaison primaire prennent l'UPB et le PPB de la désignation */
-        void du; void pid; void sid;
         return "";
       }
 
@@ -930,11 +927,8 @@
         const rest = rows.filter(r => !topIds.has(r.id));
         /* plus de total par titre (seulement le total général) ; un titre n'apparaît qu'une fois,
            sauf s'il garde des lignes plus bas */
-        const restIds = new Set(rest.filter(r => !r.t).map(r => r.id));
-        const hasRest = t => { for (let i = INS.des.indexOf(t) + 1; i < INS.des.length && dOf(INS.des[i]) > dOf(t); i++) if (restIds.has(INS.des[i].id) && !hid(INS.des[i])) return true; return false; };
         /* FORMAT 130 : une ligne n'apparaît jamais seule — ses titres sont toujours affichés au-dessus d'elle
            (titre en deux exemplaires si une partie de sa branche est remontée en haut) */
-        void hasRest;
         const emitted = new Set();
         const ancOf = r => { const a = []; for (let i = INS.des.indexOf(r) - 1, L = dOf(r); i >= 0 && L > 0; i--) { const t = INS.des[i]; if (t.t && dOf(t) < L) { a.unshift(t); L = dOf(t); } } return a; };
         let body2 = "";
@@ -1244,11 +1238,10 @@
     /* v450 : nom d'un niveau créé selon l'arborescence — sous un lot : NIVEAU 1, NIVEAU 2… (rang parmi les niveaux du même parent) ;
        sous un niveau « NIVEAU 2 » : NIVEAU 2.1, NIVEAU 2.2… ; affiché avec le nom des parents (« FONDATION / NIVEAU 2 ») tant qu'on ne lui donne pas un intitulé */
     const insNextLevel = (parent = []) => {
-      const P = parent.map(U_), last = P.length ? P[P.length - 1] : "";
+      const P = parent.map(U_);
       /* v451 : tous les lots principaux sont au niveau 1 → dessous NIVEAU 1.1, 1.2… ; sous NIVEAU 1.1 → 1.1.1… ;
          sous un sous-lot portant un intitulé : numéro selon sa profondeur (1.1 pour le 2e niveau, etc.) */
       /* v532 : numéro = celui du parent (tel qu'affiché) + le suivant libre parmi ses lignes ; il ne changera plus */
-      void last;
       const M = lotNumMap(), pn = P.length ? M.get(P.join(" / ")) || "" : "";
       const base = pn ? pn + "." : "";
       const kids = new Set();
