@@ -134,14 +134,26 @@
             if (part) svg += `<defs><clipPath id="ghRgClip"><rect x="${cxa}" y="-10" width="${Math.max(0, cxb - cxa)}" height="${HH + 20}"/></clipPath></defs>`;
             const clip = h => part ? `<g clip-path="url(#ghRgClip)">${h}</g>` : h;
             /* v611 (point 4) : hors de la plage, plus de courbe grise — seule la partie retenue est tracée */
-            const line = (M, c) => clip(poly(vis, M, c));
+            /* v655 (FORMAT 246) : seulement les jours retenus ; un jour seul = un point (pas de traits vers les jours voisins) ;
+               chaque morceau prolongé d'un jour de chaque côté puis coupé aux traits (la couleur s'arrête aux traits, v587) */
+            const ext = L => { const i0 = vis.indexOf(L[0]), i1 = vis.indexOf(L[L.length - 1]); return vis.slice(Math.max(0, i0 - 1), i1 + 2); };
+            const dot = (di, M, c) => `<circle cx="${X(di) + DLY_DW / 2}" cy="${Y0 - (M[di] || 0) * sc}" r="3.5" fill="${c}"/>`;
+            const line = (M, c) => runs.map(L => L.length === 1 ? dot(L[0], M, c) : clip(poly(part ? ext(L) : L, M, c))).join("");
+            /* v655 (FORMAT 246) : MARGE verte au-dessus de zéro, rouge en dessous ; la couleur change exactement où la courbe croise le zéro (affichage seul) */
+            const sgnLine = (L, M) => {
+              const P = L.map(di => [X(di) + DLY_DW / 2, M[di] || 0]), out = []; let cur = [], neg = null;
+              const push = (x, v, n) => { if (neg !== null && n !== neg) { out.push([neg, cur]); cur = [cur[cur.length - 1]]; } neg = n; cur.push([x, v]); };
+              P.forEach(([x, v], k) => {
+                if (k) { const [x0, v0] = P[k - 1]; if ((v0 < 0) !== (v < 0) && v0 !== v) { const xz = x0 + (x - x0) * (0 - v0) / (v - v0); cur.push([xz, 0]); push(xz, 0, v < 0); } }
+                if (!k) neg = v < 0; push(x, v, v < 0);
+              });
+              if (cur.length) out.push([neg, cur]);
+              return out.filter(([, Q]) => Q.length > 1).map(([n, Q]) => `<polyline points="${Q.map(([x, v]) => x + "," + (Y0 - v * sc)).join(" ")}" fill="none" stroke="${n ? CGN : CG}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join("");
+            };
             /* v587 : CHARGES toujours en orange, quel que soit le réglage */
             if (!multi || sC) svg += line(val, CC);
             if (sP) svg += line(vP, CP);
-            if (sG) { svg += line(vG, CG);
-              /* marge négative : en rouge */
-              let ng = []; const fl = () => { if (ng.length > 1) svg += clip(`<polyline points="${ng.map(di => pt(di, vG[di] || 0)).join(" ")}" fill="none" stroke="${CGN}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`); ng = []; };
-              vis.forEach((di, i) => { if ((vG[di] || 0) < 0) { if (!ng.length && i) ng.push(vis[i - 1]); ng.push(di); } else { if (ng.length) { ng.push(di); fl(); } } }); fl(); }
+            if (sG) svg += runs.map(L => L.length === 1 ? dot(L[0], vG, (vG[L[0]] || 0) < 0 ? CGN : CG) : clip(sgnLine(part ? ext(L) : L, vG))).join("");
             vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           }
           /* v569 (remarque 13) : RENDEMENT par charge — quantité produite de l'activité (vert) et une courbe pointillée par charge cochée

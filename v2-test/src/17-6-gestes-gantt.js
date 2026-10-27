@@ -241,6 +241,8 @@
         const HV = host.__HV || {}, H = host.__HD || {}, S = dlyXSeries(host, H, HV);
         const hr = h.getBoundingClientRect(), Y0 = Number(h.dataset.y0) || hr.height, sc = Number(h.dataset.sc) || 1;
         const i = Math.max(0, Math.floor((cx - hr.left) / DLY_DW)), di = sviIsoAdd(host.__d0, i);
+        /* v655 (FORMAT 246) : repères seulement sur un jour de la plage DÉBUT – FIN */
+        const RG = dlyHRange(); if ((RG.a && di < RG.a) || (RG.b && di > RG.b)) return;
         /* courbes de ce jour, de la plus proche du doigt à la plus loin */
         const C = S.map(x => { const v = x.M[di]; return v === undefined || v === null ? null : { ...x, v, y: hr.top + Y0 - v * (x.s || sc) }; }).filter(Boolean).sort((a, b) => Math.abs(a.y - cy) - Math.abs(b.y - cy));
         if (!C.length) return;
@@ -248,7 +250,7 @@
         dlyXClear();
         const mk = (c) => { const d = document.createElement("div"); d.className = c; document.body.appendChild(d); return d; };
         const px = hr.left + i * DLY_DW + DLY_DW / 2, top = hr.top;   /* v594 : graphique dans le pied fixe — repères depuis le haut du graphique */
-        const ax = Math.max(hr.left, host.getBoundingClientRect().left);
+        const ax = Math.max(hr.left, host.getBoundingClientRect().left, RG.a ? hr.left + dDiff(host.__d0, RG.a) * DLY_DW : -1e9);   /* v655 : trait horizontal depuis DÉBUT (jamais hors plage) */
         const v = mk("dlyx-v"); v.style.left = px + "px"; v.style.top = top + "px"; v.style.height = Math.max(0, best.y - top) + "px"; v.style.borderLeftColor = best.c;
         const hz = mk("dlyx-h"); hz.style.left = ax + "px"; hz.style.top = best.y + "px"; hz.style.width = Math.max(0, px - ax) + "px"; hz.style.borderTopColor = best.c;
         const p = mk("dlyx-pt"); p.style.left = px + "px"; p.style.top = best.y + "px"; p.style.borderColor = best.c;
@@ -283,7 +285,8 @@
       /* courbe (ou haut de barre) près du doigt, ce jour-là */
       const dlyXNear = (host, h, cx, cy) => {
         const HV = host.__HV || {}, S = dlyXSeries(host, host.__HD || {}, HV), hr = h.getBoundingClientRect(), Y0 = Number(h.dataset.y0) || hr.height, sc = Number(h.dataset.sc) || 1;
-        const di = sviIsoAdd(host.__d0, Math.max(0, Math.floor((cx - hr.left) / DLY_DW)));
+        const di = sviIsoAdd(host.__d0, Math.max(0, Math.floor((cx - hr.left) / DLY_DW))), RG = dlyHRange();
+        if ((RG.a && di < RG.a) || (RG.b && di > RG.b)) return false;
         return S.some(x => { const v = x.M[di]; return v !== undefined && v !== null && Math.abs(hr.top + Y0 - v * (x.s || sc) - cy) < 40; });
       };
       /* v566 (remarque 8) / v611 : repères posés — toucher le point = courbe suivante, appui long sur le point = FILTRE DU JOUR ;
