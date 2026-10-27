@@ -936,13 +936,68 @@
     var ICL = null;
     /* v593 (remarque longue 3) : ordre dans lequel les blocs ont reçu leur première case cochée (pour ce budget ouvert) */
     const insIsoPath = () => { try { return dlyIsoPath() || ""; } catch (e) { return ""; } };
+    /* =========================================================
+       REFONTE, ÉTAPE 2 (v642) : MOTEUR UNIQUE DES FILTRES — chaque source de filtre est décrite UNE fois ici ;
+       ordre des filtres, numéros, onglets bleus, EFFACER (bloc et tout), boutons du bandeau « AUCUNE LIGNE… »
+       et point bleu de ⚠ en découlent. Une nouvelle source = une entrée de FSRC (rien à ajouter ailleurs).
+       - on()   : filtre actif (compte dans l'ordre des filtres ; cases : une partie seulement cochée)
+       - mark() : l'onglet source passe en bleu (cases : au moins une cochée)
+       - n()    : nombre à afficher ; clear() : effacer ; blk : bloc de EFFACER TOUS LES FILTRES (menu ⋯) ;
+         tabs : onglets du bloc détail qui le montrent ; lab : nom dans le bandeau d'un bloc vidé ;
+         ord : réduit les autres blocs (ordre des filtres) ; edit : seulement en instance
+       ========================================================= */
+    const fsRows = k => (INS[k] || []).filter(r => !r.t);
+    const fsOnN = k => fsRows(k).filter(r => r.on === true).length;
+    const fsRowSrc = (k, lab, blk, tabs) => ({ k, lab, blk, tabs, ord: true, edit: true,
+      on: () => { const N = fsRows(k).length, n = fsOnN(k); return n > 0 && n < N; }, mark: () => fsOnN(k) > 0, n: () => fsOnN(k),
+      clear: () => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; } });
+    const FSRC = [
+      fsRowSrc("des", "DÉSIGNATION(S)", "client", []),
+      fsRowSrc("lot", "LOT(S)", "hier", []),
+      fsRowSrc("prim", "ACTIVITÉ(S) PRIMAIRE(S)", "hier", []),
+      fsRowSrc("sec", "ACTIVITÉ(S) SECONDAIRE(S)", "hier", []),
+      fsRowSrc("prd", "PRODUIT(S)", "detail", ["prd"]),
+      fsRowSrc("chg", "CHARGE(S)", "detail", ["chg"]),
+      { k: "lnk", lab: "LIAISON(S) DE MARGE", blk: "detail", tabs: ["lnk"], ord: true, edit: true,
+        on: () => (INS.links || []).some(l => l.on === true), n: () => (INS.links || []).filter(l => l.on === true).length,
+        clear: () => (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }) },
+      { k: "dly", lab: "TÂCHE(S) DU PLANNING", blk: "detail", tabs: ["dly"], ord: true,
+        on: () => !!(shell.__dlySel && shell.__dlySel.size), n: () => (shell.__dlySel && shell.__dlySel.size) || 0,
+        clear: () => { if (shell.__dlySel) shell.__dlySel.clear(); } },
+      { k: "iso", lab: "BRANCHE ISOLÉE", one: true, blk: "detail", tabs: [], ord: true,
+        on: () => !!insIsoPath(), n: () => 1, clear: () => { shell.__dlyIso = null; } },
+      { k: "rg", lab: "PLAGE DÉBUT – FIN", one: true, blk: "detail", tabs: ["chg", "prd", "lnk"], ord: true,
+        on: () => !!insRg(), n: () => 1, clear: () => { if (insRg()) INS.hrange = { ...INS.hrange, a: "", b: "" }; } },
+      { k: "par", lab: "CHARGES QUI FONT N %", one: true, blk: "detail", tabs: ["chg"], ord: true,
+        on: () => !!(INS.chgPar), n: () => 1, clear: () => { INS.chgPar = ""; } },
+      /* sans effet sur les autres blocs */
+      { k: "xf", lab: "FILTRE DU JOUR", one: true, blk: "detail", tabs: [], on: () => !!shell.__dlyXF, n: () => 1,
+        clear: () => { shell.__dlyXF = null; shell.__dlyBarSel = null; } },
+      { k: "inc", lab: "LIGNE(S) D'IMPORT NON CRÉÉ", blk: "detail", tabs: ["inc"], edit: true,
+        on: () => (INS.inc || []).some(x => x.on === true), n: () => (INS.inc || []).filter(x => x.on === true).length,
+        clear: () => (INS.inc || []).forEach(x => { if (x.on === true) x.on = false; }) },
+      { k: "nc", lab: "TÂCHES SANS CHARGE", one: true, blk: "", tabs: ["prd"], on: () => !!shell.__prdNc, n: () => (shell.__prdNc && shell.__prdNc.size) || 0,
+        clear: () => { shell.__prdNc = null; } }
+    ];
+    const fsSrc = k => FSRC.find(s => s.k === k);
+    const fsMark = s => (s.mark || s.on)();
+    /* loupes (filtres de colonne) : tableau → bloc de EFFACER et onglet */
+    const FS_CF = () => [["client", "client", ""], ["lot", "hier", ""], ["prim", "hier", ""], ["sec", "hier", ""],
+      [insCfT("chg"), "detail", "chg"], [insCfT("prd"), "detail", "prd"], ["dly", "detail", "dly"], ["dlyp", "detail", "dly"], ["dlyr", "detail", ""],
+      ["dlyi", "detail", ""], ["dlys", "detail", "dly"], ["lk_marge", "detail", "lnk"], ["lk_unl", "detail", "unl"], ["lk_inc", "detail", "inc"]];
+    const fsCfOn = t => !!(CF[t] && Object.keys(CF[t].f || {}).length);
+    /* effacer : un bloc (« client », « hier », « detail ») ou tout (blk vide) */
+    const fsClear = blk => {
+      FSRC.forEach(s => { if ((!blk || s.blk === blk) && (!s.edit || INS_EDIT)) s.clear(); });
+      FS_CF().forEach(([t, b]) => { if ((!blk || b === blk) && CF[t]) CF[t].f = {}; });
+      if (!blk) Object.keys(ONLYC).forEach(k => { ONLYC[k] = false; });
+    };
+    /* nombre de filtres d'un bloc (EFFACER TOUS LES FILTRES du menu ⋯) */
+    const fsCount = blk => FSRC.filter(s => s.blk === blk && (!s.edit || INS_EDIT) && fsMark(s)).reduce((t, s) => t + (s.one ? 1 : s.n()), 0)
+      + FS_CF().filter(([t, b]) => b === blk && fsCfOn(t)).length;
     const insCkOrd = () => {
-      const has = {
-        des: 0, lot: 0, prim: 0, sec: 0, prd: 0, chg: 0,
-        lnk: (INS.links || []).some(l => l.on === true), dly: !!(shell.__dlySel && shell.__dlySel.size), iso: !!insIsoPath(), rg: !!insRg(), par: !!(INS.chgPar)
-      };
-      /* v614 (point 10) : tout coché = pas de filtre (ni numéro d'ordre ni « cochées/total ») */
-      ["des", "lot", "prim", "sec", "prd", "chg"].forEach(x => { const N = (INS[x] || []).filter(r => !r.t), n = N.filter(r => r.on === true).length; has[x] = n > 0 && n < N.length; });
+      /* v614 (point 10) : tout coché = pas de filtre (ni numéro d'ordre ni « cochées/total ») — règle portée par FSRC (on) */
+      const has = {}; FSRC.filter(s => s.ord).forEach(s => { has[s.k] = s.on(); });
       const o = (shell.__ckOrd || []).filter(x => has[x]);
       Object.keys(has).forEach(x => { if (has[x] && !o.includes(x)) o.push(x); });
       shell.__ckOrd = o;

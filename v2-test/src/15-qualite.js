@@ -771,36 +771,20 @@
        ou cases cochées dans son propre tableau (pas le filtrage venu des cases d'un autre bloc) */
     const insTabFilt = () => {
       if (!INS) return {};
-      const own = k => (INS[k] || []).some(r => !r.t && r.on === true);
-      /* v539 : onglet en bleu quand SON tableau a une loupe ou une case cochée (remarque 53 : seul l'onglet source) —
-         les tâches cochées du DÉTAIL DÉLAIS comptent maintenant aussi */
-      return {
-        chg: cfHasF(insCfT("chg")) || !!ONLYC.chg || own("chg") || !!insRg() || !!(INS.chgPar),
-        prd: cfHasF(insCfT("prd")) || !!ONLYC.prd || own("prd") || !!insRg() || !!shell.__prdNc,
-        dly: ["dly", "dlyp", "dlys"].some(cfHasF) || !!(shell.__dlySel && shell.__dlySel.size),
-        lnk: cfHasF("lk_marge") || (INS.links || []).some(l => l.on === true) || !!insRg(),
-        unl: cfHasF("lk_unl"),
-        inc: cfHasF("lk_inc") || (INS.inc || []).some(x => x.on === true)
-      };
+      /* v539 : onglet en bleu quand SON tableau a une loupe ou une case cochée (remarque 53 : seul l'onglet source) ;
+         v642 (refonte) : sources décrites une fois (FSRC, FS_CF) */
+      const out = { chg: !!ONLYC.chg, prd: !!ONLYC.prd, dly: false, lnk: false, unl: false, inc: false };
+      FSRC.forEach(s => { if (s.tabs.length && fsMark(s)) s.tabs.forEach(t => { out[t] = true; }); });
+      FS_CF().forEach(([t, , tab]) => { if (tab && fsCfOn(t)) out[tab] = true; });
+      return out;
     };
     /* v499 (remarque 42) : EFFACER TOUS LES FILTRES d'un bloc (menu ⋯) — filtres de loupe et cases cochées */
-    const insFiltPlan = blk => {
-      const T = blk === "client" ? ["client"] : blk === "hier" ? ["lot", "prim", "sec"] : blk === "detail" ? [insCfT("chg"), insCfT("prd"), "dly", "dlyp", "dlyr", "dlyi", "dlys", "lk_marge", "lk_unl", "lk_inc"] : [];
-      const K = !INS || !INS_EDIT ? [] : blk === "client" ? ["des"] : blk === "hier" ? ["lot", "prim", "sec"] : blk === "detail" ? ["chg", "prd"] : [];
-      const nf = T.filter(cfHasF).length;
-      const nc = K.reduce((t, k) => t + (INS[k] || []).filter(r => !r.t && r.on === true).length, 0)
-        + (blk === "detail" && INS && INS_EDIT ? (INS.links || []).filter(l => l.on === true).length + (INS.inc || []).filter(x => x.on === true).length : 0);
-      return { T, K, n: nf + nc + (blk === "detail" && INS && insRg() ? 1 : 0) + (blk === "detail" && INS && INS.chgPar ? 1 : 0) };
-    };
+    /* v642 (refonte) : compte et effacement tirés de FSRC / FS_CF (cases, loupes, plage, CHARGES QUI FONT, ISOLER, tâches cochées, filtre du jour) */
+    const insFiltPlan = blk => ({ n: INS ? fsCount(blk) : 0 });
     const insFiltClear = blk => {
-      const P = insFiltPlan(blk);
-      P.T.forEach(t => { if (CF[t]) CF[t].f = {}; });
-      P.K.forEach(k => { (INS[k] || []).forEach(r => { if (r.on === true) r.on = false; }); ONLYC[k] = false; });
-      if (blk === "detail" && INS && INS_EDIT) { (INS.links || []).forEach(l => { if (l.on === true) l.on = false; }); (INS.inc || []).forEach(x => { if (x.on === true) x.on = false; }); }
-      if (blk === "detail" && INS && INS.chgPar) INS.chgPar = "";   /* v622 : CHARGES QUI FONT n % */
-      if (blk === "detail") { shell.__dlyXF = null; shell.__dlyBarSel = null; }   /* v631 : filtre du jour oublié */
-      if (blk === "detail" && INS && insRg()) INS.hrange = { ...INS.hrange, a: "", b: "" };   /* v560 : traits DÉBUT et FIN remis aux bords */
-      if (INS && INS_EDIT) insSave();
+      if (!INS) return;
+      fsClear(blk);
+      if (INS_EDIT) insSave();
       ICL = null; refreshAll();
       svToast("FILTRES ET CASES COCHÉES DU BLOC EFFACÉS.", 2000);
     };
