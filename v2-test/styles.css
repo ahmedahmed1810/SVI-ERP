@@ -2528,3 +2528,8 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 .ins-hcol .bdg-h-head .cf-lab > :not(.cf-tt) { flex: none; }
 .ins-hcol .bdg-h-head .only-c, .ins-hcol .bdg-h-head .cf-btn { flex: none; white-space: nowrap; }
 .ins-hcol .bdg-h-head .only-c { margin-left: 4px; padding: 0 7px; }
+/* v657 (FORMAT 248) : CAPACITÉ = simple texte, 2 px au-dessus du trait, au début du morceau (plus d'étiquette arrondie ni de pastille « = ») ;
+   le trait reste attrapable sur toute sa longueur */
+.gplaf-v { margin-top: 0 !important; border: 0 !important; border-radius: 0 !important; padding: 0 2px !important; background: transparent !important; line-height: 12px; transform: translateY(calc(-100% - 5px)); }
+.gplaf-v::before { content: none !important; display: none !important; }
+.gplaf.gcap-zero .gplaf-v { transform: translateY(calc(-100% - 6px)); }

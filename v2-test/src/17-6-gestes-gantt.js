@@ -166,6 +166,9 @@
           ln.style.left = Math.max(0, Math.min(W, x)) + "px"; ln.classList.toggle("grng-off", !!edge);
           const lab = other && iso && (ln.dataset.r === "a" ? iso > other : iso < other) ? (ln.dataset.r === "a" ? "FIN" : "DÉBUT") : (ln.dataset.r === "a" ? "DÉBUT" : "FIN");
           sp.textContent = lab + (iso ? " " + dFr(iso).slice(0, 5) : "");
+          /* v657 (point 165) : croisés = les deux noms s'échangent pendant le geste */
+          const o = shell.querySelector(`.dlyg-foot .grng[data-r="${ln.dataset.r === "a" ? "b" : "a"}"] span`);
+          if (o && other) o.textContent = (lab === "FIN" ? "DÉBUT" : "FIN") + " " + dFr(other).slice(0, 5);
         };
         const up = () => {
           document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);

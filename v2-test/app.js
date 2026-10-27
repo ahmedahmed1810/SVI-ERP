@@ -10641,7 +10641,7 @@ function renderBudgetList() {
       DLY_DW_MIN = Math.max(c.min, DLY_FILL || 0);   /* v553 (P11 R2) : jamais plus étroit que la largeur qui remplit le Gantt */
       if ((s0 === null || s0 === "fit") && DLY_FILL) return Math.min(DLY_DW_MAX, DLY_FILL);
       const v = Number(s0) || c.def;
-      return Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v)));
+      return Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v * 10) / 10));
     };
     let DLY_DW = dlyDwGet();
     const dlyRhApply = rh => { shell.style.setProperty("--dly-rh", rh + "px"); shell.style.setProperty("--gbh", dlyBh(rh) + "px"); };
@@ -10946,15 +10946,15 @@ function renderBudgetList() {
               const h2 = shell.querySelector("#dlyGantt"); if (!h2) return;
               const r = h2.getBoundingClientRect(), vw = Math.min(h2.clientWidth, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0));
               const n = Math.max(1, dDiff(fA, fB) + 1), mg = fRg.a || fRg.b ? 60 : 12, want = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n));
-              if (vw > 60 && Math.abs(want - DLY_DW) > 0.5) (shell.__dlyDwSet || (() => {}))(h2, want, mg + Math.max(0, (vw - 2 * mg - n * Math.round(want)) / 2), dDiff(h2.__d0, fA));
+              if (vw > 60 && Math.abs(want - DLY_DW) > 0.05) (shell.__dlyDwSet || (() => {}))(h2, want, mg + Math.max(0, (vw - 2 * mg - n * Math.round(want * 10) / 10) / 2), dDiff(h2.__d0, fA));
             } finally { shell.__dlyFitting = false; document.getElementById("dlyDwLab")?.remove(); } });
           } }
         /* v639 : plage utilisée (avec DÉBUT / FIN) centrée, même sans changement de zoom ; v653 : marge de 60 px quand DÉBUT / FIN sont posés (étiquettes entières) */
         if (fA && fB) { const x1 = X(fA), x2 = X(fB) + DLY_DW, w = host.clientWidth;
           const t = x2 - x1 <= w ? (x1 + x2) / 2 - w / 2 : x1 - 2 * DLY_DW;
-          host.scrollLeft = Math.max(0, Math.min(host.scrollWidth - w, t)); shell.__dlyGx = host.scrollLeft; }
+          host.scrollLeft = Math.max(0, Math.min(host.scrollWidth - w, t)); shell.__dlyGx = host.scrollLeft; shell.__dlyFitT = performance.now(); }
       }
-      host.addEventListener("scroll", () => { shell.__dlyGx = host.scrollLeft; }, { passive: true });
+      host.addEventListener("scroll", () => { shell.__dlyGx = host.scrollLeft; dlyRngEdge(); }, { passive: true });   /* v657 : DÉBUT / FIN au repos suivent toujours le bord visible (après un ajustement aussi) */
       dlyStick(host.closest(".bdg-d-scroll, .lk-scroll"));
       dlyCfgPaint();
       requestAnimationFrame(dlyRngEdge);
@@ -12127,6 +12127,9 @@ function renderBudgetList() {
           ln.style.left = Math.max(0, Math.min(W, x)) + "px"; ln.classList.toggle("grng-off", !!edge);
           const lab = other && iso && (ln.dataset.r === "a" ? iso > other : iso < other) ? (ln.dataset.r === "a" ? "FIN" : "DÉBUT") : (ln.dataset.r === "a" ? "DÉBUT" : "FIN");
           sp.textContent = lab + (iso ? " " + dFr(iso).slice(0, 5) : "");
+          /* v657 (point 165) : croisés = les deux noms s'échangent pendant le geste */
+          const o = shell.querySelector(`.dlyg-foot .grng[data-r="${ln.dataset.r === "a" ? "b" : "a"}"] span`);
+          if (o && other) o.textContent = (lab === "FIN" ? "DÉBUT" : "FIN") + " " + dFr(other).slice(0, 5);
         };
         const up = () => {
           document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
@@ -12465,12 +12468,13 @@ function renderBudgetList() {
          le jour sous le doigt reste en place ; largeur mémorisée ; un toucher simple ouvre toujours le calendrier */
 /* ⟪ src/17-7-gestes-echelle.js ⟫ */
       const dlyDwSet = (host, w, ax, p) => {
-        w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w)));
-        if (w === DLY_DW) return;
+        w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w * 10) / 10));   /* v657 : au dixième de pixel (la plage remplit exactement l'écran) */
+        if (Math.abs(w - DLY_DW) < 0.05) return;
         try { localStorage.setItem(DLY_SC[dlyScale()].k, DLY_FILL && w <= DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}   /* v559 : réduit au maximum = ajusté à l'écran */
         host.__drawn = false; dlyGanttDraw();
         const h2 = shell.querySelector("#dlyGantt");
-        if (h2) h2.scrollLeft = Math.max(0, p * w - ax);
+        if (h2) { h2.scrollLeft = Math.max(0, p * w - ax); shell.__dlyGx = h2.scrollLeft; shell.__dlyFitT = performance.now(); }
+        requestAnimationFrame(() => { try { dlyRngEdge(); } catch (e) {} });   /* v657 : traits au repos replacés au bord visible après l'ajustement */
         let lab = document.getElementById("dlyDwLab");
         if (!lab) { lab = document.createElement("div"); lab.id = "dlyDwLab"; document.body.appendChild(lab); }
         const r = (h2 || host).getBoundingClientRect();
@@ -15428,7 +15432,8 @@ function renderBudgetList() {
           if (saved[i] === undefined) return;
           /* après un filtre : si la partie regardée n'existe plus, premières lignes retenues */
           el.scrollTop = toTop && saved[i][0] > el.scrollHeight - el.clientHeight ? 0 : saved[i][0];
-          el.scrollLeft = saved[i][1];
+          /* v657 : Gantt qui vient d'être ajusté à l'écran (filtres, DÉBUT / FIN) : sa position horizontale n'est pas remise */
+          if (!(el.id === "dlyGantt" && shell.__dlyFitT && performance.now() - shell.__dlyFitT < 600)) el.scrollLeft = saved[i][1];
         });
         window.scrollTo(x, y);
       };

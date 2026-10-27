@@ -1,10 +1,11 @@
       const dlyDwSet = (host, w, ax, p) => {
-        w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w)));
-        if (w === DLY_DW) return;
+        w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w * 10) / 10));   /* v657 : au dixième de pixel (la plage remplit exactement l'écran) */
+        if (Math.abs(w - DLY_DW) < 0.05) return;
         try { localStorage.setItem(DLY_SC[dlyScale()].k, DLY_FILL && w <= DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}   /* v559 : réduit au maximum = ajusté à l'écran */
         host.__drawn = false; dlyGanttDraw();
         const h2 = shell.querySelector("#dlyGantt");
-        if (h2) h2.scrollLeft = Math.max(0, p * w - ax);
+        if (h2) { h2.scrollLeft = Math.max(0, p * w - ax); shell.__dlyGx = h2.scrollLeft; shell.__dlyFitT = performance.now(); }
+        requestAnimationFrame(() => { try { dlyRngEdge(); } catch (e) {} });   /* v657 : traits au repos replacés au bord visible après l'ajustement */
         let lab = document.getElementById("dlyDwLab");
         if (!lab) { lab = document.createElement("div"); lab.id = "dlyDwLab"; document.body.appendChild(lab); }
         const r = (h2 || host).getBoundingClientRect();

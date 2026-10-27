@@ -1084,7 +1084,8 @@
           if (saved[i] === undefined) return;
           /* après un filtre : si la partie regardée n'existe plus, premières lignes retenues */
           el.scrollTop = toTop && saved[i][0] > el.scrollHeight - el.clientHeight ? 0 : saved[i][0];
-          el.scrollLeft = saved[i][1];
+          /* v657 : Gantt qui vient d'être ajusté à l'écran (filtres, DÉBUT / FIN) : sa position horizontale n'est pas remise */
+          if (!(el.id === "dlyGantt" && shell.__dlyFitT && performance.now() - shell.__dlyFitT < 600)) el.scrollLeft = saved[i][1];
         });
         window.scrollTo(x, y);
       };
