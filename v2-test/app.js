@@ -10514,7 +10514,8 @@ function renderBudgetList() {
     const dlyKbPaint = (scroll) => {
       const k = shell.__dlyKb;
       shell.querySelectorAll(".dlyg-l tr.dly-kb, #dlyGantt .gb.gb-kb").forEach(x => x.classList.remove("dly-kb", "gb-kb"));
-      if (!k) return;
+      /* v638 : encadrée seulement après ↓ ↑ Tab Entrée au clavier — un toucher choisit le point de départ sans cadre */
+      if (!k || !shell.__dlyKbShow) return;
       const tr = shell.querySelector(`.dlyg-l tr.dly-task[data-key="${CSS.escape(k)}"]`), b = shell.querySelector(`#dlyGantt .gb[data-key="${CSS.escape(k)}"]`);
       if (tr) tr.classList.add("dly-kb");
       shell.querySelectorAll(`#dlyGantt .gb[data-key="${CSS.escape(k)}"]`).forEach(x => x.classList.add("gb-kb"));
@@ -10526,7 +10527,7 @@ function renderBudgetList() {
     };
     if (!shell.__dlyKbBound) {
       shell.__dlyKbBound = true;
-      document.addEventListener("pointerdown", e => { shell.__dlyKbOn = !!(e.target.closest && e.target.closest(".dlyg")) && !(e.target.closest && e.target.closest("input, textarea, select")); const g = e.target.closest && e.target.closest(".dlyg [data-key]"); if (shell.__dlyKbOn && g && g.dataset.key && g.dataset.key.includes("|")) shell.__dlyKb = g.dataset.key; }, true);
+      document.addEventListener("pointerdown", e => { shell.__dlyKbOn = !!(e.target.closest && e.target.closest(".dlyg")) && !(e.target.closest && e.target.closest("input, textarea, select")); const g = e.target.closest && e.target.closest(".dlyg [data-key]"); if (shell.__dlyKbOn && g && g.dataset.key && g.dataset.key.includes("|")) shell.__dlyKb = g.dataset.key; if (shell.__dlyKbShow) { shell.__dlyKbShow = false; dlyKbPaint(); } }, true);
       document.addEventListener("keydown", e => {
         if (!shell.__dlyKbOn || !shell.isConnected || !shell.querySelector(".dlyg")) return;
         const a = document.activeElement; if (a && a.matches && a.matches("input, textarea, select, [contenteditable]")) return;
@@ -10538,7 +10539,7 @@ function renderBudgetList() {
         e.preventDefault(); e.stopPropagation();
         let i = K.indexOf(shell.__dlyKb);
         i = i < 0 ? (down ? 0 : K.length - 1) : Math.max(0, Math.min(K.length - 1, i + (down ? 1 : -1)));
-        shell.__dlyKb = K[i];
+        shell.__dlyKb = K[i]; shell.__dlyKbShow = true;
         dlyKbPaint(true);
       }, true);
     }
@@ -25036,13 +25037,18 @@ const sviCellVis = c => {
   if (hd) { const hr = hd.getBoundingClientRect(); if (hr.bottom > top) top = Math.max(top, hr.bottom); }
   const T = Math.max(r.top, top), B = Math.min(r.bottom, bottom), L = Math.max(r.left, left), Rr = Math.min(r.right, right);
   if (B - T < 4 || Rr - L < 4) return null;
+  /* v638 : cellule cachée par autre chose (graphique agrandi, tableau replié…) = ni cadre ni point */
+  { const tb = c.closest("table, .ins-hcol") || c, hit = document.elementsFromPoint((L + Rr) / 2, (T + B) / 2).find(x => x.id !== "sviSelHandle" && x.id !== "sviSelFrame");
+    if (hit && !tb.contains(hit) && !hit.closest("#svCal, #sviSelBar, .th-fix, .gh-fix")) return null; }
   return { top: T, bottom: B, left: L, right: Rr, full: r };
 };
 let SVI_FR = null;
 const sviFrame = () => {
   const a = document.activeElement, c = sviCellOf(a);
   if (!SVI_FR) { SVI_FR = document.createElement("div"); SVI_FR.id = "sviSelFrame"; document.body.appendChild(SVI_FR); }
-  const v = c && sviCellVis(c);
+  /* v638 : case de date (DÉBUT / FIN, calendrier) = pas de second cadre par-dessus le sien (FORMAT : v553) */
+  const isDate = !!(c && c.querySelector && c.querySelector("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]")) || !!(a && a.matches && a.matches("input.sv-date, input.dlp-in"));
+  const v = c && !isDate && sviCellVis(c);
   if (!v) { SVI_FR.style.display = "none"; return; }
   const col = (getComputedStyle(c).getPropertyValue("--inst") || "").trim() || "#111827";
   /* au-dessus d'une fenêtre (SAISIE DIRECTE en fenêtre, fenêtres d'import…) quand la cellule y est */
@@ -25153,7 +25159,7 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
        seulement s'il y a une cellule active visible */
     const act = document.activeElement, cell = sviCellOf(act);
     /* v553 (partie 11, remarque 5) : case de date (calendrier) = ni contour ni point au coin */
-    const isDate = !!(act && act.matches && act.matches("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]"));
+    const isDate = !!(act && act.matches && act.matches("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]")) || !!(cell && cell.querySelector && cell.querySelector("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]"));
     if (!cell || isDate || !matchMedia("(pointer: coarse)").matches) { if (H) H.style.display = "none"; return; }
     const td = cell.tagName === "TD" ? cell : null;
     let end = cell;

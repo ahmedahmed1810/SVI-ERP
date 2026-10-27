@@ -680,7 +680,8 @@
     const dlyKbPaint = (scroll) => {
       const k = shell.__dlyKb;
       shell.querySelectorAll(".dlyg-l tr.dly-kb, #dlyGantt .gb.gb-kb").forEach(x => x.classList.remove("dly-kb", "gb-kb"));
-      if (!k) return;
+      /* v638 : encadrée seulement après ↓ ↑ Tab Entrée au clavier — un toucher choisit le point de départ sans cadre */
+      if (!k || !shell.__dlyKbShow) return;
       const tr = shell.querySelector(`.dlyg-l tr.dly-task[data-key="${CSS.escape(k)}"]`), b = shell.querySelector(`#dlyGantt .gb[data-key="${CSS.escape(k)}"]`);
       if (tr) tr.classList.add("dly-kb");
       shell.querySelectorAll(`#dlyGantt .gb[data-key="${CSS.escape(k)}"]`).forEach(x => x.classList.add("gb-kb"));
@@ -692,7 +693,7 @@
     };
     if (!shell.__dlyKbBound) {
       shell.__dlyKbBound = true;
-      document.addEventListener("pointerdown", e => { shell.__dlyKbOn = !!(e.target.closest && e.target.closest(".dlyg")) && !(e.target.closest && e.target.closest("input, textarea, select")); const g = e.target.closest && e.target.closest(".dlyg [data-key]"); if (shell.__dlyKbOn && g && g.dataset.key && g.dataset.key.includes("|")) shell.__dlyKb = g.dataset.key; }, true);
+      document.addEventListener("pointerdown", e => { shell.__dlyKbOn = !!(e.target.closest && e.target.closest(".dlyg")) && !(e.target.closest && e.target.closest("input, textarea, select")); const g = e.target.closest && e.target.closest(".dlyg [data-key]"); if (shell.__dlyKbOn && g && g.dataset.key && g.dataset.key.includes("|")) shell.__dlyKb = g.dataset.key; if (shell.__dlyKbShow) { shell.__dlyKbShow = false; dlyKbPaint(); } }, true);
       document.addEventListener("keydown", e => {
         if (!shell.__dlyKbOn || !shell.isConnected || !shell.querySelector(".dlyg")) return;
         const a = document.activeElement; if (a && a.matches && a.matches("input, textarea, select, [contenteditable]")) return;
@@ -704,7 +705,7 @@
         e.preventDefault(); e.stopPropagation();
         let i = K.indexOf(shell.__dlyKb);
         i = i < 0 ? (down ? 0 : K.length - 1) : Math.max(0, Math.min(K.length - 1, i + (down ? 1 : -1)));
-        shell.__dlyKb = K[i];
+        shell.__dlyKb = K[i]; shell.__dlyKbShow = true;
         dlyKbPaint(true);
       }, true);
     }
