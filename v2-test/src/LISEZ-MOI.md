@@ -15,6 +15,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `01-onglets-donnees-outils.js` | 286 |
 | `02-stockage-instance.js` | 51 |
 | `02b-donnees-budget.js` | données du budget : forme, conversions des anciens budgets, enregistrement, doublons (refonte, étape 1) |
+| `02d-saisie-import-regles.js` | règles de saisie (intitulés presque identiques) et d'import (dates, type de liaison, nature d'onglet), sans écran — testées (refonte, étapes 8 et 9) |
 | `02c-planning-regles.js` | règles de calcul du planning, sans écran (liaisons, décalage, déplacement) — testées une par une (refonte, étape 5) |
 | `03-api-drive.js` | 387 |
 | `04-chs-bds-donnees.js` | 522 |

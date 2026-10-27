@@ -190,35 +190,15 @@
        ou une lettre en plus / en moins / changée, ou deux lettres inversées (ENDUI 20 / ENDUIT 20, ÉTANCHÉITÉ / ÉTANCHIÉTÉ).
        Les nombres doivent être les mêmes (ENDUIT 10 et ENDUIT 20 restent distincts). Ce n'est pas un doublon :
        on choisit PRENDRE L'EXISTANT ou GARDER LA NOUVELLE (ouverture du budget : FUSIONNER ou IGNORER) */
-    const nearNorm = s => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/Œ/g, "OE").replace(/[^A-Z0-9]+/g, "");
-    const nearDigits = s => (String(s ?? "").match(/\d+/g) || []).map(x => String(+x)).join(",");
-    const nearDist1 = (a, b) => {   /* vrai si une seule faute : insertion, suppression, remplacement ou inversion de deux lettres voisines */
-      if (a === b) return false;
-      const la = a.length, lb = b.length;
-      if (Math.abs(la - lb) > 1) return false;
-      if (la === lb) {
-        const diff = []; for (let i = 0; i < la; i++) if (a[i] !== b[i]) { diff.push(i); if (diff.length > 2) return false; }
-        if (diff.length === 1) return true;
-        return diff.length === 2 && diff[1] === diff[0] + 1 && a[diff[0]] === b[diff[1]] && a[diff[1]] === b[diff[0]];
-      }
-      const [s, l] = la < lb ? [a, b] : [b, a];
-      let i = 0; while (i < s.length && s[i] === l[i]) i++;
-      return s.slice(i) === l.slice(i + 1);
-    };
+    /* refonte, étape 8 (v645) : règles dans 02d (calcul pur, testées) */
+    const nearNorm = sviNearNorm, nearDigits = sviNearDigits, nearDist1 = sviNearDist1;
     const nearName = (k, r) => (k === "lot" || k === "prim" || k === "sec" || k === "qlt") ? r.v : r.des;
     const nearCtx = (k, r) => {
       if (k === "lot" || k === "prim" || k === "sec" || k === "qlt") return "";
       if (k === "des") return U_(r.u);
       const key = dupKeyOf(k, r); return U_(r.u) + "#" + String(key).split("#").slice(1).join("#");
     };
-    const isNear = (a, b) => {
-      if (!a || !b || U_(a) === U_(b)) return false;
-      if (nearDigits(a) !== nearDigits(b)) return false;
-      const na = nearNorm(a), nb = nearNorm(b);
-      if (!na || !nb) return false;
-      if (na === nb) return true;
-      return Math.min(na.length, nb.length) >= 5 && nearDist1(na, nb);
-    };
+    const isNear = sviIsNear;
     const NEAR_K = ["des", "lot", "prim", "sec", "chg", "prd"];
     /* la ligne existante la plus proche d'une saisie (celle qui a le plus de liaisons) */
     const nearOf = (k, r) => {

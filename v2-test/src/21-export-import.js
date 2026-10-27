@@ -1316,7 +1316,7 @@
       return { head: ["PROJET", ...BF_HEAD], rows: rows.map(r => [pj, ...r]) };
     };
     /* lecture d'un onglet : ligne d'en-tête trouvée (DÉSIGNATION CLIENT), colonnes par leur nom */
-    const bfNorm = v => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
+    const bfNorm = sviBfNorm;   /* refonte, étape 9 (v645) : règles d'import dans 02d */
     const bfModel = aoa => {
       /* FORMAT 105 : en-tête = ligne portant DÉSIGNATION CLIENT, sinon la première ligne remplie */
       let hi = aoa.findIndex(r => (r || []).some(c => bfNorm(c) === "DESIGNATION CLIENT"));
@@ -1686,14 +1686,7 @@
       return out;
     };
     /* nature d'un onglet : budget (DÉSIGNATION CLIENT) ou délais (ACTIVITÉ SECONDAIRE + DÉBUT / FIN, sans DÉSIGNATION CLIENT) */
-    const sheetKind = aoa => {
-      const rows = (aoa || []).slice(0, 15).map(r => (r || []).map(bfNorm));
-      if (rows.some(r => r.includes("CRITERE") && r.includes("POINT DE CONTROLE"))) return "qlt";   /* v489 : onglet QUALITÉ, une ligne par critère */
-      if (rows.some(r => r.includes("DESIGNATION CLIENT"))) return "budget";
-      if (rows.some(r => r.includes("ACTIVITE SECONDAIRE") && (r.includes("DEBUT") || r.includes("FIN") || r.includes("PREDECESSEURS")))) return "dly";
-      if (rows.some(r => r.includes("QUALITE"))) return "qlt";
-      return "";
-    };
+    const sheetKind = sviSheetKind;
     /* import de l'onglet QUALITÉ (FORMAT 132) : une ligne par libellé, TITRE = OUI pour un titre ; doublons ignorés */
     const qltImportAoa = (aoa, srcName, quiet, replace) => {
       /* v489 : nouveau format (une ligne par critère) → DÉTAIL QUALITÉ ; sinon l'ancienne liste (PROJET, QUALITÉ, TITRE) */
@@ -1719,20 +1712,10 @@
       insSave(); refreshAll();
       return n;
     };
-    const dlyDate = v => {
-      if (v === "" || v === null || v === undefined) return "";
-      if (typeof v === "number" && v > 20000) { const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000); return d.toISOString().slice(0, 10); }
-      if (v instanceof Date && !isNaN(v)) return v.getFullYear() + "-" + String(v.getMonth() + 1).padStart(2, "0") + "-" + String(v.getDate()).padStart(2, "0");
-      const t = String(v).trim();
-      /* date complète renvoyée par le script (2026-10-13T23:00:00.000Z) : jour local */
-      if (/^\d{4}-\d{2}-\d{2}T\d{2}:/.test(t)) { const d = new Date(t); if (!isNaN(d)) return dlyDate(d); }
-      if (/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
-      const iso = dParse(t);
-      return iso === null ? null : iso;
-    };
+    const dlyDate = sviImpDate;
     /* import de l'onglet DÉLAIS : mêmes règles que la saisie ; ligne refusée → IMPORT NON CRÉÉ (TYPE DÉLAI).
        Une seule période par tâche : plusieurs lignes d'une même tâche sont fusionnées (début de la première, fin de la dernière). */
-    const dlyTyOf = t => { const n = bfNorm(t).replace(/[^A-Z]/g, ""); if (!n || n === "FD" || n === "FINDEBUT") return "FD"; if (n === "DD" || n === "DEBUTDEBUT") return "DD"; return null; };
+    const dlyTyOf = sviLinkType;
     const dlyImportAoa = (aoa, srcName, quiet) => {
       const hi = (aoa || []).findIndex(r => (r || []).map(bfNorm).includes("ACTIVITE SECONDAIRE"));
       if (hi < 0) return 0;
