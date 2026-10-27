@@ -997,10 +997,7 @@
 
     /* autres aperçus (détails, documents, TAF, observations) : même modèle,
        mêmes options, colonnes à largeur fixe */
-    const COLW = { hdt: 14, hbr: 8, hac: 12, hde: 40,
-      article: 5, detail: 30, unit: 5, nbr: 5, d1: 5, d2: 5, d3: 5, qty: 9, price: 9, amount: 11, tva: 6, ttc: 11,
-      rref: 22, rtitle: 60, rexp: 8, robj: 15, rtext: 30, rresp: 13, rprev: 12, rdelay: 9, relap: 9, rimp: 4
-    };
+    /* largeurs et format des colonnes : catalogue unique (12, SVI_COL, colPw, colFmt) */
     const printGeneric = blk => {
       const label = String(blkLabel(blk)).toUpperCase();
       let cols, rows, end = "";
@@ -1028,14 +1025,14 @@
             <div><span>TOTAL T.T.C. :</span><b>${money(ht + tv)}</b></div>
           </div>`;
       }
-      const wsum = cols.reduce((t, c) => t + (COLW[c[0]] || 10), 0);
-      const fmt = (v, k) => k === "tva" || (k === "pct" && v !== "" && v !== null && v !== undefined) ? money(Number(v) || 0) + " %" :   /* v625 : colonne % (DÉTAIL CHARGES, MARGE) */ typeof v === "number" ? money(v) : String(v ?? "");
+      const wsum = cols.reduce((t, c) => t + colPw(c[0]), 0);
+      const fmt = (v, k) => colFmt(k, v);   /* v625 : colonne % (DÉTAIL CHARGES, MARGE) */
       const al = c => /number/.test(c[3] || "") ? "r" : /center/.test(c[3] || "") ? "c" : "";
       const body = rows.map(r => "<tr>" + cols.map(c => `<td class="${al(c)}">${esc(fmt(c[2](r), c[0]))}</td>`).join("") + "</tr>").join("");
       printModel({
         branch: label, docTitle: label, fileTag: label, headLine: label,
         portrait: blk === "hist",
-        table: `<table id="tpl"><colgroup>${cols.map(c => `<col style="width:${((COLW[c[0]] || 10) / wsum * 100).toFixed(2)}%">`).join("")}</colgroup>
+        table: `<table id="tpl"><colgroup>${cols.map(c => `<col style="width:${(colPw(c[0]) / wsum * 100).toFixed(2)}%">`).join("")}</colgroup>
           <thead><tr>${cols.map(c => `<th>${esc(c[1])}</th>`).join("")}</tr></thead>
           <tbody>${body}</tbody></table>`,
         end

@@ -38,9 +38,7 @@
       histBranch = "";
       const all = histLoad();
       const branches = [...new Set(all.map(h => h.b))].sort();
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.innerHTML = `
         <div class="doc-card hist-card" role="dialog" aria-modal="true">
           <div class="doc-head">
@@ -61,7 +59,7 @@
             <button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       popEnhance(p, "hist");
       const render = () => {
         const t = p.querySelector("#histTable");
@@ -155,9 +153,7 @@
       let docRef = nextDocRef(now);
       let file = null;
 
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true">
           <div class="doc-head">
@@ -193,7 +189,7 @@
             <button type="button" class="doc-btn doc-save" id="docSave">ENREGISTRER</button>
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       popEnhance(p, "doc");
       setTimeout(() => p.querySelector("#docTitle")?.focus(), 50);
 
@@ -485,10 +481,7 @@
       obs: [["rref", "RÉFÉRENCE", r => r.ref, ""],
             ["rimp", "!", r => r.important ? "!" : "", "center"], ["rtext", "INTITULÉ", r => r.text, ""]]
     };
-    Object.assign(CW_DEF, {
-      rref: 210, rdate: 150, rtitle: 360, rfile: 120, rexp: 110, robj: 200, rtext: 420,
-      rresp: 180, rprev: 140, rdelay: 150, relap: 150, rimp: 60
-    });
+    /* largeurs : catalogue des colonnes (12, SVI_COL) */
     /* plus récent en premier (ordre par défaut, sans tri choisi) */
     const recSorted = kind => recLoad(kind).map((r, i) => ({ ...r, _i: i }))
       .sort((a, b) => String(b.date).localeCompare(String(a.date)) || b._i - a._i);

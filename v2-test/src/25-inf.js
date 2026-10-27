@@ -109,9 +109,7 @@
       ];
       /* budget en instance : l'INTITULÉ se saisit ici (repris dans les listes, exports et aperçus) */
       const editInt = !!(budget.inst && (budget.inst.state || "instance") === "instance");
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true">
           <div class="doc-head">
@@ -136,7 +134,7 @@
             ${editInt ? `<button type="button" class="doc-btn" data-cancel>FERMER</button><button type="button" class="doc-btn doc-save inf-save">ENREGISTRER</button>` : `<button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>`}
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       popEnhance(p, "inf");
       /* v477 (remarque 5) : tout est modifiable en instance ; rien n'est retenu avant ENREGISTRER */
       const pend = {};
@@ -193,9 +191,7 @@
     /* fenêtre centrée : observations marquées « ! » */
     const openObsAlert = () => {
       const list = recSorted("obs").filter(r => r.important);
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true">
           <div class="doc-head">
@@ -215,7 +211,7 @@
             <button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       popEnhance(p, "alert");
       obsAlertWire(p);
       p.addEventListener("click", e => {
@@ -295,9 +291,7 @@
             <input id="recElapsed" class="doc-in doc-ro" type="text" value="0:00" readonly>
           </div>`;
 
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true">
           <div class="doc-head">
@@ -313,7 +307,7 @@
             <button type="button" class="doc-btn doc-save" id="recSave">ENREGISTRER</button>
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       popEnhance(p, kind);
       setTimeout(() => p.querySelector("#recText")?.focus(), 50);
 
@@ -410,9 +404,7 @@
 
     /* DÉTAIL PRODUITS : choix du format avant aperçu ou export */
     const chooseFormat = act => {
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true" style="max-width:520px">
           <div class="doc-head">
@@ -427,7 +419,7 @@
           </div>
           <div class="doc-foot"><button type="button" class="doc-btn" data-cancel>ANNULER</button></div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       p.addEventListener("click", e => {
         const f = e.target.closest("[data-fmt]");
         if (f) {

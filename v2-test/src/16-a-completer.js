@@ -50,9 +50,7 @@
     shell.__filtActs = () => insFiltActs();
     const insTodoWhy = () => {
       const B = insTodo(), F = insFiltActs();
-      document.getElementById("svConf")?.remove();
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       const lab = b => esc(b.lab) + (b.names ? " : " + esc(b.names.join(" ; ")) : b.list ? " : " + esc(b.list.slice(0, 3).map(dlyName).join(" ; ")) + (b.list.length > 3 ? "…" : "") : "") + (b.req ? "" : " <small>(NON BLOQUANT)</small>");
       d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true"><button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">À COMPLÉTER</div>
@@ -62,7 +60,7 @@
         <div class="svc-x">${F.length ? F.map((g, i) => `<div class="fz-blk">${esc(g.blk)}</div>` + g.it.map(x => `<button type="button" class="fz-why fz-flt" data-g="${i}"><span>${esc(x.lab)}</span>${x.n ? svCnt(x.n) : ""}</button>`).join("")).join("")
           : `<div class="fz-none">AUCUN FILTRE : TOUTES LES DONNÉES SONT AFFICHÉES.</div>`}</div>
         <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button></div></div>`;
-      document.body.appendChild(d);
+      sviWinShow(d);
       d.addEventListener("click", e => {
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         const it = e.target.closest(".fz-why");

@@ -304,8 +304,7 @@
           [...linksOf(A), ...linksOf(B)].forEach(l => { if (P.has(l.prim) && P.get(l.prim) !== l.des && !e) e = "RÈGLE A : LA TÂCHE PRIMAIRE › " + lkName("prim", l.prim) + " SERAIT LIÉE À DEUX DÉSIGNATIONS (" + lkName("des", P.get(l.prim)) + " ET " + lkName("des", l.des) + ")."; P.set(l.prim, l.des); });
           return e;
         };
-        const d = document.createElement("div");
-        d.id = "svConf";
+        const d = sviWinNew();
         const draw = () => {
           const same = U_(nm(A, 1)) === U_(nm(B, 1));
           const eL = same ? "" : lvlErr(), eF = X.mergePlan(B, A).err;
@@ -325,7 +324,7 @@
               <button type="button" class="svc-b svc-ok svc-neutral" data-v="lvl"${same || eL ? " disabled" : ""}>CRÉER UN GROUPE</button></div></div>`;
         };
         document.getElementById("svConf")?.remove();
-        document.body.appendChild(d);
+        sviWinShow(d);
         draw();
         /* lot et activité modifiables à tout moment (mêmes règles que le PLANNING : pas de doublon) */
         d.addEventListener("change", e => { const i = e.target.closest("input.sup-in"); if (!i) return; X.rename(i); setTimeout(() => { if (d.isConnected) draw(); }, 0); });

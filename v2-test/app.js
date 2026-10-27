@@ -192,9 +192,7 @@ function openObsAlertFor(ref, project) {
     return isNaN(d) ? String(v || "")
       : `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} À ${p2(d.getHours())}:${p2(d.getMinutes())}`;
   };
-  document.getElementById("docPop")?.remove();
-  const p = document.createElement("div");
-  p.id = "docPop";
+  const p = sviPopNew();
   p.innerHTML = `
     <div class="doc-card" role="dialog" aria-modal="true">
       <div class="doc-head">
@@ -214,7 +212,7 @@ function openObsAlertFor(ref, project) {
         <button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>
       </div>
     </div>`;
-  document.body.appendChild(p);
+  sviPopShow(p);
   obsAlertWire(p);
   p.addEventListener("click", e => {
     if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
@@ -4072,8 +4070,7 @@ function renderBudgetList() {
     const now = new Date();
     const p2 = x => String(x).padStart(2, "0");
     const local = now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()) + "T" + p2(now.getHours()) + ":" + p2(now.getMinutes());
-    const p = document.createElement("div");
-    p.id = "docPop";
+    const p = sviPopNew();
     p.className = "pop-new-bdg";
     p.innerHTML = `
       <div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
@@ -4099,7 +4096,7 @@ function renderBudgetList() {
           <button type="button" class="doc-btn nb-save" id="nbGo">ENREGISTRER</button>
         </div>
       </div>`;
-    document.body.appendChild(p);
+    sviPopShow(p);
     try { popEnhance(p, "newbdg"); } catch (e) {}
     const val = id => (p.querySelector(id)?.value || "").trim();
     const refNow = () => {
@@ -5405,18 +5402,32 @@ function renderBudgetList() {
     const cwSave = obj => {
       try { localStorage.setItem(CW_KEY, JSON.stringify(obj)); } catch (e) {}
     };
-    const CW_DEF = {
-      article: 70, designation: 330, detail: 300, unit: 70,
-      qty: 100, price: 95, ht: 120, amount: 120, tva: 80, ttc: 130,
-      nbr: 60, d1: 60, d2: 60, d3: 60
+    /* =========================================================
+       REFONTE, ÉTAPE 3 (v643) : CATALOGUE UNIQUE DES COLONNES — pour chaque clé de colonne, une fois :
+       w = largeur par défaut à l'écran (px), pw = poids dans les aperçus PDF, f = format (« pct » : 12,50 %).
+       SVI_COL_T = largeurs par tableau (FORMAT 113 : disposition réglée par Ahmed sur l'iPad, 13/10/2026).
+       Une colonne ajoutée à un tableau (liste [clé, libellé, valeur, classe]) a donc d'office : tri, filtre, largeur réglable
+       et mémorisée, ordre, copie, export, aperçu (largeur et format) — il suffit de lui donner une ligne ici.
+       ========================================================= */
+    const SVI_COL = {
+      article: { w: 70, pw: 5 }, designation: { w: 330 }, detail: { w: 300, pw: 30 }, unit: { w: 70, pw: 5 },
+      qty: { w: 100, pw: 9 }, price: { w: 95, pw: 9 }, ht: { w: 120 }, amount: { w: 120, pw: 11 }, tva: { w: 80, pw: 6, f: "pct" }, ttc: { w: 130, pw: 11 },
+      nbr: { w: 60, pw: 5 }, d1: { w: 60, pw: 5 }, d2: { w: 60, pw: 5 }, d3: { w: 60, pw: 5 }, pct: { f: "pct" },
+      /* historique */
+      hdt: { pw: 14 }, hbr: { pw: 8 }, hac: { pw: 12 }, hde: { pw: 40 },
+      /* DOCUMENTS / TAF / OBSERVATIONS */
+      rref: { w: 210, pw: 22 }, rdate: { w: 150 }, rtitle: { w: 360, pw: 60 }, rfile: { w: 120 }, rexp: { w: 110, pw: 8 }, robj: { w: 200, pw: 15 }, rtext: { w: 420, pw: 30 },
+      rresp: { w: 180, pw: 13 }, rprev: { w: 140, pw: 12 }, rdelay: { w: 150, pw: 9 }, relap: { w: 150, pw: 9 }, rimp: { w: 60, pw: 4 }
     };
-    /* FORMAT 113 : disposition par défaut = largeurs réglées par Ahmed sur l'iPad (13/10/2026) */
-    const CW_DEF_T = {
+    const SVI_COL_T = {
       "client.article": 69, "client.designation": 660, "client.unit": 70, "client.qty": 71, "client.price": 86, "client.ht": 96, "client.tva": 81, "client.ttc": 97,
       "chg.article": 69, "chg.detail": 300, "chg.rdb": 110, "chg.pct": 58, "chg.tache": 246, "chg.unit": 70, "chg.qty": 84, "chg.price": 84, "chg.amount": 92, "chg.tva": 80, "chg.ttc": 94,
       "prd.detail": 176, "prd.tache": 246, "prd.unit": 70, "prd.nbr": 77, "prd.d1": 79, "prd.d2": 79, "prd.d3": 79, "prd.qty": 72, "prd.price": 72, "prd.amount": 92, "prd.tva": 82, "prd.ttc": 109
     };
-    const cwGet = (t, k) => cwLoad()[t + "." + k] || CW_DEF_T[t + "." + k] || CW_DEF[k] || 100;
+    const colPw = k => (SVI_COL[k] && SVI_COL[k].pw) || 10;
+    /* valeur d'une case pour un aperçu ou un export lisible : % pour les colonnes « pct », nombres au format 1 234,56 */
+    const colFmt = (k, v) => (SVI_COL[k] && SVI_COL[k].f === "pct") && (k === "tva" || (v !== "" && v !== null && v !== undefined)) ? money(Number(v) || 0) + " %" : typeof v === "number" ? money(v) : String(v ?? "");
+    const cwGet = (t, k) => cwLoad()[t + "." + k] || SVI_COL_T[t + "." + k] || (SVI_COL[k] && SVI_COL[k].w) || 100;
 
     /* colgroup + largeur totale de la table */
     const cwCols = (t, cols) =>
@@ -7696,8 +7707,7 @@ function renderBudgetList() {
       let cur = 0, showList = false, changed = false;
       const alive = it => INS[it.k].includes(it.keep) && INS[it.k].includes(it.drop);
       const ignore = it => { skip[it.sk] = 1; try { sessionStorage.setItem("svi_dupskip", JSON.stringify(skip)); } catch (e) {} if (it.near) nearSkip(it.k, nearName(it.k, it.keep), nearName(it.k, it.drop)); };
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       const finish = () => { d.remove(); shell.__dupBusy = false; if (changed) { insSave(); refreshAll(); } };
       const left = () => { for (let n = items.length - 1; n >= 0; n--) if (!alive(items[n])) items.splice(n, 1); if (cur >= items.length) cur = Math.max(0, items.length - 1); return items.length; };
       const draw = () => {
@@ -7719,7 +7729,7 @@ function renderBudgetList() {
           </div></div>`;
       };
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       draw();
       d.addEventListener("click", async e => {
         if (e.target.closest("[data-x]")) { finish(); return; }
@@ -8441,14 +8451,12 @@ function renderBudgetList() {
     const qqNode = (key, id) => qqList(key).find(x => x.id === id);
     /* fenêtres DÉCLENCHEMENT et APPEL (FORMAT 105 et 106), au format INF */
     const qqWin = (title, html, onOk, onLive) => {
-      document.getElementById("svConf")?.remove();
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       d.innerHTML = `<div class="svc-card qq-win" role="dialog" aria-modal="true">
           <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
           <div class="svc-t">${esc(title)}</div><div class="svc-x svc-html">${html}</div>
           <div class="svc-f"><button type="button" class="svc-b" data-r="0">ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-r="1">ENREGISTRER</button></div></div>`;
-      document.body.appendChild(d);
+      sviWinShow(d);
       if (onLive) { d.addEventListener("input", () => onLive(d)); d.addEventListener("change", () => onLive(d)); onLive(d); }
       let lp = null;
       d.addEventListener("pointerdown", e => { const g = e.target.closest(".qq-dis"); if (g) lp = setTimeout(() => svToast(g.dataset.why || "", 3500, g), 500); });
@@ -8491,9 +8499,7 @@ function renderBudgetList() {
       const r = INS.des.find(x => x.id === id);
       if (!r) return;
       const ro = !INS_EDIT;
-      document.getElementById("svConf")?.remove();
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       d.innerHTML = `<div class="svc-card qq-win qq-desc" role="dialog" aria-modal="true">
           <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
           <div class="svc-t">DESCRIPTIF</div>
@@ -8501,7 +8507,7 @@ function renderBudgetList() {
           <div class="svc-x svc-html"><textarea class="qq-dta" ${ro ? "disabled" : ""} placeholder="EXTRAIT DU CONTRAT QUI DÉFINIT L'ARTICLE…">${esc(r.dsc || "")}</textarea></div>
           <div class="svc-f">${ro ? '<button type="button" class="svc-b svc-ok svc-neutral" data-r="0">FERMER</button>'
             : '<button type="button" class="svc-b" data-r="0">ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-r="1">ENREGISTRER</button>'}</div></div>`;
-      document.body.appendChild(d);
+      sviWinShow(d);
       d.addEventListener("click", e => {
         const b = e.target.closest("[data-r]");
         if (!b && e.target !== d) return;
@@ -9263,14 +9269,12 @@ function renderBudgetList() {
     };
     const insFigeWhy = () => {
       const B = insFigeBlocks();
-      document.getElementById("svConf")?.remove();
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true"><button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">FIGER IMPOSSIBLE</div>
         <div class="svc-x">${B.map((b, i) => `<button type="button" class="fz-why" data-i="${i}"><span>${esc(b.lab)}${b.list ? " : " + esc(b.list.slice(0, 3).map(dlyName).join(" ; ")) + (b.list.length > 3 ? "…" : "") : ""}</span>${svCnt(b.n)}</button>`).join("")}</div>
         <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button></div></div>`;
-      document.body.appendChild(d);
+      sviWinShow(d);
       d.addEventListener("click", e => {
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         const it = e.target.closest(".fz-why");
@@ -9348,9 +9352,7 @@ function renderBudgetList() {
     shell.__filtActs = () => insFiltActs();
     const insTodoWhy = () => {
       const B = insTodo(), F = insFiltActs();
-      document.getElementById("svConf")?.remove();
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       const lab = b => esc(b.lab) + (b.names ? " : " + esc(b.names.join(" ; ")) : b.list ? " : " + esc(b.list.slice(0, 3).map(dlyName).join(" ; ")) + (b.list.length > 3 ? "…" : "") : "") + (b.req ? "" : " <small>(NON BLOQUANT)</small>");
       d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true"><button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">À COMPLÉTER</div>
@@ -9360,7 +9362,7 @@ function renderBudgetList() {
         <div class="svc-x">${F.length ? F.map((g, i) => `<div class="fz-blk">${esc(g.blk)}</div>` + g.it.map(x => `<button type="button" class="fz-why fz-flt" data-g="${i}"><span>${esc(x.lab)}</span>${x.n ? svCnt(x.n) : ""}</button>`).join("")).join("")
           : `<div class="fz-none">AUCUN FILTRE : TOUTES LES DONNÉES SONT AFFICHÉES.</div>`}</div>
         <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button></div></div>`;
-      document.body.appendChild(d);
+      sviWinShow(d);
       d.addEventListener("click", e => {
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         const it = e.target.closest(".fz-why");
@@ -9775,8 +9777,7 @@ function renderBudgetList() {
     const dlyLinkWin = (pred, succ) => {
       const L = dlyLinks(succ), l = L.find(x => x.k === pred);
       if (!l) return;
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">LIAISON</div>
@@ -9786,7 +9787,7 @@ function renderBudgetList() {
         <div class="svc-sub lkw-hint">FIN → DÉBUT : 0 = LA DEMI-JOURNÉE QUI SUIT LA FIN DE LA PRÉCÉDENTE, 1 = UN JOUR LIBRE ENTRE LES DEUX, 2 = DEUX JOURS…</div>
         <div class="svc-f"><button type="button" class="svc-b svc-ok lkw-del">✕ DÉLIER</button><span style="flex:1"></span><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       d.addEventListener("click", e => {
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         if (e.target.closest(".lkw-del")) {
@@ -10939,8 +10940,7 @@ function renderBudgetList() {
       if (!add) dlyLinks(key).forEach(x => { meta[x.k] = { t: x.t === "DD" ? "DD" : "FD", o: Math.max(0, Number(x.o) || 0) }; });
       const mt = k => meta[k] || (meta[k] = { t: "FD", o: 0 });
       let lot = ([...sel][0] || "").split("|")[0] || (INS.lot.find(x => !x.t) || {}).id || "";
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       const nSel = lo => [...sel].filter(k => k.startsWith(lo + "|")).length;
       const size = (() => { try { return JSON.parse(localStorage.getItem("svi_dpk_v1") || "null"); } catch (e) { return null; } })();
       const draw = () => {
@@ -10973,7 +10973,7 @@ function renderBudgetList() {
         sviDpkCols(d);
       };
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       draw();
       window.__sviDpkRefresh = () => { if (d.isConnected) draw(); else window.__sviDpkRefresh = null; };
       const close = () => { d.remove(); window.__sviDpkRefresh = null; };
@@ -12550,8 +12550,7 @@ function renderBudgetList() {
           [...linksOf(A), ...linksOf(B)].forEach(l => { if (P.has(l.prim) && P.get(l.prim) !== l.des && !e) e = "RÈGLE A : LA TÂCHE PRIMAIRE › " + lkName("prim", l.prim) + " SERAIT LIÉE À DEUX DÉSIGNATIONS (" + lkName("des", P.get(l.prim)) + " ET " + lkName("des", l.des) + ")."; P.set(l.prim, l.des); });
           return e;
         };
-        const d = document.createElement("div");
-        d.id = "svConf";
+        const d = sviWinNew();
         const draw = () => {
           const same = U_(nm(A, 1)) === U_(nm(B, 1));
           const eL = same ? "" : lvlErr(), eF = X.mergePlan(B, A).err;
@@ -12571,7 +12570,7 @@ function renderBudgetList() {
               <button type="button" class="svc-b svc-ok svc-neutral" data-v="lvl"${same || eL ? " disabled" : ""}>CRÉER UN GROUPE</button></div></div>`;
         };
         document.getElementById("svConf")?.remove();
-        document.body.appendChild(d);
+        sviWinShow(d);
         draw();
         /* lot et activité modifiables à tout moment (mêmes règles que le PLANNING : pas de doublon) */
         d.addEventListener("change", e => { const i = e.target.closest("input.sup-in"); if (!i) return; X.rename(i); setTimeout(() => { if (d.isConnected) draw(); }, 0); });
@@ -13193,8 +13192,7 @@ function renderBudgetList() {
       labs.sort((a, b) => a.localeCompare(b, "fr"));
       const capTxt = sk => { const st = (INS.plafR || {})[sk]; const v = st ? dlyCapV(st.plaf) : -1; return v >= 0 ? String(v) : ""; };
       const cut = sk => dlyCutsOf((INS.plafR || {})[sk]).length > 0;
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       d.innerHTML = `<div class="svc-card hcf-card gc-card" role="dialog" aria-modal="true">
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">GÉNÉRER / COMPRESSER</div>
@@ -13207,7 +13205,7 @@ function renderBudgetList() {
         ${labs.length ? `<table class="apr-t gc-t"><tr><th>MAIN-D'ŒUVRE</th><th>UNITÉ</th><th>CAPACITÉ</th></tr>${labs.map(sk => `<tr><td>${esc(sk.split("|")[0])}</td><td class="center">${esc(sk.split("|")[1])}</td><td>${cut(sk) ? '<span class="gc-cut">COUPÉE SUR LE GRAPHIQUE</span>' : `<input class="gc-cap hcf-pct" data-sk="${esc(sk)}" inputmode="numeric" value="${esc(capTxt(sk))}">`}</td></tr>`).join("")}</table>` : `<div class="hcf-note">AUCUNE CHARGE DE MAIN-D'ŒUVRE DANS LE BUDGET.</div>`}
         <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>LANCER</button></div></div>`;
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       const g = d.querySelector(".gc-gen"), c = d.querySelector(".gc-comp");
       /* COMPRESSER seul impossible tant qu'il manque des dates : cocher COMPRESSER coche GÉNÉRER */
       c.addEventListener("change", () => { if (c.checked && miss) g.checked = true; });
@@ -13430,9 +13428,8 @@ function renderBudgetList() {
     const dlyApproWin = () => {
       const R = dlyResSel();
       if (!R) { svToast("COCHER DES CHARGES : L'APPROVISIONNEMENT PORTE SUR LES CHARGES COCHÉES.", 3500); return; }
-      const c = dlyAppro(), mode = dlyResMode(R), d = document.createElement("div");
+      const c = dlyAppro(), mode = dlyResMode(R), d = sviWinNew();
       const ks = [...new Set(R.map(dlyResK))];
-      d.id = "svConf";
       /* v566 (remarque 9) : même format que RÉGLAGES DU GRAPHIQUE ; l'affichage des commandes se choisit dans RÉGLAGES DU GRAPHIQUE (DONNÉES) */
       d.innerHTML = `<div class="svc-card apr-card hcf-card" role="dialog" aria-modal="true">
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
@@ -13446,7 +13443,7 @@ function renderBudgetList() {
         <table class="apr-t"><tr><th>DÉSIGNATION CHARGE</th><th>UNITÉ</th><th>SEUIL</th></tr>${ks.map(sk => `<tr><td>${esc(sk.split("|")[0])}</td><td class="center">${esc(mode === "q" ? sk.split("|")[1] : "DH")}</td><td><input class="apr-s" data-sk="${esc(sk)}" inputmode="decimal" value="${esc(String((c.seuil || {})[sk] ?? ""))}"></td></tr>`).join("")}</table>
         <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       d.querySelectorAll('input[type="date"]').forEach(sviDateField);
       d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".hcf-seg input"); if (!i) return; d.querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked)); d.querySelector(".apr-nj").disabled = i.value !== "n"; });
       d.addEventListener("click", e => {
@@ -13465,10 +13462,9 @@ function renderBudgetList() {
     };
     /* v546 (R29) : fenêtre RÉGLAGES DE L'HISTOGRAMME (icône ⚙) — UNITÉ, AFFICHAGE, DÉPART DU CUMUL, COURBES, % de la légende */
     const dlyHCfgWin = () => {
-      const h = dlyHSet(), R = dlyResSel(), q = !R || dlySameU(R),   /* v602 : sans charge cochée = toutes les charges (v599) */ crb = dlyCrb(), d = document.createElement("div");
+      const h = dlyHSet(), R = dlyResSel(), q = !R || dlySameU(R),   /* v602 : sans charge cochée = toutes les charges (v599) */ crb = dlyCrb(), d = sviWinNew();
       /* v565 (remarque 7) : choix à deux options = interrupteur en deux parties collées ; courbes = petites cases sur une ligne */
       const rad = (n, v, l, on, dis) => `<label class="hcf-seg${on ? " on" : ""}${dis ? " off" : ""}"${dis ? ' data-why="QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ."' : ""}><input type="radio" name="${n}" value="${v}"${on ? " checked" : ""}${dis ? " disabled" : ""}><span>${l}</span></label>`;
-      d.id = "svConf";
       d.innerHTML = `<div class="svc-card hcf-card" role="dialog" aria-modal="true">
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">RÉGLAGES DU GRAPHIQUE</div>
@@ -13493,7 +13489,7 @@ function renderBudgetList() {
         </div>
         <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       d.querySelectorAll('input[type="date"]').forEach(sviDateField);
       d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".hcf-seg input"); if (!i) return; i.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked));
         if (i.name === "hcd") d.querySelectorAll(".hcf-apr").forEach(x => { x.hidden = i.value !== "o"; });
@@ -13558,8 +13554,7 @@ function renderBudgetList() {
     const dlyPiecesWin = k => {
       const cal = insCal();
       let rows = dlyList(k).filter(p => p.deb).map(p => ({ id: p.id || insId(), deb: p.deb, fin: p.fin || p.deb }));
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       const draw = () => {
         const tot = rows.reduce((t, r) => t + (Number(dDur(r.deb, r.fin)) || 0), 0);
         d.innerHTML = `<div class="svc-card pcs-card" role="dialog" aria-modal="true">
@@ -13572,7 +13567,7 @@ function renderBudgetList() {
         d.querySelectorAll('input[type="date"]').forEach(sviDateField);
       };
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       draw();
       d.addEventListener("change", e => { const i = e.target.closest(".pcs-d"); if (!i) return; rows[Number(i.dataset.i)][i.dataset.f] = i.value; draw(); });
       d.addEventListener("click", e => {
@@ -14354,8 +14349,7 @@ function renderBudgetList() {
         const body2 = () => tbl("prd", "DÉTAIL PRODUITS") + addRow("prd") + tbl("chg", "DÉTAIL CHARGES") + addRow("chg") + dlyBlk()
           + `<div class="doc-lab" style="margin-top:12px">DÉTAIL QUALITÉ</div><div><button type="button" class="doc-btn lki-qlt">OUVRIR DÉTAIL QUALITÉ</button></div>`;
         const goBtn = () => { const b = $("insChain") && $("insChain").querySelector(".lk-go"); return b ? b.outerHTML.replace('class="lk-go', 'class="lk-go lki-gob') : ""; };
-        const p = document.createElement("div");
-        p.id = "docPop";
+        const p = sviPopNew();
         p.innerHTML = `<div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
             <div class="doc-head"><span class="doc-title">LIAISON EN COURS</span><button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button></div>
             <div class="doc-body">
@@ -14370,7 +14364,7 @@ function renderBudgetList() {
             </div>
             <div class="doc-foot"><span class="lki-go">${goBtn()}</span><button type="button" class="doc-btn" data-cancel>FERMER</button></div>
           </div>`;
-        document.body.appendChild(p);
+        sviPopShow(p);
         try { popEnhance(p, "lkinfo"); } catch (e) {}
         const redraw = () => { if (!p.isConnected) return; const b = p.querySelector(".lk-info-t"); if (b) b.innerHTML = body2(); const g = p.querySelector(".lki-go"); if (g) g.innerHTML = goBtn(); };
         p.addEventListener("change", e => {
@@ -15964,9 +15958,7 @@ function renderBudgetList() {
     /* fenêtre « enregistrer » au format des fenêtres INF / DOC :
        nom du fichier et dossier du Drive proposés, modifiables */
     const fileDialog = ({ title, name, path, buttons, onAct }) => {
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true" style="max-width:640px">
           <div class="doc-head">
@@ -15987,7 +15979,7 @@ function renderBudgetList() {
             ${buttons.map(b => `<button type="button" class="doc-btn${b.primary ? " doc-save" : ""}" data-act="${b.key}"${b.drive ? " data-drive" : ""}>${esc(b.label)}</button>`).join("")}
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       popEnhance(p, "save");
       drivePathRow(p, "#fdPath", false);
       const msg = p.querySelector("#fdMsg");
@@ -16392,9 +16384,7 @@ function renderBudgetList() {
       loadXLSX().catch(() => {});
       const label = String(blkLabel(blk)).toUpperCase();
       let fmt = "xlsx", driveMode = false;
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       const path0 = driveLastPath(budget.project, fullRef);
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true" style="max-width:640px">
@@ -16427,7 +16417,7 @@ function renderBudgetList() {
             <button type="button" class="doc-btn doc-save" data-act="save" hidden>ENREGISTRER</button>
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       popEnhance(p, "export");
       const $q = sel => p.querySelector(sel);
       const msg = $q("#fdMsg");
@@ -16534,9 +16524,7 @@ function renderBudgetList() {
 
     /* fenêtre au format INF : lien de la feuille Google à importer */
     const askSheetLink = () => new Promise(res => {
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.className = "pop-new-bdg";
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
@@ -16557,7 +16545,7 @@ function renderBudgetList() {
             <button type="button" class="doc-btn nb-save" id="gsGo">IMPORTER</button>
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       try { popEnhance(p, "gslink"); } catch (e) {}
       const inp = p.querySelector("#gsLink");
       /* champ sur toute la largeur de la fenêtre */
@@ -16818,9 +16806,7 @@ function renderBudgetList() {
       const sel = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set() };
       /* lignes liées décochées à la main : la liaison est coupée à cet endroit */
       const cut = new Set();
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.className = "pop-new-bdg";
       p.innerHTML = `
         <div class="doc-card imp-card" role="dialog" aria-modal="true">
@@ -16848,7 +16834,7 @@ function renderBudgetList() {
             <button type="button" class="doc-btn nb-save" id="impGo">IMPORTER</button></span>
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       try { popEnhance(p, "impbdg"); } catch (e) {}
       const cols = {
         des: [["art", "ART"], ["des", "DÉSIGNATION"], ["u", "UPB"], ["q", "QPB", 1], ["p", "PPB", 1]],
@@ -19829,10 +19815,7 @@ function renderBudgetList() {
 
     /* autres aperçus (détails, documents, TAF, observations) : même modèle,
        mêmes options, colonnes à largeur fixe */
-    const COLW = { hdt: 14, hbr: 8, hac: 12, hde: 40,
-      article: 5, detail: 30, unit: 5, nbr: 5, d1: 5, d2: 5, d3: 5, qty: 9, price: 9, amount: 11, tva: 6, ttc: 11,
-      rref: 22, rtitle: 60, rexp: 8, robj: 15, rtext: 30, rresp: 13, rprev: 12, rdelay: 9, relap: 9, rimp: 4
-    };
+    /* largeurs et format des colonnes : catalogue unique (12, SVI_COL, colPw, colFmt) */
     const printGeneric = blk => {
       const label = String(blkLabel(blk)).toUpperCase();
       let cols, rows, end = "";
@@ -19860,14 +19843,14 @@ function renderBudgetList() {
             <div><span>TOTAL T.T.C. :</span><b>${money(ht + tv)}</b></div>
           </div>`;
       }
-      const wsum = cols.reduce((t, c) => t + (COLW[c[0]] || 10), 0);
-      const fmt = (v, k) => k === "tva" || (k === "pct" && v !== "" && v !== null && v !== undefined) ? money(Number(v) || 0) + " %" :   /* v625 : colonne % (DÉTAIL CHARGES, MARGE) */ typeof v === "number" ? money(v) : String(v ?? "");
+      const wsum = cols.reduce((t, c) => t + colPw(c[0]), 0);
+      const fmt = (v, k) => colFmt(k, v);   /* v625 : colonne % (DÉTAIL CHARGES, MARGE) */
       const al = c => /number/.test(c[3] || "") ? "r" : /center/.test(c[3] || "") ? "c" : "";
       const body = rows.map(r => "<tr>" + cols.map(c => `<td class="${al(c)}">${esc(fmt(c[2](r), c[0]))}</td>`).join("") + "</tr>").join("");
       printModel({
         branch: label, docTitle: label, fileTag: label, headLine: label,
         portrait: blk === "hist",
-        table: `<table id="tpl"><colgroup>${cols.map(c => `<col style="width:${((COLW[c[0]] || 10) / wsum * 100).toFixed(2)}%">`).join("")}</colgroup>
+        table: `<table id="tpl"><colgroup>${cols.map(c => `<col style="width:${(colPw(c[0]) / wsum * 100).toFixed(2)}%">`).join("")}</colgroup>
           <thead><tr>${cols.map(c => `<th>${esc(c[1])}</th>`).join("")}</tr></thead>
           <tbody>${body}</tbody></table>`,
         end
@@ -20022,9 +20005,7 @@ function renderBudgetList() {
       histBranch = "";
       const all = histLoad();
       const branches = [...new Set(all.map(h => h.b))].sort();
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.innerHTML = `
         <div class="doc-card hist-card" role="dialog" aria-modal="true">
           <div class="doc-head">
@@ -20045,7 +20026,7 @@ function renderBudgetList() {
             <button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       popEnhance(p, "hist");
       const render = () => {
         const t = p.querySelector("#histTable");
@@ -20139,9 +20120,7 @@ function renderBudgetList() {
       let docRef = nextDocRef(now);
       let file = null;
 
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true">
           <div class="doc-head">
@@ -20177,7 +20156,7 @@ function renderBudgetList() {
             <button type="button" class="doc-btn doc-save" id="docSave">ENREGISTRER</button>
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       popEnhance(p, "doc");
       setTimeout(() => p.querySelector("#docTitle")?.focus(), 50);
 
@@ -20469,10 +20448,7 @@ function renderBudgetList() {
       obs: [["rref", "RÉFÉRENCE", r => r.ref, ""],
             ["rimp", "!", r => r.important ? "!" : "", "center"], ["rtext", "INTITULÉ", r => r.text, ""]]
     };
-    Object.assign(CW_DEF, {
-      rref: 210, rdate: 150, rtitle: 360, rfile: 120, rexp: 110, robj: 200, rtext: 420,
-      rresp: 180, rprev: 140, rdelay: 150, relap: 150, rimp: 60
-    });
+    /* largeurs : catalogue des colonnes (12, SVI_COL) */
     /* plus récent en premier (ordre par défaut, sans tri choisi) */
     const recSorted = kind => recLoad(kind).map((r, i) => ({ ...r, _i: i }))
       .sort((a, b) => String(b.date).localeCompare(String(a.date)) || b._i - a._i);
@@ -20636,9 +20612,7 @@ function renderBudgetList() {
       ];
       /* budget en instance : l'INTITULÉ se saisit ici (repris dans les listes, exports et aperçus) */
       const editInt = !!(budget.inst && (budget.inst.state || "instance") === "instance");
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true">
           <div class="doc-head">
@@ -20663,7 +20637,7 @@ function renderBudgetList() {
             ${editInt ? `<button type="button" class="doc-btn" data-cancel>FERMER</button><button type="button" class="doc-btn doc-save inf-save">ENREGISTRER</button>` : `<button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>`}
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       popEnhance(p, "inf");
       /* v477 (remarque 5) : tout est modifiable en instance ; rien n'est retenu avant ENREGISTRER */
       const pend = {};
@@ -20720,9 +20694,7 @@ function renderBudgetList() {
     /* fenêtre centrée : observations marquées « ! » */
     const openObsAlert = () => {
       const list = recSorted("obs").filter(r => r.important);
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true">
           <div class="doc-head">
@@ -20742,7 +20714,7 @@ function renderBudgetList() {
             <button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       popEnhance(p, "alert");
       obsAlertWire(p);
       p.addEventListener("click", e => {
@@ -20822,9 +20794,7 @@ function renderBudgetList() {
             <input id="recElapsed" class="doc-in doc-ro" type="text" value="0:00" readonly>
           </div>`;
 
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true">
           <div class="doc-head">
@@ -20840,7 +20810,7 @@ function renderBudgetList() {
             <button type="button" class="doc-btn doc-save" id="recSave">ENREGISTRER</button>
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       popEnhance(p, kind);
       setTimeout(() => p.querySelector("#recText")?.focus(), 50);
 
@@ -20937,9 +20907,7 @@ function renderBudgetList() {
 
     /* DÉTAIL PRODUITS : choix du format avant aperçu ou export */
     const chooseFormat = act => {
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true" style="max-width:520px">
           <div class="doc-head">
@@ -20954,7 +20922,7 @@ function renderBudgetList() {
           </div>
           <div class="doc-foot"><button type="button" class="doc-btn" data-cancel>ANNULER</button></div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       p.addEventListener("click", e => {
         const f = e.target.closest("[data-fmt]");
         if (f) {
@@ -21890,8 +21858,7 @@ function renderBudgetList() {
       INS.cond = INS.cond || {};
       const st = { mode: "q", ua: "", per: "", perT: "", BL: 12, kerf: 0, kgm: "", ...(condGet(key) || {}) };
       let pcs = condPieces(rows);
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       const f2 = v => v === "" || v === undefined || v === null ? "" : money(v);
       const res = () => {
         const per = num(st.per), perT = num(st.perT);
@@ -21940,7 +21907,7 @@ function renderBudgetList() {
       const save = () => { const v = { mode: st.mode, ua: st.ua, per: st.per, perT: st.perT, BL: st.BL, kerf: st.kerf, kgm: st.kgm }; INS.cond[key] = v; const A = condAll(); A[key] = v; try { localStorage.setItem("svi_cond_chs_v1", JSON.stringify(A)); } catch (e) {} insSave(); };
       draw();
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       d.addEventListener("click", e => {
         if (e.target === d || e.target.closest("[data-x]")) { save(); d.remove(); return; }
         const m = e.target.closest("[data-m]");
@@ -23784,6 +23751,50 @@ function svToast(msg, ms = 3500, anchor) {
   clearTimeout(t.__tm);
   t.__tm = setTimeout(() => t.classList.remove("on"), ms);
 }
+/* =========================================================
+   REFONTE, ÉTAPE 4 (v643) : MODÈLE UNIQUE DE FENÊTRE — toutes les fenêtres de l'application (#svConf) naissent ici :
+   une seule ouverte à la fois, listes qui défilent au-delà de la moitié de l'écran (FORMAT 31), Échap = ✕ (FORMAT 30).
+   sviWinNew() → la fenêtre (vide) ; sviWinShow(d) → affichée ; sviWinCard({ title, body, foot, cls, close }) → son contenu standard.
+   ========================================================= */
+function sviWinNew() {
+  document.getElementById("svConf")?.remove();
+  const d = document.createElement("div");
+  d.id = "svConf";
+  return d;
+}
+function sviWinShow(d) {
+  document.body.appendChild(d);
+  svShortLists(d);
+  return d;
+}
+function sviWinCard({ title = "", body = "", foot = "", cls = "", close = 'data-r="0"' } = {}) {
+  return `<div class="svc-card${cls ? " " + cls : ""}" role="dialog" aria-modal="true">
+      ${close ? `<button type="button" class="svc-close" ${close} aria-label="Fermer">✕</button>` : ""}
+      <div class="svc-t">${title}</div>${body}
+      ${foot ? `<div class="svc-f">${foot}</div>` : ""}
+    </div>`;
+}
+/* fenêtres au format INF (#docPop) : même principe */
+function sviPopNew() {
+  document.getElementById("docPop")?.remove();
+  const p = document.createElement("div");
+  p.id = "docPop";
+  return p;
+}
+function sviPopShow(p) {
+  document.body.appendChild(p);
+  svShortLists(p);
+  return p;
+}
+/* Échap : ferme la fenêtre ouverte comme son ✕ (sauf pendant une saisie, où Échap annule la case) */
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  const d = document.getElementById("svConf") || document.getElementById("docPop"); if (!d) return;
+  const a = document.activeElement;
+  if (a && d.contains(a) && a.matches && a.matches("input, textarea, select")) return;
+  const x = d.querySelector(".svc-close, .doc-x, [data-x], [data-cancel]");
+  if (x) { e.preventDefault(); x.click(); }
+});
 /* IMPORT IMPOSSIBLE (FORMAT 62) : fenêtre qui reste ouverte, avec le fichier, la raison de chaque essai
    (en clair + détail technique), le contenu trouvé et que faire ; jamais un message passager */
 function svImportReason(m) {
@@ -23801,9 +23812,7 @@ function svImportReason(m) {
   return U;
 }
 function svImportFail({ source = "", tries = [], found = null, hint = "" } = {}) {
-  document.getElementById("svConf")?.remove();
-  const d = document.createElement("div");
-  d.id = "svConf";
+  const d = sviWinNew();
   const row = (lab, html) => `<div class="svc-sub">${esc(lab)}</div><div class="svc-x imp-fail-v">${html}</div>`;
   d.innerHTML = `<div class="svc-card imp-fail" role="dialog" aria-modal="true">
       <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
@@ -23816,7 +23825,7 @@ function svImportFail({ source = "", tries = [], found = null, hint = "" } = {})
       ${hint ? row("QUE FAIRE", esc(String(hint).toUpperCase())) : ""}
       <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-r="0">FERMER</button></div>
     </div>`;
-  document.body.appendChild(d);
+  sviWinShow(d);
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-r]")) d.remove(); });
 }
 /* couleur d'état reportée sur toute la page (cases, fenêtres) : rouge en instance, vert figé, noir sinon */
@@ -23870,33 +23879,21 @@ function sviPlaceMenu(m, r) {
 }
 function sviAlert(msg, title = "INFORMATION") {
   if (window.__sviQuiet) return;   /* contrôle silencieux (état du bouton APERÇU PDF) */
-  document.getElementById("svConf")?.remove();
-  const d = document.createElement("div");
-  d.id = "svConf";
-  d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
-      <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
-      <div class="svc-t">${esc(String(title).toUpperCase())}</div>
-      <div class="svc-x" style="white-space:pre-line">${esc(String(msg ?? "").toUpperCase())}</div>
-      <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-r="0">FERMER</button></div>
-    </div>`;
-  document.body.appendChild(d);
+  const d = sviWinNew();
+  d.innerHTML = sviWinCard({ title: esc(String(title).toUpperCase()), body: `<div class="svc-x" style="white-space:pre-line">${esc(String(msg ?? "").toUpperCase())}</div>`,
+    foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-r="0">FERMER</button>` });
+  sviWinShow(d);
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-r]")) d.remove(); });
 }
 /* fenêtre de choix de l'application : ANNULER + boutons [{ v, label, tone }] ; résout la valeur choisie ou null */
 function svChoose({ title = "", text = "", html = "", buttons = [], noCancel = false } = {}) {
   return new Promise(res => {
-    document.getElementById("svConf")?.remove();
-    const d = document.createElement("div");
-    d.id = "svConf";
-    d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
-        <button type="button" class="svc-close" data-v="" aria-label="Fermer">✕</button>
-        <div class="svc-t">${esc(title)}</div>
-        ${text ? `<div class="svc-x">${esc(text)}</div>` : ""}${html ? `<div class="svc-x svc-html">${html}</div>` : ""}
-        <div class="svc-f">${noCancel ? "" : '<button type="button" class="svc-b" data-v="">ANNULER</button>'}
-          ${buttons.map(b => `<button type="button" class="svc-b svc-ok${b.tone === "danger" ? "" : " svc-neutral"}" data-v="${esc(b.v)}"${b.disabled ? " disabled" : ""}>${esc(b.label)}</button>`).join("")}</div>
-      </div>`;
-    document.body.appendChild(d);
-    svShortLists(d);
+    const d = sviWinNew();
+    d.innerHTML = sviWinCard({ title: esc(title), close: 'data-v=""',
+      body: (text ? `<div class="svc-x">${esc(text)}</div>` : "") + (html ? `<div class="svc-x svc-html">${html}</div>` : ""),
+      foot: (noCancel ? "" : '<button type="button" class="svc-b" data-v="">ANNULER</button>')
+        + buttons.map(b => `<button type="button" class="svc-b svc-ok${b.tone === "danger" ? "" : " svc-neutral"}" data-v="${esc(b.v)}"${b.disabled ? " disabled" : ""}>${esc(b.label)}</button>`).join("") });
+    sviWinShow(d);
     d.addEventListener("click", e => {
       const b = e.target.closest("[data-v]");
       if (!b && e.target !== d) return;
@@ -23913,18 +23910,11 @@ function svShortLists(d) {
 }
 function svConfirm({ title = "CONFIRMER", text = "", html = "", ok = "OK", tone = "danger" } = {}) {
   return new Promise(res => {
-    document.getElementById("svConf")?.remove();
-    const d = document.createElement("div");
-    d.id = "svConf";
-    d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
-        <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
-        <div class="svc-t">${esc(title)}</div>
-        ${text ? `<div class="svc-x">${esc(text)}</div>` : ""}${html ? `<div class="svc-x svc-html">${html}</div>` : ""}
-        <div class="svc-f"><button type="button" class="svc-b" data-r="0">ANNULER</button>
-          <button type="button" class="svc-b svc-ok${tone === "danger" ? "" : " svc-neutral"}" data-r="1">${esc(ok)}</button></div>
-      </div>`;
-    document.body.appendChild(d);
-    svShortLists(d);
+    const d = sviWinNew();
+    d.innerHTML = sviWinCard({ title: esc(title),
+      body: (text ? `<div class="svc-x">${esc(text)}</div>` : "") + (html ? `<div class="svc-x svc-html">${html}</div>` : ""),
+      foot: `<button type="button" class="svc-b" data-r="0">ANNULER</button><button type="button" class="svc-b svc-ok${tone === "danger" ? "" : " svc-neutral"}" data-r="1">${esc(ok)}</button>` });
+    sviWinShow(d);
     d.addEventListener("click", e => {
       const b = e.target.closest("[data-r]");
       if (!b && e.target !== d) return;
@@ -23936,16 +23926,14 @@ function svConfirm({ title = "CONFIRMER", text = "", html = "", ok = "OK", tone 
 
 /* message d'information dans une fenêtre de l'application (remplace l'alerte Safari) */
 function svAlert(msg) {
-  document.getElementById("svConf")?.remove();
   const lines = String(msg ?? "").toUpperCase().split("\n").map(x => x.trim()).filter(Boolean);
-  const d = document.createElement("div");
-  d.id = "svConf";
+  const d = sviWinNew();
   d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
       <div class="svc-t">${esc(lines.length > 1 ? lines[0] : "INFORMATION")}</div>
       <div class="svc-x">${esc((lines.length > 1 ? lines.slice(1) : lines).join("\n"))}</div>
       <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-r="1">OK</button></div>
     </div>`;
-  document.body.appendChild(d);
+  sviWinShow(d);
   d.addEventListener("click", e => { if (e.target.closest("[data-r]") || e.target === d) d.remove(); });
 }
 try { window.alert = svAlert; } catch (e) {}
@@ -24408,8 +24396,7 @@ function sviBdgCalWin(iso) {
   if (!L.edit) { svToast("BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE", 3000); return; }
   const c0 = L.cal(), cal = { we: c0.we.slice(), off: c0.off.slice(), on: c0.on.slice() };
   let cur = iso ? new Date(iso + "T00:00:00") : new Date(); if (isNaN(cur)) cur = new Date(); cur.setDate(1);
-  const d = document.createElement("div");
-  d.id = "svConf";
+  const d = sviWinNew();
   const draw = () => {
     const y = cur.getFullYear(), m = cur.getMonth();
     const first = (new Date(y, m, 1).getDay() + 6) % 7, n = new Date(y, m + 1, 0).getDate();
@@ -24432,7 +24419,7 @@ function sviBdgCalWin(iso) {
       <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
   };
   document.getElementById("svConf")?.remove();
-  document.body.appendChild(d);
+  sviWinShow(d);
   draw();
   d.addEventListener("change", e => {
     const c = e.target.closest("[data-we]");
@@ -24470,8 +24457,7 @@ function sviBdgDatesWin() {
   const L = window.__sviBdgLive;
   if (!L) return;
   const v = L.dates();
-  const d = document.createElement("div");
-  d.id = "svConf";
+  const d = sviWinNew();
   d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
     <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
     <div class="svc-t">DATES DU BUDGET</div>
@@ -24480,7 +24466,7 @@ function sviBdgDatesWin() {
     <div class="bdt-row"><span>DATE OBJECTIF</span><input type="date" data-f="obj" value="${esc(v.obj)}"${v.but ? ` max="${esc(v.but)}"` : ""}></div>
     <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
   document.getElementById("svConf")?.remove();
-  document.body.appendChild(d);
+  sviWinShow(d);
   d.querySelectorAll('input[type="date"]').forEach(sviDateField);
   const ib = d.querySelector('[data-f="but"]'), io = d.querySelector('[data-f="obj"]');
   /* le calendrier de l'OBJECTIF ne propose pas de date après la BUTOIR, et celui de la BUTOIR pas avant l'OBJECTIF */

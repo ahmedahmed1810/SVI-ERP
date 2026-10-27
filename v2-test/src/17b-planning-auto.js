@@ -403,8 +403,7 @@
       labs.sort((a, b) => a.localeCompare(b, "fr"));
       const capTxt = sk => { const st = (INS.plafR || {})[sk]; const v = st ? dlyCapV(st.plaf) : -1; return v >= 0 ? String(v) : ""; };
       const cut = sk => dlyCutsOf((INS.plafR || {})[sk]).length > 0;
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       d.innerHTML = `<div class="svc-card hcf-card gc-card" role="dialog" aria-modal="true">
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">GÉNÉRER / COMPRESSER</div>
@@ -417,7 +416,7 @@
         ${labs.length ? `<table class="apr-t gc-t"><tr><th>MAIN-D'ŒUVRE</th><th>UNITÉ</th><th>CAPACITÉ</th></tr>${labs.map(sk => `<tr><td>${esc(sk.split("|")[0])}</td><td class="center">${esc(sk.split("|")[1])}</td><td>${cut(sk) ? '<span class="gc-cut">COUPÉE SUR LE GRAPHIQUE</span>' : `<input class="gc-cap hcf-pct" data-sk="${esc(sk)}" inputmode="numeric" value="${esc(capTxt(sk))}">`}</td></tr>`).join("")}</table>` : `<div class="hcf-note">AUCUNE CHARGE DE MAIN-D'ŒUVRE DANS LE BUDGET.</div>`}
         <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>LANCER</button></div></div>`;
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       const g = d.querySelector(".gc-gen"), c = d.querySelector(".gc-comp");
       /* COMPRESSER seul impossible tant qu'il manque des dates : cocher COMPRESSER coche GÉNÉRER */
       c.addEventListener("change", () => { if (c.checked && miss) g.checked = true; });
@@ -640,9 +639,8 @@
     const dlyApproWin = () => {
       const R = dlyResSel();
       if (!R) { svToast("COCHER DES CHARGES : L'APPROVISIONNEMENT PORTE SUR LES CHARGES COCHÉES.", 3500); return; }
-      const c = dlyAppro(), mode = dlyResMode(R), d = document.createElement("div");
+      const c = dlyAppro(), mode = dlyResMode(R), d = sviWinNew();
       const ks = [...new Set(R.map(dlyResK))];
-      d.id = "svConf";
       /* v566 (remarque 9) : même format que RÉGLAGES DU GRAPHIQUE ; l'affichage des commandes se choisit dans RÉGLAGES DU GRAPHIQUE (DONNÉES) */
       d.innerHTML = `<div class="svc-card apr-card hcf-card" role="dialog" aria-modal="true">
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
@@ -656,7 +654,7 @@
         <table class="apr-t"><tr><th>DÉSIGNATION CHARGE</th><th>UNITÉ</th><th>SEUIL</th></tr>${ks.map(sk => `<tr><td>${esc(sk.split("|")[0])}</td><td class="center">${esc(mode === "q" ? sk.split("|")[1] : "DH")}</td><td><input class="apr-s" data-sk="${esc(sk)}" inputmode="decimal" value="${esc(String((c.seuil || {})[sk] ?? ""))}"></td></tr>`).join("")}</table>
         <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       d.querySelectorAll('input[type="date"]').forEach(sviDateField);
       d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".hcf-seg input"); if (!i) return; d.querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked)); d.querySelector(".apr-nj").disabled = i.value !== "n"; });
       d.addEventListener("click", e => {
@@ -675,10 +673,9 @@
     };
     /* v546 (R29) : fenêtre RÉGLAGES DE L'HISTOGRAMME (icône ⚙) — UNITÉ, AFFICHAGE, DÉPART DU CUMUL, COURBES, % de la légende */
     const dlyHCfgWin = () => {
-      const h = dlyHSet(), R = dlyResSel(), q = !R || dlySameU(R),   /* v602 : sans charge cochée = toutes les charges (v599) */ crb = dlyCrb(), d = document.createElement("div");
+      const h = dlyHSet(), R = dlyResSel(), q = !R || dlySameU(R),   /* v602 : sans charge cochée = toutes les charges (v599) */ crb = dlyCrb(), d = sviWinNew();
       /* v565 (remarque 7) : choix à deux options = interrupteur en deux parties collées ; courbes = petites cases sur une ligne */
       const rad = (n, v, l, on, dis) => `<label class="hcf-seg${on ? " on" : ""}${dis ? " off" : ""}"${dis ? ' data-why="QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ."' : ""}><input type="radio" name="${n}" value="${v}"${on ? " checked" : ""}${dis ? " disabled" : ""}><span>${l}</span></label>`;
-      d.id = "svConf";
       d.innerHTML = `<div class="svc-card hcf-card" role="dialog" aria-modal="true">
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">RÉGLAGES DU GRAPHIQUE</div>
@@ -703,7 +700,7 @@
         </div>
         <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       d.querySelectorAll('input[type="date"]').forEach(sviDateField);
       d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".hcf-seg input"); if (!i) return; i.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked));
         if (i.name === "hcd") d.querySelectorAll(".hcf-apr").forEach(x => { x.hidden = i.value !== "o"; });
@@ -768,8 +765,7 @@
     const dlyPiecesWin = k => {
       const cal = insCal();
       let rows = dlyList(k).filter(p => p.deb).map(p => ({ id: p.id || insId(), deb: p.deb, fin: p.fin || p.deb }));
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       const draw = () => {
         const tot = rows.reduce((t, r) => t + (Number(dDur(r.deb, r.fin)) || 0), 0);
         d.innerHTML = `<div class="svc-card pcs-card" role="dialog" aria-modal="true">
@@ -782,7 +778,7 @@
         d.querySelectorAll('input[type="date"]').forEach(sviDateField);
       };
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       draw();
       d.addEventListener("change", e => { const i = e.target.closest(".pcs-d"); if (!i) return; rows[Number(i.dataset.i)][i.dataset.f] = i.value; draw(); });
       d.addEventListener("click", e => {

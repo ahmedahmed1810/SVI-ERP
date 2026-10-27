@@ -37,6 +37,50 @@ function svToast(msg, ms = 3500, anchor) {
   clearTimeout(t.__tm);
   t.__tm = setTimeout(() => t.classList.remove("on"), ms);
 }
+/* =========================================================
+   REFONTE, ÉTAPE 4 (v643) : MODÈLE UNIQUE DE FENÊTRE — toutes les fenêtres de l'application (#svConf) naissent ici :
+   une seule ouverte à la fois, listes qui défilent au-delà de la moitié de l'écran (FORMAT 31), Échap = ✕ (FORMAT 30).
+   sviWinNew() → la fenêtre (vide) ; sviWinShow(d) → affichée ; sviWinCard({ title, body, foot, cls, close }) → son contenu standard.
+   ========================================================= */
+function sviWinNew() {
+  document.getElementById("svConf")?.remove();
+  const d = document.createElement("div");
+  d.id = "svConf";
+  return d;
+}
+function sviWinShow(d) {
+  document.body.appendChild(d);
+  svShortLists(d);
+  return d;
+}
+function sviWinCard({ title = "", body = "", foot = "", cls = "", close = 'data-r="0"' } = {}) {
+  return `<div class="svc-card${cls ? " " + cls : ""}" role="dialog" aria-modal="true">
+      ${close ? `<button type="button" class="svc-close" ${close} aria-label="Fermer">✕</button>` : ""}
+      <div class="svc-t">${title}</div>${body}
+      ${foot ? `<div class="svc-f">${foot}</div>` : ""}
+    </div>`;
+}
+/* fenêtres au format INF (#docPop) : même principe */
+function sviPopNew() {
+  document.getElementById("docPop")?.remove();
+  const p = document.createElement("div");
+  p.id = "docPop";
+  return p;
+}
+function sviPopShow(p) {
+  document.body.appendChild(p);
+  svShortLists(p);
+  return p;
+}
+/* Échap : ferme la fenêtre ouverte comme son ✕ (sauf pendant une saisie, où Échap annule la case) */
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  const d = document.getElementById("svConf") || document.getElementById("docPop"); if (!d) return;
+  const a = document.activeElement;
+  if (a && d.contains(a) && a.matches && a.matches("input, textarea, select")) return;
+  const x = d.querySelector(".svc-close, .doc-x, [data-x], [data-cancel]");
+  if (x) { e.preventDefault(); x.click(); }
+});
 /* IMPORT IMPOSSIBLE (FORMAT 62) : fenêtre qui reste ouverte, avec le fichier, la raison de chaque essai
    (en clair + détail technique), le contenu trouvé et que faire ; jamais un message passager */
 function svImportReason(m) {
@@ -54,9 +98,7 @@ function svImportReason(m) {
   return U;
 }
 function svImportFail({ source = "", tries = [], found = null, hint = "" } = {}) {
-  document.getElementById("svConf")?.remove();
-  const d = document.createElement("div");
-  d.id = "svConf";
+  const d = sviWinNew();
   const row = (lab, html) => `<div class="svc-sub">${esc(lab)}</div><div class="svc-x imp-fail-v">${html}</div>`;
   d.innerHTML = `<div class="svc-card imp-fail" role="dialog" aria-modal="true">
       <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
@@ -69,7 +111,7 @@ function svImportFail({ source = "", tries = [], found = null, hint = "" } = {})
       ${hint ? row("QUE FAIRE", esc(String(hint).toUpperCase())) : ""}
       <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-r="0">FERMER</button></div>
     </div>`;
-  document.body.appendChild(d);
+  sviWinShow(d);
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-r]")) d.remove(); });
 }
 /* couleur d'état reportée sur toute la page (cases, fenêtres) : rouge en instance, vert figé, noir sinon */
@@ -123,33 +165,21 @@ function sviPlaceMenu(m, r) {
 }
 function sviAlert(msg, title = "INFORMATION") {
   if (window.__sviQuiet) return;   /* contrôle silencieux (état du bouton APERÇU PDF) */
-  document.getElementById("svConf")?.remove();
-  const d = document.createElement("div");
-  d.id = "svConf";
-  d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
-      <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
-      <div class="svc-t">${esc(String(title).toUpperCase())}</div>
-      <div class="svc-x" style="white-space:pre-line">${esc(String(msg ?? "").toUpperCase())}</div>
-      <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-r="0">FERMER</button></div>
-    </div>`;
-  document.body.appendChild(d);
+  const d = sviWinNew();
+  d.innerHTML = sviWinCard({ title: esc(String(title).toUpperCase()), body: `<div class="svc-x" style="white-space:pre-line">${esc(String(msg ?? "").toUpperCase())}</div>`,
+    foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-r="0">FERMER</button>` });
+  sviWinShow(d);
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-r]")) d.remove(); });
 }
 /* fenêtre de choix de l'application : ANNULER + boutons [{ v, label, tone }] ; résout la valeur choisie ou null */
 function svChoose({ title = "", text = "", html = "", buttons = [], noCancel = false } = {}) {
   return new Promise(res => {
-    document.getElementById("svConf")?.remove();
-    const d = document.createElement("div");
-    d.id = "svConf";
-    d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
-        <button type="button" class="svc-close" data-v="" aria-label="Fermer">✕</button>
-        <div class="svc-t">${esc(title)}</div>
-        ${text ? `<div class="svc-x">${esc(text)}</div>` : ""}${html ? `<div class="svc-x svc-html">${html}</div>` : ""}
-        <div class="svc-f">${noCancel ? "" : '<button type="button" class="svc-b" data-v="">ANNULER</button>'}
-          ${buttons.map(b => `<button type="button" class="svc-b svc-ok${b.tone === "danger" ? "" : " svc-neutral"}" data-v="${esc(b.v)}"${b.disabled ? " disabled" : ""}>${esc(b.label)}</button>`).join("")}</div>
-      </div>`;
-    document.body.appendChild(d);
-    svShortLists(d);
+    const d = sviWinNew();
+    d.innerHTML = sviWinCard({ title: esc(title), close: 'data-v=""',
+      body: (text ? `<div class="svc-x">${esc(text)}</div>` : "") + (html ? `<div class="svc-x svc-html">${html}</div>` : ""),
+      foot: (noCancel ? "" : '<button type="button" class="svc-b" data-v="">ANNULER</button>')
+        + buttons.map(b => `<button type="button" class="svc-b svc-ok${b.tone === "danger" ? "" : " svc-neutral"}" data-v="${esc(b.v)}"${b.disabled ? " disabled" : ""}>${esc(b.label)}</button>`).join("") });
+    sviWinShow(d);
     d.addEventListener("click", e => {
       const b = e.target.closest("[data-v]");
       if (!b && e.target !== d) return;
@@ -166,18 +196,11 @@ function svShortLists(d) {
 }
 function svConfirm({ title = "CONFIRMER", text = "", html = "", ok = "OK", tone = "danger" } = {}) {
   return new Promise(res => {
-    document.getElementById("svConf")?.remove();
-    const d = document.createElement("div");
-    d.id = "svConf";
-    d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
-        <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
-        <div class="svc-t">${esc(title)}</div>
-        ${text ? `<div class="svc-x">${esc(text)}</div>` : ""}${html ? `<div class="svc-x svc-html">${html}</div>` : ""}
-        <div class="svc-f"><button type="button" class="svc-b" data-r="0">ANNULER</button>
-          <button type="button" class="svc-b svc-ok${tone === "danger" ? "" : " svc-neutral"}" data-r="1">${esc(ok)}</button></div>
-      </div>`;
-    document.body.appendChild(d);
-    svShortLists(d);
+    const d = sviWinNew();
+    d.innerHTML = sviWinCard({ title: esc(title),
+      body: (text ? `<div class="svc-x">${esc(text)}</div>` : "") + (html ? `<div class="svc-x svc-html">${html}</div>` : ""),
+      foot: `<button type="button" class="svc-b" data-r="0">ANNULER</button><button type="button" class="svc-b svc-ok${tone === "danger" ? "" : " svc-neutral"}" data-r="1">${esc(ok)}</button>` });
+    sviWinShow(d);
     d.addEventListener("click", e => {
       const b = e.target.closest("[data-r]");
       if (!b && e.target !== d) return;
@@ -189,16 +212,14 @@ function svConfirm({ title = "CONFIRMER", text = "", html = "", ok = "OK", tone 
 
 /* message d'information dans une fenêtre de l'application (remplace l'alerte Safari) */
 function svAlert(msg) {
-  document.getElementById("svConf")?.remove();
   const lines = String(msg ?? "").toUpperCase().split("\n").map(x => x.trim()).filter(Boolean);
-  const d = document.createElement("div");
-  d.id = "svConf";
+  const d = sviWinNew();
   d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
       <div class="svc-t">${esc(lines.length > 1 ? lines[0] : "INFORMATION")}</div>
       <div class="svc-x">${esc((lines.length > 1 ? lines.slice(1) : lines).join("\n"))}</div>
       <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-r="1">OK</button></div>
     </div>`;
-  document.body.appendChild(d);
+  sviWinShow(d);
   d.addEventListener("click", e => { if (e.target.closest("[data-r]") || e.target === d) d.remove(); });
 }
 try { window.alert = svAlert; } catch (e) {}
