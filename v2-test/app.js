@@ -13298,7 +13298,8 @@ function renderBudgetList() {
         else {
           /* v546 : R20 valeur par morceau, R24 capacité en MONTANT, échelle abrégée, légende (70 %), R28 cumul = une courbe,
              R29 courbes CHARGES / PRODUITS / MARGE */
-          const C = HD.cmd, ks = [...HD.ser.keys()], hs = dlyHSet(), cum = hs.aff === "c", crb = HD.crb || ["c"];   /* v566 (remarque 9) : COMMANDES aussi en CUMULÉE */
+          const C = HD.cmd, ks = [...HD.ser.keys()], hs = dlyHSet(), cum = hs.aff === "c", crb0 = HD.crb || ["c"], rdNo = crb0.includes("r") && !!(HD.rd && HD.rd.why),
+            crb = rdNo ? (crb0.filter(v => v !== "r").length ? crb0.filter(v => v !== "r") : ["c"]) : crb0;   /* v654 (FORMAT 223) : RENDEMENT devenu impossible = décoché (raison écrite) ; jamais de graphique vide */   /* v566 (remarque 9) : COMMANDES aussi en CUMULÉE */
           /* v571 (remarques 14 et 15) : FORME HISTOGRAMME / COURBES pour tout ce qui est affiché (départ : histogramme pour les commandes,
              courbes avec RENDEMENT, sinon selon la présentation) ; avec RENDEMENT, CHARGES et PRODUITS (quantité produite) sont facultatifs */
           const hasRd = crb.includes("r"), curve = hs.forme ? hs.forme === "c" : (C ? false : hasRd ? true : cum);
