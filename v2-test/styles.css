@@ -2519,3 +2519,12 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 /* v651 (FORMAT 245) : total de la capacité coupée, centré sous la poignée « = » */
 .dlyhh-tot { position: absolute; left: 50%; top: 27px; transform: translateX(-50%); font-size: 10px; font-weight: 800; color: #344054; background: rgba(255,255,255,.9); padding: 0 5px; border-radius: 3px; white-space: nowrap; pointer-events: none; line-height: 14px; }
 .dlyhh-tot[hidden] { display: none; }
+/* v656 : en-tête des listes (LOT, ACTIVITÉ PRIMAIRE / SECONDAIRE…) toujours sur une ligne : l'intitulé se raccourcit (…),
+   pastilles, compteur et COCHÉES (n) restent entiers */
+.ins-hcol .bdg-h-head { flex-wrap: nowrap; white-space: nowrap; }
+.ins-hcol .bdg-h-head .cf-wrap { display: flex; align-items: center; min-width: 0; flex-wrap: nowrap; }
+.ins-hcol .bdg-h-head .cf-lab { display: flex; align-items: center; gap: 4px; flex: 0 1 auto; white-space: nowrap; overflow: visible !important; min-width: 0 !important; max-width: none !important; }
+.ins-hcol .bdg-h-head .cf-lab > .cf-tt { min-width: 14px; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ins-hcol .bdg-h-head .cf-lab > :not(.cf-tt) { flex: none; }
+.ins-hcol .bdg-h-head .only-c, .ins-hcol .bdg-h-head .cf-btn { flex: none; white-space: nowrap; }
+.ins-hcol .bdg-h-head .only-c { margin-left: 4px; padding: 0 7px; }
