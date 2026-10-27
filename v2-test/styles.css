@@ -2541,3 +2541,6 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 .ins-hcol .bdg-h-head .cf-wrap > .cf-btn { margin-right: 2px !important; }
 .ins-hcol .bdg-h-head .cf-lab > .ck-ord { margin-right: 0 !important; }
 .ins-hcol .bdg-h-head .cf-lab > .svi-cnt { padding: 0 4px !important; }
+/* v659 (FORMAT 251) : Gantt et graphique affichés ensemble = étiquettes DÉBUT / FIN seulement sur le graphique
+   (le Gantt garde ses traits en tirets) ; graphique caché = étiquettes sur le Gantt */
+.dlyg:not(.dly-hnone) #dlyGantt .grng-g > span { display: none; }
