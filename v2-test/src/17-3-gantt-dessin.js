@@ -298,15 +298,15 @@
               const h2 = shell.querySelector("#dlyGantt"); if (!h2) return;
               const r = h2.getBoundingClientRect(), vw = Math.min(h2.clientWidth, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0));
               const n = Math.max(1, dDiff(fA, fB) + 1), mg = fRg.a || fRg.b ? 60 : 12, want = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n));
-              if (vw > 60 && Math.abs(want - DLY_DW) > 0.5) (shell.__dlyDwSet || (() => {}))(h2, want, mg + Math.max(0, (vw - 2 * mg - n * Math.round(want)) / 2), dDiff(h2.__d0, fA));
+              if (vw > 60 && Math.abs(want - DLY_DW) > 0.05) (shell.__dlyDwSet || (() => {}))(h2, want, mg + Math.max(0, (vw - 2 * mg - n * Math.round(want * 10) / 10) / 2), dDiff(h2.__d0, fA));
             } finally { shell.__dlyFitting = false; document.getElementById("dlyDwLab")?.remove(); } });
           } }
         /* v639 : plage utilisée (avec DÉBUT / FIN) centrée, même sans changement de zoom ; v653 : marge de 60 px quand DÉBUT / FIN sont posés (étiquettes entières) */
         if (fA && fB) { const x1 = X(fA), x2 = X(fB) + DLY_DW, w = host.clientWidth;
           const t = x2 - x1 <= w ? (x1 + x2) / 2 - w / 2 : x1 - 2 * DLY_DW;
-          host.scrollLeft = Math.max(0, Math.min(host.scrollWidth - w, t)); shell.__dlyGx = host.scrollLeft; }
+          host.scrollLeft = Math.max(0, Math.min(host.scrollWidth - w, t)); shell.__dlyGx = host.scrollLeft; shell.__dlyFitT = performance.now(); }
       }
-      host.addEventListener("scroll", () => { shell.__dlyGx = host.scrollLeft; }, { passive: true });
+      host.addEventListener("scroll", () => { shell.__dlyGx = host.scrollLeft; dlyRngEdge(); }, { passive: true });   /* v657 : DÉBUT / FIN au repos suivent toujours le bord visible (après un ajustement aussi) */
       dlyStick(host.closest(".bdg-d-scroll, .lk-scroll"));
       dlyCfgPaint();
       requestAnimationFrame(dlyRngEdge);
