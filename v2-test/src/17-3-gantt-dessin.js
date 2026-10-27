@@ -263,7 +263,7 @@
          ils ne bougent plus pendant le défilement vertical ; le pied défile seulement à l'horizontale, avec le Gantt */
       sviStep("PLANNING : PIED DU GRAPHIQUE");
       dlyFoot(host, hist);
-      sviStep("PLANNING : FIN DU DESSIN");
+      sviStep("PLANNING : FIN DU DESSIN"); try { localStorage.removeItem("svi_opening_v1"); } catch (e) {}
       if (host.__hkf) host.__hk0 = host.__hkf();
       /* v628 : barre choisie par un appui long (HISTOGRAMME) — gardée en évidence après un nouveau dessin */
       if (shell.__dlyBarSel) shell.querySelectorAll(`.dlyg-foot .ghb[data-d="${shell.__dlyBarSel}"]`).forEach(b => b.classList.add("ghb-sel"));

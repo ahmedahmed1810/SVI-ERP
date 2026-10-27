@@ -254,7 +254,7 @@
       if (ref0) setTimeout(async () => { try {
         const v = await svChoose({ title: stuck ? "OUVERTURE BLOQUÉE" : "LISTE SEULE",
           html: `<div class="svc-sub">${stuck ? "LE BUDGET " + esc(stuck) + " N'A PAS PU S'OUVRIR LA DERNIÈRE FOIS : IL N'A PAS ÉTÉ ROUVERT." : "DERNIER BUDGET : " + esc(ref0) + " (NON ROUVERT)."}</div><div class="svc-sub">DERNIÈRE ÉTAPE : ${esc(step || "—")}</div>`,
-          buttons: [{ v: "dl", label: "TÉLÉCHARGER LE BUDGET", tone: "neutral" }, { v: "raz", label: "OUVRIR SANS SES RÉGLAGES", tone: "neutral" }, { v: "ok", label: "FERMER", tone: "neutral" }] });
+          noCancel: true, buttons: [{ v: "dl", label: "TÉLÉCHARGER", tone: "neutral" }, { v: "raz", label: "OUVRIR SANS RÉGLAGES", tone: "neutral" }, { v: "ok", label: "FERMER", tone: "neutral" }] });
         /* v635 : essai — filtres, tris et vue mémorisés de CE budget mis de côté (gardés pour le fichier), puis ouverture */
         if (v === "raz") {
           const keep = {};
