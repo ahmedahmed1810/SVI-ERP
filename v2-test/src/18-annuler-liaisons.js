@@ -42,12 +42,7 @@
         paint();
       };
       /* v626 : un état avec un doublon (ex. juste avant une fusion) n'est jamais remis — on passe à l'étape suivante */
-      const snapDup = snap => {
-        let o; try { o = JSON.parse(snap); } catch (e) { return false; }
-        const tasks = (k, id) => [...new Set((o.links || []).filter(l => (l[k] || []).some(x => x.id === id)).map(l => l.lot + "|" + l.sec))].sort().join(",");
-        const key = (k, r) => !r || r.t ? "" : ["lot", "prim", "sec"].includes(k) ? U_(r.v) : !U_(r.des) ? "" : U_(r.des) + "|" + U_(r.u) + (k === "prd" || k === "chg" ? "#" + tasks(k, r.id) : "");
-        return ["des", "lot", "prim", "sec", "prd", "chg"].some(k => { const S = new Set(); return (o[k] || []).some(r => { const x = key(k, r); if (!x) return false; if (S.has(x)) return true; S.add(x); return false; }); });
-      };
+      const snapDup = snap => { let o; try { o = JSON.parse(snap); } catch (e) { return false; } return sviDataHasDup(o); };
       const go = dir => {
         const from = dir < 0 ? st.u : st.r, to = dir < 0 ? st.r : st.u;
         if (!from.length) return;

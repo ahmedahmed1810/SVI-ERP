@@ -7,17 +7,13 @@
          sont saisissables), niveaux I / I.1 / I.1.1, sous-total par titre ;
        - budget figé : lecture seule.
        ========================================================= */
-    const INS = budget.inst
-      ? (budget.inst.data = Object.assign(
-          { des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: [], dly: {}, links: [] },
-          budget.inst.data || {}))
-      : null;
+    const INS = sviBudgetData(budget.inst);   /* refonte, étape 1 : données du budget (02b) */
     const INS_EDIT = !!INS && (budget.inst.state || "instance") === "instance";
     /* v448 : largeur tableau / Gantt tirée à la main, retrouvée à l'ouverture de ce budget */
     const DLYG_REF = (budget.inst && budget.inst.ref) || budget.ref || "";
     const dlygMine = o => !!o && (o.ins === INS || (DLYG_REF && o.ref === DLYG_REF));
     if (INS) { const vs = window.__sviViewGet && window.__sviViewGet("bdg:" + budget.inst.ref); if (vs && typeof vs.w === "number" && vs.w >= 0) { shell.__dlygW = { ins: INS, ref: DLYG_REF, w: vs.w, auto: false }; if (vs.pw) shell.__dlygPrevW = vs.pw; } if (vs && vs.gx !== undefined) shell.__dlyGx = vs.gx; }
-    const INS_DLP_MIG = !!INS && (sviDlpSec(INS) | sviDlpOne(INS) | sviDpredTyped(INS) | sviDpredV2(INS) | sviDpredV3(INS)) > 0;
+    const INS_DLP_MIG = sviMigrate(INS);
     /* calendrier du budget (jours travaillés) : durées et décalages en jours travaillés */
     const insCal = () => sviCalOf(INS);
     /* budget en instance (rouge) : les charges venues de CHS suivent CHS (prix, TVA, unité…) ;
@@ -30,7 +26,6 @@
     let insSeq = Date.now();
     const insId = () => "i" + (insSeq++).toString(36);
     const U_ = v => String(v ?? "").trim().toUpperCase();
-    let insTimer = null;
     /* FORMAT 91 : LIGNES NON LIÉES (compteur, liste ouverte, hachures, FIGER) et LIAISONS VALIDÉES
        recalculés aussitôt après chaque changement du budget */
     let insLiveT = null;
@@ -51,18 +46,9 @@
       }, 60);
     };
     const insSave = () => {
-      if (INS_EDIT) { sviDlpOne(INS); sviDpredTyped(INS); insLiveSync(); try { qqAutoSync(); } catch (e) {} if (shell.__undoTick) shell.__undoTick(); }
-      clearTimeout(insTimer);
-      insTimer = setTimeout(() => {
-        const list = instLoad();
-        const r = list.find(x => x.ref === budget.inst.ref);
-        if (!r) return;
-        /* délier en attente de ✓ VALIDER : l'état enregistré garde les liaisons d'avant */
-        let lb = null;
-        try { lb = LK.linksBak; } catch (e) {}
-        r.data = lb ? { ...INS, links: lb } : INS;
-        instSave(list);
-      }, 250);
+      if (INS_EDIT) { sviDataTidy(INS); insLiveSync(); try { qqAutoSync(); } catch (e) {} if (shell.__undoTick) shell.__undoTick(); }
+      /* délier en attente de ✓ VALIDER : l'état enregistré garde les liaisons d'avant */
+      sviBudgetStore(budget.inst.ref, () => { let lb = null; try { lb = LK.linksBak; } catch (e) {} return lb ? { ...INS, links: lb } : INS; });
     };
     if (INS_DLP_MIG) insSave();
 
