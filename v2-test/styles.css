@@ -728,9 +728,6 @@ tfoot td {
 .novapp-budget-table th span { float:right; color:#7b8491; font-size:10px; }
 .novapp-budget-table tbody tr:hover { background:#f8fafc; }
 .novapp-budget-table .budget-link { color: #46505f; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
-.novapp-budget-table .preview-head { width:48px; }
-.novapp-budget-table .preview-cell { width:48px; text-align:center; padding:0; }
-.novapp-budget-table .paper-preview { border:0; background:transparent; width:30px; height:30px; padding:0; color:#5f6875; font-size:17px; text-transform:none; cursor:pointer; }
 .novapp-budget-table .empty { height:72px; text-align:center; color:#8a94a5; font-weight:500; }
 @media(max-width:650px){ #bdg{margin:-14px;} .novapp-budget-table-wrap{margin:16px 10px;} .novapp-list-titlebar h1{font-size:15px;} }
 
@@ -753,7 +750,6 @@ tfoot td {
 .novapp-date-item { width:100%; display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border:0; border-bottom:1px solid #e5e8ed; background:#fff; color:#4b5563; font-size:10px; font-weight:700; text-align:left; text-transform:none; cursor:pointer; }
 .novapp-date-item:hover { background:#f8fafc; }
 .novapp-date-item.selected { background:#dcecff; color:#0f4f96; font-weight:800; }
-.novapp-date-count { color:#7b8491; }
 @media (max-width:650px) { .novapp-budget-layout { flex-direction:column; margin:16px 10px; } .novapp-date-panel { width:100%; } }
 
 /* colonne ARTICLE centrée (CHS, bordereau des prix) */
@@ -899,8 +895,6 @@ tfoot td {
 .ins-table tr.ro-after td, .ins-hcol .ins-li.ro-after { box-shadow: inset 0 -3px 0 var(--inst, #12355b); }
 .ins-table tr[data-iid], .ins-hcol .ins-li[data-iid] { -webkit-touch-callout: none; }
 /* désignation cochée : les autres lignes grisées */
-.ins-table tr.ins-dim td { opacity: .4; }
-.ins-table tr.ins-dim td.ins-cbc { opacity: .4; }
 /* menu ☰ : DONNÉES SOURCE */
 #navMenu .nav-sep { height: 1px; background: #e5e9f0; margin: 4px 2px; }
 #navMenu .nav-src { color:#172033; border:0; background:#fff; border-radius:6px; padding:10px; text-align:left; font-size:12px; font-weight:800; cursor:pointer; white-space:nowrap; }
@@ -919,7 +913,6 @@ tfoot td {
 #srcPop .src-grid { display: grid; grid-template-columns: 190px 1fr; gap: 14px 16px; align-items: start; }
 #srcPop .src-lab { font-size: 12px; font-weight: 800; color: #4b5563; padding-top: 2px; }
 #srcPop .src-val { font-size: 14px; font-weight: 700; color: #172033; }
-#srcPop .src-link { color: #1d4ed8; text-decoration: underline; }
 #srcPop .src-note { display: block; font-size: 11px; font-weight: 600; color: #6b7280; margin-top: 3px; }
 @media (max-width: 600px) { #srcPop .src-grid { grid-template-columns: 1fr; gap: 4px; } }
 #srcPop .src-fld { border: 1px solid #d6dbe3; border-radius: 8px; background: #fff; cursor: pointer; }
@@ -955,10 +948,8 @@ tfoot td {
 #docPop .imp-row { display: grid; grid-template-columns: 170px 1fr; gap: 12px; align-items: center; margin-bottom: 12px; }
 #docPop .imp-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 10px 12px; border: 1px solid #e5e9f0;
   border-radius: 8px; background: #f8fafc; margin-bottom: 12px; font-size: 12px; font-weight: 800; color: #172033; }
-#docPop .imp-opts .imp-lab { color: #4b5563; margin-right: 4px; }
 #docPop .imp-opts label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 #docPop .imp-opts small { font-weight: 600; color: #6b7280; font-size: 11px; }
-#docPop .imp-opts .imp-all { margin-left: auto; }
 #docPop .imp-opts input { accent-color: var(--svst); width: 16px; height: 16px; }
 #docPop .imp-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 #docPop .imp-tab { border: 1px solid #d6dbe3; border-radius: 999px; padding: 6px 12px; background: #fff; font-size: 12px; font-weight: 800; color: #4b5563; cursor: pointer; }
@@ -976,7 +967,6 @@ tfoot td {
 #docPop .imp-ask-card { width: min(620px, calc(100% - 32px)); background: #fff; border-radius: 12px; padding: 18px 20px;
   box-shadow: 0 20px 50px rgba(15,23,42,.35); display: flex; flex-direction: column; gap: 10px; }
 #docPop .imp-ask-t { font-size: 15px; font-weight: 800; color: #172033; }
-#docPop .imp-ask-l { font-size: 12px; font-weight: 600; color: #4b5563; line-height: 1.6; padding-bottom: 4px; border-bottom: 1px solid #e5e9f0; }
 #docPop .imp-ask-b { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; padding: 10px 14px;
   border: 1px solid #d6dbe3; border-radius: 8px; background: #fff; cursor: pointer; }
 #docPop .imp-ask-b b { font-size: 13px; color: #172033; }
@@ -1035,12 +1025,8 @@ tfoot td {
 #svConf .svc-ok { border-color: #b91c1c; color: #b91c1c; }
 
 /* ===== budget en instance : bascule SAISIE / LIAISONS ===== */
-.ins-sw { display: inline-flex; border: 1.5px solid var(--inst, #b91c1c); border-radius: 999px; overflow: hidden; margin-left: 12px; flex: none; }
-.ins-sw button { border: 0; background: #fff; color: var(--inst, #b91c1c); font-weight: 800; font-size: 12px; padding: 6px 14px; cursor: pointer; }
-.ins-sw button.on { background: var(--inst, #b91c1c); color: #fff; }
 .ins-unl-btn { margin-left: 10px; border: 1px solid var(--inst, #b91c1c); color: var(--inst, #b91c1c); background: var(--inst-bg, #fef2f2); border-radius: 8px; padding: 5px 10px;
   font-weight: 800; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; flex: none; }
-.ins-unl-btn[hidden] { display: none; }
 /* lignes non liées : hachurées dans la couleur de l'état (rouge en instance) */
 /* lignes non liées : blanches, sans mise en forme (consigne 24) */
 .ins-table tr.ins-unl td, .ins-hcol .ins-li.ins-unl { background: #fff !important; }
@@ -1051,7 +1037,6 @@ tfoot td {
 .ins-mode-link #bdgTabs, .ins-mode-link #bdgTabBody, .ins-mode-link #bdgDetailRsz { display: none !important; }
 .lk-blk { margin-bottom: 12px; }
 .lk-blk .bdg-d-block-title { display: flex; align-items: center; }
-.lk-need { margin-left: auto; font-size: 11px; font-weight: 800; color: #6b7280; }
 .ins-link-view tr.lk-sel td { background: #fde8e8 !important; font-weight: 800; }
 .ins-link-view tr.lk-dim td { opacity: .45; }
 .ins-link-view input[type=radio], .ins-link-view input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--inst, #b91c1c); vertical-align: middle; }
@@ -1069,8 +1054,6 @@ tfoot td {
 .lk-go:disabled { background: #e5e7eb; color: #9ca3af; cursor: default; }
 .lk-ok { background: #dcfce7; color: #166534; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 800; }
 .lk-del { border: 0; background: transparent; color: var(--inst, #b91c1c); font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
-.dly-table input.dly-in { text-align: center; }
-.dly-table td.number input.dly-in { text-align: right; }
 @media (max-width: 700px) { .lk-grid { grid-template-columns: 1fr; } }
 /* délais : champs sans cadre, comme les autres tableaux de saisie */
 .dly-table td.ins-td { padding: 0 !important; }
@@ -1096,7 +1079,6 @@ tfoot td {
 .lk-dettabs { margin-bottom: 12px; }
 .lk-dettabs .bdg-d-tabs { align-items: flex-end; }
 .lk-dettabs .bdg-d-tabbody { margin-bottom: 0; }
-.bdg-d-tab .lk-need { font-size: 9px; font-weight: 800; color: #9ca3af; margin-left: 4px; }
 .req-star { color: #b91c1c; font-weight: 900; margin-left: 2px; }
 #svConf .svc-x { white-space: pre-line; }
 #svConf .svc-ok.svc-neutral { border-color: #172033; color: #172033; }
@@ -1334,8 +1316,6 @@ tr.unl-go { cursor: pointer; }
 /* PLANNING / PRÉDÉCESSEURS */
 .dly-pred { color: var(--svst, #172033); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-weight: 700; }
 tr.dly-task { cursor: pointer; }
-.dly-add { padding: 8px 4px; }
-.dly-add button { border: 1.5px dashed #9aa3af; background: #fff; color: #374151; border-radius: 8px; padding: 7px 12px; font-weight: 800; font-size: 11px; }
 #svConf .dpk-card { width: min(760px, 94vw); max-width: none; height: min(620px, 88vh); display: flex; flex-direction: column; position: relative; }
 .dpk-cols { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; flex: 1; min-height: 0; margin-top: 6px; }
 .dpk-col { border: 1px solid #e5e9f0; border-radius: 8px; overflow: auto; min-height: 0; }
@@ -1461,8 +1441,6 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .gbg-off { position: absolute; top: 0; bottom: 0; width: var(--dw, 22px); background: #f2f4f7; }
 .gv { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1.5px solid #b42318; z-index: 1; }
 .gv span { position: absolute; top: 2px; left: 3px; font-size: 8px; font-weight: 800; color: #b42318; white-space: nowrap; }
-.gv-obj { border-left: 1.5px dashed #b45309; }
-.gv-obj span { color: #b45309; }
 .gv-today { border-left: 1px solid #98a2b3; }
 .glinks, .gtmp { position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; overflow: visible; }
 .gl { fill: none; stroke: #475467; stroke-width: 1.2; }
@@ -1488,9 +1466,6 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .bdt-row .lkw-o { width: 90px; text-align: right; }
 .dlyg-l .dly-table thead th { height: 34px; box-sizing: border-box; }
 /* ===== GÉNÉRER LE PLANNING, MAIN D'ŒUVRE, NIVELLEMENT (v403) ===== */
-.dly-tools { display: flex; gap: 8px; padding: 0 4px 8px; }
-.dly-tools button { border: 1.5px solid var(--inst, #b42318); background: #fff; color: var(--inst, #b42318); border-radius: 8px; padding: 6px 12px; font-weight: 800; font-size: 11px; }
-.dly-tools button:disabled { opacity: .4; }
 .dlyh-lab { height: var(--dly-hh, 110px); border-top: 1px solid #e4e7ec; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; font-size: 10px; font-weight: 800; color: #6b7280; text-align: right; box-sizing: border-box; background: #f9fafb; }
 .ghist { position: relative; border-top: 1px solid #e4e7ec; box-sizing: border-box; background: #fff; overflow-x: clip; overflow-y: visible; }   /* v559 : rien ne dépasse à droite du trait FIN */
 .ghb { position: absolute; bottom: 0; background: #98a2b3; border-radius: 2px 2px 0 0; }
@@ -1702,14 +1677,10 @@ td.ins-tdv { position: relative; }
 .gb-grp.gb-gin { background: color-mix(in srgb, var(--c) 30%, #fff); border-radius: 4px; padding: 0 5px; z-index: 4; }
 .gb-grp.gb-gin.gb-grp-tgt { background: #fde68a; }
 /* v450 : nom des parents devant un niveau nommé automatiquement */
-.lvl-pre { color: #94a3b8; font-weight: 600; white-space: nowrap; margin-right: 2px; }
 .dly-lotc, .lot-in { white-space: nowrap; }
-.dly-lotc .lvl-pre + input.dly-nm, .lot-in .lvl-pre + input { flex: 1; min-width: 60px; }
 /* le nom des parents se réduit par la gauche quand la colonne est étroite ; le nom du niveau reste entier */
-.dly-lotc .lvl-pre, .lot-in .lvl-pre { flex: 0 1 auto; min-width: 0; overflow: hidden; direction: rtl; text-align: left; }
 .dly-lotc { min-width: 0; overflow: hidden; }
 /* v452 : dates du projet dans INF */
-.inf-grid .inf-sep { border-top: 1px solid #e5e7eb; padding-top: 8px; }
 .inf-grid .inf-late { color: #b91c1c !important; font-weight: 700; }
 /* v454 : tâche choisie par les ronds, surlignée dans le PLANNING */
 .dlyg-l tr.dly-pick > td { background: #bfdbfe !important; }
@@ -1795,8 +1766,6 @@ td.ins-tdv { position: relative; }
 #sdW .sd-scroll { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; }
 #sdW .sd-t { font-size: 12px; }
 #sdW .sd-t thead th { text-align: left; font-size: 11px; font-weight: 800; color: #475467; border-bottom: 1px solid #e4e7ec; white-space: nowrap; }
-#sdW .sd-t thead tr.sd-flt th { top: 28px; padding: 2px 4px 4px; }
-#sdW .sd-f { width: 100%; box-sizing: border-box; border: 1px solid #e4e7ec; border-radius: 4px; padding: 3px 5px; font-size: 11px; }
 #sdW .sd-t td { border-bottom: 1px solid #eef0f4; border-right: 1px solid #f3f4f6; padding: 0; }
 #sdW .sd-in { width: 100%; box-sizing: border-box; border: 0; background: transparent; font-weight: 600; color: #172033; text-transform: uppercase; }
 #sdW .sd-in:focus { outline: none; box-shadow: inset 0 0 0 2px var(--inst, #b91c1c); background: #fff; }
@@ -1891,7 +1860,6 @@ tr.ins-grp td { background: #eef3fa; color: #1f3b63; font-weight: 700; }
 #bdgTabs { overflow-x: visible; }
 #bdgTabs > .bdg-d-tab { flex: 1 1 0; min-width: 0; padding: 6px 6px; white-space: normal; text-align: center; line-height: 1.15; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
 #bdgTabs > .bdg-d-tab .ico { flex: none; }
-.xpl-empty { padding: 16px; font-weight: 700; color: #6b7280; }
 
 /* v497 (remarques 33 et 35) : case sélectionnée comme dans Google Sheets — cadre, pas de curseur ; cases grisées sélectionnables */
 :is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) :is(input, textarea).svi-nav { caret-color: transparent !important; }
@@ -1904,10 +1872,6 @@ tr.ins-grp td { background: #eef3fa; color: #1f3b63; font-weight: 700; }
 .tab-eq.tab-tight > svg, .tab-eq.tab-tight > .ico { display: none !important; }
 
 /* v498 (remarques 37 et 39) : onglet MARGE — regroupement par les en-têtes, lignes regroupées pliables */
-.mg-table th .mg-g { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 18px; margin-left: 4px; padding: 0 4px; border-radius: 9px; border: 1px solid #c7ced9; color: #475467; font-size: 13px; font-weight: 800; line-height: 1; cursor: pointer; position: relative; z-index: 5; }
-.mg-table th .mg-g::before { content: ""; position: absolute; inset: -8px -4px; }
-.mg-table th .mg-g.on { background: var(--inst, #b91c1c); border-color: var(--inst, #b91c1c); color: #fff; }
-.mg-table th .mg-g b { font-size: 10px; margin-left: 2px; }
 .mg-table .mg-f { display: inline-block; width: 18px; margin-right: 4px; text-align: center; font-weight: 900; cursor: pointer; position: relative; }
 .mg-table .mg-f::before { content: ""; position: absolute; inset: -8px -6px; }
 .mg-table td.xpl-pct { font-weight: 700; }
@@ -2016,7 +1980,6 @@ td.svi-cs { background: var(--inst-bg, #eef0f3) !important; box-shadow: inset 0 
 /* v511 (remarque 74) : le cadre de la case sélectionnée ou en saisie couvre toute la cellule, dans tous les tableaux */
 :is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) td.svi-tdon { box-shadow: inset 0 0 0 2px var(--inst, #b91c1c) !important; }
 :is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) td.svi-tdon :is(input, textarea):focus { box-shadow: none !important; }
-#sdW .sd-t td.svi-tdon .sd-in:focus { box-shadow: none !important; }
 
 /* v512 (remarques 74, 80, 81) : CADRE de la cellule active posé par-dessus (toute la cellule, jamais masqué) ;
    les anciens cadres intérieurs (case, cellule) ne servent plus */
@@ -2189,7 +2152,6 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .ghb.ghb-st.over-inc { box-shadow: inset 0 0 0 2px #7a5af8; }
 .ghb.ghc { background: #0e9384; }
 .ghb[data-d] { cursor: pointer; }
-.gplaf.gplaf-free { border-top-style: dashed; opacity: .75; }
 /* R12 / R13 : poignée « = » entre le Gantt et l'histogramme ; histogramme plein écran */
 .dlyg-hh { position: absolute; left: 0; right: 0; height: 14px; z-index: 7; pointer-events: none; }
 .dlyg-hh::before { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 3px; background: #8a5a3c; }
@@ -2206,8 +2168,6 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 #dlyCutTip .ct-sl { position: fixed; z-index: 10070; font-size: 20px; font-weight: 800; color: #b42318; pointer-events: none; }
 #dlyCutTip .ct-b { position: fixed; z-index: 10070; width: 100px; text-align: center; background: #b42318; color: #fff; font-size: 10px; font-weight: 800; border-radius: 4px; padding: 3px; pointer-events: none; }
 /* FORMAT 159 : fenêtre COMMANDES */
-.cmd-g { display: flex; flex-wrap: wrap; gap: 4px 12px; }
-.cmd-g label { white-space: nowrap; font-size: 11px; }
 
 /* ===== v543 : décisions R17 à R29 (23/10/2026) ===== */
 /* R21 / FORMAT 167 : CAPACITÉ — 0 = pénurie (noir épais), ILLIMITÉ (gris en pointillés, sous le zéro) */
@@ -2243,13 +2203,10 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 /* R24 / FORMAT 168 : tâche freinée par une autre ressource */
 .gb-lim { margin-left: 4px; color: #344054; font-weight: 800; cursor: pointer; pointer-events: auto; }
 /* R28 / FORMAT 162 : zone active — liseré */
-.dlyg.dz-tab .dlyg-l, .dlyg.dz-gantt #dlyGantt .gbody, .dlyg.dz-hist #dlyGantt .ghist { box-shadow: inset 0 0 0 2px var(--inst, #b42318); }
-.dlyg.dly-hfull.dz-gantt #dlyGantt .gbody { box-shadow: none; }
 #blkMenu .blk-sub { font-size: 9px; font-weight: 800; color: #98a2b3; padding: 4px 12px 0; }
 /* R29 / FORMAT 169 : vue PAR DÉBUT */
 .dly-vno { margin-right: 3px; align-self: center; }
 .dly-vsep { margin-right: 4px; color: #98a2b3; align-self: center; }
-.dly-iso.dly-vd { background: #fefce8; border-color: #f2c94c; }
 /* R17 / FORMAT 163 : fenêtre APPROVISIONNEMENT PRÉVISIONNEL */
 .apr-t { width: 100%; border-collapse: collapse; font-size: 11px; margin: 4px 0 8px; }
 .apr-t th { font-size: 9px; color: #667085; text-align: left; border-bottom: 1px solid #e4e7ec; padding: 2px 4px; }
@@ -2261,9 +2218,6 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 /* remarque 3 : poignée verticale « ‖ » = la poignée « = » tournée d'un quart de tour (même taille, même dessin) */
 .dlyg-hd i { display: inline-block; font-style: normal; transform: rotate(90deg); }
 /* remarque 2 : histogramme gardé en bas de la zone visible, au-dessus des tâches qui défilent */
-.ghist.dly-lift, .dlyh-lab.dly-lift { position: relative; z-index: 6; box-shadow: 0 -2px 4px rgba(16,24,40,.12); }
-.dlyh-lab.dly-lift { background: #f9fafb; }
-.dlyg-hh.dly-lift { z-index: 8; }
 /* remarque 5 : échelle des valeurs à gauche de l'histogramme */
 .ghist-ax { position: sticky; left: 0; top: 0; width: 0; height: 0; z-index: 5; pointer-events: none; float: left; }
 .ghist-ax .gax-t { position: absolute; left: 0; transform: translateY(-50%); padding: 0 3px 0 2px; font-size: 8px; font-weight: 800; line-height: 10px; color: #667085; background: rgba(255,255,255,.85); border-right: 4px solid #98a2b3; white-space: nowrap; }
@@ -2332,10 +2286,6 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 #dlyGantt .gpc-n { font-size: 9px; font-weight: 800; color: #667085; background: #f2f4f7; border-radius: 8px; padding: 0 5px; }
 .dlp-multi { display: inline-flex; align-items: center; gap: 4px; justify-content: center; width: 100%; cursor: pointer; text-decoration: underline dotted; }
 .dlp-pcn { display: inline-block; min-width: 14px; height: 14px; line-height: 14px; border-radius: 7px; background: #e4e7ec; color: #344054; font-size: 9px; text-align: center; }
-.pcs-t { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 12px; }
-.pcs-t th { font-size: 10px; color: #667085; text-align: left; padding: 2px 4px; }
-.pcs-t td { padding: 2px 4px; }
-.pcs-t input { width: 100%; box-sizing: border-box; }
 .pcs-tot td { font-weight: 800; border-top: 1px solid #e4e7ec; }
 .pcs-x { border: 0; background: none; color: #b42318; font-size: 13px; cursor: pointer; }
 .pcs-x:disabled { opacity: .3; }
@@ -2343,14 +2293,6 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 /* v547 : unité sous l'étiquette MAX ; étiquettes de la CAPACITÉ toujours sur une ligne (R23) */
 .ghist-ax .gax-u { top: 15px; }
 .gplaf-v, .gplaf-w { white-space: nowrap; }
-.pcs-t { table-layout: fixed; }
-.pcs-t th:nth-child(1), .pcs-t th:nth-child(2) { width: 38%; }
-.pcs-t th:nth-child(3) { width: 16%; }
-.pcs-t th:nth-child(4) { width: 8%; }
-.pcs-t td { overflow: hidden; }
-.pcs-t td > * { max-width: 100%; box-sizing: border-box; }
-.pcs-card .pcs-t { width: 100% !important; max-width: 100% !important; }
-.pcs-card .pcs-t input, .pcs-card .pcs-t .sv-date { min-width: 0 !important; width: 100% !important; }
 .pcs-g { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 70px 28px; gap: 4px 6px; align-items: center; margin: 6px 0; font-size: 12px; }
 .pcs-g > b { font-size: 10px; color: #667085; }
 .pcs-g > i { font-style: normal; }
@@ -2551,7 +2493,6 @@ input.dly-gin { box-sizing: border-box; border: 2px solid var(--inst, #b42318) !
 #docPop .lki-dly input { height: 32px; }
 #docPop .lki-go .lk-go { margin: 0; }
 /* v621 : CHARGES QUI FONT n % — lignes en fond jaune pâle ; case dans le menu de la colonne % */
-.ins-table tr.chg-par > td { background-color: #fef7c3 !important; }
 #cfMenu .cf-par { display: flex; align-items: center; gap: 6px; padding: 6px 4px; font-size: 12px; font-weight: 800; }
 #cfMenu .cf-par-in { width: 52px; height: 28px; text-align: center; border: 1px solid #d0d5dd; border-radius: 6px; font-weight: 800; }
 /* v622 : liste CONDITION de l'application (menu de tri / filtre) */
