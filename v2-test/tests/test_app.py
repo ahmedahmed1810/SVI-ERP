@@ -1572,7 +1572,7 @@ def main():
         # v589 : une charge garde sa couleur dans tous les réglages (orange si seule) ; produits bleu, marge verte ; plus de vert ni de gris pour les commandes
         COLS = """() => { const h = document.querySelector('.dlyg-foot .ghist'); if (!h) return null; const S = new Set();
             h.querySelectorAll('.ghb:not(.ghb-hit):not(.gh-off)').forEach(b => { if (b.classList.contains('ghb-st')) b.querySelectorAll('i').forEach(i => S.add(getComputedStyle(i).backgroundColor)); else S.add(getComputedStyle(b).backgroundColor); });
-            h.querySelectorAll('polyline').forEach(l => S.add(getComputedStyle(l).stroke)); return [...S].filter(c => c && c !== 'none' && c !== 'rgba(0, 0, 0, 0)').sort(); }"""
+            h.querySelectorAll('polyline').forEach(l => S.add(getComputedStyle(l).stroke)); h.querySelectorAll('circle').forEach(l => S.add(getComputedStyle(l).fill)); return [...S].filter(c => c && c !== 'none' && c !== 'rgba(0, 0, 0, 0)').sort(); }"""
         OR, BL, GR, RE, LG = "rgb(247, 144, 9)", "rgb(46, 144, 250)", "rgb(18, 183, 106)", "rgb(217, 45, 32)", "rgb(192, 198, 208)"
         res = []
         for cfg, cr, ap_on, allowed in [("{ u: 'q', aff: 'j', cum: 'r', forme: 'h' }", "", True, {OR}), ("{ u: 'q', aff: 'c', cum: 'r', forme: 'h' }", "", True, {OR}),
