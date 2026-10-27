@@ -12240,6 +12240,15 @@ function renderBudgetList() {
         const host = shell.querySelector("#dlyGantt"), H = host && host.__HD;
         if (!H) return;
         if (!shell.__dlyXF) shell.__dlyXF = { hr: JSON.stringify(INS.hrange || null), on: (INS.chg || []).filter(r => !r.t && r.on === true).map(r => r.id) };
+        /* v659 (FORMAT 250) : COMMANDES — une barre = une commande : DÉBUT et FIN sur les jours qu'elle couvre, seules ses charges cochées */
+        const pr = H.cmd && (H.cmd.per || {})[di];
+        if (pr) {
+          INS.hrange = { ...(INS.hrange || {}), a: pr.a, b: pr.b };
+          const SK = new Set((H.cmd.det[di] || []).map(x => x.sk)), ids = new Set((H.R || []).filter(r => SK.has(dlyResK(r))).map(r => r.id));
+          if (ids.size) (INS.chg || []).forEach(r => { if (!r.t) r.on = ids.has(r.id) ? true : (r.on === true ? false : r.on); });
+          dlyXKeep(); insSave(); histLog("DÉLAIS", "FILTRE DE LA COMMANDE", dFr(di)); refreshAll(); dlyXBack();
+          return;
+        }
         INS.hrange = { ...(INS.hrange || {}), a: di, b: di };
         const R = new Set((H.R || []).map(r => r.id)), K = new Set(((H.det || {})[di] || []).map(x => x.k)), ids = new Set();
         (INS.links || []).forEach(l => { if (K.has(l.lot + "|" + l.sec)) (l.chg || []).forEach(y => { if (R.has(y.id)) ids.add(y.id); }); });
@@ -12404,7 +12413,7 @@ function renderBudgetList() {
           return;
         }
         let ext = "";
-        if (H.cmd) { const C = H.cmd, pr = (C.per || {})[di]; tot = C.L[di] || 0; rows = `<div>${esc(C.lab)}</div>` + (pr ? `<div><span>PÉRIODE</span><b>DU ${esc(dFr(pr.a))} AU ${esc(dFr(pr.b))}</b></div>` : "") + (C.det[di] || []).map(x => `<div><span>${esc(x.sk.split("|")[0])}</span><b>${fmt(x.v)}</b></div>`).join("");
+        if (H.cmd) { const C = H.cmd, pr = (C.per || {})[di]; tot = C.L[di] || 0; rows = `<div>${esc(C.lab)}</div>` + (pr ? `<div><span>COMMANDE DU ${esc(dFr(di).slice(0, 5))}</span><b>COUVRE DU ${esc(dFr(pr.a).slice(0, 5))} AU ${esc(dFr(pr.b).slice(0, 5))}</b></div>` : "") + (C.det[di] || []).map(x => `<div><span>${esc(x.sk.split("|")[0])}</span><b>${fmt(x.v)}</b></div>`).join("");
           /* v605 (remarque longue 5) : PRODUITS et MARGE de la période */
           if (HV.cPG) { if ((H.crb || []).includes("p")) ext += `<div class="hb-tot"><span>PRODUITS (DH)</span><b>${fmt((C.P || {})[di] || 0)}</b></div>`; if ((H.crb || []).includes("g")) { const g = (C.G || {})[di] || 0; ext += `<div class="hb-tot${g < 0 ? " hb-neg" : ""}"><span>MARGE (DH)</span><b>${fmt(g)}</b></div>`; } } }
         else (H.det[di] || []).forEach(x => { tot += x.v; rows += `<div><span>${esc(lotLab(dlyLotPath(lkName("lot", x.k.split("|")[0]))).full)} › ${esc(lkName("sec", x.k.split("|")[1]))}${x.inc ? " ▣" : ""}</span><b>${fmt(x.v)}</b></div>`; });
