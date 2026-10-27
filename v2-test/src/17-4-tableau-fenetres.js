@@ -264,7 +264,7 @@
         if (!sviWork(cal, d)) return true;
         const z = { ...q, [f]: d };
         /* v639 : DÉBUT après la FIN permis — la tâche se déplace avec sa durée (FIN recalculée) */
-        if (f === "deb" && q.deb && q.fin && d > q.fin) { const n = sviWDur(cal, q.deb, q.fin) || 1; z.fin = sviWAdd(cal, d, n - 1); }
+        if (f === "deb" && q.deb && q.fin && d > q.fin) z.fin = sviPlanMove(cal, q.deb, q.fin, d).fin;   /* règle : 02c */
         if (z.deb && z.fin && z.fin < z.deb) return true;
         if (z.fin && INS.dbut && z.fin > INS.dbut) return true;
         if (z.deb && pf && z.deb < pf) return true;

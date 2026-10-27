@@ -14,6 +14,8 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `00-socle.js` | 441 |
 | `01-onglets-donnees-outils.js` | 286 |
 | `02-stockage-instance.js` | 51 |
+| `02b-donnees-budget.js` | données du budget : forme, conversions des anciens budgets, enregistrement, doublons (refonte, étape 1) |
+| `02c-planning-regles.js` | règles de calcul du planning, sans écran (liaisons, décalage, déplacement) — testées une par une (refonte, étape 5) |
 | `03-api-drive.js` | 387 |
 | `04-chs-bds-donnees.js` | 522 |
 | `05-navigation-chs.js` | 209 |
@@ -34,6 +36,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `17-6-gestes-gantt.js` | PLANNING : gestes 2 — barres du Gantt, liaisons au doigt, histogramme, bulle |
 | `17-7-gestes-echelle.js` | PLANNING : gestes 3 — largeur des jours, pincement, poignées |
 | `17-8-actions.js` | PLANNING : actions (shell.__insDly, objet X) |
+| `17-9-graphique-dessin.js` | dessin du graphique (dlyGraphHTML), sorti de dlyGanttDraw (refonte, étape 7) |
 | `17b-planning-auto.js` | GÉNÉRER / COMPRESSER, plafond, ressource cochée, tâches incompressibles, commandes (v530, v542) |
 | `18-annuler-liaisons.js` | 1123 |
 | `19-delais-disposition.js` | 519 |
