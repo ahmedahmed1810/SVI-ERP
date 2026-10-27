@@ -919,6 +919,9 @@
         on: () => !!insRg(), n: () => 1, clear: () => { if (insRg()) INS.hrange = { ...INS.hrange, a: "", b: "" }; } },
       { k: "par", lab: "CHARGES QUI FONT N %", one: true, blk: "detail", tabs: ["chg"], ord: true,
         on: () => !!(INS.chgPar), n: () => 1, clear: () => { INS.chgPar = ""; } },
+      /* v658 (FORMAT 247) : MARGES QUI FONT n % (colonne % de MARGE) — filtre aussi les autres blocs */
+      { k: "mpar", lab: "MARGES QUI FONT N %", one: true, blk: "detail", tabs: ["lnk"], ord: true,
+        on: () => !!(INS.mgPar), n: () => 1, clear: () => { INS.mgPar = ""; } },
       /* sans effet sur les autres blocs */
       { k: "xf", lab: "FILTRE DU JOUR", one: true, blk: "detail", tabs: [], on: () => !!shell.__dlyXF, n: () => 1,
         clear: () => { shell.__dlyXF = null; shell.__dlyBarSel = null; } },
@@ -948,7 +951,7 @@
       return o;
     };
     /* v614 (points 10 et 11) : numéro d'ordre du filtre d'un bloc (1 = coché en premier) ; DÉTAIL DÉLAIS = ses cases, ISOLER et la plage */
-    const insCkRank = src => { const o = insCkOrd(), S = src === "dly" ? ["dly", "iso", "rg"] : src === "chg" ? ["chg", "par"] : [src], I = S.map(x => o.indexOf(x)).filter(i => i >= 0); return I.length ? Math.min(...I) + 1 : 0; };
+    const insCkRank = src => { const o = insCkOrd(), S = src === "dly" ? ["dly", "iso", "rg"] : src === "chg" ? ["chg", "par"] : src === "lnk" ? ["lnk", "mpar"] : [src], I = S.map(x => o.indexOf(x)).filter(i => i >= 0); return I.length ? Math.min(...I) + 1 : 0; };
     const insCkBadge = src => { let n = 0; try { n = insCkRank(src); } catch (e) { n = 0; } return n ? `<i class="ck-ord" title="ORDRE DU FILTRE">${n}</i>` : ""; };
     /* pastille : « cochées/total » dès qu'une partie seulement est cochée (même le bloc coché en premier) ; sinon lignes retenues/total */
     const insCntOwn = (k, shownN, total) => { const N = (INS[k] || []).filter(r => !r.t), on = N.filter(r => r.on === true).length; return svCnt(on && on < N.length ? on : shownN, total); };
@@ -971,11 +974,12 @@
       const DS = k !== "dly" && A.has("dly") ? shell.__dlySel : null;
       const IP = k !== "dly" && A.has("iso") ? U_(insIsoPath()) : "";
       const PS = k !== "chg" && A.has("par") ? insParSet() : null;   /* v622 : CHARGES QUI FONT n % filtre aussi les autres blocs */
+      let MS = null, msSkip = false; if (k !== "lnk" && A.has("mpar")) { try { if (MGP_BUSY) msSkip = true; else MS = insMgParSet(); } catch (e) { MS = null; } }   /* v658 : MARGES QUI FONT n % (pendant son propre calcul : résultat non mémorisé) */
       const inIso = l => { const v = U_(((INS.lot || []).find(x => x.id === l.lot) || {}).v || ""); return v === IP || v.startsWith(IP + " / "); };
       const ks = Object.keys(C);
-      const out = !ks.length && !lon && !DS && !IP && !PS ? null : (INS.links || []).filter(l => (!PS || (l.chg || []).some(y => PS.has(y.id))) && ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
+      const out = !ks.length && !lon && !DS && !IP && !PS && !MS ? null : (INS.links || []).filter(l => (!PS || (l.chg || []).some(y => PS.has(y.id))) && (!MS || MS.has(l.id)) && ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
         && (!lon || l.on === true) && (!DS || DS.has(l.lot + "|" + l.sec)) && (!IP || inIso(l)));
-      ICL.m[ck] = out;
+      if (!msSkip) ICL.m[ck] = out;
       return out;
     };
     const insCheckSet = (k, all) => {
@@ -1025,13 +1029,17 @@
     };
     /* ensemble filtrant (null = pas de filtre, ou calcul en cours) */
     const insParSet = () => insParPct() && !PAR_BUSY ? insRgView(() => insPar()).ids : null;
-    shell.__cfPar = (t, key) => t === insCfT("chg") && key === "pct" ? `<div class="cf-par">CHARGES QUI FONT <input class="cf-par-in" inputmode="numeric" value="${insParPct() || ""}"> %</div>` : "";
-    shell.__cfParOn = (t, key) => t === insCfT("chg") && key === "pct" && !!insParPct();
-    shell.__cfParClear = (t, key) => { if (t === insCfT("chg") && key === "pct" && INS && INS.chgPar) { INS.chgPar = ""; insSave(); } };
+    /* v658 (FORMAT 247) : même réglage pour la colonne % de MARGE : MARGES QUI FONT n % (INS.mgPar) */
+    const parMg = t => t === "lk_marge";
+    shell.__cfPar = (t, key) => key !== "pct" ? "" : t === insCfT("chg") ? `<div class="cf-par">CHARGES QUI FONT <input class="cf-par-in" inputmode="numeric" value="${insParPct() || ""}"> %</div>`
+      : parMg(t) ? `<div class="cf-par">MARGES QUI FONT <input class="cf-par-in" data-mg="1" inputmode="numeric" value="${INS && INS.mgPar || ""}"> %</div>` : "";
+    shell.__cfParOn = (t, key) => key === "pct" && (t === insCfT("chg") ? !!insParPct() : parMg(t) ? !!(INS && INS.mgPar) : false);
+    shell.__cfParClear = (t, key) => { if (key !== "pct" || !INS) return; if (t === insCfT("chg") && INS.chgPar) { INS.chgPar = ""; insSave(); } if (parMg(t) && INS.mgPar) { INS.mgPar = ""; insSave(); } };
     shell.__cfParSet = (v, el) => {
       v = String(v || "").trim();
       if (v !== "" && (!/^\d+$/.test(v) || Number(v) < 1 || Number(v) > 100)) { svToast("NOMBRE ENTIER DE 1 À 100 (VIDE = PAS DE FILTRE).", 3000, el); return; }
-      INS.chgPar = v === "" ? "" : Number(v); insSave(); histLog("SAISIE", "CHARGES QUI FONT", v === "" ? "FILTRE ENLEVÉ" : v + " %"); refreshAll();
+      const mg = !!(el && el.dataset && el.dataset.mg);
+      INS[mg ? "mgPar" : "chgPar"] = v === "" ? "" : Number(v); insSave(); histLog("SAISIE", mg ? "MARGES QUI FONT" : "CHARGES QUI FONT", v === "" ? "FILTRE ENLEVÉ" : v + " %"); refreshAll();
     };
     /* v613 (point 9) : signe › / ⌄ dans l'en-tête de la colonne de désignation — un toucher replie tout, un autre déplie tout */
     const faKeys = kind => {
@@ -1406,7 +1414,7 @@
         const on = !!cfT(k).f.v;
         return `
         <div class="bdg-h-col ins-hcol" data-ik="${k}">
-          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${k === "lot" ? shell.__faHTML("lot") : ""}<span class="cf-tt" title="${esc(String(title).replace(/<[^>]*>/g, ""))}">${title}</span>${insCkBadge(k)}${insCntOwn(k, list.length, INS[k].length)}</span>${onlyBtn(k, true)}<span class="cf-btn"
+          <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${k === "lot" ? shell.__faHTML("lot") : ""}<span class="cf-tt" title="${esc(String(title).replace(/<[^>]*>/g, ""))}"${SVI_HD_ALT[title] ? ` data-alt="${esc(JSON.stringify([title].concat(SVI_HD_ALT[title])))}"` : ""}>${title}</span>${insCkBadge(k)}${insCntOwn(k, list.length, INS[k].length)}</span>${onlyBtn(k, true)}<span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${k === "sec" || k === "prim" ? `<span class="act-uh${cfT(k).f.u || (cfT(k).sort && cfT(k).sort.col === "u" && !cfT(k).sort.def) ? " cf-on" : ""}"><span class="act-uhl">U</span><span class="cf-btn" data-cf="${k}" data-col="u" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>` : ""}${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
           ${k === "lot" ? lotTreeHTML(list) : list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>

@@ -44,7 +44,8 @@
       add("DÉTAIL DÉLAIS", "dly", [shell.__dlySel && shell.__dlySel.size && { lab: "TÂCHES COCHÉES", n: shell.__dlySel.size },
         nl && { lab: "LOUPE", n: nl }, shell.__dlyIso && { lab: "BRANCHE ISOLÉE" }, vd && { lab: "VUE PAR DÉBUT" }, rgI]);
       const nm = (INS.links || []).filter(l => l.on === true).length;
-      add("MARGE", "lnk", [nm && { lab: "LIAISONS COCHÉES", n: nm }, cfHasF("lk_marge") && { lab: "LOUPE", n: Object.keys(CF.lk_marge.f).length }, rgI]);
+      add("MARGE", "lnk", [nm && { lab: "LIAISONS COCHÉES", n: nm }, cfHasF("lk_marge") && { lab: "LOUPE", n: Object.keys(CF.lk_marge.f).length },
+        INS.mgPar && { lab: "MARGES QUI FONT " + INS.mgPar + " %", n: (() => { try { const P = insMgParSet(); return P ? P.size : 0; } catch (e) { return 0; } })() }, rgI]);   /* v658 */
       return G;
     };
     shell.__filtActs = () => insFiltActs();
