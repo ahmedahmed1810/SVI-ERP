@@ -315,8 +315,7 @@ function sviBdgCalWin(iso) {
   if (!L.edit) { svToast("BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE", 3000); return; }
   const c0 = L.cal(), cal = { we: c0.we.slice(), off: c0.off.slice(), on: c0.on.slice() };
   let cur = iso ? new Date(iso + "T00:00:00") : new Date(); if (isNaN(cur)) cur = new Date(); cur.setDate(1);
-  const d = document.createElement("div");
-  d.id = "svConf";
+  const d = sviWinNew();
   const draw = () => {
     const y = cur.getFullYear(), m = cur.getMonth();
     const first = (new Date(y, m, 1).getDay() + 6) % 7, n = new Date(y, m + 1, 0).getDate();
@@ -339,7 +338,7 @@ function sviBdgCalWin(iso) {
       <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
   };
   document.getElementById("svConf")?.remove();
-  document.body.appendChild(d);
+  sviWinShow(d);
   draw();
   d.addEventListener("change", e => {
     const c = e.target.closest("[data-we]");
@@ -377,8 +376,7 @@ function sviBdgDatesWin() {
   const L = window.__sviBdgLive;
   if (!L) return;
   const v = L.dates();
-  const d = document.createElement("div");
-  d.id = "svConf";
+  const d = sviWinNew();
   d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
     <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
     <div class="svc-t">DATES DU BUDGET</div>
@@ -387,7 +385,7 @@ function sviBdgDatesWin() {
     <div class="bdt-row"><span>DATE OBJECTIF</span><input type="date" data-f="obj" value="${esc(v.obj)}"${v.but ? ` max="${esc(v.but)}"` : ""}></div>
     <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
   document.getElementById("svConf")?.remove();
-  document.body.appendChild(d);
+  sviWinShow(d);
   d.querySelectorAll('input[type="date"]').forEach(sviDateField);
   const ib = d.querySelector('[data-f="but"]'), io = d.querySelector('[data-f="obj"]');
   /* le calendrier de l'OBJECTIF ne propose pas de date après la BUTOIR, et celui de la BUTOIR pas avant l'OBJECTIF */

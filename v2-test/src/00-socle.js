@@ -191,9 +191,7 @@ function openObsAlertFor(ref, project) {
     return isNaN(d) ? String(v || "")
       : `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} À ${p2(d.getHours())}:${p2(d.getMinutes())}`;
   };
-  document.getElementById("docPop")?.remove();
-  const p = document.createElement("div");
-  p.id = "docPop";
+  const p = sviPopNew();
   p.innerHTML = `
     <div class="doc-card" role="dialog" aria-modal="true">
       <div class="doc-head">
@@ -213,7 +211,7 @@ function openObsAlertFor(ref, project) {
         <button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>
       </div>
     </div>`;
-  document.body.appendChild(p);
+  sviPopShow(p);
   obsAlertWire(p);
   p.addEventListener("click", e => {
     if (e.target === p || e.target.closest("[data-cancel]")) p.remove();

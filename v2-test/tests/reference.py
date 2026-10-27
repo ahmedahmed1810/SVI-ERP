@@ -29,7 +29,8 @@ def snap(pg, d, name):
     pg.screenshot(path=os.path.join(d, name + ".png"))
     txt = pg.evaluate("""() => { const p = document.querySelector('.bdg-d-page') || document.body;
         return p.innerText.replace(/[ \\t]+/g, ' ').split('\\n').map(s => s.trim()).filter(Boolean).join('\\n'); }""")
-    open(os.path.join(d, name + ".txt"), "w").write(txt)
+    gx = pg.evaluate("() => { const h = document.querySelector('#dlyGantt'); return h ? 'GANTT ' + Math.round(h.scrollLeft) + ' / ' + h.scrollWidth : ''; }")
+    open(os.path.join(d, name + ".txt"), "w").write(txt + ("\n" + gx if gx else ""))
 
 
 def capture(d):

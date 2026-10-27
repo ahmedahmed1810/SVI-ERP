@@ -193,8 +193,7 @@
     const dlyLinkWin = (pred, succ) => {
       const L = dlyLinks(succ), l = L.find(x => x.k === pred);
       if (!l) return;
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true">
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">LIAISON</div>
@@ -204,7 +203,7 @@
         <div class="svc-sub lkw-hint">FIN → DÉBUT : 0 = LA DEMI-JOURNÉE QUI SUIT LA FIN DE LA PRÉCÉDENTE, 1 = UN JOUR LIBRE ENTRE LES DEUX, 2 = DEUX JOURS…</div>
         <div class="svc-f"><button type="button" class="svc-b svc-ok lkw-del">✕ DÉLIER</button><span style="flex:1"></span><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button></div></div>`;
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       d.addEventListener("click", e => {
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         if (e.target.closest(".lkw-del")) {

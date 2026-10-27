@@ -82,9 +82,7 @@
     /* fenêtre « enregistrer » au format des fenêtres INF / DOC :
        nom du fichier et dossier du Drive proposés, modifiables */
     const fileDialog = ({ title, name, path, buttons, onAct }) => {
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true" style="max-width:640px">
           <div class="doc-head">
@@ -105,7 +103,7 @@
             ${buttons.map(b => `<button type="button" class="doc-btn${b.primary ? " doc-save" : ""}" data-act="${b.key}"${b.drive ? " data-drive" : ""}>${esc(b.label)}</button>`).join("")}
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       popEnhance(p, "save");
       drivePathRow(p, "#fdPath", false);
       const msg = p.querySelector("#fdMsg");
@@ -510,9 +508,7 @@
       loadXLSX().catch(() => {});
       const label = String(blkLabel(blk)).toUpperCase();
       let fmt = "xlsx", driveMode = false;
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       const path0 = driveLastPath(budget.project, fullRef);
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true" style="max-width:640px">
@@ -545,7 +541,7 @@
             <button type="button" class="doc-btn doc-save" data-act="save" hidden>ENREGISTRER</button>
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       popEnhance(p, "export");
       const $q = sel => p.querySelector(sel);
       const msg = $q("#fdMsg");
@@ -652,9 +648,7 @@
 
     /* fenêtre au format INF : lien de la feuille Google à importer */
     const askSheetLink = () => new Promise(res => {
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.className = "pop-new-bdg";
       p.innerHTML = `
         <div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
@@ -675,7 +669,7 @@
             <button type="button" class="doc-btn nb-save" id="gsGo">IMPORTER</button>
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       try { popEnhance(p, "gslink"); } catch (e) {}
       const inp = p.querySelector("#gsLink");
       /* champ sur toute la largeur de la fenêtre */
@@ -936,9 +930,7 @@
       const sel = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set() };
       /* lignes liées décochées à la main : la liaison est coupée à cet endroit */
       const cut = new Set();
-      document.getElementById("docPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "docPop";
+      const p = sviPopNew();
       p.className = "pop-new-bdg";
       p.innerHTML = `
         <div class="doc-card imp-card" role="dialog" aria-modal="true">
@@ -966,7 +958,7 @@
             <button type="button" class="doc-btn nb-save" id="impGo">IMPORTER</button></span>
           </div>
         </div>`;
-      document.body.appendChild(p);
+      sviPopShow(p);
       try { popEnhance(p, "impbdg"); } catch (e) {}
       const cols = {
         des: [["art", "ART"], ["des", "DÉSIGNATION"], ["u", "UPB"], ["q", "QPB", 1], ["p", "PPB", 1]],

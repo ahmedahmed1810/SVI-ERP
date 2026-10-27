@@ -1204,8 +1204,7 @@ function renderBudgetList() {
     const now = new Date();
     const p2 = x => String(x).padStart(2, "0");
     const local = now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()) + "T" + p2(now.getHours()) + ":" + p2(now.getMinutes());
-    const p = document.createElement("div");
-    p.id = "docPop";
+    const p = sviPopNew();
     p.className = "pop-new-bdg";
     p.innerHTML = `
       <div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
@@ -1231,7 +1230,7 @@ function renderBudgetList() {
           <button type="button" class="doc-btn nb-save" id="nbGo">ENREGISTRER</button>
         </div>
       </div>`;
-    document.body.appendChild(p);
+    sviPopShow(p);
     try { popEnhance(p, "newbdg"); } catch (e) {}
     const val = id => (p.querySelector(id)?.value || "").trim();
     const refNow = () => {

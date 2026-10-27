@@ -68,8 +68,7 @@
       INS.cond = INS.cond || {};
       const st = { mode: "q", ua: "", per: "", perT: "", BL: 12, kerf: 0, kgm: "", ...(condGet(key) || {}) };
       let pcs = condPieces(rows);
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       const f2 = v => v === "" || v === undefined || v === null ? "" : money(v);
       const res = () => {
         const per = num(st.per), perT = num(st.perT);
@@ -118,7 +117,7 @@
       const save = () => { const v = { mode: st.mode, ua: st.ua, per: st.per, perT: st.perT, BL: st.BL, kerf: st.kerf, kgm: st.kgm }; INS.cond[key] = v; const A = condAll(); A[key] = v; try { localStorage.setItem("svi_cond_chs_v1", JSON.stringify(A)); } catch (e) {} insSave(); };
       draw();
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       d.addEventListener("click", e => {
         if (e.target === d || e.target.closest("[data-x]")) { save(); d.remove(); return; }
         const m = e.target.closest("[data-m]");

@@ -77,18 +77,32 @@
     const cwSave = obj => {
       try { localStorage.setItem(CW_KEY, JSON.stringify(obj)); } catch (e) {}
     };
-    const CW_DEF = {
-      article: 70, designation: 330, detail: 300, unit: 70,
-      qty: 100, price: 95, ht: 120, amount: 120, tva: 80, ttc: 130,
-      nbr: 60, d1: 60, d2: 60, d3: 60
+    /* =========================================================
+       REFONTE, ÉTAPE 3 (v643) : CATALOGUE UNIQUE DES COLONNES — pour chaque clé de colonne, une fois :
+       w = largeur par défaut à l'écran (px), pw = poids dans les aperçus PDF, f = format (« pct » : 12,50 %).
+       SVI_COL_T = largeurs par tableau (FORMAT 113 : disposition réglée par Ahmed sur l'iPad, 13/10/2026).
+       Une colonne ajoutée à un tableau (liste [clé, libellé, valeur, classe]) a donc d'office : tri, filtre, largeur réglable
+       et mémorisée, ordre, copie, export, aperçu (largeur et format) — il suffit de lui donner une ligne ici.
+       ========================================================= */
+    const SVI_COL = {
+      article: { w: 70, pw: 5 }, designation: { w: 330 }, detail: { w: 300, pw: 30 }, unit: { w: 70, pw: 5 },
+      qty: { w: 100, pw: 9 }, price: { w: 95, pw: 9 }, ht: { w: 120 }, amount: { w: 120, pw: 11 }, tva: { w: 80, pw: 6, f: "pct" }, ttc: { w: 130, pw: 11 },
+      nbr: { w: 60, pw: 5 }, d1: { w: 60, pw: 5 }, d2: { w: 60, pw: 5 }, d3: { w: 60, pw: 5 }, pct: { f: "pct" },
+      /* historique */
+      hdt: { pw: 14 }, hbr: { pw: 8 }, hac: { pw: 12 }, hde: { pw: 40 },
+      /* DOCUMENTS / TAF / OBSERVATIONS */
+      rref: { w: 210, pw: 22 }, rdate: { w: 150 }, rtitle: { w: 360, pw: 60 }, rfile: { w: 120 }, rexp: { w: 110, pw: 8 }, robj: { w: 200, pw: 15 }, rtext: { w: 420, pw: 30 },
+      rresp: { w: 180, pw: 13 }, rprev: { w: 140, pw: 12 }, rdelay: { w: 150, pw: 9 }, relap: { w: 150, pw: 9 }, rimp: { w: 60, pw: 4 }
     };
-    /* FORMAT 113 : disposition par défaut = largeurs réglées par Ahmed sur l'iPad (13/10/2026) */
-    const CW_DEF_T = {
+    const SVI_COL_T = {
       "client.article": 69, "client.designation": 660, "client.unit": 70, "client.qty": 71, "client.price": 86, "client.ht": 96, "client.tva": 81, "client.ttc": 97,
       "chg.article": 69, "chg.detail": 300, "chg.rdb": 110, "chg.pct": 58, "chg.tache": 246, "chg.unit": 70, "chg.qty": 84, "chg.price": 84, "chg.amount": 92, "chg.tva": 80, "chg.ttc": 94,
       "prd.detail": 176, "prd.tache": 246, "prd.unit": 70, "prd.nbr": 77, "prd.d1": 79, "prd.d2": 79, "prd.d3": 79, "prd.qty": 72, "prd.price": 72, "prd.amount": 92, "prd.tva": 82, "prd.ttc": 109
     };
-    const cwGet = (t, k) => cwLoad()[t + "." + k] || CW_DEF_T[t + "." + k] || CW_DEF[k] || 100;
+    const colPw = k => (SVI_COL[k] && SVI_COL[k].pw) || 10;
+    /* valeur d'une case pour un aperçu ou un export lisible : % pour les colonnes « pct », nombres au format 1 234,56 */
+    const colFmt = (k, v) => (SVI_COL[k] && SVI_COL[k].f === "pct") && (k === "tva" || (v !== "" && v !== null && v !== undefined)) ? money(Number(v) || 0) + " %" : typeof v === "number" ? money(v) : String(v ?? "");
+    const cwGet = (t, k) => cwLoad()[t + "." + k] || SVI_COL_T[t + "." + k] || (SVI_COL[k] && SVI_COL[k].w) || 100;
 
     /* colgroup + largeur totale de la table */
     const cwCols = (t, cols) =>

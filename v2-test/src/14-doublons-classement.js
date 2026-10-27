@@ -295,8 +295,7 @@
       let cur = 0, showList = false, changed = false;
       const alive = it => INS[it.k].includes(it.keep) && INS[it.k].includes(it.drop);
       const ignore = it => { skip[it.sk] = 1; try { sessionStorage.setItem("svi_dupskip", JSON.stringify(skip)); } catch (e) {} if (it.near) nearSkip(it.k, nearName(it.k, it.keep), nearName(it.k, it.drop)); };
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       const finish = () => { d.remove(); shell.__dupBusy = false; if (changed) { insSave(); refreshAll(); } };
       const left = () => { for (let n = items.length - 1; n >= 0; n--) if (!alive(items[n])) items.splice(n, 1); if (cur >= items.length) cur = Math.max(0, items.length - 1); return items.length; };
       const draw = () => {
@@ -318,7 +317,7 @@
           </div></div>`;
       };
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       draw();
       d.addEventListener("click", async e => {
         if (e.target.closest("[data-x]")) { finish(); return; }

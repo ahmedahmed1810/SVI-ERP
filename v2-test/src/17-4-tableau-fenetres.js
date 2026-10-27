@@ -282,8 +282,7 @@
       if (!add) dlyLinks(key).forEach(x => { meta[x.k] = { t: x.t === "DD" ? "DD" : "FD", o: Math.max(0, Number(x.o) || 0) }; });
       const mt = k => meta[k] || (meta[k] = { t: "FD", o: 0 });
       let lot = ([...sel][0] || "").split("|")[0] || (INS.lot.find(x => !x.t) || {}).id || "";
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       const nSel = lo => [...sel].filter(k => k.startsWith(lo + "|")).length;
       const size = (() => { try { return JSON.parse(localStorage.getItem("svi_dpk_v1") || "null"); } catch (e) { return null; } })();
       const draw = () => {
@@ -316,7 +315,7 @@
         sviDpkCols(d);
       };
       document.getElementById("svConf")?.remove();
-      document.body.appendChild(d);
+      sviWinShow(d);
       draw();
       window.__sviDpkRefresh = () => { if (d.isConnected) draw(); else window.__sviDpkRefresh = null; };
       const close = () => { d.remove(); window.__sviDpkRefresh = null; };

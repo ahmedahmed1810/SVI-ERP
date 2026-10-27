@@ -495,14 +495,12 @@
     const qqNode = (key, id) => qqList(key).find(x => x.id === id);
     /* fenêtres DÉCLENCHEMENT et APPEL (FORMAT 105 et 106), au format INF */
     const qqWin = (title, html, onOk, onLive) => {
-      document.getElementById("svConf")?.remove();
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       d.innerHTML = `<div class="svc-card qq-win" role="dialog" aria-modal="true">
           <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
           <div class="svc-t">${esc(title)}</div><div class="svc-x svc-html">${html}</div>
           <div class="svc-f"><button type="button" class="svc-b" data-r="0">ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-r="1">ENREGISTRER</button></div></div>`;
-      document.body.appendChild(d);
+      sviWinShow(d);
       if (onLive) { d.addEventListener("input", () => onLive(d)); d.addEventListener("change", () => onLive(d)); onLive(d); }
       let lp = null;
       d.addEventListener("pointerdown", e => { const g = e.target.closest(".qq-dis"); if (g) lp = setTimeout(() => svToast(g.dataset.why || "", 3500, g), 500); });
@@ -545,9 +543,7 @@
       const r = INS.des.find(x => x.id === id);
       if (!r) return;
       const ro = !INS_EDIT;
-      document.getElementById("svConf")?.remove();
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       d.innerHTML = `<div class="svc-card qq-win qq-desc" role="dialog" aria-modal="true">
           <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
           <div class="svc-t">DESCRIPTIF</div>
@@ -555,7 +551,7 @@
           <div class="svc-x svc-html"><textarea class="qq-dta" ${ro ? "disabled" : ""} placeholder="EXTRAIT DU CONTRAT QUI DÉFINIT L'ARTICLE…">${esc(r.dsc || "")}</textarea></div>
           <div class="svc-f">${ro ? '<button type="button" class="svc-b svc-ok svc-neutral" data-r="0">FERMER</button>'
             : '<button type="button" class="svc-b" data-r="0">ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-r="1">ENREGISTRER</button>'}</div></div>`;
-      document.body.appendChild(d);
+      sviWinShow(d);
       d.addEventListener("click", e => {
         const b = e.target.closest("[data-r]");
         if (!b && e.target !== d) return;
@@ -1317,14 +1313,12 @@
     };
     const insFigeWhy = () => {
       const B = insFigeBlocks();
-      document.getElementById("svConf")?.remove();
-      const d = document.createElement("div");
-      d.id = "svConf";
+      const d = sviWinNew();
       d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true"><button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">FIGER IMPOSSIBLE</div>
         <div class="svc-x">${B.map((b, i) => `<button type="button" class="fz-why" data-i="${i}"><span>${esc(b.lab)}${b.list ? " : " + esc(b.list.slice(0, 3).map(dlyName).join(" ; ")) + (b.list.length > 3 ? "…" : "") : ""}</span>${svCnt(b.n)}</button>`).join("")}</div>
         <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button></div></div>`;
-      document.body.appendChild(d);
+      sviWinShow(d);
       d.addEventListener("click", e => {
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         const it = e.target.closest(".fz-why");

@@ -742,8 +742,7 @@
         const body2 = () => tbl("prd", "DÉTAIL PRODUITS") + addRow("prd") + tbl("chg", "DÉTAIL CHARGES") + addRow("chg") + dlyBlk()
           + `<div class="doc-lab" style="margin-top:12px">DÉTAIL QUALITÉ</div><div><button type="button" class="doc-btn lki-qlt">OUVRIR DÉTAIL QUALITÉ</button></div>`;
         const goBtn = () => { const b = $("insChain") && $("insChain").querySelector(".lk-go"); return b ? b.outerHTML.replace('class="lk-go', 'class="lk-go lki-gob') : ""; };
-        const p = document.createElement("div");
-        p.id = "docPop";
+        const p = sviPopNew();
         p.innerHTML = `<div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
             <div class="doc-head"><span class="doc-title">LIAISON EN COURS</span><button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button></div>
             <div class="doc-body">
@@ -758,7 +757,7 @@
             </div>
             <div class="doc-foot"><span class="lki-go">${goBtn()}</span><button type="button" class="doc-btn" data-cancel>FERMER</button></div>
           </div>`;
-        document.body.appendChild(p);
+        sviPopShow(p);
         try { popEnhance(p, "lkinfo"); } catch (e) {}
         const redraw = () => { if (!p.isConnected) return; const b = p.querySelector(".lk-info-t"); if (b) b.innerHTML = body2(); const g = p.querySelector(".lki-go"); if (g) g.innerHTML = goBtn(); };
         p.addEventListener("change", e => {
