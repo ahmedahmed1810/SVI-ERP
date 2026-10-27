@@ -1173,7 +1173,7 @@
         /* v527 (remarque 5) : rien n'est décoché tout seul — le bandeau dit QUELLES cases cochées se contredisent,
            avec un bouton par bloc pour les décocher (et TOUT RÉAFFICHER) */
         /* v642 (refonte) : sources prises dans FSRC (celles qui réduisent les autres blocs) */
-        const NM = Object.fromEntries(FSRC.map(s => [s.k, s.k === "par" ? "CHARGES QUI FONT " + (INS.chgPar || "") + " %" : s.lab]));
+        const NM = Object.fromEntries(FSRC.map(s => [s.k, s.k === "par" ? "CHARGES QUI FONT " + (INS.chgPar || "") + " %" : s.k === "mpar" ? "MARGES QUI FONT " + (INS.mgPar || "") + " %" : s.lab]));
         const ck = FSRC.filter(s => s.ord && s.k !== k && fsMark(s)).map(s => [s.k, s.n()]).filter(([, n]) => n);
         const sig = k + ":" + ck.map(([x, n]) => x + n).join(",") + ":" + total;
         if (h && h.dataset.sig === sig) return;

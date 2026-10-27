@@ -158,13 +158,20 @@ def main():
               z1 == "DOUBLON" and z2 == [False, 1, 1] and z3 == [0, 0] and z4 != "", [z1, z2, z3, z4])
         # v642 (refonte, étape 2) : EFFACER TOUS LES FILTRES efface toutes les sources — cases, plage DÉBUT – FIN, CHARGES QUI FONT, ISOLER, filtre du jour
         ef = pg.evaluate(f"""async () => {{ const X = {ins}; const I = X.INS; const sh = [...document.querySelectorAll('*')].find(e => e.__insClrAll);
-            I.chg[0].on = true; I.hrange = {{ ...(I.hrange || {{}}), a: '2026-10-05', b: '2026-10-09' }}; I.chgPar = 50; sh.__dlyXF = {{ hr: 'null', on: [] }}; X.insSave(); X.refreshAll();
+            I.chg[0].on = true; I.hrange = {{ ...(I.hrange || {{}}), a: '2026-10-05', b: '2026-10-09' }}; I.chgPar = 50; I.mgPar = 50; sh.__dlyXF = {{ hr: 'null', on: [] }}; X.insSave(); X.refreshAll();
             await new Promise(r => setTimeout(r, 300));
             const dot0 = document.querySelector('#instTodo')?.classList.contains('flt');
             sh.__insClrAll(); await new Promise(r => setTimeout(r, 300));
             const R = I.hrange || {{}};
-            return [dot0, I.chg.some(r => r.on === true), !!(R.a || R.b), !!I.chgPar, !!sh.__dlyXF, document.querySelector('#instTodo')?.classList.contains('flt')]; }}""")
+            return [dot0, I.chg.some(r => r.on === true), !!(R.a || R.b), !!(I.chgPar || I.mgPar), !!sh.__dlyXF, document.querySelector('#instTodo')?.classList.contains('flt')]; }}""")
         check("v642 : EFFACER TOUS LES FILTRES — cases, plage, CHARGES QUI FONT et filtre du jour effacés, plus de point bleu", ef == [True, False, False, False, False, False], ef)
+        # v658 (FORMAT 247) : MARGES QUI FONT n % — liaisons classées par marge en valeur absolue, les plus fortes jusqu'à n % ; filtre des autres blocs ; EFFACER l'enlève
+        mp = pg.evaluate(f"""async () => {{ const X = {ins}; const I = X.INS; const sh = [...document.querySelectorAll('*')].find(e => e.__insClrAll);
+            const L = (I.links || []).length; I.mgPar = 1; X.insSave(); X.refreshAll(); await new Promise(r => setTimeout(r, 300));
+            const fa = JSON.stringify(sh.__filtActs ? sh.__filtActs() : []), tab = !!document.querySelector('.bdg-d-tab[data-tab="lnk"].tab-filt');
+            sh.__insClrAll(); await new Promise(r => setTimeout(r, 300));
+            return [L > 0, fa.includes('MARGES QUI FONT 1 %'), tab, !!I.mgPar]; }}""")
+        check("v658 : MARGES QUI FONT n % — filtre actif (onglet MARGE en bleu, FILTRES ACTIFS), EFFACER TOUS LES FILTRES l'enlève", mp == [True, True, True, False], mp)
         # v613 (point 8) : colonne % = part du total des charges retenues — les lignes affichées (titres repliés compris) font 100 %
         pc = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="chg"]'); if (!t) return null; const hs = [...t.tHead.rows[0].cells].map(c => c.textContent.trim()); const i = hs.findIndex(h => h.startsWith('%')); if (i < 0) return ['nocol', hs.join('|')];
             const v = [...t.tBodies[0].rows].filter(tr => !tr.classList.contains('ins-new')).map(tr => tr.cells[i] && ((tr.cells[i].querySelector('input') || {}).value || tr.cells[i].textContent).replace(/\u202f|\s|%/g, '').replace(',', '.')).filter(x => x).map(Number);
