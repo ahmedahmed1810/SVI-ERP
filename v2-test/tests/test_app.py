@@ -85,6 +85,15 @@ def main():
               sviPlanMove(c, '2026-10-05', '2026-10-06', '2026-10-10').fin ]; }""")
         check("règle planning : FIN → DÉBUT (0 = demi-journée suivante, midi, décalage, dimanche), DÉBUT → DÉBUT, plusieurs prédécesseurs, décalage créé, tâche déplacée",
               rp == ["2026-10-08", "2026-10-07", "2026-10-10", "2026-10-12", "2026-10-08", "2026-10-09", 0, 2, 0, "2026-10-12"], rp)
+        # v645 (refonte, étapes 8 et 9) : règles de saisie (presque identiques) et d'import (dates, type de liaison, nature d'onglet), testées seules
+        rs = pg.evaluate("""() => [
+            sviIsNear('ENDUIT 20', 'ENDUI 20'), sviIsNear('ÉTANCHÉITÉ', 'ETANCHIETE'), sviIsNear('ENDUIT 10', 'ENDUIT 20'),
+            sviIsNear('BETON-B25', 'BÉTON B25'), sviIsNear('SABLE', 'SABLE'), sviIsNear('CHAUX', 'CHAUD'), sviIsNear('ACIER', 'ACIR'),
+            sviImpDate('17/10/2026'), sviImpDate('17.10.26'), sviImpDate(46312), sviImpDate('2026-10-17T23:00:00.000Z') !== null, sviImpDate('31/02/2026'), sviImpDate(''),
+            sviLinkType(''), sviLinkType('fin → début'), sviLinkType('DD'), sviLinkType('XX'),
+            sviSheetKind([['PROJET', 'DÉSIGNATION CLIENT']]), sviSheetKind([['LOT', 'ACTIVITÉ SECONDAIRE', 'DÉBUT']]), sviSheetKind([['CRITÈRE', 'POINT DE CONTRÔLE']]), sviSheetKind([['X']]) ]""")
+        check("règle saisie / import : presque identiques, dates importées, type de liaison, nature d'onglet",
+              rs == [True, True, False, True, False, True, False, "2026-10-17", "2026-10-17", "2026-10-17", True, None, "", "FD", "FD", "DD", None, "budget", "dly", "qlt", ""], rs)
         # remarque 76 : première ouverture — titres des désignations pliés ; on déplie pour la suite
         f76 = pg.evaluate("() => { const b = document.querySelector('#bdgClientBody .ins-fold[data-fold=\"t1\"]'); return [!!b, b ? b.textContent.trim() : '', !document.querySelector('#bdgClientBody tr[data-iid=\"d1\"]')]; }")
         pg.evaluate("() => document.querySelector('#bdgClientBody .ins-fold[data-fold=\"t1\"]')?.click()"); pg.wait_for_timeout(400)

@@ -121,16 +121,7 @@
     /* ---------- DÉTAIL DÉLAIS (instance) : une ou plusieurs périodes par TÂCHE PRIMAIRE
        (tâche primaire = un lot associé à une activité primaire, d'après les liaisons validées).
        Saisie en mode LIAISONS seulement ; périodes sans chevauchement dans une même tâche. ---------- */
-    const dParse = v => {
-      const t = String(v || "").trim();
-      if (!t) return "";
-      let m = t.match(/^(\d{1,2})[\/.\- ](\d{1,2})[\/.\- ](\d{2,4})$/) || t.match(/^(\d{2})(\d{2})(\d{4})$/);
-      if (!m) return null;
-      let y = Number(m[3]); if (y < 100) y += 2000;
-      const d = new Date(y, Number(m[2]) - 1, Number(m[1]));
-      if (isNaN(d) || d.getDate() !== Number(m[1]) || d.getMonth() !== Number(m[2]) - 1) return null;
-      return dIso(d);
-    };
+    const dParse = sviDateParse;   /* refonte (v645) : 02d */
     const insTasks = () => {
       const m = new Map();
       (INS.links || []).forEach(l => {

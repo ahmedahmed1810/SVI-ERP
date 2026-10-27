@@ -885,6 +885,73 @@ const sviPlanMove = (cal, deb, fin, newDeb) => {
   const dur = deb && fin ? sviWDur(cal, deb, fin) || 1 : 1;
   return { deb: newDeb, fin: sviWAdd(cal, newDeb, dur - 1) };
 };
+/* ⟪ src/02d-saisie-import-regles.js ⟫ */
+/* =========================================================
+   RÈGLES DE SAISIE ET D'IMPORT (refonte, étapes 8 et 9, v645) — calcul pur, sans écran ni budget ouvert ;
+   testées une par une (tests/test_app.py, « règle saisie » et « règle import »).
+   ========================================================= */
+/* ---------- intitulés presque identiques (cahier 00, Doublons, v490 remarque 2) ----------
+   mêmes nombres ; même texte aux accents, tirets, espaces et ponctuation près ; ou une seule faute
+   (lettre en plus, en moins, changée, deux lettres voisines inversées) sur des intitulés d'au moins 5 lettres */
+const sviNearNorm = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/Œ/g, "OE").replace(/[^A-Z0-9]+/g, "");
+const sviNearDigits = s => (String(s ?? "").match(/\d+/g) || []).map(x => String(+x)).join(",");
+const sviNearDist1 = (a, b) => {
+  if (a === b) return false;
+  const la = a.length, lb = b.length;
+  if (Math.abs(la - lb) > 1) return false;
+  if (la === lb) {
+    const diff = []; for (let i = 0; i < la; i++) if (a[i] !== b[i]) { diff.push(i); if (diff.length > 2) return false; }
+    if (diff.length === 1) return true;
+    return diff.length === 2 && diff[1] === diff[0] + 1 && a[diff[0]] === b[diff[1]] && a[diff[1]] === b[diff[0]];
+  }
+  const [s, l] = la < lb ? [a, b] : [b, a];
+  let i = 0; while (i < s.length && s[i] === l[i]) i++;
+  return s.slice(i) === l.slice(i + 1);
+};
+const sviIsNear = (a, b) => {
+  const U = v => String(v ?? "").trim().toUpperCase();
+  if (!a || !b || U(a) === U(b)) return false;
+  if (sviNearDigits(a) !== sviNearDigits(b)) return false;
+  const na = sviNearNorm(a), nb = sviNearNorm(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  return Math.min(na.length, nb.length) >= 5 && sviNearDist1(na, nb);
+};
+/* ---------- import ---------- */
+/* titre de colonne ou valeur comparée sans accents, majuscules, espaces réduits */
+const sviBfNorm = v => String(v ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
+/* nature d'un onglet : QUALITÉ (CRITÈRE + POINT DE CONTRÔLE, ou QUALITÉ), BUDGET (DÉSIGNATION CLIENT), DÉLAIS (ACTIVITÉ SECONDAIRE + DÉBUT / FIN / PRÉDÉCESSEURS) */
+const sviSheetKind = aoa => {
+  const rows = (aoa || []).slice(0, 15).map(r => (r || []).map(sviBfNorm));
+  if (rows.some(r => r.includes("CRITERE") && r.includes("POINT DE CONTROLE"))) return "qlt";
+  if (rows.some(r => r.includes("DESIGNATION CLIENT"))) return "budget";
+  if (rows.some(r => r.includes("ACTIVITE SECONDAIRE") && (r.includes("DEBUT") || r.includes("FIN") || r.includes("PREDECESSEURS")))) return "dly";
+  if (rows.some(r => r.includes("QUALITE"))) return "qlt";
+  return "";
+};
+/* date tapée JJ/MM/AAAA (aussi JJ.MM.AA, JJ-MM-AAAA, JJMMAAAA) → AAAA-MM-JJ ; "" si vide ; null si invalide */
+const sviDateParse = v => {
+  const t = String(v || "").trim();
+  if (!t) return "";
+  const m = t.match(/^(\d{1,2})[\/.\- ](\d{1,2})[\/.\- ](\d{2,4})$/) || t.match(/^(\d{2})(\d{2})(\d{4})$/);
+  if (!m) return null;
+  let y = Number(m[3]); if (y < 100) y += 2000;
+  const d = new Date(y, Number(m[2]) - 1, Number(m[1]));
+  if (isNaN(d) || d.getDate() !== Number(m[1]) || d.getMonth() !== Number(m[2]) - 1) return null;
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+};
+/* date d'une case importée : nombre Excel, objet date, ISO (avec heure : jour local), JJ/MM/AAAA */
+const sviImpDate = v => {
+  if (v === "" || v === null || v === undefined) return "";
+  if (typeof v === "number" && v > 20000) { const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000); return d.toISOString().slice(0, 10); }
+  if (v instanceof Date && !isNaN(v)) return v.getFullYear() + "-" + String(v.getMonth() + 1).padStart(2, "0") + "-" + String(v.getDate()).padStart(2, "0");
+  const t = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:/.test(t)) { const d = new Date(t); if (!isNaN(d)) return sviImpDate(d); }
+  if (/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
+  return sviDateParse(t);
+};
+/* type d'une liaison importée : vide / FD / FIN → DÉBUT = FD ; DD / DÉBUT → DÉBUT = DD ; autre = null (refusé) */
+const sviLinkType = t => { const n = sviBfNorm(t).replace(/[^A-Z]/g, ""); if (!n || n === "FD" || n === "FINDEBUT") return "FD"; if (n === "DD" || n === "DEBUTDEBUT") return "DD"; return null; };
 /* ⟪ src/03-api-drive.js ⟫ */
 /* =========================================================
    API GET CHS / BDS
@@ -7634,35 +7701,15 @@ function renderBudgetList() {
        ou une lettre en plus / en moins / changée, ou deux lettres inversées (ENDUI 20 / ENDUIT 20, ÉTANCHÉITÉ / ÉTANCHIÉTÉ).
        Les nombres doivent être les mêmes (ENDUIT 10 et ENDUIT 20 restent distincts). Ce n'est pas un doublon :
        on choisit PRENDRE L'EXISTANT ou GARDER LA NOUVELLE (ouverture du budget : FUSIONNER ou IGNORER) */
-    const nearNorm = s => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/Œ/g, "OE").replace(/[^A-Z0-9]+/g, "");
-    const nearDigits = s => (String(s ?? "").match(/\d+/g) || []).map(x => String(+x)).join(",");
-    const nearDist1 = (a, b) => {   /* vrai si une seule faute : insertion, suppression, remplacement ou inversion de deux lettres voisines */
-      if (a === b) return false;
-      const la = a.length, lb = b.length;
-      if (Math.abs(la - lb) > 1) return false;
-      if (la === lb) {
-        const diff = []; for (let i = 0; i < la; i++) if (a[i] !== b[i]) { diff.push(i); if (diff.length > 2) return false; }
-        if (diff.length === 1) return true;
-        return diff.length === 2 && diff[1] === diff[0] + 1 && a[diff[0]] === b[diff[1]] && a[diff[1]] === b[diff[0]];
-      }
-      const [s, l] = la < lb ? [a, b] : [b, a];
-      let i = 0; while (i < s.length && s[i] === l[i]) i++;
-      return s.slice(i) === l.slice(i + 1);
-    };
+    /* refonte, étape 8 (v645) : règles dans 02d (calcul pur, testées) */
+    const nearNorm = sviNearNorm, nearDigits = sviNearDigits, nearDist1 = sviNearDist1;
     const nearName = (k, r) => (k === "lot" || k === "prim" || k === "sec" || k === "qlt") ? r.v : r.des;
     const nearCtx = (k, r) => {
       if (k === "lot" || k === "prim" || k === "sec" || k === "qlt") return "";
       if (k === "des") return U_(r.u);
       const key = dupKeyOf(k, r); return U_(r.u) + "#" + String(key).split("#").slice(1).join("#");
     };
-    const isNear = (a, b) => {
-      if (!a || !b || U_(a) === U_(b)) return false;
-      if (nearDigits(a) !== nearDigits(b)) return false;
-      const na = nearNorm(a), nb = nearNorm(b);
-      if (!na || !nb) return false;
-      if (na === nb) return true;
-      return Math.min(na.length, nb.length) >= 5 && nearDist1(na, nb);
-    };
+    const isNear = sviIsNear;
     const NEAR_K = ["des", "lot", "prim", "sec", "chg", "prd"];
     /* la ligne existante la plus proche d'une saisie (celle qui a le plus de liaisons) */
     const nearOf = (k, r) => {
@@ -9455,16 +9502,7 @@ function renderBudgetList() {
     /* ---------- DÉTAIL DÉLAIS (instance) : une ou plusieurs périodes par TÂCHE PRIMAIRE
        (tâche primaire = un lot associé à une activité primaire, d'après les liaisons validées).
        Saisie en mode LIAISONS seulement ; périodes sans chevauchement dans une même tâche. ---------- */
-    const dParse = v => {
-      const t = String(v || "").trim();
-      if (!t) return "";
-      let m = t.match(/^(\d{1,2})[\/.\- ](\d{1,2})[\/.\- ](\d{2,4})$/) || t.match(/^(\d{2})(\d{2})(\d{4})$/);
-      if (!m) return null;
-      let y = Number(m[3]); if (y < 100) y += 2000;
-      const d = new Date(y, Number(m[2]) - 1, Number(m[1]));
-      if (isNaN(d) || d.getDate() !== Number(m[1]) || d.getMonth() !== Number(m[2]) - 1) return null;
-      return dIso(d);
-    };
+    const dParse = sviDateParse;   /* refonte (v645) : 02d */
     const insTasks = () => {
       const m = new Map();
       (INS.links || []).forEach(l => {
@@ -17233,7 +17271,7 @@ function renderBudgetList() {
       return { head: ["PROJET", ...BF_HEAD], rows: rows.map(r => [pj, ...r]) };
     };
     /* lecture d'un onglet : ligne d'en-tête trouvée (DÉSIGNATION CLIENT), colonnes par leur nom */
-    const bfNorm = v => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
+    const bfNorm = sviBfNorm;   /* refonte, étape 9 (v645) : règles d'import dans 02d */
     const bfModel = aoa => {
       /* FORMAT 105 : en-tête = ligne portant DÉSIGNATION CLIENT, sinon la première ligne remplie */
       let hi = aoa.findIndex(r => (r || []).some(c => bfNorm(c) === "DESIGNATION CLIENT"));
@@ -17603,14 +17641,7 @@ function renderBudgetList() {
       return out;
     };
     /* nature d'un onglet : budget (DÉSIGNATION CLIENT) ou délais (ACTIVITÉ SECONDAIRE + DÉBUT / FIN, sans DÉSIGNATION CLIENT) */
-    const sheetKind = aoa => {
-      const rows = (aoa || []).slice(0, 15).map(r => (r || []).map(bfNorm));
-      if (rows.some(r => r.includes("CRITERE") && r.includes("POINT DE CONTROLE"))) return "qlt";   /* v489 : onglet QUALITÉ, une ligne par critère */
-      if (rows.some(r => r.includes("DESIGNATION CLIENT"))) return "budget";
-      if (rows.some(r => r.includes("ACTIVITE SECONDAIRE") && (r.includes("DEBUT") || r.includes("FIN") || r.includes("PREDECESSEURS")))) return "dly";
-      if (rows.some(r => r.includes("QUALITE"))) return "qlt";
-      return "";
-    };
+    const sheetKind = sviSheetKind;
     /* import de l'onglet QUALITÉ (FORMAT 132) : une ligne par libellé, TITRE = OUI pour un titre ; doublons ignorés */
     const qltImportAoa = (aoa, srcName, quiet, replace) => {
       /* v489 : nouveau format (une ligne par critère) → DÉTAIL QUALITÉ ; sinon l'ancienne liste (PROJET, QUALITÉ, TITRE) */
@@ -17636,20 +17667,10 @@ function renderBudgetList() {
       insSave(); refreshAll();
       return n;
     };
-    const dlyDate = v => {
-      if (v === "" || v === null || v === undefined) return "";
-      if (typeof v === "number" && v > 20000) { const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000); return d.toISOString().slice(0, 10); }
-      if (v instanceof Date && !isNaN(v)) return v.getFullYear() + "-" + String(v.getMonth() + 1).padStart(2, "0") + "-" + String(v.getDate()).padStart(2, "0");
-      const t = String(v).trim();
-      /* date complète renvoyée par le script (2026-10-13T23:00:00.000Z) : jour local */
-      if (/^\d{4}-\d{2}-\d{2}T\d{2}:/.test(t)) { const d = new Date(t); if (!isNaN(d)) return dlyDate(d); }
-      if (/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
-      const iso = dParse(t);
-      return iso === null ? null : iso;
-    };
+    const dlyDate = sviImpDate;
     /* import de l'onglet DÉLAIS : mêmes règles que la saisie ; ligne refusée → IMPORT NON CRÉÉ (TYPE DÉLAI).
        Une seule période par tâche : plusieurs lignes d'une même tâche sont fusionnées (début de la première, fin de la dernière). */
-    const dlyTyOf = t => { const n = bfNorm(t).replace(/[^A-Z]/g, ""); if (!n || n === "FD" || n === "FINDEBUT") return "FD"; if (n === "DD" || n === "DEBUTDEBUT") return "DD"; return null; };
+    const dlyTyOf = sviLinkType;
     const dlyImportAoa = (aoa, srcName, quiet) => {
       const hi = (aoa || []).findIndex(r => (r || []).map(bfNorm).includes("ACTIVITE SECONDAIRE"));
       if (hi < 0) return 0;
