@@ -5,10 +5,8 @@
        - PAR MORCEAUX (DÉCOUPE) : barres de longueur L (12 m) ; morceaux = DIM 1 × NBR des produits liés à cette charge
          (modifiables) ; découpe cherchée pour acheter le moins de barres et laisser le moins de chutes
        Réglages gardés par désignation de charge (INS.cond). Même tableau de résultat pour les deux modes. */
-    const COND_K = r => U_(r.des) + "|" + U_(r.u);
     /* remarque 4 (v542) : le conditionnement appartient à l'ARTICLE (CHS) — gardé pour tous les budgets (sur l'appareil, en attendant
        la colonne CHS côté Google Sheets) ; la copie du budget (INS.cond) reste lue pour les budgets déjà réglés */
-    const condAll = () => { try { return JSON.parse(localStorage.getItem("svi_cond_chs_v1") || "{}") || {}; } catch (e) { return {}; } };
     const condGet = key => condAll()[key] || (INS.cond || {})[key] || null;
     const condRows = id => { const r = INS.chg.find(x => x.id === id); return r ? INS.chg.filter(x => !x.t && COND_K(x) === COND_K(r)) : []; };
     /* morceaux : produits des liaisons de ces charges — longueur = DIM 1, nombre = NBR (× quantité liée si plusieurs) */
@@ -26,41 +24,6 @@
     };
     /* découpe : premier emplacement possible, morceaux du plus long au plus court, puis essai d'améliorer
        (une barre vidée et ses morceaux remis ailleurs) — assez bon pour un chantier, rapide sur iPad */
-    const condCut = (pieces, BL, kerf = 0) => {
-      const all = [];
-      pieces.forEach(p => { for (let i = 0; i < p.n; i++) all.push(p.L); });
-      all.sort((a, b) => b - a);
-      if (all.some(L => L > BL + 1e-9)) return { err: "UN MORCEAU EST PLUS LONG QUE LA BARRE (" + money(Math.max(...all)) + " M)." };
-      const pack = list => {
-        const bars = [];
-        list.forEach(L => {
-          let best = -1, rest = Infinity;
-          bars.forEach((b, i) => { const r = BL - b.used - (b.cuts.length ? kerf : 0) - L; if (r >= -1e-9 && r < rest) { rest = r; best = i; } });
-          if (best < 0) bars.push({ used: L, cuts: [L] });
-          else { const b = bars[best]; b.used += L + (b.cuts.length ? kerf : 0); b.cuts.push(L); }
-        });
-        return bars;
-      };
-      let bars = pack(all);
-      /* amélioration : vider la barre la moins remplie et replacer ses morceaux dans les autres */
-      for (let g = 0; g < 30 && bars.length > 1; g++) {
-        const sorted = bars.slice().sort((a, b) => a.used - b.used), low = sorted[0];
-        const others = bars.filter(b => b !== low).map(b => ({ used: b.used, cuts: b.cuts.slice() }));
-        let ok = true;
-        low.cuts.slice().sort((a, b) => b - a).forEach(L => {
-          let best = -1, rest = Infinity;
-          others.forEach((b, i) => { const r = BL - b.used - kerf - L; if (r >= -1e-9 && r < rest) { rest = r; best = i; } });
-          if (best < 0) ok = false; else { others[best].used += L + kerf; others[best].cuts.push(L); }
-        });
-        if (!ok) break;
-        bars = others;
-      }
-      /* plan : barres identiques regroupées */
-      const plan = new Map();
-      bars.forEach(b => { const k = b.cuts.slice().sort((a, c) => c - a).map(x => money(x)).join(" + "); plan.set(k, { n: ((plan.get(k) || {}).n || 0) + 1, chute: BL - b.used }); });
-      const need = all.reduce((a, b) => a + b, 0), chute = bars.length * BL - need;
-      return { bars: bars.length, plan: [...plan].map(([k, v]) => ({ k, n: v.n, chute: v.chute })), need, chute, pct: bars.length ? chute / (bars.length * BL) * 100 : 0 };
-    };
     const condWin = id => {
       const rows = condRows(id);
       if (!rows.length) return;

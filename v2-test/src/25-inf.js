@@ -8,19 +8,6 @@
       /* v546 (R30) : DATE DE FIN DU PROJET = fin du planning (plus de date objectif saisie) */
       return { ks, deb, pfin, fin: pfin };
     };
-    /* durée en jours du calendrier, début et fin compris : « 1 AN 2 MOIS 20 JOURS » */
-    const infYMD = (a, b) => {
-      if (!a || !b || b < a) return "";
-      const D = x => new Date(x + "T12:00:00");
-      const end = D(b); end.setDate(end.getDate() + 1);
-      let y = 0, m = 0, c = D(a);
-      const add = (d, yy, mm) => { const n = new Date(d); n.setFullYear(n.getFullYear() + yy); n.setMonth(n.getMonth() + mm); return n; };
-      while (add(c, 1, 0) <= end) { c = add(c, 1, 0); y++; }
-      while (add(c, 0, 1) <= end) { c = add(c, 0, 1); m++; }
-      const d = Math.round((end - c) / 86400000);
-      return [y ? y + (y > 1 ? " ANS" : " AN") : "", m ? m + " MOIS" : "", d ? d + (d > 1 ? " JOURS" : " JOUR") : ""].filter(Boolean).join(" ") || "0 JOUR";
-    };
-    const STAR = ' <b class="req-star">*</b>';
     const infDatesHTML = ed => {
       const P = infProj();
       const din = (f, v, extra = "") => ed ? `<input class="doc-in inf-date" type="date" data-f="${f}" value="${esc(v)}"${extra}>` : `<span class="doc-in doc-ro inf-val">${esc(dFr(v))}</span>`;
@@ -244,14 +231,6 @@
         const w = window.open(url, "_blank");
         if (!w) download(d.name, blob);
       } catch (e) { sviAlert("Ouverture impossible : " + e.message); }
-    };
-    const localDT = d =>
-      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    const hm = ms => {
-      if (!isFinite(ms)) return "0:00";
-      const neg = ms < 0; ms = Math.abs(ms);
-      const m = Math.round(ms / 60000);
-      return (neg ? "-" : "") + Math.floor(m / 60) + ":" + pad(m % 60);
     };
 
     const openRecForm = kind => {

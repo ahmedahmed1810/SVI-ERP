@@ -551,9 +551,6 @@
     };
 
 
-    /* texte principal sans doublon (intitulé DOC / OBS, descriptif TAF) */
-    const dupKey = v => String(v ?? "").trim().toUpperCase().replace(/\s+/g, " ");
-    const findDup = (list, get, v) => list.find(r => dupKey(get(r)) === dupKey(v));
 
     /* PDF validé dans l'aperçu → nouvelle ligne DOCUMENTS avec lien vers le fichier */
     /* retour sur la page du budget : liste DOCUMENTS relue (PDF enregistré ailleurs) */

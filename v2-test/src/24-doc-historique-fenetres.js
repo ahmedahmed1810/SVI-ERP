@@ -138,7 +138,6 @@
       try { localStorage.setItem(DOC_KEY, JSON.stringify(list)); return true; }
       catch (e) { return false; }
     };
-    const pad = (n, w = 2) => String(n).padStart(w, "0");
 
     /* numéro : DOC AA-MMJJ/NNN (compteur du jour pour ce budget) */
     const nextDocRef = d => {
@@ -300,125 +299,6 @@
       });
     };
 
-    /* ===== fenêtres et champs de saisie réglables (tailles mémorisées) ===== */
-    const PS_KEY = "svi_popsize_v1";
-    const psLoad = () => {
-      try { return JSON.parse(localStorage.getItem(PS_KEY) || "{}") || {}; }
-      catch (e) { return {}; }
-    };
-    const psSet = (k, v) => {
-      const all = psLoad();
-      if (v) all[k] = v; else delete all[k];
-      try { localStorage.setItem(PS_KEY, JSON.stringify(all)); } catch (e) {}
-    };
-    /* glissement générique : fn(dx, dy) pendant, done() à la fin */
-    const dragXY = (e, fn, done) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const x0 = e.clientX, y0 = e.clientY;
-      const mv = ev => { ev.preventDefault(); fn(ev.clientX - x0, ev.clientY - y0); };
-      const tm = ev => ev.preventDefault();
-      const up = () => {
-        document.removeEventListener("pointermove", mv);
-        document.removeEventListener("pointerup", up);
-        document.removeEventListener("pointercancel", up);
-        document.removeEventListener("touchmove", tm);
-        done();
-      };
-      document.addEventListener("pointermove", mv, { passive: false });
-      document.addEventListener("touchmove", tm, { passive: false });
-      document.addEventListener("pointerup", up);
-      document.addEventListener("pointercancel", up);
-    };
-    /* format unique des dates : JJ/MM/AAAA À HH:MM */
-    const fmtField = (type, v) => {
-      if (!v) return "";
-      if (type === "time") return v.slice(0, 5);
-      const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
-      if (!m) return String(v);
-      return `${m[3]}/${m[2]}/${m[1]}` + (type === "datetime-local" && m[4] ? ` À ${m[4]}:${m[5]}` : "");
-    };
-    const popEnhance = (p, kind) => {
-      const card = p.querySelector(".doc-card");
-      if (!card) return;
-      const sizes = psLoad();
-      /* fenêtre : poignée en bas à droite */
-      const cs = sizes["win." + kind];
-      if (cs) { card.style.width = cs.w + "px"; card.style.maxWidth = "none"; card.style.height = cs.h + "px"; }
-      const ch = document.createElement("span");
-      ch.className = "pop-rsz";
-      ch.title = "Glisser pour redimensionner la fenêtre";
-      card.appendChild(ch);
-      ch.addEventListener("pointerdown", e => {
-        const r = card.getBoundingClientRect();
-        let w = r.width, h = r.height;
-        card.style.maxWidth = "none";
-        dragXY(e, (dx, dy) => {
-          w = Math.max(300, Math.min(window.innerWidth - 16, Math.round(r.width + dx * 2)));
-          h = Math.max(180, Math.min(window.innerHeight - 16, Math.round(r.height + dy * 2)));
-          card.style.width = w + "px";
-          card.style.height = h + "px";
-        }, () => psSet("win." + kind, { w, h }));
-      });
-      /* champs : poignée sur le coin bas-droit de chaque champ */
-      p.querySelectorAll(".doc-in").forEach((el, i) => {
-        /* clé stable : identifiant du champ, sinon son libellé */
-        const lab = (el.previousElementSibling?.textContent || "").replace(/\*/g, "").trim();
-        const key = "fld." + kind + "." + (el.id || lab || i);
-        /* agrandi vers la droite et vers le bas ; la saisie reste en haut
-           (champ d'une ligne : la hauteur ajoutée passe en marge du bas) */
-        let vis = el;   /* élément visible (affichage JJ/MM/AAAA À HH:MM pour les dates) */
-        const setH = h => {
-          vis.style.height = h + "px";
-          if (vis.tagName === "INPUT") vis.style.paddingBottom = Math.max(0, h - 34) + "px";
-        };
-        const wrap = document.createElement("span");
-        wrap.className = "fld-wrap" + (el.closest(".doc-row") ? " in-row" : "");
-        el.replaceWith(wrap);
-        wrap.appendChild(el);
-        /* dates : affichage uniforme JJ/MM/AAAA À HH:MM, le sélecteur
-           natif reste dessous (transparent) pour la saisie */
-        if (["date", "time", "datetime-local"].includes(el.type)) {
-          const show = document.createElement("div");
-          show.className = "doc-in dt-show" + (el.classList.contains("doc-ro") ? " doc-ro" : "");
-          el.classList.remove("doc-in");
-          el.classList.add("dt-native");
-          wrap.insertBefore(show, el);
-          const upd = () => { show.textContent = fmtField(el.type, el.value) || "\u00a0"; };
-          el.addEventListener("input", upd);
-          el.addEventListener("change", upd);
-          el.addEventListener("click", () => { try { el.showPicker?.(); } catch (err) {} });
-          upd();
-          vis = show;
-        }
-        const fs = sizes[key];
-        if (fs) {
-          if (fs.w) { wrap.style.width = fs.w + "px"; wrap.classList.add("sized"); }
-          if (fs.h) setH(fs.h);
-        }
-        const hd = document.createElement("span");
-        hd.className = "fld-rsz";
-        hd.title = "Glisser pour régler la taille du champ";
-        wrap.appendChild(hd);
-        hd.addEventListener("pointerdown", e => {
-          const r = vis.getBoundingClientRect();
-          let w = r.width, h = r.height;
-          dragXY(e, (dx, dy) => {
-            w = Math.max(60, Math.round(r.width + dx));
-            h = Math.max(28, Math.round(r.height + dy));
-            wrap.style.width = w + "px";
-            wrap.classList.add("sized");
-            setH(h);
-          }, () => psSet(key, { w, h }));
-        });
-        /* double-toucher sur la poignée : taille d'origine */
-        hd.addEventListener("dblclick", () => {
-          wrap.style.width = ""; wrap.classList.remove("sized");
-          vis.style.height = ""; vis.style.paddingBottom = "";
-          psSet(key, null);
-        });
-      });
-    };
 
     /* ===== fenêtres OBS et TAF (même présentation que DOC) ===== */
     const recKey = kind => "svi_" + kind + "_v1:" + String(ref);
@@ -461,13 +341,6 @@
       shell.querySelectorAll(".blk-suivi .rec-scroll").forEach(d => { d.hidden = d.dataset.pane !== recActive; });
     };
 
-    /* ===== listes DOC / TAF / OBS sous le détail ===== */
-    const fmtDT = v => {
-      if (!v) return "";
-      const d = new Date(v);
-      if (isNaN(d)) return String(v);
-      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} À ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    };
     /* colonnes : [clé, libellé, accesseur, classe] (même moteur que les autres tableaux) */
     const recCols = {
       doc: [["rref", "RÉFÉRENCE", r => r.ref, ""],

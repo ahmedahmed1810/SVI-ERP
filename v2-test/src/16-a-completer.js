@@ -110,14 +110,9 @@
       if (shell.__markCut) shell.__markCut();
     };
 
-    /* ---------- DÉTAIL DÉLAIS (instance) : une ligne par activité secondaire ---------- */
-    const dIso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-    const dAdd = (iso, n) => { const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return dIso(d); };
-    const dDiff = (a, b) => Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000);
     /* FORMAT 139 : durée en jours, jour de début et jour de fin compris (même jour = 1 J) */
     /* 15/10/2026 : DURÉE = jours TRAVAILLÉS du calendrier du budget, début et fin compris */
     const dDur = (a, b) => sviWDur(insCal(), a, b);
-    const dFr = iso => iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : "";
     /* ---------- DÉTAIL DÉLAIS (instance) : une ou plusieurs périodes par TÂCHE PRIMAIRE
        (tâche primaire = un lot associé à une activité primaire, d'après les liaisons validées).
        Saisie en mode LIAISONS seulement ; périodes sans chevauchement dans une même tâche. ---------- */

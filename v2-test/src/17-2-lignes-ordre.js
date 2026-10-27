@@ -1,5 +1,3 @@
-    /* ===== PLANNING (v401) : MARGE, JALON, LOTS EN ARBORESCENCE (« / »), GANTT ===== */
-    const dlyLotPath = name => String(name || "").split("/").map(x => x.trim()).filter(Boolean);
     /* une couleur par lot (FORMAT 91), partagée par toutes ses tâches */
     /* pas de rouge : le rouge est réservé aux tâches critiques */
     const DLY_PAL = ["#6fa8dc", "#93c47d", "#f6b26b", "#8e9fd6", "#76c5c0", "#c9a0dc", "#e8c468", "#9fb7c9", "#a8d5a2", "#8db3e2", "#d7b98e", "#7fc3e0"];
@@ -42,8 +40,6 @@
       dated.forEach(k => { const d0 = dlyDeb(k); M[k] = LS[k] <= d0 ? 0 : sviWDur(cal, d0, LS[k]) - 1; });
       return M;
     };
-    /* repli des lots (› replié / ⌄ déplié), mémorisé par projet */
-    const dlyFoldAll = () => { try { return JSON.parse(localStorage.getItem("svi_lotfold_v1") || "{}") || {}; } catch (e) { return {}; } };
     const dlyFoldK = p => (budget.project || "") + "|" + p;
     const dlyIsFolded = p => !!dlyFoldAll()[dlyFoldK(p)];
     /* v512 (remarque 76) : première ouverture d'un budget — niveaux de LOT pliés (état mémorisé ensuite) */
@@ -71,8 +67,6 @@
       INS.dord = cur;
       return new Map(INS.dord.map((k, i) => [k, i]));
     };
-    /* R29 : affichage PAR LOT (ordre enregistré) ou PAR DÉBUT (vue en escalier, rien n'est enregistré), mémorisé par budget */
-    const dlyViewAll = () => { try { return JSON.parse(localStorage.getItem("svi_dlyview_v1") || "{}") || {}; } catch (e) { return {}; } };
     const dlyView = () => dlyViewAll()[DLYG_REF] === "d" ? "d" : "l";
     const dlyViewSet = v => { const A = dlyViewAll(); if (v === "d") A[DLYG_REF] = "d"; else delete A[DLYG_REF]; try { localStorage.setItem("svi_dlyview_v1", JSON.stringify(A)); } catch (e) {} };
     /* un seul ordre (cahier, Planning budgétaire) : PLANNING → bloc TÂCHES — lots dans l'ordre de leur première tâche,
@@ -296,15 +290,4 @@
       return Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v)));
     };
     let DLY_DW = dlyDwGet();
-    /* hauteur des lignes du PLANNING (tableau et Gantt) : pincement vertical à deux doigts ; 24 px au moins (taille d'origine), 64 au plus */
-    const DLY_RH_KEY = "svi_dly_rh_v1";
-    const dlyRhGet = () => { const v = Number(localStorage.getItem(DLY_RH_KEY)); return v >= 24 && v <= 64 ? v : 24; };
-    const dlyBh = rh => Math.round(11 + (rh - 24) * 0.5);   /* épaisseur des barres : 11 px à 24, 31 px à 64 */
     const dlyRhApply = rh => { shell.style.setProperty("--dly-rh", rh + "px"); shell.style.setProperty("--gbh", dlyBh(rh) + "px"); };
-    /* largeur d'un intitulé dans la barre (police des barres : 9 px, gras) */
-    const dlyTxtW = t => {
-      const c = dlyTxtW.c || (dlyTxtW.c = document.createElement("canvas").getContext("2d"));
-      if (!dlyTxtW.f) dlyTxtW.f = "700 9px " + (getComputedStyle(document.body).fontFamily || "sans-serif");
-      c.font = dlyTxtW.f;
-      return c.measureText(String(t || "").toUpperCase()).width;
-    };

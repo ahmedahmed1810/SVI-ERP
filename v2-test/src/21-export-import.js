@@ -67,84 +67,13 @@
         .replace(/[\\/:*?"<>|;]+/g, "-").replace(/\s+/g, "_");
     };
 
-    const download = (name, blob) => {
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-    };
 
     /* enregistrement : sur iPad / iPhone, la feuille de partage permet
        « Enregistrer dans Fichiers » › Google Drive, avec choix ou création
        du dossier ; sinon, téléchargement classique */
     /* fenêtre « enregistrer » au format des fenêtres INF / DOC :
        nom du fichier et dossier du Drive proposés, modifiables */
-    const fileDialog = ({ title, name, path, buttons, onAct }) => {
-      const p = sviPopNew();
-      p.innerHTML = `
-        <div class="doc-card" role="dialog" aria-modal="true" style="max-width:640px">
-          <div class="doc-head">
-            <span class="doc-title">${esc(title)}</span>
-            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
-          </div>
-          <div class="doc-body">
-            <div class="doc-grid doc-grid-2">
-              <label class="doc-lab" for="fdName">NOM DU FICHIER</label>
-              <input id="fdName" class="doc-in" type="text" autocomplete="off" value="${esc(name)}">
-              <label class="doc-lab" for="fdPath">DOSSIER DRIVE</label>
-              <input id="fdPath" class="doc-in" type="text" autocomplete="off" data-keepcase value="${esc(path)}">
-            </div>
-            <div class="doc-err fd-msg" id="fdMsg"></div>
-          </div>
-          <div class="doc-foot">
-            <button type="button" class="doc-btn" data-cancel>ANNULER</button>
-            ${buttons.map(b => `<button type="button" class="doc-btn${b.primary ? " doc-save" : ""}" data-act="${b.key}"${b.drive ? " data-drive" : ""}>${esc(b.label)}</button>`).join("")}
-          </div>
-        </div>`;
-      sviPopShow(p);
-      popEnhance(p, "save");
-      drivePathRow(p, "#fdPath", false);
-      const msg = p.querySelector("#fdMsg");
-      const ui = {
-        msg: (t, kind) => { msg.innerHTML = t; msg.className = "doc-err fd-msg" + (kind ? " " + kind : ""); },
-        close: () => p.remove(),
-        busy: (k, on) => { const b = p.querySelector(`[data-act="${k}"]`); if (b) b.disabled = on; },
-        setPath: v => { if (v) p.querySelector("#fdPath").value = v; }
-      };
-      let pathShown = false;
-      p.addEventListener("click", e => {
-        if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
-        const b = e.target.closest("[data-act]");
-        if (!b || b.disabled) return;
-        /* 1er toucher sur le Drive : le dossier s'affiche ; 2e : enregistrement */
-        if (b.dataset.drive !== undefined && !pathShown) {
-          pathShown = true;
-          drivePathRow(p, "#fdPath", true);
-          b.textContent = "ENREGISTRER";
-          return;
-        }
-        onAct(b.dataset.act, {
-          name: p.querySelector("#fdName").value.trim(),
-          path: driveCleanPath(p.querySelector("#fdPath").value)
-        }, ui);
-      });
-    };
 
-    /* enregistrement sur l'iPad (partage / téléchargement) */
-    const saveDevice = (name, blob) => {
-      try {
-        const file = new File([blob], name, { type: blob.type });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          navigator.share({ files: [file], title: name }).catch(err => {
-            if (err && err.name !== "AbortError") download(name, blob);
-          });
-          return;
-        }
-      } catch (e) {}
-      download(name, blob);
-    };
 
     /* chaque fichier enregistré : nom et dossier du Drive proposés (modifiables),
        puis enregistrement dans le Drive ou sur l'iPad */
@@ -175,16 +104,6 @@
       });
     };
 
-    const loadXLSX = () => window.XLSX
-      ? Promise.resolve(window.XLSX)
-      : new Promise((ok, ko) => {
-          const sc = document.createElement("script");
-          /* version de SheetJS qui sait écrire les styles (police, bordures, alignement) */
-          sc.src = "https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js";
-          sc.onload = () => ok(window.XLSX);
-          sc.onerror = () => ko(new Error("Bibliothèque Excel indisponible"));
-          document.head.appendChild(sc);
-        });
 
     /* entrée commune aux exports (comme sur les PDF) */
     const exportTop = blk => {
@@ -202,31 +121,6 @@
     /* largeurs des colonnes et hauteur de l'entête du tableau pour les exports
        (Excel et Google Sheets) : colonnes numériques (quantités…) ajustées aux
        nombres, titres longs repliés sur plusieurs lignes, entête à la bonne hauteur */
-    const exportSizing = (head, rows) => {
-      const txt = v => typeof v === "number" ? money(v) : String(v ?? "");
-      const isNum = c => {
-        const vals = rows.map(r => r[c]).filter(v => v !== "" && v != null);
-        return vals.length > 0 && vals.filter(v => typeof v === "number").length >= vals.length / 2;
-      };
-      const wch = head.map((h, c) => {
-        const dataLen = Math.max(0, ...rows.map(r => txt(r[c]).length));
-        const longWord = Math.max(...String(h ?? "").split(/\s+/).map(w => w.length));
-        if (c === 1) return Math.min(80, Math.max(dataLen, String(h ?? "").length) + 2);
-        if (isNum(c)) return Math.max(9, dataLen + 3, longWord + 2);
-        return Math.max(6, Math.min(30, Math.max(dataLen, longWord) + 2));
-      });
-      /* nombre de lignes du titre une fois replié dans sa largeur */
-      const lines = head.map((h, c) => {
-        let n = 1, cur = 0;
-        String(h ?? "").split(/\s+/).forEach(w => {
-          if (cur && cur + 1 + w.length > wch[c] - 1) { n++; cur = w.length; }
-          else cur += (cur ? 1 : 0) + w.length;
-        });
-        return n;
-      });
-      const hpt = 15 * Math.max(1, ...lines) + 6;
-      return { wch, hpt };
-    };
 
     /* Google Sheets : la feuille est créée par le script Google (Code.gs) dans
        le Drive, nommée et rangée dans le dossier choisi, déjà mise en forme */
@@ -283,13 +177,6 @@
        sinon fenêtre d'enregistrement */
     /* enregistré dans le Drive : pas de message, le bouton l'indique un instant
        (le dossier utilisé reste affiché dans le champ DOSSIER DRIVE) */
-    const driveDoneFlash = () => {
-      const b = document.querySelector('#docPop [data-act="save"]') || document.querySelector('#docPop [data-act="drive"]');
-      if (!b) return;
-      const t = b.textContent;
-      b.textContent = "✓ ENREGISTRÉ";
-      setTimeout(() => { if (b.isConnected) b.textContent = t; }, 2500);
-    };
 
     const deliver = async (name, blob, dest) => {
       if (!dest) return saveFile(name, blob);
@@ -485,18 +372,6 @@
       }
     };
 
-    const popup = (html, cls = "") => {
-      document.getElementById("blkPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "blkPop";
-      p.className = cls;
-      p.innerHTML = html;
-      p.addEventListener("click", e => {
-        if (e.target === p || e.target.closest("[data-close]")) p.remove();
-      });
-      document.body.appendChild(p);
-      return p;
-    };
 
     /* EXPORTER
        - départ : nom du fichier, 4 formats, ANNULER / SUR L'IPAD / DANS LE DRIVE
@@ -646,53 +521,6 @@
         </div>`);
     };
 
-    /* fenêtre au format INF : lien de la feuille Google à importer */
-    const askSheetLink = () => new Promise(res => {
-      const p = sviPopNew();
-      p.className = "pop-new-bdg";
-      p.innerHTML = `
-        <div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
-          <div class="doc-head">
-            <span class="doc-title">IMPORTER — GOOGLE SHEETS</span>
-            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
-          </div>
-          <div class="doc-body">
-            <div class="doc-grid">
-              <label class="doc-lab" for="gsLink">LIEN DE LA FEUILLE <b>*</b></label>
-              <input id="gsLink" class="doc-in" style="grid-column:2 / -1;width:100%" type="url" data-keepcase autocomplete="off"
-                inputmode="url" placeholder="https://docs.google.com/spreadsheets/d/…">
-            </div>
-            <div id="gsErr" class="doc-err"></div>
-          </div>
-          <div class="doc-foot">
-            <button type="button" class="doc-btn" data-cancel>ANNULER</button>
-            <button type="button" class="doc-btn nb-save" id="gsGo">IMPORTER</button>
-          </div>
-        </div>`;
-      sviPopShow(p);
-      try { popEnhance(p, "gslink"); } catch (e) {}
-      const inp = p.querySelector("#gsLink");
-      /* champ sur toute la largeur de la fenêtre */
-      const cell = inp.parentElement.classList.contains("doc-grid") ? inp : inp.parentElement;
-      cell.style.gridColumn = "2 / -1";
-      cell.style.width = "100%";
-      const close = v => { p.remove(); res(v); };
-      const go = () => {
-        const v = inp.value.trim();
-        if (!/\/d\/[a-zA-Z0-9_-]+/.test(v)) {
-          p.querySelector("#gsErr").textContent = "LIEN GOOGLE SHEETS NON RECONNU.";
-          inp.focus();
-          return;
-        }
-        close(v);
-      };
-      p.addEventListener("click", e => {
-        if (e.target === p || e.target.closest("[data-cancel]")) close("");
-        else if (e.target.closest("#gsGo")) go();
-      });
-      inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); go(); } });
-      setTimeout(() => inp.focus(), 50);
-    });
 
     const importGSheet = async () => {
       const url = await askSheetLink();
@@ -733,24 +561,10 @@
       ["chg", "DÉTAIL CHARGES"], ["prd", "DÉTAIL PRODUITS"],
       ["qlt", "DÉTAIL QUALITÉ"], ["dly", "DÉTAIL DÉLAIS"]
     ];
-    const impFr = iso => iso ? String(iso).slice(8, 10) + "/" + String(iso).slice(5, 7) + "/" + String(iso).slice(0, 4) : "";
     /* U_ : défini plus haut (utilisé dès l'ouverture du budget) */
     /* identité d'une ligne : deux lignes identiques = doublon (jamais importé deux fois)
        désignations / charges : ART + DÉSIGNATION + UNITÉ (+ titre) ;
        produits : idem (ART + DÉSIGNATION + UNITÉ) */
-    const impId = (k, r) => {
-      /* produits : sans article — DÉSIGNATION + UNITÉ */
-      /* FORMAT 89 : une désignation (et une charge) se reconnaît par sa DÉSIGNATION + UNITÉ, sans l'ART ;
-         seuls les titres gardent leur ART */
-      const base = [r.t ? U_(r.art) : "", U_(r.des), U_(r.u), r.t ? "T" : ""];
-      return base.join("|");
-    };
-    /* charges, lots et activités : ordre alphabétique */
-    const impSort = m => {
-      const az = (a, b) => String(a).localeCompare(String(b), "fr", { numeric: true });
-      m.chg.sort((a, b) => az(a.row.des, b.row.des) || az(a.row.u, b.row.u));
-      m.hier.sort((a, b) => az(a.row.v, b.row.v));
-    };
     /* modèle d'un budget source : lignes de chaque onglet + liens (lignes de détail) */
     const impModel = ref => {
       const g = groups.get(ref);
@@ -1509,8 +1323,6 @@
         .map(x => ({ ...x, by: W.p.get(x.pk).dk !== x.dk ? { g: "p", w: W.p.get(x.pk) } : { g: "s", w: W.s.get(x.sk) } }));
       return { W, lose, names };
     };
-    /* v481 (remarque 18) : message compréhensible par tout lecteur — quelle tâche bloque et quoi changer */
-    const bfRuleAWhy = (g, w, task) => (g === "p" ? "TÂCHE PRIMAIRE " : "TÂCHE SECONDAIRE ") + (task ? task + " " : "") + "DÉJÀ LIÉE À " + w.name + " (" + w.n + " LIGNE" + (w.n > 1 ? "S" : "") + "). UNE TÂCHE N'A QU'UNE DÉSIGNATION CLIENT : CHANGER LE LOT OU L'ACTIVITÉ " + (g === "p" ? "PRIMAIRE" : "SECONDAIRE") + ".";
     /* fenêtre de confirmation : liaisons du budget à délier */
     const bfRuleAAsk = plan => {
       if (!plan.lose.length) return Promise.resolve(true);

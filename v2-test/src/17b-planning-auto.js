@@ -12,11 +12,6 @@
 
     /* ---------- ressource cochée (R9, R11, R25) ---------- */
     const dlyResSel = () => { const R = (INS.chg || []).filter(r => !r.t && r.on === true); return R.length ? R : null; };
-    const dlyResU = r => dlyIsLab(r) ? "J-H" : (U_(r.u) || "U");
-    const dlyResK = r => U_(r.des) + "|" + dlyResU(r);
-    const dlyResQty = r => dlyIsLab(r) ? dlyJHof(r) : num(r.q || 0) || 0;
-    /* même unité pour toutes les charges cochées : la QUANTITÉ est possible ; sinon MONTANT seulement (R11) */
-    const dlySameU = R => !!R && new Set(R.map(dlyResU)).size === 1;
     /* réglages de l'histogramme (R18), mémorisés par budget : u = q | m, aff = j | c, cum = r | a */
     const dlyHSet = () => ({ u: "q", aff: "j", cum: "r", ...(INS.hset || {}) });
     const dlyResMode = R => dlyHSet().u === "q" && dlySameU(R) ? "q" : "m";
@@ -40,9 +35,6 @@
     /* v546 (R24) : en MONTANT, la capacité est une capacité de financement (DH par jour), même avec des unités différentes ;
        clé de groupe « DH: … » ; en QUANTITÉ, seulement des charges de même unité */
     const dlyCurGK = () => { const R = dlyResSel(); if (!R) return ""; const ks = [...new Set(R.map(dlyResK))].sort().join(" § "); return dlyResMode(R) === "q" ? ks : "DH: " + ks; };
-    const dlyGM = gk => /^DH: /.test(String(gk));
-    const dlyGKeys = gk => new Set(String(gk).replace(/^DH: /, "").split(" § "));
-    const dlyGName = gk => (dlyGM(gk) ? "DH : " : "") + [...new Set(String(gk).replace(/^DH: /, "").split(" § ").map(x => x.split("|")[0]))].join(" + ");
     /* quantité (ou montant, m) d'un groupe dans une tâche (charges de ses liaisons dont la clé est dans le groupe) */
     const dlyGQ = (k, keys, m) => {
       let t = 0; const seen = new Set();
@@ -58,8 +50,6 @@
     const dlyResQ = k => { const gk = dlyCurGK(); return gk ? dlyGQ(k, dlyGKeys(gk), dlyGM(gk)) : 0; };
     /* réglage de capacité d'un groupe (créé à la demande) */
     const dlyCapSt = (gk = dlyCurGK()) => { if (!gk) return null; INS.plafR = INS.plafR || {}; return (INS.plafR[gk] = INS.plafR[gk] || {}); };
-    /* valeur d'un morceau : nombre ≥ 1, 0 (pénurie) ou −1 (ILLIMITÉ, aussi quand rien n'est réglé) */
-    const dlyCapV = v => v === undefined || v === null || v === "" || Number(v) < 0 ? -1 : Math.round(Number(v));
     /* groupes de capacité actifs ensemble (R24) : tous ceux réglés, plus la sélection */
     const dlyGroups = () => {
       const cur = dlyCurGK(), out = [];
@@ -68,8 +58,6 @@
       if (cur && !out.some(g => g.gk === cur)) out.push({ gk: cur, keys: dlyGKeys(cur), m: dlyGM(cur), st: {} });
       return out;
     };
-    /* coupes d'un groupe : { d, n, after } ; une coupe rattachée à des tâches (after) se place juste après leur fin (R23) */
-    const dlyCutsOf = st => ((st && st.plafs) || []).filter(s => s && (s.d || (s.after || []).length));
     /* date d'une coupe d'après des fins connues (finOf(k) → iso ou "") ; null si une de ses tâches n'est pas encore placée */
     const dlyCutDate = (c, finOf) => {
       const K = (c.after || []).filter(k => dlyKeys().includes(k));
@@ -94,7 +82,6 @@
        % du rendement du budget (100 % = budget, les J-H du budget ne changent pas), par charge de main-d'œuvre (réglage en %)
        ou par activité de cette charge (réglage en VALEUR) ; bornes MIN / MAX (80 % / 125 % au départ) ; coupes comme la CAPACITÉ.
        Durée = quantité ÷ (rendement × ouvriers) ; au-dessus de 100 %, la part en plus = heures sup ((rendement − 100 %) × 8 h). */
-    const dlyRdV = v => v === undefined || v === null || v === "" || !isFinite(Number(v)) ? 100 : Math.max(1, Math.round(Number(v)));
     const dlyRdLim = () => { const h = dlyHSet(); return { min: Number(h.rdmin) || 80, max: Number(h.rdmax) || 125 }; };
     const dlyRdSt = (sk, sec, mk) => {
       INS.plafR = INS.plafR || {};
@@ -103,8 +90,6 @@
       st.rdA = st.rdA || {}; if (!st.rdA[sec]) { if (!mk) return null; st.rdA[sec] = {}; }
       return st.rdA[sec];
     };
-    const dlyRdSet0 = st => !!st && (st.rd !== undefined && st.rd !== null && st.rd !== "" || (st.rds || []).length > 0);
-    const dlyRdCuts = st => ((st && st.rds) || []).filter(s => s && (s.d || (s.after || []).length));
     const dlyRdSegs = st => {
       const fin = k => dlyFin(k) || dlyDeb(k) || "";
       const segs = [{ d: "", n: dlyRdV(st && st.rd), i: 0 }];
@@ -159,8 +144,6 @@
     /* v617 (remarque 85) : AUTORISER LA COUPE DES TÂCHES (menu ⋯ de DÉTAIL DÉLAIS ; cochée au départ) */
     const dlyCutOK = () => !INS || INS.dcut !== false;
     const dlyCutSet = on => { INS.dcut = !!on; insSave(); histLog("DÉLAIS", "COUPE DES TÂCHES", on ? "AUTORISÉE" : "INTERDITE"); renderTabK(); };
-    const dlyHalfS = p => !!(p && p.deb && p.dmd === p.deb);
-    const dlyHalfE = p => !!(p && p.fin && p.fmd === p.fin);
     /* DURÉE (J) d'une tâche : jours travaillés, moins les demi-journées (1,5 J…) */
     const dlyDurK = k => {
       const L = dlyList(k), p = L[0], d0 = dlyDeb(k), f0 = dlyFin(k);
@@ -363,7 +346,6 @@
         L.splice(0, L.length, ...nl);
       });
     };
-    const DLY_BUT_MSG = "AVEC CE NOMBRE VOUS RISQUEZ DE DÉPASSER LA DATE BUTOIR";
     /* R26 : GÉNÉRER = COMPRESSER — un seul calcul, enregistré aussitôt (↶ annule) */
     const dlyCompressRun = (opts = {}) => {
       const C = dlyCanCompress({ gen: !!opts.gen });
@@ -481,10 +463,6 @@
 
     /* ---------- histogramme : données, R17 approvisionnement, R18 réglages ---------- */
     const DLY_SER = ["#f79009", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#fdb022", "#9e165f"];   /* v588 : plus de gris dans les séries (le gris = hors DÉBUT – FIN) */
-    /* hauteur de l'histogramme : nombre de pixels (28 = miniaturisé en bas) ou « full » (plein écran, à la place du Gantt) */
-    /* v546 (R25) : 0 = histogramme entièrement caché (poignée tout en bas) */
-    const dlyHHGet = () => { let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : v === "0" ? 0 : Math.max(28, Math.min(2000, Number(v) || 110)); };
-    const dlyHHSet = v => { try { localStorage.setItem("svi_dlyhh_v1", String(v)); } catch (e) {} };
     const dlyHSetPut = o => { INS.hset = { ...dlyHSet(), ...o }; insSave(); renderTabK(); };
     /* R19 / R20 : plage DÉBUT – FIN et filtre MIN – MAX (mémorisés par budget) */
     const dlyHRange = () => ({ a: "", b: "", ...(INS.hrange || {}) });

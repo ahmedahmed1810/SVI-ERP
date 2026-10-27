@@ -2,9 +2,6 @@
        collées à la fin du même bloc, dans ce budget ou un autre, sans liaison ;
        « COPIE DE » seulement en cas de doublon ; COUPER = lignes non liées, retirées au COLLER ;
        copie aussi dans le presse-papiers de l'iPad (tableau) ===== */
-    const CLIP_KEY = "svi_clip_v1";
-    const clipGet = () => { try { return JSON.parse(localStorage.getItem(CLIP_KEY) || "null"); } catch (e) { return null; } };
-    const clipSet = c => { try { c ? localStorage.setItem(CLIP_KEY, JSON.stringify(c)) : localStorage.removeItem(CLIP_KEY); } catch (e) {} };
     const clipKinds = blk => blk === "detail" && !["chg", "prd", "qlt"].includes(active) ? [] : insBlkKinds(blk);
     /* ===== onglets de contrôle (FORMAT 99) : IMPORT NON CRÉÉ (COPIER / COUPER / COLLER = réimport),
        LIGNES NON LIÉES et LIAISONS VALIDÉES (COPIER) — lignes cochées ET affichées ===== */

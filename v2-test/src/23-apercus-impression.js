@@ -1128,21 +1128,4 @@
       w.document.close();
     };
 
-    /* bulle d'explication sur une case signalée */
-    const showWhy = td => {
-      document.getElementById("whyTip")?.remove();
-      const tip = document.createElement("div");
-      tip.id = "whyTip";
-      tip.textContent = td.dataset.why;
-      document.body.appendChild(tip);
-      const r = td.getBoundingClientRect();
-      const w = Math.min(280, window.innerWidth - 16);
-      tip.style.width = w + "px";
-      tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + "px";
-      const above = r.top - tip.offsetHeight - 8;
-      tip.style.top = (above > 8 ? above : r.bottom + 8) + "px";
-      const close = () => { tip.remove(); document.removeEventListener("click", close, true); };
-      setTimeout(() => document.addEventListener("click", close, true), 0);
-      setTimeout(close, 5000);
-    };
 

@@ -25,7 +25,6 @@
     });
     let insSeq = Date.now();
     const insId = () => "i" + (insSeq++).toString(36);
-    const U_ = v => String(v ?? "").trim().toUpperCase();
     /* FORMAT 91 : LIGNES NON LIÉES (compteur, liste ouverte, hachures, FIGER) et LIAISONS VALIDÉES
        recalculés aussitôt après chaque changement du budget */
     let insLiveT = null;
@@ -52,33 +51,11 @@
     };
     if (INS_DLP_MIG) insSave();
 
-    const insNum = v => {
-      const s = String(v ?? "").trim();
-      return s === "" ? "" : num(s);
-    };
-    const insFmt = v => (v === "" || v === null || v === undefined) ? "" : (typeof v === "string" && /[A-Z]/i.test(v) && !/^[\d\s.,+-]+$/.test(v)) ? v : money(v);
-    /* niveau d'un titre d'après sa numérotation : I = 1, I.1 = 2, I.1.1 = 3 */
-    const insLevel = art => Math.min(3, String(art || "").split(".").filter(x => x.trim() !== "").length || 1);
     /* niveau enregistré à part (FORMAT 61) : r.d = nombre de titres au-dessus de la ligne.
        Calculé une fois depuis l'ART (lignes anciennes / importées), puis changé seulement par le glissement ;
        l'ART reste tel que saisi. Pas de limite de niveaux. */
-    const dOf = r => Number(r && r.d) || 0;
     /* FORMAT 124 : ART calculé quand il est vide — suivant de la ligne précédente de même niveau (dernier nombre + 1),
        sinon numéro du titre + « .1 » (1re ligne du tableau : 1) ; un ART saisi n'est jamais changé */
-    const artIncr = a => { const m = /^(.*?)(\d+)(\D*)$/.exec(String(a)); return m ? m[1] + (Number(m[2]) + 1) + m[3] : String(a) + ".1"; };
-    const artAutoOf = list => {
-      const out = new Map(), last = [], tnum = [];
-      (list || []).forEach(r => {
-        const d = Number(r && r.d) || 0;
-        last.length = d + 1; tnum.length = d + 1;
-        const own = String(r.art ?? "").trim();
-        const n = own || (last[d] !== undefined ? artIncr(last[d]) : d === 0 ? "1" : (tnum[d - 1] || "1") + ".1");
-        last[d] = n;
-        if (!own) out.set(r.id, n);
-        if (r.t) { tnum[d] = n; last[d + 1] = undefined; }
-      });
-      return out;
-    };
     let ART_AUTO = new Map(), ART_DUP = new Map();
     const artOf = r => r ? (String(r.art ?? "").trim() || ART_AUTO.get(r.id) || "") : "";
     const artRefresh = () => {
@@ -360,7 +337,6 @@
     };
     const insPrice = (k, r) => { if (k !== "prd") return r.p; const v = insPrdPrice(INS, r.id); return v !== "" ? v : (INS.links || []).some(l => (l.prd || []).some(x => x.id === r.id)) ? "" : lkPrimPrice(r); };
     const insHT = (k, r) => r.t ? 0 : insQty(k, r) * num(insPrice(k, r) || 0);
-    const insTVA = r => (r.tva === "" || r.tva === undefined) ? 20 : num(r.tva);
     /* TVA de la ligne : produits = celle de la désignation liée (vide sans liaison) */
     const insTVAk = (k, r) => k === "prd" ? insPrdTVA(INS, r.id) : insTVA(r);
     const insTTC = (k, r) => insHT(k, r) * (1 + num(insTVAk(k, r) || 0) / 100);
@@ -502,7 +478,6 @@
     /* remarque 4 (v542) : conditionnement réglé sur l'article (tous les budgets, voir 26b) ou, avant, sur ce budget */
     const condHas = r => { const k = U_(r.des) + "|" + U_(r.u); let A = {}; try { A = JSON.parse(localStorage.getItem("svi_cond_chs_v1") || "{}") || {}; } catch (e) {} return !!(A[k] || (INS.cond || {})[k]); };
     const condBtn = r => `<button type="button" class="chg-pk${condHas(r) ? " on" : ""}" tabindex="-1" data-cid="${r.id}" aria-label="Conditionnement"><svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg></button>`;
-    const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     /* page unique : rond à gauche = choix pour la liaison (2e toucher = libère le choix) ;
        case à droite = suppression (cochée, elle devient 🗑 ; ANNULER la décoche) */
     /* rond d'en-tête (FORMAT) : « toutes les lignes déjà liées » du bloc sont choisies, pour les délier d'un coup */
@@ -515,8 +490,6 @@
       return true;
     };
     const lkOn = (k, id) => (k === "prd" || k === "chg") ? LK[k][id] !== undefined : (LK.all && LK.all[k] ? lkAllLinked(k, id) && lkInPart(k, id) : LK[k] === id);
-    /* v530 : chiffre d'une pastille (à moitié remplie : blanc sur la partie colorée, couleur sur la partie blanche) */
-    const pstNum = n => `<b class="pst-n">${n}</b>`;
     const lkRdPart = (k, key) => {
       if (!INS_EDIT) return "";
       /* v528 (remarque 1) : rond d'en-tête actif = tous les titres aussi ; rond d'un titre parent d'un titre choisi = choisi aussi */
@@ -618,9 +591,6 @@
     /* v490 (remarque 4) : quel que soit le rond choisi (désignation, lot, activité, produit, charge), les lignes liées
        à ce choix ont le point dans leur rond (avant : seulement quand une désignation était choisie) */
     const lkRd = (k, r) => INS_EDIT && r && r.t && k === "des" ? lkRdPart("des", r.id) : INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${(LK.des && lkIsLinked(k, r.id)) || lkHit(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
-    /* case à droite : elle coche seulement (suppression, export, aperçu passent par le menu ⋯ du bloc) */
-    const insDelCell = r => !r ? "" : `<input type="checkbox" class="ins-cb${r.t ? " ins-tcb" : ""}" ${!r.t && r.on === true ? "checked" : ""}>`;
-    const insQCol = k => false;   /* plus de colonne QUANTITÉ DE LA TÂCHE : la quantité liée est la QPB du produit */
     const insRowHTML = (k, r, lvl) => {
       const cols = insColsOrd(k);
       const tcell = "";   /* plus de colonne T : un titre se crée en superposant deux lignes (FORMAT 61) */
@@ -637,7 +607,6 @@
     /* lignes + sous-totaux de titres (désignations) */
     /* filtres / tri de colonne (mêmes menus que la version validée) :
        une ligne filtrée garde son titre ; un tri affiche la liste à plat */
-    const insCfT = k => k === "des" ? "client" : k;
     /* FORMAT 131 : bouton « COCHÉES SEULEMENT (n) » — n'affiche que les lignes cochées (avec leurs titres) */
     const ONLYC = shell.__onlyc = shell.__onlyc || {};
     const onlyBtn = (k, short) => {
@@ -706,20 +675,6 @@
       }
       return { ht, ttc };
     };
-    /* suite d'affichage : titres, lignes et sous-totaux (écran et aperçu) */
-    const insOrder = rows => {
-      const out = [], stack = [];
-      rows.forEach(r => {
-        while (stack.length && dOf(stack[stack.length - 1]) >= dOf(r)) out.push({ sub: stack.pop() });
-        out.push({ r, lvl: dOf(r) });
-        if (r.t) stack.push(r);
-      });
-      while (stack.length) out.push({ sub: stack.pop() });
-      return out;
-    };
-    /* ===== titres repliables (FORMAT 60) : › replié / ⌄ déplié ; état mémorisé par budget ===== */
-    const FOLD_KEY = "svi_fold_v1";
-    const foldAll = () => { try { return JSON.parse(localStorage.getItem(FOLD_KEY) || "{}") || {}; } catch (e) { return {}; } };
     const foldGet = () => foldAll()[ref] || {};
     /* v512 (remarque 76) : première ouverture d'un budget — titres des désignations pliés (état mémorisé ensuite) */
     if (INS && !(ref in foldAll())) {
@@ -759,18 +714,12 @@
         shell.__fold(b.dataset.fold);
       }, true);
     }
-    /* v510 (remarque 68) : état d'une branche pour la couleur de son signe ou de sa pastille */
-    const sviFoldState = (red, blue) => red && blue ? " fs-vio" : red ? " fs-red" : blue ? " fs-blu" : "";
     const foldBtn = r => r && r.t ? `<span class="ins-fold${foldGet()[r.id] ? "" : " open"}${INS_EDIT ? (() => { const B = insBranch(r).filter(x => !x.t); return sviFoldState(B.some(x => LK.des === x.id), B.some(x => lkHit("des", x.id))); })() : ""}" data-fold="${r.id}" role="button" aria-label="Replier / déplier">${foldGet()[r.id] ? "›" : "⌄"}</span>` : "";
-    /* grands tableaux (détail produits / charges) : lignes dessinées par paquets, au fil du défilement (rapidité) */
-    const INS_CHUNK = 120;
     const insMore = {};
     /* v492 (remarque 10) : DÉTAIL CHARGES filtré (filtre de colonne, cases cochées d'un autre bloc, « seulement les cochées ») */
     /* v499 (remarque 45) : charges identiques regroupées = un TITRE (gras, fond gris) — QCB, MCB HT et TTC cumulés,
        PCB moyen pondéré (MCB HT ÷ QCB), TÂCHE = nombre de tâches ; signe › / ⌄ pour plier / déplier ses lignes (affichées dessous,
        modifiables une par une) ; sa case coche / décoche toutes ses lignes (à moitié cochée si une partie seulement) */
-    /* v512 (remarque 76) : titres de charges regroupées PLIÉS à la première ouverture ; ceux qu'on déplie sont mémorisés (par budget) */
-    const CHG_GK = "svi_chggopen_v1";
     const chgOpenLoad = () => { try { return new Set(((JSON.parse(localStorage.getItem(CHG_GK) || "{}") || {})[ref]) || []); } catch (e) { return new Set(); } };
     shell.__chgGOpen = chgOpenLoad();
     shell.__chgGSave = () => { try { const o = JSON.parse(localStorage.getItem(CHG_GK) || "{}") || {}; o[ref] = [...shell.__chgGOpen]; localStorage.setItem(CHG_GK, JSON.stringify(o)); } catch (e) {} };
@@ -980,11 +929,6 @@
         clear: () => { shell.__prdNc = null; } }
     ];
     const fsSrc = k => FSRC.find(s => s.k === k);
-    const fsMark = s => (s.mark || s.on)();
-    /* loupes (filtres de colonne) : tableau → bloc de EFFACER et onglet */
-    const FS_CF = () => [["client", "client", ""], ["lot", "hier", ""], ["prim", "hier", ""], ["sec", "hier", ""],
-      [insCfT("chg"), "detail", "chg"], [insCfT("prd"), "detail", "prd"], ["dly", "detail", "dly"], ["dlyp", "detail", "dly"], ["dlyr", "detail", ""],
-      ["dlyi", "detail", ""], ["dlys", "detail", "dly"], ["lk_marge", "detail", "lnk"], ["lk_unl", "detail", "unl"], ["lk_inc", "detail", "inc"]];
     const fsCfOn = t => !!(CF[t] && Object.keys(CF[t].f || {}).length);
     /* effacer : un bloc (« client », « hier », « detail ») ou tout (blk vide) */
     const fsClear = blk => {
@@ -1180,34 +1124,6 @@
     };
     /* FORMAT 109 : bloc DÉSIGNATIONS CLIENT — à l'ouverture toutes les colonnes tiennent (cases comprises) :
        la colonne DÉSIGNATION se réduit (sauf largeur réglée à la main) ; texte à la ligne */
-    const clientTaFit = root => (root || document).querySelectorAll("textarea.ins-ta").forEach(t => {
-      t.style.height = "0px"; t.style.height = Math.max(20, t.scrollHeight) + "px";
-    });
-    const clientFit = () => {
-      const sc = document.querySelector(".bdg-d-client-scroll"), cg = $("bdgClientCols");
-      if (!sc || !cg) return;
-      const tbl = sc.querySelector("table"), dc = cg.querySelector('col[data-w="client.designation"]');
-      if (!sc.__ro && window.ResizeObserver) {
-        let raf = 0; const run = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(clientFit); };
-        sc.__ro = new ResizeObserver(run); sc.__ro.observe(sc);
-        const body = $("bdgClientBody"); if (body) new MutationObserver(run).observe(body, { childList: true, subtree: true });
-      }
-      if (tbl && dc && !cwLoad()["client.designation"] && sc.clientWidth > 300) {
-        const cols = [...cg.querySelectorAll("col")];
-        const others = cols.filter(c => c !== dc).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
-        const pr = parseFloat(getComputedStyle(sc).paddingRight) || 0;   /* FORMAT 134 : 9 px jusqu'au bord droit */
-        const nd = Math.max(160, Math.min(cwGet("client", "designation"), Math.floor(sc.clientWidth - pr - others)));
-        if (parseFloat(dc.style.width) !== nd) dc.style.width = nd + "px";
-        const tw = others + nd + "px";
-        if (tbl.style.width !== tw) tbl.style.width = tw;
-      }
-      /* version validée / figée : cellule DÉSIGNATION à la ligne */
-      if (tbl && dc && !tbl.classList.contains("ins-table")) {
-        const idx = [...cg.querySelectorAll("col")].indexOf(dc);
-        tbl.querySelectorAll("tbody tr").forEach(tr => { const td = tr.children[idx]; if (td && td.colSpan <= 1) td.classList.add("c-wrap"); });
-      }
-      clientTaFit(sc);
-    };
     const insRenderClient = () => {
       insNorm();
       const t = document.querySelector("#bdgClientTitle .ttl");
@@ -1232,18 +1148,11 @@
       insDim();
       clientFit();
     };
-    /* mode SAISIE : la case sert à choisir des lignes (plus de grisé des autres) ; le choix unique est en mode LIAISONS */
-    const insDim = () => {};
-    /* ===== LOTS en arborescence (« / ») dans le bloc TÂCHES : niveaux repliables › / ⌄, nom du dernier niveau ===== */
-    const lotSegs = r => String(r && r.v || "").split("/").map(x => x.trim()).filter(Boolean);
     /* v461 : NUMÉRO D'ORDRE des lots et niveaux (cahier, Planning budgétaire) — lots principaux 1, 2, 3… dans l'ordre des lots,
        puis 1.1, 1.2, 1.1.1… selon l'arborescence ; écrit devant le nom (« 1.1 BAS ») ; niveau sans nom = « NIVEAU 1.1 » */
-    /* v527 (remarque 3) : « GROUPE » au lieu de « NIVEAU » (anciens noms « NIVEAU n » reconnus et affichés « GROUPE n ») */
-    const LVL_AUTO = /^(NOUVEAU )?(NIVEAU|GROUPE) \d+(\.\d+)*$/i;
     let lotNumC = { k: null, M: null };
     /* v532 : un titre de groupe garde le numéro de son nom (« GROUPE 6 » reste « GROUPE 6 » quoi qu'on fasse dans le tableau) ;
        les lots sont numérotés selon leur place, en sautant les numéros déjà pris par les groupes du même niveau */
-    const lotAutoNo = g => { const m = String(g || "").trim().match(/^(?:NOUVEAU )?(?:NIVEAU|GROUPE) (\d+(?:\.\d+)*)$/i); return m ? m[1] : ""; };
     const lotNumMap = () => {
       const k = INS.lot.map(x => (x.t ? "#" : "") + x.v).join("\n");
       if (lotNumC.k === k) return lotNumC.M;
@@ -1274,7 +1183,6 @@
       const name = auto ? "GROUPE " + lotAutoNo(last) : last;
       return { no, auto, name, full: auto ? name : (no ? no + " " : "") + last };
     };
-    const lotNoHTML = L => L.auto || !L.no ? "" : `<span class="lvl-no">${esc(L.no)}</span>`;
     /* nom d'un nouveau niveau de lot (16/10/2026) : « NIVEAU n », numéro suivant dans le budget (anciens « NOUVEAU NIVEAU n » comptés) */
     /* v450 : nom d'un niveau créé selon l'arborescence — sous un lot : NIVEAU 1, NIVEAU 2… (rang parmi les niveaux du même parent) ;
        sous un niveau « NIVEAU 2 » : NIVEAU 2.1, NIVEAU 2.2… ; affiché avec le nom des parents (« FONDATION / NIVEAU 2 ») tant qu'on ne lui donne pas un intitulé */
@@ -1292,7 +1200,6 @@
       while (kids.has(P.concat("GROUPE " + base + n).join(" / "))) n++;
       return "GROUPE " + base + n;
     };
-    const lotUnder = (r, P) => { const s2 = lotSegs(r); return s2.length >= P.length && P.every((g, i) => U_(g) === U_(s2[i])); };
     /* arborescence dans l'ordre des lots (classés par ordre alphabétique au départ, puis ordre libre) :
        un niveau prend la place de son premier lot */
     const lotTreeRows = list => {
@@ -1355,19 +1262,6 @@
     }).join("");
     /* glissement d'un lot (FORMAT 26, 44) : dans un niveau = passe dessous ; avant / après = même niveau que la ligne visée ;
        superposé à un lot = nouveau niveau « NIVEAU n » qui regroupe les deux */
-    /* v529 : lots rangés dans l'ordre de l'arborescence affichée (un niveau prend la place de son premier lot) */
-    const lotTreeOrder = arr => {
-      const first = new Map();
-      arr.forEach((r, i) => { const s2 = lotSegs(r); for (let j = 1; j <= s2.length; j++) { const p = U_(s2.slice(0, j).join(" / ")); if (!first.has(p)) first.set(p, i); } });
-      const key = r => { const s2 = lotSegs(r); return s2.map((_, j) => first.get(U_(s2.slice(0, j + 1).join(" / ")))); };
-      const K = new Map(arr.map(r => [r, key(r)]));
-      const pos = new Map(arr.map((r, i) => [r, i]));
-      return arr.slice().sort((a, b) => {
-        const A = K.get(a), B = K.get(b);
-        for (let i = 0; i < Math.min(A.length, B.length); i++) if (A[i] !== B[i]) return A[i] - B[i];
-        return A.length - B.length || pos.get(a) - pos.get(b);
-      });
-    };
     /* v529 (remarques 4 et 5) : dépôt ENTRE deux lignes de la liste des lots — gap = { prev: chemin de la ligne du dessus (ou null),
        inStart: ligne du dessus = titre déplié (on entre dedans, en premier), D: rang d'arrivée (0 = premier rang) } */
     const lotDrop = (srcId, tEl, mode, gap, opts = {}) => {
@@ -1481,8 +1375,6 @@
     }
     /* v529 (remarque 3) : nom tapé sur un titre de groupe gardé même si l'écran est redessiné avant que la case ne soit quittée
        (iPad : toucher un rond, un signe de pliage ou un autre groupe ne fait pas toujours perdre le focus) — LOTS et PLANNING */
-    /* v533 : la case du nom tapé est suivie à la frappe (même si elle a perdu le focus, iPad) */
-    const GN_SEL = "input.lot-gname, input.dly-nm:not(.dly-gin)";
     if (!shell.__gnBound) {
       shell.__gnBound = true;
       shell.addEventListener("input", e => { const i = e.target.closest && e.target.closest(GN_SEL); if (i) { i.__gnDone = false; shell.__gnPend = i; } }, true);

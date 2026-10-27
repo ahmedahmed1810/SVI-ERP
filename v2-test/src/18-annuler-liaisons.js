@@ -946,11 +946,6 @@
       coApply("client", $("bdgClientHead").closest("table"));
     };
 
-    const uniq = arr =>
-      [...new Set(arr.filter(v => String(v).trim() !== ""))]
-        .sort((x, y) =>
-          String(x).localeCompare(String(y), undefined, { numeric: true })
-        );
 
     /* filtre dans tous les sens : chaque colonne affiche les valeurs
        des lignes qui respectent TOUS les AUTRES filtres (désignations,
@@ -1208,57 +1203,9 @@
     /* décocher un seul bloc */
     shell.__insClrK = k => { const s = fsSrc(k); if (!s) return; s.clear(); insSave(); refreshAll(); };
 
-    const tvaFor = l =>
-      l.ttcAmount !== undefined ? l.ttcAmount - l.amount : l.amount * l.tva / 100;
-
-    /* ligne TOTAL en pied des onglets Détail charge / produit */
-    const tabFootHTML = (list, prd) => {
-      /* produits : la quantité totale ne compte que les clés primaires
-         (lignes au prix non nul), comme dans les désignations client */
-      const qty = list.reduce((t, l) =>
-        t + (prd && !l.priceTTC ? 0 : l.qty), 0);
-      const ht = list.reduce((t, l) => t + l.amount, 0);
-      const tva = list.reduce((t, l) => t + tvaFor(l), 0);
-      const lead = prd ? 6 : 2;   /* colonnes avant « TOTAL » */
-      /* quantité (et prix moyen) seulement si toutes les unités sont identiques */
-      const units = new Set(list.map(l => String(l.dunit ?? "").trim().toUpperCase()));
-      const sameUnit = list.length > 0 && units.size === 1;
-      return `
-        <tr class="bdg-d-total-row">
-          ${
-            sameUnit
-              ? `${"<td></td>".repeat(lead)}
-                 <td class="number">TOTAL</td>
-                 <td class="number">${money(qty)}</td>
-                 <td class="number">${money(qty ? ht / qty : 0)}</td>`
-              /* unités différentes : « TOTAL » juste avant le montant HT */
-              : `${"<td></td>".repeat(lead + 2)}
-                 <td class="number">TOTAL</td>`
-          }
-          <td class="number">${money(ht)}</td>
-          <td class="number" id="bdgFtTVA">${money(tva)}</td>
-          <td class="number" id="bdgFtTTC">${money(ht + tva)}</td>
-        </tr>`;
-    };
 
 
-    const tcolsFor = prd => [
-      /* détail produits : pas de colonne ART (FORMAT 6) */
-      ...(prd ? [] : [["article", "ART", l => l.article, "center"]]),
-      ["detail", prd ? "DÉSIGNATION PRODUIT" : "DÉSIGNATION CHARGE", l => l.detail, ""],
-      ["unit", prd ? "UPB" : "UCB", l => l.unit, "center"],
-      ...(prd ? [
-        ["nbr", "NBR", l => String(l.nbr ?? ""), "number"],
-        ["d1", "DIM 1", l => String(l.dims[0] ?? ""), "number"],
-        ["d2", "DIM 2", l => String(l.dims[1] ?? ""), "number"],
-        ["d3", "DIM 3", l => String(l.dims[2] ?? ""), "number"]
-      ] : []),
-      ["qty", prd ? "QPB" : "QCB", l => l.qty, "number"],
-      ["price", prd ? "PPB" : "PCB", l => l.price, "number"],
-      ["amount", prd ? "MPB HT" : "MCB HT", l => l.amount, "number"],
-      ["tva", "TVA %", l => String(l.tva ?? ""), "number"],
-      ["ttc", prd ? "MPB TTC" : "MCB TTC", l => l.amount + l.tvaAmt, "number"]
-    ];
+
 
     /* recalcule les contraintes propagées par les filtres de colonne */
     const computeCons = (withClient = true) => {

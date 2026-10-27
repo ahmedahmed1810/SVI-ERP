@@ -25,7 +25,6 @@
       /* FORMAT 131 (v489) : contrôles de suite sans remarque, après un audit soldé, pour remettre le compteur à zéro */
       ["nrz", "CONTRÔLES SANS REMARQUE", 130, "num"]
     ];
-    const QQ_TREE_W = 300;
     const qqData = () => {
       INS.qq = INS.qq || {};
       const Q = INS.qq;
@@ -45,10 +44,6 @@
       if (!Q.T[key]) { if (!INS_EDIT) return qqDefault(); Q.T[key] = qqDefault(); }
       return Q.T[key];
     };
-    const qqEnd = (L, i) => { let j = i + 1; while (j < L.length && L[j].d > L[i].d) j++; return j; };
-    const qqHasPts = (L, i) => L.slice(i + 1, qqEnd(L, i)).some(x => x.k !== "t");
-    const qqHasSubT = (L, i) => L.slice(i + 1, qqEnd(L, i)).some(x => x.k === "t");
-    const qqCrit = L => (L || []).filter(x => x.k === "c");
     const qqCount = key => qqCrit(key === undefined ? qqList(qqKey()) : qqList(key)).length;
     /* tâche (clé « lot|sec ») : ses produits et charges, pour ÉLÉMENT VISÉ et la fréquence par quantité */
     const qqElems = key => {
@@ -91,7 +86,6 @@
       if (fq) { const e = qqEvQty(n.ev); f = "1/" + insFmt(fq).replace(/,00$/, "") + (e && e.u ? " " + e.u : ""); }
       return [b, f].filter(Boolean).join(" · ");
     };
-    const qqAppLab = n => n.pv ? insFmt(n.pv).replace(/,00$/, "") + " J" + (n.pw ? " · " + n.pw : "") : "";
     /* tâches qui portent un point d'arrêt (FORMAT 107 : ■ sur le Gantt) — modèle commun compris */
     const qqArret = key => {
       const Q = INS.qq;
@@ -473,45 +467,7 @@
       if (keepFocus) { const t = body.querySelector(keepFocus); if (t) t.focus(); }
     };
     const qqSave = () => insSave();
-    /* petite liste au format de l'application sous la case (comme les unités, FORMAT 50) */
-    const qqPick = (td, items, cur, done) => {
-      document.getElementById("qqPick")?.remove();
-      const m = document.createElement("div");
-      m.id = "qqPick";
-      m.innerHTML = items.map(it => `<button type="button" data-v="${esc(it.v)}" class="${it.v === cur ? "on" : ""}">${esc(it.lab)}</button>`).join("")
-        + (cur ? '<button type="button" data-v="" class="qq-clr">EFFACER</button>' : "");
-      document.body.appendChild(m);
-      const r = td.getBoundingClientRect();
-      sviPlaceMenu(m, { top: r.top, bottom: r.bottom, right: r.left + Math.max(r.width, m.offsetWidth), left: r.left });
-      const close = ev => { if (!m.contains(ev.target)) { m.remove(); document.removeEventListener("pointerdown", close, true); } };
-      setTimeout(() => document.addEventListener("pointerdown", close, true), 0);
-      m.addEventListener("click", ev => {
-        const b = ev.target.closest("[data-v]");
-        if (!b) return;
-        m.remove(); document.removeEventListener("pointerdown", close, true);
-        done(b.dataset.v);
-      });
-    };
     const qqNode = (key, id) => qqList(key).find(x => x.id === id);
-    /* fenêtres DÉCLENCHEMENT et APPEL (FORMAT 105 et 106), au format INF */
-    const qqWin = (title, html, onOk, onLive) => {
-      const d = sviWinNew();
-      d.innerHTML = `<div class="svc-card qq-win" role="dialog" aria-modal="true">
-          <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
-          <div class="svc-t">${esc(title)}</div><div class="svc-x svc-html">${html}</div>
-          <div class="svc-f"><button type="button" class="svc-b" data-r="0">ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-r="1">ENREGISTRER</button></div></div>`;
-      sviWinShow(d);
-      if (onLive) { d.addEventListener("input", () => onLive(d)); d.addEventListener("change", () => onLive(d)); onLive(d); }
-      let lp = null;
-      d.addEventListener("pointerdown", e => { const g = e.target.closest(".qq-dis"); if (g) lp = setTimeout(() => svToast(g.dataset.why || "", 3500, g), 500); });
-      ["pointerup", "pointercancel"].forEach(t => d.addEventListener(t, () => clearTimeout(lp)));
-      d.addEventListener("click", e => {
-        const b = e.target.closest("[data-r]");
-        if (!b && e.target !== d) return;
-        if (b && b.dataset.r === "1") onOk(d);
-        d.remove();
-      });
-    };
     const qqDecWin = (key, n) => {
       const e = qqEvQty(n.ev), sel = new Set(n.btn || []);
       const html = `<div class="svc-sub">BOUTONS ${svCnt(sel.size)}</div><div class="qq-wl">${QQ_BTNS.map(b => `<label><input type="checkbox" value="${esc(b)}" ${sel.has(b) ? "checked" : ""}> ${esc(b)}</label>`).join("")}</div>
