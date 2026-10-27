@@ -464,13 +464,10 @@
           const rng = `<div class="grng${RG.a ? "" : " grng-off"}" data-r="a" style="left:${xa}px"><span>DÉBUT${RG.a ? " " + dFr(RG.a).slice(0, 5) : ""}</span></div>`
             + `<div class="grng${RG.b ? "" : " grng-off"}" data-r="b" style="left:${xb}px"><span>FIN${RG.b ? " " + dFr(RG.b).slice(0, 5) : ""}</span></div>`
             + (RG.a || RG.b || VL.min !== null || VL.max !== null ? `<div class="grng-tot" style="left:${(xa + xb) / 2}px">${sumTxt}</div>` : "");
-          /* R20 : lignes MIN et MAX (filtre par valeur, sur les charges) */
-          const vl = (r, v, off) => `<div class="gval${off ? " gval-off" : ""}" data-v="${r}" style="top:${off ? (r === "max" ? 22 : Y0 - 1) : Y0 - v * sc}px"><span>${r.toUpperCase()}${off ? "" : " " + fmtA(v)}</span></div>`;
           /* v568 (remarque 12) : plus de lignes MIN / MAX (filtre) — une RÈGLE horizontale pour comparer à l'œil : sa valeur seule,
              tirée au doigt, affichée / cachée en touchant l'axe des montants ; au départ au niveau de la plus grande valeur */
           const rv = shell.__dlyRuleV !== undefined && shell.__dlyRuleV !== null ? shell.__dlyRuleV : mx;
           const vals = shell.__dlyRule ? `<div class="gval grule" style="top:${Y0 - rv * sc}px"><span>${fmtA(rv)}</span></div>` : "";
-          void vl;
           /* échelle (R24) : unité en tête, nombres abrégés, toujours visible à gauche */
           const stp = (() => { const raw = top / 4, p = Math.pow(10, Math.floor(Math.log10(raw || 1))), m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; })();
           let ax = "";
@@ -571,7 +568,6 @@
       ft.style.height = F + "px";
       ft.classList.toggle("dlyf-empty", !hist);
       dlyFootPos();
-      ft.classList.toggle("dlyf-gra", !!shell.querySelector(".dlyg.dly-gra"));
       const br = body.getBoundingClientRect(), hr = host.getBoundingClientRect(), sp = shell.querySelector(".dlyg-sp");
       inn.style.width = (host.scrollWidth || 0) + "px";
       { const dw = host.style.getPropertyValue("--dw"); if (ft.style.getPropertyValue("--dw") !== dw) ft.style.setProperty("--dw", dw); }
@@ -621,7 +617,7 @@
     const dlyCfgPaint = () => {
       const g = shell.querySelector(".blk-cfg-btn"); if (!g) return;
       const host = shell.querySelector("#dlyGantt"), h = shell.querySelector(".dlyg-foot .ghist");
-      const on = (active === "dly" || active === "gra") && !!shell.__insDly && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone");
+      const on = active === "dly" && !!shell.__insDly && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone");
       if (g.classList.contains("dly-on") !== on) g.classList.toggle("dly-on", on);
     };
     /* histogramme (et son libellé, et la poignée « = ») gardé en bas de la zone visible du planning : les tâches défilent dessous */
@@ -660,7 +656,7 @@
     const dlyThFix = () => {
       const L = shell.querySelector(".dlyg-l"), body = shell.querySelector("#bdgTabBody"), tbl = L && L.querySelector("table"), th = tbl && tbl.querySelector(":scope > thead"), scr = L && L.closest(".dly-scroll");
       let fx = body && body.querySelector(":scope > .th-fix");
-      if (!L || !th || !scr || !body || L.clientWidth < 3 || L.closest(".dly-gra")) { if (fx) fx.remove(); if (th) th.classList.remove("th-under"); return; }
+      if (!L || !th || !scr || !body || L.clientWidth < 3) { if (fx) fx.remove(); if (th) th.classList.remove("th-under"); return; }
       if (!fx) { fx = document.createElement("div"); fx.className = "th-fix"; fx.innerHTML = '<table></table>'; body.appendChild(fx); }
       const t = fx.firstChild;
       if (th.__fixSrc !== th.innerHTML || t.className !== tbl.className + " th-fix-t") {

@@ -282,7 +282,6 @@
         if (!dry) { const best = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0]; if (best !== undefined) lim[k] = G[best].gk; }
         return { a: a === null ? s0 : a, b, got };
       };
-      const hasR = k => G.some(g => dlyGQ(k, g.keys, g.m) > 0);
       const links = [], FX = new Set();
       /* v570 : GÉNÉRER seul — les tâches complètes sont posées d'abord, à leurs dates, et occupent la capacité */
       if (opts.gen) L.forEach(k => {
@@ -436,7 +435,6 @@
         if (c.checked) dlyCompressRun(); else dlyCompressRun({ gen: true });
       });
     };
-    const dlyGenComp = () => dlyGCWin();
 
     /* ---------- R21 à R23 : CAPACITÉ ---------- */
     /* couper la barre à une date : les tâches qui commencent avant restent dans le morceau de gauche (la coupe les suit) */
@@ -487,7 +485,7 @@
     const DLY_SER = ["#f79009", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#fdb022", "#9e165f"];   /* v588 : plus de gris dans les séries (le gris = hors DÉBUT – FIN) */
     /* hauteur de l'histogramme : nombre de pixels (28 = miniaturisé en bas) ou « full » (plein écran, à la place du Gantt) */
     /* v546 (R25) : 0 = histogramme entièrement caché (poignée tout en bas) */
-    const dlyHHGet = () => { if (active === "gra") return "full"; let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : v === "0" ? 0 : Math.max(28, Math.min(2000, Number(v) || 110)); };
+    const dlyHHGet = () => { let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : v === "0" ? 0 : Math.max(28, Math.min(2000, Number(v) || 110)); };
     const dlyHHSet = v => { try { localStorage.setItem("svi_dlyhh_v1", String(v)); } catch (e) {} };
     const dlyHSetPut = o => { INS.hset = { ...dlyHSet(), ...o }; insSave(); renderTabK(); };
     /* R19 / R20 : plage DÉBUT – FIN et filtre MIN – MAX (mémorisés par budget) */

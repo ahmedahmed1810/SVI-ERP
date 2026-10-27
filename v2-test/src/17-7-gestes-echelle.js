@@ -91,10 +91,8 @@
         };
         shell.addEventListener("touchmove", pmv, { passive: false });
         const end = e => { if (!P0 || (e.touches && e.touches.length >= 2)) return; const tg = P0.tg; if (tg) { tg.removeEventListener("touchmove", pmv); tg.removeEventListener("touchend", end); tg.removeEventListener("touchcancel", end); }
-          /* v449 : toucher bref à deux doigts (sans écarter) n'importe où sur le Gantt = Gantt sur toute la largeur ↔ tableau de nouveau affiché */
-          const tap = !P0.mode && Date.now() - P0.t0 < 450 && e.type === "touchend";
+          /* v451 : les deux doigts ne servent qu'au pincement (le tableau ne revient que par la poignée) */
           P0 = null; setTimeout(() => { shell.__dlyPinch = false; }, 50);
-          void tap;   /* v451 : les deux doigts ne servent qu'au pincement (le tableau ne revient que par la poignée) */
         };
         shell.addEventListener("touchend", end); shell.addEventListener("touchcancel", end);
         /* v582 : graphique zoomé — un doigt à la verticale fait monter ou descendre l'échelle (le sens dominant du geste décide) ;

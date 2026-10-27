@@ -2467,9 +2467,6 @@ tr.fz-flash > td { background: #fef0c7 !important; transition: background .3s; }
 .dlyg-hd { width: 40px; height: 40px; margin-left: -18.5px; line-height: 36px; font-size: 22px; font-weight: 900; border: 2px solid #fff; box-sizing: border-box; background: #344054; box-shadow: 0 0 0 1px #344054, 0 2px 6px rgba(0,0,0,.3); }
 .dlyg-hd::after { inset: -14px; }
 /* v584 : onglet GRAPHIQUE — seul le graphique, sur tout le bloc */
-.dlyg.dly-gra .dlyg-sp, .dlyg.dly-gra .dlyg-hh { display: none !important; }
-.dlyg.dly-gra .dlyg-l { position: absolute !important; left: -99999px !important; visibility: hidden; pointer-events: none; }   /* gardé mis en page : le dessin lit la hauteur des lignes */
-.dlyg.dly-gra .dlyg-r { flex: 1 1 auto; width: 100%; }
 /* v586 : l'axe des valeurs passe au-dessus du trait DÉBUT (toucher l'axe = règle) ; l'étiquette DÉBUT, en haut, reste à tirer */
 #dlyGantt .ghist-ax { z-index: 6; }
 /* v587 : barres des CHARGES toujours en orange ; étiquettes DÉBUT / FIN sous l'en-tête quand on défile */
@@ -2499,7 +2496,6 @@ tr.fz-flash > td { background: #fef0c7 !important; transition: background .3s; }
 #bdgTabBody > .dlyg-foot > .dlyf-sc > .dlyf-in { position: relative; height: 100%; }
 #bdgTabBody > .dlyg-foot .ghist { transform: none !important; border-top: 0; }
 #bdgTabBody > .dlyg-foot > .dlyg-hh { position: absolute; z-index: 9; }
-#bdgTabBody > .dlyg-foot.dlyf-gra > .dlyg-hh { display: none; }
 #bdgTabBody > .th-fix { position: absolute; z-index: 7; overflow: hidden; pointer-events: none; background: #f6f7f9; }
 #bdgTabBody > .th-fix > table { table-layout: fixed; will-change: transform; margin: 0; }
 #bdgTabBody > .th-fix thead { position: static !important; transform: none !important; }

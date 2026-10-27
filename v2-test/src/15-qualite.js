@@ -844,7 +844,7 @@
         if (b) b.outerHTML = svCnt(ls.rows.length, tot);
       }, 0);
       /* v584 : onglet GRAPHIQUE = le graphique du DÉTAIL DÉLAIS sur tout le bloc (il reste aussi sous le Gantt) */
-      if (active === "dly" || active === "gra") {
+      if (active === "dly") {
         /* délais : saisis ici (périodes par tâche secondaire ; tâche primaire choisie = récapitulatif) */
         body.innerHTML = `<div class="bdg-d-scroll dly-scroll">${insDlyHTML(INS_EDIT, shell.__insDly && shell.__insDly.err)}</div>`;
         /* v594 (remarque longue 2) : bandeau ISOLÉ posé AU-DESSUS de la zone qui défile (jamais sur les en-têtes) */

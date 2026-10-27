@@ -34,8 +34,7 @@
         /* fil d'une liaison sur le Gantt : fenêtre LIAISON */
         const gl = e.target.closest && e.target.closest(".gl-hit");
         if (gl) { e.stopPropagation(); X.linkWin(gl.dataset.p, gl.dataset.s); return; }
-        const tr = e.target.closest && e.target.closest("tr.dly-task");
-        void tr;   /* v454 : les dates se saisissent dans la ligne ; toucher la ligne ne change plus les choix des ronds */
+        /* v454 : les dates se saisissent dans la ligne ; toucher la ligne ne change plus les choix des ronds */
       });
       /* gestes sur le Gantt (FORMAT 96) : glisser une barre = la déplacer ; tirer son bout = changer la FIN ;
          appui long sur la fin (ou le début) puis glisser jusqu'à une autre barre = liaison FIN → DÉBUT (ou DÉBUT → DÉBUT) */

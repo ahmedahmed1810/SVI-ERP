@@ -598,7 +598,7 @@
 
       if (tab) {
         active = tab.dataset.tab;
-        if (active === "dly" || active === "gra") shell.__dlyCenter = true;   /* v603 : plage remplie centrée à l'ouverture du graphique */
+        if (active === "dly") shell.__dlyCenter = true;   /* v603 : plage remplie centrée à l'ouverture du graphique */
         try { localStorage.setItem("svi_dtab_v1", active); } catch (e) {}
         renderTab();
         return;
