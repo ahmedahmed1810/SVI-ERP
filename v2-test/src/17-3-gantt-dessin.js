@@ -347,43 +347,10 @@
       if (Math.abs(sc.scrollLeft - host.scrollLeft) > 0.5) sc.scrollLeft = host.scrollLeft;
       if (!host.__footS) { host.__footS = true; host.addEventListener("scroll", () => { const f = shell.querySelector("#bdgTabBody > .dlyg-foot > .dlyf-sc"); if (f && Math.abs(f.scrollLeft - host.scrollLeft) > 0.5) f.scrollLeft = host.scrollLeft; }, { passive: true }); }
     };
-    /* v545 (remarque 2) : bas de l'écran visible (clavier de l'iPad compris) */
-    const dlyVpB = () => { const vv = window.visualViewport; return vv ? vv.offsetTop + vv.height : window.innerHeight; };
     /* v551 (FORMAT 200) : le bloc du PLANNING est un cadre fermé dont le bas tombe au bas de l'écran visible.
        capMax = sa plus grande hauteur (bloc en haut de l'écran, sous le bandeau et les onglets) : sert au dessin, ne dépend pas du défilement ;
        hauteur réelle = du haut du bloc au bas de l'écran (jamais plus que capMax) : suit le défilement de la page, sans redessiner.
        Renvoie 2 si capMax a changé (redessiner), 1 si seule la hauteur a changé, 0 sinon */
-    const dlyFitScr = scr => {
-      if (!scr || !scr.classList.contains("dly-scroll")) return 0;
-      let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
-      const tabs = document.getElementById("bdgTabs"), vb = dlyVpB();
-      const mx = !!scr.closest(".max-detail");
-      document.documentElement.classList.toggle("dly-lock", mx && scr.isConnected);
-      /* v594 (remarque longue 2) : bloc agrandi — la ligne des onglets toujours entière juste sous le bandeau du budget */
-      if (mx && tabs) { const t = tabs.getBoundingClientRect().top; if (t < lim - 0.5 || (t > lim + 0.5 && window.scrollY > 0)) window.scrollBy(0, t - lim); }
-      const sr = scr.getBoundingClientRect();
-      /* tot = hauteur totale du bloc (zone des tâches + pied du graphique) : bloc agrandi = jusqu'au bas de l'écran visible ;
-         sinon la hauteur commune du bloc détail (FORMAT 202), moins les bandeaux posés au-dessus (ISOLÉ…) */
-      let tot;
-      if (mx) tot = Math.max(160, Math.floor(vb - sr.top - 2));
-      else {
-        const hd = parseFloat(getComputedStyle(scr).getPropertyValue("--h-detail")) || 148;
-        let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
-        tot = Math.max(60, Math.round(hd - ban));   /* v596 : exactement la hauteur commune du bloc détail (même hauteur que les autres onglets) */
-      }
-      let r = 0;
-      if (Math.abs((scr.__capMax || 0) - tot) > 1) { scr.__capMax = tot; r = 2; }
-      /* v598 : bloc réduit — la hauteur suit directement la poignée du bas (variable --h-detail), moins les bandeaux posés au-dessus */
-      if (!mx) {
-        let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
-        const v = ban ? `calc(var(--h-detail, 148px) - ${ban}px)` : "";
-        if (scr.style.getPropertyValue("height") !== v) { if (v) scr.style.setProperty("height", v, "important"); else scr.style.removeProperty("height"); }
-        return r;
-      }
-      const want = tot;   /* v597 : le pied du graphique est posé par-dessus le bas du Gantt */
-      if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 1) { scr.style.setProperty("height", want + "px", "important"); r = r || 1; }
-      return r;
-    };
     /* v558 : ⚙ (réglages du graphique) visible seulement quand l'histogramme est affiché : pas en vue tableau seul, ni graphique caché */
     const dlyCfgPaint = () => {
       const g = shell.querySelector(".blk-cfg-btn"); if (!g) return;

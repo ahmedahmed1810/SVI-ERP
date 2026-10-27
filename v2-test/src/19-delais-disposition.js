@@ -179,16 +179,7 @@
       }
     };
 
-    /* ===== disposition des blocs : ordre et hauteur, mémorisés ===== */
-    const LAY_KEY = "svi_layout_v1";
     const LAY_UNITS = ["client", "hier", "detail", "suivi"];
-    const layLoad = () => {
-      try { return JSON.parse(localStorage.getItem(LAY_KEY) || "{}") || {}; }
-      catch (e) { return {}; }
-    };
-    const laySave = v => {
-      try { localStorage.setItem(LAY_KEY, JSON.stringify(v)); } catch (e) {}
-    };
     const page$ = () => shell.querySelector(".bdg-d-page");
     const layEls = u => {
       const pg = page$();
@@ -210,14 +201,6 @@
       return [...saved, ...LAY_UNITS.filter(u => !saved.includes(u))];
     };
     const layOpenH = {};   /* hauteurs réglées pendant cette ouverture seulement */
-    /* v557 (FORMAT 202) : hauteur du bloc détail par défaut = écran visible sous le bandeau (fixé) et les onglets, moins la poignée */
-    const layDetDef = () => {
-      let lim = 0;
-      document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
-      const vv = window.visualViewport, vb = vv ? vv.offsetTop + vv.height : window.innerHeight;
-      const tabs = $("bdgTabs"), th = tabs ? tabs.getBoundingClientRect().height : 50;
-      return Math.max(200, Math.floor(vb - lim - th - 22));
-    };
     const layApply = () => {
       const pg = page$();
       if (!pg) return;

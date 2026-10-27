@@ -64,43 +64,9 @@
 
     /* ---- lecture tolérante des colonnes (accents, espaces, / ignorés) ---- */
 
-    const nk = s =>
-      String(s ?? "")
-        .normalize("NFD")
-        .replace(/[̀-ͯ]/g, "")
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, "");
 
-    const pick = (row, names) => {
-      const keys = Object.keys(row);
 
-      for (const name of names) {
-        const target = nk(name);
 
-        const key =
-          keys.find(k => nk(k) === target);
-
-        if (
-          key !== undefined &&
-          normalise(row[key]) !== ""
-        ) {
-          return row[key];
-        }
-      }
-
-      return "";
-    };
-
-    const colIndex = letter =>
-      letter
-        .toUpperCase()
-        .split("")
-        .reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
-
-    const byLetter = (row, letter) =>
-      row.__cols
-        ? normalise(row.__cols[colIndex(letter)])
-        : "";
 
     const typeKey =
       Object.keys(budget.rows[0] || {})
@@ -212,12 +178,6 @@
        regroupées à l'affichage */
     /* Détail charges : regroupées par désignation + unité (article ignoré) ;
        Détail produits : PAS de regroupement, une ligne de la feuille = une ligne */
-    const gidOf = l =>
-      (l.kind === "chg"
-        ? [l.kind, l.detail, l.dunit]
-        : [l.kind, l.id])
-        .map(v => String(v ?? "").trim().toUpperCase())
-        .join("|");
 
     const groupMembers = new Map();
     lines.forEach(l => {
@@ -226,34 +186,6 @@
       groupMembers.get(l.gid).push(l);
     });
 
-    const groupLines = list => {
-      const m = new Map();
-      list.forEach(l => {
-        if (!m.has(l.gid)) m.set(l.gid, []);
-        m.get(l.gid).push(l);
-      });
-      return [...m.entries()].map(([gid, ms]) => {
-        const f = ms[0];
-        const qty = ms.reduce((t, l) => t + l.qty, 0);
-        const amount = ms.reduce((t, l) => t + l.amount, 0);
-        const tvaAmt = ms.reduce((t, l) => t + tvaFor(l), 0);
-        const prices = new Set(ms.map(l => l.price));
-        const same = v => new Set(ms.map(v)).size === 1 ? v(f) : "";
-        return {
-          gid, members: ms,
-          /* Détail charge : article toujours vide ;
-             Détail produit : vide si des articles différents sont fusionnés */
-          article: f.kind === "chg" ? "" : same(l => l.article),
-          detail: f.detail, unit: f.dunit,
-          nbr: same(l => l.nbr),
-          dims: [0, 1, 2].map(i => same(l => l.dims[i])),
-          qty, amount, tvaAmt,
-          /* prix identique, sinon prix moyen pondéré = montant / quantité */
-          price: prices.size === 1 ? f.price : (qty ? amount / qty : 0),
-          tva: same(l => l.tva)
-        };
-      });
-    };
 
     /* désignations choisies en haut (filtrent le bas) */
     const selDesig = new Set();
@@ -266,9 +198,7 @@
       sec: new Set()
     };
 
-    const desigKey = l => l.article + "||" + l.designation;
 
-    const inSet = (set, v) => !set.size || set.has(v);
 
     /* ce qu'apportent les lignes sélectionnées en bas */
     const rowSet = field => {

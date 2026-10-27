@@ -2962,6 +2962,1060 @@ function firstValue(row, names) {
 }
 
 
+/* ⟪ src/09-budget-outils.js ⟫ */
+/* =========================================================
+   OUTILS DU BUDGET SORTIS DU GRAND BLOC (refonte, étape 10, v646)
+   Fonctions et constantes sans état, qui ne dépendaient d'aucune variable du budget ouvert (openBudgetDetail) :
+   elles sont ici, hors du bloc, à un seul endroit ; le bloc les utilise comme avant. Choisies automatiquement
+   (analyse du code : aucune variable du budget ouvert, aucun état gardé) ; texte inchangé.
+   ========================================================= */
+/* — de src/11-budget-ouverture.js — */
+const nk = s =>
+  String(s ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+/* — de src/11-budget-ouverture.js — */
+const pick = (row, names) => {
+  const keys = Object.keys(row);
+
+  for (const name of names) {
+    const target = nk(name);
+
+    const key =
+      keys.find(k => nk(k) === target);
+
+    if (
+      key !== undefined &&
+      normalise(row[key]) !== ""
+    ) {
+      return row[key];
+    }
+  }
+
+  return "";
+};
+/* — de src/11-budget-ouverture.js — */
+const colIndex = letter =>
+  letter
+    .toUpperCase()
+    .split("")
+    .reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
+/* — de src/11-budget-ouverture.js — */
+const byLetter = (row, letter) =>
+  row.__cols
+    ? normalise(row.__cols[colIndex(letter)])
+    : "";
+/* — de src/11-budget-ouverture.js — */
+const gidOf = l =>
+  (l.kind === "chg"
+    ? [l.kind, l.detail, l.dunit]
+    : [l.kind, l.id])
+    .map(v => String(v ?? "").trim().toUpperCase())
+    .join("|");
+/* — de src/11-budget-ouverture.js — */
+const groupLines = list => {
+  const m = new Map();
+  list.forEach(l => {
+    if (!m.has(l.gid)) m.set(l.gid, []);
+    m.get(l.gid).push(l);
+  });
+  return [...m.entries()].map(([gid, ms]) => {
+    const f = ms[0];
+    const qty = ms.reduce((t, l) => t + l.qty, 0);
+    const amount = ms.reduce((t, l) => t + l.amount, 0);
+    const tvaAmt = ms.reduce((t, l) => t + tvaFor(l), 0);
+    const prices = new Set(ms.map(l => l.price));
+    const same = v => new Set(ms.map(v)).size === 1 ? v(f) : "";
+    return {
+      gid, members: ms,
+      /* Détail charge : article toujours vide ;
+         Détail produit : vide si des articles différents sont fusionnés */
+      article: f.kind === "chg" ? "" : same(l => l.article),
+      detail: f.detail, unit: f.dunit,
+      nbr: same(l => l.nbr),
+      dims: [0, 1, 2].map(i => same(l => l.dims[i])),
+      qty, amount, tvaAmt,
+      /* prix identique, sinon prix moyen pondéré = montant / quantité */
+      price: prices.size === 1 ? f.price : (qty ? amount / qty : 0),
+      tva: same(l => l.tva)
+    };
+  });
+};
+/* — de src/11-budget-ouverture.js — */
+const desigKey = l => l.article + "||" + l.designation;
+/* — de src/11-budget-ouverture.js — */
+const inSet = (set, v) => !set.size || set.has(v);
+/* — de src/12-tableaux-colonnes.js — */
+const cfText = v =>
+  typeof v === "number" ? money(v) : String(v ?? "").trim();
+/* — de src/12-tableaux-colonnes.js — */
+const cfIcon =
+  `<svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true">
+     <path d="M1 2h11M3 5h7M5 8h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+     <path d="M4.5 10l2 2.2 2-2.2z" fill="currentColor"/>
+   </svg>`;
+/* — de src/12-tableaux-colonnes.js — */
+/* ===== largeurs de colonnes : fixes, réglables, mémorisées ===== */
+const CW_KEY = "svi_colw_v1";
+/* — de src/12-tableaux-colonnes.js — */
+const cwLoad = () => {
+  try { return JSON.parse(localStorage.getItem(CW_KEY) || "{}") || {}; }
+  catch (e) { return {}; }
+};
+/* — de src/12-tableaux-colonnes.js — */
+const cwSave = obj => {
+  try { localStorage.setItem(CW_KEY, JSON.stringify(obj)); } catch (e) {}
+};
+/* — de src/12-tableaux-colonnes.js — */
+const SVI_COL = {
+  article: { w: 70, pw: 5 }, designation: { w: 330 }, detail: { w: 300, pw: 30 }, unit: { w: 70, pw: 5 },
+  qty: { w: 100, pw: 9 }, price: { w: 95, pw: 9 }, ht: { w: 120 }, amount: { w: 120, pw: 11 }, tva: { w: 80, pw: 6, f: "pct" }, ttc: { w: 130, pw: 11 },
+  nbr: { w: 60, pw: 5 }, d1: { w: 60, pw: 5 }, d2: { w: 60, pw: 5 }, d3: { w: 60, pw: 5 }, pct: { f: "pct" },
+  /* historique */
+  hdt: { pw: 14 }, hbr: { pw: 8 }, hac: { pw: 12 }, hde: { pw: 40 },
+  /* DOCUMENTS / TAF / OBSERVATIONS */
+  rref: { w: 210, pw: 22 }, rdate: { w: 150 }, rtitle: { w: 360, pw: 60 }, rfile: { w: 120 }, rexp: { w: 110, pw: 8 }, robj: { w: 200, pw: 15 }, rtext: { w: 420, pw: 30 },
+  rresp: { w: 180, pw: 13 }, rprev: { w: 140, pw: 12 }, rdelay: { w: 150, pw: 9 }, relap: { w: 150, pw: 9 }, rimp: { w: 60, pw: 4 }
+};
+/* — de src/12-tableaux-colonnes.js — */
+const SVI_COL_T = {
+  "client.article": 69, "client.designation": 660, "client.unit": 70, "client.qty": 71, "client.price": 86, "client.ht": 96, "client.tva": 81, "client.ttc": 97,
+  "chg.article": 69, "chg.detail": 300, "chg.rdb": 110, "chg.pct": 58, "chg.tache": 246, "chg.unit": 70, "chg.qty": 84, "chg.price": 84, "chg.amount": 92, "chg.tva": 80, "chg.ttc": 94,
+  "prd.detail": 176, "prd.tache": 246, "prd.unit": 70, "prd.nbr": 77, "prd.d1": 79, "prd.d2": 79, "prd.d3": 79, "prd.qty": 72, "prd.price": 72, "prd.amount": 92, "prd.tva": 82, "prd.ttc": 109
+};
+/* — de src/12-tableaux-colonnes.js — */
+const colPw = k => (SVI_COL[k] && SVI_COL[k].pw) || 10;
+/* — de src/12-tableaux-colonnes.js — */
+/* valeur d'une case pour un aperçu ou un export lisible : % pour les colonnes « pct », nombres au format 1 234,56 */
+const colFmt = (k, v) => (SVI_COL[k] && SVI_COL[k].f === "pct") && (k === "tva" || (v !== "" && v !== null && v !== undefined)) ? money(Number(v) || 0) + " %" : typeof v === "number" ? money(v) : String(v ?? "");
+/* — de src/12-tableaux-colonnes.js — */
+const cwGet = (t, k) => cwLoad()[t + "." + k] || SVI_COL_T[t + "." + k] || (SVI_COL[k] && SVI_COL[k].w) || 100;
+/* — de src/12-tableaux-colonnes.js — */
+/* colgroup + largeur totale de la table */
+const cwCols = (t, cols) =>
+  cols.map(([k]) =>
+    `<col data-w="${t}.${k}" style="width:${cwGet(t, k)}px">`
+  ).join("");
+/* — de src/12-tableaux-colonnes.js — */
+const cwTableW = (t, cols) =>
+  cols.reduce((sum, [k]) => sum + cwGet(t, k), 0);
+/* — de src/12-tableaux-colonnes.js — */
+/* ===== ordre des colonnes : glisser un en-tête, ordre mémorisé ===== */
+const CO_KEY = "svi_colorder_v1";
+/* — de src/12-tableaux-colonnes.js — */
+const coLoad = () => {
+  try { return JSON.parse(localStorage.getItem(CO_KEY) || "{}") || {}; }
+  catch (e) { return {}; }
+};
+/* — de src/12-tableaux-colonnes.js — */
+const coSave = obj => {
+  try { localStorage.setItem(CO_KEY, JSON.stringify(obj)); } catch (e) {}
+};
+/* — de src/12-tableaux-colonnes.js — */
+/* clés dans l'ordre choisi (colonnes inconnues gardées à la fin) */
+const coKeys = (t, keys) => {
+  const saved = (coLoad()[t] || []).filter(k => keys.includes(k));
+  return [...saved, ...keys.filter(k => !saved.includes(k))];
+};
+/* — de src/12-tableaux-colonnes.js — */
+const coOrder = (t, cols) => {
+  const order = coKeys(t, cols.map(c => c[0]));
+  return order.map(k => cols.find(c => c[0] === k));
+};
+/* — de src/12-tableaux-colonnes.js — */
+/* FORMAT 102 : ordre des colonnes tel qu'affiché à l'écran (après glissement) — copies, exports, aperçus */
+const screenCols = (table, cols) => {
+  if (!table || !cols) return cols;
+  const keys = [...table.querySelectorAll("thead tr:first-child > th .cf-btn[data-col]")].map(b => b.dataset.col);
+  const out = keys.map(k => cols.find(c => c[0] === k)).filter(Boolean);
+  return out.length ? [...out, ...cols.filter(c => !out.includes(c) && !keys.length)] : cols;
+};
+/* — de src/12-tableaux-colonnes.js — */
+/* réordonne un tableau déjà dessiné (col, en-têtes, lignes, pied) */
+const coApply = (t, table) => {
+  if (!table) return;
+  const ths = [...table.querySelectorAll("thead tr:first-child > th")];
+  const keys = ths.map(th => th.querySelector(".cf-btn")?.dataset.col);
+  if (keys.some(k => !k)) return;
+  const order = coKeys(t, keys);
+  if (order.every((k, i) => k === keys[i])) return;
+  const perm = order.map(k => keys.indexOf(k));
+  const n = keys.length;
+  const reorder = parent => {
+    const kids = [...parent.children];
+    if (kids.length !== n || kids.some(c => c.colSpan > 1)) return;
+    perm.forEach(i => parent.appendChild(kids[i]));
+  };
+  table.querySelectorAll("colgroup").forEach(reorder);
+  table.querySelectorAll("tr").forEach(reorder);
+};
+/* — de src/12-tableaux-colonnes.js — */
+const cfKind = vals => {
+  const v = vals.filter(x => String(x).trim() !== "");
+  if (!v.length) return "";
+  if (v.every(x => /^-?[\d\s\u00a0\u202f]+(,\d+)?( ?%)?$/.test(String(x).trim()))) return "num";
+  if (v.every(x => /^\d{2}\/\d{2}\/\d{4}$/.test(String(x).trim()) || /^\d{4}-\d{2}-\d{2}$/.test(String(x).trim()))) return "date";
+  return "txt";   /* v622 : texte — contient, ne contient pas, commence par, se termine par, égal à */
+};
+/* — de src/12-tableaux-colonnes.js — */
+const cfNum = x => num(String(x).replace(/%/g, ""));
+/* — de src/12-tableaux-colonnes.js — */
+const cfCondOk = (c, v) => {
+  if (!c) return true;
+  if (c.kind === "txt") {
+    const x = U_(String(v || "")), a = U_(String(c.a || ""));
+    switch (c.op) { case "ct": return x.includes(a); case "nc": return !x.includes(a); case "sw": return x.startsWith(a); case "ew": return x.endsWith(a); case "eq": return x === a; default: return true; }
+  }
+  if (String(v).trim() === "") return false;
+  const x = c.kind === "num" ? cfNum(v) : cfDate(v);
+  if (c.kind === "date" && !x) return false;
+  const a = c.a, b = c.b;
+  switch (c.op) {
+    case "eq": return x === a;
+    case "ne": return x !== a;
+    case "gt": return x > a;
+    case "ge": return x >= a;
+    case "lt": return x < a;
+    case "le": return x <= a;
+    case "bt": { const lo = a < b ? a : b, hi = a < b ? b : a; return x >= lo && x <= hi; }
+    default: return true;
+  }
+};
+/* — de src/13-instance-saisie.js — */
+const U_ = v => String(v ?? "").trim().toUpperCase();
+/* — de src/13-instance-saisie.js — */
+const insNum = v => {
+  const s = String(v ?? "").trim();
+  return s === "" ? "" : num(s);
+};
+/* — de src/13-instance-saisie.js — */
+const insFmt = v => (v === "" || v === null || v === undefined) ? "" : (typeof v === "string" && /[A-Z]/i.test(v) && !/^[\d\s.,+-]+$/.test(v)) ? v : money(v);
+/* — de src/13-instance-saisie.js — */
+/* niveau d'un titre d'après sa numérotation : I = 1, I.1 = 2, I.1.1 = 3 */
+const insLevel = art => Math.min(3, String(art || "").split(".").filter(x => x.trim() !== "").length || 1);
+/* — de src/13-instance-saisie.js — */
+const dOf = r => Number(r && r.d) || 0;
+/* — de src/13-instance-saisie.js — */
+const artIncr = a => { const m = /^(.*?)(\d+)(\D*)$/.exec(String(a)); return m ? m[1] + (Number(m[2]) + 1) + m[3] : String(a) + ".1"; };
+/* — de src/13-instance-saisie.js — */
+const artAutoOf = list => {
+  const out = new Map(), last = [], tnum = [];
+  (list || []).forEach(r => {
+    const d = Number(r && r.d) || 0;
+    last.length = d + 1; tnum.length = d + 1;
+    const own = String(r.art ?? "").trim();
+    const n = own || (last[d] !== undefined ? artIncr(last[d]) : d === 0 ? "1" : (tnum[d - 1] || "1") + ".1");
+    last[d] = n;
+    if (!own) out.set(r.id, n);
+    if (r.t) { tnum[d] = n; last[d + 1] = undefined; }
+  });
+  return out;
+};
+/* — de src/13-instance-saisie.js — */
+const insTVA = r => (r.tva === "" || r.tva === undefined) ? 20 : num(r.tva);
+/* — de src/13-instance-saisie.js — */
+const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+/* — de src/13-instance-saisie.js — */
+/* v530 : chiffre d'une pastille (à moitié remplie : blanc sur la partie colorée, couleur sur la partie blanche) */
+const pstNum = n => `<b class="pst-n">${n}</b>`;
+/* — de src/13-instance-saisie.js — */
+/* case à droite : elle coche seulement (suppression, export, aperçu passent par le menu ⋯ du bloc) */
+const insDelCell = r => !r ? "" : `<input type="checkbox" class="ins-cb${r.t ? " ins-tcb" : ""}" ${!r.t && r.on === true ? "checked" : ""}>`;
+/* — de src/13-instance-saisie.js — */
+const insQCol = k => false;   /* plus de colonne QUANTITÉ DE LA TÂCHE : la quantité liée est la QPB du produit */
+/* — de src/13-instance-saisie.js — */
+const insCfT = k => k === "des" ? "client" : k;
+/* — de src/13-instance-saisie.js — */
+/* suite d'affichage : titres, lignes et sous-totaux (écran et aperçu) */
+const insOrder = rows => {
+  const out = [], stack = [];
+  rows.forEach(r => {
+    while (stack.length && dOf(stack[stack.length - 1]) >= dOf(r)) out.push({ sub: stack.pop() });
+    out.push({ r, lvl: dOf(r) });
+    if (r.t) stack.push(r);
+  });
+  while (stack.length) out.push({ sub: stack.pop() });
+  return out;
+};
+/* — de src/13-instance-saisie.js — */
+/* ===== titres repliables (FORMAT 60) : › replié / ⌄ déplié ; état mémorisé par budget ===== */
+const FOLD_KEY = "svi_fold_v1";
+/* — de src/13-instance-saisie.js — */
+const foldAll = () => { try { return JSON.parse(localStorage.getItem(FOLD_KEY) || "{}") || {}; } catch (e) { return {}; } };
+/* — de src/13-instance-saisie.js — */
+/* v510 (remarque 68) : état d'une branche pour la couleur de son signe ou de sa pastille */
+const sviFoldState = (red, blue) => red && blue ? " fs-vio" : red ? " fs-red" : blue ? " fs-blu" : "";
+/* — de src/13-instance-saisie.js — */
+/* grands tableaux (détail produits / charges) : lignes dessinées par paquets, au fil du défilement (rapidité) */
+const INS_CHUNK = 120;
+/* — de src/13-instance-saisie.js — */
+/* v512 (remarque 76) : titres de charges regroupées PLIÉS à la première ouverture ; ceux qu'on déplie sont mémorisés (par budget) */
+const CHG_GK = "svi_chggopen_v1";
+/* — de src/13-instance-saisie.js — */
+const fsMark = s => (s.mark || s.on)();
+/* — de src/13-instance-saisie.js — */
+/* loupes (filtres de colonne) : tableau → bloc de EFFACER et onglet */
+const FS_CF = () => [["client", "client", ""], ["lot", "hier", ""], ["prim", "hier", ""], ["sec", "hier", ""],
+  [insCfT("chg"), "detail", "chg"], [insCfT("prd"), "detail", "prd"], ["dly", "detail", "dly"], ["dlyp", "detail", "dly"], ["dlyr", "detail", ""],
+  ["dlyi", "detail", ""], ["dlys", "detail", "dly"], ["lk_marge", "detail", "lnk"], ["lk_unl", "detail", "unl"], ["lk_inc", "detail", "inc"]];
+/* — de src/13-instance-saisie.js — */
+const clientTaFit = root => (root || document).querySelectorAll("textarea.ins-ta").forEach(t => {
+  t.style.height = "0px"; t.style.height = Math.max(20, t.scrollHeight) + "px";
+});
+/* — de src/13-instance-saisie.js — */
+const clientFit = () => {
+  const sc = document.querySelector(".bdg-d-client-scroll"), cg = $("bdgClientCols");
+  if (!sc || !cg) return;
+  const tbl = sc.querySelector("table"), dc = cg.querySelector('col[data-w="client.designation"]');
+  if (!sc.__ro && window.ResizeObserver) {
+    let raf = 0; const run = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(clientFit); };
+    sc.__ro = new ResizeObserver(run); sc.__ro.observe(sc);
+    const body = $("bdgClientBody"); if (body) new MutationObserver(run).observe(body, { childList: true, subtree: true });
+  }
+  if (tbl && dc && !cwLoad()["client.designation"] && sc.clientWidth > 300) {
+    const cols = [...cg.querySelectorAll("col")];
+    const others = cols.filter(c => c !== dc).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
+    const pr = parseFloat(getComputedStyle(sc).paddingRight) || 0;   /* FORMAT 134 : 9 px jusqu'au bord droit */
+    const nd = Math.max(160, Math.min(cwGet("client", "designation"), Math.floor(sc.clientWidth - pr - others)));
+    if (parseFloat(dc.style.width) !== nd) dc.style.width = nd + "px";
+    const tw = others + nd + "px";
+    if (tbl.style.width !== tw) tbl.style.width = tw;
+  }
+  /* version validée / figée : cellule DÉSIGNATION à la ligne */
+  if (tbl && dc && !tbl.classList.contains("ins-table")) {
+    const idx = [...cg.querySelectorAll("col")].indexOf(dc);
+    tbl.querySelectorAll("tbody tr").forEach(tr => { const td = tr.children[idx]; if (td && td.colSpan <= 1) td.classList.add("c-wrap"); });
+  }
+  clientTaFit(sc);
+};
+/* — de src/13-instance-saisie.js — */
+/* mode SAISIE : la case sert à choisir des lignes (plus de grisé des autres) ; le choix unique est en mode LIAISONS */
+const insDim = () => {};
+/* — de src/13-instance-saisie.js — */
+/* ===== LOTS en arborescence (« / ») dans le bloc TÂCHES : niveaux repliables › / ⌄, nom du dernier niveau ===== */
+const lotSegs = r => String(r && r.v || "").split("/").map(x => x.trim()).filter(Boolean);
+/* — de src/13-instance-saisie.js — */
+/* v527 (remarque 3) : « GROUPE » au lieu de « NIVEAU » (anciens noms « NIVEAU n » reconnus et affichés « GROUPE n ») */
+const LVL_AUTO = /^(NOUVEAU )?(NIVEAU|GROUPE) \d+(\.\d+)*$/i;
+/* — de src/13-instance-saisie.js — */
+const lotAutoNo = g => { const m = String(g || "").trim().match(/^(?:NOUVEAU )?(?:NIVEAU|GROUPE) (\d+(?:\.\d+)*)$/i); return m ? m[1] : ""; };
+/* — de src/13-instance-saisie.js — */
+const lotNoHTML = L => L.auto || !L.no ? "" : `<span class="lvl-no">${esc(L.no)}</span>`;
+/* — de src/13-instance-saisie.js — */
+const lotUnder = (r, P) => { const s2 = lotSegs(r); return s2.length >= P.length && P.every((g, i) => U_(g) === U_(s2[i])); };
+/* — de src/13-instance-saisie.js — */
+/* v529 : lots rangés dans l'ordre de l'arborescence affichée (un niveau prend la place de son premier lot) */
+const lotTreeOrder = arr => {
+  const first = new Map();
+  arr.forEach((r, i) => { const s2 = lotSegs(r); for (let j = 1; j <= s2.length; j++) { const p = U_(s2.slice(0, j).join(" / ")); if (!first.has(p)) first.set(p, i); } });
+  const key = r => { const s2 = lotSegs(r); return s2.map((_, j) => first.get(U_(s2.slice(0, j + 1).join(" / ")))); };
+  const K = new Map(arr.map(r => [r, key(r)]));
+  const pos = new Map(arr.map((r, i) => [r, i]));
+  return arr.slice().sort((a, b) => {
+    const A = K.get(a), B = K.get(b);
+    for (let i = 0; i < Math.min(A.length, B.length); i++) if (A[i] !== B[i]) return A[i] - B[i];
+    return A.length - B.length || pos.get(a) - pos.get(b);
+  });
+};
+/* — de src/13-instance-saisie.js — */
+/* v533 : la case du nom tapé est suivie à la frappe (même si elle a perdu le focus, iPad) */
+const GN_SEL = "input.lot-gname, input.dly-nm:not(.dly-gin)";
+/* — de src/14-doublons-classement.js — */
+const dupName = (k, r) => (k === "lot" || k === "prim" || k === "sec" || k === "qlt") ? U_(r.v) : [r.art, r.des].filter(Boolean).join(" — ") + (r.u ? " (" + U_(r.u) + ")" : "");
+/* — de src/14-doublons-classement.js — */
+const natCmp = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "fr", { numeric: true, sensitivity: "base" });
+/* — de src/14-doublons-classement.js — */
+const desCmp = (a, b) => {
+  const A = String(a.art ?? "").trim(), B = String(b.art ?? "").trim();
+  if (!A !== !B) return A ? 1 : -1;   /* ART vide en tête */
+  return natCmp(A, B) || natCmp(a.des, b.des);
+};
+/* — de src/14-doublons-classement.js — */
+const nearName = (k, r) => (k === "lot" || k === "prim" || k === "sec" || k === "qlt") ? r.v : r.des;
+/* — de src/15-qualite.js — */
+const QQ_TREE_W = 300;
+/* — de src/15-qualite.js — */
+const qqEnd = (L, i) => { let j = i + 1; while (j < L.length && L[j].d > L[i].d) j++; return j; };
+/* — de src/15-qualite.js — */
+const qqHasPts = (L, i) => L.slice(i + 1, qqEnd(L, i)).some(x => x.k !== "t");
+/* — de src/15-qualite.js — */
+const qqHasSubT = (L, i) => L.slice(i + 1, qqEnd(L, i)).some(x => x.k === "t");
+/* — de src/15-qualite.js — */
+const qqCrit = L => (L || []).filter(x => x.k === "c");
+/* — de src/15-qualite.js — */
+const qqAppLab = n => n.pv ? insFmt(n.pv).replace(/,00$/, "") + " J" + (n.pw ? " · " + n.pw : "") : "";
+/* — de src/15-qualite.js — */
+/* petite liste au format de l'application sous la case (comme les unités, FORMAT 50) */
+const qqPick = (td, items, cur, done) => {
+  document.getElementById("qqPick")?.remove();
+  const m = document.createElement("div");
+  m.id = "qqPick";
+  m.innerHTML = items.map(it => `<button type="button" data-v="${esc(it.v)}" class="${it.v === cur ? "on" : ""}">${esc(it.lab)}</button>`).join("")
+    + (cur ? '<button type="button" data-v="" class="qq-clr">EFFACER</button>' : "");
+  document.body.appendChild(m);
+  const r = td.getBoundingClientRect();
+  sviPlaceMenu(m, { top: r.top, bottom: r.bottom, right: r.left + Math.max(r.width, m.offsetWidth), left: r.left });
+  const close = ev => { if (!m.contains(ev.target)) { m.remove(); document.removeEventListener("pointerdown", close, true); } };
+  setTimeout(() => document.addEventListener("pointerdown", close, true), 0);
+  m.addEventListener("click", ev => {
+    const b = ev.target.closest("[data-v]");
+    if (!b) return;
+    m.remove(); document.removeEventListener("pointerdown", close, true);
+    done(b.dataset.v);
+  });
+};
+/* — de src/15-qualite.js — */
+/* fenêtres DÉCLENCHEMENT et APPEL (FORMAT 105 et 106), au format INF */
+const qqWin = (title, html, onOk, onLive) => {
+  const d = sviWinNew();
+  d.innerHTML = `<div class="svc-card qq-win" role="dialog" aria-modal="true">
+      <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
+      <div class="svc-t">${esc(title)}</div><div class="svc-x svc-html">${html}</div>
+      <div class="svc-f"><button type="button" class="svc-b" data-r="0">ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-r="1">ENREGISTRER</button></div></div>`;
+  sviWinShow(d);
+  if (onLive) { d.addEventListener("input", () => onLive(d)); d.addEventListener("change", () => onLive(d)); onLive(d); }
+  let lp = null;
+  d.addEventListener("pointerdown", e => { const g = e.target.closest(".qq-dis"); if (g) lp = setTimeout(() => svToast(g.dataset.why || "", 3500, g), 500); });
+  ["pointerup", "pointercancel"].forEach(t => d.addEventListener(t, () => clearTimeout(lp)));
+  d.addEventListener("click", e => {
+    const b = e.target.closest("[data-r]");
+    if (!b && e.target !== d) return;
+    if (b && b.dataset.r === "1") onOk(d);
+    d.remove();
+  });
+};
+/* — de src/16-a-completer.js — */
+/* ---------- DÉTAIL DÉLAIS (instance) : une ligne par activité secondaire ---------- */
+const dIso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+/* — de src/16-a-completer.js — */
+const dAdd = (iso, n) => { const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return dIso(d); };
+/* — de src/16-a-completer.js — */
+const dDiff = (a, b) => Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000);
+/* — de src/16-a-completer.js — */
+const dFr = iso => iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : "";
+/* — de src/17-1-liaisons.js — */
+const dlyLinkTxt = x => (x.t === "DD" ? "DD" : "FD") + "+" + (x.o || 0);
+/* — de src/17-2-lignes-ordre.js — */
+/* ===== PLANNING (v401) : MARGE, JALON, LOTS EN ARBORESCENCE (« / »), GANTT ===== */
+const dlyLotPath = name => String(name || "").split("/").map(x => x.trim()).filter(Boolean);
+/* — de src/17-2-lignes-ordre.js — */
+/* repli des lots (› replié / ⌄ déplié), mémorisé par projet */
+const dlyFoldAll = () => { try { return JSON.parse(localStorage.getItem("svi_lotfold_v1") || "{}") || {}; } catch (e) { return {}; } };
+/* — de src/17-2-lignes-ordre.js — */
+/* R29 : affichage PAR LOT (ordre enregistré) ou PAR DÉBUT (vue en escalier, rien n'est enregistré), mémorisé par budget */
+const dlyViewAll = () => { try { return JSON.parse(localStorage.getItem("svi_dlyview_v1") || "{}") || {}; } catch (e) { return {}; } };
+/* — de src/17-2-lignes-ordre.js — */
+/* hauteur des lignes du PLANNING (tableau et Gantt) : pincement vertical à deux doigts ; 24 px au moins (taille d'origine), 64 au plus */
+const DLY_RH_KEY = "svi_dly_rh_v1";
+/* — de src/17-2-lignes-ordre.js — */
+const dlyRhGet = () => { const v = Number(localStorage.getItem(DLY_RH_KEY)); return v >= 24 && v <= 64 ? v : 24; };
+/* — de src/17-2-lignes-ordre.js — */
+const dlyBh = rh => Math.round(11 + (rh - 24) * 0.5);   /* épaisseur des barres : 11 px à 24, 31 px à 64 */
+/* — de src/17-2-lignes-ordre.js — */
+/* largeur d'un intitulé dans la barre (police des barres : 9 px, gras) */
+const dlyTxtW = t => {
+  const c = dlyTxtW.c || (dlyTxtW.c = document.createElement("canvas").getContext("2d"));
+  if (!dlyTxtW.f) dlyTxtW.f = "700 9px " + (getComputedStyle(document.body).fontFamily || "sans-serif");
+  c.font = dlyTxtW.f;
+  return c.measureText(String(t || "").toUpperCase()).width;
+};
+/* — de src/17-3-gantt-dessin.js — */
+/* v545 (remarque 2) : bas de l'écran visible (clavier de l'iPad compris) */
+const dlyVpB = () => { const vv = window.visualViewport; return vv ? vv.offsetTop + vv.height : window.innerHeight; };
+/* — de src/17-3-gantt-dessin.js — */
+const dlyFitScr = scr => {
+  if (!scr || !scr.classList.contains("dly-scroll")) return 0;
+  let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
+  const tabs = document.getElementById("bdgTabs"), vb = dlyVpB();
+  const mx = !!scr.closest(".max-detail");
+  document.documentElement.classList.toggle("dly-lock", mx && scr.isConnected);
+  /* v594 (remarque longue 2) : bloc agrandi — la ligne des onglets toujours entière juste sous le bandeau du budget */
+  if (mx && tabs) { const t = tabs.getBoundingClientRect().top; if (t < lim - 0.5 || (t > lim + 0.5 && window.scrollY > 0)) window.scrollBy(0, t - lim); }
+  const sr = scr.getBoundingClientRect();
+  /* tot = hauteur totale du bloc (zone des tâches + pied du graphique) : bloc agrandi = jusqu'au bas de l'écran visible ;
+     sinon la hauteur commune du bloc détail (FORMAT 202), moins les bandeaux posés au-dessus (ISOLÉ…) */
+  let tot;
+  if (mx) tot = Math.max(160, Math.floor(vb - sr.top - 2));
+  else {
+    const hd = parseFloat(getComputedStyle(scr).getPropertyValue("--h-detail")) || 148;
+    let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
+    tot = Math.max(60, Math.round(hd - ban));   /* v596 : exactement la hauteur commune du bloc détail (même hauteur que les autres onglets) */
+  }
+  let r = 0;
+  if (Math.abs((scr.__capMax || 0) - tot) > 1) { scr.__capMax = tot; r = 2; }
+  /* v598 : bloc réduit — la hauteur suit directement la poignée du bas (variable --h-detail), moins les bandeaux posés au-dessus */
+  if (!mx) {
+    let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
+    const v = ban ? `calc(var(--h-detail, 148px) - ${ban}px)` : "";
+    if (scr.style.getPropertyValue("height") !== v) { if (v) scr.style.setProperty("height", v, "important"); else scr.style.removeProperty("height"); }
+    return r;
+  }
+  const want = tot;   /* v597 : le pied du graphique est posé par-dessus le bas du Gantt */
+  if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 1) { scr.style.setProperty("height", want + "px", "important"); r = r || 1; }
+  return r;
+};
+/* — de src/17-4-tableau-fenetres.js — */
+const dlyLabU = r => U_(r.u).replace(/[^A-Z]/g, "");
+/* — de src/17-4-tableau-fenetres.js — */
+const dlyIsLab = r => ["JH", "HJ", "J", "JR", "JOUR", "JOURS", "JOURHOMME", "JOURSHOMME", "H", "HR", "HEURE", "HEURES"].includes(dlyLabU(r)) || /MAIN\s*D.?\s*(Œ|OE)UVRE/.test(U_(r.des));
+/* — de src/17-4-tableau-fenetres.js — */
+const dlyJHof = r => { const q = num(r.q || 0) || 0; return ["H", "HR", "HEURE", "HEURES"].includes(dlyLabU(r)) ? q / 8 : q; };
+/* — de src/17-4-tableau-fenetres.js — */
+const dlyEnd = D => Object.values(D).map(x => x.fin).filter(Boolean).sort().pop() || "";
+/* — de src/17b-planning-auto.js — */
+const dlyResU = r => dlyIsLab(r) ? "J-H" : (U_(r.u) || "U");
+/* — de src/17b-planning-auto.js — */
+const dlyResK = r => U_(r.des) + "|" + dlyResU(r);
+/* — de src/17b-planning-auto.js — */
+const dlyResQty = r => dlyIsLab(r) ? dlyJHof(r) : num(r.q || 0) || 0;
+/* — de src/17b-planning-auto.js — */
+/* même unité pour toutes les charges cochées : la QUANTITÉ est possible ; sinon MONTANT seulement (R11) */
+const dlySameU = R => !!R && new Set(R.map(dlyResU)).size === 1;
+/* — de src/17b-planning-auto.js — */
+const dlyGM = gk => /^DH: /.test(String(gk));
+/* — de src/17b-planning-auto.js — */
+const dlyGKeys = gk => new Set(String(gk).replace(/^DH: /, "").split(" § "));
+/* — de src/17b-planning-auto.js — */
+const dlyGName = gk => (dlyGM(gk) ? "DH : " : "") + [...new Set(String(gk).replace(/^DH: /, "").split(" § ").map(x => x.split("|")[0]))].join(" + ");
+/* — de src/17b-planning-auto.js — */
+/* valeur d'un morceau : nombre ≥ 1, 0 (pénurie) ou −1 (ILLIMITÉ, aussi quand rien n'est réglé) */
+const dlyCapV = v => v === undefined || v === null || v === "" || Number(v) < 0 ? -1 : Math.round(Number(v));
+/* — de src/17b-planning-auto.js — */
+/* coupes d'un groupe : { d, n, after } ; une coupe rattachée à des tâches (after) se place juste après leur fin (R23) */
+const dlyCutsOf = st => ((st && st.plafs) || []).filter(s => s && (s.d || (s.after || []).length));
+/* — de src/17b-planning-auto.js — */
+const dlyRdV = v => v === undefined || v === null || v === "" || !isFinite(Number(v)) ? 100 : Math.max(1, Math.round(Number(v)));
+/* — de src/17b-planning-auto.js — */
+const dlyRdSet0 = st => !!st && (st.rd !== undefined && st.rd !== null && st.rd !== "" || (st.rds || []).length > 0);
+/* — de src/17b-planning-auto.js — */
+const dlyRdCuts = st => ((st && st.rds) || []).filter(s => s && (s.d || (s.after || []).length));
+/* — de src/17b-planning-auto.js — */
+const dlyHalfS = p => !!(p && p.deb && p.dmd === p.deb);
+/* — de src/17b-planning-auto.js — */
+const dlyHalfE = p => !!(p && p.fin && p.fmd === p.fin);
+/* — de src/17b-planning-auto.js — */
+const DLY_BUT_MSG = "AVEC CE NOMBRE VOUS RISQUEZ DE DÉPASSER LA DATE BUTOIR";
+/* — de src/17b-planning-auto.js — */
+/* hauteur de l'histogramme : nombre de pixels (28 = miniaturisé en bas) ou « full » (plein écran, à la place du Gantt) */
+/* v546 (R25) : 0 = histogramme entièrement caché (poignée tout en bas) */
+const dlyHHGet = () => { let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : v === "0" ? 0 : Math.max(28, Math.min(2000, Number(v) || 110)); };
+/* — de src/17b-planning-auto.js — */
+const dlyHHSet = v => { try { localStorage.setItem("svi_dlyhh_v1", String(v)); } catch (e) {} };
+/* — de src/18-annuler-liaisons.js — */
+const uniq = arr =>
+  [...new Set(arr.filter(v => String(v).trim() !== ""))]
+    .sort((x, y) =>
+      String(x).localeCompare(String(y), undefined, { numeric: true })
+    );
+/* — de src/18-annuler-liaisons.js — */
+const tvaFor = l =>
+  l.ttcAmount !== undefined ? l.ttcAmount - l.amount : l.amount * l.tva / 100;
+/* — de src/18-annuler-liaisons.js — */
+/* ligne TOTAL en pied des onglets Détail charge / produit */
+const tabFootHTML = (list, prd) => {
+  /* produits : la quantité totale ne compte que les clés primaires
+     (lignes au prix non nul), comme dans les désignations client */
+  const qty = list.reduce((t, l) =>
+    t + (prd && !l.priceTTC ? 0 : l.qty), 0);
+  const ht = list.reduce((t, l) => t + l.amount, 0);
+  const tva = list.reduce((t, l) => t + tvaFor(l), 0);
+  const lead = prd ? 6 : 2;   /* colonnes avant « TOTAL » */
+  /* quantité (et prix moyen) seulement si toutes les unités sont identiques */
+  const units = new Set(list.map(l => String(l.dunit ?? "").trim().toUpperCase()));
+  const sameUnit = list.length > 0 && units.size === 1;
+  return `
+    <tr class="bdg-d-total-row">
+      ${
+        sameUnit
+          ? `${"<td></td>".repeat(lead)}
+             <td class="number">TOTAL</td>
+             <td class="number">${money(qty)}</td>
+             <td class="number">${money(qty ? ht / qty : 0)}</td>`
+          /* unités différentes : « TOTAL » juste avant le montant HT */
+          : `${"<td></td>".repeat(lead + 2)}
+             <td class="number">TOTAL</td>`
+      }
+      <td class="number">${money(ht)}</td>
+      <td class="number" id="bdgFtTVA">${money(tva)}</td>
+      <td class="number" id="bdgFtTTC">${money(ht + tva)}</td>
+    </tr>`;
+};
+/* — de src/18-annuler-liaisons.js — */
+const tcolsFor = prd => [
+  /* détail produits : pas de colonne ART (FORMAT 6) */
+  ...(prd ? [] : [["article", "ART", l => l.article, "center"]]),
+  ["detail", prd ? "DÉSIGNATION PRODUIT" : "DÉSIGNATION CHARGE", l => l.detail, ""],
+  ["unit", prd ? "UPB" : "UCB", l => l.unit, "center"],
+  ...(prd ? [
+    ["nbr", "NBR", l => String(l.nbr ?? ""), "number"],
+    ["d1", "DIM 1", l => String(l.dims[0] ?? ""), "number"],
+    ["d2", "DIM 2", l => String(l.dims[1] ?? ""), "number"],
+    ["d3", "DIM 3", l => String(l.dims[2] ?? ""), "number"]
+  ] : []),
+  ["qty", prd ? "QPB" : "QCB", l => l.qty, "number"],
+  ["price", prd ? "PPB" : "PCB", l => l.price, "number"],
+  ["amount", prd ? "MPB HT" : "MCB HT", l => l.amount, "number"],
+  ["tva", "TVA %", l => String(l.tva ?? ""), "number"],
+  ["ttc", prd ? "MPB TTC" : "MCB TTC", l => l.amount + l.tvaAmt, "number"]
+];
+/* — de src/19-delais-disposition.js — */
+/* ===== disposition des blocs : ordre et hauteur, mémorisés ===== */
+const LAY_KEY = "svi_layout_v1";
+/* — de src/19-delais-disposition.js — */
+const layLoad = () => {
+  try { return JSON.parse(localStorage.getItem(LAY_KEY) || "{}") || {}; }
+  catch (e) { return {}; }
+};
+/* — de src/19-delais-disposition.js — */
+const laySave = v => {
+  try { localStorage.setItem(LAY_KEY, JSON.stringify(v)); } catch (e) {}
+};
+/* — de src/19-delais-disposition.js — */
+/* v557 (FORMAT 202) : hauteur du bloc détail par défaut = écran visible sous le bandeau (fixé) et les onglets, moins la poignée */
+const layDetDef = () => {
+  let lim = 0;
+  document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
+  const vv = window.visualViewport, vb = vv ? vv.offsetTop + vv.height : window.innerHeight;
+  const tabs = $("bdgTabs"), th = tabs ? tabs.getBoundingClientRect().height : 50;
+  return Math.max(200, Math.floor(vb - lim - th - 22));
+};
+/* — de src/21-export-import.js — */
+const download = (name, blob) => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+};
+/* — de src/21-export-import.js — */
+const fileDialog = ({ title, name, path, buttons, onAct }) => {
+  const p = sviPopNew();
+  p.innerHTML = `
+    <div class="doc-card" role="dialog" aria-modal="true" style="max-width:640px">
+      <div class="doc-head">
+        <span class="doc-title">${esc(title)}</span>
+        <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+      </div>
+      <div class="doc-body">
+        <div class="doc-grid doc-grid-2">
+          <label class="doc-lab" for="fdName">NOM DU FICHIER</label>
+          <input id="fdName" class="doc-in" type="text" autocomplete="off" value="${esc(name)}">
+          <label class="doc-lab" for="fdPath">DOSSIER DRIVE</label>
+          <input id="fdPath" class="doc-in" type="text" autocomplete="off" data-keepcase value="${esc(path)}">
+        </div>
+        <div class="doc-err fd-msg" id="fdMsg"></div>
+      </div>
+      <div class="doc-foot">
+        <button type="button" class="doc-btn" data-cancel>ANNULER</button>
+        ${buttons.map(b => `<button type="button" class="doc-btn${b.primary ? " doc-save" : ""}" data-act="${b.key}"${b.drive ? " data-drive" : ""}>${esc(b.label)}</button>`).join("")}
+      </div>
+    </div>`;
+  sviPopShow(p);
+  popEnhance(p, "save");
+  drivePathRow(p, "#fdPath", false);
+  const msg = p.querySelector("#fdMsg");
+  const ui = {
+    msg: (t, kind) => { msg.innerHTML = t; msg.className = "doc-err fd-msg" + (kind ? " " + kind : ""); },
+    close: () => p.remove(),
+    busy: (k, on) => { const b = p.querySelector(`[data-act="${k}"]`); if (b) b.disabled = on; },
+    setPath: v => { if (v) p.querySelector("#fdPath").value = v; }
+  };
+  let pathShown = false;
+  p.addEventListener("click", e => {
+    if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
+    const b = e.target.closest("[data-act]");
+    if (!b || b.disabled) return;
+    /* 1er toucher sur le Drive : le dossier s'affiche ; 2e : enregistrement */
+    if (b.dataset.drive !== undefined && !pathShown) {
+      pathShown = true;
+      drivePathRow(p, "#fdPath", true);
+      b.textContent = "ENREGISTRER";
+      return;
+    }
+    onAct(b.dataset.act, {
+      name: p.querySelector("#fdName").value.trim(),
+      path: driveCleanPath(p.querySelector("#fdPath").value)
+    }, ui);
+  });
+};
+/* — de src/21-export-import.js — */
+/* enregistrement sur l'iPad (partage / téléchargement) */
+const saveDevice = (name, blob) => {
+  try {
+    const file = new File([blob], name, { type: blob.type });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: name }).catch(err => {
+        if (err && err.name !== "AbortError") download(name, blob);
+      });
+      return;
+    }
+  } catch (e) {}
+  download(name, blob);
+};
+/* — de src/21-export-import.js — */
+const loadXLSX = () => window.XLSX
+  ? Promise.resolve(window.XLSX)
+  : new Promise((ok, ko) => {
+      const sc = document.createElement("script");
+      /* version de SheetJS qui sait écrire les styles (police, bordures, alignement) */
+      sc.src = "https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js";
+      sc.onload = () => ok(window.XLSX);
+      sc.onerror = () => ko(new Error("Bibliothèque Excel indisponible"));
+      document.head.appendChild(sc);
+    });
+/* — de src/21-export-import.js — */
+const exportSizing = (head, rows) => {
+  const txt = v => typeof v === "number" ? money(v) : String(v ?? "");
+  const isNum = c => {
+    const vals = rows.map(r => r[c]).filter(v => v !== "" && v != null);
+    return vals.length > 0 && vals.filter(v => typeof v === "number").length >= vals.length / 2;
+  };
+  const wch = head.map((h, c) => {
+    const dataLen = Math.max(0, ...rows.map(r => txt(r[c]).length));
+    const longWord = Math.max(...String(h ?? "").split(/\s+/).map(w => w.length));
+    if (c === 1) return Math.min(80, Math.max(dataLen, String(h ?? "").length) + 2);
+    if (isNum(c)) return Math.max(9, dataLen + 3, longWord + 2);
+    return Math.max(6, Math.min(30, Math.max(dataLen, longWord) + 2));
+  });
+  /* nombre de lignes du titre une fois replié dans sa largeur */
+  const lines = head.map((h, c) => {
+    let n = 1, cur = 0;
+    String(h ?? "").split(/\s+/).forEach(w => {
+      if (cur && cur + 1 + w.length > wch[c] - 1) { n++; cur = w.length; }
+      else cur += (cur ? 1 : 0) + w.length;
+    });
+    return n;
+  });
+  const hpt = 15 * Math.max(1, ...lines) + 6;
+  return { wch, hpt };
+};
+/* — de src/21-export-import.js — */
+const driveDoneFlash = () => {
+  const b = document.querySelector('#docPop [data-act="save"]') || document.querySelector('#docPop [data-act="drive"]');
+  if (!b) return;
+  const t = b.textContent;
+  b.textContent = "✓ ENREGISTRÉ";
+  setTimeout(() => { if (b.isConnected) b.textContent = t; }, 2500);
+};
+/* — de src/21-export-import.js — */
+const popup = (html, cls = "") => {
+  document.getElementById("blkPop")?.remove();
+  const p = document.createElement("div");
+  p.id = "blkPop";
+  p.className = cls;
+  p.innerHTML = html;
+  p.addEventListener("click", e => {
+    if (e.target === p || e.target.closest("[data-close]")) p.remove();
+  });
+  document.body.appendChild(p);
+  return p;
+};
+/* — de src/21-export-import.js — */
+/* fenêtre au format INF : lien de la feuille Google à importer */
+const askSheetLink = () => new Promise(res => {
+  const p = sviPopNew();
+  p.className = "pop-new-bdg";
+  p.innerHTML = `
+    <div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
+      <div class="doc-head">
+        <span class="doc-title">IMPORTER — GOOGLE SHEETS</span>
+        <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+      </div>
+      <div class="doc-body">
+        <div class="doc-grid">
+          <label class="doc-lab" for="gsLink">LIEN DE LA FEUILLE <b>*</b></label>
+          <input id="gsLink" class="doc-in" style="grid-column:2 / -1;width:100%" type="url" data-keepcase autocomplete="off"
+            inputmode="url" placeholder="https://docs.google.com/spreadsheets/d/…">
+        </div>
+        <div id="gsErr" class="doc-err"></div>
+      </div>
+      <div class="doc-foot">
+        <button type="button" class="doc-btn" data-cancel>ANNULER</button>
+        <button type="button" class="doc-btn nb-save" id="gsGo">IMPORTER</button>
+      </div>
+    </div>`;
+  sviPopShow(p);
+  try { popEnhance(p, "gslink"); } catch (e) {}
+  const inp = p.querySelector("#gsLink");
+  /* champ sur toute la largeur de la fenêtre */
+  const cell = inp.parentElement.classList.contains("doc-grid") ? inp : inp.parentElement;
+  cell.style.gridColumn = "2 / -1";
+  cell.style.width = "100%";
+  const close = v => { p.remove(); res(v); };
+  const go = () => {
+    const v = inp.value.trim();
+    if (!/\/d\/[a-zA-Z0-9_-]+/.test(v)) {
+      p.querySelector("#gsErr").textContent = "LIEN GOOGLE SHEETS NON RECONNU.";
+      inp.focus();
+      return;
+    }
+    close(v);
+  };
+  p.addEventListener("click", e => {
+    if (e.target === p || e.target.closest("[data-cancel]")) close("");
+    else if (e.target.closest("#gsGo")) go();
+  });
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+  setTimeout(() => inp.focus(), 50);
+});
+/* — de src/21-export-import.js — */
+const impFr = iso => iso ? String(iso).slice(8, 10) + "/" + String(iso).slice(5, 7) + "/" + String(iso).slice(0, 4) : "";
+/* — de src/21-export-import.js — */
+const impId = (k, r) => {
+  /* produits : sans article — DÉSIGNATION + UNITÉ */
+  /* FORMAT 89 : une désignation (et une charge) se reconnaît par sa DÉSIGNATION + UNITÉ, sans l'ART ;
+     seuls les titres gardent leur ART */
+  const base = [r.t ? U_(r.art) : "", U_(r.des), U_(r.u), r.t ? "T" : ""];
+  return base.join("|");
+};
+/* — de src/21-export-import.js — */
+/* charges, lots et activités : ordre alphabétique */
+const impSort = m => {
+  const az = (a, b) => String(a).localeCompare(String(b), "fr", { numeric: true });
+  m.chg.sort((a, b) => az(a.row.des, b.row.des) || az(a.row.u, b.row.u));
+  m.hier.sort((a, b) => az(a.row.v, b.row.v));
+};
+/* — de src/21-export-import.js — */
+/* v481 (remarque 18) : message compréhensible par tout lecteur — quelle tâche bloque et quoi changer */
+const bfRuleAWhy = (g, w, task) => (g === "p" ? "TÂCHE PRIMAIRE " : "TÂCHE SECONDAIRE ") + (task ? task + " " : "") + "DÉJÀ LIÉE À " + w.name + " (" + w.n + " LIGNE" + (w.n > 1 ? "S" : "") + "). UNE TÂCHE N'A QU'UNE DÉSIGNATION CLIENT : CHANGER LE LOT OU L'ACTIVITÉ " + (g === "p" ? "PRIMAIRE" : "SECONDAIRE") + ".";
+/* — de src/22-saisie-directe.js — */
+/* texte principal sans doublon (intitulé DOC / OBS, descriptif TAF) */
+const dupKey = v => String(v ?? "").trim().toUpperCase().replace(/\s+/g, " ");
+/* — de src/22-saisie-directe.js — */
+const findDup = (list, get, v) => list.find(r => dupKey(get(r)) === dupKey(v));
+/* — de src/22b-exploitation.js — */
+const xplColor = (p, lo, hi) => {
+  const neg = p < 0, t = neg ? (lo < 0 ? Math.min(1, p / lo) : 0) : (hi > 0 ? Math.min(1, p / hi) : 0);
+  const light = Math.round(92 - 64 * t), hue = neg ? 0 : 130, sat = neg ? 70 : 55;
+  return `background:hsl(${hue},${sat}%,${light}%) !important;color:${light < 55 ? "#fff" : "#172033"} !important;-webkit-text-fill-color:${light < 55 ? "#fff" : "#172033"} !important`;
+};
+/* — de src/23-apercus-impression.js — */
+/* bulle d'explication sur une case signalée */
+const showWhy = td => {
+  document.getElementById("whyTip")?.remove();
+  const tip = document.createElement("div");
+  tip.id = "whyTip";
+  tip.textContent = td.dataset.why;
+  document.body.appendChild(tip);
+  const r = td.getBoundingClientRect();
+  const w = Math.min(280, window.innerWidth - 16);
+  tip.style.width = w + "px";
+  tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + "px";
+  const above = r.top - tip.offsetHeight - 8;
+  tip.style.top = (above > 8 ? above : r.bottom + 8) + "px";
+  const close = () => { tip.remove(); document.removeEventListener("click", close, true); };
+  setTimeout(() => document.addEventListener("click", close, true), 0);
+  setTimeout(close, 5000);
+};
+/* — de src/24-doc-historique-fenetres.js — */
+const pad = (n, w = 2) => String(n).padStart(w, "0");
+/* — de src/24-doc-historique-fenetres.js — */
+/* ===== fenêtres et champs de saisie réglables (tailles mémorisées) ===== */
+const PS_KEY = "svi_popsize_v1";
+/* — de src/24-doc-historique-fenetres.js — */
+const psLoad = () => {
+  try { return JSON.parse(localStorage.getItem(PS_KEY) || "{}") || {}; }
+  catch (e) { return {}; }
+};
+/* — de src/24-doc-historique-fenetres.js — */
+const psSet = (k, v) => {
+  const all = psLoad();
+  if (v) all[k] = v; else delete all[k];
+  try { localStorage.setItem(PS_KEY, JSON.stringify(all)); } catch (e) {}
+};
+/* — de src/24-doc-historique-fenetres.js — */
+/* glissement générique : fn(dx, dy) pendant, done() à la fin */
+const dragXY = (e, fn, done) => {
+  e.preventDefault();
+  e.stopPropagation();
+  const x0 = e.clientX, y0 = e.clientY;
+  const mv = ev => { ev.preventDefault(); fn(ev.clientX - x0, ev.clientY - y0); };
+  const tm = ev => ev.preventDefault();
+  const up = () => {
+    document.removeEventListener("pointermove", mv);
+    document.removeEventListener("pointerup", up);
+    document.removeEventListener("pointercancel", up);
+    document.removeEventListener("touchmove", tm);
+    done();
+  };
+  document.addEventListener("pointermove", mv, { passive: false });
+  document.addEventListener("touchmove", tm, { passive: false });
+  document.addEventListener("pointerup", up);
+  document.addEventListener("pointercancel", up);
+};
+/* — de src/24-doc-historique-fenetres.js — */
+/* format unique des dates : JJ/MM/AAAA À HH:MM */
+const fmtField = (type, v) => {
+  if (!v) return "";
+  if (type === "time") return v.slice(0, 5);
+  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
+  if (!m) return String(v);
+  return `${m[3]}/${m[2]}/${m[1]}` + (type === "datetime-local" && m[4] ? ` À ${m[4]}:${m[5]}` : "");
+};
+/* — de src/24-doc-historique-fenetres.js — */
+const popEnhance = (p, kind) => {
+  const card = p.querySelector(".doc-card");
+  if (!card) return;
+  const sizes = psLoad();
+  /* fenêtre : poignée en bas à droite */
+  const cs = sizes["win." + kind];
+  if (cs) { card.style.width = cs.w + "px"; card.style.maxWidth = "none"; card.style.height = cs.h + "px"; }
+  const ch = document.createElement("span");
+  ch.className = "pop-rsz";
+  ch.title = "Glisser pour redimensionner la fenêtre";
+  card.appendChild(ch);
+  ch.addEventListener("pointerdown", e => {
+    const r = card.getBoundingClientRect();
+    let w = r.width, h = r.height;
+    card.style.maxWidth = "none";
+    dragXY(e, (dx, dy) => {
+      w = Math.max(300, Math.min(window.innerWidth - 16, Math.round(r.width + dx * 2)));
+      h = Math.max(180, Math.min(window.innerHeight - 16, Math.round(r.height + dy * 2)));
+      card.style.width = w + "px";
+      card.style.height = h + "px";
+    }, () => psSet("win." + kind, { w, h }));
+  });
+  /* champs : poignée sur le coin bas-droit de chaque champ */
+  p.querySelectorAll(".doc-in").forEach((el, i) => {
+    /* clé stable : identifiant du champ, sinon son libellé */
+    const lab = (el.previousElementSibling?.textContent || "").replace(/\*/g, "").trim();
+    const key = "fld." + kind + "." + (el.id || lab || i);
+    /* agrandi vers la droite et vers le bas ; la saisie reste en haut
+       (champ d'une ligne : la hauteur ajoutée passe en marge du bas) */
+    let vis = el;   /* élément visible (affichage JJ/MM/AAAA À HH:MM pour les dates) */
+    const setH = h => {
+      vis.style.height = h + "px";
+      if (vis.tagName === "INPUT") vis.style.paddingBottom = Math.max(0, h - 34) + "px";
+    };
+    const wrap = document.createElement("span");
+    wrap.className = "fld-wrap" + (el.closest(".doc-row") ? " in-row" : "");
+    el.replaceWith(wrap);
+    wrap.appendChild(el);
+    /* dates : affichage uniforme JJ/MM/AAAA À HH:MM, le sélecteur
+       natif reste dessous (transparent) pour la saisie */
+    if (["date", "time", "datetime-local"].includes(el.type)) {
+      const show = document.createElement("div");
+      show.className = "doc-in dt-show" + (el.classList.contains("doc-ro") ? " doc-ro" : "");
+      el.classList.remove("doc-in");
+      el.classList.add("dt-native");
+      wrap.insertBefore(show, el);
+      const upd = () => { show.textContent = fmtField(el.type, el.value) || "\u00a0"; };
+      el.addEventListener("input", upd);
+      el.addEventListener("change", upd);
+      el.addEventListener("click", () => { try { el.showPicker?.(); } catch (err) {} });
+      upd();
+      vis = show;
+    }
+    const fs = sizes[key];
+    if (fs) {
+      if (fs.w) { wrap.style.width = fs.w + "px"; wrap.classList.add("sized"); }
+      if (fs.h) setH(fs.h);
+    }
+    const hd = document.createElement("span");
+    hd.className = "fld-rsz";
+    hd.title = "Glisser pour régler la taille du champ";
+    wrap.appendChild(hd);
+    hd.addEventListener("pointerdown", e => {
+      const r = vis.getBoundingClientRect();
+      let w = r.width, h = r.height;
+      dragXY(e, (dx, dy) => {
+        w = Math.max(60, Math.round(r.width + dx));
+        h = Math.max(28, Math.round(r.height + dy));
+        wrap.style.width = w + "px";
+        wrap.classList.add("sized");
+        setH(h);
+      }, () => psSet(key, { w, h }));
+    });
+    /* double-toucher sur la poignée : taille d'origine */
+    hd.addEventListener("dblclick", () => {
+      wrap.style.width = ""; wrap.classList.remove("sized");
+      vis.style.height = ""; vis.style.paddingBottom = "";
+      psSet(key, null);
+    });
+  });
+};
+/* — de src/24-doc-historique-fenetres.js — */
+/* ===== listes DOC / TAF / OBS sous le détail ===== */
+const fmtDT = v => {
+  if (!v) return "";
+  const d = new Date(v);
+  if (isNaN(d)) return String(v);
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} À ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+/* — de src/25-inf.js — */
+/* durée en jours du calendrier, début et fin compris : « 1 AN 2 MOIS 20 JOURS » */
+const infYMD = (a, b) => {
+  if (!a || !b || b < a) return "";
+  const D = x => new Date(x + "T12:00:00");
+  const end = D(b); end.setDate(end.getDate() + 1);
+  let y = 0, m = 0, c = D(a);
+  const add = (d, yy, mm) => { const n = new Date(d); n.setFullYear(n.getFullYear() + yy); n.setMonth(n.getMonth() + mm); return n; };
+  while (add(c, 1, 0) <= end) { c = add(c, 1, 0); y++; }
+  while (add(c, 0, 1) <= end) { c = add(c, 0, 1); m++; }
+  const d = Math.round((end - c) / 86400000);
+  return [y ? y + (y > 1 ? " ANS" : " AN") : "", m ? m + " MOIS" : "", d ? d + (d > 1 ? " JOURS" : " JOUR") : ""].filter(Boolean).join(" ") || "0 JOUR";
+};
+/* — de src/25-inf.js — */
+const STAR = ' <b class="req-star">*</b>';
+/* — de src/25-inf.js — */
+const localDT = d =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+/* — de src/25-inf.js — */
+const hm = ms => {
+  if (!isFinite(ms)) return "0:00";
+  const neg = ms < 0; ms = Math.abs(ms);
+  const m = Math.round(ms / 60000);
+  return (neg ? "-" : "") + Math.floor(m / 60) + ":" + pad(m % 60);
+};
+/* — de src/26-copier-coller.js — */
+const CLIP_KEY = "svi_clip_v1";
+/* — de src/26-copier-coller.js — */
+const clipGet = () => { try { return JSON.parse(localStorage.getItem(CLIP_KEY) || "null"); } catch (e) { return null; } };
+/* — de src/26-copier-coller.js — */
+const clipSet = c => { try { c ? localStorage.setItem(CLIP_KEY, JSON.stringify(c)) : localStorage.removeItem(CLIP_KEY); } catch (e) {} };
+/* — de src/26b-conditionnement.js — */
+const COND_K = r => U_(r.des) + "|" + U_(r.u);
+/* — de src/26b-conditionnement.js — */
+const condAll = () => { try { return JSON.parse(localStorage.getItem("svi_cond_chs_v1") || "{}") || {}; } catch (e) { return {}; } };
+/* — de src/26b-conditionnement.js — */
+const condCut = (pieces, BL, kerf = 0) => {
+  const all = [];
+  pieces.forEach(p => { for (let i = 0; i < p.n; i++) all.push(p.L); });
+  all.sort((a, b) => b - a);
+  if (all.some(L => L > BL + 1e-9)) return { err: "UN MORCEAU EST PLUS LONG QUE LA BARRE (" + money(Math.max(...all)) + " M)." };
+  const pack = list => {
+    const bars = [];
+    list.forEach(L => {
+      let best = -1, rest = Infinity;
+      bars.forEach((b, i) => { const r = BL - b.used - (b.cuts.length ? kerf : 0) - L; if (r >= -1e-9 && r < rest) { rest = r; best = i; } });
+      if (best < 0) bars.push({ used: L, cuts: [L] });
+      else { const b = bars[best]; b.used += L + (b.cuts.length ? kerf : 0); b.cuts.push(L); }
+    });
+    return bars;
+  };
+  let bars = pack(all);
+  /* amélioration : vider la barre la moins remplie et replacer ses morceaux dans les autres */
+  for (let g = 0; g < 30 && bars.length > 1; g++) {
+    const sorted = bars.slice().sort((a, b) => a.used - b.used), low = sorted[0];
+    const others = bars.filter(b => b !== low).map(b => ({ used: b.used, cuts: b.cuts.slice() }));
+    let ok = true;
+    low.cuts.slice().sort((a, b) => b - a).forEach(L => {
+      let best = -1, rest = Infinity;
+      others.forEach((b, i) => { const r = BL - b.used - kerf - L; if (r >= -1e-9 && r < rest) { rest = r; best = i; } });
+      if (best < 0) ok = false; else { others[best].used += L + kerf; others[best].cuts.push(L); }
+    });
+    if (!ok) break;
+    bars = others;
+  }
+  /* plan : barres identiques regroupées */
+  const plan = new Map();
+  bars.forEach(b => { const k = b.cuts.slice().sort((a, c) => c - a).map(x => money(x)).join(" + "); plan.set(k, { n: ((plan.get(k) || {}).n || 0) + 1, chute: BL - b.used }); });
+  const need = all.reduce((a, b) => a + b, 0), chute = bars.length * BL - need;
+  return { bars: bars.length, plan: [...plan].map(([k, v]) => ({ k, n: v.n, chute: v.chute })), need, chute, pct: bars.length ? chute / (bars.length * BL) * 100 : 0 };
+};
 /* ⟪ src/10-bdg-liste.js ⟫ */
 /* =========================================================
    BDG — LISTE
@@ -4965,43 +6019,9 @@ function renderBudgetList() {
 
     /* ---- lecture tolérante des colonnes (accents, espaces, / ignorés) ---- */
 
-    const nk = s =>
-      String(s ?? "")
-        .normalize("NFD")
-        .replace(/[̀-ͯ]/g, "")
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, "");
 
-    const pick = (row, names) => {
-      const keys = Object.keys(row);
 
-      for (const name of names) {
-        const target = nk(name);
 
-        const key =
-          keys.find(k => nk(k) === target);
-
-        if (
-          key !== undefined &&
-          normalise(row[key]) !== ""
-        ) {
-          return row[key];
-        }
-      }
-
-      return "";
-    };
-
-    const colIndex = letter =>
-      letter
-        .toUpperCase()
-        .split("")
-        .reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
-
-    const byLetter = (row, letter) =>
-      row.__cols
-        ? normalise(row.__cols[colIndex(letter)])
-        : "";
 
     const typeKey =
       Object.keys(budget.rows[0] || {})
@@ -5113,12 +6133,6 @@ function renderBudgetList() {
        regroupées à l'affichage */
     /* Détail charges : regroupées par désignation + unité (article ignoré) ;
        Détail produits : PAS de regroupement, une ligne de la feuille = une ligne */
-    const gidOf = l =>
-      (l.kind === "chg"
-        ? [l.kind, l.detail, l.dunit]
-        : [l.kind, l.id])
-        .map(v => String(v ?? "").trim().toUpperCase())
-        .join("|");
 
     const groupMembers = new Map();
     lines.forEach(l => {
@@ -5127,34 +6141,6 @@ function renderBudgetList() {
       groupMembers.get(l.gid).push(l);
     });
 
-    const groupLines = list => {
-      const m = new Map();
-      list.forEach(l => {
-        if (!m.has(l.gid)) m.set(l.gid, []);
-        m.get(l.gid).push(l);
-      });
-      return [...m.entries()].map(([gid, ms]) => {
-        const f = ms[0];
-        const qty = ms.reduce((t, l) => t + l.qty, 0);
-        const amount = ms.reduce((t, l) => t + l.amount, 0);
-        const tvaAmt = ms.reduce((t, l) => t + tvaFor(l), 0);
-        const prices = new Set(ms.map(l => l.price));
-        const same = v => new Set(ms.map(v)).size === 1 ? v(f) : "";
-        return {
-          gid, members: ms,
-          /* Détail charge : article toujours vide ;
-             Détail produit : vide si des articles différents sont fusionnés */
-          article: f.kind === "chg" ? "" : same(l => l.article),
-          detail: f.detail, unit: f.dunit,
-          nbr: same(l => l.nbr),
-          dims: [0, 1, 2].map(i => same(l => l.dims[i])),
-          qty, amount, tvaAmt,
-          /* prix identique, sinon prix moyen pondéré = montant / quantité */
-          price: prices.size === 1 ? f.price : (qty ? amount / qty : 0),
-          tva: same(l => l.tva)
-        };
-      });
-    };
 
     /* désignations choisies en haut (filtrent le bas) */
     const selDesig = new Set();
@@ -5167,9 +6153,7 @@ function renderBudgetList() {
       sec: new Set()
     };
 
-    const desigKey = l => l.article + "||" + l.designation;
 
-    const inSet = (set, v) => !set.size || set.has(v);
 
     /* ce qu'apportent les lignes sélectionnées en bas */
     const rowSet = field => {
@@ -5426,13 +6410,6 @@ function renderBudgetList() {
     const CF = {};          /* CF[table] = { sort:{col,dir}|null, f:{col:Set} } */
     const cfSrc = {};       /* dernières lignes et colonnes de chaque tableau */
     const cfT = t => CF[t] || (CF[t] = { sort: null, f: {} });
-    const cfText = v =>
-      typeof v === "number" ? money(v) : String(v ?? "").trim();
-    const cfIcon =
-      `<svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true">
-         <path d="M1 2h11M3 5h7M5 8h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-         <path d="M4.5 10l2 2.2 2-2.2z" fill="currentColor"/>
-       </svg>`;
 
     /* ===== ordre manuel des lignes (glisser une ligne après un appui long) :
        désignations client, lots, activités primaires et secondaires ===== */
@@ -5492,15 +6469,6 @@ function renderBudgetList() {
           class="col-rs" data-rs="${t}" data-col="${key}"></span></th>`;
     };
 
-    /* ===== largeurs de colonnes : fixes, réglables, mémorisées ===== */
-    const CW_KEY = "svi_colw_v1";
-    const cwLoad = () => {
-      try { return JSON.parse(localStorage.getItem(CW_KEY) || "{}") || {}; }
-      catch (e) { return {}; }
-    };
-    const cwSave = obj => {
-      try { localStorage.setItem(CW_KEY, JSON.stringify(obj)); } catch (e) {}
-    };
     /* =========================================================
        REFONTE, ÉTAPE 3 (v643) : CATALOGUE UNIQUE DES COLONNES — pour chaque clé de colonne, une fois :
        w = largeur par défaut à l'écran (px), pw = poids dans les aperçus PDF, f = format (« pct » : 12,50 %).
@@ -5508,78 +6476,9 @@ function renderBudgetList() {
        Une colonne ajoutée à un tableau (liste [clé, libellé, valeur, classe]) a donc d'office : tri, filtre, largeur réglable
        et mémorisée, ordre, copie, export, aperçu (largeur et format) — il suffit de lui donner une ligne ici.
        ========================================================= */
-    const SVI_COL = {
-      article: { w: 70, pw: 5 }, designation: { w: 330 }, detail: { w: 300, pw: 30 }, unit: { w: 70, pw: 5 },
-      qty: { w: 100, pw: 9 }, price: { w: 95, pw: 9 }, ht: { w: 120 }, amount: { w: 120, pw: 11 }, tva: { w: 80, pw: 6, f: "pct" }, ttc: { w: 130, pw: 11 },
-      nbr: { w: 60, pw: 5 }, d1: { w: 60, pw: 5 }, d2: { w: 60, pw: 5 }, d3: { w: 60, pw: 5 }, pct: { f: "pct" },
-      /* historique */
-      hdt: { pw: 14 }, hbr: { pw: 8 }, hac: { pw: 12 }, hde: { pw: 40 },
-      /* DOCUMENTS / TAF / OBSERVATIONS */
-      rref: { w: 210, pw: 22 }, rdate: { w: 150 }, rtitle: { w: 360, pw: 60 }, rfile: { w: 120 }, rexp: { w: 110, pw: 8 }, robj: { w: 200, pw: 15 }, rtext: { w: 420, pw: 30 },
-      rresp: { w: 180, pw: 13 }, rprev: { w: 140, pw: 12 }, rdelay: { w: 150, pw: 9 }, relap: { w: 150, pw: 9 }, rimp: { w: 60, pw: 4 }
-    };
-    const SVI_COL_T = {
-      "client.article": 69, "client.designation": 660, "client.unit": 70, "client.qty": 71, "client.price": 86, "client.ht": 96, "client.tva": 81, "client.ttc": 97,
-      "chg.article": 69, "chg.detail": 300, "chg.rdb": 110, "chg.pct": 58, "chg.tache": 246, "chg.unit": 70, "chg.qty": 84, "chg.price": 84, "chg.amount": 92, "chg.tva": 80, "chg.ttc": 94,
-      "prd.detail": 176, "prd.tache": 246, "prd.unit": 70, "prd.nbr": 77, "prd.d1": 79, "prd.d2": 79, "prd.d3": 79, "prd.qty": 72, "prd.price": 72, "prd.amount": 92, "prd.tva": 82, "prd.ttc": 109
-    };
-    const colPw = k => (SVI_COL[k] && SVI_COL[k].pw) || 10;
-    /* valeur d'une case pour un aperçu ou un export lisible : % pour les colonnes « pct », nombres au format 1 234,56 */
-    const colFmt = (k, v) => (SVI_COL[k] && SVI_COL[k].f === "pct") && (k === "tva" || (v !== "" && v !== null && v !== undefined)) ? money(Number(v) || 0) + " %" : typeof v === "number" ? money(v) : String(v ?? "");
-    const cwGet = (t, k) => cwLoad()[t + "." + k] || SVI_COL_T[t + "." + k] || (SVI_COL[k] && SVI_COL[k].w) || 100;
 
-    /* colgroup + largeur totale de la table */
-    const cwCols = (t, cols) =>
-      cols.map(([k]) =>
-        `<col data-w="${t}.${k}" style="width:${cwGet(t, k)}px">`
-      ).join("");
-    const cwTableW = (t, cols) =>
-      cols.reduce((sum, [k]) => sum + cwGet(t, k), 0);
 
-    /* ===== ordre des colonnes : glisser un en-tête, ordre mémorisé ===== */
-    const CO_KEY = "svi_colorder_v1";
-    const coLoad = () => {
-      try { return JSON.parse(localStorage.getItem(CO_KEY) || "{}") || {}; }
-      catch (e) { return {}; }
-    };
-    const coSave = obj => {
-      try { localStorage.setItem(CO_KEY, JSON.stringify(obj)); } catch (e) {}
-    };
-    /* clés dans l'ordre choisi (colonnes inconnues gardées à la fin) */
-    const coKeys = (t, keys) => {
-      const saved = (coLoad()[t] || []).filter(k => keys.includes(k));
-      return [...saved, ...keys.filter(k => !saved.includes(k))];
-    };
-    const coOrder = (t, cols) => {
-      const order = coKeys(t, cols.map(c => c[0]));
-      return order.map(k => cols.find(c => c[0] === k));
-    };
-    /* FORMAT 102 : ordre des colonnes tel qu'affiché à l'écran (après glissement) — copies, exports, aperçus */
-    const screenCols = (table, cols) => {
-      if (!table || !cols) return cols;
-      const keys = [...table.querySelectorAll("thead tr:first-child > th .cf-btn[data-col]")].map(b => b.dataset.col);
-      const out = keys.map(k => cols.find(c => c[0] === k)).filter(Boolean);
-      return out.length ? [...out, ...cols.filter(c => !out.includes(c) && !keys.length)] : cols;
-    };
     const detailTable = () => body && body.querySelector("table.bdg-d-table, table.ins-table, table.lk-table");
-    /* réordonne un tableau déjà dessiné (col, en-têtes, lignes, pied) */
-    const coApply = (t, table) => {
-      if (!table) return;
-      const ths = [...table.querySelectorAll("thead tr:first-child > th")];
-      const keys = ths.map(th => th.querySelector(".cf-btn")?.dataset.col);
-      if (keys.some(k => !k)) return;
-      const order = coKeys(t, keys);
-      if (order.every((k, i) => k === keys[i])) return;
-      const perm = order.map(k => keys.indexOf(k));
-      const n = keys.length;
-      const reorder = parent => {
-        const kids = [...parent.children];
-        if (kids.length !== n || kids.some(c => c.colSpan > 1)) return;
-        perm.forEach(i => parent.appendChild(kids[i]));
-      };
-      table.querySelectorAll("colgroup").forEach(reorder);
-      table.querySelectorAll("tr").forEach(reorder);
-    };
 
     let cfOpen = null;   /* { t, key } du menu ouvert */
     let cfPlace = () => {};
@@ -5593,36 +6492,7 @@ function renderBudgetList() {
 
     /* v510 (remarque 70) : CONDITION sur une colonne de nombres ou de dates (égal, différent, supérieur, inférieur, entre ;
        le, avant le, après le, entre) — combinée aux cases de valeurs ; le filtre garde la forme d'un ensemble (has) */
-    const cfKind = vals => {
-      const v = vals.filter(x => String(x).trim() !== "");
-      if (!v.length) return "";
-      if (v.every(x => /^-?[\d\s\u00a0\u202f]+(,\d+)?( ?%)?$/.test(String(x).trim()))) return "num";
-      if (v.every(x => /^\d{2}\/\d{2}\/\d{4}$/.test(String(x).trim()) || /^\d{4}-\d{2}-\d{2}$/.test(String(x).trim()))) return "date";
-      return "txt";   /* v622 : texte — contient, ne contient pas, commence par, se termine par, égal à */
-    };
-    const cfNum = x => num(String(x).replace(/%/g, ""));
     const cfDate = x => { const s = String(x || "").trim(); const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); if (m) return m[3] + "-" + m[2] + "-" + m[1]; return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : ""; };
-    const cfCondOk = (c, v) => {
-      if (!c) return true;
-      if (c.kind === "txt") {
-        const x = U_(String(v || "")), a = U_(String(c.a || ""));
-        switch (c.op) { case "ct": return x.includes(a); case "nc": return !x.includes(a); case "sw": return x.startsWith(a); case "ew": return x.endsWith(a); case "eq": return x === a; default: return true; }
-      }
-      if (String(v).trim() === "") return false;
-      const x = c.kind === "num" ? cfNum(v) : cfDate(v);
-      if (c.kind === "date" && !x) return false;
-      const a = c.a, b = c.b;
-      switch (c.op) {
-        case "eq": return x === a;
-        case "ne": return x !== a;
-        case "gt": return x > a;
-        case "ge": return x >= a;
-        case "lt": return x < a;
-        case "le": return x <= a;
-        case "bt": { const lo = a < b ? a : b, hi = a < b ? b : a; return x >= lo && x <= hi; }
-        default: return true;
-      }
-    };
     const cfMakeF = (vals, cond) => ({ cond, vals, has: v => (!vals || vals.has(v)) && cfCondOk(cond, v), [Symbol.iterator]: function* () { if (vals) yield* vals; } });
 
     const cfValues = (t, key) => {
@@ -5912,7 +6782,6 @@ function renderBudgetList() {
     });
     let insSeq = Date.now();
     const insId = () => "i" + (insSeq++).toString(36);
-    const U_ = v => String(v ?? "").trim().toUpperCase();
     /* FORMAT 91 : LIGNES NON LIÉES (compteur, liste ouverte, hachures, FIGER) et LIAISONS VALIDÉES
        recalculés aussitôt après chaque changement du budget */
     let insLiveT = null;
@@ -5939,33 +6808,11 @@ function renderBudgetList() {
     };
     if (INS_DLP_MIG) insSave();
 
-    const insNum = v => {
-      const s = String(v ?? "").trim();
-      return s === "" ? "" : num(s);
-    };
-    const insFmt = v => (v === "" || v === null || v === undefined) ? "" : (typeof v === "string" && /[A-Z]/i.test(v) && !/^[\d\s.,+-]+$/.test(v)) ? v : money(v);
-    /* niveau d'un titre d'après sa numérotation : I = 1, I.1 = 2, I.1.1 = 3 */
-    const insLevel = art => Math.min(3, String(art || "").split(".").filter(x => x.trim() !== "").length || 1);
     /* niveau enregistré à part (FORMAT 61) : r.d = nombre de titres au-dessus de la ligne.
        Calculé une fois depuis l'ART (lignes anciennes / importées), puis changé seulement par le glissement ;
        l'ART reste tel que saisi. Pas de limite de niveaux. */
-    const dOf = r => Number(r && r.d) || 0;
     /* FORMAT 124 : ART calculé quand il est vide — suivant de la ligne précédente de même niveau (dernier nombre + 1),
        sinon numéro du titre + « .1 » (1re ligne du tableau : 1) ; un ART saisi n'est jamais changé */
-    const artIncr = a => { const m = /^(.*?)(\d+)(\D*)$/.exec(String(a)); return m ? m[1] + (Number(m[2]) + 1) + m[3] : String(a) + ".1"; };
-    const artAutoOf = list => {
-      const out = new Map(), last = [], tnum = [];
-      (list || []).forEach(r => {
-        const d = Number(r && r.d) || 0;
-        last.length = d + 1; tnum.length = d + 1;
-        const own = String(r.art ?? "").trim();
-        const n = own || (last[d] !== undefined ? artIncr(last[d]) : d === 0 ? "1" : (tnum[d - 1] || "1") + ".1");
-        last[d] = n;
-        if (!own) out.set(r.id, n);
-        if (r.t) { tnum[d] = n; last[d + 1] = undefined; }
-      });
-      return out;
-    };
     let ART_AUTO = new Map(), ART_DUP = new Map();
     const artOf = r => r ? (String(r.art ?? "").trim() || ART_AUTO.get(r.id) || "") : "";
     const artRefresh = () => {
@@ -6247,7 +7094,6 @@ function renderBudgetList() {
     };
     const insPrice = (k, r) => { if (k !== "prd") return r.p; const v = insPrdPrice(INS, r.id); return v !== "" ? v : (INS.links || []).some(l => (l.prd || []).some(x => x.id === r.id)) ? "" : lkPrimPrice(r); };
     const insHT = (k, r) => r.t ? 0 : insQty(k, r) * num(insPrice(k, r) || 0);
-    const insTVA = r => (r.tva === "" || r.tva === undefined) ? 20 : num(r.tva);
     /* TVA de la ligne : produits = celle de la désignation liée (vide sans liaison) */
     const insTVAk = (k, r) => k === "prd" ? insPrdTVA(INS, r.id) : insTVA(r);
     const insTTC = (k, r) => insHT(k, r) * (1 + num(insTVAk(k, r) || 0) / 100);
@@ -6389,7 +7235,6 @@ function renderBudgetList() {
     /* remarque 4 (v542) : conditionnement réglé sur l'article (tous les budgets, voir 26b) ou, avant, sur ce budget */
     const condHas = r => { const k = U_(r.des) + "|" + U_(r.u); let A = {}; try { A = JSON.parse(localStorage.getItem("svi_cond_chs_v1") || "{}") || {}; } catch (e) {} return !!(A[k] || (INS.cond || {})[k]); };
     const condBtn = r => `<button type="button" class="chg-pk${condHas(r) ? " on" : ""}" tabindex="-1" data-cid="${r.id}" aria-label="Conditionnement"><svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg></button>`;
-    const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     /* page unique : rond à gauche = choix pour la liaison (2e toucher = libère le choix) ;
        case à droite = suppression (cochée, elle devient 🗑 ; ANNULER la décoche) */
     /* rond d'en-tête (FORMAT) : « toutes les lignes déjà liées » du bloc sont choisies, pour les délier d'un coup */
@@ -6402,8 +7247,6 @@ function renderBudgetList() {
       return true;
     };
     const lkOn = (k, id) => (k === "prd" || k === "chg") ? LK[k][id] !== undefined : (LK.all && LK.all[k] ? lkAllLinked(k, id) && lkInPart(k, id) : LK[k] === id);
-    /* v530 : chiffre d'une pastille (à moitié remplie : blanc sur la partie colorée, couleur sur la partie blanche) */
-    const pstNum = n => `<b class="pst-n">${n}</b>`;
     const lkRdPart = (k, key) => {
       if (!INS_EDIT) return "";
       /* v528 (remarque 1) : rond d'en-tête actif = tous les titres aussi ; rond d'un titre parent d'un titre choisi = choisi aussi */
@@ -6505,9 +7348,6 @@ function renderBudgetList() {
     /* v490 (remarque 4) : quel que soit le rond choisi (désignation, lot, activité, produit, charge), les lignes liées
        à ce choix ont le point dans leur rond (avant : seulement quand une désignation était choisie) */
     const lkRd = (k, r) => INS_EDIT && r && r.t && k === "des" ? lkRdPart("des", r.id) : INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${(LK.des && lkIsLinked(k, r.id)) || lkHit(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
-    /* case à droite : elle coche seulement (suppression, export, aperçu passent par le menu ⋯ du bloc) */
-    const insDelCell = r => !r ? "" : `<input type="checkbox" class="ins-cb${r.t ? " ins-tcb" : ""}" ${!r.t && r.on === true ? "checked" : ""}>`;
-    const insQCol = k => false;   /* plus de colonne QUANTITÉ DE LA TÂCHE : la quantité liée est la QPB du produit */
     const insRowHTML = (k, r, lvl) => {
       const cols = insColsOrd(k);
       const tcell = "";   /* plus de colonne T : un titre se crée en superposant deux lignes (FORMAT 61) */
@@ -6524,7 +7364,6 @@ function renderBudgetList() {
     /* lignes + sous-totaux de titres (désignations) */
     /* filtres / tri de colonne (mêmes menus que la version validée) :
        une ligne filtrée garde son titre ; un tri affiche la liste à plat */
-    const insCfT = k => k === "des" ? "client" : k;
     /* FORMAT 131 : bouton « COCHÉES SEULEMENT (n) » — n'affiche que les lignes cochées (avec leurs titres) */
     const ONLYC = shell.__onlyc = shell.__onlyc || {};
     const onlyBtn = (k, short) => {
@@ -6593,20 +7432,6 @@ function renderBudgetList() {
       }
       return { ht, ttc };
     };
-    /* suite d'affichage : titres, lignes et sous-totaux (écran et aperçu) */
-    const insOrder = rows => {
-      const out = [], stack = [];
-      rows.forEach(r => {
-        while (stack.length && dOf(stack[stack.length - 1]) >= dOf(r)) out.push({ sub: stack.pop() });
-        out.push({ r, lvl: dOf(r) });
-        if (r.t) stack.push(r);
-      });
-      while (stack.length) out.push({ sub: stack.pop() });
-      return out;
-    };
-    /* ===== titres repliables (FORMAT 60) : › replié / ⌄ déplié ; état mémorisé par budget ===== */
-    const FOLD_KEY = "svi_fold_v1";
-    const foldAll = () => { try { return JSON.parse(localStorage.getItem(FOLD_KEY) || "{}") || {}; } catch (e) { return {}; } };
     const foldGet = () => foldAll()[ref] || {};
     /* v512 (remarque 76) : première ouverture d'un budget — titres des désignations pliés (état mémorisé ensuite) */
     if (INS && !(ref in foldAll())) {
@@ -6646,18 +7471,12 @@ function renderBudgetList() {
         shell.__fold(b.dataset.fold);
       }, true);
     }
-    /* v510 (remarque 68) : état d'une branche pour la couleur de son signe ou de sa pastille */
-    const sviFoldState = (red, blue) => red && blue ? " fs-vio" : red ? " fs-red" : blue ? " fs-blu" : "";
     const foldBtn = r => r && r.t ? `<span class="ins-fold${foldGet()[r.id] ? "" : " open"}${INS_EDIT ? (() => { const B = insBranch(r).filter(x => !x.t); return sviFoldState(B.some(x => LK.des === x.id), B.some(x => lkHit("des", x.id))); })() : ""}" data-fold="${r.id}" role="button" aria-label="Replier / déplier">${foldGet()[r.id] ? "›" : "⌄"}</span>` : "";
-    /* grands tableaux (détail produits / charges) : lignes dessinées par paquets, au fil du défilement (rapidité) */
-    const INS_CHUNK = 120;
     const insMore = {};
     /* v492 (remarque 10) : DÉTAIL CHARGES filtré (filtre de colonne, cases cochées d'un autre bloc, « seulement les cochées ») */
     /* v499 (remarque 45) : charges identiques regroupées = un TITRE (gras, fond gris) — QCB, MCB HT et TTC cumulés,
        PCB moyen pondéré (MCB HT ÷ QCB), TÂCHE = nombre de tâches ; signe › / ⌄ pour plier / déplier ses lignes (affichées dessous,
        modifiables une par une) ; sa case coche / décoche toutes ses lignes (à moitié cochée si une partie seulement) */
-    /* v512 (remarque 76) : titres de charges regroupées PLIÉS à la première ouverture ; ceux qu'on déplie sont mémorisés (par budget) */
-    const CHG_GK = "svi_chggopen_v1";
     const chgOpenLoad = () => { try { return new Set(((JSON.parse(localStorage.getItem(CHG_GK) || "{}") || {})[ref]) || []); } catch (e) { return new Set(); } };
     shell.__chgGOpen = chgOpenLoad();
     shell.__chgGSave = () => { try { const o = JSON.parse(localStorage.getItem(CHG_GK) || "{}") || {}; o[ref] = [...shell.__chgGOpen]; localStorage.setItem(CHG_GK, JSON.stringify(o)); } catch (e) {} };
@@ -6867,11 +7686,6 @@ function renderBudgetList() {
         clear: () => { shell.__prdNc = null; } }
     ];
     const fsSrc = k => FSRC.find(s => s.k === k);
-    const fsMark = s => (s.mark || s.on)();
-    /* loupes (filtres de colonne) : tableau → bloc de EFFACER et onglet */
-    const FS_CF = () => [["client", "client", ""], ["lot", "hier", ""], ["prim", "hier", ""], ["sec", "hier", ""],
-      [insCfT("chg"), "detail", "chg"], [insCfT("prd"), "detail", "prd"], ["dly", "detail", "dly"], ["dlyp", "detail", "dly"], ["dlyr", "detail", ""],
-      ["dlyi", "detail", ""], ["dlys", "detail", "dly"], ["lk_marge", "detail", "lnk"], ["lk_unl", "detail", "unl"], ["lk_inc", "detail", "inc"]];
     const fsCfOn = t => !!(CF[t] && Object.keys(CF[t].f || {}).length);
     /* effacer : un bloc (« client », « hier », « detail ») ou tout (blk vide) */
     const fsClear = blk => {
@@ -7067,34 +7881,6 @@ function renderBudgetList() {
     };
     /* FORMAT 109 : bloc DÉSIGNATIONS CLIENT — à l'ouverture toutes les colonnes tiennent (cases comprises) :
        la colonne DÉSIGNATION se réduit (sauf largeur réglée à la main) ; texte à la ligne */
-    const clientTaFit = root => (root || document).querySelectorAll("textarea.ins-ta").forEach(t => {
-      t.style.height = "0px"; t.style.height = Math.max(20, t.scrollHeight) + "px";
-    });
-    const clientFit = () => {
-      const sc = document.querySelector(".bdg-d-client-scroll"), cg = $("bdgClientCols");
-      if (!sc || !cg) return;
-      const tbl = sc.querySelector("table"), dc = cg.querySelector('col[data-w="client.designation"]');
-      if (!sc.__ro && window.ResizeObserver) {
-        let raf = 0; const run = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(clientFit); };
-        sc.__ro = new ResizeObserver(run); sc.__ro.observe(sc);
-        const body = $("bdgClientBody"); if (body) new MutationObserver(run).observe(body, { childList: true, subtree: true });
-      }
-      if (tbl && dc && !cwLoad()["client.designation"] && sc.clientWidth > 300) {
-        const cols = [...cg.querySelectorAll("col")];
-        const others = cols.filter(c => c !== dc).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
-        const pr = parseFloat(getComputedStyle(sc).paddingRight) || 0;   /* FORMAT 134 : 9 px jusqu'au bord droit */
-        const nd = Math.max(160, Math.min(cwGet("client", "designation"), Math.floor(sc.clientWidth - pr - others)));
-        if (parseFloat(dc.style.width) !== nd) dc.style.width = nd + "px";
-        const tw = others + nd + "px";
-        if (tbl.style.width !== tw) tbl.style.width = tw;
-      }
-      /* version validée / figée : cellule DÉSIGNATION à la ligne */
-      if (tbl && dc && !tbl.classList.contains("ins-table")) {
-        const idx = [...cg.querySelectorAll("col")].indexOf(dc);
-        tbl.querySelectorAll("tbody tr").forEach(tr => { const td = tr.children[idx]; if (td && td.colSpan <= 1) td.classList.add("c-wrap"); });
-      }
-      clientTaFit(sc);
-    };
     const insRenderClient = () => {
       insNorm();
       const t = document.querySelector("#bdgClientTitle .ttl");
@@ -7119,18 +7905,11 @@ function renderBudgetList() {
       insDim();
       clientFit();
     };
-    /* mode SAISIE : la case sert à choisir des lignes (plus de grisé des autres) ; le choix unique est en mode LIAISONS */
-    const insDim = () => {};
-    /* ===== LOTS en arborescence (« / ») dans le bloc TÂCHES : niveaux repliables › / ⌄, nom du dernier niveau ===== */
-    const lotSegs = r => String(r && r.v || "").split("/").map(x => x.trim()).filter(Boolean);
     /* v461 : NUMÉRO D'ORDRE des lots et niveaux (cahier, Planning budgétaire) — lots principaux 1, 2, 3… dans l'ordre des lots,
        puis 1.1, 1.2, 1.1.1… selon l'arborescence ; écrit devant le nom (« 1.1 BAS ») ; niveau sans nom = « NIVEAU 1.1 » */
-    /* v527 (remarque 3) : « GROUPE » au lieu de « NIVEAU » (anciens noms « NIVEAU n » reconnus et affichés « GROUPE n ») */
-    const LVL_AUTO = /^(NOUVEAU )?(NIVEAU|GROUPE) \d+(\.\d+)*$/i;
     let lotNumC = { k: null, M: null };
     /* v532 : un titre de groupe garde le numéro de son nom (« GROUPE 6 » reste « GROUPE 6 » quoi qu'on fasse dans le tableau) ;
        les lots sont numérotés selon leur place, en sautant les numéros déjà pris par les groupes du même niveau */
-    const lotAutoNo = g => { const m = String(g || "").trim().match(/^(?:NOUVEAU )?(?:NIVEAU|GROUPE) (\d+(?:\.\d+)*)$/i); return m ? m[1] : ""; };
     const lotNumMap = () => {
       const k = INS.lot.map(x => (x.t ? "#" : "") + x.v).join("\n");
       if (lotNumC.k === k) return lotNumC.M;
@@ -7161,7 +7940,6 @@ function renderBudgetList() {
       const name = auto ? "GROUPE " + lotAutoNo(last) : last;
       return { no, auto, name, full: auto ? name : (no ? no + " " : "") + last };
     };
-    const lotNoHTML = L => L.auto || !L.no ? "" : `<span class="lvl-no">${esc(L.no)}</span>`;
     /* nom d'un nouveau niveau de lot (16/10/2026) : « NIVEAU n », numéro suivant dans le budget (anciens « NOUVEAU NIVEAU n » comptés) */
     /* v450 : nom d'un niveau créé selon l'arborescence — sous un lot : NIVEAU 1, NIVEAU 2… (rang parmi les niveaux du même parent) ;
        sous un niveau « NIVEAU 2 » : NIVEAU 2.1, NIVEAU 2.2… ; affiché avec le nom des parents (« FONDATION / NIVEAU 2 ») tant qu'on ne lui donne pas un intitulé */
@@ -7179,7 +7957,6 @@ function renderBudgetList() {
       while (kids.has(P.concat("GROUPE " + base + n).join(" / "))) n++;
       return "GROUPE " + base + n;
     };
-    const lotUnder = (r, P) => { const s2 = lotSegs(r); return s2.length >= P.length && P.every((g, i) => U_(g) === U_(s2[i])); };
     /* arborescence dans l'ordre des lots (classés par ordre alphabétique au départ, puis ordre libre) :
        un niveau prend la place de son premier lot */
     const lotTreeRows = list => {
@@ -7242,19 +8019,6 @@ function renderBudgetList() {
     }).join("");
     /* glissement d'un lot (FORMAT 26, 44) : dans un niveau = passe dessous ; avant / après = même niveau que la ligne visée ;
        superposé à un lot = nouveau niveau « NIVEAU n » qui regroupe les deux */
-    /* v529 : lots rangés dans l'ordre de l'arborescence affichée (un niveau prend la place de son premier lot) */
-    const lotTreeOrder = arr => {
-      const first = new Map();
-      arr.forEach((r, i) => { const s2 = lotSegs(r); for (let j = 1; j <= s2.length; j++) { const p = U_(s2.slice(0, j).join(" / ")); if (!first.has(p)) first.set(p, i); } });
-      const key = r => { const s2 = lotSegs(r); return s2.map((_, j) => first.get(U_(s2.slice(0, j + 1).join(" / ")))); };
-      const K = new Map(arr.map(r => [r, key(r)]));
-      const pos = new Map(arr.map((r, i) => [r, i]));
-      return arr.slice().sort((a, b) => {
-        const A = K.get(a), B = K.get(b);
-        for (let i = 0; i < Math.min(A.length, B.length); i++) if (A[i] !== B[i]) return A[i] - B[i];
-        return A.length - B.length || pos.get(a) - pos.get(b);
-      });
-    };
     /* v529 (remarques 4 et 5) : dépôt ENTRE deux lignes de la liste des lots — gap = { prev: chemin de la ligne du dessus (ou null),
        inStart: ligne du dessus = titre déplié (on entre dedans, en premier), D: rang d'arrivée (0 = premier rang) } */
     const lotDrop = (srcId, tEl, mode, gap, opts = {}) => {
@@ -7368,8 +8132,6 @@ function renderBudgetList() {
     }
     /* v529 (remarque 3) : nom tapé sur un titre de groupe gardé même si l'écran est redessiné avant que la case ne soit quittée
        (iPad : toucher un rond, un signe de pliage ou un autre groupe ne fait pas toujours perdre le focus) — LOTS et PLANNING */
-    /* v533 : la case du nom tapé est suivie à la frappe (même si elle a perdu le focus, iPad) */
-    const GN_SEL = "input.lot-gname, input.dly-nm:not(.dly-gin)";
     if (!shell.__gnBound) {
       shell.__gnBound = true;
       shell.addEventListener("input", e => { const i = e.target.closest && e.target.closest(GN_SEL); if (i) { i.__gnDone = false; shell.__gnPend = i; } }, true);
@@ -7522,7 +8284,6 @@ function renderBudgetList() {
       if (k === "chg") { const T = [...new Set((INS.links || []).filter(l => (l.chg || []).some(x => x.id === r.id)).map(l => l.lot + "|" + l.sec))].sort().join(","); return impId(k, r) + "#" + T; }
       return k === "prd" ? impId(k, r) + "#" + prdChainKey(r.id) : impId(k, r);
     };
-    const dupName = (k, r) => (k === "lot" || k === "prim" || k === "sec" || k === "qlt") ? U_(r.v) : [r.art, r.des].filter(Boolean).join(" — ") + (r.u ? " (" + U_(r.u) + ")" : "");
     /* v490 (remarque 1) : chaque ligne de la fenêtre DOUBLON montre ses combinaisons complètes, sur une ligne :
        DÉSIGNATION CLIENT / LOT / ACTIVITÉ PRIMAIRE / ACTIVITÉ SECONDAIRE ; produit : + UNITÉ · NBR · QPB ; « NON LIÉ » sans liaison */
     const dupChains = (k, r) => {
@@ -7666,12 +8427,6 @@ function renderBudgetList() {
        même ART → par désignation), en gardant les titres (classement à l'intérieur de chaque titre) ;
        autres tableaux par désignation / intitulé croissant. Appliqué à l'ouverture (une fois), après un import
        ou un collage ; le glisser reste libre ensuite. ===== */
-    const natCmp = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "fr", { numeric: true, sensitivity: "base" });
-    const desCmp = (a, b) => {
-      const A = String(a.art ?? "").trim(), B = String(b.art ?? "").trim();
-      if (!A !== !B) return A ? 1 : -1;   /* ART vide en tête */
-      return natCmp(A, B) || natCmp(a.des, b.des);
-    };
     const insSortKind = k => {
       if (!INS || !INS[k] || INS[k].length < 2) return;
       if (k !== "des") { INS[k].sort((a, b) => natCmp(k === "lot" || k === "prim" || k === "sec" || k === "qlt" ? a.v : a.des, k === "lot" || k === "prim" || k === "sec" || k === "qlt" ? b.v : b.des) || natCmp(a.u, b.u)); return; }
@@ -7703,7 +8458,6 @@ function renderBudgetList() {
        on choisit PRENDRE L'EXISTANT ou GARDER LA NOUVELLE (ouverture du budget : FUSIONNER ou IGNORER) */
     /* refonte, étape 8 (v645) : règles dans 02d (calcul pur, testées) */
     const nearNorm = sviNearNorm, nearDigits = sviNearDigits, nearDist1 = sviNearDist1;
-    const nearName = (k, r) => (k === "lot" || k === "prim" || k === "sec" || k === "qlt") ? r.v : r.des;
     const nearCtx = (k, r) => {
       if (k === "lot" || k === "prim" || k === "sec" || k === "qlt") return "";
       if (k === "des") return U_(r.u);
@@ -8060,7 +8814,6 @@ function renderBudgetList() {
       /* FORMAT 131 (v489) : contrôles de suite sans remarque, après un audit soldé, pour remettre le compteur à zéro */
       ["nrz", "CONTRÔLES SANS REMARQUE", 130, "num"]
     ];
-    const QQ_TREE_W = 300;
     const qqData = () => {
       INS.qq = INS.qq || {};
       const Q = INS.qq;
@@ -8080,10 +8833,6 @@ function renderBudgetList() {
       if (!Q.T[key]) { if (!INS_EDIT) return qqDefault(); Q.T[key] = qqDefault(); }
       return Q.T[key];
     };
-    const qqEnd = (L, i) => { let j = i + 1; while (j < L.length && L[j].d > L[i].d) j++; return j; };
-    const qqHasPts = (L, i) => L.slice(i + 1, qqEnd(L, i)).some(x => x.k !== "t");
-    const qqHasSubT = (L, i) => L.slice(i + 1, qqEnd(L, i)).some(x => x.k === "t");
-    const qqCrit = L => (L || []).filter(x => x.k === "c");
     const qqCount = key => qqCrit(key === undefined ? qqList(qqKey()) : qqList(key)).length;
     /* tâche (clé « lot|sec ») : ses produits et charges, pour ÉLÉMENT VISÉ et la fréquence par quantité */
     const qqElems = key => {
@@ -8126,7 +8875,6 @@ function renderBudgetList() {
       if (fq) { const e = qqEvQty(n.ev); f = "1/" + insFmt(fq).replace(/,00$/, "") + (e && e.u ? " " + e.u : ""); }
       return [b, f].filter(Boolean).join(" · ");
     };
-    const qqAppLab = n => n.pv ? insFmt(n.pv).replace(/,00$/, "") + " J" + (n.pw ? " · " + n.pw : "") : "";
     /* tâches qui portent un point d'arrêt (FORMAT 107 : ■ sur le Gantt) — modèle commun compris */
     const qqArret = key => {
       const Q = INS.qq;
@@ -8508,45 +9256,7 @@ function renderBudgetList() {
       if (keepFocus) { const t = body.querySelector(keepFocus); if (t) t.focus(); }
     };
     const qqSave = () => insSave();
-    /* petite liste au format de l'application sous la case (comme les unités, FORMAT 50) */
-    const qqPick = (td, items, cur, done) => {
-      document.getElementById("qqPick")?.remove();
-      const m = document.createElement("div");
-      m.id = "qqPick";
-      m.innerHTML = items.map(it => `<button type="button" data-v="${esc(it.v)}" class="${it.v === cur ? "on" : ""}">${esc(it.lab)}</button>`).join("")
-        + (cur ? '<button type="button" data-v="" class="qq-clr">EFFACER</button>' : "");
-      document.body.appendChild(m);
-      const r = td.getBoundingClientRect();
-      sviPlaceMenu(m, { top: r.top, bottom: r.bottom, right: r.left + Math.max(r.width, m.offsetWidth), left: r.left });
-      const close = ev => { if (!m.contains(ev.target)) { m.remove(); document.removeEventListener("pointerdown", close, true); } };
-      setTimeout(() => document.addEventListener("pointerdown", close, true), 0);
-      m.addEventListener("click", ev => {
-        const b = ev.target.closest("[data-v]");
-        if (!b) return;
-        m.remove(); document.removeEventListener("pointerdown", close, true);
-        done(b.dataset.v);
-      });
-    };
     const qqNode = (key, id) => qqList(key).find(x => x.id === id);
-    /* fenêtres DÉCLENCHEMENT et APPEL (FORMAT 105 et 106), au format INF */
-    const qqWin = (title, html, onOk, onLive) => {
-      const d = sviWinNew();
-      d.innerHTML = `<div class="svc-card qq-win" role="dialog" aria-modal="true">
-          <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
-          <div class="svc-t">${esc(title)}</div><div class="svc-x svc-html">${html}</div>
-          <div class="svc-f"><button type="button" class="svc-b" data-r="0">ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-r="1">ENREGISTRER</button></div></div>`;
-      sviWinShow(d);
-      if (onLive) { d.addEventListener("input", () => onLive(d)); d.addEventListener("change", () => onLive(d)); onLive(d); }
-      let lp = null;
-      d.addEventListener("pointerdown", e => { const g = e.target.closest(".qq-dis"); if (g) lp = setTimeout(() => svToast(g.dataset.why || "", 3500, g), 500); });
-      ["pointerup", "pointercancel"].forEach(t => d.addEventListener(t, () => clearTimeout(lp)));
-      d.addEventListener("click", e => {
-        const b = e.target.closest("[data-r]");
-        if (!b && e.target !== d) return;
-        if (b && b.dataset.r === "1") onOk(d);
-        d.remove();
-      });
-    };
     const qqDecWin = (key, n) => {
       const e = qqEvQty(n.ev), sel = new Set(n.btn || []);
       const html = `<div class="svc-sub">BOUTONS ${svCnt(sel.size)}</div><div class="qq-wl">${QQ_BTNS.map(b => `<label><input type="checkbox" value="${esc(b)}" ${sel.has(b) ? "checked" : ""}> ${esc(b)}</label>`).join("")}</div>
@@ -9491,14 +10201,9 @@ function renderBudgetList() {
       if (shell.__markCut) shell.__markCut();
     };
 
-    /* ---------- DÉTAIL DÉLAIS (instance) : une ligne par activité secondaire ---------- */
-    const dIso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-    const dAdd = (iso, n) => { const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return dIso(d); };
-    const dDiff = (a, b) => Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000);
     /* FORMAT 139 : durée en jours, jour de début et jour de fin compris (même jour = 1 J) */
     /* 15/10/2026 : DURÉE = jours TRAVAILLÉS du calendrier du budget, début et fin compris */
     const dDur = (a, b) => sviWDur(insCal(), a, b);
-    const dFr = iso => iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : "";
     /* ---------- DÉTAIL DÉLAIS (instance) : une ou plusieurs périodes par TÂCHE PRIMAIRE
        (tâche primaire = un lot associé à une activité primaire, d'après les liaisons validées).
        Saisie en mode LIAISONS seulement ; périodes sans chevauchement dans une même tâche. ---------- */
@@ -9524,7 +10229,6 @@ function renderBudgetList() {
     const dlyLinks = key => { return ((INS.dpred || {})[key] || []).map(x => typeof x === "string" ? { k: x, t: "FD", o: 0 } : x); };
     const dlyPreds = key => dlyLinks(key).map(x => x.k);
     const dlySuccs = key => Object.keys(INS.dpred || {}).filter(k => dlyLinks(k).some(x => x.k === key));
-    const dlyLinkTxt = x => (x.t === "DD" ? "DD" : "FD") + "+" + (x.o || 0);
     /* PRÉDÉCESSEURS affichés : « LOT › ACTIVITÉ SECONDAIRE », avec le type et le décalage s'ils ne sont pas FIN → DÉBUT + 0 */
     const dlyPredTxt = k => dlyLinks(k).map(x => dlyName(x.k) + (x.t === "DD" ? (x.o ? " (DÉBUT → DÉBUT + " + x.o + " J)" : " (DÉBUT → DÉBUT)") : !(x.o > 0) ? "" : " (FIN → DÉBUT + " + x.o + " J)")).join(" ; ");
     /* v546 (R27) : SUCCESSEURS affichés (lecture seule), avec le type de la liaison */
@@ -9646,8 +10350,6 @@ function renderBudgetList() {
       return ch;
     };
 /* ⟪ src/17-2-lignes-ordre.js ⟫ */
-    /* ===== PLANNING (v401) : MARGE, JALON, LOTS EN ARBORESCENCE (« / »), GANTT ===== */
-    const dlyLotPath = name => String(name || "").split("/").map(x => x.trim()).filter(Boolean);
     /* une couleur par lot (FORMAT 91), partagée par toutes ses tâches */
     /* pas de rouge : le rouge est réservé aux tâches critiques */
     const DLY_PAL = ["#6fa8dc", "#93c47d", "#f6b26b", "#8e9fd6", "#76c5c0", "#c9a0dc", "#e8c468", "#9fb7c9", "#a8d5a2", "#8db3e2", "#d7b98e", "#7fc3e0"];
@@ -9690,8 +10392,6 @@ function renderBudgetList() {
       dated.forEach(k => { const d0 = dlyDeb(k); M[k] = LS[k] <= d0 ? 0 : sviWDur(cal, d0, LS[k]) - 1; });
       return M;
     };
-    /* repli des lots (› replié / ⌄ déplié), mémorisé par projet */
-    const dlyFoldAll = () => { try { return JSON.parse(localStorage.getItem("svi_lotfold_v1") || "{}") || {}; } catch (e) { return {}; } };
     const dlyFoldK = p => (budget.project || "") + "|" + p;
     const dlyIsFolded = p => !!dlyFoldAll()[dlyFoldK(p)];
     /* v512 (remarque 76) : première ouverture d'un budget — niveaux de LOT pliés (état mémorisé ensuite) */
@@ -9719,8 +10419,6 @@ function renderBudgetList() {
       INS.dord = cur;
       return new Map(INS.dord.map((k, i) => [k, i]));
     };
-    /* R29 : affichage PAR LOT (ordre enregistré) ou PAR DÉBUT (vue en escalier, rien n'est enregistré), mémorisé par budget */
-    const dlyViewAll = () => { try { return JSON.parse(localStorage.getItem("svi_dlyview_v1") || "{}") || {}; } catch (e) { return {}; } };
     const dlyView = () => dlyViewAll()[DLYG_REF] === "d" ? "d" : "l";
     const dlyViewSet = v => { const A = dlyViewAll(); if (v === "d") A[DLYG_REF] = "d"; else delete A[DLYG_REF]; try { localStorage.setItem("svi_dlyview_v1", JSON.stringify(A)); } catch (e) {} };
     /* un seul ordre (cahier, Planning budgétaire) : PLANNING → bloc TÂCHES — lots dans l'ordre de leur première tâche,
@@ -9944,18 +10642,7 @@ function renderBudgetList() {
       return Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v)));
     };
     let DLY_DW = dlyDwGet();
-    /* hauteur des lignes du PLANNING (tableau et Gantt) : pincement vertical à deux doigts ; 24 px au moins (taille d'origine), 64 au plus */
-    const DLY_RH_KEY = "svi_dly_rh_v1";
-    const dlyRhGet = () => { const v = Number(localStorage.getItem(DLY_RH_KEY)); return v >= 24 && v <= 64 ? v : 24; };
-    const dlyBh = rh => Math.round(11 + (rh - 24) * 0.5);   /* épaisseur des barres : 11 px à 24, 31 px à 64 */
     const dlyRhApply = rh => { shell.style.setProperty("--dly-rh", rh + "px"); shell.style.setProperty("--gbh", dlyBh(rh) + "px"); };
-    /* largeur d'un intitulé dans la barre (police des barres : 9 px, gras) */
-    const dlyTxtW = t => {
-      const c = dlyTxtW.c || (dlyTxtW.c = document.createElement("canvas").getContext("2d"));
-      if (!dlyTxtW.f) dlyTxtW.f = "700 9px " + (getComputedStyle(document.body).fontFamily || "sans-serif");
-      c.font = dlyTxtW.f;
-      return c.measureText(String(t || "").toUpperCase()).width;
-    };
 /* ⟪ src/17-3-gantt-dessin.js ⟫ */
     const dlyGanttDraw = () => {
       sviStep("PLANNING : DESSIN");
@@ -10306,43 +10993,10 @@ function renderBudgetList() {
       if (Math.abs(sc.scrollLeft - host.scrollLeft) > 0.5) sc.scrollLeft = host.scrollLeft;
       if (!host.__footS) { host.__footS = true; host.addEventListener("scroll", () => { const f = shell.querySelector("#bdgTabBody > .dlyg-foot > .dlyf-sc"); if (f && Math.abs(f.scrollLeft - host.scrollLeft) > 0.5) f.scrollLeft = host.scrollLeft; }, { passive: true }); }
     };
-    /* v545 (remarque 2) : bas de l'écran visible (clavier de l'iPad compris) */
-    const dlyVpB = () => { const vv = window.visualViewport; return vv ? vv.offsetTop + vv.height : window.innerHeight; };
     /* v551 (FORMAT 200) : le bloc du PLANNING est un cadre fermé dont le bas tombe au bas de l'écran visible.
        capMax = sa plus grande hauteur (bloc en haut de l'écran, sous le bandeau et les onglets) : sert au dessin, ne dépend pas du défilement ;
        hauteur réelle = du haut du bloc au bas de l'écran (jamais plus que capMax) : suit le défilement de la page, sans redessiner.
        Renvoie 2 si capMax a changé (redessiner), 1 si seule la hauteur a changé, 0 sinon */
-    const dlyFitScr = scr => {
-      if (!scr || !scr.classList.contains("dly-scroll")) return 0;
-      let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
-      const tabs = document.getElementById("bdgTabs"), vb = dlyVpB();
-      const mx = !!scr.closest(".max-detail");
-      document.documentElement.classList.toggle("dly-lock", mx && scr.isConnected);
-      /* v594 (remarque longue 2) : bloc agrandi — la ligne des onglets toujours entière juste sous le bandeau du budget */
-      if (mx && tabs) { const t = tabs.getBoundingClientRect().top; if (t < lim - 0.5 || (t > lim + 0.5 && window.scrollY > 0)) window.scrollBy(0, t - lim); }
-      const sr = scr.getBoundingClientRect();
-      /* tot = hauteur totale du bloc (zone des tâches + pied du graphique) : bloc agrandi = jusqu'au bas de l'écran visible ;
-         sinon la hauteur commune du bloc détail (FORMAT 202), moins les bandeaux posés au-dessus (ISOLÉ…) */
-      let tot;
-      if (mx) tot = Math.max(160, Math.floor(vb - sr.top - 2));
-      else {
-        const hd = parseFloat(getComputedStyle(scr).getPropertyValue("--h-detail")) || 148;
-        let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
-        tot = Math.max(60, Math.round(hd - ban));   /* v596 : exactement la hauteur commune du bloc détail (même hauteur que les autres onglets) */
-      }
-      let r = 0;
-      if (Math.abs((scr.__capMax || 0) - tot) > 1) { scr.__capMax = tot; r = 2; }
-      /* v598 : bloc réduit — la hauteur suit directement la poignée du bas (variable --h-detail), moins les bandeaux posés au-dessus */
-      if (!mx) {
-        let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
-        const v = ban ? `calc(var(--h-detail, 148px) - ${ban}px)` : "";
-        if (scr.style.getPropertyValue("height") !== v) { if (v) scr.style.setProperty("height", v, "important"); else scr.style.removeProperty("height"); }
-        return r;
-      }
-      const want = tot;   /* v597 : le pied du graphique est posé par-dessus le bas du Gantt */
-      if (Math.abs((parseFloat(scr.style.height) || 0) - want) > 1) { scr.style.setProperty("height", want + "px", "important"); r = r || 1; }
-      return r;
-    };
     /* v558 : ⚙ (réglages du graphique) visible seulement quand l'histogramme est affiché : pas en vue tableau seul, ni graphique caché */
     const dlyCfgPaint = () => {
       const g = shell.querySelector(".blk-cfg-btn"); if (!g) return;
@@ -10494,13 +11148,9 @@ function renderBudgetList() {
     /* ===== GÉNÉRER LE PLANNING, MAIN D'ŒUVRE, NIVELLEMENT (v403) ===== */
     /* une charge de main d'œuvre : unité en journées-homme (JH, J/H, JOUR…) ou en heures (H, comptées 8 par jour),
        ou désignation « MAIN D'ŒUVRE … » (sous-traitance comprise) */
-    const dlyLabU = r => U_(r.u).replace(/[^A-Z]/g, "");
-    const dlyIsLab = r => ["JH", "HJ", "J", "JR", "JOUR", "JOURS", "JOURHOMME", "JOURSHOMME", "H", "HR", "HEURE", "HEURES"].includes(dlyLabU(r)) || /MAIN\s*D.?\s*(Œ|OE)UVRE/.test(U_(r.des));
-    const dlyJHof = r => { const q = num(r.q || 0) || 0; return ["H", "HR", "HEURE", "HEURES"].includes(dlyLabU(r)) ? q / 8 : q; };
     /* v547 (R22) : per = morceaux datés de la tâche (un seul le plus souvent) */
     const dlyCurDates = () => { const D = {}; dlyKeys().forEach(k => { const d = dlyDeb(k), f = dlyFin(k), L = dlyList(k); if (d && f) D[k] = { deb: d, fin: f, hs: L.length === 1 && dlyHalfS(L[0]), he: L.length === 1 && dlyHalfE(L[0]),
       per: L.filter(p => p.deb && p.fin).map(p => ({ deb: p.deb, fin: p.fin, hs: dlyHalfS(p), he: dlyHalfE(p) })) }; }); return D; };
-    const dlyEnd = D => Object.values(D).map(x => x.fin).filter(Boolean).sort().pop() || "";
     /* périodes affichées : brouillon en cours (à valider) ou périodes validées */
     const insDlyList = key => (LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
     /* v454 : dates saisies dans le PLANNING (ou sur le Gantt) enregistrées aussitôt (annulables par ↶) */
@@ -12881,11 +13531,6 @@ function renderBudgetList() {
 
     /* ---------- ressource cochée (R9, R11, R25) ---------- */
     const dlyResSel = () => { const R = (INS.chg || []).filter(r => !r.t && r.on === true); return R.length ? R : null; };
-    const dlyResU = r => dlyIsLab(r) ? "J-H" : (U_(r.u) || "U");
-    const dlyResK = r => U_(r.des) + "|" + dlyResU(r);
-    const dlyResQty = r => dlyIsLab(r) ? dlyJHof(r) : num(r.q || 0) || 0;
-    /* même unité pour toutes les charges cochées : la QUANTITÉ est possible ; sinon MONTANT seulement (R11) */
-    const dlySameU = R => !!R && new Set(R.map(dlyResU)).size === 1;
     /* réglages de l'histogramme (R18), mémorisés par budget : u = q | m, aff = j | c, cum = r | a */
     const dlyHSet = () => ({ u: "q", aff: "j", cum: "r", ...(INS.hset || {}) });
     const dlyResMode = R => dlyHSet().u === "q" && dlySameU(R) ? "q" : "m";
@@ -12909,9 +13554,6 @@ function renderBudgetList() {
     /* v546 (R24) : en MONTANT, la capacité est une capacité de financement (DH par jour), même avec des unités différentes ;
        clé de groupe « DH: … » ; en QUANTITÉ, seulement des charges de même unité */
     const dlyCurGK = () => { const R = dlyResSel(); if (!R) return ""; const ks = [...new Set(R.map(dlyResK))].sort().join(" § "); return dlyResMode(R) === "q" ? ks : "DH: " + ks; };
-    const dlyGM = gk => /^DH: /.test(String(gk));
-    const dlyGKeys = gk => new Set(String(gk).replace(/^DH: /, "").split(" § "));
-    const dlyGName = gk => (dlyGM(gk) ? "DH : " : "") + [...new Set(String(gk).replace(/^DH: /, "").split(" § ").map(x => x.split("|")[0]))].join(" + ");
     /* quantité (ou montant, m) d'un groupe dans une tâche (charges de ses liaisons dont la clé est dans le groupe) */
     const dlyGQ = (k, keys, m) => {
       let t = 0; const seen = new Set();
@@ -12927,8 +13569,6 @@ function renderBudgetList() {
     const dlyResQ = k => { const gk = dlyCurGK(); return gk ? dlyGQ(k, dlyGKeys(gk), dlyGM(gk)) : 0; };
     /* réglage de capacité d'un groupe (créé à la demande) */
     const dlyCapSt = (gk = dlyCurGK()) => { if (!gk) return null; INS.plafR = INS.plafR || {}; return (INS.plafR[gk] = INS.plafR[gk] || {}); };
-    /* valeur d'un morceau : nombre ≥ 1, 0 (pénurie) ou −1 (ILLIMITÉ, aussi quand rien n'est réglé) */
-    const dlyCapV = v => v === undefined || v === null || v === "" || Number(v) < 0 ? -1 : Math.round(Number(v));
     /* groupes de capacité actifs ensemble (R24) : tous ceux réglés, plus la sélection */
     const dlyGroups = () => {
       const cur = dlyCurGK(), out = [];
@@ -12937,8 +13577,6 @@ function renderBudgetList() {
       if (cur && !out.some(g => g.gk === cur)) out.push({ gk: cur, keys: dlyGKeys(cur), m: dlyGM(cur), st: {} });
       return out;
     };
-    /* coupes d'un groupe : { d, n, after } ; une coupe rattachée à des tâches (after) se place juste après leur fin (R23) */
-    const dlyCutsOf = st => ((st && st.plafs) || []).filter(s => s && (s.d || (s.after || []).length));
     /* date d'une coupe d'après des fins connues (finOf(k) → iso ou "") ; null si une de ses tâches n'est pas encore placée */
     const dlyCutDate = (c, finOf) => {
       const K = (c.after || []).filter(k => dlyKeys().includes(k));
@@ -12963,7 +13601,6 @@ function renderBudgetList() {
        % du rendement du budget (100 % = budget, les J-H du budget ne changent pas), par charge de main-d'œuvre (réglage en %)
        ou par activité de cette charge (réglage en VALEUR) ; bornes MIN / MAX (80 % / 125 % au départ) ; coupes comme la CAPACITÉ.
        Durée = quantité ÷ (rendement × ouvriers) ; au-dessus de 100 %, la part en plus = heures sup ((rendement − 100 %) × 8 h). */
-    const dlyRdV = v => v === undefined || v === null || v === "" || !isFinite(Number(v)) ? 100 : Math.max(1, Math.round(Number(v)));
     const dlyRdLim = () => { const h = dlyHSet(); return { min: Number(h.rdmin) || 80, max: Number(h.rdmax) || 125 }; };
     const dlyRdSt = (sk, sec, mk) => {
       INS.plafR = INS.plafR || {};
@@ -12972,8 +13609,6 @@ function renderBudgetList() {
       st.rdA = st.rdA || {}; if (!st.rdA[sec]) { if (!mk) return null; st.rdA[sec] = {}; }
       return st.rdA[sec];
     };
-    const dlyRdSet0 = st => !!st && (st.rd !== undefined && st.rd !== null && st.rd !== "" || (st.rds || []).length > 0);
-    const dlyRdCuts = st => ((st && st.rds) || []).filter(s => s && (s.d || (s.after || []).length));
     const dlyRdSegs = st => {
       const fin = k => dlyFin(k) || dlyDeb(k) || "";
       const segs = [{ d: "", n: dlyRdV(st && st.rd), i: 0 }];
@@ -13028,8 +13663,6 @@ function renderBudgetList() {
     /* v617 (remarque 85) : AUTORISER LA COUPE DES TÂCHES (menu ⋯ de DÉTAIL DÉLAIS ; cochée au départ) */
     const dlyCutOK = () => !INS || INS.dcut !== false;
     const dlyCutSet = on => { INS.dcut = !!on; insSave(); histLog("DÉLAIS", "COUPE DES TÂCHES", on ? "AUTORISÉE" : "INTERDITE"); renderTabK(); };
-    const dlyHalfS = p => !!(p && p.deb && p.dmd === p.deb);
-    const dlyHalfE = p => !!(p && p.fin && p.fmd === p.fin);
     /* DURÉE (J) d'une tâche : jours travaillés, moins les demi-journées (1,5 J…) */
     const dlyDurK = k => {
       const L = dlyList(k), p = L[0], d0 = dlyDeb(k), f0 = dlyFin(k);
@@ -13232,7 +13865,6 @@ function renderBudgetList() {
         L.splice(0, L.length, ...nl);
       });
     };
-    const DLY_BUT_MSG = "AVEC CE NOMBRE VOUS RISQUEZ DE DÉPASSER LA DATE BUTOIR";
     /* R26 : GÉNÉRER = COMPRESSER — un seul calcul, enregistré aussitôt (↶ annule) */
     const dlyCompressRun = (opts = {}) => {
       const C = dlyCanCompress({ gen: !!opts.gen });
@@ -13350,10 +13982,6 @@ function renderBudgetList() {
 
     /* ---------- histogramme : données, R17 approvisionnement, R18 réglages ---------- */
     const DLY_SER = ["#f79009", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#fdb022", "#9e165f"];   /* v588 : plus de gris dans les séries (le gris = hors DÉBUT – FIN) */
-    /* hauteur de l'histogramme : nombre de pixels (28 = miniaturisé en bas) ou « full » (plein écran, à la place du Gantt) */
-    /* v546 (R25) : 0 = histogramme entièrement caché (poignée tout en bas) */
-    const dlyHHGet = () => { let v = ""; try { v = localStorage.getItem("svi_dlyhh_v1") || ""; } catch (e) {} return v === "full" ? "full" : v === "0" ? 0 : Math.max(28, Math.min(2000, Number(v) || 110)); };
-    const dlyHHSet = v => { try { localStorage.setItem("svi_dlyhh_v1", String(v)); } catch (e) {} };
     const dlyHSetPut = o => { INS.hset = { ...dlyHSet(), ...o }; insSave(); renderTabK(); };
     /* R19 / R20 : plage DÉBUT – FIN et filtre MIN – MAX (mémorisés par budget) */
     const dlyHRange = () => ({ a: "", b: "", ...(INS.hrange || {}) });
@@ -14632,11 +15260,6 @@ function renderBudgetList() {
       coApply("client", $("bdgClientHead").closest("table"));
     };
 
-    const uniq = arr =>
-      [...new Set(arr.filter(v => String(v).trim() !== ""))]
-        .sort((x, y) =>
-          String(x).localeCompare(String(y), undefined, { numeric: true })
-        );
 
     /* filtre dans tous les sens : chaque colonne affiche les valeurs
        des lignes qui respectent TOUS les AUTRES filtres (désignations,
@@ -14894,57 +15517,9 @@ function renderBudgetList() {
     /* décocher un seul bloc */
     shell.__insClrK = k => { const s = fsSrc(k); if (!s) return; s.clear(); insSave(); refreshAll(); };
 
-    const tvaFor = l =>
-      l.ttcAmount !== undefined ? l.ttcAmount - l.amount : l.amount * l.tva / 100;
-
-    /* ligne TOTAL en pied des onglets Détail charge / produit */
-    const tabFootHTML = (list, prd) => {
-      /* produits : la quantité totale ne compte que les clés primaires
-         (lignes au prix non nul), comme dans les désignations client */
-      const qty = list.reduce((t, l) =>
-        t + (prd && !l.priceTTC ? 0 : l.qty), 0);
-      const ht = list.reduce((t, l) => t + l.amount, 0);
-      const tva = list.reduce((t, l) => t + tvaFor(l), 0);
-      const lead = prd ? 6 : 2;   /* colonnes avant « TOTAL » */
-      /* quantité (et prix moyen) seulement si toutes les unités sont identiques */
-      const units = new Set(list.map(l => String(l.dunit ?? "").trim().toUpperCase()));
-      const sameUnit = list.length > 0 && units.size === 1;
-      return `
-        <tr class="bdg-d-total-row">
-          ${
-            sameUnit
-              ? `${"<td></td>".repeat(lead)}
-                 <td class="number">TOTAL</td>
-                 <td class="number">${money(qty)}</td>
-                 <td class="number">${money(qty ? ht / qty : 0)}</td>`
-              /* unités différentes : « TOTAL » juste avant le montant HT */
-              : `${"<td></td>".repeat(lead + 2)}
-                 <td class="number">TOTAL</td>`
-          }
-          <td class="number">${money(ht)}</td>
-          <td class="number" id="bdgFtTVA">${money(tva)}</td>
-          <td class="number" id="bdgFtTTC">${money(ht + tva)}</td>
-        </tr>`;
-    };
 
 
-    const tcolsFor = prd => [
-      /* détail produits : pas de colonne ART (FORMAT 6) */
-      ...(prd ? [] : [["article", "ART", l => l.article, "center"]]),
-      ["detail", prd ? "DÉSIGNATION PRODUIT" : "DÉSIGNATION CHARGE", l => l.detail, ""],
-      ["unit", prd ? "UPB" : "UCB", l => l.unit, "center"],
-      ...(prd ? [
-        ["nbr", "NBR", l => String(l.nbr ?? ""), "number"],
-        ["d1", "DIM 1", l => String(l.dims[0] ?? ""), "number"],
-        ["d2", "DIM 2", l => String(l.dims[1] ?? ""), "number"],
-        ["d3", "DIM 3", l => String(l.dims[2] ?? ""), "number"]
-      ] : []),
-      ["qty", prd ? "QPB" : "QCB", l => l.qty, "number"],
-      ["price", prd ? "PPB" : "PCB", l => l.price, "number"],
-      ["amount", prd ? "MPB HT" : "MCB HT", l => l.amount, "number"],
-      ["tva", "TVA %", l => String(l.tva ?? ""), "number"],
-      ["ttc", prd ? "MPB TTC" : "MCB TTC", l => l.amount + l.tvaAmt, "number"]
-    ];
+
 
     /* recalcule les contraintes propagées par les filtres de colonne */
     const computeCons = (withClient = true) => {
@@ -15154,16 +15729,7 @@ function renderBudgetList() {
       }
     };
 
-    /* ===== disposition des blocs : ordre et hauteur, mémorisés ===== */
-    const LAY_KEY = "svi_layout_v1";
     const LAY_UNITS = ["client", "hier", "detail", "suivi"];
-    const layLoad = () => {
-      try { return JSON.parse(localStorage.getItem(LAY_KEY) || "{}") || {}; }
-      catch (e) { return {}; }
-    };
-    const laySave = v => {
-      try { localStorage.setItem(LAY_KEY, JSON.stringify(v)); } catch (e) {}
-    };
     const page$ = () => shell.querySelector(".bdg-d-page");
     const layEls = u => {
       const pg = page$();
@@ -15185,14 +15751,6 @@ function renderBudgetList() {
       return [...saved, ...LAY_UNITS.filter(u => !saved.includes(u))];
     };
     const layOpenH = {};   /* hauteurs réglées pendant cette ouverture seulement */
-    /* v557 (FORMAT 202) : hauteur du bloc détail par défaut = écran visible sous le bandeau (fixé) et les onglets, moins la poignée */
-    const layDetDef = () => {
-      let lim = 0;
-      document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
-      const vv = window.visualViewport, vb = vv ? vv.offsetTop + vv.height : window.innerHeight;
-      const tabs = $("bdgTabs"), th = tabs ? tabs.getBoundingClientRect().height : 50;
-      return Math.max(200, Math.floor(vb - lim - th - 22));
-    };
     const layApply = () => {
       const pg = page$();
       if (!pg) return;
@@ -16022,84 +16580,13 @@ function renderBudgetList() {
         .replace(/[\\/:*?"<>|;]+/g, "-").replace(/\s+/g, "_");
     };
 
-    const download = (name, blob) => {
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-    };
 
     /* enregistrement : sur iPad / iPhone, la feuille de partage permet
        « Enregistrer dans Fichiers » › Google Drive, avec choix ou création
        du dossier ; sinon, téléchargement classique */
     /* fenêtre « enregistrer » au format des fenêtres INF / DOC :
        nom du fichier et dossier du Drive proposés, modifiables */
-    const fileDialog = ({ title, name, path, buttons, onAct }) => {
-      const p = sviPopNew();
-      p.innerHTML = `
-        <div class="doc-card" role="dialog" aria-modal="true" style="max-width:640px">
-          <div class="doc-head">
-            <span class="doc-title">${esc(title)}</span>
-            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
-          </div>
-          <div class="doc-body">
-            <div class="doc-grid doc-grid-2">
-              <label class="doc-lab" for="fdName">NOM DU FICHIER</label>
-              <input id="fdName" class="doc-in" type="text" autocomplete="off" value="${esc(name)}">
-              <label class="doc-lab" for="fdPath">DOSSIER DRIVE</label>
-              <input id="fdPath" class="doc-in" type="text" autocomplete="off" data-keepcase value="${esc(path)}">
-            </div>
-            <div class="doc-err fd-msg" id="fdMsg"></div>
-          </div>
-          <div class="doc-foot">
-            <button type="button" class="doc-btn" data-cancel>ANNULER</button>
-            ${buttons.map(b => `<button type="button" class="doc-btn${b.primary ? " doc-save" : ""}" data-act="${b.key}"${b.drive ? " data-drive" : ""}>${esc(b.label)}</button>`).join("")}
-          </div>
-        </div>`;
-      sviPopShow(p);
-      popEnhance(p, "save");
-      drivePathRow(p, "#fdPath", false);
-      const msg = p.querySelector("#fdMsg");
-      const ui = {
-        msg: (t, kind) => { msg.innerHTML = t; msg.className = "doc-err fd-msg" + (kind ? " " + kind : ""); },
-        close: () => p.remove(),
-        busy: (k, on) => { const b = p.querySelector(`[data-act="${k}"]`); if (b) b.disabled = on; },
-        setPath: v => { if (v) p.querySelector("#fdPath").value = v; }
-      };
-      let pathShown = false;
-      p.addEventListener("click", e => {
-        if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
-        const b = e.target.closest("[data-act]");
-        if (!b || b.disabled) return;
-        /* 1er toucher sur le Drive : le dossier s'affiche ; 2e : enregistrement */
-        if (b.dataset.drive !== undefined && !pathShown) {
-          pathShown = true;
-          drivePathRow(p, "#fdPath", true);
-          b.textContent = "ENREGISTRER";
-          return;
-        }
-        onAct(b.dataset.act, {
-          name: p.querySelector("#fdName").value.trim(),
-          path: driveCleanPath(p.querySelector("#fdPath").value)
-        }, ui);
-      });
-    };
 
-    /* enregistrement sur l'iPad (partage / téléchargement) */
-    const saveDevice = (name, blob) => {
-      try {
-        const file = new File([blob], name, { type: blob.type });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          navigator.share({ files: [file], title: name }).catch(err => {
-            if (err && err.name !== "AbortError") download(name, blob);
-          });
-          return;
-        }
-      } catch (e) {}
-      download(name, blob);
-    };
 
     /* chaque fichier enregistré : nom et dossier du Drive proposés (modifiables),
        puis enregistrement dans le Drive ou sur l'iPad */
@@ -16130,16 +16617,6 @@ function renderBudgetList() {
       });
     };
 
-    const loadXLSX = () => window.XLSX
-      ? Promise.resolve(window.XLSX)
-      : new Promise((ok, ko) => {
-          const sc = document.createElement("script");
-          /* version de SheetJS qui sait écrire les styles (police, bordures, alignement) */
-          sc.src = "https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js";
-          sc.onload = () => ok(window.XLSX);
-          sc.onerror = () => ko(new Error("Bibliothèque Excel indisponible"));
-          document.head.appendChild(sc);
-        });
 
     /* entrée commune aux exports (comme sur les PDF) */
     const exportTop = blk => {
@@ -16157,31 +16634,6 @@ function renderBudgetList() {
     /* largeurs des colonnes et hauteur de l'entête du tableau pour les exports
        (Excel et Google Sheets) : colonnes numériques (quantités…) ajustées aux
        nombres, titres longs repliés sur plusieurs lignes, entête à la bonne hauteur */
-    const exportSizing = (head, rows) => {
-      const txt = v => typeof v === "number" ? money(v) : String(v ?? "");
-      const isNum = c => {
-        const vals = rows.map(r => r[c]).filter(v => v !== "" && v != null);
-        return vals.length > 0 && vals.filter(v => typeof v === "number").length >= vals.length / 2;
-      };
-      const wch = head.map((h, c) => {
-        const dataLen = Math.max(0, ...rows.map(r => txt(r[c]).length));
-        const longWord = Math.max(...String(h ?? "").split(/\s+/).map(w => w.length));
-        if (c === 1) return Math.min(80, Math.max(dataLen, String(h ?? "").length) + 2);
-        if (isNum(c)) return Math.max(9, dataLen + 3, longWord + 2);
-        return Math.max(6, Math.min(30, Math.max(dataLen, longWord) + 2));
-      });
-      /* nombre de lignes du titre une fois replié dans sa largeur */
-      const lines = head.map((h, c) => {
-        let n = 1, cur = 0;
-        String(h ?? "").split(/\s+/).forEach(w => {
-          if (cur && cur + 1 + w.length > wch[c] - 1) { n++; cur = w.length; }
-          else cur += (cur ? 1 : 0) + w.length;
-        });
-        return n;
-      });
-      const hpt = 15 * Math.max(1, ...lines) + 6;
-      return { wch, hpt };
-    };
 
     /* Google Sheets : la feuille est créée par le script Google (Code.gs) dans
        le Drive, nommée et rangée dans le dossier choisi, déjà mise en forme */
@@ -16238,13 +16690,6 @@ function renderBudgetList() {
        sinon fenêtre d'enregistrement */
     /* enregistré dans le Drive : pas de message, le bouton l'indique un instant
        (le dossier utilisé reste affiché dans le champ DOSSIER DRIVE) */
-    const driveDoneFlash = () => {
-      const b = document.querySelector('#docPop [data-act="save"]') || document.querySelector('#docPop [data-act="drive"]');
-      if (!b) return;
-      const t = b.textContent;
-      b.textContent = "✓ ENREGISTRÉ";
-      setTimeout(() => { if (b.isConnected) b.textContent = t; }, 2500);
-    };
 
     const deliver = async (name, blob, dest) => {
       if (!dest) return saveFile(name, blob);
@@ -16440,18 +16885,6 @@ function renderBudgetList() {
       }
     };
 
-    const popup = (html, cls = "") => {
-      document.getElementById("blkPop")?.remove();
-      const p = document.createElement("div");
-      p.id = "blkPop";
-      p.className = cls;
-      p.innerHTML = html;
-      p.addEventListener("click", e => {
-        if (e.target === p || e.target.closest("[data-close]")) p.remove();
-      });
-      document.body.appendChild(p);
-      return p;
-    };
 
     /* EXPORTER
        - départ : nom du fichier, 4 formats, ANNULER / SUR L'IPAD / DANS LE DRIVE
@@ -16601,53 +17034,6 @@ function renderBudgetList() {
         </div>`);
     };
 
-    /* fenêtre au format INF : lien de la feuille Google à importer */
-    const askSheetLink = () => new Promise(res => {
-      const p = sviPopNew();
-      p.className = "pop-new-bdg";
-      p.innerHTML = `
-        <div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
-          <div class="doc-head">
-            <span class="doc-title">IMPORTER — GOOGLE SHEETS</span>
-            <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
-          </div>
-          <div class="doc-body">
-            <div class="doc-grid">
-              <label class="doc-lab" for="gsLink">LIEN DE LA FEUILLE <b>*</b></label>
-              <input id="gsLink" class="doc-in" style="grid-column:2 / -1;width:100%" type="url" data-keepcase autocomplete="off"
-                inputmode="url" placeholder="https://docs.google.com/spreadsheets/d/…">
-            </div>
-            <div id="gsErr" class="doc-err"></div>
-          </div>
-          <div class="doc-foot">
-            <button type="button" class="doc-btn" data-cancel>ANNULER</button>
-            <button type="button" class="doc-btn nb-save" id="gsGo">IMPORTER</button>
-          </div>
-        </div>`;
-      sviPopShow(p);
-      try { popEnhance(p, "gslink"); } catch (e) {}
-      const inp = p.querySelector("#gsLink");
-      /* champ sur toute la largeur de la fenêtre */
-      const cell = inp.parentElement.classList.contains("doc-grid") ? inp : inp.parentElement;
-      cell.style.gridColumn = "2 / -1";
-      cell.style.width = "100%";
-      const close = v => { p.remove(); res(v); };
-      const go = () => {
-        const v = inp.value.trim();
-        if (!/\/d\/[a-zA-Z0-9_-]+/.test(v)) {
-          p.querySelector("#gsErr").textContent = "LIEN GOOGLE SHEETS NON RECONNU.";
-          inp.focus();
-          return;
-        }
-        close(v);
-      };
-      p.addEventListener("click", e => {
-        if (e.target === p || e.target.closest("[data-cancel]")) close("");
-        else if (e.target.closest("#gsGo")) go();
-      });
-      inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); go(); } });
-      setTimeout(() => inp.focus(), 50);
-    });
 
     const importGSheet = async () => {
       const url = await askSheetLink();
@@ -16688,24 +17074,10 @@ function renderBudgetList() {
       ["chg", "DÉTAIL CHARGES"], ["prd", "DÉTAIL PRODUITS"],
       ["qlt", "DÉTAIL QUALITÉ"], ["dly", "DÉTAIL DÉLAIS"]
     ];
-    const impFr = iso => iso ? String(iso).slice(8, 10) + "/" + String(iso).slice(5, 7) + "/" + String(iso).slice(0, 4) : "";
     /* U_ : défini plus haut (utilisé dès l'ouverture du budget) */
     /* identité d'une ligne : deux lignes identiques = doublon (jamais importé deux fois)
        désignations / charges : ART + DÉSIGNATION + UNITÉ (+ titre) ;
        produits : idem (ART + DÉSIGNATION + UNITÉ) */
-    const impId = (k, r) => {
-      /* produits : sans article — DÉSIGNATION + UNITÉ */
-      /* FORMAT 89 : une désignation (et une charge) se reconnaît par sa DÉSIGNATION + UNITÉ, sans l'ART ;
-         seuls les titres gardent leur ART */
-      const base = [r.t ? U_(r.art) : "", U_(r.des), U_(r.u), r.t ? "T" : ""];
-      return base.join("|");
-    };
-    /* charges, lots et activités : ordre alphabétique */
-    const impSort = m => {
-      const az = (a, b) => String(a).localeCompare(String(b), "fr", { numeric: true });
-      m.chg.sort((a, b) => az(a.row.des, b.row.des) || az(a.row.u, b.row.u));
-      m.hier.sort((a, b) => az(a.row.v, b.row.v));
-    };
     /* modèle d'un budget source : lignes de chaque onglet + liens (lignes de détail) */
     const impModel = ref => {
       const g = groups.get(ref);
@@ -17464,8 +17836,6 @@ function renderBudgetList() {
         .map(x => ({ ...x, by: W.p.get(x.pk).dk !== x.dk ? { g: "p", w: W.p.get(x.pk) } : { g: "s", w: W.s.get(x.sk) } }));
       return { W, lose, names };
     };
-    /* v481 (remarque 18) : message compréhensible par tout lecteur — quelle tâche bloque et quoi changer */
-    const bfRuleAWhy = (g, w, task) => (g === "p" ? "TÂCHE PRIMAIRE " : "TÂCHE SECONDAIRE ") + (task ? task + " " : "") + "DÉJÀ LIÉE À " + w.name + " (" + w.n + " LIGNE" + (w.n > 1 ? "S" : "") + "). UNE TÂCHE N'A QU'UNE DÉSIGNATION CLIENT : CHANGER LE LOT OU L'ACTIVITÉ " + (g === "p" ? "PRIMAIRE" : "SECONDAIRE") + ".";
     /* fenêtre de confirmation : liaisons du budget à délier */
     const bfRuleAAsk = plan => {
       if (!plan.lose.length) return Promise.resolve(true);
@@ -18587,9 +18957,6 @@ function renderBudgetList() {
     };
 
 
-    /* texte principal sans doublon (intitulé DOC / OBS, descriptif TAF) */
-    const dupKey = v => String(v ?? "").trim().toUpperCase().replace(/\s+/g, " ");
-    const findDup = (list, get, v) => list.find(r => dupKey(get(r)) === dupKey(v));
 
     /* PDF validé dans l'aperçu → nouvelle ligne DOCUMENTS avec lien vers le fichier */
     /* retour sur la page du budget : liste DOCUMENTS relue (PDF enregistré ailleurs) */
@@ -18684,11 +19051,6 @@ function renderBudgetList() {
     /* dégradé rouge foncé → vert foncé (bornes : pire et meilleure marge affichées) */
     /* v508 (remarque 66) : deux dégradés séparés par 0 — négatifs en rouge (foncé à la plus faible, clair près de 0),
        positifs en vert (clair près de 0, foncé à la plus élevée) */
-    const xplColor = (p, lo, hi) => {
-      const neg = p < 0, t = neg ? (lo < 0 ? Math.min(1, p / lo) : 0) : (hi > 0 ? Math.min(1, p / hi) : 0);
-      const light = Math.round(92 - 64 * t), hue = neg ? 0 : 130, sat = neg ? 70 : 55;
-      return `background:hsl(${hue},${sat}%,${light}%) !important;color:${light < 55 ? "#fff" : "#172033"} !important;-webkit-text-fill-color:${light < 55 ? "#fff" : "#172033"} !important`;
-    };
     const xplHTML = () => {
       const ALL = INS.links || [];
       const M = new Map(ALL.map(l => [l.id, mgAgg([l])]));
@@ -20008,23 +20370,6 @@ function renderBudgetList() {
       w.document.close();
     };
 
-    /* bulle d'explication sur une case signalée */
-    const showWhy = td => {
-      document.getElementById("whyTip")?.remove();
-      const tip = document.createElement("div");
-      tip.id = "whyTip";
-      tip.textContent = td.dataset.why;
-      document.body.appendChild(tip);
-      const r = td.getBoundingClientRect();
-      const w = Math.min(280, window.innerWidth - 16);
-      tip.style.width = w + "px";
-      tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + "px";
-      const above = r.top - tip.offsetHeight - 8;
-      tip.style.top = (above > 8 ? above : r.bottom + 8) + "px";
-      const close = () => { tip.remove(); document.removeEventListener("click", close, true); };
-      setTimeout(() => document.addEventListener("click", close, true), 0);
-      setTimeout(close, 5000);
-    };
 
 /* ⟪ src/24-doc-historique-fenetres.js ⟫ */
     /* ===== fenêtre DOC : ajout d'un document au budget ===== */
@@ -20167,7 +20512,6 @@ function renderBudgetList() {
       try { localStorage.setItem(DOC_KEY, JSON.stringify(list)); return true; }
       catch (e) { return false; }
     };
-    const pad = (n, w = 2) => String(n).padStart(w, "0");
 
     /* numéro : DOC AA-MMJJ/NNN (compteur du jour pour ce budget) */
     const nextDocRef = d => {
@@ -20329,125 +20673,6 @@ function renderBudgetList() {
       });
     };
 
-    /* ===== fenêtres et champs de saisie réglables (tailles mémorisées) ===== */
-    const PS_KEY = "svi_popsize_v1";
-    const psLoad = () => {
-      try { return JSON.parse(localStorage.getItem(PS_KEY) || "{}") || {}; }
-      catch (e) { return {}; }
-    };
-    const psSet = (k, v) => {
-      const all = psLoad();
-      if (v) all[k] = v; else delete all[k];
-      try { localStorage.setItem(PS_KEY, JSON.stringify(all)); } catch (e) {}
-    };
-    /* glissement générique : fn(dx, dy) pendant, done() à la fin */
-    const dragXY = (e, fn, done) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const x0 = e.clientX, y0 = e.clientY;
-      const mv = ev => { ev.preventDefault(); fn(ev.clientX - x0, ev.clientY - y0); };
-      const tm = ev => ev.preventDefault();
-      const up = () => {
-        document.removeEventListener("pointermove", mv);
-        document.removeEventListener("pointerup", up);
-        document.removeEventListener("pointercancel", up);
-        document.removeEventListener("touchmove", tm);
-        done();
-      };
-      document.addEventListener("pointermove", mv, { passive: false });
-      document.addEventListener("touchmove", tm, { passive: false });
-      document.addEventListener("pointerup", up);
-      document.addEventListener("pointercancel", up);
-    };
-    /* format unique des dates : JJ/MM/AAAA À HH:MM */
-    const fmtField = (type, v) => {
-      if (!v) return "";
-      if (type === "time") return v.slice(0, 5);
-      const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
-      if (!m) return String(v);
-      return `${m[3]}/${m[2]}/${m[1]}` + (type === "datetime-local" && m[4] ? ` À ${m[4]}:${m[5]}` : "");
-    };
-    const popEnhance = (p, kind) => {
-      const card = p.querySelector(".doc-card");
-      if (!card) return;
-      const sizes = psLoad();
-      /* fenêtre : poignée en bas à droite */
-      const cs = sizes["win." + kind];
-      if (cs) { card.style.width = cs.w + "px"; card.style.maxWidth = "none"; card.style.height = cs.h + "px"; }
-      const ch = document.createElement("span");
-      ch.className = "pop-rsz";
-      ch.title = "Glisser pour redimensionner la fenêtre";
-      card.appendChild(ch);
-      ch.addEventListener("pointerdown", e => {
-        const r = card.getBoundingClientRect();
-        let w = r.width, h = r.height;
-        card.style.maxWidth = "none";
-        dragXY(e, (dx, dy) => {
-          w = Math.max(300, Math.min(window.innerWidth - 16, Math.round(r.width + dx * 2)));
-          h = Math.max(180, Math.min(window.innerHeight - 16, Math.round(r.height + dy * 2)));
-          card.style.width = w + "px";
-          card.style.height = h + "px";
-        }, () => psSet("win." + kind, { w, h }));
-      });
-      /* champs : poignée sur le coin bas-droit de chaque champ */
-      p.querySelectorAll(".doc-in").forEach((el, i) => {
-        /* clé stable : identifiant du champ, sinon son libellé */
-        const lab = (el.previousElementSibling?.textContent || "").replace(/\*/g, "").trim();
-        const key = "fld." + kind + "." + (el.id || lab || i);
-        /* agrandi vers la droite et vers le bas ; la saisie reste en haut
-           (champ d'une ligne : la hauteur ajoutée passe en marge du bas) */
-        let vis = el;   /* élément visible (affichage JJ/MM/AAAA À HH:MM pour les dates) */
-        const setH = h => {
-          vis.style.height = h + "px";
-          if (vis.tagName === "INPUT") vis.style.paddingBottom = Math.max(0, h - 34) + "px";
-        };
-        const wrap = document.createElement("span");
-        wrap.className = "fld-wrap" + (el.closest(".doc-row") ? " in-row" : "");
-        el.replaceWith(wrap);
-        wrap.appendChild(el);
-        /* dates : affichage uniforme JJ/MM/AAAA À HH:MM, le sélecteur
-           natif reste dessous (transparent) pour la saisie */
-        if (["date", "time", "datetime-local"].includes(el.type)) {
-          const show = document.createElement("div");
-          show.className = "doc-in dt-show" + (el.classList.contains("doc-ro") ? " doc-ro" : "");
-          el.classList.remove("doc-in");
-          el.classList.add("dt-native");
-          wrap.insertBefore(show, el);
-          const upd = () => { show.textContent = fmtField(el.type, el.value) || "\u00a0"; };
-          el.addEventListener("input", upd);
-          el.addEventListener("change", upd);
-          el.addEventListener("click", () => { try { el.showPicker?.(); } catch (err) {} });
-          upd();
-          vis = show;
-        }
-        const fs = sizes[key];
-        if (fs) {
-          if (fs.w) { wrap.style.width = fs.w + "px"; wrap.classList.add("sized"); }
-          if (fs.h) setH(fs.h);
-        }
-        const hd = document.createElement("span");
-        hd.className = "fld-rsz";
-        hd.title = "Glisser pour régler la taille du champ";
-        wrap.appendChild(hd);
-        hd.addEventListener("pointerdown", e => {
-          const r = vis.getBoundingClientRect();
-          let w = r.width, h = r.height;
-          dragXY(e, (dx, dy) => {
-            w = Math.max(60, Math.round(r.width + dx));
-            h = Math.max(28, Math.round(r.height + dy));
-            wrap.style.width = w + "px";
-            wrap.classList.add("sized");
-            setH(h);
-          }, () => psSet(key, { w, h }));
-        });
-        /* double-toucher sur la poignée : taille d'origine */
-        hd.addEventListener("dblclick", () => {
-          wrap.style.width = ""; wrap.classList.remove("sized");
-          vis.style.height = ""; vis.style.paddingBottom = "";
-          psSet(key, null);
-        });
-      });
-    };
 
     /* ===== fenêtres OBS et TAF (même présentation que DOC) ===== */
     const recKey = kind => "svi_" + kind + "_v1:" + String(ref);
@@ -20490,13 +20715,6 @@ function renderBudgetList() {
       shell.querySelectorAll(".blk-suivi .rec-scroll").forEach(d => { d.hidden = d.dataset.pane !== recActive; });
     };
 
-    /* ===== listes DOC / TAF / OBS sous le détail ===== */
-    const fmtDT = v => {
-      if (!v) return "";
-      const d = new Date(v);
-      if (isNaN(d)) return String(v);
-      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} À ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    };
     /* colonnes : [clé, libellé, accesseur, classe] (même moteur que les autres tableaux) */
     const recCols = {
       doc: [["rref", "RÉFÉRENCE", r => r.ref, ""],
@@ -20573,19 +20791,6 @@ function renderBudgetList() {
       /* v546 (R30) : DATE DE FIN DU PROJET = fin du planning (plus de date objectif saisie) */
       return { ks, deb, pfin, fin: pfin };
     };
-    /* durée en jours du calendrier, début et fin compris : « 1 AN 2 MOIS 20 JOURS » */
-    const infYMD = (a, b) => {
-      if (!a || !b || b < a) return "";
-      const D = x => new Date(x + "T12:00:00");
-      const end = D(b); end.setDate(end.getDate() + 1);
-      let y = 0, m = 0, c = D(a);
-      const add = (d, yy, mm) => { const n = new Date(d); n.setFullYear(n.getFullYear() + yy); n.setMonth(n.getMonth() + mm); return n; };
-      while (add(c, 1, 0) <= end) { c = add(c, 1, 0); y++; }
-      while (add(c, 0, 1) <= end) { c = add(c, 0, 1); m++; }
-      const d = Math.round((end - c) / 86400000);
-      return [y ? y + (y > 1 ? " ANS" : " AN") : "", m ? m + " MOIS" : "", d ? d + (d > 1 ? " JOURS" : " JOUR") : ""].filter(Boolean).join(" ") || "0 JOUR";
-    };
-    const STAR = ' <b class="req-star">*</b>';
     const infDatesHTML = ed => {
       const P = infProj();
       const din = (f, v, extra = "") => ed ? `<input class="doc-in inf-date" type="date" data-f="${f}" value="${esc(v)}"${extra}>` : `<span class="doc-in doc-ro inf-val">${esc(dFr(v))}</span>`;
@@ -20809,14 +21014,6 @@ function renderBudgetList() {
         const w = window.open(url, "_blank");
         if (!w) download(d.name, blob);
       } catch (e) { sviAlert("Ouverture impossible : " + e.message); }
-    };
-    const localDT = d =>
-      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    const hm = ms => {
-      if (!isFinite(ms)) return "0:00";
-      const neg = ms < 0; ms = Math.abs(ms);
-      const m = Math.round(ms / 60000);
-      return (neg ? "-" : "") + Math.floor(m / 60) + ":" + pad(m % 60);
     };
 
     const openRecForm = kind => {
@@ -21159,9 +21356,6 @@ function renderBudgetList() {
        collées à la fin du même bloc, dans ce budget ou un autre, sans liaison ;
        « COPIE DE » seulement en cas de doublon ; COUPER = lignes non liées, retirées au COLLER ;
        copie aussi dans le presse-papiers de l'iPad (tableau) ===== */
-    const CLIP_KEY = "svi_clip_v1";
-    const clipGet = () => { try { return JSON.parse(localStorage.getItem(CLIP_KEY) || "null"); } catch (e) { return null; } };
-    const clipSet = c => { try { c ? localStorage.setItem(CLIP_KEY, JSON.stringify(c)) : localStorage.removeItem(CLIP_KEY); } catch (e) {} };
     const clipKinds = blk => blk === "detail" && !["chg", "prd", "qlt"].includes(active) ? [] : insBlkKinds(blk);
     /* ===== onglets de contrôle (FORMAT 99) : IMPORT NON CRÉÉ (COPIER / COUPER / COLLER = réimport),
        LIGNES NON LIÉES et LIAISONS VALIDÉES (COPIER) — lignes cochées ET affichées ===== */
@@ -21857,10 +22051,8 @@ function renderBudgetList() {
        - PAR MORCEAUX (DÉCOUPE) : barres de longueur L (12 m) ; morceaux = DIM 1 × NBR des produits liés à cette charge
          (modifiables) ; découpe cherchée pour acheter le moins de barres et laisser le moins de chutes
        Réglages gardés par désignation de charge (INS.cond). Même tableau de résultat pour les deux modes. */
-    const COND_K = r => U_(r.des) + "|" + U_(r.u);
     /* remarque 4 (v542) : le conditionnement appartient à l'ARTICLE (CHS) — gardé pour tous les budgets (sur l'appareil, en attendant
        la colonne CHS côté Google Sheets) ; la copie du budget (INS.cond) reste lue pour les budgets déjà réglés */
-    const condAll = () => { try { return JSON.parse(localStorage.getItem("svi_cond_chs_v1") || "{}") || {}; } catch (e) { return {}; } };
     const condGet = key => condAll()[key] || (INS.cond || {})[key] || null;
     const condRows = id => { const r = INS.chg.find(x => x.id === id); return r ? INS.chg.filter(x => !x.t && COND_K(x) === COND_K(r)) : []; };
     /* morceaux : produits des liaisons de ces charges — longueur = DIM 1, nombre = NBR (× quantité liée si plusieurs) */
@@ -21878,41 +22070,6 @@ function renderBudgetList() {
     };
     /* découpe : premier emplacement possible, morceaux du plus long au plus court, puis essai d'améliorer
        (une barre vidée et ses morceaux remis ailleurs) — assez bon pour un chantier, rapide sur iPad */
-    const condCut = (pieces, BL, kerf = 0) => {
-      const all = [];
-      pieces.forEach(p => { for (let i = 0; i < p.n; i++) all.push(p.L); });
-      all.sort((a, b) => b - a);
-      if (all.some(L => L > BL + 1e-9)) return { err: "UN MORCEAU EST PLUS LONG QUE LA BARRE (" + money(Math.max(...all)) + " M)." };
-      const pack = list => {
-        const bars = [];
-        list.forEach(L => {
-          let best = -1, rest = Infinity;
-          bars.forEach((b, i) => { const r = BL - b.used - (b.cuts.length ? kerf : 0) - L; if (r >= -1e-9 && r < rest) { rest = r; best = i; } });
-          if (best < 0) bars.push({ used: L, cuts: [L] });
-          else { const b = bars[best]; b.used += L + (b.cuts.length ? kerf : 0); b.cuts.push(L); }
-        });
-        return bars;
-      };
-      let bars = pack(all);
-      /* amélioration : vider la barre la moins remplie et replacer ses morceaux dans les autres */
-      for (let g = 0; g < 30 && bars.length > 1; g++) {
-        const sorted = bars.slice().sort((a, b) => a.used - b.used), low = sorted[0];
-        const others = bars.filter(b => b !== low).map(b => ({ used: b.used, cuts: b.cuts.slice() }));
-        let ok = true;
-        low.cuts.slice().sort((a, b) => b - a).forEach(L => {
-          let best = -1, rest = Infinity;
-          others.forEach((b, i) => { const r = BL - b.used - kerf - L; if (r >= -1e-9 && r < rest) { rest = r; best = i; } });
-          if (best < 0) ok = false; else { others[best].used += L + kerf; others[best].cuts.push(L); }
-        });
-        if (!ok) break;
-        bars = others;
-      }
-      /* plan : barres identiques regroupées */
-      const plan = new Map();
-      bars.forEach(b => { const k = b.cuts.slice().sort((a, c) => c - a).map(x => money(x)).join(" + "); plan.set(k, { n: ((plan.get(k) || {}).n || 0) + 1, chute: BL - b.used }); });
-      const need = all.reduce((a, b) => a + b, 0), chute = bars.length * BL - need;
-      return { bars: bars.length, plan: [...plan].map(([k, v]) => ({ k, n: v.n, chute: v.chute })), need, chute, pct: bars.length ? chute / (bars.length * BL) * 100 : 0 };
-    };
     const condWin = id => {
       const rows = condRows(id);
       if (!rows.length) return;

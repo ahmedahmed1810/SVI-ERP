@@ -11,7 +11,6 @@
       if (k === "chg") { const T = [...new Set((INS.links || []).filter(l => (l.chg || []).some(x => x.id === r.id)).map(l => l.lot + "|" + l.sec))].sort().join(","); return impId(k, r) + "#" + T; }
       return k === "prd" ? impId(k, r) + "#" + prdChainKey(r.id) : impId(k, r);
     };
-    const dupName = (k, r) => (k === "lot" || k === "prim" || k === "sec" || k === "qlt") ? U_(r.v) : [r.art, r.des].filter(Boolean).join(" — ") + (r.u ? " (" + U_(r.u) + ")" : "");
     /* v490 (remarque 1) : chaque ligne de la fenêtre DOUBLON montre ses combinaisons complètes, sur une ligne :
        DÉSIGNATION CLIENT / LOT / ACTIVITÉ PRIMAIRE / ACTIVITÉ SECONDAIRE ; produit : + UNITÉ · NBR · QPB ; « NON LIÉ » sans liaison */
     const dupChains = (k, r) => {
@@ -155,12 +154,6 @@
        même ART → par désignation), en gardant les titres (classement à l'intérieur de chaque titre) ;
        autres tableaux par désignation / intitulé croissant. Appliqué à l'ouverture (une fois), après un import
        ou un collage ; le glisser reste libre ensuite. ===== */
-    const natCmp = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "fr", { numeric: true, sensitivity: "base" });
-    const desCmp = (a, b) => {
-      const A = String(a.art ?? "").trim(), B = String(b.art ?? "").trim();
-      if (!A !== !B) return A ? 1 : -1;   /* ART vide en tête */
-      return natCmp(A, B) || natCmp(a.des, b.des);
-    };
     const insSortKind = k => {
       if (!INS || !INS[k] || INS[k].length < 2) return;
       if (k !== "des") { INS[k].sort((a, b) => natCmp(k === "lot" || k === "prim" || k === "sec" || k === "qlt" ? a.v : a.des, k === "lot" || k === "prim" || k === "sec" || k === "qlt" ? b.v : b.des) || natCmp(a.u, b.u)); return; }
@@ -192,7 +185,6 @@
        on choisit PRENDRE L'EXISTANT ou GARDER LA NOUVELLE (ouverture du budget : FUSIONNER ou IGNORER) */
     /* refonte, étape 8 (v645) : règles dans 02d (calcul pur, testées) */
     const nearNorm = sviNearNorm, nearDigits = sviNearDigits, nearDist1 = sviNearDist1;
-    const nearName = (k, r) => (k === "lot" || k === "prim" || k === "sec" || k === "qlt") ? r.v : r.des;
     const nearCtx = (k, r) => {
       if (k === "lot" || k === "prim" || k === "sec" || k === "qlt") return "";
       if (k === "des") return U_(r.u);
