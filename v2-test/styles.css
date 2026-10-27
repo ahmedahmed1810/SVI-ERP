@@ -2573,3 +2573,5 @@ input.dly-gin { box-sizing: border-box; border: 2px solid var(--inst, #b42318) !
 /* v631 : pas de sélection de texte (bulle Copier de l'iPad) dans le planning et le graphique */
 .dlyg, .dlyg *, .dlyg-foot, .dlyg-foot * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .dlyg input, .dlyg textarea { -webkit-user-select: text; user-select: text; }
+/* v638 : case de date choisie (DÉBUT / FIN) — un seul cadre, celui de la case */
+td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
