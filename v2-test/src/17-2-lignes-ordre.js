@@ -233,6 +233,10 @@
       const L = dlyDraftKey(task);
       let p = L[0];
       const q = { ...(p || { id: insId() }), deb: q0.deb || "", fin: q0.fin || "" };
+      /* v639 : DÉBUT posé après la FIN = la tâche entière se déplace, même durée (jours travaillés) */
+      if (p && p.deb && p.fin && q.deb && q.fin === p.fin && q.deb !== p.deb && q.deb > q.fin && sviWork(cal, q.deb)) {
+        const dur = sviWDur(cal, p.deb, p.fin) || 1; q.fin = sviWAdd(cal, q.deb, dur - 1);
+      }
       let err = "";
       if (q.deb && !sviWork(cal, q.deb)) err = "DÉBUT SUR UN JOUR NON TRAVAILLÉ DU CALENDRIER DU BUDGET.";
       else if (q.fin && !sviWork(cal, q.fin)) err = "FIN SUR UN JOUR NON TRAVAILLÉ DU CALENDRIER DU BUDGET.";
