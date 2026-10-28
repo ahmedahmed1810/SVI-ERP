@@ -406,7 +406,12 @@
               <button type="button" class="doc-btn fmt-btn" data-fmt="csv">CSV</button>
               <button type="button" class="doc-btn fmt-btn" data-fmt="json">JSON</button>
               <button type="button" class="doc-btn fmt-btn" data-fmt="gsheet">GOOGLE SHEETS</button>
+              ${blk === "detail" && active === "dly" && INS ? `<button type="button" class="doc-btn fmt-btn" data-fmt="msp">MS PROJECT</button>` : ""}
             </div>
+            ${blk === "detail" && active === "dly" && INS ? `<div class="msp-opts" hidden>
+              <label><input type="checkbox" id="mspLots" checked> AVEC LES LOTS (TÂCHES RÉCAPITULATIVES)</label>
+              <label><input type="checkbox" id="mspChg"> CHARGES EN RESSOURCES</label>
+              <label><input type="checkbox" id="mspPrd"> PRODUITS EN NOTES</label></div>` : ""}
             <div class="doc-err fd-msg" id="fdMsg"></div>
           </div>
           <div class="doc-foot">
@@ -475,6 +480,7 @@
         if (f) {
           fmt = f.dataset.fmt;
           p.querySelectorAll("[data-fmt]").forEach(x => x.classList.toggle("on", x === f));
+          { const mo = p.querySelector(".msp-opts"); if (mo) { mo.hidden = fmt !== "msp"; mo.style.display = fmt === "msp" ? "" : "none"; } }
           ui.msg("");
           refresh();
           return;
@@ -483,6 +489,14 @@
         if (!b || b.disabled) return;
         const name = ($q("#fdName").value.trim() || fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-");
         if (b.dataset.act === "drive") { driveMode = true; ui.msg(""); refresh(); return; }
+        /* v667 (axe 8) : MS PROJECT — fichier XML (MSPDI) */
+        if (fmt === "msp" && (b.dataset.act === "device" || b.dataset.act === "save")) {
+          const o = { lots: !!p.querySelector("#mspLots")?.checked, chg: !!p.querySelector("#mspChg")?.checked, prd: !!p.querySelector("#mspPrd")?.checked };
+          const blob = new Blob([dlyMspXml(o)], { type: "application/xml" });
+          histLog("DÉTAIL DÉLAIS", "EXPORT", "MS PROJECT (XML)" + (o.lots ? " — AVEC LOTS" : "") + (o.chg ? " — CHARGES" : "") + (o.prd ? " — PRODUITS" : ""));
+          await deliver(name + ".xml", blob, b.dataset.act === "device" ? { target: "device" } : { target: "drive", path: driveCleanPath(curPath()), ui });
+          return;
+        }
         if (b.dataset.act === "device") {
           await doExport(blk, fmt, name, { target: "device", path: "", ui });
           return;

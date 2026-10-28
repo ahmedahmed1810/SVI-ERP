@@ -2611,3 +2611,14 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 #svConf .pp-bt { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
 #svConf .pp-bt label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 #svConf .pp-bt small { color: #6b7280; font-weight: 700; }
+
+/* v667 (axe 8) : verrous DÉBUT / FIN ; options MS PROJECT */
+.dly-table td.dly-lkd { position: relative; box-shadow: inset 3px 0 0 #1e3a8a; }
+.dly-table td.dly-lkd::after { content: "🔒"; position: absolute; top: 1px; right: 2px; font-size: 9px; line-height: 1; pointer-events: none; }
+.dly-table td.dly-lkx { box-shadow: inset 3px 0 0 #b91c1c; background: #fef2f2 !important; }
+#svConf .lk8-r { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 6px 0; border-bottom: 1px solid #f0f2f6; font-size: 12px; font-weight: 700; }
+#svConf .lk8-n { flex: 1 1 200px; display: flex; flex-direction: column; } #svConf .lk8-n small { color: #6b7280; }
+#svConf .lk8-r label { display: inline-flex; align-items: center; gap: 6px; }
+#svConf .lk8-d { width: 140px; text-align: left; }
+#docPop .msp-opts { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 12px; font-weight: 700; }
+#docPop .msp-opts label { display: inline-flex; align-items: center; gap: 8px; }

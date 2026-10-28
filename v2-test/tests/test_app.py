@@ -2062,6 +2062,23 @@ def main():
         check("v666 axe 10 : OBS créée avec la tâche choisie = RATTACHÉ À BDG › RDC › BETONNAGE (choix le plus fin d'office) ; liste limitée à l'élément choisi, tout au niveau du budget",
               "RDC › BETONNAGE*" in o10 and "BDG › RDC › BETONNAGE" in a10 and n10a >= 1 and n10b >= n10a, [o10, a10, n10a, n10b])
 
+        # v667 (axe 8) : verrou DÉBUT respecté par COMPRESSER, verrou FIN dépassé signalé ; export MS PROJECT (XML lisible)
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(500)
+        X8 = "(() => [...document.querySelectorAll('*')].find(e => e.__insDly).__insDly)()"
+        l7 = pg.evaluate(f"""() => {{ const X = {ins}, D = {X8}, I = X.INS; I.__l7 = JSON.stringify({{ dlp: I.dlp, dpred: I.dpred, dlock: I.dlock, dinc: I.dinc, links: I.links }});
+            const K = D.keys(); if (!K.length) return null; const k = K[0];
+            I.dlock = {{ [k]: {{ deb: '2027-03-01', fin: '2027-02-01' }} }}; const c0 = I.chg.find(r => !r.t); if (c0) (I.links.find(l => l.lot + '|' + l.sec === k) || {{}}).chg = [{{ id: c0.id }}]; X.insSave(); D.comp();
+            const p = (I.dlp[k] || [])[0] || {{}};
+            const late = D.lockLate();
+            const xml = D.mspXml({{ lots: true, chg: true, prd: true }});
+            const doc = new DOMParser().parseFromString(xml, 'application/xml');
+            const ok = !doc.querySelector('parsererror');
+            const nT = doc.getElementsByTagName('Task').length, nS = [...doc.getElementsByTagName('Summary')].filter(x => x.textContent === '1').length;
+            return [k, p.deb, late.includes(k), ok, nT, nS, doc.getElementsByTagName('Resource').length, xml.includes('<Notes>')]; }}""")
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; const o = JSON.parse(I.__l7); I.dlp = o.dlp; I.dpred = o.dpred; if (o.dlock) I.dlock = o.dlock; else delete I.dlock; I.dinc = o.dinc || {{}}; I.links = o.links; delete I.__l7; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        check("v667 axe 8 : verrou DÉBUT (pas avant le 01/03/2027) respecté par COMPRESSER ; FIN dépassée signalée ; export MS PROJECT = XML valide avec lots récapitulatifs, ressources et notes",
+              l7 and l7[1] >= "2027-03-01" and l7[2] and l7[3] and l7[4] >= 2 and l7[5] >= 2 and l7[6] >= 1 and l7[7], l7)
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

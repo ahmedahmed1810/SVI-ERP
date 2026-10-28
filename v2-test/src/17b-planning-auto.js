@@ -124,6 +124,37 @@
       });
     };
 
+    /* ---------- v667 (AXE 8) : VERROUS DÉBUT (pas avant cette date) et FIN (pas après cette date) — INS.dlock[tâche] = { deb, fin } ;
+       DÉBUT respecté par GÉNÉRER / COMPRESSER ; FIN dépassée = alerte (toast et ⚠ À COMPLÉTER, non bloquant) ---------- */
+    const dlyLock = k => (INS.dlock || {})[k] || null;
+    const dlyLockLate = () => dlyKeys().filter(k => { const l = dlyLock(k); const f = dlyFin(k) || dlyDeb(k); return l && ((l.fin && f && f > l.fin) || (l.deb && dlyDeb(k) && dlyDeb(k) < l.deb)); });
+    const dlyLockWin = () => {
+      const K = [...(shell.__dlySel || [])].filter(k => dlyKeys().includes(k));
+      if (!K.length) { svToast("COCHER D'ABORD LES TÂCHES À VERROUILLER (CASES DU PLANNING).", 3500); return; }
+      const d = sviWinNew();
+      const row = k => { const l = dlyLock(k) || {}; return `<div class="lk8-r" data-k="${esc(k)}"><span class="lk8-n">${esc(dlyName(k))}<small>${esc(dFr(dlyDeb(k)) || "—")} → ${esc(dFr(dlyFin(k)) || "—")}</small></span>
+        <label><input type="checkbox" class="lk8-c" data-f="deb"${l.deb ? " checked" : ""}> DÉBUT <input type="date" class="pv-in lk8-d" data-f="deb" value="${esc(l.deb || dlyDeb(k) || "")}"></label>
+        <label><input type="checkbox" class="lk8-c" data-f="fin"${l.fin ? " checked" : ""}> FIN <input type="date" class="pv-in lk8-d" data-f="fin" value="${esc(l.fin || dlyFin(k) || "")}"></label></div>`; };
+      d.innerHTML = sviWinCard({ cls: "pv-card", close: "data-x", title: "VERROUS DÉBUT / FIN " + svCnt(K.length),
+        body: `<div class="pv-sub">DÉBUT VERROUILLÉ = PAS AVANT CETTE DATE ; FIN VERROUILLÉE = PAS APRÈS CETTE DATE (ALERTE SI DÉPASSÉE). DÉBUT ET FIN = TÂCHE FIGÉE.</div><div class="pv-scroll">${K.map(row).join("")}</div>`,
+        foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>` });
+      sviWinShow(d);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        if (!e.target.closest("[data-save]")) return;
+        INS.dlock = INS.dlock || {};
+        let n = 0;
+        d.querySelectorAll(".lk8-r").forEach(r => {
+          const k = r.dataset.k, o = {};
+          ["deb", "fin"].forEach(f => { if (r.querySelector(`.lk8-c[data-f="${f}"]`).checked) { const v = r.querySelector(`.lk8-d[data-f="${f}"]`).value; if (v) o[f] = v; } });
+          if (o.deb || o.fin) { INS.dlock[k] = o; n++; } else delete INS.dlock[k];
+          if (o.deb && o.fin) dlyIncSet(k, true);   /* deux verrous = tâche entièrement figée */
+        });
+        insSave(); histLog("DÉLAIS", "VERROUS DÉBUT / FIN", n + " TÂCHE(S) VERROUILLÉE(S) SUR " + K.length);
+        d.remove(); renderTabK();
+        const late = dlyLockLate(); if (late.length) svToast("VERROU DÉPASSÉ : " + late.map(dlyName).join(", ") + ".", 6000);
+      });
+    };
     /* ---------- R3 : tâche INCOMPRESSIBLE ---------- */
     const dlyInc = k => !!(INS.dinc || {})[k];
     const dlyIncSet = (k, on) => { INS.dinc = INS.dinc || {}; if (on) INS.dinc[k] = 1; else delete INS.dinc[k]; };
@@ -295,6 +326,8 @@
         const d0 = deb(k), f0 = dlyFin(k);
         if (d0 && !f0) e = opts.gen ? slotOf(d0) : Math.max(e, slotOf(d0));
         if (!d0 && f0) { const t = place(k, e, true), n = t.b - t.a + 1, end = dayIx(f0) * 2 + 1; e = Math.max(e, end - n + 1); }
+        /* v667 (axe 8) : verrou DÉBUT = pas avant cette date */
+        { const lk = (INS.dlock || {})[k]; if (lk && lk.deb) e = Math.max(e, slotOf(lk.deb)); }
         const r = place(k, e, false);
         S[k] = r;
         D[k] = r.zero ? { deb: dayAt(r.a >> 1), fin: "", dm: r.a & 1, fm: 0 } : { deb: dayAt(r.a >> 1), fin: dayAt(r.b >> 1), dm: r.a & 1, fm: (r.b & 1) ? 0 : 1 };
@@ -373,6 +406,7 @@
       histLog("DÉLAIS", gen ? "GÉNÉRER LE PLANNING" : "COMPRESSER LE PLANNING", (opts.plaf !== undefined ? "CAPACITÉ " + (opts.plaf < 0 ? "ILLIMITÉE" : opts.plaf) + " — " : "") + "FIN " + dFr(f0) + " → " + dFr(f1) + (P.links.length ? " — " + P.links.length + " LIAISON(S) CRÉÉE(S)" : ""));
       renderTabK(); insRenderChain();
       if (opts.plaf === undefined) svToast((opts.gen ? "TÂCHES SANS DATES GÉNÉRÉES" : gen ? "PLANNING GÉNÉRÉ" : "PLANNING COMPRESSÉ") + " — FIN LE " + dFr(f1) + (P.links.length ? " — " + P.links.length + " LIAISON(S) PROPOSÉE(S)" : "") + ".", 3500);
+      { const late = dlyLockLate(); if (late.length) svToast("VERROU FIN DÉPASSÉ : " + late.map(dlyName).join(", ") + ".", 6000, opts.anchor); }   /* v667 (axe 8) */
       if (INS.dbut && f1 > INS.dbut) svToast(DLY_BUT_MSG + " (FIN LE " + dFr(f1) + ", BUTOIR LE " + dFr(INS.dbut) + ").", 5000, opts.anchor);
       return P.D;
     };
