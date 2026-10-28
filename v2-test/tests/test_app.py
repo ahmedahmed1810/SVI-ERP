@@ -2092,6 +2092,19 @@ def main():
         check("v674 : MS PROJECT — désignations seules = tâches sans récapitulatives ; 4 niveaux = récapitulatives ; XML valide",
               m74 and m74[0] >= 1 and m74[1] and m74[3] and m74[4] and m74[5] and m74[6], m74)
 
+        # v675 : verrou par onglet — un autre sur DÉTAIL DÉLAIS : cet onglet en lecture seule, DÉTAIL CHARGES modifiable
+        def hasDly(): return pg.evaluate("() => !![...document.querySelectorAll('*')].find(e => e.__insDly)")
+        r75 = pg.evaluate(f"() => {{ const r = window.__sviOpenRef; SVI_SYNC.locks[r] = [{{ ref: r, user: 'BRAHIM', onglet: 'DÉTAIL DÉLAIS', ts: Date.now() }}]; return r; }}")
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(500)
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(800)
+        a75 = [hasDly(), pg.evaluate("() => document.querySelector('.bdg-d-tab.active')?.dataset.tab"), pg.evaluate("() => (document.querySelector('.sv-toast, #svToast') || {}).textContent || ''")]
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(800)
+        pg.evaluate("() => { delete SVI_SYNC.locks[window.__sviOpenRef]; }")
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(800)
+        b75 = [hasDly(), window_tab := pg.evaluate("() => window.__sviOpenTab")]
+        check("v675 : verrou par onglet — DÉTAIL DÉLAIS pris par BRAHIM = lecture seule sur cet onglet ; libéré = modifiable",
+              r75 and a75[0] is False and a75[1] == "dly" and b75[0] is True and b75[1] == "DÉTAIL DÉLAIS", [a75, b75])
+
         # v668 (axe 7, multi-projets, signatures)
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.__r8 = JSON.stringify({{ chg: I.chg, rat: I.rat }});
             I.chg.push({{ id: 'ra1', des: 'ACIER HA12', u: 'KG', q: 800, p: 12 }}, {{ id: 'ra2', des: 'BETON B25 R', u: 'M3', q: 10, p: 900 }}, {{ id: 'ra3', des: 'MACON R', u: 'JH', q: 20, p: 200 }});

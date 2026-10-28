@@ -1146,7 +1146,8 @@ const sviSyncPull = async () => {
   let L;
   try { L = await sviQ("v3List", {}); } catch (e) { SVI_SYNC.status = /fetch|network|Load failed/i.test(String(e && e.message || e)) ? "off" : "nob"; SVI_SYNC.err = String(e && e.message || e); sviSyncPaint(); return; }
   const me = sviUser(), M = sviSyncMeta();
-  SVI_SYNC.locks = {}; (L.locks || []).forEach(k => { if (k.user !== me) SVI_SYNC.locks[k.ref] = k; });
+  SVI_SYNC.locks = {}; (L.locks || []).forEach(k => { if (k.user !== me) (SVI_SYNC.locks[k.ref] = SVI_SYNC.locks[k.ref] || []).push(k); });
+  if (window.__sviLockRecheck) { try { window.__sviLockRecheck(); } catch (e) {} }
   let changed = false, first = 0;
   for (const s of L.list || []) {
     const m = M[s.ref] = M[s.ref] || {};
@@ -1170,11 +1171,24 @@ const sviSyncPull = async () => {
   if (changed && !window.__sviOpenRef && typeof renderBudgetList === "function") { try { renderBudgetList(); } catch (e) {} }
   sviSyncPaint();
 };
-/* verrou du budget ouvert (gardé tant qu'il est ouvert) */
-const sviLockOther = ref => { const k = SVI_SYNC.locks[ref]; return k && Date.now() - k.ts < 3 * 60 * 1000 ? k : null; };
-const sviLockKeep = () => { const r = window.__sviOpenRef; if (r && window.__sviOpenEdit && navigator.onLine) sviQ("v3Lock", { ref: r, user: sviUser(), onglet: window.__sviOpenTab || "" }).catch(() => {}); };
-const sviLockOpen = (ref, edit) => { window.__sviOpenRef = ref; window.__sviOpenEdit = !!edit; sviLockKeep(); };
-const sviLockClose = () => { const r = window.__sviOpenRef; if (r && window.__sviOpenEdit) sviQ("v3Unlock", { ref: r, user: sviUser() }).catch(() => {}); window.__sviOpenRef = null; window.__sviOpenEdit = false; };
+/* verrou du budget ouvert (gardé tant qu'il est ouvert)
+   v675 : VERROU PAR ONGLET — un autre utilisateur ne bloque que l'onglet du détail qu'il modifie ;
+   ailleurs dans le budget, chacun modifie, et les envois se fusionnent (CONFLITS si la même case a changé des deux côtés). */
+const sviLockAll = ref => (SVI_SYNC.locks[ref] || []).filter(k => Date.now() - k.ts < 3 * 60 * 1000);
+const sviLockOther = (ref, tab) => sviLockAll(ref).find(k => !k.onglet || k.onglet === tab) || null;
+const sviLockKeep = () => {
+  const r = window.__sviOpenRef, tab = window.__sviOpenTab || "";
+  if (!r || !window.__sviOpenEdit || !navigator.onLine) return;
+  sviQ("v3Lock", { ref: r, user: sviUser(), onglet: tab }).then(x => {
+    /* l'autre a pris cet onglet juste avant moi : il passe en lecture seule */
+    if (x && x.held && window.__sviOpenRef === r && window.__sviOpenTab === tab && (!x.held.onglet || x.held.onglet === tab)) {
+      const L = SVI_SYNC.locks[r] = (SVI_SYNC.locks[r] || []).filter(k => k.user !== x.held.user); L.push({ ref: r, ...x.held });
+      if (window.__sviLockRecheck) { try { window.__sviLockRecheck(); } catch (e) {} }
+    }
+  }).catch(() => {});
+};
+const sviLockOpen = (ref, edit, tab) => { window.__sviOpenRef = ref; window.__sviOpenEdit = !!edit; window.__sviOpenTab = tab || ""; sviLockKeep(); };
+const sviLockClose = () => { const r = window.__sviOpenRef; if (r && window.__sviOpenEdit) sviQ("v3Unlock", { ref: r, user: sviUser() }).catch(() => {}); window.__sviOpenRef = null; window.__sviOpenEdit = false; window.__sviLockRecheck = null; };
 
 /* ---------- repère et fenêtre BASE ---------- */
 const sviSyncPaint = () => {
@@ -1194,7 +1208,7 @@ function sviSyncWin() {
     body: `<label class="pv-r"><span>NOM D'UTILISATEUR</span><input class="pv-in sy-user" value="${esc(sviUser())}" style="width:200px;text-align:left"></label>
       <div class="pv-sub">${SVI_SYNC.status === "nob" ? "LA BASE NE CONNAÎT PAS ENCORE L'ENREGISTREMENT : INSTALLER LE FICHIER baseV3sync.gs DANS APPS SCRIPT (VOIR SON EN-TÊTE). EN ATTENDANT, TOUT RESTE SUR L'IPAD." : SVI_SYNC.status === "off" ? "HORS LIGNE : TOUT RESTE SUR L'IPAD ET PARTIRA AU RETOUR DE LA CONNEXION." : SVI_SYNC.err ? esc(SVI_SYNC.err) : "DERNIER ENVOI : " + fdt(SVI_SYNC.last)}</div>
       <div class="fz-blk">BUDGETS DE L'IPAD ${svCnt(L.length)}</div>
-      <table class="pv-t"><thead><tr><th>BUDGET</th><th>VERSION</th><th>ÉTAT</th><th>ENVOYÉ LE</th></tr></thead><tbody>${L.map(x => { const m = M[x.ref] || {}, lk = sviLockOther(x.ref); return `<tr><td>${esc((x.project || "") + " " + x.ref)}</td><td class="number">${m.rev || "—"}</td><td>${m.dirty ? "EN ATTENTE" : m.rev ? "À JOUR" : "JAMAIS ENVOYÉ"}${lk ? " · OUVERT PAR " + esc(lk.user) : ""}${((x.data || {}).conf || []).length ? " · " + x.data.conf.length + " CONFLIT(S)" : ""}</td><td>${fdt(m.at)}</td></tr>`; }).join("")}</tbody></table>
+      <table class="pv-t"><thead><tr><th>BUDGET</th><th>VERSION</th><th>ÉTAT</th><th>ENVOYÉ LE</th></tr></thead><tbody>${L.map(x => { const m = M[x.ref] || {}, lk = sviLockAll(x.ref).map(k => k.user + (k.onglet ? " (" + k.onglet + ")" : "")).join(", "); return `<tr><td>${esc((x.project || "") + " " + x.ref)}</td><td class="number">${m.rev || "—"}</td><td>${m.dirty ? "EN ATTENTE" : m.rev ? "À JOUR" : "JAMAIS ENVOYÉ"}${lk ? " · OUVERT PAR " + esc(lk) : ""}${((x.data || {}).conf || []).length ? " · " + x.data.conf.length + " CONFLIT(S)" : ""}</td><td>${fdt(m.at)}</td></tr>`; }).join("")}</tbody></table>
       <div class="pv-sub sy-cells"></div>`,
     foot: `<button type="button" class="svc-b" data-x>FERMER</button><button type="button" class="svc-b svc-ok svc-neutral" data-go>ENVOYER MAINTENANT</button>` });
   sviWinShow(d);
@@ -6504,6 +6518,8 @@ function renderBudgetList() {
       const t = localStorage.getItem("svi_dtab_v1");
       if (["chg", "prd", "qlt", "dly"].includes(t)) active = t;
     } catch (e) {}
+    /* v675 : réouverture par le verrou par onglet — même onglet qu'avant */
+    if (window.__sviForceTab) { active = window.__sviForceTab; window.__sviForceTab = null; }
     /* référence affichée du budget : « H88 BDG 26-1001/001 » */
     const fullRef = String(budget.project).trim().toUpperCase() + " " + ref;
     /* budget en instance : rouge (édition) ou vert (figé) */
@@ -7040,9 +7056,23 @@ function renderBudgetList() {
        ========================================================= */
     const INS = sviBudgetData(budget.inst);   /* refonte, étape 1 : données du budget (02b) */
     /* v672 (bloc 2) : budget ouvert en modification par un autre utilisateur (verrou de la base V3) = lecture seule */
-    const INS_HELD = INS && budget.inst.ref && typeof sviLockOther === "function" ? sviLockOther(budget.inst.ref) : null;
-    const INS_EDIT = !!INS && (budget.inst.state || "instance") === "instance" && !INS_HELD;
-    if (INS && typeof sviLockOpen === "function") sviLockOpen(budget.inst.ref, INS_EDIT);
+    /* v675 : VERROU PAR ONGLET — seul l'onglet du détail ouvert par l'autre est en lecture seule ; changer d'onglet rouvre le budget en modification */
+    const INS_LIVE_EDIT = !!INS && (budget.inst.state || "instance") === "instance";
+    const insTabName = k => (tabs.find(t => t.key === k) || {}).title || k;
+    const INS_HELD = INS_LIVE_EDIT && budget.inst.ref && typeof sviLockOther === "function" ? sviLockOther(budget.inst.ref, insTabName(active)) : null;
+    const INS_EDIT = INS_LIVE_EDIT && !INS_HELD;
+    if (INS && typeof sviLockOpen === "function") sviLockOpen(budget.inst.ref, INS_EDIT, insTabName(active));
+    /* l'onglet ouvert change de mode (pris ou libéré par l'autre) : budget rouvert sur le même onglet */
+    const insLockSwitch = () => {
+      if (!INS_LIVE_EDIT || typeof sviLockOther !== "function") return false;
+      const held = !!sviLockOther(budget.inst.ref, insTabName(active));
+      if (held === !INS_EDIT) return false;
+      window.__sviForceTab = active;
+      if (INS_EDIT && typeof sviLockClose === "function") sviLockClose();   /* mon verrou rendu tout de suite */
+      setTimeout(() => { if (document.body.contains(shell)) openBudgetDetail(ref); }, 0);
+      return true;
+    };
+    if (INS) window.__sviLockRecheck = () => { if (window.__sviOpenRef === budget.inst.ref && !insLockSwitch() && INS_EDIT) { window.__sviOpenTab = insTabName(active); } };
     /* v672 : budget fusionné ou reçu de la base pendant qu'il est ouvert → données à l'écran remplacées */
     if (INS) window.__sviSyncReopen = r => {
       if (r !== budget.inst.ref) return;
@@ -7050,7 +7080,7 @@ function renderBudgetList() {
       Object.keys(INS).forEach(k => { delete INS[k]; }); Object.assign(INS, JSON.parse(JSON.stringify(it.data)));
       try { refreshAll(); } catch (e) {}
     };
-    if (INS_HELD) setTimeout(() => { try { svToast("EN LECTURE SEULE : " + INS_HELD.user + " MODIFIE CE BUDGET.", 6000); } catch (e) {} }, 400);
+    if (INS_HELD) setTimeout(() => { try { svToast(INS_HELD.onglet ? "« " + INS_HELD.onglet + " » EN LECTURE SEULE : " + INS_HELD.user + " LE MODIFIE. LES AUTRES ONGLETS RESTENT MODIFIABLES." : "EN LECTURE SEULE : " + INS_HELD.user + " MODIFIE CE BUDGET.", 6000); } catch (e) {} }, 400);
     /* v448 : largeur tableau / Gantt tirée à la main, retrouvée à l'ouverture de ce budget */
     const DLYG_REF = (budget.inst && budget.inst.ref) || budget.ref || "";
     const dlygMine = o => !!o && (o.ins === INS || (DLYG_REF && o.ref === DLYG_REF));
@@ -23824,6 +23854,9 @@ ${A}</Assignments>
         active = tab.dataset.tab;
         if (active === "dly") shell.__dlyCenter = true;   /* v603 : plage remplie centrée à l'ouverture du graphique */
         try { localStorage.setItem("svi_dtab_v1", active); } catch (e) {}
+        /* v675 : verrou par onglet — onglet pris par un autre (ou libéré) : budget rouvert dans le bon mode */
+        if (INS && insLockSwitch()) return;
+        if (INS && INS_EDIT && typeof sviLockKeep === "function") { window.__sviOpenTab = insTabName(active); sviLockKeep(); }
         renderTab();
         return;
       }
