@@ -1,5 +1,5 @@
 /* =========================================================
-   SVI ERP — BLOC 2 : ENREGISTREMENT DES BUDGETS DANS LA BASE V3 (v672)
+   SVI ERP — BLOC 2 : ENREGISTREMENT DES BUDGETS DANS LA BASE V3 (v672, verrou par onglet v675)
 
    INSTALLATION (une seule fois) :
    1) Apps Script › Fichier + › Script, nom : baseV3sync — coller tout ce fichier.
@@ -11,7 +11,8 @@
    ONGLETS créés d'office dans la base V3 :
    - SYNC : un budget par ligne — REF, PROJET, ETAT, REV, TS, USER, LONGUEUR, puis le budget complet
      (texte JSON) découpé dans les colonnes H, I, J… (45 000 caractères par case).
-   - VERROUS : REF, USER, ONGLET, TS — qui modifie quel budget (un verrou vieux de plus de 3 minutes ne compte plus).
+   - VERROUS : REF, USER, ONGLET, TS — qui modifie quel onglet de quel budget (un verrou vieux de plus de 3 minutes ne compte plus).
+     v675 : VERROU PAR ONGLET — un autre utilisateur ne bloque que le même onglet du même budget.
    Les onglets BUDGETS, DESIGNATIONS, TACHES, DETAILS reçoivent la « photo » du budget à FIGER et à VALIDER.
 
    ACTIONS (POST, avec la clé) :
@@ -81,7 +82,7 @@ function sviSyncRoute_(b) {
     if (b.action === "v3Del") { var d = sviSyncFind_(sh, b.ref); if (d > 0) sh.deleteRow(d); return { ok: true }; }
     if (b.action === "v3Lock" || b.action === "v3Unlock") {
       var now2 = Date.now(), rows = sviSyncRows_(lk), mine = -1, other = null;
-      rows.forEach(function (r, x) { if (String(r[0]) !== String(b.ref)) return; if (String(r[1]) === String(b.user)) mine = x + 2; else if (now2 - Number(r[3]) < SVI_LOCK_MS) other = { user: String(r[1]), onglet: String(r[2]), ts: Number(r[3]) }; });
+      rows.forEach(function (r, x) { if (String(r[0]) !== String(b.ref)) return; if (String(r[1]) === String(b.user)) mine = x + 2; else if (now2 - Number(r[3]) < SVI_LOCK_MS && (!String(r[2]) || !String(b.onglet || "") || String(r[2]) === String(b.onglet))) other = { user: String(r[1]), onglet: String(r[2]), ts: Number(r[3]) }; });
       if (b.action === "v3Unlock") { if (mine > 0) lk.deleteRow(mine); return { ok: true }; }
       if (other) return { ok: true, held: other };
       var v = [[String(b.ref), String(b.user || ""), String(b.onglet || ""), now2]];

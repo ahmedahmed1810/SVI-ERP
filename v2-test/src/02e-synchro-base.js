@@ -188,7 +188,8 @@ const sviSyncPull = async () => {
   let L;
   try { L = await sviQ("v3List", {}); } catch (e) { SVI_SYNC.status = /fetch|network|Load failed/i.test(String(e && e.message || e)) ? "off" : "nob"; SVI_SYNC.err = String(e && e.message || e); sviSyncPaint(); return; }
   const me = sviUser(), M = sviSyncMeta();
-  SVI_SYNC.locks = {}; (L.locks || []).forEach(k => { if (k.user !== me) SVI_SYNC.locks[k.ref] = k; });
+  SVI_SYNC.locks = {}; (L.locks || []).forEach(k => { if (k.user !== me) (SVI_SYNC.locks[k.ref] = SVI_SYNC.locks[k.ref] || []).push(k); });
+  if (window.__sviLockRecheck) { try { window.__sviLockRecheck(); } catch (e) {} }
   let changed = false, first = 0;
   for (const s of L.list || []) {
     const m = M[s.ref] = M[s.ref] || {};
@@ -212,11 +213,24 @@ const sviSyncPull = async () => {
   if (changed && !window.__sviOpenRef && typeof renderBudgetList === "function") { try { renderBudgetList(); } catch (e) {} }
   sviSyncPaint();
 };
-/* verrou du budget ouvert (gardé tant qu'il est ouvert) */
-const sviLockOther = ref => { const k = SVI_SYNC.locks[ref]; return k && Date.now() - k.ts < 3 * 60 * 1000 ? k : null; };
-const sviLockKeep = () => { const r = window.__sviOpenRef; if (r && window.__sviOpenEdit && navigator.onLine) sviQ("v3Lock", { ref: r, user: sviUser(), onglet: window.__sviOpenTab || "" }).catch(() => {}); };
-const sviLockOpen = (ref, edit) => { window.__sviOpenRef = ref; window.__sviOpenEdit = !!edit; sviLockKeep(); };
-const sviLockClose = () => { const r = window.__sviOpenRef; if (r && window.__sviOpenEdit) sviQ("v3Unlock", { ref: r, user: sviUser() }).catch(() => {}); window.__sviOpenRef = null; window.__sviOpenEdit = false; };
+/* verrou du budget ouvert (gardé tant qu'il est ouvert)
+   v675 : VERROU PAR ONGLET — un autre utilisateur ne bloque que l'onglet du détail qu'il modifie ;
+   ailleurs dans le budget, chacun modifie, et les envois se fusionnent (CONFLITS si la même case a changé des deux côtés). */
+const sviLockAll = ref => (SVI_SYNC.locks[ref] || []).filter(k => Date.now() - k.ts < 3 * 60 * 1000);
+const sviLockOther = (ref, tab) => sviLockAll(ref).find(k => !k.onglet || k.onglet === tab) || null;
+const sviLockKeep = () => {
+  const r = window.__sviOpenRef, tab = window.__sviOpenTab || "";
+  if (!r || !window.__sviOpenEdit || !navigator.onLine) return;
+  sviQ("v3Lock", { ref: r, user: sviUser(), onglet: tab }).then(x => {
+    /* l'autre a pris cet onglet juste avant moi : il passe en lecture seule */
+    if (x && x.held && window.__sviOpenRef === r && window.__sviOpenTab === tab && (!x.held.onglet || x.held.onglet === tab)) {
+      const L = SVI_SYNC.locks[r] = (SVI_SYNC.locks[r] || []).filter(k => k.user !== x.held.user); L.push({ ref: r, ...x.held });
+      if (window.__sviLockRecheck) { try { window.__sviLockRecheck(); } catch (e) {} }
+    }
+  }).catch(() => {});
+};
+const sviLockOpen = (ref, edit, tab) => { window.__sviOpenRef = ref; window.__sviOpenEdit = !!edit; window.__sviOpenTab = tab || ""; sviLockKeep(); };
+const sviLockClose = () => { const r = window.__sviOpenRef; if (r && window.__sviOpenEdit) sviQ("v3Unlock", { ref: r, user: sviUser() }).catch(() => {}); window.__sviOpenRef = null; window.__sviOpenEdit = false; window.__sviLockRecheck = null; };
 
 /* ---------- repère et fenêtre BASE ---------- */
 const sviSyncPaint = () => {
@@ -236,7 +250,7 @@ function sviSyncWin() {
     body: `<label class="pv-r"><span>NOM D'UTILISATEUR</span><input class="pv-in sy-user" value="${esc(sviUser())}" style="width:200px;text-align:left"></label>
       <div class="pv-sub">${SVI_SYNC.status === "nob" ? "LA BASE NE CONNAÎT PAS ENCORE L'ENREGISTREMENT : INSTALLER LE FICHIER baseV3sync.gs DANS APPS SCRIPT (VOIR SON EN-TÊTE). EN ATTENDANT, TOUT RESTE SUR L'IPAD." : SVI_SYNC.status === "off" ? "HORS LIGNE : TOUT RESTE SUR L'IPAD ET PARTIRA AU RETOUR DE LA CONNEXION." : SVI_SYNC.err ? esc(SVI_SYNC.err) : "DERNIER ENVOI : " + fdt(SVI_SYNC.last)}</div>
       <div class="fz-blk">BUDGETS DE L'IPAD ${svCnt(L.length)}</div>
-      <table class="pv-t"><thead><tr><th>BUDGET</th><th>VERSION</th><th>ÉTAT</th><th>ENVOYÉ LE</th></tr></thead><tbody>${L.map(x => { const m = M[x.ref] || {}, lk = sviLockOther(x.ref); return `<tr><td>${esc((x.project || "") + " " + x.ref)}</td><td class="number">${m.rev || "—"}</td><td>${m.dirty ? "EN ATTENTE" : m.rev ? "À JOUR" : "JAMAIS ENVOYÉ"}${lk ? " · OUVERT PAR " + esc(lk.user) : ""}${((x.data || {}).conf || []).length ? " · " + x.data.conf.length + " CONFLIT(S)" : ""}</td><td>${fdt(m.at)}</td></tr>`; }).join("")}</tbody></table>
+      <table class="pv-t"><thead><tr><th>BUDGET</th><th>VERSION</th><th>ÉTAT</th><th>ENVOYÉ LE</th></tr></thead><tbody>${L.map(x => { const m = M[x.ref] || {}, lk = sviLockAll(x.ref).map(k => k.user + (k.onglet ? " (" + k.onglet + ")" : "")).join(", "); return `<tr><td>${esc((x.project || "") + " " + x.ref)}</td><td class="number">${m.rev || "—"}</td><td>${m.dirty ? "EN ATTENTE" : m.rev ? "À JOUR" : "JAMAIS ENVOYÉ"}${lk ? " · OUVERT PAR " + esc(lk) : ""}${((x.data || {}).conf || []).length ? " · " + x.data.conf.length + " CONFLIT(S)" : ""}</td><td>${fdt(m.at)}</td></tr>`; }).join("")}</tbody></table>
       <div class="pv-sub sy-cells"></div>`,
     foot: `<button type="button" class="svc-b" data-x>FERMER</button><button type="button" class="svc-b svc-ok svc-neutral" data-go>ENVOYER MAINTENANT</button>` });
   sviWinShow(d);

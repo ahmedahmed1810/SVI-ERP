@@ -277,6 +277,8 @@
       const t = localStorage.getItem("svi_dtab_v1");
       if (["chg", "prd", "qlt", "dly"].includes(t)) active = t;
     } catch (e) {}
+    /* v675 : réouverture par le verrou par onglet — même onglet qu'avant */
+    if (window.__sviForceTab) { active = window.__sviForceTab; window.__sviForceTab = null; }
     /* référence affichée du budget : « H88 BDG 26-1001/001 » */
     const fullRef = String(budget.project).trim().toUpperCase() + " " + ref;
     /* budget en instance : rouge (édition) ou vert (figé) */
