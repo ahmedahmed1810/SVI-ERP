@@ -555,7 +555,7 @@
 
     /* ===== IMPORTER depuis un autre budget de l'application =====
        budget source au choix, lignes cochées par onglet ;
-       options : SANS / AVEC LIAISONS, TOUT LE BUDGET */
+       options : SANS / AVEC LIAISONS, TOUT LE BUDGET (case, v662) */
     const IMP_TABS = [
       ["des", "DÉSIGNATIONS CLIENT"], ["hier", "TÂCHES"],
       ["chg", "DÉTAIL CHARGES"], ["prd", "DÉTAIL PRODUITS"],
@@ -762,6 +762,7 @@
             <div class="imp-opts">
               <label><input type="radio" name="impLk" value="0" checked> SANS LIAISONS <small>(LIGNES COCHÉES SEULEMENT)</small></label>
               <label><input type="radio" name="impLk" value="1"> AVEC LIAISONS <small>(+ TÂCHES ET DÉTAILS LIÉS)</small></label>
+              <label><input type="checkbox" id="impAll"> TOUT LE BUDGET <small>(TOUTES LES LIGNES, LIAISONS ET DÉLAIS)</small></label>
             </div>
             <div class="imp-tabs"></div>
             <div class="imp-scroll"><table class="bdg-d-table imp-table"></table></div>
@@ -840,13 +841,13 @@
             const rows = upTop(cfApply("imp_" + lv, [["v", LV[lv], x => x.row.v || "", ""]], model.hier.filter(x => x.lvl === lv)), pk.hier);
             const allOn = rows.length && rows.every(x => pk.hier.has(x.key));
             return `<div class="imp-hcol"><table class="bdg-d-table imp-table">
-              <thead><tr><th class="center" style="width:34px"><input type="checkbox" class="imp-cball" data-lvl="${lv}" ${allOn ? "checked" : ""}></th>
+              <thead><tr><th class="center" style="width:34px"><input type="checkbox" class="imp-cball" data-lvl="${lv}" ${allOn ? "checked" : ""} ${all ? "disabled" : ""}></th>
                 ${cfHead("imp_" + lv, "v", LV[lv] + " " + svCnt(rows.length), "")}</tr></thead>
               <tbody>${rows.map(x => {
                 const on = pk.hier.has(x.key), linked = on && !sel.hier.has(x.key);
                 const isCut = withLinks && cut.has(x.key) && !on && pAll && pAll.hier.has(x.key);
                 return `<tr class="${linked ? "imp-linked" : ""}${isCut ? " imp-cut" : ""}" data-k="${esc(x.key)}">
-                  <td class="center"><input type="checkbox" class="imp-cb" ${on ? "checked" : ""}></td>
+                  <td class="center"><input type="checkbox" class="imp-cb" ${on ? "checked" : ""} ${all ? "disabled" : ""}></td>
                   <td>${esc(x.row.v)}</td></tr>`;
               }).join("") || `<tr><td colspan="2" class="empty">—</td></tr>`}</tbody></table></div>`;
           }).join("");
@@ -941,6 +942,8 @@
       });
       p.addEventListener("change", e => {
         if (e.target.name === "impLk") { withLinks = e.target.value === "1"; render(); return; }
+        /* v662 : TOUT LE BUDGET en un seul geste (lignes, liaisons et délais) */
+        if (e.target.id === "impAll") { all = e.target.checked; render(); return; }
         if (e.target.classList.contains("imp-cball")) {
           const lv = e.target.dataset.lvl;
           const rows = lv
