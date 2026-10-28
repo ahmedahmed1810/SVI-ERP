@@ -2128,6 +2128,31 @@ def main():
               c9.startswith("T:CHAPITRE I") and "5|del|6|MOIS" in c9 and "6|cdef|3|%" in c9 and "7|rg|10|%" in c9 and "8|pen|1|‰" in c9 and "9|rev|" in c9 and "10|pay|" in c9
               and b9 == "2027-05-01" and "31/12/2026" in r9 and s9 == [7, 1], [c9, b9, r9[:200], s9])
 
+        # v670 (axes 1 et 4) : scénarios (copie, bascule, retenir) et avenants (origine des lignes, quantités augmentées)
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.__v0 = JSON.stringify(X.INS); }}")
+        VW = "() => [...document.querySelectorAll('*')].find(e => e.__verWin).__verWin()"
+        pg.evaluate(VW); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf [data-new]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.des.find(d => d.id === 'd1').p = 4321; X.insSave(); }}")
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(200)
+        pg.evaluate(VW); pg.wait_for_timeout(300)
+        hd = pg.evaluate("() => [...document.querySelectorAll('#svConf .ver-t thead th small')].map(x => x.textContent).join(',')")
+        pg.evaluate("() => document.querySelector('#svConf [data-sw]')?.click()"); pg.wait_for_timeout(400)
+        p1 = pg.evaluate(f"() => Number({ins}.INS.des.find(d => d.id === 'd1').p)")
+        pg.evaluate("() => document.querySelector('#svConf [data-sw]')?.click()"); pg.wait_for_timeout(400)
+        p2 = pg.evaluate(f"() => Number({ins}.INS.des.find(d => d.id === 'd1').p)")
+        pg.evaluate("() => document.querySelector('#svConf [data-av]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf .svc-ok')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.des.push({{ id: 'av1', d: 1, art: '9', des: 'TRAVAUX SUPPLÉMENTAIRES', u: 'U', q: 1, p: 500, tva: 20 }}); X.insSave(); }}")
+        o70 = pg.evaluate(f"() => {{ const s = [...document.querySelectorAll('*')].find(e => e.__verOrig); const O = s.__verOrig(); return [O.des.d1, O.des.av1]; }}")
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(200)
+        pg.evaluate(VW); pg.wait_for_timeout(300)
+        t70 = pg.evaluate("() => (document.querySelector('#svConf .svc-card') || {}).innerText || ''")
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(200)
+        pg.evaluate(f"() => {{ const X = {ins}; const o = JSON.parse(X.INS.__v0); Object.keys(X.INS).forEach(k => delete X.INS[k]); Object.assign(X.INS, o); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v670 axes 1 et 4 : scénario copié, BASCULER échange les prix (4321 ↔ autre), avenant : ligne ancienne = MARCHÉ INITIAL, nouvelle = AVENANT 1, montants par origine",
+              "ACTIF" in hd and "EN RÉSERVE" in hd and p1 != 4321 and p2 == 4321 and o70 == ["MARCHÉ INITIAL", "AVENANT 1"] and "BUDGET CONSOLIDÉ" in t70 and "AVENANT 1" in t70, [hd, p1, p2, o70, t70[-400:]])
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
