@@ -2080,6 +2080,18 @@ def main():
         check("v667 axe 8 : verrou DÉBUT (pas avant le 01/03/2027) respecté par COMPRESSER ; FIN dépassée signalée ; export MS PROJECT = XML valide avec lots récapitulatifs, ressources et notes",
               l7 and l7[1] >= "2027-03-01" and l7[2] and l7[3] and l7[4] >= 2 and l7[5] >= 2 and l7[6] >= 1 and l7[7], l7)
 
+        # v674 : export MS PROJECT avec niveaux cochés (DÉSIGNATIONS › LOTS › PRIMAIRES › SECONDAIRES) + aperçu
+        m74 = pg.evaluate(f"""() => {{ const X = {ins}, D = {X8}, I = X.INS; I.__m74 = JSON.stringify({{ dlp: I.dlp, dlock: I.dlock }});
+            const k = D.keys()[0]; I.dlock = {{ [k]: {{ deb: '2027-03-01' }} }}; X.insSave(); D.comp();
+            const t = lv => D.mspTree(lv).rows;
+            const a = t({{ des: true, lot: false, prim: false, sec: false }}), b = t({{ des: true, lot: true, prim: true, sec: true }}), c = t({{ lot: true }});
+            const xml = D.mspXml({{ lv: {{ des: true, lot: true, prim: false, sec: true }} }});
+            const ok = !new DOMParser().parseFromString(xml, 'application/xml').querySelector('parsererror');
+            const o = JSON.parse(I.__m74); I.dlp = o.dlp; if (o.dlock) I.dlock = o.dlock; else delete I.dlock; delete I.__m74; X.insSave(); X.refreshAll();
+            return [a.length, a.every(n => !n.sum), b.length, b.some(n => n.sum), c.every(n => n.sum || n.deb), ok, a.length <= b.length]; }}""")
+        check("v674 : MS PROJECT — désignations seules = tâches sans récapitulatives ; 4 niveaux = récapitulatives ; XML valide",
+              m74 and m74[0] >= 1 and m74[1] and m74[3] and m74[4] and m74[5] and m74[6], m74)
+
         # v668 (axe 7, multi-projets, signatures)
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.__r8 = JSON.stringify({{ chg: I.chg, rat: I.rat }});
             I.chg.push({{ id: 'ra1', des: 'ACIER HA12', u: 'KG', q: 800, p: 12 }}, {{ id: 'ra2', des: 'BETON B25 R', u: 'M3', q: 10, p: 900 }}, {{ id: 'ra3', des: 'MACON R', u: 'JH', q: 20, p: 200 }});
