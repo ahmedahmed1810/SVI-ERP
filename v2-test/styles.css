@@ -2659,3 +2659,10 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 #svConf .ctp-r { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 4px 0; border-bottom: 1px solid #f0f2f6; }
 #svConf .ctp-r .pv-in { width: auto; min-width: 70px; text-align: left; }
 #svConf .ctp-r .pv-in[data-f="lab"] { flex: 1 1 160px; }
+
+/* v670 (axes 1 et 4) : VERSIONS ET SCÉNARIOS */
+#svConf .ver-t th small { font-weight: 700; color: #6b7280; }
+#svConf .ver-t .ver-act { background: #eff6ff; }
+#svConf .ver-t th.ver-arch { color: #9aa3b2; }
+#svConf .ver-acts { white-space: nowrap; }
+#svConf .ver-acts .svc-b { height: 30px; padding: 0 10px; font-size: 11px; margin: 2px; }
