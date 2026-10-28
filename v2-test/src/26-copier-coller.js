@@ -610,9 +610,8 @@
         active = tab.dataset.tab;
         if (active === "dly") shell.__dlyCenter = true;   /* v603 : plage remplie centrée à l'ouverture du graphique */
         try { localStorage.setItem("svi_dtab_v1", active); } catch (e) {}
-        /* v675 : verrou par onglet — onglet pris par un autre (ou libéré) : budget rouvert dans le bon mode */
-        if (INS && insLockSwitch()) return;
-        if (INS && INS_EDIT && typeof sviLockKeep === "function") { window.__sviOpenTab = insTabName(active); sviLockKeep(); }
+        /* v676 : verrou par zone — l'onglet ouvert grisé s'il est pris par un autre */
+        if (INS && typeof sviZonePaint === "function") sviZonePaint();
         renderTab();
         return;
       }

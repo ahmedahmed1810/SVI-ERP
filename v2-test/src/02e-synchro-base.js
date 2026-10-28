@@ -214,23 +214,65 @@ const sviSyncPull = async () => {
   sviSyncPaint();
 };
 /* verrou du budget ouvert (gardé tant qu'il est ouvert)
-   v675 : VERROU PAR ONGLET — un autre utilisateur ne bloque que l'onglet du détail qu'il modifie ;
-   ailleurs dans le budget, chacun modifie, et les envois se fusionnent (CONFLITS si la même case a changé des deux côtés). */
+   v676 : VERROU PAR ZONE — la zone où l'utilisateur travaille (DÉSIGNATIONS CLIENT, LOTS, ACTIVITÉS PRIMAIRES,
+   ACTIVITÉS SECONDAIRES, ou l'onglet du détail : DÉTAIL DÉLAIS…) est la seule en lecture seule pour les autres ;
+   tout le reste du budget reste modifiable, et les envois se fusionnent (CONFLITS si la même case a changé des deux côtés).
+   Un verrou sans zone (ancienne version de l'application) bloque encore tout le budget. */
 const sviLockAll = ref => (SVI_SYNC.locks[ref] || []).filter(k => Date.now() - k.ts < 3 * 60 * 1000);
 const sviLockOther = (ref, tab) => sviLockAll(ref).find(k => !k.onglet || k.onglet === tab) || null;
+const SVI_ZONES = { client: "DÉSIGNATIONS CLIENT", lot: "LOTS", prim: "ACTIVITÉS PRIMAIRES", sec: "ACTIVITÉS SECONDAIRES" };
+const sviZoneOf = el => {
+  const C = window.__sviZoneCtx; if (!C || !el || !el.closest) return "";
+  if (el.closest(".blk-client")) return SVI_ZONES.client;
+  const h = el.closest(".ins-hcol[data-ik]"); if (h) return SVI_ZONES[h.dataset.ik] || "";
+  if (el.closest("#bdgTabBody") || (el.closest("#bdgTabs") && !el.closest("[data-tab]"))) return C.tab();
+  return "";
+};
+const sviZoneHeld = z => { const C = window.__sviZoneCtx; return z && C ? sviLockAll(C.ref).find(k => k.onglet === z) || null : null; };
+const sviZonePaint = () => {
+  const C = window.__sviZoneCtx; if (!C || !C.shell) return;
+  const H = new Set(sviLockAll(C.ref).map(k => k.onglet)), t = [];
+  Object.entries(SVI_ZONES).forEach(([k, v]) => { if (H.has(v)) t.push(k); });
+  if (H.has(C.tab())) t.push("tab");
+  C.shell.dataset.hz = t.join(" ");
+};
+let SVI_ZT = 0;
+const sviZoneGuard = e => {
+  const C = window.__sviZoneCtx; if (!C || !C.edit) return;
+  const t = e.target, z = sviZoneOf(t); if (!z) return;
+  /* toujours permis : changer d'onglet, agrandir, exporter, aperçu */
+  if (t.closest("[data-tab], .bdg-d-tab, [data-act=max], [data-act=export], [data-act=pdf], .col-rs")) return;
+  const k = sviZoneHeld(z);
+  if (k) {
+    e.stopPropagation(); e.stopImmediatePropagation();
+    /* défilement permis : pas d'arrêt du toucher lui-même */
+    if (!/^(pointerdown|mousedown|touchstart|pointermove|touchmove)$/.test(e.type)) e.preventDefault();
+    if (e.type === "focusin" && t.blur) t.blur();
+    if (/^(click|focusin)$/.test(e.type) && Date.now() - SVI_ZT > 2500 && typeof svToast === "function") { SVI_ZT = Date.now(); svToast("« " + z + " » EN LECTURE SEULE : " + k.user + " LE MODIFIE. LE RESTE DU BUDGET RESTE MODIFIABLE.", 4000); }
+    return;
+  }
+  /* ma zone de travail : verrou pris dès le premier toucher */
+  if (/^(pointerdown|focusin|keydown)$/.test(e.type) && window.__sviOpenTab !== z) { window.__sviOpenTab = z; sviLockKeep(); }
+};
+["pointerdown", "mousedown", "touchstart", "click", "dblclick", "focusin", "keydown", "beforeinput", "input", "change", "dragstart", "contextmenu"].forEach(ev => document.addEventListener(ev, sviZoneGuard, true));
 const sviLockKeep = () => {
   const r = window.__sviOpenRef, tab = window.__sviOpenTab || "";
-  if (!r || !window.__sviOpenEdit || !navigator.onLine) return;
+  if (!r || !tab || !window.__sviOpenEdit || !navigator.onLine) return;
   sviQ("v3Lock", { ref: r, user: sviUser(), onglet: tab }).then(x => {
-    /* l'autre a pris cet onglet juste avant moi : il passe en lecture seule */
-    if (x && x.held && window.__sviOpenRef === r && window.__sviOpenTab === tab && (!x.held.onglet || x.held.onglet === tab)) {
+    /* l'autre a pris cette zone juste avant moi : elle passe en lecture seule */
+    if (x && x.held && window.__sviOpenRef === r && (!x.held.onglet || x.held.onglet === tab)) {
       const L = SVI_SYNC.locks[r] = (SVI_SYNC.locks[r] || []).filter(k => k.user !== x.held.user); L.push({ ref: r, ...x.held });
-      if (window.__sviLockRecheck) { try { window.__sviLockRecheck(); } catch (e) {} }
+      if (window.__sviOpenTab === tab) window.__sviOpenTab = "";
+      sviZonePaint();
     }
   }).catch(() => {});
 };
-const sviLockOpen = (ref, edit, tab) => { window.__sviOpenRef = ref; window.__sviOpenEdit = !!edit; window.__sviOpenTab = tab || ""; sviLockKeep(); };
-const sviLockClose = () => { const r = window.__sviOpenRef; if (r && window.__sviOpenEdit) sviQ("v3Unlock", { ref: r, user: sviUser() }).catch(() => {}); window.__sviOpenRef = null; window.__sviOpenEdit = false; window.__sviLockRecheck = null; };
+const sviLockOpen = (ref, edit) => { window.__sviOpenRef = ref; window.__sviOpenEdit = !!edit; window.__sviOpenTab = ""; };
+const sviLockClose = () => {
+  const r = window.__sviOpenRef; if (r && window.__sviOpenEdit) sviQ("v3Unlock", { ref: r, user: sviUser() }).catch(() => {});
+  const C = window.__sviZoneCtx; if (C && C.shell) delete C.shell.dataset.hz;
+  window.__sviOpenRef = null; window.__sviOpenEdit = false; window.__sviOpenTab = ""; window.__sviLockRecheck = null; window.__sviZoneCtx = null;
+};
 
 /* ---------- repère et fenêtre BASE ---------- */
 const sviSyncPaint = () => {

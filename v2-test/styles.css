@@ -2704,3 +2704,10 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 #sviSync.sync-ok { background: #dcfce7; color: #166534; }
 #sviSync.sync-wait, #sviSync.sync-busy { background: #fef3c7; color: #92400e; }
 #sviSync.sync-off { background: #fee2e2; color: #991b1b; }
+
+/* v676 : VERROU PAR ZONE — zone où un autre utilisateur travaille : grisée, lecture seule */
+[data-hz~="client"] .blk-client .bdg-d-scroll,
+[data-hz~="lot"] .ins-hcol[data-ik="lot"],
+[data-hz~="prim"] .ins-hcol[data-ik="prim"],
+[data-hz~="sec"] .ins-hcol[data-ik="sec"],
+[data-hz~="tab"] #bdgTabBody { opacity: .55; filter: grayscale(.5); cursor: not-allowed; }
