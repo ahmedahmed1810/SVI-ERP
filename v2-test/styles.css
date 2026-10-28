@@ -2580,3 +2580,25 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 #svConf .pv-r .mo-cb { width: 18px; height: 18px; flex: none; }
 #svConf .pv-r .mo-p { min-width: 90px; text-align: right; font-weight: 800; }
 #svConf .pv-r small { color: #6b7280; font-weight: 700; }
+
+/* v665 (axe 5) : COMPARATIF DES PRIX */
+#svConf .cmp-card { display: flex; flex-direction: column; }
+#svConf .cmp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+#svConf .cmp-leg { font-size: 11px; font-weight: 700; color: #475467; }
+#svConf .cmp-leg i { font-style: normal; margin-left: 8px; }
+#svConf .cmp-scroll { flex: 1; min-height: 160px; overflow: auto; border: 1px solid #e5e9f0; border-radius: 8px; }
+#svConf .cmp-t { border-collapse: collapse; font-size: 12px; white-space: nowrap; min-width: 100%; }
+#svConf .cmp-t th { position: sticky; top: 0; background: #f6f7f9; font-size: 11px; color: #475467; padding: 5px 6px; border: 1px solid #e5e9f0; z-index: 1; }
+#svConf .cmp-t thead tr:nth-child(2) th { top: 30px; }
+#svConf .cmp-t td { padding: 4px 6px; border: 1px solid #f0f2f6; font-weight: 700; }
+#svConf .cmp-t td:nth-child(2) { white-space: normal; min-width: 220px; }
+#svConf .cmp-t .r { text-align: right; } #svConf .cmp-t .c { text-align: center; }
+#svConf .cmp-t .cmp-me { background: #f8fafc; }
+#svConf .cmp-ok { color: #15803d !important; } #svConf .cmp-ko { color: #b91c1c !important; }
+#svConf .cmp-in { width: 96px; height: 28px; border: 1px solid #d6dbe3; border-radius: 6px; text-align: right; font: inherit; font-weight: 800; padding: 0 6px; }
+#svConf .cmp-nm { width: 170px; height: 26px; border: 1px solid #d6dbe3; border-radius: 6px; font: inherit; font-weight: 800; font-size: 11px; padding: 0 6px; text-transform: uppercase; }
+#svConf .cmp-del { border: 0; background: transparent; color: #b91c1c; font-weight: 800; cursor: pointer; margin-left: 4px; }
+#svConf .cmp-tot td { background: #eef2f7; font-weight: 800; }
+#svConf .cmp-res { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 12px; font-weight: 700; }
+#svConf .cmp-res label { display: inline-flex; align-items: center; gap: 5px; }
+#svConf .cmp-rate { font-size: 12px; font-weight: 700; color: #172033; }
