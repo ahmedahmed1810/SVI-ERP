@@ -77,7 +77,18 @@
       if (!String(budget.inst.client || "").trim()) add("CLIENT", false);
       return out;
     };
-    const openInfo = () => {
+    /* v663 (axe 12) : marché — CLIENT PUBLIC / PRIVÉ, SUR CONSULTATION (cochée d'office pour un client public),
+       N° D'APPEL D'OFFRES OU DE CONSULTATION et OBJET DU MARCHÉ (facultatifs) ; repris en tête du bordereau */
+    const infAoHTML = ed => {
+      const A = INS.ao || {}, dis = ed ? "" : " disabled";
+      return `<span class="doc-lab">TYPE DE CLIENT</span><span class="inf-cell inf-ao">
+          <label><input type="radio" name="infAoT" value="pub"${A.pub === true ? " checked" : ""}${dis}> PUBLIC</label>
+          <label><input type="radio" name="infAoT" value="prv"${A.pub === false ? " checked" : ""}${dis}> PRIVÉ</label>
+          <label class="inf-ao-c"><input type="checkbox" id="infAoC"${A.cons || A.pub === true ? " checked" : ""}${A.pub === true || !ed ? " disabled" : ""}> SUR CONSULTATION</label></span>
+        <span class="doc-lab">N° D'APPEL D'OFFRES<small class="inf-sub">(OU DE CONSULTATION)</small></span>${ed ? `<input class="doc-in inf-int" id="infAoN" value="${esc(A.num || "")}" placeholder="${esc(fullRef)}" autocomplete="off">` : `<span class="doc-in doc-ro inf-val">${esc(A.num || "")}</span>`}
+        <span class="doc-lab">OBJET DU MARCHÉ</span>${ed ? `<input class="doc-in inf-int" id="infAoO" value="${esc(A.obj || "")}" autocomplete="off">` : `<span class="doc-in doc-ro inf-val">${esc(A.obj || "")}</span>`}`;
+    };
+    const openInfo = (focus) => {
       const dt = typeof budgetDate === "function" ? budgetDate(ref) : null;
       const prd = lines.filter(l => l.kind === "prd");
       const chg = lines.filter(l => l.kind === "chg");
@@ -114,6 +125,7 @@
                   : (k === "INTITULÉ" || k === "CLIENT") && editInt
                   ? `<input class="doc-in inf-int" id="${k === "CLIENT" ? "infCli" : "infInt"}" value="${esc(v === "À COMPLÉTER" ? "" : v)}" placeholder="À COMPLÉTER" autocomplete="off">`
                   : `<span class="doc-in doc-ro inf-val">${esc(v)}</span>`}`).join("")}
+              ${INS ? infAoHTML(editInt) : ""}
               ${INS ? infDatesHTML(editInt) : ""}
             </div>
           </div>
@@ -126,7 +138,14 @@
       /* v477 (remarque 5) : tout est modifiable en instance ; rien n'est retenu avant ENREGISTRER */
       const pend = {};
       if (INS) infDatesBind(p, editInt, pend);
-      p.querySelectorAll("#infInt, #infCli, #infPrj").forEach(i => i.addEventListener("input", e => { const c = e.target.selectionStart; e.target.value = e.target.value.toUpperCase(); try { e.target.setSelectionRange(c, c); } catch (err) {} }));
+      /* v663 : client public = SUR CONSULTATION cochée d'office */
+      p.addEventListener("change", e => {
+        if (e.target.name !== "infAoT") return;
+        const c = p.querySelector("#infAoC"); if (!c) return;
+        if (e.target.value === "pub") { c.checked = true; c.disabled = true; } else c.disabled = false;
+      });
+      if (focus === "ao") setTimeout(() => { const i = p.querySelector("#infAoN"); if (i) { i.scrollIntoView({ block: "center" }); i.focus(); } }, 80);
+      p.querySelectorAll("#infInt, #infCli, #infPrj, #infAoN, #infAoO").forEach(i => i.addEventListener("input", e => { const c = e.target.selectionStart; e.target.value = e.target.value.toUpperCase(); try { e.target.setSelectionRange(c, c); } catch (err) {} }));
       const cd = p.querySelector("input.inf-cre"), chh = p.querySelector("input.inf-cre-h");
       if (cd) sviDateField(cd);
       const collect = () => {
@@ -135,13 +154,20 @@
         const ii = p.querySelector("#infInt"); if (ii) out.intitule = ii.value.trim().toUpperCase();
         const ic = p.querySelector("#infCli"); if (ic) out.client = ic.value.trim().toUpperCase();
         if (cd) out.created = (cd.value || "") + (cd.value ? "T" + ((chh && chh.value) || "00:00") : "");
+        if (INS && p.querySelector("#infAoN")) {
+          const t = p.querySelector('input[name="infAoT"]:checked'), A = INS.ao || {};
+          const pub = t ? t.value === "pub" : (A.pub === undefined ? undefined : A.pub);
+          out.ao = { pub, cons: pub === true || !!p.querySelector("#infAoC").checked,
+            num: p.querySelector("#infAoN").value.trim().toUpperCase(), obj: p.querySelector("#infAoO").value.trim().toUpperCase() };
+        }
         return out;
       };
       const changed = o => (o.project !== undefined && o.project !== String(budget.project || ""))
         || (o.intitule !== undefined && o.intitule !== String(budget.inst.intitule === "À COMPLÉTER" ? "" : budget.inst.intitule || "").trim().toUpperCase())
         || (o.client !== undefined && o.client !== String(budget.inst.client || "").trim().toUpperCase())
         || (o.created !== undefined && o.created && o.created !== String(budget.inst.created || ""))
-        || ["deb", "obj", "but"].some(f => o[f] !== undefined);
+        || ["deb", "obj", "but"].some(f => o[f] !== undefined)
+        || (o.ao !== undefined && ["pub", "cons", "num", "obj"].some(f => (o.ao[f] ?? "") !== ((INS.ao || {})[f] ?? (f === "cons" ? false : ""))));
       const save = () => {
         const o = collect();
         if (o.project !== undefined && !o.project) { svToast("PROJET OBLIGATOIRE.", 3000, p.querySelector("#infPrj")); return false; }
@@ -157,6 +183,13 @@
           budget.inst[f] = o[f] || def; patch[f] = budget.inst[f]; histLog("INF", lab, budget.inst[f] || "—");
         });
         if (Object.keys(patch).length) sviInstSet(sviInstGet().map(x => x.ref === ref ? { ...x, ...patch } : x));
+        if (INS && o.ao) {
+          const A = INS.ao || {}, n = { ...A, pub: o.ao.pub, cons: o.ao.cons, num: o.ao.num, obj: o.ao.obj };
+          if (["pub", "cons", "num", "obj"].some(f => (n[f] ?? "") !== (A[f] ?? ""))) {
+            INS.ao = n;
+            histLog("INF", "MARCHÉ", (n.pub === true ? "CLIENT PUBLIC" : n.pub === false ? "CLIENT PRIVÉ" : "CLIENT —") + (n.cons ? ", SUR CONSULTATION" : "") + (n.num ? ", N° " + n.num : ""));
+          }
+        }
         if (INS) { infApplyDates(pend, p.querySelector(".doc-foot")); insSave(); }
         /* partout où l'information est affichée : en-tête, listes, aperçus */
         try { keepScroll(() => refreshAll()); } catch (e) {}
