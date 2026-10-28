@@ -459,8 +459,8 @@
       }
       /* v665 (axes 5 et 11) : DÉSIGNATIONS CLIENT — COMPARATIF DES PRIX, APERÇU SOUS-DÉTAIL DES PRIX */
       if (INS && shell.__cmpWin && acts.some(a => a.dataset.blk === "client")) {
-        m.insertAdjacentHTML("afterbegin", `<button type="button" data-cmpx="cmp"><span>COMPARATIF DES PRIX…</span></button><button type="button" data-cmpx="sdp"><span>APERÇU SOUS-DÉTAIL DES PRIX</span></button><div class="blk-sep"></div>`);
-        m.addEventListener("click", e => { const b = e.target.closest("[data-cmpx]"); if (!b) return; e.stopPropagation(); m.remove(); if (b.dataset.cmpx === "cmp") shell.__cmpWin(); else shell.__sdp(); }, true);
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-cmpx="cmp"><span>COMPARATIF DES PRIX…</span></button><button type="button" data-cmpx="sdp"><span>APERÇU SOUS-DÉTAIL DES PRIX</span></button>${LK && LK.des ? `<button type="button" data-cmpx="ctr"><span>ARTICLES DU CONTRAT DE LA DÉSIGNATION CHOISIE</span></button>` : ""}<div class="blk-sep"></div>`);
+        m.addEventListener("click", e => { const b = e.target.closest("[data-cmpx]"); if (!b) return; e.stopPropagation(); m.remove(); if (b.dataset.cmpx === "cmp") shell.__cmpWin(); else if (b.dataset.cmpx === "ctr") shell.__ctrWin(LK.des); else shell.__sdp(); }, true);
       }
       /* v664 (axe 13) : DÉTAIL CHARGES — COÛT D'UNE JOURNÉE DE MAIN D'ŒUVRE */
       if (active === "chg" && INS && INS_EDIT && shell.__moWin && acts.some(a => a.dataset.blk === "detail")) {
