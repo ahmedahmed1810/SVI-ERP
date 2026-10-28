@@ -2101,6 +2101,33 @@ def main():
         check("v668 axe 7 : PROPOSER crée les ratios dont les données existent (coût au m², acier / béton en KG / M3, main-d'œuvre au m²), graphique ; multi-projets et signatures à prévoir",
               "COÛT AU M²" in r68n and "ACIER / BÉTON" in r68n and "KG / M3" in r68n and "MAIN-D'ŒUVRE AU M²" in r68n and g68 >= 3 and n68 >= 3 and "TOUS LES BUDGETS" in m68 and '"pvr":{"on":true,"qui":"MAITRE D\'OUVRAGE"}' in s68, [r68n[:600], g68, n68, m68, s68])
 
+        # v669 (axe 3) : CONTRAT — CPS collé découpé par ARTICLE, types devinés, valeurs, DÉLAI → DATE BUTOIR, échéances → recettes
+        cps = "CHAPITRE I : CLAUSES GÉNÉRALES\nARTICLE 1 : OBJET DU MARCHÉ\nLe présent marché a pour objet...\nARTICLE 5 - DÉLAI D'EXÉCUTION\nLe délai est fixé à 6 (six) mois.\nARTICLE 6 : CAUTIONNEMENT DÉFINITIF\nIl est fixé à 3 % du montant initial.\nARTICLE 7 : RETENUE DE GARANTIE\nUne retenue de 10 % sera opérée.\nARTICLE 8 : PÉNALITÉS DE RETARD\nUne pénalité de 1/1000 du montant par jour, plafonnée à 10 %.\nARTICLE 9 : RÉVISION DES PRIX\nLes prix sont révisables.\nARTICLE 10 : MODALITÉS DE PAIEMENT\nAcomptes mensuels."
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.__c9 = JSON.stringify({{ ctr: X.INS.ctr || null, dbut: X.INS.dbut || '', pdeb: X.INS.pdeb || '' }}); X.INS.pdeb = '2026-11-02'; X.insSave(); }}")
+        pg.evaluate("() => [...document.querySelectorAll('*')].find(e => e.__ctrWin).__ctrWin()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf [data-src]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf [data-p]')?.click()"); pg.wait_for_timeout(200)
+        pg.fill("#svConf .ctr-paste", cps); pg.evaluate("() => document.querySelector('#svConf [data-go]')?.click()"); pg.wait_for_timeout(400)
+        c9 = pg.evaluate("() => [...document.querySelectorAll('#svConf .ctr-t tbody tr')].map(t => t.classList.contains('ctr-tt') ? 'T:' + t.innerText.trim() : (t.querySelector('[data-f=\"no\"]') || {}).value + '|' + (t.querySelector('select[data-f=\"type\"]') || {}).value + '|' + (t.querySelector('[data-f=\"val\"]') || {}).value + '|' + (t.querySelector('select[data-f=\"u\"]') || {}).value).join(' ; ')")
+        # DÉLAI → DATE BUTOIR
+        pg.evaluate("() => { const tr = [...document.querySelectorAll('#svConf .ctr-t tbody tr')].find(t => (t.querySelector('select[data-f=\"type\"]') || {}).value === 'del'); tr.querySelector('[data-det]').click(); }"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf [data-but]')?.click()"); pg.wait_for_timeout(300)
+        b9 = pg.evaluate(f"() => {ins}.INS.dbut")
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(300)
+        # MODALITÉS DE PAIEMENT : une échéance à une date, 30 %
+        pg.evaluate("() => { const tr = [...document.querySelectorAll('#svConf .ctr-t tbody tr')].find(t => (t.querySelector('select[data-f=\"type\"]') || {}).value === 'pay'); tr.querySelector('[data-det]').click(); }"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf [data-eadd]')?.click()"); pg.wait_for_timeout(200)
+        pg.evaluate("() => { const s = document.querySelector('#svConf .ctp[data-f=\"on\"]'); s.value = 'date'; s.dispatchEvent(new Event('change', { bubbles: true })); }"); pg.wait_for_timeout(200)
+        pg.evaluate("() => { const i = document.querySelector('#svConf .ctp[data-f=\"date\"]'); i.value = '2026-12-31'; i.dispatchEvent(new Event('change', { bubbles: true })); const v = document.querySelector('#svConf .ctp[data-f=\"v\"]'); v.value = '30'; v.dispatchEvent(new Event('change', { bubbles: true })); }"); pg.wait_for_timeout(200)
+        r9 = pg.evaluate("() => (document.querySelector('#svConf .ctp-rec') || {}).innerText || ''")
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf [data-save]')?.click()"); pg.wait_for_timeout(300)
+        s9 = pg.evaluate(f"() => {{ const c = {ins}.INS.ctr; return c ? [c.rows.filter(r => !r.t).length, (c.rows.find(r => r.type === 'pay') || {{ det: {{}} }}).det.ech.length] : null; }}")
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; const o = JSON.parse(I.__c9); if (o.ctr) I.ctr = o.ctr; else delete I.ctr; I.dbut = o.dbut; I.pdeb = o.pdeb; delete I.__c9; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v669 axe 3 : CPS collé = 7 articles + titre CHAPITRE ; types et valeurs devinés (délai 6 MOIS, caution 3 %, RG 10 %, pénalité 1 ‰) ; délai → DATE BUTOIR 01/05/2027 ; échéance 30 % → recette ; enregistré",
+              c9.startswith("T:CHAPITRE I") and "5|del|6|MOIS" in c9 and "6|cdef|3|%" in c9 and "7|rg|10|%" in c9 and "8|pen|1|‰" in c9 and "9|rev|" in c9 and "10|pay|" in c9
+              and b9 == "2027-05-01" and "31/12/2026" in r9 and s9 == [7, 1], [c9, b9, r9[:200], s9])
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

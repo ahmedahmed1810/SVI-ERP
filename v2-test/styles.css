@@ -2646,3 +2646,16 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 #svConf .sg-r { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; border-bottom: 1px solid #f0f2f6; font-size: 12px; font-weight: 700; }
 #svConf .sg-r label { display: inline-flex; align-items: center; gap: 8px; }
 #svConf .sg-qui { width: 100%; text-align: left; }
+
+/* v669 (axe 3) : CONTRAT (CPS) */
+#svConf .ctr-t td { vertical-align: top; white-space: normal; }
+#svConf .ctr-t tr.ctr-tt td { background: var(--ttl-bg, #e4e9f1); color: var(--ttl-c, #1e3a8a); }
+#svConf .ctr-in { height: 28px; border: 1px solid #d6dbe3; border-radius: 6px; font: inherit; font-size: 11px; font-weight: 700; padding: 0 6px; width: 100%; min-width: 80px; box-sizing: border-box; }
+#svConf .ctr-no { width: 64px; min-width: 0; text-align: center; } #svConf .ctr-v { width: 90px; text-align: right; }
+#svConf .ctr-tx { min-width: 260px; max-width: 520px; font-size: 11px; color: #475467; cursor: pointer; white-space: pre-line !important; }
+#svConf .ctr-ta { height: 160px; padding: 6px; white-space: pre-wrap; }
+#svConf .ctr-det { height: 28px; padding: 0 8px; }
+#svConf .ctr-paste { width: 100%; height: 50vh; font-size: 12px; }
+#svConf .ctp-r { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 4px 0; border-bottom: 1px solid #f0f2f6; }
+#svConf .ctp-r .pv-in { width: auto; min-width: 70px; text-align: left; }
+#svConf .ctp-r .pv-in[data-f="lab"] { flex: 1 1 160px; }

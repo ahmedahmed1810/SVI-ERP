@@ -143,7 +143,7 @@
        ========================================================= */
     const multiLoad = () => {
       const L = sviInstGet().filter(x => x.data && x.state !== "valide").map(x => x.ref === ref ? { ...x, data: INS } : x);
-      const wk = iso => { const d = new Date(iso + "T00:00:00"); const g = (d.getDay() + 6) % 7; d.setDate(d.getDate() - g); return d.toISOString().slice(0, 10); };
+      const wk = iso => { const d = new Date(iso + "T12:00:00"); const g = (d.getDay() + 6) % 7; d.setDate(d.getDate() - g); return sviIsoOf(d); };
       const B = [], W = new Set();
       L.forEach(x => {
         const d = x.data, seen = new Set(), per = {};
@@ -152,7 +152,7 @@
         (d.links || []).forEach(l => { const k = l.lot + "|" + l.sec; (l.chg || []).forEach(c => {
           if (seen.has(c.id)) return; const r = (d.chg || []).find(y => y.id === c.id); if (!r || r.t || !dlyIsLab(r)) return; seen.add(c.id);
           const P = per[k]; if (!P) return;
-          const days = []; P.forEach(([a, b]) => { for (let t = new Date(a + "T00:00:00"); t.toISOString().slice(0, 10) <= b && days.length < 3000; t.setDate(t.getDate() + 1)) days.push(t.toISOString().slice(0, 10)); });
+          const days = []; P.forEach(([a, b]) => { for (let t = new Date(a + "T12:00:00"); sviIsoOf(t) <= b && days.length < 3000; t.setDate(t.getDate() + 1)) days.push(sviIsoOf(t)); });
           if (!days.length) return;
           const q = ratNum(r.q) * (/^(H|HR|HEURE|HEURES)$/.test(U_(r.u)) ? 1 / 8 : 1);
           days.forEach(dd => { const w = wk(dd); M[w] = (M[w] || 0) + q / days.length; W.add(w); });
