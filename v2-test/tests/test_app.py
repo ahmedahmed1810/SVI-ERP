@@ -2192,7 +2192,7 @@ def main():
             if (a === 'v3Pull') { const x = S.b[p.ref]; return x ? { ok: true, ...x } : { ok: true, missing: true }; }
             if (a === 'v3Push') { const x = S.b[p.ref]; if (x && x.rev !== p.baseRev) return { ok: true, conflict: true, rev: x.rev, ts: x.ts, user: x.user, data: x.data };
               S.b[p.ref] = { ref: p.ref, rev: (x ? x.rev : 0) + 1, ts: p.ts, user: p.user, data: p.data }; const o = JSON.parse(p.data).data || {};
-              return { ok: true, rev: S.b[p.ref].rev, ctl: { des: (o.des || []).length, lot: (o.lot || []).length, prim: (o.prim || []).length, sec: (o.sec || []).length, chg: (o.chg || []).length, prd: (o.prd || []).length, links: (o.links || []).length } }; }
+              return { ok: true, rev: S.b[p.ref].rev, len: p.data.length, ctl: { des: (o.des || []).length, lot: (o.lot || []).length, prim: (o.prim || []).length, sec: (o.sec || []).length, chg: (o.chg || []).length, prd: (o.prd || []).length, links: (o.links || []).length } }; }
             if (a === 'v3Photo') { S.photo = p; return { ok: true }; }
             if (a === 'v3Lock' || a === 'v3Unlock' || a === 'v3Del') { S.lastLock = a; return { ok: true }; }
             if (a === 'v3Stats') return { ok: true, cells: 1000, limit: 1e7 };

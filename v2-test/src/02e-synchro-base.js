@@ -16,6 +16,9 @@ const SVI_USER_KEY = "svi_user_v1", SVI_SYNC_KEY = "svi_sync_v1";
 const sviUser = () => { try { return localStorage.getItem(SVI_USER_KEY) || ""; } catch (e) { return ""; } };
 const sviSyncMeta = () => { try { return JSON.parse(localStorage.getItem(SVI_SYNC_KEY) || "{}") || {}; } catch (e) { return {}; } };
 const sviSyncMetaSet = m => { try { localStorage.setItem(SVI_SYNC_KEY, JSON.stringify(m)); } catch (e) {} };
+/* v673 : appels à la base un par un (jamais deux en même temps : le verrou de Google expirait) */
+const SVI_Q = { p: Promise.resolve() };
+const sviQ = (a, b) => { const run = SVI_Q.p.then(() => apiPost(a, b)); SVI_Q.p = run.catch(() => {}); return run; };
 const SVI_SYNC = { applying: false, timer: null, busy: false, status: "", err: "", last: 0, locks: {}, cells: null };
 const sviSyncBase = ref => sviIdbGet("svi_sync_base:" + ref).catch(() => null);
 const sviSyncBaseSet = (ref, s) => sviIdbPut("svi_sync_base:" + ref, s).catch(() => {});
@@ -124,18 +127,18 @@ const sviSyncPhoto = it => {
     (l.chg || []).forEach((x, i) => { const r = (d.chg || []).find(y => y.id === x.id); if (r) details.push({ _t: l.id, TYPE: "CHG", ARTICLE: U(r.art), DESIGNATION: U(r.des), UNITE: U(r.u), QTE: x.q !== "" && x.q !== undefined ? x.q : (r.q ?? ""), PRIX: r.p ?? "", CLE: "", ORDRE: i + 1 }); });
   });
   const ET = { instance: "INSTANCE", fige: "FIGE", valide: "VALIDE" }[it.state || "instance"];
-  return apiPost("v3Photo", { ref: it.ref, budget: { REF: it.ref, PROJET: U(it.project), INTITULE: U(it.intitule), ETAT: ET, CREE_LE: U(it.created), FIGE_LE: it.state === "fige" ? new Date().toISOString().slice(0, 10) : "", VALIDE_LE: U(it.validated), VERSION: (sviSyncMeta()[it.ref] || {}).rev || "", DATE_BUTOIR: U(d.dbut), DATE_OBJECTIF: U(d.dobj) }, des, taches, details });
+  return sviQ("v3Photo", { ref: it.ref, budget: { REF: it.ref, PROJET: U(it.project), INTITULE: U(it.intitule), ETAT: ET, CREE_LE: U(it.created), FIGE_LE: it.state === "fige" ? new Date().toISOString().slice(0, 10) : "", VALIDE_LE: U(it.validated), VERSION: (sviSyncMeta()[it.ref] || {}).rev || "", DATE_BUTOIR: U(d.dbut), DATE_OBJECTIF: U(d.dobj) }, des, taches, details });
 };
 
 /* ---------- envoi ---------- */
 const sviSyncPushOne = async (ref, M) => {
   const m = M[ref] || {}, user = sviUser();
-  if (m.del) { await apiPost("v3Del", { ref }); delete M[ref]; return; }
+  if (m.del) { await sviQ("v3Del", { ref }); delete M[ref]; return; }
   let it = sviInstGet().find(x => x.ref === ref);
   if (!it) { delete M[ref]; return; }
   for (let tour = 0; tour < 3; tour++) {
     const txt = JSON.stringify(it);
-    const r = await apiPost("v3Push", { ref, projet: it.project || "", etat: it.state || "instance", baseRev: m.rev || 0, user, ts: m.last || Date.now(), data: txt });
+    const r = await sviQ("v3Push", { ref, projet: it.project || "", etat: it.state || "instance", baseRev: m.rev || 0, user, ts: m.last || Date.now(), data: txt });
     if (r.conflict) {
       let theirs = null; try { theirs = JSON.parse(r.data); } catch (e) {}
       if (!theirs) throw new Error("BUDGET ILLISIBLE DANS LA BASE");
@@ -151,10 +154,11 @@ const sviSyncPushOne = async (ref, M) => {
     }
     m.rev = r.rev; m.dirty = 0; m.at = Date.now();
     await sviSyncBaseSet(ref, txt);
-    /* contrôle de l'envoi : lignes relues dans la base */
-    const d = it.data || {}, bad = r.ctl && !r.ctl.err ? ["des", "lot", "prim", "sec", "chg", "prd", "links"].filter(x => (r.ctl[x] || 0) !== (d[x] || []).length) : (r.ctl && r.ctl.err ? ["RELECTURE"] : []);
-    if (bad.length && typeof svToast === "function") svToast(ref + " : CONTRÔLE DE L'ENVOI EN ÉCHEC (" + bad.join(", ") + ") — IL SERA RENVOYÉ.", 6000);
-    if (bad.length) m.dirty = Date.now();
+    /* contrôle de l'envoi : le budget relu dans la base a la même longueur que celui envoyé */
+    if (r.len !== undefined && Number(r.len) !== txt.length) {
+      m.dirty = Date.now();
+      if (typeof svToast === "function") svToast(ref + " : CONTRÔLE DE L'ENVOI EN ÉCHEC (RELU " + r.len + " / " + txt.length + ") — IL SERA RENVOYÉ.", 6000);
+    }
     if ((it.state === "fige" || it.state === "valide") && m.pst !== it.state) { try { await sviSyncPhoto(it); m.pst = it.state; } catch (e) {} }
     if (it.state === "instance") m.pst = "";
     return;
@@ -182,14 +186,14 @@ const sviSyncRun = async () => {
 const sviSyncPull = async () => {
   if (typeof apiPost !== "function" || !document.getElementById("sviTestTag") || !navigator.onLine) return;
   let L;
-  try { L = await apiPost("v3List", {}); } catch (e) { SVI_SYNC.status = /fetch|network|Load failed/i.test(String(e && e.message || e)) ? "off" : "nob"; SVI_SYNC.err = String(e && e.message || e); sviSyncPaint(); return; }
+  try { L = await sviQ("v3List", {}); } catch (e) { SVI_SYNC.status = /fetch|network|Load failed/i.test(String(e && e.message || e)) ? "off" : "nob"; SVI_SYNC.err = String(e && e.message || e); sviSyncPaint(); return; }
   const me = sviUser(), M = sviSyncMeta();
   SVI_SYNC.locks = {}; (L.locks || []).forEach(k => { if (k.user !== me) SVI_SYNC.locks[k.ref] = k; });
   let changed = false, first = 0;
   for (const s of L.list || []) {
     const m = M[s.ref] = M[s.ref] || {};
     if (s.rev <= (m.rev || 0) || m.dirty) continue;
-    const p = await apiPost("v3Pull", { ref: s.ref }).catch(() => null);
+    const p = await sviQ("v3Pull", { ref: s.ref }).catch(() => null);
     if (!p || p.missing) continue;
     let it = null; try { it = JSON.parse(p.data); } catch (e) {}
     if (!it) continue;
@@ -210,9 +214,9 @@ const sviSyncPull = async () => {
 };
 /* verrou du budget ouvert (gardé tant qu'il est ouvert) */
 const sviLockOther = ref => { const k = SVI_SYNC.locks[ref]; return k && Date.now() - k.ts < 3 * 60 * 1000 ? k : null; };
-const sviLockKeep = () => { const r = window.__sviOpenRef; if (r && window.__sviOpenEdit && navigator.onLine) apiPost("v3Lock", { ref: r, user: sviUser(), onglet: window.__sviOpenTab || "" }).catch(() => {}); };
+const sviLockKeep = () => { const r = window.__sviOpenRef; if (r && window.__sviOpenEdit && navigator.onLine) sviQ("v3Lock", { ref: r, user: sviUser(), onglet: window.__sviOpenTab || "" }).catch(() => {}); };
 const sviLockOpen = (ref, edit) => { window.__sviOpenRef = ref; window.__sviOpenEdit = !!edit; sviLockKeep(); };
-const sviLockClose = () => { const r = window.__sviOpenRef; if (r && window.__sviOpenEdit) apiPost("v3Unlock", { ref: r, user: sviUser() }).catch(() => {}); window.__sviOpenRef = null; window.__sviOpenEdit = false; };
+const sviLockClose = () => { const r = window.__sviOpenRef; if (r && window.__sviOpenEdit) sviQ("v3Unlock", { ref: r, user: sviUser() }).catch(() => {}); window.__sviOpenRef = null; window.__sviOpenEdit = false; };
 
 /* ---------- repère et fenêtre BASE ---------- */
 const sviSyncPaint = () => {
@@ -236,7 +240,7 @@ function sviSyncWin() {
       <div class="pv-sub sy-cells"></div>`,
     foot: `<button type="button" class="svc-b" data-x>FERMER</button><button type="button" class="svc-b svc-ok svc-neutral" data-go>ENVOYER MAINTENANT</button>` });
   sviWinShow(d);
-  if (navigator.onLine) apiPost("v3Stats", {}).then(s => { const e = d.querySelector(".sy-cells"); if (e && s && s.cells) e.textContent = "TAILLE DU FICHIER : " + s.cells.toLocaleString("fr-FR") + " CELLULES SUR 10 000 000 (" + Math.round(s.cells / s.limit * 1000) / 10 + " %)" + (s.cells > 8e6 ? " — ATTENTION, PROCHE DE LA LIMITE DE GOOGLE SHEETS." : "."); }).catch(() => {});
+  if (navigator.onLine) sviQ("v3Stats", {}).then(s => { const e = d.querySelector(".sy-cells"); if (e && s && s.cells) e.textContent = "TAILLE DU FICHIER : " + s.cells.toLocaleString("fr-FR") + " CELLULES SUR 10 000 000 (" + Math.round(s.cells / s.limit * 1000) / 10 + " %)" + (s.cells > 8e6 ? " — ATTENTION, PROCHE DE LA LIMITE DE GOOGLE SHEETS." : "."); }).catch(() => {});
   d.addEventListener("click", e => {
     if (e.target === d || e.target.closest("[data-x]")) { const v = d.querySelector(".sy-user").value.trim().toUpperCase(); if (v) try { localStorage.setItem(SVI_USER_KEY, v); } catch (er) {} d.remove(); return; }
     if (e.target.closest("[data-go]")) { const v = d.querySelector(".sy-user").value.trim().toUpperCase(); if (v) try { localStorage.setItem(SVI_USER_KEY, v); } catch (er) {} d.remove(); sviSyncPull().then(() => sviSyncRun()); }

@@ -75,7 +75,7 @@ function sviSyncRoute_(b) {
       sh.getRange(j, 1, 1, w).setNumberFormat("@").setValues([row]);
       /* contrôle : le budget relu compte les mêmes lignes */
       var back = sviSyncData_(sh.getRange(j, 1, 1, w).getValues()[0]), ctl = {};
-      try { var o = JSON.parse(back); ["des", "lot", "prim", "sec", "chg", "prd", "links"].forEach(function (x) { ctl[x] = (o[x] || []).length; }); } catch (e) { ctl.err = "RELECTURE IMPOSSIBLE"; }
+      try { var o0 = JSON.parse(back), o = o0.data || o0; ["des", "lot", "prim", "sec", "chg", "prd", "links"].forEach(function (x) { ctl[x] = (o[x] || []).length; }); } catch (e) { ctl.err = "RELECTURE IMPOSSIBLE"; }
       return { ok: true, rev: rev + 1, len: back.length, ctl: ctl };
     }
     if (b.action === "v3Del") { var d = sviSyncFind_(sh, b.ref); if (d > 0) sh.deleteRow(d); return { ok: true }; }
