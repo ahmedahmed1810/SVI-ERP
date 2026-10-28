@@ -52,7 +52,8 @@
     const insTodoWhy = () => {
       const B = insTodo(), F = insFiltActs();
       const d = sviWinNew();
-      const lab = b => esc(b.lab) + (b.names ? " : " + esc(b.names.join(" ; ")) : b.list ? " : " + esc(b.list.slice(0, 3).map(dlyName).join(" ; ")) + (b.list.length > 3 ? "…" : "") : "") + (b.req ? "" : " <small>(NON BLOQUANT)</small>");
+      /* v661 : TÂCHES SANS CHARGE sur une seule ligne, sans liste (le compteur suffit ; toucher y mène) */
+      const lab = b => esc(b.lab) + (b.names ? " : " + esc(b.names.join(" ; ")) : b.list && b.go !== "prdnc" ? " : " + esc(b.list.slice(0, 3).map(dlyName).join(" ; ")) + (b.list.length > 3 ? "…" : "") : "") + (b.req ? "" : " <small>(NON BLOQUANT)</small>");
       d.innerHTML = `<div class="svc-card" role="dialog" aria-modal="true"><button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">À COMPLÉTER</div>
         <div class="svc-x">${B.length ? B.map((b, i) => `<button type="button" class="fz-why${b.req ? "" : " fz-opt"}" data-i="${i}"><span>${lab(b)}</span>${svCnt(b.n)}</button>`).join("")
