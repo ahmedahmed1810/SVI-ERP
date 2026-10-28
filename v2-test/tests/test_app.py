@@ -1922,6 +1922,53 @@ def main():
         check("v542 remarque 4 : conditionnement sur le titre des charges regroupées et sur une charge seule (pas sur les lignes du titre), réglé pour l'article (tous les budgets)",
               k4 == [True, False, True] and "TOUS LES BUDGETS" in k4b and k4c, [k4, k4b[:160], k4c])
 
+        # v663 (axe 2) : PRIX DE VENTE PAR LA MARGE — K = 1 ÷ (1 − marge) ; TÂCHE > LOT > GLOBALE ; PPB = charges × K ÷ QPB
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.__p2 = JSON.stringify({{ des: I.des, links: I.links, chg: I.chg }});
+            I.chg.push({{ id: 'pv1', des: 'CIMENT PV', u: 'T', q: 2, p: 1000 }}); I.links.find(l => l.id === 'L1').chg = [{{ id: 'pv1' }}];
+            I.pv = {{ fg: 10, al: 5, bn: 5, lot: {{}}, task: {{}} }}; X.insSave(); X.refreshAll(); document.querySelector('.bdg-d-tab[data-tab="lnk"]')?.click(); }}"""); pg.wait_for_timeout(400)
+        q2 = pg.evaluate(f"() => {{ const X = {ins}; return insLinkedQ(X.INS, 'd1'); }}")
+        def pv_txt():
+            pg.evaluate("() => { const X = [...document.querySelectorAll('*')].find(e => e.__mg).__mg; X.pv(); }"); pg.wait_for_timeout(300)
+            t = pg.evaluate("() => (document.querySelector('#svConf .pv-res') || {}).innerText || ''")
+            g = pg.evaluate("() => (document.querySelector('#svConf .pv-tot') || {}).innerText || ''")
+            return t, g
+        fm = lambda v: f"{v:,.2f}".replace(",", " ").replace(".", ",")
+        a2, g2 = pv_txt()
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()")
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.pv.lot = {{ l1: 50 }}; X.insSave(); }}")
+        b2, _ = pv_txt()
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()")
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.pv.task = {{ 'l1|s1': 0 }}; X.insSave(); }}")
+        c2, _ = pv_txt()
+        pg.evaluate("() => document.querySelector('#svConf [data-apply]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf .svc-ok')?.click()"); pg.wait_for_timeout(400)
+        d2 = pg.evaluate(f"() => {{ const X = {ins}; return Number(X.INS.des.find(d => d.id === 'd1').p); }}")
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; const o = JSON.parse(I.__p2); I.des = o.des; I.links = o.links; I.chg = o.chg; delete I.__p2; delete I.pv; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        e = [round(2000 * k / q2, 2) for k in (1.25, 2, 1)] if q2 else [0, 0, 0]
+        check("v663 axe 2 : prix de vente par la marge — globale 20 % (K 1,25), lot 50 % (K 2), tâche 0 % l'emporte ; PPB = charges × K ÷ QPB, appliqué",
+              q2 and "1,25" in g2 and fm(e[0]) in a2 and fm(e[1]) in b2 and fm(e[2]) in c2 and abs(d2 - e[2]) < 0.01, [q2, e, a2[:200], g2, b2[:160], c2[:160], d2])
+
+        # v663 (axe 12) : INF — client PUBLIC = SUR CONSULTATION d'office ; bordereau : RÉFÉRENCE, OBJET, phrase ARRÊTÉ ; numéro manquant → fenêtre
+        pg.evaluate("() => document.querySelector('[data-pill=\"inf\"]')?.click()"); pg.wait_for_timeout(400)
+        pg.evaluate("() => { const r = document.querySelector('#docPop input[name=\"infAoT\"][value=\"pub\"]'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }")
+        pg.fill("#infAoO", "construction d'une piscine"); pg.wait_for_timeout(100)
+        pg.evaluate("() => document.querySelector('#docPop .inf-save')?.click()"); pg.wait_for_timeout(400)
+        ao = pg.evaluate(f"() => JSON.stringify({ins}.INS.ao || null)")
+        pg.evaluate("() => document.querySelector('[data-blk=\"client\"][data-act=\"pdf\"]')?.click()"); pg.wait_for_timeout(400)
+        aw = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
+        pg.evaluate("() => document.querySelector('#svConf [data-v=\"inf\"]')?.click()"); pg.wait_for_timeout(400)
+        fo = pg.evaluate("() => document.activeElement && document.activeElement.id")
+        pg.fill("#infAoN", "AO 12/2026"); pg.evaluate("() => document.querySelector('#docPop .inf-save')?.click()"); pg.wait_for_timeout(400)
+        with ctx.expect_page(timeout=5000) as pi:
+            pg.evaluate("() => document.querySelector('[data-blk=\"client\"][data-act=\"pdf\"]')?.click()")
+        pv = pi.value; pv.wait_for_timeout(1200)
+        bt = pv.evaluate("() => document.body.innerText"); pv.close()
+        pg.evaluate(f"() => {{ const X = {ins}; delete X.INS.ao; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v663 axe 12 : INF client PUBLIC → SUR CONSULTATION ; numéro vide → NUMÉRO D'APPEL D'OFFRES MANQUANT, RENSEIGNER = curseur dans la case ; bordereau avec RÉFÉRENCE, OBJET et ARRÊTÉ",
+              '"pub":true' in ao and '"cons":true' in ao and "MANQUANT" in aw and fo == "infAoN"
+              and "BORDEREAU DES PRIX – DÉTAIL ESTIMATIF" in bt and "RÉFÉRENCE : AO 12/2026" in bt and "OBJET : CONSTRUCTION D'UNE PISCINE" in bt and "ARRÊTÉ LE PRÉSENT BORDEREAU" in bt,
+              [ao, aw, fo, bt[:400]])
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

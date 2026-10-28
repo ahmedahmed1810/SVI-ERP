@@ -19304,7 +19304,109 @@ function renderBudgetList() {
         if (cb) X.check(cb);
       });
     }
+    /* =========================================================
+       v663 (AXE 2) : PRIX DE VENTE PAR LA MARGE — coefficient de vente et marges par lot / par tâche.
+       Marge en % du prix de vente : coefficient K = 1 ÷ (1 − marge). Marge globale = FRAIS GÉNÉRAUX + ALÉAS + BÉNÉFICE.
+       Le niveau le plus fin l'emporte : TÂCHE > LOT > GLOBALE. PPB d'une désignation = Σ (charges de chaque tâche × K de la tâche) ÷ QPB.
+       Réglages gardés dans INS.pv ; les prix ne changent qu'avec APPLIQUER AUX PRIX (confirmation, historique).
+       ========================================================= */
+    const pvNum = v => v === "" || v === undefined || v === null ? "" : Number(String(v).replace(",", "."));
+    const pvOk = v => v !== "" && Number.isFinite(v);
+    const pvCfg = () => { const c = INS.pv || {}; return { fg: c.fg ?? "", al: c.al ?? "", bn: c.bn ?? "", lot: { ...(c.lot || {}) }, task: { ...(c.task || {}) } }; };
+    const pvGlob = c => [c.fg, c.al, c.bn].some(x => pvOk(pvNum(x))) ? [c.fg, c.al, c.bn].reduce((t, x) => t + (pvOk(pvNum(x)) ? pvNum(x) : 0), 0) : "";
+    const pvRate = (c, lot, sec) => { const t = pvNum(c.task[lot + "|" + sec]), l = pvNum(c.lot[lot]), g = pvGlob(c); return pvOk(t) ? t : pvOk(l) ? l : g; };
+    const pvK = m => pvOk(m) && m < 100 ? 1 / (1 - m / 100) : null;
+    /* nouveaux PPB : charges de chaque tâche (comptées une fois) × coefficient de la tâche, divisées par la QPB de la désignation */
+    const pvCalc = c => {
+      const seen = new Set(), S = new Map();
+      let bad = 0;
+      (INS.links || []).forEach(l => {
+        const m = pvRate(c, l.lot, l.sec), K = pvK(m);
+        (l.chg || []).forEach(x => {
+          if (seen.has(x.id)) return;
+          const r = INS.chg.find(y => y.id === x.id);
+          if (!r || r.t) return;
+          seen.add(x.id);
+          const ht = num(r.q || 0) * num(r.p || 0);
+          if (!ht) return;
+          if (K === null) { bad++; return; }
+          S.set(l.des, (S.get(l.des) || 0) + ht * K);
+        });
+      });
+      return { bad, rows: INS.des.filter(d => !d.t).map(d => {
+        const q = insLinkedQ(INS, d.id) || 0, v = S.get(d.id) || 0;
+        const np = q && v ? Math.round(v / q * 100) / 100 : null;
+        return { d, q, old: d.p === "" || d.p === undefined ? "" : num(d.p), np };
+      }).filter(x => x.np !== null) };
+    };
+    const mgPvWin = () => {
+      const c = pvCfg();
+      const lots = [...new Set((INS.links || []).map(l => l.lot))].filter(id => INS.lot.some(x => x.id === id));
+      const tasks = [...new Map((INS.links || []).map(l => [l.lot + "|" + l.sec, l])).values()];
+      const fx = v => pvOk(v) ? String(Math.round(v * 100) / 100).replace(".", ",") : "";
+      const d = sviWinNew();
+      const inp = (attr, v, ph) => `<input class="pv-in" ${attr} inputmode="decimal" value="${esc(v === "" ? "" : String(v).replace(".", ","))}" placeholder="${esc(ph)}" ${INS_EDIT ? "" : "disabled"}>`;
+      d.innerHTML = sviWinCard({ cls: "pv-card", close: "data-x", title: "PRIX DE VENTE PAR LA MARGE",
+        body: `<div class="pv-sub">MARGE EN % DU PRIX DE VENTE ; LE NIVEAU LE PLUS FIN L'EMPORTE : TÂCHE › LOT › GLOBALE.</div>
+          <div class="pv-scroll">
+            <div class="fz-blk">COEFFICIENT DE VENTE</div>
+            <div class="pv-g">${[["fg", "FRAIS GÉNÉRAUX"], ["al", "ALÉAS"], ["bn", "BÉNÉFICE"]].map(([k, l]) => `<label class="pv-r"><span>${l}</span>${inp(`data-g="${k}"`, c[k], "")}<i>%</i></label>`).join("")}
+              <div class="pv-tot"></div></div>
+            <div class="fz-blk">PAR LOT ${svCnt(lots.length)}</div>
+            ${lots.map(id => `<label class="pv-r"><span>${esc(lkName("lot", id))}</span>${inp(`data-lot="${esc(id)}"`, c.lot[id] ?? "", "")}<i>%</i></label>`).join("") || `<div class="fz-none">AUCUN LOT LIÉ</div>`}
+            <div class="fz-blk">PAR TÂCHE ${svCnt(tasks.length)}</div>
+            ${tasks.map(l => `<label class="pv-r"><span>${esc(lkName("lot", l.lot))} › ${esc(lkName("sec", l.sec))}</span>${inp(`data-task="${esc(l.lot + "|" + l.sec)}"`, c.task[l.lot + "|" + l.sec] ?? "", "")}<i>%</i></label>`).join("") || `<div class="fz-none">AUCUNE TÂCHE LIÉE</div>`}
+            <div class="fz-blk">PRIX CALCULÉS</div>
+            <div class="pv-res"></div>
+          </div>`,
+        foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${INS_EDIT ? `<button type="button" class="svc-b" data-save>ENREGISTRER</button><button type="button" class="svc-b svc-ok" data-apply>APPLIQUER AUX PRIX</button>` : ""}` });
+      sviWinShow(d);
+      const read = () => {
+        d.querySelectorAll(".pv-in").forEach(x => {
+          const v = pvNum(x.value.trim()); const val = pvOk(v) ? v : "";
+          if (x.dataset.g) c[x.dataset.g] = val;
+          else if (x.dataset.lot) { if (val === "") delete c.lot[x.dataset.lot]; else c.lot[x.dataset.lot] = val; }
+          else if (x.dataset.task) { if (val === "") delete c.task[x.dataset.task]; else c.task[x.dataset.task] = val; }
+        });
+      };
+      let R = null;
+      const paint = () => {
+        read();
+        const g = pvGlob(c), K = pvK(g);
+        d.querySelector(".pv-tot").innerHTML = pvOk(g) ? `MARGE GLOBALE <b>${fx(g)} %</b> — COEFFICIENT <b>${K ? fx(K) : "IMPOSSIBLE (≥ 100 %)"}</b>` : "MARGE GLOBALE : AUCUNE (SEULES LES MARGES PAR LOT OU PAR TÂCHE COMPTENT)";
+        /* placeholders : la marge qui s'appliquerait sans la case */
+        d.querySelectorAll(".pv-in[data-lot]").forEach(x => { x.placeholder = fx(g); });
+        d.querySelectorAll(".pv-in[data-task]").forEach(x => { const [lo] = x.dataset.task.split("|"); const l = pvNum(c.lot[lo]); x.placeholder = fx(pvOk(l) ? l : g); });
+        R = pvCalc(c);
+        const ch = R.rows.filter(x => x.old === "" || Math.abs(x.old - x.np) > 0.004);
+        d.querySelector(".pv-res").innerHTML = (R.bad ? `<div class="pv-warn">${R.bad} CHARGE(S) SANS MARGE VALABLE (VIDE OU ≥ 100 %) : NON COMPTÉE(S).</div>` : "")
+          + (R.rows.length ? `<table class="pv-t"><thead><tr><th>DÉSIGNATION</th><th class="number">PPB ACTUEL</th><th class="number">PPB CALCULÉ</th></tr></thead><tbody>${R.rows.map(x =>
+            `<tr class="${ch.includes(x) ? "pv-ch" : ""}"><td>${esc(lkName("des", x.d.id))}</td><td class="number">${x.old === "" ? "—" : money(x.old)}</td><td class="number">${money(x.np)}</td></tr>`).join("")}</tbody></table>
+            <div class="pv-n">${ch.length} PRIX MODIFIÉ(S) SUR ${R.rows.length}</div>` : `<div class="fz-none">AUCUN PRIX À CALCULER : SAISIR UNE MARGE ET LIER DES CHARGES.</div>`);
+        const a = d.querySelector("[data-apply]"); if (a) a.disabled = !ch.length;
+      };
+      const save = () => { INS.pv = { fg: c.fg, al: c.al, bn: c.bn, lot: c.lot, task: c.task }; insSave(); };
+      d.addEventListener("input", e => { if (e.target.classList.contains("pv-in")) paint(); });
+      d.addEventListener("click", async e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        if (e.target.closest("[data-save]")) { read(); save(); histLog("MARGE", "PRIX DE VENTE — RÉGLAGES", "MARGE GLOBALE " + (fx(pvGlob(c)) || "—") + " %"); d.remove(); refreshAll(); return; }
+        if (e.target.closest("[data-apply]")) {
+          paint();
+          const ch = R.rows.filter(x => x.old === "" || Math.abs(x.old - x.np) > 0.004);
+          if (!ch.length) return;
+          d.remove();
+          if (!(await svConfirm({ title: "APPLIQUER AUX PRIX", text: ch.length + " PPB DE DÉSIGNATIONS CLIENT SERONT REMPLACÉS PAR LES PRIX CALCULÉS.", ok: "APPLIQUER" }))) return;
+          save();
+          ch.forEach(x => { x.d.p = x.np; });
+          insSave();
+          histLog("MARGE", "PRIX DE VENTE PAR LA MARGE", ch.length + " PPB MODIFIÉ(S) — MARGE GLOBALE " + (fx(pvGlob(c)) || "—") + " %");
+          refreshAll();
+        }
+      });
+      paint();
+    };
     shell.__mg = {
+      pv: () => mgPvWin(),
       sortable: k => ["chg", "prd", "mg", "pct"].includes(k),
       sort: k => { mgSort = !mgSort || mgSort.col !== k ? { col: k, dir: 1 } : mgSort.dir > 0 ? { col: k, dir: -1 } : null; keepScroll(() => renderTab()); },
       openAll: () => { mgAll.forEach(p => mgOpen.add(p)); keepScroll(() => renderTab()); },
@@ -19572,7 +19674,7 @@ function renderBudgetList() {
   <div class="head">
     <img src="${SVI_LOGO}" alt="">
     <div class="date">${dateTxt}</div>
-    <div class="t">DEVIS N° : ${esc(fullRef.replace(/\bBDG\b/, "DVC"))}<br>CLIENT : ${esc(sviClient(budget.inst))}<br>PROJET : ${esc(projet)}${cfg.headLine ? "<br>" + esc(cfg.headLine) : ""}</div>
+    <div class="t">${cfg.bpu ? (() => { const A = (INS && INS.ao) || {}; return "<b>BORDEREAU DES PRIX – DÉTAIL ESTIMATIF</b><br>RÉFÉRENCE : " + esc(String(A.num || "").trim() || fullRef) + (String(A.obj || "").trim() ? "<br>OBJET : " + esc(A.obj) : ""); })() : "DEVIS N° : " + esc(fullRef.replace(/\bBDG\b/, "DVC"))}<br>CLIENT : ${esc(sviClient(budget.inst))}<br>PROJET : ${esc(projet)}${cfg.headLine ? "<br>" + esc(cfg.headLine) : ""}</div>
   </div>
   ${/* FORMAT 133 : unités M² / M³ (cellule d'unité seule) */ cfg.table.replace(/(<td[^>]*>)\s*M([23])\s*(<\/td>)/g, (m, a, d, b) => a + "M" + (d === "2" ? "²" : "³") + b)}
   <div id="end">${cfg.end}</div>
@@ -20052,7 +20154,7 @@ function renderBudgetList() {
     const printClient = () => {
       const src = lastShown.client;
       if (!src || !src.rows.length) { sviAlert("Aucune désignation à afficher."); return; }
-      if (src.ins) return printClientIns(src.rows);
+      if (src.ins) return bpuAoWarn(() => printClientIns(src.rows));
       const rows = [...src.rows].sort((a, b) =>
         String(a.article).localeCompare(String(b.article), "fr", { numeric: true }));
       const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
@@ -20064,7 +20166,7 @@ function renderBudgetList() {
       const ht = rows.reduce((t, g) => t + g.ht, 0);
       const tva = ht * 0.2, ttc = ht + tva;
       printModel({
-        branch: "DÉSIGNATIONS CLIENT", docTitle: "DÉSIGNATIONS CLIENT", fileTag: "DESIGNATIONS CLIENT", headLine: "",
+        branch: "DÉSIGNATIONS CLIENT", docTitle: "BORDEREAU DES PRIX – DÉTAIL ESTIMATIF", fileTag: "BORDEREAU DES PRIX", headLine: "", bpu: true,   /* v663 (axe 12) */
         table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:37%"><col style="width:4%"><col style="width:9%">
           <col style="width:9%"><col style="width:25%"><col style="width:10%"></colgroup>
           <thead><tr><th rowspan="2">ART.</th><th rowspan="2">DESIGNATION</th><th rowspan="2">U</th><th rowspan="2">QUANTITE</th>
@@ -20076,11 +20178,29 @@ function renderBudgetList() {
             <div><span>TOTAL T.V.A. :</span><b>${money(tva)}</b></div>
             <div><span>TOTAL T.T.C. :</span><b>${money(ttc)}</b></div>
           </div>
-          <div class="arr">ARRÊTER LE PRÉSENT DEVIS À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>`
+          <div class="arr">ARRÊTÉ LE PRÉSENT BORDEREAU À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>`
       });
     };
 
     /* budget en instance : même modèle, avec lignes titres et sous-totaux */
+    /* v663 (axe 12) : SUR CONSULTATION cochée et numéro vide → fenêtre NUMÉRO D'APPEL D'OFFRES MANQUANT (RENSEIGNER / CONTINUER / NE PLUS AFFICHER) */
+    const bpuAoWarn = go => {
+      const A = (INS && INS.ao) || {};
+      if (!INS || !A.cons || String(A.num || "").trim() || A.noWarn) return go();
+      const d = sviWinNew();
+      d.innerHTML = sviWinCard({ title: "NUMÉRO D'APPEL D'OFFRES MANQUANT", close: "data-x",
+        body: `<div class="svc-x">LE BUDGET EST SUR CONSULTATION, MAIS LE NUMÉRO D'APPEL D'OFFRES N'EST PAS SAISI DANS INF. SANS LUI, LA RÉFÉRENCE DU BORDEREAU SERA ${esc(fullRef)}.</div>
+          <label class="ao-nw"><input type="checkbox" id="aoNw"> NE PLUS AFFICHER CE MESSAGE</label>`,
+        foot: `<button type="button" class="svc-b" data-v="go">CONTINUER</button><button type="button" class="svc-b svc-ok svc-neutral" data-v="inf">RENSEIGNER</button>` });
+      sviWinShow(d);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        const b = e.target.closest("[data-v]"); if (!b) return;
+        if (d.querySelector("#aoNw").checked) { INS.ao = { ...A, noWarn: true }; insSave(); }
+        d.remove();
+        if (b.dataset.v === "inf") openInfo("ao"); else go();
+      });
+    };
     const printClientIns = rows => {
       const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
       const hid = insHiddenFn();
@@ -20100,7 +20220,7 @@ function renderBudgetList() {
       const ttc = ls.reduce((t, r) => t + insTTC("des", r), 0);
       const tva = ttc - ht;
       printModel({
-        branch: "DÉSIGNATIONS CLIENT", docTitle: "DÉSIGNATIONS CLIENT", fileTag: "DESIGNATIONS CLIENT", headLine: "",
+        branch: "DÉSIGNATIONS CLIENT", docTitle: "BORDEREAU DES PRIX – DÉTAIL ESTIMATIF", fileTag: "BORDEREAU DES PRIX", headLine: "", bpu: true,   /* v663 (axe 12) */
         table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:37%"><col style="width:4%"><col style="width:9%">
           <col style="width:9%"><col style="width:25%"><col style="width:10%"></colgroup>
           <thead><tr><th rowspan="2">ART.</th><th rowspan="2">DESIGNATION</th><th rowspan="2">U</th><th rowspan="2">QUANTITE</th>
@@ -20112,7 +20232,7 @@ function renderBudgetList() {
             <div><span>TOTAL T.V.A. :</span><b>${money(tva)}</b></div>
             <div><span>TOTAL T.T.C. :</span><b>${money(ttc)}</b></div>
           </div>
-          <div class="arr">ARRÊTER LE PRÉSENT DEVIS À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>`
+          <div class="arr">ARRÊTÉ LE PRÉSENT BORDEREAU À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>`
       });
     };
 
@@ -20945,7 +21065,18 @@ function renderBudgetList() {
       if (!String(budget.inst.client || "").trim()) add("CLIENT", false);
       return out;
     };
-    const openInfo = () => {
+    /* v663 (axe 12) : marché — CLIENT PUBLIC / PRIVÉ, SUR CONSULTATION (cochée d'office pour un client public),
+       N° D'APPEL D'OFFRES OU DE CONSULTATION et OBJET DU MARCHÉ (facultatifs) ; repris en tête du bordereau */
+    const infAoHTML = ed => {
+      const A = INS.ao || {}, dis = ed ? "" : " disabled";
+      return `<span class="doc-lab">TYPE DE CLIENT</span><span class="inf-cell inf-ao">
+          <label><input type="radio" name="infAoT" value="pub"${A.pub === true ? " checked" : ""}${dis}> PUBLIC</label>
+          <label><input type="radio" name="infAoT" value="prv"${A.pub === false ? " checked" : ""}${dis}> PRIVÉ</label>
+          <label class="inf-ao-c"><input type="checkbox" id="infAoC"${A.cons || A.pub === true ? " checked" : ""}${A.pub === true || !ed ? " disabled" : ""}> SUR CONSULTATION</label></span>
+        <span class="doc-lab">N° D'APPEL D'OFFRES<small class="inf-sub">(OU DE CONSULTATION)</small></span>${ed ? `<input class="doc-in inf-int" id="infAoN" value="${esc(A.num || "")}" placeholder="${esc(fullRef)}" autocomplete="off">` : `<span class="doc-in doc-ro inf-val">${esc(A.num || "")}</span>`}
+        <span class="doc-lab">OBJET DU MARCHÉ</span>${ed ? `<input class="doc-in inf-int" id="infAoO" value="${esc(A.obj || "")}" autocomplete="off">` : `<span class="doc-in doc-ro inf-val">${esc(A.obj || "")}</span>`}`;
+    };
+    const openInfo = (focus) => {
       const dt = typeof budgetDate === "function" ? budgetDate(ref) : null;
       const prd = lines.filter(l => l.kind === "prd");
       const chg = lines.filter(l => l.kind === "chg");
@@ -20982,6 +21113,7 @@ function renderBudgetList() {
                   : (k === "INTITULÉ" || k === "CLIENT") && editInt
                   ? `<input class="doc-in inf-int" id="${k === "CLIENT" ? "infCli" : "infInt"}" value="${esc(v === "À COMPLÉTER" ? "" : v)}" placeholder="À COMPLÉTER" autocomplete="off">`
                   : `<span class="doc-in doc-ro inf-val">${esc(v)}</span>`}`).join("")}
+              ${INS ? infAoHTML(editInt) : ""}
               ${INS ? infDatesHTML(editInt) : ""}
             </div>
           </div>
@@ -20994,7 +21126,14 @@ function renderBudgetList() {
       /* v477 (remarque 5) : tout est modifiable en instance ; rien n'est retenu avant ENREGISTRER */
       const pend = {};
       if (INS) infDatesBind(p, editInt, pend);
-      p.querySelectorAll("#infInt, #infCli, #infPrj").forEach(i => i.addEventListener("input", e => { const c = e.target.selectionStart; e.target.value = e.target.value.toUpperCase(); try { e.target.setSelectionRange(c, c); } catch (err) {} }));
+      /* v663 : client public = SUR CONSULTATION cochée d'office */
+      p.addEventListener("change", e => {
+        if (e.target.name !== "infAoT") return;
+        const c = p.querySelector("#infAoC"); if (!c) return;
+        if (e.target.value === "pub") { c.checked = true; c.disabled = true; } else c.disabled = false;
+      });
+      if (focus === "ao") setTimeout(() => { const i = p.querySelector("#infAoN"); if (i) { i.scrollIntoView({ block: "center" }); i.focus(); } }, 80);
+      p.querySelectorAll("#infInt, #infCli, #infPrj, #infAoN, #infAoO").forEach(i => i.addEventListener("input", e => { const c = e.target.selectionStart; e.target.value = e.target.value.toUpperCase(); try { e.target.setSelectionRange(c, c); } catch (err) {} }));
       const cd = p.querySelector("input.inf-cre"), chh = p.querySelector("input.inf-cre-h");
       if (cd) sviDateField(cd);
       const collect = () => {
@@ -21003,13 +21142,20 @@ function renderBudgetList() {
         const ii = p.querySelector("#infInt"); if (ii) out.intitule = ii.value.trim().toUpperCase();
         const ic = p.querySelector("#infCli"); if (ic) out.client = ic.value.trim().toUpperCase();
         if (cd) out.created = (cd.value || "") + (cd.value ? "T" + ((chh && chh.value) || "00:00") : "");
+        if (INS && p.querySelector("#infAoN")) {
+          const t = p.querySelector('input[name="infAoT"]:checked'), A = INS.ao || {};
+          const pub = t ? t.value === "pub" : (A.pub === undefined ? undefined : A.pub);
+          out.ao = { pub, cons: pub === true || !!p.querySelector("#infAoC").checked,
+            num: p.querySelector("#infAoN").value.trim().toUpperCase(), obj: p.querySelector("#infAoO").value.trim().toUpperCase() };
+        }
         return out;
       };
       const changed = o => (o.project !== undefined && o.project !== String(budget.project || ""))
         || (o.intitule !== undefined && o.intitule !== String(budget.inst.intitule === "À COMPLÉTER" ? "" : budget.inst.intitule || "").trim().toUpperCase())
         || (o.client !== undefined && o.client !== String(budget.inst.client || "").trim().toUpperCase())
         || (o.created !== undefined && o.created && o.created !== String(budget.inst.created || ""))
-        || ["deb", "obj", "but"].some(f => o[f] !== undefined);
+        || ["deb", "obj", "but"].some(f => o[f] !== undefined)
+        || (o.ao !== undefined && ["pub", "cons", "num", "obj"].some(f => (o.ao[f] ?? "") !== ((INS.ao || {})[f] ?? (f === "cons" ? false : ""))));
       const save = () => {
         const o = collect();
         if (o.project !== undefined && !o.project) { svToast("PROJET OBLIGATOIRE.", 3000, p.querySelector("#infPrj")); return false; }
@@ -21025,6 +21171,13 @@ function renderBudgetList() {
           budget.inst[f] = o[f] || def; patch[f] = budget.inst[f]; histLog("INF", lab, budget.inst[f] || "—");
         });
         if (Object.keys(patch).length) sviInstSet(sviInstGet().map(x => x.ref === ref ? { ...x, ...patch } : x));
+        if (INS && o.ao) {
+          const A = INS.ao || {}, n = { ...A, pub: o.ao.pub, cons: o.ao.cons, num: o.ao.num, obj: o.ao.obj };
+          if (["pub", "cons", "num", "obj"].some(f => (n[f] ?? "") !== (A[f] ?? ""))) {
+            INS.ao = n;
+            histLog("INF", "MARCHÉ", (n.pub === true ? "CLIENT PUBLIC" : n.pub === false ? "CLIENT PRIVÉ" : "CLIENT —") + (n.cons ? ", SUR CONSULTATION" : "") + (n.num ? ", N° " + n.num : ""));
+          }
+        }
         if (INS) { infApplyDates(pend, p.querySelector(".doc-foot")); insSave(); }
         /* partout où l'information est affichée : en-tête, listes, aperçus */
         try { keepScroll(() => refreshAll()); } catch (e) {}
@@ -21895,8 +22048,8 @@ function renderBudgetList() {
       }
       /* v500 (remarque 46) : MARGE — TOUT DÉPLIER / TOUT REPLIER */
       if (active === "lnk" && shell.__mg && acts.some(a => a.dataset.blk === "detail")) {
-        m.insertAdjacentHTML("afterbegin", `<button type="button" data-mgf="open"><span>TOUT DÉPLIER</span></button><button type="button" data-mgf="close"><span>TOUT REPLIER</span></button><div class="blk-sep"></div>`);
-        m.addEventListener("click", e => { const b = e.target.closest("[data-mgf]"); if (!b) return; e.stopPropagation(); m.remove(); if (b.dataset.mgf === "open") shell.__mg.openAll(); else shell.__mg.closeAll(); }, true);
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-mgf="pv"><span>PRIX DE VENTE PAR LA MARGE…</span></button><div class="blk-sep"></div><button type="button" data-mgf="open"><span>TOUT DÉPLIER</span></button><button type="button" data-mgf="close"><span>TOUT REPLIER</span></button><div class="blk-sep"></div>`);
+        m.addEventListener("click", e => { const b = e.target.closest("[data-mgf]"); if (!b) return; e.stopPropagation(); m.remove(); if (b.dataset.mgf === "pv") shell.__mg.pv(); else if (b.dataset.mgf === "open") shell.__mg.openAll(); else shell.__mg.closeAll(); }, true);   /* v663 (axe 2) : PRIX DE VENTE PAR LA MARGE */
       }
       /* v499 (remarque 42) : EFFACER TOUS LES FILTRES (loupes et cases cochées du bloc) */
       { const blk = (acts.find(a => ["client", "hier", "detail"].includes(a.dataset.blk)) || {}).dataset?.blk;

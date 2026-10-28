@@ -245,7 +245,7 @@
   <div class="head">
     <img src="${SVI_LOGO}" alt="">
     <div class="date">${dateTxt}</div>
-    <div class="t">DEVIS N° : ${esc(fullRef.replace(/\bBDG\b/, "DVC"))}<br>CLIENT : ${esc(sviClient(budget.inst))}<br>PROJET : ${esc(projet)}${cfg.headLine ? "<br>" + esc(cfg.headLine) : ""}</div>
+    <div class="t">${cfg.bpu ? (() => { const A = (INS && INS.ao) || {}; return "<b>BORDEREAU DES PRIX – DÉTAIL ESTIMATIF</b><br>RÉFÉRENCE : " + esc(String(A.num || "").trim() || fullRef) + (String(A.obj || "").trim() ? "<br>OBJET : " + esc(A.obj) : ""); })() : "DEVIS N° : " + esc(fullRef.replace(/\bBDG\b/, "DVC"))}<br>CLIENT : ${esc(sviClient(budget.inst))}<br>PROJET : ${esc(projet)}${cfg.headLine ? "<br>" + esc(cfg.headLine) : ""}</div>
   </div>
   ${/* FORMAT 133 : unités M² / M³ (cellule d'unité seule) */ cfg.table.replace(/(<td[^>]*>)\s*M([23])\s*(<\/td>)/g, (m, a, d, b) => a + "M" + (d === "2" ? "²" : "³") + b)}
   <div id="end">${cfg.end}</div>
@@ -725,7 +725,7 @@
     const printClient = () => {
       const src = lastShown.client;
       if (!src || !src.rows.length) { sviAlert("Aucune désignation à afficher."); return; }
-      if (src.ins) return printClientIns(src.rows);
+      if (src.ins) return bpuAoWarn(() => printClientIns(src.rows));
       const rows = [...src.rows].sort((a, b) =>
         String(a.article).localeCompare(String(b.article), "fr", { numeric: true }));
       const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
@@ -737,7 +737,7 @@
       const ht = rows.reduce((t, g) => t + g.ht, 0);
       const tva = ht * 0.2, ttc = ht + tva;
       printModel({
-        branch: "DÉSIGNATIONS CLIENT", docTitle: "DÉSIGNATIONS CLIENT", fileTag: "DESIGNATIONS CLIENT", headLine: "",
+        branch: "DÉSIGNATIONS CLIENT", docTitle: "BORDEREAU DES PRIX – DÉTAIL ESTIMATIF", fileTag: "BORDEREAU DES PRIX", headLine: "", bpu: true,   /* v663 (axe 12) */
         table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:37%"><col style="width:4%"><col style="width:9%">
           <col style="width:9%"><col style="width:25%"><col style="width:10%"></colgroup>
           <thead><tr><th rowspan="2">ART.</th><th rowspan="2">DESIGNATION</th><th rowspan="2">U</th><th rowspan="2">QUANTITE</th>
@@ -749,11 +749,29 @@
             <div><span>TOTAL T.V.A. :</span><b>${money(tva)}</b></div>
             <div><span>TOTAL T.T.C. :</span><b>${money(ttc)}</b></div>
           </div>
-          <div class="arr">ARRÊTER LE PRÉSENT DEVIS À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>`
+          <div class="arr">ARRÊTÉ LE PRÉSENT BORDEREAU À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>`
       });
     };
 
     /* budget en instance : même modèle, avec lignes titres et sous-totaux */
+    /* v663 (axe 12) : SUR CONSULTATION cochée et numéro vide → fenêtre NUMÉRO D'APPEL D'OFFRES MANQUANT (RENSEIGNER / CONTINUER / NE PLUS AFFICHER) */
+    const bpuAoWarn = go => {
+      const A = (INS && INS.ao) || {};
+      if (!INS || !A.cons || String(A.num || "").trim() || A.noWarn) return go();
+      const d = sviWinNew();
+      d.innerHTML = sviWinCard({ title: "NUMÉRO D'APPEL D'OFFRES MANQUANT", close: "data-x",
+        body: `<div class="svc-x">LE BUDGET EST SUR CONSULTATION, MAIS LE NUMÉRO D'APPEL D'OFFRES N'EST PAS SAISI DANS INF. SANS LUI, LA RÉFÉRENCE DU BORDEREAU SERA ${esc(fullRef)}.</div>
+          <label class="ao-nw"><input type="checkbox" id="aoNw"> NE PLUS AFFICHER CE MESSAGE</label>`,
+        foot: `<button type="button" class="svc-b" data-v="go">CONTINUER</button><button type="button" class="svc-b svc-ok svc-neutral" data-v="inf">RENSEIGNER</button>` });
+      sviWinShow(d);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        const b = e.target.closest("[data-v]"); if (!b) return;
+        if (d.querySelector("#aoNw").checked) { INS.ao = { ...A, noWarn: true }; insSave(); }
+        d.remove();
+        if (b.dataset.v === "inf") openInfo("ao"); else go();
+      });
+    };
     const printClientIns = rows => {
       const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
       const hid = insHiddenFn();
@@ -773,7 +791,7 @@
       const ttc = ls.reduce((t, r) => t + insTTC("des", r), 0);
       const tva = ttc - ht;
       printModel({
-        branch: "DÉSIGNATIONS CLIENT", docTitle: "DÉSIGNATIONS CLIENT", fileTag: "DESIGNATIONS CLIENT", headLine: "",
+        branch: "DÉSIGNATIONS CLIENT", docTitle: "BORDEREAU DES PRIX – DÉTAIL ESTIMATIF", fileTag: "BORDEREAU DES PRIX", headLine: "", bpu: true,   /* v663 (axe 12) */
         table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:37%"><col style="width:4%"><col style="width:9%">
           <col style="width:9%"><col style="width:25%"><col style="width:10%"></colgroup>
           <thead><tr><th rowspan="2">ART.</th><th rowspan="2">DESIGNATION</th><th rowspan="2">U</th><th rowspan="2">QUANTITE</th>
@@ -785,7 +803,7 @@
             <div><span>TOTAL T.V.A. :</span><b>${money(tva)}</b></div>
             <div><span>TOTAL T.T.C. :</span><b>${money(ttc)}</b></div>
           </div>
-          <div class="arr">ARRÊTER LE PRÉSENT DEVIS À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>`
+          <div class="arr">ARRÊTÉ LE PRÉSENT BORDEREAU À LA SOMME DE :<br>${esc(frMoney(ttc))} TOUTES TAXES COMPRISES</div>`
       });
     };
 
