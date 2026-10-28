@@ -2079,6 +2079,28 @@ def main():
         check("v667 axe 8 : verrou DÉBUT (pas avant le 01/03/2027) respecté par COMPRESSER ; FIN dépassée signalée ; export MS PROJECT = XML valide avec lots récapitulatifs, ressources et notes",
               l7 and l7[1] >= "2027-03-01" and l7[2] and l7[3] and l7[4] >= 2 and l7[5] >= 2 and l7[6] >= 1 and l7[7], l7)
 
+        # v668 (axe 7, multi-projets, signatures)
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.__r8 = JSON.stringify({{ chg: I.chg, rat: I.rat }});
+            I.chg.push({{ id: 'ra1', des: 'ACIER HA12', u: 'KG', q: 800, p: 12 }}, {{ id: 'ra2', des: 'BETON B25 R', u: 'M3', q: 10, p: 900 }}, {{ id: 'ra3', des: 'MACON R', u: 'JH', q: 20, p: 200 }});
+            I.rat = {{ surf: 100 }}; X.insSave(); }}""")
+        pg.evaluate("() => [...document.querySelectorAll('*')].find(e => e.__ratWin).__ratWin()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf [data-prop]')?.click()"); pg.wait_for_timeout(300)
+        r68 = pg.evaluate("() => [...document.querySelectorAll('#svConf .rat-t tbody tr')].map(t => (t.querySelector('.rat-nm') || {}).value + ' = ' + ((t.querySelector('td.r b') || {}).textContent || '')).join(' || ')")
+        g68 = pg.evaluate("() => document.querySelectorAll('#svConf .rat-g svg rect').length")
+        pg.evaluate("() => document.querySelector('#svConf [data-save]')?.click()"); pg.wait_for_timeout(300)
+        n68 = pg.evaluate(f"() => ({ins}.INS.rat.L || []).length")
+        pg.evaluate("() => [...document.querySelectorAll('*')].find(e => e.__multiWin).__multiWin()"); pg.wait_for_timeout(300)
+        m68 = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()")
+        pg.evaluate("() => [...document.querySelectorAll('*')].find(e => e.__signWin).__signWin()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => { document.querySelector('#svConf .sg-on[data-k=\"pvr\"]').checked = true; }"); pg.fill('#svConf .sg-qui[data-k="pvr"]', "maitre d'ouvrage")
+        pg.evaluate("() => document.querySelector('#svConf [data-save]')?.click()"); pg.wait_for_timeout(300)
+        s68 = pg.evaluate(f"() => JSON.stringify({ins}.INS.sign)")
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; const o = JSON.parse(I.__r8); I.chg = o.chg; if (o.rat) I.rat = o.rat; else delete I.rat; delete I.sign; delete I.__r8; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        r68n = r68.replace("\u202f", " ")
+        check("v668 axe 7 : PROPOSER crée les ratios dont les données existent (coût au m², acier / béton en KG / M3, main-d'œuvre au m²), graphique ; multi-projets et signatures à prévoir",
+              "COÛT AU M²" in r68n and "ACIER / BÉTON" in r68n and "KG / M3" in r68n and "MAIN-D'ŒUVRE AU M²" in r68n and g68 >= 3 and n68 >= 3 and "TOUS LES BUDGETS" in m68 and '"pvr":{"on":true,"qui":"MAITRE D\'OUVRAGE"}' in s68, [r68n[:600], g68, n68, m68, s68])
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

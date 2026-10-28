@@ -2622,3 +2622,27 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 #svConf .lk8-d { width: 140px; text-align: left; }
 #docPop .msp-opts { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 12px; font-weight: 700; }
 #docPop .msp-opts label { display: inline-flex; align-items: center; gap: 8px; }
+
+/* v668 (axe 7) : TABLEAU DE BORD DES RATIOS ; vue multi-projets ; signatures */
+#svConf .rat-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 12px; font-weight: 700; }
+#svConf .rat-top label { display: inline-flex; align-items: center; gap: 6px; }
+#svConf .rat-lots { max-height: 30vh; overflow: auto; border: 1px solid #e5e9f0; border-radius: 8px; padding: 4px 10px; }
+#svConf .rat-scroll { flex: 0 1 auto; max-height: 40vh; }
+#svConf .rat-t td { vertical-align: top; white-space: normal; }
+#svConf .rat-t td small { display: block; color: #6b7280; font-weight: 700; font-size: 10px; }
+#svConf .rat-pk { display: flex; flex-wrap: wrap; gap: 4px; min-width: 200px; }
+#svConf .rat-chip { background: #eef2f7; border-radius: 6px; padding: 2px 6px; font-size: 11px; font-weight: 800; }
+#svConf .rat-chip i { font-style: normal; color: #6b7280; } #svConf .rat-chip b { color: #b91c1c; margin-left: 4px; cursor: pointer; }
+#svConf .rat-add, #svConf .rat-md { height: 26px; border: 1px solid #d6dbe3; border-radius: 6px; font: inherit; font-size: 11px; font-weight: 700; max-width: 220px; }
+#svConf .rat-nm { width: 160px; height: 26px; border: 1px solid #d6dbe3; border-radius: 6px; font: inherit; font-weight: 800; font-size: 11px; padding: 0 6px; text-transform: uppercase; }
+#svConf .rat-sv { width: 80px; height: 26px; border: 1px solid #d6dbe3; border-radius: 6px; text-align: right; font: inherit; font-weight: 800; padding: 0 6px; }
+#svConf .rat-over b { color: #b91c1c; } #svConf .rat-err b { color: #b45309; }
+#svConf .rat-gbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 12px; font-weight: 700; }
+#svConf .rat-gbar label { display: inline-flex; align-items: center; gap: 5px; }
+#svConf .rat-g { overflow: auto; border: 1px solid #e5e9f0; border-radius: 8px; }
+#svConf .rat-svg { width: 100%; height: 100%; font-size: 11px; font-weight: 700; fill: #344054; }
+#svConf .rat-leg { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11px; font-weight: 800; }
+#svConf .rat-leg i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -2px; }
+#svConf .sg-r { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; border-bottom: 1px solid #f0f2f6; font-size: 12px; font-weight: 700; }
+#svConf .sg-r label { display: inline-flex; align-items: center; gap: 8px; }
+#svConf .sg-qui { width: 100%; text-align: left; }
