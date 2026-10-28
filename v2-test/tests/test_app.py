@@ -1969,6 +1969,38 @@ def main():
               and "BORDEREAU DES PRIX – DÉTAIL ESTIMATIF" in bt and "RÉFÉRENCE : AO 12/2026" in bt and "OBJET : CONSTRUCTION D'UNE PISCINE" in bt and "ARRÊTÉ LE PRÉSENT BORDEREAU" in bt,
               [ao, aw, fo, bt[:400]])
 
+        # v664 (axe 9) : titres des activités — superposer deux activités secondaires = « TITRE n » ; la primaire suit sa jumelle ; renommer
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.__s9 = JSON.stringify({{ sec: I.sec, prim: I.prim }});
+            I.sec.push({{ id: 'a9', v: 'ETANCHEITE A', u: 'M2' }}, {{ id: 'b9', v: 'ETANCHEITE B', u: 'M2' }}); I.prim.push({{ id: 'p9', v: 'ETANCHEITE A' }});
+            X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
+        def drag9(src, dst, frac):
+            a = pg.evaluate("s => { const e = document.querySelector('.ins-hcol[data-ik=\"sec\"] .ins-li[data-iid=\"' + s + '\"] input.ins-in'); e.scrollIntoView({ block: 'center' }); const r = e.getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; }", src)
+            t = pg.evaluate("([s, f]) => { const e = document.querySelector('.ins-hcol[data-ik=\"sec\"] .ins-li[data-iid=\"' + s + '\"]'); const r = e.getBoundingClientRect(); return r.top + r.height * f; }", [dst, frac])
+            pg.mouse.move(a[0], a[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+            pg.mouse.move(a[0], t, steps=6); pg.wait_for_timeout(150); pg.mouse.up(); pg.wait_for_timeout(500)
+        drag9("a9", "b9", .5)
+        r9 = pg.evaluate(f"""() => {{ const I = {ins}.INS; return [I.sec.find(r => r.id === 'a9').g, I.sec.find(r => r.id === 'b9').g,
+            [...document.querySelectorAll('.ins-hcol[data-ik="sec"] .act-grp')].map(x => x.dataset.g).join(), [...document.querySelectorAll('.ins-hcol[data-ik="prim"] .act-grp')].map(x => x.dataset.g).join()]; }}""")
+        pg.evaluate("() => { const i = document.querySelector('.ins-hcol[data-ik=\"sec\"] input.act-gname'); i.value = 'etancheite'; i.dispatchEvent(new Event('change', { bubbles: true })); }"); pg.wait_for_timeout(400)
+        r9b = pg.evaluate(f"() => {ins}.INS.sec.filter(r => r.g).map(r => r.id + ':' + r.g).sort().join()")
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; const o = JSON.parse(I.__s9); I.sec = o.sec; I.prim = o.prim; delete I.__s9; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        check("v664 axe 9 : activité secondaire posée sur une autre = TITRE commun (primaire jumelle sous le même titre) ; titre renommé pour toutes",
+              r9[0] and r9[0] == r9[1] and r9[0].startswith("TITRE") and r9[2] == r9[0] and r9[3] == r9[0] and r9b == "a9:ETANCHEITE,b9:ETANCHEITE", [r9, r9b])
+
+        # v664 (axe 13) : COÛT D'UNE JOURNÉE — 200 × 1,20 × 1,10 + 16 = 280 DH ; charge en H : 280 ÷ 8 = 35
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.__c13 = JSON.stringify(I.chg); I.chg.forEach(r => {{ r.on = false; }});
+            I.chg.push({{ id: 'mo1', des: 'MACON', u: 'JH', q: 10, p: 0 }}, {{ id: 'mo2', des: 'MANOEUVRE', u: 'H', q: 40, p: 0 }}); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        pg.evaluate("() => { const s = [...document.querySelectorAll('*')].find(e => e.__moWin); s.__moWin(); }"); pg.wait_for_timeout(300)
+        for k, v in (("sal", "200"), ("cot", "20"), ("cng", "10"), ("pri", "16"), ("hj", "8")):
+            pg.fill(f'#svConf .pv-in[data-k="{k}"]', v)
+        tot13 = pg.evaluate("() => (document.querySelector('#svConf .pv-tot') || {}).innerText || ''")
+        pg.evaluate("() => document.querySelector('#svConf [data-apply]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf .svc-ok')?.click()"); pg.wait_for_timeout(400)
+        p13 = pg.evaluate(f"() => {{ const I = {ins}.INS; return [I.chg.find(r => r.id === 'mo1').p, I.chg.find(r => r.id === 'mo2').p]; }}")
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.chg = JSON.parse(I.__c13); delete I.__c13; delete I.mo; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v664 axe 13 : coût d'une journée de main d'œuvre = 280 DH (JH) et 35 DH (H, 8 h par jour), appliqué aux PCB",
+              "280" in tot13 and p13 == [280, 35], [tot13, p13])
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

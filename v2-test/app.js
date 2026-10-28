@@ -8133,6 +8133,18 @@ function renderBudgetList() {
         refreshAll();
       }, true);
       shell.addEventListener("change", e => {
+        /* v664 (axe 9) : case d'un titre d'activités = toutes ses activités secondaires ; nom modifié = toutes ses activités (vide = titre retiré) */
+        const ag = e.target.closest && e.target.closest("input.act-gcb");
+        if (ag) { INS.sec.forEach(r => { if (U_(r.g || "") === U_(ag.dataset.g)) r.on = ag.checked; }); insSave(); refreshAll(); return; }
+        const an = e.target.closest && e.target.closest("input.act-gname");
+        if (an) {
+          const o = an.dataset.g, v = an.value.trim().toUpperCase().replace(/\s+/g, " ");
+          if (U_(v) !== U_(o)) {
+            INS.sec.forEach(r => { if (U_(r.g || "") === U_(o)) { if (v) r.g = v; else delete r.g; } });
+            insSave(); histLog("TÂCHES", v ? "TITRE D'ACTIVITÉS RENOMMÉ" : "TITRE D'ACTIVITÉS RETIRÉ", o + (v ? " → " + v : ""));
+          }
+          refreshAll(); return;
+        }
         const g = e.target.closest && e.target.closest("input.lot-gcb");
         if (g) { const P = dlyLotPath(g.dataset.path); INS.lot.forEach(r => { if (!r.t && lotUnder(r, P)) r.on = g.checked; }); insSave(); refreshAll(); return; }
         const n = e.target.closest && e.target.closest("input.lot-gname");
@@ -8157,6 +8169,37 @@ function renderBudgetList() {
       a.__gnDone = true; shell.__gnPend = null;
       shell.__insDly.rename(a, { quiet });
     };
+    /* =========================================================
+       v664 (AXE 9) : TITRES DES ACTIVITÉS — une activité secondaire posée sur une autre (au milieu de la ligne) crée un titre
+       « TITRE n » qui les regroupe ; posée avant / après une ligne, elle prend le titre de cette ligne (ou n'en a plus).
+       Le titre est porté par l'activité secondaire (champ g) ; l'activité primaire suit le titre de sa jumelle (même libellé).
+       Nom du titre modifiable (vide = titre retiré) ; case du titre = toutes ses activités secondaires.
+       ========================================================= */
+    const actGrpOf = (k, r) => {
+      if (!r) return "";
+      if (k === "sec") return String(r.g || "").trim();
+      if (k !== "prim") return "";
+      const tw = (INS.sec || []).find(s => U_(s.v) === U_(r.v));
+      return tw ? String(tw.g || "").trim() : "";
+    };
+    const actListHTML = (k, list, rowHTML) => {
+      if (k !== "sec" && k !== "prim") return list.map(rowHTML).join("");
+      const done = new Set(), out = [];
+      list.forEach(r => {
+        const g = actGrpOf(k, r);
+        if (!g) { out.push(rowHTML(r)); return; }
+        if (done.has(U_(g))) return;
+        done.add(U_(g));
+        const rs = list.filter(x => U_(actGrpOf(k, x)) === U_(g));
+        const all = k === "sec" && rs.length && rs.every(x => x.on === true);
+        out.push(`<div class="ins-li act-grp" data-ik="${k}" data-g="${esc(g)}"><span class="ins-rdc"></span>${INS_EDIT && k === "sec"
+          ? `<input class="act-gname" data-g="${esc(g)}" value="${esc(g)}" autocomplete="off">` : `<span class="act-gtx">${esc(g)}</span>`}${svCnt(rs.length)}<span class="act-u"></span>
+          <span class="ins-delc">${INS_EDIT && k === "sec" ? `<input type="checkbox" class="act-gcb" data-g="${esc(g)}"${all ? " checked" : ""}>` : ""}</span></div>`);
+        rs.forEach(x => out.push(rowHTML(x)));
+      });
+      return out.join("");
+    };
+    const actNextTitle = () => { const used = new Set((INS.sec || []).map(s => U_(s.g || ""))); let n = 1; while (used.has("TITRE " + n)) n++; return "TITRE " + n; };
     const insRenderHier = only => {
       grpFlush();
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
@@ -8176,10 +8219,10 @@ function renderBudgetList() {
           <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${k === "lot" ? shell.__faHTML("lot") : ""}<span class="cf-tt" title="${esc(String(title).replace(/<[^>]*>/g, ""))}"${SVI_HD_ALT[title] ? ` data-alt="${esc(JSON.stringify([title].concat(SVI_HD_ALT[title])))}"` : ""}>${title}</span>${insCkBadge(k)}${insCntOwn(k, list.length, INS[k].length)}</span>${onlyBtn(k, true)}<span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${k === "sec" || k === "prim" ? `<span class="act-uh${cfT(k).f.u || (cfT(k).sort && cfT(k).sort.col === "u" && !cfT(k).sort.def) ? " cf-on" : ""}"><span class="act-uhl">U</span><span class="cf-btn" data-cf="${k}" data-col="u" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>` : ""}${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
-          ${k === "lot" ? lotTreeHTML(list) : list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
+          ${k === "lot" ? lotTreeHTML(list) : actListHTML(k, list, r => `<div class="ins-li${actGrpOf(k, r) ? " act-in" : ""}${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
               ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">${actUCell(k, r)}
                 <span class="ins-delc">${insDelCell(r)}</span>` : `<span>${esc(r.v || "")}</span>${actUCell(k, r)}`}
-            </div>`).join("")}
+            </div>`)}
           ${INS_EDIT ? `<div class="ins-li ins-new" data-ik="${k}"><span class="ins-rdc"></span>
               <input class="ins-in" data-f="v" enterkeyhint="next" placeholder="SAISIR ICI…" autocomplete="off">${k === "sec" ? `<span class="act-u"><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" autocomplete="off"></span>` : k === "prim" ? `<span class="act-u act-uro"></span>` : ""}<span class="ins-delc"></span></div>`
             : (list.length ? "" : `<div class="bdg-h-item" style="opacity:.5;cursor:default">—</div>`)}
@@ -16359,6 +16402,17 @@ function renderBudgetList() {
                   const left = ip.left - (parseFloat(getComputedStyle(li).marginLeft) || 0) + D * 16;
                   l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${left}px;width:${Math.max(20, cr.right - left)}px;top:${(after ? r.bottom : r.top) - 1.5}px`;
                 }
+              } else if (k === "sec" && !el.classList.contains("act-grp")) {
+                /* v664 (axe 9) : milieu = superposer (titre commun) ; haut / bas = avant / après (prend le titre de la ligne visée) */
+                const f = (e.clientY - r.top) / (r.height || 1);
+                over = f > .25 && f < .75;
+                after = f >= .75;
+                if (over) x.classList.add("ro-on");
+                else {
+                  let l = document.getElementById("roLine");
+                  if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); }
+                  l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${r.left}px;width:${r.width}px;top:${(after ? r.bottom : r.top) - 1.5}px`;
+                }
               } else {
                 /* déplacement simple : un seul trait à l'endroit du dépôt */
                 after = e.clientY > (r.top + r.bottom) / 2;
@@ -16416,6 +16470,17 @@ function renderBudgetList() {
         if (k === "lot") { if (!over && gap) lotDrop(el.dataset.iid, gap.el, "gap", gap); else if (over) lotDrop(el.dataset.iid, target, "on"); return; }
         const bset = new Set(blockIds);
         const block = arr.filter(r => bset.has(r.id));
+        /* v664 (axe 9) : titre des activités secondaires — superposer = titre commun (celui de la ligne visée, sinon un nouveau « TITRE n ») ;
+           avant / après = le titre de la ligne visée (aucun titre si elle n'en a pas) */
+        let actT = null;
+        if (k === "sec") {
+          const tg = arr.find(r => r.id === target.dataset.iid);
+          const tgG = String((tg && tg.g) || "").trim();
+          actT = over ? (tgG || actNextTitle()) : tgG;
+          if (over && tg && !tgG) tg.g = actT;
+          block.forEach(r => { if (actT) r.g = actT; else delete r.g; });
+          if (over) after = true;
+        }
         arr.splice(0, arr.length, ...arr.filter(r => !bset.has(r.id)));
         let j = arr.findIndex(r => r.id === target.dataset.iid);
         if (after) j++;
@@ -16423,7 +16488,8 @@ function renderBudgetList() {
         if (k === "sec") { dlyPlanFromTasks("sec"); renderTab(); }
         X.insSave();
         histLog(k === "des" ? "DÉSIGNATIONS CLIENT" : k === "chg" ? "DÉTAIL CHARGES" : k === "prd" ? "DÉTAIL PRODUITS" : "TÂCHES",
-          "ORDRE DES LIGNES", String(block[0].des || block[0].v || block[0].art || ""));
+          k === "sec" && over ? "TITRE D'ACTIVITÉS" : "ORDRE DES LIGNES", String(block[0].des || block[0].v || block[0].art || "") + (k === "sec" && over ? " → " + actT : ""));
+        if (k === "sec") { X.insRedraw("prim"); X.insRedraw("sec"); refreshAll(); return; }
         X.insRedraw(k);
       };
       const up = () => end(true);
@@ -19405,6 +19471,64 @@ function renderBudgetList() {
       });
       paint();
     };
+    /* =========================================================
+       v664 (AXE 13) : COÛT D'UNE JOURNÉE DE MAIN D'ŒUVRE (menu ⋯ du DÉTAIL CHARGES).
+       COÛT D'UNE JOURNÉE = SALAIRE JOURNALIER × (1 + COTISATIONS %) × (1 + CONGÉS ET FÉRIÉS %) + PRIMES ET INDEMNITÉS / JOUR.
+       Charge en heures (U = H) : prix = coût de la journée ÷ HEURES PAR JOUR. Charges proposées : celles qui sont cochées,
+       sinon celles dont l'unité est un temps (J, JH, JOUR, H…). Réglages gardés dans INS.mo et sur chaque charge (r.mo).
+       Plus tard : repris du module du personnel.
+       ========================================================= */
+    const MO_U = /^(J|JR|JRS|JH|J\/H|HJ|JOUR|JOURS|JOURNEE|JOURNÉE|H|HR|HRS|HEURE|HEURES)$/;
+    const moIsH = r => /^(H|HR|HRS|HEURE|HEURES)$/.test(U_(r.u));
+    const moNum = v => { const n = Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")); return Number.isFinite(n) ? n : 0; };
+    const moDay = c => moNum(c.sal) * (1 + moNum(c.cot) / 100) * (1 + moNum(c.cng) / 100) + moNum(c.pri);
+    const moWin = () => {
+      const ck = INS.chg.filter(r => !r.t && r.on === true);
+      const cand = ck.length ? ck : INS.chg.filter(r => !r.t && MO_U.test(U_(r.u)));
+      const c = { sal: "", cot: "", cng: "", pri: "", hj: 8, ...(INS.mo || {}) };
+      const pick = new Set(cand.map(r => r.id));
+      const fx = v => String(Math.round(v * 100) / 100).replace(".", ",");
+      const d = sviWinNew();
+      const inp = (k, lab, u) => `<label class="pv-r"><span>${lab}</span><input class="pv-in" data-k="${k}" inputmode="decimal" value="${esc(c[k] === "" ? "" : String(c[k]).replace(".", ","))}"><i>${u}</i></label>`;
+      d.innerHTML = sviWinCard({ cls: "pv-card", close: "data-x", title: "COÛT D'UNE JOURNÉE DE MAIN D'ŒUVRE",
+        body: `<div class="pv-sub">LE COÛT CALCULÉ DEVIENT LE PRIX (PCB) DES CHARGES CHOISIES. ${ck.length ? "CHARGES COCHÉES." : "CHARGES DONT L'UNITÉ EST UN TEMPS (J, JH, H…)."}</div>
+          <div class="pv-scroll">
+            <div class="fz-blk">CALCUL</div>
+            ${inp("sal", "SALAIRE JOURNALIER", "DH")}${inp("cot", "COTISATIONS SOCIALES", "%")}${inp("cng", "CONGÉS ET JOURS FÉRIÉS", "%")}${inp("pri", "PRIMES ET INDEMNITÉS PAR JOUR", "DH")}${inp("hj", "HEURES PAR JOUR (CHARGES EN H)", "H")}
+            <div class="pv-tot"></div>
+            <div class="fz-blk">CHARGES ${svCnt(cand.length)}</div>
+            ${cand.map(r => `<label class="pv-r"><input type="checkbox" class="mo-cb" data-id="${r.id}" checked><span>${esc(r.des || "")} <small>(${esc(U_(r.u) || "—")})</small></span><b class="mo-p" data-id="${r.id}"></b></label>`).join("") || `<div class="fz-none">AUCUNE CHARGE : COCHER LES CHARGES DE MAIN D'ŒUVRE DANS LE DÉTAIL CHARGES.</div>`}
+          </div>`,
+        foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${INS_EDIT ? `<button type="button" class="svc-b svc-ok" data-apply>APPLIQUER AUX PRIX</button>` : ""}` });
+      sviWinShow(d);
+      const read = () => d.querySelectorAll(".pv-in").forEach(x => { c[x.dataset.k] = x.value.trim() === "" ? "" : moNum(x.value); });
+      const priceOf = r => { const day = moDay(c); return moIsH(r) ? (moNum(c.hj) ? day / moNum(c.hj) : 0) : day; };
+      const paint = () => {
+        read();
+        const day = moDay(c);
+        d.querySelector(".pv-tot").innerHTML = `COÛT D'UNE JOURNÉE <b>${fx(day)} DH</b>`;
+        d.querySelectorAll(".mo-p").forEach(b => { const r = INS.chg.find(x => x.id === b.dataset.id); b.textContent = r ? money(Math.round(priceOf(r) * 100) / 100) : ""; });
+        const a = d.querySelector("[data-apply]"); if (a) a.disabled = !day || !pick.size;
+      };
+      d.addEventListener("input", e => { if (e.target.classList.contains("pv-in")) paint(); });
+      d.addEventListener("change", e => { const cb = e.target.closest(".mo-cb"); if (cb) { if (cb.checked) pick.add(cb.dataset.id); else pick.delete(cb.dataset.id); paint(); } });
+      d.addEventListener("click", async e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        if (!e.target.closest("[data-apply]")) return;
+        paint();
+        const L = INS.chg.filter(r => pick.has(r.id));
+        if (!L.length || !moDay(c)) return;
+        d.remove();
+        if (!(await svConfirm({ title: "APPLIQUER AUX PRIX", text: L.length + " PRIX (PCB) DE CHARGES SERONT REMPLACÉS PAR LE COÛT CALCULÉ (" + fx(moDay(c)) + " DH LA JOURNÉE).", ok: "APPLIQUER" }))) return;
+        INS.mo = { ...c };
+        L.forEach(r => { r.p = Math.round(priceOf(r) * 100) / 100; r.mo = { ...c }; });
+        insSave();
+        histLog("DÉTAIL CHARGES", "COÛT D'UNE JOURNÉE DE MAIN D'ŒUVRE", fx(moDay(c)) + " DH — " + L.length + " CHARGE(S)");
+        refreshAll();
+      });
+      paint();
+    };
+    shell.__moWin = () => moWin();
     shell.__mg = {
       pv: () => mgPvWin(),
       sortable: k => ["chg", "prd", "mg", "pct"].includes(k),
@@ -22045,6 +22169,11 @@ function renderBudgetList() {
           const v = b.dataset.qq;
           if (v === "title") QQm.addTitle(); else if (v === "sub") QQm.addSub(); else if (v === "cfg") QQm.cfg(); else QQm.del();
         }, true);
+      }
+      /* v664 (axe 13) : DÉTAIL CHARGES — COÛT D'UNE JOURNÉE DE MAIN D'ŒUVRE */
+      if (active === "chg" && INS && INS_EDIT && shell.__moWin && acts.some(a => a.dataset.blk === "detail")) {
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-mow="1"><span>COÛT D'UNE JOURNÉE DE MAIN D'ŒUVRE…</span></button><div class="blk-sep"></div>`);
+        m.addEventListener("click", e => { const b = e.target.closest("[data-mow]"); if (!b) return; e.stopPropagation(); m.remove(); shell.__moWin(); }, true);
       }
       /* v500 (remarque 46) : MARGE — TOUT DÉPLIER / TOUT REPLIER */
       if (active === "lnk" && shell.__mg && acts.some(a => a.dataset.blk === "detail")) {

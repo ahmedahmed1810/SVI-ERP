@@ -1374,6 +1374,18 @@
         refreshAll();
       }, true);
       shell.addEventListener("change", e => {
+        /* v664 (axe 9) : case d'un titre d'activités = toutes ses activités secondaires ; nom modifié = toutes ses activités (vide = titre retiré) */
+        const ag = e.target.closest && e.target.closest("input.act-gcb");
+        if (ag) { INS.sec.forEach(r => { if (U_(r.g || "") === U_(ag.dataset.g)) r.on = ag.checked; }); insSave(); refreshAll(); return; }
+        const an = e.target.closest && e.target.closest("input.act-gname");
+        if (an) {
+          const o = an.dataset.g, v = an.value.trim().toUpperCase().replace(/\s+/g, " ");
+          if (U_(v) !== U_(o)) {
+            INS.sec.forEach(r => { if (U_(r.g || "") === U_(o)) { if (v) r.g = v; else delete r.g; } });
+            insSave(); histLog("TÂCHES", v ? "TITRE D'ACTIVITÉS RENOMMÉ" : "TITRE D'ACTIVITÉS RETIRÉ", o + (v ? " → " + v : ""));
+          }
+          refreshAll(); return;
+        }
         const g = e.target.closest && e.target.closest("input.lot-gcb");
         if (g) { const P = dlyLotPath(g.dataset.path); INS.lot.forEach(r => { if (!r.t && lotUnder(r, P)) r.on = g.checked; }); insSave(); refreshAll(); return; }
         const n = e.target.closest && e.target.closest("input.lot-gname");
@@ -1398,6 +1410,37 @@
       a.__gnDone = true; shell.__gnPend = null;
       shell.__insDly.rename(a, { quiet });
     };
+    /* =========================================================
+       v664 (AXE 9) : TITRES DES ACTIVITÉS — une activité secondaire posée sur une autre (au milieu de la ligne) crée un titre
+       « TITRE n » qui les regroupe ; posée avant / après une ligne, elle prend le titre de cette ligne (ou n'en a plus).
+       Le titre est porté par l'activité secondaire (champ g) ; l'activité primaire suit le titre de sa jumelle (même libellé).
+       Nom du titre modifiable (vide = titre retiré) ; case du titre = toutes ses activités secondaires.
+       ========================================================= */
+    const actGrpOf = (k, r) => {
+      if (!r) return "";
+      if (k === "sec") return String(r.g || "").trim();
+      if (k !== "prim") return "";
+      const tw = (INS.sec || []).find(s => U_(s.v) === U_(r.v));
+      return tw ? String(tw.g || "").trim() : "";
+    };
+    const actListHTML = (k, list, rowHTML) => {
+      if (k !== "sec" && k !== "prim") return list.map(rowHTML).join("");
+      const done = new Set(), out = [];
+      list.forEach(r => {
+        const g = actGrpOf(k, r);
+        if (!g) { out.push(rowHTML(r)); return; }
+        if (done.has(U_(g))) return;
+        done.add(U_(g));
+        const rs = list.filter(x => U_(actGrpOf(k, x)) === U_(g));
+        const all = k === "sec" && rs.length && rs.every(x => x.on === true);
+        out.push(`<div class="ins-li act-grp" data-ik="${k}" data-g="${esc(g)}"><span class="ins-rdc"></span>${INS_EDIT && k === "sec"
+          ? `<input class="act-gname" data-g="${esc(g)}" value="${esc(g)}" autocomplete="off">` : `<span class="act-gtx">${esc(g)}</span>`}${svCnt(rs.length)}<span class="act-u"></span>
+          <span class="ins-delc">${INS_EDIT && k === "sec" ? `<input type="checkbox" class="act-gcb" data-g="${esc(g)}"${all ? " checked" : ""}>` : ""}</span></div>`);
+        rs.forEach(x => out.push(rowHTML(x)));
+      });
+      return out.join("");
+    };
+    const actNextTitle = () => { const used = new Set((INS.sec || []).map(s => U_(s.g || ""))); let n = 1; while (used.has("TITRE " + n)) n++; return "TITRE " + n; };
     const insRenderHier = only => {
       grpFlush();
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
@@ -1417,10 +1460,10 @@
           <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${k === "lot" ? shell.__faHTML("lot") : ""}<span class="cf-tt" title="${esc(String(title).replace(/<[^>]*>/g, ""))}"${SVI_HD_ALT[title] ? ` data-alt="${esc(JSON.stringify([title].concat(SVI_HD_ALT[title])))}"` : ""}>${title}</span>${insCkBadge(k)}${insCntOwn(k, list.length, INS[k].length)}</span>${onlyBtn(k, true)}<span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${k === "sec" || k === "prim" ? `<span class="act-uh${cfT(k).f.u || (cfT(k).sort && cfT(k).sort.col === "u" && !cfT(k).sort.def) ? " cf-on" : ""}"><span class="act-uhl">U</span><span class="cf-btn" data-cf="${k}" data-col="u" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>` : ""}${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
-          ${k === "lot" ? lotTreeHTML(list) : list.map(r => `<div class="ins-li${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
+          ${k === "lot" ? lotTreeHTML(list) : actListHTML(k, list, r => `<div class="ins-li${actGrpOf(k, r) ? " act-in" : ""}${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
               ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">${actUCell(k, r)}
                 <span class="ins-delc">${insDelCell(r)}</span>` : `<span>${esc(r.v || "")}</span>${actUCell(k, r)}`}
-            </div>`).join("")}
+            </div>`)}
           ${INS_EDIT ? `<div class="ins-li ins-new" data-ik="${k}"><span class="ins-rdc"></span>
               <input class="ins-in" data-f="v" enterkeyhint="next" placeholder="SAISIR ICI…" autocomplete="off">${k === "sec" ? `<span class="act-u"><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" autocomplete="off"></span>` : k === "prim" ? `<span class="act-u act-uro"></span>` : ""}<span class="ins-delc"></span></div>`
             : (list.length ? "" : `<div class="bdg-h-item" style="opacity:.5;cursor:default">—</div>`)}

@@ -2570,3 +2570,13 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 .inf-grid .inf-ao { display: flex; justify-content: flex-start; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-weight: 700; font-size: 13px; }
 .inf-grid .inf-ao label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 #svConf .ao-nw { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #475467; cursor: pointer; }
+
+/* v664 (axe 9) : titres des activités (primaires et secondaires) */
+.ins-hcol .ins-li.act-grp { background: var(--ttl-bg) !important; display: flex; align-items: center; gap: 6px; }
+.ins-hcol .ins-li.act-grp .act-gname, .ins-hcol .ins-li.act-grp .act-gtx { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-weight: 800; color: var(--ttl-c); -webkit-text-fill-color: var(--ttl-c); padding: 0 2px; height: 19px; }
+.ins-hcol .ins-li.act-in > .ins-in, .ins-hcol .ins-li.act-in > span:not(.ins-rdc):not(.act-u):not(.ins-delc) { margin-left: 16px; }
+
+/* v664 (axe 13) : COÛT D'UNE JOURNÉE — liste des charges */
+#svConf .pv-r .mo-cb { width: 18px; height: 18px; flex: none; }
+#svConf .pv-r .mo-p { min-width: 90px; text-align: right; font-weight: 800; }
+#svConf .pv-r small { color: #6b7280; font-weight: 700; }
