@@ -3,32 +3,67 @@
        (FIN → DÉBUT = FS, DÉBUT → DÉBUT = SS, décalage en jours) ; options : AVEC LOTS (tâches récapitulatives) ou tâches seules,
        CHARGES en ressources (main-d'œuvre = travail, le reste = matériel), PRODUITS en notes de la tâche.
        ========================================================= */
-    const dlyMspXml = (o = {}) => {
-      const X = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    /* v674 : NIVEAUX AU CHOIX (cochés) — DÉSIGNATIONS CLIENT › LOTS › ACTIVITÉS PRIMAIRES › ACTIVITÉS SECONDAIRES.
+       Le niveau le plus fin coché = les tâches (dates, durées, liaisons regroupées) ; les niveaux au-dessus = tâches récapitulatives.
+       Une tâche rattachée à plusieurs désignations / activités primaires va sous la première (les autres en note). */
+    const dlyMspLv = o => o.lv || { des: false, lot: o.lots !== false, prim: false, sec: true };
+    const dlyMspTree = lv => {
       const keys = dlyKeys().filter(k => dlyDeb(k)), K = new Set(keys), fin = k => dlyFin(k) || dlyDeb(k);
       const ord = [...dlyOrder(dlyKeys()).keys()].filter(k => K.has(k));
-      const uid = new Map(); let n = 1;
-      const T = [`<Task><UID>0</UID><ID>0</ID><Name>${X((budget.project || "") + " " + fullRef)}</Name><OutlineLevel>0</OutlineLevel><Summary>1</Summary></Task>`];
-      const durH = k => dlyFin(k) ? Math.max(0, Number(String(dlyDurK(k)).replace(",", ".")) || 0) * 8 : 0;
-      const prdNote = k => { const seen = new Set(), L = []; (INS.links || []).filter(l => l.lot + "|" + l.sec === k).forEach(l => (l.prd || []).forEach(x => { if (seen.has(x.id)) return; seen.add(x.id); const r = INS.prd.find(y => y.id === x.id); if (r) L.push((r.des || "") + " : " + String(Math.round(insPrdQ(r) * 100) / 100).replace(".", ",") + " " + (r.u || "")); })); return L.join("\n"); };
-      let prevPath = [];
+      const nodes = [], byId = new Map(), leafOf = new Map(), other = new Map();
       ord.forEach(k => {
-        const [lo] = k.split("|");
-        const path = o.lots === false ? [] : dlyLotPath(lkName("lot", lo));
-        if (o.lots !== false) {
-          let i = 0; while (i < path.length && i < prevPath.length && U_(path[i]) === U_(prevPath[i])) i++;
-          for (let j = i; j < path.length; j++) { const id = n++; T.push(`<Task><UID>${id}</UID><ID>${id}</ID><Name>${X(path[j])}</Name><OutlineLevel>${j + 1}</OutlineLevel><Summary>1</Summary></Task>`); }
-          prevPath = path;
-        }
-        const id = n++; uid.set(k, id);
-        const pl = dlyLinks(k).filter(l => K.has(l.k)).map(l => `<PredecessorLink><PredecessorUID>__P${X(l.k)}__</PredecessorUID><Type>${l.t === "DD" ? 3 : 1}</Type><CrossProject>0</CrossProject><LinkLag>${Math.max(0, Number(l.o) || 0) * 4800}</LinkLag><LagFormat>7</LagFormat></PredecessorLink>`).join("");
-        const nt = o.prd ? prdNote(k) : "";
-        T.push(`<Task><UID>${id}</UID><ID>${id}</ID><Name>${X(dlyName(k))}</Name><OutlineLevel>${path.length + 1}</OutlineLevel><Summary>0</Summary>`
-          + `<Start>${dlyDeb(k)}T08:00:00</Start><Finish>${fin(k)}T17:00:00</Finish><Duration>PT${durH(k)}H0M0S</Duration><DurationFormat>7</DurationFormat>`
-          + `<ConstraintType>4</ConstraintType><ConstraintDate>${dlyDeb(k)}T08:00:00</ConstraintDate>${!durH(k) ? "<Milestone>1</Milestone>" : ""}${nt ? `<Notes>${X(nt)}</Notes>` : ""}${pl}</Task>`);
+        const [lo, se] = k.split("|");
+        const L = (INS.links || []).filter(l => l.lot + "|" + l.sec === k), l0 = L[0] || {};
+        const seg = [];
+        if (lv.des) seg.push(lkName("des", l0.des) || "SANS DÉSIGNATION");
+        if (lv.lot) dlyLotPath(lkName("lot", lo)).forEach(x => seg.push(x));
+        const pn = lkName("prim", l0.prim), sn = lkName("sec", se);
+        if (lv.prim && !(lv.sec && U_(pn) === U_(sn))) seg.push(pn || "SANS ACTIVITÉ PRIMAIRE");
+        if (lv.sec) seg.push(sn);
+        if (!seg.length) return;
+        const ex = [...new Set(L.slice(1).flatMap(l => [lv.des && l.des !== l0.des ? lkName("des", l.des) : "", lv.prim && l.prim !== l0.prim ? lkName("prim", l.prim) : ""]).filter(Boolean))];
+        let gid = "";
+        seg.forEach((v, d) => {
+          gid += "\u0001" + U_(v);
+          if (!byId.has(gid)) { const n = { gid, lvl: d + 1, name: v, keys: [], kids: 0 }; byId.set(gid, n); nodes.push(n); if (d) byId.get(gid.slice(0, gid.lastIndexOf("\u0001"))).kids++; }
+        });
+        const leaf = byId.get(gid); leaf.keys.push(k); leafOf.set(k, leaf);
+        if (ex.length) other.set(leaf, [...new Set([...(other.get(leaf) || []), ...ex])]);
       });
-      let xml = T.join("\n");
-      uid.forEach((v, k) => { xml = xml.split(`__P${X(k)}__`).join(String(v)); });
+      /* l'ordre : chaque nœud juste après son parent, enfants dans l'ordre de leur première tâche */
+      const kidsOf = new Map(); nodes.forEach(n => { const pg = n.gid.slice(0, n.gid.lastIndexOf("\u0001")); if (!kidsOf.has(pg)) kidsOf.set(pg, []); kidsOf.get(pg).push(n); });
+      const out = []; const walk = pg => (kidsOf.get(pg) || []).forEach(n => { out.push(n); walk(n.gid); }); walk("");
+      out.forEach((n, i) => { n.id = i + 1; n.sum = n.kids > 0; });
+      /* une tâche feuille qui a aussi des enfants (niveau fin vide) : ses tâches deviennent une ligne à part */
+      out.slice().forEach(n => { if (n.sum && n.keys.length) { const c = { gid: n.gid + "\u0001*", lvl: n.lvl + 1, name: n.name, keys: n.keys, kids: 0, sum: false }; n.keys = []; out.splice(out.indexOf(n) + 1, 0, c); c.keys.forEach(k => leafOf.set(k, c)); } });
+      out.forEach((n, i) => { n.id = i + 1; });
+      out.filter(n => !n.sum).forEach(n => {
+        n.deb = n.keys.map(dlyDeb).sort()[0]; n.fin = n.keys.map(fin).sort().pop();
+        n.dur = n.keys.length === 1 ? (dlyFin(n.keys[0]) ? Math.max(0, Number(String(dlyDurK(n.keys[0])).replace(",", ".")) || 0) : 0) : (Number(dDur(n.deb, n.fin)) || 0);
+        const P = new Map();
+        n.keys.forEach(k => dlyLinks(k).filter(l => K.has(l.k)).forEach(l => { const m = leafOf.get(l.k); if (!m || m === n) return; const t = l.t === "DD" ? "DD" : "FD", q = m.id + t, o2 = Math.max(0, Number(l.o) || 0); if (!P.has(q) || P.get(q).o > o2) P.set(q, { n: m, t, o: o2 }); }));
+        n.pred = [...P.values()];
+        n.note = other.has(n) ? "AUSSI RATTACHÉ À : " + other.get(n).join(" · ") : "";
+      });
+      /* récapitulatives : du plus tôt au plus tard de leurs tâches */
+      for (let i = out.length - 1; i >= 0; i--) { const n = out[i]; if (!n.sum) continue; const C = out.filter(c => c.gid.startsWith(n.gid + "\u0001") && !c.sum); n.deb = C.map(c => c.deb).sort()[0]; n.fin = C.map(c => c.fin).sort().pop(); n.dur = n.deb ? Number(dDur(n.deb, n.fin)) || 0 : 0; }
+      return { rows: out, leafOf };
+    };
+    const dlyMspXml = (o = {}) => {
+      const X = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      const { rows, leafOf } = dlyMspTree(dlyMspLv(o));
+      const uid = new Map(); leafOf.forEach((n, k) => uid.set(k, n.id));
+      const T = [`<Task><UID>0</UID><ID>0</ID><Name>${X((budget.project || "") + " " + fullRef)}</Name><OutlineLevel>0</OutlineLevel><Summary>1</Summary></Task>`];
+      const prdNote = keys => { const seen = new Set(), L = []; (INS.links || []).filter(l => keys.includes(l.lot + "|" + l.sec)).forEach(l => (l.prd || []).forEach(x => { if (seen.has(x.id)) return; seen.add(x.id); const r = INS.prd.find(y => y.id === x.id); if (r) L.push((r.des || "") + " : " + String(Math.round(insPrdQ(r) * 100) / 100).replace(".", ",") + " " + (r.u || "")); })); return L.join("\n"); };
+      rows.forEach(n => {
+        if (n.sum) { T.push(`<Task><UID>${n.id}</UID><ID>${n.id}</ID><Name>${X(n.name)}</Name><OutlineLevel>${n.lvl}</OutlineLevel><Summary>1</Summary></Task>`); return; }
+        const pl = n.pred.map(l => `<PredecessorLink><PredecessorUID>${l.n.id}</PredecessorUID><Type>${l.t === "DD" ? 3 : 1}</Type><CrossProject>0</CrossProject><LinkLag>${l.o * 4800}</LinkLag><LagFormat>7</LagFormat></PredecessorLink>`).join("");
+        const nt = [n.note, o.prd ? prdNote(n.keys) : ""].filter(Boolean).join("\n"), h = n.dur * 8;
+        T.push(`<Task><UID>${n.id}</UID><ID>${n.id}</ID><Name>${X(n.name)}</Name><OutlineLevel>${n.lvl}</OutlineLevel><Summary>0</Summary>`
+          + `<Start>${n.deb}T08:00:00</Start><Finish>${n.fin}T17:00:00</Finish><Duration>PT${h}H0M0S</Duration><DurationFormat>7</DurationFormat>`
+          + `<ConstraintType>4</ConstraintType><ConstraintDate>${n.deb}T08:00:00</ConstraintDate>${!h ? "<Milestone>1</Milestone>" : ""}${nt ? `<Notes>${X(nt)}</Notes>` : ""}${pl}</Task>`);
+      });
+      const xml = T.join("\n"), ord = rows.filter(n => !n.sum);
       /* ressources et affectations : une ressource par charge (même désignation + unité), affectée aux tâches qui la consomment */
       let R = "", A = "";
       if (o.chg) {
@@ -36,14 +71,14 @@
         (INS.links || []).forEach(l => { const k = l.lot + "|" + l.sec; if (!uid.has(k)) return; (l.chg || []).forEach(x => {
           const r = INS.chg.find(y => y.id === x.id); if (!r || r.t) return;
           const rk = U_(r.des) + "|" + U_(r.u); if (!res.has(rk)) res.set(rk, { id: ru++, r, lab: dlyIsLab(r), as: new Map() });
-          const E = res.get(rk); E.as.set(k, (E.as.get(k) || 0) + num(r.q || 0));
+          const E = res.get(rk); E.as.set(uid.get(k), (E.as.get(uid.get(k)) || 0) + num(r.q || 0));
         }); });
         res.forEach(E => {
           R += `<Resource><UID>${E.id}</UID><ID>${E.id}</ID><Name>${X(E.r.des || "")}</Name><Type>${E.lab ? 1 : 0}</Type>${E.lab ? "" : `<MaterialLabel>${X(E.r.u || "")}</MaterialLabel>`}<StandardRate>${num(E.r.p || 0)}</StandardRate></Resource>\n`;
-          E.as.forEach((q, k) => { A += `<Assignment><UID>${au++}</UID><TaskUID>${uid.get(k)}</TaskUID><ResourceUID>${E.id}</ResourceUID>${E.lab ? `<Work>PT${Math.round(q * 8 * 100) / 100}H0M0S</Work>` : `<Units>${q}</Units>`}</Assignment>\n`; });
+          E.as.forEach((q, k) => { A += `<Assignment><UID>${au++}</UID><TaskUID>${k}</TaskUID><ResourceUID>${E.id}</ResourceUID>${E.lab ? `<Work>PT${Math.round(q * 8 * 100) / 100}H0M0S</Work>` : `<Units>${q}</Units>`}</Assignment>\n`; });
         });
       }
-      const st = ord.map(dlyDeb).sort()[0] || sviIsoOf(new Date());
+      const st = ord.map(n => n.deb).sort()[0] || sviIsoOf(new Date());
       return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Project xmlns="http://schemas.microsoft.com/project">
 <Name>${X((budget.project || "") + " " + fullRef)}</Name><Title>${X(fullRef)}</Title><StartDate>${st}T08:00:00</StartDate><ScheduleFromStart>1</ScheduleFromStart>
@@ -56,6 +91,25 @@ ${R}</Resources>
 <Assignments>
 ${A}</Assignments>
 </Project>`;
+    };
+    /* v674 : APERÇU (à imprimer) avec les mêmes niveaux cochés : tableau + barres du planning */
+    const dlyMspPrint = lv => {
+      const { rows } = dlyMspTree(lv);
+      if (!rows.length) { svToast("AUCUNE TÂCHE DATÉE À IMPRIMER"); return; }
+      const t0 = new Date(rows.map(n => n.deb).filter(Boolean).sort()[0] + "T12:00:00").getTime(), t1 = new Date(rows.map(n => n.fin).filter(Boolean).sort().pop() + "T12:00:00").getTime() + 864e5, W = Math.max(1, t1 - t0);
+      const pc = d => Math.round((new Date(d + "T12:00:00").getTime() - t0) / W * 1000) / 10;
+      const lvNm = [lv.des && "DÉSIGNATIONS CLIENT", lv.lot && "LOTS", lv.prim && "ACTIVITÉS PRIMAIRES", lv.sec && "ACTIVITÉS SECONDAIRES"].filter(Boolean).join(" › ");
+      const body = rows.map(n => {
+        const bar = n.deb ? `<div style="position:relative;height:10px"><div style="position:absolute;left:${pc(n.deb)}%;width:${Math.max(.6, pc(n.fin) - pc(n.deb) + 86400000 / W * 100)}%;top:${n.sum ? 3 : 1}px;height:${n.sum ? 4 : 8}px;background:${n.sum ? "#172033" : "#3b6fd8"};border-radius:2px"></div></div>` : "";
+        const nm = `<span style="padding-left:${(n.lvl - 1) * 12}px">${n.sum ? "<b>" + esc(n.name) + "</b>" : esc(n.name)}</span>`;
+        const pr = (n.pred || []).map(l => l.n.id + (l.t === "DD" ? " DD" : "") + (l.o ? " +" + l.o + "J" : "")).join(" ; ");
+        return `<tr><td class="c">${n.id}</td><td>${nm}</td><td class="c">${n.deb ? dFr(n.deb) : ""}</td><td class="c">${n.fin ? dFr(n.fin) : ""}</td><td class="c">${n.dur || ""}</td><td class="c">${esc(pr)}</td><td>${bar}</td></tr>`;
+      }).join("");
+      histLog("DÉTAIL DÉLAIS", "APERÇU", "PLANNING — " + lvNm);
+      printModel({ branch: "DÉTAIL DÉLAIS", docTitle: "PLANNING — " + lvNm, fileTag: "PLANNING", headLine: "PLANNING DES TRAVAUX",
+        table: `<table id="tpl"><colgroup><col style="width:4%"><col style="width:30%"><col style="width:8%"><col style="width:8%"><col style="width:6%"><col style="width:9%"><col style="width:35%"></colgroup>
+          <thead><tr><th colspan="7">PLANNING — ${esc(budget.project || "")} (${esc(lvNm)})</th></tr>
+          <tr><th>N°</th><th>TÂCHE</th><th>DÉBUT</th><th>FIN</th><th>DURÉE (J)</th><th>PRÉDÉCESSEURS</th><th>PLANNING</th></tr></thead><tbody>${body}</tbody></table>`, end: "" });
     };
     const dlyDraft = () => {
       const key = insDlyKey();
@@ -72,7 +126,7 @@ ${A}</Assignments>
       fold: p => { dlyFoldToggle(p); keepScroll(() => renderTab()); },
       jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTabK(); },
       linkWin: (p, k) => dlyLinkWin(p, k), reach: (a, b) => dlyReach(a, b), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
-      mspXml: o => dlyMspXml(o), lockWin: () => dlyLockWin(), lockLate: () => dlyLockLate(),   /* v667 (axe 8) */
+      mspXml: o => dlyMspXml(o), mspTree: lv => dlyMspTree(lv), mspPrint: lv => dlyMspPrint(lv), lockWin: () => dlyLockWin(), lockLate: () => dlyLockLate(),   /* v667 (axe 8) */
       gen: () => dlyCompressRun(), gcWin: () => dlyGCWin(), genOnly: () => dlyCompressRun({ gen: true }), keys: () => dlyKeys(), comp: () => dlyCompressRun(), hasDates: () => dlyHasDates(), canComp: () => dlyCanCompress(),
       moveCut: (i, iso) => dlyMoveCut(i, iso), rdSet: (sk, sec, i, p) => dlyRdSetV(sk, sec, i, p), rdCut: (sk, sec, iso) => dlyRdCut(sk, sec, iso), rdDel: (sk, sec, i) => dlyRdDel(sk, sec, i), rdLim: () => dlyRdLim(), piecesWin: k => dlyPiecesWin(k), hcfgWin: () => dlyHCfgWin(), succs: k => dlySuccs(k).map(dlyName), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n, a) => dlySetPlaf(i, n, a), delCut: i => dlyDelCut(i), limTxt: k => dlyLimTxt(k),
       incWin: k => dlyIncWin(k), apprWin: () => dlyApproWin(), hh: v => { dlyHHSet(v); keepScroll(() => renderTab()); }, hhGet: () => dlyHHGet(),

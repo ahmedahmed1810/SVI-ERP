@@ -409,9 +409,15 @@
               ${blk === "detail" && active === "dly" && INS ? `<button type="button" class="doc-btn fmt-btn" data-fmt="msp">MS PROJECT</button>` : ""}
             </div>
             ${blk === "detail" && active === "dly" && INS ? `<div class="msp-opts" hidden>
-              <label><input type="checkbox" id="mspLots" checked> AVEC LES LOTS (TÂCHES RÉCAPITULATIVES)</label>
+              <div class="svc-sub">NIVEAUX À EXPORTER (LE PLUS FIN COCHÉ = LES TÂCHES, CEUX AU-DESSUS = TÂCHES RÉCAPITULATIVES)</div>
+              <label><input type="checkbox" id="mspDes"> DÉSIGNATIONS CLIENT</label>
+              <label><input type="checkbox" id="mspLots" checked> LOTS</label>
+              <label><input type="checkbox" id="mspPrim"> ACTIVITÉS PRIMAIRES</label>
+              <label><input type="checkbox" id="mspSec" checked> ACTIVITÉS SECONDAIRES</label>
+              <div class="svc-sub">EN PLUS</div>
               <label><input type="checkbox" id="mspChg"> CHARGES EN RESSOURCES</label>
-              <label><input type="checkbox" id="mspPrd"> PRODUITS EN NOTES</label></div>` : ""}
+              <label><input type="checkbox" id="mspPrd"> PRODUITS EN NOTES</label>
+              <button type="button" class="doc-btn" data-act="mspPrint">APERÇU (IMPRIMER)</button></div>` : ""}
             <div class="doc-err fd-msg" id="fdMsg"></div>
           </div>
           <div class="doc-foot">
@@ -489,11 +495,16 @@
         if (!b || b.disabled) return;
         const name = ($q("#fdName").value.trim() || fullRef + " " + label).replace(/[\\/:*?"<>|]+/g, "-");
         if (b.dataset.act === "drive") { driveMode = true; ui.msg(""); refresh(); return; }
+        /* v674 : niveaux cochés (au moins un) */
+        const mspLv = () => { const c = id => !!p.querySelector(id)?.checked, lv = { des: c("#mspDes"), lot: c("#mspLots"), prim: c("#mspPrim"), sec: c("#mspSec") };
+          if (!lv.des && !lv.lot && !lv.prim && !lv.sec) { ui.msg("COCHER AU MOINS UN NIVEAU À EXPORTER"); return null; } ui.msg(""); return lv; };
+        if (b.dataset.act === "mspPrint") { const lv = mspLv(); if (lv) dlyMspPrint(lv); return; }
         /* v667 (axe 8) : MS PROJECT — fichier XML (MSPDI) */
         if (fmt === "msp" && (b.dataset.act === "device" || b.dataset.act === "save")) {
-          const o = { lots: !!p.querySelector("#mspLots")?.checked, chg: !!p.querySelector("#mspChg")?.checked, prd: !!p.querySelector("#mspPrd")?.checked };
+          const lv = mspLv(); if (!lv) return;
+          const o = { lv, chg: !!p.querySelector("#mspChg")?.checked, prd: !!p.querySelector("#mspPrd")?.checked };
           const blob = new Blob([dlyMspXml(o)], { type: "application/xml" });
-          histLog("DÉTAIL DÉLAIS", "EXPORT", "MS PROJECT (XML)" + (o.lots ? " — AVEC LOTS" : "") + (o.chg ? " — CHARGES" : "") + (o.prd ? " — PRODUITS" : ""));
+          histLog("DÉTAIL DÉLAIS", "EXPORT", "MS PROJECT (XML) — " + [lv.des && "DÉSIGNATIONS", lv.lot && "LOTS", lv.prim && "PRIMAIRES", lv.sec && "SECONDAIRES"].filter(Boolean).join(" › ") + (o.chg ? " — CHARGES" : "") + (o.prd ? " — PRODUITS" : ""));
           await deliver(name + ".xml", blob, b.dataset.act === "device" ? { target: "device" } : { target: "drive", path: driveCleanPath(curPath()), ui });
           return;
         }
