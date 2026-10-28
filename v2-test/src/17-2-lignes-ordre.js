@@ -40,6 +40,50 @@
       dated.forEach(k => { const d0 = dlyDeb(k); M[k] = LS[k] <= d0 ? 0 : sviWDur(cal, d0, LS[k]) - 1; });
       return M;
     };
+    /* v666 (axe 8) : BATTEMENT LIBRE = jours travaillés dont la tâche peut glisser sans décaler aucun de ses successeurs
+       (sans successeur : son battement total). Réglages du PLANNING : INS.pplan = { qc: seuil quasi-critique (J), bt: "t" | "l" } */
+    const dlyMargesLib = (keys, M) => {
+      const cal = insCal(), L = {};
+      const succ = {};
+      keys.forEach(k => dlyLinks(k).forEach(l => { (succ[l.k] = succ[l.k] || []).push({ s: k, t: l.t, o: Math.max(0, Number(l.o) || 0) }); }));
+      keys.filter(k => dlyDeb(k) && dlyFin(k)).forEach(k => {
+        const S = (succ[k] || []).filter(x => dlyDeb(x.s));
+        if (!S.length) { L[k] = M[k] === undefined ? "" : M[k]; return; }
+        let m = Infinity;
+        S.forEach(x => {
+          const al = x.t === "DD" ? sviWAdd(cal, sviWNear(cal, dlyDeb(k), 1), x.o) : sviWAdd(cal, sviWNear(cal, dlyFin(k), 1), 1 + x.o);
+          const ds = dlyDeb(x.s), f = ds > al ? sviWDur(cal, al, ds) - 1 : 0;
+          if (f < m) m = f;
+        });
+        L[k] = Math.max(0, m === Infinity ? 0 : m);
+      });
+      return L;
+    };
+    /* v666 (axe 8) : filtre CHEMIN CRITIQUE — seules les tâches à battement total nul (et leurs lots) restent */
+    const dlyCritF = rows => !dlyCritOn() ? rows : rows.filter(x => x.nw || (x.grp ? (x.all || []).some(t => t.marge === 0) : x.marge === 0));
+    const dlyPP = () => ({ qc: 0, bt: "t", ...((INS && INS.pplan) || {}) });
+    const dlyCritOn = () => shell.__dlyCrit === DLYG_REF;
+    /* v666 (axe 8) : fenêtre PARAMÉTRAGE DU PLANNING — seuil quasi-critique et battement affiché */
+    const dlyPPWin = () => {
+      const P = dlyPP(), d = sviWinNew();
+      d.innerHTML = sviWinCard({ cls: "pv-card", close: "data-x", title: "PARAMÉTRAGE DU PLANNING",
+        body: `<div class="fz-blk">TÂCHES QUASI-CRITIQUES</div>
+          <label class="pv-r"><span>SEUIL : BATTEMENT TOTAL INFÉRIEUR OU ÉGAL À<small> (0 = AUCUNE)</small></span><input class="pv-in" id="ppQc" inputmode="numeric" value="${esc(String(P.qc || 0))}"${INS_EDIT ? "" : " disabled"}><i>J</i></label>
+          <div class="pv-sub">CES TÂCHES S'AFFICHENT EN ORANGE ; LES TÂCHES CRITIQUES (BATTEMENT 0) RESTENT EN ROUGE.</div>
+          <div class="fz-blk">BATTEMENT AFFICHÉ</div>
+          <div class="pp-bt">${[["t", "TOTAL", "SANS REPOUSSER LA FIN DU CHANTIER"], ["l", "LIBRE", "SANS DÉCALER AUCUN SUCCESSEUR"]].map(([v, l, h]) => `<label><input type="radio" name="ppBt" value="${v}"${P.bt === v ? " checked" : ""}${INS_EDIT ? "" : " disabled"}> <b>${l}</b> <small>${h}</small></label>`).join("")}</div>`,
+        foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${INS_EDIT ? `<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>` : ""}` });
+      sviWinShow(d);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        if (!e.target.closest("[data-save]")) return;
+        const qc = Math.max(0, Math.round(Number(String(d.querySelector("#ppQc").value).replace(",", ".")) || 0));
+        const bt = (d.querySelector('input[name="ppBt"]:checked') || {}).value || "t";
+        INS.pplan = { qc, bt }; insSave();
+        histLog("DÉLAIS", "PARAMÉTRAGE DU PLANNING", "SEUIL QUASI-CRITIQUE " + qc + " J — BATTEMENT " + (bt === "l" ? "LIBRE" : "TOTAL"));
+        d.remove(); refreshAll();
+      });
+    };
     const dlyFoldK = p => (budget.project || "") + "|" + p;
     const dlyIsFolded = p => !!dlyFoldAll()[dlyFoldK(p)];
     /* v512 (remarque 76) : première ouverture d'un budget — niveaux de LOT pliés (état mémorisé ensuite) */
@@ -98,13 +142,14 @@
     };
     /* lignes du PLANNING : lots (et sous-lots « / ») puis leurs tâches, dans l'ordre des lignes */
     const dlyPlanRows = () => {
-      const keys = dlyKeys(), M = dlyMarges(keys), J = INS.jal || {};
+      const keys = dlyKeys(), M = dlyMarges(keys), J = INS.jal || {}, ML = dlyMargesLib(keys, M), PP = dlyPP();
       const P = keys.map(k => { const d0 = dlyDeb(k), f0 = dlyFin(k); const [lo, se] = k.split("|");
         const p1 = dlyList(k).length === 1 ? dlyList(k)[0] : null;
         /* v547 (R22) : morceaux d'une tâche coupée */
         const per = dlyList(k).length > 1 ? dlyList(k).filter(p => p.deb && p.fin).map(p => ({ deb: p.deb, fin: p.fin, hs: dlyHalfS(p), he: dlyHalfE(p) })) : null;
         return { key: k, lo, lot: lkName("lot", lo), sec: lkName("sec", se), pred: dlyPredTxt(k), succ: dlySuccTxt(k), per, deb: d0, fin: f0, dur: dlyDurK(k), hs: dlyHalfS(p1), he: dlyHalfE(p1),
-          marge: M[k] === undefined ? "" : M[k], jal: J[k] ? "★" : "" }; });
+          marge: M[k] === undefined ? "" : M[k], mlib: ML[k] === undefined ? "" : ML[k], qc: M[k] !== undefined && M[k] > 0 && M[k] <= (Number(PP.qc) || 0),
+          mshow: PP.bt === "l" ? (ML[k] === undefined ? "" : ML[k]) : (M[k] === undefined ? "" : M[k]), jal: J[k] ? "★" : "" }; });
       /* ordre libre des lignes (INS.dord) ; une tâche nouvelle se place à la fin */
       const O = dlyOrder(keys), VD = dlyView() === "d";
       /* R29 : vue PAR DÉBUT — toutes les tâches par date de début (sans dates : à la fin, dans l'ordre enregistré) ; rien n'est enregistré */
@@ -157,10 +202,10 @@
           const minL = Math.min(...kept.map(x => x.lvl));
           const rows = kept.map(x => ({ ...x, lvl: x.lvl - minL }));
           flat.filter(t => ext.has(t.key)).forEach(t => rows.push({ ...t, lvl: 0, ext: true }));
-          return { rows, flat, iso };
+          return { rows: dlyCritF(rows), flat, iso, crit: dlyCritOn() };
         }
       }
-      return { rows: out, flat };
+      return { rows: dlyCritF(out), flat, crit: dlyCritOn() };
     };
     /* ajout d'une liaison (geste sur le Gantt) : pred → succ, FIN → DÉBUT ou DÉBUT → DÉBUT, décalage 0 */
     const dlyAddLink = (pred, succ, t, anchor) => {
