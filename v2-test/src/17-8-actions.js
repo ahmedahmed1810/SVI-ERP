@@ -1,3 +1,62 @@
+    /* =========================================================
+       v667 (AXE 8) : EXPORT MS PROJECT (XML, format MSPDI lu par MS Project) — tâches avec dates, durées et liaisons
+       (FIN → DÉBUT = FS, DÉBUT → DÉBUT = SS, décalage en jours) ; options : AVEC LOTS (tâches récapitulatives) ou tâches seules,
+       CHARGES en ressources (main-d'œuvre = travail, le reste = matériel), PRODUITS en notes de la tâche.
+       ========================================================= */
+    const dlyMspXml = (o = {}) => {
+      const X = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      const keys = dlyKeys().filter(k => dlyDeb(k)), K = new Set(keys), fin = k => dlyFin(k) || dlyDeb(k);
+      const ord = [...dlyOrder(dlyKeys()).keys()].filter(k => K.has(k));
+      const uid = new Map(); let n = 1;
+      const T = [`<Task><UID>0</UID><ID>0</ID><Name>${X((budget.project || "") + " " + fullRef)}</Name><OutlineLevel>0</OutlineLevel><Summary>1</Summary></Task>`];
+      const durH = k => dlyFin(k) ? Math.max(0, Number(String(dlyDurK(k)).replace(",", ".")) || 0) * 8 : 0;
+      const prdNote = k => { const seen = new Set(), L = []; (INS.links || []).filter(l => l.lot + "|" + l.sec === k).forEach(l => (l.prd || []).forEach(x => { if (seen.has(x.id)) return; seen.add(x.id); const r = INS.prd.find(y => y.id === x.id); if (r) L.push((r.des || "") + " : " + String(Math.round(insPrdQ(r) * 100) / 100).replace(".", ",") + " " + (r.u || "")); })); return L.join("\n"); };
+      let prevPath = [];
+      ord.forEach(k => {
+        const [lo] = k.split("|");
+        const path = o.lots === false ? [] : dlyLotPath(lkName("lot", lo));
+        if (o.lots !== false) {
+          let i = 0; while (i < path.length && i < prevPath.length && U_(path[i]) === U_(prevPath[i])) i++;
+          for (let j = i; j < path.length; j++) { const id = n++; T.push(`<Task><UID>${id}</UID><ID>${id}</ID><Name>${X(path[j])}</Name><OutlineLevel>${j + 1}</OutlineLevel><Summary>1</Summary></Task>`); }
+          prevPath = path;
+        }
+        const id = n++; uid.set(k, id);
+        const pl = dlyLinks(k).filter(l => K.has(l.k)).map(l => `<PredecessorLink><PredecessorUID>__P${X(l.k)}__</PredecessorUID><Type>${l.t === "DD" ? 3 : 1}</Type><CrossProject>0</CrossProject><LinkLag>${Math.max(0, Number(l.o) || 0) * 4800}</LinkLag><LagFormat>7</LagFormat></PredecessorLink>`).join("");
+        const nt = o.prd ? prdNote(k) : "";
+        T.push(`<Task><UID>${id}</UID><ID>${id}</ID><Name>${X(dlyName(k))}</Name><OutlineLevel>${path.length + 1}</OutlineLevel><Summary>0</Summary>`
+          + `<Start>${dlyDeb(k)}T08:00:00</Start><Finish>${fin(k)}T17:00:00</Finish><Duration>PT${durH(k)}H0M0S</Duration><DurationFormat>7</DurationFormat>`
+          + `<ConstraintType>4</ConstraintType><ConstraintDate>${dlyDeb(k)}T08:00:00</ConstraintDate>${!durH(k) ? "<Milestone>1</Milestone>" : ""}${nt ? `<Notes>${X(nt)}</Notes>` : ""}${pl}</Task>`);
+      });
+      let xml = T.join("\n");
+      uid.forEach((v, k) => { xml = xml.split(`__P${X(k)}__`).join(String(v)); });
+      /* ressources et affectations : une ressource par charge (même désignation + unité), affectée aux tâches qui la consomment */
+      let R = "", A = "";
+      if (o.chg) {
+        const res = new Map(); let ru = 1, au = 1;
+        (INS.links || []).forEach(l => { const k = l.lot + "|" + l.sec; if (!uid.has(k)) return; (l.chg || []).forEach(x => {
+          const r = INS.chg.find(y => y.id === x.id); if (!r || r.t) return;
+          const rk = U_(r.des) + "|" + U_(r.u); if (!res.has(rk)) res.set(rk, { id: ru++, r, lab: dlyIsLab(r), as: new Map() });
+          const E = res.get(rk); E.as.set(k, (E.as.get(k) || 0) + num(r.q || 0));
+        }); });
+        res.forEach(E => {
+          R += `<Resource><UID>${E.id}</UID><ID>${E.id}</ID><Name>${X(E.r.des || "")}</Name><Type>${E.lab ? 1 : 0}</Type>${E.lab ? "" : `<MaterialLabel>${X(E.r.u || "")}</MaterialLabel>`}<StandardRate>${num(E.r.p || 0)}</StandardRate></Resource>\n`;
+          E.as.forEach((q, k) => { A += `<Assignment><UID>${au++}</UID><TaskUID>${uid.get(k)}</TaskUID><ResourceUID>${E.id}</ResourceUID>${E.lab ? `<Work>PT${Math.round(q * 8 * 100) / 100}H0M0S</Work>` : `<Units>${q}</Units>`}</Assignment>\n`; });
+        });
+      }
+      const st = ord.map(dlyDeb).sort()[0] || sviIsoOf(new Date());
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Project xmlns="http://schemas.microsoft.com/project">
+<Name>${X((budget.project || "") + " " + fullRef)}</Name><Title>${X(fullRef)}</Title><StartDate>${st}T08:00:00</StartDate><ScheduleFromStart>1</ScheduleFromStart>
+<MinutesPerDay>480</MinutesPerDay><MinutesPerWeek>2880</MinutesPerWeek><DaysPerMonth>24</DaysPerMonth><DefaultStartTime>08:00:00</DefaultStartTime><DefaultFinishTime>17:00:00</DefaultFinishTime>
+<Tasks>
+${xml}
+</Tasks>
+<Resources>
+${R}</Resources>
+<Assignments>
+${A}</Assignments>
+</Project>`;
+    };
     const dlyDraft = () => {
       const key = insDlyKey();
       LK.dlpDraft = LK.dlpDraft || {};
@@ -13,6 +72,7 @@
       fold: p => { dlyFoldToggle(p); keepScroll(() => renderTab()); },
       jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTabK(); },
       linkWin: (p, k) => dlyLinkWin(p, k), reach: (a, b) => dlyReach(a, b), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
+      mspXml: o => dlyMspXml(o), lockWin: () => dlyLockWin(), lockLate: () => dlyLockLate(),   /* v667 (axe 8) */
       gen: () => dlyCompressRun(), gcWin: () => dlyGCWin(), genOnly: () => dlyCompressRun({ gen: true }), keys: () => dlyKeys(), comp: () => dlyCompressRun(), hasDates: () => dlyHasDates(), canComp: () => dlyCanCompress(),
       moveCut: (i, iso) => dlyMoveCut(i, iso), rdSet: (sk, sec, i, p) => dlyRdSetV(sk, sec, i, p), rdCut: (sk, sec, iso) => dlyRdCut(sk, sec, iso), rdDel: (sk, sec, i) => dlyRdDel(sk, sec, i), rdLim: () => dlyRdLim(), piecesWin: k => dlyPiecesWin(k), hcfgWin: () => dlyHCfgWin(), succs: k => dlySuccs(k).map(dlyName), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n, a) => dlySetPlaf(i, n, a), delCut: i => dlyDelCut(i), limTxt: k => dlyLimTxt(k),
       incWin: k => dlyIncWin(k), apprWin: () => dlyApproWin(), hh: v => { dlyHHSet(v); keepScroll(() => renderTab()); }, hhGet: () => dlyHHGet(),

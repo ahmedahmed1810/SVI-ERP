@@ -17,6 +17,8 @@
         const K = [...KP].filter(k => !KC.has(k));
         (INS.links || []).forEach(l => { if (K.includes(l.lot + "|" + l.sec)) (l.prd || []).forEach(x => P.add(x.id)); });
         if (K.length) out.push({ lab: "TÂCHES SANS CHARGE", n: K.length, go: "prdnc", list: K, prd: P, req: false }); }
+      /* v667 (axe 8) : verrous DÉBUT / FIN dépassés (non bloquant) — mène au DÉTAIL DÉLAIS */
+      { let LL = []; try { LL = dlyLockLate(); } catch (e) {} if (LL.length) out.push({ lab: "VERROUS DÉBUT / FIN DÉPASSÉS", n: LL.length, go: "dly", req: false }); }
       /* v626 : doublons (jamais acceptés) — toucher = fenêtre DOUBLON EXISTANT, avec FUSIONNER */
       { let D = []; try { D = dupCount(); } catch (e) { D = []; }
         if (D.length) out.push({ lab: "DOUBLONS", n: D.length, go: "dup", names: [...new Set(D.map(x => DUP_LAB[x.k] + " — " + dupName(x.k, x.r)))].slice(0, 4), req: true }); }
