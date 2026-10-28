@@ -55,6 +55,7 @@ def main():
     with sync_playwright() as p:
         b = p.chromium.launch()
         ctx = b.new_context(viewport={"width": 1180, "height": 820}, permissions=["clipboard-read", "clipboard-write"])
+        ctx.add_init_script("try { localStorage.setItem('svitest:svi_user_v1', 'TESTEUR'); } catch (e) {}")
         pg = ctx.new_page()
         errs = []
         pg.on("pageerror", lambda e: errs.append(str(e)))
@@ -2183,6 +2184,42 @@ def main():
         pg.evaluate(f"() => {{ const X = {ins}; const o = JSON.parse(X.INS.__p6); X.INS.prd = o.prd; if (o.plans) X.INS.plans = o.plans; else delete X.INS.plans; delete X.INS.__p6; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
         check("v671 axe 6 : axes 1.1, 1.05, 1.2, B1, B1.1, B2 ; plan image : échelle 10 m sur une cote, longueur mesurée = 5 M, DIM 1 du produit rempli",
               ax == "1.1,1.05,1.2,B1,B1.1,B2" and mv.startswith("5 M") and abs(pv6 - 5) < 0.05, [ax, mv, pv6])
+
+        # v672 (bloc 2) : base V3 simulée — envoi initial avec contrôle, fusion case par case (la plus récente gagne), CONFLITS, verrou, QUI
+        pg.evaluate("""() => { const S = window.__fs = { b: {}, locks: [] };
+          window.apiPost = async (a, p) => {
+            if (a === 'v3List') return { ok: true, list: Object.values(S.b).map(x => ({ ref: x.ref, rev: x.rev, ts: x.ts, user: x.user })), locks: S.locks };
+            if (a === 'v3Pull') { const x = S.b[p.ref]; return x ? { ok: true, ...x } : { ok: true, missing: true }; }
+            if (a === 'v3Push') { const x = S.b[p.ref]; if (x && x.rev !== p.baseRev) return { ok: true, conflict: true, rev: x.rev, ts: x.ts, user: x.user, data: x.data };
+              S.b[p.ref] = { ref: p.ref, rev: (x ? x.rev : 0) + 1, ts: p.ts, user: p.user, data: p.data }; const o = JSON.parse(p.data).data || {};
+              return { ok: true, rev: S.b[p.ref].rev, ctl: { des: (o.des || []).length, lot: (o.lot || []).length, prim: (o.prim || []).length, sec: (o.sec || []).length, chg: (o.chg || []).length, prd: (o.prd || []).length, links: (o.links || []).length } }; }
+            if (a === 'v3Photo') { S.photo = p; return { ok: true }; }
+            if (a === 'v3Lock' || a === 'v3Unlock' || a === 'v3Del') { S.lastLock = a; return { ok: true }; }
+            if (a === 'v3Stats') return { ok: true, cells: 1000, limit: 1e7 };
+            return { ok: false };
+          }; }""")
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.__s72 = JSON.stringify(X.INS); }}")
+        pg.evaluate("() => sviSyncPull().then(() => sviSyncRun())"); pg.wait_for_timeout(1500)
+        pg.evaluate("() => sviSyncRun()"); pg.wait_for_timeout(1200)
+        s72 = pg.evaluate("() => { const S = window.__fs; const r = Object.keys(S.b)[0]; return r ? [r, S.b[r].rev, sviSyncPending(), (document.getElementById('sviSync') || {}).textContent] : null; }")
+        ref72 = s72[0] if s72 else ""
+        # un autre utilisateur change le PPB de d1 (plus récemment) ; moi aussi, plus tôt ; et moi seul la QPB de c2
+        pg.evaluate(f"""r => {{ const S = window.__fs, x = S.b[r], o = JSON.parse(x.data); o.data.des.find(d => d.id === 'd1').p = 999; x.data = JSON.stringify(o); x.rev++; x.user = 'BRAHIM'; x.ts = Date.now() + 60000; }}""", ref72)
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.des.find(d => d.id === 'd1').p = 777; const c = X.INS.chg.find(r => !r.t); c.q = 123; window.__c72 = c.id; X.insSave(); }}"); pg.wait_for_timeout(600)
+        pg.evaluate("() => sviSyncRun()"); pg.wait_for_timeout(1500)
+        m72 = pg.evaluate(f"() => {{ const I = {ins}.INS; return [Number(I.des.find(d => d.id === 'd1').p), Number(I.chg.find(r => r.id === window.__c72).q), (I.conf || []).length, ((I.conf || [])[0] || {{}}).user, Number(((I.conf || [])[0] || {{}}).mine)]; }}")
+        pg.evaluate("() => document.querySelector('#instTodo')?.click()"); pg.wait_for_timeout(300)
+        td72 = pg.evaluate("() => (document.querySelector('#svConf') || {}).innerText || ''")
+        pg.evaluate("() => { const b = [...document.querySelectorAll('#svConf .fz-why')].find(x => /CONFLITS/.test(x.textContent)); b && b.click(); }"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf [data-mine]')?.click()"); pg.wait_for_timeout(300)
+        r72 = pg.evaluate(f"() => {{ const I = {ins}.INS; return [Number(I.des.find(d => d.id === 'd1').p), (I.conf || []).length]; }}")
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.evaluate("() => document.querySelector('#histBtn')?.click()"); pg.wait_for_timeout(400)
+        h72 = pg.evaluate("() => { const t = [...document.querySelectorAll('table')].find(x => /QUI/.test((x.querySelector('thead') || {}).textContent || '')); if (!t) return ''; const tr = [...t.querySelectorAll('tbody tr')].find(r => /CONFLITS/.test(r.textContent)); return tr ? tr.textContent : ''; }")
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()")
+        pg.evaluate(f"() => {{ const X = {ins}; const o = JSON.parse(X.INS.__s72); Object.keys(X.INS).forEach(k => delete X.INS[k]); Object.assign(X.INS, o); delete X.INS.__s72; X.insSave(); X.refreshAll(); window.apiPost = undefined; }}"); pg.wait_for_timeout(300)
+        check("v672 bloc 2 : envoi initial (REV 1, contrôle), fusion : QPB gardée (moi seul), PPB de l'autre plus récent gardé (999) et le mien en CONFLIT (777, BRAHIM) ; ⚠ CONFLITS ; MA VALEUR reprise ; QUI = TESTEUR",
+              s72 and s72[1] >= 1 and s72[2] == 0 and m72[0] == 999 and m72[1] == 123 and m72[2] == 1 and m72[3] == "BRAHIM" and m72[4] == 777 and "CONFLITS" in td72 and r72 == [777, 0] and "TESTEUR" in h72, [s72, m72, td72[:200], r72, h72])
 
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()

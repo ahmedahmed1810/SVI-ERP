@@ -8,7 +8,7 @@
     const histLog = (branche, action, detail = "") => {
       try {
         const l = histLoad();
-        l.push({ t: new Date().toISOString(), b: branche, a: action, d: String(detail || "").toUpperCase() });
+        l.push({ t: new Date().toISOString(), b: branche, a: action, d: String(detail || "").toUpperCase(), u: typeof sviUser === "function" ? sviUser() : "" });
         /* libellé de l'étape pour ANNULER / RÉTABLIR (appui long) */
         if (action !== "ANNULER" && action !== "RÉTABLIR") shell.__undoLab = String(action).toUpperCase() + (detail ? " — " + String(detail).toUpperCase().slice(0, 80) : "");
         localStorage.setItem(HIST_KEY, JSON.stringify(l.slice(-1000)));
@@ -21,7 +21,8 @@
       ["hdt", "DATE", r => r.dt, "center"],
       ["hbr", "BRANCHE", r => r.b, ""],
       ["hac", "ACTION", r => r.a, ""],
-      ["hde", "DÉTAIL", r => r.d, ""]
+      ["hde", "DÉTAIL", r => r.d, ""],
+      ["hqui", "QUI", r => r.u || "", ""]   /* v672 (bloc 2) : nom d'utilisateur */
     ];
     const histRows = () => {
       const p2 = n => String(n).padStart(2, "0");

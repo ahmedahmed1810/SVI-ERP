@@ -17,6 +17,8 @@
         const K = [...KP].filter(k => !KC.has(k));
         (INS.links || []).forEach(l => { if (K.includes(l.lot + "|" + l.sec)) (l.prd || []).forEach(x => P.add(x.id)); });
         if (K.length) out.push({ lab: "TÂCHES SANS CHARGE", n: K.length, go: "prdnc", list: K, prd: P, req: false }); }
+      /* v672 (bloc 2) : CONFLITS de la base V3 (mes valeurs non retenues) — traités ligne par ligne */
+      if ((INS.conf || []).length) out.push({ lab: "CONFLITS (BASE V3)", n: INS.conf.length, go: "conf", req: false });
       /* v667 (axe 8) : verrous DÉBUT / FIN dépassés (non bloquant) — mène au DÉTAIL DÉLAIS */
       { let LL = []; try { LL = dlyLockLate(); } catch (e) {} if (LL.length) out.push({ lab: "VERROUS DÉBUT / FIN DÉPASSÉS", n: LL.length, go: "dly", req: false }); }
       /* v626 : doublons (jamais acceptés) — toucher = fenêtre DOUBLON EXISTANT, avec FUSIONNER */
@@ -75,6 +77,37 @@
       });
     };
     shell.__todoWhy = () => insTodoWhy();
+    /* v672 (bloc 2) : CONFLITS — case, ma valeur, valeur gardée, auteur ; GARDER (accepte la valeur gardée) ou MA VALEUR (la remet) ;
+       la liste disparaît quand elle est vide */
+    const confTxt = v => v === undefined || v === null ? "—" : typeof v === "object" ? JSON.stringify(v).slice(0, 80) : String(v);
+    const confWin = () => {
+      const C = INS.conf || [];
+      if (!C.length) { svToast("AUCUN CONFLIT.", 2500); return; }
+      const d = sviWinNew();
+      d.innerHTML = sviWinCard({ cls: "pv-card", close: "data-x", title: "CONFLITS " + svCnt(C.length),
+        body: `<div class="pv-sub">LA MÊME CASE A ÉTÉ MODIFIÉE AILLEURS : LA MODIFICATION LA PLUS RÉCENTE A ÉTÉ GARDÉE.</div><div class="pv-scroll"><table class="pv-t"><thead><tr><th>CASE</th><th>MA VALEUR</th><th>GARDÉE</th><th>AUTEUR</th><th></th></tr></thead><tbody>
+          ${C.map(c => `<tr data-id="${esc(c.id)}"><td>${esc(c.lab)}</td><td>${esc(confTxt(c.mine))}</td><td>${esc(confTxt(c.kept))}</td><td>${esc(c.user || "")}<br><small>${c.ts ? esc(new Date(c.ts).toLocaleString("fr-FR")) : ""}</small></td>
+            <td>${INS_EDIT ? `<button type="button" class="svc-b" data-keep>GARDER</button><button type="button" class="svc-b" data-mine>MA VALEUR</button>` : ""}</td></tr>`).join("")}</tbody></table></div>`,
+        foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
+      sviWinShow(d);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        const tr = e.target.closest("tr[data-id]"); if (!tr) return;
+        const c = (INS.conf || []).find(x => x.id === tr.dataset.id); if (!c) return;
+        if (e.target.closest("[data-mine]")) {
+          if (c.rid && Array.isArray(INS[c.k])) { const r = INS[c.k].find(x => x.id === c.rid); if (r) { if (c.mine === undefined) delete r[c.f]; else r[c.f] = c.mine; } }
+          else if (c.sub !== undefined) { INS[c.k] = INS[c.k] || {}; if (c.mine === undefined) delete INS[c.k][c.sub]; else INS[c.k][c.sub] = c.mine; }
+          else INS[c.k] = c.mine;
+          histLog("CONFLITS", "MA VALEUR REPRISE", c.lab);
+        } else if (e.target.closest("[data-keep]")) histLog("CONFLITS", "VALEUR GARDÉE", c.lab);
+        else return;
+        INS.conf = (INS.conf || []).filter(x => x !== c);
+        if (!INS.conf.length) delete INS.conf;
+        insSave(); refreshAll();
+        if (INS.conf) { d.remove(); confWin(); } else d.remove();
+      });
+    };
+    shell.__confWin = () => confWin();
     shell.__figeWhy = () => insFigeWhy();
     shell.__figeBlocks = () => insFigeBlocks();
     const insUnlCount = () => { const n = insUnlinked(); return INS_LINKED_KINDS.reduce((t, k) => t + n[k].length, 0); };

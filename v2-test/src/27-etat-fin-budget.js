@@ -59,6 +59,8 @@
       ?.addEventListener(
         "click",
         () => {
+          if (typeof sviLockClose === "function") sviLockClose();   /* v672 (bloc 2) */
+          window.__sviSyncReopen = null;
           shell.onclick = null;
           shell.oninput = null;
           /* retour volontaire à la liste : elle sera l'écran d'ouverture */

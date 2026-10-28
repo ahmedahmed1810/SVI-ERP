@@ -34,7 +34,10 @@ const sviInstFlush = () => {
 };
 const sviInstGet = () => { try { return JSON.parse(sviInstStr || "[]") || []; } catch (e) { return []; } };
 const sviInstSet = l => {
+  const old = sviInstStr;
   sviInstStr = JSON.stringify(l || []);
+  /* v672 (bloc 2) : budgets changés → en attente d'envoi à la base V3 */
+  if (typeof sviSyncChanged === "function") try { sviSyncChanged(old, sviInstStr); } catch (e) {}
   clearTimeout(sviInstTimer);
   sviInstTimer = setTimeout(sviInstFlush, 300);
 };
