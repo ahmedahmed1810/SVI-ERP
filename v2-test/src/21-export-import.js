@@ -1883,6 +1883,7 @@
         ...(INS ? [{ a: "paq", lab: "PLAN D'ASSURANCE QUALITÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
         ...(INS ? [{ a: "ver", lab: "VERSIONS ET SCÉNARIOS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="6" cy="18" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="18" cy="9" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 8.2v7.6M6 13c0-3 4-4 9.8-4" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>' }] : []),
         ...(INS ? [{ a: "ctr", lab: "CONTRAT (CPS)", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 11h5M10 15h5M10 19h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' }] : []),
+        ...(INS ? [{ a: "plans", lab: "PLANS ET MÉTRÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5l6-2 6 2 6-2v16l-6 2-6-2-6 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 3v16M15 5v16" stroke="currentColor" stroke-width="1.4"/></svg>' }] : []),
         ...(INS ? [{ a: "rat", lab: "TABLEAU DE BORD DES RATIOS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' },
           { a: "multi", lab: "MAIN-D'ŒUVRE DE TOUS LES BUDGETS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M6 20v-6h3v6M11 20V9h3v11M16 20v-9h3v9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' },
           { a: "sign", lab: "SIGNATURES À PRÉVOIR", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18c3-6 5-9 7-9s-1 7 1 7 3-4 5-4 1 4 3 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 21h16" stroke="currentColor" stroke-width="1.5"/></svg>' }] : []),
@@ -1906,7 +1907,8 @@
         else if (it.dataset.a === "paq") qqPaqOpen();
         else if (it.dataset.a === "ctr") ctrWin();
         else if (it.dataset.a === "ver") verWin();   /* v670 (axes 1 et 4) */   /* v669 (axe 3) */
-        else if (it.dataset.a === "rat") ratWin();   /* v668 (axe 7) */
+        else if (it.dataset.a === "rat") ratWin();
+        else if (it.dataset.a === "plans") plWin();   /* v671 (axe 6) */   /* v668 (axe 7) */
         else if (it.dataset.a === "multi") multiWin();   /* v668 (axe 8) */
         else if (it.dataset.a === "sign") signWin();   /* v668 */
         else if (it.dataset.a === "exp") openExportMenu("budget");

@@ -2153,6 +2153,37 @@ def main():
         check("v670 axes 1 et 4 : scénario copié, BASCULER échange les prix (4321 ↔ autre), avenant : ligne ancienne = MARCHÉ INITIAL, nouvelle = AVENANT 1, montants par origine",
               "ACTIF" in hd and "EN RÉSERVE" in hd and p1 != 4321 and p2 == 4321 and o70 == ["MARCHÉ INITIAL", "AVENANT 1"] and "BUDGET CONSOLIDÉ" in t70 and "AVENANT 1" in t70, [hd, p1, p2, o70, t70[-400:]])
 
+        # v671 (axe 6) : règle des axes ; plan image → ÉCHELLE (10 m), LONGUEUR mesurée, REMPLIR DIM 1 d'un produit
+        ax = pg.evaluate("""() => { const s = [...document.querySelectorAll('*')].find(e => e.__axBetween); const f = s.__axBetween;
+            return [f('1', '2', ['1', '2']), f('1', '1.1', ['1', '1.1', '2']), f('1.1', '2', ['1', '1.1', '2']), f('B', 'C', ['B', 'C']), f('B1', 'B2', ['B1', 'B2']), f('B1', 'C', ['B', 'B1', 'C'])].join(','); }""")
+        import base64, struct, zlib, tempfile
+        def png(w, h):
+            raw = b"".join(b"\x00" + b"\xff\xff\xff" * w for _ in range(h))
+            ch = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xffffffff)
+            return b"\x89PNG\r\n\x1a\n" + ch(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)) + ch(b"IDAT", zlib.compress(raw)) + ch(b"IEND", b"")
+        fp = os.path.join(tempfile.gettempdir(), "plan_test.png"); open(fp, "wb").write(png(800, 600))
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.__p6 = JSON.stringify({{ prd: X.INS.prd, plans: X.INS.plans || null }}); }}")
+        pg.evaluate("() => [...document.querySelectorAll('*')].find(e => e.__plWin).__plWin()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf [data-doc]')?.click()"); pg.wait_for_timeout(200)
+        with pg.expect_file_chooser() as fc:
+            pg.evaluate("() => document.querySelector('#svConf .pl-pick [data-f]')?.click()")
+        fc.value.set_files(fp); pg.wait_for_timeout(1200)
+        def tap(fx, fy):
+            r = pg.evaluate("() => { const b = document.querySelector('#svConf .pl-stage').getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; }")
+            pg.mouse.click(r[0] + r[2] * fx, r[1] + r[3] * fy); pg.wait_for_timeout(150)
+        pg.evaluate("() => document.querySelector('#svConf [data-tool=\"sc\"]')?.click()")
+        tap(.1, .5); tap(.6, .5); pg.wait_for_timeout(200)
+        pg.fill("#svConf .pl-ask", "10"); pg.evaluate("() => document.querySelector('#svConf .pl-pick [data-ok]')?.click()"); pg.wait_for_timeout(200)
+        pg.evaluate("() => document.querySelector('#svConf [data-tool=\"l\"]')?.click()")
+        tap(.1, .2); tap(.35, .2); pg.evaluate("() => document.querySelector('#svConf [data-end]')?.click()"); pg.wait_for_timeout(200)
+        mv = pg.evaluate("() => (document.querySelector('#svConf .pl-mr span') || {}).textContent || ''")
+        pg.evaluate("() => { const s = document.querySelector('#svConf .pl-prd'); s.value = s.options[1].value; const f = document.querySelector('#svConf .pl-f'); f.value = 'd1'; document.querySelector('#svConf [data-send]').click(); }"); pg.wait_for_timeout(300)
+        pv6 = pg.evaluate(f"() => {{ const I = {ins}.INS; const id = document.querySelector('#svConf .pl-prd').options[1].value; return Number((I.prd.find(r => r.id === id) || {{}}).d1); }}")
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(200)
+        pg.evaluate(f"() => {{ const X = {ins}; const o = JSON.parse(X.INS.__p6); X.INS.prd = o.prd; if (o.plans) X.INS.plans = o.plans; else delete X.INS.plans; delete X.INS.__p6; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v671 axe 6 : axes 1.1, 1.05, 1.2, B1, B1.1, B2 ; plan image : échelle 10 m sur une cote, longueur mesurée = 5 M, DIM 1 du produit rempli",
+              ax == "1.1,1.05,1.2,B1,B1.1,B2" and mv.startswith("5 M") and abs(pv6 - 5) < 0.05, [ax, mv, pv6])
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
