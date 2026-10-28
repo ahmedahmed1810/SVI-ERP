@@ -232,6 +232,17 @@
                   const left = ip.left - (parseFloat(getComputedStyle(li).marginLeft) || 0) + D * 16;
                   l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${left}px;width:${Math.max(20, cr.right - left)}px;top:${(after ? r.bottom : r.top) - 1.5}px`;
                 }
+              } else if (k === "sec" && !el.classList.contains("act-grp")) {
+                /* v664 (axe 9) : milieu = superposer (titre commun) ; haut / bas = avant / après (prend le titre de la ligne visée) */
+                const f = (e.clientY - r.top) / (r.height || 1);
+                over = f > .25 && f < .75;
+                after = f >= .75;
+                if (over) x.classList.add("ro-on");
+                else {
+                  let l = document.getElementById("roLine");
+                  if (!l) { l = document.createElement("div"); l.id = "roLine"; document.body.appendChild(l); }
+                  l.style.cssText = `position:fixed;z-index:10060;pointer-events:none;height:3px;border-radius:2px;background:var(--inst,#12355b);left:${r.left}px;width:${r.width}px;top:${(after ? r.bottom : r.top) - 1.5}px`;
+                }
               } else {
                 /* déplacement simple : un seul trait à l'endroit du dépôt */
                 after = e.clientY > (r.top + r.bottom) / 2;
@@ -289,6 +300,17 @@
         if (k === "lot") { if (!over && gap) lotDrop(el.dataset.iid, gap.el, "gap", gap); else if (over) lotDrop(el.dataset.iid, target, "on"); return; }
         const bset = new Set(blockIds);
         const block = arr.filter(r => bset.has(r.id));
+        /* v664 (axe 9) : titre des activités secondaires — superposer = titre commun (celui de la ligne visée, sinon un nouveau « TITRE n ») ;
+           avant / après = le titre de la ligne visée (aucun titre si elle n'en a pas) */
+        let actT = null;
+        if (k === "sec") {
+          const tg = arr.find(r => r.id === target.dataset.iid);
+          const tgG = String((tg && tg.g) || "").trim();
+          actT = over ? (tgG || actNextTitle()) : tgG;
+          if (over && tg && !tgG) tg.g = actT;
+          block.forEach(r => { if (actT) r.g = actT; else delete r.g; });
+          if (over) after = true;
+        }
         arr.splice(0, arr.length, ...arr.filter(r => !bset.has(r.id)));
         let j = arr.findIndex(r => r.id === target.dataset.iid);
         if (after) j++;
@@ -296,7 +318,8 @@
         if (k === "sec") { dlyPlanFromTasks("sec"); renderTab(); }
         X.insSave();
         histLog(k === "des" ? "DÉSIGNATIONS CLIENT" : k === "chg" ? "DÉTAIL CHARGES" : k === "prd" ? "DÉTAIL PRODUITS" : "TÂCHES",
-          "ORDRE DES LIGNES", String(block[0].des || block[0].v || block[0].art || ""));
+          k === "sec" && over ? "TITRE D'ACTIVITÉS" : "ORDRE DES LIGNES", String(block[0].des || block[0].v || block[0].art || "") + (k === "sec" && over ? " → " + actT : ""));
+        if (k === "sec") { X.insRedraw("prim"); X.insRedraw("sec"); refreshAll(); return; }
         X.insRedraw(k);
       };
       const up = () => end(true);
