@@ -1057,6 +1057,45 @@
       });
     };
 
+    /* =========================================================
+       v665 (AXE 11) : SOUS-DÉTAIL DES PRIX — aperçu au format du bordereau : pour chaque désignation client, ses charges
+       (chacune comptée une fois, sur la première liaison qui la porte), DÉBOURSÉ SEC TOTAL et UNITAIRE (÷ QPB),
+       COEFFICIENT (PPB ÷ déboursé unitaire) et PRIX DE VENTE UNITAIRE (PPB). Désignations sans charge : non reprises.
+       ========================================================= */
+    const sdpData = () => {
+      const seen = new Set(), M = new Map();
+      (INS.links || []).forEach(l => (l.chg || []).forEach(x => {
+        if (seen.has(x.id)) return;
+        const r = INS.chg.find(y => y.id === x.id);
+        if (!r || r.t) return;
+        seen.add(x.id);
+        if (!M.has(l.des)) M.set(l.des, []);
+        M.get(l.des).push(r);
+      }));
+      return INS.des.filter(d => !d.t && M.has(d.id)).map(d => {
+        const ch = M.get(d.id), tot = ch.reduce((t, r) => t + num(r.q || 0) * num(r.p || 0), 0);
+        const q = insLinkedQ(INS, d.id) ?? num(d.q || 0), du = q ? tot / q : 0, pv = num(d.p || 0);
+        return { d, ch, tot, q, du, pv, k: du ? pv / du : 0 };
+      });
+    };
+    const printSousDetail = () => {
+      if (!INS) return;
+      const D = sdpData();
+      if (!D.length) { sviAlert("AUCUNE DÉSIGNATION AVEC DES CHARGES LIÉES : RIEN À DÉTAILLER."); return; }
+      const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
+      const body = D.map(x => {
+        const head = `<tr>${td("<b>" + esc(artOf(x.d)) + "</b>", "c")}${td("<b>" + esc(x.d.des || "") + "</b>")}${td("<b>" + esc(x.d.u || "") + "</b>", "c")}${td("<b>" + money(x.q) + "</b>", "r")}${td("")}${td("")}</tr>`;
+        const rows = x.ch.map(r => `<tr>${td("")}${td(esc(r.des || ""))}${td(esc(r.u || ""), "c")}${td(money(num(r.q || 0)), "r")}${td(money(num(r.p || 0)), "r")}${td(money(num(r.q || 0) * num(r.p || 0)), "r")}</tr>`).join("");
+        const ln = (lab, v) => `<tr>${td("")}${td("<b>" + lab + "</b>", "r")}${td("")}${td("")}${td("")}${td("<b>" + v + "</b>", "r")}</tr>`;
+        return head + rows + ln("DÉBOURSÉ SEC TOTAL", money(x.tot)) + ln("DÉBOURSÉ SEC UNITAIRE (÷ " + money(x.q) + ")", money(x.du))
+          + ln("COEFFICIENT DE VENTE", x.k ? String(Math.round(x.k * 1000) / 1000).replace(".", ",") : "—") + ln("PRIX DE VENTE UNITAIRE HT", money(x.pv));
+      }).join("");
+      printModel({ branch: "DÉSIGNATIONS CLIENT", docTitle: "SOUS-DÉTAIL DES PRIX", fileTag: "SOUS-DETAIL DES PRIX", headLine: "SOUS-DÉTAIL DES PRIX",
+        table: `<table id="tpl"><colgroup><col style="width:7%"><col style="width:45%"><col style="width:6%"><col style="width:12%"><col style="width:13%"><col style="width:17%"></colgroup>
+          <thead><tr><th>ART.</th><th>DÉSIGNATION / CHARGES</th><th>U</th><th>QUANTITÉ</th><th>P.U. HT</th><th>MONTANT HT</th></tr></thead>
+          <tbody>${body}</tbody></table>`, end: "" });
+    };
+    shell.__sdp = () => printSousDetail();
     /* bouton d'impression de la liste des budgets : même aperçu */
     window.__sviPrintClient = printClient;
 

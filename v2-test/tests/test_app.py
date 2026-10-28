@@ -2001,6 +2001,31 @@ def main():
         check("v664 axe 13 : coût d'une journée de main d'œuvre = 280 DH (JH) et 35 DH (H, 8 h par jour), appliqué aux PCB",
               "280" in tot13 and p13 == [280, 35], [tot13, p13])
 
+        # v665 (axes 5 et 11) : COMPARATIF DES PRIX (écart, couleurs, moyenne, résultat) et APERÇU SOUS-DÉTAIL DES PRIX
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.__c5 = JSON.stringify({{ des: I.des, links: I.links, chg: I.chg }});
+            const d1 = I.des.find(d => d.id === 'd1'); d1.p = 1000; I.chg.push({{ id: 'sd1', des: 'CIMENT SD', u: 'T', q: 2, p: 1500 }}); I.links.find(l => l.id === 'L1').chg = [{{ id: 'sd1' }}];
+            delete I.cmp; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        pg.evaluate("() => { const s = [...document.querySelectorAll('*')].find(e => e.__cmpWin); s.__cmpWin(); }"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf [data-add]')?.click()"); pg.wait_for_timeout(200)
+        pg.evaluate("() => document.querySelector('#svConf [data-add]')?.click()"); pg.wait_for_timeout(200)
+        ins5 = pg.evaluate("() => [...document.querySelectorAll('#svConf input.cmp-in[data-d=\"d1\"]')].length")
+        pg.fill('#svConf input.cmp-in[data-d="d1"] >> nth=0', "1200"); pg.fill('#svConf input.cmp-in[data-d="d1"] >> nth=1', "800")
+        r5 = pg.evaluate("""() => { const tr = document.querySelector('#svConf tr[data-d="d1"]'); const e = [...tr.querySelectorAll('[data-c="e"]')], q = [...tr.querySelectorAll('[data-c="p"]')];
+            return [e.map(x => x.textContent + ':' + x.className).join('|'), q.map(x => x.textContent).join('|'), tr.querySelector('[data-c="ap"]').textContent]; }""")
+        pg.evaluate("() => { const r = document.querySelector('#svConf input[name=\"cmpRes\"][value=\"G\"]'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }")
+        rt5 = pg.evaluate("() => document.querySelector('#svConf .cmp-rt').textContent")
+        pg.evaluate("() => document.querySelector('#svConf [data-save]')?.click()"); pg.wait_for_timeout(300)
+        sv5 = pg.evaluate(f"() => {{ const c = {ins}.INS.cmp; return c ? [c.of.length, c.res, c.of[0].p.d1] : null; }}")
+        with ctx.expect_page(timeout=5000) as pi:
+            pg.evaluate("() => { const s = [...document.querySelectorAll('*')].find(e => e.__sdp); s.__sdp(); }")
+        pv = pi.value; pv.wait_for_timeout(1500)
+        t11 = pv.evaluate("() => document.body.innerText").replace("\u202f", " ").replace("\xa0", " "); pv.close()
+        pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; const o = JSON.parse(I.__c5); I.des = o.des; I.links = o.links; I.chg = o.chg; delete I.__c5; delete I.cmp; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        check("v665 axe 5 : comparatif — offre à 1 200 = −200 DH vert (−16,7 %), offre à 800 = +200 DH rouge (+25 %), moyenne 1 000 ; offre GAGNÉE enregistrée",
+              ins5 == 2 and "-200,00:r cmp-ok" in r5[0].replace("−", "-") and "+200,00:r cmp-ko" in r5[0] and "-16,7 %" in r5[1] and "+25 %" in r5[1] and r5[2].replace("\u202f", " ") == "1 000,00" and "1 GAGNÉE(S)" in rt5 and sv5 == [2, "G", 1200], [ins5, r5, rt5, sv5])
+        check("v665 axe 11 : aperçu SOUS-DÉTAIL DES PRIX — charges, déboursé sec total 3 000,00, coefficient, prix de vente unitaire",
+              "SOUS-DÉTAIL DES PRIX" in t11 and "CIMENT SD" in t11 and "DÉBOURSÉ SEC TOTAL" in t11 and "3 000,00" in t11 and "COEFFICIENT DE VENTE" in t11 and "PRIX DE VENTE UNITAIRE HT" in t11, t11[:500])
+
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

@@ -19529,6 +19529,98 @@ function renderBudgetList() {
       paint();
     };
     shell.__moWin = () => moWin();
+    /* =========================================================
+       v665 (AXE 5) : COMPARATIF DES PRIX — un seul tableau : désignations client en lignes ; MON PRIX puis, pour chaque offre
+       (estimation du maître d'ouvrage, devis de concurrents), PRIX, ÉCART DH et % (vert : je suis moins cher, rouge : plus cher) ;
+       dernier groupe = PRIX MOYEN des autres offres, avec écart et %. Ligne TOTAL (prix × QPB).
+       Suivi de l'offre remise : RÉSULTAT (EN ATTENTE / GAGNÉE / PERDUE), MONTANT DU MOINS-DISANT, et TAUX DE RÉUSSITE de tous les budgets.
+       Données : INS.cmp = { of: [{ id, nom, p: { idDésignation: prix } }], res, md }.
+       ========================================================= */
+    const cmpWin = () => {
+      const C = JSON.parse(JSON.stringify(INS.cmp || { of: [], res: "", md: "" }));
+      C.of = C.of || [];
+      const D = INS.des.filter(d => !d.t);
+      const qOf = d => insLinkedQ(INS, d.id) ?? num(d.q || 0);
+      const nb = v => v === "" || v === undefined || v === null ? null : Number(String(v).replace(/\s/g, "").replace(",", "."));
+      const ed = INS_EDIT;
+      const pct = (a, b) => b ? (a - b) / b * 100 : null;
+      const cls = e => e === null || Math.abs(e) < 1e-9 ? "" : e < 0 ? "cmp-ok" : "cmp-ko";
+      const fp = v => v === null ? "—" : (v > 0 ? "+" : "") + String(Math.round(v * 10) / 10).replace(".", ",") + " %";
+      const fm = v => v === null ? "—" : (v > 0 ? "+" : "") + money(v);
+      const rate = () => {
+        const L = sviInstGet().map(x => x.ref === ref ? C.res : ((x.data || {}).cmp || {}).res).filter(r => r === "G" || r === "P");
+        const g = L.filter(r => r === "G").length;
+        return L.length ? g + " GAGNÉE(S) SUR " + L.length + " OFFRE(S) TRANCHÉE(S) — " + Math.round(g / L.length * 100) + " %" : "AUCUNE OFFRE TRANCHÉE";
+      };
+      const d = sviWinNew();
+      const draw = () => {
+        const head = `<tr><th rowspan="2">ART.</th><th rowspan="2">DÉSIGNATION</th><th rowspan="2">QPB</th><th rowspan="2">MON PRIX</th>
+          ${C.of.map(o => `<th colspan="3" class="cmp-oh">${ed ? `<input class="cmp-nm" data-o="${o.id}" value="${esc(o.nom || "")}" placeholder="NOM DE L'OFFRE">` : esc(o.nom || "")}${ed ? `<button type="button" class="cmp-del" data-del="${o.id}" title="Retirer l'offre">✕</button>` : ""}</th>`).join("")}
+          ${C.of.length ? `<th colspan="3" class="cmp-oh">PRIX MOYEN DES OFFRES</th>` : ""}</tr>
+          <tr>${C.of.concat(C.of.length ? [{}] : []).map(() => `<th>PRIX</th><th>ÉCART DH</th><th>%</th>`).join("")}</tr>`;
+        const rows = D.map(r => `<tr data-d="${r.id}"><td class="c">${esc(artOf(r))}</td><td>${esc(r.des || "")}</td><td class="r">${money(qOf(r))}</td><td class="r cmp-me">${money(num(r.p || 0))}</td>
+          ${C.of.map(o => `<td class="r">${ed ? `<input class="cmp-in" inputmode="decimal" data-o="${o.id}" data-d="${r.id}" value="${esc(o.p[r.id] === undefined || o.p[r.id] === "" ? "" : String(o.p[r.id]).replace(".", ","))}">` : money(nb(o.p[r.id]) || 0)}</td><td class="r" data-c="e" data-o="${o.id}"></td><td class="r" data-c="p" data-o="${o.id}"></td>`).join("")}
+          ${C.of.length ? `<td class="r" data-c="ap"></td><td class="r" data-c="ae"></td><td class="r" data-c="aq"></td>` : ""}</tr>`).join("");
+        const tot = `<tr class="cmp-tot"><td></td><td><b>TOTAL HT</b></td><td></td><td class="r" data-t="me"></td>${C.of.map(o => `<td class="r" data-t="p" data-o="${o.id}"></td><td class="r" data-t="e" data-o="${o.id}"></td><td class="r" data-t="q" data-o="${o.id}"></td>`).join("")}${C.of.length ? `<td class="r" data-t="ap"></td><td class="r" data-t="ae"></td><td class="r" data-t="aq"></td>` : ""}</tr>`;
+        d.innerHTML = sviWinCard({ cls: "cmp-card svc-full", close: "data-x", title: "COMPARATIF DES PRIX",
+          body: `<div class="cmp-bar">${ed ? `<button type="button" class="svc-b" data-add>+ AJOUTER UNE OFFRE</button>` : ""}
+              <span class="cmp-leg"><i class="cmp-ok">■</i> JE SUIS MOINS CHER <i class="cmp-ko">■</i> JE SUIS PLUS CHER</span></div>
+            <div class="cmp-scroll"><table class="cmp-t"><thead>${head}</thead><tbody>${rows}${tot}</tbody></table></div>
+            <div class="fz-blk">SUIVI DE L'OFFRE REMISE</div>
+            <div class="cmp-res"><span>RÉSULTAT</span>${[["", "EN ATTENTE"], ["G", "GAGNÉE"], ["P", "PERDUE"]].map(([v, l]) => `<label><input type="radio" name="cmpRes" value="${v}"${(C.res || "") === v ? " checked" : ""}${ed ? "" : " disabled"}> ${l}</label>`).join("")}
+              <span>MOINS-DISANT (DH HT)</span><input class="pv-in cmp-md" inputmode="decimal" value="${esc(C.md === "" || C.md === undefined ? "" : String(C.md).replace(".", ","))}"${ed ? "" : " disabled"}><b class="cmp-mde"></b></div>
+            <div class="cmp-rate">TAUX DE RÉUSSITE (TOUS LES BUDGETS) : <b class="cmp-rt"></b></div>`,
+          foot: `<button type="button" class="svc-b" data-x>${ed ? "ANNULER" : "FERMER"}</button>${ed ? `<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>` : ""}` });
+        paint();
+      };
+      const paint = () => {
+        const me = D.reduce((t, r) => t + qOf(r) * num(r.p || 0), 0);
+        const set = (sel, v, c = "") => { const e = d.querySelector(sel); if (e) { e.textContent = v; e.className = "r " + c; } };
+        const avgOf = r => { const v = C.of.map(o => nb(o.p[r.id])).filter(x => x !== null && Number.isFinite(x)); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+        D.forEach(r => {
+          const tr = d.querySelector(`tr[data-d="${r.id}"]`); if (!tr) return;
+          const mp = num(r.p || 0);
+          C.of.forEach(o => { const v = nb(o.p[r.id]); const e = v === null ? null : mp - v;
+            const ce = tr.querySelector(`[data-c="e"][data-o="${o.id}"]`), cp = tr.querySelector(`[data-c="p"][data-o="${o.id}"]`);
+            if (ce) { ce.textContent = fm(e); ce.className = "r " + cls(e); } if (cp) { cp.textContent = v === null ? "—" : fp(pct(mp, v)); cp.className = "r " + cls(e); } });
+          if (C.of.length) { const a = avgOf(r), e = a === null ? null : mp - a;
+            const q = (c, t, k) => { const x = tr.querySelector(`[data-c="${c}"]`); if (x) { x.textContent = t; x.className = "r " + k; } };
+            q("ap", a === null ? "—" : money(a), ""); q("ae", fm(e), cls(e)); q("aq", a === null ? "—" : fp(pct(mp, a)), cls(e)); }
+        });
+        set('[data-t="me"]', money(me));
+        let sa = 0, any = false;
+        C.of.forEach(o => {
+          const t = D.reduce((s, r) => s + qOf(r) * (nb(o.p[r.id]) || 0), 0), e = me - t;
+          set(`[data-t="p"][data-o="${o.id}"]`, money(t)); set(`[data-t="e"][data-o="${o.id}"]`, fm(e), cls(e)); set(`[data-t="q"][data-o="${o.id}"]`, fp(pct(me, t)), cls(e));
+        });
+        if (C.of.length) { D.forEach(r => { const a = avgOf(r); if (a !== null) { sa += qOf(r) * a; any = true; } }); const e = any ? me - sa : null;
+          set('[data-t="ap"]', any ? money(sa) : "—"); set('[data-t="ae"]', fm(e), cls(e)); set('[data-t="aq"]', any ? fp(pct(me, sa)) : "—", cls(e)); }
+        const md = nb(C.md), mde = d.querySelector(".cmp-mde");
+        if (mde) { const e = md === null || !Number.isFinite(md) ? null : me - md; mde.textContent = e === null ? "" : "MON ÉCART : " + fm(e) + " DH (" + fp(pct(me, md)) + ")"; mde.className = "cmp-mde " + cls(e); }
+        const rt = d.querySelector(".cmp-rt"); if (rt) rt.textContent = rate();
+      };
+      draw();
+      sviWinShow(d);
+      d.addEventListener("input", e => {
+        const i = e.target;
+        if (i.classList.contains("cmp-in")) { const o = C.of.find(x => x.id === i.dataset.o); if (o) { const v = i.value.trim(); if (v === "") delete o.p[i.dataset.d]; else o.p[i.dataset.d] = nb(v); } paint(); }
+        else if (i.classList.contains("cmp-nm")) { const o = C.of.find(x => x.id === i.dataset.o); if (o) o.nom = i.value.toUpperCase(); }
+        else if (i.classList.contains("cmp-md")) { C.md = i.value.trim() === "" ? "" : nb(i.value); paint(); }
+      });
+      d.addEventListener("change", e => { if (e.target.name === "cmpRes") { C.res = e.target.value; paint(); } });
+      d.addEventListener("click", async e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        if (e.target.closest("[data-add]")) { C.of.push({ id: insId(), nom: C.of.length ? "CONCURRENT " + C.of.length : "ESTIMATION DU MAÎTRE D'OUVRAGE", p: {} }); draw(); return; }
+        const del = e.target.closest("[data-del]");
+        if (del) { const o = C.of.find(x => x.id === del.dataset.del); if (o && (!Object.keys(o.p).length || await svConfirm({ title: "RETIRER L'OFFRE", text: "L'OFFRE " + (o.nom || "") + " ET SES PRIX SERONT RETIRÉS DU COMPARATIF.", ok: "RETIRER" }))) { C.of = C.of.filter(x => x !== o); } if (!document.body.contains(d)) sviWinShow(d); draw(); return; }
+        if (e.target.closest("[data-save]")) {
+          INS.cmp = C; insSave();
+          histLog("DÉSIGNATIONS CLIENT", "COMPARATIF DES PRIX", C.of.length + " OFFRE(S)" + (C.res === "G" ? " — GAGNÉE" : C.res === "P" ? " — PERDUE" : ""));
+          d.remove(); refreshAll();
+        }
+      });
+    };
+    shell.__cmpWin = () => cmpWin();
     shell.__mg = {
       pv: () => mgPvWin(),
       sortable: k => ["chg", "prd", "mg", "pct"].includes(k),
@@ -20610,6 +20702,45 @@ function renderBudgetList() {
       });
     };
 
+    /* =========================================================
+       v665 (AXE 11) : SOUS-DÉTAIL DES PRIX — aperçu au format du bordereau : pour chaque désignation client, ses charges
+       (chacune comptée une fois, sur la première liaison qui la porte), DÉBOURSÉ SEC TOTAL et UNITAIRE (÷ QPB),
+       COEFFICIENT (PPB ÷ déboursé unitaire) et PRIX DE VENTE UNITAIRE (PPB). Désignations sans charge : non reprises.
+       ========================================================= */
+    const sdpData = () => {
+      const seen = new Set(), M = new Map();
+      (INS.links || []).forEach(l => (l.chg || []).forEach(x => {
+        if (seen.has(x.id)) return;
+        const r = INS.chg.find(y => y.id === x.id);
+        if (!r || r.t) return;
+        seen.add(x.id);
+        if (!M.has(l.des)) M.set(l.des, []);
+        M.get(l.des).push(r);
+      }));
+      return INS.des.filter(d => !d.t && M.has(d.id)).map(d => {
+        const ch = M.get(d.id), tot = ch.reduce((t, r) => t + num(r.q || 0) * num(r.p || 0), 0);
+        const q = insLinkedQ(INS, d.id) ?? num(d.q || 0), du = q ? tot / q : 0, pv = num(d.p || 0);
+        return { d, ch, tot, q, du, pv, k: du ? pv / du : 0 };
+      });
+    };
+    const printSousDetail = () => {
+      if (!INS) return;
+      const D = sdpData();
+      if (!D.length) { sviAlert("AUCUNE DÉSIGNATION AVEC DES CHARGES LIÉES : RIEN À DÉTAILLER."); return; }
+      const td = (v, cls = "") => `<td class="${cls}">${v}</td>`;
+      const body = D.map(x => {
+        const head = `<tr>${td("<b>" + esc(artOf(x.d)) + "</b>", "c")}${td("<b>" + esc(x.d.des || "") + "</b>")}${td("<b>" + esc(x.d.u || "") + "</b>", "c")}${td("<b>" + money(x.q) + "</b>", "r")}${td("")}${td("")}</tr>`;
+        const rows = x.ch.map(r => `<tr>${td("")}${td(esc(r.des || ""))}${td(esc(r.u || ""), "c")}${td(money(num(r.q || 0)), "r")}${td(money(num(r.p || 0)), "r")}${td(money(num(r.q || 0) * num(r.p || 0)), "r")}</tr>`).join("");
+        const ln = (lab, v) => `<tr>${td("")}${td("<b>" + lab + "</b>", "r")}${td("")}${td("")}${td("")}${td("<b>" + v + "</b>", "r")}</tr>`;
+        return head + rows + ln("DÉBOURSÉ SEC TOTAL", money(x.tot)) + ln("DÉBOURSÉ SEC UNITAIRE (÷ " + money(x.q) + ")", money(x.du))
+          + ln("COEFFICIENT DE VENTE", x.k ? String(Math.round(x.k * 1000) / 1000).replace(".", ",") : "—") + ln("PRIX DE VENTE UNITAIRE HT", money(x.pv));
+      }).join("");
+      printModel({ branch: "DÉSIGNATIONS CLIENT", docTitle: "SOUS-DÉTAIL DES PRIX", fileTag: "SOUS-DETAIL DES PRIX", headLine: "SOUS-DÉTAIL DES PRIX",
+        table: `<table id="tpl"><colgroup><col style="width:7%"><col style="width:45%"><col style="width:6%"><col style="width:12%"><col style="width:13%"><col style="width:17%"></colgroup>
+          <thead><tr><th>ART.</th><th>DÉSIGNATION / CHARGES</th><th>U</th><th>QUANTITÉ</th><th>P.U. HT</th><th>MONTANT HT</th></tr></thead>
+          <tbody>${body}</tbody></table>`, end: "" });
+    };
+    shell.__sdp = () => printSousDetail();
     /* bouton d'impression de la liste des budgets : même aperçu */
     window.__sviPrintClient = printClient;
 
@@ -22169,6 +22300,11 @@ function renderBudgetList() {
           const v = b.dataset.qq;
           if (v === "title") QQm.addTitle(); else if (v === "sub") QQm.addSub(); else if (v === "cfg") QQm.cfg(); else QQm.del();
         }, true);
+      }
+      /* v665 (axes 5 et 11) : DÉSIGNATIONS CLIENT — COMPARATIF DES PRIX, APERÇU SOUS-DÉTAIL DES PRIX */
+      if (INS && shell.__cmpWin && acts.some(a => a.dataset.blk === "client")) {
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-cmpx="cmp"><span>COMPARATIF DES PRIX…</span></button><button type="button" data-cmpx="sdp"><span>APERÇU SOUS-DÉTAIL DES PRIX</span></button><div class="blk-sep"></div>`);
+        m.addEventListener("click", e => { const b = e.target.closest("[data-cmpx]"); if (!b) return; e.stopPropagation(); m.remove(); if (b.dataset.cmpx === "cmp") shell.__cmpWin(); else shell.__sdp(); }, true);
       }
       /* v664 (axe 13) : DÉTAIL CHARGES — COÛT D'UNE JOURNÉE DE MAIN D'ŒUVRE */
       if (active === "chg" && INS && INS_EDIT && shell.__moWin && acts.some(a => a.dataset.blk === "detail")) {
