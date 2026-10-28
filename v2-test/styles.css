@@ -2666,3 +2666,35 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 #svConf .ver-t th.ver-arch { color: #9aa3b2; }
 #svConf .ver-acts { white-space: nowrap; }
 #svConf .ver-acts .svc-b { height: 30px; padding: 0 10px; font-size: 11px; margin: 2px; }
+
+/* v671 (axe 6) : PLANS ET MÉTRÉ */
+#svConf .pl-card { gap: 6px; }
+#svConf .pl-bar { gap: 6px 8px; }
+#svConf .pl-bar .svc-b { height: 32px; padding: 0 12px; font-size: 11px; }
+#svConf .pl-bar .svc-b.on { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+#svConf .pl-name { font-size: 11px; font-weight: 800; color: #475467; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#svConf .pl-opl { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; }
+#svConf .pl-main { flex: 1; min-height: 0; display: flex; gap: 8px; }
+#svConf .pl-scroll { flex: 1; overflow: auto; border: 1px solid #e5e9f0; border-radius: 8px; background: #f8fafc; -webkit-overflow-scrolling: touch; }
+#svConf .pl-stage { position: relative; }
+#svConf .pl-stage canvas, #svConf .pl-layer, #svConf .pl-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+#svConf .pl-ov { opacity: .5; mix-blend-mode: multiply; }
+#svConf .pl-ax { stroke: #b42318; stroke-dasharray: 10 6; stroke-width: 2; }
+#svConf .pl-axt { fill: #b42318; font-weight: 800; }
+#svConf .pl-svg polyline, #svConf .pl-svg polygon { fill: none; }
+#svConf .pl-svg polygon { fill-opacity: .18; }
+#svConf .pl-m0 { stroke: #2e90fa; fill: #2e90fa; } #svConf .pl-m1 { stroke: #12b76a; fill: #12b76a; } #svConf .pl-m2 { stroke: #f79009; fill: #f79009; }
+#svConf .pl-m3 { stroke: #7a5af8; fill: #7a5af8; } #svConf .pl-m4 { stroke: #ee46bc; fill: #ee46bc; } #svConf .pl-m5 { stroke: #06aed4; fill: #06aed4; }
+#svConf .pl-svg polyline.pl-m0, #svConf .pl-svg polyline.pl-m1, #svConf .pl-svg polyline.pl-m2, #svConf .pl-svg polyline.pl-m3, #svConf .pl-svg polyline.pl-m4, #svConf .pl-svg polyline.pl-m5 { fill: none; }
+#svConf .pl-cur { stroke: #b42318; fill: none; stroke-dasharray: 6 4; } #svConf .pl-curp { fill: #b42318; }
+#svConf .pl-side { width: 300px; overflow: auto; }
+@media (max-width: 760px) { #svConf .pl-main { flex-direction: column; } #svConf .pl-side { width: auto; max-height: 30vh; } }
+#svConf .pl-mr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding: 6px 0; border-bottom: 1px solid #f0f2f6; font-size: 11px; }
+#svConf .pl-mr .pv-in { width: auto; max-width: 150px; height: 28px; font-size: 11px; text-align: left; }
+#svConf .pl-mr .svc-b { height: 28px; padding: 0 8px; font-size: 11px; }
+#svConf .pl-mr i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+#svConf .pl-sw0 { background: #2e90fa; } #svConf .pl-sw1 { background: #12b76a; } #svConf .pl-sw2 { background: #f79009; } #svConf .pl-sw3 { background: #7a5af8; } #svConf .pl-sw4 { background: #ee46bc; } #svConf .pl-sw5 { background: #06aed4; }
+#svConf .pl-axl { display: flex; flex-direction: column; gap: 6px; font-size: 11px; }
+#svConf .pl-pick { position: absolute; inset: 0; background: rgba(15,23,42,.35); display: flex; align-items: center; justify-content: center; z-index: 5; border-radius: 12px; }
+#svConf .pl-pk { background: #fff; border-radius: 12px; padding: 16px; width: min(480px, 92%); max-height: 80%; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+#svConf .pl-ask { width: 100%; text-align: left; }
