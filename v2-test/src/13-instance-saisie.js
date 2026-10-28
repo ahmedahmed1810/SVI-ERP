@@ -9,23 +9,14 @@
        ========================================================= */
     const INS = sviBudgetData(budget.inst);   /* refonte, étape 1 : données du budget (02b) */
     /* v672 (bloc 2) : budget ouvert en modification par un autre utilisateur (verrou de la base V3) = lecture seule */
-    /* v675 : VERROU PAR ONGLET — seul l'onglet du détail ouvert par l'autre est en lecture seule ; changer d'onglet rouvre le budget en modification */
+    /* v676 : VERROU PAR ZONE (02e) — seule la zone où un autre travaille est en lecture seule ; un verrou sans zone (ancienne version) bloque tout */
     const INS_LIVE_EDIT = !!INS && (budget.inst.state || "instance") === "instance";
     const insTabName = k => (tabs.find(t => t.key === k) || {}).title || k;
-    const INS_HELD = INS_LIVE_EDIT && budget.inst.ref && typeof sviLockOther === "function" ? sviLockOther(budget.inst.ref, insTabName(active)) : null;
+    const INS_HELD = INS_LIVE_EDIT && budget.inst.ref && typeof sviLockAll === "function" ? sviLockAll(budget.inst.ref).find(k => !k.onglet) || null : null;
     const INS_EDIT = INS_LIVE_EDIT && !INS_HELD;
-    if (INS && typeof sviLockOpen === "function") sviLockOpen(budget.inst.ref, INS_EDIT, insTabName(active));
-    /* l'onglet ouvert change de mode (pris ou libéré par l'autre) : budget rouvert sur le même onglet */
-    const insLockSwitch = () => {
-      if (!INS_LIVE_EDIT || typeof sviLockOther !== "function") return false;
-      const held = !!sviLockOther(budget.inst.ref, insTabName(active));
-      if (held === !INS_EDIT) return false;
-      window.__sviForceTab = active;
-      if (INS_EDIT && typeof sviLockClose === "function") sviLockClose();   /* mon verrou rendu tout de suite */
-      setTimeout(() => { if (document.body.contains(shell)) openBudgetDetail(ref); }, 0);
-      return true;
-    };
-    if (INS) window.__sviLockRecheck = () => { if (window.__sviOpenRef === budget.inst.ref && !insLockSwitch() && INS_EDIT) { window.__sviOpenTab = insTabName(active); } };
+    if (INS && typeof sviLockOpen === "function") sviLockOpen(budget.inst.ref, INS_EDIT);
+    window.__sviZoneCtx = INS ? { ref: budget.inst.ref, edit: INS_EDIT, shell, tab: () => insTabName(active) } : null;
+    if (INS) { window.__sviLockRecheck = () => { if (typeof sviZonePaint === "function") sviZonePaint(); }; setTimeout(() => { if (typeof sviZonePaint === "function") sviZonePaint(); }, 0); }
     /* v672 : budget fusionné ou reçu de la base pendant qu'il est ouvert → données à l'écran remplacées */
     if (INS) window.__sviSyncReopen = r => {
       if (r !== budget.inst.ref) return;

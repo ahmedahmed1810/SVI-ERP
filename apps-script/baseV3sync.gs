@@ -1,5 +1,5 @@
 /* =========================================================
-   SVI ERP — BLOC 2 : ENREGISTREMENT DES BUDGETS DANS LA BASE V3 (v672, verrou par onglet v675)
+   SVI ERP — BLOC 2 : ENREGISTREMENT DES BUDGETS DANS LA BASE V3 (v672, verrou par zone v676)
 
    INSTALLATION (une seule fois) :
    1) Apps Script › Fichier + › Script, nom : baseV3sync — coller tout ce fichier.
@@ -12,7 +12,8 @@
    - SYNC : un budget par ligne — REF, PROJET, ETAT, REV, TS, USER, LONGUEUR, puis le budget complet
      (texte JSON) découpé dans les colonnes H, I, J… (45 000 caractères par case).
    - VERROUS : REF, USER, ONGLET, TS — qui modifie quel onglet de quel budget (un verrou vieux de plus de 3 minutes ne compte plus).
-     v675 : VERROU PAR ONGLET — un autre utilisateur ne bloque que le même onglet du même budget.
+     v676 : VERROU PAR ZONE — ONGLET = DÉSIGNATIONS CLIENT, LOTS, ACTIVITÉS PRIMAIRES, ACTIVITÉS SECONDAIRES ou l'onglet du détail ;
+     un autre utilisateur ne bloque que la même zone du même budget (ONGLET vide = ancienne version : tout le budget).
    Les onglets BUDGETS, DESIGNATIONS, TACHES, DETAILS reçoivent la « photo » du budget à FIGER et à VALIDER.
 
    ACTIONS (POST, avec la clé) :
