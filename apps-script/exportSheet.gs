@@ -16,6 +16,12 @@
 /* actions Drive : exportSheet (feuille Google mise en forme)
    et saveFile (PDF, Excel, CSV, JSON, documents joints) */
 function sviDriveRoute_(body) {
+  /* v672 (bloc 2) : enregistrement des budgets dans la base V3 (fichier baseV3sync) */
+  if (body && typeof sviSyncRoute_ === "function" && /^v3(List|Pull|Push|Del|Lock|Unlock|Photo|Stats)$/.test(String(body.action || ""))) {
+    var so;
+    try { so = sviSyncRoute_(body); } catch (err) { so = { ok: false, error: String(err && err.message || err) }; }
+    return ContentService.createTextOutput(JSON.stringify(so)).setMimeType(ContentService.MimeType.JSON);
+  }
   if (!body || ["exportSheet", "saveFile", "drivePath", "v3Read", "srcGet", "srcSet", "sheetRead"].indexOf(body.action) < 0) return null;
   var out;
   try {

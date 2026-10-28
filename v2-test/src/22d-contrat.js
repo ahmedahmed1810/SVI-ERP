@@ -82,7 +82,7 @@
     /* documents des autres budgets (ancien marché…) */
     const ctrOtherDocs = () => {
       const out = [];
-      try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (!k || !k.startsWith("svi_docs_v1:") || k === "svi_docs_v1:" + ref) continue;
+      try { for (let i = 0; i < localStorage.length; i++) { const k = String(localStorage.key(i) || "").replace(/^svitest:/, ""); if (!k || !k.startsWith("svi_docs_v1:") || k === "svi_docs_v1:" + ref) continue;
         (JSON.parse(localStorage.getItem(k) || "[]") || []).forEach(d => { if (d && (d.idb || d.data)) out.push({ ...d, from: k.slice(12) }); }); } } catch (e) {}
       return out;
     };

@@ -8,7 +8,18 @@
        - budget figé : lecture seule.
        ========================================================= */
     const INS = sviBudgetData(budget.inst);   /* refonte, étape 1 : données du budget (02b) */
-    const INS_EDIT = !!INS && (budget.inst.state || "instance") === "instance";
+    /* v672 (bloc 2) : budget ouvert en modification par un autre utilisateur (verrou de la base V3) = lecture seule */
+    const INS_HELD = INS && budget.inst.ref && typeof sviLockOther === "function" ? sviLockOther(budget.inst.ref) : null;
+    const INS_EDIT = !!INS && (budget.inst.state || "instance") === "instance" && !INS_HELD;
+    if (INS && typeof sviLockOpen === "function") sviLockOpen(budget.inst.ref, INS_EDIT);
+    /* v672 : budget fusionné ou reçu de la base pendant qu'il est ouvert → données à l'écran remplacées */
+    if (INS) window.__sviSyncReopen = r => {
+      if (r !== budget.inst.ref) return;
+      const it = sviInstGet().find(x => x.ref === r); if (!it || !it.data) return;
+      Object.keys(INS).forEach(k => { delete INS[k]; }); Object.assign(INS, JSON.parse(JSON.stringify(it.data)));
+      try { refreshAll(); } catch (e) {}
+    };
+    if (INS_HELD) setTimeout(() => { try { svToast("EN LECTURE SEULE : " + INS_HELD.user + " MODIFIE CE BUDGET.", 6000); } catch (e) {} }, 400);
     /* v448 : largeur tableau / Gantt tirée à la main, retrouvée à l'ouverture de ce budget */
     const DLYG_REF = (budget.inst && budget.inst.ref) || budget.ref || "";
     const dlygMine = o => !!o && (o.ins === INS || (DLYG_REF && o.ref === DLYG_REF));
