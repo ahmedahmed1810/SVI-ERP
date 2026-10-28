@@ -697,7 +697,7 @@
     shell.__fuse = INS && INS_EDIT ? { INS, LK, insId, check: lkCheck, allToggle: k => lkAllToggle(k), chain: () => insRenderChain(), refresh: () => refreshAll(),
       partToggle: (k, key) => lkPartToggle(k, key),
       commit: () => { const r0 = lkCommit(); if (shell.__prdSyncU && shell.__prdSyncU()) refreshAll(); return r0; }, guard: () => lkGuard(), pending: () => lkPending(), ruleA: (k, id) => lkRuleA(k, id),
-      light: k => lkLight(k), unlink: (k, id) => lkUnlink(k, id), name: (k, id) => lkName(k, id),
+      light: k => { lkLight(k); try { REC_KINDS.forEach(renderRec); } catch (e) {} }, unlink: (k, id) => lkUnlink(k, id), name: (k, id) => lkName(k, id),
       unitErr: () => "",   /* v471 : plus de refus d'unité */
       info: () => {
         /* fenêtre au format INF : titre, ✕, libellés à gauche, état de la liaison, produits et charges, FERMER */

@@ -2602,3 +2602,12 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 #svConf .cmp-res { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 12px; font-weight: 700; }
 #svConf .cmp-res label { display: inline-flex; align-items: center; gap: 5px; }
 #svConf .cmp-rate { font-size: 12px; font-weight: 700; color: #172033; }
+
+/* v666 (axe 8) : quasi-critiques en orange ; bandeau CHEMIN CRITIQUE ; PARAMÉTRAGE DU PLANNING */
+.gb.qcrit { background: linear-gradient(90deg, #f59e0b 0, var(--c) 10%, var(--c) 90%, #f59e0b 100%); }
+.dly-table tr.dly-qcrit td:nth-last-child(n) { }
+.dly-table tr.dly-qcrit .dly-calc { color: #b45309 !important; font-weight: 800; }
+.dly-table tr.dly-crit .dly-calc { color: #b91c1c; font-weight: 800; }
+#svConf .pp-bt { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+#svConf .pp-bt label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+#svConf .pp-bt small { color: #6b7280; font-weight: 700; }

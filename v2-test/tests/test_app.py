@@ -1025,7 +1025,7 @@ def main():
         # remarque 6 : BATTEMENT dans le planning
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(500)
         t6 = pg.evaluate("() => [...document.querySelectorAll('th')].map(t => t.textContent.trim()).filter(t => /BATTEMENT|^MARGE$/.test(t))")
-        check("v527 remarque 6 : marge de délai = BATTEMENT", "BATTEMENT" in t6 and "MARGE" not in t6, t6)
+        check("v527 remarque 6 : marge de délai = BATTEMENT", any("BATTEMENT" in x for x in t6) and "MARGE" not in t6, t6)
 
         # ===== v528 : bloc TÂCHES =====
         pg.mouse.click(5, 5); pg.wait_for_timeout(200)
@@ -2025,6 +2025,42 @@ def main():
               ins5 == 2 and "-200,00:r cmp-ok" in r5[0].replace("−", "-") and "+200,00:r cmp-ko" in r5[0] and "-16,7 %" in r5[1] and "+25 %" in r5[1] and r5[2].replace("\u202f", " ") == "1 000,00" and "1 GAGNÉE(S)" in rt5 and sv5 == [2, "G", 1200], [ins5, r5, rt5, sv5])
         check("v665 axe 11 : aperçu SOUS-DÉTAIL DES PRIX — charges, déboursé sec total 3 000,00, coefficient, prix de vente unitaire",
               "SOUS-DÉTAIL DES PRIX" in t11 and "CIMENT SD" in t11 and "DÉBOURSÉ SEC TOTAL" in t11 and "3 000,00" in t11 and "COEFFICIENT DE VENTE" in t11 and "PRIX DE VENTE UNITAIRE HT" in t11, t11[:500])
+
+        # v666 (axe 8) : BATTEMENT LIBRE, quasi-critiques, filtre CHEMIN CRITIQUE, PARAMÉTRAGE DU PLANNING
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.__p8 = JSON.stringify({{ dlp: I.dlp, dpred: I.dpred, pplan: I.pplan }});
+            I.pplan = {{ qc: 30, bt: 'l' }}; X.insSave(); X.refreshAll(); document.querySelector('.bdg-d-tab[data-tab="dly"]')?.click(); }}"""); pg.wait_for_timeout(600)
+        h8 = pg.evaluate("() => [...document.querySelectorAll('.dly-table th')].map(t => t.textContent.trim()).filter(t => /BATTEMENT/.test(t)).join()")
+        r8 = pg.evaluate("() => { const s = [...document.querySelectorAll('*')].find(e => e.__dlyRows); return JSON.stringify((s.__dlyRows || []).filter(x => !x.grp && x.key).map(x => [x.marge, x.mlib, x.mshow, !!x.qc])); }")
+        X8 = "(() => [...document.querySelectorAll('*')].find(e => e.__insDly).__insDly)()"
+        pg.evaluate(f"() => {X8}.critSet(true)"); pg.wait_for_timeout(500)
+        c8 = pg.evaluate("() => [!!document.querySelector('.dly-critb'), [...document.querySelectorAll('.dly-table tr.dly-task')].length, [...document.querySelectorAll('.dly-table tr.dly-task.dly-crit')].length]")
+        pg.evaluate("() => document.querySelector('.dly-crit-x')?.click()"); pg.wait_for_timeout(400)
+        pg.evaluate(f"() => {X8}.ppWin()"); pg.wait_for_timeout(300)
+        w8 = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
+        pg.fill("#ppQc", "0"); pg.evaluate("() => { const r = document.querySelector('#svConf input[name=\"ppBt\"][value=\"t\"]'); r.checked = true; document.querySelector('#svConf [data-save]').click(); }"); pg.wait_for_timeout(400)
+        s8 = pg.evaluate(f"() => JSON.stringify({ins}.INS.pplan)")
+        pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; const o = JSON.parse(I.__p8); I.dlp = o.dlp; I.dpred = o.dpred; if (o.pplan) I.pplan = o.pplan; else delete I.pplan; delete I.__p8; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
+        import json as _j
+        R8 = _j.loads(r8)
+        ok8 = all((m == "" or (ml != "" and ml <= m and sh == ml and q == (0 < m <= 30))) for m, ml, sh, q in R8) and len(R8) > 0
+        check("v666 axe 8 : BATTEMENT LIBRE affiché (≤ total), quasi-critiques sous le seuil, filtre CHEMIN CRITIQUE (bandeau, seules les critiques), PARAMÉTRAGE DU PLANNING enregistré",
+              h8 == "BATTEMENT LIBRE" and ok8 and c8[0] and c8[1] == c8[2] and w8 == "PARAMÉTRAGE DU PLANNING" and s8 == '{"qc":0,"bt":"t"}', [h8, R8, c8, w8, s8])
+
+        # v666 (axe 10) : TAF créé avec une tâche choisie = rattaché à la tâche ; listes filtrées sur l'élément choisi
+        pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid=\"l1\"] .lk-rd')?.click()"); pg.wait_for_timeout(250)
+        pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"sec\"] .ins-li[data-iid=\"s1\"] .lk-rd')?.click()"); pg.wait_for_timeout(250)
+        pg.evaluate("() => document.querySelector('[data-pill=\"obs\"]')?.click()"); pg.wait_for_timeout(400)
+        o10 = pg.evaluate("() => [...document.querySelectorAll('#docPop select#recAtt option')].map(o => o.textContent + (o.selected ? '*' : '')).join(' | ')")
+        pg.fill("#recText", "OBS TACHE AXE 10"); pg.evaluate("() => document.querySelector('#recSave').click()"); pg.wait_for_timeout(400)
+        a10 = pg.evaluate("() => [...document.querySelectorAll('#recTable-obs tbody tr')].map(t => t.innerText.replace(/\\s+/g, ' ')).find(t => t.includes('OBS TACHE AXE 10')) || 'none'")
+        n10a = pg.evaluate("() => [...document.querySelectorAll('#recTable-obs tbody tr')].filter(t => !t.querySelector('.empty')).length")
+        pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"sec\"] .ins-li[data-iid=\"s1\"] .lk-rd')?.click()"); pg.wait_for_timeout(250)
+        pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid=\"l1\"] .lk-rd')?.click()"); pg.wait_for_timeout(250)
+        n10b = pg.evaluate("() => [...document.querySelectorAll('#recTable-obs tbody tr')].filter(t => !t.querySelector('.empty')).length")
+        pg.evaluate("() => { Object.keys(localStorage).filter(k => k.startsWith('svi_obs_v1:')).forEach(k => { const L = JSON.parse(localStorage.getItem(k) || '[]').filter(x => x.text !== 'OBS TACHE AXE 10'); localStorage.setItem(k, JSON.stringify(L)); }); }")
+        pg.evaluate(f"() => {ins}.refreshAll()"); pg.wait_for_timeout(300)
+        check("v666 axe 10 : OBS créée avec la tâche choisie = RATTACHÉ À BDG › RDC › BETONNAGE (choix le plus fin d'office) ; liste limitée à l'élément choisi, tout au niveau du budget",
+              "RDC › BETONNAGE*" in o10 and "BDG › RDC › BETONNAGE" in a10 and n10a >= 1 and n10b >= n10a, [o10, a10, n10a, n10b])
 
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()

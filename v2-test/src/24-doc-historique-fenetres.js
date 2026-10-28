@@ -163,6 +163,7 @@
             <div class="doc-grid">
               <label class="doc-lab" for="docDate">DATE CRÉATION <b>*</b></label>
               <input id="docDate" class="doc-in" type="datetime-local" value="${local}">
+              ${attFormHTML().replace('id="recAtt"', 'id="recAtt" data-doc="1"')}
               <label class="doc-lab" for="docTitle">INTITULÉ <b>*</b></label>
               <input id="docTitle" class="doc-in" type="text" placeholder="INTITULÉ" autocomplete="off">
               <span class="doc-lab">DOC <b>*</b></span>
@@ -272,7 +273,7 @@
         }
         const list = docsLoad();
         list.push({
-          ref: docRef, date, title: title.toUpperCase(),
+          ref: docRef, date, title: title.toUpperCase(), ...(attRead(p) ? { att: attRead(p) } : {}),
           name: file.name, size: file.size, type: file.type, data, idb
         });
         histLog("DOC", "CRÉATION", docRef + " — " + title);
@@ -300,6 +301,56 @@
     };
 
 
+    /* =========================================================
+       v666 (AXE 10) : DOCUMENTS RATTACHÉS — DOC, TAF et OBS rattachés à l'endroit où ils sont créés : le choix en cours (ronds)
+       donne le rattachement le plus fin — CHARGE ou PRODUIT d'une tâche, TÂCHE (lot › activité secondaire), DÉSIGNATION CLIENT —,
+       sinon le BUDGET. Le formulaire montre « RATTACHÉ À » (modifiable vers un niveau plus haut) avant ENREGISTRER.
+       Listes : sans choix = tout (budget) ; un élément choisi = ses propres documents et ceux de ses fils
+       (tâche → ses charges et produits ; désignation → ses tâches) ; un document du budget n'apparaît qu'au niveau du budget.
+       ========================================================= */
+    const attNm = (k, id) => { try { return lkName(k, id); } catch (e) { return ""; } };
+    const attLab = a => {
+      if (!a || !a.k || a.k === "bdg") return "BDG";
+      const p = ["BDG"];
+      if (a.des) p.push("DÉS " + attNm("des", a.des));
+      if (a.lot && a.sec) p.push(attNm("lot", a.lot) + " › " + attNm("sec", a.sec));
+      if (a.k === "chg") p.push("CHG " + ((INS.chg.find(r => r.id === a.id) || {}).des || ""));
+      if (a.k === "prd") p.push("PRD " + ((INS.prd.find(r => r.id === a.id) || {}).des || ""));
+      return p.join(" › ");
+    };
+    /* niveaux de rattachement possibles d'après les ronds (le plus fin en dernier) */
+    const attChoices = () => {
+      const out = [{ k: "bdg" }];
+      if (!INS || !LK) return out;
+      const des = LK.des || null, task = LK.lot && LK.sec ? { lot: LK.lot, sec: LK.sec } : null;
+      if (des) out.push({ k: "des", des });
+      if (task) out.push({ k: "task", des, ...task });
+      const one = k => { const ks = Object.keys(LK[k] || {}); return ks.length === 1 ? ks[0] : null; };
+      if (task && one("chg")) out.push({ k: "chg", des, ...task, id: one("chg") });
+      if (task && one("prd")) out.push({ k: "prd", des, ...task, id: one("prd") });
+      return out;
+    };
+    const attFormHTML = () => {
+      const C = attChoices();
+      return `<label class="doc-lab" for="recAtt">RATTACHÉ À</label>
+        ${C.length > 1 ? `<select id="recAtt" class="doc-in">${C.map((a, i) => `<option value="${i}"${i === C.length - 1 ? " selected" : ""}>${esc(attLab(a))}</option>`).join("")}</select>`
+          : `<input id="recAtt" class="doc-in doc-ro" value="BDG (AUCUN ÉLÉMENT CHOISI)" readonly>`}`;
+    };
+    const attRead = p => { const C = attChoices(), s = p.querySelector("select#recAtt"); const a = s ? C[+s.value] : C[0]; return a && a.k !== "bdg" ? { ...a } : null; };
+    /* filtre des listes selon le choix en cours */
+    const attFilter = list => {
+      if (!INS || !LK) return list;
+      const C = attChoices(), cur = C[C.length - 1];
+      if (cur.k === "bdg") return list;
+      return list.filter(r => {
+        const a = r.att;
+        if (!a) return false;
+        if (cur.k === "chg" || cur.k === "prd") return a.k === cur.k && a.id === cur.id;
+        if (cur.k === "task") return a.lot === cur.lot && a.sec === cur.sec;
+        if (cur.k === "des") return a.des === cur.des;
+        return true;
+      });
+    };
     /* ===== fenêtres OBS et TAF (même présentation que DOC) ===== */
     const recKey = kind => "svi_" + kind + "_v1:" + String(ref);
     const recLoad = kind => {
@@ -345,14 +396,14 @@
     const recCols = {
       doc: [["rref", "RÉFÉRENCE", r => r.ref, ""],
             ["rtitle", "INTITULÉ", r => r.title, ""],
-            ["rexp", "EXPIRÉ", r => r.expired ? "OUI" : "NON", "center"]],
+            ["rexp", "EXPIRÉ", r => r.expired ? "OUI" : "NON", "center"], ["ratt", "RATTACHÉ À", r => attLab(r.att), ""]],
       taf: [["rref", "RÉFÉRENCE", r => r.ref, ""],
             ["robj", "OBJET TAF", r => r.objet || "", ""], ["rtext", "DESCRIPTIF TAF", r => r.text, ""],
             ["rresp", "RESPONSABLE", r => r.responsable, ""], ["rprev", "PRÉVU LE", r => fmtDT(r.prevu), ""],
             ["rdelay", "DÉLAI PLANIFIÉ", r => hm(new Date(r.prevu) - new Date(r.date)), "number"],
-            ["relap", "DURÉE ÉCOULÉE", r => hm(Date.now() - new Date(r.date)), "number"]],
+            ["relap", "DURÉE ÉCOULÉE", r => hm(Date.now() - new Date(r.date)), "number"], ["ratt", "RATTACHÉ À", r => attLab(r.att), ""]],
       obs: [["rref", "RÉFÉRENCE", r => r.ref, ""],
-            ["rimp", "!", r => r.important ? "!" : "", "center"], ["rtext", "INTITULÉ", r => r.text, ""]]
+            ["rimp", "!", r => r.important ? "!" : "", "center"], ["rtext", "INTITULÉ", r => r.text, ""], ["ratt", "RATTACHÉ À", r => attLab(r.att), ""]]
     };
     /* largeurs : catalogue des colonnes (12, SVI_COL) */
     /* plus récent en premier (ordre par défaut, sans tri choisi) */
@@ -361,7 +412,7 @@
     const recShown = {};
     const recTableData = kind => {
       const cols = recCols[kind];
-      const rows = recShown[kind] || cfApply(kind, cols, recSorted(kind), true);
+      const rows = recShown[kind] || cfApply(kind, cols, attFilter(recSorted(kind)), true);
       const oc = coOrder(kind, cols);
       return { head: oc.map(c => c[1]), rows: rows.map(r => oc.map(c => c[2](r))) };
     };
@@ -370,7 +421,7 @@
       const t = $("recTable-" + kind);
       if (!t) return;
       const cols = recCols[kind];
-      const all = recSorted(kind);
+      const all = attFilter(recSorted(kind));   /* v666 (axe 10) : documents de l'élément choisi et de ses fils */
       const list = cfApply(kind, cols, all);
       recShown[kind] = list;
       const title = $("recTitle-" + kind);

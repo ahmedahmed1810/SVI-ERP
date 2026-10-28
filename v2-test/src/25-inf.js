@@ -280,6 +280,7 @@
             </div>
             <label class="doc-lab" for="recText">INTITULÉ <b>*</b></label>
             <textarea id="recText" class="doc-in doc-ta" placeholder="INTITULÉ"></textarea>
+            ${attFormHTML()}
           </div>` : `
           <div class="doc-grid">
             <label class="doc-lab" for="recDate">DATE CRÉATION <b>*</b></label>
@@ -301,6 +302,7 @@
             <input id="recDelay" class="doc-in doc-ro" type="text" value="0:00" readonly>
             <label class="doc-lab">DURÉE ÉCOULÉE</label>
             <input id="recElapsed" class="doc-in doc-ro" type="text" value="0:00" readonly>
+            ${attFormHTML()}
           </div>`;
 
       const p = sviPopNew();
@@ -379,6 +381,7 @@
           : { ref: recRef, date: $p("recDate").value, objet: $p("recObj").value.trim(),
               text: $p("recText").value.trim(), responsable: $p("recResp").value.trim(),
               prevu: $p("recPDate").value + "T" + $p("recPTime").value };
+        const at = attRead(p); if (at) rec.att = at;   /* v666 (axe 10) */
         const list = recLoad(kind);
         list.push(rec);
         recSave(kind, list);

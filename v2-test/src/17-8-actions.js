@@ -73,6 +73,7 @@
         });
       },
       isoOff: () => { shell.__dlyIso = null; refreshAll(); },
+      critOn: () => dlyCritOn(), critSet: v => { shell.__dlyCrit = v ? DLYG_REF : null; refreshAll(); }, ppWin: () => dlyPPWin(),   /* v666 (axe 8) */
       moveRow: (k, t, after) => shell.__insDly.moveKeys([k], [t], after),
       /* déplacer un bloc de lignes (une tâche, ou toutes les tâches d'un lot) avant / après un autre */
       moveKeys: (ks, ts, after) => {
