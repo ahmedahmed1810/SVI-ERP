@@ -2933,3 +2933,7 @@ td.ins-pmp { position: relative; }
 .bdg-d-sticky.nav-bump { animation: navBump .32s ease; }
 #docPop .inf-note { margin-bottom: 10px; padding: 8px 10px; border-radius: 8px; background: #f3f4f6; color: #3f4856; font-size: 12px; font-weight: 700; }
 .inst-todo.todo-on { color: #b45309; }
+/* v697 : lecture seule au format complet — pas de lignes SAISIR ICI ni de ✕ de suppression */
+.svi-ro .bdg-d-page tr.ins-new, .svi-ro .bdg-d-page .ins-li.ins-new { display: none !important; }
+.svi-ro .bdg-d-page :is(.ins-x, .ins-xall, .ins-delc) { visibility: hidden !important; }
+.svi-ro .bdg-d-page .blk-adj-btn, .svi-ro .bdg-d-page .blk-cfg-btn { opacity: .35; }

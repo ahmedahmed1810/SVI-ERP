@@ -7391,9 +7391,39 @@ function renderBudgetList() {
     const INS_LIVE_EDIT = !!INS && (budget.inst.state || "instance") === "instance" && !INS_ARCH && !budget.inst.virtual;
     const insTabName = k => (tabs.find(t => t.key === k) || {}).title || k;
     const INS_HELD = INS_LIVE_EDIT && budget.inst.ref && typeof sviLockAll === "function" ? sviLockAll(budget.inst.ref).find(k => !k.onglet) || null : null;
-    const INS_EDIT = INS_LIVE_EDIT && !INS_HELD;
-    if (INS && typeof sviLockOpen === "function") sviLockOpen(budget.inst.ref, INS_EDIT);
-    window.__sviZoneCtx = INS ? { ref: budget.inst.ref, edit: INS_EDIT, shell, tab: () => insTabName(active),
+    /* v697 : écrans en lecture seule (figé, validé, consolidé, version, recalage enregistré, scénario archivé, budget pris par un
+       autre) AU FORMAT COMPLET du budget (ronds, cases, Gantt, graphique…) : on dessine comme en saisie (INS_EDIT), mais rien n'est
+       enregistré (INS_REAL faux), aucun verrou n'est pris et les gestes de modification sont arrêtés (garde ci-dessous). */
+    const INS_REAL = INS_LIVE_EDIT && !INS_HELD;
+    const INS_VIEW = !!INS && !INS_REAL;
+    const INS_EDIT = !!INS;
+    const INS_RO_WHY = !INS_VIEW ? "" : budget.inst.virtual ? (budget.inst.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.")
+      : INS_HELD ? "EN LECTURE SEULE : " + INS_HELD.user + " MODIFIE CE BUDGET." : INS_ARCH ? "SCÉNARIO ARCHIVÉ : LECTURE SEULE (DÉSARCHIVER DANS LE BLOC SCÉNARIOS)."
+      : budget.inst.state === "fige" ? "BUDGET FIGÉ : LECTURE SEULE (🔒 POUR REVENIR EN ÉDITION)." : budget.inst.rclOf ? "RECALAGE ENREGISTRÉ : LECTURE SEULE." : "BUDGET VALIDÉ : LECTURE SEULE.";
+    window.__sviRO = INS_RO_WHY;
+    shell.classList.toggle("svi-ro", !!INS_RO_WHY);
+    if (!window.__sviROon) {
+      window.__sviROon = true;
+      let roT = 0;
+      const roSay = () => { if (Date.now() - roT > 2500) { roT = Date.now(); try { svToast(window.__sviRO, 3500); } catch (e) {} } };
+      const EDIT_CLICK = ".ins-x, .ins-xall, .ins-delc, .dly-pred, .dly-pred-new, .dly-succ, .dly-gen, .dly-lev, .dly-jal, .dly-vd-x, #insUnlBtn, .blk-adj-btn, .blk-cfg-btn, [data-act=import], [data-act=paste], [data-act=cut], [data-act=del], .ins-rdbl, .cond-btn, .only-c";
+      const DRAG = "[data-iid], .ins-dv, .gb, .gb-s, .gb-e, .gl-hit, .ghb, .dlyg-l, .grdc, .dlyhh-cfg";
+      const guard = e => {
+        if (!window.__sviRO) return;
+        const t = e.target; if (!t || !t.closest) return;
+        const pg = t.closest(".bdg-d-page"); if (!pg) return;
+        if (t.closest(".cf-btn, .col-rs, [data-tab], .blk-max-btn, .blk-more, .blk-grip, .blk-rsz, .ibd-board, .blk-scn, .blk-ver, .blk-rcl, .blk-suivi")) return;
+        const stop = say => { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); if (say) roSay(); };
+        if (e.type === "focusin") { if (t.matches("input:not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable]")) { try { t.blur(); } catch (er) {} roSay(); } return; }
+        if (e.type === "beforeinput" || e.type === "paste" || e.type === "drop" || e.type === "dragstart") return stop(true);
+        if (e.type === "keydown") { if (/^(Delete|Backspace)$/.test(e.key) || ((e.ctrlKey || e.metaKey) && /^[vx]$/i.test(e.key))) stop(true); return; }
+        if (e.type === "pointerdown" || e.type === "touchstart" || e.type === "mousedown") { if (t.closest(DRAG) && !t.closest("input[type=checkbox], .lk-rd, .ins-rd, .ins-tfz, .lot-fold, .dly-fold")) { e.stopPropagation(); e.stopImmediatePropagation(); } return; }
+        if (e.type === "click" && t.closest(EDIT_CLICK)) return stop(true);
+      };
+      ["focusin", "beforeinput", "paste", "drop", "dragstart", "keydown", "pointerdown", "mousedown", "touchstart", "click"].forEach(ev => document.addEventListener(ev, guard, true));
+    }
+    if (INS && typeof sviLockOpen === "function") sviLockOpen(budget.inst.ref, INS_REAL);
+    window.__sviZoneCtx = INS ? { ref: budget.inst.ref, edit: INS_REAL, shell, tab: () => insTabName(active),
       /* v678 : état du budget à l'entrée dans une zone, remis si la zone était déjà prise */
       snap: () => JSON.stringify(INS),
       restore: (str, why) => { const o = JSON.parse(str); Object.keys(INS).forEach(k => { delete INS[k]; }); Object.assign(INS, o); insSave(); try { histLog("BASE V3", "MODIFICATIONS ANNULÉES", why || ""); } catch (e) {} try { refreshAll(); } catch (e) {} } } : null;
@@ -7444,6 +7474,7 @@ function renderBudgetList() {
       }, 60);
     };
     const insSave = () => {
+      if (!INS_REAL) return;   /* v697 : lecture seule au format complet — rien n'est enregistré */
       if (INS_RCL0 && rclDesSig(INS.des) !== INS_RCL0.sig) {
         const on = new Map((INS.des || []).map(r => [r.id, r.on]));
         INS.des = JSON.parse(INS_RCL0.json).map(r => on.has(r.id) ? { ...r, on: on.get(r.id) } : r);
@@ -10939,8 +10970,8 @@ function renderBudgetList() {
       /* FIGER grisé tant que l'onglet LIGNES NON LIÉES n'est pas à 0 */
       const lk = $("instLock");
       const td = $("instTodo");
-      if (td) { const n = insTodo().reduce((t, b) => t + (+b.n || 1), 0); td.querySelector("b").textContent = n || ""; td.classList.toggle("ok", !n); let nf = 0; try { nf = insFiltActs().length; } catch (e) {} td.classList.toggle("flt", !!nf); td.title = n ? n + " ÉLÉMENT(S) À COMPLÉTER" : "TOUT EST COMPLET"; }
-      if (lk && INS_EDIT) { const B = insFigeBlocks(); lk.disabled = false; lk.classList.toggle("off", B.length > 0); lk.title = B.length ? "FIGER IMPOSSIBLE : TOUCHER POUR VOIR POURQUOI" : "Figer (lecture seule)";
+      if (td && !(budget.inst && budget.inst.virtual && !budget.inst.vname)) { const n = insTodo().reduce((t, b) => t + (+b.n || 1), 0); td.querySelector("b").textContent = n || ""; td.classList.toggle("ok", !n); let nf = 0; try { nf = insFiltActs().length; } catch (e) {} td.classList.toggle("flt", !!nf); td.title = n ? n + " ÉLÉMENT(S) À COMPLÉTER" : "TOUT EST COMPLET"; }
+      if (lk && INS_EDIT && !window.__sviRO) { const B = insFigeBlocks(); lk.disabled = false; lk.classList.toggle("off", B.length > 0); lk.title = B.length ? "FIGER IMPOSSIBLE : TOUCHER POUR VOIR POURQUOI" : "Figer (lecture seule)";
         if (budget.inst && budget.inst.rclOf) { lk.classList.remove("off"); lk.title = "Enregistrer le recalage"; } }   /* v693 */
       const tb = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="unl"]`);
       /* LIGNES NON LIÉES : visible seulement s'il reste des lignes */
