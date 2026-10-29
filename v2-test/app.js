@@ -292,6 +292,7 @@ const SVI_ICON = (() => {
     qlt: w('<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>'),
     dly: w('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>'),
     xpl: w('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+    ver: w('<rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8.5 7l1.5-3h4l1.5 3"/>'),
     scn: w('<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="9" r="2"/><path d="M6 7v10M18 11c0 4-6 3-12 6"/>')
   };
 })();
@@ -3541,7 +3542,7 @@ const SVI_COL = {
   rref: { w: 210, pw: 22 }, rdate: { w: 150 }, rtitle: { w: 360, pw: 60 }, rfile: { w: 120 }, rexp: { w: 110, pw: 8 }, robj: { w: 200, pw: 15 }, rtext: { w: 420, pw: 30 },
   rresp: { w: 180, pw: 13 }, rprev: { w: 140, pw: 12 }, rdelay: { w: 150, pw: 9 }, relap: { w: 150, pw: 9 }, rimp: { w: 60, pw: 4 },
   /* v685 : blocs SCÉNARIOS et VERSIONS */
-  scnind: { w: 300, pw: 30 }, scnom: { w: 260, pw: 30 }, scet: { w: 150, pw: 14 }, scof: { w: 150, pw: 12 }, scret: { w: 120, pw: 10 }, scdes: { w: 140, pw: 12 }, scdel: { w: 56, pw: 4 }, ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => ["sc" + (i + 1), { w: 180, pw: 12 }]))
+  scnind: { w: 300, pw: 30 }, scnom: { w: 260, pw: 30 }, scet: { w: 150, pw: 14 }, scof: { w: 150, pw: 12 }, scret: { w: 120, pw: 10 }, scdes: { w: 140, pw: 12 }, scdel: { w: 56, pw: 4 }, vno: { w: 160, pw: 12 }, vkind: { w: 200, pw: 16 }, vdate: { w: 200, pw: 16 }, vuser: { w: 160, pw: 12 }, ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => ["sc" + (i + 1), { w: 180, pw: 12 }]))
 };
 /* — de src/12-tableaux-colonnes.js — */
 const SVI_COL_T = {
@@ -6777,6 +6778,7 @@ function renderBudgetList() {
             : `<button type="button" class="inst-act" id="instDel" title="Supprimer ce budget" aria-label="Supprimer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`}
           <button type="button" class="inst-act" id="instClose" title="Fermer" aria-label="Fermer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>` : ""}
           <button type="button" class="inst-act" id="instDup" hidden title="Dupliquer ce budget" aria-label="Dupliquer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+          ${AV_ROOT ? `<button type="button" class="inst-act av-comp-ic${sviAvSelGet(AV_ROOT) ? " on" : ""}" id="avCompBtn" title="Composition du consolidé : ${esc(sviAvSelLab(AV_ROOT, sviAvSelGet(AV_ROOT)))}" aria-label="Composition"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8.5" cy="12" r="5.5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="15.5" cy="12" r="5.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.6v8.8" stroke="currentColor" stroke-width="1.7"/></svg></button>` : ""}
           <button type="button" class="inst-act bdg-more-btn" id="bdgMore" title="Actions du budget" aria-label="Actions du budget">⋯</button>
           <button type="button" class="bdg-lay-btn" id="layResetBtn" disabled style="display:none"
             title="Disposition par défaut : remettre les blocs à leur place et taille d'origine"
@@ -6791,10 +6793,16 @@ function renderBudgetList() {
       </div>
 
       <div class="bdg-d-head bdg-d-head-min">
+        ${budget.inst && budget.inst.virtual && budget.inst.vname ? `<div class="av-top ver-bar" id="verBar">
+          <span class="list-lab">${esc(budget.inst.vname)} — PHOTO EN LECTURE SEULE :</span>
+          <button type="button" class="svc-b av-comp-b" data-vact="restore">RESTAURER CETTE VERSION</button>
+          <button type="button" class="svc-b av-comp-b" data-vact="scn">EN FAIRE UN SCÉNARIO</button>
+        </div>` : ""}
         ${AV_ROOT ? `<div class="av-top" id="avTop">
-          <span class="list-lab">COMPOSITION :</span>
-          <span class="av-comp">${esc(sviAvSelLab(AV_ROOT, sviAvSelGet(AV_ROOT)))}</span>
-          <button type="button" class="svc-b av-comp-b" data-avt="comp">CHOISIR…</button>
+          <span class="list-lab">AVENANTS :</span>
+          ${AV_STG.some(x => x.parent && x.state !== "valide") ? '<button type="button" class="av-ic" data-avt="inst" title="Avenants en instance" aria-label="Avenants en instance">⌛</button>' : ""}
+          ${AV_STG.some(x => x.state === "valide") ? '<button type="button" class="av-ic" data-avt="valid" title="Étapes validées (budget initial compris)" aria-label="Étapes validées">≡</button>' : ""}
+          <button type="button" class="av-ic" data-avt="add" ${AV_STG.length && AV_STG[AV_STG.length - 1].state === "valide" ? 'title="Nouvel avenant"' : 'disabled title="LE DERNIER AVENANT DOIT ÊTRE VALIDÉ"'} aria-label="Nouvel avenant">＋</button>
         </div>` : ""}
 
       </div>
@@ -6877,6 +6885,18 @@ function renderBudgetList() {
             </span>
           </div>
           <div class="rec-scroll scn-scroll"><table class="bdg-d-table rec-table scn-table" id="scnTable"></table></div>
+        </div>
+
+        <div class="bdg-d-block blk-rec blk-ver" data-rec="ver" hidden>
+          <div class="bdg-d-block-title blk-head">
+            <span class="ttl" id="verTitle">${SVI_ICON.ver}VERSIONS</span>
+            <span class="blk-tools">
+              <button type="button" class="blk-btn" data-blk="ver" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="ver" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn blk-max-btn" data-blk="ver" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </span>
+          </div>
+          <div class="rec-scroll ver-scroll"><table class="bdg-d-table rec-table ver-table" id="verTable"></table></div>
         </div>
 
         <div class="bdg-d-block blk-rec blk-suivi" data-rec="suivi">
@@ -7284,8 +7304,8 @@ function renderBudgetList() {
       Object.keys(INS).forEach(k => { delete INS[k]; }); Object.assign(INS, JSON.parse(JSON.stringify(it.data)));
       try { refreshAll(); } catch (e) {}
     };
-    if (INS_ARCH && (budget.inst.state || "instance") === "instance") setTimeout(() => { try { svToast("SCÉNARIO ARCHIVÉ : LECTURE SEULE. VERSIONS ET SCÉNARIOS › DÉSARCHIVER OU BASCULER POUR MODIFIER.", 6000); } catch (e) {} }, 400);
-    if (budget.inst && budget.inst.virtual) setTimeout(() => { try { svToast(budget.inst.vname ? budget.inst.vname + " : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ, EN LECTURE SEULE : " + (budget.inst.vsel || ""), 5000); } catch (e) {} }, 400);
+    if (INS_ARCH && (budget.inst.state || "instance") === "instance") setTimeout(() => { try { svToast("SCÉNARIO ARCHIVÉ : LECTURE SEULE. BLOC SCÉNARIOS › DÉSARCHIVER, OU TOUCHER LE NOM D'UN AUTRE SCÉNARIO.", 6000); } catch (e) {} }, 400);
+    if (budget.inst && budget.inst.virtual) setTimeout(() => { try { svToast(budget.inst.vname ? budget.inst.vname + " : PHOTO EN LECTURE SEULE (FILTRES, TRIS, APERÇUS ET EXPORTS PERMIS)." : "CONSOLIDÉ, EN LECTURE SEULE : " + (budget.inst.vsel || ""), 5000); } catch (e) {} }, 400);
     if (INS_HELD) setTimeout(() => { try { svToast(INS_HELD.onglet ? "« " + INS_HELD.onglet + " » EN LECTURE SEULE : " + INS_HELD.user + " LE MODIFIE. LES AUTRES ONGLETS RESTENT MODIFIABLES." : "EN LECTURE SEULE : " + INS_HELD.user + " MODIFIE CE BUDGET.", 6000); } catch (e) {} }, 400);
     /* v448 : largeur tableau / Gantt tirée à la main, retrouvée à l'ouverture de ce budget */
     const DLYG_REF = (budget.inst && budget.inst.ref) || budget.ref || "";
@@ -16598,19 +16618,19 @@ ${A}</Assignments>
       }
     };
 
-    const LAY_UNITS = ["client", "hier", "detail", "scn", "suivi"];   /* v685 : bloc SCÉNARIOS entre le détail et le suivi */
+    const LAY_UNITS = ["client", "hier", "detail", "scn", "ver", "suivi"];   /* v685 : bloc SCÉNARIOS entre le détail et le suivi */
     const page$ = () => shell.querySelector(".bdg-d-page");
     const layEls = u => {
       const pg = page$();
       if (u === "detail") return [$("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
-      const sel = { client: ".blk-client", hier: ".blk-hier", scn: ".blk-scn", suivi: ".blk-suivi" }[u];
+      const sel = { client: ".blk-client", hier: ".blk-hier", scn: ".blk-scn", ver: ".blk-ver", suivi: ".blk-suivi" }[u];
       return [pg.querySelector(":scope > " + sel)].filter(Boolean);
     };
     const layMeasure = u => {
       const sel = {
         client: ".bdg-d-client-scroll", hier: ".bdg-h-col",
         detail: "#bdgTabBody .bdg-d-scroll",
-        suivi: ".blk-suivi .rec-scroll:not([hidden])", scn: ".blk-scn .rec-scroll"
+        suivi: ".blk-suivi .rec-scroll:not([hidden])", scn: ".blk-scn .rec-scroll", ver: ".blk-ver .rec-scroll"
       }[u];
       const el = page$().querySelector(sel);
       return el ? el.getBoundingClientRect().height : 150;
@@ -19352,7 +19372,8 @@ ${A}</Assignments>
         /* v681 : premier avenant — une seule fois (aucun avenant encore), marché initial validé */
         ...(INS && budget.inst && !budget.inst.parent && !budget.inst.virtual && sviAvStages(budget.inst.ref).length === 1 ? [{ a: "av", lab: "AJOUTER UN AVENANT", off: budget.inst.state !== "valide", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12.5 10v7M9 13.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
         ...(INS && budget.inst && !/-GLOBAL$/.test(budget.inst.ref) && (budget.inst.parent || sviAvStages(budget.inst.ref).length > 1) ? [{ a: "avl", lab: "CONSOLIDÉ (MARCHÉ ET AVENANTS)", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
-        ...(INS ? [{ a: "ver", lab: "VERSIONS ET SCÉNARIOS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="6" cy="18" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="18" cy="9" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 8.2v7.6M6 13c0-3 4-4 9.8-4" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>' }] : []),
+        /* v690 : VERSIONS ET SCÉNARIOS retiré (blocs SCÉNARIOS et VERSIONS) ; PRENDRE UNE VERSION (photo manuelle) */
+        ...(INS && budget.inst && !budget.inst.virtual ? [{ a: "vtake", lab: "PRENDRE UNE VERSION", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 7l1.5-3h4l1.5 3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' }] : []),
         ...(INS ? [{ a: "ctr", lab: "CONTRAT (CPS)", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 11h5M10 15h5M10 19h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' }] : []),
         ...(INS ? [{ a: "plans", lab: "PLANS ET MÉTRÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5l6-2 6 2 6-2v16l-6 2-6-2-6 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 3v16M15 5v16" stroke="currentColor" stroke-width="1.4"/></svg>' }] : []),
         ...(INS ? [{ a: "rat", lab: "TABLEAU DE BORD DES RATIOS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' },
@@ -19379,8 +19400,8 @@ ${A}</Assignments>
         else if (it.dataset.a === "paq") qqPaqOpen();
         else if (it.dataset.a === "ctr") ctrWin();
         else if (it.dataset.a === "av") { if (window.__sviAvNew) window.__sviAvNew(budget.inst.ref); }   /* v684 : fenêtre INF puis l'avenant */
-        else if (it.dataset.a === "avl") { const root = budget.inst.parent || budget.inst.ref; if (window.__sviAvOpen) window.__sviAvOpen(root + "-GLOBAL", "LIST:" + root); }   /* v684 : plus de petite fenêtre : le consolidé */
-        else if (it.dataset.a === "ver") verWin();   /* v670 (axes 1 et 4) */   /* v669 (axe 3) */
+        else if (it.dataset.a === "avl") { const root = budget.inst.parent || budget.inst.ref; if (window.__sviAvOpen) window.__sviAvOpen(root + "-GLOBAL"); }   /* v684 : plus de petite fenêtre : le consolidé */
+        else if (it.dataset.a === "vtake") { if (shell.__verTake) shell.__verTake(); }   /* v670 (axes 1 et 4) */   /* v669 (axe 3) */
         else if (it.dataset.a === "rat") ratWin();
         else if (it.dataset.a === "ind") indWin();   /* v679 */
         else if (it.dataset.a === "plans") plWin();   /* v671 (axe 6) */   /* v668 (axe 7) */
@@ -21022,13 +21043,92 @@ ${A}</Assignments>
     };
     shell.__verWin = () => verWin();
     /* v682 : photo de l'étape (VERSION n) prise à FIGER et à VALIDER */
-    shell.__verFreeze = kind => {
-      if (!INS || !budget.inst || budget.inst.virtual) return;
+    /* v690 : versions automatiques (Ⓐ) à FIGER et VALIDER — pas de nouvelle photo si rien n'a changé depuis la dernière ;
+       version MANUELLE par PRENDRE UNE VERSION (menu ⋯ du haut) ; aucune limite, jamais effacées */
+    shell.__verFreeze = (kind, auto = true) => {
+      if (!INS || !budget.inst || budget.inst.virtual) return 0;
       INS.vfz = INS.vfz || [];
+      const snap = verSnap(), last = INS.vfz[INS.vfz.length - 1];
+      if (auto && last && JSON.stringify(last.d) === JSON.stringify(snap)) return 0;
       const n = INS.vfz.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1;
-      INS.vfz.push({ id: insId(), n, kind, date: localDT(new Date()), d: verSnap() });
-      insSave(); histLog("VERSIONS", "VERSION " + n, kind);
+      INS.vfz.push({ id: insId(), n, kind, auto: !!auto, u: typeof sviUser === "function" ? sviUser() : "", date: localDT(new Date()), d: snap });
+      insSave(); histLog("VERSIONS", "VERSION " + n + (auto ? " (AUTOMATIQUE)" : ""), kind);
+      try { verRender(); } catch (e) {}
+      return n;
     };
+    shell.__verTake = () => {
+      if (!INS || !budget.inst || budget.inst.virtual) { svToast("PRENDRE UNE VERSION : SUR UNE ÉTAPE SEULEMENT.", 3500); return; }
+      const n = shell.__verFreeze("MANUELLE", false);
+      if (n) { svToast("VERSION " + n + " PRISE.", 2500); setTimeout(() => { const b = shell.querySelector(".blk-ver"); if (b && !b.hidden) b.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, 60); }
+    };
+    /* bloc VERSIONS (sous SCÉNARIOS) : une ligne par version ; toucher = la photo ouverte en lecture seule */
+    const VER_COLS = [["vno", "VERSION", x => "VERSION " + x.n, ""], ["vkind", "NATURE", x => x.kind || "", ""], ["vdate", "PRISE LE", x => svDT(x.date || ""), ""], ["vuser", "PAR", x => x.u || "", ""]];
+    let verShown = [];
+    shell.__verData = () => { const oc = coOrder("vver", VER_COLS); return { head: oc.map(c => c[1]), rows: verShown.map(x => oc.map(c => c[2](x) + (c[0] === "vno" && x.auto ? " (A)" : ""))) }; };
+    const verRender = () => {
+      const blk = shell.querySelector(".blk-ver"), t = $("verTable");
+      if (!blk || !t) return;
+      const VF = INS && budget.inst && !budget.inst.virtual ? (INS.vfz || []) : [];
+      blk.hidden = !VF.length;
+      if (blk.hidden) return;
+      const all = [...VF].sort((a, b) => (b.n || 0) - (a.n || 0)), rows = cfApply("vver", VER_COLS, all);
+      verShown = rows;
+      const ttl = $("verTitle"); if (ttl) ttl.innerHTML = SVI_ICON.ver + "VERSIONS " + svCnt(rows.length, all.length);
+      const oc = coOrder("vver", VER_COLS);
+      t.style.width = cwTableW("vver", VER_COLS) + "px";
+      t.innerHTML = `<colgroup>${cwCols("vver", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("vver", c[0], c[1], c[3])).join("")}</tr></thead>
+        <tbody>${rows.map(x => `<tr class="ver-row" data-vn="${x.n}">${oc.map(c => `<td>${esc(c[2](x))}${c[0] === "vno" && x.auto ? ' <span class="auto-a" title="Créée automatiquement">Ⓐ</span>' : ""}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}</tbody>`;
+    };
+    shell.__verRender = verRender;
+    shell.querySelector(".blk-ver")?.addEventListener("click", e => {
+      if (e.target.closest(".cf-btn, .col-rs, .blk-tools, .blk-grip, .blk-rsz")) return;
+      const tr = e.target.closest("tr[data-vn]"); if (!tr) return;
+      e.stopPropagation();
+      window.__sviAvOpen(budget.inst.ref + "-V" + tr.dataset.vn, budget.inst.ref);
+    });
+    /* depuis une version ouverte : RESTAURER CETTE VERSION et EN FAIRE UN SCÉNARIO */
+    {
+      const bar = $("verBar");
+      if (bar && budget.inst && budget.inst.virtual && budget.inst.vname) {
+        const pref = budget.inst.parent, vn = +((String(ref).match(/-V(\d+)$/) || [])[1] || 0);
+        const L0 = () => sviInstGet(), par = () => L0().find(x => x.ref === pref);
+        const vData = () => { const p = par(); const v = p && ((p.data || {}).vfz || []).find(x => x.n === vn); return v ? JSON.parse(JSON.stringify(v.d)) : null; };
+        const hist = (r, a, d) => { try { const k = "svi_hist_v1:" + r, l = JSON.parse(localStorage.getItem(k) || "[]") || []; l.push({ t: new Date().toISOString(), b: "VERSIONS", a, d: String(d || "").toUpperCase(), u: typeof sviUser === "function" ? sviUser() : "" }); localStorage.setItem(k, JSON.stringify(l.slice(-1000))); } catch (e) {} };
+        bar.addEventListener("click", async e => {
+          const b = e.target.closest("[data-vact]"); if (!b) return;
+          const p = par(), d0 = vData();
+          if (!p || !d0) { sviAlert("VERSION INTROUVABLE.", "VERSION"); return; }
+          const D = p.data = p.data || {};
+          if (b.dataset.vact === "restore") {
+            if ((p.state || "instance") !== "instance") { svToast("RESTAURER : L'ÉTAPE DOIT ÊTRE EN INSTANCE (" + (p.state === "valide" ? "VALIDÉE" : "FIGÉE") + " ACTUELLEMENT).", 4500, b); return; }
+            if (!(await svConfirm({ title: "RESTAURER LA VERSION " + vn, text: "L'ÉTAPE " + pref + " REPREND L'ÉTAT DE LA VERSION " + vn + ". UNE VERSION AUTOMATIQUE DE L'ÉTAT ACTUEL EST PRISE AVANT.", ok: "RESTAURER", tone: "neutral" }))) return;
+            const cur = JSON.parse(JSON.stringify(D)); delete cur.ver; delete cur.vfz;
+            D.vfz = D.vfz || [];
+            const last = D.vfz[D.vfz.length - 1];
+            if (!last || JSON.stringify(last.d) !== JSON.stringify(cur)) { const n = D.vfz.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1; D.vfz.push({ id: "v" + Date.now().toString(36), n, kind: "AVANT RESTAURATION", auto: true, u: typeof sviUser === "function" ? sviUser() : "", date: localDT(new Date()), d: cur }); }
+            const keep = { ver: D.ver, vfz: D.vfz };
+            p.data = { ...d0, ...keep }; if (!keep.ver) delete p.data.ver;
+            sviInstSet(L0().map(x => x.ref === pref ? p : x)); await sviInstFlush();
+            hist(pref, "VERSION RESTAURÉE", "VERSION " + vn);
+            window.__sviAvOpen(pref); return;
+          }
+          if (b.dataset.vact === "scn") {
+            const V = D.ver = D.ver || { L: [], ind: [] }; V.L = V.L || [];
+            const SC = V.L.filter(x => x.kind === "sc");
+            if (SC.length >= 10) { svToast("10 SCÉNARIOS AU PLUS PAR ÉTAPE.", 3500, b); return; }
+            const no = () => { const used = new Set(V.L.map(x => (String(x.nom).match(/^SCÉNARIO (\d+)$/) || [])[1]).filter(Boolean).map(Number)); let n = 1; while (used.has(n)) n++; return n; };
+            if (!V.act || !V.L.some(x => x.id === V.act)) { const id = "s" + Date.now().toString(36); V.L.push({ id, kind: "sc", nom: "SCÉNARIO " + no(), date: localDT(new Date()) }); V.act = id; }
+            if (V.L.filter(x => x.kind === "sc").length >= 10) { svToast("10 SCÉNARIOS AU PLUS PAR ÉTAPE.", 3500, b); return; }
+            const nom = "SCÉNARIO " + no();
+            V.L.push({ id: "s" + Date.now().toString(36) + "b", kind: "sc", nom, date: localDT(new Date()), d: d0 });
+            sviInstSet(L0().map(x => x.ref === pref ? p : x)); await sviInstFlush();
+            hist(pref, "NOUVEAU SCÉNARIO", nom + " — DEPUIS LA VERSION " + vn);
+            svToast(nom + " CRÉÉ DEPUIS LA VERSION " + vn + ".", 3000);
+            window.__sviAvOpen(pref); return;
+          }
+        });
+      }
+    }
     shell.__verOrig = () => verOrig();
 
     /* =========================================================
@@ -21126,6 +21226,7 @@ ${A}</Assignments>
     };
     const scnRender = () => {
       scnPill();
+      try { verRender(); } catch (e) {}
       const blk = shell.querySelector(".blk-scn"), t = $("scnTable");
       if (!blk || !t) return;
       const SC = scnL();
@@ -23181,7 +23282,8 @@ ${A}</Assignments>
     /* ===== fenêtre DOC : ajout d'un document au budget ===== */
     /* ===== HISTORIQUE (bouton H) : journal des changements du budget
        et de ses branches (DOC, TAF, OBS, impressions, exports, disposition…) ===== */
-    const HIST_KEY = "svi_hist_v1:" + String(ref);
+    /* v690 : le consolidé montre l'historique de son budget mère */
+    const HIST_KEY = "svi_hist_v1:" + String(budget.inst && budget.inst.virtual && !budget.inst.vname && /-GLOBAL$/.test(String(ref)) ? budget.inst.parent : ref);
     const histLoad = () => {
       try { return JSON.parse(localStorage.getItem(HIST_KEY) || "[]") || []; } catch (e) { return []; }
     };
@@ -25156,11 +25258,14 @@ ${A}</Assignments>
         }
       );
 
-    /* v687 : en haut du consolidé — COMPOSITION : étapes et scénarios à compter (arborescence à cocher) */
+    /* v690 : en haut du consolidé — AVENANTS : ⌛ (avenants en instance) ≡ (étapes validées) + (nouvel avenant) ;
+       icône de composition à côté des ⋯ (bleue si la composition n'est pas celle par défaut) */
     $("avTop")?.addEventListener("click", e => {
       const b = e.target.closest("[data-avt]"); if (!b || b.disabled) return;
-      if (b.dataset.avt === "comp" && window.__sviAvComp) window.__sviAvComp(AV_ROOT, ref);
+      if (b.dataset.avt === "add") window.__sviAvNew(AV_ROOT, ref);
+      else window.__sviAvList(AV_ROOT, b.dataset.avt);
     });
+    $("avCompBtn")?.addEventListener("click", () => { if (window.__sviAvComp) window.__sviAvComp(AV_ROOT, ref); });
 
     /* budget en instance : ‹ › navigation, 🔒 figer / revenir en édition, 🗑 supprimer, ✕ fermer */
     if (budget.inst && budget.inst.state !== "valide") {
@@ -25279,7 +25384,7 @@ ${A}</Assignments>
     sviInstSet(L.concat(it));
     return r;
   };
-  window.__sviAvAdd = rootRef => { const r = sviAvAdd(rootRef); if (r) sviAvOpen(r, "LIST:" + rootRef); return r; };
+  window.__sviAvAdd = rootRef => { const r = sviAvAdd(rootRef); if (r) sviAvOpen(r, rootRef + "-GLOBAL"); return r; };
   /* nouvel avenant : fenêtre INF d'abord (DATE CRÉATION, PROJET, INTITULÉ — comme un nouveau budget) */
   const sviAvNew = (rootRef, ret) => {
     const S = sviAvStages(rootRef), root = S[0]; if (!root) return;
@@ -25321,58 +25426,67 @@ ${A}</Assignments>
       if (isNaN(new Date(val("#avDate")))) { p.querySelector("#avErr").textContent = "À COMPLÉTER (*) : DATE."; return; }
       const nr = sviAvAdd(rootRef, { created: val("#avDate"), intitule: val("#avName").toUpperCase() || root.intitule });
       p.remove();
-      if (nr) sviAvOpen(nr, ret || "LIST:" + root.ref);
+      if (nr) sviAvOpen(nr, ret || root.ref + "-GLOBAL");
     });
   };
   window.__sviAvNew = sviAvNew;
   /* liste des étapes (marché initial + avenants), au format de la liste mère ; ← = retour au consolidé */
+  /* v690 : liste des étapes, ouverte depuis le consolidé (← = retour au consolidé) ; ⌛ = avenants en instance,
+     ≡ = étapes validées (budget initial compris) ; mêmes colonnes que la liste mère ; tri par l'en-tête ; lignes de 21 px */
   const sviAvList = (rootRef, mode0) => {
     const S = sviAvStages(rootRef); if (!S.length) return;
-    const root = S[0], live = S.filter(x => x.state !== "valide"), done = S.filter(x => x.state === "valide");
-    let mode = mode0 !== "valid" && live.length ? "inst" : done.length ? "valid" : "inst";   /* v687 : ouverte sur EN INSTANCE */
-    const stLab = x => x.state === "valide" ? "VALIDÉ" : x.state === "fige" ? "FIGÉ" : "EN INSTANCE";
+    const root = S[0], live = S.filter(x => x.parent && x.state !== "valide"), done = S.filter(x => x.state === "valide");
+    let mode = mode0 === "valid" ? (done.length ? "valid" : "inst") : (live.length ? "inst" : "valid");
+    let sk = "", sd = 1;
     const ov = document.createElement("div");
     ov.className = "av-list-ov";
+    const ROWS = S.map(x => { let bd = {}; try { bd = budgetData({ ref: x.ref, project: x.project, rows: [], first: {}, inst: x }); } catch (e) {}
+      return { x, ref: U_(x.project) + " " + x.ref, prj: U_(x.project), int: x.intitule || "", ttc: bd.ttc || 0, val: x.state === "valide" ? svDT(x.validated || "") : "", sai: svDT(x.created || "") }; });
+    const COLS = [["ref", "RÉFÉRENCE", 260], ["prj", "PROJET", 120], ["int", "INTITULÉ", 300], ["ttc", "MONTANT TTC", 150, "number"], ["val", "VALIDÉ LE", 190], ["sai", "SAISI LE", 190]];
     const ic = (a, lab, t, on) => `<button type="button" aria-label="${a}" data-avl="${a}" title="${t}"${on ? ' class="on"' : ""}>${lab}</button>`;
     const draw = () => {
-      const L = mode === "inst" ? live : done, canAdd = S[S.length - 1].state === "valide";
+      let L = ROWS.filter(r => mode === "inst" ? live.includes(r.x) : done.includes(r.x));
+      if (sk) L = [...L].sort((a, b) => (typeof a[sk] === "number" ? a[sk] - b[sk] : String(a[sk]).localeCompare(String(b[sk]), "fr", { numeric: true })) * sd);
+      const canAdd = S[S.length - 1].state === "valide";
       ov.innerHTML = `<div class="novapp-list-shell${mode === "inst" ? " list-inst" : ""}">
         <div class="novapp-list-titlebar">
           <button type="button" class="novapp-menu" data-avl="back" aria-label="Retour" title="Retour au consolidé">←</button>
-          <h1>${esc(U_(root.project) + " " + root.ref)} ${mode === "inst" ? "(EN INSTANCE)" : "(VALIDÉS)"} ${svCnt(L.length)}</h1>
-          <button type="button" class="svc-b av-glob" data-avl="glob" title="Budget consolidé (marché + avenants)">Σ CONSOLIDÉ</button>
+          <h1>${esc(U_(root.project) + " " + root.ref)} ${mode === "inst" ? "(AVENANTS EN INSTANCE)" : "(VALIDÉS)"} ${svCnt(L.length)}</h1>
           <div class="novapp-list-actions">
             <span class="list-lab">AVENANTS :</span>
-            ${live.length ? ic("inst", "⌛", "Étapes en instance", mode === "inst") : ""}
-            ${done.length ? ic("valid", "≡", "Étapes validées", mode === "valid") : ""}
+            ${live.length ? ic("inst", "⌛", "Avenants en instance", mode === "inst") : ""}
+            ${done.length ? ic("valid", "≡", "Étapes validées (budget initial compris)", mode === "valid") : ""}
             <button type="button" aria-label="Ajouter" data-avl="add"${canAdd ? ' title="Nouvel avenant"' : ' disabled title="LE DERNIER AVENANT DOIT ÊTRE VALIDÉ"'}>＋</button>
           </div>
         </div>
         <div class="novapp-budget-table-wrap">
           <table class="novapp-budget-table av-stg-t">
-            <thead><tr>${["ÉTAPE", "RÉFÉRENCE", "INTITULÉ", "ÉTAT", "CRÉÉ LE"].map(h => `<th class="bdg-list-head"><div class="bdg-head-content"><span class="bdg-head-label">${h}</span></div></th>`).join("")}</tr></thead>
-            <tbody>${L.length ? L.map(x => `<tr data-r="${esc(x.ref)}" class="${x.state ? "inst-" + x.state : ""}${x.parent ? " row-av" : " row-bdg"}"><td><b>${esc(sviAvName(x))}</b></td><td>${esc(U_(x.project) + " " + x.ref)}</td><td>${esc(x.intitule || "")}</td><td>${stLab(x)}</td><td>${esc(String(x.created || "").replace("T", " ").slice(0, 16))}</td></tr>`).join("") : `<tr><td colspan="5" class="empty">AUCUNE ÉTAPE</td></tr>`}</tbody>
+            <colgroup>${COLS.map(c => `<col style="width:${c[2]}px">`).join("")}</colgroup>
+            <thead><tr>${COLS.map(c => `<th class="bdg-list-head${c[3] ? " number" : ""}${sk === c[0] ? " cf-on" : ""}" data-sk="${c[0]}"><div class="bdg-head-content"><span class="bdg-head-label">${c[1]}${sk === c[0] ? (sd > 0 ? " ▲" : " ▼") : ""}</span></div></th>`).join("")}</tr></thead>
+            <tbody>${L.length ? L.map(r => `<tr data-r="${esc(r.x.ref)}" class="${r.x.state ? "inst-" + r.x.state : ""}${r.x.parent ? " row-av" : " row-bdg"}"><td>${esc(r.ref)}</td><td>${esc(r.prj)}</td><td>${esc(r.int)}</td><td class="number">${money(r.ttc)}</td><td>${esc(r.val)}</td><td>${esc(r.sai)}</td></tr>`).join("") : `<tr><td colspan="${COLS.length}" class="empty">AUCUNE ÉTAPE</td></tr>`}</tbody>
           </table>
         </div>
       </div>`;
     };
     draw();
-    document.body.appendChild(ov);
+    (document.querySelector(".novapp-list-shell") || document.body).appendChild(ov);
     const close = () => { ov.remove(); document.removeEventListener("keydown", esc_); };
     const esc_ = e => { if (e.key === "Escape") close(); };
     document.addEventListener("keydown", esc_);
     ov.addEventListener("click", e => {
+      e.stopPropagation();
+      const th = e.target.closest("th[data-sk]");
+      if (th) { if (sk === th.dataset.sk) sd = -sd; else { sk = th.dataset.sk; sd = 1; } draw(); return; }
       const b = e.target.closest("[data-avl]");
       if (b) {
         if (b.disabled) return;
         const a = b.dataset.avl;
         if (a === "back") { close(); return; }
-        if (a === "add") { close(); sviAvNew(root.ref, "LIST:" + root.ref); return; }
-        if (a === "glob") { close(); sviAvOpen(root.ref + "-GLOBAL", "LIST:" + root.ref); return; }
+        if (a === "add") { close(); sviAvNew(root.ref, root.ref + "-GLOBAL"); return; }
         mode = a; draw(); return;
       }
       const tr = e.target.closest("tr[data-r]");
-      if (tr) { close(); sviAvOpen(tr.dataset.r, "LIST:" + root.ref); }
+      if (tr) { close(); sviAvOpen(tr.dataset.r, root.ref + "-GLOBAL"); }
     });
   };
   window.__sviAvList = sviAvList;
@@ -25406,7 +25520,7 @@ ${A}</Assignments>
         d.remove();
         const def = sviAvSelDef(S0), same = Object.keys(def).length === Object.keys(sel).length && Object.keys(def).every(k => def[k] === sel[k]);
         sviAvSelSet(rootRef, same ? null : { ...sel });
-        sviAvOpen(gref || rootRef + "-GLOBAL", "LIST:" + rootRef);
+        sviAvOpen(gref || rootRef + "-GLOBAL");
       }
     });
   };
@@ -25484,10 +25598,9 @@ ${A}</Assignments>
       /* v687 : budget à avenants → liste de ses étapes (au format de la liste mère), ouverte sur EN INSTANCE ;
          composition du consolidé remise par défaut (étapes validées) */
       if (sviAvStages(row.dataset.budgetRef).length > 1) {
-        const r0 = row.dataset.budgetRef;
+        const r0 = row.dataset.budgetRef, g = r0 + "-GLOBAL";
         window.__sviAvRet = null;
-        if (sviAvSelGet(r0)) sviAvSelSet(r0, null);
-        sviAvList(r0, "inst");
+        if (sviAvSelGet(r0) || !groups.has(g)) { sviAvSelSet(r0, null); sviAvOpen(g); } else openBudgetDetail(g);   /* v690 : le consolidé */
         return;
       }
       openBudgetDetail(

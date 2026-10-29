@@ -143,13 +143,92 @@
     };
     shell.__verWin = () => verWin();
     /* v682 : photo de l'étape (VERSION n) prise à FIGER et à VALIDER */
-    shell.__verFreeze = kind => {
-      if (!INS || !budget.inst || budget.inst.virtual) return;
+    /* v690 : versions automatiques (Ⓐ) à FIGER et VALIDER — pas de nouvelle photo si rien n'a changé depuis la dernière ;
+       version MANUELLE par PRENDRE UNE VERSION (menu ⋯ du haut) ; aucune limite, jamais effacées */
+    shell.__verFreeze = (kind, auto = true) => {
+      if (!INS || !budget.inst || budget.inst.virtual) return 0;
       INS.vfz = INS.vfz || [];
+      const snap = verSnap(), last = INS.vfz[INS.vfz.length - 1];
+      if (auto && last && JSON.stringify(last.d) === JSON.stringify(snap)) return 0;
       const n = INS.vfz.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1;
-      INS.vfz.push({ id: insId(), n, kind, date: localDT(new Date()), d: verSnap() });
-      insSave(); histLog("VERSIONS", "VERSION " + n, kind);
+      INS.vfz.push({ id: insId(), n, kind, auto: !!auto, u: typeof sviUser === "function" ? sviUser() : "", date: localDT(new Date()), d: snap });
+      insSave(); histLog("VERSIONS", "VERSION " + n + (auto ? " (AUTOMATIQUE)" : ""), kind);
+      try { verRender(); } catch (e) {}
+      return n;
     };
+    shell.__verTake = () => {
+      if (!INS || !budget.inst || budget.inst.virtual) { svToast("PRENDRE UNE VERSION : SUR UNE ÉTAPE SEULEMENT.", 3500); return; }
+      const n = shell.__verFreeze("MANUELLE", false);
+      if (n) { svToast("VERSION " + n + " PRISE.", 2500); setTimeout(() => { const b = shell.querySelector(".blk-ver"); if (b && !b.hidden) b.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, 60); }
+    };
+    /* bloc VERSIONS (sous SCÉNARIOS) : une ligne par version ; toucher = la photo ouverte en lecture seule */
+    const VER_COLS = [["vno", "VERSION", x => "VERSION " + x.n, ""], ["vkind", "NATURE", x => x.kind || "", ""], ["vdate", "PRISE LE", x => svDT(x.date || ""), ""], ["vuser", "PAR", x => x.u || "", ""]];
+    let verShown = [];
+    shell.__verData = () => { const oc = coOrder("vver", VER_COLS); return { head: oc.map(c => c[1]), rows: verShown.map(x => oc.map(c => c[2](x) + (c[0] === "vno" && x.auto ? " (A)" : ""))) }; };
+    const verRender = () => {
+      const blk = shell.querySelector(".blk-ver"), t = $("verTable");
+      if (!blk || !t) return;
+      const VF = INS && budget.inst && !budget.inst.virtual ? (INS.vfz || []) : [];
+      blk.hidden = !VF.length;
+      if (blk.hidden) return;
+      const all = [...VF].sort((a, b) => (b.n || 0) - (a.n || 0)), rows = cfApply("vver", VER_COLS, all);
+      verShown = rows;
+      const ttl = $("verTitle"); if (ttl) ttl.innerHTML = SVI_ICON.ver + "VERSIONS " + svCnt(rows.length, all.length);
+      const oc = coOrder("vver", VER_COLS);
+      t.style.width = cwTableW("vver", VER_COLS) + "px";
+      t.innerHTML = `<colgroup>${cwCols("vver", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("vver", c[0], c[1], c[3])).join("")}</tr></thead>
+        <tbody>${rows.map(x => `<tr class="ver-row" data-vn="${x.n}">${oc.map(c => `<td>${esc(c[2](x))}${c[0] === "vno" && x.auto ? ' <span class="auto-a" title="Créée automatiquement">Ⓐ</span>' : ""}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}</tbody>`;
+    };
+    shell.__verRender = verRender;
+    shell.querySelector(".blk-ver")?.addEventListener("click", e => {
+      if (e.target.closest(".cf-btn, .col-rs, .blk-tools, .blk-grip, .blk-rsz")) return;
+      const tr = e.target.closest("tr[data-vn]"); if (!tr) return;
+      e.stopPropagation();
+      window.__sviAvOpen(budget.inst.ref + "-V" + tr.dataset.vn, budget.inst.ref);
+    });
+    /* depuis une version ouverte : RESTAURER CETTE VERSION et EN FAIRE UN SCÉNARIO */
+    {
+      const bar = $("verBar");
+      if (bar && budget.inst && budget.inst.virtual && budget.inst.vname) {
+        const pref = budget.inst.parent, vn = +((String(ref).match(/-V(\d+)$/) || [])[1] || 0);
+        const L0 = () => sviInstGet(), par = () => L0().find(x => x.ref === pref);
+        const vData = () => { const p = par(); const v = p && ((p.data || {}).vfz || []).find(x => x.n === vn); return v ? JSON.parse(JSON.stringify(v.d)) : null; };
+        const hist = (r, a, d) => { try { const k = "svi_hist_v1:" + r, l = JSON.parse(localStorage.getItem(k) || "[]") || []; l.push({ t: new Date().toISOString(), b: "VERSIONS", a, d: String(d || "").toUpperCase(), u: typeof sviUser === "function" ? sviUser() : "" }); localStorage.setItem(k, JSON.stringify(l.slice(-1000))); } catch (e) {} };
+        bar.addEventListener("click", async e => {
+          const b = e.target.closest("[data-vact]"); if (!b) return;
+          const p = par(), d0 = vData();
+          if (!p || !d0) { sviAlert("VERSION INTROUVABLE.", "VERSION"); return; }
+          const D = p.data = p.data || {};
+          if (b.dataset.vact === "restore") {
+            if ((p.state || "instance") !== "instance") { svToast("RESTAURER : L'ÉTAPE DOIT ÊTRE EN INSTANCE (" + (p.state === "valide" ? "VALIDÉE" : "FIGÉE") + " ACTUELLEMENT).", 4500, b); return; }
+            if (!(await svConfirm({ title: "RESTAURER LA VERSION " + vn, text: "L'ÉTAPE " + pref + " REPREND L'ÉTAT DE LA VERSION " + vn + ". UNE VERSION AUTOMATIQUE DE L'ÉTAT ACTUEL EST PRISE AVANT.", ok: "RESTAURER", tone: "neutral" }))) return;
+            const cur = JSON.parse(JSON.stringify(D)); delete cur.ver; delete cur.vfz;
+            D.vfz = D.vfz || [];
+            const last = D.vfz[D.vfz.length - 1];
+            if (!last || JSON.stringify(last.d) !== JSON.stringify(cur)) { const n = D.vfz.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1; D.vfz.push({ id: "v" + Date.now().toString(36), n, kind: "AVANT RESTAURATION", auto: true, u: typeof sviUser === "function" ? sviUser() : "", date: localDT(new Date()), d: cur }); }
+            const keep = { ver: D.ver, vfz: D.vfz };
+            p.data = { ...d0, ...keep }; if (!keep.ver) delete p.data.ver;
+            sviInstSet(L0().map(x => x.ref === pref ? p : x)); await sviInstFlush();
+            hist(pref, "VERSION RESTAURÉE", "VERSION " + vn);
+            window.__sviAvOpen(pref); return;
+          }
+          if (b.dataset.vact === "scn") {
+            const V = D.ver = D.ver || { L: [], ind: [] }; V.L = V.L || [];
+            const SC = V.L.filter(x => x.kind === "sc");
+            if (SC.length >= 10) { svToast("10 SCÉNARIOS AU PLUS PAR ÉTAPE.", 3500, b); return; }
+            const no = () => { const used = new Set(V.L.map(x => (String(x.nom).match(/^SCÉNARIO (\d+)$/) || [])[1]).filter(Boolean).map(Number)); let n = 1; while (used.has(n)) n++; return n; };
+            if (!V.act || !V.L.some(x => x.id === V.act)) { const id = "s" + Date.now().toString(36); V.L.push({ id, kind: "sc", nom: "SCÉNARIO " + no(), date: localDT(new Date()) }); V.act = id; }
+            if (V.L.filter(x => x.kind === "sc").length >= 10) { svToast("10 SCÉNARIOS AU PLUS PAR ÉTAPE.", 3500, b); return; }
+            const nom = "SCÉNARIO " + no();
+            V.L.push({ id: "s" + Date.now().toString(36) + "b", kind: "sc", nom, date: localDT(new Date()), d: d0 });
+            sviInstSet(L0().map(x => x.ref === pref ? p : x)); await sviInstFlush();
+            hist(pref, "NOUVEAU SCÉNARIO", nom + " — DEPUIS LA VERSION " + vn);
+            svToast(nom + " CRÉÉ DEPUIS LA VERSION " + vn + ".", 3000);
+            window.__sviAvOpen(pref); return;
+          }
+        });
+      }
+    }
     shell.__verOrig = () => verOrig();
 
     /* =========================================================
@@ -247,6 +326,7 @@
     };
     const scnRender = () => {
       scnPill();
+      try { verRender(); } catch (e) {}
       const blk = shell.querySelector(".blk-scn"), t = $("scnTable");
       if (!blk || !t) return;
       const SC = scnL();
