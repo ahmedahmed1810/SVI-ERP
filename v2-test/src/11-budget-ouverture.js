@@ -286,6 +286,8 @@
     /* en instance (rouge) ou figé (vert) ; validé : présentation noire normale */
     const INST_LIVE = !!budget.inst && budget.inst.state !== "valide";
     if (INST_LIVE) shell.classList.add("bdg-inst-" + (budget.inst.state || "instance"));
+    /* v689 : nuance — budget (marché initial) un peu plus foncé, avenant un peu plus clair */
+    shell.classList.toggle("bdg-av", !!(budget.inst && budget.inst.parent && !budget.inst.virtual));
     /* v684 : consolidé d'un budget à avenants (« réf.-GLOBAL ») ; étape ouverte depuis le consolidé (flèche = retour au consolidé) */
     const AV_ROOT = budget.inst && budget.inst.virtual && !budget.inst.vname && /-GLOBAL$/.test(String(ref)) ? budget.inst.parent : "";
     const AV_STG = AV_ROOT ? sviAvStages(AV_ROOT) : [];

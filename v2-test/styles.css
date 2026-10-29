@@ -2841,3 +2841,20 @@ td.ins-pmp { position: relative; }
 .rec-table tr.rec-new td { background: var(--inst-bg, #f8fafc); color: var(--inst, #6b7480); opacity: .85; cursor: pointer; }
 .novapp-list-titlebar #insChain.lk-chain-top { margin: 0 6px 0 auto; flex: 0 1 auto; min-width: 0; max-width: 46%; }
 .bdg-d-head.bdg-d-head-min:not(:has(.av-top)) { display: none; }
+
+/* v689 : nuance budget / avenant — même couleur d'état, le budget (marché initial) un peu plus foncé, l'avenant un peu plus clair */
+.bdg-inst-instance { --inst: #991b1b; --inst-bg: #fdf0f0; }
+.bdg-inst-fige { --inst: #166534; --inst-bg: #eefbf2; }
+.bdg-inst-instance.bdg-av { --inst: #dc2626; --inst-bg: #fff6f6; }
+.bdg-inst-fige.bdg-av { --inst: #22a052; --inst-bg: #f4fdf7; }
+.bdg-av:not(.bdg-inst-instance):not(.bdg-inst-fige) .novapp-list-titlebar .bdg-d-h1 { color: #3b6ea5; }
+.bdg-av:not(.bdg-inst-instance):not(.bdg-inst-fige) .bdg-d-block-title .ttl { color: #3b6ea5; }
+#budgetListTable tr.inst-instance td, #budgetListTable tr.inst-instance .budget-link { color: #991b1b; }
+#budgetListTable tr.inst-fige td, #budgetListTable tr.inst-fige .budget-link { color: #166534; }
+.av-stg-t tr.inst-instance.row-bdg td { color: #991b1b; } .av-stg-t tr.inst-instance.row-av td { color: #dc2626; }
+.av-stg-t tr.inst-fige.row-bdg td { color: #166534; } .av-stg-t tr.inst-fige.row-av td { color: #22a052; }
+.av-stg-t tr.inst-valide.row-bdg td, .av-stg-t tr:not([class*="inst-"]).row-bdg td { color: #12355b; }
+.av-stg-t tr.inst-valide.row-av td { color: #3b6ea5; }
+.av-tree .av-st-instance.row-bdg b { color: #991b1b; } .av-tree .av-st-instance.row-av b { color: #dc2626; }
+.av-tree .av-st-fige.row-bdg b { color: #166534; } .av-tree .av-st-fige.row-av b { color: #22a052; }
+.av-tree .av-st-valide.row-av b { color: #3b6ea5; }
