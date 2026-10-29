@@ -383,7 +383,8 @@
     const dlyCompressRun = (opts = {}) => {
       const C = dlyCanCompress({ gen: !!opts.gen });
       if (!C.ok) {
-        if (C.stuck) { svToast(C.why, 5000, opts.anchor); insSave(); renderTabK(); return null; }
+        if (C.stuck) { if (!opts.live) svToast(C.why, 5000, opts.anchor); insSave(); renderTabK(); return null; }
+        if (opts.plaf !== undefined && opts.live) { insSave(); renderTabK(); return null; }
         if (opts.plaf !== undefined) {
           /* R24 : la capacité de la sélection n'a plus d'effet — dire quelle ressource bloque */
           const cur = dlyCurGK(), by = cur ? [...new Set(dlyKeys().filter(k => dlyResQ(k) > 0).map(k => (INS.dlim || {})[k]).filter(g => g && g !== cur))] : [];
@@ -403,9 +404,10 @@
       if (!INS.gdeb) INS.gdeb = dlyProjStart();
       insSave();
       const f1 = dlyEnd(dlyCurDates());
-      histLog("DÉLAIS", gen ? "GÉNÉRER LE PLANNING" : "COMPRESSER LE PLANNING", (opts.plaf !== undefined ? "CAPACITÉ " + (opts.plaf < 0 ? "ILLIMITÉE" : opts.plaf) + " — " : "") + "FIN " + dFr(f0) + " → " + dFr(f1) + (P.links.length ? " — " + P.links.length + " LIAISON(S) CRÉÉE(S)" : ""));
+      if (!opts.live) histLog("DÉLAIS", gen ? "GÉNÉRER LE PLANNING" : "COMPRESSER LE PLANNING", (opts.plaf !== undefined ? "CAPACITÉ " + (opts.plaf < 0 ? "ILLIMITÉE" : opts.plaf) + " — " : "") + "FIN " + dFr(f0) + " → " + dFr(f1) + (P.links.length ? " — " + P.links.length + " LIAISON(S) CRÉÉE(S)" : ""));
       renderTabK(); insRenderChain();
       if (opts.plaf === undefined) svToast((opts.gen ? "TÂCHES SANS DATES GÉNÉRÉES" : gen ? "PLANNING GÉNÉRÉ" : "PLANNING COMPRESSÉ") + " — FIN LE " + dFr(f1) + (P.links.length ? " — " + P.links.length + " LIAISON(S) PROPOSÉE(S)" : "") + ".", 3500);
+      if (opts.live) return P.D;
       { const late = dlyLockLate(); if (late.length) svToast("VERROU FIN DÉPASSÉ : " + late.map(dlyName).join(", ") + ".", 6000, opts.anchor); }   /* v667 (axe 8) */
       if (INS.dbut && f1 > INS.dbut) svToast(DLY_BUT_MSG + " (FIN LE " + dFr(f1) + ", BUTOIR LE " + dFr(INS.dbut) + ").", 5000, opts.anchor);
       return P.D;
@@ -528,14 +530,15 @@
       dlyCompressRun({ plaf: dlyCapOf(d), quiet: true });
     };
     /* morceau tiré : n (≥ 1, 0 = pénurie, −1 = ILLIMITÉ) ; i = 0 : premier morceau ; le planning est recompressé (R2) */
-    const dlySetPlaf = (i, n, anchor) => {
+    /* v703 : live = pendant le geste (sans historique ni message) ; au lâcher, un seul passage enregistré dans l'historique */
+    const dlySetPlaf = (i, n, anchor, live) => {
       const st = dlyCapSt();
       if (!st) return;
       n = n < 0 ? -1 : Math.round(n);
       if (!i) st.plaf = n;
       else { const c = (st.plafs || [])[i - 1]; if (!c) return; c.n = n; }
-      histLog("DÉLAIS", "CAPACITÉ", (i ? "MORCEAU " + (i + 1) + " : " : "") + (n < 0 ? "ILLIMITÉE" : n));
-      dlyCompressRun({ plaf: n, quiet: true, anchor });
+      if (!live) histLog("DÉLAIS", "CAPACITÉ", (i ? "MORCEAU " + (i + 1) + " : " : "") + (n < 0 ? "ILLIMITÉE" : n));
+      dlyCompressRun({ plaf: n, quiet: true, anchor, live: !!live });
     };
 
     /* ---------- histogramme : données, R17 approvisionnement, R18 réglages ---------- */
