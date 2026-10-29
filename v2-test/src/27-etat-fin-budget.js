@@ -65,26 +65,26 @@
           shell.oninput = null;
           /* retour volontaire à la liste : elle sera l'écran d'ouverture */
           try { localStorage.removeItem("svi_lastbdg_v1"); } catch (e) {}
-          /* v684 : étape ouverte depuis le consolidé → retour au consolidé ; consolidé → liste mère (case remise à zéro) */
+          /* v687 : étape ou consolidé ouvert depuis la liste des étapes → retour à cette liste */
+          let avBackList = "";
           { const ret = window.__sviAvRet; window.__sviAvRet = null;
             try { localStorage.removeItem("svi_opening_v1"); } catch (e) {}   /* l'ouverture est allée au bout */
-            if (ret && ret !== ref) { try { localStorage.setItem("svi_lastbdg_v1", ret); } catch (e) {} }
-            else if (AV_ROOT && !window.__sviAvKeep) sviAvAllSet(AV_ROOT, false); }
+            if (ret && /^LIST:/.test(ret)) avBackList = ret.slice(5);
+            else if (ret && ret !== ref) { try { localStorage.setItem("svi_lastbdg_v1", ret); } catch (e) {} } }
           if (window.__sviViewSave) window.__sviViewSave();
           window.__sviBdgLive = null;
           setTimeout(() => window.__sviViewRestore && window.__sviViewRestore("list:bdg"), 0);
           shell.innerHTML = listHTML;
           renderBudgetList();
+          if (avBackList && !window.__sviAvKeep && window.__sviAvList) window.__sviAvList(avBackList);
         }
       );
 
-    /* v684 : en haut du consolidé — AVENANTS : + / ⌛ / ≡ et case INCLURE LES NON VALIDÉS */
+    /* v687 : en haut du consolidé — COMPOSITION : étapes et scénarios à compter (arborescence à cocher) */
     $("avTop")?.addEventListener("click", e => {
       const b = e.target.closest("[data-avt]"); if (!b || b.disabled) return;
-      if (b.dataset.avt === "add") window.__sviAvNew(AV_ROOT);
-      else window.__sviAvList(AV_ROOT, b.dataset.avt);
+      if (b.dataset.avt === "comp" && window.__sviAvComp) window.__sviAvComp(AV_ROOT, ref);
     });
-    $("avAll")?.addEventListener("change", e => { sviAvAllSet(AV_ROOT, e.target.checked); window.__sviAvOpen(ref, null, true); });
 
     /* budget en instance : ‹ › navigation, 🔒 figer / revenir en édition, 🗑 supprimer, ✕ fermer */
     if (budget.inst && budget.inst.state !== "valide") {
@@ -188,7 +188,7 @@
      ========================================================= */
   /* ouvre un budget de la famille ; ret = écran où ramène la flèche (le consolidé) */
   const sviAvOpen = (r, ret, keep) => {
-    window.__sviAvRet = null; window.__sviAvKeep = !!keep || !!ret;   /* étape ouverte depuis le consolidé : la case reste telle quelle */
+    window.__sviAvRet = null; window.__sviAvKeep = true;   /* pas de retour automatique pendant ce changement d'écran */
     const back = document.getElementById("budgetBackBtn"); if (back) back.click();
     window.__sviAvRet = ret || null; window.__sviAvKeep = false;
     try { localStorage.setItem("svi_lastbdg_v1", r); } catch (e) {}
@@ -203,9 +203,9 @@
     sviInstSet(L.concat(it));
     return r;
   };
-  window.__sviAvAdd = rootRef => { const r = sviAvAdd(rootRef); if (r) sviAvOpen(r, rootRef + "-GLOBAL"); return r; };
+  window.__sviAvAdd = rootRef => { const r = sviAvAdd(rootRef); if (r) sviAvOpen(r, "LIST:" + rootRef); return r; };
   /* nouvel avenant : fenêtre INF d'abord (DATE CRÉATION, PROJET, INTITULÉ — comme un nouveau budget) */
-  const sviAvNew = rootRef => {
+  const sviAvNew = (rootRef, ret) => {
     const S = sviAvStages(rootRef), root = S[0]; if (!root) return;
     if (S[S.length - 1].state !== "valide") { sviAlert((S.length > 1 ? "LE DERNIER AVENANT" : "LE MARCHÉ INITIAL") + " DOIT ÊTRE VALIDÉ AVANT D'OUVRIR UN AVENANT.", "NOUVEL AVENANT"); return; }
     document.getElementById("docPop")?.remove();
@@ -245,7 +245,7 @@
       if (isNaN(new Date(val("#avDate")))) { p.querySelector("#avErr").textContent = "À COMPLÉTER (*) : DATE."; return; }
       const nr = sviAvAdd(rootRef, { created: val("#avDate"), intitule: val("#avName").toUpperCase() || root.intitule });
       p.remove();
-      if (nr) sviAvOpen(nr, root.ref + "-GLOBAL");
+      if (nr) sviAvOpen(nr, ret || "LIST:" + root.ref);
     });
   };
   window.__sviAvNew = sviAvNew;
@@ -253,7 +253,7 @@
   const sviAvList = (rootRef, mode0) => {
     const S = sviAvStages(rootRef); if (!S.length) return;
     const root = S[0], live = S.filter(x => x.state !== "valide"), done = S.filter(x => x.state === "valide");
-    let mode = mode0 === "inst" && live.length ? "inst" : done.length ? "valid" : "inst";
+    let mode = mode0 !== "valid" && live.length ? "inst" : done.length ? "valid" : "inst";   /* v687 : ouverte sur EN INSTANCE */
     const stLab = x => x.state === "valide" ? "VALIDÉ" : x.state === "fige" ? "FIGÉ" : "EN INSTANCE";
     const ov = document.createElement("div");
     ov.className = "av-list-ov";
@@ -263,7 +263,8 @@
       ov.innerHTML = `<div class="novapp-list-shell${mode === "inst" ? " list-inst" : ""}">
         <div class="novapp-list-titlebar">
           <button type="button" class="novapp-menu" data-avl="back" aria-label="Retour" title="Retour au consolidé">←</button>
-          <h1>${esc(U_(root.project) + " " + root.ref)} — ÉTAPES (${mode === "inst" ? "EN INSTANCE" : "VALIDÉES"}) ${svCnt(L.length)}</h1>
+          <h1>${esc(U_(root.project) + " " + root.ref)} ${mode === "inst" ? "(EN INSTANCE)" : "(VALIDÉS)"} ${svCnt(L.length)}</h1>
+          <button type="button" class="svc-b av-glob" data-avl="glob" title="Budget consolidé (marché + avenants)">Σ CONSOLIDÉ</button>
           <div class="novapp-list-actions">
             <span class="list-lab">AVENANTS :</span>
             ${live.length ? ic("inst", "⌛", "Étapes en instance", mode === "inst") : ""}
@@ -290,14 +291,50 @@
         if (b.disabled) return;
         const a = b.dataset.avl;
         if (a === "back") { close(); return; }
-        if (a === "add") { close(); sviAvNew(root.ref); return; }
+        if (a === "add") { close(); sviAvNew(root.ref, "LIST:" + root.ref); return; }
+        if (a === "glob") { close(); sviAvOpen(root.ref + "-GLOBAL", "LIST:" + root.ref); return; }
         mode = a; draw(); return;
       }
       const tr = e.target.closest("tr[data-r]");
-      if (tr) { close(); sviAvOpen(tr.dataset.r, root.ref + "-GLOBAL"); }
+      if (tr) { close(); sviAvOpen(tr.dataset.r, "LIST:" + root.ref); }
     });
   };
   window.__sviAvList = sviAvList;
+  /* v687 : COMPOSITION du consolidé — arborescence : chaque étape (cochée = comptée telle qu'elle est), et sous elle ses
+     scénarios (cocher un scénario = le compter à la place de l'étape) ; au départ, les étapes validées */
+  const sviAvComp = (rootRef, gref) => {
+    const S0 = sviAvStages(rootRef); if (!S0.length) return;
+    const sel = { ...(sviAvSelGet(rootRef) || sviAvSelDef(S0)) };
+    const stLab = x => x.state === "valide" ? "VALIDÉ" : x.state === "fige" ? "FIGÉ" : "EN INSTANCE";
+    const d = sviWinNew();
+    const draw = () => {
+      d.innerHTML = sviWinCard({ cls: "av-comp-card", close: "data-x", title: "COMPOSITION DU CONSOLIDÉ",
+        body: `<div class="svc-sub">COCHER CE QUI ENTRE DANS LE CONSOLIDÉ : UNE ÉTAPE TELLE QU'ELLE EST, OU L'UN DE SES SCÉNARIOS À SA PLACE.</div>
+          <div class="av-tree">${S0.map(st => { const sc = sviAvScn(st), c = sel[st.ref];
+            return `<label class="av-tn av-st-${st.state || "instance"}"><input type="checkbox" data-st="${esc(st.ref)}"${c === "act" ? " checked" : ""}> <b>${esc(sviAvName(st))}</b> <small>${esc(st.ref)} · ${stLab(st)}</small></label>
+              ${sc.map(x => `<label class="av-tn av-sub"><input type="checkbox" data-st="${esc(st.ref)}" data-sc="${x.id}"${c === x.id ? " checked" : ""}> ${esc(x.nom)}${x.arch ? " <small>(ARCHIVÉ)</small>" : ""}</label>`).join("")}`; }).join("")}</div>`,
+        foot: `<button type="button" class="svc-b" data-def>PAR DÉFAUT (VALIDÉS)</button><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>APPLIQUER</button>` });
+    };
+    draw(); sviWinShow(d);
+    d.addEventListener("change", e => {
+      const t = e.target.closest("input[data-st]"); if (!t) return;
+      const r = t.dataset.st;
+      if (!t.checked) delete sel[r]; else sel[r] = t.dataset.sc || "act";   /* un seul choix par étape */
+      draw();
+    });
+    d.addEventListener("click", e => {
+      if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+      if (e.target.closest("[data-def]")) { Object.keys(sel).forEach(k => delete sel[k]); Object.assign(sel, sviAvSelDef(S0)); draw(); return; }
+      if (e.target.closest("[data-ok]")) {
+        if (!Object.keys(sel).length) { svToast("COCHER AU MOINS UNE ÉTAPE OU UN SCÉNARIO.", 3000); return; }
+        d.remove();
+        const def = sviAvSelDef(S0), same = Object.keys(def).length === Object.keys(sel).length && Object.keys(def).every(k => def[k] === sel[k]);
+        sviAvSelSet(rootRef, same ? null : { ...sel });
+        sviAvOpen(gref || rootRef + "-GLOBAL", "LIST:" + rootRef);
+      }
+    });
+  };
+  window.__sviAvComp = sviAvComp;
 
   table.onclick = event => {
 
@@ -368,11 +405,13 @@
       );
 
     if (row) {
-      /* v684 : budget à avenants → son consolidé (lecture seule), case INCLURE LES NON VALIDÉS décochée */
+      /* v687 : budget à avenants → liste de ses étapes (au format de la liste mère), ouverte sur EN INSTANCE ;
+         composition du consolidé remise par défaut (étapes validées) */
       if (sviAvStages(row.dataset.budgetRef).length > 1) {
-        const r0 = row.dataset.budgetRef, g = r0 + "-GLOBAL";
+        const r0 = row.dataset.budgetRef;
         window.__sviAvRet = null;
-        if (sviAvAllGet(r0) || !groups.has(g)) { sviAvAllSet(r0, false); sviAvOpen(g); } else openBudgetDetail(g);
+        if (sviAvSelGet(r0)) sviAvSelSet(r0, null);
+        sviAvList(r0, "inst");
         return;
       }
       openBudgetDetail(

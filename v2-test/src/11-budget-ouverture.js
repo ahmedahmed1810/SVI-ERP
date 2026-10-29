@@ -366,11 +366,9 @@
           ${INST_LIVE ? '<div class="lk-chain lk-chain-top" id="insChain" hidden></div>' : ""}
         </div>
         ${AV_ROOT ? `<div class="av-top" id="avTop">
-          <span class="list-lab">AVENANTS :</span>
-          <button type="button" class="av-ic" data-avt="add" ${AV_STG.length && AV_STG[AV_STG.length - 1].state === "valide" ? 'title="Nouvel avenant"' : 'disabled title="LE DERNIER AVENANT DOIT ÊTRE VALIDÉ"'} aria-label="Nouvel avenant">＋</button>
-          ${AV_STG.some(x => x.state !== "valide") ? '<button type="button" class="av-ic" data-avt="inst" title="Étapes en instance" aria-label="Étapes en instance">⌛</button>' : ""}
-          ${AV_STG.some(x => x.state === "valide") ? '<button type="button" class="av-ic" data-avt="valid" title="Étapes validées" aria-label="Étapes validées">≡</button>' : ""}
-          <label class="av-inc"><input type="checkbox" id="avAll"${sviAvAllGet(AV_ROOT) ? " checked" : ""}> INCLURE LES NON VALIDÉS</label>
+          <span class="list-lab">COMPOSITION :</span>
+          <span class="av-comp">${esc(sviAvSelLab(AV_ROOT, sviAvSelGet(AV_ROOT)))}</span>
+          <button type="button" class="svc-b av-comp-b" data-avt="comp">CHOISIR…</button>
         </div>` : ""}
 
       </div>

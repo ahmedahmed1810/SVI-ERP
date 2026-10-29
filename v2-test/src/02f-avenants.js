@@ -19,20 +19,32 @@ const sviAvStages = ref => {
   return [root, ...L.filter(x => x.parent === root.ref).sort((a, b) => (a.avn || 0) - (b.avn || 0))];
 };
 const sviAvName = it => it && it.vname ? it.vname : it && it.parent ? "AVENANT " + (it.avn || 1) : "MARCHÉ INITIAL";
-/* v684 : case INCLURE LES NON VALIDÉS du consolidé (décochée au départ, mémoire de la session) */
-const sviAvAllGet = r => !!(window.__sviAvAll || {})[r];
-const sviAvAllSet = (r, v) => { window.__sviAvAll = window.__sviAvAll || {}; if (v) window.__sviAvAll[r] = true; else delete window.__sviAvAll[r]; };
-/* budget consolidé — v684 : sans « all », seulement le marché initial et les avenants VALIDÉS */
-const sviAvMerge = (rootRef, all) => {
-  const S = sviAvStages(rootRef).filter((x, i) => all || i === 0 || x.state === "valide");
-  if (!S.length) return null;
-  const D0 = JSON.parse(JSON.stringify(S[0].data || {}));
+/* v687 : COMPOSITION du consolidé — pour chaque étape : "act" (l'étape telle qu'elle est), l'id d'un de ses scénarios,
+   ou rien (étape non comptée). Par défaut : les étapes VALIDÉES (le marché initial s'il n'y en a aucune). Mémoire de la session. */
+const sviAvSelDef = S0 => { const o = {}; S0.forEach(st => { if (st.state === "valide") o[st.ref] = "act"; }); if (!Object.keys(o).length && S0[0]) o[S0[0].ref] = "act"; return o; };
+const sviAvSelGet = r => ((window.__sviAvSel || {})[r]) || null;
+const sviAvSelSet = (r, v) => { window.__sviAvSel = window.__sviAvSel || {}; if (v) window.__sviAvSel[r] = v; else delete window.__sviAvSel[r]; };
+/* scénarios d'une étape qu'on peut prendre à sa place (ceux qui ne sont pas l'état actuel) */
+const sviAvScn = st => { const V = (st.data || {}).ver || {}; return (V.L || []).filter(x => x.kind === "sc" && x.id !== V.act && x.d); };
+/* libellé court de la composition */
+const sviAvSelLab = (rootRef, sel) => { const S0 = sviAvStages(rootRef), o = sel || sviAvSelDef(S0);
+  return S0.filter(st => o[st.ref]).map(st => sviAvName(st) + (o[st.ref] !== "act" ? " (" + ((sviAvScn(st).find(x => x.id === o[st.ref]) || {}).nom || "?") + ")" : "")).join(" + ") || "AUCUNE ÉTAPE"; };
+/* budget consolidé — opt : true = toutes les étapes ; objet = composition ; rien = composition par défaut (validées) */
+const sviAvMerge = (rootRef, opt) => {
+  const S0 = sviAvStages(rootRef);
+  if (!S0.length) return null;
+  const sel = opt === true ? Object.fromEntries(S0.map(st => [st.ref, "act"])) : opt && typeof opt === "object" ? opt : sviAvSelDef(S0);
+  const S = S0.map(st => { const c = sel[st.ref]; if (!c) return null; if (c === "act") return { st, d: st.data || {} };
+    const sc = sviAvScn(st).find(x => x.id === c); return sc ? { st, d: sc.d, sc: sc.nom } : { st, d: st.data || {} }; }).filter(Boolean);
+  if (!S.length) S.push({ st: S0[0], d: { lot: [], des: [] }, none: true });
+  const D0 = JSON.parse(JSON.stringify(S[0].d || {}));
   const M = { ...D0, des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: D0.qlt || [], links: [], dlp: {}, dlpSec: true };
   delete M.ver; delete M.vfz; delete M.dord; delete M.conf;
   const n = v => Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")) || 0;
   const key = { des: r => r.t ? "T|" + sviAvU(r.art) + "|" + sviAvU(r.des) : sviAvU(r.des) + "|" + sviAvU(r.u), lot: r => sviAvU(r.v), prim: r => sviAvU(r.v), sec: r => sviAvU(r.v), chg: r => r.t ? "T|" + sviAvU(r.des) : sviAvU(r.des) + "|" + sviAvU(r.u) };
-  S.forEach((st, si) => {
-    const d = st.data || {}, nm = sviAvName(st), map = {};
+  S.forEach((x0, si) => {
+    if (x0.none) return;
+    const st = x0.st, d = x0.d || {}, nm = sviAvName(st) + (x0.sc ? " (" + x0.sc + ")" : ""), map = {};
     ["des", "lot", "prim", "sec", "chg"].forEach(k => (d[k] || []).forEach(r => {
       const kk = key[k](r);
       let m = M[k].find(x => x.__k === kk);

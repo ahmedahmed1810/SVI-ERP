@@ -1945,7 +1945,7 @@
         else if (it.dataset.a === "paq") qqPaqOpen();
         else if (it.dataset.a === "ctr") ctrWin();
         else if (it.dataset.a === "av") { if (window.__sviAvNew) window.__sviAvNew(budget.inst.ref); }   /* v684 : fenêtre INF puis l'avenant */
-        else if (it.dataset.a === "avl") { const root = budget.inst.parent || budget.inst.ref; if (window.__sviAvOpen) window.__sviAvOpen(root + "-GLOBAL"); }   /* v684 : plus de petite fenêtre : le consolidé */
+        else if (it.dataset.a === "avl") { const root = budget.inst.parent || budget.inst.ref; if (window.__sviAvOpen) window.__sviAvOpen(root + "-GLOBAL", "LIST:" + root); }   /* v684 : plus de petite fenêtre : le consolidé */
         else if (it.dataset.a === "ver") verWin();   /* v670 (axes 1 et 4) */   /* v669 (axe 3) */
         else if (it.dataset.a === "rat") ratWin();
         else if (it.dataset.a === "ind") indWin();   /* v679 */
