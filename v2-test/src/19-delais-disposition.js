@@ -179,19 +179,19 @@
       }
     };
 
-    const LAY_UNITS = ["client", "hier", "detail", "suivi"];
+    const LAY_UNITS = ["client", "hier", "detail", "scn", "suivi"];   /* v685 : bloc SCÉNARIOS entre le détail et le suivi */
     const page$ = () => shell.querySelector(".bdg-d-page");
     const layEls = u => {
       const pg = page$();
       if (u === "detail") return [$("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
-      const sel = { client: ".blk-client", hier: ".blk-hier", suivi: ".blk-suivi" }[u];
+      const sel = { client: ".blk-client", hier: ".blk-hier", scn: ".blk-scn", suivi: ".blk-suivi" }[u];
       return [pg.querySelector(":scope > " + sel)].filter(Boolean);
     };
     const layMeasure = u => {
       const sel = {
         client: ".bdg-d-client-scroll", hier: ".bdg-h-col",
         detail: "#bdgTabBody .bdg-d-scroll",
-        suivi: ".blk-suivi .rec-scroll:not([hidden])"
+        suivi: ".blk-suivi .rec-scroll:not([hidden])", scn: ".blk-scn .rec-scroll"
       }[u];
       const el = page$().querySelector(sel);
       return el ? el.getBoundingClientRect().height : 150;
@@ -222,7 +222,10 @@
     };
     const layOrder = () => {
       const saved = (layLoad().order || []).filter(u => LAY_UNITS.includes(u));
-      return [...saved, ...LAY_UNITS.filter(u => !saved.includes(u))];
+      /* v685 : bloc nouveau absent de l'ordre enregistré : rangé à sa place d'origine (juste avant le suivi) */
+      const out = [...saved];
+      LAY_UNITS.filter(u => !saved.includes(u)).forEach(u => { const i = out.indexOf("suivi"); if (u !== "suivi" && i >= 0) out.splice(i, 0, u); else out.push(u); });
+      return out;
     };
     const layOpenH = {};   /* hauteurs réglées pendant cette ouverture seulement */
     const layApply = () => {
@@ -241,7 +244,7 @@
       try { requestAnimationFrame(() => { try { layDetFloor(); } catch (e) {} }); } catch (e) {}
       /* v557 : hauteur par défaut du détail recalculée si l'écran change (rotation, barre de Safari) */
       if (!shell.__layDetRs) { shell.__layDetRs = true; let tm = 0; window.addEventListener("resize", () => { clearTimeout(tm); tm = setTimeout(() => { if (shell.isConnected && page$() && !(layLoad().h || {}).detail) layApply(); }, 300); }); }
-      const custom = (lay.order && lay.order.join() !== LAY_UNITS.join()) ||
+      const custom = (lay.order && layOrder().join() !== LAY_UNITS.join()) ||
         Object.keys(lay.h || {}).length > 0;
       const rb = $("layResetBtn");
       /* ↻ toujours affiché ; grisé quand les blocs sont déjà à leur place d'origine */

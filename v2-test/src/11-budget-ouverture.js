@@ -362,6 +362,7 @@
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="taf" role="button">${SVI_ICON.taf}<span class="pl">TAF ${svCnt(0)}</span></span>
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="obs" role="button">${SVI_ICON.obs}<span class="pl">OBS ${svCnt(0)}</span></span>
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="inf" role="button">${SVI_ICON.inf}<span class="pl">INF</span></span>
+          ${budget.inst && !budget.inst.virtual ? `<span class="bdg-d-pill bdg-d-pill-btn" data-pill="scn" role="button" title="Nouveau scénario">${SVI_ICON.scn}<span class="pl">SCN ${svCnt((((budget.inst.data || {}).ver || {}).L || []).filter(x => x.kind === "sc").length)}</span></span>` : ""}
           ${INST_LIVE ? '<div class="lk-chain lk-chain-top" id="insChain" hidden></div>' : ""}
         </div>
         ${AV_ROOT ? `<div class="av-top" id="avTop">
@@ -440,6 +441,18 @@
         </div>
 
         <div class="bdg-d-block bdg-d-tabbody" id="bdgTabBody"></div>
+
+        <div class="bdg-d-block blk-rec blk-scn" data-rec="scn" hidden>
+          <div class="bdg-d-block-title blk-head">
+            <span class="ttl" id="scnTitle">${SVI_ICON.scn}SCÉNARIOS</span>
+            <span class="blk-tools">
+              <button type="button" class="blk-btn" data-blk="scn" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="scn" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn blk-max-btn" data-blk="scn" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </span>
+          </div>
+          <div class="rec-scroll scn-scroll"><table class="bdg-d-table rec-table scn-table" id="scnTable"></table></div>
+        </div>
 
         <div class="bdg-d-block blk-rec blk-suivi" data-rec="suivi">
           <div class="bdg-d-block-title blk-head">

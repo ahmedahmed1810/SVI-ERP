@@ -1142,6 +1142,7 @@
         if (window.__sviHistRefresh) window.__sviHistRefresh();
         if (window.__sviIndRefresh) window.__sviIndRefresh();   /* v679 */
         if (window.__sviRatRefresh) window.__sviRatRefresh();   /* v680 */
+        if (shell.__scnRender) shell.__scnRender();   /* v685 : bloc SCÉNARIOS */
         if (window.__sviImpRefresh) window.__sviImpRefresh();
         if (window.__sviDpkRefresh) window.__sviDpkRefresh();
         if (window.__sviInfoRefresh) window.__sviInfoRefresh();

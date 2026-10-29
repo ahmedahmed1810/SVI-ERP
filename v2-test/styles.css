@@ -2787,3 +2787,22 @@ td.ins-pmp { position: relative; }
 .av-stg-t tbody tr[data-r] { cursor: pointer; }
 .av-stg-t tr.inst-instance td { color: #b91c1c; }
 .av-stg-t tr.inst-fige td { color: #15803d; }
+
+/* v685 : bouton SCN et bloc SCÉNARIOS (FORMAT des autres blocs) */
+.bdg-d-pill.pill-off { opacity: .45; }
+.bdg-d-block[hidden] { display: none !important; }
+.blk-scn .rec-scroll { height: auto; max-height: var(--h-scn, 214px); }
+.scn-table th small.scn-st { display: block; font-size: 9px; font-weight: 700; color: #6b7480; }
+.scn-table .ver-act { background: #eff6ff; }
+.scn-table th.ver-arch, .scn-table th.ver-arch small { color: #9aa3b2; }
+.scn-table .cmp-del { border: 0; background: transparent; color: #b91c1c; font-weight: 800; cursor: pointer; margin-left: 4px; }
+.scn-table .rat-err { color: #b45309; }
+.scn-table tr.scn-fix td { background: #f8fafc; }
+.scn-table .ver-acts { white-space: nowrap; }
+.scn-table .ver-acts .svc-b, .scn-table .ver-ip { height: 19px; min-width: 0; padding: 0 8px; font-size: 10px; line-height: 17px; margin: 0 2px; border-radius: 5px; }
+.scn-table .cmp-nm { width: 100%; height: 19px; box-sizing: border-box; font: inherit; font-weight: 700; border: 1px solid #d6dbe3; border-radius: 4px; padding: 0 4px; }
+.scn-table input[type=checkbox] { margin: 0; }
+.bdg-d-page.max-rec .blk-rec-on.blk-scn .rec-scroll { height: calc(var(--avail) - 50px); max-height: none; }
+.scn-table .svc-b { border: 1px solid #cbd2db; background: #fff; color: #172033; font-weight: 800; cursor: pointer; font-family: inherit; }
+.scn-table .svc-b.svc-ok { background: #172033; border-color: #172033; color: #fff !important; }
+.scn-table td.ver-acts { overflow: visible; text-overflow: clip; }
