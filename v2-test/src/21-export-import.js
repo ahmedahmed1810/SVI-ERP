@@ -1,7 +1,7 @@
     /* ===== export / import / aperçu PDF par bloc ===== */
     const lastShown = { client: null, detail: null, hier: {} };
     const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL",
-                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET" };
+                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD" };
     const REC_KINDS = ["doc", "taf", "obs"];
 
     const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
@@ -31,6 +31,8 @@
       }
       if (REC_KINDS.includes(blk)) return recTableData(blk);
       if (blk === "hist") return histData();
+      if (blk === "ind") return indData();   /* v679 */
+      if (blk === "rat") return ratData();   /* v680 */
       if (blk === "metre") return metreData();
       if (blk === "interne") return interneData();
       if (blk === "hier") {
@@ -757,16 +759,23 @@
       };
       (shell.__lkGuard ? shell.__lkGuard() : Promise.resolve(true)).then(ok => { if (ok) go(); });
     });
-    const openImportBudget = blk => {
+    /* v680 : onglet INDICATEURS — importés vers le tableau de bord (blk « rat » ; source : autre budget ou LISTE COMMUNE)
+       ou vers la liste commune (blk « indlist » ; source : tableau de bord d'un budget, celui-ci compris) ; done() rouvre la fenêtre d'appel */
+    const openImportBudget = (blk, done) => {
       if (!INS) return;
-      const startTab = blk === "client" ? "des" : blk === "hier" ? "hier" : (active === "prd" ? "prd" : "chg");
-      const refs = [...groups.keys()].filter(r => r !== ref)
-        .sort((a, b) => String(a).localeCompare(String(b), "fr", { numeric: true }));
+      const IND_ONLY = blk === "indlist", TABS = IND_ONLY ? [["ind", "INDICATEURS (TABLEAUX DE BORD)"]] : [...IMP_TABS, ["ind", "INDICATEURS"]];
+      const startTab = blk === "rat" || IND_ONLY ? "ind" : blk === "client" ? "des" : blk === "hier" ? "hier" : (active === "prd" ? "prd" : "chg");
+      const refs = [...(blk === "rat" ? ["__LISTE"] : []), ...[...groups.keys()].filter(r => r !== ref || IND_ONLY)
+        .sort((a, b) => String(a).localeCompare(String(b), "fr", { numeric: true }))];
       /* couleur de l'état, comme dans la liste des budgets */
-      const stCls = g => !g.inst || g.inst.state === "valide" ? "" : g.inst.state === "fige" ? "imp-fige" : "imp-inst";
-      const refLab = r => { const g = groups.get(r); return U_(g.project) + " " + r; };
-      let src = refs[0] || "", model = impModel(src), tab = startTab, withLinks = false, all = false;
-      const sel = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set() };
+      const stCls = g => !g || !g.inst || g.inst.state === "valide" ? "" : g.inst.state === "fige" ? "imp-fige" : "imp-inst";
+      const refLab = r => { if (r === "__LISTE") return "LISTE DES INDICATEURS (COMMUNE)"; const g = groups.get(r); return U_(g.project) + " " + r; };
+      const impModelI = r => { const m = r === "__LISTE" ? { des: [], hier: [], chg: [], prd: [], qlt: [], dly: [], links: [] } : impModel(r);
+        const L = r === "__LISTE" ? indLoad() : r === ref ? ratMigrate(JSON.parse(JSON.stringify(INS.rat || {}))).L : (() => { const g = groups.get(r); return g && g.inst ? ratMigrate(JSON.parse(JSON.stringify((g.inst.data || {}).rat || {}))).L : []; })();
+        m.ind = (L || []).filter(I => I.f).map(I => ({ key: "ind|" + U_(I.nom), row: { nom: I.nom, form: indText(I.f, []), I } }));
+        return m; };
+      let src = refs[0] || "", model = impModelI(src), tab = startTab, withLinks = false, all = false;
+      const sel = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set(), ind: new Set() };
       /* lignes liées décochées à la main : la liaison est coupée à cet endroit */
       const cut = new Set();
       const p = sviPopNew();
@@ -774,7 +783,7 @@
       p.innerHTML = `
         <div class="doc-card imp-card" role="dialog" aria-modal="true">
           <div class="doc-head">
-            <span class="doc-title">IMPORTER — ${esc(blkDisp(blk))}</span>
+            <span class="doc-title">IMPORTER — ${esc(blk === "rat" ? "INDICATEURS DU TABLEAU DE BORD" : IND_ONLY ? "LISTE DES INDICATEURS" : blkDisp(blk))}</span>
             <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
           </div>
           <div class="doc-body">
@@ -784,7 +793,7 @@
                 <div class="imp-src-list" hidden>${refs.map(r =>
                   `<button type="button" class="imp-src-it ${stCls(groups.get(r))}" data-ref="${esc(r)}">${esc(refLab(r))}</button>`).join("")}</div>
               </div></div>
-            <div class="imp-opts">
+            <div class="imp-opts"${IND_ONLY ? " hidden" : ""}>
               <label><input type="radio" name="impLk" value="0" checked> SANS LIAISONS <small>(LIGNES COCHÉES SEULEMENT)</small></label>
               <label><input type="radio" name="impLk" value="1"> AVEC LIAISONS <small>(+ TÂCHES ET DÉTAILS LIÉS)</small></label>
               <label><input type="checkbox" id="impAll"> TOUT LE BUDGET <small>(TOUTES LES LIGNES, LIAISONS ET DÉLAIS)</small></label>
@@ -806,7 +815,8 @@
         chg: [["des", "DÉSIGNATION CHARGE"], ["u", "UCB"], ["q", "QCB", 1], ["p", "PCB", 1]],
         prd: [["des", "DÉSIGNATION PRODUIT"], ["u", "UPB"]],
         qlt: [["v", "QUALITÉ"]],
-        dly: [["lot", "LOT"], ["sec", "ACTIVITÉ SECONDAIRE"], ["deb", "DÉBUT"], ["fin", "FIN"]]
+        dly: [["lot", "LOT"], ["sec", "ACTIVITÉ SECONDAIRE"], ["deb", "DÉBUT"], ["fin", "FIN"]],
+        ind: [["nom", "INDICATEUR"], ["form", "FORMULE"]]
       };
       const LV = { lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" };
       const val = (x, f, isNum) => f === "lvl" ? LV[x.lvl] : x.row.t && isNum ? "" : isNum ? money(f === "q" ? insQty(tab === "prd" ? "prd" : "des", x.row) : x.row[f]) : (x.row[f] ?? "");
@@ -819,9 +829,9 @@
       const shownRows = () => cfApply("imp_" + tab, cfCols(), model[tab]);
       /* lignes retenues : cochées, + liées (AVEC LIAISONS), ou tout le budget */
       const picked = (noCut = false) => {
-        const out = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set() };
-        if (all) { IMP_TABS.forEach(([k]) => model[k].forEach(x => out[k].add(x.key))); return out; }
-        IMP_TABS.forEach(([k]) => sel[k].forEach(x => out[k].add(x)));
+        const out = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set(), ind: new Set() };
+        if (all) { TABS.forEach(([k]) => model[k].forEach(x => out[k].add(x.key))); return out; }
+        TABS.forEach(([k]) => sel[k].forEach(x => out[k].add(x)));
         if (withLinks) {
           /* chaque ligne de détail = un chemin DÉSIGNATION › LOT › PRIMAIRE › SECONDAIRE › DÉTAIL.
              Depuis une ligne cochée, on descend et on remonte le chemin ;
@@ -848,10 +858,10 @@
       const render = () => {
         /* coupures sans objet (plus aucune liaison n'y passe) : oubliées */
         const pAll = withLinks ? picked(true) : null;
-        if (pAll) [...cut].forEach(k => { if (!IMP_TABS.some(([t]) => pAll[t].has(k))) cut.delete(k); });
+        if (pAll) [...cut].forEach(k => { if (!TABS.some(([t]) => pAll[t].has(k))) cut.delete(k); });
         const pk = picked();
-        const n = IMP_TABS.reduce((t, [k]) => t + pk[k].size, 0);
-        p.querySelector(".imp-tabs").innerHTML = IMP_TABS.map(([k, lab]) =>
+        const n = TABS.reduce((t, [k]) => t + pk[k].size, 0);
+        p.querySelector(".imp-tabs").innerHTML = TABS.map(([k, lab]) =>
           /* pastille grise : lignes disponibles ; pastille rouge : lignes retenues */
           `<button type="button" class="imp-tab${k === tab ? " on" : ""}${Object.keys(cfT("imp_" + k).f || {}).length ? " tab-filt" : ""}" data-tab="${k}">${lab} ${svCnt(model[k].length)}${pk[k].size ? `<span class="imp-selcnt">${pk[k].size}</span>` : ""}</button>`).join("");
         sviMarkEmptyTabs(p.querySelector(".imp-tabs"));
@@ -956,8 +966,8 @@
         if (it) {
           list.hidden = true;
           if (it.dataset.ref !== src) {
-            src = it.dataset.ref; model = impModel(src);
-            IMP_TABS.forEach(([k]) => sel[k].clear());
+            src = it.dataset.ref; model = impModelI(src);
+            TABS.forEach(([k]) => sel[k].clear());
             cut.clear();
             showSrc(); render();
           }
@@ -1002,6 +1012,17 @@
         if (!e.target.closest("#impGo")) return;
         const pk = picked();
         const lk = withLinks || all;
+        /* v680 : indicateurs — vers la liste commune ou le tableau de bord ; même nom déjà présent = ignoré */
+        let nInd = 0, sInd = 0;
+        if (pk.ind && pk.ind.size) {
+          const take = model.ind.filter(x => pk.ind.has(x.key)).map(x => x.row.I);
+          const into = IND_ONLY ? indLoad() : ratMigrate(JSON.parse(JSON.stringify(INS.rat || {}))).L;
+          take.forEach(I => { if (into.some(o => U_(o.nom) === U_(I.nom))) { sInd++; return; } const c = JSON.parse(JSON.stringify(I)); c.id = insId(); if (IND_ONLY) delete c.seuil; else if (c.seuil === undefined) c.seuil = ""; into.push(c); nInd++; });
+          if (IND_ONLY) indSaveL(into); else { const R = ratMigrate(JSON.parse(JSON.stringify(INS.rat || {}))); R.L = into; INS.rat = R; insSave(); }
+          histLog("IMPORT", "INDICATEURS" + (IND_ONLY ? " → LISTE COMMUNE" : " → TABLEAU DE BORD"), refLab(src) + " — " + nInd + " AJOUTÉ(S), " + sInd + " DÉJÀ PRÉSENT(S)");
+        }
+        const onlyInd = ["des", "hier", "chg", "prd", "qlt", "dly"].every(k => !pk[k] || !pk[k].size);
+        if (onlyInd) { p.remove(); svToast(nInd + " INDICATEUR(S) IMPORTÉ(S)" + (sInd ? ", " + sInd + " DÉJÀ PRÉSENT(S)" : "") + ".", 3500); if (done) done(); else refreshAll(); return; }
         /* lignes à importer, rangées par bloc du budget */
         const inc = { des: [], chg: [], prd: [], qlt: [], lot: [], prim: [], sec: [] };
         ["des", "chg", "prd", "qlt"].forEach(k => model[k].filter(x => pk[k].has(x.key)).forEach(x => inc[k].push(x)));
@@ -1896,6 +1917,7 @@
         ...(INS ? [{ a: "ctr", lab: "CONTRAT (CPS)", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 11h5M10 15h5M10 19h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' }] : []),
         ...(INS ? [{ a: "plans", lab: "PLANS ET MÉTRÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5l6-2 6 2 6-2v16l-6 2-6-2-6 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 3v16M15 5v16" stroke="currentColor" stroke-width="1.4"/></svg>' }] : []),
         ...(INS ? [{ a: "rat", lab: "TABLEAU DE BORD DES RATIOS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' },
+          { a: "ind", lab: "LISTE DES INDICATEURS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="4" cy="6" r="1.4" fill="currentColor"/><circle cx="4" cy="12" r="1.4" fill="currentColor"/><circle cx="4" cy="18" r="1.4" fill="currentColor"/></svg>' },
           { a: "multi", lab: "MAIN-D'ŒUVRE DE TOUS LES BUDGETS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M6 20v-6h3v6M11 20V9h3v11M16 20v-9h3v9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' },
           { a: "sign", lab: "SIGNATURES À PRÉVOIR", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18c3-6 5-9 7-9s-1 7 1 7 3-4 5-4 1 4 3 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 21h16" stroke="currentColor" stroke-width="1.5"/></svg>' }] : []),
         { a: "exp", lab: "EXPORTER LE BUDGET", ic: '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
@@ -1919,6 +1941,7 @@
         else if (it.dataset.a === "ctr") ctrWin();
         else if (it.dataset.a === "ver") verWin();   /* v670 (axes 1 et 4) */   /* v669 (axe 3) */
         else if (it.dataset.a === "rat") ratWin();
+        else if (it.dataset.a === "ind") indWin();   /* v679 */
         else if (it.dataset.a === "plans") plWin();   /* v671 (axe 6) */   /* v668 (axe 7) */
         else if (it.dataset.a === "multi") multiWin();   /* v668 (axe 8) */
         else if (it.dataset.a === "sign") signWin();   /* v668 */

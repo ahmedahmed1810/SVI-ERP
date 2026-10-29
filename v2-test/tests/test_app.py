@@ -2128,13 +2128,13 @@ def main():
         # v668 (axe 7, multi-projets, signatures)
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.__r8 = JSON.stringify({{ chg: I.chg, rat: I.rat }});
             I.chg.push({{ id: 'ra1', des: 'ACIER HA12', u: 'KG', q: 800, p: 12 }}, {{ id: 'ra2', des: 'BETON B25 R', u: 'M3', q: 10, p: 900 }}, {{ id: 'ra3', des: 'MACON R', u: 'JH', q: 20, p: 200 }});
-            I.rat = {{ surf: 100 }}; X.insSave(); }}""")
-        pg.evaluate("() => [...document.querySelectorAll('*')].find(e => e.__ratWin).__ratWin()"); pg.wait_for_timeout(300)
-        pg.evaluate("() => document.querySelector('#svConf [data-prop]')?.click()"); pg.wait_for_timeout(300)
-        r68 = pg.evaluate("() => [...document.querySelectorAll('#svConf .rat-t tbody tr')].map(t => (t.querySelector('.rat-nm') || {}).value + ' = ' + ((t.querySelector('td.r b') || {}).textContent || '')).join(' || ')")
-        g68 = pg.evaluate("() => document.querySelectorAll('#svConf .rat-g svg rect').length")
-        pg.evaluate("() => document.querySelector('#svConf [data-save]')?.click()"); pg.wait_for_timeout(300)
-        n68 = pg.evaluate(f"() => ({ins}.INS.rat.L || []).length")
+            I.rat = {{ surf: 100, L: [{{ id: 'r1', nom: 'ACIER / BÉTON', num: ['c|ACIER HA12|KG'], den: ['c|BETON B25 R|M3'], mode: 'q', seuil: 50 }}, {{ id: 'r2', nom: 'COÛT AU M²', num: ['tc'], den: ['sc'], mode: 'q', seuil: '' }}], g: {{ t: 'b', h: 220 }} }}; X.insSave(); }}""")
+        # v680 : TABLEAU DE BORD — anciens ratios convertis en formules, seuil dépassé en rouge, graphique repris, abscisses par lot
+        pg.evaluate("() => [...document.querySelectorAll('*')].find(e => e.__ratWin).__ratWin()"); pg.wait_for_timeout(400)
+        r68 = pg.evaluate("() => [...document.querySelectorAll('#svConf table[data-it=\"rat\"] tbody tr.ind-row')].map(t => t.innerText.replace(/\\s+/g, ' ') + (t.querySelector('.rat-over') ? ' [ROUGE]' : '')).join(' || ')")
+        g68 = pg.evaluate("() => document.querySelectorAll('#svConf .rat-graphs svg rect').length")
+        n68 = pg.evaluate("() => [...document.querySelectorAll('*')].find(e => e.__rat).__rat.cats({ x: 'lot' }).length")
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(300)
         pg.evaluate("() => [...document.querySelectorAll('*')].find(e => e.__multiWin).__multiWin()"); pg.wait_for_timeout(300)
         m68 = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
         pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()")
@@ -2144,8 +2144,45 @@ def main():
         s68 = pg.evaluate(f"() => JSON.stringify({ins}.INS.sign)")
         pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; const o = JSON.parse(I.__r8); I.chg = o.chg; if (o.rat) I.rat = o.rat; else delete I.rat; delete I.sign; delete I.__r8; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
         r68n = r68.replace("\u202f", " ")
-        check("v668 axe 7 : PROPOSER crée les ratios dont les données existent (coût au m², acier / béton en KG / M3, main-d'œuvre au m²), graphique ; multi-projets et signatures à prévoir",
-              "COÛT AU M²" in r68n and "ACIER / BÉTON" in r68n and "KG / M3" in r68n and "MAIN-D'ŒUVRE AU M²" in r68n and g68 >= 3 and n68 >= 3 and "TOUS LES BUDGETS" in m68 and '"pvr":{"on":true,"qui":"MAITRE D\'OUVRAGE"}' in s68, [r68n[:600], g68, n68, m68, s68])
+        check("v680 tableau de bord : anciens ratios convertis (ACIER / BÉTON = 80, seuil 50 dépassé en rouge ; COÛT AU M²), graphique repris, abscisse par lots ; multi-projets et signatures à prévoir",
+              "ACIER / BÉTON" in r68n and "80,00" in r68n and "[ROUGE]" in r68n and "COÛT AU M²" in r68n and g68 >= 2 and n68 >= 1 and "TOUS LES BUDGETS" in m68 and '"pvr":{"on":true,"qui":"MAITRE D\'OUVRAGE"}' in s68, [r68n[:600], g68, n68, m68, s68])
+
+        # v679 : LISTE DES INDICATEURS — formule libre, contrôle, format %, tableau, ligne « + » de VERSIONS ET SCÉNARIOS
+        r79 = pg.evaluate("""() => { const S = [...document.querySelectorAll('*')].find(e => e.__ind).__ind;
+            const E = k => ({ t: 'e', k }), O = v => ({ t: 'o', v });
+            const I = { id: 'tst79', nom: 'PART HORS MO', f: [{ t: '(' }, E('b:chg'), O('−'), E('b:mo'), { t: ')' }, O('÷'), E('b:chg')], mode: 'q', fmt: 'p', dec: 1 };
+            S.save([I]);
+            const c = S.calc(I), c1 = S.calc({ f: [E('b:chg')], fmt: 'n', dec: 2 }), c2 = S.calc({ f: [E('b:mo')], fmt: 'n', dec: 2 });
+            const er = f => { try { S.parse(f); return 'OK'; } catch (e) { return e.message; } };
+            return [c.txt, c.val, c1.val ? (c1.val - c2.val) / c1.val : null, er([{ t: '(' }, E('b:chg')]), er([E('b:chg'), E('b:mo')]), er([E('b:chg'), O('+')]), S.calc({ f: [E('b:fin')] }).txt, S.load().length]; }""")
+        pg.evaluate("() => [...document.querySelectorAll('*')].find(e => e.__indWin).__indWin()"); pg.wait_for_timeout(300)
+        t79 = pg.evaluate("() => [...document.querySelectorAll('#svConf #indTable tbody tr.ind-row')].map(t => t.innerText.replace(/\\s+/g, ' ')).join(' || ')")
+        h79 = pg.evaluate("() => [...document.querySelectorAll('#svConf #indTable thead .cf-btn')].length")
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(200)
+        pg.evaluate("() => [...document.querySelectorAll('*')].find(e => e.__verWin).__verWin()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf [data-ip]')?.click()"); pg.wait_for_timeout(300)
+        m79 = pg.evaluate("() => [...document.querySelectorAll('#blkMenu [data-pk]')].map(b => b.textContent.trim())")
+        pg.evaluate("() => document.querySelector('#blkMenu [data-pk=\"tst79\"]')?.click()"); pg.wait_for_timeout(300)
+        v79 = pg.evaluate("() => [...document.querySelectorAll('#svConf .ver-t tbody tr')].map(t => t.innerText.replace(/\\s+/g, ' ')).join(' || ')")
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(200)
+        pg.evaluate(f"() => {{ [...document.querySelectorAll('*')].find(e => e.__ind).__ind.save([]); const V = {ins}.INS.ver; if (V) V.ind = (V.ind || []).filter(k => k !== 'tst79'); }}")
+        check("v679 : indicateur ((CHARGES − MO) ÷ CHARGES) en % à 1 décimale ; erreurs de formule lisibles ; tableau à loupes ; ligne + de VERSIONS ET SCÉNARIOS ajoute l'indicateur",
+              r79 and abs((r79[1] or 0) - (r79[2] or 0)) < 1e-9 and r79[0].endswith(" %") and r79[3] == "PARENTHÈSE NON FERMÉE" and "OPÉRATEUR" in r79[4] and "FIN DE FORMULE" in r79[5] and "PART HORS MO" in t79 and h79 >= 5 and "PART HORS MO" in m79 and "NOUVEL INDICATEUR…" in m79 and "PART HORS MO" in v79,
+              [r79, t79[:200], h79, m79, v79[:300]])
+
+        # v680 : période au prorata ; import d'un indicateur de la LISTE COMMUNE vers le tableau de bord (onglet INDICATEURS coché d'office)
+        p80 = pg.evaluate("""() => { const R = [...document.querySelectorAll('*')].find(e => e.__rat).__rat;
+            const D = { dlp: { 'a|b': [{ deb: '2026-01-01', fin: '2026-01-10' }] }, links: [{ lot: 'a', sec: 'b', des: 'x', prim: 'p', chg: [{ id: 'c' }], prd: [] }], chg: [{ id: 'c', q: 10, p: 1 }], prd: [], des: [], lot: [] };
+            const S = R.per(D, '2026-01-01', '2026-01-05'); return [S.chg[0].q, S.dlp['a|b'][0].fin, R.periods(D, 'w').length]; }""")
+        pg.evaluate("""() => { const S = [...document.querySelectorAll('*')].find(e => e.__ind).__ind; S.save([{ id: 'li1', nom: 'MARGE BRUTE', f: [{ t: 'e', k: 'b:mg' }], mode: 'q', fmt: 'n', dec: 0 }]);
+            [...document.querySelectorAll('*')].find(e => e.__rat).__rat.imp('rat'); }"""); pg.wait_for_timeout(500)
+        i80 = pg.evaluate("() => [document.querySelector('.imp-tab.on')?.textContent || '', [...document.querySelectorAll('.imp-table tbody tr[data-k]')].length]")
+        pg.evaluate("() => { document.querySelector('.imp-table tbody tr[data-k] .imp-cb').click(); }"); pg.wait_for_timeout(200)
+        pg.evaluate("() => document.querySelector('#impGo')?.click()"); pg.wait_for_timeout(400)
+        k80 = pg.evaluate(f"() => ({ins}.INS.rat.L || []).map(r => r.nom)")
+        pg.evaluate(f"() => {{ [...document.querySelectorAll('*')].find(e => e.__ind).__ind.save([]); const X = {ins}; X.INS.rat.L = (X.INS.rat.L || []).filter(r => r.nom !== 'MARGE BRUTE'); X.insSave(); }}")
+        check("v680 : période (5 jours sur 10 = moitié des charges, fin coupée), semaines ; import de la LISTE COMMUNE vers le tableau de bord (onglet INDICATEURS ouvert d'office)",
+              p80 == [5, "2026-01-05", 2] and "INDICATEURS" in i80[0] and i80[1] >= 1 and "MARGE BRUTE" in k80, [p80, i80, k80])
 
         # v669 (axe 3) : CONTRAT — CPS collé découpé par ARTICLE, types devinés, valeurs, DÉLAI → DATE BUTOIR, échéances → recettes
         cps = "CHAPITRE I : CLAUSES GÉNÉRALES\nARTICLE 1 : OBJET DU MARCHÉ\nLe présent marché a pour objet...\nARTICLE 5 - DÉLAI D'EXÉCUTION\nLe délai est fixé à 6 (six) mois.\nARTICLE 6 : CAUTIONNEMENT DÉFINITIF\nIl est fixé à 3 % du montant initial.\nARTICLE 7 : RETENUE DE GARANTIE\nUne retenue de 10 % sera opérée.\nARTICLE 8 : PÉNALITÉS DE RETARD\nUne pénalité de 1/1000 du montant par jour, plafonnée à 10 %.\nARTICLE 9 : RÉVISION DES PRIX\nLes prix sont révisables.\nARTICLE 10 : MODALITÉS DE PAIEMENT\nAcomptes mensuels."

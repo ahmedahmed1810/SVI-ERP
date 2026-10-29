@@ -23,6 +23,16 @@ const SVI_SYNC = { applying: false, timer: null, busy: false, status: "", err: "
 const sviSyncBase = ref => sviIdbGet("svi_sync_base:" + ref).catch(() => null);
 const sviSyncBaseSet = (ref, s) => sviIdbPut("svi_sync_base:" + ref, s).catch(() => {});
 
+/* v679 : DONNÉES PARTAGÉES hors budgets (LISTE DES INDICATEURS…) — une ligne de SYNC « _CLÉ », même envoi, même fusion */
+const SVI_SH_KEY = "svi_shared_v1:";
+const sviSharedItem = ref => { try { return JSON.parse(localStorage.getItem(SVI_SH_KEY + ref.slice(1)) || "null"); } catch (e) { return null; } };
+const sviSharedPut = (ref, it) => { try { const o = { ...it, data: { ...(it.data || {}) } }; delete o.data.conf; localStorage.setItem(SVI_SH_KEY + ref.slice(1), JSON.stringify(o)); } catch (e) {} };
+const sviSharedGet = key => (sviSharedItem("_" + key) || {}).data || {};
+const sviSharedSet = (key, data) => {
+  const ref = "_" + key; sviSharedPut(ref, { ref, project: "PARTAGÉ", state: "partage", data });
+  const M = sviSyncMeta(), m = M[ref] = M[ref] || {}; m.dirty = m.dirty || Date.now(); m.last = Date.now(); delete m.del; sviSyncMetaSet(M);
+  sviSyncSchedule(1500);
+};
 /* liste des budgets de l'iPad modifiée : budgets changés marqués « en attente » */
 const sviSyncChanged = (oldStr, newStr) => {
   if (SVI_SYNC.applying) return;
@@ -135,7 +145,8 @@ const sviSyncPushOne = async (ref, M) => {
   const m = M[ref] || {}, user = sviUser();
   if (m.del) { await sviQ("v3Del", { ref }); delete M[ref]; return; }
   if (SVI_CLAIM) await SVI_CLAIM.catch(() => {});   /* v678 : réponse du verrou d'abord (annulation éventuelle) */
-  let it = sviInstGet().find(x => x.ref === ref);
+  const SH = ref[0] === "_";   /* v679 : donnée partagée */
+  let it = SH ? sviSharedItem(ref) : sviInstGet().find(x => x.ref === ref);
   if (!it) { delete M[ref]; return; }
   for (let tour = 0; tour < 3; tour++) {
     const txt = JSON.stringify(it);
@@ -146,7 +157,7 @@ const sviSyncPushOne = async (ref, M) => {
       let base = null; try { const bs = await sviSyncBase(ref); base = bs ? JSON.parse(bs) : null; } catch (e) {}
       const merged = sviMergeItem(base, it, theirs, (m.last || 0) >= (r.ts || 0), r.user || "", r.ts || 0);
       SVI_SYNC.applying = true;
-      try { sviInstSet(sviInstGet().map(x => x.ref === ref ? merged : x)); } finally { SVI_SYNC.applying = false; }
+      try { if (SH) sviSharedPut(ref, merged); else sviInstSet(sviInstGet().map(x => x.ref === ref ? merged : x)); } finally { SVI_SYNC.applying = false; }
       m.rev = r.rev; it = merged;
       const nc = ((merged.data || {}).conf || []).length;
       if (nc && typeof svToast === "function") svToast(ref + " : MODIFIÉ AUSSI PAR " + (r.user || "UN AUTRE") + " — FUSIONNÉ ; " + nc + " CONFLIT(S) À VOIR (⚠).", 6000);
@@ -200,7 +211,7 @@ const sviSyncPull = async () => {
     let it = null; try { it = JSON.parse(p.data); } catch (e) {}
     if (!it) continue;
     SVI_SYNC.applying = true;
-    try { const list = sviInstGet(); const i = list.findIndex(x => x.ref === s.ref); if (i >= 0) list[i] = it; else list.push(it); sviInstSet(list); } finally { SVI_SYNC.applying = false; }
+    try { if (s.ref[0] === "_") { sviSharedPut(s.ref, it); if (window.__sviSharedChanged) { try { window.__sviSharedChanged(s.ref); } catch (e) {} } } else { const list = sviInstGet(); const i = list.findIndex(x => x.ref === s.ref); if (i >= 0) list[i] = it; else list.push(it); sviInstSet(list); } } finally { SVI_SYNC.applying = false; }
     m.rev = p.rev; m.at = Date.now(); await sviSyncBaseSet(s.ref, p.data); changed = true;
     if (window.__sviOpenRef === s.ref) { window.__sviSyncReopen && window.__sviSyncReopen(s.ref); if (typeof svToast === "function") svToast(s.ref + " : CHANGEMENTS DE " + (p.user || "UN AUTRE") + " REÇUS.", 4000); }
   }

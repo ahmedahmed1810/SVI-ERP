@@ -2711,3 +2711,53 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 [data-hz~="prim"] .ins-hcol[data-ik="prim"],
 [data-hz~="sec"] .ins-hcol[data-ik="sec"],
 [data-hz~="tab"] #bdgTabBody { opacity: .55; filter: grayscale(.5); cursor: not-allowed; }
+
+/* v679 : LISTE DES INDICATEURS — tableau, fenêtre de calcul (formule), ligne « + » */
+.ind-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.ind-bar .pv-sub { flex: 1; margin: 0; }
+.ind-scroll { overflow: auto; }
+.ind-table { table-layout: fixed; }
+.ind-table td { white-space: normal; word-break: break-word; }
+.ind-table tr.ind-row { cursor: pointer; }
+.ind-table tr.ind-plus td { text-align: left; padding: 8px; }
+.indf-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 46px; padding: 8px; border: 1px solid #d6dbe3; border-radius: 10px; background: #fff; }
+.indf-tk { padding: 5px 9px; border-radius: 7px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid transparent; }
+.indf-e { background: #eef4ff; color: #1d4ed8; }
+.indf-n { background: #f2f4f7; color: #344054; }
+.indf-o { background: #fff7ed; color: #9a3412; min-width: 22px; text-align: center; }
+.indf-tk.on { border-color: #172033; }
+.indf-cur { font-size: 11px; color: #98a2b3; font-weight: 700; padding: 4px; min-width: 6px; border-left: 2px solid transparent; }
+.indf-cur.on { border-left-color: #172033; }
+.indf-keys { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
+.indf-keys .indf-k { min-width: 44px; font-size: 16px; }
+.indf-st { font-size: 12px; font-weight: 800; padding: 6px 0; }
+.indf-ok { color: #067647; }
+.indf-opts { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.ver-plus td { text-align: left !important; }
+.ver-ip { min-width: 44px; font-size: 18px; }
+.ind-card { width: min(760px, 96vw); }
+.ind-card .ind-lab { display: block; font-size: 11px; font-weight: 800; color: #475467; margin: 0 0 4px; }
+.ind-card .ind-nom { width: 100% !important; max-width: none !important; text-align: left !important; box-sizing: border-box; }
+.ind-card .indf-opts .pv-r { display: flex; align-items: center; gap: 8px; }
+.ind-card .indf-opts select.pv-in { width: auto; min-width: 140px; }
+.ind-card .indf-opts .ind-dec { min-width: 70px; }
+.ind-card .indf-opts .ind-u { width: 130px !important; text-align: left !important; }
+.ind-card .indf-el { min-width: 240px; }
+
+/* v680 : TABLEAU DE BORD — tableau des indicateurs, graphiques paramétrables */
+.rat-card .cmp-scroll.rat-iscroll { max-height: none !important; height: auto !important; flex: none !important; overflow-x: auto; overflow-y: visible; }
+.rat-graphs { display: flex; flex-direction: column; gap: 14px; }
+.rat-card .rat-ch { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.rat-card .rat-ch b { font-size: 13px; }
+.rat-card .rat-ch small { flex: 1; font-size: 11px; font-weight: 700; color: #667085; }
+.rat-gx { overflow-x: auto; }
+.rat-svg text.rat-ax, .rat-ax { font-size: 10px; fill: #667085; font-weight: 700; }
+.rat-leg { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+.rat-leg span { display: inline-flex; align-items: center; gap: 5px; }
+.rat-leg i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.rg-row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 6px; }
+.rg-row select.pv-in { width: auto !important; min-width: 170px; text-align: left !important; text-align-last: left; }
+.rg-y { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 8px; font-size: 12px; font-weight: 700; }
+.rg-prev { margin-top: 8px; border-top: 1px solid #eaecf0; padding-top: 8px; }
+.ind-table .rat-over { color: #b42318; font-weight: 800; }
+.ind-table .ind-sv { width: 90px !important; text-align: right; }
