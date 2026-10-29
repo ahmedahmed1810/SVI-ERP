@@ -1434,11 +1434,12 @@ const sviAvContra = ref => {
   return out;
 };
 
-/* v695 : dates du consolidé (étapes comptées) — SAISI LE = dernière création, VALIDÉ LE = dernière validation */
+/* v695 / v696 : dates du consolidé (étapes comptées, suivant la composition) */
 const sviAvDates = root => {
   const S = sviAvStages(root), sel = sviAvSelGet(root) || sviAvSelDef(S), inc = S.filter(st => sel[st.ref]);
-  const mx = a => a.filter(Boolean).sort().pop() || "";
-  return { created: mx(inc.map(st => st.created)), validated: mx(inc.filter(st => st.state === "valide").map(st => st.validated)) };
+  /* v696 : SAISI LE = la plus ancienne saisie ; VALIDÉ LE = la plus récente validation, vide si une étape comprise n'est pas validée */
+  const srt = a => a.filter(Boolean).sort();
+  return { created: srt(inc.map(st => st.created))[0] || "", validated: inc.some(st => st.state !== "valide") ? "" : (srt(inc.map(st => st.validated)).pop() || "") };
 };
 /* jour d'une ligne de la liste mère (regroupement par date) : budget à avenants = SAISI LE du consolidé */
 const sviRowDate = ref => {
