@@ -333,6 +333,7 @@
         return;
       }
       if (act === "max") return toggleMax(blk);
+      if (act === "view") { if (shell.__scnView) shell.__scnView(); return; }   /* v686 : bloc SCÉNARIOS, LISTE ⇄ COMPARAISON */
       /* v546 (R33) : ↻ AJUSTER À LA CAPACITÉ (DÉTAIL DÉLAIS) */
       /* v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE, en haut à côté de ↻, AGRANDIR et ⋯ */
       if (act === "cfg") { const DX = shell.__insDly; if (DX) DX.hcfgWin(); return; }
