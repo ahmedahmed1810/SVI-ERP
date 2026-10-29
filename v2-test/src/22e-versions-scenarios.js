@@ -206,17 +206,43 @@
         });
       }
     }
-    /* colonnes : indicateur, puis une colonne par scénario (clés sc1…sc10, par position) */
-    const scnCols = SC => [["scnind", "INDICATEUR", r => r.nom, ""], ...SC.map((x, j) => ["sc" + (j + 1), x.nom, r => r.v[j] ? (r.v[j].val ?? r.v[j].txt) : "", "number"])];
+    /* =========================================================
+       v686 : bloc SCÉNARIOS en deux vues (décision du 29/10/2026), au FORMAT des autres tableaux
+       - LISTE (par défaut) : une ligne par scénario — NOM, ÉTAT, OFFERT AU CLIENT, RETENIR, DÉSARCHIVER (si archivé), 🗑 ;
+         toucher le NOM = basculer sur ce scénario ; appui long sur le nom = renommer ; toucher ailleurs = COMPARAISON ;
+         dernière ligne « AJOUTER UN SCÉNARIO ICI… » (comme SAISIR ICI) ; SCN ajoute aussi une ligne (10 au plus).
+       - COMPARAISON : indicateurs en lignes (dernière ligne « AJOUTER UN INDICATEUR ICI… »), une colonne par scénario ;
+         ✕ dans l'en-tête = cacher le scénario (mémorisé) ; + après la dernière colonne = réafficher un scénario caché.
+       - bouton de l'en-tête (et menu ⋯) : passer d'une vue à l'autre ; aperçu et export suivent la vue affichée.
+       ========================================================= */
+    let scnView = "list";
+    const SCN_HID_KEY = "svi_scnhid_v1:" + ref;
+    const scnHid = () => { try { return JSON.parse(localStorage.getItem(SCN_HID_KEY) || "[]") || []; } catch (e) { return []; } };
+    const scnHidSet = a => { try { localStorage.setItem(SCN_HID_KEY, JSON.stringify(a)); } catch (e) {} };
+    const scnSt = x => { const V = INS.ver; return x.id === V.act ? (x.arch ? "ACTIF — ARCHIVÉ" : "ACTIF") : x.arch ? "ARCHIVÉ" : "EN RÉSERVE"; };
+    /* vue LISTE */
+    const scnListCols = () => [["scnom", "NOM", x => x.nom, ""], ["scet", "ÉTAT", x => scnSt(x), ""], ["scof", "OFFERT AU CLIENT", x => x.of ? "OUI" : "NON", "center"],
+      ["scret", "RETENIR", x => x.ret && !x.arch ? "RETENU" : "", "center"], ...(scnL().some(x => x.arch) ? [["scdes", "DÉSARCHIVER", x => x.arch ? "ARCHIVÉ" : "", "center"]] : []), ["scdel", "🗑", () => "", "center"]];
+    /* vue COMPARAISON : clés sc1…sc10 = position du scénario dans la liste */
+    const scnCmpCols = SC => { const H = scnHid(); return [["scnind", "INDICATEUR", r => r.nom, ""], ...SC.map((x, j) => ["sc" + (j + 1), x.nom, r => r.v[j] ? (r.v[j].val ?? r.v[j].txt) : "", "number"]).filter((c, j) => !H.includes(SC[j].id))]; };
     const scnRows = SC => {
       const LIB = indLoad(), V = INS.ver; V.ind = (V.ind || []).filter(k => LIB.some(I => I.id === k));
       const ST = SC.map(x => x.id === V.act ? INS : x.d || null), EL = ST.map(s2 => s2 ? indEls(s2) : null);
       return V.ind.map(k => { const IN = LIB.find(I => I.id === k); return { k, nom: IN.nom, v: ST.map((s2, j) => s2 ? indCalc(IN, s2, EL[j]) : null) }; });
     };
-    let scnShownRows = [];
+    let scnShown = [];
     shell.__scnData = () => {
-      const SC = scnL(), cols = coOrder("scn", scnCols(SC));
-      return { head: cols.map(c => c[1]), rows: scnShownRows.map(r => cols.map(c => c[0] === "scnind" ? r.nom : (r.v[+c[0].slice(2) - 1] || {}).txt || "—")) };
+      const SC = scnL();
+      if (scnView === "list") { const cols = coOrder("scnl", scnListCols()).filter(c => c[0] !== "scdel"); return { head: cols.map(c => c[1]), rows: scnShown.map(x => cols.map(c => c[2](x))) }; }
+      const cols = coOrder("scn", scnCmpCols(SC));
+      return { head: cols.map(c => c[1]), rows: scnShown.map(r => cols.map(c => c[0] === "scnind" ? r.nom : (r.v[+c[0].slice(2) - 1] || {}).txt || "—")) };
+    };
+    const scnViewBtn = () => {
+      const b = shell.querySelector('.blk-scn .blk-btn[data-act="view"]'); if (!b) return;
+      b.title = scnView === "list" ? "Comparer les scénarios" : "Liste des scénarios";
+      b.innerHTML = scnView === "list"
+        ? '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3v10M6.5 3v10M10.5 3v10M14 3v10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
+        : '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
     };
     const scnRender = () => {
       scnPill();
@@ -226,59 +252,113 @@
       blk.hidden = !INS || SC.length < 2;
       if (blk.hidden) return;
       const V = INS.ver, ed = scnEd();
-      const cols = scnCols(SC), all = scnRows(SC), rows = cfApply("scn", cols, all);
-      scnShownRows = rows;
-      const ttl = $("scnTitle"); if (ttl) ttl.innerHTML = SVI_ICON.scn + "SCÉNARIOS " + svCnt(SC.length);
+      scnViewBtn();
+      blk.classList.toggle("scn-cmp", scnView !== "list");
+      const ttl = $("scnTitle"); if (ttl) ttl.innerHTML = SVI_ICON.scn + "SCÉNARIOS " + (scnView === "list" ? "" : "— COMPARAISON ") + svCnt(SC.length);
+      if (scnView === "list") {
+        const cols = scnListCols(), rows = cfApply("scnl", cols, SC);
+        scnShown = rows;
+        const oc = coOrder("scnl", cols);
+        const td = (c, x) => {
+          const k = c[0], act = x.id === V.act;
+          if (k === "scnom") return `<td class="scn-nm-c"><span class="scn-nm${ed && !act ? " scn-go" : ""}" data-nm="${x.id}" title="${ed && !act ? "Toucher : basculer sur ce scénario — appui long : renommer" : ""}">${esc(x.nom)}</span></td>`;
+          if (k === "scet") return `<td>${scnSt(x)}</td>`;
+          if (k === "scof") return `<td class="center"><input type="checkbox" class="ver-of" data-id="${x.id}"${x.of ? " checked" : ""}${ed && !x.arch ? "" : " disabled"}></td>`;
+          if (k === "scret") return `<td class="center">${x.arch ? "" : x.ret && act ? "<b>RETENU</b>" : ed ? `<button type="button" class="svc-b svc-ok" data-keep="${x.id}">RETENIR</button>` : ""}</td>`;
+          if (k === "scdes") return `<td class="center">${x.arch && ed ? `<button type="button" class="svc-b" data-unarch="${x.id}">DÉSARCHIVER</button>` : ""}</td>`;
+          if (k === "scdel") return `<td class="center">${ed && !act ? `<button type="button" class="scn-del" data-del="${x.id}" title="Supprimer ce scénario">🗑</button>` : ""}</td>`;
+          return "<td></td>";
+        };
+        const full = SC.length >= SCN_MAX;
+        const add = ed ? `<tr class="scn-new${full ? " off" : ""}" data-scnadd><td colspan="${oc.length}">${full ? SCN_MAX + " SCÉNARIOS AU PLUS PAR ÉTAPE" : "AJOUTER UN SCÉNARIO ICI…"}</td></tr>` : "";
+        t.style.width = cwTableW("scnl", cols) + "px";
+        t.innerHTML = `<colgroup>${cwCols("scnl", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("scnl", c[0], c[1], c[3])).join("")}</tr></thead>
+          <tbody>${rows.map(x => `<tr class="scn-row${x.id === V.act ? " ver-act" : ""}${x.arch ? " scn-arch" : ""}" data-scn="${x.id}">${oc.map(c => td(c, x)).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}${add}</tbody>`;
+        return;
+      }
+      /* COMPARAISON */
+      const H = scnHid().filter(id => SC.some(x => x.id === id));
+      const cols = scnCmpCols(SC), all = scnRows(SC), rows = cfApply("scn", cols, all);
+      scnShown = rows;
       const oc = coOrder("scn", cols);
-      const cell = (c, html, cls = "") => `<td class="${cls}">${html}</td>`;
       const scOf = c => c[0] === "scnind" ? null : SC[+c[0].slice(2) - 1];
       const head = oc.map(c => { const x = scOf(c); if (!x) return cfHead("scn", c[0], c[1]);
-        const st = x.id === V.act ? (x.arch ? "ACTIF — ARCHIVÉ" : "ACTIF") : x.arch ? "ARCHIVÉ" : "EN RÉSERVE";
-        return cfHead("scn", c[0], `${esc(x.nom)} <small class="scn-st">${st}</small>`, "number" + (x.id === V.act ? " ver-act" : "") + (x.arch ? " ver-arch" : "")); }).join("");
-      const body = rows.map(r => `<tr>${oc.map(c => { const x = scOf(c); if (!x) return cell(c, `<b>${esc(r.nom)}</b>${ed ? ` <button type="button" class="cmp-del" data-irm="${esc(r.k)}" title="Retirer du tableau">✕</button>` : ""}`);
-        const v = r.v[+c[0].slice(2) - 1]; return cell(c, v ? `<span class="${v.err ? "rat-err" : ""}">${esc(v.txt)}</span>` : "—", "number" + (x.id === V.act ? " ver-act" : "")); }).join("")}</tr>`).join("");
-      const plus = ed ? `<tr class="ver-plus"><td><button type="button" class="svc-b ver-ip" data-ip>+</button> <span class="cmp-leg">INDICATEUR</span></td>${oc.slice(1).map(() => "<td></td>").join("")}</tr>` : "";
-      const fixed = oc.map(c => c);
-      const nameRow = ed ? `<tr class="scn-fix"><td><b>NOM</b></td>${fixed.filter(c => scOf(c)).map(c => { const x = scOf(c); return `<td>${!x.arch ? `<input class="cmp-nm ver-nm" data-id="${x.id}" value="${esc(x.nom)}">` : esc(x.nom)}</td>`; }).join("")}</tr>` : "";
-      const ofRow = `<tr class="scn-fix"><td><b>OFFERT AU CLIENT</b></td>${fixed.filter(c => scOf(c)).map(c => { const x = scOf(c); return `<td class="center"><input type="checkbox" class="ver-of" data-id="${x.id}"${x.of ? " checked" : ""}${ed && !x.arch ? "" : " disabled"}></td>`; }).join("")}</tr>`;
-      const actRow = ed ? `<tr class="scn-fix"><td></td>${fixed.filter(c => scOf(c)).map(c => { const x = scOf(c); return `<td class="center ver-acts">${x.id === V.act ? "" : `<button type="button" class="svc-b" data-sw="${x.id}">BASCULER</button>`}${x.arch ? `<button type="button" class="svc-b" data-unarch="${x.id}">DÉSARCHIVER</button>` : `<button type="button" class="svc-b svc-ok" data-keep="${x.id}">RETENIR</button>`}${x.id === V.act ? "" : `<button type="button" class="cmp-del" data-del="${x.id}" title="Supprimer ce scénario">✕</button>`}</td>`; }).join("")}</tr>` : "";
-      /* ordre des colonnes : l'indicateur reste en tête pour les lignes fixes */
-      const okOrder = oc[0] && oc[0][0] === "scnind";
-      t.style.width = cwTableW("scn", cols) + "px";
-      t.innerHTML = `<colgroup>${cwCols("scn", oc)}</colgroup><thead><tr>${head}</tr></thead>
-        <tbody>${body || (V.ind.length ? `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : `<tr><td colspan="${oc.length}" class="empty">AUCUN INDICATEUR : LIGNE « + » POUR EN AJOUTER</td></tr>`)}
-        ${plus}${okOrder ? nameRow + ofRow + actRow : ""}</tbody>`;
+        return cfHead("scn", c[0], `${esc(x.nom)} <small class="scn-st">${scnSt(x)}</small>`, "number" + (x.id === V.act ? " ver-act" : "") + (x.arch ? " ver-arch" : ""))
+          .replace('<span class="cf-btn"', `<span class="scn-hide" data-hide="${x.id}" role="button" title="Cacher ce scénario">✕</span><span class="cf-btn"`); }).join("");
+      const plusTh = H.length ? `<th class="scn-plus-th"><button type="button" class="scn-plus" data-unhide title="Réafficher un scénario caché">+</button></th>` : "";
+      const plusTd = H.length ? "<td></td>" : "";
+      const body = rows.map(r => `<tr>${oc.map(c => { const x = scOf(c);
+        if (!x) return `<td><b>${esc(r.nom)}</b>${ed ? ` <button type="button" class="cmp-del" data-irm="${esc(r.k)}" title="Retirer du tableau">✕</button>` : ""}</td>`;
+        const v = r.v[+c[0].slice(2) - 1]; return `<td class="number${x.id === V.act ? " ver-act" : ""}">${v ? `<span class="${v.err ? "rat-err" : ""}">${esc(v.txt)}</span>` : "—"}</td>`; }).join("")}${plusTd}</tr>`).join("");
+      const add = ed ? `<tr class="scn-new" data-ip><td colspan="${oc.length + (H.length ? 1 : 0)}">AJOUTER UN INDICATEUR ICI…</td></tr>` : "";
+      t.style.width = (cwTableW("scn", cols) + (H.length ? 44 : 0)) + "px";
+      t.innerHTML = `<colgroup>${cwCols("scn", oc)}${H.length ? '<col style="width:44px">' : ""}</colgroup><thead><tr>${head}${plusTh}</tr></thead>
+        <tbody>${body || (V.ind.length ? `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "")}${add}</tbody>`;
     };
     shell.__scnRender = scnRender;
+    shell.__scnView = () => { scnView = scnView === "list" ? "cmp" : "list"; scnRender(); };
     {
       const blk = shell.querySelector(".blk-scn");
       const V$ = () => INS.ver;
       const archOf = () => { const x = V$().L.find(y => y.id === V$().act); return !!(x && x.arch); };
       const save = (what, det) => { insSave(); histLog("VERSIONS", what, det); };
       const reopen = () => openBudgetDetail(ref);
+      const swap = id => {
+        const V = V$(), x = V.L.find(y => y.id === id), cur = V.L.find(y => y.id === V.act);
+        if (!x || !x.d || x.id === V.act) return;
+        const was = archOf();
+        if (cur) cur.d = verSnap();
+        verLoad(x.d); delete x.d; V.act = x.id; save("BASCULE", x.nom + (x.arch ? " (ARCHIVÉ : LECTURE SEULE)" : ""));
+        if (was !== archOf()) { reopen(); return; }
+        refreshAll(); svToast(x.nom + " : SCÉNARIO ACTIF.", 2500);
+      };
+      const rename = el => {
+        const V = V$(), x = V.L.find(y => y.id === el.dataset.nm); if (!x || x.arch) return;
+        el.outerHTML = `<input class="cmp-nm scn-nm-in" data-id="${x.id}" value="${esc(x.nom)}">`;
+        const inp = blk.querySelector(`.scn-nm-in[data-id="${x.id}"]`); if (!inp) return;
+        inp.focus(); try { inp.select(); } catch (e) {}
+        let done = false;
+        const end = ok => { if (done) return; done = true; if (ok) { const v = inp.value.trim().toUpperCase(); if (v && v !== x.nom) { x.nom = v; save("SCÉNARIO RENOMMÉ", v); } } scnRender(); };
+        inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); end(true); } else if (e.key === "Escape") end(false); });
+        inp.addEventListener("blur", () => end(true));
+      };
       if (blk) {
+        /* appui long sur le nom = renommer */
+        let lt = 0, longed = false;
+        blk.addEventListener("pointerdown", e => {
+          longed = false; clearTimeout(lt);
+          const nm = e.target.closest("[data-nm]"); if (!nm || !scnEd()) return;
+          lt = setTimeout(() => { longed = true; rename(nm); }, 550);
+        });
+        ["pointerup", "pointercancel", "pointerleave"].forEach(ev => blk.addEventListener(ev, () => { clearTimeout(lt); if (longed) setTimeout(() => { longed = false; }, 350); }));
         blk.addEventListener("change", e => {
           const t = e.target, V = V$(); if (!V) return;
-          if (t.classList.contains("ver-nm")) { const x = V.L.find(y => y.id === t.dataset.id); if (x) { x.nom = t.value.trim().toUpperCase() || x.nom; save("SCÉNARIO RENOMMÉ", x.nom); scnRender(); } return; }
           if (t.classList.contains("ver-of")) { const x = V.L.find(y => y.id === t.dataset.id); if (x) { x.of = t.checked; save(t.checked ? "OFFERT AU CLIENT" : "RETIRÉ DES OFFRES", x.nom); } }
         });
         blk.addEventListener("click", async e => {
-          const V = V$(); if (!V || !scnEd()) return;
-          const ip = e.target.closest("[data-ip]");
-          if (ip) { e.stopPropagation(); indPlusMenu(ip, V.ind, id => { V.ind.push(id); save("INDICATEUR AJOUTÉ", (indLoad().find(I => I.id === id) || {}).nom || id); scnRender(); },
-            w => { if (w === "new") indDesignWin(null, I => { if (I) { V.ind.push(I.id); save("INDICATEUR AJOUTÉ", I.nom); } scnRender(); }); else if (w === "list") indWin(() => scnRender()); }); return; }
-          const ir = e.target.closest("[data-irm]"); if (ir) { e.stopPropagation(); V.ind = V.ind.filter(k => k !== ir.dataset.irm); save("INDICATEUR RETIRÉ", ir.dataset.irm); scnRender(); return; }
-          const sw = e.target.closest("[data-sw]");
-          if (sw) {
+          const V = V$(); if (!V) return;
+          const vb = e.target.closest('.blk-btn[data-act="view"]'); if (vb) { e.stopPropagation(); shell.__scnView(); return; }
+          if (!blk.contains(e.target.closest("#scnTable") || null)) return;
+          if (longed) { longed = false; e.stopPropagation(); return; }   /* fin d'un appui long (renommer) */
+          if (e.target.closest(".cf-btn, .col-rs, input")) return;   /* tri / filtre, largeur, cases : comme les autres tableaux */
+          const ed = scnEd();
+          const hd = e.target.closest("[data-hide]");
+          if (hd) { e.stopPropagation(); const H = scnHid(); if (!H.includes(hd.dataset.hide)) H.push(hd.dataset.hide); if (scnL().every(x => H.includes(x.id))) { svToast("AU MOINS UN SCÉNARIO RESTE AFFICHÉ.", 3000, hd); return; } scnHidSet(H); scnRender(); return; }
+          const uh = e.target.closest("[data-unhide]");
+          if (uh) {
             e.stopPropagation();
-            const x = V.L.find(y => y.id === sw.dataset.sw), cur = V.L.find(y => y.id === V.act);
-            if (!x || !x.d) return;
-            const was = archOf();
-            if (cur) cur.d = verSnap();
-            verLoad(x.d); delete x.d; V.act = x.id; save("BASCULE", x.nom + (x.arch ? " (ARCHIVÉ : LECTURE SEULE)" : ""));
-            if (was !== archOf()) { reopen(); return; }
-            refreshAll(); return;
+            const H = scnHid(), hidden = scnL().filter(x => H.includes(x.id));
+            if (!hidden.length) return;
+            const pick = hidden.length === 1 ? hidden[0].id : await svChoose({ title: "RÉAFFICHER UN SCÉNARIO", buttons: hidden.map(x => ({ v: x.id, label: x.nom, tone: "neutral" })) });
+            if (!pick) return;
+            scnHidSet(H.filter(id => id !== pick)); scnRender(); return;
           }
+          const ip = e.target.closest("[data-ip]");
+          if (ip) { e.stopPropagation(); if (!ed) return; indPlusMenu(ip.querySelector("td") || ip, V.ind, id => { V.ind.push(id); save("INDICATEUR AJOUTÉ", (indLoad().find(I => I.id === id) || {}).nom || id); scnRender(); },
+            w => { if (w === "new") indDesignWin(null, I => { if (I) { V.ind.push(I.id); save("INDICATEUR AJOUTÉ", I.nom); } scnRender(); }); else if (w === "list") indWin(() => scnRender()); }); return; }
+          const ir = e.target.closest("[data-irm]"); if (ir) { e.stopPropagation(); if (!ed) return; V.ind = V.ind.filter(k => k !== ir.dataset.irm); save("INDICATEUR RETIRÉ", ir.dataset.irm); scnRender(); return; }
+          const ad = e.target.closest("[data-scnadd]");
+          if (ad) { e.stopPropagation(); const w = scnWhy(); if (w) { svToast(w, 4000, ad); return; } const nom = scnAdd(); if (nom) { refreshAll(); svToast(nom + " CRÉÉ : COPIE DE L'ÉTAPE TELLE QU'ELLE EST.", 3000, ad); } return; }
           const ua = e.target.closest("[data-unarch]");
           if (ua) {
             e.stopPropagation();
@@ -295,7 +375,7 @@
             if (!(await svConfirm({ title: "RETENIR " + x.nom, text: x.nom + " DEVIENT LE BUDGET DE RÉFÉRENCE ; LES AUTRES SCÉNARIOS SONT ARCHIVÉS (CONSULTABLES, EN LECTURE SEULE).", ok: "RETENIR", tone: "neutral" }))) return;
             const was = archOf();
             if (x.id !== V.act) { const cur = V.L.find(y => y.id === V.act); if (cur) cur.d = verSnap(); verLoad(x.d); delete x.d; V.act = x.id; }
-            V.L.forEach(y => { if (y.kind === "sc") y.arch = y.id !== x.id; }); x.ret = true;
+            V.L.forEach(y => { if (y.kind === "sc") { y.arch = y.id !== x.id; y.ret = y.id === x.id; } });
             save("SCÉNARIO RETENU", x.nom);
             if (was !== archOf()) { reopen(); return; }
             refreshAll(); return;
@@ -304,9 +384,14 @@
           if (dl) {
             e.stopPropagation();
             const x = V.L.find(y => y.id === dl.dataset.del);
-            if (await svConfirm({ title: "SUPPRIMER " + x.nom, text: "CE SCÉNARIO ET SES DONNÉES SERONT SUPPRIMÉS.", ok: "SUPPRIMER" })) { V.L = V.L.filter(y => y !== x); save("SCÉNARIO SUPPRIMÉ", x.nom); refreshAll(); }
+            if (await svConfirm({ title: "SUPPRIMER " + x.nom, text: "CE SCÉNARIO ET SES DONNÉES SERONT SUPPRIMÉS.", ok: "SUPPRIMER" })) { V.L = V.L.filter(y => y !== x); scnHidSet(scnHid().filter(id => id !== x.id)); save("SCÉNARIO SUPPRIMÉ", x.nom); refreshAll(); }
             return;
           }
+          /* LISTE : toucher le nom = basculer ; toucher ailleurs sur la ligne = COMPARAISON */
+          const nm = e.target.closest("[data-nm]");
+          if (nm) { e.stopPropagation(); if (ed) swap(nm.dataset.nm); return; }
+          const row = e.target.closest("tr[data-scn]");
+          if (row) { e.stopPropagation(); scnView = "cmp"; scnRender(); }
         });
       }
     }

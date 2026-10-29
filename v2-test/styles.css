@@ -2806,3 +2806,16 @@ td.ins-pmp { position: relative; }
 .scn-table .svc-b { border: 1px solid #cbd2db; background: #fff; color: #172033; font-weight: 800; cursor: pointer; font-family: inherit; }
 .scn-table .svc-b.svc-ok { background: #172033; border-color: #172033; color: #fff !important; }
 .scn-table td.ver-acts { overflow: visible; text-overflow: clip; }
+/* v686 : bloc SCÉNARIOS en deux vues */
+.scn-table tr.scn-row { cursor: pointer; }
+.scn-table tr.scn-arch td { color: #9aa3b2; }
+.scn-table .scn-nm { font-weight: 800; }
+.scn-table .scn-nm.scn-go { text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.scn-table .scn-nm-in { height: 19px; }
+.scn-table .scn-del { border: 0; background: transparent; cursor: pointer; font-size: 13px; line-height: 17px; padding: 0 4px; }
+.scn-table tr.scn-new td { background: var(--inst-bg, #fef2f2); color: var(--inst, #b91c1c); opacity: .85; cursor: pointer; }
+.scn-table tr.scn-new.off td { color: #9aa3b2; cursor: not-allowed; }
+.scn-table .scn-hide { cursor: pointer; color: #9aa3b2; font-weight: 900; padding: 0 3px; font-size: 11px; }
+.scn-table .scn-hide:hover { color: #b91c1c; }
+.scn-table .scn-plus { width: 26px; height: 19px; border: 1px solid #cbd2db; border-radius: 5px; background: #fff; font-weight: 900; cursor: pointer; padding: 0; line-height: 17px; }
+.scn-table th.scn-plus-th { text-align: center; }
