@@ -149,9 +149,10 @@ async function apiGetBDG() {
    API POST
    ========================================================= */
 
-async function apiPost(action, data = {}) {
+async function apiPost(action, data = {}, opt = {}) {
   const r = await fetch(API_URL, {
     method: "POST",
+    sviQuiet: !!opt.quiet,   /* v677 : arrière-plan, sans fenêtre de chargement */
     body: JSON.stringify({
       key: API_KEY,
       action,
