@@ -275,7 +275,7 @@
         <div class="novapp-budget-table-wrap">
           <table class="novapp-budget-table av-stg-t">
             <thead><tr>${["ÉTAPE", "RÉFÉRENCE", "INTITULÉ", "ÉTAT", "CRÉÉ LE"].map(h => `<th class="bdg-list-head"><div class="bdg-head-content"><span class="bdg-head-label">${h}</span></div></th>`).join("")}</tr></thead>
-            <tbody>${L.length ? L.map(x => `<tr data-r="${esc(x.ref)}" class="${x.state ? "inst-" + x.state : ""}"><td><b>${esc(sviAvName(x))}</b></td><td>${esc(U_(x.project) + " " + x.ref)}</td><td>${esc(x.intitule || "")}</td><td>${stLab(x)}</td><td>${esc(String(x.created || "").replace("T", " ").slice(0, 16))}</td></tr>`).join("") : `<tr><td colspan="5" class="empty">AUCUNE ÉTAPE</td></tr>`}</tbody>
+            <tbody>${L.length ? L.map(x => `<tr data-r="${esc(x.ref)}" class="${x.state ? "inst-" + x.state : ""}${x.parent ? " row-av" : " row-bdg"}"><td><b>${esc(sviAvName(x))}</b></td><td>${esc(U_(x.project) + " " + x.ref)}</td><td>${esc(x.intitule || "")}</td><td>${stLab(x)}</td><td>${esc(String(x.created || "").replace("T", " ").slice(0, 16))}</td></tr>`).join("") : `<tr><td colspan="5" class="empty">AUCUNE ÉTAPE</td></tr>`}</tbody>
           </table>
         </div>
       </div>`;
@@ -311,7 +311,7 @@
       d.innerHTML = sviWinCard({ cls: "av-comp-card", close: "data-x", title: "COMPOSITION DU CONSOLIDÉ",
         body: `<div class="svc-sub">COCHER CE QUI ENTRE DANS LE CONSOLIDÉ : UNE ÉTAPE TELLE QU'ELLE EST, OU L'UN DE SES SCÉNARIOS À SA PLACE.</div>
           <div class="av-tree">${S0.map(st => { const sc = sviAvScn(st), c = sel[st.ref];
-            return `<label class="av-tn av-st-${st.state || "instance"}"><input type="checkbox" data-st="${esc(st.ref)}"${c === "act" ? " checked" : ""}> <b>${esc(sviAvName(st))}</b> <small>${esc(st.ref)} · ${stLab(st)}</small></label>
+            return `<label class="av-tn av-st-${st.state || "instance"}${st.parent ? " row-av" : " row-bdg"}"><input type="checkbox" data-st="${esc(st.ref)}"${c === "act" ? " checked" : ""}> <b>${esc(sviAvName(st))}</b> <small>${esc(st.ref)} · ${stLab(st)}</small></label>
               ${sc.map(x => `<label class="av-tn av-sub"><input type="checkbox" data-st="${esc(st.ref)}" data-sc="${x.id}"${c === x.id ? " checked" : ""}> ${esc(x.nom)}${x.arch ? " <small>(ARCHIVÉ)</small>" : ""}</label>`).join("")}`; }).join("")}</div>`,
         foot: `<button type="button" class="svc-b" data-def>PAR DÉFAUT (VALIDÉS)</button><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>APPLIQUER</button>` });
     };

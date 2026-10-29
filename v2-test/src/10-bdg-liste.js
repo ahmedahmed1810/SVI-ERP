@@ -1180,7 +1180,7 @@ function renderBudgetList() {
     });
 
   /* titre, couleur et boutons de la barre de la liste */
-  shell.classList.remove("bdg-inst-instance", "bdg-inst-fige");
+  shell.classList.remove("bdg-inst-instance", "bdg-inst-fige", "bdg-av");
   shell.classList.toggle("list-inst", listMode === "inst");
   sviWatchState(shell);
   {
