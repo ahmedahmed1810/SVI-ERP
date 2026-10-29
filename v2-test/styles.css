@@ -2946,3 +2946,9 @@ body:not(.bdg-screen) #sviScreenTag { display: none; }
 #budgetListTable tr.bdg-newrow.bdg-kid td { padding-left: 36px; color: #3b6ea5; }
 #budgetListTable tr.bdg-newrow.off td { color: #9aa3b2; cursor: not-allowed; }
 #budgetListTable tr.bdg-newrow small { color: #9aa3b2; font-weight: 600; }
+/* v699 : lignes SAISIR ICI en rouge ; BUDGET CONSOLIDÉ plus foncé, sans italique ; avenant validé : nuance sombre (plus de bleu) */
+#budgetListTable tr.bdg-newrow td, #budgetListTable tr.bdg-newrow.bdg-kid td { color: #b91c1c !important; background: #fef2f2; }
+#budgetListTable tr.bdg-newrow.off td { color: #e3a3a3 !important; }
+#budgetListTable tr.bdg-kid[data-kid="glob"] td { font-style: normal; color: #0b1a2c !important; font-weight: 900; }
+#budgetListTable tr.bdg-kid.inst-valide.row-av td, .av-stg-t tr.inst-valide.row-av td, .av-tree .av-st-valide.row-av b { color: #3a4a5e !important; }
+.bdg-av:not(.bdg-inst-instance):not(.bdg-inst-fige) .novapp-list-titlebar .bdg-d-h1, .bdg-av:not(.bdg-inst-instance):not(.bdg-inst-fige) .bdg-d-block-title .ttl { color: #3a4a5e; }
