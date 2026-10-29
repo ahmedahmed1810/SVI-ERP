@@ -2830,3 +2830,14 @@ td.ins-pmp { position: relative; }
 .av-tree .av-sub { padding-left: 30px; font-weight: 600; }
 .av-tree .av-st-instance b { color: #b91c1c; } .av-tree .av-st-fige b { color: #15803d; }
 .av-tree input { width: 18px; height: 18px; margin: 0; }
+/* v688 : référence dans la barre du haut, puis i (INF) et H (historique) ; plus de rangée DOC / TAF / OBS / INF */
+.novapp-list-titlebar .bdg-d-h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.novapp-list-titlebar .bdg-d-badge { flex: none; cursor: pointer; margin-left: 2px; }
+.novapp-list-titlebar .bdg-d-inf { font-style: italic; font-family: Georgia, serif; font-size: 14px; }
+.bdg-d-head.bdg-d-head-min { padding: 0 28px; }
+.bdg-d-head-min .av-top { margin: 8px 0 10px; }
+.bdg-d-head-min .lk-chain-top:not([hidden]) { margin: 8px 0; }
+/* lignes SAISIR ICI des DOCUMENTS / TAF / OBSERVATIONS */
+.rec-table tr.rec-new td { background: var(--inst-bg, #f8fafc); color: var(--inst, #6b7480); opacity: .85; cursor: pointer; }
+.novapp-list-titlebar #insChain.lk-chain-top { margin: 0 6px 0 auto; flex: 0 1 auto; min-width: 0; max-width: 46%; }
+.bdg-d-head.bdg-d-head-min:not(:has(.av-top)) { display: none; }

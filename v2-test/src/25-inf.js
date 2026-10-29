@@ -174,7 +174,7 @@
         const patch = {};
         if (o.project !== undefined && o.project !== String(budget.project || "")) {
           budget.project = o.project; budget.inst.project = o.project; patch.project = o.project;
-          const h1 = shell.querySelector(".bdg-d-h1"); if (h1) h1.textContent = o.project;
+          const h1 = $("refTxt"); if (h1) h1.textContent = o.project + " " + ref;
           histLog("INF", "PROJET", o.project);
         }
         if (o.created && o.created !== String(budget.inst.created || "")) { budget.inst.created = o.created; patch.created = o.created; histLog("INF", "DATE CRÉATION", o.created.replace("T", " À ")); }

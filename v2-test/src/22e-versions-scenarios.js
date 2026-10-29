@@ -173,7 +173,8 @@
       if (scnWhy()) return "";
       INS.ver = INS.ver || { L: [], ind: [] };
       const V = INS.ver; V.L = V.L || []; V.ind = V.ind || [];
-      if (!V.act || !V.L.some(x => x.id === V.act)) { const id = insId(); V.L.push({ id, kind: "sc", nom: "SCÉNARIO " + scnNo(V), date: localDT(new Date()) }); V.act = id; }
+      /* v688 : le premier ajout fait de l'étape SCÉNARIO 1 (actif) ; les suivants sont des copies */
+      if (!V.act || !V.L.some(x => x.id === V.act)) { const id = insId(), nom = "SCÉNARIO " + scnNo(V); V.L.push({ id, kind: "sc", nom, date: localDT(new Date()) }); V.act = id; insSave(); histLog("VERSIONS", "NOUVEAU SCÉNARIO", nom + " (L'ÉTAPE TELLE QU'ELLE EST)"); return nom; }
       if (scnL().length >= SCN_MAX) return "";
       const nom = "SCÉNARIO " + scnNo(V);
       V.L.push({ id: insId(), kind: "sc", nom, date: localDT(new Date()), d: d0 ? JSON.parse(JSON.stringify(d0)) : verSnap() });
@@ -219,14 +220,14 @@
     const SCN_HID_KEY = "svi_scnhid_v1:" + ref;
     const scnHid = () => { try { return JSON.parse(localStorage.getItem(SCN_HID_KEY) || "[]") || []; } catch (e) { return []; } };
     const scnHidSet = a => { try { localStorage.setItem(SCN_HID_KEY, JSON.stringify(a)); } catch (e) {} };
-    const scnSt = x => { const V = INS.ver; return x.id === V.act ? (x.arch ? "ACTIF — ARCHIVÉ" : "ACTIF") : x.arch ? "ARCHIVÉ" : "EN RÉSERVE"; };
+    const scnSt = x => { const V = INS.ver || {}; return x.id === V.act ? (x.arch ? "ACTIF — ARCHIVÉ" : "ACTIF") : x.arch ? "ARCHIVÉ" : "EN RÉSERVE"; };
     /* vue LISTE */
     const scnListCols = () => [["scnom", "NOM", x => x.nom, ""], ["scet", "ÉTAT", x => scnSt(x), ""], ["scof", "OFFERT AU CLIENT", x => x.of ? "OUI" : "NON", "center"],
       ["scret", "RETENIR", x => x.ret && !x.arch ? "RETENU" : "", "center"], ...(scnL().some(x => x.arch) ? [["scdes", "DÉSARCHIVER", x => x.arch ? "ARCHIVÉ" : "", "center"]] : []), ["scdel", "🗑", () => "", "center"]];
     /* vue COMPARAISON : clés sc1…sc10 = position du scénario dans la liste */
     const scnCmpCols = SC => { const H = scnHid(); return [["scnind", "INDICATEUR", r => r.nom, ""], ...SC.map((x, j) => ["sc" + (j + 1), x.nom, r => r.v[j] ? (r.v[j].val ?? r.v[j].txt) : "", "number"]).filter((c, j) => !H.includes(SC[j].id))]; };
     const scnRows = SC => {
-      const LIB = indLoad(), V = INS.ver; V.ind = (V.ind || []).filter(k => LIB.some(I => I.id === k));
+      const LIB = indLoad(), V = INS.ver || { L: [], ind: [] }; V.ind = (V.ind || []).filter(k => LIB.some(I => I.id === k));
       const ST = SC.map(x => x.id === V.act ? INS : x.d || null), EL = ST.map(s2 => s2 ? indEls(s2) : null);
       return V.ind.map(k => { const IN = LIB.find(I => I.id === k); return { k, nom: IN.nom, v: ST.map((s2, j) => s2 ? indCalc(IN, s2, EL[j]) : null) }; });
     };
@@ -249,9 +250,9 @@
       const blk = shell.querySelector(".blk-scn"), t = $("scnTable");
       if (!blk || !t) return;
       const SC = scnL();
-      blk.hidden = !INS || SC.length < 2;
+      blk.hidden = !INS || !budget.inst || budget.inst.virtual;   /* v688 : toujours affiché sur une étape, même vide */
       if (blk.hidden) return;
-      const V = INS.ver, ed = scnEd();
+      const V = INS.ver || { L: [], ind: [] }, ed = scnEd();
       scnViewBtn();
       blk.classList.toggle("scn-cmp", scnView !== "list");
       const ttl = $("scnTitle"); if (ttl) ttl.innerHTML = SVI_ICON.scn + "SCÉNARIOS " + (scnView === "list" ? "" : "— COMPARAISON ") + svCnt(SC.length);
@@ -273,7 +274,7 @@
         const add = ed ? `<tr class="scn-new${full ? " off" : ""}" data-scnadd><td colspan="${oc.length}">${full ? SCN_MAX + " SCÉNARIOS AU PLUS PAR ÉTAPE" : "AJOUTER UN SCÉNARIO ICI…"}</td></tr>` : "";
         t.style.width = cwTableW("scnl", cols) + "px";
         t.innerHTML = `<colgroup>${cwCols("scnl", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("scnl", c[0], c[1], c[3])).join("")}</tr></thead>
-          <tbody>${rows.map(x => `<tr class="scn-row${x.id === V.act ? " ver-act" : ""}${x.arch ? " scn-arch" : ""}" data-scn="${x.id}">${oc.map(c => td(c, x)).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}${add}</tbody>`;
+          <tbody>${rows.map(x => `<tr class="scn-row${x.id === V.act ? " ver-act" : ""}${x.arch ? " scn-arch" : ""}" data-scn="${x.id}">${oc.map(c => td(c, x)).join("")}</tr>`).join("") || (SC.length ? `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "")}${add}</tbody>`;
         return;
       }
       /* COMPARAISON */
@@ -336,8 +337,10 @@
           if (t.classList.contains("ver-of")) { const x = V.L.find(y => y.id === t.dataset.id); if (x) { x.of = t.checked; save(t.checked ? "OFFERT AU CLIENT" : "RETIRÉ DES OFFRES", x.nom); } }
         });
         blk.addEventListener("click", async e => {
-          const V = V$(); if (!V) return;
           const vb = e.target.closest('.blk-btn[data-act="view"]'); if (vb) { e.stopPropagation(); shell.__scnView(); return; }
+          const ad0 = e.target.closest("[data-scnadd]");
+          if (ad0) { e.stopPropagation(); const w = scnWhy(); if (w) { svToast(w, 4000, ad0); return; } const nom = scnAdd(); if (nom) { refreshAll(); svToast(nom + " CRÉÉ.", 2500, ad0); } return; }
+          const V = V$(); if (!V) return;
           if (!blk.contains(e.target.closest("#scnTable") || null)) return;
           if (longed) { longed = false; e.stopPropagation(); return; }   /* fin d'un appui long (renommer) */
           if (e.target.closest(".cf-btn, .col-rs, input")) return;   /* tri / filtre, largeur, cases : comme les autres tableaux */
@@ -358,7 +361,7 @@
             w => { if (w === "new") indDesignWin(null, I => { if (I) { V.ind.push(I.id); save("INDICATEUR AJOUTÉ", I.nom); } scnRender(); }); else if (w === "list") indWin(() => scnRender()); }); return; }
           const ir = e.target.closest("[data-irm]"); if (ir) { e.stopPropagation(); if (!ed) return; V.ind = V.ind.filter(k => k !== ir.dataset.irm); save("INDICATEUR RETIRÉ", ir.dataset.irm); scnRender(); return; }
           const ad = e.target.closest("[data-scnadd]");
-          if (ad) { e.stopPropagation(); const w = scnWhy(); if (w) { svToast(w, 4000, ad); return; } const nom = scnAdd(); if (nom) { refreshAll(); svToast(nom + " CRÉÉ : COPIE DE L'ÉTAPE TELLE QU'ELLE EST.", 3000, ad); } return; }
+          if (ad) { e.stopPropagation(); const w = scnWhy(); if (w) { svToast(w, 4000, ad); return; } const nom = scnAdd(); if (nom) { refreshAll(); svToast(nom + " CRÉÉ.", 2500, ad); } return; }
           const ua = e.target.closest("[data-unarch]");
           if (ua) {
             e.stopPropagation();

@@ -318,9 +318,10 @@
           ←
         </button>
 
-        <h1 class="bdg-d-h1">
-          ${esc(budget.project)}
-        </h1>
+        <h1 class="bdg-d-h1"><span id="refBang">${obsBang(ref)}</span><span id="refTxt">${esc(fullRef)}</span></h1>
+        <span class="bdg-d-badge bdg-d-inf" data-pill="inf" role="button" title="Informations (INF)">i</span>
+        <span class="bdg-d-badge" id="histBtn" role="button" title="Historique">H</span>
+        ${INST_LIVE ? '<div class="lk-chain lk-chain-top" id="insChain" hidden></div>' : ""}
 
         <div class="bdg-d-hright">
           ${INST_LIVE ? `
@@ -350,21 +351,7 @@
 
       </div>
 
-      <div class="bdg-d-head">
-
-        <div class="bdg-d-ref">
-          <span><span id="refBang">${obsBang(ref)}</span>${esc(fullRef)}</span>
-          <span class="bdg-d-badge" id="histBtn" role="button" title="Historique">H</span>
-        </div>
-
-        <div class="bdg-d-pills">
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="doc" role="button">${SVI_ICON.doc}<span class="pl">DOC ${svCnt(0)}</span></span>
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="taf" role="button">${SVI_ICON.taf}<span class="pl">TAF ${svCnt(0)}</span></span>
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="obs" role="button">${SVI_ICON.obs}<span class="pl">OBS ${svCnt(0)}</span></span>
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="inf" role="button">${SVI_ICON.inf}<span class="pl">INF</span></span>
-          ${budget.inst && !budget.inst.virtual ? `<span class="bdg-d-pill bdg-d-pill-btn" data-pill="scn" role="button" title="Nouveau scénario">${SVI_ICON.scn}<span class="pl">SCN ${svCnt((((budget.inst.data || {}).ver || {}).L || []).filter(x => x.kind === "sc").length)}</span></span>` : ""}
-          ${INST_LIVE ? '<div class="lk-chain lk-chain-top" id="insChain" hidden></div>' : ""}
-        </div>
+      <div class="bdg-d-head bdg-d-head-min">
         ${AV_ROOT ? `<div class="av-top" id="avTop">
           <span class="list-lab">COMPOSITION :</span>
           <span class="av-comp">${esc(sviAvSelLab(AV_ROOT, sviAvSelGet(AV_ROOT)))}</span>
