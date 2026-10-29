@@ -6755,9 +6755,10 @@ function renderBudgetList() {
           ←
         </button>
 
-        <h1 class="bdg-d-h1">
-          ${esc(budget.project)}
-        </h1>
+        <h1 class="bdg-d-h1"><span id="refBang">${obsBang(ref)}</span><span id="refTxt">${esc(fullRef)}</span></h1>
+        <span class="bdg-d-badge bdg-d-inf" data-pill="inf" role="button" title="Informations (INF)">i</span>
+        <span class="bdg-d-badge" id="histBtn" role="button" title="Historique">H</span>
+        ${INST_LIVE ? '<div class="lk-chain lk-chain-top" id="insChain" hidden></div>' : ""}
 
         <div class="bdg-d-hright">
           ${INST_LIVE ? `
@@ -6787,21 +6788,7 @@ function renderBudgetList() {
 
       </div>
 
-      <div class="bdg-d-head">
-
-        <div class="bdg-d-ref">
-          <span><span id="refBang">${obsBang(ref)}</span>${esc(fullRef)}</span>
-          <span class="bdg-d-badge" id="histBtn" role="button" title="Historique">H</span>
-        </div>
-
-        <div class="bdg-d-pills">
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="doc" role="button">${SVI_ICON.doc}<span class="pl">DOC ${svCnt(0)}</span></span>
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="taf" role="button">${SVI_ICON.taf}<span class="pl">TAF ${svCnt(0)}</span></span>
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="obs" role="button">${SVI_ICON.obs}<span class="pl">OBS ${svCnt(0)}</span></span>
-          <span class="bdg-d-pill bdg-d-pill-btn" data-pill="inf" role="button">${SVI_ICON.inf}<span class="pl">INF</span></span>
-          ${budget.inst && !budget.inst.virtual ? `<span class="bdg-d-pill bdg-d-pill-btn" data-pill="scn" role="button" title="Nouveau scénario">${SVI_ICON.scn}<span class="pl">SCN ${svCnt((((budget.inst.data || {}).ver || {}).L || []).filter(x => x.kind === "sc").length)}</span></span>` : ""}
-          ${INST_LIVE ? '<div class="lk-chain lk-chain-top" id="insChain" hidden></div>' : ""}
-        </div>
+      <div class="bdg-d-head bdg-d-head-min">
         ${AV_ROOT ? `<div class="av-top" id="avTop">
           <span class="list-lab">COMPOSITION :</span>
           <span class="av-comp">${esc(sviAvSelLab(AV_ROOT, sviAvSelGet(AV_ROOT)))}</span>
@@ -21063,7 +21050,8 @@ ${A}</Assignments>
       if (scnWhy()) return "";
       INS.ver = INS.ver || { L: [], ind: [] };
       const V = INS.ver; V.L = V.L || []; V.ind = V.ind || [];
-      if (!V.act || !V.L.some(x => x.id === V.act)) { const id = insId(); V.L.push({ id, kind: "sc", nom: "SCÉNARIO " + scnNo(V), date: localDT(new Date()) }); V.act = id; }
+      /* v688 : le premier ajout fait de l'étape SCÉNARIO 1 (actif) ; les suivants sont des copies */
+      if (!V.act || !V.L.some(x => x.id === V.act)) { const id = insId(), nom = "SCÉNARIO " + scnNo(V); V.L.push({ id, kind: "sc", nom, date: localDT(new Date()) }); V.act = id; insSave(); histLog("VERSIONS", "NOUVEAU SCÉNARIO", nom + " (L'ÉTAPE TELLE QU'ELLE EST)"); return nom; }
       if (scnL().length >= SCN_MAX) return "";
       const nom = "SCÉNARIO " + scnNo(V);
       V.L.push({ id: insId(), kind: "sc", nom, date: localDT(new Date()), d: d0 ? JSON.parse(JSON.stringify(d0)) : verSnap() });
@@ -21109,14 +21097,14 @@ ${A}</Assignments>
     const SCN_HID_KEY = "svi_scnhid_v1:" + ref;
     const scnHid = () => { try { return JSON.parse(localStorage.getItem(SCN_HID_KEY) || "[]") || []; } catch (e) { return []; } };
     const scnHidSet = a => { try { localStorage.setItem(SCN_HID_KEY, JSON.stringify(a)); } catch (e) {} };
-    const scnSt = x => { const V = INS.ver; return x.id === V.act ? (x.arch ? "ACTIF — ARCHIVÉ" : "ACTIF") : x.arch ? "ARCHIVÉ" : "EN RÉSERVE"; };
+    const scnSt = x => { const V = INS.ver || {}; return x.id === V.act ? (x.arch ? "ACTIF — ARCHIVÉ" : "ACTIF") : x.arch ? "ARCHIVÉ" : "EN RÉSERVE"; };
     /* vue LISTE */
     const scnListCols = () => [["scnom", "NOM", x => x.nom, ""], ["scet", "ÉTAT", x => scnSt(x), ""], ["scof", "OFFERT AU CLIENT", x => x.of ? "OUI" : "NON", "center"],
       ["scret", "RETENIR", x => x.ret && !x.arch ? "RETENU" : "", "center"], ...(scnL().some(x => x.arch) ? [["scdes", "DÉSARCHIVER", x => x.arch ? "ARCHIVÉ" : "", "center"]] : []), ["scdel", "🗑", () => "", "center"]];
     /* vue COMPARAISON : clés sc1…sc10 = position du scénario dans la liste */
     const scnCmpCols = SC => { const H = scnHid(); return [["scnind", "INDICATEUR", r => r.nom, ""], ...SC.map((x, j) => ["sc" + (j + 1), x.nom, r => r.v[j] ? (r.v[j].val ?? r.v[j].txt) : "", "number"]).filter((c, j) => !H.includes(SC[j].id))]; };
     const scnRows = SC => {
-      const LIB = indLoad(), V = INS.ver; V.ind = (V.ind || []).filter(k => LIB.some(I => I.id === k));
+      const LIB = indLoad(), V = INS.ver || { L: [], ind: [] }; V.ind = (V.ind || []).filter(k => LIB.some(I => I.id === k));
       const ST = SC.map(x => x.id === V.act ? INS : x.d || null), EL = ST.map(s2 => s2 ? indEls(s2) : null);
       return V.ind.map(k => { const IN = LIB.find(I => I.id === k); return { k, nom: IN.nom, v: ST.map((s2, j) => s2 ? indCalc(IN, s2, EL[j]) : null) }; });
     };
@@ -21139,9 +21127,9 @@ ${A}</Assignments>
       const blk = shell.querySelector(".blk-scn"), t = $("scnTable");
       if (!blk || !t) return;
       const SC = scnL();
-      blk.hidden = !INS || SC.length < 2;
+      blk.hidden = !INS || !budget.inst || budget.inst.virtual;   /* v688 : toujours affiché sur une étape, même vide */
       if (blk.hidden) return;
-      const V = INS.ver, ed = scnEd();
+      const V = INS.ver || { L: [], ind: [] }, ed = scnEd();
       scnViewBtn();
       blk.classList.toggle("scn-cmp", scnView !== "list");
       const ttl = $("scnTitle"); if (ttl) ttl.innerHTML = SVI_ICON.scn + "SCÉNARIOS " + (scnView === "list" ? "" : "— COMPARAISON ") + svCnt(SC.length);
@@ -21163,7 +21151,7 @@ ${A}</Assignments>
         const add = ed ? `<tr class="scn-new${full ? " off" : ""}" data-scnadd><td colspan="${oc.length}">${full ? SCN_MAX + " SCÉNARIOS AU PLUS PAR ÉTAPE" : "AJOUTER UN SCÉNARIO ICI…"}</td></tr>` : "";
         t.style.width = cwTableW("scnl", cols) + "px";
         t.innerHTML = `<colgroup>${cwCols("scnl", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("scnl", c[0], c[1], c[3])).join("")}</tr></thead>
-          <tbody>${rows.map(x => `<tr class="scn-row${x.id === V.act ? " ver-act" : ""}${x.arch ? " scn-arch" : ""}" data-scn="${x.id}">${oc.map(c => td(c, x)).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}${add}</tbody>`;
+          <tbody>${rows.map(x => `<tr class="scn-row${x.id === V.act ? " ver-act" : ""}${x.arch ? " scn-arch" : ""}" data-scn="${x.id}">${oc.map(c => td(c, x)).join("")}</tr>`).join("") || (SC.length ? `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "")}${add}</tbody>`;
         return;
       }
       /* COMPARAISON */
@@ -21226,8 +21214,10 @@ ${A}</Assignments>
           if (t.classList.contains("ver-of")) { const x = V.L.find(y => y.id === t.dataset.id); if (x) { x.of = t.checked; save(t.checked ? "OFFERT AU CLIENT" : "RETIRÉ DES OFFRES", x.nom); } }
         });
         blk.addEventListener("click", async e => {
-          const V = V$(); if (!V) return;
           const vb = e.target.closest('.blk-btn[data-act="view"]'); if (vb) { e.stopPropagation(); shell.__scnView(); return; }
+          const ad0 = e.target.closest("[data-scnadd]");
+          if (ad0) { e.stopPropagation(); const w = scnWhy(); if (w) { svToast(w, 4000, ad0); return; } const nom = scnAdd(); if (nom) { refreshAll(); svToast(nom + " CRÉÉ.", 2500, ad0); } return; }
+          const V = V$(); if (!V) return;
           if (!blk.contains(e.target.closest("#scnTable") || null)) return;
           if (longed) { longed = false; e.stopPropagation(); return; }   /* fin d'un appui long (renommer) */
           if (e.target.closest(".cf-btn, .col-rs, input")) return;   /* tri / filtre, largeur, cases : comme les autres tableaux */
@@ -21248,7 +21238,7 @@ ${A}</Assignments>
             w => { if (w === "new") indDesignWin(null, I => { if (I) { V.ind.push(I.id); save("INDICATEUR AJOUTÉ", I.nom); } scnRender(); }); else if (w === "list") indWin(() => scnRender()); }); return; }
           const ir = e.target.closest("[data-irm]"); if (ir) { e.stopPropagation(); if (!ed) return; V.ind = V.ind.filter(k => k !== ir.dataset.irm); save("INDICATEUR RETIRÉ", ir.dataset.irm); scnRender(); return; }
           const ad = e.target.closest("[data-scnadd]");
-          if (ad) { e.stopPropagation(); const w = scnWhy(); if (w) { svToast(w, 4000, ad); return; } const nom = scnAdd(); if (nom) { refreshAll(); svToast(nom + " CRÉÉ : COPIE DE L'ÉTAPE TELLE QU'ELLE EST.", 3000, ad); } return; }
+          if (ad) { e.stopPropagation(); const w = scnWhy(); if (w) { svToast(w, 4000, ad); return; } const nom = scnAdd(); if (nom) { refreshAll(); svToast(nom + " CRÉÉ.", 2500, ad); } return; }
           const ua = e.target.closest("[data-unarch]");
           if (ua) {
             e.stopPropagation();
@@ -23635,8 +23625,9 @@ ${A}</Assignments>
           return `<td class="number rec-late" title="Échéance dépassée">${esc(v)}</td>`;
         return `<td class="${cls}" title="${esc(v)}">${esc(v)}</td>`;
       }).join("") + "</tr>").join("");
-      const fill = list.length ? "" :
-        `<tr><td colspan="${cols.length}" class="empty">AUCUN ENREGISTREMENT</td></tr>`;
+      /* v688 : plus de boutons DOC / TAF / OBS en haut : on saisit ici, comme dans les autres tableaux */
+      const fill = (!list.length && all.length ? `<tr><td colspan="${cols.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "") +
+        `<tr class="rec-new" data-recnew="${kind}"><td colspan="${cols.length}">SAISIR ICI…</td></tr>`;
 
       t.style.width = cwTableW(kind, cols) + "px";
       t.innerHTML = `<colgroup>${cwCols(kind, cols)}</colgroup>
@@ -23823,7 +23814,7 @@ ${A}</Assignments>
         const patch = {};
         if (o.project !== undefined && o.project !== String(budget.project || "")) {
           budget.project = o.project; budget.inst.project = o.project; patch.project = o.project;
-          const h1 = shell.querySelector(".bdg-d-h1"); if (h1) h1.textContent = o.project;
+          const h1 = $("refTxt"); if (h1) h1.textContent = o.project + " " + ref;
           histLog("INF", "PROJET", o.project);
         }
         if (o.created && o.created !== String(budget.inst.created || "")) { budget.inst.created = o.created; patch.created = o.created; histLog("INF", "DATE CRÉATION", o.created.replace("T", " À ")); }
@@ -24780,6 +24771,9 @@ ${A}</Assignments>
         openDocForm();
         return;
       }
+      /* v688 : ligne SAISIR ICI des DOCUMENTS / TAF / OBSERVATIONS */
+      const rn = event.target.closest("[data-recnew]");
+      if (rn) { if (rn.dataset.recnew === "doc") openDocForm(); else openRecForm(rn.dataset.recnew); return; }
       if (event.target.closest("#obsAlertBtn, #refBang .obs-bang")) { openObsAlert(); return; }
       if (event.target.closest("#histBtn")) { openHistory(); return; }
       const ofl = event.target.closest("[data-obsflag]");

@@ -524,6 +524,9 @@
         openDocForm();
         return;
       }
+      /* v688 : ligne SAISIR ICI des DOCUMENTS / TAF / OBSERVATIONS */
+      const rn = event.target.closest("[data-recnew]");
+      if (rn) { if (rn.dataset.recnew === "doc") openDocForm(); else openRecForm(rn.dataset.recnew); return; }
       if (event.target.closest("#obsAlertBtn, #refBang .obs-bang")) { openObsAlert(); return; }
       if (event.target.closest("#histBtn")) { openHistory(); return; }
       const ofl = event.target.closest("[data-obsflag]");

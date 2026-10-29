@@ -2050,7 +2050,7 @@ def main():
         # v666 (axe 10) : TAF créé avec une tâche choisie = rattaché à la tâche ; listes filtrées sur l'élément choisi
         pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid=\"l1\"] .lk-rd')?.click()"); pg.wait_for_timeout(250)
         pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"sec\"] .ins-li[data-iid=\"s1\"] .lk-rd')?.click()"); pg.wait_for_timeout(250)
-        pg.evaluate("() => document.querySelector('[data-pill=\"obs\"]')?.click()"); pg.wait_for_timeout(400)
+        pg.evaluate("() => document.querySelector('[data-recnew=\"obs\"]')?.click()"); pg.wait_for_timeout(400)
         o10 = pg.evaluate("() => [...document.querySelectorAll('#docPop select#recAtt option')].map(o => o.textContent + (o.selected ? '*' : '')).join(' | ')")
         pg.fill("#recText", "OBS TACHE AXE 10"); pg.evaluate("() => document.querySelector('#recSave').click()"); pg.wait_for_timeout(400)
         a10 = pg.evaluate("() => [...document.querySelectorAll('#recTable-obs tbody tr')].map(t => t.innerText.replace(/\\s+/g, ' ')).find(t => t.includes('OBS TACHE AXE 10')) || 'none'")
