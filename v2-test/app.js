@@ -1326,14 +1326,14 @@ const sviAvStages = ref => {
   if (!root) return [it];
   return [root, ...L.filter(x => x.parent === root.ref).sort((a, b) => (a.avn || 0) - (b.avn || 0))];
 };
-const sviAvName = it => it && it.parent ? "AVENANT " + (it.avn || 1) : "MARCHÉ INITIAL";
+const sviAvName = it => it && it.vname ? it.vname : it && it.parent ? "AVENANT " + (it.avn || 1) : "MARCHÉ INITIAL";
 /* budget consolidé */
 const sviAvMerge = rootRef => {
   const S = sviAvStages(rootRef);
   if (!S.length) return null;
   const D0 = JSON.parse(JSON.stringify(S[0].data || {}));
   const M = { ...D0, des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: D0.qlt || [], links: [], dlp: {}, dlpSec: true };
-  delete M.ver; delete M.dord; delete M.conf;
+  delete M.ver; delete M.vfz; delete M.dord; delete M.conf;
   const n = v => Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")) || 0;
   const key = { des: r => r.t ? "T|" + sviAvU(r.art) + "|" + sviAvU(r.des) : sviAvU(r.des) + "|" + sviAvU(r.u), lot: r => sviAvU(r.v), prim: r => sviAvU(r.v), sec: r => sviAvU(r.v), chg: r => r.t ? "T|" + sviAvU(r.des) : sviAvU(r.des) + "|" + sviAvU(r.u) };
   S.forEach((st, si) => {
@@ -5618,6 +5618,11 @@ function renderBudgetList() {
     try { const gref = b.ref + "-GLOBAL"; groups.set(gref, { ref: gref, project: b.project, rows: [], first: {}, inst: { ref: gref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, data: sviAvMerge(b.ref) } }); } catch (e) {}
   });
 
+  /* v682 : VERSION n d'une étape — photo en lecture seule, jamais enregistrée */
+  instLoad().forEach(b => ((b.data || {}).vfz || []).forEach(v => {
+    try { const vref = b.ref + "-V" + v.n; groups.set(vref, { ref: vref, project: b.project, rows: [], first: {}, inst: { ref: vref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vname: sviAvName(b) + " — VERSION " + v.n, data: JSON.parse(JSON.stringify(v.d || {})) } }); } catch (e) {}
+  }));
+
   /* liste affichée : VALIDÉS (noir) ou EN INSTANCE (rouge / vert si figé) */
   let listMode = "valid";
   try { if (localStorage.getItem("svi_listmode_v1") === "inst") listMode = "inst"; } catch (e) {}
@@ -7250,7 +7255,7 @@ function renderBudgetList() {
       try { refreshAll(); } catch (e) {}
     };
     if (INS_ARCH && (budget.inst.state || "instance") === "instance") setTimeout(() => { try { svToast("SCÉNARIO ARCHIVÉ : LECTURE SEULE. VERSIONS ET SCÉNARIOS › DÉSARCHIVER OU BASCULER POUR MODIFIER.", 6000); } catch (e) {} }, 400);
-    if (budget.inst && budget.inst.virtual) setTimeout(() => { try { svToast("GLOBAL : MARCHÉ INITIAL ET AVENANTS CONSOLIDÉS, EN LECTURE SEULE.", 5000); } catch (e) {} }, 400);
+    if (budget.inst && budget.inst.virtual) setTimeout(() => { try { svToast(budget.inst.vname ? budget.inst.vname + " : PHOTO EN LECTURE SEULE." : "GLOBAL : MARCHÉ INITIAL ET AVENANTS CONSOLIDÉS, EN LECTURE SEULE.", 5000); } catch (e) {} }, 400);
     if (INS_HELD) setTimeout(() => { try { svToast(INS_HELD.onglet ? "« " + INS_HELD.onglet + " » EN LECTURE SEULE : " + INS_HELD.user + " LE MODIFIE. LES AUTRES ONGLETS RESTENT MODIFIABLES." : "EN LECTURE SEULE : " + INS_HELD.user + " MODIFIE CE BUDGET.", 6000); } catch (e) {} }, 400);
     /* v448 : largeur tableau / Gantt tirée à la main, retrouvée à l'ouverture de ce budget */
     const DLYG_REF = (budget.inst && budget.inst.ref) || budget.ref || "";
@@ -20824,8 +20829,8 @@ ${A}</Assignments>
        ========================================================= */
     const VER_IND = [["fin", "DATE DE FIN"], ["dur", "DURÉE (J CALENDAIRES)"], ["but", "MARGE SUR LA DATE BUTOIR (J)"], ["eff", "EFFECTIF MAXIMUM (J-H / JOUR)"],
       ["effT", "EFFECTIF MAXIMUM PAR TYPE D'OUVRIER"], ["mo", "COÛT DE LA MAIN-D'ŒUVRE (DH)"], ["chg", "CHARGES (DH)"], ["prd", "PRODUITS (DH)"], ["mg", "MARGE (DH)"], ["mgp", "MARGE (%)"], ["lots", "LOTS"]];
-    const verSnap = () => { const o = JSON.parse(JSON.stringify(INS)); delete o.ver; return o; };
-    const verLoad = snap => { const keep = INS.ver; Object.keys(INS).forEach(k => { delete INS[k]; }); Object.assign(INS, JSON.parse(JSON.stringify(snap))); INS.ver = keep; };
+    const verSnap = () => { const o = JSON.parse(JSON.stringify(INS)); delete o.ver; delete o.vfz; return o; };
+    const verLoad = snap => { const keep = INS.ver, kf = INS.vfz; Object.keys(INS).forEach(k => { delete INS[k]; }); Object.assign(INS, JSON.parse(JSON.stringify(snap))); INS.ver = keep; if (kf) INS.vfz = kf; };
     /* indicateurs d'un état du budget */
     const verInd = d => {
       const n = v => num(v || 0);
@@ -20874,6 +20879,8 @@ ${A}</Assignments>
         const root = STG[0], cols = STG.map(st => ({ nom: sviAvName(st), ref: st.ref, state: st.state, d: st.ref === budget.inst.ref ? INS : sviBudgetData(JSON.parse(JSON.stringify(st))) }));
         if (root) cols.push({ nom: "GLOBAL", ref: "", state: "", d: sviAvMerge(root.ref) });
         const CE = cols.map(c => c.d ? indEls(c.d) : null);
+        /* v682 : versions de cette étape = photos prises à chaque FIGER et à la VALIDATION, en lecture seule */
+        const VF = budget.inst && budget.inst.virtual ? [] : (INS.vfz || []), VE = VF.map(x => x.d ? indEls(x.d) : null);
         const indRows = (vals, cls) => V.ind.map(k => { const IN = LIB.find(I => I.id === k); return `<tr><td><b>${esc(IN.nom)}</b> ${ed && cls === "sc" ? `<button type="button" class="cmp-del" data-irm="${esc(k)}">✕</button>` : ""}</td>${vals(IN)}</tr>`; }).join("");
         const stLab = s2 => s2 === "valide" ? "VALIDÉ" : s2 === "fige" ? "FIGÉ" : s2 ? "EN INSTANCE" : "CONSOLIDÉ";
         d.innerHTML = sviWinCard({ cls: "cmp-card svc-full", close: "data-x", title: "VERSIONS ET SCÉNARIOS — " + esc(budget.inst ? sviAvName(budget.inst) : ""),
@@ -20885,6 +20892,11 @@ ${A}</Assignments>
               <tr><td><b>OFFERT AU CLIENT</b></td>${SC.map(x => `<td class="c"><input type="checkbox" class="ver-of" data-id="${x.id}"${x.of ? " checked" : ""}${ed && !x.arch ? "" : " disabled"}></td>`).join("")}</tr>
               ${ed ? `<tr><td></td>${SC.map(x => `<td class="c ver-acts">${x.id === V.act ? "" : `<button type="button" class="svc-b" data-sw="${x.id}">BASCULER</button>`}${x.arch ? `<button type="button" class="svc-b" data-unarch="${x.id}">DÉSARCHIVER</button>` : `<button type="button" class="svc-b svc-ok" data-keep="${x.id}">RETENIR</button>`}${x.id === V.act ? "" : `<button type="button" class="cmp-del" data-del="${x.id}">✕</button>`}</td>`).join("")}</tr>` : ""}
             </tbody></table></div>
+            <div class="fz-blk">VERSIONS ${svCnt(VF.length)}</div>
+            ${VF.length ? `<div class="cmp-scroll ver-vf"><table class="cmp-t ver-t"><thead><tr><th>INDICATEUR</th>${VF.map(x => `<th class="ver-arch">VERSION ${x.n}<br><small>${esc(x.kind)} LE ${esc(dFr(String(x.date || "").slice(0, 10)) + " " + String(x.date || "").slice(11, 16))}</small></th>`).join("")}</tr></thead><tbody>
+              ${indRows(IN => VF.map((x, j) => `<td class="r">${x.d ? esc(indCalc(IN, x.d, VE[j]).txt) : "—"}</td>`).join(""), "vf") || `<tr><td colspan="${VF.length + 1}" class="empty">AJOUTER DES INDICATEURS PAR LA LIGNE « + » DES SCÉNARIOS</td></tr>`}
+              <tr><td></td>${VF.map(x => `<td class="c ver-acts"><button type="button" class="svc-b" data-vfo="${x.n}">VOIR</button></td>`).join("")}</tr>
+            </tbody></table></div>` : `<div class="cmp-leg">AUCUNE VERSION : UNE VERSION EST PRISE À CHAQUE FIGER ET À LA VALIDATION.</div>`}
             ${root ? `<div class="fz-blk">MARCHÉ INITIAL ET AVENANTS ${svCnt(STG.length - 1)}</div>
             <div class="cmp-scroll ver-av"><table class="cmp-t ver-t"><thead><tr><th>INDICATEUR</th>${cols.map(c => `<th class="${c.ref === budget.inst.ref ? "ver-act" : ""}">${esc(c.nom)}<br><small>${esc(c.ref ? c.ref + " · " + stLab(c.state) : "MARCHÉ + AVENANTS")}</small></th>`).join("")}</tr></thead><tbody>
               ${indRows(IN => cols.map((c, j) => `<td class="r${c.ref === budget.inst.ref ? " ver-act" : ""}">${c.d ? esc(indCalc(IN, c.d, CE[j]).txt) : "—"}</td>`).join(""), "av") || `<tr><td colspan="${cols.length + 1}" class="empty">AJOUTER DES INDICATEURS PAR LA LIGNE « + » DES SCÉNARIOS</td></tr>`}
@@ -20906,6 +20918,7 @@ ${A}</Assignments>
         const ip = e.target.closest("[data-ip]");
         if (ip) { indPlusMenu(ip, V.ind, id => { V.ind.push(id); save("INDICATEUR AJOUTÉ", (indLoad().find(I => I.id === id) || {}).nom || id); draw(); },
           w => { if (w === "new") { d.remove(); indDesignWin(null, I => { if (I) { V.ind.push(I.id); save("INDICATEUR AJOUTÉ", I.nom); } verWin(); }); } else if (w === "list") { d.remove(); indWin(() => verWin()); } }); return; }
+        const vo = e.target.closest("[data-vfo]"); if (vo) { d.remove(); window.__sviAvOpen(budget.inst.ref + "-V" + vo.dataset.vfo); return; }
         const ir = e.target.closest("[data-irm]"); if (ir) { V.ind = V.ind.filter(k => k !== ir.dataset.irm); save("INDICATEUR RETIRÉ", ir.dataset.irm); draw(); return; }
         /* v681 : premier numéro libre */
         if (e.target.closest("[data-new]")) { const used = new Set(V.L.map(x => (String(x.nom).match(/^SCÉNARIO (\d+)$/) || [])[1]).filter(Boolean).map(Number)); let n = 1; while (used.has(n)) n++;
@@ -20946,6 +20959,14 @@ ${A}</Assignments>
       });
     };
     shell.__verWin = () => verWin();
+    /* v682 : photo de l'étape (VERSION n) prise à FIGER et à VALIDER */
+    shell.__verFreeze = kind => {
+      if (!INS || !budget.inst || budget.inst.virtual) return;
+      INS.vfz = INS.vfz || [];
+      const n = INS.vfz.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1;
+      INS.vfz.push({ id: insId(), n, kind, date: localDT(new Date()), d: verSnap() });
+      insSave(); histLog("VERSIONS", "VERSION " + n, kind);
+    };
     shell.__verOrig = () => verOrig();
 /* ⟪ src/22f-plans.js ⟫ */
     /* =========================================================
@@ -24849,6 +24870,7 @@ ${A}</Assignments>
         if (!go) return;
         /* validation : les données gardées sous les lignes titre sont effacées */
         ((budget.inst.data || {}).des || []).forEach(r => { if (r.t) ["u", "q", "p", "tva"].forEach(f => { delete r[f]; }); });
+        try { shell.__verFreeze && shell.__verFreeze("VALIDÉE"); } catch (e) {}
         budget.inst.state = "valide";
         const d = new Date(), p2 = n => String(n).padStart(2, "0");
         budget.inst.validated = d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()) + "T" + p2(d.getHours()) + ":" + p2(d.getMinutes());
@@ -24892,6 +24914,7 @@ ${A}</Assignments>
         if (!(await svConfirm(fige
           ? { title: "REVENIR EN ÉDITION", text: fullRef, ok: "REVENIR EN ÉDITION" }
           : { title: "FIGER", text: fullRef + " PASSE EN LECTURE SEULE (RETOUR EN ÉDITION POSSIBLE).", ok: "FIGER" }))) return;
+        if (!fige) try { shell.__verFreeze && shell.__verFreeze("FIGÉE"); } catch (e) {}
         budget.inst.state = fige ? "instance" : "fige";
         instUpd(l => l.map(x => x.ref === ref ? { ...x, state: budget.inst.state } : x));
         histLog("BUDGET", fige ? "RETOUR EN ÉDITION" : "FIGÉ", fullRef);
