@@ -2248,11 +2248,11 @@ def main():
             const d0b = JSON.parse(JSON.stringify(d0)); d0b.links = [{ id: 'k0', des: 'd', lot: 'l', prim: 'p', sec: 's', prd: [{ id: 'x0' }], chg: [] }];
             const keep = sviInstGet();
             sviInstSet(keep.concat([{ ref: 'AVT-1', project: 'AVT', state: 'valide', data: d0b }, { ref: 'AVT-1-AV1', project: 'AVT', state: 'instance', parent: 'AVT-1', avn: 1, data: d1 }]));
-            const M = sviAvMerge('AVT-1'), r = M.des[0], C = sviAvContra('AVT-1-AV1'), st = sviAvStages('AVT-1-AV1').map(x => x.ref).join(',');
+            const M = sviAvMerge('AVT-1', true), r = M.des[0], M0 = sviAvMerge('AVT-1'), C = sviAvContra('AVT-1-AV1'), st = sviAvStages('AVT-1-AV1').map(x => x.ref).join(',');
             sviInstSet(keep);
-            return [M.des.length, insLinkedQ(M, r.id), Math.round(r.p * 100) / 100, !!r.pmp, C.length, C[0] ? C[0].att + ' / ' + C[0].got : '', st]; }""")
-        check("v681 : RETENIR archive, DÉSARCHIVER rend la réserve, nouveau scénario = premier numéro libre ; GLOBAL : 100 + 20 M3 au prix moyen pondéré 916,67 (PMP) ; contradiction même lot, autres activités",
-              "ARCHIVÉ" in a81 and b81 == 0 and c81.count("SCÉNARIO 1") == 1 and r81 == [1, 120, 916.67, True, 1, "BETON › BETON / COFFRAGE › COFFRAGE", "AVT-1,AVT-1-AV1"], [a81, b81, c81, r81])
+            return [M.des.length, insLinkedQ(M, r.id), Math.round(r.p * 100) / 100, !!r.pmp, C.length, C[0] ? C[0].att + ' / ' + C[0].got : '', st, insLinkedQ(M0, M0.des[0].id), !!M0.des[0].pmp]; }""")
+        check("v681 : RETENIR archive, DÉSARCHIVER rend la réserve, nouveau scénario = premier numéro libre ; GLOBAL : 100 + 20 M3 au prix moyen pondéré 916,67 (PMP) ; contradiction même lot, autres activités ; v684 : sans INCLURE LES NON VALIDÉS, l'avenant en instance n'est pas compté",
+              "ARCHIVÉ" in a81 and b81 == 0 and c81.count("SCÉNARIO 1") == 1 and r81 == [1, 120, 916.67, True, 1, "BETON › BETON / COFFRAGE › COFFRAGE", "AVT-1,AVT-1-AV1", 100, False], [a81, b81, c81, r81])
         pg.evaluate(f"() => {{ const X = {ins}; const o = JSON.parse(X.INS.__v0); Object.keys(X.INS).forEach(k => delete X.INS[k]); Object.assign(X.INS, o); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
 
         # v671 (axe 6) : règle des axes ; plan image → ÉCHELLE (10 m), LONGUEUR mesurée, REMPLIR DIM 1 d'un produit

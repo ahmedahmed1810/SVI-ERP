@@ -2773,3 +2773,17 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 td.ins-pmp input { font-style: italic; text-decoration: underline dotted; }
 td.ins-pmp::after { content: "PMP"; position: absolute; right: 2px; top: 1px; font-size: 8px; font-weight: 800; color: #7a5af8; }
 td.ins-pmp { position: relative; }
+
+/* v684 : libellés « BUDGETS : » / « AVENANTS : », barre du consolidé, liste des étapes */
+.novapp-list-actions { align-items: center; }
+.novapp-list-actions .list-lab, .av-top .list-lab { font-size: 13px; font-weight: 700; color: #3f4856; letter-spacing: .02em; white-space: nowrap; }
+.novapp-list-actions button:disabled, .av-top .av-ic:disabled { opacity: .35; cursor: not-allowed; }
+.av-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.av-top .av-ic { width: 36px; height: 36px; border: 1px solid #dfe4eb; border-radius: 10px; background: #fff; color: #3f4856; font-size: 18px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.av-top .av-inc { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #3f4856; margin-left: 6px; cursor: pointer; }
+.av-top .av-inc input { width: 18px; height: 18px; margin: 0; }
+.av-list-ov { position: fixed; inset: 0; z-index: 10000; background: #fff; overflow: auto; }
+.av-list-ov .novapp-list-shell { min-height: 100%; }
+.av-stg-t tbody tr[data-r] { cursor: pointer; }
+.av-stg-t tr.inst-instance td { color: #b91c1c; }
+.av-stg-t tr.inst-fige td { color: #15803d; }

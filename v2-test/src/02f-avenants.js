@@ -19,9 +19,12 @@ const sviAvStages = ref => {
   return [root, ...L.filter(x => x.parent === root.ref).sort((a, b) => (a.avn || 0) - (b.avn || 0))];
 };
 const sviAvName = it => it && it.vname ? it.vname : it && it.parent ? "AVENANT " + (it.avn || 1) : "MARCHÉ INITIAL";
-/* budget consolidé */
-const sviAvMerge = rootRef => {
-  const S = sviAvStages(rootRef);
+/* v684 : case INCLURE LES NON VALIDÉS du consolidé (décochée au départ, mémoire de la session) */
+const sviAvAllGet = r => !!(window.__sviAvAll || {})[r];
+const sviAvAllSet = (r, v) => { window.__sviAvAll = window.__sviAvAll || {}; if (v) window.__sviAvAll[r] = true; else delete window.__sviAvAll[r]; };
+/* budget consolidé — v684 : sans « all », seulement le marché initial et les avenants VALIDÉS */
+const sviAvMerge = (rootRef, all) => {
+  const S = sviAvStages(rootRef).filter((x, i) => all || i === 0 || x.state === "valide");
   if (!S.length) return null;
   const D0 = JSON.parse(JSON.stringify(S[0].data || {}));
   const M = { ...D0, des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: D0.qlt || [], links: [], dlp: {}, dlpSec: true };

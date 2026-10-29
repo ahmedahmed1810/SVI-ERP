@@ -286,6 +286,10 @@
     /* en instance (rouge) ou figé (vert) ; validé : présentation noire normale */
     const INST_LIVE = !!budget.inst && budget.inst.state !== "valide";
     if (INST_LIVE) shell.classList.add("bdg-inst-" + (budget.inst.state || "instance"));
+    /* v684 : consolidé d'un budget à avenants (« réf.-GLOBAL ») ; étape ouverte depuis le consolidé (flèche = retour au consolidé) */
+    const AV_ROOT = budget.inst && budget.inst.virtual && !budget.inst.vname && /-GLOBAL$/.test(String(ref)) ? budget.inst.parent : "";
+    const AV_STG = AV_ROOT ? sviAvStages(AV_ROOT) : [];
+    const AV_RET = !!window.__sviAvRet && window.__sviAvRet !== ref;
     sviWatchState(shell);
 
     /* ---- squelette de l'écran ---- */
@@ -309,7 +313,7 @@
           id="budgetBackBtn"
           class="novapp-menu"
           aria-label="Retour"
-          ${INST_LIVE ? 'style="display:none"' : ""}
+          ${INST_LIVE && !AV_RET ? 'style="display:none"' : ""}
         >
           ←
         </button>
@@ -360,6 +364,13 @@
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="inf" role="button">${SVI_ICON.inf}<span class="pl">INF</span></span>
           ${INST_LIVE ? '<div class="lk-chain lk-chain-top" id="insChain" hidden></div>' : ""}
         </div>
+        ${AV_ROOT ? `<div class="av-top" id="avTop">
+          <span class="list-lab">AVENANTS :</span>
+          <button type="button" class="av-ic" data-avt="add" ${AV_STG.length && AV_STG[AV_STG.length - 1].state === "valide" ? 'title="Nouvel avenant"' : 'disabled title="LE DERNIER AVENANT DOIT ÊTRE VALIDÉ"'} aria-label="Nouvel avenant">＋</button>
+          ${AV_STG.some(x => x.state !== "valide") ? '<button type="button" class="av-ic" data-avt="inst" title="Étapes en instance" aria-label="Étapes en instance">⌛</button>' : ""}
+          ${AV_STG.some(x => x.state === "valide") ? '<button type="button" class="av-ic" data-avt="valid" title="Étapes validées" aria-label="Étapes validées">≡</button>' : ""}
+          <label class="av-inc"><input type="checkbox" id="avAll"${sviAvAllGet(AV_ROOT) ? " checked" : ""}> INCLURE LES NON VALIDÉS</label>
+        </div>` : ""}
 
       </div>
       </div>
