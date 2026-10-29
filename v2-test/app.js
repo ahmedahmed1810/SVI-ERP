@@ -1327,9 +1327,12 @@ const sviAvStages = ref => {
   return [root, ...L.filter(x => x.parent === root.ref).sort((a, b) => (a.avn || 0) - (b.avn || 0))];
 };
 const sviAvName = it => it && it.vname ? it.vname : it && it.parent ? "AVENANT " + (it.avn || 1) : "MARCHÉ INITIAL";
-/* budget consolidé */
-const sviAvMerge = rootRef => {
-  const S = sviAvStages(rootRef);
+/* v684 : case INCLURE LES NON VALIDÉS du consolidé (décochée au départ, mémoire de la session) */
+const sviAvAllGet = r => !!(window.__sviAvAll || {})[r];
+const sviAvAllSet = (r, v) => { window.__sviAvAll = window.__sviAvAll || {}; if (v) window.__sviAvAll[r] = true; else delete window.__sviAvAll[r]; };
+/* budget consolidé — v684 : sans « all », seulement le marché initial et les avenants VALIDÉS */
+const sviAvMerge = (rootRef, all) => {
+  const S = sviAvStages(rootRef).filter((x, i) => all || i === 0 || x.state === "valide");
   if (!S.length) return null;
   const D0 = JSON.parse(JSON.stringify(S[0].data || {}));
   const M = { ...D0, des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: D0.qlt || [], links: [], dlp: {}, dlpSec: true };
@@ -5615,7 +5618,7 @@ function renderBudgetList() {
   instLoad().forEach(b => groups.set(b.ref, { ref: b.ref, project: b.project, rows: [], first: {}, inst: b }));
   /* v681 : budget à avenants — vue GLOBAL (marché initial + avenants consolidés, en lecture seule, jamais enregistrée) */
   instLoad().filter(b => !b.parent && instLoad().some(x => x.parent === b.ref)).forEach(b => {
-    try { const gref = b.ref + "-GLOBAL"; groups.set(gref, { ref: gref, project: b.project, rows: [], first: {}, inst: { ref: gref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, data: sviAvMerge(b.ref) } }); } catch (e) {}
+    try { const gref = b.ref + "-GLOBAL"; groups.set(gref, { ref: gref, project: b.project, rows: [], first: {}, inst: { ref: gref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vall: sviAvAllGet(b.ref), data: sviAvMerge(b.ref, sviAvAllGet(b.ref)) } }); } catch (e) {}
   });
 
   /* v682 : VERSION n d'une étape — photo en lecture seule, jamais enregistrée */
@@ -6705,6 +6708,10 @@ function renderBudgetList() {
     /* en instance (rouge) ou figé (vert) ; validé : présentation noire normale */
     const INST_LIVE = !!budget.inst && budget.inst.state !== "valide";
     if (INST_LIVE) shell.classList.add("bdg-inst-" + (budget.inst.state || "instance"));
+    /* v684 : consolidé d'un budget à avenants (« réf.-GLOBAL ») ; étape ouverte depuis le consolidé (flèche = retour au consolidé) */
+    const AV_ROOT = budget.inst && budget.inst.virtual && !budget.inst.vname && /-GLOBAL$/.test(String(ref)) ? budget.inst.parent : "";
+    const AV_STG = AV_ROOT ? sviAvStages(AV_ROOT) : [];
+    const AV_RET = !!window.__sviAvRet && window.__sviAvRet !== ref;
     sviWatchState(shell);
 
     /* ---- squelette de l'écran ---- */
@@ -6728,7 +6735,7 @@ function renderBudgetList() {
           id="budgetBackBtn"
           class="novapp-menu"
           aria-label="Retour"
-          ${INST_LIVE ? 'style="display:none"' : ""}
+          ${INST_LIVE && !AV_RET ? 'style="display:none"' : ""}
         >
           ←
         </button>
@@ -6779,6 +6786,13 @@ function renderBudgetList() {
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="inf" role="button">${SVI_ICON.inf}<span class="pl">INF</span></span>
           ${INST_LIVE ? '<div class="lk-chain lk-chain-top" id="insChain" hidden></div>' : ""}
         </div>
+        ${AV_ROOT ? `<div class="av-top" id="avTop">
+          <span class="list-lab">AVENANTS :</span>
+          <button type="button" class="av-ic" data-avt="add" ${AV_STG.length && AV_STG[AV_STG.length - 1].state === "valide" ? 'title="Nouvel avenant"' : 'disabled title="LE DERNIER AVENANT DOIT ÊTRE VALIDÉ"'} aria-label="Nouvel avenant">＋</button>
+          ${AV_STG.some(x => x.state !== "valide") ? '<button type="button" class="av-ic" data-avt="inst" title="Étapes en instance" aria-label="Étapes en instance">⌛</button>' : ""}
+          ${AV_STG.some(x => x.state === "valide") ? '<button type="button" class="av-ic" data-avt="valid" title="Étapes validées" aria-label="Étapes validées">≡</button>' : ""}
+          <label class="av-inc"><input type="checkbox" id="avAll"${sviAvAllGet(AV_ROOT) ? " checked" : ""}> INCLURE LES NON VALIDÉS</label>
+        </div>` : ""}
 
       </div>
       </div>
@@ -7255,7 +7269,7 @@ function renderBudgetList() {
       try { refreshAll(); } catch (e) {}
     };
     if (INS_ARCH && (budget.inst.state || "instance") === "instance") setTimeout(() => { try { svToast("SCÉNARIO ARCHIVÉ : LECTURE SEULE. VERSIONS ET SCÉNARIOS › DÉSARCHIVER OU BASCULER POUR MODIFIER.", 6000); } catch (e) {} }, 400);
-    if (budget.inst && budget.inst.virtual) setTimeout(() => { try { svToast(budget.inst.vname ? budget.inst.vname + " : PHOTO EN LECTURE SEULE." : "GLOBAL : MARCHÉ INITIAL ET AVENANTS CONSOLIDÉS, EN LECTURE SEULE.", 5000); } catch (e) {} }, 400);
+    if (budget.inst && budget.inst.virtual) setTimeout(() => { try { svToast(budget.inst.vname ? budget.inst.vname + " : PHOTO EN LECTURE SEULE." : (budget.inst.vall ? "CONSOLIDÉ : MARCHÉ INITIAL ET TOUS LES AVENANTS (NON VALIDÉS COMPRIS), EN LECTURE SEULE." : "CONSOLIDÉ : MARCHÉ INITIAL ET AVENANTS VALIDÉS, EN LECTURE SEULE."), 5000); } catch (e) {} }, 400);
     if (INS_HELD) setTimeout(() => { try { svToast(INS_HELD.onglet ? "« " + INS_HELD.onglet + " » EN LECTURE SEULE : " + INS_HELD.user + " LE MODIFIE. LES AUTRES ONGLETS RESTENT MODIFIABLES." : "EN LECTURE SEULE : " + INS_HELD.user + " MODIFIE CE BUDGET.", 6000); } catch (e) {} }, 400);
     /* v448 : largeur tableau / Gantt tirée à la main, retrouvée à l'ouverture de ce budget */
     const DLYG_REF = (budget.inst && budget.inst.ref) || budget.ref || "";
@@ -19315,7 +19329,7 @@ ${A}</Assignments>
         ...(INS ? [{ a: "paq", lab: "PLAN D'ASSURANCE QUALITÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
         /* v681 : premier avenant — une seule fois (aucun avenant encore), marché initial validé */
         ...(INS && budget.inst && !budget.inst.parent && !budget.inst.virtual && sviAvStages(budget.inst.ref).length === 1 ? [{ a: "av", lab: "AJOUTER UN AVENANT", off: budget.inst.state !== "valide", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12.5 10v7M9 13.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
-        ...(INS && budget.inst && (budget.inst.parent || sviAvStages(budget.inst.ref).length > 1) ? [{ a: "avl", lab: "MARCHÉ ET AVENANTS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
+        ...(INS && budget.inst && !/-GLOBAL$/.test(budget.inst.ref) && (budget.inst.parent || sviAvStages(budget.inst.ref).length > 1) ? [{ a: "avl", lab: "CONSOLIDÉ (MARCHÉ ET AVENANTS)", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
         ...(INS ? [{ a: "ver", lab: "VERSIONS ET SCÉNARIOS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="6" cy="18" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="18" cy="9" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 8.2v7.6M6 13c0-3 4-4 9.8-4" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>' }] : []),
         ...(INS ? [{ a: "ctr", lab: "CONTRAT (CPS)", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 11h5M10 15h5M10 19h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' }] : []),
         ...(INS ? [{ a: "plans", lab: "PLANS ET MÉTRÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5l6-2 6 2 6-2v16l-6 2-6-2-6 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 3v16M15 5v16" stroke="currentColor" stroke-width="1.4"/></svg>' }] : []),
@@ -19342,8 +19356,8 @@ ${A}</Assignments>
         else if (it.dataset.a === "lay") $("layResetBtn")?.click();
         else if (it.dataset.a === "paq") qqPaqOpen();
         else if (it.dataset.a === "ctr") ctrWin();
-        else if (it.dataset.a === "av") { svConfirm({ title: "AJOUTER UN AVENANT", text: "AVENANT 1 (" + budget.inst.ref + "-AV1) : UN BUDGET À PART, EN INSTANCE, QUI NE CONTIENT QUE LES DONNÉES DE L'AVENANT. LE MARCHÉ INITIAL RESTE TEL QU'IL A ÉTÉ VALIDÉ.", ok: "CRÉER", tone: "neutral" }).then(go => { if (go && window.__sviAvAdd) window.__sviAvAdd(budget.inst.ref); }); }
-        else if (it.dataset.a === "avl") { const root = budget.inst.parent || budget.inst.ref; if (window.__sviAvWin) window.__sviAvWin(root); }
+        else if (it.dataset.a === "av") { if (window.__sviAvNew) window.__sviAvNew(budget.inst.ref); }   /* v684 : fenêtre INF puis l'avenant */
+        else if (it.dataset.a === "avl") { const root = budget.inst.parent || budget.inst.ref; if (window.__sviAvOpen) window.__sviAvOpen(root + "-GLOBAL"); }   /* v684 : plus de petite fenêtre : le consolidé */
         else if (it.dataset.a === "ver") verWin();   /* v670 (axes 1 et 4) */   /* v669 (axe 3) */
         else if (it.dataset.a === "rat") ratWin();
         else if (it.dataset.a === "ind") indWin();   /* v679 */
@@ -20903,7 +20917,7 @@ ${A}</Assignments>
         /* étapes : marché initial, avenants, puis GLOBAL */
         const STG = budget.inst && !budget.inst.virtual ? sviAvStages(budget.inst.ref) : [];
         const root = STG[0], cols = STG.map(st => ({ nom: sviAvName(st), ref: st.ref, state: st.state, d: st.ref === budget.inst.ref ? INS : sviBudgetData(JSON.parse(JSON.stringify(st))) }));
-        if (root) cols.push({ nom: "GLOBAL", ref: "", state: "", d: sviAvMerge(root.ref) });
+        if (root) cols.push({ nom: "GLOBAL", ref: "", state: "", d: sviAvMerge(root.ref, true) });
         const CE = cols.map(c => c.d ? indEls(c.d) : null);
         /* v682 : versions de cette étape = photos prises à chaque FIGER et à la VALIDATION, en lecture seule */
         const VF = budget.inst && budget.inst.virtual ? [] : (INS.vfz || []), VE = VF.map(x => x.d ? indEls(x.d) : null);
@@ -20927,7 +20941,7 @@ ${A}</Assignments>
             <div class="cmp-scroll ver-av"><table class="cmp-t ver-t"><thead><tr><th>INDICATEUR</th>${cols.map(c => `<th class="${c.ref === budget.inst.ref ? "ver-act" : ""}">${esc(c.nom)}<br><small>${esc(c.ref ? c.ref + " · " + stLab(c.state) : "MARCHÉ + AVENANTS")}</small></th>`).join("")}</tr></thead><tbody>
               ${indRows(IN => cols.map((c, j) => `<td class="r${c.ref === budget.inst.ref ? " ver-act" : ""}">${c.d ? esc(indCalc(IN, c.d, CE[j]).txt) : "—"}</td>`).join(""), "av") || `<tr><td colspan="${cols.length + 1}" class="empty">AJOUTER DES INDICATEURS PAR LA LIGNE « + » DES SCÉNARIOS</td></tr>`}
             </tbody></table></div>
-            <div class="cmp-leg">UN AVENANT EST UN BUDGET À PART (RÉF. ${esc(root.ref)}-AV1…) : LE PREMIER S'AJOUTE PAR LE MENU ⋯ DU BUDGET, UNE FOIS LE MARCHÉ INITIAL VALIDÉ ; LES SUIVANTS PAR LE + DE LA LISTE DES AVENANTS.</div>` : ""}`,
+            <div class="cmp-leg">UN AVENANT EST UN BUDGET À PART (RÉF. ${esc(root.ref)}-AV1…) : LE PREMIER S'AJOUTE PAR LE MENU ⋯ DU BUDGET, UNE FOIS LE MARCHÉ INITIAL VALIDÉ ; LES SUIVANTS PAR LE + DU CONSOLIDÉ (« AVENANTS : »).</div>` : ""}`,
           foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
       };
       const save = (what, det) => { insSave(); histLog("VERSIONS", what, det); };
@@ -24853,6 +24867,11 @@ ${A}</Assignments>
           shell.oninput = null;
           /* retour volontaire à la liste : elle sera l'écran d'ouverture */
           try { localStorage.removeItem("svi_lastbdg_v1"); } catch (e) {}
+          /* v684 : étape ouverte depuis le consolidé → retour au consolidé ; consolidé → liste mère (case remise à zéro) */
+          { const ret = window.__sviAvRet; window.__sviAvRet = null;
+            try { localStorage.removeItem("svi_opening_v1"); } catch (e) {}   /* l'ouverture est allée au bout */
+            if (ret && ret !== ref) { try { localStorage.setItem("svi_lastbdg_v1", ret); } catch (e) {} }
+            else if (AV_ROOT && !window.__sviAvKeep) sviAvAllSet(AV_ROOT, false); }
           if (window.__sviViewSave) window.__sviViewSave();
           window.__sviBdgLive = null;
           setTimeout(() => window.__sviViewRestore && window.__sviViewRestore("list:bdg"), 0);
@@ -24860,6 +24879,14 @@ ${A}</Assignments>
           renderBudgetList();
         }
       );
+
+    /* v684 : en haut du consolidé — AVENANTS : + / ⌛ / ≡ et case INCLURE LES NON VALIDÉS */
+    $("avTop")?.addEventListener("click", e => {
+      const b = e.target.closest("[data-avt]"); if (!b || b.disabled) return;
+      if (b.dataset.avt === "add") window.__sviAvNew(AV_ROOT);
+      else window.__sviAvList(AV_ROOT, b.dataset.avt);
+    });
+    $("avAll")?.addEventListener("change", e => { sviAvAllSet(AV_ROOT, e.target.checked); window.__sviAvOpen(ref, null, true); });
 
     /* budget en instance : ‹ › navigation, 🔒 figer / revenir en édition, 🗑 supprimer, ✕ fermer */
     if (budget.inst && budget.inst.state !== "valide") {
@@ -24954,48 +24981,125 @@ ${A}</Assignments>
      ------------------------------------------------------- */
 
   /* =========================================================
-     v681 : AVENANTS — liste intermédiaire d'un budget à avenants (onglets EN INSTANCE / VALIDÉ, cachés quand vides),
-     + (nouvel avenant, si le dernier est validé) et GLOBAL ; ajout d'un avenant (mini-budget « réf.-AVn »)
+     v681 / v684 : AVENANTS — navigation (décisions du 29/10/2026, soir)
+     - budget à avenants : le toucher ouvre le CONSOLIDÉ (réf.-GLOBAL), en lecture seule ;
+     - en haut du consolidé : « AVENANTS : » + (nouvel avenant), ⌛ / ≡ (liste des étapes au format de la liste mère),
+       case INCLURE LES NON VALIDÉS ;
+     - une étape ouverte depuis le consolidé : la flèche ramène au consolidé, puis à la liste mère ;
+     - nouvel avenant : fenêtre INF (mêmes champs qu'un nouveau budget), puis ouverture de l'avenant.
      ========================================================= */
-  /* ouvre un budget de la famille : depuis un budget ouvert, retour propre à la liste (bouton ←) puis ouverture */
-  const sviAvOpen = r => { const back = document.getElementById("budgetBackBtn"); if (back) back.click(); try { localStorage.setItem("svi_lastbdg_v1", r); } catch (e) {} renderBudgetList(); };
+  /* ouvre un budget de la famille ; ret = écran où ramène la flèche (le consolidé) */
+  const sviAvOpen = (r, ret, keep) => {
+    window.__sviAvRet = null; window.__sviAvKeep = !!keep || !!ret;   /* étape ouverte depuis le consolidé : la case reste telle quelle */
+    const back = document.getElementById("budgetBackBtn"); if (back) back.click();
+    window.__sviAvRet = ret || null; window.__sviAvKeep = false;
+    try { localStorage.setItem("svi_lastbdg_v1", r); } catch (e) {}
+    renderBudgetList();
+  };
   window.__sviAvOpen = sviAvOpen;
-  const sviAvAdd = rootRef => {
+  const sviAvAdd = (rootRef, o) => {
     const L = sviInstGet(), S = sviAvStages(rootRef), root = S[0], last = S[S.length - 1];
     if (!root || last.state !== "valide") { sviAlert((S.length > 1 ? "LE DERNIER AVENANT" : "LE MARCHÉ INITIAL") + " DOIT ÊTRE VALIDÉ AVANT D'OUVRIR UN AVENANT.", "NOUVEL AVENANT"); return null; }
     const n = S.length, r = root.ref + "-AV" + n;
-    const it = { ref: r, project: root.project, intitule: root.intitule, client: root.client, state: "instance", created: localDT(new Date()), parent: root.ref, avn: n, data: {} };
+    const it = { ref: r, project: root.project, intitule: (o && o.intitule) || root.intitule, client: root.client, state: "instance", created: (o && o.created) || localDT(new Date()), parent: root.ref, avn: n, data: {} };
     sviInstSet(L.concat(it));
     return r;
   };
-  window.__sviAvAdd = rootRef => { const r = sviAvAdd(rootRef); if (r) sviAvOpen(r); return r; };
-  const sviAvWin = rootRef => {
-    const S = sviAvStages(rootRef); if (!S.length) return;
-    const root = S[0], live = S.filter(x => x.state !== "valide"), done = S.filter(x => x.state === "valide");
-    let mode = live.length ? "inst" : "valid";
-    const d = sviWinNew();
-    const stLab = x => x.state === "valide" ? "VALIDÉ" : x.state === "fige" ? "FIGÉ" : "EN INSTANCE";
-    const draw = () => {
-      const L = mode === "inst" ? live : done, canAdd = S[S.length - 1].state === "valide";
-      d.innerHTML = sviWinCard({ cls: "cmp-card av-card", close: "data-x", title: esc(U_(root.project) + " " + root.ref) + " — MARCHÉ ET AVENANTS",
-        body: `<div class="av-bar">${live.length ? `<button type="button" class="svc-b av-tab${mode === "inst" ? " on" : ""}" data-m="inst">⌛ EN INSTANCE ${svCnt(live.length)}</button>` : ""}${done.length ? `<button type="button" class="svc-b av-tab${mode === "valid" ? " on" : ""}" data-m="valid">≡ VALIDÉS ${svCnt(done.length)}</button>` : ""}
-            <span class="av-sp"></span><button type="button" class="svc-b" data-glob>GLOBAL</button><button type="button" class="svc-b av-add" data-add${canAdd ? "" : ' disabled title="LE DERNIER AVENANT DOIT ÊTRE VALIDÉ"'}>+ AVENANT</button></div>
-          <table class="pv-t av-t"><thead><tr><th>ÉTAPE</th><th>RÉFÉRENCE</th><th>ÉTAT</th><th>CRÉÉ LE</th></tr></thead>
-            <tbody>${L.map(x => `<tr class="av-row av-${x.state || "instance"}" data-r="${esc(x.ref)}"><td><b>${esc(sviAvName(x))}</b></td><td>${esc(U_(x.project) + " " + x.ref)}</td><td>${stLab(x)}</td><td>${esc(String(x.created || "").replace("T", " ").slice(0, 16))}</td></tr>`).join("")}</tbody></table>
-          ${canAdd ? "" : `<div class="cmp-leg">+ AVENANT : LE DERNIER (${esc(sviAvName(S[S.length - 1]))}) DOIT D'ABORD ÊTRE VALIDÉ.</div>`}`,
-        foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
-    };
-    draw(); sviWinShow(d);
-    d.addEventListener("click", async e => {
-      if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
-      const m = e.target.closest("[data-m]"); if (m) { mode = m.dataset.m; draw(); return; }
-      const tr = e.target.closest("tr[data-r]"); if (tr) { d.remove(); sviAvOpen(tr.dataset.r); return; }
-      if (e.target.closest("[data-glob]")) { d.remove(); sviAvOpen(root.ref + "-GLOBAL"); return; }
-      const ad = e.target.closest("[data-add]");
-      if (ad && !ad.disabled) { d.remove(); if (await svConfirm({ title: "NOUVEL AVENANT", text: "AVENANT " + S.length + " (" + root.ref + "-AV" + S.length + ") : UN BUDGET À PART, EN INSTANCE, QUI NE CONTIENT QUE LES DONNÉES DE L'AVENANT.", ok: "CRÉER", tone: "neutral" })) window.__sviAvAdd(root.ref); }
+  window.__sviAvAdd = rootRef => { const r = sviAvAdd(rootRef); if (r) sviAvOpen(r, rootRef + "-GLOBAL"); return r; };
+  /* nouvel avenant : fenêtre INF d'abord (DATE CRÉATION, PROJET, INTITULÉ — comme un nouveau budget) */
+  const sviAvNew = rootRef => {
+    const S = sviAvStages(rootRef), root = S[0]; if (!root) return;
+    if (S[S.length - 1].state !== "valide") { sviAlert((S.length > 1 ? "LE DERNIER AVENANT" : "LE MARCHÉ INITIAL") + " DOIT ÊTRE VALIDÉ AVANT D'OUVRIR UN AVENANT.", "NOUVEL AVENANT"); return; }
+    document.getElementById("docPop")?.remove();
+    const now = new Date(), p2 = x => String(x).padStart(2, "0");
+    const local = now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()) + "T" + p2(now.getHours()) + ":" + p2(now.getMinutes());
+    const r = root.ref + "-AV" + S.length;
+    const p = sviPopNew();
+    p.className = "pop-new-bdg";
+    p.innerHTML = `
+      <div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
+        <div class="doc-head">
+          <span class="doc-title">AVENANT ${S.length} — ${esc(U_(root.project) + " " + r)}</span>
+          <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
+        </div>
+        <div class="doc-body">
+          <div class="doc-grid">
+            <label class="doc-lab" for="avDate">DATE CRÉATION <b>*</b></label>
+            <input id="avDate" class="doc-in" type="datetime-local" value="${local}">
+            <label class="doc-lab" for="avPrj">PROJET <b>*</b></label>
+            <input id="avPrj" class="doc-in" type="text" value="${esc(U_(root.project))}" readonly>
+            <label class="doc-lab" for="avName">INTITULÉ</label>
+            <input id="avName" class="doc-in nb-wide" type="text" autocomplete="off" value="${esc(root.intitule || "")}" placeholder="INTITULÉ DE L'AVENANT">
+          </div>
+          <div id="avErr" class="doc-err"></div>
+        </div>
+        <div class="doc-foot">
+          <button type="button" class="doc-btn" data-cancel>ANNULER</button>
+          <button type="button" class="doc-btn nb-save" id="avGo">ENREGISTRER</button>
+        </div>
+      </div>`;
+    sviPopShow(p);
+    try { popEnhance(p, "newav"); } catch (e) {}
+    const val = id => (p.querySelector(id)?.value || "").trim();
+    p.addEventListener("click", e => { if (e.target === p || e.target.closest("[data-cancel]")) p.remove(); });
+    setTimeout(() => p.querySelector("#avName")?.focus(), 50);
+    p.querySelector("#avGo").addEventListener("click", () => {
+      if (isNaN(new Date(val("#avDate")))) { p.querySelector("#avErr").textContent = "À COMPLÉTER (*) : DATE."; return; }
+      const nr = sviAvAdd(rootRef, { created: val("#avDate"), intitule: val("#avName").toUpperCase() || root.intitule });
+      p.remove();
+      if (nr) sviAvOpen(nr, root.ref + "-GLOBAL");
     });
   };
-  window.__sviAvWin = sviAvWin;
+  window.__sviAvNew = sviAvNew;
+  /* liste des étapes (marché initial + avenants), au format de la liste mère ; ← = retour au consolidé */
+  const sviAvList = (rootRef, mode0) => {
+    const S = sviAvStages(rootRef); if (!S.length) return;
+    const root = S[0], live = S.filter(x => x.state !== "valide"), done = S.filter(x => x.state === "valide");
+    let mode = mode0 === "inst" && live.length ? "inst" : done.length ? "valid" : "inst";
+    const stLab = x => x.state === "valide" ? "VALIDÉ" : x.state === "fige" ? "FIGÉ" : "EN INSTANCE";
+    const ov = document.createElement("div");
+    ov.className = "av-list-ov";
+    const ic = (a, lab, t, on) => `<button type="button" aria-label="${a}" data-avl="${a}" title="${t}"${on ? ' class="on"' : ""}>${lab}</button>`;
+    const draw = () => {
+      const L = mode === "inst" ? live : done, canAdd = S[S.length - 1].state === "valide";
+      ov.innerHTML = `<div class="novapp-list-shell${mode === "inst" ? " list-inst" : ""}">
+        <div class="novapp-list-titlebar">
+          <button type="button" class="novapp-menu" data-avl="back" aria-label="Retour" title="Retour au consolidé">←</button>
+          <h1>${esc(U_(root.project) + " " + root.ref)} — ÉTAPES (${mode === "inst" ? "EN INSTANCE" : "VALIDÉES"}) ${svCnt(L.length)}</h1>
+          <div class="novapp-list-actions">
+            <span class="list-lab">AVENANTS :</span>
+            ${live.length ? ic("inst", "⌛", "Étapes en instance", mode === "inst") : ""}
+            ${done.length ? ic("valid", "≡", "Étapes validées", mode === "valid") : ""}
+            <button type="button" aria-label="Ajouter" data-avl="add"${canAdd ? ' title="Nouvel avenant"' : ' disabled title="LE DERNIER AVENANT DOIT ÊTRE VALIDÉ"'}>＋</button>
+          </div>
+        </div>
+        <div class="novapp-budget-table-wrap">
+          <table class="novapp-budget-table av-stg-t">
+            <thead><tr>${["ÉTAPE", "RÉFÉRENCE", "INTITULÉ", "ÉTAT", "CRÉÉ LE"].map(h => `<th class="bdg-list-head"><div class="bdg-head-content"><span class="bdg-head-label">${h}</span></div></th>`).join("")}</tr></thead>
+            <tbody>${L.length ? L.map(x => `<tr data-r="${esc(x.ref)}" class="${x.state ? "inst-" + x.state : ""}"><td><b>${esc(sviAvName(x))}</b></td><td>${esc(U_(x.project) + " " + x.ref)}</td><td>${esc(x.intitule || "")}</td><td>${stLab(x)}</td><td>${esc(String(x.created || "").replace("T", " ").slice(0, 16))}</td></tr>`).join("") : `<tr><td colspan="5" class="empty">AUCUNE ÉTAPE</td></tr>`}</tbody>
+          </table>
+        </div>
+      </div>`;
+    };
+    draw();
+    document.body.appendChild(ov);
+    const close = () => { ov.remove(); document.removeEventListener("keydown", esc_); };
+    const esc_ = e => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", esc_);
+    ov.addEventListener("click", e => {
+      const b = e.target.closest("[data-avl]");
+      if (b) {
+        if (b.disabled) return;
+        const a = b.dataset.avl;
+        if (a === "back") { close(); return; }
+        if (a === "add") { close(); sviAvNew(root.ref); return; }
+        mode = a; draw(); return;
+      }
+      const tr = e.target.closest("tr[data-r]");
+      if (tr) { close(); sviAvOpen(tr.dataset.r, root.ref + "-GLOBAL"); }
+    });
+  };
+  window.__sviAvList = sviAvList;
 
   table.onclick = event => {
 
@@ -25066,8 +25170,13 @@ ${A}</Assignments>
       );
 
     if (row) {
-      /* v681 : budget à avenants → liste intermédiaire */
-      if (sviAvStages(row.dataset.budgetRef).length > 1) { sviAvWin(row.dataset.budgetRef); return; }
+      /* v684 : budget à avenants → son consolidé (lecture seule), case INCLURE LES NON VALIDÉS décochée */
+      if (sviAvStages(row.dataset.budgetRef).length > 1) {
+        const r0 = row.dataset.budgetRef, g = r0 + "-GLOBAL";
+        window.__sviAvRet = null;
+        if (sviAvAllGet(r0) || !groups.has(g)) { sviAvAllSet(r0, false); sviAvOpen(g); } else openBudgetDetail(g);
+        return;
+      }
       openBudgetDetail(
         row.dataset.budgetRef
       );
