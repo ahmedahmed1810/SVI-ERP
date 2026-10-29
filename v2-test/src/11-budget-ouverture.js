@@ -367,7 +367,7 @@
                une icône sans objet est grisée (pas cachée), un toucher ou un appui long en donne la raison */
             const bi = budget.inst, st = bi ? (bi.state || "instance") : "valide";
             if (!bi) return "";
-            const RO = bi.virtual ? (bi.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.") : st === "valide" ? (bi.rclOf ? "RECALAGE ENREGISTRÉ : LECTURE SEULE." : "BUDGET VALIDÉ : LECTURE SEULE (NOUVEAU RECALAGE OU AVENANT PAR LE MENU ⋯).") : "";
+            const RO = bi.virtual ? (bi.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.") : st === "valide" ? (bi.rclOf ? "RECALAGE ENREGISTRÉ : LECTURE SEULE." : "BUDGET VALIDÉ : LECTURE SEULE (CRÉER UN RECALAGE OU UN AVENANT : MENU ⋯ OU BLOC RECALAGES).") : "";
             const hb = (id, cls, svg, title, why, extra = "") => `<button type="button" class="${cls}${why ? " hdr-off" : ""}" id="${id}" title="${esc(why || title)}" aria-label="${esc(title)}"${why ? ` data-why="${esc(why)}" aria-disabled="true"` : ""}${extra}>${svg}</button>`;
             const navWhy = HNAV ? "" : "PAS D'AUTRE ÉCRAN DANS CE BUDGET (BUDGET SANS AVENANT).";
             const edWhy = RO || (st === "fige" ? "BUDGET FIGÉ : REVENIR EN ÉDITION (🔒) POUR MODIFIER." : "");

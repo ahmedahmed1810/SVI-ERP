@@ -431,7 +431,7 @@
           <td class="number">${inp(e, "cad", 1)}</td><td class="center">${inp(e, "u2")}</td>
           <td class="center qq-xt${ro ? " qq-ro" : ""}">${svCnt(n)}</td><td class="number">${n ? tot : ""}</td>${ro ? "" : `<td class="center"><input type="checkbox" class="qq-xcb" ${e.on ? "checked" : ""}></td>`}</tr>`;
       }).join("");
-      const nw = ro ? "" : `<tr class="qq-xnew"><td><input class="qq-xin" data-f="v" placeholder="AJOUTER UN ESSAI ICI…" autocomplete="off" spellcheck="false"></td><td colspan="${ro ? 6 : 7}"></td></tr>`;
+      const nw = ro ? "" : `<tr class="qq-xnew"><td><input class="qq-xin" data-f="v" placeholder="CRÉER UN ESSAI ICI…" autocomplete="off" spellcheck="false"></td><td colspan="${ro ? 6 : 7}"></td></tr>`;
       return `<table class="bdg-d-table qq-table" style="width:${ro ? 830 : 870}px"><colgroup><col style="width:300px"><col style="width:70px"><col style="width:100px"><col style="width:130px"><col style="width:80px"><col style="width:80px"><col style="width:70px">${ro ? "" : '<col style="width:40px">'}</colgroup>
         <thead><tr><th>ESSAI</th><th>UNITÉ</th><th>PRIX</th><th>1 TOUS LES (VIDE = PAR TÂCHE)</th><th>UNITÉ DU PRODUIT</th><th>TÂCHES</th><th>NB ESSAIS</th>${ro ? "" : "<th></th>"}</tr></thead>
         <tbody>${rows}${nw}</tbody></table>`;
@@ -1061,7 +1061,7 @@
             const d = document.createElement("div");
             d.className = "ins-li ins-new";
             d.dataset.ik = k;
-            d.innerHTML = `<span class="ins-rdc"></span><input class="ins-in" data-f="v" enterkeyhint="next" placeholder="${k === "lot" ? "AJOUTER UN LOT ICI…" : "AJOUTER UNE ACTIVITÉ ICI…"}" autocomplete="off">${k === "sec" ? `<span class="act-u"><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" autocomplete="off"></span>` : k === "prim" ? `<span class="act-u act-uro"></span>` : ""}<span class="ins-delc"></span>`;
+            d.innerHTML = `<span class="ins-rdc"></span><input class="ins-in" data-f="v" enterkeyhint="next" placeholder="${k === "lot" ? "CRÉER UN LOT ICI…" : "CRÉER UNE ACTIVITÉ ICI…"}" autocomplete="off">${k === "sec" ? `<span class="act-u"><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" autocomplete="off"></span>` : k === "prim" ? `<span class="act-u act-uro"></span>` : ""}<span class="ins-delc"></span>`;
             /* v467 : une seule ligne SAISIR ICI… par liste — l'ancienne (restée vide) disparaît, la nouvelle va en bas */
             const col = holder.closest(".ins-hcol");
             if (col) col.querySelectorAll(".ins-new").forEach(o => { if (o !== d && !o.dataset.iid) o.remove(); });

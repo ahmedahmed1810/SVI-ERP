@@ -2962,3 +2962,7 @@ body:not(.bdg-screen) #sviScreenTag { display: none; }
 #bdgDatePanel .novapp-date-head { box-sizing: border-box; height: var(--bdg-head-h, auto); padding: 0 8px; display: flex; align-items: center; }
 #bdgDatePanel .novapp-date-filter { height: calc(var(--bdg-head-h, 38px) - 10px); max-height: 30px; }
 #bdgDatePanel .novapp-date-item { box-sizing: border-box; height: var(--bdg-row-h, auto); padding-top: 0; padding-bottom: 0; }
+
+/* v702 : ligne CRÉER UN RECALAGE ICI… */
+.rec-table tr.scn-new td { background: var(--inst-bg, #fef2f2); color: var(--inst, #b91c1c); opacity: .85; cursor: pointer; }
+.rec-table tr.scn-new.off td { color: #9aa3b2; cursor: not-allowed; }

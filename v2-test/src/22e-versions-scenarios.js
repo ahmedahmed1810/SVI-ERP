@@ -290,8 +290,8 @@
        v686 : bloc SCÉNARIOS en deux vues (décision du 29/10/2026), au FORMAT des autres tableaux
        - LISTE (par défaut) : une ligne par scénario — NOM, ÉTAT, OFFERT AU CLIENT, RETENIR, DÉSARCHIVER (si archivé), 🗑 ;
          toucher le NOM = basculer sur ce scénario ; appui long sur le nom = renommer ; toucher ailleurs = COMPARAISON ;
-         dernière ligne « AJOUTER UN SCÉNARIO ICI… » (comme SAISIR ICI) ; SCN ajoute aussi une ligne (10 au plus).
-       - COMPARAISON : indicateurs en lignes (dernière ligne « AJOUTER UN INDICATEUR ICI… »), une colonne par scénario ;
+         dernière ligne « CRÉER UN SCÉNARIO ICI… » (comme SAISIR ICI) ; SCN ajoute aussi une ligne (10 au plus).
+       - COMPARAISON : indicateurs en lignes (dernière ligne « CRÉER UN INDICATEUR ICI… »), une colonne par scénario ;
          ✕ dans l'en-tête = cacher le scénario (mémorisé) ; + après la dernière colonne = réafficher un scénario caché.
        - bouton de l'en-tête (et menu ⋯) : passer d'une vue à l'autre ; aperçu et export suivent la vue affichée.
        ========================================================= */
@@ -352,7 +352,7 @@
           return "<td></td>";
         };
         const full = SC.length >= SCN_MAX;
-        const add = ed ? `<tr class="scn-new${full ? " off" : ""}" data-scnadd><td colspan="${oc.length}">${full ? SCN_MAX + " SCÉNARIOS AU PLUS PAR ÉTAPE" : "AJOUTER UN SCÉNARIO ICI…"}</td></tr>` : "";
+        const add = ed ? `<tr class="scn-new${full ? " off" : ""}" data-scnadd><td colspan="${oc.length}">${full ? SCN_MAX + " SCÉNARIOS AU PLUS PAR ÉTAPE" : "CRÉER UN SCÉNARIO ICI…"}</td></tr>` : "";
         t.style.width = cwTableW("scnl", cols) + "px";
         t.innerHTML = `<colgroup>${cwCols("scnl", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("scnl", c[0], c[1], c[3])).join("")}</tr></thead>
           <tbody>${rows.map(x => `<tr class="scn-row${x.id === V.act ? " ver-act" : ""}${x.arch ? " scn-arch" : ""}" data-scn="${x.id}">${oc.map(c => td(c, x)).join("")}</tr>`).join("") || (SC.length ? `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "")}${add}</tbody>`;
@@ -372,7 +372,7 @@
       const body = rows.map(r => `<tr>${oc.map(c => { const x = scOf(c);
         if (!x) return `<td><b>${esc(r.nom)}</b>${ed ? ` <button type="button" class="cmp-del" data-irm="${esc(r.k)}" title="Retirer du tableau">✕</button>` : ""}</td>`;
         const v = r.v[+c[0].slice(2) - 1]; return `<td class="number${x.id === V.act ? " ver-act" : ""}">${v ? `<span class="${v.err ? "rat-err" : ""}">${esc(v.txt)}</span>` : "—"}</td>`; }).join("")}${plusTd}</tr>`).join("");
-      const add = ed ? `<tr class="scn-new" data-ip><td colspan="${oc.length + (H.length ? 1 : 0)}">AJOUTER UN INDICATEUR ICI…</td></tr>` : "";
+      const add = ed ? `<tr class="scn-new" data-ip><td colspan="${oc.length + (H.length ? 1 : 0)}">CRÉER UN INDICATEUR ICI…</td></tr>` : "";
       t.style.width = (cwTableW("scn", cols) + (H.length ? 44 : 0)) + "px";
       t.innerHTML = `<colgroup>${cwCols("scn", oc)}${H.length ? '<col style="width:44px">' : ""}</colgroup><thead><tr>${head}${plusTh}</tr></thead>
         <tbody>${body || (V.ind.length ? `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "")}${add}</tbody>`;

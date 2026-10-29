@@ -1689,7 +1689,7 @@ function renderBudgetList() {
 
     /* v698 : plus de bouton + — dernière ligne « SAISIR ICI… » (fenêtre INF du nouveau budget) */
     /* v699 : lignes SAISIR ICI seulement dans la liste EN INSTANCE, en rouge */
-    const NEWROW = listMode === "inst" ? `<tr class="bdg-newrow" data-newbdg="1"><td colspan="7">AJOUTER UN BUDGET ICI…</td></tr>` : "";
+    const NEWROW = listMode === "inst" ? `<tr class="bdg-newrow" data-newbdg="1"><td colspan="7">CRÉER UN BUDGET ICI…</td></tr>` : "";
     if (!data.length) {
       tbody.innerHTML = `<tr><td colspan="7" class="empty">AUCUN BUDGET</td></tr>` + NEWROW;
       return;
@@ -1772,7 +1772,7 @@ function renderBudgetList() {
           <td><span class="bdg-kid-lab">${esc(k.lab)}</span> <small>${esc(k.ref)}</small></td><td>${esc(k.budget)}</td><td title="${esc(k.intitule)}">${esc(k.intitule)}</td>
           <td class="number">${money(k.ttc)}</td><td>${esc(k.validated)}</td><td>${esc(k.entered)}</td><td></td></tr>`).join("")}
         ${open ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
-          return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="7">AJOUTER UN AVENANT ICI…</td></tr>`; })() : ""}
+          return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="7">CRÉER UN AVENANT ICI…</td></tr>`; })() : ""}
       `; }).join("") + NEWROW;
     /* v701 : panneau des dates aux hauteurs de la liste — TOUT = hauteur de l'en-tête, chaque date = hauteur d'une ligne */
     requestAnimationFrame(() => { try {

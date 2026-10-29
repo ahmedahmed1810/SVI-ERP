@@ -106,7 +106,7 @@
           /* dernière ligne « SAISIR ICI… » : LOT et ACTIVITÉ SECONDAIRE tapés (existants proposés, ou nouveaux) = nouvelle tâche du planning,
              sans produit ni charge, non liée (rouge dans TÂCHES) ; ses dates se saisissent aussitôt (cahier, Planning budgétaire) */
           const dl = (id, list) => `<datalist id="${id}">${list.map(v => `<option value="${esc(v)}"></option>`).join("")}</datalist>`;
-          const newIn = (f, lid) => `<input class="dly-newin" data-f="${f}" list="${lid}" placeholder="${f === "lot" ? "AJOUTER UNE TÂCHE ICI…" : ""}" autocomplete="off" enterkeyhint="next">`;
+          const newIn = (f, lid) => `<input class="dly-newin" data-f="${f}" list="${lid}" placeholder="${f === "lot" ? "CRÉER UNE TÂCHE ICI…" : ""}" autocomplete="off" enterkeyhint="next">`;
           /* v666 (axe 8) : en-tête BATTEMENT TOTAL ou LIBRE selon PARAMÉTRAGE DU PLANNING */
           { const cm = DLY_COLS_P.find(c => c[0] === "marge"); if (cm) cm[1] = dlyPP().bt === "l" ? "BATTEMENT LIBRE" : "BATTEMENT TOTAL"; }
           const tbl = dlyTable(PR.rows.concat(INS_EDIT ? [{ nw: true }] : []), x => x.nw
@@ -133,7 +133,7 @@
           const viewB = "";   /* v594 (remarque longue 2, FORMAT 188) : plus de bandeau AFFICHÉ PAR DÉBUT — la vue se lit à la coche ✓ du menu ⋯ */
           const isoB = viewB + (PR.crit ? `<div class="dly-iso dly-critb"><span><b>CHEMIN CRITIQUE</b></span><small>TÂCHES À BATTEMENT TOTAL NUL : UN RETARD SUR L'UNE DÉCALE LA FIN DU CHANTIER</small><button type="button" class="dly-iso-x dly-crit-x">TOUT AFFICHER</button></div>` : "") + (PR.iso ? `<div class="dly-iso"><span>ISOLÉ : <b>${esc(lotLab(dlyLotPath(PR.iso)).full)}</b></span><small>LIAISONS, DÉCALAGES ET CALENDRIER RESTENT APPLIQUÉS · TÂCHES LIÉES HORS DE LA BRANCHE EN GRIS (LECTURE SEULE)</small><button type="button" class="dly-iso-x">TOUT AFFICHER</button></div>` : "");
           return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur du graphique">=</span></div>` : ""}</div>`
-            /* v549 : plus de bouton « + AJOUTER UNE TÂCHE OU SES DÉLAIS » sous le planning (ligne SAISIR ICI… et menu ⋯) */
+            /* v549 : plus de bouton « + CRÉER UNE TÂCHE OU SES DÉLAIS » sous le planning (ligne SAISIR ICI… et menu ⋯) */
             ;
         }
       }
@@ -401,7 +401,7 @@
         const w = card ? card.style.width : (size && size.w ? size.w + "px" : ""), h = card ? card.style.height : (size && size.h ? size.h + "px" : "");
         const key = lot && sec ? lot + "|" + sec : "";
         /* FORMAT 66 : ligne SAISIR ICI… en bas de chaque liste = nouveau lot / nouvelle activité, choisi aussitôt */
-        const newRow = k => `<tr class="dlw-newr"><td><input class="dlw-new" data-k="${k}" placeholder="${k === "lot" ? "AJOUTER UN LOT ICI…" : "AJOUTER UNE ACTIVITÉ ICI…"}" autocomplete="off" enterkeyhint="done"></td></tr>`;
+        const newRow = k => `<tr class="dlw-newr"><td><input class="dlw-new" data-k="${k}" placeholder="${k === "lot" ? "CRÉER UN LOT ICI…" : "CRÉER UNE ACTIVITÉ ICI…"}" autocomplete="off" enterkeyhint="done"></td></tr>`;
         let panel = "";
         if (key) {
           const p0 = ((LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [])[0] || {};
