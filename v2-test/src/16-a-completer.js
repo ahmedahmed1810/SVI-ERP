@@ -17,6 +17,9 @@
         const K = [...KP].filter(k => !KC.has(k));
         (INS.links || []).forEach(l => { if (K.includes(l.lot + "|" + l.sec)) (l.prd || []).forEach(x => P.add(x.id)); });
         if (K.length) out.push({ lab: "TÂCHES SANS CHARGE", n: K.length, go: "prdnc", list: K, prd: P, req: false }); }
+      /* v681 : avenant — même désignation dans le même lot qu'une étape précédente, avec d'autres activités */
+      { let C = []; try { C = budget.inst && budget.inst.parent && !budget.inst.virtual ? sviAvContra(budget.inst.ref) : []; } catch (e) {}
+        if (C.length) out.push({ lab: "CONTRADICTIONS AVEC LES ÉTAPES PRÉCÉDENTES", n: C.length, go: "avc", names: C.slice(0, 4).map(x => x.des + " — " + x.lot), req: false }); }
       /* v672 (bloc 2) : CONFLITS de la base V3 (mes valeurs non retenues) — traités ligne par ligne */
       if ((INS.conf || []).length) out.push({ lab: "CONFLITS (BASE V3)", n: INS.conf.length, go: "conf", req: false });
       /* v667 (axe 8) : verrous DÉBUT / FIN dépassés (non bloquant) — mène au DÉTAIL DÉLAIS */
@@ -108,6 +111,16 @@
       });
     };
     shell.__confWin = () => confWin();
+    /* v681 : fenêtre CONTRADICTIONS (avenant) */
+    shell.__avcWin = () => {
+      const C = sviAvContra(budget.inst.ref), d = sviWinNew();
+      d.innerHTML = sviWinCard({ cls: "cmp-card", close: "data-x", title: "CONTRADICTIONS AVEC LES ÉTAPES PRÉCÉDENTES",
+        body: `<div class="pv-sub">MÊME DÉSIGNATION (INTITULÉ + UNITÉ) DANS LE MÊME LOT : LES ACTIVITÉS PRIMAIRE ET SECONDAIRE DOIVENT ÊTRE LES MÊMES (LOT DIFFÉRENT = ACTIVITÉS LIBRES).</div>
+          <table class="pv-t"><thead><tr><th>DÉSIGNATION</th><th>LOT</th><th>ATTENDU (ÉTAPE)</th><th>DANS CET AVENANT</th></tr></thead><tbody>${C.map(x => `<tr><td>${esc(x.des)}</td><td>${esc(x.lot)}</td><td>${esc(x.att)} <small>(${esc(x.st)})</small></td><td class="rat-err">${esc(x.got)}</td></tr>`).join("")}</tbody></table>`,
+        foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
+      sviWinShow(d);
+      d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) d.remove(); });
+    };
     shell.__figeWhy = () => insFigeWhy();
     shell.__figeBlocks = () => insFigeBlocks();
     const insUnlCount = () => { const n = insUnlinked(); return INS_LINKED_KINDS.reduce((t, k) => t + n[k].length, 0); };

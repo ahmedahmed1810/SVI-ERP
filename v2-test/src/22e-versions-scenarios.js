@@ -37,49 +37,52 @@
         mo, chg, prd, mg: prd - chg, mgp: prd ? (prd - chg) / prd * 100 : null, lots: (d.lot || []).filter(r => !r.t).length };
     };
     const verFmt = (k, v) => v === null || v === undefined || v === "" ? "—" : k === "fin" ? dFr(v) : k === "effT" ? v : k === "mgp" ? String(Math.round(v * 10) / 10).replace(".", ",") + " %" : k === "eff" ? String(Math.round(v * 10) / 10).replace(".", ",") : ["mo", "chg", "prd", "mg"].includes(k) ? money(v) : String(v);
-    /* origine des lignes (avenants) : première étape (MARCHÉ INITIAL, AVENANT n) qui contient la ligne ; sinon l'avenant en cours */
+    /* v681 : origine des lignes = l'étape du budget (MARCHÉ INITIAL, AVENANT n) ; dans GLOBAL, les étapes d'où vient la ligne */
     const verOrig = () => {
-      const V = INS.ver || {}, A = (V.L || []).filter(x => x.kind === "av").sort((a, b) => a.n - b.n);
+      const st = budget.inst ? sviAvName(budget.inst) : "MARCHÉ INITIAL";
       const O = { des: {}, chg: {}, prd: {} };
-      ["des", "chg", "prd"].forEach(k => (INS[k] || []).forEach(r => {
-        const st = A.find(a => ((a.d || {})[k] || []).some(x => x.id === r.id));
-        O[k][r.id] = st ? st.nom : (V.avCur ? "AVENANT " + V.avCur : "MARCHÉ INITIAL");
-      }));
+      ["des", "chg", "prd"].forEach(k => (INS[k] || []).forEach(r => { O[k][r.id] = Array.isArray(r.__o) && r.__o.length ? r.__o.join(" + ") : st; }));
       return O;
     };
+    /* v681 : VERSIONS ET SCÉNARIOS — scénarios de cette étape ; DÉSARCHIVER ; un archivé reste en lecture seule ;
+       tableau des étapes (marché initial, avenants) avec une dernière colonne GLOBAL ; lignes = indicateurs de la liste commune */
     const verWin = () => {
-      INS.ver = INS.ver || { L: [], ind: ["fin", "dur", "but", "eff", "mo", "chg", "mg", "mgp"] };
-      const V = INS.ver; V.L = V.L || []; V.ind = V.ind || ["fin", "dur", "eff", "mg"];
-      const ed = INS_EDIT;
+      INS.ver = INS.ver || { L: [], ind: [] };
+      const V = INS.ver; V.L = (V.L || []).filter(x => x.kind === "sc"); V.ind = V.ind || [];
+      const ed = !!INS && (budget.inst.state || "instance") === "instance" && !budget.inst.virtual;   /* les boutons restent actifs sur un scénario archivé affiché */
       if (!V.act) { const id = insId(); V.L.push({ id, kind: "sc", nom: "SCÉNARIO 1", date: localDT(new Date()) }); V.act = id; }
       const d = sviWinNew();
+      const reopenBudget = () => { d.remove(); openBudgetDetail(ref); setTimeout(() => { try { shell.__verWin && shell.__verWin(); } catch (e) {} }, 300); };
       const draw = () => {
-        const SC = V.L.filter(x => x.kind === "sc"), AV = V.L.filter(x => x.kind === "av").sort((a, b) => a.n - b.n);
+        const SC = V.L.filter(x => x.kind === "sc");
         const LIB = indLoad(); V.ind = V.ind.filter(k => LIB.some(I => I.id === k));
-        const ST = SC.map(x => x.id === V.act ? INS : x.d || null), EL = ST.map(s => s ? indEls(s) : null);
-        /* avenants : montants par origine, quantités augmentées */
-        const O = verOrig(), byO = {};
-        INS.des.filter(r => !r.t).forEach(r => { const o = O.des[r.id], m = (insLinkedQ(INS, r.id) ?? num(r.q || 0)) * num(r.p || 0); byO[o] = (byO[o] || 0) + m; });
-        const ini = AV[0] && AV[0].d, inc = ini ? INS.des.filter(r => !r.t).map(r => { const o = (ini.des || []).find(x => x.id === r.id); if (!o) return null; const q0 = insLinkedQ(ini, o.id) ?? num(o.q || 0), q1 = insLinkedQ(INS, r.id) ?? num(r.q || 0); return q1 > q0 + 1e-9 ? { r, q0, q1 } : null; }).filter(Boolean) : [];
-        d.innerHTML = sviWinCard({ cls: "cmp-card svc-full", close: "data-x", title: "VERSIONS ET SCÉNARIOS",
+        const ST = SC.map(x => x.id === V.act ? INS : x.d || null), EL = ST.map(s2 => s2 ? indEls(s2) : null);
+        /* étapes : marché initial, avenants, puis GLOBAL */
+        const STG = budget.inst && !budget.inst.virtual ? sviAvStages(budget.inst.ref) : [];
+        const root = STG[0], cols = STG.map(st => ({ nom: sviAvName(st), ref: st.ref, state: st.state, d: st.ref === budget.inst.ref ? INS : sviBudgetData(JSON.parse(JSON.stringify(st))) }));
+        if (root) cols.push({ nom: "GLOBAL", ref: "", state: "", d: sviAvMerge(root.ref) });
+        const CE = cols.map(c => c.d ? indEls(c.d) : null);
+        const indRows = (vals, cls) => V.ind.map(k => { const IN = LIB.find(I => I.id === k); return `<tr><td><b>${esc(IN.nom)}</b> ${ed && cls === "sc" ? `<button type="button" class="cmp-del" data-irm="${esc(k)}">✕</button>` : ""}</td>${vals(IN)}</tr>`; }).join("");
+        const stLab = s2 => s2 === "valide" ? "VALIDÉ" : s2 === "fige" ? "FIGÉ" : s2 ? "EN INSTANCE" : "CONSOLIDÉ";
+        d.innerHTML = sviWinCard({ cls: "cmp-card svc-full", close: "data-x", title: "VERSIONS ET SCÉNARIOS — " + esc(budget.inst ? sviAvName(budget.inst) : ""),
           body: `<div class="fz-blk">SCÉNARIOS ${svCnt(SC.length)}</div>
             <div class="cmp-bar">${ed ? `<button type="button" class="svc-b" data-new>+ NOUVEAU SCÉNARIO (COPIE DE L'ACTIF)</button>` : ""}</div>
-            <div class="cmp-scroll"><table class="cmp-t ver-t"><thead><tr><th>INDICATEUR</th>${SC.map(x => `<th class="${x.id === V.act ? "ver-act" : ""}${x.arch ? " ver-arch" : ""}">${ed && !x.arch ? `<input class="cmp-nm ver-nm" data-id="${x.id}" value="${esc(x.nom)}">` : esc(x.nom)}<br><small>${x.id === V.act ? "ACTIF" : x.arch ? "ARCHIVÉ" : "EN RÉSERVE"}</small></th>`).join("")}</tr></thead><tbody>
-              ${V.ind.map(k => { const IN = LIB.find(I => I.id === k); return `<tr><td><b>${esc(IN.nom)}</b> ${ed ? `<button type="button" class="cmp-del" data-irm="${esc(k)}">✕</button>` : ""}</td>${ST.map((s, j) => `<td class="r${SC[j].id === V.act ? " ver-act" : ""}">${s ? esc(indCalc(IN, s, EL[j]).txt) : "—"}</td>`).join("")}</tr>`; }).join("")}
+            <div class="cmp-scroll"><table class="cmp-t ver-t"><thead><tr><th>INDICATEUR</th>${SC.map(x => `<th class="${x.id === V.act ? "ver-act" : ""}${x.arch ? " ver-arch" : ""}">${ed && !x.arch ? `<input class="cmp-nm ver-nm" data-id="${x.id}" value="${esc(x.nom)}">` : esc(x.nom)}<br><small>${x.id === V.act ? (x.arch ? "ACTIF — ARCHIVÉ (LECTURE SEULE)" : "ACTIF") : x.arch ? "ARCHIVÉ" : "EN RÉSERVE"}</small></th>`).join("")}</tr></thead><tbody>
+              ${indRows(IN => ST.map((s2, j) => `<td class="r${SC[j].id === V.act ? " ver-act" : ""}">${s2 ? esc(indCalc(IN, s2, EL[j]).txt) : "—"}</td>`).join(""), "sc")}
               <tr class="ver-plus"><td colspan="${SC.length + 1}">${ed ? `<button type="button" class="svc-b ver-ip" data-ip>+</button> <span class="cmp-leg">INDICATEUR DE LA LISTE OU NOUVEL INDICATEUR</span>` : ""}</td></tr>
-              <tr><td><b>OFFERT AU CLIENT</b></td>${SC.map(x => `<td class="c"><input type="checkbox" class="ver-of" data-id="${x.id}"${x.of ? " checked" : ""}${ed ? "" : " disabled"}></td>`).join("")}</tr>
-              ${ed ? `<tr><td></td>${SC.map(x => `<td class="c ver-acts">${x.id === V.act ? "" : `<button type="button" class="svc-b" data-sw="${x.id}">BASCULER</button>`}${x.arch ? "" : `<button type="button" class="svc-b svc-ok" data-keep="${x.id}">RETENIR</button>`}${x.id === V.act ? "" : `<button type="button" class="cmp-del" data-del="${x.id}">✕</button>`}</td>`).join("")}</tr>` : ""}
+              <tr><td><b>OFFERT AU CLIENT</b></td>${SC.map(x => `<td class="c"><input type="checkbox" class="ver-of" data-id="${x.id}"${x.of ? " checked" : ""}${ed && !x.arch ? "" : " disabled"}></td>`).join("")}</tr>
+              ${ed ? `<tr><td></td>${SC.map(x => `<td class="c ver-acts">${x.id === V.act ? "" : `<button type="button" class="svc-b" data-sw="${x.id}">BASCULER</button>`}${x.arch ? `<button type="button" class="svc-b" data-unarch="${x.id}">DÉSARCHIVER</button>` : `<button type="button" class="svc-b svc-ok" data-keep="${x.id}">RETENIR</button>`}${x.id === V.act ? "" : `<button type="button" class="cmp-del" data-del="${x.id}">✕</button>`}</td>`).join("")}</tr>` : ""}
             </tbody></table></div>
-            <div class="fz-blk">MARCHÉ INITIAL ET AVENANTS ${svCnt(AV.length)}</div>
-            <div class="cmp-bar">${ed ? `<button type="button" class="svc-b" data-av>${AV.length ? "+ NOUVEL AVENANT (AVENANT " + (AV.length) + " FIGÉ)" : "+ FIGER LE MARCHÉ INITIAL ET OUVRIR L'AVENANT 1"}</button>` : ""}
-              <span class="cmp-leg">${AV.length ? "EN COURS : AVENANT " + (V.avCur || AV.length) : "AUCUN AVENANT : TOUT LE BUDGET EST LE MARCHÉ INITIAL"}</span></div>
-            ${AV.length ? `<table class="pv-t"><thead><tr><th>ORIGINE</th><th class="number">MONTANT HT</th></tr></thead><tbody>${Object.keys(byO).sort().map(o => `<tr><td>${esc(o)}</td><td class="number">${money(byO[o])}</td></tr>`).join("")}<tr><td><b>BUDGET CONSOLIDÉ</b></td><td class="number"><b>${money(Object.values(byO).reduce((a, b) => a + b, 0))}</b></td></tr></tbody></table>
-              <div class="fz-blk">QUANTITÉS AUGMENTÉES SUR DES LIGNES DU MARCHÉ INITIAL (TOLÉRÉES PAR LA COMMANDE) ${svCnt(inc.length)}</div>
-              ${inc.length ? `<table class="pv-t"><thead><tr><th>DÉSIGNATION</th><th class="number">QPB INITIALE</th><th class="number">QPB ACTUELLE</th></tr></thead><tbody>${inc.map(x => `<tr><td>${esc(lkName("des", x.r.id))}</td><td class="number">${money(x.q0)}</td><td class="number">${money(x.q1)}</td></tr>`).join("")}</tbody></table>` : `<div class="fz-none">AUCUNE</div>`}` : ""}`,
+            ${root ? `<div class="fz-blk">MARCHÉ INITIAL ET AVENANTS ${svCnt(STG.length - 1)}</div>
+            <div class="cmp-scroll ver-av"><table class="cmp-t ver-t"><thead><tr><th>INDICATEUR</th>${cols.map(c => `<th class="${c.ref === budget.inst.ref ? "ver-act" : ""}">${esc(c.nom)}<br><small>${esc(c.ref ? c.ref + " · " + stLab(c.state) : "MARCHÉ + AVENANTS")}</small></th>`).join("")}</tr></thead><tbody>
+              ${indRows(IN => cols.map((c, j) => `<td class="r${c.ref === budget.inst.ref ? " ver-act" : ""}">${c.d ? esc(indCalc(IN, c.d, CE[j]).txt) : "—"}</td>`).join(""), "av") || `<tr><td colspan="${cols.length + 1}" class="empty">AJOUTER DES INDICATEURS PAR LA LIGNE « + » DES SCÉNARIOS</td></tr>`}
+            </tbody></table></div>
+            <div class="cmp-leg">UN AVENANT EST UN BUDGET À PART (RÉF. ${esc(root.ref)}-AV1…) : LE PREMIER S'AJOUTE PAR LE MENU ⋯ DU BUDGET, UNE FOIS LE MARCHÉ INITIAL VALIDÉ ; LES SUIVANTS PAR LE + DE LA LISTE DES AVENANTS.</div>` : ""}`,
           foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
       };
       const save = (what, det) => { insSave(); histLog("VERSIONS", what, det); };
       draw(); sviWinShow(d);
+      const archOf = () => { const x = V.L.find(y => y.id === V.act); return !!(x && x.arch); };
       d.addEventListener("change", e => {
         const t = e.target;
         if (t.classList.contains("ver-nm")) { const x = V.L.find(y => y.id === t.dataset.id); if (x) { x.nom = t.value.trim().toUpperCase() || x.nom; save("SCÉNARIO RENOMMÉ", x.nom); } return; }
@@ -92,32 +95,42 @@
         if (ip) { indPlusMenu(ip, V.ind, id => { V.ind.push(id); save("INDICATEUR AJOUTÉ", (indLoad().find(I => I.id === id) || {}).nom || id); draw(); },
           w => { if (w === "new") { d.remove(); indDesignWin(null, I => { if (I) { V.ind.push(I.id); save("INDICATEUR AJOUTÉ", I.nom); } verWin(); }); } else if (w === "list") { d.remove(); indWin(() => verWin()); } }); return; }
         const ir = e.target.closest("[data-irm]"); if (ir) { V.ind = V.ind.filter(k => k !== ir.dataset.irm); save("INDICATEUR RETIRÉ", ir.dataset.irm); draw(); return; }
-        if (e.target.closest("[data-new]")) { const n = V.L.filter(x => x.kind === "sc").length + 1; V.L.push({ id: insId(), kind: "sc", nom: "SCÉNARIO " + n, date: localDT(new Date()), d: verSnap() }); save("NOUVEAU SCÉNARIO", "SCÉNARIO " + n); draw(); return; }
+        /* v681 : premier numéro libre */
+        if (e.target.closest("[data-new]")) { const used = new Set(V.L.map(x => (String(x.nom).match(/^SCÉNARIO (\d+)$/) || [])[1]).filter(Boolean).map(Number)); let n = 1; while (used.has(n)) n++;
+          V.L.push({ id: insId(), kind: "sc", nom: "SCÉNARIO " + n, date: localDT(new Date()), d: verSnap() }); save("NOUVEAU SCÉNARIO", "SCÉNARIO " + n); draw(); return; }
         const sw = e.target.closest("[data-sw]");
         if (sw) {
           const x = V.L.find(y => y.id === sw.dataset.sw), cur = V.L.find(y => y.id === V.act);
           if (!x || !x.d) return;
+          const was = archOf();
           if (cur) cur.d = verSnap();
-          verLoad(x.d); delete x.d; V.act = x.id; save("BASCULE", x.nom); refreshAll(); draw(); return;
+          verLoad(x.d); delete x.d; V.act = x.id; save("BASCULE", x.nom + (x.arch ? " (ARCHIVÉ : LECTURE SEULE)" : ""));
+          if (was !== archOf()) { reopenBudget(); return; }   /* lecture seule mise ou levée */
+          refreshAll(); draw(); return;
+        }
+        const ua = e.target.closest("[data-unarch]");
+        if (ua) {
+          const x = V.L.find(y => y.id === ua.dataset.unarch);
+          d.remove();
+          if (!(await svConfirm({ title: "DÉSARCHIVER " + x.nom, text: x.nom + " REPASSE EN RÉSERVE : IL REDEVIENT MODIFIABLE ET PEUT ÊTRE RETENU.", ok: "DÉSARCHIVER", tone: "neutral" }))) { sviWinShow(d); draw(); return; }
+          const was = archOf(); x.arch = false; save("SCÉNARIO DÉSARCHIVÉ", x.nom);
+          if (was !== archOf()) { reopenBudget(); return; }
+          sviWinShow(d); draw(); return;
         }
         const kp = e.target.closest("[data-keep]");
         if (kp) {
           const x = V.L.find(y => y.id === kp.dataset.keep);
           d.remove();
           if (!(await svConfirm({ title: "RETENIR " + x.nom, text: x.nom + " DEVIENT LE BUDGET DE RÉFÉRENCE ; LES AUTRES SCÉNARIOS SONT ARCHIVÉS (CONSULTABLES, EN LECTURE SEULE).", ok: "RETENIR", tone: "neutral" }))) { sviWinShow(d); draw(); return; }
+          const was = archOf();
           if (x.id !== V.act) { const cur = V.L.find(y => y.id === V.act); if (cur) cur.d = verSnap(); verLoad(x.d); delete x.d; V.act = x.id; }
           V.L.forEach(y => { if (y.kind === "sc") y.arch = y.id !== x.id; }); x.ret = true;
-          save("SCÉNARIO RETENU", x.nom); refreshAll(); sviWinShow(d); draw(); return;
+          save("SCÉNARIO RETENU", x.nom);
+          if (was !== archOf()) { reopenBudget(); return; }
+          refreshAll(); sviWinShow(d); draw(); return;
         }
         const dl = e.target.closest("[data-del]");
         if (dl) { const x = V.L.find(y => y.id === dl.dataset.del); d.remove(); if (await svConfirm({ title: "SUPPRIMER " + x.nom, text: "CE SCÉNARIO ET SES DONNÉES SERONT SUPPRIMÉS.", ok: "SUPPRIMER" })) { V.L = V.L.filter(y => y !== x); save("SCÉNARIO SUPPRIMÉ", x.nom); } sviWinShow(d); draw(); return; }
-        if (e.target.closest("[data-av]")) {
-          const AV = V.L.filter(x => x.kind === "av"), n = AV.length, nom = n ? "AVENANT " + n : "MARCHÉ INITIAL";
-          d.remove();
-          if (!(await svConfirm({ title: "FIGER " + nom, text: "L'ÉTAT ACTUEL DU BUDGET EST GARDÉ COMME « " + nom + " » ; LE BUDGET CONTINUE SUR L'AVENANT " + (n + 1) + ". CHAQUE LIGNE GARDE SON ORIGINE.", ok: "FIGER", tone: "neutral" }))) { sviWinShow(d); draw(); return; }
-          V.L.push({ id: insId(), kind: "av", n, nom, date: localDT(new Date()), d: verSnap() }); V.avCur = n + 1;
-          save("AVENANT", nom + " FIGÉ — AVENANT " + (n + 1) + " OUVERT"); sviWinShow(d); draw();
-        }
       });
     };
     shell.__verWin = () => verWin();
