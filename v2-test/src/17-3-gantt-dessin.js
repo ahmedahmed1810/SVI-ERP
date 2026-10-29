@@ -361,7 +361,7 @@
     const dlyCfgPaint = () => {
       const g = shell.querySelector(".blk-cfg-btn"); if (!g) return;
       const host = shell.querySelector("#dlyGantt"), h = shell.querySelector(".dlyg-foot .ghist");
-      const on = active === "dly" && !!shell.__insDly && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone");
+      const on = active === "dly" && !!shell.__insDly && !!host;   /* v701 : ⚙ = RÉGLAGES DU GANTT, toujours sur le PLANNING (le graphique s'y règle aussi) */
       if (g.classList.contains("dly-on") !== on) g.classList.toggle("dly-on", on);
     };
     /* histogramme (et son libellé, et la poignée « = ») gardé en bas de la zone visible du planning : les tâches défilent dessous */

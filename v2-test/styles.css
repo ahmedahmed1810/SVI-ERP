@@ -2952,3 +2952,13 @@ body:not(.bdg-screen) #sviScreenTag { display: none; }
 #budgetListTable tr.bdg-kid[data-kid="glob"] td { font-style: normal; color: #0b1a2c !important; font-weight: 900; }
 #budgetListTable tr.bdg-kid.inst-valide.row-av td, .av-stg-t tr.inst-valide.row-av td, .av-tree .av-st-valide.row-av b { color: #3a4a5e !important; }
 .bdg-av:not(.bdg-inst-instance):not(.bdg-inst-fige) .novapp-list-titlebar .bdg-d-h1, .bdg-av:not(.bdg-inst-instance):not(.bdg-inst-fige) .bdg-d-block-title .ttl { color: #3a4a5e; }
+
+/* v701 : ⚙ RÉGLAGES DU GANTT */
+.gcf-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.gcf-acts .svc-b.off { opacity: .4; }
+.gcf-more { margin-top: 12px; }
+
+/* v701 : panneau des dates aux hauteurs de BDG (en-tête et lignes de la liste) */
+#bdgDatePanel .novapp-date-head { box-sizing: border-box; height: var(--bdg-head-h, auto); padding: 0 8px; display: flex; align-items: center; }
+#bdgDatePanel .novapp-date-filter { height: calc(var(--bdg-head-h, 38px) - 10px); max-height: 30px; }
+#bdgDatePanel .novapp-date-item { box-sizing: border-box; height: var(--bdg-row-h, auto); padding-top: 0; padding-bottom: 0; }

@@ -1771,9 +1771,16 @@ function renderBudgetList() {
         ${kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}">
           <td><span class="bdg-kid-lab">${esc(k.lab)}</span> <small>${esc(k.ref)}</small></td><td>${esc(k.budget)}</td><td title="${esc(k.intitule)}">${esc(k.intitule)}</td>
           <td class="number">${money(k.ttc)}</td><td>${esc(k.validated)}</td><td>${esc(k.entered)}</td><td></td></tr>`).join("")}
-        ${open && listMode === "inst" ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
+        ${open ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
           return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="7">AJOUTER UN AVENANT ICI…</td></tr>`; })() : ""}
       `; }).join("") + NEWROW;
+    /* v701 : panneau des dates aux hauteurs de la liste — TOUT = hauteur de l'en-tête, chaque date = hauteur d'une ligne */
+    requestAnimationFrame(() => { try {
+      const tb = tbody.closest("table"), th = tb && tb.tHead, tr = tbody.querySelector("tr:not(.bdg-newrow)") || tbody.querySelector("tr"), pn = $("bdgDatePanel");
+      if (!pn || !th) return;
+      pn.style.setProperty("--bdg-head-h", Math.round(th.getBoundingClientRect().height) + "px");
+      if (tr) pn.style.setProperty("--bdg-row-h", Math.round(tr.getBoundingClientRect().height) + "px");
+    } catch (e) {} });
   }
 
   /* -------------------------------------------------------

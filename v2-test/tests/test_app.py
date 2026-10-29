@@ -1449,7 +1449,7 @@ def main():
         mn = pg.evaluate("() => (document.getElementById('blkMenu') || {}).textContent || ''")
         pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
         check("v542 R2 / R5 : plafond recompresse aussitôt (4 J-H ÷ 4 = 1 jour), même nombre = AUCUN GAIN ; menu (v546) : vue, CLASSER PAR DÉBUT, APPROVISIONNEMENT — plus de COMPRESSER ni de JOUR / SEMAINE / MOIS",
-              t2[0] == "2026-11-02" and "AUCUN GAIN" in t2[1] and "COMPRESSER LE PLANNING" not in mn and "GÉNÉRER" not in mn and "NIVELLEMENT" not in mn and "JOUR" not in mn.replace("PAR LOT", "").replace("CLASSER", "").split("GRAPHIQUE")[0].replace("AFFICHER PAR DÉBUT", "") and "CLASSER PAR DÉBUT" not in mn and "AFFICHER PAR LOT" not in mn and "AFFICHER PAR DÉBUT" in mn and "APPROVISIONNEMENT PRÉVISIONNEL" not in mn, [t2, mn[:200]])
+              t2[0] == "2026-11-02" and "AUCUN GAIN" in t2[1] and "COMPRESSER LE PLANNING" not in mn and "GÉNÉRER" not in mn and "NIVELLEMENT" not in mn and "JOUR" not in mn.replace("PAR LOT", "").replace("CLASSER", "").split("GRAPHIQUE")[0].replace("AFFICHER PAR DÉBUT", "") and "CLASSER PAR DÉBUT" not in mn and "AFFICHER PAR LOT" not in mn and "AFFICHER PAR DÉBUT" not in mn and "COUPE DES TÂCHES" not in mn and "APPROVISIONNEMENT PRÉVISIONNEL" not in mn, [t2, mn[:200]])
         # R10 : COMMANDES par fréquence (7 jours, 2 jours d'avance)
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.appro = {{ dl: 2, cov: 'n', nj: 7, dep: '', on: true }}; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
         c10 = pg.evaluate("() => [[...document.querySelectorAll('.dlyg-foot .ghb.ghc')].map(b => b.dataset.d), /APPROVISIONNEMENT/.test((document.querySelector('.dlyg-foot .ghist-cmd') || {}).textContent || '')]")
@@ -1650,7 +1650,7 @@ def main():
         v549m = pg.evaluate("() => [...document.querySelectorAll('#blkMenu [data-dly]')].map(b => b.dataset.dly).join(',') + '|' + [...document.querySelectorAll('#blkMenu .blk-hint')].map(e => e.textContent).join(',') + '|' + (document.getElementById('blkMenu') || {}).textContent")
         pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
         check("v549 / v553 / v555 : plus de bouton AJOUTER sous le planning ni dans le menu ⋯ (P11 R3), ni RÉGLAGES DU GRAPHIQUE dans le menu (P11 R6) ; rubrique GRAPHIQUE ; barre marron de la barre verticale au bord droit du cadre (v552)",
-              v549 == [False, True] and "add" not in v549m and "appr" not in v549m and "RÉGLAGES DU GRAPHIQUE" not in v549m, [v549, v549m])
+              v549 == [False, True] and "add" not in v549m and "appr" not in v549m and "RÉGLAGES DU GRAPHIQUE" not in v549m and "v-d" not in v549m.split("|")[0].split(",") and "cut" not in v549m.split("|")[0].split(","), [v549, v549m])
         # v553 (partie 11, R5) : case de date active (calendrier ouvert) = ni contour rouge ni point au coin
         r5 = pg.evaluate("""() => { const i = document.querySelector('.dlyg-l input.dlp-in[data-f="deb"]'); if (!i) return null; i.click(); i.focus();
             const td = i.closest('td'), H = document.getElementById('sviSelHandle'); const r = [getComputedStyle(i).boxShadow, getComputedStyle(td).boxShadow, !H || H.style.display === 'none'];
@@ -1713,6 +1713,11 @@ def main():
         nl = pg.evaluate("() => document.querySelectorAll('.dlyg-foot .ghist-cum polyline').length")
         if os.environ.get("SHOT"): pg.screenshot(path=os.environ["SHOT"] + "v546b.png")
         pg.evaluate("() => document.querySelector('.blk-cfg-btn')?.click()"); pg.wait_for_timeout(300)
+        # v701 : ⚙ = RÉGLAGES DU GANTT (affichage, ordre, coupe, COMPRESSER, GÉNÉRER) puis RÉGLAGES DU GRAPHIQUE…
+        gcf = pg.evaluate("() => { const d = document.getElementById('svConf'); return d ? [(d.querySelector('.svc-t') || {}).textContent, d.querySelectorAll('input[name=gcs]').length, d.querySelectorAll('input[name=gco]').length, !!d.querySelector('.gcf-cut'), !!d.querySelector('[data-gcf=comp]'), !!d.querySelector('[data-gcf=gen]'), !!d.querySelector('[data-gcf=graph]')] : null; }")
+        check("v701 : ⚙ RÉGLAGES DU GANTT — JOUR / SEMAINE / MOIS, NORMAL / PAR DÉBUT, COUPE, COMPRESSER, GÉNÉRER, RÉGLAGES DU GRAPHIQUE…",
+              gcf and gcf[0] == "RÉGLAGES DU GANTT" and gcf[1] == 3 and gcf[2] == 2 and all(gcf[3:]), gcf)
+        pg.evaluate("() => document.querySelector('#svConf [data-gcf=graph]')?.click()"); pg.wait_for_timeout(300)
         hw = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
         pg.evaluate("() => { const d = document.getElementById('svConf'); d.querySelectorAll('.hcf-c:not([value=r])').forEach(i => { i.checked = true; }); d.querySelector('input[name=\"hca\"][value=\"j\"]').checked = true; d.querySelector('[data-ok]').click(); }"); pg.wait_for_timeout(600)
         pm = pg.evaluate(f"() => [JSON.stringify({ins}.INS.hset.crb), (document.querySelector('.dlyg-foot .ghist-leg') || {{}}).textContent || '']")
