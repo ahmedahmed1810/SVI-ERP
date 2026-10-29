@@ -2892,3 +2892,30 @@ td.ins-pmp { position: relative; }
 #budgetListTable tr.bdg-kid.inst-fige.row-av td { color: #22a052; }
 #budgetListTable tr.bdg-kid.inst-valide.row-av td { color: #3b6ea5; }
 #budgetListTable tr.bdg-kid[data-kid="glob"] td { font-style: italic; }
+/* v692 : onglet INDICATEURS — carreaux */
+.ibd-board { display: flex; gap: 10px; overflow-x: auto; padding: 8px 8px 10px; -webkit-overflow-scrolling: touch; }
+.ibd-tile { flex: 0 0 280px; border: 1px solid #d6dbe3; border-radius: 10px; background: #fff; cursor: pointer; display: flex; flex-direction: column; max-height: 170px; }
+.ibd-th { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-bottom: 1px solid #eef1f6; font-size: 12px; }
+.ibd-tools { display: inline-flex; gap: 4px; }
+.ibd-b { border: 1px solid #dfe4eb; background: #fff; border-radius: 6px; width: 24px; height: 22px; cursor: pointer; padding: 0; font-size: 12px; }
+.ibd-list { overflow-y: auto; }
+.ibd-it { display: flex; justify-content: space-between; gap: 8px; padding: 0 8px; height: 21px; align-items: center; font-size: 12px; border-top: 1px solid #f3f4f6; }
+.ibd-it b { white-space: nowrap; }
+.ibd-soft { color: #9aa3b2 !important; font-weight: 600; font-size: 10px; }
+.ibd-empty { padding: 10px; font-size: 11px; color: #9aa3b2; }
+.ibd-add { flex: 0 0 56px; border: 1.5px dashed #cbd2db; border-radius: 10px; background: #f8fafc; font-size: 24px; font-weight: 900; color: #6b7480; cursor: pointer; }
+.ibd-bar, .ibd-seuils { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.ibd-seg { display: inline-flex; gap: 2px; }
+.ibd-card .svc-b.on { background: #172033; color: #fff; }
+.ibd-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ibd-chip { border: 1px solid #d6dbe3; border-radius: 14px; background: #fff; padding: 3px 10px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.ibd-chip.on { background: #eff6ff; border-color: #1d4ed8; color: #1d4ed8; }
+.ibd-chip.off { opacity: .4; }
+.ibd-chip.focus { box-shadow: 0 0 0 2px #f79009; }
+.ibd-chip small { color: #9aa3b2; font-weight: 600; }
+.ibd-chip.ibd-new { border-style: dashed; }
+.ibd-s { font-size: 12px; font-weight: 700; color: #3f4856; }
+.ibd-tscroll { max-height: 60vh; overflow: auto; }
+.ibd-table td, .ibd-table th { height: 21px; padding-top: 0; padding-bottom: 0; }
+#svConf .ibd-card .svc-b.on { background: #172033; color: #fff; border-color: #172033; }
+#svConf .ibd-card .ibd-nom { width: 200px; font-weight: 800; }
