@@ -2919,3 +2919,10 @@ td.ins-pmp { position: relative; }
 .ibd-table td, .ibd-table th { height: 21px; padding-top: 0; padding-bottom: 0; }
 #svConf .ibd-card .svc-b.on { background: #172033; color: #fff; border-color: #172033; }
 #svConf .ibd-card .ibd-nom { width: 200px; font-weight: 800; }
+/* v693 : bloc RECALAGES, comparaison des sources */
+.blk-rcl .rec-scroll { height: auto; max-height: var(--h-rcl, 150px); }
+.bdg-d-page.max-rec .blk-rec-on.blk-rcl .rec-scroll { height: calc(var(--avail) - 50px); max-height: none; }
+.rcl-table tr.rcl-row { cursor: pointer; }
+.rcl-table tr.rcl-cours td { color: #b91c1c; font-weight: 700; }
+.ibd-src { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 12px; font-weight: 800; }
+.ibd-src .pv-in { width: auto; }

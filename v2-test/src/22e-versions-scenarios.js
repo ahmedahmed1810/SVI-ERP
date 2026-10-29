@@ -327,6 +327,7 @@
     const scnRender = () => {
       scnPill();
       try { verRender(); } catch (e) {}
+      try { shell.__rclRender && shell.__rclRender(); } catch (e) {}
       const blk = shell.querySelector(".blk-scn"), t = $("scnTable");
       if (!blk || !t) return;
       const SC = scnL();

@@ -24,17 +24,26 @@ const sviAvName = it => it && it.vname ? it.vname : it && it.parent ? "AVENANT "
 const sviAvSelDef = S0 => { const o = {}, all = S0[0] && (window.__sviAvMode || {})[S0[0].ref] === "inst"; S0.forEach(st => { if (all || st.state === "valide") o[st.ref] = "act"; }); if (!Object.keys(o).length && S0[0]) o[S0[0].ref] = "act"; return o; };
 const sviAvSelGet = r => ((window.__sviAvSel || {})[r]) || null;
 const sviAvSelSet = (r, v) => { window.__sviAvSel = window.__sviAvSel || {}; if (v) window.__sviAvSel[r] = v; else delete window.__sviAvSel[r]; };
+/* v693 : RECALAGES d'une étape (budgets « étape-Rn » de l'appareil), du plus ancien au plus récent ; dernier enregistré */
+const sviRclOf = stRef => sviInstGet().filter(x => x.rclOf === stRef).sort((a, b) => (a.rcn || 0) - (b.rcn || 0));
+const sviRclLast = stRef => sviRclOf(stRef).filter(x => x.state === "valide").pop() || null;
+/* point d'accroche de la réalisation : ligne déjà utilisée (verrouillée dans un recalage) — toujours faux pour l'instant */
+const sviRclUsed = row => !!(row && row.used && false);
 /* scénarios d'une étape qu'on peut prendre à sa place (ceux qui ne sont pas l'état actuel) */
 const sviAvScn = st => { const V = (st.data || {}).ver || {}; return (V.L || []).filter(x => x.kind === "sc" && x.id !== V.act && x.d); };
 /* libellé court de la composition */
 const sviAvSelLab = (rootRef, sel) => { const S0 = sviAvStages(rootRef), o = sel || sviAvSelDef(S0);
-  return S0.filter(st => o[st.ref]).map(st => sviAvName(st) + (o[st.ref] !== "act" ? " (" + ((sviAvScn(st).find(x => x.id === o[st.ref]) || {}).nom || "?") + ")" : "")).join(" + ") || "AUCUNE ÉTAPE"; };
+  return S0.filter(st => o[st.ref]).map(st => { const c = o[st.ref], r = c === "act" && st.state === "valide" ? sviRclLast(st.ref) : null;
+    return sviAvName(st) + (c === "val" ? " (VALIDÉE)" : c !== "act" ? " (" + ((sviAvScn(st).find(x => x.id === c) || {}).nom || "?") + ")" : r ? " (R" + r.rcn + ")" : ""); }).join(" + ") || "AUCUNE ÉTAPE"; };
 /* budget consolidé — opt : true = toutes les étapes ; objet = composition ; rien = composition par défaut (validées) */
 const sviAvMerge = (rootRef, opt) => {
   const S0 = sviAvStages(rootRef);
   if (!S0.length) return null;
   const sel = opt === true ? Object.fromEntries(S0.map(st => [st.ref, "act"])) : opt && typeof opt === "object" ? opt : sviAvSelDef(S0);
-  const S = S0.map(st => { const c = sel[st.ref]; if (!c) return null; if (c === "act") return { st, d: st.data || {} };
+  /* v693 : « act » = budget de travail de l'étape (dernier recalage enregistré, sinon l'étape validée) ; « val » = étape validée d'origine */
+  const S = S0.map(st => { const c = sel[st.ref]; if (!c) return null;
+    if (c === "act") { const r = st.state === "valide" ? sviRclLast(st.ref) : null; return r ? { st, d: r.data || {}, sc: "R" + r.rcn } : { st, d: st.data || {} }; }
+    if (c === "val") return { st, d: st.data || {}, sc: "VALIDÉE" };
     const sc = sviAvScn(st).find(x => x.id === c); return sc ? { st, d: sc.d, sc: sc.nom } : { st, d: st.data || {} }; }).filter(Boolean);
   if (!S.length) S.push({ st: S0[0], d: { lot: [], des: [] }, none: true });
   const D0 = JSON.parse(JSON.stringify(S[0].d || {}));

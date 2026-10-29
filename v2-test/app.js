@@ -293,6 +293,7 @@ const SVI_ICON = (() => {
     dly: w('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>'),
     xpl: w('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
     ver: w('<rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8.5 7l1.5-3h4l1.5 3"/>'),
+    rcl: w('<path d="M4 12a8 8 0 0 1 13.7-5.6M20 12a8 8 0 0 1-13.7 5.6"/><path d="M18 3v4h-4M6 21v-4h4"/>'),
     scn: w('<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="9" r="2"/><path d="M6 7v10M18 11c0 4-6 3-12 6"/>')
   };
 })();
@@ -1334,17 +1335,26 @@ const sviAvName = it => it && it.vname ? it.vname : it && it.parent ? "AVENANT "
 const sviAvSelDef = S0 => { const o = {}, all = S0[0] && (window.__sviAvMode || {})[S0[0].ref] === "inst"; S0.forEach(st => { if (all || st.state === "valide") o[st.ref] = "act"; }); if (!Object.keys(o).length && S0[0]) o[S0[0].ref] = "act"; return o; };
 const sviAvSelGet = r => ((window.__sviAvSel || {})[r]) || null;
 const sviAvSelSet = (r, v) => { window.__sviAvSel = window.__sviAvSel || {}; if (v) window.__sviAvSel[r] = v; else delete window.__sviAvSel[r]; };
+/* v693 : RECALAGES d'une étape (budgets « étape-Rn » de l'appareil), du plus ancien au plus récent ; dernier enregistré */
+const sviRclOf = stRef => sviInstGet().filter(x => x.rclOf === stRef).sort((a, b) => (a.rcn || 0) - (b.rcn || 0));
+const sviRclLast = stRef => sviRclOf(stRef).filter(x => x.state === "valide").pop() || null;
+/* point d'accroche de la réalisation : ligne déjà utilisée (verrouillée dans un recalage) — toujours faux pour l'instant */
+const sviRclUsed = row => !!(row && row.used && false);
 /* scénarios d'une étape qu'on peut prendre à sa place (ceux qui ne sont pas l'état actuel) */
 const sviAvScn = st => { const V = (st.data || {}).ver || {}; return (V.L || []).filter(x => x.kind === "sc" && x.id !== V.act && x.d); };
 /* libellé court de la composition */
 const sviAvSelLab = (rootRef, sel) => { const S0 = sviAvStages(rootRef), o = sel || sviAvSelDef(S0);
-  return S0.filter(st => o[st.ref]).map(st => sviAvName(st) + (o[st.ref] !== "act" ? " (" + ((sviAvScn(st).find(x => x.id === o[st.ref]) || {}).nom || "?") + ")" : "")).join(" + ") || "AUCUNE ÉTAPE"; };
+  return S0.filter(st => o[st.ref]).map(st => { const c = o[st.ref], r = c === "act" && st.state === "valide" ? sviRclLast(st.ref) : null;
+    return sviAvName(st) + (c === "val" ? " (VALIDÉE)" : c !== "act" ? " (" + ((sviAvScn(st).find(x => x.id === c) || {}).nom || "?") + ")" : r ? " (R" + r.rcn + ")" : ""); }).join(" + ") || "AUCUNE ÉTAPE"; };
 /* budget consolidé — opt : true = toutes les étapes ; objet = composition ; rien = composition par défaut (validées) */
 const sviAvMerge = (rootRef, opt) => {
   const S0 = sviAvStages(rootRef);
   if (!S0.length) return null;
   const sel = opt === true ? Object.fromEntries(S0.map(st => [st.ref, "act"])) : opt && typeof opt === "object" ? opt : sviAvSelDef(S0);
-  const S = S0.map(st => { const c = sel[st.ref]; if (!c) return null; if (c === "act") return { st, d: st.data || {} };
+  /* v693 : « act » = budget de travail de l'étape (dernier recalage enregistré, sinon l'étape validée) ; « val » = étape validée d'origine */
+  const S = S0.map(st => { const c = sel[st.ref]; if (!c) return null;
+    if (c === "act") { const r = st.state === "valide" ? sviRclLast(st.ref) : null; return r ? { st, d: r.data || {}, sc: "R" + r.rcn } : { st, d: st.data || {} }; }
+    if (c === "val") return { st, d: st.data || {}, sc: "VALIDÉE" };
     const sc = sviAvScn(st).find(x => x.id === c); return sc ? { st, d: sc.d, sc: sc.nom } : { st, d: st.data || {} }; }).filter(Boolean);
   if (!S.length) S.push({ st: S0[0], d: { lot: [], des: [] }, none: true });
   const D0 = JSON.parse(JSON.stringify(S[0].d || {}));
@@ -3542,7 +3552,7 @@ const SVI_COL = {
   rref: { w: 210, pw: 22 }, rdate: { w: 150 }, rtitle: { w: 360, pw: 60 }, rfile: { w: 120 }, rexp: { w: 110, pw: 8 }, robj: { w: 200, pw: 15 }, rtext: { w: 420, pw: 30 },
   rresp: { w: 180, pw: 13 }, rprev: { w: 140, pw: 12 }, rdelay: { w: 150, pw: 9 }, relap: { w: 150, pw: 9 }, rimp: { w: 60, pw: 4 },
   /* v685 : blocs SCÉNARIOS et VERSIONS */
-  scnind: { w: 300, pw: 30 }, scnom: { w: 260, pw: 30 }, scet: { w: 150, pw: 14 }, scof: { w: 150, pw: 12 }, scret: { w: 120, pw: 10 }, scdes: { w: 140, pw: 12 }, scdel: { w: 56, pw: 4 }, vno: { w: 160, pw: 12 }, vkind: { w: 200, pw: 16 }, vdate: { w: 200, pw: 16 }, vuser: { w: 160, pw: 12 }, ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => ["sc" + (i + 1), { w: 180, pw: 12 }]))
+  scnind: { w: 300, pw: 30 }, scnom: { w: 260, pw: 30 }, scet: { w: 150, pw: 14 }, scof: { w: 150, pw: 12 }, scret: { w: 120, pw: 10 }, scdes: { w: 140, pw: 12 }, scdel: { w: 56, pw: 4 }, vno: { w: 160, pw: 12 }, rno: { w: 120, pw: 10 }, rcdate: { w: 200, pw: 16 }, ruser: { w: 160, pw: 12 }, rstate: { w: 140, pw: 12 }, rsav: { w: 200, pw: 16 }, vkind: { w: 200, pw: 16 }, vdate: { w: 200, pw: 16 }, vuser: { w: 160, pw: 12 }, ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => ["sc" + (i + 1), { w: 180, pw: 12 }]))
 };
 /* — de src/12-tableaux-colonnes.js — */
 const SVI_COL_T = {
@@ -5634,7 +5644,7 @@ function renderBudgetList() {
   instLoad().forEach(b => groups.set(b.ref, { ref: b.ref, project: b.project, rows: [], first: {}, inst: b }));
   /* v681 : budget à avenants — vue GLOBAL (marché initial + avenants consolidés, en lecture seule, jamais enregistrée) */
   /* v691 : composition par défaut du consolidé selon la liste affichée (EN INSTANCE : validé + en instance ; VALIDÉ : validé seul) */
-  { let lm = "valid"; try { if (localStorage.getItem("svi_listmode_v1") === "inst") lm = "inst"; } catch (e) {} window.__sviAvMode = window.__sviAvMode || {}; instLoad().filter(b => !b.parent).forEach(b => { window.__sviAvMode[b.ref] = lm; }); }
+  { let lm = "valid"; try { if (localStorage.getItem("svi_listmode_v1") === "inst") lm = "inst"; } catch (e) {} window.__sviAvMode = window.__sviAvMode || {}; instLoad().filter(b => !b.parent && !b.rclOf).forEach(b => { window.__sviAvMode[b.ref] = lm; }); }
   instLoad().filter(b => !b.parent && instLoad().some(x => x.parent === b.ref)).forEach(b => {
     try { const gref = b.ref + "-GLOBAL"; groups.set(gref, { ref: gref, project: b.project, rows: [], first: {}, inst: { ref: gref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vsel: sviAvSelLab(b.ref, sviAvSelGet(b.ref)), data: sviAvMerge(b.ref, sviAvSelGet(b.ref)) } }); } catch (e) {}
   });
@@ -5652,15 +5662,15 @@ function renderBudgetList() {
 
   /* v679 : pas d'icône EN INSTANCE s'il n'y a que des budgets validés, et inversement ; la liste affichée suit */
   /* v681 : un budget à avenants est une famille (marché initial + avenants) : elle figure dans chaque liste où l'un d'eux figure */
-  const famLive = g => { const L = [g.inst, ...instLoad().filter(x => g.inst && x.parent === g.ref)].filter(Boolean); return { live: L.some(x => x.state !== "valide"), done: !g.inst || L.some(x => x.state === "valide") }; };
+  const famLive = g => { const L = [g.inst, ...instLoad().filter(x => g.inst && x.parent === g.ref && !x.rclOf)].filter(Boolean); return { live: L.some(x => x.state !== "valide"), done: !g.inst || L.some(x => x.state === "valide") }; };
   const LIST_N = { inst: 0, valid: 0 };
-  groups.forEach(g => { if (g.inst && g.inst.parent) return; const f = famLive(g); if (f.live) LIST_N.inst++; if (f.done) LIST_N.valid++; });
+  groups.forEach(g => { if (g.inst && (g.inst.parent || g.inst.rclOf)) return; const f = famLive(g); if (f.live) LIST_N.inst++; if (f.done) LIST_N.valid++; });
   if (listMode === "inst" && !LIST_N.inst && LIST_N.valid) listMode = "valid";
   if (listMode === "valid" && !LIST_N.valid && LIST_N.inst) listMode = "inst";
 
   const budgets =
     [...groups.values()].filter(g => {
-      if (g.inst && g.inst.parent) return false;   /* avenants et GLOBAL : dans la liste du budget */
+      if (g.inst && (g.inst.parent || g.inst.rclOf)) return false;   /* avenants, GLOBAL et recalages (v693) : sous leur budget / étape */
       const f = famLive(g);
       return listMode === "inst" ? f.live : f.done;
     });
@@ -6742,7 +6752,8 @@ function renderBudgetList() {
     /* v675 : réouverture par le verrou par onglet — même onglet qu'avant */
     if (window.__sviForceTab) { active = window.__sviForceTab; window.__sviForceTab = null; }
     /* référence affichée du budget : « H88 BDG 26-1001/001 » */
-    const fullRef = String(budget.project).trim().toUpperCase() + " " + ref;
+    /* v693 : recalage — titre « <réf. de l'étape> R<n> » */
+    const fullRef = String(budget.project).trim().toUpperCase() + " " + (budget.inst && budget.inst.rclOf ? budget.inst.rclOf + " R" + budget.inst.rcn : ref);
     /* budget en instance : rouge (édition) ou vert (figé) */
     shell.classList.remove("bdg-inst-instance", "bdg-inst-fige", "list-inst");
     /* en instance (rouge) ou figé (vert) ; validé : présentation noire normale */
@@ -6795,7 +6806,7 @@ function renderBudgetList() {
           <button type="button" class="inst-act" id="instRedo" title="Rétablir" aria-label="Rétablir" disabled><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l4.5 4.5L15 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 11.5H9.5a5 5 0 0 0 0 10H13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button>` : ""}
           ${budget.inst.state !== "fige" ? `<button type="button" class="inst-act inst-todo" id="instTodo" title="À compléter" aria-label="À compléter"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 2.8 19.5h18.4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.1" fill="currentColor"/></svg><b></b></button>` : ""}
           <button type="button" class="inst-act" id="instLock"
-            title="${budget.inst.state === "fige" ? "Revenir en édition" : "Figer (lecture seule)"}"
+            title="${budget.inst.rclOf ? "Enregistrer le recalage" : budget.inst.state === "fige" ? "Revenir en édition" : "Figer (lecture seule)"}"
             aria-label="Figer">${budget.inst.state === "fige" ? `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 7.5-1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>` : `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>`}</button>
           ${budget.inst.state === "fige"
             ? `<button type="button" class="inst-act" id="instValid" title="Valider le budget" aria-label="Valider"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
@@ -6916,6 +6927,18 @@ function renderBudgetList() {
             </span>
           </div>
           <div class="rec-scroll ver-scroll"><table class="bdg-d-table rec-table ver-table" id="verTable"></table></div>
+        </div>
+
+        <div class="bdg-d-block blk-rec blk-rcl" data-rec="rcl" hidden>
+          <div class="bdg-d-block-title blk-head">
+            <span class="ttl" id="rclTitle">${SVI_ICON.rcl}RECALAGES</span>
+            <span class="blk-tools">
+              <button type="button" class="blk-btn" data-blk="rcl" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="rcl" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn blk-max-btn" data-blk="rcl" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </span>
+          </div>
+          <div class="rec-scroll rcl-scroll"><table class="bdg-d-table rec-table rcl-table" id="rclTable"></table></div>
         </div>
 
         <div class="bdg-d-block blk-rec blk-suivi" data-rec="suivi">
@@ -7302,6 +7325,9 @@ function renderBudgetList() {
        - budget figé : lecture seule.
        ========================================================= */
     const INS = sviBudgetData(budget.inst);   /* refonte, étape 1 : données du budget (02b) */
+    /* v693 : RECALAGE — DÉSIGNATIONS CLIENT et leurs prix en lecture seule (ils ne changent que par avenant) */
+    const rclDesSig = L => JSON.stringify((L || []).map(r => { const o = { ...r }; delete o.on; return o; }));
+    const INS_RCL0 = INS && budget.inst && budget.inst.rclOf ? { json: JSON.stringify(INS.des || []), sig: rclDesSig(INS.des) } : null;
     /* v672 (bloc 2) : budget ouvert en modification par un autre utilisateur (verrou de la base V3) = lecture seule */
     /* v676 : VERROU PAR ZONE (02e) — seule la zone où un autre travaille est en lecture seule ; un verrou sans zone (ancienne version) bloque tout */
     /* v681 : scénario actif ARCHIVÉ = lecture seule (DÉSARCHIVER ou BASCULER pour modifier) ; GLOBAL (consolidé) = lecture seule */
@@ -7362,6 +7388,12 @@ function renderBudgetList() {
       }, 60);
     };
     const insSave = () => {
+      if (INS_RCL0 && rclDesSig(INS.des) !== INS_RCL0.sig) {
+        const on = new Map((INS.des || []).map(r => [r.id, r.on]));
+        INS.des = JSON.parse(INS_RCL0.json).map(r => on.has(r.id) ? { ...r, on: on.get(r.id) } : r);
+        INS_RCL0.sig = rclDesSig(INS.des);
+        setTimeout(() => { try { svToast("RECALAGE : DÉSIGNATIONS CLIENT ET PRIX EN LECTURE SEULE (ILS NE CHANGENT QUE PAR AVENANT).", 4500); refreshAll(); } catch (e) {} }, 0);
+      }
       if (INS_EDIT) { sviDataTidy(INS); insLiveSync(); try { qqAutoSync(); } catch (e) {} if (shell.__undoTick) shell.__undoTick(); }
       /* délier en attente de ✓ VALIDER : l'état enregistré garde les liaisons d'avant */
       sviBudgetStore(budget.inst.ref, () => { let lb = null; try { lb = LK.linksBak; } catch (e) {} return lb ? { ...INS, links: lb } : INS; });
@@ -7743,7 +7775,7 @@ function renderBudgetList() {
       r = r || {};
       /* QPB produits = NBR × DIM 1 × DIM 2 × DIM 3 ; QPB désignation liée = somme des produits de ses tâches */
       const qAuto = (f === "q" && (k === "prd" || k === "des")) || (f === "p" && k === "prd") || (f === "q" && k === "chg" && !!insRg());   /* v560 : plage posée = QCB au prorata, grisée */
-      const locked = !INS_EDIT || type === "calc" || qAuto || (INS_LOCK[k] || []).includes(f) || (k === "chg" && (f === "p" || f === "u") && !!r.chs) || (r.t && f !== "art" && f !== "des")
+      const locked = !INS_EDIT || (INS_RCL0 && k === "des") || type === "calc" || qAuto || (INS_LOCK[k] || []).includes(f) || (k === "chg" && (f === "p" || f === "u") && !!r.chs) || (r.t && f !== "art" && f !== "des")
         /* DIM que l'unité n'autorise pas : grisées (FORMAT 74, R10) */
         || (k === "prd" && /^d[123]$/.test(f) && !isNew && +f[1] > sviUnitDims(r.u))
         /* v470 : produit d'une liaison primaire — UPB = celle de la désignation client (comme le PPB) : grisée */
@@ -10852,7 +10884,8 @@ function renderBudgetList() {
       const lk = $("instLock");
       const td = $("instTodo");
       if (td) { const n = insTodo().reduce((t, b) => t + (+b.n || 1), 0); td.querySelector("b").textContent = n || ""; td.classList.toggle("ok", !n); let nf = 0; try { nf = insFiltActs().length; } catch (e) {} td.classList.toggle("flt", !!nf); td.title = n ? n + " ÉLÉMENT(S) À COMPLÉTER" : "TOUT EST COMPLET"; }
-      if (lk && INS_EDIT) { const B = insFigeBlocks(); lk.disabled = false; lk.classList.toggle("off", B.length > 0); lk.title = B.length ? "FIGER IMPOSSIBLE : TOUCHER POUR VOIR POURQUOI" : "Figer (lecture seule)"; }
+      if (lk && INS_EDIT) { const B = insFigeBlocks(); lk.disabled = false; lk.classList.toggle("off", B.length > 0); lk.title = B.length ? "FIGER IMPOSSIBLE : TOUCHER POUR VOIR POURQUOI" : "Figer (lecture seule)";
+        if (budget.inst && budget.inst.rclOf) { lk.classList.remove("off"); lk.title = "Enregistrer le recalage"; } }   /* v693 */
       const tb = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="unl"]`);
       /* LIGNES NON LIÉES : visible seulement s'il reste des lignes */
       if (tb) {
@@ -16638,19 +16671,19 @@ ${A}</Assignments>
       }
     };
 
-    const LAY_UNITS = ["client", "hier", "detail", "scn", "ver", "suivi"];   /* v685 : bloc SCÉNARIOS entre le détail et le suivi */
+    const LAY_UNITS = ["client", "hier", "detail", "scn", "ver", "rcl", "suivi"];   /* v685 : bloc SCÉNARIOS entre le détail et le suivi */
     const page$ = () => shell.querySelector(".bdg-d-page");
     const layEls = u => {
       const pg = page$();
       if (u === "detail") return [$("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
-      const sel = { client: ".blk-client", hier: ".blk-hier", scn: ".blk-scn", ver: ".blk-ver", suivi: ".blk-suivi" }[u];
+      const sel = { client: ".blk-client", hier: ".blk-hier", scn: ".blk-scn", ver: ".blk-ver", rcl: ".blk-rcl", suivi: ".blk-suivi" }[u];
       return [pg.querySelector(":scope > " + sel)].filter(Boolean);
     };
     const layMeasure = u => {
       const sel = {
         client: ".bdg-d-client-scroll", hier: ".bdg-h-col",
         detail: "#bdgTabBody .bdg-d-scroll",
-        suivi: ".blk-suivi .rec-scroll:not([hidden])", scn: ".blk-scn .rec-scroll", ver: ".blk-ver .rec-scroll"
+        suivi: ".blk-suivi .rec-scroll:not([hidden])", scn: ".blk-scn .rec-scroll", ver: ".blk-ver .rec-scroll", rcl: ".blk-rcl .rec-scroll"
       }[u];
       const el = page$().querySelector(sel);
       return el ? el.getBoundingClientRect().height : 150;
@@ -17475,7 +17508,7 @@ ${A}</Assignments>
     /* ===== export / import / aperçu PDF par bloc ===== */
     const lastShown = { client: null, detail: null, hier: {} };
     const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL",
-                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD", scn: "SCENARIOS", ver: "VERSIONS" };
+                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD", scn: "SCENARIOS", ver: "VERSIONS", rcl: "RECALAGES" };
     const REC_KINDS = ["doc", "taf", "obs"];
 
     const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
@@ -17509,6 +17542,7 @@ ${A}</Assignments>
       if (blk === "rat") return ratData();   /* v680 */
       if (blk === "scn" && shell.__scnData) return shell.__scnData();   /* v685 */
       if (blk === "ver" && shell.__verData) return shell.__verData();
+      if (blk === "rcl" && shell.__rclData) return shell.__rclData();
       if (blk === "metre") return metreData();
       if (blk === "interne") return interneData();
       if (blk === "hier") {
@@ -18252,6 +18286,7 @@ ${A}</Assignments>
         const out = [], D = st.data || {}, V = D.ver || {};
         (V.L || []).filter(x => x.kind === "sc" && x.id !== V.act && x.d).forEach(x => { const k = "SC|" + st.ref + "|" + x.id; IMP_EXTRA.set(k, { ref: k, project: st.project, rows: [], first: {}, inst: { ref: k, project: st.project, state: st.state, data: x.d } }); out.push({ r: k, lab: x.nom }); });
         (D.vfz || []).forEach(v => { const k = st.ref + "-V" + v.n; if (groups.has(k)) out.push({ r: k, lab: "VERSION " + v.n + (v.auto ? " Ⓐ" : "") + " — " + (v.kind || "") }); });
+        sviRclOf(st.ref).forEach(x => { if (groups.has(x.ref)) out.push({ r: x.ref, lab: "RECALAGE R" + x.rcn + (x.state === "valide" ? "" : " (EN COURS)") }); });
         return out;
       };
       if (blk === "rat") TREE.push({ r: "__LISTE", lab: "LISTE DES INDICATEURS (COMMUNE)", lvl: 0 });
@@ -19446,8 +19481,10 @@ ${A}</Assignments>
         /* v681 : premier avenant — une seule fois (aucun avenant encore), marché initial validé */
         ...(INS && budget.inst && (!budget.inst.virtual || /-GLOBAL$/.test(budget.inst.ref)) ? (() => { const S = sviAvStages(budget.inst.parent || budget.inst.ref); return S.length ? [{ a: "av", lab: "AJOUTER UN AVENANT", off: S[S.length - 1].state !== "valide", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12.5 10v7M9 13.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []; })() : []),
         ...(INS && budget.inst && !/-GLOBAL$/.test(budget.inst.ref) && (budget.inst.parent || sviAvStages(budget.inst.ref).length > 1) ? [{ a: "avl", lab: "BUDGET CONSOLIDÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
+        /* v693 : NOUVEAU RECALAGE — étape validée (budget initial ou avenant) ou recalage */
+        ...(INS && budget.inst && !budget.inst.virtual && (budget.inst.rclOf || budget.inst.state === "valide") ? [{ a: "rcl", lab: "NOUVEAU RECALAGE", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6M20 12a8 8 0 0 1-13.7 5.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M18 3v4h-4M6 21v-4h4" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>' }] : []),
         /* v690 : VERSIONS ET SCÉNARIOS retiré (blocs SCÉNARIOS et VERSIONS) ; PRENDRE UNE VERSION (photo manuelle) */
-        ...(INS && budget.inst && !budget.inst.virtual ? [{ a: "vtake", lab: "PRENDRE UNE VERSION", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 7l1.5-3h4l1.5 3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' }] : []),
+        ...(INS && budget.inst && !budget.inst.virtual && !budget.inst.rclOf ? [{ a: "vtake", lab: "PRENDRE UNE VERSION", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 7l1.5-3h4l1.5 3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' }] : []),
         ...(INS ? [{ a: "ctr", lab: "CONTRAT (CPS)", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 11h5M10 15h5M10 19h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' }] : []),
         ...(INS ? [{ a: "plans", lab: "PLANS ET MÉTRÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5l6-2 6 2 6-2v16l-6 2-6-2-6 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 3v16M15 5v16" stroke="currentColor" stroke-width="1.4"/></svg>' }] : []),
         ...(INS ? [{ a: "rat", lab: "TABLEAU DE BORD DES RATIOS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' },
@@ -19475,7 +19512,8 @@ ${A}</Assignments>
         else if (it.dataset.a === "ctr") ctrWin();
         else if (it.dataset.a === "av") { if (it.classList.contains("off") || it.disabled) { svToast("LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ.", 3500); return; } if (window.__sviAvNew) window.__sviAvNew(budget.inst.parent || budget.inst.ref, null); }   /* v684 : fenêtre INF puis l'avenant */
         else if (it.dataset.a === "avl") { const root = budget.inst.parent || budget.inst.ref; if (window.__sviAvOpen) window.__sviAvOpen(root + "-GLOBAL"); }   /* v684 : plus de petite fenêtre : le consolidé */
-        else if (it.dataset.a === "vtake") { if (shell.__verTake) shell.__verTake(); }   /* v670 (axes 1 et 4) */   /* v669 (axe 3) */
+        else if (it.dataset.a === "vtake") { if (shell.__verTake) shell.__verTake(); }
+        else if (it.dataset.a === "rcl") { if (shell.__rclNew) shell.__rclNew(); }   /* v670 (axes 1 et 4) */   /* v669 (axe 3) */
         else if (it.dataset.a === "rat") ratWin();
         else if (it.dataset.a === "ind") indWin();   /* v679 */
         else if (it.dataset.a === "plans") plWin();   /* v671 (axe 6) */   /* v668 (axe 7) */
@@ -21301,6 +21339,7 @@ ${A}</Assignments>
     const scnRender = () => {
       scnPill();
       try { verRender(); } catch (e) {}
+      try { shell.__rclRender && shell.__rclRender(); } catch (e) {}
       const blk = shell.querySelector(".blk-scn"), t = $("scnTable");
       if (!blk || !t) return;
       const SC = scnL();
@@ -22195,7 +22234,7 @@ ${A}</Assignments>
       R.L = R.L || []; R.T = Array.isArray(R.T) ? R.T : [];
       let add = false;
       IBD_AUTO.forEach(([code, nom, k]) => { if (!R.L.some(I => I.auto === code)) { R.L.unshift({ id: "auto_" + code, auto: code, nom, f: [{ t: "e", k }], mode: "q", fmt: "n", dec: 2, u: k === "b:mo" || k === "b:mg" || k === "b:chg" || k === "b:prd" ? "DH" : "", seuil: "" }); add = true; } });
-      if (!R.T.length) { R.T.push({ id: "t_" + insId(), nom: "MARGE", y: ["auto_mg", "auto_chg", "auto_prd"], step: "s", cum: true, view: "g", hs: [], vs: ["today"] }); add = true; }
+      if (!R.T.length) { R.T.push({ id: "t_auto", nom: "MARGE", y: ["auto_mg", "auto_chg", "auto_prd"], step: "s", cum: true, view: "g", hs: [], vs: ["today"] }); add = true; }
       if (add && INS_EDIT) { INS.rat = JSON.parse(JSON.stringify(R)); insSave(); }
       return R;
     };
@@ -22218,6 +22257,15 @@ ${A}</Assignments>
     };
     /* valeurs d'un indicateur par pas : unitaire (part de chaque pas) ou cumulé (du premier jour à la fin du pas) */
     const ibdSeries = (I, D, P, cum) => P.map(p => { const r = indCalc(I, ratPerSub(D, cum ? P[0].a : p.a, p.b)); return r.val === undefined || r.val === null ? null : (I.fmt === "p" ? r.val * 100 : r.val); });
+    /* v693 : sources de comparaison — sur une étape validée ou un recalage : ÉTAPE VALIDÉE, DERNIER RECALAGE, chaque Rn enregistré */
+    const ibdStage = () => budget.inst && !budget.inst.virtual ? (budget.inst.rclOf || (budget.inst.state === "valide" ? budget.inst.ref : "")) : "";
+    const ibdHere = () => budget.inst && budget.inst.rclOf ? "R" + budget.inst.rcn : "ÉTAPE VALIDÉE";
+    const ibdSources = () => {
+      const st = ibdStage(); if (!st) return [];
+      const S = sviInstGet().find(x => x.ref === st), R = sviRclOf(st).filter(x => x.state === "valide"), last = R[R.length - 1];
+      if (!S || !R.length && !budget.inst.rclOf) return [];
+      return [{ k: "val", lab: "ÉTAPE VALIDÉE", d: S.data }, ...(last ? [{ k: "last", lab: "DERNIER RECALAGE (R" + last.rcn + ")", d: last.data }] : []), ...R.map(x => ({ k: "R" + x.rcn, lab: "R" + x.rcn, d: x.data }))].filter(x => x.d);
+    };
     const ibdFx = (v, dec) => v === null || v === undefined ? "" : indNum(v, dec === undefined ? 2 : dec);
 
     /* ---------- bandeau des carreaux (dans l'onglet INDICATEURS) ---------- */
@@ -22247,11 +22295,15 @@ ${A}</Assignments>
         const P = ibdSteps(D, T.step || "s");
         /* deux unités au plus : la 1re (axe gauche), la 2e (axe droit) ; les autres grisées */
         const units = []; Y.forEach(I => { const u = ibdUnit(I, E); if (!units.includes(u)) units.push(u); });
+        /* v693 : courbes d'une autre source (ÉTAPE VALIDÉE, DERNIER RECALAGE, Rn) superposées au budget ouvert */
+        const SRC = ibdSources(), XC = (T.c || []).map(c => ({ c, I: R.L.find(I => I.id === c.id), S: SRC.find(x => x.k === c.src) })).filter(x => x.I && x.S && x.S.d);
+        XC.forEach(x => { const u = ibdUnit(x.I, E); if (!units.includes(u)) units.push(u); });
         const okU = units.slice(0, 2), shownY = Y.filter(I => okU.includes(ibdUnit(I, E)));
-        const SER = shownY.map(I => ({ I, u: ibdUnit(I, E), v: ibdSeries(I, D, P, !!T.cum) }));
+        const SER = shownY.map(I => ({ I, lab: I.nom + (SRC.length ? " (" + ibdHere() + ")" : ""), u: ibdUnit(I, E), v: ibdSeries(I, D, P, !!T.cum) }))
+          .concat(XC.filter(x => okU.includes(ibdUnit(x.I, E))).map(x => ({ I: x.I, lab: x.I.nom + " (" + x.S.lab + ")", u: ibdUnit(x.I, E), v: ibdSeries(x.I, x.S.d, P, !!T.cum), ci: (T.c || []).indexOf(x.c) })));
         const chips = R.L.map(I => { const on = T.y.includes(I.id), u = ibdUnit(I, E), off = !on && units.length >= 2 && !units.includes(u);
           return `<button type="button" class="ibd-chip${on ? " on" : ""}${off ? " off" : ""}" data-ytog="${esc(I.id)}"${off ? ` data-why="3E UNITÉ (${esc(u || "SANS UNITÉ")}) : DEUX UNITÉS AU PLUS SUR UN GRAPHIQUE (${esc(units.join(" / "))})."` : ""}>${esc(I.nom)}${ibdA(I)} <small>${esc(u || "—")}</small></button>`; }).join("");
-        const table = () => `<div class="ibd-tscroll"><table class="bdg-d-table ibd-table"><thead><tr><th>${T.step === "j" ? "JOUR" : T.step === "m" ? "MOIS" : "SEMAINE"}</th>${SER.map(s => `<th class="number">${esc(s.I.nom)}${s.u ? " (" + esc(s.u) + ")" : ""}</th>`).join("")}</tr></thead>
+        const table = () => `<div class="ibd-tscroll"><table class="bdg-d-table ibd-table"><thead><tr><th>${T.step === "j" ? "JOUR" : T.step === "m" ? "MOIS" : "SEMAINE"}</th>${SER.map(s => `<th class="number">${esc(s.lab || s.I.nom)}${s.u ? " (" + esc(s.u) + ")" : ""}</th>`).join("")}</tr></thead>
           <tbody>${P.map((p, i) => `<tr><td>${esc(p.lab)}</td>${SER.map(s => `<td class="number">${ibdFx(s.v[i], s.I.dec)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${SER.length + 1}" class="empty">AUCUNE DATE AU PLANNING</td></tr>`}</tbody></table></div>`;
         d.innerHTML = sviWinCard({ cls: "cmp-card svc-full ibd-card", close: "data-x", title: "INDICATEURS — " + esc(T.nom),
           body: `<div class="ibd-bar">
@@ -22262,6 +22314,10 @@ ${A}</Assignments>
               ${view === "t" ? `<button type="button" class="svc-b" data-copy>COPIER</button>` : ""}
             </div>
             <div class="ibd-chips">${chips}${ed ? `<button type="button" class="ibd-chip ibd-new" data-ynew>+ NOUVEL INDICATEUR</button>` : ""}</div>
+            ${SRC.length ? `<div class="ibd-src"><span>COMPARER AVEC :</span>${XC.map(x => `<span class="ibd-chip on">${esc(x.I.nom)} <small>${esc(x.S.lab)}</small> <button type="button" class="cmp-del" data-cdel="${(T.c || []).indexOf(x.c)}">✕</button></span>`).join("")}
+              <select class="pv-in ibd-ci">${R.L.map(I => `<option value="${esc(I.id)}">${esc(I.nom)}</option>`).join("")}</select>
+              <select class="pv-in ibd-cs">${SRC.map(x => `<option value="${esc(x.k)}">${esc(x.lab)}</option>`).join("")}</select>
+              <button type="button" class="svc-b" data-cadd>+ COURBE</button></div>` : ""}
             ${view === "g" ? `<div class="ibd-seuils">
               <span>SEUILS :</span>${(T.hs || []).map((h, i) => `<span class="ibd-s">─ ${esc(ibdFx(h.v))} ${esc(h.u || okU[0] || "")}${ed ? ` <button type="button" class="cmp-del" data-hsdel="${i}">✕</button>` : ""}</span>`).join("")}
               ${(T.vs || []).map((v, i) => `<span class="ibd-s">│ ${v === "today" ? "AUJOURD'HUI" : esc(dFr(v))}${ed ? ` <button type="button" class="cmp-del" data-vsdel="${i}">✕</button>` : ""}</span>`).join("")}
@@ -22270,7 +22326,7 @@ ${A}</Assignments>
             </div>` : ""}
             <div class="ibd-main">${!SER.length ? `<div class="fz-none">CHOISIR DES INDICATEURS CI-DESSUS</div>` : view === "t" ? table() : ibdChart(SER, P, T, okU)}</div>`,
           foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
-        d.__tsv = () => [[T.step === "j" ? "JOUR" : T.step === "m" ? "MOIS" : "SEMAINE", ...SER.map(s => s.I.nom + (s.u ? " (" + s.u + ")" : ""))].join("\t"), ...P.map((p, i) => [p.lab, ...SER.map(s => ibdFx(s.v[i], s.I.dec))].join("\t"))].join("\n");
+        d.__tsv = () => [[T.step === "j" ? "JOUR" : T.step === "m" ? "MOIS" : "SEMAINE", ...SER.map(s => (s.lab || s.I.nom) + (s.u ? " (" + s.u + ")" : ""))].join("\t"), ...P.map((p, i) => [p.lab, ...SER.map(s => ibdFx(s.v[i], s.I.dec))].join("\t"))].join("\n");
         if (focusId) { const c = d.querySelector(`[data-ytog="${CSS.escape(focusId)}"]`); if (c) c.classList.add("focus"); focusId = ""; }
       };
       const put = (what, det) => { ibdSave(R, what, det); };
@@ -22278,6 +22334,8 @@ ${A}</Assignments>
       d.addEventListener("change", e => { if (e.target.classList.contains("ibd-nom")) { T.nom = U_(e.target.value) || T.nom; put("CARREAU RENOMMÉ", T.nom); draw(); } });
       d.addEventListener("click", async e => {
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); refreshAll(); return; }
+        if (e.target.closest("[data-cadd]")) { T.c = (T.c || []).concat({ id: d.querySelector(".ibd-ci").value, src: d.querySelector(".ibd-cs").value }); put("COURBE AJOUTÉE", ""); draw(); return; }
+        const cd = e.target.closest("[data-cdel]"); if (cd) { T.c.splice(+cd.dataset.cdel, 1); put(); draw(); return; }
         const st = e.target.closest("[data-step]"); if (st) { T.step = st.dataset.step; put(); draw(); return; }
         const cu = e.target.closest("[data-cum]"); if (cu) { T.cum = cu.dataset.cum === "1"; put(); draw(); return; }
         if (e.target.closest("[data-view]")) { view = view === "g" ? "t" : "g"; T.view = view; put(); draw(); return; }
@@ -22318,7 +22376,7 @@ ${A}</Assignments>
       const today = sviIsoOf(new Date());
       const vs = (T.vs || []).map(v => { const dd = v === "today" ? today : v; const i = P.findIndex(p => p.a <= dd && dd <= p.b); if (i < 0) return ""; return `<line x1="${x(i)}" x2="${x(i)}" y1="${pt}" y2="${H - pb}" stroke="#7a5af8" stroke-width="1.5" stroke-dasharray="4 3"/><text x="${x(i) + 3}" y="${pt + 10}" class="rat-ax" fill="#7a5af8">${v === "today" ? "AUJOURD'HUI" : esc(dFr(v))}</text>`; }).join("");
       const zero = A0.mn < 0 ? `<line x1="${pl}" x2="${W - pr}" y1="${y(A0, 0)}" y2="${y(A0, 0)}" stroke="#98a2b3"/>` : "";
-      const leg = `<div class="rat-leg">${SER.map((s, j) => `<span><i style="background:${RAT_C[j % RAT_C.length]}"></i>${esc(s.I.nom)} <small>(${esc(s.u || "—")}${U.length > 1 ? (U.indexOf(s.u) ? ", AXE DROIT" : ", AXE GAUCHE") : ""})</small></span>`).join("")}</div>`;
+      const leg = `<div class="rat-leg">${SER.map((s, j) => `<span><i style="background:${RAT_C[j % RAT_C.length]}"></i>${esc(s.lab || s.I.nom)} <small>(${esc(s.u || "—")}${U.length > 1 ? (U.indexOf(s.u) ? ", AXE DROIT" : ", AXE GAUCHE") : ""})</small></span>`).join("")}</div>`;
       return leg + `<div class="rat-gx"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="rat-svg">
         <text x="${pl}" y="10" class="rat-ax">${esc(A0.u || "")}</text>${A1 ? `<text x="${W - pr}" y="10" text-anchor="end" class="rat-ax">${esc(A1.u || "")}</text>` : ""}
         ${grid}${zero}${hs}${vs}${lines}${xl}</svg></div>`;
@@ -22337,6 +22395,93 @@ ${A}</Assignments>
       if (e.target.closest("[data-tadd]")) { e.stopPropagation(); const R = ibdR(), T = { id: "t_" + insId(), nom: "CARREAU " + (R.T.length + 1), y: [], step: "s", cum: false, view: "g", hs: [], vs: [] }; R.T.push(T); ibdSave(R, "CARREAU AJOUTÉ", T.nom); ibdTileWin(T.id); return; }
       if (tile) { e.stopPropagation(); ibdTileWin(tile.dataset.tile); }
     };
+/* ⟪ src/22j-recalages.js ⟫ */
+    /* =========================================================
+       v693 : RECALAGE (décisions du 29/10/2026, soir) — remise en phase d'une étape VALIDÉE (budget initial ou avenant)
+       avec la réalité du chantier, après chaque réunion de chantier ; reste dans le module budget.
+       - Un recalage = un budget de la liste de l'appareil { ref: « étape-Rn », rclOf: étape, rcn: n, state: instance (EN COURS)
+         | valide (ENREGISTRÉ) } ; caché de la liste mère, rangé dans le bloc RECALAGES de son étape.
+       - NOUVEAU RECALAGE (menu ⋯ d'une étape validée ou d'un recalage) : le premier part de l'étape validée, chaque suivant du
+         dernier recalage enregistré ; un seul EN COURS à la fois.
+       - Tout se modifie, sauf DÉSIGNATIONS CLIENT et leurs prix (lecture seule : ils ne changent que par avenant).
+         Point d'accroche pour la réalisation : sviRclUsed(ligne) = ligne déjà utilisée en réalisation (toujours faux pour l'instant).
+       - 🔒 = ENREGISTRER LE RECALAGE : il devient le budget de travail de l'étape (consolidé, recalage suivant) et une version Ⓐ
+         « RECALAGE Rn » est prise dans le bloc VERSIONS de l'étape. L'étape validée d'origine ne change jamais.
+       ========================================================= */
+    const RCL_OF = budget.inst && budget.inst.rclOf ? budget.inst.rclOf : "";
+    const RCL_STAGE = budget.inst && !budget.inst.virtual && !RCL_OF && budget.inst.state === "valide" ? budget.inst.ref : "";
+    const rclHist = (r, a, d) => { try { const k = "svi_hist_v1:" + r, l = JSON.parse(localStorage.getItem(k) || "[]") || []; l.push({ t: new Date().toISOString(), b: "RECALAGE", a, d: String(d || "").toUpperCase(), u: typeof sviUser === "function" ? sviUser() : "" }); localStorage.setItem(k, JSON.stringify(l.slice(-1000))); } catch (e) {} };
+    /* nouveau recalage d'une étape : depuis le dernier enregistré, sinon l'étape validée */
+    const rclNew = stageRef => {
+      const L = sviInstGet(), st = L.find(x => x.ref === stageRef);
+      if (!st || st.state !== "valide") { sviAlert("UN RECALAGE SE FAIT SUR UNE ÉTAPE VALIDÉE.", "NOUVEAU RECALAGE"); return; }
+      const R = sviRclOf(stageRef);
+      const cur = R.find(x => x.state !== "valide");
+      if (cur) { svToast("UN RECALAGE EST DÉJÀ EN COURS : R" + cur.rcn + ". L'ENREGISTRER OU LE SUPPRIMER D'ABORD.", 4500); window.__sviAvOpen(cur.ref, stageRef); return; }
+      const last = R.filter(x => x.state === "valide").pop();
+      const src = JSON.parse(JSON.stringify((last || st).data || {}));
+      delete src.ver; delete src.vfz;
+      const n = R.reduce((m, x) => Math.max(m, x.rcn || 0), 0) + 1;
+      const now = new Date(), p2 = v => String(v).padStart(2, "0");
+      const it = { ref: stageRef + "-R" + n, rclOf: stageRef, rcn: n, project: st.project, intitule: st.intitule, client: st.client, state: "instance",
+        created: now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()) + "T" + p2(now.getHours()) + ":" + p2(now.getMinutes()),
+        u: typeof sviUser === "function" ? sviUser() : "", from: last ? last.ref : stageRef, data: src };
+      sviInstSet(L.concat(it));
+      rclHist(stageRef, "NOUVEAU RECALAGE", "R" + n + " — DEPUIS " + (last ? "R" + last.rcn : "L'ÉTAPE VALIDÉE"));
+      window.__sviAvOpen(it.ref, stageRef);
+    };
+    shell.__rclNew = () => rclNew(RCL_OF || (budget.inst && budget.inst.ref));
+    /* 🔒 ENREGISTRER LE RECALAGE */
+    shell.__rclSave = async () => {
+      if (!RCL_OF || budget.inst.state === "valide") return;
+      if (!(await svConfirm({ title: "ENREGISTRER LE RECALAGE R" + budget.inst.rcn, text: "R" + budget.inst.rcn + " DEVIENT LE BUDGET DE TRAVAIL DE L'ÉTAPE " + RCL_OF + " (CONSOLIDÉ, RECALAGE SUIVANT). UNE VERSION AUTOMATIQUE « RECALAGE R" + budget.inst.rcn + " » EST PRISE. L'ÉTAPE VALIDÉE D'ORIGINE NE CHANGE PAS.", ok: "ENREGISTRER", tone: "neutral" }))) return;
+      const L = sviInstGet(), me = L.find(x => x.ref === ref), st = L.find(x => x.ref === RCL_OF);
+      if (!me || !st) return;
+      const now = new Date(), p2 = v => String(v).padStart(2, "0"), at = now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()) + "T" + p2(now.getHours()) + ":" + p2(now.getMinutes());
+      me.data = JSON.parse(JSON.stringify(INS)); me.state = "valide"; me.validated = at;
+      const D = st.data = st.data || {}; D.vfz = D.vfz || [];
+      const snap = JSON.parse(JSON.stringify(INS)); delete snap.ver; delete snap.vfz;
+      const n = D.vfz.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1;
+      D.vfz.push({ id: insId(), n, kind: "RECALAGE R" + me.rcn, auto: true, u: typeof sviUser === "function" ? sviUser() : "", date: at, d: snap });
+      sviInstSet(L.map(x => x.ref === me.ref ? me : x.ref === st.ref ? st : x)); await sviInstFlush();
+      histLog("RECALAGE", "ENREGISTRÉ", "R" + me.rcn); rclHist(RCL_OF, "RECALAGE ENREGISTRÉ", "R" + me.rcn + " — VERSION " + n);
+      svToast("RECALAGE R" + me.rcn + " ENREGISTRÉ — VERSION " + n + " PRISE.", 3500);
+      window.__sviAvOpen(ref, RCL_OF);
+    };
+    /* ‹ › : recalage précédent / suivant */
+    shell.__rclGo = d => {
+      const R = sviRclOf(RCL_OF), i = R.findIndex(x => x.ref === ref), j = i + d;
+      if (i < 0 || j < 0 || j >= R.length) { svToast(d < 0 ? "PAS DE RECALAGE AVANT." : "PAS DE RECALAGE APRÈS.", 2000); return; }
+      window.__sviAvOpen(R[j].ref, RCL_OF);
+    };
+    /* bloc RECALAGES (sous VERSIONS) : une ligne par recalage ; toucher = l'ouvrir */
+    const RCL_COLS = [["rno", "RECALAGE", x => "R" + x.rcn, ""], ["rcdate", "DATE", x => svDT(x.created || ""), ""], ["ruser", "PAR", x => x.u || "", ""],
+      ["rstate", "ÉTAT", x => x.state === "valide" ? "ENREGISTRÉ" : "EN COURS", ""], ["rsav", "ENREGISTRÉ LE", x => x.state === "valide" ? svDT(x.validated || "") : "", ""]];
+    let rclShown = [];
+    shell.__rclData = () => { const oc = coOrder("vrcl", RCL_COLS); return { head: oc.map(c => c[1]), rows: rclShown.map(x => oc.map(c => c[2](x))) }; };
+    const rclRender = () => {
+      const blk = shell.querySelector(".blk-rcl"), t = $("rclTable");
+      if (!blk || !t) return;
+      const stg = RCL_OF || (budget.inst && !budget.inst.virtual ? budget.inst.ref : "");
+      const all = stg ? sviRclOf(stg) : [];
+      blk.hidden = !all.length;
+      if (blk.hidden) return;
+      const rows = cfApply("vrcl", RCL_COLS, [...all].reverse());
+      rclShown = rows;
+      const ttl = $("rclTitle"); if (ttl) ttl.innerHTML = SVI_ICON.rcl + "RECALAGES " + svCnt(rows.length, all.length);
+      const oc = coOrder("vrcl", RCL_COLS);
+      t.style.width = cwTableW("vrcl", RCL_COLS) + "px";
+      t.innerHTML = `<colgroup>${cwCols("vrcl", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("vrcl", c[0], c[1], c[3])).join("")}</tr></thead>
+        <tbody>${rows.map(x => `<tr class="rcl-row${x.ref === ref ? " ver-act" : ""}${x.state !== "valide" ? " rcl-cours" : ""}" data-rcl="${esc(x.ref)}">${oc.map(c => `<td>${esc(c[2](x))}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}</tbody>`;
+    };
+    shell.__rclRender = rclRender;
+    shell.querySelector(".blk-rcl")?.addEventListener("click", e => {
+      if (e.target.closest(".cf-btn, .col-rs, .blk-tools, .blk-grip, .blk-rsz")) return;
+      const tr = e.target.closest("tr[data-rcl]"); if (!tr) return;
+      e.stopPropagation();
+      if (tr.dataset.rcl === ref) return;
+      window.__sviAvOpen(tr.dataset.rcl, RCL_OF || budget.inst.ref);
+    });
 /* ⟪ src/23-apercus-impression.js ⟫ */
     /* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :
        volet « OPTIONS PDF » à gauche, aperçu des pages à droite,
@@ -23359,7 +23504,7 @@ ${A}</Assignments>
     const printGeneric = blk => {
       const label = String(blkLabel(blk)).toUpperCase();
       let cols, rows, end = "";
-      if ((blk === "detail" && (active === "dly" || (active === "qlt" && INS))) || blk === "hist" || blk === "ind" || blk === "rat" || blk === "scn" || blk === "ver") {
+      if ((blk === "detail" && (active === "dly" || (active === "qlt" && INS))) || blk === "hist" || blk === "ind" || blk === "rat" || blk === "scn" || blk === "ver" || blk === "rcl") {
         const d = blkData(blk);
         if (!d.rows.length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         /* historique : date, branche et action étroites, détail large */
@@ -24391,10 +24536,10 @@ ${A}</Assignments>
       const page = shell.querySelector(".bdg-d-page");
       const cls = "max-" + blk;
       const on = !page.classList.contains(cls);
-      page.classList.remove("max-client", "max-hier", "max-detail", "max-rec", "max-suivi", "max-scn", "max-ver");
+      page.classList.remove("max-client", "max-hier", "max-detail", "max-rec", "max-suivi", "max-scn", "max-ver", "max-rcl");
       shell.querySelectorAll(".blk-rec").forEach(b =>
         b.classList.toggle("blk-rec-on", on && b.dataset.rec === blk));
-      if (on && ["suivi", "scn", "ver"].includes(blk)) page.classList.add("max-rec");
+      if (on && ["suivi", "scn", "ver", "rcl"].includes(blk)) page.classList.add("max-rec");
       if (on) {
         const head = shell.querySelector(".bdg-d-sticky");
         const avail = window.innerHeight - (head ? head.offsetHeight : 0) - 40;
@@ -25533,14 +25678,18 @@ ${A}</Assignments>
       };
       /* sortie avec une liaison modifiée non validée : on propose de valider d'abord */
       const guarded = fn => () => (shell.__lkGuard ? shell.__lkGuard() : Promise.resolve(true)).then(ok => { if (ok) fn(); });
-      $("instPrev")?.addEventListener("click", guarded(() => go(-1)));
-      $("instNext")?.addEventListener("click", guarded(() => go(1)));
+      /* v693 : recalage — ‹ › = recalage précédent / suivant */
+      $("instPrev")?.addEventListener("click", guarded(() => budget.inst.rclOf ? shell.__rclGo(-1) : go(-1)));
+      $("instNext")?.addEventListener("click", guarded(() => budget.inst.rclOf ? shell.__rclGo(1) : go(1)));
       $("instClose")?.addEventListener("click", guarded(toList));
       $("instDel")?.addEventListener("click", () => {
-        svConfirm({ title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
+        const RC = budget.inst.rclOf;
+        svConfirm(RC ? { title: "SUPPRIMER LE RECALAGE R" + budget.inst.rcn, text: "LE RECALAGE EN COURS R" + budget.inst.rcn + " SERA SUPPRIMÉ ; L'ÉTAPE " + RC + " NE CHANGE PAS.", ok: "SUPPRIMER" }
+          : { title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
           if (!go) return;
           instUpd(l => l.filter(x => x.ref !== ref));
           groups.delete(ref);
+          if (RC) { window.__sviAvRet = null; window.__sviAvOpen(RC); return; }
           toList();
         });
       });
@@ -25588,6 +25737,7 @@ ${A}</Assignments>
       $("instLock")?.addEventListener("click", async () => {
         /* liaison modifiée non validée : valider ou abandonner d'abord */
         if (shell.__lkGuard && !(await shell.__lkGuard())) return;
+        if (budget.inst.rclOf) { shell.__rclSave && shell.__rclSave(); return; }   /* v693 : 🔒 = ENREGISTRER LE RECALAGE */
         const fige = budget.inst.state === "fige";
         /* FIGER : impossible tant qu'il reste une cause (FORMAT 96) : la fenêtre dit pourquoi */
         if (!fige && INS && shell.__figeBlocks && shell.__figeBlocks().length) { shell.__figeWhy(); return; }
@@ -25749,7 +25899,9 @@ ${A}</Assignments>
       d.innerHTML = sviWinCard({ cls: "av-comp-card", close: "data-x", title: "COMPOSITION DU CONSOLIDÉ",
         body: `<div class="svc-sub">COCHER CE QUI ENTRE DANS LE CONSOLIDÉ : UNE ÉTAPE TELLE QU'ELLE EST, OU L'UN DE SES SCÉNARIOS À SA PLACE.</div>
           <div class="av-tree">${S0.map(st => { const sc = sviAvScn(st), c = sel[st.ref];
-            return `<label class="av-tn av-st-${st.state || "instance"}${st.parent ? " row-av" : " row-bdg"}"><input type="checkbox" data-st="${esc(st.ref)}"${c === "act" ? " checked" : ""}> <b>${esc(sviAvName(st))}</b> <small>${esc(st.ref)} · ${stLab(st)}</small></label>
+            const rl = st.state === "valide" ? sviRclLast(st.ref) : null;
+            return `<label class="av-tn av-st-${st.state || "instance"}${st.parent ? " row-av" : " row-bdg"}"><input type="checkbox" data-st="${esc(st.ref)}"${c === "act" ? " checked" : ""}> <b>${esc(sviAvName(st))}</b> <small>${esc(st.ref)} · ${stLab(st)}${rl ? " · DERNIER RECALAGE R" + rl.rcn : ""}</small></label>
+              ${rl ? `<label class="av-tn av-sub"><input type="checkbox" data-st="${esc(st.ref)}" data-sc="val"${c === "val" ? " checked" : ""}> ÉTAPE VALIDÉE (SANS RECALAGE)</label>` : ""}
               ${sc.map(x => `<label class="av-tn av-sub"><input type="checkbox" data-st="${esc(st.ref)}" data-sc="${x.id}"${c === x.id ? " checked" : ""}> ${esc(x.nom)}${x.arch ? " <small>(ARCHIVÉ)</small>" : ""}</label>`).join("")}`; }).join("")}</div>`,
         foot: `<button type="button" class="svc-b" data-def>PAR DÉFAUT (VALIDÉS)</button><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>APPLIQUER</button>` });
     };
