@@ -6287,9 +6287,16 @@ function renderBudgetList() {
         ${kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}">
           <td><span class="bdg-kid-lab">${esc(k.lab)}</span> <small>${esc(k.ref)}</small></td><td>${esc(k.budget)}</td><td title="${esc(k.intitule)}">${esc(k.intitule)}</td>
           <td class="number">${money(k.ttc)}</td><td>${esc(k.validated)}</td><td>${esc(k.entered)}</td><td></td></tr>`).join("")}
-        ${open && listMode === "inst" ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
+        ${open ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
           return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="7">AJOUTER UN AVENANT ICI…</td></tr>`; })() : ""}
       `; }).join("") + NEWROW;
+    /* v701 : panneau des dates aux hauteurs de la liste — TOUT = hauteur de l'en-tête, chaque date = hauteur d'une ligne */
+    requestAnimationFrame(() => { try {
+      const tb = tbody.closest("table"), th = tb && tb.tHead, tr = tbody.querySelector("tr:not(.bdg-newrow)") || tbody.querySelector("tr"), pn = $("bdgDatePanel");
+      if (!pn || !th) return;
+      pn.style.setProperty("--bdg-head-h", Math.round(th.getBoundingClientRect().height) + "px");
+      if (tr) pn.style.setProperty("--bdg-row-h", Math.round(tr.getBoundingClientRect().height) + "px");
+    } catch (e) {} });
   }
 
   /* -------------------------------------------------------
@@ -6960,7 +6967,7 @@ function renderBudgetList() {
               <button type="button" class="blk-btn" data-blk="detail" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
               ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="detail" data-act="copy" title="Copier les lignes cochées">${SVI_COPY_ICON}</button><button type="button" class="blk-btn" data-blk="detail" data-act="cut" title="Couper les lignes cochées">${SVI_CUT_ICON}</button><button type="button" class="blk-btn" data-blk="detail" data-act="paste" title="Coller">${SVI_PASTE_ICON}</button>` : ""}
               ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="detail" data-act="del" title="Supprimer les lignes cochées">${SVI_DEL_ICON}</button>` : ""}
-              <button type="button" class="blk-btn blk-cfg-btn" data-blk="detail" data-act="cfg" title="RÉGLAGES DU GRAPHIQUE" aria-label="Réglages du graphique">⚙</button>
+              <button type="button" class="blk-btn blk-cfg-btn" data-blk="detail" data-act="cfg" title="RÉGLAGES DU GANTT" aria-label="Réglages du Gantt">⚙</button>
               <button type="button" class="blk-btn blk-adj-btn" data-blk="detail" data-act="adj" title="GÉNÉRER / COMPRESSER" aria-label="Générer ou compresser"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 2.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn blk-max-btn" data-blk="detail" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
@@ -11847,7 +11854,7 @@ function renderBudgetList() {
     const dlyCfgPaint = () => {
       const g = shell.querySelector(".blk-cfg-btn"); if (!g) return;
       const host = shell.querySelector("#dlyGantt"), h = shell.querySelector(".dlyg-foot .ghist");
-      const on = active === "dly" && !!shell.__insDly && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone");
+      const on = active === "dly" && !!shell.__insDly && !!host;   /* v701 : ⚙ = RÉGLAGES DU GANTT, toujours sur le PLANNING (le graphique s'y règle aussi) */
       if (g.classList.contains("dly-on") !== on) g.classList.toggle("dly-on", on);
     };
     /* histogramme (et son libellé, et la poignée « = ») gardé en bas de la zone visible du planning : les tâches défilent dessous */
@@ -13724,7 +13731,7 @@ ${A}</Assignments>
       linkWin: (p, k) => dlyLinkWin(p, k), reach: (a, b) => dlyReach(a, b), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
       mspXml: o => dlyMspXml(o), mspTree: lv => dlyMspTree(lv), mspPrint: lv => dlyMspPrint(lv), lockWin: () => dlyLockWin(), lockLate: () => dlyLockLate(),   /* v667 (axe 8) */
       gen: () => dlyCompressRun(), gcWin: () => dlyGCWin(), genOnly: () => dlyCompressRun({ gen: true }), keys: () => dlyKeys(), comp: () => dlyCompressRun(), hasDates: () => dlyHasDates(), canComp: () => dlyCanCompress(),
-      moveCut: (i, iso) => dlyMoveCut(i, iso), rdSet: (sk, sec, i, p) => dlyRdSetV(sk, sec, i, p), rdCut: (sk, sec, iso) => dlyRdCut(sk, sec, iso), rdDel: (sk, sec, i) => dlyRdDel(sk, sec, i), rdLim: () => dlyRdLim(), piecesWin: k => dlyPiecesWin(k), hcfgWin: () => dlyHCfgWin(), succs: k => dlySuccs(k).map(dlyName), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n, a) => dlySetPlaf(i, n, a), delCut: i => dlyDelCut(i), limTxt: k => dlyLimTxt(k),
+      moveCut: (i, iso) => dlyMoveCut(i, iso), rdSet: (sk, sec, i, p) => dlyRdSetV(sk, sec, i, p), rdCut: (sk, sec, iso) => dlyRdCut(sk, sec, iso), rdDel: (sk, sec, i) => dlyRdDel(sk, sec, i), rdLim: () => dlyRdLim(), piecesWin: k => dlyPiecesWin(k), hcfgWin: () => dlyHCfgWin(), gcfgWin: () => dlyGCfgWin(), succs: k => dlySuccs(k).map(dlyName), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n, a) => dlySetPlaf(i, n, a), delCut: i => dlyDelCut(i), limTxt: k => dlyLimTxt(k),
       incWin: k => dlyIncWin(k), apprWin: () => dlyApproWin(), hh: v => { dlyHHSet(v); keepScroll(() => renderTab()); }, hhGet: () => dlyHHGet(),
       /* R18 : réglages de l'histogramme ; R19 / R20 : plage et filtre */
       hset: () => dlyHSet(), hsetPut: o => dlyHSetPut(o), sameU: () => dlySameU(dlyResSel()), hasSel: () => !!dlyResSel(),
@@ -14968,6 +14975,49 @@ ${A}</Assignments>
       });
     };
 
+    /* v701 : ⚙ RÉGLAGES DU GANTT (avant ↻, à la place des réglages du menu ⋯) — AFFICHAGE JOUR / SEMAINE / MOIS, ORDRE PAR DÉBUT / NORMAL,
+       AUTORISER LA COUPE DES TÂCHES (effet immédiat), COMPRESSER, GÉNÉRER ; RÉGLAGES DU GRAPHIQUE… quand le graphique est affiché */
+    const dlyGCfgWin = () => {
+      const DX = shell.__insDly, SC = window.__sviDlyScale; if (!DX) return;
+      const miss = dlyKeys().filter(k => !(dlyDeb(k) && dlyFin(k))).length, nk = dlyKeys().length;
+      const hEl = shell.querySelector(".dlyg-foot .ghist"), gOn = !!hEl && hEl.offsetHeight > 0 && !shell.querySelector(".dlyg.dly-hnone");
+      const d = sviWinNew();
+      const seg = (n, v, l, on) => `<label class="hcf-seg${on ? " on" : ""}"><input type="radio" name="${n}" value="${v}"${on ? " checked" : ""}><span>${l}</span></label>`;
+      const sc = SC ? SC.get() : "s", vw = DX.view();
+      const genWhy = !nk ? "AUCUNE TÂCHE DANS LE PLANNING." : !miss ? "TOUTES LES TÂCHES ONT DÉJÀ LEURS DATES." : "";
+      const compWhy = !nk ? "AUCUNE TÂCHE DANS LE PLANNING." : "";
+      const act = (k, l, why) => `<button type="button" class="svc-b gcf-act${why ? " off" : ""}" data-gcf="${k}"${why ? ` data-why="${esc(why)}"` : ""}>${l}</button>`;
+      d.innerHTML = `<div class="svc-card hcf-card gcf-card" role="dialog" aria-modal="true">
+        <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
+        <div class="svc-t">RÉGLAGES DU GANTT</div>
+        <div class="hcf-g">
+          <span class="hcf-k">AFFICHAGE</span><span class="hcf-sw hcf-sw3">${[["j", "JOUR"], ["s", "SEMAINE"], ["m", "MOIS"]].map(([v, l]) => seg("gcs", v, l, sc === v)).join("")}</span>
+          <span class="hcf-k">ORDRE</span><span class="hcf-sw">${seg("gco", "l", "NORMAL", vw !== "d")}${seg("gco", "d", "PAR DÉBUT", vw === "d")}</span>
+          <span class="hcf-k">COUPE</span><span class="hcf-cbs"><label><input type="checkbox" class="gcf-cut"${dlyCutOK() ? " checked" : ""}><span>AUTORISER LA COUPE DES TÂCHES</span></label></span>
+          <span class="hcf-k">CALCUL</span><span class="hcf-pl gcf-acts">${act("comp", "COMPRESSER", compWhy)}${act("gen", "GÉNÉRER" + (miss ? " (" + miss + ")" : ""), genWhy)}</span>
+        </div>
+        ${gOn ? `<div class="gcf-more"><button type="button" class="svc-b" data-gcf="graph">RÉGLAGES DU GRAPHIQUE…</button></div>` : ""}
+        <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button></div></div>`;
+      document.getElementById("svConf")?.remove();
+      sviWinShow(d);
+      d.addEventListener("change", e => {
+        const i = e.target;
+        if (i.closest && i.closest(".hcf-seg")) i.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked));
+        if (i.name === "gcs" && SC) SC.set(i.value);
+        else if (i.name === "gco") DX.viewSet(i.value);
+        else if (i.classList.contains("gcf-cut")) DX.cutSet(i.checked);
+      });
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        const b = e.target.closest("[data-gcf]"); if (!b) return;
+        if (b.classList.contains("off")) { svToast(b.dataset.why, 3000, b); return; }
+        d.remove();
+        if (b.dataset.gcf === "graph") dlyHCfgWin();
+        else if (b.dataset.gcf === "gen") dlyCompressRun({ gen: true });
+        else dlyCompressRun();
+      });
+    };
+
     /* ---------- R21 à R23 : CAPACITÉ ---------- */
     /* couper la barre à une date : les tâches qui commencent avant restent dans le morceau de gauche (la coupe les suit) */
     const dlyCutPlaf = iso => {
@@ -15314,7 +15364,7 @@ ${A}</Assignments>
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         const x = e.target.closest(".pcs-x");
         if (x && rows.length > 1) { rows.splice(Number(x.dataset.i), 1); draw(); return; }
-        if (e.target.closest("[data-add]") && !dlyCutOK()) { svToast("COUPE DES TÂCHES INTERDITE : COCHER AUTORISER LA COUPE DES TÂCHES (MENU ⋯ DU PLANNING).", 4000, e.target.closest("[data-add]")); return; }
+        if (e.target.closest("[data-add]") && !dlyCutOK()) { svToast("COUPE DES TÂCHES INTERDITE : COCHER AUTORISER LA COUPE DES TÂCHES (⚙ DU PLANNING).", 4000, e.target.closest("[data-add]")); return; }
         if (e.target.closest("[data-add]")) { const l = rows[rows.length - 1], a = sviWAdd(cal, l.fin, 2); rows.push({ id: insId(), deb: a, fin: a }); draw(); return; }
         if (e.target.closest("[data-glue]") && rows.length > 1) {
           const tot = rows.reduce((t, r) => t + (Number(dDur(r.deb, r.fin)) || 1), 0), a = rows[0].deb;
@@ -15333,7 +15383,7 @@ ${A}</Assignments>
           else if (INS.dbut && r.fin > INS.dbut) err = "FIN REFUSÉE : APRÈS LA DATE BUTOIR DU " + dFr(INS.dbut) + ".";
         });
         if (!err && pf && R[0].deb < pf) err = "DÉBUT REFUSÉ : LES LIAISONS IMPOSENT LE " + dFr(pf) + " AU PLUS TÔT.";
-        if (!err && R.length > 1 && !dlyCutOK()) err = "COUPE DES TÂCHES INTERDITE : RECOLLER LES MORCEAUX OU AUTORISER LA COUPE (MENU ⋯ DU PLANNING).";
+        if (!err && R.length > 1 && !dlyCutOK()) err = "COUPE DES TÂCHES INTERDITE : RECOLLER LES MORCEAUX OU AUTORISER LA COUPE (⚙ DU PLANNING).";
         if (err) { svToast(err, 3500, d.querySelector("[data-ok]")); return; }
         const L = dlyDraftKey(k);
         L.splice(0, L.length, ...R.map(r => ({ id: r.id, deb: r.deb, fin: r.fin })));
@@ -25186,7 +25236,7 @@ ${A}</Assignments>
       if (act === "view") { if (shell.__scnView) shell.__scnView(); return; }   /* v686 : bloc SCÉNARIOS, LISTE ⇄ COMPARAISON */
       /* v546 (R33) : ↻ AJUSTER À LA CAPACITÉ (DÉTAIL DÉLAIS) */
       /* v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE, en haut à côté de ↻, AGRANDIR et ⋯ */
-      if (act === "cfg") { const DX = shell.__insDly; if (DX) DX.hcfgWin(); return; }
+      if (act === "cfg") { const DX = shell.__insDly; if (DX) DX.gcfgWin(); return; }   /* v701 : RÉGLAGES DU GANTT */
       if (act === "adj") { const b = shell.querySelector(".blk-adj-btn"), DX = shell.__insDly; if (b && b.classList.contains("off")) { svToast(b.dataset.why || "RIEN À AJUSTER.", 3500, b); return; } if (DX) DX.gcWin(); return; }
       if (act === "del") return insDelRun(blk);
       { const cs = ["copy", "cut", "paste"].includes(act) && colSelFor(blk); if (cs) return colOp(act, cs); }
@@ -25271,7 +25321,7 @@ ${A}</Assignments>
            affichage du Gantt = CALENDRIER DU BUDGET, réglages de l'histogramme = ⚙ */
         const vw = DX.view();
         const ck = (v, lab, on, off) => `<button type="button" data-dly="${v}" class="dly-sc${on ? " on" : ""}${off ? " off" : ""}"${off ? ` data-why="${esc(off)}"` : ""}><span>${on ? "✓ " : ""}${lab}</span></button>`;
-        m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">PLANNING</div>${ck("v-d", "AFFICHER PAR DÉBUT", vw === "d")}${ck("cut", "AUTORISER LA COUPE DES TÂCHES", DX.cutOK())}${ck("crit", "CHEMIN CRITIQUE", DX.critOn())}<button type="button" data-dly="lock"><span>VERROUS DÉBUT / FIN DES TÂCHES COCHÉES…</span>${svCnt((shell.__dlySel || new Set()).size)}</button><button type="button" data-dly="pp"><span>PARAMÉTRAGE DU PLANNING…</span></button>`   /* v561 : plus d'AFFICHER PAR LOT ni de CLASSER PAR DÉBUT ; AFFICHER PAR DÉBUT à deux états */
+        m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">PLANNING</div>${ck("crit", "CHEMIN CRITIQUE", DX.critOn())}<button type="button" data-dly="lock"><span>VERROUS DÉBUT / FIN DES TÂCHES COCHÉES…</span>${svCnt((shell.__dlySel || new Set()).size)}</button><button type="button" data-dly="pp"><span>PARAMÉTRAGE DU PLANNING…</span></button>`   /* v561 : plus d'AFFICHER PAR LOT ni de CLASSER PAR DÉBUT ; AFFICHER PAR DÉBUT à deux états */
           /* v553 (partie 11, remarque 3) : plus d'entrée « + AJOUTER UNE TÂCHE OU SES DÉLAIS » */
           + `<div class="blk-sep"></div>`   /* v572 (remarque 17) : réglages des commandes dans RÉGLAGES DU GRAPHIQUE ⚙ */);
         let lp = null;

@@ -336,7 +336,7 @@
       if (act === "view") { if (shell.__scnView) shell.__scnView(); return; }   /* v686 : bloc SCÉNARIOS, LISTE ⇄ COMPARAISON */
       /* v546 (R33) : ↻ AJUSTER À LA CAPACITÉ (DÉTAIL DÉLAIS) */
       /* v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE, en haut à côté de ↻, AGRANDIR et ⋯ */
-      if (act === "cfg") { const DX = shell.__insDly; if (DX) DX.hcfgWin(); return; }
+      if (act === "cfg") { const DX = shell.__insDly; if (DX) DX.gcfgWin(); return; }   /* v701 : RÉGLAGES DU GANTT */
       if (act === "adj") { const b = shell.querySelector(".blk-adj-btn"), DX = shell.__insDly; if (b && b.classList.contains("off")) { svToast(b.dataset.why || "RIEN À AJUSTER.", 3500, b); return; } if (DX) DX.gcWin(); return; }
       if (act === "del") return insDelRun(blk);
       { const cs = ["copy", "cut", "paste"].includes(act) && colSelFor(blk); if (cs) return colOp(act, cs); }
@@ -421,7 +421,7 @@
            affichage du Gantt = CALENDRIER DU BUDGET, réglages de l'histogramme = ⚙ */
         const vw = DX.view();
         const ck = (v, lab, on, off) => `<button type="button" data-dly="${v}" class="dly-sc${on ? " on" : ""}${off ? " off" : ""}"${off ? ` data-why="${esc(off)}"` : ""}><span>${on ? "✓ " : ""}${lab}</span></button>`;
-        m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">PLANNING</div>${ck("v-d", "AFFICHER PAR DÉBUT", vw === "d")}${ck("cut", "AUTORISER LA COUPE DES TÂCHES", DX.cutOK())}${ck("crit", "CHEMIN CRITIQUE", DX.critOn())}<button type="button" data-dly="lock"><span>VERROUS DÉBUT / FIN DES TÂCHES COCHÉES…</span>${svCnt((shell.__dlySel || new Set()).size)}</button><button type="button" data-dly="pp"><span>PARAMÉTRAGE DU PLANNING…</span></button>`   /* v561 : plus d'AFFICHER PAR LOT ni de CLASSER PAR DÉBUT ; AFFICHER PAR DÉBUT à deux états */
+        m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">PLANNING</div>${ck("crit", "CHEMIN CRITIQUE", DX.critOn())}<button type="button" data-dly="lock"><span>VERROUS DÉBUT / FIN DES TÂCHES COCHÉES…</span>${svCnt((shell.__dlySel || new Set()).size)}</button><button type="button" data-dly="pp"><span>PARAMÉTRAGE DU PLANNING…</span></button>`   /* v561 : plus d'AFFICHER PAR LOT ni de CLASSER PAR DÉBUT ; AFFICHER PAR DÉBUT à deux états */
           /* v553 (partie 11, remarque 3) : plus d'entrée « + AJOUTER UNE TÂCHE OU SES DÉLAIS » */
           + `<div class="blk-sep"></div>`   /* v572 (remarque 17) : réglages des commandes dans RÉGLAGES DU GRAPHIQUE ⚙ */);
         let lp = null;

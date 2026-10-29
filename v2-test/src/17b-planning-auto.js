@@ -450,6 +450,49 @@
       });
     };
 
+    /* v701 : ⚙ RÉGLAGES DU GANTT (avant ↻, à la place des réglages du menu ⋯) — AFFICHAGE JOUR / SEMAINE / MOIS, ORDRE PAR DÉBUT / NORMAL,
+       AUTORISER LA COUPE DES TÂCHES (effet immédiat), COMPRESSER, GÉNÉRER ; RÉGLAGES DU GRAPHIQUE… quand le graphique est affiché */
+    const dlyGCfgWin = () => {
+      const DX = shell.__insDly, SC = window.__sviDlyScale; if (!DX) return;
+      const miss = dlyKeys().filter(k => !(dlyDeb(k) && dlyFin(k))).length, nk = dlyKeys().length;
+      const hEl = shell.querySelector(".dlyg-foot .ghist"), gOn = !!hEl && hEl.offsetHeight > 0 && !shell.querySelector(".dlyg.dly-hnone");
+      const d = sviWinNew();
+      const seg = (n, v, l, on) => `<label class="hcf-seg${on ? " on" : ""}"><input type="radio" name="${n}" value="${v}"${on ? " checked" : ""}><span>${l}</span></label>`;
+      const sc = SC ? SC.get() : "s", vw = DX.view();
+      const genWhy = !nk ? "AUCUNE TÂCHE DANS LE PLANNING." : !miss ? "TOUTES LES TÂCHES ONT DÉJÀ LEURS DATES." : "";
+      const compWhy = !nk ? "AUCUNE TÂCHE DANS LE PLANNING." : "";
+      const act = (k, l, why) => `<button type="button" class="svc-b gcf-act${why ? " off" : ""}" data-gcf="${k}"${why ? ` data-why="${esc(why)}"` : ""}>${l}</button>`;
+      d.innerHTML = `<div class="svc-card hcf-card gcf-card" role="dialog" aria-modal="true">
+        <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
+        <div class="svc-t">RÉGLAGES DU GANTT</div>
+        <div class="hcf-g">
+          <span class="hcf-k">AFFICHAGE</span><span class="hcf-sw hcf-sw3">${[["j", "JOUR"], ["s", "SEMAINE"], ["m", "MOIS"]].map(([v, l]) => seg("gcs", v, l, sc === v)).join("")}</span>
+          <span class="hcf-k">ORDRE</span><span class="hcf-sw">${seg("gco", "l", "NORMAL", vw !== "d")}${seg("gco", "d", "PAR DÉBUT", vw === "d")}</span>
+          <span class="hcf-k">COUPE</span><span class="hcf-cbs"><label><input type="checkbox" class="gcf-cut"${dlyCutOK() ? " checked" : ""}><span>AUTORISER LA COUPE DES TÂCHES</span></label></span>
+          <span class="hcf-k">CALCUL</span><span class="hcf-pl gcf-acts">${act("comp", "COMPRESSER", compWhy)}${act("gen", "GÉNÉRER" + (miss ? " (" + miss + ")" : ""), genWhy)}</span>
+        </div>
+        ${gOn ? `<div class="gcf-more"><button type="button" class="svc-b" data-gcf="graph">RÉGLAGES DU GRAPHIQUE…</button></div>` : ""}
+        <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button></div></div>`;
+      document.getElementById("svConf")?.remove();
+      sviWinShow(d);
+      d.addEventListener("change", e => {
+        const i = e.target;
+        if (i.closest && i.closest(".hcf-seg")) i.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked));
+        if (i.name === "gcs" && SC) SC.set(i.value);
+        else if (i.name === "gco") DX.viewSet(i.value);
+        else if (i.classList.contains("gcf-cut")) DX.cutSet(i.checked);
+      });
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        const b = e.target.closest("[data-gcf]"); if (!b) return;
+        if (b.classList.contains("off")) { svToast(b.dataset.why, 3000, b); return; }
+        d.remove();
+        if (b.dataset.gcf === "graph") dlyHCfgWin();
+        else if (b.dataset.gcf === "gen") dlyCompressRun({ gen: true });
+        else dlyCompressRun();
+      });
+    };
+
     /* ---------- R21 à R23 : CAPACITÉ ---------- */
     /* couper la barre à une date : les tâches qui commencent avant restent dans le morceau de gauche (la coupe les suit) */
     const dlyCutPlaf = iso => {
@@ -796,7 +839,7 @@
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
         const x = e.target.closest(".pcs-x");
         if (x && rows.length > 1) { rows.splice(Number(x.dataset.i), 1); draw(); return; }
-        if (e.target.closest("[data-add]") && !dlyCutOK()) { svToast("COUPE DES TÂCHES INTERDITE : COCHER AUTORISER LA COUPE DES TÂCHES (MENU ⋯ DU PLANNING).", 4000, e.target.closest("[data-add]")); return; }
+        if (e.target.closest("[data-add]") && !dlyCutOK()) { svToast("COUPE DES TÂCHES INTERDITE : COCHER AUTORISER LA COUPE DES TÂCHES (⚙ DU PLANNING).", 4000, e.target.closest("[data-add]")); return; }
         if (e.target.closest("[data-add]")) { const l = rows[rows.length - 1], a = sviWAdd(cal, l.fin, 2); rows.push({ id: insId(), deb: a, fin: a }); draw(); return; }
         if (e.target.closest("[data-glue]") && rows.length > 1) {
           const tot = rows.reduce((t, r) => t + (Number(dDur(r.deb, r.fin)) || 1), 0), a = rows[0].deb;
@@ -815,7 +858,7 @@
           else if (INS.dbut && r.fin > INS.dbut) err = "FIN REFUSÉE : APRÈS LA DATE BUTOIR DU " + dFr(INS.dbut) + ".";
         });
         if (!err && pf && R[0].deb < pf) err = "DÉBUT REFUSÉ : LES LIAISONS IMPOSENT LE " + dFr(pf) + " AU PLUS TÔT.";
-        if (!err && R.length > 1 && !dlyCutOK()) err = "COUPE DES TÂCHES INTERDITE : RECOLLER LES MORCEAUX OU AUTORISER LA COUPE (MENU ⋯ DU PLANNING).";
+        if (!err && R.length > 1 && !dlyCutOK()) err = "COUPE DES TÂCHES INTERDITE : RECOLLER LES MORCEAUX OU AUTORISER LA COUPE (⚙ DU PLANNING).";
         if (err) { svToast(err, 3500, d.querySelector("[data-ok]")); return; }
         const L = dlyDraftKey(k);
         L.splice(0, L.length, ...R.map(r => ({ id: r.id, deb: r.deb, fin: r.fin })));
