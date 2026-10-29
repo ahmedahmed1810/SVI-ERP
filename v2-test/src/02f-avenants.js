@@ -18,14 +18,14 @@ const sviAvStages = ref => {
   if (!root) return [it];
   return [root, ...L.filter(x => x.parent === root.ref).sort((a, b) => (a.avn || 0) - (b.avn || 0))];
 };
-const sviAvName = it => it && it.parent ? "AVENANT " + (it.avn || 1) : "MARCHÉ INITIAL";
+const sviAvName = it => it && it.vname ? it.vname : it && it.parent ? "AVENANT " + (it.avn || 1) : "MARCHÉ INITIAL";
 /* budget consolidé */
 const sviAvMerge = rootRef => {
   const S = sviAvStages(rootRef);
   if (!S.length) return null;
   const D0 = JSON.parse(JSON.stringify(S[0].data || {}));
   const M = { ...D0, des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: D0.qlt || [], links: [], dlp: {}, dlpSec: true };
-  delete M.ver; delete M.dord; delete M.conf;
+  delete M.ver; delete M.vfz; delete M.dord; delete M.conf;
   const n = v => Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")) || 0;
   const key = { des: r => r.t ? "T|" + sviAvU(r.art) + "|" + sviAvU(r.des) : sviAvU(r.des) + "|" + sviAvU(r.u), lot: r => sviAvU(r.v), prim: r => sviAvU(r.v), sec: r => sviAvU(r.v), chg: r => r.t ? "T|" + sviAvU(r.des) : sviAvU(r.des) + "|" + sviAvU(r.u) };
   S.forEach((st, si) => {

@@ -108,6 +108,7 @@
         if (!go) return;
         /* validation : les données gardées sous les lignes titre sont effacées */
         ((budget.inst.data || {}).des || []).forEach(r => { if (r.t) ["u", "q", "p", "tva"].forEach(f => { delete r[f]; }); });
+        try { shell.__verFreeze && shell.__verFreeze("VALIDÉE"); } catch (e) {}
         budget.inst.state = "valide";
         const d = new Date(), p2 = n => String(n).padStart(2, "0");
         budget.inst.validated = d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()) + "T" + p2(d.getHours()) + ":" + p2(d.getMinutes());
@@ -151,6 +152,7 @@
         if (!(await svConfirm(fige
           ? { title: "REVENIR EN ÉDITION", text: fullRef, ok: "REVENIR EN ÉDITION" }
           : { title: "FIGER", text: fullRef + " PASSE EN LECTURE SEULE (RETOUR EN ÉDITION POSSIBLE).", ok: "FIGER" }))) return;
+        if (!fige) try { shell.__verFreeze && shell.__verFreeze("FIGÉE"); } catch (e) {}
         budget.inst.state = fige ? "instance" : "fige";
         instUpd(l => l.map(x => x.ref === ref ? { ...x, state: budget.inst.state } : x));
         histLog("BUDGET", fige ? "RETOUR EN ÉDITION" : "FIGÉ", fullRef);
