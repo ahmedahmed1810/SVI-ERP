@@ -409,6 +409,12 @@
       return;
     }
 
+    /* v698 : lignes SAISIR ICI (nouveau budget) et AJOUTER UN AVENANT ICI */
+    const nb = event.target.closest("tr[data-newbdg]");
+    if (nb) { openNewBudget(); return; }
+    const na = event.target.closest("tr[data-newav]");
+    if (na) { if (na.classList.contains("off")) { svToast(na.dataset.why || "", 3500, na); return; } sviAvNew(na.dataset.newav, null); return; }
+
     /* budget en instance : suppression (après confirmation) */
     const delButton = event.target.closest("[data-del-budget]");
     if (delButton) {
