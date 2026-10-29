@@ -39,7 +39,7 @@
       let c = { ok: false, why: "" }; try { c = shell.__insDly.keys().length ? { ok: true } : { ok: false, why: "AUCUNE TÂCHE AU PLANNING." }; } catch (e) {}
       b.classList.toggle("off", !c.ok); if (c.ok) delete b.dataset.why; else b.dataset.why = c.why;
     };
-    const renderTab = () => { sviStep("ONGLET : " + active); renderTab0(); sviStep("ONGLET DESSINÉ : " + active); sviMarkEmptyTabs(shell); try { dlyAdjPaint(); } catch (e) {} };
+    const renderTab = () => { sviStep("ONGLET : " + active); renderTab0(); sviStep("ONGLET DESSINÉ : " + active); sviMarkEmptyTabs(shell); try { dlyAdjPaint(); } catch (e) {} try { requestAnimationFrame(() => { try { layDetFloor(); } catch (e) {} }); } catch (e) {} };
     const renderTab0 = () => {
       shell
         .querySelectorAll("#bdgTabs .bdg-d-tab")
@@ -196,6 +196,30 @@
       const el = page$().querySelector(sel);
       return el ? el.getBoundingClientRect().height : 150;
     };
+    /* v683 : minimum du bloc détail, mesuré sur l'onglet ouvert — en-tête des colonnes + une ligne entière (+ ligne TOTAL),
+       aucune ligne coupée (même format que TÂCHES) ; bandeaux posés au-dessus et barre de défilement compris */
+    const layDetMin = () => {
+      const scr = page$() && page$().querySelector("#bdgTabBody .bdg-d-scroll");
+      if (!scr || !scr.offsetHeight) return 65;
+      const tb = [...scr.querySelectorAll("table")].find(t => t.offsetHeight && t.tHead);
+      if (!tb) return 65;
+      const sr = scr.getBoundingClientRect();
+      const top = tb.getBoundingClientRect().top - sr.top + scr.scrollTop;
+      const head = tb.tHead.getBoundingClientRect().height;
+      const rows = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight);
+      const tot = rows.filter(r => /\bTOTAL\b/.test(r.textContent || "") && r.classList.length && /tot/i.test(r.className));
+      const row = rows.find(r => !tot.includes(r));
+      const foot = (tb.tFoot && tb.tFoot.offsetHeight ? tb.tFoot.getBoundingClientRect().height : 0) + tot.reduce((t, r) => t + r.getBoundingClientRect().height, 0);
+      let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
+      const bar = Math.max(0, scr.offsetHeight - scr.clientHeight);
+      return Math.max(65, Math.ceil(top + head + (row ? row.getBoundingClientRect().height : 21) + foot + ban + bar + 1));
+    };
+    /* hauteur enregistrée plus petite que le minimum de l'onglet ouvert : remontée à l'affichage (non enregistrée) */
+    const layDetFloor = () => {
+      const pg = page$(); if (!pg || pg.classList.contains("max-detail")) return;
+      const cur = parseFloat(pg.style.getPropertyValue("--h-detail")) || 0, m = layDetMin();
+      if (cur && cur < m) pg.style.setProperty("--h-detail", m + "px");
+    };
     const layOrder = () => {
       const saved = (layLoad().order || []).filter(u => LAY_UNITS.includes(u));
       return [...saved, ...LAY_UNITS.filter(u => !saved.includes(u))];
@@ -214,6 +238,7 @@
         if (h) pg.style.setProperty("--h-" + u, h + "px");
         else pg.style.removeProperty("--h-" + u);
       });
+      try { requestAnimationFrame(() => { try { layDetFloor(); } catch (e) {} }); } catch (e) {}
       /* v557 : hauteur par défaut du détail recalculée si l'écran change (rotation, barre de Safari) */
       if (!shell.__layDetRs) { shell.__layDetRs = true; let tm = 0; window.addEventListener("resize", () => { clearTimeout(tm); tm = setTimeout(() => { if (shell.isConnected && page$() && !(layLoad().h || {}).detail) layApply(); }, 300); }); }
       const custom = (lay.order && lay.order.join() !== LAY_UNITS.join()) ||
@@ -281,10 +306,11 @@
       const base = layMeasure(u);
       let v = base;
       h.classList.add("on");
+      const DMIN = u === "detail" ? layDetMin() : 0;
       const move = e => {
         e.preventDefault();
         /* minimum : en-tête + une seule ligne (+ ligne TOTAL s'il y en a une) */
-        const minH = { client: 65, detail: 65 }[u] || 44;
+        const minH = u === "detail" ? DMIN : { client: 65 }[u] || 44;
         v = Math.max(minH, Math.round(base + e.clientY - y0));
         pg.style.setProperty("--h-" + u, v + "px");
       };
