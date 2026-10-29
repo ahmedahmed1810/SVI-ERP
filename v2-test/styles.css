@@ -2937,3 +2937,12 @@ td.ins-pmp { position: relative; }
 .svi-ro .bdg-d-page tr.ins-new, .svi-ro .bdg-d-page .ins-li.ins-new { display: none !important; }
 .svi-ro .bdg-d-page :is(.ins-x, .ins-xall, .ins-delc) { visibility: hidden !important; }
 .svi-ro .bdg-d-page .blk-adj-btn, .svi-ro .bdg-d-page .blk-cfg-btn { opacity: .35; }
+/* v698 : écran ouvert en haut au centre (à la place de VERSION TEST / BASE À JOUR) ; lignes SAISIR ICI de la liste mère */
+#sviScreenTag { position: fixed; left: 50%; top: 9px; transform: translateX(-50%); z-index: 20001; background: #172033; color: #fff; font: 800 13px Arial, sans-serif; letter-spacing: .5px; padding: 6px 16px; border-radius: 14px; pointer-events: none; white-space: nowrap; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; }
+body.bdg-screen #sviTestTag, body.bdg-screen #sviSync.sync-ok { display: none !important; }
+body.bdg-screen #sviSync { top: 40px; }
+body:not(.bdg-screen) #sviScreenTag { display: none; }
+#budgetListTable tr.bdg-newrow td { color: #6b7480; background: #f8fafc; cursor: pointer; font-weight: 700; }
+#budgetListTable tr.bdg-newrow.bdg-kid td { padding-left: 36px; color: #3b6ea5; }
+#budgetListTable tr.bdg-newrow.off td { color: #9aa3b2; cursor: not-allowed; }
+#budgetListTable tr.bdg-newrow small { color: #9aa3b2; font-weight: 600; }

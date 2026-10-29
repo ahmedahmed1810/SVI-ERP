@@ -5699,6 +5699,7 @@ function renderBudgetList() {
 
   /* titre, couleur et boutons de la barre de la liste */
   shell.classList.remove("bdg-inst-instance", "bdg-inst-fige", "bdg-av");
+  document.body.classList.remove("bdg-screen"); document.getElementById("sviScreenTag")?.remove();   /* v698 */
   shell.classList.toggle("list-inst", listMode === "inst");
   sviWatchState(shell);
   {
@@ -6202,18 +6203,10 @@ function renderBudgetList() {
     /* compteur du titre : budgets affichés (filtres compris) */
     { const c = $("bdgListCount"); if (c) c.innerHTML = svCnt(data.length, budgets.length); }
 
+    /* v698 : plus de bouton + — dernière ligne « SAISIR ICI… » (fenêtre INF du nouveau budget) */
+    const NEWROW = `<tr class="bdg-newrow" data-newbdg="1"><td colspan="7">SAISIR ICI… <small>(NOUVEAU BUDGET)</small></td></tr>`;
     if (!data.length) {
-      tbody.innerHTML = `
-        <tr>
-          <td
-            colspan="7"
-            class="empty"
-          >
-            AUCUN BUDGET
-          </td>
-        </tr>
-      `;
-
+      tbody.innerHTML = `<tr><td colspan="7" class="empty">AUCUN BUDGET</td></tr>` + NEWROW;
       return;
     }
 
@@ -6293,7 +6286,9 @@ function renderBudgetList() {
         ${kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}">
           <td><span class="bdg-kid-lab">${esc(k.lab)}</span> <small>${esc(k.ref)}</small></td><td>${esc(k.budget)}</td><td title="${esc(k.intitule)}">${esc(k.intitule)}</td>
           <td class="number">${money(k.ttc)}</td><td>${esc(k.validated)}</td><td>${esc(k.entered)}</td><td></td></tr>`).join("")}
-      `; }).join("");
+        ${open ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
+          return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="7">AJOUTER UN AVENANT ICI…</td></tr>`; })() : ""}
+      `; }).join("") + NEWROW;
   }
 
   /* -------------------------------------------------------
@@ -6814,6 +6809,18 @@ function renderBudgetList() {
       return true;
     };
     shell.__hnavGo = hnavGo;
+    /* v698 : en haut au centre, à la place de VERSION TEST / BASE : l'écran ouvert (BUDGET CONSOLIDÉ, BUDGET INITIAL,
+       BUDGET AVENANT 1, version, recalage, scénario actif) ; l'état de la base ne reste affiché que s'il n'est pas à jour */
+    {
+      const bi = budget.inst;
+      const fam = bi && !bi.virtual && !bi.rclOf ? sviAvStages(bi.parent || bi.ref).length > 1 : false;
+      let lab = !bi ? "BUDGET" : bi.virtual ? (bi.vname ? bi.vname.replace(/^MARCHÉ INITIAL/, "BUDGET INITIAL").replace(/^AVENANT/, "BUDGET AVENANT") : "BUDGET CONSOLIDÉ")
+        : bi.rclOf ? "RECALAGE R" + bi.rcn : bi.parent ? "BUDGET AVENANT " + (bi.avn || 1) : fam ? "BUDGET INITIAL" : "BUDGET";
+      try { const V = (bi && bi.data && bi.data.ver) || {}, SC = (V.L || []).filter(x => x.kind === "sc"); if (SC.length > 1) { const a = SC.find(x => x.id === V.act); if (a) lab += " — " + a.nom; } } catch (e) {}
+      document.getElementById("sviScreenTag")?.remove();
+      const t = document.createElement("div"); t.id = "sviScreenTag"; t.textContent = lab; document.body.appendChild(t);
+      document.body.classList.add("bdg-screen");
+    }
     window.__sviBdgNav = HNAV && HNAV.swipe ? { go: d => hnavGo(d) } : null;
     sviWatchState(shell);
 
@@ -26077,6 +26084,12 @@ ${A}</Assignments>
 
       return;
     }
+
+    /* v698 : lignes SAISIR ICI (nouveau budget) et AJOUTER UN AVENANT ICI */
+    const nb = event.target.closest("tr[data-newbdg]");
+    if (nb) { openNewBudget(); return; }
+    const na = event.target.closest("tr[data-newav]");
+    if (na) { if (na.classList.contains("off")) { svToast(na.dataset.why || "", 3500, na); return; } sviAvNew(na.dataset.newav, null); return; }
 
     /* budget en instance : suppression (après confirmation) */
     const delButton = event.target.closest("[data-del-budget]");

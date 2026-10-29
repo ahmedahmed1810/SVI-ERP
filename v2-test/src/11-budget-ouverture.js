@@ -315,6 +315,18 @@
       return true;
     };
     shell.__hnavGo = hnavGo;
+    /* v698 : en haut au centre, à la place de VERSION TEST / BASE : l'écran ouvert (BUDGET CONSOLIDÉ, BUDGET INITIAL,
+       BUDGET AVENANT 1, version, recalage, scénario actif) ; l'état de la base ne reste affiché que s'il n'est pas à jour */
+    {
+      const bi = budget.inst;
+      const fam = bi && !bi.virtual && !bi.rclOf ? sviAvStages(bi.parent || bi.ref).length > 1 : false;
+      let lab = !bi ? "BUDGET" : bi.virtual ? (bi.vname ? bi.vname.replace(/^MARCHÉ INITIAL/, "BUDGET INITIAL").replace(/^AVENANT/, "BUDGET AVENANT") : "BUDGET CONSOLIDÉ")
+        : bi.rclOf ? "RECALAGE R" + bi.rcn : bi.parent ? "BUDGET AVENANT " + (bi.avn || 1) : fam ? "BUDGET INITIAL" : "BUDGET";
+      try { const V = (bi && bi.data && bi.data.ver) || {}, SC = (V.L || []).filter(x => x.kind === "sc"); if (SC.length > 1) { const a = SC.find(x => x.id === V.act); if (a) lab += " — " + a.nom; } } catch (e) {}
+      document.getElementById("sviScreenTag")?.remove();
+      const t = document.createElement("div"); t.id = "sviScreenTag"; t.textContent = lab; document.body.appendChild(t);
+      document.body.classList.add("bdg-screen");
+    }
     window.__sviBdgNav = HNAV && HNAV.swipe ? { go: d => hnavGo(d) } : null;
     sviWatchState(shell);
 
