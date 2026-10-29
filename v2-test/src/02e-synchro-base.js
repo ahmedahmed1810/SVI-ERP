@@ -134,6 +134,7 @@ const sviSyncPhoto = it => {
 const sviSyncPushOne = async (ref, M) => {
   const m = M[ref] || {}, user = sviUser();
   if (m.del) { await sviQ("v3Del", { ref }); delete M[ref]; return; }
+  if (SVI_CLAIM) await SVI_CLAIM.catch(() => {});   /* v678 : réponse du verrou d'abord (annulation éventuelle) */
   let it = sviInstGet().find(x => x.ref === ref);
   if (!it) { delete M[ref]; return; }
   for (let tour = 0; tour < 3; tour++) {
@@ -252,20 +253,31 @@ const sviZoneGuard = e => {
     return;
   }
   /* ma zone de travail : verrou pris dès le premier toucher */
-  if (/^(pointerdown|focusin|keydown)$/.test(e.type) && window.__sviOpenTab !== z) { window.__sviOpenTab = z; sviLockKeep(); }
+  if (/^(pointerdown|focusin|keydown)$/.test(e.type) && window.__sviOpenTab !== z) { window.__sviOpenTab = z; sviLockKeep(true); }
 };
 ["pointerdown", "mousedown", "touchstart", "click", "dblclick", "focusin", "keydown", "beforeinput", "input", "change", "dragstart", "contextmenu"].forEach(ev => document.addEventListener(ev, sviZoneGuard, true));
-const sviLockKeep = () => {
+/* v678 : zone prise par un autre AVANT moi (décalage de quelques secondes) : tout ce que j'y ai fait depuis mon entrée
+   dans la zone est annulé (retour à l'état du budget à cet instant) ; l'envoi à la base attend la réponse du verrou. */
+let SVI_CLAIM = null;
+const sviLockKeep = claim => {
   const r = window.__sviOpenRef, tab = window.__sviOpenTab || "";
   if (!r || !tab || !window.__sviOpenEdit || !navigator.onLine) return;
-  sviQ("v3Lock", { ref: r, user: sviUser(), onglet: tab }).then(x => {
+  const C = window.__sviZoneCtx, snap = claim && C && C.snap ? { at: Date.now(), s: C.snap() } : null;
+  const p = sviQ("v3Lock", { ref: r, user: sviUser(), onglet: tab }).then(x => {
     /* l'autre a pris cette zone juste avant moi : elle passe en lecture seule */
     if (x && x.held && window.__sviOpenRef === r && (!x.held.onglet || x.held.onglet === tab)) {
       const L = SVI_SYNC.locks[r] = (SVI_SYNC.locks[r] || []).filter(k => k.user !== x.held.user); L.push({ ref: r, ...x.held });
       if (window.__sviOpenTab === tab) window.__sviOpenTab = "";
       sviZonePaint();
+      const Z = window.__sviZoneCtx;
+      if (snap && Z && Z.ref === r && Z.snap() !== snap.s) {
+        Z.restore(snap.s, tab + " — ZONE PRISE PAR " + x.held.user + " À " + new Date(x.held.ts).toLocaleTimeString("fr-FR"));
+        const hm = t => new Date(t).toLocaleTimeString("fr-FR");
+        if (typeof svToast === "function") svToast("« " + tab + " » : " + x.held.user + " Y TRAVAILLAIT DEPUIS " + hm(x.held.ts) + ". TES MODIFICATIONS FAITES DEPUIS " + hm(snap.at) + " SONT ANNULÉES.", 8000);
+      }
     }
   }).catch(() => {});
+  if (claim) { SVI_CLAIM = p; p.then(() => { if (SVI_CLAIM === p) SVI_CLAIM = null; }); }
 };
 const sviLockOpen = (ref, edit) => { window.__sviOpenRef = ref; window.__sviOpenEdit = !!edit; window.__sviOpenTab = ""; };
 const sviLockClose = () => {
