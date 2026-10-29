@@ -2876,3 +2876,19 @@ td.ins-pmp { position: relative; }
 .ver-table tr.ver-row { cursor: pointer; }
 .auto-a { color: #9aa3b2; font-size: 12px; font-weight: 700; margin-left: 3px; }
 .ver-bar .list-lab { color: #3f4856; }
+/* v691 : import — source en arborescence, blocs à cocher */
+#docPop .imp-src-head { padding: 8px 10px 4px; font-weight: 900; font-size: 12px; color: #3f4856; }
+#docPop .imp-src-head small { color: #9aa3b2; font-weight: 700; }
+#docPop .imp-blks .imp-all { font-weight: 900; }
+#docPop .imp-blks .imp-lk-note { flex-basis: 100%; }
+#docPop .imp-card .imp-table .imp-cb, #docPop .imp-card .imp-table .imp-cball { visibility: hidden; }
+/* v691 : liste mère en arborescence */
+#budgetListTable tr.bdg-fam { cursor: pointer; }
+#budgetListTable .bdg-fold { display: inline-block; width: 14px; font-weight: 900; color: #3f4856; margin-right: 4px; }
+#budgetListTable tr.bdg-kid td:first-child { padding-left: 36px; }
+#budgetListTable tr.bdg-kid .bdg-kid-lab { font-weight: 800; }
+#budgetListTable tr.bdg-kid small { color: #9aa3b2; font-weight: 600; }
+#budgetListTable tr.bdg-kid.inst-instance.row-av td { color: #dc2626; }
+#budgetListTable tr.bdg-kid.inst-fige.row-av td { color: #22a052; }
+#budgetListTable tr.bdg-kid.inst-valide.row-av td { color: #3b6ea5; }
+#budgetListTable tr.bdg-kid[data-kid="glob"] td { font-style: italic; }

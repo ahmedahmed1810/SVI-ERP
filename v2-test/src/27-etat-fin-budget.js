@@ -200,7 +200,7 @@
   window.__sviAvOpen = sviAvOpen;
   const sviAvAdd = (rootRef, o) => {
     const L = sviInstGet(), S = sviAvStages(rootRef), root = S[0], last = S[S.length - 1];
-    if (!root || last.state !== "valide") { sviAlert((S.length > 1 ? "LE DERNIER AVENANT" : "LE MARCHÉ INITIAL") + " DOIT ÊTRE VALIDÉ AVANT D'OUVRIR UN AVENANT.", "NOUVEL AVENANT"); return null; }
+    if (!root || last.state !== "valide") { sviAlert((S.length > 1 ? "LE DERNIER AVENANT" : "LE BUDGET INITIAL") + " DOIT ÊTRE VALIDÉ AVANT D'OUVRIR UN AVENANT.", "NOUVEL AVENANT"); return null; }
     const n = S.length, r = root.ref + "-AV" + n;
     const it = { ref: r, project: root.project, intitule: (o && o.intitule) || root.intitule, client: root.client, state: "instance", created: (o && o.created) || localDT(new Date()), parent: root.ref, avn: n, data: {} };
     sviInstSet(L.concat(it));
@@ -210,7 +210,7 @@
   /* nouvel avenant : fenêtre INF d'abord (DATE CRÉATION, PROJET, INTITULÉ — comme un nouveau budget) */
   const sviAvNew = (rootRef, ret) => {
     const S = sviAvStages(rootRef), root = S[0]; if (!root) return;
-    if (S[S.length - 1].state !== "valide") { sviAlert((S.length > 1 ? "LE DERNIER AVENANT" : "LE MARCHÉ INITIAL") + " DOIT ÊTRE VALIDÉ AVANT D'OUVRIR UN AVENANT.", "NOUVEL AVENANT"); return; }
+    if (S[S.length - 1].state !== "valide") { sviAlert((S.length > 1 ? "LE DERNIER AVENANT" : "LE BUDGET INITIAL") + " DOIT ÊTRE VALIDÉ AVANT D'OUVRIR UN AVENANT.", "NOUVEL AVENANT"); return; }
     document.getElementById("docPop")?.remove();
     const now = new Date(), p2 = x => String(x).padStart(2, "0");
     const local = now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()) + "T" + p2(now.getHours()) + ":" + p2(now.getMinutes());
@@ -248,7 +248,7 @@
       if (isNaN(new Date(val("#avDate")))) { p.querySelector("#avErr").textContent = "À COMPLÉTER (*) : DATE."; return; }
       const nr = sviAvAdd(rootRef, { created: val("#avDate"), intitule: val("#avName").toUpperCase() || root.intitule });
       p.remove();
-      if (nr) sviAvOpen(nr, ret || root.ref + "-GLOBAL");
+      if (nr) sviAvOpen(nr, ret || null);   /* v691 : ← ramène à la liste mère */
     });
   };
   window.__sviAvNew = sviAvNew;
@@ -419,10 +419,18 @@
     if (row) {
       /* v687 : budget à avenants → liste de ses étapes (au format de la liste mère), ouverte sur EN INSTANCE ;
          composition du consolidé remise par défaut (étapes validées) */
-      if (sviAvStages(row.dataset.budgetRef).length > 1) {
-        const r0 = row.dataset.budgetRef, g = r0 + "-GLOBAL";
+      /* v691 : arborescence — la ligne d'un budget à avenants se déplie / se replie ; une étape s'ouvre ; le consolidé s'ouvre
+         avec la composition par défaut de la liste affichée */
+      if (row.dataset.fam) {
+        let F = []; try { F = JSON.parse(localStorage.getItem("svi_bdgfold_v1") || "[]") || []; } catch (e) {}
+        const r0 = row.dataset.budgetRef; F = F.includes(r0) ? F.filter(x => x !== r0) : F.concat(r0);
+        try { localStorage.setItem("svi_bdgfold_v1", JSON.stringify(F)); } catch (e) {}
+        renderRows(); return;
+      }
+      if (row.dataset.kid === "glob") {
+        const g = row.dataset.budgetRef, r0 = g.replace(/-GLOBAL$/, "");
         window.__sviAvRet = null;
-        if (sviAvSelGet(r0) || !groups.has(g)) { sviAvSelSet(r0, null); sviAvOpen(g); } else openBudgetDetail(g);   /* v690 : le consolidé */
+        if (sviAvSelGet(r0) || !groups.has(g)) { sviAvSelSet(r0, null); sviAvOpen(g); } else openBudgetDetail(g);
         return;
       }
       openBudgetDetail(

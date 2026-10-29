@@ -595,8 +595,10 @@
        désignations / charges : ART + DÉSIGNATION + UNITÉ (+ titre) ;
        produits : idem (ART + DÉSIGNATION + UNITÉ) */
     /* modèle d'un budget source : lignes de chaque onglet + liens (lignes de détail) */
+    /* v691 : sources en plus des budgets de la liste — scénarios d'une étape (« SC|étape|id ») */
+    const IMP_EXTRA = new Map();
     const impModel = ref => {
-      const g = groups.get(ref);
+      const g = groups.get(ref) || IMP_EXTRA.get(ref);
       const m = { des: [], hier: [], chg: [], prd: [], qlt: [], dly: [], links: [] };
       if (!g) return m;
       if (g.inst) {
@@ -767,16 +769,44 @@
       if (!INS) return;
       const IND_ONLY = blk === "indlist", TABS = IND_ONLY ? [["ind", "INDICATEURS (TABLEAUX DE BORD)"]] : [...IMP_TABS, ["ind", "INDICATEURS"]];
       const startTab = blk === "rat" || IND_ONLY ? "ind" : blk === "client" ? "des" : blk === "hier" ? "hier" : (active === "prd" ? "prd" : "chg");
-      const refs = [...(blk === "rat" ? ["__LISTE"] : []), ...[...groups.keys()].filter(r => r !== ref || IND_ONLY)
-        .sort((a, b) => String(a).localeCompare(String(b), "fr", { numeric: true }))];
+      /* v691 : SOURCE EN ARBORESCENCE — budgets de la liste mère › consolidé et étapes (budget initial, avenants) ›
+         scénarios et versions de chaque étape ; tout élément est importable, consolidé compris */
+      IMP_EXTRA.clear();
+      const TREE = [];   /* { r, lab, lvl, head } */
+      const byRef = (a, b) => String(a).localeCompare(String(b), "fr", { numeric: true });
+      const subOf = st => {
+        const out = [], D = st.data || {}, V = D.ver || {};
+        (V.L || []).filter(x => x.kind === "sc" && x.id !== V.act && x.d).forEach(x => { const k = "SC|" + st.ref + "|" + x.id; IMP_EXTRA.set(k, { ref: k, project: st.project, rows: [], first: {}, inst: { ref: k, project: st.project, state: st.state, data: x.d } }); out.push({ r: k, lab: x.nom }); });
+        (D.vfz || []).forEach(v => { const k = st.ref + "-V" + v.n; if (groups.has(k)) out.push({ r: k, lab: "VERSION " + v.n + (v.auto ? " Ⓐ" : "") + " — " + (v.kind || "") }); });
+        return out;
+      };
+      if (blk === "rat") TREE.push({ r: "__LISTE", lab: "LISTE DES INDICATEURS (COMMUNE)", lvl: 0 });
+      [...groups.values()].filter(g => !(g.inst && g.inst.parent)).sort((a, b) => byRef(a.ref, b.ref)).forEach(g => {
+        const S = g.inst ? sviAvStages(g.ref) : [];
+        const lab0 = U_(g.project) + " " + g.ref;
+        if (S.length > 1) {
+          TREE.push({ r: "", lab: lab0, lvl: 0, head: true });
+          if (groups.has(g.ref + "-GLOBAL")) TREE.push({ r: g.ref + "-GLOBAL", lab: "BUDGET CONSOLIDÉ", lvl: 1 });
+          S.forEach(st => { TREE.push({ r: st.ref, lab: (st.parent ? "AVENANT " + (st.avn || 1) : "BUDGET INITIAL") + " — " + st.ref, lvl: 1 }); subOf(st).forEach(x => TREE.push({ ...x, lvl: 2 })); });
+        } else {
+          TREE.push({ r: g.ref, lab: lab0, lvl: 0 });
+          if (g.inst) subOf(g.inst).forEach(x => TREE.push({ ...x, lvl: 1 }));
+        }
+      });
+      TREE.forEach(t => { if (t.r === ref && !IND_ONLY) t.self = true; });
+      const refs = TREE.filter(t => t.r && !t.self).map(t => t.r);
       /* couleur de l'état, comme dans la liste des budgets */
       const stCls = g => !g || !g.inst || g.inst.state === "valide" ? "" : g.inst.state === "fige" ? "imp-fige" : "imp-inst";
-      const refLab = r => { if (r === "__LISTE") return "LISTE DES INDICATEURS (COMMUNE)"; const g = groups.get(r); return U_(g.project) + " " + r; };
+      const refLab = r => { if (r === "__LISTE") return "LISTE DES INDICATEURS (COMMUNE)"; const t = TREE.find(x => x.r === r), g = groups.get(r) || IMP_EXTRA.get(r);
+        const root = t ? TREE.slice(0, TREE.indexOf(t) + 1).reverse().find(x => x.lvl === 0) : null;
+        return t ? (t.lvl && root ? root.lab + " › " : "") + t.lab : g ? U_(g.project) + " " + r : r; };
       const impModelI = r => { const m = r === "__LISTE" ? { des: [], hier: [], chg: [], prd: [], qlt: [], dly: [], links: [] } : impModel(r);
         const L = r === "__LISTE" ? indLoad() : r === ref ? ratMigrate(JSON.parse(JSON.stringify(INS.rat || {}))).L : (() => { const g = groups.get(r); return g && g.inst ? ratMigrate(JSON.parse(JSON.stringify((g.inst.data || {}).rat || {}))).L : []; })();
         m.ind = (L || []).filter(I => I.f).map(I => ({ key: "ind|" + U_(I.nom), row: { nom: I.nom, form: indText(I.f, []), I } }));
         return m; };
       let src = refs[0] || "", model = impModelI(src), tab = startTab, withLinks = false, all = false;
+      /* v691 : blocs cochés, chacun arrive en entier ; liaisons toujours ramenées */
+      const blkOn = new Set(IND_ONLY ? ["ind"] : [startTab]);
       const sel = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set(), ind: new Set() };
       /* lignes liées décochées à la main : la liaison est coupée à cet endroit */
       const cut = new Set();
@@ -792,14 +822,11 @@
             <div class="imp-row"><span class="doc-lab">BUDGET SOURCE <b>*</b></span>
               <div class="imp-src">
                 <button type="button" class="imp-src-btn" id="impSrc"></button>
-                <div class="imp-src-list" hidden>${refs.map(r =>
-                  `<button type="button" class="imp-src-it ${stCls(groups.get(r))}" data-ref="${esc(r)}">${esc(refLab(r))}</button>`).join("")}</div>
+                <div class="imp-src-list" hidden>${TREE.map(t => t.head || t.self
+                  ? `<div class="imp-src-head" style="padding-left:${10 + t.lvl * 18}px">${esc(t.lab)}${t.self ? " <small>(OUVERT)</small>" : ""}</div>`
+                  : `<button type="button" class="imp-src-it ${stCls(groups.get(t.r) || IMP_EXTRA.get(t.r))}" data-ref="${esc(t.r)}" style="padding-left:${10 + t.lvl * 18}px">${t.lvl ? "› " : ""}${esc(t.lab)}</button>`).join("")}</div>
               </div></div>
-            <div class="imp-opts"${IND_ONLY ? " hidden" : ""}>
-              <label><input type="radio" name="impLk" value="0" checked> SANS LIAISONS <small>(LIGNES COCHÉES SEULEMENT)</small></label>
-              <label><input type="radio" name="impLk" value="1"> AVEC LIAISONS <small>(+ TÂCHES ET DÉTAILS LIÉS)</small></label>
-              <label><input type="checkbox" id="impAll"> TOUT LE BUDGET <small>(TOUTES LES LIGNES, LIAISONS ET DÉLAIS)</small></label>
-            </div>
+            <div class="imp-opts imp-blks"${IND_ONLY ? " hidden" : ""}></div>
             <div class="imp-tabs"></div>
             <div class="imp-scroll"><table class="bdg-d-table imp-table"></table></div>
           </div>
@@ -832,6 +859,9 @@
       /* lignes retenues : cochées, + liées (AVEC LIAISONS), ou tout le budget */
       const picked = (noCut = false) => {
         const out = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set(), ind: new Set() };
+        /* v691 : chaque bloc coché arrive en entier */
+        TABS.forEach(([k]) => { if (blkOn.has(k)) model[k].forEach(x => out[k].add(x.key)); });
+        if (true) return out;
         if (all) { TABS.forEach(([k]) => model[k].forEach(x => out[k].add(x.key))); return out; }
         TABS.forEach(([k]) => sel[k].forEach(x => out[k].add(x)));
         if (withLinks) {
@@ -863,6 +893,12 @@
         if (pAll) [...cut].forEach(k => { if (!TABS.some(([t]) => pAll[t].has(k))) cut.delete(k); });
         const pk = picked();
         const n = TABS.reduce((t, [k]) => t + pk[k].size, 0);
+        /* v691 : cases des blocs + TOUT (trois états) */
+        { const bx = p.querySelector(".imp-blks"), nOn = TABS.filter(([k]) => blkOn.has(k)).length;
+          bx.innerHTML = `<label class="imp-all"><input type="checkbox" data-blkall${nOn === TABS.length ? " checked" : ""}> TOUT</label>` +
+            TABS.map(([k, lab]) => `<label><input type="checkbox" data-blk="${k}"${blkOn.has(k) ? " checked" : ""}${model[k].length ? "" : " disabled"}> ${lab} ${svCnt(model[k].length)}</label>`).join("") +
+            `<small class="imp-lk-note">LIAISONS TOUJOURS RAMENÉES ; UNE LIAISON QUI DEMANDE UN BLOC NON COCHÉ VA DANS IMPORT NON CRÉÉ.</small>`;
+          const ia = bx.querySelector("[data-blkall]"); if (ia) ia.indeterminate = nOn > 0 && nOn < TABS.length; }
         p.querySelector(".imp-tabs").innerHTML = TABS.map(([k, lab]) =>
           /* pastille grise : lignes disponibles ; pastille rouge : lignes retenues */
           `<button type="button" class="imp-tab${k === tab ? " on" : ""}${Object.keys(cfT("imp_" + k).f || {}).length ? " tab-filt" : ""}" data-tab="${k}">${lab} ${svCnt(model[k].length)}${pk[k].size ? `<span class="imp-selcnt">${pk[k].size}</span>` : ""}</button>`).join("");
@@ -912,7 +948,7 @@
                ${cs.map(c => `<td class="${impCls(c)}">${esc(val(x, c[0], c[2]))}</td>`).join("")}</tr>`;
            }).join("") || `<tr><td colspan="${cs.length + 1}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody>`;
         }
-        p.querySelector(".imp-n").textContent = n + " LIGNE(S) À IMPORTER" + (withLinks && !all ? " (LIAISONS COMPRISES)" : "");
+        p.querySelector(".imp-n").textContent = n + " LIGNE(S) À IMPORTER" + (IND_ONLY ? "" : " (LIAISONS COMPRISES)");
         p.querySelector("#impGo").textContent = "IMPORTER (" + n + ")";
         p.querySelector("#impGo").disabled = !n;
       };
@@ -969,6 +1005,7 @@
           list.hidden = true;
           if (it.dataset.ref !== src) {
             src = it.dataset.ref; model = impModelI(src);
+            if (!IND_ONLY) { [...blkOn].forEach(k => { if (!model[k].length) blkOn.delete(k); }); }
             TABS.forEach(([k]) => sel[k].clear());
             cut.clear();
             showSrc(); render();
@@ -978,6 +1015,8 @@
         if (e.target.closest("#impSrc")) list.hidden = !list.hidden;
       });
       p.addEventListener("change", e => {
+        if (e.target.matches("[data-blkall]")) { if (e.target.checked) TABS.forEach(([k]) => { if (model[k].length) blkOn.add(k); }); else blkOn.clear(); render(); return; }
+        if (e.target.matches("[data-blk]")) { const k = e.target.dataset.blk; if (e.target.checked) { blkOn.add(k); tab = k; } else blkOn.delete(k); render(); return; }
         if (e.target.name === "impLk") { withLinks = e.target.value === "1"; render(); return; }
         /* v662 : TOUT LE BUDGET en un seul geste (lignes, liaisons et délais) */
         if (e.target.id === "impAll") { all = e.target.checked; render(); return; }
@@ -1013,7 +1052,7 @@
         if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
         if (!e.target.closest("#impGo")) return;
         const pk = picked();
-        const lk = withLinks || all;
+        const lk = !IND_ONLY;   /* v691 : liaisons toujours ramenées */
         /* v680 : indicateurs — vers la liste commune ou le tableau de bord ; même nom déjà présent = ignoré */
         let nInd = 0, sInd = 0;
         if (pk.ind && pk.ind.size) {
@@ -1091,6 +1130,20 @@
             });
             /* une liaison doit avoir au moins un produit */
             INS.links = INS.links.filter(x => (x.prd || []).length);
+            /* v691 : liaison du budget source qui demande un bloc non coché : non reconstruite → IMPORT NON CRÉÉ */
+            { const row = (k, key) => { const x = (k === "hier" ? model.hier : model[k]).find(y => y.key === key); return x ? x.row : {}; };
+              const need = l => [["des", l.dk, "DÉSIGNATIONS CLIENT"], ["hier", l.lot, "TÂCHES"], ["hier", l.prim, "TÂCHES"], ["hier", l.sec, "TÂCHES"], ["chg", l.ck, "DÉTAIL CHARGES"], ["prd", l.pk, "DÉTAIL PRODUITS"]].filter(x => x[1] && !blkOn.has(x[0]));
+              const anyOn = l => [["des", l.dk], ["hier", l.lot], ["chg", l.ck], ["prd", l.pk]].some(x => x[1] && blkOn.has(x[0]));
+              const items = [], seenI = new Set();
+              model.links.forEach(l => {
+                const miss = need(l); if (!miss.length || !anyOn(l)) return;
+                const D = row("des", l.dk), P = l.pk ? row("prd", l.pk) : row("chg", l.ck);
+                const src0 = { art: D.art || "", dc: D.des || "", upb: D.u || "", lot: row("hier", l.lot).v || "", prim: row("hier", l.prim).v || "", sec: row("hier", l.sec).v || "",
+                  type: l.pk ? "PRD" : "CHG", article: P.art || "", des: P.des || "", u: P.u || "", q: l.q ?? "" };
+                const kk = JSON.stringify(src0); if (seenI.has(kk)) return; seenI.add(kk);
+                items.push({ id: insId(), on: false, src: src0, bad: [], why: "IMPORT DEPUIS " + refLab(src) + " — BLOC NON COCHÉ : " + [...new Set(miss.map(x => x[2]))].join(", ") });
+              });
+              if (items.length) { INS.inc = (INS.inc || []).concat(items); shell.__impInc = items.length; } }
             /* délais : rattachés à la tâche secondaire importée (lot + activité secondaire), seulement avec les liaisons */
             INS.dlp = INS.dlp || {};
             if (mode === "replace") INS.dlp = {};
@@ -1104,7 +1157,8 @@
           insSave();
           const M = { add: "AJOUT", replace: "REMPLACEMENT", update: "MISE À JOUR" }[mode];
           insSortAll(); insSave();
-          histLog("IMPORT", "DEPUIS UN AUTRE BUDGET — " + M, src + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S)" + (lk ? " — " + nl + " LIAISON(S)" : ""));
+          histLog("IMPORT", "DEPUIS UN AUTRE BUDGET — " + M, refLab(src) + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S)" + (lk ? " — " + nl + " LIAISON(S)" : "") + (shell.__impInc ? " — " + shell.__impInc + " NON CRÉÉE(S)" : ""));
+          if (shell.__impInc) { svToast(shell.__impInc + " LIGNE(S) DANS IMPORT NON CRÉÉ (BLOC NON COCHÉ).", 4500); shell.__impInc = 0; }
           p.remove();
           refreshAll();
         };
@@ -1916,8 +1970,8 @@
         { a: "lay", lab: "DISPOSITION PAR DÉFAUT", off: !rb || rb.disabled, ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
         ...(INS ? [{ a: "paq", lab: "PLAN D'ASSURANCE QUALITÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
         /* v681 : premier avenant — une seule fois (aucun avenant encore), marché initial validé */
-        ...(INS && budget.inst && !budget.inst.parent && !budget.inst.virtual && sviAvStages(budget.inst.ref).length === 1 ? [{ a: "av", lab: "AJOUTER UN AVENANT", off: budget.inst.state !== "valide", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12.5 10v7M9 13.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
-        ...(INS && budget.inst && !/-GLOBAL$/.test(budget.inst.ref) && (budget.inst.parent || sviAvStages(budget.inst.ref).length > 1) ? [{ a: "avl", lab: "CONSOLIDÉ (MARCHÉ ET AVENANTS)", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
+        ...(INS && budget.inst && (!budget.inst.virtual || /-GLOBAL$/.test(budget.inst.ref)) ? (() => { const S = sviAvStages(budget.inst.parent || budget.inst.ref); return S.length ? [{ a: "av", lab: "AJOUTER UN AVENANT", off: S[S.length - 1].state !== "valide", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12.5 10v7M9 13.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []; })() : []),
+        ...(INS && budget.inst && !/-GLOBAL$/.test(budget.inst.ref) && (budget.inst.parent || sviAvStages(budget.inst.ref).length > 1) ? [{ a: "avl", lab: "BUDGET CONSOLIDÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
         /* v690 : VERSIONS ET SCÉNARIOS retiré (blocs SCÉNARIOS et VERSIONS) ; PRENDRE UNE VERSION (photo manuelle) */
         ...(INS && budget.inst && !budget.inst.virtual ? [{ a: "vtake", lab: "PRENDRE UNE VERSION", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 7l1.5-3h4l1.5 3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' }] : []),
         ...(INS ? [{ a: "ctr", lab: "CONTRAT (CPS)", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 11h5M10 15h5M10 19h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' }] : []),
@@ -1945,7 +1999,7 @@
         else if (it.dataset.a === "lay") $("layResetBtn")?.click();
         else if (it.dataset.a === "paq") qqPaqOpen();
         else if (it.dataset.a === "ctr") ctrWin();
-        else if (it.dataset.a === "av") { if (window.__sviAvNew) window.__sviAvNew(budget.inst.ref); }   /* v684 : fenêtre INF puis l'avenant */
+        else if (it.dataset.a === "av") { if (it.classList.contains("off") || it.disabled) { svToast("LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ.", 3500); return; } if (window.__sviAvNew) window.__sviAvNew(budget.inst.parent || budget.inst.ref, null); }   /* v684 : fenêtre INF puis l'avenant */
         else if (it.dataset.a === "avl") { const root = budget.inst.parent || budget.inst.ref; if (window.__sviAvOpen) window.__sviAvOpen(root + "-GLOBAL"); }   /* v684 : plus de petite fenêtre : le consolidé */
         else if (it.dataset.a === "vtake") { if (shell.__verTake) shell.__verTake(); }   /* v670 (axes 1 et 4) */   /* v669 (axe 3) */
         else if (it.dataset.a === "rat") ratWin();

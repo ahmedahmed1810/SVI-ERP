@@ -360,12 +360,7 @@
           <button type="button" class="svc-b av-comp-b" data-vact="restore">RESTAURER CETTE VERSION</button>
           <button type="button" class="svc-b av-comp-b" data-vact="scn">EN FAIRE UN SCÉNARIO</button>
         </div>` : ""}
-        ${AV_ROOT ? `<div class="av-top" id="avTop">
-          <span class="list-lab">AVENANTS :</span>
-          ${AV_STG.some(x => x.parent && x.state !== "valide") ? '<button type="button" class="av-ic" data-avt="inst" title="Avenants en instance" aria-label="Avenants en instance">⌛</button>' : ""}
-          ${AV_STG.some(x => x.state === "valide") ? '<button type="button" class="av-ic" data-avt="valid" title="Étapes validées (budget initial compris)" aria-label="Étapes validées">≡</button>' : ""}
-          <button type="button" class="av-ic" data-avt="add" ${AV_STG.length && AV_STG[AV_STG.length - 1].state === "valide" ? 'title="Nouvel avenant"' : 'disabled title="LE DERNIER AVENANT DOIT ÊTRE VALIDÉ"'} aria-label="Nouvel avenant">＋</button>
-        </div>` : ""}
+
 
       </div>
       </div>
