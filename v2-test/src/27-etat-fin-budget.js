@@ -293,7 +293,7 @@
     let sk = "", sd = 1;
     const ov = document.createElement("div");
     ov.className = "av-list-ov";
-    const ROWS = S.map(x => { let bd = {}; try { bd = budgetData({ ref: x.ref, project: x.project, rows: [], first: {}, inst: x }); } catch (e) {}
+    const ROWS = S.map(x => { let bd = {}; try { bd = budgetData({ ref: x.ref, project: x.project, rows: [], first: {}, inst: x, __noFam: true }); } catch (e) {}
       return { x, ref: U_(x.project) + " " + x.ref, prj: U_(x.project), int: x.intitule || "", ttc: bd.ttc || 0, val: x.state === "valide" ? svDT(x.validated || "") : "", sai: svDT(x.created || "") }; });
     const COLS = [["ref", "RÉFÉRENCE", 260], ["prj", "PROJET", 120], ["int", "INTITULÉ", 300], ["ttc", "MONTANT TTC", 150, "number"], ["val", "VALIDÉ LE", 190], ["sai", "SAISI LE", 190]];
     const ic = (a, lab, t, on) => `<button type="button" aria-label="${a}" data-avl="${a}" title="${t}"${on ? ' class="on"' : ""}>${lab}</button>`;

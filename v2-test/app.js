@@ -1433,6 +1433,18 @@ const sviAvContra = ref => {
   });
   return out;
 };
+
+/* v695 : dates du consolidé (étapes comptées) — SAISI LE = dernière création, VALIDÉ LE = dernière validation */
+const sviAvDates = root => {
+  const S = sviAvStages(root), sel = sviAvSelGet(root) || sviAvSelDef(S), inc = S.filter(st => sel[st.ref]);
+  const mx = a => a.filter(Boolean).sort().pop() || "";
+  return { created: mx(inc.map(st => st.created)), validated: mx(inc.filter(st => st.state === "valide").map(st => st.validated)) };
+};
+/* jour d'une ligne de la liste mère (regroupement par date) : budget à avenants = SAISI LE du consolidé */
+const sviRowDate = ref => {
+  try { if (sviAvStages(ref).length > 1) { const c = sviAvDates(ref).created, m = String(c).match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return { key: m[1] + "-" + m[2] + "-" + m[3], label: m[3] + "/" + m[2] + "/" + m[1] }; } } catch (e) {}
+  return budgetDate(ref);
+};
 /* ⟪ src/03-api-drive.js ⟫ */
 /* =========================================================
    API GET CHS / BDS
@@ -5857,6 +5869,11 @@ function renderBudgetList() {
     /* intitulé : saisi dans INF, sinon base V3 (BDS n'est plus lu) */
     const intitule = sviIntitule(budget.ref, budgetName, budget.inst);
 
+    /* v695 : ligne mère d'un budget à avenants = valeurs du BUDGET CONSOLIDÉ (montant, saisi le, validé le) */
+    if (!budget.__noFam && budget.inst && !budget.inst.parent && !budget.inst.rclOf && !budget.inst.virtual && groups.has(budget.ref + "-GLOBAL") && sviAvStages(budget.ref).length > 1) {
+      const base = budgetData({ ...budget, __noFam: true }), g = groups.get(budget.ref + "-GLOBAL"), cg = budgetData(g), dts = sviAvDates(budget.ref);
+      return { ...base, ht: cg.ht, ttc: cg.ttc, validated: svDT(dts.validated || ""), entered: svDT(dts.created || ""), source: budget };
+    }
     if (budget.inst) {
       const c = String(budget.inst.created || "");
       const m = c.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -6051,7 +6068,7 @@ function renderBudgetList() {
     const counts = new Map();
 
     budgets.forEach(b => {
-      const d = budgetDate(b.ref);
+      const d = sviRowDate(b.ref);   /* v695 */
       if (!d) return;
 
       const c = counts.get(d.key) || { label: d.label, n: 0 };
@@ -6104,7 +6121,7 @@ function renderBudgetList() {
 
     if (dateFilter) {
       data = data.filter(item => {
-        const d = budgetDate(item.ref);
+        const d = sviRowDate(item.ref);   /* v695 */
         return d && d.key === dateFilter;
       });
     }
@@ -6210,8 +6227,8 @@ function renderBudgetList() {
       const S = sviAvStages(item.ref), out = [];
       const pick = S.filter(st => listMode === "inst" ? st.state !== "valide" : st.state === "valide");
       const g = groups.get(item.ref + "-GLOBAL");
-      if (g) { let bd = {}; try { bd = budgetData(g); } catch (e) {} out.push({ ref: g.ref, lab: "BUDGET CONSOLIDÉ", budget: item.budget, intitule: item.intitule, ttc: bd.ttc || 0, validated: "", entered: "", state: "", kind: "glob" }); }
-      pick.forEach(st => { let bd = {}; try { bd = budgetData({ ref: st.ref, project: st.project, rows: [], first: {}, inst: st }); } catch (e) {}
+      if (g) { let bd = {}; try { bd = budgetData(g); } catch (e) {} const dts = sviAvDates(item.ref); out.push({ ref: g.ref, lab: "BUDGET CONSOLIDÉ", budget: item.budget, intitule: item.intitule, ttc: bd.ttc || 0, validated: svDT(dts.validated || ""), entered: svDT(dts.created || ""), state: "", kind: "glob" }); }
+      pick.forEach(st => { let bd = {}; try { bd = budgetData({ ref: st.ref, project: st.project, rows: [], first: {}, inst: st, __noFam: true }); } catch (e) {}
         out.push({ ref: st.ref, lab: st.parent ? "AVENANT " + (st.avn || 1) + " DU BUDGET" : "BUDGET INITIAL", budget: U_(st.project), intitule: st.intitule || "", ttc: bd.ttc || 0,
           validated: st.state === "valide" ? svDT(st.validated || "") : "", entered: svDT(st.created || ""), state: st.state || "instance", kind: st.parent ? "av" : "bdg" }); });
       return out;
@@ -25913,7 +25930,7 @@ ${A}</Assignments>
     let sk = "", sd = 1;
     const ov = document.createElement("div");
     ov.className = "av-list-ov";
-    const ROWS = S.map(x => { let bd = {}; try { bd = budgetData({ ref: x.ref, project: x.project, rows: [], first: {}, inst: x }); } catch (e) {}
+    const ROWS = S.map(x => { let bd = {}; try { bd = budgetData({ ref: x.ref, project: x.project, rows: [], first: {}, inst: x, __noFam: true }); } catch (e) {}
       return { x, ref: U_(x.project) + " " + x.ref, prj: U_(x.project), int: x.intitule || "", ttc: bd.ttc || 0, val: x.state === "valide" ? svDT(x.validated || "") : "", sai: svDT(x.created || "") }; });
     const COLS = [["ref", "RÉFÉRENCE", 260], ["prj", "PROJET", 120], ["int", "INTITULÉ", 300], ["ttc", "MONTANT TTC", 150, "number"], ["val", "VALIDÉ LE", 190], ["sai", "SAISI LE", 190]];
     const ic = (a, lab, t, on) => `<button type="button" aria-label="${a}" data-avl="${a}" title="${t}"${on ? ' class="on"' : ""}>${lab}</button>`;
