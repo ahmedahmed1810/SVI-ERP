@@ -1,7 +1,8 @@
     /* ===== fenêtre DOC : ajout d'un document au budget ===== */
     /* ===== HISTORIQUE (bouton H) : journal des changements du budget
        et de ses branches (DOC, TAF, OBS, impressions, exports, disposition…) ===== */
-    const HIST_KEY = "svi_hist_v1:" + String(ref);
+    /* v690 : le consolidé montre l'historique de son budget mère */
+    const HIST_KEY = "svi_hist_v1:" + String(budget.inst && budget.inst.virtual && !budget.inst.vname && /-GLOBAL$/.test(String(ref)) ? budget.inst.parent : ref);
     const histLoad = () => {
       try { return JSON.parse(localStorage.getItem(HIST_KEY) || "[]") || []; } catch (e) { return []; }
     };

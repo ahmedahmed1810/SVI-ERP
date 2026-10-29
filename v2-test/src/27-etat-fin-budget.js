@@ -80,11 +80,14 @@
         }
       );
 
-    /* v687 : en haut du consolidé — COMPOSITION : étapes et scénarios à compter (arborescence à cocher) */
+    /* v690 : en haut du consolidé — AVENANTS : ⌛ (avenants en instance) ≡ (étapes validées) + (nouvel avenant) ;
+       icône de composition à côté des ⋯ (bleue si la composition n'est pas celle par défaut) */
     $("avTop")?.addEventListener("click", e => {
       const b = e.target.closest("[data-avt]"); if (!b || b.disabled) return;
-      if (b.dataset.avt === "comp" && window.__sviAvComp) window.__sviAvComp(AV_ROOT, ref);
+      if (b.dataset.avt === "add") window.__sviAvNew(AV_ROOT, ref);
+      else window.__sviAvList(AV_ROOT, b.dataset.avt);
     });
+    $("avCompBtn")?.addEventListener("click", () => { if (window.__sviAvComp) window.__sviAvComp(AV_ROOT, ref); });
 
     /* budget en instance : ‹ › navigation, 🔒 figer / revenir en édition, 🗑 supprimer, ✕ fermer */
     if (budget.inst && budget.inst.state !== "valide") {
@@ -203,7 +206,7 @@
     sviInstSet(L.concat(it));
     return r;
   };
-  window.__sviAvAdd = rootRef => { const r = sviAvAdd(rootRef); if (r) sviAvOpen(r, "LIST:" + rootRef); return r; };
+  window.__sviAvAdd = rootRef => { const r = sviAvAdd(rootRef); if (r) sviAvOpen(r, rootRef + "-GLOBAL"); return r; };
   /* nouvel avenant : fenêtre INF d'abord (DATE CRÉATION, PROJET, INTITULÉ — comme un nouveau budget) */
   const sviAvNew = (rootRef, ret) => {
     const S = sviAvStages(rootRef), root = S[0]; if (!root) return;
@@ -245,58 +248,67 @@
       if (isNaN(new Date(val("#avDate")))) { p.querySelector("#avErr").textContent = "À COMPLÉTER (*) : DATE."; return; }
       const nr = sviAvAdd(rootRef, { created: val("#avDate"), intitule: val("#avName").toUpperCase() || root.intitule });
       p.remove();
-      if (nr) sviAvOpen(nr, ret || "LIST:" + root.ref);
+      if (nr) sviAvOpen(nr, ret || root.ref + "-GLOBAL");
     });
   };
   window.__sviAvNew = sviAvNew;
   /* liste des étapes (marché initial + avenants), au format de la liste mère ; ← = retour au consolidé */
+  /* v690 : liste des étapes, ouverte depuis le consolidé (← = retour au consolidé) ; ⌛ = avenants en instance,
+     ≡ = étapes validées (budget initial compris) ; mêmes colonnes que la liste mère ; tri par l'en-tête ; lignes de 21 px */
   const sviAvList = (rootRef, mode0) => {
     const S = sviAvStages(rootRef); if (!S.length) return;
-    const root = S[0], live = S.filter(x => x.state !== "valide"), done = S.filter(x => x.state === "valide");
-    let mode = mode0 !== "valid" && live.length ? "inst" : done.length ? "valid" : "inst";   /* v687 : ouverte sur EN INSTANCE */
-    const stLab = x => x.state === "valide" ? "VALIDÉ" : x.state === "fige" ? "FIGÉ" : "EN INSTANCE";
+    const root = S[0], live = S.filter(x => x.parent && x.state !== "valide"), done = S.filter(x => x.state === "valide");
+    let mode = mode0 === "valid" ? (done.length ? "valid" : "inst") : (live.length ? "inst" : "valid");
+    let sk = "", sd = 1;
     const ov = document.createElement("div");
     ov.className = "av-list-ov";
+    const ROWS = S.map(x => { let bd = {}; try { bd = budgetData({ ref: x.ref, project: x.project, rows: [], first: {}, inst: x }); } catch (e) {}
+      return { x, ref: U_(x.project) + " " + x.ref, prj: U_(x.project), int: x.intitule || "", ttc: bd.ttc || 0, val: x.state === "valide" ? svDT(x.validated || "") : "", sai: svDT(x.created || "") }; });
+    const COLS = [["ref", "RÉFÉRENCE", 260], ["prj", "PROJET", 120], ["int", "INTITULÉ", 300], ["ttc", "MONTANT TTC", 150, "number"], ["val", "VALIDÉ LE", 190], ["sai", "SAISI LE", 190]];
     const ic = (a, lab, t, on) => `<button type="button" aria-label="${a}" data-avl="${a}" title="${t}"${on ? ' class="on"' : ""}>${lab}</button>`;
     const draw = () => {
-      const L = mode === "inst" ? live : done, canAdd = S[S.length - 1].state === "valide";
+      let L = ROWS.filter(r => mode === "inst" ? live.includes(r.x) : done.includes(r.x));
+      if (sk) L = [...L].sort((a, b) => (typeof a[sk] === "number" ? a[sk] - b[sk] : String(a[sk]).localeCompare(String(b[sk]), "fr", { numeric: true })) * sd);
+      const canAdd = S[S.length - 1].state === "valide";
       ov.innerHTML = `<div class="novapp-list-shell${mode === "inst" ? " list-inst" : ""}">
         <div class="novapp-list-titlebar">
           <button type="button" class="novapp-menu" data-avl="back" aria-label="Retour" title="Retour au consolidé">←</button>
-          <h1>${esc(U_(root.project) + " " + root.ref)} ${mode === "inst" ? "(EN INSTANCE)" : "(VALIDÉS)"} ${svCnt(L.length)}</h1>
-          <button type="button" class="svc-b av-glob" data-avl="glob" title="Budget consolidé (marché + avenants)">Σ CONSOLIDÉ</button>
+          <h1>${esc(U_(root.project) + " " + root.ref)} ${mode === "inst" ? "(AVENANTS EN INSTANCE)" : "(VALIDÉS)"} ${svCnt(L.length)}</h1>
           <div class="novapp-list-actions">
             <span class="list-lab">AVENANTS :</span>
-            ${live.length ? ic("inst", "⌛", "Étapes en instance", mode === "inst") : ""}
-            ${done.length ? ic("valid", "≡", "Étapes validées", mode === "valid") : ""}
+            ${live.length ? ic("inst", "⌛", "Avenants en instance", mode === "inst") : ""}
+            ${done.length ? ic("valid", "≡", "Étapes validées (budget initial compris)", mode === "valid") : ""}
             <button type="button" aria-label="Ajouter" data-avl="add"${canAdd ? ' title="Nouvel avenant"' : ' disabled title="LE DERNIER AVENANT DOIT ÊTRE VALIDÉ"'}>＋</button>
           </div>
         </div>
         <div class="novapp-budget-table-wrap">
           <table class="novapp-budget-table av-stg-t">
-            <thead><tr>${["ÉTAPE", "RÉFÉRENCE", "INTITULÉ", "ÉTAT", "CRÉÉ LE"].map(h => `<th class="bdg-list-head"><div class="bdg-head-content"><span class="bdg-head-label">${h}</span></div></th>`).join("")}</tr></thead>
-            <tbody>${L.length ? L.map(x => `<tr data-r="${esc(x.ref)}" class="${x.state ? "inst-" + x.state : ""}${x.parent ? " row-av" : " row-bdg"}"><td><b>${esc(sviAvName(x))}</b></td><td>${esc(U_(x.project) + " " + x.ref)}</td><td>${esc(x.intitule || "")}</td><td>${stLab(x)}</td><td>${esc(String(x.created || "").replace("T", " ").slice(0, 16))}</td></tr>`).join("") : `<tr><td colspan="5" class="empty">AUCUNE ÉTAPE</td></tr>`}</tbody>
+            <colgroup>${COLS.map(c => `<col style="width:${c[2]}px">`).join("")}</colgroup>
+            <thead><tr>${COLS.map(c => `<th class="bdg-list-head${c[3] ? " number" : ""}${sk === c[0] ? " cf-on" : ""}" data-sk="${c[0]}"><div class="bdg-head-content"><span class="bdg-head-label">${c[1]}${sk === c[0] ? (sd > 0 ? " ▲" : " ▼") : ""}</span></div></th>`).join("")}</tr></thead>
+            <tbody>${L.length ? L.map(r => `<tr data-r="${esc(r.x.ref)}" class="${r.x.state ? "inst-" + r.x.state : ""}${r.x.parent ? " row-av" : " row-bdg"}"><td>${esc(r.ref)}</td><td>${esc(r.prj)}</td><td>${esc(r.int)}</td><td class="number">${money(r.ttc)}</td><td>${esc(r.val)}</td><td>${esc(r.sai)}</td></tr>`).join("") : `<tr><td colspan="${COLS.length}" class="empty">AUCUNE ÉTAPE</td></tr>`}</tbody>
           </table>
         </div>
       </div>`;
     };
     draw();
-    document.body.appendChild(ov);
+    (document.querySelector(".novapp-list-shell") || document.body).appendChild(ov);
     const close = () => { ov.remove(); document.removeEventListener("keydown", esc_); };
     const esc_ = e => { if (e.key === "Escape") close(); };
     document.addEventListener("keydown", esc_);
     ov.addEventListener("click", e => {
+      e.stopPropagation();
+      const th = e.target.closest("th[data-sk]");
+      if (th) { if (sk === th.dataset.sk) sd = -sd; else { sk = th.dataset.sk; sd = 1; } draw(); return; }
       const b = e.target.closest("[data-avl]");
       if (b) {
         if (b.disabled) return;
         const a = b.dataset.avl;
         if (a === "back") { close(); return; }
-        if (a === "add") { close(); sviAvNew(root.ref, "LIST:" + root.ref); return; }
-        if (a === "glob") { close(); sviAvOpen(root.ref + "-GLOBAL", "LIST:" + root.ref); return; }
+        if (a === "add") { close(); sviAvNew(root.ref, root.ref + "-GLOBAL"); return; }
         mode = a; draw(); return;
       }
       const tr = e.target.closest("tr[data-r]");
-      if (tr) { close(); sviAvOpen(tr.dataset.r, "LIST:" + root.ref); }
+      if (tr) { close(); sviAvOpen(tr.dataset.r, root.ref + "-GLOBAL"); }
     });
   };
   window.__sviAvList = sviAvList;
@@ -330,7 +342,7 @@
         d.remove();
         const def = sviAvSelDef(S0), same = Object.keys(def).length === Object.keys(sel).length && Object.keys(def).every(k => def[k] === sel[k]);
         sviAvSelSet(rootRef, same ? null : { ...sel });
-        sviAvOpen(gref || rootRef + "-GLOBAL", "LIST:" + rootRef);
+        sviAvOpen(gref || rootRef + "-GLOBAL");
       }
     });
   };
@@ -408,10 +420,9 @@
       /* v687 : budget à avenants → liste de ses étapes (au format de la liste mère), ouverte sur EN INSTANCE ;
          composition du consolidé remise par défaut (étapes validées) */
       if (sviAvStages(row.dataset.budgetRef).length > 1) {
-        const r0 = row.dataset.budgetRef;
+        const r0 = row.dataset.budgetRef, g = r0 + "-GLOBAL";
         window.__sviAvRet = null;
-        if (sviAvSelGet(r0)) sviAvSelSet(r0, null);
-        sviAvList(r0, "inst");
+        if (sviAvSelGet(r0) || !groups.has(g)) { sviAvSelSet(r0, null); sviAvOpen(g); } else openBudgetDetail(g);   /* v690 : le consolidé */
         return;
       }
       openBudgetDetail(

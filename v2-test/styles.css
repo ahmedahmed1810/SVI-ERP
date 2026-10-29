@@ -2858,3 +2858,21 @@ td.ins-pmp { position: relative; }
 .av-tree .av-st-instance.row-bdg b { color: #991b1b; } .av-tree .av-st-instance.row-av b { color: #dc2626; }
 .av-tree .av-st-fige.row-bdg b { color: #166534; } .av-tree .av-st-fige.row-av b { color: #22a052; }
 .av-tree .av-st-valide.row-av b { color: #3b6ea5; }
+
+/* v690 : H dans un carré, i dans un cercle non rempli ; unité en couleur de la ligne ; TÂCHES à 21 px ; icône de composition */
+.novapp-list-titlebar #histBtn { border-radius: 4px; background: transparent; border: 1.6px solid currentColor; color: #3f4856; width: 24px; height: 24px; }
+.novapp-list-titlebar .bdg-d-inf { border-radius: 50%; background: transparent; border: 1.6px solid currentColor; color: #3f4856; width: 24px; height: 24px; }
+.bdg-inst-instance .novapp-list-titlebar :is(#histBtn, .bdg-d-inf), .bdg-inst-fige .novapp-list-titlebar :is(#histBtn, .bdg-d-inf) { color: var(--inst); }
+.ins-hcol .ins-li .act-uro { background: transparent !important; color: inherit !important; font-weight: inherit; border-radius: 0; }
+.blk-hier .ins-hcol .ins-li, .blk-hier .bdg-h-head, .blk-hier .bdg-h-item { height: 21px !important; min-height: 21px !important; max-height: 21px; box-sizing: border-box; }
+.av-comp-ic.on { color: #1d4ed8 !important; border-color: #1d4ed8 !important; background: #eff6ff !important; }
+.av-stg-t tbody td { height: 21px; padding-top: 0; padding-bottom: 0; line-height: 21px; }
+.av-stg-t th[data-sk] { cursor: pointer; }
+.novapp-list-titlebar .bdg-d-badge.bdg-d-inf, .novapp-list-titlebar #histBtn.bdg-d-badge { background: transparent !important; color: #3f4856 !important; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; }
+.bdg-inst-instance .novapp-list-titlebar .bdg-d-badge, .bdg-inst-fige .novapp-list-titlebar .bdg-d-badge { color: var(--inst) !important; }
+/* v690 : bloc VERSIONS, repère Ⓐ (créé automatiquement) */
+.blk-ver .rec-scroll { height: auto; max-height: var(--h-ver, 150px); }
+.bdg-d-page.max-rec .blk-rec-on.blk-ver .rec-scroll { height: calc(var(--avail) - 50px); max-height: none; }
+.ver-table tr.ver-row { cursor: pointer; }
+.auto-a { color: #9aa3b2; font-size: 12px; font-weight: 700; margin-left: 3px; }
+.ver-bar .list-lab { color: #3f4856; }

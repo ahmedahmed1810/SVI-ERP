@@ -340,6 +340,7 @@
             : `<button type="button" class="inst-act" id="instDel" title="Supprimer ce budget" aria-label="Supprimer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`}
           <button type="button" class="inst-act" id="instClose" title="Fermer" aria-label="Fermer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>` : ""}
           <button type="button" class="inst-act" id="instDup" hidden title="Dupliquer ce budget" aria-label="Dupliquer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+          ${AV_ROOT ? `<button type="button" class="inst-act av-comp-ic${sviAvSelGet(AV_ROOT) ? " on" : ""}" id="avCompBtn" title="Composition du consolidé : ${esc(sviAvSelLab(AV_ROOT, sviAvSelGet(AV_ROOT)))}" aria-label="Composition"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8.5" cy="12" r="5.5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="15.5" cy="12" r="5.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.6v8.8" stroke="currentColor" stroke-width="1.7"/></svg></button>` : ""}
           <button type="button" class="inst-act bdg-more-btn" id="bdgMore" title="Actions du budget" aria-label="Actions du budget">⋯</button>
           <button type="button" class="bdg-lay-btn" id="layResetBtn" disabled style="display:none"
             title="Disposition par défaut : remettre les blocs à leur place et taille d'origine"
@@ -354,10 +355,16 @@
       </div>
 
       <div class="bdg-d-head bdg-d-head-min">
+        ${budget.inst && budget.inst.virtual && budget.inst.vname ? `<div class="av-top ver-bar" id="verBar">
+          <span class="list-lab">${esc(budget.inst.vname)} — PHOTO EN LECTURE SEULE :</span>
+          <button type="button" class="svc-b av-comp-b" data-vact="restore">RESTAURER CETTE VERSION</button>
+          <button type="button" class="svc-b av-comp-b" data-vact="scn">EN FAIRE UN SCÉNARIO</button>
+        </div>` : ""}
         ${AV_ROOT ? `<div class="av-top" id="avTop">
-          <span class="list-lab">COMPOSITION :</span>
-          <span class="av-comp">${esc(sviAvSelLab(AV_ROOT, sviAvSelGet(AV_ROOT)))}</span>
-          <button type="button" class="svc-b av-comp-b" data-avt="comp">CHOISIR…</button>
+          <span class="list-lab">AVENANTS :</span>
+          ${AV_STG.some(x => x.parent && x.state !== "valide") ? '<button type="button" class="av-ic" data-avt="inst" title="Avenants en instance" aria-label="Avenants en instance">⌛</button>' : ""}
+          ${AV_STG.some(x => x.state === "valide") ? '<button type="button" class="av-ic" data-avt="valid" title="Étapes validées (budget initial compris)" aria-label="Étapes validées">≡</button>' : ""}
+          <button type="button" class="av-ic" data-avt="add" ${AV_STG.length && AV_STG[AV_STG.length - 1].state === "valide" ? 'title="Nouvel avenant"' : 'disabled title="LE DERNIER AVENANT DOIT ÊTRE VALIDÉ"'} aria-label="Nouvel avenant">＋</button>
         </div>` : ""}
 
       </div>
@@ -440,6 +447,18 @@
             </span>
           </div>
           <div class="rec-scroll scn-scroll"><table class="bdg-d-table rec-table scn-table" id="scnTable"></table></div>
+        </div>
+
+        <div class="bdg-d-block blk-rec blk-ver" data-rec="ver" hidden>
+          <div class="bdg-d-block-title blk-head">
+            <span class="ttl" id="verTitle">${SVI_ICON.ver}VERSIONS</span>
+            <span class="blk-tools">
+              <button type="button" class="blk-btn" data-blk="ver" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="ver" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn blk-max-btn" data-blk="ver" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </span>
+          </div>
+          <div class="rec-scroll ver-scroll"><table class="bdg-d-table rec-table ver-table" id="verTable"></table></div>
         </div>
 
         <div class="bdg-d-block blk-rec blk-suivi" data-rec="suivi">
