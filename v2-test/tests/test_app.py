@@ -1441,6 +1441,22 @@ def main():
         i3c = pg.evaluate(f"() => !!({ins}.INS.dinc || {{}})['l1|s1']")
         check("v542 R3 : durée changée à la main = INCOMPRESSIBLE (▣) ; la barre de plafond (4) garde ses 3 jours ; ▣ → RENDRE COMPRESSIBLE",
               i3 == [True, True] and i3b == ["2026-11-02", "2026-11-04"] and i3c is False, [i3, i3b, i3c])
+        # v703 : barre CAPACITÉ sans bouton — le planning suit PENDANT le geste (baisser = allonger), un seul ↶ pour tout le geste
+        pg.evaluate(f"() => {DXJ}.plafSeg(0, 4)"); pg.wait_for_timeout(900)
+        pg.evaluate("() => document.querySelector('.ghist')?.scrollIntoView({ block: 'center' })"); pg.wait_for_timeout(300)
+        lv0 = pg.evaluate(f"() => JSON.stringify({ins}.INS.dlp)")
+        gb = pg.evaluate("() => { const g = document.querySelector('.dlyg-foot .gplaf[data-seg=\"0\"]') || document.querySelector('.dlyg-foot .gplaf'), h = g && g.closest('.ghist'); if (!g) return null; const r = g.getBoundingClientRect(); const y = r.top + 1; let x = null; for (let xx = Math.max(r.left, 0) + 20; xx < Math.min(r.right, innerWidth) - 5; xx += 15) { const el = document.elementFromPoint(xx, y); if (el && el.closest && el.closest('.gplaf')) { x = xx; break; } } return x === null ? null : [x, y, Number(h.dataset.sc) || 1]; }")
+        lv = None
+        if gb:
+            pg.mouse.move(gb[0], gb[1]); pg.mouse.down()
+            for k in range(1, 7): pg.mouse.move(gb[0], gb[1] + k * gb[2] * 0.5 + 1); pg.wait_for_timeout(60)
+            pg.wait_for_timeout(500)
+            lv = pg.evaluate(f"() => [JSON.stringify({ins}.INS.dlp), !!document.querySelector('.dlyg-foot .gplaf')]")
+            pg.mouse.up(); pg.wait_for_timeout(900)
+            pg.evaluate("() => document.getElementById('instUndo')?.click()"); pg.wait_for_timeout(900)
+            lv = lv + [pg.evaluate(f"() => JSON.stringify({ins}.INS.dlp)")]
+        check("v703 : CAPACITÉ baissée au doigt — dates changées pendant le geste (barre toujours là) ; un seul ↶ ramène le planning d'avant",
+              lv and lv[0] != lv0 and lv[1] and lv[2] == lv0, [gb, lv and lv[0] != lv0, lv and lv[2] == lv0])
         # R2 / R5 : barre en direct (compression), « AUCUN GAIN » ; un seul bouton dans le menu ⋯, plus de nivellement
         pg.evaluate(f"() => {DXJ}.plafSeg(0, 4)"); pg.wait_for_timeout(300)
         pg.evaluate(f"() => {DXJ}.plafSeg(0, 4)"); pg.wait_for_timeout(300)

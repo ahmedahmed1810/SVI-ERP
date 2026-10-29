@@ -19,6 +19,7 @@
       };
       shell.__undoTick = () => {
         clearTimeout(tm);
+        if (shell.__undoHold) return;   /* v703 : geste en cours (barre CAPACITÉ) — un seul pas d'annulation au lâcher */
         tm = setTimeout(() => {
           const s = snapNow();
           if (Date.now() < st.quiet) { st.cur = s; shell.__undoLab = ""; return; }

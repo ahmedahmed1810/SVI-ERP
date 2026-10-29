@@ -57,16 +57,21 @@
         document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", cc);
       });
       /* barre CAPACITÉ (FORMAT 99, 167 ; R2, R21) : tirée au doigt, par paliers entiers ; 0 = pénurie ; sous le zéro = ILLIMITÉ ;
-         au lâcher, le planning est recompressé. Appui long sans bouger = « / » et bulle COUPER ICI qui suivent le doigt jour par jour ;
+         v703 : le planning suit pendant le geste (baisser = allonger, monter = resserrer), un seul ↶ pour le geste. Appui long sans bouger = « / » et bulle COUPER ICI qui suivent le doigt jour par jour ;
          lâcher = couper à ce jour */
       shell.addEventListener("pointerdown", e => {
         const X = shell.__insDly;
-        const pl = e.target.closest && e.target.closest(".dlyg-foot .gplaf");
+        let pl = e.target.closest && e.target.closest(".dlyg-foot .gplaf");
         if (!X || !pl) return;
         e.preventDefault(); e.stopPropagation();
         const h = pl.closest(".ghist"), sc = Number(h.dataset.sc) || 1, Y0 = Number(h.dataset.y0) || h.offsetHeight, IB = Number(h.dataset.ib) || 0, r0 = h.getBoundingClientRect();
-        const v0 = pl.querySelector(".gplaf-v"), seg = Number(pl.dataset.seg) || 0, pre = (v0.textContent.match(/^\d\d\/\d\d\/\d{4} : /) || [""])[0];
-        let P = null, cut = null;
+        let v0 = pl.querySelector(".gplaf-v"); const seg = Number(pl.dataset.seg) || 0, pre = (v0.textContent.match(/^\d\d\/\d\d\/\d{4} : /) || [""])[0];
+        let P = null, cut = null, Plive = null, lvT = 0, lvTm = null;
+        /* v703 : la barre n'a pas de bouton — le planning suit pendant le geste (dans les deux sens), ↶ annule tout le geste */
+        const live = () => { lvTm = null; if (P === null || P === Plive) return; Plive = P; lvT = Date.now(); shell.__undoHold = true;
+          X.plafSeg(seg, P, null, true);
+          const npl = shell.querySelector(`.dlyg-foot .gplaf[data-seg="${seg}"]`) || shell.querySelector(".dlyg-foot .gplaf");
+          if (npl && npl !== pl) { pl = npl; v0 = pl.querySelector(".gplaf-v") || v0; pl.classList.add("gcap-drag"); place(); } };
         const x0 = e.clientX, y0 = e.clientY, host = shell.querySelector("#dlyGantt");
         const dayAt = cx => { const n = Math.floor((cx - h.getBoundingClientRect().left) / DLY_DW); return sviIsoAdd(host.__d0, Math.max(0, n)); };
         const showCut = cx => {
@@ -86,13 +91,20 @@
           clearTimeout(lt);
           const y = ev.clientY - r0.top;
           P = IB && y > Y0 + IB / 3 ? -1 : Math.max(0, Math.round((Y0 - y) / sc));
-          pl.classList.toggle("gcap-inf", P < 0); pl.classList.toggle("gcap-zero", P === 0);
-          pl.style.top = (P < 0 ? Y0 + IB / 2 : Y0 - P * sc) + "px";
-          v0.textContent = pre + (P < 0 ? "ILLIMITÉ" : P === 0 ? "CAPACITÉ 0 — PÉNURIE" : "CAPACITÉ " + P);
+          place();
+          if (P !== Plive && !lvTm) lvTm = setTimeout(live, Math.max(0, 140 - (Date.now() - lvT)));
         };
-        const off = () => { clearTimeout(lt); document.getElementById("dlyCutTip")?.remove(); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", off); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); };
-        const up = () => { const c = cut; off(); if (c) X.cutPlaf(c); else if (P !== null) X.plafSeg(seg, P, pl); };
-        document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", off);
+        /* la barre reste sous le doigt (échelle du départ du geste), même quand le graphique est redessiné */
+        const place = () => { if (P === null) return;
+          pl.classList.toggle("gcap-inf", P < 0); pl.classList.toggle("gcap-zero", P === 0);
+          const y = P < 0 ? Y0 + IB / 2 : Y0 - P * sc, hr = pl.offsetParent ? pl.offsetParent.getBoundingClientRect() : r0;
+          pl.style.top = (y + r0.top - hr.top) + "px";
+          if (v0) v0.textContent = pre + (P < 0 ? "ILLIMITÉ" : P === 0 ? "CAPACITÉ 0 — PÉNURIE" : "CAPACITÉ " + P); };
+        const off = () => { clearTimeout(lt); clearTimeout(lvTm); lvTm = null; document.getElementById("dlyCutTip")?.remove(); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", cc); setTimeout(() => document.removeEventListener("touchmove", tmv), 0); };
+        const fin = () => { if (shell.__undoHold) { shell.__undoHold = false; if (shell.__undoLab !== undefined) shell.__undoLab = "CAPACITÉ"; if (shell.__undoTick) shell.__undoTick(); } };
+        const up = () => { const c = cut; off(); try { if (c) X.cutPlaf(c); else if (P !== null) { shell.__undoHold = true; X.plafSeg(seg, P, pl); } } finally { fin(); } };
+        const cc = () => { off(); try { if (P !== null && Plive !== null) { shell.__undoHold = true; X.plafSeg(seg, P, pl); } } finally { fin(); } };
+        document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", cc);
       });
       /* R28 : zone touchée en dernier (tableau, Gantt, histogramme) — liseré, et ses entrées en premier dans le menu ⋯ */
       shell.addEventListener("pointerdown", e => {
