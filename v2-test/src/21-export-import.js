@@ -1,7 +1,7 @@
     /* ===== export / import / aperçu PDF par bloc ===== */
     const lastShown = { client: null, detail: null, hier: {} };
     const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL",
-                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD" };
+                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD", scn: "SCENARIOS", ver: "VERSIONS" };
     const REC_KINDS = ["doc", "taf", "obs"];
 
     const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
@@ -33,6 +33,8 @@
       if (blk === "hist") return histData();
       if (blk === "ind") return indData();   /* v679 */
       if (blk === "rat") return ratData();   /* v680 */
+      if (blk === "scn" && shell.__scnData) return shell.__scnData();   /* v685 */
+      if (blk === "ver" && shell.__verData) return shell.__verData();
       if (blk === "metre") return metreData();
       if (blk === "interne") return interneData();
       if (blk === "hier") {

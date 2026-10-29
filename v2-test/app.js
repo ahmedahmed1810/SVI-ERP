@@ -291,7 +291,8 @@ const SVI_ICON = (() => {
     prd: w('<circle cx="12" cy="12" r="9"/><path d="M12 17V7M8 11l4-4 4 4"/>'),
     qlt: w('<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>'),
     dly: w('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>'),
-    xpl: w('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>')
+    xpl: w('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+    scn: w('<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="9" r="2"/><path d="M6 7v10M18 11c0 4-6 3-12 6"/>')
   };
 })();
 
@@ -3526,7 +3527,9 @@ const SVI_COL = {
   hdt: { pw: 14 }, hbr: { pw: 8 }, hac: { pw: 12 }, hde: { pw: 40 },
   /* DOCUMENTS / TAF / OBSERVATIONS */
   rref: { w: 210, pw: 22 }, rdate: { w: 150 }, rtitle: { w: 360, pw: 60 }, rfile: { w: 120 }, rexp: { w: 110, pw: 8 }, robj: { w: 200, pw: 15 }, rtext: { w: 420, pw: 30 },
-  rresp: { w: 180, pw: 13 }, rprev: { w: 140, pw: 12 }, rdelay: { w: 150, pw: 9 }, relap: { w: 150, pw: 9 }, rimp: { w: 60, pw: 4 }
+  rresp: { w: 180, pw: 13 }, rprev: { w: 140, pw: 12 }, rdelay: { w: 150, pw: 9 }, relap: { w: 150, pw: 9 }, rimp: { w: 60, pw: 4 },
+  /* v685 : blocs SCÉNARIOS et VERSIONS */
+  scnind: { w: 300, pw: 30 }, ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => ["sc" + (i + 1), { w: 230, pw: 12 }]))
 };
 /* — de src/12-tableaux-colonnes.js — */
 const SVI_COL_T = {
@@ -6784,6 +6787,7 @@ function renderBudgetList() {
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="taf" role="button">${SVI_ICON.taf}<span class="pl">TAF ${svCnt(0)}</span></span>
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="obs" role="button">${SVI_ICON.obs}<span class="pl">OBS ${svCnt(0)}</span></span>
           <span class="bdg-d-pill bdg-d-pill-btn" data-pill="inf" role="button">${SVI_ICON.inf}<span class="pl">INF</span></span>
+          ${budget.inst && !budget.inst.virtual ? `<span class="bdg-d-pill bdg-d-pill-btn" data-pill="scn" role="button" title="Nouveau scénario">${SVI_ICON.scn}<span class="pl">SCN ${svCnt((((budget.inst.data || {}).ver || {}).L || []).filter(x => x.kind === "sc").length)}</span></span>` : ""}
           ${INST_LIVE ? '<div class="lk-chain lk-chain-top" id="insChain" hidden></div>' : ""}
         </div>
         ${AV_ROOT ? `<div class="av-top" id="avTop">
@@ -6862,6 +6866,18 @@ function renderBudgetList() {
         </div>
 
         <div class="bdg-d-block bdg-d-tabbody" id="bdgTabBody"></div>
+
+        <div class="bdg-d-block blk-rec blk-scn" data-rec="scn" hidden>
+          <div class="bdg-d-block-title blk-head">
+            <span class="ttl" id="scnTitle">${SVI_ICON.scn}SCÉNARIOS</span>
+            <span class="blk-tools">
+              <button type="button" class="blk-btn" data-blk="scn" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="scn" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn blk-max-btn" data-blk="scn" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </span>
+          </div>
+          <div class="rec-scroll scn-scroll"><table class="bdg-d-table rec-table scn-table" id="scnTable"></table></div>
+        </div>
 
         <div class="bdg-d-block blk-rec blk-suivi" data-rec="suivi">
           <div class="bdg-d-block-title blk-head">
@@ -16305,6 +16321,7 @@ ${A}</Assignments>
         if (window.__sviHistRefresh) window.__sviHistRefresh();
         if (window.__sviIndRefresh) window.__sviIndRefresh();   /* v679 */
         if (window.__sviRatRefresh) window.__sviRatRefresh();   /* v680 */
+        if (shell.__scnRender) shell.__scnRender();   /* v685 : bloc SCÉNARIOS */
         if (window.__sviImpRefresh) window.__sviImpRefresh();
         if (window.__sviDpkRefresh) window.__sviDpkRefresh();
         if (window.__sviInfoRefresh) window.__sviInfoRefresh();
@@ -16581,19 +16598,19 @@ ${A}</Assignments>
       }
     };
 
-    const LAY_UNITS = ["client", "hier", "detail", "suivi"];
+    const LAY_UNITS = ["client", "hier", "detail", "scn", "suivi"];   /* v685 : bloc SCÉNARIOS entre le détail et le suivi */
     const page$ = () => shell.querySelector(".bdg-d-page");
     const layEls = u => {
       const pg = page$();
       if (u === "detail") return [$("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
-      const sel = { client: ".blk-client", hier: ".blk-hier", suivi: ".blk-suivi" }[u];
+      const sel = { client: ".blk-client", hier: ".blk-hier", scn: ".blk-scn", suivi: ".blk-suivi" }[u];
       return [pg.querySelector(":scope > " + sel)].filter(Boolean);
     };
     const layMeasure = u => {
       const sel = {
         client: ".bdg-d-client-scroll", hier: ".bdg-h-col",
         detail: "#bdgTabBody .bdg-d-scroll",
-        suivi: ".blk-suivi .rec-scroll:not([hidden])"
+        suivi: ".blk-suivi .rec-scroll:not([hidden])", scn: ".blk-scn .rec-scroll"
       }[u];
       const el = page$().querySelector(sel);
       return el ? el.getBoundingClientRect().height : 150;
@@ -16624,7 +16641,10 @@ ${A}</Assignments>
     };
     const layOrder = () => {
       const saved = (layLoad().order || []).filter(u => LAY_UNITS.includes(u));
-      return [...saved, ...LAY_UNITS.filter(u => !saved.includes(u))];
+      /* v685 : bloc nouveau absent de l'ordre enregistré : rangé à sa place d'origine (juste avant le suivi) */
+      const out = [...saved];
+      LAY_UNITS.filter(u => !saved.includes(u)).forEach(u => { const i = out.indexOf("suivi"); if (u !== "suivi" && i >= 0) out.splice(i, 0, u); else out.push(u); });
+      return out;
     };
     const layOpenH = {};   /* hauteurs réglées pendant cette ouverture seulement */
     const layApply = () => {
@@ -16643,7 +16663,7 @@ ${A}</Assignments>
       try { requestAnimationFrame(() => { try { layDetFloor(); } catch (e) {} }); } catch (e) {}
       /* v557 : hauteur par défaut du détail recalculée si l'écran change (rotation, barre de Safari) */
       if (!shell.__layDetRs) { shell.__layDetRs = true; let tm = 0; window.addEventListener("resize", () => { clearTimeout(tm); tm = setTimeout(() => { if (shell.isConnected && page$() && !(layLoad().h || {}).detail) layApply(); }, 300); }); }
-      const custom = (lay.order && lay.order.join() !== LAY_UNITS.join()) ||
+      const custom = (lay.order && layOrder().join() !== LAY_UNITS.join()) ||
         Object.keys(lay.h || {}).length > 0;
       const rb = $("layResetBtn");
       /* ↻ toujours affiché ; grisé quand les blocs sont déjà à leur place d'origine */
@@ -17415,7 +17435,7 @@ ${A}</Assignments>
     /* ===== export / import / aperçu PDF par bloc ===== */
     const lastShown = { client: null, detail: null, hier: {} };
     const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL",
-                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD" };
+                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD", scn: "SCENARIOS", ver: "VERSIONS" };
     const REC_KINDS = ["doc", "taf", "obs"];
 
     const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
@@ -17447,6 +17467,8 @@ ${A}</Assignments>
       if (blk === "hist") return histData();
       if (blk === "ind") return indData();   /* v679 */
       if (blk === "rat") return ratData();   /* v680 */
+      if (blk === "scn" && shell.__scnData) return shell.__scnData();   /* v685 */
+      if (blk === "ver" && shell.__verData) return shell.__verData();
       if (blk === "metre") return metreData();
       if (blk === "interne") return interneData();
       if (blk === "hier") {
@@ -20961,7 +20983,7 @@ ${A}</Assignments>
         const vo = e.target.closest("[data-vfo]"); if (vo) { d.remove(); window.__sviAvOpen(budget.inst.ref + "-V" + vo.dataset.vfo); return; }
         const ir = e.target.closest("[data-irm]"); if (ir) { V.ind = V.ind.filter(k => k !== ir.dataset.irm); save("INDICATEUR RETIRÉ", ir.dataset.irm); draw(); return; }
         /* v681 : premier numéro libre */
-        if (e.target.closest("[data-new]")) { const used = new Set(V.L.map(x => (String(x.nom).match(/^SCÉNARIO (\d+)$/) || [])[1]).filter(Boolean).map(Number)); let n = 1; while (used.has(n)) n++;
+        if (e.target.closest("[data-new]")) { if (V.L.filter(x => x.kind === "sc").length >= 10) { svToast("10 SCÉNARIOS AU PLUS PAR ÉTAPE.", 3500); return; } const used = new Set(V.L.map(x => (String(x.nom).match(/^SCÉNARIO (\d+)$/) || [])[1]).filter(Boolean).map(Number)); let n = 1; while (used.has(n)) n++;
           V.L.push({ id: insId(), kind: "sc", nom: "SCÉNARIO " + n, date: localDT(new Date()), d: verSnap() }); save("NOUVEAU SCÉNARIO", "SCÉNARIO " + n); draw(); return; }
         const sw = e.target.closest("[data-sw]");
         if (sw) {
@@ -21008,6 +21030,165 @@ ${A}</Assignments>
       insSave(); histLog("VERSIONS", "VERSION " + n, kind);
     };
     shell.__verOrig = () => verOrig();
+
+    /* =========================================================
+       v685 : SCÉNARIOS HORS DU MENU ⋯ (décisions du 29/10/2026, soir, suite)
+       - bouton SCN (rangée DOC / TAF / OBS / INF) : crée aussitôt un scénario, copie de l'étape telle qu'elle est,
+         numéro automatique (premier libre) ; 10 au plus par étape (le scénario actif = l'étape compte) ; SCN grisé au-delà,
+         appui long (ou toucher grisé) = la raison. Au premier toucher, l'étape devient SCÉNARIO 1 (actif) et la copie SCÉNARIO 2.
+       - bloc SCÉNARIOS entre le détail et DOCUMENTS / TAF / OBS : absent tant qu'il n'y a pas de copie ; indicateurs en
+         lignes (ligne « + »), une colonne par scénario ; nom, OFFERT AU CLIENT, BASCULER / RETENIR / DÉSARCHIVER / ✕ ;
+         pas de bouton + (SCN seul crée). FORMAT des autres blocs (tri / filtre, colonnes ajustables, poignée, agrandir).
+       ========================================================= */
+    const SCN_MAX = 10;
+    const scnL = () => ((INS && INS.ver && INS.ver.L) || []).filter(x => x.kind === "sc");
+    const scnEd = () => !!INS && !!budget.inst && !budget.inst.virtual && (budget.inst.state || "instance") === "instance";
+    const scnWhy = () => !budget.inst || budget.inst.virtual ? "SCÉNARIOS : SUR UNE ÉTAPE SEULEMENT (PAS SUR LE CONSOLIDÉ NI SUR UNE VERSION)."
+      : !scnEd() ? "SCN : ÉTAPE " + (budget.inst.state === "valide" ? "VALIDÉE" : "FIGÉE") + ", LECTURE SEULE — REVENIR EN ÉDITION POUR CRÉER UN SCÉNARIO."
+      : scnL().length >= SCN_MAX ? "SCN : " + SCN_MAX + " SCÉNARIOS AU PLUS PAR ÉTAPE — SUPPRIMER UN SCÉNARIO POUR EN CRÉER UN AUTRE." : "";
+    const scnNo = V => { const used = new Set(V.L.map(x => (String(x.nom).match(/^SCÉNARIO (\d+)$/) || [])[1]).filter(Boolean).map(Number)); let n = 1; while (used.has(n)) n++; return n; };
+    /* d0 : état copié (par défaut l'étape telle qu'elle est) — renvoie le nom du scénario créé, ou "" */
+    const scnAdd = (d0, why) => {
+      if (scnWhy()) return "";
+      INS.ver = INS.ver || { L: [], ind: [] };
+      const V = INS.ver; V.L = V.L || []; V.ind = V.ind || [];
+      if (!V.act || !V.L.some(x => x.id === V.act)) { const id = insId(); V.L.push({ id, kind: "sc", nom: "SCÉNARIO " + scnNo(V), date: localDT(new Date()) }); V.act = id; }
+      if (scnL().length >= SCN_MAX) return "";
+      const nom = "SCÉNARIO " + scnNo(V);
+      V.L.push({ id: insId(), kind: "sc", nom, date: localDT(new Date()), d: d0 ? JSON.parse(JSON.stringify(d0)) : verSnap() });
+      insSave(); histLog("VERSIONS", "NOUVEAU SCÉNARIO", nom + (why ? " — " + why : ""));
+      return nom;
+    };
+    shell.__scnAdd = scnAdd;
+    const scnPill = () => {
+      const p = shell.querySelector('[data-pill="scn"]'); if (!p) return;
+      const off = !!scnWhy();
+      p.classList.toggle("pill-off", off);
+      p.innerHTML = SVI_ICON.scn + `<span class="pl">SCN ${svCnt(scnL().length)}</span>`;
+    };
+    {
+      const p = shell.querySelector('[data-pill="scn"]');
+      if (p) {
+        let lt = 0, longed = false;
+        const clr = () => { clearTimeout(lt); lt = 0; };
+        p.addEventListener("pointerdown", () => { longed = false; clr(); lt = setTimeout(() => { longed = true; svToast(scnWhy() || "SCN : CRÉE UN SCÉNARIO, COPIE DE L'ÉTAPE TELLE QU'ELLE EST (" + SCN_MAX + " AU PLUS).", 4500, p); }, 550); });
+        ["pointerup", "pointercancel", "pointerleave"].forEach(ev => p.addEventListener(ev, clr));
+        p.addEventListener("click", e => {
+          e.stopPropagation();
+          if (longed) { longed = false; return; }
+          const w = scnWhy(); if (w) { svToast(w, 4500, p); return; }
+          const nom = scnAdd();
+          if (!nom) return;
+          refreshAll();
+          svToast(nom + " CRÉÉ : COPIE DE L'ÉTAPE TELLE QU'ELLE EST.", 3000, p);
+          setTimeout(() => { const b = shell.querySelector(".blk-scn"); if (b && !b.hidden) b.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, 60);
+        });
+      }
+    }
+    /* colonnes : indicateur, puis une colonne par scénario (clés sc1…sc10, par position) */
+    const scnCols = SC => [["scnind", "INDICATEUR", r => r.nom, ""], ...SC.map((x, j) => ["sc" + (j + 1), x.nom, r => r.v[j] ? (r.v[j].val ?? r.v[j].txt) : "", "number"])];
+    const scnRows = SC => {
+      const LIB = indLoad(), V = INS.ver; V.ind = (V.ind || []).filter(k => LIB.some(I => I.id === k));
+      const ST = SC.map(x => x.id === V.act ? INS : x.d || null), EL = ST.map(s2 => s2 ? indEls(s2) : null);
+      return V.ind.map(k => { const IN = LIB.find(I => I.id === k); return { k, nom: IN.nom, v: ST.map((s2, j) => s2 ? indCalc(IN, s2, EL[j]) : null) }; });
+    };
+    let scnShownRows = [];
+    shell.__scnData = () => {
+      const SC = scnL(), cols = coOrder("scn", scnCols(SC));
+      return { head: cols.map(c => c[1]), rows: scnShownRows.map(r => cols.map(c => c[0] === "scnind" ? r.nom : (r.v[+c[0].slice(2) - 1] || {}).txt || "—")) };
+    };
+    const scnRender = () => {
+      scnPill();
+      const blk = shell.querySelector(".blk-scn"), t = $("scnTable");
+      if (!blk || !t) return;
+      const SC = scnL();
+      blk.hidden = !INS || SC.length < 2;
+      if (blk.hidden) return;
+      const V = INS.ver, ed = scnEd();
+      const cols = scnCols(SC), all = scnRows(SC), rows = cfApply("scn", cols, all);
+      scnShownRows = rows;
+      const ttl = $("scnTitle"); if (ttl) ttl.innerHTML = SVI_ICON.scn + "SCÉNARIOS " + svCnt(SC.length);
+      const oc = coOrder("scn", cols);
+      const cell = (c, html, cls = "") => `<td class="${cls}">${html}</td>`;
+      const scOf = c => c[0] === "scnind" ? null : SC[+c[0].slice(2) - 1];
+      const head = oc.map(c => { const x = scOf(c); if (!x) return cfHead("scn", c[0], c[1]);
+        const st = x.id === V.act ? (x.arch ? "ACTIF — ARCHIVÉ" : "ACTIF") : x.arch ? "ARCHIVÉ" : "EN RÉSERVE";
+        return cfHead("scn", c[0], `${esc(x.nom)} <small class="scn-st">${st}</small>`, "number" + (x.id === V.act ? " ver-act" : "") + (x.arch ? " ver-arch" : "")); }).join("");
+      const body = rows.map(r => `<tr>${oc.map(c => { const x = scOf(c); if (!x) return cell(c, `<b>${esc(r.nom)}</b>${ed ? ` <button type="button" class="cmp-del" data-irm="${esc(r.k)}" title="Retirer du tableau">✕</button>` : ""}`);
+        const v = r.v[+c[0].slice(2) - 1]; return cell(c, v ? `<span class="${v.err ? "rat-err" : ""}">${esc(v.txt)}</span>` : "—", "number" + (x.id === V.act ? " ver-act" : "")); }).join("")}</tr>`).join("");
+      const plus = ed ? `<tr class="ver-plus"><td><button type="button" class="svc-b ver-ip" data-ip>+</button> <span class="cmp-leg">INDICATEUR</span></td>${oc.slice(1).map(() => "<td></td>").join("")}</tr>` : "";
+      const fixed = oc.map(c => c);
+      const nameRow = ed ? `<tr class="scn-fix"><td><b>NOM</b></td>${fixed.filter(c => scOf(c)).map(c => { const x = scOf(c); return `<td>${!x.arch ? `<input class="cmp-nm ver-nm" data-id="${x.id}" value="${esc(x.nom)}">` : esc(x.nom)}</td>`; }).join("")}</tr>` : "";
+      const ofRow = `<tr class="scn-fix"><td><b>OFFERT AU CLIENT</b></td>${fixed.filter(c => scOf(c)).map(c => { const x = scOf(c); return `<td class="center"><input type="checkbox" class="ver-of" data-id="${x.id}"${x.of ? " checked" : ""}${ed && !x.arch ? "" : " disabled"}></td>`; }).join("")}</tr>`;
+      const actRow = ed ? `<tr class="scn-fix"><td></td>${fixed.filter(c => scOf(c)).map(c => { const x = scOf(c); return `<td class="center ver-acts">${x.id === V.act ? "" : `<button type="button" class="svc-b" data-sw="${x.id}">BASCULER</button>`}${x.arch ? `<button type="button" class="svc-b" data-unarch="${x.id}">DÉSARCHIVER</button>` : `<button type="button" class="svc-b svc-ok" data-keep="${x.id}">RETENIR</button>`}${x.id === V.act ? "" : `<button type="button" class="cmp-del" data-del="${x.id}" title="Supprimer ce scénario">✕</button>`}</td>`; }).join("")}</tr>` : "";
+      /* ordre des colonnes : l'indicateur reste en tête pour les lignes fixes */
+      const okOrder = oc[0] && oc[0][0] === "scnind";
+      t.style.width = cwTableW("scn", cols) + "px";
+      t.innerHTML = `<colgroup>${cwCols("scn", oc)}</colgroup><thead><tr>${head}</tr></thead>
+        <tbody>${body || (V.ind.length ? `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : `<tr><td colspan="${oc.length}" class="empty">AUCUN INDICATEUR : LIGNE « + » POUR EN AJOUTER</td></tr>`)}
+        ${plus}${okOrder ? nameRow + ofRow + actRow : ""}</tbody>`;
+    };
+    shell.__scnRender = scnRender;
+    {
+      const blk = shell.querySelector(".blk-scn");
+      const V$ = () => INS.ver;
+      const archOf = () => { const x = V$().L.find(y => y.id === V$().act); return !!(x && x.arch); };
+      const save = (what, det) => { insSave(); histLog("VERSIONS", what, det); };
+      const reopen = () => openBudgetDetail(ref);
+      if (blk) {
+        blk.addEventListener("change", e => {
+          const t = e.target, V = V$(); if (!V) return;
+          if (t.classList.contains("ver-nm")) { const x = V.L.find(y => y.id === t.dataset.id); if (x) { x.nom = t.value.trim().toUpperCase() || x.nom; save("SCÉNARIO RENOMMÉ", x.nom); scnRender(); } return; }
+          if (t.classList.contains("ver-of")) { const x = V.L.find(y => y.id === t.dataset.id); if (x) { x.of = t.checked; save(t.checked ? "OFFERT AU CLIENT" : "RETIRÉ DES OFFRES", x.nom); } }
+        });
+        blk.addEventListener("click", async e => {
+          const V = V$(); if (!V || !scnEd()) return;
+          const ip = e.target.closest("[data-ip]");
+          if (ip) { e.stopPropagation(); indPlusMenu(ip, V.ind, id => { V.ind.push(id); save("INDICATEUR AJOUTÉ", (indLoad().find(I => I.id === id) || {}).nom || id); scnRender(); },
+            w => { if (w === "new") indDesignWin(null, I => { if (I) { V.ind.push(I.id); save("INDICATEUR AJOUTÉ", I.nom); } scnRender(); }); else if (w === "list") indWin(() => scnRender()); }); return; }
+          const ir = e.target.closest("[data-irm]"); if (ir) { e.stopPropagation(); V.ind = V.ind.filter(k => k !== ir.dataset.irm); save("INDICATEUR RETIRÉ", ir.dataset.irm); scnRender(); return; }
+          const sw = e.target.closest("[data-sw]");
+          if (sw) {
+            e.stopPropagation();
+            const x = V.L.find(y => y.id === sw.dataset.sw), cur = V.L.find(y => y.id === V.act);
+            if (!x || !x.d) return;
+            const was = archOf();
+            if (cur) cur.d = verSnap();
+            verLoad(x.d); delete x.d; V.act = x.id; save("BASCULE", x.nom + (x.arch ? " (ARCHIVÉ : LECTURE SEULE)" : ""));
+            if (was !== archOf()) { reopen(); return; }
+            refreshAll(); return;
+          }
+          const ua = e.target.closest("[data-unarch]");
+          if (ua) {
+            e.stopPropagation();
+            const x = V.L.find(y => y.id === ua.dataset.unarch);
+            if (!(await svConfirm({ title: "DÉSARCHIVER " + x.nom, text: x.nom + " REPASSE EN RÉSERVE : IL REDEVIENT MODIFIABLE ET PEUT ÊTRE RETENU.", ok: "DÉSARCHIVER", tone: "neutral" }))) return;
+            const was = archOf(); x.arch = false; save("SCÉNARIO DÉSARCHIVÉ", x.nom);
+            if (was !== archOf()) { reopen(); return; }
+            scnRender(); return;
+          }
+          const kp = e.target.closest("[data-keep]");
+          if (kp) {
+            e.stopPropagation();
+            const x = V.L.find(y => y.id === kp.dataset.keep);
+            if (!(await svConfirm({ title: "RETENIR " + x.nom, text: x.nom + " DEVIENT LE BUDGET DE RÉFÉRENCE ; LES AUTRES SCÉNARIOS SONT ARCHIVÉS (CONSULTABLES, EN LECTURE SEULE).", ok: "RETENIR", tone: "neutral" }))) return;
+            const was = archOf();
+            if (x.id !== V.act) { const cur = V.L.find(y => y.id === V.act); if (cur) cur.d = verSnap(); verLoad(x.d); delete x.d; V.act = x.id; }
+            V.L.forEach(y => { if (y.kind === "sc") y.arch = y.id !== x.id; }); x.ret = true;
+            save("SCÉNARIO RETENU", x.nom);
+            if (was !== archOf()) { reopen(); return; }
+            refreshAll(); return;
+          }
+          const dl = e.target.closest("[data-del]");
+          if (dl) {
+            e.stopPropagation();
+            const x = V.L.find(y => y.id === dl.dataset.del);
+            if (await svConfirm({ title: "SUPPRIMER " + x.nom, text: "CE SCÉNARIO ET SES DONNÉES SERONT SUPPRIMÉS.", ok: "SUPPRIMER" })) { V.L = V.L.filter(y => y !== x); save("SCÉNARIO SUPPRIMÉ", x.nom); refreshAll(); }
+            return;
+          }
+        });
+      }
+    }
 /* ⟪ src/22f-plans.js ⟫ */
     /* =========================================================
        v671 (AXE 6) : PLANS — métré sur plan (menu ⋯ du haut : PLANS ET MÉTRÉ).
@@ -22741,7 +22922,7 @@ ${A}</Assignments>
     const printGeneric = blk => {
       const label = String(blkLabel(blk)).toUpperCase();
       let cols, rows, end = "";
-      if ((blk === "detail" && (active === "dly" || (active === "qlt" && INS))) || blk === "hist" || blk === "ind" || blk === "rat") {
+      if ((blk === "detail" && (active === "dly" || (active === "qlt" && INS))) || blk === "hist" || blk === "ind" || blk === "rat" || blk === "scn" || blk === "ver") {
         const d = blkData(blk);
         if (!d.rows.length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         /* historique : date, branche et action étroites, détail large */
@@ -23771,10 +23952,10 @@ ${A}</Assignments>
       const page = shell.querySelector(".bdg-d-page");
       const cls = "max-" + blk;
       const on = !page.classList.contains(cls);
-      page.classList.remove("max-client", "max-hier", "max-detail", "max-rec", "max-suivi");
+      page.classList.remove("max-client", "max-hier", "max-detail", "max-rec", "max-suivi", "max-scn", "max-ver");
       shell.querySelectorAll(".blk-rec").forEach(b =>
         b.classList.toggle("blk-rec-on", on && b.dataset.rec === blk));
-      if (on && blk === "suivi") page.classList.add("max-rec");
+      if (on && ["suivi", "scn", "ver"].includes(blk)) page.classList.add("max-rec");
       if (on) {
         const head = shell.querySelector(".bdg-d-sticky");
         const avail = window.innerHeight - (head ? head.offsetHeight : 0) - 40;

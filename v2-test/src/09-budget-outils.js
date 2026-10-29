@@ -112,7 +112,9 @@ const SVI_COL = {
   hdt: { pw: 14 }, hbr: { pw: 8 }, hac: { pw: 12 }, hde: { pw: 40 },
   /* DOCUMENTS / TAF / OBSERVATIONS */
   rref: { w: 210, pw: 22 }, rdate: { w: 150 }, rtitle: { w: 360, pw: 60 }, rfile: { w: 120 }, rexp: { w: 110, pw: 8 }, robj: { w: 200, pw: 15 }, rtext: { w: 420, pw: 30 },
-  rresp: { w: 180, pw: 13 }, rprev: { w: 140, pw: 12 }, rdelay: { w: 150, pw: 9 }, relap: { w: 150, pw: 9 }, rimp: { w: 60, pw: 4 }
+  rresp: { w: 180, pw: 13 }, rprev: { w: 140, pw: 12 }, rdelay: { w: 150, pw: 9 }, relap: { w: 150, pw: 9 }, rimp: { w: 60, pw: 4 },
+  /* v685 : blocs SCÉNARIOS et VERSIONS */
+  scnind: { w: 300, pw: 30 }, ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => ["sc" + (i + 1), { w: 230, pw: 12 }]))
 };
 /* — de src/12-tableaux-colonnes.js — */
 const SVI_COL_T = {
