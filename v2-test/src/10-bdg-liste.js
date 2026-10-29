@@ -1155,6 +1155,12 @@ function renderBudgetList() {
 
   bdgGroups = groups;
 
+  /* v679 : pas d'icône EN INSTANCE s'il n'y a que des budgets validés, et inversement ; la liste affichée suit */
+  const LIST_N = { inst: 0, valid: 0 };
+  groups.forEach(g => { if (g.inst && g.inst.state !== "valide") LIST_N.inst++; else LIST_N.valid++; });
+  if (listMode === "inst" && !LIST_N.inst && LIST_N.valid) listMode = "valid";
+  if (listMode === "valid" && !LIST_N.valid && LIST_N.inst) listMode = "inst";
+
   const budgets =
     [...groups.values()].filter(g => {
       const live = !!g.inst && g.inst.state !== "valide";
@@ -1173,8 +1179,8 @@ function renderBudgetList() {
       /* ⌛ : budgets en instance — ≡ : budgets validés (bouton de la liste affichée surligné) */
       const hg = acts.querySelector('[aria-label="Historique"]');
       const ls = acts.querySelector('[aria-label="Liste"]');
-      if (hg) { hg.title = "Budgets en instance"; hg.classList.toggle("on", listMode === "inst"); }
-      if (ls) { ls.title = "Budgets validés"; ls.classList.toggle("on", listMode !== "inst"); }
+      if (hg) { hg.title = "Budgets en instance"; hg.classList.toggle("on", listMode === "inst"); hg.hidden = !LIST_N.inst; hg.style.display = LIST_N.inst ? "" : "none"; }
+      if (ls) { ls.title = "Budgets validés"; ls.classList.toggle("on", listMode !== "inst"); ls.hidden = !LIST_N.valid; ls.style.display = LIST_N.valid ? "" : "none"; }
       const setMode = m => {
         try { localStorage.setItem("svi_listmode_v1", m); } catch (err) {}
         renderBudgetList();

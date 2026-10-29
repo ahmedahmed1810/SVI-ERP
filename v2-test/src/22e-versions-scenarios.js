@@ -55,18 +55,18 @@
       const d = sviWinNew();
       const draw = () => {
         const SC = V.L.filter(x => x.kind === "sc"), AV = V.L.filter(x => x.kind === "av").sort((a, b) => a.n - b.n);
-        const indOf = x => x.id === V.act ? verInd(INS) : x.d ? verInd(x.d) : null;
-        const I = SC.map(indOf);
+        const LIB = indLoad(); V.ind = V.ind.filter(k => LIB.some(I => I.id === k));
+        const ST = SC.map(x => x.id === V.act ? INS : x.d || null), EL = ST.map(s => s ? indEls(s) : null);
         /* avenants : montants par origine, quantités augmentées */
         const O = verOrig(), byO = {};
         INS.des.filter(r => !r.t).forEach(r => { const o = O.des[r.id], m = (insLinkedQ(INS, r.id) ?? num(r.q || 0)) * num(r.p || 0); byO[o] = (byO[o] || 0) + m; });
         const ini = AV[0] && AV[0].d, inc = ini ? INS.des.filter(r => !r.t).map(r => { const o = (ini.des || []).find(x => x.id === r.id); if (!o) return null; const q0 = insLinkedQ(ini, o.id) ?? num(o.q || 0), q1 = insLinkedQ(INS, r.id) ?? num(r.q || 0); return q1 > q0 + 1e-9 ? { r, q0, q1 } : null; }).filter(Boolean) : [];
         d.innerHTML = sviWinCard({ cls: "cmp-card svc-full", close: "data-x", title: "VERSIONS ET SCÉNARIOS",
           body: `<div class="fz-blk">SCÉNARIOS ${svCnt(SC.length)}</div>
-            <div class="cmp-bar">${ed ? `<button type="button" class="svc-b" data-new>+ NOUVEAU SCÉNARIO (COPIE DE L'ACTIF)</button>` : ""}
-              <select class="rat-add ver-ia"><option value="">+ INDICATEUR…</option>${VER_IND.filter(x => !V.ind.includes(x[0])).map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></div>
+            <div class="cmp-bar">${ed ? `<button type="button" class="svc-b" data-new>+ NOUVEAU SCÉNARIO (COPIE DE L'ACTIF)</button>` : ""}</div>
             <div class="cmp-scroll"><table class="cmp-t ver-t"><thead><tr><th>INDICATEUR</th>${SC.map(x => `<th class="${x.id === V.act ? "ver-act" : ""}${x.arch ? " ver-arch" : ""}">${ed && !x.arch ? `<input class="cmp-nm ver-nm" data-id="${x.id}" value="${esc(x.nom)}">` : esc(x.nom)}<br><small>${x.id === V.act ? "ACTIF" : x.arch ? "ARCHIVÉ" : "EN RÉSERVE"}</small></th>`).join("")}</tr></thead><tbody>
-              ${V.ind.map(k => `<tr><td><b>${esc((VER_IND.find(x => x[0] === k) || ["", k])[1])}</b> ${ed ? `<button type="button" class="cmp-del" data-irm="${k}">✕</button>` : ""}</td>${I.map((v, j) => `<td class="${k === "effT" ? "" : "r"}${SC[j].id === V.act ? " ver-act" : ""}">${v ? esc(verFmt(k, v[k])) : "—"}</td>`).join("")}</tr>`).join("")}
+              ${V.ind.map(k => { const IN = LIB.find(I => I.id === k); return `<tr><td><b>${esc(IN.nom)}</b> ${ed ? `<button type="button" class="cmp-del" data-irm="${esc(k)}">✕</button>` : ""}</td>${ST.map((s, j) => `<td class="r${SC[j].id === V.act ? " ver-act" : ""}">${s ? esc(indCalc(IN, s, EL[j]).txt) : "—"}</td>`).join("")}</tr>`; }).join("")}
+              <tr class="ver-plus"><td colspan="${SC.length + 1}">${ed ? `<button type="button" class="svc-b ver-ip" data-ip>+</button> <span class="cmp-leg">INDICATEUR DE LA LISTE OU NOUVEL INDICATEUR</span>` : ""}</td></tr>
               <tr><td><b>OFFERT AU CLIENT</b></td>${SC.map(x => `<td class="c"><input type="checkbox" class="ver-of" data-id="${x.id}"${x.of ? " checked" : ""}${ed ? "" : " disabled"}></td>`).join("")}</tr>
               ${ed ? `<tr><td></td>${SC.map(x => `<td class="c ver-acts">${x.id === V.act ? "" : `<button type="button" class="svc-b" data-sw="${x.id}">BASCULER</button>`}${x.arch ? "" : `<button type="button" class="svc-b svc-ok" data-keep="${x.id}">RETENIR</button>`}${x.id === V.act ? "" : `<button type="button" class="cmp-del" data-del="${x.id}">✕</button>`}</td>`).join("")}</tr>` : ""}
             </tbody></table></div>
@@ -82,12 +82,15 @@
       draw(); sviWinShow(d);
       d.addEventListener("change", e => {
         const t = e.target;
-        if (t.classList.contains("ver-ia") && t.value) { V.ind.push(t.value); save("INDICATEUR", t.value); draw(); return; }
         if (t.classList.contains("ver-nm")) { const x = V.L.find(y => y.id === t.dataset.id); if (x) { x.nom = t.value.trim().toUpperCase() || x.nom; save("SCÉNARIO RENOMMÉ", x.nom); } return; }
         if (t.classList.contains("ver-of")) { const x = V.L.find(y => y.id === t.dataset.id); if (x) { x.of = t.checked; save(t.checked ? "OFFERT AU CLIENT" : "RETIRÉ DES OFFRES", x.nom); } }
       });
       d.addEventListener("click", async e => {
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); refreshAll(); return; }
+        /* v679 : ligne « + » — indicateur de la liste, ou NOUVEL INDICATEUR (fenêtre de calcul, puis ajouté au tableau) */
+        const ip = e.target.closest("[data-ip]");
+        if (ip) { indPlusMenu(ip, V.ind, id => { V.ind.push(id); save("INDICATEUR AJOUTÉ", (indLoad().find(I => I.id === id) || {}).nom || id); draw(); },
+          w => { if (w === "new") { d.remove(); indDesignWin(null, I => { if (I) { V.ind.push(I.id); save("INDICATEUR AJOUTÉ", I.nom); } verWin(); }); } else if (w === "list") { d.remove(); indWin(() => verWin()); } }); return; }
         const ir = e.target.closest("[data-irm]"); if (ir) { V.ind = V.ind.filter(k => k !== ir.dataset.irm); save("INDICATEUR RETIRÉ", ir.dataset.irm); draw(); return; }
         if (e.target.closest("[data-new]")) { const n = V.L.filter(x => x.kind === "sc").length + 1; V.L.push({ id: insId(), kind: "sc", nom: "SCÉNARIO " + n, date: localDT(new Date()), d: verSnap() }); save("NOUVEAU SCÉNARIO", "SCÉNARIO " + n); draw(); return; }
         const sw = e.target.closest("[data-sw]");

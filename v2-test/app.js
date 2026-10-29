@@ -983,6 +983,16 @@ const SVI_SYNC = { applying: false, timer: null, busy: false, status: "", err: "
 const sviSyncBase = ref => sviIdbGet("svi_sync_base:" + ref).catch(() => null);
 const sviSyncBaseSet = (ref, s) => sviIdbPut("svi_sync_base:" + ref, s).catch(() => {});
 
+/* v679 : DONNÉES PARTAGÉES hors budgets (LISTE DES INDICATEURS…) — une ligne de SYNC « _CLÉ », même envoi, même fusion */
+const SVI_SH_KEY = "svi_shared_v1:";
+const sviSharedItem = ref => { try { return JSON.parse(localStorage.getItem(SVI_SH_KEY + ref.slice(1)) || "null"); } catch (e) { return null; } };
+const sviSharedPut = (ref, it) => { try { const o = { ...it, data: { ...(it.data || {}) } }; delete o.data.conf; localStorage.setItem(SVI_SH_KEY + ref.slice(1), JSON.stringify(o)); } catch (e) {} };
+const sviSharedGet = key => (sviSharedItem("_" + key) || {}).data || {};
+const sviSharedSet = (key, data) => {
+  const ref = "_" + key; sviSharedPut(ref, { ref, project: "PARTAGÉ", state: "partage", data });
+  const M = sviSyncMeta(), m = M[ref] = M[ref] || {}; m.dirty = m.dirty || Date.now(); m.last = Date.now(); delete m.del; sviSyncMetaSet(M);
+  sviSyncSchedule(1500);
+};
 /* liste des budgets de l'iPad modifiée : budgets changés marqués « en attente » */
 const sviSyncChanged = (oldStr, newStr) => {
   if (SVI_SYNC.applying) return;
@@ -1095,7 +1105,8 @@ const sviSyncPushOne = async (ref, M) => {
   const m = M[ref] || {}, user = sviUser();
   if (m.del) { await sviQ("v3Del", { ref }); delete M[ref]; return; }
   if (SVI_CLAIM) await SVI_CLAIM.catch(() => {});   /* v678 : réponse du verrou d'abord (annulation éventuelle) */
-  let it = sviInstGet().find(x => x.ref === ref);
+  const SH = ref[0] === "_";   /* v679 : donnée partagée */
+  let it = SH ? sviSharedItem(ref) : sviInstGet().find(x => x.ref === ref);
   if (!it) { delete M[ref]; return; }
   for (let tour = 0; tour < 3; tour++) {
     const txt = JSON.stringify(it);
@@ -1106,7 +1117,7 @@ const sviSyncPushOne = async (ref, M) => {
       let base = null; try { const bs = await sviSyncBase(ref); base = bs ? JSON.parse(bs) : null; } catch (e) {}
       const merged = sviMergeItem(base, it, theirs, (m.last || 0) >= (r.ts || 0), r.user || "", r.ts || 0);
       SVI_SYNC.applying = true;
-      try { sviInstSet(sviInstGet().map(x => x.ref === ref ? merged : x)); } finally { SVI_SYNC.applying = false; }
+      try { if (SH) sviSharedPut(ref, merged); else sviInstSet(sviInstGet().map(x => x.ref === ref ? merged : x)); } finally { SVI_SYNC.applying = false; }
       m.rev = r.rev; it = merged;
       const nc = ((merged.data || {}).conf || []).length;
       if (nc && typeof svToast === "function") svToast(ref + " : MODIFIÉ AUSSI PAR " + (r.user || "UN AUTRE") + " — FUSIONNÉ ; " + nc + " CONFLIT(S) À VOIR (⚠).", 6000);
@@ -1160,7 +1171,7 @@ const sviSyncPull = async () => {
     let it = null; try { it = JSON.parse(p.data); } catch (e) {}
     if (!it) continue;
     SVI_SYNC.applying = true;
-    try { const list = sviInstGet(); const i = list.findIndex(x => x.ref === s.ref); if (i >= 0) list[i] = it; else list.push(it); sviInstSet(list); } finally { SVI_SYNC.applying = false; }
+    try { if (s.ref[0] === "_") { sviSharedPut(s.ref, it); if (window.__sviSharedChanged) { try { window.__sviSharedChanged(s.ref); } catch (e) {} } } else { const list = sviInstGet(); const i = list.findIndex(x => x.ref === s.ref); if (i >= 0) list[i] = it; else list.push(it); sviInstSet(list); } } finally { SVI_SYNC.applying = false; }
     m.rev = p.rev; m.at = Date.now(); await sviSyncBaseSet(s.ref, p.data); changed = true;
     if (window.__sviOpenRef === s.ref) { window.__sviSyncReopen && window.__sviSyncReopen(s.ref); if (typeof svToast === "function") svToast(s.ref + " : CHANGEMENTS DE " + (p.user || "UN AUTRE") + " REÇUS.", 4000); }
   }
@@ -5517,6 +5528,12 @@ function renderBudgetList() {
 
   bdgGroups = groups;
 
+  /* v679 : pas d'icône EN INSTANCE s'il n'y a que des budgets validés, et inversement ; la liste affichée suit */
+  const LIST_N = { inst: 0, valid: 0 };
+  groups.forEach(g => { if (g.inst && g.inst.state !== "valide") LIST_N.inst++; else LIST_N.valid++; });
+  if (listMode === "inst" && !LIST_N.inst && LIST_N.valid) listMode = "valid";
+  if (listMode === "valid" && !LIST_N.valid && LIST_N.inst) listMode = "inst";
+
   const budgets =
     [...groups.values()].filter(g => {
       const live = !!g.inst && g.inst.state !== "valide";
@@ -5535,8 +5552,8 @@ function renderBudgetList() {
       /* ⌛ : budgets en instance — ≡ : budgets validés (bouton de la liste affichée surligné) */
       const hg = acts.querySelector('[aria-label="Historique"]');
       const ls = acts.querySelector('[aria-label="Liste"]');
-      if (hg) { hg.title = "Budgets en instance"; hg.classList.toggle("on", listMode === "inst"); }
-      if (ls) { ls.title = "Budgets validés"; ls.classList.toggle("on", listMode !== "inst"); }
+      if (hg) { hg.title = "Budgets en instance"; hg.classList.toggle("on", listMode === "inst"); hg.hidden = !LIST_N.inst; hg.style.display = LIST_N.inst ? "" : "none"; }
+      if (ls) { ls.title = "Budgets validés"; ls.classList.toggle("on", listMode !== "inst"); ls.hidden = !LIST_N.valid; ls.style.display = LIST_N.valid ? "" : "none"; }
       const setMode = m => {
         try { localStorage.setItem("svi_listmode_v1", m); } catch (err) {}
         renderBudgetList();
@@ -16147,6 +16164,8 @@ ${A}</Assignments>
         markFiltered();
         REC_KINDS.forEach(renderRec);
         if (window.__sviHistRefresh) window.__sviHistRefresh();
+        if (window.__sviIndRefresh) window.__sviIndRefresh();   /* v679 */
+        if (window.__sviRatRefresh) window.__sviRatRefresh();   /* v680 */
         if (window.__sviImpRefresh) window.__sviImpRefresh();
         if (window.__sviDpkRefresh) window.__sviDpkRefresh();
         if (window.__sviInfoRefresh) window.__sviInfoRefresh();
@@ -17231,7 +17250,7 @@ ${A}</Assignments>
     /* ===== export / import / aperçu PDF par bloc ===== */
     const lastShown = { client: null, detail: null, hier: {} };
     const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL",
-                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET" };
+                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD" };
     const REC_KINDS = ["doc", "taf", "obs"];
 
     const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
@@ -17261,6 +17280,8 @@ ${A}</Assignments>
       }
       if (REC_KINDS.includes(blk)) return recTableData(blk);
       if (blk === "hist") return histData();
+      if (blk === "ind") return indData();   /* v679 */
+      if (blk === "rat") return ratData();   /* v680 */
       if (blk === "metre") return metreData();
       if (blk === "interne") return interneData();
       if (blk === "hier") {
@@ -17987,16 +18008,23 @@ ${A}</Assignments>
       };
       (shell.__lkGuard ? shell.__lkGuard() : Promise.resolve(true)).then(ok => { if (ok) go(); });
     });
-    const openImportBudget = blk => {
+    /* v680 : onglet INDICATEURS — importés vers le tableau de bord (blk « rat » ; source : autre budget ou LISTE COMMUNE)
+       ou vers la liste commune (blk « indlist » ; source : tableau de bord d'un budget, celui-ci compris) ; done() rouvre la fenêtre d'appel */
+    const openImportBudget = (blk, done) => {
       if (!INS) return;
-      const startTab = blk === "client" ? "des" : blk === "hier" ? "hier" : (active === "prd" ? "prd" : "chg");
-      const refs = [...groups.keys()].filter(r => r !== ref)
-        .sort((a, b) => String(a).localeCompare(String(b), "fr", { numeric: true }));
+      const IND_ONLY = blk === "indlist", TABS = IND_ONLY ? [["ind", "INDICATEURS (TABLEAUX DE BORD)"]] : [...IMP_TABS, ["ind", "INDICATEURS"]];
+      const startTab = blk === "rat" || IND_ONLY ? "ind" : blk === "client" ? "des" : blk === "hier" ? "hier" : (active === "prd" ? "prd" : "chg");
+      const refs = [...(blk === "rat" ? ["__LISTE"] : []), ...[...groups.keys()].filter(r => r !== ref || IND_ONLY)
+        .sort((a, b) => String(a).localeCompare(String(b), "fr", { numeric: true }))];
       /* couleur de l'état, comme dans la liste des budgets */
-      const stCls = g => !g.inst || g.inst.state === "valide" ? "" : g.inst.state === "fige" ? "imp-fige" : "imp-inst";
-      const refLab = r => { const g = groups.get(r); return U_(g.project) + " " + r; };
-      let src = refs[0] || "", model = impModel(src), tab = startTab, withLinks = false, all = false;
-      const sel = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set() };
+      const stCls = g => !g || !g.inst || g.inst.state === "valide" ? "" : g.inst.state === "fige" ? "imp-fige" : "imp-inst";
+      const refLab = r => { if (r === "__LISTE") return "LISTE DES INDICATEURS (COMMUNE)"; const g = groups.get(r); return U_(g.project) + " " + r; };
+      const impModelI = r => { const m = r === "__LISTE" ? { des: [], hier: [], chg: [], prd: [], qlt: [], dly: [], links: [] } : impModel(r);
+        const L = r === "__LISTE" ? indLoad() : r === ref ? ratMigrate(JSON.parse(JSON.stringify(INS.rat || {}))).L : (() => { const g = groups.get(r); return g && g.inst ? ratMigrate(JSON.parse(JSON.stringify((g.inst.data || {}).rat || {}))).L : []; })();
+        m.ind = (L || []).filter(I => I.f).map(I => ({ key: "ind|" + U_(I.nom), row: { nom: I.nom, form: indText(I.f, []), I } }));
+        return m; };
+      let src = refs[0] || "", model = impModelI(src), tab = startTab, withLinks = false, all = false;
+      const sel = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set(), ind: new Set() };
       /* lignes liées décochées à la main : la liaison est coupée à cet endroit */
       const cut = new Set();
       const p = sviPopNew();
@@ -18004,7 +18032,7 @@ ${A}</Assignments>
       p.innerHTML = `
         <div class="doc-card imp-card" role="dialog" aria-modal="true">
           <div class="doc-head">
-            <span class="doc-title">IMPORTER — ${esc(blkDisp(blk))}</span>
+            <span class="doc-title">IMPORTER — ${esc(blk === "rat" ? "INDICATEURS DU TABLEAU DE BORD" : IND_ONLY ? "LISTE DES INDICATEURS" : blkDisp(blk))}</span>
             <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
           </div>
           <div class="doc-body">
@@ -18014,7 +18042,7 @@ ${A}</Assignments>
                 <div class="imp-src-list" hidden>${refs.map(r =>
                   `<button type="button" class="imp-src-it ${stCls(groups.get(r))}" data-ref="${esc(r)}">${esc(refLab(r))}</button>`).join("")}</div>
               </div></div>
-            <div class="imp-opts">
+            <div class="imp-opts"${IND_ONLY ? " hidden" : ""}>
               <label><input type="radio" name="impLk" value="0" checked> SANS LIAISONS <small>(LIGNES COCHÉES SEULEMENT)</small></label>
               <label><input type="radio" name="impLk" value="1"> AVEC LIAISONS <small>(+ TÂCHES ET DÉTAILS LIÉS)</small></label>
               <label><input type="checkbox" id="impAll"> TOUT LE BUDGET <small>(TOUTES LES LIGNES, LIAISONS ET DÉLAIS)</small></label>
@@ -18036,7 +18064,8 @@ ${A}</Assignments>
         chg: [["des", "DÉSIGNATION CHARGE"], ["u", "UCB"], ["q", "QCB", 1], ["p", "PCB", 1]],
         prd: [["des", "DÉSIGNATION PRODUIT"], ["u", "UPB"]],
         qlt: [["v", "QUALITÉ"]],
-        dly: [["lot", "LOT"], ["sec", "ACTIVITÉ SECONDAIRE"], ["deb", "DÉBUT"], ["fin", "FIN"]]
+        dly: [["lot", "LOT"], ["sec", "ACTIVITÉ SECONDAIRE"], ["deb", "DÉBUT"], ["fin", "FIN"]],
+        ind: [["nom", "INDICATEUR"], ["form", "FORMULE"]]
       };
       const LV = { lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" };
       const val = (x, f, isNum) => f === "lvl" ? LV[x.lvl] : x.row.t && isNum ? "" : isNum ? money(f === "q" ? insQty(tab === "prd" ? "prd" : "des", x.row) : x.row[f]) : (x.row[f] ?? "");
@@ -18049,9 +18078,9 @@ ${A}</Assignments>
       const shownRows = () => cfApply("imp_" + tab, cfCols(), model[tab]);
       /* lignes retenues : cochées, + liées (AVEC LIAISONS), ou tout le budget */
       const picked = (noCut = false) => {
-        const out = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set() };
-        if (all) { IMP_TABS.forEach(([k]) => model[k].forEach(x => out[k].add(x.key))); return out; }
-        IMP_TABS.forEach(([k]) => sel[k].forEach(x => out[k].add(x)));
+        const out = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set(), ind: new Set() };
+        if (all) { TABS.forEach(([k]) => model[k].forEach(x => out[k].add(x.key))); return out; }
+        TABS.forEach(([k]) => sel[k].forEach(x => out[k].add(x)));
         if (withLinks) {
           /* chaque ligne de détail = un chemin DÉSIGNATION › LOT › PRIMAIRE › SECONDAIRE › DÉTAIL.
              Depuis une ligne cochée, on descend et on remonte le chemin ;
@@ -18078,10 +18107,10 @@ ${A}</Assignments>
       const render = () => {
         /* coupures sans objet (plus aucune liaison n'y passe) : oubliées */
         const pAll = withLinks ? picked(true) : null;
-        if (pAll) [...cut].forEach(k => { if (!IMP_TABS.some(([t]) => pAll[t].has(k))) cut.delete(k); });
+        if (pAll) [...cut].forEach(k => { if (!TABS.some(([t]) => pAll[t].has(k))) cut.delete(k); });
         const pk = picked();
-        const n = IMP_TABS.reduce((t, [k]) => t + pk[k].size, 0);
-        p.querySelector(".imp-tabs").innerHTML = IMP_TABS.map(([k, lab]) =>
+        const n = TABS.reduce((t, [k]) => t + pk[k].size, 0);
+        p.querySelector(".imp-tabs").innerHTML = TABS.map(([k, lab]) =>
           /* pastille grise : lignes disponibles ; pastille rouge : lignes retenues */
           `<button type="button" class="imp-tab${k === tab ? " on" : ""}${Object.keys(cfT("imp_" + k).f || {}).length ? " tab-filt" : ""}" data-tab="${k}">${lab} ${svCnt(model[k].length)}${pk[k].size ? `<span class="imp-selcnt">${pk[k].size}</span>` : ""}</button>`).join("");
         sviMarkEmptyTabs(p.querySelector(".imp-tabs"));
@@ -18186,8 +18215,8 @@ ${A}</Assignments>
         if (it) {
           list.hidden = true;
           if (it.dataset.ref !== src) {
-            src = it.dataset.ref; model = impModel(src);
-            IMP_TABS.forEach(([k]) => sel[k].clear());
+            src = it.dataset.ref; model = impModelI(src);
+            TABS.forEach(([k]) => sel[k].clear());
             cut.clear();
             showSrc(); render();
           }
@@ -18232,6 +18261,17 @@ ${A}</Assignments>
         if (!e.target.closest("#impGo")) return;
         const pk = picked();
         const lk = withLinks || all;
+        /* v680 : indicateurs — vers la liste commune ou le tableau de bord ; même nom déjà présent = ignoré */
+        let nInd = 0, sInd = 0;
+        if (pk.ind && pk.ind.size) {
+          const take = model.ind.filter(x => pk.ind.has(x.key)).map(x => x.row.I);
+          const into = IND_ONLY ? indLoad() : ratMigrate(JSON.parse(JSON.stringify(INS.rat || {}))).L;
+          take.forEach(I => { if (into.some(o => U_(o.nom) === U_(I.nom))) { sInd++; return; } const c = JSON.parse(JSON.stringify(I)); c.id = insId(); if (IND_ONLY) delete c.seuil; else if (c.seuil === undefined) c.seuil = ""; into.push(c); nInd++; });
+          if (IND_ONLY) indSaveL(into); else { const R = ratMigrate(JSON.parse(JSON.stringify(INS.rat || {}))); R.L = into; INS.rat = R; insSave(); }
+          histLog("IMPORT", "INDICATEURS" + (IND_ONLY ? " → LISTE COMMUNE" : " → TABLEAU DE BORD"), refLab(src) + " — " + nInd + " AJOUTÉ(S), " + sInd + " DÉJÀ PRÉSENT(S)");
+        }
+        const onlyInd = ["des", "hier", "chg", "prd", "qlt", "dly"].every(k => !pk[k] || !pk[k].size);
+        if (onlyInd) { p.remove(); svToast(nInd + " INDICATEUR(S) IMPORTÉ(S)" + (sInd ? ", " + sInd + " DÉJÀ PRÉSENT(S)" : "") + ".", 3500); if (done) done(); else refreshAll(); return; }
         /* lignes à importer, rangées par bloc du budget */
         const inc = { des: [], chg: [], prd: [], qlt: [], lot: [], prim: [], sec: [] };
         ["des", "chg", "prd", "qlt"].forEach(k => model[k].filter(x => pk[k].has(x.key)).forEach(x => inc[k].push(x)));
@@ -19126,6 +19166,7 @@ ${A}</Assignments>
         ...(INS ? [{ a: "ctr", lab: "CONTRAT (CPS)", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 11h5M10 15h5M10 19h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' }] : []),
         ...(INS ? [{ a: "plans", lab: "PLANS ET MÉTRÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5l6-2 6 2 6-2v16l-6 2-6-2-6 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 3v16M15 5v16" stroke="currentColor" stroke-width="1.4"/></svg>' }] : []),
         ...(INS ? [{ a: "rat", lab: "TABLEAU DE BORD DES RATIOS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' },
+          { a: "ind", lab: "LISTE DES INDICATEURS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="4" cy="6" r="1.4" fill="currentColor"/><circle cx="4" cy="12" r="1.4" fill="currentColor"/><circle cx="4" cy="18" r="1.4" fill="currentColor"/></svg>' },
           { a: "multi", lab: "MAIN-D'ŒUVRE DE TOUS LES BUDGETS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M6 20v-6h3v6M11 20V9h3v11M16 20v-9h3v9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' },
           { a: "sign", lab: "SIGNATURES À PRÉVOIR", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18c3-6 5-9 7-9s-1 7 1 7 3-4 5-4 1 4 3 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 21h16" stroke="currentColor" stroke-width="1.5"/></svg>' }] : []),
         { a: "exp", lab: "EXPORTER LE BUDGET", ic: '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
@@ -19149,6 +19190,7 @@ ${A}</Assignments>
         else if (it.dataset.a === "ctr") ctrWin();
         else if (it.dataset.a === "ver") verWin();   /* v670 (axes 1 et 4) */   /* v669 (axe 3) */
         else if (it.dataset.a === "rat") ratWin();
+        else if (it.dataset.a === "ind") indWin();   /* v679 */
         else if (it.dataset.a === "plans") plWin();   /* v671 (axe 6) */   /* v668 (axe 7) */
         else if (it.dataset.a === "multi") multiWin();   /* v668 (axe 8) */
         else if (it.dataset.a === "sign") signWin();   /* v668 */
@@ -20288,12 +20330,12 @@ ${A}</Assignments>
     const ratNum = v => { const n = Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")); return Number.isFinite(n) ? n : 0; };
     const ratFx = (v, d = 2) => v === null || v === undefined || !Number.isFinite(v) ? "—" : money(Math.round(v * 10 ** d) / 10 ** d);
     /* éléments disponibles : { k, lab, u, q, m } */
-    const ratItems = () => {
-      const R = INS.rat || {}, out = [], G = new Map();
+    const ratItems = (D = INS) => {   /* v679 : sur un état du budget (scénarios) */
+      const R = D.rat || {}, out = [], G = new Map();
       const add = (pre, r, q, m) => { const k = pre + "|" + U_(r.des) + "|" + U_(r.u); if (!G.has(k)) G.set(k, { k, lab: (pre === "c" ? "CHG " : "PRD ") + (r.des || ""), u: U_(r.u), q: 0, m: 0 }); const x = G.get(k); x.q += q; x.m += m; };
-      (INS.chg || []).filter(r => !r.t).forEach(r => add("c", r, ratNum(r.q), ratNum(r.q) * ratNum(r.p)));
-      const pp = new Map(); (INS.links || []).forEach(l => { if (!insLinkPrim(INS, l)) return; const d = INS.des.find(x => x.id === l.des); (l.prd || []).forEach(x => { if (!pp.has(x.id)) pp.set(x.id, d ? ratNum(d.p) : 0); }); });
-      (INS.prd || []).filter(r => !r.t).forEach(r => { const q = insPrdQ(r); add("p", r, q, q * (pp.get(r.id) || 0)); });
+      (D.chg || []).filter(r => !r.t).forEach(r => add("c", r, ratNum(r.q), ratNum(r.q) * ratNum(r.p)));
+      const pp = new Map(); (D.links || []).forEach(l => { if (!insLinkPrim(D, l)) return; const d = (D.des || []).find(x => x.id === l.des); (l.prd || []).forEach(x => { if (!pp.has(x.id)) pp.set(x.id, d ? ratNum(d.p) : 0); }); });
+      (D.prd || []).filter(r => !r.t).forEach(r => { const q = insPrdQ(r); add("p", r, q, q * (pp.get(r.id) || 0)); });
       out.push({ k: "tc", lab: "CHARGES TOTALES", u: "DH", q: [...G.values()].filter(x => x.k[0] === "c").reduce((t, x) => t + x.m, 0), m: null });
       out.push({ k: "tp", lab: "PRODUITS TOTAUX", u: "DH", q: [...G.values()].filter(x => x.k[0] === "p").reduce((t, x) => t + x.m, 0), m: null });
       const ls = Object.values(R.lsurf || {}).reduce((t, v) => t + ratNum(v), 0);
@@ -20331,89 +20373,7 @@ ${A}</Assignments>
       if (mo.length && sur) L.push({ nom: "MAIN-D'ŒUVRE AU M²", num: mo, den: [sur], mode: "q" });
       return L.map(r => ({ id: insId(), seuil: "", ...r }));
     };
-    const ratWin = () => {
-      const R = JSON.parse(JSON.stringify(INS.rat || {}));
-      R.L = R.L || []; R.lsurf = R.lsurf || {}; R.g = { t: "b", h: 220, ...(R.g || {}) };
-      const ed = INS_EDIT;
-      let showLots = false;
-      const leaves = (INS.lot || []).filter(r => !r.t && !(INS.lot || []).some(o => o !== r && !o.t && U_(o.v).startsWith(U_(r.v) + " / ")));
-      const d = sviWinNew();
-      const pick = (r, side, I) => `<div class="rat-pk" data-id="${r.id}" data-side="${side}">${(r[side] || []).map(k => { const x = I.find(y => y.k === k); return x ? `<span class="rat-chip">${esc(x.lab)} <i>${esc(x.u)}</i>${ed ? `<b data-rm="${esc(k)}">✕</b>` : ""}</span>` : ""; }).join("")}${ed ? `<select class="rat-add"><option value="">+ AJOUTER…</option>${I.map(x => `<option value="${esc(x.k)}">${esc(x.lab)} (${esc(x.u)})</option>`).join("")}</select>` : ""}</div>`;
-      const draw = () => {
-        INS.rat = INS.rat || {};
-        const prev = INS.rat; INS.rat = R; const I = ratItems(); INS.rat = prev;
-        const rows = R.L.map(r => { const c = ratCalc(I, r), sv = ratNum(r.seuil), over = r.seuil !== "" && r.seuil !== undefined && c.val !== undefined && c.val !== null && c.val > sv;
-          return `<tr data-id="${r.id}"><td>${ed ? `<input class="rat-nm" value="${esc(r.nom || "")}">` : esc(r.nom || "")}</td><td>${pick(r, "num", I)}</td><td>${pick(r, "den", I)}</td>
-            <td class="c"><select class="rat-md"${ed ? "" : " disabled"}><option value="q"${r.mode !== "m" ? " selected" : ""}>QUANTITÉ</option><option value="m"${r.mode === "m" ? " selected" : ""}>MONTANT</option></select></td>
-            <td class="r${c.err ? " rat-err" : over ? " rat-over" : ""}"><b>${esc(c.txt)}</b>${c.n && c.d ? `<small>${ratFx(c.n.v)} ${esc(c.n.u)} · ${ratFx(c.d.v)} ${esc(c.d.u)} · ÉCART ${ratFx(c.diff)}</small>` : ""}</td>
-            <td class="c"><input class="rat-sv" inputmode="decimal" value="${esc(r.seuil === undefined ? "" : String(r.seuil).replace(".", ","))}"${ed ? "" : " disabled"}></td>
-            <td class="c">${ed ? `<button type="button" class="cmp-del" data-del="${r.id}">✕</button>` : ""}</td></tr>`; }).join("");
-        const vals = R.L.map(r => ({ r, c: ratCalc(I, r) })).filter(x => x.c.val !== undefined && x.c.val !== null && Number.isFinite(x.c.val));
-        d.innerHTML = sviWinCard({ cls: "cmp-card svc-full rat-card", close: "data-x", title: "TABLEAU DE BORD DES RATIOS",
-          body: `<div class="rat-top"><label>SURFACE COUVERTE <input class="pv-in rat-surf" inputmode="decimal" value="${esc(R.surf === undefined ? "" : String(R.surf).replace(".", ","))}"${ed ? "" : " disabled"}> M²</label>
-              <button type="button" class="svc-b" data-lots>SURFACES DES LOTS ${svCnt(Object.keys(R.lsurf).length)}</button>
-              ${ed ? `<button type="button" class="svc-b" data-add>+ AJOUTER UN RATIO</button><button type="button" class="svc-b" data-prop>PROPOSER</button>` : ""}</div>
-            <div class="rat-lots"${showLots ? "" : " hidden"}>${leaves.map(l => `<label class="pv-r"><span>${esc(lotLab(lotSegs(l)).full)}</span><input class="pv-in rat-ls" data-lot="${l.id}" inputmode="decimal" value="${esc(R.lsurf[l.id] === undefined ? "" : String(R.lsurf[l.id]).replace(".", ","))}"${ed ? "" : " disabled"}><i>M²</i></label>`).join("") || `<div class="fz-none">AUCUN LOT</div>`}</div>
-            <div class="cmp-scroll rat-scroll"><table class="cmp-t rat-t"><thead><tr><th>RATIO</th><th>NUMÉRATEUR</th><th>DÉNOMINATEUR</th><th>EN</th><th>RÉSULTAT</th><th>SEUIL</th><th></th></tr></thead>
-              <tbody>${rows || `<tr><td colspan="7" class="empty">AUCUN RATIO : + AJOUTER UN RATIO OU PROPOSER</td></tr>`}</tbody></table></div>
-            <div class="rat-gbar"><span>GRAPHIQUE</span>${[["b", "BARRES"], ["p", "CAMEMBERT"], ["l", "COURBE"], ["h", "HISTOGRAMME"]].map(([v, l]) => `<label><input type="radio" name="ratG" value="${v}"${R.g.t === v ? " checked" : ""}> ${l}</label>`).join("")}
-              <label>HAUTEUR <input type="range" class="rat-gh" min="120" max="520" step="20" value="${R.g.h}"></label></div>
-            <div class="rat-g" style="height:${R.g.h}px">${ratChart(vals, R.g.t, R.g.h)}</div>`,
-          foot: `<button type="button" class="svc-b" data-x>${ed ? "ANNULER" : "FERMER"}</button>${ed ? `<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>` : ""}` });
-      };
-      draw();
-      sviWinShow(d);
-      const rOf = el => R.L.find(r => r.id === el.closest("tr[data-id]")?.dataset.id);
-      d.addEventListener("change", e => {
-        const t = e.target;
-        if (t.classList.contains("rat-add") && t.value) { const r = R.L.find(x => x.id === t.closest(".rat-pk").dataset.id), s = t.closest(".rat-pk").dataset.side; r[s] = (r[s] || []).filter(k => k !== t.value).concat(t.value); draw(); return; }
-        if (t.classList.contains("rat-md")) { rOf(t).mode = t.value; draw(); return; }
-        if (t.name === "ratG") { R.g.t = t.value; draw(); return; }
-        if (t.classList.contains("rat-gh")) { R.g.h = Number(t.value); draw(); return; }
-        if (t.classList.contains("rat-nm")) { rOf(t).nom = t.value.toUpperCase(); return; }
-        if (t.classList.contains("rat-sv")) { rOf(t).seuil = t.value.trim() === "" ? "" : ratNum(t.value); draw(); return; }
-        if (t.classList.contains("rat-surf")) { R.surf = t.value.trim() === "" ? "" : ratNum(t.value); draw(); return; }
-        if (t.classList.contains("rat-ls")) { if (t.value.trim() === "") delete R.lsurf[t.dataset.lot]; else R.lsurf[t.dataset.lot] = ratNum(t.value); return; }
-      });
-      d.addEventListener("click", e => {
-        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
-        const rm = e.target.closest("[data-rm]");
-        if (rm) { const pk = rm.closest(".rat-pk"), r = R.L.find(x => x.id === pk.dataset.id); r[pk.dataset.side] = (r[pk.dataset.side] || []).filter(k => k !== rm.dataset.rm); draw(); return; }
-        const del = e.target.closest("[data-del]");
-        if (del) { R.L = R.L.filter(r => r.id !== del.dataset.del); draw(); return; }
-        if (e.target.closest("[data-add]")) { R.L.push({ id: insId(), nom: "RATIO " + (R.L.length + 1), num: [], den: [], mode: "q", seuil: "" }); draw(); return; }
-        if (e.target.closest("[data-prop]")) {
-          const prev = INS.rat; INS.rat = R; const I = ratItems(); INS.rat = prev;
-          const P = ratPropose(I).filter(p => !R.L.some(r => U_(r.nom) === U_(p.nom)));
-          if (!P.length) svToast("AUCUN RATIO À PROPOSER : DONNÉES INSUFFISANTES (SURFACE, ACIERS, BÉTON, MAIN-D'ŒUVRE…).", 4000, e.target);
-          R.L = R.L.concat(P); draw(); return;
-        }
-        if (e.target.closest("[data-lots]")) { showLots = !showLots; draw(); return; }
-        if (e.target.closest("[data-save]")) { INS.rat = R; insSave(); histLog("RATIOS", "TABLEAU DE BORD", R.L.length + " RATIO(S)"); d.remove(); refreshAll(); }
-      });
-    };
-    /* graphique en SVG (valeurs des ratios) */
-    const ratChart = (vals, t, h) => {
-      if (!vals.length) return `<div class="fz-none">AUCUNE VALEUR À REPRÉSENTER</div>`;
-      const W = 760, H = Math.max(100, h - 10), C = ["#2e90fa", "#12b76a", "#f79009", "#7a5af8", "#ee46bc", "#06aed4", "#f04438", "#667085"];
-      const mx = Math.max(...vals.map(x => Math.abs(x.c.val)), 1e-9);
-      const lab = s => esc(String(s).slice(0, 18));
-      if (t === "p") {
-        const tot = vals.reduce((a, x) => a + Math.abs(x.c.val), 0) || 1; let a0 = -Math.PI / 2; const r = Math.min(H / 2 - 10, 120), cx = r + 20, cy = H / 2;
-        const sl = vals.map((x, i) => { const a1 = a0 + Math.abs(x.c.val) / tot * Math.PI * 2, big = a1 - a0 > Math.PI ? 1 : 0;
-          const p = `<path d="M${cx},${cy} L${cx + r * Math.cos(a0)},${cy + r * Math.sin(a0)} A${r},${r} 0 ${big} 1 ${cx + r * Math.cos(a1)},${cy + r * Math.sin(a1)} Z" fill="${C[i % C.length]}"/>`; a0 = a1; return p; }).join("");
-        const lg = vals.map((x, i) => `<rect x="${2 * r + 50}" y="${14 + i * 20}" width="12" height="12" fill="${C[i % C.length]}"/><text x="${2 * r + 68}" y="${24 + i * 20}">${lab(x.r.nom)} — ${esc(ratFx(x.c.val, 3))}</text>`).join("");
-        return `<svg viewBox="0 0 ${W} ${H}" class="rat-svg">${sl}${lg}</svg>`;
-      }
-      const bw = (W - 40) / vals.length, y = v => H - 24 - Math.abs(v) / mx * (H - 44);
-      if (t === "l") {
-        const pts = vals.map((x, i) => `${30 + bw * i + bw / 2},${y(x.c.val)}`).join(" ");
-        return `<svg viewBox="0 0 ${W} ${H}" class="rat-svg"><polyline points="${pts}" fill="none" stroke="#2e90fa" stroke-width="2.5"/>${vals.map((x, i) => `<circle cx="${30 + bw * i + bw / 2}" cy="${y(x.c.val)}" r="4" fill="#2e90fa"/><text x="${30 + bw * i + bw / 2}" y="${H - 6}" text-anchor="middle">${lab(x.r.nom)}</text><text x="${30 + bw * i + bw / 2}" y="${y(x.c.val) - 8}" text-anchor="middle">${esc(ratFx(x.c.val, 2))}</text>`).join("")}</svg>`;
-      }
-      const gap = t === "h" ? 2 : bw * .25;
-      return `<svg viewBox="0 0 ${W} ${H}" class="rat-svg">${vals.map((x, i) => { const sv = ratNum(x.r.seuil), over = x.r.seuil !== "" && x.r.seuil !== undefined && x.c.val > sv;
-        return `<rect x="${30 + bw * i + gap / 2}" y="${y(x.c.val)}" width="${bw - gap}" height="${H - 24 - y(x.c.val)}" fill="${over ? "#f04438" : C[i % C.length]}" rx="${t === "h" ? 0 : 3}"/>${x.r.seuil !== "" && x.r.seuil !== undefined ? `<line x1="${30 + bw * i}" x2="${30 + bw * (i + 1)}" y1="${y(sv)}" y2="${y(sv)}" stroke="#b91c1c" stroke-dasharray="4 3"/>` : ""}<text x="${30 + bw * i + bw / 2}" y="${H - 6}" text-anchor="middle">${lab(x.r.nom)}</text><text x="${30 + bw * i + bw / 2}" y="${y(x.c.val) - 6}" text-anchor="middle">${esc(ratFx(x.c.val, 2))}</text>`; }).join("")}</svg>`;
-    };
+    /* v680 : TABLEAU DE BORD (ratWin) et graphiques : voir 22h-tableau-de-bord.js */
 
     /* =========================================================
        v668 (AXE 8) : VUE MULTI-PROJETS — main-d'œuvre (jours-homme) de tous les budgets en instance ou figés, par semaine,
@@ -20481,7 +20441,6 @@ ${A}</Assignments>
         d.remove();
       });
     };
-    shell.__ratWin = () => ratWin();
     shell.__multiWin = () => multiWin();
     shell.__signWin = () => signWin();
 /* ⟪ src/22d-contrat.js ⟫ */
@@ -20783,18 +20742,18 @@ ${A}</Assignments>
       const d = sviWinNew();
       const draw = () => {
         const SC = V.L.filter(x => x.kind === "sc"), AV = V.L.filter(x => x.kind === "av").sort((a, b) => a.n - b.n);
-        const indOf = x => x.id === V.act ? verInd(INS) : x.d ? verInd(x.d) : null;
-        const I = SC.map(indOf);
+        const LIB = indLoad(); V.ind = V.ind.filter(k => LIB.some(I => I.id === k));
+        const ST = SC.map(x => x.id === V.act ? INS : x.d || null), EL = ST.map(s => s ? indEls(s) : null);
         /* avenants : montants par origine, quantités augmentées */
         const O = verOrig(), byO = {};
         INS.des.filter(r => !r.t).forEach(r => { const o = O.des[r.id], m = (insLinkedQ(INS, r.id) ?? num(r.q || 0)) * num(r.p || 0); byO[o] = (byO[o] || 0) + m; });
         const ini = AV[0] && AV[0].d, inc = ini ? INS.des.filter(r => !r.t).map(r => { const o = (ini.des || []).find(x => x.id === r.id); if (!o) return null; const q0 = insLinkedQ(ini, o.id) ?? num(o.q || 0), q1 = insLinkedQ(INS, r.id) ?? num(r.q || 0); return q1 > q0 + 1e-9 ? { r, q0, q1 } : null; }).filter(Boolean) : [];
         d.innerHTML = sviWinCard({ cls: "cmp-card svc-full", close: "data-x", title: "VERSIONS ET SCÉNARIOS",
           body: `<div class="fz-blk">SCÉNARIOS ${svCnt(SC.length)}</div>
-            <div class="cmp-bar">${ed ? `<button type="button" class="svc-b" data-new>+ NOUVEAU SCÉNARIO (COPIE DE L'ACTIF)</button>` : ""}
-              <select class="rat-add ver-ia"><option value="">+ INDICATEUR…</option>${VER_IND.filter(x => !V.ind.includes(x[0])).map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></div>
+            <div class="cmp-bar">${ed ? `<button type="button" class="svc-b" data-new>+ NOUVEAU SCÉNARIO (COPIE DE L'ACTIF)</button>` : ""}</div>
             <div class="cmp-scroll"><table class="cmp-t ver-t"><thead><tr><th>INDICATEUR</th>${SC.map(x => `<th class="${x.id === V.act ? "ver-act" : ""}${x.arch ? " ver-arch" : ""}">${ed && !x.arch ? `<input class="cmp-nm ver-nm" data-id="${x.id}" value="${esc(x.nom)}">` : esc(x.nom)}<br><small>${x.id === V.act ? "ACTIF" : x.arch ? "ARCHIVÉ" : "EN RÉSERVE"}</small></th>`).join("")}</tr></thead><tbody>
-              ${V.ind.map(k => `<tr><td><b>${esc((VER_IND.find(x => x[0] === k) || ["", k])[1])}</b> ${ed ? `<button type="button" class="cmp-del" data-irm="${k}">✕</button>` : ""}</td>${I.map((v, j) => `<td class="${k === "effT" ? "" : "r"}${SC[j].id === V.act ? " ver-act" : ""}">${v ? esc(verFmt(k, v[k])) : "—"}</td>`).join("")}</tr>`).join("")}
+              ${V.ind.map(k => { const IN = LIB.find(I => I.id === k); return `<tr><td><b>${esc(IN.nom)}</b> ${ed ? `<button type="button" class="cmp-del" data-irm="${esc(k)}">✕</button>` : ""}</td>${ST.map((s, j) => `<td class="r${SC[j].id === V.act ? " ver-act" : ""}">${s ? esc(indCalc(IN, s, EL[j]).txt) : "—"}</td>`).join("")}</tr>`; }).join("")}
+              <tr class="ver-plus"><td colspan="${SC.length + 1}">${ed ? `<button type="button" class="svc-b ver-ip" data-ip>+</button> <span class="cmp-leg">INDICATEUR DE LA LISTE OU NOUVEL INDICATEUR</span>` : ""}</td></tr>
               <tr><td><b>OFFERT AU CLIENT</b></td>${SC.map(x => `<td class="c"><input type="checkbox" class="ver-of" data-id="${x.id}"${x.of ? " checked" : ""}${ed ? "" : " disabled"}></td>`).join("")}</tr>
               ${ed ? `<tr><td></td>${SC.map(x => `<td class="c ver-acts">${x.id === V.act ? "" : `<button type="button" class="svc-b" data-sw="${x.id}">BASCULER</button>`}${x.arch ? "" : `<button type="button" class="svc-b svc-ok" data-keep="${x.id}">RETENIR</button>`}${x.id === V.act ? "" : `<button type="button" class="cmp-del" data-del="${x.id}">✕</button>`}</td>`).join("")}</tr>` : ""}
             </tbody></table></div>
@@ -20810,12 +20769,15 @@ ${A}</Assignments>
       draw(); sviWinShow(d);
       d.addEventListener("change", e => {
         const t = e.target;
-        if (t.classList.contains("ver-ia") && t.value) { V.ind.push(t.value); save("INDICATEUR", t.value); draw(); return; }
         if (t.classList.contains("ver-nm")) { const x = V.L.find(y => y.id === t.dataset.id); if (x) { x.nom = t.value.trim().toUpperCase() || x.nom; save("SCÉNARIO RENOMMÉ", x.nom); } return; }
         if (t.classList.contains("ver-of")) { const x = V.L.find(y => y.id === t.dataset.id); if (x) { x.of = t.checked; save(t.checked ? "OFFERT AU CLIENT" : "RETIRÉ DES OFFRES", x.nom); } }
       });
       d.addEventListener("click", async e => {
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); refreshAll(); return; }
+        /* v679 : ligne « + » — indicateur de la liste, ou NOUVEL INDICATEUR (fenêtre de calcul, puis ajouté au tableau) */
+        const ip = e.target.closest("[data-ip]");
+        if (ip) { indPlusMenu(ip, V.ind, id => { V.ind.push(id); save("INDICATEUR AJOUTÉ", (indLoad().find(I => I.id === id) || {}).nom || id); draw(); },
+          w => { if (w === "new") { d.remove(); indDesignWin(null, I => { if (I) { V.ind.push(I.id); save("INDICATEUR AJOUTÉ", I.nom); } verWin(); }); } else if (w === "list") { d.remove(); indWin(() => verWin()); } }); return; }
         const ir = e.target.closest("[data-irm]"); if (ir) { V.ind = V.ind.filter(k => k !== ir.dataset.irm); save("INDICATEUR RETIRÉ", ir.dataset.irm); draw(); return; }
         if (e.target.closest("[data-new]")) { const n = V.L.filter(x => x.kind === "sc").length + 1; V.L.push({ id: insId(), kind: "sc", nom: "SCÉNARIO " + n, date: localDT(new Date()), d: verSnap() }); save("NOUVEAU SCÉNARIO", "SCÉNARIO " + n); draw(); return; }
         const sw = e.target.closest("[data-sw]");
@@ -21035,6 +20997,529 @@ ${A}</Assignments>
     };
     shell.__plWin = () => plWin();
     shell.__axBetween = (a, b, all) => axBetween(a, b, all);
+/* ⟪ src/22g-indicateurs.js ⟫ */
+    /* =========================================================
+       v679 : LISTE DES INDICATEURS (décisions du 29/10/2026)
+       - Une seule liste, commune à tous les budgets, PARTAGÉE dans la base V3 (02e : sviSharedGet / sviSharedSet « IND ») ;
+         vide au départ. Elle alimente les tableaux de VERSIONS ET SCÉNARIOS (ligne « + »), pas le tableau de bord.
+       - Un indicateur = { id, nom, f: [jetons], mode: q | m, fmt: n | p, dec: 0..2, u: unité affichée }.
+         Jetons : { t: "e", k } élément ; { t: "n", v } nombre ; { t: "o", v: + − × ÷ } ; { t: "(" } ; { t: ")" }.
+         Formule libre avec parenthèses, ex. ((A1 + A2 − A3) ÷ (B1 − B2)) + C1 − (D1 + D2 − D3 + D4).
+       - Éléments : mesures du programme (date de fin, durée, marge sur la date butoir, effectif, main-d'œuvre, charges,
+         produits, marge, lots, surfaces) et charges / produits du budget repérés par désignation + unité (QUANTITÉ ou MONTANT).
+       - Tableau au format des consignes : tri / filtre à la loupe, colonnes ajustables et déplaçables, cases à cocher
+         (tout cocher à trois états, COCHÉES SEULEMENT), menu ⋯ (SUPPRIMER, COPIER, EXPORTER, APERÇU PDF) ; dernière ligne « + ».
+       ========================================================= */
+    const IND_BASE = [["fin", "DATE DE FIN", "date", ""], ["dur", "DURÉE", "n", "J"], ["but", "MARGE SUR LA DATE BUTOIR", "n", "J"],
+      ["eff", "EFFECTIF MAXIMUM", "n", "J-H/J"], ["effT", "EFFECTIF MAXIMUM PAR TYPE D'OUVRIER", "txt", ""], ["mo", "COÛT DE LA MAIN-D'ŒUVRE", "n", "DH"],
+      ["chg", "CHARGES TOTALES", "n", "DH"], ["prd", "PRODUITS TOTAUX", "n", "DH"], ["mg", "MARGE", "n", "DH"], ["mgp", "MARGE (%)", "n", "%"],
+      ["lots", "NOMBRE DE LOTS", "n", "U"], ["sc", "SURFACE COUVERTE", "n", "M2"], ["sl", "SURFACE DES LOTS", "n", "M2"]];
+    const indLoad = () => { const L = (typeof sviSharedGet === "function" ? sviSharedGet("IND") : {}).L; return Array.isArray(L) ? L : []; };
+    const indSaveL = L => { if (typeof sviSharedSet === "function") sviSharedSet("IND", { L }); };
+    /* éléments d'un état du budget */
+    const indEls = d => {
+      const v = verInd(d), R = d.rat || {};
+      const sc = ratNum(R.surf), sl = Object.values(R.lsurf || {}).reduce((t, x) => t + ratNum(x), 0);
+      const out = IND_BASE.map(([k, l, kind, u]) => ({ k: "b:" + k, lab: l, kind, u, q: k === "sc" ? (sc || null) : k === "sl" ? (sl || null) : v[k], m: null }));
+      return out.concat(ratItems(d).filter(x => x.k[1] === "|").map(x => ({ ...x, kind: "n" })));
+    };
+    const indElLab = (k, E) => { const x = (E || []).find(y => y.k === k); if (x) return x.lab + (x.u && x.kind === "n" && !k.startsWith("b:") ? " (" + x.u + ")" : ""); const b = IND_BASE.find(y => "b:" + y[0] === k); return b ? b[1] : (k[0] === "c" ? "CHG " : "PRD ") + String(k).split("|").slice(1).join(" "); };
+    /* formule → texte lisible */
+    const indText = (f, E) => (f || []).map(t => t.t === "e" ? indElLab(t.k, E) : t.t === "n" ? String(t.v).replace(".", ",") : t.t === "o" ? t.v : t.t).join(" ").replace(/\( /g, "(").replace(/ \)/g, ")");
+    /* analyse : arbre de calcul, ou erreur lisible */
+    const indParse = toks => {
+      let i = 0;
+      const bad = m => { const e = new Error(m); e.ind = true; throw e; };
+      const fac = () => {
+        const t = toks[i];
+        if (!t) bad("IL MANQUE UN ÉLÉMENT EN FIN DE FORMULE");
+        if (t.t === "(") { i++; if (toks[i] && toks[i].t === ")") bad("PARENTHÈSES VIDES"); const v = exp(); if (!toks[i] || toks[i].t !== ")") bad("PARENTHÈSE NON FERMÉE"); i++; return v; }
+        if (t.t === "e" || t.t === "n") { i++; return { leaf: t }; }
+        if (t.t === "o" && t.v === "−") { i++; return { neg: fac() }; }
+        bad(t.t === ")" ? "PARENTHÈSE FERMÉE EN TROP" : "OPÉRATEUR « " + t.v + " » MAL PLACÉ");
+      };
+      const term = () => { let a = fac(); while (toks[i] && toks[i].t === "o" && (toks[i].v === "×" || toks[i].v === "÷")) { const o = toks[i++].v; a = { o, a, b: fac() }; } return a; };
+      const exp = () => { let a = term(); while (toks[i] && toks[i].t === "o" && (toks[i].v === "+" || toks[i].v === "−")) { const o = toks[i++].v; a = { o, a, b: term() }; } return a; };
+      if (!toks || !toks.length) bad("FORMULE VIDE");
+      const r = exp();
+      if (i < toks.length) bad(toks[i].t === ")" ? "PARENTHÈSE FERMÉE EN TROP" : "IL MANQUE UN OPÉRATEUR ENTRE DEUX ÉLÉMENTS");
+      return r;
+    };
+    /* valeur d'un indicateur sur un état du budget : { val?, txt, err? } */
+    const indNum = (v, dec) => Number(v).toLocaleString("fr-FR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    const indCalc = (I, d, E) => {
+      E = E || indEls(d);
+      let tree; try { tree = indParse(I.f); } catch (e) { return { txt: e.ind ? e.message : "FORMULE ILLISIBLE", err: true }; }
+      const dec = I.dec === undefined ? 2 : Number(I.dec);
+      /* un seul élément date ou texte : affiché tel quel */
+      if (tree.leaf && tree.leaf.t === "e") {
+        const x = E.find(y => y.k === tree.leaf.k);
+        if (x && (x.kind === "date" || x.kind === "txt")) return { txt: x.q === null || x.q === undefined || x.q === "" ? "—" : x.kind === "date" ? dFr(x.q) : String(x.q) };
+      }
+      let miss = false, dz = false, kindErr = false;
+      const ev = n => {
+        if (n.leaf) {
+          if (n.leaf.t === "n") return Number(n.leaf.v);
+          const x = E.find(y => y.k === n.leaf.k);
+          if (!x || x.q === null || x.q === undefined) { miss = true; return 0; }
+          if (x.kind === "date" || x.kind === "txt") { kindErr = true; return 0; }
+          return I.mode === "m" && x.m !== null && x.m !== undefined ? x.m : x.q;
+        }
+        if (n.neg) return -ev(n.neg);
+        const a = ev(n.a), b = ev(n.b);
+        if (n.o === "+") return a + b;
+        if (n.o === "−") return a - b;
+        if (n.o === "×") return a * b;
+        if (!b) { dz = true; return 0; }
+        return a / b;
+      };
+      const val = ev(tree);
+      if (kindErr) return { txt: "DATE OU TEXTE DANS UN CALCUL", err: true };
+      if (miss) return { txt: "—" };
+      if (dz) return { txt: "DIVISION PAR ZÉRO", err: true };
+      const one = tree.leaf && tree.leaf.t === "e" ? E.find(y => y.k === tree.leaf.k) : null;
+      const u = I.fmt === "p" ? "%" : (I.u || (one ? (I.mode === "m" && one.m !== null && one.m !== undefined ? "DH" : one.u) : ""));
+      return { val, txt: indNum(I.fmt === "p" ? val * 100 : val, dec) + (u ? " " + u : "") };
+    };
+
+    /* ---------- fenêtre de conception (calcul) — done(indicateur enregistré | null) ---------- */
+    /* st : où l'indicateur est rangé — liste commune (par défaut) ou tableau de bord du budget { list, save, br } */
+    const IND_STORE = { list: () => indLoad(), save: L => indSaveL(L), br: "INDICATEURS" };
+    const indDesignWin = (I0, done, st = IND_STORE) => {
+      const I = JSON.parse(JSON.stringify(I0 || { id: insId(), nom: "", f: [], mode: "q", fmt: "n", dec: 2, u: "" }));
+      const isNew = !I0;
+      const E = indEls(INS);
+      let cur = I.f.length;   /* position d'insertion (après le jeton cur − 1) */
+      const d = sviWinNew();
+      const grp = (lab, L) => L.length ? `<optgroup label="${esc(lab)}">${L.map(x => `<option value="${esc(x.k)}">${esc(indElLab(x.k, E))}</option>`).join("")}</optgroup>` : "";
+      const draw = () => {
+        const c = I.f.length ? indCalc(I, INS, E) : null;
+        d.innerHTML = sviWinCard({ cls: "cmp-card ind-card", close: "data-x", title: isNew ? "NOUVEL INDICATEUR" : "INDICATEUR — " + esc(I.nom),
+          body: `<label class="ind-lab">NOM DE L'INDICATEUR</label><input class="pv-in ind-nom" value="${esc(I.nom)}" placeholder="EX. ACIER / BÉTON">
+            <div class="fz-blk">FORMULE</div>
+            <div class="indf-line" data-line>${I.f.map((t, j) => `<span class="indf-tk indf-${t.t === "e" ? "e" : t.t === "n" ? "n" : "o"}${j === cur - 1 ? " on" : ""}" data-tk="${j}">${esc(t.t === "e" ? indElLab(t.k, E) : t.t === "n" ? String(t.v).replace(".", ",") : t.t === "o" ? t.v : t.t)}</span>`).join("")}<span class="indf-cur${cur === 0 ? " on" : ""}" data-tk="-1">${I.f.length ? "" : "TOUCHER LES BOUTONS POUR COMPOSER LA FORMULE"}</span></div>
+            <div class="indf-keys">
+              ${["(", ")", "+", "−", "×", "÷"].map(k => `<button type="button" class="svc-b indf-k" data-k="${k}">${k}</button>`).join("")}
+              <select class="rat-add indf-el"><option value="">+ ÉLÉMENT…</option>${grp("MESURES DU PROGRAMME", E.filter(x => x.k.startsWith("b:")))}${grp("CHARGES", E.filter(x => x.k.startsWith("c|")))}${grp("PRODUITS", E.filter(x => x.k.startsWith("p|")))}</select>
+              <input class="pv-in indf-nb" inputmode="decimal" placeholder="NOMBRE" style="width:90px"><button type="button" class="svc-b" data-nb>+ NOMBRE</button>
+              <button type="button" class="svc-b" data-bk>⌫ EFFACER</button><button type="button" class="svc-b" data-clr>TOUT EFFACER</button>
+            </div>
+            <div class="indf-st ${!c ? "" : c.err ? "rat-err" : "indf-ok"}">${!c ? "FORMULE VIDE" : c.err ? esc(c.txt) : "FORMULE CORRECTE — VALEUR SUR CE BUDGET : <b>" + esc(c.txt) + "</b>"}</div>
+            <div class="indf-opts">
+              <label class="pv-r"><span>CHARGES ET PRODUITS EN</span><select class="pv-in ind-md"><option value="q"${I.mode !== "m" ? " selected" : ""}>QUANTITÉ</option><option value="m"${I.mode === "m" ? " selected" : ""}>MONTANT</option></select></label>
+              <label class="pv-r"><span>FORMAT</span><select class="pv-in ind-fmt"><option value="n"${I.fmt !== "p" ? " selected" : ""}>NOMBRE</option><option value="p"${I.fmt === "p" ? " selected" : ""}>POURCENTAGE</option></select></label>
+              <label class="pv-r"><span>DÉCIMALES</span><select class="pv-in ind-dec">${[0, 1, 2].map(n => `<option${Number(I.dec === undefined ? 2 : I.dec) === n ? " selected" : ""}>${n}</option>`).join("")}</select></label>
+              <label class="pv-r"><span>UNITÉ AFFICHÉE</span><input class="pv-in ind-u" value="${esc(I.u || "")}" placeholder="FACULTATIVE"${I.fmt === "p" ? " disabled" : ""}></label>
+            </div>
+            <div class="doc-err ind-msg"></div>`,
+          foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>` });
+      };
+      const put = t => { I.f.splice(cur, 0, t); cur++; draw(); };
+      draw(); sviWinShow(d);
+      d.addEventListener("input", e => { if (e.target.classList.contains("ind-nom")) I.nom = e.target.value; if (e.target.classList.contains("ind-u")) I.u = e.target.value.trim().toUpperCase(); });
+      d.addEventListener("change", e => {
+        const t = e.target;
+        if (t.classList.contains("indf-el") && t.value) { put({ t: "e", k: t.value }); return; }
+        if (t.classList.contains("ind-md")) { I.mode = t.value; draw(); return; }
+        if (t.classList.contains("ind-fmt")) { I.fmt = t.value; draw(); return; }
+        if (t.classList.contains("ind-dec")) { I.dec = Number(t.value); draw(); return; }
+      });
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(null); return; }
+        const k = e.target.closest("[data-k]"); if (k) { const v = k.dataset.k; put(v === "(" || v === ")" ? { t: v } : { t: "o", v }); return; }
+        const tk = e.target.closest("[data-tk]"); if (tk) { cur = Number(tk.dataset.tk) + 1; draw(); return; }
+        if (e.target.closest("[data-nb]")) { const s = String(d.querySelector(".indf-nb").value || "").replace(/\s/g, "").replace(",", "."); if (s === "" || !Number.isFinite(Number(s))) { d.querySelector(".ind-msg").textContent = "NOMBRE À SAISIR D'ABORD (EX. 100 OU 1,5)."; return; } put({ t: "n", v: Number(s) }); return; }
+        if (e.target.closest("[data-bk]")) { if (cur > 0) { I.f.splice(cur - 1, 1); cur--; draw(); } return; }
+        if (e.target.closest("[data-clr]")) { I.f = []; cur = 0; draw(); return; }
+        if (e.target.closest("[data-save]")) {
+          const msg = d.querySelector(".ind-msg");
+          I.nom = U_(d.querySelector(".ind-nom").value || "");
+          if (!I.nom) { msg.textContent = "DONNER UN NOM À L'INDICATEUR."; d.querySelector(".ind-nom").focus(); return; }
+          try { indParse(I.f); } catch (er) { msg.textContent = "FORMULE À CORRIGER : " + (er.ind ? er.message : "ILLISIBLE"); return; }
+          const L = st.list();
+          if (L.some(x => x.id !== I.id && U_(x.nom) === I.nom)) { msg.textContent = "UN INDICATEUR PORTE DÉJÀ CE NOM."; return; }
+          const i = L.findIndex(x => x.id === I.id); if (i >= 0) L[i] = { ...L[i], ...I }; else L.push(I);
+          st.save(L); histLog(st.br, isNew ? "NOUVEL INDICATEUR" : "INDICATEUR MODIFIÉ", I.nom + " = " + indText(I.f, E));
+          d.remove(); if (done) done(I);
+        }
+      });
+    };
+
+    /* ---------- tableau d'indicateurs au format des consignes (liste commune « ind », tableau de bord « rat ») ----------
+       cfg = { t, list(), save(L), store, extra: [colonnes en plus], onNew(), onEdit(I), onImport()?, blk } */
+    const IND_W = { inom: 220, iform: 360, imode: 100, ifmt: 150, ival: 150, iseuil: 110 };
+    const IND_CTL = {};
+    const indTableCtl = cfg => {
+      const st = { ck: new Set(), only: false };
+      const colsOf = E => [
+        ["inom", "INDICATEUR", r => r.nom || "", ""],
+        ["iform", "FORMULE", r => indText(r.f, E), ""],
+        ["imode", "EN", r => r.mode === "m" ? "MONTANT" : "QUANTITÉ", "center"],
+        ["ifmt", "FORMAT", r => (r.fmt === "p" ? "POURCENTAGE" : "NOMBRE") + " · " + (r.dec === undefined ? 2 : r.dec) + " DÉC.", "center"],
+        ["ival", "VALEUR (CE BUDGET)", r => indCalc(r, cfg.data ? cfg.data() : INS, E).txt, "number"],
+        ...(cfg.extra || [])];
+      const shown = E => cfApply(cfg.t, colsOf(E), cfg.list().filter(r => !st.only || st.ck.has(r.id)));
+      const data = () => { const E = indEls(cfg.data ? cfg.data() : INS), oc = coOrder(cfg.t, colsOf(E)); return { head: oc.map(c => c[1]), rows: shown(E).map(r => oc.map(c => c[2](r))) }; };
+      const render = d => {
+        const t = d.querySelector("table[data-it='" + cfg.t + "']"); if (!t) return;
+        const E = indEls(cfg.data ? cfg.data() : INS), cols = colsOf(E), oc = coOrder(cfg.t, cols), all = cfg.list();
+        st.ck = new Set([...st.ck].filter(id => all.some(r => r.id === id))); if (!st.ck.size) st.only = false;
+        const rows = shown(E), nCk = rows.filter(r => st.ck.has(r.id)).length;
+        const hs = nCk === 0 ? "" : nCk === rows.length ? " checked" : " data-half";
+        const wOf = k => cwLoad()[cfg.t + "." + k] || IND_W[k] || 120;
+        const cell = (c, r) => {
+          if (c[0] === "iseuil") return `<td class="center"><input class="pv-in ind-sv" inputmode="decimal" value="${esc(r.seuil === undefined || r.seuil === "" ? "" : String(r.seuil).replace(".", ","))}"${cfg.ro ? " disabled" : ""}></td>`;
+          const cc = c[0] === "ival" ? indCalc(r, cfg.data ? cfg.data() : INS, E) : null, sv = Number(String(r.seuil ?? "").replace(",", "."));
+          const over = cc && r.seuil !== undefined && r.seuil !== "" && Number.isFinite(cc.val) && cc.val > sv;
+          return `<td class="${c[3]}${cc && cc.err ? " rat-err" : over ? " rat-over" : ""}">${esc(c[2](r))}</td>`;
+        };
+        t.innerHTML = `<colgroup>${oc.map(c => `<col data-w="${cfg.t}.${c[0]}" style="width:${wOf(c[0])}px">`).join("")}<col style="width:44px"></colgroup>
+          <thead><tr>${oc.map(c => cfHead(cfg.t, c[0], c[1], c[3])).join("")}<th class="center"><input type="checkbox" class="ind-all"${hs}></th></tr></thead>
+          <tbody>${rows.map(r => `<tr data-id="${esc(r.id)}" class="ind-row">${oc.map(c => cell(c, r)).join("")}<td class="center"><input type="checkbox" class="ind-ck"${st.ck.has(r.id) ? " checked" : ""}></td></tr>`).join("") || `<tr><td colspan="${oc.length + 1}" class="empty">${all.length ? "AUCUN INDICATEUR AVEC CES FILTRES" : "AUCUN INDICATEUR : TOUCHER « + » POUR EN CRÉER UN"}</td></tr>`}
+            ${cfg.ro ? "" : `<tr class="ind-plus"><td colspan="${oc.length + 1}"><button type="button" class="svc-b" data-inew>+ NOUVEL INDICATEUR</button></td></tr>`}</tbody>`;
+        t.style.width = oc.reduce((s2, c) => s2 + wOf(c[0]), 44) + "px";
+        const ha = t.querySelector(".ind-all"); if (ha && ha.hasAttribute("data-half")) ha.indeterminate = true;
+        const ob = d.querySelector("[data-ionly='" + cfg.t + "']"); if (ob) { ob.hidden = !st.ck.size; ob.style.display = st.ck.size ? "" : "none"; ob.classList.toggle("on", st.only); ob.innerHTML = "COCHÉES SEULEMENT " + svCnt(st.ck.size); }
+      };
+      const menu = (d, btn) => {
+        const old = document.getElementById("blkMenu"); old?.remove(); if (old && old.dataset.for === cfg.t) return;
+        const n = st.ck.size, has = cfg.list().length;
+        const m = document.createElement("div"); m.id = "blkMenu"; m.dataset.for = cfg.t;
+        m.innerHTML = `${cfg.ro ? "" : `<button type="button" data-ia="del"${n ? ' class="blk-del"' : ' class="blk-del off" disabled'}><span>SUPPRIMER LES LIGNES COCHÉES ${svCnt(n)}</span></button>`}
+          <button type="button" data-ia="copy"${n ? "" : ' class="off" disabled'}><span>COPIER LES LIGNES COCHÉES ${svCnt(n)}</span></button>
+          <button type="button" data-ia="export"${has ? "" : ' class="off" disabled'}><span>EXPORTER</span></button>
+          <button type="button" data-ia="pdf"${has ? "" : ' class="off" disabled'}><span>APERÇU PDF</span></button>
+          ${cfg.onImport && !cfg.ro ? `<button type="button" data-ia="imp"><span>IMPORTER DES INDICATEURS</span></button>` : ""}`;
+        document.body.appendChild(m); sviPlaceMenu(m, btn.getBoundingClientRect()); m.style.zIndex = 100010;
+        m.addEventListener("click", async ev => {
+          const it = ev.target.closest("[data-ia]"); if (!it || it.disabled) return; m.remove();
+          const a = it.dataset.ia;
+          if (a === "del") {
+            const L = cfg.list(), names = L.filter(r => st.ck.has(r.id)).map(r => r.nom);
+            d.remove();
+            if (await svConfirm({ title: "SUPPRIMER " + names.length + " INDICATEUR(S)", text: names.slice(0, 5).join(", ") + (names.length > 5 ? "…" : "") + (cfg.t === "ind" ? " : RETIRÉS DE LA LISTE ET DES TABLEAUX DE TOUS LES BUDGETS." : " : RETIRÉS DU TABLEAU DE BORD ET DE SES GRAPHIQUES."), ok: "SUPPRIMER" })) {
+              cfg.save(L.filter(r => !st.ck.has(r.id))); histLog(cfg.store.br, "INDICATEURS SUPPRIMÉS", names.join(", ")); st.ck = new Set();
+            }
+            cfg.reopen(); return;
+          }
+          if (a === "copy") { const E = indEls(INS), oc = coOrder(cfg.t, colsOf(E)), txt = [oc.map(c => c[1]).join("\t"), ...cfg.list().filter(r => st.ck.has(r.id)).map(r => oc.map(c => c[2](r)).join("\t"))].join("\n"); try { await navigator.clipboard.writeText(txt); svToast(n + " INDICATEUR(S) COPIÉ(S).", 2500); } catch (er) { svToast("COPIE IMPOSSIBLE SUR CET APPAREIL.", 3000); } return; }
+          if (a === "export") { cfg.close(); openExportMenu(cfg.t); return; }
+          if (a === "pdf") { cfg.close(); printGeneric(cfg.t); return; }
+          if (a === "imp") { cfg.close(); cfg.onImport(); }
+        });
+        setTimeout(() => document.addEventListener("pointerdown", function off(ev) { if (!ev.target.closest("#blkMenu")) { m.remove(); document.removeEventListener("pointerdown", off, true); } }, true), 0);
+      };
+      const wire = d => {
+        const inT = el => el && el.closest && el.closest("table[data-it='" + cfg.t + "']");
+        d.addEventListener("change", e => {
+          const t = e.target; if (!inT(t) && !t.closest("[data-ionly='" + cfg.t + "']")) return;
+          if (t.classList.contains("ind-ck")) { const id = t.closest("tr").dataset.id; if (t.checked) st.ck.add(id); else st.ck.delete(id); render(d); return; }
+          if (t.classList.contains("ind-all")) {
+            const ids = [...inT(t).querySelectorAll("tr.ind-row")].map(r => r.dataset.id), all = ids.length && ids.every(id => st.ck.has(id));
+            if (all) ids.forEach(id => st.ck.delete(id)); else ids.forEach(id => st.ck.add(id));
+            render(d); return;
+          }
+          if (t.classList.contains("ind-sv")) { const L = cfg.list(), r = L.find(x => x.id === t.closest("tr").dataset.id); if (r) { r.seuil = t.value.trim() === "" ? "" : num(t.value); cfg.save(L); render(d); if (cfg.after) cfg.after(); } }
+        });
+        d.addEventListener("click", e => {
+          const ob = e.target.closest("[data-ionly='" + cfg.t + "']"); if (ob) { st.only = !st.only; render(d); return; }
+          const mo = e.target.closest("[data-imore='" + cfg.t + "']"); if (mo) { e.stopPropagation(); menu(d, mo); return; }
+          if (!inT(e.target)) return;
+          const cfb = e.target.closest(".cf-btn"); if (cfb) { e.stopPropagation(); cfOpenMenu(cfb); return; }
+          if (e.target.closest("[data-inew]")) { cfg.onNew(); return; }
+          const row = e.target.closest("tr.ind-row");
+          if (row && !e.target.closest("input") && !cfg.ro) { const I = cfg.list().find(r => r.id === row.dataset.id); if (I) cfg.onEdit(I); }
+        });
+        /* colonnes : largeur (trait au bord droit de l'en-tête) et place (glisser l'en-tête), mémorisées */
+        d.addEventListener("pointerdown", e => {
+          if (!inT(e.target)) return;
+          const rs = e.target.closest(".col-rs");
+          if (rs) {
+            e.preventDefault(); e.stopPropagation();
+            const t = inT(rs), col = t.querySelector(`col[data-w="${cfg.t}.${rs.dataset.col}"]`); if (!col) return;
+            const x0 = e.clientX, w0 = parseFloat(col.style.width) || col.getBoundingClientRect().width; let w = w0;
+            rs.classList.add("on");
+            const mv = ev => { w = Math.max(40, Math.round(w0 + ev.clientX - x0)); col.style.width = w + "px"; t.style.width = [...t.querySelectorAll("col")].reduce((s2, c) => s2 + (parseFloat(c.style.width) || 0), 0) + "px"; };
+            const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); rs.classList.remove("on"); const all = cwLoad(); all[cfg.t + "." + rs.dataset.col] = w; cwSave(all); };
+            document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+            return;
+          }
+          const th = e.target.closest("thead th");
+          if (th && !e.target.closest(".cf-btn, input") && th.querySelector(".cf-btn")) {
+            const key = th.querySelector(".cf-btn").dataset.col, x0 = e.clientX; let moved = false;
+            const mv = ev => { if (Math.abs(ev.clientX - x0) > 12) { moved = true; th.style.opacity = ".5"; } };
+            const up = ev => {
+              document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); th.style.opacity = "";
+              if (!moved) return;
+              const tgt = document.elementFromPoint(ev.clientX, ev.clientY)?.closest("thead th"), k2 = tgt && tgt.querySelector(".cf-btn")?.dataset.col;
+              if (!k2 || k2 === key || !inT(tgt)) return;
+              const keys = coKeys(cfg.t, colsOf([]).map(c => c[0])).filter(k => k !== key), rr = tgt.getBoundingClientRect();
+              keys.splice(keys.indexOf(k2) + (ev.clientX > rr.left + rr.width / 2 ? 1 : 0), 0, key);
+              const all = coLoad(); all[cfg.t] = keys; coSave(all); render(d);
+            };
+            document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+          }
+        });
+      };
+      const ctl = { st, render, wire, data };
+      IND_CTL[cfg.t] = ctl;
+      return ctl;
+    };
+    const indData = () => IND_CTL.ind ? IND_CTL.ind.data() : { head: [], rows: [] };
+    const ratData = () => IND_CTL.rat ? IND_CTL.rat.data() : { head: [], rows: [] };
+    const indBar = (t, sub) => `<div class="ind-bar"><span class="pv-sub">${sub}</span><button type="button" class="svc-b ind-only" data-ionly="${t}" hidden></button><button type="button" class="blk-more ind-more" data-imore="${t}" aria-label="Actions">⋯</button></div>`;
+
+    /* ---------- fenêtre LISTE DES INDICATEURS ---------- */
+    const indWin = done => {
+      const d = sviWinNew();
+      const close = () => { window.__sviIndRefresh = null; document.getElementById("blkMenu")?.remove(); d.remove(); };
+      const reopen = () => indWin(done);
+      const ctl = indTableCtl({ t: "ind", list: () => indLoad(), save: L => indSaveL(L), store: IND_STORE, close, reopen,
+        onNew: () => { close(); indDesignWin(null, () => reopen()); },
+        onEdit: I => { close(); indDesignWin(I, () => reopen()); },
+        onImport: () => openImportBudget("indlist", () => reopen()) });
+      d.innerHTML = sviWinCard({ cls: "cmp-card svc-full ind-lcard", close: "data-x", title: "LISTE DES INDICATEURS",
+        body: indBar("ind", "COMMUNE À TOUS LES BUDGETS ET PARTAGÉE ENTRE LES APPAREILS ; ELLE ALIMENTE LES TABLEAUX DE VERSIONS ET SCÉNARIOS. VALEUR CALCULÉE SUR CE BUDGET.")
+          + `<div class="cmp-scroll ind-scroll"><table class="bdg-d-table ind-table" id="indTable" data-it="ind"></table></div>`,
+        foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
+      sviWinShow(d);
+      window.__sviIndRefresh = () => { if (document.body.contains(d)) ctl.render(d); else window.__sviIndRefresh = null; };
+      window.__sviSharedChanged = r => { if (r === "_IND" && window.__sviIndRefresh) window.__sviIndRefresh(); };
+      ctl.render(d); ctl.wire(d);
+      d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { close(); if (done) done(); } });
+    };
+
+    /* ---------- ligne « + » d'un tableau : menu des indicateurs de la liste ; pick(id) ---------- */
+    const indPlusMenu = (btn, taken, pick, onNew) => {
+      document.getElementById("blkMenu")?.remove();
+      const L = indLoad().filter(I => !(taken || []).includes(I.id));
+      const m = document.createElement("div"); m.id = "blkMenu"; m.dataset.for = "indplus";
+      m.innerHTML = (L.length ? L.map(I => `<button type="button" data-pk="${esc(I.id)}"><span>${esc(I.nom)}</span></button>`).join("") : `<button type="button" class="off" disabled><span>${indLoad().length ? "TOUS LES INDICATEURS SONT DÉJÀ DANS LE TABLEAU" : "LISTE DES INDICATEURS VIDE"}</span></button>`)
+        + `<button type="button" data-pk="__new"><span>NOUVEL INDICATEUR…</span></button><button type="button" data-pk="__list"><span>LISTE DES INDICATEURS…</span></button>`;
+      document.body.appendChild(m); sviPlaceMenu(m, btn.getBoundingClientRect()); m.style.zIndex = 100010;
+      m.addEventListener("click", ev => { const b = ev.target.closest("[data-pk]"); if (!b) return; m.remove(); onNew(b.dataset.pk === "__new" ? "new" : b.dataset.pk === "__list" ? "list" : null, b.dataset.pk); if (b.dataset.pk[0] !== "_") pick(b.dataset.pk); });
+      setTimeout(() => document.addEventListener("pointerdown", function off(ev) { if (!ev.target.closest("#blkMenu")) { m.remove(); document.removeEventListener("pointerdown", off, true); } }, true), 0);
+    };
+    shell.__indWin = done => indWin(done);
+    shell.__ind = { load: () => indLoad(), save: L => indSaveL(L), calc: (I, d) => indCalc(I, d || INS), parse: f => indParse(f), design: (I, cb, st) => indDesignWin(I, cb, st) };
+/* ⟪ src/22h-tableau-de-bord.js ⟫ */
+    /* =========================================================
+       v680 : TABLEAU DE BORD (décisions du 29/10/2026)
+       - Indicateurs PROPRES AU BUDGET (INS.rat.L), même fenêtre de conception que la liste commune ; seuil par indicateur ;
+         import depuis le tableau de bord d'un autre budget ou depuis la liste commune (fenêtre d'import, onglet INDICATEURS).
+       - Plusieurs GRAPHIQUES (INS.rat.G), chacun avec sa fenêtre de PARAMÉTRAGE : type (histogramme, barres, courbe, disque),
+         ordonnées = un ou plusieurs indicateurs, abscisse au choix (12) : indicateurs, lots, période (semaine / mois),
+         versions et scénarios, désignations client, activités (primaires / secondaires), métiers, charges (de la plus grosse
+         à la plus petite), origine (marché initial, avenants), budgets / projets, période en cumulé, titres (bloc et niveau).
+       - Chaque point de l'abscisse = l'indicateur calculé sur la part du budget qui lui revient (liaisons, charges, produits,
+         délais) ; période : quantités au prorata des jours de chaque tâche dans la période.
+       ========================================================= */
+    const RAT_X = [["ind", "INDICATEURS"], ["lot", "LOTS"], ["per", "PÉRIODE"], ["ver", "VERSIONS ET SCÉNARIOS"], ["des", "DÉSIGNATIONS CLIENT"],
+      ["act", "ACTIVITÉS"], ["met", "MÉTIERS (TYPES D'OUVRIERS)"], ["chg", "CHARGES (DE LA PLUS GROSSE À LA PLUS PETITE)"], ["orig", "ORIGINE (MARCHÉ INITIAL, AVENANTS)"],
+      ["bdg", "BUDGETS / PROJETS"], ["cum", "PÉRIODE EN CUMULÉ"], ["tit", "TITRES"]];
+    const RAT_T = [["h", "HISTOGRAMME"], ["b", "BARRES"], ["l", "COURBE"], ["p", "DISQUE"]];
+    /* anciens ratios (numérateur ÷ dénominateur) → formule ; ancien graphique unique → premier graphique */
+    const ratMigrate = R => {
+      const K = { tc: "b:chg", tp: "b:prd", sc: "b:sc", sl: "b:sl" }, key = k => K[k] || k;
+      const grp = ks => { const T = []; (ks || []).forEach((k, i) => { if (i) T.push({ t: "o", v: "+" }); T.push({ t: "e", k: key(k) }); }); return T; };
+      R.L = (R.L || []).map(r => r.f ? r : { id: r.id || insId(), nom: U_(r.nom || "INDICATEUR"), mode: r.mode || "q", fmt: "n", dec: 2, u: "", seuil: r.seuil === undefined ? "" : r.seuil,
+        f: (r.den || []).length ? [...((r.num || []).length > 1 ? [{ t: "(" }, ...grp(r.num), { t: ")" }] : grp(r.num)), { t: "o", v: "÷" }, ...((r.den || []).length > 1 ? [{ t: "(" }, ...grp(r.den), { t: ")" }] : grp(r.den))] : grp(r.num) });
+      if (!Array.isArray(R.G)) { R.G = R.L.length && R.g ? [{ id: insId(), nom: "GRAPHIQUE 1", type: R.g.t === "p" ? "p" : R.g.t === "l" ? "l" : R.g.t === "h" ? "h" : "b", x: "ind", y: R.L.map(r => r.id), h: R.g.h || 240 }] : []; }
+      delete R.g;
+      return R;
+    };
+    /* part du budget retenue par un filtre de liaisons */
+    const ratSub = (D, keep) => {
+      const L = (D.links || []).filter(keep), ids = k => new Set(L.flatMap(l => (l[k] || []).map(x => x.id)));
+      const ch = ids("chg"), pr = ids("prd"), ds = new Set(L.map(l => l.des)), lo = new Set(L.map(l => l.lot)), ks = new Set(L.map(l => l.lot + "|" + l.sec));
+      return { ...D, links: L, chg: (D.chg || []).filter(r => r.t || ch.has(r.id)), prd: (D.prd || []).filter(r => r.t || pr.has(r.id)),
+        des: (D.des || []).filter(r => r.t || ds.has(r.id)), lot: (D.lot || []).filter(r => r.t || lo.has(r.id)),
+        dlp: Object.fromEntries(Object.entries(D.dlp || {}).filter(([k]) => ks.has(k))) };
+    };
+    /* période [a, b] : délais coupés à la période, charges et produits au prorata des jours de leurs tâches dans la période */
+    const ratDays = (x, y) => Math.max(0, Math.round((new Date(y + "T12:00:00") - new Date(x + "T12:00:00")) / 864e5) + 1);
+    const ratPerSub = (D, a, b) => {
+      const f = {};
+      Object.keys(D.dlp || {}).forEach(k => { let tot = 0, inn = 0; (D.dlp[k] || []).forEach(p => { if (!p.deb) return; const x = p.deb, y = p.fin || p.deb; tot += ratDays(x, y); const lo = x > a ? x : a, hi = y < b ? y : b; if (lo <= hi) inn += ratDays(lo, hi); }); f[k] = tot ? inn / tot : 0; });
+      const share = (kind, id) => { const ks = (D.links || []).filter(l => (l[kind] || []).some(x => x.id === id)).map(l => l.lot + "|" + l.sec); return ks.length ? ks.reduce((t, k) => t + (f[k] || 0), 0) / ks.length : 0; };
+      const dlp = {}; Object.keys(D.dlp || {}).forEach(k => { const L = (D.dlp[k] || []).filter(p => p.deb && p.deb <= b && (p.fin || p.deb) >= a).map(p => ({ ...p, deb: p.deb < a ? a : p.deb, fin: (p.fin || p.deb) > b ? b : (p.fin || p.deb) })); if (L.length) dlp[k] = L; });
+      return { ...D, dlp, chg: (D.chg || []).map(r => r.t ? r : { ...r, q: num(r.q || 0) * share("chg", r.id) }),
+        prd: (D.prd || []).map(r => r.t ? r : { ...r, nbr: "", d1: "", d2: "", d3: "", q: insPrdQ(r) * share("prd", r.id) }) };
+    };
+    const ratPeriods = (D, unit) => {
+      const all = []; Object.values(D.dlp || {}).forEach(L => (L || []).forEach(p => { if (p.deb) all.push(p.deb, p.fin || p.deb); }));
+      if (!all.length) return [];
+      all.sort(); const a = all[0], b = all[all.length - 1], out = [];
+      const mois = ["JANV", "FÉVR", "MARS", "AVR", "MAI", "JUIN", "JUIL", "AOÛT", "SEPT", "OCT", "NOV", "DÉC"];
+      if (unit === "m") {
+        for (let d = new Date(a.slice(0, 8) + "01T12:00:00"); sviIsoOf(d) <= b && out.length < 120; d.setMonth(d.getMonth() + 1)) {
+          const s0 = sviIsoOf(d), e = new Date(d); e.setMonth(e.getMonth() + 1); e.setDate(0);
+          out.push({ a: s0, b: sviIsoOf(e), lab: mois[d.getMonth()] + " " + String(d.getFullYear()).slice(2) });
+        }
+      } else {
+        const d = new Date(a + "T12:00:00"); d.setDate(d.getDate() - (d.getDay() + 6) % 7);
+        for (; sviIsoOf(d) <= b && out.length < 260; d.setDate(d.getDate() + 7)) { const e = new Date(d); e.setDate(e.getDate() + 6); out.push({ a: sviIsoOf(d), b: sviIsoOf(e), lab: dFr(sviIsoOf(d)).slice(0, 5) }); }
+      }
+      return out;
+    };
+    /* points de l'abscisse : [{ lab, d }] (d = part du budget sur laquelle l'indicateur est calculé) */
+    const ratCats = (G, D) => {
+      const nm = (k, id) => { const r = (D[k] || []).find(x => x.id === id); return r ? (k === "des" ? ((r.art || "") + " " + (r.des || "")).trim() : (r.v || r.des || "")) : ""; };
+      const byKey = (keyOf, labOf) => { const M = new Map(); (D.links || []).forEach(l => { const k = keyOf(l); if (k === null || k === undefined || k === "") return; if (!M.has(k)) M.set(k, labOf ? labOf(l, k) : k); }); return [...M.entries()].map(([k, lab]) => ({ lab, d: ratSub(D, l => keyOf(l) === k) })); };
+      switch (G.x) {
+        case "lot": return byKey(l => l.lot, l => nm("lot", l.lot));
+        case "des": return byKey(l => l.des, l => nm("des", l.des));
+        case "act": { const k = G.act === "prim" ? "prim" : "sec"; return byKey(l => l[k], l => nm(k, l[k])); }
+        case "per": case "cum": { const P = ratPeriods(D, G.per === "m" ? "m" : "w"); const a0 = P.length ? P[0].a : ""; return P.map(p => ({ lab: p.lab, d: ratPerSub(D, G.x === "cum" ? a0 : p.a, p.b) })); }
+        case "met": { const M = new Map(); (D.chg || []).filter(r => !r.t && dlyIsLab(r)).forEach(r => { const k = U_(r.des); if (!M.has(k)) M.set(k, new Set()); M.get(k).add(r.id); }); return [...M.entries()].map(([k, S]) => ({ lab: k, d: { ...D, chg: (D.chg || []).filter(r => r.t || S.has(r.id)) } })); }
+        case "chg": return (D.chg || []).filter(r => !r.t).map(r => ({ lab: r.des || "", d: { ...D, chg: [r] }, sort: true }));
+        case "orig": { const O = verOrig().des; return byKey(l => O[l.des] || "MARCHÉ INITIAL"); }
+        case "ver": { const V = INS.ver || { L: [] }; const SC = (V.L || []).filter(x => x.kind === "sc"); if (!SC.length) return [{ lab: "BUDGET ACTUEL", d: D }]; return SC.map(x => ({ lab: x.nom, d: x.id === V.act ? D : x.d })).filter(x => x.d); }
+        case "bdg": return sviInstGet().filter(x => x.data).map(x => ({ lab: ((x.project || "") + " " + x.ref).trim(), d: x.ref === (budget.inst && budget.inst.ref) ? D : x.data }));
+        case "tit": {
+          const niv = Math.max(1, Number(G.niv) || 1), blk = G.blk || "lot";
+          if (blk === "lot") return byKey(l => dlyLotPath(nm("lot", l.lot)).slice(0, niv).join(" / ") || "(SANS LOT)");
+          if (blk === "des") {
+            const T = {}, stack = []; (D.des || []).forEach(r => { if (r.t) { const lv = Math.max(1, String(artOf(r) || "").split(".").filter(Boolean).length); stack.length = lv - 1; stack[lv - 1] = (artOf(r) + " " + (r.des || "")).trim(); } else T[r.id] = stack[niv - 1] || stack[stack.length - 1] || "(SANS TITRE)"; });
+            return byKey(l => T[l.des] || "(SANS TITRE)");
+          }
+          return byKey(l => { const r = (D[blk] || []).find(x => x.id === l[blk]); return (r && String(r.g || "").trim()) || "(SANS TITRE)"; });
+        }
+        default: return [];
+      }
+    };
+    /* séries du graphique : { X: [libellés], S: [{ I, v: [valeurs] }] } */
+    const ratSeries = (G, R, D) => {
+      const Y = (G.y || []).map(id => R.L.find(r => r.id === id)).filter(Boolean);
+      if (G.x === "ind") { const E = indEls(D); return { X: Y.map(I => I.nom), S: [{ I: { nom: "VALEUR" }, v: Y.map(I => indCalc(I, D, E).val ?? null), seuils: Y.map(I => I.seuil) }] }; }
+      let C = ratCats(G, D);
+      const S = Y.map(I => ({ I, v: C.map(c => { const r = indCalc(I, c.d); return r.val ?? null; }) }));
+      if (C.some(c => c.sort) && S.length) { const ord = C.map((c, i) => i).sort((i, j) => (S[0].v[j] ?? -Infinity) - (S[0].v[i] ?? -Infinity)); C = ord.map(i => C[i]); S.forEach(s => { s.v = ord.map(i => s.v[i]); }); }
+      return { X: C.map(c => c.lab), S };
+    };
+    /* dessin SVG */
+    const RAT_C = ["#2e90fa", "#f79009", "#12b76a", "#7a5af8", "#ee46bc", "#06aed4", "#84cc16", "#667085"];
+    const ratDraw = (G, R, D) => {
+      const { X, S } = ratSeries(G, R, D);
+      if (!X.length || !S.length || S.every(s => s.v.every(v => v === null))) return `<div class="fz-none">AUCUNE VALEUR À REPRÉSENTER (CHOISIR LES INDICATEURS ET L'ABSCISSE DANS ⚙)</div>`;
+      const H = Math.max(140, Number(G.h) || 240), lab = s => esc(String(s).slice(0, 16)), fx = v => v === null ? "" : indNum(v, Math.abs(v) >= 100 ? 0 : 2);
+      const leg = S.length > 1 || G.type === "p" ? `<div class="rat-leg">${(G.type === "p" ? X.map((x, i) => [x, RAT_C[i % RAT_C.length]]) : S.map((s, i) => [s.I.nom, RAT_C[i % RAT_C.length]])).map(([t, c]) => `<span><i style="background:${c}"></i>${esc(t)}</span>`).join("")}</div>` : "";
+      if (G.type === "p") {
+        const v = S[0].v.map(x => Math.abs(x || 0)), tot = v.reduce((a, b) => a + b, 0) || 1, r = Math.min(H / 2 - 10, 130), cx = r + 20, cy = H / 2; let a0 = -Math.PI / 2;
+        const sl = v.map((x, i) => { if (!x) return ""; const a1 = a0 + x / tot * Math.PI * 2, big = a1 - a0 > Math.PI ? 1 : 0;
+          const p = x >= tot - 1e-9 ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${RAT_C[i % RAT_C.length]}"/>` : `<path d="M${cx},${cy} L${cx + r * Math.cos(a0)},${cy + r * Math.sin(a0)} A${r},${r} 0 ${big} 1 ${cx + r * Math.cos(a1)},${cy + r * Math.sin(a1)} Z" fill="${RAT_C[i % RAT_C.length]}" stroke="#fff" stroke-width="1.5"/>`; a0 = a1; return p; }).join("");
+        const txt = v.map((x, i) => `<text x="${2 * r + 60}" y="${20 + i * 18}">${lab(X[i])} — ${esc(fx(S[0].v[i]))} (${indNum(x / tot * 100, 1)} %)</text>`).join("");
+        return leg + `<svg viewBox="0 0 760 ${H}" class="rat-svg">${sl}${txt}</svg>`;
+      }
+      const all = S.flatMap(s => s.v).filter(v => v !== null), mx = Math.max(0, ...all), mn = Math.min(0, ...all), span = (mx - mn) || 1;
+      const n = X.length, W = Math.max(760, 50 + n * Math.max(24, S.length * 14 + 10)), pl = 46, pb = 34, ph = H - pb - 14, cw = (W - pl - 10) / n;
+      const y = v => 14 + (mx - v) / span * ph, y0 = y(0);
+      const grid = [0, .25, .5, .75, 1].map(t => { const v = mn + span * t; return `<line x1="${pl}" x2="${W - 6}" y1="${y(v)}" y2="${y(v)}" stroke="#eaecf0"/><text x="${pl - 4}" y="${y(v) + 4}" text-anchor="end" class="rat-ax">${esc(fx(v))}</text>`; }).join("");
+      const xl = X.map((x, i) => `<text x="${pl + cw * i + cw / 2}" y="${H - 14}" text-anchor="middle" class="rat-ax">${lab(x)}</text>`).join("");
+      let marks = "";
+      if (G.type === "l") marks = S.map((s, j) => { const pts = s.v.map((v, i) => v === null ? null : [pl + cw * i + cw / 2, y(v)]).filter(Boolean); return `<polyline points="${pts.map(p => p.join(",")).join(" ")}" fill="none" stroke="${RAT_C[j % RAT_C.length]}" stroke-width="2.5"/>` + pts.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="${RAT_C[j % RAT_C.length]}"/>`).join(""); }).join("");
+      else {
+        const gap = G.type === "h" ? 0 : cw * .22, bw = (cw - gap) / S.length;
+        marks = S.map((s, j) => s.v.map((v, i) => { if (v === null) return ""; const sr = s.seuils ? s.seuils[i] : s.I.seuil, sv = sr === undefined || sr === null || sr === "" ? NaN : Number(String(sr).replace(",", "."));
+          const over = Number.isFinite(sv) && v > sv, x = pl + cw * i + gap / 2 + bw * j, top = Math.min(y(v), y0), h = Math.abs(y(v) - y0);
+          return `<rect x="${x + (G.type === "h" ? 0 : 1)}" y="${top}" width="${Math.max(1, bw - (G.type === "h" ? 0 : 2))}" height="${Math.max(1, h)}" fill="${over ? "#f04438" : RAT_C[j % RAT_C.length]}" rx="${G.type === "h" ? 0 : 3}"/>${S.length === 1 && n <= 24 ? `<text x="${x + bw / 2}" y="${top - 4}" text-anchor="middle" class="rat-ax">${esc(fx(v))}</text>` : ""}`; }).join("")).join("");
+      }
+      return leg + `<div class="rat-gx"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="rat-svg">${grid}<line x1="${pl}" x2="${W - 6}" y1="${y0}" y2="${y0}" stroke="#98a2b3"/>${marks}${xl}</svg></div>`;
+    };
+    /* fenêtre PARAMÉTRAGE d'un graphique — done(graphique | null) */
+    const ratGraphWin = (G0, R, done) => {
+      const G = JSON.parse(JSON.stringify(G0 || { id: insId(), nom: "GRAPHIQUE " + ((R.G || []).length + 1), type: "h", x: "ind", y: [], h: 240, per: "m", act: "sec", blk: "lot", niv: 1 }));
+      const d = sviWinNew();
+      const draw = () => {
+        d.innerHTML = sviWinCard({ cls: "cmp-card ind-card", close: "data-x", title: "PARAMÉTRAGE DU GRAPHIQUE",
+          body: `<label class="ind-lab">NOM DU GRAPHIQUE</label><input class="pv-in ind-nom rg-nom" value="${esc(G.nom)}">
+            <div class="fz-blk">TYPE</div><div class="rg-row">${RAT_T.map(([v, l]) => `<label><input type="radio" name="rgT" value="${v}"${G.type === v ? " checked" : ""}> ${l}</label>`).join("")}</div>
+            <div class="fz-blk">ABSCISSE</div><div class="rg-row"><select class="pv-in rg-x">${RAT_X.map(([v, l]) => `<option value="${v}"${G.x === v ? " selected" : ""}>${l}</option>`).join("")}</select>
+              ${G.x === "per" || G.x === "cum" ? `<select class="pv-in rg-per"><option value="w"${G.per === "w" ? " selected" : ""}>PAR SEMAINE</option><option value="m"${G.per !== "w" ? " selected" : ""}>PAR MOIS</option></select>` : ""}
+              ${G.x === "act" ? `<select class="pv-in rg-act"><option value="prim"${G.act === "prim" ? " selected" : ""}>ACTIVITÉS PRIMAIRES</option><option value="sec"${G.act !== "prim" ? " selected" : ""}>ACTIVITÉS SECONDAIRES</option></select>` : ""}
+              ${G.x === "tit" ? `<select class="pv-in rg-blk">${[["des", "DÉSIGNATIONS CLIENT"], ["lot", "LOTS"], ["prim", "ACTIVITÉS PRIMAIRES"], ["sec", "ACTIVITÉS SECONDAIRES"]].map(([v, l]) => `<option value="${v}"${G.blk === v ? " selected" : ""}>${l}</option>`).join("")}</select>${G.blk === "lot" || G.blk === "des" ? `<select class="pv-in rg-niv">${[1, 2, 3].map(n => `<option value="${n}"${Number(G.niv || 1) === n ? " selected" : ""}>NIVEAU ${n}</option>`).join("")}</select>` : ""}` : ""}</div>
+            <div class="fz-blk">ORDONNÉES (INDICATEURS DU TABLEAU DE BORD)</div>
+            <div class="rg-y">${R.L.map(I => `<label><input type="checkbox" class="rg-yc" value="${esc(I.id)}"${G.y.includes(I.id) ? " checked" : ""}> ${esc(I.nom)}</label>`).join("") || `<div class="fz-none">AUCUN INDICATEUR : EN CRÉER DANS LE TABLEAU DE BORD</div>`}</div>
+            <label class="pv-r"><span>HAUTEUR</span><input type="range" class="rg-h" min="140" max="560" step="20" value="${G.h || 240}"></label>
+            <div class="rat-g rg-prev">${ratDraw(G, R, { ...INS, rat: R })}</div>
+            <div class="doc-err ind-msg"></div>`,
+          foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>` });
+      };
+      draw(); sviWinShow(d);
+      d.addEventListener("input", e => { if (e.target.classList.contains("rg-nom")) G.nom = e.target.value; });
+      d.addEventListener("change", e => {
+        const t = e.target;
+        if (t.name === "rgT") G.type = t.value; else if (t.classList.contains("rg-x")) G.x = t.value; else if (t.classList.contains("rg-per")) G.per = t.value;
+        else if (t.classList.contains("rg-act")) G.act = t.value; else if (t.classList.contains("rg-blk")) G.blk = t.value; else if (t.classList.contains("rg-niv")) G.niv = Number(t.value);
+        else if (t.classList.contains("rg-yc")) G.y = [...d.querySelectorAll(".rg-yc:checked")].map(x => x.value);
+        else if (t.classList.contains("rg-h")) G.h = Number(t.value);
+        else return;
+        G.nom = d.querySelector(".rg-nom").value; draw();
+      });
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); done(null); return; }
+        if (e.target.closest("[data-save]")) {
+          G.nom = U_(d.querySelector(".rg-nom").value) || "GRAPHIQUE";
+          if (!G.y.length) { d.querySelector(".ind-msg").textContent = "COCHER AU MOINS UN INDICATEUR EN ORDONNÉE."; return; }
+          d.remove(); done(G);
+        }
+      });
+    };
+    /* fenêtre TABLEAU DE BORD */
+    const ratWin = () => {
+      const R = ratMigrate(JSON.parse(JSON.stringify(INS.rat || {})));
+      R.lsurf = R.lsurf || {};
+      const ed = INS_EDIT;
+      const put = (what, det) => { INS.rat = JSON.parse(JSON.stringify(R)); insSave(); if (what) histLog("TABLEAU DE BORD", what, det || ""); };
+      if (JSON.stringify(INS.rat || {}) !== JSON.stringify(R) && ed && INS.rat) put("");   /* migration enregistrée */
+      const STORE = { list: () => R.L, save: L => { R.L = L; R.G.forEach(G => { G.y = G.y.filter(id => L.some(I => I.id === id)); }); put(); }, br: "TABLEAU DE BORD" };
+      let showLots = false;
+      const leaves = (INS.lot || []).filter(r => !r.t && !(INS.lot || []).some(o => o !== r && !o.t && U_(o.v).startsWith(U_(r.v) + " / ")));
+      const d = sviWinNew();
+      const close = () => { window.__sviRatRefresh = null; document.getElementById("blkMenu")?.remove(); d.remove(); };
+      const reopen = () => ratWin();
+      const ctl = indTableCtl({ t: "rat", list: () => R.L, save: L => STORE.save(L), store: STORE, close, reopen, ro: !ed, data: () => ({ ...INS, rat: R }),
+        extra: [["iseuil", "SEUIL", r => r.seuil === undefined || r.seuil === "" ? "" : r.seuil, "center"]], after: () => drawG(),
+        onNew: () => { close(); indDesignWin(null, () => reopen(), STORE); },
+        onEdit: I => { close(); indDesignWin(I, () => reopen(), STORE); },
+        onImport: () => openImportBudget("rat", () => reopen()) });
+      const drawG = () => {
+        const box = d.querySelector(".rat-graphs"); if (!box) return;
+        const D = { ...INS, rat: R };
+        box.innerHTML = (R.G || []).map(G => `<div class="rat-card" data-g="${esc(G.id)}"><div class="rat-ch"><b>${esc(G.nom)}</b><small>${esc((RAT_T.find(t => t[0] === G.type) || ["", ""])[1])} · ${esc((RAT_X.find(x => x[0] === G.x) || ["", ""])[1])}</small>
+            ${ed ? `<button type="button" class="svc-b" data-gset="${esc(G.id)}">⚙ PARAMÉTRAGE</button><button type="button" class="cmp-del" data-gdel="${esc(G.id)}">✕</button>` : ""}</div>
+            <div class="rat-g">${ratDraw(G, R, D)}</div></div>`).join("") || `<div class="fz-none">AUCUN GRAPHIQUE</div>`;
+      };
+      d.innerHTML = sviWinCard({ cls: "cmp-card svc-full rat-card", close: "data-x", title: "TABLEAU DE BORD",
+        body: `<div class="rat-top"><label>SURFACE COUVERTE <input class="pv-in rat-surf" inputmode="decimal" value="${esc(R.surf === undefined ? "" : String(R.surf).replace(".", ","))}"${ed ? "" : " disabled"}> M²</label>
+            <button type="button" class="svc-b" data-lots>SURFACES DES LOTS ${svCnt(Object.keys(R.lsurf).length)}</button></div>
+          <div class="rat-lots" hidden>${leaves.map(l => `<label class="pv-r"><span>${esc(lotLab(lotSegs(l)).full)}</span><input class="pv-in rat-ls" data-lot="${l.id}" inputmode="decimal" value="${esc(R.lsurf[l.id] === undefined ? "" : String(R.lsurf[l.id]).replace(".", ","))}"${ed ? "" : " disabled"}><i>M²</i></label>`).join("") || `<div class="fz-none">AUCUN LOT</div>`}</div>
+          <div class="fz-blk">INDICATEURS DU BUDGET ${svCnt(R.L.length)}</div>
+          ${indBar("rat", "PROPRES À CE BUDGET ; TOUCHER UNE LIGNE POUR LA MODIFIER. SEUIL DÉPASSÉ = ROUGE.")}
+          <div class="cmp-scroll ind-scroll rat-iscroll"><table class="bdg-d-table ind-table" data-it="rat"></table></div>
+          <div class="fz-blk">GRAPHIQUES ${svCnt((R.G || []).length)} ${ed ? `<button type="button" class="svc-b" data-gnew>+ GRAPHIQUE</button>` : ""}</div>
+          <div class="rat-graphs"></div>`,
+        foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
+      sviWinShow(d);
+      ctl.render(d); ctl.wire(d); drawG();
+      window.__sviRatRefresh = () => { if (document.body.contains(d)) { ctl.render(d); drawG(); } else window.__sviRatRefresh = null; };
+      d.addEventListener("change", e => {
+        const t = e.target;
+        if (t.classList.contains("rat-surf")) { R.surf = t.value.trim() === "" ? "" : ratNum(t.value); put("SURFACE COUVERTE", t.value); ctl.render(d); drawG(); return; }
+        if (t.classList.contains("rat-ls")) { if (t.value.trim() === "") delete R.lsurf[t.dataset.lot]; else R.lsurf[t.dataset.lot] = ratNum(t.value); put("SURFACE DE LOT", t.value); ctl.render(d); drawG(); }
+      });
+      d.addEventListener("click", async e => {
+        if (e.target === d || e.target.closest("[data-x]")) { close(); refreshAll(); return; }
+        if (e.target.closest("[data-lots]")) { showLots = !showLots; const b = d.querySelector(".rat-lots"); b.hidden = !showLots; return; }
+        if (e.target.closest("[data-gnew]")) { close(); ratGraphWin(null, R, G => { if (G) { R.G = (R.G || []).concat(G); put("GRAPHIQUE AJOUTÉ", G.nom); } reopen(); }); return; }
+        const gs = e.target.closest("[data-gset]");
+        if (gs) { const G0 = R.G.find(g => g.id === gs.dataset.gset); close(); ratGraphWin(G0, R, G => { if (G) { R.G = R.G.map(g => g.id === G.id ? G : g); put("GRAPHIQUE MODIFIÉ", G.nom); } reopen(); }); return; }
+        const gd = e.target.closest("[data-gdel]");
+        if (gd) { const G0 = R.G.find(g => g.id === gd.dataset.gdel); d.remove(); if (await svConfirm({ title: "SUPPRIMER LE GRAPHIQUE", text: G0.nom, ok: "SUPPRIMER" })) { R.G = R.G.filter(g => g !== G0); put("GRAPHIQUE SUPPRIMÉ", G0.nom); } reopen(); }
+      });
+    };
+    shell.__ratWin = () => ratWin();
+    shell.__rat = { imp: (b, cb) => openImportBudget(b, cb), cats: (G, D) => ratCats(G, D || INS), series: G => ratSeries(G, ratMigrate(JSON.parse(JSON.stringify(INS.rat || {}))), INS), migrate: R => ratMigrate(R), periods: (D, u) => ratPeriods(D || INS, u), per: (D, a, b) => ratPerSub(D || INS, a, b) };
 /* ⟪ src/23-apercus-impression.js ⟫ */
     /* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :
        volet « OPTIONS PDF » à gauche, aperçu des pages à droite,
@@ -22057,7 +22542,7 @@ ${A}</Assignments>
     const printGeneric = blk => {
       const label = String(blkLabel(blk)).toUpperCase();
       let cols, rows, end = "";
-      if ((blk === "detail" && (active === "dly" || (active === "qlt" && INS))) || blk === "hist") {
+      if ((blk === "detail" && (active === "dly" || (active === "qlt" && INS))) || blk === "hist" || blk === "ind" || blk === "rat") {
         const d = blkData(blk);
         if (!d.rows.length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         /* historique : date, branche et action étroites, détail large */

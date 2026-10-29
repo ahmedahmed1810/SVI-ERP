@@ -1019,7 +1019,7 @@
     const printGeneric = blk => {
       const label = String(blkLabel(blk)).toUpperCase();
       let cols, rows, end = "";
-      if ((blk === "detail" && (active === "dly" || (active === "qlt" && INS))) || blk === "hist") {
+      if ((blk === "detail" && (active === "dly" || (active === "qlt" && INS))) || blk === "hist" || blk === "ind" || blk === "rat") {
         const d = blkData(blk);
         if (!d.rows.length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         /* historique : date, branche et action étroites, détail large */

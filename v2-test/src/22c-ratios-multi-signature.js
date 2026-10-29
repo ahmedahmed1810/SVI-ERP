@@ -9,12 +9,12 @@
     const ratNum = v => { const n = Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")); return Number.isFinite(n) ? n : 0; };
     const ratFx = (v, d = 2) => v === null || v === undefined || !Number.isFinite(v) ? "—" : money(Math.round(v * 10 ** d) / 10 ** d);
     /* éléments disponibles : { k, lab, u, q, m } */
-    const ratItems = () => {
-      const R = INS.rat || {}, out = [], G = new Map();
+    const ratItems = (D = INS) => {   /* v679 : sur un état du budget (scénarios) */
+      const R = D.rat || {}, out = [], G = new Map();
       const add = (pre, r, q, m) => { const k = pre + "|" + U_(r.des) + "|" + U_(r.u); if (!G.has(k)) G.set(k, { k, lab: (pre === "c" ? "CHG " : "PRD ") + (r.des || ""), u: U_(r.u), q: 0, m: 0 }); const x = G.get(k); x.q += q; x.m += m; };
-      (INS.chg || []).filter(r => !r.t).forEach(r => add("c", r, ratNum(r.q), ratNum(r.q) * ratNum(r.p)));
-      const pp = new Map(); (INS.links || []).forEach(l => { if (!insLinkPrim(INS, l)) return; const d = INS.des.find(x => x.id === l.des); (l.prd || []).forEach(x => { if (!pp.has(x.id)) pp.set(x.id, d ? ratNum(d.p) : 0); }); });
-      (INS.prd || []).filter(r => !r.t).forEach(r => { const q = insPrdQ(r); add("p", r, q, q * (pp.get(r.id) || 0)); });
+      (D.chg || []).filter(r => !r.t).forEach(r => add("c", r, ratNum(r.q), ratNum(r.q) * ratNum(r.p)));
+      const pp = new Map(); (D.links || []).forEach(l => { if (!insLinkPrim(D, l)) return; const d = (D.des || []).find(x => x.id === l.des); (l.prd || []).forEach(x => { if (!pp.has(x.id)) pp.set(x.id, d ? ratNum(d.p) : 0); }); });
+      (D.prd || []).filter(r => !r.t).forEach(r => { const q = insPrdQ(r); add("p", r, q, q * (pp.get(r.id) || 0)); });
       out.push({ k: "tc", lab: "CHARGES TOTALES", u: "DH", q: [...G.values()].filter(x => x.k[0] === "c").reduce((t, x) => t + x.m, 0), m: null });
       out.push({ k: "tp", lab: "PRODUITS TOTAUX", u: "DH", q: [...G.values()].filter(x => x.k[0] === "p").reduce((t, x) => t + x.m, 0), m: null });
       const ls = Object.values(R.lsurf || {}).reduce((t, v) => t + ratNum(v), 0);
@@ -52,89 +52,7 @@
       if (mo.length && sur) L.push({ nom: "MAIN-D'ŒUVRE AU M²", num: mo, den: [sur], mode: "q" });
       return L.map(r => ({ id: insId(), seuil: "", ...r }));
     };
-    const ratWin = () => {
-      const R = JSON.parse(JSON.stringify(INS.rat || {}));
-      R.L = R.L || []; R.lsurf = R.lsurf || {}; R.g = { t: "b", h: 220, ...(R.g || {}) };
-      const ed = INS_EDIT;
-      let showLots = false;
-      const leaves = (INS.lot || []).filter(r => !r.t && !(INS.lot || []).some(o => o !== r && !o.t && U_(o.v).startsWith(U_(r.v) + " / ")));
-      const d = sviWinNew();
-      const pick = (r, side, I) => `<div class="rat-pk" data-id="${r.id}" data-side="${side}">${(r[side] || []).map(k => { const x = I.find(y => y.k === k); return x ? `<span class="rat-chip">${esc(x.lab)} <i>${esc(x.u)}</i>${ed ? `<b data-rm="${esc(k)}">✕</b>` : ""}</span>` : ""; }).join("")}${ed ? `<select class="rat-add"><option value="">+ AJOUTER…</option>${I.map(x => `<option value="${esc(x.k)}">${esc(x.lab)} (${esc(x.u)})</option>`).join("")}</select>` : ""}</div>`;
-      const draw = () => {
-        INS.rat = INS.rat || {};
-        const prev = INS.rat; INS.rat = R; const I = ratItems(); INS.rat = prev;
-        const rows = R.L.map(r => { const c = ratCalc(I, r), sv = ratNum(r.seuil), over = r.seuil !== "" && r.seuil !== undefined && c.val !== undefined && c.val !== null && c.val > sv;
-          return `<tr data-id="${r.id}"><td>${ed ? `<input class="rat-nm" value="${esc(r.nom || "")}">` : esc(r.nom || "")}</td><td>${pick(r, "num", I)}</td><td>${pick(r, "den", I)}</td>
-            <td class="c"><select class="rat-md"${ed ? "" : " disabled"}><option value="q"${r.mode !== "m" ? " selected" : ""}>QUANTITÉ</option><option value="m"${r.mode === "m" ? " selected" : ""}>MONTANT</option></select></td>
-            <td class="r${c.err ? " rat-err" : over ? " rat-over" : ""}"><b>${esc(c.txt)}</b>${c.n && c.d ? `<small>${ratFx(c.n.v)} ${esc(c.n.u)} · ${ratFx(c.d.v)} ${esc(c.d.u)} · ÉCART ${ratFx(c.diff)}</small>` : ""}</td>
-            <td class="c"><input class="rat-sv" inputmode="decimal" value="${esc(r.seuil === undefined ? "" : String(r.seuil).replace(".", ","))}"${ed ? "" : " disabled"}></td>
-            <td class="c">${ed ? `<button type="button" class="cmp-del" data-del="${r.id}">✕</button>` : ""}</td></tr>`; }).join("");
-        const vals = R.L.map(r => ({ r, c: ratCalc(I, r) })).filter(x => x.c.val !== undefined && x.c.val !== null && Number.isFinite(x.c.val));
-        d.innerHTML = sviWinCard({ cls: "cmp-card svc-full rat-card", close: "data-x", title: "TABLEAU DE BORD DES RATIOS",
-          body: `<div class="rat-top"><label>SURFACE COUVERTE <input class="pv-in rat-surf" inputmode="decimal" value="${esc(R.surf === undefined ? "" : String(R.surf).replace(".", ","))}"${ed ? "" : " disabled"}> M²</label>
-              <button type="button" class="svc-b" data-lots>SURFACES DES LOTS ${svCnt(Object.keys(R.lsurf).length)}</button>
-              ${ed ? `<button type="button" class="svc-b" data-add>+ AJOUTER UN RATIO</button><button type="button" class="svc-b" data-prop>PROPOSER</button>` : ""}</div>
-            <div class="rat-lots"${showLots ? "" : " hidden"}>${leaves.map(l => `<label class="pv-r"><span>${esc(lotLab(lotSegs(l)).full)}</span><input class="pv-in rat-ls" data-lot="${l.id}" inputmode="decimal" value="${esc(R.lsurf[l.id] === undefined ? "" : String(R.lsurf[l.id]).replace(".", ","))}"${ed ? "" : " disabled"}><i>M²</i></label>`).join("") || `<div class="fz-none">AUCUN LOT</div>`}</div>
-            <div class="cmp-scroll rat-scroll"><table class="cmp-t rat-t"><thead><tr><th>RATIO</th><th>NUMÉRATEUR</th><th>DÉNOMINATEUR</th><th>EN</th><th>RÉSULTAT</th><th>SEUIL</th><th></th></tr></thead>
-              <tbody>${rows || `<tr><td colspan="7" class="empty">AUCUN RATIO : + AJOUTER UN RATIO OU PROPOSER</td></tr>`}</tbody></table></div>
-            <div class="rat-gbar"><span>GRAPHIQUE</span>${[["b", "BARRES"], ["p", "CAMEMBERT"], ["l", "COURBE"], ["h", "HISTOGRAMME"]].map(([v, l]) => `<label><input type="radio" name="ratG" value="${v}"${R.g.t === v ? " checked" : ""}> ${l}</label>`).join("")}
-              <label>HAUTEUR <input type="range" class="rat-gh" min="120" max="520" step="20" value="${R.g.h}"></label></div>
-            <div class="rat-g" style="height:${R.g.h}px">${ratChart(vals, R.g.t, R.g.h)}</div>`,
-          foot: `<button type="button" class="svc-b" data-x>${ed ? "ANNULER" : "FERMER"}</button>${ed ? `<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>` : ""}` });
-      };
-      draw();
-      sviWinShow(d);
-      const rOf = el => R.L.find(r => r.id === el.closest("tr[data-id]")?.dataset.id);
-      d.addEventListener("change", e => {
-        const t = e.target;
-        if (t.classList.contains("rat-add") && t.value) { const r = R.L.find(x => x.id === t.closest(".rat-pk").dataset.id), s = t.closest(".rat-pk").dataset.side; r[s] = (r[s] || []).filter(k => k !== t.value).concat(t.value); draw(); return; }
-        if (t.classList.contains("rat-md")) { rOf(t).mode = t.value; draw(); return; }
-        if (t.name === "ratG") { R.g.t = t.value; draw(); return; }
-        if (t.classList.contains("rat-gh")) { R.g.h = Number(t.value); draw(); return; }
-        if (t.classList.contains("rat-nm")) { rOf(t).nom = t.value.toUpperCase(); return; }
-        if (t.classList.contains("rat-sv")) { rOf(t).seuil = t.value.trim() === "" ? "" : ratNum(t.value); draw(); return; }
-        if (t.classList.contains("rat-surf")) { R.surf = t.value.trim() === "" ? "" : ratNum(t.value); draw(); return; }
-        if (t.classList.contains("rat-ls")) { if (t.value.trim() === "") delete R.lsurf[t.dataset.lot]; else R.lsurf[t.dataset.lot] = ratNum(t.value); return; }
-      });
-      d.addEventListener("click", e => {
-        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
-        const rm = e.target.closest("[data-rm]");
-        if (rm) { const pk = rm.closest(".rat-pk"), r = R.L.find(x => x.id === pk.dataset.id); r[pk.dataset.side] = (r[pk.dataset.side] || []).filter(k => k !== rm.dataset.rm); draw(); return; }
-        const del = e.target.closest("[data-del]");
-        if (del) { R.L = R.L.filter(r => r.id !== del.dataset.del); draw(); return; }
-        if (e.target.closest("[data-add]")) { R.L.push({ id: insId(), nom: "RATIO " + (R.L.length + 1), num: [], den: [], mode: "q", seuil: "" }); draw(); return; }
-        if (e.target.closest("[data-prop]")) {
-          const prev = INS.rat; INS.rat = R; const I = ratItems(); INS.rat = prev;
-          const P = ratPropose(I).filter(p => !R.L.some(r => U_(r.nom) === U_(p.nom)));
-          if (!P.length) svToast("AUCUN RATIO À PROPOSER : DONNÉES INSUFFISANTES (SURFACE, ACIERS, BÉTON, MAIN-D'ŒUVRE…).", 4000, e.target);
-          R.L = R.L.concat(P); draw(); return;
-        }
-        if (e.target.closest("[data-lots]")) { showLots = !showLots; draw(); return; }
-        if (e.target.closest("[data-save]")) { INS.rat = R; insSave(); histLog("RATIOS", "TABLEAU DE BORD", R.L.length + " RATIO(S)"); d.remove(); refreshAll(); }
-      });
-    };
-    /* graphique en SVG (valeurs des ratios) */
-    const ratChart = (vals, t, h) => {
-      if (!vals.length) return `<div class="fz-none">AUCUNE VALEUR À REPRÉSENTER</div>`;
-      const W = 760, H = Math.max(100, h - 10), C = ["#2e90fa", "#12b76a", "#f79009", "#7a5af8", "#ee46bc", "#06aed4", "#f04438", "#667085"];
-      const mx = Math.max(...vals.map(x => Math.abs(x.c.val)), 1e-9);
-      const lab = s => esc(String(s).slice(0, 18));
-      if (t === "p") {
-        const tot = vals.reduce((a, x) => a + Math.abs(x.c.val), 0) || 1; let a0 = -Math.PI / 2; const r = Math.min(H / 2 - 10, 120), cx = r + 20, cy = H / 2;
-        const sl = vals.map((x, i) => { const a1 = a0 + Math.abs(x.c.val) / tot * Math.PI * 2, big = a1 - a0 > Math.PI ? 1 : 0;
-          const p = `<path d="M${cx},${cy} L${cx + r * Math.cos(a0)},${cy + r * Math.sin(a0)} A${r},${r} 0 ${big} 1 ${cx + r * Math.cos(a1)},${cy + r * Math.sin(a1)} Z" fill="${C[i % C.length]}"/>`; a0 = a1; return p; }).join("");
-        const lg = vals.map((x, i) => `<rect x="${2 * r + 50}" y="${14 + i * 20}" width="12" height="12" fill="${C[i % C.length]}"/><text x="${2 * r + 68}" y="${24 + i * 20}">${lab(x.r.nom)} — ${esc(ratFx(x.c.val, 3))}</text>`).join("");
-        return `<svg viewBox="0 0 ${W} ${H}" class="rat-svg">${sl}${lg}</svg>`;
-      }
-      const bw = (W - 40) / vals.length, y = v => H - 24 - Math.abs(v) / mx * (H - 44);
-      if (t === "l") {
-        const pts = vals.map((x, i) => `${30 + bw * i + bw / 2},${y(x.c.val)}`).join(" ");
-        return `<svg viewBox="0 0 ${W} ${H}" class="rat-svg"><polyline points="${pts}" fill="none" stroke="#2e90fa" stroke-width="2.5"/>${vals.map((x, i) => `<circle cx="${30 + bw * i + bw / 2}" cy="${y(x.c.val)}" r="4" fill="#2e90fa"/><text x="${30 + bw * i + bw / 2}" y="${H - 6}" text-anchor="middle">${lab(x.r.nom)}</text><text x="${30 + bw * i + bw / 2}" y="${y(x.c.val) - 8}" text-anchor="middle">${esc(ratFx(x.c.val, 2))}</text>`).join("")}</svg>`;
-      }
-      const gap = t === "h" ? 2 : bw * .25;
-      return `<svg viewBox="0 0 ${W} ${H}" class="rat-svg">${vals.map((x, i) => { const sv = ratNum(x.r.seuil), over = x.r.seuil !== "" && x.r.seuil !== undefined && x.c.val > sv;
-        return `<rect x="${30 + bw * i + gap / 2}" y="${y(x.c.val)}" width="${bw - gap}" height="${H - 24 - y(x.c.val)}" fill="${over ? "#f04438" : C[i % C.length]}" rx="${t === "h" ? 0 : 3}"/>${x.r.seuil !== "" && x.r.seuil !== undefined ? `<line x1="${30 + bw * i}" x2="${30 + bw * (i + 1)}" y1="${y(sv)}" y2="${y(sv)}" stroke="#b91c1c" stroke-dasharray="4 3"/>` : ""}<text x="${30 + bw * i + bw / 2}" y="${H - 6}" text-anchor="middle">${lab(x.r.nom)}</text><text x="${30 + bw * i + bw / 2}" y="${y(x.c.val) - 6}" text-anchor="middle">${esc(ratFx(x.c.val, 2))}</text>`; }).join("")}</svg>`;
-    };
+    /* v680 : TABLEAU DE BORD (ratWin) et graphiques : voir 22h-tableau-de-bord.js */
 
     /* =========================================================
        v668 (AXE 8) : VUE MULTI-PROJETS — main-d'œuvre (jours-homme) de tous les budgets en instance ou figés, par semaine,
@@ -202,6 +120,5 @@
         d.remove();
       });
     };
-    shell.__ratWin = () => ratWin();
     shell.__multiWin = () => multiWin();
     shell.__signWin = () => signWin();
