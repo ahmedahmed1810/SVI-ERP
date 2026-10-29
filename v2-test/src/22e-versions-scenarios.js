@@ -188,18 +188,18 @@
     });
     /* depuis une version ouverte : RESTAURER CETTE VERSION et EN FAIRE UN SCÉNARIO */
     {
-      const bar = $("verBar");
-      if (bar && budget.inst && budget.inst.virtual && budget.inst.vname) {
+      /* v694 : actions dans le menu ⋯ de la version (plus de bande à l'écran) */
+      if (budget.inst && budget.inst.virtual && budget.inst.vname) {
         const pref = budget.inst.parent, vn = +((String(ref).match(/-V(\d+)$/) || [])[1] || 0);
         const L0 = () => sviInstGet(), par = () => L0().find(x => x.ref === pref);
         const vData = () => { const p = par(); const v = p && ((p.data || {}).vfz || []).find(x => x.n === vn); return v ? JSON.parse(JSON.stringify(v.d)) : null; };
         const hist = (r, a, d) => { try { const k = "svi_hist_v1:" + r, l = JSON.parse(localStorage.getItem(k) || "[]") || []; l.push({ t: new Date().toISOString(), b: "VERSIONS", a, d: String(d || "").toUpperCase(), u: typeof sviUser === "function" ? sviUser() : "" }); localStorage.setItem(k, JSON.stringify(l.slice(-1000))); } catch (e) {} };
-        bar.addEventListener("click", async e => {
-          const b = e.target.closest("[data-vact]"); if (!b) return;
+        shell.__verAct = async act => {
+          const b = undefined;
           const p = par(), d0 = vData();
           if (!p || !d0) { sviAlert("VERSION INTROUVABLE.", "VERSION"); return; }
           const D = p.data = p.data || {};
-          if (b.dataset.vact === "restore") {
+          if (act === "restore") {
             if ((p.state || "instance") !== "instance") { svToast("RESTAURER : L'ÉTAPE DOIT ÊTRE EN INSTANCE (" + (p.state === "valide" ? "VALIDÉE" : "FIGÉE") + " ACTUELLEMENT).", 4500, b); return; }
             if (!(await svConfirm({ title: "RESTAURER LA VERSION " + vn, text: "L'ÉTAPE " + pref + " REPREND L'ÉTAT DE LA VERSION " + vn + ". UNE VERSION AUTOMATIQUE DE L'ÉTAT ACTUEL EST PRISE AVANT.", ok: "RESTAURER", tone: "neutral" }))) return;
             const cur = JSON.parse(JSON.stringify(D)); delete cur.ver; delete cur.vfz;
@@ -212,7 +212,7 @@
             hist(pref, "VERSION RESTAURÉE", "VERSION " + vn);
             window.__sviAvOpen(pref); return;
           }
-          if (b.dataset.vact === "scn") {
+          if (act === "scn") {
             const V = D.ver = D.ver || { L: [], ind: [] }; V.L = V.L || [];
             const SC = V.L.filter(x => x.kind === "sc");
             if (SC.length >= 10) { svToast("10 SCÉNARIOS AU PLUS PAR ÉTAPE.", 3500, b); return; }
@@ -226,7 +226,7 @@
             svToast(nom + " CRÉÉ DEPUIS LA VERSION " + vn + ".", 3000);
             window.__sviAvOpen(pref); return;
           }
-        });
+        };
       }
     }
     shell.__verOrig = () => verOrig();

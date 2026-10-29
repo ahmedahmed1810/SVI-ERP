@@ -115,6 +115,8 @@
             <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
           </div>
           <div class="doc-body">
+            ${budget.inst && budget.inst.virtual && budget.inst.vname ? `<div class="inf-note">${esc(budget.inst.vname)} : PHOTO EN LECTURE SEULE — FILTRES, TRIS, APERÇUS ET EXPORTS PERMIS ; MENU ⋯ : RESTAURER CETTE VERSION, EN FAIRE UN SCÉNARIO.</div>` : ""}
+            ${budget.inst && budget.inst.rclOf ? `<div class="inf-note">RECALAGE R${esc(budget.inst.rcn)} DE ${esc(budget.inst.rclOf)} — ${budget.inst.state === "valide" ? "ENREGISTRÉ : LECTURE SEULE." : "EN COURS : DÉSIGNATIONS CLIENT ET PRIX EN LECTURE SEULE ; 🔒 = ENREGISTRER LE RECALAGE."}</div>` : ""}
             <div class="doc-grid inf-grid">
               ${items.map(([k, v]) => `
                 <span class="doc-lab">${esc(k)}${INS && (k === "DATE CRÉATION" || k === "PROJET") ? STAR : ""}</span>

@@ -2926,3 +2926,10 @@ td.ins-pmp { position: relative; }
 .rcl-table tr.rcl-cours td { color: #b91c1c; font-weight: 700; }
 .ibd-src { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 12px; font-weight: 800; }
 .ibd-src .pv-in { width: auto; }
+/* v694 : en-tête commun, rappel de navigation, rebond, notes dans le i */
+.bdg-d-hright .hdr-off { opacity: .35; cursor: not-allowed; }
+#sviNavPill { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 100004; background: #172033; color: #fff; font-weight: 800; font-size: 13px; padding: 7px 16px; border-radius: 18px; box-shadow: 0 4px 14px rgba(15,23,42,.25); pointer-events: none; }
+@keyframes navBump { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-10px); } 60% { transform: translateX(6px); } }
+.bdg-d-sticky.nav-bump { animation: navBump .32s ease; }
+#docPop .inf-note { margin-bottom: 10px; padding: 8px 10px; border-radius: 8px; background: #f3f4f6; color: #3f4856; font-size: 12px; font-weight: 700; }
+.inst-todo.todo-on { color: #b45309; }
