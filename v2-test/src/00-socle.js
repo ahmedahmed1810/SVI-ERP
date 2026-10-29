@@ -117,6 +117,8 @@ document.addEventListener("change", e => {
   window.fetch = (input, init) => {
     const url = String((input && input.url) || input || "");
     if (!/script\.google(usercontent)?\.com|docs\.google\.com/.test(url)) return nativeFetch(input, init);
+    /* v677 : échanges en arrière-plan (enregistrement dans la base, verrous) : jamais de fenêtre ni de blocage */
+    if (init && init.sviQuiet) return nativeFetch(input, init);
     start();
     return nativeFetch(input, init).then(r => {
       /* le corps est lu ensuite : on attend sa lecture complète */

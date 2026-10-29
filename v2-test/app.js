@@ -118,6 +118,8 @@ document.addEventListener("change", e => {
   window.fetch = (input, init) => {
     const url = String((input && input.url) || input || "");
     if (!/script\.google(usercontent)?\.com|docs\.google\.com/.test(url)) return nativeFetch(input, init);
+    /* v677 : échanges en arrière-plan (enregistrement dans la base, verrous) : jamais de fenêtre ni de blocage */
+    if (init && init.sviQuiet) return nativeFetch(input, init);
     start();
     return nativeFetch(input, init).then(r => {
       /* le corps est lu ensuite : on attend sa lecture complète */
@@ -976,7 +978,7 @@ const sviSyncMeta = () => { try { return JSON.parse(localStorage.getItem(SVI_SYN
 const sviSyncMetaSet = m => { try { localStorage.setItem(SVI_SYNC_KEY, JSON.stringify(m)); } catch (e) {} };
 /* v673 : appels à la base un par un (jamais deux en même temps : le verrou de Google expirait) */
 const SVI_Q = { p: Promise.resolve() };
-const sviQ = (a, b) => { const run = SVI_Q.p.then(() => apiPost(a, b)); SVI_Q.p = run.catch(() => {}); return run; };
+const sviQ = (a, b) => { const run = SVI_Q.p.then(() => apiPost(a, b, { quiet: true }));   /* v677 : sans fenêtre de chargement */ SVI_Q.p = run.catch(() => {}); return run; };
 const SVI_SYNC = { applying: false, timer: null, busy: false, status: "", err: "", last: 0, locks: {}, cells: null };
 const sviSyncBase = ref => sviIdbGet("svi_sync_base:" + ref).catch(() => null);
 const sviSyncBaseSet = (ref, s) => sviIdbPut("svi_sync_base:" + ref, s).catch(() => {});
@@ -1432,9 +1434,10 @@ async function apiGetBDG() {
    API POST
    ========================================================= */
 
-async function apiPost(action, data = {}) {
+async function apiPost(action, data = {}, opt = {}) {
   const r = await fetch(API_URL, {
     method: "POST",
+    sviQuiet: !!opt.quiet,   /* v677 : arrière-plan, sans fenêtre de chargement */
     body: JSON.stringify({
       key: API_KEY,
       action,
