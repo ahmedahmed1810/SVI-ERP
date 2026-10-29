@@ -2819,3 +2819,14 @@ td.ins-pmp { position: relative; }
 .scn-table .scn-hide:hover { color: #b91c1c; }
 .scn-table .scn-plus { width: 26px; height: 19px; border: 1px solid #cbd2db; border-radius: 5px; background: #fff; font-weight: 900; cursor: pointer; padding: 0; line-height: 17px; }
 .scn-table th.scn-plus-th { text-align: center; }
+/* v687 : liste des étapes (bouton CONSOLIDÉ), composition du consolidé */
+.av-list-ov .novapp-list-titlebar .av-glob { height: 36px; padding: 0 12px; border: 1px solid #dfe4eb; border-radius: 10px; background: #fff; color: #172033; font-weight: 800; font-size: 13px; cursor: pointer; margin-left: 10px; }
+.av-top .av-comp { font-size: 12px; font-weight: 700; color: #172033; }
+.av-top .av-comp-b { height: 30px; padding: 0 12px; border: 1px solid #cbd2db; border-radius: 8px; background: #fff; font-weight: 800; font-size: 12px; cursor: pointer; }
+.av-comp-card { width: min(620px, 96vw); }
+.av-tree { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; max-height: 60vh; overflow-y: auto; }
+.av-tree .av-tn { display: flex; align-items: center; gap: 8px; min-height: 30px; font-size: 13px; cursor: pointer; }
+.av-tree .av-tn small { color: #6b7480; font-weight: 600; }
+.av-tree .av-sub { padding-left: 30px; font-weight: 600; }
+.av-tree .av-st-instance b { color: #b91c1c; } .av-tree .av-st-fige b { color: #15803d; }
+.av-tree input { width: 18px; height: 18px; margin: 0; }

@@ -1150,7 +1150,7 @@ function renderBudgetList() {
   instLoad().forEach(b => groups.set(b.ref, { ref: b.ref, project: b.project, rows: [], first: {}, inst: b }));
   /* v681 : budget à avenants — vue GLOBAL (marché initial + avenants consolidés, en lecture seule, jamais enregistrée) */
   instLoad().filter(b => !b.parent && instLoad().some(x => x.parent === b.ref)).forEach(b => {
-    try { const gref = b.ref + "-GLOBAL"; groups.set(gref, { ref: gref, project: b.project, rows: [], first: {}, inst: { ref: gref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vall: sviAvAllGet(b.ref), data: sviAvMerge(b.ref, sviAvAllGet(b.ref)) } }); } catch (e) {}
+    try { const gref = b.ref + "-GLOBAL"; groups.set(gref, { ref: gref, project: b.project, rows: [], first: {}, inst: { ref: gref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vsel: sviAvSelLab(b.ref, sviAvSelGet(b.ref)), data: sviAvMerge(b.ref, sviAvSelGet(b.ref)) } }); } catch (e) {}
   });
 
   /* v682 : VERSION n d'une étape — photo en lecture seule, jamais enregistrée */
