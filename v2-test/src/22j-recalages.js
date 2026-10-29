@@ -16,7 +16,7 @@
     /* nouveau recalage d'une étape : depuis le dernier enregistré, sinon l'étape validée */
     const rclNew = stageRef => {
       const L = sviInstGet(), st = L.find(x => x.ref === stageRef);
-      if (!st || st.state !== "valide") { sviAlert("UN RECALAGE SE FAIT SUR UNE ÉTAPE VALIDÉE.", "NOUVEAU RECALAGE"); return; }
+      if (!st || st.state !== "valide") { sviAlert("UN RECALAGE SE FAIT SUR UNE ÉTAPE VALIDÉE.", "CRÉER UN RECALAGE"); return; }
       const R = sviRclOf(stageRef);
       const cur = R.find(x => x.state !== "valide");
       if (cur) { svToast("UN RECALAGE EST DÉJÀ EN COURS : R" + cur.rcn + ". L'ENREGISTRER OU LE SUPPRIMER D'ABORD.", 4500); window.__sviAvOpen(cur.ref, stageRef); return; }
@@ -29,7 +29,7 @@
         created: now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()) + "T" + p2(now.getHours()) + ":" + p2(now.getMinutes()),
         u: typeof sviUser === "function" ? sviUser() : "", from: last ? last.ref : stageRef, data: src };
       sviInstSet(L.concat(it));
-      rclHist(stageRef, "NOUVEAU RECALAGE", "R" + n + " — DEPUIS " + (last ? "R" + last.rcn : "L'ÉTAPE VALIDÉE"));
+      rclHist(stageRef, "CRÉER UN RECALAGE", "R" + n + " — DEPUIS " + (last ? "R" + last.rcn : "L'ÉTAPE VALIDÉE"));
       window.__sviAvOpen(it.ref, stageRef);
     };
     shell.__rclNew = () => rclNew(RCL_OF || (budget.inst && budget.inst.ref));
@@ -74,11 +74,15 @@
       const oc = coOrder("vrcl", RCL_COLS);
       t.style.width = cwTableW("vrcl", RCL_COLS) + "px";
       t.innerHTML = `<colgroup>${cwCols("vrcl", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("vrcl", c[0], c[1], c[3])).join("")}</tr></thead>
-        <tbody>${rows.map(x => `<tr class="rcl-row${x.ref === ref ? " ver-act" : ""}${x.state !== "valide" ? " rcl-cours" : ""}" data-rcl="${esc(x.ref)}">${oc.map(c => `<td>${esc(c[2](x))}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}</tbody>`;
+        <tbody>${rows.map(x => `<tr class="rcl-row${x.ref === ref ? " ver-act" : ""}${x.state !== "valide" ? " rcl-cours" : ""}" data-rcl="${esc(x.ref)}">${oc.map(c => `<td>${esc(c[2](x))}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}${INS ? (() => { const cur = all.find(x => x.state !== "valide");
+          /* v702 : création d'un recalage par la ligne du tableau (le menu ⋯ ne sert qu'au premier) */
+          return `<tr class="scn-new${cur ? " off" : ""}" data-rcladd${cur ? ` data-why="UN RECALAGE EST DÉJÀ EN COURS : R${cur.rcn}. L'ENREGISTRER OU LE SUPPRIMER D'ABORD."` : ""}><td colspan="${oc.length}">CRÉER UN RECALAGE ICI…</td></tr>`; })() : ""}</tbody>`;
     };
     shell.__rclRender = rclRender;
     shell.querySelector(".blk-rcl")?.addEventListener("click", e => {
       if (e.target.closest(".cf-btn, .col-rs, .blk-tools, .blk-grip, .blk-rsz")) return;
+      const na = e.target.closest("tr[data-rcladd]");
+      if (na) { e.stopPropagation(); if (na.classList.contains("off")) { svToast(na.dataset.why, 4000, na); return; } rclNew(RCL_OF || budget.inst.ref); return; }
       const tr = e.target.closest("tr[data-rcl]"); if (!tr) return;
       e.stopPropagation();
       if (tr.dataset.rcl === ref) return;

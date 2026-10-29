@@ -6205,7 +6205,7 @@ function renderBudgetList() {
 
     /* v698 : plus de bouton + — dernière ligne « SAISIR ICI… » (fenêtre INF du nouveau budget) */
     /* v699 : lignes SAISIR ICI seulement dans la liste EN INSTANCE, en rouge */
-    const NEWROW = listMode === "inst" ? `<tr class="bdg-newrow" data-newbdg="1"><td colspan="7">AJOUTER UN BUDGET ICI…</td></tr>` : "";
+    const NEWROW = listMode === "inst" ? `<tr class="bdg-newrow" data-newbdg="1"><td colspan="7">CRÉER UN BUDGET ICI…</td></tr>` : "";
     if (!data.length) {
       tbody.innerHTML = `<tr><td colspan="7" class="empty">AUCUN BUDGET</td></tr>` + NEWROW;
       return;
@@ -6288,7 +6288,7 @@ function renderBudgetList() {
           <td><span class="bdg-kid-lab">${esc(k.lab)}</span> <small>${esc(k.ref)}</small></td><td>${esc(k.budget)}</td><td title="${esc(k.intitule)}">${esc(k.intitule)}</td>
           <td class="number">${money(k.ttc)}</td><td>${esc(k.validated)}</td><td>${esc(k.entered)}</td><td></td></tr>`).join("")}
         ${open ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
-          return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="7">AJOUTER UN AVENANT ICI…</td></tr>`; })() : ""}
+          return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="7">CRÉER UN AVENANT ICI…</td></tr>`; })() : ""}
       `; }).join("") + NEWROW;
     /* v701 : panneau des dates aux hauteurs de la liste — TOUT = hauteur de l'en-tête, chaque date = hauteur d'une ligne */
     requestAnimationFrame(() => { try {
@@ -6869,7 +6869,7 @@ function renderBudgetList() {
                une icône sans objet est grisée (pas cachée), un toucher ou un appui long en donne la raison */
             const bi = budget.inst, st = bi ? (bi.state || "instance") : "valide";
             if (!bi) return "";
-            const RO = bi.virtual ? (bi.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.") : st === "valide" ? (bi.rclOf ? "RECALAGE ENREGISTRÉ : LECTURE SEULE." : "BUDGET VALIDÉ : LECTURE SEULE (NOUVEAU RECALAGE OU AVENANT PAR LE MENU ⋯).") : "";
+            const RO = bi.virtual ? (bi.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.") : st === "valide" ? (bi.rclOf ? "RECALAGE ENREGISTRÉ : LECTURE SEULE." : "BUDGET VALIDÉ : LECTURE SEULE (CRÉER UN RECALAGE OU UN AVENANT : MENU ⋯ OU BLOC RECALAGES).") : "";
             const hb = (id, cls, svg, title, why, extra = "") => `<button type="button" class="${cls}${why ? " hdr-off" : ""}" id="${id}" title="${esc(why || title)}" aria-label="${esc(title)}"${why ? ` data-why="${esc(why)}" aria-disabled="true"` : ""}${extra}>${svg}</button>`;
             const navWhy = HNAV ? "" : "PAS D'AUTRE ÉCRAN DANS CE BUDGET (BUDGET SANS AVENANT).";
             const edWhy = RO || (st === "fige" ? "BUDGET FIGÉ : REVENIR EN ÉDITION (🔒) POUR MODIFIER." : "");
@@ -7917,7 +7917,7 @@ function renderBudgetList() {
       /* FORMAT 109 : DÉSIGNATION client sur plusieurs lignes si elle est trop longue (la ligne devient plus haute) */
       /* FORMAT 122 : ligne existante — texte affiché (appui long = glisser), un toucher ouvre la saisie */
       if (k === "des" && f === "des" && !isNew) return `<td class="${cls} ins-td ins-tdv${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}>${r.t ? `<span class="ins-tfz">${foldBtn(r)}</span>` : ""}<div class="ins-dv" data-f="des">${esc(val)}</div><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea>${r.t ? "" : `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>`}</td>`;
-      if (k === "des" && f === "des") return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} ${isNew ? 'placeholder="AJOUTER UNE DÉSIGNATION ICI…"' : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea></td>`;
+      if (k === "des" && f === "des") return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} ${isNew ? 'placeholder="CRÉER UNE DÉSIGNATION ICI…"' : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea></td>`;
       /* v530 : bouton CONDITIONNEMENT dans la case DÉSIGNATION d'une charge ; remarque 4 (v542) : seulement sur une charge sans titre
          (les charges regroupées l'ont sur la ligne de leur titre) */
       const pk = k === "chg" && f === "des" && !isNew && !r.t && !INS_CELL_LVL;
@@ -7926,7 +7926,7 @@ function renderBudgetList() {
       const pmpWhy = pmp ? "PRIX MOYEN PONDÉRÉ : " + r.__det.map(x => x.o + " " + money(x.q) + " × " + money(x.p)).join(" ; ") : "";
       return `<td class="${cls} ins-td${pk ? " ins-pkc" : ""}${pmp ? " ins-pmp" : ""}${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : pmp ? ` data-why="${esc(pmpWhy)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
         ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
-        value="${esc(val)}" ${isNew && f === "des" ? `placeholder="${k === "chg" ? "AJOUTER UNE CHARGE ICI…" : k === "prd" ? "AJOUTER UN PRODUIT ICI…" : "AJOUTER UNE LIGNE ICI…"}"` : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off">${pk ? condBtn(r) : ""}</td>`;
+        value="${esc(val)}" ${isNew && f === "des" ? `placeholder="${k === "chg" ? "CRÉER UNE CHARGE ICI…" : k === "prd" ? "CRÉER UN PRODUIT ICI…" : "CRÉER UNE LIGNE ICI…"}"` : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off">${pk ? condBtn(r) : ""}</td>`;
     };
     let INS_CELL_LVL = 0;
     /* remarque 4 (v542) : conditionnement réglé sur l'article (tous les budgets, voir 26b) ou, avant, sur ce budget */
@@ -8919,7 +8919,7 @@ function renderBudgetList() {
                 <span class="ins-delc">${insDelCell(r)}</span>` : `<span>${esc(r.v || "")}</span>${actUCell(k, r)}`}
             </div>`)}
           ${INS_EDIT ? `<div class="ins-li ins-new" data-ik="${k}"><span class="ins-rdc"></span>
-              <input class="ins-in" data-f="v" enterkeyhint="next" placeholder="${k === "lot" ? "AJOUTER UN LOT ICI…" : "AJOUTER UNE ACTIVITÉ ICI…"}" autocomplete="off">${k === "sec" ? `<span class="act-u"><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" autocomplete="off"></span>` : k === "prim" ? `<span class="act-u act-uro"></span>` : ""}<span class="ins-delc"></span></div>`
+              <input class="ins-in" data-f="v" enterkeyhint="next" placeholder="${k === "lot" ? "CRÉER UN LOT ICI…" : "CRÉER UNE ACTIVITÉ ICI…"}" autocomplete="off">${k === "sec" ? `<span class="act-u"><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" autocomplete="off"></span>` : k === "prim" ? `<span class="act-u act-uro"></span>` : ""}<span class="ins-delc"></span></div>`
             : (list.length ? "" : `<div class="bdg-h-item" style="opacity:.5;cursor:default">—</div>`)}
         </div>`;
       };
@@ -9968,7 +9968,7 @@ function renderBudgetList() {
           <td class="number">${inp(e, "cad", 1)}</td><td class="center">${inp(e, "u2")}</td>
           <td class="center qq-xt${ro ? " qq-ro" : ""}">${svCnt(n)}</td><td class="number">${n ? tot : ""}</td>${ro ? "" : `<td class="center"><input type="checkbox" class="qq-xcb" ${e.on ? "checked" : ""}></td>`}</tr>`;
       }).join("");
-      const nw = ro ? "" : `<tr class="qq-xnew"><td><input class="qq-xin" data-f="v" placeholder="AJOUTER UN ESSAI ICI…" autocomplete="off" spellcheck="false"></td><td colspan="${ro ? 6 : 7}"></td></tr>`;
+      const nw = ro ? "" : `<tr class="qq-xnew"><td><input class="qq-xin" data-f="v" placeholder="CRÉER UN ESSAI ICI…" autocomplete="off" spellcheck="false"></td><td colspan="${ro ? 6 : 7}"></td></tr>`;
       return `<table class="bdg-d-table qq-table" style="width:${ro ? 830 : 870}px"><colgroup><col style="width:300px"><col style="width:70px"><col style="width:100px"><col style="width:130px"><col style="width:80px"><col style="width:80px"><col style="width:70px">${ro ? "" : '<col style="width:40px">'}</colgroup>
         <thead><tr><th>ESSAI</th><th>UNITÉ</th><th>PRIX</th><th>1 TOUS LES (VIDE = PAR TÂCHE)</th><th>UNITÉ DU PRODUIT</th><th>TÂCHES</th><th>NB ESSAIS</th>${ro ? "" : "<th></th>"}</tr></thead>
         <tbody>${rows}${nw}</tbody></table>`;
@@ -10598,7 +10598,7 @@ function renderBudgetList() {
             const d = document.createElement("div");
             d.className = "ins-li ins-new";
             d.dataset.ik = k;
-            d.innerHTML = `<span class="ins-rdc"></span><input class="ins-in" data-f="v" enterkeyhint="next" placeholder="${k === "lot" ? "AJOUTER UN LOT ICI…" : "AJOUTER UNE ACTIVITÉ ICI…"}" autocomplete="off">${k === "sec" ? `<span class="act-u"><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" autocomplete="off"></span>` : k === "prim" ? `<span class="act-u act-uro"></span>` : ""}<span class="ins-delc"></span>`;
+            d.innerHTML = `<span class="ins-rdc"></span><input class="ins-in" data-f="v" enterkeyhint="next" placeholder="${k === "lot" ? "CRÉER UN LOT ICI…" : "CRÉER UNE ACTIVITÉ ICI…"}" autocomplete="off">${k === "sec" ? `<span class="act-u"><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" autocomplete="off"></span>` : k === "prim" ? `<span class="act-u act-uro"></span>` : ""}<span class="ins-delc"></span>`;
             /* v467 : une seule ligne SAISIR ICI… par liste — l'ancienne (restée vide) disparaît, la nouvelle va en bas */
             const col = holder.closest(".ins-hcol");
             if (col) col.querySelectorAll(".ins-new").forEach(o => { if (o !== d && !o.dataset.iid) o.remove(); });
@@ -12106,7 +12106,7 @@ function renderBudgetList() {
           /* dernière ligne « SAISIR ICI… » : LOT et ACTIVITÉ SECONDAIRE tapés (existants proposés, ou nouveaux) = nouvelle tâche du planning,
              sans produit ni charge, non liée (rouge dans TÂCHES) ; ses dates se saisissent aussitôt (cahier, Planning budgétaire) */
           const dl = (id, list) => `<datalist id="${id}">${list.map(v => `<option value="${esc(v)}"></option>`).join("")}</datalist>`;
-          const newIn = (f, lid) => `<input class="dly-newin" data-f="${f}" list="${lid}" placeholder="${f === "lot" ? "AJOUTER UNE TÂCHE ICI…" : ""}" autocomplete="off" enterkeyhint="next">`;
+          const newIn = (f, lid) => `<input class="dly-newin" data-f="${f}" list="${lid}" placeholder="${f === "lot" ? "CRÉER UNE TÂCHE ICI…" : ""}" autocomplete="off" enterkeyhint="next">`;
           /* v666 (axe 8) : en-tête BATTEMENT TOTAL ou LIBRE selon PARAMÉTRAGE DU PLANNING */
           { const cm = DLY_COLS_P.find(c => c[0] === "marge"); if (cm) cm[1] = dlyPP().bt === "l" ? "BATTEMENT LIBRE" : "BATTEMENT TOTAL"; }
           const tbl = dlyTable(PR.rows.concat(INS_EDIT ? [{ nw: true }] : []), x => x.nw
@@ -12133,7 +12133,7 @@ function renderBudgetList() {
           const viewB = "";   /* v594 (remarque longue 2, FORMAT 188) : plus de bandeau AFFICHÉ PAR DÉBUT — la vue se lit à la coche ✓ du menu ⋯ */
           const isoB = viewB + (PR.crit ? `<div class="dly-iso dly-critb"><span><b>CHEMIN CRITIQUE</b></span><small>TÂCHES À BATTEMENT TOTAL NUL : UN RETARD SUR L'UNE DÉCALE LA FIN DU CHANTIER</small><button type="button" class="dly-iso-x dly-crit-x">TOUT AFFICHER</button></div>` : "") + (PR.iso ? `<div class="dly-iso"><span>ISOLÉ : <b>${esc(lotLab(dlyLotPath(PR.iso)).full)}</b></span><small>LIAISONS, DÉCALAGES ET CALENDRIER RESTENT APPLIQUÉS · TÂCHES LIÉES HORS DE LA BRANCHE EN GRIS (LECTURE SEULE)</small><button type="button" class="dly-iso-x">TOUT AFFICHER</button></div>` : "");
           return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur du graphique">=</span></div>` : ""}</div>`
-            /* v549 : plus de bouton « + AJOUTER UNE TÂCHE OU SES DÉLAIS » sous le planning (ligne SAISIR ICI… et menu ⋯) */
+            /* v549 : plus de bouton « + CRÉER UNE TÂCHE OU SES DÉLAIS » sous le planning (ligne SAISIR ICI… et menu ⋯) */
             ;
         }
       }
@@ -12401,7 +12401,7 @@ function renderBudgetList() {
         const w = card ? card.style.width : (size && size.w ? size.w + "px" : ""), h = card ? card.style.height : (size && size.h ? size.h + "px" : "");
         const key = lot && sec ? lot + "|" + sec : "";
         /* FORMAT 66 : ligne SAISIR ICI… en bas de chaque liste = nouveau lot / nouvelle activité, choisi aussitôt */
-        const newRow = k => `<tr class="dlw-newr"><td><input class="dlw-new" data-k="${k}" placeholder="${k === "lot" ? "AJOUTER UN LOT ICI…" : "AJOUTER UNE ACTIVITÉ ICI…"}" autocomplete="off" enterkeyhint="done"></td></tr>`;
+        const newRow = k => `<tr class="dlw-newr"><td><input class="dlw-new" data-k="${k}" placeholder="${k === "lot" ? "CRÉER UN LOT ICI…" : "CRÉER UNE ACTIVITÉ ICI…"}" autocomplete="off" enterkeyhint="done"></td></tr>`;
         let panel = "";
         if (key) {
           const p0 = ((LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [])[0] || {};
@@ -19624,13 +19624,13 @@ ${A}</Assignments>
         { a: "lay", lab: "DISPOSITION PAR DÉFAUT", off: !rb || rb.disabled, ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
         ...(INS ? [{ a: "paq", lab: "PLAN D'ASSURANCE QUALITÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
         /* v681 : premier avenant — une seule fois (aucun avenant encore), marché initial validé */
-        ...(INS && budget.inst && (!budget.inst.virtual || /-GLOBAL$/.test(budget.inst.ref)) ? (() => { const S = sviAvStages(budget.inst.parent || budget.inst.ref); return S.length ? [{ a: "av", lab: "AJOUTER UN AVENANT", off: S[S.length - 1].state !== "valide", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12.5 10v7M9 13.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []; })() : []),
+        ...(INS && budget.inst && (!budget.inst.virtual || /-GLOBAL$/.test(budget.inst.ref)) ? (() => { const S = sviAvStages(budget.inst.parent || budget.inst.ref); return S.length ? [{ a: "av", lab: "CRÉER UN AVENANT", off: S[S.length - 1].state !== "valide", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12.5 10v7M9 13.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []; })() : []),
         ...(INS && budget.inst && !/-GLOBAL$/.test(budget.inst.ref) && (budget.inst.parent || sviAvStages(budget.inst.ref).length > 1) ? [{ a: "avl", lab: "BUDGET CONSOLIDÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
         /* v694 : version ouverte — RESTAURER CETTE VERSION, EN FAIRE UN SCÉNARIO (dans ⋯) */
         ...(budget.inst && budget.inst.virtual && budget.inst.vname ? [{ a: "vrest", lab: "RESTAURER CETTE VERSION", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
           { a: "vscn", lab: "EN FAIRE UN SCÉNARIO", ic: SVI_ICON.scn }] : []),
         /* v693 : NOUVEAU RECALAGE — étape validée (budget initial ou avenant) ou recalage */
-        ...(INS && budget.inst && !budget.inst.virtual && (budget.inst.rclOf || budget.inst.state === "valide") ? [{ a: "rcl", lab: "NOUVEAU RECALAGE", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6M20 12a8 8 0 0 1-13.7 5.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M18 3v4h-4M6 21v-4h4" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>' }] : []),
+        ...(INS && budget.inst && !budget.inst.virtual && !budget.inst.rclOf && budget.inst.state === "valide" && !sviRclOf(budget.inst.ref).length ? [{ a: "rcl", lab: "CRÉER UN RECALAGE", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6M20 12a8 8 0 0 1-13.7 5.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M18 3v4h-4M6 21v-4h4" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>' }] : []),
         /* v690 : VERSIONS ET SCÉNARIOS retiré (blocs SCÉNARIOS et VERSIONS) ; PRENDRE UNE VERSION (photo manuelle) */
         ...(INS && budget.inst && !budget.inst.virtual && !budget.inst.rclOf ? [{ a: "vtake", lab: "PRENDRE UNE VERSION", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 7l1.5-3h4l1.5 3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' }] : []),
         ...(INS ? [{ a: "ctr", lab: "CONTRAT (CPS)", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 11h5M10 15h5M10 19h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' }] : []),
@@ -21456,8 +21456,8 @@ ${A}</Assignments>
        v686 : bloc SCÉNARIOS en deux vues (décision du 29/10/2026), au FORMAT des autres tableaux
        - LISTE (par défaut) : une ligne par scénario — NOM, ÉTAT, OFFERT AU CLIENT, RETENIR, DÉSARCHIVER (si archivé), 🗑 ;
          toucher le NOM = basculer sur ce scénario ; appui long sur le nom = renommer ; toucher ailleurs = COMPARAISON ;
-         dernière ligne « AJOUTER UN SCÉNARIO ICI… » (comme SAISIR ICI) ; SCN ajoute aussi une ligne (10 au plus).
-       - COMPARAISON : indicateurs en lignes (dernière ligne « AJOUTER UN INDICATEUR ICI… »), une colonne par scénario ;
+         dernière ligne « CRÉER UN SCÉNARIO ICI… » (comme SAISIR ICI) ; SCN ajoute aussi une ligne (10 au plus).
+       - COMPARAISON : indicateurs en lignes (dernière ligne « CRÉER UN INDICATEUR ICI… »), une colonne par scénario ;
          ✕ dans l'en-tête = cacher le scénario (mémorisé) ; + après la dernière colonne = réafficher un scénario caché.
        - bouton de l'en-tête (et menu ⋯) : passer d'une vue à l'autre ; aperçu et export suivent la vue affichée.
        ========================================================= */
@@ -21518,7 +21518,7 @@ ${A}</Assignments>
           return "<td></td>";
         };
         const full = SC.length >= SCN_MAX;
-        const add = ed ? `<tr class="scn-new${full ? " off" : ""}" data-scnadd><td colspan="${oc.length}">${full ? SCN_MAX + " SCÉNARIOS AU PLUS PAR ÉTAPE" : "AJOUTER UN SCÉNARIO ICI…"}</td></tr>` : "";
+        const add = ed ? `<tr class="scn-new${full ? " off" : ""}" data-scnadd><td colspan="${oc.length}">${full ? SCN_MAX + " SCÉNARIOS AU PLUS PAR ÉTAPE" : "CRÉER UN SCÉNARIO ICI…"}</td></tr>` : "";
         t.style.width = cwTableW("scnl", cols) + "px";
         t.innerHTML = `<colgroup>${cwCols("scnl", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("scnl", c[0], c[1], c[3])).join("")}</tr></thead>
           <tbody>${rows.map(x => `<tr class="scn-row${x.id === V.act ? " ver-act" : ""}${x.arch ? " scn-arch" : ""}" data-scn="${x.id}">${oc.map(c => td(c, x)).join("")}</tr>`).join("") || (SC.length ? `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "")}${add}</tbody>`;
@@ -21538,7 +21538,7 @@ ${A}</Assignments>
       const body = rows.map(r => `<tr>${oc.map(c => { const x = scOf(c);
         if (!x) return `<td><b>${esc(r.nom)}</b>${ed ? ` <button type="button" class="cmp-del" data-irm="${esc(r.k)}" title="Retirer du tableau">✕</button>` : ""}</td>`;
         const v = r.v[+c[0].slice(2) - 1]; return `<td class="number${x.id === V.act ? " ver-act" : ""}">${v ? `<span class="${v.err ? "rat-err" : ""}">${esc(v.txt)}</span>` : "—"}</td>`; }).join("")}${plusTd}</tr>`).join("");
-      const add = ed ? `<tr class="scn-new" data-ip><td colspan="${oc.length + (H.length ? 1 : 0)}">AJOUTER UN INDICATEUR ICI…</td></tr>` : "";
+      const add = ed ? `<tr class="scn-new" data-ip><td colspan="${oc.length + (H.length ? 1 : 0)}">CRÉER UN INDICATEUR ICI…</td></tr>` : "";
       t.style.width = (cwTableW("scn", cols) + (H.length ? 44 : 0)) + "px";
       t.innerHTML = `<colgroup>${cwCols("scn", oc)}${H.length ? '<col style="width:44px">' : ""}</colgroup><thead><tr>${head}${plusTh}</tr></thead>
         <tbody>${body || (V.ind.length ? `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "")}${add}</tbody>`;
@@ -22568,7 +22568,7 @@ ${A}</Assignments>
     /* nouveau recalage d'une étape : depuis le dernier enregistré, sinon l'étape validée */
     const rclNew = stageRef => {
       const L = sviInstGet(), st = L.find(x => x.ref === stageRef);
-      if (!st || st.state !== "valide") { sviAlert("UN RECALAGE SE FAIT SUR UNE ÉTAPE VALIDÉE.", "NOUVEAU RECALAGE"); return; }
+      if (!st || st.state !== "valide") { sviAlert("UN RECALAGE SE FAIT SUR UNE ÉTAPE VALIDÉE.", "CRÉER UN RECALAGE"); return; }
       const R = sviRclOf(stageRef);
       const cur = R.find(x => x.state !== "valide");
       if (cur) { svToast("UN RECALAGE EST DÉJÀ EN COURS : R" + cur.rcn + ". L'ENREGISTRER OU LE SUPPRIMER D'ABORD.", 4500); window.__sviAvOpen(cur.ref, stageRef); return; }
@@ -22581,7 +22581,7 @@ ${A}</Assignments>
         created: now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()) + "T" + p2(now.getHours()) + ":" + p2(now.getMinutes()),
         u: typeof sviUser === "function" ? sviUser() : "", from: last ? last.ref : stageRef, data: src };
       sviInstSet(L.concat(it));
-      rclHist(stageRef, "NOUVEAU RECALAGE", "R" + n + " — DEPUIS " + (last ? "R" + last.rcn : "L'ÉTAPE VALIDÉE"));
+      rclHist(stageRef, "CRÉER UN RECALAGE", "R" + n + " — DEPUIS " + (last ? "R" + last.rcn : "L'ÉTAPE VALIDÉE"));
       window.__sviAvOpen(it.ref, stageRef);
     };
     shell.__rclNew = () => rclNew(RCL_OF || (budget.inst && budget.inst.ref));
@@ -22626,11 +22626,15 @@ ${A}</Assignments>
       const oc = coOrder("vrcl", RCL_COLS);
       t.style.width = cwTableW("vrcl", RCL_COLS) + "px";
       t.innerHTML = `<colgroup>${cwCols("vrcl", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("vrcl", c[0], c[1], c[3])).join("")}</tr></thead>
-        <tbody>${rows.map(x => `<tr class="rcl-row${x.ref === ref ? " ver-act" : ""}${x.state !== "valide" ? " rcl-cours" : ""}" data-rcl="${esc(x.ref)}">${oc.map(c => `<td>${esc(c[2](x))}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}</tbody>`;
+        <tbody>${rows.map(x => `<tr class="rcl-row${x.ref === ref ? " ver-act" : ""}${x.state !== "valide" ? " rcl-cours" : ""}" data-rcl="${esc(x.ref)}">${oc.map(c => `<td>${esc(c[2](x))}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}${INS ? (() => { const cur = all.find(x => x.state !== "valide");
+          /* v702 : création d'un recalage par la ligne du tableau (le menu ⋯ ne sert qu'au premier) */
+          return `<tr class="scn-new${cur ? " off" : ""}" data-rcladd${cur ? ` data-why="UN RECALAGE EST DÉJÀ EN COURS : R${cur.rcn}. L'ENREGISTRER OU LE SUPPRIMER D'ABORD."` : ""}><td colspan="${oc.length}">CRÉER UN RECALAGE ICI…</td></tr>`; })() : ""}</tbody>`;
     };
     shell.__rclRender = rclRender;
     shell.querySelector(".blk-rcl")?.addEventListener("click", e => {
       if (e.target.closest(".cf-btn, .col-rs, .blk-tools, .blk-grip, .blk-rsz")) return;
+      const na = e.target.closest("tr[data-rcladd]");
+      if (na) { e.stopPropagation(); if (na.classList.contains("off")) { svToast(na.dataset.why, 4000, na); return; } rclNew(RCL_OF || budget.inst.ref); return; }
       const tr = e.target.closest("tr[data-rcl]"); if (!tr) return;
       e.stopPropagation();
       if (tr.dataset.rcl === ref) return;
@@ -24278,7 +24282,7 @@ ${A}</Assignments>
       }).join("") + "</tr>").join("");
       /* v688 : plus de boutons DOC / TAF / OBS en haut : on saisit ici, comme dans les autres tableaux */
       const fill = (!list.length && all.length ? `<tr><td colspan="${cols.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "") +
-        `<tr class="rec-new" data-recnew="${kind}"><td colspan="${cols.length}">${{ doc: "AJOUTER UN DOCUMENT ICI…", taf: "AJOUTER UN TAF ICI…", obs: "AJOUTER UNE OBSERVATION ICI…" }[kind] || "AJOUTER ICI…"}</td></tr>`;
+        `<tr class="rec-new" data-recnew="${kind}"><td colspan="${cols.length}">${{ doc: "CRÉER UN DOCUMENT ICI…", taf: "CRÉER UN TAF ICI…", obs: "CRÉER UNE OBSERVATION ICI…" }[kind] || "CRÉER ICI…"}</td></tr>`;
 
       t.style.width = cwTableW(kind, cols) + "px";
       t.innerHTML = `<colgroup>${cwCols(kind, cols)}</colgroup>
@@ -28380,7 +28384,7 @@ function sviParamTabs() {
       <tbody>${L.map((x, i) => `<tr data-i="${i}"><td><input class="prm-in" data-f="n" value="${esc(x.n)}" autocomplete="off"></td>
         <td class="center"><input class="prm-in center" data-f="a" value="${esc(x.a)}" autocomplete="off"></td>
         <td class="center"><input type="checkbox" class="prm-cb"></td></tr>`).join("")}
-        <tr class="prm-new"><td><input class="prm-in" data-f="n" placeholder="AJOUTER UNE UNITÉ ICI…" autocomplete="off"></td><td class="center"><input class="prm-in center" data-f="a" autocomplete="off"></td><td></td></tr></tbody></table>
+        <tr class="prm-new"><td><input class="prm-in" data-f="n" placeholder="CRÉER UNE UNITÉ ICI…" autocomplete="off"></td><td class="center"><input class="prm-in center" data-f="a" autocomplete="off"></td><td></td></tr></tbody></table>
       <div class="prm-foot"><button type="button" class="prm-del" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div>`;
   };
   const clean = v => String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();
