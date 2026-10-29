@@ -409,3 +409,12 @@ const chsFind = (art, des) => {
   return null;
 };
 const chsById = id => ((typeof db !== "undefined" && db.chs) || []).find(c => String(c.id) === String(id)) || null;
+
+/* v694 : petit rappel en haut, 2 s, à l'arrivée sur un autre écran du budget (« AVENANT 1 (2 / 4) ») */
+const sviNavPill = txt => {
+  setTimeout(() => {
+    document.getElementById("sviNavPill")?.remove();
+    const d = document.createElement("div"); d.id = "sviNavPill"; d.textContent = txt; document.body.appendChild(d);
+    setTimeout(() => d.remove(), 2000);
+  }, 60);
+};

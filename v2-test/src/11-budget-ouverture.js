@@ -16,9 +16,9 @@
 
     /* balayage gauche / droite : budget suivant / précédent (ordre des références) */
     {
-      const liveOf = g => !!g.inst && g.inst.state !== "valide";
-      const refs = [...groups.keys()].filter(k => liveOf(groups.get(k)) === liveOf(budget)).sort((x, y) => String(x).localeCompare(String(y), "fr", { numeric: true }));
-      window.__sviBdgNav = { refs, cur: ref, open: openBudgetDetail };
+      /* v694 : le balayage reste DANS le budget (consolidé › budget initial › avenants) ; rien pour un budget sans avenant,
+         une version, un scénario ou un recalage — fixé plus bas, une fois les écrans voisins connus (HNAV) */
+      window.__sviBdgNav = null;
       if (!window.__sviSwipe) {
         window.__sviSwipe = true;
         let st = null;
@@ -31,7 +31,9 @@
           const pg = document.querySelector(".bdg-d-page"), mx = pg && [...pg.classList].find(c => /^max-/.test(c));
           /* v455 (Ahmed) : le balayage change de budget SEULEMENT dans l'en-tête du budget (référence, DOC, TAF, OBS, INF) ;
              dans tous les blocs (tableaux, Gantt…), il fait seulement défiler */
-          if (!t.closest(".bdg-d-sticky") || t.closest("#docPop, #blkPop, #blkMenu, #svConf, #svCal, input, textarea, select")) { st = null; return; }
+          /* v694 : balayage partout sauf dans une zone qui défile à l'horizontale (tableaux larges, Gantt, graphique) */
+          if (t.closest("#docPop, #blkPop, #blkMenu, #svConf, #svCal, .av-list-ov, input, textarea, select")) { st = null; return; }
+          for (let el = t; el && el !== document.body; el = el.parentElement) { const cs = getComputedStyle(el); if (el.scrollWidth > el.clientWidth + 2 && /(auto|scroll)/.test(cs.overflowX)) { st = null; return; } }
           st = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), max: mx ? mx.slice(4) : "" };
         }, { passive: true });
         document.addEventListener("touchend", e => {
@@ -49,12 +51,8 @@
             if (dx < 0 && c.scrollLeft + c.clientWidth < c.scrollWidth - 2) return;
             if (dx > 0 && c.scrollLeft > 2) return;
           }
-          const i = nav.refs.indexOf(nav.cur);
-          const j = dx < 0 ? i + 1 : i - 1;
-          if (i < 0 || j < 0 || j >= nav.refs.length) return;
           if (s0.max) window.__sviPendingMax = s0.max;
-          nav.open(nav.refs[j]);
-          if (!s0.max) window.scrollTo(0, 0);
+          if (nav.go) { nav.go(dx < 0 ? 1 : -1); return; }
         }, { passive: true });
       }
     }
@@ -293,6 +291,31 @@
     const AV_ROOT = budget.inst && budget.inst.virtual && !budget.inst.vname && /-GLOBAL$/.test(String(ref)) ? budget.inst.parent : "";
     const AV_STG = AV_ROOT ? sviAvStages(AV_ROOT) : [];
     const AV_RET = !!window.__sviAvRet && window.__sviAvRet !== ref;
+    /* v694 : écrans voisins du même budget — CONSOLIDÉ › BUDGET INITIAL › AVENANT 1… (balayage et ‹ ›) ;
+       sur une version : versions de l'étape ; sur un recalage : recalages de l'étape (‹ › seulement) */
+    const HNAV = (() => {
+      const bi = budget.inst; if (!bi) return null;
+      if (bi.virtual && bi.vname) { const st = sviInstGet().find(x => x.ref === bi.parent), V = (((st || {}).data || {}).vfz || []).slice().sort((x, y) => x.n - y.n);
+        const L = V.map(v => ({ r: bi.parent + "-V" + v.n, lab: "VERSION " + v.n })).filter(x => groups.has(x.r)); return L.length > 1 ? { L, ret: bi.parent, kind: "ver" } : null; }
+      if (bi.rclOf) { const L = sviRclOf(bi.rclOf).map(x => ({ r: x.ref, lab: "R" + x.rcn })); return L.length > 1 ? { L, ret: bi.rclOf, kind: "rcl" } : null; }
+      const root = AV_ROOT || (!bi.virtual ? (bi.parent || bi.ref) : "");
+      if (!root) return null;
+      const S = sviAvStages(root); if (S.length < 2) return null;
+      const L = [{ r: root + "-GLOBAL", lab: "BUDGET CONSOLIDÉ" }, ...S.map(st => ({ r: st.ref, lab: sviAvName(st) }))].filter(x => groups.has(x.r));
+      return L.length > 1 ? { L, ret: null, kind: "fam", swipe: true } : null;
+    })();
+    const hnavGo = d => {
+      if (!HNAV) return false;
+      const i = HNAV.L.findIndex(x => x.r === ref), j = i + d;
+      if (i < 0 || j < 0 || j >= HNAV.L.length) { const b = shell.querySelector(".bdg-d-sticky"); if (b) { b.classList.remove("nav-bump"); void b.offsetWidth; b.classList.add("nav-bump"); } return true; }
+      const lab = HNAV.L[j].lab + " (" + (j + 1) + " / " + HNAV.L.length + ")";
+      if (HNAV.kind === "fam") { window.__sviAvRet = null; openBudgetDetail(HNAV.L[j].r); }
+      else window.__sviAvOpen(HNAV.L[j].r, HNAV.ret);
+      sviNavPill(lab);
+      return true;
+    };
+    shell.__hnavGo = hnavGo;
+    window.__sviBdgNav = HNAV && HNAV.swipe ? { go: d => hnavGo(d) } : null;
     sviWatchState(shell);
 
     /* ---- squelette de l'écran ---- */
@@ -327,19 +350,29 @@
         ${INST_LIVE ? '<div class="lk-chain lk-chain-top" id="insChain" hidden></div>' : ""}
 
         <div class="bdg-d-hright">
-          ${INST_LIVE ? `
-          <button type="button" class="inst-nav" id="instPrev" title="Budget précédent" aria-label="Précédent"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-          <button type="button" class="inst-nav" id="instNext" title="Budget suivant" aria-label="Suivant"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-          ${budget.inst.state !== "fige" ? `<button type="button" class="inst-act" id="instUndo" title="Annuler" aria-label="Annuler" disabled><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 4.5 11.5 9 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11.5h9.5a5 5 0 0 1 0 10H11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button>
-          <button type="button" class="inst-act" id="instRedo" title="Rétablir" aria-label="Rétablir" disabled><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l4.5 4.5L15 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 11.5H9.5a5 5 0 0 0 0 10H13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button>` : ""}
-          ${budget.inst.state !== "fige" ? `<button type="button" class="inst-act inst-todo" id="instTodo" title="À compléter" aria-label="À compléter"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 2.8 19.5h18.4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.1" fill="currentColor"/></svg><b></b></button>` : ""}
-          <button type="button" class="inst-act" id="instLock"
-            title="${budget.inst.rclOf ? "Enregistrer le recalage" : budget.inst.state === "fige" ? "Revenir en édition" : "Figer (lecture seule)"}"
-            aria-label="Figer">${budget.inst.state === "fige" ? `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 7.5-1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>` : `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>`}</button>
-          ${budget.inst.state === "fige"
-            ? `<button type="button" class="inst-act" id="instValid" title="Valider le budget" aria-label="Valider"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
-            : `<button type="button" class="inst-act" id="instDel" title="Supprimer ce budget" aria-label="Supprimer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`}
-          <button type="button" class="inst-act" id="instClose" title="Fermer" aria-label="Fermer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>` : ""}
+          ${(() => {
+            /* v694 : EN-TÊTE COMMUN à tous les écrans d'un budget (étape, consolidé, version, recalage) : même rangée, même ordre ;
+               une icône sans objet est grisée (pas cachée), un toucher ou un appui long en donne la raison */
+            const bi = budget.inst, st = bi ? (bi.state || "instance") : "valide";
+            if (!bi) return "";
+            const RO = bi.virtual ? (bi.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.") : st === "valide" ? (bi.rclOf ? "RECALAGE ENREGISTRÉ : LECTURE SEULE." : "BUDGET VALIDÉ : LECTURE SEULE (NOUVEAU RECALAGE OU AVENANT PAR LE MENU ⋯).") : "";
+            const hb = (id, cls, svg, title, why, extra = "") => `<button type="button" class="${cls}${why ? " hdr-off" : ""}" id="${id}" title="${esc(why || title)}" aria-label="${esc(title)}"${why ? ` data-why="${esc(why)}" aria-disabled="true"` : ""}${extra}>${svg}</button>`;
+            const navWhy = HNAV ? "" : "PAS D'AUTRE ÉCRAN DANS CE BUDGET (BUDGET SANS AVENANT).";
+            const edWhy = RO || (st === "fige" ? "BUDGET FIGÉ : REVENIR EN ÉDITION (🔒) POUR MODIFIER." : "");
+            const lastAv = (() => { if (!bi.parent || bi.virtual) return true; const S = sviAvStages(bi.parent); return S[S.length - 1] && S[S.length - 1].ref === bi.ref; })();
+            const delWhy = RO || (bi.rclOf ? "" : !lastAv ? "SEUL LE DERNIER AVENANT EN INSTANCE SE SUPPRIME." : "");
+            const todoWhy = bi.virtual && !bi.vname ? "" : RO || (st === "fige" ? "BUDGET FIGÉ." : "");
+            return hb("instPrev", "inst-nav", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`, HNAV ? "Écran précédent" : "Précédent", navWhy)
+              + hb("instNext", "inst-nav", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`, HNAV ? "Écran suivant" : "Suivant", navWhy)
+              + hb("instUndo", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 4.5 11.5 9 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11.5h9.5a5 5 0 0 1 0 10H11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>`, "Annuler", edWhy, edWhy ? "" : " disabled")
+              + hb("instRedo", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l4.5 4.5L15 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 11.5H9.5a5 5 0 0 0 0 10H13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>`, "Rétablir", edWhy, edWhy ? "" : " disabled")
+              + hb("instTodo", "inst-act inst-todo", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 2.8 19.5h18.4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.1" fill="currentColor"/></svg><b></b>`, bi.virtual ? "Contradictions entre étapes" : "À compléter", todoWhy)
+              + (st === "fige" && !bi.virtual ? hb("instLock", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 7.5-1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`, "Revenir en édition", "")
+                : hb("instLock", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>`, bi.rclOf ? "Enregistrer le recalage" : "Figer (lecture seule)", RO))
+              + (st === "fige" && !bi.virtual ? hb("instValid", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`, "Valider le budget", "")
+                : hb("instDel", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`, bi.rclOf ? "Supprimer le recalage" : "Supprimer ce budget", delWhy))
+              + hb("instClose", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`, "Fermer", "");
+          })()}
           <button type="button" class="inst-act" id="instDup" hidden title="Dupliquer ce budget" aria-label="Dupliquer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
           ${AV_ROOT ? `<button type="button" class="inst-act av-comp-ic${sviAvSelGet(AV_ROOT) ? " on" : ""}" id="avCompBtn" title="Composition du consolidé : ${esc(sviAvSelLab(AV_ROOT, sviAvSelGet(AV_ROOT)))}" aria-label="Composition"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8.5" cy="12" r="5.5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="15.5" cy="12" r="5.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.6v8.8" stroke="currentColor" stroke-width="1.7"/></svg></button>` : ""}
           <button type="button" class="inst-act bdg-more-btn" id="bdgMore" title="Actions du budget" aria-label="Actions du budget">⋯</button>
@@ -356,11 +389,7 @@
       </div>
 
       <div class="bdg-d-head bdg-d-head-min">
-        ${budget.inst && budget.inst.virtual && budget.inst.vname ? `<div class="av-top ver-bar" id="verBar">
-          <span class="list-lab">${esc(budget.inst.vname)} — PHOTO EN LECTURE SEULE :</span>
-          <button type="button" class="svc-b av-comp-b" data-vact="restore">RESTAURER CETTE VERSION</button>
-          <button type="button" class="svc-b av-comp-b" data-vact="scn">EN FAIRE UN SCÉNARIO</button>
-        </div>` : ""}
+
 
 
       </div>

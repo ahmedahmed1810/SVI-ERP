@@ -33,7 +33,7 @@
       try { refreshAll(); } catch (e) {}
     };
     if (INS_ARCH && (budget.inst.state || "instance") === "instance") setTimeout(() => { try { svToast("SCÉNARIO ARCHIVÉ : LECTURE SEULE. BLOC SCÉNARIOS › DÉSARCHIVER, OU TOUCHER LE NOM D'UN AUTRE SCÉNARIO.", 6000); } catch (e) {} }, 400);
-    if (budget.inst && budget.inst.virtual) setTimeout(() => { try { svToast(budget.inst.vname ? budget.inst.vname + " : PHOTO EN LECTURE SEULE (FILTRES, TRIS, APERÇUS ET EXPORTS PERMIS)." : "CONSOLIDÉ, EN LECTURE SEULE : " + (budget.inst.vsel || ""), 5000); } catch (e) {} }, 400);
+    if (budget.inst && budget.inst.virtual && !budget.inst.vname) setTimeout(() => { try { svToast( "CONSOLIDÉ, EN LECTURE SEULE : " + (budget.inst.vsel || ""), 5000); } catch (e) {} }, 400);
     if (INS_HELD) setTimeout(() => { try { svToast(INS_HELD.onglet ? "« " + INS_HELD.onglet + " » EN LECTURE SEULE : " + INS_HELD.user + " LE MODIFIE. LES AUTRES ONGLETS RESTENT MODIFIABLES." : "EN LECTURE SEULE : " + INS_HELD.user + " MODIFIE CE BUDGET.", 6000); } catch (e) {} }, 400);
     /* v448 : largeur tableau / Gantt tirée à la main, retrouvée à l'ouverture de ce budget */
     const DLYG_REF = (budget.inst && budget.inst.ref) || budget.ref || "";

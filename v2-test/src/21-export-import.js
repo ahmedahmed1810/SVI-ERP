@@ -1974,6 +1974,9 @@
         /* v681 : premier avenant — une seule fois (aucun avenant encore), marché initial validé */
         ...(INS && budget.inst && (!budget.inst.virtual || /-GLOBAL$/.test(budget.inst.ref)) ? (() => { const S = sviAvStages(budget.inst.parent || budget.inst.ref); return S.length ? [{ a: "av", lab: "AJOUTER UN AVENANT", off: S[S.length - 1].state !== "valide", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12.5 10v7M9 13.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []; })() : []),
         ...(INS && budget.inst && !/-GLOBAL$/.test(budget.inst.ref) && (budget.inst.parent || sviAvStages(budget.inst.ref).length > 1) ? [{ a: "avl", lab: "BUDGET CONSOLIDÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
+        /* v694 : version ouverte — RESTAURER CETTE VERSION, EN FAIRE UN SCÉNARIO (dans ⋯) */
+        ...(budget.inst && budget.inst.virtual && budget.inst.vname ? [{ a: "vrest", lab: "RESTAURER CETTE VERSION", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
+          { a: "vscn", lab: "EN FAIRE UN SCÉNARIO", ic: SVI_ICON.scn }] : []),
         /* v693 : NOUVEAU RECALAGE — étape validée (budget initial ou avenant) ou recalage */
         ...(INS && budget.inst && !budget.inst.virtual && (budget.inst.rclOf || budget.inst.state === "valide") ? [{ a: "rcl", lab: "NOUVEAU RECALAGE", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6M20 12a8 8 0 0 1-13.7 5.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M18 3v4h-4M6 21v-4h4" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>' }] : []),
         /* v690 : VERSIONS ET SCÉNARIOS retiré (blocs SCÉNARIOS et VERSIONS) ; PRENDRE UNE VERSION (photo manuelle) */
@@ -1988,6 +1991,10 @@
         ...(INS_EDIT ? [{ a: "imp", lab: "IMPORTER UN BUDGET", ic: '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
         ...(INS_EDIT && INS && INS.src ? [{ a: "src", lab: "ACTUALISER DEPUIS LA SOURCE", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.7-4.4M4 4v4h4M4 13a8 8 0 0 0 14.7 4.4M20 20v-4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
       ];
+      /* v694 : le menu ⋯ ne garde que les entrées utiles à l'écran — consolidé : aperçus, exports, indicateurs ;
+         version : RESTAURER, EN FAIRE UN SCÉNARIO, exports, indicateurs ; recalage : NOUVEAU RECALAGE, exports, indicateurs */
+      { const bi = budget.inst, keep = bi && bi.virtual ? (bi.vname ? ["vrest", "vscn", "lay", "rat", "ind", "exp"] : ["lay", "rat", "ind", "multi", "exp", "av"]) : bi && bi.rclOf ? ["rcl", "lay", "rat", "ind", "exp", "plans"] : null;
+        if (keep) for (let i = items.length - 1; i >= 0; i--) if (!keep.includes(items[i].a)) items.splice(i, 1); }
       const m = document.createElement("div");
       m.id = "blkMenu";
       m.dataset.for = "bdgMore";
@@ -2006,7 +2013,9 @@
         else if (it.dataset.a === "av") { if (it.classList.contains("off") || it.disabled) { svToast("LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ.", 3500); return; } if (window.__sviAvNew) window.__sviAvNew(budget.inst.parent || budget.inst.ref, null); }   /* v684 : fenêtre INF puis l'avenant */
         else if (it.dataset.a === "avl") { const root = budget.inst.parent || budget.inst.ref; if (window.__sviAvOpen) window.__sviAvOpen(root + "-GLOBAL"); }   /* v684 : plus de petite fenêtre : le consolidé */
         else if (it.dataset.a === "vtake") { if (shell.__verTake) shell.__verTake(); }
-        else if (it.dataset.a === "rcl") { if (shell.__rclNew) shell.__rclNew(); }   /* v670 (axes 1 et 4) */   /* v669 (axe 3) */
+        else if (it.dataset.a === "rcl") { if (shell.__rclNew) shell.__rclNew(); }
+        else if (it.dataset.a === "vrest") { if (shell.__verAct) shell.__verAct("restore"); }
+        else if (it.dataset.a === "vscn") { if (shell.__verAct) shell.__verAct("scn"); }   /* v670 (axes 1 et 4) */   /* v669 (axe 3) */
         else if (it.dataset.a === "rat") ratWin();
         else if (it.dataset.a === "ind") indWin();   /* v679 */
         else if (it.dataset.a === "plans") plWin();   /* v671 (axe 6) */   /* v668 (axe 7) */

@@ -89,6 +89,32 @@
     });
     $("avCompBtn")?.addEventListener("click", () => { if (window.__sviAvComp) window.__sviAvComp(AV_ROOT, ref); });
 
+    /* v694 : EN-TÊTE COMMUN — icône grisée : toucher ou appui long = la raison ; ‹ › = écran voisin du même budget ;
+       ✕ = fermer ; ⚠ du consolidé = contradictions entre étapes */
+    shell.querySelectorAll(".bdg-d-hright .hdr-off").forEach(b => {
+      b.addEventListener("click", e => { e.preventDefault(); e.stopImmediatePropagation(); svToast(b.dataset.why || "", 3500, b); }, true);
+      let lt = 0; b.addEventListener("pointerdown", () => { clearTimeout(lt); lt = setTimeout(() => svToast(b.dataset.why || "", 3500, b), 500); });
+      ["pointerup", "pointercancel", "pointerleave"].forEach(ev => b.addEventListener(ev, () => clearTimeout(lt)));
+    });
+    if (budget.inst && budget.inst.state === "valide") {
+      $("instPrev")?.addEventListener("click", () => shell.__hnavGo && shell.__hnavGo(-1));
+      $("instNext")?.addEventListener("click", () => shell.__hnavGo && shell.__hnavGo(1));
+      $("instClose")?.addEventListener("click", () => $("budgetBackBtn")?.click());
+    }
+    if (AV_ROOT) {
+      const C = sviAvStages(AV_ROOT).filter(st => st.parent).flatMap(st => { try { return sviAvContra(st.ref).map(x => ({ ...x, av: sviAvName(st) })); } catch (e) { return []; } });
+      const tb = $("instTodo"); if (tb) { const bb = tb.querySelector("b"); if (bb) bb.textContent = C.length || ""; tb.classList.toggle("todo-on", !!C.length); }
+      tb?.addEventListener("click", () => {
+        if (!C.length) { svToast("AUCUNE CONTRADICTION ENTRE LES ÉTAPES.", 2500, tb); return; }
+        const d = sviWinNew();
+        d.innerHTML = sviWinCard({ cls: "cmp-card", close: "data-x", title: "CONTRADICTIONS ENTRE ÉTAPES " + svCnt(C.length),
+          body: `<table class="pv-t"><thead><tr><th>AVENANT</th><th>DÉSIGNATION</th><th>LOT</th><th>ATTENDU (ÉTAPE)</th><th>DANS L'AVENANT</th></tr></thead><tbody>${C.map(x => `<tr><td>${esc(x.av)}</td><td>${esc(x.des)}</td><td>${esc(x.lot)}</td><td>${esc(x.att)} <small>(${esc(x.st)})</small></td><td class="rat-err">${esc(x.got)}</td></tr>`).join("")}</tbody></table>`,
+          foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
+        sviWinShow(d);
+        d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) d.remove(); });
+      });
+    }
+
     /* budget en instance : ‹ › navigation, 🔒 figer / revenir en édition, 🗑 supprimer, ✕ fermer */
     if (budget.inst && budget.inst.state !== "valide") {
       const toList = () => $("budgetBackBtn")?.click();
@@ -108,8 +134,8 @@
       /* sortie avec une liaison modifiée non validée : on propose de valider d'abord */
       const guarded = fn => () => (shell.__lkGuard ? shell.__lkGuard() : Promise.resolve(true)).then(ok => { if (ok) fn(); });
       /* v693 : recalage — ‹ › = recalage précédent / suivant */
-      $("instPrev")?.addEventListener("click", guarded(() => budget.inst.rclOf ? shell.__rclGo(-1) : go(-1)));
-      $("instNext")?.addEventListener("click", guarded(() => budget.inst.rclOf ? shell.__rclGo(1) : go(1)));
+      $("instPrev")?.addEventListener("click", guarded(() => shell.__hnavGo && shell.__hnavGo(-1)));
+      $("instNext")?.addEventListener("click", guarded(() => shell.__hnavGo && shell.__hnavGo(1)));
       $("instClose")?.addEventListener("click", guarded(toList));
       $("instDel")?.addEventListener("click", () => {
         const RC = budget.inst.rclOf;
