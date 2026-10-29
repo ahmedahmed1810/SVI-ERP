@@ -1148,6 +1148,10 @@ function renderBudgetList() {
   const instLoad = () => sviInstGet();
   const instSave = l => sviInstSet(l);
   instLoad().forEach(b => groups.set(b.ref, { ref: b.ref, project: b.project, rows: [], first: {}, inst: b }));
+  /* v681 : budget à avenants — vue GLOBAL (marché initial + avenants consolidés, en lecture seule, jamais enregistrée) */
+  instLoad().filter(b => !b.parent && instLoad().some(x => x.parent === b.ref)).forEach(b => {
+    try { const gref = b.ref + "-GLOBAL"; groups.set(gref, { ref: gref, project: b.project, rows: [], first: {}, inst: { ref: gref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, data: sviAvMerge(b.ref) } }); } catch (e) {}
+  });
 
   /* liste affichée : VALIDÉS (noir) ou EN INSTANCE (rouge / vert si figé) */
   let listMode = "valid";
@@ -1156,15 +1160,18 @@ function renderBudgetList() {
   bdgGroups = groups;
 
   /* v679 : pas d'icône EN INSTANCE s'il n'y a que des budgets validés, et inversement ; la liste affichée suit */
+  /* v681 : un budget à avenants est une famille (marché initial + avenants) : elle figure dans chaque liste où l'un d'eux figure */
+  const famLive = g => { const L = [g.inst, ...instLoad().filter(x => g.inst && x.parent === g.ref)].filter(Boolean); return { live: L.some(x => x.state !== "valide"), done: !g.inst || L.some(x => x.state === "valide") }; };
   const LIST_N = { inst: 0, valid: 0 };
-  groups.forEach(g => { if (g.inst && g.inst.state !== "valide") LIST_N.inst++; else LIST_N.valid++; });
+  groups.forEach(g => { if (g.inst && g.inst.parent) return; const f = famLive(g); if (f.live) LIST_N.inst++; if (f.done) LIST_N.valid++; });
   if (listMode === "inst" && !LIST_N.inst && LIST_N.valid) listMode = "valid";
   if (listMode === "valid" && !LIST_N.valid && LIST_N.inst) listMode = "inst";
 
   const budgets =
     [...groups.values()].filter(g => {
-      const live = !!g.inst && g.inst.state !== "valide";
-      return listMode === "inst" ? live : !live;
+      if (g.inst && g.inst.parent) return false;   /* avenants et GLOBAL : dans la liste du budget */
+      const f = famLive(g);
+      return listMode === "inst" ? f.live : f.done;
     });
 
   /* titre, couleur et boutons de la barre de la liste */

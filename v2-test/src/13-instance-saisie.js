@@ -10,7 +10,9 @@
     const INS = sviBudgetData(budget.inst);   /* refonte, étape 1 : données du budget (02b) */
     /* v672 (bloc 2) : budget ouvert en modification par un autre utilisateur (verrou de la base V3) = lecture seule */
     /* v676 : VERROU PAR ZONE (02e) — seule la zone où un autre travaille est en lecture seule ; un verrou sans zone (ancienne version) bloque tout */
-    const INS_LIVE_EDIT = !!INS && (budget.inst.state || "instance") === "instance";
+    /* v681 : scénario actif ARCHIVÉ = lecture seule (DÉSARCHIVER ou BASCULER pour modifier) ; GLOBAL (consolidé) = lecture seule */
+    const INS_ARCH = !!INS && !!(INS.ver && (INS.ver.L || []).some(x => x.id === INS.ver.act && x.arch));
+    const INS_LIVE_EDIT = !!INS && (budget.inst.state || "instance") === "instance" && !INS_ARCH && !budget.inst.virtual;
     const insTabName = k => (tabs.find(t => t.key === k) || {}).title || k;
     const INS_HELD = INS_LIVE_EDIT && budget.inst.ref && typeof sviLockAll === "function" ? sviLockAll(budget.inst.ref).find(k => !k.onglet) || null : null;
     const INS_EDIT = INS_LIVE_EDIT && !INS_HELD;
@@ -27,6 +29,8 @@
       Object.keys(INS).forEach(k => { delete INS[k]; }); Object.assign(INS, JSON.parse(JSON.stringify(it.data)));
       try { refreshAll(); } catch (e) {}
     };
+    if (INS_ARCH && (budget.inst.state || "instance") === "instance") setTimeout(() => { try { svToast("SCÉNARIO ARCHIVÉ : LECTURE SEULE. VERSIONS ET SCÉNARIOS › DÉSARCHIVER OU BASCULER POUR MODIFIER.", 6000); } catch (e) {} }, 400);
+    if (budget.inst && budget.inst.virtual) setTimeout(() => { try { svToast("GLOBAL : MARCHÉ INITIAL ET AVENANTS CONSOLIDÉS, EN LECTURE SEULE.", 5000); } catch (e) {} }, 400);
     if (INS_HELD) setTimeout(() => { try { svToast(INS_HELD.onglet ? "« " + INS_HELD.onglet + " » EN LECTURE SEULE : " + INS_HELD.user + " LE MODIFIE. LES AUTRES ONGLETS RESTENT MODIFIABLES." : "EN LECTURE SEULE : " + INS_HELD.user + " MODIFIE CE BUDGET.", 6000); } catch (e) {} }, 400);
     /* v448 : largeur tableau / Gantt tirée à la main, retrouvée à l'ouverture de ce budget */
     const DLYG_REF = (budget.inst && budget.inst.ref) || budget.ref || "";
@@ -489,7 +493,10 @@
       /* v530 : bouton CONDITIONNEMENT dans la case DÉSIGNATION d'une charge ; remarque 4 (v542) : seulement sur une charge sans titre
          (les charges regroupées l'ont sur la ligne de leur titre) */
       const pk = k === "chg" && f === "des" && !isNew && !r.t && !INS_CELL_LVL;
-      return `<td class="${cls} ins-td${pk ? " ins-pkc" : ""}${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
+      /* v681 : GLOBAL (marché + avenants) — prix moyen pondéré d'une même désignation / charge à prix différents ; toucher = détail par étape */
+      const pmp = (k === "des" || k === "chg") && f === "p" && r.pmp && Array.isArray(r.__det);
+      const pmpWhy = pmp ? "PRIX MOYEN PONDÉRÉ : " + r.__det.map(x => x.o + " " + money(x.q) + " × " + money(x.p)).join(" ; ") : "";
+      return `<td class="${cls} ins-td${pk ? " ins-pkc" : ""}${pmp ? " ins-pmp" : ""}${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : pmp ? ` data-why="${esc(pmpWhy)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
         ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
         value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off">${pk ? condBtn(r) : ""}</td>`;
     };

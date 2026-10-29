@@ -2224,17 +2224,36 @@ def main():
         p1 = pg.evaluate(f"() => Number({ins}.INS.des.find(d => d.id === 'd1').p)")
         pg.evaluate("() => document.querySelector('#svConf [data-sw]')?.click()"); pg.wait_for_timeout(400)
         p2 = pg.evaluate(f"() => Number({ins}.INS.des.find(d => d.id === 'd1').p)")
-        pg.evaluate("() => document.querySelector('#svConf [data-av]')?.click()"); pg.wait_for_timeout(300)
-        pg.evaluate("() => document.querySelector('#svConf .svc-ok')?.click()"); pg.wait_for_timeout(300)
-        pg.evaluate(f"() => {{ const X = {ins}; X.INS.des.push({{ id: 'av1', d: 1, art: '9', des: 'TRAVAUX SUPPLÉMENTAIRES', u: 'U', q: 1, p: 500, tva: 20 }}); X.insSave(); }}")
-        o70 = pg.evaluate(f"() => {{ const s = [...document.querySelectorAll('*')].find(e => e.__verOrig); const O = s.__verOrig(); return [O.des.d1, O.des.av1]; }}")
+        check("v670 axes 1 et 4 : scénario copié, BASCULER échange les prix (4321 ↔ autre)", "ACTIF" in hd and "EN RÉSERVE" in hd and p1 != 4321 and p2 == 4321, [hd, p1, p2])
+        # v681 : RETENIR puis DÉSARCHIVER ; nouveau scénario = premier numéro libre
         pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(200)
         pg.evaluate(VW); pg.wait_for_timeout(300)
-        t70 = pg.evaluate("() => (document.querySelector('#svConf .svc-card') || {}).innerText || ''")
+        pg.evaluate("() => document.querySelector('#svConf [data-keep]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf .svc-ok')?.click()"); pg.wait_for_timeout(600)
+        pg.evaluate(VW); pg.wait_for_timeout(300)
+        a81 = pg.evaluate("() => [...document.querySelectorAll('#svConf .ver-t thead th small')].map(x => x.textContent).join(',')")
+        pg.evaluate("() => document.querySelector('#svConf [data-unarch]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf .svc-ok')?.click()"); pg.wait_for_timeout(600)
+        b81 = pg.evaluate(f"() => ({ins}.INS.ver.L || []).filter(x => x.arch).length")
+        pg.evaluate(f"() => {{ const V = {ins}.INS.ver; V.L = V.L.filter(x => x.id === V.act || x.nom !== 'SCÉNARIO 1'); V.L.forEach(x => {{ if (x.id === V.act) x.nom = 'SCÉNARIO 2'; }}); {ins}.insSave(); }}")
+        pg.evaluate("() => { document.querySelector('#svConf')?.remove(); }")
+        pg.evaluate(VW); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf [data-new]')?.click()"); pg.wait_for_timeout(300)
+        c81 = pg.evaluate(f"() => ({ins}.INS.ver.L || []).map(x => x.nom).join(',')")
         pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(200)
+        # v681 : avenants — consolidé GLOBAL au prix moyen pondéré, contradiction même lot / autres activités
+        r81 = pg.evaluate("""() => {
+            const d0 = { des: [{ id: 'd', des: 'BETON B25', u: 'M3', q: 100, p: 900 }], lot: [{ id: 'l', v: 'RDC' }], prim: [{ id: 'p', v: 'BETON' }], sec: [{ id: 's', v: 'BETON' }], chg: [], prd: [{ id: 'x0', des: 'BETON', u: 'M3', q: 100 }], links: [], dlp: { 'l|s': [{ id: 'x', deb: '2027-01-04', fin: '2027-01-08' }] }, dlpSec: true };
+            const d1 = { des: [{ id: 'd', des: 'BETON B25', u: 'M3', q: 20, p: 1000 }], lot: [{ id: 'l', v: 'RDC' }], prim: [{ id: 'p', v: 'COFFRAGE' }], sec: [{ id: 's', v: 'COFFRAGE' }], chg: [], prd: [{ id: 'x1', des: 'BETON', u: 'M3', q: 20 }], links: [{ id: 'k', des: 'd', lot: 'l', prim: 'p', sec: 's', prd: [{ id: 'x1' }], chg: [] }], dlp: {}, dlpSec: true };
+            const d0b = JSON.parse(JSON.stringify(d0)); d0b.links = [{ id: 'k0', des: 'd', lot: 'l', prim: 'p', sec: 's', prd: [{ id: 'x0' }], chg: [] }];
+            const keep = sviInstGet();
+            sviInstSet(keep.concat([{ ref: 'AVT-1', project: 'AVT', state: 'valide', data: d0b }, { ref: 'AVT-1-AV1', project: 'AVT', state: 'instance', parent: 'AVT-1', avn: 1, data: d1 }]));
+            const M = sviAvMerge('AVT-1'), r = M.des[0], C = sviAvContra('AVT-1-AV1'), st = sviAvStages('AVT-1-AV1').map(x => x.ref).join(',');
+            sviInstSet(keep);
+            return [M.des.length, insLinkedQ(M, r.id), Math.round(r.p * 100) / 100, !!r.pmp, C.length, C[0] ? C[0].att + ' / ' + C[0].got : '', st]; }""")
+        check("v681 : RETENIR archive, DÉSARCHIVER rend la réserve, nouveau scénario = premier numéro libre ; GLOBAL : 100 + 20 M3 au prix moyen pondéré 916,67 (PMP) ; contradiction même lot, autres activités",
+              "ARCHIVÉ" in a81 and b81 == 0 and c81.count("SCÉNARIO 1") == 1 and r81 == [1, 120, 916.67, True, 1, "BETON › BETON / COFFRAGE › COFFRAGE", "AVT-1,AVT-1-AV1"], [a81, b81, c81, r81])
         pg.evaluate(f"() => {{ const X = {ins}; const o = JSON.parse(X.INS.__v0); Object.keys(X.INS).forEach(k => delete X.INS[k]); Object.assign(X.INS, o); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
-        check("v670 axes 1 et 4 : scénario copié, BASCULER échange les prix (4321 ↔ autre), avenant : ligne ancienne = MARCHÉ INITIAL, nouvelle = AVENANT 1, montants par origine",
-              "ACTIF" in hd and "EN RÉSERVE" in hd and p1 != 4321 and p2 == 4321 and o70 == ["MARCHÉ INITIAL", "AVENANT 1"] and "BUDGET CONSOLIDÉ" in t70 and "AVENANT 1" in t70, [hd, p1, p2, o70, t70[-400:]])
 
         # v671 (axe 6) : règle des axes ; plan image → ÉCHELLE (10 m), LONGUEUR mesurée, REMPLIR DIM 1 d'un produit
         ax = pg.evaluate("""() => { const s = [...document.querySelectorAll('*')].find(e => e.__axBetween); const f = s.__axBetween;

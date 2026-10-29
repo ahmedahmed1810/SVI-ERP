@@ -2761,3 +2761,15 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 .rg-prev { margin-top: 8px; border-top: 1px solid #eaecf0; padding-top: 8px; }
 .ind-table .rat-over { color: #b42318; font-weight: 800; }
 .ind-table .ind-sv { width: 90px !important; text-align: right; }
+
+/* v681 : avenants — liste intermédiaire, prix moyen pondéré dans GLOBAL */
+.av-card { width: min(820px, 96vw); }
+.av-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.av-bar .av-sp { flex: 1; }
+.av-tab.on { background: #172033; color: #fff; }
+.av-t tr.av-row { cursor: pointer; }
+.av-t tr.av-instance td { color: #b42318; }
+.av-t tr.av-fige td { color: #067647; }
+td.ins-pmp input { font-style: italic; text-decoration: underline dotted; }
+td.ins-pmp::after { content: "PMP"; position: absolute; right: 2px; top: 1px; font-size: 8px; font-weight: 800; color: #7a5af8; }
+td.ins-pmp { position: relative; }

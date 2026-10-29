@@ -163,6 +163,50 @@
      APERÇU / IMPRESSION
      ------------------------------------------------------- */
 
+  /* =========================================================
+     v681 : AVENANTS — liste intermédiaire d'un budget à avenants (onglets EN INSTANCE / VALIDÉ, cachés quand vides),
+     + (nouvel avenant, si le dernier est validé) et GLOBAL ; ajout d'un avenant (mini-budget « réf.-AVn »)
+     ========================================================= */
+  /* ouvre un budget de la famille : depuis un budget ouvert, retour propre à la liste (bouton ←) puis ouverture */
+  const sviAvOpen = r => { const back = document.getElementById("budgetBackBtn"); if (back) back.click(); try { localStorage.setItem("svi_lastbdg_v1", r); } catch (e) {} renderBudgetList(); };
+  window.__sviAvOpen = sviAvOpen;
+  const sviAvAdd = rootRef => {
+    const L = sviInstGet(), S = sviAvStages(rootRef), root = S[0], last = S[S.length - 1];
+    if (!root || last.state !== "valide") { sviAlert((S.length > 1 ? "LE DERNIER AVENANT" : "LE MARCHÉ INITIAL") + " DOIT ÊTRE VALIDÉ AVANT D'OUVRIR UN AVENANT.", "NOUVEL AVENANT"); return null; }
+    const n = S.length, r = root.ref + "-AV" + n;
+    const it = { ref: r, project: root.project, intitule: root.intitule, client: root.client, state: "instance", created: localDT(new Date()), parent: root.ref, avn: n, data: {} };
+    sviInstSet(L.concat(it));
+    return r;
+  };
+  window.__sviAvAdd = rootRef => { const r = sviAvAdd(rootRef); if (r) sviAvOpen(r); return r; };
+  const sviAvWin = rootRef => {
+    const S = sviAvStages(rootRef); if (!S.length) return;
+    const root = S[0], live = S.filter(x => x.state !== "valide"), done = S.filter(x => x.state === "valide");
+    let mode = live.length ? "inst" : "valid";
+    const d = sviWinNew();
+    const stLab = x => x.state === "valide" ? "VALIDÉ" : x.state === "fige" ? "FIGÉ" : "EN INSTANCE";
+    const draw = () => {
+      const L = mode === "inst" ? live : done, canAdd = S[S.length - 1].state === "valide";
+      d.innerHTML = sviWinCard({ cls: "cmp-card av-card", close: "data-x", title: esc(U_(root.project) + " " + root.ref) + " — MARCHÉ ET AVENANTS",
+        body: `<div class="av-bar">${live.length ? `<button type="button" class="svc-b av-tab${mode === "inst" ? " on" : ""}" data-m="inst">⌛ EN INSTANCE ${svCnt(live.length)}</button>` : ""}${done.length ? `<button type="button" class="svc-b av-tab${mode === "valid" ? " on" : ""}" data-m="valid">≡ VALIDÉS ${svCnt(done.length)}</button>` : ""}
+            <span class="av-sp"></span><button type="button" class="svc-b" data-glob>GLOBAL</button><button type="button" class="svc-b av-add" data-add${canAdd ? "" : ' disabled title="LE DERNIER AVENANT DOIT ÊTRE VALIDÉ"'}>+ AVENANT</button></div>
+          <table class="pv-t av-t"><thead><tr><th>ÉTAPE</th><th>RÉFÉRENCE</th><th>ÉTAT</th><th>CRÉÉ LE</th></tr></thead>
+            <tbody>${L.map(x => `<tr class="av-row av-${x.state || "instance"}" data-r="${esc(x.ref)}"><td><b>${esc(sviAvName(x))}</b></td><td>${esc(U_(x.project) + " " + x.ref)}</td><td>${stLab(x)}</td><td>${esc(String(x.created || "").replace("T", " ").slice(0, 16))}</td></tr>`).join("")}</tbody></table>
+          ${canAdd ? "" : `<div class="cmp-leg">+ AVENANT : LE DERNIER (${esc(sviAvName(S[S.length - 1]))}) DOIT D'ABORD ÊTRE VALIDÉ.</div>`}`,
+        foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
+    };
+    draw(); sviWinShow(d);
+    d.addEventListener("click", async e => {
+      if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+      const m = e.target.closest("[data-m]"); if (m) { mode = m.dataset.m; draw(); return; }
+      const tr = e.target.closest("tr[data-r]"); if (tr) { d.remove(); sviAvOpen(tr.dataset.r); return; }
+      if (e.target.closest("[data-glob]")) { d.remove(); sviAvOpen(root.ref + "-GLOBAL"); return; }
+      const ad = e.target.closest("[data-add]");
+      if (ad && !ad.disabled) { d.remove(); if (await svConfirm({ title: "NOUVEL AVENANT", text: "AVENANT " + S.length + " (" + root.ref + "-AV" + S.length + ") : UN BUDGET À PART, EN INSTANCE, QUI NE CONTIENT QUE LES DONNÉES DE L'AVENANT.", ok: "CRÉER", tone: "neutral" })) window.__sviAvAdd(root.ref); }
+    });
+  };
+  window.__sviAvWin = sviAvWin;
+
   table.onclick = event => {
 
     /* « ! » : lire l'alerte sans ouvrir le détail du budget */
@@ -202,7 +246,7 @@
       svConfirm({ title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + g.project + " " + r + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
         if (!go) return;
         try {
-          const l = sviInstGet().filter(x => x.ref !== r);
+          const l = sviInstGet().filter(x => x.ref !== r && x.parent !== r);   /* v681 : ses avenants avec lui */
           sviInstSet(l);
         } catch (e) {}
         renderBudgetList();
@@ -232,6 +276,8 @@
       );
 
     if (row) {
+      /* v681 : budget à avenants → liste intermédiaire */
+      if (sviAvStages(row.dataset.budgetRef).length > 1) { sviAvWin(row.dataset.budgetRef); return; }
       openBudgetDetail(
         row.dataset.budgetRef
       );

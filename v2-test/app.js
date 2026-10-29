@@ -1305,6 +1305,98 @@ if (typeof window !== "undefined" && !window.__sviSyncBoot) {
   setInterval(() => { if (document.visibilityState === "visible") { sviLockKeep(); if (!sviSyncPending()) sviSyncPull(); } }, 60000);
   document.addEventListener("visibilitychange", () => { if (document.hidden && sviSyncPending()) sviSyncRun(); });
 }
+/* ⟪ src/02f-avenants.js ⟫ */
+/* =========================================================
+   v681 : AVENANTS (décisions du 29/10/2026)
+   - Un avenant est un MINI-BUDGET complet : même structure, mêmes écrans, ses scénarios, son cycle EN INSTANCE → FIGÉ → VALIDÉ.
+     Il est rangé dans la liste des budgets de l'appareil avec { parent: réf. du marché initial, avn: n } ; réf. = « réf.-AVn ».
+   - Le premier avenant s'ajoute par le menu ⋯ du budget, seulement si le marché initial est VALIDÉ ; le suivant par le + de la
+     liste intermédiaire, seulement si le dernier est validé (exception administrateur : avec les droits, plus tard).
+   - GLOBAL : budget consolidé (marché initial + avenants), en lecture : mêmes désignations / charges (intitulé + unité) cumulées
+     au PRIX MOYEN PONDÉRÉ, mêmes lots et activités regroupés, même tâche sur une seule ligne du planning (périodes de chaque étape).
+   - Contradiction : dans un avenant, même désignation (intitulé + unité) dans le même lot qu'une étape précédente, mais
+     activité primaire ou secondaire différente (lot différent = activités libres).
+   ========================================================= */
+const sviAvU = v => String(v ?? "").trim().toUpperCase();
+/* étapes d'un budget : marché initial puis avenants (ordre) */
+const sviAvStages = ref => {
+  const L = sviInstGet(), it = L.find(x => x.ref === ref);
+  if (!it) return [];
+  const root = it.parent ? L.find(x => x.ref === it.parent) : it;
+  if (!root) return [it];
+  return [root, ...L.filter(x => x.parent === root.ref).sort((a, b) => (a.avn || 0) - (b.avn || 0))];
+};
+const sviAvName = it => it && it.parent ? "AVENANT " + (it.avn || 1) : "MARCHÉ INITIAL";
+/* budget consolidé */
+const sviAvMerge = rootRef => {
+  const S = sviAvStages(rootRef);
+  if (!S.length) return null;
+  const D0 = JSON.parse(JSON.stringify(S[0].data || {}));
+  const M = { ...D0, des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: D0.qlt || [], links: [], dlp: {}, dlpSec: true };
+  delete M.ver; delete M.dord; delete M.conf;
+  const n = v => Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")) || 0;
+  const key = { des: r => r.t ? "T|" + sviAvU(r.art) + "|" + sviAvU(r.des) : sviAvU(r.des) + "|" + sviAvU(r.u), lot: r => sviAvU(r.v), prim: r => sviAvU(r.v), sec: r => sviAvU(r.v), chg: r => r.t ? "T|" + sviAvU(r.des) : sviAvU(r.des) + "|" + sviAvU(r.u) };
+  S.forEach((st, si) => {
+    const d = st.data || {}, nm = sviAvName(st), map = {};
+    ["des", "lot", "prim", "sec", "chg"].forEach(k => (d[k] || []).forEach(r => {
+      const kk = key[k](r);
+      let m = M[k].find(x => x.__k === kk);
+      if (!m) { m = { ...r, id: k + si + "_" + r.id, __k: kk, __o: [nm] }; if (k === "des" || k === "chg") m.__det = []; M[k].push(m); }
+      else if (!m.__o.includes(nm)) m.__o.push(nm);
+      map[k + r.id] = m.id;
+      if ((k === "des" || k === "chg") && !r.t) m.__det.push({ o: nm, q: k === "des" ? (insLinkedQ(d, r.id) ?? n(r.q)) : n(r.q), p: n(r.p) });
+    }));
+    (d.prd || []).forEach(r => { const x = { ...r, id: "p" + si + "_" + r.id, __o: [nm] }; M.prd.push(x); map["prd" + r.id] = x.id; });
+    (d.links || []).forEach(l => {
+      const des = map["des" + l.des], lot = map["lot" + l.lot], prim = map["prim" + l.prim], sec = map["sec" + l.sec];
+      if (!des || !lot || !prim || !sec) return;
+      let L2 = M.links.find(x => x.des === des && x.lot === lot && x.prim === prim && x.sec === sec);
+      if (!L2) { L2 = { id: "k" + si + "_" + l.id, des, lot, prim, sec, prd: [], chg: [] }; M.links.push(L2); }
+      (l.prd || []).forEach(x => { const id = map["prd" + x.id]; if (id) L2.prd.push({ ...x, id }); });
+      (l.chg || []).forEach(x => { const id = map["chg" + x.id]; if (id && !L2.chg.some(y => y.id === id)) L2.chg.push({ ...x, id }); });
+    });
+    /* délais : par tâche secondaire (lot + activité secondaire) — même tâche = mêmes lignes, périodes de chaque étape */
+    const dd = d.dlpSec ? d : (() => { const c = { links: d.links, dlp: JSON.parse(JSON.stringify(d.dlp || {})) }; sviDlpSec(c); return c; })();
+    Object.keys(dd.dlp || {}).forEach(k => {
+      const [lo, se] = k.split("|"), a = map["lot" + lo], b = map["sec" + se];
+      if (!a || !b) return;
+      const kk = a + "|" + b;
+      (M.dlp[kk] = M.dlp[kk] || []).push(...(dd.dlp[k] || []).map(p => ({ ...p, id: (p.id || "p") + "_" + si })));
+    });
+  });
+  /* prix moyen pondéré : total des montants ÷ total des quantités */
+  ["des", "chg"].forEach(k => M[k].forEach(r => {
+    if (r.t || !r.__det || r.__det.length < 2) return;
+    const q = r.__det.reduce((t, x) => t + x.q, 0), m = r.__det.reduce((t, x) => t + x.q * x.p, 0);
+    if (k === "chg") r.q = q;
+    else if (!(M.links || []).some(l => l.des === r.id)) r.q = q;
+    if (q) r.p = Math.round(m / q * 1e6) / 1e6;
+    r.pmp = r.__det.some(x => Math.abs(x.p - r.__det[0].p) > 1e-9);
+  }));
+  return M;
+};
+/* contradictions d'un avenant : même désignation et même lot qu'une étape précédente, activités différentes */
+const sviAvContra = ref => {
+  const S = sviAvStages(ref), i = S.findIndex(x => x.ref === ref);
+  if (i <= 0) return [];
+  const nm = (d, k, id) => { const r = (d[k] || []).find(x => x.id === id); return r ? sviAvU(k === "des" ? r.des : r.v) : ""; };
+  const unit = (d, id) => sviAvU(((d.des || []).find(x => x.id === id) || {}).u);
+  const before = new Map();
+  S.slice(0, i).forEach(st => { const d = st.data || {}; (d.links || []).forEach(l => {
+    const k = nm(d, "des", l.des) + "|" + unit(d, l.des) + "|" + nm(d, "lot", l.lot);
+    if (!before.has(k)) before.set(k, { prim: nm(d, "prim", l.prim), sec: nm(d, "sec", l.sec), st: sviAvName(st) });
+  }); });
+  const d = S[i].data || {}, out = [], seen = new Set();
+  (d.links || []).forEach(l => {
+    const des = nm(d, "des", l.des), lot = nm(d, "lot", l.lot), k = des + "|" + unit(d, l.des) + "|" + lot, b = before.get(k);
+    if (!b) return;
+    const prim = nm(d, "prim", l.prim), sec = nm(d, "sec", l.sec);
+    if (b.prim === prim && b.sec === sec) return;
+    const id = k + "|" + prim + "|" + sec; if (seen.has(id)) return; seen.add(id);
+    out.push({ des, lot, att: b.prim + " › " + b.sec, got: prim + " › " + sec, st: b.st, link: l.id });
+  });
+  return out;
+};
 /* ⟪ src/03-api-drive.js ⟫ */
 /* =========================================================
    API GET CHS / BDS
@@ -5521,6 +5613,10 @@ function renderBudgetList() {
   const instLoad = () => sviInstGet();
   const instSave = l => sviInstSet(l);
   instLoad().forEach(b => groups.set(b.ref, { ref: b.ref, project: b.project, rows: [], first: {}, inst: b }));
+  /* v681 : budget à avenants — vue GLOBAL (marché initial + avenants consolidés, en lecture seule, jamais enregistrée) */
+  instLoad().filter(b => !b.parent && instLoad().some(x => x.parent === b.ref)).forEach(b => {
+    try { const gref = b.ref + "-GLOBAL"; groups.set(gref, { ref: gref, project: b.project, rows: [], first: {}, inst: { ref: gref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, data: sviAvMerge(b.ref) } }); } catch (e) {}
+  });
 
   /* liste affichée : VALIDÉS (noir) ou EN INSTANCE (rouge / vert si figé) */
   let listMode = "valid";
@@ -5529,15 +5625,18 @@ function renderBudgetList() {
   bdgGroups = groups;
 
   /* v679 : pas d'icône EN INSTANCE s'il n'y a que des budgets validés, et inversement ; la liste affichée suit */
+  /* v681 : un budget à avenants est une famille (marché initial + avenants) : elle figure dans chaque liste où l'un d'eux figure */
+  const famLive = g => { const L = [g.inst, ...instLoad().filter(x => g.inst && x.parent === g.ref)].filter(Boolean); return { live: L.some(x => x.state !== "valide"), done: !g.inst || L.some(x => x.state === "valide") }; };
   const LIST_N = { inst: 0, valid: 0 };
-  groups.forEach(g => { if (g.inst && g.inst.state !== "valide") LIST_N.inst++; else LIST_N.valid++; });
+  groups.forEach(g => { if (g.inst && g.inst.parent) return; const f = famLive(g); if (f.live) LIST_N.inst++; if (f.done) LIST_N.valid++; });
   if (listMode === "inst" && !LIST_N.inst && LIST_N.valid) listMode = "valid";
   if (listMode === "valid" && !LIST_N.valid && LIST_N.inst) listMode = "inst";
 
   const budgets =
     [...groups.values()].filter(g => {
-      const live = !!g.inst && g.inst.state !== "valide";
-      return listMode === "inst" ? live : !live;
+      if (g.inst && g.inst.parent) return false;   /* avenants et GLOBAL : dans la liste du budget */
+      const f = famLive(g);
+      return listMode === "inst" ? f.live : f.done;
     });
 
   /* titre, couleur et boutons de la barre de la liste */
@@ -7131,7 +7230,9 @@ function renderBudgetList() {
     const INS = sviBudgetData(budget.inst);   /* refonte, étape 1 : données du budget (02b) */
     /* v672 (bloc 2) : budget ouvert en modification par un autre utilisateur (verrou de la base V3) = lecture seule */
     /* v676 : VERROU PAR ZONE (02e) — seule la zone où un autre travaille est en lecture seule ; un verrou sans zone (ancienne version) bloque tout */
-    const INS_LIVE_EDIT = !!INS && (budget.inst.state || "instance") === "instance";
+    /* v681 : scénario actif ARCHIVÉ = lecture seule (DÉSARCHIVER ou BASCULER pour modifier) ; GLOBAL (consolidé) = lecture seule */
+    const INS_ARCH = !!INS && !!(INS.ver && (INS.ver.L || []).some(x => x.id === INS.ver.act && x.arch));
+    const INS_LIVE_EDIT = !!INS && (budget.inst.state || "instance") === "instance" && !INS_ARCH && !budget.inst.virtual;
     const insTabName = k => (tabs.find(t => t.key === k) || {}).title || k;
     const INS_HELD = INS_LIVE_EDIT && budget.inst.ref && typeof sviLockAll === "function" ? sviLockAll(budget.inst.ref).find(k => !k.onglet) || null : null;
     const INS_EDIT = INS_LIVE_EDIT && !INS_HELD;
@@ -7148,6 +7249,8 @@ function renderBudgetList() {
       Object.keys(INS).forEach(k => { delete INS[k]; }); Object.assign(INS, JSON.parse(JSON.stringify(it.data)));
       try { refreshAll(); } catch (e) {}
     };
+    if (INS_ARCH && (budget.inst.state || "instance") === "instance") setTimeout(() => { try { svToast("SCÉNARIO ARCHIVÉ : LECTURE SEULE. VERSIONS ET SCÉNARIOS › DÉSARCHIVER OU BASCULER POUR MODIFIER.", 6000); } catch (e) {} }, 400);
+    if (budget.inst && budget.inst.virtual) setTimeout(() => { try { svToast("GLOBAL : MARCHÉ INITIAL ET AVENANTS CONSOLIDÉS, EN LECTURE SEULE.", 5000); } catch (e) {} }, 400);
     if (INS_HELD) setTimeout(() => { try { svToast(INS_HELD.onglet ? "« " + INS_HELD.onglet + " » EN LECTURE SEULE : " + INS_HELD.user + " LE MODIFIE. LES AUTRES ONGLETS RESTENT MODIFIABLES." : "EN LECTURE SEULE : " + INS_HELD.user + " MODIFIE CE BUDGET.", 6000); } catch (e) {} }, 400);
     /* v448 : largeur tableau / Gantt tirée à la main, retrouvée à l'ouverture de ce budget */
     const DLYG_REF = (budget.inst && budget.inst.ref) || budget.ref || "";
@@ -7610,7 +7713,10 @@ function renderBudgetList() {
       /* v530 : bouton CONDITIONNEMENT dans la case DÉSIGNATION d'une charge ; remarque 4 (v542) : seulement sur une charge sans titre
          (les charges regroupées l'ont sur la ligne de leur titre) */
       const pk = k === "chg" && f === "des" && !isNew && !r.t && !INS_CELL_LVL;
-      return `<td class="${cls} ins-td${pk ? " ins-pkc" : ""}${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
+      /* v681 : GLOBAL (marché + avenants) — prix moyen pondéré d'une même désignation / charge à prix différents ; toucher = détail par étape */
+      const pmp = (k === "des" || k === "chg") && f === "p" && r.pmp && Array.isArray(r.__det);
+      const pmpWhy = pmp ? "PRIX MOYEN PONDÉRÉ : " + r.__det.map(x => x.o + " " + money(x.q) + " × " + money(x.p)).join(" ; ") : "";
+      return `<td class="${cls} ins-td${pk ? " ins-pkc" : ""}${pmp ? " ins-pmp" : ""}${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : pmp ? ` data-why="${esc(pmpWhy)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
         ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
         value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off">${pk ? condBtn(r) : ""}</td>`;
     };
@@ -10511,6 +10617,7 @@ function renderBudgetList() {
         if (!b || !b.go) return;
         if (b.go === "inf") { openInfo(); return; }
         if (b.go === "conf") { shell.__confWin && shell.__confWin(); return; }   /* v672 (bloc 2) */
+        if (b.go === "avc") { shell.__avcWin && shell.__avcWin(); return; }   /* v681 */
         if (b.go === "dup") { shell.__dupExisting && shell.__dupExisting(true); return; }   /* v626 */
         if (b.go === "hier") { const c = shell.querySelector('.ins-hcol[data-ik="sec"]'); if (c) { c.scrollIntoView({ block: "center", behavior: "smooth" }); const m = c.querySelector(".act-umiss input"); if (m) setTimeout(() => m.focus(), 350); } return; }
         /* v581 (remarque 8) : renvoi vers une colonne de la hiérarchie */
@@ -10543,6 +10650,9 @@ function renderBudgetList() {
         const K = [...KP].filter(k => !KC.has(k));
         (INS.links || []).forEach(l => { if (K.includes(l.lot + "|" + l.sec)) (l.prd || []).forEach(x => P.add(x.id)); });
         if (K.length) out.push({ lab: "TÂCHES SANS CHARGE", n: K.length, go: "prdnc", list: K, prd: P, req: false }); }
+      /* v681 : avenant — même désignation dans le même lot qu'une étape précédente, avec d'autres activités */
+      { let C = []; try { C = budget.inst && budget.inst.parent && !budget.inst.virtual ? sviAvContra(budget.inst.ref) : []; } catch (e) {}
+        if (C.length) out.push({ lab: "CONTRADICTIONS AVEC LES ÉTAPES PRÉCÉDENTES", n: C.length, go: "avc", names: C.slice(0, 4).map(x => x.des + " — " + x.lot), req: false }); }
       /* v672 (bloc 2) : CONFLITS de la base V3 (mes valeurs non retenues) — traités ligne par ligne */
       if ((INS.conf || []).length) out.push({ lab: "CONFLITS (BASE V3)", n: INS.conf.length, go: "conf", req: false });
       /* v667 (axe 8) : verrous DÉBUT / FIN dépassés (non bloquant) — mène au DÉTAIL DÉLAIS */
@@ -10634,6 +10744,16 @@ function renderBudgetList() {
       });
     };
     shell.__confWin = () => confWin();
+    /* v681 : fenêtre CONTRADICTIONS (avenant) */
+    shell.__avcWin = () => {
+      const C = sviAvContra(budget.inst.ref), d = sviWinNew();
+      d.innerHTML = sviWinCard({ cls: "cmp-card", close: "data-x", title: "CONTRADICTIONS AVEC LES ÉTAPES PRÉCÉDENTES",
+        body: `<div class="pv-sub">MÊME DÉSIGNATION (INTITULÉ + UNITÉ) DANS LE MÊME LOT : LES ACTIVITÉS PRIMAIRE ET SECONDAIRE DOIVENT ÊTRE LES MÊMES (LOT DIFFÉRENT = ACTIVITÉS LIBRES).</div>
+          <table class="pv-t"><thead><tr><th>DÉSIGNATION</th><th>LOT</th><th>ATTENDU (ÉTAPE)</th><th>DANS CET AVENANT</th></tr></thead><tbody>${C.map(x => `<tr><td>${esc(x.des)}</td><td>${esc(x.lot)}</td><td>${esc(x.att)} <small>(${esc(x.st)})</small></td><td class="rat-err">${esc(x.got)}</td></tr>`).join("")}</tbody></table>`,
+        foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
+      sviWinShow(d);
+      d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) d.remove(); });
+    };
     shell.__figeWhy = () => insFigeWhy();
     shell.__figeBlocks = () => insFigeBlocks();
     const insUnlCount = () => { const n = insUnlinked(); return INS_LINKED_KINDS.reduce((t, k) => t + n[k].length, 0); };
@@ -19162,6 +19282,9 @@ ${A}</Assignments>
         { a: "dup", lab: "DUPLIQUER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>' },
         { a: "lay", lab: "DISPOSITION PAR DÉFAUT", off: !rb || rb.disabled, ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
         ...(INS ? [{ a: "paq", lab: "PLAN D'ASSURANCE QUALITÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
+        /* v681 : premier avenant — une seule fois (aucun avenant encore), marché initial validé */
+        ...(INS && budget.inst && !budget.inst.parent && !budget.inst.virtual && sviAvStages(budget.inst.ref).length === 1 ? [{ a: "av", lab: "AJOUTER UN AVENANT", off: budget.inst.state !== "valide", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12.5 10v7M9 13.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
+        ...(INS && budget.inst && (budget.inst.parent || sviAvStages(budget.inst.ref).length > 1) ? [{ a: "avl", lab: "MARCHÉ ET AVENANTS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
         ...(INS ? [{ a: "ver", lab: "VERSIONS ET SCÉNARIOS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="6" cy="18" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="18" cy="9" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 8.2v7.6M6 13c0-3 4-4 9.8-4" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>' }] : []),
         ...(INS ? [{ a: "ctr", lab: "CONTRAT (CPS)", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 11h5M10 15h5M10 19h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' }] : []),
         ...(INS ? [{ a: "plans", lab: "PLANS ET MÉTRÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5l6-2 6 2 6-2v16l-6 2-6-2-6 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 3v16M15 5v16" stroke="currentColor" stroke-width="1.4"/></svg>' }] : []),
@@ -19188,6 +19311,8 @@ ${A}</Assignments>
         else if (it.dataset.a === "lay") $("layResetBtn")?.click();
         else if (it.dataset.a === "paq") qqPaqOpen();
         else if (it.dataset.a === "ctr") ctrWin();
+        else if (it.dataset.a === "av") { svConfirm({ title: "AJOUTER UN AVENANT", text: "AVENANT 1 (" + budget.inst.ref + "-AV1) : UN BUDGET À PART, EN INSTANCE, QUI NE CONTIENT QUE LES DONNÉES DE L'AVENANT. LE MARCHÉ INITIAL RESTE TEL QU'IL A ÉTÉ VALIDÉ.", ok: "CRÉER", tone: "neutral" }).then(go => { if (go && window.__sviAvAdd) window.__sviAvAdd(budget.inst.ref); }); }
+        else if (it.dataset.a === "avl") { const root = budget.inst.parent || budget.inst.ref; if (window.__sviAvWin) window.__sviAvWin(root); }
         else if (it.dataset.a === "ver") verWin();   /* v670 (axes 1 et 4) */   /* v669 (axe 3) */
         else if (it.dataset.a === "rat") ratWin();
         else if (it.dataset.a === "ind") indWin();   /* v679 */
@@ -20724,49 +20849,52 @@ ${A}</Assignments>
         mo, chg, prd, mg: prd - chg, mgp: prd ? (prd - chg) / prd * 100 : null, lots: (d.lot || []).filter(r => !r.t).length };
     };
     const verFmt = (k, v) => v === null || v === undefined || v === "" ? "—" : k === "fin" ? dFr(v) : k === "effT" ? v : k === "mgp" ? String(Math.round(v * 10) / 10).replace(".", ",") + " %" : k === "eff" ? String(Math.round(v * 10) / 10).replace(".", ",") : ["mo", "chg", "prd", "mg"].includes(k) ? money(v) : String(v);
-    /* origine des lignes (avenants) : première étape (MARCHÉ INITIAL, AVENANT n) qui contient la ligne ; sinon l'avenant en cours */
+    /* v681 : origine des lignes = l'étape du budget (MARCHÉ INITIAL, AVENANT n) ; dans GLOBAL, les étapes d'où vient la ligne */
     const verOrig = () => {
-      const V = INS.ver || {}, A = (V.L || []).filter(x => x.kind === "av").sort((a, b) => a.n - b.n);
+      const st = budget.inst ? sviAvName(budget.inst) : "MARCHÉ INITIAL";
       const O = { des: {}, chg: {}, prd: {} };
-      ["des", "chg", "prd"].forEach(k => (INS[k] || []).forEach(r => {
-        const st = A.find(a => ((a.d || {})[k] || []).some(x => x.id === r.id));
-        O[k][r.id] = st ? st.nom : (V.avCur ? "AVENANT " + V.avCur : "MARCHÉ INITIAL");
-      }));
+      ["des", "chg", "prd"].forEach(k => (INS[k] || []).forEach(r => { O[k][r.id] = Array.isArray(r.__o) && r.__o.length ? r.__o.join(" + ") : st; }));
       return O;
     };
+    /* v681 : VERSIONS ET SCÉNARIOS — scénarios de cette étape ; DÉSARCHIVER ; un archivé reste en lecture seule ;
+       tableau des étapes (marché initial, avenants) avec une dernière colonne GLOBAL ; lignes = indicateurs de la liste commune */
     const verWin = () => {
-      INS.ver = INS.ver || { L: [], ind: ["fin", "dur", "but", "eff", "mo", "chg", "mg", "mgp"] };
-      const V = INS.ver; V.L = V.L || []; V.ind = V.ind || ["fin", "dur", "eff", "mg"];
-      const ed = INS_EDIT;
+      INS.ver = INS.ver || { L: [], ind: [] };
+      const V = INS.ver; V.L = (V.L || []).filter(x => x.kind === "sc"); V.ind = V.ind || [];
+      const ed = !!INS && (budget.inst.state || "instance") === "instance" && !budget.inst.virtual;   /* les boutons restent actifs sur un scénario archivé affiché */
       if (!V.act) { const id = insId(); V.L.push({ id, kind: "sc", nom: "SCÉNARIO 1", date: localDT(new Date()) }); V.act = id; }
       const d = sviWinNew();
+      const reopenBudget = () => { d.remove(); openBudgetDetail(ref); setTimeout(() => { try { shell.__verWin && shell.__verWin(); } catch (e) {} }, 300); };
       const draw = () => {
-        const SC = V.L.filter(x => x.kind === "sc"), AV = V.L.filter(x => x.kind === "av").sort((a, b) => a.n - b.n);
+        const SC = V.L.filter(x => x.kind === "sc");
         const LIB = indLoad(); V.ind = V.ind.filter(k => LIB.some(I => I.id === k));
-        const ST = SC.map(x => x.id === V.act ? INS : x.d || null), EL = ST.map(s => s ? indEls(s) : null);
-        /* avenants : montants par origine, quantités augmentées */
-        const O = verOrig(), byO = {};
-        INS.des.filter(r => !r.t).forEach(r => { const o = O.des[r.id], m = (insLinkedQ(INS, r.id) ?? num(r.q || 0)) * num(r.p || 0); byO[o] = (byO[o] || 0) + m; });
-        const ini = AV[0] && AV[0].d, inc = ini ? INS.des.filter(r => !r.t).map(r => { const o = (ini.des || []).find(x => x.id === r.id); if (!o) return null; const q0 = insLinkedQ(ini, o.id) ?? num(o.q || 0), q1 = insLinkedQ(INS, r.id) ?? num(r.q || 0); return q1 > q0 + 1e-9 ? { r, q0, q1 } : null; }).filter(Boolean) : [];
-        d.innerHTML = sviWinCard({ cls: "cmp-card svc-full", close: "data-x", title: "VERSIONS ET SCÉNARIOS",
+        const ST = SC.map(x => x.id === V.act ? INS : x.d || null), EL = ST.map(s2 => s2 ? indEls(s2) : null);
+        /* étapes : marché initial, avenants, puis GLOBAL */
+        const STG = budget.inst && !budget.inst.virtual ? sviAvStages(budget.inst.ref) : [];
+        const root = STG[0], cols = STG.map(st => ({ nom: sviAvName(st), ref: st.ref, state: st.state, d: st.ref === budget.inst.ref ? INS : sviBudgetData(JSON.parse(JSON.stringify(st))) }));
+        if (root) cols.push({ nom: "GLOBAL", ref: "", state: "", d: sviAvMerge(root.ref) });
+        const CE = cols.map(c => c.d ? indEls(c.d) : null);
+        const indRows = (vals, cls) => V.ind.map(k => { const IN = LIB.find(I => I.id === k); return `<tr><td><b>${esc(IN.nom)}</b> ${ed && cls === "sc" ? `<button type="button" class="cmp-del" data-irm="${esc(k)}">✕</button>` : ""}</td>${vals(IN)}</tr>`; }).join("");
+        const stLab = s2 => s2 === "valide" ? "VALIDÉ" : s2 === "fige" ? "FIGÉ" : s2 ? "EN INSTANCE" : "CONSOLIDÉ";
+        d.innerHTML = sviWinCard({ cls: "cmp-card svc-full", close: "data-x", title: "VERSIONS ET SCÉNARIOS — " + esc(budget.inst ? sviAvName(budget.inst) : ""),
           body: `<div class="fz-blk">SCÉNARIOS ${svCnt(SC.length)}</div>
             <div class="cmp-bar">${ed ? `<button type="button" class="svc-b" data-new>+ NOUVEAU SCÉNARIO (COPIE DE L'ACTIF)</button>` : ""}</div>
-            <div class="cmp-scroll"><table class="cmp-t ver-t"><thead><tr><th>INDICATEUR</th>${SC.map(x => `<th class="${x.id === V.act ? "ver-act" : ""}${x.arch ? " ver-arch" : ""}">${ed && !x.arch ? `<input class="cmp-nm ver-nm" data-id="${x.id}" value="${esc(x.nom)}">` : esc(x.nom)}<br><small>${x.id === V.act ? "ACTIF" : x.arch ? "ARCHIVÉ" : "EN RÉSERVE"}</small></th>`).join("")}</tr></thead><tbody>
-              ${V.ind.map(k => { const IN = LIB.find(I => I.id === k); return `<tr><td><b>${esc(IN.nom)}</b> ${ed ? `<button type="button" class="cmp-del" data-irm="${esc(k)}">✕</button>` : ""}</td>${ST.map((s, j) => `<td class="r${SC[j].id === V.act ? " ver-act" : ""}">${s ? esc(indCalc(IN, s, EL[j]).txt) : "—"}</td>`).join("")}</tr>`; }).join("")}
+            <div class="cmp-scroll"><table class="cmp-t ver-t"><thead><tr><th>INDICATEUR</th>${SC.map(x => `<th class="${x.id === V.act ? "ver-act" : ""}${x.arch ? " ver-arch" : ""}">${ed && !x.arch ? `<input class="cmp-nm ver-nm" data-id="${x.id}" value="${esc(x.nom)}">` : esc(x.nom)}<br><small>${x.id === V.act ? (x.arch ? "ACTIF — ARCHIVÉ (LECTURE SEULE)" : "ACTIF") : x.arch ? "ARCHIVÉ" : "EN RÉSERVE"}</small></th>`).join("")}</tr></thead><tbody>
+              ${indRows(IN => ST.map((s2, j) => `<td class="r${SC[j].id === V.act ? " ver-act" : ""}">${s2 ? esc(indCalc(IN, s2, EL[j]).txt) : "—"}</td>`).join(""), "sc")}
               <tr class="ver-plus"><td colspan="${SC.length + 1}">${ed ? `<button type="button" class="svc-b ver-ip" data-ip>+</button> <span class="cmp-leg">INDICATEUR DE LA LISTE OU NOUVEL INDICATEUR</span>` : ""}</td></tr>
-              <tr><td><b>OFFERT AU CLIENT</b></td>${SC.map(x => `<td class="c"><input type="checkbox" class="ver-of" data-id="${x.id}"${x.of ? " checked" : ""}${ed ? "" : " disabled"}></td>`).join("")}</tr>
-              ${ed ? `<tr><td></td>${SC.map(x => `<td class="c ver-acts">${x.id === V.act ? "" : `<button type="button" class="svc-b" data-sw="${x.id}">BASCULER</button>`}${x.arch ? "" : `<button type="button" class="svc-b svc-ok" data-keep="${x.id}">RETENIR</button>`}${x.id === V.act ? "" : `<button type="button" class="cmp-del" data-del="${x.id}">✕</button>`}</td>`).join("")}</tr>` : ""}
+              <tr><td><b>OFFERT AU CLIENT</b></td>${SC.map(x => `<td class="c"><input type="checkbox" class="ver-of" data-id="${x.id}"${x.of ? " checked" : ""}${ed && !x.arch ? "" : " disabled"}></td>`).join("")}</tr>
+              ${ed ? `<tr><td></td>${SC.map(x => `<td class="c ver-acts">${x.id === V.act ? "" : `<button type="button" class="svc-b" data-sw="${x.id}">BASCULER</button>`}${x.arch ? `<button type="button" class="svc-b" data-unarch="${x.id}">DÉSARCHIVER</button>` : `<button type="button" class="svc-b svc-ok" data-keep="${x.id}">RETENIR</button>`}${x.id === V.act ? "" : `<button type="button" class="cmp-del" data-del="${x.id}">✕</button>`}</td>`).join("")}</tr>` : ""}
             </tbody></table></div>
-            <div class="fz-blk">MARCHÉ INITIAL ET AVENANTS ${svCnt(AV.length)}</div>
-            <div class="cmp-bar">${ed ? `<button type="button" class="svc-b" data-av>${AV.length ? "+ NOUVEL AVENANT (AVENANT " + (AV.length) + " FIGÉ)" : "+ FIGER LE MARCHÉ INITIAL ET OUVRIR L'AVENANT 1"}</button>` : ""}
-              <span class="cmp-leg">${AV.length ? "EN COURS : AVENANT " + (V.avCur || AV.length) : "AUCUN AVENANT : TOUT LE BUDGET EST LE MARCHÉ INITIAL"}</span></div>
-            ${AV.length ? `<table class="pv-t"><thead><tr><th>ORIGINE</th><th class="number">MONTANT HT</th></tr></thead><tbody>${Object.keys(byO).sort().map(o => `<tr><td>${esc(o)}</td><td class="number">${money(byO[o])}</td></tr>`).join("")}<tr><td><b>BUDGET CONSOLIDÉ</b></td><td class="number"><b>${money(Object.values(byO).reduce((a, b) => a + b, 0))}</b></td></tr></tbody></table>
-              <div class="fz-blk">QUANTITÉS AUGMENTÉES SUR DES LIGNES DU MARCHÉ INITIAL (TOLÉRÉES PAR LA COMMANDE) ${svCnt(inc.length)}</div>
-              ${inc.length ? `<table class="pv-t"><thead><tr><th>DÉSIGNATION</th><th class="number">QPB INITIALE</th><th class="number">QPB ACTUELLE</th></tr></thead><tbody>${inc.map(x => `<tr><td>${esc(lkName("des", x.r.id))}</td><td class="number">${money(x.q0)}</td><td class="number">${money(x.q1)}</td></tr>`).join("")}</tbody></table>` : `<div class="fz-none">AUCUNE</div>`}` : ""}`,
+            ${root ? `<div class="fz-blk">MARCHÉ INITIAL ET AVENANTS ${svCnt(STG.length - 1)}</div>
+            <div class="cmp-scroll ver-av"><table class="cmp-t ver-t"><thead><tr><th>INDICATEUR</th>${cols.map(c => `<th class="${c.ref === budget.inst.ref ? "ver-act" : ""}">${esc(c.nom)}<br><small>${esc(c.ref ? c.ref + " · " + stLab(c.state) : "MARCHÉ + AVENANTS")}</small></th>`).join("")}</tr></thead><tbody>
+              ${indRows(IN => cols.map((c, j) => `<td class="r${c.ref === budget.inst.ref ? " ver-act" : ""}">${c.d ? esc(indCalc(IN, c.d, CE[j]).txt) : "—"}</td>`).join(""), "av") || `<tr><td colspan="${cols.length + 1}" class="empty">AJOUTER DES INDICATEURS PAR LA LIGNE « + » DES SCÉNARIOS</td></tr>`}
+            </tbody></table></div>
+            <div class="cmp-leg">UN AVENANT EST UN BUDGET À PART (RÉF. ${esc(root.ref)}-AV1…) : LE PREMIER S'AJOUTE PAR LE MENU ⋯ DU BUDGET, UNE FOIS LE MARCHÉ INITIAL VALIDÉ ; LES SUIVANTS PAR LE + DE LA LISTE DES AVENANTS.</div>` : ""}`,
           foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
       };
       const save = (what, det) => { insSave(); histLog("VERSIONS", what, det); };
       draw(); sviWinShow(d);
+      const archOf = () => { const x = V.L.find(y => y.id === V.act); return !!(x && x.arch); };
       d.addEventListener("change", e => {
         const t = e.target;
         if (t.classList.contains("ver-nm")) { const x = V.L.find(y => y.id === t.dataset.id); if (x) { x.nom = t.value.trim().toUpperCase() || x.nom; save("SCÉNARIO RENOMMÉ", x.nom); } return; }
@@ -20779,32 +20907,42 @@ ${A}</Assignments>
         if (ip) { indPlusMenu(ip, V.ind, id => { V.ind.push(id); save("INDICATEUR AJOUTÉ", (indLoad().find(I => I.id === id) || {}).nom || id); draw(); },
           w => { if (w === "new") { d.remove(); indDesignWin(null, I => { if (I) { V.ind.push(I.id); save("INDICATEUR AJOUTÉ", I.nom); } verWin(); }); } else if (w === "list") { d.remove(); indWin(() => verWin()); } }); return; }
         const ir = e.target.closest("[data-irm]"); if (ir) { V.ind = V.ind.filter(k => k !== ir.dataset.irm); save("INDICATEUR RETIRÉ", ir.dataset.irm); draw(); return; }
-        if (e.target.closest("[data-new]")) { const n = V.L.filter(x => x.kind === "sc").length + 1; V.L.push({ id: insId(), kind: "sc", nom: "SCÉNARIO " + n, date: localDT(new Date()), d: verSnap() }); save("NOUVEAU SCÉNARIO", "SCÉNARIO " + n); draw(); return; }
+        /* v681 : premier numéro libre */
+        if (e.target.closest("[data-new]")) { const used = new Set(V.L.map(x => (String(x.nom).match(/^SCÉNARIO (\d+)$/) || [])[1]).filter(Boolean).map(Number)); let n = 1; while (used.has(n)) n++;
+          V.L.push({ id: insId(), kind: "sc", nom: "SCÉNARIO " + n, date: localDT(new Date()), d: verSnap() }); save("NOUVEAU SCÉNARIO", "SCÉNARIO " + n); draw(); return; }
         const sw = e.target.closest("[data-sw]");
         if (sw) {
           const x = V.L.find(y => y.id === sw.dataset.sw), cur = V.L.find(y => y.id === V.act);
           if (!x || !x.d) return;
+          const was = archOf();
           if (cur) cur.d = verSnap();
-          verLoad(x.d); delete x.d; V.act = x.id; save("BASCULE", x.nom); refreshAll(); draw(); return;
+          verLoad(x.d); delete x.d; V.act = x.id; save("BASCULE", x.nom + (x.arch ? " (ARCHIVÉ : LECTURE SEULE)" : ""));
+          if (was !== archOf()) { reopenBudget(); return; }   /* lecture seule mise ou levée */
+          refreshAll(); draw(); return;
+        }
+        const ua = e.target.closest("[data-unarch]");
+        if (ua) {
+          const x = V.L.find(y => y.id === ua.dataset.unarch);
+          d.remove();
+          if (!(await svConfirm({ title: "DÉSARCHIVER " + x.nom, text: x.nom + " REPASSE EN RÉSERVE : IL REDEVIENT MODIFIABLE ET PEUT ÊTRE RETENU.", ok: "DÉSARCHIVER", tone: "neutral" }))) { sviWinShow(d); draw(); return; }
+          const was = archOf(); x.arch = false; save("SCÉNARIO DÉSARCHIVÉ", x.nom);
+          if (was !== archOf()) { reopenBudget(); return; }
+          sviWinShow(d); draw(); return;
         }
         const kp = e.target.closest("[data-keep]");
         if (kp) {
           const x = V.L.find(y => y.id === kp.dataset.keep);
           d.remove();
           if (!(await svConfirm({ title: "RETENIR " + x.nom, text: x.nom + " DEVIENT LE BUDGET DE RÉFÉRENCE ; LES AUTRES SCÉNARIOS SONT ARCHIVÉS (CONSULTABLES, EN LECTURE SEULE).", ok: "RETENIR", tone: "neutral" }))) { sviWinShow(d); draw(); return; }
+          const was = archOf();
           if (x.id !== V.act) { const cur = V.L.find(y => y.id === V.act); if (cur) cur.d = verSnap(); verLoad(x.d); delete x.d; V.act = x.id; }
           V.L.forEach(y => { if (y.kind === "sc") y.arch = y.id !== x.id; }); x.ret = true;
-          save("SCÉNARIO RETENU", x.nom); refreshAll(); sviWinShow(d); draw(); return;
+          save("SCÉNARIO RETENU", x.nom);
+          if (was !== archOf()) { reopenBudget(); return; }
+          refreshAll(); sviWinShow(d); draw(); return;
         }
         const dl = e.target.closest("[data-del]");
         if (dl) { const x = V.L.find(y => y.id === dl.dataset.del); d.remove(); if (await svConfirm({ title: "SUPPRIMER " + x.nom, text: "CE SCÉNARIO ET SES DONNÉES SERONT SUPPRIMÉS.", ok: "SUPPRIMER" })) { V.L = V.L.filter(y => y !== x); save("SCÉNARIO SUPPRIMÉ", x.nom); } sviWinShow(d); draw(); return; }
-        if (e.target.closest("[data-av]")) {
-          const AV = V.L.filter(x => x.kind === "av"), n = AV.length, nom = n ? "AVENANT " + n : "MARCHÉ INITIAL";
-          d.remove();
-          if (!(await svConfirm({ title: "FIGER " + nom, text: "L'ÉTAT ACTUEL DU BUDGET EST GARDÉ COMME « " + nom + " » ; LE BUDGET CONTINUE SUR L'AVENANT " + (n + 1) + ". CHAQUE LIGNE GARDE SON ORIGINE.", ok: "FIGER", tone: "neutral" }))) { sviWinShow(d); draw(); return; }
-          V.L.push({ id: insId(), kind: "av", n, nom, date: localDT(new Date()), d: verSnap() }); V.avCur = n + 1;
-          save("AVENANT", nom + " FIGÉ — AVENANT " + (n + 1) + " OUVERT"); sviWinShow(d); draw();
-        }
       });
     };
     shell.__verWin = () => verWin();
@@ -24766,6 +24904,50 @@ ${A}</Assignments>
      APERÇU / IMPRESSION
      ------------------------------------------------------- */
 
+  /* =========================================================
+     v681 : AVENANTS — liste intermédiaire d'un budget à avenants (onglets EN INSTANCE / VALIDÉ, cachés quand vides),
+     + (nouvel avenant, si le dernier est validé) et GLOBAL ; ajout d'un avenant (mini-budget « réf.-AVn »)
+     ========================================================= */
+  /* ouvre un budget de la famille : depuis un budget ouvert, retour propre à la liste (bouton ←) puis ouverture */
+  const sviAvOpen = r => { const back = document.getElementById("budgetBackBtn"); if (back) back.click(); try { localStorage.setItem("svi_lastbdg_v1", r); } catch (e) {} renderBudgetList(); };
+  window.__sviAvOpen = sviAvOpen;
+  const sviAvAdd = rootRef => {
+    const L = sviInstGet(), S = sviAvStages(rootRef), root = S[0], last = S[S.length - 1];
+    if (!root || last.state !== "valide") { sviAlert((S.length > 1 ? "LE DERNIER AVENANT" : "LE MARCHÉ INITIAL") + " DOIT ÊTRE VALIDÉ AVANT D'OUVRIR UN AVENANT.", "NOUVEL AVENANT"); return null; }
+    const n = S.length, r = root.ref + "-AV" + n;
+    const it = { ref: r, project: root.project, intitule: root.intitule, client: root.client, state: "instance", created: localDT(new Date()), parent: root.ref, avn: n, data: {} };
+    sviInstSet(L.concat(it));
+    return r;
+  };
+  window.__sviAvAdd = rootRef => { const r = sviAvAdd(rootRef); if (r) sviAvOpen(r); return r; };
+  const sviAvWin = rootRef => {
+    const S = sviAvStages(rootRef); if (!S.length) return;
+    const root = S[0], live = S.filter(x => x.state !== "valide"), done = S.filter(x => x.state === "valide");
+    let mode = live.length ? "inst" : "valid";
+    const d = sviWinNew();
+    const stLab = x => x.state === "valide" ? "VALIDÉ" : x.state === "fige" ? "FIGÉ" : "EN INSTANCE";
+    const draw = () => {
+      const L = mode === "inst" ? live : done, canAdd = S[S.length - 1].state === "valide";
+      d.innerHTML = sviWinCard({ cls: "cmp-card av-card", close: "data-x", title: esc(U_(root.project) + " " + root.ref) + " — MARCHÉ ET AVENANTS",
+        body: `<div class="av-bar">${live.length ? `<button type="button" class="svc-b av-tab${mode === "inst" ? " on" : ""}" data-m="inst">⌛ EN INSTANCE ${svCnt(live.length)}</button>` : ""}${done.length ? `<button type="button" class="svc-b av-tab${mode === "valid" ? " on" : ""}" data-m="valid">≡ VALIDÉS ${svCnt(done.length)}</button>` : ""}
+            <span class="av-sp"></span><button type="button" class="svc-b" data-glob>GLOBAL</button><button type="button" class="svc-b av-add" data-add${canAdd ? "" : ' disabled title="LE DERNIER AVENANT DOIT ÊTRE VALIDÉ"'}>+ AVENANT</button></div>
+          <table class="pv-t av-t"><thead><tr><th>ÉTAPE</th><th>RÉFÉRENCE</th><th>ÉTAT</th><th>CRÉÉ LE</th></tr></thead>
+            <tbody>${L.map(x => `<tr class="av-row av-${x.state || "instance"}" data-r="${esc(x.ref)}"><td><b>${esc(sviAvName(x))}</b></td><td>${esc(U_(x.project) + " " + x.ref)}</td><td>${stLab(x)}</td><td>${esc(String(x.created || "").replace("T", " ").slice(0, 16))}</td></tr>`).join("")}</tbody></table>
+          ${canAdd ? "" : `<div class="cmp-leg">+ AVENANT : LE DERNIER (${esc(sviAvName(S[S.length - 1]))}) DOIT D'ABORD ÊTRE VALIDÉ.</div>`}`,
+        foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
+    };
+    draw(); sviWinShow(d);
+    d.addEventListener("click", async e => {
+      if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+      const m = e.target.closest("[data-m]"); if (m) { mode = m.dataset.m; draw(); return; }
+      const tr = e.target.closest("tr[data-r]"); if (tr) { d.remove(); sviAvOpen(tr.dataset.r); return; }
+      if (e.target.closest("[data-glob]")) { d.remove(); sviAvOpen(root.ref + "-GLOBAL"); return; }
+      const ad = e.target.closest("[data-add]");
+      if (ad && !ad.disabled) { d.remove(); if (await svConfirm({ title: "NOUVEL AVENANT", text: "AVENANT " + S.length + " (" + root.ref + "-AV" + S.length + ") : UN BUDGET À PART, EN INSTANCE, QUI NE CONTIENT QUE LES DONNÉES DE L'AVENANT.", ok: "CRÉER", tone: "neutral" })) window.__sviAvAdd(root.ref); }
+    });
+  };
+  window.__sviAvWin = sviAvWin;
+
   table.onclick = event => {
 
     /* « ! » : lire l'alerte sans ouvrir le détail du budget */
@@ -24805,7 +24987,7 @@ ${A}</Assignments>
       svConfirm({ title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + g.project + " " + r + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
         if (!go) return;
         try {
-          const l = sviInstGet().filter(x => x.ref !== r);
+          const l = sviInstGet().filter(x => x.ref !== r && x.parent !== r);   /* v681 : ses avenants avec lui */
           sviInstSet(l);
         } catch (e) {}
         renderBudgetList();
@@ -24835,6 +25017,8 @@ ${A}</Assignments>
       );
 
     if (row) {
+      /* v681 : budget à avenants → liste intermédiaire */
+      if (sviAvStages(row.dataset.budgetRef).length > 1) { sviAvWin(row.dataset.budgetRef); return; }
       openBudgetDetail(
         row.dataset.budgetRef
       );
