@@ -15,7 +15,10 @@
     const INS_HELD = INS_LIVE_EDIT && budget.inst.ref && typeof sviLockAll === "function" ? sviLockAll(budget.inst.ref).find(k => !k.onglet) || null : null;
     const INS_EDIT = INS_LIVE_EDIT && !INS_HELD;
     if (INS && typeof sviLockOpen === "function") sviLockOpen(budget.inst.ref, INS_EDIT);
-    window.__sviZoneCtx = INS ? { ref: budget.inst.ref, edit: INS_EDIT, shell, tab: () => insTabName(active) } : null;
+    window.__sviZoneCtx = INS ? { ref: budget.inst.ref, edit: INS_EDIT, shell, tab: () => insTabName(active),
+      /* v678 : état du budget à l'entrée dans une zone, remis si la zone était déjà prise */
+      snap: () => JSON.stringify(INS),
+      restore: (str, why) => { const o = JSON.parse(str); Object.keys(INS).forEach(k => { delete INS[k]; }); Object.assign(INS, o); insSave(); try { histLog("BASE V3", "MODIFICATIONS ANNULÉES", why || ""); } catch (e) {} try { refreshAll(); } catch (e) {} } } : null;
     if (INS) { window.__sviLockRecheck = () => { if (typeof sviZonePaint === "function") sviZonePaint(); }; setTimeout(() => { if (typeof sviZonePaint === "function") sviZonePaint(); }, 0); }
     /* v672 : budget fusionné ou reçu de la base pendant qu'il est ouvert → données à l'écran remplacées */
     if (INS) window.__sviSyncReopen = r => {

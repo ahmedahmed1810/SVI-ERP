@@ -2107,6 +2107,24 @@ def main():
         check("v676 : verrou par zone — DÉTAIL DÉLAIS et LOTS pris = grisés, saisie LOTS refusée ; ACTIVITÉS PRIMAIRES modifiable et devient ma zone ; DÉTAIL CHARGES libre",
               r76 and "tab" in r76[1] and "lot" in r76[1] and r76[2] and not r76[3] and r76[4] and r76[5] and r76[6] == "ACTIVITÉS PRIMAIRES" and hasDly() is not None and "tab" not in h76 and "lot" in h76, [r76, h76])
 
+        # v678 : zone prise juste avant moi — mes modifications depuis mon entrée dans la zone sont annulées
+        r78 = pg.evaluate("""async () => { const r = window.__sviOpenRef, X = window.__sviZoneCtx, I = JSON.parse(X.snap());
+            const realQ = window.apiPost; window.apiPost = async (a, b) => a === 'v3Lock' ? (await new Promise(res => setTimeout(res, 300)), { ok: true, held: { user: 'BRAHIM', onglet: b.onglet, ts: Date.now() - 5000 } }) : { ok: true };
+            const pi = document.querySelector('.ins-hcol[data-ik="prim"] input'); window.__sviOpenTab = '';
+            pi.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+            const ins = [...document.querySelectorAll('*')].find(e => e.__insDly) ; 
+            const L = JSON.parse(X.snap()); const row = (L.prim || []).find(x => !x.t); const before = row && row.v;
+            /* modification dans la zone pendant l'attente de la réponse */
+            const P = I.prim.find(x => !x.t); const stub = JSON.parse(X.snap()); stub.prim.find(x => x.id === P.id).v = 'MODIF DU SECOND';
+            X.restore(JSON.stringify(stub));
+            const mid = JSON.parse(X.snap()).prim.find(x => x.id === P.id).v;
+            await new Promise(res => setTimeout(res, 900));
+            const after = JSON.parse(X.snap()).prim.find(x => x.id === P.id).v;
+            window.apiPost = realQ; delete SVI_SYNC.locks[r]; window.__sviLockRecheck && window.__sviLockRecheck(); window.__sviOpenTab = '';
+            return [before, mid, after, (document.querySelector('.sv-toast, #svToast') || {}).textContent || '']; }""")
+        check("v678 : zone prise par BRAHIM juste avant moi = ma modification annulée (retour à l'état d'entrée dans la zone) + message",
+              r78 and r78[1] == "MODIF DU SECOND" and r78[2] == r78[0], r78)
+
         # v668 (axe 7, multi-projets, signatures)
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.__r8 = JSON.stringify({{ chg: I.chg, rat: I.rat }});
             I.chg.push({{ id: 'ra1', des: 'ACIER HA12', u: 'KG', q: 800, p: 12 }}, {{ id: 'ra2', des: 'BETON B25 R', u: 'M3', q: 10, p: 900 }}, {{ id: 'ra3', des: 'MACON R', u: 'JH', q: 20, p: 200 }});
