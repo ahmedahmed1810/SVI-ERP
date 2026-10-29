@@ -6205,7 +6205,7 @@ function renderBudgetList() {
 
     /* v698 : plus de bouton + — dernière ligne « SAISIR ICI… » (fenêtre INF du nouveau budget) */
     /* v699 : lignes SAISIR ICI seulement dans la liste EN INSTANCE, en rouge */
-    const NEWROW = listMode === "inst" ? `<tr class="bdg-newrow" data-newbdg="1"><td colspan="7">SAISIR ICI…</td></tr>` : "";
+    const NEWROW = listMode === "inst" ? `<tr class="bdg-newrow" data-newbdg="1"><td colspan="7">AJOUTER UN BUDGET ICI…</td></tr>` : "";
     if (!data.length) {
       tbody.innerHTML = `<tr><td colspan="7" class="empty">AUCUN BUDGET</td></tr>` + NEWROW;
       return;
@@ -6288,7 +6288,7 @@ function renderBudgetList() {
           <td><span class="bdg-kid-lab">${esc(k.lab)}</span> <small>${esc(k.ref)}</small></td><td>${esc(k.budget)}</td><td title="${esc(k.intitule)}">${esc(k.intitule)}</td>
           <td class="number">${money(k.ttc)}</td><td>${esc(k.validated)}</td><td>${esc(k.entered)}</td><td></td></tr>`).join("")}
         ${open && listMode === "inst" ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
-          return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="7">SAISIR ICI…</td></tr>`; })() : ""}
+          return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="7">AJOUTER UN AVENANT ICI…</td></tr>`; })() : ""}
       `; }).join("") + NEWROW;
   }
 
@@ -7910,7 +7910,7 @@ function renderBudgetList() {
       /* FORMAT 109 : DÉSIGNATION client sur plusieurs lignes si elle est trop longue (la ligne devient plus haute) */
       /* FORMAT 122 : ligne existante — texte affiché (appui long = glisser), un toucher ouvre la saisie */
       if (k === "des" && f === "des" && !isNew) return `<td class="${cls} ins-td ins-tdv${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}>${r.t ? `<span class="ins-tfz">${foldBtn(r)}</span>` : ""}<div class="ins-dv" data-f="des">${esc(val)}</div><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea>${r.t ? "" : `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>`}</td>`;
-      if (k === "des" && f === "des") return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} ${isNew ? 'placeholder="SAISIR ICI…"' : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea></td>`;
+      if (k === "des" && f === "des") return `<td class="${cls} ins-td${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : ""}><textarea class="ins-in ins-ta ${cls}" data-f="${f}" rows="1" enterkeyhint="next" ${locked ? "disabled" : ""} ${isNew ? 'placeholder="AJOUTER UNE DÉSIGNATION ICI…"' : ""} autocomplete="off" spellcheck="false">${esc(val)}</textarea></td>`;
       /* v530 : bouton CONDITIONNEMENT dans la case DÉSIGNATION d'une charge ; remarque 4 (v542) : seulement sur une charge sans titre
          (les charges regroupées l'ont sur la ligne de leur titre) */
       const pk = k === "chg" && f === "des" && !isNew && !r.t && !INS_CELL_LVL;
@@ -7919,7 +7919,7 @@ function renderBudgetList() {
       const pmpWhy = pmp ? "PRIX MOYEN PONDÉRÉ : " + r.__det.map(x => x.o + " " + money(x.q) + " × " + money(x.p)).join(" ; ") : "";
       return `<td class="${cls} ins-td${pk ? " ins-pkc" : ""}${pmp ? " ins-pmp" : ""}${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : pmp ? ` data-why="${esc(pmpWhy)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
         ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
-        value="${esc(val)}" ${isNew && f === "des" ? 'placeholder="SAISIR ICI…"' : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off">${pk ? condBtn(r) : ""}</td>`;
+        value="${esc(val)}" ${isNew && f === "des" ? `placeholder="${k === "chg" ? "AJOUTER UNE CHARGE ICI…" : k === "prd" ? "AJOUTER UN PRODUIT ICI…" : "AJOUTER UNE LIGNE ICI…"}"` : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off">${pk ? condBtn(r) : ""}</td>`;
     };
     let INS_CELL_LVL = 0;
     /* remarque 4 (v542) : conditionnement réglé sur l'article (tous les budgets, voir 26b) ou, avant, sur ce budget */
@@ -8912,7 +8912,7 @@ function renderBudgetList() {
                 <span class="ins-delc">${insDelCell(r)}</span>` : `<span>${esc(r.v || "")}</span>${actUCell(k, r)}`}
             </div>`)}
           ${INS_EDIT ? `<div class="ins-li ins-new" data-ik="${k}"><span class="ins-rdc"></span>
-              <input class="ins-in" data-f="v" enterkeyhint="next" placeholder="SAISIR ICI…" autocomplete="off">${k === "sec" ? `<span class="act-u"><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" autocomplete="off"></span>` : k === "prim" ? `<span class="act-u act-uro"></span>` : ""}<span class="ins-delc"></span></div>`
+              <input class="ins-in" data-f="v" enterkeyhint="next" placeholder="${k === "lot" ? "AJOUTER UN LOT ICI…" : "AJOUTER UNE ACTIVITÉ ICI…"}" autocomplete="off">${k === "sec" ? `<span class="act-u"><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" autocomplete="off"></span>` : k === "prim" ? `<span class="act-u act-uro"></span>` : ""}<span class="ins-delc"></span></div>`
             : (list.length ? "" : `<div class="bdg-h-item" style="opacity:.5;cursor:default">—</div>`)}
         </div>`;
       };
@@ -9961,7 +9961,7 @@ function renderBudgetList() {
           <td class="number">${inp(e, "cad", 1)}</td><td class="center">${inp(e, "u2")}</td>
           <td class="center qq-xt${ro ? " qq-ro" : ""}">${svCnt(n)}</td><td class="number">${n ? tot : ""}</td>${ro ? "" : `<td class="center"><input type="checkbox" class="qq-xcb" ${e.on ? "checked" : ""}></td>`}</tr>`;
       }).join("");
-      const nw = ro ? "" : `<tr class="qq-xnew"><td><input class="qq-xin" data-f="v" placeholder="SAISIR ICI… (ESSAI)" autocomplete="off" spellcheck="false"></td><td colspan="${ro ? 6 : 7}"></td></tr>`;
+      const nw = ro ? "" : `<tr class="qq-xnew"><td><input class="qq-xin" data-f="v" placeholder="AJOUTER UN ESSAI ICI…" autocomplete="off" spellcheck="false"></td><td colspan="${ro ? 6 : 7}"></td></tr>`;
       return `<table class="bdg-d-table qq-table" style="width:${ro ? 830 : 870}px"><colgroup><col style="width:300px"><col style="width:70px"><col style="width:100px"><col style="width:130px"><col style="width:80px"><col style="width:80px"><col style="width:70px">${ro ? "" : '<col style="width:40px">'}</colgroup>
         <thead><tr><th>ESSAI</th><th>UNITÉ</th><th>PRIX</th><th>1 TOUS LES (VIDE = PAR TÂCHE)</th><th>UNITÉ DU PRODUIT</th><th>TÂCHES</th><th>NB ESSAIS</th>${ro ? "" : "<th></th>"}</tr></thead>
         <tbody>${rows}${nw}</tbody></table>`;
@@ -10591,7 +10591,7 @@ function renderBudgetList() {
             const d = document.createElement("div");
             d.className = "ins-li ins-new";
             d.dataset.ik = k;
-            d.innerHTML = `<span class="ins-rdc"></span><input class="ins-in" data-f="v" enterkeyhint="next" placeholder="SAISIR ICI…" autocomplete="off">${k === "sec" ? `<span class="act-u"><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" autocomplete="off"></span>` : k === "prim" ? `<span class="act-u act-uro"></span>` : ""}<span class="ins-delc"></span>`;
+            d.innerHTML = `<span class="ins-rdc"></span><input class="ins-in" data-f="v" enterkeyhint="next" placeholder="${k === "lot" ? "AJOUTER UN LOT ICI…" : "AJOUTER UNE ACTIVITÉ ICI…"}" autocomplete="off">${k === "sec" ? `<span class="act-u"><input class="ins-in act-uin" data-f="u" enterkeyhint="next" placeholder="U" autocomplete="off"></span>` : k === "prim" ? `<span class="act-u act-uro"></span>` : ""}<span class="ins-delc"></span>`;
             /* v467 : une seule ligne SAISIR ICI… par liste — l'ancienne (restée vide) disparaît, la nouvelle va en bas */
             const col = holder.closest(".ins-hcol");
             if (col) col.querySelectorAll(".ins-new").forEach(o => { if (o !== d && !o.dataset.iid) o.remove(); });
@@ -12099,7 +12099,7 @@ function renderBudgetList() {
           /* dernière ligne « SAISIR ICI… » : LOT et ACTIVITÉ SECONDAIRE tapés (existants proposés, ou nouveaux) = nouvelle tâche du planning,
              sans produit ni charge, non liée (rouge dans TÂCHES) ; ses dates se saisissent aussitôt (cahier, Planning budgétaire) */
           const dl = (id, list) => `<datalist id="${id}">${list.map(v => `<option value="${esc(v)}"></option>`).join("")}</datalist>`;
-          const newIn = (f, lid) => `<input class="dly-newin" data-f="${f}" list="${lid}" placeholder="SAISIR ICI…" autocomplete="off" enterkeyhint="next">`;
+          const newIn = (f, lid) => `<input class="dly-newin" data-f="${f}" list="${lid}" placeholder="${f === "lot" ? "AJOUTER UNE TÂCHE ICI…" : ""}" autocomplete="off" enterkeyhint="next">`;
           /* v666 (axe 8) : en-tête BATTEMENT TOTAL ou LIBRE selon PARAMÉTRAGE DU PLANNING */
           { const cm = DLY_COLS_P.find(c => c[0] === "marge"); if (cm) cm[1] = dlyPP().bt === "l" ? "BATTEMENT LIBRE" : "BATTEMENT TOTAL"; }
           const tbl = dlyTable(PR.rows.concat(INS_EDIT ? [{ nw: true }] : []), x => x.nw
@@ -12394,7 +12394,7 @@ function renderBudgetList() {
         const w = card ? card.style.width : (size && size.w ? size.w + "px" : ""), h = card ? card.style.height : (size && size.h ? size.h + "px" : "");
         const key = lot && sec ? lot + "|" + sec : "";
         /* FORMAT 66 : ligne SAISIR ICI… en bas de chaque liste = nouveau lot / nouvelle activité, choisi aussitôt */
-        const newRow = k => `<tr class="dlw-newr"><td><input class="dlw-new" data-k="${k}" placeholder="SAISIR ICI…" autocomplete="off" enterkeyhint="done"></td></tr>`;
+        const newRow = k => `<tr class="dlw-newr"><td><input class="dlw-new" data-k="${k}" placeholder="${k === "lot" ? "AJOUTER UN LOT ICI…" : "AJOUTER UNE ACTIVITÉ ICI…"}" autocomplete="off" enterkeyhint="done"></td></tr>`;
         let panel = "";
         if (key) {
           const p0 = ((LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [])[0] || {};
@@ -24228,7 +24228,7 @@ ${A}</Assignments>
       }).join("") + "</tr>").join("");
       /* v688 : plus de boutons DOC / TAF / OBS en haut : on saisit ici, comme dans les autres tableaux */
       const fill = (!list.length && all.length ? `<tr><td colspan="${cols.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "") +
-        `<tr class="rec-new" data-recnew="${kind}"><td colspan="${cols.length}">SAISIR ICI…</td></tr>`;
+        `<tr class="rec-new" data-recnew="${kind}"><td colspan="${cols.length}">${{ doc: "AJOUTER UN DOCUMENT ICI…", taf: "AJOUTER UN TAF ICI…", obs: "AJOUTER UNE OBSERVATION ICI…" }[kind] || "AJOUTER ICI…"}</td></tr>`;
 
       t.style.width = cwTableW(kind, cols) + "px";
       t.innerHTML = `<colgroup>${cwCols(kind, cols)}</colgroup>
@@ -28330,7 +28330,7 @@ function sviParamTabs() {
       <tbody>${L.map((x, i) => `<tr data-i="${i}"><td><input class="prm-in" data-f="n" value="${esc(x.n)}" autocomplete="off"></td>
         <td class="center"><input class="prm-in center" data-f="a" value="${esc(x.a)}" autocomplete="off"></td>
         <td class="center"><input type="checkbox" class="prm-cb"></td></tr>`).join("")}
-        <tr class="prm-new"><td><input class="prm-in" data-f="n" placeholder="SAISIR ICI…" autocomplete="off"></td><td class="center"><input class="prm-in center" data-f="a" autocomplete="off"></td><td></td></tr></tbody></table>
+        <tr class="prm-new"><td><input class="prm-in" data-f="n" placeholder="AJOUTER UNE UNITÉ ICI…" autocomplete="off"></td><td class="center"><input class="prm-in center" data-f="a" autocomplete="off"></td><td></td></tr></tbody></table>
       <div class="prm-foot"><button type="button" class="prm-del" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div>`;
   };
   const clean = v => String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();
