@@ -39,7 +39,7 @@
     const verFmt = (k, v) => v === null || v === undefined || v === "" ? "—" : k === "fin" ? dFr(v) : k === "effT" ? v : k === "mgp" ? String(Math.round(v * 10) / 10).replace(".", ",") + " %" : k === "eff" ? String(Math.round(v * 10) / 10).replace(".", ",") : ["mo", "chg", "prd", "mg"].includes(k) ? money(v) : String(v);
     /* v681 : origine des lignes = l'étape du budget (MARCHÉ INITIAL, AVENANT n) ; dans GLOBAL, les étapes d'où vient la ligne */
     const verOrig = () => {
-      const st = budget.inst ? sviAvName(budget.inst) : "MARCHÉ INITIAL";
+      const st = budget.inst ? sviAvName(budget.inst) : "BUDGET INITIAL";
       const O = { des: {}, chg: {}, prd: {} };
       ["des", "chg", "prd"].forEach(k => (INS[k] || []).forEach(r => { O[k][r.id] = Array.isArray(r.__o) && r.__o.length ? r.__o.join(" + ") : st; }));
       return O;

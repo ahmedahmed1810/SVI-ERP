@@ -1328,10 +1328,10 @@ const sviAvStages = ref => {
   if (!root) return [it];
   return [root, ...L.filter(x => x.parent === root.ref).sort((a, b) => (a.avn || 0) - (b.avn || 0))];
 };
-const sviAvName = it => it && it.vname ? it.vname : it && it.parent ? "AVENANT " + (it.avn || 1) : "MARCHÉ INITIAL";
+const sviAvName = it => it && it.vname ? it.vname : it && it.parent ? "AVENANT " + (it.avn || 1) : "BUDGET INITIAL";   /* v691 : « marché » disparaît (phase budget) */
 /* v687 : COMPOSITION du consolidé — pour chaque étape : "act" (l'étape telle qu'elle est), l'id d'un de ses scénarios,
    ou rien (étape non comptée). Par défaut : les étapes VALIDÉES (le marché initial s'il n'y en a aucune). Mémoire de la session. */
-const sviAvSelDef = S0 => { const o = {}; S0.forEach(st => { if (st.state === "valide") o[st.ref] = "act"; }); if (!Object.keys(o).length && S0[0]) o[S0[0].ref] = "act"; return o; };
+const sviAvSelDef = S0 => { const o = {}, all = S0[0] && (window.__sviAvMode || {})[S0[0].ref] === "inst"; S0.forEach(st => { if (all || st.state === "valide") o[st.ref] = "act"; }); if (!Object.keys(o).length && S0[0]) o[S0[0].ref] = "act"; return o; };
 const sviAvSelGet = r => ((window.__sviAvSel || {})[r]) || null;
 const sviAvSelSet = (r, v) => { window.__sviAvSel = window.__sviAvSel || {}; if (v) window.__sviAvSel[r] = v; else delete window.__sviAvSel[r]; };
 /* scénarios d'une étape qu'on peut prendre à sa place (ceux qui ne sont pas l'état actuel) */
@@ -5633,6 +5633,8 @@ function renderBudgetList() {
   const instSave = l => sviInstSet(l);
   instLoad().forEach(b => groups.set(b.ref, { ref: b.ref, project: b.project, rows: [], first: {}, inst: b }));
   /* v681 : budget à avenants — vue GLOBAL (marché initial + avenants consolidés, en lecture seule, jamais enregistrée) */
+  /* v691 : composition par défaut du consolidé selon la liste affichée (EN INSTANCE : validé + en instance ; VALIDÉ : validé seul) */
+  { let lm = "valid"; try { if (localStorage.getItem("svi_listmode_v1") === "inst") lm = "inst"; } catch (e) {} window.__sviAvMode = window.__sviAvMode || {}; instLoad().filter(b => !b.parent).forEach(b => { window.__sviAvMode[b.ref] = lm; }); }
   instLoad().filter(b => !b.parent && instLoad().some(x => x.parent === b.ref)).forEach(b => {
     try { const gref = b.ref + "-GLOBAL"; groups.set(gref, { ref: gref, project: b.project, rows: [], first: {}, inst: { ref: gref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vsel: sviAvSelLab(b.ref, sviAvSelGet(b.ref)), data: sviAvMerge(b.ref, sviAvSelGet(b.ref)) } }); } catch (e) {}
   });
@@ -6178,15 +6180,34 @@ function renderBudgetList() {
       return;
     }
 
+    /* v691 : LISTE MÈRE EN ARBORESCENCE — un budget à avenants a un signe › / ⌄ ; déplié : BUDGET CONSOLIDÉ, BUDGET INITIAL,
+       AVENANT n DU BUDGET (mêmes colonnes). EN INSTANCE : étapes en instance, consolidé = validé + en instance ;
+       VALIDÉ : étapes validées, consolidé = validé seul. Toucher une étape l'ouvre ; ← ramène à la liste mère. */
+    const FOLD_KEY = "svi_bdgfold_v1";
+    const foldGet0 = () => { try { return JSON.parse(localStorage.getItem(FOLD_KEY) || "[]") || []; } catch (e) { return []; } };
+    const isFam = r => { try { return sviAvStages(r).length > 1; } catch (e) { return false; } };
+    const kidsOf = item => {
+      if (!isFam(item.ref)) return [];
+      const S = sviAvStages(item.ref), out = [];
+      const pick = S.filter(st => listMode === "inst" ? st.state !== "valide" : st.state === "valide");
+      const g = groups.get(item.ref + "-GLOBAL");
+      if (g) { let bd = {}; try { bd = budgetData(g); } catch (e) {} out.push({ ref: g.ref, lab: "BUDGET CONSOLIDÉ", budget: item.budget, intitule: item.intitule, ttc: bd.ttc || 0, validated: "", entered: "", state: "", kind: "glob" }); }
+      pick.forEach(st => { let bd = {}; try { bd = budgetData({ ref: st.ref, project: st.project, rows: [], first: {}, inst: st }); } catch (e) {}
+        out.push({ ref: st.ref, lab: st.parent ? "AVENANT " + (st.avn || 1) + " DU BUDGET" : "BUDGET INITIAL", budget: U_(st.project), intitule: st.intitule || "", ttc: bd.ttc || 0,
+          validated: st.state === "valide" ? svDT(st.validated || "") : "", entered: svDT(st.created || ""), state: st.state || "instance", kind: st.parent ? "av" : "bdg" }); });
+      return out;
+    };
+    const FO = new Set(foldGet0());
     tbody.innerHTML =
-      data.map(item => `
+      data.map(item => { const fam = isFam(item.ref), open = fam && FO.has(item.ref), kids = open ? kidsOf(item) : [];
+        return `
         <tr
           data-budget-ref="${esc(item.ref)}"
-          class="${item.state ? "inst-" + item.state : ""}"
+          class="${item.state ? "inst-" + item.state : ""}${fam ? " bdg-fam" : ""}"${fam ? ' data-fam="1"' : ""}
         >
 
           <td>
-            <span class="bang-slot">${obsBang(item.ref)}</span>${esc(item.budget + " " + item.ref)}
+            ${fam ? `<span class="bdg-fold" aria-hidden="true">${open ? "⌄" : "›"}</span>` : ""}<span class="bang-slot">${obsBang(item.ref)}</span>${esc(item.budget + " " + item.ref)}
           </td>
 
           <td title="${esc(item.budget)}">
@@ -6232,7 +6253,10 @@ function renderBudgetList() {
           </td>
 
         </tr>
-      `).join("");
+        ${kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}">
+          <td><span class="bdg-kid-lab">${esc(k.lab)}</span> <small>${esc(k.ref)}</small></td><td>${esc(k.budget)}</td><td title="${esc(k.intitule)}">${esc(k.intitule)}</td>
+          <td class="number">${money(k.ttc)}</td><td>${esc(k.validated)}</td><td>${esc(k.entered)}</td><td></td></tr>`).join("")}
+      `; }).join("");
   }
 
   /* -------------------------------------------------------
@@ -6798,12 +6822,7 @@ function renderBudgetList() {
           <button type="button" class="svc-b av-comp-b" data-vact="restore">RESTAURER CETTE VERSION</button>
           <button type="button" class="svc-b av-comp-b" data-vact="scn">EN FAIRE UN SCÉNARIO</button>
         </div>` : ""}
-        ${AV_ROOT ? `<div class="av-top" id="avTop">
-          <span class="list-lab">AVENANTS :</span>
-          ${AV_STG.some(x => x.parent && x.state !== "valide") ? '<button type="button" class="av-ic" data-avt="inst" title="Avenants en instance" aria-label="Avenants en instance">⌛</button>' : ""}
-          ${AV_STG.some(x => x.state === "valide") ? '<button type="button" class="av-ic" data-avt="valid" title="Étapes validées (budget initial compris)" aria-label="Étapes validées">≡</button>' : ""}
-          <button type="button" class="av-ic" data-avt="add" ${AV_STG.length && AV_STG[AV_STG.length - 1].state === "valide" ? 'title="Nouvel avenant"' : 'disabled title="LE DERNIER AVENANT DOIT ÊTRE VALIDÉ"'} aria-label="Nouvel avenant">＋</button>
-        </div>` : ""}
+
 
       </div>
       </div>
@@ -18049,8 +18068,10 @@ ${A}</Assignments>
        désignations / charges : ART + DÉSIGNATION + UNITÉ (+ titre) ;
        produits : idem (ART + DÉSIGNATION + UNITÉ) */
     /* modèle d'un budget source : lignes de chaque onglet + liens (lignes de détail) */
+    /* v691 : sources en plus des budgets de la liste — scénarios d'une étape (« SC|étape|id ») */
+    const IMP_EXTRA = new Map();
     const impModel = ref => {
-      const g = groups.get(ref);
+      const g = groups.get(ref) || IMP_EXTRA.get(ref);
       const m = { des: [], hier: [], chg: [], prd: [], qlt: [], dly: [], links: [] };
       if (!g) return m;
       if (g.inst) {
@@ -18221,16 +18242,44 @@ ${A}</Assignments>
       if (!INS) return;
       const IND_ONLY = blk === "indlist", TABS = IND_ONLY ? [["ind", "INDICATEURS (TABLEAUX DE BORD)"]] : [...IMP_TABS, ["ind", "INDICATEURS"]];
       const startTab = blk === "rat" || IND_ONLY ? "ind" : blk === "client" ? "des" : blk === "hier" ? "hier" : (active === "prd" ? "prd" : "chg");
-      const refs = [...(blk === "rat" ? ["__LISTE"] : []), ...[...groups.keys()].filter(r => r !== ref || IND_ONLY)
-        .sort((a, b) => String(a).localeCompare(String(b), "fr", { numeric: true }))];
+      /* v691 : SOURCE EN ARBORESCENCE — budgets de la liste mère › consolidé et étapes (budget initial, avenants) ›
+         scénarios et versions de chaque étape ; tout élément est importable, consolidé compris */
+      IMP_EXTRA.clear();
+      const TREE = [];   /* { r, lab, lvl, head } */
+      const byRef = (a, b) => String(a).localeCompare(String(b), "fr", { numeric: true });
+      const subOf = st => {
+        const out = [], D = st.data || {}, V = D.ver || {};
+        (V.L || []).filter(x => x.kind === "sc" && x.id !== V.act && x.d).forEach(x => { const k = "SC|" + st.ref + "|" + x.id; IMP_EXTRA.set(k, { ref: k, project: st.project, rows: [], first: {}, inst: { ref: k, project: st.project, state: st.state, data: x.d } }); out.push({ r: k, lab: x.nom }); });
+        (D.vfz || []).forEach(v => { const k = st.ref + "-V" + v.n; if (groups.has(k)) out.push({ r: k, lab: "VERSION " + v.n + (v.auto ? " Ⓐ" : "") + " — " + (v.kind || "") }); });
+        return out;
+      };
+      if (blk === "rat") TREE.push({ r: "__LISTE", lab: "LISTE DES INDICATEURS (COMMUNE)", lvl: 0 });
+      [...groups.values()].filter(g => !(g.inst && g.inst.parent)).sort((a, b) => byRef(a.ref, b.ref)).forEach(g => {
+        const S = g.inst ? sviAvStages(g.ref) : [];
+        const lab0 = U_(g.project) + " " + g.ref;
+        if (S.length > 1) {
+          TREE.push({ r: "", lab: lab0, lvl: 0, head: true });
+          if (groups.has(g.ref + "-GLOBAL")) TREE.push({ r: g.ref + "-GLOBAL", lab: "BUDGET CONSOLIDÉ", lvl: 1 });
+          S.forEach(st => { TREE.push({ r: st.ref, lab: (st.parent ? "AVENANT " + (st.avn || 1) : "BUDGET INITIAL") + " — " + st.ref, lvl: 1 }); subOf(st).forEach(x => TREE.push({ ...x, lvl: 2 })); });
+        } else {
+          TREE.push({ r: g.ref, lab: lab0, lvl: 0 });
+          if (g.inst) subOf(g.inst).forEach(x => TREE.push({ ...x, lvl: 1 }));
+        }
+      });
+      TREE.forEach(t => { if (t.r === ref && !IND_ONLY) t.self = true; });
+      const refs = TREE.filter(t => t.r && !t.self).map(t => t.r);
       /* couleur de l'état, comme dans la liste des budgets */
       const stCls = g => !g || !g.inst || g.inst.state === "valide" ? "" : g.inst.state === "fige" ? "imp-fige" : "imp-inst";
-      const refLab = r => { if (r === "__LISTE") return "LISTE DES INDICATEURS (COMMUNE)"; const g = groups.get(r); return U_(g.project) + " " + r; };
+      const refLab = r => { if (r === "__LISTE") return "LISTE DES INDICATEURS (COMMUNE)"; const t = TREE.find(x => x.r === r), g = groups.get(r) || IMP_EXTRA.get(r);
+        const root = t ? TREE.slice(0, TREE.indexOf(t) + 1).reverse().find(x => x.lvl === 0) : null;
+        return t ? (t.lvl && root ? root.lab + " › " : "") + t.lab : g ? U_(g.project) + " " + r : r; };
       const impModelI = r => { const m = r === "__LISTE" ? { des: [], hier: [], chg: [], prd: [], qlt: [], dly: [], links: [] } : impModel(r);
         const L = r === "__LISTE" ? indLoad() : r === ref ? ratMigrate(JSON.parse(JSON.stringify(INS.rat || {}))).L : (() => { const g = groups.get(r); return g && g.inst ? ratMigrate(JSON.parse(JSON.stringify((g.inst.data || {}).rat || {}))).L : []; })();
         m.ind = (L || []).filter(I => I.f).map(I => ({ key: "ind|" + U_(I.nom), row: { nom: I.nom, form: indText(I.f, []), I } }));
         return m; };
       let src = refs[0] || "", model = impModelI(src), tab = startTab, withLinks = false, all = false;
+      /* v691 : blocs cochés, chacun arrive en entier ; liaisons toujours ramenées */
+      const blkOn = new Set(IND_ONLY ? ["ind"] : [startTab]);
       const sel = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set(), ind: new Set() };
       /* lignes liées décochées à la main : la liaison est coupée à cet endroit */
       const cut = new Set();
@@ -18246,14 +18295,11 @@ ${A}</Assignments>
             <div class="imp-row"><span class="doc-lab">BUDGET SOURCE <b>*</b></span>
               <div class="imp-src">
                 <button type="button" class="imp-src-btn" id="impSrc"></button>
-                <div class="imp-src-list" hidden>${refs.map(r =>
-                  `<button type="button" class="imp-src-it ${stCls(groups.get(r))}" data-ref="${esc(r)}">${esc(refLab(r))}</button>`).join("")}</div>
+                <div class="imp-src-list" hidden>${TREE.map(t => t.head || t.self
+                  ? `<div class="imp-src-head" style="padding-left:${10 + t.lvl * 18}px">${esc(t.lab)}${t.self ? " <small>(OUVERT)</small>" : ""}</div>`
+                  : `<button type="button" class="imp-src-it ${stCls(groups.get(t.r) || IMP_EXTRA.get(t.r))}" data-ref="${esc(t.r)}" style="padding-left:${10 + t.lvl * 18}px">${t.lvl ? "› " : ""}${esc(t.lab)}</button>`).join("")}</div>
               </div></div>
-            <div class="imp-opts"${IND_ONLY ? " hidden" : ""}>
-              <label><input type="radio" name="impLk" value="0" checked> SANS LIAISONS <small>(LIGNES COCHÉES SEULEMENT)</small></label>
-              <label><input type="radio" name="impLk" value="1"> AVEC LIAISONS <small>(+ TÂCHES ET DÉTAILS LIÉS)</small></label>
-              <label><input type="checkbox" id="impAll"> TOUT LE BUDGET <small>(TOUTES LES LIGNES, LIAISONS ET DÉLAIS)</small></label>
-            </div>
+            <div class="imp-opts imp-blks"${IND_ONLY ? " hidden" : ""}></div>
             <div class="imp-tabs"></div>
             <div class="imp-scroll"><table class="bdg-d-table imp-table"></table></div>
           </div>
@@ -18286,6 +18332,9 @@ ${A}</Assignments>
       /* lignes retenues : cochées, + liées (AVEC LIAISONS), ou tout le budget */
       const picked = (noCut = false) => {
         const out = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set(), ind: new Set() };
+        /* v691 : chaque bloc coché arrive en entier */
+        TABS.forEach(([k]) => { if (blkOn.has(k)) model[k].forEach(x => out[k].add(x.key)); });
+        if (true) return out;
         if (all) { TABS.forEach(([k]) => model[k].forEach(x => out[k].add(x.key))); return out; }
         TABS.forEach(([k]) => sel[k].forEach(x => out[k].add(x)));
         if (withLinks) {
@@ -18317,6 +18366,12 @@ ${A}</Assignments>
         if (pAll) [...cut].forEach(k => { if (!TABS.some(([t]) => pAll[t].has(k))) cut.delete(k); });
         const pk = picked();
         const n = TABS.reduce((t, [k]) => t + pk[k].size, 0);
+        /* v691 : cases des blocs + TOUT (trois états) */
+        { const bx = p.querySelector(".imp-blks"), nOn = TABS.filter(([k]) => blkOn.has(k)).length;
+          bx.innerHTML = `<label class="imp-all"><input type="checkbox" data-blkall${nOn === TABS.length ? " checked" : ""}> TOUT</label>` +
+            TABS.map(([k, lab]) => `<label><input type="checkbox" data-blk="${k}"${blkOn.has(k) ? " checked" : ""}${model[k].length ? "" : " disabled"}> ${lab} ${svCnt(model[k].length)}</label>`).join("") +
+            `<small class="imp-lk-note">LIAISONS TOUJOURS RAMENÉES ; UNE LIAISON QUI DEMANDE UN BLOC NON COCHÉ VA DANS IMPORT NON CRÉÉ.</small>`;
+          const ia = bx.querySelector("[data-blkall]"); if (ia) ia.indeterminate = nOn > 0 && nOn < TABS.length; }
         p.querySelector(".imp-tabs").innerHTML = TABS.map(([k, lab]) =>
           /* pastille grise : lignes disponibles ; pastille rouge : lignes retenues */
           `<button type="button" class="imp-tab${k === tab ? " on" : ""}${Object.keys(cfT("imp_" + k).f || {}).length ? " tab-filt" : ""}" data-tab="${k}">${lab} ${svCnt(model[k].length)}${pk[k].size ? `<span class="imp-selcnt">${pk[k].size}</span>` : ""}</button>`).join("");
@@ -18366,7 +18421,7 @@ ${A}</Assignments>
                ${cs.map(c => `<td class="${impCls(c)}">${esc(val(x, c[0], c[2]))}</td>`).join("")}</tr>`;
            }).join("") || `<tr><td colspan="${cs.length + 1}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody>`;
         }
-        p.querySelector(".imp-n").textContent = n + " LIGNE(S) À IMPORTER" + (withLinks && !all ? " (LIAISONS COMPRISES)" : "");
+        p.querySelector(".imp-n").textContent = n + " LIGNE(S) À IMPORTER" + (IND_ONLY ? "" : " (LIAISONS COMPRISES)");
         p.querySelector("#impGo").textContent = "IMPORTER (" + n + ")";
         p.querySelector("#impGo").disabled = !n;
       };
@@ -18423,6 +18478,7 @@ ${A}</Assignments>
           list.hidden = true;
           if (it.dataset.ref !== src) {
             src = it.dataset.ref; model = impModelI(src);
+            if (!IND_ONLY) { [...blkOn].forEach(k => { if (!model[k].length) blkOn.delete(k); }); }
             TABS.forEach(([k]) => sel[k].clear());
             cut.clear();
             showSrc(); render();
@@ -18432,6 +18488,8 @@ ${A}</Assignments>
         if (e.target.closest("#impSrc")) list.hidden = !list.hidden;
       });
       p.addEventListener("change", e => {
+        if (e.target.matches("[data-blkall]")) { if (e.target.checked) TABS.forEach(([k]) => { if (model[k].length) blkOn.add(k); }); else blkOn.clear(); render(); return; }
+        if (e.target.matches("[data-blk]")) { const k = e.target.dataset.blk; if (e.target.checked) { blkOn.add(k); tab = k; } else blkOn.delete(k); render(); return; }
         if (e.target.name === "impLk") { withLinks = e.target.value === "1"; render(); return; }
         /* v662 : TOUT LE BUDGET en un seul geste (lignes, liaisons et délais) */
         if (e.target.id === "impAll") { all = e.target.checked; render(); return; }
@@ -18467,7 +18525,7 @@ ${A}</Assignments>
         if (e.target === p || e.target.closest("[data-cancel]")) { p.remove(); return; }
         if (!e.target.closest("#impGo")) return;
         const pk = picked();
-        const lk = withLinks || all;
+        const lk = !IND_ONLY;   /* v691 : liaisons toujours ramenées */
         /* v680 : indicateurs — vers la liste commune ou le tableau de bord ; même nom déjà présent = ignoré */
         let nInd = 0, sInd = 0;
         if (pk.ind && pk.ind.size) {
@@ -18545,6 +18603,20 @@ ${A}</Assignments>
             });
             /* une liaison doit avoir au moins un produit */
             INS.links = INS.links.filter(x => (x.prd || []).length);
+            /* v691 : liaison du budget source qui demande un bloc non coché : non reconstruite → IMPORT NON CRÉÉ */
+            { const row = (k, key) => { const x = (k === "hier" ? model.hier : model[k]).find(y => y.key === key); return x ? x.row : {}; };
+              const need = l => [["des", l.dk, "DÉSIGNATIONS CLIENT"], ["hier", l.lot, "TÂCHES"], ["hier", l.prim, "TÂCHES"], ["hier", l.sec, "TÂCHES"], ["chg", l.ck, "DÉTAIL CHARGES"], ["prd", l.pk, "DÉTAIL PRODUITS"]].filter(x => x[1] && !blkOn.has(x[0]));
+              const anyOn = l => [["des", l.dk], ["hier", l.lot], ["chg", l.ck], ["prd", l.pk]].some(x => x[1] && blkOn.has(x[0]));
+              const items = [], seenI = new Set();
+              model.links.forEach(l => {
+                const miss = need(l); if (!miss.length || !anyOn(l)) return;
+                const D = row("des", l.dk), P = l.pk ? row("prd", l.pk) : row("chg", l.ck);
+                const src0 = { art: D.art || "", dc: D.des || "", upb: D.u || "", lot: row("hier", l.lot).v || "", prim: row("hier", l.prim).v || "", sec: row("hier", l.sec).v || "",
+                  type: l.pk ? "PRD" : "CHG", article: P.art || "", des: P.des || "", u: P.u || "", q: l.q ?? "" };
+                const kk = JSON.stringify(src0); if (seenI.has(kk)) return; seenI.add(kk);
+                items.push({ id: insId(), on: false, src: src0, bad: [], why: "IMPORT DEPUIS " + refLab(src) + " — BLOC NON COCHÉ : " + [...new Set(miss.map(x => x[2]))].join(", ") });
+              });
+              if (items.length) { INS.inc = (INS.inc || []).concat(items); shell.__impInc = items.length; } }
             /* délais : rattachés à la tâche secondaire importée (lot + activité secondaire), seulement avec les liaisons */
             INS.dlp = INS.dlp || {};
             if (mode === "replace") INS.dlp = {};
@@ -18558,7 +18630,8 @@ ${A}</Assignments>
           insSave();
           const M = { add: "AJOUT", replace: "REMPLACEMENT", update: "MISE À JOUR" }[mode];
           insSortAll(); insSave();
-          histLog("IMPORT", "DEPUIS UN AUTRE BUDGET — " + M, src + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S)" + (lk ? " — " + nl + " LIAISON(S)" : ""));
+          histLog("IMPORT", "DEPUIS UN AUTRE BUDGET — " + M, refLab(src) + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S)" + (lk ? " — " + nl + " LIAISON(S)" : "") + (shell.__impInc ? " — " + shell.__impInc + " NON CRÉÉE(S)" : ""));
+          if (shell.__impInc) { svToast(shell.__impInc + " LIGNE(S) DANS IMPORT NON CRÉÉ (BLOC NON COCHÉ).", 4500); shell.__impInc = 0; }
           p.remove();
           refreshAll();
         };
@@ -19370,8 +19443,8 @@ ${A}</Assignments>
         { a: "lay", lab: "DISPOSITION PAR DÉFAUT", off: !rb || rb.disabled, ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
         ...(INS ? [{ a: "paq", lab: "PLAN D'ASSURANCE QUALITÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
         /* v681 : premier avenant — une seule fois (aucun avenant encore), marché initial validé */
-        ...(INS && budget.inst && !budget.inst.parent && !budget.inst.virtual && sviAvStages(budget.inst.ref).length === 1 ? [{ a: "av", lab: "AJOUTER UN AVENANT", off: budget.inst.state !== "valide", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12.5 10v7M9 13.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
-        ...(INS && budget.inst && !/-GLOBAL$/.test(budget.inst.ref) && (budget.inst.parent || sviAvStages(budget.inst.ref).length > 1) ? [{ a: "avl", lab: "CONSOLIDÉ (MARCHÉ ET AVENANTS)", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
+        ...(INS && budget.inst && (!budget.inst.virtual || /-GLOBAL$/.test(budget.inst.ref)) ? (() => { const S = sviAvStages(budget.inst.parent || budget.inst.ref); return S.length ? [{ a: "av", lab: "AJOUTER UN AVENANT", off: S[S.length - 1].state !== "valide", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12.5 10v7M9 13.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []; })() : []),
+        ...(INS && budget.inst && !/-GLOBAL$/.test(budget.inst.ref) && (budget.inst.parent || sviAvStages(budget.inst.ref).length > 1) ? [{ a: "avl", lab: "BUDGET CONSOLIDÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }] : []),
         /* v690 : VERSIONS ET SCÉNARIOS retiré (blocs SCÉNARIOS et VERSIONS) ; PRENDRE UNE VERSION (photo manuelle) */
         ...(INS && budget.inst && !budget.inst.virtual ? [{ a: "vtake", lab: "PRENDRE UNE VERSION", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 7l1.5-3h4l1.5 3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' }] : []),
         ...(INS ? [{ a: "ctr", lab: "CONTRAT (CPS)", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 11h5M10 15h5M10 19h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' }] : []),
@@ -19399,7 +19472,7 @@ ${A}</Assignments>
         else if (it.dataset.a === "lay") $("layResetBtn")?.click();
         else if (it.dataset.a === "paq") qqPaqOpen();
         else if (it.dataset.a === "ctr") ctrWin();
-        else if (it.dataset.a === "av") { if (window.__sviAvNew) window.__sviAvNew(budget.inst.ref); }   /* v684 : fenêtre INF puis l'avenant */
+        else if (it.dataset.a === "av") { if (it.classList.contains("off") || it.disabled) { svToast("LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ.", 3500); return; } if (window.__sviAvNew) window.__sviAvNew(budget.inst.parent || budget.inst.ref, null); }   /* v684 : fenêtre INF puis l'avenant */
         else if (it.dataset.a === "avl") { const root = budget.inst.parent || budget.inst.ref; if (window.__sviAvOpen) window.__sviAvOpen(root + "-GLOBAL"); }   /* v684 : plus de petite fenêtre : le consolidé */
         else if (it.dataset.a === "vtake") { if (shell.__verTake) shell.__verTake(); }   /* v670 (axes 1 et 4) */   /* v669 (axe 3) */
         else if (it.dataset.a === "rat") ratWin();
@@ -20939,7 +21012,7 @@ ${A}</Assignments>
     const verFmt = (k, v) => v === null || v === undefined || v === "" ? "—" : k === "fin" ? dFr(v) : k === "effT" ? v : k === "mgp" ? String(Math.round(v * 10) / 10).replace(".", ",") + " %" : k === "eff" ? String(Math.round(v * 10) / 10).replace(".", ",") : ["mo", "chg", "prd", "mg"].includes(k) ? money(v) : String(v);
     /* v681 : origine des lignes = l'étape du budget (MARCHÉ INITIAL, AVENANT n) ; dans GLOBAL, les étapes d'où vient la ligne */
     const verOrig = () => {
-      const st = budget.inst ? sviAvName(budget.inst) : "MARCHÉ INITIAL";
+      const st = budget.inst ? sviAvName(budget.inst) : "BUDGET INITIAL";
       const O = { des: {}, chg: {}, prd: {} };
       ["des", "chg", "prd"].forEach(k => (INS[k] || []).forEach(r => { O[k][r.id] = Array.isArray(r.__o) && r.__o.length ? r.__o.join(" + ") : st; }));
       return O;
@@ -21884,7 +21957,7 @@ ${A}</Assignments>
          délais) ; période : quantités au prorata des jours de chaque tâche dans la période.
        ========================================================= */
     const RAT_X = [["ind", "INDICATEURS"], ["lot", "LOTS"], ["per", "PÉRIODE"], ["ver", "VERSIONS ET SCÉNARIOS"], ["des", "DÉSIGNATIONS CLIENT"],
-      ["act", "ACTIVITÉS"], ["met", "MÉTIERS (TYPES D'OUVRIERS)"], ["chg", "CHARGES (DE LA PLUS GROSSE À LA PLUS PETITE)"], ["orig", "ORIGINE (MARCHÉ INITIAL, AVENANTS)"],
+      ["act", "ACTIVITÉS"], ["met", "MÉTIERS (TYPES D'OUVRIERS)"], ["chg", "CHARGES (DE LA PLUS GROSSE À LA PLUS PETITE)"], ["orig", "ORIGINE (BUDGET INITIAL, AVENANTS)"],
       ["bdg", "BUDGETS / PROJETS"], ["cum", "PÉRIODE EN CUMULÉ"], ["tit", "TITRES"]];
     const RAT_T = [["h", "HISTOGRAMME"], ["b", "BARRES"], ["l", "COURBE"], ["p", "DISQUE"]];
     /* anciens ratios (numérateur ÷ dénominateur) → formule ; ancien graphique unique → premier graphique */
@@ -21942,7 +22015,7 @@ ${A}</Assignments>
         case "per": case "cum": { const P = ratPeriods(D, G.per === "m" ? "m" : "w"); const a0 = P.length ? P[0].a : ""; return P.map(p => ({ lab: p.lab, d: ratPerSub(D, G.x === "cum" ? a0 : p.a, p.b) })); }
         case "met": { const M = new Map(); (D.chg || []).filter(r => !r.t && dlyIsLab(r)).forEach(r => { const k = U_(r.des); if (!M.has(k)) M.set(k, new Set()); M.get(k).add(r.id); }); return [...M.entries()].map(([k, S]) => ({ lab: k, d: { ...D, chg: (D.chg || []).filter(r => r.t || S.has(r.id)) } })); }
         case "chg": return (D.chg || []).filter(r => !r.t).map(r => ({ lab: r.des || "", d: { ...D, chg: [r] }, sort: true }));
-        case "orig": { const O = verOrig().des; return byKey(l => O[l.des] || "MARCHÉ INITIAL"); }
+        case "orig": { const O = verOrig().des; return byKey(l => O[l.des] || "BUDGET INITIAL"); }
         case "ver": { const V = INS.ver || { L: [] }; const SC = (V.L || []).filter(x => x.kind === "sc"); if (!SC.length) return [{ lab: "BUDGET ACTUEL", d: D }]; return SC.map(x => ({ lab: x.nom, d: x.id === V.act ? D : x.d })).filter(x => x.d); }
         case "bdg": return sviInstGet().filter(x => x.data).map(x => ({ lab: ((x.project || "") + " " + x.ref).trim(), d: x.ref === (budget.inst && budget.inst.ref) ? D : x.data }));
         case "tit": {
@@ -25378,7 +25451,7 @@ ${A}</Assignments>
   window.__sviAvOpen = sviAvOpen;
   const sviAvAdd = (rootRef, o) => {
     const L = sviInstGet(), S = sviAvStages(rootRef), root = S[0], last = S[S.length - 1];
-    if (!root || last.state !== "valide") { sviAlert((S.length > 1 ? "LE DERNIER AVENANT" : "LE MARCHÉ INITIAL") + " DOIT ÊTRE VALIDÉ AVANT D'OUVRIR UN AVENANT.", "NOUVEL AVENANT"); return null; }
+    if (!root || last.state !== "valide") { sviAlert((S.length > 1 ? "LE DERNIER AVENANT" : "LE BUDGET INITIAL") + " DOIT ÊTRE VALIDÉ AVANT D'OUVRIR UN AVENANT.", "NOUVEL AVENANT"); return null; }
     const n = S.length, r = root.ref + "-AV" + n;
     const it = { ref: r, project: root.project, intitule: (o && o.intitule) || root.intitule, client: root.client, state: "instance", created: (o && o.created) || localDT(new Date()), parent: root.ref, avn: n, data: {} };
     sviInstSet(L.concat(it));
@@ -25388,7 +25461,7 @@ ${A}</Assignments>
   /* nouvel avenant : fenêtre INF d'abord (DATE CRÉATION, PROJET, INTITULÉ — comme un nouveau budget) */
   const sviAvNew = (rootRef, ret) => {
     const S = sviAvStages(rootRef), root = S[0]; if (!root) return;
-    if (S[S.length - 1].state !== "valide") { sviAlert((S.length > 1 ? "LE DERNIER AVENANT" : "LE MARCHÉ INITIAL") + " DOIT ÊTRE VALIDÉ AVANT D'OUVRIR UN AVENANT.", "NOUVEL AVENANT"); return; }
+    if (S[S.length - 1].state !== "valide") { sviAlert((S.length > 1 ? "LE DERNIER AVENANT" : "LE BUDGET INITIAL") + " DOIT ÊTRE VALIDÉ AVANT D'OUVRIR UN AVENANT.", "NOUVEL AVENANT"); return; }
     document.getElementById("docPop")?.remove();
     const now = new Date(), p2 = x => String(x).padStart(2, "0");
     const local = now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()) + "T" + p2(now.getHours()) + ":" + p2(now.getMinutes());
@@ -25426,7 +25499,7 @@ ${A}</Assignments>
       if (isNaN(new Date(val("#avDate")))) { p.querySelector("#avErr").textContent = "À COMPLÉTER (*) : DATE."; return; }
       const nr = sviAvAdd(rootRef, { created: val("#avDate"), intitule: val("#avName").toUpperCase() || root.intitule });
       p.remove();
-      if (nr) sviAvOpen(nr, ret || root.ref + "-GLOBAL");
+      if (nr) sviAvOpen(nr, ret || null);   /* v691 : ← ramène à la liste mère */
     });
   };
   window.__sviAvNew = sviAvNew;
@@ -25597,10 +25670,18 @@ ${A}</Assignments>
     if (row) {
       /* v687 : budget à avenants → liste de ses étapes (au format de la liste mère), ouverte sur EN INSTANCE ;
          composition du consolidé remise par défaut (étapes validées) */
-      if (sviAvStages(row.dataset.budgetRef).length > 1) {
-        const r0 = row.dataset.budgetRef, g = r0 + "-GLOBAL";
+      /* v691 : arborescence — la ligne d'un budget à avenants se déplie / se replie ; une étape s'ouvre ; le consolidé s'ouvre
+         avec la composition par défaut de la liste affichée */
+      if (row.dataset.fam) {
+        let F = []; try { F = JSON.parse(localStorage.getItem("svi_bdgfold_v1") || "[]") || []; } catch (e) {}
+        const r0 = row.dataset.budgetRef; F = F.includes(r0) ? F.filter(x => x !== r0) : F.concat(r0);
+        try { localStorage.setItem("svi_bdgfold_v1", JSON.stringify(F)); } catch (e) {}
+        renderRows(); return;
+      }
+      if (row.dataset.kid === "glob") {
+        const g = row.dataset.budgetRef, r0 = g.replace(/-GLOBAL$/, "");
         window.__sviAvRet = null;
-        if (sviAvSelGet(r0) || !groups.has(g)) { sviAvSelSet(r0, null); sviAvOpen(g); } else openBudgetDetail(g);   /* v690 : le consolidé */
+        if (sviAvSelGet(r0) || !groups.has(g)) { sviAvSelSet(r0, null); sviAvOpen(g); } else openBudgetDetail(g);
         return;
       }
       openBudgetDetail(

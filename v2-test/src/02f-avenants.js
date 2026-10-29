@@ -18,10 +18,10 @@ const sviAvStages = ref => {
   if (!root) return [it];
   return [root, ...L.filter(x => x.parent === root.ref).sort((a, b) => (a.avn || 0) - (b.avn || 0))];
 };
-const sviAvName = it => it && it.vname ? it.vname : it && it.parent ? "AVENANT " + (it.avn || 1) : "MARCHÉ INITIAL";
+const sviAvName = it => it && it.vname ? it.vname : it && it.parent ? "AVENANT " + (it.avn || 1) : "BUDGET INITIAL";   /* v691 : « marché » disparaît (phase budget) */
 /* v687 : COMPOSITION du consolidé — pour chaque étape : "act" (l'étape telle qu'elle est), l'id d'un de ses scénarios,
    ou rien (étape non comptée). Par défaut : les étapes VALIDÉES (le marché initial s'il n'y en a aucune). Mémoire de la session. */
-const sviAvSelDef = S0 => { const o = {}; S0.forEach(st => { if (st.state === "valide") o[st.ref] = "act"; }); if (!Object.keys(o).length && S0[0]) o[S0[0].ref] = "act"; return o; };
+const sviAvSelDef = S0 => { const o = {}, all = S0[0] && (window.__sviAvMode || {})[S0[0].ref] === "inst"; S0.forEach(st => { if (all || st.state === "valide") o[st.ref] = "act"; }); if (!Object.keys(o).length && S0[0]) o[S0[0].ref] = "act"; return o; };
 const sviAvSelGet = r => ((window.__sviAvSel || {})[r]) || null;
 const sviAvSelSet = (r, v) => { window.__sviAvSel = window.__sviAvSel || {}; if (v) window.__sviAvSel[r] = v; else delete window.__sviAvSel[r]; };
 /* scénarios d'une étape qu'on peut prendre à sa place (ceux qui ne sont pas l'état actuel) */

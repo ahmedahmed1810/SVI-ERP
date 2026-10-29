@@ -10,7 +10,7 @@
          délais) ; période : quantités au prorata des jours de chaque tâche dans la période.
        ========================================================= */
     const RAT_X = [["ind", "INDICATEURS"], ["lot", "LOTS"], ["per", "PÉRIODE"], ["ver", "VERSIONS ET SCÉNARIOS"], ["des", "DÉSIGNATIONS CLIENT"],
-      ["act", "ACTIVITÉS"], ["met", "MÉTIERS (TYPES D'OUVRIERS)"], ["chg", "CHARGES (DE LA PLUS GROSSE À LA PLUS PETITE)"], ["orig", "ORIGINE (MARCHÉ INITIAL, AVENANTS)"],
+      ["act", "ACTIVITÉS"], ["met", "MÉTIERS (TYPES D'OUVRIERS)"], ["chg", "CHARGES (DE LA PLUS GROSSE À LA PLUS PETITE)"], ["orig", "ORIGINE (BUDGET INITIAL, AVENANTS)"],
       ["bdg", "BUDGETS / PROJETS"], ["cum", "PÉRIODE EN CUMULÉ"], ["tit", "TITRES"]];
     const RAT_T = [["h", "HISTOGRAMME"], ["b", "BARRES"], ["l", "COURBE"], ["p", "DISQUE"]];
     /* anciens ratios (numérateur ÷ dénominateur) → formule ; ancien graphique unique → premier graphique */
@@ -68,7 +68,7 @@
         case "per": case "cum": { const P = ratPeriods(D, G.per === "m" ? "m" : "w"); const a0 = P.length ? P[0].a : ""; return P.map(p => ({ lab: p.lab, d: ratPerSub(D, G.x === "cum" ? a0 : p.a, p.b) })); }
         case "met": { const M = new Map(); (D.chg || []).filter(r => !r.t && dlyIsLab(r)).forEach(r => { const k = U_(r.des); if (!M.has(k)) M.set(k, new Set()); M.get(k).add(r.id); }); return [...M.entries()].map(([k, S]) => ({ lab: k, d: { ...D, chg: (D.chg || []).filter(r => r.t || S.has(r.id)) } })); }
         case "chg": return (D.chg || []).filter(r => !r.t).map(r => ({ lab: r.des || "", d: { ...D, chg: [r] }, sort: true }));
-        case "orig": { const O = verOrig().des; return byKey(l => O[l.des] || "MARCHÉ INITIAL"); }
+        case "orig": { const O = verOrig().des; return byKey(l => O[l.des] || "BUDGET INITIAL"); }
         case "ver": { const V = INS.ver || { L: [] }; const SC = (V.L || []).filter(x => x.kind === "sc"); if (!SC.length) return [{ lab: "BUDGET ACTUEL", d: D }]; return SC.map(x => ({ lab: x.nom, d: x.id === V.act ? D : x.d })).filter(x => x.d); }
         case "bdg": return sviInstGet().filter(x => x.data).map(x => ({ lab: ((x.project || "") + " " + x.ref).trim(), d: x.ref === (budget.inst && budget.inst.ref) ? D : x.data }));
         case "tit": {

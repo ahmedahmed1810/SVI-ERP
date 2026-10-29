@@ -1149,6 +1149,8 @@ function renderBudgetList() {
   const instSave = l => sviInstSet(l);
   instLoad().forEach(b => groups.set(b.ref, { ref: b.ref, project: b.project, rows: [], first: {}, inst: b }));
   /* v681 : budget à avenants — vue GLOBAL (marché initial + avenants consolidés, en lecture seule, jamais enregistrée) */
+  /* v691 : composition par défaut du consolidé selon la liste affichée (EN INSTANCE : validé + en instance ; VALIDÉ : validé seul) */
+  { let lm = "valid"; try { if (localStorage.getItem("svi_listmode_v1") === "inst") lm = "inst"; } catch (e) {} window.__sviAvMode = window.__sviAvMode || {}; instLoad().filter(b => !b.parent).forEach(b => { window.__sviAvMode[b.ref] = lm; }); }
   instLoad().filter(b => !b.parent && instLoad().some(x => x.parent === b.ref)).forEach(b => {
     try { const gref = b.ref + "-GLOBAL"; groups.set(gref, { ref: gref, project: b.project, rows: [], first: {}, inst: { ref: gref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vsel: sviAvSelLab(b.ref, sviAvSelGet(b.ref)), data: sviAvMerge(b.ref, sviAvSelGet(b.ref)) } }); } catch (e) {}
   });
@@ -1694,15 +1696,34 @@ function renderBudgetList() {
       return;
     }
 
+    /* v691 : LISTE MÈRE EN ARBORESCENCE — un budget à avenants a un signe › / ⌄ ; déplié : BUDGET CONSOLIDÉ, BUDGET INITIAL,
+       AVENANT n DU BUDGET (mêmes colonnes). EN INSTANCE : étapes en instance, consolidé = validé + en instance ;
+       VALIDÉ : étapes validées, consolidé = validé seul. Toucher une étape l'ouvre ; ← ramène à la liste mère. */
+    const FOLD_KEY = "svi_bdgfold_v1";
+    const foldGet0 = () => { try { return JSON.parse(localStorage.getItem(FOLD_KEY) || "[]") || []; } catch (e) { return []; } };
+    const isFam = r => { try { return sviAvStages(r).length > 1; } catch (e) { return false; } };
+    const kidsOf = item => {
+      if (!isFam(item.ref)) return [];
+      const S = sviAvStages(item.ref), out = [];
+      const pick = S.filter(st => listMode === "inst" ? st.state !== "valide" : st.state === "valide");
+      const g = groups.get(item.ref + "-GLOBAL");
+      if (g) { let bd = {}; try { bd = budgetData(g); } catch (e) {} out.push({ ref: g.ref, lab: "BUDGET CONSOLIDÉ", budget: item.budget, intitule: item.intitule, ttc: bd.ttc || 0, validated: "", entered: "", state: "", kind: "glob" }); }
+      pick.forEach(st => { let bd = {}; try { bd = budgetData({ ref: st.ref, project: st.project, rows: [], first: {}, inst: st }); } catch (e) {}
+        out.push({ ref: st.ref, lab: st.parent ? "AVENANT " + (st.avn || 1) + " DU BUDGET" : "BUDGET INITIAL", budget: U_(st.project), intitule: st.intitule || "", ttc: bd.ttc || 0,
+          validated: st.state === "valide" ? svDT(st.validated || "") : "", entered: svDT(st.created || ""), state: st.state || "instance", kind: st.parent ? "av" : "bdg" }); });
+      return out;
+    };
+    const FO = new Set(foldGet0());
     tbody.innerHTML =
-      data.map(item => `
+      data.map(item => { const fam = isFam(item.ref), open = fam && FO.has(item.ref), kids = open ? kidsOf(item) : [];
+        return `
         <tr
           data-budget-ref="${esc(item.ref)}"
-          class="${item.state ? "inst-" + item.state : ""}"
+          class="${item.state ? "inst-" + item.state : ""}${fam ? " bdg-fam" : ""}"${fam ? ' data-fam="1"' : ""}
         >
 
           <td>
-            <span class="bang-slot">${obsBang(item.ref)}</span>${esc(item.budget + " " + item.ref)}
+            ${fam ? `<span class="bdg-fold" aria-hidden="true">${open ? "⌄" : "›"}</span>` : ""}<span class="bang-slot">${obsBang(item.ref)}</span>${esc(item.budget + " " + item.ref)}
           </td>
 
           <td title="${esc(item.budget)}">
@@ -1748,7 +1769,10 @@ function renderBudgetList() {
           </td>
 
         </tr>
-      `).join("");
+        ${kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}">
+          <td><span class="bdg-kid-lab">${esc(k.lab)}</span> <small>${esc(k.ref)}</small></td><td>${esc(k.budget)}</td><td title="${esc(k.intitule)}">${esc(k.intitule)}</td>
+          <td class="number">${money(k.ttc)}</td><td>${esc(k.validated)}</td><td>${esc(k.entered)}</td><td></td></tr>`).join("")}
+      `; }).join("");
   }
 
   /* -------------------------------------------------------
