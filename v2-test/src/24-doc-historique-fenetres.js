@@ -450,7 +450,7 @@
       }).join("") + "</tr>").join("");
       /* v688 : plus de boutons DOC / TAF / OBS en haut : on saisit ici, comme dans les autres tableaux */
       const fill = (!list.length && all.length ? `<tr><td colspan="${cols.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "") +
-        `<tr class="rec-new" data-recnew="${kind}"><td colspan="${cols.length}">SAISIR ICI…</td></tr>`;
+        `<tr class="rec-new" data-recnew="${kind}"><td colspan="${cols.length}">${{ doc: "AJOUTER UN DOCUMENT ICI…", taf: "AJOUTER UN TAF ICI…", obs: "AJOUTER UNE OBSERVATION ICI…" }[kind] || "AJOUTER ICI…"}</td></tr>`;
 
       t.style.width = cwTableW(kind, cols) + "px";
       t.innerHTML = `<colgroup>${cwCols(kind, cols)}</colgroup>

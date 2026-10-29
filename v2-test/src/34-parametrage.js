@@ -254,7 +254,7 @@ function sviParamTabs() {
       <tbody>${L.map((x, i) => `<tr data-i="${i}"><td><input class="prm-in" data-f="n" value="${esc(x.n)}" autocomplete="off"></td>
         <td class="center"><input class="prm-in center" data-f="a" value="${esc(x.a)}" autocomplete="off"></td>
         <td class="center"><input type="checkbox" class="prm-cb"></td></tr>`).join("")}
-        <tr class="prm-new"><td><input class="prm-in" data-f="n" placeholder="SAISIR ICI…" autocomplete="off"></td><td class="center"><input class="prm-in center" data-f="a" autocomplete="off"></td><td></td></tr></tbody></table>
+        <tr class="prm-new"><td><input class="prm-in" data-f="n" placeholder="AJOUTER UNE UNITÉ ICI…" autocomplete="off"></td><td class="center"><input class="prm-in center" data-f="a" autocomplete="off"></td><td></td></tr></tbody></table>
       <div class="prm-foot"><button type="button" class="prm-del" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div>`;
   };
   const clean = v => String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();
