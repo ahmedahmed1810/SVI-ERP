@@ -23,7 +23,9 @@
       const out = IND_BASE.map(([k, l, kind, u]) => ({ k: "b:" + k, lab: l, kind, u, q: k === "sc" ? (sc || null) : k === "sl" ? (sl || null) : v[k], m: null }));
       return out.concat(ratItems(d).filter(x => x.k[1] === "|").map(x => ({ ...x, kind: "n" })));
     };
-    const indElLab = (k, E) => { const x = (E || []).find(y => y.k === k); if (x) return x.lab + (x.u && x.kind === "n" && !k.startsWith("b:") ? " (" + x.u + ")" : ""); const b = IND_BASE.find(y => "b:" + y[0] === k); return b ? b[1] : (k[0] === "c" ? "CHG " : "PRD ") + String(k).split("|").slice(1).join(" "); };
+    /* v692 : brique « autre indicateur » (jeton { t: "e", k: "i:<id>" }) — indicateurs du budget ouvert */
+    const indBdgL = () => { try { return ((INS && INS.rat) || {}).L || []; } catch (e) { return []; } };
+    const indElLab = (k, E) => { if (String(k).startsWith("i:")) { const I = indBdgL().find(x => x.id === k.slice(2)); return I ? "[" + I.nom + "]" : "[INDICATEUR SUPPRIMÉ]"; } const x = (E || []).find(y => y.k === k); if (x) return x.lab + (x.u && x.kind === "n" && !k.startsWith("b:") ? " (" + x.u + ")" : ""); const b = IND_BASE.find(y => "b:" + y[0] === k); return b ? b[1] : (k[0] === "c" ? "CHG " : "PRD ") + String(k).split("|").slice(1).join(" "); };
     /* formule → texte lisible */
     const indText = (f, E) => (f || []).map(t => t.t === "e" ? indElLab(t.k, E) : t.t === "n" ? String(t.v).replace(".", ",") : t.t === "o" ? t.v : t.t).join(" ").replace(/\( /g, "(").replace(/ \)/g, ")");
     /* analyse : arbre de calcul, ou erreur lisible */
@@ -47,6 +49,7 @@
     };
     /* valeur d'un indicateur sur un état du budget : { val?, txt, err? } */
     const indNum = (v, dec) => Number(v).toLocaleString("fr-FR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    let IND_DEPTH = 0;
     const indCalc = (I, d, E) => {
       E = E || indEls(d);
       let tree; try { tree = indParse(I.f); } catch (e) { return { txt: e.ind ? e.message : "FORMULE ILLISIBLE", err: true }; }
@@ -56,12 +59,20 @@
         const x = E.find(y => y.k === tree.leaf.k);
         if (x && (x.kind === "date" || x.kind === "txt")) return { txt: x.q === null || x.q === undefined || x.q === "" ? "—" : x.kind === "date" ? dFr(x.q) : String(x.q) };
       }
-      let miss = false, dz = false, kindErr = false;
+      let miss = false, dz = false, kindErr = false, missLab = "";
       const ev = n => {
         if (n.leaf) {
           if (n.leaf.t === "n") return Number(n.leaf.v);
+          /* v692 : autre indicateur du budget (profondeur limitée : pas de boucle) */
+          if (String(n.leaf.k).startsWith("i:")) {
+            const I2 = indBdgL().find(x => x.id === n.leaf.k.slice(2));
+            if (!I2 || IND_DEPTH > 6) { miss = true; missLab = missLab || indElLab(n.leaf.k, E); return 0; }
+            IND_DEPTH++; let r; try { r = indCalc(I2, d, E); } finally { IND_DEPTH--; }
+            if (r.val === undefined || r.val === null) { miss = true; missLab = missLab || I2.nom; return 0; }
+            return r.val;
+          }
           const x = E.find(y => y.k === n.leaf.k);
-          if (!x || x.q === null || x.q === undefined) { miss = true; return 0; }
+          if (!x || x.q === null || x.q === undefined) { miss = true; missLab = missLab || indElLab(n.leaf.k, E); return 0; }
           if (x.kind === "date" || x.kind === "txt") { kindErr = true; return 0; }
           return I.mode === "m" && x.m !== null && x.m !== undefined ? x.m : x.q;
         }
@@ -75,8 +86,9 @@
       };
       const val = ev(tree);
       if (kindErr) return { txt: "DATE OU TEXTE DANS UN CALCUL", err: true };
-      if (miss) return { txt: "—" };
-      if (dz) return { txt: "DIVISION PAR ZÉRO", err: true };
+      /* v692 : formule toujours acceptée — case vide avec message gris, recalcul dès que la donnée arrive */
+      if (miss) return { txt: "DONNÉE MANQUANTE : " + missLab, soft: true };
+      if (dz) return { txt: "DIVISION PAR ZÉRO", soft: true };
       const one = tree.leaf && tree.leaf.t === "e" ? E.find(y => y.k === tree.leaf.k) : null;
       const u = I.fmt === "p" ? "%" : (I.u || (one ? (I.mode === "m" && one.m !== null && one.m !== undefined ? "DH" : one.u) : ""));
       return { val, txt: indNum(I.fmt === "p" ? val * 100 : val, dec) + (u ? " " + u : "") };
@@ -100,7 +112,7 @@
             <div class="indf-line" data-line>${I.f.map((t, j) => `<span class="indf-tk indf-${t.t === "e" ? "e" : t.t === "n" ? "n" : "o"}${j === cur - 1 ? " on" : ""}" data-tk="${j}">${esc(t.t === "e" ? indElLab(t.k, E) : t.t === "n" ? String(t.v).replace(".", ",") : t.t === "o" ? t.v : t.t)}</span>`).join("")}<span class="indf-cur${cur === 0 ? " on" : ""}" data-tk="-1">${I.f.length ? "" : "TOUCHER LES BOUTONS POUR COMPOSER LA FORMULE"}</span></div>
             <div class="indf-keys">
               ${["(", ")", "+", "−", "×", "÷"].map(k => `<button type="button" class="svc-b indf-k" data-k="${k}">${k}</button>`).join("")}
-              <select class="rat-add indf-el"><option value="">+ ÉLÉMENT…</option>${grp("MESURES DU PROGRAMME", E.filter(x => x.k.startsWith("b:")))}${grp("CHARGES", E.filter(x => x.k.startsWith("c|")))}${grp("PRODUITS", E.filter(x => x.k.startsWith("p|")))}</select>
+              <select class="rat-add indf-el"><option value="">+ ÉLÉMENT…</option>${grp("MESURES DU PROGRAMME", E.filter(x => x.k.startsWith("b:")))}${st !== IND_STORE ? grp("AUTRES INDICATEURS DU BUDGET", st.list().filter(x => x.id !== I.id).map(x => ({ k: "i:" + x.id }))) : ""}${grp("CHARGES", E.filter(x => x.k.startsWith("c|")))}${grp("PRODUITS", E.filter(x => x.k.startsWith("p|")))}</select>
               <input class="pv-in indf-nb" inputmode="decimal" placeholder="NOMBRE" style="width:90px"><button type="button" class="svc-b" data-nb>+ NOMBRE</button>
               <button type="button" class="svc-b" data-bk>⌫ EFFACER</button><button type="button" class="svc-b" data-clr>TOUT EFFACER</button>
             </div>
