@@ -8,6 +8,9 @@
        - budget figé : lecture seule.
        ========================================================= */
     const INS = sviBudgetData(budget.inst);   /* refonte, étape 1 : données du budget (02b) */
+    /* v693 : RECALAGE — DÉSIGNATIONS CLIENT et leurs prix en lecture seule (ils ne changent que par avenant) */
+    const rclDesSig = L => JSON.stringify((L || []).map(r => { const o = { ...r }; delete o.on; return o; }));
+    const INS_RCL0 = INS && budget.inst && budget.inst.rclOf ? { json: JSON.stringify(INS.des || []), sig: rclDesSig(INS.des) } : null;
     /* v672 (bloc 2) : budget ouvert en modification par un autre utilisateur (verrou de la base V3) = lecture seule */
     /* v676 : VERROU PAR ZONE (02e) — seule la zone où un autre travaille est en lecture seule ; un verrou sans zone (ancienne version) bloque tout */
     /* v681 : scénario actif ARCHIVÉ = lecture seule (DÉSARCHIVER ou BASCULER pour modifier) ; GLOBAL (consolidé) = lecture seule */
@@ -68,6 +71,12 @@
       }, 60);
     };
     const insSave = () => {
+      if (INS_RCL0 && rclDesSig(INS.des) !== INS_RCL0.sig) {
+        const on = new Map((INS.des || []).map(r => [r.id, r.on]));
+        INS.des = JSON.parse(INS_RCL0.json).map(r => on.has(r.id) ? { ...r, on: on.get(r.id) } : r);
+        INS_RCL0.sig = rclDesSig(INS.des);
+        setTimeout(() => { try { svToast("RECALAGE : DÉSIGNATIONS CLIENT ET PRIX EN LECTURE SEULE (ILS NE CHANGENT QUE PAR AVENANT).", 4500); refreshAll(); } catch (e) {} }, 0);
+      }
       if (INS_EDIT) { sviDataTidy(INS); insLiveSync(); try { qqAutoSync(); } catch (e) {} if (shell.__undoTick) shell.__undoTick(); }
       /* délier en attente de ✓ VALIDER : l'état enregistré garde les liaisons d'avant */
       sviBudgetStore(budget.inst.ref, () => { let lb = null; try { lb = LK.linksBak; } catch (e) {} return lb ? { ...INS, links: lb } : INS; });
@@ -449,7 +458,7 @@
       r = r || {};
       /* QPB produits = NBR × DIM 1 × DIM 2 × DIM 3 ; QPB désignation liée = somme des produits de ses tâches */
       const qAuto = (f === "q" && (k === "prd" || k === "des")) || (f === "p" && k === "prd") || (f === "q" && k === "chg" && !!insRg());   /* v560 : plage posée = QCB au prorata, grisée */
-      const locked = !INS_EDIT || type === "calc" || qAuto || (INS_LOCK[k] || []).includes(f) || (k === "chg" && (f === "p" || f === "u") && !!r.chs) || (r.t && f !== "art" && f !== "des")
+      const locked = !INS_EDIT || (INS_RCL0 && k === "des") || type === "calc" || qAuto || (INS_LOCK[k] || []).includes(f) || (k === "chg" && (f === "p" || f === "u") && !!r.chs) || (r.t && f !== "art" && f !== "des")
         /* DIM que l'unité n'autorise pas : grisées (FORMAT 74, R10) */
         || (k === "prd" && /^d[123]$/.test(f) && !isNew && +f[1] > sviUnitDims(r.u))
         /* v470 : produit d'une liaison primaire — UPB = celle de la désignation client (comme le PPB) : grisée */

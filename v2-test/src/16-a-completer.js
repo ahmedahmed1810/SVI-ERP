@@ -144,7 +144,8 @@
       const lk = $("instLock");
       const td = $("instTodo");
       if (td) { const n = insTodo().reduce((t, b) => t + (+b.n || 1), 0); td.querySelector("b").textContent = n || ""; td.classList.toggle("ok", !n); let nf = 0; try { nf = insFiltActs().length; } catch (e) {} td.classList.toggle("flt", !!nf); td.title = n ? n + " ÉLÉMENT(S) À COMPLÉTER" : "TOUT EST COMPLET"; }
-      if (lk && INS_EDIT) { const B = insFigeBlocks(); lk.disabled = false; lk.classList.toggle("off", B.length > 0); lk.title = B.length ? "FIGER IMPOSSIBLE : TOUCHER POUR VOIR POURQUOI" : "Figer (lecture seule)"; }
+      if (lk && INS_EDIT) { const B = insFigeBlocks(); lk.disabled = false; lk.classList.toggle("off", B.length > 0); lk.title = B.length ? "FIGER IMPOSSIBLE : TOUCHER POUR VOIR POURQUOI" : "Figer (lecture seule)";
+        if (budget.inst && budget.inst.rclOf) { lk.classList.remove("off"); lk.title = "Enregistrer le recalage"; } }   /* v693 */
       const tb = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="unl"]`);
       /* LIGNES NON LIÉES : visible seulement s'il reste des lignes */
       if (tb) {

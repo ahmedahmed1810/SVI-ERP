@@ -1150,7 +1150,7 @@ function renderBudgetList() {
   instLoad().forEach(b => groups.set(b.ref, { ref: b.ref, project: b.project, rows: [], first: {}, inst: b }));
   /* v681 : budget à avenants — vue GLOBAL (marché initial + avenants consolidés, en lecture seule, jamais enregistrée) */
   /* v691 : composition par défaut du consolidé selon la liste affichée (EN INSTANCE : validé + en instance ; VALIDÉ : validé seul) */
-  { let lm = "valid"; try { if (localStorage.getItem("svi_listmode_v1") === "inst") lm = "inst"; } catch (e) {} window.__sviAvMode = window.__sviAvMode || {}; instLoad().filter(b => !b.parent).forEach(b => { window.__sviAvMode[b.ref] = lm; }); }
+  { let lm = "valid"; try { if (localStorage.getItem("svi_listmode_v1") === "inst") lm = "inst"; } catch (e) {} window.__sviAvMode = window.__sviAvMode || {}; instLoad().filter(b => !b.parent && !b.rclOf).forEach(b => { window.__sviAvMode[b.ref] = lm; }); }
   instLoad().filter(b => !b.parent && instLoad().some(x => x.parent === b.ref)).forEach(b => {
     try { const gref = b.ref + "-GLOBAL"; groups.set(gref, { ref: gref, project: b.project, rows: [], first: {}, inst: { ref: gref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vsel: sviAvSelLab(b.ref, sviAvSelGet(b.ref)), data: sviAvMerge(b.ref, sviAvSelGet(b.ref)) } }); } catch (e) {}
   });
@@ -1168,15 +1168,15 @@ function renderBudgetList() {
 
   /* v679 : pas d'icône EN INSTANCE s'il n'y a que des budgets validés, et inversement ; la liste affichée suit */
   /* v681 : un budget à avenants est une famille (marché initial + avenants) : elle figure dans chaque liste où l'un d'eux figure */
-  const famLive = g => { const L = [g.inst, ...instLoad().filter(x => g.inst && x.parent === g.ref)].filter(Boolean); return { live: L.some(x => x.state !== "valide"), done: !g.inst || L.some(x => x.state === "valide") }; };
+  const famLive = g => { const L = [g.inst, ...instLoad().filter(x => g.inst && x.parent === g.ref && !x.rclOf)].filter(Boolean); return { live: L.some(x => x.state !== "valide"), done: !g.inst || L.some(x => x.state === "valide") }; };
   const LIST_N = { inst: 0, valid: 0 };
-  groups.forEach(g => { if (g.inst && g.inst.parent) return; const f = famLive(g); if (f.live) LIST_N.inst++; if (f.done) LIST_N.valid++; });
+  groups.forEach(g => { if (g.inst && (g.inst.parent || g.inst.rclOf)) return; const f = famLive(g); if (f.live) LIST_N.inst++; if (f.done) LIST_N.valid++; });
   if (listMode === "inst" && !LIST_N.inst && LIST_N.valid) listMode = "valid";
   if (listMode === "valid" && !LIST_N.valid && LIST_N.inst) listMode = "inst";
 
   const budgets =
     [...groups.values()].filter(g => {
-      if (g.inst && g.inst.parent) return false;   /* avenants et GLOBAL : dans la liste du budget */
+      if (g.inst && (g.inst.parent || g.inst.rclOf)) return false;   /* avenants, GLOBAL et recalages (v693) : sous leur budget / étape */
       const f = famLive(g);
       return listMode === "inst" ? f.live : f.done;
     });

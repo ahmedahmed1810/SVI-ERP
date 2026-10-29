@@ -17,7 +17,7 @@
       R.L = R.L || []; R.T = Array.isArray(R.T) ? R.T : [];
       let add = false;
       IBD_AUTO.forEach(([code, nom, k]) => { if (!R.L.some(I => I.auto === code)) { R.L.unshift({ id: "auto_" + code, auto: code, nom, f: [{ t: "e", k }], mode: "q", fmt: "n", dec: 2, u: k === "b:mo" || k === "b:mg" || k === "b:chg" || k === "b:prd" ? "DH" : "", seuil: "" }); add = true; } });
-      if (!R.T.length) { R.T.push({ id: "t_" + insId(), nom: "MARGE", y: ["auto_mg", "auto_chg", "auto_prd"], step: "s", cum: true, view: "g", hs: [], vs: ["today"] }); add = true; }
+      if (!R.T.length) { R.T.push({ id: "t_auto", nom: "MARGE", y: ["auto_mg", "auto_chg", "auto_prd"], step: "s", cum: true, view: "g", hs: [], vs: ["today"] }); add = true; }
       if (add && INS_EDIT) { INS.rat = JSON.parse(JSON.stringify(R)); insSave(); }
       return R;
     };
@@ -40,6 +40,15 @@
     };
     /* valeurs d'un indicateur par pas : unitaire (part de chaque pas) ou cumulé (du premier jour à la fin du pas) */
     const ibdSeries = (I, D, P, cum) => P.map(p => { const r = indCalc(I, ratPerSub(D, cum ? P[0].a : p.a, p.b)); return r.val === undefined || r.val === null ? null : (I.fmt === "p" ? r.val * 100 : r.val); });
+    /* v693 : sources de comparaison — sur une étape validée ou un recalage : ÉTAPE VALIDÉE, DERNIER RECALAGE, chaque Rn enregistré */
+    const ibdStage = () => budget.inst && !budget.inst.virtual ? (budget.inst.rclOf || (budget.inst.state === "valide" ? budget.inst.ref : "")) : "";
+    const ibdHere = () => budget.inst && budget.inst.rclOf ? "R" + budget.inst.rcn : "ÉTAPE VALIDÉE";
+    const ibdSources = () => {
+      const st = ibdStage(); if (!st) return [];
+      const S = sviInstGet().find(x => x.ref === st), R = sviRclOf(st).filter(x => x.state === "valide"), last = R[R.length - 1];
+      if (!S || !R.length && !budget.inst.rclOf) return [];
+      return [{ k: "val", lab: "ÉTAPE VALIDÉE", d: S.data }, ...(last ? [{ k: "last", lab: "DERNIER RECALAGE (R" + last.rcn + ")", d: last.data }] : []), ...R.map(x => ({ k: "R" + x.rcn, lab: "R" + x.rcn, d: x.data }))].filter(x => x.d);
+    };
     const ibdFx = (v, dec) => v === null || v === undefined ? "" : indNum(v, dec === undefined ? 2 : dec);
 
     /* ---------- bandeau des carreaux (dans l'onglet INDICATEURS) ---------- */
@@ -69,11 +78,15 @@
         const P = ibdSteps(D, T.step || "s");
         /* deux unités au plus : la 1re (axe gauche), la 2e (axe droit) ; les autres grisées */
         const units = []; Y.forEach(I => { const u = ibdUnit(I, E); if (!units.includes(u)) units.push(u); });
+        /* v693 : courbes d'une autre source (ÉTAPE VALIDÉE, DERNIER RECALAGE, Rn) superposées au budget ouvert */
+        const SRC = ibdSources(), XC = (T.c || []).map(c => ({ c, I: R.L.find(I => I.id === c.id), S: SRC.find(x => x.k === c.src) })).filter(x => x.I && x.S && x.S.d);
+        XC.forEach(x => { const u = ibdUnit(x.I, E); if (!units.includes(u)) units.push(u); });
         const okU = units.slice(0, 2), shownY = Y.filter(I => okU.includes(ibdUnit(I, E)));
-        const SER = shownY.map(I => ({ I, u: ibdUnit(I, E), v: ibdSeries(I, D, P, !!T.cum) }));
+        const SER = shownY.map(I => ({ I, lab: I.nom + (SRC.length ? " (" + ibdHere() + ")" : ""), u: ibdUnit(I, E), v: ibdSeries(I, D, P, !!T.cum) }))
+          .concat(XC.filter(x => okU.includes(ibdUnit(x.I, E))).map(x => ({ I: x.I, lab: x.I.nom + " (" + x.S.lab + ")", u: ibdUnit(x.I, E), v: ibdSeries(x.I, x.S.d, P, !!T.cum), ci: (T.c || []).indexOf(x.c) })));
         const chips = R.L.map(I => { const on = T.y.includes(I.id), u = ibdUnit(I, E), off = !on && units.length >= 2 && !units.includes(u);
           return `<button type="button" class="ibd-chip${on ? " on" : ""}${off ? " off" : ""}" data-ytog="${esc(I.id)}"${off ? ` data-why="3E UNITÉ (${esc(u || "SANS UNITÉ")}) : DEUX UNITÉS AU PLUS SUR UN GRAPHIQUE (${esc(units.join(" / "))})."` : ""}>${esc(I.nom)}${ibdA(I)} <small>${esc(u || "—")}</small></button>`; }).join("");
-        const table = () => `<div class="ibd-tscroll"><table class="bdg-d-table ibd-table"><thead><tr><th>${T.step === "j" ? "JOUR" : T.step === "m" ? "MOIS" : "SEMAINE"}</th>${SER.map(s => `<th class="number">${esc(s.I.nom)}${s.u ? " (" + esc(s.u) + ")" : ""}</th>`).join("")}</tr></thead>
+        const table = () => `<div class="ibd-tscroll"><table class="bdg-d-table ibd-table"><thead><tr><th>${T.step === "j" ? "JOUR" : T.step === "m" ? "MOIS" : "SEMAINE"}</th>${SER.map(s => `<th class="number">${esc(s.lab || s.I.nom)}${s.u ? " (" + esc(s.u) + ")" : ""}</th>`).join("")}</tr></thead>
           <tbody>${P.map((p, i) => `<tr><td>${esc(p.lab)}</td>${SER.map(s => `<td class="number">${ibdFx(s.v[i], s.I.dec)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${SER.length + 1}" class="empty">AUCUNE DATE AU PLANNING</td></tr>`}</tbody></table></div>`;
         d.innerHTML = sviWinCard({ cls: "cmp-card svc-full ibd-card", close: "data-x", title: "INDICATEURS — " + esc(T.nom),
           body: `<div class="ibd-bar">
@@ -84,6 +97,10 @@
               ${view === "t" ? `<button type="button" class="svc-b" data-copy>COPIER</button>` : ""}
             </div>
             <div class="ibd-chips">${chips}${ed ? `<button type="button" class="ibd-chip ibd-new" data-ynew>+ NOUVEL INDICATEUR</button>` : ""}</div>
+            ${SRC.length ? `<div class="ibd-src"><span>COMPARER AVEC :</span>${XC.map(x => `<span class="ibd-chip on">${esc(x.I.nom)} <small>${esc(x.S.lab)}</small> <button type="button" class="cmp-del" data-cdel="${(T.c || []).indexOf(x.c)}">✕</button></span>`).join("")}
+              <select class="pv-in ibd-ci">${R.L.map(I => `<option value="${esc(I.id)}">${esc(I.nom)}</option>`).join("")}</select>
+              <select class="pv-in ibd-cs">${SRC.map(x => `<option value="${esc(x.k)}">${esc(x.lab)}</option>`).join("")}</select>
+              <button type="button" class="svc-b" data-cadd>+ COURBE</button></div>` : ""}
             ${view === "g" ? `<div class="ibd-seuils">
               <span>SEUILS :</span>${(T.hs || []).map((h, i) => `<span class="ibd-s">─ ${esc(ibdFx(h.v))} ${esc(h.u || okU[0] || "")}${ed ? ` <button type="button" class="cmp-del" data-hsdel="${i}">✕</button>` : ""}</span>`).join("")}
               ${(T.vs || []).map((v, i) => `<span class="ibd-s">│ ${v === "today" ? "AUJOURD'HUI" : esc(dFr(v))}${ed ? ` <button type="button" class="cmp-del" data-vsdel="${i}">✕</button>` : ""}</span>`).join("")}
@@ -92,7 +109,7 @@
             </div>` : ""}
             <div class="ibd-main">${!SER.length ? `<div class="fz-none">CHOISIR DES INDICATEURS CI-DESSUS</div>` : view === "t" ? table() : ibdChart(SER, P, T, okU)}</div>`,
           foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
-        d.__tsv = () => [[T.step === "j" ? "JOUR" : T.step === "m" ? "MOIS" : "SEMAINE", ...SER.map(s => s.I.nom + (s.u ? " (" + s.u + ")" : ""))].join("\t"), ...P.map((p, i) => [p.lab, ...SER.map(s => ibdFx(s.v[i], s.I.dec))].join("\t"))].join("\n");
+        d.__tsv = () => [[T.step === "j" ? "JOUR" : T.step === "m" ? "MOIS" : "SEMAINE", ...SER.map(s => (s.lab || s.I.nom) + (s.u ? " (" + s.u + ")" : ""))].join("\t"), ...P.map((p, i) => [p.lab, ...SER.map(s => ibdFx(s.v[i], s.I.dec))].join("\t"))].join("\n");
         if (focusId) { const c = d.querySelector(`[data-ytog="${CSS.escape(focusId)}"]`); if (c) c.classList.add("focus"); focusId = ""; }
       };
       const put = (what, det) => { ibdSave(R, what, det); };
@@ -100,6 +117,8 @@
       d.addEventListener("change", e => { if (e.target.classList.contains("ibd-nom")) { T.nom = U_(e.target.value) || T.nom; put("CARREAU RENOMMÉ", T.nom); draw(); } });
       d.addEventListener("click", async e => {
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); refreshAll(); return; }
+        if (e.target.closest("[data-cadd]")) { T.c = (T.c || []).concat({ id: d.querySelector(".ibd-ci").value, src: d.querySelector(".ibd-cs").value }); put("COURBE AJOUTÉE", ""); draw(); return; }
+        const cd = e.target.closest("[data-cdel]"); if (cd) { T.c.splice(+cd.dataset.cdel, 1); put(); draw(); return; }
         const st = e.target.closest("[data-step]"); if (st) { T.step = st.dataset.step; put(); draw(); return; }
         const cu = e.target.closest("[data-cum]"); if (cu) { T.cum = cu.dataset.cum === "1"; put(); draw(); return; }
         if (e.target.closest("[data-view]")) { view = view === "g" ? "t" : "g"; T.view = view; put(); draw(); return; }
@@ -140,7 +159,7 @@
       const today = sviIsoOf(new Date());
       const vs = (T.vs || []).map(v => { const dd = v === "today" ? today : v; const i = P.findIndex(p => p.a <= dd && dd <= p.b); if (i < 0) return ""; return `<line x1="${x(i)}" x2="${x(i)}" y1="${pt}" y2="${H - pb}" stroke="#7a5af8" stroke-width="1.5" stroke-dasharray="4 3"/><text x="${x(i) + 3}" y="${pt + 10}" class="rat-ax" fill="#7a5af8">${v === "today" ? "AUJOURD'HUI" : esc(dFr(v))}</text>`; }).join("");
       const zero = A0.mn < 0 ? `<line x1="${pl}" x2="${W - pr}" y1="${y(A0, 0)}" y2="${y(A0, 0)}" stroke="#98a2b3"/>` : "";
-      const leg = `<div class="rat-leg">${SER.map((s, j) => `<span><i style="background:${RAT_C[j % RAT_C.length]}"></i>${esc(s.I.nom)} <small>(${esc(s.u || "—")}${U.length > 1 ? (U.indexOf(s.u) ? ", AXE DROIT" : ", AXE GAUCHE") : ""})</small></span>`).join("")}</div>`;
+      const leg = `<div class="rat-leg">${SER.map((s, j) => `<span><i style="background:${RAT_C[j % RAT_C.length]}"></i>${esc(s.lab || s.I.nom)} <small>(${esc(s.u || "—")}${U.length > 1 ? (U.indexOf(s.u) ? ", AXE DROIT" : ", AXE GAUCHE") : ""})</small></span>`).join("")}</div>`;
       return leg + `<div class="rat-gx"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="rat-svg">
         <text x="${pl}" y="10" class="rat-ax">${esc(A0.u || "")}</text>${A1 ? `<text x="${W - pr}" y="10" text-anchor="end" class="rat-ax">${esc(A1.u || "")}</text>` : ""}
         ${grid}${zero}${hs}${vs}${lines}${xl}</svg></div>`;

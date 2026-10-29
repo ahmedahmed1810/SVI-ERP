@@ -280,7 +280,8 @@
     /* v675 : réouverture par le verrou par onglet — même onglet qu'avant */
     if (window.__sviForceTab) { active = window.__sviForceTab; window.__sviForceTab = null; }
     /* référence affichée du budget : « H88 BDG 26-1001/001 » */
-    const fullRef = String(budget.project).trim().toUpperCase() + " " + ref;
+    /* v693 : recalage — titre « <réf. de l'étape> R<n> » */
+    const fullRef = String(budget.project).trim().toUpperCase() + " " + (budget.inst && budget.inst.rclOf ? budget.inst.rclOf + " R" + budget.inst.rcn : ref);
     /* budget en instance : rouge (édition) ou vert (figé) */
     shell.classList.remove("bdg-inst-instance", "bdg-inst-fige", "list-inst");
     /* en instance (rouge) ou figé (vert) ; validé : présentation noire normale */
@@ -333,7 +334,7 @@
           <button type="button" class="inst-act" id="instRedo" title="Rétablir" aria-label="Rétablir" disabled><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l4.5 4.5L15 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 11.5H9.5a5 5 0 0 0 0 10H13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button>` : ""}
           ${budget.inst.state !== "fige" ? `<button type="button" class="inst-act inst-todo" id="instTodo" title="À compléter" aria-label="À compléter"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 2.8 19.5h18.4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.1" fill="currentColor"/></svg><b></b></button>` : ""}
           <button type="button" class="inst-act" id="instLock"
-            title="${budget.inst.state === "fige" ? "Revenir en édition" : "Figer (lecture seule)"}"
+            title="${budget.inst.rclOf ? "Enregistrer le recalage" : budget.inst.state === "fige" ? "Revenir en édition" : "Figer (lecture seule)"}"
             aria-label="Figer">${budget.inst.state === "fige" ? `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 7.5-1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>` : `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>`}</button>
           ${budget.inst.state === "fige"
             ? `<button type="button" class="inst-act" id="instValid" title="Valider le budget" aria-label="Valider"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
@@ -454,6 +455,18 @@
             </span>
           </div>
           <div class="rec-scroll ver-scroll"><table class="bdg-d-table rec-table ver-table" id="verTable"></table></div>
+        </div>
+
+        <div class="bdg-d-block blk-rec blk-rcl" data-rec="rcl" hidden>
+          <div class="bdg-d-block-title blk-head">
+            <span class="ttl" id="rclTitle">${SVI_ICON.rcl}RECALAGES</span>
+            <span class="blk-tools">
+              <button type="button" class="blk-btn" data-blk="rcl" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="rcl" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn blk-max-btn" data-blk="rcl" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </span>
+          </div>
+          <div class="rec-scroll rcl-scroll"><table class="bdg-d-table rec-table rcl-table" id="rclTable"></table></div>
         </div>
 
         <div class="bdg-d-block blk-rec blk-suivi" data-rec="suivi">

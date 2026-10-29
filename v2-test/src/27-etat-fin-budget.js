@@ -107,14 +107,18 @@
       };
       /* sortie avec une liaison modifiée non validée : on propose de valider d'abord */
       const guarded = fn => () => (shell.__lkGuard ? shell.__lkGuard() : Promise.resolve(true)).then(ok => { if (ok) fn(); });
-      $("instPrev")?.addEventListener("click", guarded(() => go(-1)));
-      $("instNext")?.addEventListener("click", guarded(() => go(1)));
+      /* v693 : recalage — ‹ › = recalage précédent / suivant */
+      $("instPrev")?.addEventListener("click", guarded(() => budget.inst.rclOf ? shell.__rclGo(-1) : go(-1)));
+      $("instNext")?.addEventListener("click", guarded(() => budget.inst.rclOf ? shell.__rclGo(1) : go(1)));
       $("instClose")?.addEventListener("click", guarded(toList));
       $("instDel")?.addEventListener("click", () => {
-        svConfirm({ title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
+        const RC = budget.inst.rclOf;
+        svConfirm(RC ? { title: "SUPPRIMER LE RECALAGE R" + budget.inst.rcn, text: "LE RECALAGE EN COURS R" + budget.inst.rcn + " SERA SUPPRIMÉ ; L'ÉTAPE " + RC + " NE CHANGE PAS.", ok: "SUPPRIMER" }
+          : { title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
           if (!go) return;
           instUpd(l => l.filter(x => x.ref !== ref));
           groups.delete(ref);
+          if (RC) { window.__sviAvRet = null; window.__sviAvOpen(RC); return; }
           toList();
         });
       });
@@ -162,6 +166,7 @@
       $("instLock")?.addEventListener("click", async () => {
         /* liaison modifiée non validée : valider ou abandonner d'abord */
         if (shell.__lkGuard && !(await shell.__lkGuard())) return;
+        if (budget.inst.rclOf) { shell.__rclSave && shell.__rclSave(); return; }   /* v693 : 🔒 = ENREGISTRER LE RECALAGE */
         const fige = budget.inst.state === "fige";
         /* FIGER : impossible tant qu'il reste une cause (FORMAT 96) : la fenêtre dit pourquoi */
         if (!fige && INS && shell.__figeBlocks && shell.__figeBlocks().length) { shell.__figeWhy(); return; }
@@ -323,7 +328,9 @@
       d.innerHTML = sviWinCard({ cls: "av-comp-card", close: "data-x", title: "COMPOSITION DU CONSOLIDÉ",
         body: `<div class="svc-sub">COCHER CE QUI ENTRE DANS LE CONSOLIDÉ : UNE ÉTAPE TELLE QU'ELLE EST, OU L'UN DE SES SCÉNARIOS À SA PLACE.</div>
           <div class="av-tree">${S0.map(st => { const sc = sviAvScn(st), c = sel[st.ref];
-            return `<label class="av-tn av-st-${st.state || "instance"}${st.parent ? " row-av" : " row-bdg"}"><input type="checkbox" data-st="${esc(st.ref)}"${c === "act" ? " checked" : ""}> <b>${esc(sviAvName(st))}</b> <small>${esc(st.ref)} · ${stLab(st)}</small></label>
+            const rl = st.state === "valide" ? sviRclLast(st.ref) : null;
+            return `<label class="av-tn av-st-${st.state || "instance"}${st.parent ? " row-av" : " row-bdg"}"><input type="checkbox" data-st="${esc(st.ref)}"${c === "act" ? " checked" : ""}> <b>${esc(sviAvName(st))}</b> <small>${esc(st.ref)} · ${stLab(st)}${rl ? " · DERNIER RECALAGE R" + rl.rcn : ""}</small></label>
+              ${rl ? `<label class="av-tn av-sub"><input type="checkbox" data-st="${esc(st.ref)}" data-sc="val"${c === "val" ? " checked" : ""}> ÉTAPE VALIDÉE (SANS RECALAGE)</label>` : ""}
               ${sc.map(x => `<label class="av-tn av-sub"><input type="checkbox" data-st="${esc(st.ref)}" data-sc="${x.id}"${c === x.id ? " checked" : ""}> ${esc(x.nom)}${x.arch ? " <small>(ARCHIVÉ)</small>" : ""}</label>`).join("")}`; }).join("")}</div>`,
         foot: `<button type="button" class="svc-b" data-def>PAR DÉFAUT (VALIDÉS)</button><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>APPLIQUER</button>` });
     };

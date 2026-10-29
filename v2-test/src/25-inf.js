@@ -399,10 +399,10 @@
       const page = shell.querySelector(".bdg-d-page");
       const cls = "max-" + blk;
       const on = !page.classList.contains(cls);
-      page.classList.remove("max-client", "max-hier", "max-detail", "max-rec", "max-suivi", "max-scn", "max-ver");
+      page.classList.remove("max-client", "max-hier", "max-detail", "max-rec", "max-suivi", "max-scn", "max-ver", "max-rcl");
       shell.querySelectorAll(".blk-rec").forEach(b =>
         b.classList.toggle("blk-rec-on", on && b.dataset.rec === blk));
-      if (on && ["suivi", "scn", "ver"].includes(blk)) page.classList.add("max-rec");
+      if (on && ["suivi", "scn", "ver", "rcl"].includes(blk)) page.classList.add("max-rec");
       if (on) {
         const head = shell.querySelector(".bdg-d-sticky");
         const avail = window.innerHeight - (head ? head.offsetHeight : 0) - 40;
