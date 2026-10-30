@@ -23,6 +23,7 @@
     const indSaveL = L => { if (typeof sviSharedSet === "function") sviSharedSet("IND", { L }); };
     /* éléments d'un état du budget */
     const indEls = d => {
+      d = condBake(d);   /* v732 (bloc 9) : la chute compte dans les quantités et montants des charges */
       const v = { ...verInd(d) }, R = d.rat || {};
       { let E = null, Ep = null; try { E = sviRevEst(d, false); Ep = sviRevEst(d, true); } catch (e) {}
         v.rev = E ? E.rev : null; v.prdr = E ? (v.prd || 0) + E.rev : null; v.mgr = E ? (v.mg || 0) + E.rev : null; v.mgrp = Ep ? (v.mg || 0) + Ep.rev - Ep.chgUp : null; }

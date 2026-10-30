@@ -4624,6 +4624,13 @@ const condChuteRow = (I, r) => {
   return Q > 0 ? C * (num(r.q) || 0) / Q : C / rows.length;
 };
 
+/* v732 : données « cuites » pour les indicateurs — la chute ajoutée à la QCB de chaque charge (une seule fois : __cb) */
+const condBake = d => {
+  if (!d || d.__cb || !d.cond || !Object.keys(d.cond).length) return d;
+  const chg = (d.chg || []).map(r => { const c = condChuteRow(d, r); return c ? { ...r, q: (num(r.q) || 0) + c } : r; });
+  return { ...d, chg, __cb: 1 };
+};
+
 /* v718 (révision des prix) : estimation de la révision avec le planning — formule du contrat (part fixe + pondérations par index),
    hypothèse d'évolution par index (%/an depuis le mois de base), scénario pessimiste (hausse d'un index, et hausse de charges par mot-clé).
    Valeur de chaque désignation client répartie sur les jours de ses tâches ; révision du jour = valeur × (K − 1). */
@@ -14758,7 +14765,9 @@ ${A}</Assignments>
           seen.add(e.id);
           const r = INS.chg.find(x => x.id === e.id);
           if (!r) return;
-          const v = m === "q" ? dlyResQty(r) : (num(r.q || 0) || 0) * (num(r.p || 0) || 0);
+          /* v732 (bloc 9) : la chute du titre s'ajoute à la quantité de la charge (graphique, commandes, capacité) */
+          const q0 = num(r.q || 0) || 0, ch = condChuteRow(INS, r);
+          const v = m === "q" ? dlyResQty(r) * (q0 ? (q0 + ch) / q0 : 1) : (q0 + ch) * (num(r.p || 0) || 0);
           if (v) out.set(dlyResK(r), (out.get(dlyResK(r)) || 0) + v);
         });
       });
@@ -22253,6 +22262,7 @@ ${A}</Assignments>
     const indSaveL = L => { if (typeof sviSharedSet === "function") sviSharedSet("IND", { L }); };
     /* éléments d'un état du budget */
     const indEls = d => {
+      d = condBake(d);   /* v732 (bloc 9) : la chute compte dans les quantités et montants des charges */
       const v = { ...verInd(d) }, R = d.rat || {};
       { let E = null, Ep = null; try { E = sviRevEst(d, false); Ep = sviRevEst(d, true); } catch (e) {}
         v.rev = E ? E.rev : null; v.prdr = E ? (v.prd || 0) + E.rev : null; v.mgr = E ? (v.mg || 0) + E.rev : null; v.mgrp = Ep ? (v.mg || 0) + Ep.rev - Ep.chgUp : null; }
@@ -22596,6 +22606,7 @@ ${A}</Assignments>
     };
     /* part du budget retenue par un filtre de liaisons */
     const ratSub = (D, keep) => {
+      D = condBake(D);   /* v732 : chute calculée sur le budget entier, avant découpe */
       const L = (D.links || []).filter(keep), ids = k => new Set(L.flatMap(l => (l[k] || []).map(x => x.id)));
       const ch = ids("chg"), pr = ids("prd"), ds = new Set(L.map(l => l.des)), lo = new Set(L.map(l => l.lot)), ks = new Set(L.map(l => l.lot + "|" + l.sec));
       return { ...D, links: L, chg: (D.chg || []).filter(r => r.t || ch.has(r.id)), prd: (D.prd || []).filter(r => r.t || pr.has(r.id)),
@@ -22605,6 +22616,7 @@ ${A}</Assignments>
     /* période [a, b] : délais coupés à la période, charges et produits au prorata des jours de leurs tâches dans la période */
     const ratDays = (x, y) => Math.max(0, Math.round((new Date(y + "T12:00:00") - new Date(x + "T12:00:00")) / 864e5) + 1);
     const ratPerSub = (D, a, b) => {
+      D = condBake(D);   /* v732 : chute calculée sur le budget entier, avant découpe */
       const f = {};
       Object.keys(D.dlp || {}).forEach(k => { let tot = 0, inn = 0; (D.dlp[k] || []).forEach(p => { if (!p.deb) return; const x = p.deb, y = p.fin || p.deb; tot += ratDays(x, y); const lo = x > a ? x : a, hi = y < b ? y : b; if (lo <= hi) inn += ratDays(lo, hi); }); f[k] = tot ? inn / tot : 0; });
       const share = (kind, id) => { const ks = (D.links || []).filter(l => (l[kind] || []).some(x => x.id === id)).map(l => l.lot + "|" + l.sec); return ks.length ? ks.reduce((t, k) => t + (f[k] || 0), 0) / ks.length : 0; };
@@ -23118,7 +23130,7 @@ ${A}</Assignments>
       const out = new Map();
       (INS.chg || []).filter(r => !r.t).forEach(r => {
         const ks = [...(byRow.get(r.id) || [])]; if (!ks.length) return;
-        const q = num(r.q || 0) || 0, pu = num(r.p || 0) || 0, sk = dlyResK(r);
+        const q = (num(r.q || 0) || 0) + condChuteRow(INS, r), pu = num(r.p || 0) || 0, sk = dlyResK(r);   /* v732 : chute comprise */
         ks.forEach(k => {
           const P = dlyList(k).filter(p => p.deb && p.fin); if (!P.length) return;
           const D = P.map(p => Math.max(1, sviWDur(insCal(k), p.deb, p.fin) || 1)), tot = D.reduce((a, b) => a + b, 0);
