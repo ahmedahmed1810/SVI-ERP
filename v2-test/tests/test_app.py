@@ -2315,7 +2315,7 @@ def main():
         pg.evaluate("""() => { const S = window.__fs = { b: {}, locks: [] };
           window.apiPost = async (a, p) => {
             if (a === 'v3List') return { ok: true, list: Object.values(S.b).map(x => ({ ref: x.ref, rev: x.rev, ts: x.ts, user: x.user })), locks: S.locks };
-            if (a === 'v3Pull') { const x = S.b[p.ref]; return x ? { ok: true, ...x } : { ok: true, missing: true }; }
+            if (a === 'v3Pull') { const x = S.b[p.ref]; if (x && S.corrupt) { const o = JSON.parse(x.data); (o.data.des.find(r => !r.t) || {}).p = 1; return { ok: true, ...x, data: JSON.stringify(o) }; } return x ? { ok: true, ...x } : { ok: true, missing: true }; }
             if (a === 'v3Push') { const x = S.b[p.ref]; if (x && x.rev !== p.baseRev) return { ok: true, conflict: true, rev: x.rev, ts: x.ts, user: x.user, data: x.data };
               S.b[p.ref] = { ref: p.ref, rev: (x ? x.rev : 0) + 1, ts: p.ts, user: p.user, data: p.data }; const o = JSON.parse(p.data).data || {};
               return { ok: true, rev: S.b[p.ref].rev, len: p.data.length, ctl: { des: (o.des || []).length, lot: (o.lot || []).length, prim: (o.prim || []).length, sec: (o.sec || []).length, chg: (o.chg || []).length, prd: (o.prd || []).length, links: (o.links || []).length } }; }
@@ -2323,7 +2323,7 @@ def main():
             if (a === 'v3Lock' || a === 'v3Unlock' || a === 'v3Del') { S.lastLock = a; return { ok: true }; }
             if (a === 'v3Stats') return { ok: true, cells: 1000, limit: 1e7 };
             return { ok: false };
-          }; }""")
+          }; window.__fsApi = window.apiPost; }""")
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.__s72 = JSON.stringify(X.INS); }}")
         pg.evaluate("() => sviSyncPull().then(() => sviSyncRun())"); pg.wait_for_timeout(1500)
         pg.evaluate("() => sviSyncRun()"); pg.wait_for_timeout(1200)
@@ -2346,6 +2346,15 @@ def main():
         pg.evaluate(f"() => {{ const X = {ins}; const o = JSON.parse(X.INS.__s72); Object.keys(X.INS).forEach(k => delete X.INS[k]); Object.assign(X.INS, o); delete X.INS.__s72; X.insSave(); X.refreshAll(); window.apiPost = undefined; }}"); pg.wait_for_timeout(300)
         check("v672 bloc 2 : envoi initial (REV 1, contrôle), fusion : QPB gardée (moi seul), PPB de l'autre plus récent gardé (999) et le mien en CONFLIT (777, BRAHIM) ; ⚠ CONFLITS ; MA VALEUR reprise ; QUI = TESTEUR",
               s72 and s72[1] >= 1 and s72[2] == 0 and m72[0] == 999 and m72[1] == 123 and m72[2] == 1 and m72[3] == "BRAHIM" and m72[4] == 777 and "CONFLITS" in td72 and r72 == [777, 0] and "TESTEUR" in h72, [s72, m72, td72[:200], r72, h72])
+        # v721 (bloc 7, point 1) : contrôle de l'envoi par les totaux — base qui relit un autre montant = envoi raté, renvoyé, signalé après 2 échecs
+        c721 = pg.evaluate(f"""async () => {{ const S = window.__fs; if (!S) return null; const X = {ins}; if (!X) return 'nobudget'; window.apiPost = window.__fsApi; S.corrupt = true;
+            const r = (X.INS.des || []).find(x => !x.t); if (!r) return null; r.q = (Number(r.q) || 0) + 1; X.insSave(); await sviInstFlush();
+            const W = () => new Promise(z => setTimeout(z, 300)), run = async () => {{ for (let i = 0; i < 20 && SVI_SYNC.busy; i++) await W(); await sviSyncRun(); }};
+            await new Promise(z => setTimeout(z, 2000)); await run(); await run();
+            const M = sviSyncMeta(), k = Object.keys(M).find(x => (M[x].ctl || 0) > 0), a = k ? [M[k].ctl, M[k].ctlWhy, !!M[k].dirty, (document.getElementById('sviSync') || {{}}).textContent] : null;
+            S.corrupt = false; await run(); const b = k ? [sviSyncMeta()[k].ctl || 0, !!sviSyncMeta()[k].dirty] : null; r.q = Number(r.q) - 1; X.insSave(); await sviInstFlush(); await new Promise(z => setTimeout(z, 1500)); await run(); window.apiPost = undefined; return [a, b]; }}""")
+        check("v721 : contrôle de l'envoi par les totaux — écart = renvoi, ⚠ sur le repère après 2 échecs, remis à zéro quand c'est bon",
+              c721 and c721[0] and c721[0][0] >= 2 and "MONTANT HT DES DÉSIGNATIONS" in c721[0][1] and c721[0][2] and "⚠" in c721[0][3] and c721[1] == [0, False], c721)
 
         # v719 / v720 (bloc 6) : DOC / TAF / OBS liés au chemin des ronds (BUDGET sans rond) ; filtrés par les cases carrées des autres blocs
         r720 = pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS, d = (I.des || []).find(r => !r.t), L = (I.links || []).find(l => l.des === (d || {{}}).id);

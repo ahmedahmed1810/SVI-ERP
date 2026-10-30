@@ -3029,3 +3029,6 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 
 /* v720 : compteur DOCUMENTS / TAF / OBSERVATIONS filtré (bleu, touchable) */
 .blk-rec .svi-cnt.cnt-filt { background: #1d4ed8 !important; color: #fff !important; cursor: pointer; }
+
+/* v721 : contrôle de l'envoi par les totaux */
+.sy-ctl { color: #b42318 !important; font-weight: 800; }
