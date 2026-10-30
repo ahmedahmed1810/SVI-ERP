@@ -206,7 +206,7 @@
             });
           }
           host.__HV = { cPG, hsup, cum, curve, hideC, multi, val, vP, vG, mgP, unit: mgP ? "%" : HD.unit, rd: RD ? { PQ: rdPQ, PQs: rdPQ.__s || 0, S: rdS, u: RD.u } : null };
-          const late = INS.dbut && dlyEnd(dlyCurDates()) > INS.dbut;
+          const fEnd = dlyEnd(dlyCurDates()), late = INS.dbut && fEnd > INS.dbut, lateO = !late && INS.dobj && fEnd > INS.dobj;   /* v715 : DATE OBJECTIF */
           const legI = (c, t) => `<span><b style="background:${c}"></b>${esc(t)}</span>`;
           const legRd = HD.rd ? (HD.rd.ser ? (crb.includes("p") ? legI("#2e90fa", "PRODUIT — " + lkName("sec", HD.rd.sec) + " (" + HD.rd.u + ")") : "") + rdS.map(s => legI(s.c, "RENDEMENT " + s.name + " (" + HD.rd.u + " / " + s.u + ")")).join("")
               + (HD.rd.miss || []).map(sk => `<span class="grd-miss">${esc(sk.split("|")[0])} — PAS DANS CETTE ACTIVITÉ</span>`).join("") : `<span class="grd-why">${esc(HD.rd.why)}</span>`) : "";
@@ -224,7 +224,7 @@
             const lab = n < 0 ? "ILLIMITÉ" : n === 0 ? "CAPACITÉ 0 — PÉNURIE" : "CAPACITÉ " + fmtA(n);
             const sum = days.filter(di => di >= (g2.d || "") && (!SG[j + 1] || di < SG[j + 1].d) && pass(di)).reduce((t, di) => t + (val[di] || 0), 0);
             const prev = j ? SG[j - 1] : null, py = prev ? yOf(prev.n) : y;
-            return `<div class="gplaf${cls}" data-seg="${g2.i}" style="top:${y}px;left:${l}px;right:auto;width:${r - l}px"><span class="gplaf-v">${g2.d && j ? dFr(g2.d) + " : " : ""}${lab}</span>${!j && late ? `<span class="gplaf-w">${DLY_BUT_MSG}</span>` : ""}</div>`
+            return `<div class="gplaf${cls}" data-seg="${g2.i}" style="top:${y}px;left:${l}px;right:auto;width:${r - l}px"><span class="gplaf-v">${g2.d && j ? dFr(g2.d) + " : " : ""}${lab}</span>${!j && late ? `<span class="gplaf-w">${DLY_BUT_MSG}</span>` : !j && lateO ? `<span class="gplaf-w gplaf-wo">FIN LE ${dFr(fEnd)} : APRÈS LA DATE OBJECTIF (${dFr(INS.dobj)})</span>` : ""}</div>`
               /* v651 (FORMAT 245) : total du morceau 2 px au-dessus de son trait CAPACITÉ (v652 : 2 px ; seulement les jours retenus, plage DÉBUT – FIN comprise) */
               + (sum ? `<div class="gseg-v" style="left:${(l + Math.min(r, W)) / 2}px;top:${Math.max(16, y - 2)}px">${fmtA(sum)} ${esc(HD.unit)}</div>` : "")
               + (j && g2.d && Math.abs(py - y) > 1 ? `<div class="gcut-v" style="left:${l}px;top:${Math.min(py, y)}px;height:${Math.abs(py - y)}px"></div>` : "")

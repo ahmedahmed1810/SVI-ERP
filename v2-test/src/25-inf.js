@@ -13,17 +13,18 @@
       const din = (f, v, extra = "") => ed ? `<input class="doc-in inf-date" type="date" data-f="${f}" value="${esc(v)}"${extra}>` : `<span class="doc-in doc-ro inf-val">${esc(dFr(v))}</span>`;
       return `<span class="doc-lab">DATE DE DÉBUT DU PROJET${STAR}</span>${din("deb", P.deb)}
         <span class="doc-lab">DATE DE FIN DU PROJET<small class="inf-sub">(FIN DU PLANNING)</small></span><span class="inf-cell"><span class="doc-in doc-ro inf-val" data-v="pfin0">${esc(dFr(P.fin))}</span><small class="inf-sub" data-v="pfin"></small></span>
+        <span class="doc-lab">DATE OBJECTIF<small class="inf-sub">(VISÉE PAR GÉNÉRER / COMPRESSER)</small></span>${din("obj", INS.dobj || "")}
         <span class="doc-lab">DURÉE</span><span class="doc-in doc-ro inf-val" data-v="dur">${esc(infYMD(P.deb, P.fin))}</span>
         <span class="doc-lab">DATE BUTOIR${STAR}</span>${din("but", INS.dbut || "")}`;
     };
     /* v477 (remarque 5) : rien n'est retenu avant ENREGISTRER — les dates saisies vont dans pend, appliquées par infApply */
     const infDatesBind = (p, ed, pend) => {
-      const cur = () => { const P = infProj(); return { deb: pend.deb ?? P.deb, fin: pend.obj ?? P.fin, but: pend.but ?? (INS.dbut || ""), pfin: P.pfin }; };
+      const cur = () => { const P = infProj(); return { deb: pend.deb ?? P.deb, fin: P.fin, obj: pend.obj ?? (INS.dobj || ""), but: pend.but ?? (INS.dbut || ""), pfin: P.pfin }; };
       const paint = () => {
         const P = cur();
         const d = p.querySelector('[data-v="dur"]'), pf = p.querySelector('[data-v="pfin"]');
         if (d) d.textContent = infYMD(P.deb, P.fin);
-        if (pf) { pf.textContent = P.pfin && P.but && P.pfin > P.but ? "DÉPASSE LA DATE BUTOIR" : ""; pf.classList.toggle("inf-late", !!(P.pfin && ((P.but && P.pfin > P.but) || (P.fin && P.pfin > P.fin)))); }
+        if (pf) { pf.textContent = P.pfin && P.but && P.pfin > P.but ? "DÉPASSE LA DATE BUTOIR" : P.pfin && P.obj && P.pfin > P.obj ? "DÉPASSE LA DATE OBJECTIF" : ""; pf.classList.toggle("inf-late", !!(P.pfin && ((P.but && P.pfin > P.but) || (P.obj && P.pfin > P.obj)))); }
         const io = p.querySelector('[data-f="obj"]'), ib = p.querySelector('[data-f="but"]');
         if (io) { if (P.but) io.setAttribute("max", P.but); else io.removeAttribute("max"); if (P.deb) io.setAttribute("min", P.deb); }
         if (ib) ib.removeAttribute("min");
@@ -40,7 +41,11 @@
     };
     /* applique les dates d'INF (ENREGISTRER) : DÉBUT décale tout le planning, FIN DU PROJET (objectif), BUTOIR */
     const infApplyDates = (pend, anchor) => {
-      if (pend.obj !== undefined && pend.obj !== (INS.dobj || "")) { INS.dobj = pend.obj; histLog("INF", "DATE DE FIN DU PROJET (OBJECTIF)", dFr(pend.obj) || "—"); }
+      /* v715 : DATE OBJECTIF saisie, entre le début du projet et la date butoir */
+      if (pend.obj !== undefined && pend.obj !== (INS.dobj || "")) {
+        const deb = pend.deb || infProj().deb, but = pend.but ?? (INS.dbut || "");
+        if (pend.obj && ((deb && pend.obj < deb) || (but && pend.obj > but))) svToast("DATE OBJECTIF REFUSÉE : ENTRE LE DÉBUT DU PROJET ET LA DATE BUTOIR.", 4500, anchor);
+        else { INS.dobj = pend.obj; histLog("INF", "DATE OBJECTIF", dFr(pend.obj) || "—"); } }
       if (pend.but !== undefined && pend.but !== (INS.dbut || "")) { INS.dbut = pend.but; histLog("INF", "DATE BUTOIR", dFr(pend.but) || "—"); }
       if (pend.deb !== undefined && pend.deb) {
         const cal = insCal(), P = infProj(), v = pend.deb;

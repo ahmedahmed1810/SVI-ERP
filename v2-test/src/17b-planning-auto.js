@@ -413,6 +413,7 @@
       if (opts.live) return P.D;
       { const late = dlyLockLate(); if (late.length) svToast("VERROU FIN DÉPASSÉ : " + late.map(dlyName).join(", ") + ".", 6000, opts.anchor); }   /* v667 (axe 8) */
       if (INS.dbut && f1 > INS.dbut) svToast(DLY_BUT_MSG + " (FIN LE " + dFr(f1) + ", BUTOIR LE " + dFr(INS.dbut) + ").", 5000, opts.anchor);
+      else if (INS.dobj && f1 > INS.dobj) svToast("FIN LE " + dFr(f1) + " : APRÈS LA DATE OBJECTIF (" + dFr(INS.dobj) + "), AVANT LA BUTOIR.", 5000, opts.anchor);   /* v715 */
       return P.D;
     };
     /* v570 (remarque longue 1) : une seule commande ↻ = fenêtre GÉNÉRER / COMPRESSER — deux cases et la liste des CAPACITÉS
@@ -749,7 +750,7 @@
             /* v604 (remarque longue 4) : barre RENDEMENT en VALEUR (l'activité choisie) ou en % (toutes les tâches de la charge) ; MIN / MAX en % */
             return `<span class="hcf-k hcf-rd"${hid}>RENDEMENT EN</span><span class="hcf-pl hcf-rd"${hid}><span class="hcf-sw">${rad("hcr", "v", "VALEUR", h.rdu === "v")}${rad("hcr", "p", "%", h.rdu !== "v")}</span></span><span class="hcf-k hcf-rd"${hid}>BORNES DU RENDEMENT</span><span class="hcf-pl hcf-rd"${hid}><span class="hcf-k hcf-k2">MIN</span><input class="hcf-pct rd-min" inputmode="numeric" value="${L.min}"> %<span class="hcf-k hcf-k2">MAX</span><input class="hcf-pct rd-max" inputmode="numeric" value="${L.max}"> %</span>`; })()}
           <!-- v621 : LÉGENDE réglée dans DÉTAIL CHARGES (colonne %, CHARGES QUI FONT n %) -->
-          <span class="hcf-k">DONNÉES</span><span class="hcf-sw">${rad("hcd", "c", "CONSOMMATION", !(dlyAppro().on))}${rad("hcd", "o", "COMMANDES", !!(dlyAppro().on)).replace("QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ.", "COMMANDES : COCHER DES CHARGES DANS DÉTAIL CHARGES.")}</span>
+          <span class="hcf-k" hidden>DONNÉES</span><span class="hcf-sw" hidden>${rad("hcd", "c", "CONSOMMATION", !(dlyAppro().on))}${rad("hcd", "o", "COMMANDES", !!(dlyAppro().on)).replace("QUANTITÉ : SEULEMENT AVEC DES CHARGES COCHÉES DE MÊME UNITÉ.", "COMMANDES : COCHER DES CHARGES DANS DÉTAIL CHARGES.")}</span>
           ${(() => { const a = dlyAppro(), hid = a.on ? "" : " hidden";
             /* v572 (remarque 17) : réglages des COMMANDES dans la même fenêtre, en dessous (plus de fenêtre APPROVISIONNEMENT ni de liste des charges) */
             return `<span class="hcf-k hcf-apr"${hid}>COUVERTURE</span><span class="hcf-pl hcf-apr"${hid}><span class="hcf-sw hcf-sw3">${[["w", "SEMAINE"], ["m", "MOIS"], ["n", "N JOURS"]].map(([v, l]) => `<label class="hcf-seg${a.cov === v ? " on" : ""}"><input type="radio" name="aprc" value="${v}"${a.cov === v ? " checked" : ""}><span>${l}</span></label>`).join("")}</span><input class="apr-nj hcf-pct" inputmode="numeric" value="${esc(String(a.nj))}"${a.cov === "n" ? "" : " disabled"}></span>
