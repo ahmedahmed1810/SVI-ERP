@@ -300,9 +300,14 @@
       if (bi.rclOf) { const L = sviRclOf(bi.rclOf).map(x => ({ r: x.ref, lab: "R" + x.rcn })); return L.length > 1 ? { L, ret: bi.rclOf, kind: "rcl" } : null; }
       const root = AV_ROOT || (!bi.virtual ? (bi.parent || bi.ref) : "");
       if (!root) return null;
-      const S = sviAvStages(root); if (S.length < 2) return null;
-      const L = [{ r: root + "-GLOBAL", lab: "BUDGET CONSOLIDÉ" }, ...S.map(st => ({ r: st.ref, lab: sviAvName(st) }))].filter(x => groups.has(x.r));
-      return L.length > 1 ? { L, ret: null, kind: "fam", swipe: true } : null;
+      /* v705 : balayage d'un budget à l'autre dans l'ordre de la liste ; un budget à avenants est parcouru écran par écran
+         (CONSOLIDÉ, BUDGET INITIAL, AVENANT 1…) avant de passer au suivant */
+      const famL = r => { let S = []; try { S = sviAvStages(r); } catch (e) {} return S.length < 2 ? [{ r, lab: r }]
+        : [{ r: r + "-GLOBAL", lab: r + " — BUDGET CONSOLIDÉ" }, ...S.map(st => ({ r: st.ref, lab: r + " — " + sviAvName(st) }))]; };
+      const ord = Array.isArray(window.__sviBdgOrder) ? window.__sviBdgOrder : [];
+      let L = ord.includes(root) ? ord.flatMap(famL) : famL(root);
+      L = L.filter(x => groups.has(x.r));
+      return L.length > 1 && L.some(x => x.r === ref) ? { L, ret: null, kind: "fam", swipe: true } : null;
     })();
     const hnavGo = d => {
       if (!HNAV) return false;
@@ -369,7 +374,7 @@
             if (!bi) return "";
             const RO = bi.virtual ? (bi.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.") : st === "valide" ? (bi.rclOf ? "RECALAGE ENREGISTRÉ : LECTURE SEULE." : "BUDGET VALIDÉ : LECTURE SEULE (CRÉER UN RECALAGE OU UN AVENANT : MENU ⋯ OU BLOC RECALAGES).") : "";
             const hb = (id, cls, svg, title, why, extra = "") => `<button type="button" class="${cls}${why ? " hdr-off" : ""}" id="${id}" title="${esc(why || title)}" aria-label="${esc(title)}"${why ? ` data-why="${esc(why)}" aria-disabled="true"` : ""}${extra}>${svg}</button>`;
-            const navWhy = HNAV ? "" : "PAS D'AUTRE ÉCRAN DANS CE BUDGET (BUDGET SANS AVENANT).";
+            const navWhy = HNAV ? "" : "PAS D'AUTRE BUDGET DANS LA LISTE.";
             const edWhy = RO || (st === "fige" ? "BUDGET FIGÉ : REVENIR EN ÉDITION (🔒) POUR MODIFIER." : "");
             const lastAv = (() => { if (!bi.parent || bi.virtual) return true; const S = sviAvStages(bi.parent); return S[S.length - 1] && S[S.length - 1].ref === bi.ref; })();
             const delWhy = RO || (bi.rclOf ? "" : !lastAv ? "SEUL LE DERNIER AVENANT EN INSTANCE SE SUPPRIME." : "");
