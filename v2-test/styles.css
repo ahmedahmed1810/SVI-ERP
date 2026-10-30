@@ -3032,3 +3032,6 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 
 /* v721 : contrôle de l'envoi par les totaux */
 .sy-ctl { color: #b42318 !important; font-weight: 800; }
+
+/* v723 : indicateur grisé quand le budget n'a pas les données */
+.ind-table tr.ind-row.ind-off td { color: #98a2b3 !important; }

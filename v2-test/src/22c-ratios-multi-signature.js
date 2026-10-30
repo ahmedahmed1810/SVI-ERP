@@ -13,6 +13,10 @@
       const R = D.rat || {}, out = [], G = new Map();
       const add = (pre, r, q, m) => { const k = pre + "|" + U_(r.des) + "|" + U_(r.u); if (!G.has(k)) G.set(k, { k, lab: (pre === "c" ? "CHG " : "PRD ") + (r.des || ""), u: U_(r.u), q: 0, m: 0 }); const x = G.get(k); x.q += q; x.m += m; };
       (D.chg || []).filter(r => !r.t).forEach(r => add("c", r, ratNum(r.q), ratNum(r.q) * ratNum(r.p)));
+      /* v723 (bloc 2, point 1) : GROUPES DE CHARGES = titres de DÉTAIL CHARGES (toutes les charges sous le titre) ; quantité seulement si même unité */
+      { let cur = null; (D.chg || []).forEach(r => { if (r.t) { cur = { k: "g|" + U_(r.des || r.art || r.id), lab: "GROUPE " + U_(r.des || ""), us: new Set(), q: 0, m: 0 }; if (!G.has(cur.k)) G.set(cur.k, cur); else cur = G.get(cur.k); return; }
+        if (!cur) return; cur.us.add(U_(r.u)); cur.q += ratNum(r.q); cur.m += ratNum(r.q) * ratNum(r.p); });
+        [...G.values()].filter(x => x.k[0] === "g").forEach(x => { x.u = x.us.size === 1 ? [...x.us][0] : ""; if (x.us.size !== 1) x.q = x.m; delete x.us; }); }
       const pp = new Map(); (D.links || []).forEach(l => { if (!insLinkPrim(D, l)) return; const d = (D.des || []).find(x => x.id === l.des); (l.prd || []).forEach(x => { if (!pp.has(x.id)) pp.set(x.id, d ? ratNum(d.p) : 0); }); });
       (D.prd || []).filter(r => !r.t).forEach(r => { const q = insPrdQ(r); add("p", r, q, q * (pp.get(r.id) || 0)); });
       out.push({ k: "tc", lab: "CHARGES TOTALES", u: "DH", q: [...G.values()].filter(x => x.k[0] === "c").reduce((t, x) => t + x.m, 0), m: null });
