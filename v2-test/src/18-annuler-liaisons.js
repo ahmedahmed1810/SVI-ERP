@@ -1195,6 +1195,18 @@
       insSave(); refreshAll();
       svToast("TOUTES LES CASES DÉCOCHÉES ET TOUS LES FILTRES EFFACÉS.", 2200);
     };
+    /* v716 : fenêtre FILTRES ACTIFS (format INF) ouverte par le compteur bleu d'un onglet */
+    shell.__filtWin = anchor => {
+      const G = shell.__filtActs ? shell.__filtActs() : [], d = sviWinNew();
+      d.innerHTML = sviWinCard({ cls: "filt-card", close: "data-x", title: "FILTRES ACTIFS",
+        body: G.length ? `<table class="pv-t"><thead><tr><th>BLOC</th><th>FILTRE</th><th class="center">NOMBRE</th></tr></thead><tbody>${G.map(g => g.it.map((x, i) => `<tr><td>${i ? "" : esc(g.blk)}</td><td>${esc(x.lab)}</td><td class="center">${x.n || ""}</td></tr>`).join("")).join("")}</tbody></table>`
+          : `<div class="svc-sub">AUCUN FILTRE ACTIF.</div>`,
+        foot: `<button type="button" class="svc-b" data-x>FERMER</button><button type="button" class="svc-b svc-ok svc-neutral" data-fwclr${G.length ? "" : " disabled"}>EFFACER TOUS LES FILTRES</button>` });
+      sviWinShow(d);
+      d.addEventListener("click", e => { if (e.target.closest("[data-fwclr]")) { d.remove(); if (shell.__insClrAll) shell.__insClrAll(); return; } if (e.target === d || e.target.closest("[data-x]")) d.remove(); });
+    };
+    if (!shell.__filtCntBound) { shell.__filtCntBound = true;
+      shell.addEventListener("click", e => { const c = e.target.closest && e.target.closest("#bdgTabs .bdg-d-tab .svi-cnt.cnt-filt"); if (!c) return; e.preventDefault(); e.stopPropagation(); if (shell.__filtWin) shell.__filtWin(c); }, true); }
     if (!shell.__emptyBound) {
       shell.__emptyBound = true;
       shell.addEventListener("click", e => {

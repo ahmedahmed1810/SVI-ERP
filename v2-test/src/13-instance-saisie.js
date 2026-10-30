@@ -679,7 +679,7 @@
       if (!INS || !INS[k]) return "";
       const n = INS[k].filter(r => !r.t && r.on === true).length;
       if (!n && !ONLYC[k]) return "";
-      return `<button type="button" class="only-c${ONLYC[k] ? " on" : ""}" data-onlyc="${k}"${short ? ' title="COCHÉES SEULEMENT"' : ""}>${short ? "✓ " + n : "COCHÉES SEULEMENT (" + n + ")"}</button>`;   /* v656 : listes étroites (TÂCHES) = « ✓ n » */
+      return `<button type="button" class="only-c${ONLYC[k] ? " on" : ""}" data-onlyc="${k}"${short ? ' title="COCHÉES"' : ""}>${short ? "✓ " + n : "COCHÉES (" + n + ")"}</button>`;   /* v656 : listes étroites (TÂCHES) = « ✓ n » */
     };
     /* colonnes d'un tableau de saisie dans l'ordre choisi par glissement (mémorisé) */
     const insColsOrd = k => { const cols = INS_COLS[k] || []; const ord = coKeys(insCfT(k), cols.map(c => c[4])); return ord.map(x => cols.find(c => c[4] === x)).filter(Boolean); };

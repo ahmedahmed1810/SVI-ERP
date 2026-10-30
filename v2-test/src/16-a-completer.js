@@ -37,7 +37,7 @@
       const rd = k => (k === "prd" || k === "chg") ? Object.keys(LK[k] || {}).length : (LK.all && LK.all[k] ? 1 : LK[k] ? 1 : 0);
       const add = (blk, go, it) => { it = it.filter(Boolean); if (it.length) G.push({ blk, go, it }); };
       const std = k => [ck(k) && { lab: "CASES COCHÉES", n: ck(k) }, rd(k) && { lab: "RONDS ALLUMÉS", n: rd(k) },
-        cfHasF(insCfT(k)) && { lab: "LOUPE", n: Object.keys(CF[insCfT(k)].f).length }, ONLYC[k] && { lab: "COCHÉES SEULEMENT" }];
+        cfHasF(insCfT(k)) && { lab: "LOUPE", n: Object.keys(CF[insCfT(k)].f).length }, ONLYC[k] && { lab: "COCHÉES" }];
       add("DÉSIGNATIONS CLIENT", "des", std("des"));
       add("LOT", "hier:lot", std("lot"));
       add("ACTIVITÉ PRIMAIRE", "hier:prim", std("prim"));
