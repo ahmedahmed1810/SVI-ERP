@@ -46,7 +46,8 @@
 
     sviStep("RÉGLAGES DU BUDGET"); stateLoad();
     sviStep("DISPOSITION"); layInit();
-    sviStep("CALCULS ET DESSIN"); refreshAll();
+    /* v710 : une erreur de dessin ne bloque plus l'écran (← et ✕ restent actifs) */
+    sviStep("CALCULS ET DESSIN"); try { refreshAll(); } catch (e) { console.error(e); sviStep("ERREUR : " + (e && e.message)); setTimeout(() => svToast("ERREUR D'AFFICHAGE : " + (e && e.message || ""), 6000), 0); }
     sviStep("OUVERT");
     {
       const n = docsLoad().length;

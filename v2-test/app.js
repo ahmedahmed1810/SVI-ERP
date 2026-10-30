@@ -8509,7 +8509,7 @@ function renderBudgetList() {
       INS[mg ? "mgPar" : "chgPar"] = v === "" ? "" : Number(v); insSave(); histLog("SAISIE", mg ? "MARGES QUI FONT" : "CHARGES QUI FONT", v === "" ? "FILTRE ENLEVÉ" : v + " %"); refreshAll();
     };
     /* v613 (point 9) : signe › / ⌄ dans l'en-tête de la colonne de désignation — un toucher replie tout, un autre déplie tout */
-    const faKeys = kind => {
+    const faKeys = kind => { if (!INS) return [];   /* v710 : budget ancien (sans INS) */
       if (kind === "chg" || kind === "prd") {
         const G = new Map(), kOf = kind === "chg" ? r => [U_(r.des), U_(r.u), U_(r.art)].join("|") : r => "P|" + U_(r.des);
         (INS[kind] || []).filter(r => !r.t && (kind === "chg" || U_(r.des))).forEach(r => { const q = kOf(r); G.set(q, (G.get(q) || 0) + 1); });
@@ -25812,7 +25812,8 @@ ${A}</Assignments>
 
     sviStep("RÉGLAGES DU BUDGET"); stateLoad();
     sviStep("DISPOSITION"); layInit();
-    sviStep("CALCULS ET DESSIN"); refreshAll();
+    /* v710 : une erreur de dessin ne bloque plus l'écran (← et ✕ restent actifs) */
+    sviStep("CALCULS ET DESSIN"); try { refreshAll(); } catch (e) { console.error(e); sviStep("ERREUR : " + (e && e.message)); setTimeout(() => svToast("ERREUR D'AFFICHAGE : " + (e && e.message || ""), 6000), 0); }
     sviStep("OUVERT");
     {
       const n = docsLoad().length;
