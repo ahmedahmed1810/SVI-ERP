@@ -16,7 +16,9 @@
       ["lots", "NOMBRE DE LOTS", "n", "U"], ["sc", "SURFACE COUVERTE", "n", "M2"], ["sl", "SURFACE DES LOTS", "n", "M2"],
       /* v718 : révision des prix estimée (contrat + hypothèses) ajoutée aux recettes prévues */
       ["rev", "RÉVISION DES PRIX ESTIMÉE", "n", "DH"], ["prdr", "PRODUITS AVEC RÉVISION", "n", "DH"], ["mgr", "MARGE AVEC RÉVISION", "n", "DH"],
-      ["mgrp", "MARGE AVEC RÉVISION (SCÉNARIO PESSIMISTE)", "n", "DH"]];
+      ["mgrp", "MARGE AVEC RÉVISION (SCÉNARIO PESSIMISTE)", "n", "DH"],
+      /* v723 (bloc 2, point 1) : RECETTES (échéances de l'article PAIEMENT du contrat) et COMMANDES (onglet APPROVISIONNEMENT) */
+      ["rec", "RECETTES", "n", "DH"], ["cmd", "COMMANDES", "n", "DH"]];
     const indLoad = () => { const L = (typeof sviSharedGet === "function" ? sviSharedGet("IND") : {}).L; return Array.isArray(L) ? L : []; };
     const indSaveL = L => { if (typeof sviSharedSet === "function") sviSharedSet("IND", { L }); };
     /* éléments d'un état du budget */
@@ -24,9 +26,18 @@
       const v = { ...verInd(d) }, R = d.rat || {};
       { let E = null, Ep = null; try { E = sviRevEst(d, false); Ep = sviRevEst(d, true); } catch (e) {}
         v.rev = E ? E.rev : null; v.prdr = E ? (v.prd || 0) + E.rev : null; v.mgr = E ? (v.mg || 0) + E.rev : null; v.mgrp = Ep ? (v.mg || 0) + Ep.rev - Ep.chgUp : null; }
+      /* RECETTES : échéances datées (date précise, ou fin de la tâche : elles suivent le planning) dans la période ; COMMANDES : approvisionnements de la période */
+      { const inP = x => x && (!d.__a || x >= d.__a) && (!d.__b || x <= d.__b);
+        const pay = ((d.ctr || (INS && INS.ctr) || {}).rows || []).filter(r => r.type === "pay");
+        if (pay.length) { const M = (d.des || []).filter(x => !x.t).reduce((t, x) => t + (insLinkedQ(d, x.id) ?? ratNum(x.q)) * ratNum(x.p), 0), full = INS && INS.dlp ? INS : d;
+          const finOf = k => ((full.dlp || {})[k] || []).map(p => p.fin || p.deb).filter(Boolean).sort().pop() || "";
+          v.rec = pay.reduce((t, r) => t + ((r.det || {}).ech || []).reduce((s, e) => { const dt = e.on === "task" ? finOf(e.task) : e.date || ""; return inP(dt) ? s + (e.u === "%" ? M * ratNum(e.v) / 100 : ratNum(e.v)) : s; }, 0), 0); }
+        else v.rec = null;   /* sans article PAIEMENT : RECETTES non proposé */
+        let P = null; try { P = shell.__aprPlan ? shell.__aprPlan() : null; } catch (e) { P = null; }
+        v.cmd = P && P.length ? P.filter(a => inP(a.d)).reduce((t, a) => t + a.items.reduce((s, x) => s + x.m, 0), 0) : null; }
       const sc = ratNum(R.surf), sl = Object.values(R.lsurf || {}).reduce((t, x) => t + ratNum(x), 0);
-      const out = IND_BASE.map(([k, l, kind, u]) => ({ k: "b:" + k, lab: l, kind, u, q: k === "sc" ? (sc || null) : k === "sl" ? (sl || null) : v[k], m: null }));
-      return out.concat(ratItems(d).filter(x => x.k[1] === "|").map(x => ({ ...x, kind: "n" })));
+      const out = IND_BASE.filter(([k]) => k !== "rec" || v.rec !== null).map(([k, l, kind, u]) => ({ k: "b:" + k, lab: l, kind, u, q: k === "sc" ? (sc || null) : k === "sl" ? (sl || null) : v[k], m: null }));
+      return out.concat(ratItems(d).filter(x => x.k[1] === "|").map(x => ({ ...x, kind: "n" })));   /* c| p| et g| (groupes, v723) */
     };
     /* v692 : brique « autre indicateur » (jeton { t: "e", k: "i:<id>" }) — indicateurs du budget ouvert */
     const indBdgL = () => { try { return ((INS && INS.rat) || {}).L || []; } catch (e) { return []; } };
@@ -101,7 +112,10 @@
 
     /* ---------- fenêtre de conception (calcul) — done(indicateur enregistré | null) ---------- */
     /* st : où l'indicateur est rangé — liste commune (par défaut) ou tableau de bord du budget { list, save, br } */
-    const IND_STORE = { list: () => indLoad(), save: L => indSaveL(L), br: "INDICATEURS" };
+    /* v723 (bloc 2, point 3) : SUPPRIMER = l'indicateur n'est plus proposé (marqué del) ; les budgets qui l'utilisent le gardent */
+    const indLive = () => indLoad().filter(I => !I.del);
+    const indSaveLive = L => { const ids = new Set(L.map(x => x.id)); indSaveL([...L, ...indLoad().filter(I => I.del && !ids.has(I.id))]); };
+    const IND_STORE = { list: () => indLive(), save: L => indSaveLive(L), br: "INDICATEURS" };
     const indDesignWin = (I0, done, st = IND_STORE) => {
       const I = JSON.parse(JSON.stringify(I0 || { id: insId(), nom: "", f: [], mode: "q", fmt: "n", dec: 2, u: "" }));
       const isNew = !I0;
@@ -111,7 +125,7 @@
       const grp = (lab, L) => L.length ? `<optgroup label="${esc(lab)}">${L.map(x => `<option value="${esc(x.k)}">${esc(indElLab(x.k, E))}</option>`).join("")}</optgroup>` : "";
       const draw = () => {
         const c = I.f.length ? indCalc(I, INS, E) : null;
-        d.innerHTML = sviWinCard({ cls: "cmp-card ind-card", close: "data-x", title: isNew ? "NOUVEL INDICATEUR" : "INDICATEUR — " + esc(I.nom),
+        d.innerHTML = sviWinCard({ cls: "cmp-card ind-card", close: "data-x", title: isNew ? "NOUVEL INDICATEUR" : (st === IND_STORE ? "AMÉLIORER — " : "INDICATEUR — ") + esc(I.nom),
           body: `<label class="ind-lab">NOM DE L'INDICATEUR</label><input class="pv-in ind-nom" value="${esc(I.nom)}" placeholder="EX. ACIER / BÉTON">
             <div class="fz-blk">FORMULE</div>
             <div class="indf-line" data-line>${I.f.map((t, j) => `<span class="indf-tk indf-${t.t === "e" ? "e" : t.t === "n" ? "n" : "o"}${j === cur - 1 ? " on" : ""}" data-tk="${j}">${esc(t.t === "e" ? indElLab(t.k, E) : t.t === "n" ? String(t.v).replace(".", ",") : t.t === "o" ? t.v : t.t)}</span>`).join("")}<span class="indf-cur${cur === 0 ? " on" : ""}" data-tk="-1">${I.f.length ? "" : "TOUCHER LES BOUTONS POUR COMPOSER LA FORMULE"}</span></div>
@@ -154,9 +168,14 @@
           if (!I.nom) { msg.textContent = "DONNER UN NOM À L'INDICATEUR."; d.querySelector(".ind-nom").focus(); return; }
           try { indParse(I.f); } catch (er) { msg.textContent = "FORMULE À CORRIGER : " + (er.ind ? er.message : "ILLISIBLE"); return; }
           const L = st.list();
-          if (L.some(x => x.id !== I.id && U_(x.nom) === I.nom)) { msg.textContent = "UN INDICATEUR PORTE DÉJÀ CE NOM."; return; }
+          /* v723 : liste commune — AMÉLIORER crée un nouvel indicateur (nouvel intitulé), l'ancien reste inchangé pour les autres budgets */
+          const imp = st === IND_STORE && !isNew;
+          if (imp) { I.id = insId(); I.from = I0.id; }
+          if (L.some(x => x.id !== I.id && U_(x.nom) === I.nom)) { msg.textContent = imp ? "AMÉLIORER CRÉE UN NOUVEL INDICATEUR : LUI DONNER UN AUTRE NOM." : "UN INDICATEUR PORTE DÉJÀ CE NOM."; if (imp) I.id = I0.id; return; }
+          { const sig = x => JSON.stringify([x.f, x.mode || "q", x.fmt || "n"]), tw = L.find(x => x.id !== I.id && sig(x) === sig(I));
+            if (tw) { msg.textContent = "MÊME FORMULE QUE « " + tw.nom + " » : PAS DE DOUBLON."; if (imp) I.id = I0.id; return; } }
           const i = L.findIndex(x => x.id === I.id); if (i >= 0) L[i] = { ...L[i], ...I }; else L.push(I);
-          st.save(L); histLog(st.br, isNew ? "NOUVEL INDICATEUR" : "INDICATEUR MODIFIÉ", I.nom + " = " + indText(I.f, E));
+          st.save(L); histLog(st.br, isNew ? "NOUVEL INDICATEUR" : imp ? "INDICATEUR AMÉLIORÉ (NOUVEAU, D'APRÈS " + I0.nom + ")" : "INDICATEUR MODIFIÉ", I.nom + " = " + indText(I.f, E));
           d.remove(); if (done) done(I);
         }
       });
@@ -192,7 +211,7 @@
         };
         t.innerHTML = `<colgroup>${oc.map(c => `<col data-w="${cfg.t}.${c[0]}" style="width:${wOf(c[0])}px">`).join("")}<col style="width:44px"></colgroup>
           <thead><tr>${oc.map(c => cfHead(cfg.t, c[0], c[1], c[3])).join("")}<th class="center"><input type="checkbox" class="ind-all"${hs}></th></tr></thead>
-          <tbody>${rows.map(r => `<tr data-id="${esc(r.id)}" class="ind-row">${oc.map(c => cell(c, r)).join("")}<td class="center"><input type="checkbox" class="ind-ck"${st.ck.has(r.id) ? " checked" : ""}></td></tr>`).join("") || `<tr><td colspan="${oc.length + 1}" class="empty">${all.length ? "AUCUN INDICATEUR AVEC CES FILTRES" : "AUCUN INDICATEUR : TOUCHER « + » POUR EN CRÉER UN"}</td></tr>`}
+          <tbody>${rows.map(r => `<tr data-id="${esc(r.id)}" class="ind-row${(() => { const c = indCalc(r, cfg.data ? cfg.data() : INS, E); return c.soft || c.err ? " ind-off" : ""; })()}"${(() => { const c = indCalc(r, cfg.data ? cfg.data() : INS, E); return c.soft || c.err ? ` title="${esc(c.txt)}"` : ""; })()}>${oc.map(c => cell(c, r)).join("")}<td class="center"><input type="checkbox" class="ind-ck"${st.ck.has(r.id) ? " checked" : ""}></td></tr>`).join("") || `<tr><td colspan="${oc.length + 1}" class="empty">${all.length ? "AUCUN INDICATEUR AVEC CES FILTRES" : "AUCUN INDICATEUR : TOUCHER « + » POUR EN CRÉER UN"}</td></tr>`}
             ${cfg.ro ? "" : `<tr class="ind-plus"><td colspan="${oc.length + 1}"><button type="button" class="svc-b" data-inew>+ NOUVEL INDICATEUR</button></td></tr>`}</tbody>`;
         t.style.width = oc.reduce((s2, c) => s2 + wOf(c[0]), 44) + "px";
         const ha = t.querySelector(".ind-all"); if (ha && ha.hasAttribute("data-half")) ha.indeterminate = true;
@@ -214,8 +233,8 @@
           if (a === "del") {
             const L = cfg.list(), names = L.filter(r => st.ck.has(r.id)).map(r => r.nom);
             d.remove();
-            if (await svConfirm({ title: "SUPPRIMER " + names.length + " INDICATEUR(S)", text: names.slice(0, 5).join(", ") + (names.length > 5 ? "…" : "") + (cfg.t === "ind" ? " : RETIRÉS DE LA LISTE ET DES TABLEAUX DE TOUS LES BUDGETS." : " : RETIRÉS DU TABLEAU DE BORD ET DE SES GRAPHIQUES."), ok: "SUPPRIMER" })) {
-              cfg.save(L.filter(r => !st.ck.has(r.id))); histLog(cfg.store.br, "INDICATEURS SUPPRIMÉS", names.join(", ")); st.ck = new Set();
+            if (await svConfirm({ title: "SUPPRIMER " + names.length + " INDICATEUR(S)", text: names.slice(0, 5).join(", ") + (names.length > 5 ? "…" : "") + (cfg.t === "ind" ? " : PLUS PROPOSÉS AUX BUDGETS ; CEUX QUI LES UTILISENT LES GARDENT." : " : RETIRÉS DU TABLEAU DE BORD ET DE SES GRAPHIQUES."), ok: "SUPPRIMER" })) {
+              if (cfg.t === "ind") cfg.save(L.map(r => st.ck.has(r.id) ? { ...r, del: true } : r)); else cfg.save(L.filter(r => !st.ck.has(r.id))); histLog(cfg.store.br, "INDICATEURS SUPPRIMÉS", names.join(", ")); st.ck = new Set();
             }
             cfg.reopen(); return;
           }
@@ -291,7 +310,7 @@
       const d = sviWinNew();
       const close = () => { window.__sviIndRefresh = null; document.getElementById("blkMenu")?.remove(); d.remove(); };
       const reopen = () => indWin(done);
-      const ctl = indTableCtl({ t: "ind", list: () => indLoad(), save: L => indSaveL(L), store: IND_STORE, close, reopen,
+      const ctl = indTableCtl({ t: "ind", list: () => indLive(), save: L => indSaveLive(L), store: IND_STORE, close, reopen,
         onNew: () => { close(); indDesignWin(null, () => reopen()); },
         onEdit: I => { close(); indDesignWin(I, () => reopen()); },
         onImport: () => openImportBudget("indlist", () => reopen()) });
@@ -309,7 +328,7 @@
     /* ---------- ligne « + » d'un tableau : menu des indicateurs de la liste ; pick(id) ---------- */
     const indPlusMenu = (btn, taken, pick, onNew) => {
       document.getElementById("blkMenu")?.remove();
-      const L = indLoad().filter(I => !(taken || []).includes(I.id));
+      const L = indLive().filter(I => !(taken || []).includes(I.id));
       const m = document.createElement("div"); m.id = "blkMenu"; m.dataset.for = "indplus";
       m.innerHTML = (L.length ? L.map(I => `<button type="button" data-pk="${esc(I.id)}"><span>${esc(I.nom)}</span></button>`).join("") : `<button type="button" class="off" disabled><span>${indLoad().length ? "TOUS LES INDICATEURS SONT DÉJÀ DANS LE TABLEAU" : "LISTE DES INDICATEURS VIDE"}</span></button>`)
         + `<button type="button" data-pk="__new"><span>NOUVEL INDICATEUR…</span></button><button type="button" data-pk="__list"><span>LISTE DES INDICATEURS…</span></button>`;

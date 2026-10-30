@@ -38,7 +38,7 @@
       Object.keys(D.dlp || {}).forEach(k => { let tot = 0, inn = 0; (D.dlp[k] || []).forEach(p => { if (!p.deb) return; const x = p.deb, y = p.fin || p.deb; tot += ratDays(x, y); const lo = x > a ? x : a, hi = y < b ? y : b; if (lo <= hi) inn += ratDays(lo, hi); }); f[k] = tot ? inn / tot : 0; });
       const share = (kind, id) => { const ks = (D.links || []).filter(l => (l[kind] || []).some(x => x.id === id)).map(l => l.lot + "|" + l.sec); return ks.length ? ks.reduce((t, k) => t + (f[k] || 0), 0) / ks.length : 0; };
       const dlp = {}; Object.keys(D.dlp || {}).forEach(k => { const L = (D.dlp[k] || []).filter(p => p.deb && p.deb <= b && (p.fin || p.deb) >= a).map(p => ({ ...p, deb: p.deb < a ? a : p.deb, fin: (p.fin || p.deb) > b ? b : (p.fin || p.deb) })); if (L.length) dlp[k] = L; });
-      return { ...D, dlp, chg: (D.chg || []).map(r => r.t ? r : { ...r, q: num(r.q || 0) * share("chg", r.id) }),
+      return { ...D, __a: a, __b: b, dlp, chg: (D.chg || []).map(r => r.t ? r : { ...r, q: num(r.q || 0) * share("chg", r.id) }),
         prd: (D.prd || []).map(r => r.t ? r : { ...r, nbr: "", d1: "", d2: "", d3: "", q: insPrdQ(r) * share("prd", r.id) }) };
     };
     const ratPeriods = (D, unit) => {

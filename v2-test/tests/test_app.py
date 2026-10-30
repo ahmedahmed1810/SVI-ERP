@@ -2370,6 +2370,17 @@ def main():
         check("v722 : partage — UNITÉS envoyées, reçues d'un autre appareil, modifiées des deux côtés = réunion (rien de perdu)",
               sh == [1, "M2,T", "KG,L,M2,T"], sh)
 
+        # v723 (bloc 2, points 1 et 3) : RECETTES seulement avec un article PAIEMENT (échéance datée), GROUPE de charges (titre), COMMANDES
+        b2 = pg.evaluate(f"""() => {{ const sh = [...document.querySelectorAll('*')].find(e => e.__ind), X = {ins}, I = X.INS; if (!sh) return null; const A = sh.__ind;
+            const one = k => A.calc({{ id: 'z', nom: 'Z', f: [{{ t: 'e', k }}], mode: 'q', fmt: 'n', dec: 2 }});
+            const r0 = one('b:rec'); const c0 = JSON.stringify(I.ctr || null);
+            I.ctr = {{ rows: [{{ id: 'p1', type: 'pay', det: {{ ech: [{{ on: 'date', date: '2026-11-15', v: 1000, u: 'DH' }}] }} }}] }};
+            const r1 = one('b:rec'); I.ctr = JSON.parse(c0) || undefined;
+            const t = (I.chg || []).find(r => r.t); const g = t ? one('g|' + String(t.des || t.art || t.id).toUpperCase()) : {{ txt: 'pas de titre' }};
+            const c = one('b:cmd');
+            return [!!(r0.soft || r0.err), r1.val, t ? g.val !== undefined : true, c.val !== undefined || !!c.soft]; }}""")
+        check("v723 : indicateurs — RECETTES proposées seulement avec un article PAIEMENT (1 000 DH), GROUPE de charges, COMMANDES",
+              b2 is not None and (b2[0] and b2[1] == 1000 and b2[2] and b2[3]), b2)
         # v719 / v720 (bloc 6) : DOC / TAF / OBS liés au chemin des ronds (BUDGET sans rond) ; filtrés par les cases carrées des autres blocs
         r720 = pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS, d = (I.des || []).find(r => !r.t), L = (I.links || []).find(l => l.des === (d || {{}}).id);
             if (!d || !L) return null;
