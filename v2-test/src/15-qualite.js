@@ -801,6 +801,7 @@
           }, 60); } }
         return;
       }
+      if (active === "apr") { body.innerHTML = shell.__aprHTML ? shell.__aprHTML() : ""; lastShown.detail = { cols: [], rows: [], kind: "apr" }; return; }   /* v714 */
       if (active === "qlt") { qqRender(); lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
       /* v692 : onglet INDICATEURS — carreaux du tableau de bord au-dessus du tableau par liaison */
       if (active === "lnk") { body.innerHTML = `${shell.__ibdHTML ? shell.__ibdHTML() : ""}<div class="bdg-d-scroll">${insRgView(xplHTML)}</div>`; return; }

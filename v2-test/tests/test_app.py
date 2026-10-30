@@ -2347,6 +2347,11 @@ def main():
         check("v672 bloc 2 : envoi initial (REV 1, contrôle), fusion : QPB gardée (moi seul), PPB de l'autre plus récent gardé (999) et le mien en CONFLIT (777, BRAHIM) ; ⚠ CONFLITS ; MA VALEUR reprise ; QUI = TESTEUR",
               s72 and s72[1] >= 1 and s72[2] == 0 and m72[0] == 999 and m72[1] == 123 and m72[2] == 1 and m72[3] == "BRAHIM" and m72[4] == 777 and "CONFLITS" in td72 and r72 == [777, 0] and "TESTEUR" in h72, [s72, m72, td72[:200], r72, h72])
 
+        # v714 (point 3, étape 1) : onglet APPROVISIONNEMENT PRÉVISIONNEL — commandes PAR TÂCHE (défaut), charges À RÉGLER, tableau repliable
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"apr\"]')?.click()"); pg.wait_for_timeout(600)
+        a714 = pg.evaluate("() => [!!document.querySelector('.apr-wrap'), document.querySelectorAll('.apr-cfg tbody tr').length > 0, !!document.querySelector('.apr-badge'), document.querySelectorAll('tr.apr-row').length]")
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(400)
+        check("v714 : onglet APPROVISIONNEMENT PRÉVISIONNEL (réglages par charge, À RÉGLER, tableau)", a714 and a714[0] and a714[1] and a714[2], a714)
         # v713 (point 5) : avant un import Excel — fenêtre des en-têtes attendus (★ exigées, COPIER LES EN-TÊTES), ANNULER / CONTINUER
         pg.evaluate("() => document.querySelector('.blk-btn[data-blk=\"client\"][data-act=\"import\"]')?.click()"); pg.wait_for_timeout(300)
         pg.evaluate("() => document.querySelector('[data-src=\"file\"]')?.click()"); pg.wait_for_timeout(400)
