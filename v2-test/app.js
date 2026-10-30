@@ -6978,8 +6978,8 @@ function renderBudgetList() {
               <button type="button" class="blk-btn" data-blk="detail" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
               ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="detail" data-act="copy" title="Copier les lignes cochées">${SVI_COPY_ICON}</button><button type="button" class="blk-btn" data-blk="detail" data-act="cut" title="Couper les lignes cochées">${SVI_CUT_ICON}</button><button type="button" class="blk-btn" data-blk="detail" data-act="paste" title="Coller">${SVI_PASTE_ICON}</button>` : ""}
               ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="detail" data-act="del" title="Supprimer les lignes cochées">${SVI_DEL_ICON}</button>` : ""}
-              <button type="button" class="blk-btn blk-hcfg-btn" data-blk="detail" data-act="hcfg" title="RÉGLAGES DU GRAPHIQUE" aria-label="Réglages du graphique"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h11M6 17v-5M10 17V8M14 17v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18.5" cy="17.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M18.5 13.6v1.3M18.5 20.1v1.3M14.6 17.5h1.3M21.1 17.5h1.3M15.7 14.7l.9.9M20.4 19.4l.9.9M15.7 20.3l.9-.9M20.4 15.6l.9-.9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
-              <button type="button" class="blk-btn blk-cfg-btn" data-blk="detail" data-act="cfg" title="RÉGLAGES DU GANTT" aria-label="Réglages du Gantt">⚙</button>
+              <button type="button" class="blk-btn blk-hcfg-btn" data-blk="detail" data-act="hcfg" title="RÉGLAGES DU GANTT" aria-label="Réglages du Gantt"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h8M6 9.5h8M9 14h4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="18.5" cy="17.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M18.5 13.6v1.3M18.5 20.1v1.3M14.6 17.5h1.3M21.1 17.5h1.3M15.7 14.7l.9.9M20.4 19.4l.9.9M15.7 20.3l.9-.9M20.4 15.6l.9-.9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn blk-cfg-btn" data-blk="detail" data-act="cfg" title="RÉGLAGES DU GRAPHIQUE" aria-label="Réglages du graphique">⚙</button>
               <button type="button" class="blk-btn blk-adj-btn" data-blk="detail" data-act="adj" title="GÉNÉRER / COMPRESSER" aria-label="Générer ou compresser"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 2.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn blk-max-btn" data-blk="detail" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
@@ -11866,11 +11866,12 @@ function renderBudgetList() {
     const dlyCfgPaint = () => {
       const g = shell.querySelector(".blk-cfg-btn"); if (!g) return;
       const host = shell.querySelector("#dlyGantt"), h = shell.querySelector(".dlyg-foot .ghist");
-      const on = active === "dly" && !!shell.__insDly && !!host;   /* v701 : ⚙ = RÉGLAGES DU GANTT, toujours sur le PLANNING */
+      /* v707 : ⚙ = RÉGLAGES DU GRAPHIQUE (graphique affiché) ; icône Gantt = RÉGLAGES DU GANTT (Gantt affiché) */
+      const on = active === "dly" && !!shell.__insDly && !!host && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone");
       if (g.classList.contains("dly-on") !== on) g.classList.toggle("dly-on", on);
       /* v704 : ⚙ du GRAPHIQUE rendu (RÉGLAGES DU GRAPHIQUE), visible seulement quand le graphique est affiché */
       const gh = shell.querySelector(".blk-hcfg-btn");
-      if (gh) { const on2 = on && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone"); if (gh.classList.contains("dly-on") !== on2) gh.classList.toggle("dly-on", on2); }
+      if (gh) { const on2 = active === "dly" && !!shell.__insDly && !!host && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hfull"); if (gh.classList.contains("dly-on") !== on2) gh.classList.toggle("dly-on", on2); }
     };
     /* histogramme (et son libellé, et la poignée « = ») gardé en bas de la zone visible du planning : les tâches défilent dessous */
     /* v573 (remarque 18) : traits DÉBUT / FIN non posés = collés aux bords gauche et droit de la partie visible du Gantt (suivent le défilement) */
@@ -25272,8 +25273,8 @@ ${A}</Assignments>
       if (act === "view") { if (shell.__scnView) shell.__scnView(); return; }   /* v686 : bloc SCÉNARIOS, LISTE ⇄ COMPARAISON */
       /* v546 (R33) : ↻ AJUSTER À LA CAPACITÉ (DÉTAIL DÉLAIS) */
       /* v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE, en haut à côté de ↻, AGRANDIR et ⋯ */
-      if (act === "cfg") { const DX = shell.__insDly; if (DX) DX.gcfgWin(); return; }
-      if (act === "hcfg") { const DX = shell.__insDly; if (DX) DX.hcfgWin(); return; }   /* v704 : RÉGLAGES DU GRAPHIQUE */   /* v701 : RÉGLAGES DU GANTT */
+      if (act === "cfg") { const DX = shell.__insDly; if (DX) DX.hcfgWin(); return; }   /* v707 : ⚙ = RÉGLAGES DU GRAPHIQUE */
+      if (act === "hcfg") { const DX = shell.__insDly; if (DX) DX.gcfgWin(); return; }   /* v707 : icône Gantt = RÉGLAGES DU GANTT */   /* v704 : RÉGLAGES DU GRAPHIQUE */   /* v701 : RÉGLAGES DU GANTT */
       if (act === "adj") { const b = shell.querySelector(".blk-adj-btn"), DX = shell.__insDly; if (b && b.classList.contains("off")) { svToast(b.dataset.why || "RIEN À AJUSTER.", 3500, b); return; } if (DX) DX.gcWin(); return; }
       if (act === "del") return insDelRun(blk);
       { const cs = ["copy", "cut", "paste"].includes(act) && colSelFor(blk); if (cs) return colOp(act, cs); }
