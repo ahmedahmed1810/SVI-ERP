@@ -1733,7 +1733,9 @@ def main():
         gcf = pg.evaluate("() => { const d = document.getElementById('svConf'); return d ? [(d.querySelector('.svc-t') || {}).textContent, d.querySelectorAll('input[name=gcs]').length, d.querySelectorAll('input[name=gco]').length, !!d.querySelector('.gcf-cut'), !!d.querySelector('[data-gcf=comp]'), !!d.querySelector('[data-gcf=gen]'), !!d.querySelector('[data-gcf=graph]')] : null; }")
         check("v701 : ⚙ RÉGLAGES DU GANTT — JOUR / SEMAINE / MOIS, NORMAL / PAR DÉBUT, COUPE, COMPRESSER, GÉNÉRER, RÉGLAGES DU GRAPHIQUE…",
               gcf and gcf[0] == "RÉGLAGES DU GANTT" and gcf[1] == 3 and gcf[2] == 2 and all(gcf[3:]), gcf)
-        pg.evaluate("() => document.querySelector('#svConf [data-gcf=graph]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.getElementById('svConf')?.remove()"); pg.wait_for_timeout(200)
+        # v704 : ⚙ du GRAPHIQUE rendu (à part du ⚙ du GANTT)
+        pg.evaluate("() => document.querySelector('.blk-hcfg-btn.dly-on')?.click()"); pg.wait_for_timeout(300)
         hw = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
         pg.evaluate("() => { const d = document.getElementById('svConf'); d.querySelectorAll('.hcf-c:not([value=r])').forEach(i => { i.checked = true; }); d.querySelector('input[name=\"hca\"][value=\"j\"]').checked = true; d.querySelector('[data-ok]').click(); }"); pg.wait_for_timeout(600)
         pm = pg.evaluate(f"() => [JSON.stringify({ins}.INS.hset.crb), (document.querySelector('.dlyg-foot .ghist-leg') || {{}}).textContent || '']")

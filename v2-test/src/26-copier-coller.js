@@ -336,7 +336,8 @@
       if (act === "view") { if (shell.__scnView) shell.__scnView(); return; }   /* v686 : bloc SCÉNARIOS, LISTE ⇄ COMPARAISON */
       /* v546 (R33) : ↻ AJUSTER À LA CAPACITÉ (DÉTAIL DÉLAIS) */
       /* v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE, en haut à côté de ↻, AGRANDIR et ⋯ */
-      if (act === "cfg") { const DX = shell.__insDly; if (DX) DX.gcfgWin(); return; }   /* v701 : RÉGLAGES DU GANTT */
+      if (act === "cfg") { const DX = shell.__insDly; if (DX) DX.gcfgWin(); return; }
+      if (act === "hcfg") { const DX = shell.__insDly; if (DX) DX.hcfgWin(); return; }   /* v704 : RÉGLAGES DU GRAPHIQUE */   /* v701 : RÉGLAGES DU GANTT */
       if (act === "adj") { const b = shell.querySelector(".blk-adj-btn"), DX = shell.__insDly; if (b && b.classList.contains("off")) { svToast(b.dataset.why || "RIEN À AJUSTER.", 3500, b); return; } if (DX) DX.gcWin(); return; }
       if (act === "del") return insDelRun(blk);
       { const cs = ["copy", "cut", "paste"].includes(act) && colSelFor(blk); if (cs) return colOp(act, cs); }
@@ -363,7 +364,7 @@
       /* DÉTAIL QUALITÉ (FORMAT, section U) : ses propres commandes, pas d'import ni de copier / coller de lignes */
       const QQm = shell.__qq && shell.__qq.on() && tools.querySelector('.blk-btn[data-blk="detail"]') ? shell.__qq : null;
       /* v545 (remarque 1) : AGRANDIR / RÉDUIRE n'est plus dans le menu (bouton visible à gauche du ⋯) */
-      const acts = [...tools.querySelectorAll(".blk-btn")].filter(a => !["max", "adj", "cfg"].includes(a.dataset.act) && !(readOnly && a.dataset.act === "import"))
+      const acts = [...tools.querySelectorAll(".blk-btn")].filter(a => !["max", "adj", "cfg", "hcfg"].includes(a.dataset.act) && !(readOnly && a.dataset.act === "import"))
         .filter(a => !(QQm && ["import", "del", "copy", "cut", "paste", "export"].includes(a.dataset.act)));
       const m = document.createElement("div");
       m.id = "blkMenu";
