@@ -1155,6 +1155,10 @@ function renderBudgetList() {
     try { const gref = b.ref + "-GLOBAL"; groups.set(gref, { ref: gref, project: b.project, rows: [], first: {}, inst: { ref: gref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vsel: sviAvSelLab(b.ref, sviAvSelGet(b.ref)), data: sviAvMerge(b.ref, sviAvSelGet(b.ref)) } }); } catch (e) {}
   });
 
+  /* v717 : PHOTO n du consolidé (« réf.-GLOBAL-Vn ») — lecture seule */
+  instLoad().filter(b => !b.parent && !b.rclOf).forEach(b => ((b.data || {}).cfz || []).forEach(v => {
+    try { const vref = b.ref + "-GLOBAL-V" + v.n; groups.set(vref, { ref: vref, project: b.project, rows: [], first: {}, inst: { ref: vref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vname: "BUDGET CONSOLIDÉ — PHOTO " + v.n, data: JSON.parse(JSON.stringify(v.d || {})) } }); } catch (e) {}
+  }));
   /* v682 : VERSION n d'une étape — photo en lecture seule, jamais enregistrée */
   instLoad().forEach(b => ((b.data || {}).vfz || []).forEach(v => {
     try { const vref = b.ref + "-V" + v.n; groups.set(vref, { ref: vref, project: b.project, rows: [], first: {}, inst: { ref: vref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vname: sviAvName(b) + " — VERSION " + v.n, data: JSON.parse(JSON.stringify(v.d || {})) } }); } catch (e) {}

@@ -157,6 +157,17 @@
       return n;
     };
     shell.__verTake = () => {
+      /* v717 : PHOTO DU CONSOLIDÉ — version datée en lecture seule, rangée dans les VERSIONS du consolidé */
+      if (INS && AV_ROOT) {
+        const L = sviInstGet(), root = L.find(x => x.ref === AV_ROOT); if (!root) return;
+        const D = root.data = root.data || {}; D.cfz = D.cfz || [];
+        const snap = JSON.parse(JSON.stringify(INS)); delete snap.vfz; delete snap.ver;
+        const n = D.cfz.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1;
+        D.cfz.push({ id: insId(), n, kind: "PHOTO DU CONSOLIDÉ", auto: false, u: typeof sviUser === "function" ? sviUser() : "", date: localDT(new Date()), d: snap });
+        sviInstSet(L.map(x => x.ref === root.ref ? root : x)); sviInstFlush();
+        svToast("PHOTO " + n + " DU CONSOLIDÉ PRISE (VERSIONS).", 2500);
+        window.__sviAvOpen(ref, window.__sviAvRet || null); return;
+      }
       if (!INS || !budget.inst || budget.inst.virtual) { svToast("PRENDRE UNE VERSION : SUR UNE ÉTAPE SEULEMENT.", 3500); return; }
       const n = shell.__verFreeze("MANUELLE", false);
       if (n) { svToast("VERSION " + n + " PRISE.", 2500); setTimeout(() => { const b = shell.querySelector(".blk-ver"); if (b && !b.hidden) b.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, 60); }

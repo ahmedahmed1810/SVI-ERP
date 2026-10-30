@@ -3021,3 +3021,8 @@ body:not(.bdg-screen) #sviScreenTag { display: none; }
 
 /* v716 : compteur d'onglet filtré (retenues/total) en bleu, touchable */
 #bdgTabs .bdg-d-tab .svi-cnt.cnt-filt { background: #1d4ed8 !important; color: #fff !important; cursor: pointer; }
+
+/* v717 : consolidé — article déplié par origine */
+.av-ofold { border: 0; background: none; font-weight: 900; color: #12355b; cursor: pointer; padding: 0 2px; margin-right: 2px; }
+tr.av-orow td { background: #f8fafc; font-size: 11px; color: #344054; cursor: pointer; padding: 3px 8px; }
+tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800; color: #12355b; }

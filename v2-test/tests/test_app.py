@@ -2276,8 +2276,8 @@ def main():
             return [M.des.length, insLinkedQ(M, r.id), Math.round(r.p * 100) / 100, !!r.pmp, C.length, C[0] ? C[0].att + ' / ' + C[0].got : '', st, insLinkedQ(M0, M0.des[0].id), !!M0.des[0].pmp]; }""")
         tg706 = pg.evaluate("() => (document.getElementById('sviScreenTag') || {}).textContent || ''")
         check("v706 : en haut, le NUMÉRO du scénario actif (BUDGET — SCÉNARIO n)", "SCÉNARIO " in tg706 and tg706.split("SCÉNARIO ")[-1].strip().isdigit(), tg706)
-        check("v681 : RETENIR archive, DÉSARCHIVER rend la réserve, nouveau scénario = premier numéro libre ; GLOBAL : 100 + 20 M3 au prix moyen pondéré 916,67 (PMP) ; contradiction même lot, autres activités ; v684 : sans INCLURE LES NON VALIDÉS, l'avenant en instance n'est pas compté",
-              "ARCHIVÉ" in a81 and b81 == 0 and c81.count("SCÉNARIO 1") == 1 and r81 == [1, 120, 916.67, True, 1, "BETON › BETON / COFFRAGE › COFFRAGE", "AVT-1,AVT-1-AV1", 100, False], [a81, b81, c81, r81])
+        check("v681 : RETENIR archive, DÉSARCHIVER rend la réserve, nouveau scénario = premier numéro libre ; v717 : même désignation à un autre prix = article distinct (900 et 1000) ; contradiction même lot, autres activités ; v684 : sans INCLURE LES NON VALIDÉS, l'avenant en instance n'est pas compté",
+              "ARCHIVÉ" in a81 and b81 == 0 and c81.count("SCÉNARIO 1") == 1 and r81 == [2, 100, 900, False, 1, "BETON › BETON / COFFRAGE › COFFRAGE", "AVT-1,AVT-1-AV1", 100, False], [a81, b81, c81, r81])
         pg.evaluate(f"() => {{ const X = {ins}; const o = JSON.parse(X.INS.__v0); Object.keys(X.INS).forEach(k => delete X.INS[k]); Object.assign(X.INS, o); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
 
         # v671 (axe 6) : règle des axes ; plan image → ÉCHELLE (10 m), LONGUEUR mesurée, REMPLIR DIM 1 d'un produit

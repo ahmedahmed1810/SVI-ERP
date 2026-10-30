@@ -50,7 +50,9 @@ const sviAvMerge = (rootRef, opt) => {
   const M = { ...D0, des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: D0.qlt || [], links: [], dlp: {}, dlpSec: true };
   delete M.ver; delete M.vfz; delete M.dord; delete M.conf;
   const n = v => Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")) || 0;
-  const key = { des: r => r.t ? "T|" + sviAvU(r.art) + "|" + sviAvU(r.des) : sviAvU(r.des) + "|" + sviAvU(r.u), lot: r => sviAvU(r.v), prim: r => sviAvU(r.v), sec: r => sviAvU(r.v), chg: r => r.t ? "T|" + sviAvU(r.des) : sviAvU(r.des) + "|" + sviAvU(r.u) };
+  /* v717 : deux articles sont identiques seulement s'ils ont la même désignation, la même unité, le même prix et le même ART */
+  const pk = v => String(Math.round(n(v) * 1e6) / 1e6);
+  const key = { des: r => r.t ? "T|" + sviAvU(r.art) + "|" + sviAvU(r.des) : [sviAvU(r.art), sviAvU(r.des), sviAvU(r.u), pk(r.p)].join("|"), lot: r => sviAvU(r.v), prim: r => sviAvU(r.v), sec: r => sviAvU(r.v), chg: r => r.t ? "T|" + sviAvU(r.des) : [sviAvU(r.art), sviAvU(r.des), sviAvU(r.u), pk(r.p)].join("|") };
   S.forEach((x0, si) => {
     if (x0.none) return;
     const st = x0.st, d = x0.d || {}, nm = sviAvName(st) + (x0.sc ? " (" + x0.sc + ")" : ""), map = {};
@@ -60,7 +62,7 @@ const sviAvMerge = (rootRef, opt) => {
       if (!m) { m = { ...r, id: k + si + "_" + r.id, __k: kk, __o: [nm] }; if (k === "des" || k === "chg") m.__det = []; M[k].push(m); }
       else if (!m.__o.includes(nm)) m.__o.push(nm);
       map[k + r.id] = m.id;
-      if ((k === "des" || k === "chg") && !r.t) m.__det.push({ o: nm, q: k === "des" ? (insLinkedQ(d, r.id) ?? n(r.q)) : n(r.q), p: n(r.p) });
+      if ((k === "des" || k === "chg") && !r.t) m.__det.push({ o: nm, ref: st.ref, q: k === "des" ? (insLinkedQ(d, r.id) ?? n(r.q)) : n(r.q), p: n(r.p) });
     }));
     (d.prd || []).forEach(r => { const x = { ...r, id: "p" + si + "_" + r.id, __o: [nm] }; M.prd.push(x); map["prd" + r.id] = x.id; });
     (d.links || []).forEach(l => {
@@ -89,6 +91,8 @@ const sviAvMerge = (rootRef, opt) => {
     if (q) r.p = Math.round(m / q * 1e6) / 1e6;
     r.pmp = r.__det.some(x => Math.abs(x.p - r.__det[0].p) > 1e-9);
   }));
+  /* v717 : photos datées du consolidé (VERSIONS du consolidé, lecture seule) */
+  M.vfz = JSON.parse(JSON.stringify(((S0[0] || {}).data || {}).cfz || []));
   return M;
 };
 /* contradictions d'un avenant : même désignation et même lot qu'une étape précédente, activités différentes */

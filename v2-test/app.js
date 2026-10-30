@@ -1370,7 +1370,9 @@ const sviAvMerge = (rootRef, opt) => {
   const M = { ...D0, des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: D0.qlt || [], links: [], dlp: {}, dlpSec: true };
   delete M.ver; delete M.vfz; delete M.dord; delete M.conf;
   const n = v => Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")) || 0;
-  const key = { des: r => r.t ? "T|" + sviAvU(r.art) + "|" + sviAvU(r.des) : sviAvU(r.des) + "|" + sviAvU(r.u), lot: r => sviAvU(r.v), prim: r => sviAvU(r.v), sec: r => sviAvU(r.v), chg: r => r.t ? "T|" + sviAvU(r.des) : sviAvU(r.des) + "|" + sviAvU(r.u) };
+  /* v717 : deux articles sont identiques seulement s'ils ont la même désignation, la même unité, le même prix et le même ART */
+  const pk = v => String(Math.round(n(v) * 1e6) / 1e6);
+  const key = { des: r => r.t ? "T|" + sviAvU(r.art) + "|" + sviAvU(r.des) : [sviAvU(r.art), sviAvU(r.des), sviAvU(r.u), pk(r.p)].join("|"), lot: r => sviAvU(r.v), prim: r => sviAvU(r.v), sec: r => sviAvU(r.v), chg: r => r.t ? "T|" + sviAvU(r.des) : [sviAvU(r.art), sviAvU(r.des), sviAvU(r.u), pk(r.p)].join("|") };
   S.forEach((x0, si) => {
     if (x0.none) return;
     const st = x0.st, d = x0.d || {}, nm = sviAvName(st) + (x0.sc ? " (" + x0.sc + ")" : ""), map = {};
@@ -1380,7 +1382,7 @@ const sviAvMerge = (rootRef, opt) => {
       if (!m) { m = { ...r, id: k + si + "_" + r.id, __k: kk, __o: [nm] }; if (k === "des" || k === "chg") m.__det = []; M[k].push(m); }
       else if (!m.__o.includes(nm)) m.__o.push(nm);
       map[k + r.id] = m.id;
-      if ((k === "des" || k === "chg") && !r.t) m.__det.push({ o: nm, q: k === "des" ? (insLinkedQ(d, r.id) ?? n(r.q)) : n(r.q), p: n(r.p) });
+      if ((k === "des" || k === "chg") && !r.t) m.__det.push({ o: nm, ref: st.ref, q: k === "des" ? (insLinkedQ(d, r.id) ?? n(r.q)) : n(r.q), p: n(r.p) });
     }));
     (d.prd || []).forEach(r => { const x = { ...r, id: "p" + si + "_" + r.id, __o: [nm] }; M.prd.push(x); map["prd" + r.id] = x.id; });
     (d.links || []).forEach(l => {
@@ -1409,6 +1411,8 @@ const sviAvMerge = (rootRef, opt) => {
     if (q) r.p = Math.round(m / q * 1e6) / 1e6;
     r.pmp = r.__det.some(x => Math.abs(x.p - r.__det[0].p) > 1e-9);
   }));
+  /* v717 : photos datées du consolidé (VERSIONS du consolidé, lecture seule) */
+  M.vfz = JSON.parse(JSON.stringify(((S0[0] || {}).data || {}).cfz || []));
   return M;
 };
 /* contradictions d'un avenant : même désignation et même lot qu'une étape précédente, activités différentes */
@@ -5671,6 +5675,10 @@ function renderBudgetList() {
     try { const gref = b.ref + "-GLOBAL"; groups.set(gref, { ref: gref, project: b.project, rows: [], first: {}, inst: { ref: gref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vsel: sviAvSelLab(b.ref, sviAvSelGet(b.ref)), data: sviAvMerge(b.ref, sviAvSelGet(b.ref)) } }); } catch (e) {}
   });
 
+  /* v717 : PHOTO n du consolidé (« réf.-GLOBAL-Vn ») — lecture seule */
+  instLoad().filter(b => !b.parent && !b.rclOf).forEach(b => ((b.data || {}).cfz || []).forEach(v => {
+    try { const vref = b.ref + "-GLOBAL-V" + v.n; groups.set(vref, { ref: vref, project: b.project, rows: [], first: {}, inst: { ref: vref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vname: "BUDGET CONSOLIDÉ — PHOTO " + v.n, data: JSON.parse(JSON.stringify(v.d || {})) } }); } catch (e) {}
+  }));
   /* v682 : VERSION n d'une étape — photo en lecture seule, jamais enregistrée */
   instLoad().forEach(b => ((b.data || {}).vfz || []).forEach(v => {
     try { const vref = b.ref + "-V" + v.n; groups.set(vref, { ref: vref, project: b.project, rows: [], first: {}, inst: { ref: vref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vname: sviAvName(b) + " — VERSION " + v.n, data: JSON.parse(JSON.stringify(v.d || {})) } }); } catch (e) {}
@@ -8059,6 +8067,17 @@ function renderBudgetList() {
     /* v490 (remarque 4) : quel que soit le rond choisi (désignation, lot, activité, produit, charge), les lignes liées
        à ce choix ont le point dans leur rond (avant : seulement quand une désignation était choisie) */
     const lkRd = (k, r) => INS_EDIT && r && r.t && k === "des" ? lkRdPart("des", r.id) : INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${(LK.des && lkIsLinked(k, r.id)) || lkHit(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
+    /* v717 : CONSOLIDÉ — chaque article une fois (quantité totale) avec › / ⌄ ; déplié = une ligne par origine (BUDGET INITIAL, AVENANT n) ;
+       toucher une ligne = ouvrir cette étape */
+    const AVO_SET = shell.__avoSet = shell.__avoSet || new Set();
+    shell.__avoClick = e => {
+      const f = e.target.closest && e.target.closest(".av-ofold[data-avo]");
+      if (f) { e.stopPropagation(); e.preventDefault(); const id = f.dataset.avo; if (AVO_SET.has(id)) AVO_SET.delete(id); else AVO_SET.add(id); try { refreshAll(); } catch (er) {} return; }
+      const o = e.target.closest && e.target.closest("tr.av-orow[data-avst]");
+      if (o && o.dataset.avst) { e.stopPropagation(); window.__sviAvOpen(o.dataset.avst, ref); }
+    };
+    if (!shell.__avoBound) { shell.__avoBound = true; shell.addEventListener("click", e => { if (shell.__avoClick) shell.__avoClick(e); }, true); }
+    const AVO_ON = (k, r) => !!AV_ROOT && (k === "des" || k === "chg") && r && !r.t && Array.isArray(r.__det) && r.__det.length > 0;
     const insRowHTML = (k, r, lvl) => {
       const cols = insColsOrd(k);
       const tcell = "";   /* plus de colonne T : un titre se crée en superposant deux lignes (FORMAT 61) */
@@ -8069,8 +8088,8 @@ function renderBudgetList() {
       INS_CELL_LVL = lvl || 0;
       return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}${k === "des" && r ? ` style="--d:${dOf(r)}"` : ""}>
-        <td class="center ins-rdc">${k === "des" && r && r.t && !INS_EDIT ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
-          ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>`;
+        <td class="center ins-rdc">${AVO_ON(k, r) ? `<button type="button" class="av-ofold" data-avo="${esc(r.id)}">${AVO_SET.has(r.id) ? "⌄" : "›"}</button>` : ""}${k === "des" && r && r.t && !INS_EDIT ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
+          ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>${AVO_ON(k, r) && AVO_SET.has(r.id) ? r.__det.map(x => `<tr class="av-orow" data-avst="${esc(x.ref || "")}"><td></td><td colspan="${cols.length + (qc ? 1 : 0) + (INS_EDIT ? 1 : 0)}"><span class="av-olab">${esc(x.o)}</span> <b>${esc(money(x.q))}</b> ${esc(r.u || "")} × ${esc(money(x.p))}</td></tr>`).join("") : ""}`;
     };
     /* lignes + sous-totaux de titres (désignations) */
     /* filtres / tri de colonne (mêmes menus que la version validée) :
@@ -19729,6 +19748,7 @@ ${A}</Assignments>
         /* v693 : NOUVEAU RECALAGE — étape validée (budget initial ou avenant) ou recalage */
         ...(INS && budget.inst && !budget.inst.virtual && !budget.inst.rclOf && budget.inst.state === "valide" && !sviRclOf(budget.inst.ref).length ? [{ a: "rcl", lab: "CRÉER UN RECALAGE", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6M20 12a8 8 0 0 1-13.7 5.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M18 3v4h-4M6 21v-4h4" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>' }] : []),
         /* v690 : VERSIONS ET SCÉNARIOS retiré (blocs SCÉNARIOS et VERSIONS) ; PRENDRE UNE VERSION (photo manuelle) */
+        ...(INS && AV_ROOT ? [{ a: "cph", lab: "PRENDRE UNE PHOTO DU CONSOLIDÉ", ic: SVI_ICON.ver || "" }] : []),   /* v717 */
         ...(INS && budget.inst && !budget.inst.virtual && !budget.inst.rclOf ? [{ a: "vtake", lab: "PRENDRE UNE VERSION", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 7l1.5-3h4l1.5 3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' }] : []),
         ...(INS ? [{ a: "ctr", lab: "CONTRAT (CPS)", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 11h5M10 15h5M10 19h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' }] : []),
         ...(INS ? [{ a: "plans", lab: "PLANS ET MÉTRÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5l6-2 6 2 6-2v16l-6 2-6-2-6 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 3v16M15 5v16" stroke="currentColor" stroke-width="1.4"/></svg>' }] : []),
@@ -19742,7 +19762,7 @@ ${A}</Assignments>
       ];
       /* v694 : le menu ⋯ ne garde que les entrées utiles à l'écran — consolidé : aperçus, exports, indicateurs ;
          version : RESTAURER, EN FAIRE UN SCÉNARIO, exports, indicateurs ; recalage : NOUVEAU RECALAGE, exports, indicateurs */
-      { const bi = budget.inst, keep = bi && bi.virtual ? (bi.vname ? ["vrest", "vscn", "lay", "rat", "ind", "exp"] : ["lay", "rat", "ind", "multi", "exp", "av"]) : bi && bi.rclOf ? ["rcl", "lay", "rat", "ind", "exp", "plans"] : null;
+      { const bi = budget.inst, keep = bi && bi.virtual ? (bi.vname ? ["vrest", "vscn", "lay", "rat", "ind", "exp"] : ["lay", "rat", "ind", "multi", "exp", "av", "cph"]) : bi && bi.rclOf ? ["rcl", "lay", "rat", "ind", "exp", "plans"] : null;
         if (keep) for (let i = items.length - 1; i >= 0; i--) if (!keep.includes(items[i].a)) items.splice(i, 1); }
       const m = document.createElement("div");
       m.id = "blkMenu";
@@ -19762,6 +19782,7 @@ ${A}</Assignments>
         else if (it.dataset.a === "av") { if (it.classList.contains("off") || it.disabled) { svToast("LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ.", 3500); return; } if (window.__sviAvNew) window.__sviAvNew(budget.inst.parent || budget.inst.ref, null); }   /* v684 : fenêtre INF puis l'avenant */
         else if (it.dataset.a === "avl") { const root = budget.inst.parent || budget.inst.ref; if (window.__sviAvOpen) window.__sviAvOpen(root + "-GLOBAL"); }   /* v684 : plus de petite fenêtre : le consolidé */
         else if (it.dataset.a === "vtake") { if (shell.__verTake) shell.__verTake(); }
+        else if (it.dataset.a === "cph") { if (shell.__verTake) shell.__verTake(); }
         else if (it.dataset.a === "rcl") { if (shell.__rclNew) shell.__rclNew(); }
         else if (it.dataset.a === "vrest") { if (shell.__verAct) shell.__verAct("restore"); }
         else if (it.dataset.a === "vscn") { if (shell.__verAct) shell.__verAct("scn"); }   /* v670 (axes 1 et 4) */   /* v669 (axe 3) */
@@ -21422,6 +21443,17 @@ ${A}</Assignments>
       return n;
     };
     shell.__verTake = () => {
+      /* v717 : PHOTO DU CONSOLIDÉ — version datée en lecture seule, rangée dans les VERSIONS du consolidé */
+      if (INS && AV_ROOT) {
+        const L = sviInstGet(), root = L.find(x => x.ref === AV_ROOT); if (!root) return;
+        const D = root.data = root.data || {}; D.cfz = D.cfz || [];
+        const snap = JSON.parse(JSON.stringify(INS)); delete snap.vfz; delete snap.ver;
+        const n = D.cfz.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1;
+        D.cfz.push({ id: insId(), n, kind: "PHOTO DU CONSOLIDÉ", auto: false, u: typeof sviUser === "function" ? sviUser() : "", date: localDT(new Date()), d: snap });
+        sviInstSet(L.map(x => x.ref === root.ref ? root : x)); sviInstFlush();
+        svToast("PHOTO " + n + " DU CONSOLIDÉ PRISE (VERSIONS).", 2500);
+        window.__sviAvOpen(ref, window.__sviAvRet || null); return;
+      }
       if (!INS || !budget.inst || budget.inst.virtual) { svToast("PRENDRE UNE VERSION : SUR UNE ÉTAPE SEULEMENT.", 3500); return; }
       const n = shell.__verFreeze("MANUELLE", false);
       if (n) { svToast("VERSION " + n + " PRISE.", 2500); setTimeout(() => { const b = shell.querySelector(".blk-ver"); if (b && !b.hidden) b.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, 60); }
@@ -24246,7 +24278,11 @@ ${A}</Assignments>
     const DOC_KEY = "svi_docs_v1:" + String(ref);
     /* références des branches : « <PROJET> BDG <TYPE> AA-MMJJ/NNN » (ex. H88 BDG DOC 26-1010/001) */
     const REF_PFX = String(budget.project).trim().toUpperCase() + " BDG ";
+    /* v717 : le CONSOLIDÉ réunit les DOCUMENTS / TAF / OBSERVATIONS de toutes ses étapes (lecture seule) ; chaque étape n'affiche que les siens */
+    const AV_KEYS = pfx => AV_ROOT ? sviAvStages(AV_ROOT).map(st => pfx + String(st.ref)) : null;
+    const loadKeys = K => K.flatMap(k => { try { return JSON.parse(localStorage.getItem(k) || "[]") || []; } catch (e) { return []; } });
     const docsLoad = () => {
+      const K = AV_KEYS("svi_docs_v1:"); if (K) return loadKeys(K);
       try { return JSON.parse(localStorage.getItem(DOC_KEY) || "[]") || []; }
       catch (e) { return []; }
     };
@@ -24471,6 +24507,7 @@ ${A}</Assignments>
     const recKey = kind => "svi_" + kind + "_v1:" + String(ref);
     const recLoad = kind => {
       if (kind === "doc") return docsLoad();
+      { const K = AV_KEYS("svi_" + kind + "_v1:"); if (K) return loadKeys(K); }
       try { return JSON.parse(localStorage.getItem(recKey(kind)) || "[]") || []; }
       catch (e) { return []; }
     };

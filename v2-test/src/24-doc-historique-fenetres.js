@@ -132,7 +132,11 @@
     const DOC_KEY = "svi_docs_v1:" + String(ref);
     /* références des branches : « <PROJET> BDG <TYPE> AA-MMJJ/NNN » (ex. H88 BDG DOC 26-1010/001) */
     const REF_PFX = String(budget.project).trim().toUpperCase() + " BDG ";
+    /* v717 : le CONSOLIDÉ réunit les DOCUMENTS / TAF / OBSERVATIONS de toutes ses étapes (lecture seule) ; chaque étape n'affiche que les siens */
+    const AV_KEYS = pfx => AV_ROOT ? sviAvStages(AV_ROOT).map(st => pfx + String(st.ref)) : null;
+    const loadKeys = K => K.flatMap(k => { try { return JSON.parse(localStorage.getItem(k) || "[]") || []; } catch (e) { return []; } });
     const docsLoad = () => {
+      const K = AV_KEYS("svi_docs_v1:"); if (K) return loadKeys(K);
       try { return JSON.parse(localStorage.getItem(DOC_KEY) || "[]") || []; }
       catch (e) { return []; }
     };
@@ -357,6 +361,7 @@
     const recKey = kind => "svi_" + kind + "_v1:" + String(ref);
     const recLoad = kind => {
       if (kind === "doc") return docsLoad();
+      { const K = AV_KEYS("svi_" + kind + "_v1:"); if (K) return loadKeys(K); }
       try { return JSON.parse(localStorage.getItem(recKey(kind)) || "[]") || []; }
       catch (e) { return []; }
     };
