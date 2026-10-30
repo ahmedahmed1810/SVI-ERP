@@ -265,6 +265,7 @@
       { key: "prd", title: "DÉTAIL PRODUITS" },
       { key: "qlt", title: "DÉTAIL QUALITÉ" },
       { key: "dly", title: "DÉTAIL DÉLAIS" },
+      ...(budget.inst ? [{ key: "apr", title: "APPROVISION&shy;NEMENT PRÉVISIONNEL", ico: "chg" }] : []),   /* v714 (point 3) */
       /* budget en instance : les liaisons validées sont un onglet du détail */
       ...(budget.inst ? [{ key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "lnk", title: "INDICATEURS", ico: "xpl" }] : [])   /* v609 : onglet GRAPHIQUE retiré (le graphique sous le planning suffit) ; v498 (remarque 37) : MARGE remplace LIAISONS VALIDÉES et EXPLOITATION */
     ];

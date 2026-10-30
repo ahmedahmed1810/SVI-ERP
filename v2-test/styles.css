@@ -2988,3 +2988,23 @@ body:not(.bdg-screen) #sviScreenTag { display: none; }
 .imph-cols { display: flex; flex-wrap: wrap; gap: 4px; }
 .imph-c { padding: 2px 6px; border-radius: 5px; background: #f2f4f7; font-size: 10px; font-weight: 800; color: #344054; }
 .imph-req { color: #d92d20; font-style: normal; margin-left: 2px; }
+
+/* v714 : onglet APPROVISIONNEMENT PRÉVISIONNEL */
+.apr-wrap { padding: 8px 10px 16px; }
+.apr-bar-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; margin-bottom: 8px; }
+.apr-seg { display: inline-flex; gap: 4px; }
+.apr-seg .svc-b { height: 26px; padding: 0 10px; font-size: 10px; font-weight: 800; border: 1px solid #d6dbe3; border-radius: 6px; background: #fff; color: #344054; cursor: pointer; }
+.apr-seg .svc-b.on { background: var(--inst, #b91c1c); color: #fff; border-color: transparent; }
+.apr-seg .svc-b.off { opacity: .4; }
+.apr-badge { display: inline-block; padding: 1px 6px; border-radius: 5px; background: #fef3f2; color: #b42318; font-size: 9px; font-weight: 900; }
+.apr-graph { overflow-x: auto; border: 1px solid #e4e7ec; border-radius: 8px; padding: 6px; margin-bottom: 10px; }
+.apr-svg .apr-bar { fill: #f79009; }
+.apr-svg .apr-gx { font-size: 9px; fill: #667085; font-weight: 700; }
+.apr-svg .apr-gv { font-size: 9px; fill: #344054; font-weight: 800; }
+.apr-t { width: 100%; margin-bottom: 12px; }
+.apr-t tr.apr-row { cursor: pointer; font-weight: 800; }
+.apr-t tr.apr-kid td { color: #475467; font-size: 11px; }
+.apr-t tr.apr-todo td { background: #fffaf5; }
+.apr-sub { font-size: 11px; font-weight: 900; color: #344054; margin: 6px 0; }
+.apr-in { height: 24px; font-size: 11px; font-weight: 700; border: 1px solid #d0d5dd; border-radius: 5px; background: #fff; }
+.apr-n { width: 52px; text-align: right; padding: 0 4px; }
