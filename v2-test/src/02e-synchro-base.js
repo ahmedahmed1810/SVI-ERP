@@ -33,6 +33,57 @@ const sviSharedSet = (key, data) => {
   const M = sviSyncMeta(), m = M[ref] = M[ref] || {}; m.dirty = m.dirty || Date.now(); m.last = Date.now(); delete m.del; sviSyncMetaSet(M);
   sviSyncSchedule(1500);
 };
+/* v722 (bloc 7, point 3) : TOUT PARTAGER — en plus des budgets et de la liste des indicateurs, les réglages communs gardés en
+   localStorage sont partagés par une ligne « _K:<clé> » de la base (même envoi, même verrou, même fusion) :
+   DOCUMENTS / TAF / OBSERVATIONS et HISTORIQUE de chaque budget, UNITÉS, emballage / livraison, doublons proches écartés,
+   signataires, dossiers Drive. Restent sur l'appareil : tout réglage d'affichage (colonnes, vue, plis, poignées, échelle…).
+   Fichier joint d'un DOCUMENT : non envoyé (trop lourd) — sa copie Drive sert sur les autres appareils. */
+const SVI_SHARE_RX = /^svi_(docs|taf|obs|hist)_v1:|^svi_(units|cond_chs|nearskip|sign|driveurls|drivepaths)_v1$/;
+const sviShareVal = (k, v) => {
+  if (v === null || v === undefined) return null;
+  if (/^svi_docs_v1:/.test(k)) { try { const L = JSON.parse(v); if (Array.isArray(L)) return JSON.stringify(L.map(x => { if (!x || typeof x !== "object") return x; const o = { ...x }; delete o.data; return o; })); } catch (e) {} }
+  return String(v);
+};
+/* fusion de deux valeurs partagées : listes = réunion (même élément : le plus récent gagne), objets = clés réunies, sinon la plus récente */
+const sviShareKeyOf = x => x && typeof x === "object" ? String(x.ref || x.id || x.a || x.n || x.t || JSON.stringify(x)) : JSON.stringify(x);
+const sviShareMerge = (mine, theirs, mineNewer) => {
+  let A, B; try { A = JSON.parse(mine); B = JSON.parse(theirs); } catch (e) { return mineNewer ? mine : theirs; }
+  if (Array.isArray(A) && Array.isArray(B)) {
+    const M = new Map(); (mineNewer ? [B, A] : [A, B]).forEach(L => L.forEach(x => M.set(sviShareKeyOf(x), x)));
+    const ord = []; [...A, ...B].forEach(x => { const k = sviShareKeyOf(x); if (!ord.includes(k)) ord.push(k); });
+    return JSON.stringify(ord.map(k => M.get(k)));
+  }
+  if (A && B && typeof A === "object" && typeof B === "object") return JSON.stringify(mineNewer ? { ...B, ...A } : { ...A, ...B });
+  return mineNewer ? mine : theirs;
+};
+const sviShareApply = (ref, it) => {
+  const k = ref.slice(3), v = it && it.data ? it.data.v : null;
+  SVI_SYNC.applying = true;
+  try {
+    if (v === null || v === undefined) localStorage.removeItem(k);
+    else if (/^svi_docs_v1:/.test(k)) {   /* fichier joint gardé sur l'appareil qui l'a */
+      let loc = []; try { loc = JSON.parse(localStorage.getItem(k) || "[]") || []; } catch (e) {}
+      let L = []; try { L = JSON.parse(v) || []; } catch (e) {}
+      const byRef = new Map(loc.filter(x => x && x.ref).map(x => [x.ref, x]));
+      localStorage.setItem(k, JSON.stringify(L.map(x => x && x.ref && byRef.get(x.ref) && byRef.get(x.ref).data ? { ...x, data: byRef.get(x.ref).data } : x)));
+    } else localStorage.setItem(k, v);
+  } finally { SVI_SYNC.applying = false; }
+};
+/* toute écriture d'une clé partagée sur l'appareil = ligne « _K:<clé> » en attente d'envoi */
+if (typeof window !== "undefined" && !window.__sviShareHook && typeof Storage !== "undefined") {
+  window.__sviShareHook = true;
+  const S = Storage.prototype, st = S.setItem, rm = S.removeItem;
+  S.setItem = function (k, v) { const r = st.call(this, k, v); try { if (this === window.localStorage && SVI_SHARE_RX.test(String(k)) && !SVI_SYNC.applying) sviSharedSet("K:" + k, { v: sviShareVal(String(k), v) }); } catch (e) {} return r; };
+  S.removeItem = function (k) { const r = rm.call(this, k); try { if (this === window.localStorage && SVI_SHARE_RX.test(String(k)) && !SVI_SYNC.applying) sviSharedSet("K:" + k, { v: null }); } catch (e) {} return r; };
+}
+/* clés partagées déjà présentes sur l'appareil (avant la v722) : envoyées une fois */
+const sviShareSeed = () => {
+  try {
+    const M = sviSyncMeta(), keys = [];
+    for (let i = 0; i < localStorage.length; i++) { const k = String(localStorage.key(i) || "").replace(/^svitest:/, ""); if (SVI_SHARE_RX.test(k)) keys.push(k); }
+    keys.forEach(k => { const ref = "_K:" + k; if (!(M[ref] || {}).rev && !(M[ref] || {}).dirty) { const v = localStorage.getItem(k); if (v !== null) sviSharedSet("K:" + k, { v: sviShareVal(k, v) }); } });
+  } catch (e) {}
+};
 /* liste des budgets de l'iPad modifiée : budgets changés marqués « en attente » */
 const sviSyncChanged = (oldStr, newStr) => {
   if (SVI_SYNC.applying) return;
@@ -163,9 +214,10 @@ const sviSyncPushOne = async (ref, M) => {
       let theirs = null; try { theirs = JSON.parse(r.data); } catch (e) {}
       if (!theirs) throw new Error("BUDGET ILLISIBLE DANS LA BASE");
       let base = null; try { const bs = await sviSyncBase(ref); base = bs ? JSON.parse(bs) : null; } catch (e) {}
-      const merged = sviMergeItem(base, it, theirs, (m.last || 0) >= (r.ts || 0), r.user || "", r.ts || 0);
+      const merged = /^_K:/.test(ref) ? { ...it, data: { v: sviShareMerge((it.data || {}).v, (theirs.data || {}).v, (m.last || 0) >= (r.ts || 0)) } }
+        : sviMergeItem(base, it, theirs, (m.last || 0) >= (r.ts || 0), r.user || "", r.ts || 0);
       SVI_SYNC.applying = true;
-      try { if (SH) sviSharedPut(ref, merged); else sviInstSet(sviInstGet().map(x => x.ref === ref ? merged : x)); } finally { SVI_SYNC.applying = false; }
+      try { if (SH) { sviSharedPut(ref, merged); if (/^_K:/.test(ref)) sviShareApply(ref, merged); } else sviInstSet(sviInstGet().map(x => x.ref === ref ? merged : x)); } finally { SVI_SYNC.applying = false; }
       m.rev = r.rev; it = merged;
       const nc = ((merged.data || {}).conf || []).length;
       if (nc && typeof svToast === "function") svToast(ref + " : MODIFIÉ AUSSI PAR " + (r.user || "UN AUTRE") + " — FUSIONNÉ ; " + nc + " CONFLIT(S) À VOIR (⚠).", 6000);
@@ -227,7 +279,7 @@ const sviSyncPull = async () => {
     let it = null; try { it = JSON.parse(p.data); } catch (e) {}
     if (!it) continue;
     SVI_SYNC.applying = true;
-    try { if (s.ref[0] === "_") { sviSharedPut(s.ref, it); if (window.__sviSharedChanged) { try { window.__sviSharedChanged(s.ref); } catch (e) {} } } else { const list = sviInstGet(); const i = list.findIndex(x => x.ref === s.ref); if (i >= 0) list[i] = it; else list.push(it); sviInstSet(list); } } finally { SVI_SYNC.applying = false; }
+    try { if (s.ref[0] === "_") { sviSharedPut(s.ref, it); if (/^_K:/.test(s.ref)) { sviShareApply(s.ref, it); const mm = /^_K:svi_(docs|taf|obs)_v1:(.+)$/.exec(s.ref); if (mm && window.__sviOpenRef === mm[2] && window.__sviSyncReopen) setTimeout(() => window.__sviSyncReopen(mm[2]), 0); } if (window.__sviSharedChanged) { try { window.__sviSharedChanged(s.ref); } catch (e) {} } } else { const list = sviInstGet(); const i = list.findIndex(x => x.ref === s.ref); if (i >= 0) list[i] = it; else list.push(it); sviInstSet(list); } } finally { SVI_SYNC.applying = false; }
     m.rev = p.rev; m.at = Date.now(); await sviSyncBaseSet(s.ref, p.data); changed = true;
     if (window.__sviOpenRef === s.ref) { window.__sviSyncReopen && window.__sviSyncReopen(s.ref); if (typeof svToast === "function") svToast(s.ref + " : CHANGEMENTS DE " + (p.user || "UN AUTRE") + " REÇUS.", 4000); }
   }
@@ -358,7 +410,7 @@ const sviUserAsk = () => {
 };
 if (typeof window !== "undefined" && !window.__sviSyncBoot) {
   window.__sviSyncBoot = true;
-  SVI_INST_READY.then(() => setTimeout(() => { sviSyncPaint(); sviUserAsk(); if (sviUser()) sviSyncPull(); }, 1200));
+  SVI_INST_READY.then(() => setTimeout(() => { sviSyncPaint(); sviUserAsk(); sviShareSeed(); if (sviUser()) sviSyncPull(); }, 1200));
   window.addEventListener("online", () => { sviSyncPull().then(() => sviSyncRun()); });
   window.addEventListener("offline", () => { SVI_SYNC.status = "off"; sviSyncPaint(); });
   setInterval(() => { if (document.visibilityState === "visible") { sviLockKeep(); if (!sviSyncPending()) sviSyncPull(); } }, 60000);
