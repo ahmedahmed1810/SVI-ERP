@@ -13,12 +13,17 @@
     const IND_BASE = [["fin", "DATE DE FIN", "date", ""], ["dur", "DURÉE", "n", "J"], ["but", "MARGE SUR LA DATE BUTOIR", "n", "J"],
       ["eff", "EFFECTIF MAXIMUM", "n", "J-H/J"], ["effT", "EFFECTIF MAXIMUM PAR TYPE D'OUVRIER", "txt", ""], ["mo", "COÛT DE LA MAIN-D'ŒUVRE", "n", "DH"],
       ["chg", "CHARGES TOTALES", "n", "DH"], ["prd", "PRODUITS TOTAUX", "n", "DH"], ["mg", "MARGE", "n", "DH"], ["mgp", "MARGE (%)", "n", "%"],
-      ["lots", "NOMBRE DE LOTS", "n", "U"], ["sc", "SURFACE COUVERTE", "n", "M2"], ["sl", "SURFACE DES LOTS", "n", "M2"]];
+      ["lots", "NOMBRE DE LOTS", "n", "U"], ["sc", "SURFACE COUVERTE", "n", "M2"], ["sl", "SURFACE DES LOTS", "n", "M2"],
+      /* v718 : révision des prix estimée (contrat + hypothèses) ajoutée aux recettes prévues */
+      ["rev", "RÉVISION DES PRIX ESTIMÉE", "n", "DH"], ["prdr", "PRODUITS AVEC RÉVISION", "n", "DH"], ["mgr", "MARGE AVEC RÉVISION", "n", "DH"],
+      ["mgrp", "MARGE AVEC RÉVISION (SCÉNARIO PESSIMISTE)", "n", "DH"]];
     const indLoad = () => { const L = (typeof sviSharedGet === "function" ? sviSharedGet("IND") : {}).L; return Array.isArray(L) ? L : []; };
     const indSaveL = L => { if (typeof sviSharedSet === "function") sviSharedSet("IND", { L }); };
     /* éléments d'un état du budget */
     const indEls = d => {
-      const v = verInd(d), R = d.rat || {};
+      const v = { ...verInd(d) }, R = d.rat || {};
+      { let E = null, Ep = null; try { E = sviRevEst(d, false); Ep = sviRevEst(d, true); } catch (e) {}
+        v.rev = E ? E.rev : null; v.prdr = E ? (v.prd || 0) + E.rev : null; v.mgr = E ? (v.mg || 0) + E.rev : null; v.mgrp = Ep ? (v.mg || 0) + Ep.rev - Ep.chgUp : null; }
       const sc = ratNum(R.surf), sl = Object.values(R.lsurf || {}).reduce((t, x) => t + ratNum(x), 0);
       const out = IND_BASE.map(([k, l, kind, u]) => ({ k: "b:" + k, lab: l, kind, u, q: k === "sc" ? (sc || null) : k === "sl" ? (sl || null) : v[k], m: null }));
       return out.concat(ratItems(d).filter(x => x.k[1] === "|").map(x => ({ ...x, kind: "n" })));
