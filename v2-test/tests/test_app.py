@@ -2376,6 +2376,18 @@ def main():
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"lnk\"]')?.click()"); pg.wait_for_timeout(700)
         b724 = pg.evaluate("() => [document.querySelectorAll('.ibd-tile .ibd-mini svg').length > 0 || document.querySelectorAll('.ibd-tile').length > 0, !!document.querySelector('.ibd-tile [data-tmax]')]")
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(400)
+        # v725 (bloc 2, point 4) : ESSAI — prix d'une charge changé : courbe ESSAI, budget inchangé ; APPLIQUER enregistre avec le message, ↶ possible
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"ind1\"]')?.click()"); pg.wait_for_timeout(500)
+        t725 = pg.evaluate(f"""async () => {{ const X = {ins}, I = X.INS, r = (I.chg || []).find(x => !x.t); if (!r) return null; const p0 = Number(r.p);
+            const sh = [...document.querySelectorAll('*')].find(e => e.__i1Click); if (!sh) return 'noshell';
+            sh.__i1Try = {{ id: r.id, p: String(p0 * 2), rd: '' }}; X.refreshAll(); await new Promise(z => setTimeout(z, 300));
+            const a = [!!document.querySelector('.i1-try'), Number(r.p) === p0];
+            document.querySelector('[data-i1tryok]')?.click(); await new Promise(z => setTimeout(z, 300));
+            const b = [Number(r.p) === p0 * 2, /DEPUIS INDICATEURS/.test(r.modInd || '')];
+            r.p = p0; delete r.modInd; X.insSave(); X.refreshAll(); return [a, b]; }}""")
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(300)
+        check("v725 : ESSAI depuis les indicateurs — courbe d'essai, budget inchangé ; APPLIQUER enregistre avec « MODIFIÉ PAR … DEPUIS INDICATEURS »",
+              t725 == [[True, True], [True, True]], t725)
         check("v724 : onglet INDICATEURS en quatre parties avec ⚙ et poignées ; TABLEAU DE BORD en miniatures avec ⚙",
               i724 == [4, True, True, 3] and b724 == [True, True], [i724, b724])
         # v723 (bloc 2, points 1 et 3) : RECETTES seulement avec un article PAIEMENT (échéance datée), GROUPE de charges (titre), COMMANDES

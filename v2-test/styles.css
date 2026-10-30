@@ -3062,3 +3062,7 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .ibd-tile:not([style*="height"]) { height: 280px; }
 .ibd-tile:not([style*="width"]) { width: 340px; }
 .ibd-board .ibd-add { font-size: 13px !important; font-weight: 900; }
+
+/* v725 : ESSAI depuis les indicateurs */
+.i1-try { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 8px; margin-bottom: 6px; border-radius: 6px; background: #fffaeb; color: #b54708; font-size: 11px; }
+.ins-modind { color: #b54708; font-weight: 900; font-size: 11px; margin-right: 2px; cursor: help; }
