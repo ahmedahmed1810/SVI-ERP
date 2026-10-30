@@ -6882,7 +6882,7 @@ function renderBudgetList() {
       { key: "dly", title: "DÉTAIL DÉLAIS" },
       ...(budget.inst ? [{ key: "apr", title: "APPROVISION&shy;NEMENT PRÉVISIONNEL", ico: "chg" }] : []),   /* v714 (point 3) */
       /* budget en instance : les liaisons validées sont un onglet du détail */
-      ...(budget.inst ? [{ key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "lnk", title: "INDICATEURS", ico: "xpl" }] : [])   /* v609 : onglet GRAPHIQUE retiré (le graphique sous le planning suffit) ; v498 (remarque 37) : MARGE remplace LIAISONS VALIDÉES et EXPLOITATION */
+      ...(budget.inst ? [{ key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "ind1", title: "INDICATEURS", ico: "xpl" }, { key: "lnk", title: "TABLEAU DE BORD", ico: "xpl" }] : [])   /* v609 : onglet GRAPHIQUE retiré (le graphique sous le planning suffit) ; v498 (remarque 37) : MARGE remplace LIAISONS VALIDÉES et EXPLOITATION */
     ];
 
     /* dernier onglet du détail ouvert (charges, produits, qualité, délais) */
@@ -10436,7 +10436,7 @@ function renderBudgetList() {
         if (b) { b.innerHTML = (SVI_ICON.hier || "") + "IMPORT NON CRÉÉ " + svCnt(n); b.hidden = !n; b.style.display = n ? "" : "none"; }
         if (!n && active === "inc") { active = "prd"; try { localStorage.setItem("svi_dtab_v1", "prd"); } catch (e) {} document.querySelectorAll("#bdgTabs .bdg-d-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === active)); } }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
-        if (b) b.innerHTML = (SVI_ICON.xpl || "") + "INDICATEURS " + insCkBadge("lnk") + (insRg() ? svCnt((INS.links || []).filter(l => insRgKeyIn(l.lot + "|" + l.sec)).length, (INS.links || []).length) : svCnt((INS.links || []).length)); }
+        if (b) b.innerHTML = (SVI_ICON.xpl || "") + "TABLEAU DE BORD " + insCkBadge("lnk") + (insRg() ? svCnt((INS.links || []).filter(l => insRgKeyIn(l.lot + "|" + l.sec)).length, (INS.links || []).length) : svCnt((INS.links || []).length)); }
       sviMarkEmptyTabs(shell);
       /* v716 (repère des filtres) : compteur « retenues/total » en bleu quand un filtre cache des lignes ; toucher = fenêtre des filtres actifs */
       shell.querySelectorAll("#bdgTabs .bdg-d-tab .svi-cnt").forEach(c => { const m = /^(\d+)\/(\d+)$/.exec(c.textContent.trim()); c.classList.toggle("cnt-filt", !!m && Number(m[1]) < Number(m[2])); });
@@ -10476,6 +10476,7 @@ function renderBudgetList() {
           }, 60); } }
         return;
       }
+      if (active === "ind1") { body.innerHTML = shell.__ind1HTML ? shell.__ind1HTML() : ""; lastShown.detail = { cols: [], rows: [], kind: "ind1" }; return; }   /* v724 */
       if (active === "apr") { body.innerHTML = shell.__aprHTML ? shell.__aprHTML() : ""; lastShown.detail = { cols: [], rows: [], kind: "apr" }; return; }   /* v714 */
       if (active === "qlt") { qqRender(); lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
       /* v692 : onglet INDICATEURS — carreaux du tableau de bord au-dessus du tableau par liaison */
@@ -22700,12 +22701,16 @@ ${A}</Assignments>
       const R = ibdR(), E = indEls(INS), ed = INS_EDIT;
       const tile = T => {
         const Y = T.y.map(id => R.L.find(I => I.id === id)).filter(Boolean);
-        return `<div class="ibd-tile" data-tile="${esc(T.id)}">
-          <div class="ibd-th"><b>${esc(T.nom)}</b><span class="ibd-tools"><button type="button" class="ibd-b" data-tmax="${esc(T.id)}" title="Agrandir">⤢</button>${ed ? `<button type="button" class="ibd-b" data-tdel="${esc(T.id)}" title="Supprimer le carreau">✕</button>` : ""}</span></div>
-          <div class="ibd-list">${Y.map(I => { const c = indCalc(I, INS, E); return `<div class="ibd-it" data-tind="${esc(T.id)}|${esc(I.id)}"><span>${esc(I.nom)}${ibdA(I)}</span><b class="${c.soft || c.err ? "ibd-soft" : ""}">${esc(c.txt)}</b></div>`; }).join("") || `<div class="ibd-empty">AUCUN INDICATEUR — AGRANDIR POUR EN CHOISIR</div>`}</div>
-        </div>`;
+        /* v724 (bloc 2, point 5, FORMAT 259) : miniature du graphique, roue ⚙ (réglages), taille réglée par le coin (gardée dans le budget) */
+        const mini = (() => { try { const P = ibdSteps(INS, T.step || "s"), U = []; Y.forEach(I => { const u = ibdUnit(I, E); if (!U.includes(u)) U.push(u); });
+          const ok = U.slice(0, 2), S = Y.filter(I => ok.includes(ibdUnit(I, E))).map(I => ({ I, lab: I.nom, u: ibdUnit(I, E), v: ibdSeries(I, INS, P, !!T.cum) }));
+          return S.length && P.length ? `<div class="ibd-mini">${ibdChart(S, P, T, ok)}</div>` : ""; } catch (e) { return ""; } })();
+        return `<div class="ibd-tile" data-tile="${esc(T.id)}" style="${T.w ? "width:" + T.w + "px;" : ""}${T.h ? "height:" + T.h + "px;" : ""}">
+          <div class="ibd-th"><b>${esc(T.nom)}</b><span class="ibd-tools"><button type="button" class="ibd-b" data-tmax="${esc(T.id)}" title="Réglages">⚙</button>${ed ? `<button type="button" class="ibd-b" data-tdel="${esc(T.id)}" title="Supprimer le carreau">✕</button>` : ""}</span></div>
+          <div class="ibd-list">${Y.map(I => { const c = indCalc(I, INS, E); return `<div class="ibd-it" data-tind="${esc(T.id)}|${esc(I.id)}"><span>${esc(I.nom)}${ibdA(I)}</span><b class="${c.soft || c.err ? "ibd-soft" : ""}">${esc(c.txt)}</b></div>`; }).join("") || `<div class="ibd-empty">AUCUN INDICATEUR — ⚙ POUR EN CHOISIR</div>`}</div>
+        ${mini}${ed ? `<span class="ibd-rsz" data-trsz="${esc(T.id)}" title="Taille"></span>` : ""}</div>`;
       };
-      return `<div class="ibd-board">${R.T.map(tile).join("")}${ed ? `<button type="button" class="ibd-add" data-tadd title="Ajouter un carreau">+</button>` : ""}</div>`;
+      return `<div class="ibd-board">${R.T.map(tile).join("")}${ed ? `<button type="button" class="ibd-add" data-tadd title="Nouveau graphique">+ NOUVEAU GRAPHIQUE</button>` : ""}</div>`;
     };
 
     /* ---------- carreau agrandi ---------- */
@@ -22810,7 +22815,18 @@ ${A}</Assignments>
 
     /* ---------- gestes du bandeau ---------- */
     shell.__ibdHTML = () => { try { return ibdBoardHTML(); } catch (e) { return ""; } };
-    if (!shell.__ibdOn) { shell.__ibdOn = true; shell.addEventListener("click", e => { if (shell.__ibdClick) shell.__ibdClick(e); }, true); }
+    if (!shell.__ibdOn) { shell.__ibdOn = true; shell.addEventListener("click", e => { if (shell.__ibdClick) shell.__ibdClick(e); }, true);
+      shell.addEventListener("pointerdown", e => { if (shell.__ibdRsz) shell.__ibdRsz(e); }, true); }
+    /* coin d'une miniature : largeur et hauteur au doigt */
+    shell.__ibdRsz = e => {
+      const c = e.target.closest && e.target.closest(".ibd-rsz[data-trsz]"); if (!c) return;
+      e.preventDefault(); e.stopPropagation();
+      const tile = c.closest(".ibd-tile"), r = tile.getBoundingClientRect(); let w = r.width, h = r.height;
+      const mv = ev => { w = Math.max(200, ev.clientX - r.left); h = Math.max(140, ev.clientY - r.top); tile.style.width = w + "px"; tile.style.height = h + "px"; };
+      const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up);
+        const R = ibdR(), T = R.T.find(x => x.id === c.dataset.trsz); if (T) { T.w = Math.round(w); T.h = Math.round(h); ibdSave(R); } };
+      document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+    };
     shell.__ibdClick = async e => {
       const bd = e.target.closest(".ibd-board"); if (!bd) return;
       const mx = e.target.closest("[data-tmax]"); if (mx) { e.stopPropagation(); ibdTileWin(mx.dataset.tmax); return; }
@@ -23094,6 +23110,93 @@ ${A}</Assignments>
       };
     }
     if (!shell.__aprBound) { shell.__aprBound = true; ["click", "change", "pointerdown"].forEach(t => shell.addEventListener(t, e => { const h = shell.__aprH && shell.__aprH[t]; if (h) h(e); })); }
+/* ⟪ src/22l-indicateur-onglet.js ⟫ */
+    /* =========================================================
+       v724 (bloc 2, point 2) : onglet INDICATEURS — un indicateur à la fois, écran en quatre parties réglables par poignées
+       (FORMAT 256, 257) : en haut à gauche le tableau du PLANNING, en haut à droite le Gantt ; en bas à gauche le tableau des
+       valeurs exactes (copiable), en bas à droite le graphique. Roue ⚙ au-dessus du graphique : choix de l'indicateur (grisés
+       visibles, avec leur raison), abscisse JOUR / SEMAINE / MOIS, UNITAIRE / CUMULÉ, MODIFIER, + NOUVEL INDICATEUR.
+       Choix gardé dans le budget (INS.rat.one) ; largeur et hauteur des parties gardées sur l'appareil (affichage).
+       ========================================================= */
+    const I1_KEY = "svi_ind1_v1";
+    const i1Lay = () => { try { return { cw: 45, rh: 240, ...(JSON.parse(localStorage.getItem(I1_KEY) || "{}") || {}) }; } catch (e) { return { cw: 45, rh: 240 }; } };
+    const i1LaySet = o => { try { localStorage.setItem(I1_KEY, JSON.stringify({ ...i1Lay(), ...o })); } catch (e) {} };
+    /* indicateurs proposés : ceux du budget (tableau de bord) puis la liste commune (sans doublon) */
+    const i1List = () => { const R = ibdR(), L = [...R.L]; indLive().forEach(I => { if (!L.some(x => x.id === I.id)) L.push(I); }); return L; };
+    const i1Cfg = () => { const R = ibdR(); const o = { id: "", step: "s", cum: false, ...((R.one) || {}) }; if (!o.id || !i1List().some(I => I.id === o.id)) o.id = (R.L[0] || {}).id || ""; return o; };
+    const i1CfgSet = o => { if (!INS_EDIT) { shell.__i1Tmp = { ...i1Cfg(), ...o }; return; } const R = ibdR(); R.one = { ...i1Cfg(), ...o }; ibdSave(R); };
+    shell.__ind1HTML = () => {
+      if (!INS) return `<div class="bdg-d-scroll"><div class="empty">INDICATEURS : BUDGET EN INSTANCE SEULEMENT.</div></div>`;
+      const C = { ...i1Cfg(), ...(shell.__i1Tmp || {}) }, L = i1List(), I = L.find(x => x.id === C.id), E = indEls(INS), lay = i1Lay();
+      /* PLANNING (lecture) et Gantt simple, mêmes tâches */
+      const K = dlyKeys().filter(k => dlyDeb(k) && dlyFin(k)).sort((a, b) => dlyDeb(a).localeCompare(dlyDeb(b)));
+      const d0 = K.map(dlyDeb).sort()[0] || "", d1 = K.map(dlyFin).sort().pop() || "", span = d0 ? Math.max(1, dDiff(d0, d1) + 1) : 1;
+      const plan = `<table class="bdg-d-table i1-plan"><thead><tr><th>TÂCHE</th><th>DÉBUT</th><th>FIN</th><th class="number">DURÉE (J)</th></tr></thead><tbody>${K.map(k => `<tr><td>${esc(dlyName(k))}</td><td>${esc(dFr(dlyDeb(k)))}</td><td>${esc(dFr(dlyFin(k)))}</td><td class="number">${sviWDur(insCal(), dlyDeb(k), dlyFin(k)) || ""}</td></tr>`).join("") || `<tr><td colspan="4" class="empty">AUCUNE TÂCHE DATÉE</td></tr>`}</tbody></table>`;
+      const gantt = K.length ? `<div class="i1-gantt">${K.map(k => { const l = dDiff(d0, dlyDeb(k)) / span * 100, w = Math.max(.6, (dDiff(dlyDeb(k), dlyFin(k)) + 1) / span * 100);
+        return `<div class="i1-gr"><span class="i1-gb" style="left:${l}%;width:${w}%"></span></div>`; }).join("")}<div class="i1-gx"><span>${esc(dFr(d0))}</span><span>${esc(dFr(d1))}</span></div></div>` : `<div class="empty">AUCUNE TÂCHE DATÉE</div>`;
+      /* valeurs et graphique de l'indicateur choisi */
+      let vals = `<div class="empty">CHOISIR UN INDICATEUR (⚙)</div>`, chart = vals, why = "";
+      if (I) {
+        const P = ibdSteps(INS, C.step), u = ibdUnit(I, E), v = ibdSeries(I, INS, P, !!C.cum), c = indCalc(I, INS, E);
+        if (c.soft || c.err) why = c.txt;
+        const lab = C.step === "j" ? "JOUR" : C.step === "m" ? "MOIS" : "SEMAINE";
+        vals = `<table class="bdg-d-table i1-vals"><thead><tr><th>${lab}</th><th class="number">${esc(I.nom)}${u ? " (" + esc(u) + ")" : ""}</th></tr></thead><tbody>${P.map((p, i) => `<tr><td>${esc(p.lab)}</td><td class="number">${ibdFx(v[i], I.dec)}</td></tr>`).join("") || `<tr><td colspan="2" class="empty">AUCUNE DATE AU PLANNING</td></tr>`}</tbody></table>`;
+        shell.__i1Tsv = [[lab, I.nom + (u ? " (" + u + ")" : "")].join("\t"), ...P.map((p, i) => [p.lab, ibdFx(v[i], I.dec)].join("\t"))].join("\n");
+        chart = ibdChart([{ I, lab: I.nom, u, v }], P, { hs: [], vs: ["today"], cum: !!C.cum }, [u]);
+      }
+      return `<div class="i1-wrap" style="--i1-cw:${lay.cw}%;--i1-rh:${lay.rh}px">
+        <div class="i1-p i1-tl">${plan}</div><div class="i1-vh" data-i1h="c" title="Largeur">‖</div><div class="i1-p i1-tr">${gantt}</div>
+        <div class="i1-hh" data-i1h="r" title="Hauteur">=</div>
+        <div class="i1-p i1-bl"><div class="i1-bar"><b>VALEURS</b><button type="button" class="svc-b" data-i1copy>COPIER</button></div>${vals}</div>
+        <div class="i1-vh i1-vh2" data-i1h="c">‖</div>
+        <div class="i1-p i1-br"><div class="i1-bar"><b>${esc(I ? I.nom : "INDICATEUR")}</b>${why ? `<span class="i1-why">${esc(why)}</span>` : ""}<button type="button" class="blk-btn i1-cfg" data-i1cfg title="Choisir et régler l'indicateur">⚙</button></div><div class="i1-chart">${chart}</div></div>
+      </div>`;
+    };
+    /* roue ⚙ : choix et réglages */
+    const i1Win = () => {
+      const C = { ...i1Cfg(), ...(shell.__i1Tmp || {}) }, L = i1List(), E = indEls(INS), d = sviWinNew();
+      const opt = I => { const c = indCalc(I, INS, E), off = c.soft || c.err; return `<option value="${esc(I.id)}"${I.id === C.id ? " selected" : ""}>${esc(I.nom)}${off ? " — " + esc(c.txt) : ""}</option>`; };
+      d.innerHTML = sviWinCard({ cls: "hcf-card i1-card", close: "data-x", title: "INDICATEUR",
+        body: `<div class="hcf-g"><span class="hcf-k">INDICATEUR</span><span><select class="pv-in i1-sel" style="width:100%">${L.map(opt).join("")}</select></span>
+          <span class="hcf-k">ABSCISSE</span><span class="hcf-sw hcf-sw3">${[["j", "JOUR"], ["s", "SEMAINE"], ["m", "MOIS"]].map(([v, l]) => `<label class="hcf-seg${C.step === v ? " on" : ""}"><input type="radio" name="i1s" value="${v}"${C.step === v ? " checked" : ""}><span>${l}</span></label>`).join("")}</span>
+          <span class="hcf-k">PRÉSENTATION</span><span class="hcf-sw">${[["0", "UNITAIRE"], ["1", "CUMULÉ"]].map(([v, l]) => `<label class="hcf-seg${(C.cum ? "1" : "0") === v ? " on" : ""}"><input type="radio" name="i1c" value="${v}"${(C.cum ? "1" : "0") === v ? " checked" : ""}><span>${l}</span></label>`).join("")}</span></div>
+          <div class="hcf-note">FORMULE ET POURCENTAGE : MODIFIER L'INDICATEUR. UN INDICATEUR GRISÉ N'A PAS SES DONNÉES DANS CE BUDGET (RAISON APRÈS SON NOM).</div>`,
+        foot: `${INS_EDIT ? `<button type="button" class="svc-b" data-i1edit>MODIFIER</button><button type="button" class="svc-b" data-i1new>+ NOUVEL INDICATEUR</button>` : ""}<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
+      sviWinShow(d);
+      const STORE = { list: () => ibdR().L, save: Lx => { const R = ibdR(); R.L = Lx; ibdSave(R); }, br: "INDICATEURS" };
+      d.addEventListener("change", e => {
+        const t = e.target;
+        if (t.classList.contains("i1-sel")) i1CfgSet({ id: t.value });
+        else if (t.name === "i1s") i1CfgSet({ step: t.value });
+        else if (t.name === "i1c") i1CfgSet({ cum: t.value === "1" });
+        if (t.closest && t.closest(".hcf-seg")) t.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked));
+        refreshAll();
+      });
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        if (e.target.closest("[data-i1new]")) { d.remove(); indDesignWin(null, I => { if (I) { const R = ibdR(); if (!R.L.some(x => x.id === I.id)) { R.L.push(I); } R.one = { ...i1Cfg(), id: I.id }; ibdSave(R, "INDICATEUR AJOUTÉ", I.nom); } refreshAll(); }, STORE); return; }
+        if (e.target.closest("[data-i1edit]")) { const id = d.querySelector(".i1-sel").value, I = ibdR().L.find(x => x.id === id) || i1List().find(x => x.id === id); d.remove(); if (!I) return;
+          const inBdg = ibdR().L.some(x => x.id === id); indDesignWin(I, () => refreshAll(), inBdg ? STORE : IND_STORE); }
+      });
+    };
+    shell.__i1Click = async e => {
+      const w = e.target.closest && e.target.closest(".i1-wrap"); if (!w) return;
+      if (e.target.closest("[data-i1cfg]")) { e.stopPropagation(); i1Win(); return; }
+      if (e.target.closest("[data-i1copy]")) { e.stopPropagation(); try { await navigator.clipboard.writeText(shell.__i1Tsv || ""); svToast("VALEURS COPIÉES.", 2000); } catch (er) { svToast("COPIE IMPOSSIBLE SUR CET APPAREIL.", 3000); } }
+    };
+    /* poignées : largeur de la colonne de gauche (‖) et hauteur du haut (=) */
+    shell.__i1Down = e => {
+      const h = e.target.closest && e.target.closest(".i1-wrap [data-i1h]"); if (!h) return;
+      e.preventDefault(); e.stopPropagation();
+      const w = h.closest(".i1-wrap"), r = w.getBoundingClientRect(), kind = h.dataset.i1h;
+      const mv = ev => { if (kind === "c") { const cw = Math.max(15, Math.min(85, (ev.clientX - r.left) / r.width * 100)); w.style.setProperty("--i1-cw", cw + "%"); w.__v = { cw }; }
+        else { const rh = Math.max(80, Math.min(r.height - 80, ev.clientY - r.top)); w.style.setProperty("--i1-rh", rh + "px"); w.__v = { rh }; } };
+      const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); if (w.__v) i1LaySet(w.__v); };
+      document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+    };
+    if (!shell.__i1Bound) { shell.__i1Bound = true;
+      shell.addEventListener("click", e => { if (shell.__i1Click) shell.__i1Click(e); }, true);
+      shell.addEventListener("pointerdown", e => { if (shell.__i1Down) shell.__i1Down(e); }, true); }
 /* ⟪ src/23-apercus-impression.js ⟫ */
     /* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :
        volet « OPTIONS PDF » à gauche, aperçu des pages à droite,

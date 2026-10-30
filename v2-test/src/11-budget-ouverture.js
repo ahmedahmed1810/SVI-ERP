@@ -267,7 +267,7 @@
       { key: "dly", title: "DÉTAIL DÉLAIS" },
       ...(budget.inst ? [{ key: "apr", title: "APPROVISION&shy;NEMENT PRÉVISIONNEL", ico: "chg" }] : []),   /* v714 (point 3) */
       /* budget en instance : les liaisons validées sont un onglet du détail */
-      ...(budget.inst ? [{ key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "lnk", title: "INDICATEURS", ico: "xpl" }] : [])   /* v609 : onglet GRAPHIQUE retiré (le graphique sous le planning suffit) ; v498 (remarque 37) : MARGE remplace LIAISONS VALIDÉES et EXPLOITATION */
+      ...(budget.inst ? [{ key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "ind1", title: "INDICATEURS", ico: "xpl" }, { key: "lnk", title: "TABLEAU DE BORD", ico: "xpl" }] : [])   /* v609 : onglet GRAPHIQUE retiré (le graphique sous le planning suffit) ; v498 (remarque 37) : MARGE remplace LIAISONS VALIDÉES et EXPLOITATION */
     ];
 
     /* dernier onglet du détail ouvert (charges, produits, qualité, délais) */

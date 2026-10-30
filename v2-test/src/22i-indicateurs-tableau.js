@@ -57,12 +57,16 @@
       const R = ibdR(), E = indEls(INS), ed = INS_EDIT;
       const tile = T => {
         const Y = T.y.map(id => R.L.find(I => I.id === id)).filter(Boolean);
-        return `<div class="ibd-tile" data-tile="${esc(T.id)}">
-          <div class="ibd-th"><b>${esc(T.nom)}</b><span class="ibd-tools"><button type="button" class="ibd-b" data-tmax="${esc(T.id)}" title="Agrandir">⤢</button>${ed ? `<button type="button" class="ibd-b" data-tdel="${esc(T.id)}" title="Supprimer le carreau">✕</button>` : ""}</span></div>
-          <div class="ibd-list">${Y.map(I => { const c = indCalc(I, INS, E); return `<div class="ibd-it" data-tind="${esc(T.id)}|${esc(I.id)}"><span>${esc(I.nom)}${ibdA(I)}</span><b class="${c.soft || c.err ? "ibd-soft" : ""}">${esc(c.txt)}</b></div>`; }).join("") || `<div class="ibd-empty">AUCUN INDICATEUR — AGRANDIR POUR EN CHOISIR</div>`}</div>
-        </div>`;
+        /* v724 (bloc 2, point 5, FORMAT 259) : miniature du graphique, roue ⚙ (réglages), taille réglée par le coin (gardée dans le budget) */
+        const mini = (() => { try { const P = ibdSteps(INS, T.step || "s"), U = []; Y.forEach(I => { const u = ibdUnit(I, E); if (!U.includes(u)) U.push(u); });
+          const ok = U.slice(0, 2), S = Y.filter(I => ok.includes(ibdUnit(I, E))).map(I => ({ I, lab: I.nom, u: ibdUnit(I, E), v: ibdSeries(I, INS, P, !!T.cum) }));
+          return S.length && P.length ? `<div class="ibd-mini">${ibdChart(S, P, T, ok)}</div>` : ""; } catch (e) { return ""; } })();
+        return `<div class="ibd-tile" data-tile="${esc(T.id)}" style="${T.w ? "width:" + T.w + "px;" : ""}${T.h ? "height:" + T.h + "px;" : ""}">
+          <div class="ibd-th"><b>${esc(T.nom)}</b><span class="ibd-tools"><button type="button" class="ibd-b" data-tmax="${esc(T.id)}" title="Réglages">⚙</button>${ed ? `<button type="button" class="ibd-b" data-tdel="${esc(T.id)}" title="Supprimer le carreau">✕</button>` : ""}</span></div>
+          <div class="ibd-list">${Y.map(I => { const c = indCalc(I, INS, E); return `<div class="ibd-it" data-tind="${esc(T.id)}|${esc(I.id)}"><span>${esc(I.nom)}${ibdA(I)}</span><b class="${c.soft || c.err ? "ibd-soft" : ""}">${esc(c.txt)}</b></div>`; }).join("") || `<div class="ibd-empty">AUCUN INDICATEUR — ⚙ POUR EN CHOISIR</div>`}</div>
+        ${mini}${ed ? `<span class="ibd-rsz" data-trsz="${esc(T.id)}" title="Taille"></span>` : ""}</div>`;
       };
-      return `<div class="ibd-board">${R.T.map(tile).join("")}${ed ? `<button type="button" class="ibd-add" data-tadd title="Ajouter un carreau">+</button>` : ""}</div>`;
+      return `<div class="ibd-board">${R.T.map(tile).join("")}${ed ? `<button type="button" class="ibd-add" data-tadd title="Nouveau graphique">+ NOUVEAU GRAPHIQUE</button>` : ""}</div>`;
     };
 
     /* ---------- carreau agrandi ---------- */
@@ -167,7 +171,18 @@
 
     /* ---------- gestes du bandeau ---------- */
     shell.__ibdHTML = () => { try { return ibdBoardHTML(); } catch (e) { return ""; } };
-    if (!shell.__ibdOn) { shell.__ibdOn = true; shell.addEventListener("click", e => { if (shell.__ibdClick) shell.__ibdClick(e); }, true); }
+    if (!shell.__ibdOn) { shell.__ibdOn = true; shell.addEventListener("click", e => { if (shell.__ibdClick) shell.__ibdClick(e); }, true);
+      shell.addEventListener("pointerdown", e => { if (shell.__ibdRsz) shell.__ibdRsz(e); }, true); }
+    /* coin d'une miniature : largeur et hauteur au doigt */
+    shell.__ibdRsz = e => {
+      const c = e.target.closest && e.target.closest(".ibd-rsz[data-trsz]"); if (!c) return;
+      e.preventDefault(); e.stopPropagation();
+      const tile = c.closest(".ibd-tile"), r = tile.getBoundingClientRect(); let w = r.width, h = r.height;
+      const mv = ev => { w = Math.max(200, ev.clientX - r.left); h = Math.max(140, ev.clientY - r.top); tile.style.width = w + "px"; tile.style.height = h + "px"; };
+      const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up);
+        const R = ibdR(), T = R.T.find(x => x.id === c.dataset.trsz); if (T) { T.w = Math.round(w); T.h = Math.round(h); ibdSave(R); } };
+      document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+    };
     shell.__ibdClick = async e => {
       const bd = e.target.closest(".ibd-board"); if (!bd) return;
       const mx = e.target.closest("[data-tmax]"); if (mx) { e.stopPropagation(); ibdTileWin(mx.dataset.tmax); return; }
