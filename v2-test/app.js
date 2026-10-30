@@ -7619,7 +7619,9 @@ function renderBudgetList() {
     if (INS) { const vs = window.__sviViewGet && window.__sviViewGet("bdg:" + budget.inst.ref); if (vs && typeof vs.w === "number" && vs.w >= 0) { shell.__dlygW = { ins: INS, ref: DLYG_REF, w: vs.w, auto: false }; if (vs.pw) shell.__dlygPrevW = vs.pw; } if (vs && vs.gx !== undefined) shell.__dlyGx = vs.gx; }
     const INS_DLP_MIG = sviMigrate(INS);
     /* calendrier du budget (jours travaillés) : durées et décalages en jours travaillés */
-    const insCal = () => sviCalOf(INS);
+    /* v731 (bloc 2, point 6) : insCal(k) = calendrier de la tâche k — celui du budget, plus les jours où une de ses charges ne travaille pas */
+    const insCal = k => { const c = sviCalOf(INS); if (!k) return c; let we = []; try { we = dlyChgWe(k); } catch (e) { we = []; }
+      if (we.length) { we.forEach(d => { if (!c.we.includes(d)) c.we.push(d); }); c.on = c.on.filter(iso => !we.includes(new Date(iso + "T00:00:00").getDay())); } return c; };
     /* budget en instance (rouge) : les charges venues de CHS suivent CHS (prix, TVA, unité…) ;
        figé (vert) ou validé (noir) : on garde les valeurs du moment */
     /* v727 (bloc 11.1) : CHS n'existe plus — l'ancien rattachement est oublié, les valeurs déjà reprises restent (PCB, UCB, TVA saisissables) */
@@ -11226,16 +11228,16 @@ function renderBudgetList() {
     const dlyDraftKey = key => { LK.dlpDraft = LK.dlpDraft || {}; if (!LK.dlpDraft[key]) LK.dlpDraft[key] = ((INS.dlp || {})[key] || []).map(p => ({ ...p })); return LK.dlpDraft[key]; };
     /* placer une tâche à un nouveau début en gardant sa durée (jours travaillés) */
     const dlyMoveTo = (k, deb) => {
-      const cal = insCal(), L = dlyDraftKey(k), p = L[0];
+      const cal = insCal(k), L = dlyDraftKey(k), p = L[0];
       if (!p || !p.deb) return;
-      if (L.length > 1) { dlyShiftList(L, deb); return; }
+      if (L.length > 1) { dlyShiftList(L, deb, k); return; }
       const dur = p.fin ? sviWDur(cal, p.deb, p.fin) || 1 : 0;
       p.deb = sviWNear(cal, deb, 1);
       if (dur) p.fin = sviWFin(cal, p.deb, dur);
     };
     /* v547 (R22) : décaler tous les morceaux d'une tâche (durées et creux gardés, jours travaillés) pour que le premier commence à deb */
-    const dlyShiftList = (L, deb) => {
-      const cal = insCal(); if (!L.length || !L[0].deb) return;
+    const dlyShiftList = (L, deb, k) => {
+      const cal = insCal(k); if (!L.length || !L[0].deb) return;
       const a0 = sviWNear(cal, L[0].deb, 1), nd = sviWNear(cal, deb, 1);
       const w = nd >= a0 ? (sviWDur(cal, a0, nd) || 1) - 1 : -((sviWDur(cal, nd, a0) || 1) - 1);
       if (!w) return;
@@ -11258,10 +11260,10 @@ function renderBudgetList() {
         dlyKeys().forEach(k => {
           const need = dlyPredFin(k), L = dlyList(k), p0 = L[0];
           if (!need || !p0 || !p0.deb || p0.deb >= need) return;
-          const dur = p0.fin ? sviWDur(cal, p0.deb, p0.fin) || 1 : 0, deb = sviWNear(cal, need, 1), fin = dur ? sviWFin(cal, deb, dur) : p0.fin;
+          const cal = insCal(k), dur = p0.fin ? sviWDur(cal, p0.deb, p0.fin) || 1 : 0, deb = sviWNear(cal, need, 1), fin = dur ? sviWFin(cal, deb, dur) : p0.fin;
           if (!moved.has(k)) moved.set(k, p0.deb);
           INS.dlp = INS.dlp || {};
-          if (L.length > 1) { const nl = L.map(p => ({ ...p })); dlyShiftList(nl, deb); INS.dlp[k] = nl; if (LK.dlpDraft && LK.dlpDraft[k]) LK.dlpDraft[k] = nl.map(p => ({ ...p })); ch = true; return; }
+          if (L.length > 1) { const nl = L.map(p => ({ ...p })); dlyShiftList(nl, deb, k); INS.dlp[k] = nl; if (LK.dlpDraft && LK.dlpDraft[k]) LK.dlpDraft[k] = nl.map(p => ({ ...p })); ch = true; return; }
           const np = { id: p0.id || insId(), deb, fin: fin || "" };
           INS.dlp[k] = [np];
           if (LK.dlpDraft && LK.dlpDraft[k]) LK.dlpDraft[k] = [{ ...LK.dlpDraft[k][0], deb, fin: fin || "" }];
@@ -11596,7 +11598,7 @@ function renderBudgetList() {
     };
     /* mise à jour des dates d'une tâche (saisie, Gantt) : mêmes contrôles partout ; débordement → TÂCHES SUIVANTES */
     const dlyApply = (task, q0, opts = {}) => {
-      const cal = insCal(), anchor = opts.anchor;
+      const cal = insCal(task), anchor = opts.anchor;
       const L = dlyDraftKey(task);
       let p = L[0];
       const q = { ...(p || { id: insId() }), deb: q0.deb || "", fin: q0.fin || "" };
@@ -12364,7 +12366,7 @@ function renderBudgetList() {
         /* une seule période par tâche (fragmentation reportée) */
         let p = list.find(x => x.id === i.dataset.pid) || list[0];
         const q = p ? { ...p } : { id: X.insId(), deb: "", fin: "" };
-        const cal = X.cal();
+        const cal = X.cal(task);
         const f = i.dataset.f, v = i.value.trim();
         const durOld = q.deb && q.fin ? sviWDur(cal, q.deb, q.fin) : 0;
         X.err = "";
@@ -12434,7 +12436,7 @@ function renderBudgetList() {
       if (!INS_EDIT) return null;
       const D = dlyDraft(), list = D[el.dataset.task] || (INS.dlp || {})[el.dataset.task] || [];
       const q = list.find(x => x.id === el.dataset.pid) || list[0] || { deb: "", fin: "" };
-      const f = el.dataset.f, pf = dlyPredFin(el.dataset.task), cal = insCal();
+      const f = el.dataset.f, pf = dlyPredFin(el.dataset.task), cal = insCal(el.dataset.task);
       /* FORMAT 10 : une date grisée = une date que la saisie refuserait (jour non travaillé, fin avant début,
          fin après la date butoir, début avant la date exigée par les liaisons) ; une FIN qui dépasse une tâche suivante reste choisissable */
       const dis = d => {
@@ -13930,7 +13932,7 @@ ${A}</Assignments>
     const renderTabK = () => { grpFlush(); keepScroll(() => renderTab()); };
     shell.__insDly = INS && INS_EDIT ? { INS, dAdd, dDiff, dParse, dFr, insId, insSave, err: "", draft: dlyDraft,
       predFin: k => dlyPredFin(k), succs: k => dlySuccs(k), deb: k => dlyDeb(k), name: k => dlyName(k), shift: (k, g) => dlyShift(k, g),
-      cal: () => insCal(), glued: k => dlyGlued(k), links: k => dlyLinks(k), apply: (k, q, o) => dlyApply(k, q, o),
+      cal: k => insCal(k), glued: k => dlyGlued(k), links: k => dlyLinks(k), apply: (k, q, o) => dlyApply(k, q, o),
       /* FORMAT 22 : replier / déplier sans faire bouger l'écran */
       fold: p => { dlyFoldToggle(p); keepScroll(() => renderTab()); },
       jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTabK(); },
@@ -13972,7 +13974,7 @@ ${A}</Assignments>
       /* R29 : affichage PAR LOT / PAR DÉBUT (vue, mémorisée par budget) ; R28 : zone touchée en dernier */
       cutOK: () => dlyCutOK(), cutSet: v => dlyCutSet(v), view: () => dlyView(), viewSet: v => { dlyViewSet(v); keepScroll(() => renderTab()); }, zone: () => shell.__dlyZone || "gantt",
       /* R15 : repère d'une tâche à 0 jour glissé vers la droite = lui donner une durée (n jours travaillés) */
-      giveDur: (k, at, n, a) => { const cal = insCal(), deb = sviWNear(cal, at, 1); dlyApply(k, { deb, fin: sviWFin(cal, deb, Math.max(1, n)) }, { anchor: a }); },
+      giveDur: (k, at, n, a) => { const cal = insCal(k), deb = sviWNear(cal, at, 1); dlyApply(k, { deb, fin: sviWFin(cal, deb, Math.max(1, n)) }, { anchor: a }); },
       /* v461 : menu d'un lot ou d'un niveau (appui long) : ISOLER / TOUT AFFICHER */
       grpMenu: (path, el) => {
         document.getElementById("blkMenu")?.remove();
@@ -14442,13 +14444,13 @@ ${A}</Assignments>
       },
       /* barre glissée de n jours : FIN seule (bout tiré) ou tâche entière, durée gardée (jours travaillés) */
       dragTo: (k, mode, n, a) => {
-        const cal = insCal(), d0 = dlyDeb(k), f0 = dlyFin(k);
+        const cal = insCal(k), d0 = dlyDeb(k), f0 = dlyFin(k);
         if (!d0 || !f0) return;
         /* v547 (R22) : tâche en morceaux — glisser = tous les morceaux ; bout = FIN du dernier morceau */
         if (dlyList(k).length > 1) {
           const L = dlyDraftKey(k), last = L[L.length - 1];
           if (mode === "end") { let f = sviWNear(cal, sviIsoAdd(f0, n), n > 0 ? 1 : -1); if (f < last.deb) f = last.deb; if (INS.dbut && f > INS.dbut) { svToast("FIN REFUSÉE : APRÈS LA DATE BUTOIR DU " + dFr(INS.dbut) + ".", 3500, a); renderTabK(); return; } last.fin = f; delete last.fmd; }
-          else { const pf = dlyPredFin(k); let d = sviWNear(cal, sviIsoAdd(d0, n), n > 0 ? 1 : -1); if (pf && d < pf) d = sviWNear(cal, pf, 1); dlyShiftList(L, d); }
+          else { const pf = dlyPredFin(k); let d = sviWNear(cal, sviIsoAdd(d0, n), n > 0 ? 1 : -1); if (pf && d < pf) d = sviWNear(cal, pf, 1); dlyShiftList(L, d, k); }
           dlyCommitDrafts(); dlyRespect(false); insSave(); histLog("DÉLAIS", "TÂCHE EN MORCEAUX", dlyName(k) + " : " + dFr(dlyDeb(k)) + " → " + dFr(dlyFin(k))); renderTabK(); insRenderChain(); return;
         }
         if (mode === "end") { let f = sviWNear(cal, sviIsoAdd(f0, n), n > 0 ? 1 : -1); if (f < d0) f = d0; dlyApply(k, { deb: d0, fin: f }, { anchor: a, fromDur: true }); return; }
@@ -14914,6 +14916,7 @@ ${A}</Assignments>
       const L = dlyList(k), p = L[0], d0 = dlyDeb(k), f0 = dlyFin(k);
       if (!d0 || !f0) return "";
       /* v547 (R22) : tâche en morceaux = somme des morceaux */
+      const dDur = (a, b) => sviWDur(insCal(k), a, b);   /* v731 : jours travaillés de la tâche (calendrier de ses charges) */
       if (L.length > 1) { const t = L.filter(q => q.deb && q.fin).reduce((a, q) => a + (Number(dDur(q.deb, q.fin)) || 0) - (dlyHalfS(q) ? .5 : 0) - (dlyHalfE(q) ? .5 : 0), 0); return t === Math.round(t) ? t : String(t).replace(".", ","); }
       const n = dDur(d0, f0);
       if (n === "" || L.length !== 1) return n;
@@ -15083,12 +15086,13 @@ ${A}</Assignments>
       return { D, S, links, lim };
     };
     /* v726 : jours non travaillés des charges d'une tâche (INS.chgCal[clé] = { we: [jours 0–6] }) ; null = calendrier du budget seul */
-    const dlyOffOf = k => {
-      const CC = INS.chgCal || {}; if (!Object.keys(CC).length) return null;
+    const dlyChgWe = k => {
+      const CC = INS.chgCal || {}; if (!Object.keys(CC).length) return [];
       const we = new Set(), seen = new Set();
       (INS.links || []).forEach(l => { if (l.lot + "|" + l.sec !== k) return; (l.chg || []).forEach(e => { if (seen.has(e.id)) return; seen.add(e.id); const r = INS.chg.find(x => x.id === e.id); if (!r || r.t) return; const c = CC[dlyResK(r)]; (c && c.we || []).forEach(d => we.add(Number(d))); }); });
-      return we.size ? iso => we.has(new Date(iso + "T00:00:00").getDay()) : null;
+      return [...we];
     };
+    const dlyOffOf = k => { const we = dlyChgWe(k); return we.length ? iso => we.includes(new Date(iso + "T00:00:00").getDay()) : null; };
     /* fenêtre CALENDRIER DES CHARGES : jours non travaillés de chaque charge, en plus de ceux du budget */
     const dlyChgCalWin = () => {
       const keys = []; { const seen = new Set(); (INS.chg || []).filter(r => !r.t).forEach(r => { const sk = dlyResK(r); if (!seen.has(sk)) { seen.add(sk); keys.push(sk); } }); }
@@ -15328,7 +15332,7 @@ ${A}</Assignments>
         const l = (INS.links || []).find(x => (x.prd || []).some(y => y.id === r.id));
         const k = l && l.lot + "|" + l.sec, p = k && cur[k], v = insHT("prd", r);
         if (!p || !v) return;
-        const D2 = []; (p.per && p.per.length ? p.per : [p]).forEach(q => { const n = sviWDur(cal, q.deb, q.fin) || 1; for (let i = 0, x = sviWNear(cal, q.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) D2.push(x); });
+        const cal = insCal(k), D2 = []; (p.per && p.per.length ? p.per : [p]).forEach(q => { const n = sviWDur(cal, q.deb, q.fin) || 1; for (let i = 0, x = sviWNear(cal, q.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) D2.push(x); });
         D2.forEach(x => { out[x] = (out[x] || 0) + v / D2.length; (det[x] = det[x] || {})[k] = ((det[x] || {})[k] || 0) + v / D2.length; });
       });
       return { L: out, det };
@@ -15352,7 +15356,7 @@ ${A}</Assignments>
         (INS.links || []).filter(l => l.lot === lo && l.sec === se).forEach(l => (l.prd || []).forEach(x => { const r = INS.prd.find(y => y.id === x.id); if (r) P.set(r.id, r); }));
         let q = 0; P.forEach(r => { us.add(U_(r.u) || "U"); q += insPrdQ(r) || 0; });
         const p = cur[k]; if (!p) return;
-        const D2 = []; (p.per && p.per.length ? p.per : [p]).forEach(qq => { const n = sviWDur(cal, qq.deb, qq.fin) || 1; for (let i = 0, x = sviWNear(cal, qq.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) D2.push(x); });
+        const cal = insCal(k), D2 = []; (p.per && p.per.length ? p.per : [p]).forEach(qq => { const n = sviWDur(cal, qq.deb, qq.fin) || 1; for (let i = 0, x = sviWNear(cal, qq.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) D2.push(x); });
         if (!D2.length) return;
         D2.forEach(x => { PT[x] = (PT[x] || 0) + q / D2.length; });
         dlyResOf(k, R, "q").forEach((v, sk) => {
@@ -15385,7 +15389,7 @@ ${A}</Assignments>
         const p = cur[k], m = resOfP(k);
         if (!m.size) return;
         /* v547 (R22) : jours de chaque morceau (demi-journées comprises) */
-        const SL = [];
+        const SL = [], cal = insCal(k);   /* v731 : jours où toutes les charges de la tâche travaillent */
         (p.per && p.per.length ? p.per : [p]).forEach(q => { const n = sviWDur(cal, q.deb, q.fin) || 1; for (let i = 0, x = sviWNear(cal, q.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) SL.push({ x, f: (i === 0 && q.hs ? .5 : 1) * (i === n - 1 && q.he ? .5 : 1) }); });
         let t = 0; SL.forEach(o => { t += o.f; });
         for (const { x, f: fi } of SL) {
@@ -15713,7 +15717,7 @@ ${A}</Assignments>
     }
     window.__sviBdgLive = INS ? {
       ref: budget.inst.ref, project: budget.project || "", edit: INS_EDIT,
-      cal: () => insCal(), dates: () => ({ but: INS.dbut || "", obj: INS.dobj || "" }),
+      cal: k => insCal(k), dates: () => ({ but: INS.dbut || "", obj: INS.dobj || "" }),
       /* changer un jour (travaillé ↔ non travaillé) recale seulement les tâches qui le traversent, avec leur chaîne ;
          liaisons, durées et décalages restent */
       setCal: nc => {
@@ -16376,7 +16380,7 @@ ${A}</Assignments>
         const dlyBlk = () => {
           const k = tKey();
           if (!k) return `<div class="doc-lab" style="margin-top:12px">DÉTAIL DÉLAIS</div><div class="lk-info-why">CHOISIR LE LOT ET L'ACTIVITÉ SECONDAIRE.</div>`;
-          const P = ((INS.dlp || {})[k] || [])[0] || {}, cal = insCal(), dur = P.deb && P.fin ? sviWDur(cal, P.deb, P.fin) : "";
+          const P = ((INS.dlp || {})[k] || [])[0] || {}, cal = insCal(k), dur = P.deb && P.fin ? sviWDur(cal, P.deb, P.fin) : "";
           return `<div class="doc-lab" style="margin-top:12px">DÉTAIL DÉLAIS</div><div class="lki-dly" data-task="${esc(k)}"><span class="doc-lab">DÉBUT</span><input type="date" class="lki-deb" value="${esc(P.deb || "")}"><span class="doc-lab">FIN</span><input type="date" class="lki-fin" value="${esc(P.fin || "")}"><span class="doc-lab">DURÉE (J)</span><b>${esc(String(dur))}</b></div>`;
         };
         const body2 = () => tbl("prd", "DÉTAIL PRODUITS") + addRow("prd") + tbl("chg", "DÉTAIL CHARGES") + addRow("chg") + dlyBlk()
@@ -16405,7 +16409,7 @@ ${A}</Assignments>
           if (!di || !box) return;
           const task = box.dataset.task, P = (((INS.dlp || {})[task] || [])[0]) || {}, q = { id: P.id || insId(), deb: P.deb || "", fin: P.fin || "" };
           q[di.classList.contains("lki-deb") ? "deb" : "fin"] = di.value;
-          if (q.deb && !sviWork(insCal(), q.deb) || q.fin && !sviWork(insCal(), q.fin)) { svToast("JOUR NON TRAVAILLÉ DANS LE CALENDRIER DU BUDGET.", 3500, di); redraw(); return; }
+          if (q.deb && !sviWork(insCal(task), q.deb) || q.fin && !sviWork(insCal(task), q.fin)) { svToast("JOUR NON TRAVAILLÉ DANS LE CALENDRIER DU BUDGET.", 3500, di); redraw(); return; }
           /* v639 : DÉBUT après la FIN = tâche déplacée avec sa durée (fait par X.apply) */
           if (q.deb && q.fin && q.fin < q.deb && !(X && X.apply && di.classList.contains("lki-deb") && P.deb && P.fin)) { svToast("LA FIN EST AVANT LE DÉBUT.", 3500, di); redraw(); return; }
           if (X && X.apply) X.apply(task, q, { anchor: di }); else { INS.dlp = INS.dlp || {}; INS.dlp[task] = [q]; insSave(); }
@@ -23117,7 +23121,7 @@ ${A}</Assignments>
         const q = num(r.q || 0) || 0, pu = num(r.p || 0) || 0, sk = dlyResK(r);
         ks.forEach(k => {
           const P = dlyList(k).filter(p => p.deb && p.fin); if (!P.length) return;
-          const D = P.map(p => Math.max(1, sviWDur(cal, p.deb, p.fin) || 1)), tot = D.reduce((a, b) => a + b, 0);
+          const D = P.map(p => Math.max(1, sviWDur(insCal(k), p.deb, p.fin) || 1)), tot = D.reduce((a, b) => a + b, 0);
           P.forEach((p, i) => { const f = D[i] / tot / ks.length;
             const L = out.get(sk) || []; L.push({ k, deb: p.deb, fin: p.fin, q: q * f, m: q * pu * f, pu }); out.set(sk, L); });
         });

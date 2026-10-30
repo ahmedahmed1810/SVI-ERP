@@ -71,7 +71,9 @@
     if (INS) { const vs = window.__sviViewGet && window.__sviViewGet("bdg:" + budget.inst.ref); if (vs && typeof vs.w === "number" && vs.w >= 0) { shell.__dlygW = { ins: INS, ref: DLYG_REF, w: vs.w, auto: false }; if (vs.pw) shell.__dlygPrevW = vs.pw; } if (vs && vs.gx !== undefined) shell.__dlyGx = vs.gx; }
     const INS_DLP_MIG = sviMigrate(INS);
     /* calendrier du budget (jours travaillés) : durées et décalages en jours travaillés */
-    const insCal = () => sviCalOf(INS);
+    /* v731 (bloc 2, point 6) : insCal(k) = calendrier de la tâche k — celui du budget, plus les jours où une de ses charges ne travaille pas */
+    const insCal = k => { const c = sviCalOf(INS); if (!k) return c; let we = []; try { we = dlyChgWe(k); } catch (e) { we = []; }
+      if (we.length) { we.forEach(d => { if (!c.we.includes(d)) c.we.push(d); }); c.on = c.on.filter(iso => !we.includes(new Date(iso + "T00:00:00").getDay())); } return c; };
     /* budget en instance (rouge) : les charges venues de CHS suivent CHS (prix, TVA, unité…) ;
        figé (vert) ou validé (noir) : on garde les valeurs du moment */
     /* v727 (bloc 11.1) : CHS n'existe plus — l'ancien rattachement est oublié, les valeurs déjà reprises restent (PCB, UCB, TVA saisissables) */

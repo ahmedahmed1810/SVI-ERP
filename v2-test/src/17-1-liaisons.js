@@ -27,16 +27,16 @@
     const dlyDraftKey = key => { LK.dlpDraft = LK.dlpDraft || {}; if (!LK.dlpDraft[key]) LK.dlpDraft[key] = ((INS.dlp || {})[key] || []).map(p => ({ ...p })); return LK.dlpDraft[key]; };
     /* placer une tâche à un nouveau début en gardant sa durée (jours travaillés) */
     const dlyMoveTo = (k, deb) => {
-      const cal = insCal(), L = dlyDraftKey(k), p = L[0];
+      const cal = insCal(k), L = dlyDraftKey(k), p = L[0];
       if (!p || !p.deb) return;
-      if (L.length > 1) { dlyShiftList(L, deb); return; }
+      if (L.length > 1) { dlyShiftList(L, deb, k); return; }
       const dur = p.fin ? sviWDur(cal, p.deb, p.fin) || 1 : 0;
       p.deb = sviWNear(cal, deb, 1);
       if (dur) p.fin = sviWFin(cal, p.deb, dur);
     };
     /* v547 (R22) : décaler tous les morceaux d'une tâche (durées et creux gardés, jours travaillés) pour que le premier commence à deb */
-    const dlyShiftList = (L, deb) => {
-      const cal = insCal(); if (!L.length || !L[0].deb) return;
+    const dlyShiftList = (L, deb, k) => {
+      const cal = insCal(k); if (!L.length || !L[0].deb) return;
       const a0 = sviWNear(cal, L[0].deb, 1), nd = sviWNear(cal, deb, 1);
       const w = nd >= a0 ? (sviWDur(cal, a0, nd) || 1) - 1 : -((sviWDur(cal, nd, a0) || 1) - 1);
       if (!w) return;
@@ -59,10 +59,10 @@
         dlyKeys().forEach(k => {
           const need = dlyPredFin(k), L = dlyList(k), p0 = L[0];
           if (!need || !p0 || !p0.deb || p0.deb >= need) return;
-          const dur = p0.fin ? sviWDur(cal, p0.deb, p0.fin) || 1 : 0, deb = sviWNear(cal, need, 1), fin = dur ? sviWFin(cal, deb, dur) : p0.fin;
+          const cal = insCal(k), dur = p0.fin ? sviWDur(cal, p0.deb, p0.fin) || 1 : 0, deb = sviWNear(cal, need, 1), fin = dur ? sviWFin(cal, deb, dur) : p0.fin;
           if (!moved.has(k)) moved.set(k, p0.deb);
           INS.dlp = INS.dlp || {};
-          if (L.length > 1) { const nl = L.map(p => ({ ...p })); dlyShiftList(nl, deb); INS.dlp[k] = nl; if (LK.dlpDraft && LK.dlpDraft[k]) LK.dlpDraft[k] = nl.map(p => ({ ...p })); ch = true; return; }
+          if (L.length > 1) { const nl = L.map(p => ({ ...p })); dlyShiftList(nl, deb, k); INS.dlp[k] = nl; if (LK.dlpDraft && LK.dlpDraft[k]) LK.dlpDraft[k] = nl.map(p => ({ ...p })); ch = true; return; }
           const np = { id: p0.id || insId(), deb, fin: fin || "" };
           INS.dlp[k] = [np];
           if (LK.dlpDraft && LK.dlpDraft[k]) LK.dlpDraft[k] = [{ ...LK.dlpDraft[k][0], deb, fin: fin || "" }];
