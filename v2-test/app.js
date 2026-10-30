@@ -30044,6 +30044,8 @@ const sviFrame = () => {
   const isDate = !!(c && c.querySelector && c.querySelector("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]")) || !!(a && a.matches && a.matches("input.sv-date, input.dlp-in"));
   const v = c && !isDate && sviCellVis(c);
   if (!v) { SVI_FR.style.display = "none"; return; }
+  /* v733 : nom d'un lot du PLANNING — le cadre n'entoure que le nom (ni le rond, ni le signe, ni le numéro) */
+  if (a && a !== c && a.matches && a.matches("input.dly-nm")) { const r = a.getBoundingClientRect(); v.left = Math.max(v.left, r.left - 2); v.right = Math.min(v.right, r.right + 2); if (v.right - v.left < 4) { SVI_FR.style.display = "none"; return; } }
   const col = (getComputedStyle(c).getPropertyValue("--inst") || "").trim() || "#111827";
   /* au-dessus d'une fenêtre (SAISIE DIRECTE en fenêtre, fenêtres d'import…) quand la cellule y est */
   SVI_FR.style.zIndex = (c.closest("#sdW:not(.sd-inplace), #docPop, #blkPop, .svc-wrap") || (c.closest("[role=dialog]") && !c.closest(".sd-inplace"))) ? "10096" : "45";
