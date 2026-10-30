@@ -163,8 +163,19 @@
           head, rows, bold: boldIdx || [],
           align: head.map((h, c) => al(c, h)),
           widths: SZ.wch.map(x => Math.round(x * 7.5 + 5)),
-          headHeight: Math.round(SZ.hpt * 4 / 3)
+          headHeight: Math.round(SZ.hpt * 4 / 3),
+          /* v730 (bloc 7, point 2) : EXPORTER LE BUDGET — onglets DÉLAIS et QUALITÉ comme l'export Excel (même entrée, tableau dessous) ;
+             le script crée un onglet par élément de « sheets » (ignoré par un ancien script : seul l'onglet BUDGET est créé) */
+          ...(blk === "budget" && INS ? { sheets: (() => {
+            const DH = ["PROJET", ...DLY_HEAD], DR = dlyExportRows().map(r => [U_(budget.project || ""), ...r]);
+            const QH = QQ_IO, QR = qqExportRows();
+            const one = (nm, title, H, R, al, wch) => ({ name: nm, top: [T.date, T.budget, T.client, T.projet, title], head: H, rows: R.map(r => H.map((_, c) => r[c] ?? "")), bold: [],
+              align: H.map((_, c) => al(c)), widths: wch.map(x => Math.round(x * 7.5 + 5)), headHeight: 40 });
+            return [one("DÉLAIS", "DÉTAIL DÉLAIS", DH, DR, c => c >= 3 && c <= 6 ? "center" : "left", [10, 24, 40, 9, 12, 12, 10, 48]),
+              one("QUALITÉ", "DÉTAIL QUALITÉ", QH, QR, c => c >= 13 && c <= 14 || c >= 19 ? "center" : "left", [10, 18, 22, 24, 30, 30, 26, 26, 16, 10, 12, 18, 30, 10, 10, 20, 14, 12, 12, 12, 12])];
+          })() } : {})
         });
+        if (blk === "budget" && INS && !out.sheets) svToast("ONGLETS DÉLAIS ET QUALITÉ NON CRÉÉS : LE SCRIPT GOOGLE N'EST PAS ENCORE MIS À JOUR (SEUL L'ONGLET BUDGET EST CRÉÉ).", 5000);
         histLog(blkLabel(blk), "EXPORT", "GOOGLE SHEETS — " + rows.length + " LIGNE(S) — " + (out.path ? out.path + "/" : "") + name);
         drivePathAdd(out.path || path);
         driveUrlSet(out.path, out.folderUrl);
