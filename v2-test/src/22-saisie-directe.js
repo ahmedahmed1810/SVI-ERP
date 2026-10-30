@@ -44,8 +44,8 @@
       const lists = {
         dc: [...new Set(INS.des.filter(x => !x.t).map(x => x.des))], upb: [...new Set(INS.des.map(x => U_(x.u)).filter(Boolean))],
         lot: [...new Set(INS.lot.filter(x => !x.t).map(x => x.v))], prim: [...new Set(INS.prim.map(x => x.v))], sec: [...new Set(INS.sec.map(x => x.v))],
-        des: [...new Set(recs.map(x => x.des).concat(P ? [] : ((typeof db !== "undefined" && db.chs) || []).map(c => c.designation)).filter(Boolean))],
-        art: P ? [] : [...new Set(((typeof db !== "undefined" && db.chs) || []).map(c => c.article).filter(Boolean))],
+        des: [...new Set(recs.map(x => x.des).filter(Boolean))],
+        art: P ? [] : [...new Set(recs.map(x => x.art).filter(Boolean))],
         u: [...new Set(INS.sec.map(x => U_(x.u)).concat(recs.map(x => U_(x.u))).filter(Boolean))]
       };
       lists.su = lists.u;

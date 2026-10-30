@@ -214,11 +214,55 @@
       const bar = Math.max(0, scr.offsetHeight - scr.clientHeight);
       return Math.max(65, Math.ceil(top + head + (row ? row.getBoundingClientRect().height : 21) + foot + ban + bar + 1));
     };
+    /* v727 (bloc 11.3) : hauteur des blocs en lignes entières — en-tête (et pied collant) + k lignes entières, jamais un morceau de la suivante ;
+       TÂCHES : la plus longue des trois listes ; DÉSIGNATIONS CLIENT et onglets du détail : le tableau affiché */
+    const layRows = u => {
+      const pg = page$(); if (!pg) return null;
+      let el, head = 0, foot = 0, rows;
+      if (u === "hier") {
+        const cols = [...pg.querySelectorAll(".bdg-h-col")].filter(c => c.offsetHeight);
+        if (!cols.length) return null;
+        const R = c => [...c.querySelectorAll(".ins-li, .bdg-h-item")].filter(x => x.offsetHeight);
+        el = cols.reduce((a, c) => R(c).length > R(a).length ? c : a, cols[0]);
+        const h = el.querySelector(".bdg-h-head"); head = h ? h.getBoundingClientRect().height : 0;
+        rows = R(el).map(x => x.getBoundingClientRect().height);
+      } else {
+        el = pg.querySelector(u === "client" ? ".bdg-d-client-scroll" : u === "detail" ? "#bdgTabBody .bdg-d-scroll" : "");
+        if (!el || !el.offsetHeight || el.querySelector("#dlyGantt, .dly-scroll, .dlyg-l, .i1-wrap, .apr-wrap") || el.closest(".apr-wrap, .i1-wrap")) return null;   /* PLANNING et onglets à mise en page propre : inchangés */
+        const tb = [...el.querySelectorAll("table")].find(t => t.offsetHeight && t.tHead); if (!tb || tb.closest(".dlyg-l, .dlyg-r")) return null;
+        head = tb.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop + tb.tHead.getBoundingClientRect().height;
+        foot = tb.tFoot && tb.tFoot.offsetHeight ? tb.tFoot.getBoundingClientRect().height : 0;
+        rows = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight).map(r => r.getBoundingClientRect().height);
+      }
+      if (!rows.length) return null;
+      const cur = parseFloat(pg.style.getPropertyValue("--h-" + u)) || el.offsetHeight;
+      /* écart entre la valeur réglée et l'intérieur visible (bords, barre de défilement, bandeaux) */
+      const fixed = cur - el.clientHeight + head + foot;
+      return { fixed, rows };
+    };
+    /* hauteur v ramenée à des lignes entières (au moins une) ; plus haut que toutes les lignes : laissé tel quel (sauf « fit ») */
+    const laySnap = (u, v, fit) => {
+      const I = layRows(u); if (!I) return v;
+      let s = I.fixed, k = 0;
+      for (const h of I.rows) { if (k >= 1 && (fit ? k >= fit : s + h > v + .5)) break; s += h; k++; }
+      if (!fit && k === I.rows.length && v > s) return v;
+      return Math.ceil(s);
+    };
     /* hauteur enregistrée plus petite que le minimum de l'onglet ouvert : remontée à l'affichage (non enregistrée) */
     const layDetFloor = () => {
       const pg = page$(); if (!pg || pg.classList.contains("max-detail")) return;
       const cur = parseFloat(pg.style.getPropertyValue("--h-detail")) || 0, m = layDetMin();
       if (cur && cur < m) pg.style.setProperty("--h-detail", m + "px");
+      /* v727 : affichage en lignes entières (non enregistré) ; TÂCHES et DÉSIGNATIONS CLIENT sans réglage : autant de lignes qu'il y en a, jusqu'à 5 */
+      const lay = layLoad();
+      ["hier", "client"].forEach(u => {   /* bloc détail : mis en lignes entières à la poignée (layResize) */
+        if (pg.classList.contains("max-" + u) || (u === "detail" && !cur)) return;
+        const SN = shell.__layDetSnap, c0 = parseFloat(pg.style.getPropertyValue("--h-detail")) || 0;
+        const h = u === "detail" ? Math.max(SN && Math.abs(SN.to - c0) < .5 ? SN.from : c0, m) : (lay.h || {})[u];
+        const v = h ? laySnap(u, h) : u === "detail" ? 0 : laySnap(u, 0, 5);
+        if (v) pg.style.setProperty("--h-" + u, v + "px");
+        if (u === "detail" && v) shell.__layDetSnap = { from: h, to: v };   /* v727 : base gardée, pas de dérive d'un onglet à l'autre */
+      });
     };
     const layOrder = () => {
       const saved = (layLoad().order || []).filter(u => LAY_UNITS.includes(u));
@@ -242,6 +286,21 @@
         else pg.style.removeProperty("--h-" + u);
       });
       try { requestAnimationFrame(() => { try { layDetFloor(); } catch (e) {} }); } catch (e) {}
+      /* v727 (bloc 11.3) : une case en saisie reste entière dans la hauteur du bloc (sous l'en-tête et au-dessus du pied collants) */
+      if (!shell.__layFocus) { shell.__layFocus = true; shell.addEventListener("focusin", e => {
+        const inp = e.target; if (!inp.matches || !inp.matches("input, textarea, .ins-dv")) return;
+        const sc = inp.closest(".bdg-h-col, .bdg-d-client-scroll, #bdgTabBody .bdg-d-scroll"); if (!sc) return;
+        const row = inp.closest(".ins-li, .bdg-h-item, tr"); if (!row || row.closest("thead, tfoot")) return;
+        const fit = () => {
+          const sr = sc.getBoundingClientRect(), rr = row.getBoundingClientRect();
+          const hd = sc.querySelector(":scope > .bdg-h-head") || sc.querySelector("thead"), ft = sc.querySelector("tfoot");
+          const top = sr.top + sc.clientTop + (hd ? hd.getBoundingClientRect().height + (sc.matches(".bdg-h-col") ? 0 : Math.max(0, hd.getBoundingClientRect().top - sr.top - sc.clientTop)) : 0);
+          const bot = sr.top + sc.clientTop + sc.clientHeight - (ft && ft.offsetHeight ? ft.getBoundingClientRect().height : 0);
+          if (rr.top < top) sc.scrollTop -= Math.ceil(top - rr.top);
+          else if (rr.bottom > bot) sc.scrollTop += Math.ceil(rr.bottom - bot);
+        };
+        fit(); setTimeout(fit, 350);
+      }); }
       /* v557 : hauteur par défaut du détail recalculée si l'écran change (rotation, barre de Safari) */
       if (!shell.__layDetRs) { shell.__layDetRs = true; let tm = 0; window.addEventListener("resize", () => { clearTimeout(tm); tm = setTimeout(() => { if (shell.isConnected && page$() && !(layLoad().h || {}).detail) layApply(); }, 300); }); }
       const custom = (lay.order && layOrder().join() !== LAY_UNITS.join()) ||
@@ -315,6 +374,7 @@
         /* minimum : en-tête + une seule ligne (+ ligne TOTAL s'il y en a une) */
         const minH = u === "detail" ? DMIN : { client: 65 }[u] || 44;
         v = Math.max(minH, Math.round(base + e.clientY - y0));
+        if (["hier", "client", "detail"].includes(u)) v = Math.max(minH, laySnap(u, v));   /* v727 : lignes entières */
         pg.style.setProperty("--h-" + u, v + "px");
       };
       const up = () => {

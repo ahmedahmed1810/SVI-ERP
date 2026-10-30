@@ -402,14 +402,15 @@ const insPrdTVA = (data, id) => {
   return !d ? "" : (d.tva === "" || d.tva === undefined ? 20 : num(d.tva));
 };
 /* charges : catalogue CHS (ARTICLE, DÉSIGNATION, UNITÉ, PCS, TVA) */
+/* v727 (bloc 11.1) : CHS n'existe plus — une charge se saisit entièrement dans le budget ; plus aucun rattachement au catalogue */
 const chsFind = (art, des) => {
-  const L = (typeof db !== "undefined" && db.chs) || [];
+  const L = [];
   const n = v => String(v ?? "").trim().toUpperCase();
   if (n(art)) { const x = L.find(c => n(c.article) === n(art)); if (x) return x; }
   if (n(des)) { const x = L.find(c => n(c.designation) === n(des)); if (x) return x; }
   return null;
 };
-const chsById = id => ((typeof db !== "undefined" && db.chs) || []).find(c => String(c.id) === String(id)) || null;
+const chsById = id => null;
 
 /* v694 : petit rappel en haut, 2 s, à l'arrivée sur un autre écran du budget (« AVENANT 1 (2 / 4) ») */
 const sviNavPill = txt => {
@@ -7587,11 +7588,8 @@ function renderBudgetList() {
     const insCal = () => sviCalOf(INS);
     /* budget en instance (rouge) : les charges venues de CHS suivent CHS (prix, TVA, unité…) ;
        figé (vert) ou validé (noir) : on garde les valeurs du moment */
-    if (INS_EDIT) (INS.chg || []).forEach(r => {
-      const c = r.chs && chsById(r.chs);
-      if (!c) return;
-      r.art = c.article ?? r.art; r.des = c.designation ?? r.des; r.u = c.unit ?? r.u; r.p = c.pcs; r.tva = c.tva;
-    });
+    /* v727 (bloc 11.1) : CHS n'existe plus — l'ancien rattachement est oublié, les valeurs déjà reprises restent (PCB, UCB, TVA saisissables) */
+    ((INS && INS.chg) || []).forEach(r => { if (r.chs !== undefined) delete r.chs; });
     let insSeq = Date.now();
     const insId = () => "i" + (insSeq++).toString(36);
     /* FORMAT 91 : LIGNES NON LIÉES (compteur, liste ouverte, hachures, FIGER) et LIAISONS VALIDÉES
@@ -7968,7 +7966,7 @@ function renderBudgetList() {
        désignations : QPB, montants (TVA saisissable, 20 % par défaut) ;
        charges : PCB (s'il vient de CHS), montants, TVA (de CHS) — une charge absente de CHS garde son PCB saisissable ;
        produits : QPB, PPB, montants, TVA (celle de la désignation liée) ; unité, NBR et DIM se saisissent */
-    const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "tva", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
+    const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
         : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "pct" ? (k === "chg" ? insPctChg(r) : "") : f === "rdb" ? (k === "chg" ? chgRdb(r) : "") : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
@@ -7990,7 +7988,7 @@ function renderBudgetList() {
       }
       if (k === "chg") {
         if (z(r.q)) return { f: "q", m: "QTE VIDE OU 0 : SAISIR LA QUANTITÉ." };
-        if (!r.chs && z(r.p)) return { f: "p", m: "CHARGE ABSENTE DE CHS : SAISIR LE PCB." };
+        if (!r.chs && z(r.p)) return { f: "p", m: "SAISIR LE PCB." };
       }
       return null;
     };
@@ -17071,11 +17069,55 @@ ${A}</Assignments>
       const bar = Math.max(0, scr.offsetHeight - scr.clientHeight);
       return Math.max(65, Math.ceil(top + head + (row ? row.getBoundingClientRect().height : 21) + foot + ban + bar + 1));
     };
+    /* v727 (bloc 11.3) : hauteur des blocs en lignes entières — en-tête (et pied collant) + k lignes entières, jamais un morceau de la suivante ;
+       TÂCHES : la plus longue des trois listes ; DÉSIGNATIONS CLIENT et onglets du détail : le tableau affiché */
+    const layRows = u => {
+      const pg = page$(); if (!pg) return null;
+      let el, head = 0, foot = 0, rows;
+      if (u === "hier") {
+        const cols = [...pg.querySelectorAll(".bdg-h-col")].filter(c => c.offsetHeight);
+        if (!cols.length) return null;
+        const R = c => [...c.querySelectorAll(".ins-li, .bdg-h-item")].filter(x => x.offsetHeight);
+        el = cols.reduce((a, c) => R(c).length > R(a).length ? c : a, cols[0]);
+        const h = el.querySelector(".bdg-h-head"); head = h ? h.getBoundingClientRect().height : 0;
+        rows = R(el).map(x => x.getBoundingClientRect().height);
+      } else {
+        el = pg.querySelector(u === "client" ? ".bdg-d-client-scroll" : u === "detail" ? "#bdgTabBody .bdg-d-scroll" : "");
+        if (!el || !el.offsetHeight || el.querySelector("#dlyGantt, .dly-scroll, .dlyg-l, .i1-wrap, .apr-wrap") || el.closest(".apr-wrap, .i1-wrap")) return null;   /* PLANNING et onglets à mise en page propre : inchangés */
+        const tb = [...el.querySelectorAll("table")].find(t => t.offsetHeight && t.tHead); if (!tb || tb.closest(".dlyg-l, .dlyg-r")) return null;
+        head = tb.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop + tb.tHead.getBoundingClientRect().height;
+        foot = tb.tFoot && tb.tFoot.offsetHeight ? tb.tFoot.getBoundingClientRect().height : 0;
+        rows = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight).map(r => r.getBoundingClientRect().height);
+      }
+      if (!rows.length) return null;
+      const cur = parseFloat(pg.style.getPropertyValue("--h-" + u)) || el.offsetHeight;
+      /* écart entre la valeur réglée et l'intérieur visible (bords, barre de défilement, bandeaux) */
+      const fixed = cur - el.clientHeight + head + foot;
+      return { fixed, rows };
+    };
+    /* hauteur v ramenée à des lignes entières (au moins une) ; plus haut que toutes les lignes : laissé tel quel (sauf « fit ») */
+    const laySnap = (u, v, fit) => {
+      const I = layRows(u); if (!I) return v;
+      let s = I.fixed, k = 0;
+      for (const h of I.rows) { if (k >= 1 && (fit ? k >= fit : s + h > v + .5)) break; s += h; k++; }
+      if (!fit && k === I.rows.length && v > s) return v;
+      return Math.ceil(s);
+    };
     /* hauteur enregistrée plus petite que le minimum de l'onglet ouvert : remontée à l'affichage (non enregistrée) */
     const layDetFloor = () => {
       const pg = page$(); if (!pg || pg.classList.contains("max-detail")) return;
       const cur = parseFloat(pg.style.getPropertyValue("--h-detail")) || 0, m = layDetMin();
       if (cur && cur < m) pg.style.setProperty("--h-detail", m + "px");
+      /* v727 : affichage en lignes entières (non enregistré) ; TÂCHES et DÉSIGNATIONS CLIENT sans réglage : autant de lignes qu'il y en a, jusqu'à 5 */
+      const lay = layLoad();
+      ["hier", "client"].forEach(u => {   /* bloc détail : mis en lignes entières à la poignée (layResize) */
+        if (pg.classList.contains("max-" + u) || (u === "detail" && !cur)) return;
+        const SN = shell.__layDetSnap, c0 = parseFloat(pg.style.getPropertyValue("--h-detail")) || 0;
+        const h = u === "detail" ? Math.max(SN && Math.abs(SN.to - c0) < .5 ? SN.from : c0, m) : (lay.h || {})[u];
+        const v = h ? laySnap(u, h) : u === "detail" ? 0 : laySnap(u, 0, 5);
+        if (v) pg.style.setProperty("--h-" + u, v + "px");
+        if (u === "detail" && v) shell.__layDetSnap = { from: h, to: v };   /* v727 : base gardée, pas de dérive d'un onglet à l'autre */
+      });
     };
     const layOrder = () => {
       const saved = (layLoad().order || []).filter(u => LAY_UNITS.includes(u));
@@ -17099,6 +17141,21 @@ ${A}</Assignments>
         else pg.style.removeProperty("--h-" + u);
       });
       try { requestAnimationFrame(() => { try { layDetFloor(); } catch (e) {} }); } catch (e) {}
+      /* v727 (bloc 11.3) : une case en saisie reste entière dans la hauteur du bloc (sous l'en-tête et au-dessus du pied collants) */
+      if (!shell.__layFocus) { shell.__layFocus = true; shell.addEventListener("focusin", e => {
+        const inp = e.target; if (!inp.matches || !inp.matches("input, textarea, .ins-dv")) return;
+        const sc = inp.closest(".bdg-h-col, .bdg-d-client-scroll, #bdgTabBody .bdg-d-scroll"); if (!sc) return;
+        const row = inp.closest(".ins-li, .bdg-h-item, tr"); if (!row || row.closest("thead, tfoot")) return;
+        const fit = () => {
+          const sr = sc.getBoundingClientRect(), rr = row.getBoundingClientRect();
+          const hd = sc.querySelector(":scope > .bdg-h-head") || sc.querySelector("thead"), ft = sc.querySelector("tfoot");
+          const top = sr.top + sc.clientTop + (hd ? hd.getBoundingClientRect().height + (sc.matches(".bdg-h-col") ? 0 : Math.max(0, hd.getBoundingClientRect().top - sr.top - sc.clientTop)) : 0);
+          const bot = sr.top + sc.clientTop + sc.clientHeight - (ft && ft.offsetHeight ? ft.getBoundingClientRect().height : 0);
+          if (rr.top < top) sc.scrollTop -= Math.ceil(top - rr.top);
+          else if (rr.bottom > bot) sc.scrollTop += Math.ceil(rr.bottom - bot);
+        };
+        fit(); setTimeout(fit, 350);
+      }); }
       /* v557 : hauteur par défaut du détail recalculée si l'écran change (rotation, barre de Safari) */
       if (!shell.__layDetRs) { shell.__layDetRs = true; let tm = 0; window.addEventListener("resize", () => { clearTimeout(tm); tm = setTimeout(() => { if (shell.isConnected && page$() && !(layLoad().h || {}).detail) layApply(); }, 300); }); }
       const custom = (lay.order && layOrder().join() !== LAY_UNITS.join()) ||
@@ -17172,6 +17229,7 @@ ${A}</Assignments>
         /* minimum : en-tête + une seule ligne (+ ligne TOTAL s'il y en a une) */
         const minH = u === "detail" ? DMIN : { client: 65 }[u] || 44;
         v = Math.max(minH, Math.round(base + e.clientY - y0));
+        if (["hier", "client", "detail"].includes(u)) v = Math.max(minH, laySnap(u, v));   /* v727 : lignes entières */
         pg.style.setProperty("--h-" + u, v + "px");
       };
       const up = () => {
@@ -19982,8 +20040,8 @@ ${A}</Assignments>
       const lists = {
         dc: [...new Set(INS.des.filter(x => !x.t).map(x => x.des))], upb: [...new Set(INS.des.map(x => U_(x.u)).filter(Boolean))],
         lot: [...new Set(INS.lot.filter(x => !x.t).map(x => x.v))], prim: [...new Set(INS.prim.map(x => x.v))], sec: [...new Set(INS.sec.map(x => x.v))],
-        des: [...new Set(recs.map(x => x.des).concat(P ? [] : ((typeof db !== "undefined" && db.chs) || []).map(c => c.designation)).filter(Boolean))],
-        art: P ? [] : [...new Set(((typeof db !== "undefined" && db.chs) || []).map(c => c.article).filter(Boolean))],
+        des: [...new Set(recs.map(x => x.des).filter(Boolean))],
+        art: P ? [] : [...new Set(recs.map(x => x.art).filter(Boolean))],
         u: [...new Set(INS.sec.map(x => U_(x.u)).concat(recs.map(x => U_(x.u))).filter(Boolean))]
       };
       lists.su = lists.u;
@@ -28643,11 +28701,11 @@ function openSourceWin() {
           ? field("v3", "ONGLETS BUDGETS, DESIGNATIONS, TACHES, DETAILS, ARRETS" + (files.v3.folder ? " — DOSSIER " + esc(files.v3.folder) : ""))
           : field("main", "ONGLET BDG — BASE V3 NON LUE : " + esc(tag))) +
         (v3ok ? "" : row("BASE V3", field("v3", "NON LUE : " + esc(tag)))) +
-        row("CHS, BDS", field("main", "ONGLETS CHS, BDS_V2, BRD_V2 — MODIFIABLE DEPUIS LA VERSION VALIDÉE")) +
+        row("BDS", field("main", "ONGLETS BDS_V2, BRD_V2 — MODIFIABLE DEPUIS LA VERSION VALIDÉE")) +
         row("BUDGETS EN INSTANCE", "SUR CET APPAREIL SEULEMENT<span class=\"src-note\">PAS ENCORE ENREGISTRÉS DANS GOOGLE SHEETS</span>");
     } else {
       rows +=
-        row("BDG, CHS, BDS", field("main", "ONGLETS BDG, CHS, BDS_V2, BRD_V2" + (files.main.folder ? " — DOSSIER " + esc(files.main.folder) : "")));
+        row("BDG, BDS", field("main", "ONGLETS BDG, BDS_V2, BRD_V2" + (files.main.folder ? " — DOSSIER " + esc(files.main.folder) : "")));
     }
     p.querySelector(".src-grid").innerHTML = rows;
   };
@@ -28716,7 +28774,7 @@ function openSourceWin() {
     if (!sv || !editing) return;
     const link = p.querySelector(`.src-fld[data-which="${editing}"] .src-in`).value.trim();
     if (!/\/d\/[A-Za-z0-9_-]{20,}|^[A-Za-z0-9_-]{20,}$/.test(link)) { msg("LIEN GOOGLE SHEETS NON RECONNU.", true); return; }
-    const lab = editing === "v3" ? "LA BASE DES BUDGETS (V3)" : "LE FICHIER PRINCIPAL (CHS, BDS, BDG)";
+    const lab = editing === "v3" ? "LA BASE DES BUDGETS (V3)" : "LE FICHIER PRINCIPAL (BDS, BDG)";
     if (!await svConfirm({ title: "CHANGER LE FICHIER SOURCE", text: "L'APPLICATION LIRA DÉSORMAIS " + lab + " DANS CE FICHIER.", ok: "CHANGER", tone: "neutral" })) return;
     sv.disabled = true;
     msg("VÉRIFICATION DU FICHIER…");
@@ -28976,7 +29034,7 @@ function sviParamTabs() {
   const head = view.querySelector(".section-head");
   const bar = document.createElement("div");
   bar.className = "prm-tabs";
-  bar.innerHTML = `<button type="button" class="prm-tab on" data-prm="chs">CHS — CHARGES STANDARDS</button><button type="button" class="prm-tab" data-prm="unit">UNITÉS</button>`
+  bar.innerHTML = `<button type="button" class="prm-tab on" data-prm="unit">UNITÉS</button>`
     + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal">CALENDRIER</button>`;
   /* CALENDRIER et DATES DU BUDGET : pour le budget ouvert ; grisés sans budget ouvert (appui long = raison) */
   const why = () => { const L = window.__sviBdgLive; return !L ? "OUVRIR UN BUDGET D'ABORD" : !L.edit ? "BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE" : ""; };
@@ -29067,9 +29125,8 @@ function sviParamTabs() {
     draw();
   });
   bar.addEventListener("click", e => { const b = e.target.closest(".prm-tab"); if (b && b.dataset.prm) show(b.dataset.prm); });
-  let start = "chs";
-  try { start = localStorage.getItem("svi_prm_v1") || "chs"; } catch (e) {}
-  show(start);
+  /* v727 (bloc 11.1) : CHS n'existe plus — PARAMÉTRAGE ouvre UNITÉS */
+  show("unit");
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", sviParamTabs); else sviParamTabs();
 /* PARAMÉTRAGE › CALENDRIER : fenêtre CALENDRIER DU BUDGET (FORMAT 101) — un mois à la fois ;
