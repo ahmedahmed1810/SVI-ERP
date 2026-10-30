@@ -267,7 +267,7 @@
     };
     /* mise à jour des dates d'une tâche (saisie, Gantt) : mêmes contrôles partout ; débordement → TÂCHES SUIVANTES */
     const dlyApply = (task, q0, opts = {}) => {
-      const cal = insCal(), anchor = opts.anchor;
+      const cal = insCal(task), anchor = opts.anchor;
       const L = dlyDraftKey(task);
       let p = L[0];
       const q = { ...(p || { id: insId() }), deb: q0.deb || "", fin: q0.fin || "" };

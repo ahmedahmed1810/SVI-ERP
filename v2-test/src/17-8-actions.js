@@ -121,7 +121,7 @@ ${A}</Assignments>
     const renderTabK = () => { grpFlush(); keepScroll(() => renderTab()); };
     shell.__insDly = INS && INS_EDIT ? { INS, dAdd, dDiff, dParse, dFr, insId, insSave, err: "", draft: dlyDraft,
       predFin: k => dlyPredFin(k), succs: k => dlySuccs(k), deb: k => dlyDeb(k), name: k => dlyName(k), shift: (k, g) => dlyShift(k, g),
-      cal: () => insCal(), glued: k => dlyGlued(k), links: k => dlyLinks(k), apply: (k, q, o) => dlyApply(k, q, o),
+      cal: k => insCal(k), glued: k => dlyGlued(k), links: k => dlyLinks(k), apply: (k, q, o) => dlyApply(k, q, o),
       /* FORMAT 22 : replier / déplier sans faire bouger l'écran */
       fold: p => { dlyFoldToggle(p); keepScroll(() => renderTab()); },
       jal: k => { INS.jal = INS.jal || {}; if (INS.jal[k]) delete INS.jal[k]; else INS.jal[k] = true; insSave(); histLog("DÉLAIS", "JALON", dlyName(k) + (INS.jal[k] ? " — POSÉ" : " — RETIRÉ")); renderTabK(); },
@@ -163,7 +163,7 @@ ${A}</Assignments>
       /* R29 : affichage PAR LOT / PAR DÉBUT (vue, mémorisée par budget) ; R28 : zone touchée en dernier */
       cutOK: () => dlyCutOK(), cutSet: v => dlyCutSet(v), view: () => dlyView(), viewSet: v => { dlyViewSet(v); keepScroll(() => renderTab()); }, zone: () => shell.__dlyZone || "gantt",
       /* R15 : repère d'une tâche à 0 jour glissé vers la droite = lui donner une durée (n jours travaillés) */
-      giveDur: (k, at, n, a) => { const cal = insCal(), deb = sviWNear(cal, at, 1); dlyApply(k, { deb, fin: sviWFin(cal, deb, Math.max(1, n)) }, { anchor: a }); },
+      giveDur: (k, at, n, a) => { const cal = insCal(k), deb = sviWNear(cal, at, 1); dlyApply(k, { deb, fin: sviWFin(cal, deb, Math.max(1, n)) }, { anchor: a }); },
       /* v461 : menu d'un lot ou d'un niveau (appui long) : ISOLER / TOUT AFFICHER */
       grpMenu: (path, el) => {
         document.getElementById("blkMenu")?.remove();
@@ -633,13 +633,13 @@ ${A}</Assignments>
       },
       /* barre glissée de n jours : FIN seule (bout tiré) ou tâche entière, durée gardée (jours travaillés) */
       dragTo: (k, mode, n, a) => {
-        const cal = insCal(), d0 = dlyDeb(k), f0 = dlyFin(k);
+        const cal = insCal(k), d0 = dlyDeb(k), f0 = dlyFin(k);
         if (!d0 || !f0) return;
         /* v547 (R22) : tâche en morceaux — glisser = tous les morceaux ; bout = FIN du dernier morceau */
         if (dlyList(k).length > 1) {
           const L = dlyDraftKey(k), last = L[L.length - 1];
           if (mode === "end") { let f = sviWNear(cal, sviIsoAdd(f0, n), n > 0 ? 1 : -1); if (f < last.deb) f = last.deb; if (INS.dbut && f > INS.dbut) { svToast("FIN REFUSÉE : APRÈS LA DATE BUTOIR DU " + dFr(INS.dbut) + ".", 3500, a); renderTabK(); return; } last.fin = f; delete last.fmd; }
-          else { const pf = dlyPredFin(k); let d = sviWNear(cal, sviIsoAdd(d0, n), n > 0 ? 1 : -1); if (pf && d < pf) d = sviWNear(cal, pf, 1); dlyShiftList(L, d); }
+          else { const pf = dlyPredFin(k); let d = sviWNear(cal, sviIsoAdd(d0, n), n > 0 ? 1 : -1); if (pf && d < pf) d = sviWNear(cal, pf, 1); dlyShiftList(L, d, k); }
           dlyCommitDrafts(); dlyRespect(false); insSave(); histLog("DÉLAIS", "TÂCHE EN MORCEAUX", dlyName(k) + " : " + dFr(dlyDeb(k)) + " → " + dFr(dlyFin(k))); renderTabK(); insRenderChain(); return;
         }
         if (mode === "end") { let f = sviWNear(cal, sviIsoAdd(f0, n), n > 0 ? 1 : -1); if (f < d0) f = d0; dlyApply(k, { deb: d0, fin: f }, { anchor: a, fromDur: true }); return; }

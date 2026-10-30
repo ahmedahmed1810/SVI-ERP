@@ -45,7 +45,7 @@
         const q = num(r.q || 0) || 0, pu = num(r.p || 0) || 0, sk = dlyResK(r);
         ks.forEach(k => {
           const P = dlyList(k).filter(p => p.deb && p.fin); if (!P.length) return;
-          const D = P.map(p => Math.max(1, sviWDur(cal, p.deb, p.fin) || 1)), tot = D.reduce((a, b) => a + b, 0);
+          const D = P.map(p => Math.max(1, sviWDur(insCal(k), p.deb, p.fin) || 1)), tot = D.reduce((a, b) => a + b, 0);
           P.forEach((p, i) => { const f = D[i] / tot / ks.length;
             const L = out.get(sk) || []; L.push({ k, deb: p.deb, fin: p.fin, q: q * f, m: q * pu * f, pu }); out.set(sk, L); });
         });

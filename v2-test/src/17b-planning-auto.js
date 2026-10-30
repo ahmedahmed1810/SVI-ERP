@@ -183,6 +183,7 @@
       const L = dlyList(k), p = L[0], d0 = dlyDeb(k), f0 = dlyFin(k);
       if (!d0 || !f0) return "";
       /* v547 (R22) : tâche en morceaux = somme des morceaux */
+      const dDur = (a, b) => sviWDur(insCal(k), a, b);   /* v731 : jours travaillés de la tâche (calendrier de ses charges) */
       if (L.length > 1) { const t = L.filter(q => q.deb && q.fin).reduce((a, q) => a + (Number(dDur(q.deb, q.fin)) || 0) - (dlyHalfS(q) ? .5 : 0) - (dlyHalfE(q) ? .5 : 0), 0); return t === Math.round(t) ? t : String(t).replace(".", ","); }
       const n = dDur(d0, f0);
       if (n === "" || L.length !== 1) return n;
@@ -352,12 +353,13 @@
       return { D, S, links, lim };
     };
     /* v726 : jours non travaillés des charges d'une tâche (INS.chgCal[clé] = { we: [jours 0–6] }) ; null = calendrier du budget seul */
-    const dlyOffOf = k => {
-      const CC = INS.chgCal || {}; if (!Object.keys(CC).length) return null;
+    const dlyChgWe = k => {
+      const CC = INS.chgCal || {}; if (!Object.keys(CC).length) return [];
       const we = new Set(), seen = new Set();
       (INS.links || []).forEach(l => { if (l.lot + "|" + l.sec !== k) return; (l.chg || []).forEach(e => { if (seen.has(e.id)) return; seen.add(e.id); const r = INS.chg.find(x => x.id === e.id); if (!r || r.t) return; const c = CC[dlyResK(r)]; (c && c.we || []).forEach(d => we.add(Number(d))); }); });
-      return we.size ? iso => we.has(new Date(iso + "T00:00:00").getDay()) : null;
+      return [...we];
     };
+    const dlyOffOf = k => { const we = dlyChgWe(k); return we.length ? iso => we.includes(new Date(iso + "T00:00:00").getDay()) : null; };
     /* fenêtre CALENDRIER DES CHARGES : jours non travaillés de chaque charge, en plus de ceux du budget */
     const dlyChgCalWin = () => {
       const keys = []; { const seen = new Set(); (INS.chg || []).filter(r => !r.t).forEach(r => { const sk = dlyResK(r); if (!seen.has(sk)) { seen.add(sk); keys.push(sk); } }); }
@@ -597,7 +599,7 @@
         const l = (INS.links || []).find(x => (x.prd || []).some(y => y.id === r.id));
         const k = l && l.lot + "|" + l.sec, p = k && cur[k], v = insHT("prd", r);
         if (!p || !v) return;
-        const D2 = []; (p.per && p.per.length ? p.per : [p]).forEach(q => { const n = sviWDur(cal, q.deb, q.fin) || 1; for (let i = 0, x = sviWNear(cal, q.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) D2.push(x); });
+        const cal = insCal(k), D2 = []; (p.per && p.per.length ? p.per : [p]).forEach(q => { const n = sviWDur(cal, q.deb, q.fin) || 1; for (let i = 0, x = sviWNear(cal, q.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) D2.push(x); });
         D2.forEach(x => { out[x] = (out[x] || 0) + v / D2.length; (det[x] = det[x] || {})[k] = ((det[x] || {})[k] || 0) + v / D2.length; });
       });
       return { L: out, det };
@@ -621,7 +623,7 @@
         (INS.links || []).filter(l => l.lot === lo && l.sec === se).forEach(l => (l.prd || []).forEach(x => { const r = INS.prd.find(y => y.id === x.id); if (r) P.set(r.id, r); }));
         let q = 0; P.forEach(r => { us.add(U_(r.u) || "U"); q += insPrdQ(r) || 0; });
         const p = cur[k]; if (!p) return;
-        const D2 = []; (p.per && p.per.length ? p.per : [p]).forEach(qq => { const n = sviWDur(cal, qq.deb, qq.fin) || 1; for (let i = 0, x = sviWNear(cal, qq.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) D2.push(x); });
+        const cal = insCal(k), D2 = []; (p.per && p.per.length ? p.per : [p]).forEach(qq => { const n = sviWDur(cal, qq.deb, qq.fin) || 1; for (let i = 0, x = sviWNear(cal, qq.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) D2.push(x); });
         if (!D2.length) return;
         D2.forEach(x => { PT[x] = (PT[x] || 0) + q / D2.length; });
         dlyResOf(k, R, "q").forEach((v, sk) => {
@@ -654,7 +656,7 @@
         const p = cur[k], m = resOfP(k);
         if (!m.size) return;
         /* v547 (R22) : jours de chaque morceau (demi-journées comprises) */
-        const SL = [];
+        const SL = [], cal = insCal(k);   /* v731 : jours où toutes les charges de la tâche travaillent */
         (p.per && p.per.length ? p.per : [p]).forEach(q => { const n = sviWDur(cal, q.deb, q.fin) || 1; for (let i = 0, x = sviWNear(cal, q.deb, 1); i < n; i++, x = sviWAdd(cal, x, 1)) SL.push({ x, f: (i === 0 && q.hs ? .5 : 1) * (i === n - 1 && q.he ? .5 : 1) }); });
         let t = 0; SL.forEach(o => { t += o.f; });
         for (const { x, f: fi } of SL) {

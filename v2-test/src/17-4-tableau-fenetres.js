@@ -185,7 +185,7 @@
         /* une seule période par tâche (fragmentation reportée) */
         let p = list.find(x => x.id === i.dataset.pid) || list[0];
         const q = p ? { ...p } : { id: X.insId(), deb: "", fin: "" };
-        const cal = X.cal();
+        const cal = X.cal(task);
         const f = i.dataset.f, v = i.value.trim();
         const durOld = q.deb && q.fin ? sviWDur(cal, q.deb, q.fin) : 0;
         X.err = "";
@@ -255,7 +255,7 @@
       if (!INS_EDIT) return null;
       const D = dlyDraft(), list = D[el.dataset.task] || (INS.dlp || {})[el.dataset.task] || [];
       const q = list.find(x => x.id === el.dataset.pid) || list[0] || { deb: "", fin: "" };
-      const f = el.dataset.f, pf = dlyPredFin(el.dataset.task), cal = insCal();
+      const f = el.dataset.f, pf = dlyPredFin(el.dataset.task), cal = insCal(el.dataset.task);
       /* FORMAT 10 : une date grisée = une date que la saisie refuserait (jour non travaillé, fin avant début,
          fin après la date butoir, début avant la date exigée par les liaisons) ; une FIN qui dépasse une tâche suivante reste choisissable */
       const dis = d => {

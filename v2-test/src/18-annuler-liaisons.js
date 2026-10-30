@@ -74,7 +74,7 @@
     }
     window.__sviBdgLive = INS ? {
       ref: budget.inst.ref, project: budget.project || "", edit: INS_EDIT,
-      cal: () => insCal(), dates: () => ({ but: INS.dbut || "", obj: INS.dobj || "" }),
+      cal: k => insCal(k), dates: () => ({ but: INS.dbut || "", obj: INS.dobj || "" }),
       /* changer un jour (travaillé ↔ non travaillé) recale seulement les tâches qui le traversent, avec leur chaîne ;
          liaisons, durées et décalages restent */
       setCal: nc => {
@@ -737,7 +737,7 @@
         const dlyBlk = () => {
           const k = tKey();
           if (!k) return `<div class="doc-lab" style="margin-top:12px">DÉTAIL DÉLAIS</div><div class="lk-info-why">CHOISIR LE LOT ET L'ACTIVITÉ SECONDAIRE.</div>`;
-          const P = ((INS.dlp || {})[k] || [])[0] || {}, cal = insCal(), dur = P.deb && P.fin ? sviWDur(cal, P.deb, P.fin) : "";
+          const P = ((INS.dlp || {})[k] || [])[0] || {}, cal = insCal(k), dur = P.deb && P.fin ? sviWDur(cal, P.deb, P.fin) : "";
           return `<div class="doc-lab" style="margin-top:12px">DÉTAIL DÉLAIS</div><div class="lki-dly" data-task="${esc(k)}"><span class="doc-lab">DÉBUT</span><input type="date" class="lki-deb" value="${esc(P.deb || "")}"><span class="doc-lab">FIN</span><input type="date" class="lki-fin" value="${esc(P.fin || "")}"><span class="doc-lab">DURÉE (J)</span><b>${esc(String(dur))}</b></div>`;
         };
         const body2 = () => tbl("prd", "DÉTAIL PRODUITS") + addRow("prd") + tbl("chg", "DÉTAIL CHARGES") + addRow("chg") + dlyBlk()
@@ -766,7 +766,7 @@
           if (!di || !box) return;
           const task = box.dataset.task, P = (((INS.dlp || {})[task] || [])[0]) || {}, q = { id: P.id || insId(), deb: P.deb || "", fin: P.fin || "" };
           q[di.classList.contains("lki-deb") ? "deb" : "fin"] = di.value;
-          if (q.deb && !sviWork(insCal(), q.deb) || q.fin && !sviWork(insCal(), q.fin)) { svToast("JOUR NON TRAVAILLÉ DANS LE CALENDRIER DU BUDGET.", 3500, di); redraw(); return; }
+          if (q.deb && !sviWork(insCal(task), q.deb) || q.fin && !sviWork(insCal(task), q.fin)) { svToast("JOUR NON TRAVAILLÉ DANS LE CALENDRIER DU BUDGET.", 3500, di); redraw(); return; }
           /* v639 : DÉBUT après la FIN = tâche déplacée avec sa durée (fait par X.apply) */
           if (q.deb && q.fin && q.fin < q.deb && !(X && X.apply && di.classList.contains("lki-deb") && P.deb && P.fin)) { svToast("LA FIN EST AVANT LE DÉBUT.", 3500, di); redraw(); return; }
           if (X && X.apply) X.apply(task, q, { anchor: di }); else { INS.dlp = INS.dlp || {}; INS.dlp[task] = [q]; insSave(); }

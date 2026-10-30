@@ -1764,6 +1764,14 @@ def main():
         gcf = pg.evaluate("() => { const d = document.getElementById('svConf'); return d ? [(d.querySelector('.svc-t') || {}).textContent, d.querySelectorAll('input[name=gcs]').length, d.querySelectorAll('input[name=gco]').length, !!d.querySelector('.gcf-cut'), !!d.querySelector('[data-gcf=comp]'), !!d.querySelector('[data-gcf=gen]'), !!d.querySelector('[data-gcf=graph]')] : null; }")
         check("v701 : ⚙ RÉGLAGES DU GANTT — JOUR / SEMAINE / MOIS, NORMAL / PAR DÉBUT, COUPE, COMPRESSER, GÉNÉRER, RÉGLAGES DU GRAPHIQUE…",
               gcf and gcf[0] == "RÉGLAGES DU GANTT" and gcf[1] == 3 and gcf[2] == 2 and all(gcf[3:]), gcf)
+        # v731 (bloc 2, point 6, suite) : calendrier de la tâche = budget + jours non travaillés de ses charges (durées, dates, graphique, approvisionnement)
+        c731 = pg.evaluate("""() => { const DX = DXJ_, X = INS_X, I = X.INS, keep = JSON.stringify(I.chgCal || null);
+            const L = I.links.find(l => (l.chg || []).length), r = I.chg.find(x => x.id === L.chg[0].id), k = L.lot + '|' + L.sec;
+            const sk = dlyResK(r);
+            const d0 = sviWDur(DX.cal(k), '2026-11-02', '2026-11-08'); I.chgCal = { [sk]: { we: [5] } };
+            const d1 = sviWDur(DX.cal(k), '2026-11-02', '2026-11-08'), w = sviWork(DX.cal(k), '2026-11-06'), b = sviWork(DX.cal(), '2026-11-06');
+            const K = JSON.parse(keep); if (K) I.chgCal = K; else delete I.chgCal; return [d1 === d0 - 1, w, b]; }""".replace("DXJ_", DXJ).replace("INS_X", ins))
+        check("v731 : calendrier de la tâche — un vendredi non travaillé par sa charge raccourcit la durée d'un jour ; le budget garde son vendredi", c731 == [True, False, True], c731)
         # v726 (bloc 2, point 6) : CALENDRIER DES CHARGES depuis le ⚙ du Gantt
         pg.evaluate("() => document.querySelector('#svConf [data-gcf=ccal]')?.click()"); pg.wait_for_timeout(300)
         cc = pg.evaluate("() => [...document.querySelectorAll('.svc-t')].map(e => e.textContent).includes('CALENDRIER DES CHARGES') && document.querySelectorAll('.ccal').length > 0")
