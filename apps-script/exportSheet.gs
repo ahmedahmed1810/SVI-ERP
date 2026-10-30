@@ -104,20 +104,38 @@ function saveFile_(b) {
 }
 
 function exportSheet_(b) {
-  var head = b.head || [];
-  var rows = b.rows || [];
-  var top = b.top || [];
-  var nc = Math.max(head.length, 1);
   var name = String(b.name || "EXPORT SVI").trim();
-
   var folder = sviFolder_(b.path);
 
   var ss = SpreadsheetApp.create(name);
   var file = DriveApp.getFileById(ss.getId());
   file.moveTo(folder);
 
+  /* v730 (bloc 7, point 2) : onglets en plus (DÉLAIS, QUALITÉ) — le premier s'appelle alors BUDGET */
+  var extra = Array.isArray(b.sheets) ? b.sheets : [];
   var sh = ss.getSheets()[0];
-  sh.setName(String(top[4] || "EXPORT").slice(0, 90));
+  var top = b.top || [];
+  sh.setName(extra.length ? "BUDGET" : String(top[4] || "EXPORT").slice(0, 90));
+  sviFillSheet_(sh, b);
+
+  var names = [sh.getName()];
+  extra.forEach(function (x, i) {
+    var nm = String(x.name || ("ONGLET " + (i + 2))).slice(0, 90);
+    var s2 = ss.insertSheet(nm, ss.getSheets().length);
+    sviFillSheet_(s2, x);
+    names.push(nm);
+  });
+
+  SpreadsheetApp.flush();
+  return { ok: true, url: ss.getUrl(), id: ss.getId(), path: sviPathOf_(folder), folderUrl: folder.getUrl(), sheets: names };
+}
+
+/* un onglet : 5 lignes d'entrée fusionnées, une ligne vide, l'entête grise, le tableau avec bordures */
+function sviFillSheet_(sh, b) {
+  var head = b.head || [];
+  var rows = b.rows || [];
+  var top = b.top || [];
+  var nc = Math.max(head.length, 1);
 
   /* grille : 5 lignes d'entrée + 1 vide + entête + données */
   var H0 = top.length + 1;
@@ -158,7 +176,6 @@ function exportSheet_(b) {
   if (b.headHeight) sh.setRowHeight(H0 + 1, Number(b.headHeight));
 
   if (rows.length) {
-    var body = sh.getRange(H0 + 2, 1, rows.length, nc);
     /* nombres : vraies valeurs numériques au format 1 234,56 */
     for (var c = 0; c < nc; c++) {
       var isNum = rows.some(function (r) { return typeof r[c] === "number"; });
@@ -170,7 +187,7 @@ function exportSheet_(b) {
     }
     var al = b.align || [];
     for (var c2 = 0; c2 < nc; c2++) {
-      sh.getRange(H0 + 2, c2 + 1, rows.length, 1).setHorizontalAlignment(al[c2] || "left");
+      sh.getRange(H0 + 2, c2 + 1, rows.length, 1).setHorizontalAlignment(al[c2] || "left").setWrap(true);
     }
     (b.bold || []).forEach(function (k) {
       if (k >= 0 && k < rows.length) sh.getRange(H0 + 2 + k, 1, 1, nc).setFontWeight("bold");
@@ -192,9 +209,6 @@ function exportSheet_(b) {
   /* lignes et colonnes en trop retirées */
   if (sh.getMaxRows() > nr + 1) sh.deleteRows(nr + 2, sh.getMaxRows() - nr - 1);
   if (sh.getMaxColumns() > nc) sh.deleteColumns(nc + 1, sh.getMaxColumns() - nc);
-
-  SpreadsheetApp.flush();
-  return { ok: true, url: ss.getUrl(), id: ss.getId(), path: sviPathOf_(folder), folderUrl: folder.getUrl() };
 }
 
 /* =========================================================
