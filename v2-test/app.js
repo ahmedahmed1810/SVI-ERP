@@ -19587,6 +19587,37 @@ ${A}</Assignments>
       if (kinds.size) histLog("IMPORT", "ACTUALISATION DEPUIS LA SOURCE", got.name + " — " + [...kinds].map(k => ({ prd: "PRODUITS", chg: "CHARGES", des: "DÉSIGNATIONS", hier: "TÂCHES", dly: "DÉLAIS", qlt: "QUALITÉ" })[k]).join(", "));
       insSave(); refreshAll();
     };
+    /* v713 (point 5) : avant tout import Excel / Google Sheets — une seule fenêtre : en-têtes attendus de chaque tableau importé
+       (★ rouge = colonne exigée), un bouton COPIER LES EN-TÊTES par tableau ; ANNULER / CONTINUER. MS Project : passer par son export Excel */
+    const IMP_HEADS_BUDGET = [
+      { name: "BUDGET", cols: [["ART"], ["DÉSIGNATION CLIENT", 1], ["UPB"], ["LOT", 1], ["ACTIVITÉ PRIMAIRE", 1], ["ACTIVITÉ SECONDAIRE", 1], ["TYPE (PRD / CHG)", 1], ["ARTICLE"], ["DÉSIGNATION", 1], ["UNITÉ", 1], ["NBR"], ["DIM 1"], ["DIM 2"], ["DIM 3"], ["QTE"], ["PRIX"]] },
+      { name: "DÉLAIS (FACULTATIF)", cols: [["LOT", 1], ["ACTIVITÉ SECONDAIRE", 1], ["DÉBUT"], ["FIN"], ["DURÉE (J)"], ["PRÉDÉCESSEURS"], ["TYPE"], ["DÉCALAGE (J)"]] },
+      { name: "QUALITÉ (FACULTATIF)", cols: [["CRITÈRE", 1], ["POINT DE CONTRÔLE", 1]] }];
+    const impHeadsOf = blk => {
+      let H = []; try { H = (blkData(blk) || {}).head || []; } catch (e) {}
+      H = H.map(h => String(h || "").trim()).filter(h => h && !/^[✓☐]?$/.test(h));
+      const reqRx = /^(DÉSIGNATION|LOT|ACTIVITÉ PRIMAIRE|ACTIVITÉ SECONDAIRE|CRITÈRE|POINT DE CONTRÔLE|UNITÉ|U[CP]B)\b/;
+      const any = H.some(h => reqRx.test(h));
+      return [{ name: blkDisp(blk), cols: H.map((h, i) => [h, any ? (reqRx.test(h) ? 1 : 0) : (i === 0 ? 1 : 0)]) }];
+    };
+    const impHeadAsk = T => new Promise(res => {
+      const d = sviWinNew();
+      d.innerHTML = sviWinCard({ cls: "imph-card", close: "data-x", title: "AVANT L'IMPORT",
+        body: `<div class="svc-sub imph-t">ASSUREZ-VOUS QUE LE FICHIER SOURCE A LES EN-TÊTES DE COLONNE SUIVANTS</div>
+          ${T.map((t, i) => `<div class="imph-tb"><div class="imph-h"><b>${esc(t.name)}</b><button type="button" class="svc-b" data-cp="${i}">COPIER LES EN-TÊTES</button></div>
+            <div class="imph-cols">${t.cols.map(([h, r]) => `<span class="imph-c">${esc(h)}${r ? '<i class="imph-req">★</i>' : ""}</span>`).join("")}</div></div>`).join("")}
+          <div class="hcf-note">★ = COLONNE EXIGÉE. MS PROJECT : PAS D'IMPORT DIRECT — EXPORTER LE PROJET EN EXCEL DANS MS PROJECT, PUIS IMPORTER LES DÉLAIS.</div>`,
+        foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-go>CONTINUER</button>` });
+      sviWinShow(d);
+      d.addEventListener("click", async e => {
+        const cp = e.target.closest("[data-cp]");
+        if (cp) { const t = T[Number(cp.dataset.cp)], txt = t.cols.map(c => c[0]).join("\t");
+          try { await navigator.clipboard.writeText(txt); svToast("EN-TÊTES COPIÉS : COLLER EN PREMIÈRE LIGNE DU FICHIER.", 2500, cp); } catch (err) { svToast("COPIE IMPOSSIBLE ICI.", 2500, cp); } return; }
+        if (e.target.closest("[data-go]")) { d.remove(); res(true); return; }
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); res(false); }
+      });
+    });
+    shell.__impHeadAsk = impHeadAsk; shell.__impHeadsOf = impHeadsOf;
     /* IMPORTER UN BUDGET : fichier Excel (iPad) ou Google Sheets (Drive) ; un seul onglet */
     const openBudgetImport = () => {
       const p = popup(`
@@ -19600,6 +19631,7 @@ ${A}</Assignments>
         const b = e.target.closest("[data-src]");
         if (!b) return;
         p.remove();
+        if (!(await impHeadAsk(IMP_HEADS_BUDGET))) return;   /* v713 */
         if (b.dataset.src === "file") {
           const inp = document.createElement("input");
           inp.type = "file";
@@ -20245,11 +20277,13 @@ ${A}</Assignments>
           <button type="button" class="blk-choice" data-src="gsheet">Google Sheets (lien)</button>
           ${INS ? `<button type="button" class="blk-choice" data-src="bdg">Autre budget de l'application</button>` : ""}
         </div>`);
-      p.addEventListener("click", e => {
+      p.addEventListener("click", async e => {
         const b = e.target.closest("[data-src]");
         if (!b) return;
         p.remove();
         if (b.dataset.src === "direct") { openDirectEntry(active); return; }
+        /* v713 (point 5) : en-têtes attendus avant un import Excel / Google Sheets */
+        if ((b.dataset.src === "file" || b.dataset.src === "gsheet") && shell.__impHeadAsk && !(await shell.__impHeadAsk(shell.__impHeadsOf(blk)))) return;
         if (b.dataset.src === "gsheet") importGSheet();
         else if (b.dataset.src === "bdg") openImportBudget(blk);
         else doImport(blk);

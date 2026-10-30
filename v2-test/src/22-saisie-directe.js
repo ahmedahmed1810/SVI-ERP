@@ -513,11 +513,13 @@
           <button type="button" class="blk-choice" data-src="gsheet">Google Sheets (lien)</button>
           ${INS ? `<button type="button" class="blk-choice" data-src="bdg">Autre budget de l'application</button>` : ""}
         </div>`);
-      p.addEventListener("click", e => {
+      p.addEventListener("click", async e => {
         const b = e.target.closest("[data-src]");
         if (!b) return;
         p.remove();
         if (b.dataset.src === "direct") { openDirectEntry(active); return; }
+        /* v713 (point 5) : en-têtes attendus avant un import Excel / Google Sheets */
+        if ((b.dataset.src === "file" || b.dataset.src === "gsheet") && shell.__impHeadAsk && !(await shell.__impHeadAsk(shell.__impHeadsOf(blk)))) return;
         if (b.dataset.src === "gsheet") importGSheet();
         else if (b.dataset.src === "bdg") openImportBudget(blk);
         else doImport(blk);
