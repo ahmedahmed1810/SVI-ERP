@@ -2347,6 +2347,11 @@ def main():
         check("v672 bloc 2 : envoi initial (REV 1, contrôle), fusion : QPB gardée (moi seul), PPB de l'autre plus récent gardé (999) et le mien en CONFLIT (777, BRAHIM) ; ⚠ CONFLITS ; MA VALEUR reprise ; QUI = TESTEUR",
               s72 and s72[1] >= 1 and s72[2] == 0 and m72[0] == 999 and m72[1] == 123 and m72[2] == 1 and m72[3] == "BRAHIM" and m72[4] == 777 and "CONFLITS" in td72 and r72 == [777, 0] and "TESTEUR" in h72, [s72, m72, td72[:200], r72, h72])
 
+        # v718 : révision des prix estimée — 100 000 DH de travaux en janvier 2028, base janvier 2027, 0,15 + 0,85 × index à +10 %/an → ≈ 8 500 DH ; pessimiste (+10 %) plus élevé ; hausse de charges CIMENT
+        rv = pg.evaluate("""() => { const d = { des: [{ id: 'd', des: 'X', u: 'U', q: 1, p: 100000 }], links: [{ id: 'k', des: 'd', lot: 'l', prim: 'p', sec: 's', prd: [], chg: [] }], dlp: { 'l|s': [{ id: 'a', deb: '2028-01-10', fin: '2028-01-10' }] },
+            chg: [{ id: 'c', des: 'CIMENT CPJ', q: 10, p: 1000 }], ctr: { rows: [{ id: 'r', type: 'rev', det: { pond: '0,15 ; 0,85', mb: '2027-01', hyp: '10', choc: '10', pchg: 'CIMENT:10' } }] } };
+            const E = sviRevEst(d, false), P = sviRevEst(d, true); return [Math.round(E.rev), Math.round(P.rev) > Math.round(E.rev), Math.round(P.chgUp)]; }""")
+        check("v718 : RÉVISION DES PRIX estimée avec le planning (hypothèse par index) ; scénario pessimiste (index et charges)", rv == [8500, True, 1000], rv)
         # v716 : compteur « retenues/total » en bleu quand un filtre cache des lignes ; toucher = FILTRES ACTIFS + EFFACER TOUS LES FILTRES
         pg.evaluate(f"() => {{ const X = {ins}; const r = (X.INS.chg || []).find(x => !x.t); if (r) r.on = true; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
         f716 = pg.evaluate("() => { const c = document.querySelector('#bdgTabs .svi-cnt.cnt-filt'); if (!c) return [0]; c.click(); const d = document.getElementById('svConf'); const r = [1, d ? d.querySelector('.svc-t, .sv-head, h3, b')?.textContent || d.innerText.slice(0, 40) : '', !!(d && d.querySelector('[data-fwclr]'))]; d?.querySelector('[data-x]')?.click(); return r; }")

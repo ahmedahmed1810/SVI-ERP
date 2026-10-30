@@ -1053,3 +1053,35 @@ const condCut = (pieces, BL, kerf = 0) => {
   const need = all.reduce((a, b) => a + b, 0), chute = bars.length * BL - need;
   return { bars: bars.length, plan: [...plan].map(([k, v]) => ({ k, n: v.n, chute: v.chute })), need, chute, pct: bars.length ? chute / (bars.length * BL) * 100 : 0 };
 };
+
+/* v718 (révision des prix) : estimation de la révision avec le planning — formule du contrat (part fixe + pondérations par index),
+   hypothèse d'évolution par index (%/an depuis le mois de base), scénario pessimiste (hausse d'un index, et hausse de charges par mot-clé).
+   Valeur de chaque désignation client répartie sur les jours de ses tâches ; révision du jour = valeur × (K − 1). */
+const sviRevNums = s => String(s || "").split(/[;\n]/).map(x => Number(String(x).replace(/\s/g, "").replace(",", ".")))
+  .map(x => isFinite(x) ? x : 0);
+const sviRevRow = d => ((d && d.ctr && d.ctr.rows) || []).find(r => r && !r.t && r.type === "rev") || null;
+const sviRevEst = (d, pess) => {
+  const R = sviRevRow(d); if (!R) return null;
+  const D = R.det || {}, P = sviRevNums(D.pond).filter((x, i) => i === 0 || x !== 0);
+  if (P.length < 2) return null;
+  const a = P[0], W = P.slice(1), H0 = sviRevNums(D.hyps), C0 = sviRevNums(D.choc), h1 = Number(String(D.hyp || "").replace(",", ".")) || 0;
+  const H = W.map((_, i) => (H0[i] !== undefined && String(D.hyps || "").trim() ? H0[i] : h1) / 100), C = W.map((_, i) => pess ? (C0[i] || 0) / 100 : 0);
+  const n = v => Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")) || 0;
+  const per = {}; Object.keys(d.dlp || {}).forEach(k => (d.dlp[k] || []).forEach(p => { if (p.deb) (per[k] = per[k] || []).push([p.deb, p.fin || p.deb]); }));
+  const all = Object.values(per).flat().map(x => x[0]).sort(), mb = /^\d{4}-\d{2}/.test(D.mb || "") ? D.mb.slice(0, 7) : (all[0] || "").slice(0, 7);
+  if (!mb) return null;
+  const [by, bm] = mb.split("-").map(Number);
+  const K = day => { const [y, m] = day.split("-").map(Number), t = (y - by) * 12 + (m - bm); return a + W.reduce((s, w, i) => s + w * Math.pow(1 + H[i], Math.max(0, t) / 12) * (1 + C[i]), 0); };
+  let rev = 0, val = 0;
+  (d.des || []).filter(r => !r.t).forEach(r => {
+    const lq = insLinkedQ(d, r.id), V = (lq || n(r.q)) * n(r.p); if (!V) return;
+    const days = []; (d.links || []).filter(l => l.des === r.id).forEach(l => (per[l.lot + "|" + l.sec] || []).forEach(([x, y]) => { for (let t = new Date(x + "T12:00:00"); sviIsoOf(t) <= y && days.length < 4000; t.setDate(t.getDate() + 1)) days.push(sviIsoOf(t)); }));
+    if (!days.length) return;
+    val += V; days.forEach(x => { rev += V / days.length * (K(x) - 1); });
+  });
+  /* scénario pessimiste : hausse des charges par mot-clé (« CIMENT:10 ; ACIER:5 ») */
+  let chgUp = 0;
+  if (pess) String(D.pchg || "").split(/[;\n]/).forEach(it => { const m = it.match(/^\s*([^:]+):\s*([\d.,]+)/); if (!m) return; const kw = String(m[1]).trim().toUpperCase(), pc = n(m[2]) / 100;
+    (d.chg || []).filter(r => !r.t && String(r.des || "").toUpperCase().includes(kw)).forEach(r => { chgUp += n(r.q) * n(r.p) * pc; }); });
+  return { rev, val, chgUp, mb };
+};

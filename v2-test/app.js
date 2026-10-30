@@ -4517,6 +4517,38 @@ const condCut = (pieces, BL, kerf = 0) => {
   const need = all.reduce((a, b) => a + b, 0), chute = bars.length * BL - need;
   return { bars: bars.length, plan: [...plan].map(([k, v]) => ({ k, n: v.n, chute: v.chute })), need, chute, pct: bars.length ? chute / (bars.length * BL) * 100 : 0 };
 };
+
+/* v718 (révision des prix) : estimation de la révision avec le planning — formule du contrat (part fixe + pondérations par index),
+   hypothèse d'évolution par index (%/an depuis le mois de base), scénario pessimiste (hausse d'un index, et hausse de charges par mot-clé).
+   Valeur de chaque désignation client répartie sur les jours de ses tâches ; révision du jour = valeur × (K − 1). */
+const sviRevNums = s => String(s || "").split(/[;\n]/).map(x => Number(String(x).replace(/\s/g, "").replace(",", ".")))
+  .map(x => isFinite(x) ? x : 0);
+const sviRevRow = d => ((d && d.ctr && d.ctr.rows) || []).find(r => r && !r.t && r.type === "rev") || null;
+const sviRevEst = (d, pess) => {
+  const R = sviRevRow(d); if (!R) return null;
+  const D = R.det || {}, P = sviRevNums(D.pond).filter((x, i) => i === 0 || x !== 0);
+  if (P.length < 2) return null;
+  const a = P[0], W = P.slice(1), H0 = sviRevNums(D.hyps), C0 = sviRevNums(D.choc), h1 = Number(String(D.hyp || "").replace(",", ".")) || 0;
+  const H = W.map((_, i) => (H0[i] !== undefined && String(D.hyps || "").trim() ? H0[i] : h1) / 100), C = W.map((_, i) => pess ? (C0[i] || 0) / 100 : 0);
+  const n = v => Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")) || 0;
+  const per = {}; Object.keys(d.dlp || {}).forEach(k => (d.dlp[k] || []).forEach(p => { if (p.deb) (per[k] = per[k] || []).push([p.deb, p.fin || p.deb]); }));
+  const all = Object.values(per).flat().map(x => x[0]).sort(), mb = /^\d{4}-\d{2}/.test(D.mb || "") ? D.mb.slice(0, 7) : (all[0] || "").slice(0, 7);
+  if (!mb) return null;
+  const [by, bm] = mb.split("-").map(Number);
+  const K = day => { const [y, m] = day.split("-").map(Number), t = (y - by) * 12 + (m - bm); return a + W.reduce((s, w, i) => s + w * Math.pow(1 + H[i], Math.max(0, t) / 12) * (1 + C[i]), 0); };
+  let rev = 0, val = 0;
+  (d.des || []).filter(r => !r.t).forEach(r => {
+    const lq = insLinkedQ(d, r.id), V = (lq || n(r.q)) * n(r.p); if (!V) return;
+    const days = []; (d.links || []).filter(l => l.des === r.id).forEach(l => (per[l.lot + "|" + l.sec] || []).forEach(([x, y]) => { for (let t = new Date(x + "T12:00:00"); sviIsoOf(t) <= y && days.length < 4000; t.setDate(t.getDate() + 1)) days.push(sviIsoOf(t)); }));
+    if (!days.length) return;
+    val += V; days.forEach(x => { rev += V / days.length * (K(x) - 1); });
+  });
+  /* scénario pessimiste : hausse des charges par mot-clé (« CIMENT:10 ; ACIER:5 ») */
+  let chgUp = 0;
+  if (pess) String(D.pchg || "").split(/[;\n]/).forEach(it => { const m = it.match(/^\s*([^:]+):\s*([\d.,]+)/); if (!m) return; const kw = String(m[1]).trim().toUpperCase(), pc = n(m[2]) / 100;
+    (d.chg || []).filter(r => !r.t && String(r.des || "").toUpperCase().includes(kw)).forEach(r => { chgUp += n(r.q) * n(r.p) * pc; }); });
+  return { rev, val, chgUp, mb };
+};
 /* ⟪ src/10-bdg-liste.js ⟫ */
 /* =========================================================
    BDG — LISTE
@@ -21157,7 +21189,16 @@ ${A}</Assignments>
       if (t === "cprov" || t === "cdef") body = `<label class="pv-r"><span>EN</span><select class="pv-in ctd" data-k="cu"${dis}>${["%", "DH"].map(u => `<option${(D.cu || r.u || "%") === u ? " selected" : ""}>${u}</option>`).join("")}</select></label>${f("moment", "À QUEL MOMENT", "À LA REMISE DE L'OFFRE, À LA NOTIFICATION…")}${f("ml", "MAINLEVÉE PRÉVUE", "", "date")}${f("prev", "PRÉVENIR (JOURS AVANT)", "15")}`;
       else if (t === "rg") body = `<label class="pv-r"><span>FORME</span><select class="pv-in ctd" data-k="forme"${dis}><option value="ret"${D.forme !== "cau" ? " selected" : ""}>RETENUE SUR LES PAIEMENTS</option><option value="cau"${D.forme === "cau" ? " selected" : ""}>CAUTION QUI LA REMPLACE</option></select></label>${f("ml", "LIBÉRATION PRÉVUE", "", "date")}${f("prev", "PRÉVENIR (JOURS AVANT)", "15")}`;
       else if (t === "av") body = f("moment", "VERSÉE QUAND", "À LA NOTIFICATION…") + f("remb", "REMBOURSEMENT", "PAR RETENUE SUR LES DÉCOMPTES…");
-      else if (t === "rev") body = f("formule", "FORMULE", "P = P0 × (0,15 + 0,85 × I/I0)") + f("index", "INDEX", "BAT1, BAT3…") + f("pond", "PONDÉRATIONS", "0,15 ; 0,50 ; 0,35") + f("mb", "MOIS DE BASE", "", "month") + f("hyp", "HYPOTHÈSE D'ÉVOLUTION (%/AN)", "");
+      else if (t === "rev") body = f("formule", "FORMULE", "P = P0 × (0,15 + 0,85 × I/I0)") + f("index", "INDEX", "BAT1, BAT3…") + f("pond", "PONDÉRATIONS", "0,15 ; 0,50 ; 0,35") + f("mb", "MOIS DE BASE", "", "month") + f("hyp", "HYPOTHÈSE D'ÉVOLUTION (%/AN, TOUS LES INDEX)", "3")
+        + f("hyps", "HYPOTHÈSE PAR INDEX (%/AN, DANS L'ORDRE DES INDEX)", "3 ; 2")
+        + `<div class="fz-blk">SCÉNARIO PESSIMISTE</div>` + f("choc", "HAUSSE DES INDEX (%, DANS L'ORDRE)", "10 ; 0") + f("pchg", "HAUSSE DES CHARGES (MOT-CLÉ:%)", "CIMENT:10 ; ACIER:5")
+        + (() => { let E = null, Ep = null; try { E = sviRevEst(INS, false); Ep = sviRevEst(INS, true); } catch (e) {}
+            if (!E) return `<div class="pv-sub">ESTIMATION : SAISIR LES PONDÉRATIONS (PART FIXE PUIS UNE PAR INDEX) ; LE PLANNING DONNE LES MOIS DES TRAVAUX.</div>`;
+            const M = (() => { try { return verInd(INS).mg || 0; } catch (e) { return 0; } })();
+            return `<div class="fz-blk">ESTIMATION AVEC LE PLANNING (MOIS DE BASE ${esc(E.mb.split("-").reverse().join("/"))})</div>
+              <div class="pv-sub">RÉVISION ESTIMÉE : <b>${money(E.rev)} DH</b> SUR ${money(E.val)} DH DE TRAVAUX — AJOUTÉE AUX RECETTES PRÉVUES (INDICATEURS : RÉVISION DES PRIX ESTIMÉE, PRODUITS / MARGE AVEC RÉVISION).</div>
+              <div class="pv-sub">MARGE : ${money(M)} DH → AVEC RÉVISION : <b>${money(M + E.rev)} DH</b> ; SCÉNARIO PESSIMISTE : <b>${money(M + Ep.rev - Ep.chgUp)} DH</b> (RÉVISION ${money(Ep.rev)} DH, HAUSSE DES CHARGES ${money(Ep.chgUp)} DH).</div>
+              <div class="pv-sub">LE CALCUL RÉEL AVEC LES INDEX PUBLIÉS VIENDRA EN RÉALISATION.</div>`; })();
       else if (t === "del") body = `<div class="pv-sub">DATE DE DÉBUT : ${esc(dFr(INS.pdeb || "") || "—")} ; DATE BUTOIR ACTUELLE : ${esc(dFr(INS.dbut || "") || "—")}</div>${ed ? `<button type="button" class="svc-b" data-but>APPLIQUER À LA DATE BUTOIR</button>` : ""}`;
       else if (t === "defp") body = `<div class="pv-sub">DÉSIGNATIONS CLIENT DONT LE PRIX EST DÉFINI PAR CET ARTICLE</div><div class="pv-scroll">${INS.des.filter(d => !d.t).map(d => `<label class="pv-r"><input type="checkbox" class="ctd-des" value="${d.id}"${(D.des || []).includes(d.id) ? " checked" : ""}${dis}><span>${esc(lkName("des", d.id))}</span></label>`).join("")}</div>`;
       else if (t === "qlt") body = f("ess", "ESSAIS EXIGÉS", "COMPRESSION BÉTON 7 J ET 28 J…") + f("ech", "RÉSULTAT ATTENDU À (JOURS)", "28") + f("qui", "QUI PRÉVENIR", "BUREAU DE CONTRÔLE…");
@@ -21981,12 +22022,17 @@ ${A}</Assignments>
     const IND_BASE = [["fin", "DATE DE FIN", "date", ""], ["dur", "DURÉE", "n", "J"], ["but", "MARGE SUR LA DATE BUTOIR", "n", "J"],
       ["eff", "EFFECTIF MAXIMUM", "n", "J-H/J"], ["effT", "EFFECTIF MAXIMUM PAR TYPE D'OUVRIER", "txt", ""], ["mo", "COÛT DE LA MAIN-D'ŒUVRE", "n", "DH"],
       ["chg", "CHARGES TOTALES", "n", "DH"], ["prd", "PRODUITS TOTAUX", "n", "DH"], ["mg", "MARGE", "n", "DH"], ["mgp", "MARGE (%)", "n", "%"],
-      ["lots", "NOMBRE DE LOTS", "n", "U"], ["sc", "SURFACE COUVERTE", "n", "M2"], ["sl", "SURFACE DES LOTS", "n", "M2"]];
+      ["lots", "NOMBRE DE LOTS", "n", "U"], ["sc", "SURFACE COUVERTE", "n", "M2"], ["sl", "SURFACE DES LOTS", "n", "M2"],
+      /* v718 : révision des prix estimée (contrat + hypothèses) ajoutée aux recettes prévues */
+      ["rev", "RÉVISION DES PRIX ESTIMÉE", "n", "DH"], ["prdr", "PRODUITS AVEC RÉVISION", "n", "DH"], ["mgr", "MARGE AVEC RÉVISION", "n", "DH"],
+      ["mgrp", "MARGE AVEC RÉVISION (SCÉNARIO PESSIMISTE)", "n", "DH"]];
     const indLoad = () => { const L = (typeof sviSharedGet === "function" ? sviSharedGet("IND") : {}).L; return Array.isArray(L) ? L : []; };
     const indSaveL = L => { if (typeof sviSharedSet === "function") sviSharedSet("IND", { L }); };
     /* éléments d'un état du budget */
     const indEls = d => {
-      const v = verInd(d), R = d.rat || {};
+      const v = { ...verInd(d) }, R = d.rat || {};
+      { let E = null, Ep = null; try { E = sviRevEst(d, false); Ep = sviRevEst(d, true); } catch (e) {}
+        v.rev = E ? E.rev : null; v.prdr = E ? (v.prd || 0) + E.rev : null; v.mgr = E ? (v.mg || 0) + E.rev : null; v.mgrp = Ep ? (v.mg || 0) + Ep.rev - Ep.chgUp : null; }
       const sc = ratNum(R.surf), sl = Object.values(R.lsurf || {}).reduce((t, x) => t + ratNum(x), 0);
       const out = IND_BASE.map(([k, l, kind, u]) => ({ k: "b:" + k, lab: l, kind, u, q: k === "sc" ? (sc || null) : k === "sl" ? (sl || null) : v[k], m: null }));
       return out.concat(ratItems(d).filter(x => x.k[1] === "|").map(x => ({ ...x, kind: "n" })));
