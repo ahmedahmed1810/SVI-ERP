@@ -3076,3 +3076,12 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .cmp-neg { color: #b42318; font-weight: 700; } .cmp-pos { color: #067647; font-weight: 700; }
 .cmp-leg .cmp-dash { background-image: repeating-linear-gradient(90deg, transparent 0 4px, #fff 4px 7px) !important; }
 .cmp-pick .svc-b.off { opacity: .45; }
+/* v733 : PLANNING — un seul cadre (celui de la sélection, posé par-dessus) : plus de petit cadre ni de fond blanc dans la case */
+.dly-table .dly-succ.dly-cellsel { box-shadow: none !important; background: transparent !important; }
+.dly-table :is(input.ins-in, textarea.ins-in, .ins-dv, .dly-nm):focus { box-shadow: none !important; background: transparent !important; }
+/* v733 : barre COPIER / COLLER / EFFACER au format des menus ⋯ de l'application (plus la bulle noire) */
+#sviSelBar { background: #fff !important; border: 1px solid #d0d5dd; border-radius: 10px; box-shadow: 0 8px 24px rgba(16,24,40,.16) !important; padding: 4px !important; gap: 0 !important; }
+#sviSelBar button { color: #172033 !important; font: 700 12px/1 inherit; padding: 10px 14px !important; border-radius: 6px; }
+#sviSelBar button + button { border-left: 1px solid #eaecf0; border-radius: 0; }
+#sviSelBar button:active { background: #f2f4f7 !important; }
+#sviSelBar .sb-del { color: var(--inst, #b91c1c) !important; }
