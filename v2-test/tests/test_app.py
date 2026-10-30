@@ -112,6 +112,20 @@ def main():
             return [tabs.some(t => /CHS/.test(t)), Math.round(k * 100) / 100, Math.min(5, n)]; }""")
         tv = pg.evaluate("() => { const t = document.querySelector('table.ins-table[data-ik=\"chg\"]'); if (!t) return 'pas de tableau'; const i = t.querySelector('tbody tr[data-iid] input.ins-in[data-f=\"tva\"]'); return !!i && !i.readOnly && !i.disabled; }")
         check("v727 : CHS retiré (PARAMÉTRAGE), TVA d'une charge saisissable ; TÂCHES en lignes entières (≤ 5)", t727[0] is False and abs(t727[1] - t727[2]) < 0.05 and tv is True, [t727, tv])
+        # v729 (bloc 10) : COMPARATIF — menu ⋯ du haut, choix de deux états (identiques = grisé), écran en quatre parties, lecture seule
+        c729 = pg.evaluate("""async () => { const X = INS_X, I = X.INS, w = ms => new Promise(z => setTimeout(z, ms)); const keep = JSON.stringify({ dlp: I.dlp || null, vfz: I.vfz || null });
+            const L = I.links[0], k = L.lot + '|' + L.sec; I.dlp = I.dlp || {}; I.dlp[k] = [{ deb: '2026-11-02', fin: '2026-11-10' }];
+            const v = JSON.parse(JSON.stringify(I)); delete v.vfz; delete v.ver; v.dlp[k] = [{ deb: '2026-11-02', fin: '2026-11-14' }]; I.vfz = [{ id: 'vx', n: 1, kind: 'MANUELLE', date: '30/10/2026', d: v }];
+            const before = JSON.stringify(I.dlp);
+            document.getElementById('bdgMore')?.click(); await w(300); const inMenu = !!document.querySelector('#blkMenu [data-a="cmp"]');
+            document.querySelector('#blkMenu [data-a="cmp"]')?.click(); await w(300);
+            const sb = document.querySelector('[data-cs=b]'), sa = document.querySelector('[data-cs=a]'); if (!sb) return ['pas de fenêtre', inMenu];
+            sb.value = sa.value; sb.dispatchEvent(new Event('change', { bubbles: true })); const same = document.querySelector('[data-cmpgo]').disabled;
+            sa.value = 'v:vx'; sb.value = 'cur'; sb.dispatchEvent(new Event('change', { bubbles: true })); document.querySelector('[data-cmpgo]').click(); await w(500);
+            const d = document.getElementById('svConf'), ecart = d && d.querySelector('.cmp-plan tbody tr td:last-child') ? d.querySelector('.cmp-plan tbody tr td:last-child').textContent : '';
+            const r = [inMenu, same, d ? d.querySelectorAll('.i1-p').length : 0, ecart, d ? d.querySelectorAll('.cmp-g1').length : 0, d ? d.querySelectorAll('polyline').length : 0, JSON.stringify(I.dlp) === before];
+            d && d.remove(); const K = JSON.parse(keep); if (K.dlp) I.dlp = K.dlp; else delete I.dlp; if (K.vfz) I.vfz = K.vfz; else delete I.vfz; X.insSave(); X.refreshAll(); return r; }""".replace("INS_X", ins))
+        check("v729 : COMPARATIF — menu ⋯, deux états identiques = COMPARER grisé ; quatre parties, écart de fin −4 J, barres grises de l'état 1, deux courbes ; rien modifié", c729 == [True, True, 4, "-4", 1, 2, True], c729)
         # v728 (bloc 9.2) : chute = barres achetées − longueur utile (méthode A), répartie au prorata des QCB du titre ; exemple du 30/10/2026
         t728 = pg.evaluate("""() => { const I = { chg: [{ id: 'a', des: 'ACIER HA12', u: 'KG', q: 60 }, { id: 'b', des: 'ACIER HA12', u: 'KG', q: 40 }],
             prd: [{ id: 'p1', d1: 4.5, nbr: 10 }, { id: 'p2', d1: 2.8, nbr: 6 }, { id: 'p3', d1: 1.2, nbr: 8 }],
