@@ -3066,3 +3066,13 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 /* v725 : ESSAI depuis les indicateurs */
 .i1-try { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 8px; margin-bottom: 6px; border-radius: 6px; background: #fffaeb; color: #b54708; font-size: 11px; }
 .ins-modind { color: #b54708; font-weight: 900; font-size: 11px; margin-right: 2px; cursor: help; }
+/* v729 (bloc 10) : COMPARATIF */
+.cmp-card { display: flex; flex-direction: column; }
+.cmp-card .cmp-wrap { flex: 1; min-height: 520px; }
+.cmp-sub { font-size: 11px; color: #667085; margin: 0 0 6px; }
+.cmp-gr { height: 24px; }
+.cmp-g1 { position: absolute; top: 12px; height: 9px; border-radius: 5px; background: #d0d5dd; }
+.cmp-g2 { top: 3px !important; height: 9px !important; background: #1d3a8a !important; }
+.cmp-neg { color: #b42318; font-weight: 700; } .cmp-pos { color: #067647; font-weight: 700; }
+.cmp-leg .cmp-dash { background-image: repeating-linear-gradient(90deg, transparent 0 4px, #fff 4px 7px) !important; }
+.cmp-pick .svc-b.off { opacity: .45; }
