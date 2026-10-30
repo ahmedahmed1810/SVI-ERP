@@ -13902,7 +13902,7 @@ ${A}</Assignments>
       linkWin: (p, k) => dlyLinkWin(p, k), reach: (a, b) => dlyReach(a, b), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
       mspXml: o => dlyMspXml(o), mspTree: lv => dlyMspTree(lv), mspPrint: lv => dlyMspPrint(lv), lockWin: () => dlyLockWin(), lockLate: () => dlyLockLate(),   /* v667 (axe 8) */
       gen: () => dlyCompressRun(), gcWin: () => dlyGCWin(), genOnly: () => dlyCompressRun({ gen: true }), keys: () => dlyKeys(), comp: () => dlyCompressRun(), hasDates: () => dlyHasDates(), canComp: () => dlyCanCompress(),
-      moveCut: (i, iso) => dlyMoveCut(i, iso), rdSet: (sk, sec, i, p) => dlyRdSetV(sk, sec, i, p), rdCut: (sk, sec, iso) => dlyRdCut(sk, sec, iso), rdDel: (sk, sec, i) => dlyRdDel(sk, sec, i), rdLim: () => dlyRdLim(), piecesWin: k => dlyPiecesWin(k), hcfgWin: () => dlyHCfgWin(), span: () => { const V = Object.values(dlyCurDates()); return [V.map(x => x.deb).filter(Boolean).sort()[0] || "", dlyEnd(dlyCurDates())]; }, gcfgWin: () => dlyGCfgWin(), succs: k => dlySuccs(k).map(dlyName), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n, a, live) => dlySetPlaf(i, n, a, live), delCut: i => dlyDelCut(i), limTxt: k => dlyLimTxt(k),
+      moveCut: (i, iso) => dlyMoveCut(i, iso), rdSet: (sk, sec, i, p) => dlyRdSetV(sk, sec, i, p), rdCut: (sk, sec, iso) => dlyRdCut(sk, sec, iso), rdDel: (sk, sec, i) => dlyRdDel(sk, sec, i), rdLim: () => dlyRdLim(), piecesWin: k => dlyPiecesWin(k), hcfgWin: () => dlyHCfgWin(), chgCalWin: () => dlyChgCalWin(), span: () => { const V = Object.values(dlyCurDates()); return [V.map(x => x.deb).filter(Boolean).sort()[0] || "", dlyEnd(dlyCurDates())]; }, gcfgWin: () => dlyGCfgWin(), succs: k => dlySuccs(k).map(dlyName), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n, a, live) => dlySetPlaf(i, n, a, live), delCut: i => dlyDelCut(i), limTxt: k => dlyLimTxt(k),
       incWin: k => dlyIncWin(k), apprWin: () => dlyApproWin(), hh: v => { dlyHHSet(v); keepScroll(() => renderTab()); }, hhGet: () => dlyHHGet(),
       /* R18 : réglages de l'histogramme ; R19 / R20 : plage et filtre */
       hset: () => dlyHSet(), hsetPut: o => dlyHSetPut(o), sameU: () => dlySameU(dlyResSel()), hasSel: () => !!dlyResSel(),
@@ -14939,6 +14939,8 @@ ${A}</Assignments>
       };
       const place = (k, s0, dry) => {
         const q = G.map(g => dlyGQ(k, g.keys, g.m)), rel = G.map((g, i) => i).filter(i => q[i] > 0);
+        /* v726 (bloc 2, point 6) : calendrier par charge — la tâche ne travaille pas les jours où l'une de ses charges ne travaille pas */
+        const offK = dlyOffOf(k), off = s => !!offK && offK(dayAt(s >> 1));
         const own = deb(k) && dlyFin(k) ? dlyHalves(k) : 0;
         const over = dry ? G.map(() => ({})) : used, U = (i, s) => (used[i][s] || 0) + (dry ? (over[i][s] || 0) : 0);
         const take = (i, s, v) => { over[i][s] = (over[i][s] || 0) + v; };
@@ -14963,6 +14965,7 @@ ${A}</Assignments>
             let rem2 = 1, a2 = null, b2 = st, s2 = st, gap = -1;
             const tk = [], cn = {}, gt = [], loc = {}, U2 = (i, x) => U(i, x) + ((loc[i] || {})[x] || 0);
             for (let g = 0; rem2 > 1e-9 && g < 40000; g++, s2++) {
+              if (off(s2)) continue;
               let f = rem2, li = -1; const FR = {};
               rel.forEach(i => { const c = capAt(G[i], s2), fr = FR[i] = rdF(G[i], k, s2); const al = c === Infinity ? (own ? fr / own : .5 * fr / q[i]) : Math.max(0, c - U2(i, s2)) * fr / q[i]; if (al < f - 1e-12) { f = al; li = i; } });
               if (f <= 1e-9 && li >= 0 && capAt(G[li], s2) === 0 && dead(G[li], s2)) throw { dlyStuck: true };
@@ -14980,6 +14983,7 @@ ${A}</Assignments>
         let rem = 1, a = null, b = s0, s = s0;
         const cnt = {}, got = [];
         for (let g = 0; rem > 1e-9 && g < 40000; g++, s++) {
+          if (off(s)) continue;
           let f = rem, li = -1;
           const FR = {};
           rel.forEach(i => {
@@ -15032,7 +15036,9 @@ ${A}</Assignments>
         D[k] = r.zero ? { deb: dayAt(r.a >> 1), fin: "", dm: r.a & 1, fm: 0 } : { deb: dayAt(r.a >> 1), fin: dayAt(r.b >> 1), dm: r.a & 1, fm: (r.b & 1) ? 0 : 1 };
         /* v547 (R22) : la tâche est coupée quand des demi-journées sans place l'interrompent (ses ouvriers vont ailleurs) */
         if (r.got && r.got.length && r.got[r.got.length - 1] - r.got[0] + 1 > r.got.length) {
-          const runs = []; r.got.forEach(s => { const u = runs[runs.length - 1]; if (u && s === u[1] + 1) u[1] = s; else runs.push([s, s]); });
+          /* v726 : les jours non travaillés d'une charge ne coupent pas la tâche (pause du calendrier, pas un morceau) */
+          const offK = dlyOffOf(k), allOff = (x, y) => { if (!offK) return false; for (let t = x; t <= y; t++) if (!offK(dayAt(t >> 1))) return false; return true; };
+          const runs = []; r.got.forEach(s => { const u = runs[runs.length - 1]; if (u && (s === u[1] + 1 || allOff(u[1] + 1, s - 1))) u[1] = s; else runs.push([s, s]); });
           D[k].per = runs.map(([s1, s2]) => ({ deb: dayAt(s1 >> 1), fin: dayAt(s2 >> 1), dm: s1 & 1, fm: (s2 & 1) ? 0 : 1 }));
         }
         if (pre && !dlyLinks(k).some(x => x.k === pre) && !dlyLinks(pre).some(x => x.k === k) && !dlyReach(pre, k)) links.push([pre, k]);
@@ -15040,6 +15046,31 @@ ${A}</Assignments>
       /* v570 : GÉNÉRER seul — on n'écrit que les tâches placées ; liaisons proposées seulement si l'une des deux était sans dates */
       if (opts.gen) { FX.forEach(k => { delete D[k]; }); return { D, S, links: links.filter(([a, b]) => !FX.has(a) || !FX.has(b)), lim, gen: true }; }
       return { D, S, links, lim };
+    };
+    /* v726 : jours non travaillés des charges d'une tâche (INS.chgCal[clé] = { we: [jours 0–6] }) ; null = calendrier du budget seul */
+    const dlyOffOf = k => {
+      const CC = INS.chgCal || {}; if (!Object.keys(CC).length) return null;
+      const we = new Set(), seen = new Set();
+      (INS.links || []).forEach(l => { if (l.lot + "|" + l.sec !== k) return; (l.chg || []).forEach(e => { if (seen.has(e.id)) return; seen.add(e.id); const r = INS.chg.find(x => x.id === e.id); if (!r || r.t) return; const c = CC[dlyResK(r)]; (c && c.we || []).forEach(d => we.add(Number(d))); }); });
+      return we.size ? iso => we.has(new Date(iso + "T00:00:00").getDay()) : null;
+    };
+    /* fenêtre CALENDRIER DES CHARGES : jours non travaillés de chaque charge, en plus de ceux du budget */
+    const dlyChgCalWin = () => {
+      const keys = []; { const seen = new Set(); (INS.chg || []).filter(r => !r.t).forEach(r => { const sk = dlyResK(r); if (!seen.has(sk)) { seen.add(sk); keys.push(sk); } }); }
+      const CC = JSON.parse(JSON.stringify(INS.chgCal || {})), J = [["1", "L"], ["2", "M"], ["3", "M"], ["4", "J"], ["5", "V"], ["6", "S"], ["0", "D"]], base = insCal().we || [];
+      const d = sviWinNew();
+      d.innerHTML = sviWinCard({ cls: "hcf-card", close: "data-x", title: "CALENDRIER DES CHARGES",
+        body: `<div class="hcf-note">PAR DÉFAUT, CELUI DU BUDGET. COCHER LES JOURS OÙ LA CHARGE NE TRAVAILLE PAS : UNE TÂCHE NE TRAVAILLE QUE LES JOURS OÙ TOUTES SES CHARGES TRAVAILLENT (GÉNÉRER / COMPRESSER).</div>
+          <table class="apr-t gc-t"><tr><th>CHARGE</th><th>UNITÉ</th>${J.map(j => `<th class="center">${j[1]}</th>`).join("")}</tr>${keys.map(sk => `<tr><td>${esc(sk.split("|")[0])}</td><td class="center">${esc(sk.split("|")[1] || "")}</td>${J.map(([v]) => { const b = base.includes(Number(v)), on = b || ((CC[sk] || {}).we || []).includes(Number(v)); return `<td class="center"><input type="checkbox" class="ccal" data-sk="${esc(sk)}" value="${v}"${on ? " checked" : ""}${b ? ' disabled title="Jour non travaillé du budget"' : ""}></td>`; }).join("")}</tr>`).join("")}</table>`,
+        foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${INS_EDIT && INS_REAL ? `<button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>` : ""}` });
+      sviWinShow(d);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        if (!e.target.closest("[data-ok]")) return;
+        const out = {}; d.querySelectorAll(".ccal:checked:not(:disabled)").forEach(i => { (out[i.dataset.sk] = out[i.dataset.sk] || { we: [] }).we.push(Number(i.value)); });
+        INS.chgCal = out; d.remove(); histLog("DÉLAIS", "CALENDRIER DES CHARGES", Object.keys(out).length + " CHARGE(S) AVEC JOURS NON TRAVAILLÉS"); insSave(); renderTabK();
+        svToast("CALENDRIER DES CHARGES ENREGISTRÉ : RELANCER COMPRESSER POUR EN TENIR COMPTE.", 4000);
+      });
     };
     /* décalage d'une liaison FIN → DÉBUT créée (v544) : 0 = le jour même où finit a, 1 = le lendemain… */
     const dlyChainO = (a, b, D) => {
@@ -15170,7 +15201,7 @@ ${A}</Assignments>
           <span class="hcf-k">COUPE</span><span class="hcf-cbs"><label><input type="checkbox" class="gcf-cut"${dlyCutOK() ? " checked" : ""}><span>AUTORISER LA COUPE DES TÂCHES</span></label></span>
           <span class="hcf-k">CALCUL</span><span class="hcf-pl gcf-acts">${act("comp", "COMPRESSER", compWhy)}${act("gen", "GÉNÉRER" + (miss ? " (" + miss + ")" : ""), genWhy)}</span>
         </div>
-        ${gOn ? `<div class="gcf-more"><button type="button" class="svc-b" data-gcf="graph">RÉGLAGES DU GRAPHIQUE…</button></div>` : ""}
+        <div class="gcf-more"><button type="button" class="svc-b" data-gcf="ccal">CALENDRIER DES CHARGES…</button>${gOn ? ` <button type="button" class="svc-b" data-gcf="graph">RÉGLAGES DU GRAPHIQUE…</button>` : ""}</div>
         <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button></div></div>`;
       document.getElementById("svConf")?.remove();
       sviWinShow(d); dlyWhyPress(d);
@@ -15187,6 +15218,7 @@ ${A}</Assignments>
         if (b.classList.contains("off")) { svToast(b.dataset.why, 3000, b); return; }
         d.remove();
         if (b.dataset.gcf === "graph") dlyHCfgWin();
+        else if (b.dataset.gcf === "ccal") dlyChgCalWin();
         else if (b.dataset.gcf === "gen") dlyCompressRun({ gen: true });
         else dlyCompressRun();
       });
