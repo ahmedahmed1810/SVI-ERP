@@ -8081,7 +8081,7 @@ function renderBudgetList() {
       if (!INS || !INS[k]) return "";
       const n = INS[k].filter(r => !r.t && r.on === true).length;
       if (!n && !ONLYC[k]) return "";
-      return `<button type="button" class="only-c${ONLYC[k] ? " on" : ""}" data-onlyc="${k}"${short ? ' title="COCHÉES SEULEMENT"' : ""}>${short ? "✓ " + n : "COCHÉES SEULEMENT (" + n + ")"}</button>`;   /* v656 : listes étroites (TÂCHES) = « ✓ n » */
+      return `<button type="button" class="only-c${ONLYC[k] ? " on" : ""}" data-onlyc="${k}"${short ? ' title="COCHÉES"' : ""}>${short ? "✓ " + n : "COCHÉES (" + n + ")"}</button>`;   /* v656 : listes étroites (TÂCHES) = « ✓ n » */
     };
     /* colonnes d'un tableau de saisie dans l'ordre choisi par glissement (mémorisé) */
     const insColsOrd = k => { const cols = INS_COLS[k] || []; const ord = coKeys(insCfT(k), cols.map(c => c[4])); return ord.map(x => cols.find(c => c[4] === x)).filter(Boolean); };
@@ -10316,6 +10316,8 @@ function renderBudgetList() {
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
         if (b) b.innerHTML = (SVI_ICON.xpl || "") + "INDICATEURS " + insCkBadge("lnk") + (insRg() ? svCnt((INS.links || []).filter(l => insRgKeyIn(l.lot + "|" + l.sec)).length, (INS.links || []).length) : svCnt((INS.links || []).length)); }
       sviMarkEmptyTabs(shell);
+      /* v716 (repère des filtres) : compteur « retenues/total » en bleu quand un filtre cache des lignes ; toucher = fenêtre des filtres actifs */
+      shell.querySelectorAll("#bdgTabs .bdg-d-tab .svi-cnt").forEach(c => { const m = /^(\d+)\/(\d+)$/.exec(c.textContent.trim()); c.classList.toggle("cnt-filt", !!m && Number(m[1]) < Number(m[2])); });
       /* v499 (remarque 40) : onglet en bleu quand son tableau est filtré (loupe d'une colonne, cases cochées de ce tableau
          ou d'un autre bloc) — on voit où enlever un filtre sans ouvrir les onglets un par un */
       try {
@@ -10894,7 +10896,7 @@ function renderBudgetList() {
       const rd = k => (k === "prd" || k === "chg") ? Object.keys(LK[k] || {}).length : (LK.all && LK.all[k] ? 1 : LK[k] ? 1 : 0);
       const add = (blk, go, it) => { it = it.filter(Boolean); if (it.length) G.push({ blk, go, it }); };
       const std = k => [ck(k) && { lab: "CASES COCHÉES", n: ck(k) }, rd(k) && { lab: "RONDS ALLUMÉS", n: rd(k) },
-        cfHasF(insCfT(k)) && { lab: "LOUPE", n: Object.keys(CF[insCfT(k)].f).length }, ONLYC[k] && { lab: "COCHÉES SEULEMENT" }];
+        cfHasF(insCfT(k)) && { lab: "LOUPE", n: Object.keys(CF[insCfT(k)].f).length }, ONLYC[k] && { lab: "COCHÉES" }];
       add("DÉSIGNATIONS CLIENT", "des", std("des"));
       add("LOT", "hier:lot", std("lot"));
       add("ACTIVITÉ PRIMAIRE", "hier:prim", std("prim"));
@@ -16642,6 +16644,18 @@ ${A}</Assignments>
       insSave(); refreshAll();
       svToast("TOUTES LES CASES DÉCOCHÉES ET TOUS LES FILTRES EFFACÉS.", 2200);
     };
+    /* v716 : fenêtre FILTRES ACTIFS (format INF) ouverte par le compteur bleu d'un onglet */
+    shell.__filtWin = anchor => {
+      const G = shell.__filtActs ? shell.__filtActs() : [], d = sviWinNew();
+      d.innerHTML = sviWinCard({ cls: "filt-card", close: "data-x", title: "FILTRES ACTIFS",
+        body: G.length ? `<table class="pv-t"><thead><tr><th>BLOC</th><th>FILTRE</th><th class="center">NOMBRE</th></tr></thead><tbody>${G.map(g => g.it.map((x, i) => `<tr><td>${i ? "" : esc(g.blk)}</td><td>${esc(x.lab)}</td><td class="center">${x.n || ""}</td></tr>`).join("")).join("")}</tbody></table>`
+          : `<div class="svc-sub">AUCUN FILTRE ACTIF.</div>`,
+        foot: `<button type="button" class="svc-b" data-x>FERMER</button><button type="button" class="svc-b svc-ok svc-neutral" data-fwclr${G.length ? "" : " disabled"}>EFFACER TOUS LES FILTRES</button>` });
+      sviWinShow(d);
+      d.addEventListener("click", e => { if (e.target.closest("[data-fwclr]")) { d.remove(); if (shell.__insClrAll) shell.__insClrAll(); return; } if (e.target === d || e.target.closest("[data-x]")) d.remove(); });
+    };
+    if (!shell.__filtCntBound) { shell.__filtCntBound = true;
+      shell.addEventListener("click", e => { const c = e.target.closest && e.target.closest("#bdgTabs .bdg-d-tab .svi-cnt.cnt-filt"); if (!c) return; e.preventDefault(); e.stopPropagation(); if (shell.__filtWin) shell.__filtWin(c); }, true); }
     if (!shell.__emptyBound) {
       shell.__emptyBound = true;
       shell.addEventListener("click", e => {
@@ -22113,7 +22127,7 @@ ${A}</Assignments>
             ${cfg.ro ? "" : `<tr class="ind-plus"><td colspan="${oc.length + 1}"><button type="button" class="svc-b" data-inew>+ NOUVEL INDICATEUR</button></td></tr>`}</tbody>`;
         t.style.width = oc.reduce((s2, c) => s2 + wOf(c[0]), 44) + "px";
         const ha = t.querySelector(".ind-all"); if (ha && ha.hasAttribute("data-half")) ha.indeterminate = true;
-        const ob = d.querySelector("[data-ionly='" + cfg.t + "']"); if (ob) { ob.hidden = !st.ck.size; ob.style.display = st.ck.size ? "" : "none"; ob.classList.toggle("on", st.only); ob.innerHTML = "COCHÉES SEULEMENT " + svCnt(st.ck.size); }
+        const ob = d.querySelector("[data-ionly='" + cfg.t + "']"); if (ob) { ob.hidden = !st.ck.size; ob.style.display = st.ck.size ? "" : "none"; ob.classList.toggle("on", st.only); ob.innerHTML = "COCHÉES " + svCnt(st.ck.size); }
       };
       const menu = (d, btn) => {
         const old = document.getElementById("blkMenu"); old?.remove(); if (old && old.dataset.for === cfg.t) return;

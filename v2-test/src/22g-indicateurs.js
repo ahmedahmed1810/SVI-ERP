@@ -191,7 +191,7 @@
             ${cfg.ro ? "" : `<tr class="ind-plus"><td colspan="${oc.length + 1}"><button type="button" class="svc-b" data-inew>+ NOUVEL INDICATEUR</button></td></tr>`}</tbody>`;
         t.style.width = oc.reduce((s2, c) => s2 + wOf(c[0]), 44) + "px";
         const ha = t.querySelector(".ind-all"); if (ha && ha.hasAttribute("data-half")) ha.indeterminate = true;
-        const ob = d.querySelector("[data-ionly='" + cfg.t + "']"); if (ob) { ob.hidden = !st.ck.size; ob.style.display = st.ck.size ? "" : "none"; ob.classList.toggle("on", st.only); ob.innerHTML = "COCHÉES SEULEMENT " + svCnt(st.ck.size); }
+        const ob = d.querySelector("[data-ionly='" + cfg.t + "']"); if (ob) { ob.hidden = !st.ck.size; ob.style.display = st.ck.size ? "" : "none"; ob.classList.toggle("on", st.only); ob.innerHTML = "COCHÉES " + svCnt(st.ck.size); }
       };
       const menu = (d, btn) => {
         const old = document.getElementById("blkMenu"); old?.remove(); if (old && old.dataset.for === cfg.t) return;

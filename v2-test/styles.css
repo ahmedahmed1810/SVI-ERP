@@ -3018,3 +3018,6 @@ body:not(.bdg-screen) #sviScreenTag { display: none; }
 .apr-t tr.apr-tgt td { background: #fffbe6 !important; box-shadow: inset 0 0 0 1px #b54708; }
 .apr-gd { height: 24px; font-size: 11px; font-weight: 800; border: 1px solid #d0d5dd; border-radius: 5px; }
 .apr-ungrp { border: 0; background: none; color: #b42318; font-weight: 900; cursor: pointer; }
+
+/* v716 : compteur d'onglet filtré (retenues/total) en bleu, touchable */
+#bdgTabs .bdg-d-tab .svi-cnt.cnt-filt { background: #1d4ed8 !important; color: #fff !important; cursor: pointer; }

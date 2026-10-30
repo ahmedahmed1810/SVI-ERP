@@ -2347,6 +2347,11 @@ def main():
         check("v672 bloc 2 : envoi initial (REV 1, contrôle), fusion : QPB gardée (moi seul), PPB de l'autre plus récent gardé (999) et le mien en CONFLIT (777, BRAHIM) ; ⚠ CONFLITS ; MA VALEUR reprise ; QUI = TESTEUR",
               s72 and s72[1] >= 1 and s72[2] == 0 and m72[0] == 999 and m72[1] == 123 and m72[2] == 1 and m72[3] == "BRAHIM" and m72[4] == 777 and "CONFLITS" in td72 and r72 == [777, 0] and "TESTEUR" in h72, [s72, m72, td72[:200], r72, h72])
 
+        # v716 : compteur « retenues/total » en bleu quand un filtre cache des lignes ; toucher = FILTRES ACTIFS + EFFACER TOUS LES FILTRES
+        pg.evaluate(f"() => {{ const X = {ins}; const r = (X.INS.chg || []).find(x => !x.t); if (r) r.on = true; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
+        f716 = pg.evaluate("() => { const c = document.querySelector('#bdgTabs .svi-cnt.cnt-filt'); if (!c) return [0]; c.click(); const d = document.getElementById('svConf'); const r = [1, d ? d.querySelector('.svc-t, .sv-head, h3, b')?.textContent || d.innerText.slice(0, 40) : '', !!(d && d.querySelector('[data-fwclr]'))]; d?.querySelector('[data-x]')?.click(); return r; }")
+        pg.evaluate(f"() => {{ const X = {ins}; (X.INS.chg || []).forEach(x => {{ x.on = false; }}); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(400)
+        check("v716 : compteur filtré en bleu ; toucher = FILTRES ACTIFS avec EFFACER TOUS LES FILTRES", f716[0] == 1 and "FILTRES ACTIFS" in f716[1] and f716[2], f716)
         # v714 (point 3, étape 1) : onglet APPROVISIONNEMENT PRÉVISIONNEL — commandes PAR TÂCHE (défaut), charges À RÉGLER, tableau repliable
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"apr\"]')?.click()"); pg.wait_for_timeout(600)
         a714 = pg.evaluate("() => [!!document.querySelector('.apr-wrap'), document.querySelectorAll('.apr-cfg tbody tr').length > 0, !!document.querySelector('.apr-badge'), document.querySelectorAll('tr.apr-row').length]")

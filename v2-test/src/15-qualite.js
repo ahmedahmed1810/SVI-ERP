@@ -765,6 +765,8 @@
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
         if (b) b.innerHTML = (SVI_ICON.xpl || "") + "INDICATEURS " + insCkBadge("lnk") + (insRg() ? svCnt((INS.links || []).filter(l => insRgKeyIn(l.lot + "|" + l.sec)).length, (INS.links || []).length) : svCnt((INS.links || []).length)); }
       sviMarkEmptyTabs(shell);
+      /* v716 (repère des filtres) : compteur « retenues/total » en bleu quand un filtre cache des lignes ; toucher = fenêtre des filtres actifs */
+      shell.querySelectorAll("#bdgTabs .bdg-d-tab .svi-cnt").forEach(c => { const m = /^(\d+)\/(\d+)$/.exec(c.textContent.trim()); c.classList.toggle("cnt-filt", !!m && Number(m[1]) < Number(m[2])); });
       /* v499 (remarque 40) : onglet en bleu quand son tableau est filtré (loupe d'une colonne, cases cochées de ce tableau
          ou d'un autre bloc) — on voit où enlever un filtre sans ouvrir les onglets un par un */
       try {
