@@ -678,7 +678,7 @@
       INS_CELL_LVL = lvl || 0;
       return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}${k === "des" && r ? ` style="--d:${dOf(r)}"` : ""}>
-        <td class="center ins-rdc">${AVO_ON(k, r) ? `<button type="button" class="av-ofold" data-avo="${esc(r.id)}">${AVO_SET.has(r.id) ? "⌄" : "›"}</button>` : ""}${k === "des" && r && r.t && !INS_EDIT ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
+        <td class="center ins-rdc">${r && r.modInd ? `<span class="ins-modind" title="${esc(r.modInd)}" data-modind="${esc(r.modInd)}">✎</span>` : ""}${AVO_ON(k, r) ? `<button type="button" class="av-ofold" data-avo="${esc(r.id)}">${AVO_SET.has(r.id) ? "⌄" : "›"}</button>` : ""}${k === "des" && r && r.t && !INS_EDIT ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
           ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>${AVO_ON(k, r) && AVO_SET.has(r.id) ? r.__det.map(x => `<tr class="av-orow" data-avst="${esc(x.ref || "")}"><td></td><td colspan="${cols.length + (qc ? 1 : 0) + (INS_EDIT ? 1 : 0)}"><span class="av-olab">${esc(x.o)}</span> <b>${esc(money(x.q))}</b> ${esc(r.u || "")} × ${esc(money(x.p))}</td></tr>`).join("") : ""}`;
     };
     /* lignes + sous-totaux de titres (désignations) */

@@ -29,15 +29,45 @@
         const lab = C.step === "j" ? "JOUR" : C.step === "m" ? "MOIS" : "SEMAINE";
         vals = `<table class="bdg-d-table i1-vals"><thead><tr><th>${lab}</th><th class="number">${esc(I.nom)}${u ? " (" + esc(u) + ")" : ""}</th></tr></thead><tbody>${P.map((p, i) => `<tr><td>${esc(p.lab)}</td><td class="number">${ibdFx(v[i], I.dec)}</td></tr>`).join("") || `<tr><td colspan="2" class="empty">AUCUNE DATE AU PLANNING</td></tr>`}</tbody></table>`;
         shell.__i1Tsv = [[lab, I.nom + (u ? " (" + u + ")" : "")].join("\t"), ...P.map((p, i) => [p.lab, ibdFx(v[i], I.dec)].join("\t"))].join("\n");
-        chart = ibdChart([{ I, lab: I.nom, u, v }], P, { hs: [], vs: ["today"], cum: !!C.cum }, [u]);
+        /* v725 (point 4, FORMAT 258) : ESSAI — prix ou rendement d'une charge changé sur une copie : courbe ESSAI, budget inchangé */
+        const TRY = shell.__i1Try, S = [{ I, lab: I.nom, u, v }];
+        if (TRY) { const D2 = i1TryData(TRY); S.push({ I, lab: "ESSAI — " + I.nom, u, v: ibdSeries(I, D2, P, !!C.cum) }); }
+        chart = (TRY ? `<div class="i1-try"><b>ESSAI — BUDGET INCHANGÉ</b> <span>${esc(i1TryLab(TRY))}</span><button type="button" class="svc-b" data-i1tryx>ANNULER</button>${INS_EDIT && INS_REAL ? `<button type="button" class="svc-b svc-ok svc-neutral" data-i1tryok>APPLIQUER</button>` : ""}</div>` : "")
+          + ibdChart(S, P, { hs: [], vs: ["today"], cum: !!C.cum }, [u]);
       }
       return `<div class="i1-wrap" style="--i1-cw:${lay.cw}%;--i1-rh:${lay.rh}px">
         <div class="i1-p i1-tl">${plan}</div><div class="i1-vh" data-i1h="c" title="Largeur">‖</div><div class="i1-p i1-tr">${gantt}</div>
         <div class="i1-hh" data-i1h="r" title="Hauteur">=</div>
         <div class="i1-p i1-bl"><div class="i1-bar"><b>VALEURS</b><button type="button" class="svc-b" data-i1copy>COPIER</button></div>${vals}</div>
         <div class="i1-vh i1-vh2" data-i1h="c">‖</div>
-        <div class="i1-p i1-br"><div class="i1-bar"><b>${esc(I ? I.nom : "INDICATEUR")}</b>${why ? `<span class="i1-why">${esc(why)}</span>` : ""}<button type="button" class="blk-btn i1-cfg" data-i1cfg title="Choisir et régler l'indicateur">⚙</button></div><div class="i1-chart">${chart}</div></div>
+        <div class="i1-p i1-br"><div class="i1-bar"><b>${esc(I ? I.nom : "INDICATEUR")}</b>${why ? `<span class="i1-why">${esc(why)}</span>` : ""}${INS_EDIT ? `<button type="button" class="svc-b" data-i1try>ESSAI…</button>` : ""}<button type="button" class="blk-btn i1-cfg" data-i1cfg title="Choisir et régler l'indicateur">⚙</button></div><div class="i1-chart">${chart}</div></div>
       </div>`;
+    };
+    /* essai : { id (ligne de charge), p (prix), rd (% de rendement : la quantité devient q ÷ (1 + rd %)) } */
+    const i1TryRow = T => (INS.chg || []).find(r => r.id === T.id) || {};
+    const i1TryLab = T => { const r = i1TryRow(T); return U_(r.des || "") + (T.p !== "" && T.p !== undefined ? " — PRIX " + money(num(r.p)) + " → " + money(num(T.p)) : "") + (num(T.rd) ? " — RENDEMENT " + (num(T.rd) > 0 ? "+" : "") + num(T.rd) + " %" : ""); };
+    const i1TryNew = (r, T) => { const o = { ...r }; if (T.p !== "" && T.p !== undefined) o.p = num(T.p); if (num(T.rd)) o.q = Math.round(num(r.q) / (1 + num(T.rd) / 100) * 1000) / 1000; return o; };
+    const i1TryData = T => { const D = JSON.parse(JSON.stringify(INS)); D.chg = (D.chg || []).map(r => r.id === T.id ? i1TryNew(r, T) : r); return D; };
+    const i1TryWin = () => {
+      const R = (INS.chg || []).filter(r => !r.t), T = shell.__i1Try || { id: (R[0] || {}).id || "", p: "", rd: "" }, d = sviWinNew();
+      d.innerHTML = sviWinCard({ cls: "hcf-card i1-card", close: "data-x", title: "ESSAI",
+        body: `<div class="hcf-g"><span class="hcf-k">CHARGE</span><span><select class="pv-in i1t-id" style="width:100%">${R.map(r => `<option value="${esc(r.id)}"${r.id === T.id ? " selected" : ""}>${esc(U_(r.des || ""))} (${esc(U_(r.u || ""))}, PRIX ${esc(money(num(r.p)))})</option>`).join("")}</select></span>
+          <span class="hcf-k">NOUVEAU PRIX</span><span><input class="pv-in i1t-p" inputmode="decimal" value="${esc(String(T.p ?? ""))}" placeholder="INCHANGÉ"></span>
+          <span class="hcf-k">RENDEMENT (%)</span><span><input class="pv-in i1t-rd" inputmode="decimal" value="${esc(String(T.rd ?? ""))}" placeholder="EX. +10"></span></div>
+          <div class="hcf-note">L'ESSAI NE CHANGE PAS LE BUDGET : UNE COURBE « ESSAI » S'AJOUTE AU GRAPHIQUE. APPLIQUER L'ENREGISTRE (↶ POSSIBLE). LA CAPACITÉ S'ESSAIE SUR LA BARRE DU GRAPHIQUE DU PLANNING.</div>`,
+        foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-i1tgo>ESSAYER</button>` });
+      sviWinShow(d);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        if (e.target.closest("[data-i1tgo]")) { shell.__i1Try = { id: d.querySelector(".i1t-id").value, p: d.querySelector(".i1t-p").value.trim().replace(",", "."), rd: d.querySelector(".i1t-rd").value.trim().replace(",", ".").replace("+", "") }; d.remove(); refreshAll(); }
+      });
+    };
+    const i1TryApply = () => {
+      const T = shell.__i1Try; if (!T) return; const r = (INS.chg || []).find(x => x.id === T.id); if (!r) return;
+      const lab = i1TryLab(T), n = i1TryNew(r, T), who = typeof sviUser === "function" ? sviUser() || "?" : "?";
+      r.p = n.p; r.q = n.q; r.modInd = "MODIFIÉ PAR " + who + " DEPUIS INDICATEURS (" + lab + ")";
+      shell.__i1Try = null; histLog("INDICATEURS", "ESSAI APPLIQUÉ", lab); insSave(); refreshAll();
+      svToast("ESSAI APPLIQUÉ : " + lab + " (↶ POUR ANNULER).", 4000);
     };
     /* roue ⚙ : choix et réglages */
     const i1Win = () => {
@@ -69,6 +99,9 @@
     shell.__i1Click = async e => {
       const w = e.target.closest && e.target.closest(".i1-wrap"); if (!w) return;
       if (e.target.closest("[data-i1cfg]")) { e.stopPropagation(); i1Win(); return; }
+      if (e.target.closest("[data-i1try]")) { e.stopPropagation(); i1TryWin(); return; }
+      if (e.target.closest("[data-i1tryx]")) { e.stopPropagation(); shell.__i1Try = null; refreshAll(); return; }
+      if (e.target.closest("[data-i1tryok]")) { e.stopPropagation(); i1TryApply(); return; }
       if (e.target.closest("[data-i1copy]")) { e.stopPropagation(); try { await navigator.clipboard.writeText(shell.__i1Tsv || ""); svToast("VALEURS COPIÉES.", 2000); } catch (er) { svToast("COPIE IMPOSSIBLE SUR CET APPAREIL.", 3000); } }
     };
     /* poignées : largeur de la colonne de gauche (‖) et hauteur du haut (=) */
@@ -84,3 +117,5 @@
     if (!shell.__i1Bound) { shell.__i1Bound = true;
       shell.addEventListener("click", e => { if (shell.__i1Click) shell.__i1Click(e); }, true);
       shell.addEventListener("pointerdown", e => { if (shell.__i1Down) shell.__i1Down(e); }, true); }
+    /* v725 : toucher le ✎ d'une ligne modifiée depuis les indicateurs = le message */
+    if (!shell.__modIndBound) { shell.__modIndBound = true; shell.addEventListener("click", e => { const m = e.target.closest && e.target.closest(".ins-modind[data-modind]"); if (!m) return; e.stopPropagation(); svToast(m.dataset.modind, 4500, m); }, true); }
