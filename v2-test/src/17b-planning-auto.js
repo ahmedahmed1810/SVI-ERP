@@ -49,6 +49,9 @@
     /* quantité de la sélection dans une tâche (aucune case cochée = 0 : R25) */
     const dlyResQ = k => { const gk = dlyCurGK(); return gk ? dlyGQ(k, dlyGKeys(gk), dlyGM(gk)) : 0; };
     /* réglage de capacité d'un groupe (créé à la demande) */
+    /* v711 : CAPACITÉ seulement sur des charges cochées de même unité et du même groupe (titre de DÉTAIL CHARGES juste au-dessus) */
+    const dlyChgGrp = r => { let g = ""; for (const x of (INS.chg || [])) { if (x === r || x.id === r.id) return g; if (x.t) g = x.id; } return g; };
+    const dlyCapOK = R => !!R && R.length > 0 && dlySameU(R) && new Set(R.map(dlyChgGrp)).size === 1;
     const dlyCapSt = (gk = dlyCurGK()) => { if (!gk) return null; INS.plafR = INS.plafR || {}; return (INS.plafR[gk] = INS.plafR[gk] || {}); };
     /* groupes de capacité actifs ensemble (R24) : tous ceux réglés, plus la sélection */
     const dlyGroups = () => {
@@ -414,6 +417,12 @@
     };
     /* v570 (remarque longue 1) : une seule commande ↻ = fenêtre GÉNÉRER / COMPRESSER — deux cases et la liste des CAPACITÉS
        (une ligne par charge de main-d'œuvre ; vide = sans limite ; la même valeur que le trait CAPACITÉ du graphique) */
+    /* v711 : COMPRESSER et GÉNÉRER = deux actions lancées quand on veut, grisées quand inutiles (toucher ou appui long = la raison) */
+    const dlyGenWhy = () => { const nk = dlyKeys().length; return !nk ? "AUCUNE TÂCHE DANS LE PLANNING." : !dlyKeys().some(k => !(dlyDeb(k) && dlyFin(k))) ? "TOUTES LES TÂCHES ONT DÉJÀ LEURS DATES." : ""; };
+    const dlyCompWhy = () => { if (!dlyKeys().length) return "AUCUNE TÂCHE DANS LE PLANNING."; let C; try { C = dlyCanCompress({}); } catch (e) { return ""; } return C.ok ? "" : (C.stuck ? C.why : "RIEN À COMPRESSER : AUCUN VIDE À COMBLER."); };
+    const dlyWhyPress = d => { let lt = 0;
+      d.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".off[data-why]"); clearTimeout(lt); if (b) lt = setTimeout(() => svToast(b.dataset.why, 3500, b), 500); });
+      ["pointerup", "pointercancel", "pointerleave"].forEach(t => d.addEventListener(t, () => clearTimeout(lt))); };
     const dlyGCWin = () => {
       const miss = dlyKeys().filter(k => !(dlyDeb(k) && dlyFin(k))).length;
       const labs = []; { const seen = new Set(); (INS.chg || []).filter(r => !r.t && dlyIsLab(r)).forEach(r => { const sk = dlyResK(r); if (!seen.has(sk)) { seen.add(sk); labs.push(sk); } }); }
@@ -424,31 +433,23 @@
       d.innerHTML = `<div class="svc-card hcf-card gc-card" role="dialog" aria-modal="true">
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
         <div class="svc-t">GÉNÉRER / COMPRESSER</div>
-        <div class="hcf-cbs gc-cbs">
-          <label${miss ? "" : ' class="off" data-why="TOUTES LES TÂCHES ONT DÉJÀ LEURS DATES."'}><input type="checkbox" class="gc-gen"${miss ? " checked" : " disabled"}><span>GÉNÉRER${miss ? " (" + miss + " TÂCHE" + (miss > 1 ? "S" : "") + " SANS DATES)" : ""}</span></label>
-          <label><input type="checkbox" class="gc-comp"${miss ? "" : " checked"}><span>COMPRESSER</span></label>
-        </div>
-        <div class="hcf-note">GÉNÉRER : COMPLÈTE SEULEMENT CE QUI MANQUE (UN DÉBUT DÉJÀ SAISI EST GARDÉ). COMPRESSER : FAIT AVANCER TOUTES LES TÂCHES POUR REMPLIR LES JOURNÉES, LIAISONS ET TÂCHES INCOMPRESSIBLES RESPECTÉES. LES LIAISONS EXISTANTES SONT GARDÉES ; LES LIAISONS FIN → DÉBUT MANQUANTES SONT PROPOSÉES.</div>
+        <div class="hcf-note">GÉNÉRER : COMPLÈTE SEULEMENT LES DATES QUI MANQUENT (LES AUTRES NE BOUGENT PAS). COMPRESSER : COMBLE LES VIDES, LIAISONS, CAPACITÉ ET TÂCHES INCOMPRESSIBLES RESPECTÉES.</div>
         <div class="svc-sub">CAPACITÉS (OUVRIERS PAR JOUR) — VIDE = SANS LIMITE</div>
         ${labs.length ? `<table class="apr-t gc-t"><tr><th>MAIN-D'ŒUVRE</th><th>UNITÉ</th><th>CAPACITÉ</th></tr>${labs.map(sk => `<tr><td>${esc(sk.split("|")[0])}</td><td class="center">${esc(sk.split("|")[1])}</td><td>${cut(sk) ? '<span class="gc-cut">COUPÉE SUR LE GRAPHIQUE</span>' : `<input class="gc-cap hcf-pct" data-sk="${esc(sk)}" inputmode="numeric" value="${esc(capTxt(sk))}">`}</td></tr>`).join("")}</table>` : `<div class="hcf-note">AUCUNE CHARGE DE MAIN-D'ŒUVRE DANS LE BUDGET.</div>`}
-        <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>LANCER</button></div></div>`;
+        <div class="svc-f"><button type="button" class="svc-b" data-x>ANNULER</button>${(() => { const gw = dlyGenWhy(), cw = dlyCompWhy(), b = (k, l, w) => `<button type="button" class="svc-b svc-neutral${w ? " off" : " svc-ok"}" data-ok="${k}"${w ? ` data-why="${esc(w)}"` : ""}>${l}</button>`;
+          return b("gen", "GÉNÉRER" + (miss ? " (" + miss + ")" : ""), gw) + b("comp", "COMPRESSER", cw); })()}</div></div>`;
       document.getElementById("svConf")?.remove();
-      sviWinShow(d);
-      const g = d.querySelector(".gc-gen"), c = d.querySelector(".gc-comp");
-      /* COMPRESSER seul impossible tant qu'il manque des dates : cocher COMPRESSER coche GÉNÉRER */
-      c.addEventListener("change", () => { if (c.checked && miss) g.checked = true; });
-      g.addEventListener("change", () => { if (!g.checked && c.checked && miss) c.checked = false; });
+      sviWinShow(d); dlyWhyPress(d);
       d.addEventListener("click", e => {
-        { const o = e.target.closest && e.target.closest("label.off[data-why]"); if (o) { svToast(o.dataset.why, 3000, o); return; } }
+        { const o = e.target.closest && e.target.closest(".off[data-why]"); if (o) { svToast(o.dataset.why, 3000, o); return; } }
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
-        if (!e.target.closest("[data-ok]")) return;
+        const ok = e.target.closest("[data-ok]"); if (!ok) return;
         const bad = [...d.querySelectorAll(".gc-cap")].find(i => String(i.value).trim() !== "" && !/^\d+$/.test(String(i.value).trim()));
         if (bad) { svToast("CAPACITÉ : NOMBRE ENTIER D'OUVRIERS (VIDE = SANS LIMITE).", 3000, bad); return; }
-        if (!g.checked && !c.checked) { svToast("COCHER GÉNÉRER OU COMPRESSER.", 3000, g); return; }
         INS.plafR = INS.plafR || {};
         d.querySelectorAll(".gc-cap").forEach(i => { const v = String(i.value).trim(), sk = i.dataset.sk; if (v === "") { if (INS.plafR[sk]) delete INS.plafR[sk].plaf; } else (INS.plafR[sk] = INS.plafR[sk] || {}).plaf = Number(v); });
         d.remove();
-        if (c.checked) dlyCompressRun(); else dlyCompressRun({ gen: true });
+        if (ok.dataset.ok === "comp") dlyCompressRun(); else dlyCompressRun({ gen: true });
       });
     };
 
@@ -461,8 +462,7 @@
       const d = sviWinNew();
       const seg = (n, v, l, on) => `<label class="hcf-seg${on ? " on" : ""}"><input type="radio" name="${n}" value="${v}"${on ? " checked" : ""}><span>${l}</span></label>`;
       const sc = SC ? SC.get() : "s", vw = DX.view();
-      const genWhy = !nk ? "AUCUNE TÂCHE DANS LE PLANNING." : !miss ? "TOUTES LES TÂCHES ONT DÉJÀ LEURS DATES." : "";
-      const compWhy = !nk ? "AUCUNE TÂCHE DANS LE PLANNING." : "";
+      const genWhy = dlyGenWhy(), compWhy = dlyCompWhy();
       const act = (k, l, why) => `<button type="button" class="svc-b gcf-act${why ? " off" : ""}" data-gcf="${k}"${why ? ` data-why="${esc(why)}"` : ""}>${l}</button>`;
       d.innerHTML = `<div class="svc-card hcf-card gcf-card" role="dialog" aria-modal="true">
         <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
@@ -476,7 +476,7 @@
         ${gOn ? `<div class="gcf-more"><button type="button" class="svc-b" data-gcf="graph">RÉGLAGES DU GRAPHIQUE…</button></div>` : ""}
         <div class="svc-f"><button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button></div></div>`;
       document.getElementById("svConf")?.remove();
-      sviWinShow(d);
+      sviWinShow(d); dlyWhyPress(d);
       d.addEventListener("change", e => {
         const i = e.target;
         if (i.closest && i.closest(".hcf-seg")) i.closest(".hcf-sw").querySelectorAll(".hcf-seg").forEach(s => s.classList.toggle("on", s.querySelector("input").checked));

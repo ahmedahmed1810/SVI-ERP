@@ -24,7 +24,7 @@
           const sC = crb.includes("c") && !!HD.R, sP = crb.includes("p") && !hasRd, sG = crb.includes("g") && !hasRd, multi = !C && (sP || sG);
           const hideC = hasRd && !crb.includes("c") && !C;
           const RG = dlyHRange(), VL = { min: null, max: null }, inR = di => (!RG.a || di >= RG.a) && (!RG.b || di <= RG.b);
-          const cur = dlyCurGK(), canP = !C && !cum && !curve && !multi && !hideC && !!cur && !!HD.R, IB = canP ? 14 : 0;
+          const cur = dlyCurGK(), canP = !C && !cum && !curve && !multi && !hideC && !!cur && !!HD.R && dlyCapOK(dlyResSel()), IB = canP ? 14 : 0;
           const days = [...new Set(Object.keys(C ? C.L : HD.tot).concat(multi ? Object.keys(HD.prd || {}) : []).concat(C && C.P && (sP || sG) ? Object.keys(C.P) : []))].sort();
           /* valeurs par jour (ou cumul : relatif = repart de 0 au trait DÉBUT) */
           const cumOf = get => { const o = {}; let t = 0, b = 0; days.forEach(di => { const v = get(di); if (hs.cum === "r" && RG.a && di < RG.a) b += v; t += v; o[di] = t - b; }); return o; };

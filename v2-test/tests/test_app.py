@@ -1694,7 +1694,7 @@ def main():
         pg.set_viewport_size({"width": 1180, "height": 900}); pg.wait_for_timeout(300)
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;
             I.chg.forEach(r => {{ r.on = false; }});
-            I.chg.push({{ id: 'w1', des: 'MACON', u: 'JH', q: 4, p: 100, on: true }}, {{ id: 'w2', des: 'MACON', u: 'JH', q: 2, p: 100, on: true }}, {{ id: 'w3', des: 'SABLE', u: 'M3', q: 10, p: 50, on: true }});
+            I.chg.push({{ id: 'w1', des: 'MACON', u: 'JH', q: 4, p: 100, on: true }}, {{ id: 'w2', des: 'MACON', u: 'JH', q: 2, p: 100, on: true }}, {{ id: 'w3', des: 'SABLE', u: 'JH', q: 10, p: 50, on: true }});   /* v711 : capacité = même unité */
             I.__lk6 = I.links; I.__dlp6 = I.dlp; I.__dp6 = I.dpred; I.__ord6 = I.dord;
             I.links = [{{ id: 'W1', des: 'd1', lot: 'l1', prim: 'p1', sec: 's1', prd: [], chg: [{{ id: 'w1' }}, {{ id: 'w3' }}] }}, {{ id: 'W2', des: 'd1', lot: 'l2', prim: 'p1', sec: 's1', prd: [], chg: [{{ id: 'w2' }}] }}];
             I.dlp = {{ 'l1|s1': [{{ id: 'a', deb: '2026-11-02', fin: '2026-11-03' }}], 'l2|s1': [{{ id: 'b', deb: '2026-11-04', fin: '2026-11-05' }}], 'l1|s2': [{{ id: 'c', deb: '2026-11-06', fin: '2026-11-06' }}] }};

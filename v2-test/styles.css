@@ -2971,3 +2971,6 @@ body:not(.bdg-screen) #sviScreenTag { display: none; }
 .blk-tools .blk-btn.blk-hcfg-btn { display: none !important; }
 .blk-tools .blk-btn.blk-hcfg-btn.dly-on { display: inline-flex !important; align-items: center; justify-content: center; width: var(--svi-ib, 36px); height: var(--svi-ib, 36px); border-radius: 9px; background: #fff; color: #12355b; border: 1px solid #d6dbe3; margin-right: 6px; padding: 0; font-size: 17px; line-height: 1; }
 .svi-ro .bdg-d-page .blk-hcfg-btn { opacity: .35; }
+
+/* v711 : barre CAPACITÉ plus facile à prendre au doigt */
+.gplaf::before { top: -20px; height: 40px; }
