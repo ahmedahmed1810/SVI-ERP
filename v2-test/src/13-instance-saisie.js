@@ -33,7 +33,7 @@
       window.__sviROon = true;
       let roT = 0;
       const roSay = () => { if (Date.now() - roT > 2500) { roT = Date.now(); try { svToast(window.__sviRO, 3500); } catch (e) {} } };
-      const EDIT_CLICK = ".ins-x, .ins-xall, .ins-delc, .dly-pred, .dly-pred-new, .dly-succ, .dly-gen, .dly-lev, .dly-jal, .dly-vd-x, #insUnlBtn, .blk-adj-btn, .blk-cfg-btn, [data-act=import], [data-act=paste], [data-act=cut], [data-act=del], .ins-rdbl, .cond-btn, .only-c";
+      const EDIT_CLICK = ".ins-x, .ins-xall, .ins-delc, .dly-pred, .dly-pred-new, .dly-succ, .dly-gen, .dly-lev, .dly-jal, .dly-vd-x, #insUnlBtn, .blk-adj-btn, .blk-cfg-btn, .blk-hcfg-btn, [data-act=import], [data-act=paste], [data-act=cut], [data-act=del], .ins-rdbl, .cond-btn, .only-c";
       const DRAG = "[data-iid], .ins-dv, .gb, .gb-s, .gb-e, .gl-hit, .ghb, .dlyg-l, .grdc, .dlyhh-cfg";
       const guard = e => {
         if (!window.__sviRO) return;
