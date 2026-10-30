@@ -2347,6 +2347,12 @@ def main():
         check("v672 bloc 2 : envoi initial (REV 1, contrôle), fusion : QPB gardée (moi seul), PPB de l'autre plus récent gardé (999) et le mien en CONFLIT (777, BRAHIM) ; ⚠ CONFLITS ; MA VALEUR reprise ; QUI = TESTEUR",
               s72 and s72[1] >= 1 and s72[2] == 0 and m72[0] == 999 and m72[1] == 123 and m72[2] == 1 and m72[3] == "BRAHIM" and m72[4] == 777 and "CONFLITS" in td72 and r72 == [777, 0] and "TESTEUR" in h72, [s72, m72, td72[:200], r72, h72])
 
+        # v713 (point 5) : avant un import Excel — fenêtre des en-têtes attendus (★ exigées, COPIER LES EN-TÊTES), ANNULER / CONTINUER
+        pg.evaluate("() => document.querySelector('.blk-btn[data-blk=\"client\"][data-act=\"import\"]')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('[data-src=\"file\"]')?.click()"); pg.wait_for_timeout(400)
+        i713 = pg.evaluate("() => { const d = document.getElementById('svConf'); return d ? [/EN-TÊTES DE COLONNE SUIVANTS/.test(d.innerText), d.querySelectorAll('.imph-req').length > 0, d.querySelectorAll('[data-cp]').length, !!d.querySelector('[data-go]')] : null; }")
+        pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(200)
+        check("v713 : avant l'import Excel, fenêtre des en-têtes attendus (★, COPIER LES EN-TÊTES, CONTINUER)", i713 == [True, True, 1, True], i713)
         # v705 : balayage d'un budget à l'autre dans l'ordre de la liste ; budget à avenants parcouru écran par écran
         pg.evaluate("""() => { window.__kp705 = JSON.stringify(sviInstGet()); const d = { des: [], lot: [], prim: [], sec: [], chg: [], prd: [], links: [], dlp: {} };
             sviInstSet(sviInstGet().concat([{ ref: 'SOLO-1', project: 'SOL', state: 'valide', data: JSON.parse(JSON.stringify(d)) }, { ref: 'AVT-1', project: 'AVT', state: 'valide', data: JSON.parse(JSON.stringify(d)) }, { ref: 'AVT-1-AV1', project: 'AVT', state: 'valide', parent: 'AVT-1', avn: 1, data: JSON.parse(JSON.stringify(d)) }]));
