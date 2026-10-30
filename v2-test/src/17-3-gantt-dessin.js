@@ -361,11 +361,12 @@
     const dlyCfgPaint = () => {
       const g = shell.querySelector(".blk-cfg-btn"); if (!g) return;
       const host = shell.querySelector("#dlyGantt"), h = shell.querySelector(".dlyg-foot .ghist");
-      const on = active === "dly" && !!shell.__insDly && !!host;   /* v701 : ⚙ = RÉGLAGES DU GANTT, toujours sur le PLANNING */
+      /* v707 : ⚙ = RÉGLAGES DU GRAPHIQUE (graphique affiché) ; icône Gantt = RÉGLAGES DU GANTT (Gantt affiché) */
+      const on = active === "dly" && !!shell.__insDly && !!host && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone");
       if (g.classList.contains("dly-on") !== on) g.classList.toggle("dly-on", on);
       /* v704 : ⚙ du GRAPHIQUE rendu (RÉGLAGES DU GRAPHIQUE), visible seulement quand le graphique est affiché */
       const gh = shell.querySelector(".blk-hcfg-btn");
-      if (gh) { const on2 = on && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone"); if (gh.classList.contains("dly-on") !== on2) gh.classList.toggle("dly-on", on2); }
+      if (gh) { const on2 = active === "dly" && !!shell.__insDly && !!host && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hfull"); if (gh.classList.contains("dly-on") !== on2) gh.classList.toggle("dly-on", on2); }
     };
     /* histogramme (et son libellé, et la poignée « = ») gardé en bas de la zone visible du planning : les tâches défilent dessous */
     /* v573 (remarque 18) : traits DÉBUT / FIN non posés = collés aux bords gauche et droit de la partie visible du Gantt (suivent le défilement) */
