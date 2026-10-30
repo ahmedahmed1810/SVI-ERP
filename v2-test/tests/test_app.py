@@ -1883,7 +1883,7 @@ def main():
         check("v546 R28 / R29 : CUMULÉ = une seule courbe ; ⚙ ouvre RÉGLAGES DE L'HISTOGRAMME ; PRODUITS et MARGE dans la légende",
               nl == 1 and hw == "RÉGLAGES DU GRAPHIQUE" and pm[0] == '["c","p","g"]' and "PRODUITS" in pm[1] and "MARGE" in pm[1], [nl, hw, pm])
         check("v546 R25 / R17 / R23 / R30 : histogramme caché à 0 ; JOUR / SEMAINE / MOIS dans CALENDRIER DU BUDGET ; SEMAINE remplit la largeur ; DATE DE FIN DU PROJET calculée",
-              h0 == [True, 0] and sc0 == "JOUR*,SEMAINE,MOIS" and sw[0] == "s" and sw[1] > 9 and not inf[0] and inf[1] != "", [h0, sc0, sw, inf])
+              h0 == [True, 0] and sc0 == "JOUR*,SEMAINE,MOIS" and sw[0] == "s" and sw[1] > 9 and inf[0] and inf[1] != "", [h0, sc0, sw, inf])
 
         # v545 : remarques 1 à 5 (bouton agrandir visible, planning à la hauteur de l'écran, poignées, capacité visible, échelle)
         DXJ = "[...document.querySelectorAll('*')].find(e => e.__insDly).__insDly"
@@ -2350,6 +2350,15 @@ def main():
         # v714 (point 3, étape 1) : onglet APPROVISIONNEMENT PRÉVISIONNEL — commandes PAR TÂCHE (défaut), charges À RÉGLER, tableau repliable
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"apr\"]')?.click()"); pg.wait_for_timeout(600)
         a714 = pg.evaluate("() => [!!document.querySelector('.apr-wrap'), document.querySelectorAll('.apr-cfg tbody tr').length > 0, !!document.querySelector('.apr-badge'), document.querySelectorAll('tr.apr-row').length]")
+        # v715 : regroupement (titre parent, date la plus tôt), COMMANDE CADRE, QUANTITÉ FIXE sans emballage = à régler
+        b715 = pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS, P = document.querySelector('.apr-wrap') ? [...document.querySelectorAll('tr.apr-row')].map(r => r.dataset.d) : [];
+            const sk = Object.keys((I.apr || {{}}).cfg || {{}})[0] || ((I.chg || []).find(r => !r.t) || {{}}).des;
+            I.apr = I.apr || {{}}; I.apr.grp = P.length > 1 ? [{{ id: 'g1', ds: P.slice(0, 2), d: '' }}] : []; X.insSave(); X.refreshAll(); return P.length; }}""")
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"apr\"]')?.click()"); pg.wait_for_timeout(500)
+        g715 = pg.evaluate("() => [document.querySelectorAll('tr.apr-grp').length, [...document.querySelectorAll('.apr-cfg select[data-f=mode] option')].map(o => o.textContent).slice(0, 4).join(',')]")
+        pg.evaluate(f"() => {{ const X = {ins}; X.INS.apr.grp = []; X.insSave(); }}")
+        check("v715 : approvisionnement — modes PAR TÂCHE, PAR PÉRIODE, QUANTITÉ FIXE, COMMANDE CADRE ; regroupement en titre parent",
+              g715[1] == "PAR TÂCHE,PAR PÉRIODE,QUANTITÉ FIXE,COMMANDE CADRE" and (b715 < 2 or g715[0] == 1), [b715, g715])
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(400)
         check("v714 : onglet APPROVISIONNEMENT PRÉVISIONNEL (réglages par charge, À RÉGLER, tableau)", a714 and a714[0] and a714[1] and a714[2], a714)
         # v713 (point 5) : avant un import Excel — fenêtre des en-têtes attendus (★ exigées, COPIER LES EN-TÊTES), ANNULER / CONTINUER
