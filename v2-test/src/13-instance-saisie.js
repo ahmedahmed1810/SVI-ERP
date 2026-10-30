@@ -657,6 +657,17 @@
     /* v490 (remarque 4) : quel que soit le rond choisi (désignation, lot, activité, produit, charge), les lignes liées
        à ce choix ont le point dans leur rond (avant : seulement quand une désignation était choisie) */
     const lkRd = (k, r) => INS_EDIT && r && r.t && k === "des" ? lkRdPart("des", r.id) : INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${(LK.des && lkIsLinked(k, r.id)) || lkHit(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
+    /* v717 : CONSOLIDÉ — chaque article une fois (quantité totale) avec › / ⌄ ; déplié = une ligne par origine (BUDGET INITIAL, AVENANT n) ;
+       toucher une ligne = ouvrir cette étape */
+    const AVO_SET = shell.__avoSet = shell.__avoSet || new Set();
+    shell.__avoClick = e => {
+      const f = e.target.closest && e.target.closest(".av-ofold[data-avo]");
+      if (f) { e.stopPropagation(); e.preventDefault(); const id = f.dataset.avo; if (AVO_SET.has(id)) AVO_SET.delete(id); else AVO_SET.add(id); try { refreshAll(); } catch (er) {} return; }
+      const o = e.target.closest && e.target.closest("tr.av-orow[data-avst]");
+      if (o && o.dataset.avst) { e.stopPropagation(); window.__sviAvOpen(o.dataset.avst, ref); }
+    };
+    if (!shell.__avoBound) { shell.__avoBound = true; shell.addEventListener("click", e => { if (shell.__avoClick) shell.__avoClick(e); }, true); }
+    const AVO_ON = (k, r) => !!AV_ROOT && (k === "des" || k === "chg") && r && !r.t && Array.isArray(r.__det) && r.__det.length > 0;
     const insRowHTML = (k, r, lvl) => {
       const cols = insColsOrd(k);
       const tcell = "";   /* plus de colonne T : un titre se crée en superposant deux lignes (FORMAT 61) */
@@ -667,8 +678,8 @@
       INS_CELL_LVL = lvl || 0;
       return `<tr class="ins-row${r ? "" : " ins-new"}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
           data-ik="${k}" ${r ? `data-iid="${r.id}"` : ""}${lkBanAttr(k, r)}${k === "des" && r ? ` style="--d:${dOf(r)}"` : ""}>
-        <td class="center ins-rdc">${k === "des" && r && r.t && !INS_EDIT ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
-          ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>`;
+        <td class="center ins-rdc">${AVO_ON(k, r) ? `<button type="button" class="av-ofold" data-avo="${esc(r.id)}">${AVO_SET.has(r.id) ? "⌄" : "›"}</button>` : ""}${k === "des" && r && r.t && !INS_EDIT ? foldBtn(r) : lkRd(k, r)}</td>${tcell}${cols.map(c => insCell(k, r, c)).join("")}${qc}${INS_EDIT
+          ? `<td class="center ins-delc">${insDelCell(r)}</td>` : ""}</tr>${AVO_ON(k, r) && AVO_SET.has(r.id) ? r.__det.map(x => `<tr class="av-orow" data-avst="${esc(x.ref || "")}"><td></td><td colspan="${cols.length + (qc ? 1 : 0) + (INS_EDIT ? 1 : 0)}"><span class="av-olab">${esc(x.o)}</span> <b>${esc(money(x.q))}</b> ${esc(r.u || "")} × ${esc(money(x.p))}</td></tr>`).join("") : ""}`;
     };
     /* lignes + sous-totaux de titres (désignations) */
     /* filtres / tri de colonne (mêmes menus que la version validée) :
