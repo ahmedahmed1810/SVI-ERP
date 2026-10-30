@@ -140,6 +140,14 @@ const sviSyncPhoto = it => {
   return sviQ("v3Photo", { ref: it.ref, budget: { REF: it.ref, PROJET: U(it.project), INTITULE: U(it.intitule), ETAT: ET, CREE_LE: U(it.created), FIGE_LE: it.state === "fige" ? new Date().toISOString().slice(0, 10) : "", VALIDE_LE: U(it.validated), VERSION: (sviSyncMeta()[it.ref] || {}).rev || "", DATE_BUTOIR: U(d.dbut), DATE_OBJECTIF: U(d.dobj) }, des, taches, details });
 };
 
+/* v721 (bloc 7, point 1) : totaux de contrôle d'un budget — montants HT (désignations client, produits, charges) et sommes des quantités */
+const sviSyncTotals = it => {
+  const d = (it && it.data) || {}, n = v => Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")) || 0, L = k => (d[k] || []).filter(r => r && !r.t);
+  const ht = k => Math.round(L(k).reduce((t, r) => t + n(r.q) * n(r.p), 0) * 100) / 100, qt = k => Math.round(L(k).reduce((t, r) => t + n(r.q), 0) * 1000) / 1000;
+  return { des: ht("des"), prd: ht("prd"), chg: ht("chg"), qdes: qt("des"), qprd: qt("prd"), qchg: qt("chg"), n: ["des", "prd", "chg", "lot", "prim", "sec", "links"].map(k => (d[k] || []).length).join("/") };
+};
+const SVI_TOT_LAB = { des: "MONTANT HT DES DÉSIGNATIONS", prd: "MONTANT HT DES PRODUITS", chg: "MONTANT HT DES CHARGES", qdes: "QUANTITÉS DES DÉSIGNATIONS", qprd: "QUANTITÉS DES PRODUITS", qchg: "QUANTITÉS DES CHARGES", n: "NOMBRE DE LIGNES" };
+const sviSyncTotDiff = (a, b) => Object.keys(SVI_TOT_LAB).filter(k => String(a[k]) !== String(b[k]));
 /* ---------- envoi ---------- */
 const sviSyncPushOne = async (ref, M) => {
   const m = M[ref] || {}, user = sviUser();
@@ -167,10 +175,18 @@ const sviSyncPushOne = async (ref, M) => {
     m.rev = r.rev; m.dirty = 0; m.at = Date.now();
     await sviSyncBaseSet(ref, txt);
     /* contrôle de l'envoi : le budget relu dans la base a la même longueur que celui envoyé */
-    if (r.len !== undefined && Number(r.len) !== txt.length) {
-      m.dirty = Date.now();
-      if (typeof svToast === "function") svToast(ref + " : CONTRÔLE DE L'ENVOI EN ÉCHEC (RELU " + r.len + " / " + txt.length + ") — IL SERA RENVOYÉ.", 6000);
+    let bad = r.len !== undefined && Number(r.len) !== txt.length ? "LONGUEUR RELUE " + r.len + " / " + txt.length : "";
+    /* v721 : relecture du budget dans la base et comparaison des totaux (montants HT, quantités, lignes) */
+    if (!bad && !SH) {
+      try { const back = await sviQ("v3Pull", { ref }); let bi = null; try { bi = JSON.parse(back && back.data); } catch (e) {}
+        if (!bi) bad = "BUDGET ILLISIBLE À LA RELECTURE";
+        else { const D = sviSyncTotDiff(sviSyncTotals(it), sviSyncTotals(bi)); if (D.length) bad = "TOTAUX DIFFÉRENTS : " + D.map(k => SVI_TOT_LAB[k]).join(", "); } }
+      catch (e) { /* relecture impossible (réseau) : contrôle refait au prochain envoi */ }
     }
+    if (bad) {
+      m.dirty = Date.now(); m.ctl = (m.ctl || 0) + 1; m.ctlWhy = bad;
+      if (typeof svToast === "function") svToast(ref + " : CONTRÔLE DE L'ENVOI EN ÉCHEC (" + bad + ") — IL SERA RENVOYÉ.", 6000);
+    } else { m.ctl = 0; m.ctlWhy = ""; }
     if ((it.state === "fige" || it.state === "valide") && m.pst !== it.state) { try { await sviSyncPhoto(it); m.pst = it.state; } catch (e) {} }
     if (it.state === "instance") m.pst = "";
     return;
@@ -307,6 +323,8 @@ const sviSyncPaint = () => {
   const t = SVI_SYNC.busy ? "ENVOI À LA BASE…" : st === "off" ? "HORS LIGNE" + (n ? " — " + n + " EN ATTENTE" : "") : st === "nob" ? "BASE NON BRANCHÉE" + (n ? " — " + n + " EN ATTENTE" : "") : st === "err" ? "ENVOI EN ÉCHEC — " + n + " EN ATTENTE" : n ? n + " EN ATTENTE" : st === "ok" ? "BASE À JOUR" : "BASE…";
   b.textContent = t;
   b.className = SVI_SYNC.busy ? "sync-busy" : st === "off" || st === "nob" || st === "err" ? "sync-off" : n ? "sync-wait" : "sync-ok";
+  /* v721 : échec répété du contrôle par les totaux = signal sur le repère */
+  { const M = sviSyncMeta(); if (Object.keys(M).some(r => (M[r].ctl || 0) >= 2)) { b.textContent = "⚠ " + b.textContent; b.className = "sync-off"; } }
 };
 function sviSyncWin() {
   const d = sviWinNew(), M = sviSyncMeta(), L = sviInstGet();
@@ -314,6 +332,7 @@ function sviSyncWin() {
   d.innerHTML = sviWinCard({ cls: "pv-card", close: "data-x", title: "ENREGISTREMENT DANS LA BASE V3",
     body: `<label class="pv-r"><span>NOM D'UTILISATEUR</span><input class="pv-in sy-user" value="${esc(sviUser())}" style="width:200px;text-align:left"></label>
       <div class="pv-sub">${SVI_SYNC.status === "nob" ? "LA BASE NE CONNAÎT PAS ENCORE L'ENREGISTREMENT : INSTALLER LE FICHIER baseV3sync.gs DANS APPS SCRIPT (VOIR SON EN-TÊTE). EN ATTENDANT, TOUT RESTE SUR L'IPAD." : SVI_SYNC.status === "off" ? "HORS LIGNE : TOUT RESTE SUR L'IPAD ET PARTIRA AU RETOUR DE LA CONNEXION." : SVI_SYNC.err ? esc(SVI_SYNC.err) : "DERNIER ENVOI : " + fdt(SVI_SYNC.last)}</div>
+      ${(() => { const B = Object.keys(M).filter(r => (M[r].ctl || 0) >= 2); return B.length ? `<div class="pv-sub sy-ctl">⚠ CONTRÔLE DE L'ENVOI EN ÉCHEC PLUSIEURS FOIS : ${B.map(r => esc(r) + " (" + esc(M[r].ctlWhy || "") + ", " + M[r].ctl + " ESSAIS)").join(" ; ")}.</div>` : ""; })()}
       <div class="fz-blk">BUDGETS DE L'IPAD ${svCnt(L.length)}</div>
       <table class="pv-t"><thead><tr><th>BUDGET</th><th>VERSION</th><th>ÉTAT</th><th>ENVOYÉ LE</th></tr></thead><tbody>${L.map(x => { const m = M[x.ref] || {}, lk = sviLockAll(x.ref).map(k => k.user + (k.onglet ? " (" + k.onglet + ")" : "")).join(", "); return `<tr><td>${esc((x.project || "") + " " + x.ref)}</td><td class="number">${m.rev || "—"}</td><td>${m.dirty ? "EN ATTENTE" : m.rev ? "À JOUR" : "JAMAIS ENVOYÉ"}${lk ? " · OUVERT PAR " + esc(lk) : ""}${((x.data || {}).conf || []).length ? " · " + x.data.conf.length + " CONFLIT(S)" : ""}</td><td>${fdt(m.at)}</td></tr>`; }).join("")}</tbody></table>
       <div class="pv-sub sy-cells"></div>`,
