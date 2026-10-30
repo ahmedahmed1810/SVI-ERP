@@ -12282,10 +12282,14 @@ function renderBudgetList() {
         if (f === "deb" && q.deb && q.fin && d > q.fin) z.fin = sviPlanMove(cal, q.deb, q.fin, d).fin;   /* règle : 02c */
         if (z.deb && z.fin && z.fin < z.deb) return true;
         if (z.fin && INS.dbut && z.fin > INS.dbut) return true;
-        if (z.deb && pf && z.deb < pf) return true;
+        /* v712 : la FIN ne refuse plus tout le calendrier quand le DÉBUT déjà posé ne respecte pas une liaison (seul le DÉBUT est contrôlé) */
+        if (f === "deb" && z.deb && pf && z.deb < pf) return true;
         return false;
       };
-      return { iso: q[f] || (f === "fin" ? q.deb : "") || "", dis };
+      /* v712 : aucun jour permis = la raison écrite dans le calendrier */
+      const why = f === "fin" && q.deb && INS.dbut && INS.dbut < q.deb ? "AUCUNE FIN POSSIBLE : LA DATE BUTOIR (" + dFr(INS.dbut) + ") EST AVANT LE DÉBUT (" + dFr(q.deb) + "). CORRIGER LA DATE BUTOIR (INF) OU LE DÉBUT."
+        : f === "deb" && pf && INS.dbut && INS.dbut < pf ? "AUCUN DÉBUT POSSIBLE : LES LIAISONS EXIGENT LE " + dFr(pf) + ", APRÈS LA DATE BUTOIR (" + dFr(INS.dbut) + ")." : "";
+      return { iso: q[f] || (f === "fin" ? q.deb : "") || "", dis, why };
     };
     /* fenêtre PRÉDÉCESSEURS (ou AJOUTER UNE TÂCHE) : lot à gauche, activités secondaires à droite ;
        toutes les tâches, liées ou non ; la tâche elle-même et celles qui feraient une boucle sont grisées */
@@ -12977,7 +12981,13 @@ function renderBudgetList() {
       /* v546 (R29) : ⚙ = RÉGLAGES DE L'HISTOGRAMME */
       shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dlyhh-cfg"); const X = shell.__insDly; if (!b || !X) return; e.stopPropagation(); X.hcfgWin(b); }, true);
       /* v546 (R27) : toucher la case SUCCESSEURS = leur liste */
-      shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dly-succ[data-key]"); const X = shell.__insDly; if (!b || !X) return; e.stopPropagation(); const L = X.succs(b.dataset.key); svToast(L.length ? "SUCCESSEURS : " + L.join(" ; ") : "AUCUN SUCCESSEUR.", 5000, b); }, true);
+      /* v712 : toucher = case encadrée (choix) ; la bulle du texte complet seulement sur appui long */
+      shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dly-succ[data-key]"); if (!b || !shell.__insDly) return; e.stopPropagation();
+        shell.querySelectorAll(".dly-succ.dly-cellsel").forEach(x => x.classList.remove("dly-cellsel")); b.classList.add("dly-cellsel"); }, true);
+      { let lt = 0;
+        shell.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".dly-succ[data-key]"); const X = shell.__insDly; clearTimeout(lt); if (!b || !X) return;
+          lt = setTimeout(() => { const L = X.succs(b.dataset.key); svToast(L.length ? "SUCCESSEURS : " + L.join(" ; ") : "AUCUN SUCCESSEUR.", 5000, b); }, 500); }, true);
+        ["pointerup", "pointercancel"].forEach(t => shell.addEventListener(t, () => clearTimeout(lt), true)); }
       /* R24 : repère ⧖ d'une tâche freinée par une autre ressource */
       shell.addEventListener("click", e => { const c = e.target.closest && e.target.closest("#dlyGantt .gb-lim[data-key]"); const X = shell.__insDly; if (!c || !X) return; e.stopPropagation(); svToast(X.limTxt(c.dataset.key), 3500, c); }, true);
       /* R19 : traits DÉBUT et FIN de l'histogramme — tirés au doigt ; contre un bord = pas de limite ; croisés = noms échangés */
@@ -13013,8 +13023,13 @@ function renderBudgetList() {
           setTimeout(() => document.removeEventListener("touchmove", tmv), 0);
           const R = { ...R0 };
           ln.__drag = false;
-          /* simple toucher sur un trait au repos = posé au jour où il se trouve (bord de la partie visible) */
-          if (!moved) { if (R0[ln.dataset.r]) return; const x = parseFloat(ln.style.left) || 0; iso = sviIsoAdd(host.__d0, Math.max(0, Math.floor((ln.dataset.r === "b" ? Math.max(0, x - 1) : x) / DLY_DW))); edge = ""; }
+          /* v712 (point 6) : un simple toucher ne pose rien ; lâché là où il ne retient rien (avant la première tâche pour DÉBUT,
+             après la dernière pour FIN) = rien ne change, le trait reste au repos (bouton « DÉBUT » / « FIN ») */
+          if (!moved) { if (!R0[ln.dataset.r]) { X.hrangeSet(R0); } return; }
+          if (!edge && iso) { const [s0, s1] = X.span ? X.span() : ["", ""];
+            const lab = sp.textContent.slice(0, 3) === "FIN" ? "b" : "a";
+            if ((lab === "a" && s0 && iso <= s0) || (lab === "b" && s1 && iso >= s1)) edge = lab === "a" ? "l" : "r";
+            }
           if (edge === "l") R.a = ""; else if (edge === "r") R.b = ""; else R[ln.dataset.r] = iso;
           if (R.a && R.b && R.a > R.b) { const t = R.a; R.a = R.b; R.b = t; }
           X.hrangeSet(R);
@@ -13760,7 +13775,7 @@ ${A}</Assignments>
       linkWin: (p, k) => dlyLinkWin(p, k), reach: (a, b) => dlyReach(a, b), addLink: (p, k, t, a) => dlyAddLink(p, k, t, a),
       mspXml: o => dlyMspXml(o), mspTree: lv => dlyMspTree(lv), mspPrint: lv => dlyMspPrint(lv), lockWin: () => dlyLockWin(), lockLate: () => dlyLockLate(),   /* v667 (axe 8) */
       gen: () => dlyCompressRun(), gcWin: () => dlyGCWin(), genOnly: () => dlyCompressRun({ gen: true }), keys: () => dlyKeys(), comp: () => dlyCompressRun(), hasDates: () => dlyHasDates(), canComp: () => dlyCanCompress(),
-      moveCut: (i, iso) => dlyMoveCut(i, iso), rdSet: (sk, sec, i, p) => dlyRdSetV(sk, sec, i, p), rdCut: (sk, sec, iso) => dlyRdCut(sk, sec, iso), rdDel: (sk, sec, i) => dlyRdDel(sk, sec, i), rdLim: () => dlyRdLim(), piecesWin: k => dlyPiecesWin(k), hcfgWin: () => dlyHCfgWin(), gcfgWin: () => dlyGCfgWin(), succs: k => dlySuccs(k).map(dlyName), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n, a, live) => dlySetPlaf(i, n, a, live), delCut: i => dlyDelCut(i), limTxt: k => dlyLimTxt(k),
+      moveCut: (i, iso) => dlyMoveCut(i, iso), rdSet: (sk, sec, i, p) => dlyRdSetV(sk, sec, i, p), rdCut: (sk, sec, iso) => dlyRdCut(sk, sec, iso), rdDel: (sk, sec, i) => dlyRdDel(sk, sec, i), rdLim: () => dlyRdLim(), piecesWin: k => dlyPiecesWin(k), hcfgWin: () => dlyHCfgWin(), span: () => { const V = Object.values(dlyCurDates()); return [V.map(x => x.deb).filter(Boolean).sort()[0] || "", dlyEnd(dlyCurDates())]; }, gcfgWin: () => dlyGCfgWin(), succs: k => dlySuccs(k).map(dlyName), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n, a, live) => dlySetPlaf(i, n, a, live), delCut: i => dlyDelCut(i), limTxt: k => dlyLimTxt(k),
       incWin: k => dlyIncWin(k), apprWin: () => dlyApproWin(), hh: v => { dlyHHSet(v); keepScroll(() => renderTab()); }, hhGet: () => dlyHHGet(),
       /* R18 : réglages de l'histogramme ; R19 / R20 : plage et filtre */
       hset: () => dlyHSet(), hsetPut: o => dlyHSetPut(o), sameU: () => dlySameU(dlyResSel()), hasSel: () => !!dlyResSel(),
@@ -28599,7 +28614,7 @@ function sviDateField(el) {
   });
   el.value = iso0;
 }
-function sviCal(anchor, { iso = "", dis = null, onPick }) {
+function sviCal(anchor, { iso = "", dis = null, onPick, why = "" }) {
   document.getElementById("svCal")?.remove();
   const box = document.createElement("div");
   box.id = "svCal";
@@ -28620,7 +28635,7 @@ function sviCal(anchor, { iso = "", dis = null, onPick }) {
     }
     box.innerHTML = `<div class="svcal-h"><button type="button" data-m="-1" aria-label="Mois précédent">‹</button><b>${SVI_MOIS[m]} ${y}</b><button type="button" data-m="1" aria-label="Mois suivant">›</button><button type="button" class="svcal-x" data-x aria-label="Fermer">✕</button></div>
       <div class="svcal-w"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
-      <div class="svcal-g">${cells}</div>`;
+      <div class="svcal-g">${cells}</div>${why ? `<div class="svcal-why">${esc(why)}</div>` : ""}`;
   };
   draw();
   document.body.appendChild(box);
@@ -28660,7 +28675,7 @@ function sviCalOpen(el) {
   if (el.matches("input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]") && window.__sviDlyCal) {
     const o = window.__sviDlyCal(el);
     if (!o) return;
-    sviCal(el, { iso: o.iso, dis: o.dis, onPick: d => {
+    sviCal(el, { iso: o.iso, dis: o.dis, why: o.why, onPick: d => {
       let t = el;
       if (!t.isConnected) t = document.querySelector(`${el.classList.contains("dlw-in") ? "#dlyAddW " : ""}input.dlp-in[data-task="${CSS.escape(el.dataset.task || "")}"][data-f="${el.dataset.f}"]`) || el;
       SVI_VAL.set.call(t, d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4));

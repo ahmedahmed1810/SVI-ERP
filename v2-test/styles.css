@@ -2974,3 +2974,9 @@ body:not(.bdg-screen) #sviScreenTag { display: none; }
 
 /* v711 : barre CAPACITÉ plus facile à prendre au doigt */
 .gplaf::before { top: -20px; height: 40px; }
+
+/* v712 : DÉTAIL DÉLAIS — un seul cadre fin sur la case touchée (FORMAT 122) ; SUCCESSEURS encadrés au toucher ; raison dans le calendrier */
+.dly-table td:focus-within { outline: none !important; box-shadow: none !important; }
+.dly-table :is(input.ins-in, textarea.ins-in, .ins-dv, input.dlp-in, .dly-nm):focus { outline: none !important; box-shadow: inset 0 0 0 1px var(--inst, #b91c1c) !important; }
+.dly-table .dly-succ.dly-cellsel { box-shadow: inset 0 0 0 1px var(--inst, #b91c1c); background: #fff; }
+#svCal .svcal-why { margin-top: 8px; padding: 6px 8px; border-radius: 6px; background: #fef2f2; color: #b42318; font-size: 10px; font-weight: 800; max-width: 240px; }

@@ -265,10 +265,14 @@
         if (f === "deb" && q.deb && q.fin && d > q.fin) z.fin = sviPlanMove(cal, q.deb, q.fin, d).fin;   /* règle : 02c */
         if (z.deb && z.fin && z.fin < z.deb) return true;
         if (z.fin && INS.dbut && z.fin > INS.dbut) return true;
-        if (z.deb && pf && z.deb < pf) return true;
+        /* v712 : la FIN ne refuse plus tout le calendrier quand le DÉBUT déjà posé ne respecte pas une liaison (seul le DÉBUT est contrôlé) */
+        if (f === "deb" && z.deb && pf && z.deb < pf) return true;
         return false;
       };
-      return { iso: q[f] || (f === "fin" ? q.deb : "") || "", dis };
+      /* v712 : aucun jour permis = la raison écrite dans le calendrier */
+      const why = f === "fin" && q.deb && INS.dbut && INS.dbut < q.deb ? "AUCUNE FIN POSSIBLE : LA DATE BUTOIR (" + dFr(INS.dbut) + ") EST AVANT LE DÉBUT (" + dFr(q.deb) + "). CORRIGER LA DATE BUTOIR (INF) OU LE DÉBUT."
+        : f === "deb" && pf && INS.dbut && INS.dbut < pf ? "AUCUN DÉBUT POSSIBLE : LES LIAISONS EXIGENT LE " + dFr(pf) + ", APRÈS LA DATE BUTOIR (" + dFr(INS.dbut) + ")." : "";
+      return { iso: q[f] || (f === "fin" ? q.deb : "") || "", dis, why };
     };
     /* fenêtre PRÉDÉCESSEURS (ou AJOUTER UNE TÂCHE) : lot à gauche, activités secondaires à droite ;
        toutes les tâches, liées ou non ; la tâche elle-même et celles qui feraient une boucle sont grisées */
