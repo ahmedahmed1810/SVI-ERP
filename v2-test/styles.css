@@ -3035,3 +3035,30 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 
 /* v723 : indicateur grisé quand le budget n'a pas les données */
 .ind-table tr.ind-row.ind-off td { color: #98a2b3 !important; }
+
+/* v724 : onglet INDICATEURS en quatre parties (FORMAT 256, 257) */
+.i1-wrap { display: grid; grid-template-columns: var(--i1-cw, 45%) 10px 1fr; grid-template-rows: var(--i1-rh, 240px) 10px minmax(220px, 1fr); height: 100%; min-height: 520px; gap: 0; }
+.i1-p { overflow: auto; border: 1px solid #e4e7ec; border-radius: 6px; background: #fff; min-width: 0; min-height: 0; }
+.i1-tl { grid-column: 1; grid-row: 1; } .i1-tr { grid-column: 3; grid-row: 1; } .i1-bl { grid-column: 1; grid-row: 3; } .i1-br { grid-column: 3; grid-row: 3; }
+.i1-vh { grid-column: 2; grid-row: 1; display: flex; align-items: center; justify-content: center; cursor: col-resize; color: #fff; font-weight: 900; touch-action: none; }
+.i1-vh::before { content: ""; position: absolute; } .i1-vh { background: linear-gradient(#7f5539, #7f5539) center / 3px 100% no-repeat; }
+.i1-vh2 { grid-row: 3; }
+.i1-hh { grid-column: 1 / 4; grid-row: 2; display: flex; align-items: center; justify-content: center; cursor: row-resize; color: #fff; font-weight: 900; touch-action: none; background: linear-gradient(#7f5539, #7f5539) center / 100% 3px no-repeat; }
+.i1-vh, .i1-hh { font-size: 0; } .i1-vh::after, .i1-hh::after { content: "="; font-size: 12px; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; background: #344054; }
+.i1-vh::after { content: "‖"; }
+.i1-plan, .i1-vals { width: 100%; }
+.i1-gantt { padding: 8px; } .i1-gr { position: relative; height: 22px; border-bottom: 1px solid #f2f4f7; }
+.i1-gb { position: absolute; top: 6px; height: 10px; border-radius: 5px; background: #2e90fa; }
+.i1-gx { display: flex; justify-content: space-between; font-size: 10px; font-weight: 800; color: #667085; margin-top: 4px; }
+.i1-bar { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid #eaecf0; font-size: 11px; position: sticky; top: 0; background: #fff; z-index: 1; }
+.i1-bar .i1-cfg { margin-left: auto; }
+.i1-why { color: #98a2b3; font-size: 10px; font-weight: 800; }
+.i1-chart { padding: 6px; overflow: auto; }
+/* v724 : TABLEAU DE BORD — miniatures (FORMAT 259) */
+.ibd-board { flex-wrap: wrap; overflow: auto; }
+.ibd-tile { position: relative; overflow: hidden; resize: none; min-width: 200px; }
+.ibd-mini { overflow: hidden; } .ibd-mini .rat-svg { width: 100%; height: auto; } .ibd-mini .rat-gx { overflow: hidden; } .ibd-mini .rat-leg { font-size: 9px; }
+.ibd-rsz { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; cursor: nwse-resize; touch-action: none; background: linear-gradient(135deg, transparent 50%, #98a2b3 50%); }
+.ibd-tile:not([style*="height"]) { height: 280px; }
+.ibd-tile:not([style*="width"]) { width: 340px; }
+.ibd-board .ibd-add { font-size: 13px !important; font-weight: 900; }
