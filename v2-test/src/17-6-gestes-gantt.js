@@ -151,7 +151,13 @@
       /* v546 (R29) : ⚙ = RÉGLAGES DE L'HISTOGRAMME */
       shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dlyhh-cfg"); const X = shell.__insDly; if (!b || !X) return; e.stopPropagation(); X.hcfgWin(b); }, true);
       /* v546 (R27) : toucher la case SUCCESSEURS = leur liste */
-      shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dly-succ[data-key]"); const X = shell.__insDly; if (!b || !X) return; e.stopPropagation(); const L = X.succs(b.dataset.key); svToast(L.length ? "SUCCESSEURS : " + L.join(" ; ") : "AUCUN SUCCESSEUR.", 5000, b); }, true);
+      /* v712 : toucher = case encadrée (choix) ; la bulle du texte complet seulement sur appui long */
+      shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dly-succ[data-key]"); if (!b || !shell.__insDly) return; e.stopPropagation();
+        shell.querySelectorAll(".dly-succ.dly-cellsel").forEach(x => x.classList.remove("dly-cellsel")); b.classList.add("dly-cellsel"); }, true);
+      { let lt = 0;
+        shell.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".dly-succ[data-key]"); const X = shell.__insDly; clearTimeout(lt); if (!b || !X) return;
+          lt = setTimeout(() => { const L = X.succs(b.dataset.key); svToast(L.length ? "SUCCESSEURS : " + L.join(" ; ") : "AUCUN SUCCESSEUR.", 5000, b); }, 500); }, true);
+        ["pointerup", "pointercancel"].forEach(t => shell.addEventListener(t, () => clearTimeout(lt), true)); }
       /* R24 : repère ⧖ d'une tâche freinée par une autre ressource */
       shell.addEventListener("click", e => { const c = e.target.closest && e.target.closest("#dlyGantt .gb-lim[data-key]"); const X = shell.__insDly; if (!c || !X) return; e.stopPropagation(); svToast(X.limTxt(c.dataset.key), 3500, c); }, true);
       /* R19 : traits DÉBUT et FIN de l'histogramme — tirés au doigt ; contre un bord = pas de limite ; croisés = noms échangés */
@@ -187,8 +193,13 @@
           setTimeout(() => document.removeEventListener("touchmove", tmv), 0);
           const R = { ...R0 };
           ln.__drag = false;
-          /* simple toucher sur un trait au repos = posé au jour où il se trouve (bord de la partie visible) */
-          if (!moved) { if (R0[ln.dataset.r]) return; const x = parseFloat(ln.style.left) || 0; iso = sviIsoAdd(host.__d0, Math.max(0, Math.floor((ln.dataset.r === "b" ? Math.max(0, x - 1) : x) / DLY_DW))); edge = ""; }
+          /* v712 (point 6) : un simple toucher ne pose rien ; lâché là où il ne retient rien (avant la première tâche pour DÉBUT,
+             après la dernière pour FIN) = rien ne change, le trait reste au repos (bouton « DÉBUT » / « FIN ») */
+          if (!moved) { if (!R0[ln.dataset.r]) { X.hrangeSet(R0); } return; }
+          if (!edge && iso) { const [s0, s1] = X.span ? X.span() : ["", ""];
+            const lab = sp.textContent.slice(0, 3) === "FIN" ? "b" : "a";
+            if ((lab === "a" && s0 && iso <= s0) || (lab === "b" && s1 && iso >= s1)) edge = lab === "a" ? "l" : "r";
+            }
           if (edge === "l") R.a = ""; else if (edge === "r") R.b = ""; else R[ln.dataset.r] = iso;
           if (R.a && R.b && R.a > R.b) { const t = R.a; R.a = R.b; R.b = t; }
           X.hrangeSet(R);

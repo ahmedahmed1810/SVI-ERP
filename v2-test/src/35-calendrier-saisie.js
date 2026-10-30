@@ -27,7 +27,7 @@ function sviDateField(el) {
   });
   el.value = iso0;
 }
-function sviCal(anchor, { iso = "", dis = null, onPick }) {
+function sviCal(anchor, { iso = "", dis = null, onPick, why = "" }) {
   document.getElementById("svCal")?.remove();
   const box = document.createElement("div");
   box.id = "svCal";
@@ -48,7 +48,7 @@ function sviCal(anchor, { iso = "", dis = null, onPick }) {
     }
     box.innerHTML = `<div class="svcal-h"><button type="button" data-m="-1" aria-label="Mois précédent">‹</button><b>${SVI_MOIS[m]} ${y}</b><button type="button" data-m="1" aria-label="Mois suivant">›</button><button type="button" class="svcal-x" data-x aria-label="Fermer">✕</button></div>
       <div class="svcal-w"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
-      <div class="svcal-g">${cells}</div>`;
+      <div class="svcal-g">${cells}</div>${why ? `<div class="svcal-why">${esc(why)}</div>` : ""}`;
   };
   draw();
   document.body.appendChild(box);
@@ -88,7 +88,7 @@ function sviCalOpen(el) {
   if (el.matches("input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]") && window.__sviDlyCal) {
     const o = window.__sviDlyCal(el);
     if (!o) return;
-    sviCal(el, { iso: o.iso, dis: o.dis, onPick: d => {
+    sviCal(el, { iso: o.iso, dis: o.dis, why: o.why, onPick: d => {
       let t = el;
       if (!t.isConnected) t = document.querySelector(`${el.classList.contains("dlw-in") ? "#dlyAddW " : ""}input.dlp-in[data-task="${CSS.escape(el.dataset.task || "")}"][data-f="${el.dataset.f}"]`) || el;
       SVI_VAL.set.call(t, d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4));
