@@ -1733,6 +1733,11 @@ def main():
         gcf = pg.evaluate("() => { const d = document.getElementById('svConf'); return d ? [(d.querySelector('.svc-t') || {}).textContent, d.querySelectorAll('input[name=gcs]').length, d.querySelectorAll('input[name=gco]').length, !!d.querySelector('.gcf-cut'), !!d.querySelector('[data-gcf=comp]'), !!d.querySelector('[data-gcf=gen]'), !!d.querySelector('[data-gcf=graph]')] : null; }")
         check("v701 : ⚙ RÉGLAGES DU GANTT — JOUR / SEMAINE / MOIS, NORMAL / PAR DÉBUT, COUPE, COMPRESSER, GÉNÉRER, RÉGLAGES DU GRAPHIQUE…",
               gcf and gcf[0] == "RÉGLAGES DU GANTT" and gcf[1] == 3 and gcf[2] == 2 and all(gcf[3:]), gcf)
+        # v726 (bloc 2, point 6) : CALENDRIER DES CHARGES depuis le ⚙ du Gantt
+        pg.evaluate("() => document.querySelector('#svConf [data-gcf=ccal]')?.click()"); pg.wait_for_timeout(300)
+        cc = pg.evaluate("() => [...document.querySelectorAll('.svc-t')].map(e => e.textContent).includes('CALENDRIER DES CHARGES') && document.querySelectorAll('.ccal').length > 0")
+        check("v726 : ⚙ du Gantt → CALENDRIER DES CHARGES (jours non travaillés par charge)", cc, cc)
+        pg.evaluate("() => document.querySelectorAll('.sv-win, #svConf').forEach(e => e.remove())"); pg.wait_for_timeout(200)
         pg.evaluate("() => document.getElementById('svConf')?.remove()"); pg.wait_for_timeout(200)
         # v704 : ⚙ du GRAPHIQUE rendu (à part du ⚙ du GANTT)
         pg.evaluate("() => document.querySelector('.blk-cfg-btn.dly-on')?.click()"); pg.wait_for_timeout(300)
