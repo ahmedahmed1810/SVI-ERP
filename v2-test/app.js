@@ -4590,6 +4590,40 @@ const condCut = (pieces, BL, kerf = 0) => {
   return { bars: bars.length, plan: [...plan].map(([k, v]) => ({ k, n: v.n, chute: v.chute })), need, chute, pct: bars.length ? chute / (bars.length * BL) * 100 : 0 };
 };
 
+/* v728 (bloc 9) : emballage et chutes — réglage du TITRE de charges (même désignation, même unité) dans CE budget (INS.cond),
+   l'ancien réglage gardé sur l'appareil (CHS) n'étant plus lu qu'en secours */
+const condOf = (I, key) => ((I && I.cond) || {})[key] || condAll()[key] || null;
+/* morceaux : produits liés aux charges du titre — longueur = DIM 1, nombre = NBR */
+const condPiecesOf = (I, rows) => {
+  const ids = new Set(rows.map(r => r.id)), out = new Map();
+  (I.links || []).filter(l => (l.chg || []).some(x => ids.has(x.id))).forEach(l => (l.prd || []).forEach(x => {
+    const p = (I.prd || []).find(q => q.id === x.id); if (!p) return;
+    const L = num(p.d1), n = Math.max(1, Math.round(num(p.nbr) || 1)); if (!(L > 0)) return;
+    const k = String(Math.round(L * 1000) / 1000); out.set(k, (out.get(k) || 0) + n);
+  }));
+  return [...out].map(([L, n]) => ({ L: Number(L), n })).sort((a, b) => b.L - a.L);
+};
+/* longueur (M) → unité de la charge : M / ML tel quel ; KG et T avec le poids au mètre ; sinon impossible (null) */
+const condM2U = (u, kgm) => { const U = U_(u).replace(/[^A-Z]/g, ""); if (U === "M" || U === "ML") return 1; if (kgm > 0 && (U === "KG")) return kgm; if (kgm > 0 && (U === "T" || U === "TONNE" || U === "TONNES")) return kgm / 1000; return null; };
+/* chute du titre (unité de la charge) : barres achetées − longueur utile (méthode A, 30/10/2026) ; mémorisée par réglage + morceaux */
+const condChuteMemo = new Map();
+const condChuteOf = (I, key, rows) => {
+  const c = ((I && I.cond) || {})[key]; if (!c || c.mode !== "c" || !(num(c.BL) > 0)) return null;   /* chute : seulement un réglage fait dans ce budget */
+  const pcs = c.pcs && c.pcs.length ? c.pcs : condPiecesOf(I, rows), f = condM2U(rows[0] && rows[0].u, num(c.kgm));
+  if (!pcs.length || f === null) return null;
+  const sig = key + "|" + c.BL + "|" + (c.kerf || 0) + "|" + JSON.stringify(pcs);
+  let R = condChuteMemo.get(sig); if (!R) { R = condCut(pcs, num(c.BL), num(c.kerf) || 0); if (condChuteMemo.size > 400) condChuteMemo.clear(); condChuteMemo.set(sig, R); }
+  return R.err ? null : R.chute * f;
+};
+/* part d'une ligne de charge : chute du titre répartie au prorata des QCB de ses lignes */
+const condChuteRow = (I, r) => {
+  if (!I || !r || r.t) return 0;
+  const key = COND_K(r), rows = (I.chg || []).filter(x => !x.t && COND_K(x) === key);
+  const C = condChuteOf(I, key, rows); if (!C) return 0;
+  const Q = rows.reduce((t, x) => t + (num(x.q) || 0), 0);
+  return Q > 0 ? C * (num(r.q) || 0) / Q : C / rows.length;
+};
+
 /* v718 (révision des prix) : estimation de la révision avec le planning — formule du contrat (part fixe + pondérations par index),
    hypothèse d'évolution par index (%/an depuis le mois de base), scénario pessimiste (hausse d'un index, et hausse de charges par mot-clé).
    Valeur de chaque désignation client répartie sur les jours de ses tâches ; révision du jour = valeur × (K − 1). */
@@ -7910,7 +7944,7 @@ function renderBudgetList() {
       return d && d.p !== "" && d.p !== undefined ? num(d.p) : "";
     };
     const insPrice = (k, r) => { if (k !== "prd") return r.p; const v = insPrdPrice(INS, r.id); return v !== "" ? v : (INS.links || []).some(l => (l.prd || []).some(x => x.id === r.id)) ? "" : lkPrimPrice(r); };
-    const insHT = (k, r) => r.t ? 0 : insQty(k, r) * num(insPrice(k, r) || 0);
+    const insHT = (k, r) => r.t ? 0 : (insQty(k, r) + (k === "chg" ? condChuteRow(INS, r) * (INS_RGV ? insRgF("chg", r.id) : 1) : 0)) * num(insPrice(k, r) || 0);   /* v728 : la chute s'ajoute à la quantité payée */
     /* TVA de la ligne : produits = celle de la désignation liée (vide sans liaison) */
     const insTVAk = (k, r) => k === "prd" ? insPrdTVA(INS, r.id) : insTVA(r);
     const insTTC = (k, r) => insHT(k, r) * (1 + num(insTVAk(k, r) || 0) / 100);
@@ -7933,6 +7967,7 @@ function renderBudgetList() {
         ["des", "DÉSIGNATION CHARGE", "", "txt", "detail"],
         ["u", "UCB", "center", "txt", "unit"],
         ["q", "QCB", "number", "num", "qty"],
+        ["chu", "CHUTE", "number", "calc", "chute"],   /* v728 (bloc 9, FORMAT 260) : chute calculée, grisée */
         ["p", "PCB", "number", "num", "price"],
         ["ht", "MCB HT", "number", "calc", "amount"],
         ["tva", "TVA %", "number", "num", "tva"],
@@ -7969,7 +8004,7 @@ function renderBudgetList() {
     const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
-        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "pct" ? (k === "chg" ? insPctChg(r) : "") : f === "rdb" ? (k === "chg" ? chgRdb(r) : "") : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
+        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "chu" ? (k === "chg" ? (condChuteRow(INS, r) || "") : "") : f === "pct" ? (k === "chg" ? insPctChg(r) : "") : f === "rdb" ? (k === "chg" ? chgRdb(r) : "") : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
     /* erreur d'une ligne (FORMAT 75) : on ne passe pas à la ligne suivante tant qu'elle reste */
     const insRowErr = (k, r) => {
       /* FORMAT 124 : ART en double (saisi ou calculé) — titres compris */
@@ -8204,7 +8239,7 @@ function renderBudgetList() {
       return `<button type="button" class="only-c${ONLYC[k] ? " on" : ""}" data-onlyc="${k}"${short ? ' title="COCHÉES"' : ""}>${short ? "✓ " + n : "COCHÉES (" + n + ")"}</button>`;   /* v656 : listes étroites (TÂCHES) = « ✓ n » */
     };
     /* colonnes d'un tableau de saisie dans l'ordre choisi par glissement (mémorisé) */
-    const insColsOrd = k => { const cols = INS_COLS[k] || []; const ord = coKeys(insCfT(k), cols.map(c => c[4])); return ord.map(x => cols.find(c => c[4] === x)).filter(Boolean); };
+    const insColsOrd = k => { const cols = (INS_COLS[k] || []).filter(c => c[0] !== "chu" || Object.values(INS.cond || {}).some(v => v && v.mode === "c" && num(v.BL) > 0));   /* v728 : CHUTE seulement si un titre est réglé PAR MORCEAUX */ const ord = coKeys(insCfT(k), cols.map(c => c[4])); return ord.map(x => cols.find(c => c[4] === x)).filter(Boolean); };
     const insCfCols = k => INS_COLS[k].map(c => [c[4], c[1],
       r => k === "des" && c[0] === "art" ? artOf(r) : c[3] === "txt" ? (r[c[0]] || "") : (r.t ? "" : insCalc(k, r, c[0])), c[2]]);
     const insShown = k => {
@@ -8316,7 +8351,8 @@ function renderBudgetList() {
       const cols = insColsOrd("chg"), ht = g.reduce((t, r) => t + insHT("chg", r), 0), ttc = g.reduce((t, r) => t + insTTC("chg", r), 0);
       const qs = g.reduce((t, r) => t + (Number(insCalc("chg", r, "q")) || 0), 0);
       const nt = new Set(g.map(r => chgTaskName(r.id)).filter(Boolean)).size;
-      const v = { art: g[0].art || "", des: g[0].des || "", u: g[0].u || "", q: money(qs), p: qs ? money(ht / qs) : "", ht: money(ht),
+      const chu = g.reduce((t, r) => t + condChuteRow(INS, r), 0);
+      const v = { art: g[0].art || "", des: g[0].des || "", u: g[0].u || "", q: money(qs), chu: chu ? money(chu) : "", p: qs + chu ? money(ht / (qs + chu)) : "", ht: money(ht),
         tva: ht ? money((ttc - ht) / ht * 100) : "", ttc: money(ttc), rdb: "", tache: nt + " TÂCHE" + (nt > 1 ? "S" : "") };
       const RD = chgGrpRdb(g);
       if (RD) v.rdb = money(RD.v) + " " + RD.u;
@@ -8690,6 +8726,7 @@ function renderBudgetList() {
       if (rows.length && us.size === 1 && [...us][0]) {
         val.u = [...us][0];
         val.q = money(rows.reduce((t, r) => t + (Number(insCalc(k, r, "q")) || 0), 0));
+        if (k === "chg") { const cs = rows.reduce((t, r) => t + condChuteRow(INS, r), 0); if (cs) val.chu = money(cs); }
         const ps = new Set(rows.map(r => money(Number(insCalc(k, r, "p")) || 0)));
         if (ps.size === 1 && rows.every(r => String(insCalc(k, r, "p") ?? "") !== "")) val.p = [...ps][0];
       }
@@ -23036,7 +23073,10 @@ ${A}</Assignments>
     /* v715 : les commandes sortent du graphique du planning (une seule fois par budget) */
     if (INS && INS.appro && INS.appro.on && !INS.aprMig) { INS.appro.on = false; INS.aprMig = 1; }
     /* QUANTITÉ FIXE : lot = contenu d'une unité d'achat × unités par camion (fenêtre emballage / livraison), sinon une unité d'achat */
-    const aprLot = sk => { let c = null; try { c = condAll()[sk] || (INS.cond || {})[sk] || null; } catch (e) {} const a = num((c || {}).per) || 0, b = num((c || {}).perT) || 0; return a > 0 ? (b > 0 ? a * b : a) : 0; };
+    /* v728 (bloc 9.1) : réglage du titre de charges de ce budget ; découpe : une barre (longueur × poids) × barres par paquet */
+    const aprLot = sk => { let c = null; try { c = condOf(INS, sk); } catch (e) {} c = c || {};
+      if (c.mode === "c" && num(c.BL) > 0) { const f = condM2U(sk.split("|")[1], num(c.kgm)); if (f === null) return 0; const b = num(c.perT) || 0; return num(c.BL) * f * (b > 0 ? b : 1); }
+      const a = num(c.per) || 0, b = num(c.perT) || 0; return a > 0 ? (b > 0 ? a * b : a) : 0; };
     /* jour d'approvisionnement : la commande recule au jour de la semaine choisi (au plus tard la date calculée) */
     const aprDay = (d, wd) => { if (wd === "" || wd === undefined) return d; const dt = new Date(d + "T00:00:00"), back = (dt.getDay() - Number(wd) + 7) % 7; return sviIsoAdd(d, -back); };
     const aprSt = () => { if (!INS) return { cfg: {}, sel: "all", open: {} }; INS.apr = INS.apr || {}; INS.apr.cfg = INS.apr.cfg || {}; INS.apr.open = INS.apr.open || {}; return INS.apr; };
@@ -26314,10 +26354,11 @@ ${A}</Assignments>
        Réglages gardés par désignation de charge (INS.cond). Même tableau de résultat pour les deux modes. */
     /* remarque 4 (v542) : le conditionnement appartient à l'ARTICLE (CHS) — gardé pour tous les budgets (sur l'appareil, en attendant
        la colonne CHS côté Google Sheets) ; la copie du budget (INS.cond) reste lue pour les budgets déjà réglés */
-    const condGet = key => condAll()[key] || (INS.cond || {})[key] || null;
+    const condGet = key => condOf(INS, key);   /* v728 : réglage du titre de charges dans ce budget d'abord */
     const condRows = id => { const r = INS.chg.find(x => x.id === id); return r ? INS.chg.filter(x => !x.t && COND_K(x) === COND_K(r)) : []; };
     /* morceaux : produits des liaisons de ces charges — longueur = DIM 1, nombre = NBR (× quantité liée si plusieurs) */
-    const condPieces = rows => {
+    const condPieces = rows => condPiecesOf(INS, rows);
+    const condPieces0 = rows => {
       const ids = new Set(rows.map(r => r.id)), out = new Map();
       (INS.links || []).filter(l => (l.chg || []).some(x => ids.has(x.id))).forEach(l => (l.prd || []).forEach(x => {
         const p = INS.prd.find(q => q.id === x.id);
@@ -26337,7 +26378,7 @@ ${A}</Assignments>
       const r0 = rows[0], key = COND_K(r0), Q = rows.reduce((a, r) => a + (num(r.q) || 0), 0);
       INS.cond = INS.cond || {};
       const st = { mode: "q", ua: "", per: "", perT: "", BL: 12, kerf: 0, kgm: "", ...(condGet(key) || {}) };
-      let pcs = condPieces(rows);
+      let pcs = st.pcs && st.pcs.length ? st.pcs.map(p => ({ ...p })) : condPieces(rows);
       const d = sviWinNew();
       const f2 = v => v === "" || v === undefined || v === null ? "" : money(v);
       const res = () => {
@@ -26365,8 +26406,8 @@ ${A}</Assignments>
         d.innerHTML = `<div class="svc-card cond-card" role="dialog" aria-modal="true">
           <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
           <div class="svc-t">CONDITIONNEMENT — ${esc(U_(r0.des))}</div>
-          <div class="svc-sub">${rows.length} LIGNE(S) DE CHARGE — QUANTITÉ BUDGÉTÉE ${esc(money(Q))} ${esc(U_(r0.u))} — SANS EFFET SUR LE BUDGET</div>
-          <div class="svc-sub cond-chs">RÉGLAGE DE L'ARTICLE : IL VAUT POUR TOUS LES BUDGETS.</div>
+          <div class="svc-sub">${rows.length} LIGNE(S) DE CHARGE — QUANTITÉ BUDGÉTÉE ${esc(money(Q))} ${esc(U_(r0.u))}</div>
+          <div class="svc-sub cond-chs">${st.mode === "c" ? (condM2U(r0.u, num(st.kgm)) === null ? "CHUTE NON AJOUTÉE : UNITÉ " + esc(U_(r0.u)) + (/^(KG|T)$/.test(U_(r0.u)) ? " — SAISIR LE POIDS (KG / M)." : " — UNITÉ EN M, ML, KG OU T SEULEMENT.") : "LA CHUTE S'AJOUTE À LA QUANTITÉ DE CHAQUE CHARGE DU TITRE (COLONNE CHUTE)." ) : "RÉGLAGE DU TITRE DE CHARGES (CE BUDGET) : IL SERT À LA QUANTITÉ FIXE DE L'APPROVISIONNEMENT."}</div>
           <div class="cond-mode"><button type="button" data-m="q" class="${st.mode === "q" ? "on" : ""}">PAR QUANTITÉ TOTALE</button><button type="button" data-m="c" class="${st.mode === "c" ? "on" : ""}">PAR MORCEAUX (DÉCOUPE)</button></div>
           ${st.mode === "q" ? `
             <div class="bdt-row"><span>UNITÉ D'ACHAT</span><input data-k="ua" value="${esc(st.ua)}" placeholder="PALETTE, SAC, BARRE…" autocomplete="off"></div>
@@ -26384,7 +26425,8 @@ ${A}</Assignments>
           <div class="cond-h">RÉSULTAT</div><div class="cond-res">${res()}</div>
           <div class="svc-f"><button type="button" class="svc-b svc-ok" data-x>FERMER</button></div></div>`;
       };
-      const save = () => { const v = { mode: st.mode, ua: st.ua, per: st.per, perT: st.perT, BL: st.BL, kerf: st.kerf, kgm: st.kgm }; INS.cond[key] = v; const A = condAll(); A[key] = v; try { localStorage.setItem("svi_cond_chs_v1", JSON.stringify(A)); } catch (e) {} insSave(); };
+      /* v728 : gardé dans le budget seulement (titre de charges) ; morceaux modifiés à la main gardés aussi */
+      const save = () => { if (!INS_EDIT) return; const auto = JSON.stringify(condPieces(rows)), mine = JSON.stringify(pcs); const v = { mode: st.mode, ua: st.ua, per: st.per, perT: st.perT, BL: st.BL, kerf: st.kerf, kgm: st.kgm, ...(mine !== auto ? { pcs: pcs.map(p => ({ L: p.L, n: p.n })) } : {}) }; INS.cond[key] = v; insSave(); try { refreshAll(); } catch (e) {} };
       draw();
       document.getElementById("svConf")?.remove();
       sviWinShow(d);

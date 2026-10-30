@@ -15,7 +15,10 @@
     /* v715 : les commandes sortent du graphique du planning (une seule fois par budget) */
     if (INS && INS.appro && INS.appro.on && !INS.aprMig) { INS.appro.on = false; INS.aprMig = 1; }
     /* QUANTITÉ FIXE : lot = contenu d'une unité d'achat × unités par camion (fenêtre emballage / livraison), sinon une unité d'achat */
-    const aprLot = sk => { let c = null; try { c = condAll()[sk] || (INS.cond || {})[sk] || null; } catch (e) {} const a = num((c || {}).per) || 0, b = num((c || {}).perT) || 0; return a > 0 ? (b > 0 ? a * b : a) : 0; };
+    /* v728 (bloc 9.1) : réglage du titre de charges de ce budget ; découpe : une barre (longueur × poids) × barres par paquet */
+    const aprLot = sk => { let c = null; try { c = condOf(INS, sk); } catch (e) {} c = c || {};
+      if (c.mode === "c" && num(c.BL) > 0) { const f = condM2U(sk.split("|")[1], num(c.kgm)); if (f === null) return 0; const b = num(c.perT) || 0; return num(c.BL) * f * (b > 0 ? b : 1); }
+      const a = num(c.per) || 0, b = num(c.perT) || 0; return a > 0 ? (b > 0 ? a * b : a) : 0; };
     /* jour d'approvisionnement : la commande recule au jour de la semaine choisi (au plus tard la date calculée) */
     const aprDay = (d, wd) => { if (wd === "" || wd === undefined) return d; const dt = new Date(d + "T00:00:00"), back = (dt.getDay() - Number(wd) + 7) % 7; return sviIsoAdd(d, -back); };
     const aprSt = () => { if (!INS) return { cfg: {}, sel: "all", open: {} }; INS.apr = INS.apr || {}; INS.apr.cfg = INS.apr.cfg || {}; INS.apr.open = INS.apr.open || {}; return INS.apr; };

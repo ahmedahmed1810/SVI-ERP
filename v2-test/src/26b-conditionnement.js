@@ -7,10 +7,11 @@
        Réglages gardés par désignation de charge (INS.cond). Même tableau de résultat pour les deux modes. */
     /* remarque 4 (v542) : le conditionnement appartient à l'ARTICLE (CHS) — gardé pour tous les budgets (sur l'appareil, en attendant
        la colonne CHS côté Google Sheets) ; la copie du budget (INS.cond) reste lue pour les budgets déjà réglés */
-    const condGet = key => condAll()[key] || (INS.cond || {})[key] || null;
+    const condGet = key => condOf(INS, key);   /* v728 : réglage du titre de charges dans ce budget d'abord */
     const condRows = id => { const r = INS.chg.find(x => x.id === id); return r ? INS.chg.filter(x => !x.t && COND_K(x) === COND_K(r)) : []; };
     /* morceaux : produits des liaisons de ces charges — longueur = DIM 1, nombre = NBR (× quantité liée si plusieurs) */
-    const condPieces = rows => {
+    const condPieces = rows => condPiecesOf(INS, rows);
+    const condPieces0 = rows => {
       const ids = new Set(rows.map(r => r.id)), out = new Map();
       (INS.links || []).filter(l => (l.chg || []).some(x => ids.has(x.id))).forEach(l => (l.prd || []).forEach(x => {
         const p = INS.prd.find(q => q.id === x.id);
@@ -30,7 +31,7 @@
       const r0 = rows[0], key = COND_K(r0), Q = rows.reduce((a, r) => a + (num(r.q) || 0), 0);
       INS.cond = INS.cond || {};
       const st = { mode: "q", ua: "", per: "", perT: "", BL: 12, kerf: 0, kgm: "", ...(condGet(key) || {}) };
-      let pcs = condPieces(rows);
+      let pcs = st.pcs && st.pcs.length ? st.pcs.map(p => ({ ...p })) : condPieces(rows);
       const d = sviWinNew();
       const f2 = v => v === "" || v === undefined || v === null ? "" : money(v);
       const res = () => {
@@ -58,8 +59,8 @@
         d.innerHTML = `<div class="svc-card cond-card" role="dialog" aria-modal="true">
           <button type="button" class="svc-close" data-x aria-label="Fermer">✕</button>
           <div class="svc-t">CONDITIONNEMENT — ${esc(U_(r0.des))}</div>
-          <div class="svc-sub">${rows.length} LIGNE(S) DE CHARGE — QUANTITÉ BUDGÉTÉE ${esc(money(Q))} ${esc(U_(r0.u))} — SANS EFFET SUR LE BUDGET</div>
-          <div class="svc-sub cond-chs">RÉGLAGE DE L'ARTICLE : IL VAUT POUR TOUS LES BUDGETS.</div>
+          <div class="svc-sub">${rows.length} LIGNE(S) DE CHARGE — QUANTITÉ BUDGÉTÉE ${esc(money(Q))} ${esc(U_(r0.u))}</div>
+          <div class="svc-sub cond-chs">${st.mode === "c" ? (condM2U(r0.u, num(st.kgm)) === null ? "CHUTE NON AJOUTÉE : UNITÉ " + esc(U_(r0.u)) + (/^(KG|T)$/.test(U_(r0.u)) ? " — SAISIR LE POIDS (KG / M)." : " — UNITÉ EN M, ML, KG OU T SEULEMENT.") : "LA CHUTE S'AJOUTE À LA QUANTITÉ DE CHAQUE CHARGE DU TITRE (COLONNE CHUTE)." ) : "RÉGLAGE DU TITRE DE CHARGES (CE BUDGET) : IL SERT À LA QUANTITÉ FIXE DE L'APPROVISIONNEMENT."}</div>
           <div class="cond-mode"><button type="button" data-m="q" class="${st.mode === "q" ? "on" : ""}">PAR QUANTITÉ TOTALE</button><button type="button" data-m="c" class="${st.mode === "c" ? "on" : ""}">PAR MORCEAUX (DÉCOUPE)</button></div>
           ${st.mode === "q" ? `
             <div class="bdt-row"><span>UNITÉ D'ACHAT</span><input data-k="ua" value="${esc(st.ua)}" placeholder="PALETTE, SAC, BARRE…" autocomplete="off"></div>
@@ -77,7 +78,8 @@
           <div class="cond-h">RÉSULTAT</div><div class="cond-res">${res()}</div>
           <div class="svc-f"><button type="button" class="svc-b svc-ok" data-x>FERMER</button></div></div>`;
       };
-      const save = () => { const v = { mode: st.mode, ua: st.ua, per: st.per, perT: st.perT, BL: st.BL, kerf: st.kerf, kgm: st.kgm }; INS.cond[key] = v; const A = condAll(); A[key] = v; try { localStorage.setItem("svi_cond_chs_v1", JSON.stringify(A)); } catch (e) {} insSave(); };
+      /* v728 : gardé dans le budget seulement (titre de charges) ; morceaux modifiés à la main gardés aussi */
+      const save = () => { if (!INS_EDIT) return; const auto = JSON.stringify(condPieces(rows)), mine = JSON.stringify(pcs); const v = { mode: st.mode, ua: st.ua, per: st.per, perT: st.perT, BL: st.BL, kerf: st.kerf, kgm: st.kgm, ...(mine !== auto ? { pcs: pcs.map(p => ({ L: p.L, n: p.n })) } : {}) }; INS.cond[key] = v; insSave(); try { refreshAll(); } catch (e) {} };
       draw();
       document.getElementById("svConf")?.remove();
       sviWinShow(d);
