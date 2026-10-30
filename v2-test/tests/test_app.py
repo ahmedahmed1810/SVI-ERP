@@ -112,6 +112,14 @@ def main():
             return [tabs.some(t => /CHS/.test(t)), Math.round(k * 100) / 100, Math.min(5, n)]; }""")
         tv = pg.evaluate("() => { const t = document.querySelector('table.ins-table[data-ik=\"chg\"]'); if (!t) return 'pas de tableau'; const i = t.querySelector('tbody tr[data-iid] input.ins-in[data-f=\"tva\"]'); return !!i && !i.readOnly && !i.disabled; }")
         check("v727 : CHS retiré (PARAMÉTRAGE), TVA d'une charge saisissable ; TÂCHES en lignes entières (≤ 5)", t727[0] is False and abs(t727[1] - t727[2]) < 0.05 and tv is True, [t727, tv])
+        # v728 (bloc 9.2) : chute = barres achetées − longueur utile (méthode A), répartie au prorata des QCB du titre ; exemple du 30/10/2026
+        t728 = pg.evaluate("""() => { const I = { chg: [{ id: 'a', des: 'ACIER HA12', u: 'KG', q: 60 }, { id: 'b', des: 'ACIER HA12', u: 'KG', q: 40 }],
+            prd: [{ id: 'p1', d1: 4.5, nbr: 10 }, { id: 'p2', d1: 2.8, nbr: 6 }, { id: 'p3', d1: 1.2, nbr: 8 }],
+            links: [{ chg: [{ id: 'a' }], prd: [{ id: 'p1' }, { id: 'p2' }] }, { chg: [{ id: 'b' }], prd: [{ id: 'p3' }] }],
+            cond: { 'ACIER HA12|KG': { mode: 'c', BL: 12, kerf: 0, kgm: 0.888 } } };
+            const R = condCut(condPiecesOf(I, I.chg), 12, 0), r = x => Math.round(x * 100) / 100;
+            return [R.bars, r(R.need), r(R.chute), r(condChuteOf(I, 'ACIER HA12|KG', I.chg)), r(condChuteRow(I, I.chg[0]) + condChuteRow(I, I.chg[1]))]; }""")
+        check("v728 : chute de découpe (7 barres de 12 M pour 71,40 M → 12,60 M = 11,19 KG), répartie sur les lignes du titre", t728 == [7, 71.4, 12.6, 11.19, 11.19], t728)
 
         # remarque 20 : ligne rangée par son ART
         order = pg.evaluate(f"""() => {{ const X = {ins}; const r = X.INS.des.find(x => x.id === 'd2'); r.art = '1.2'; X.artPlace('d2');
@@ -1954,11 +1962,11 @@ def main():
         if pg.evaluate("() => !!document.querySelector('#svConf input[data-k=\"per\"]')"):
             pg.fill('#svConf input[data-k="per"]', '2'); pg.wait_for_timeout(200)
         pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(300)
-        k4c = pg.evaluate("() => /SABLE FIN\\|M3/.test(localStorage.getItem('svi_cond_chs_v1') || '')")
+        k4c = pg.evaluate(f"() => !!(({ins}).INS.cond || {{}})['SABLE FIN|M3']")   # v728 : réglage du titre gardé dans le budget (CHS n'existe plus)
         pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.chg = I.chg.filter(r => !/^m[123]$/.test(r.id)); delete I.cond; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
         pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
         check("v542 remarque 4 : conditionnement sur le titre des charges regroupées et sur une charge seule (pas sur les lignes du titre), réglé pour l'article (tous les budgets)",
-              k4 == [True, False, True] and "TOUS LES BUDGETS" in k4b and k4c, [k4, k4b[:160], k4c])
+              k4 == [True, False, True] and "CE BUDGET" in k4b and k4c, [k4, k4b[:160], k4c])
 
         # v663 (axe 2) : PRIX DE VENTE PAR LA MARGE — K = 1 ÷ (1 − marge) ; TÂCHE > LOT > GLOBALE ; PPB = charges × K ÷ QPB
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.__p2 = JSON.stringify({{ des: I.des, links: I.links, chg: I.chg }});

@@ -1054,6 +1054,40 @@ const condCut = (pieces, BL, kerf = 0) => {
   return { bars: bars.length, plan: [...plan].map(([k, v]) => ({ k, n: v.n, chute: v.chute })), need, chute, pct: bars.length ? chute / (bars.length * BL) * 100 : 0 };
 };
 
+/* v728 (bloc 9) : emballage et chutes — réglage du TITRE de charges (même désignation, même unité) dans CE budget (INS.cond),
+   l'ancien réglage gardé sur l'appareil (CHS) n'étant plus lu qu'en secours */
+const condOf = (I, key) => ((I && I.cond) || {})[key] || condAll()[key] || null;
+/* morceaux : produits liés aux charges du titre — longueur = DIM 1, nombre = NBR */
+const condPiecesOf = (I, rows) => {
+  const ids = new Set(rows.map(r => r.id)), out = new Map();
+  (I.links || []).filter(l => (l.chg || []).some(x => ids.has(x.id))).forEach(l => (l.prd || []).forEach(x => {
+    const p = (I.prd || []).find(q => q.id === x.id); if (!p) return;
+    const L = num(p.d1), n = Math.max(1, Math.round(num(p.nbr) || 1)); if (!(L > 0)) return;
+    const k = String(Math.round(L * 1000) / 1000); out.set(k, (out.get(k) || 0) + n);
+  }));
+  return [...out].map(([L, n]) => ({ L: Number(L), n })).sort((a, b) => b.L - a.L);
+};
+/* longueur (M) → unité de la charge : M / ML tel quel ; KG et T avec le poids au mètre ; sinon impossible (null) */
+const condM2U = (u, kgm) => { const U = U_(u).replace(/[^A-Z]/g, ""); if (U === "M" || U === "ML") return 1; if (kgm > 0 && (U === "KG")) return kgm; if (kgm > 0 && (U === "T" || U === "TONNE" || U === "TONNES")) return kgm / 1000; return null; };
+/* chute du titre (unité de la charge) : barres achetées − longueur utile (méthode A, 30/10/2026) ; mémorisée par réglage + morceaux */
+const condChuteMemo = new Map();
+const condChuteOf = (I, key, rows) => {
+  const c = ((I && I.cond) || {})[key]; if (!c || c.mode !== "c" || !(num(c.BL) > 0)) return null;   /* chute : seulement un réglage fait dans ce budget */
+  const pcs = c.pcs && c.pcs.length ? c.pcs : condPiecesOf(I, rows), f = condM2U(rows[0] && rows[0].u, num(c.kgm));
+  if (!pcs.length || f === null) return null;
+  const sig = key + "|" + c.BL + "|" + (c.kerf || 0) + "|" + JSON.stringify(pcs);
+  let R = condChuteMemo.get(sig); if (!R) { R = condCut(pcs, num(c.BL), num(c.kerf) || 0); if (condChuteMemo.size > 400) condChuteMemo.clear(); condChuteMemo.set(sig, R); }
+  return R.err ? null : R.chute * f;
+};
+/* part d'une ligne de charge : chute du titre répartie au prorata des QCB de ses lignes */
+const condChuteRow = (I, r) => {
+  if (!I || !r || r.t) return 0;
+  const key = COND_K(r), rows = (I.chg || []).filter(x => !x.t && COND_K(x) === key);
+  const C = condChuteOf(I, key, rows); if (!C) return 0;
+  const Q = rows.reduce((t, x) => t + (num(x.q) || 0), 0);
+  return Q > 0 ? C * (num(r.q) || 0) / Q : C / rows.length;
+};
+
 /* v718 (révision des prix) : estimation de la révision avec le planning — formule du contrat (part fixe + pondérations par index),
    hypothèse d'évolution par index (%/an depuis le mois de base), scénario pessimiste (hausse d'un index, et hausse de charges par mot-clé).
    Valeur de chaque désignation client répartie sur les jours de ses tâches ; révision du jour = valeur × (K − 1). */

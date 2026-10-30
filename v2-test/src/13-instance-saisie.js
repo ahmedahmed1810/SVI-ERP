@@ -396,7 +396,7 @@
       return d && d.p !== "" && d.p !== undefined ? num(d.p) : "";
     };
     const insPrice = (k, r) => { if (k !== "prd") return r.p; const v = insPrdPrice(INS, r.id); return v !== "" ? v : (INS.links || []).some(l => (l.prd || []).some(x => x.id === r.id)) ? "" : lkPrimPrice(r); };
-    const insHT = (k, r) => r.t ? 0 : insQty(k, r) * num(insPrice(k, r) || 0);
+    const insHT = (k, r) => r.t ? 0 : (insQty(k, r) + (k === "chg" ? condChuteRow(INS, r) * (INS_RGV ? insRgF("chg", r.id) : 1) : 0)) * num(insPrice(k, r) || 0);   /* v728 : la chute s'ajoute à la quantité payée */
     /* TVA de la ligne : produits = celle de la désignation liée (vide sans liaison) */
     const insTVAk = (k, r) => k === "prd" ? insPrdTVA(INS, r.id) : insTVA(r);
     const insTTC = (k, r) => insHT(k, r) * (1 + num(insTVAk(k, r) || 0) / 100);
@@ -419,6 +419,7 @@
         ["des", "DÉSIGNATION CHARGE", "", "txt", "detail"],
         ["u", "UCB", "center", "txt", "unit"],
         ["q", "QCB", "number", "num", "qty"],
+        ["chu", "CHUTE", "number", "calc", "chute"],   /* v728 (bloc 9, FORMAT 260) : chute calculée, grisée */
         ["p", "PCB", "number", "num", "price"],
         ["ht", "MCB HT", "number", "calc", "amount"],
         ["tva", "TVA %", "number", "num", "tva"],
@@ -455,7 +456,7 @@
     const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
-        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "pct" ? (k === "chg" ? insPctChg(r) : "") : f === "rdb" ? (k === "chg" ? chgRdb(r) : "") : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
+        : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "chu" ? (k === "chg" ? (condChuteRow(INS, r) || "") : "") : f === "pct" ? (k === "chg" ? insPctChg(r) : "") : f === "rdb" ? (k === "chg" ? chgRdb(r) : "") : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
     /* erreur d'une ligne (FORMAT 75) : on ne passe pas à la ligne suivante tant qu'elle reste */
     const insRowErr = (k, r) => {
       /* FORMAT 124 : ART en double (saisi ou calculé) — titres compris */
@@ -690,7 +691,7 @@
       return `<button type="button" class="only-c${ONLYC[k] ? " on" : ""}" data-onlyc="${k}"${short ? ' title="COCHÉES"' : ""}>${short ? "✓ " + n : "COCHÉES (" + n + ")"}</button>`;   /* v656 : listes étroites (TÂCHES) = « ✓ n » */
     };
     /* colonnes d'un tableau de saisie dans l'ordre choisi par glissement (mémorisé) */
-    const insColsOrd = k => { const cols = INS_COLS[k] || []; const ord = coKeys(insCfT(k), cols.map(c => c[4])); return ord.map(x => cols.find(c => c[4] === x)).filter(Boolean); };
+    const insColsOrd = k => { const cols = (INS_COLS[k] || []).filter(c => c[0] !== "chu" || Object.values(INS.cond || {}).some(v => v && v.mode === "c" && num(v.BL) > 0));   /* v728 : CHUTE seulement si un titre est réglé PAR MORCEAUX */ const ord = coKeys(insCfT(k), cols.map(c => c[4])); return ord.map(x => cols.find(c => c[4] === x)).filter(Boolean); };
     const insCfCols = k => INS_COLS[k].map(c => [c[4], c[1],
       r => k === "des" && c[0] === "art" ? artOf(r) : c[3] === "txt" ? (r[c[0]] || "") : (r.t ? "" : insCalc(k, r, c[0])), c[2]]);
     const insShown = k => {
@@ -802,7 +803,8 @@
       const cols = insColsOrd("chg"), ht = g.reduce((t, r) => t + insHT("chg", r), 0), ttc = g.reduce((t, r) => t + insTTC("chg", r), 0);
       const qs = g.reduce((t, r) => t + (Number(insCalc("chg", r, "q")) || 0), 0);
       const nt = new Set(g.map(r => chgTaskName(r.id)).filter(Boolean)).size;
-      const v = { art: g[0].art || "", des: g[0].des || "", u: g[0].u || "", q: money(qs), p: qs ? money(ht / qs) : "", ht: money(ht),
+      const chu = g.reduce((t, r) => t + condChuteRow(INS, r), 0);
+      const v = { art: g[0].art || "", des: g[0].des || "", u: g[0].u || "", q: money(qs), chu: chu ? money(chu) : "", p: qs + chu ? money(ht / (qs + chu)) : "", ht: money(ht),
         tva: ht ? money((ttc - ht) / ht * 100) : "", ttc: money(ttc), rdb: "", tache: nt + " TÂCHE" + (nt > 1 ? "S" : "") };
       const RD = chgGrpRdb(g);
       if (RD) v.rdb = money(RD.v) + " " + RD.u;
@@ -1176,6 +1178,7 @@
       if (rows.length && us.size === 1 && [...us][0]) {
         val.u = [...us][0];
         val.q = money(rows.reduce((t, r) => t + (Number(insCalc(k, r, "q")) || 0), 0));
+        if (k === "chg") { const cs = rows.reduce((t, r) => t + condChuteRow(INS, r), 0); if (cs) val.chu = money(cs); }
         const ps = new Set(rows.map(r => money(Number(insCalc(k, r, "p")) || 0)));
         if (ps.size === 1 && rows.every(r => String(insCalc(k, r, "p") ?? "") !== "")) val.p = [...ps][0];
       }
