@@ -74,11 +74,8 @@
     const insCal = () => sviCalOf(INS);
     /* budget en instance (rouge) : les charges venues de CHS suivent CHS (prix, TVA, unité…) ;
        figé (vert) ou validé (noir) : on garde les valeurs du moment */
-    if (INS_EDIT) (INS.chg || []).forEach(r => {
-      const c = r.chs && chsById(r.chs);
-      if (!c) return;
-      r.art = c.article ?? r.art; r.des = c.designation ?? r.des; r.u = c.unit ?? r.u; r.p = c.pcs; r.tva = c.tva;
-    });
+    /* v727 (bloc 11.1) : CHS n'existe plus — l'ancien rattachement est oublié, les valeurs déjà reprises restent (PCB, UCB, TVA saisissables) */
+    ((INS && INS.chg) || []).forEach(r => { if (r.chs !== undefined) delete r.chs; });
     let insSeq = Date.now();
     const insId = () => "i" + (insSeq++).toString(36);
     /* FORMAT 91 : LIGNES NON LIÉES (compteur, liste ouverte, hachures, FIGER) et LIAISONS VALIDÉES
@@ -455,7 +452,7 @@
        désignations : QPB, montants (TVA saisissable, 20 % par défaut) ;
        charges : PCB (s'il vient de CHS), montants, TVA (de CHS) — une charge absente de CHS garde son PCB saisissable ;
        produits : QPB, PPB, montants, TVA (celle de la désignation liée) ; unité, NBR et DIM se saisissent */
-    const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "tva", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
+    const INS_LOCK = { des: ["q", "ht", "ttc"], chg: ["ht", "ttc"], prd: ["q", "p", "ht", "tva", "ttc"] };
     const insCalc = (k, r, f) =>
       f === "ht" ? insHT(k, r) : f === "ttc" ? insTTC(k, r)
         : f === "q" ? insQty(k, r) : f === "tva" ? insTVAk(k, r) : (f === "p" && k === "prd") ? insPrice(k, r) : f === "tache" ? (k === "chg" ? chgTaskName(r.id) : prdTaskName(r.id)) : f === "pct" ? (k === "chg" ? insPctChg(r) : "") : f === "rdb" ? (k === "chg" ? chgRdb(r) : "") : f === "agr" ? (r.agr ? "OUI" : "") : r[f];
@@ -477,7 +474,7 @@
       }
       if (k === "chg") {
         if (z(r.q)) return { f: "q", m: "QTE VIDE OU 0 : SAISIR LA QUANTITÉ." };
-        if (!r.chs && z(r.p)) return { f: "p", m: "CHARGE ABSENTE DE CHS : SAISIR LE PCB." };
+        if (!r.chs && z(r.p)) return { f: "p", m: "SAISIR LE PCB." };
       }
       return null;
     };

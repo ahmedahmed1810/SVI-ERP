@@ -264,11 +264,11 @@ function openSourceWin() {
           ? field("v3", "ONGLETS BUDGETS, DESIGNATIONS, TACHES, DETAILS, ARRETS" + (files.v3.folder ? " — DOSSIER " + esc(files.v3.folder) : ""))
           : field("main", "ONGLET BDG — BASE V3 NON LUE : " + esc(tag))) +
         (v3ok ? "" : row("BASE V3", field("v3", "NON LUE : " + esc(tag)))) +
-        row("CHS, BDS", field("main", "ONGLETS CHS, BDS_V2, BRD_V2 — MODIFIABLE DEPUIS LA VERSION VALIDÉE")) +
+        row("BDS", field("main", "ONGLETS BDS_V2, BRD_V2 — MODIFIABLE DEPUIS LA VERSION VALIDÉE")) +
         row("BUDGETS EN INSTANCE", "SUR CET APPAREIL SEULEMENT<span class=\"src-note\">PAS ENCORE ENREGISTRÉS DANS GOOGLE SHEETS</span>");
     } else {
       rows +=
-        row("BDG, CHS, BDS", field("main", "ONGLETS BDG, CHS, BDS_V2, BRD_V2" + (files.main.folder ? " — DOSSIER " + esc(files.main.folder) : "")));
+        row("BDG, BDS", field("main", "ONGLETS BDG, BDS_V2, BRD_V2" + (files.main.folder ? " — DOSSIER " + esc(files.main.folder) : "")));
     }
     p.querySelector(".src-grid").innerHTML = rows;
   };
@@ -337,7 +337,7 @@ function openSourceWin() {
     if (!sv || !editing) return;
     const link = p.querySelector(`.src-fld[data-which="${editing}"] .src-in`).value.trim();
     if (!/\/d\/[A-Za-z0-9_-]{20,}|^[A-Za-z0-9_-]{20,}$/.test(link)) { msg("LIEN GOOGLE SHEETS NON RECONNU.", true); return; }
-    const lab = editing === "v3" ? "LA BASE DES BUDGETS (V3)" : "LE FICHIER PRINCIPAL (CHS, BDS, BDG)";
+    const lab = editing === "v3" ? "LA BASE DES BUDGETS (V3)" : "LE FICHIER PRINCIPAL (BDS, BDG)";
     if (!await svConfirm({ title: "CHANGER LE FICHIER SOURCE", text: "L'APPLICATION LIRA DÉSORMAIS " + lab + " DANS CE FICHIER.", ok: "CHANGER", tone: "neutral" })) return;
     sv.disabled = true;
     msg("VÉRIFICATION DU FICHIER…");

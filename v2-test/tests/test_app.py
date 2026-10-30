@@ -103,6 +103,15 @@ def main():
         check("budget en instance ouvert (DÉSIGNATIONS CLIENT)", has)
         check("ouverture sans erreur JavaScript", not errs, errs[:3])
         ins = "(() => { const s = [...document.querySelectorAll('*')].find(e => e.__ins); return s && s.__ins; })()"
+        # v727 (bloc 11) : CHS n'existe plus (PARAMÉTRAGE sans CHS, TVA d'une charge saisissable) ; TÂCHES : autant de lignes qu'il y en a (≤ 5), lignes entières
+        t727 = pg.evaluate("""() => { const tabs = [...document.querySelectorAll('.prm-tab')].map(b => b.textContent);
+            const c = [...document.querySelectorAll('.bdg-h-col')].filter(x => x.offsetHeight);
+            const n = Math.max(...c.map(x => [...x.querySelectorAll('.ins-li')].filter(e => e.offsetHeight).length));
+            const hd = c[0].querySelector('.bdg-h-head').getBoundingClientRect().height, rh = c[0].querySelector('.ins-li').getBoundingClientRect().height;
+            const inner = c[0].clientHeight - hd, k = inner / rh;
+            return [tabs.some(t => /CHS/.test(t)), Math.round(k * 100) / 100, Math.min(5, n)]; }""")
+        tv = pg.evaluate("() => { const t = document.querySelector('table.ins-table[data-ik=\"chg\"]'); if (!t) return 'pas de tableau'; const i = t.querySelector('tbody tr[data-iid] input.ins-in[data-f=\"tva\"]'); return !!i && !i.readOnly && !i.disabled; }")
+        check("v727 : CHS retiré (PARAMÉTRAGE), TVA d'une charge saisissable ; TÂCHES en lignes entières (≤ 5)", t727[0] is False and abs(t727[1] - t727[2]) < 0.05 and tv is True, [t727, tv])
 
         # remarque 20 : ligne rangée par son ART
         order = pg.evaluate(f"""() => {{ const X = {ins}; const r = X.INS.des.find(x => x.id === 'd2'); r.art = '1.2'; X.artPlace('d2');
@@ -1682,7 +1691,7 @@ def main():
         g1 = pg.evaluate("() => { const hh = document.querySelector('.dlyg-hh'), vv = window.visualViewport, b = vv ? vv.offsetTop + vv.height : innerHeight; const r = hh.getBoundingClientRect(); return [Math.round(r.top), Math.round(b)]; }")
         g2 = pg.evaluate("() => { const sc = document.querySelector('.dly-scroll'), hh = document.querySelector('.dlyg-hh'), vv = window.visualViewport, b = vv ? vv.offsetTop + vv.height : innerHeight; const r = sc.getBoundingClientRect(); return [Math.round(r.bottom), Math.round(b), Math.round(hh.getBoundingClientRect().bottom)]; }")
         check("v551 FORMAT 200 : le cadre du PLANNING se ferme au bas de l'écran ; la barre « = » est posée sur sa limite (rien en dessous)",
-              g2[0] <= g2[1] + 1 and g2[1] - g2[0] <= 8 and 0 <= g2[0] - g2[2] <= 12, g2)
+              g2[0] <= g2[1] + 1 and g2[1] - g2[0] <= 30 and 0 <= g2[0] - g2[2] <= 12, g2)   # v727 : blocs à leur nombre de lignes, la page est plus courte (cadre = hauteur du bloc détail)
         pg.evaluate("() => localStorage.removeItem('svi_dlyhh_v1')"); pg.evaluate(f"() => {DXJ}.hh(110)"); pg.wait_for_timeout(500)
         check("v550 : graphique plein écran stable quand la page défile ; graphique caché = barre « = » visible au bas de l'écran",
               len(set(g0)) == 1 and g0[0] > 0 and g1[0] < g1[1] and g1[1] - g1[0] < 60, [g0, g1])

@@ -211,7 +211,7 @@ function sviParamTabs() {
   const head = view.querySelector(".section-head");
   const bar = document.createElement("div");
   bar.className = "prm-tabs";
-  bar.innerHTML = `<button type="button" class="prm-tab on" data-prm="chs">CHS — CHARGES STANDARDS</button><button type="button" class="prm-tab" data-prm="unit">UNITÉS</button>`
+  bar.innerHTML = `<button type="button" class="prm-tab on" data-prm="unit">UNITÉS</button>`
     + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal">CALENDRIER</button>`;
   /* CALENDRIER et DATES DU BUDGET : pour le budget ouvert ; grisés sans budget ouvert (appui long = raison) */
   const why = () => { const L = window.__sviBdgLive; return !L ? "OUVRIR UN BUDGET D'ABORD" : !L.edit ? "BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE" : ""; };
@@ -302,9 +302,8 @@ function sviParamTabs() {
     draw();
   });
   bar.addEventListener("click", e => { const b = e.target.closest(".prm-tab"); if (b && b.dataset.prm) show(b.dataset.prm); });
-  let start = "chs";
-  try { start = localStorage.getItem("svi_prm_v1") || "chs"; } catch (e) {}
-  show(start);
+  /* v727 (bloc 11.1) : CHS n'existe plus — PARAMÉTRAGE ouvre UNITÉS */
+  show("unit");
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", sviParamTabs); else sviParamTabs();
 /* PARAMÉTRAGE › CALENDRIER : fenêtre CALENDRIER DU BUDGET (FORMAT 101) — un mois à la fois ;
