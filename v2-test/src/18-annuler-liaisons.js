@@ -1206,7 +1206,7 @@
       d.addEventListener("click", e => { if (e.target.closest("[data-fwclr]")) { d.remove(); if (shell.__insClrAll) shell.__insClrAll(); return; } if (e.target === d || e.target.closest("[data-x]")) d.remove(); });
     };
     if (!shell.__filtCntBound) { shell.__filtCntBound = true;
-      shell.addEventListener("click", e => { const c = e.target.closest && e.target.closest("#bdgTabs .bdg-d-tab .svi-cnt.cnt-filt"); if (!c) return; e.preventDefault(); e.stopPropagation(); if (shell.__filtWin) shell.__filtWin(c); }, true); }
+      shell.addEventListener("click", e => { const c = e.target.closest && e.target.closest("#bdgTabs .bdg-d-tab .svi-cnt.cnt-filt, .blk-rec .svi-cnt.cnt-filt"); if (!c) return; e.preventDefault(); e.stopPropagation(); if (shell.__filtWin) shell.__filtWin(c); }, true); }
     if (!shell.__emptyBound) {
       shell.__emptyBound = true;
       shell.addEventListener("click", e => {
