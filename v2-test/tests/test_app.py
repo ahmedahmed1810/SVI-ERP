@@ -2345,6 +2345,17 @@ def main():
         check("v672 bloc 2 : envoi initial (REV 1, contrôle), fusion : QPB gardée (moi seul), PPB de l'autre plus récent gardé (999) et le mien en CONFLIT (777, BRAHIM) ; ⚠ CONFLITS ; MA VALEUR reprise ; QUI = TESTEUR",
               s72 and s72[1] >= 1 and s72[2] == 0 and m72[0] == 999 and m72[1] == 123 and m72[2] == 1 and m72[3] == "BRAHIM" and m72[4] == 777 and "CONFLITS" in td72 and r72 == [777, 0] and "TESTEUR" in h72, [s72, m72, td72[:200], r72, h72])
 
+        # v705 : balayage d'un budget à l'autre dans l'ordre de la liste ; budget à avenants parcouru écran par écran
+        pg.evaluate("""() => { window.__kp705 = JSON.stringify(sviInstGet()); const d = { des: [], lot: [], prim: [], sec: [], chg: [], prd: [], links: [], dlp: {} };
+            sviInstSet(sviInstGet().concat([{ ref: 'SOLO-1', project: 'SOL', state: 'valide', data: JSON.parse(JSON.stringify(d)) }, { ref: 'AVT-1', project: 'AVT', state: 'valide', data: JSON.parse(JSON.stringify(d)) }, { ref: 'AVT-1-AV1', project: 'AVT', state: 'valide', parent: 'AVT-1', avn: 1, data: JSON.parse(JSON.stringify(d)) }]));
+            localStorage.setItem('svi_listmode_v1', 'valid'); window.__sviAvOpen('SOLO-1', null); }"""); pg.wait_for_timeout(1200)
+        nav = []
+        for k in range(4):
+            nav.append(pg.evaluate("() => [(document.getElementById('sviScreenTag') || {}).textContent || '', !!window.__sviBdgNav, (window.__sviBdgOrder || []).indexOf('SOLO-1') >= 0]"))
+            pg.evaluate("() => { const o = window.__sviBdgOrder || [], i = o.indexOf('SOLO-1'), j = o.indexOf('AVT-1'); window.__sviBdgOrder = o.filter(x => x !== 'SOLO-1' && x !== 'AVT-1').concat(['SOLO-1', 'AVT-1']); window.__sviBdgNav && window.__sviBdgNav.go(1); }"); pg.wait_for_timeout(1200)
+        pg.evaluate("() => { document.getElementById('budgetBackBtn')?.click(); sviInstSet(JSON.parse(window.__kp705)); localStorage.setItem('svi_listmode_v1', 'inst'); }"); pg.wait_for_timeout(600)
+        check("v705 : balayage — budget sans avenant puis budget suivant : CONSOLIDÉ, BUDGET INITIAL, AVENANT 1 un par un",
+              [n[0] for n in nav] == ["BUDGET", "BUDGET CONSOLIDÉ", "BUDGET INITIAL", "BUDGET AVENANT 1"] and nav[0][1], nav)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
