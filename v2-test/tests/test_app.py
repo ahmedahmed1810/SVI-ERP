@@ -2358,6 +2358,14 @@ def main():
         pg.evaluate("() => { document.getElementById('budgetBackBtn')?.click(); sviInstSet(JSON.parse(window.__kp705)); localStorage.setItem('svi_listmode_v1', 'inst'); }"); pg.wait_for_timeout(600)
         check("v705 : balayage — budget sans avenant puis budget suivant : CONSOLIDÉ, BUDGET INITIAL, AVENANT 1 un par un",
               [n[0] for n in nav] == ["BUDGET", "BUDGET CONSOLIDÉ", "BUDGET INITIAL", "BUDGET AVENANT 1"] and nav[0][1], nav)
+        # v710 : budget ancien (lignes de la base, sans INS) — s'ouvre jusqu'au bout et ← ramène à la liste
+        pg.evaluate("() => { document.getElementById('budgetBackBtn')?.click(); }"); pg.wait_for_timeout(500)
+        pg.evaluate("() => { window.__rows710 = bdgRows; bdgRows = [{ PRJ: 'OLD', 'DÉSIGNATION': 'X' }]; localStorage.setItem('svi_listmode_v1', 'valid'); localStorage.setItem('svi_lastbdg_v1', 'BDG 26-1001/001'); renderBudgetList(); }"); pg.wait_for_timeout(1200)
+        o710 = pg.evaluate("() => [localStorage.getItem('svi_step_v1'), !!document.getElementById('budgetBackBtn')]")
+        pg.evaluate("() => document.getElementById('budgetBackBtn')?.click()"); pg.wait_for_timeout(600)
+        b710 = pg.evaluate("() => !document.getElementById('budgetBackBtn')")
+        pg.evaluate("() => { bdgRows = window.__rows710 || []; localStorage.setItem('svi_listmode_v1', 'inst'); renderBudgetList(); }"); pg.wait_for_timeout(400)
+        check("v710 : budget ancien (sans INS) ouvert jusqu'au bout ; ← ramène à la liste", o710 == ["OUVERT", True] and b710, [o710, b710])
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
