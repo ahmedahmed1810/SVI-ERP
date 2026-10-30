@@ -2355,6 +2355,20 @@ def main():
             S.corrupt = false; await run(); const b = k ? [sviSyncMeta()[k].ctl || 0, !!sviSyncMeta()[k].dirty] : null; r.q = Number(r.q) - 1; X.insSave(); await sviInstFlush(); await new Promise(z => setTimeout(z, 1500)); await run(); window.apiPost = undefined; return [a, b]; }}""")
         check("v721 : contrôle de l'envoi par les totaux — écart = renvoi, ⚠ sur le repère après 2 échecs, remis à zéro quand c'est bon",
               c721 and c721[0] and c721[0][0] >= 2 and "MONTANT HT DES DÉSIGNATIONS" in c721[0][1] and c721[0][2] and "⚠" in c721[0][3] and c721[1] == [0, False], c721)
+        # v722 (bloc 7, point 3) : TOUT PARTAGER — UNITÉS envoyées dans la base (_K:svi_units_v1), reçues d'un autre appareil, fusion par réunion en cas de conflit
+        sh = pg.evaluate("""async () => { const S = window.__fs; if (!S || !window.__fsApi) return null; window.apiPost = window.__fsApi;
+            const W = ms => new Promise(z => setTimeout(z, ms)), run = async () => { for (let i = 0; i < 20 && SVI_SYNC.busy; i++) await W(300); await sviSyncRun(); };
+            const old = localStorage.getItem('svi_units_v1');
+            localStorage.setItem('svi_units_v1', JSON.stringify([{ n: 'MÈTRE CARRÉ', a: 'M2' }])); await run();
+            const sent = S.b['_K:svi_units_v1'] ? JSON.parse(JSON.parse(S.b['_K:svi_units_v1'].data).data.v).length : -1;
+            const x = S.b['_K:svi_units_v1'], o = JSON.parse(x.data); o.data.v = JSON.stringify([{ n: 'MÈTRE CARRÉ', a: 'M2' }, { n: 'TONNE', a: 'T' }]); x.data = JSON.stringify(o); x.rev++; x.user = 'BRAHIM'; x.ts = Date.now();
+            await sviSyncPull(); const got = JSON.parse(localStorage.getItem('svi_units_v1') || '[]').map(u => u.a).join(',');
+            const y = S.b['_K:svi_units_v1'], o2 = JSON.parse(y.data); o2.data.v = JSON.stringify([...JSON.parse(o2.data.v), { n: 'LITRE', a: 'L' }]); y.data = JSON.stringify(o2); y.rev++; y.ts = Date.now() - 1000;
+            localStorage.setItem('svi_units_v1', JSON.stringify([...JSON.parse(localStorage.getItem('svi_units_v1')), { n: 'KILOGRAMME', a: 'KG' }])); await run(); await run();
+            const fin = JSON.parse(localStorage.getItem('svi_units_v1') || '[]').map(u => u.a).sort().join(',');
+            if (old === null) localStorage.removeItem('svi_units_v1'); else localStorage.setItem('svi_units_v1', old); await run(); window.apiPost = undefined; return [sent, got, fin]; }""")
+        check("v722 : partage — UNITÉS envoyées, reçues d'un autre appareil, modifiées des deux côtés = réunion (rien de perdu)",
+              sh == [1, "M2,T", "KG,L,M2,T"], sh)
 
         # v719 / v720 (bloc 6) : DOC / TAF / OBS liés au chemin des ronds (BUDGET sans rond) ; filtrés par les cases carrées des autres blocs
         r720 = pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS, d = (I.des || []).find(r => !r.t), L = (I.links || []).find(l => l.des === (d || {{}}).id);
