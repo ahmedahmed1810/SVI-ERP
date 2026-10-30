@@ -6833,7 +6833,8 @@ function renderBudgetList() {
         : bi.rclOf ? "RECALAGE R" + bi.rcn : bi.parent ? "BUDGET AVENANT " + (bi.avn || 1) : fam ? "BUDGET INITIAL" : "BUDGET";
       /* v706 : scénario actif = son NUMÉRO (SCÉNARIO n, rang de création), même renommé ; repeint à chaque changement de scénario */
       const lab0 = lab;
-      const tagLab = V => { try { const SC = ((V || {}).L || []).filter(x => x.kind === "sc"), i = SC.findIndex(x => x.id === V.act); return SC.length > 1 && i >= 0 ? lab0 + " — SCÉNARIO " + (i + 1) : lab0; } catch (e) { return lab0; } };
+      const tagLab = V => { try { const SC = ((V || {}).L || []).filter(x => x.kind === "sc"), i = SC.findIndex(x => x.id === V.act); if (!(SC.length > 1 && i >= 0)) return lab0; const m = String(SC[i].nom || "").match(/SC[ÉE]NARIO\s*(\d+)/i);   /* v708 : le numéro du nom (celui de la liste) */
+        return lab0 + " — SCÉNARIO " + (m ? m[1] : i + 1); } catch (e) { return lab0; } };
       lab = tagLab((bi && bi.data && bi.data.ver) || {});
       document.getElementById("sviScreenTag")?.remove();
       const t = document.createElement("div"); t.id = "sviScreenTag"; t.textContent = lab; document.body.appendChild(t);
