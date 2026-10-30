@@ -326,6 +326,7 @@
     };
     const scnRender = () => {
       scnPill();
+      try { if (INS && shell.__tagPaint) shell.__tagPaint(INS.ver); } catch (e) {}   /* v706 : numéro du scénario en haut */
       try { verRender(); } catch (e) {}
       try { shell.__rclRender && shell.__rclRender(); } catch (e) {}
       const blk = shell.querySelector(".blk-scn"), t = $("scnTable");

@@ -327,9 +327,13 @@
       const fam = bi && !bi.virtual && !bi.rclOf ? sviAvStages(bi.parent || bi.ref).length > 1 : false;
       let lab = !bi ? "BUDGET" : bi.virtual ? (bi.vname ? bi.vname.replace(/^MARCHÉ INITIAL/, "BUDGET INITIAL").replace(/^AVENANT/, "BUDGET AVENANT") : "BUDGET CONSOLIDÉ")
         : bi.rclOf ? "RECALAGE R" + bi.rcn : bi.parent ? "BUDGET AVENANT " + (bi.avn || 1) : fam ? "BUDGET INITIAL" : "BUDGET";
-      try { const V = (bi && bi.data && bi.data.ver) || {}, SC = (V.L || []).filter(x => x.kind === "sc"); if (SC.length > 1) { const a = SC.find(x => x.id === V.act); if (a) lab += " — " + a.nom; } } catch (e) {}
+      /* v706 : scénario actif = son NUMÉRO (SCÉNARIO n, rang de création), même renommé ; repeint à chaque changement de scénario */
+      const lab0 = lab;
+      const tagLab = V => { try { const SC = ((V || {}).L || []).filter(x => x.kind === "sc"), i = SC.findIndex(x => x.id === V.act); return SC.length > 1 && i >= 0 ? lab0 + " — SCÉNARIO " + (i + 1) : lab0; } catch (e) { return lab0; } };
+      lab = tagLab((bi && bi.data && bi.data.ver) || {});
       document.getElementById("sviScreenTag")?.remove();
       const t = document.createElement("div"); t.id = "sviScreenTag"; t.textContent = lab; document.body.appendChild(t);
+      shell.__tagPaint = V => { const e = document.getElementById("sviScreenTag"); if (e) e.textContent = tagLab(V); };
       document.body.classList.add("bdg-screen");
     }
     window.__sviBdgNav = HNAV && HNAV.swipe ? { go: d => hnavGo(d) } : null;
