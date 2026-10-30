@@ -2074,7 +2074,7 @@ def main():
         pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid=\"l1\"] .lk-rd')?.click()"); pg.wait_for_timeout(250)
         pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"sec\"] .ins-li[data-iid=\"s1\"] .lk-rd')?.click()"); pg.wait_for_timeout(250)
         pg.evaluate("() => document.querySelector('[data-recnew=\"obs\"]')?.click()"); pg.wait_for_timeout(400)
-        o10 = pg.evaluate("() => [...document.querySelectorAll('#docPop select#recAtt option')].map(o => o.textContent + (o.selected ? '*' : '')).join(' | ')")
+        o10 = pg.evaluate("() => (document.querySelector('#docPop #recAtt') || {}).value || ''")   # v719 : chemin des ronds en clair
         pg.fill("#recText", "OBS TACHE AXE 10"); pg.evaluate("() => document.querySelector('#recSave').click()"); pg.wait_for_timeout(400)
         a10 = pg.evaluate("() => [...document.querySelectorAll('#recTable-obs tbody tr')].map(t => t.innerText.replace(/\\s+/g, ' ')).find(t => t.includes('OBS TACHE AXE 10')) || 'none'")
         n10a = pg.evaluate("() => [...document.querySelectorAll('#recTable-obs tbody tr')].filter(t => !t.querySelector('.empty')).length")
@@ -2083,8 +2083,8 @@ def main():
         n10b = pg.evaluate("() => [...document.querySelectorAll('#recTable-obs tbody tr')].filter(t => !t.querySelector('.empty')).length")
         pg.evaluate("() => { Object.keys(localStorage).filter(k => k.startsWith('svi_obs_v1:')).forEach(k => { const L = JSON.parse(localStorage.getItem(k) || '[]').filter(x => x.text !== 'OBS TACHE AXE 10'); localStorage.setItem(k, JSON.stringify(L)); }); }")
         pg.evaluate(f"() => {ins}.refreshAll()"); pg.wait_for_timeout(300)
-        check("v666 axe 10 : OBS créée avec la tâche choisie = RATTACHÉ À BDG › RDC › BETONNAGE (choix le plus fin d'office) ; liste limitée à l'élément choisi, tout au niveau du budget",
-              "RDC › BETONNAGE*" in o10 and "BDG › RDC › BETONNAGE" in a10 and n10a >= 1 and n10b >= n10a, [o10, a10, n10a, n10b])
+        check("v666 / v719 : OBS créée avec la tâche choisie = RATTACHÉ À RDC › BETONNAGE (chemin des ronds) ; les ronds ne filtrent plus la liste (v720 : cases carrées)",
+              "RDC › BETONNAGE" in o10 and "RDC › BETONNAGE" in a10 and n10a >= 1 and n10b == n10a, [o10, a10, n10a, n10b])
 
         # v667 (axe 8) : verrou DÉBUT respecté par COMPRESSER, verrou FIN dépassé signalé ; export MS PROJECT (XML lisible)
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(500)
@@ -2347,6 +2347,16 @@ def main():
         check("v672 bloc 2 : envoi initial (REV 1, contrôle), fusion : QPB gardée (moi seul), PPB de l'autre plus récent gardé (999) et le mien en CONFLIT (777, BRAHIM) ; ⚠ CONFLITS ; MA VALEUR reprise ; QUI = TESTEUR",
               s72 and s72[1] >= 1 and s72[2] == 0 and m72[0] == 999 and m72[1] == 123 and m72[2] == 1 and m72[3] == "BRAHIM" and m72[4] == 777 and "CONFLITS" in td72 and r72 == [777, 0] and "TESTEUR" in h72, [s72, m72, td72[:200], r72, h72])
 
+        # v719 / v720 (bloc 6) : DOC / TAF / OBS liés au chemin des ronds (BUDGET sans rond) ; filtrés par les cases carrées des autres blocs
+        r720 = pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS, d = (I.des || []).find(r => !r.t), L = (I.links || []).find(l => l.des === (d || {{}}).id);
+            if (!d || !L) return null;
+            localStorage.setItem('svi_taf_v1:TEST-1', JSON.stringify([{{ ref: 'T1', date: '2026-10-30T10:00', text: 'A', prevu: '2026-11-01T10:00', att: {{ k: 'path', des: d.id, lot: L.lot }} }}, {{ ref: 'T2', date: '2026-10-30T10:00', text: 'B', prevu: '2026-11-01T10:00' }}]));
+            X.refreshAll(); const t0 = (document.querySelector('#recTitle-taf .svi-cnt') || {{}}).textContent;
+            d.on = true; X.insSave(); X.refreshAll(); const c = document.querySelector('#recTitle-taf .svi-cnt');
+            const r = [t0, c && c.textContent, c && c.classList.contains('cnt-filt'), [...document.querySelectorAll('#recTable-taf td')].some(td => td.textContent.includes(' › '))];
+            d.on = false; localStorage.removeItem('svi_taf_v1:TEST-1'); X.insSave(); X.refreshAll(); return r; }}""")
+        check("v719 / v720 : TAF lié au chemin des ronds (chemin en clair) ; cases carrées = seuls les éléments liés, compteur 1/2 en bleu ; TAF du BUDGET masqué",
+              r720 is None or (r720[0] == "2" and r720[1] == "1/2" and r720[2] and r720[3]), r720)
         # v718 : révision des prix estimée — 100 000 DH de travaux en janvier 2028, base janvier 2027, 0,15 + 0,85 × index à +10 %/an → ≈ 8 500 DH ; pessimiste (+10 %) plus élevé ; hausse de charges CIMENT
         rv = pg.evaluate("""() => { const d = { des: [{ id: 'd', des: 'X', u: 'U', q: 1, p: 100000 }], links: [{ id: 'k', des: 'd', lot: 'l', prim: 'p', sec: 's', prd: [], chg: [] }], dlp: { 'l|s': [{ id: 'a', deb: '2028-01-10', fin: '2028-01-10' }] },
             chg: [{ id: 'c', des: 'CIMENT CPJ', q: 10, p: 1000 }], ctr: { rows: [{ id: 'r', type: 'rev', det: { pond: '0,15 ; 0,85', mb: '2027-01', hyp: '10', choc: '10', pchg: 'CIMENT:10' } }] } };

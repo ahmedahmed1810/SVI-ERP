@@ -16706,7 +16706,7 @@ ${A}</Assignments>
       d.addEventListener("click", e => { if (e.target.closest("[data-fwclr]")) { d.remove(); if (shell.__insClrAll) shell.__insClrAll(); return; } if (e.target === d || e.target.closest("[data-x]")) d.remove(); });
     };
     if (!shell.__filtCntBound) { shell.__filtCntBound = true;
-      shell.addEventListener("click", e => { const c = e.target.closest && e.target.closest("#bdgTabs .bdg-d-tab .svi-cnt.cnt-filt"); if (!c) return; e.preventDefault(); e.stopPropagation(); if (shell.__filtWin) shell.__filtWin(c); }, true); }
+      shell.addEventListener("click", e => { const c = e.target.closest && e.target.closest("#bdgTabs .bdg-d-tab .svi-cnt.cnt-filt, .blk-rec .svi-cnt.cnt-filt"); if (!c) return; e.preventDefault(); e.stopPropagation(); if (shell.__filtWin) shell.__filtWin(c); }, true); }
     if (!shell.__emptyBound) {
       shell.__emptyBound = true;
       shell.addEventListener("click", e => {
@@ -24471,7 +24471,7 @@ ${A}</Assignments>
         }
         const list = docsLoad();
         list.push({
-          ref: docRef, date, title: title.toUpperCase(), ...(attRead(p) ? { att: attRead(p) } : {}),
+          ref: docRef, date, title: title.toUpperCase(), ...(attRead() ? { att: attRead() } : {}),
           name: file.name, size: file.size, type: file.type, data, idb
         });
         histLog("DOC", "CRÉATION", docRef + " — " + title);
@@ -24506,48 +24506,46 @@ ${A}</Assignments>
        Listes : sans choix = tout (budget) ; un élément choisi = ses propres documents et ceux de ses fils
        (tâche → ses charges et produits ; désignation → ses tâches) ; un document du budget n'apparaît qu'au niveau du budget.
        ========================================================= */
+    /* v719 (bloc 6, remarques 1 et 2) : RATTACHEMENT PAR LES RONDS — un DOC, un TAF ou une OBS se lie au chemin choisi par les ronds au
+       moment de l'ajout, comme une liaison : désignation, lot, activité primaire ou secondaire seule, tâche (lot + activité), ou chaîne
+       complète jusqu'à un produit ou une charge (plusieurs ronds pleins = le chemin entier). Aucun rond = lié au BUDGET (jamais dans
+       LIGNES NON LIÉES, ne bloque ni FIGER ni ⚠ À COMPLÉTER). Le chemin est écrit en clair dans la fenêtre et la colonne RATTACHÉ À. */
     const attNm = (k, id) => { try { return lkName(k, id); } catch (e) { return ""; } };
-    const attLab = a => {
-      if (!a || !a.k || a.k === "bdg") return "BDG";
-      const p = ["BDG"];
-      if (a.des) p.push("DÉS " + attNm("des", a.des));
-      if (a.lot && a.sec) p.push(attNm("lot", a.lot) + " › " + attNm("sec", a.sec));
-      if (a.k === "chg") p.push("CHG " + ((INS.chg.find(r => r.id === a.id) || {}).des || ""));
-      if (a.k === "prd") p.push("PRD " + ((INS.prd.find(r => r.id === a.id) || {}).des || ""));
-      return p.join(" › ");
+    /* rattachement normalisé (anciens rattachements v666 : k = des / task / chg / prd) */
+    const attNorm = a => {
+      if (!a || a.k === "bdg") return null;
+      const o = { des: a.des || "", lot: a.lot || "", prim: a.prim || "", sec: a.sec || "", prd: [], chg: [] };
+      if (Array.isArray(a.prd)) o.prd = a.prd; else if (a.k === "prd" && a.id) o.prd = [a.id];
+      if (Array.isArray(a.chg)) o.chg = a.chg; else if (a.k === "chg" && a.id) o.chg = [a.id];
+      return o.des || o.lot || o.prim || o.sec || o.prd.length || o.chg.length ? o : null;
     };
-    /* niveaux de rattachement possibles d'après les ronds (le plus fin en dernier) */
-    const attChoices = () => {
-      const out = [{ k: "bdg" }];
-      if (!INS || !LK) return out;
-      const des = LK.des || null, task = LK.lot && LK.sec ? { lot: LK.lot, sec: LK.sec } : null;
-      if (des) out.push({ k: "des", des });
-      if (task) out.push({ k: "task", des, ...task });
-      const one = k => { const ks = Object.keys(LK[k] || {}); return ks.length === 1 ? ks[0] : null; };
-      if (task && one("chg")) out.push({ k: "chg", des, ...task, id: one("chg") });
-      if (task && one("prd")) out.push({ k: "prd", des, ...task, id: one("prd") });
-      return out;
+    const attLab = a0 => {
+      const a = attNorm(a0); if (!a) return "BUDGET";
+      const p = [];
+      if (a.des) p.push(attNm("des", a.des));
+      if (a.lot) p.push(attNm("lot", a.lot));
+      if (a.prim) p.push(attNm("prim", a.prim));
+      if (a.sec) p.push(attNm("sec", a.sec));
+      a.prd.forEach(id => p.push("PRODUIT " + (((INS && INS.prd) || []).find(r => r.id === id) || {}).des || ""));
+      a.chg.forEach(id => p.push("CHARGE " + (((INS && INS.chg) || []).find(r => r.id === id) || {}).des || ""));
+      return p.filter(Boolean).join(" › ") || "BUDGET";
     };
-    const attFormHTML = () => {
-      const C = attChoices();
-      return `<label class="doc-lab" for="recAtt">RATTACHÉ À</label>
-        ${C.length > 1 ? `<select id="recAtt" class="doc-in">${C.map((a, i) => `<option value="${i}"${i === C.length - 1 ? " selected" : ""}>${esc(attLab(a))}</option>`).join("")}</select>`
-          : `<input id="recAtt" class="doc-in doc-ro" value="BDG (AUCUN ÉLÉMENT CHOISI)" readonly>`}`;
+    /* chemin des ronds pleins au moment de l'ajout */
+    const attNow = () => {
+      if (!INS || !LK) return null;
+      return attNorm({ k: "path", des: LK.des || "", lot: LK.lot || "", prim: LK.prim || "", sec: LK.sec || "", prd: Object.keys(LK.prd || {}), chg: Object.keys(LK.chg || {}) });
     };
-    const attRead = p => { const C = attChoices(), s = p.querySelector("select#recAtt"); const a = s ? C[+s.value] : C[0]; return a && a.k !== "bdg" ? { ...a } : null; };
-    /* filtre des listes selon le choix en cours */
+    const attFormHTML = () => `<label class="doc-lab" for="recAtt">RATTACHÉ À</label><input id="recAtt" class="doc-in doc-ro" value="${esc(attLab(attNow()))}" readonly>`;
+    const attRead = () => { const a = attNow(); return a ? { k: "path", ...a } : null; };
+    /* v720 (remarque 3) : filtre par les CASES CARRÉES des autres blocs (comme DÉTAIL CHARGES, PRODUITS, DÉLAIS) — seuls restent les
+       éléments liés à ce qui est coché ; un élément du BUDGET seul disparaît dès qu'un filtre par cases est actif ; sans case : tout */
     const attFilter = list => {
-      if (!INS || !LK) return list;
-      const C = attChoices(), cur = C[C.length - 1];
-      if (cur.k === "bdg") return list;
-      return list.filter(r => {
-        const a = r.att;
-        if (!a) return false;
-        if (cur.k === "chg" || cur.k === "prd") return a.k === cur.k && a.id === cur.id;
-        if (cur.k === "task") return a.lot === cur.lot && a.sec === cur.sec;
-        if (cur.k === "des") return a.des === cur.des;
-        return true;
-      });
+      if (!INS) return list;
+      let OL = null; try { OL = insCheckLinks("rec", true); } catch (e) { OL = null; }
+      if (!OL) return list;
+      return list.filter(r => { const a = attNorm(r.att); if (!a) return false;
+        return OL.some(l => (!a.des || l.des === a.des) && (!a.lot || l.lot === a.lot) && (!a.prim || l.prim === a.prim) && (!a.sec || l.sec === a.sec)
+          && a.prd.every(id => (l.prd || []).some(y => y.id === id)) && a.chg.every(id => (l.chg || []).some(y => y.id === id))); });
     };
     /* ===== fenêtres OBS et TAF (même présentation que DOC) ===== */
     const recKey = kind => "svi_" + kind + "_v1:" + String(ref);
@@ -24620,11 +24618,12 @@ ${A}</Assignments>
       const t = $("recTable-" + kind);
       if (!t) return;
       const cols = recCols[kind];
-      const all = attFilter(recSorted(kind));   /* v666 (axe 10) : documents de l'élément choisi et de ses fils */
+      const tot0 = recSorted(kind), all = attFilter(tot0);   /* v720 : filtre par les cases carrées des autres blocs */
       const list = cfApply(kind, cols, all);
       recShown[kind] = list;
       const title = $("recTitle-" + kind);
-      if (title) title.innerHTML = SVI_ICON[kind] + esc(blkName[kind]) + " " + svCnt(list.length, all.length);
+      if (title) { title.innerHTML = SVI_ICON[kind] + esc(blkName[kind]) + " " + svCnt(list.length, tot0.length);
+        const c = title.querySelector(".svi-cnt"); if (c) c.classList.toggle("cnt-filt", list.length < tot0.length); }   /* v720 : même repère que les onglets (bleu, toucher = FILTRES ACTIFS) */
       if (title) title.classList.toggle("tab-filt", Object.keys(cfT(kind).f || {}).length > 0);   /* v499 (remarque 40) */
       const st = cfT(kind);
       title?.classList.remove("cf-on");   /* pas de bleu d'onglet pour un filtre (loupe) */
@@ -25048,7 +25047,7 @@ ${A}</Assignments>
           : { ref: recRef, date: $p("recDate").value, objet: $p("recObj").value.trim(),
               text: $p("recText").value.trim(), responsable: $p("recResp").value.trim(),
               prevu: $p("recPDate").value + "T" + $p("recPTime").value };
-        const at = attRead(p); if (at) rec.att = at;   /* v666 (axe 10) */
+        const at = attRead(); if (at) rec.att = at;   /* v719 : chemin des ronds */
         const list = recLoad(kind);
         list.push(rec);
         recSave(kind, list);
