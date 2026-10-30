@@ -2434,6 +2434,16 @@ def main():
               t725 == [[True, True], [True, True]], t725)
         check("v724 : onglet INDICATEURS en quatre parties avec ⚙ et poignées ; TABLEAU DE BORD en miniatures avec ⚙",
               i724 == [4, True, True, 3] and b724 == [True, True], [i724, b724])
+        # v732 (bloc 9) : la chute compte dans les indicateurs (CHARGES) ; une seule fois
+        c732 = pg.evaluate(f"""() => {{ const sh = [...document.querySelectorAll('*')].find(e => e.__ind), X = {ins}, I = X.INS; if (!sh) return null;
+            const one = () => sh.__ind.calc({{ id: 'z', nom: 'Z', f: [{{ t: 'e', k: 'b:chg' }}], mode: 'q', fmt: 'n', dec: 2 }}).val;
+            const r = I.chg.find(x => !x.t && (I.links || []).some(l => (l.chg || []).some(e => e.id === x.id) && (l.prd || []).some(p => {{ const q = I.prd.find(y => y.id === p.id); return q && Number(q.d1) > 0; }})));
+            if (!r) return 'pas de charge';
+            const keep = JSON.stringify(I.cond || null), a = one(), key = dlyResK(r).split('|')[0] + '|' + String(r.u).trim().toUpperCase();
+            I.cond = {{ ...(I.cond || {{}}), [key]: {{ mode: 'c', BL: 1000, kerf: 0, kgm: 1 }} }};
+            const ch = condChuteRow(I, r), b = one(); const K = JSON.parse(keep); if (K) I.cond = K; else delete I.cond;
+            return [ch > 0, Math.abs(b - a - ch * Number(r.p || 0)) < 0.01]; }}""")
+        check("v732 : chute comptée une fois dans l'indicateur CHARGES", c732 in ([True, True], "pas de charge"), c732)
         # v723 (bloc 2, points 1 et 3) : RECETTES seulement avec un article PAIEMENT (échéance datée), GROUPE de charges (titre), COMMANDES
         b2 = pg.evaluate(f"""() => {{ const sh = [...document.querySelectorAll('*')].find(e => e.__ind), X = {ins}, I = X.INS; if (!sh) return null; const A = sh.__ind;
             const one = k => A.calc({{ id: 'z', nom: 'Z', f: [{{ t: 'e', k }}], mode: 'q', fmt: 'n', dec: 2 }});

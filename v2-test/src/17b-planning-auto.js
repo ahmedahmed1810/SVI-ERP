@@ -25,7 +25,9 @@
           seen.add(e.id);
           const r = INS.chg.find(x => x.id === e.id);
           if (!r) return;
-          const v = m === "q" ? dlyResQty(r) : (num(r.q || 0) || 0) * (num(r.p || 0) || 0);
+          /* v732 (bloc 9) : la chute du titre s'ajoute à la quantité de la charge (graphique, commandes, capacité) */
+          const q0 = num(r.q || 0) || 0, ch = condChuteRow(INS, r);
+          const v = m === "q" ? dlyResQty(r) * (q0 ? (q0 + ch) / q0 : 1) : (q0 + ch) * (num(r.p || 0) || 0);
           if (v) out.set(dlyResK(r), (out.get(dlyResK(r)) || 0) + v);
         });
       });

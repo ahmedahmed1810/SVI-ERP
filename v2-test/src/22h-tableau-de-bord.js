@@ -25,6 +25,7 @@
     };
     /* part du budget retenue par un filtre de liaisons */
     const ratSub = (D, keep) => {
+      D = condBake(D);   /* v732 : chute calculée sur le budget entier, avant découpe */
       const L = (D.links || []).filter(keep), ids = k => new Set(L.flatMap(l => (l[k] || []).map(x => x.id)));
       const ch = ids("chg"), pr = ids("prd"), ds = new Set(L.map(l => l.des)), lo = new Set(L.map(l => l.lot)), ks = new Set(L.map(l => l.lot + "|" + l.sec));
       return { ...D, links: L, chg: (D.chg || []).filter(r => r.t || ch.has(r.id)), prd: (D.prd || []).filter(r => r.t || pr.has(r.id)),
@@ -34,6 +35,7 @@
     /* période [a, b] : délais coupés à la période, charges et produits au prorata des jours de leurs tâches dans la période */
     const ratDays = (x, y) => Math.max(0, Math.round((new Date(y + "T12:00:00") - new Date(x + "T12:00:00")) / 864e5) + 1);
     const ratPerSub = (D, a, b) => {
+      D = condBake(D);   /* v732 : chute calculée sur le budget entier, avant découpe */
       const f = {};
       Object.keys(D.dlp || {}).forEach(k => { let tot = 0, inn = 0; (D.dlp[k] || []).forEach(p => { if (!p.deb) return; const x = p.deb, y = p.fin || p.deb; tot += ratDays(x, y); const lo = x > a ? x : a, hi = y < b ? y : b; if (lo <= hi) inn += ratDays(lo, hi); }); f[k] = tot ? inn / tot : 0; });
       const share = (kind, id) => { const ks = (D.links || []).filter(l => (l[kind] || []).some(x => x.id === id)).map(l => l.lot + "|" + l.sec); return ks.length ? ks.reduce((t, k) => t + (f[k] || 0), 0) / ks.length : 0; };

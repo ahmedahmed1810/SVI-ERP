@@ -42,7 +42,7 @@
       const out = new Map();
       (INS.chg || []).filter(r => !r.t).forEach(r => {
         const ks = [...(byRow.get(r.id) || [])]; if (!ks.length) return;
-        const q = num(r.q || 0) || 0, pu = num(r.p || 0) || 0, sk = dlyResK(r);
+        const q = (num(r.q || 0) || 0) + condChuteRow(INS, r), pu = num(r.p || 0) || 0, sk = dlyResK(r);   /* v732 : chute comprise */
         ks.forEach(k => {
           const P = dlyList(k).filter(p => p.deb && p.fin); if (!P.length) return;
           const D = P.map(p => Math.max(1, sviWDur(insCal(k), p.deb, p.fin) || 1)), tot = D.reduce((a, b) => a + b, 0);

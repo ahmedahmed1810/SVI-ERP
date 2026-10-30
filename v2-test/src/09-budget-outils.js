@@ -1088,6 +1088,13 @@ const condChuteRow = (I, r) => {
   return Q > 0 ? C * (num(r.q) || 0) / Q : C / rows.length;
 };
 
+/* v732 : données « cuites » pour les indicateurs — la chute ajoutée à la QCB de chaque charge (une seule fois : __cb) */
+const condBake = d => {
+  if (!d || d.__cb || !d.cond || !Object.keys(d.cond).length) return d;
+  const chg = (d.chg || []).map(r => { const c = condChuteRow(d, r); return c ? { ...r, q: (num(r.q) || 0) + c } : r; });
+  return { ...d, chg, __cb: 1 };
+};
+
 /* v718 (révision des prix) : estimation de la révision avec le planning — formule du contrat (part fixe + pondérations par index),
    hypothèse d'évolution par index (%/an depuis le mois de base), scénario pessimiste (hausse d'un index, et hausse de charges par mot-clé).
    Valeur de chaque désignation client répartie sur les jours de ses tâches ; révision du jour = valeur × (K − 1). */
