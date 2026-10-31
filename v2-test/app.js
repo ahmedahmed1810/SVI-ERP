@@ -13165,7 +13165,8 @@ function renderBudgetList() {
       shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dlyhh-cfg"); const X = shell.__insDly; if (!b || !X) return; e.stopPropagation(); X.hcfgWin(b); }, true);
       /* v546 (R27) : toucher la case SUCCESSEURS = leur liste */
       /* v712 : toucher = case encadrée (choix) ; la bulle du texte complet seulement sur appui long */
-      shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dly-succ[data-key]"); if (!b || !shell.__insDly) return; e.stopPropagation();
+      /* v736 : la case SUCCESSEURS se sélectionne comme les autres (cadre commun) : plus d'arrêt du toucher ici */
+      shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dly-succ[data-key]"); if (!b || !shell.__insDly) return;
         shell.querySelectorAll(".dly-succ.dly-cellsel").forEach(x => x.classList.remove("dly-cellsel")); b.classList.add("dly-cellsel"); }, true);
       { let lt = 0;
         shell.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".dly-succ[data-key]"); const X = shell.__insDly; clearTimeout(lt); if (!b || !X) return;
@@ -29611,14 +29612,21 @@ function sviCalOpen(el) {
     } });
   }
 }
+/* v736 : DÉBUT / FIN du PLANNING comme les autres cases — 1er toucher = case sélectionnée (cadre), 2e toucher ou Entrée = calendrier */
+const sviDlyDate = el => !!(el && el.matches && el.matches(".dly-table input.dlp-in[data-f=deb], .dly-table input.dlp-in[data-f=fin]"));
+let SVI_DD_WAS = null;
+document.addEventListener("pointerdown", e => { const el = e.target.closest && e.target.closest("input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]"); SVI_DD_WAS = el && (document.activeElement === el || (window.sviCellOf && window.sviCellOf(document.activeElement) === el.closest("td"))) ? el : null; }, true);
 document.addEventListener("click", e => {
   const el = e.target.closest && e.target.closest("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]");
-  if (el) sviCalOpen(el);
+  if (!el) return;
+  if (sviDlyDate(el) && SVI_DD_WAS !== el && !document.getElementById("svCal")) { SVI_DD_WAS = el; return; }
+  sviCalOpen(el);
 });
 document.addEventListener("focusin", e => {
   const el = e.target.closest && e.target.closest("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]");
-  if (el) setTimeout(() => { if (document.activeElement === el) sviCalOpen(el); }, 0);
+  if (el && !sviDlyDate(el)) setTimeout(() => { if (document.activeElement === el) sviCalOpen(el); }, 0);
 });
+document.addEventListener("keydown", e => { const el = e.target; if (e.key === "Enter" && sviDlyDate(el) && !document.getElementById("svCal")) { e.preventDefault(); e.stopPropagation(); sviCalOpen(el); } }, true);
 /* tout champ date ajouté à l'écran passe au calendrier de l'application */
 (() => {
   const up = root => (root.querySelectorAll ? root.querySelectorAll('input[type="date"]') : []).forEach(sviDateField);
@@ -30104,12 +30112,19 @@ const sviFrame = () => {
   const a = document.activeElement, c = sviCellOf(a);
   if (!SVI_FR) { SVI_FR = document.createElement("div"); SVI_FR.id = "sviSelFrame"; document.body.appendChild(SVI_FR); }
   /* v638 : case de date (DÉBUT / FIN, calendrier) = pas de second cadre par-dessus le sien (FORMAT : v553) */
-  const isDate = !!(c && c.querySelector && c.querySelector("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]")) || !!(a && a.matches && a.matches("input.sv-date, input.dlp-in"));
+  /* v736 : un seul cadre, le même pour toutes les cases (dates et DURÉE comprises) ; seul un champ date hors tableau garde le sien */
+  const isDate = !!(a && a.matches && a.matches("input.sv-date"));
   const v = c && !isDate && sviCellVis(c);
   if (!v) { SVI_FR.style.display = "none"; return; }
   /* v733 : nom d'un lot du PLANNING — le cadre n'entoure que le nom (ni le rond, ni le signe, ni le numéro) */
   if (a && a !== c && a.matches && a.matches("input.dly-nm")) { const r = a.getBoundingClientRect(); v.left = Math.max(v.left, r.left - 2); v.right = Math.min(v.right, r.right + 2); if (v.right - v.left < 4) { SVI_FR.style.display = "none"; return; } }
-  const col = (getComputedStyle(c).getPropertyValue("--inst") || "").trim() || "#111827";
+  /* v736 : case vide d'une colonne de noms (LOT, ACTIVITÉ SECONDAIRE) : le cadre commence là où commencent les noms de la colonne (pas sur la place du rond) */
+  else if (c.tagName === "TD" && c.closest(".dly-table") && !c.querySelector("input.dly-nm")) {
+    const ix = c.cellIndex, ref = [...c.closest("tbody").rows].map(tr => tr.cells[ix]).find(td => td && td !== c && td.querySelector("input.dly-nm"));
+    if (ref) { const off = ref.querySelector("input.dly-nm").getBoundingClientRect().left - ref.getBoundingClientRect().left; v.left = Math.max(v.left, v.full.left + off - 2); }
+  }
+  let col = (getComputedStyle(c).getPropertyValue("--inst") || "").trim() || "#111827";
+  { const pgS = c.closest('[class*="bdg-inst-"]'); if (pgS && !pgS.matches(".bdg-inst-instance")) col = "#98a2b3"; }   /* v736 : lecture seule = cadre gris */
   /* au-dessus d'une fenêtre (SAISIE DIRECTE en fenêtre, fenêtres d'import…) quand la cellule y est */
   SVI_FR.style.zIndex = (c.closest("#sdW:not(.sd-inplace), #docPop, #blkPop, .svc-wrap") || (c.closest("[role=dialog]") && !c.closest(".sd-inplace"))) ? "10096" : "45";
   if (window.__sviHandleZ) window.__sviHandleZ(SVI_FR.style.zIndex === "45" ? "46" : "10097");
@@ -30218,7 +30233,7 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
        seulement s'il y a une cellule active visible */
     const act = document.activeElement, cell = sviCellOf(act);
     /* v553 (partie 11, remarque 5) : case de date (calendrier) = ni contour ni point au coin */
-    const isDate = !!(act && act.matches && act.matches("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]")) || !!(cell && cell.querySelector && cell.querySelector("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]"));
+    const isDate = !!(document.getElementById("svCal") && act && act.matches && act.matches("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]")) || !!(act && act.matches && act.matches("input.sv-date")) || !!(cell && cell.querySelector && cell.querySelector("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]"));
     if (!cell || isDate || !matchMedia("(pointer: coarse)").matches) { if (H) H.style.display = "none"; return; }
     const td = cell.tagName === "TD" ? cell : null;
     let end = cell;
@@ -30235,8 +30250,11 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
         H.addEventListener("pointermove", mv); H.addEventListener("pointerup", up); H.addEventListener("pointercancel", up);
       });
     }
-    { const c = getComputedStyle(end).getPropertyValue("--inst").trim(); H.style.background = c || "#111827"; }   /* v505 (remarque 55) */
-    H.style.display = "block"; H.style.left = (vis.right - 7 + window.scrollX) + "px"; H.style.top = (vis.bottom - 7 + window.scrollY) + "px";
+    { const c = getComputedStyle(end).getPropertyValue("--inst").trim(), pgS = end.closest('[class*="bdg-inst-"]'); H.style.background = pgS && !pgS.matches(".bdg-inst-instance") ? "#98a2b3" : (c || "#111827"); }   /* v505 (remarque 55) ; v736 : gris en lecture seule */
+    /* v736 : une seule case = le point pile au coin du cadre (cadre rétréci au nom, colonnes de noms) */
+    let vr = vis.right, vb = vis.bottom;
+    { const F = document.getElementById("sviSelFrame"); if (end === cell && F && F.style.display === "block") { const fr = F.getBoundingClientRect(); vr = fr.right; vb = fr.bottom; } }
+    H.style.display = "block"; H.style.left = (vr - 7 + window.scrollX) + "px"; H.style.top = (vb - 7 + window.scrollY) + "px";
   };
   window.__sviHandle = () => { if (S.b || S.extra.size) { const C = cells(); if (C.length > 1 && !C[0].classList.contains("svi-cs")) C.forEach(td => td.classList.add("svi-cs")); } handle(); };
   window.__sviHandleZ = z => { if (H) H.style.zIndex = z; };
