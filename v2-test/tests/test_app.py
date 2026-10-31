@@ -343,6 +343,17 @@ def main():
         # v528 (remarque 3) : la liste des lots garde désormais son ordre quand on choisit un lot
         check("remarque 59 → v528 : lot choisi, la liste des lots garde son ordre", bool(o59) and o59.index("l1") > o59.index("l2"), o59)
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(800)
+        # v736 : DÉBUT du PLANNING — 1er toucher = case sélectionnée (cadre, pas de calendrier), 2e toucher = calendrier
+        k736 = pg.evaluate(("() => { const X = INS_X, I = X.INS, L = I.links[0]; window.__k736 = JSON.stringify(I.dlp || null); I.dlp = { ...(I.dlp || {}), [L.lot + '|' + L.sec]: [{ id: 'p736', deb: '2026-11-02', fin: '2026-11-05' }] }; X.insSave(); X.refreshAll(); return 1; }").replace("INS_X", ins))
+        pg.wait_for_timeout(500)
+        d736 = []
+        if pg.evaluate("() => !!document.querySelector('.dly-table input.dlp-in[data-f=deb]')"):
+            for _ in range(2):
+                pg.click(".dly-table input.dlp-in[data-f=deb]"); pg.wait_for_timeout(350)
+                d736.append(pg.evaluate("() => [!!document.getElementById('svCal'), (document.getElementById('sviSelFrame') || { style: {} }).style.display]"))
+        pg.evaluate("() => document.getElementById('svCal')?.remove()")
+        pg.evaluate(("() => { const X = INS_X, K = JSON.parse(window.__k736); if (K) X.INS.dlp = K; else delete X.INS.dlp; X.insSave(); X.refreshAll(); }").replace("INS_X", ins)); pg.wait_for_timeout(300)
+        check("v736 : DÉBUT du PLANNING — 1er toucher = cadre sans calendrier, 2e toucher = calendrier", d736 == [[False, "block"], [True, "block"]], d736)
         # v734 : GÉNÉRER / COMPRESSER visent la DATE OBJECTIF — capacité proposée (MAÇON 2 → 4), APPLIQUER = fin à l'objectif
         c734 = pg.evaluate("""async () => { const X = INS_X, I = X.INS, DX = DXJ_, w = ms => new Promise(z => setTimeout(z, ms));
             const keep = JSON.stringify(I); ['dbut', 'hrange', 'chgPar', 'mgPar', 'dlim', 'dcut', 'inc', 'dinc', 'plaf', 'plafs', 'cmd', 'appro', 'dord'].forEach(x => delete I[x]); I.chg.forEach(r => { delete r.on; }); (I.prd || []).forEach(r => { delete r.on; });
@@ -570,7 +581,7 @@ def main():
             pg.click(sel); pg.wait_for_timeout(200)
             a = pg.evaluate("""() => { const a = document.activeElement, c = window.sviCellOf(a), f = document.getElementById('sviSelFrame');
                 if (!c || !f) return null; const r = c.getBoundingClientRect(), q = f.getBoundingClientRect();
-                return [a.classList.contains('svi-nav') || (a.tagName === 'TD' && a.classList.contains('svi-tdf')), f.style.display === 'block' && Math.abs(r.height - q.height) < 3 && Math.abs(r.width - q.width) < 3, window.sviCellKey(a), [r.top, r.height, r.width, q.top, q.height, q.width, f.style.display].map(x => typeof x === 'number' ? Math.round(x) : x)]; }""")
+                return [a.classList.contains('svi-nav') || (a.tagName === 'TD' && a.classList.contains('svi-tdf')), f.style.display === 'block' && Math.abs(r.height - q.height) < 3 && q.width <= r.width + 3 && q.width > 10, window.sviCellKey(a), [r.top, r.height, r.width, q.top, q.height, q.width, f.style.display].map(x => typeof x === 'number' ? Math.round(x) : x)]; }""")
             if a and not a[1]: print("RECT", sel, a[3])
             pg.keyboard.press("ArrowDown"); pg.wait_for_timeout(200)
             b = pg.evaluate("k => { const a = document.activeElement; const c = window.sviCellOf(a); return !!c && JSON.stringify(window.sviCellKey(a)) !== JSON.stringify(k); }", a[2] if a else None)
