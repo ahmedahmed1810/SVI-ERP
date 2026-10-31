@@ -200,7 +200,6 @@ const sviMarkEmptyTabs = root => (root || document).querySelectorAll(".bdg-d-tab
    ========================================================= */
 
 let db = {
-  chs: [],
   projects: [],
   lots: [],
   primaries: [],

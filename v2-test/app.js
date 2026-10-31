@@ -613,7 +613,6 @@ const sviMarkEmptyTabs = root => (root || document).querySelectorAll(".bdg-d-tab
    ========================================================= */
 
 let db = {
-  chs: [],
   projects: [],
   lots: [],
   primaries: [],
@@ -1912,22 +1911,12 @@ function driveErrText(e) {
     : m;
 }
 
-/* ⟪ src/04-chs-bds-donnees.js ⟫ */
+/* ⟪ src/04-bds-donnees.js ⟫ */
 /* =========================================================
-   BOOTSTRAP CHS / BDS
+   BOOTSTRAP BDS (CHS retiré en v742)
    ========================================================= */
 
 function mapBootstrap(data) {
-  db.chs = (data.chs || []).map(x => ({
-    id: x.ID,
-    article: x.ARTICLE,
-    designation: x.DESIGNATION,
-    unit: x.UNITE,
-    pcs: num(x.PCS),
-    /* colonne TVA (à créer dans la feuille CHS) : vide = 20 % */
-    tva: x.TVA === undefined || x.TVA === "" ? 20 : num(x.TVA)
-  }));
-
   const all = data.bds || [];
 
   db.projects = all
@@ -2000,7 +1989,6 @@ async function reloadAll() {
 
     mapBootstrap(data);
 
-    renderChs();
     renderHierarchy();
 
   } catch (e) {
@@ -2094,27 +2082,6 @@ async function loadBrdForSecondary(secondaryId) {
 /* =========================================================
    MISES A JOUR LOCALES
    ========================================================= */
-
-function upsertLocalCHS(x) {
-  const item = {
-    id: x.ID,
-    article: x.ARTICLE,
-    designation: x.DESIGNATION,
-    unit: x.UNITE,
-    pcs: num(x.PCS)
-  };
-
-  const i =
-    db.chs.findIndex(
-      r => r.id === item.id
-    );
-
-  if (i >= 0) {
-    db.chs[i] = item;
-  } else {
-    db.chs.push(item);
-  }
-}
 
 function upsertLocalBDS(x) {
   const type =
@@ -2435,7 +2402,7 @@ function removeLocalBDS(type, id) {
   }
 }
 
-/* ⟪ src/05-navigation-chs.js ⟫ */
+/* ⟪ src/05-navigation.js ⟫ */
 /* =========================================================
    NAVIGATION
    ========================================================= */
@@ -2499,150 +2466,6 @@ function initNav() {
         }
       );
     });
-}
-
-/* =========================================================
-   CHS
-   ========================================================= */
-
-function renderChs() {
-  const q =
-    normalise(
-      $("chsSearch").value
-    ).toUpperCase();
-
-  const rows =
-    db.chs.filter(
-      r =>
-        [
-          r.article,
-          r.designation,
-          r.unit
-        ]
-          .join(" ")
-          .toUpperCase()
-          .includes(q)
-    );
-
-  /* FORMAT 83 : recherche active → « retenues/total » */
-  $("chsCount").innerHTML = svCnt(rows.length, db.chs.length);
-
-  $("chsTable")
-    .querySelector("tbody")
-    .innerHTML =
-      rows.length
-        ? rows.map(
-            r => `
-              <tr
-                class="data-row"
-                data-type="chs"
-                data-id="${esc(r.id)}"
-              >
-                <td>
-                  ${esc(r.article)}
-                </td>
-
-                <td>
-                  ${esc(r.designation)}
-                </td>
-
-                <td>
-                  ${esc(r.unit)}
-                </td>
-
-                <td class="number yellow">
-                  ${money(r.pcs)}
-                </td>
-              </tr>
-            `
-          ).join("")
-        : `
-          <tr>
-            <td
-              colspan="4"
-              class="empty"
-            >
-              AUCUNE CHARGE STANDARD
-            </td>
-          </tr>
-        `;
-
-  bindRows();
-}
-
-function chsForm(
-  item = null,
-  duplicate = false
-) {
-  openForm(
-    item && !duplicate
-      ? "MODIFIER CHARGE STANDARD"
-      : "AJOUTER CHARGE STANDARD",
-
-    [
-      f(
-        "article",
-        "ARTICLE",
-        duplicate
-          ? `${item.article}-COPIE`
-          : item?.article || ""
-      ),
-
-      f(
-        "designation",
-        "DÉSIGNATION",
-        item?.designation || "",
-        "text",
-        true
-      ),
-
-      f(
-        "unit",
-        "UNITÉ",
-        item?.unit || ""
-      ),
-
-      f(
-        "pcs",
-        "PCS",
-        item?.pcs ?? "",
-        "number"
-      )
-    ],
-
-    async values => {
-      const out =
-        await apiPost(
-          "saveCHS",
-          {
-            data: {
-              ID:
-                item && !duplicate
-                  ? item.id
-                  : "",
-
-              ARTICLE:
-                values.article,
-
-              DESIGNATION:
-                values.designation,
-
-              UNITE:
-                values.unit,
-
-              PCS:
-                values.pcs
-            }
-          }
-        );
-
-      upsertLocalCHS(
-        out.data
-      );
-
-      renderChs();
-    }
-  );
 }
 
 /* ⟪ src/06-bds-configuration.js ⟫ */
@@ -28384,14 +28207,6 @@ function showRowMenu(
 
 function rowItem(ctx) {
   if (
-    ctx.type === "chs"
-  ) {
-    return db.chs.find(
-      x => x.id === ctx.id
-    );
-  }
-
-  if (
     ctx.type === "brd"
   ) {
     return db.brd.find(
@@ -28406,24 +28221,6 @@ function rowItem(ctx) {
 }
 
 async function deleteRow(ctx) {
-  if (
-    ctx.type === "chs"
-  ) {
-    await apiPost(
-      "deleteCHS",
-      { id: ctx.id }
-    );
-
-    db.chs =
-      db.chs.filter(
-        x =>
-          x.id !== ctx.id
-      );
-
-    renderChs();
-
-    return;
-  }
 
   if (
     ctx.type === "brd"
@@ -28501,22 +28298,11 @@ document.addEventListener(
 
     initNav();
 
-    $("chsSearch")
-      ?.addEventListener(
-        "input",
-        renderChs
-      );
-
     $("brdSearch")
       ?.addEventListener(
         "input",
         renderBrd
       );
-
-    if ($("addChsBtn")) {
-      $("addChsBtn").onclick =
-        () => chsForm();
-    }
 
     if ($("addBrdBtn")) {
       $("addBrdBtn").onclick =
@@ -28697,11 +28483,6 @@ document.addEventListener(
               action === "edit"
             ) {
               if (
-                rowContext.type === "chs"
-              ) {
-                chsForm(item);
-
-              } else if (
                 rowContext.type === "brd"
               ) {
                 brdForm(item);
@@ -28718,14 +28499,6 @@ document.addEventListener(
               action === "duplicate"
             ) {
               if (
-                rowContext.type === "chs"
-              ) {
-                chsForm(
-                  item,
-                  true
-                );
-
-              } else if (
                 rowContext.type === "brd"
               ) {
                 brdForm(
@@ -29421,14 +29194,10 @@ function sviParamTabs() {
   lpane.className = "prm-lib";
   lpane.hidden = true;
   pane.after(lpane);
-  const others = () => [...view.children].filter(x => x !== head && x !== bar && x !== pane && x !== lpane);
   const show = which => {
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.prm === which));
-    others().forEach(x => { x.style.display = which === "chs" ? "" : "none"; });
     pane.hidden = which !== "unit";
     lpane.hidden = which !== "lib";
-    const add = document.getElementById("addChsBtn");
-    if (add) add.style.display = which === "chs" ? "" : "none";
     const h1 = head.querySelector("h1"), sub = head.querySelector("p");
     if (h1) h1.textContent = which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : "UNITÉS";
     if (sub) sub.textContent = which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT ; COMMUNE À TOUS LES BUDGETS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";

@@ -1,18 +1,8 @@
 /* =========================================================
-   BOOTSTRAP CHS / BDS
+   BOOTSTRAP BDS (CHS retiré en v742)
    ========================================================= */
 
 function mapBootstrap(data) {
-  db.chs = (data.chs || []).map(x => ({
-    id: x.ID,
-    article: x.ARTICLE,
-    designation: x.DESIGNATION,
-    unit: x.UNITE,
-    pcs: num(x.PCS),
-    /* colonne TVA (à créer dans la feuille CHS) : vide = 20 % */
-    tva: x.TVA === undefined || x.TVA === "" ? 20 : num(x.TVA)
-  }));
-
   const all = data.bds || [];
 
   db.projects = all
@@ -85,7 +75,6 @@ async function reloadAll() {
 
     mapBootstrap(data);
 
-    renderChs();
     renderHierarchy();
 
   } catch (e) {
@@ -179,27 +168,6 @@ async function loadBrdForSecondary(secondaryId) {
 /* =========================================================
    MISES A JOUR LOCALES
    ========================================================= */
-
-function upsertLocalCHS(x) {
-  const item = {
-    id: x.ID,
-    article: x.ARTICLE,
-    designation: x.DESIGNATION,
-    unit: x.UNITE,
-    pcs: num(x.PCS)
-  };
-
-  const i =
-    db.chs.findIndex(
-      r => r.id === item.id
-    );
-
-  if (i >= 0) {
-    db.chs[i] = item;
-  } else {
-    db.chs.push(item);
-  }
-}
 
 function upsertLocalBDS(x) {
   const type =

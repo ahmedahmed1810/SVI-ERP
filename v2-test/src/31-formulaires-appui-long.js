@@ -237,14 +237,6 @@ function showRowMenu(
 
 function rowItem(ctx) {
   if (
-    ctx.type === "chs"
-  ) {
-    return db.chs.find(
-      x => x.id === ctx.id
-    );
-  }
-
-  if (
     ctx.type === "brd"
   ) {
     return db.brd.find(
@@ -259,24 +251,6 @@ function rowItem(ctx) {
 }
 
 async function deleteRow(ctx) {
-  if (
-    ctx.type === "chs"
-  ) {
-    await apiPost(
-      "deleteCHS",
-      { id: ctx.id }
-    );
-
-    db.chs =
-      db.chs.filter(
-        x =>
-          x.id !== ctx.id
-      );
-
-    renderChs();
-
-    return;
-  }
 
   if (
     ctx.type === "brd"

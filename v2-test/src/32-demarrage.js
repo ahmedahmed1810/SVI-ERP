@@ -8,22 +8,11 @@ document.addEventListener(
 
     initNav();
 
-    $("chsSearch")
-      ?.addEventListener(
-        "input",
-        renderChs
-      );
-
     $("brdSearch")
       ?.addEventListener(
         "input",
         renderBrd
       );
-
-    if ($("addChsBtn")) {
-      $("addChsBtn").onclick =
-        () => chsForm();
-    }
 
     if ($("addBrdBtn")) {
       $("addBrdBtn").onclick =
@@ -204,11 +193,6 @@ document.addEventListener(
               action === "edit"
             ) {
               if (
-                rowContext.type === "chs"
-              ) {
-                chsForm(item);
-
-              } else if (
                 rowContext.type === "brd"
               ) {
                 brdForm(item);
@@ -225,14 +209,6 @@ document.addEventListener(
               action === "duplicate"
             ) {
               if (
-                rowContext.type === "chs"
-              ) {
-                chsForm(
-                  item,
-                  true
-                );
-
-              } else if (
                 rowContext.type === "brd"
               ) {
                 brdForm(
