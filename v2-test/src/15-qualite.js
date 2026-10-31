@@ -1137,6 +1137,10 @@
       shell.addEventListener("focusout", () => setTimeout(() => {
         shell.querySelectorAll(".ins-hcol").forEach(c => { const n = [...c.querySelectorAll(":scope > .ins-new")]; n.slice(0, -1).forEach(o => { const i = o.querySelector("input"); if (!o.dataset.iid && i && !i.value && i !== document.activeElement) o.remove(); }); });
       }, 0));
+      /* v745 (rapidité) : case cochée — la coche se voit tout de suite, l'écran filtré est redessiné juste après (une seule fois
+         si plusieurs cases sont touchées très vite) */
+      let ckT = null;
+      const ckSoon = fn => { ckT = fn; requestAnimationFrame(() => setTimeout(() => { const f = ckT; ckT = null; if (f) f(); }, 0)); };
       shell.addEventListener("click", e => {
         const X = shell.__ins;
         if (!X) return;
@@ -1207,13 +1211,13 @@
           const br = X.insBranch(r);
           r.on = cb.checked;   /* le titre lui-même est coché (copier / couper / déplacer l'emportent) */
           br.forEach(x => { x.on = cb.checked; });
-          X.insSave(); (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots()));
+          X.insSave(); ckSoon(() => (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots())));
           return;
         }
         if (cb) {
           r.on = cb.checked; X.insSave(); if (k === "des") { X.insDim(); X.insSyncTitles(); }
           /* ligne cochée : elle remonte (après les lignes au rond coché) */
-          (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots()));
+          ckSoon(() => (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots())));
           return;
         }
         /* ligne titre : unité, quantité, prix, TVA masqués et verrouillés, mais gardés

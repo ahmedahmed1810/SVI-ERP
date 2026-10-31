@@ -367,6 +367,7 @@ document.addEventListener("click", e => {
 
 /* v658 (FORMAT 249) : intitulés d'en-tête raccourcis selon la place (ACTIVITÉ SECONDAIRE → ACT. SECONDAIRE → ACT SCD) ;
    le premier qui tient en entier est gardé ; recalculé à chaque dessin et au changement de taille */
+const SVI_HD_FIT = new Map();
 const SVI_HD_ALT = { "ACTIVITÉ SECONDAIRE": ["ACT. SECONDAIRE", "ACT SCD"], "ACTIVITÉ PRIMAIRE": ["ACT. PRIMAIRE", "ACT PRM"] };
 (() => {
   let raf = 0, busy = false;
@@ -374,9 +375,13 @@ const SVI_HD_ALT = { "ACTIVITÉ SECONDAIRE": ["ACT. SECONDAIRE", "ACT SCD"], "AC
     try { document.querySelectorAll(".cf-tt[data-alt]").forEach(el => {
       let L = []; try { L = JSON.parse(el.dataset.alt); } catch (e) {}
       if (!L.length || !el.offsetParent) return;
+      /* v745 (rapidité) : choix déjà trouvé pour ces intitulés et cette largeur = repris sans essayer chaque intitulé */
+      const ck = el.dataset.alt + "@" + el.clientWidth + "@" + getComputedStyle(el).fontSize, known = SVI_HD_FIT.get(ck);
+      if (known !== undefined) { if (el.textContent !== known) el.textContent = known; return; }
       let pick = L[L.length - 1];
       for (const t of L) { if (el.textContent !== t) el.textContent = t; if (el.scrollWidth <= el.clientWidth + 1) { pick = t; break; } }
       if (el.textContent !== pick) el.textContent = pick;
+      if (SVI_HD_FIT.size > 200) SVI_HD_FIT.clear(); SVI_HD_FIT.set(ck, pick);
     }); } catch (e) {}
     setTimeout(() => { busy = false; }, 0); };
   const ask = () => { if (!busy && !raf) raf = requestAnimationFrame(fit); };
