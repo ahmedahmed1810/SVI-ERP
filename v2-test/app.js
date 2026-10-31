@@ -30124,7 +30124,7 @@ const sviFrame = () => {
     if (ref) { const off = ref.querySelector("input.dly-nm").getBoundingClientRect().left - ref.getBoundingClientRect().left; v.left = Math.max(v.left, v.full.left + off - 2); }
   }
   let col = (getComputedStyle(c).getPropertyValue("--inst") || "").trim() || "#111827";
-  { const pgS = c.closest('[class*="bdg-inst-"]'); if (pgS && !pgS.matches(".bdg-inst-instance")) col = "#98a2b3"; }   /* v736 : lecture seule = cadre gris */
+  { const pgS = c.closest('[class*="bdg-inst-"]'); if (pgS && !pgS.matches(".bdg-inst-instance, .bdg-inst-fige")) col = "#98a2b3"; }   /* figé : vert gardé (31/10/2026) */   /* v736 : lecture seule = cadre gris */
   /* au-dessus d'une fenêtre (SAISIE DIRECTE en fenêtre, fenêtres d'import…) quand la cellule y est */
   SVI_FR.style.zIndex = (c.closest("#sdW:not(.sd-inplace), #docPop, #blkPop, .svc-wrap") || (c.closest("[role=dialog]") && !c.closest(".sd-inplace"))) ? "10096" : "45";
   if (window.__sviHandleZ) window.__sviHandleZ(SVI_FR.style.zIndex === "45" ? "46" : "10097");
@@ -30250,7 +30250,7 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
         H.addEventListener("pointermove", mv); H.addEventListener("pointerup", up); H.addEventListener("pointercancel", up);
       });
     }
-    { const c = getComputedStyle(end).getPropertyValue("--inst").trim(), pgS = end.closest('[class*="bdg-inst-"]'); H.style.background = pgS && !pgS.matches(".bdg-inst-instance") ? "#98a2b3" : (c || "#111827"); }   /* v505 (remarque 55) ; v736 : gris en lecture seule */
+    { const c = getComputedStyle(end).getPropertyValue("--inst").trim(), pgS = end.closest('[class*="bdg-inst-"]'); H.style.background = pgS && !pgS.matches(".bdg-inst-instance, .bdg-inst-fige") ? "#98a2b3" : (c || "#111827"); }   /* v505 (remarque 55) ; v736 : gris en lecture seule */
     /* v736 : une seule case = le point pile au coin du cadre (cadre rétréci au nom, colonnes de noms) */
     let vr = vis.right, vb = vis.bottom;
     { const F = document.getElementById("sviSelFrame"); if (end === cell && F && F.style.display === "block") { const fr = F.getBoundingClientRect(); vr = fr.right; vb = fr.bottom; } }
