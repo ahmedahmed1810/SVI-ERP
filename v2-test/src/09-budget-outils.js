@@ -1088,6 +1088,29 @@ const condChuteRow = (I, r) => {
   return Q > 0 ? C * (num(r.q) || 0) / Q : C / rows.length;
 };
 
+/* v738 (prompt du 31/10, point 3) : RECETTES des MODALITÉS DE PAIEMENT — chaque échéance (date, montant) ;
+   RETENUE DE GARANTIE (taux) déduite de chaque échéance et rendue à sa libération (date, fin d'une tâche, ou fin des travaux + n mois) */
+const sviPayPlan = (d, M, finOf, endAll) => {
+  const n = v => Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")) || 0, out = [];
+  ((d.ctr || {}).rows || []).filter(r => r.type === "pay").forEach(r => {
+    const D = r.det || {}, G = D.rg, t = G ? Math.max(0, Math.min(100, n(G.t))) / 100 : 0;
+    let held = 0;
+    (D.ech || []).forEach(e => {
+      const date = e.on === "task" ? (finOf(e.task) || "") : e.date || "";
+      const m = e.u === "%" ? M * n(e.v) / 100 : n(e.v);
+      held += m * t;
+      out.push({ lab: e.lab || (e.on === "task" ? "FIN DE TÂCHE" : "ÉCHÉANCE"), date, m: m * (1 - t), brut: m, rg: m * t, task: e.on === "task" ? e.task : "" });
+    });
+    if (t > 0 && held > 0) {
+      let date = "";
+      if (G.on === "date") date = G.date || "";
+      else if (G.on === "task") date = finOf(G.task) || "";
+      else if (endAll) { const x = new Date(endAll + "T12:00:00"); x.setMonth(x.getMonth() + (G.mois === "" || G.mois === undefined ? 12 : n(G.mois))); date = x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); }
+      out.push({ lab: "LIBÉRATION DE LA RETENUE DE GARANTIE", date, m: held, rgLib: true });
+    }
+  });
+  return out.sort((a, b) => String(a.date || "9").localeCompare(String(b.date || "9")));
+};
 /* v732 : données « cuites » pour les indicateurs — la chute ajoutée à la QCB de chaque charge (une seule fois : __cb) */
 const condBake = d => {
   if (!d || d.__cb || !d.cond || !Object.keys(d.cond).length) return d;

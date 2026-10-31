@@ -32,7 +32,9 @@
         const pay = ((d.ctr || (INS && INS.ctr) || {}).rows || []).filter(r => r.type === "pay");
         if (pay.length) { const M = (d.des || []).filter(x => !x.t).reduce((t, x) => t + (insLinkedQ(d, x.id) ?? ratNum(x.q)) * ratNum(x.p), 0), full = INS && INS.dlp ? INS : d;
           const finOf = k => ((full.dlp || {})[k] || []).map(p => p.fin || p.deb).filter(Boolean).sort().pop() || "";
-          v.rec = pay.reduce((t, r) => t + ((r.det || {}).ech || []).reduce((s, e) => { const dt = e.on === "task" ? finOf(e.task) : e.date || ""; return inP(dt) ? s + (e.u === "%" ? M * ratNum(e.v) / 100 : ratNum(e.v)) : s; }, 0), 0); }
+          const end = Object.values(full.dlp || {}).flat().map(p => p.fin || p.deb).filter(Boolean).sort().pop() || "";
+          /* v738 : vraies rentrées d'argent — RETENUE DE GARANTIE déduite, rendue à sa libération */
+          v.rec = sviPayPlan({ ctr: { rows: pay } }, M, finOf, end).reduce((s, x) => inP(x.date) ? s + x.m : s, 0); }
         else v.rec = null;   /* sans article PAIEMENT : RECETTES non proposé */
         let P = null; try { P = shell.__aprPlan ? shell.__aprPlan() : null; } catch (e) { P = null; }
         v.cmd = P && P.length ? P.filter(a => inP(a.d)).reduce((t, a) => t + a.items.reduce((s, x) => s + x.m, 0), 0) : null; }

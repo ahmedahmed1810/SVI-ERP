@@ -4636,6 +4636,29 @@ const condChuteRow = (I, r) => {
   return Q > 0 ? C * (num(r.q) || 0) / Q : C / rows.length;
 };
 
+/* v738 (prompt du 31/10, point 3) : RECETTES des MODALITÉS DE PAIEMENT — chaque échéance (date, montant) ;
+   RETENUE DE GARANTIE (taux) déduite de chaque échéance et rendue à sa libération (date, fin d'une tâche, ou fin des travaux + n mois) */
+const sviPayPlan = (d, M, finOf, endAll) => {
+  const n = v => Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")) || 0, out = [];
+  ((d.ctr || {}).rows || []).filter(r => r.type === "pay").forEach(r => {
+    const D = r.det || {}, G = D.rg, t = G ? Math.max(0, Math.min(100, n(G.t))) / 100 : 0;
+    let held = 0;
+    (D.ech || []).forEach(e => {
+      const date = e.on === "task" ? (finOf(e.task) || "") : e.date || "";
+      const m = e.u === "%" ? M * n(e.v) / 100 : n(e.v);
+      held += m * t;
+      out.push({ lab: e.lab || (e.on === "task" ? "FIN DE TÂCHE" : "ÉCHÉANCE"), date, m: m * (1 - t), brut: m, rg: m * t, task: e.on === "task" ? e.task : "" });
+    });
+    if (t > 0 && held > 0) {
+      let date = "";
+      if (G.on === "date") date = G.date || "";
+      else if (G.on === "task") date = finOf(G.task) || "";
+      else if (endAll) { const x = new Date(endAll + "T12:00:00"); x.setMonth(x.getMonth() + (G.mois === "" || G.mois === undefined ? 12 : n(G.mois))); date = x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); }
+      out.push({ lab: "LIBÉRATION DE LA RETENUE DE GARANTIE", date, m: held, rgLib: true });
+    }
+  });
+  return out.sort((a, b) => String(a.date || "9").localeCompare(String(b.date || "9")));
+};
 /* v732 : données « cuites » pour les indicateurs — la chute ajoutée à la QCB de chaque charge (une seule fois : __cb) */
 const condBake = d => {
   if (!d || d.__cb || !d.cond || !Object.keys(d.cond).length) return d;
@@ -21459,14 +21482,10 @@ ${A}</Assignments>
     };
     /* MODALITÉS DE PAIEMENT → recettes prévisionnelles (date, montant) ; montant du marché = total HT des désignations */
     const ctrMarche = () => INS.des.filter(d => !d.t).reduce((t, d) => t + (insLinkedQ(INS, d.id) ?? num(d.q || 0)) * num(d.p || 0), 0);
-    const ctrRecettes = () => {
-      const M = ctrMarche(), out = [];
-      ((INS.ctr || {}).rows || []).filter(r => r.type === "pay").forEach(r => ((r.det || {}).ech || []).forEach(e => {
-        const date = e.on === "task" ? (dlyFin(e.task) || dlyDeb(e.task) || "") : e.date || "";
-        const m = e.u === "%" ? M * num(e.v || 0) / 100 : num(e.v || 0);
-        out.push({ lab: e.lab || (e.on === "task" ? "FIN " + dlyName(e.task) : "ÉCHÉANCE"), date, m });
-      }));
-      return out.sort((a, b) => String(a.date || "9").localeCompare(String(b.date || "9")));
+    /* v738 : recettes réelles — RETENUE DE GARANTIE déduite de chaque échéance, rendue à sa libération (sviPayPlan) */
+    const ctrRecettes = C => {
+      const M = ctrMarche(), end = dlyKeys().map(k => dlyFin(k) || dlyDeb(k)).filter(Boolean).sort().pop() || "";
+      return sviPayPlan(C ? { ctr: C } : INS, M, k => dlyFin(k) || dlyDeb(k) || "", end).map(x => ({ ...x, lab: x.task && x.lab === "FIN DE TÂCHE" ? "FIN " + dlyName(x.task) : x.lab }));
     };
     /* PÉNALITÉS : coût d'un retard du planning sur la DATE BUTOIR */
     const ctrPenal = r => {
@@ -21505,7 +21524,13 @@ ${A}</Assignments>
             ${e.on === "date" ? `<input class="pv-in ctp" data-f="date" type="date" value="${esc(e.date || "")}"${dis}>` : `<select class="pv-in ctp" data-f="task"${dis}><option value="">TÂCHE…</option>${tasks.map(k => `<option value="${esc(k)}"${e.task === k ? " selected" : ""}>${esc(dlyName(k))}</option>`).join("")}</select>`}
             <input class="pv-in ctp" data-f="v" inputmode="decimal" value="${esc(e.v === undefined ? "" : String(e.v).replace(".", ","))}"${dis}><select class="pv-in ctp" data-f="u"${dis}>${["%", "DH"].map(u => `<option${(e.u || "%") === u ? " selected" : ""}>${u}</option>`).join("")}</select>${ed ? `<button type="button" class="cmp-del" data-edel="${i}">✕</button>` : ""}</div>`).join("") || `<div class="fz-none">AUCUNE ÉCHÉANCE</div>`}</div>
           ${ed ? `<button type="button" class="svc-b" data-eadd>+ AJOUTER UNE ÉCHÉANCE</button>` : ""}
-          <div class="fz-blk">RECETTES PRÉVISIONNELLES</div><div class="ctp-rec"></div>`;
+          ${D.rg ? `<div class="ctp-r ctp-rg"><b class="ctp-rgl">RETENUE DE GARANTIE</b>
+              <input class="pv-in ctrg" data-f="t" inputmode="decimal" value="${esc(D.rg.t === undefined ? "" : String(D.rg.t).replace(".", ","))}" placeholder="TAUX"${dis}><span>%</span>
+              <span>LIBÉRÉE</span><select class="pv-in ctrg" data-f="on"${dis}><option value="fin"${!D.rg.on || D.rg.on === "fin" ? " selected" : ""}>FIN DES TRAVAUX +</option><option value="task"${D.rg.on === "task" ? " selected" : ""}>FIN DE TÂCHE</option><option value="date"${D.rg.on === "date" ? " selected" : ""}>DATE</option></select>
+              ${D.rg.on === "date" ? `<input class="pv-in ctrg" data-f="date" type="date" value="${esc(D.rg.date || "")}"${dis}>` : D.rg.on === "task" ? `<select class="pv-in ctrg" data-f="task"${dis}><option value="">TÂCHE…</option>${tasks.map(k => `<option value="${esc(k)}"${D.rg.task === k ? " selected" : ""}>${esc(dlyName(k))}</option>`).join("")}</select>` : `<input class="pv-in ctrg" data-f="mois" inputmode="numeric" value="${esc(D.rg.mois === undefined ? "12" : String(D.rg.mois))}"${dis}><span>MOIS (RÉCEPTION DÉFINITIVE)</span>`}
+              ${ed ? `<button type="button" class="svc-b" data-rgdel title="Retirer la retenue">✕</button>` : ""}</div>`
+            : ed ? `<button type="button" class="svc-b" data-rgadd>+ RETENUE DE GARANTIE</button>` : ""}
+          <div class="fz-blk">RECETTES PRÉVISIONNELLES${D.rg ? " (RETENUE DE GARANTIE DÉDUITE, RENDUE À SA LIBÉRATION)" : ""}</div><div class="ctp-rec"></div>`;
       }
       else if (t === "pen") body = f("plaf", "PLAFOND (% DU MARCHÉ)", "10") + `<div class="ctp-rec"></div>`;
       else body = `<div class="fz-none">CHOISIR D'ABORD UN TYPE POUR CET ARTICLE.</div>`;
@@ -21515,7 +21540,7 @@ ${A}</Assignments>
       sviWinShow(d);
       const recPaint = () => {
         const box = d.querySelector(".ctp-rec"); if (!box) return;
-        if (t === "pay") { const R = ctrRecettes().filter(x => x); let c = 0; box.innerHTML = R.length ? `<table class="pv-t"><thead><tr><th>ÉCHÉANCE</th><th>DATE</th><th class="number">MONTANT</th><th class="number">CUMUL</th></tr></thead><tbody>${R.map(x => { c += x.m; return `<tr><td>${esc(x.lab)}</td><td>${esc(dFr(x.date) || "—")}</td><td class="number">${money(x.m)}</td><td class="number">${money(c)}</td></tr>`; }).join("")}</tbody></table>` : `<div class="fz-none">—</div>`; }
+        if (t === "pay") { const R = ctrRecettes(C).filter(x => x); let c = 0; box.innerHTML = R.length ? `<table class="pv-t"><thead><tr><th>ÉCHÉANCE</th><th>DATE</th><th class="number">MONTANT</th><th class="number">CUMUL</th></tr></thead><tbody>${R.map(x => { c += x.m; return `<tr><td>${esc(x.lab)}</td><td>${esc(dFr(x.date) || "—")}</td><td class="number">${money(x.m)}</td><td class="number">${money(c)}</td></tr>`; }).join("")}</tbody></table>` : `<div class="fz-none">—</div>`; }
         if (t === "pen") { const P = ctrPenal(r); box.innerHTML = `<div class="pv-tot">FIN DU PLANNING ${esc(dFr(P.fin) || "—")} ; DATE BUTOIR ${esc(dFr(P.but) || "—")} ; RETARD <b>${P.late} J</b> ; PÉNALITÉ PAR JOUR <b>${money(P.per)} DH</b> ; COÛT DU RETARD <b>${money(P.tot)} DH</b>${P.capped ? " (PLAFONNÉ)" : ""}</div>`; }
       };
       recPaint();
@@ -21524,10 +21549,13 @@ ${A}</Assignments>
         const i = e.target;
         if (i.classList.contains("ctd")) { D[i.dataset.k] = i.value; recPaint(); return; }
         if (i.classList.contains("ctd-des")) { D.des = [...d.querySelectorAll(".ctd-des:checked")].map(x => x.value); return; }
+        if (i.classList.contains("ctrg")) { const fd = i.dataset.f; D.rg[fd] = fd === "t" || fd === "mois" ? num(i.value) : i.value; if (fd === "on") { ctrDetWin(C, r, back); return; } recPaint(); return; }
         if (i.classList.contains("ctp")) { const e2 = D.ech[+i.closest(".ctp-r").dataset.i], fd = i.dataset.f; e2[fd] = fd === "v" ? num(i.value) : i.value; if (fd === "on") { ctrDetWin(C, r, back); return; } recPaint(); }
       });
       d.addEventListener("click", e => {
         if (e.target === d || e.target.closest("[data-x]")) { d.remove(); back(); return; }
+        if (e.target.closest("[data-rgadd]")) { const A = C.rows.find(x => x.type === "rg" && (x.det || {}).forme !== "cau"); D.rg = { t: A && A.val !== "" && A.val !== undefined ? num(A.val) : 7, on: "fin", mois: 12 }; ctrDetWin(C, r, back); return; }
+        if (e.target.closest("[data-rgdel]")) { delete D.rg; ctrDetWin(C, r, back); return; }
         if (e.target.closest("[data-eadd]")) { D.ech.push({ on: "task", v: "", u: "%" }); ctrDetWin(C, r, back); return; }
         const ed2 = e.target.closest("[data-edel]"); if (ed2) { D.ech.splice(+ed2.dataset.edel, 1); ctrDetWin(C, r, back); return; }
         if (e.target.closest("[data-but]")) {
@@ -22335,7 +22363,9 @@ ${A}</Assignments>
         const pay = ((d.ctr || (INS && INS.ctr) || {}).rows || []).filter(r => r.type === "pay");
         if (pay.length) { const M = (d.des || []).filter(x => !x.t).reduce((t, x) => t + (insLinkedQ(d, x.id) ?? ratNum(x.q)) * ratNum(x.p), 0), full = INS && INS.dlp ? INS : d;
           const finOf = k => ((full.dlp || {})[k] || []).map(p => p.fin || p.deb).filter(Boolean).sort().pop() || "";
-          v.rec = pay.reduce((t, r) => t + ((r.det || {}).ech || []).reduce((s, e) => { const dt = e.on === "task" ? finOf(e.task) : e.date || ""; return inP(dt) ? s + (e.u === "%" ? M * ratNum(e.v) / 100 : ratNum(e.v)) : s; }, 0), 0); }
+          const end = Object.values(full.dlp || {}).flat().map(p => p.fin || p.deb).filter(Boolean).sort().pop() || "";
+          /* v738 : vraies rentrées d'argent — RETENUE DE GARANTIE déduite, rendue à sa libération */
+          v.rec = sviPayPlan({ ctr: { rows: pay } }, M, finOf, end).reduce((s, x) => inP(x.date) ? s + x.m : s, 0); }
         else v.rec = null;   /* sans article PAIEMENT : RECETTES non proposé */
         let P = null; try { P = shell.__aprPlan ? shell.__aprPlan() : null; } catch (e) { P = null; }
         v.cmd = P && P.length ? P.filter(a => inP(a.d)).reduce((t, a) => t + a.items.reduce((s, x) => s + x.m, 0), 0) : null; }
