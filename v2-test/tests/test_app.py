@@ -2477,6 +2477,11 @@ def main():
             const ch = condChuteRow(I, r), b = one(); const K = JSON.parse(keep); if (K) I.cond = K; else delete I.cond;
             return [ch > 0, Math.abs(b - a - ch * Number(r.p || 0)) < 0.01]; }}""")
         check("v732 : chute comptée une fois dans l'indicateur CHARGES", c732 in ([True, True], "pas de charge"), c732)
+        # v738 : RETENUE DE GARANTIE des MODALITÉS DE PAIEMENT — déduite de chaque échéance, rendue à sa libération
+        t738 = pg.evaluate("""() => { const d = { ctr: { rows: [{ type: 'pay', det: { ech: [{ on: 'task', task: 'a|b', v: 30, u: '%' }, { on: 'date', date: '2026-12-31', v: 70, u: '%' }], rg: { t: 7, on: 'fin', mois: 12 } } }] } };
+            const P = sviPayPlan(d, 100000, k => k === 'a|b' ? '2026-11-10' : '', '2026-12-31');
+            return P.map(x => [x.date, Math.round(x.m)]); }""")
+        check("v738 : RETENUE DE GARANTIE 7 % — échéances nettes (27 900, 65 100), 7 000 rendus 12 mois après la fin des travaux", t738 == [["2026-11-10", 27900], ["2026-12-31", 65100], ["2027-12-31", 7000]], t738)
         # v723 (bloc 2, points 1 et 3) : RECETTES seulement avec un article PAIEMENT (échéance datée), GROUPE de charges (titre), COMMANDES
         b2 = pg.evaluate(f"""() => {{ const sh = [...document.querySelectorAll('*')].find(e => e.__ind), X = {ins}, I = X.INS; if (!sh) return null; const A = sh.__ind;
             const one = k => A.calc({{ id: 'z', nom: 'Z', f: [{{ t: 'e', k }}], mode: 'q', fmt: 'n', dec: 2 }});
