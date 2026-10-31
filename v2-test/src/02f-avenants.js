@@ -95,6 +95,18 @@ const sviAvMerge = (rootRef, opt) => {
   M.vfz = JSON.parse(JSON.stringify(((S0[0] || {}).data || {}).cfz || []));
   return M;
 };
+/* v735 : chaîne d'origine d'une désignation dans un lot — activités prises dans une étape précédente (la plus récente) ; null sinon */
+const sviAvOrigin = (ref, des, u, lot) => {
+  const S = sviAvStages(ref), i = S.findIndex(x => x.ref === ref);
+  if (i <= 0) return null;
+  const nm = (d, k, id) => { const r = (d[k] || []).find(x => x.id === id); return r ? sviAvU(k === "des" ? r.des : r.v) : ""; };
+  let out = null;
+  S.slice(0, i).forEach(st => { const d = st.data || {}; (d.links || []).forEach(l => {
+    const r = (d.des || []).find(x => x.id === l.des);
+    if (r && sviAvU(r.des) === sviAvU(des) && sviAvU(r.u) === sviAvU(u) && nm(d, "lot", l.lot) === sviAvU(lot)) out = { prim: nm(d, "prim", l.prim), sec: nm(d, "sec", l.sec), st: sviAvName(st) };
+  }); });
+  return out;
+};
 /* contradictions d'un avenant : même désignation et même lot qu'une étape précédente, activités différentes */
 const sviAvContra = ref => {
   const S = sviAvStages(ref), i = S.findIndex(x => x.ref === ref);
