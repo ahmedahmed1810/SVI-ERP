@@ -36,11 +36,8 @@ function getSVISpreadsheet_() {
   return SS_CACHE_;
 }
 
+/* 31/10/2026 (v748) : CHS retiré (plus utilisé par le programme) ; la feuille CHS est gardée telle quelle dans le classeur */
 const SHEETS_V2 = {
-  CHS: {
-    name: "CHS",
-    headers: ["ID", "ARTICLE", "DESIGNATION", "UNITE", "PCS"]
-  },
   BDS: {
     name: "BDS_V2",
     headers: ["ID", "TYPE", "PARENT_ID", "CODE", "NOM", "ORDRE", "ACTIF"]
@@ -70,7 +67,7 @@ function withLock_(fn) {
 /* =========================================================
    API GET
    - Sans action ou action=bdg : lecture de l'onglet BDG
-   - action=bootstrap : CHS + BDS
+   - action=bootstrap : BDS
    - action=brd : bordereau d'une tâche secondaire
    - action=ping : test API
    ========================================================= */
@@ -116,15 +113,13 @@ function doGet(e) {
       });
     }
 
-    /* ---------- DEMARRAGE : CHS + STRUCTURE BDS ---------- */
+    /* ---------- DEMARRAGE : STRUCTURE BDS ---------- */
 
     if (action === "bootstrap") {
       verifierStructureV2_();
 
       return jsonResponse_({
         ok: true,
-
-        chs: lireObjets_(SHEETS_V2.CHS),
 
         bds: lireObjets_(SHEETS_V2.BDS).filter(x =>
           String(x.ACTIF || "OUI").trim().toUpperCase() !== "NON"
@@ -201,21 +196,6 @@ function doPost(e) {
     return withLock_(function () {
       verifierStructureV2_();
 
-      if (action === "savechs") {
-        return jsonResponse_({
-          ok: true,
-          data: upsertObjet_(
-            SHEETS_V2.CHS,
-            normaliserCHS_(payload.data || {})
-          )
-        });
-      }
-
-      if (action === "deletechs") {
-        supprimerParId_(SHEETS_V2.CHS, payload.id);
-        return jsonResponse_({ ok: true });
-      }
-
       if (action === "savebds") {
         return jsonResponse_({
           ok: true,
@@ -287,7 +267,7 @@ function getBDG_() {
 
 /* =========================================================
    INITIALISATION V2
-   À exécuter une seule fois. Crée uniquement CHS, BDS_V2
+   À exécuter une seule fois. Crée uniquement BDS_V2
    et BRD_V2. Aucun autre onglet n'est modifié.
    ========================================================= */
 
@@ -1004,31 +984,6 @@ function requis_(valeur, libelle) {
   }
 
   return valeur;
-}
-
-/* =========================================================
-   NORMALISATION CHS
-   ========================================================= */
-
-function normaliserCHS_(x) {
-  return {
-    ID:
-      nettoyer_(x.ID) ||
-      nouvelId_("CHS"),
-
-    ARTICLE:
-      requis_(texte_(x.ARTICLE), "ARTICLE"),
-
-    DESIGNATION:
-      requis_(texte_(x.DESIGNATION), "DESIGNATION")
-        .toUpperCase(),
-
-    UNITE:
-      texte_(x.UNITE).toUpperCase(),
-
-    PCS:
-      nombre_(x.PCS)
-  };
 }
 
 /* =========================================================

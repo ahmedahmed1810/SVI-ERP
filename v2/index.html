@@ -11,9 +11,54 @@
 
   <title>SVI ERP — V2</title>
 
+  <!-- v748 : premier lancement de la version validée sur cet appareil — reprise unique des données de la version test -->
+  <script>
+    (function () {
+      var F = "svi_from_test_v1", P = "svitest:";
+      try { if (localStorage.getItem(F)) return; } catch (e) { return; }
+      var has = false;
+      try { for (var i = 0; i < localStorage.length; i++) { if (String(localStorage.key(i)).indexOf(P) === 0) { has = true; break; } } } catch (e) {}
+      if (!has) { try { localStorage.setItem(F, "rien"); } catch (e) {} return; }
+      window.__sviMig = true;
+      try {
+        var K = []; for (var j = 0; j < localStorage.length; j++) { var k = String(localStorage.key(j)); if (k.indexOf(P) === 0) K.push(k); }
+        K.forEach(function (k) { localStorage.setItem(k.slice(P.length), localStorage.getItem(k)); });
+      } catch (e) {}
+      var copy = function (name, store) { return new Promise(function (ok) {
+        var a = indexedDB.open("svitest_" + name, 1);
+        a.onupgradeneeded = function () { a.transaction.abort(); };   /* pas de base de test : rien à copier */
+        a.onerror = function () { ok(); };
+        a.onsuccess = function () {
+          var src = a.result; if (!src.objectStoreNames.contains(store)) { src.close(); ok(); return; }
+          var t = src.transaction(store, "readonly").objectStore(store), ks = t.getAllKeys(), vs = t.getAll();
+          vs.onerror = function () { src.close(); ok(); };
+          vs.onsuccess = function () {
+            src.close();
+            var b = indexedDB.open(name, 1);
+            b.onupgradeneeded = function () { if (!b.result.objectStoreNames.contains(store)) b.result.createObjectStore(store); };
+            b.onerror = function () { ok(); };
+            b.onsuccess = function () {
+              var dst = b.result; if (!dst.objectStoreNames.contains(store)) { dst.close(); ok(); return; }
+              var w = dst.transaction(store, "readwrite"), o = w.objectStore(store);
+              ks.result.forEach(function (key, n) { o.put(vs.result[n], key); });
+              w.oncomplete = w.onerror = w.onabort = function () { dst.close(); ok(); };
+            };
+          };
+        };
+      }); };
+      var end = function () { try { localStorage.setItem(F, new Date().toISOString()); } catch (e) {} location.reload(); };
+      document.addEventListener("DOMContentLoaded", function () {
+        var m = document.createElement("div");
+        m.style.cssText = "position:fixed;inset:0;z-index:30000;background:#fff;display:flex;align-items:center;justify-content:center;font:800 14px Arial,sans-serif;color:#1f2937";
+        m.textContent = "MISE À JOUR DE LA VERSION VALIDÉE : REPRISE DES DONNÉES DE CET APPAREIL…"; document.body.appendChild(m);
+      });
+      Promise.all([copy("svi_store", "kv"), copy("svi_files", "f")]).then(end, end);
+    })();
+  </script>
+
   <link
     rel="stylesheet"
-    href="styles.css?v=35"
+    href="styles.css?v=748"
   >
 </head>
 
@@ -44,15 +89,9 @@
         class="nav-btn active"
         data-view="chs"
       >
-        CHS
+        PARAMÉTRAGE
       </button>
 
-      <button
-        class="nav-btn"
-        data-view="bds"
-      >
-        BDS
-      </button>
 
       <button
         class="nav-btn"
@@ -69,7 +108,7 @@
   <main>
 
     <!-- ===================================================
-         CHS
+         PARAMÉTRAGE (ancien écran CHS, retiré en v742 ; l'identifiant « chs » est gardé pour le menu)
          =================================================== -->
 
     <section
@@ -84,75 +123,14 @@
         
         <div>
           <h1>
-            CHS — CHARGES STANDARDS
+            PARAMÉTRAGE
           </h1>
 
-          <p>
-            BIBLIOTHÈQUE DES CHARGES STANDARDS
-          </p>
+          <p></p>
         </div>
 
-        <button
-          class="primary"
-          id="addChsBtn"
-        >
-          + AJOUTER
-        </button>
-
       </div>
 
-
-      <div class="toolbar">
-
-        <input
-          id="chsSearch"
-          type="search"
-          placeholder="RECHERCHER ARTICLE, DÉSIGNATION, UNITÉ..."
-        >
-
-        <div
-          class="count"
-          id="chsCount"
-        ></div>
-
-      </div>
-
-
-      <div class="table-wrap">
-
-        <table id="chsTable">
-
-          <thead>
-            <tr>
-              <th>
-                ARTICLE ▾
-              </th>
-
-              <th>
-                DÉSIGNATION ▾
-              </th>
-
-              <th>
-                UNITÉ ▾
-              </th>
-
-              <th class="number">
-                PCS ▾
-              </th>
-            </tr>
-          </thead>
-
-          <tbody></tbody>
-
-        </table>
-
-      </div>
-
-
-      <p class="hint">
-        APPUI LONG SUR UNE LIGNE :
-        INFORMATION · MODIFIER · DUPLIQUER · SUPPRIMER
-      </p>
 
     </section>
 
@@ -451,7 +429,6 @@
           <div class="novapp-list-actions">
             <button type="button" aria-label="Historique">⌛</button>
             <button type="button" aria-label="Liste">≡</button>
-            <button type="button" aria-label="Ajouter">＋</button>
           </div>
         </div>
         <div class="novapp-budget-table-wrap">
@@ -473,8 +450,7 @@
        ===================================================== -->
 
 <div id="navMenu" class="popup hidden">
-  <button class="nav-btn active" data-view="chs">CHS</button>
-  <button class="nav-btn" data-view="bds">BDS</button>
+  <button class="nav-btn active" data-view="chs">PARAMÉTRAGE</button>
   <button class="nav-btn" data-view="bdg">BDG</button>
   <div class="nav-sep"></div>
   <button type="button" class="nav-src" id="navSrcBtn">DONNÉES SOURCE</button>
@@ -548,7 +524,7 @@
        JAVASCRIPT
        ===================================================== -->
 
-  <script src="app.js?v=252"></script>
+  <script>if (!window.__sviMig) document.write('<script src="app.js?v=748"><\/script>');</script>
 
 </body>
 
