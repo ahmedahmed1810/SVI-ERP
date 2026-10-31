@@ -239,14 +239,10 @@ function sviParamTabs() {
   lpane.className = "prm-lib";
   lpane.hidden = true;
   pane.after(lpane);
-  const others = () => [...view.children].filter(x => x !== head && x !== bar && x !== pane && x !== lpane);
   const show = which => {
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.prm === which));
-    others().forEach(x => { x.style.display = which === "chs" ? "" : "none"; });
     pane.hidden = which !== "unit";
     lpane.hidden = which !== "lib";
-    const add = document.getElementById("addChsBtn");
-    if (add) add.style.display = which === "chs" ? "" : "none";
     const h1 = head.querySelector("h1"), sub = head.querySelector("p");
     if (h1) h1.textContent = which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : "UNITÉS";
     if (sub) sub.textContent = which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT ; COMMUNE À TOUS LES BUDGETS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";

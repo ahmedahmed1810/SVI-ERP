@@ -1,12 +1,12 @@
 # SVI ERP — Document technique (version test `/v2-test/`)
 
-Mise à jour : 31/10/2026, v740 (avenants, scénarios, indicateurs, approvisionnement, base V3, CHS retiré, chutes, COMPARATIF, bibliothèque de prix, CUMUL). Avant : 27/10/2026, v648 (fin de la refonte).
+Mise à jour : 31/10/2026, v742 (nettoyage : restes de CHS et fonctions inutilisées retirés, écran CHS supprimé, fichiers 04 et 05 renommés) ; v740 (avenants, scénarios, indicateurs, approvisionnement, base V3, CHS retiré, chutes, COMPARATIF, bibliothèque de prix, CUMUL). Avant : 27/10/2026, v648 (fin de la refonte).
 Pour un informaticien qui reprend le code. Les règles métier sont dans le cahier des charges du projet (documents `claude/cahier/00` à `08`, INDEX) ; la forme (écrans, fenêtres, couleurs) dans le FORMAT (mêmes documents, chapitre FORME). Ce document dit **où** est chaque chose dans le code et **comment** la faire évoluer.
 
 ## 1. Vue d'ensemble
 
 - Application web d'une seule page, sans cadriciel ni compilation : `index.html`, `styles.css`, `app.js`.
-- Données de référence (budgets validés, base V3 ; CHS n'est plus utilisé depuis v727) : Google Sheets, lues par un script Google Apps Script (`API_URL`, `API_KEY` dans `src/00-socle.js` ; fonctions `apiGet` (`src/03-api-drive.js`) et `apiSrc` (`src/33-confirmations-sources.js`)).
+- Données de référence (budgets validés, BDS, base V3 ; CHS n'est plus utilisé depuis v727 et son écran est supprimé depuis v742 — la section `#chs` de `index.html` sert de page PARAMÉTRAGE) : Google Sheets, lues par un script Google Apps Script (`API_URL`, `API_KEY` dans `src/00-socle.js` ; fonctions `apiGet` (`src/03-api-drive.js`) et `apiSrc` (`src/33-confirmations-sources.js`)).
 - **Budgets en instance** (en cours de saisie) : sur l'appareil, dans IndexedDB (`svi_store`, clé `svi_bdg_inst_v1`) — `src/02-stockage-instance.js` (`sviInstGet`, `sviInstSet`, `sviInstFlush`).
 - Réglages d'affichage (largeurs, ordre des colonnes, filtres mémorisés, dernière vue…) : `localStorage` (clés `svi_…` ; en version test, toutes les clés sont préfixées `svitest:`).
 - **Base V3 et partage** (`src/02e-synchro-base.js`) : chaque budget est envoyé à la base V3 (`sviQ` : `v3Push`, `v3Pull`, `v3List`) et contrôlé par ses totaux (`sviSyncTotals`, `sviSyncTotDiff`) ; les données communes à tous les budgets (unités, emballage, signataires, liste des indicateurs « IND », bibliothèque de prix « LIB »…) passent par `sviSharedGet` / `sviSharedSet` (éléments « _CLÉ » de la base, fusionnés par réunion `sviShareMerge`). Détail : document `claude/base-budgets-v3.md`.

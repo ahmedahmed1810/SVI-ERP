@@ -9,53 +9,68 @@ python3 tests/test_app.py            # tests de non-régression
 
 Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'un budget) : ils se suivent et partagent les mêmes variables ; un fichier seul n'est donc pas un module JavaScript complet. Une ligne repère `/* ⟪ src/… ⟫ */` marque dans `app.js` le début de chaque fichier.
 
-| Fichier | Lignes |
-|---|---|
-| `00-socle.js` | 441 |
-| `01-onglets-donnees-outils.js` | 286 |
-| `02-stockage-instance.js` | 51 |
-| `02b-donnees-budget.js` | données du budget : forme, conversions des anciens budgets, enregistrement, doublons (refonte, étape 1) |
-| `02d-saisie-import-regles.js` | règles de saisie (intitulés presque identiques) et d'import (dates, type de liaison, nature d'onglet), sans écran — testées (refonte, étapes 8 et 9) |
-| `02c-planning-regles.js` | règles de calcul du planning, sans écran (liaisons, décalage, déplacement) — testées une par une (refonte, étape 5) |
-| `03-api-drive.js` | 387 |
-| `04-chs-bds-donnees.js` | 522 |
-| `05-navigation-chs.js` | 209 |
-| `06-bds-configuration.js` | 708 |
-| `07-bdg-chargement.js` | 198 |
-| `10-bdg-liste.js` | 1915 |
-| `11-budget-ouverture.js` | 519 |
-| `12-tableaux-colonnes.js` | 362 |
-| `13-instance-saisie.js` | 1080 |
-| `14-doublons-classement.js` | 410 |
-| `15-qualite.js` | 963 |
-| `16-a-completer.js` | 100 |
-| `17-1-liaisons.js` | PLANNING : prédécesseurs, liaisons, décalages, respect des liaisons |
-| `17-2-lignes-ordre.js` | PLANNING : lots, couleurs, marges, replis, ordre, lignes, liens, dlyApply, échelle |
-| `17-3-gantt-dessin.js` | PLANNING : dessin du Gantt et de l'histogramme, hauteur à l'écran |
-| `17-4-tableau-fenetres.js` | PLANNING : dates, tableau (insDlyHTML), fenêtres PRÉDÉCESSEURS et AJOUTER |
-| `17-5-gestes-tableau.js` | PLANNING : gestes 1 — clic, saisie, clavier, glisser des lignes et des lots |
-| `17-6-gestes-gantt.js` | PLANNING : gestes 2 — barres du Gantt, liaisons au doigt, histogramme, bulle |
-| `17-7-gestes-echelle.js` | PLANNING : gestes 3 — largeur des jours, pincement, poignées |
-| `17-8-actions.js` | PLANNING : actions (shell.__insDly, objet X) |
-| `17-9-graphique-dessin.js` | dessin du graphique (dlyGraphHTML), sorti de dlyGanttDraw (refonte, étape 7) |
-| `17b-planning-auto.js` | GÉNÉRER / COMPRESSER, plafond, ressource cochée, tâches incompressibles, commandes (v530, v542) |
-| `18-annuler-liaisons.js` | 1123 |
-| `19-delais-disposition.js` | 519 |
-| `20-glisser-lignes.js` | 403 |
-| `21-export-import.js` | 2075 |
-| `22-saisie-directe.js` | 482 |
-| `22b-exploitation.js` | onglet MARGE (v498, ex-LIAISONS VALIDÉES et EXPLOITATION) |
-| `23-apercus-impression.js` | 1147 |
-| `24-doc-historique-fenetres.js` | 541 |
-| `25-inf.js` | 598 |
-| `26-copier-coller.js` | 650 |
-| `26b-conditionnement.js` | conditionnement / emballage d'un article (v530, remarque 4 en v542) |
-| `27-etat-fin-budget.js` | 438 |
-| `30-bdg-produits-charges-analyse.js` | 674 |
-| `31-formulaires-appui-long.js` | 345 |
-| `32-demarrage.js` | 302 |
-| `33-confirmations-sources.js` | 349 |
-| `34-parametrage.js` | 370 |
-| `35-calendrier-saisie.js` | 378 |
+| Fichier | Rôle | Lignes |
+|---|---|---|
+| `00-socle.js` | constantes, accès Google, calendrier en jours travaillés, outils communs | 411 |
+| `01-onglets-donnees-outils.js` | données en mémoire (db), petits outils de saisie | 289 |
+| `02-stockage-instance.js` | budgets sur l'appareil (IndexedDB) | 54 |
+| `02b-donnees-budget.js` | données du budget : forme, conversions des anciens budgets, enregistrement, doublons | 104 |
+| `02c-planning-regles.js` | règles de calcul du planning, sans écran (liaisons, décalage, déplacement) — testées | 31 |
+| `02d-saisie-import-regles.js` | règles de saisie et d'import, sans écran — testées | 66 |
+| `02e-synchro-base.js` | base V3 : envoi, fusion, verrous par zone, contrôle par les totaux, données partagées | 417 |
+| `02f-avenants.js` | étapes d'un budget, consolidé GLOBAL, contradictions, chaîne d'origine | 144 |
+| `03-api-drive.js` | appels au script Google, dossiers Drive | 388 |
+| `04-bds-donnees.js` | chargement des données BDS (CHS retiré en v742) | 490 |
+| `05-navigation.js` | menu principal (PARAMÉTRAGE / BDG) | 65 |
+| `06-bds-configuration.js` | écran BDS (décomposition) | 708 |
+| `07-bdg-chargement.js` | chargement des budgets validés | 179 |
+| `09-budget-outils.js` | fonctions sans état du budget (calculs, emballage et chutes, échéancier, bibliothèque, CUMUL) | 1209 |
+| `10-bdg-liste.js` | liste des budgets (arborescence, avenants, CUMUL) | 2003 |
+| `11-budget-ouverture.js` | ouverture d'un budget (début de openBudgetDetail) | 548 |
+| `12-tableaux-colonnes.js` | colonnes des tableaux (SVI_COL), en-têtes, tri, filtre, largeurs | 348 |
+| `13-instance-saisie.js` | budget en instance : saisie, filtres (FSRC), totaux, calendrier de tâche insCal | 1644 |
+| `14-doublons-classement.js` | doublons, classement, bandeau de liaison | 517 |
+| `15-qualite.js` | DÉTAIL QUALITÉ | 1308 |
+| `16-a-completer.js` | ⚠ À COMPLÉTER et FILTRES ACTIFS | 181 |
+| `17-1-liaisons.js` | PLANNING : prédécesseurs, liaisons, décalages | 129 |
+| `17-2-lignes-ordre.js` | PLANNING : lots, couleurs, marges, ordre, dlyApply | 338 |
+| `17-3-gantt-dessin.js` | PLANNING : dessin du Gantt, pied fixe, ajustement | 510 |
+| `17-4-tableau-fenetres.js` | PLANNING : tableau DÉLAIS, fenêtres PRÉDÉCESSEURS et AJOUTER | 490 |
+| `17-5-gestes-tableau.js` | PLANNING : gestes du tableau | 321 |
+| `17-6-gestes-gantt.js` | PLANNING : gestes du Gantt et du graphique | 536 |
+| `17-7-gestes-echelle.js` | PLANNING : largeur des jours, pincement, poignées | 276 |
+| `17-8-actions.js` | PLANNING : actions (shell.__insDly) | 657 |
+| `17-9-graphique-dessin.js` | PLANNING : dessin du graphique | 263 |
+| `17b-planning-auto.js` | GÉNÉRER / COMPRESSER, capacités, calendrier des charges, DATE OBJECTIF | 949 |
+| `18-annuler-liaisons.js` | annuler / rétablir, liaisons (ronds, VALIDER, DÉLIER) | 1237 |
+| `19-delais-disposition.js` | disposition des blocs, hauteurs en lignes entières | 611 |
+| `20-glisser-lignes.js` | glisser des lignes et des titres | 462 |
+| `21-export-import.js` | export / import (Excel, Google Sheets, autre budget), menu ⋯ | 2071 |
+| `22-saisie-directe.js` | SAISIE DIRECTE | 609 |
+| `22b-exploitation.js` | exploitation (ex-onglet MARGE) | 507 |
+| `22c-ratios-multi-signature.js` | indicateurs (données), signatures | 98 |
+| `22d-contrat.js` | contrat : CPS, révision des prix, modalités de paiement, retenue de garantie | 254 |
+| `22e-versions-scenarios.js` | scénarios et versions | 492 |
+| `22f-plans.js` | plans et métré | 187 |
+| `22g-indicateurs.js` | indicateurs : éléments, calcul, liste commune | 343 |
+| `22h-tableau-de-bord.js` | tableau de bord | 219 |
+| `22i-indicateurs-tableau.js` | tableau et graphique d'un indicateur | 195 |
+| `22j-recalages.js` | recalages | 90 |
+| `22k-approvisionnement.js` | APPROVISIONNEMENT PRÉVISIONNEL | 184 |
+| `22l-indicateur-onglet.js` | onglet INDICATEURS (quatre parties, ESSAI) | 121 |
+| `22m-comparatif.js` | COMPARATIF | 151 |
+| `22n-bibliotheque.js` | bibliothèque de prix dans le budget, bandeau du CUMUL | 59 |
+| `23-apercus-impression.js` | aperçus PDF, impression | 1188 |
+| `24-doc-historique-fenetres.js` | DOCUMENTS, TAF, OBSERVATIONS, historique | 466 |
+| `25-inf.js` | fenêtre INF | 613 |
+| `26-copier-coller.js` | copier, couper, coller | 710 |
+| `26b-conditionnement.js` | emballage et découpe par titre de charges | 105 |
+| `27-etat-fin-budget.js` | FIGER, VALIDER, fin de openBudgetDetail | 716 |
+| `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
+| `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
+| `32-demarrage.js` | démarrage de l'application | 278 |
+| `33-confirmations-sources.js` | fenêtres, messages, données source | 385 |
+| `34-parametrage.js` | PARAMÉTRAGE : UNITÉS, BIBLIOTHÈQUE DE PRIX, calendrier du budget | 446 |
+| `35-calendrier-saisie.js` | calendrier, saisie façon Google Sheets, cadre de sélection unique | 1451 |
 
 Document technique (architecture, données, recettes, tests) : `../DOC-TECHNIQUE.md`.
