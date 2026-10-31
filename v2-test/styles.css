@@ -3085,3 +3085,16 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 #sviSelBar button + button { border-left: 1px solid #eaecf0; border-radius: 0; }
 #sviSelBar button:active { background: #f2f4f7 !important; }
 #sviSelBar .sb-del { color: var(--inst, #b91c1c) !important; }
+/* v739 : BIBLIOTHÈQUE DE PRIX (FORMAT 267, 268) */
+.prm-lib .lib-wrap { display: grid; grid-template-columns: minmax(220px, 32%) 1fr; gap: 14px; align-items: start; }
+.prm-lib .lib-a { cursor: pointer; } .prm-lib .lib-a.on td { background: #eef2ff; font-weight: 800; }
+.prm-lib .lib-rec { border: 1px solid #e5e9f0; border-radius: 10px; padding: 8px; margin-bottom: 10px; background: #fff; }
+.prm-lib .lib-rh { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; font-size: 12px; }
+.prm-lib .lib-rh .lib-in[data-f=nom] { width: 180px; } .prm-lib .lib-rh small { color: #667085; margin-left: auto; }
+.prm-lib .lib-cdel, .prm-lib .lib-del { border: 0; background: none; color: #b42318; font-weight: 800; cursor: pointer; }
+.lib-chk { color: #b54708; background: #fffaeb; border: 1px solid #fedf89; border-radius: 6px; padding: 1px 6px; font-size: 10px; font-weight: 800; }
+.lib-pick .lib-r { display: block; border: 1px solid #e5e9f0; border-radius: 8px; padding: 8px; margin: 0 0 8px; cursor: pointer; }
+.lib-pick .lib-r.lib-used { border-color: #2e90fa; background: #f5faff; }
+.lib-pick .lib-h { display: inline-flex; gap: 8px; align-items: center; margin-left: 6px; } .lib-pick .lib-h small { color: #667085; }
+.lib-tag { color: #175cd3; background: #eff8ff; border-radius: 6px; padding: 1px 6px; font-size: 10px; font-weight: 800; }
+.lk-chain .lk-lib { border: 1px solid #2e90fa; background: #eff8ff; color: #175cd3; border-radius: 8px; padding: 4px 10px; font-weight: 800; font-size: 11px; margin-right: 6px; cursor: pointer; }
