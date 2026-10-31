@@ -16,7 +16,8 @@
       ["marge", "BATTEMENT", x => x.mshow === "" || x.mshow === undefined ? "" : Number(x.mshow), "center"], ["jal", "JALON", x => x.jal || "", "center"]];
     /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */
     /* del : mode modifiable (case au début de chaque période, 🗑 à la fin, case et 🗑 en tête) */
-    const dlyTable = (rows, cells, trAttr = () => "", del = false, base = DLY_COLS) => {
+    /* v748 : opt.cut = { first, max } — au-delà de max lignes, seules les first premières sont mises dans le tableau ; le HTML des autres est rendu dans opt.rest */
+    const dlyTable = (rows, cells, trAttr = () => "", del = false, base = DLY_COLS, opt = null) => {
       const tk = base === DLY_COLS ? "dly" : base === DLY_COLS_S ? "dlys" : "dlyp";
       const cols = coOrder(tk, base);
       const w = k => cwLoad()["dly." + k] || DLY_W[k];
@@ -24,7 +25,9 @@
       return `<table class="bdg-d-table dly-table" style="width:${cols.reduce((t, c) => t + w(c[0]), 0) + (del ? 44 : 0)}px">
         <colgroup>${cols.map(c => `<col data-w="dly.${c[0]}" style="width:${w(c[0])}px">`).join("")}${del ? '<col style="width:44px">' : ""}</colgroup>
         <thead><tr>${cols.map(c => cfHead(tk, c[0], c[1], c[3])).join("")}${del ? `<th class="center"><input type="checkbox" class="${tk === "dlyp" ? "dlyp-cball" : "dlp-cball"}" title="Tout cocher"></th>` : ""}</tr></thead>
-        <tbody>${rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}${del ? `<td class="center ins-cbc">${h.__cb || ""}</td>` : ""}</tr>`; }).join("")
+        <tbody>${(() => { const H = rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}${del ? `<td class="center ins-cbc">${h.__cb || ""}</td>` : ""}</tr>`; });
+          if (opt && opt.cut && H.length > opt.cut.max) { opt.rest = H.slice(opt.cut.first); return H.slice(0, opt.cut.first).join(""); }
+          return H.join(""); })()
           || ""}</tbody></table>`;
     };
     /* v546 (R33) : bouton ↻ AJUSTER À LA CAPACITÉ, seulement sur DÉTAIL DÉLAIS ; grisé quand il n'y a rien à ajuster */

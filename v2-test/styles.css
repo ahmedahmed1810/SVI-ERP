@@ -1242,8 +1242,8 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
   font: 900 15px Arial, sans-serif; color: var(--inst, #b91c1c); border: 1.5px solid var(--inst, #b91c1c); background: #fff; user-select: none; -webkit-user-select: none; }
 .ins-fold.open { font-size: 12px; opacity: .8; }
 /* désignations : retrait selon le niveau (r.d), sans limite */
-/* FORMAT 120 : cascade des titres — 20 px par niveau */
-.ins-table[data-ik="des"] tr[data-iid] :is(input, textarea, .ins-dv)[data-f="des"], .bdg-d-table.ins-table tr[style*="--d"] :is(input, textarea, .ins-dv)[data-f="des"] { padding-left: calc(8px + var(--d, 0) * 20px) !important; }
+/* FORMAT 120 : cascade des titres — 20 px par niveau (v748 : plus de sélecteur sur l'attribut style — il faisait recalculer toutes les cases à chaque largeur changée) */
+.ins-table[data-ik="des"] tr[data-iid] :is(input, textarea, .ins-dv)[data-f="des"], .bdg-d-table.ins-table tr[data-ik="des"][data-iid] :is(input, textarea, .ins-dv)[data-f="des"] { padding-left: calc(8px + var(--d, 0) * 20px) !important; }
 .ins-table tr.ins-sub td.number:first-of-type { padding-left: calc(8px + var(--d, 0) * 20px); }
 /* glissement : entre dans le titre (décalé) / superposer = nouveau titre (encadré) */
 .ins-table tr.ro-in td { box-shadow: inset 0 -3px 0 var(--inst, #12355b); }
