@@ -400,16 +400,6 @@ const insPrdTVA = (data, id) => {
   const d = (data.des || []).find(x => x.id === l.des);
   return !d ? "" : (d.tva === "" || d.tva === undefined ? 20 : num(d.tva));
 };
-/* charges : catalogue CHS (ARTICLE, DÉSIGNATION, UNITÉ, PCS, TVA) */
-/* v727 (bloc 11.1) : CHS n'existe plus — une charge se saisit entièrement dans le budget ; plus aucun rattachement au catalogue */
-const chsFind = (art, des) => {
-  const L = [];
-  const n = v => String(v ?? "").trim().toUpperCase();
-  if (n(art)) { const x = L.find(c => n(c.article) === n(art)); if (x) return x; }
-  if (n(des)) { const x = L.find(c => n(c.designation) === n(des)); if (x) return x; }
-  return null;
-};
-const chsById = id => null;
 
 /* v694 : petit rappel en haut, 2 s, à l'arrivée sur un autre écran du budget (« AVENANT 1 (2 / 4) ») */
 const sviNavPill = txt => {

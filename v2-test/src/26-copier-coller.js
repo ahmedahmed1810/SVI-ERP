@@ -281,7 +281,6 @@
         if (r.t && f !== "art" && f !== "des") { if (String(vals[i] ?? "").trim() !== "") bad.push(name + " : TITRE — PAS DE " + cs.label); continue; }
         let v = String(vals[i] ?? "").trim();
         if (isNum && v !== "" && !sviNumOk(v)) { bad.push(name + " : « " + v + " » N'EST PAS UN NOMBRE"); continue; }
-        if (k === "chg" && (f === "p" || f === "u") && r.chs) { bad.push(name + " : VALEUR VENUE DE CHS"); continue; }
         if (k === "prd" && /^d[123]$/.test(f) && v !== "" && +f[1] > sviUnitDims(r.u)) { bad.push(name + " : UNITÉ " + (r.u || "") + " — " + f.toUpperCase().replace(/^D/, "DIM ") + " EN TROP"); continue; }
         const linked = lkAnyLinked(k, r.id);
         if (linked && (f === "u" || (f === "des" && v === ""))) { bad.push(name + " : LIGNE LIÉE — DÉLIER D'ABORD"); continue; }

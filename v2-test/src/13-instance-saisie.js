@@ -477,7 +477,7 @@
       }
       if (k === "chg") {
         if (z(r.q)) return { f: "q", m: "QTE VIDE OU 0 : SAISIR LA QUANTITÉ." };
-        if (!r.chs && z(r.p)) return { f: "p", m: "SAISIR LE PCB." };
+        if (z(r.p)) return { f: "p", m: "SAISIR LE PCB." };
       }
       return null;
     };
@@ -489,7 +489,7 @@
       r = r || {};
       /* QPB produits = NBR × DIM 1 × DIM 2 × DIM 3 ; QPB désignation liée = somme des produits de ses tâches */
       const qAuto = (f === "q" && (k === "prd" || k === "des")) || (f === "p" && k === "prd") || (f === "q" && k === "chg" && !!insRg());   /* v560 : plage posée = QCB au prorata, grisée */
-      const locked = !INS_EDIT || (INS_RCL0 && k === "des") || type === "calc" || qAuto || (INS_LOCK[k] || []).includes(f) || (k === "chg" && (f === "p" || f === "u") && !!r.chs) || (r.t && f !== "art" && f !== "des")
+      const locked = !INS_EDIT || (INS_RCL0 && k === "des") || type === "calc" || qAuto || (INS_LOCK[k] || []).includes(f) || (r.t && f !== "art" && f !== "des")
         /* DIM que l'unité n'autorise pas : grisées (FORMAT 74, R10) */
         || (k === "prd" && /^d[123]$/.test(f) && !isNew && +f[1] > sviUnitDims(r.u))
         /* v470 : produit d'une liaison primaire — UPB = celle de la désignation client (comme le PPB) : grisée */
@@ -817,9 +817,8 @@
       const fb = `<span class="ins-gfz" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier"><span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}">${fo ? "›" : "⌄"}</span></span>`;
       const non = g.filter(r => r.on === true).length;
       /* v505 (remarque 56) : ART, DÉSIGNATION, UCB, PCB et TVA du titre modifiables — la valeur va à toutes ses lignes
-         (PCB, UCB et TVA grisés si une de ses charges vient de CHS) ; QCB, montants, RENDEMENT et TÂCHE restent calculés */
-      const chs = g.some(r => !!r.chs);
-      const edOk = f => INS_EDIT && (["art", "des"].includes(f) || (["u", "p", "tva"].includes(f) && !chs));
+         QCB, montants, RENDEMENT et TÂCHE restent calculés */
+      const edOk = f => INS_EDIT && ["art", "des", "u", "p", "tva"].includes(f);
       const ps = new Set(g.map(r => money(num(r.p || 0)))), ts = new Set(g.map(r => money(insTVA(r))));
       const ev = { art: v.art, des: v.des, u: v.u, p: ps.size === 1 ? [...ps][0] : v.p, tva: ts.size === 1 ? [...ts][0] : v.tva };
       const cell = c => {

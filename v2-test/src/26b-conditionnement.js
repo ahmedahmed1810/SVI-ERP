@@ -11,18 +11,6 @@
     const condRows = id => { const r = INS.chg.find(x => x.id === id); return r ? INS.chg.filter(x => !x.t && COND_K(x) === COND_K(r)) : []; };
     /* morceaux : produits des liaisons de ces charges — longueur = DIM 1, nombre = NBR (× quantité liée si plusieurs) */
     const condPieces = rows => condPiecesOf(INS, rows);
-    const condPieces0 = rows => {
-      const ids = new Set(rows.map(r => r.id)), out = new Map();
-      (INS.links || []).filter(l => (l.chg || []).some(x => ids.has(x.id))).forEach(l => (l.prd || []).forEach(x => {
-        const p = INS.prd.find(q => q.id === x.id);
-        if (!p) return;
-        const L = num(p.d1), n = Math.max(1, Math.round(num(p.nbr) || 1));
-        if (!(L > 0)) return;
-        const k = String(Math.round(L * 1000) / 1000);
-        out.set(k, (out.get(k) || 0) + n);
-      }));
-      return [...out].map(([L, n]) => ({ L: Number(L), n })).sort((a, b) => b.L - a.L);
-    };
     /* découpe : premier emplacement possible, morceaux du plus long au plus court, puis essai d'améliorer
        (une barre vidée et ses morceaux remis ailleurs) — assez bon pour un chantier, rapide sur iPad */
     const condWin = id => {

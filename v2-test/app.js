@@ -401,16 +401,6 @@ const insPrdTVA = (data, id) => {
   const d = (data.des || []).find(x => x.id === l.des);
   return !d ? "" : (d.tva === "" || d.tva === undefined ? 20 : num(d.tva));
 };
-/* charges : catalogue CHS (ARTICLE, DÉSIGNATION, UNITÉ, PCS, TVA) */
-/* v727 (bloc 11.1) : CHS n'existe plus — une charge se saisit entièrement dans le budget ; plus aucun rattachement au catalogue */
-const chsFind = (art, des) => {
-  const L = [];
-  const n = v => String(v ?? "").trim().toUpperCase();
-  if (n(art)) { const x = L.find(c => n(c.article) === n(art)); if (x) return x; }
-  if (n(des)) { const x = L.find(c => n(c.designation) === n(des)); if (x) return x; }
-  return null;
-};
-const chsById = id => null;
 
 /* v694 : petit rappel en haut, 2 s, à l'arrivée sur un autre écran du budget (« AVENANT 1 (2 / 4) ») */
 const sviNavPill = txt => {
@@ -1272,7 +1262,6 @@ const sviSyncPull = async () => {
    tout le reste du budget reste modifiable, et les envois se fusionnent (CONFLITS si la même case a changé des deux côtés).
    Un verrou sans zone (ancienne version de l'application) bloque encore tout le budget. */
 const sviLockAll = ref => (SVI_SYNC.locks[ref] || []).filter(k => Date.now() - k.ts < 3 * 60 * 1000);
-const sviLockOther = (ref, tab) => sviLockAll(ref).find(k => !k.onglet || k.onglet === tab) || null;
 const SVI_ZONES = { client: "DÉSIGNATIONS CLIENT", lot: "LOTS", prim: "ACTIVITÉS PRIMAIRES", sec: "ACTIVITÉS SECONDAIRES" };
 const sviZoneOf = el => {
   const C = window.__sviZoneCtx; if (!C || !el || !el.closest) return "";
@@ -8137,7 +8126,7 @@ function renderBudgetList() {
       }
       if (k === "chg") {
         if (z(r.q)) return { f: "q", m: "QTE VIDE OU 0 : SAISIR LA QUANTITÉ." };
-        if (!r.chs && z(r.p)) return { f: "p", m: "SAISIR LE PCB." };
+        if (z(r.p)) return { f: "p", m: "SAISIR LE PCB." };
       }
       return null;
     };
@@ -8149,7 +8138,7 @@ function renderBudgetList() {
       r = r || {};
       /* QPB produits = NBR × DIM 1 × DIM 2 × DIM 3 ; QPB désignation liée = somme des produits de ses tâches */
       const qAuto = (f === "q" && (k === "prd" || k === "des")) || (f === "p" && k === "prd") || (f === "q" && k === "chg" && !!insRg());   /* v560 : plage posée = QCB au prorata, grisée */
-      const locked = !INS_EDIT || (INS_RCL0 && k === "des") || type === "calc" || qAuto || (INS_LOCK[k] || []).includes(f) || (k === "chg" && (f === "p" || f === "u") && !!r.chs) || (r.t && f !== "art" && f !== "des")
+      const locked = !INS_EDIT || (INS_RCL0 && k === "des") || type === "calc" || qAuto || (INS_LOCK[k] || []).includes(f) || (r.t && f !== "art" && f !== "des")
         /* DIM que l'unité n'autorise pas : grisées (FORMAT 74, R10) */
         || (k === "prd" && /^d[123]$/.test(f) && !isNew && +f[1] > sviUnitDims(r.u))
         /* v470 : produit d'une liaison primaire — UPB = celle de la désignation client (comme le PPB) : grisée */
@@ -8477,9 +8466,8 @@ function renderBudgetList() {
       const fb = `<span class="ins-gfz" data-gk="${esc(key)}" role="button" aria-label="Replier / déplier"><span class="ins-fold ins-gfold${fo ? "" : " open"}" data-gk="${esc(key)}">${fo ? "›" : "⌄"}</span></span>`;
       const non = g.filter(r => r.on === true).length;
       /* v505 (remarque 56) : ART, DÉSIGNATION, UCB, PCB et TVA du titre modifiables — la valeur va à toutes ses lignes
-         (PCB, UCB et TVA grisés si une de ses charges vient de CHS) ; QCB, montants, RENDEMENT et TÂCHE restent calculés */
-      const chs = g.some(r => !!r.chs);
-      const edOk = f => INS_EDIT && (["art", "des"].includes(f) || (["u", "p", "tva"].includes(f) && !chs));
+         QCB, montants, RENDEMENT et TÂCHE restent calculés */
+      const edOk = f => INS_EDIT && ["art", "des", "u", "p", "tva"].includes(f);
       const ps = new Set(g.map(r => money(num(r.p || 0)))), ts = new Set(g.map(r => money(insTVA(r))));
       const ev = { art: v.art, des: v.des, u: v.u, p: ps.size === 1 ? [...ps][0] : v.p, tva: ts.size === 1 ? [...ts][0] : v.tva };
       const cell = c => {
@@ -10717,7 +10705,7 @@ function renderBudgetList() {
     /* ligne vide (FORMAT 90) : toutes ses cases saisissables effacées (TVA par défaut, PCB / TVA de CHS ne comptent pas) */
     const INS_ENTRY = { des: ["art", "des", "u"], chg: ["art", "des", "u", "q"], prd: ["des", "u", "nbr", "d1", "d2", "d3"], lot: ["v"], prim: ["v"], sec: ["v"], qlt: ["v"] };
     const insRowEmpty = (k, r) => r.t ? !String(r.art || "").trim() && !String(r.des || "").trim()
-      : (INS_ENTRY[k] || Object.keys(r).filter(f => !["id", "on", "t", "tw", "d"].includes(f))).concat(k === "chg" && !r.chs ? ["p"] : [])
+      : (INS_ENTRY[k] || Object.keys(r).filter(f => !["id", "on", "t", "tw", "d"].includes(f))).concat(k === "chg" ? ["p"] : [])
         .every(f => String(r[f] ?? "").trim() === "");
     const insClean = k => {
       const used = ["des", "lot", "prim", "sec", "prd", "chg"].includes(k) ? insUsed()[k] : new Set();
@@ -13258,11 +13246,7 @@ function renderBudgetList() {
       shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dlp-multi[data-task]"); const X = shell.__insDly; if (!b || !X) return; e.stopPropagation(); X.piecesWin(b.dataset.task); }, true);
       /* v546 (R29) : ⚙ = RÉGLAGES DE L'HISTOGRAMME */
       shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dlyhh-cfg"); const X = shell.__insDly; if (!b || !X) return; e.stopPropagation(); X.hcfgWin(b); }, true);
-      /* v546 (R27) : toucher la case SUCCESSEURS = leur liste */
-      /* v712 : toucher = case encadrée (choix) ; la bulle du texte complet seulement sur appui long */
-      /* v736 : la case SUCCESSEURS se sélectionne comme les autres (cadre commun) : plus d'arrêt du toucher ici */
-      shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dly-succ[data-key]"); if (!b || !shell.__insDly) return;
-        shell.querySelectorAll(".dly-succ.dly-cellsel").forEach(x => x.classList.remove("dly-cellsel")); b.classList.add("dly-cellsel"); }, true);
+      /* v736 : la case SUCCESSEURS se sélectionne comme les autres (cadre commun du module 35) ; bulle du texte complet à l'appui long */
       { let lt = 0;
         shell.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".dly-succ[data-key]"); const X = shell.__insDly; clearTimeout(lt); if (!b || !X) return;
           lt = setTimeout(() => { const L = X.succs(b.dataset.key); svToast(L.length ? "SUCCESSEURS : " + L.join(" ; ") : "AUCUN SUCCESSEUR.", 5000, b); }, 500); }, true);
@@ -16127,34 +16111,6 @@ ${A}</Assignments>
         if (max === undefined) return;
         const nd = ["d1", "d2", "d3"].filter(f => r[f] !== "" && r[f] !== undefined && r[f] !== null).length;
         if (nd > max) svToast("ATTENTION : UNITÉ " + u + " → " + (max === 0 ? "NBR SEUL" : "NBR ET " + max + " DIM") + " (" + nd + " DIM RENSEIGNÉE" + (nd > 1 ? "S" : "") + ").", 3500, inp);
-      });
-    }
-    /* détail charges : ART ou désignation saisi → désignation, unité, PCB et TVA viennent de CHS ;
-       charge absente de CHS : acceptée, son PCB reste saisissable */
-    if (!shell.__chsBound) {
-      shell.__chsBound = true;
-      shell.addEventListener("change", e => {
-        const inp = e.target.closest && e.target.closest(".ins-in");
-        const X = shell.__ins;
-        if (!inp || !X || !["art", "des"].includes(inp.dataset.f)) return;
-        const tr = inp.closest('tr[data-ik="chg"][data-iid]');
-        if (!tr) return;
-        const r = X.INS.chg.find(x => x.id === tr.dataset.iid);
-        if (!r) return;
-        const c = chsFind(inp.dataset.f === "art" ? r.art : "", inp.dataset.f === "des" ? r.des : "");
-        if (c) { r.chs = c.id; r.art = String(c.article ?? r.art ?? "").toUpperCase(); r.des = String(c.designation ?? r.des ?? "").toUpperCase();
-          r.u = String(c.unit ?? r.u ?? "").toUpperCase(); r.p = c.pcs; r.tva = c.tva; }
-        else if (r.chs) { delete r.chs; }
-        else return;
-        X.insSave();
-        /* la ligne seule est redessinée (le PCB passe en gris ou redevient saisissable) */
-        const tmp = document.createElement("tbody");
-        tmp.innerHTML = X.insRowHTML("chg", r, 0);
-        const nr = tmp.firstElementChild;
-        const foc = document.activeElement && tr.contains(document.activeElement) ? document.activeElement.dataset.f : null;
-        tr.replaceWith(nr);
-        X.insLive("chg", nr, r);
-        if (foc) nr.querySelector(`input[data-f="${foc}"]`)?.focus();
       });
     }
     /* FORMAT 74-75 : nombre non valide refusé ; unité d'un produit → DIM non autorisées effacées et grisées ;
@@ -19476,8 +19432,6 @@ ${A}</Assignments>
             if (isC) {
               if (z(g(r, "q"))) { bad.push("q"); why.push("QTE VIDE OU 0"); }
               if (!sviNumOk(g(r, "p"))) { bad.push("p"); why.push("NOMBRE NON VALIDE : PCB"); }
-              const c = chsFind(String(g(r, "article") ?? "").trim(), dn);
-              if (c && U_(g(r, "u")) && U_(c.unit) && U_(g(r, "u")) !== U_(c.unit)) { bad.push("u"); why.push("UNITÉ " + U_(g(r, "u")) + " ≠ UNITÉ DE CHS (" + U_(c.unit) + ")"); }
             }
             if (bad.length) lineBad = { bad, why: why.join(" ; ") };
         }
@@ -19499,16 +19453,12 @@ ${A}</Assignments>
           pk = put("prd", "prd|" + impId("prd", row) + (ch ? "#" + ch : ""), row);
         } else if (dn && t.startsWith("CHG")) {
           const row = { art: String(g(r, "article") ?? "").trim(), des: dn, u: U_(g(r, "u")), q: nn(g(r, "q")), tva: 20 };
-          /* prix et TVA : depuis CHS ;
-             v522 : PCB rempli dans la feuille = ce prix-là (CHS ne sert alors qu'à la TVA, et la charge n'est rattachée à CHS
-             que si les deux prix sont égaux) ; PCB vide = prix de CHS, comme avant */
-          const c = chsFind(row.art, row.des), ps = String(g(r, "p") ?? "").trim() !== "" ? num(g(r, "p")) : null;
-          if (c) { row.tva = c.tva; row.u = row.u || U_(c.unit); }
-          if (ps !== null && isFinite(ps)) { row.p = ps; if (c && Math.abs(num(c.pcs) - ps) < 0.005) row.chs = c.id; }
-          else if (c) { row.chs = c.id; row.p = c.pcs; }
+          /* PCB rempli dans la feuille = ce prix-là (v727 : plus de CHS) */
+          const ps = String(g(r, "p") ?? "").trim() !== "" ? num(g(r, "p")) : null;
+          if (ps !== null && isFinite(ps)) row.p = ps;
           ck = put("chg", "chg|" + impId("chg", row), row);
           /* même charge sur plusieurs lignes : le premier PCB rempli l'emporte */
-          if (ps !== null && isFinite(ps) && !pDone.has(ck)) { const e = m.chg.find(x => x.key === ck); pDone.add(ck); if (e && e.row !== row) { e.row.p = ps; if (c && Math.abs(num(c.pcs) - ps) < 0.005) e.row.chs = c.id; else delete e.row.chs; } }
+          if (ps !== null && isFinite(ps) && !pDone.has(ck)) { const e = m.chg.find(x => x.key === ck); pDone.add(ck); if (e && e.row !== row) e.row.p = ps; }
         }
         const src = Object.fromEntries(RAW.map(k => [k, String(g(r, k) ?? "").trim()]));
         src.__line = aoa.__lineFix || lineNo;
@@ -19611,12 +19561,10 @@ ${A}</Assignments>
           if (old) {
             kid.set(x.key, old.id);
             /* v522 : charge déjà dans le budget SANS prix — le PCB importé la complète, même en simple ajout */
-            if (k === "chg" && mode !== "update" && (old.p === "" || old.p === undefined || old.p === null) && r.p !== undefined && r.p !== "") { old.p = r.p; if (r.chs) old.chs = r.chs; upd++; return; }
+            if (k === "chg" && mode !== "update" && (old.p === "" || old.p === undefined || old.p === null) && r.p !== undefined && r.p !== "") { old.p = r.p; upd++; return; }
             if (mode !== "update" || hierK) { skip++; return; }
             let ch = false;
-            ["q", "nbr", "d1", "d2", "d3", "p", "tva", "chs"].forEach(f => { if (r[f] !== undefined && String(r[f]) !== String(old[f] ?? "")) { old[f] = r[f]; ch = true; } });
-            /* v522 : prix de la feuille différent de CHS — la charge n'est plus rattachée à CHS (son PCB redevient modifiable) */
-            if (k === "chg" && r.p !== undefined && r.chs === undefined && old.chs) { delete old.chs; ch = true; }
+            ["q", "nbr", "d1", "d2", "d3", "p", "tva"].forEach(f => { if (r[f] !== undefined && String(r[f]) !== String(old[f] ?? "")) { old[f] = r[f]; ch = true; } });
             ch ? upd++ : skip++;
             return;
           }
@@ -20249,9 +20197,9 @@ ${A}</Assignments>
         const r = recs.find(q => q.id === x.id); if (!r) return; seen.add(r.id);
         const d = INS.des.find(q => q.id === l.des) || {};
         rows.push({ _id: r.id, _lid: l.id || "L" + (INS.links || []).indexOf(l), dc: d.des || "", upb: d.u || "", lot: nm("lot", l.lot), prim: nm("prim", l.prim), sec: nm("sec", l.sec), su: U_(((INS.sec || []).find(q => q.id === l.sec) || {}).u),
-          art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q), p: P ? "" : fmtN(r.p), _chs: !!r.chs });
+          art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q), p: P ? "" : fmtN(r.p) });
       }));
-      recs.filter(r => !r.t && !seen.has(r.id)).forEach(r => rows.push({ _id: r.id, dc: "", upb: "", lot: "", prim: "", sec: "", su: "", art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q), p: P ? "" : fmtN(r.p), _chs: !!r.chs }));
+      recs.filter(r => !r.t && !seen.has(r.id)).forEach(r => rows.push({ _id: r.id, dc: "", upb: "", lot: "", prim: "", sec: "", su: "", art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q), p: P ? "" : fmtN(r.p) }));
       rows.forEach(r => { r._o = JSON.stringify(COLS.map(c => r[c[0]])); r._l = l0(r); });
       rows.push(blank());
       dirty = false;
@@ -20300,7 +20248,7 @@ ${A}</Assignments>
           const fx = suFixed(r), need = !fx && !!U_(r.sec) && !U_(r.su);
           return `<td class="center${fx ? " sd-ro" : ""}${need ? " sd-need" : ""}"${need ? ' data-why="UNITÉ DE L\'ACTIVITÉ OBLIGATOIRE"' : ""}><input class="sd-in" data-i="${i}" data-f="su" value="${esc(fx || r.su || "")}"${fx ? " readonly tabindex=\"-1\"" : ""} autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"></td>`;
         }
-        const lockU = (P && f === "u" && (!!secU(r.sec, r) || (r._lid && !!r.u))) || (f === "p" && !!r._chs);   /* PCB venu de CHS : grisé */
+        const lockU = (P && f === "u" && (!!secU(r.sec, r) || (r._lid && !!r.u)));
         const lockChain = false;   /* v480 (remarque 15) : en instance, la chaîne d'une ligne liée se change ici aussi */
         const ro = lockU || lockChain;
         return `<td class="${NUMF.has(f) ? "number" : CENTER.has(f) ? "center" : ""}${ro ? " sd-ro" : ""}${selCol === f ? " sd-sel" : ""}"><input class="sd-in" data-i="${i}" data-f="${f}" value="${esc(lockU && secU(r.sec, r) ? secU(r.sec, r) : r[f] || "")}"${ro ? " readonly tabindex=\"-1\"" : ""}${NUMF.has(f) ? ' inputmode="decimal"' : ""} autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"></td>`;
@@ -20646,7 +20594,7 @@ ${A}</Assignments>
           const x = recs.find(q => q.id === r._id); if (!x) return;
           x.des = U_(sviClean(r.des)); if (!r._lid) x.u = U_(r.u);
           if (P) ["nbr", "d1", "d2", "d3"].forEach(f => { x[f] = r[f] === "" ? "" : insNum(r[f]); });
-          else { x.art = U_(r.art); x.q = r.q === "" ? "" : insNum(r.q); if (!x.chs) x.p = r.p === "" ? "" : insNum(r.p); }
+          else { x.art = U_(r.art); x.q = r.q === "" ? "" : insNum(r.q); x.p = r.p === "" ? "" : insNum(r.p); }
           upd++;
         });
         /* 2. lignes nouvelles (et lignes non liées dont la chaîne est remplie) : importées avec les règles de l'import */
@@ -20692,7 +20640,7 @@ ${A}</Assignments>
           if (gone.size) INS[kind] = INS[kind].filter(x => !gone.has(x.id));
           bfApply(m, "add", "FORMAT TABLEAU", false, plan);
           /* v492 (remarque 13) : PCB saisi d'une charge nouvelle hors CHS (l'import ne le porte pas) */
-          if (!P) neu.forEach(r => { if (r.p === "" || r.p === undefined) return; INS.chg.filter(x => !x.t && !x.chs && U_(x.des) === U_(r.des) && U_(x.u) === U_(r.u) && (x.p === "" || x.p === undefined || num(x.p) === 0)).forEach(x => { x.p = insNum(r.p); }); });
+          if (!P) neu.forEach(r => { if (r.p === "" || r.p === undefined) return; INS.chg.filter(x => !x.t && U_(x.des) === U_(r.des) && U_(x.u) === U_(r.u) && (x.p === "" || x.p === undefined || num(x.p) === 0)).forEach(x => { x.p = insNum(r.p); }); });
           const nInc = (INS.inc || []).length - inc0;
           if (nInc > 0) setTimeout(() => svToast(nInc + " LIGNE(S) EN ERREUR : VOIR L'ONGLET IMPORT NON CRÉÉ.", 5000), 300);
         }
@@ -21363,36 +21311,6 @@ ${A}</Assignments>
       if (ls) out.push({ k: "sl", lab: "SURFACE DES LOTS", u: "M2", q: ls, m: null });
       return out.concat([...G.values()].sort((a, b) => a.lab.localeCompare(b.lab, "fr")));
     };
-    /* valeur d'un côté : { v, u } ; quantité seulement si toutes les unités sont les mêmes */
-    const ratSide = (I, ks, mode) => {
-      const L = (ks || []).map(k => I.find(x => x.k === k)).filter(Boolean);
-      if (!L.length) return null;
-      if (mode === "m" && L.every(x => x.m !== null)) return { v: L.reduce((t, x) => t + x.m, 0), u: "DH" };
-      const us = [...new Set(L.map(x => x.u))];
-      if (us.length > 1) return { v: null, u: "", err: "UNITÉS DIFFÉRENTES" };
-      return { v: L.reduce((t, x) => t + x.q, 0), u: us[0] };
-    };
-    const ratCalc = (I, r) => {
-      const n = ratSide(I, r.num, r.mode), d = ratSide(I, r.den, r.mode);
-      if (!n) return { txt: "—" };
-      if (n.err) return { txt: n.err, err: true };
-      if (!d) return { val: n.v, txt: ratFx(n.v) + " " + n.u };
-      if (d.err) return { txt: d.err, err: true };
-      const val = d.v ? n.v / d.v : null;
-      return { val, n, d, diff: n.v - d.v, txt: val === null ? "—" : ratFx(val, 3) + " " + n.u + " / " + d.u };
-    };
-    /* ratios proposés : seulement ceux dont les données existent */
-    const ratPropose = I => {
-      const has = k => I.some(x => x.k === k), sur = has("sc") ? "sc" : has("sl") ? "sl" : null, L = [];
-      const find = (pre, re, u) => I.filter(x => x.k.startsWith(pre + "|") && re.test(x.lab) && (!u || x.u === u)).map(x => x.k);
-      if (sur && has("tc")) L.push({ nom: "COÛT AU M²", num: ["tc"], den: [sur], mode: "q" });
-      if (sur && has("tp")) L.push({ nom: "PRIX DE VENTE AU M²", num: ["tp"], den: [sur], mode: "q" });
-      const ac = find("c", /ACIER|FER|HA\s?\d/, "KG"), be = find("p", /B[EÉ]TON/, "M3").concat(find("c", /B[EÉ]TON/, "M3"));
-      if (ac.length && be.length) L.push({ nom: "ACIER / BÉTON", num: ac, den: [be[0]], mode: "q", seuil: "" });
-      const mo = I.filter(x => x.k.startsWith("c|") && /^(JH|HJ|J|JOUR|JOURS)$/.test(x.u)).map(x => x.k);
-      if (mo.length && sur) L.push({ nom: "MAIN-D'ŒUVRE AU M²", num: mo, den: [sur], mode: "q" });
-      return L.map(r => ({ id: insId(), seuil: "", ...r }));
-    };
     /* v680 : TABLEAU DE BORD (ratWin) et graphiques : voir 22h-tableau-de-bord.js */
 
     /* =========================================================
@@ -21757,7 +21675,6 @@ ${A}</Assignments>
         effT: Object.keys(dayT).sort().map(k => k + " " + String(Math.round(mx(dayT[k]) * 10) / 10).replace(".", ",")).join(" · "),
         mo, chg, prd, mg: prd - chg, mgp: prd ? (prd - chg) / prd * 100 : null, lots: (d.lot || []).filter(r => !r.t).length };
     };
-    const verFmt = (k, v) => v === null || v === undefined || v === "" ? "—" : k === "fin" ? dFr(v) : k === "effT" ? v : k === "mgp" ? String(Math.round(v * 10) / 10).replace(".", ",") + " %" : k === "eff" ? String(Math.round(v * 10) / 10).replace(".", ",") : ["mo", "chg", "prd", "mg"].includes(k) ? money(v) : String(v);
     /* v681 : origine des lignes = l'étape du budget (MARCHÉ INITIAL, AVENANT n) ; dans GLOBAL, les étapes d'où vient la ligne */
     const verOrig = () => {
       const st = budget.inst ? sviAvName(budget.inst) : "BUDGET INITIAL";
@@ -26324,7 +26241,6 @@ ${A}</Assignments>
         if (r.t && f !== "art" && f !== "des") { if (String(vals[i] ?? "").trim() !== "") bad.push(name + " : TITRE — PAS DE " + cs.label); continue; }
         let v = String(vals[i] ?? "").trim();
         if (isNum && v !== "" && !sviNumOk(v)) { bad.push(name + " : « " + v + " » N'EST PAS UN NOMBRE"); continue; }
-        if (k === "chg" && (f === "p" || f === "u") && r.chs) { bad.push(name + " : VALEUR VENUE DE CHS"); continue; }
         if (k === "prd" && /^d[123]$/.test(f) && v !== "" && +f[1] > sviUnitDims(r.u)) { bad.push(name + " : UNITÉ " + (r.u || "") + " — " + f.toUpperCase().replace(/^D/, "DIM ") + " EN TROP"); continue; }
         const linked = lkAnyLinked(k, r.id);
         if (linked && (f === "u" || (f === "des" && v === ""))) { bad.push(name + " : LIGNE LIÉE — DÉLIER D'ABORD"); continue; }
@@ -26766,18 +26682,6 @@ ${A}</Assignments>
     const condRows = id => { const r = INS.chg.find(x => x.id === id); return r ? INS.chg.filter(x => !x.t && COND_K(x) === COND_K(r)) : []; };
     /* morceaux : produits des liaisons de ces charges — longueur = DIM 1, nombre = NBR (× quantité liée si plusieurs) */
     const condPieces = rows => condPiecesOf(INS, rows);
-    const condPieces0 = rows => {
-      const ids = new Set(rows.map(r => r.id)), out = new Map();
-      (INS.links || []).filter(l => (l.chg || []).some(x => ids.has(x.id))).forEach(l => (l.prd || []).forEach(x => {
-        const p = INS.prd.find(q => q.id === x.id);
-        if (!p) return;
-        const L = num(p.d1), n = Math.max(1, Math.round(num(p.nbr) || 1));
-        if (!(L > 0)) return;
-        const k = String(Math.round(L * 1000) / 1000);
-        out.set(k, (out.get(k) || 0) + n);
-      }));
-      return [...out].map(([L, n]) => ({ L: Number(L), n })).sort((a, b) => b.L - a.L);
-    };
     /* découpe : premier emplacement possible, morceaux du plus long au plus court, puis essai d'améliorer
        (une barre vidée et ses morceaux remis ailleurs) — assez bon pour un chantier, rapide sur iPad */
     const condWin = id => {

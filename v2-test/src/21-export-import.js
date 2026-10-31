@@ -1337,8 +1337,6 @@
             if (isC) {
               if (z(g(r, "q"))) { bad.push("q"); why.push("QTE VIDE OU 0"); }
               if (!sviNumOk(g(r, "p"))) { bad.push("p"); why.push("NOMBRE NON VALIDE : PCB"); }
-              const c = chsFind(String(g(r, "article") ?? "").trim(), dn);
-              if (c && U_(g(r, "u")) && U_(c.unit) && U_(g(r, "u")) !== U_(c.unit)) { bad.push("u"); why.push("UNITÉ " + U_(g(r, "u")) + " ≠ UNITÉ DE CHS (" + U_(c.unit) + ")"); }
             }
             if (bad.length) lineBad = { bad, why: why.join(" ; ") };
         }
@@ -1360,16 +1358,12 @@
           pk = put("prd", "prd|" + impId("prd", row) + (ch ? "#" + ch : ""), row);
         } else if (dn && t.startsWith("CHG")) {
           const row = { art: String(g(r, "article") ?? "").trim(), des: dn, u: U_(g(r, "u")), q: nn(g(r, "q")), tva: 20 };
-          /* prix et TVA : depuis CHS ;
-             v522 : PCB rempli dans la feuille = ce prix-là (CHS ne sert alors qu'à la TVA, et la charge n'est rattachée à CHS
-             que si les deux prix sont égaux) ; PCB vide = prix de CHS, comme avant */
-          const c = chsFind(row.art, row.des), ps = String(g(r, "p") ?? "").trim() !== "" ? num(g(r, "p")) : null;
-          if (c) { row.tva = c.tva; row.u = row.u || U_(c.unit); }
-          if (ps !== null && isFinite(ps)) { row.p = ps; if (c && Math.abs(num(c.pcs) - ps) < 0.005) row.chs = c.id; }
-          else if (c) { row.chs = c.id; row.p = c.pcs; }
+          /* PCB rempli dans la feuille = ce prix-là (v727 : plus de CHS) */
+          const ps = String(g(r, "p") ?? "").trim() !== "" ? num(g(r, "p")) : null;
+          if (ps !== null && isFinite(ps)) row.p = ps;
           ck = put("chg", "chg|" + impId("chg", row), row);
           /* même charge sur plusieurs lignes : le premier PCB rempli l'emporte */
-          if (ps !== null && isFinite(ps) && !pDone.has(ck)) { const e = m.chg.find(x => x.key === ck); pDone.add(ck); if (e && e.row !== row) { e.row.p = ps; if (c && Math.abs(num(c.pcs) - ps) < 0.005) e.row.chs = c.id; else delete e.row.chs; } }
+          if (ps !== null && isFinite(ps) && !pDone.has(ck)) { const e = m.chg.find(x => x.key === ck); pDone.add(ck); if (e && e.row !== row) e.row.p = ps; }
         }
         const src = Object.fromEntries(RAW.map(k => [k, String(g(r, k) ?? "").trim()]));
         src.__line = aoa.__lineFix || lineNo;
@@ -1472,12 +1466,10 @@
           if (old) {
             kid.set(x.key, old.id);
             /* v522 : charge déjà dans le budget SANS prix — le PCB importé la complète, même en simple ajout */
-            if (k === "chg" && mode !== "update" && (old.p === "" || old.p === undefined || old.p === null) && r.p !== undefined && r.p !== "") { old.p = r.p; if (r.chs) old.chs = r.chs; upd++; return; }
+            if (k === "chg" && mode !== "update" && (old.p === "" || old.p === undefined || old.p === null) && r.p !== undefined && r.p !== "") { old.p = r.p; upd++; return; }
             if (mode !== "update" || hierK) { skip++; return; }
             let ch = false;
-            ["q", "nbr", "d1", "d2", "d3", "p", "tva", "chs"].forEach(f => { if (r[f] !== undefined && String(r[f]) !== String(old[f] ?? "")) { old[f] = r[f]; ch = true; } });
-            /* v522 : prix de la feuille différent de CHS — la charge n'est plus rattachée à CHS (son PCB redevient modifiable) */
-            if (k === "chg" && r.p !== undefined && r.chs === undefined && old.chs) { delete old.chs; ch = true; }
+            ["q", "nbr", "d1", "d2", "d3", "p", "tva"].forEach(f => { if (r[f] !== undefined && String(r[f]) !== String(old[f] ?? "")) { old[f] = r[f]; ch = true; } });
             ch ? upd++ : skip++;
             return;
           }

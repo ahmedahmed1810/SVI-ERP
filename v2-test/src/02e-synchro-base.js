@@ -299,7 +299,6 @@ const sviSyncPull = async () => {
    tout le reste du budget reste modifiable, et les envois se fusionnent (CONFLITS si la même case a changé des deux côtés).
    Un verrou sans zone (ancienne version de l'application) bloque encore tout le budget. */
 const sviLockAll = ref => (SVI_SYNC.locks[ref] || []).filter(k => Date.now() - k.ts < 3 * 60 * 1000);
-const sviLockOther = (ref, tab) => sviLockAll(ref).find(k => !k.onglet || k.onglet === tab) || null;
 const SVI_ZONES = { client: "DÉSIGNATIONS CLIENT", lot: "LOTS", prim: "ACTIVITÉS PRIMAIRES", sec: "ACTIVITÉS SECONDAIRES" };
 const sviZoneOf = el => {
   const C = window.__sviZoneCtx; if (!C || !el || !el.closest) return "";
