@@ -4636,6 +4636,33 @@ const condChuteRow = (I, r) => {
   return Q > 0 ? C * (num(r.q) || 0) / Q : C / rows.length;
 };
 
+/* v740 (prompt du 31/10, point 1) : CUMUL — plusieurs budgets additionnés en un seul ensemble (lecture seule).
+   Chaque budget : ses lignes gardées (identifiants préfixés) ; ses lots rangés sous sa référence (« RÉF. / LOT ») : deux tâches de même nom
+   restent séparées ; charges et produits identiques (désignation + unité) regroupés par le tableau (quantités additionnées pour une même unité) ;
+   chaque tâche garde le calendrier de son budget (INS.calK) ; planning, Gantt, graphiques et indicateurs additionnent jour par jour. */
+const sviCumMerge = L => {
+  const M = { des: [], lot: [], prim: [], sec: [], prd: [], chg: [], qlt: [], links: [], dlp: {}, dpred: {}, dlpSec: true, calK: {}, cum: L.map(x => ({ ref: x.ref, lab: x.lab, state: x.state })) };
+  const ids = ["des", "lot", "prim", "sec", "prd", "chg"];
+  L.forEach((b, i) => {
+    const d = JSON.parse(JSON.stringify(b.d || {})); try { if (!d.dlpSec) sviDlpSec(d); } catch (e) {}
+    const P = "c" + i + "_", px = id => P + id, cal = sviCalOf(d);
+    /* désignations client rangées sous un titre par budget (sa référence) : ART propres, jamais en double */
+    M.des.push({ id: P + "__t", t: true, d: 0, art: String(i + 1), des: U_(b.ref) });
+    ids.forEach(k => (d[k] || []).forEach(r => M[k].push({ ...r, id: px(r.id), ...(k === "lot" ? { v: U_(b.ref) + " / " + (r.v || "") } : {}),
+      ...(k === "des" ? { d: (Number(r.d) || 0) + 1, art: r.art ? (i + 1) + "." + r.art : r.art } : {}) })));
+    (d.links || []).forEach(l => M.links.push({ ...l, id: px(l.id || ("l" + Math.random().toString(36).slice(2, 7))), des: px(l.des), lot: px(l.lot), prim: px(l.prim), sec: px(l.sec), prd: (l.prd || []).map(x => ({ ...x, id: px(x.id) })), chg: (l.chg || []).map(x => ({ ...x, id: px(x.id) })) }));
+    const kx = k => { const [a, s] = String(k).split("|"); return px(a) + "|" + px(s); };
+    Object.keys(d.dlp || {}).forEach(k => { M.dlp[kx(k)] = d.dlp[k]; M.calK[kx(k)] = cal; });
+    Object.keys(d.dpred || {}).forEach(k => { M.dpred[kx(k)] = (d.dpred[k] || []).map(x => ({ ...x, k: kx(x.k) })); });
+    if (!i) { M.cal = d.cal; M.rat = d.rat; M.hset = d.hset; }
+    if (d.pdeb && (!M.pdeb || d.pdeb < M.pdeb)) M.pdeb = d.pdeb;
+    if (d.dbut && (!M.dbut || d.dbut > M.dbut)) M.dbut = d.dbut;
+    Object.keys(d.chgCal || {}).forEach(k => { M.chgCal = M.chgCal || {}; if (!M.chgCal[k]) M.chgCal[k] = d.chgCal[k]; });
+    Object.keys(d.cond || {}).forEach(k => { M.cond = M.cond || {}; if (!M.cond[k]) M.cond[k] = d.cond[k]; });
+  });
+  return M;
+};
+
 /* v739 (prompt du 31/10, point 2) : BIBLIOTHÈQUE DE PRIX — recettes par activité secondaire, communes à tous les budgets (partagées) :
    { id, act (activité secondaire), nom (variante), u (unité du produit), chg: [{ des, u, k (quantité pour 1 unité de produit), p }], des: [], lot: [], src, date, chk } */
 const sviLibGet = () => { try { const L = (typeof sviSharedGet === "function" ? sviSharedGet("LIB") : {}).L; return Array.isArray(L) ? L : []; } catch (e) { return []; } };
@@ -5895,6 +5922,12 @@ function renderBudgetList() {
     try { const vref = b.ref + "-V" + v.n; groups.set(vref, { ref: vref, project: b.project, rows: [], first: {}, inst: { ref: vref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vname: sviAvName(b) + " — VERSION " + v.n, data: JSON.parse(JSON.stringify(v.d || {})) } }); } catch (e) {}
   }));
 
+  /* v740 : CUMUL des budgets cochés — vue en lecture seule, jamais enregistrée */
+  if (Array.isArray(window.__sviCum) && window.__sviCum.length > 1) {
+    try { const L = window.__sviCum.map(r => { const g = groups.get(r); return g && g.inst && g.inst.data ? { ref: r, lab: (g.inst.vname || "") || r, state: g.inst.state || "valide", d: g.inst.data } : null; }).filter(Boolean);
+      if (L.length > 1) groups.set("CUMUL", { ref: "CUMUL", project: "", rows: [], first: {}, inst: { ref: "CUMUL", project: "", intitule: L.map(x => x.ref).join(" + "), state: "valide", virtual: true, parent: "__CUMUL", vname: "CUMUL — " + L.length + " BUDGETS", data: sviCumMerge(L) } }); } catch (e) {}
+  }
+
   /* liste affichée : VALIDÉS (noir) ou EN INSTANCE (rouge / vert si figé) */
   let listMode = "valid";
   try { if (localStorage.getItem("svi_listmode_v1") === "inst") listMode = "inst"; } catch (e) {}
@@ -6421,6 +6454,11 @@ function renderBudgetList() {
 
     /* compteur du titre : budgets affichés (filtres compris) */
     { const c = $("bdgListCount"); if (c) c.innerHTML = svCnt(data.length, budgets.length); }
+    /* v740 (FORMAT 265) : bouton CUMUL (budgets cochés) à côté du titre — grisé sous 2 budgets */
+    { const c = $("bdgListCount"); window.__sviCumSel = window.__sviCumSel || new Set();
+      let b = $("bdgCumBtn"); if (c && !b) { b = document.createElement("button"); b.type = "button"; b.id = "bdgCumBtn"; b.className = "bdg-cum-btn"; c.after(b); }
+      if (b) { const n = window.__sviCumSel.size; b.hidden = !n; b.disabled = n < 2; b.innerHTML = "CUMUL " + svCnt(n); b.title = n < 2 ? "COCHER AU MOINS DEUX BUDGETS" : "";
+        b.onclick = () => { const S = [...window.__sviCumSel]; if (S.length < 2) { svToast("COCHER AU MOINS DEUX BUDGETS.", 2500, b); return; } window.__sviCum = S; if (window.__sviAvOpen) window.__sviAvOpen("CUMUL"); }; } }
 
     /* v698 : plus de bouton + — dernière ligne « SAISIR ICI… » (fenêtre INF du nouveau budget) */
     /* v699 : lignes SAISIR ICI seulement dans la liste EN INSTANCE, en rouge */
@@ -6489,6 +6527,7 @@ function renderBudgetList() {
           </td>
 
           <td class="bdg-action-cell">
+            <input type="checkbox" class="bdg-cum" data-cum="${esc(item.ref)}"${(window.__sviCumSel || new Set()).has(item.ref) ? " checked" : ""} title="Cocher pour le CUMUL" aria-label="Cocher pour le CUMUL">
 
             <button
               type="button"
@@ -6507,7 +6546,7 @@ function renderBudgetList() {
         </tr>
         ${kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}">
           <td><span class="bdg-kid-lab">${esc(k.lab)}</span> <small>${esc(k.ref)}</small></td><td>${esc(k.budget)}</td><td title="${esc(k.intitule)}">${esc(k.intitule)}</td>
-          <td class="number">${money(k.ttc)}</td><td>${esc(k.validated)}</td><td>${esc(k.entered)}</td><td></td></tr>`).join("")}
+          <td class="number">${money(k.ttc)}</td><td>${esc(k.validated)}</td><td>${esc(k.entered)}</td><td class="bdg-action-cell"><input type="checkbox" class="bdg-cum" data-cum="${esc(k.ref)}"${(window.__sviCumSel || new Set()).has(k.ref) ? " checked" : ""} title="Cocher pour le CUMUL" aria-label="Cocher pour le CUMUL"></td></tr>`).join("")}
         ${open ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
           return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="7">CRÉER UN AVENANT ICI…</td></tr>`; })() : ""}
       `; }).join("") + NEWROW;
@@ -7645,7 +7684,7 @@ function renderBudgetList() {
     const INS_REAL = INS_LIVE_EDIT && !INS_HELD;
     const INS_VIEW = !!INS && !INS_REAL;
     const INS_EDIT = !!INS;
-    const INS_RO_WHY = !INS_VIEW ? "" : budget.inst.virtual ? (budget.inst.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.")
+    const INS_RO_WHY = !INS_VIEW ? "" : budget.inst.ref === "CUMUL" ? "CUMUL : LECTURE SEULE (BUDGETS ADDITIONNÉS)." : budget.inst.virtual ? (budget.inst.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.")
       : INS_HELD ? "EN LECTURE SEULE : " + INS_HELD.user + " MODIFIE CE BUDGET." : INS_ARCH ? "SCÉNARIO ARCHIVÉ : LECTURE SEULE (DÉSARCHIVER DANS LE BLOC SCÉNARIOS)."
       : budget.inst.state === "fige" ? "BUDGET FIGÉ : LECTURE SEULE (🔒 POUR REVENIR EN ÉDITION)." : budget.inst.rclOf ? "RECALAGE ENREGISTRÉ : LECTURE SEULE." : "BUDGET VALIDÉ : LECTURE SEULE.";
     window.__sviRO = INS_RO_WHY;
@@ -7693,7 +7732,7 @@ function renderBudgetList() {
     const INS_DLP_MIG = sviMigrate(INS);
     /* calendrier du budget (jours travaillés) : durées et décalages en jours travaillés */
     /* v731 (bloc 2, point 6) : insCal(k) = calendrier de la tâche k — celui du budget, plus les jours où une de ses charges ne travaille pas */
-    const insCal = k => { const c = sviCalOf(INS); if (!k) return c; let we = []; try { we = dlyChgWe(k); } catch (e) { we = []; }
+    const insCal = k => { const c = k && INS && INS.calK && INS.calK[k] ? JSON.parse(JSON.stringify(INS.calK[k])) : sviCalOf(INS); if (!k) return c;   /* v740 : CUMUL — calendrier du budget de la tâche */ let we = []; try { we = dlyChgWe(k); } catch (e) { we = []; }
       if (we.length) { we.forEach(d => { if (!c.we.includes(d)) c.we.push(d); }); c.on = c.on.filter(iso => !we.includes(new Date(iso + "T00:00:00").getDay())); } return c; };
     /* budget en instance (rouge) : les charges venues de CHS suivent CHS (prix, TVA, unité…) ;
        figé (vert) ou validé (noir) : on garde les valeurs du moment */
@@ -9510,7 +9549,7 @@ function renderBudgetList() {
     /* DOUBLON EXISTANT (FORMAT 103) : une seule fenêtre pour tous les doublons du budget ;
        sélecteur ‹ i/N › (liste au toucher du numéro), IGNORER / FUSIONNER / IGNORER TOUS / FUSIONNER TOUS */
     const dupExisting = async (force) => {
-      if (!INS || !INS_EDIT || shell.__dupBusy) return;
+      if (!INS || !INS_EDIT || !INS_REAL || shell.__dupBusy) return;   /* v740 : rien à fusionner en lecture seule (validé, consolidé, CUMUL…) */
       let skip = {};
       try { skip = JSON.parse(sessionStorage.getItem("svi_dupskip") || "{}"); } catch (e) {}
       /* v626 : un doublon exact ne s'ignore plus (seulement les intitulés presque identiques) */
@@ -23723,6 +23762,14 @@ ${A}</Assignments>
     };
     shell.__libPick = libPickWin;
     if (!shell.__libBound) { shell.__libBound = true; shell.addEventListener("click", e => { if (e.target.closest && e.target.closest("#insChain .lk-lib")) { e.stopPropagation(); if (shell.__libPick) shell.__libPick(); } }, true); }
+    /* v740 (FORMAT 266) : CUMUL — bandeau des budgets réunis, en lecture seule */
+    if (budget.inst && budget.inst.ref === "CUMUL" && INS && Array.isArray(INS.cum)) setTimeout(() => {
+      const pg = shell.querySelector(".bdg-d-page"); if (!pg || pg.querySelector(".cum-band")) return;
+      const b = document.createElement("div"); b.className = "cum-band";
+      const st = s => s === "valide" ? "VALIDÉ" : s === "fige" ? "FIGÉ" : "EN INSTANCE";
+      b.innerHTML = `<b>CUMUL — ${INS.cum.length} BUDGETS ADDITIONNÉS (LECTURE SEULE)</b>` + INS.cum.map(x => `<span class="cum-st cum-${esc(x.state || "valide")}">${esc(x.ref)}${x.lab && x.lab !== x.ref ? " (" + esc(x.lab) + ")" : ""} — ${st(x.state)}</span>`).join("");
+      pg.prepend(b);
+    }, 0);
 /* ⟪ src/23-apercus-impression.js ⟫ */
     /* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :
        volet « OPTIONS PDF » à gauche, aperçu des pages à droite,
@@ -27237,6 +27284,10 @@ ${A}</Assignments>
       return;
     }
 
+    /* v740 : CUMUL — cases des budgets et bouton */
+    const cb = event.target.closest("input.bdg-cum");
+    if (cb) { event.stopPropagation(); window.__sviCumSel = window.__sviCumSel || new Set(); if (cb.checked) window.__sviCumSel.add(cb.dataset.cum); else window.__sviCumSel.delete(cb.dataset.cum);
+      const b = document.getElementById("bdgCumBtn"); if (b) { const n = window.__sviCumSel.size; b.hidden = !n; b.disabled = n < 2; b.innerHTML = "CUMUL " + svCnt(n); } return; }
     /* v698 : lignes SAISIR ICI (nouveau budget) et AJOUTER UN AVENANT ICI */
     const nb = event.target.closest("tr[data-newbdg]");
     if (nb) { openNewBudget(); return; }

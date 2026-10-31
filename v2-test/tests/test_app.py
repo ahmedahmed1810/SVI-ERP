@@ -2477,6 +2477,12 @@ def main():
             const ch = condChuteRow(I, r), b = one(); const K = JSON.parse(keep); if (K) I.cond = K; else delete I.cond;
             return [ch > 0, Math.abs(b - a - ch * Number(r.p || 0)) < 0.01]; }}""")
         check("v732 : chute comptée une fois dans l'indicateur CHARGES", c732 in ([True, True], "pas de charge"), c732)
+        # v740 : CUMUL — budgets additionnés : lots sous la référence, tâches séparées, calendrier de chaque budget, désignations sous un titre par budget
+        t740 = pg.evaluate("""() => { const mk = (we) => ({ cal: { we }, des: [{ id: 'd', des: 'BETON', u: 'M3', art: '1' }], lot: [{ id: 'l', v: 'RDC' }], sec: [{ id: 's', v: 'BETONNAGE' }], prim: [{ id: 'p', v: 'BETONNAGE' }],
+              prd: [], chg: [], links: [{ id: 'k', des: 'd', lot: 'l', prim: 'p', sec: 's', prd: [], chg: [] }], dlp: { 'l|s': [{ deb: '2026-11-02', fin: '2026-11-06' }] }, dlpSec: true });
+            const M = sviCumMerge([{ ref: 'A-1', d: mk([0]) }, { ref: 'B-1', d: mk([0, 6]) }]);
+            return [M.lot.map(x => x.v).join(','), Object.keys(M.dlp).length, M.calK['c1_l|c1_s'].we.join(','), M.des.filter(x => x.t).map(x => x.des).join(','), M.des.filter(x => !x.t).map(x => x.art).join(',')]; }""")
+        check("v740 : CUMUL — lots « RÉF. / LOT », deux tâches séparées, calendrier de chaque budget, désignations sous le titre de leur budget", t740 == ["A-1 / RDC,B-1 / RDC", 2, "0,6", "A-1,B-1", "1.1,2.1"], t740)
         # v739 : BIBLIOTHÈQUE DE PRIX — recette tirée d'un budget (charges ÷ quantité de produit), sans doublon, usage ajouté
         t739 = pg.evaluate("""() => { const d = { des: [{ id: 'd', des: 'BETON B25', u: 'M3' }], lot: [{ id: 'l', v: 'RDC' }], sec: [{ id: 's', v: 'BETONNAGE', u: 'M3' }],
               prd: [{ id: 'x', des: 'P', u: 'M3', nbr: 10, d1: 1, d2: 1, d3: 2 }], chg: [{ id: 'c', des: 'CIMENT', u: 'T', q: 7, p: 1500 }], links: [{ des: 'd', lot: 'l', sec: 's', prd: [{ id: 'x' }], chg: [{ id: 'c' }] }] };

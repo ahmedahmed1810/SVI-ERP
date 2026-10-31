@@ -24,7 +24,7 @@
     const INS_REAL = INS_LIVE_EDIT && !INS_HELD;
     const INS_VIEW = !!INS && !INS_REAL;
     const INS_EDIT = !!INS;
-    const INS_RO_WHY = !INS_VIEW ? "" : budget.inst.virtual ? (budget.inst.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.")
+    const INS_RO_WHY = !INS_VIEW ? "" : budget.inst.ref === "CUMUL" ? "CUMUL : LECTURE SEULE (BUDGETS ADDITIONNÉS)." : budget.inst.virtual ? (budget.inst.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.")
       : INS_HELD ? "EN LECTURE SEULE : " + INS_HELD.user + " MODIFIE CE BUDGET." : INS_ARCH ? "SCÉNARIO ARCHIVÉ : LECTURE SEULE (DÉSARCHIVER DANS LE BLOC SCÉNARIOS)."
       : budget.inst.state === "fige" ? "BUDGET FIGÉ : LECTURE SEULE (🔒 POUR REVENIR EN ÉDITION)." : budget.inst.rclOf ? "RECALAGE ENREGISTRÉ : LECTURE SEULE." : "BUDGET VALIDÉ : LECTURE SEULE.";
     window.__sviRO = INS_RO_WHY;
@@ -72,7 +72,7 @@
     const INS_DLP_MIG = sviMigrate(INS);
     /* calendrier du budget (jours travaillés) : durées et décalages en jours travaillés */
     /* v731 (bloc 2, point 6) : insCal(k) = calendrier de la tâche k — celui du budget, plus les jours où une de ses charges ne travaille pas */
-    const insCal = k => { const c = sviCalOf(INS); if (!k) return c; let we = []; try { we = dlyChgWe(k); } catch (e) { we = []; }
+    const insCal = k => { const c = k && INS && INS.calK && INS.calK[k] ? JSON.parse(JSON.stringify(INS.calK[k])) : sviCalOf(INS); if (!k) return c;   /* v740 : CUMUL — calendrier du budget de la tâche */ let we = []; try { we = dlyChgWe(k); } catch (e) { we = []; }
       if (we.length) { we.forEach(d => { if (!c.we.includes(d)) c.we.push(d); }); c.on = c.on.filter(iso => !we.includes(new Date(iso + "T00:00:00").getDay())); } return c; };
     /* budget en instance (rouge) : les charges venues de CHS suivent CHS (prix, TVA, unité…) ;
        figé (vert) ou validé (noir) : on garde les valeurs du moment */

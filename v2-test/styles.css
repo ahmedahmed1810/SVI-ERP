@@ -3098,3 +3098,9 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .lib-pick .lib-h { display: inline-flex; gap: 8px; align-items: center; margin-left: 6px; } .lib-pick .lib-h small { color: #667085; }
 .lib-tag { color: #175cd3; background: #eff8ff; border-radius: 6px; padding: 1px 6px; font-size: 10px; font-weight: 800; }
 .lk-chain .lk-lib { border: 1px solid #2e90fa; background: #eff8ff; color: #175cd3; border-radius: 8px; padding: 4px 10px; font-weight: 800; font-size: 11px; margin-right: 6px; cursor: pointer; }
+/* v740 : CUMUL (FORMAT 265, 266) */
+.bdg-cum-btn { margin-left: 10px; border: 1px solid #1d3a8a; background: #1d3a8a; color: #fff; border-radius: 8px; padding: 4px 10px; font-weight: 800; font-size: 12px; vertical-align: middle; cursor: pointer; }
+.bdg-cum-btn:disabled { background: #fff; color: #98a2b3; border-color: #d0d5dd; cursor: default; }
+.bdg-action-cell .bdg-cum { width: 16px; height: 16px; vertical-align: middle; margin-right: 4px; }
+.cum-band { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; background: #f2f4f7; border: 1px solid #d0d5dd; border-radius: 8px; padding: 6px 10px; margin: 6px 0; font-size: 11px; font-weight: 800; color: #344054; }
+.cum-band b { color: #1d3a8a; } .cum-band .cum-st { font-weight: 700; } .cum-band .cum-valide { color: #111827; } .cum-band .cum-fige { color: #067647; } .cum-band .cum-instance { color: #b42318; }

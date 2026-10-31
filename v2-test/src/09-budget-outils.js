@@ -1088,6 +1088,33 @@ const condChuteRow = (I, r) => {
   return Q > 0 ? C * (num(r.q) || 0) / Q : C / rows.length;
 };
 
+/* v740 (prompt du 31/10, point 1) : CUMUL — plusieurs budgets additionnés en un seul ensemble (lecture seule).
+   Chaque budget : ses lignes gardées (identifiants préfixés) ; ses lots rangés sous sa référence (« RÉF. / LOT ») : deux tâches de même nom
+   restent séparées ; charges et produits identiques (désignation + unité) regroupés par le tableau (quantités additionnées pour une même unité) ;
+   chaque tâche garde le calendrier de son budget (INS.calK) ; planning, Gantt, graphiques et indicateurs additionnent jour par jour. */
+const sviCumMerge = L => {
+  const M = { des: [], lot: [], prim: [], sec: [], prd: [], chg: [], qlt: [], links: [], dlp: {}, dpred: {}, dlpSec: true, calK: {}, cum: L.map(x => ({ ref: x.ref, lab: x.lab, state: x.state })) };
+  const ids = ["des", "lot", "prim", "sec", "prd", "chg"];
+  L.forEach((b, i) => {
+    const d = JSON.parse(JSON.stringify(b.d || {})); try { if (!d.dlpSec) sviDlpSec(d); } catch (e) {}
+    const P = "c" + i + "_", px = id => P + id, cal = sviCalOf(d);
+    /* désignations client rangées sous un titre par budget (sa référence) : ART propres, jamais en double */
+    M.des.push({ id: P + "__t", t: true, d: 0, art: String(i + 1), des: U_(b.ref) });
+    ids.forEach(k => (d[k] || []).forEach(r => M[k].push({ ...r, id: px(r.id), ...(k === "lot" ? { v: U_(b.ref) + " / " + (r.v || "") } : {}),
+      ...(k === "des" ? { d: (Number(r.d) || 0) + 1, art: r.art ? (i + 1) + "." + r.art : r.art } : {}) })));
+    (d.links || []).forEach(l => M.links.push({ ...l, id: px(l.id || ("l" + Math.random().toString(36).slice(2, 7))), des: px(l.des), lot: px(l.lot), prim: px(l.prim), sec: px(l.sec), prd: (l.prd || []).map(x => ({ ...x, id: px(x.id) })), chg: (l.chg || []).map(x => ({ ...x, id: px(x.id) })) }));
+    const kx = k => { const [a, s] = String(k).split("|"); return px(a) + "|" + px(s); };
+    Object.keys(d.dlp || {}).forEach(k => { M.dlp[kx(k)] = d.dlp[k]; M.calK[kx(k)] = cal; });
+    Object.keys(d.dpred || {}).forEach(k => { M.dpred[kx(k)] = (d.dpred[k] || []).map(x => ({ ...x, k: kx(x.k) })); });
+    if (!i) { M.cal = d.cal; M.rat = d.rat; M.hset = d.hset; }
+    if (d.pdeb && (!M.pdeb || d.pdeb < M.pdeb)) M.pdeb = d.pdeb;
+    if (d.dbut && (!M.dbut || d.dbut > M.dbut)) M.dbut = d.dbut;
+    Object.keys(d.chgCal || {}).forEach(k => { M.chgCal = M.chgCal || {}; if (!M.chgCal[k]) M.chgCal[k] = d.chgCal[k]; });
+    Object.keys(d.cond || {}).forEach(k => { M.cond = M.cond || {}; if (!M.cond[k]) M.cond[k] = d.cond[k]; });
+  });
+  return M;
+};
+
 /* v739 (prompt du 31/10, point 2) : BIBLIOTHÈQUE DE PRIX — recettes par activité secondaire, communes à tous les budgets (partagées) :
    { id, act (activité secondaire), nom (variante), u (unité du produit), chg: [{ des, u, k (quantité pour 1 unité de produit), p }], des: [], lot: [], src, date, chk } */
 const sviLibGet = () => { try { const L = (typeof sviSharedGet === "function" ? sviSharedGet("LIB") : {}).L; return Array.isArray(L) ? L : []; } catch (e) { return []; } };

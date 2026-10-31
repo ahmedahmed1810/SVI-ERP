@@ -49,3 +49,11 @@
     };
     shell.__libPick = libPickWin;
     if (!shell.__libBound) { shell.__libBound = true; shell.addEventListener("click", e => { if (e.target.closest && e.target.closest("#insChain .lk-lib")) { e.stopPropagation(); if (shell.__libPick) shell.__libPick(); } }, true); }
+    /* v740 (FORMAT 266) : CUMUL — bandeau des budgets réunis, en lecture seule */
+    if (budget.inst && budget.inst.ref === "CUMUL" && INS && Array.isArray(INS.cum)) setTimeout(() => {
+      const pg = shell.querySelector(".bdg-d-page"); if (!pg || pg.querySelector(".cum-band")) return;
+      const b = document.createElement("div"); b.className = "cum-band";
+      const st = s => s === "valide" ? "VALIDÉ" : s === "fige" ? "FIGÉ" : "EN INSTANCE";
+      b.innerHTML = `<b>CUMUL — ${INS.cum.length} BUDGETS ADDITIONNÉS (LECTURE SEULE)</b>` + INS.cum.map(x => `<span class="cum-st cum-${esc(x.state || "valide")}">${esc(x.ref)}${x.lab && x.lab !== x.ref ? " (" + esc(x.lab) + ")" : ""} — ${st(x.state)}</span>`).join("");
+      pg.prepend(b);
+    }, 0);
