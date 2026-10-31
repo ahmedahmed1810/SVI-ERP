@@ -150,11 +150,7 @@
       shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dlp-multi[data-task]"); const X = shell.__insDly; if (!b || !X) return; e.stopPropagation(); X.piecesWin(b.dataset.task); }, true);
       /* v546 (R29) : ⚙ = RÉGLAGES DE L'HISTOGRAMME */
       shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dlyhh-cfg"); const X = shell.__insDly; if (!b || !X) return; e.stopPropagation(); X.hcfgWin(b); }, true);
-      /* v546 (R27) : toucher la case SUCCESSEURS = leur liste */
-      /* v712 : toucher = case encadrée (choix) ; la bulle du texte complet seulement sur appui long */
-      /* v736 : la case SUCCESSEURS se sélectionne comme les autres (cadre commun) : plus d'arrêt du toucher ici */
-      shell.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".dly-succ[data-key]"); if (!b || !shell.__insDly) return;
-        shell.querySelectorAll(".dly-succ.dly-cellsel").forEach(x => x.classList.remove("dly-cellsel")); b.classList.add("dly-cellsel"); }, true);
+      /* v736 : la case SUCCESSEURS se sélectionne comme les autres (cadre commun du module 35) ; bulle du texte complet à l'appui long */
       { let lt = 0;
         shell.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".dly-succ[data-key]"); const X = shell.__insDly; clearTimeout(lt); if (!b || !X) return;
           lt = setTimeout(() => { const L = X.succs(b.dataset.key); svToast(L.length ? "SUCCESSEURS : " + L.join(" ; ") : "AUCUN SUCCESSEUR.", 5000, b); }, 500); }, true);

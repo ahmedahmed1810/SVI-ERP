@@ -26,36 +26,6 @@
       if (ls) out.push({ k: "sl", lab: "SURFACE DES LOTS", u: "M2", q: ls, m: null });
       return out.concat([...G.values()].sort((a, b) => a.lab.localeCompare(b.lab, "fr")));
     };
-    /* valeur d'un côté : { v, u } ; quantité seulement si toutes les unités sont les mêmes */
-    const ratSide = (I, ks, mode) => {
-      const L = (ks || []).map(k => I.find(x => x.k === k)).filter(Boolean);
-      if (!L.length) return null;
-      if (mode === "m" && L.every(x => x.m !== null)) return { v: L.reduce((t, x) => t + x.m, 0), u: "DH" };
-      const us = [...new Set(L.map(x => x.u))];
-      if (us.length > 1) return { v: null, u: "", err: "UNITÉS DIFFÉRENTES" };
-      return { v: L.reduce((t, x) => t + x.q, 0), u: us[0] };
-    };
-    const ratCalc = (I, r) => {
-      const n = ratSide(I, r.num, r.mode), d = ratSide(I, r.den, r.mode);
-      if (!n) return { txt: "—" };
-      if (n.err) return { txt: n.err, err: true };
-      if (!d) return { val: n.v, txt: ratFx(n.v) + " " + n.u };
-      if (d.err) return { txt: d.err, err: true };
-      const val = d.v ? n.v / d.v : null;
-      return { val, n, d, diff: n.v - d.v, txt: val === null ? "—" : ratFx(val, 3) + " " + n.u + " / " + d.u };
-    };
-    /* ratios proposés : seulement ceux dont les données existent */
-    const ratPropose = I => {
-      const has = k => I.some(x => x.k === k), sur = has("sc") ? "sc" : has("sl") ? "sl" : null, L = [];
-      const find = (pre, re, u) => I.filter(x => x.k.startsWith(pre + "|") && re.test(x.lab) && (!u || x.u === u)).map(x => x.k);
-      if (sur && has("tc")) L.push({ nom: "COÛT AU M²", num: ["tc"], den: [sur], mode: "q" });
-      if (sur && has("tp")) L.push({ nom: "PRIX DE VENTE AU M²", num: ["tp"], den: [sur], mode: "q" });
-      const ac = find("c", /ACIER|FER|HA\s?\d/, "KG"), be = find("p", /B[EÉ]TON/, "M3").concat(find("c", /B[EÉ]TON/, "M3"));
-      if (ac.length && be.length) L.push({ nom: "ACIER / BÉTON", num: ac, den: [be[0]], mode: "q", seuil: "" });
-      const mo = I.filter(x => x.k.startsWith("c|") && /^(JH|HJ|J|JOUR|JOURS)$/.test(x.u)).map(x => x.k);
-      if (mo.length && sur) L.push({ nom: "MAIN-D'ŒUVRE AU M²", num: mo, den: [sur], mode: "q" });
-      return L.map(r => ({ id: insId(), seuil: "", ...r }));
-    };
     /* v680 : TABLEAU DE BORD (ratWin) et graphiques : voir 22h-tableau-de-bord.js */
 
     /* =========================================================

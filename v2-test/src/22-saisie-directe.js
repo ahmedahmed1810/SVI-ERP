@@ -30,9 +30,9 @@
         const r = recs.find(q => q.id === x.id); if (!r) return; seen.add(r.id);
         const d = INS.des.find(q => q.id === l.des) || {};
         rows.push({ _id: r.id, _lid: l.id || "L" + (INS.links || []).indexOf(l), dc: d.des || "", upb: d.u || "", lot: nm("lot", l.lot), prim: nm("prim", l.prim), sec: nm("sec", l.sec), su: U_(((INS.sec || []).find(q => q.id === l.sec) || {}).u),
-          art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q), p: P ? "" : fmtN(r.p), _chs: !!r.chs });
+          art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q), p: P ? "" : fmtN(r.p) });
       }));
-      recs.filter(r => !r.t && !seen.has(r.id)).forEach(r => rows.push({ _id: r.id, dc: "", upb: "", lot: "", prim: "", sec: "", su: "", art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q), p: P ? "" : fmtN(r.p), _chs: !!r.chs }));
+      recs.filter(r => !r.t && !seen.has(r.id)).forEach(r => rows.push({ _id: r.id, dc: "", upb: "", lot: "", prim: "", sec: "", su: "", art: r.art || "", des: r.des || "", u: r.u || "", nbr: fmtN(r.nbr), d1: fmtN(r.d1), d2: fmtN(r.d2), d3: fmtN(r.d3), q: fmtN(r.q), p: P ? "" : fmtN(r.p) }));
       rows.forEach(r => { r._o = JSON.stringify(COLS.map(c => r[c[0]])); r._l = l0(r); });
       rows.push(blank());
       dirty = false;
@@ -81,7 +81,7 @@
           const fx = suFixed(r), need = !fx && !!U_(r.sec) && !U_(r.su);
           return `<td class="center${fx ? " sd-ro" : ""}${need ? " sd-need" : ""}"${need ? ' data-why="UNITÉ DE L\'ACTIVITÉ OBLIGATOIRE"' : ""}><input class="sd-in" data-i="${i}" data-f="su" value="${esc(fx || r.su || "")}"${fx ? " readonly tabindex=\"-1\"" : ""} autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"></td>`;
         }
-        const lockU = (P && f === "u" && (!!secU(r.sec, r) || (r._lid && !!r.u))) || (f === "p" && !!r._chs);   /* PCB venu de CHS : grisé */
+        const lockU = (P && f === "u" && (!!secU(r.sec, r) || (r._lid && !!r.u)));
         const lockChain = false;   /* v480 (remarque 15) : en instance, la chaîne d'une ligne liée se change ici aussi */
         const ro = lockU || lockChain;
         return `<td class="${NUMF.has(f) ? "number" : CENTER.has(f) ? "center" : ""}${ro ? " sd-ro" : ""}${selCol === f ? " sd-sel" : ""}"><input class="sd-in" data-i="${i}" data-f="${f}" value="${esc(lockU && secU(r.sec, r) ? secU(r.sec, r) : r[f] || "")}"${ro ? " readonly tabindex=\"-1\"" : ""}${NUMF.has(f) ? ' inputmode="decimal"' : ""} autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"></td>`;
@@ -427,7 +427,7 @@
           const x = recs.find(q => q.id === r._id); if (!x) return;
           x.des = U_(sviClean(r.des)); if (!r._lid) x.u = U_(r.u);
           if (P) ["nbr", "d1", "d2", "d3"].forEach(f => { x[f] = r[f] === "" ? "" : insNum(r[f]); });
-          else { x.art = U_(r.art); x.q = r.q === "" ? "" : insNum(r.q); if (!x.chs) x.p = r.p === "" ? "" : insNum(r.p); }
+          else { x.art = U_(r.art); x.q = r.q === "" ? "" : insNum(r.q); x.p = r.p === "" ? "" : insNum(r.p); }
           upd++;
         });
         /* 2. lignes nouvelles (et lignes non liées dont la chaîne est remplie) : importées avec les règles de l'import */
@@ -473,7 +473,7 @@
           if (gone.size) INS[kind] = INS[kind].filter(x => !gone.has(x.id));
           bfApply(m, "add", "FORMAT TABLEAU", false, plan);
           /* v492 (remarque 13) : PCB saisi d'une charge nouvelle hors CHS (l'import ne le porte pas) */
-          if (!P) neu.forEach(r => { if (r.p === "" || r.p === undefined) return; INS.chg.filter(x => !x.t && !x.chs && U_(x.des) === U_(r.des) && U_(x.u) === U_(r.u) && (x.p === "" || x.p === undefined || num(x.p) === 0)).forEach(x => { x.p = insNum(r.p); }); });
+          if (!P) neu.forEach(r => { if (r.p === "" || r.p === undefined) return; INS.chg.filter(x => !x.t && U_(x.des) === U_(r.des) && U_(x.u) === U_(r.u) && (x.p === "" || x.p === undefined || num(x.p) === 0)).forEach(x => { x.p = insNum(r.p); }); });
           const nInc = (INS.inc || []).length - inc0;
           if (nInc > 0) setTimeout(() => svToast(nInc + " LIGNE(S) EN ERREUR : VOIR L'ONGLET IMPORT NON CRÉÉ.", 5000), 300);
         }

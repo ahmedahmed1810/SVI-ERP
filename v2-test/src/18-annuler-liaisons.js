@@ -331,34 +331,6 @@
         if (nd > max) svToast("ATTENTION : UNITÉ " + u + " → " + (max === 0 ? "NBR SEUL" : "NBR ET " + max + " DIM") + " (" + nd + " DIM RENSEIGNÉE" + (nd > 1 ? "S" : "") + ").", 3500, inp);
       });
     }
-    /* détail charges : ART ou désignation saisi → désignation, unité, PCB et TVA viennent de CHS ;
-       charge absente de CHS : acceptée, son PCB reste saisissable */
-    if (!shell.__chsBound) {
-      shell.__chsBound = true;
-      shell.addEventListener("change", e => {
-        const inp = e.target.closest && e.target.closest(".ins-in");
-        const X = shell.__ins;
-        if (!inp || !X || !["art", "des"].includes(inp.dataset.f)) return;
-        const tr = inp.closest('tr[data-ik="chg"][data-iid]');
-        if (!tr) return;
-        const r = X.INS.chg.find(x => x.id === tr.dataset.iid);
-        if (!r) return;
-        const c = chsFind(inp.dataset.f === "art" ? r.art : "", inp.dataset.f === "des" ? r.des : "");
-        if (c) { r.chs = c.id; r.art = String(c.article ?? r.art ?? "").toUpperCase(); r.des = String(c.designation ?? r.des ?? "").toUpperCase();
-          r.u = String(c.unit ?? r.u ?? "").toUpperCase(); r.p = c.pcs; r.tva = c.tva; }
-        else if (r.chs) { delete r.chs; }
-        else return;
-        X.insSave();
-        /* la ligne seule est redessinée (le PCB passe en gris ou redevient saisissable) */
-        const tmp = document.createElement("tbody");
-        tmp.innerHTML = X.insRowHTML("chg", r, 0);
-        const nr = tmp.firstElementChild;
-        const foc = document.activeElement && tr.contains(document.activeElement) ? document.activeElement.dataset.f : null;
-        tr.replaceWith(nr);
-        X.insLive("chg", nr, r);
-        if (foc) nr.querySelector(`input[data-f="${foc}"]`)?.focus();
-      });
-    }
     /* FORMAT 74-75 : nombre non valide refusé ; unité d'un produit → DIM non autorisées effacées et grisées ;
        on ne passe pas à une autre ligne tant que la ligne quittée a une erreur */
     if (!shell.__ruleBound) {
