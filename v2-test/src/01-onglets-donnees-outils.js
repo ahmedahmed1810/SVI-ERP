@@ -94,24 +94,28 @@ const sviEqualTabs = () => {
 /* en-têtes de colonnes jamais tronqués (FORMAT) : une colonne n'est jamais plus étroite que son intitulé,
    même si une largeur plus petite avait été mémorisée */
 const sviMinHeadCols = () => {
+  /* v743 : mesures d'abord (toutes les tables), écritures ensuite — plus d'alternance lecture / écriture qui forçait
+     le navigateur à recalculer la page à chaque colonne (lenteur sur les gros budgets) */
+  let CW = {}; try { CW = JSON.parse(localStorage.getItem("svi_colw_v1") || "{}") || {}; } catch (e) {}
+  const W = [];
   document.querySelectorAll("table").forEach(tb => {
     if (tb.offsetParent === null) return;
     const cols = tb.querySelectorAll(":scope > colgroup > col");
     const ths = tb.querySelectorAll(":scope > thead > tr:first-child > th");
     if (!cols.length || cols.length !== ths.length) return;
     let add = 0;
-    /* v512 (remarque 77) : une largeur réglée à la poignée est gardée telle quelle (jamais réélargie après un redessin) */
-    let CW = {}; try { CW = JSON.parse(localStorage.getItem("svi_colw_v1") || "{}") || {}; } catch (e) {}
     ths.forEach((th, i) => {
+      /* v512 (remarque 77) : une largeur réglée à la poignée est gardée telle quelle (jamais réélargie après un redessin) */
       if (cols[i] && cols[i].dataset && cols[i].dataset.w && CW[cols[i].dataset.w]) return;
       const lab = th.querySelector(".cf-lab");
       if (!lab || lab.scrollWidth <= lab.clientWidth + 1) return;   /* intitulé déjà entier */
       const need = Math.ceil(lab.scrollWidth + (th.clientWidth - lab.clientWidth)) + 2;
       const cur = th.getBoundingClientRect().width;
-      if (need > cur + 1) { cols[i].style.width = need + "px"; add += need - cur; }
+      if (need > cur + 1) { W.push([cols[i], need]); add += need - cur; }
     });
-    if (add && tb.style.width) tb.style.width = (parseFloat(tb.style.width) + add) + "px";
+    if (add && tb.style.width) W.push([tb, parseFloat(tb.style.width) + add]);
   });
+  W.forEach(([el, w]) => { el.style.width = w + "px"; });
 };
 {
   let q2 = 0;

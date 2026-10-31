@@ -507,24 +507,28 @@ const sviEqualTabs = () => {
 /* en-têtes de colonnes jamais tronqués (FORMAT) : une colonne n'est jamais plus étroite que son intitulé,
    même si une largeur plus petite avait été mémorisée */
 const sviMinHeadCols = () => {
+  /* v743 : mesures d'abord (toutes les tables), écritures ensuite — plus d'alternance lecture / écriture qui forçait
+     le navigateur à recalculer la page à chaque colonne (lenteur sur les gros budgets) */
+  let CW = {}; try { CW = JSON.parse(localStorage.getItem("svi_colw_v1") || "{}") || {}; } catch (e) {}
+  const W = [];
   document.querySelectorAll("table").forEach(tb => {
     if (tb.offsetParent === null) return;
     const cols = tb.querySelectorAll(":scope > colgroup > col");
     const ths = tb.querySelectorAll(":scope > thead > tr:first-child > th");
     if (!cols.length || cols.length !== ths.length) return;
     let add = 0;
-    /* v512 (remarque 77) : une largeur réglée à la poignée est gardée telle quelle (jamais réélargie après un redessin) */
-    let CW = {}; try { CW = JSON.parse(localStorage.getItem("svi_colw_v1") || "{}") || {}; } catch (e) {}
     ths.forEach((th, i) => {
+      /* v512 (remarque 77) : une largeur réglée à la poignée est gardée telle quelle (jamais réélargie après un redessin) */
       if (cols[i] && cols[i].dataset && cols[i].dataset.w && CW[cols[i].dataset.w]) return;
       const lab = th.querySelector(".cf-lab");
       if (!lab || lab.scrollWidth <= lab.clientWidth + 1) return;   /* intitulé déjà entier */
       const need = Math.ceil(lab.scrollWidth + (th.clientWidth - lab.clientWidth)) + 2;
       const cur = th.getBoundingClientRect().width;
-      if (need > cur + 1) { cols[i].style.width = need + "px"; add += need - cur; }
+      if (need > cur + 1) { W.push([cols[i], need]); add += need - cur; }
     });
-    if (add && tb.style.width) tb.style.width = (parseFloat(tb.style.width) + add) + "px";
+    if (add && tb.style.width) W.push([tb, parseFloat(tb.style.width) + add]);
   });
+  W.forEach(([el, w]) => { el.style.width = w + "px"; });
 };
 {
   let q2 = 0;
@@ -4442,7 +4446,9 @@ const condChuteOf = (I, key, rows) => {
 /* part d'une ligne de charge : chute du titre répartie au prorata des QCB de ses lignes */
 const condChuteRow = (I, r) => {
   if (!I || !r || r.t) return 0;
-  const key = COND_K(r), rows = (I.chg || []).filter(x => !x.t && COND_K(x) === key);
+  const key = COND_K(r), c = (I.cond || {})[key];
+  if (!c || c.mode !== "c" || !(num(c.BL) > 0)) return 0;   /* rapide : pas de découpe réglée pour ce titre (cas courant) */
+  const rows = (I.chg || []).filter(x => !x.t && COND_K(x) === key);
   const C = condChuteOf(I, key, rows); if (!C) return 0;
   const Q = rows.reduce((t, x) => t + (num(x.q) || 0), 0);
   return Q > 0 ? C * (num(r.q) || 0) / Q : C / rows.length;
@@ -7632,12 +7638,14 @@ function renderBudgetList() {
         });
       }
       { const su = lkSecU(); if (su) Object.keys(LK.prd || {}).forEach(id => { if (prdLinkU(id)) return; const p = INS.prd.find(q => q.id === id); if (p && U_(p.u) !== su) { p.u = su; ch = true; } }); }
+      /* v743 : recherche par table (Map) au lieu d'un parcours de toutes les lignes pour chaque liaison (gros budgets) */
+      const SE = new Map(INS.sec.map(x => [x.id, x])), DE = new Map(INS.des.map(x => [x.id, x])), PR = new Map((INS.prd || []).map(x => [x.id, x]));
       (INS.links || []).forEach(l => {
-        const se = INS.sec.find(x => x.id === l.sec);
+        const se = SE.get(l.sec);
         if (!se) return;
-        if (insLinkPrim(INS, l)) { const d = INS.des.find(x => x.id === l.des), du = U_(d && d.u); if (du && U_(se.u) !== du) { se.u = du; ch = true; } }
+        if (insLinkPrim(INS, l)) { const d = DE.get(l.des), du = U_(d && d.u); if (du && U_(se.u) !== du) { se.u = du; ch = true; } }
         const su = U_(se.u);
-        if (su) (l.prd || []).forEach(x => { const p = INS.prd.find(q => q.id === x.id); if (p && U_(p.u) !== su) { p.u = su; ch = true; } });
+        if (su) (l.prd || []).forEach(x => { const p = PR.get(x.id); if (p && U_(p.u) !== su) { p.u = su; ch = true; } });
       });
       return ch;
     };
@@ -10338,6 +10346,10 @@ function renderBudgetList() {
       const W = cwLoad(), cd = tbl.querySelector('col[data-w="chg.detail"]'), ct = tbl.querySelector('col[data-w="chg.tache"]');
       if (!cd || !ct || W["chg.detail"] || W["chg.tache"]) return;
       const cols = [...tbl.querySelectorAll("colgroup col")];
+      /* v743 : largeurs déjà calculées pour ce bloc et ces colonnes = reprises sans rien mesurer (rapide) */
+      { const M0 = shell.__chgFitM, o0 = cols.filter(c => c !== cd && c !== ct).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
+        if (M0 && M0.w === sc.offsetWidth && M0.o0 === o0) { cd.style.width = M0.d + "px"; ct.style.width = M0.t + "px"; tbl.style.width = o0 + M0.d + M0.t + "px"; return; } }
+      const o0 = cols.filter(c => c !== cd && c !== ct).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
       /* v613 : colonne % en plus — chaque colonne d'abord élargie à son intitulé (règle des en-têtes jamais tronqués), puis le reste partagé */
       try { sviMinHeadCols(); } catch (e) {}
       const others = cols.filter(c => c !== cd && c !== ct).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
@@ -10351,7 +10363,7 @@ function renderBudgetList() {
       const free = Math.floor(sc.clientWidth - pr - others - 22);   /* marge : en-têtes jamais tronqués (quelques px de plus) */
       const d = Math.max(dMin, Math.round(free * 0.55)), t = Math.max(tMin, free - d);
       cd.style.width = d + "px"; ct.style.width = t + "px"; tbl.style.width = others + d + t + "px";
-      shell.__chgFitM = { w: sc.offsetWidth, o: others, d, t };
+      shell.__chgFitM = { w: sc.offsetWidth, o: others, o0, d, t };
     };
     const cfHasF = t => !!(CF[t] && Object.keys(CF[t].f || {}).length);
     /* v502 (remarque 53) : seul l'onglet source d'un filtre est en bleu — loupe d'une de ses colonnes, « cochées seulement »
@@ -17050,7 +17062,7 @@ ${A}</Assignments>
       const top = tb.getBoundingClientRect().top - sr.top + scr.scrollTop;
       const head = tb.tHead.getBoundingClientRect().height;
       const rows = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight);
-      const tot = rows.filter(r => /\bTOTAL\b/.test(r.textContent || "") && r.classList.length && /tot/i.test(r.className));
+      const tot = rows.filter(r => r.classList.length && /tot/i.test(r.className) && /\bTOTAL\b/.test(r.textContent || ""));   /* v743 : classe d'abord (rapide), texte ensuite */
       const row = rows.find(r => !tot.includes(r));
       const foot = (tb.tFoot && tb.tFoot.offsetHeight ? tb.tFoot.getBoundingClientRect().height : 0) + tot.reduce((t, r) => t + r.getBoundingClientRect().height, 0);
       let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
