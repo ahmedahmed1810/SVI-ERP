@@ -160,12 +160,14 @@
         });
       }
       { const su = lkSecU(); if (su) Object.keys(LK.prd || {}).forEach(id => { if (prdLinkU(id)) return; const p = INS.prd.find(q => q.id === id); if (p && U_(p.u) !== su) { p.u = su; ch = true; } }); }
+      /* v743 : recherche par table (Map) au lieu d'un parcours de toutes les lignes pour chaque liaison (gros budgets) */
+      const SE = new Map(INS.sec.map(x => [x.id, x])), DE = new Map(INS.des.map(x => [x.id, x])), PR = new Map((INS.prd || []).map(x => [x.id, x]));
       (INS.links || []).forEach(l => {
-        const se = INS.sec.find(x => x.id === l.sec);
+        const se = SE.get(l.sec);
         if (!se) return;
-        if (insLinkPrim(INS, l)) { const d = INS.des.find(x => x.id === l.des), du = U_(d && d.u); if (du && U_(se.u) !== du) { se.u = du; ch = true; } }
+        if (insLinkPrim(INS, l)) { const d = DE.get(l.des), du = U_(d && d.u); if (du && U_(se.u) !== du) { se.u = du; ch = true; } }
         const su = U_(se.u);
-        if (su) (l.prd || []).forEach(x => { const p = INS.prd.find(q => q.id === x.id); if (p && U_(p.u) !== su) { p.u = su; ch = true; } });
+        if (su) (l.prd || []).forEach(x => { const p = PR.get(x.id); if (p && U_(p.u) !== su) { p.u = su; ch = true; } });
       });
       return ch;
     };

@@ -207,7 +207,7 @@
       const top = tb.getBoundingClientRect().top - sr.top + scr.scrollTop;
       const head = tb.tHead.getBoundingClientRect().height;
       const rows = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight);
-      const tot = rows.filter(r => /\bTOTAL\b/.test(r.textContent || "") && r.classList.length && /tot/i.test(r.className));
+      const tot = rows.filter(r => r.classList.length && /tot/i.test(r.className) && /\bTOTAL\b/.test(r.textContent || ""));   /* v743 : classe d'abord (rapide), texte ensuite */
       const row = rows.find(r => !tot.includes(r));
       const foot = (tb.tFoot && tb.tFoot.offsetHeight ? tb.tFoot.getBoundingClientRect().height : 0) + tot.reduce((t, r) => t + r.getBoundingClientRect().height, 0);
       let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });

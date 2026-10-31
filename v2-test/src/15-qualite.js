@@ -703,6 +703,10 @@
       const W = cwLoad(), cd = tbl.querySelector('col[data-w="chg.detail"]'), ct = tbl.querySelector('col[data-w="chg.tache"]');
       if (!cd || !ct || W["chg.detail"] || W["chg.tache"]) return;
       const cols = [...tbl.querySelectorAll("colgroup col")];
+      /* v743 : largeurs déjà calculées pour ce bloc et ces colonnes = reprises sans rien mesurer (rapide) */
+      { const M0 = shell.__chgFitM, o0 = cols.filter(c => c !== cd && c !== ct).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
+        if (M0 && M0.w === sc.offsetWidth && M0.o0 === o0) { cd.style.width = M0.d + "px"; ct.style.width = M0.t + "px"; tbl.style.width = o0 + M0.d + M0.t + "px"; return; } }
+      const o0 = cols.filter(c => c !== cd && c !== ct).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
       /* v613 : colonne % en plus — chaque colonne d'abord élargie à son intitulé (règle des en-têtes jamais tronqués), puis le reste partagé */
       try { sviMinHeadCols(); } catch (e) {}
       const others = cols.filter(c => c !== cd && c !== ct).reduce((t, c) => t + (parseFloat(c.style.width) || 0), 0);
@@ -716,7 +720,7 @@
       const free = Math.floor(sc.clientWidth - pr - others - 22);   /* marge : en-têtes jamais tronqués (quelques px de plus) */
       const d = Math.max(dMin, Math.round(free * 0.55)), t = Math.max(tMin, free - d);
       cd.style.width = d + "px"; ct.style.width = t + "px"; tbl.style.width = others + d + t + "px";
-      shell.__chgFitM = { w: sc.offsetWidth, o: others, d, t };
+      shell.__chgFitM = { w: sc.offsetWidth, o: others, o0, d, t };
     };
     const cfHasF = t => !!(CF[t] && Object.keys(CF[t].f || {}).length);
     /* v502 (remarque 53) : seul l'onglet source d'un filtre est en bleu — loupe d'une de ses colonnes, « cochées seulement »

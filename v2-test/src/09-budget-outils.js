@@ -1082,7 +1082,9 @@ const condChuteOf = (I, key, rows) => {
 /* part d'une ligne de charge : chute du titre répartie au prorata des QCB de ses lignes */
 const condChuteRow = (I, r) => {
   if (!I || !r || r.t) return 0;
-  const key = COND_K(r), rows = (I.chg || []).filter(x => !x.t && COND_K(x) === key);
+  const key = COND_K(r), c = (I.cond || {})[key];
+  if (!c || c.mode !== "c" || !(num(c.BL) > 0)) return 0;   /* rapide : pas de découpe réglée pour ce titre (cas courant) */
+  const rows = (I.chg || []).filter(x => !x.t && COND_K(x) === key);
   const C = condChuteOf(I, key, rows); if (!C) return 0;
   const Q = rows.reduce((t, x) => t + (num(x.q) || 0), 0);
   return Q > 0 ? C * (num(r.q) || 0) / Q : C / rows.length;
