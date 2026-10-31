@@ -74,6 +74,9 @@ async function ensureBDGLoaded() {
     setBDGLoadingState();
     /* budgets en instance lus sur l'appareil (IndexedDB) avant d'afficher la liste */
     await SVI_INST_READY;
+    /* v746 (rapidité) : sans attendre la base Google, la liste montre tout de suite les budgets de l'appareil (et rouvre le dernier) ;
+       les budgets validés de la base s'y ajoutent dès qu'elle répond */
+    try { if ((sviInstGet() || []).length) { window.__sviEarly = true; renderBudgetList(); } } catch (e) {} finally { window.__sviEarly = false; }
 
     /* VERSION TEST : lecture de la base V3 (repli sur l'ancien onglet BDG) */
     try {

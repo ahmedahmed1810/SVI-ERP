@@ -234,7 +234,8 @@ document.addEventListener(
         }
       );
 
-    await reloadAll();
+    /* v746 (rapidité) : données BDS lues en parallèle — le dernier module (BDG…) s'ouvre sans attendre Google */
+    const boot = reloadAll();
 
     /* retour au dernier module ouvert (CHS, BDS, BDG…) */
     try {
@@ -242,6 +243,7 @@ document.addEventListener(
       const b = v && document.querySelector(`.nav-btn[data-view="${v}"]`);
       if (b && !b.classList.contains("active")) b.click();
     } catch (e) {}
+    await boot;
   }
 );
 

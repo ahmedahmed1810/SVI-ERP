@@ -3257,6 +3257,9 @@ async function ensureBDGLoaded() {
     setBDGLoadingState();
     /* budgets en instance lus sur l'appareil (IndexedDB) avant d'afficher la liste */
     await SVI_INST_READY;
+    /* v746 (rapidité) : sans attendre la base Google, la liste montre tout de suite les budgets de l'appareil (et rouvre le dernier) ;
+       les budgets validés de la base s'y ajoutent dès qu'elle répond */
+    try { if ((sviInstGet() || []).length) { window.__sviEarly = true; renderBudgetList(); } } catch (e) {} finally { window.__sviEarly = false; }
 
     /* VERSION TEST : lecture de la base V3 (repli sur l'ancien onglet BDG) */
     try {
@@ -27157,9 +27160,15 @@ ${A}</Assignments>
   /* réouverture du dernier budget consulté */
   /* v633 : si la dernière ouverture n'est pas allée au bout (application bloquée), le budget n'est PAS rouvert
      (marque posée avant l'ouverture, enlevée 4 s après) ; « ?liste » dans l'adresse = jamais de réouverture */
+  /* v746 (rapidité) : la liste s'affiche d'abord avec les budgets de l'appareil, puis une 2e fois quand la base V3 a répondu ;
+     la réouverture (ou la fenêtre OUVERTURE BLOQUÉE / LISTE SEULE) ne se fait qu'une fois — dès que le dernier budget est connu */
   try {
-    const last = localStorage.getItem("svi_lastbdg_v1"), stuck = localStorage.getItem("svi_opening_v1");
-    if (stuck || /[?&#]liste\b/i.test(location.href)) {
+    const last = localStorage.getItem("svi_lastbdg_v1"), stuck = localStorage.getItem("svi_opening_v1"), liste = /[?&#]liste\b/i.test(location.href);
+    /* 1er affichage (base pas encore lue) : un budget qui n'est pas sur l'appareil attend le 2e affichage */
+    if (window.__sviEarly && !groups.has((stuck || liste) ? (stuck || last) : last)) throw 0;
+    if ((stuck || liste) && window.__sviListDlg) throw 0;   /* fenêtre déjà montrée à ce démarrage */
+    if (stuck || liste) {
+      window.__sviListDlg = true;
       localStorage.removeItem("svi_opening_v1");
       /* v634 : dernière étape atteinte + TÉLÉCHARGER LE BUDGET (fichier à envoyer pour trouver la cause) */
       const ref0 = stuck || last, step = localStorage.getItem("svi_step_v1") || "";
@@ -28588,7 +28597,8 @@ document.addEventListener(
         }
       );
 
-    await reloadAll();
+    /* v746 (rapidité) : données BDS lues en parallèle — le dernier module (BDG…) s'ouvre sans attendre Google */
+    const boot = reloadAll();
 
     /* retour au dernier module ouvert (CHS, BDS, BDG…) */
     try {
@@ -28596,6 +28606,7 @@ document.addEventListener(
       const b = v && document.querySelector(`.nav-btn[data-view="${v}"]`);
       if (b && !b.classList.contains("active")) b.click();
     } catch (e) {}
+    await boot;
   }
 );
 
