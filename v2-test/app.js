@@ -10802,6 +10802,10 @@ function renderBudgetList() {
       shell.addEventListener("focusout", () => setTimeout(() => {
         shell.querySelectorAll(".ins-hcol").forEach(c => { const n = [...c.querySelectorAll(":scope > .ins-new")]; n.slice(0, -1).forEach(o => { const i = o.querySelector("input"); if (!o.dataset.iid && i && !i.value && i !== document.activeElement) o.remove(); }); });
       }, 0));
+      /* v745 (rapidité) : case cochée — la coche se voit tout de suite, l'écran filtré est redessiné juste après (une seule fois
+         si plusieurs cases sont touchées très vite) */
+      let ckT = null;
+      const ckSoon = fn => { ckT = fn; requestAnimationFrame(() => setTimeout(() => { const f = ckT; ckT = null; if (f) f(); }, 0)); };
       shell.addEventListener("click", e => {
         const X = shell.__ins;
         if (!X) return;
@@ -10872,13 +10876,13 @@ function renderBudgetList() {
           const br = X.insBranch(r);
           r.on = cb.checked;   /* le titre lui-même est coché (copier / couper / déplacer l'emportent) */
           br.forEach(x => { x.on = cb.checked; });
-          X.insSave(); (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots()));
+          X.insSave(); ckSoon(() => (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots())));
           return;
         }
         if (cb) {
           r.on = cb.checked; X.insSave(); if (k === "des") { X.insDim(); X.insSyncTitles(); }
           /* ligne cochée : elle remonte (après les lignes au rond coché) */
-          (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots()));
+          ckSoon(() => (X.refreshAll ? X.refreshAll() : (X.insRedraw(k), X.insFoots && X.insFoots())));
           return;
         }
         /* ligne titre : unité, quantité, prix, TVA masqués et verrouillés, mais gardés
@@ -28996,6 +29000,7 @@ document.addEventListener("click", e => {
 
 /* v658 (FORMAT 249) : intitulés d'en-tête raccourcis selon la place (ACTIVITÉ SECONDAIRE → ACT. SECONDAIRE → ACT SCD) ;
    le premier qui tient en entier est gardé ; recalculé à chaque dessin et au changement de taille */
+const SVI_HD_FIT = new Map();
 const SVI_HD_ALT = { "ACTIVITÉ SECONDAIRE": ["ACT. SECONDAIRE", "ACT SCD"], "ACTIVITÉ PRIMAIRE": ["ACT. PRIMAIRE", "ACT PRM"] };
 (() => {
   let raf = 0, busy = false;
@@ -29003,9 +29008,13 @@ const SVI_HD_ALT = { "ACTIVITÉ SECONDAIRE": ["ACT. SECONDAIRE", "ACT SCD"], "AC
     try { document.querySelectorAll(".cf-tt[data-alt]").forEach(el => {
       let L = []; try { L = JSON.parse(el.dataset.alt); } catch (e) {}
       if (!L.length || !el.offsetParent) return;
+      /* v745 (rapidité) : choix déjà trouvé pour ces intitulés et cette largeur = repris sans essayer chaque intitulé */
+      const ck = el.dataset.alt + "@" + el.clientWidth + "@" + getComputedStyle(el).fontSize, known = SVI_HD_FIT.get(ck);
+      if (known !== undefined) { if (el.textContent !== known) el.textContent = known; return; }
       let pick = L[L.length - 1];
       for (const t of L) { if (el.textContent !== t) el.textContent = t; if (el.scrollWidth <= el.clientWidth + 1) { pick = t; break; } }
       if (el.textContent !== pick) el.textContent = pick;
+      if (SVI_HD_FIT.size > 200) SVI_HD_FIT.clear(); SVI_HD_FIT.set(ck, pick);
     }); } catch (e) {}
     setTimeout(() => { busy = false; }, 0); };
   const ask = () => { if (!busy && !raf) raf = requestAnimationFrame(fit); };
