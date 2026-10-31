@@ -243,7 +243,7 @@
     /* DOUBLON EXISTANT (FORMAT 103) : une seule fenêtre pour tous les doublons du budget ;
        sélecteur ‹ i/N › (liste au toucher du numéro), IGNORER / FUSIONNER / IGNORER TOUS / FUSIONNER TOUS */
     const dupExisting = async (force) => {
-      if (!INS || !INS_EDIT || shell.__dupBusy) return;
+      if (!INS || !INS_EDIT || !INS_REAL || shell.__dupBusy) return;   /* v740 : rien à fusionner en lecture seule (validé, consolidé, CUMUL…) */
       let skip = {};
       try { skip = JSON.parse(sessionStorage.getItem("svi_dupskip") || "{}"); } catch (e) {}
       /* v626 : un doublon exact ne s'ignore plus (seulement les intitulés presque identiques) */

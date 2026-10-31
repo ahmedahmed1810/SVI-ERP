@@ -1164,6 +1164,12 @@ function renderBudgetList() {
     try { const vref = b.ref + "-V" + v.n; groups.set(vref, { ref: vref, project: b.project, rows: [], first: {}, inst: { ref: vref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vname: sviAvName(b) + " — VERSION " + v.n, data: JSON.parse(JSON.stringify(v.d || {})) } }); } catch (e) {}
   }));
 
+  /* v740 : CUMUL des budgets cochés — vue en lecture seule, jamais enregistrée */
+  if (Array.isArray(window.__sviCum) && window.__sviCum.length > 1) {
+    try { const L = window.__sviCum.map(r => { const g = groups.get(r); return g && g.inst && g.inst.data ? { ref: r, lab: (g.inst.vname || "") || r, state: g.inst.state || "valide", d: g.inst.data } : null; }).filter(Boolean);
+      if (L.length > 1) groups.set("CUMUL", { ref: "CUMUL", project: "", rows: [], first: {}, inst: { ref: "CUMUL", project: "", intitule: L.map(x => x.ref).join(" + "), state: "valide", virtual: true, parent: "__CUMUL", vname: "CUMUL — " + L.length + " BUDGETS", data: sviCumMerge(L) } }); } catch (e) {}
+  }
+
   /* liste affichée : VALIDÉS (noir) ou EN INSTANCE (rouge / vert si figé) */
   let listMode = "valid";
   try { if (localStorage.getItem("svi_listmode_v1") === "inst") listMode = "inst"; } catch (e) {}
@@ -1690,6 +1696,11 @@ function renderBudgetList() {
 
     /* compteur du titre : budgets affichés (filtres compris) */
     { const c = $("bdgListCount"); if (c) c.innerHTML = svCnt(data.length, budgets.length); }
+    /* v740 (FORMAT 265) : bouton CUMUL (budgets cochés) à côté du titre — grisé sous 2 budgets */
+    { const c = $("bdgListCount"); window.__sviCumSel = window.__sviCumSel || new Set();
+      let b = $("bdgCumBtn"); if (c && !b) { b = document.createElement("button"); b.type = "button"; b.id = "bdgCumBtn"; b.className = "bdg-cum-btn"; c.after(b); }
+      if (b) { const n = window.__sviCumSel.size; b.hidden = !n; b.disabled = n < 2; b.innerHTML = "CUMUL " + svCnt(n); b.title = n < 2 ? "COCHER AU MOINS DEUX BUDGETS" : "";
+        b.onclick = () => { const S = [...window.__sviCumSel]; if (S.length < 2) { svToast("COCHER AU MOINS DEUX BUDGETS.", 2500, b); return; } window.__sviCum = S; if (window.__sviAvOpen) window.__sviAvOpen("CUMUL"); }; } }
 
     /* v698 : plus de bouton + — dernière ligne « SAISIR ICI… » (fenêtre INF du nouveau budget) */
     /* v699 : lignes SAISIR ICI seulement dans la liste EN INSTANCE, en rouge */
@@ -1758,6 +1769,7 @@ function renderBudgetList() {
           </td>
 
           <td class="bdg-action-cell">
+            <input type="checkbox" class="bdg-cum" data-cum="${esc(item.ref)}"${(window.__sviCumSel || new Set()).has(item.ref) ? " checked" : ""} title="Cocher pour le CUMUL" aria-label="Cocher pour le CUMUL">
 
             <button
               type="button"
@@ -1776,7 +1788,7 @@ function renderBudgetList() {
         </tr>
         ${kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}">
           <td><span class="bdg-kid-lab">${esc(k.lab)}</span> <small>${esc(k.ref)}</small></td><td>${esc(k.budget)}</td><td title="${esc(k.intitule)}">${esc(k.intitule)}</td>
-          <td class="number">${money(k.ttc)}</td><td>${esc(k.validated)}</td><td>${esc(k.entered)}</td><td></td></tr>`).join("")}
+          <td class="number">${money(k.ttc)}</td><td>${esc(k.validated)}</td><td>${esc(k.entered)}</td><td class="bdg-action-cell"><input type="checkbox" class="bdg-cum" data-cum="${esc(k.ref)}"${(window.__sviCumSel || new Set()).has(k.ref) ? " checked" : ""} title="Cocher pour le CUMUL" aria-label="Cocher pour le CUMUL"></td></tr>`).join("")}
         ${open ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
           return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="7">CRÉER UN AVENANT ICI…</td></tr>`; })() : ""}
       `; }).join("") + NEWROW;

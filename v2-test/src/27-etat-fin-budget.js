@@ -411,6 +411,10 @@
       return;
     }
 
+    /* v740 : CUMUL — cases des budgets et bouton */
+    const cb = event.target.closest("input.bdg-cum");
+    if (cb) { event.stopPropagation(); window.__sviCumSel = window.__sviCumSel || new Set(); if (cb.checked) window.__sviCumSel.add(cb.dataset.cum); else window.__sviCumSel.delete(cb.dataset.cum);
+      const b = document.getElementById("bdgCumBtn"); if (b) { const n = window.__sviCumSel.size; b.hidden = !n; b.disabled = n < 2; b.innerHTML = "CUMUL " + svCnt(n); } return; }
     /* v698 : lignes SAISIR ICI (nouveau budget) et AJOUTER UN AVENANT ICI */
     const nb = event.target.closest("tr[data-newbdg]");
     if (nb) { openNewBudget(); return; }
