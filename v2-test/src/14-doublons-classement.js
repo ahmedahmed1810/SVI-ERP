@@ -421,7 +421,7 @@
     shell.__unl = INS ? { INS, save: () => insSave(), refresh: () => refreshAll(),
       /* toucher une ligne : l'écran va à la ligne dans son bloc, encadrée un instant */
       go: (k, id) => {
-        const find = () => shell.querySelector(`[data-ik="${k}"][data-iid="${id}"]`);
+        const find = () => shell.querySelector(`[data-ik="${k}"][data-iid="${id}"]`) || (shell.__insMoreAll && shell.__insMoreAll(), shell.querySelector(`[data-ik="${k}"][data-iid="${id}"]`));
         const show = () => {
           const el = find();
           if (!el) { svToast("LIGNE CACHÉE (TITRE REPLIÉ OU FILTRE) : DÉPLIER OU EFFACER LE FILTRE."); return; }

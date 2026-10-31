@@ -237,6 +237,7 @@
         return { label, vals: items.map(x => (x.querySelector(".ins-in")?.value ?? x.textContent ?? "").trim()), edit: false };
       }
       const tb = th.closest("table"), idx = [...th.parentElement.children].indexOf(th), n = th.parentElement.children.length;
+      if (shell.__insMoreAll && ["chg", "prd"].includes(tb.dataset.ik)) shell.__insMoreAll(tb.dataset.ik);   /* v743 : toutes les lignes dessinées avant de copier / coller une colonne */
       let trs = [...tb.querySelectorAll("tbody tr")].filter(tr => tr.children.length === n && !tr.classList.contains("ins-new") && !tr.classList.contains("bdg-d-filler"));
       /* COLLER : toutes les lignes affichées, titres compris, dans l'ordre de l'écran (une ligne = une cellule) */
       const seenI = new Set();

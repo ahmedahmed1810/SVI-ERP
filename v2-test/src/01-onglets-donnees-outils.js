@@ -252,11 +252,10 @@ function num(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+/* v743 (rapidité) : un seul format créé une fois (toLocaleString en recréait un à chaque nombre) — même résultat */
+const SVI_MONEY_FMT = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function money(v) {
-  return num(v).toLocaleString("fr-FR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
+  return SVI_MONEY_FMT.format(num(v));
 }
 
 /* v450 : un niveau nommé automatiquement (NIVEAU 2, NIVEAU 2.1…) s'affiche précédé du nom de ses parents (« FONDATION / ») */
