@@ -4636,6 +4636,37 @@ const condChuteRow = (I, r) => {
   return Q > 0 ? C * (num(r.q) || 0) / Q : C / rows.length;
 };
 
+/* v739 (prompt du 31/10, point 2) : BIBLIOTHÈQUE DE PRIX — recettes par activité secondaire, communes à tous les budgets (partagées) :
+   { id, act (activité secondaire), nom (variante), u (unité du produit), chg: [{ des, u, k (quantité pour 1 unité de produit), p }], des: [], lot: [], src, date, chk } */
+const sviLibGet = () => { try { const L = (typeof sviSharedGet === "function" ? sviSharedGet("LIB") : {}).L; return Array.isArray(L) ? L : []; } catch (e) { return []; } };
+const sviLibSet = L => { if (typeof sviSharedSet === "function") sviSharedSet("LIB", { L }); };
+const sviLibSig = R => U_(R.act) + "#" + (R.chg || []).map(c => U_(c.des) + "|" + U_(c.u) + "|" + Math.round(Number(c.k || 0) * 1e4) / 1e4 + "|" + Math.round(Number(c.p || 0) * 100) / 100).sort().join(";");
+/* recette ajoutée sans doublon (même activité, mêmes charges, mêmes quantités et prix) : sinon l'usage (désignation, lot) est ajouté à l'existante */
+const sviLibAdd = (L, R) => {
+  const s = sviLibSig(R), x = L.find(y => sviLibSig(y) === s);
+  const mix = (a, b) => [...new Set([...(a || []), ...(b || [])].filter(Boolean))];
+  if (x) { x.des = mix(x.des, R.des); x.lot = mix(x.lot, R.lot); return x; }
+  let nom = U_(R.nom || "RECETTE"), n = 2; while (L.some(y => U_(y.act) === U_(R.act) && U_(y.nom) === nom)) nom = U_(R.nom || "RECETTE") + " (" + n++ + ")";
+  const o = { id: "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...R, nom }; L.push(o); return o;
+};
+/* recettes d'un budget : une par tâche secondaire liée (charges ÷ quantité de ses produits) */
+const sviLibFromBudget = (d, src) => {
+  const nm = (k, id) => { const r = (d[k] || []).find(x => x.id === id); return r ? U_(k === "des" ? r.des : r.v) : ""; };
+  const T = new Map();
+  (d.links || []).forEach(l => { const k = l.lot + "|" + l.sec, t = T.get(k) || { l, prd: new Set(), chg: new Set(), des: new Set() }; (l.prd || []).forEach(x => t.prd.add(x.id)); (l.chg || []).forEach(x => t.chg.add(x.id)); t.des.add(nm("des", l.des)); T.set(k, t); });
+  const out = [];
+  T.forEach(t => {
+    const Q = [...t.prd].reduce((s, id) => { const p = (d.prd || []).find(x => x.id === id); return s + (p ? (insPrdQ(p) || 0) : 0); }, 0);
+    if (!(Q > 0)) return;
+    const chg = [...t.chg].map(id => (d.chg || []).find(x => x.id === id)).filter(r => r && !r.t && Number(String(r.q || 0).replace(",", ".")) > 0)
+      .map(r => ({ des: U_(r.des), u: U_(r.u), k: Number(String(r.q).replace(",", ".")) / Q, p: Number(String(r.p || 0).replace(",", ".")) || 0 }));
+    if (!chg.length) return;
+    const sec = (d.sec || []).find(x => x.id === t.l.sec) || {};
+    out.push({ act: U_(sec.v || ""), nom: [...t.des][0] || "RECETTE", u: U_(sec.u || ""), chg, des: [...t.des], lot: [nm("lot", t.l.lot)], src: src || "", date: new Date().toISOString().slice(0, 10) });
+  });
+  return out;
+};
+
 /* v738 (prompt du 31/10, point 3) : RECETTES des MODALITÉS DE PAIEMENT — chaque échéance (date, montant) ;
    RETENUE DE GARANTIE (taux) déduite de chaque échéance et rendue à sa libération (date, fin d'une tâche, ou fin des travaux + n mois) */
 const sviPayPlan = (d, M, finOf, endAll) => {
@@ -9747,7 +9778,9 @@ function renderBudgetList() {
         else btn = `<button type="button" class="lk-go" ${ok ? "" : "disabled"}>${pl.same || (!pl.full && lkDlyDirty()) ? "✓ VALIDER LES MODIFICATIONS" : "✓ VALIDER LA LIAISON"}</button>`;
       } else if (pl.mode === "mix") btn = `<button type="button" class="lk-go lk-mix">✓ VALIDER LA LIAISON</button>`;
       else btn = `<button type="button" class="lk-go" disabled>✓ VALIDER LA LIAISON</button>`;
-      el.innerHTML = `${LK.des ? '<button type="button" class="lk-info" title="Voir la liaison" aria-label="Voir la liaison">i</button>' : ""}${btn}`;
+      /* v739 : activité secondaire choisie = pastille RECETTES n (bibliothèque de prix) ; rien ne s'applique sans le choix de l'utilisateur */
+      let lib = ""; try { const s = LK.sec && (INS.sec || []).find(x => x.id === LK.sec), n = s ? sviLibGet().filter(R => U_(R.act) === U_(s.v)).length : 0; if (n) lib = `<button type="button" class="lk-lib" title="Recettes de la bibliothèque de prix">RECETTES <span class="svi-cnt">${n}</span></button>`; } catch (e) {}
+      el.innerHTML = `${LK.des ? '<button type="button" class="lk-info" title="Voir la liaison" aria-label="Voir la liaison">i</button>' : ""}${lib}${btn}`;
     };
 /* ⟪ src/15-qualite.js ⟫ */
     /* =========================================================
@@ -23638,6 +23671,58 @@ ${A}</Assignments>
     };
     shell.__cmpPick = cmpPick;
     shell.__cmpOpen = cmpOpen;
+/* ⟪ src/22n-bibliotheque.js ⟫ */
+    /* =========================================================
+       v739 (prompt du 31/10, point 2) : BIBLIOTHÈQUE DE PRIX dans le budget
+       - activité secondaire choisie par son rond : pastille RECETTES n dans le bandeau de liaison ;
+       - fenêtre RECETTES — ACTIVITÉ (FORMAT 267) : d'abord celles déjà utilisées avec la même désignation ou le même lot ;
+       - APPLIQUER : charges créées sur la tâche (lot › activité secondaire), quantité = quantité pour 1 unité × quantité de produit de la tâche ;
+         ensuite modifiables comme toute charge ; l'usage (désignation, lot) est gardé dans la bibliothèque ;
+       - FIGER : les recettes du budget sont gardées dans la bibliothèque (sans doublon).
+       ========================================================= */
+    shell.__libLearn = () => { if (!INS) return 0; const L = sviLibGet(), n0 = L.length; sviLibFromBudget(INS, budget.inst ? budget.inst.ref : "").forEach(R => sviLibAdd(L, R)); sviLibSet(L); return L.length - n0; };
+    const libTaskQ = (lo, se) => { const ids = new Set(); (INS.links || []).filter(l => l.lot === lo && l.sec === se).forEach(l => (l.prd || []).forEach(x => ids.add(x.id))); return [...ids].reduce((t, id) => { const p = INS.prd.find(x => x.id === id); return t + (p ? insPrdQ(p) || 0 : 0); }, 0); };
+    const libPickWin = () => {
+      const s = LK.sec && INS.sec.find(x => x.id === LK.sec); if (!s) return;
+      const desN = LK.des ? U_((INS.des.find(x => x.id === LK.des) || {}).des || "") : "", lotN = LK.lot ? U_((INS.lot.find(x => x.id === LK.lot) || {}).v || "") : "";
+      const used = R => (desN && (R.des || []).includes(desN)) || (lotN && (R.lot || []).includes(lotN));
+      const L = sviLibGet().filter(R => U_(R.act) === U_(s.v)).sort((a, b) => (used(b) ? 1 : 0) - (used(a) ? 1 : 0) || String(a.nom).localeCompare(String(b.nom), "fr"));
+      const Q = LK.lot ? libTaskQ(LK.lot, LK.sec) : 0, cu = R => (R.chg || []).reduce((t, c) => t + num(c.k || 0) * num(c.p || 0), 0);
+      const d = sviWinNew();
+      d.innerHTML = sviWinCard({ cls: "pv-card lib-pick", close: "data-x", title: "RECETTES — " + esc(U_(s.v)),
+        body: `<div class="pv-sub">${LK.lot ? "TÂCHE : " + esc(lotN) + " › " + esc(U_(s.v)) + " — QUANTITÉ DE PRODUIT : " + esc(money(Q)) + " " + esc(U_(s.u || "")) : "CHOISIR AUSSI LE LOT POUR APPLIQUER UNE RECETTE À UNE TÂCHE."}</div>
+          <div class="pv-scroll">${L.map((R, i) => `<label class="lib-r${used(R) ? " lib-used" : ""}"><input type="radio" name="libr" value="${esc(R.id)}"${i ? "" : " checked"}>
+            <span class="lib-h"><b>${esc(U_(R.act))} — ${esc(R.nom)}</b>${used(R) ? ' <span class="lib-tag">DÉJÀ UTILISÉE</span>' : ""}${R.chk ? ' <span class="lib-chk">À VÉRIFIER</span>' : ""} <small>${esc(money(cu(R)))} DH / ${esc(R.u || "U")}</small></span>
+            <table class="pv-t lib-t"><thead><tr><th>CHARGE</th><th class="center">UNITÉ</th><th class="number">QTÉ POUR 1 ${esc(R.u || "U")}</th><th class="number">PCB</th></tr></thead><tbody>${(R.chg || []).map(c => `<tr><td>${esc(c.des)}</td><td class="center">${esc(c.u)}</td><td class="number">${esc(indNum(num(c.k || 0), 4))}</td><td class="number">${esc(money(num(c.p || 0)))}</td></tr>`).join("")}</tbody></table></label>`).join("") || `<div class="fz-none">AUCUNE RECETTE POUR CETTE ACTIVITÉ.</div>`}</div>`,
+        foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${INS_EDIT && L.length ? `<button type="button" class="svc-b svc-ok svc-neutral" data-libok>APPLIQUER</button>` : ""}` });
+      sviWinShow(d);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        if (!e.target.closest("[data-libok]")) return;
+        const id = (d.querySelector("input[name=libr]:checked") || {}).value, R = L.find(x => x.id === id); if (!R) return;
+        if (!LK.lot) { svToast("CHOISIR AUSSI LE LOT : LA RECETTE S'APPLIQUE À UNE TÂCHE (LOT › ACTIVITÉ SECONDAIRE).", 4000, e.target); return; }
+        const links = (INS.links || []).filter(l => l.lot === LK.lot && l.sec === LK.sec);
+        if (!links.length || !(Q > 0)) { svToast("LIER D'ABORD LA TÂCHE AVEC SES PRODUITS : LES QUANTITÉS SE CALCULENT SUR LA QUANTITÉ DE PRODUIT.", 4500, e.target); return; }
+        const inTask = new Set(links.flatMap(l => (l.chg || []).map(x => x.id))), skip = [];
+        let n = 0;
+        (R.chg || []).forEach(c => {
+          const same = INS.chg.find(r => inTask.has(r.id) && !r.t && U_(r.des) === U_(c.des) && U_(r.u) === U_(c.u));
+          if (same) { skip.push(c.des + " (DÉJÀ DANS LA TÂCHE)"); return; }
+          const other = INS.chg.find(r => !r.t && U_(r.des) === U_(c.des) && U_(r.u) !== U_(c.u));
+          if (other) { skip.push(c.des + " (EXISTE DÉJÀ EN " + U_(other.u) + ")"); return; }
+          const art = (INS.chg.find(r => !r.t && U_(r.des) === U_(c.des)) || {}).art || "";
+          const row = { id: insId(), art, des: U_(c.des), u: U_(c.u), q: Math.round(num(c.k || 0) * Q * 1000) / 1000, p: num(c.p || 0) };
+          INS.chg.push(row); links[0].chg = (links[0].chg || []).concat([{ id: row.id }]); n++;
+        });
+        const LL = sviLibGet(), X = LL.find(x => x.id === R.id); if (X) { X.des = [...new Set([...(X.des || []), desN].filter(Boolean))]; X.lot = [...new Set([...(X.lot || []), lotN].filter(Boolean))]; sviLibSet(LL); }
+        d.remove();
+        histLog("CHARGES", "RECETTE APPLIQUÉE", U_(R.act) + " — " + R.nom + " : " + n + " CHARGE(S) SUR " + lotN + " › " + U_(s.v));
+        insSave(); refreshAll();
+        svToast(n + " CHARGE(S) CRÉÉE(S)" + (skip.length ? " ; NON REPRISES : " + skip.join(", ") : "") + ".", skip.length ? 6000 : 3000);
+      });
+    };
+    shell.__libPick = libPickWin;
+    if (!shell.__libBound) { shell.__libBound = true; shell.addEventListener("click", e => { if (e.target.closest && e.target.closest("#insChain .lk-lib")) { e.stopPropagation(); if (shell.__libPick) shell.__libPick(); } }, true); }
 /* ⟪ src/23-apercus-impression.js ⟫ */
     /* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :
        volet « OPTIONS PDF » à gauche, aperçu des pages à droite,
@@ -26942,6 +27027,7 @@ ${A}</Assignments>
           ? { title: "REVENIR EN ÉDITION", text: fullRef, ok: "REVENIR EN ÉDITION" }
           : { title: "FIGER", text: fullRef + " PASSE EN LECTURE SEULE (RETOUR EN ÉDITION POSSIBLE).", ok: "FIGER" }))) return;
         if (!fige) try { shell.__verFreeze && shell.__verFreeze("FIGÉE"); } catch (e) {}
+        if (!fige) try { shell.__libLearn && shell.__libLearn(); } catch (e) {}   /* v739 : recettes du budget gardées dans la bibliothèque */
         budget.inst.state = fige ? "instance" : "fige";
         instUpd(l => l.map(x => x.ref === ref ? { ...x, state: budget.inst.state } : x));
         histLog("BUDGET", fige ? "RETOUR EN ÉDITION" : "FIGÉ", fullRef);
@@ -29352,7 +29438,7 @@ function sviParamTabs() {
   const head = view.querySelector(".section-head");
   const bar = document.createElement("div");
   bar.className = "prm-tabs";
-  bar.innerHTML = `<button type="button" class="prm-tab on" data-prm="unit">UNITÉS</button>`
+  bar.innerHTML = `<button type="button" class="prm-tab on" data-prm="unit">UNITÉS</button><button type="button" class="prm-tab" data-prm="lib">BIBLIOTHÈQUE DE PRIX</button>`
     + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal">CALENDRIER</button>`;
   /* CALENDRIER et DATES DU BUDGET : pour le budget ouvert ; grisés sans budget ouvert (appui long = raison) */
   const why = () => { const L = window.__sviBdgLive; return !L ? "OUVRIR UN BUDGET D'ABORD" : !L.edit ? "BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE" : ""; };
@@ -29375,17 +29461,24 @@ function sviParamTabs() {
   pane.className = "prm-unit";
   pane.hidden = true;
   bar.after(pane);
-  const others = () => [...view.children].filter(x => x !== head && x !== bar && x !== pane);
+  /* v739 : BIBLIOTHÈQUE DE PRIX (FORMAT 268) */
+  const lpane = document.createElement("div");
+  lpane.className = "prm-lib";
+  lpane.hidden = true;
+  pane.after(lpane);
+  const others = () => [...view.children].filter(x => x !== head && x !== bar && x !== pane && x !== lpane);
   const show = which => {
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.prm === which));
     others().forEach(x => { x.style.display = which === "chs" ? "" : "none"; });
     pane.hidden = which !== "unit";
+    lpane.hidden = which !== "lib";
     const add = document.getElementById("addChsBtn");
     if (add) add.style.display = which === "chs" ? "" : "none";
     const h1 = head.querySelector("h1"), sub = head.querySelector("p");
-    if (h1) h1.textContent = which === "chs" ? "CHS — CHARGES STANDARDS" : "UNITÉS";
-    if (sub) sub.textContent = which === "chs" ? "BIBLIOTHÈQUE DES CHARGES STANDARDS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";
+    if (h1) h1.textContent = which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : "UNITÉS";
+    if (sub) sub.textContent = which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT ; COMMUNE À TOUS LES BUDGETS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";
     if (which === "unit") draw();
+    if (which === "lib") libDraw();
     try { localStorage.setItem("svi_prm_v1", which); } catch (e) {}
   };
   const draw = () => {
@@ -29443,6 +29536,45 @@ function sviParamTabs() {
     draw();
   });
   bar.addEventListener("click", e => { const b = e.target.closest(".prm-tab"); if (b && b.dataset.prm) show(b.dataset.prm); });
+  /* v739 : BIBLIOTHÈQUE DE PRIX — activités à gauche, recettes et leurs charges à droite ; tout modifiable ; enregistré aussitôt */
+  let libAct = "";
+  const U2 = v => String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();
+  const N2 = v => Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")) || 0;
+  const F2 = (v, d) => (Number(v) || 0).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const libDraw = () => {
+    const L = sviLibGet(), acts = [...new Set(L.map(R => U2(R.act)))].sort((a, b) => a.localeCompare(b, "fr"));
+    if (!acts.includes(libAct)) libAct = acts[0] || "";
+    const R0 = L.filter(R => U2(R.act) === libAct);
+    lpane.innerHTML = `<div class="lib-wrap"><div class="lib-acts"><table class="prm-table"><thead><tr><th>ACTIVITÉ SECONDAIRE</th><th class="center">RECETTES</th></tr></thead><tbody>
+        ${acts.map(a => `<tr class="lib-a${a === libAct ? " on" : ""}" data-act="${esc(a)}"><td>${esc(a)}</td><td class="center"><span class="svi-cnt">${L.filter(R => U2(R.act) === a).length}</span></td></tr>`).join("") || `<tr><td colspan="2" class="empty">BIBLIOTHÈQUE VIDE : ELLE SE REMPLIT AU FIL DES BUDGETS FIGÉS, OU ICI.</td></tr>`}
+        <tr class="prm-new"><td colspan="2"><input class="prm-in lib-newa" placeholder="CRÉER UNE RECETTE ICI… (ACTIVITÉ — VARIANTE)" autocomplete="off"></td></tr></tbody></table></div>
+      <div class="lib-recs">${R0.map(R => `<div class="lib-rec" data-rid="${esc(R.id)}"><div class="lib-rh"><b>${esc(U2(R.act))} —</b> <input class="prm-in lib-in" data-f="nom" value="${esc(R.nom)}" autocomplete="off"> <span>UNITÉ</span> <input class="prm-in lib-in center" data-f="u" value="${esc(R.u || "")}" style="width:60px" autocomplete="off">${R.chk ? ' <span class="lib-chk">À VÉRIFIER</span>' : ""}
+          <small>${(R.des || []).length ? "UTILISÉE : " + esc((R.des || []).slice(0, 3).join(", ")) : ""}</small><button type="button" class="prm-del lib-del" data-rdel="${esc(R.id)}" title="Supprimer la recette">✕</button></div>
+        <table class="prm-table lib-t"><thead><tr><th>CHARGE</th><th class="center">UNITÉ</th><th class="number">QTÉ POUR 1 ${esc(R.u || "U")}</th><th class="number">PCB</th><th class="number">COÛT</th><th></th></tr></thead><tbody>
+          ${(R.chg || []).map((c, i) => `<tr data-ci="${i}"><td><input class="prm-in lib-c" data-f="des" value="${esc(c.des)}" autocomplete="off"></td><td><input class="prm-in lib-c center" data-f="u" value="${esc(c.u)}" autocomplete="off"></td>
+            <td><input class="prm-in lib-c number" data-f="k" inputmode="decimal" value="${esc(F2(c.k, 4))}" autocomplete="off"></td><td><input class="prm-in lib-c number" data-f="p" inputmode="decimal" value="${esc(F2(c.p, 2))}" autocomplete="off"></td>
+            <td class="number">${esc(F2(N2(c.k) * N2(c.p), 2))}</td><td class="center"><button type="button" class="lib-cdel" data-cdel="${i}" title="Retirer">✕</button></td></tr>`).join("")}
+          <tr class="prm-new"><td colspan="6"><input class="prm-in lib-newc" placeholder="CRÉER UNE CHARGE ICI…" autocomplete="off"></td></tr></tbody></table></div>`).join("") || `<div class="empty">CHOISIR UNE ACTIVITÉ, OU CRÉER UNE RECETTE (ACTIVITÉ — VARIANTE).</div>`}</div></div>`;
+  };
+  const libSave = (L, keep) => { sviLibSet(L); if (!keep) libDraw(); };
+  lpane.addEventListener("click", e => {
+    const a = e.target.closest(".lib-a"); if (a) { libAct = a.dataset.act; libDraw(); return; }
+    const rd = e.target.closest("[data-rdel]"); if (rd) { (async () => { const L = sviLibGet(), R = L.find(x => x.id === rd.dataset.rdel); if (!R) return; if (typeof svConfirm === "function" && !(await svConfirm({ title: "SUPPRIMER LA RECETTE", text: U2(R.act) + " — " + R.nom, ok: "SUPPRIMER" }))) return; libSave(L.filter(x => x !== R)); })(); return; }
+    const cd = e.target.closest("[data-cdel]"); if (cd) { const L = sviLibGet(), R = L.find(x => x.id === cd.closest(".lib-rec").dataset.rid); if (R) { R.chg.splice(Number(cd.dataset.cdel), 1); libSave(L); } }
+  });
+  lpane.addEventListener("change", e => {
+    const t = e.target, L = sviLibGet();
+    if (t.classList.contains("lib-newa")) {
+      const v = U2(t.value), [act, ...rest] = v.split(/\s+[—-]\s+/); if (!act) return;
+      const R = sviLibAdd(L, { act: U2(act), nom: U2(rest.join(" — ")) || "RECETTE", u: "", chg: [], des: [], lot: [], src: "PARAMÉTRAGE", date: new Date().toISOString().slice(0, 10) });
+      libAct = U2(R.act); libSave(L); return;
+    }
+    const rec = t.closest(".lib-rec"), R = rec && L.find(x => x.id === rec.dataset.rid); if (!R) return;
+    if (t.classList.contains("lib-in")) { R[t.dataset.f] = U2(t.value); libSave(L); return; }
+    if (t.classList.contains("lib-newc")) { const v = U2(t.value); if (!v) return; R.chg = R.chg || []; R.chg.push({ des: v, u: "", k: 0, p: 0 }); libSave(L);
+      setTimeout(() => { const i = lpane.querySelector(`.lib-rec[data-rid="${CSS.escape(R.id)}"] tr[data-ci="${R.chg.length - 1}"] input[data-f="u"]`); if (i) i.focus(); }, 0); return; }
+    if (t.classList.contains("lib-c")) { const c = R.chg[Number(t.closest("tr").dataset.ci)]; if (!c) return; const f = t.dataset.f; c[f] = f === "k" || f === "p" ? N2(t.value) : U2(t.value); libSave(L); }
+  });
   /* v727 (bloc 11.1) : CHS n'existe plus — PARAMÉTRAGE ouvre UNITÉS */
   show("unit");
 }

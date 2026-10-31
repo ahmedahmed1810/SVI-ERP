@@ -201,6 +201,7 @@
           ? { title: "REVENIR EN ÉDITION", text: fullRef, ok: "REVENIR EN ÉDITION" }
           : { title: "FIGER", text: fullRef + " PASSE EN LECTURE SEULE (RETOUR EN ÉDITION POSSIBLE).", ok: "FIGER" }))) return;
         if (!fige) try { shell.__verFreeze && shell.__verFreeze("FIGÉE"); } catch (e) {}
+        if (!fige) try { shell.__libLearn && shell.__libLearn(); } catch (e) {}   /* v739 : recettes du budget gardées dans la bibliothèque */
         budget.inst.state = fige ? "instance" : "fige";
         instUpd(l => l.map(x => x.ref === ref ? { ...x, state: budget.inst.state } : x));
         histLog("BUDGET", fige ? "RETOUR EN ÉDITION" : "FIGÉ", fullRef);

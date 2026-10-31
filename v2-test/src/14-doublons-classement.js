@@ -511,5 +511,7 @@
         else btn = `<button type="button" class="lk-go" ${ok ? "" : "disabled"}>${pl.same || (!pl.full && lkDlyDirty()) ? "✓ VALIDER LES MODIFICATIONS" : "✓ VALIDER LA LIAISON"}</button>`;
       } else if (pl.mode === "mix") btn = `<button type="button" class="lk-go lk-mix">✓ VALIDER LA LIAISON</button>`;
       else btn = `<button type="button" class="lk-go" disabled>✓ VALIDER LA LIAISON</button>`;
-      el.innerHTML = `${LK.des ? '<button type="button" class="lk-info" title="Voir la liaison" aria-label="Voir la liaison">i</button>' : ""}${btn}`;
+      /* v739 : activité secondaire choisie = pastille RECETTES n (bibliothèque de prix) ; rien ne s'applique sans le choix de l'utilisateur */
+      let lib = ""; try { const s = LK.sec && (INS.sec || []).find(x => x.id === LK.sec), n = s ? sviLibGet().filter(R => U_(R.act) === U_(s.v)).length : 0; if (n) lib = `<button type="button" class="lk-lib" title="Recettes de la bibliothèque de prix">RECETTES <span class="svi-cnt">${n}</span></button>`; } catch (e) {}
+      el.innerHTML = `${LK.des ? '<button type="button" class="lk-info" title="Voir la liaison" aria-label="Voir la liaison">i</button>' : ""}${lib}${btn}`;
     };

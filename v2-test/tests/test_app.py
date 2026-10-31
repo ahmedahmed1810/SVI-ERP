@@ -2477,6 +2477,12 @@ def main():
             const ch = condChuteRow(I, r), b = one(); const K = JSON.parse(keep); if (K) I.cond = K; else delete I.cond;
             return [ch > 0, Math.abs(b - a - ch * Number(r.p || 0)) < 0.01]; }}""")
         check("v732 : chute comptée une fois dans l'indicateur CHARGES", c732 in ([True, True], "pas de charge"), c732)
+        # v739 : BIBLIOTHÈQUE DE PRIX — recette tirée d'un budget (charges ÷ quantité de produit), sans doublon, usage ajouté
+        t739 = pg.evaluate("""() => { const d = { des: [{ id: 'd', des: 'BETON B25', u: 'M3' }], lot: [{ id: 'l', v: 'RDC' }], sec: [{ id: 's', v: 'BETONNAGE', u: 'M3' }],
+              prd: [{ id: 'x', des: 'P', u: 'M3', nbr: 10, d1: 1, d2: 1, d3: 2 }], chg: [{ id: 'c', des: 'CIMENT', u: 'T', q: 7, p: 1500 }], links: [{ des: 'd', lot: 'l', sec: 's', prd: [{ id: 'x' }], chg: [{ id: 'c' }] }] };
+            const L = []; sviLibFromBudget(d, 'A').forEach(R => sviLibAdd(L, R)); const R2 = sviLibFromBudget(d, 'B')[0]; R2.lot = ['ETAGE']; sviLibAdd(L, R2);
+            return [L.length, L[0].act, L[0].u, Math.round(L[0].chg[0].k * 1000) / 1000, L[0].lot.join(',')]; }""")
+        check("v739 : BIBLIOTHÈQUE DE PRIX — recette BETONNAGE (CIMENT 0,35 T / M3), sans doublon, usage des deux lots gardé", t739 == [1, "BETONNAGE", "M3", 0.35, "RDC,ETAGE"], t739)
         # v738 : RETENUE DE GARANTIE des MODALITÉS DE PAIEMENT — déduite de chaque échéance, rendue à sa libération
         t738 = pg.evaluate("""() => { const d = { ctr: { rows: [{ type: 'pay', det: { ech: [{ on: 'task', task: 'a|b', v: 30, u: '%' }, { on: 'date', date: '2026-12-31', v: 70, u: '%' }], rg: { t: 7, on: 'fin', mois: 12 } } }] } };
             const P = sviPayPlan(d, 100000, k => k === 'a|b' ? '2026-11-10' : '', '2026-12-31');

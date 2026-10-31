@@ -1088,6 +1088,37 @@ const condChuteRow = (I, r) => {
   return Q > 0 ? C * (num(r.q) || 0) / Q : C / rows.length;
 };
 
+/* v739 (prompt du 31/10, point 2) : BIBLIOTHÈQUE DE PRIX — recettes par activité secondaire, communes à tous les budgets (partagées) :
+   { id, act (activité secondaire), nom (variante), u (unité du produit), chg: [{ des, u, k (quantité pour 1 unité de produit), p }], des: [], lot: [], src, date, chk } */
+const sviLibGet = () => { try { const L = (typeof sviSharedGet === "function" ? sviSharedGet("LIB") : {}).L; return Array.isArray(L) ? L : []; } catch (e) { return []; } };
+const sviLibSet = L => { if (typeof sviSharedSet === "function") sviSharedSet("LIB", { L }); };
+const sviLibSig = R => U_(R.act) + "#" + (R.chg || []).map(c => U_(c.des) + "|" + U_(c.u) + "|" + Math.round(Number(c.k || 0) * 1e4) / 1e4 + "|" + Math.round(Number(c.p || 0) * 100) / 100).sort().join(";");
+/* recette ajoutée sans doublon (même activité, mêmes charges, mêmes quantités et prix) : sinon l'usage (désignation, lot) est ajouté à l'existante */
+const sviLibAdd = (L, R) => {
+  const s = sviLibSig(R), x = L.find(y => sviLibSig(y) === s);
+  const mix = (a, b) => [...new Set([...(a || []), ...(b || [])].filter(Boolean))];
+  if (x) { x.des = mix(x.des, R.des); x.lot = mix(x.lot, R.lot); return x; }
+  let nom = U_(R.nom || "RECETTE"), n = 2; while (L.some(y => U_(y.act) === U_(R.act) && U_(y.nom) === nom)) nom = U_(R.nom || "RECETTE") + " (" + n++ + ")";
+  const o = { id: "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...R, nom }; L.push(o); return o;
+};
+/* recettes d'un budget : une par tâche secondaire liée (charges ÷ quantité de ses produits) */
+const sviLibFromBudget = (d, src) => {
+  const nm = (k, id) => { const r = (d[k] || []).find(x => x.id === id); return r ? U_(k === "des" ? r.des : r.v) : ""; };
+  const T = new Map();
+  (d.links || []).forEach(l => { const k = l.lot + "|" + l.sec, t = T.get(k) || { l, prd: new Set(), chg: new Set(), des: new Set() }; (l.prd || []).forEach(x => t.prd.add(x.id)); (l.chg || []).forEach(x => t.chg.add(x.id)); t.des.add(nm("des", l.des)); T.set(k, t); });
+  const out = [];
+  T.forEach(t => {
+    const Q = [...t.prd].reduce((s, id) => { const p = (d.prd || []).find(x => x.id === id); return s + (p ? (insPrdQ(p) || 0) : 0); }, 0);
+    if (!(Q > 0)) return;
+    const chg = [...t.chg].map(id => (d.chg || []).find(x => x.id === id)).filter(r => r && !r.t && Number(String(r.q || 0).replace(",", ".")) > 0)
+      .map(r => ({ des: U_(r.des), u: U_(r.u), k: Number(String(r.q).replace(",", ".")) / Q, p: Number(String(r.p || 0).replace(",", ".")) || 0 }));
+    if (!chg.length) return;
+    const sec = (d.sec || []).find(x => x.id === t.l.sec) || {};
+    out.push({ act: U_(sec.v || ""), nom: [...t.des][0] || "RECETTE", u: U_(sec.u || ""), chg, des: [...t.des], lot: [nm("lot", t.l.lot)], src: src || "", date: new Date().toISOString().slice(0, 10) });
+  });
+  return out;
+};
+
 /* v738 (prompt du 31/10, point 3) : RECETTES des MODALITÉS DE PAIEMENT — chaque échéance (date, montant) ;
    RETENUE DE GARANTIE (taux) déduite de chaque échéance et rendue à sa libération (date, fin d'une tâche, ou fin des travaux + n mois) */
 const sviPayPlan = (d, M, finOf, endAll) => {
