@@ -493,6 +493,19 @@
               /* v478 (remarque 9) : libérer un rond laisse les autres ronds de la chaîne en place */
             }
             L.err = "";
+            /* v735 : avenant — désignation et lot déjà liés dans une étape précédente : la chaîne d'origine (mêmes activités) est proposée */
+            if ((k === "des" || k === "lot") && L.des && L.lot && !L.prim && !L.sec && budget.inst && budget.inst.parent && !budget.inst.virtual) {
+              try {
+                const I = X.INS, d = (I.des || []).find(r => r.id === L.des), lo = (I.lot || []).find(r => r.id === L.lot);
+                const O = d && lo ? sviAvOrigin(budget.inst.ref, d.des, d.u, lo.v) : null;
+                if (O) {
+                  const P = (I.prim || []).find(r => sviAvU(r.v) === O.prim), S = (I.sec || []).find(r => sviAvU(r.v) === O.sec);
+                  const why = P && X.ruleA("prim", P.id) || S && X.ruleA("sec", S.id);
+                  if (P && S && !why) { L.prim = P.id; L.sec = S.id; svToast("CHAÎNE D'ORIGINE (" + O.st + ") PROPOSÉE : " + O.prim + " › " + O.sec + ". LIBÉRER LES RONDS POUR EN CHOISIR UNE AUTRE.", 4500, rd); }
+                  else svToast("CHAÎNE D'ORIGINE (" + O.st + ") : " + O.prim + " › " + O.sec + (why ? " — " + why : " — À CRÉER DANS TÂCHES (MÊMES ACTIVITÉS QUE L'ÉTAPE PRÉCÉDENTE).") , 5000, rd);
+                }
+              } catch (er) {}
+            }
             X.light(k);
           };
           /* le rond ne fait que choisir / libérer ; délier passe par le bouton ✕ DÉLIER */

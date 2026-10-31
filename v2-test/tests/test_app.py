@@ -2338,6 +2338,14 @@ def main():
               "ARCHIVÉ" in a81 and b81 == 0 and c81.count("SCÉNARIO 1") == 1 and r81 == [2, 100, 900, False, 1, "BETON › BETON / COFFRAGE › COFFRAGE", "AVT-1,AVT-1-AV1", 100, False], [a81, b81, c81, r81])
         pg.evaluate(f"() => {{ const X = {ins}; const o = JSON.parse(X.INS.__v0); Object.keys(X.INS).forEach(k => delete X.INS[k]); Object.assign(X.INS, o); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
 
+        # v735 : avenant — chaîne d'origine d'une désignation dans un lot (étape précédente)
+        o735 = pg.evaluate("""() => {
+            const d0 = { des: [{ id: 'd', des: 'BETON B25', u: 'M3' }], lot: [{ id: 'l', v: 'RDC' }], prim: [{ id: 'p', v: 'BETON' }], sec: [{ id: 's', v: 'BETON SEC' }], links: [{ id: 'k', des: 'd', lot: 'l', prim: 'p', sec: 's', prd: [], chg: [] }] };
+            const keep = sviInstGet();
+            sviInstSet(keep.concat([{ ref: 'AVO-1', project: 'AVO', state: 'valide', data: d0 }, { ref: 'AVO-1-AV1', project: 'AVO', state: 'instance', parent: 'AVO-1', avn: 1, data: { des: [], lot: [], links: [] } }]));
+            const a = sviAvOrigin('AVO-1-AV1', 'beton b25', 'm3', 'rdc'), b = sviAvOrigin('AVO-1-AV1', 'BETON B25', 'M3', 'ETAGE'), c = sviAvOrigin('AVO-1', 'BETON B25', 'M3', 'RDC');
+            sviInstSet(keep); return [a && a.prim + ' › ' + a.sec + ' (' + a.st + ')', b, c]; }""")
+        check("v735 : avenant — chaîne d'origine proposée (même désignation, même lot) ; autre lot ou budget initial : rien", o735 == ["BETON › BETON SEC (BUDGET INITIAL)", None, None], o735)
         # v671 (axe 6) : règle des axes ; plan image → ÉCHELLE (10 m), LONGUEUR mesurée, REMPLIR DIM 1 d'un produit
         ax = pg.evaluate("""() => { const s = [...document.querySelectorAll('*')].find(e => e.__axBetween); const f = s.__axBetween;
             return [f('1', '2', ['1', '2']), f('1', '1.1', ['1', '1.1', '2']), f('1.1', '2', ['1', '1.1', '2']), f('B', 'C', ['B', 'C']), f('B1', 'B2', ['B1', 'B2']), f('B1', 'C', ['B', 'B1', 'C'])].join(','); }""")
