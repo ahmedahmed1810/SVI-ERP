@@ -18,18 +18,22 @@
       const cal = insCal();
       const dated = keys.filter(k => dlyDeb(k) && dlyFin(k));
       const end = dated.map(dlyFin).sort().pop() || "";
-      const dur = k => sviWDur(cal, dlyDeb(k), dlyFin(k)) || 1;
+      /* v747 (rapidité) : durées et calculs de dates gardés pendant ce calcul (même calendrier, mêmes résultats) */
+      const DU = new Map(), MW = new Map();
+      const dur = k => { let v = DU.get(k); if (v === undefined) { v = sviWDur(cal, dlyDeb(k), dlyFin(k)) || 1; DU.set(k, v); } return v; };
+      const memo = (t, f) => (a, n) => { const q = t + a + "|" + n; let v = MW.get(q); if (v === undefined) { v = f(a, n); MW.set(q, v); } return v; };
+      const sviWDeb_ = memo("D", (a, n) => sviWDeb(cal, a, n)), sviWAdd_ = memo("A", (a, n) => sviWAdd(cal, a, n));
       const succ = {};
       keys.forEach(k => dlyLinks(k).forEach(l => { (succ[l.k] = succ[l.k] || []).push({ s: k, t: l.t, o: Math.max(0, Number(l.o) || 0) }); }));
       const LS = {};
-      dated.forEach(k => { LS[k] = sviWDeb(cal, end, dur(k)); });
+      dated.forEach(k => { LS[k] = sviWDeb_(end, dur(k)); });
       for (let it = 0; it < dated.length + 2; it++) {
         let ch = false;
         dated.forEach(k => {
-          let ls = sviWDeb(cal, end, dur(k));
+          let ls = sviWDeb_(end, dur(k));
           (succ[k] || []).forEach(x => {
             if (!LS[x.s]) return;
-            const c = x.t === "DD" ? sviWAdd(cal, LS[x.s], -x.o) : sviWDeb(cal, sviWAdd(cal, LS[x.s], -(1 + x.o)), dur(k));
+            const c = x.t === "DD" ? sviWAdd_(LS[x.s], -x.o) : sviWDeb_(sviWAdd_(LS[x.s], -(1 + x.o)), dur(k));
             if (c < ls) ls = c;
           });
           if (ls !== LS[k]) { LS[k] = ls; ch = true; }

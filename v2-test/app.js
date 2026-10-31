@@ -341,13 +341,20 @@ const sviCalOf = d => {
   const c = (d && d.cal) || {};
   return { we: Array.isArray(c.we) ? c.we.slice() : SVI_CAL_DEF.we.slice(), off: (c.off || []).slice(), on: (c.on || []).slice() };
 };
-const sviIsoAdd = (iso, n) => { const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+/* v747 (rapidité) : calculs de dates par numéro de jour (sans objet Date local ni mise en forme à chaque pas) et mémorisés —
+   même résultat que l'ancienne version (gardée ci-dessous pour mémoire : sviIsoAdd0) */
+const SVI_ISO_N = new Map(), SVI_N_ISO = new Map();
+const sviIsoN = iso => { let n = SVI_ISO_N.get(iso); if (n === undefined) { const y = +iso.slice(0, 4), m = +iso.slice(5, 7), d = +iso.slice(8, 10); n = Math.round(Date.UTC(y, m - 1, d) / 86400000); if (SVI_ISO_N.size > 60000) SVI_ISO_N.clear(); SVI_ISO_N.set(iso, n); } return n; };
+const sviNIso = n => { let s = SVI_N_ISO.get(n); if (s === undefined) { const D = new Date(n * 86400000); s = D.getUTCFullYear() + "-" + String(D.getUTCMonth() + 1).padStart(2, "0") + "-" + String(D.getUTCDate()).padStart(2, "0"); if (SVI_N_ISO.size > 60000) SVI_N_ISO.clear(); SVI_N_ISO.set(n, s); } return s; };
+const sviIsoOk = iso => typeof iso === "string" && /^\d{4}-\d{2}-\d{2}$/.test(iso) && sviNIso(sviIsoN(iso)) === iso;   /* date réelle (pas un 31/02) */
+const sviIsoAdd0 = (iso, n) => { const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+const sviIsoAdd = (iso, n) => sviIsoOk(iso) ? sviNIso(sviIsoN(iso) + (Number(n) || 0)) : sviIsoAdd0(iso, n);
 /* jour travaillé ? */
 const sviWork = (cal, iso) => {
   if (!iso) return false;
   if ((cal.on || []).includes(iso)) return true;
   if ((cal.off || []).includes(iso)) return false;
-  return !(cal.we || []).includes(new Date(iso + "T00:00:00").getDay());
+  return !(cal.we || []).includes(sviIsoOk(iso) ? ((sviIsoN(iso) % 7) + 11) % 7 : new Date(iso + "T00:00:00").getDay());   /* 01/01/1970 = jeudi (4) */
 };
 /* premier jour travaillé à partir de iso (sens +1) ou en remontant (sens -1) */
 const sviWNear = (cal, iso, dir = 1) => { let d = iso; for (let i = 0; i < 3700 && !sviWork(cal, d); i++) d = sviIsoAdd(d, dir); return d; };
@@ -11339,18 +11346,22 @@ function renderBudgetList() {
       const cal = insCal();
       const dated = keys.filter(k => dlyDeb(k) && dlyFin(k));
       const end = dated.map(dlyFin).sort().pop() || "";
-      const dur = k => sviWDur(cal, dlyDeb(k), dlyFin(k)) || 1;
+      /* v747 (rapidité) : durées et calculs de dates gardés pendant ce calcul (même calendrier, mêmes résultats) */
+      const DU = new Map(), MW = new Map();
+      const dur = k => { let v = DU.get(k); if (v === undefined) { v = sviWDur(cal, dlyDeb(k), dlyFin(k)) || 1; DU.set(k, v); } return v; };
+      const memo = (t, f) => (a, n) => { const q = t + a + "|" + n; let v = MW.get(q); if (v === undefined) { v = f(a, n); MW.set(q, v); } return v; };
+      const sviWDeb_ = memo("D", (a, n) => sviWDeb(cal, a, n)), sviWAdd_ = memo("A", (a, n) => sviWAdd(cal, a, n));
       const succ = {};
       keys.forEach(k => dlyLinks(k).forEach(l => { (succ[l.k] = succ[l.k] || []).push({ s: k, t: l.t, o: Math.max(0, Number(l.o) || 0) }); }));
       const LS = {};
-      dated.forEach(k => { LS[k] = sviWDeb(cal, end, dur(k)); });
+      dated.forEach(k => { LS[k] = sviWDeb_(end, dur(k)); });
       for (let it = 0; it < dated.length + 2; it++) {
         let ch = false;
         dated.forEach(k => {
-          let ls = sviWDeb(cal, end, dur(k));
+          let ls = sviWDeb_(end, dur(k));
           (succ[k] || []).forEach(x => {
             if (!LS[x.s]) return;
-            const c = x.t === "DD" ? sviWAdd(cal, LS[x.s], -x.o) : sviWDeb(cal, sviWAdd(cal, LS[x.s], -(1 + x.o)), dur(k));
+            const c = x.t === "DD" ? sviWAdd_(LS[x.s], -x.o) : sviWDeb_(sviWAdd_(LS[x.s], -(1 + x.o)), dur(k));
             if (c < ls) ls = c;
           });
           if (ls !== LS[k]) { LS[k] = ls; ch = true; }
