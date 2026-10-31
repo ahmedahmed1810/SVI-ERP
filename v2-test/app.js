@@ -665,11 +665,10 @@ function num(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+/* v743 (rapidité) : un seul format créé une fois (toLocaleString en recréait un à chaque nombre) — même résultat */
+const SVI_MONEY_FMT = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function money(v) {
-  return num(v).toLocaleString("fr-FR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
+  return SVI_MONEY_FMT.format(num(v));
 }
 
 /* v450 : un niveau nommé automatiquement (NIVEAU 2, NIVEAU 2.1…) s'affiche précédé du nom de ses parents (« FONDATION / ») */
@@ -7578,6 +7577,7 @@ function renderBudgetList() {
       }, 60);
     };
     const insSave = () => {
+      shell.__tabGen = (shell.__tabGen || 0) + 1;   /* v743 : toute modification enregistrée = onglets gardés en mémoire périmés */
       if (!INS_REAL) return;   /* v697 : lecture seule au format complet — rien n'est enregistré */
       if (INS_RCL0 && rclDesSig(INS.des) !== INS_RCL0.sig) {
         const on = new Map((INS.des || []).map(r => [r.id, r.on]));
@@ -7826,7 +7826,13 @@ function renderBudgetList() {
     };
     /* v612 (point 7) : produits cochés — une charge est affectée à toute sa tâche ; si une partie seulement des produits de la tâche
        est cochée, la charge compte au prorata de leur quantité (QPB : même unité dans une tâche) ; affichage seulement */
-    const insPrdOn = () => { const on = (INS.prd || []).filter(r => !r.t && r.on === true); return on.length ? new Set(on.map(r => r.id)) : null; };
+    let INS_PON = undefined;   /* v743 : gardé le temps d'un dessin (remis à zéro aussitôt après) */
+    const insPrdOn = () => {
+      if (INS_RGV && INS_PON !== undefined) return INS_PON;   /* seulement pendant le dessin des tableaux (aucune case ne change à ce moment) */
+      const on = (INS.prd || []).filter(r => !r.t && r.on === true), v = on.length ? new Set(on.map(r => r.id)) : null;
+      if (INS_RGV) { INS_PON = v; queueMicrotask(() => { INS_PON = undefined; }); }
+      return v;
+    };
     const insPrdLF = (l, P) => {
       if (!P) return 1;
       let a = 0, t = 0, hit = false;
@@ -8338,6 +8344,17 @@ function renderBudgetList() {
       const blu = stt.has("b") && !stt.has("r"), vio = stt.has("b") && stt.has("r");
       return `<tr class="ins-row ins-grp ins-gtitle ins-pgrp${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir tous les produits">${pstNum(g.length)}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
+    /* v743 (rapidité) : DÉTAIL CHARGES / PRODUITS — seules les premières lignes (un peu plus qu'un écran) sont construites à l'ouverture ;
+       la suite s'ajoute en faisant défiler (insMoreRows), ou d'un coup quand une action doit atteindre une ligne (insMoreAll).
+       items = [nombre de lignes, fonction qui rend le HTML] (un titre de groupe et ses lignes = un seul item, jamais coupé) */
+    const INS_FIRST = 45;
+    const insFirst = (k, items) => {
+      const L = items.filter(Boolean); let n = 0, i = 0;
+      while (i < L.length && n < INS_FIRST) { n += L[i][0]; i++; }
+      if (L.length - i < 8) i = L.length;   /* presque tout : autant tout dessiner */
+      insMore[k] = L.slice(i).map(x => x[1]);
+      return L.slice(0, i).map(x => x[1]()).join("");
+    };
     const insBodyHTML = k => {
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
       const rows = k === "des" ? insShown(k) : lkTop(k, insShown(k));
@@ -8364,28 +8381,30 @@ function renderBudgetList() {
             else g.forEach(x => it.push({ r: x, v: insHT(k, x) / d }));
           });
           it.sort((a, b) => (a.v - b.v) * dir);
-          html = it.map(o => o.g ? insGrpRowHTML(o.g, o.key) : insRowHTML(k, o.r, 0)).join("");
+          html = insFirst(k, it.map(o => o.g ? [1, () => insGrpRowHTML(o.g, o.key)] : [1, () => insRowHTML(k, o.r, 0)]));
         } else
-        html = rows.map(r => {
+        html = insFirst(k, rows.map(r => {
           const key = [U_(r.des), U_(r.u), U_(r.art)].join("|"), g = G.get(key);
-          if (g.length < 2) return insRowHTML(k, r, 0);
-          if (done.has(key)) return "";
+          if (g.length < 2) return [1, () => insRowHTML(k, r, 0)];
+          if (done.has(key)) return null;
           done.add(key);
-          return insGrpRowHTML(g, key) + (CHG_GFOLD.has(key) ? "" : g.map(x => insRowHTML(k, x, 1)).join(""));
-        }).join("");
+          const fo = CHG_GFOLD.has(key);
+          return [fo ? 1 : g.length + 1, () => insGrpRowHTML(g, key) + (fo ? "" : g.map(x => insRowHTML(k, x, 1)).join(""))];
+        }));
       } else if (k === "prd") {
         insMore[k] = [];
         const kOf = r => "P|" + U_(r.des);
         const G = new Map();
         rows.forEach(r => { const key = kOf(r); if (!G.has(key)) G.set(key, []); G.get(key).push(r); });
         const done = new Set();
-        html = rows.map(r => {
+        html = insFirst(k, rows.map(r => {
           const key = kOf(r), g = G.get(key);
-          if (g.length < 2 || !U_(r.des)) return insRowHTML(k, r, 0);
-          if (done.has(key)) return "";
+          if (g.length < 2 || !U_(r.des)) return [1, () => insRowHTML(k, r, 0)];
+          if (done.has(key)) return null;
           done.add(key);
-          return insPrdGrpRowHTML(g, key) + (CHG_GFOLD.has(key) ? "" : g.map(x => insRowHTML(k, x, 1)).join(""));
-        }).join("");
+          const fo = CHG_GFOLD.has(key);
+          return [fo ? 1 : g.length + 1, () => insPrdGrpRowHTML(g, key) + (fo ? "" : g.map(x => insRowHTML(k, x, 1)).join(""))];
+        }));
       } else if (k !== "des") {
         const first = rows.length > INS_CHUNK * 1.5 ? rows.slice(0, INS_CHUNK) : rows;
         insMore[k] = rows.slice(first.length);
@@ -9042,14 +9061,17 @@ function renderBudgetList() {
       const rest = insMore[k];
       const tb = $("bdgTabBody")?.querySelector(`table.ins-table[data-ik="${k}"] tbody`);
       if (!rest || !rest.length || !tb) return;
-      const part = rest.splice(0, INS_CHUNK * 2);
+      const part = rest.splice(0, typeof rest[0] === "function" ? 40 : INS_CHUNK * 2);
       LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
       const tmp = document.createElement("tbody");
-      tmp.innerHTML = part.map(r => insRowHTML(k, r, 0)).join("");
+      tmp.innerHTML = (k === "chg" || k === "prd") ? insRgView(() => part.map(r => typeof r === "function" ? r() : insRowHTML(k, r, 0)).join("")) : part.map(r => typeof r === "function" ? r() : insRowHTML(k, r, 0)).join("");
       const before = tb.querySelector("tr.ins-new");
       [...tmp.children].forEach(tr => tb.insertBefore(tr, before));
       insMarkUnlinked();
     };
+    /* v743 : toutes les lignes restantes d'un tableau (avant d'aller à une ligne, de tout cocher à l'écran, etc.) */
+    const insMoreAll = k => { const K = k ? [k] : Object.keys(insMore); K.forEach(x => { let g = 0; while (insMore[x] && insMore[x].length && g++ < 999) insMoreRows(x); }); };
+    shell.__insMoreAll = insMoreAll;
     if (!shell.__moreBound) {
       shell.__moreBound = true;
       shell.addEventListener("scroll", e => {
@@ -9546,7 +9568,7 @@ function renderBudgetList() {
     shell.__unl = INS ? { INS, save: () => insSave(), refresh: () => refreshAll(),
       /* toucher une ligne : l'écran va à la ligne dans son bloc, encadrée un instant */
       go: (k, id) => {
-        const find = () => shell.querySelector(`[data-ik="${k}"][data-iid="${id}"]`);
+        const find = () => shell.querySelector(`[data-ik="${k}"][data-iid="${id}"]`) || (shell.__insMoreAll && shell.__insMoreAll(), shell.querySelector(`[data-ik="${k}"][data-iid="${id}"]`));
         const show = () => {
           const el = find();
           if (!el) { svToast("LIGNE CACHÉE (TITRE REPLIÉ OU FILTRE) : DÉPLIER OU EFFACER LE FILTRE."); return; }
@@ -10387,7 +10409,30 @@ function renderBudgetList() {
       ICL = null; refreshAll();
       svToast("FILTRES ET CASES COCHÉES DU BLOC EFFACÉS.", 2000);
     };
+    /* v743 (rapidité) : DÉTAIL CHARGES / PRODUITS gardés en mémoire quand on change d'onglet — revenir sur un onglet sans aucune
+       autre action entre-temps (saisie, case, rond, loupe, enregistrement…) le remet tel quel, sans le redessiner */
+    const TABC = {};
+    if (!shell.__tabGenB) {
+      shell.__tabGenB = true; shell.__tabGen = 0;
+      const bump = e => { if (e && e.target && e.target.closest && e.target.closest("#bdgTabs .bdg-d-tab[data-tab]")) return; shell.__tabGen++; };
+      ["pointerdown", "keydown", "input", "change", "paste", "drop"].forEach(t => document.addEventListener(t, bump, true));
+    }
+    const tabStash = () => {
+      const k = shell.__tabCur;
+      if (!k || k === active || !["chg", "prd"].includes(k) || !body.firstChild) return;
+      const sc = body.querySelector(".bdg-d-scroll");
+      TABC[k] = { gen: shell.__tabGen, w: body.clientWidth, nodes: [...body.childNodes], more: insMore[k], st: sc ? sc.scrollTop : 0, sl: sc ? sc.scrollLeft : 0, ls: lastShown.detail };
+    };
+    const tabReuse = () => {
+      const C = TABC[active]; delete TABC[active];
+      if (!C || C.gen !== shell.__tabGen || C.w !== body.clientWidth) return false;
+      body.replaceChildren(...C.nodes); insMore[active] = C.more; lastShown.detail = C.ls;
+      const sc = body.querySelector(".bdg-d-scroll"); if (sc) { sc.scrollTop = C.st; sc.scrollLeft = C.sl; }
+      shell.__insMore = () => insMoreRows(active);
+      return true;
+    };
     const insRenderTab = () => {
+      tabStash(); shell.__tabCur = active;
       { const tl = document.querySelector("#bdgTabs > .blk-tools");
         if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (active === "chg" || active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(active)); } }
       ["chg", "prd"].forEach(k => {
@@ -10457,6 +10502,7 @@ function renderBudgetList() {
       if (active === "lnk") { body.innerHTML = `${shell.__ibdHTML ? shell.__ibdHTML() : ""}<div class="bdg-d-scroll">${insRgView(xplHTML)}</div>`; return; }
       if (active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
       if (active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
+      if (tabReuse()) { insMarkUnlinked(); return; }
       if (active === "prd" && shell.__prdSyncU) shell.__prdSyncU();
       /* v568 (remarque 11) : DÉTAIL PRODUITS réduit aux tâches sans charge (depuis À COMPLÉTER) — bandeau jaune et TOUT AFFICHER */
       const ncB = active === "prd" && shell.__prdNc ? `<div class="dly-iso prd-nc"><span><b>TÂCHES SANS CHARGE</b></span><small>PRODUITS DES TÂCHES QUI N'ONT AUCUNE CHARGE</small><button type="button" class="dly-iso-x prd-nc-x">TOUT AFFICHER</button></div>` : "";
@@ -10951,7 +10997,7 @@ function renderBudgetList() {
         const t = shell.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${b.go}"]`);
         if (t) { t.click(); t.scrollIntoView({ block: "start", behavior: "smooth" }); }
         /* v581 : première ligne en erreur du bloc */
-        if (b.first) setTimeout(() => { const tr = shell.querySelector(`#bdgTabBody tr[data-iid="${b.first}"]`); if (!tr) return; tr.scrollIntoView({ block: "center", behavior: "smooth" }); tr.classList.add("fz-flash"); setTimeout(() => tr.classList.remove("fz-flash"), 1800); }, 80);
+        if (b.first) setTimeout(() => { if (!shell.querySelector(`#bdgTabBody tr[data-iid="${b.first}"]`) && shell.__insMoreAll) shell.__insMoreAll(); const tr = shell.querySelector(`#bdgTabBody tr[data-iid="${b.first}"]`); if (!tr) return; tr.scrollIntoView({ block: "center", behavior: "smooth" }); tr.classList.add("fz-flash"); setTimeout(() => tr.classList.remove("fz-flash"), 1800); }, 80);
     };
 /* ⟪ src/16-a-completer.js ⟫ */
     /* ===== ⚠ À COMPLÉTER (v457) : tout ce qui manque, bloquant ou non ; toucher une ligne y mène ===== */
@@ -16401,6 +16447,7 @@ ${A}</Assignments>
           p.remove(); window.__sviInfoRefresh = null;
           const k = g.dataset.gk, id = g.dataset.gid;
           const go = () => {
+            if (!["des", "lot", "prim", "sec"].includes(k) && !shell.querySelector(`#bdgTabBody tr[data-iid="${CSS.escape(id)}"]`) && shell.__insMoreAll) shell.__insMoreAll();
             const el = k === "des" ? shell.querySelector(`#bdgClientBody tr[data-iid="${CSS.escape(id)}"]`)
               : ["lot", "prim", "sec"].includes(k) ? shell.querySelector(`.ins-hcol[data-ik="${k}"] .ins-li[data-iid="${CSS.escape(id)}"]`)
               : shell.querySelector(`#bdgTabBody tr[data-iid="${CSS.escape(id)}"]`);
@@ -26032,6 +26079,7 @@ ${A}</Assignments>
         return { label, vals: items.map(x => (x.querySelector(".ins-in")?.value ?? x.textContent ?? "").trim()), edit: false };
       }
       const tb = th.closest("table"), idx = [...th.parentElement.children].indexOf(th), n = th.parentElement.children.length;
+      if (shell.__insMoreAll && ["chg", "prd"].includes(tb.dataset.ik)) shell.__insMoreAll(tb.dataset.ik);   /* v743 : toutes les lignes dessinées avant de copier / coller une colonne */
       let trs = [...tb.querySelectorAll("tbody tr")].filter(tr => tr.children.length === n && !tr.classList.contains("ins-new") && !tr.classList.contains("bdg-d-filler"));
       /* COLLER : toutes les lignes affichées, titres compris, dans l'ordre de l'écran (une ligne = une cellule) */
       const seenI = new Set();

@@ -744,7 +744,30 @@
       ICL = null; refreshAll();
       svToast("FILTRES ET CASES COCHÉES DU BLOC EFFACÉS.", 2000);
     };
+    /* v743 (rapidité) : DÉTAIL CHARGES / PRODUITS gardés en mémoire quand on change d'onglet — revenir sur un onglet sans aucune
+       autre action entre-temps (saisie, case, rond, loupe, enregistrement…) le remet tel quel, sans le redessiner */
+    const TABC = {};
+    if (!shell.__tabGenB) {
+      shell.__tabGenB = true; shell.__tabGen = 0;
+      const bump = e => { if (e && e.target && e.target.closest && e.target.closest("#bdgTabs .bdg-d-tab[data-tab]")) return; shell.__tabGen++; };
+      ["pointerdown", "keydown", "input", "change", "paste", "drop"].forEach(t => document.addEventListener(t, bump, true));
+    }
+    const tabStash = () => {
+      const k = shell.__tabCur;
+      if (!k || k === active || !["chg", "prd"].includes(k) || !body.firstChild) return;
+      const sc = body.querySelector(".bdg-d-scroll");
+      TABC[k] = { gen: shell.__tabGen, w: body.clientWidth, nodes: [...body.childNodes], more: insMore[k], st: sc ? sc.scrollTop : 0, sl: sc ? sc.scrollLeft : 0, ls: lastShown.detail };
+    };
+    const tabReuse = () => {
+      const C = TABC[active]; delete TABC[active];
+      if (!C || C.gen !== shell.__tabGen || C.w !== body.clientWidth) return false;
+      body.replaceChildren(...C.nodes); insMore[active] = C.more; lastShown.detail = C.ls;
+      const sc = body.querySelector(".bdg-d-scroll"); if (sc) { sc.scrollTop = C.st; sc.scrollLeft = C.sl; }
+      shell.__insMore = () => insMoreRows(active);
+      return true;
+    };
     const insRenderTab = () => {
+      tabStash(); shell.__tabCur = active;
       { const tl = document.querySelector("#bdgTabs > .blk-tools");
         if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (active === "chg" || active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(active)); } }
       ["chg", "prd"].forEach(k => {
@@ -814,6 +837,7 @@
       if (active === "lnk") { body.innerHTML = `${shell.__ibdHTML ? shell.__ibdHTML() : ""}<div class="bdg-d-scroll">${insRgView(xplHTML)}</div>`; return; }
       if (active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
       if (active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
+      if (tabReuse()) { insMarkUnlinked(); return; }
       if (active === "prd" && shell.__prdSyncU) shell.__prdSyncU();
       /* v568 (remarque 11) : DÉTAIL PRODUITS réduit aux tâches sans charge (depuis À COMPLÉTER) — bandeau jaune et TOUT AFFICHER */
       const ncB = active === "prd" && shell.__prdNc ? `<div class="dly-iso prd-nc"><span><b>TÂCHES SANS CHARGE</b></span><small>PRODUITS DES TÂCHES QUI N'ONT AUCUNE CHARGE</small><button type="button" class="dly-iso-x prd-nc-x">TOUT AFFICHER</button></div>` : "";
@@ -1308,5 +1332,5 @@
         const t = shell.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${b.go}"]`);
         if (t) { t.click(); t.scrollIntoView({ block: "start", behavior: "smooth" }); }
         /* v581 : première ligne en erreur du bloc */
-        if (b.first) setTimeout(() => { const tr = shell.querySelector(`#bdgTabBody tr[data-iid="${b.first}"]`); if (!tr) return; tr.scrollIntoView({ block: "center", behavior: "smooth" }); tr.classList.add("fz-flash"); setTimeout(() => tr.classList.remove("fz-flash"), 1800); }, 80);
+        if (b.first) setTimeout(() => { if (!shell.querySelector(`#bdgTabBody tr[data-iid="${b.first}"]`) && shell.__insMoreAll) shell.__insMoreAll(); const tr = shell.querySelector(`#bdgTabBody tr[data-iid="${b.first}"]`); if (!tr) return; tr.scrollIntoView({ block: "center", behavior: "smooth" }); tr.classList.add("fz-flash"); setTimeout(() => tr.classList.remove("fz-flash"), 1800); }, 80);
     };

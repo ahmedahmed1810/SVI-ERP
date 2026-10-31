@@ -784,6 +784,7 @@
           p.remove(); window.__sviInfoRefresh = null;
           const k = g.dataset.gk, id = g.dataset.gid;
           const go = () => {
+            if (!["des", "lot", "prim", "sec"].includes(k) && !shell.querySelector(`#bdgTabBody tr[data-iid="${CSS.escape(id)}"]`) && shell.__insMoreAll) shell.__insMoreAll();
             const el = k === "des" ? shell.querySelector(`#bdgClientBody tr[data-iid="${CSS.escape(id)}"]`)
               : ["lot", "prim", "sec"].includes(k) ? shell.querySelector(`.ins-hcol[data-ik="${k}"] .ins-li[data-iid="${CSS.escape(id)}"]`)
               : shell.querySelector(`#bdgTabBody tr[data-iid="${CSS.escape(id)}"]`);

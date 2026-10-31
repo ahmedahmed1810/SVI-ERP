@@ -2477,6 +2477,16 @@ def main():
             const ch = condChuteRow(I, r), b = one(); const K = JSON.parse(keep); if (K) I.cond = K; else delete I.cond;
             return [ch > 0, Math.abs(b - a - ch * Number(r.p || 0)) < 0.01]; }}""")
         check("v732 : chute comptée une fois dans l'indicateur CHARGES", c732 in ([True, True], "pas de charge"), c732)
+        # v743 : rapidité — DÉTAIL CHARGES dessiné par morceaux (premières lignes, la suite au défilement ou d'un coup) ; onglet gardé en mémoire
+        r743 = pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS, n0 = I.chg.length; for (let i = 0; i < 150; i++) I.chg.push({{ id: 'pz' + i, des: 'ESSAI ' + i, u: 'U', q: 1, p: 1 }});
+            X.insSave(); document.querySelector('.bdg-d-tab[data-tab="chg"]')?.click();
+            const cnt = () => document.querySelectorAll('#bdgTabBody table.ins-table[data-ik="chg"] tbody tr[data-iid^="pz"]').length;
+            const a = cnt(); const sh = [...document.querySelectorAll('*')].find(e => e.__insMoreAll); sh && sh.__insMoreAll('chg'); const b = cnt();
+            const tb = document.querySelector('#bdgTabBody table.ins-table[data-ik="chg"]');
+            document.querySelector('.bdg-d-tab[data-tab="prd"]')?.click(); document.querySelector('.bdg-d-tab[data-tab="chg"]')?.click();
+            const same = document.querySelector('#bdgTabBody table.ins-table[data-ik="chg"]') === tb;
+            I.chg.splice(n0); X.insSave(); X.refreshAll(); return [a < 150, b, same]; }}""")
+        check("v743 : DÉTAIL CHARGES dessiné par morceaux (tout d'un coup si besoin : 150 lignes) ; onglet repris tel quel au retour", r743 == [True, 150, True], r743)
         # v740 : CUMUL — budgets additionnés : lots sous la référence, tâches séparées, calendrier de chaque budget, désignations sous un titre par budget
         t740 = pg.evaluate("""() => { const mk = (we) => ({ cal: { we }, des: [{ id: 'd', des: 'BETON', u: 'M3', art: '1' }], lot: [{ id: 'l', v: 'RDC' }], sec: [{ id: 's', v: 'BETONNAGE' }], prim: [{ id: 'p', v: 'BETONNAGE' }],
               prd: [], chg: [], links: [{ id: 'k', des: 'd', lot: 'l', prim: 'p', sec: 's', prd: [], chg: [] }], dlp: { 'l|s': [{ deb: '2026-11-02', fin: '2026-11-06' }] }, dlpSec: true });
