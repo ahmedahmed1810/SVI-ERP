@@ -342,6 +342,20 @@ def main():
         pg.evaluate("() => document.querySelector('.ins-hcol[data-ik=\"lot\"] .ins-li[data-iid=\"l1\"] .lk-rd')?.click()"); pg.wait_for_timeout(300)
         # v528 (remarque 3) : la liste des lots garde désormais son ordre quand on choisit un lot
         check("remarque 59 → v528 : lot choisi, la liste des lots garde son ordre", bool(o59) and o59.index("l1") > o59.index("l2"), o59)
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(800)
+        # v734 : GÉNÉRER / COMPRESSER visent la DATE OBJECTIF — capacité proposée (MAÇON 2 → 4), APPLIQUER = fin à l'objectif
+        c734 = pg.evaluate("""async () => { const X = INS_X, I = X.INS, DX = DXJ_, w = ms => new Promise(z => setTimeout(z, ms));
+            const keep = JSON.stringify(I); ['dbut', 'hrange', 'chgPar', 'mgPar', 'dlim', 'dcut', 'inc', 'dinc', 'plaf', 'plafs', 'cmd', 'appro', 'dord'].forEach(x => delete I[x]); I.chg.forEach(r => { delete r.on; }); (I.prd || []).forEach(r => { delete r.on; });
+            const L = I.links[0], k = L.lot + '|' + L.sec;
+            I.chg = I.chg.concat([{ id: 'mo734', des: 'MACON 734', u: 'JH', q: 20, p: 200 }]); I.links = [{ ...L, chg: (L.chg || []).concat([{ id: 'mo734' }]) }]; I.dpred = {};
+            I.gdeb = '2026-11-02'; I.dlp = { [k]: [{ id: 'p734', deb: '2026-11-02', fin: '2026-11-03' }] }; I.plafR = { 'MACON 734|J-H': { plaf: 2 } }; I.dobj = '2026-11-06';
+            X.insSave(); X.refreshAll(); await w(400); DX.comp(); await w(500);
+            const d = document.getElementById('svConf'), t = d ? d.innerText.replace(/\\s+/g, ' ') : '';
+            d && d.querySelector('[data-objok]') && d.querySelector('[data-objok]').click(); await w(500);
+            const r = [/DATE OBJECTIF/.test(t), /OBJECTIF ATTEINT/.test(t), String((I.plafR['MACON 734|J-H'] || {}).plaf), ((I.dlp[k] || [])[0] || {}).fin];
+            document.getElementById('svConf')?.remove(); const K = JSON.parse(keep); Object.keys(I).forEach(x => { if (!(x in K)) delete I[x]; }); Object.assign(I, K); X.insSave(); X.refreshAll(); return r; }""".replace("DXJ_", "[...document.querySelectorAll('*')].find(e => e.__insDly).__insDly").replace("INS_X", ins))
+        check("v734 : DATE OBJECTIF visée — capacité proposée 2 → 4, APPLIQUER = fin le 06/11/2026", c734 == [True, True, "4", "2026-11-06"], c734)
+        pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(400)
         # remarque 70 : condition sur une colonne de nombres (QCB > 3,5)
         pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"chg\"]'); t && t.click(); }"); pg.wait_for_timeout(300)
         pg.evaluate("() => document.querySelector('.cf-btn[data-cf=\"chg\"][data-col=\"qty\"]')?.click()"); pg.wait_for_timeout(300)

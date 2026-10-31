@@ -15188,8 +15188,46 @@ ${A}</Assignments>
       if (opts.live) return P.D;
       { const late = dlyLockLate(); if (late.length) svToast("VERROU FIN DÉPASSÉ : " + late.map(dlyName).join(", ") + ".", 6000, opts.anchor); }   /* v667 (axe 8) */
       if (INS.dbut && f1 > INS.dbut) svToast(DLY_BUT_MSG + " (FIN LE " + dFr(f1) + ", BUTOIR LE " + dFr(INS.dbut) + ").", 5000, opts.anchor);
-      else if (INS.dobj && f1 > INS.dobj) svToast("FIN LE " + dFr(f1) + " : APRÈS LA DATE OBJECTIF (" + dFr(INS.dobj) + "), AVANT LA BUTOIR.", 5000, opts.anchor);   /* v715 */
+      else if (INS.dobj && f1 > INS.dobj && opts.plaf === undefined && !opts.noObj) setTimeout(() => dlyObjWin(f1, opts.anchor), 60);   /* v734 : DATE OBJECTIF visée */
       return P.D;
+    };
+    /* v734 : GÉNÉRER / COMPRESSER visent la DATE OBJECTIF — fin après l'objectif : capacités de main-d'œuvre augmentées une à une
+       (sur un calcul à blanc, la plus utile d'abord) jusqu'à finir à l'objectif ; proposées dans une fenêtre, rien n'est changé sans APPLIQUER */
+    const dlyObjTry = end => {
+      const R = INS.plafR || {}, ks = Object.keys(R).filter(gk => !dlyGM(gk) && dlyCapV(R[gk].plaf) >= 1);
+      if (!ks.length) return { end, best: end, add: {} };
+      const save = Object.fromEntries(ks.map(k => [k, R[k].plaf])), add = {};
+      const endOf = () => { try { return dlyEnd(dlyPlanCompute({}).D); } catch (e) { return null; } };
+      let best = end;
+      try {
+        for (let it = 0; it < 20 && best > INS.dobj; it++) {
+          let pick = null, pe = best;
+          ks.forEach(k => { R[k].plaf = Number(save[k]) + (add[k] || 0) + 1; const e = endOf(); R[k].plaf = Number(save[k]) + (add[k] || 0); if (e && e < pe) { pe = e; pick = k; } });
+          if (!pick) break;
+          add[pick] = (add[pick] || 0) + 1; R[pick].plaf = Number(save[pick]) + add[pick]; best = pe;
+        }
+      } finally { ks.forEach(k => { R[k].plaf = save[k]; }); }
+      return { end, best, add, save };
+    };
+    const dlyObjWin = (end, anchor) => {
+      if (!INS.dobj || !end || end <= INS.dobj) return;
+      const T = dlyObjTry(end), ks = Object.keys(T.add);
+      if (!ks.length) { svToast("FIN LE " + dFr(end) + " : APRÈS LA DATE OBJECTIF (" + dFr(INS.dobj) + "). AUCUNE CAPACITÉ À AUGMENTER NE LA RAPPROCHE : CE SONT LES LIAISONS ET LES DURÉES QUI LA FIXENT.", 6000, anchor); return; }
+      const ok = T.best <= INS.dobj, d = sviWinNew();
+      d.innerHTML = sviWinCard({ cls: "hcf-card", close: "data-x", title: "DATE OBJECTIF",
+        body: `<div class="hcf-note">FIN DU PLANNING LE ${esc(dFr(end))}, APRÈS LA DATE OBJECTIF DU ${esc(dFr(INS.dobj))}. ${ok ? "POUR FINIR À L'OBJECTIF, IL FAUT :" : "OBJECTIF HORS D'ATTEINTE PAR LES SEULES CAPACITÉS ; LE MIEUX POSSIBLE :"}</div>
+          <table class="apr-t gc-t"><tr><th>CHARGE</th><th class="center">CAPACITÉ ACTUELLE</th><th class="center">CAPACITÉ PROPOSÉE</th></tr>${ks.map(k => `<tr><td>${esc(dlyGName(k))}</td><td class="center">${esc(String(T.save[k]))}</td><td class="center"><b>${Number(T.save[k]) + T.add[k]}</b></td></tr>`).join("")}</table>
+          <div class="hcf-note">FIN AVEC CES CAPACITÉS : <b>${esc(dFr(T.best))}</b>${ok ? " (OBJECTIF ATTEINT)" : ""}.</div>`,
+        foot: `<button type="button" class="svc-b" data-x>GARDER</button>${INS_EDIT ? `<button type="button" class="svc-b svc-ok svc-neutral" data-objok>APPLIQUER LES CAPACITÉS</button>` : ""}` });
+      sviWinShow(d);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        if (!e.target.closest("[data-objok]")) return;
+        d.remove();
+        const R = INS.plafR || {}; ks.forEach(k => { R[k].plaf = Number(T.save[k]) + T.add[k]; });
+        histLog("DÉLAIS", "DATE OBJECTIF", "CAPACITÉS : " + ks.map(k => dlyGName(k) + " " + T.save[k] + " → " + R[k].plaf).join(", "));
+        dlyCompressRun({ noObj: true, anchor });
+      });
     };
     /* v570 (remarque longue 1) : une seule commande ↻ = fenêtre GÉNÉRER / COMPRESSER — deux cases et la liste des CAPACITÉS
        (une ligne par charge de main-d'œuvre ; vide = sans limite ; la même valeur que le trait CAPACITÉ du graphique) */
