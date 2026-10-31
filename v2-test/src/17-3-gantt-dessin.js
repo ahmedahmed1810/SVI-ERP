@@ -1,3 +1,10 @@
+    /* v748 : jours utilisés pour l'ajustement à l'écran (premier et dernier jour non nul, ou plage DÉBUT – FIN posée) */
+    const dlyFitDates = (HD, R) => {
+      const fNz = new Set(); if (HD) [HD.tot, HD.prd, HD.cmd && HD.cmd.L, HD.cmd && HD.cmd.P].forEach(M => M && Object.keys(M).forEach(k => { if (Math.abs(M[k] || 0) > 1e-9) fNz.add(k); }));
+      const rg = dlyHRange(), fT = R.filter(x => !x.grp), fDd = [...fNz].concat(fT.map(x => x.deb), fT.map(x => x.fin)).filter(Boolean).sort();
+      const a = rg.a || fDd[0], b = rg.b || fDd[fDd.length - 1];
+      return { rg, a, b, sig: (a || "") + "|" + (b || "") };
+    };
     const dlyGanttDraw = () => {
       sviStep("PLANNING : DESSIN");
       const host = shell.querySelector("#dlyGantt");
@@ -119,6 +126,22 @@
       const nD = dDiff(d0, dE) + 1;
       DLY_FILL = Math.floor((host.clientWidth || 600) / nD * 1000) / 1000;   /* v559 : non arrondi — FIN pile au bord droit */
       DLY_DW = dlyDwGet();
+      /* v748 : ajustement à l'écran calculé AVANT le dessin (même règle que v628 / v639 plus bas) — un seul dessin à l'ouverture au lieu de deux */
+      let fitSl = null;
+      {
+        const fz = dlyFitDates(HD, R), sigNew = !shell.__dlyXF && !shell.__dlyNoFit && shell.__dlyFitSig !== undefined && shell.__dlyFitSig !== fz.sig;
+        if ((shell.__dlyCenter || shell.__dlyGx === undefined || sigNew) && HD && !shell.__dlyNoFit && (!!shell.__dlyCenter || !shell.__dlyFitOnce || sigNew) && fz.a && fz.b && !shell.__dlyFitting) {
+          const r = host.getBoundingClientRect(), vw = Math.min(host.clientWidth, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0));
+          const n = Math.max(1, dDiff(fz.a, fz.b) + 1), mg = fz.rg.a || fz.rg.b ? 60 : 12;
+          const w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n)) * 10) / 10));
+          if (vw > 60 && Math.abs(w - DLY_DW) >= 0.05) {
+            try { localStorage.setItem(DLY_SC[dlyScale()].k, DLY_FILL && w <= DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}
+            DLY_DW = w;
+            /* même défilement qu'avant (dlyDwSet) : premier jour utilisé à la marge, plage centrée si elle tient */
+            fitSl = Math.max(0, dDiff(d0, fz.a) * w - (mg + Math.max(0, (vw - 2 * mg - n * w) / 2)));
+          }
+        }
+      }
       host.style.setProperty("--dw", DLY_DW + "px");
       const W = nD * DLY_DW;
       const d1 = sviIsoAdd(d0, nD - 1);
@@ -278,9 +301,7 @@
          la partie qui a des valeurs (du premier au dernier jour non nul) est centrée à l'écran ; plus large que l'écran : son début */
       /* v639 : jours utilisés avec les filtres en cours — s'ils changent (case, loupe, ISOLER, DÉBUT / FIN, EFFACER…), nouvel ajustement ;
          pas pendant un filtre du jour (l'écran reste sur le jour) ; le zoom au doigt est gardé jusqu'au changement suivant */
-      const fNz = new Set(); if (HD) [HD.tot, HD.prd, HD.cmd && HD.cmd.L, HD.cmd && HD.cmd.P].forEach(M => M && Object.keys(M).forEach(k => { if (Math.abs(M[k] || 0) > 1e-9) fNz.add(k); }));
-      const fRg = dlyHRange(), fT = R.filter(x => !x.grp), fDd = [...fNz].concat(fT.map(x => x.deb), fT.map(x => x.fin)).filter(Boolean).sort();
-      const fA = fRg.a || fDd[0], fB = fRg.b || fDd[fDd.length - 1], fitSig = (fA || "") + "|" + (fB || "");
+      const fz0 = dlyFitDates(HD, R), fRg = fz0.rg, fA = fz0.a, fB = fz0.b, fitSig = fz0.sig;
       const sigNew = !shell.__dlyXF && !shell.__dlyNoFit && shell.__dlyFitSig !== undefined && shell.__dlyFitSig !== fitSig;
       if (!shell.__dlyXF && !shell.__dlyNoFit) shell.__dlyFitSig = fitSig;
       if ((shell.__dlyCenter || shell.__dlyGx === undefined || sigNew) && HD && !shell.__dlyNoFit) {
@@ -304,7 +325,7 @@
         /* v639 : plage utilisée (avec DÉBUT / FIN) centrée, même sans changement de zoom ; v653 : marge de 60 px quand DÉBUT / FIN sont posés (étiquettes entières) */
         if (fA && fB) { const x1 = X(fA), x2 = X(fB) + DLY_DW, w = host.clientWidth;
           const t = x2 - x1 <= w ? (x1 + x2) / 2 - w / 2 : x1 - 2 * DLY_DW;
-          host.scrollLeft = Math.max(0, Math.min(host.scrollWidth - w, t)); shell.__dlyGx = host.scrollLeft; shell.__dlyFitT = performance.now(); }
+          host.scrollLeft = fitSl !== null ? fitSl : Math.max(0, Math.min(host.scrollWidth - w, t)); shell.__dlyGx = host.scrollLeft; shell.__dlyFitT = performance.now(); }
       }
       host.addEventListener("scroll", () => { shell.__dlyGx = host.scrollLeft; dlyRngEdge(); }, { passive: true });   /* v657 : DÉBUT / FIN au repos suivent toujours le bord visible (après un ajustement aussi) */
       dlyStick(host.closest(".bdg-d-scroll, .lk-scroll"));

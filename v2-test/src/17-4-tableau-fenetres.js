@@ -70,6 +70,32 @@
       return `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${esc(x.key)}" data-pid="${esc(p.id || "")}" data-f="${f}" type="text"
         ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${nw && f !== "dur" ? "SAISIR ICI…" : ""}" value="${esc(f === "dur" ? (x.dur || (shell.__dlyPendDur || {})[x.key] || "") : dFr(x[f]))}">`;
     };
+    /* v748 (rapidité) : lignes du PLANNING ajoutées après le premier affichage (première ouverture d'un gros planning seulement) */
+    const DLY_FIRST = 60, DLY_FIRST_MAX = 90;
+    const dlyFillRest = () => {
+      const rest = shell.__dlyRest; shell.__dlyRest = null; clearTimeout(shell.__dlyFillT);
+      if (!rest || !rest.length) return false;
+      const tb = shell.querySelector(".dlyg-l table.dly-table > tbody"), host = shell.querySelector("#dlyGantt");
+      if (!tb || !host) return false;
+      const tmp = document.createElement("tbody"); tmp.innerHTML = rest.join("");
+      tb.append(...tmp.children);
+      tb.querySelectorAll("input.dlyp-cb[data-part]").forEach(c => { c.indeterminate = true; });
+      /* un seul nouveau dessin du Gantt, avec toutes les lignes (barres, liaisons, hauteur) */
+      host.__drawn = false; dlyGanttDraw();
+      return true;
+    };
+    shell.__dlyFillRest = dlyFillRest;
+    const dlyFillSoon = () => {
+      clearTimeout(shell.__dlyFillT);
+      /* après l'affichage des premières lignes (deux images plus tard) */
+      requestAnimationFrame(() => requestAnimationFrame(() => { shell.__dlyFillT = setTimeout(() => { try { dlyFillRest(); } catch (e) {} }, 0); }));
+      if (!shell.__dlyFillBound) {
+        shell.__dlyFillBound = true;
+        /* toucher ou touche avant la fin : toutes les lignes d'abord, pour que le geste trouve sa ligne */
+        const now = e => { if (shell.__dlyRest && !(e.target && e.target.closest && e.target.closest("#dlyGantt"))) { try { dlyFillRest(); } catch (err) {} } };
+        shell.addEventListener("pointerdown", now, true); document.addEventListener("keydown", now, true);
+      }
+    };
     const insDlyHTML = (edit, err) => {
       INS.dlp = INS.dlp || {};
       if (edit) {
@@ -88,6 +114,8 @@
           const PR = dlyPlanRows();
           shell.__dlyRows = PR.rows;
           lastShown.detail = { cols: DLY_COLS_P, rows: PR.flat, kind: "dly" };
+          /* v748 : hauteur des lignes posée avant l'affichage du tableau (posée au dessin, elle refaisait le style de toute la page) */
+          dlyRhApply(dlyRhGet());
           requestAnimationFrame(() => dlyGanttDraw());
           const ind = n => `style="padding-left:${6 + n * 20}px"`;
           /* v538 : lots du PLANNING = mêmes ronds que les lots du bloc TÂCHES — un lot : son rond (le choisir) ;
@@ -109,6 +137,10 @@
           const newIn = (f, lid) => `<input class="dly-newin" data-f="${f}" list="${lid}" placeholder="${f === "lot" ? "CRÉER UNE TÂCHE ICI…" : ""}" autocomplete="off" enterkeyhint="next">`;
           /* v666 (axe 8) : en-tête BATTEMENT TOTAL ou LIBRE selon PARAMÉTRAGE DU PLANNING */
           { const cm = DLY_COLS_P.find(c => c[0] === "marge"); if (cm) cm[1] = dlyPP().bt === "l" ? "BATTEMENT LIBRE" : "BATTEMENT TOTAL"; }
+          /* v748 (rapidité) : première ouverture du PLANNING dans ce budget — un gros planning n'affiche d'abord que ses premières lignes ;
+             les autres sont ajoutées juste après l'affichage (dlyFillRest), ou aussitôt au premier toucher / à la première touche */
+          const cutO = shell.__dlyFullOnce ? null : { cut: { first: DLY_FIRST, max: DLY_FIRST_MAX } };
+          shell.__dlyFullOnce = true; shell.__dlyRest = null;
           const tbl = dlyTable(PR.rows.concat(INS_EDIT ? [{ nw: true }] : []), x => x.nw
             ? { lot: newIn("lot", "dlyLotDl"), sec: newIn("sec", "dlySecDl"), pred: "", succ: "", deb: "", fin: "", dur: "", marge: "", jal: "", __cb: "", __td_marge: " dly-calc", __td_succ: " dly-calc" }
             : x.grp
@@ -124,7 +156,7 @@
                 __td_deb: (INS_EDIT ? " ins-td" : "") + ((dlyLock(x.key) || {}).deb ? " dly-lkd" : ""), __td_fin: (INS_EDIT ? " ins-td" : "") + ((dlyLock(x.key) || {}).fin ? (dlyFin(x.key) > dlyLock(x.key).fin ? " dly-lkd dly-lkx" : " dly-lkd") : ""), __td_dur: INS_EDIT ? " ins-td" : "",
                 jal: `<span class="dly-jal${x.jal ? " on" : ""}" data-key="${esc(x.key)}">${x.jal ? "★" : "☆"}</span>`, __td_marge: " dly-calc",
                 __cb: `<input type="checkbox" class="dlyp-cb" data-key="${esc(x.key)}"${SEL.has(x.key) ? " checked" : ""}>` },
-            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp${x.det ? " dly-det" : ""}" data-path="${esc(x.path)}"` : `class="dly-task${x.ext ? " dly-ext" : ""}${x.off ? " dly-off" : ""}${!x.deb || !x.fin ? " dly-nod" : ""}${x.marge === 0 ? " dly-crit" : x.qc ? " dly-qcrit" : ""}${dlyPicked(x.key) ? " dly-pick" : ""}${LK.lot && LK.sec && x.key === LK.lot + "|" + LK.sec ? " dly-sel" : ""}${(INS.links || []).some(l => l.lot + "|" + l.sec === x.key) ? " dly-lnk" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P);
+            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp${x.det ? " dly-det" : ""}" data-path="${esc(x.path)}"` : `class="dly-task${x.ext ? " dly-ext" : ""}${x.off ? " dly-off" : ""}${!x.deb || !x.fin ? " dly-nod" : ""}${x.marge === 0 ? " dly-crit" : x.qc ? " dly-qcrit" : ""}${dlyPicked(x.key) ? " dly-pick" : ""}${LK.lot && LK.sec && x.key === LK.lot + "|" + LK.sec ? " dly-sel" : ""}${(INS.links || []).some(l => l.lot + "|" + l.sec === x.key) ? " dly-lnk" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P, cutO);
           /* FORMAT 64 / 33 : pas de ligne d'explication au-dessus du PLANNING */
           /* FORMAT 97 : commandes du planning dans le menu ⋯ du bloc détail (plus de rangée de boutons) */
           const dls = dl("dlyLotDl", [...new Set(INS.lot.filter(x => !x.t).map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")))
@@ -132,6 +164,7 @@
           /* v561 : vue PAR DÉBUT = bandeau jaune pâle avec retour AFFICHER PAR LOT (comme ISOLER) */
           const viewB = "";   /* v594 (remarque longue 2, FORMAT 188) : plus de bandeau AFFICHÉ PAR DÉBUT — la vue se lit à la coche ✓ du menu ⋯ */
           const isoB = viewB + (PR.crit ? `<div class="dly-iso dly-critb"><span><b>CHEMIN CRITIQUE</b></span><small>TÂCHES À BATTEMENT TOTAL NUL : UN RETARD SUR L'UNE DÉCALE LA FIN DU CHANTIER</small><button type="button" class="dly-iso-x dly-crit-x">TOUT AFFICHER</button></div>` : "") + (PR.iso ? `<div class="dly-iso"><span>ISOLÉ : <b>${esc(lotLab(dlyLotPath(PR.iso)).full)}</b></span><small>LIAISONS, DÉCALAGES ET CALENDRIER RESTENT APPLIQUÉS · TÂCHES LIÉES HORS DE LA BRANCHE EN GRIS (LECTURE SEULE)</small><button type="button" class="dly-iso-x">TOUT AFFICHER</button></div>` : "");
+          if (cutO && cutO.rest) { shell.__dlyRest = cutO.rest; dlyFillSoon(); }
           return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur du graphique">=</span></div>` : ""}</div>`
             /* v549 : plus de bouton « + CRÉER UNE TÂCHE OU SES DÉLAIS » sous le planning (ligne SAISIR ICI… et menu ⋯) */
             ;

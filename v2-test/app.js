@@ -11667,8 +11667,18 @@ function renderBudgetList() {
       return Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v * 10) / 10));
     };
     let DLY_DW = dlyDwGet();
-    const dlyRhApply = rh => { shell.style.setProperty("--dly-rh", rh + "px"); shell.style.setProperty("--gbh", dlyBh(rh) + "px"); };
+    /* v748 : réécrit seulement si la valeur change (sinon toute la page recalcule ses styles à chaque dessin) */
+    const dlyRhApply = rh => { const a = rh + "px", b = dlyBh(rh) + "px";
+      if (shell.style.getPropertyValue("--dly-rh") !== a) shell.style.setProperty("--dly-rh", a);
+      if (shell.style.getPropertyValue("--gbh") !== b) shell.style.setProperty("--gbh", b); };
 /* ⟪ src/17-3-gantt-dessin.js ⟫ */
+    /* v748 : jours utilisés pour l'ajustement à l'écran (premier et dernier jour non nul, ou plage DÉBUT – FIN posée) */
+    const dlyFitDates = (HD, R) => {
+      const fNz = new Set(); if (HD) [HD.tot, HD.prd, HD.cmd && HD.cmd.L, HD.cmd && HD.cmd.P].forEach(M => M && Object.keys(M).forEach(k => { if (Math.abs(M[k] || 0) > 1e-9) fNz.add(k); }));
+      const rg = dlyHRange(), fT = R.filter(x => !x.grp), fDd = [...fNz].concat(fT.map(x => x.deb), fT.map(x => x.fin)).filter(Boolean).sort();
+      const a = rg.a || fDd[0], b = rg.b || fDd[fDd.length - 1];
+      return { rg, a, b, sig: (a || "") + "|" + (b || "") };
+    };
     const dlyGanttDraw = () => {
       sviStep("PLANNING : DESSIN");
       const host = shell.querySelector("#dlyGantt");
@@ -11790,6 +11800,22 @@ function renderBudgetList() {
       const nD = dDiff(d0, dE) + 1;
       DLY_FILL = Math.floor((host.clientWidth || 600) / nD * 1000) / 1000;   /* v559 : non arrondi — FIN pile au bord droit */
       DLY_DW = dlyDwGet();
+      /* v748 : ajustement à l'écran calculé AVANT le dessin (même règle que v628 / v639 plus bas) — un seul dessin à l'ouverture au lieu de deux */
+      let fitSl = null;
+      {
+        const fz = dlyFitDates(HD, R), sigNew = !shell.__dlyXF && !shell.__dlyNoFit && shell.__dlyFitSig !== undefined && shell.__dlyFitSig !== fz.sig;
+        if ((shell.__dlyCenter || shell.__dlyGx === undefined || sigNew) && HD && !shell.__dlyNoFit && (!!shell.__dlyCenter || !shell.__dlyFitOnce || sigNew) && fz.a && fz.b && !shell.__dlyFitting) {
+          const r = host.getBoundingClientRect(), vw = Math.min(host.clientWidth, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0));
+          const n = Math.max(1, dDiff(fz.a, fz.b) + 1), mg = fz.rg.a || fz.rg.b ? 60 : 12;
+          const w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n)) * 10) / 10));
+          if (vw > 60 && Math.abs(w - DLY_DW) >= 0.05) {
+            try { localStorage.setItem(DLY_SC[dlyScale()].k, DLY_FILL && w <= DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}
+            DLY_DW = w;
+            /* même défilement qu'avant (dlyDwSet) : premier jour utilisé à la marge, plage centrée si elle tient */
+            fitSl = Math.max(0, dDiff(d0, fz.a) * w - (mg + Math.max(0, (vw - 2 * mg - n * w) / 2)));
+          }
+        }
+      }
       host.style.setProperty("--dw", DLY_DW + "px");
       const W = nD * DLY_DW;
       const d1 = sviIsoAdd(d0, nD - 1);
@@ -11949,9 +11975,7 @@ function renderBudgetList() {
          la partie qui a des valeurs (du premier au dernier jour non nul) est centrée à l'écran ; plus large que l'écran : son début */
       /* v639 : jours utilisés avec les filtres en cours — s'ils changent (case, loupe, ISOLER, DÉBUT / FIN, EFFACER…), nouvel ajustement ;
          pas pendant un filtre du jour (l'écran reste sur le jour) ; le zoom au doigt est gardé jusqu'au changement suivant */
-      const fNz = new Set(); if (HD) [HD.tot, HD.prd, HD.cmd && HD.cmd.L, HD.cmd && HD.cmd.P].forEach(M => M && Object.keys(M).forEach(k => { if (Math.abs(M[k] || 0) > 1e-9) fNz.add(k); }));
-      const fRg = dlyHRange(), fT = R.filter(x => !x.grp), fDd = [...fNz].concat(fT.map(x => x.deb), fT.map(x => x.fin)).filter(Boolean).sort();
-      const fA = fRg.a || fDd[0], fB = fRg.b || fDd[fDd.length - 1], fitSig = (fA || "") + "|" + (fB || "");
+      const fz0 = dlyFitDates(HD, R), fRg = fz0.rg, fA = fz0.a, fB = fz0.b, fitSig = fz0.sig;
       const sigNew = !shell.__dlyXF && !shell.__dlyNoFit && shell.__dlyFitSig !== undefined && shell.__dlyFitSig !== fitSig;
       if (!shell.__dlyXF && !shell.__dlyNoFit) shell.__dlyFitSig = fitSig;
       if ((shell.__dlyCenter || shell.__dlyGx === undefined || sigNew) && HD && !shell.__dlyNoFit) {
@@ -11975,7 +11999,7 @@ function renderBudgetList() {
         /* v639 : plage utilisée (avec DÉBUT / FIN) centrée, même sans changement de zoom ; v653 : marge de 60 px quand DÉBUT / FIN sont posés (étiquettes entières) */
         if (fA && fB) { const x1 = X(fA), x2 = X(fB) + DLY_DW, w = host.clientWidth;
           const t = x2 - x1 <= w ? (x1 + x2) / 2 - w / 2 : x1 - 2 * DLY_DW;
-          host.scrollLeft = Math.max(0, Math.min(host.scrollWidth - w, t)); shell.__dlyGx = host.scrollLeft; shell.__dlyFitT = performance.now(); }
+          host.scrollLeft = fitSl !== null ? fitSl : Math.max(0, Math.min(host.scrollWidth - w, t)); shell.__dlyGx = host.scrollLeft; shell.__dlyFitT = performance.now(); }
       }
       host.addEventListener("scroll", () => { shell.__dlyGx = host.scrollLeft; dlyRngEdge(); }, { passive: true });   /* v657 : DÉBUT / FIN au repos suivent toujours le bord visible (après un ajustement aussi) */
       dlyStick(host.closest(".bdg-d-scroll, .lk-scroll"));
@@ -12252,6 +12276,32 @@ function renderBudgetList() {
       return `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${esc(x.key)}" data-pid="${esc(p.id || "")}" data-f="${f}" type="text"
         ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${nw && f !== "dur" ? "SAISIR ICI…" : ""}" value="${esc(f === "dur" ? (x.dur || (shell.__dlyPendDur || {})[x.key] || "") : dFr(x[f]))}">`;
     };
+    /* v748 (rapidité) : lignes du PLANNING ajoutées après le premier affichage (première ouverture d'un gros planning seulement) */
+    const DLY_FIRST = 60, DLY_FIRST_MAX = 90;
+    const dlyFillRest = () => {
+      const rest = shell.__dlyRest; shell.__dlyRest = null; clearTimeout(shell.__dlyFillT);
+      if (!rest || !rest.length) return false;
+      const tb = shell.querySelector(".dlyg-l table.dly-table > tbody"), host = shell.querySelector("#dlyGantt");
+      if (!tb || !host) return false;
+      const tmp = document.createElement("tbody"); tmp.innerHTML = rest.join("");
+      tb.append(...tmp.children);
+      tb.querySelectorAll("input.dlyp-cb[data-part]").forEach(c => { c.indeterminate = true; });
+      /* un seul nouveau dessin du Gantt, avec toutes les lignes (barres, liaisons, hauteur) */
+      host.__drawn = false; dlyGanttDraw();
+      return true;
+    };
+    shell.__dlyFillRest = dlyFillRest;
+    const dlyFillSoon = () => {
+      clearTimeout(shell.__dlyFillT);
+      /* après l'affichage des premières lignes (deux images plus tard) */
+      requestAnimationFrame(() => requestAnimationFrame(() => { shell.__dlyFillT = setTimeout(() => { try { dlyFillRest(); } catch (e) {} }, 0); }));
+      if (!shell.__dlyFillBound) {
+        shell.__dlyFillBound = true;
+        /* toucher ou touche avant la fin : toutes les lignes d'abord, pour que le geste trouve sa ligne */
+        const now = e => { if (shell.__dlyRest && !(e.target && e.target.closest && e.target.closest("#dlyGantt"))) { try { dlyFillRest(); } catch (err) {} } };
+        shell.addEventListener("pointerdown", now, true); document.addEventListener("keydown", now, true);
+      }
+    };
     const insDlyHTML = (edit, err) => {
       INS.dlp = INS.dlp || {};
       if (edit) {
@@ -12270,6 +12320,8 @@ function renderBudgetList() {
           const PR = dlyPlanRows();
           shell.__dlyRows = PR.rows;
           lastShown.detail = { cols: DLY_COLS_P, rows: PR.flat, kind: "dly" };
+          /* v748 : hauteur des lignes posée avant l'affichage du tableau (posée au dessin, elle refaisait le style de toute la page) */
+          dlyRhApply(dlyRhGet());
           requestAnimationFrame(() => dlyGanttDraw());
           const ind = n => `style="padding-left:${6 + n * 20}px"`;
           /* v538 : lots du PLANNING = mêmes ronds que les lots du bloc TÂCHES — un lot : son rond (le choisir) ;
@@ -12291,6 +12343,10 @@ function renderBudgetList() {
           const newIn = (f, lid) => `<input class="dly-newin" data-f="${f}" list="${lid}" placeholder="${f === "lot" ? "CRÉER UNE TÂCHE ICI…" : ""}" autocomplete="off" enterkeyhint="next">`;
           /* v666 (axe 8) : en-tête BATTEMENT TOTAL ou LIBRE selon PARAMÉTRAGE DU PLANNING */
           { const cm = DLY_COLS_P.find(c => c[0] === "marge"); if (cm) cm[1] = dlyPP().bt === "l" ? "BATTEMENT LIBRE" : "BATTEMENT TOTAL"; }
+          /* v748 (rapidité) : première ouverture du PLANNING dans ce budget — un gros planning n'affiche d'abord que ses premières lignes ;
+             les autres sont ajoutées juste après l'affichage (dlyFillRest), ou aussitôt au premier toucher / à la première touche */
+          const cutO = shell.__dlyFullOnce ? null : { cut: { first: DLY_FIRST, max: DLY_FIRST_MAX } };
+          shell.__dlyFullOnce = true; shell.__dlyRest = null;
           const tbl = dlyTable(PR.rows.concat(INS_EDIT ? [{ nw: true }] : []), x => x.nw
             ? { lot: newIn("lot", "dlyLotDl"), sec: newIn("sec", "dlySecDl"), pred: "", succ: "", deb: "", fin: "", dur: "", marge: "", jal: "", __cb: "", __td_marge: " dly-calc", __td_succ: " dly-calc" }
             : x.grp
@@ -12306,7 +12362,7 @@ function renderBudgetList() {
                 __td_deb: (INS_EDIT ? " ins-td" : "") + ((dlyLock(x.key) || {}).deb ? " dly-lkd" : ""), __td_fin: (INS_EDIT ? " ins-td" : "") + ((dlyLock(x.key) || {}).fin ? (dlyFin(x.key) > dlyLock(x.key).fin ? " dly-lkd dly-lkx" : " dly-lkd") : ""), __td_dur: INS_EDIT ? " ins-td" : "",
                 jal: `<span class="dly-jal${x.jal ? " on" : ""}" data-key="${esc(x.key)}">${x.jal ? "★" : "☆"}</span>`, __td_marge: " dly-calc",
                 __cb: `<input type="checkbox" class="dlyp-cb" data-key="${esc(x.key)}"${SEL.has(x.key) ? " checked" : ""}>` },
-            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp${x.det ? " dly-det" : ""}" data-path="${esc(x.path)}"` : `class="dly-task${x.ext ? " dly-ext" : ""}${x.off ? " dly-off" : ""}${!x.deb || !x.fin ? " dly-nod" : ""}${x.marge === 0 ? " dly-crit" : x.qc ? " dly-qcrit" : ""}${dlyPicked(x.key) ? " dly-pick" : ""}${LK.lot && LK.sec && x.key === LK.lot + "|" + LK.sec ? " dly-sel" : ""}${(INS.links || []).some(l => l.lot + "|" + l.sec === x.key) ? " dly-lnk" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P);
+            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp${x.det ? " dly-det" : ""}" data-path="${esc(x.path)}"` : `class="dly-task${x.ext ? " dly-ext" : ""}${x.off ? " dly-off" : ""}${!x.deb || !x.fin ? " dly-nod" : ""}${x.marge === 0 ? " dly-crit" : x.qc ? " dly-qcrit" : ""}${dlyPicked(x.key) ? " dly-pick" : ""}${LK.lot && LK.sec && x.key === LK.lot + "|" + LK.sec ? " dly-sel" : ""}${(INS.links || []).some(l => l.lot + "|" + l.sec === x.key) ? " dly-lnk" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P, cutO);
           /* FORMAT 64 / 33 : pas de ligne d'explication au-dessus du PLANNING */
           /* FORMAT 97 : commandes du planning dans le menu ⋯ du bloc détail (plus de rangée de boutons) */
           const dls = dl("dlyLotDl", [...new Set(INS.lot.filter(x => !x.t).map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")))
@@ -12314,6 +12370,7 @@ function renderBudgetList() {
           /* v561 : vue PAR DÉBUT = bandeau jaune pâle avec retour AFFICHER PAR LOT (comme ISOLER) */
           const viewB = "";   /* v594 (remarque longue 2, FORMAT 188) : plus de bandeau AFFICHÉ PAR DÉBUT — la vue se lit à la coche ✓ du menu ⋯ */
           const isoB = viewB + (PR.crit ? `<div class="dly-iso dly-critb"><span><b>CHEMIN CRITIQUE</b></span><small>TÂCHES À BATTEMENT TOTAL NUL : UN RETARD SUR L'UNE DÉCALE LA FIN DU CHANTIER</small><button type="button" class="dly-iso-x dly-crit-x">TOUT AFFICHER</button></div>` : "") + (PR.iso ? `<div class="dly-iso"><span>ISOLÉ : <b>${esc(lotLab(dlyLotPath(PR.iso)).full)}</b></span><small>LIAISONS, DÉCALAGES ET CALENDRIER RESTENT APPLIQUÉS · TÂCHES LIÉES HORS DE LA BRANCHE EN GRIS (LECTURE SEULE)</small><button type="button" class="dly-iso-x">TOUT AFFICHER</button></div>` : "");
+          if (cutO && cutO.rest) { shell.__dlyRest = cutO.rest; dlyFillSoon(); }
           return dls + isoB + `<div class="dlyg${(() => { const o = shell.__dlygW; return dlygMine(o) && o.w < 3 ? " tbl-hid" : ""; })()}${dlyHHGet() === "full" ? " dly-hfull" : ""}${dlyHHGet() === 0 ? " dly-hnone" : ""}"><div class="dlyg-l"${(() => { const o = shell.__dlygW; return dlygMine(o) ? ` style="width:${o.w}px;max-width:none"` : ""; })()}>${tbl}</div><div class="dlyg-sp"><span class="dlyg-hd" title="Largeur du tableau et du Gantt"><i>=</i></span></div><div class="dlyg-r" id="dlyGantt"></div>${PR.flat.length ? `<div class="dlyg-hh"><span class="dlyhh-pill" title="Hauteur du graphique">=</span></div>` : ""}</div>`
             /* v549 : plus de bouton « + CRÉER UNE TÂCHE OU SES DÉLAIS » sous le planning (ligne SAISIR ICI… et menu ⋯) */
             ;
@@ -16936,7 +16993,8 @@ ${A}</Assignments>
       ["marge", "BATTEMENT", x => x.mshow === "" || x.mshow === undefined ? "" : Number(x.mshow), "center"], ["jal", "JALON", x => x.jal || "", "center"]];
     /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */
     /* del : mode modifiable (case au début de chaque période, 🗑 à la fin, case et 🗑 en tête) */
-    const dlyTable = (rows, cells, trAttr = () => "", del = false, base = DLY_COLS) => {
+    /* v748 : opt.cut = { first, max } — au-delà de max lignes, seules les first premières sont mises dans le tableau ; le HTML des autres est rendu dans opt.rest */
+    const dlyTable = (rows, cells, trAttr = () => "", del = false, base = DLY_COLS, opt = null) => {
       const tk = base === DLY_COLS ? "dly" : base === DLY_COLS_S ? "dlys" : "dlyp";
       const cols = coOrder(tk, base);
       const w = k => cwLoad()["dly." + k] || DLY_W[k];
@@ -16944,7 +17002,9 @@ ${A}</Assignments>
       return `<table class="bdg-d-table dly-table" style="width:${cols.reduce((t, c) => t + w(c[0]), 0) + (del ? 44 : 0)}px">
         <colgroup>${cols.map(c => `<col data-w="dly.${c[0]}" style="width:${w(c[0])}px">`).join("")}${del ? '<col style="width:44px">' : ""}</colgroup>
         <thead><tr>${cols.map(c => cfHead(tk, c[0], c[1], c[3])).join("")}${del ? `<th class="center"><input type="checkbox" class="${tk === "dlyp" ? "dlyp-cball" : "dlp-cball"}" title="Tout cocher"></th>` : ""}</tr></thead>
-        <tbody>${rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}${del ? `<td class="center ins-cbc">${h.__cb || ""}</td>` : ""}</tr>`; }).join("")
+        <tbody>${(() => { const H = rows.map(x => { const h = cells(x); return `<tr ${trAttr(x)}>${cols.map(c => `<td class="${c[3]}${h["__td_" + c[0]] || ""}">${h[c[0]] ?? ""}</td>`).join("")}${del ? `<td class="center ins-cbc">${h.__cb || ""}</td>` : ""}</tr>`; });
+          if (opt && opt.cut && H.length > opt.cut.max) { opt.rest = H.slice(opt.cut.first); return H.slice(0, opt.cut.first).join(""); }
+          return H.join(""); })()
           || ""}</tbody></table>`;
     };
     /* v546 (R33) : bouton ↻ AJUSTER À LA CAPACITÉ, seulement sur DÉTAIL DÉLAIS ; grisé quand il n'y a rien à ajuster */
