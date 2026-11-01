@@ -39,7 +39,7 @@ const sviSharedSet = (key, data) => {
    signataires, dossiers Drive. Restent sur l'appareil : tout réglage d'affichage (colonnes, vue, plis, poignées, échelle…).
    Fichier joint d'un DOCUMENT : non envoyé (trop lourd) — sa copie Drive sert sur les autres appareils. */
 /* v749 : + articles et paramètres d'ACHATS (svi_ach_art_v1, svi_ach_prm_v1) */
-const SVI_SHARE_RX = /^svi_(docs|taf|obs|hist)_v1:|^svi_(units|cond_chs|nearskip|sign|driveurls|drivepaths|ach_art|ach_prm|ach_frs|colors)_v1$/;
+const SVI_SHARE_RX = /^svi_(docs|taf|obs|hist)_v1:|^svi_(units|cond_chs|nearskip|sign|driveurls|drivepaths|ach_art|ach_prm|ach_frs|ach_bsn|colors)_v1$/;
 const sviShareVal = (k, v) => {
   if (v === null || v === undefined) return null;
   if (/^svi_docs_v1:/.test(k)) { try { const L = JSON.parse(v); if (Array.isArray(L)) return JSON.stringify(L.map(x => { if (!x || typeof x !== "object") return x; const o = { ...x }; delete o.data; return o; })); } catch (e) {} }

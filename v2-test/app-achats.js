@@ -8,7 +8,7 @@
    - rien n'est effacé : une suppression met l'article à la CORBEILLE (restaurable), un numéro n'est jamais réutilisé.
    Règles reprises de achats.html (validées par Ahmed) : catégories, banques et codes RIB, TVA par défaut 20 %.
    ========================================================= */
-const ACH_K = { art: "svi_ach_art_v1", prm: "svi_ach_prm_v1", frs: "svi_ach_frs_v1" };
+const ACH_K = { art: "svi_ach_art_v1", prm: "svi_ach_prm_v1", frs: "svi_ach_frs_v1", bsn: "svi_ach_bsn_v1" };
 const ACH_PRM_DEF = {
   tva: 20,
   cat: ["COFFRAGE", "LOCATION MATERIEL", "MATERIAUX NON STOCKABLE", "MATERIAUX STOCKABLE", "MATERIEL DE BUREAU", "MATERIEL ET OUTILLAGE", "SERVICES", "SOUS TRAITANCE", "TRANSPORT"],
@@ -142,6 +142,60 @@ const achFrsWhy = (f, L) => {
   (f.docf || []).forEach(d => { if (d.exp && d.exp < today) w.push("DOCUMENT EXPIRÉ : " + d.type); else if (d.exp && d.exp <= soon) w.push("DOCUMENT BIENTÔT EXPIRÉ : " + d.type); });
   return w;
 };
+
+/* =========================================================
+   v760 : BESOINS (étape 2 — checklist Bloc C, chapitre 3)
+   Un besoin = une quantité d'une CHARGE d'un budget (désignation + unité), pour une TÂCHE (lot › activité secondaire),
+   à une date prévue, avec une priorité, un demandeur et un destinataire ; ou centre de coût SIÈGE (hors budget).
+   CONTRÔLE : prévu de la charge (quantité × prix du budget, consolidé s'il y a des avenants) − déjà demandé (besoins non annulés)
+   → un besoin qui dépasse est BLOQUÉ : justification puis DÉBLOQUER (selon les droits plus tard, B1) ; ⚠ à 90 % du prévu.
+   États : EN INSTANCE → VALIDÉ (responsable, B7 plus tard) ; ANNULÉ (gardé, jamais effacé). Référence BSN AA-MMJJ/nnn jamais réutilisée.
+   ========================================================= */
+const ACH_PRIO = ["NORMALE", "URGENTE", "TRÈS URGENTE"];
+const ACH_BSN_SEUIL = 90;
+const achBsn = () => { const L = achJ(ACH_K.bsn, []); return Array.isArray(L) ? L : []; };
+const achBsnSave = L => achW(ACH_K.bsn, L);
+const achBsnNextRef = (L, d) => { d = d || new Date(); const p2 = x => String(x).padStart(2, "0");
+  const n = L.reduce((m, b) => Math.max(m, Number((String(b.ref || "").match(/\/(\d+)$/) || [])[1]) || 0), 0) + 1;
+  return "BSN " + p2(d.getFullYear() % 100) + "-" + p2(d.getMonth() + 1) + p2(d.getDate()) + "/" + String(n).padStart(3, "0"); };
+/* budgets proposés : étapes de l'appareil (pas les versions, scénarios ni recalages), hors archivés ; famille = consolidé */
+const achBdgList = () => { let L = []; try { L = sviInstGet(); } catch (e) {}
+  return L.filter(b => b && !b.parent && !b.rclOf && !b.virtual && !b.arch).map(b => ({ ref: b.ref, lab: achU(b.project) + " " + b.ref + (b.intitule ? " — " + achU(b.intitule) : ""), prj: achU(b.project) }))
+    .sort((a, b) => a.lab.localeCompare(b.lab, "fr", { numeric: true })); };
+/* charges d'un budget (consolidé s'il y a des avenants) : [{ key, des, u, q, p, mt, tasks:[« LOT › ACTIVITÉ »] }] */
+const achBdgCharges = bref => {
+  let d = null; try { const S = sviAvStages(bref); d = S.length > 1 ? sviAvMerge(bref) : (S[0] || {}).data; } catch (e) {}
+  d = d || {};
+  const nm = (k, id) => achU(((d[k] || []).find(x => x.id === id) || {}).v || "");
+  const M = new Map();
+  (d.chg || []).forEach(r => { if (!r || r.t || !achU(r.des)) return; const k = achKey(r.des, r.u), x = M.get(k) || { key: k, des: achU(r.des), u: achU(r.u), q: 0, mt: 0, tasks: new Set() };
+    x.q += achN(r.q); x.mt += achN(r.q) * achN(r.p);
+    (d.links || []).forEach(l => { if ((l.chg || []).some(c => c.id === r.id)) { const t = nm("lot", l.lot) + " › " + nm("sec", l.sec); if (t.trim() !== "›") x.tasks.add(t); } });
+    M.set(k, x); });
+  return [...M.values()].map(x => ({ ...x, p: x.q ? x.mt / x.q : 0, tasks: [...x.tasks].sort() })).sort((a, b) => a.des.localeCompare(b.des, "fr", { numeric: true }));
+};
+/* contrôle d'un besoin : prévu, déjà demandé par les AUTRES besoins non annulés, reste, dépassement, % */
+const achBsnCtl = (b, L) => {
+  if (!b || b.centre === "SIÈGE" || !b.bdg) return null;
+  const C = achBdgCharges(b.bdg).find(x => x.key === b.chg); if (!C) return { plan: 0, planQ: 0, used: 0, usedQ: 0, rest: 0, over: true, pct: 0, none: true };
+  const O = (L || achBsn()).filter(x => x.id !== b.id && x.state !== "annule" && x.bdg === b.bdg && x.chg === b.chg);
+  const usedQ = O.reduce((t, x) => t + achN(x.q), 0), mine = achN(b.q), tot = usedQ + mine;
+  return { plan: C.mt, planQ: C.q, pu: C.p, usedQ, used: usedQ * C.p, restQ: C.q - usedQ, over: tot > C.q + 1e-9, pct: C.q ? tot / C.q * 100 : 0 };
+};
+const achBsnWhy = (b, L) => {
+  const w = [];
+  if (b.state === "annule") return w;
+  if (b.centre !== "SIÈGE" && !b.bdg) w.push("BUDGET MANQUANT (OU CENTRE DE COÛT SIÈGE)");
+  if (!achU(b.des)) w.push("CHARGE MANQUANTE");
+  if (!(achN(b.q) > 0)) w.push("QUANTITÉ MANQUANTE");
+  if (!b.datePrevue) w.push("DATE PRÉVUE MANQUANTE");
+  const c = achBsnCtl(b, L);
+  if (c && c.none) w.push("CHARGE ABSENTE DU BUDGET");
+  else if (c && c.over && !b.deb) w.push("DÉPASSEMENT DU PRÉVU (" + Math.round(c.pct) + " %) : BLOQUÉ — JUSTIFIER PUIS DÉBLOQUER");
+  else if (c && c.over && b.deb) { /* dépassement débloqué (justifié) : plus d'alerte */ }
+  else if (c && c.pct >= ACH_BSN_SEUIL) w.push("SEUIL ATTEINT : " + Math.round(c.pct) + " % DU PRÉVU DE LA CHARGE");
+  return w;
+};
 /* ⟪ src/41-achats-ecran.js ⟫ */
 /* =========================================================
    ACHATS — ÉCRAN (v749, étape 1)
@@ -160,7 +214,7 @@ function sviAchInit() {
   const aOk = (a, k) => k === "tout" ? true : k === "corbeille" ? !!a.del : !a.del && (k === "inactif" ? a.actif === false : a.actif !== false);
   const setEtat = k => { aEtat = k; showDel = k === "corbeille"; try { localStorage.setItem("svi_ach_etat_v1", k); } catch (e) {} };
   showDel = aEtat === "corbeille";
-  try { const t = localStorage.getItem("svi_ach_tab_v1"); if (t === "art" || t === "prm" || t === "frs") tab = t; } catch (e) {}
+  try { const t = localStorage.getItem("svi_ach_tab_v1"); if (t === "art" || t === "prm" || t === "frs" || t === "bsn") tab = t; } catch (e) {}
   const SEL = new Set();
   const kit = sviCfKit({ key: "ach", shell: view, refresh: () => draw() });
   const { cfApply, cfHead, cfOpenMenu, cfT } = kit;
@@ -220,6 +274,8 @@ function sviAchInit() {
   };
   /* ---------- FOURNISSEURS (v759, 42-achats-fournisseurs.js) ---------- */
   const FRSM = achFrsMod({ view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 });
+  /* ---------- BESOINS (v760, 43-achats-besoins.js) ---------- */
+  const BSNM = achBsnMod({ view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 });
   /* ---------- PARAMÈTRES ---------- */
   const prmHTML = () => {
     const P = achPrm();
@@ -259,14 +315,14 @@ function sviAchInit() {
   };
   const draw = () => keepPos(() => {
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.ach === tab));
-    if (h1) h1.textContent = tab === "prm" ? "ACHATS — PARAMÈTRES" : tab === "frs" ? "ACHATS — FOURNISSEURS" : showDel ? "ACHATS — CORBEILLE DES ARTICLES" : "ACHATS — ARTICLES";
-    if (sub) sub.textContent = tab === "frs" ? "TOUCHER LE CODE : FICHE (RIB, DOCUMENTS FISCAUX, CONTACTS, ÉVALUATIONS, CONTRATS) ; COMMUN À TOUS LES APPAREILS" : tab === "prm" ? "CATÉGORIES, BANQUES, TVA PAR DÉFAUT ; COMMUNS À TOUS LES APPAREILS" : "UN ARTICLE = UNE CHARGE DU BUDGET (DÉSIGNATION + UNITÉ) ; COMMUN À TOUS LES BUDGETS ET À TOUS LES APPAREILS";
-    body.innerHTML = tab === "prm" ? prmHTML() : tab === "frs" ? FRSM.html() : artTable();
+    if (h1) h1.textContent = tab === "bsn" ? "BESOINS" : tab === "prm" ? "ACHATS — PARAMÈTRES" : tab === "frs" ? "ACHATS — FOURNISSEURS" : showDel ? "ACHATS — CORBEILLE DES ARTICLES" : "ACHATS — ARTICLES";
+    if (sub) sub.textContent = tab === "bsn" ? "UN BESOIN = UNE QUANTITÉ D'UNE CHARGE DU BUDGET POUR UNE TÂCHE ; CONTRÔLÉ PAR LE PRÉVU (BLOQUÉ AU-DELÀ, JUSTIFIER PUIS DÉBLOQUER)" : tab === "frs" ? "TOUCHER LE CODE : FICHE (RIB, DOCUMENTS FISCAUX, CONTACTS, ÉVALUATIONS, CONTRATS) ; COMMUN À TOUS LES APPAREILS" : tab === "prm" ? "CATÉGORIES, BANQUES, TVA PAR DÉFAUT ; COMMUNS À TOUS LES APPAREILS" : "UN ARTICLE = UNE CHARGE DU BUDGET (DÉSIGNATION + UNITÉ) ; COMMUN À TOUS LES BUDGETS ET À TOUS LES APPAREILS";
+    body.innerHTML = tab === "bsn" ? BSNM.html() : tab === "prm" ? prmHTML() : tab === "frs" ? FRSM.html() : artTable();
     body.querySelectorAll("input.ach-cb, input.ach-all").forEach(c => { if (c.classList.contains("ach-all")) { const n = body.querySelectorAll("input.ach-cb:checked").length, t = body.querySelectorAll("input.ach-cb").length; c.indeterminate = n > 0 && n < t; } });
   });
   view.__achDraw = draw;
   /* v750 : entrée du menu ☰ (ACHAT › ARTICLES…) — ouvre l'onglet correspondant */
-  view.__achTab = t => { if (t !== "art" && t !== "prm" && t !== "frs") return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
+  view.__achTab = t => { if (t !== "art" && t !== "prm" && t !== "frs" && t !== "bsn") return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
   /* ---------- gestes ---------- */
   bar.addEventListener("click", e => {
     const b = e.target.closest(".prm-tab"); if (!b) return;
@@ -281,6 +337,7 @@ function sviAchInit() {
     const w = e.target.closest(".ach-warn"); if (w) { svToast(w.dataset.why, 4000, w); return; }
     const hb = e.target.closest(".ach-h"); if (hb) { achHistWin(hb.dataset.h); return; }
     if (tab === "frs" && await FRSM.click(e)) return;
+    if (tab === "bsn" && await BSNM.click(e)) return;
     const bb = e.target.closest(".ach-bdg"); if (bb) { const L = achArts(), a = L.find(x => x.id === bb.dataset.bdg); if (a) achBdgWin(a); return; }
     const xc = e.target.closest("[data-xcat]"); if (xc) { const P = achPrm(); P.cat = P.cat.filter(c => c !== xc.dataset.xcat); achPrmSave(P); draw(); return; }
     const xb = e.target.closest("[data-xbq]"); if (xb) { const P = achPrm(); P.banques = P.banques.filter(b => b.id !== xb.dataset.xbq); achPrmSave(P); draw(); return; }
@@ -683,5 +740,151 @@ function achFrsFiche(id, sec, done) {
     Object.assign(f, F, { mod: new Date().toISOString() });
     if (ch.length) achHist(f.code, "MODIFICATION", ch.map(k => LAB[k]).join(", "));
     achFrsSave(L); d.remove(); if (done) done();
+  });
+}
+/* ⟪ src/43-achats-besoins.js ⟫ */
+/* =========================================================
+   v760 : BESOINS (étape 2) — menu ☰ › BESOIN (à part) ; même écran que les achats, onglet BESOINS
+   Tableau au format des articles (tri / filtre communs, largeurs et ordre mémorisés, filtre par état, H, ⚠) ;
+   la RÉFÉRENCE soulignée ouvre la FICHE ; ligne CRÉER UN BESOIN ICI… ; règles et contrôle : 40-achats-donnees.js (achBsnCtl…).
+   ========================================================= */
+function achBsnMod(ctx) {
+  const { body, cfApply, cfHead, SEL, draw, F2 } = ctx;
+  const B_ETATS = [["actif", "ACTIF"], ["instance", "EN INSTANCE"], ["valide", "VALIDÉS"], ["alerte", "ALERTE"], ["annule", "ANNULÉS"], ["tout", "TOUT"]];
+  let bEtat = "actif"; try { const e0 = localStorage.getItem("svi_ach_bsn_etat_v1"); if (B_ETATS.some(x => x[0] === e0)) bEtat = e0; } catch (e) {}
+  const bOk = (b, k, L) => k === "tout" ? true : k === "annule" ? b.state === "annule" : k === "valide" ? b.state === "valide" : k === "instance" ? b.state !== "valide" && b.state !== "annule"
+    : k === "alerte" ? achBsnWhy(b, L).length > 0 : b.state !== "annule";
+  const stLab = b => b.state === "valide" ? "VALIDÉ" : b.state === "annule" ? "ANNULÉ" : "EN INSTANCE";
+  const ctlLab = (b, L) => { if (b.centre === "SIÈGE") return "SIÈGE"; const c = achBsnCtl(b, L); if (!c) return ""; if (c.none) return "HORS BUDGET";
+    return c.over ? (b.deb ? "DÉBLOQUÉ (" + Math.round(c.pct) + " %)" : "BLOQUÉ (" + Math.round(c.pct) + " %)") : Math.round(c.pct) + " %"; };
+  const dFr = v => /^\d{4}-\d{2}-\d{2}/.test(String(v || "")) ? String(v).slice(8, 10) + "/" + String(v).slice(5, 7) + "/" + String(v).slice(0, 4) : "";
+  const COLS = L => [["ref", "RÉFÉRENCE", b => b.ref, ""], ["bdg", "BUDGET", b => b.centre === "SIÈGE" ? "SIÈGE" : b.bdgLab || b.bdg || "", ""], ["des", "CHARGE", b => b.des || "", ""],
+    ["u", "U", b => b.u || "", "center"], ["q", "QUANTITÉ", b => achN(b.q), "number"], ["pu", "PRIX ESTIMÉ", b => achN(b.pu), "number"], ["mt", "MONTANT", b => achN(b.q) * achN(b.pu), "number"],
+    ["tache", "TÂCHE", b => b.tache || "", ""], ["prevue", "PRÉVU LE", b => dFr(b.datePrevue), ""], ["prio", "PRIORITÉ", b => b.prio || "", "center"],
+    ["etat", "ÉTAT", b => stLab(b), "center"], ["ctl", "CONTRÔLE", b => ctlLab(b, L), "center"], ["dem", "DEMANDEUR", b => b.dem || "", ""]];
+  const W0 = { ref: 150, bdg: 220, des: 220, u: 60, q: 100, pu: 110, mt: 120, tache: 220, prevue: 110, prio: 110, etat: 110, ctl: 130, dem: 120 };
+  const cwB = k => (cwLoad()["ach_bsn." + k]) || W0[k] || 100;
+  const html = () => {
+    const all = achBsn(), rows0 = all.filter(b => bOk(b, bEtat, all));
+    const cols = coOrder("ach_bsn", COLS(all)), rows = cfApply("ach_bsn", cols, rows0);
+    const W = cols.reduce((s, c) => s + cwB(c[0]), 0) + 46;
+    const cell = (b, c) => { const v = c[2](b);
+      if (c[0] === "ref") return `<button type="button" class="ach-link" data-bsn="${esc(b.id)}" title="Ouvrir la fiche">${esc(v)}</button>`;
+      return esc(typeof v === "number" ? (c[0] === "q" ? String(Math.round(v * 1000) / 1000).replace(".", ",") : F2(v)) : v); };
+    return `<div class="ach-tools">
+        <button type="button" class="ach-b ach-etat" data-a="bsn-etat">${(B_ETATS.find(x => x[0] === bEtat) || B_ETATS[0])[1]} ▾ ${svCnt(rows.length, rows0.length)}</button>
+        <button type="button" class="ach-b" data-a="bsn-new">+ NOUVEAU BESOIN</button>
+      </div>
+      <div class="ach-scroll"><table id="achBsnT" class="bdg-d-table prm-table ach-table" data-ach="bsn" style="width:${W}px">
+        <colgroup><col style="width:46px">${cols.map(c => `<col data-w="ach_bsn.${c[0]}" style="width:${cwB(c[0])}px">`).join("")}</colgroup>
+        <thead><tr><th class="center ach-hh">H</th>${cols.map(c => cfHead("ach_bsn", c[0], c[1], c[3])).join("")}</tr></thead>
+        <tbody>${rows.map(b => { const why = achBsnWhy(b, all); return `<tr data-id="${esc(b.id)}" data-iid="${esc(b.id)}" class="bsn-${esc(b.state || "instance")}${why.length ? " ach-bad" : ""}">
+          <td class="center"><button type="button" class="ach-h" data-h="${esc(b.ref)}" title="Historique">H</button>${why.length ? `<span class="ach-warn" data-why="${esc(why.join(" · "))}">⚠</span>` : ""}</td>
+          ${cols.map(c => `<td class="${c[3]}${c[0] === "ctl" && /BLOQUÉ/.test(ctlLab(b, all)) && !b.deb ? " bsn-blk" : ""}">${cell(b, c)}</td>`).join("")}</tr>`; }).join("")}
+          ${bEtat === "annule" || bEtat === "valide" ? "" : `<tr class="ach-new bsn-newrow" data-a="bsn-new"><td></td><td colspan="${cols.length}">CRÉER UN BESOIN ICI…</td></tr>`}
+        </tbody></table></div>`;
+  };
+  const click = async e => {
+    const lk = e.target.closest("[data-bsn]"); if (lk) { e.stopPropagation(); achBsnFiche(lk.dataset.bsn, () => draw()); return true; }
+    const nw = e.target.closest('[data-a="bsn-new"]'); if (nw) { e.stopPropagation(); achBsnFiche(null, () => draw()); return true; }
+    const ab = e.target.closest('.ach-b[data-a="bsn-etat"]');
+    if (ab) { const L = achBsn(); sviEtatMenu(ab, B_ETATS.map(([k, lab]) => ({ k, lab, n: L.filter(b => bOk(b, k, L)).length })), bEtat, k => { bEtat = k; try { localStorage.setItem("svi_ach_bsn_etat_v1", k); } catch (err) {} SEL.clear(); draw(); }); return true; }
+    return false;
+  };
+  return { html, click, change: () => false };
+}
+
+/* ---------- FICHE BESOIN (création et suivi) ---------- */
+function achBsnFiche(id, done) {
+  const L0 = achBsn(), b0 = id ? L0.find(x => x.id === id) : null;
+  if (id && !b0) return;
+  const B = b0 ? JSON.parse(JSON.stringify(b0)) : { id: "", ref: "", centre: "CHANTIER", bdg: "", bdgLab: "", chg: "", des: "", u: "", tache: "", q: "", pu: 0, datePrevue: "", prio: "NORMALE", dest: "", obs: "", dem: typeof sviUser === "function" ? sviUser() : "", state: "instance" };
+  const ro = !!b0 && b0.state !== "instance";
+  const BL = achBdgList(), d = sviWinNew();
+  const opt = (L, v) => L.map(x => `<option value="${esc(x[0])}"${x[0] === v ? " selected" : ""}>${esc(x[1])}</option>`).join("");
+  const draw = () => {
+    const C = B.centre === "SIÈGE" || !B.bdg ? [] : achBdgCharges(B.bdg), ch = C.find(x => x.key === B.chg);
+    if (ch) { B.des = ch.des; B.u = ch.u; B.pu = Math.round(ch.p * 100) / 100; }
+    const ctl = achBsnCtl(B, achBsn()), why = achBsnWhy(B, achBsn());
+    const nf = v => (Number(v) || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const dis = ro ? " disabled" : "";
+    d.innerHTML = sviWinCard({ cls: "frs-card bsn-card", close: "data-x", title: (b0 ? "BESOIN — " + esc(B.ref) + " · " + (B.state === "valide" ? "VALIDÉ" : B.state === "annule" ? "ANNULÉ" : "EN INSTANCE") : "NOUVEAU BESOIN"),
+      body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
+        <div class="frs-sec"><div class="frs-st">AFFECTATION</div><div class="frs-g">
+          <label class="frs-f"><span>CENTRE DE COÛT</span><select class="ins-in bsn-x" data-k="centre"${dis}>${opt([["CHANTIER", "CHANTIER (BUDGET)"], ["SIÈGE", "SIÈGE (HORS BUDGET)"]], B.centre)}</select></label>
+          ${B.centre === "SIÈGE" ? `<label class="frs-f frs-w"><span>CHARGE <b>*</b></span><input class="ins-in bsn-x" data-k="des" value="${esc(B.des)}"${dis} autocomplete="off"></label>
+            <label class="frs-f"><span>UNITÉ</span><input class="ins-in bsn-x" data-k="u" value="${esc(B.u)}"${dis} autocomplete="off"></label>`
+          : `<label class="frs-f frs-w"><span>BUDGET <b>*</b></span><select class="ins-in bsn-x" data-k="bdg"${dis}><option value=""></option>${opt(BL.map(x => [x.ref, x.lab]), B.bdg)}</select></label>
+            <label class="frs-f frs-w"><span>CHARGE DU BUDGET <b>*</b></span><select class="ins-in bsn-x" data-k="chg"${dis}><option value=""></option>${opt(C.map(x => [x.key, x.des + " (" + x.u + ")"]), B.chg)}</select></label>
+            <label class="frs-f frs-w"><span>TÂCHE</span><select class="ins-in bsn-x" data-k="tache"${dis}><option value=""></option>${opt((ch ? ch.tasks : []).map(t => [t, t]), B.tache)}</select></label>`}
+        </div></div>
+        ${ctl && !ctl.none ? `<div class="bsn-ctl${ctl.over ? " over" : ctl.pct >= ACH_BSN_SEUIL ? " near" : ""}"><span>PRÉVU : <b>${esc(nf(ctl.planQ))} ${esc(B.u)}</b> · ${esc(nf(ctl.plan))} DH</span><span>DÉJÀ DEMANDÉ : <b>${esc(nf(ctl.usedQ))}</b></span><span>RESTE : <b>${esc(nf(ctl.restQ))}</b></span><span>AVEC CE BESOIN : <b>${Math.round(ctl.pct)} %</b></span></div>` : ""}
+        <div class="frs-sec"><div class="frs-st">DEMANDE</div><div class="frs-g">
+          <label class="frs-f"><span>QUANTITÉ <b>*</b></span><input class="ins-in bsn-x" data-k="q" value="${esc(B.q === "" ? "" : String(B.q).replace(".", ","))}" inputmode="decimal"${dis} autocomplete="off"></label>
+          <label class="frs-f"><span>PRIX ESTIMÉ HT</span><input class="ins-in bsn-x" data-k="pu" value="${esc(nf(B.pu))}" inputmode="decimal"${dis || (B.centre !== "SIÈGE" ? " readonly" : "")} autocomplete="off"></label>
+          <label class="frs-f"><span>MONTANT ESTIMÉ</span><input class="ins-in" value="${esc(nf(achN(B.q) * achN(B.pu)))}" readonly></label>
+          <label class="frs-f"><span>PRÉVU LE <b>*</b></span><input type="date" class="ins-in bsn-x" data-k="datePrevue" value="${esc(B.datePrevue)}"${dis}></label>
+          <label class="frs-f"><span>PRIORITÉ</span><select class="ins-in bsn-x" data-k="prio"${dis}>${opt(ACH_PRIO.map(x => [x, x]), B.prio)}</select></label>
+          <label class="frs-f"><span>DESTINATAIRE (LIEU, PERSONNE)</span><input class="ins-in bsn-x" data-k="dest" value="${esc(B.dest)}"${dis} autocomplete="off"></label>
+          <label class="frs-f"><span>DEMANDEUR</span><input class="ins-in" value="${esc(B.dem)}" readonly></label>
+          <label class="frs-f frs-w"><span>OBSERVATION</span><input class="ins-in bsn-x" data-k="obs" value="${esc(B.obs)}"${dis} autocomplete="off"></label>
+        </div></div>
+        ${ctl && ctl.over && !ctl.none && B.state !== "annule" ? `<div class="frs-sec"><div class="frs-st">DÉPASSEMENT DU PRÉVU</div>
+          ${B.deb ? `<div class="bsn-deb">DÉBLOQUÉ PAR ${esc(B.deb.u || "?")} LE ${esc(dFr2(B.deb.t))} — ${esc(B.deb.why || "")}</div>`
+            : `<label class="frs-f frs-w"><span>JUSTIFICATION <b>*</b></span><input class="ins-in bsn-just" value="${esc(B.just || "")}" autocomplete="off"></label><button type="button" class="ach-b" data-deb>DÉBLOQUER</button><span class="bsn-note">DÉBLOCAGE SELON LES DROITS : POUR L'INSTANT, TOUT UTILISATEUR (NOTÉ DANS H).</span>`}</div>` : ""}
+        <div class="bsn-note">STOCK DISPONIBLE : VÉRIFIÉ QUAND LE MODULE STOCK EXISTERA. PHOTO DU CHANTIER : PAR LES DOCUMENTS DE LA FICHE (À VENIR).</div>
+      </div>`,
+      foot: `<button type="button" class="svc-b" data-x>${ro || b0 ? "FERMER" : "ANNULER"}</button>
+        ${b0 && B.state !== "annule" ? `<button type="button" class="svc-b" data-cancel>ANNULER LE BESOIN</button>` : ""}
+        ${b0 && B.state === "annule" ? `<button type="button" class="svc-b" data-restore>RÉTABLIR</button>` : ""}
+        ${!ro ? `<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>` : ""}
+        ${b0 && B.state === "instance" ? `<button type="button" class="svc-b svc-ok" data-valid>VALIDER</button>` : ""}` });
+    if (!d.isConnected) sviWinShow(d);
+  };
+  const dFr2 = v => String(v || "").slice(0, 10).split("-").reverse().join("/");
+  const pull = () => { d.querySelectorAll(".bsn-x").forEach(i => { const k = i.dataset.k; B[k] = k === "q" || k === "pu" ? (String(i.value).trim() === "" ? "" : achN(i.value)) : k === "datePrevue" || k === "bdg" || k === "chg" || k === "tache" || k === "centre" ? i.value : achU(i.value); });
+    const j = d.querySelector(".bsn-just"); if (j) B.just = achU(j.value); };
+  draw();
+  d.addEventListener("change", e => {
+    if (!e.target.closest(".bsn-x")) return;
+    const k = e.target.dataset.k; pull();
+    if (k === "bdg") { B.chg = ""; B.tache = ""; B.bdgLab = (BL.find(x => x.ref === B.bdg) || {}).lab || ""; }
+    if (k === "chg") { B.tache = ""; const ch = achBdgCharges(B.bdg).find(x => x.key === B.chg); if (ch && ch.tasks.length === 1) B.tache = ch.tasks[0]; }
+    if (k === "centre") { B.bdg = ""; B.chg = ""; B.tache = ""; B.des = ""; B.u = ""; B.pu = 0; }
+    draw();
+  });
+  const save = (L, b, act) => { achBsnSave(L); achHist(b.ref, act, [b.des, b.u, achN(b.q) || ""].filter(Boolean).join(" · ")); };
+  d.addEventListener("click", async e => {
+    if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+    const L = achBsn(), cur = b0 ? L.find(x => x.id === b0.id) : null;
+    if (e.target.closest("[data-cancel]")) { if (!cur) return; if (!(await svConfirm({ title: "ANNULER LE BESOIN", text: cur.ref + " PASSE EN ANNULÉ (GARDÉ, RÉTABLISSABLE) ; IL NE COMPTE PLUS DANS LE CONTRÔLE DU BUDGET.", ok: "ANNULER LE BESOIN" }))) return;
+      cur.state = "annule"; cur.mod = new Date().toISOString(); save(L, cur, "ANNULÉ"); d.remove(); if (done) done(); return; }
+    if (e.target.closest("[data-restore]")) { if (!cur) return; cur.state = "instance"; delete cur.deb; cur.mod = new Date().toISOString(); save(L, cur, "RÉTABLI"); d.remove(); if (done) done(); return; }
+    if (e.target.closest("[data-deb]")) {
+      pull(); if (!B.just) { svToast("JUSTIFICATION OBLIGATOIRE AVANT DE DÉBLOQUER.", 3000); return; }
+      B.deb = { u: typeof sviUser === "function" ? sviUser() : "", t: new Date().toISOString(), why: B.just };
+      if (cur) { cur.deb = B.deb; cur.just = B.just; cur.mod = B.deb.t; save(L, cur, "DÉBLOQUÉ — " + B.just); }
+      draw(); return;
+    }
+    const valid = e.target.closest("[data-valid]");
+    if (!e.target.closest("[data-save]") && !valid) return;
+    pull();
+    /* contrôles bloquants */
+    if (B.centre !== "SIÈGE" && (!B.bdg || !B.chg)) { svToast("CHOISIR LE BUDGET ET LA CHARGE (OU LE CENTRE DE COÛT SIÈGE).", 3500); return; }
+    if (!achU(B.des)) { svToast("CHARGE OBLIGATOIRE.", 3000); return; }
+    if (!(achN(B.q) > 0)) { svToast("QUANTITÉ OBLIGATOIRE (> 0).", 3000); return; }
+    if (!B.datePrevue) { svToast("DATE PRÉVUE OBLIGATOIRE.", 3000); return; }
+    const ctl = achBsnCtl(B, L);
+    if (valid && ctl && !ctl.none && ctl.over && !B.deb) { svToast("DÉPASSEMENT DU PRÉVU : JUSTIFIER PUIS DÉBLOQUER AVANT DE VALIDER.", 4000); draw(); return; }
+    if (valid && ctl && ctl.none) { svToast("CHARGE ABSENTE DU BUDGET : VALIDATION IMPOSSIBLE.", 4000); return; }
+    const now = new Date().toISOString();
+    let b = cur;
+    if (!b) { b = { ...B, id: "N" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ref: achBsnNextRef(L), cree: now }; L.push(b); }
+    else Object.assign(b, B);
+    b.bdgLab = b.centre === "SIÈGE" ? "" : (BL.find(x => x.ref === b.bdg) || {}).lab || b.bdgLab || b.bdg; b.mod = now;
+    if (valid) { b.state = "valide"; b.valide = now; b.valPar = typeof sviUser === "function" ? sviUser() : ""; }
+    save(L, b, cur ? (valid ? "VALIDÉ" : "MODIFICATION") : "CRÉATION");
+    if (!cur && ctl && ctl.over) svToast(b.ref + " ENREGISTRÉ : DÉPASSEMENT DU PRÉVU, BLOQUÉ JUSQU'AU DÉBLOCAGE.", 4500);
+    d.remove(); if (done) done();
   });
 }

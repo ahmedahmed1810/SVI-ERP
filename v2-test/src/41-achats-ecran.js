@@ -15,7 +15,7 @@ function sviAchInit() {
   const aOk = (a, k) => k === "tout" ? true : k === "corbeille" ? !!a.del : !a.del && (k === "inactif" ? a.actif === false : a.actif !== false);
   const setEtat = k => { aEtat = k; showDel = k === "corbeille"; try { localStorage.setItem("svi_ach_etat_v1", k); } catch (e) {} };
   showDel = aEtat === "corbeille";
-  try { const t = localStorage.getItem("svi_ach_tab_v1"); if (t === "art" || t === "prm" || t === "frs") tab = t; } catch (e) {}
+  try { const t = localStorage.getItem("svi_ach_tab_v1"); if (t === "art" || t === "prm" || t === "frs" || t === "bsn") tab = t; } catch (e) {}
   const SEL = new Set();
   const kit = sviCfKit({ key: "ach", shell: view, refresh: () => draw() });
   const { cfApply, cfHead, cfOpenMenu, cfT } = kit;
@@ -75,6 +75,8 @@ function sviAchInit() {
   };
   /* ---------- FOURNISSEURS (v759, 42-achats-fournisseurs.js) ---------- */
   const FRSM = achFrsMod({ view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 });
+  /* ---------- BESOINS (v760, 43-achats-besoins.js) ---------- */
+  const BSNM = achBsnMod({ view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 });
   /* ---------- PARAMÈTRES ---------- */
   const prmHTML = () => {
     const P = achPrm();
@@ -114,14 +116,14 @@ function sviAchInit() {
   };
   const draw = () => keepPos(() => {
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.ach === tab));
-    if (h1) h1.textContent = tab === "prm" ? "ACHATS — PARAMÈTRES" : tab === "frs" ? "ACHATS — FOURNISSEURS" : showDel ? "ACHATS — CORBEILLE DES ARTICLES" : "ACHATS — ARTICLES";
-    if (sub) sub.textContent = tab === "frs" ? "TOUCHER LE CODE : FICHE (RIB, DOCUMENTS FISCAUX, CONTACTS, ÉVALUATIONS, CONTRATS) ; COMMUN À TOUS LES APPAREILS" : tab === "prm" ? "CATÉGORIES, BANQUES, TVA PAR DÉFAUT ; COMMUNS À TOUS LES APPAREILS" : "UN ARTICLE = UNE CHARGE DU BUDGET (DÉSIGNATION + UNITÉ) ; COMMUN À TOUS LES BUDGETS ET À TOUS LES APPAREILS";
-    body.innerHTML = tab === "prm" ? prmHTML() : tab === "frs" ? FRSM.html() : artTable();
+    if (h1) h1.textContent = tab === "bsn" ? "BESOINS" : tab === "prm" ? "ACHATS — PARAMÈTRES" : tab === "frs" ? "ACHATS — FOURNISSEURS" : showDel ? "ACHATS — CORBEILLE DES ARTICLES" : "ACHATS — ARTICLES";
+    if (sub) sub.textContent = tab === "bsn" ? "UN BESOIN = UNE QUANTITÉ D'UNE CHARGE DU BUDGET POUR UNE TÂCHE ; CONTRÔLÉ PAR LE PRÉVU (BLOQUÉ AU-DELÀ, JUSTIFIER PUIS DÉBLOQUER)" : tab === "frs" ? "TOUCHER LE CODE : FICHE (RIB, DOCUMENTS FISCAUX, CONTACTS, ÉVALUATIONS, CONTRATS) ; COMMUN À TOUS LES APPAREILS" : tab === "prm" ? "CATÉGORIES, BANQUES, TVA PAR DÉFAUT ; COMMUNS À TOUS LES APPAREILS" : "UN ARTICLE = UNE CHARGE DU BUDGET (DÉSIGNATION + UNITÉ) ; COMMUN À TOUS LES BUDGETS ET À TOUS LES APPAREILS";
+    body.innerHTML = tab === "bsn" ? BSNM.html() : tab === "prm" ? prmHTML() : tab === "frs" ? FRSM.html() : artTable();
     body.querySelectorAll("input.ach-cb, input.ach-all").forEach(c => { if (c.classList.contains("ach-all")) { const n = body.querySelectorAll("input.ach-cb:checked").length, t = body.querySelectorAll("input.ach-cb").length; c.indeterminate = n > 0 && n < t; } });
   });
   view.__achDraw = draw;
   /* v750 : entrée du menu ☰ (ACHAT › ARTICLES…) — ouvre l'onglet correspondant */
-  view.__achTab = t => { if (t !== "art" && t !== "prm" && t !== "frs") return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
+  view.__achTab = t => { if (t !== "art" && t !== "prm" && t !== "frs" && t !== "bsn") return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
   /* ---------- gestes ---------- */
   bar.addEventListener("click", e => {
     const b = e.target.closest(".prm-tab"); if (!b) return;
@@ -136,6 +138,7 @@ function sviAchInit() {
     const w = e.target.closest(".ach-warn"); if (w) { svToast(w.dataset.why, 4000, w); return; }
     const hb = e.target.closest(".ach-h"); if (hb) { achHistWin(hb.dataset.h); return; }
     if (tab === "frs" && await FRSM.click(e)) return;
+    if (tab === "bsn" && await BSNM.click(e)) return;
     const bb = e.target.closest(".ach-bdg"); if (bb) { const L = achArts(), a = L.find(x => x.id === bb.dataset.bdg); if (a) achBdgWin(a); return; }
     const xc = e.target.closest("[data-xcat]"); if (xc) { const P = achPrm(); P.cat = P.cat.filter(c => c !== xc.dataset.xcat); achPrmSave(P); draw(); return; }
     const xb = e.target.closest("[data-xbq]"); if (xb) { const P = achPrm(); P.banques = P.banques.filter(b => b.id !== xb.dataset.xbq); achPrmSave(P); draw(); return; }

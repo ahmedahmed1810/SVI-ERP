@@ -7,7 +7,7 @@
    - rien n'est effacé : une suppression met l'article à la CORBEILLE (restaurable), un numéro n'est jamais réutilisé.
    Règles reprises de achats.html (validées par Ahmed) : catégories, banques et codes RIB, TVA par défaut 20 %.
    ========================================================= */
-const ACH_K = { art: "svi_ach_art_v1", prm: "svi_ach_prm_v1", frs: "svi_ach_frs_v1" };
+const ACH_K = { art: "svi_ach_art_v1", prm: "svi_ach_prm_v1", frs: "svi_ach_frs_v1", bsn: "svi_ach_bsn_v1" };
 const ACH_PRM_DEF = {
   tva: 20,
   cat: ["COFFRAGE", "LOCATION MATERIEL", "MATERIAUX NON STOCKABLE", "MATERIAUX STOCKABLE", "MATERIEL DE BUREAU", "MATERIEL ET OUTILLAGE", "SERVICES", "SOUS TRAITANCE", "TRANSPORT"],
@@ -139,5 +139,59 @@ const achFrsWhy = (f, L) => {
   if ((f.ribs || []).length > 1 && !(f.ribs || []).some(r => r.p)) w.push("AUCUN RIB PRINCIPAL");
   if (f.ribChg) w.push("RIB MODIFIÉ LE " + String(f.ribChg).slice(0, 10).split("-").reverse().join("/") + " : À VÉRIFIER AVANT TOUT PAIEMENT");
   (f.docf || []).forEach(d => { if (d.exp && d.exp < today) w.push("DOCUMENT EXPIRÉ : " + d.type); else if (d.exp && d.exp <= soon) w.push("DOCUMENT BIENTÔT EXPIRÉ : " + d.type); });
+  return w;
+};
+
+/* =========================================================
+   v760 : BESOINS (étape 2 — checklist Bloc C, chapitre 3)
+   Un besoin = une quantité d'une CHARGE d'un budget (désignation + unité), pour une TÂCHE (lot › activité secondaire),
+   à une date prévue, avec une priorité, un demandeur et un destinataire ; ou centre de coût SIÈGE (hors budget).
+   CONTRÔLE : prévu de la charge (quantité × prix du budget, consolidé s'il y a des avenants) − déjà demandé (besoins non annulés)
+   → un besoin qui dépasse est BLOQUÉ : justification puis DÉBLOQUER (selon les droits plus tard, B1) ; ⚠ à 90 % du prévu.
+   États : EN INSTANCE → VALIDÉ (responsable, B7 plus tard) ; ANNULÉ (gardé, jamais effacé). Référence BSN AA-MMJJ/nnn jamais réutilisée.
+   ========================================================= */
+const ACH_PRIO = ["NORMALE", "URGENTE", "TRÈS URGENTE"];
+const ACH_BSN_SEUIL = 90;
+const achBsn = () => { const L = achJ(ACH_K.bsn, []); return Array.isArray(L) ? L : []; };
+const achBsnSave = L => achW(ACH_K.bsn, L);
+const achBsnNextRef = (L, d) => { d = d || new Date(); const p2 = x => String(x).padStart(2, "0");
+  const n = L.reduce((m, b) => Math.max(m, Number((String(b.ref || "").match(/\/(\d+)$/) || [])[1]) || 0), 0) + 1;
+  return "BSN " + p2(d.getFullYear() % 100) + "-" + p2(d.getMonth() + 1) + p2(d.getDate()) + "/" + String(n).padStart(3, "0"); };
+/* budgets proposés : étapes de l'appareil (pas les versions, scénarios ni recalages), hors archivés ; famille = consolidé */
+const achBdgList = () => { let L = []; try { L = sviInstGet(); } catch (e) {}
+  return L.filter(b => b && !b.parent && !b.rclOf && !b.virtual && !b.arch).map(b => ({ ref: b.ref, lab: achU(b.project) + " " + b.ref + (b.intitule ? " — " + achU(b.intitule) : ""), prj: achU(b.project) }))
+    .sort((a, b) => a.lab.localeCompare(b.lab, "fr", { numeric: true })); };
+/* charges d'un budget (consolidé s'il y a des avenants) : [{ key, des, u, q, p, mt, tasks:[« LOT › ACTIVITÉ »] }] */
+const achBdgCharges = bref => {
+  let d = null; try { const S = sviAvStages(bref); d = S.length > 1 ? sviAvMerge(bref) : (S[0] || {}).data; } catch (e) {}
+  d = d || {};
+  const nm = (k, id) => achU(((d[k] || []).find(x => x.id === id) || {}).v || "");
+  const M = new Map();
+  (d.chg || []).forEach(r => { if (!r || r.t || !achU(r.des)) return; const k = achKey(r.des, r.u), x = M.get(k) || { key: k, des: achU(r.des), u: achU(r.u), q: 0, mt: 0, tasks: new Set() };
+    x.q += achN(r.q); x.mt += achN(r.q) * achN(r.p);
+    (d.links || []).forEach(l => { if ((l.chg || []).some(c => c.id === r.id)) { const t = nm("lot", l.lot) + " › " + nm("sec", l.sec); if (t.trim() !== "›") x.tasks.add(t); } });
+    M.set(k, x); });
+  return [...M.values()].map(x => ({ ...x, p: x.q ? x.mt / x.q : 0, tasks: [...x.tasks].sort() })).sort((a, b) => a.des.localeCompare(b.des, "fr", { numeric: true }));
+};
+/* contrôle d'un besoin : prévu, déjà demandé par les AUTRES besoins non annulés, reste, dépassement, % */
+const achBsnCtl = (b, L) => {
+  if (!b || b.centre === "SIÈGE" || !b.bdg) return null;
+  const C = achBdgCharges(b.bdg).find(x => x.key === b.chg); if (!C) return { plan: 0, planQ: 0, used: 0, usedQ: 0, rest: 0, over: true, pct: 0, none: true };
+  const O = (L || achBsn()).filter(x => x.id !== b.id && x.state !== "annule" && x.bdg === b.bdg && x.chg === b.chg);
+  const usedQ = O.reduce((t, x) => t + achN(x.q), 0), mine = achN(b.q), tot = usedQ + mine;
+  return { plan: C.mt, planQ: C.q, pu: C.p, usedQ, used: usedQ * C.p, restQ: C.q - usedQ, over: tot > C.q + 1e-9, pct: C.q ? tot / C.q * 100 : 0 };
+};
+const achBsnWhy = (b, L) => {
+  const w = [];
+  if (b.state === "annule") return w;
+  if (b.centre !== "SIÈGE" && !b.bdg) w.push("BUDGET MANQUANT (OU CENTRE DE COÛT SIÈGE)");
+  if (!achU(b.des)) w.push("CHARGE MANQUANTE");
+  if (!(achN(b.q) > 0)) w.push("QUANTITÉ MANQUANTE");
+  if (!b.datePrevue) w.push("DATE PRÉVUE MANQUANTE");
+  const c = achBsnCtl(b, L);
+  if (c && c.none) w.push("CHARGE ABSENTE DU BUDGET");
+  else if (c && c.over && !b.deb) w.push("DÉPASSEMENT DU PRÉVU (" + Math.round(c.pct) + " %) : BLOQUÉ — JUSTIFIER PUIS DÉBLOQUER");
+  else if (c && c.over && b.deb) { /* dépassement débloqué (justifié) : plus d'alerte */ }
+  else if (c && c.pct >= ACH_BSN_SEUIL) w.push("SEUIL ATTEINT : " + Math.round(c.pct) + " % DU PRÉVU DE LA CHARGE");
   return w;
 };

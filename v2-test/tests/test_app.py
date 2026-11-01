@@ -2845,6 +2845,30 @@ def main():
               f759[0] == ["FRS-0001", "FRS-0002", False, True, "FRS-0001", True] and f759[1] == 0 and "DOCUMENT EXPIRÉ : ATTESTATION CNSS" in f759[2] and "ICE EN DOUBLE" in f759[2]
               and f759[3] == "ACHATS — FOURNISSEURS" and f759[4] == 2 and f759[5] == 3 and f759[6] == "IDENTITÉ,FISCAL,RIB,CONDITIONS,FAMILLES,DOCUMENTS,CONTACTS,ÉVALUATIONS,CONTRATS"
               and f759[7] == "CHANGEMENT DE RIB" and f759[8] and f759[9] and f759[10], f759)
+        # v760 : BESOINS — charges du budget avec leurs tâches, contrôle prévu / déjà demandé, dépassement BLOQUÉ (justifier puis DÉBLOQUER),
+        # seuil 90 %, centre SIÈGE hors budget ; menu ☰ › BESOIN, fiche de création (budget › charge › tâche), validation
+        n760 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const keepB = localStorage.getItem('svi_ach_bsn_v1'), keepE = localStorage.getItem('svi_ach_bsn_etat_v1'); localStorage.removeItem('svi_ach_bsn_v1'); localStorage.removeItem('svi_ach_bsn_etat_v1');
+            const keepI = sviInstGet(); sviInstSet(keepI.concat([{ ref: 'BSN-T1', project: 'BSN', state: 'valide', data: { des: [{ id: 'd1', des: 'MUR', u: 'M2', q: 1, p: 1 }], lot: [{ id: 'l1', v: 'RDC' }], prim: [{ id: 'p1', v: 'MACONNERIE' }], sec: [{ id: 's1', v: 'MACONNERIE' }],
+              chg: [{ id: 'c1', des: 'CIMENT', u: 'T', q: 10, p: 100 }], prd: [], links: [{ id: 'L1', des: 'd1', lot: 'l1', prim: 'p1', sec: 's1', prd: [], chg: [{ id: 'c1' }] }] } }]));
+            const C = achBdgCharges('BSN-T1'), L = [];
+            const b1 = { id: 'n1', ref: 'BSN 26-1101/001', centre: 'CHANTIER', bdg: 'BSN-T1', chg: achKey('CIMENT', 'T'), des: 'CIMENT', u: 'T', q: 6, datePrevue: '2026-11-05', state: 'instance' }; L.push(b1);
+            const c1 = achBsnCtl(b1, L), b2 = { ...b1, id: 'n2', q: 5 }; L.push(b2); const w2 = achBsnWhy(b2, L), b3 = { ...b1, id: 'n3', q: 3.5 }; const w3 = achBsnWhy(b3, [b1, b3]);
+            b2.deb = { u: 'T', t: '2026-11-01', why: 'X' }; const w2b = achBsnWhy(b2, L), s0 = achBsnCtl({ centre: 'SIÈGE', des: 'PAPIER', q: 1 }, L);
+            const r = [C.length, C[0].des, C[0].tasks.join(','), Math.round(C[0].p), Math.round(c1.pct), w2.some(m => /BLOQUÉ/.test(m)), w3.some(m => /SEUIL/.test(m)), w2b.length, s0, achBsnNextRef([b1], new Date(2026, 10, 2))];
+            document.querySelector('#navMenu .nav-btn[data-ach="bsn"]').click(); await w(400); const v = document.getElementById('ach');
+            r.push(v.querySelector('.section-head h1').textContent);
+            achBsnFiche(null, () => v.__achDraw()); await w(200);
+            const set = (k, val) => { const i = document.querySelector(`.bsn-card .bsn-x[data-k="${k}"]`); i.value = val; i.dispatchEvent(new Event('change', { bubbles: true })); };
+            set('bdg', 'BSN-T1'); await w(50); set('chg', achKey('CIMENT', 'T')); await w(50);
+            const fc = document.querySelector('.bsn-card'); const tache = fc.querySelector('.bsn-x[data-k="tache"]').value;
+            fc.querySelector('.bsn-x[data-k="q"]').value = '4'; fc.querySelector('.bsn-x[data-k="datePrevue"]').value = '2026-11-10'; fc.querySelector('[data-save]').click(); await w(300);
+            const S = achBsn(); r.push(tache, S.length, S[0] && S[0].ref.startsWith('BSN '), v.querySelectorAll('#achBsnT tbody tr[data-id]').length);
+            v.querySelector('#achBsnT [data-bsn]').click(); await w(200); document.querySelector('.bsn-card [data-valid]').click(); await w(300); r.push(achBsn()[0].state);
+            sviInstSet(keepI); if (keepB === null) localStorage.removeItem('svi_ach_bsn_v1'); else localStorage.setItem('svi_ach_bsn_v1', keepB);
+            if (keepE === null) localStorage.removeItem('svi_ach_bsn_etat_v1'); else localStorage.setItem('svi_ach_bsn_etat_v1', keepE);
+            v.__achTab('art'); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
+        check("v760 : BESOINS — charge et tâche du budget, contrôle (60 %), dépassement bloqué puis débloqué, seuil 90 %, SIÈGE hors contrôle, référence BSN ; menu BESOIN, fiche, création, validation",
+              n760 == [1, "CIMENT", "RDC › MACONNERIE", 100, 60, True, True, 0, None, "BSN 26-1102/002", "BESOINS", "RDC › MACONNERIE", 1, True, 1, "valide"], n760)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

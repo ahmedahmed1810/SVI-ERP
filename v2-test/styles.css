@@ -3267,3 +3267,15 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .frs-card .frs-evl { font-size: 12px; font-weight: 700; padding: 4px 0; }
 .frs-card .frs-add { margin-top: 2px; }
 @media (max-width: 700px) { .frs-card .frs-g { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* ===== v760 : BESOINS ===== */
+#achBsnT tr.bsn-valide td { color: var(--st-valide, #172033); }
+#achBsnT tr.bsn-instance td { color: var(--st-instance, #b91c1c); }
+#achBsnT tr.bsn-annule td { color: #9aa3b2; text-decoration: line-through; }
+#achBsnT td.bsn-blk { font-weight: 900; background: #fef2f2; }
+#achBsnT tr.bsn-newrow td { cursor: pointer; }
+.bsn-card .bsn-ctl { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 4px 0 10px; padding: 8px 10px; border-radius: 8px; background: #eef4fb; font-size: 12px; font-weight: 700; color: #12355b; }
+.bsn-card .bsn-ctl.near { background: #fff7ed; color: #9a3412; }
+.bsn-card .bsn-ctl.over { background: #fef2f2; color: #b91c1c; }
+.bsn-card .bsn-note { font-size: 11px; font-weight: 700; color: #6b7480; margin: 6px 0; }
+.bsn-card .bsn-deb { font-size: 12px; font-weight: 800; color: #166534; }
+.bsn-card select.ins-in, .bsn-card .frs-f input { height: 30px; border: 1px solid #d6dbe3; border-radius: 6px; padding: 0 8px; font-size: 12px; font-weight: 700; background: #fff; }
