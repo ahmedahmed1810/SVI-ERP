@@ -3378,3 +3378,18 @@ table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 #sviSelFrame { border-width: 1.5px !important; border-radius: 3px !important; }
 /* v774 (point 7) : plus de second cadre intérieur (case DÉBUT / FIN du planning…) : seul le petit cadre commun reste */
 :is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) td.svi-tdf > :is(input, textarea, .ins-dv) { box-shadow: none !important; }
+/* v776 : PAGES DES ACHATS au format de l'écran d'un budget */
+#ach.ach-page { margin: -14px; }
+#ach.ach-page > .section-head, #ach.ach-page > .ach-tabs { display: none !important; }
+#ach .nvp.bdg-d-page { padding: 0 14px 14px; }
+#ach .nvp .bdg-d-sticky { margin: 0 -14px 12px; }
+#ach .nvp .nvp-blk { margin-bottom: 14px; }
+#ach .nvp .nvp-blk .blk-head { display: flex; align-items: center; justify-content: space-between; }
+#ach .nvp .nvp-blk .blk-tools { margin-left: auto; display: inline-flex; gap: 8px; }
+#ach .nvp .nvp-blk.nvp-max .rec-scroll { max-height: none !important; }
+#ach .nvp.nvp-valide .bdg-d-h1 { color: #12355b; }
+#ach .nvp tr.rec-new td { color: var(--inst, #b91c1c); background: #fdf2f2; cursor: pointer; }
+#ach .nvp .novapp-list-titlebar .bdg-d-badge.ach-h { border-radius: 4px; background: transparent !important; border: 1.6px solid currentColor; color: #3f4856 !important; width: 24px; height: 24px; padding: 0; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; }
+#ach .nvp.bdg-inst-instance .novapp-list-titlebar .bdg-d-badge.ach-h { color: var(--inst, #b91c1c) !important; }
+#ach .nvp.bdg-inst-instance .bdg-d-block-title { border-left-color: var(--inst, #b91c1c); }

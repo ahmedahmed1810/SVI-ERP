@@ -506,7 +506,9 @@ function sviAchInit() {
     /* v765 : plus de rangée d'onglets : on passe d'une liste à l'autre par le menu ☰ (comme les budgets) ; pas d'étiquette du budget ici */
     bar.style.display = "none"; document.getElementById("sviScreenTag")?.remove(); document.body.classList.remove("bdg-screen");
     /* v766 : les listes ont la forme exacte de la liste des budgets (titre et ☰ dans la liste elle-même) ; la page garde l'en-tête de l'écran */
-    if (NV[tab]) { const M = NV[tab]; body.innerHTML = M.html(); if (h1) h1.innerHTML = M.isPage() ? M.h1() : ""; if (sub) sub.textContent = ""; view.classList.toggle("ach-page", M.isPage()); view.classList.toggle("ach-bdgl", !M.isPage()); achBdglSync(body); return; }
+    if (NV[tab]) { const M = NV[tab]; body.innerHTML = M.html(); if (h1) h1.innerHTML = M.isPage() ? M.h1() : "";
+      /* v776 : page = étiquette de l'écran en haut au centre (comme « BUDGET »), en-tête de l'écran caché */
+      if (M.isPage()) { const t = document.createElement("div"); t.id = "sviScreenTag"; t.innerHTML = M.h1(); document.body.appendChild(t); document.body.classList.add("bdg-screen"); } if (sub) sub.textContent = ""; view.classList.toggle("ach-page", M.isPage()); view.classList.toggle("ach-bdgl", !M.isPage()); achBdglSync(body); return; }
     view.classList.remove("ach-page");
     const LM = tab === "bsn" ? BSNM : MODS[tab];
     if (LM && LM.h1) { body.innerHTML = LM.html(); if (sub) sub.textContent = ""; view.classList.add("ach-bdgl"); achBdglSync(body); return; }
@@ -1865,11 +1867,11 @@ function achRecBlock(code) {
     const row = (x, i) => tab === "doc" ? `<td>${esc(x.ref || "")}</td><td>${esc(dt(x.date))}</td><td>${esc(x.title || "")}</td><td class="center">${x.fk ? `<button type="button" class="ach-link" data-recf="${i}">OUVRIR</button>` : ""}</td>`
       : tab === "taf" ? `<td>${esc(x.ref || "")}</td><td>${esc(dt(x.date))}</td><td>${esc(x.title || "")}</td><td>${esc(achDFr(x.ech))}</td><td class="center"><input type="checkbox" class="rec-done" data-i="${i}"${x.done ? " checked" : ""}></td>`
       : `<td>${esc(dt(x.date))}</td><td>${esc(x.text || "")}</td><td class="center">${x.important ? "<b>!</b>" : ""}</td>`;
-    return `<div class="bdg-d-block blk-rec nvp-rec"><div class="bdg-d-block-title blk-head"><span class="rec-tabs">
-        ${["doc", "taf", "obs"].map(k => `<button type="button" class="rec-tab${k === tab ? " active" : ""}" data-nvr="${k}">${SVI_ICON[k] || ""}${{ doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS" }[k]} ${svCnt(get(k).length)}</button>`).join("")}</span>
-        <span class="blk-tools"><button type="button" class="blk-btn" data-nvradd title="AJOUTER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></span></div>
+    /* v776 : bloc SUIVI comme celui du budget — en-tête SUIVI (agrandir, ⋯), rangée d'onglets, ligne CRÉER … ICI */
+    return `<div class="bdg-d-block blk-rec blk-suivi nvp-rec nvp-blk" data-nvb="rec"><div class="bdg-d-block-title blk-head"><span class="ttl">${SVI_ICON.doc || ""}SUIVI</span>${achBlkTools("rec")}</div>
+      <div class="blk-tabrow"><span class="rec-tabs">${["doc", "taf", "obs"].map(k => `<button type="button" class="rec-tab${k === tab ? " active" : ""}" data-nvr="${k}">${SVI_ICON[k] || ""}${{ doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS" }[k]} ${svCnt(get(k).length)}</button>`).join("")}</span></div>
       <div class="rec-scroll" style="max-height:var(--nvh-rec, 200px)"><table class="bdg-d-table rec-table"><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead>
-        <tbody>${L.slice().reverse().map((x, j) => `<tr>${row(x, L.length - 1 - j)}</tr>`).join("") || `<tr><td colspan="${head.length}" class="empty">${{ doc: "AUCUN DOCUMENT", taf: "AUCUNE TÂCHE", obs: "AUCUNE OBSERVATION" }[tab]}</td></tr>`}</tbody></table></div><div class="blk-rsz nvp-rsz" data-nvh="rec" title="Glisser pour changer la hauteur"></div></div>`;
+        <tbody>${L.slice().reverse().map((x, j) => `<tr>${row(x, L.length - 1 - j)}</tr>`).join("")}<tr class="rec-new" data-nvradd><td colspan="${head.length}">${{ doc: "CRÉER UN DOCUMENT ICI…", taf: "CRÉER UN TAF ICI…", obs: "CRÉER UNE OBSERVATION ICI…" }[tab]}</td></tr></tbody></table></div><div class="blk-rsz nvp-rsz" data-nvh="rec" title="Glisser pour changer la hauteur"></div></div>`;
   };
   const add = () => new Promise(ok => {
     const d = sviWinNew(), now = new Date().toISOString();
@@ -1982,18 +1984,26 @@ function achNvhDrag(e, h) {
     try { const H = JSON.parse(localStorage.getItem(ACH_NVH_K) || "{}") || {}; H[k] = v; localStorage.setItem(ACH_NVH_K, JSON.stringify(H)); } catch (err) {} };
   document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
 }
+/* v776 : PAGE au format exact de l'écran d'un budget — en-tête : ☰, RÉFÉRENCE (rouge soulignée en instance), i (informations), H (historique),
+   barre commune à droite ; étiquette de l'écran en haut au centre ; puis les blocs liés (agrandir, ⋯) et le SUIVI (DOC / TAF / OBS) */
+const ACH_MAX_IC = '<svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const achBlkTools = k => `<span class="blk-tools"><button type="button" class="blk-btn blk-max-btn" data-nvmax="${esc(k)}" title="Agrandir / réduire">${ACH_MAX_IC}</button><button type="button" class="blk-more" data-nvmore="${esc(k)}" title="Actions" aria-label="Actions">⋯</button></span>`;
 function achNvPageHTML(p, rec) {
-  return `<div class="nvp" style="${achNvhStyle()}">
-    <div class="nvp-bar">${sviHdrBar({ attr: "nvp", n: p.why.length, why: { undo: "RIEN À ANNULER SUR CETTE FICHE.", redo: "RIEN À RÉTABLIR SUR CETTE FICHE.", todo: p.why.length ? "" : "AUCUNE ALERTE." } })}</div>
-    <div class="nvp-card${p.st === "instance" ? " nvp-inst" : ""}">
-      <div class="nvp-top"><span class="nvp-code">${esc(p.code)}</span><button type="button" class="ach-h" data-h="${esc(p.code)}" title="Historique">H</button>
-        <span class="nvp-st">${p.del ? "CORBEILLE" : p.st === "instance" ? "EN INSTANCE" : "VALIDÉ"}${p.inactif ? " · INACTIF" : ""}</span></div>
-      <button type="button" class="nvp-name" data-nvp="info" title="INFORMATIONS">${p.why.length ? "! " : ""}${esc(p.title)}</button>
-      ${p.why.length ? `<div class="frs-why">⚠ ${p.why.map(esc).join(" · ")}</div>` : ""}</div>
+  const blk = L => { const k = achNvhKey(L.t);
+    return `<div class="bdg-d-block nvp-blk" data-nvb="${k}"><div class="bdg-d-block-title blk-head"><span class="ttl">${esc(L.t)} ${svCnt(L.rows.length)}</span>${achBlkTools(k)}</div>
+      <div class="rec-scroll" style="max-height:var(--nvh-${k}, 200px)"><table class="bdg-d-table rec-table"><thead><tr>${L.cols.map(c => `<th class="${c[1] || ""}">${esc(c[0])}</th>`).join("")}</tr></thead>
+      <tbody>${L.rows.map((r, i) => `<tr class="${r.cls || ""}">${r.cells.map((v, j) => `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${i}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${L.cols.length}" class="empty">AUCUN</td></tr>`}</tbody></table></div>
+      <div class="blk-rsz nvp-rsz" data-nvh="${k}" title="Glisser pour changer la hauteur"></div></div>`; };
+  return `<div class="nvp bdg-d-page ${p.st === "instance" && !p.del ? "bdg-inst-instance" : "nvp-valide"}" style="${achNvhStyle()}">
+    <div class="bdg-d-sticky"><div class="novapp-list-titlebar">
+      <button type="button" class="novapp-menu open-menu" aria-label="Menu">☰</button>
+      <h1 class="bdg-d-h1 nvp-ref${p.del ? " nv-strike" : ""}">${esc(p.ref || p.code)}</h1>
+      <span class="bdg-d-badge bdg-d-inf" data-nvp="info" role="button" title="Informations">i</span>
+      <span class="bdg-d-badge ach-h" data-h="${esc(p.code)}" role="button" title="Historique">H</span>
+      ${sviHdrBar({ attr: "nvp", n: p.why.length, why: { undo: "RIEN À ANNULER SUR CETTE FICHE.", redo: "RIEN À RÉTABLIR SUR CETTE FICHE.", todo: p.why.length ? "" : "AUCUNE ALERTE." } })}
+    </div></div>
+    ${p.links.map(blk).join("")}
     ${rec.html()}
-    ${p.links.map(L => `<div class="bdg-d-block nvp-blk"><div class="bdg-d-block-title blk-head"><span class="ttl">${esc(L.t)} ${svCnt(L.rows.length)}</span></div>
-      <div class="rec-scroll" style="max-height:var(--nvh-${achNvhKey(L.t)}, 200px)"><table class="bdg-d-table rec-table"><thead><tr>${L.cols.map(c => `<th class="${c[1] || ""}">${esc(c[0])}</th>`).join("")}</tr></thead>
-      <tbody>${L.rows.map((r, i) => `<tr class="${r.cls || ""}">${r.cells.map((v, j) => `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${i}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${L.cols.length}" class="empty">AUCUN</td></tr>`}</tbody></table></div><div class="blk-rsz nvp-rsz" data-nvh="${achNvhKey(L.t)}" title="Glisser pour changer la hauteur"></div></div>`).join("")}
   </div>`;
 }
 /* module complet liste + page : cfg = { list: options de achNvList (sans page), pageOf(id) → p, back } */
@@ -2022,6 +2032,18 @@ function achNvMod(ctx, cfg) {
       if (k === "more") { const M = P.menu, top = M.filter(m => m.k === "val"), bot = M.filter(m => m.k === "del" || m.k === "rest").map(m => ({ ...m, del: m.k === "del" })), mid = M.filter(m => !top.includes(m) && !["del", "rest"].includes(m.k));
         sviHdrMenu(b, [top, mid, [...bot, { k: "__close", lab: "FERMER" }]], async a => { if (a === "__close") { pid = null; ctx.draw(); return; } await P.act(a, () => ctx.draw(), id => open(id)); }); return true; }
     }
+    /* v776 : AGRANDIR / RÉDUIRE un bloc de la page ; ⋯ du bloc (EXPORTER, APERÇU ; SUIVI : CRÉER) */
+    const mx = e.target.closest("[data-nvmax]"); if (mx) { const bl = mx.closest(".nvp-blk"); const on = !bl.classList.contains("nvp-max"); bl.classList.toggle("nvp-max", on); mx.classList.toggle("on", on); return true; }
+    const mo = e.target.closest("[data-nvmore]"); if (mo) { const k = mo.dataset.nvmore, bl = mo.closest(".nvp-blk"), L = P.links.find(x => achNvhKey(x.t) === k);
+      const tsv = () => { const t = bl.querySelector("table"); return [...t.rows].filter(r => !r.classList.contains("rec-new")).map(r => [...r.cells].map(c => c.textContent.trim()).join("\t")).join("\n"); };
+      sviHdrMenu(mo, [k === "rec" ? [{ k: "add", lab: "CRÉER" }] : [], [{ k: "exp", lab: "EXPORTER" }, { k: "apr", lab: "APERÇU" }]], async a => {
+        if (a === "add") { if (await rec.click({ target: bl.querySelector("[data-nvradd]") }, () => ctx.draw())) return; }
+        const ttl = (P.ref || P.code) + " — " + (L ? L.t : "SUIVI");
+        if (a === "exp") { const b = new Blob(["\ufeff" + tsv().split("\n").map(l => l.split("\t").map(v => /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v).join(";")).join("\n")], { type: "text/csv;charset=utf-8" });
+          const u = URL.createObjectURL(b), an = document.createElement("a"); an.href = u; an.download = ttl.replace(/[\\/:*?"<>|]/g, "-") + ".csv"; document.body.appendChild(an); an.click(); setTimeout(() => { URL.revokeObjectURL(u); an.remove(); }, 1000); }
+        if (a === "apr") { const w = window.open("", "_blank"); if (!w) { svToast("APERÇU BLOQUÉ PAR LE NAVIGATEUR.", 3000); return; }
+          w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(ttl)}</title><style>body{font:12px Arial;margin:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:4px 6px;text-align:left}th{background:#f3f4f6}</style><h3>${esc(ttl)}</h3>${bl.querySelector("table").outerHTML}`); w.document.close(); w.focus(); try { w.print(); } catch (err) {} } });
+      return true; }
     const l = e.target.closest("[data-nvl]"); if (l) { const [t, i] = l.dataset.nvl.split("|"), L = P.links.find(x => x.t === t), r = L && L.rows[+i]; if (r && r.open) r.open(() => ctx.draw()); return true; }
     return false;
   };
@@ -2099,20 +2121,29 @@ async function achNvValider(L, x, code, nom, why, save) {
   if (!(await svConfirm({ title: "VALIDER", text: code + " — " + nom + " PASSE DANS LA LISTE DES VALIDÉS.", ok: "VALIDER", tone: "neutral" }))) return false;
   x.st = "valide"; x.val = achNow(); x.mod = x.val; save(L); achHist(code, "VALIDATION", nom); return true;
 }
+/* v776 : RÉFÉRENCE SVI (« FRS 26-1010/001 ») — celle d'origine (NovApp) gardée ; sinon date de création AA-MMJJ + rang du jour (001, 002…) */
+function achRefSvi(x, L, pfx) {
+  if (x.nov) return x.nov;
+  const d = String(x.cree || "").slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return x.code;
+  const tag = d.slice(2, 4) + "-" + d.slice(5, 7) + d.slice(8, 10), rx = new RegExp(" " + tag + "/(\\d+)$");
+  const used = Math.max(0, ...L.map(y => { const m = String(y.nov || "").match(rx); return m ? +m[1] : 0; }));
+  const same = L.filter(y => !y.nov && String(y.cree || "").slice(0, 10) === d).sort((a, b) => String(a.cree).localeCompare(String(b.cree)) || String(a.code).localeCompare(String(b.code)));
+  return pfx + " " + tag + "/" + String(used + Math.max(0, same.findIndex(y => y.id === x.id)) + 1).padStart(3, "0");
+}
 function achArtNvMod(ctx) {
   const same = (l, a) => achKey(l.des, l.u) === achKey(a.des, a.u);
   const artWhy = a => achArtWhy(a).concat(a.cat ? [] : ["CATÉGORIE MANQUANTE"]);
   return achNvMod(ctx, {
-    list: { k: "art", t: "ach_art2", id: "achArtT", name: "ARTICLES", one: "ARTICLE", all: achArts, save: achArtsSave, code: a => a.code, nom: a => a.des, why: artWhy,
+    list: { k: "art", t: "ach_art2", id: "achArtT", name: "ARTICLES", one: "ARTICLE", all: achArts, save: achArtsSave, code: a => achRefSvi(a, achArts(), "ARA"), nom: a => a.des, why: artWhy,
       newRow: "CRÉER UN ARTICLE ICI…", add: done => achArtFiche(null, done),
       w: { ref: 110, nom: 360, u: 70, cat: 200, pref: 110, pmax: 110, val: 110, cree: 110 },
-      cols: mode => [["ref", "RÉFÉRENCE", a => a.code, ""], ["nom", "DÉSIGNATION", a => a.des, ""], ["u", "UNT", a => a.u, "center"], ["cat", "CATÉGORIE", a => a.cat || "", ""],
+      cols: mode => [["ref", "RÉFÉRENCE", a => achRefSvi(a, achArts(), "ARA"), ""], ["nom", "DÉSIGNATION", a => a.des, ""], ["u", "UNT", a => a.u, "center"], ["cat", "CATÉGORIE", a => a.cat || "", ""],
         ["pref", "PRIX RÉF. HT", a => achN(a.pref), "number"], ["pmax", "PLAFOND HT", a => achN(a.pmax) ? achN(a.pmax) : "", "number"]]
         .concat(mode === "valid" ? [["val", "VALIDÉ LE", a => achDFr(a.val || a.cree), "center"]] : []).concat([["cree", "SAISI LE", a => achDFr(a.cree), "center"]]) },
     pageOf: id => { const a = achArts().find(x => x.id === id); if (!a) return null;
       const C = achCaf().filter(c => (c.lignes || []).some(l => same(l, a))), D = achDvf().filter(v => (v.lignes || []).some(l => same(l, a))), M = achCmf().filter(c => (c.lignes || []).some(l => same(l, a)));
       const lp = (v, k) => (v.lignes || []).find(l => same(l, a)) || {};
-      return { id, code: a.code, title: a.des + " (" + a.u + ")", st: achSt(a), del: !!a.del, inactif: a.actif === false, why: artWhy(a),
+      return { id, code: a.code, ref: achRefSvi(a, achArts(), "ARA"), tag: "ARTICLE", title: a.des + " (" + a.u + ")", st: achSt(a), del: !!a.del, inactif: a.actif === false, why: artWhy(a),
         info: done => achArtFiche(id, () => done()),
         menu: [achSt(a) === "instance" && !a.del ? { k: "val", lab: "VALIDER" } : null, { k: "cv", lab: "UNITÉ DE CONVERSION" + ((a.cv || []).length ? " (" + a.cv.length + ")" : "") }, { k: "bdg", lab: "BUDGETS (" + achArtBudgets(a).length + ")" },
           a.del ? { k: "rest", lab: "RESTAURER" } : { k: "del", lab: "METTRE À LA CORBEILLE" }].filter(Boolean),
@@ -2133,18 +2164,18 @@ function achArtNvMod(ctx) {
 function achFrsNvMod(ctx) {
   const frsWhy = f => achFrsWhy(f, achFrs());
   return achNvMod(ctx, {
-    list: { k: "frs", t: "ach_frs2", id: "achFrsT", name: "FOURNISSEURS", one: "FOURNISSEUR", all: achFrs, save: achFrsSave, code: f => f.code, nom: f => f.nom, why: frsWhy,
+    list: { k: "frs", t: "ach_frs2", id: "achFrsT", name: "FOURNISSEURS", one: "FOURNISSEUR", all: achFrs, save: achFrsSave, code: f => achRefSvi(f, achFrs(), "FRS"), nom: f => f.nom, why: frsWhy,
       newRow: "CRÉER UN FOURNISSEUR ICI…",
       add: async done => { const nom = await achAsk("NOUVEAU FOURNISSEUR", "NOM"); if (!nom) { done(null); return; } const L = achFrs(), dn = achFrsDupNom(L, nom, "");
         if (dn) svToast("UN FOURNISSEUR DU MÊME NOM EXISTE : " + dn.code + ".", 3500);
         const f = achFrsNew(L, { nom }); f.st = "instance"; achFrsSave(L); achHist(f.code, "CRÉATION", f.nom); done(f.id); achFrsFiche(f.id, "", () => done(f.id)); },
       w: { ref: 110, nom: 320, ville: 140, ice: 160, cond: 140, val: 110, cree: 110 },
-      cols: mode => [["ref", "RÉFÉRENCE", f => f.code, ""], ["nom", "NOM", f => f.nom, ""], ["ville", "VILLE", f => f.ville || "", ""], ["ice", "ICE", f => achDig(f.ice), "center"], ["cond", "PAIEMENT", f => f.cond || "", ""]]
+      cols: mode => [["ref", "RÉFÉRENCE", f => achRefSvi(f, achFrs(), "FRS"), ""], ["nom", "NOM", f => f.nom, ""], ["ville", "VILLE", f => f.ville || "", ""], ["ice", "ICE", f => achDig(f.ice), "center"], ["cond", "PAIEMENT", f => f.cond || "", ""]]
         .concat(mode === "valid" ? [["val", "VALIDÉ LE", f => achDFr(f.val || f.cree), "center"]] : []).concat([["cree", "SAISI LE", f => achDFr(f.cree), "center"]]) },
     pageOf: id => { const f = achFrs().find(x => x.id === id); if (!f) return null;
       const D = achDvf().filter(v => v.frs === id), M = achCmf().filter(c => c.frs === id), FA = achFaf().filter(x => x.frs === id), PA = achPaf().filter(x => x.frs === id);
       const arts = new Map(); D.filter(v => v.state !== "rejete" && v.state !== "annule").forEach(v => (v.lignes || []).forEach(l => { if (achN(l.pu) > 0) arts.set(achKey(l.des, l.u), { l, v }); }));
-      return { id, code: f.code, title: f.nom, st: achSt(f), del: !!f.del, inactif: f.actif === false, why: frsWhy(f),
+      return { id, code: f.code, ref: achRefSvi(f, achFrs(), "FRS"), tag: "FOURNISSEUR", title: f.nom, st: achSt(f), del: !!f.del, inactif: f.actif === false, why: frsWhy(f),
         info: done => achFrsFiche(id, "", () => done()),
         menu: [achSt(f) === "instance" && !f.del ? { k: "val", lab: "VALIDER" } : null, { k: "rib", lab: "RIB" }, { k: "cte", lab: "CONTACTS (" + (f.cte || []).length + ")" }, { k: "evl", lab: "ÉVALUATIONS (" + (f.evl || []).length + ")" },
           { k: "cgf", lab: "CONTRATS (" + (f.cgf || []).length + ")" }, { k: "docf", lab: "DOCUMENTS FISCAUX (" + (f.docf || []).length + ")" }, f.del ? { k: "rest", lab: "RESTAURER" } : { k: "del", lab: "METTRE À LA CORBEILLE" }].filter(Boolean),

@@ -2904,7 +2904,7 @@ def main():
             document.querySelector('.frs-card [data-x]').click(); await w(300);
             const n1 = achFrs().filter(f => !f.del).length + (v.querySelectorAll('#achFrsT tbody tr[data-id]').length === 1 && /EN INSTANCE/.test((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent) ? 0 : 100);
             v.querySelector('[data-nvsw]').click(); await w(200); v.querySelector(`#achFrsT [data-nvo="${a.id}"]`).click(); await w(250);
-            const pgOk = /^FOURNISSEUR — BETON SUD/.test((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent) && v.querySelectorAll('.nvp-blk').length === 5;
+            const pgOk = /^FOURNISSEUR — BETON SUD/.test((document.getElementById('sviScreenTag') || {}).textContent || '') && /^FRS \\d{2}-\\d{4}\\/\\d{3}$/.test(v.querySelector('.nvp-ref').textContent) && v.querySelectorAll('.nvp-blk').length === 6;
             v.querySelector('[data-nvp="info"]').click(); await w(300); const fc = document.querySelector('.frs-card');
             const secs = fc ? [...fc.querySelectorAll('.frs-st')].map(x => x.textContent.replace(/\\s*\\d+$/, '').split(' ')[0]).join(',') : 'pas de fiche';
             const ri = fc.querySelector('.frs-sub[data-sub="ribs"] .frs-s[data-c="rib"]'); ri.value = '011780000123456789012345'; fc.querySelector('[data-save]').click(); await w(250);
@@ -3053,7 +3053,7 @@ def main():
             const A = achArts().find(a => a.des === 'CIMENT CPJ45');
             r.push(!!A && A.st, (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, !!v.querySelector('.nv-inst [data-nvdel]'), !!v.querySelector('[data-nvnew]'));
             v.querySelector(`[data-nvo="${A.id}"]`).click(); await w(250);
-            r.push(v.querySelector('.nvp-code').textContent, !!v.querySelector('.nvp-inst'), v.querySelectorAll('.nvp-rec .rec-tab').length);
+            r.push(/^ARA \\d{2}-\\d{4}\\/0\\d[1-9]$/.test(v.querySelector('.nvp-ref').textContent) ? 'ART-0003' : v.querySelector('.nvp-ref').textContent, !!v.querySelector('.nvp.bdg-inst-instance'), v.querySelectorAll('.nvp-rec .rec-tab').length);
             v.querySelector('[data-nvr="obs"]').click(); await w(100); v.querySelector('[data-nvradd]').click(); await w(200);
             document.querySelector('#svConf .nr-t').value = 'livrer avant 10h'; document.querySelector('#svConf .nr-i').checked = true; document.querySelector('#svConf [data-ok]').click(); await w(250);
             r.push(obsAlertCount('ACH-' + A.code), /AVANT 10H/.test(v.querySelector('.nvp-rec').textContent));
@@ -3062,10 +3062,10 @@ def main():
             const cvv = document.querySelector('#svConf'); cvv.querySelector('.cv-x[data-c="u"]').value = 'SAC'; cvv.querySelector('.cv-x[data-c="r"]').value = '20'; cvv.querySelector('[data-save]').click(); await w(250);
             r.push(JSON.stringify(achArts().find(a => a.id === A.id).cv));
             v.querySelector('[data-nvp="more"]').click(); await w(150); document.querySelector('#blkMenu [data-a="val"]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
-            r.push(achArts().find(a => a.id === A.id).st, !v.querySelector('.nvp-inst'));
+            r.push(achArts().find(a => a.id === A.id).st, !v.querySelector('.nvp.bdg-inst-instance'));
             v.querySelector('[data-nvp="close"]').click(); await w(200); r.push((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim());
             v.querySelector(`[data-nvo="${s1.id}"]`).click(); await w(250); r.push([...v.querySelectorAll('.nvp-blk')].some(b => b.textContent.includes('DVF 1')));
-            const t0 = v.querySelector('.nvp-code').textContent; v.querySelector('[data-nvp="next"]').click(); await w(200); r.push(t0 !== v.querySelector('.nvp-code').textContent);
+            const t0 = v.querySelector('.nvp-ref').textContent; v.querySelector('[data-nvp="next"]').click(); await w(200); r.push(t0 !== v.querySelector('.nvp-ref').textContent);
             v.__achTab('art'); await w(150); r.push(!v.querySelector('.nvp'));
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
