@@ -120,7 +120,7 @@ function achFrsFiche(id, sec, done) {
     </tbody></table>${ro ? "" : `<button type="button" class="ach-b frs-add" data-add="${k}">+ ${add}</button>`}`;
   const draw = () => {
     const why = achFrsWhy(F, achFrs()), note = achFrsNote(F);
-    d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: "FICHE FOURNISSEUR — " + esc(F.code) + " · " + esc(F.nom || ""),
+    d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: esc(F.nom || "") + " : " + esc(typeof achRefSvi === "function" ? achRefSvi(F, achFrs(), "FRS") : F.code),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}${F.ribChg && !ro ? ` <button type="button" class="ach-b" data-ribok>RIB VÉRIFIÉ</button>` : ""}</div>` : ""}
         <div class="frs-scroll">
         <div class="frs-sec" data-s="id"><div class="frs-st">IDENTITÉ</div><div class="frs-g">

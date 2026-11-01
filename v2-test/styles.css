@@ -3386,3 +3386,4 @@ table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 #ach .nvp.bdg-inst-instance > .bdg-d-block:not(.blk-suivi) > .bdg-d-block-title { border-left-color: var(--inst, #b91c1c); }
 #ach .nvp.bdg-d-page { background: #fff; }
 #ach .nvp .rec-table tr.rec-new td { color: #172033; }
+#ach .nvp .rec-table thead th { position: sticky; top: 0; background: #fafbfc; }
