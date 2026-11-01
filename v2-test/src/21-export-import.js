@@ -2107,7 +2107,7 @@
       ];
       /* v694 : le menu ⋯ ne garde que les entrées utiles à l'écran — consolidé : aperçus, exports, indicateurs ;
          version : RESTAURER, EN FAIRE UN SCÉNARIO, exports, indicateurs ; recalage : NOUVEAU RECALAGE, exports, indicateurs */
-      { const bi = budget.inst, keep = bi && bi.virtual ? (bi.vname ? ["prt", "cum", "vrest", "vscn", "lay", "rat", "ind", "exp", "cmp"] : ["prt", "cum", "blk", "arch", "lay", "rat", "ind", "multi", "exp", "av", "cph", "cmp"]) : bi && bi.rclOf ? ["prt", "cum", "rcl", "lay", "rat", "ind", "exp", "plans", "cmp"] : null;
+      { const bi = budget.inst, keep = bi && bi.scv ? ["prt", "lay", "rat", "ind", "exp", "cmp"] : bi && bi.virtual ? (bi.vname ? ["prt", "cum", "vrest", "vscn", "lay", "rat", "ind", "exp", "cmp"] : ["prt", "cum", "blk", "arch", "lay", "rat", "ind", "multi", "exp", "av", "cph", "cmp"]) : bi && bi.rclOf ? ["prt", "cum", "rcl", "lay", "rat", "ind", "exp", "plans", "cmp"] : null;
         if (keep) for (let i = items.length - 1; i >= 0; i--) if (!keep.includes(items[i].a)) items.splice(i, 1); }
       const m = document.createElement("div");
       m.id = "blkMenu";

@@ -2659,6 +2659,27 @@ def main():
         check("v749 : ACHATS — articles : doublon refusé, presque identique signalé, numéro jamais réutilisé, DIVERS sans plafond, prix au-dessus du plafond, reprise des charges des budgets, banque d'un RIB, fusion",
               a749[:7] == ["ART-0001", "CIMENT CPJ 45", "T", 20, True, "ART-0001", "ART-0003"] and a749[7] == ["ARTICLE DIVERS : PLAFOND OBLIGATOIRE"] and a749[8] == ["PRIX DE RÉFÉRENCE AU-DESSUS DU PLAFOND"]
               and a749[9] and a749[10] == ["M3", "BUDGETS", 200] and a749[11:14] == ["BP", "AWB", None] and a749[14] == 1 and a749[15] == 14 and a749[16] != "", a749)
+        # v759 : scénarios — toucher le nom = CONSULTER (lecture seule, l'actif ne change pas) ; COMPARAISON : FERMER LA COMPARAISON, indicateurs
+        # proposés d'office (MONTANT HT, MONTANT TTC, ÉCART TTC AVEC LE SCÉNARIO ACTIF, NOMBRE DE CHARGES) ; fusion de la base scénario par scénario
+        s759 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); document.getElementById('budgetBackBtn')?.click(); await w(300); localStorage.setItem('svi_listmode_v1', 'inst'); window.__sviAvRet = null; window.__sviAvOpen('TEST-1'); await w(1300); const X = INS_X, I = X.INS; const keep = JSON.stringify({ ver: I.ver || null });
+            const d2 = JSON.parse(JSON.stringify(I)); delete d2.ver; delete d2.vfz; I.ver = { L: [{ id: 's1', kind: 'sc', nom: 'SCÉNARIO 1' }, { id: 's2', kind: 'sc', nom: 'SCÉNARIO 2', d: d2, arch: true }], act: 's1', ind: [] };
+            const V0 = JSON.parse(JSON.stringify(I.ver)); sviInstSet(sviInstGet().map(x => x.ref === 'TEST-1' ? { ...x, data: { ...(x.data || {}), ver: V0 } } : x)); await sviInstFlush();
+            window.__sviAvRet = null; window.__sviAvOpen('TEST-1'); await w(1200);
+            const B = document.querySelector('.blk-etp'); if (!B) return 'pas de bloc'; B.querySelector('[data-etab="scn"]').click(); await w(100);
+            const nm2 = document.querySelector('#scnTable [data-nm="s2"]'); if (!nm2) return ['pas de nom', (document.getElementById('sviScreenTag') || {}).textContent, document.querySelector('#scnTable') ? document.querySelector('#scnTable').textContent.slice(0, 300) : 'pas de table', !!document.getElementById('svConf')];
+            nm2.click(); await w(1200);
+            const tag = (document.getElementById('sviScreenTag') || {}).textContent || '', act = ((sviInstGet().find(x => x.ref === 'TEST-1') || {}).data || {}).ver.act;
+            document.getElementById('budgetBackBtn')?.click(); await w(400); window.__sviAvRet = null; window.__sviAvOpen('TEST-1'); await w(1200);
+            document.querySelector('.blk-etp [data-etab="scn"]').click(); await w(100);
+            document.querySelector('#scnTable tr[data-scn="s2"] td:nth-child(2)').click(); await w(200);
+            const bar = !!document.querySelector('.blk-etp .scn-cmp-bar [data-cmpclose]'), rows = [...document.querySelectorAll('#scnTable tbody tr td:first-child b')].map(b => b.textContent.trim()).slice(0, 4).join('|');
+            document.querySelector('.blk-etp .scn-cmp-bar [data-cmpclose]')?.click(); await w(200); const back = !document.querySelector('.blk-etp .scn-cmp-bar') && !!document.querySelector('#scnTable [data-nm]');
+            const M = sviMergeData({ ver: { L: [{ id: 'a', arch: false }] } }, { ver: { L: [{ id: 'a', arch: true }] } }, { ver: { L: [{ id: 'a', arch: false }, { id: 'b' }] } }, false, 'X', '');
+            const K = JSON.parse(keep); sviInstSet(sviInstGet().map(x => { if (x.ref !== 'TEST-1') return x; const d = { ...(x.data || {}) }; if (K.ver) d.ver = K.ver; else delete d.ver; return { ...x, data: d }; })); await sviInstFlush();
+            window.__sviAvRet = null; window.__sviAvOpen('TEST-1'); await w(1000);
+            return [/CONSULTATION/.test(tag), act, bar, rows, back, M.ver.L.map(x => x.id + ':' + !!x.arch).join(',')]; }""".replace("INS_X", ins))
+        check("v759 : toucher un scénario = le consulter (l'actif ne change pas) ; FERMER LA COMPARAISON ; indicateurs proposés d'office ; scénario archivé gardé à la fusion avec la base",
+              s759 == [True, "s1", True, "MONTANT HT|MONTANT TTC|ÉCART TTC AVEC LE SCÉNARIO ACTIF|NOMBRE DE CHARGES", True, "a:true,b:false"], s759)
         # v750 : liste des budgets — colonnes (marge de pliage, RÉFÉRENCE, NATURE, PROJET, INTITULÉ, MONTANT TTC, SAISI LE ; VALIDÉ LE seulement
         # dans les validés), une icône de bascule, plus de cases ni d'impression (corbeille seule), CONSOLIDÉ en ligne de titre, menu de filtre commun,
         # toute la largeur ; suppression depuis la fiche → budget précédent ; IMPRIMER et CUMUL dans le menu ⋯

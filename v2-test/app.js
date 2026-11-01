@@ -918,6 +918,13 @@ const sviMergeData = (b, m, t, mineNewer, who, when) => {
         const a = mv[f], c = tv[f], o = bv && typeof bv === "object" ? bv[f] : undefined;
         if (sviSyncJ(a) === sviSyncJ(c) || sviSyncJ(c) === sviSyncJ(o)) { if (a !== undefined) r[f] = a; return; }
         if (sviSyncJ(a) === sviSyncJ(o)) { if (c !== undefined) r[f] = c; return; }
+        /* v759 : liste à identifiants dans un objet (scénarios ver.L, versions…) : fusion ligne par ligne, plus de liste entière
+           remplacée par l'autre appareil (un scénario archivé ici ne repasse plus « en réserve ») */
+        if (Array.isArray(a) && Array.isArray(c) && [...a, ...c].every(x => x && typeof x === "object" && x.id)) {
+          const sub = sviMergeData({ [f]: Array.isArray(o) ? o : [] }, { [f]: a }, { [f]: c }, mineNewer, who, when);
+          r[f] = sub[f]; (sub.conf || []).forEach(x => conf.push({ ...x, k: k + "." + f, lab: k.toUpperCase() + " › " + x.lab }));
+          return;
+        }
         const win = mineNewer ? a : c;
         if (win !== undefined) r[f] = win;
         conf.push({ id: "c" + Date.now().toString(36) + conf.length, k, sub: f, lab: k.toUpperCase() + " › " + f, mine: a, kept: win, lost: mineNewer ? c : a, user: who, ts: when, me: !mineNewer });

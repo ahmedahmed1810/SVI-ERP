@@ -1160,6 +1160,10 @@ function renderBudgetList() {
     try { const vref = b.ref + "-GLOBAL-V" + v.n; groups.set(vref, { ref: vref, project: b.project, rows: [], first: {}, inst: { ref: vref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vname: "BUDGET CONSOLIDÉ — PHOTO " + v.n, data: JSON.parse(JSON.stringify(v.d || {})) } }); } catch (e) {}
   }));
   /* v682 : VERSION n d'une étape — photo en lecture seule, jamais enregistrée */
+  /* v759 : SCÉNARIO EN CONSULTATION (« étape-SC<id> ») — un scénario qui n'est pas l'actif, ouvert en lecture seule, sans changer l'actif */
+  instLoad().forEach(b => { const V = (b.data || {}).ver || {}; (V.L || []).filter(x => x.kind === "sc" && x.d && x.id !== V.act).forEach(x => {
+    try { const vref = b.ref + "-SC" + x.id; groups.set(vref, { ref: vref, project: b.project, rows: [], first: {}, inst: { ref: vref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, scv: true, vname: sviAvName(b) + " — " + (x.nom || "SCÉNARIO") + " (CONSULTATION" + (x.arch ? ", ARCHIVÉ" : "") + ")", data: JSON.parse(JSON.stringify(x.d)) } }); } catch (e) {}
+  }); });
   instLoad().forEach(b => ((b.data || {}).vfz || []).forEach(v => {
     try { const vref = b.ref + "-V" + v.n; groups.set(vref, { ref: vref, project: b.project, rows: [], first: {}, inst: { ref: vref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vname: sviAvName(b) + " — VERSION " + v.n, data: JSON.parse(JSON.stringify(v.d || {})) } }); } catch (e) {}
   }));

@@ -196,7 +196,7 @@
       const w = sviWinNew();
       w.innerHTML = sviWinCard({ cls: "cmp-card cmpm-card", close: "data-x", title: "COMPARER — " + E.length + " ÉLÉMENTS CÔTE À CÔTE",
         body: `<div class="svc-sub">ÉCART AFFICHÉ SOUS CHAQUE VALEUR, PAR RAPPORT À LA PREMIÈRE COLONNE. LECTURE SEULE.</div><div class="cmpm-scroll"><table class="pv-t cmpm-t"><thead><tr><th>INDICATEUR</th>${E.map(x => `<th class="number">${esc(x.lab)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`,
-        foot: `<button type="button" class="svc-b" data-cmpcp>COPIER</button><button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
+        foot: `<button type="button" class="svc-b" data-cmpcp>COPIER</button><button type="button" class="svc-b svc-ok svc-neutral" data-x>✕ FERMER LA COMPARAISON</button>` });
       sviWinShow(w);
       w.addEventListener("click", e => {
         if (e.target === w || e.target.closest("[data-x]")) { w.remove(); return; }

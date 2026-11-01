@@ -1699,6 +1699,10 @@ function renderBudgetList() {
     try { const vref = b.ref + "-GLOBAL-V" + v.n; groups.set(vref, { ref: vref, project: b.project, rows: [], first: {}, inst: { ref: vref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vname: "BUDGET CONSOLIDÉ — PHOTO " + v.n, data: JSON.parse(JSON.stringify(v.d || {})) } }); } catch (e) {}
   }));
   /* v682 : VERSION n d'une étape — photo en lecture seule, jamais enregistrée */
+  /* v759 : SCÉNARIO EN CONSULTATION (« étape-SC<id> ») — un scénario qui n'est pas l'actif, ouvert en lecture seule, sans changer l'actif */
+  instLoad().forEach(b => { const V = (b.data || {}).ver || {}; (V.L || []).filter(x => x.kind === "sc" && x.d && x.id !== V.act).forEach(x => {
+    try { const vref = b.ref + "-SC" + x.id; groups.set(vref, { ref: vref, project: b.project, rows: [], first: {}, inst: { ref: vref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, scv: true, vname: sviAvName(b) + " — " + (x.nom || "SCÉNARIO") + " (CONSULTATION" + (x.arch ? ", ARCHIVÉ" : "") + ")", data: JSON.parse(JSON.stringify(x.d)) } }); } catch (e) {}
+  }); });
   instLoad().forEach(b => ((b.data || {}).vfz || []).forEach(v => {
     try { const vref = b.ref + "-V" + v.n; groups.set(vref, { ref: vref, project: b.project, rows: [], first: {}, inst: { ref: vref, project: b.project, intitule: b.intitule, client: b.client, state: "valide", virtual: true, parent: b.ref, vname: sviAvName(b) + " — VERSION " + v.n, data: JSON.parse(JSON.stringify(v.d || {})) } }); } catch (e) {}
   }));
@@ -15458,7 +15462,7 @@ ${A}</Assignments>
       ];
       /* v694 : le menu ⋯ ne garde que les entrées utiles à l'écran — consolidé : aperçus, exports, indicateurs ;
          version : RESTAURER, EN FAIRE UN SCÉNARIO, exports, indicateurs ; recalage : NOUVEAU RECALAGE, exports, indicateurs */
-      { const bi = budget.inst, keep = bi && bi.virtual ? (bi.vname ? ["prt", "cum", "vrest", "vscn", "lay", "rat", "ind", "exp", "cmp"] : ["prt", "cum", "blk", "arch", "lay", "rat", "ind", "multi", "exp", "av", "cph", "cmp"]) : bi && bi.rclOf ? ["prt", "cum", "rcl", "lay", "rat", "ind", "exp", "plans", "cmp"] : null;
+      { const bi = budget.inst, keep = bi && bi.scv ? ["prt", "lay", "rat", "ind", "exp", "cmp"] : bi && bi.virtual ? (bi.vname ? ["prt", "cum", "vrest", "vscn", "lay", "rat", "ind", "exp", "cmp"] : ["prt", "cum", "blk", "arch", "lay", "rat", "ind", "multi", "exp", "av", "cph", "cmp"]) : bi && bi.rclOf ? ["prt", "cum", "rcl", "lay", "rat", "ind", "exp", "plans", "cmp"] : null;
         if (keep) for (let i = items.length - 1; i >= 0; i--) if (!keep.includes(items[i].a)) items.splice(i, 1); }
       const m = document.createElement("div");
       m.id = "blkMenu";
@@ -17409,7 +17413,15 @@ ${A}</Assignments>
     const scnRows = SC => {
       const LIB = indLoad(), V = INS.ver || { L: [], ind: [] }; V.ind = (V.ind || []).filter(k => LIB.some(I => I.id === k));
       const ST = SC.map(x => x.id === V.act ? INS : x.d || null), EL = ST.map(s2 => s2 ? indEls(s2) : null);
-      return V.ind.map(k => { const IN = LIB.find(I => I.id === k); return { k, nom: IN.nom, v: ST.map((s2, j) => s2 ? indCalc(IN, s2, EL[j]) : null) }; });
+      /* v759 : indicateurs proposés d'office — MONTANT HT, MONTANT TTC, ÉCART TTC AVEC LE SCÉNARIO ACTIF, NOMBRE DE CHARGES */
+      const amt = d => { let ht = 0, ttc = 0; try { (d.des || []).filter(r => !r.t).forEach(r => { const lq = insLinkedQ(d, r.id), q = lq !== null ? lq : num(r.q || 0), m = q * num(r.p || 0);
+        ht += m; ttc += m * (1 + (r.tva === "" || r.tva === undefined ? 20 : num(r.tva)) / 100); }); } catch (e) {} return { ht, ttc }; };
+      const A = ST.map(s2 => s2 ? amt(s2) : null), ia = SC.findIndex(x => x.id === V.act), a0 = ia >= 0 && A[ia] ? A[ia].ttc : null;
+      const cell = v => v === null ? null : { val: v, txt: money(v) };
+      const DEF = [{ k: "_ht", nom: "MONTANT HT", v: A.map(a => a ? cell(a.ht) : null) }, { k: "_ttc", nom: "MONTANT TTC", v: A.map(a => a ? cell(a.ttc) : null) },
+        { k: "_ec", nom: "ÉCART TTC AVEC LE SCÉNARIO ACTIF", v: A.map((a, j) => !a || a0 === null ? null : j === ia ? { val: 0, txt: "—" } : { val: a.ttc - a0, txt: (a.ttc - a0 > 0 ? "+" : "") + money(a.ttc - a0) }) },
+        { k: "_nchg", nom: "NOMBRE DE CHARGES", v: ST.map(s2 => s2 ? { val: (s2.chg || []).filter(r => !r.t).length, txt: String((s2.chg || []).filter(r => !r.t).length) } : null) }];
+      return DEF.concat(V.ind.map(k => { const IN = LIB.find(I => I.id === k); return { k, nom: IN.nom, v: ST.map((s2, j) => s2 ? indCalc(IN, s2, EL[j]) : null) }; }));
     };
     let scnShown = [];
     shell.__scnData = () => {
@@ -17439,6 +17451,10 @@ ${A}</Assignments>
       const V = INS.ver || { L: [], ind: [] }, ed = scnEd();
       scnViewBtn();
       blk.classList.toggle("scn-cmp", scnView !== "list");
+      /* v759 : bouton FERMER LA COMPARAISON, bien visible au-dessus du tableau */
+      { let bar = blk.querySelector(".scn-cmp-bar");
+        if (scnView !== "list") { if (!bar) { bar = document.createElement("div"); bar.className = "scn-cmp-bar"; bar.innerHTML = `<span>COMPARAISON DES SCÉNARIOS</span><button type="button" class="svc-b svc-ok svc-neutral" data-cmpclose>✕ FERMER LA COMPARAISON</button>`; blk.insertBefore(bar, blk.firstChild); } }
+        else if (bar) bar.remove(); }
       const ttl = $("scnTitle"); if (ttl) ttl.innerHTML = SVI_ICON.scn + "SCÉNARIOS " + (scnView === "list" ? "" : "— COMPARAISON ") + svCnt(SC.length);
       if (scnView === "list") {
         const cols = scnListCols(), rows = cfApply("scnl", cols, SC);
@@ -17446,7 +17462,7 @@ ${A}</Assignments>
         const oc = coOrder("scnl", cols);
         const td = (c, x) => {
           const k = c[0], act = x.id === V.act;
-          if (k === "scnom") return `<td class="scn-nm-c"><span class="scn-nm${ed && !act ? " scn-go" : ""}" data-nm="${x.id}" title="${ed && !act ? "Toucher : basculer sur ce scénario — appui long : renommer" : ""}">${esc(x.nom)}</span></td>`;
+          if (k === "scnom") return `<td class="scn-nm-c"><span class="scn-nm${!act ? " scn-go" : ""}" data-nm="${x.id}" title="${!act ? "Toucher : consulter ce scénario (sans le rendre actif)" + (ed ? " — appui long : renommer" : "") : ""}">${esc(x.nom)}</span></td>`;
           if (k === "scet") return `<td>${scnSt(x)}</td>`;
           if (k === "scof") return `<td class="center"><input type="checkbox" class="ver-of" data-id="${x.id}"${x.of ? " checked" : ""}${ed && !x.arch ? "" : " disabled"}></td>`;
           if (k === "scret") return `<td class="center">${x.arch ? "" : x.ret && act ? "<b>RETENU</b>" : ed ? `<button type="button" class="svc-b svc-ok" data-keep="${x.id}">RETENIR</button>` : ""}</td>`;
@@ -17473,7 +17489,7 @@ ${A}</Assignments>
       const plusTh = H.length ? `<th class="scn-plus-th"><button type="button" class="scn-plus" data-unhide title="Réafficher un scénario caché">+</button></th>` : "";
       const plusTd = H.length ? "<td></td>" : "";
       const body = rows.map(r => `<tr>${oc.map(c => { const x = scOf(c);
-        if (!x) return `<td><b>${esc(r.nom)}</b>${ed ? ` <button type="button" class="cmp-del" data-irm="${esc(r.k)}" title="Retirer du tableau">✕</button>` : ""}</td>`;
+        if (!x) return `<td><b>${esc(r.nom)}</b>${ed && !String(r.k).startsWith("_") ? ` <button type="button" class="cmp-del" data-irm="${esc(r.k)}" title="Retirer du tableau">✕</button>` : ""}</td>`;
         const v = r.v[+c[0].slice(2) - 1]; return `<td class="number${x.id === V.act ? " ver-act" : ""}">${v ? `<span class="${v.err ? "rat-err" : ""}">${esc(v.txt)}</span>` : "—"}</td>`; }).join("")}${plusTd}</tr>`).join("");
       const add = ed ? `<tr class="scn-new" data-ip><td colspan="${oc.length + (H.length ? 1 : 0)}">CRÉER UN INDICATEUR ICI…</td></tr>` : "";
       t.style.width = (cwTableW("scn", cols) + (H.length ? 44 : 0)) + "px";
@@ -17523,6 +17539,8 @@ ${A}</Assignments>
         });
         blk.addEventListener("click", async e => {
           const vb = e.target.closest('.blk-btn[data-act="view"]'); if (vb) { e.stopPropagation(); shell.__scnView(); return; }
+          /* v759 : FERMER LA COMPARAISON — retour à la liste des scénarios */
+          if (e.target.closest("[data-cmpclose]")) { e.stopPropagation(); scnView = "list"; scnRender(); return; }
           const ad0 = e.target.closest("[data-scnadd]");
           if (ad0) { e.stopPropagation(); const w = scnWhy(); if (w) { svToast(w, 4000, ad0); return; } const nom = scnAdd(); if (nom) { refreshAll(); svToast(nom + " CRÉÉ.", 2500, ad0); } return; }
           const V = V$(); if (!V) return;
@@ -17575,9 +17593,13 @@ ${A}</Assignments>
             if (await svConfirm({ title: "SUPPRIMER " + x.nom, text: "CE SCÉNARIO ET SES DONNÉES SERONT SUPPRIMÉS.", ok: "SUPPRIMER" })) { V.L = V.L.filter(y => y !== x); scnHidSet(scnHid().filter(id => id !== x.id)); save("SCÉNARIO SUPPRIMÉ", x.nom); refreshAll(); }
             return;
           }
-          /* LISTE : toucher le nom = basculer ; toucher ailleurs sur la ligne = COMPARAISON */
+          /* LISTE : toucher le nom = le CONSULTER (lecture seule), sans le rendre actif — seul RETENIR change le scénario actif (v759) ;
+             toucher ailleurs sur la ligne = COMPARAISON */
           const nm = e.target.closest("[data-nm]");
-          if (nm) { e.stopPropagation(); if (ed) swap(nm.dataset.nm); return; }
+          if (nm) { e.stopPropagation();
+            if (nm.dataset.nm === V.act) { svToast("SCÉNARIO ACTIF : C'EST LE BUDGET À L'ÉCRAN.", 2500, nm); return; }
+            if (budget.inst && !budget.inst.virtual) window.__sviAvOpen(budget.inst.ref + "-SC" + nm.dataset.nm, budget.inst.ref);
+            return; }
           const row = e.target.closest("tr[data-scn]");
           if (row) { e.stopPropagation(); scnView = "cmp"; scnRender(); }
         });
@@ -19129,7 +19151,7 @@ ${A}</Assignments>
       const w = sviWinNew();
       w.innerHTML = sviWinCard({ cls: "cmp-card cmpm-card", close: "data-x", title: "COMPARER — " + E.length + " ÉLÉMENTS CÔTE À CÔTE",
         body: `<div class="svc-sub">ÉCART AFFICHÉ SOUS CHAQUE VALEUR, PAR RAPPORT À LA PREMIÈRE COLONNE. LECTURE SEULE.</div><div class="cmpm-scroll"><table class="pv-t cmpm-t"><thead><tr><th>INDICATEUR</th>${E.map(x => `<th class="number">${esc(x.lab)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`,
-        foot: `<button type="button" class="svc-b" data-cmpcp>COPIER</button><button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
+        foot: `<button type="button" class="svc-b" data-cmpcp>COPIER</button><button type="button" class="svc-b svc-ok svc-neutral" data-x>✕ FERMER LA COMPARAISON</button>` });
       sviWinShow(w);
       w.addEventListener("click", e => {
         if (e.target === w || e.target.closest("[data-x]")) { w.remove(); return; }
