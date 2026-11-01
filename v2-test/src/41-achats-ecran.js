@@ -15,7 +15,7 @@ function sviAchInit() {
   const aOk = (a, k) => k === "tout" ? true : k === "corbeille" ? !!a.del : !a.del && (k === "inactif" ? a.actif === false : a.actif !== false);
   const setEtat = k => { aEtat = k; showDel = k === "corbeille"; try { localStorage.setItem("svi_ach_etat_v1", k); } catch (e) {} };
   showDel = aEtat === "corbeille";
-  try { const t = localStorage.getItem("svi_ach_tab_v1"); if (t === "art" || t === "prm" || t === "frs" || t === "bsn") tab = t; } catch (e) {}
+  try { const t = localStorage.getItem("svi_ach_tab_v1"); if (["art", "prm", "frs", "bsn", "caf", "dvf"].includes(t)) tab = t; } catch (e) {}
   const SEL = new Set();
   const kit = sviCfKit({ key: "ach", shell: view, refresh: () => draw() });
   const { cfApply, cfHead, cfOpenMenu, cfT } = kit;
@@ -77,6 +77,8 @@ function sviAchInit() {
   const FRSM = achFrsMod({ view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 });
   /* ---------- BESOINS (v760, 43-achats-besoins.js) ---------- */
   const BSNM = achBsnMod({ view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 });
+  /* ---------- CONSULTATIONS et DEVIS (v761, 44-achats-consultations.js) ---------- */
+  const CAFM = achCafMod({ view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 }), DVFM = achDvfMod({ view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 });
   /* ---------- PARAMÈTRES ---------- */
   const prmHTML = () => {
     const P = achPrm();
@@ -84,6 +86,8 @@ function sviAchInit() {
     const bCols = coOrder("ach_bq", [["n", "BANQUE", b => b.n, ""], ["abr", "ABRÉVIATION", b => b.abr, "center"], ["codeb", "CODE RIB", b => b.code, "center"]]);
     const bRows = cfApply("ach_bq", bCols, P.banques);
     return `<div class="ach-prm">
+      <div class="ach-pbox"><div class="ach-pt">SEUIL DE L'ACHAT DIRECT (SANS CONSULTATION), MONTANT HT</div>
+        <span class="ach-tvaw"><input class="ins-in ach-pdirect number" inputmode="decimal" value="${esc(F2(P.direct))}" autocomplete="off"> DH</span></div>
       <div class="ach-pbox"><div class="ach-pt">TVA PAR DÉFAUT DES NOUVEAUX ARTICLES</div>
         <span class="ach-tvaw"><input class="ins-in ach-ptva number" inputmode="decimal" value="${esc(F2(P.tva))}" autocomplete="off"> %</span></div>
       <div class="ach-pbox"><div class="ach-pt">CATÉGORIES ${svCnt ? svCnt(catRows.length, P.cat.length) : ""}</div>
@@ -116,14 +120,14 @@ function sviAchInit() {
   };
   const draw = () => keepPos(() => {
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.ach === tab));
-    if (h1) h1.textContent = tab === "bsn" ? "BESOINS" : tab === "prm" ? "ACHATS — PARAMÈTRES" : tab === "frs" ? "ACHATS — FOURNISSEURS" : showDel ? "ACHATS — CORBEILLE DES ARTICLES" : "ACHATS — ARTICLES";
-    if (sub) sub.textContent = tab === "bsn" ? "UN BESOIN = UNE QUANTITÉ D'UNE CHARGE DU BUDGET POUR UNE TÂCHE ; CONTRÔLÉ PAR LE PRÉVU (BLOQUÉ AU-DELÀ, JUSTIFIER PUIS DÉBLOQUER)" : tab === "frs" ? "TOUCHER LE CODE : FICHE (RIB, DOCUMENTS FISCAUX, CONTACTS, ÉVALUATIONS, CONTRATS) ; COMMUN À TOUS LES APPAREILS" : tab === "prm" ? "CATÉGORIES, BANQUES, TVA PAR DÉFAUT ; COMMUNS À TOUS LES APPAREILS" : "UN ARTICLE = UNE CHARGE DU BUDGET (DÉSIGNATION + UNITÉ) ; COMMUN À TOUS LES BUDGETS ET À TOUS LES APPAREILS";
-    body.innerHTML = tab === "bsn" ? BSNM.html() : tab === "prm" ? prmHTML() : tab === "frs" ? FRSM.html() : artTable();
+    if (h1) h1.textContent = tab === "caf" ? "ACHATS — CONSULTATIONS" : tab === "dvf" ? "ACHATS — DEVIS" : tab === "bsn" ? "BESOINS" : tab === "prm" ? "ACHATS — PARAMÈTRES" : tab === "frs" ? "ACHATS — FOURNISSEURS" : showDel ? "ACHATS — CORBEILLE DES ARTICLES" : "ACHATS — ARTICLES";
+    if (sub) sub.textContent = tab === "caf" ? "UNE CONSULTATION POUR PLUSIEURS FOURNISSEURS ; RÉPONSE = DEVIS ; COMPARATIF ; CLÔTURE AVEC LE RETENU (BESOINS COUVERTS)" : tab === "dvf" ? "DEVIS DES FOURNISSEURS (RÉPONSES AUX CONSULTATIONS OU HORS CONSULTATION) ; DATE DE VALIDITÉ" : tab === "bsn" ? "UN BESOIN = UNE QUANTITÉ D'UNE CHARGE DU BUDGET POUR UNE TÂCHE ; CONTRÔLÉ PAR LE PRÉVU (BLOQUÉ AU-DELÀ, JUSTIFIER PUIS DÉBLOQUER)" : tab === "frs" ? "TOUCHER LE CODE : FICHE (RIB, DOCUMENTS FISCAUX, CONTACTS, ÉVALUATIONS, CONTRATS) ; COMMUN À TOUS LES APPAREILS" : tab === "prm" ? "CATÉGORIES, BANQUES, TVA PAR DÉFAUT ; COMMUNS À TOUS LES APPAREILS" : "UN ARTICLE = UNE CHARGE DU BUDGET (DÉSIGNATION + UNITÉ) ; COMMUN À TOUS LES BUDGETS ET À TOUS LES APPAREILS";
+    body.innerHTML = tab === "caf" ? CAFM.html() : tab === "dvf" ? DVFM.html() : tab === "bsn" ? BSNM.html() : tab === "prm" ? prmHTML() : tab === "frs" ? FRSM.html() : artTable();
     body.querySelectorAll("input.ach-cb, input.ach-all").forEach(c => { if (c.classList.contains("ach-all")) { const n = body.querySelectorAll("input.ach-cb:checked").length, t = body.querySelectorAll("input.ach-cb").length; c.indeterminate = n > 0 && n < t; } });
   });
   view.__achDraw = draw;
   /* v750 : entrée du menu ☰ (ACHAT › ARTICLES…) — ouvre l'onglet correspondant */
-  view.__achTab = t => { if (t !== "art" && t !== "prm" && t !== "frs" && t !== "bsn") return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
+  view.__achTab = t => { if (!["art", "prm", "frs", "bsn", "caf", "dvf"].includes(t)) return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
   /* ---------- gestes ---------- */
   bar.addEventListener("click", e => {
     const b = e.target.closest(".prm-tab"); if (!b) return;
@@ -139,6 +143,8 @@ function sviAchInit() {
     const hb = e.target.closest(".ach-h"); if (hb) { achHistWin(hb.dataset.h); return; }
     if (tab === "frs" && await FRSM.click(e)) return;
     if (tab === "bsn" && await BSNM.click(e)) return;
+    if (tab === "caf" && await CAFM.click(e)) return;
+    if (tab === "dvf" && await DVFM.click(e)) return;
     const bb = e.target.closest(".ach-bdg"); if (bb) { const L = achArts(), a = L.find(x => x.id === bb.dataset.bdg); if (a) achBdgWin(a); return; }
     const xc = e.target.closest("[data-xcat]"); if (xc) { const P = achPrm(); P.cat = P.cat.filter(c => c !== xc.dataset.xcat); achPrmSave(P); draw(); return; }
     const xb = e.target.closest("[data-xbq]"); if (xb) { const P = achPrm(); P.banques = P.banques.filter(b => b.id !== xb.dataset.xbq); achPrmSave(P); draw(); return; }
@@ -180,6 +186,7 @@ function sviAchInit() {
     if (t.classList.contains("ach-all")) { body.querySelectorAll("tr[data-id]").forEach(tr => { if (t.checked) SEL.add(tr.dataset.id); else SEL.delete(tr.dataset.id); }); draw(); return; }
     if (t.classList.contains("ach-cb")) { const tr = t.closest("tr[data-id]"); if (t.checked) SEL.add(tr.dataset.id); else SEL.delete(tr.dataset.id); draw(); return; }
     /* paramètres */
+    if (t.classList.contains("ach-pdirect")) { const P = achPrm(), v = achN(t.value); if (v < 0) { svToast("SEUIL NON VALIDE.", 3000, t); draw(); return; } P.direct = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-ptva")) { const P = achPrm(), v = achN(t.value); if (v < 0 || v > 100) { svToast("TVA NON VALIDE (0 À 100).", 3000, t); draw(); return; } P.tva = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-pnew") || t.classList.contains("ach-pin")) {
       const P = achPrm(), v = achU(t.value), old = t.closest("tr").dataset.cat;

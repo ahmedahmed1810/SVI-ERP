@@ -3279,3 +3279,11 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .bsn-card .bsn-note { font-size: 11px; font-weight: 700; color: #6b7480; margin: 6px 0; }
 .bsn-card .bsn-deb { font-size: 12px; font-weight: 800; color: #166534; }
 .bsn-card select.ins-in, .bsn-card .frs-f input { height: 30px; border: 1px solid #d6dbe3; border-radius: 6px; padding: 0 8px; font-size: 12px; font-weight: 700; background: #fff; }
+/* ===== v761 : CONSULTATIONS et DEVIS ===== */
+#achCafT tr.caf-close td, #achDvfT tr.dvf-retenu td { color: var(--st-valide, #172033); }
+#achCafT tr.caf-ouverte td, #achDvfT tr.dvf-recu td { color: var(--st-instance, #b91c1c); }
+#achCafT tr.caf-annule td, #achDvfT tr.dvf-annule td, #achDvfT tr.dvf-rejete td { color: #9aa3b2; }
+#achCafT tr.caf-newrow td, #achDvfT tr.dvf-newrow td { cursor: pointer; }
+.caf-card .caf-cmp td, .caf-card .caf-cmp th { white-space: nowrap; }
+.caf-card .caf-tot td, .dvf-card .caf-tot td { background: #f3f6fa; }
+.caf-card .frs-sub select, .dvf-card .frs-sub select { width: 100%; height: 28px; border: 1px solid #d6dbe3; border-radius: 6px; font-size: 12px; font-weight: 700; background: #fff; }

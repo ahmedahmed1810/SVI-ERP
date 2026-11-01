@@ -87,13 +87,15 @@ function achBsnFiche(id, done) {
         ${ctl && ctl.over && !ctl.none && B.state !== "annule" ? `<div class="frs-sec"><div class="frs-st">DÉPASSEMENT DU PRÉVU</div>
           ${B.deb ? `<div class="bsn-deb">DÉBLOQUÉ PAR ${esc(B.deb.u || "?")} LE ${esc(dFr2(B.deb.t))} — ${esc(B.deb.why || "")}</div>`
             : `<label class="frs-f frs-w"><span>JUSTIFICATION <b>*</b></span><input class="ins-in bsn-just" value="${esc(B.just || "")}" autocomplete="off"></label><button type="button" class="ach-b" data-deb>DÉBLOQUER</button><span class="bsn-note">DÉBLOCAGE SELON LES DROITS : POUR L'INSTANT, TOUT UTILISATEUR (NOTÉ DANS H).</span>`}</div>` : ""}
+        ${B.couvert ? `<div class="bsn-deb">COUVERT PAR LA CONSULTATION ${esc(((achCaf().find(c => c.id === B.couvert) || {}).ref) || "")}.</div>` : B.direct ? `<div class="bsn-deb">ACHAT DIRECT (SANS CONSULTATION) — ${esc(dFr2(B.direct))}.</div>` : ""}
         <div class="bsn-note">STOCK DISPONIBLE : VÉRIFIÉ QUAND LE MODULE STOCK EXISTERA. PHOTO DU CHANTIER : PAR LES DOCUMENTS DE LA FICHE (À VENIR).</div>
       </div>`,
       foot: `<button type="button" class="svc-b" data-x>${ro || b0 ? "FERMER" : "ANNULER"}</button>
         ${b0 && B.state !== "annule" ? `<button type="button" class="svc-b" data-cancel>ANNULER LE BESOIN</button>` : ""}
         ${b0 && B.state === "annule" ? `<button type="button" class="svc-b" data-restore>RÉTABLIR</button>` : ""}
         ${!ro ? `<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>` : ""}
-        ${b0 && B.state === "instance" ? `<button type="button" class="svc-b svc-ok" data-valid>VALIDER</button>` : ""}` });
+        ${b0 && B.state === "instance" ? `<button type="button" class="svc-b svc-ok" data-valid>VALIDER</button>` : ""}
+        ${b0 && B.state === "valide" && !B.couvert && !B.direct ? `<button type="button" class="svc-b" data-direct>ACHAT DIRECT (SANS CONSULTATION)</button>` : ""}` });
     if (!d.isConnected) sviWinShow(d);
   };
   const dFr2 = v => String(v || "").slice(0, 10).split("-").reverse().join("/");
@@ -114,6 +116,10 @@ function achBsnFiche(id, done) {
     const L = achBsn(), cur = b0 ? L.find(x => x.id === b0.id) : null;
     if (e.target.closest("[data-cancel]")) { if (!cur) return; if (!(await svConfirm({ title: "ANNULER LE BESOIN", text: cur.ref + " PASSE EN ANNULÉ (GARDÉ, RÉTABLISSABLE) ; IL NE COMPTE PLUS DANS LE CONTRÔLE DU BUDGET.", ok: "ANNULER LE BESOIN" }))) return;
       cur.state = "annule"; cur.mod = new Date().toISOString(); save(L, cur, "ANNULÉ"); d.remove(); if (done) done(); return; }
+    /* v761 : ACHAT DIRECT — besoin validé dont le montant estimé est sous le seuil (ACHATS › PARAMÈTRES) */
+    if (e.target.closest("[data-direct]")) { if (!cur) return; const mt = achN(cur.q) * achN(cur.pu), S = achPrm().direct;
+      if (mt > S) { svToast("ACHAT DIRECT IMPOSSIBLE : " + achF2(mt) + " HT DÉPASSE LE SEUIL DE " + achF2(S) + " HT (ACHATS › PARAMÈTRES) — PASSER PAR UNE CONSULTATION.", 5000); return; }
+      cur.direct = new Date().toISOString(); cur.mod = cur.direct; save(L, cur, "ACHAT DIRECT"); d.remove(); if (done) done(); return; }
     if (e.target.closest("[data-restore]")) { if (!cur) return; cur.state = "instance"; delete cur.deb; cur.mod = new Date().toISOString(); save(L, cur, "RÉTABLI"); d.remove(); if (done) done(); return; }
     if (e.target.closest("[data-deb]")) {
       pull(); if (!B.just) { svToast("JUSTIFICATION OBLIGATOIRE AVANT DE DÉBLOQUER.", 3000); return; }

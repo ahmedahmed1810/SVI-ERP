@@ -2869,6 +2869,30 @@ def main():
             v.__achTab('art'); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v760 : BESOINS — charge et tâche du budget, contrôle (60 %), dépassement bloqué puis débloqué, seuil 90 %, SIÈGE hors contrôle, référence BSN ; menu BESOIN, fiche, création, validation",
               n760 == [1, "CIMENT", "RDC › MACONNERIE", 100, 60, True, True, 0, None, "BSN 26-1102/002", "BESOINS", "RDC › MACONNERIE", 1, True, 1, "valide"], n760)
+        # v761 : CONSULTATIONS et DEVIS — besoins validés non couverts, plusieurs fournisseurs, réponse → devis, comparatif, motif si pas le
+        # moins cher, clôture (besoins couverts, devis retenu / rejeté) ; achat direct sous le seuil
+        c761 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_bsn_v1', 'svi_ach_frs_v1', 'svi_ach_caf_v1', 'svi_ach_dvf_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
+            const F = []; const f1 = achFrsNew(F, { nom: 'ALPHA' }), f2 = achFrsNew(F, { nom: 'BETA' }); achFrsSave(F);
+            achBsnSave([{ id: 'b1', ref: 'BSN 26-1101/001', centre: 'SIÈGE', des: 'PAPIER', u: 'U', q: 100, pu: 10, datePrevue: '2026-11-10', state: 'valide' }, { id: 'b2', ref: 'BSN 26-1101/002', centre: 'SIÈGE', des: 'ENCRE', u: 'U', q: 2, pu: 50, datePrevue: '2026-11-10', state: 'valide' }]);
+            const r = [achBsnOpen().length];
+            const pick = async vals => { await w(150); const pk = [...document.querySelectorAll('.cmpm-pick')].pop(); pk.querySelectorAll('input').forEach(i => { i.checked = vals === 'all' || vals.includes(i.value); }); pk.querySelector('[data-ok]').click(); await w(150); };
+            achCafFiche(null, () => 0); await w(200); let c = () => document.querySelector('.caf-card');
+            c().querySelector('[data-addbsn]').click(); await pick(['b1']); c().querySelector('[data-addfrs]').click(); await pick('all');
+            r.push(c().querySelectorAll('tr[data-i]').length, c().querySelectorAll('tr[data-f]').length);
+            c().querySelector('[data-save]').click(); await w(200); r.push(achCaf().length, achBsnOpen().map(b => b.id).join(','));
+            const dv = async (f, pu) => { c().querySelector(`[data-mkdvf="${f}"]`).click(); await w(250); const v = [...document.querySelectorAll('.dvf-card')].pop();
+              const i = v.querySelector('.dvf-l[data-c="pu"]'); i.value = pu; i.dispatchEvent(new Event('change', { bubbles: true })); await w(50); const v2 = [...document.querySelectorAll('.dvf-card')].pop();
+              v2.querySelector('.dvf-x[data-k="refFrs"]').value = 'D-' + pu; v2.querySelector('[data-save]').click(); await w(250); };
+            await dv(f1.id, '9'); await dv(f2.id, '11');
+            r.push(achDvf().length, !!c().querySelector('.caf-cmp'), (c().querySelector('.caf-cmp .caf-tot') || {}).textContent.includes('★'));
+            c().querySelector(`.caf-ret[value="${f2.id}"]`).checked = true; c().querySelector('[data-close]').click(); await w(200); r.push(achCaf()[0].state);
+            c().querySelector('.caf-x[data-k="motif"]').value = 'DÉLAI PLUS COURT'; c().querySelector('[data-close]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
+            const C = achCaf()[0], D = achDvf(); r.push(C.state, (achBsn().find(b => b.id === 'b1') || {}).couvert === C.id, D.map(v => v.state).sort().join(','));
+            achBsnFiche('b2', () => 0); await w(200); document.querySelector('.bsn-card [data-direct]').click(); await w(200); r.push(!!(achBsn().find(b => b.id === 'b2') || {}).direct, achBsnOpen().length);
+            document.querySelectorAll('#svConf').forEach(x => x.remove());
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
+        check("v761 : CONSULTATIONS et DEVIS — besoins non couverts, deux fournisseurs, réponses en devis, comparatif ★, motif exigé, clôture (besoin couvert, devis retenu / rejeté), achat direct",
+              c761 == [2, 1, 2, 1, "b2", 2, True, True, "ouverte", "close", True, "rejete,retenu", True, 0], c761)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
