@@ -8,7 +8,7 @@
        ========================================================= */
     {
       const ETP_K = "svi_etp_tab_v1";
-      const ETP_LAB = { av: "AVENANTS", scn: "SCÉNARIOS", ver: "VERSIONS", rcl: "RECALAGES" };
+      const ETP_LAB = { av: "BUDGETS", scn: "SCÉNARIOS", ver: "VERSIONS", rcl: "RECALAGES" };
       const ETP_NEW = { av: "CRÉER UN AVENANT", scn: "CRÉER UN SCÉNARIO", ver: "PRENDRE UNE VERSION", rcl: "CRÉER UN RECALAGE" };
       const bi = budget.inst;
       /* étapes de la famille (budget initial puis avenants) : depuis une étape, le consolidé ou un recalage */
@@ -22,7 +22,7 @@
       const etpOn = () => !!bi && bi.ref !== "CUMUL" && !(bi.virtual && bi.vname) && !!INS;
       const etpWhy = k => {
         if (k === "av") return etpRoot() ? "" : "PAS D'AVENANT ICI.";
-        if (bi.virtual) return "CONSOLIDÉ : " + ETP_LAB[k] + " SUR CHAQUE ÉTAPE (ONGLET AVENANTS › TOUCHER UNE ÉTAPE).";
+        if (bi.virtual) return "CONSOLIDÉ : " + ETP_LAB[k] + " SUR CHAQUE ÉTAPE (ONGLET BUDGETS › TOUCHER UNE ÉTAPE).";
         return "";
       };
       let etpTab = "";
@@ -33,21 +33,26 @@
       let avShown = [];
       const avRows = () => {
         const root = etpRoot(); if (!root) return [];
-        return sviAvStages(root).map(st => {
+        /* v780 (remarque 6) : onglet BUDGETS — CONSOLIDÉ (CNS) en première ligne, puis BUDGET INITIAL (INI), puis les avenants (AVn) ; toucher = l'ouvrir */
+        const S = sviAvStages(root);
+        const out = S.map(st => {
           let bd = {}; try { bd = budgetData({ ref: st.ref, project: st.project, rows: [], first: {}, inst: st, __noFam: true }); } catch (e) {}
           const s0 = st.state === "valide" ? "VALIDÉ" : st.state === "fige" ? "FIGÉ" : "EN INSTANCE";
-          return { ref: st.ref, cls: st.xp ? "expire" : st.state || "instance", nat: st.parent ? "AVENANT " + (st.avn || 1) : "BUDGET INITIAL", r: U_(st.project || "") + " " + st.ref, int: st.intitule || "",
-            ttc: Math.round((bd.ttc || 0) * 100) / 100, st: st.xp ? s0 + " — EXPIRÉ" : s0, val: st.state === "valide" ? svDT(st.validated || "") : "" };
+          return { ref: st.ref, cls: st.xp ? "expire" : st.state || "instance", nat: st.parent ? "AVENANT " + (st.avn || 1) : "BUDGET INITIAL", r: sviRefDisp(st.ref, st.project), int: st.intitule || "",
+            ttc: Math.round((bd.ttc || 0) * 100) / 100, st: st.xp ? s0 + " — EXPIRÉ" : s0, val: st.state === "valide" ? svDT(st.validated || "") : "", xp: !!st.xp };
         });
+        if (S.length > 1) out.unshift({ ref: root + "-GLOBAL", cls: "valide", nat: "BUDGET CONSOLIDÉ", r: sviRefDisp(root + "-GLOBAL", S[0].project), int: S[0].intitule || "",
+          ttc: Math.round(out.filter(x => !x.xp && x.cls === "valide").reduce((t, x) => t + x.ttc, 0) * 100) / 100, st: "CONSOLIDÉ", val: "" });
+        return out;
       };
       shell.__avData = () => { const oc = coOrder("vav", AV_COLS); return { head: oc.map(c => c[1]), rows: avShown.map(x => oc.map(c => c[0] === "avttc" ? money(c[2](x)) : c[2](x))) }; };
       const avRender = () => {
         const t = $("avTable"), pane = shell.querySelector(".blk-etp .blk-av"); if (!t || !pane) return;
         const all = avRows(); pane.hidden = !all.length;
         const ttl = $("avTitle");
-        if (!all.length) { if (ttl) ttl.innerHTML = "AVENANTS " + svCnt(0); t.innerHTML = ""; return; }
+        if (!all.length) { if (ttl) ttl.innerHTML = "BUDGETS " + svCnt(0); t.innerHTML = ""; return; }
         const rows = cfApply("vav", AV_COLS, all); avShown = rows;
-        if (ttl) ttl.innerHTML = "AVENANTS " + svCnt(rows.filter(x => x.nat !== "BUDGET INITIAL").length);
+        if (ttl) ttl.innerHTML = "BUDGETS " + svCnt(rows.length);
         const oc = coOrder("vav", AV_COLS), S = sviAvStages(etpRoot()), last = S[S.length - 1], ok = !!last && last.state === "valide";
         t.style.width = cwTableW("vav", AV_COLS) + "px";
         t.innerHTML = `<colgroup>${cwCols("vav", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("vav", c[0], c[1], c[3])).join("")}</tr></thead>

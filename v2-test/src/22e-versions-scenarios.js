@@ -144,19 +144,13 @@
     /* v682 : photo de l'étape (VERSION n) prise à FIGER et à VALIDER */
     /* v690 : versions automatiques (Ⓐ) à FIGER et VALIDER — pas de nouvelle photo si rien n'a changé depuis la dernière ;
        version MANUELLE par PRENDRE UNE VERSION (menu ⋯ du haut) ; aucune limite, jamais effacées */
-    /* v774 (point 6) : SOURCE d'une version — budget initial, avenant n, scénario (actif s'il n'est pas le premier), recalage */
-    const verSrc = () => { const bi = budget.inst; if (!bi) return "";
-      if (bi.rclOf) return "RECALAGE";
-      const V = INS && INS.ver, sc = V && V.L && V.L.length > 1 && V.act && V.L[0].id !== V.act ? V.L.find(x => x.id === V.act) : null;
-      const base = bi.parent ? (() => { const S = sviAvStages(bi.parent), i = S.findIndex(x => x.ref === bi.ref); return "AVENANT" + (i > 0 ? " " + i : ""); })() : "BUDGET INITIAL";
-      return sc ? "SCÉNARIO — " + (sc.nom || "") : base; };
     shell.__verFreeze = (kind, auto = true) => {
       if (!INS || !budget.inst || budget.inst.virtual) return 0;
       INS.vfz = INS.vfz || [];
       const snap = verSnap(), last = INS.vfz[INS.vfz.length - 1];
       if (auto && last && JSON.stringify(last.d) === JSON.stringify(snap)) return 0;
       const n = INS.vfz.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1;
-      INS.vfz.push({ id: insId(), n, kind, src: verSrc(), auto: !!auto, u: typeof sviUser === "function" ? sviUser() : "", date: localDT(new Date()), d: snap });
+      INS.vfz.push({ id: insId(), n, kind, scn: (() => { const SC = scnL(), V = INS.ver || {}, a = SC.find(y => y.id === V.act); return SC.length > 1 && a ? scnNum(a) : 0; })(), auto: !!auto, u: typeof sviUser === "function" ? sviUser() : "", date: localDT(new Date()), d: snap });
       insSave(); histLog("VERSIONS", "VERSION " + n + (auto ? " (AUTOMATIQUE)" : ""), kind);
       try { verRender(); } catch (e) {}
       return n;
@@ -178,7 +172,7 @@
       if (n) { svToast("VERSION " + n + " PRISE.", 2500); setTimeout(() => { const b = shell.querySelector(".blk-ver"); if (b && !b.hidden) b.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, 60); }
     };
     /* bloc VERSIONS (sous SCÉNARIOS) : une ligne par version ; toucher = la photo ouverte en lecture seule */
-    const VER_COLS = [["vno", "VERSION", x => "VERSION " + x.n, ""], ["vkind", "NATURE", x => x.kind || "", ""], ["vsrc", "SOURCE", x => x.src || verSrc(), ""], ["vdate", "PRISE LE", x => svDT(x.date || ""), ""], ["vuser", "PAR", x => x.u || "", ""]];
+    const VER_COLS = [["vno", "RÉFÉRENCE", x => sviRefDisp((budget.inst ? budget.inst.ref : ref) + "-V" + x.n, budget.project, x.scn || 0), ""], ["vkind", "NATURE", x => x.kind || "", ""], ["vttc", "MONTANT TTC", x => ttcOfData(x.d), "number"], ["vdate", "PRISE LE", x => svDT(x.date || ""), ""], ["vuser", "PAR", x => x.u || "", ""]];
     let verShown = [];
     shell.__verData = () => { const oc = coOrder("vver", VER_COLS); return { head: oc.map(c => c[1]), rows: verShown.map(x => oc.map(c => c[2](x) + (c[0] === "vno" && x.auto ? " (A)" : ""))) }; };
     const verRender = () => {
@@ -194,7 +188,7 @@
       const oc = coOrder("vver", VER_COLS);
       t.style.width = cwTableW("vver", VER_COLS) + "px";
       t.innerHTML = `<colgroup>${cwCols("vver", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("vver", c[0], c[1], c[3])).join("")}</tr></thead>
-        <tbody>${rows.map(x => `<tr class="ver-row" data-vn="${x.n}">${oc.map(c => `<td>${esc(c[2](x))}${c[0] === "vno" && x.auto ? ' <span class="auto-a" title="Créée automatiquement">Ⓐ</span>' : ""}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}</tbody>`;
+        <tbody>${rows.map(x => `<tr class="ver-row ${x.arch ? "st-archive" : "st-valide"}" data-vn="${x.n}">${oc.map(c => `<td class="${c[3] || ""}">${esc(c[3] === "number" ? money(c[2](x)) : c[2](x))}${c[0] === "vno" && x.auto ? ' <span class="auto-a" title="Créée automatiquement">Ⓐ</span>' : ""}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}</tbody>`;
     };
     shell.__verRender = verRender;
     shell.querySelector(".blk-ver")?.addEventListener("click", e => {
@@ -259,6 +253,10 @@
        ========================================================= */
     const SCN_MAX = 10;
     const scnL = () => ((INS && INS.ver && INS.ver.L) || []).filter(x => x.kind === "sc");
+    /* v780 (remarques 7 et 10) : MONTANT TTC d'un jeu de données (scénario, version) ; numéro et référence complète d'un scénario */
+    const ttcOfData = d => { try { return Math.round((budgetData({ ref: "TTC", project: "", rows: [], first: {}, inst: { ref: "TTC", data: d }, __noFam: true }).ttc || 0) * 100) / 100; } catch (e) { return 0; } };
+    const scnNum = x => { const SC = scnL(), m = String(x.nom || "").match(/SC[ÉE]NARIO\s*(\d+)/i); return m ? +m[1] : SC.indexOf(x) + 1; };
+    const scnRef = x => sviRefDisp(budget.inst ? budget.inst.ref : ref, budget.project, scnNum(x));
     const scnEd = () => !!INS && !!budget.inst && !budget.inst.virtual && (budget.inst.state || "instance") === "instance";
     const scnWhy = () => !budget.inst || budget.inst.virtual ? "SCÉNARIOS : SUR UNE ÉTAPE SEULEMENT (PAS SUR LE CONSOLIDÉ NI SUR UNE VERSION)."
       : !scnEd() ? "SCN : ÉTAPE " + (budget.inst.state === "valide" ? "VALIDÉE" : "FIGÉE") + ", LECTURE SEULE — REVENIR EN ÉDITION POUR CRÉER UN SCÉNARIO."
@@ -318,8 +316,8 @@
     const scnHidSet = a => { try { localStorage.setItem(SCN_HID_KEY, JSON.stringify(a)); } catch (e) {} };
     const scnSt = x => { const V = INS.ver || {}; return x.id === V.act ? (x.arch ? "ACTIF — ARCHIVÉ" : "ACTIF") : x.arch ? "ARCHIVÉ" : "EN RÉSERVE"; };
     /* vue LISTE */
-    const scnListCols = () => [["scnom", "NOM", x => x.nom, ""], ["scet", "ÉTAT", x => scnSt(x), ""], ["scof", "OFFERT AU CLIENT", x => x.of ? "OUI" : "NON", "center"],
-      ["scret", "RETENIR", x => x.ret && !x.arch ? "RETENU" : "", "center"], ...(scnL().some(x => x.arch) ? [["scdes", "DÉSARCHIVER", x => x.arch ? "ARCHIVÉ" : "", "center"]] : []), ["scdel", "🗑", () => "", "center"]];
+    const scnListCols = () => [["scref", "RÉFÉRENCE", x => scnRef(x), ""], ["scnom", "NOM", x => x.nom, ""], ["scttc", "MONTANT TTC", x => ttcOfData(x.id === (INS.ver || {}).act ? INS : x.d), "number"], ["scet", "ÉTAT", x => scnSt(x), ""], ["scof", "OFFERT AU CLIENT", x => x.of ? "OUI" : "NON", "center"],
+      ["scret", "RETENIR", x => x.ret && !x.arch ? "RETENU" : "", "center"], ...(scnL().some(x => x.arch) ? [["scdes", "DÉSARCHIVER", x => x.arch ? "ARCHIVÉ" : "", "center"]] : []), ["scdel", "", () => "", "center"]];
     /* vue COMPARAISON : clés sc1…sc10 = position du scénario dans la liste */
     const scnCmpCols = SC => { const H = scnHid(); return [["scnind", "INDICATEUR", r => r.nom, ""], ...SC.map((x, j) => ["sc" + (j + 1), x.nom, r => r.v[j] ? (r.v[j].val ?? r.v[j].txt) : "", "number"]).filter((c, j) => !H.includes(SC[j].id))]; };
     const scnRows = SC => {
@@ -375,18 +373,20 @@
         const td = (c, x) => {
           const k = c[0], act = x.id === V.act;
           if (k === "scnom") return `<td class="scn-nm-c"><span class="scn-nm${!act ? " scn-go" : ""}" data-nm="${x.id}" title="${!act ? "Toucher : consulter ce scénario (sans le rendre actif)" + (ed ? " — appui long : renommer" : "") : ""}">${esc(x.nom)}</span></td>`;
+          if (k === "scref") return `<td>${esc(scnRef(x))}</td>`;
+          if (k === "scttc") return `<td class="number">${money(ttcOfData(act ? INS : x.d))}</td>`;
           if (k === "scet") return `<td>${scnSt(x)}</td>`;
           if (k === "scof") return `<td class="center"><input type="checkbox" class="ver-of" data-id="${x.id}"${x.of ? " checked" : ""}${ed && !x.arch ? "" : " disabled"}></td>`;
           if (k === "scret") return `<td class="center">${x.arch ? "" : x.ret && act ? "<b>RETENU</b>" : ed ? `<button type="button" class="svc-b svc-ok" data-keep="${x.id}">RETENIR</button>` : ""}</td>`;
           if (k === "scdes") return `<td class="center">${x.arch && ed ? `<button type="button" class="svc-b" data-unarch="${x.id}">DÉSARCHIVER</button>` : ""}</td>`;
-          if (k === "scdel") return `<td class="center">${ed && !act ? `<button type="button" class="scn-del" data-del="${x.id}" title="Supprimer ce scénario">🗑</button>` : ""}</td>`;
+          if (k === "scdel") return `<td class="center">${ed && !act ? `<button type="button" class="scn-del bdg-row-del" data-del="${x.id}" title="Supprimer ce scénario">${SVI_DEL_ICON}</button>` : ""}</td>`;
           return "<td></td>";
         };
         const full = SC.length >= SCN_MAX;
         const add = ed ? `<tr class="scn-new${full ? " off" : ""}" data-scnadd><td colspan="${oc.length}">${full ? SCN_MAX + " SCÉNARIOS AU PLUS PAR ÉTAPE" : "CRÉER UN SCÉNARIO ICI…"}</td></tr>` : "";
         t.style.width = cwTableW("scnl", cols) + "px";
         t.innerHTML = `<colgroup>${cwCols("scnl", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("scnl", c[0], c[1], c[3])).join("")}</tr></thead>
-          <tbody>${rows.map(x => `<tr class="scn-row${x.id === V.act ? " ver-act" : ""}${x.arch ? " scn-arch" : ""}" data-scn="${x.id}">${oc.map(c => td(c, x)).join("")}</tr>`).join("") || (SC.length ? `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "")}${add}</tbody>`;
+          <tbody>${rows.map(x => `<tr class="scn-row${x.id === V.act ? " ver-act st-actif" : x.arch ? " st-archive" : " st-reserve"}${x.arch ? " scn-arch" : ""}" data-scn="${x.id}">${oc.map(c => td(c, x)).join("")}</tr>`).join("") || (SC.length ? `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "")}${add}</tbody>`;
         return;
       }
       /* COMPARAISON */

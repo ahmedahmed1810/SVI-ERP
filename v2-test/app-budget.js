@@ -215,6 +215,17 @@ const sviLinkType = t => { const n = sviBfNorm(t).replace(/[^A-Z]/g, ""); if (!n
      activité primaire ou secondaire différente (lot différent = activités libres).
    ========================================================= */
 const sviAvU = v => String(v ?? "").trim().toUpperCase();
+/* v780 (remarque 1 et 7) : RÉFÉRENCE AFFICHÉE avec la nature à la fin, en chaîne — « PROJET BASE INI », « … AV2 », « … CNS »,
+   « … AV2 SCN1 », « … INI RC1 VR1 » ; les références internes (-AVn, -GLOBAL, -Rn, -Vn) ne changent pas */
+const sviRefDisp = (ref, project, scn) => {
+  const m = String(ref || "").match(/^(.*?)((?:-(?:GLOBAL|AV\d+|R\d+|V\d+))*)$/) || [, String(ref || ""), ""];
+  const P = (m[2].match(/-(GLOBAL|AV\d+|R\d+|V\d+)/g) || []).map(x => x.slice(1)), out = [];
+  if (!P.length || !/^(GLOBAL|AV)/.test(P[0])) out.push("INI");
+  P.forEach((p, i) => { out.push(p === "GLOBAL" ? "CNS" : /^R\d/.test(p) ? "RC" + p.slice(1) : /^V\d/.test(p) ? "VR" + p.slice(1) : p);
+    if (scn && i === 0 && /^(AV)/.test(p)) { out.push("SCN" + scn); scn = 0; } });
+  if (scn) out.splice(1, 0, "SCN" + scn);
+  return ((project ? sviAvU(project) + " " : "") + m[1] + " " + out.join(" ")).replace(/\s+/g, " ").trim();
+};
 /* étapes d'un budget : marché initial puis avenants (ordre) */
 const sviAvStages = ref => {
   const L = sviInstGet(), it = L.find(x => x.ref === ref);
@@ -1957,7 +1968,7 @@ function renderBudgetList() {
 
   const columns = [
     { key: "ref", title: "RÉFÉRENCE", width: 200 },
-    { key: "nat", title: "NATURE", width: 110 },
+    /* v780 (remarque 1) : plus de colonne NATURE — la nature est à la fin de la référence (INI, AVn, CNS…) */
     { key: "budget", title: "PROJET", width: 100 },
     { key: "intitule", title: "INTITULÉ", width: 220 },
     { key: "ttc", title: "MONTANT TTC", width: 135, number: true },
@@ -1970,7 +1981,7 @@ function renderBudgetList() {
   const BL = "bdgl";
   window.__bdglKit = window.__bdglKit || sviCfKit({ key: "bdgl", shell: {}, refresh: () => window.__bdglRefresh && window.__bdglRefresh() });
   const KIT = window.__bdglKit;
-  const cfCols = () => columns.map(c => [c.key, c.title, c.key === "ref" ? r => r.budget + " " + r.ref : c.key === "ttc" ? r => num(r.ttc) : r => r[c.key] ?? ""]);
+  const cfCols = () => columns.map(c => [c.key, c.title, c.key === "ref" ? r => sviRefDisp(r.fam ? r.ref + "-GLOBAL" : r.ref, r.budget) : c.key === "ttc" ? r => num(r.ttc) : r => r[c.key] ?? ""]);
 
   const thead =
     table.querySelector(
@@ -2146,7 +2157,7 @@ function renderBudgetList() {
     /* une case par colonne, dans l'ordre des colonnes ; PROJET souligné = lien vers la fiche projet (règle : souligné = lien vers la fiche source) */
     const cell = (k, x) => {
       switch (k) {
-        case "ref": return `<td class="bdg-ref-c">${x.fam ? `<span class="bdg-fold" data-fold-bdg="${esc(x.ref)}" role="button" aria-label="${x.open ? "Plier" : "Déplier"}">${x.open ? "⌄" : "›"}</span>` : ""}<span class="bang-slot">${obsBang(x.ref)}</span>${esc(x.budget + " " + x.ref)}</td>`;
+        case "ref": return `<td class="bdg-ref-c">${x.fam ? `<span class="bdg-fold" data-fold-bdg="${esc(x.ref)}" role="button" aria-label="${x.open ? "Plier" : "Déplier"}">${x.open ? "⌄" : "›"}</span>` : ""}<span class="bang-slot">${obsBang(x.ref)}</span>${esc(sviRefDisp(x.fam ? x.ref + "-GLOBAL" : x.ref, x.budget))}</td>`;
         case "validated": return `<td title="${esc(x.late || x.validated || "")}">${lateBang(x.late)}${esc(x.validated || "")}</td>`;
         case "budget": return `<td title="${esc(x.budget)}"><button type="button" class="budget-link" data-open-project="${esc(x.ref)}">${esc(x.budget)}</button></td>`;
         case "ttc": return `<td class="number">${money(x.ttc)}</td>`;
@@ -2493,7 +2504,15 @@ function renderBudgetList() {
     if (window.__sviForceTab) { active = window.__sviForceTab; window.__sviForceTab = null; }
     /* référence affichée du budget : « H88 BDG 26-1001/001 » */
     /* v693 : recalage — titre « <réf. de l'étape> R<n> » */
-    const fullRef = String(budget.project).trim().toUpperCase() + " " + (budget.inst && budget.inst.rclOf ? budget.inst.rclOf + " R" + budget.inst.rcn : ref);
+    /* v780 (remarques 1 et 7) : référence complète avec la nature à la fin (INI, AVn, CNS, SCNn, VRn, RCn) — liste, en-tête, RÉVISIONS, impressions */
+    const scnNoOf = V => { try { const SC = ((V || {}).L || []).filter(x => x.kind === "sc"), i = SC.findIndex(x => x.id === V.act); if (!(SC.length > 1 && i >= 0)) return 0;
+      const m = String(SC[i].nom || "").match(/SC[ÉE]NARIO\s*(\d+)/i); return m ? +m[1] : i + 1; } catch (e) { return 0; } };
+    const refOfInst = V => { if (!budget.inst || ref === "CUMUL") return String(budget.project).trim().toUpperCase() + " " + ref;
+      const r0 = budget.inst.ref || ref, sc = r0.match(/^(.*)-SC([^-]+)$/);
+      if (sc) { const st = sviInstGet().find(x => x.ref === sc[1]), L = ((st && st.data && st.data.ver && st.data.ver.L) || []).filter(x => x.kind === "sc"), i = L.findIndex(x => x.id === sc[2]),
+        m = i >= 0 ? String(L[i].nom || "").match(/SC[ÉE]NARIO\s*(\d+)/i) : null; return sviRefDisp(sc[1], budget.project, m ? +m[1] : i + 1) + " (CONSULTATION)"; }
+      return sviRefDisp(r0, budget.project, budget.inst.virtual ? 0 : scnNoOf(V)); };
+    const fullRef = refOfInst(budget.inst && budget.inst.data && budget.inst.data.ver);
     /* budget en instance : rouge (édition) ou vert (figé) */
     shell.classList.remove("bdg-inst-instance", "bdg-inst-fige", "list-inst");
     /* en instance (rouge) ou figé (vert) ; validé : présentation noire normale */
@@ -2546,9 +2565,9 @@ function renderBudgetList() {
       const tagLab = V => { try { const SC = ((V || {}).L || []).filter(x => x.kind === "sc"), i = SC.findIndex(x => x.id === V.act); if (!(SC.length > 1 && i >= 0)) return lab0; const m = String(SC[i].nom || "").match(/SC[ÉE]NARIO\s*(\d+)/i);   /* v708 : le numéro du nom (celui de la liste) */
         return lab0 + " — SCÉNARIO " + (m ? m[1] : i + 1); } catch (e) { return lab0; } };
       lab = tagLab((bi && bi.data && bi.data.ver) || {});
-      document.getElementById("sviScreenTag")?.remove();
-      const t = document.createElement("div"); t.id = "sviScreenTag"; t.textContent = lab; document.body.appendChild(t);
-      shell.__tagPaint = V => { const e = document.getElementById("sviScreenTag"); if (e) e.textContent = tagLab(V); };
+      /* v780 (remarque 1) : plus d'étiquette en haut de l'écran (BUDGET CONSOLIDÉ, BUDGET AVENANT 2, SCÉNARIO 2…) : la référence suffit */
+      document.getElementById("sviScreenTag")?.remove(); void lab;
+      shell.__tagPaint = V => { const e = shell.querySelector("#refTxt"); if (e) e.textContent = refOfInst(V); };
       document.body.classList.add("bdg-screen");
     }
     window.__sviBdgNav = HNAV && HNAV.swipe ? { go: d => hnavGo(d) } : null;
@@ -2717,7 +2736,7 @@ function renderBudgetList() {
             </span>
           </div>
           <div class="blk-tabrow"><span class="rec-tabs etp-tabs">
-              <button type="button" class="rec-tab" data-etab="av" id="avTitle">AVENANTS</button>
+              <button type="button" class="rec-tab" data-etab="av" id="avTitle">BUDGETS</button>
               <button type="button" class="rec-tab" data-etab="scn" id="scnTitle">${SVI_ICON.scn}SCÉNARIOS</button>
               <button type="button" class="rec-tab" data-etab="ver" id="verTitle">${SVI_ICON.ver}VERSIONS</button>
               <button type="button" class="rec-tab" data-etab="rcl" id="rclTitle">${SVI_ICON.rcl}RECALAGES</button>
@@ -15556,7 +15575,7 @@ ${A}</Assignments>
         if (!it || it.classList.contains("off")) return;
         m.remove();
         if (it.dataset.a === "dup") $("instDup")?.click();
-        else if (it.dataset.a === "prt") { if (window.__sviPrintClient) window.__sviPrintClient(); else printBudgetPDF(ref); }
+        else if (it.dataset.a === "prt") { if (window.__sviPrintClient) window.__sviPrintClient(); else sviAlert("APERÇU INDISPONIBLE POUR CET ÉCRAN."); }   /* v780 (remarque 8) : toujours par la MISE EN PAGE, jamais d'impression directe */
         else if (/^dt-/.test(it.dataset.a)) { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${it.dataset.a.slice(3)}"]`); if (b) { b.click(); setTimeout(() => $("bdgDetailHead")?.scrollIntoView({ block: "start", behavior: "smooth" }), 60); } }
         else if (it.dataset.a === "cum") { if (shell.__cumPick) shell.__cumPick(); else cumPick(); }   /* v771 : fenêtre de SÉLECTION unique */
         else if (it.dataset.a === "xp" || it.dataset.a === "blk" || it.dataset.a === "arch") etatSet(it.dataset.a);
@@ -17321,19 +17340,13 @@ ${A}</Assignments>
     /* v682 : photo de l'étape (VERSION n) prise à FIGER et à VALIDER */
     /* v690 : versions automatiques (Ⓐ) à FIGER et VALIDER — pas de nouvelle photo si rien n'a changé depuis la dernière ;
        version MANUELLE par PRENDRE UNE VERSION (menu ⋯ du haut) ; aucune limite, jamais effacées */
-    /* v774 (point 6) : SOURCE d'une version — budget initial, avenant n, scénario (actif s'il n'est pas le premier), recalage */
-    const verSrc = () => { const bi = budget.inst; if (!bi) return "";
-      if (bi.rclOf) return "RECALAGE";
-      const V = INS && INS.ver, sc = V && V.L && V.L.length > 1 && V.act && V.L[0].id !== V.act ? V.L.find(x => x.id === V.act) : null;
-      const base = bi.parent ? (() => { const S = sviAvStages(bi.parent), i = S.findIndex(x => x.ref === bi.ref); return "AVENANT" + (i > 0 ? " " + i : ""); })() : "BUDGET INITIAL";
-      return sc ? "SCÉNARIO — " + (sc.nom || "") : base; };
     shell.__verFreeze = (kind, auto = true) => {
       if (!INS || !budget.inst || budget.inst.virtual) return 0;
       INS.vfz = INS.vfz || [];
       const snap = verSnap(), last = INS.vfz[INS.vfz.length - 1];
       if (auto && last && JSON.stringify(last.d) === JSON.stringify(snap)) return 0;
       const n = INS.vfz.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1;
-      INS.vfz.push({ id: insId(), n, kind, src: verSrc(), auto: !!auto, u: typeof sviUser === "function" ? sviUser() : "", date: localDT(new Date()), d: snap });
+      INS.vfz.push({ id: insId(), n, kind, scn: (() => { const SC = scnL(), V = INS.ver || {}, a = SC.find(y => y.id === V.act); return SC.length > 1 && a ? scnNum(a) : 0; })(), auto: !!auto, u: typeof sviUser === "function" ? sviUser() : "", date: localDT(new Date()), d: snap });
       insSave(); histLog("VERSIONS", "VERSION " + n + (auto ? " (AUTOMATIQUE)" : ""), kind);
       try { verRender(); } catch (e) {}
       return n;
@@ -17355,7 +17368,7 @@ ${A}</Assignments>
       if (n) { svToast("VERSION " + n + " PRISE.", 2500); setTimeout(() => { const b = shell.querySelector(".blk-ver"); if (b && !b.hidden) b.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, 60); }
     };
     /* bloc VERSIONS (sous SCÉNARIOS) : une ligne par version ; toucher = la photo ouverte en lecture seule */
-    const VER_COLS = [["vno", "VERSION", x => "VERSION " + x.n, ""], ["vkind", "NATURE", x => x.kind || "", ""], ["vsrc", "SOURCE", x => x.src || verSrc(), ""], ["vdate", "PRISE LE", x => svDT(x.date || ""), ""], ["vuser", "PAR", x => x.u || "", ""]];
+    const VER_COLS = [["vno", "RÉFÉRENCE", x => sviRefDisp((budget.inst ? budget.inst.ref : ref) + "-V" + x.n, budget.project, x.scn || 0), ""], ["vkind", "NATURE", x => x.kind || "", ""], ["vttc", "MONTANT TTC", x => ttcOfData(x.d), "number"], ["vdate", "PRISE LE", x => svDT(x.date || ""), ""], ["vuser", "PAR", x => x.u || "", ""]];
     let verShown = [];
     shell.__verData = () => { const oc = coOrder("vver", VER_COLS); return { head: oc.map(c => c[1]), rows: verShown.map(x => oc.map(c => c[2](x) + (c[0] === "vno" && x.auto ? " (A)" : ""))) }; };
     const verRender = () => {
@@ -17371,7 +17384,7 @@ ${A}</Assignments>
       const oc = coOrder("vver", VER_COLS);
       t.style.width = cwTableW("vver", VER_COLS) + "px";
       t.innerHTML = `<colgroup>${cwCols("vver", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("vver", c[0], c[1], c[3])).join("")}</tr></thead>
-        <tbody>${rows.map(x => `<tr class="ver-row" data-vn="${x.n}">${oc.map(c => `<td>${esc(c[2](x))}${c[0] === "vno" && x.auto ? ' <span class="auto-a" title="Créée automatiquement">Ⓐ</span>' : ""}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}</tbody>`;
+        <tbody>${rows.map(x => `<tr class="ver-row ${x.arch ? "st-archive" : "st-valide"}" data-vn="${x.n}">${oc.map(c => `<td class="${c[3] || ""}">${esc(c[3] === "number" ? money(c[2](x)) : c[2](x))}${c[0] === "vno" && x.auto ? ' <span class="auto-a" title="Créée automatiquement">Ⓐ</span>' : ""}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}</tbody>`;
     };
     shell.__verRender = verRender;
     shell.querySelector(".blk-ver")?.addEventListener("click", e => {
@@ -17436,6 +17449,10 @@ ${A}</Assignments>
        ========================================================= */
     const SCN_MAX = 10;
     const scnL = () => ((INS && INS.ver && INS.ver.L) || []).filter(x => x.kind === "sc");
+    /* v780 (remarques 7 et 10) : MONTANT TTC d'un jeu de données (scénario, version) ; numéro et référence complète d'un scénario */
+    const ttcOfData = d => { try { return Math.round((budgetData({ ref: "TTC", project: "", rows: [], first: {}, inst: { ref: "TTC", data: d }, __noFam: true }).ttc || 0) * 100) / 100; } catch (e) { return 0; } };
+    const scnNum = x => { const SC = scnL(), m = String(x.nom || "").match(/SC[ÉE]NARIO\s*(\d+)/i); return m ? +m[1] : SC.indexOf(x) + 1; };
+    const scnRef = x => sviRefDisp(budget.inst ? budget.inst.ref : ref, budget.project, scnNum(x));
     const scnEd = () => !!INS && !!budget.inst && !budget.inst.virtual && (budget.inst.state || "instance") === "instance";
     const scnWhy = () => !budget.inst || budget.inst.virtual ? "SCÉNARIOS : SUR UNE ÉTAPE SEULEMENT (PAS SUR LE CONSOLIDÉ NI SUR UNE VERSION)."
       : !scnEd() ? "SCN : ÉTAPE " + (budget.inst.state === "valide" ? "VALIDÉE" : "FIGÉE") + ", LECTURE SEULE — REVENIR EN ÉDITION POUR CRÉER UN SCÉNARIO."
@@ -17495,8 +17512,8 @@ ${A}</Assignments>
     const scnHidSet = a => { try { localStorage.setItem(SCN_HID_KEY, JSON.stringify(a)); } catch (e) {} };
     const scnSt = x => { const V = INS.ver || {}; return x.id === V.act ? (x.arch ? "ACTIF — ARCHIVÉ" : "ACTIF") : x.arch ? "ARCHIVÉ" : "EN RÉSERVE"; };
     /* vue LISTE */
-    const scnListCols = () => [["scnom", "NOM", x => x.nom, ""], ["scet", "ÉTAT", x => scnSt(x), ""], ["scof", "OFFERT AU CLIENT", x => x.of ? "OUI" : "NON", "center"],
-      ["scret", "RETENIR", x => x.ret && !x.arch ? "RETENU" : "", "center"], ...(scnL().some(x => x.arch) ? [["scdes", "DÉSARCHIVER", x => x.arch ? "ARCHIVÉ" : "", "center"]] : []), ["scdel", "🗑", () => "", "center"]];
+    const scnListCols = () => [["scref", "RÉFÉRENCE", x => scnRef(x), ""], ["scnom", "NOM", x => x.nom, ""], ["scttc", "MONTANT TTC", x => ttcOfData(x.id === (INS.ver || {}).act ? INS : x.d), "number"], ["scet", "ÉTAT", x => scnSt(x), ""], ["scof", "OFFERT AU CLIENT", x => x.of ? "OUI" : "NON", "center"],
+      ["scret", "RETENIR", x => x.ret && !x.arch ? "RETENU" : "", "center"], ...(scnL().some(x => x.arch) ? [["scdes", "DÉSARCHIVER", x => x.arch ? "ARCHIVÉ" : "", "center"]] : []), ["scdel", "", () => "", "center"]];
     /* vue COMPARAISON : clés sc1…sc10 = position du scénario dans la liste */
     const scnCmpCols = SC => { const H = scnHid(); return [["scnind", "INDICATEUR", r => r.nom, ""], ...SC.map((x, j) => ["sc" + (j + 1), x.nom, r => r.v[j] ? (r.v[j].val ?? r.v[j].txt) : "", "number"]).filter((c, j) => !H.includes(SC[j].id))]; };
     const scnRows = SC => {
@@ -17552,18 +17569,20 @@ ${A}</Assignments>
         const td = (c, x) => {
           const k = c[0], act = x.id === V.act;
           if (k === "scnom") return `<td class="scn-nm-c"><span class="scn-nm${!act ? " scn-go" : ""}" data-nm="${x.id}" title="${!act ? "Toucher : consulter ce scénario (sans le rendre actif)" + (ed ? " — appui long : renommer" : "") : ""}">${esc(x.nom)}</span></td>`;
+          if (k === "scref") return `<td>${esc(scnRef(x))}</td>`;
+          if (k === "scttc") return `<td class="number">${money(ttcOfData(act ? INS : x.d))}</td>`;
           if (k === "scet") return `<td>${scnSt(x)}</td>`;
           if (k === "scof") return `<td class="center"><input type="checkbox" class="ver-of" data-id="${x.id}"${x.of ? " checked" : ""}${ed && !x.arch ? "" : " disabled"}></td>`;
           if (k === "scret") return `<td class="center">${x.arch ? "" : x.ret && act ? "<b>RETENU</b>" : ed ? `<button type="button" class="svc-b svc-ok" data-keep="${x.id}">RETENIR</button>` : ""}</td>`;
           if (k === "scdes") return `<td class="center">${x.arch && ed ? `<button type="button" class="svc-b" data-unarch="${x.id}">DÉSARCHIVER</button>` : ""}</td>`;
-          if (k === "scdel") return `<td class="center">${ed && !act ? `<button type="button" class="scn-del" data-del="${x.id}" title="Supprimer ce scénario">🗑</button>` : ""}</td>`;
+          if (k === "scdel") return `<td class="center">${ed && !act ? `<button type="button" class="scn-del bdg-row-del" data-del="${x.id}" title="Supprimer ce scénario">${SVI_DEL_ICON}</button>` : ""}</td>`;
           return "<td></td>";
         };
         const full = SC.length >= SCN_MAX;
         const add = ed ? `<tr class="scn-new${full ? " off" : ""}" data-scnadd><td colspan="${oc.length}">${full ? SCN_MAX + " SCÉNARIOS AU PLUS PAR ÉTAPE" : "CRÉER UN SCÉNARIO ICI…"}</td></tr>` : "";
         t.style.width = cwTableW("scnl", cols) + "px";
         t.innerHTML = `<colgroup>${cwCols("scnl", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("scnl", c[0], c[1], c[3])).join("")}</tr></thead>
-          <tbody>${rows.map(x => `<tr class="scn-row${x.id === V.act ? " ver-act" : ""}${x.arch ? " scn-arch" : ""}" data-scn="${x.id}">${oc.map(c => td(c, x)).join("")}</tr>`).join("") || (SC.length ? `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "")}${add}</tbody>`;
+          <tbody>${rows.map(x => `<tr class="scn-row${x.id === V.act ? " ver-act st-actif" : x.arch ? " st-archive" : " st-reserve"}${x.arch ? " scn-arch" : ""}" data-scn="${x.id}">${oc.map(c => td(c, x)).join("")}</tr>`).join("") || (SC.length ? `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "")}${add}</tbody>`;
         return;
       }
       /* COMPARAISON */
@@ -18702,7 +18721,7 @@ ${A}</Assignments>
       window.__sviAvOpen(R[j].ref, RCL_OF);
     };
     /* bloc RECALAGES (sous VERSIONS) : une ligne par recalage ; toucher = l'ouvrir */
-    const RCL_COLS = [["rno", "RECALAGE", x => "R" + x.rcn, ""], ["rcdate", "DATE", x => svDT(x.created || ""), ""], ["ruser", "PAR", x => x.u || "", ""],
+    const RCL_COLS = [["rno", "RÉFÉRENCE", x => sviRefDisp(x.ref, x.project || budget.project), ""], ["rttc", "MONTANT TTC", x => { try { return Math.round((budgetData({ ref: x.ref, project: x.project, rows: [], first: {}, inst: x, __noFam: true }).ttc || 0) * 100) / 100; } catch (e) { return 0; } }, "number"], ["rcdate", "DATE", x => svDT(x.created || ""), ""], ["ruser", "PAR", x => x.u || "", ""],
       ["rstate", "ÉTAT", x => x.state === "valide" ? "ENREGISTRÉ" : "EN COURS", ""], ["rsav", "ENREGISTRÉ LE", x => x.state === "valide" ? svDT(x.validated || "") : "", ""]];
     let rclShown = [];
     shell.__rclData = () => { const oc = coOrder("vrcl", RCL_COLS); return { head: oc.map(c => c[1]), rows: rclShown.map(x => oc.map(c => c[2](x))) }; };
@@ -18720,7 +18739,7 @@ ${A}</Assignments>
       const oc = coOrder("vrcl", RCL_COLS);
       t.style.width = cwTableW("vrcl", RCL_COLS) + "px";
       t.innerHTML = `<colgroup>${cwCols("vrcl", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("vrcl", c[0], c[1], c[3])).join("")}</tr></thead>
-        <tbody>${rows.map(x => `<tr class="rcl-row${x.ref === ref ? " ver-act" : ""}${x.state !== "valide" ? " rcl-cours" : ""}" data-rcl="${esc(x.ref)}">${oc.map(c => `<td>${esc(c[2](x))}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}${INS ? (() => { const cur = all.find(x => x.state !== "valide");
+        <tbody>${rows.map(x => `<tr class="rcl-row st-${x.arch ? "archive" : x.state || "instance"}${x.ref === ref ? " ver-act" : ""}${x.state !== "valide" ? " rcl-cours" : ""}" data-rcl="${esc(x.ref)}">${oc.map(c => `<td class="${c[3] || ""}">${esc(c[3] === "number" ? money(c[2](x)) : c[2](x))}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}${INS ? (() => { const cur = all.find(x => x.state !== "valide");
           /* v702 : création d'un recalage par la ligne du tableau (le menu ⋯ ne sert qu'au premier) */
           return `<tr class="scn-new${cur ? " off" : ""}" data-rcladd${cur ? ` data-why="UN RECALAGE EST DÉJÀ EN COURS : R${cur.rcn}. L'ENREGISTRER OU LE SUPPRIMER D'ABORD."` : ""}><td colspan="${oc.length}">CRÉER UN RECALAGE ICI…</td></tr>`; })() : ""}</tbody>`;
     };
@@ -19403,7 +19422,7 @@ ${A}</Assignments>
        ========================================================= */
     {
       const ETP_K = "svi_etp_tab_v1";
-      const ETP_LAB = { av: "AVENANTS", scn: "SCÉNARIOS", ver: "VERSIONS", rcl: "RECALAGES" };
+      const ETP_LAB = { av: "BUDGETS", scn: "SCÉNARIOS", ver: "VERSIONS", rcl: "RECALAGES" };
       const ETP_NEW = { av: "CRÉER UN AVENANT", scn: "CRÉER UN SCÉNARIO", ver: "PRENDRE UNE VERSION", rcl: "CRÉER UN RECALAGE" };
       const bi = budget.inst;
       /* étapes de la famille (budget initial puis avenants) : depuis une étape, le consolidé ou un recalage */
@@ -19417,7 +19436,7 @@ ${A}</Assignments>
       const etpOn = () => !!bi && bi.ref !== "CUMUL" && !(bi.virtual && bi.vname) && !!INS;
       const etpWhy = k => {
         if (k === "av") return etpRoot() ? "" : "PAS D'AVENANT ICI.";
-        if (bi.virtual) return "CONSOLIDÉ : " + ETP_LAB[k] + " SUR CHAQUE ÉTAPE (ONGLET AVENANTS › TOUCHER UNE ÉTAPE).";
+        if (bi.virtual) return "CONSOLIDÉ : " + ETP_LAB[k] + " SUR CHAQUE ÉTAPE (ONGLET BUDGETS › TOUCHER UNE ÉTAPE).";
         return "";
       };
       let etpTab = "";
@@ -19428,21 +19447,26 @@ ${A}</Assignments>
       let avShown = [];
       const avRows = () => {
         const root = etpRoot(); if (!root) return [];
-        return sviAvStages(root).map(st => {
+        /* v780 (remarque 6) : onglet BUDGETS — CONSOLIDÉ (CNS) en première ligne, puis BUDGET INITIAL (INI), puis les avenants (AVn) ; toucher = l'ouvrir */
+        const S = sviAvStages(root);
+        const out = S.map(st => {
           let bd = {}; try { bd = budgetData({ ref: st.ref, project: st.project, rows: [], first: {}, inst: st, __noFam: true }); } catch (e) {}
           const s0 = st.state === "valide" ? "VALIDÉ" : st.state === "fige" ? "FIGÉ" : "EN INSTANCE";
-          return { ref: st.ref, cls: st.xp ? "expire" : st.state || "instance", nat: st.parent ? "AVENANT " + (st.avn || 1) : "BUDGET INITIAL", r: U_(st.project || "") + " " + st.ref, int: st.intitule || "",
-            ttc: Math.round((bd.ttc || 0) * 100) / 100, st: st.xp ? s0 + " — EXPIRÉ" : s0, val: st.state === "valide" ? svDT(st.validated || "") : "" };
+          return { ref: st.ref, cls: st.xp ? "expire" : st.state || "instance", nat: st.parent ? "AVENANT " + (st.avn || 1) : "BUDGET INITIAL", r: sviRefDisp(st.ref, st.project), int: st.intitule || "",
+            ttc: Math.round((bd.ttc || 0) * 100) / 100, st: st.xp ? s0 + " — EXPIRÉ" : s0, val: st.state === "valide" ? svDT(st.validated || "") : "", xp: !!st.xp };
         });
+        if (S.length > 1) out.unshift({ ref: root + "-GLOBAL", cls: "valide", nat: "BUDGET CONSOLIDÉ", r: sviRefDisp(root + "-GLOBAL", S[0].project), int: S[0].intitule || "",
+          ttc: Math.round(out.filter(x => !x.xp && x.cls === "valide").reduce((t, x) => t + x.ttc, 0) * 100) / 100, st: "CONSOLIDÉ", val: "" });
+        return out;
       };
       shell.__avData = () => { const oc = coOrder("vav", AV_COLS); return { head: oc.map(c => c[1]), rows: avShown.map(x => oc.map(c => c[0] === "avttc" ? money(c[2](x)) : c[2](x))) }; };
       const avRender = () => {
         const t = $("avTable"), pane = shell.querySelector(".blk-etp .blk-av"); if (!t || !pane) return;
         const all = avRows(); pane.hidden = !all.length;
         const ttl = $("avTitle");
-        if (!all.length) { if (ttl) ttl.innerHTML = "AVENANTS " + svCnt(0); t.innerHTML = ""; return; }
+        if (!all.length) { if (ttl) ttl.innerHTML = "BUDGETS " + svCnt(0); t.innerHTML = ""; return; }
         const rows = cfApply("vav", AV_COLS, all); avShown = rows;
-        if (ttl) ttl.innerHTML = "AVENANTS " + svCnt(rows.filter(x => x.nat !== "BUDGET INITIAL").length);
+        if (ttl) ttl.innerHTML = "BUDGETS " + svCnt(rows.length);
         const oc = coOrder("vav", AV_COLS), S = sviAvStages(etpRoot()), last = S[S.length - 1], ok = !!last && last.state === "valide";
         t.style.width = cwTableW("vav", AV_COLS) + "px";
         t.innerHTML = `<colgroup>${cwCols("vav", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("vav", c[0], c[1], c[3])).join("")}</tr></thead>
@@ -19801,7 +19825,7 @@ ${A}</Assignments>
   body.portrait .head .t { padding-left: 30mm; padding-right: 30mm; }
 </style></head><body class="${cfg.portrait ? "portrait" : ""}">
 <aside id="side">
-  <h2>OPTIONS PDF</h2>
+  <h2>MISE EN PAGE</h2>
   <div class="sub">CHOISISSEZ LES PARTIES À INCLURE AVANT LA GÉNÉRATION.</div>
   <label class="ck"><input type="checkbox" id="oHead"> ENTÊTE</label>
   <label class="ck"><input type="checkbox" id="oFoot"> PIED DE PAGE</label>
@@ -23190,7 +23214,7 @@ ${A}</Assignments>
       window.__sviPrintClient = null;
       openBudgetDetail(printButton.dataset.printBudget);
       if (window.__sviPrintClient) window.__sviPrintClient();
-      else printBudgetPDF(printButton.dataset.printBudget);
+      else sviAlert("APERÇU INDISPONIBLE POUR CE BUDGET.");   /* v780 (remarque 8) */
       return;
     }
 

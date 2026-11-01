@@ -473,7 +473,7 @@
       window.__sviPrintClient = null;
       openBudgetDetail(printButton.dataset.printBudget);
       if (window.__sviPrintClient) window.__sviPrintClient();
-      else printBudgetPDF(printButton.dataset.printBudget);
+      else sviAlert("APERÇU INDISPONIBLE POUR CE BUDGET.");   /* v780 (remarque 8) */
       return;
     }
 

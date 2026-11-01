@@ -2,7 +2,7 @@
 Lancer depuis v2-test :  python3 tests/test_app.py
 Ouvre l'application dans Chromium (sans réseau : les appels à Google Apps Script échouent),
 crée un budget en instance d'essai et vérifie les fonctions principales."""
-import http.server, threading, functools, os, sys, json
+import http.server, threading, functools, os, sys, json, re
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -2409,8 +2409,8 @@ def main():
             const M = sviAvMerge('AVT-1', true), r = M.des[0], M0 = sviAvMerge('AVT-1'), C = sviAvContra('AVT-1-AV1'), st = sviAvStages('AVT-1-AV1').map(x => x.ref).join(',');
             sviInstSet(keep);
             return [M.des.length, insLinkedQ(M, r.id), Math.round(r.p * 100) / 100, !!r.pmp, C.length, C[0] ? C[0].att + ' / ' + C[0].got : '', st, insLinkedQ(M0, M0.des[0].id), !!M0.des[0].pmp]; }""")
-        tg706 = pg.evaluate("() => (document.getElementById('sviScreenTag') || {}).textContent || ''")
-        check("v706 : en haut, le NUMÉRO du scénario actif (BUDGET — SCÉNARIO n)", "SCÉNARIO " in tg706 and tg706.split("SCÉNARIO ")[-1].strip().isdigit(), tg706)
+        tg706 = pg.evaluate("() => [(document.getElementById('refTxt') || {}).textContent || '', !!document.getElementById('sviScreenTag')]")
+        check("v706 / v780 : le NUMÉRO du scénario actif à la fin de la référence (… SCNn), plus d'étiquette en haut", re.search(r" SCN\d+$", tg706[0]) is not None and not tg706[1], tg706)
         check("v681 : RETENIR archive, DÉSARCHIVER rend la réserve, nouveau scénario = premier numéro libre ; v717 : même désignation à un autre prix = article distinct (900 et 1000) ; contradiction même lot, autres activités ; v684 : sans INCLURE LES NON VALIDÉS, l'avenant en instance n'est pas compté",
               "ARCHIVÉ" in a81 and b81 == 0 and c81.count("SCÉNARIO 1") == 1 and r81 == [2, 100, 900, False, 1, "BETON › BETON / COFFRAGE › COFFRAGE", "AVT-1,AVT-1-AV1", 100, False], [a81, b81, c81, r81])
         pg.evaluate(f"() => {{ const X = {ins}; const o = JSON.parse(X.INS.__v0); Object.keys(X.INS).forEach(k => delete X.INS[k]); Object.assign(X.INS, o); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
@@ -2627,11 +2627,11 @@ def main():
             localStorage.setItem('svi_listmode_v1', 'valid'); window.__sviAvOpen('SOLO-1', null); }"""); pg.wait_for_timeout(1200)
         nav = []
         for k in range(4):
-            nav.append(pg.evaluate("() => [(document.getElementById('sviScreenTag') || {}).textContent || '', !!window.__sviBdgNav, (window.__sviBdgOrder || []).indexOf('SOLO-1') >= 0]"))
+            nav.append(pg.evaluate("() => [((document.getElementById('refTxt') || {}).textContent || '').split(' ').pop(), !!window.__sviBdgNav, (window.__sviBdgOrder || []).indexOf('SOLO-1') >= 0]"))
             pg.evaluate("() => { const o = window.__sviBdgOrder || [], i = o.indexOf('SOLO-1'), j = o.indexOf('AVT-1'); window.__sviBdgOrder = o.filter(x => x !== 'SOLO-1' && x !== 'AVT-1').concat(['SOLO-1', 'AVT-1']); window.__sviBdgNav && window.__sviBdgNav.go(1); }"); pg.wait_for_timeout(1200)
         pg.evaluate("() => { document.getElementById('budgetBackBtn')?.click(); sviInstSet(JSON.parse(window.__kp705)); localStorage.setItem('svi_listmode_v1', 'inst'); }"); pg.wait_for_timeout(600)
         check("v705 : balayage — budget sans avenant puis budget suivant : CONSOLIDÉ, BUDGET INITIAL, AVENANT 1 un par un",
-              [n[0] for n in nav] == ["BUDGET", "BUDGET CONSOLIDÉ", "BUDGET INITIAL", "BUDGET AVENANT 1"] and nav[0][1], nav)
+              [n[0] for n in nav] == ["INI", "CNS", "INI", "AV1"] and nav[0][1], nav)
         # v710 : budget ancien (lignes de la base, sans INS) — s'ouvre jusqu'au bout et ← ramène à la liste
         pg.evaluate("() => { document.getElementById('budgetBackBtn')?.click(); }"); pg.wait_for_timeout(500)
         pg.evaluate("() => { window.__rows710 = bdgRows; bdgRows = [{ PRJ: 'OLD', 'DÉSIGNATION': 'X' }]; localStorage.setItem('svi_listmode_v1', 'valid'); localStorage.setItem('svi_lastbdg_v1', 'BDG 26-1001/001'); renderBudgetList(); }"); pg.wait_for_timeout(1200)
@@ -2668,7 +2668,7 @@ def main():
             const B = document.querySelector('.blk-etp'); if (!B) return 'pas de bloc'; B.querySelector('[data-etab="scn"]').click(); await w(100);
             const nm2 = document.querySelector('#scnTable [data-nm="s2"]'); if (!nm2) return ['pas de nom', (document.getElementById('sviScreenTag') || {}).textContent, document.querySelector('#scnTable') ? document.querySelector('#scnTable').textContent.slice(0, 300) : 'pas de table', !!document.getElementById('svConf')];
             nm2.click(); await w(1200);
-            const tag = (document.getElementById('sviScreenTag') || {}).textContent || '', act = ((sviInstGet().find(x => x.ref === 'TEST-1') || {}).data || {}).ver.act;
+            const tag = (document.getElementById('refTxt') || {}).textContent || '', act = ((sviInstGet().find(x => x.ref === 'TEST-1') || {}).data || {}).ver.act;
             document.getElementById('budgetBackBtn')?.click(); await w(400); window.__sviAvRet = null; window.__sviAvOpen('TEST-1'); await w(1200);
             document.querySelector('.blk-etp [data-etab="scn"]').click(); await w(100);
             document.querySelector('#scnTable tr[data-scn="s2"] td:nth-child(2)').click(); await w(200);
@@ -2677,7 +2677,7 @@ def main():
             const M = sviMergeData({ ver: { L: [{ id: 'a', arch: false }] } }, { ver: { L: [{ id: 'a', arch: true }] } }, { ver: { L: [{ id: 'a', arch: false }, { id: 'b' }] } }, false, 'X', '');
             const K = JSON.parse(keep); sviInstSet(sviInstGet().map(x => { if (x.ref !== 'TEST-1') return x; const d = { ...(x.data || {}) }; if (K.ver) d.ver = K.ver; else delete d.ver; return { ...x, data: d }; })); await sviInstFlush();
             window.__sviAvRet = null; window.__sviAvOpen('TEST-1'); await w(1000);
-            return [/CONSULTATION/.test(tag), act, bar, rows, back, M.ver.L.map(x => x.id + ':' + !!x.arch).join(',')]; }""".replace("INS_X", ins))
+            return [/ SCN2 \\(CONSULTATION\\)$/.test(tag), act, bar, rows, back, M.ver.L.map(x => x.id + ':' + !!x.arch).join(',')]; }""".replace("INS_X", ins))
         check("v759 : toucher un scénario = le consulter (l'actif ne change pas) ; FERMER LA COMPARAISON ; indicateurs proposés d'office ; scénario archivé gardé à la fusion avec la base",
               s759 == [True, "s1", True, "MONTANT HT|MONTANT TTC|ÉCART TTC AVEC LE SCÉNARIO ACTIF|NOMBRE DE CHARGES", True, "a:true,b:false"], s759)
         # v771 : fenêtre de SÉLECTION unique (COMPARER, CUMULER, FERMER) ; CUMULER signale les charges en double et s'enregistre comme scénario ;
@@ -2744,14 +2744,14 @@ def main():
             r.push(C.join('|'));
             const keep = JSON.stringify(I.vfz || null); I.vfz = []; X.insSave(); document.querySelector('[data-etab="ver"]')?.click(); await w(50);
             [...document.querySelectorAll('*')].find(e => e.__ins).__verTake(); await w(300);
-            r.push([...document.querySelectorAll('#verTable thead th')].map(t => t.textContent.trim()).includes('SOURCE'), (I.vfz[0] || {}).src);
+            r.push([...document.querySelectorAll('#verTable thead th')].map(t => t.textContent.trim()).includes('MONTANT TTC'), ((document.querySelector('#verTable tbody tr.ver-row td') || {}).textContent || '').replace(/^.* /, ''));
             const K = JSON.parse(keep); if (K) I.vfz = K; else delete I.vfz; X.insSave(); X.refreshAll(); await w(200);
             r.push(getComputedStyle(document.querySelector('.bdg-d-page table thead th')).zIndex);
             return r; }""".replace("INS_X", ins))
-        check("v774 : RÉVISIONS ; barre ANNULER, RÉTABLIR, PRÉCÉDENT, SUIVANT, ALERTES, FERMER, ⋯ ; ⋯ principal ordonné ; ⋯ de DÉSIGNATIONS CLIENT par groupes ; SOURCE des versions",
+        check("v774 : RÉVISIONS ; barre ANNULER, RÉTABLIR, PRÉCÉDENT, SUIVANT, ALERTES, FERMER, ⋯ ; ⋯ principal ordonné ; ⋯ de DÉSIGNATIONS CLIENT par groupes ; v780 : référence des versions et MONTANT TTC",
               r774[0] == "RÉVISIONS" and r774[1] == "instUndo,instRedo,instPrev,instNext,instTodo,instClose,bdgMore" and r774[2] is True
               and r774[3].startswith("SOUS-DÉTAIL DES PRIX|✕ DÉLIER LES LIGNES COCHÉES|-|Importer|Exporter|Aperçu PDF|-|Copier") and "COMPARATIF" not in r774[3]
-              and r774[4] is True and r774[5] == "BUDGET INITIAL" and r774[6] == "6", r774)
+              and r774[4] is True and r774[5] == "VR1" and r774[6] == "6", r774)   # v780 : SOURCE annulée — référence en chaîne (… INI VR1) et MONTANT TTC
         # v750 : liste des budgets — colonnes (marge de pliage, RÉFÉRENCE, NATURE, PROJET, INTITULÉ, MONTANT TTC, SAISI LE ; VALIDÉ LE seulement
         # dans les validés), une icône de bascule, plus de cases ni d'impression (corbeille seule), CONSOLIDÉ en ligne de titre, menu de filtre commun,
         # toute la largeur ; suppression depuis la fiche → budget précédent ; IMPRIMER et CUMUL dans le menu ⋯
@@ -2769,15 +2769,15 @@ def main():
               T.querySelectorAll('tr[data-kid="glob"]').length, cells('X-1')[1], !!row('F-1').querySelector('td.bdg-ref-c [data-fold-bdg]'), !T.querySelector('td.bdg-fold-c, th.bdg-fold-h'),
               cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.fontWeight === getComputedStyle(it).fontWeight && cs.textDecorationLine === 'underline', wr.scrollWidth <= wr.clientWidth + 1]; }""")
         check("v750 : liste — colonnes dans l'ordre (sans VALIDÉ LE en instance), icône de bascule, ni cases ni impression, CONSOLIDÉ en titre, AVENANT 1 dessous (lien PROJET, corbeille), INITIAL, marge de pliage, PROJET souligné sans fond, toute la largeur",
-              l750 == ["RÉFÉRENCE|NATURE|PROJET|INTITULÉ|MONTANT TTC|SAISI LE|", True, True, 0, "⌄FAM F-1|CONSOLIDÉ|FAM", "FAM F-1-AV1|AVENANT 1|FAM", True, True, 0, "INITIAL", True, True, True, True], l750)
+              l750 == ["RÉFÉRENCE|PROJET|INTITULÉ|MONTANT TTC|SAISI LE|", True, True, 0, "⌄FAM F-1 CNS|FAM|VILLA", "FAM F-1 AV1|FAM|VILLA", True, True, 0, "XA", True, True, True, True], l750)   # v780 : plus de NATURE, nature au bout de la référence
         f750 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), T = document.getElementById('budgetListTable');
-            T.querySelector('.cf-btn[data-col="nat"]').click(); await w(200); const m = document.getElementById('cfMenu'); if (!m) return 'pas de menu';
+            T.querySelector('.cf-btn[data-col="budget"]').click(); await w(200); const m = document.getElementById('cfMenu'); if (!m) return 'pas de menu';
             const ord = [...m.children].map(e => e.className.split(' ')[0]).filter(c => /cf-(sort|search|cond|list|foot)/.test(c)).join(',');
-            const cb = [...m.querySelectorAll('[data-cfv]')].find(i => i.dataset.cfv === 'INITIAL'); cb.checked = false; cb.dispatchEvent(new Event('change', { bubbles: true }));
+            [...m.querySelectorAll('[data-cfv]')].filter(i => i.dataset.cfv !== 'FAM').forEach(cb => { cb.checked = false; cb.dispatchEvent(new Event('change', { bubbles: true })); });
             m.querySelector('.cf-ok').click(); await w(200); const refs = [...T.tBodies[0].rows].map(r => r.dataset.budgetRef).filter(Boolean).join(',');
             T.querySelector('.cf-btn[data-col="entered"]').click(); await w(200); const ops = [...document.querySelectorAll('#cfMenu .cf-opi')].map(b => b.dataset.op).join(',');
             document.querySelector('#cfMenu .cf-clear').click(); document.querySelector('#cfMenu .cf-x').click();
-            T.querySelector('.cf-btn[data-col="nat"]').click(); await w(150); document.querySelector('#cfMenu .cf-clear').click(); document.querySelector('#cfMenu .cf-x')?.click(); await w(150);
+            T.querySelector('.cf-btn[data-col="budget"]').click(); await w(150); document.querySelector('#cfMenu .cf-clear').click(); document.querySelector('#cfMenu .cf-x')?.click(); await w(150);
             const n = [...T.tBodies[0].rows].filter(r => r.dataset.budgetRef).length;
             T.querySelector('[data-fold-bdg="F-1"]').click(); await w(150); const folded = !T.querySelector('tr[data-budget-ref="F-1-AV1"]');
             T.querySelector('[data-fold-bdg="F-1"]').click(); await w(150);
@@ -2786,7 +2786,7 @@ def main():
             document.getElementById('bdgModeSw').click(); await w(300);
             return [ord, refs, ops, n, folded, val]; }""")
         check("v750 : filtre commun sur la liste (tri, recherche, conditions, cases, EFFACER), conditions des dates complètes, pliage par la flèche, bascule vers les validés (avec VALIDÉ LE)",
-              f750[0] == "cf-sort,cf-sort,cf-search,cf-cond,cf-list,cf-foot" and f750[1] == "F-1,F-1-AV1" and f750[2] == ",eq,ne,gt,ge,lt,le,bt" and f750[3] >= 4 and f750[4] and f750[5] == [True, True], f750)
+              f750[0] == "cf-sort,cf-sort,cf-search,cf-cond,cf-list,cf-foot" and f750[1].startswith("F-1,F-1-AV1") and f750[2] == ",eq,ne,gt,ge,lt,le,bt" and f750[3] >= 4 and f750[4] and f750[5] == [True, True], f750)
         d750 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms));
             document.querySelector('#budgetListTable tr[data-budget-ref="X-2"] td:nth-child(5)').click(); await w(900);
             document.getElementById('bdgMore')?.click(); await w(200); const mn = ['prt', 'cmp'].map(a => !!document.querySelector(`#blkMenu [data-a="${a}"]`));

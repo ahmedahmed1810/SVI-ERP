@@ -608,11 +608,16 @@ const svTabApply = () => {
   }, true);
 })();
 /* FORMAT 83 : avec un filtre, « retenues/total » ; sans filtre, le total seul */
+/* v780 (remarque 4) : compteur différent de zéro = pastille ORANGE (cnt-nz), quel que soit le mode ; à zéro, grise */
 const svCnt = (n, total) => {
-  const a = Number(n) || 0;
-  if (total === undefined || total === null || Number(total) === a) return `<span class="svi-cnt">${a}</span>`;
-  return `<span class="svi-cnt">${a}/${Number(total) || 0}</span>`;
+  const a = Number(n) || 0, c = a ? "svi-cnt cnt-nz" : "svi-cnt";
+  if (total === undefined || total === null || Number(total) === a) return `<span class="${c}">${a}</span>`;
+  return `<span class="${c}">${a}/${Number(total) || 0}</span>`;
 };
+/* compteurs écrits à la main ou mis à jour après coup : même règle */
+const sviCntPaint = root => { try { (root || document).querySelectorAll(".svi-cnt").forEach(e => e.classList.toggle("cnt-nz", !/^0(\/|$)/.test(e.textContent.trim()) && e.textContent.trim() !== "")); } catch (e) {} };
+try { new MutationObserver(ms => { for (const m of ms) { const t = m.target.nodeType === 1 ? m.target : m.target.parentElement; if (t && t.closest && t.closest(".svi-cnt")) sviCntPaint(t.closest(".svi-cnt").parentElement); else if (m.addedNodes && [...m.addedNodes].some(x => x.nodeType === 1 && (x.matches(".svi-cnt") || x.querySelector(".svi-cnt:not(.cnt-nz)")))) sviCntPaint(t); } })
+  .observe(document.documentElement, { childList: true, subtree: true, characterData: true }); } catch (e) {}
 /* onglets vides (compteur 0) : mise en forme spéciale, même facultatifs */
 const sviMarkEmptyTabs = root => (root || document).querySelectorAll(".bdg-d-tab, .rec-tab, .imp-tab").forEach(b => {
   const c = b.querySelector(".svi-cnt");
@@ -4388,7 +4393,7 @@ function sviParamTabs() {
     if (!acts.includes(libAct)) libAct = acts[0] || "";
     const R0 = L.filter(R => U2(R.act) === libAct);
     lpane.innerHTML = `<div class="lib-wrap"><div class="lib-acts"><table class="prm-table"><thead><tr><th>ACTIVITÉ SECONDAIRE</th><th class="center">RECETTES</th></tr></thead><tbody>
-        ${acts.map(a => `<tr class="lib-a${a === libAct ? " on" : ""}" data-act="${esc(a)}"><td>${esc(a)}</td><td class="center"><span class="svi-cnt">${L.filter(R => U2(R.act) === a).length}</span></td></tr>`).join("") || `<tr><td colspan="2" class="empty">BIBLIOTHÈQUE VIDE : ELLE SE REMPLIT AU FIL DES BUDGETS FIGÉS, OU ICI.</td></tr>`}
+        ${acts.map(a => `<tr class="lib-a${a === libAct ? " on" : ""}" data-act="${esc(a)}"><td>${esc(a)}</td><td class="center">${svCnt(L.filter(R => U2(R.act) === a).length)}</td></tr>`).join("") || `<tr><td colspan="2" class="empty">BIBLIOTHÈQUE VIDE : ELLE SE REMPLIT AU FIL DES BUDGETS FIGÉS, OU ICI.</td></tr>`}
         <tr class="prm-new"><td colspan="2"><input class="prm-in lib-newa" placeholder="CRÉER UNE RECETTE ICI… (ACTIVITÉ — VARIANTE)" autocomplete="off"></td></tr></tbody></table></div>
       <div class="lib-recs">${R0.map(R => `<div class="lib-rec" data-rid="${esc(R.id)}"><div class="lib-rh"><b>${esc(U2(R.act))} —</b> <input class="prm-in lib-in" data-f="nom" value="${esc(R.nom)}" autocomplete="off"> <span>UNITÉ</span> <input class="prm-in lib-in center" data-f="u" value="${esc(R.u || "")}" style="width:60px" autocomplete="off">${R.chk ? ' <span class="lib-chk">À VÉRIFIER</span>' : ""}
           <small>${(R.des || []).length ? "UTILISÉE : " + esc((R.des || []).slice(0, 3).join(", ")) : ""}</small><button type="button" class="prm-del lib-del" data-rdel="${esc(R.id)}" title="Supprimer la recette">✕</button></div>

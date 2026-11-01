@@ -56,11 +56,11 @@ function sviAchInit() {
     const W = cols.reduce((s, c) => s + cw("art", c[0]), 0) + 44 + 46;
     return `<div class="ach-tools">
         <button type="button" class="ach-b ach-etat" data-a="etat">${(A_ETATS.find(x => x[0] === aEtat) || A_ETATS[0])[1]} ▾ ${svCnt(rows.length, rows0.length)}</button>
-        ${showDel ? `<button type="button" class="ach-b" data-a="restore"${nSel ? "" : " disabled"}>RESTAURER LES COCHÉS <span class="svi-cnt">${nSel}</span></button><button type="button" class="ach-b" data-a="back">‹ RETOUR AUX ARTICLES</button>`
+        ${showDel ? `<button type="button" class="ach-b" data-a="restore"${nSel ? "" : " disabled"}>RESTAURER LES COCHÉS ${svCnt(nSel)}</button><button type="button" class="ach-b" data-a="back">‹ RETOUR AUX ARTICLES</button>`
           : `<button type="button" class="ach-b" data-a="frombdg">REPRENDRE LES CHARGES DES BUDGETS</button>
-             <button type="button" class="ach-b" data-a="merge"${nSel >= 2 ? "" : " disabled"}>FUSIONNER LES COCHÉS <span class="svi-cnt">${nSel}</span></button>
-             <button type="button" class="ach-b" data-a="del"${nSel ? "" : " disabled"}>SUPPRIMER LES COCHÉS <span class="svi-cnt">${nSel}</span></button>
-             <button type="button" class="ach-b" data-a="trash"${nDel ? "" : " disabled"}>CORBEILLE <span class="svi-cnt">${nDel}</span></button>`}
+             <button type="button" class="ach-b" data-a="merge"${nSel >= 2 ? "" : " disabled"}>FUSIONNER LES COCHÉS ${svCnt(nSel)}</button>
+             <button type="button" class="ach-b" data-a="del"${nSel ? "" : " disabled"}>SUPPRIMER LES COCHÉS ${svCnt(nSel)}</button>
+             <button type="button" class="ach-b" data-a="trash"${nDel ? "" : " disabled"}>CORBEILLE ${svCnt(nDel)}</button>`}
       </div>
       <div class="ach-scroll"><table id="achArtT" class="bdg-d-table prm-table ach-table" data-ach="art" style="width:${W}px">
         <colgroup><col style="width:46px">${cols.map(c => `<col data-w="ach_art.${c[0]}" style="width:${cw("art", c[0])}px">`).join("")}<col style="width:44px"></colgroup>

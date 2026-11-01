@@ -2136,7 +2136,7 @@
         if (!it || it.classList.contains("off")) return;
         m.remove();
         if (it.dataset.a === "dup") $("instDup")?.click();
-        else if (it.dataset.a === "prt") { if (window.__sviPrintClient) window.__sviPrintClient(); else printBudgetPDF(ref); }
+        else if (it.dataset.a === "prt") { if (window.__sviPrintClient) window.__sviPrintClient(); else sviAlert("APERÇU INDISPONIBLE POUR CET ÉCRAN."); }   /* v780 (remarque 8) : toujours par la MISE EN PAGE, jamais d'impression directe */
         else if (/^dt-/.test(it.dataset.a)) { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${it.dataset.a.slice(3)}"]`); if (b) { b.click(); setTimeout(() => $("bdgDetailHead")?.scrollIntoView({ block: "start", behavior: "smooth" }), 60); } }
         else if (it.dataset.a === "cum") { if (shell.__cumPick) shell.__cumPick(); else cumPick(); }   /* v771 : fenêtre de SÉLECTION unique */
         else if (it.dataset.a === "xp" || it.dataset.a === "blk" || it.dataset.a === "arch") etatSet(it.dataset.a);

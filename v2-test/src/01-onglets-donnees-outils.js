@@ -188,11 +188,16 @@ const svTabApply = () => {
   }, true);
 })();
 /* FORMAT 83 : avec un filtre, « retenues/total » ; sans filtre, le total seul */
+/* v780 (remarque 4) : compteur différent de zéro = pastille ORANGE (cnt-nz), quel que soit le mode ; à zéro, grise */
 const svCnt = (n, total) => {
-  const a = Number(n) || 0;
-  if (total === undefined || total === null || Number(total) === a) return `<span class="svi-cnt">${a}</span>`;
-  return `<span class="svi-cnt">${a}/${Number(total) || 0}</span>`;
+  const a = Number(n) || 0, c = a ? "svi-cnt cnt-nz" : "svi-cnt";
+  if (total === undefined || total === null || Number(total) === a) return `<span class="${c}">${a}</span>`;
+  return `<span class="${c}">${a}/${Number(total) || 0}</span>`;
 };
+/* compteurs écrits à la main ou mis à jour après coup : même règle */
+const sviCntPaint = root => { try { (root || document).querySelectorAll(".svi-cnt").forEach(e => e.classList.toggle("cnt-nz", !/^0(\/|$)/.test(e.textContent.trim()) && e.textContent.trim() !== "")); } catch (e) {} };
+try { new MutationObserver(ms => { for (const m of ms) { const t = m.target.nodeType === 1 ? m.target : m.target.parentElement; if (t && t.closest && t.closest(".svi-cnt")) sviCntPaint(t.closest(".svi-cnt").parentElement); else if (m.addedNodes && [...m.addedNodes].some(x => x.nodeType === 1 && (x.matches(".svi-cnt") || x.querySelector(".svi-cnt:not(.cnt-nz)")))) sviCntPaint(t); } })
+  .observe(document.documentElement, { childList: true, subtree: true, characterData: true }); } catch (e) {}
 /* onglets vides (compteur 0) : mise en forme spéciale, même facultatifs */
 const sviMarkEmptyTabs = root => (root || document).querySelectorAll(".bdg-d-tab, .rec-tab, .imp-tab").forEach(b => {
   const c = b.querySelector(".svi-cnt");

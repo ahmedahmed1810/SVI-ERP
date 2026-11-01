@@ -10,6 +10,17 @@
      activité primaire ou secondaire différente (lot différent = activités libres).
    ========================================================= */
 const sviAvU = v => String(v ?? "").trim().toUpperCase();
+/* v780 (remarque 1 et 7) : RÉFÉRENCE AFFICHÉE avec la nature à la fin, en chaîne — « PROJET BASE INI », « … AV2 », « … CNS »,
+   « … AV2 SCN1 », « … INI RC1 VR1 » ; les références internes (-AVn, -GLOBAL, -Rn, -Vn) ne changent pas */
+const sviRefDisp = (ref, project, scn) => {
+  const m = String(ref || "").match(/^(.*?)((?:-(?:GLOBAL|AV\d+|R\d+|V\d+))*)$/) || [, String(ref || ""), ""];
+  const P = (m[2].match(/-(GLOBAL|AV\d+|R\d+|V\d+)/g) || []).map(x => x.slice(1)), out = [];
+  if (!P.length || !/^(GLOBAL|AV)/.test(P[0])) out.push("INI");
+  P.forEach((p, i) => { out.push(p === "GLOBAL" ? "CNS" : /^R\d/.test(p) ? "RC" + p.slice(1) : /^V\d/.test(p) ? "VR" + p.slice(1) : p);
+    if (scn && i === 0 && /^(AV)/.test(p)) { out.push("SCN" + scn); scn = 0; } });
+  if (scn) out.splice(1, 0, "SCN" + scn);
+  return ((project ? sviAvU(project) + " " : "") + m[1] + " " + out.join(" ")).replace(/\s+/g, " ").trim();
+};
 /* étapes d'un budget : marché initial puis avenants (ordre) */
 const sviAvStages = ref => {
   const L = sviInstGet(), it = L.find(x => x.ref === ref);

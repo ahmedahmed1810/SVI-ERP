@@ -280,7 +280,15 @@
     if (window.__sviForceTab) { active = window.__sviForceTab; window.__sviForceTab = null; }
     /* référence affichée du budget : « H88 BDG 26-1001/001 » */
     /* v693 : recalage — titre « <réf. de l'étape> R<n> » */
-    const fullRef = String(budget.project).trim().toUpperCase() + " " + (budget.inst && budget.inst.rclOf ? budget.inst.rclOf + " R" + budget.inst.rcn : ref);
+    /* v780 (remarques 1 et 7) : référence complète avec la nature à la fin (INI, AVn, CNS, SCNn, VRn, RCn) — liste, en-tête, RÉVISIONS, impressions */
+    const scnNoOf = V => { try { const SC = ((V || {}).L || []).filter(x => x.kind === "sc"), i = SC.findIndex(x => x.id === V.act); if (!(SC.length > 1 && i >= 0)) return 0;
+      const m = String(SC[i].nom || "").match(/SC[ÉE]NARIO\s*(\d+)/i); return m ? +m[1] : i + 1; } catch (e) { return 0; } };
+    const refOfInst = V => { if (!budget.inst || ref === "CUMUL") return String(budget.project).trim().toUpperCase() + " " + ref;
+      const r0 = budget.inst.ref || ref, sc = r0.match(/^(.*)-SC([^-]+)$/);
+      if (sc) { const st = sviInstGet().find(x => x.ref === sc[1]), L = ((st && st.data && st.data.ver && st.data.ver.L) || []).filter(x => x.kind === "sc"), i = L.findIndex(x => x.id === sc[2]),
+        m = i >= 0 ? String(L[i].nom || "").match(/SC[ÉE]NARIO\s*(\d+)/i) : null; return sviRefDisp(sc[1], budget.project, m ? +m[1] : i + 1) + " (CONSULTATION)"; }
+      return sviRefDisp(r0, budget.project, budget.inst.virtual ? 0 : scnNoOf(V)); };
+    const fullRef = refOfInst(budget.inst && budget.inst.data && budget.inst.data.ver);
     /* budget en instance : rouge (édition) ou vert (figé) */
     shell.classList.remove("bdg-inst-instance", "bdg-inst-fige", "list-inst");
     /* en instance (rouge) ou figé (vert) ; validé : présentation noire normale */
@@ -333,9 +341,9 @@
       const tagLab = V => { try { const SC = ((V || {}).L || []).filter(x => x.kind === "sc"), i = SC.findIndex(x => x.id === V.act); if (!(SC.length > 1 && i >= 0)) return lab0; const m = String(SC[i].nom || "").match(/SC[ÉE]NARIO\s*(\d+)/i);   /* v708 : le numéro du nom (celui de la liste) */
         return lab0 + " — SCÉNARIO " + (m ? m[1] : i + 1); } catch (e) { return lab0; } };
       lab = tagLab((bi && bi.data && bi.data.ver) || {});
-      document.getElementById("sviScreenTag")?.remove();
-      const t = document.createElement("div"); t.id = "sviScreenTag"; t.textContent = lab; document.body.appendChild(t);
-      shell.__tagPaint = V => { const e = document.getElementById("sviScreenTag"); if (e) e.textContent = tagLab(V); };
+      /* v780 (remarque 1) : plus d'étiquette en haut de l'écran (BUDGET CONSOLIDÉ, BUDGET AVENANT 2, SCÉNARIO 2…) : la référence suffit */
+      document.getElementById("sviScreenTag")?.remove(); void lab;
+      shell.__tagPaint = V => { const e = shell.querySelector("#refTxt"); if (e) e.textContent = refOfInst(V); };
       document.body.classList.add("bdg-screen");
     }
     window.__sviBdgNav = HNAV && HNAV.swipe ? { go: d => hnavGo(d) } : null;
@@ -504,7 +512,7 @@
             </span>
           </div>
           <div class="blk-tabrow"><span class="rec-tabs etp-tabs">
-              <button type="button" class="rec-tab" data-etab="av" id="avTitle">AVENANTS</button>
+              <button type="button" class="rec-tab" data-etab="av" id="avTitle">BUDGETS</button>
               <button type="button" class="rec-tab" data-etab="scn" id="scnTitle">${SVI_ICON.scn}SCÉNARIOS</button>
               <button type="button" class="rec-tab" data-etab="ver" id="verTitle">${SVI_ICON.ver}VERSIONS</button>
               <button type="button" class="rec-tab" data-etab="rcl" id="rclTitle">${SVI_ICON.rcl}RECALAGES</button>

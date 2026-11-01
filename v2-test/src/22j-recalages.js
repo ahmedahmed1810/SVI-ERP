@@ -57,7 +57,7 @@
       window.__sviAvOpen(R[j].ref, RCL_OF);
     };
     /* bloc RECALAGES (sous VERSIONS) : une ligne par recalage ; toucher = l'ouvrir */
-    const RCL_COLS = [["rno", "RECALAGE", x => "R" + x.rcn, ""], ["rcdate", "DATE", x => svDT(x.created || ""), ""], ["ruser", "PAR", x => x.u || "", ""],
+    const RCL_COLS = [["rno", "RÉFÉRENCE", x => sviRefDisp(x.ref, x.project || budget.project), ""], ["rttc", "MONTANT TTC", x => { try { return Math.round((budgetData({ ref: x.ref, project: x.project, rows: [], first: {}, inst: x, __noFam: true }).ttc || 0) * 100) / 100; } catch (e) { return 0; } }, "number"], ["rcdate", "DATE", x => svDT(x.created || ""), ""], ["ruser", "PAR", x => x.u || "", ""],
       ["rstate", "ÉTAT", x => x.state === "valide" ? "ENREGISTRÉ" : "EN COURS", ""], ["rsav", "ENREGISTRÉ LE", x => x.state === "valide" ? svDT(x.validated || "") : "", ""]];
     let rclShown = [];
     shell.__rclData = () => { const oc = coOrder("vrcl", RCL_COLS); return { head: oc.map(c => c[1]), rows: rclShown.map(x => oc.map(c => c[2](x))) }; };
@@ -75,7 +75,7 @@
       const oc = coOrder("vrcl", RCL_COLS);
       t.style.width = cwTableW("vrcl", RCL_COLS) + "px";
       t.innerHTML = `<colgroup>${cwCols("vrcl", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("vrcl", c[0], c[1], c[3])).join("")}</tr></thead>
-        <tbody>${rows.map(x => `<tr class="rcl-row${x.ref === ref ? " ver-act" : ""}${x.state !== "valide" ? " rcl-cours" : ""}" data-rcl="${esc(x.ref)}">${oc.map(c => `<td>${esc(c[2](x))}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}${INS ? (() => { const cur = all.find(x => x.state !== "valide");
+        <tbody>${rows.map(x => `<tr class="rcl-row st-${x.arch ? "archive" : x.state || "instance"}${x.ref === ref ? " ver-act" : ""}${x.state !== "valide" ? " rcl-cours" : ""}" data-rcl="${esc(x.ref)}">${oc.map(c => `<td class="${c[3] || ""}">${esc(c[3] === "number" ? money(c[2](x)) : c[2](x))}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}${INS ? (() => { const cur = all.find(x => x.state !== "valide");
           /* v702 : création d'un recalage par la ligne du tableau (le menu ⋯ ne sert qu'au premier) */
           return `<tr class="scn-new${cur ? " off" : ""}" data-rcladd${cur ? ` data-why="UN RECALAGE EST DÉJÀ EN COURS : R${cur.rcn}. L'ENREGISTRER OU LE SUPPRIMER D'ABORD."` : ""}><td colspan="${oc.length}">CRÉER UN RECALAGE ICI…</td></tr>`; })() : ""}</tbody>`;
     };

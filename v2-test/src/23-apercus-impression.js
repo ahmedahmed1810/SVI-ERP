@@ -190,7 +190,7 @@
   body.portrait .head .t { padding-left: 30mm; padding-right: 30mm; }
 </style></head><body class="${cfg.portrait ? "portrait" : ""}">
 <aside id="side">
-  <h2>OPTIONS PDF</h2>
+  <h2>MISE EN PAGE</h2>
   <div class="sub">CHOISISSEZ LES PARTIES À INCLURE AVANT LA GÉNÉRATION.</div>
   <label class="ck"><input type="checkbox" id="oHead"> ENTÊTE</label>
   <label class="ck"><input type="checkbox" id="oFoot"> PIED DE PAGE</label>

@@ -1417,7 +1417,7 @@ function renderBudgetList() {
 
   const columns = [
     { key: "ref", title: "RÉFÉRENCE", width: 200 },
-    { key: "nat", title: "NATURE", width: 110 },
+    /* v780 (remarque 1) : plus de colonne NATURE — la nature est à la fin de la référence (INI, AVn, CNS…) */
     { key: "budget", title: "PROJET", width: 100 },
     { key: "intitule", title: "INTITULÉ", width: 220 },
     { key: "ttc", title: "MONTANT TTC", width: 135, number: true },
@@ -1430,7 +1430,7 @@ function renderBudgetList() {
   const BL = "bdgl";
   window.__bdglKit = window.__bdglKit || sviCfKit({ key: "bdgl", shell: {}, refresh: () => window.__bdglRefresh && window.__bdglRefresh() });
   const KIT = window.__bdglKit;
-  const cfCols = () => columns.map(c => [c.key, c.title, c.key === "ref" ? r => r.budget + " " + r.ref : c.key === "ttc" ? r => num(r.ttc) : r => r[c.key] ?? ""]);
+  const cfCols = () => columns.map(c => [c.key, c.title, c.key === "ref" ? r => sviRefDisp(r.fam ? r.ref + "-GLOBAL" : r.ref, r.budget) : c.key === "ttc" ? r => num(r.ttc) : r => r[c.key] ?? ""]);
 
   const thead =
     table.querySelector(
@@ -1606,7 +1606,7 @@ function renderBudgetList() {
     /* une case par colonne, dans l'ordre des colonnes ; PROJET souligné = lien vers la fiche projet (règle : souligné = lien vers la fiche source) */
     const cell = (k, x) => {
       switch (k) {
-        case "ref": return `<td class="bdg-ref-c">${x.fam ? `<span class="bdg-fold" data-fold-bdg="${esc(x.ref)}" role="button" aria-label="${x.open ? "Plier" : "Déplier"}">${x.open ? "⌄" : "›"}</span>` : ""}<span class="bang-slot">${obsBang(x.ref)}</span>${esc(x.budget + " " + x.ref)}</td>`;
+        case "ref": return `<td class="bdg-ref-c">${x.fam ? `<span class="bdg-fold" data-fold-bdg="${esc(x.ref)}" role="button" aria-label="${x.open ? "Plier" : "Déplier"}">${x.open ? "⌄" : "›"}</span>` : ""}<span class="bang-slot">${obsBang(x.ref)}</span>${esc(sviRefDisp(x.fam ? x.ref + "-GLOBAL" : x.ref, x.budget))}</td>`;
         case "validated": return `<td title="${esc(x.late || x.validated || "")}">${lateBang(x.late)}${esc(x.validated || "")}</td>`;
         case "budget": return `<td title="${esc(x.budget)}"><button type="button" class="budget-link" data-open-project="${esc(x.ref)}">${esc(x.budget)}</button></td>`;
         case "ttc": return `<td class="number">${money(x.ttc)}</td>`;

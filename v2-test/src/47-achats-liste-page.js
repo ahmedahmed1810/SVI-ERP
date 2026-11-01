@@ -151,7 +151,7 @@ function achNvPageHTML(p, rec) {
   const blk = L => { const k = achNvhKey(L.t);
     return `<div class="bdg-d-block nvp-blk" data-nvb="${k}"><div class="bdg-d-block-title blk-head"><span class="ttl">${esc(L.t)} ${svCnt(L.rows.length)}</span>${achBlkTools(k)}</div>
       <div class="rec-scroll" style="max-height:var(--nvh-${k}, 200px)"><table class="bdg-d-table rec-table"><thead><tr>${L.cols.map(c => `<th class="${c[1] || ""}">${esc(c[0])}</th>`).join("")}</tr></thead>
-      <tbody>${L.rows.map((r, i) => `<tr class="${r.cls || ""}">${r.cells.map((v, j) => `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${i}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${L.cols.length}" class="empty">AUCUN</td></tr>`}</tbody></table></div>
+      <tbody>${L.rows.map((r, i) => `<tr class="${r.cls || ""}">${r.cells.map((v, j) => `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${i}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`).join("")}</tr>`).join("") || (L.add ? "" : `<tr><td colspan="${L.cols.length}" class="empty">AUCUN</td></tr>`)}${L.add ? `<tr class="rec-new" data-nvadd="${k}"><td colspan="${L.cols.length}">${esc(L.add)}</td></tr>` : ""}</tbody></table></div>
       <div class="blk-rsz nvp-rsz" data-nvh="${k}" title="Glisser pour changer la hauteur"></div></div>`; };
   return `<div class="nvp bdg-d-page ${p.st === "instance" && !p.del ? "bdg-inst-instance" : "nvp-valide"}" style="${achNvhStyle()}">
     <div class="bdg-d-sticky"><div class="novapp-list-titlebar">
@@ -203,6 +203,7 @@ function achNvMod(ctx, cfg) {
         if (a === "apr") { const w = window.open("", "_blank"); if (!w) { svToast("APERÇU BLOQUÉ PAR LE NAVIGATEUR.", 3000); return; }
           w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(ttl)}</title><style>body{font:12px Arial;margin:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:4px 6px;text-align:left}th{background:#f3f4f6}</style><h3>${esc(ttl)}</h3>${bl.querySelector("table").outerHTML}`); w.document.close(); w.focus(); try { w.print(); } catch (err) {} } });
       return true; }
+    const na = e.target.closest("[data-nvadd]"); if (na) { const L = P.links.find(x => achNvhKey(x.t) === na.dataset.nvadd); if (L && L.addFn) L.addFn(() => ctx.draw()); else P.info(() => ctx.draw()); return true; }   /* v780 : ligne CRÉER … ICI */
     const l = e.target.closest("[data-nvl]"); if (l) { const [t, i] = l.dataset.nvl.split("|"), L = P.links.find(x => x.t === t), r = L && L.rows[+i]; if (r && r.open) r.open(() => ctx.draw()); return true; }
     return false;
   };

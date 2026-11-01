@@ -3387,3 +3387,23 @@ table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 #ach .nvp.bdg-d-page { background: #fff; }
 #ach .nvp .rec-table tr.rec-new td { color: #172033; }
 #ach .nvp .rec-table thead th { position: sticky; top: 0; background: #fafbfc; }
+
+/* v780 (remarque 4) : COMPTEURS — différent de zéro = ORANGE, quel que soit le mode ; zéro = gris */
+.svi-cnt.cnt-nz { background: #f97316 !important; color: #fff !important; }
+/* v780 (remarque 3) : CASES À COCHER — cochée = couleur du mode en cours, partout */
+input[type=checkbox], input[type=radio] { accent-color: var(--svst, #172033) !important; }
+/* v780 (remarques 2 et 5) : lignes des budgets, avenants, scénarios, versions, recalages — même police, taille et graisse que les autres lignes,
+   ni gras, ni italique, ni barré propres ; seule la couleur dit l'état, celle de LEUR état (pas celle de l'écran ouvert) */
+#budgetListTable tbody td, table.svi-bdgl tbody td, #budgetListTable tbody td *, table.svi-bdgl tbody td *,
+.blk-etp tbody td, .blk-etp tbody td span, .blk-etp tbody td b { font-style: normal !important; text-decoration-line: none !important; }
+#budgetListTable tbody td span, #budgetListTable tbody td b:not(.obs-bang), table.svi-bdgl tbody td span, table.svi-bdgl tbody td b:not(.obs-bang), .blk-etp tbody td span, .blk-etp tbody td b { font-weight: inherit !important; }
+#budgetListTable tr.bdg-kid[data-kid="glob"] td, table.svi-bdgl tr.bdg-kid[data-kid="glob"] td, .rcl-table tr.rcl-cours td { font-weight: var(--row-fw, 400) !important; }
+.blk-etp .scn-table .scn-nm.scn-go { text-decoration-line: underline !important; }
+#budgetListTable tbody td .budget-link, table.svi-bdgl tbody td .budget-link { text-decoration-line: underline !important; }
+.blk-etp tr.st-instance td, .blk-etp tr.st-actif td { color: var(--st-instance, #b91c1c) !important; }
+.blk-etp tr.st-fige td { color: var(--st-fige, #15803d) !important; }
+.blk-etp tr.st-valide td, .blk-etp tr.st-reserve td { color: var(--st-valide, #172033) !important; }
+.blk-etp tr.st-expire td { color: var(--st-expire, #b45309) !important; }
+.blk-etp tr.st-archive td, .blk-etp tr.etp-arch td { color: var(--st-archive, #6d28d9) !important; }
+/* v780 (remarque 11) : corbeille des scénarios = la corbeille rouge de la liste des budgets */
+.scn-table .scn-del.bdg-row-del { color: var(--st-instance, #b91c1c); display: inline-flex; align-items: center; justify-content: center; }
