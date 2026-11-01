@@ -2938,7 +2938,7 @@ def main():
             const fc = document.querySelector('.bsn-card'); const tache = fc.querySelector('.bsn-x[data-k="tache"]').value;
             fc.querySelector('.bsn-x[data-k="q"]').value = '4'; fc.querySelector('.bsn-x[data-k="datePrevue"]').value = '2026-11-10'; fc.querySelector('[data-save]').click(); await w(300);
             const S = achBsn(); r.push(tache, S.length, S[0] && S[0].ref.startsWith('BSN '), v.querySelectorAll('#achBsnT tbody tr[data-id]').length);
-            v.querySelector('#achBsnT [data-nvo]').click(); await w(200); document.querySelector('.bsn-card [data-valid]').click(); await w(300); r.push(achBsn()[0].state);
+            v.querySelector('#achBsnT [data-nvo]').click(); await w(250); v.querySelector('[data-nvp="info"]').click(); await w(200); document.querySelector('.bsn-card [data-valid]').click(); await w(300); r.push(achBsn()[0].state);
             sviInstSet(keepI); if (keepB === null) localStorage.removeItem('svi_ach_bsn_v1'); else localStorage.setItem('svi_ach_bsn_v1', keepB);
             if (keepE === null) localStorage.removeItem('svi_ach_bsn_etat_v1'); else localStorage.setItem('svi_ach_bsn_etat_v1', keepE);
             v.__achTab('art'); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
@@ -3081,7 +3081,7 @@ def main():
             v.querySelector('[data-nvsw]').click(); await w(200); r.push(h(), !!v.querySelector('.nv-inst [data-nvdel]'));
             v.querySelector('[data-nvdel]').click(); await w(200); document.querySelector('#svConf [data-r="1"]')?.click(); await w(250);
             r.push(achCaf().find(c => c.id === 'c1').state);
-            v.querySelector('[data-nvo]').click(); await w(250); r.push(!!document.querySelector('.caf-card')); document.querySelector('.caf-card [data-x]')?.click(); await w(150);
+            v.querySelector('[data-nvo]').click(); await w(250); v.querySelector('[data-nvp="info"]')?.click(); await w(200); r.push(!!document.querySelector('.caf-card') && !!v.querySelector('.nvp-ref')); document.querySelector('.caf-card [data-x]')?.click(); await w(150); v.querySelector('[data-nvp="close"]')?.click(); await w(150);
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v765 : listes des achats au format du budget — sans onglets, titre EN INSTANCE / VALIDÉS avec nombre et bascule, dates, sans H, sans étiquette du budget ; corbeille = ANNULÉ ; ligne → fiche",
