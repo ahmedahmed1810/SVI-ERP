@@ -2598,10 +2598,10 @@ function renderBudgetList() {
             const lastAv = (() => { if (!bi.parent || bi.virtual) return true; const S = sviAvStages(bi.parent); return S[S.length - 1] && S[S.length - 1].ref === bi.ref; })();
             const delWhy = RO || (bi.rclOf ? "" : !lastAv ? "SEUL LE DERNIER AVENANT EN INSTANCE SE SUPPRIME." : "");
             const todoWhy = bi.virtual && !bi.vname ? "" : RO || (st === "fige" ? "BUDGET FIGÉ." : "");
-            return hb("instPrev", "inst-nav", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`, HNAV ? "Écran précédent" : "Précédent", navWhy)
-              + hb("instNext", "inst-nav", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`, HNAV ? "Écran suivant" : "Suivant", navWhy)
-              + hb("instUndo", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 4.5 11.5 9 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11.5h9.5a5 5 0 0 1 0 10H11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>`, "Annuler", edWhy, edWhy ? "" : " disabled")
+            return hb("instUndo", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 4.5 11.5 9 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11.5h9.5a5 5 0 0 1 0 10H11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>`, "Annuler", edWhy, edWhy ? "" : " disabled")
               + hb("instRedo", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l4.5 4.5L15 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 11.5H9.5a5 5 0 0 0 0 10H13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>`, "Rétablir", edWhy, edWhy ? "" : " disabled")
+              + hb("instPrev", "inst-nav", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`, HNAV ? "Écran précédent" : "Précédent", navWhy)
+              + hb("instNext", "inst-nav", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`, HNAV ? "Écran suivant" : "Suivant", navWhy)
               + hb("instTodo", "inst-act inst-todo", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 2.8 19.5h18.4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.1" fill="currentColor"/></svg><b></b>`, bi.virtual ? "Contradictions entre étapes" : "À compléter", todoWhy)
               + (st === "fige" && !bi.virtual ? hb("instLock", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 7.5-1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`, "Revenir en édition", "")
                 : hb("instLock", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>`, bi.rclOf ? "Enregistrer le recalage" : "Figer (lecture seule)", RO))
@@ -2682,7 +2682,7 @@ function renderBudgetList() {
               ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="detail" data-act="copy" title="Copier les lignes cochées">${SVI_COPY_ICON}</button><button type="button" class="blk-btn" data-blk="detail" data-act="cut" title="Couper les lignes cochées">${SVI_CUT_ICON}</button><button type="button" class="blk-btn" data-blk="detail" data-act="paste" title="Coller">${SVI_PASTE_ICON}</button>` : ""}
               ${INST_LIVE && (budget.inst.state || "instance") === "instance" ? `<button type="button" class="blk-btn" data-blk="detail" data-act="del" title="Supprimer les lignes cochées">${SVI_DEL_ICON}</button>` : ""}
               <button type="button" class="blk-btn blk-hcfg-btn" data-blk="detail" data-act="hcfg" title="RÉGLAGES DU GANTT" aria-label="Réglages du Gantt"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h8M6 9.5h8M9 14h4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="18.5" cy="17.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M18.5 13.6v1.3M18.5 20.1v1.3M14.6 17.5h1.3M21.1 17.5h1.3M15.7 14.7l.9.9M20.4 19.4l.9.9M15.7 20.3l.9-.9M20.4 15.6l.9-.9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
-              <button type="button" class="blk-btn blk-cfg-btn" data-blk="detail" data-act="cfg" title="RÉGLAGES DU GRAPHIQUE" aria-label="Réglages du graphique">⚙</button>
+              <button type="button" class="blk-btn blk-cfg-btn" data-blk="detail" data-act="cfg" title="PARAMÈTRES (SELON CE QUI EST AFFICHÉ)" aria-label="Paramètres">⚙</button>
               <button type="button" class="blk-btn blk-adj-btn" data-blk="detail" data-act="adj" title="GÉNÉRER / COMPRESSER" aria-label="Générer ou compresser"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 2.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn blk-max-btn" data-blk="detail" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
@@ -2706,9 +2706,8 @@ function renderBudgetList() {
         <!-- v756 : un seul bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES (ancien « scénario et version ») -->
         <div class="bdg-d-block blk-rec blk-etp" data-rec="etp" hidden>
           <div class="bdg-d-block-title blk-head">
-            <span class="ttl">${SVI_ICON.scn || ""}ÉVOLUTIONS</span>
+            <span class="ttl">${SVI_ICON.scn || ""}RÉVISIONS</span>
             <span class="blk-tools">
-              <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="cmp" title="SÉLECTION (COMPARER, CUMULER)"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3v10M6.5 3v10M10.5 3v10M14 3v10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="import" title="IMPORTER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="del" title="SUPPRIMER / ARCHIVER / EXPIRER LES COCHÉS">${SVI_DEL_ICON}</button>
               <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="new" title="CRÉER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
@@ -12503,11 +12502,54 @@ ${A}</Assignments>
       const head = tb.tHead.getBoundingClientRect().height;
       const rows = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight);
       const tot = rows.filter(r => r.classList.length && /tot/i.test(r.className) && /\bTOTAL\b/.test(r.textContent || ""));   /* v743 : classe d'abord (rapide), texte ensuite */
-      const row = rows.find(r => !tot.includes(r));
+      const row = rows.find(r => !tot.includes(r) && r.matches("tr.ins-new")) || rows.find(r => !tot.includes(r));   /* v774 : ligne de saisie d'abord (hauteur stable) */
       const foot = (tb.tFoot && tb.tFoot.offsetHeight ? tb.tFoot.getBoundingClientRect().height : 0) + tot.reduce((t, r) => t + r.getBoundingClientRect().height, 0);
       let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
       const bar = Math.max(0, scr.offsetHeight - scr.clientHeight);
-      return Math.max(65, Math.ceil(top + head + (row ? row.getBoundingClientRect().height : 21) + foot + ban + bar + 1));
+      return Math.max(40, Math.ceil(top + head + (row ? row.getBoundingClientRect().height : 21) + foot + ban + bar + 1));
+    };
+    /* v774 : MODE RÉDUIT — un seul calcul pour tous les blocs (celui du bloc détail / DÉSIGNATIONS CLIENT) :
+       décalage du tableau + titres des colonnes + UNE ligne entière (la ligne de saisie, sinon la première) + pied (TOTAL) + bandeaux + barre.
+       Rien n'est collé par-dessus : à la hauteur minimale, le tableau se place sur la ligne de saisie (layMinScroll). */
+    const LAY_SC = { client: ".bdg-d-client-scroll", detail: "#bdgTabBody .bdg-d-scroll", suivi: ".blk-suivi .rec-scroll:not([hidden])", etp: ".blk-etp .etp-pane.on .rec-scroll" };
+    const LAY_NEW = "tr.ins-new, tr.scn-new, tr.rec-new, tr[data-scnadd], tr[data-avadd], tr[data-rcladd]";
+    const layMinOf = u => {
+      if (u === "detail") return layDetMin();
+      const pg = page$(); if (!pg) return 0;
+      if (u === "hier") { const c = [...pg.querySelectorAll(".bdg-h-col")].find(x => x.offsetHeight); if (!c) return 44;
+        const hd = c.querySelector(".bdg-h-head"), li = c.querySelector(".ins-li.ins-new") || c.querySelector(".ins-li, .bdg-h-item");
+        return Math.ceil((hd ? hd.getBoundingClientRect().height : 0) + (li ? li.getBoundingClientRect().height : 21) + Math.max(0, c.offsetHeight - c.clientHeight)) + 1; }
+      const scr = pg.querySelector(LAY_SC[u]); if (!scr || !scr.offsetHeight) return { client: 65 }[u] || 44;
+      const tb = [...scr.querySelectorAll("table")].find(t => t.offsetHeight && t.tHead); if (!tb) return 44;
+      const top = tb.getBoundingClientRect().top - scr.getBoundingClientRect().top + scr.scrollTop;
+      const rows = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight);
+      const row = rows.find(r => r.matches(LAY_NEW)) || rows[0];
+      const foot = tb.tFoot && tb.tFoot.offsetHeight ? tb.tFoot.getBoundingClientRect().height : 0;
+      return Math.ceil(top + tb.tHead.getBoundingClientRect().height + (row ? row.getBoundingClientRect().height : 21) + foot + Math.max(0, scr.offsetHeight - scr.clientHeight)) + 1;
+    };
+    /* à la hauteur minimale : la seule ligne visible est la ligne de saisie, entière */
+    const layMinScroll = () => { const pg = page$(); if (!pg) return;
+      Object.keys(LAY_SC).forEach(u => { if (pg.classList.contains("max-" + u)) return; const scr = pg.querySelector(LAY_SC[u]); if (!scr || !scr.offsetHeight) return;
+        const nr = scr.querySelector("tbody " + LAY_NEW.split(", ").join(", tbody ")); if (!nr) return;
+        const m = u === "detail" ? layDetMin() : layMinOf(u); if (scr.getBoundingClientRect().height > m + 3) return;
+        /* la ligne de saisie juste sous les titres des colonnes (collés en haut) : entière, seule */
+        const tb = nr.closest("table"), hh = tb && tb.tHead ? tb.tHead.getBoundingClientRect().height : 0;
+        scr.scrollTop = Math.max(0, nr.getBoundingClientRect().top - scr.getBoundingClientRect().top + scr.scrollTop - hh); }); };
+    shell.__layMinScroll = layMinScroll;
+    /* v774 (point 9) : DISPOSITION PAR DÉFAUT — ordre d'origine et chaque bloc à exactement 5 lignes visibles
+       (titres des colonnes + 5 lignes entières + pied), enregistré : l'écran se rouvre ainsi */
+    const layRowH = u => { const pg = page$(); if (!pg) return 21;
+      if (u === "hier") { const li = [...pg.querySelectorAll(".bdg-h-col .ins-li, .bdg-h-col .bdg-h-item")].find(x => x.offsetHeight); return li ? li.getBoundingClientRect().height : 21; }
+      const scr = pg.querySelector(LAY_SC[u]), tb = scr && [...scr.querySelectorAll("table")].find(t => t.offsetHeight && t.tHead); if (!tb) return 21;
+      const rs = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight && !(r.classList.length && /tot/i.test(r.className)));
+      const r = rs.find(x => !x.matches(LAY_NEW)) || rs[0]; return r ? r.getBoundingClientRect().height : 21; };
+    shell.__layFive = () => {
+      laySave({}); layApply();
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const pg = page$(); if (!pg) return; const lay = { h: {} };
+        LAY_UNITS.forEach(u => { if (pg.classList.contains("max-" + u)) return; const m = layMinOf(u); if (!m) return; lay.h[u] = Math.ceil(m + 4 * layRowH(u)); });
+        laySave(lay); layApply(); setTimeout(layMinScroll, 30);
+      }));
     };
     /* v727 (bloc 11.3) : hauteur des blocs en lignes entières — en-tête (et pied collant) + k lignes entières, jamais un morceau de la suivante ;
        TÂCHES : la plus longue des trois listes ; DÉSIGNATIONS CLIENT et onglets du détail : le tableau affiché */
@@ -12558,6 +12600,12 @@ ${A}</Assignments>
         if (v) pg.style.setProperty("--h-" + u, v + "px");
         if (u === "detail" && v) shell.__layDetSnap = { from: h, to: v };   /* v727 : base gardée, pas de dérive d'un onglet à l'autre */
       });
+      /* v774 : aucun bloc sous son minimum (titres + une ligne entière) ; à ce minimum, la ligne de saisie est la ligne visible */
+      ["client", "hier", "etp", "suivi"].forEach(u => { if (pg.classList.contains("max-" + u)) return; const c0 = parseFloat(pg.style.getPropertyValue("--h-" + u)) || 0, m0 = layMinOf(u);
+        if (c0 && m0 && c0 < m0) pg.style.setProperty("--h-" + u, m0 + "px"); });
+      /* v774 : MODE RÉDUIT — exactement le minimum de l'onglet affiché (titres + une ligne entière), ni plus ni moins */
+      { const R = layLoad().red || {}; LAY_UNITS.forEach(u => { if (!R[u] || pg.classList.contains("max-" + u)) return; const m0 = layMinOf(u); if (m0) pg.style.setProperty("--h-" + u, m0 + "px"); }); }
+      layMinScroll();
     };
     const layOrder = () => {
       const saved = (layLoad().order || []).filter(u => LAY_UNITS.includes(u));
@@ -12571,12 +12619,12 @@ ${A}</Assignments>
       const pg = page$();
       if (!pg) return;
       const lay = layLoad();
-      if (lay.h && lay.h.suivi) { delete lay.h.suivi; laySave(lay); }
+      /* v774 (point 9) : SUIVI aussi rouvert comme laissé */
       layOrder().forEach((u, i) => layEls(u).forEach(el => { el.style.order = i; }));
       LAY_UNITS.forEach(u => {
         /* SUIVI (DOC / TAF / OBS) : toujours 5 lignes à l'ouverture,
            l'agrandissement ne vaut que pour la séance en cours */
-        const h = u === "suivi" ? layOpenH.suivi : (lay.h || {})[u] || (u === "detail" ? layDetDef() : 0);
+        const h = (lay.h || {})[u] || (u === "detail" ? layDetDef() : 0);
         if (h) pg.style.setProperty("--h-" + u, h + "px");
         else pg.style.removeProperty("--h-" + u);
       });
@@ -12664,13 +12712,7 @@ ${A}</Assignments>
       let v = base;
       h.classList.add("on");
       const DMIN = u === "detail" ? layDetMin() : 0;
-      /* v772 : MODE RÉDUIT identique pour tous les blocs — titres des colonnes + une ligne de saisie (jamais moins) */
-      const MINU = (() => { try { const sel = { client: ".bdg-d-client-scroll", hier: ".bdg-h-col", suivi: ".blk-suivi .rec-scroll:not([hidden])", etp: ".blk-etp .etp-pane.on .rec-scroll" }[u];
-        const sc = sel && pg.querySelector(sel); if (!sc) return 0;
-        if (u === "hier") { const hd = sc.querySelector(".bdg-h-head"), li = sc.querySelector(".ins-li.ins-new") || sc.querySelector(".ins-li"); return Math.ceil((hd ? hd.getBoundingClientRect().height : 0) + (li ? li.getBoundingClientRect().height : 24)) + 2; }
-        const t = sc.querySelector("table"); if (!t || !t.tHead) return 0;
-        const nr = t.querySelector("tbody tr.ins-new, tbody tr.scn-new, tbody tr.rec-new, tbody tr[data-scnadd]") || t.querySelector("tbody tr");
-        return Math.ceil(t.tHead.getBoundingClientRect().height + (nr ? nr.getBoundingClientRect().height : 24) + (t.tFoot && t.tFoot.offsetHeight ? t.tFoot.getBoundingClientRect().height : 0)) + 2; } catch (e) { return 0; } })();
+      const MINU = u === "detail" ? 0 : layMinOf(u);   /* v774 : même calcul pour tous les blocs */
       const move = e => {
         e.preventDefault();
         /* minimum : en-tête + une seule ligne (+ ligne TOTAL s'il y en a une) */
@@ -12684,13 +12726,14 @@ ${A}</Assignments>
         document.removeEventListener("pointerup", up);
         document.removeEventListener("pointercancel", up);
         h.classList.remove("on");
-        if (u === "suivi") { layOpenH.suivi = v; layApply(); return; }
         const lay = layLoad();
         lay.h = lay.h || {};
         lay.h[u] = v;
+        /* v774 (point 12) : bloc laissé à son minimum = MODE RÉDUIT, gardé d'un onglet à l'autre (chaque onglet à son propre minimum) */
+        lay.red = lay.red || {}; if (v <= (u === "detail" ? DMIN : MINU) + 2) lay.red[u] = 1; else delete lay.red[u];
         laySave(lay);
         histLog("DISPOSITION", "MODIFICATION", "ORDRE / HAUTEUR DES BLOCS");
-        layApply();
+        layApply(); setTimeout(layMinScroll, 30);
       };
       document.addEventListener("pointermove", move, { passive: false });
       document.addEventListener("pointerup", up);
@@ -15448,7 +15491,6 @@ ${A}</Assignments>
         { a: "dup", lab: "DUPLIQUER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>' },
         /* v750 (point 4) : IMPRIMER et CUMUL (avec le choix des budgets) passent de la liste au menu ⋯ du budget */
         { a: "prt", lab: "IMPRIMER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3.5h10V8M7 17H4.5V9.5a1.5 1.5 0 0 1 1.5-1.5h12a1.5 1.5 0 0 1 1.5 1.5V17H17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M7 13.5h10V21H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' },
-        { a: "cum", lab: "CUMUL", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16M6 14h12M8 10h8M10 6h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' },
         /* v755 : ÉTATS — EXPIRER une étape validée (hors consolidé, rétablissable) ; BLOQUER / ARCHIVER le budget (toute la famille) */
         ...(() => { const bi = budget.inst; if (!bi || bi.rclOf || bi.ref === "CUMUL" || (bi.virtual && bi.vname)) return [];
           const root = bi.virtual ? sviInstGet().find(x => x.ref === bi.parent) : sviAvRoot(bi), out = [];
@@ -15461,7 +15503,7 @@ ${A}</Assignments>
         ...(INS && budget.inst ? [["lnk", "TABLEAU DE BORD", SVI_ICON.xpl], ["apr", "APPRO. PRÉVISIONNEL", SVI_ICON.chg], ["ind1", "INDICATEURS", SVI_ICON.xpl], ["unl", "LIGNES NON LIÉES", SVI_ICON.hier], ["inc", "IMPORT NON CRÉÉ", SVI_ICON.hier]]
           .filter(([k]) => document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`) && (k !== "inc" || (INS.inc || []).length)).map(([k, lab, ic]) => ({ a: "dt-" + k, lab, ic: ic || "" })) : []),
         /* v729 (bloc 10) : COMPARATIF — deux états quelconques du budget, lecture seule */
-        ...(INS ? [{ a: "cmp", lab: "COMPARER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h7M4 12h7M4 18h7M13 6h7M13 12h7M13 18h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 3v18" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 2"/></svg>' }] : []),
+        ...(INS ? [{ a: "cmp", lab: "COMPARER / CUMULER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h7M4 12h7M4 18h7M13 6h7M13 12h7M13 18h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 3v18" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 2"/></svg>' }] : []),
         { a: "lay", lab: "DISPOSITION PAR DÉFAUT", off: !rb || rb.disabled, ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
         ...(INS ? [{ a: "paq", lab: "PLAN D'ASSURANCE QUALITÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
         /* v681 : premier avenant — une seule fois (aucun avenant encore), marché initial validé */
@@ -15489,10 +15531,23 @@ ${A}</Assignments>
          version : RESTAURER, EN FAIRE UN SCÉNARIO, exports, indicateurs ; recalage : NOUVEAU RECALAGE, exports, indicateurs */
       { const bi = budget.inst, keep = bi && bi.scv ? ["prt", "lay", "rat", "ind", "exp", "cmp"] : bi && bi.virtual ? (bi.vname ? ["prt", "cum", "vrest", "vscn", "lay", "rat", "ind", "exp", "cmp"] : ["prt", "cum", "blk", "arch", "lay", "rat", "ind", "multi", "exp", "av", "cph", "cmp"]) : bi && bi.rclOf ? ["prt", "cum", "rcl", "lay", "rat", "ind", "exp", "plans", "cmp"] : null;
         if (keep) for (let i = items.length - 1; i >= 0; i--) if (!keep.includes(items[i].a)) items.splice(i, 1); }
+      /* v774 (points 2, 9, 10) : ⋯ principal — FIGER / VALIDER en tête ; COMPARER / CUMULER, TABLEAU DE BORD, APPRO. PRÉVISIONNEL, INDICATEURS,
+         COÛT D'UNE JOURNÉE DE MAIN-D'ŒUVRE (provisoire) ; les autres actions ; DISPOSITION PAR DÉFAUT ; SUPPRIMER (avec confirmation) et FERMER */
+      { const hb = id => { const b = $(id); return b ? { a: "hb-" + id, lab: String(b.getAttribute("aria-label") || "").toUpperCase(), ic: (b.querySelector("svg")?.outerHTML || "").replace(/width="20" height="20"/, 'width="15" height="15"'), off: b.classList.contains("hdr-off"), why: b.dataset.why || "" } : null; };
+        const pick = ks => ks.map(k => items.find(x => x.a === k)).filter(Boolean);
+        const A = [hb("instLock"), hb("instValid")].filter(Boolean);
+        const B = pick(["cmp", "dt-lnk", "dt-apr", "dt-ind1"]);
+        if (INS && shell.__moWin && budget.inst && !budget.inst.virtual) B.push({ a: "mow", lab: "COÛT D'UNE JOURNÉE DE MAIN-D'ŒUVRE", ic: "" });
+        const lay = items.find(x => x.a === "lay") || { a: "lay", lab: "DISPOSITION PAR DÉFAUT", ic: "" }; lay.off = false;
+        const C = items.filter(x => !A.includes(x) && !B.includes(x) && x !== lay);
+        if ($("avCompBtn")) C.push({ a: "hb-avCompBtn", lab: "COMPOSITION DU CONSOLIDÉ", ic: "" });
+        const D = [hb("instDel"), hb("instClose")].filter(Boolean);
+        items.length = 0;
+        [A, B, C, [lay], D].filter(g => g.length).forEach((g, i) => { if (i) items.push({ sep: 1 }); items.push(...g); }); }
       const m = document.createElement("div");
       m.id = "blkMenu";
       m.dataset.for = "bdgMore";
-      m.innerHTML = items.map(x => `<button type="button" data-a="${x.a}" class="${x.off ? "blk-del off" : ""}" ${x.off ? "disabled" : ""}>${x.ic}<span>${x.lab}</span></button>`).join("");
+      m.innerHTML = items.map(x => x.sep ? '<div class="blk-sep"></div>' : `<button type="button" data-a="${x.a}" class="${x.off ? "blk-del off" : ""}${x.a === "hb-instDel" && !x.off ? " blk-del" : ""}" ${x.off ? "disabled" : ""}>${x.ic}<span>${x.lab}${x.off && x.why ? `<small class="del-split">${esc(x.why)}</small>` : ""}</span></button>`).join("");
       document.body.appendChild(m);
       const r = btn.getBoundingClientRect();
       sviPlaceMenu(m, r);
@@ -15506,7 +15561,9 @@ ${A}</Assignments>
         else if (it.dataset.a === "cum") { if (shell.__cumPick) shell.__cumPick(); else cumPick(); }   /* v771 : fenêtre de SÉLECTION unique */
         else if (it.dataset.a === "xp" || it.dataset.a === "blk" || it.dataset.a === "arch") etatSet(it.dataset.a);
         else if (it.dataset.a === "lay") $("layResetBtn")?.click();
-        else if (it.dataset.a === "cmp") { if (shell.__cmpPick) shell.__cmpPick(); }
+        else if (it.dataset.a === "cmp") { if (shell.__cumPick) shell.__cumPick(); else if (shell.__cmpPick) shell.__cmpPick(); }   /* v774 : COMPARER / CUMULER = fenêtre de SÉLECTION */
+        else if (/^hb-/.test(it.dataset.a)) $(it.dataset.a.slice(3))?.click();   /* v774 : FIGER / VALIDER, SUPPRIMER, FERMER, COMPOSITION (boutons de la barre, cachés) */
+        else if (it.dataset.a === "mow") { if (shell.__moWin) shell.__moWin(); }
         else if (it.dataset.a === "paq") qqPaqOpen();
         else if (it.dataset.a === "ctr") ctrWin();
         else if (it.dataset.a === "av") { if (it.classList.contains("off") || it.disabled) { svToast("LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ.", 3500); return; } if (window.__sviAvNew) window.__sviAvNew(budget.inst.parent || budget.inst.ref, null); }   /* v684 : fenêtre INF puis l'avenant */
@@ -17264,13 +17321,19 @@ ${A}</Assignments>
     /* v682 : photo de l'étape (VERSION n) prise à FIGER et à VALIDER */
     /* v690 : versions automatiques (Ⓐ) à FIGER et VALIDER — pas de nouvelle photo si rien n'a changé depuis la dernière ;
        version MANUELLE par PRENDRE UNE VERSION (menu ⋯ du haut) ; aucune limite, jamais effacées */
+    /* v774 (point 6) : SOURCE d'une version — budget initial, avenant n, scénario (actif s'il n'est pas le premier), recalage */
+    const verSrc = () => { const bi = budget.inst; if (!bi) return "";
+      if (bi.rclOf) return "RECALAGE";
+      const V = INS && INS.ver, sc = V && V.L && V.L.length > 1 && V.act && V.L[0].id !== V.act ? V.L.find(x => x.id === V.act) : null;
+      const base = bi.parent ? (() => { const S = sviAvStages(bi.parent), i = S.findIndex(x => x.ref === bi.ref); return "AVENANT" + (i > 0 ? " " + i : ""); })() : "BUDGET INITIAL";
+      return sc ? "SCÉNARIO — " + (sc.nom || "") : base; };
     shell.__verFreeze = (kind, auto = true) => {
       if (!INS || !budget.inst || budget.inst.virtual) return 0;
       INS.vfz = INS.vfz || [];
       const snap = verSnap(), last = INS.vfz[INS.vfz.length - 1];
       if (auto && last && JSON.stringify(last.d) === JSON.stringify(snap)) return 0;
       const n = INS.vfz.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1;
-      INS.vfz.push({ id: insId(), n, kind, auto: !!auto, u: typeof sviUser === "function" ? sviUser() : "", date: localDT(new Date()), d: snap });
+      INS.vfz.push({ id: insId(), n, kind, src: verSrc(), auto: !!auto, u: typeof sviUser === "function" ? sviUser() : "", date: localDT(new Date()), d: snap });
       insSave(); histLog("VERSIONS", "VERSION " + n + (auto ? " (AUTOMATIQUE)" : ""), kind);
       try { verRender(); } catch (e) {}
       return n;
@@ -17292,7 +17355,7 @@ ${A}</Assignments>
       if (n) { svToast("VERSION " + n + " PRISE.", 2500); setTimeout(() => { const b = shell.querySelector(".blk-ver"); if (b && !b.hidden) b.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, 60); }
     };
     /* bloc VERSIONS (sous SCÉNARIOS) : une ligne par version ; toucher = la photo ouverte en lecture seule */
-    const VER_COLS = [["vno", "VERSION", x => "VERSION " + x.n, ""], ["vkind", "NATURE", x => x.kind || "", ""], ["vdate", "PRISE LE", x => svDT(x.date || ""), ""], ["vuser", "PAR", x => x.u || "", ""]];
+    const VER_COLS = [["vno", "VERSION", x => "VERSION " + x.n, ""], ["vkind", "NATURE", x => x.kind || "", ""], ["vsrc", "SOURCE", x => x.src || verSrc(), ""], ["vdate", "PRISE LE", x => svDT(x.date || ""), ""], ["vuser", "PAR", x => x.u || "", ""]];
     let verShown = [];
     shell.__verData = () => { const oc = coOrder("vver", VER_COLS); return { head: oc.map(c => c[1]), rows: verShown.map(x => oc.map(c => c[2](x) + (c[0] === "vno" && x.auto ? " (A)" : ""))) }; };
     const verRender = () => {
@@ -22157,7 +22220,9 @@ ${A}</Assignments>
       if (act === "view") { if (shell.__scnView) shell.__scnView(); return; }   /* v686 : bloc SCÉNARIOS, LISTE ⇄ COMPARAISON */
       /* v546 (R33) : ↻ AJUSTER À LA CAPACITÉ (DÉTAIL DÉLAIS) */
       /* v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE, en haut à côté de ↻, AGRANDIR et ⋯ */
-      if (act === "cfg") { const DX = shell.__insDly; if (DX) DX.hcfgWin(); return; }   /* v707 : ⚙ = RÉGLAGES DU GRAPHIQUE */
+      /* v774 (point 5) : une seule roue ⚙ — tableau de données visible = PARAMÉTRAGE DU PLANNING ; sinon graphique seul = RÉGLAGES DU GRAPHIQUE ; sinon RÉGLAGES DU GANTT */
+      if (act === "cfg") { const DX = shell.__insDly; if (!DX) return; const g = shell.querySelector(".dlyg");
+        if (g && !g.classList.contains("tbl-hid")) DX.ppWin(); else if (g && g.classList.contains("dly-hfull")) DX.hcfgWin(); else DX.gcfgWin(); return; }   /* v707 : ⚙ = RÉGLAGES DU GRAPHIQUE */
       if (act === "hcfg") { const DX = shell.__insDly; if (DX) DX.gcfgWin(); return; }   /* v707 : icône Gantt = RÉGLAGES DU GANTT */   /* v704 : RÉGLAGES DU GRAPHIQUE */   /* v701 : RÉGLAGES DU GANTT */
       if (act === "adj") { const b = shell.querySelector(".blk-adj-btn"), DX = shell.__insDly; if (b && b.classList.contains("off")) { svToast(b.dataset.why || "RIEN À AJUSTER.", 3500, b); return; } if (DX) DX.gcWin(); return; }
       if (act === "del" && ["av", "scn", "ver", "rcl"].includes(blk) && shell.__etpDel) return shell.__etpDel(blk);   /* v773 : ÉVOLUTIONS — action groupée sur les cochés */
@@ -22244,7 +22309,7 @@ ${A}</Assignments>
            affichage du Gantt = CALENDRIER DU BUDGET, réglages de l'histogramme = ⚙ */
         const vw = DX.view();
         const ck = (v, lab, on, off) => `<button type="button" data-dly="${v}" class="dly-sc${on ? " on" : ""}${off ? " off" : ""}"${off ? ` data-why="${esc(off)}"` : ""}><span>${on ? "✓ " : ""}${lab}</span></button>`;
-        m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">PLANNING</div>${ck("crit", "CHEMIN CRITIQUE", DX.critOn())}<button type="button" data-dly="lock"><span>VERROUS DÉBUT / FIN DES TÂCHES COCHÉES…</span>${svCnt((shell.__dlySel || new Set()).size)}</button><button type="button" data-dly="pp"><span>PARAMÉTRAGE DU PLANNING…</span></button>`   /* v561 : plus d'AFFICHER PAR LOT ni de CLASSER PAR DÉBUT ; AFFICHER PAR DÉBUT à deux états */
+        m.insertAdjacentHTML("afterbegin", `${ck("crit", "CHEMIN CRITIQUE", DX.critOn())}<button type="button" data-dly="lock"><span>VERROUS DÉBUT / FIN DES TÂCHES COCHÉES…</span>${svCnt((shell.__dlySel || new Set()).size)}</button><button type="button" data-dly="gc"><span>GÉNÉRER / COMPRESSER…</span></button>`   /* v561 : plus d'AFFICHER PAR LOT ni de CLASSER PAR DÉBUT ; AFFICHER PAR DÉBUT à deux états */
           /* v553 (partie 11, remarque 3) : plus d'entrée « + AJOUTER UNE TÂCHE OU SES DÉLAIS » */
           + `<div class="blk-sep"></div>`   /* v572 (remarque 17) : réglages des commandes dans RÉGLAGES DU GRAPHIQUE ⚙ */);
         let lp = null;
@@ -22261,7 +22326,7 @@ ${A}</Assignments>
           else if (v === "v-d") DX.viewSet(DX.view() === "d" ? "l" : "d");
           else if (v === "cut") DX.cutSet(!DX.cutOK());   /* v617 (remarque 85) */
           else if (v === "crit") DX.critSet(!DX.critOn());   /* v666 (axe 8) */
-          else if (v === "pp") DX.ppWin();
+          else if (v === "pp") DX.ppWin(); else if (v === "gc") DX.gcWin();   /* v774 */
           else if (v === "lock") dlyLockWin();   /* v667 (axe 8) */
         }, true);
       }
@@ -22283,14 +22348,10 @@ ${A}</Assignments>
       }
       /* v665 (axes 5 et 11) : DÉSIGNATIONS CLIENT — COMPARATIF DES PRIX, APERÇU SOUS-DÉTAIL DES PRIX */
       if (INS && shell.__cmpWin && acts.some(a => a.dataset.blk === "client")) {
-        m.insertAdjacentHTML("afterbegin", `<button type="button" data-cmpx="cmp"><span>COMPARATIF DES PRIX…</span></button><button type="button" data-cmpx="sdp"><span>APERÇU SOUS-DÉTAIL DES PRIX</span></button>${LK && LK.des ? `<button type="button" data-cmpx="ctr"><span>ARTICLES DU CONTRAT DE LA DÉSIGNATION CHOISIE</span></button>` : ""}<div class="blk-sep"></div>`);
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-cmpx="sdp"><span>SOUS-DÉTAIL DES PRIX</span></button>${LK && LK.des ? `<button type="button" data-cmpx="ctr"><span>ARTICLES DU CONTRAT DE LA DÉSIGNATION CHOISIE</span></button>` : ""}<div class="blk-sep"></div>`);
         m.addEventListener("click", e => { const b = e.target.closest("[data-cmpx]"); if (!b) return; e.stopPropagation(); m.remove(); if (b.dataset.cmpx === "cmp") shell.__cmpWin(); else if (b.dataset.cmpx === "ctr") shell.__ctrWin(LK.des); else shell.__sdp(); }, true);
       }
-      /* v664 (axe 13) : DÉTAIL CHARGES — COÛT D'UNE JOURNÉE DE MAIN D'ŒUVRE */
-      if (active === "chg" && INS && INS_EDIT && shell.__moWin && acts.some(a => a.dataset.blk === "detail")) {
-        m.insertAdjacentHTML("afterbegin", `<button type="button" data-mow="1"><span>COÛT D'UNE JOURNÉE DE MAIN D'ŒUVRE…</span></button><div class="blk-sep"></div>`);
-        m.addEventListener("click", e => { const b = e.target.closest("[data-mow]"); if (!b) return; e.stopPropagation(); m.remove(); shell.__moWin(); }, true);
-      }
+      /* v774 (point 2) : COÛT D'UNE JOURNÉE DE MAIN-D'ŒUVRE passe dans le ⋯ principal */
       /* v500 (remarque 46) : MARGE — TOUT DÉPLIER / TOUT REPLIER */
       if (active === "lnk" && shell.__mg && acts.some(a => a.dataset.blk === "detail")) {
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-mgf="pv"><span>PRIX DE VENTE PAR LA MARGE…</span></button><div class="blk-sep"></div><button type="button" data-mgf="open"><span>TOUT DÉPLIER</span></button><button type="button" data-mgf="close"><span>TOUT REPLIER</span></button><div class="blk-sep"></div>`);
@@ -22319,6 +22380,24 @@ ${A}</Assignments>
             if (v === "copy") X.copy(); else if (v === "clear") X.clear(); else X.paste();
           }, true);
         } }
+      /* v774 (point 3) : ordre unique du ⋯ de chaque bloc, un trait entre les groupes — actions propres au bloc ;
+         IMPORTER, EXPORTER, APERÇU ; COPIER, COUPER, COLLER ; SUPPRIMER LES LIGNES COCHÉES, EFFACER TOUS LES FILTRES */
+      { const top = [], G = [[], [], [], []];
+        [...m.children].forEach(el => {
+          if (el.classList.contains("blk-sep")) return;
+          if (el.dataset.cs || (el.classList.contains("blk-hint") && / CASE\(S\) /.test(el.textContent))) { top.push(el); return; }
+          const a = el.dataset.i != null ? (acts[+el.dataset.i] || {}).dataset?.act : null;
+          if (el.dataset.fclr || a === "del") G[3].push(el);
+          else if (["import", "export", "pdf"].includes(a)) G[1].push(el);
+          else if (["copy", "cut", "paste"].includes(a)) G[2].push(el);
+          else if (el.classList.contains("blk-hint") && m.__hint && el.textContent === m.__hint) G[2].unshift(el);
+          else G[0].push(el);
+        });
+        const ord = el => { const a = el.dataset.i != null ? (acts[+el.dataset.i] || {}).dataset?.act : ""; const k = ["import", "export", "pdf", "copy", "cut", "paste"].indexOf(a); return k < 0 ? -1 : k; };
+        G[1].sort((x, y) => ord(x) - ord(y)); G[2].sort((x, y) => ord(x) - ord(y));
+        m.innerHTML = "";
+        [top, ...G].filter(g => g.length).forEach((g, i) => { if (i) m.insertAdjacentHTML("beforeend", '<div class="blk-sep"></div>'); g.forEach(el => m.appendChild(el)); });
+      }
       document.body.appendChild(m);
       const r = btn.getBoundingClientRect();
       sviPlaceMenu(m, r);
@@ -22384,12 +22463,10 @@ ${A}</Assignments>
       const bm = event.target.closest("#bdgMore");
       if (bm) { event.stopPropagation(); openBdgMore(bm); return; }
       if (event.target.closest("#layResetBtn")) {
-        if ($("layResetBtn").disabled) return;
-        svConfirm({ title: "DISPOSITION PAR DÉFAUT", text: "TOUS LES BLOCS REVIENNENT À LEUR PLACE ET À LEUR TAILLE D'ORIGINE.", ok: "RÉTABLIR", tone: "neutral" }).then(go => {
+        svConfirm({ title: "DISPOSITION PAR DÉFAUT", text: "TOUS LES BLOCS REVIENNENT À LEUR PLACE D'ORIGINE, CHACUN À 5 LIGNES VISIBLES.", ok: "RÉTABLIR", tone: "neutral" }).then(go => {
           if (!go) return;
-          laySave({});
-          histLog("DISPOSITION", "PAR DÉFAUT", "BLOCS REMIS À L'ORIGINE");
-          layApply();
+          histLog("DISPOSITION", "PAR DÉFAUT", "BLOCS REMIS À L'ORIGINE (5 LIGNES)");
+          if (shell.__layFive) shell.__layFive(); else { laySave({}); layApply(); }
         });
         return;
       }

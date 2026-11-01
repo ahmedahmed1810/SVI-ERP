@@ -211,11 +211,54 @@
       const head = tb.tHead.getBoundingClientRect().height;
       const rows = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight);
       const tot = rows.filter(r => r.classList.length && /tot/i.test(r.className) && /\bTOTAL\b/.test(r.textContent || ""));   /* v743 : classe d'abord (rapide), texte ensuite */
-      const row = rows.find(r => !tot.includes(r));
+      const row = rows.find(r => !tot.includes(r) && r.matches("tr.ins-new")) || rows.find(r => !tot.includes(r));   /* v774 : ligne de saisie d'abord (hauteur stable) */
       const foot = (tb.tFoot && tb.tFoot.offsetHeight ? tb.tFoot.getBoundingClientRect().height : 0) + tot.reduce((t, r) => t + r.getBoundingClientRect().height, 0);
       let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
       const bar = Math.max(0, scr.offsetHeight - scr.clientHeight);
-      return Math.max(65, Math.ceil(top + head + (row ? row.getBoundingClientRect().height : 21) + foot + ban + bar + 1));
+      return Math.max(40, Math.ceil(top + head + (row ? row.getBoundingClientRect().height : 21) + foot + ban + bar + 1));
+    };
+    /* v774 : MODE RÉDUIT — un seul calcul pour tous les blocs (celui du bloc détail / DÉSIGNATIONS CLIENT) :
+       décalage du tableau + titres des colonnes + UNE ligne entière (la ligne de saisie, sinon la première) + pied (TOTAL) + bandeaux + barre.
+       Rien n'est collé par-dessus : à la hauteur minimale, le tableau se place sur la ligne de saisie (layMinScroll). */
+    const LAY_SC = { client: ".bdg-d-client-scroll", detail: "#bdgTabBody .bdg-d-scroll", suivi: ".blk-suivi .rec-scroll:not([hidden])", etp: ".blk-etp .etp-pane.on .rec-scroll" };
+    const LAY_NEW = "tr.ins-new, tr.scn-new, tr.rec-new, tr[data-scnadd], tr[data-avadd], tr[data-rcladd]";
+    const layMinOf = u => {
+      if (u === "detail") return layDetMin();
+      const pg = page$(); if (!pg) return 0;
+      if (u === "hier") { const c = [...pg.querySelectorAll(".bdg-h-col")].find(x => x.offsetHeight); if (!c) return 44;
+        const hd = c.querySelector(".bdg-h-head"), li = c.querySelector(".ins-li.ins-new") || c.querySelector(".ins-li, .bdg-h-item");
+        return Math.ceil((hd ? hd.getBoundingClientRect().height : 0) + (li ? li.getBoundingClientRect().height : 21) + Math.max(0, c.offsetHeight - c.clientHeight)) + 1; }
+      const scr = pg.querySelector(LAY_SC[u]); if (!scr || !scr.offsetHeight) return { client: 65 }[u] || 44;
+      const tb = [...scr.querySelectorAll("table")].find(t => t.offsetHeight && t.tHead); if (!tb) return 44;
+      const top = tb.getBoundingClientRect().top - scr.getBoundingClientRect().top + scr.scrollTop;
+      const rows = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight);
+      const row = rows.find(r => r.matches(LAY_NEW)) || rows[0];
+      const foot = tb.tFoot && tb.tFoot.offsetHeight ? tb.tFoot.getBoundingClientRect().height : 0;
+      return Math.ceil(top + tb.tHead.getBoundingClientRect().height + (row ? row.getBoundingClientRect().height : 21) + foot + Math.max(0, scr.offsetHeight - scr.clientHeight)) + 1;
+    };
+    /* à la hauteur minimale : la seule ligne visible est la ligne de saisie, entière */
+    const layMinScroll = () => { const pg = page$(); if (!pg) return;
+      Object.keys(LAY_SC).forEach(u => { if (pg.classList.contains("max-" + u)) return; const scr = pg.querySelector(LAY_SC[u]); if (!scr || !scr.offsetHeight) return;
+        const nr = scr.querySelector("tbody " + LAY_NEW.split(", ").join(", tbody ")); if (!nr) return;
+        const m = u === "detail" ? layDetMin() : layMinOf(u); if (scr.getBoundingClientRect().height > m + 3) return;
+        /* la ligne de saisie juste sous les titres des colonnes (collés en haut) : entière, seule */
+        const tb = nr.closest("table"), hh = tb && tb.tHead ? tb.tHead.getBoundingClientRect().height : 0;
+        scr.scrollTop = Math.max(0, nr.getBoundingClientRect().top - scr.getBoundingClientRect().top + scr.scrollTop - hh); }); };
+    shell.__layMinScroll = layMinScroll;
+    /* v774 (point 9) : DISPOSITION PAR DÉFAUT — ordre d'origine et chaque bloc à exactement 5 lignes visibles
+       (titres des colonnes + 5 lignes entières + pied), enregistré : l'écran se rouvre ainsi */
+    const layRowH = u => { const pg = page$(); if (!pg) return 21;
+      if (u === "hier") { const li = [...pg.querySelectorAll(".bdg-h-col .ins-li, .bdg-h-col .bdg-h-item")].find(x => x.offsetHeight); return li ? li.getBoundingClientRect().height : 21; }
+      const scr = pg.querySelector(LAY_SC[u]), tb = scr && [...scr.querySelectorAll("table")].find(t => t.offsetHeight && t.tHead); if (!tb) return 21;
+      const rs = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight && !(r.classList.length && /tot/i.test(r.className)));
+      const r = rs.find(x => !x.matches(LAY_NEW)) || rs[0]; return r ? r.getBoundingClientRect().height : 21; };
+    shell.__layFive = () => {
+      laySave({}); layApply();
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const pg = page$(); if (!pg) return; const lay = { h: {} };
+        LAY_UNITS.forEach(u => { if (pg.classList.contains("max-" + u)) return; const m = layMinOf(u); if (!m) return; lay.h[u] = Math.ceil(m + 4 * layRowH(u)); });
+        laySave(lay); layApply(); setTimeout(layMinScroll, 30);
+      }));
     };
     /* v727 (bloc 11.3) : hauteur des blocs en lignes entières — en-tête (et pied collant) + k lignes entières, jamais un morceau de la suivante ;
        TÂCHES : la plus longue des trois listes ; DÉSIGNATIONS CLIENT et onglets du détail : le tableau affiché */
@@ -266,6 +309,12 @@
         if (v) pg.style.setProperty("--h-" + u, v + "px");
         if (u === "detail" && v) shell.__layDetSnap = { from: h, to: v };   /* v727 : base gardée, pas de dérive d'un onglet à l'autre */
       });
+      /* v774 : aucun bloc sous son minimum (titres + une ligne entière) ; à ce minimum, la ligne de saisie est la ligne visible */
+      ["client", "hier", "etp", "suivi"].forEach(u => { if (pg.classList.contains("max-" + u)) return; const c0 = parseFloat(pg.style.getPropertyValue("--h-" + u)) || 0, m0 = layMinOf(u);
+        if (c0 && m0 && c0 < m0) pg.style.setProperty("--h-" + u, m0 + "px"); });
+      /* v774 : MODE RÉDUIT — exactement le minimum de l'onglet affiché (titres + une ligne entière), ni plus ni moins */
+      { const R = layLoad().red || {}; LAY_UNITS.forEach(u => { if (!R[u] || pg.classList.contains("max-" + u)) return; const m0 = layMinOf(u); if (m0) pg.style.setProperty("--h-" + u, m0 + "px"); }); }
+      layMinScroll();
     };
     const layOrder = () => {
       const saved = (layLoad().order || []).filter(u => LAY_UNITS.includes(u));
@@ -279,12 +328,12 @@
       const pg = page$();
       if (!pg) return;
       const lay = layLoad();
-      if (lay.h && lay.h.suivi) { delete lay.h.suivi; laySave(lay); }
+      /* v774 (point 9) : SUIVI aussi rouvert comme laissé */
       layOrder().forEach((u, i) => layEls(u).forEach(el => { el.style.order = i; }));
       LAY_UNITS.forEach(u => {
         /* SUIVI (DOC / TAF / OBS) : toujours 5 lignes à l'ouverture,
            l'agrandissement ne vaut que pour la séance en cours */
-        const h = u === "suivi" ? layOpenH.suivi : (lay.h || {})[u] || (u === "detail" ? layDetDef() : 0);
+        const h = (lay.h || {})[u] || (u === "detail" ? layDetDef() : 0);
         if (h) pg.style.setProperty("--h-" + u, h + "px");
         else pg.style.removeProperty("--h-" + u);
       });
@@ -372,13 +421,7 @@
       let v = base;
       h.classList.add("on");
       const DMIN = u === "detail" ? layDetMin() : 0;
-      /* v772 : MODE RÉDUIT identique pour tous les blocs — titres des colonnes + une ligne de saisie (jamais moins) */
-      const MINU = (() => { try { const sel = { client: ".bdg-d-client-scroll", hier: ".bdg-h-col", suivi: ".blk-suivi .rec-scroll:not([hidden])", etp: ".blk-etp .etp-pane.on .rec-scroll" }[u];
-        const sc = sel && pg.querySelector(sel); if (!sc) return 0;
-        if (u === "hier") { const hd = sc.querySelector(".bdg-h-head"), li = sc.querySelector(".ins-li.ins-new") || sc.querySelector(".ins-li"); return Math.ceil((hd ? hd.getBoundingClientRect().height : 0) + (li ? li.getBoundingClientRect().height : 24)) + 2; }
-        const t = sc.querySelector("table"); if (!t || !t.tHead) return 0;
-        const nr = t.querySelector("tbody tr.ins-new, tbody tr.scn-new, tbody tr.rec-new, tbody tr[data-scnadd]") || t.querySelector("tbody tr");
-        return Math.ceil(t.tHead.getBoundingClientRect().height + (nr ? nr.getBoundingClientRect().height : 24) + (t.tFoot && t.tFoot.offsetHeight ? t.tFoot.getBoundingClientRect().height : 0)) + 2; } catch (e) { return 0; } })();
+      const MINU = u === "detail" ? 0 : layMinOf(u);   /* v774 : même calcul pour tous les blocs */
       const move = e => {
         e.preventDefault();
         /* minimum : en-tête + une seule ligne (+ ligne TOTAL s'il y en a une) */
@@ -392,13 +435,14 @@
         document.removeEventListener("pointerup", up);
         document.removeEventListener("pointercancel", up);
         h.classList.remove("on");
-        if (u === "suivi") { layOpenH.suivi = v; layApply(); return; }
         const lay = layLoad();
         lay.h = lay.h || {};
         lay.h[u] = v;
+        /* v774 (point 12) : bloc laissé à son minimum = MODE RÉDUIT, gardé d'un onglet à l'autre (chaque onglet à son propre minimum) */
+        lay.red = lay.red || {}; if (v <= (u === "detail" ? DMIN : MINU) + 2) lay.red[u] = 1; else delete lay.red[u];
         laySave(lay);
         histLog("DISPOSITION", "MODIFICATION", "ORDRE / HAUTEUR DES BLOCS");
-        layApply();
+        layApply(); setTimeout(layMinScroll, 30);
       };
       document.addEventListener("pointermove", move, { passive: false });
       document.addEventListener("pointerup", up);

@@ -154,7 +154,7 @@ def main():
             document.getElementById('svConf')?.remove();
             const K = JSON.parse(keep); if (K.vfz) I.vfz = K.vfz; else delete I.vfz; if (keepT === null) localStorage.removeItem('svi_etp_tab_v1'); else localStorage.setItem('svi_etp_tab_v1', keepT); X.refreshAll(); return r; }""".replace("INS_X", ins))
         check("v756 / v757 : un seul bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES, boutons de l'onglet ouvert, menu ⋯ (COMPARER, CRÉER, APERÇU, EXPORTER), onglet AVENANTS ; COMPARER côte à côte avec écarts",
-              e756[:5] == [True, "av,scn,ver,rcl", True, True, True] and e756[5] == "BUDGET INITIAL" and all(x in e756[6] for x in ["COMPARER", "CRÉER UN AVENANT", "APERÇU", "EXPORTER"]) and e756[7] == [3, 13, True], e756)
+              e756[:5] == [True, "av,scn,ver,rcl", True, True, True] and e756[5] == "BUDGET INITIAL" and "COMPARER" not in e756[6] and e756[6].startswith("CRÉER UN AVENANT|IMPORTER") and e756[6].index("EXPORTER") < e756[6].index("APERÇU") and e756[7] == [3, 13, True], e756)
         # v758 : fenêtre d'import unique — sources FICHIER / GOOGLE SHEETS / MS PROJECT (XML) / AUTRE BUDGET ; un fichier est lu à blanc (budget
         # ouvert inchangé) puis proposé comme source de la même fenêtre (cases, aperçu, IMPORTER) ; IMPORTER dans AVENANTS, SCÉNARIOS, RECALAGES, pas VERSIONS
         import tempfile
@@ -602,12 +602,12 @@ def main():
         g72 = pg.evaluate("() => { const g = document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle'); return g ? [!(g.nextElementSibling && ['c1', 'c9'].includes(g.nextElementSibling.dataset.iid)), Math.round(g.querySelector('.ins-gfz').getBoundingClientRect().width)] : null; }")
         pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle .ins-gfz')?.click()"); pg.wait_for_timeout(300)
         check("remarque 72 : zone du signe du titre de charges (40 px) = plier / déplier", g72 == [True, 40], g72)
-        # remarque 74 : cadre sur toute la cellule
+        # remarque 74 (v774, point 7) : un seul petit cadre, fin, de taille fixe, dans la case
         pg.click('table.ins-table[data-ik="chg"] tr[data-iid="c2"] input.ins-in[data-f="q"]'); pg.wait_for_timeout(150)
         pg.wait_for_timeout(100)
-        g74 = pg.evaluate("() => { const a = document.activeElement, td = a.closest('td'), f = document.getElementById('sviSelFrame'); if (!f) return [false, false]; const r = td.getBoundingClientRect(), q = f.getBoundingClientRect(); return [f.style.display === 'block', Math.abs(r.height - q.height) < 2 && Math.abs(r.width - q.width) < 2]; }")
+        g74 = pg.evaluate("() => { const a = document.activeElement, td = a.closest('td'), f = document.getElementById('sviSelFrame'); if (!f) return [false, false]; const r = td.getBoundingClientRect(), q = f.getBoundingClientRect(); return [f.style.display === 'block', q.height <= 22.5 && q.width < r.width && q.left >= r.left && q.right <= r.right && q.top >= r.top && q.bottom <= r.bottom]; }")
         pg.keyboard.press("Escape")
-        check("remarque 74 : cadre de la case sélectionnée sur toute la cellule", g74 == [True, True], g74)
+        check("remarque 74 / v774 : petit cadre de taille fixe dans la case sélectionnée", g74 == [True, True], g74)
         # remarque 75 : AGRANDIR = SAISIE DIRECTE sur place ; plus dans IMPORTER
         pg.evaluate("() => { const b = document.querySelector('.blk-max-btn[data-blk=\"detail\"]'); b && b.click(); }"); pg.wait_for_timeout(600)
         g75 = pg.evaluate("() => { const w = document.querySelector('#sdW.sd-inplace'); const tb = document.getElementById('bdgTabBody'); return [!!w, !!(w && w.closest('.bdg-d-page')), tb ? getComputedStyle(tb).display : '']; }")
@@ -647,7 +647,7 @@ def main():
             pg.click(sel); pg.wait_for_timeout(200)
             a = pg.evaluate("""() => { const a = document.activeElement, c = window.sviCellOf(a), f = document.getElementById('sviSelFrame');
                 if (!c || !f) return null; const r = c.getBoundingClientRect(), q = f.getBoundingClientRect();
-                return [a.classList.contains('svi-nav') || (a.tagName === 'TD' && a.classList.contains('svi-tdf')), f.style.display === 'block' && Math.abs(r.height - q.height) < 3 && q.width <= r.width + 3 && q.width > 10, window.sviCellKey(a), [r.top, r.height, r.width, q.top, q.height, q.width, f.style.display].map(x => typeof x === 'number' ? Math.round(x) : x)]; }""")
+                return [a.classList.contains('svi-nav') || (a.tagName === 'TD' && a.classList.contains('svi-tdf')), f.style.display === 'block' && q.height <= 22.5 && q.height >= Math.min(10, r.height - 6) && q.width <= r.width && q.width > 10, window.sviCellKey(a), [r.top, r.height, r.width, q.top, q.height, q.width, f.style.display].map(x => typeof x === 'number' ? Math.round(x) : x)]; }""")
             if a and not a[1]: print("RECT", sel, a[3])
             pg.keyboard.press("ArrowDown"); pg.wait_for_timeout(200)
             b = pg.evaluate("k => { const a = document.activeElement; const c = window.sviCellOf(a); return !!c && JSON.stringify(window.sviCellKey(a)) !== JSON.stringify(k); }", a[2] if a else None)
@@ -1587,7 +1587,7 @@ def main():
         mn = pg.evaluate("() => (document.getElementById('blkMenu') || {}).textContent || ''")
         pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
         check("v542 R2 / R5 : plafond recompresse aussitôt (4 J-H ÷ 4 = 1 jour), même nombre = AUCUN GAIN ; menu (v546) : vue, CLASSER PAR DÉBUT, APPROVISIONNEMENT — plus de COMPRESSER ni de JOUR / SEMAINE / MOIS",
-              t2[0] == "2026-11-02" and "AUCUN GAIN" in t2[1] and "COMPRESSER LE PLANNING" not in mn and "GÉNÉRER" not in mn and "NIVELLEMENT" not in mn and "JOUR" not in mn.replace("PAR LOT", "").replace("CLASSER", "").split("GRAPHIQUE")[0].replace("AFFICHER PAR DÉBUT", "") and "CLASSER PAR DÉBUT" not in mn and "AFFICHER PAR LOT" not in mn and "AFFICHER PAR DÉBUT" not in mn and "COUPE DES TÂCHES" not in mn and "APPROVISIONNEMENT PRÉVISIONNEL" not in mn, [t2, mn[:200]])
+              t2[0] == "2026-11-02" and "AUCUN GAIN" in t2[1] and "COMPRESSER LE PLANNING" not in mn and "GÉNÉRER / COMPRESSER" in mn and "NIVELLEMENT" not in mn and "JOUR" not in mn.replace("PAR LOT", "").replace("CLASSER", "").split("GRAPHIQUE")[0].replace("AFFICHER PAR DÉBUT", "") and "CLASSER PAR DÉBUT" not in mn and "AFFICHER PAR LOT" not in mn and "AFFICHER PAR DÉBUT" not in mn and "COUPE DES TÂCHES" not in mn and "APPROVISIONNEMENT PRÉVISIONNEL" not in mn, [t2, mn[:200]])
         # R10 : COMMANDES par fréquence (7 jours, 2 jours d'avance)
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.appro = {{ dl: 2, cov: 'n', nj: 7, dep: '', on: true }}; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(500)
         c10 = pg.evaluate("() => [[...document.querySelectorAll('.dlyg-foot .ghb.ghc')].map(b => b.dataset.d), /APPROVISIONNEMENT/.test((document.querySelector('.dlyg-foot .ghist-cmd') || {}).textContent || '')]")
@@ -1747,7 +1747,7 @@ def main():
         vl = pg.evaluate("() => [...document.querySelectorAll('#bdgTabBody .dlyg-l tr.dly-task')].map(t => t.dataset.key)")
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.forEach(r => {{ if ((window.__r29on || []).includes(r.id)) r.on = true; }}); I.hrange = JSON.parse(window.__r29hr || 'null'); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
         check("v543 R29 / v561 : menu PLANNING / GRAPHIQUE, sans liseré ; vue PAR DÉBUT en escalier (numéro du lot), sans bandeau (v594 : la vue se lit à la coche ✓ du menu), sans changer l'ordre enregistré",
-              z1 == ["PLANNING"] and not z1b and vd[0] == ["l2|s1", "l1|s1"] and vd[1] and not vd[2] and vd[3] == '["l1|s1","l2|s1"]' and vl == ["l1|s1", "l2|s1"], [z1, z1b, vd, vl])
+              z1 == [] and not z1b and vd[0] == ["l2|s1", "l1|s1"] and vd[1] and not vd[2] and vd[3] == '["l1|s1","l2|s1"]' and vl == ["l1|s1", "l2|s1"], [z1, z1b, vd, vl])
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk3; I.dlp = I.__dlp3; I.dpred = I.__dp3; I.dord = I.__ord3; I.pdeb = I.__pd3;
             ['__lk3', '__dlp3', '__dp3', '__ord3', '__pd3'].forEach(k => delete I[k]); I.dinc = {{}}; I.dlim = {{}}; I.plafR = {{}}; I.appro = null; I.hset = null; I.hrange = null; I.hval = null;
             I.chg = I.chg.filter(r => !/^n[123]$/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
@@ -1869,8 +1869,8 @@ def main():
         check("v726 : ⚙ du Gantt → CALENDRIER DES CHARGES (jours non travaillés par charge)", cc, cc)
         pg.evaluate("() => document.querySelectorAll('.sv-win, #svConf').forEach(e => e.remove())"); pg.wait_for_timeout(200)
         pg.evaluate("() => document.getElementById('svConf')?.remove()"); pg.wait_for_timeout(200)
-        # v704 : ⚙ du GRAPHIQUE rendu (à part du ⚙ du GANTT)
-        pg.evaluate("() => document.querySelector('.blk-cfg-btn.dly-on')?.click()"); pg.wait_for_timeout(300)
+        # v704 : RÉGLAGES DU GRAPHIQUE (v774 : la roue unique ouvre le réglage de ce qui est affiché)
+        pg.evaluate("() => [...document.querySelectorAll('*')].find(e => e.__insDly).__insDly.hcfgWin()"); pg.wait_for_timeout(300)
         hw = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
         pg.evaluate("() => { const d = document.getElementById('svConf'); d.querySelectorAll('.hcf-c:not([value=r])').forEach(i => { i.checked = true; }); d.querySelector('input[name=\"hca\"][value=\"j\"]').checked = true; d.querySelector('[data-ok]').click(); }"); pg.wait_for_timeout(600)
         pm = pg.evaluate(f"() => [JSON.stringify({ins}.INS.hset.crb), (document.querySelector('.dlyg-foot .ghist-leg') || {{}}).textContent || '']")
@@ -2714,7 +2714,7 @@ def main():
             if (it) { it.click(); await w(500); r.push(ttl('#bdgDetailHead .ttl')); document.querySelector('#bdgTabs .bdg-d-tab[data-tab="chg"]').click(); await w(400); r.push(ttl('#bdgDetailHead .ttl')); }
             document.getElementById('blkMenu')?.remove(); return r; }""")
         check("v772 : blocs DÉTAIL, ÉVOLUTIONS, SUIVI avec en-tête puis onglets ; DÉTAIL = CHARGES, PRODUITS, QUALITÉ, DÉLAIS ; TABLEAU DE BORD depuis le ⋯ du haut (nom dans l'en-tête)",
-              o772[:7] == ["DÉTAIL", "ÉVOLUTIONS", "SUIVI", True, True, "chg,prd,qlt,dly", True] and o772[7] is True and o772[8] == "DÉTAIL — TABLEAU DE BORD" and o772[9] == "DÉTAIL", o772)
+              o772[:7] == ["DÉTAIL", "RÉVISIONS", "SUIVI", True, True, "chg,prd,qlt,dly", True] and o772[7] is True and o772[8] == "DÉTAIL — TABLEAU DE BORD" and o772[9] == "DÉTAIL", o772)
         # v773 : ÉVOLUTIONS — cases à cocher ; SCÉNARIOS non validés supprimés, validés (retenus / offerts) archivés, actif intouché ; VERSIONS archivées
         g773 = pg.evaluate("""async () => { const X = INS_X, I = X.INS, w = ms => new Promise(z => setTimeout(z, ms)), sh = [...document.querySelectorAll('*')].find(e => e.__ins);
             const keep = JSON.stringify({ vfz: I.vfz || null, ver: I.ver || null }); const d0 = JSON.parse(JSON.stringify(I)); delete d0.ver; delete d0.vfz;
@@ -2731,6 +2731,27 @@ def main():
             const K = JSON.parse(keep), I3 = INS_X.INS; if (K.vfz) I3.vfz = K.vfz; else delete I3.vfz; if (K.ver) I3.ver = K.ver; else delete I3.ver; INS_X.insSave(); INS_X.refreshAll(); await w(200); return r; }""".replace("INS_X", ins))
         check("v773 : ÉVOLUTIONS — cases à cocher ; scénario non validé supprimé, validé archivé, actif intouché ; version archivée",
               g773[0] == "a1,b2,c3" and g773[1] and "SUPPRIMER 1" in g773[2] and "ARCHIVER 1" in g773[2] and g773[3] == "a1,c3:A" and g773[4] is True, g773)
+        # v774 : RÉVISIONS ; barre du haut réduite ; ⋯ principal (FIGER en tête, COMPARER / CUMULER…, DISPOSITION PAR DÉFAUT, SUPPRIMER et FERMER en bas) ;
+        # ⋯ des blocs par groupes ; colonne SOURCE des versions ; titres des colonnes au-dessus des icônes des lignes
+        r774 = pg.evaluate("""async () => { const X = INS_X, I = X.INS, w = ms => new Promise(z => setTimeout(z, ms));
+            const r = [document.querySelector('.blk-etp .blk-head .ttl').textContent.trim()];
+            r.push([...document.querySelectorAll('.bdg-d-hright > *')].filter(b => b.offsetParent).map(b => b.id).join(','));
+            document.getElementById('bdgMore').click(); await w(200);
+            const M = [...document.querySelectorAll('#blkMenu > *')].map(x => x.classList.contains('blk-sep') ? '-' : x.textContent.trim()); document.getElementById('blkMenu')?.remove();
+            r.push(M[1] === '-' && /^(FIGER|REVENIR|ENREGISTRER)/.test(M[0]) && M[2] === 'COMPARER / CUMULER' && M.slice(-3).join('|').startsWith('-|SUPPRIMER') && M.slice(-1)[0] === 'FERMER' && M[M.indexOf('DISPOSITION PAR DÉFAUT') - 1] === '-');
+            document.querySelector('#bdgClientTitle .blk-more').click(); await w(200);
+            const C = [...document.querySelectorAll('#blkMenu > *')].map(x => x.classList.contains('blk-sep') ? '-' : x.textContent.trim().replace(/\\d+$/, '')); document.getElementById('blkMenu')?.remove();
+            r.push(C.join('|'));
+            const keep = JSON.stringify(I.vfz || null); I.vfz = []; X.insSave(); document.querySelector('[data-etab="ver"]')?.click(); await w(50);
+            [...document.querySelectorAll('*')].find(e => e.__ins).__verTake(); await w(300);
+            r.push([...document.querySelectorAll('#verTable thead th')].map(t => t.textContent.trim()).includes('SOURCE'), (I.vfz[0] || {}).src);
+            const K = JSON.parse(keep); if (K) I.vfz = K; else delete I.vfz; X.insSave(); X.refreshAll(); await w(200);
+            r.push(getComputedStyle(document.querySelector('.bdg-d-page table thead th')).zIndex);
+            return r; }""".replace("INS_X", ins))
+        check("v774 : RÉVISIONS ; barre ANNULER, RÉTABLIR, PRÉCÉDENT, SUIVANT, ALERTES, FERMER, ⋯ ; ⋯ principal ordonné ; ⋯ de DÉSIGNATIONS CLIENT par groupes ; SOURCE des versions",
+              r774[0] == "RÉVISIONS" and r774[1] == "instUndo,instRedo,instPrev,instNext,instTodo,instClose,bdgMore" and r774[2] is True
+              and r774[3].startswith("SOUS-DÉTAIL DES PRIX|✕ DÉLIER LES LIGNES COCHÉES|-|Importer|Exporter|Aperçu PDF|-|Copier") and "COMPARATIF" not in r774[3]
+              and r774[4] is True and r774[5] == "BUDGET INITIAL" and r774[6] == "6", r774)
         # v750 : liste des budgets — colonnes (marge de pliage, RÉFÉRENCE, NATURE, PROJET, INTITULÉ, MONTANT TTC, SAISI LE ; VALIDÉ LE seulement
         # dans les validés), une icône de bascule, plus de cases ni d'impression (corbeille seule), CONSOLIDÉ en ligne de titre, menu de filtre commun,
         # toute la largeur ; suppression depuis la fiche → budget précédent ; IMPRIMER et CUMUL dans le menu ⋯
@@ -2768,8 +2789,8 @@ def main():
               f750[0] == "cf-sort,cf-sort,cf-search,cf-cond,cf-list,cf-foot" and f750[1] == "F-1,F-1-AV1" and f750[2] == ",eq,ne,gt,ge,lt,le,bt" and f750[3] >= 4 and f750[4] and f750[5] == [True, True], f750)
         d750 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms));
             document.querySelector('#budgetListTable tr[data-budget-ref="X-2"] td:nth-child(5)').click(); await w(900);
-            document.getElementById('bdgMore')?.click(); await w(200); const mn = ['prt', 'cum'].map(a => !!document.querySelector(`#blkMenu [data-a="${a}"]`));
-            document.querySelector('#blkMenu [data-a="cum"]')?.click(); await w(300); const d = document.getElementById('svConf');
+            document.getElementById('bdgMore')?.click(); await w(200); const mn = ['prt', 'cmp'].map(a => !!document.querySelector(`#blkMenu [data-a="${a}"]`));
+            document.querySelector('#blkMenu [data-a="cmp"]')?.click(); await w(300); const d = document.getElementById('svConf');
             const pre = d ? [...d.querySelectorAll('input[data-cv]:checked')].map(i => i.dataset.cv).join(',') : 'pas de fenêtre', go0 = d ? d.querySelector('[data-cumgo]').disabled : null;
             const o1 = d && d.querySelector('[data-cv="o:X-1"]'); if (o1) { o1.checked = true; o1.dispatchEvent(new Event('change', { bubbles: true })); } const go1 = d ? d.querySelector('[data-cumgo]').disabled : null; d && d.querySelector('[data-x]').click();
             document.getElementById('instDel')?.click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(1200);

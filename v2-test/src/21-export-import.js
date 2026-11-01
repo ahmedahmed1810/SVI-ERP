@@ -2071,7 +2071,6 @@
         { a: "dup", lab: "DUPLIQUER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>' },
         /* v750 (point 4) : IMPRIMER et CUMUL (avec le choix des budgets) passent de la liste au menu ⋯ du budget */
         { a: "prt", lab: "IMPRIMER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3.5h10V8M7 17H4.5V9.5a1.5 1.5 0 0 1 1.5-1.5h12a1.5 1.5 0 0 1 1.5 1.5V17H17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M7 13.5h10V21H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' },
-        { a: "cum", lab: "CUMUL", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16M6 14h12M8 10h8M10 6h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' },
         /* v755 : ÉTATS — EXPIRER une étape validée (hors consolidé, rétablissable) ; BLOQUER / ARCHIVER le budget (toute la famille) */
         ...(() => { const bi = budget.inst; if (!bi || bi.rclOf || bi.ref === "CUMUL" || (bi.virtual && bi.vname)) return [];
           const root = bi.virtual ? sviInstGet().find(x => x.ref === bi.parent) : sviAvRoot(bi), out = [];
@@ -2084,7 +2083,7 @@
         ...(INS && budget.inst ? [["lnk", "TABLEAU DE BORD", SVI_ICON.xpl], ["apr", "APPRO. PRÉVISIONNEL", SVI_ICON.chg], ["ind1", "INDICATEURS", SVI_ICON.xpl], ["unl", "LIGNES NON LIÉES", SVI_ICON.hier], ["inc", "IMPORT NON CRÉÉ", SVI_ICON.hier]]
           .filter(([k]) => document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`) && (k !== "inc" || (INS.inc || []).length)).map(([k, lab, ic]) => ({ a: "dt-" + k, lab, ic: ic || "" })) : []),
         /* v729 (bloc 10) : COMPARATIF — deux états quelconques du budget, lecture seule */
-        ...(INS ? [{ a: "cmp", lab: "COMPARER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h7M4 12h7M4 18h7M13 6h7M13 12h7M13 18h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 3v18" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 2"/></svg>' }] : []),
+        ...(INS ? [{ a: "cmp", lab: "COMPARER / CUMULER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h7M4 12h7M4 18h7M13 6h7M13 12h7M13 18h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 3v18" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 2"/></svg>' }] : []),
         { a: "lay", lab: "DISPOSITION PAR DÉFAUT", off: !rb || rb.disabled, ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
         ...(INS ? [{ a: "paq", lab: "PLAN D'ASSURANCE QUALITÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
         /* v681 : premier avenant — une seule fois (aucun avenant encore), marché initial validé */
@@ -2112,10 +2111,23 @@
          version : RESTAURER, EN FAIRE UN SCÉNARIO, exports, indicateurs ; recalage : NOUVEAU RECALAGE, exports, indicateurs */
       { const bi = budget.inst, keep = bi && bi.scv ? ["prt", "lay", "rat", "ind", "exp", "cmp"] : bi && bi.virtual ? (bi.vname ? ["prt", "cum", "vrest", "vscn", "lay", "rat", "ind", "exp", "cmp"] : ["prt", "cum", "blk", "arch", "lay", "rat", "ind", "multi", "exp", "av", "cph", "cmp"]) : bi && bi.rclOf ? ["prt", "cum", "rcl", "lay", "rat", "ind", "exp", "plans", "cmp"] : null;
         if (keep) for (let i = items.length - 1; i >= 0; i--) if (!keep.includes(items[i].a)) items.splice(i, 1); }
+      /* v774 (points 2, 9, 10) : ⋯ principal — FIGER / VALIDER en tête ; COMPARER / CUMULER, TABLEAU DE BORD, APPRO. PRÉVISIONNEL, INDICATEURS,
+         COÛT D'UNE JOURNÉE DE MAIN-D'ŒUVRE (provisoire) ; les autres actions ; DISPOSITION PAR DÉFAUT ; SUPPRIMER (avec confirmation) et FERMER */
+      { const hb = id => { const b = $(id); return b ? { a: "hb-" + id, lab: String(b.getAttribute("aria-label") || "").toUpperCase(), ic: (b.querySelector("svg")?.outerHTML || "").replace(/width="20" height="20"/, 'width="15" height="15"'), off: b.classList.contains("hdr-off"), why: b.dataset.why || "" } : null; };
+        const pick = ks => ks.map(k => items.find(x => x.a === k)).filter(Boolean);
+        const A = [hb("instLock"), hb("instValid")].filter(Boolean);
+        const B = pick(["cmp", "dt-lnk", "dt-apr", "dt-ind1"]);
+        if (INS && shell.__moWin && budget.inst && !budget.inst.virtual) B.push({ a: "mow", lab: "COÛT D'UNE JOURNÉE DE MAIN-D'ŒUVRE", ic: "" });
+        const lay = items.find(x => x.a === "lay") || { a: "lay", lab: "DISPOSITION PAR DÉFAUT", ic: "" }; lay.off = false;
+        const C = items.filter(x => !A.includes(x) && !B.includes(x) && x !== lay);
+        if ($("avCompBtn")) C.push({ a: "hb-avCompBtn", lab: "COMPOSITION DU CONSOLIDÉ", ic: "" });
+        const D = [hb("instDel"), hb("instClose")].filter(Boolean);
+        items.length = 0;
+        [A, B, C, [lay], D].filter(g => g.length).forEach((g, i) => { if (i) items.push({ sep: 1 }); items.push(...g); }); }
       const m = document.createElement("div");
       m.id = "blkMenu";
       m.dataset.for = "bdgMore";
-      m.innerHTML = items.map(x => `<button type="button" data-a="${x.a}" class="${x.off ? "blk-del off" : ""}" ${x.off ? "disabled" : ""}>${x.ic}<span>${x.lab}</span></button>`).join("");
+      m.innerHTML = items.map(x => x.sep ? '<div class="blk-sep"></div>' : `<button type="button" data-a="${x.a}" class="${x.off ? "blk-del off" : ""}${x.a === "hb-instDel" && !x.off ? " blk-del" : ""}" ${x.off ? "disabled" : ""}>${x.ic}<span>${x.lab}${x.off && x.why ? `<small class="del-split">${esc(x.why)}</small>` : ""}</span></button>`).join("");
       document.body.appendChild(m);
       const r = btn.getBoundingClientRect();
       sviPlaceMenu(m, r);
@@ -2129,7 +2141,9 @@
         else if (it.dataset.a === "cum") { if (shell.__cumPick) shell.__cumPick(); else cumPick(); }   /* v771 : fenêtre de SÉLECTION unique */
         else if (it.dataset.a === "xp" || it.dataset.a === "blk" || it.dataset.a === "arch") etatSet(it.dataset.a);
         else if (it.dataset.a === "lay") $("layResetBtn")?.click();
-        else if (it.dataset.a === "cmp") { if (shell.__cmpPick) shell.__cmpPick(); }
+        else if (it.dataset.a === "cmp") { if (shell.__cumPick) shell.__cumPick(); else if (shell.__cmpPick) shell.__cmpPick(); }   /* v774 : COMPARER / CUMULER = fenêtre de SÉLECTION */
+        else if (/^hb-/.test(it.dataset.a)) $(it.dataset.a.slice(3))?.click();   /* v774 : FIGER / VALIDER, SUPPRIMER, FERMER, COMPOSITION (boutons de la barre, cachés) */
+        else if (it.dataset.a === "mow") { if (shell.__moWin) shell.__moWin(); }
         else if (it.dataset.a === "paq") qqPaqOpen();
         else if (it.dataset.a === "ctr") ctrWin();
         else if (it.dataset.a === "av") { if (it.classList.contains("off") || it.disabled) { svToast("LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ.", 3500); return; } if (window.__sviAvNew) window.__sviAvNew(budget.inst.parent || budget.inst.ref, null); }   /* v684 : fenêtre INF puis l'avenant */

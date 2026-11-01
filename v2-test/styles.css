@@ -3354,12 +3354,27 @@ table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 .blk-tabrow::-webkit-scrollbar { display: none; }
 .blk-etp > .blk-head, .blk-suivi > .blk-head { display: flex; align-items: center; justify-content: space-between; }
 .blk-etp > .blk-head .blk-tools, .blk-suivi > .blk-head .blk-tools { margin-left: auto; }
-/* MODE RÉDUIT : la ligne de saisie reste visible (collée en bas, au-dessus du total), hauteur fixe */
-.bdg-d-page .bdg-d-table tbody tr.ins-new > td { position: sticky; bottom: 0; z-index: 3; }
-.bdg-d-page .bdg-d-table:has(tfoot td) tbody tr.ins-new > td { bottom: var(--tf-h, 25px); }
-.bdg-d-page .rec-table tbody tr.scn-new > td, .bdg-d-page .rec-table tbody tr.rec-new > td, .bdg-d-page .rec-table tbody tr[data-scnadd] > td { position: sticky; bottom: 0; z-index: 3; }
-.bdg-d-page tr.ins-new > td, .bdg-d-page .rec-table tr.scn-new > td, .bdg-d-page .rec-table tr.rec-new > td { height: 25px; min-height: 25px; }
+/* v774 : plus de ligne de saisie collée par-dessus le tableau (elle recouvrait une ligne de données) — voir layMinOf (19) */
 /* v773 : ÉVOLUTIONS — avenant EXPIRÉ barré (hors consolidé) ; version / recalage ARCHIVÉ grisé ; cases à cocher */
 .blk-etp .av-row.st-expire td { text-decoration: line-through; }
 .blk-etp tr.etp-arch td { color: #9aa3b2 !important; font-style: italic; }
 .blk-etp .etp-cbc, .blk-etp .etp-cbh { width: 36px; text-align: center; }
+
+/* v774 (point 10) : barre du haut réduite — ANNULER, RÉTABLIR, PRÉCÉDENT, SUIVANT, ALERTES, FERMER, ⋯ ;
+   FIGER / VALIDER, SUPPRIMER et la composition du consolidé passent dans le ⋯ (boutons gardés cachés : mêmes actions) */
+.bdg-d-hright #instLock, .bdg-d-hright #instValid, .bdg-d-hright #instDel, .bdg-d-hright #avCompBtn, .bdg-d-hright #layResetBtn { display: none !important; }
+.bdg-d-hright { display: flex; align-items: center; flex-wrap: nowrap; }
+.bdg-d-hright #instClose { order: 8; }
+.bdg-d-hright #bdgMore { order: 9; }
+/* v774 (point 5) : une seule roue dentée dans DÉTAIL DÉLAIS */
+.blk-tools .blk-hcfg-btn { display: none !important; }
+/* v774 (point 11) : EN-TÊTES DE BLOCS — même gris, un peu plus soutenu que les onglets et les tableaux, partout */
+:root { --blk-head-bg: #e4e8ee; }
+.bdg-d-page .bdg-d-block-title.blk-head, #bdgDetailHead, #ach .nvp .bdg-d-block-title { background: var(--blk-head-bg) !important; }
+/* v774 (point 12) : MODE RÉDUIT — les titres des colonnes (collés en haut) passent au-dessus des petites icônes des lignes (› de dépliage, loupes, pastilles) :
+   une ligne qui défile sous les titres ne s'y superpose plus */
+.bdg-d-page table thead th, .bdg-d-page table thead td, .nvp table thead th { z-index: 6; }
+/* v774 (point 7) : cadre de sélection fin, partout le même */
+#sviSelFrame { border-width: 1.5px !important; border-radius: 3px !important; }
+/* v774 (point 7) : plus de second cadre intérieur (case DÉBUT / FIN du planning…) : seul le petit cadre commun reste */
+:is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) td.svi-tdf > :is(input, textarea, .ins-dv) { box-shadow: none !important; }

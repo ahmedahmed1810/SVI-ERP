@@ -144,13 +144,19 @@
     /* v682 : photo de l'étape (VERSION n) prise à FIGER et à VALIDER */
     /* v690 : versions automatiques (Ⓐ) à FIGER et VALIDER — pas de nouvelle photo si rien n'a changé depuis la dernière ;
        version MANUELLE par PRENDRE UNE VERSION (menu ⋯ du haut) ; aucune limite, jamais effacées */
+    /* v774 (point 6) : SOURCE d'une version — budget initial, avenant n, scénario (actif s'il n'est pas le premier), recalage */
+    const verSrc = () => { const bi = budget.inst; if (!bi) return "";
+      if (bi.rclOf) return "RECALAGE";
+      const V = INS && INS.ver, sc = V && V.L && V.L.length > 1 && V.act && V.L[0].id !== V.act ? V.L.find(x => x.id === V.act) : null;
+      const base = bi.parent ? (() => { const S = sviAvStages(bi.parent), i = S.findIndex(x => x.ref === bi.ref); return "AVENANT" + (i > 0 ? " " + i : ""); })() : "BUDGET INITIAL";
+      return sc ? "SCÉNARIO — " + (sc.nom || "") : base; };
     shell.__verFreeze = (kind, auto = true) => {
       if (!INS || !budget.inst || budget.inst.virtual) return 0;
       INS.vfz = INS.vfz || [];
       const snap = verSnap(), last = INS.vfz[INS.vfz.length - 1];
       if (auto && last && JSON.stringify(last.d) === JSON.stringify(snap)) return 0;
       const n = INS.vfz.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1;
-      INS.vfz.push({ id: insId(), n, kind, auto: !!auto, u: typeof sviUser === "function" ? sviUser() : "", date: localDT(new Date()), d: snap });
+      INS.vfz.push({ id: insId(), n, kind, src: verSrc(), auto: !!auto, u: typeof sviUser === "function" ? sviUser() : "", date: localDT(new Date()), d: snap });
       insSave(); histLog("VERSIONS", "VERSION " + n + (auto ? " (AUTOMATIQUE)" : ""), kind);
       try { verRender(); } catch (e) {}
       return n;
@@ -172,7 +178,7 @@
       if (n) { svToast("VERSION " + n + " PRISE.", 2500); setTimeout(() => { const b = shell.querySelector(".blk-ver"); if (b && !b.hidden) b.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, 60); }
     };
     /* bloc VERSIONS (sous SCÉNARIOS) : une ligne par version ; toucher = la photo ouverte en lecture seule */
-    const VER_COLS = [["vno", "VERSION", x => "VERSION " + x.n, ""], ["vkind", "NATURE", x => x.kind || "", ""], ["vdate", "PRISE LE", x => svDT(x.date || ""), ""], ["vuser", "PAR", x => x.u || "", ""]];
+    const VER_COLS = [["vno", "VERSION", x => "VERSION " + x.n, ""], ["vkind", "NATURE", x => x.kind || "", ""], ["vsrc", "SOURCE", x => x.src || verSrc(), ""], ["vdate", "PRISE LE", x => svDT(x.date || ""), ""], ["vuser", "PAR", x => x.u || "", ""]];
     let verShown = [];
     shell.__verData = () => { const oc = coOrder("vver", VER_COLS); return { head: oc.map(c => c[1]), rows: verShown.map(x => oc.map(c => c[2](x) + (c[0] === "vno" && x.auto ? " (A)" : ""))) }; };
     const verRender = () => {

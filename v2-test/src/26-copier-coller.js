@@ -338,7 +338,9 @@
       if (act === "view") { if (shell.__scnView) shell.__scnView(); return; }   /* v686 : bloc SCÉNARIOS, LISTE ⇄ COMPARAISON */
       /* v546 (R33) : ↻ AJUSTER À LA CAPACITÉ (DÉTAIL DÉLAIS) */
       /* v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE, en haut à côté de ↻, AGRANDIR et ⋯ */
-      if (act === "cfg") { const DX = shell.__insDly; if (DX) DX.hcfgWin(); return; }   /* v707 : ⚙ = RÉGLAGES DU GRAPHIQUE */
+      /* v774 (point 5) : une seule roue ⚙ — tableau de données visible = PARAMÉTRAGE DU PLANNING ; sinon graphique seul = RÉGLAGES DU GRAPHIQUE ; sinon RÉGLAGES DU GANTT */
+      if (act === "cfg") { const DX = shell.__insDly; if (!DX) return; const g = shell.querySelector(".dlyg");
+        if (g && !g.classList.contains("tbl-hid")) DX.ppWin(); else if (g && g.classList.contains("dly-hfull")) DX.hcfgWin(); else DX.gcfgWin(); return; }   /* v707 : ⚙ = RÉGLAGES DU GRAPHIQUE */
       if (act === "hcfg") { const DX = shell.__insDly; if (DX) DX.gcfgWin(); return; }   /* v707 : icône Gantt = RÉGLAGES DU GANTT */   /* v704 : RÉGLAGES DU GRAPHIQUE */   /* v701 : RÉGLAGES DU GANTT */
       if (act === "adj") { const b = shell.querySelector(".blk-adj-btn"), DX = shell.__insDly; if (b && b.classList.contains("off")) { svToast(b.dataset.why || "RIEN À AJUSTER.", 3500, b); return; } if (DX) DX.gcWin(); return; }
       if (act === "del" && ["av", "scn", "ver", "rcl"].includes(blk) && shell.__etpDel) return shell.__etpDel(blk);   /* v773 : ÉVOLUTIONS — action groupée sur les cochés */
@@ -425,7 +427,7 @@
            affichage du Gantt = CALENDRIER DU BUDGET, réglages de l'histogramme = ⚙ */
         const vw = DX.view();
         const ck = (v, lab, on, off) => `<button type="button" data-dly="${v}" class="dly-sc${on ? " on" : ""}${off ? " off" : ""}"${off ? ` data-why="${esc(off)}"` : ""}><span>${on ? "✓ " : ""}${lab}</span></button>`;
-        m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">PLANNING</div>${ck("crit", "CHEMIN CRITIQUE", DX.critOn())}<button type="button" data-dly="lock"><span>VERROUS DÉBUT / FIN DES TÂCHES COCHÉES…</span>${svCnt((shell.__dlySel || new Set()).size)}</button><button type="button" data-dly="pp"><span>PARAMÉTRAGE DU PLANNING…</span></button>`   /* v561 : plus d'AFFICHER PAR LOT ni de CLASSER PAR DÉBUT ; AFFICHER PAR DÉBUT à deux états */
+        m.insertAdjacentHTML("afterbegin", `${ck("crit", "CHEMIN CRITIQUE", DX.critOn())}<button type="button" data-dly="lock"><span>VERROUS DÉBUT / FIN DES TÂCHES COCHÉES…</span>${svCnt((shell.__dlySel || new Set()).size)}</button><button type="button" data-dly="gc"><span>GÉNÉRER / COMPRESSER…</span></button>`   /* v561 : plus d'AFFICHER PAR LOT ni de CLASSER PAR DÉBUT ; AFFICHER PAR DÉBUT à deux états */
           /* v553 (partie 11, remarque 3) : plus d'entrée « + AJOUTER UNE TÂCHE OU SES DÉLAIS » */
           + `<div class="blk-sep"></div>`   /* v572 (remarque 17) : réglages des commandes dans RÉGLAGES DU GRAPHIQUE ⚙ */);
         let lp = null;
@@ -442,7 +444,7 @@
           else if (v === "v-d") DX.viewSet(DX.view() === "d" ? "l" : "d");
           else if (v === "cut") DX.cutSet(!DX.cutOK());   /* v617 (remarque 85) */
           else if (v === "crit") DX.critSet(!DX.critOn());   /* v666 (axe 8) */
-          else if (v === "pp") DX.ppWin();
+          else if (v === "pp") DX.ppWin(); else if (v === "gc") DX.gcWin();   /* v774 */
           else if (v === "lock") dlyLockWin();   /* v667 (axe 8) */
         }, true);
       }
@@ -464,14 +466,10 @@
       }
       /* v665 (axes 5 et 11) : DÉSIGNATIONS CLIENT — COMPARATIF DES PRIX, APERÇU SOUS-DÉTAIL DES PRIX */
       if (INS && shell.__cmpWin && acts.some(a => a.dataset.blk === "client")) {
-        m.insertAdjacentHTML("afterbegin", `<button type="button" data-cmpx="cmp"><span>COMPARATIF DES PRIX…</span></button><button type="button" data-cmpx="sdp"><span>APERÇU SOUS-DÉTAIL DES PRIX</span></button>${LK && LK.des ? `<button type="button" data-cmpx="ctr"><span>ARTICLES DU CONTRAT DE LA DÉSIGNATION CHOISIE</span></button>` : ""}<div class="blk-sep"></div>`);
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-cmpx="sdp"><span>SOUS-DÉTAIL DES PRIX</span></button>${LK && LK.des ? `<button type="button" data-cmpx="ctr"><span>ARTICLES DU CONTRAT DE LA DÉSIGNATION CHOISIE</span></button>` : ""}<div class="blk-sep"></div>`);
         m.addEventListener("click", e => { const b = e.target.closest("[data-cmpx]"); if (!b) return; e.stopPropagation(); m.remove(); if (b.dataset.cmpx === "cmp") shell.__cmpWin(); else if (b.dataset.cmpx === "ctr") shell.__ctrWin(LK.des); else shell.__sdp(); }, true);
       }
-      /* v664 (axe 13) : DÉTAIL CHARGES — COÛT D'UNE JOURNÉE DE MAIN D'ŒUVRE */
-      if (active === "chg" && INS && INS_EDIT && shell.__moWin && acts.some(a => a.dataset.blk === "detail")) {
-        m.insertAdjacentHTML("afterbegin", `<button type="button" data-mow="1"><span>COÛT D'UNE JOURNÉE DE MAIN D'ŒUVRE…</span></button><div class="blk-sep"></div>`);
-        m.addEventListener("click", e => { const b = e.target.closest("[data-mow]"); if (!b) return; e.stopPropagation(); m.remove(); shell.__moWin(); }, true);
-      }
+      /* v774 (point 2) : COÛT D'UNE JOURNÉE DE MAIN-D'ŒUVRE passe dans le ⋯ principal */
       /* v500 (remarque 46) : MARGE — TOUT DÉPLIER / TOUT REPLIER */
       if (active === "lnk" && shell.__mg && acts.some(a => a.dataset.blk === "detail")) {
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-mgf="pv"><span>PRIX DE VENTE PAR LA MARGE…</span></button><div class="blk-sep"></div><button type="button" data-mgf="open"><span>TOUT DÉPLIER</span></button><button type="button" data-mgf="close"><span>TOUT REPLIER</span></button><div class="blk-sep"></div>`);
@@ -500,6 +498,24 @@
             if (v === "copy") X.copy(); else if (v === "clear") X.clear(); else X.paste();
           }, true);
         } }
+      /* v774 (point 3) : ordre unique du ⋯ de chaque bloc, un trait entre les groupes — actions propres au bloc ;
+         IMPORTER, EXPORTER, APERÇU ; COPIER, COUPER, COLLER ; SUPPRIMER LES LIGNES COCHÉES, EFFACER TOUS LES FILTRES */
+      { const top = [], G = [[], [], [], []];
+        [...m.children].forEach(el => {
+          if (el.classList.contains("blk-sep")) return;
+          if (el.dataset.cs || (el.classList.contains("blk-hint") && / CASE\(S\) /.test(el.textContent))) { top.push(el); return; }
+          const a = el.dataset.i != null ? (acts[+el.dataset.i] || {}).dataset?.act : null;
+          if (el.dataset.fclr || a === "del") G[3].push(el);
+          else if (["import", "export", "pdf"].includes(a)) G[1].push(el);
+          else if (["copy", "cut", "paste"].includes(a)) G[2].push(el);
+          else if (el.classList.contains("blk-hint") && m.__hint && el.textContent === m.__hint) G[2].unshift(el);
+          else G[0].push(el);
+        });
+        const ord = el => { const a = el.dataset.i != null ? (acts[+el.dataset.i] || {}).dataset?.act : ""; const k = ["import", "export", "pdf", "copy", "cut", "paste"].indexOf(a); return k < 0 ? -1 : k; };
+        G[1].sort((x, y) => ord(x) - ord(y)); G[2].sort((x, y) => ord(x) - ord(y));
+        m.innerHTML = "";
+        [top, ...G].filter(g => g.length).forEach((g, i) => { if (i) m.insertAdjacentHTML("beforeend", '<div class="blk-sep"></div>'); g.forEach(el => m.appendChild(el)); });
+      }
       document.body.appendChild(m);
       const r = btn.getBoundingClientRect();
       sviPlaceMenu(m, r);
@@ -565,12 +581,10 @@
       const bm = event.target.closest("#bdgMore");
       if (bm) { event.stopPropagation(); openBdgMore(bm); return; }
       if (event.target.closest("#layResetBtn")) {
-        if ($("layResetBtn").disabled) return;
-        svConfirm({ title: "DISPOSITION PAR DÉFAUT", text: "TOUS LES BLOCS REVIENNENT À LEUR PLACE ET À LEUR TAILLE D'ORIGINE.", ok: "RÉTABLIR", tone: "neutral" }).then(go => {
+        svConfirm({ title: "DISPOSITION PAR DÉFAUT", text: "TOUS LES BLOCS REVIENNENT À LEUR PLACE D'ORIGINE, CHACUN À 5 LIGNES VISIBLES.", ok: "RÉTABLIR", tone: "neutral" }).then(go => {
           if (!go) return;
-          laySave({});
-          histLog("DISPOSITION", "PAR DÉFAUT", "BLOCS REMIS À L'ORIGINE");
-          layApply();
+          histLog("DISPOSITION", "PAR DÉFAUT", "BLOCS REMIS À L'ORIGINE (5 LIGNES)");
+          if (shell.__layFive) shell.__layFive(); else { laySave({}); layApply(); }
         });
         return;
       }

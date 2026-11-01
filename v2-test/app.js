@@ -5100,6 +5100,12 @@ const sviFrame = () => {
     const ix = c.cellIndex, ref = [...c.closest("tbody").rows].map(tr => tr.cells[ix]).find(td => td && td !== c && td.querySelector("input.dly-nm"));
     if (ref) { const off = ref.querySelector("input.dly-nm").getBoundingClientRect().left - ref.getBoundingClientRect().left; v.left = Math.max(v.left, v.full.left + off - 2); }
   }
+  /* v774 (point 7) : UN SEUL CADRE, FIN, DE TAILLE FIXE — le petit cadre autour du texte (3 px en retrait des bords, 22 px de haut au plus, centré),
+     jamais toute la case ni la ligne ; le point rouge suit son coin bas droit */
+  { const cy = (v.full.top + v.full.bottom) / 2, hh = Math.min(22, v.full.height - 4) / 2;
+    v.left = Math.max(v.left, v.full.left + 3); v.right = Math.min(v.right, v.full.right - 3);
+    v.top = Math.max(v.top, cy - hh); v.bottom = Math.min(v.bottom, cy + hh);
+    if (v.bottom - v.top < 4 || v.right - v.left < 4) { SVI_FR.style.display = "none"; return; } }
   let col = (getComputedStyle(c).getPropertyValue("--inst") || "").trim() || "#111827";
   { const pgS = c.closest('[class*="bdg-inst-"]'); if (pgS && !pgS.matches(".bdg-inst-instance, .bdg-inst-fige")) col = "#98a2b3"; }   /* figé : vert gardé (31/10/2026) */   /* v736 : lecture seule = cadre gris */
   /* au-dessus d'une fenêtre (SAISIE DIRECTE en fenêtre, fenêtres d'import…) quand la cellule y est */
