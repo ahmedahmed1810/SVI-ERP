@@ -2639,6 +2639,17 @@ def main():
         check("v750 : menu ⋯ — IMPRIMER et CUMUL (budget ouvert coché, CUMULER grisé sous deux) ; suppression depuis la fiche → le budget précédent de la liste s'ouvre",
               d750 == [[True, True], "X-2", True, False, "X-1", True, False], d750)
         pg.evaluate("() => { document.getElementById('budgetBackBtn')?.click(); sviInstSet(JSON.parse(window.__kp750)); localStorage.setItem('svi_listmode_v1', 'inst'); localStorage.removeItem('svi_bdgfold_v1'); renderBudgetList(); }"); pg.wait_for_timeout(400)
+        # v751 : menu ☰ — ACHAT se déplie (CONSULTATIONS … ACC, dans l'ordre), BESOIN à part dessous ; ARTICLES ouvre l'écran des achats
+        m751 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), M = document.getElementById('navMenu');
+            const lab = e => e.textContent.trim().replace(/\\s+/g, ' '); const top = [...M.children].filter(e => !e.classList.contains('nav-sub') && !e.classList.contains('nav-sep')).map(e => lab(e).replace('›', '').trim());
+            const sub = [...M.querySelectorAll('.nav-sub[data-grp="ach"] > *')].map(lab);
+            M.classList.remove('hidden'); M.querySelector('.nav-grp').click(); await w(100); const open = !M.querySelector('.nav-sub').hidden, still = !M.classList.contains('hidden');
+            M.querySelector('.nav-sub .nav-off').click(); await w(100); const stay = !M.classList.contains('hidden');
+            M.querySelector('.nav-sub .nav-btn[data-ach="art"]').click(); await w(400);
+            const r = [top.join(','), sub.join(','), open, still, stay, document.getElementById('ach').classList.contains('active-view'), document.querySelector('#ach .section-head h1').textContent];
+            M.querySelector('.nav-grp').click(); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); M.classList.add('hidden'); await w(600); return r; }""")
+        check("v751 : menu ☰ — ACHAT dépliable (CONSULTATIONS, DEVIS, COMMANDES, RÉCEPTIONS, FACTURES, PAIEMENTS, FOURNISSEURS, ARTICLES, ACC), BESOIN dessous ; entrées à venir grisées ; ARTICLES ouvre les achats",
+              m751 == ["PARAMÉTRAGE,BDG,ACHAT,BESOIN,DONNÉES SOURCE", "CONSULTATIONS,DEVIS,COMMANDES,RÉCEPTIONS,FACTURES,PAIEMENTS,FOURNISSEURS,ARTICLES,ACC", True, True, True, True, "ACHATS — ARTICLES"], m751)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

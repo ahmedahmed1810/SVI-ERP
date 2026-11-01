@@ -27,7 +27,7 @@
 
   <link
     rel="stylesheet"
-    href="styles.css?v=750"
+    href="styles.css?v=751"
   >
 </head>
 
@@ -441,7 +441,20 @@
 <div id="navMenu" class="popup hidden">
   <button class="nav-btn active" data-view="chs">PARAMÉTRAGE</button>
   <button class="nav-btn" data-view="bdg">BDG</button>
-  <button class="nav-btn" data-view="ach">ACHATS</button>
+  <!-- v750 : accès aux achats comme dans NovApp — ACHAT se déplie ; BESOIN à part, juste dessous -->
+  <button type="button" class="nav-grp" data-grp="ach" aria-expanded="false"><span>ACHAT</span><i>›</i></button>
+  <div class="nav-sub" data-grp="ach" hidden>
+    <button type="button" class="nav-off" data-why="CONSULTATIONS : À VENIR (ÉTAPE 3 DES ACHATS).">CONSULTATIONS</button>
+    <button type="button" class="nav-off" data-why="DEVIS : À VENIR (ÉTAPE 3 DES ACHATS).">DEVIS</button>
+    <button type="button" class="nav-off" data-why="COMMANDES : À VENIR (ÉTAPE 4 DES ACHATS).">COMMANDES</button>
+    <button type="button" class="nav-off" data-why="RÉCEPTIONS : À VENIR (ÉTAPE 4 DES ACHATS).">RÉCEPTIONS</button>
+    <button type="button" class="nav-off" data-why="FACTURES : À VENIR (ÉTAPE 5 DES ACHATS).">FACTURES</button>
+    <button type="button" class="nav-off" data-why="PAIEMENTS : À VENIR (ÉTAPE 5 DES ACHATS).">PAIEMENTS</button>
+    <button type="button" class="nav-off" data-why="FOURNISSEURS : À LA PROCHAINE LIVRAISON (ÉTAPE 1, SUITE).">FOURNISSEURS</button>
+    <button class="nav-btn" data-view="ach" data-ach="art">ARTICLES</button>
+    <button type="button" class="nav-off" data-why="ACC : À VENIR.">ACC</button>
+  </div>
+  <button type="button" class="nav-off" data-why="BESOIN : À VENIR (ÉTAPE 2 DES ACHATS).">BESOIN</button>
   <div class="nav-sep"></div>
   <button type="button" class="nav-src" id="navSrcBtn">DONNÉES SOURCE</button>
 </div>
@@ -514,7 +527,7 @@
        JAVASCRIPT
        ===================================================== -->
 
-  <script src="app.js?v=750"></script>
+  <script src="app.js?v=751"></script>
 
 </body>
 

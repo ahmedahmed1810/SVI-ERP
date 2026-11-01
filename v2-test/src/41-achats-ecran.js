@@ -112,6 +112,8 @@ function sviAchInit() {
     body.querySelectorAll("input.ach-cb, input.ach-all").forEach(c => { if (c.classList.contains("ach-all")) { const n = body.querySelectorAll("input.ach-cb:checked").length, t = body.querySelectorAll("input.ach-cb").length; c.indeterminate = n > 0 && n < t; } });
   });
   view.__achDraw = draw;
+  /* v750 : entrée du menu ☰ (ACHAT › ARTICLES…) — ouvre l'onglet correspondant */
+  view.__achTab = t => { if (t !== "art" && t !== "prm") return; tab = t; showDel = false; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
   /* ---------- gestes ---------- */
   bar.addEventListener("click", e => {
     const b = e.target.closest(".prm-tab"); if (!b) return;
@@ -317,4 +319,4 @@ function svChooseArt(A) {
   });
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", sviAchInit); else sviAchInit();
-document.addEventListener("click", e => { if (e.target.closest && e.target.closest('.nav-btn[data-view="ach"]')) setTimeout(() => { const v = document.getElementById("ach"); if (v && v.__achDraw) v.__achDraw(); }, 0); });
+document.addEventListener("click", e => { const nb = e.target.closest && e.target.closest('.nav-btn[data-view="ach"]'); if (nb) setTimeout(() => { const v = document.getElementById("ach"); if (!v) return; if (nb.dataset.ach && v.__achTab) v.__achTab(nb.dataset.ach); else if (v.__achDraw) v.__achDraw(); }, 0); });

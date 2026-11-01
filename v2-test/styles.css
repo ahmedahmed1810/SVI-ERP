@@ -3173,3 +3173,13 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .cum-card .cum-wrap { max-height: 58vh; overflow: auto; margin-top: 8px; }
 .cum-card .cum-t tbody tr { cursor: pointer; }
 .cum-card .cum-t td.center { text-align: center; width: 34px; }
+
+/* ===== v750 : menu ☰ — ACHAT dépliable (comme NovApp), BESOIN à part ; même style que les entrées actuelles ===== */
+#navMenu .nav-grp, #navMenu .nav-off { display: flex; align-items: center; justify-content: space-between; width: 100%; color:#172033; border:0; background:#fff; border-radius:6px; padding:10px; text-align:left; font-size:12px; font-weight:800; cursor:pointer; white-space:nowrap; text-transform: uppercase; }
+#navMenu .nav-grp i { font-style: normal; font-size: 14px; color: #6b7480; transition: transform .15s; margin-left: 12px; }
+#navMenu .nav-grp[aria-expanded="true"] i { transform: rotate(90deg); }
+#navMenu .nav-grp:hover, #navMenu .nav-off:hover { background: #f3f6fa; }
+#navMenu .nav-sub { display: flex; flex-direction: column; padding-left: 14px; }
+#navMenu .nav-sub[hidden] { display: none; }
+#navMenu .nav-sub .nav-btn, #navMenu .nav-sub .nav-off { padding: 8px 10px; }
+#navMenu .nav-off { color: #9aa3b2; cursor: not-allowed; }
