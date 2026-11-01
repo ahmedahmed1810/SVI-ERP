@@ -3295,3 +3295,5 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .cmf-card .cmf-src { font-size: 10px; color: #6b7480; white-space: nowrap; }
 .cmf-card .frs-sub td input, .rcp-card .frs-sub td input, .rcp-card .frs-sub td select { min-width: 60px; }
 .ach-tabs { flex-wrap: wrap; }
+/* v763 : factures — quantité ou écart hors tolérance */
+.fa-over { color: var(--danger, #c62828) !important; font-weight: 700; }

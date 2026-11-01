@@ -15,7 +15,7 @@ function sviAchInit() {
   const aOk = (a, k) => k === "tout" ? true : k === "corbeille" ? !!a.del : !a.del && (k === "inactif" ? a.actif === false : a.actif !== false);
   const setEtat = k => { aEtat = k; showDel = k === "corbeille"; try { localStorage.setItem("svi_ach_etat_v1", k); } catch (e) {} };
   showDel = aEtat === "corbeille";
-  try { const t = localStorage.getItem("svi_ach_tab_v1"); if (["art", "prm", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr"].includes(t)) tab = t; } catch (e) {}
+  try { const t = localStorage.getItem("svi_ach_tab_v1"); if (["art", "prm", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr", "faf", "avf", "paf"].includes(t)) tab = t; } catch (e) {}
   const SEL = new Set();
   const kit = sviCfKit({ key: "ach", shell: view, refresh: () => draw() });
   const { cfApply, cfHead, cfOpenMenu, cfT } = kit;
@@ -81,10 +81,13 @@ function sviAchInit() {
   const CAFM = achCafMod({ view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 }), DVFM = achDvfMod({ view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 });
   /* ---------- COMMANDES, RÉCEPTIONS, RETOURS (v762, 45-achats-commandes.js) ---------- */
   const X = { view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 };
-  const MODS = { caf: CAFM, dvf: DVFM, cmf: achCmfMod(X), rcp: achRcpMod(X), rtc: achRtrMod(X, "cmd"), rtr: achRtrMod(X, "rcp") };
+  const MODS = { caf: CAFM, dvf: DVFM, cmf: achCmfMod(X), rcp: achRcpMod(X), rtc: achRtrMod(X, "cmd"), rtr: achRtrMod(X, "rcp"), faf: achFafMod(X), avf: achAvfMod(X), paf: achPafMod(X) };
   const TTL = { cmf: ["ACHATS — COMMANDES", "NATURE, LIVRAISON, AVANCE, REMISE, TRANSPORT ; VALIDER = ENGAGEMENT SUR LE BUDGET ; RÉCEPTIONNER, RETOUR DE COMMANDE, SOLDER, AVENANT"],
     rcp: ["ACHATS — RÉCEPTIONS", "BON DE LIVRAISON ET PHOTO, ACCEPTÉE / AVEC RÉSERVES / REFUSÉE PAR LIGNE, TOLÉRANCE DE QUANTITÉ ; LIVRAISON SANS COMMANDE À RÉGULARISER"],
-    rtc: ["ACHATS — RETOURS DE COMMANDE", "QUANTITÉS ANNULÉES CHEZ LE FOURNISSEUR (RETOUR DE COMMANDE, COMMANDE SOLDÉE)"], rtr: ["ACHATS — RETOURS DE RÉCEPTION", "QUANTITÉS REFUSÉES OU RENDUES AU FOURNISSEUR"] };
+    rtc: ["ACHATS — RETOURS DE COMMANDE", "QUANTITÉS ANNULÉES CHEZ LE FOURNISSEUR (RETOUR DE COMMANDE, COMMANDE SOLDÉE)"], rtr: ["ACHATS — RETOURS DE RÉCEPTION", "QUANTITÉS REFUSÉES OU RENDUES AU FOURNISSEUR"],
+    faf: ["ACHATS — FACTURES", "N° ET COPIE, DATE DE RÉCEPTION, RAPPROCHEMENT AVEC LA COMMANDE ET LE REÇU, ÉCART (RÉCLAMER / ACCEPTER), RETENUE À LA SOURCE, AVANCE IMPUTÉE, ÉCHÉANCE ; BON À PAYER, PAYER"],
+    avf: ["ACHATS — AVOIRS FOURNISSEUR", "N°, FACTURE D'ORIGINE, RETOUR LIÉ, MONTANT ; DÉDUIT DANS UN PAIEMENT"],
+    paf: ["ACHATS — PAIEMENTS", "RÈGLEMENT DE FACTURES (AVOIRS DÉDUITS) OU AVANCE SUR COMMANDE ; VIREMENT, CHÈQUE, LCN, ESPÈCES, PRÉLÈVEMENT ; ÉMIS → ENCAISSÉ OU REJETÉ"] };
   /* ---------- PARAMÈTRES ---------- */
   const prmHTML = () => {
     const P = achPrm();
@@ -96,6 +99,8 @@ function sviAchInit() {
         <span class="ach-tvaw"><input class="ins-in ach-pdirect number" inputmode="decimal" value="${esc(F2(P.direct))}" autocomplete="off"> DH</span></div>
       <div class="ach-pbox"><div class="ach-pt">TOLÉRANCE DE QUANTITÉ À LA RÉCEPTION (AU-DESSUS DU RESTE)</div>
         <span class="ach-tvaw"><input class="ins-in ach-ptol number" inputmode="decimal" value="${esc(F2(P.tol))}" autocomplete="off"> %</span></div>
+      ${[["ecart", "ÉCART TOLÉRÉ ENTRE LA FACTURE ET LE CALCUL (ARRONDIS), TTC", "DH"], ["rasT", "RETENUE À LA SOURCE SUR LA TVA, TAUX PAR DÉFAUT (% DE LA TVA)", "%"], ["esp", "PLAFOND DES PAIEMENTS EN ESPÈCES", "DH"], ["chqj", "CHÈQUE OU LCN NON ENCAISSÉ : ALERTE APRÈS", "JOURS"], ["avj", "AVANCE NON RÉCUPÉRÉE : ALERTE APRÈS", "JOURS"]].map(([k, lab, u]) => `<div class="ach-pbox"><div class="ach-pt">${lab}</div>
+        <span class="ach-tvaw"><input class="ins-in ach-pnum number" data-pk="${k}" inputmode="decimal" value="${esc(F2(P[k]))}" autocomplete="off"> ${u}</span></div>`).join("")}
       <div class="ach-pbox"><div class="ach-pt">TVA PAR DÉFAUT DES NOUVEAUX ARTICLES</div>
         <span class="ach-tvaw"><input class="ins-in ach-ptva number" inputmode="decimal" value="${esc(F2(P.tva))}" autocomplete="off"> %</span></div>
       <div class="ach-pbox"><div class="ach-pt">CATÉGORIES ${svCnt ? svCnt(catRows.length, P.cat.length) : ""}</div>
@@ -137,7 +142,7 @@ function sviAchInit() {
   });
   view.__achDraw = draw;
   /* v750 : entrée du menu ☰ (ACHAT › ARTICLES…) — ouvre l'onglet correspondant */
-  view.__achTab = t => { if (!["art", "prm", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr"].includes(t)) return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
+  view.__achTab = t => { if (!["art", "prm", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr", "faf", "avf", "paf"].includes(t)) return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
   /* ---------- gestes ---------- */
   bar.addEventListener("click", e => {
     const b = e.target.closest(".prm-tab"); if (!b) return;
@@ -197,6 +202,7 @@ function sviAchInit() {
     /* paramètres */
     if (t.classList.contains("ach-ptol")) { const P = achPrm(), v = achN(t.value); if (v < 0 || v > 100) { svToast("TOLÉRANCE NON VALIDE (0 À 100 %).", 3000, t); draw(); return; } P.tol = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-pdirect")) { const P = achPrm(), v = achN(t.value); if (v < 0) { svToast("SEUIL NON VALIDE.", 3000, t); draw(); return; } P.direct = v; achPrmSave(P); draw(); return; }
+    if (t.classList.contains("ach-pnum")) { const P = achPrm(), v = achN(t.value), k = t.dataset.pk; if (v < 0 || (k === "rasT" && v > 100)) { svToast("VALEUR NON VALIDE.", 3000, t); draw(); return; } P[k] = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-ptva")) { const P = achPrm(), v = achN(t.value); if (v < 0 || v > 100) { svToast("TVA NON VALIDE (0 À 100).", 3000, t); draw(); return; } P.tva = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-pnew") || t.classList.contains("ach-pin")) {
       const P = achPrm(), v = achU(t.value), old = t.closest("tr").dataset.cat;

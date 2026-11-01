@@ -121,6 +121,8 @@ function achCmfFiche(id, done) {
         ${C.state === "instance" && !R.some(r => r.cmf === C.id && r.state !== "annule") ? `<button type="button" class="svc-b" data-cancel>ANNULER LA COMMANDE</button>` : ""}
         ${C.state === "valide" && !edAv ? `<button type="button" class="svc-b" data-rtc>RETOUR DE COMMANDE</button><button type="button" class="svc-b" data-solde>SOLDER</button><button type="button" class="svc-b" data-av>AVENANT</button><button type="button" class="svc-b svc-ok svc-neutral" data-rcp>${PV ? "PV DE SERVICE FAIT" : "RÉCEPTIONNER"}</button>` : ""}
         ${C.state === "valide" && !edAv ? `<button type="button" class="svc-b svc-ok svc-neutral" data-save2>ENREGISTRER</button>` : ""}
+        ${(C.state === "valide" || C.state === "instance") && !edAv && C.avT && achCmfTot(C).av - achAvVerse(C.id) > 0.005 ? `<button type="button" class="svc-b" data-avpay>VERSER L'AVANCE</button>` : ""}
+        ${(C.state === "valide" || C.state === "solde") && !edAv ? `<button type="button" class="svc-b" data-fac>FACTURER</button>` : ""}
         ${!ro ? `<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER${edAv ? " L'AVENANT" : ""}</button>` : ""}${C.state === "instance" ? `<button type="button" class="svc-b svc-ok" data-valid>VALIDER</button>` : ""}` });
     if (!d.isConnected) sviWinShow(d);
   };
@@ -157,6 +159,8 @@ function achCmfFiche(id, done) {
     if (e.target.closest("[data-valid]")) { pull(); if (!check()) return;
       if (!(await svConfirm({ title: "VALIDER LA COMMANDE", text: C.ref + " : " + achF2(achCmfTot(C).ttc) + " TTC (" + frMoney(achCmfTot(C).ttc) + "). LE MONTANT EST ENGAGÉ SUR LE BUDGET DES BESOINS.", ok: "VALIDER", tone: "neutral" }))) return;
       C.state = "valide"; C.valide = achNow(); store("VALIDÉE"); draw(); return; }
+    if (e.target.closest("[data-fac]")) { achFafFiche(null, { cmf: C.id }, () => draw()); return; }
+    if (e.target.closest("[data-avpay]")) { pull(); store("MODIFICATION"); achPafFiche(null, { type: "avance", cmf: C.id }, () => draw()); return; }
     if (e.target.closest("[data-rcp]")) { pull(); store("MODIFICATION"); achRcpFiche(null, C.id, () => draw()); return; }
     if (e.target.closest("[data-rtc]") || e.target.closest("[data-solde]")) {
       const solde = !!e.target.closest("[data-solde]"), R = achRcp(), T = achRtr(), lines = C.lignes.map(l => ({ cl: l.id, des: l.des, u: l.u, max: achResteQ(C, l, R, T) })).filter(l => l.max > 1e-9);

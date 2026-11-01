@@ -2921,6 +2921,50 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("v762 : COMMANDES et RÉCEPTIONS — commande depuis la consultation, validation et engagement, montant en lettres, réception partielle, tolérance, refus remis au chauffeur, SOLDER",
               m762 == [1, 1, 100, "valide", 1000, 1200, True, 1, 4, True, 1, 2, 1, 4, "solde", 1, 0], m762)
+        # v763 : FACTURES, AVOIRS, PAIEMENTS — avance versée, facture depuis la commande (reçu non facturé), doublon, écart accepté, copie,
+        # bon à payer, avance imputée, avoir déduit, chèque émis puis rejeté (la facture redevient à payer), échéance par les conditions
+        f763 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_bsn_v1', 'svi_ach_frs_v1', 'svi_ach_cmf_v1', 'svi_ach_rcp_v1', 'svi_ach_rtr_v1', 'svi_ach_faf_v1', 'svi_ach_avf_v1', 'svi_ach_paf_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
+            const last = s => [...document.querySelectorAll(s)].pop(), conf = async () => { document.querySelector('#svConf [data-r="1"]')?.click(); await w(250); };
+            const F = []; const f1 = achFrsNew(F, { nom: 'ALPHA' }); f1.cond = '30 JOURS'; f1.ice = '001234567000089'; f1.ifisc = '1234567'; achFrsSave(F);
+            achCmfSave([{ id: 'm1', ref: 'CMF 26-1101/001', frs: f1.id, state: 'valide', avT: 'mt', avV: 200, rem: 0, frais: 0, lignes: [{ id: 'l1', des: 'CIMENT', u: 'T', q: 10, pu: 100, tva: 20 }] }]);
+            achRcpSave([{ id: 'r1', ref: 'RCP 1', cmf: 'm1', frs: f1.id, nbl: 'BL1', state: 'valide', lignes: [{ cl: 'l1', des: 'CIMENT', u: 'T', q: 6, st: 'ok' }] }]);
+            const r = [];
+            /* avance depuis la commande */
+            achCmfFiche('m1', () => 0); await w(200); last('.cmf-card').querySelector('[data-avpay]').click(); await w(250);
+            let pa = last('.paf-card'); r.push(achN(pa.querySelector('.pa-x[data-k="mt"]').value)); const md = pa.querySelector('.pa-x[data-k="mode"]'); md.value = 'ESPÈCES'; md.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
+            last('.paf-card').querySelector('[data-valid]').click(); await w(200); await conf();
+            r.push(achPaf().length, achPaf()[0].state, achAvVerse('m1'));
+            document.querySelectorAll('.paf-card, .cmf-card').forEach(x => x.closest('.svc-back, .svi-win, div')?.remove());
+            /* facture depuis la commande */
+            achCmfFiche('m1', () => 0); await w(200); last('.cmf-card').querySelector('[data-fac]').click(); await w(250);
+            let fa = () => last('.faf-card'); r.push(fa().querySelectorAll('.fa-l[data-c="q"]').length, achN(fa().querySelector('.fa-l[data-c="q"]').value), achN(fa().querySelector('.fa-x[data-k="avImp"]').value));
+            fa().querySelector('.fa-x[data-k="num"]').value = 'FA-77'; const df = fa().querySelector('.fa-x[data-k="dFac"]'); df.value = '2026-10-01'; df.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
+            r.push(fa().querySelector('.fa-x[data-k="ech"]').value);
+            const tt = fa().querySelector('.fa-x[data-k="sTtc"]'); tt.value = '725'; tt.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
+            fa().querySelector('[data-bap]').click(); await w(200); r.push(achFaf().length === 0 || achFaf()[0].state !== 'bap');
+            const dt = new DataTransfer(); dt.items.add(new File(['x'], 'fa.png', { type: 'image/png' })); const cp = fa().querySelector('.fa-cp'); cp.files = dt.files; cp.dispatchEvent(new Event('change', { bubbles: true })); await w(50);
+            fa().querySelector('[data-ecok]').click(); await w(200); const ak = last('.frs-card'); ak.querySelector('.ask-v').value = 'ARRONDI FOURNISSEUR'; ak.querySelector('[data-ok]').click(); await w(300);
+            fa().querySelector('[data-bap]').click(); await w(200); await conf();
+            const FA = achFaf()[0]; r.push(FA.state, Math.round(achFafTot(FA).net), !!FA.copie, achFafWhy(FA).filter(x => /EN DOUBLE/.test(x)).length);
+            /* doublon de numéro */
+            achFafFiche(null, { cmf: 'm1' }, () => 0); await w(200); fa().querySelector('.fa-x[data-k="num"]').value = 'fa-77'; fa().querySelector('.fa-x[data-k="dFac"]').value = '2026-10-02'; fa().querySelector('[data-save]').click(); await w(150);
+            r.push(achFaf().length); fa().querySelector('[data-x]').click(); await w(100);
+            /* avoir 25 */
+            const AV = achAvf(); AV.push({ id: 'a1', ref: 'AVF 1', frs: f1.id, num: 'AV-1', ht: 25, tva: 0, ttc: 25, motif: 'REMISE', state: 'valide' }); achAvfSave(AV);
+            /* paiement depuis la facture, avoir déduit, chèque */
+            achFafFiche(FA.id, null, () => 0); await w(200); fa().querySelector('[data-pay]').click(); await w(250);
+            pa = last('.paf-card'); r.push(achN(pa.querySelector('.pa-a').value));
+            const dd = pa.querySelector('.pa-d'); dd.value = '25'; dd.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
+            const m2 = last('.paf-card').querySelector('.pa-x[data-k="mode"]'); m2.value = 'CHÈQUE'; m2.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
+            last('.paf-card').querySelector('[data-valid]').click(); await w(150); r.push(achPaf().length);
+            last('.paf-card').querySelector('.pa-x[data-k="num"]').value = '0012345'; last('.paf-card').querySelector('[data-valid]').click(); await w(200); await conf();
+            const P2 = achPaf().find(p => p.type === 'reglement'); r.push(P2.state, achN(P2.mt), Math.round(achFafReste(achFaf()[0])), achFafEtat(achFaf()[0]), Math.round(achAvfReste(achAvf()[0])));
+            last('.paf-card').querySelector('[data-rej]').click(); await w(200); const ak2 = last('.frs-card'); ak2.querySelector('.ask-v').value = 'SANS PROVISION'; ak2.querySelector('[data-ok]').click(); await w(300);
+            r.push(achPaf().find(p => p.type === 'reglement').state, Math.round(achFafReste(achFaf()[0])), Math.round(achAvfReste(achAvf()[0])));
+            document.querySelectorAll('#svConf').forEach(x => x.remove());
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
+        check("v763 : FACTURES, AVOIRS, PAIEMENTS — avance, facture depuis la commande, échéance, écart accepté, bon à payer, doublon, avoir déduit, chèque rejeté",
+              f763 == [200, 1, "encaisse", 200, 1, 6, 200, "2026-10-31", True, "bap", 525, True, 0, 1, 525, 1, "emis", 500, 0, "PAYÉE", 0, "rejete", 525, 25], f763)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

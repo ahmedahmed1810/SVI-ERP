@@ -7,7 +7,7 @@
    - rien n'est effacé : une suppression met l'article à la CORBEILLE (restaurable), un numéro n'est jamais réutilisé.
    Règles reprises de achats.html (validées par Ahmed) : catégories, banques et codes RIB, TVA par défaut 20 %.
    ========================================================= */
-const ACH_K = { art: "svi_ach_art_v1", prm: "svi_ach_prm_v1", frs: "svi_ach_frs_v1", bsn: "svi_ach_bsn_v1", caf: "svi_ach_caf_v1", dvf: "svi_ach_dvf_v1", cmf: "svi_ach_cmf_v1", rcp: "svi_ach_rcp_v1", rtr: "svi_ach_rtr_v1" };
+const ACH_K = { art: "svi_ach_art_v1", prm: "svi_ach_prm_v1", frs: "svi_ach_frs_v1", bsn: "svi_ach_bsn_v1", caf: "svi_ach_caf_v1", dvf: "svi_ach_dvf_v1", cmf: "svi_ach_cmf_v1", rcp: "svi_ach_rcp_v1", rtr: "svi_ach_rtr_v1", faf: "svi_ach_faf_v1", avf: "svi_ach_avf_v1", paf: "svi_ach_paf_v1" };
 const ACH_PRM_DEF = {
   tva: 20,
   cat: ["COFFRAGE", "LOCATION MATERIEL", "MATERIAUX NON STOCKABLE", "MATERIAUX STOCKABLE", "MATERIEL DE BUREAU", "MATERIEL ET OUTILLAGE", "SERVICES", "SOUS TRAITANCE", "TRANSPORT"],
@@ -21,7 +21,7 @@ const achN = v => { const n = Number(String(v ?? "").replace(/\s| | /g, "").r
 const achJ = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || "null"); return v === null ? d : v; } catch (e) { return d; } };
 const achW = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 /* ---------- paramètres d'achat ---------- */
-const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })) }; };
+const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: p.esp === undefined ? 5000 : achN(p.esp), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: p.avj === undefined ? 90 : achN(p.avj), chqj: p.chqj === undefined ? 30 : achN(p.chqj), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })) }; };
 const achPrmSave = p => achW(ACH_K.prm, p);
 /* banque d'un RIB : ses 3 premiers chiffres (code « 101-199 » = plage) */
 const achBankHasCode = (b, c) => String(b.code || "").split(/[,;\s]+/).filter(Boolean).some(x => { const m = x.match(/^(\d{3})-(\d{3})$/); return m ? +c >= +m[1] && +c <= +m[2] : x === c; });
@@ -286,3 +286,78 @@ const achEngage = (bdg, chg) => { const B = achBsn(); let t = 0;
   achCmf().filter(c => c.state === "valide" || c.state === "solde").forEach(c => { const r = 1 - achN(c.rem) / 100;
     (c.lignes || []).forEach(l => { const b = B.find(x => x.id === l.bsn); if (b && b.bdg === bdg && (!chg || b.chg === chg)) t += achN(l.q) * achN(l.pu) * r; }); });
   return t; };
+
+/* =========================================================
+   v763 : FACTURES, AVOIRS, PAIEMENTS (étape 5 — checklist Bloc C, chapitres 7 et 8)
+   FACTURE (FAF) : fournisseur, n° de la facture (doublon interdit chez le même fournisseur), date de la facture, date de RÉCEPTION
+   de la facture, commande (sinon « sans commande » à régulariser), type NORMALE / ACOMPTE ; lignes reprises de la commande
+   (reçu − déjà facturé) ; montants SAISIS (ceux de la facture) comparés au calcul : écart au-delà du seuil (ACHATS › PARAMÈTRES)
+   → RÉCLAMER ou ACCEPTER L'ÉCART ; quantité facturée au-delà du reçu → EN ATTENTE DE RÉCEPTION ; retenue à la source sur la TVA ;
+   AVANCE IMPUTÉE (avances versées sur la commande, non encore récupérées) ; échéance calculée par les conditions du fournisseur ;
+   mentions obligatoires (n°, copie, ICE et IF du fournisseur) ; BON À PAYER ; reste à payer ; PAYER → paiement.
+   AVOIR (AVF) : fournisseur, n° de l'avoir, facture d'origine, retour lié, montant ; déduit dans un paiement.
+   PAIEMENT (PAF) : RÈGLEMENT (factures, avoirs déduits) ou AVANCE (commande) ; mode VIREMENT / CHÈQUE / LCN / ESPÈCES / PRÉLÈVEMENT ;
+   n° et échéance (chèque, LCN) ; RIB principal (bloqué si le RIB est à vérifier) ; ÉMIS → ENCAISSÉ, ou REJETÉ / ANNULÉ (les factures
+   redeviennent dues) ; alertes : chèque non encaissé, espèces au-delà du plafond, avance non récupérée après le délai.
+   ========================================================= */
+const ACH_MODES = ["VIREMENT", "CHÈQUE", "LCN", "ESPÈCES", "PRÉLÈVEMENT"];
+const achFaf = () => { const L = achJ(ACH_K.faf, []); return Array.isArray(L) ? L : []; };
+const achFafSave = L => achW(ACH_K.faf, L);
+const achAvf = () => { const L = achJ(ACH_K.avf, []); return Array.isArray(L) ? L : []; };
+const achAvfSave = L => achW(ACH_K.avf, L);
+const achPaf = () => { const L = achJ(ACH_K.paf, []); return Array.isArray(L) ? L : []; };
+const achPafSave = L => achW(ACH_K.paf, L);
+const achPafLive = P => (P || achPaf()).filter(p => p.state !== "annule" && p.state !== "rejete" && p.state !== "instance");
+/* montants calculés d'une facture (lignes × prix, remise de la commande, frais) */
+const achFafCalc = f => { let ht = 0, tva = 0; const r = 1 - achN(f.rem) / 100;
+  (f.lignes || []).forEach(l => { const m = achN(l.q) * achN(l.pu) * r; ht += m; tva += m * (l.tva === "" || l.tva === undefined ? achPrm().tva : achN(l.tva)) / 100; });
+  const fr = achN(f.frais); ht += fr; tva += fr * achPrm().tva / 100; return { ht, tva, ttc: ht + tva }; };
+/* montants retenus : ceux saisis (la facture) s'ils existent, sinon le calcul */
+const achFafTot = f => { const c = achFafCalc(f), ttc = f.sTtc !== undefined && f.sTtc !== "" ? achN(f.sTtc) : c.ttc, tva = f.sTva !== undefined && f.sTva !== "" ? achN(f.sTva) : c.tva;
+  const ras = f.ras ? tva * achN(f.rasT === undefined ? achPrm().rasT : f.rasT) / 100 : 0;
+  return { calc: c, ttc, tva, ht: ttc - tva, ras, av: achN(f.avImp), net: ttc - ras - achN(f.avImp), ecart: ttc - c.ttc }; };
+const achFafPaid = (fid, P) => achPafLive(P).reduce((t, p) => t + (p.aff || []).filter(a => a.fa === fid).reduce((u, a) => u + achN(a.m), 0), 0);
+const achFafReste = (f, P) => achFafTot(f).net - achFafPaid(f.id, P);
+const achAvfUsed = (aid, P) => achPafLive(P).reduce((t, p) => t + (p.ded || []).filter(a => a.av === aid).reduce((u, a) => u + achN(a.m), 0), 0);
+const achAvfReste = (a, P) => achN(a.ttc) - achAvfUsed(a.id, P);
+/* quantité déjà facturée d'une ligne de commande (hors la facture fid) */
+const achFacQ = (cmfId, cl, fid, F) => (F || achFaf()).filter(f => f.cmf === cmfId && f.id !== fid && f.state !== "annule").reduce((t, f) => t + (f.lignes || []).filter(l => l.cl === cl).reduce((u, l) => u + achN(l.q), 0), 0);
+/* avances d'une commande : versées (paiements AVANCE) − imputées sur ses factures */
+const achAvVerse = (cmfId, P) => achPafLive(P).filter(p => p.type === "avance" && p.cmf === cmfId).reduce((t, p) => t + achN(p.mt), 0);
+const achAvImpute = (cmfId, fid, F) => (F || achFaf()).filter(f => f.cmf === cmfId && f.id !== fid && f.state !== "annule").reduce((t, f) => t + achN(f.avImp), 0);
+const achAvReste = (cmfId, fid, P, F) => Math.max(0, achAvVerse(cmfId, P) - achAvImpute(cmfId, fid, F));
+/* échéance : date de la facture + jours des conditions de paiement du fournisseur (COMPTANT, À LA LIVRAISON… = le jour même) */
+const achFafEch = f => { if (f.ech) return f.ech; if (!f.dFac) return ""; const fr = achFrs().find(x => x.id === f.frs), n = Number((String((fr || {}).cond || "").match(/(\d+)\s*JOURS/) || [])[1]) || 0;
+  const d = new Date(f.dFac + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+const achFafWhy = (f, F, P) => { const w = [], today = new Date().toISOString().slice(0, 10);
+  if (f.state === "annule") return w;
+  const fr = achFrs().find(x => x.id === f.frs);
+  if (!f.frs) w.push("FOURNISSEUR MANQUANT");
+  if (!f.num) w.push("N° DE FACTURE MANQUANT");
+  else if ((F || achFaf()).some(x => x.id !== f.id && x.state !== "annule" && x.frs === f.frs && achU(x.num) === achU(f.num))) w.push("N° DE FACTURE EN DOUBLE CHEZ CE FOURNISSEUR");
+  if (!f.copie) w.push("COPIE DE LA FACTURE MANQUANTE");
+  if (fr && !fr.occ && !achDig(fr.ice)) w.push("ICE DU FOURNISSEUR MANQUANT");
+  if (fr && !fr.occ && !achDig(fr.ifisc)) w.push("IF DU FOURNISSEUR MANQUANT");
+  if (!f.dRec) w.push("DATE DE RÉCEPTION DE LA FACTURE MANQUANTE");
+  if (!f.cmf && f.type !== "acompte") w.push("FACTURE SANS COMMANDE : À RÉGULARISER");
+  if (f.cmf && f.type !== "acompte") { const R = achRcp(), T = achRtr();
+    if ((f.lignes || []).some(l => l.cl && achN(l.q) > achRecQ(f.cmf, l.cl, R, T) - achFacQ(f.cmf, l.cl, f.id, F) + 1e-9)) w.push("EN ATTENTE DE RÉCEPTION (FACTURÉ AU-DELÀ DU REÇU)"); }
+  const t = achFafTot(f);
+  if (Math.abs(t.ecart) > achPrm().ecart && !f.ecOk) w.push((f.state === "reclame" ? "ÉCART RÉCLAMÉ : " : "ÉCART AVEC LE CALCUL : ") + achF2(t.ecart) + " TTC");
+  const r = t.net - achFafPaid(f.id, P), e = achFafEch(f);
+  if (r > 0.005 && e && e < today) w.push("ÉCHÉANCE DÉPASSÉE (" + e.split("-").reverse().join("/") + ")");
+  return w; };
+/* ce qui empêche le BON À PAYER (les autres alertes restent des avertissements) */
+const achFafStop = (f, F) => achFafWhy(f, F).filter(x => /^(FOURNISSEUR|N° DE FACTURE|COPIE|EN ATTENTE|ÉCART)/.test(x));
+const achPafWhy = (p, P) => { const w = [], today = new Date().toISOString().slice(0, 10), prm = achPrm();
+  if (p.state === "annule" || p.state === "rejete") return w;
+  const fr = achFrs().find(x => x.id === p.frs);
+  if ((p.mode === "CHÈQUE" || p.mode === "LCN") && !p.num) w.push("N° DU " + p.mode + " MANQUANT");
+  if (p.mode === "LCN" && !p.echL) w.push("ÉCHÉANCE DE LA LCN MANQUANTE");
+  if ((p.mode === "VIREMENT" || p.mode === "PRÉLÈVEMENT") && fr && fr.ribChg) w.push("RIB DU FOURNISSEUR À VÉRIFIER");
+  if (p.mode === "ESPÈCES" && achN(p.mt) > prm.esp) w.push("ESPÈCES AU-DELÀ DU PLAFOND (" + achF2(prm.esp) + ")");
+  if (p.state === "emis" && (p.mode === "CHÈQUE" || p.mode === "LCN")) { const d0 = p.mode === "LCN" && p.echL ? p.echL : String(p.date || "").slice(0, 10);
+    const lim = new Date(d0 + "T12:00:00"); lim.setDate(lim.getDate() + prm.chqj); if (d0 && lim.toISOString().slice(0, 10) < today) w.push(p.mode + " NON ENCAISSÉ APRÈS " + prm.chqj + " JOURS"); }
+  if (p.type === "avance" && p.cmf && p.state !== "instance") { const lim = new Date(String(p.date || "").slice(0, 10) + "T12:00:00"); lim.setDate(lim.getDate() + prm.avj);
+    if (lim.toISOString().slice(0, 10) < today && achAvReste(p.cmf, null, P) > 0.005) w.push("AVANCE NON RÉCUPÉRÉE APRÈS " + prm.avj + " JOURS"); }
+  return w; };
