@@ -288,6 +288,7 @@ function sviAchInit() {
   body.addEventListener("focusout", e => { if (e.target.closest('input[data-sug]')) setTimeout(() => { const b = document.getElementById("svUnitSug"); if (b && b.__for === e.target && document.activeElement !== e.target) b.remove(); }, 200); });
   /* largeur des colonnes (poignée du bord droit de l'en-tête) et ordre (glisser un en-tête) — même mémoire que le budget */
   body.addEventListener("pointerdown", e => {
+    const nh = e.target.closest(".nvp-rsz"); if (nh) { achNvhDrag(e, nh); return; }   /* v771 : hauteur des blocs de la page */
     const h = e.target.closest(".col-rs");
     if (h) {
       e.preventDefault(); e.stopPropagation();

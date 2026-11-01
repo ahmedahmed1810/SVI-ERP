@@ -168,6 +168,8 @@
         ((budget.inst.data || {}).des || []).forEach(r => { if (r.t) ["u", "q", "p", "tva"].forEach(f => { delete r[f]; }); });
         try { shell.__verFreeze && shell.__verFreeze("VALIDÉE"); } catch (e) {}
         budget.inst.state = "valide";
+        /* v771 : avenant validé = ajouté au consolidé, même si sa composition a été choisie à la main */
+        try { const rt = budget.inst.parent || budget.inst.ref, cs = sviAvSelGet(rt); if (cs && !cs[ref]) sviAvSelSet(rt, { ...cs, [ref]: "act" }); } catch (e) {}
         const d = new Date(), p2 = n => String(n).padStart(2, "0");
         budget.inst.validated = d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()) + "T" + p2(d.getHours()) + ":" + p2(d.getMinutes());
         instUpd(l => l.map(x => x.ref === ref ? { ...x, data: budget.inst.data || x.data, state: "valide", validated: budget.inst.validated } : x));

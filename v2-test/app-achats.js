@@ -654,6 +654,7 @@ function sviAchInit() {
   body.addEventListener("focusout", e => { if (e.target.closest('input[data-sug]')) setTimeout(() => { const b = document.getElementById("svUnitSug"); if (b && b.__for === e.target && document.activeElement !== e.target) b.remove(); }, 200); });
   /* largeur des colonnes (poignée du bord droit de l'en-tête) et ordre (glisser un en-tête) — même mémoire que le budget */
   body.addEventListener("pointerdown", e => {
+    const nh = e.target.closest(".nvp-rsz"); if (nh) { achNvhDrag(e, nh); return; }   /* v771 : hauteur des blocs de la page */
     const h = e.target.closest(".col-rs");
     if (h) {
       e.preventDefault(); e.stopPropagation();
@@ -1867,8 +1868,8 @@ function achRecBlock(code) {
     return `<div class="bdg-d-block blk-rec nvp-rec"><div class="bdg-d-block-title blk-head"><span class="rec-tabs">
         ${["doc", "taf", "obs"].map(k => `<button type="button" class="rec-tab${k === tab ? " active" : ""}" data-nvr="${k}">${SVI_ICON[k] || ""}${{ doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS" }[k]} ${svCnt(get(k).length)}</button>`).join("")}</span>
         <span class="blk-tools"><button type="button" class="blk-btn" data-nvradd title="AJOUTER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></span></div>
-      <div class="rec-scroll"><table class="bdg-d-table rec-table"><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead>
-        <tbody>${L.slice().reverse().map((x, j) => `<tr>${row(x, L.length - 1 - j)}</tr>`).join("") || `<tr><td colspan="${head.length}" class="empty">${{ doc: "AUCUN DOCUMENT", taf: "AUCUNE TÂCHE", obs: "AUCUNE OBSERVATION" }[tab]}</td></tr>`}</tbody></table></div></div>`;
+      <div class="rec-scroll" style="max-height:var(--nvh-rec, 200px)"><table class="bdg-d-table rec-table"><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead>
+        <tbody>${L.slice().reverse().map((x, j) => `<tr>${row(x, L.length - 1 - j)}</tr>`).join("") || `<tr><td colspan="${head.length}" class="empty">${{ doc: "AUCUN DOCUMENT", taf: "AUCUNE TÂCHE", obs: "AUCUNE OBSERVATION" }[tab]}</td></tr>`}</tbody></table></div><div class="blk-rsz nvp-rsz" data-nvh="rec" title="Glisser pour changer la hauteur"></div></div>`;
   };
   const add = () => new Promise(ok => {
     const d = sviWinNew(), now = new Date().toISOString();
@@ -1969,8 +1970,20 @@ function achNvList(ctx, o) {
 
 /* ---------- PAGE d'un élément ----------
    p = { id, code, nom, title, st, why[], del, info(), menu: [{k, lab}], act(k), links: [{ t, cols:[lab…], rows:[{cells:[…], cls, open}] }] } */
+/* v771 : hauteur des blocs de la page — 5 lignes par défaut, défilement au-delà, poignée en bas (hauteur mémorisée par bloc) */
+const achNvhKey = t => String(t).toLowerCase().replace(/[^a-z]+/g, "");
+const ACH_NVH_K = "svi_ach_nvh_v1";
+const achNvhStyle = () => { let H = {}; try { H = JSON.parse(localStorage.getItem(ACH_NVH_K) || "{}") || {}; } catch (e) {} return Object.keys(H).map(k => "--nvh-" + k + ":" + H[k] + "px").join(";"); };
+function achNvhDrag(e, h) {
+  e.preventDefault(); const pg = h.closest(".nvp"), k = h.dataset.nvh, sc = h.parentNode.querySelector(".rec-scroll"); if (!pg || !sc) return;
+  const y0 = e.clientY, b0 = sc.getBoundingClientRect().height; let v = b0; h.classList.add("on");
+  const mv = ev => { ev.preventDefault(); v = Math.max(60, Math.round(b0 + ev.clientY - y0)); pg.style.setProperty("--nvh-" + k, v + "px"); };
+  const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); h.classList.remove("on");
+    try { const H = JSON.parse(localStorage.getItem(ACH_NVH_K) || "{}") || {}; H[k] = v; localStorage.setItem(ACH_NVH_K, JSON.stringify(H)); } catch (err) {} };
+  document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
+}
 function achNvPageHTML(p, rec) {
-  return `<div class="nvp">
+  return `<div class="nvp" style="${achNvhStyle()}">
     <div class="nvp-bar"><span class="nvp-tools"><button type="button" class="nvp-ic" data-nvp="prev" title="PRÉCÉDENT">‹</button><button type="button" class="nvp-ic" data-nvp="next" title="SUIVANT">›</button>
       <button type="button" class="nvp-ic" data-nvp="more" title="MENU">⋯</button><button type="button" class="nvp-ic" data-nvp="close" title="FERMER">✕</button></span></div>
     <div class="nvp-card${p.st === "instance" ? " nvp-inst" : ""}">
@@ -1980,8 +1993,8 @@ function achNvPageHTML(p, rec) {
       ${p.why.length ? `<div class="frs-why">⚠ ${p.why.map(esc).join(" · ")}</div>` : ""}</div>
     ${rec.html()}
     ${p.links.map(L => `<div class="bdg-d-block nvp-blk"><div class="bdg-d-block-title blk-head"><span class="ttl">${esc(L.t)} ${svCnt(L.rows.length)}</span></div>
-      <div class="rec-scroll"><table class="bdg-d-table rec-table"><thead><tr>${L.cols.map(c => `<th class="${c[1] || ""}">${esc(c[0])}</th>`).join("")}</tr></thead>
-      <tbody>${L.rows.map((r, i) => `<tr class="${r.cls || ""}">${r.cells.map((v, j) => `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${i}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${L.cols.length}" class="empty">AUCUN</td></tr>`}</tbody></table></div></div>`).join("")}
+      <div class="rec-scroll" style="max-height:var(--nvh-${achNvhKey(L.t)}, 200px)"><table class="bdg-d-table rec-table"><thead><tr>${L.cols.map(c => `<th class="${c[1] || ""}">${esc(c[0])}</th>`).join("")}</tr></thead>
+      <tbody>${L.rows.map((r, i) => `<tr class="${r.cls || ""}">${r.cells.map((v, j) => `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${i}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${L.cols.length}" class="empty">AUCUN</td></tr>`}</tbody></table></div><div class="blk-rsz nvp-rsz" data-nvh="${achNvhKey(L.t)}" title="Glisser pour changer la hauteur"></div></div>`).join("")}
   </div>`;
 }
 /* module complet liste + page : cfg = { list: options de achNvList (sans page), pageOf(id) → p, back } */

@@ -26,6 +26,14 @@
         out.push({ v: "g", lab: "BUDGET CONSOLIDÉ", d: () => cp(sviAvMerge(S[0].ref)) });
         ((S[0].data || {}).cfz || []).forEach(x => { if (x.d) out.push({ v: "c:" + x.id, lab: "PHOTO DU CONSOLIDÉ " + (x.n || "") + (x.date ? " — " + x.date : ""), d: () => cp(x.d) }); });
       }
+      /* v771 : AUTRES BUDGETS de l'appareil (budget initial, avenants, consolidé) — sélection libre */
+      const root0 = S[0] ? S[0].ref : ref;
+      let AL = []; try { AL = sviInstGet().filter(b => b && b.data && !b.virtual && !b.rclOf && !b.arch && (b.parent || b.ref) !== root0); } catch (e) {}
+      AL.sort((a, b) => String(a.parent || a.ref).localeCompare(String(b.parent || b.ref), "fr", { numeric: true }) || (a.avn || 0) - (b.avn || 0)).forEach(b => {
+        const st = b.state === "valide" ? " (VALIDÉ)" : b.state === "fige" ? " (FIGÉ)" : " (EN INSTANCE)";
+        out.push({ v: "o:" + b.ref, lab: U_(b.project || "") + " " + b.ref + " — " + sviAvName(b) + st, d: () => cp(b.data) });
+        if (!b.parent && AL.some(x => x.parent === b.ref)) out.push({ v: "og:" + b.ref, lab: U_(b.project || "") + " " + b.ref + " — CONSOLIDÉ", d: () => cp(sviAvMerge(b.ref)) });
+      });
       return out;
     };
     /* tâches d'un état : nom « LOT › ACTIVITÉ SECONDAIRE » → { deb, fin } (plusieurs morceaux : du premier début à la dernière fin) */
@@ -153,8 +161,8 @@
        scénarios, versions, recalages, photos du consolidé) ; ils s'affichent côte à côte (une colonne par élément, les indicateurs
        en lignes, écart avec le premier). Deux éléments cochés : COMPARER EN DÉTAIL ouvre aussi l'écran en quatre parties (planning).
        ========================================================= */
-    const CMPM_TYPES = [["cur", "ÉTAT ACTUEL"], ["b", "BUDGET INITIAL ET AVENANTS"], ["g", "CONSOLIDÉ"], ["s", "SCÉNARIOS"], ["v", "VERSIONS"], ["r", "RECALAGES"], ["c", "PHOTOS DU CONSOLIDÉ"]];
-    const cmpmType = x => x.v === "cur" ? "cur" : x.v === "g" ? "g" : /^RECALAGE/.test(x.lab) ? "r" : x.v.split(":")[0];
+    const CMPM_TYPES = [["cur", "ÉTAT ACTUEL"], ["b", "BUDGET INITIAL ET AVENANTS"], ["g", "CONSOLIDÉ"], ["s", "SCÉNARIOS"], ["v", "VERSIONS"], ["r", "RECALAGES"], ["c", "PHOTOS DU CONSOLIDÉ"], ["o", "AUTRES BUDGETS"]];
+    const cmpmType = x => x.v === "cur" ? "cur" : x.v === "g" ? "g" : /^o/.test(x.v.split(":")[0]) ? "o" : /^RECALAGE/.test(x.lab) ? "r" : x.v.split(":")[0];
     const cmpmTtc = d => { try { return (d.des || []).filter(r => !r.t).reduce((t, r) => { const lq = insLinkedQ(d, r.id); const q = lq !== null ? lq : num(r.q || 0);
       return t + q * num(r.p || 0) * (1 + (r.tva === "" || r.tva === undefined ? 20 : num(r.tva)) / 100); }, 0); } catch (e) { return 0; } };
     const CMPM_IND = [["ttc", "MONTANT TTC", d => cmpmTtc(d), 2], ["prd", "PRODUITS HT (DH)", d => verInd(d).prd, 2], ["chg", "CHARGES (DH)", d => verInd(d).chg, 2], ["mo", "MAIN-D'ŒUVRE (DH)", d => verInd(d).mo, 2],
@@ -172,20 +180,23 @@
       if (k === "rcl") L.filter(x => /^RECALAGE/.test(x.lab)).forEach(x => pre.add(x.v));
       const S = new Set([...pre].filter(v => L.some(x => x.v === v)));
       const groups = CMPM_TYPES.map(([t, lab]) => [lab, L.filter(x => cmpmType(x) === t)]).filter(g => g[1].length);
-      const foot = () => `<button type="button" class="svc-b" data-x>ANNULER</button>${S.size === 2 ? `<button type="button" class="svc-b" data-cmpdet>COMPARER EN DÉTAIL (PLANNING)</button>` : ""}<button type="button" class="svc-b svc-ok svc-neutral" data-cmpgo${S.size < 2 ? " disabled" : ""}>COMPARER ${svCnt(S.size)}</button>`;
-      d.innerHTML = sviWinCard({ cls: "hcf-card cmpm-pick", close: "data-x", title: "COMPARER — ÉLÉMENTS À METTRE CÔTE À CÔTE",
-        body: `<div class="svc-sub">COCHER AU MOINS DEUX ÉLÉMENTS, DE N'IMPORTE QUEL TYPE. LECTURE SEULE : RIEN N'EST MODIFIÉ.</div><div class="cmpm-list">${groups.map(([lab, G]) => `<div class="cmpm-g">${esc(lab)}</div>${G.map(x => `<label class="cmpm-it"><input type="checkbox" data-cv="${esc(x.v)}"${S.has(x.v) ? " checked" : ""}> ${esc(x.lab)}</label>`).join("")}`).join("")}</div>`,
+      const foot = () => `<button type="button" class="svc-b cmpm-close" data-x>✕ FERMER</button>${S.size === 2 ? `<button type="button" class="svc-b" data-cmpdet>COMPARER EN DÉTAIL (PLANNING)</button>` : ""}<button type="button" class="svc-b svc-ok svc-neutral" data-cmpgo${S.size < 2 ? " disabled" : ""}>COMPARER ${svCnt(S.size)}</button><button type="button" class="svc-b svc-ok" data-cumgo${S.size < 2 ? " disabled" : ""}>CUMULER ${svCnt(S.size)}</button>`;
+      d.innerHTML = sviWinCard({ cls: "hcf-card cmpm-pick", close: "data-x", title: "SÉLECTION — ÉLÉMENTS À METTRE CÔTE À CÔTE",
+        body: `<div class="svc-sub">COCHER AU MOINS DEUX ÉLÉMENTS, DE N'IMPORTE QUEL TYPE (AUTRES BUDGETS COMPRIS). COMPARER = ÉCARTS, CONSULTATION SEULE ; CUMULER = SOMME, À ENREGISTRER COMME SCÉNARIO, AVENANT OU RECALAGE.</div><div class="cmpm-list">${groups.map(([lab, G]) => `<div class="cmpm-g">${esc(lab)}</div>${G.map(x => `<label class="cmpm-it"><input type="checkbox" data-cv="${esc(x.v)}"${S.has(x.v) ? " checked" : ""}> ${esc(x.lab)}</label>`).join("")}`).join("")}</div>`,
         foot: foot() });
       sviWinShow(d);
       d.addEventListener("change", e => { const c = e.target.closest("[data-cv]"); if (!c) return; if (c.checked) S.add(c.dataset.cv); else S.delete(c.dataset.cv); d.querySelector(".svc-f").innerHTML = foot(); });
       d.addEventListener("click", e => {
-        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); cmpBack(k); return; }
         const ord = L.map(x => x.v).filter(v => S.has(v));
         if (e.target.closest("[data-cmpdet]") && ord.length === 2) { d.remove(); cmpOpen(ord[0], ord[1]); return; }
-        if (e.target.closest("[data-cmpgo]") && ord.length >= 2) { d.remove(); cmpMultiShow(ord); }
+        if (e.target.closest("[data-cmpgo]") && ord.length >= 2) { d.remove(); cmpMultiShow(ord, k); return; }
+        if (e.target.closest("[data-cumgo]") && ord.length >= 2) { d.remove(); cumShow(ord, k); }
       });
     };
-    const cmpMultiShow = vs => {
+    /* FERMER : retour à l'onglet d'où l'on vient (AVENANTS, SCÉNARIOS, VERSIONS, RECALAGES) */
+    const cmpBack = k => { if (k && shell.__etpTabSet) shell.__etpTabSet(k); };
+    const cmpMultiShow = (vs, k) => {
       const L = cmpStates(), E = vs.map(v => L.find(x => x.v === v)).filter(Boolean).map(x => { let dd = {}; try { dd = cmpPrep(x.d()); } catch (e) {} return { lab: x.lab, d: dd }; });
       const val = (f, x) => { try { return f(x.d); } catch (e) { return null; } };
       const rows = CMPM_IND.map(([id, lab, f, fm]) => {
@@ -196,16 +207,84 @@
       const w = sviWinNew();
       w.innerHTML = sviWinCard({ cls: "cmp-card cmpm-card", close: "data-x", title: "COMPARER — " + E.length + " ÉLÉMENTS CÔTE À CÔTE",
         body: `<div class="svc-sub">ÉCART AFFICHÉ SOUS CHAQUE VALEUR, PAR RAPPORT À LA PREMIÈRE COLONNE. LECTURE SEULE.</div><div class="cmpm-scroll"><table class="pv-t cmpm-t"><thead><tr><th>INDICATEUR</th>${E.map(x => `<th class="number">${esc(x.lab)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`,
-        foot: `<button type="button" class="svc-b" data-cmpcp>COPIER</button><button type="button" class="svc-b svc-ok svc-neutral" data-x>✕ FERMER LA COMPARAISON</button>` });
+        foot: `<button type="button" class="svc-b" data-cmpsel>‹ SÉLECTION</button><button type="button" class="svc-b" data-cmpcp>COPIER</button><button type="button" class="svc-b svc-ok svc-neutral cmpm-close" data-x>✕ FERMER</button>` });
       sviWinShow(w);
       w.addEventListener("click", e => {
-        if (e.target === w || e.target.closest("[data-x]")) { w.remove(); return; }
+        if (e.target === w || e.target.closest("[data-x]")) { w.remove(); cmpBack(k); return; }
+        if (e.target.closest("[data-cmpsel]")) { w.remove(); cmpMulti(k); return; }
         if (e.target.closest("[data-cmpcp]")) {
           const txt = [["INDICATEUR", ...E.map(x => x.lab)], ...CMPM_IND.map(([id, lab, f, fm]) => [lab, ...E.map(x => cmpmFmt(val(f, x), fm))])].map(r => r.join("\t")).join("\n");
           try { (window.sviClipWrite ? window.sviClipWrite(txt) : navigator.clipboard.writeText(txt)); svToast("TABLEAU COPIÉ.", 2000); } catch (err) {}
         }
       });
     };
+    /* =========================================================
+       v771 : CUMULER — somme des éléments choisis (sviCumMerge : chaque élément garde ses lots, ses charges s'ajoutent) ;
+       charges présentes dans plusieurs éléments SIGNALÉES avant d'enregistrer (risque de les compter deux fois) ;
+       ENREGISTRER COMME : SCÉNARIO (de ce budget), AVENANT (nouvel avenant de la famille), RECALAGE (de l'étape validée :
+       seule la partie à venir change — désignations client et lignes déjà réalisées gardées).
+       ========================================================= */
+    const cumDups = E => { const M = new Map(); E.forEach((x, i) => (x.d.chg || []).forEach(r => { if (r.t || !U_(r.des)) return; const kk = U_(r.des) + " (" + U_(r.u || "") + ")"; const s0 = M.get(kk) || new Set(); s0.add(i); M.set(kk, s0); }));
+      return [...M].filter(([, s0]) => s0.size > 1).map(([kk, s0]) => ({ k: kk, n: s0.size, w: [...s0].map(i => E[i].lab) })); };
+    const cumShow = (vs, k) => {
+      const L = cmpStates(), E = vs.map(v => L.find(x => x.v === v)).filter(Boolean).map(x => { let dd = {}; try { dd = x.d(); } catch (e) {} return { lab: x.lab, d: dd }; });
+      let cum = {}; try { cum = sviCumMerge(E.map(x => ({ ref: x.lab, lab: x.lab, state: "valide", d: x.d }))); } catch (e) {}
+      const dups = cumDups(E), C = [...E.map(x => ({ lab: x.lab, d: cmpPrep(JSON.parse(JSON.stringify(x.d))) })), { lab: "CUMUL", d: cmpPrep(JSON.parse(JSON.stringify(cum))) }];
+      const val = (f, x) => { try { return f(x.d); } catch (e) { return null; } };
+      const rows = CMPM_IND.filter(r => ["ttc", "prd", "chg", "mo", "mg", "mgp", "ndes", "nchg"].includes(r[0])).map(([id, lab, f, fm]) => `<tr><td class="cmpm-ind">${esc(lab)}</td>${C.map((x, i) => `<td class="number${i === C.length - 1 ? " cum-col" : ""}">${esc(cmpmFmt(val(f, x), fm))}</td>`).join("")}</tr>`).join("");
+      const w = sviWinNew();
+      w.innerHTML = sviWinCard({ cls: "cmp-card cmpm-card", close: "data-x", title: "CUMULER — " + E.length + " ÉLÉMENTS",
+        body: `${dups.length ? `<div class="frs-why">⚠ ${dups.length} CHARGE(S) PRÉSENTE(S) DANS PLUSIEURS ÉLÉMENTS — RISQUE DE LES COMPTER DEUX FOIS :<br>${dups.slice(0, 30).map(x => esc(x.k) + " : " + x.n + " FOIS").join(" · ")}${dups.length > 30 ? " …" : ""}</div>` : `<div class="svc-sub">AUCUNE CHARGE EN DOUBLE ENTRE LES ÉLÉMENTS CHOISIS.</div>`}
+          <div class="cmpm-scroll"><table class="pv-t cmpm-t"><thead><tr><th>INDICATEUR</th>${C.map((x, i) => `<th class="number${i === C.length - 1 ? " cum-col" : ""}">${esc(x.lab)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`,
+        foot: `<button type="button" class="svc-b" data-cmpsel>‹ SÉLECTION</button><button type="button" class="svc-b svc-ok svc-neutral cmpm-close" data-x>✕ FERMER</button>
+          <button type="button" class="svc-b svc-ok" data-cumsv="scn">ENREGISTRER COMME SCÉNARIO</button><button type="button" class="svc-b svc-ok" data-cumsv="av">… COMME AVENANT</button><button type="button" class="svc-b svc-ok" data-cumsv="rcl">… COMME RECALAGE</button>` });
+      sviWinShow(w);
+      w.addEventListener("click", async e => {
+        if (e.target === w || e.target.closest("[data-x]")) { w.remove(); cmpBack(k); return; }
+        if (e.target.closest("[data-cmpsel]")) { w.remove(); cmpMulti(k); return; }
+        const sv = e.target.closest("[data-cumsv]"); if (!sv) return;
+        const kind = sv.dataset.cumsv, LAB = { scn: "UN NOUVEAU SCÉNARIO DE CE BUDGET", av: "UN NOUVEL AVENANT", rcl: "UN NOUVEAU RECALAGE (PARTIE À VENIR SEULEMENT ; LE RÉALISÉ N'EST PAS TOUCHÉ)" };
+        if (!(await svConfirm({ title: "ENREGISTRER LE CUMUL", html: `<div class="svc-sub">LE CUMUL DE ${E.length} ÉLÉMENTS DEVIENT ${LAB[kind]}.</div>${dups.length ? `<div class="svc-sub"><b>⚠ ${dups.length} CHARGE(S) EN DOUBLE</b> (${esc(dups.slice(0, 8).map(x => x.k).join(", "))}${dups.length > 8 ? "…" : ""}) : VÉRIFIER QU'ELLES NE SONT PAS COMPTÉES DEUX FOIS.</div>` : ""}`, ok: "ENREGISTRER", tone: "neutral" }))) return;
+        w.remove(); cumSave(kind, cum, E.map(x => x.lab).join(" + "));
+      });
+    };
+    /* le cumul remplace le contenu d'un budget (dest) ; recalage : désignations client et lignes réalisées gardées, liaisons rattachées par désignation */
+    const CUM_KEYS = ["des", "lot", "prim", "sec", "prd", "chg", "qlt", "links", "dlp", "dpred", "dlpSec", "calK", "chgCal", "cond"];
+    const sviCumApply = (dest, cum, rcl) => {
+      const c = JSON.parse(JSON.stringify(cum));
+      if (rcl) {
+        const kd = r => [U_(r.art || ""), U_(r.des), U_(r.u || ""), Math.round(num(r.p || 0) * 1e6)].join("|"), M = new Map((dest.des || []).filter(r => !r.t).map(r => [kd(r), r.id]));
+        const cd = new Map((c.des || []).filter(r => !r.t).map(r => [r.id, M.get(kd({ ...r, art: String(r.art || "").replace(/^\d+\./, "") })) || M.get(kd({ ...r, art: r.art }))]));
+        c.links = (c.links || []).map(l => ({ ...l, des: cd.get(l.des) || "" })).filter(l => l.des);
+        const used = (dest.chg || []).filter(r => typeof sviRclUsed === "function" && sviRclUsed(r));
+        c.chg = used.concat((c.chg || []).filter(r => !used.some(u => u.id === r.id)));
+      }
+      CUM_KEYS.forEach(kk => { if (rcl && kk === "des") return; if (c[kk] !== undefined) dest[kk] = c[kk]; });
+      delete dest.cum;
+      return dest;
+    };
+    window.__sviCumApply = sviCumApply;
+    const cumSave = (kind, cum, why) => {
+      if (kind === "scn") {
+        const r = $("scnTable") && $("scnTable").querySelector("tr[data-scnadd]");
+        if (!r) { svToast(window.__sviRO || "ENREGISTRER : BUDGET EN LECTURE SEULE.", 3500); return; }
+        if (r.classList.contains("off")) { svToast(r.textContent.trim(), 3500); return; }
+        const before = new Set(((INS.ver || {}).L || []).map(x => x.id)); r.click();
+        const nw = ((INS.ver || {}).L || []).filter(x => x.kind === "sc" && !before.has(x.id)).pop();
+        if (!nw) return;
+        sviCumApply(nw.d = nw.d || {}, cum, false); nw.nom = (nw.nom || "SCÉNARIO") + " — CUMUL"; insSave(); histLog("SCÉNARIO", "CUMUL", why);
+        if (shell.__scnSwap) shell.__scnSwap(nw.id);
+        if (shell.__etpTabSet) shell.__etpTabSet("scn");
+        svToast("CUMUL ENREGISTRÉ COMME SCÉNARIO « " + nw.nom + " ».", 3500); return;
+      }
+      const bi0 = budget.inst || {}, st0 = bi0.rclOf ? sviInstGet().find(x => x.ref === bi0.rclOf) : bi0, root = AV_ROOT || (st0 && (st0.parent || st0.ref)) || "";
+      if (kind === "av") { const S = sviAvStages(root), last = S[S.length - 1];
+        if (!last || last.state !== "valide") { svToast("LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT.", 4000); return; }
+        window.__sviCumNext = { k: "av", d: cum, why, t: Date.now() }; window.__sviAvNew && window.__sviAvNew(root, ref); return; }
+      if (kind === "rcl") { if (!st0 || st0.virtual || st0.state !== "valide") { svToast("UN RECALAGE SE FAIT SUR UNE ÉTAPE VALIDÉE : OUVRIR L'ÉTAPE (OU SON RECALAGE).", 4000); return; }
+        window.__sviCumNext = { k: "rcl", d: cum, why, t: Date.now() }; if (shell.__rclNew) shell.__rclNew(); }
+    };
     shell.__cmpMulti = cmpMulti;
-    shell.__cmpPick = () => cmpMulti("");   /* v757 : le COMPARATIF à deux passe par COMPARER (COMPARER EN DÉTAIL quand deux éléments sont cochés) */
+    shell.__cmpPick = () => cmpMulti("");
+    shell.__cumPick = () => cmpMulti("");   /* v771 : CUMUL du menu ⋯ = la même fenêtre de SÉLECTION */   /* v757 : le COMPARATIF à deux passe par COMPARER (COMPARER EN DÉTAIL quand deux éléments sont cochés) */
     shell.__cmpOpen = cmpOpen;

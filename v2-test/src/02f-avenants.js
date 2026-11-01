@@ -22,7 +22,8 @@ const sviAvName = it => it && it.vname ? it.vname : it && it.parent ? "AVENANT "
 /* v687 : COMPOSITION du consolidé — pour chaque étape : "act" (l'étape telle qu'elle est), l'id d'un de ses scénarios,
    ou rien (étape non comptée). Par défaut : les étapes VALIDÉES (le marché initial s'il n'y en a aucune). Mémoire de la session. */
 /* v755 : une étape EXPIRÉE (validée puis mise de côté pour être remplacée) n'entre plus dans le consolidé */
-const sviAvSelDef = S0 => { const o = {}, all = S0[0] && (window.__sviAvMode || {})[S0[0].ref] === "inst"; S0.forEach(st => { if (!st.xp && (all || st.state === "valide")) o[st.ref] = "act"; }); if (!Object.keys(o).length && S0[0]) o[S0[0].ref] = "act"; return o; };
+/* v771 : le consolidé ne compte que le budget initial et les avenants VALIDÉS (plus d'avenant en instance, quelle que soit la liste) */
+const sviAvSelDef = S0 => { const o = {}; S0.forEach(st => { if (!st.xp && st.state === "valide") o[st.ref] = "act"; }); if (!Object.keys(o).length && S0[0]) o[S0[0].ref] = "act"; return o; };
 const sviAvSelGet = r => ((window.__sviAvSel || {})[r]) || null;
 const sviAvSelSet = (r, v) => { window.__sviAvSel = window.__sviAvSel || {}; if (v) window.__sviAvSel[r] = v; else delete window.__sviAvSel[r]; };
 /* v693 : RECALAGES d'une étape (budgets « étape-Rn » de l'appareil), du plus ancien au plus récent ; dernier enregistré */

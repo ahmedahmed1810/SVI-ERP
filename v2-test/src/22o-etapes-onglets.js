@@ -88,6 +88,9 @@
       let etpQ = false;
       shell.__etpLater = () => { if (etpQ) return; etpQ = true; queueMicrotask(() => { etpQ = false; try { etpSync(); } catch (e) {} }); };
       shell.__etpSync = etpSync;
+      /* v771 : FERMER de la fenêtre de SÉLECTION — retour à l'onglet d'origine, bloc remis à l'écran */
+      shell.__etpTabSet = k => { if (!["av", "scn", "ver", "rcl"].includes(k)) return; etpTab = k; try { localStorage.setItem(ETP_K, k); } catch (e) {} etpSync();
+        const blk = shell.querySelector(".blk-etp"); if (blk && !blk.hidden) { const r = blk.getBoundingClientRect(); if (r.top < 0 || r.top > window.innerHeight - 80) blk.scrollIntoView({ block: "center" }); } };
       shell.querySelector(".blk-etp .etp-tabs")?.addEventListener("click", e => {
         const b = e.target.closest("[data-etab]"); if (!b) return;
         e.stopPropagation();
@@ -133,6 +136,13 @@
         if (N && Date.now() - N.t < 120000 && bi && !bi.virtual && (bi.state || "instance") === "instance" && ((N.k === "av" && bi.parent) || (N.k === "rcl" && bi.rclOf))) {
           window.__sviImpNext = null;
           setTimeout(() => shell.__impMenu && shell.__impMenu("budget", (N.k === "av" ? "NOUVEL AVENANT — " : "NOUVEAU RECALAGE — ") + ref), 400);
+        } }
+      /* v771 : avenant ou recalage créé par CUMULER — le cumul y est versé dès son ouverture */
+      { const N = window.__sviCumNext;
+        if (N && Date.now() - N.t < 120000 && bi && !bi.virtual && (bi.state || "instance") === "instance" && ((N.k === "av" && bi.parent) || (N.k === "rcl" && bi.rclOf)) && window.__sviCumApply) {
+          window.__sviCumNext = null;
+          try { window.__sviCumApply(INS, N.d, N.k === "rcl"); insSave(); histLog(N.k === "av" ? "AVENANT" : "RECALAGE", "CUMUL", N.why || ""); } catch (e) {}
+          setTimeout(() => { try { refreshAll(); } catch (e) {} svToast("CUMUL ENREGISTRÉ DANS " + (N.k === "av" ? "LE NOUVEL AVENANT " : "LE NOUVEAU RECALAGE ") + ref + (N.k === "rcl" ? " (DÉSIGNATIONS CLIENT ET RÉALISÉ GARDÉS)" : "") + ".", 4500); }, 300);
         } }
       /* point 1 : ouvert depuis la liste = le budget lui-même — le scénario RETENU s'il y en a un (la dernière vue, elle, reste celle qu'on avait) */
       if (window.__sviFromList === ref) {

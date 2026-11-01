@@ -3317,7 +3317,7 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 #ach .nvp .rec-tab.active { background: #fff; border-color: #d6dbe3; color: #0f4f96; }
 #ach .nvp .blk-btn { border: 1px solid #d6dbe3; background: #fff; border-radius: 6px; padding: 3px 6px; cursor: pointer; color: #12355b; }
 #ach .nvp .ttl { display: inline-flex; align-items: center; gap: 6px; }
-#ach .nvp .rec-scroll { max-height: 260px; overflow: auto; }
+#ach .nvp .rec-scroll { overflow: auto; }
 #ach .nvp .rec-table { width: 100%; border-collapse: collapse; }
 #ach .nvp .rec-table th { text-align: left; font-size: 11px; color: #6b7480; padding: 6px 10px; border-bottom: 1px solid #e1e5eb; background: #fafbfc; position: sticky; top: 0; }
 #ach .nvp .rec-table th.number, #ach .nvp .rec-table td.number { text-align: right; }
@@ -3332,3 +3332,14 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 table.svi-bdgl tbody tr[data-nvo] { cursor: pointer; }
 table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 #ach .nvp .nv-strike td { text-decoration: line-through; color: #94a3b8; }
+/* v771 : bloc AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES comme les autres blocs — 5 lignes par défaut, défilement au-delà, poignée libre */
+.blk-etp .etp-pane .rec-scroll { height: auto !important; max-height: var(--h-etp, 129px) !important; overflow: auto !important; }
+.bdg-d-page.max-etp .blk-etp .etp-pane .rec-scroll { max-height: none !important; }
+/* fenêtre de SÉLECTION : FERMER bien visible, colonne CUMUL */
+.cmpm-close { font-weight: 900 !important; border: 2px solid #12355b !important; color: #12355b !important; background: #fff !important; }
+.cmpm-t .cum-col { background: #eef4fb; font-weight: 900; }
+#ach .nvp .rec-scroll { max-height: 200px; }
+#ach .nvp .bdg-d-block { position: relative; }
+#ach .nvp .nvp-rsz { height: 10px; cursor: ns-resize; touch-action: none; position: relative; }
+#ach .nvp .nvp-rsz::after { content: ""; position: absolute; left: 50%; top: 3px; width: 40px; height: 4px; margin-left: -20px; border-radius: 3px; background: #cbd5e1; }
+#ach .nvp .nvp-rsz.on::after, #ach .nvp .nvp-rsz:hover::after { background: #1d4ed8; }

@@ -2680,6 +2680,31 @@ def main():
             return [/CONSULTATION/.test(tag), act, bar, rows, back, M.ver.L.map(x => x.id + ':' + !!x.arch).join(',')]; }""".replace("INS_X", ins))
         check("v759 : toucher un scénario = le consulter (l'actif ne change pas) ; FERMER LA COMPARAISON ; indicateurs proposés d'office ; scénario archivé gardé à la fusion avec la base",
               s759 == [True, "s1", True, "MONTANT HT|MONTANT TTC|ÉCART TTC AVEC LE SCÉNARIO ACTIF|NOMBRE DE CHARGES", True, "a:true,b:false"], s759)
+        # v771 : fenêtre de SÉLECTION unique (COMPARER, CUMULER, FERMER) ; CUMULER signale les charges en double et s'enregistre comme scénario ;
+        # FERMER ramène à l'onglet d'origine ; consolidé = étapes VALIDÉES seulement ; bloc à onglets : hauteur réglable (5 lignes par défaut)
+        c771 = pg.evaluate("""async () => { const X = INS_X, I = X.INS, w = ms => new Promise(z => setTimeout(z, ms)), sh = [...document.querySelectorAll('*')].find(e => e.__ins);
+            const keep = JSON.stringify({ vfz: I.vfz || null, ver: I.ver || null }), keepT = localStorage.getItem('svi_etp_tab_v1');
+            const v = JSON.parse(JSON.stringify(I)); delete v.vfz; delete v.ver; I.vfz = [{ id: 'vx', n: 1, kind: 'MANUELLE', date: '30/10/2026', d: v }];
+            sh.__cmpMulti('ver'); await w(150); const pk = document.getElementById('svConf'); if (!pk || !pk.querySelector('[data-cumgo]')) return ['pas de fenêtre', pk ? pk.textContent.slice(0, 200) : null, !!sh.__cmpMulti];
+            const r = [pk.querySelector('.svc-t').textContent.trim().split(' — ')[0], !!pk.querySelector('[data-cumgo]'), !!pk.querySelector('.cmpm-close'), !!pk.querySelector('[data-cmpgo]')];
+            pk.querySelector('[data-cmpgo]') && 0; const cv = pk.querySelector('[data-cv="v:vx"]'); if (!cv) return ['pas de version', pk.textContent.slice(0, 300)]; if (!cv.checked) { cv.checked = true; cv.dispatchEvent(new Event('change', { bubbles: true })); } await w(50);
+            document.querySelector('#svConf [data-cumgo]').click(); await w(300); const cw = document.querySelector('.cmpm-card');
+            const nChg = (I.chg || []).filter(x => !x.t && x.des).length;
+            r.push(!!cw && /CUMULER/.test(cw.querySelector('.svc-t').textContent), !!cw.querySelector('.frs-why') === (nChg > 0), cw.querySelectorAll('thead th').length);
+            const nSc0 = ((I.ver || {}).L || []).filter(x => x.kind === 'sc').length;
+            cw.querySelector('[data-cumsv="scn"]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(900);
+            const I2 = INS_X.INS, sc = ((I2.ver || {}).L || []).filter(x => x.kind === 'sc');
+            r.push(sc.length > nSc0 || sc.length >= 2, (I2.chg || []).filter(x => !x.t && x.des).length === 2 * nChg, localStorage.getItem('svi_etp_tab_v1'));
+            sh.__cmpMulti('rcl'); await w(150); document.querySelector('#svConf .cmpm-close').click(); await w(150); r.push(localStorage.getItem('svi_etp_tab_v1'));
+            r.push(Object.keys(sviAvSelDef([{ ref: 'A', state: 'valide' }, { ref: 'A-AV1', state: 'valide' }, { ref: 'A-AV2', state: 'instance' }])).join(','));
+            const pgEl = document.querySelector('.bdg-d-page'); pgEl.style.setProperty('--h-etp', '300px'); const scr = document.querySelector('.blk-etp .etp-pane.on .rec-scroll'); r.push(scr ? getComputedStyle(scr).maxHeight : 'x'); pgEl.style.removeProperty('--h-etp');
+            r.push(scr ? getComputedStyle(scr).maxHeight : 'x');
+            const K = JSON.parse(keep); const I3 = INS_X.INS; if (K.vfz) I3.vfz = K.vfz; else delete I3.vfz; if (K.ver) I3.ver = K.ver; else delete I3.ver;
+            sviInstSet(sviInstGet().map(x => { if (x.ref !== 'TEST-1') return x; const d = { ...(x.data || {}) }; if (K.ver) d.ver = K.ver; else delete d.ver; return { ...x, data: d }; })); await sviInstFlush();
+            if (keepT === null) localStorage.removeItem('svi_etp_tab_v1'); else localStorage.setItem('svi_etp_tab_v1', keepT);
+            window.__sviAvRet = null; window.__sviAvOpen('TEST-1'); await w(1000); return r; }""".replace("INS_X", ins))
+        check("v771 : SÉLECTION unique (COMPARER, CUMULER, ✕ FERMER) ; CUMULER : charges en double signalées, enregistré comme scénario (charges additionnées) ; FERMER ramène à l'onglet ; consolidé = étapes validées ; bloc à onglets à hauteur réglable",
+              c771[:4] == ["SÉLECTION", True, True, True] and c771[4:6] == [True, True] and c771[6] == 4 and c771[7:10] == [True, True, "scn"] and c771[10] == "rcl" and c771[11] == "A,A-AV1" and c771[12] == "300px" and c771[13] == "129px", c771)
         # v750 : liste des budgets — colonnes (marge de pliage, RÉFÉRENCE, NATURE, PROJET, INTITULÉ, MONTANT TTC, SAISI LE ; VALIDÉ LE seulement
         # dans les validés), une icône de bascule, plus de cases ni d'impression (corbeille seule), CONSOLIDÉ en ligne de titre, menu de filtre commun,
         # toute la largeur ; suppression depuis la fiche → budget précédent ; IMPRIMER et CUMUL dans le menu ⋯
@@ -2719,12 +2744,12 @@ def main():
             document.querySelector('#budgetListTable tr[data-budget-ref="X-2"] td:nth-child(5)').click(); await w(900);
             document.getElementById('bdgMore')?.click(); await w(200); const mn = ['prt', 'cum'].map(a => !!document.querySelector(`#blkMenu [data-a="${a}"]`));
             document.querySelector('#blkMenu [data-a="cum"]')?.click(); await w(300); const d = document.getElementById('svConf');
-            const pre = d ? [...d.querySelectorAll('input[data-cr]:checked')].map(i => i.dataset.cr).join(',') : 'pas de fenêtre', go0 = d ? d.querySelector('[data-cumgo]').disabled : null;
-            d && d.querySelector('tr[data-cr="X-1"] td:nth-child(2)').click(); const go1 = d ? d.querySelector('[data-cumgo]').disabled : null; d && d.querySelector('[data-r="0"]').click();
+            const pre = d ? [...d.querySelectorAll('input[data-cv]:checked')].map(i => i.dataset.cv).join(',') : 'pas de fenêtre', go0 = d ? d.querySelector('[data-cumgo]').disabled : null;
+            const o1 = d && d.querySelector('[data-cv="o:X-1"]'); if (o1) { o1.checked = true; o1.dispatchEvent(new Event('change', { bubbles: true })); } const go1 = d ? d.querySelector('[data-cumgo]').disabled : null; d && d.querySelector('[data-x]').click();
             document.getElementById('instDel')?.click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(1200);
             return [mn, pre, go0, go1, localStorage.getItem('svi_lastbdg_v1'), !!document.getElementById('budgetBackBtn'), sviInstGet().some(x => x.ref === 'X-2')]; }""")
-        check("v750 : menu ⋯ — IMPRIMER et CUMUL (budget ouvert coché, CUMULER grisé sous deux) ; suppression depuis la fiche → le budget précédent de la liste s'ouvre",
-              d750 == [[True, True], "X-2", True, False, "X-1", True, False], d750)
+        check("v750 / v771 : menu ⋯ — IMPRIMER et CUMUL (fenêtre de SÉLECTION : état actuel coché, autre budget au choix, CUMULER grisé sous deux) ; suppression depuis la fiche → le budget précédent de la liste s'ouvre",
+              d750 == [[True, True], "cur", True, False, "X-1", True, False], d750)
         pg.evaluate("() => { document.getElementById('budgetBackBtn')?.click(); sviInstSet(JSON.parse(window.__kp750)); localStorage.setItem('svi_listmode_v1', 'inst'); localStorage.removeItem('svi_bdgfold_v1'); renderBudgetList(); }"); pg.wait_for_timeout(400)
         # v751 : menu ☰ — ACHAT se déplie (CONSULTATIONS … ACC, dans l'ordre), BESOIN à part dessous ; ARTICLES ouvre l'écran des achats
         m751 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), M = document.getElementById('navMenu');

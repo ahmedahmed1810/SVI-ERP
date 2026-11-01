@@ -2122,7 +2122,7 @@
         m.remove();
         if (it.dataset.a === "dup") $("instDup")?.click();
         else if (it.dataset.a === "prt") { if (window.__sviPrintClient) window.__sviPrintClient(); else printBudgetPDF(ref); }
-        else if (it.dataset.a === "cum") cumPick();
+        else if (it.dataset.a === "cum") { if (shell.__cumPick) shell.__cumPick(); else cumPick(); }   /* v771 : fenêtre de SÉLECTION unique */
         else if (it.dataset.a === "xp" || it.dataset.a === "blk" || it.dataset.a === "arch") etatSet(it.dataset.a);
         else if (it.dataset.a === "lay") $("layResetBtn")?.click();
         else if (it.dataset.a === "cmp") { if (shell.__cmpPick) shell.__cmpPick(); }

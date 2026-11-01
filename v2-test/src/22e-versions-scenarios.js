@@ -403,7 +403,7 @@
         <tbody>${body || (V.ind.length ? `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>` : "")}${add}</tbody>`;
     };
     shell.__scnRender = scnRender;
-    shell.__scnView = () => { scnView = scnView === "list" ? "cmp" : "list"; scnRender(); };
+    shell.__scnView = () => { scnView = "list"; scnRender(); if (shell.__cmpMulti) shell.__cmpMulti("scn"); };   /* v771 : l'ancien mode COMPARAISON est remplacé par la fenêtre de SÉLECTION */
     {
       const blk = shell.querySelector(".blk-scn");
       const V$ = () => INS.ver;
