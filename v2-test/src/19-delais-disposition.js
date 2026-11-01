@@ -186,7 +186,7 @@
     const page$ = () => shell.querySelector(".bdg-d-page");
     const layEls = u => {
       const pg = page$();
-      if (u === "detail") return [$("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
+      if (u === "detail") return [$("bdgDetailHead"), $("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
       const sel = { client: ".blk-client", hier: ".blk-hier", etp: ".blk-etp", suivi: ".blk-suivi" }[u];
       return [pg.querySelector(":scope > " + sel)].filter(Boolean);
     };
@@ -329,7 +329,7 @@
       recTabApply();
       LAY_UNITS.forEach(u => {
         /* poignée de déplacement dans le titre */
-        const title = u === "detail" ? $("bdgTabs")
+        const title = u === "detail" ? $("bdgDetailHead")
           : layEls(u)[0]?.querySelector(".blk-head");
         if (title && !title.querySelector(".blk-grip")) {
           const g = document.createElement("span");
@@ -372,10 +372,17 @@
       let v = base;
       h.classList.add("on");
       const DMIN = u === "detail" ? layDetMin() : 0;
+      /* v772 : MODE RÉDUIT identique pour tous les blocs — titres des colonnes + une ligne de saisie (jamais moins) */
+      const MINU = (() => { try { const sel = { client: ".bdg-d-client-scroll", hier: ".bdg-h-col", suivi: ".blk-suivi .rec-scroll:not([hidden])", etp: ".blk-etp .etp-pane.on .rec-scroll" }[u];
+        const sc = sel && pg.querySelector(sel); if (!sc) return 0;
+        if (u === "hier") { const hd = sc.querySelector(".bdg-h-head"), li = sc.querySelector(".ins-li.ins-new") || sc.querySelector(".ins-li"); return Math.ceil((hd ? hd.getBoundingClientRect().height : 0) + (li ? li.getBoundingClientRect().height : 24)) + 2; }
+        const t = sc.querySelector("table"); if (!t || !t.tHead) return 0;
+        const nr = t.querySelector("tbody tr.ins-new, tbody tr.scn-new, tbody tr.rec-new, tbody tr[data-scnadd]") || t.querySelector("tbody tr");
+        return Math.ceil(t.tHead.getBoundingClientRect().height + (nr ? nr.getBoundingClientRect().height : 24) + (t.tFoot && t.tFoot.offsetHeight ? t.tFoot.getBoundingClientRect().height : 0)) + 2; } catch (e) { return 0; } })();
       const move = e => {
         e.preventDefault();
         /* minimum : en-tête + une seule ligne (+ ligne TOTAL s'il y en a une) */
-        const minH = u === "detail" ? DMIN : { client: 65 }[u] || 44;
+        const minH = u === "detail" ? DMIN : MINU || { client: 65 }[u] || 44;
         v = Math.max(minH, Math.round(base + e.clientY - y0));
         if (["hier", "client", "detail"].includes(u)) v = Math.max(minH, laySnap(u, v));   /* v727 : lignes entières */
         pg.style.setProperty("--h-" + u, v + "px");

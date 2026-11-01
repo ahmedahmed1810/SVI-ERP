@@ -2204,7 +2204,7 @@ const dlyVpB = () => { const vv = window.visualViewport; return vv ? vv.offsetTo
 const dlyFitScr = scr => {
   if (!scr || !scr.classList.contains("dly-scroll")) return 0;
   let lim = 0; document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
-  const tabs = document.getElementById("bdgTabs"), vb = dlyVpB();
+  const tabs = document.getElementById("bdgDetailHead") || document.getElementById("bdgTabs"), vb = dlyVpB();   /* v772 : en-tête DÉTAIL au-dessus des onglets */
   const mx = !!scr.closest(".max-detail");
   document.documentElement.classList.toggle("dly-lock", mx && scr.isConnected);
   /* v594 (remarque longue 2) : bloc agrandi — la ligne des onglets toujours entière juste sous le bandeau du budget */
@@ -2354,7 +2354,7 @@ const layDetDef = () => {
   let lim = 0;
   document.querySelectorAll(".topbar, .bdg-d-sticky").forEach(b => { const r = b.getBoundingClientRect(); if (r.height && /sticky|fixed/.test(getComputedStyle(b).position)) lim = Math.max(lim, r.bottom > 0 ? r.bottom : 0); });
   const vv = window.visualViewport, vb = vv ? vv.offsetTop + vv.height : window.innerHeight;
-  const tabs = $("bdgTabs"), th = tabs ? tabs.getBoundingClientRect().height : 50;
+  const tabs = $("bdgTabs"), dh = $("bdgDetailHead"), th = (tabs ? tabs.getBoundingClientRect().height : 50) + (dh ? dh.getBoundingClientRect().height : 0);
   return Math.max(200, Math.floor(vb - lim - th - 22));
 };
 /* — de src/21-export-import.js — */

@@ -3343,3 +3343,19 @@ table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 #ach .nvp .nvp-rsz { height: 10px; cursor: ns-resize; touch-action: none; position: relative; }
 #ach .nvp .nvp-rsz::after { content: ""; position: absolute; left: 50%; top: 3px; width: 40px; height: 4px; margin-left: -20px; border-radius: 3px; background: #cbd5e1; }
 #ach .nvp .nvp-rsz.on::after, #ach .nvp .nvp-rsz:hover::after { background: #1d4ed8; }
+/* v772 : ORGANISATION DES BLOCS DU BUDGET — en-tête (nom, AGRANDIR, ⋯), rangée d'onglets, tableau */
+#bdgTabs > .bdg-d-tab.tab-menu { display: none !important; }
+.ins-mode-link #bdgDetailHead { display: none !important; }
+#bdgDetailHead { display: flex; align-items: center; justify-content: space-between; border: 1px solid #e1e5eb; border-bottom: 0; border-radius: 12px 12px 0 0; margin-bottom: 0; }
+#bdgDetailHead + #bdgTabs { border-radius: 0; margin-top: 0; }
+#bdgDetailHead .dhead-sub { margin-left: 6px; color: #3b6ea5; }
+#bdgDetailHead > .blk-tools { margin-left: auto; }
+.blk-tabrow { display: flex; align-items: center; padding: 3px 8px; background: #fafbfc; border-bottom: 1px solid #e1e5eb; overflow-x: auto; scrollbar-width: none; }
+.blk-tabrow::-webkit-scrollbar { display: none; }
+.blk-etp > .blk-head, .blk-suivi > .blk-head { display: flex; align-items: center; justify-content: space-between; }
+.blk-etp > .blk-head .blk-tools, .blk-suivi > .blk-head .blk-tools { margin-left: auto; }
+/* MODE RÉDUIT : la ligne de saisie reste visible (collée en bas, au-dessus du total), hauteur fixe */
+.bdg-d-page .bdg-d-table tbody tr.ins-new > td { position: sticky; bottom: 0; z-index: 3; }
+.bdg-d-page .bdg-d-table:has(tfoot td) tbody tr.ins-new > td { bottom: var(--tf-h, 25px); }
+.bdg-d-page .rec-table tbody tr.scn-new > td, .bdg-d-page .rec-table tbody tr.rec-new > td, .bdg-d-page .rec-table tbody tr[data-scnadd] > td { position: sticky; bottom: 0; z-index: 3; }
+.bdg-d-page tr.ins-new > td, .bdg-d-page .rec-table tr.scn-new > td, .bdg-d-page .rec-table tr.rec-new > td { height: 25px; min-height: 25px; }

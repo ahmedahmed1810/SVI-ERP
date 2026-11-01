@@ -2080,6 +2080,9 @@
           if (root) { out.push({ a: "blk", lab: root.blk ? "DÉBLOQUER LE BUDGET" : "BLOQUER LE BUDGET", ic: ic('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3M12 15v2"/>') });
             out.push({ a: "arch", lab: root.arch ? "RAPPELER LE BUDGET (ARCHIVÉ)" : "ARCHIVER LE BUDGET", ic: ic('<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/>') }); }
           return out; })(),
+        /* v772 : vues sorties du bloc DÉTAIL (elles s'y affichent, nom dans l'en-tête « DÉTAIL — … ») */
+        ...(INS && budget.inst ? [["lnk", "TABLEAU DE BORD", SVI_ICON.xpl], ["apr", "APPRO. PRÉVISIONNEL", SVI_ICON.chg], ["ind1", "INDICATEURS", SVI_ICON.xpl], ["unl", "LIGNES NON LIÉES", SVI_ICON.hier], ["inc", "IMPORT NON CRÉÉ", SVI_ICON.hier]]
+          .filter(([k]) => document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`) && (k !== "inc" || (INS.inc || []).length)).map(([k, lab, ic]) => ({ a: "dt-" + k, lab, ic: ic || "" })) : []),
         /* v729 (bloc 10) : COMPARATIF — deux états quelconques du budget, lecture seule */
         ...(INS ? [{ a: "cmp", lab: "COMPARER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h7M4 12h7M4 18h7M13 6h7M13 12h7M13 18h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 3v18" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 2"/></svg>' }] : []),
         { a: "lay", lab: "DISPOSITION PAR DÉFAUT", off: !rb || rb.disabled, ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
@@ -2122,6 +2125,7 @@
         m.remove();
         if (it.dataset.a === "dup") $("instDup")?.click();
         else if (it.dataset.a === "prt") { if (window.__sviPrintClient) window.__sviPrintClient(); else printBudgetPDF(ref); }
+        else if (/^dt-/.test(it.dataset.a)) { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${it.dataset.a.slice(3)}"]`); if (b) { b.click(); setTimeout(() => $("bdgDetailHead")?.scrollIntoView({ block: "start", behavior: "smooth" }), 60); } }
         else if (it.dataset.a === "cum") { if (shell.__cumPick) shell.__cumPick(); else cumPick(); }   /* v771 : fenêtre de SÉLECTION unique */
         else if (it.dataset.a === "xp" || it.dataset.a === "blk" || it.dataset.a === "arch") etatSet(it.dataset.a);
         else if (it.dataset.a === "lay") $("layResetBtn")?.click();

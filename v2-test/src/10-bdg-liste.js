@@ -601,9 +601,11 @@ function renderBudgetList() {
       .blk-max-btn.on { background: #dbeafe; color: #1d4ed8; }
       .bdg-d-page.max-client > .blk-hier,
       .bdg-d-page.max-client > #bdgTabs,
+      .bdg-d-page.max-client > #bdgDetailHead,
       .bdg-d-page.max-client > #bdgTabBody,
       .bdg-d-page.max-hier > .blk-client,
       .bdg-d-page.max-hier > #bdgTabs,
+      .bdg-d-page.max-hier > #bdgDetailHead,
       .bdg-d-page.max-hier > #bdgTabBody,
       .bdg-d-page.max-detail > .blk-client,
       .bdg-d-page.max-detail > .blk-hier { display: none !important; }
@@ -848,6 +850,7 @@ function renderBudgetList() {
       .bdg-d-page.max-rec > .blk-client,
       .bdg-d-page.max-rec > .blk-hier,
       .bdg-d-page.max-rec > #bdgTabs,
+      .bdg-d-page.max-rec > #bdgDetailHead,
       .bdg-d-page.max-rec > #bdgTabBody { display: none !important; }
       .bdg-d-page.max-rec .blk-rec-on .rec-scroll { height: calc(var(--avail) - 50px); max-height: none; }
 

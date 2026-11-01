@@ -18,7 +18,8 @@
     /* v755 : budget BLOQUÉ = lecture seule (en attendant les droits, checklist B9) */
     const INS_BLK = !!INS && !budget.inst.virtual && sviBdgBlk(budget.inst);
     const INS_LIVE_EDIT = !!INS && (budget.inst.state || "instance") === "instance" && !INS_ARCH && !budget.inst.virtual && !INS_BLK;
-    const insTabName = k => (tabs.find(t => t.key === k) || {}).title || k;
+    /* v772 : nom de zone des verrous inchangé (« DÉTAIL CHARGES »…) même si l'onglet s'appelle maintenant CHARGES — compatibilité entre appareils */
+    const insTabName = k => (["chg", "prd", "qlt", "dly"].includes(k) ? "DÉTAIL " : "") + ((tabs.find(t => t.key === k) || {}).title || k);
     const INS_HELD = INS_LIVE_EDIT && budget.inst.ref && typeof sviLockAll === "function" ? sviLockAll(budget.inst.ref).find(k => !k.onglet) || null : null;
     /* v697 : écrans en lecture seule (figé, validé, consolidé, version, recalage enregistré, scénario archivé, budget pris par un
        autre) AU FORMAT COMPLET du budget (ronds, cases, Gantt, graphique…) : on dessine comme en saisie (INS_EDIT), mais rien n'est

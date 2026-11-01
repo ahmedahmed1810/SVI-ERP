@@ -463,7 +463,7 @@
       const ns = body.querySelector(".qq-scroll");
       if (ns) { ns.scrollTop = top; ns.scrollLeft = left; }
       const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="qlt"]`);
-      if (b) b.innerHTML = (SVI_ICON.qlt || "") + "DÉTAIL QUALITÉ " + svCnt(qqCount());
+      if (b) b.innerHTML = (SVI_ICON.qlt || "") + "QUALITÉ " + svCnt(qqCount());
       if (keepFocus) { const t = body.querySelector(keepFocus); if (t) t.focus(); }
     };
     const qqSave = () => insSave();
@@ -768,7 +768,9 @@
     };
     const insRenderTab = () => {
       tabStash(); shell.__tabCur = active;
-      { const tl = document.querySelector("#bdgTabs > .blk-tools");
+      /* v772 : vue ouverte depuis le menu ⋯ du haut — son nom dans l'en-tête du bloc DÉTAIL */
+      { const sb = document.getElementById("bdgDetailSub"); if (sb) sb.textContent = ({ lnk: " — TABLEAU DE BORD", apr: " — APPRO. PRÉVISIONNEL", ind1: " — INDICATEURS", unl: " — LIGNES NON LIÉES", inc: " — IMPORT NON CRÉÉ" })[active] || ""; }
+      { const tl = document.querySelector("#bdgDetailHead > .blk-tools");
         if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (active === "chg" || active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(active)); } }
       ["chg", "prd"].forEach(k => {
         const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
@@ -776,10 +778,10 @@
         if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + " " + insCkBadge(k) + insCntOwn(k, insShown(k).length, INS[k].filter(r => !r.t).length);
       });
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="qlt"]`);
-        if (b) b.innerHTML = (SVI_ICON.qlt || "") + "DÉTAIL QUALITÉ " + svCnt(qqCount()); }
+        if (b) b.innerHTML = (SVI_ICON.qlt || "") + "QUALITÉ " + svCnt(qqCount()); }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
         /* v614 (point 11) : un seul numéro et une seule pastille — tâches retenues par ses cases, ISOLER et la plage DÉBUT – FIN */
-        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + insCkBadge("dly") + (() => { const K = INS_EDIT ? dlyKeys() : insTasks(); if (!INS_EDIT) return svCnt(K.length);
+        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉLAIS " + insCkBadge("dly") + (() => { const K = INS_EDIT ? dlyKeys() : insTasks(); if (!INS_EDIT) return svCnt(K.length);
           const S = shell.__dlySel && shell.__dlySel.size ? shell.__dlySel : null, IP = U_(insIsoPath());
           const inIso = key => { if (!IP) return true; const v = U_(((INS.lot || []).find(x => x.id === String(key).split("|")[0]) || {}).v || ""); return v === IP || v.startsWith(IP + " / "); };
           /* v616 : les cases des autres blocs comptent aussi (tâches de leurs liaisons) */

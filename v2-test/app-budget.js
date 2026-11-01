@@ -1141,9 +1141,11 @@ function renderBudgetList() {
       .blk-max-btn.on { background: #dbeafe; color: #1d4ed8; }
       .bdg-d-page.max-client > .blk-hier,
       .bdg-d-page.max-client > #bdgTabs,
+      .bdg-d-page.max-client > #bdgDetailHead,
       .bdg-d-page.max-client > #bdgTabBody,
       .bdg-d-page.max-hier > .blk-client,
       .bdg-d-page.max-hier > #bdgTabs,
+      .bdg-d-page.max-hier > #bdgDetailHead,
       .bdg-d-page.max-hier > #bdgTabBody,
       .bdg-d-page.max-detail > .blk-client,
       .bdg-d-page.max-detail > .blk-hier { display: none !important; }
@@ -1388,6 +1390,7 @@ function renderBudgetList() {
       .bdg-d-page.max-rec > .blk-client,
       .bdg-d-page.max-rec > .blk-hier,
       .bdg-d-page.max-rec > #bdgTabs,
+      .bdg-d-page.max-rec > #bdgDetailHead,
       .bdg-d-page.max-rec > #bdgTabBody { display: none !important; }
       .bdg-d-page.max-rec .blk-rec-on .rec-scroll { height: calc(var(--avail) - 50px); max-height: none; }
 
@@ -2471,10 +2474,10 @@ function renderBudgetList() {
 
 
     const tabs = [
-      { key: "chg", title: "DÉTAIL CHARGES" },
-      { key: "prd", title: "DÉTAIL PRODUITS" },
-      { key: "qlt", title: "DÉTAIL QUALITÉ" },
-      { key: "dly", title: "DÉTAIL DÉLAIS" },
+      { key: "chg", title: "CHARGES" },
+      { key: "prd", title: "PRODUITS" },
+      { key: "qlt", title: "QUALITÉ" },
+      { key: "dly", title: "DÉLAIS" },
       ...(budget.inst ? [{ key: "apr", title: "APPROVISION&shy;NEMENT PRÉVISIONNEL", ico: "chg" }] : []),   /* v714 (point 3) */
       /* budget en instance : les liaisons validées sont un onglet du détail */
       ...(budget.inst ? [{ key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "ind1", title: "INDICATEURS", ico: "xpl" }, { key: "lnk", title: "TABLEAU DE BORD", ico: "xpl" }] : [])   /* v609 : onglet GRAPHIQUE retiré (le graphique sous le planning suffit) ; v498 (remarque 37) : MARGE remplace LIAISONS VALIDÉES et EXPLOITATION */
@@ -2668,18 +2671,10 @@ function renderBudgetList() {
           <div class="bdg-h-grid" id="bdgHier"></div>
         </div>
 
-        <div class="bdg-d-tabs" id="bdgTabs">
-          ${
-            tabs.map(t => `
-              <button
-                type="button"
-                class="bdg-d-tab"
-                data-tab="${t.key}"
-              >
-                ${SVI_ICON[t.ico || t.key] || ""}${t.title}
-              </button>
-            `).join("")
-          }
+        <!-- v772 : bloc DÉTAIL = en-tête « DÉTAIL » (AGRANDIR, ⋯ pour tout le bloc), puis 4 onglets : CHARGES, PRODUITS, QUALITÉ, DÉLAIS ;
+             TABLEAU DE BORD, APPRO. PRÉVISIONNEL, INDICATEURS, LIGNES NON LIÉES, IMPORT NON CRÉÉ : menu ⋯ du haut -->
+        <div class="bdg-d-block-title blk-head blk-dhead" id="bdgDetailHead">
+          <span class="ttl">${SVI_ICON.chg || ""}DÉTAIL<span class="dhead-sub" id="bdgDetailSub"></span></span>
           <span class="blk-tools">
               <button type="button" class="blk-btn" data-blk="detail" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="detail" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -2692,18 +2687,26 @@ function renderBudgetList() {
               <button type="button" class="blk-btn blk-max-btn" data-blk="detail" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
         </div>
+        <div class="bdg-d-tabs" id="bdgTabs">
+          ${
+            tabs.map(t => `
+              <button
+                type="button"
+                class="bdg-d-tab${["chg", "prd", "qlt", "dly"].includes(t.key) ? "" : " tab-menu"}"
+                data-tab="${t.key}"
+              >
+                ${SVI_ICON[t.ico || t.key] || ""}${t.title}
+              </button>
+            `).join("")
+          }
+        </div>
 
         <div class="bdg-d-block bdg-d-tabbody" id="bdgTabBody"></div>
 
         <!-- v756 : un seul bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES (ancien « scénario et version ») -->
         <div class="bdg-d-block blk-rec blk-etp" data-rec="etp" hidden>
           <div class="bdg-d-block-title blk-head">
-            <span class="rec-tabs etp-tabs">
-              <button type="button" class="rec-tab" data-etab="av" id="avTitle">AVENANTS</button>
-              <button type="button" class="rec-tab" data-etab="scn" id="scnTitle">${SVI_ICON.scn}SCÉNARIOS</button>
-              <button type="button" class="rec-tab" data-etab="ver" id="verTitle">${SVI_ICON.ver}VERSIONS</button>
-              <button type="button" class="rec-tab" data-etab="rcl" id="rclTitle">${SVI_ICON.rcl}RECALAGES</button>
-            </span>
+            <span class="ttl">${SVI_ICON.scn || ""}ÉVOLUTIONS</span>
             <span class="blk-tools">
               <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="cmp" title="SÉLECTION (COMPARER, CUMULER)"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3v10M6.5 3v10M10.5 3v10M14 3v10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="import" title="IMPORTER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -2713,6 +2716,12 @@ function renderBudgetList() {
               <button type="button" class="blk-btn blk-max-btn" data-blk="etp" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
           </div>
+          <div class="blk-tabrow"><span class="rec-tabs etp-tabs">
+              <button type="button" class="rec-tab" data-etab="av" id="avTitle">AVENANTS</button>
+              <button type="button" class="rec-tab" data-etab="scn" id="scnTitle">${SVI_ICON.scn}SCÉNARIOS</button>
+              <button type="button" class="rec-tab" data-etab="ver" id="verTitle">${SVI_ICON.ver}VERSIONS</button>
+              <button type="button" class="rec-tab" data-etab="rcl" id="rclTitle">${SVI_ICON.rcl}RECALAGES</button>
+</span></div>
           <div class="etp-pane blk-av" data-pane="av"><div class="rec-scroll av-scroll"><table class="bdg-d-table rec-table av-table" id="avTable"></table></div><div class="etp-empty">AUCUN AVENANT</div></div>
           <div class="etp-pane blk-scn" data-pane="scn"><div class="rec-scroll scn-scroll"><table class="bdg-d-table rec-table scn-table" id="scnTable"></table></div><div class="etp-empty">AUCUN SCÉNARIO</div></div>
           <div class="etp-pane blk-ver" data-pane="ver"><div class="rec-scroll ver-scroll"><table class="bdg-d-table rec-table ver-table" id="verTable"></table></div><div class="etp-empty">AUCUNE VERSION — MENU ⋯ › CRÉER (PRENDRE UNE VERSION)</div></div>
@@ -2721,17 +2730,18 @@ function renderBudgetList() {
 
         <div class="bdg-d-block blk-rec blk-suivi" data-rec="suivi">
           <div class="bdg-d-block-title blk-head">
-            <span class="rec-tabs">
-              <button type="button" class="rec-tab" data-rtab="doc" id="recTitle-doc">${SVI_ICON.doc}DOCUMENTS ${svCnt(0)}</button>
-              <button type="button" class="rec-tab" data-rtab="taf" id="recTitle-taf">${SVI_ICON.taf}TAF ${svCnt(0)}</button>
-              <button type="button" class="rec-tab" data-rtab="obs" id="recTitle-obs">${SVI_ICON.obs}OBSERVATIONS ${svCnt(0)}</button>
-            </span>
+            <span class="ttl">${SVI_ICON.doc || ""}SUIVI</span>
             <span class="blk-tools">
               <button type="button" class="blk-btn" data-blk="suivi" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="suivi" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
               <button type="button" class="blk-btn blk-max-btn" data-blk="suivi" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
           </div>
+          <div class="blk-tabrow"><span class="rec-tabs">
+              <button type="button" class="rec-tab" data-rtab="doc" id="recTitle-doc">${SVI_ICON.doc}DOCUMENTS ${svCnt(0)}</button>
+              <button type="button" class="rec-tab" data-rtab="taf" id="recTitle-taf">${SVI_ICON.taf}TAF ${svCnt(0)}</button>
+              <button type="button" class="rec-tab" data-rtab="obs" id="recTitle-obs">${SVI_ICON.obs}OBSERVATIONS ${svCnt(0)}</button>
+</span></div>
           <div class="rec-scroll" data-pane="doc"><table class="bdg-d-table rec-table" id="recTable-doc"></table></div>
           <div class="rec-scroll" data-pane="taf" hidden><table class="bdg-d-table rec-table" id="recTable-taf"></table></div>
           <div class="rec-scroll" data-pane="obs" hidden><table class="bdg-d-table rec-table" id="recTable-obs"></table></div>
@@ -2802,7 +2812,8 @@ function renderBudgetList() {
     /* v755 : budget BLOQUÉ = lecture seule (en attendant les droits, checklist B9) */
     const INS_BLK = !!INS && !budget.inst.virtual && sviBdgBlk(budget.inst);
     const INS_LIVE_EDIT = !!INS && (budget.inst.state || "instance") === "instance" && !INS_ARCH && !budget.inst.virtual && !INS_BLK;
-    const insTabName = k => (tabs.find(t => t.key === k) || {}).title || k;
+    /* v772 : nom de zone des verrous inchangé (« DÉTAIL CHARGES »…) même si l'onglet s'appelle maintenant CHARGES — compatibilité entre appareils */
+    const insTabName = k => (["chg", "prd", "qlt", "dly"].includes(k) ? "DÉTAIL " : "") + ((tabs.find(t => t.key === k) || {}).title || k);
     const INS_HELD = INS_LIVE_EDIT && budget.inst.ref && typeof sviLockAll === "function" ? sviLockAll(budget.inst.ref).find(k => !k.onglet) || null : null;
     /* v697 : écrans en lecture seule (figé, validé, consolidé, version, recalage enregistré, scénario archivé, budget pris par un
        autre) AU FORMAT COMPLET du budget (ronds, cases, Gantt, graphique…) : on dessine comme en saisie (INS_EDIT), mais rien n'est
@@ -5438,7 +5449,7 @@ function renderBudgetList() {
       const ns = body.querySelector(".qq-scroll");
       if (ns) { ns.scrollTop = top; ns.scrollLeft = left; }
       const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="qlt"]`);
-      if (b) b.innerHTML = (SVI_ICON.qlt || "") + "DÉTAIL QUALITÉ " + svCnt(qqCount());
+      if (b) b.innerHTML = (SVI_ICON.qlt || "") + "QUALITÉ " + svCnt(qqCount());
       if (keepFocus) { const t = body.querySelector(keepFocus); if (t) t.focus(); }
     };
     const qqSave = () => insSave();
@@ -5743,7 +5754,9 @@ function renderBudgetList() {
     };
     const insRenderTab = () => {
       tabStash(); shell.__tabCur = active;
-      { const tl = document.querySelector("#bdgTabs > .blk-tools");
+      /* v772 : vue ouverte depuis le menu ⋯ du haut — son nom dans l'en-tête du bloc DÉTAIL */
+      { const sb = document.getElementById("bdgDetailSub"); if (sb) sb.textContent = ({ lnk: " — TABLEAU DE BORD", apr: " — APPRO. PRÉVISIONNEL", ind1: " — INDICATEURS", unl: " — LIGNES NON LIÉES", inc: " — IMPORT NON CRÉÉ" })[active] || ""; }
+      { const tl = document.querySelector("#bdgDetailHead > .blk-tools");
         if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (active === "chg" || active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(active)); } }
       ["chg", "prd"].forEach(k => {
         const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
@@ -5751,10 +5764,10 @@ function renderBudgetList() {
         if (b) b.innerHTML = (SVI_ICON[k] || "") + tabs.find(x => x.key === k).title + " " + insCkBadge(k) + insCntOwn(k, insShown(k).length, INS[k].filter(r => !r.t).length);
       });
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="qlt"]`);
-        if (b) b.innerHTML = (SVI_ICON.qlt || "") + "DÉTAIL QUALITÉ " + svCnt(qqCount()); }
+        if (b) b.innerHTML = (SVI_ICON.qlt || "") + "QUALITÉ " + svCnt(qqCount()); }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
         /* v614 (point 11) : un seul numéro et une seule pastille — tâches retenues par ses cases, ISOLER et la plage DÉBUT – FIN */
-        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + insCkBadge("dly") + (() => { const K = INS_EDIT ? dlyKeys() : insTasks(); if (!INS_EDIT) return svCnt(K.length);
+        if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉLAIS " + insCkBadge("dly") + (() => { const K = INS_EDIT ? dlyKeys() : insTasks(); if (!INS_EDIT) return svCnt(K.length);
           const S = shell.__dlySel && shell.__dlySel.size ? shell.__dlySel : null, IP = U_(insIsoPath());
           const inIso = key => { if (!IP) return true; const v = U_(((INS.lot || []).find(x => x.id === String(key).split("|")[0]) || {}).v || ""); return v === IP || v.startsWith(IP + " / "); };
           /* v616 : les cases des autres blocs comptent aussi (tâches de leurs liaisons) */
@@ -12464,7 +12477,7 @@ ${A}</Assignments>
     const page$ = () => shell.querySelector(".bdg-d-page");
     const layEls = u => {
       const pg = page$();
-      if (u === "detail") return [$("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
+      if (u === "detail") return [$("bdgDetailHead"), $("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
       const sel = { client: ".blk-client", hier: ".blk-hier", etp: ".blk-etp", suivi: ".blk-suivi" }[u];
       return [pg.querySelector(":scope > " + sel)].filter(Boolean);
     };
@@ -12607,7 +12620,7 @@ ${A}</Assignments>
       recTabApply();
       LAY_UNITS.forEach(u => {
         /* poignée de déplacement dans le titre */
-        const title = u === "detail" ? $("bdgTabs")
+        const title = u === "detail" ? $("bdgDetailHead")
           : layEls(u)[0]?.querySelector(".blk-head");
         if (title && !title.querySelector(".blk-grip")) {
           const g = document.createElement("span");
@@ -12650,10 +12663,17 @@ ${A}</Assignments>
       let v = base;
       h.classList.add("on");
       const DMIN = u === "detail" ? layDetMin() : 0;
+      /* v772 : MODE RÉDUIT identique pour tous les blocs — titres des colonnes + une ligne de saisie (jamais moins) */
+      const MINU = (() => { try { const sel = { client: ".bdg-d-client-scroll", hier: ".bdg-h-col", suivi: ".blk-suivi .rec-scroll:not([hidden])", etp: ".blk-etp .etp-pane.on .rec-scroll" }[u];
+        const sc = sel && pg.querySelector(sel); if (!sc) return 0;
+        if (u === "hier") { const hd = sc.querySelector(".bdg-h-head"), li = sc.querySelector(".ins-li.ins-new") || sc.querySelector(".ins-li"); return Math.ceil((hd ? hd.getBoundingClientRect().height : 0) + (li ? li.getBoundingClientRect().height : 24)) + 2; }
+        const t = sc.querySelector("table"); if (!t || !t.tHead) return 0;
+        const nr = t.querySelector("tbody tr.ins-new, tbody tr.scn-new, tbody tr.rec-new, tbody tr[data-scnadd]") || t.querySelector("tbody tr");
+        return Math.ceil(t.tHead.getBoundingClientRect().height + (nr ? nr.getBoundingClientRect().height : 24) + (t.tFoot && t.tFoot.offsetHeight ? t.tFoot.getBoundingClientRect().height : 0)) + 2; } catch (e) { return 0; } })();
       const move = e => {
         e.preventDefault();
         /* minimum : en-tête + une seule ligne (+ ligne TOTAL s'il y en a une) */
-        const minH = u === "detail" ? DMIN : { client: 65 }[u] || 44;
+        const minH = u === "detail" ? DMIN : MINU || { client: 65 }[u] || 44;
         v = Math.max(minH, Math.round(base + e.clientY - y0));
         if (["hier", "client", "detail"].includes(u)) v = Math.max(minH, laySnap(u, v));   /* v727 : lignes entières */
         pg.style.setProperty("--h-" + u, v + "px");
@@ -15436,6 +15456,9 @@ ${A}</Assignments>
           if (root) { out.push({ a: "blk", lab: root.blk ? "DÉBLOQUER LE BUDGET" : "BLOQUER LE BUDGET", ic: ic('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3M12 15v2"/>') });
             out.push({ a: "arch", lab: root.arch ? "RAPPELER LE BUDGET (ARCHIVÉ)" : "ARCHIVER LE BUDGET", ic: ic('<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/>') }); }
           return out; })(),
+        /* v772 : vues sorties du bloc DÉTAIL (elles s'y affichent, nom dans l'en-tête « DÉTAIL — … ») */
+        ...(INS && budget.inst ? [["lnk", "TABLEAU DE BORD", SVI_ICON.xpl], ["apr", "APPRO. PRÉVISIONNEL", SVI_ICON.chg], ["ind1", "INDICATEURS", SVI_ICON.xpl], ["unl", "LIGNES NON LIÉES", SVI_ICON.hier], ["inc", "IMPORT NON CRÉÉ", SVI_ICON.hier]]
+          .filter(([k]) => document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`) && (k !== "inc" || (INS.inc || []).length)).map(([k, lab, ic]) => ({ a: "dt-" + k, lab, ic: ic || "" })) : []),
         /* v729 (bloc 10) : COMPARATIF — deux états quelconques du budget, lecture seule */
         ...(INS ? [{ a: "cmp", lab: "COMPARER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h7M4 12h7M4 18h7M13 6h7M13 12h7M13 18h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 3v18" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 2"/></svg>' }] : []),
         { a: "lay", lab: "DISPOSITION PAR DÉFAUT", off: !rb || rb.disabled, ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
@@ -15478,6 +15501,7 @@ ${A}</Assignments>
         m.remove();
         if (it.dataset.a === "dup") $("instDup")?.click();
         else if (it.dataset.a === "prt") { if (window.__sviPrintClient) window.__sviPrintClient(); else printBudgetPDF(ref); }
+        else if (/^dt-/.test(it.dataset.a)) { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${it.dataset.a.slice(3)}"]`); if (b) { b.click(); setTimeout(() => $("bdgDetailHead")?.scrollIntoView({ block: "start", behavior: "smooth" }), 60); } }
         else if (it.dataset.a === "cum") { if (shell.__cumPick) shell.__cumPick(); else cumPick(); }   /* v771 : fenêtre de SÉLECTION unique */
         else if (it.dataset.a === "xp" || it.dataset.a === "blk" || it.dataset.a === "arch") etatSet(it.dataset.a);
         else if (it.dataset.a === "lay") $("layResetBtn")?.click();

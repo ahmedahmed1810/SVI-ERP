@@ -261,10 +261,10 @@
 
 
     const tabs = [
-      { key: "chg", title: "DÉTAIL CHARGES" },
-      { key: "prd", title: "DÉTAIL PRODUITS" },
-      { key: "qlt", title: "DÉTAIL QUALITÉ" },
-      { key: "dly", title: "DÉTAIL DÉLAIS" },
+      { key: "chg", title: "CHARGES" },
+      { key: "prd", title: "PRODUITS" },
+      { key: "qlt", title: "QUALITÉ" },
+      { key: "dly", title: "DÉLAIS" },
       ...(budget.inst ? [{ key: "apr", title: "APPROVISION&shy;NEMENT PRÉVISIONNEL", ico: "chg" }] : []),   /* v714 (point 3) */
       /* budget en instance : les liaisons validées sont un onglet du détail */
       ...(budget.inst ? [{ key: "unl", title: "LIGNES NON LIÉES" }, { key: "inc", title: "IMPORT NON CRÉÉ" }, { key: "ind1", title: "INDICATEURS", ico: "xpl" }, { key: "lnk", title: "TABLEAU DE BORD", ico: "xpl" }] : [])   /* v609 : onglet GRAPHIQUE retiré (le graphique sous le planning suffit) ; v498 (remarque 37) : MARGE remplace LIAISONS VALIDÉES et EXPLOITATION */
@@ -458,18 +458,10 @@
           <div class="bdg-h-grid" id="bdgHier"></div>
         </div>
 
-        <div class="bdg-d-tabs" id="bdgTabs">
-          ${
-            tabs.map(t => `
-              <button
-                type="button"
-                class="bdg-d-tab"
-                data-tab="${t.key}"
-              >
-                ${SVI_ICON[t.ico || t.key] || ""}${t.title}
-              </button>
-            `).join("")
-          }
+        <!-- v772 : bloc DÉTAIL = en-tête « DÉTAIL » (AGRANDIR, ⋯ pour tout le bloc), puis 4 onglets : CHARGES, PRODUITS, QUALITÉ, DÉLAIS ;
+             TABLEAU DE BORD, APPRO. PRÉVISIONNEL, INDICATEURS, LIGNES NON LIÉES, IMPORT NON CRÉÉ : menu ⋯ du haut -->
+        <div class="bdg-d-block-title blk-head blk-dhead" id="bdgDetailHead">
+          <span class="ttl">${SVI_ICON.chg || ""}DÉTAIL<span class="dhead-sub" id="bdgDetailSub"></span></span>
           <span class="blk-tools">
               <button type="button" class="blk-btn" data-blk="detail" data-act="import" title="Importer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="detail" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -482,18 +474,26 @@
               <button type="button" class="blk-btn blk-max-btn" data-blk="detail" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
         </div>
+        <div class="bdg-d-tabs" id="bdgTabs">
+          ${
+            tabs.map(t => `
+              <button
+                type="button"
+                class="bdg-d-tab${["chg", "prd", "qlt", "dly"].includes(t.key) ? "" : " tab-menu"}"
+                data-tab="${t.key}"
+              >
+                ${SVI_ICON[t.ico || t.key] || ""}${t.title}
+              </button>
+            `).join("")
+          }
+        </div>
 
         <div class="bdg-d-block bdg-d-tabbody" id="bdgTabBody"></div>
 
         <!-- v756 : un seul bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES (ancien « scénario et version ») -->
         <div class="bdg-d-block blk-rec blk-etp" data-rec="etp" hidden>
           <div class="bdg-d-block-title blk-head">
-            <span class="rec-tabs etp-tabs">
-              <button type="button" class="rec-tab" data-etab="av" id="avTitle">AVENANTS</button>
-              <button type="button" class="rec-tab" data-etab="scn" id="scnTitle">${SVI_ICON.scn}SCÉNARIOS</button>
-              <button type="button" class="rec-tab" data-etab="ver" id="verTitle">${SVI_ICON.ver}VERSIONS</button>
-              <button type="button" class="rec-tab" data-etab="rcl" id="rclTitle">${SVI_ICON.rcl}RECALAGES</button>
-            </span>
+            <span class="ttl">${SVI_ICON.scn || ""}ÉVOLUTIONS</span>
             <span class="blk-tools">
               <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="cmp" title="SÉLECTION (COMPARER, CUMULER)"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3v10M6.5 3v10M10.5 3v10M14 3v10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="import" title="IMPORTER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -503,6 +503,12 @@
               <button type="button" class="blk-btn blk-max-btn" data-blk="etp" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
           </div>
+          <div class="blk-tabrow"><span class="rec-tabs etp-tabs">
+              <button type="button" class="rec-tab" data-etab="av" id="avTitle">AVENANTS</button>
+              <button type="button" class="rec-tab" data-etab="scn" id="scnTitle">${SVI_ICON.scn}SCÉNARIOS</button>
+              <button type="button" class="rec-tab" data-etab="ver" id="verTitle">${SVI_ICON.ver}VERSIONS</button>
+              <button type="button" class="rec-tab" data-etab="rcl" id="rclTitle">${SVI_ICON.rcl}RECALAGES</button>
+</span></div>
           <div class="etp-pane blk-av" data-pane="av"><div class="rec-scroll av-scroll"><table class="bdg-d-table rec-table av-table" id="avTable"></table></div><div class="etp-empty">AUCUN AVENANT</div></div>
           <div class="etp-pane blk-scn" data-pane="scn"><div class="rec-scroll scn-scroll"><table class="bdg-d-table rec-table scn-table" id="scnTable"></table></div><div class="etp-empty">AUCUN SCÉNARIO</div></div>
           <div class="etp-pane blk-ver" data-pane="ver"><div class="rec-scroll ver-scroll"><table class="bdg-d-table rec-table ver-table" id="verTable"></table></div><div class="etp-empty">AUCUNE VERSION — MENU ⋯ › CRÉER (PRENDRE UNE VERSION)</div></div>
@@ -511,17 +517,18 @@
 
         <div class="bdg-d-block blk-rec blk-suivi" data-rec="suivi">
           <div class="bdg-d-block-title blk-head">
-            <span class="rec-tabs">
-              <button type="button" class="rec-tab" data-rtab="doc" id="recTitle-doc">${SVI_ICON.doc}DOCUMENTS ${svCnt(0)}</button>
-              <button type="button" class="rec-tab" data-rtab="taf" id="recTitle-taf">${SVI_ICON.taf}TAF ${svCnt(0)}</button>
-              <button type="button" class="rec-tab" data-rtab="obs" id="recTitle-obs">${SVI_ICON.obs}OBSERVATIONS ${svCnt(0)}</button>
-            </span>
+            <span class="ttl">${SVI_ICON.doc || ""}SUIVI</span>
             <span class="blk-tools">
               <button type="button" class="blk-btn" data-blk="suivi" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="suivi" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
               <button type="button" class="blk-btn blk-max-btn" data-blk="suivi" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
           </div>
+          <div class="blk-tabrow"><span class="rec-tabs">
+              <button type="button" class="rec-tab" data-rtab="doc" id="recTitle-doc">${SVI_ICON.doc}DOCUMENTS ${svCnt(0)}</button>
+              <button type="button" class="rec-tab" data-rtab="taf" id="recTitle-taf">${SVI_ICON.taf}TAF ${svCnt(0)}</button>
+              <button type="button" class="rec-tab" data-rtab="obs" id="recTitle-obs">${SVI_ICON.obs}OBSERVATIONS ${svCnt(0)}</button>
+</span></div>
           <div class="rec-scroll" data-pane="doc"><table class="bdg-d-table rec-table" id="recTable-doc"></table></div>
           <div class="rec-scroll" data-pane="taf" hidden><table class="bdg-d-table rec-table" id="recTable-taf"></table></div>
           <div class="rec-scroll" data-pane="obs" hidden><table class="bdg-d-table rec-table" id="recTable-obs"></table></div>

@@ -364,7 +364,7 @@ def main():
         pg.evaluate("() => document.querySelector('.mg-table tr.mg-grp td[data-k=\"mg\"]')?.click()"); pg.wait_for_timeout(300)
         g52b = pg.evaluate("() => document.querySelector('.mg-table').tBodies[0].rows.length")
         check("remarque 52 : toucher la case % (ou MARGE) d'une ligne regroupée = déplier / replier", g52 == 2 and g52b == 1, [g52, g52b])
-        pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#bdgDetailHead .blk-more')?.click()"); pg.wait_for_timeout(300)
         pg.evaluate("() => document.querySelector('#blkMenu [data-mgf=\"open\"]')?.click()"); pg.wait_for_timeout(300)
         g2 = pg.evaluate("() => [...document.querySelector('.mg-table').tBodies[0].rows].map(r => r.className)")
         pg.evaluate("""() => { const o = JSON.parse(localStorage.getItem('svi_colorder_v1') || '{}'); o.lk_marge = ['lot', 'art', 'des', 'upb', 'prim', 'sec', 'su', 'chg', 'prd', 'mg', 'pct']; localStorage.setItem('svi_colorder_v1', JSON.stringify(o)); }""")
@@ -398,7 +398,7 @@ def main():
         f40 = pg.evaluate("() => [...document.querySelectorAll('#bdgTabs .bdg-d-tab.tab-filt')].map(b => b.dataset.tab).sort()")
         pg.evaluate("() => { const t = document.querySelector('.bdg-d-tab[data-tab=\"chg\"]'); t && t.click(); }"); pg.wait_for_timeout(400)
         f41 = pg.evaluate("() => !!document.querySelector('table.ins-table[data-ik=\"chg\"] thead th.cb-filt')")
-        pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#bdgDetailHead .blk-more')?.click()"); pg.wait_for_timeout(300)
         pg.evaluate("() => document.querySelector('#blkMenu [data-fclr]')?.click()"); pg.wait_for_timeout(400)
         f42 = pg.evaluate(f"""() => {{ const X = {ins}; return [X.INS.chg.some(r => r.on === true), document.querySelectorAll('#bdgTabs .bdg-d-tab.tab-filt').length]; }}""")
         check("remarques 40 à 42 et 53 : seul l'onglet source du filtre en bleu, en-tête des cases en bleu, EFFACER TOUS LES FILTRES", f40 == ["chg"] and f41 and f42 == [False, 0], [f40, f41, f42])
@@ -455,7 +455,7 @@ def main():
         # remarque 34 : à la largeur de l'iPad, avec une largeur d'onglet mémorisée trop grande, tous les onglets restent entiers
         pg.evaluate("() => localStorage.setItem('svi_tabw_v1', JSON.stringify({ '#bdgTabs': 220 }))")
         pg.set_viewport_size({"width": 1000, "height": 820}); pg.wait_for_timeout(400)
-        t34 = pg.evaluate("() => { const b = document.getElementById('bdgTabs'); const ts = [...b.querySelectorAll('.bdg-d-tab')].filter(t => t.offsetParent !== null); const tools = b.querySelector('.blk-tools').getBoundingClientRect(); return [b.scrollWidth <= b.clientWidth + 1, ts.every(t => t.scrollWidth <= t.clientWidth + 1), ts.every(t => t.getBoundingClientRect().right <= tools.left + 1)]; }")
+        t34 = pg.evaluate("() => { const b = document.getElementById('bdgTabs'); const ts = [...b.querySelectorAll('.bdg-d-tab')].filter(t => t.offsetParent !== null); const tools = b.getBoundingClientRect(); return [b.scrollWidth <= b.clientWidth + 1, ts.every(t => t.scrollWidth <= t.clientWidth + 1), ts.every(t => t.getBoundingClientRect().right <= tools.right + 1)]; }")
         pg.evaluate("() => localStorage.removeItem('svi_tabw_v1')")
         pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
         check("remarque 34 : onglets entiers à la largeur de l'iPad (aucun intitulé coupé)", t34 == [True, True, True], t34)
@@ -630,7 +630,7 @@ def main():
         pg.evaluate("""() => { const o = JSON.parse(localStorage.getItem('svi_colw_v1') || '{}'); o['chg.article'] = 30; localStorage.setItem('svi_colw_v1', JSON.stringify(o)); }""")
         pg.evaluate(f"() => {ins}.refreshAll()"); pg.wait_for_timeout(300)
         pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle .ins-gfz')?.click()"); pg.wait_for_timeout(300)
-        pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#bdgDetailHead .blk-more')?.click()"); pg.wait_for_timeout(300)
         pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
         w77 = pg.evaluate("() => Math.round(document.querySelector('table.ins-table[data-ik=\"chg\"] col[data-w=\"chg.article\"]').getBoundingClientRect().width)")
         pg.evaluate("""() => { const o = JSON.parse(localStorage.getItem('svi_colw_v1') || '{}'); delete o['chg.article']; localStorage.setItem('svi_colw_v1', JSON.stringify(o)); }""")
@@ -1583,7 +1583,7 @@ def main():
         pg.evaluate(f"() => {DXJ}.plafSeg(0, 4)"); pg.wait_for_timeout(300)
         pg.evaluate(f"() => {DXJ}.plafSeg(0, 4)"); pg.wait_for_timeout(300)
         t2 = pg.evaluate(f"() => [{ins}.INS.dlp['l1|s1'][0].fin, (document.getElementById('svToast') || {{}}).textContent || '']")
-        pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#bdgDetailHead .blk-more')?.click()"); pg.wait_for_timeout(300)
         mn = pg.evaluate("() => (document.getElementById('blkMenu') || {}).textContent || ''")
         pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
         check("v542 R2 / R5 : plafond recompresse aussitôt (4 J-H ÷ 4 = 1 jour), même nombre = AUCUN GAIN ; menu (v546) : vue, CLASSER PAR DÉBUT, APPROVISIONNEMENT — plus de COMPRESSER ni de JOUR / SEMAINE / MOIS",
@@ -1736,7 +1736,7 @@ def main():
         hb = pg.evaluate("() => { const h = document.querySelector('.dlyg-foot .ghist'); if (!h) return null; const r = h.getBoundingClientRect(); return [r.left + 60, r.top + 30]; }")
         if hb: pg.mouse.click(hb[0], hb[1]); pg.wait_for_timeout(300)
         pg.evaluate("() => document.getElementById('dlyHb')?.remove()")
-        pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#bdgDetailHead .blk-more')?.click()"); pg.wait_for_timeout(300)
         z1 = pg.evaluate("() => [...document.querySelectorAll('#blkMenu .blk-hint')].map(e => e.textContent).slice(0, 3)")
         pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
         z1b = pg.evaluate("() => !!document.querySelector('.dlyg.dz-hist')")
@@ -1784,7 +1784,7 @@ def main():
               f197 and f197[1] <= f197[2] + 1 and f197[0] <= f197[2] + 1 and f197[2] - f197[0] <= 70, f197)
         # v549 : plus de bouton AJOUTER sous le planning (entrée du menu ⋯) ; barre marron limitée au Gantt quand le tableau est affiché
         v549 = pg.evaluate("() => { const hh = document.querySelector('.dlyg-hh'), sp = document.querySelector('.dlyg-sp'), sc = document.querySelector('.dly-scroll'); return [!!document.querySelector('.dly-add'), hh && sp ? Math.abs(hh.getBoundingClientRect().left - sp.getBoundingClientRect().left) < 2 && Math.abs(hh.getBoundingClientRect().right - sc.getBoundingClientRect().right) < 3 : null]; }")
-        pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#bdgDetailHead .blk-more')?.click()"); pg.wait_for_timeout(300)
         v549m = pg.evaluate("() => [...document.querySelectorAll('#blkMenu [data-dly]')].map(b => b.dataset.dly).join(',') + '|' + [...document.querySelectorAll('#blkMenu .blk-hint')].map(e => e.textContent).join(',') + '|' + (document.getElementById('blkMenu') || {}).textContent")
         pg.evaluate("() => document.getElementById('blkMenu')?.remove()")
         check("v549 / v553 / v555 : plus de bouton AJOUTER sous le planning ni dans le menu ⋯ (P11 R3), ni RÉGLAGES DU GRAPHIQUE dans le menu (P11 R6) ; rubrique GRAPHIQUE ; barre marron de la barre verticale au bord droit du cadre (v552)",
@@ -1939,7 +1939,7 @@ def main():
         rgD = pg.evaluate("""a => { const t = document.querySelector('table.ins-table[data-ik="chg"]'); const tr = t && t.querySelector('tr[data-iid="' + a[0] + '"]');
             const qi = [...t.querySelectorAll('thead th')].findIndex(th => /^Q/.test(th.textContent.trim()));
             const cq = tr && tr.cells[qi]; return [cq ? ((cq.querySelector('input') || {}).value || cq.textContent).trim() : null, a[2] ? !!t.querySelector('tr[data-iid="' + a[2] + '"]') : false, document.querySelector('.bdg-d-tab[data-tab="chg"]').classList.contains('tab-filt'), (t.tFoot.textContent || '').includes('PARTIEL')]; }""", rg)
-        pg.evaluate("() => document.querySelector('#bdgTabs .blk-more')?.click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#bdgDetailHead .blk-more')?.click()"); pg.wait_for_timeout(300)
         pg.evaluate("() => document.querySelector('#blkMenu [data-fclr]')?.click()"); pg.wait_for_timeout(400)
         rgC = pg.evaluate(f"() => {{ const I = {ins}.INS; return [I.hrange && I.hrange.a, I.hrange && I.hrange.b]; }}")
         pg.evaluate(f"""() => {{ const X = {ins}, I = X.INS, R = window.__rg0; const d = JSON.parse(R[1]); if (d) I.dlp[R[0]] = d; else delete I.dlp[R[0]];
@@ -2705,6 +2705,16 @@ def main():
             window.__sviAvRet = null; window.__sviAvOpen('TEST-1'); await w(1000); return r; }""".replace("INS_X", ins))
         check("v771 : SÉLECTION unique (COMPARER, CUMULER, ✕ FERMER) ; CUMULER : charges en double signalées, enregistré comme scénario (charges additionnées) ; FERMER ramène à l'onglet ; consolidé = étapes validées ; bloc à onglets à hauteur réglable",
               c771[:4] == ["SÉLECTION", True, True, True] and c771[4:6] == [True, True] and c771[6] == 4 and c771[7:10] == [True, True, "scn"] and c771[10] == "rcl" and c771[11] == "A,A-AV1" and c771[12] == "300px" and c771[13] == "129px", c771)
+        # v772 : organisation des blocs — en-têtes DÉTAIL, ÉVOLUTIONS, SUIVI puis rangée d'onglets ; DÉTAIL = 4 onglets ; vues dans le ⋯ du haut
+        o772 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), pgEl = document.querySelector('.bdg-d-page');
+            const ttl = sel => { const e = document.querySelector(sel); return e ? e.textContent.replace(/\\s+/g, ' ').trim() : ''; };
+            const r = [ttl('#bdgDetailHead .ttl'), ttl('.blk-etp > .blk-head .ttl'), ttl('.blk-suivi > .blk-head .ttl'), !!document.querySelector('.blk-etp > .blk-tabrow .etp-tabs'), !!document.querySelector('.blk-suivi > .blk-tabrow .rec-tabs'),
+              [...document.querySelectorAll('#bdgTabs .bdg-d-tab')].filter(b => getComputedStyle(b).display !== 'none').map(b => b.dataset.tab).join(','), !!document.querySelector('#bdgDetailHead .blk-max-btn')];
+            document.getElementById('bdgMore').click(); await w(200); const it = document.querySelector('#blkMenu [data-a="dt-lnk"]'); r.push(!!it);
+            if (it) { it.click(); await w(500); r.push(ttl('#bdgDetailHead .ttl')); document.querySelector('#bdgTabs .bdg-d-tab[data-tab="chg"]').click(); await w(400); r.push(ttl('#bdgDetailHead .ttl')); }
+            document.getElementById('blkMenu')?.remove(); return r; }""")
+        check("v772 : blocs DÉTAIL, ÉVOLUTIONS, SUIVI avec en-tête puis onglets ; DÉTAIL = CHARGES, PRODUITS, QUALITÉ, DÉLAIS ; TABLEAU DE BORD depuis le ⋯ du haut (nom dans l'en-tête)",
+              o772[:7] == ["DÉTAIL", "ÉVOLUTIONS", "SUIVI", True, True, "chg,prd,qlt,dly", True] and o772[7] is True and o772[8] == "DÉTAIL — TABLEAU DE BORD" and o772[9] == "DÉTAIL", o772)
         # v750 : liste des budgets — colonnes (marge de pliage, RÉFÉRENCE, NATURE, PROJET, INTITULÉ, MONTANT TTC, SAISI LE ; VALIDÉ LE seulement
         # dans les validés), une icône de bascule, plus de cases ni d'impression (corbeille seule), CONSOLIDÉ en ligne de titre, menu de filtre commun,
         # toute la largeur ; suppression depuis la fiche → budget précédent ; IMPRIMER et CUMUL dans le menu ⋯
