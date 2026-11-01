@@ -165,9 +165,9 @@ const coOrder = (t, cols) => {
 /* FORMAT 102 : ordre des colonnes tel qu'affiché à l'écran (après glissement) — copies, exports, aperçus */
 const screenCols = (table, cols) => {
   if (!table || !cols) return cols;
-  const keys = [...table.querySelectorAll("thead tr:first-child > th .cf-btn[data-col]")].map(b => b.dataset.col);
+  const keys = [...table.querySelectorAll("thead tr:first-child > th:not(.svi-colh) .cf-btn[data-col]")].map(b => b.dataset.col);
   const out = keys.map(k => cols.find(c => c[0] === k)).filter(Boolean);
-  return out.length ? [...out, ...cols.filter(c => !out.includes(c) && !keys.length)] : cols;
+  return out.length ? out : cols;   /* v786 : colonnes masquées exclues (aperçu, export, copie suivent l'écran) */
 };
 /* — de src/12-tableaux-colonnes.js — */
 /* réordonne un tableau déjà dessiné (col, en-têtes, lignes, pied) */
@@ -414,7 +414,7 @@ const qqWin = (title, html, onOk, onLive) => {
   sviWinShow(d);
   if (onLive) { d.addEventListener("input", () => onLive(d)); d.addEventListener("change", () => onLive(d)); onLive(d); }
   let lp = null;
-  d.addEventListener("pointerdown", e => { const g = e.target.closest(".qq-dis"); if (g) lp = setTimeout(() => svToast(g.dataset.why || "", 3500, g), 500); });
+  d.addEventListener("pointerdown", e => { const g = e.target.closest(".qq-dis"); if (g) lp = setTimeout(() => svToast(g.dataset.why || "", 3500, g), SVI_G.lp); });
   ["pointerup", "pointercancel"].forEach(t => d.addEventListener(t, () => clearTimeout(lp)));
   d.addEventListener("click", e => {
     const b = e.target.closest("[data-r]");
@@ -447,7 +447,7 @@ const dlyViewAll = () => { try { return JSON.parse(localStorage.getItem("svi_dly
 /* hauteur des lignes du PLANNING (tableau et Gantt) : pincement vertical à deux doigts ; 24 px au moins (taille d'origine), 64 au plus */
 const DLY_RH_KEY = "svi_dly_rh_v1";
 /* — de src/17-2-lignes-ordre.js — */
-const dlyRhGet = () => { const v = Number(localStorage.getItem(DLY_RH_KEY)); return v >= 24 && v <= 64 ? v : 24; };
+const dlyRhGet = () => { const v = Number(localStorage.getItem(DLY_RH_KEY)); return v >= SVI_G.ganttMin && v <= SVI_G.ganttMax ? v : SVI_G.ganttMin; };
 /* — de src/17-2-lignes-ordre.js — */
 const dlyBh = rh => Math.round(11 + (rh - 24) * 0.5);   /* épaisseur des barres : 11 px à 24, 31 px à 64 */
 /* — de src/17-2-lignes-ordre.js — */

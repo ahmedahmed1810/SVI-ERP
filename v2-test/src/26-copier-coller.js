@@ -432,7 +432,7 @@
           /* v553 (partie 11, remarque 3) : plus d'entrée « + AJOUTER UNE TÂCHE OU SES DÉLAIS » */
           + `<div class="blk-sep"></div>`   /* v572 (remarque 17) : réglages des commandes dans RÉGLAGES DU GRAPHIQUE ⚙ */);
         let lp = null;
-        m.addEventListener("pointerdown", e => { const so = e.target.closest("[data-dly].off[data-why]"); if (!so) return; lp = setTimeout(() => svToast(so.dataset.why, 4000, so), 550); });
+        m.addEventListener("pointerdown", e => { const so = e.target.closest("[data-dly].off[data-why]"); if (!so) return; lp = setTimeout(() => svToast(so.dataset.why, 4000, so), SVI_G.lp); });
         ["pointerup", "pointercancel"].forEach(t => m.addEventListener(t, () => clearTimeout(lp)));
         m.addEventListener("click", e => {
           const b = e.target.closest("[data-dly]");
@@ -471,6 +471,10 @@
         m.addEventListener("click", e => { const b = e.target.closest("[data-cmpx]"); if (!b) return; e.stopPropagation(); m.remove(); if (b.dataset.cmpx === "cmp") shell.__cmpWin(); else if (b.dataset.cmpx === "ctr") shell.__ctrWin(LK.des); else shell.__sdp(); }, true);
       }
       /* v774 (point 2) : COÛT D'UNE JOURNÉE DE MAIN-D'ŒUVRE passe dans le ⋯ principal */
+      /* v785 : AGRANDIR / RÉDUIRE dans le ⋯ du bloc (plus d'icône dans l'en-tête ; double toucher sur le titre = la même chose) */
+      { const mb = tools.querySelector(".blk-max-btn"); if (mb) { const on = mb.classList.contains("on");
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-mx="1"><span>${on ? "RÉDUIRE" : "AGRANDIR"}</span></button>`);
+        m.addEventListener("click", e => { const b = e.target.closest("[data-mx]"); if (!b) return; e.stopPropagation(); m.remove(); mb.click(); }, true); } }
       if (INS && INS_EDIT && (active === "chg" || active === "prd") && shell.__sdOpen && acts.some(a => a.dataset.blk === "detail")) {
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-sdo="1"><span>SAISIE DIRECTE</span></button>`);
         m.addEventListener("click", e => { const b = e.target.closest("[data-sdo]"); if (!b) return; e.stopPropagation(); m.remove(); runBlkAct("detail", "sd"); }, true);
@@ -505,8 +509,12 @@
         } }
       /* v774 (point 3) : ordre unique du ⋯ de chaque bloc, un trait entre les groupes — actions propres au bloc ;
          IMPORTER, EXPORTER, APERÇU ; COPIER, COUPER, COLLER ; SUPPRIMER LES LIGNES COCHÉES, EFFACER TOUS LES FILTRES */
-      { const top = [], G = [[], [], [], []];
+      /* v786 : MASQUER / AFFICHER DES COLONNES (mécanisme commun 09e-colonnes-masquees), groupe juste après les actions propres */
+      const colhT = sviColhTableNear(btn);
+      sviColhItems(colhT).forEach(x => m.insertAdjacentHTML("beforeend", `<button type="button" data-colh="${x.k}"><span>${esc(x.lab)}</span></button>`));
+      { const top = [], G = [[], [], [], []], GC = [];
         [...m.children].forEach(el => {
+          if (el.dataset.colh) { GC.push(el); return; }
           if (el.classList.contains("blk-sep")) return;
           if (el.dataset.cs || (el.classList.contains("blk-hint") && / CASE\(S\) /.test(el.textContent))) { top.push(el); return; }
           const a = el.dataset.i != null ? (acts[+el.dataset.i] || {}).dataset?.act : null;
@@ -519,12 +527,14 @@
         const ord = el => { const a = el.dataset.i != null ? (acts[+el.dataset.i] || {}).dataset?.act : ""; const k = ["import", "export", "pdf", "copy", "cut", "paste"].indexOf(a); return k < 0 ? -1 : k; };
         G[1].sort((x, y) => ord(x) - ord(y)); G[2].sort((x, y) => ord(x) - ord(y));
         m.innerHTML = "";
-        [top, ...G].filter(g => g.length).forEach((g, i) => { if (i) m.insertAdjacentHTML("beforeend", '<div class="blk-sep"></div>'); g.forEach(el => m.appendChild(el)); });
+        [top, G[0], GC, G[1], G[2], G[3]].filter(g => g.length).forEach((g, i) => { if (i) m.insertAdjacentHTML("beforeend", '<div class="blk-sep"></div>'); g.forEach(el => m.appendChild(el)); });
       }
       document.body.appendChild(m);
       const r = btn.getBoundingClientRect();
       sviPlaceMenu(m, r);
       m.addEventListener("click", e => {
+        const ch = e.target.closest("[data-colh]");
+        if (ch) { m.remove(); sviColhPick(ch.dataset.colh, colhT); return; }
         const ub = e.target.closest("[data-unl]");
         if (ub) {
           if (ub.disabled) return;

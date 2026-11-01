@@ -1757,6 +1757,7 @@ function renderBudgetList() {
   {
     /* v750 (point 3) : une seule icône de bascule EN INSTANCE ⇄ VALIDÉS, juste à côté du titre (grisée s'il n'y a rien dans l'autre liste) */
     const h1 = shell.querySelector(".novapp-list-titlebar h1");
+    { const lb = shell.querySelector(".novapp-list-titlebar .svi-listbar"); if (lb && !lb.firstChild) lb.innerHTML = sviListBar(); }   /* v785 : barre commune */
     const other = listMode === "inst" ? "valid" : "inst", can = LIST_N[other] > 0;
     const why = other === "inst" ? "AUCUN BUDGET EN INSTANCE." : "AUCUN BUDGET VALIDÉ.";
     if (h1) {
@@ -2247,9 +2248,11 @@ function renderBudgetList() {
         window.__sviSwipe = true;
         let st = null;
         document.addEventListener("touchstart", e => {
-          const nav = window.__sviBdgNav;
-          if (!nav || e.touches.length !== 1 || !document.querySelector(".bdg-d-page")) { st = null; return; }
-          const t = e.target;
+          /* v786 (prompt codage, point 4) : balayage SEULEMENT sur l'en-tête (barre du haut) = document précédent / suivant ;
+             sur un tableau, il fait seulement défiler. Même geste sur les pages des achats (‹ › de leur barre). */
+          const t = e.target, hdr = t && t.closest && t.closest(".bdg-d-sticky"), ach = hdr && hdr.closest(".nvp");
+          const nav = ach ? { go: d => ach.querySelector(`[data-nvp="${d > 0 ? "next" : "prev"}"]`)?.click() } : window.__sviBdgNav;
+          if (!hdr || !nav || e.touches.length !== 1 || !document.querySelector(".bdg-d-page")) { st = null; return; }
           /* bloc agrandi (16/10/2026) : le balayage y change de budget en restant sur le même bloc et le même onglet ;
              un tableau ou le Gantt qui défile garde le geste tant qu'il n'est pas arrivé au bout */
           const pg = document.querySelector(".bdg-d-page"), mx = pg && [...pg.classList].find(c => /^max-/.test(c));
@@ -2258,10 +2261,10 @@ function renderBudgetList() {
           /* v694 : balayage partout sauf dans une zone qui défile à l'horizontale (tableaux larges, Gantt, graphique) */
           if (t.closest("#docPop, #blkPop, #blkMenu, #svConf, #svCal, .av-list-ov, input, textarea, select")) { st = null; return; }
           for (let el = t; el && el !== document.body; el = el.parentElement) { const cs = getComputedStyle(el); if (el.scrollWidth > el.clientWidth + 2 && /(auto|scroll)/.test(cs.overflowX)) { st = null; return; } }
-          st = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), max: mx ? mx.slice(4) : "" };
+          st = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), max: mx ? mx.slice(4) : "", nav };
         }, { passive: true });
         document.addEventListener("touchend", e => {
-          const nav = window.__sviBdgNav;
+          const nav = st && st.nav;
           if (!st || !nav) return;
           const dx = e.changedTouches[0].clientX - st.x, dy = e.changedTouches[0].clientY - st.y;
           const quick = Date.now() - st.t < 700;
@@ -7913,7 +7916,7 @@ function renderBudgetList() {
         const r = e.target.closest("tr.dpk-sec.off");
         if (!r) return;
         clearTimeout(lpT);
-        lpT = setTimeout(() => svToast(add ? "DÉJÀ DANS LE PLANNING : TOUCHER SA LIGNE POUR SAISIR SES DATES." : "IMPOSSIBLE : LA TÂCHE ELLE-MÊME OU UNE BOUCLE.", 3500, r), 550);
+        lpT = setTimeout(() => svToast(add ? "DÉJÀ DANS LE PLANNING : TOUCHER SA LIGNE POUR SAISIR SES DATES." : "IMPOSSIBLE : LA TÂCHE ELLE-MÊME OU UNE BOUCLE.", 3500, r), SVI_G.lp);
       });
       ["pointerup", "pointercancel", "pointerleave"].forEach(t => d.addEventListener(t, () => clearTimeout(lpT)));
       d.addEventListener("change", e => {
@@ -8387,7 +8390,7 @@ function renderBudgetList() {
       shell.addEventListener("pointerdown", e => {
         const b = e.target.closest && e.target.closest(".dly-pred-new.off");
         if (!b) return;
-        const t = setTimeout(() => svToast("TOUTES LES TÂCHES SONT DÉJÀ DANS LE PLANNING.", 3000, b), 550);
+        const t = setTimeout(() => svToast("TOUTES LES TÂCHES SONT DÉJÀ DANS LE PLANNING.", 3000, b), SVI_G.lp);
         const off = () => { clearTimeout(t); document.removeEventListener("pointerup", off); document.removeEventListener("pointercancel", off); };
         document.addEventListener("pointerup", off); document.addEventListener("pointercancel", off);
       });
@@ -8397,14 +8400,14 @@ function renderBudgetList() {
         if (!X || !tr || tr.classList.contains("dly-ext") || e.target.closest("input[type=checkbox], .dly-pred, .dly-jal, .dly-fold, .cf-btn")) return;
         const x0 = e.clientX, y0 = e.clientY;
         let on = false, hit = null, far = false;
-        const tm = setTimeout(() => { if (X.view() === "d" && !tr.classList.contains("dly-grp")) { svToast("VUE PAR DÉBUT : PASSER EN VUE PAR LOT POUR DÉPLACER.", 3000, tr); end(false); return; } on = true; tr.classList.add("ro-src"); grpFlush(true); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); try { window.getSelection().removeAllRanges(); } catch (err) {} document.body.classList.add("svi-dragging"); }, 350);
+        const tm = setTimeout(() => { if (X.view() === "d" && !tr.classList.contains("dly-grp")) { svToast("VUE PAR DÉBUT : PASSER EN VUE PAR LOT POUR DÉPLACER.", 3000, tr); end(false); return; } on = true; tr.classList.add("ro-src"); grpFlush(true); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); try { window.getSelection().removeAllRanges(); } catch (err) {} document.body.classList.add("svi-dragging"); }, SVI_G.lp);
         const tmv = ev => { if (on) ev.preventDefault(); };
         document.addEventListener("touchmove", tmv, { passive: false });
         const isG = tr.classList.contains("dly-grp"), gRow = isG ? (shell.__dlyRows || []).find(r => r.grp && r.path === tr.dataset.path) : null;
         const mv = ev => {
           if (!on) { if (Math.abs(ev.clientX - x0) > 8 || Math.abs(ev.clientY - y0) > 8) end(); return; }
           ev.preventDefault();
-          if (!far && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 10) return;
+          if (!far && Math.hypot(ev.clientX - x0, ev.clientY - y0) < SVI_G.drag) return;
           far = true;
           shell.__dlySrcG = window.__sviDlySrcG = false;
           if (gRow && X.view() === "d") { if (!tr.__vdMsg) { tr.__vdMsg = 1; svToast("VUE PAR DÉBUT : PASSER EN VUE PAR LOT POUR DÉPLACER.", 3000, tr); } hit = null; return; }
@@ -8466,7 +8469,7 @@ function renderBudgetList() {
           m.innerHTML = `<span class="ct-sl" style="left:${xi - 4}px;top:${pl.getBoundingClientRect().top - 9}px">/</span><span class="ct-b" style="left:${xi - 50}px;top:${pl.getBoundingClientRect().top - 40}px">COUPER ICI<br><b>${esc(dFr(iso))}</b></span>`;
           cut = iso;
         };
-        const lt = setTimeout(() => { if (P === null) showCut(x0); }, 600);
+        const lt = setTimeout(() => { if (P === null) showCut(x0); }, SVI_G.lp);
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });
         const mv = ev => {
@@ -8537,7 +8540,7 @@ function renderBudgetList() {
       /* v736 : la case SUCCESSEURS se sélectionne comme les autres (cadre commun du module 35) ; bulle du texte complet à l'appui long */
       { let lt = 0;
         shell.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".dly-succ[data-key]"); const X = shell.__insDly; clearTimeout(lt); if (!b || !X) return;
-          lt = setTimeout(() => { const L = X.succs(b.dataset.key); svToast(L.length ? "SUCCESSEURS : " + L.join(" ; ") : "AUCUN SUCCESSEUR.", 5000, b); }, 500); }, true);
+          lt = setTimeout(() => { const L = X.succs(b.dataset.key); svToast(L.length ? "SUCCESSEURS : " + L.join(" ; ") : "AUCUN SUCCESSEUR.", 5000, b); }, SVI_G.lp); }, true);
         ["pointerup", "pointercancel"].forEach(t => shell.addEventListener(t, () => clearTimeout(lt), true)); }
       /* R24 : repère ⧖ d'une tâche freinée par une autre ressource */
       shell.addEventListener("click", e => { const c = e.target.closest && e.target.closest("#dlyGantt .gb-lim[data-key]"); const X = shell.__insDly; if (!c || !X) return; e.stopPropagation(); svToast(X.limTxt(c.dataset.key), 3500, c); }, true);
@@ -8721,8 +8724,8 @@ function renderBudgetList() {
           e.stopPropagation(); e.preventDefault();
           host.__dlyXlp = true;
           const x0 = e.clientX, y0 = e.clientY; let fired = false;
-          const tm = setTimeout(() => { fired = true; if (shell.__dlyXF) dlyXUnfilter(); else dlyXFilter(sviIsoAdd(host.__d0, X0.i)); }, 550);
-          const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 8) { clearTimeout(tm); fin(); } };
+          const tm = setTimeout(() => { fired = true; if (shell.__dlyXF) dlyXUnfilter(); else dlyXFilter(sviIsoAdd(host.__d0, X0.i)); }, SVI_G.lp);
+          const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > SVI_G.drag) { clearTimeout(tm); fin(); } };
           const fin = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", fin); setTimeout(() => { host.__dlyXlp = false; }, 450); };
           const up = () => { clearTimeout(tm); fin(); if (!fired) dlyXDraw(host, g, X0.px, X0.cy, 1); };
           /* v637 : toucher repris par l'iPad (défilement, zoom) = rien ; avant, le délai continuait et posait un FILTRE DU JOUR */
@@ -8791,7 +8794,7 @@ function renderBudgetList() {
         /* v577 (remarque 6) : la règle s'aimante sur les valeurs rondes (10 K, 11 K, 12 K…) : petit arrêt ; en continuant à tirer, elle se détache */
         const stp = Number(h.dataset.stp) || 0, p10 = stp ? Math.pow(10, Math.floor(Math.log10(stp))) : 0, fine = p10 ? (stp / p10 <= 1.0001 ? p10 / 10 : p10) : 0;
         const x0 = e.clientX, y0 = e.clientY;
-        const lp = setTimeout(() => { up(); shell.__dlyRule = false; shell.__dlyRuleV = null; const host = shell.querySelector("#dlyGantt"); if (host) { host.__drawn = false; dlyGanttDraw(); } }, 550);
+        const lp = setTimeout(() => { up(); shell.__dlyRule = false; shell.__dlyRuleV = null; const host = shell.querySelector("#dlyGantt"); if (host) { host.__drawn = false; dlyGanttDraw(); } }, SVI_G.lp);
         const mv = ev => { ev.preventDefault(); if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return; clearTimeout(lp); let y = Math.max(4, Math.min(Y0, ev.clientY - h.getBoundingClientRect().top)); let v = (Y0 - y) / sc;
           let snap = false;
           if (fine > 0) { const r = Math.round(v / fine) * fine, yr = Y0 - r * sc; if (Math.abs(yr - y) <= 7) { v = r; y = yr; snap = true; } }
@@ -8811,9 +8814,9 @@ function renderBudgetList() {
         let p = p0, moved = false;
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });
-        const lp = setTimeout(() => { if (moved) return; done(); const hr = h.getBoundingClientRect(); X.rdCut(bar.dataset.sk, bar.dataset.sec, sviIsoAdd(host.__d0, Math.max(0, Math.floor((x0 - hr.left) / DLY_DW)))); }, 550);
+        const lp = setTimeout(() => { if (moved) return; done(); const hr = h.getBoundingClientRect(); X.rdCut(bar.dataset.sk, bar.dataset.sec, sviIsoAdd(host.__d0, Math.max(0, Math.floor((x0 - hr.left) / DLY_DW)))); }, SVI_G.lp);
         const mv = ev => {
-          if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return;
+          if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) < SVI_G.drag) return;
           moved = true; clearTimeout(lp); ev.preventDefault();
           const y = ev.clientY - h.getBoundingClientRect().top;
           p = Math.max(L.min, Math.min(L.max, Math.round((Y0 - y) / s / ref * 100)));
@@ -9004,11 +9007,11 @@ function renderBudgetList() {
           }
           if (P0.mode === "h" && P0.tg && P0.tg.closest && P0.tg.closest(".dlyg-l")) return;
           if (P0.mode === "v") {
-            const rh = Math.round(Math.max(24, Math.min(64, P0.rh0 * Math.max(20, distY(e.touches)) / P0.dy)));
+            const rh = Math.round(Math.max(SVI_G.ganttMin, Math.min(SVI_G.ganttMax, P0.rh0 * Math.pow(Math.max(20, distY(e.touches)) / P0.dy, SVI_G.pinch))));   /* v785 : réglage commun (24 à 80 px) */
             if (rh !== dlyRhGet()) { try { localStorage.setItem(DLY_RH_KEY, String(rh)); } catch (err) {} dlyRhApply(rh); }
             return;
           }
-          const w = P0.w0 * Math.max(20, dist(e.touches)) / P0.d;
+          const w = P0.w0 * Math.pow(Math.max(20, dist(e.touches)) / P0.d, SVI_G.pinch);
           dlyDwSet(shell.querySelector("#dlyGantt") || P0.host, w, P0.ax, P0.p);
         };
         shell.addEventListener("touchmove", pmv, { passive: false });
@@ -9036,9 +9039,9 @@ function renderBudgetList() {
           if (!V || e.touches.length !== 1 || e.__sviV) return;
           e.__sviV = true;
           const t = e.touches[0], dx = t.clientX - V.x, dy = t.clientY - V.y;
-          if (Math.hypot(dx, dy) > 6) V.mv = true;
+          if (Math.hypot(dx, dy) > SVI_G.drag) V.mv = true;
           if (!V.zoom || shell.__dlyPinch) return;
-          if (!V.mode) { if (Math.max(Math.abs(dx), Math.abs(dy)) < 4) { e.preventDefault(); return; } V.mode = Math.abs(dy) > Math.abs(dx) ? "v" : "h"; }
+          if (!V.mode) { if (Math.max(Math.abs(dx), Math.abs(dy)) < SVI_G.drag) { e.preventDefault(); return; } V.mode = Math.abs(dy) > Math.abs(dx) ? "v" : "h"; }
           if (V.mode !== "v") return;
           e.preventDefault(); e.stopPropagation();
           shell.__dlyYO = Math.max(0, V.yo + dy / V.sc);
@@ -9048,10 +9051,10 @@ function renderBudgetList() {
         shell.addEventListener("touchend", e => {
           if (!V) return;
           if (V.tg) V.tg.removeEventListener("touchmove", vmv);
-          const tap = !V.mv && Date.now() - V.t < 350 && !e.touches.length, x = V.x, y = V.y;
+          const tap = !V.mv && Date.now() - V.t < SVI_G.dbl && !e.touches.length, x = V.x, y = V.y;
           V = null;
           if (!tap) { lastTap = null; return; }
-          if (lastTap && Date.now() - lastTap.t < 350 && Math.hypot(x - lastTap.x, y - lastTap.y) < 30) { lastTap = null; setTimeout(yFull, 0); return; }
+          if (lastTap && Date.now() - lastTap.t < SVI_G.dbl && Math.hypot(x - lastTap.x, y - lastTap.y) < 30) { lastTap = null; setTimeout(yFull, 0); return; }
           lastTap = { t: Date.now(), x, y };
         }, { capture: true, passive: true });
         shell.addEventListener("dblclick", e => { if (e.target.closest && e.target.closest(".dlyg-foot .ghist") && !e.target.closest(NOV)) yFull(); });
@@ -9062,8 +9065,8 @@ function renderBudgetList() {
         const gn = e.target.closest && e.target.closest("#dlyGantt .gb-grp[data-path]");
         if (!X || !gn || e.button > 0) return;
         const x0 = e.clientX, y0 = e.clientY;
-        const t = setTimeout(() => { shell.__dlyGLong = Date.now(); X.grpMenu(gn.dataset.path, gn); }, 500);
-        const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 8) stop(); };
+        const t = setTimeout(() => { shell.__dlyGLong = Date.now(); X.grpMenu(gn.dataset.path, gn); }, SVI_G.lp);
+        const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > SVI_G.drag) stop(); };
         const stop = () => { clearTimeout(t); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", stop); document.removeEventListener("pointercancel", stop); };
         document.addEventListener("pointermove", mv); document.addEventListener("pointerup", stop); document.addEventListener("pointercancel", stop);
       });
@@ -9082,14 +9085,14 @@ function renderBudgetList() {
         const moving = [...els, ...bars];
         const x0 = e.clientX, y0 = e.clientY;
         let mode = "", hit = null, days = 0, gfar = false;
-        const t = setTimeout(() => { if (mode) return; mode = "vert"; els.forEach(b => b.classList.add("gb-lift")); document.body.classList.add("svi-dragging"); }, 500);
+        const t = setTimeout(() => { if (mode) return; mode = "vert"; els.forEach(b => b.classList.add("gb-lift")); document.body.classList.add("svi-dragging"); }, SVI_G.lp);
         const tmv = ev => { if (mode) ev.preventDefault(); };
         document.addEventListener("touchmove", tmv, { passive: false });
         const mv = ev => {
           if (shell.__dlyPinch) { clearTimeout(t); return; }
           const dx = ev.clientX - x0;
           if (mode === "vert") { ev.preventDefault(); if (!gfar && Math.hypot(dx, ev.clientY - y0) < 10) return; if (X.view() === "d") { if (!gfar) svToast("VUE PAR DÉBUT : PASSER EN VUE PAR LOT POUR DÉPLACER.", 3000, gb); gfar = true; hit = null; return; } gfar = true; shell.__dlySrcG = window.__sviDlySrcG = true; hit = g ? dlyGrpHit(ev, path, g.lvl, x0) : null; dlyGrpShow(hit); return; }
-          if (!mode && Math.abs(dx) > 4) { mode = "time"; clearTimeout(t); moving.forEach(b => { b.__l0 = b.offsetLeft; b.classList.add("gb-drag"); }); }
+          if (!mode && Math.abs(dx) > SVI_G.drag) { mode = "time"; clearTimeout(t); moving.forEach(b => { b.__l0 = b.offsetLeft; b.classList.add("gb-drag"); }); }
           if (mode !== "time") return;
           ev.preventDefault();
           days = Math.round(dx / DLY_DW);
@@ -9164,7 +9167,7 @@ function renderBudgetList() {
           /* glisser la barre vers le haut ou le bas = changer le rang de la tâche (un seul trait) */
           const dy = ev.clientY - y0b;
           if (vert) { shell.__dlySrcG = window.__sviDlySrcG = true; hitV = dlyTaskHit(ev, null, key, x0); if (!hitV) document.getElementById("roLine")?.remove(); return; }
-          if (!moved && Math.abs(dx) > 4) { moved = true; clearTimeout(t); bar.classList.add("gb-drag"); }
+          if (!moved && Math.abs(dx) > SVI_G.drag) { moved = true; clearTimeout(t); bar.classList.add("gb-drag"); }
           if (!moved) return;
           days = Math.round(dx / DLY_DW);
           if (mode === "end") bar.style.width = Math.max(DLY_DW - 1, W0 + days * DLY_DW) + "px";
@@ -10615,7 +10618,7 @@ ${A}</Assignments>
     const dlyGenWhy = () => { const nk = dlyKeys().length; return !nk ? "AUCUNE TÂCHE DANS LE PLANNING." : !dlyKeys().some(k => !(dlyDeb(k) && dlyFin(k))) ? "TOUTES LES TÂCHES ONT DÉJÀ LEURS DATES." : ""; };
     const dlyCompWhy = () => { if (!dlyKeys().length) return "AUCUNE TÂCHE DANS LE PLANNING."; let C; try { C = dlyCanCompress({}); } catch (e) { return ""; } return C.ok ? "" : (C.stuck ? C.why : "RIEN À COMPRESSER : AUCUN VIDE À COMBLER."); };
     const dlyWhyPress = d => { let lt = 0;
-      d.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".off[data-why]"); clearTimeout(lt); if (b) lt = setTimeout(() => svToast(b.dataset.why, 3500, b), 500); });
+      d.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".off[data-why]"); clearTimeout(lt); if (b) lt = setTimeout(() => svToast(b.dataset.why, 3500, b), SVI_G.lp); });
       ["pointerup", "pointercancel", "pointerleave"].forEach(t => d.addEventListener(t, () => clearTimeout(lt))); };
     const dlyGCWin = () => {
       const miss = dlyKeys().filter(k => !(dlyDeb(k) && dlyFin(k))).length;
@@ -12657,7 +12660,9 @@ ${A}</Assignments>
           const sr = sc.getBoundingClientRect(), rr = row.getBoundingClientRect();
           const hd = sc.querySelector(":scope > .bdg-h-head") || sc.querySelector("thead"), ft = sc.querySelector("tfoot");
           const top = sr.top + sc.clientTop + (hd ? hd.getBoundingClientRect().height + (sc.matches(".bdg-h-col") ? 0 : Math.max(0, hd.getBoundingClientRect().top - sr.top - sc.clientTop)) : 0);
-          const bot = sr.top + sc.clientTop + sc.clientHeight - (ft && ft.offsetHeight ? ft.getBoundingClientRect().height : 0);
+          /* v785 : la ligne « CRÉER … ICI » est collée en bas du bloc : la case en saisie reste au-dessus d'elle */
+          const nw = sc.querySelector("tbody tr.ins-new, tbody tr.rec-new, tbody tr.scn-new, .ins-li.ins-new"), nwH = nw && nw !== row && !nw.contains(row) ? nw.getBoundingClientRect().height : 0;
+          const bot = sr.top + sc.clientTop + sc.clientHeight - (ft && ft.offsetHeight ? ft.getBoundingClientRect().height : 0) - nwH;
           if (rr.top < top) sc.scrollTop -= Math.ceil(top - rr.top);
           else if (rr.bottom > bot) sc.scrollTop += Math.ceil(rr.bottom - bot);
         };
@@ -13081,8 +13086,8 @@ ${A}</Assignments>
           const c = (INS_COLS[k] || []).find(x => x[4] === st.sort.col || x[0] === st.sort.col);
           const lab = c ? c[1] : ({ lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE", v: k === "lot" ? "LOT" : k === "prim" ? "ACTIVITÉ PRIMAIRE" : "ACTIVITÉ SECONDAIRE" }[st.sort.col] || String(st.sort.col).toUpperCase());
           const sx = event.clientX, sy = event.clientY;
-          const tm = setTimeout(() => { off(); svToast("GLISSEMENT IMPOSSIBLE : TRI ACTIF SUR LA COLONNE " + lab + " — ANNULER LE TRI POUR DÉPLACER OU SUPERPOSER", 4500, el); }, 400);
-          const mvv = e => { if (Math.abs(e.clientX - sx) > 10 || Math.abs(e.clientY - sy) > 10) off(); };
+          const tm = setTimeout(() => { off(); svToast("GLISSEMENT IMPOSSIBLE : TRI ACTIF SUR LA COLONNE " + lab + " — ANNULER LE TRI POUR DÉPLACER OU SUPERPOSER", 4500, el); }, SVI_G.lp);
+          const mvv = e => { if (Math.abs(e.clientX - sx) > SVI_G.drag || Math.abs(e.clientY - sy) > SVI_G.drag) off(); };
           const off = () => { clearTimeout(tm); document.removeEventListener("pointermove", mvv); document.removeEventListener("pointerup", off); document.removeEventListener("pointercancel", off); };
           document.addEventListener("pointermove", mvv); document.addEventListener("pointerup", off); document.addEventListener("pointercancel", off);
           return;
@@ -13139,7 +13144,7 @@ ${A}</Assignments>
         document.body.classList.add("svi-dragging");
         el.classList.add("ro-src");
         try { navigator.vibrate && navigator.vibrate(15); } catch (e) {}
-      }, 350);
+      }, SVI_G.lp);
       const tm = e => { if (on) e.preventDefault(); };
       const move = e => {
         if (!on) {
@@ -13355,7 +13360,7 @@ ${A}</Assignments>
       const insEl = INS_EDIT && event.target.closest('.ins-table:not([data-ik="chg"]):not([data-ik="prd"]) tr[data-iid], .ins-hcol .ins-li[data-iid], .ins-hcol .ins-li.lot-grp');
       if (insEl && insEl.classList.contains("lk-ban") && !event.target.closest("input.ins-cb, .ins-t")) {
         const x0 = event.clientX, y0 = event.clientY;
-        const tmr = setTimeout(() => { svToast(insEl.dataset.ban || "", 3500, insEl); off(); }, 450);
+        const tmr = setTimeout(() => { svToast(insEl.dataset.ban || "", 3500, insEl); off(); }, SVI_G.lp);
         const mv = e => { if (Math.abs(e.clientX - x0) > 10 || Math.abs(e.clientY - y0) > 10) off(); };
         const off = () => { clearTimeout(tmr); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", off); document.removeEventListener("pointercancel", off); };
         document.addEventListener("pointermove", mv); document.addEventListener("pointerup", off); document.addEventListener("pointercancel", off);
@@ -13916,7 +13921,7 @@ ${A}</Assignments>
         f.addEventListener("pointerdown", () => {
           if (!f.readOnly) return;
           longDone = false;
-          timer = setTimeout(() => { longDone = true; edit(); }, 550);
+          timer = setTimeout(() => { longDone = true; edit(); }, SVI_G.lp);
         });
         ["pointerup", "pointerleave", "pointercancel"].forEach(ev =>
           f.addEventListener(ev, () => clearTimeout(timer)));
@@ -17483,7 +17488,7 @@ ${A}</Assignments>
       if (p) {
         let lt = 0, longed = false;
         const clr = () => { clearTimeout(lt); lt = 0; };
-        p.addEventListener("pointerdown", () => { longed = false; clr(); lt = setTimeout(() => { longed = true; svToast(scnWhy() || "SCN : CRÉE UN SCÉNARIO, COPIE DE L'ÉTAPE TELLE QU'ELLE EST (" + SCN_MAX + " AU PLUS).", 4500, p); }, 550); });
+        p.addEventListener("pointerdown", () => { longed = false; clr(); lt = setTimeout(() => { longed = true; svToast(scnWhy() || "SCN : CRÉE UN SCÉNARIO, COPIE DE L'ÉTAPE TELLE QU'ELLE EST (" + SCN_MAX + " AU PLUS).", 4500, p); }, SVI_G.lp); });
         ["pointerup", "pointercancel", "pointerleave"].forEach(ev => p.addEventListener(ev, clr));
         p.addEventListener("click", e => {
           e.stopPropagation();
@@ -17638,7 +17643,7 @@ ${A}</Assignments>
         blk.addEventListener("pointerdown", e => {
           longed = false; clearTimeout(lt);
           const nm = e.target.closest("[data-nm]"); if (!nm || !scnEd()) return;
-          lt = setTimeout(() => { longed = true; rename(nm); }, 550);
+          lt = setTimeout(() => { longed = true; rename(nm); }, SVI_G.lp);
         });
         ["pointerup", "pointercancel", "pointerleave"].forEach(ev => blk.addEventListener(ev, () => { clearTimeout(lt); if (longed) setTimeout(() => { longed = false; }, 350); }));
         blk.addEventListener("change", e => {
@@ -18610,7 +18615,7 @@ ${A}</Assignments>
       });
       /* appui long sur un indicateur grisé : la raison */
       let lt = 0;
-      d.addEventListener("pointerdown", e => { const c = e.target.closest(".ibd-chip.off"); clearTimeout(lt); if (c) lt = setTimeout(() => svToast(c.dataset.why || "", 4000, c), 500); });
+      d.addEventListener("pointerdown", e => { const c = e.target.closest(".ibd-chip.off"); clearTimeout(lt); if (c) lt = setTimeout(() => svToast(c.dataset.why || "", 4000, c), SVI_G.lp); });
       ["pointerup", "pointercancel"].forEach(ev => d.addEventListener(ev, () => clearTimeout(lt)));
     };
 
@@ -18922,7 +18927,7 @@ ${A}</Assignments>
       shell.__aprH.pointerdown = e => {
         const r = e.target.closest && e.target.closest(".apr-wrap tr.apr-row[data-d]"); if (!r || !INS || !(INS_EDIT && INS_REAL)) return;
         let drag = false, tgt = null; const x0 = e.clientX, y0 = e.clientY, refA = r.dataset.apr, gidA = r.dataset.gid || "", rowA = () => [...shell.querySelectorAll(".apr-wrap tr.apr-row[data-apr]")].find(x => x.dataset.apr === refA) || r;
-        const lt = setTimeout(() => { drag = true; rowA().classList.add("apr-drag"); }, 450);
+        const lt = setTimeout(() => { drag = true; rowA().classList.add("apr-drag"); }, SVI_G.lp);
         const mv = ev => { if (!drag) { if (Math.abs(ev.clientX - x0) + Math.abs(ev.clientY - y0) > 8) end(); return; } ev.preventDefault();
           const el = document.elementFromPoint(ev.clientX, ev.clientY), t = el && el.closest && el.closest(".apr-wrap tr.apr-row");
           if (tgt && tgt !== t) tgt.classList.remove("apr-tgt"); tgt = t && t.dataset.apr !== refA ? t : null; if (tgt) tgt.classList.add("apr-tgt"); };
@@ -20812,7 +20817,7 @@ ${A}</Assignments>
         if (!src) return;
         const t = src.cloneNode(true);
         t.removeAttribute("style");
-        t.querySelectorAll("colgroup, .cf-btn, .col-rs, tr.bdg-d-filler").forEach(x => x.remove());
+        t.querySelectorAll("colgroup, .cf-btn, .col-rs, tr.bdg-d-filler, .svi-colh").forEach(x => x.remove());
         t.querySelectorAll("input").forEach(i => i.replaceWith(document.createTextNode(i.value)));
         tableHTML = t.outerHTML;
       }
@@ -22366,7 +22371,7 @@ ${A}</Assignments>
           /* v553 (partie 11, remarque 3) : plus d'entrée « + AJOUTER UNE TÂCHE OU SES DÉLAIS » */
           + `<div class="blk-sep"></div>`   /* v572 (remarque 17) : réglages des commandes dans RÉGLAGES DU GRAPHIQUE ⚙ */);
         let lp = null;
-        m.addEventListener("pointerdown", e => { const so = e.target.closest("[data-dly].off[data-why]"); if (!so) return; lp = setTimeout(() => svToast(so.dataset.why, 4000, so), 550); });
+        m.addEventListener("pointerdown", e => { const so = e.target.closest("[data-dly].off[data-why]"); if (!so) return; lp = setTimeout(() => svToast(so.dataset.why, 4000, so), SVI_G.lp); });
         ["pointerup", "pointercancel"].forEach(t => m.addEventListener(t, () => clearTimeout(lp)));
         m.addEventListener("click", e => {
           const b = e.target.closest("[data-dly]");
@@ -22405,6 +22410,10 @@ ${A}</Assignments>
         m.addEventListener("click", e => { const b = e.target.closest("[data-cmpx]"); if (!b) return; e.stopPropagation(); m.remove(); if (b.dataset.cmpx === "cmp") shell.__cmpWin(); else if (b.dataset.cmpx === "ctr") shell.__ctrWin(LK.des); else shell.__sdp(); }, true);
       }
       /* v774 (point 2) : COÛT D'UNE JOURNÉE DE MAIN-D'ŒUVRE passe dans le ⋯ principal */
+      /* v785 : AGRANDIR / RÉDUIRE dans le ⋯ du bloc (plus d'icône dans l'en-tête ; double toucher sur le titre = la même chose) */
+      { const mb = tools.querySelector(".blk-max-btn"); if (mb) { const on = mb.classList.contains("on");
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-mx="1"><span>${on ? "RÉDUIRE" : "AGRANDIR"}</span></button>`);
+        m.addEventListener("click", e => { const b = e.target.closest("[data-mx]"); if (!b) return; e.stopPropagation(); m.remove(); mb.click(); }, true); } }
       if (INS && INS_EDIT && (active === "chg" || active === "prd") && shell.__sdOpen && acts.some(a => a.dataset.blk === "detail")) {
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-sdo="1"><span>SAISIE DIRECTE</span></button>`);
         m.addEventListener("click", e => { const b = e.target.closest("[data-sdo]"); if (!b) return; e.stopPropagation(); m.remove(); runBlkAct("detail", "sd"); }, true);
@@ -22439,8 +22448,12 @@ ${A}</Assignments>
         } }
       /* v774 (point 3) : ordre unique du ⋯ de chaque bloc, un trait entre les groupes — actions propres au bloc ;
          IMPORTER, EXPORTER, APERÇU ; COPIER, COUPER, COLLER ; SUPPRIMER LES LIGNES COCHÉES, EFFACER TOUS LES FILTRES */
-      { const top = [], G = [[], [], [], []];
+      /* v786 : MASQUER / AFFICHER DES COLONNES (mécanisme commun 09e-colonnes-masquees), groupe juste après les actions propres */
+      const colhT = sviColhTableNear(btn);
+      sviColhItems(colhT).forEach(x => m.insertAdjacentHTML("beforeend", `<button type="button" data-colh="${x.k}"><span>${esc(x.lab)}</span></button>`));
+      { const top = [], G = [[], [], [], []], GC = [];
         [...m.children].forEach(el => {
+          if (el.dataset.colh) { GC.push(el); return; }
           if (el.classList.contains("blk-sep")) return;
           if (el.dataset.cs || (el.classList.contains("blk-hint") && / CASE\(S\) /.test(el.textContent))) { top.push(el); return; }
           const a = el.dataset.i != null ? (acts[+el.dataset.i] || {}).dataset?.act : null;
@@ -22453,12 +22466,14 @@ ${A}</Assignments>
         const ord = el => { const a = el.dataset.i != null ? (acts[+el.dataset.i] || {}).dataset?.act : ""; const k = ["import", "export", "pdf", "copy", "cut", "paste"].indexOf(a); return k < 0 ? -1 : k; };
         G[1].sort((x, y) => ord(x) - ord(y)); G[2].sort((x, y) => ord(x) - ord(y));
         m.innerHTML = "";
-        [top, ...G].filter(g => g.length).forEach((g, i) => { if (i) m.insertAdjacentHTML("beforeend", '<div class="blk-sep"></div>'); g.forEach(el => m.appendChild(el)); });
+        [top, G[0], GC, G[1], G[2], G[3]].filter(g => g.length).forEach((g, i) => { if (i) m.insertAdjacentHTML("beforeend", '<div class="blk-sep"></div>'); g.forEach(el => m.appendChild(el)); });
       }
       document.body.appendChild(m);
       const r = btn.getBoundingClientRect();
       sviPlaceMenu(m, r);
       m.addEventListener("click", e => {
+        const ch = e.target.closest("[data-colh]");
+        if (ch) { m.remove(); sviColhPick(ch.dataset.colh, colhT); return; }
         const ub = e.target.closest("[data-unl]");
         if (ub) {
           if (ub.disabled) return;
@@ -22868,7 +22883,7 @@ ${A}</Assignments>
        ✕ = fermer ; ⚠ du consolidé = contradictions entre étapes */
     shell.querySelectorAll(".bdg-d-hright .hdr-off").forEach(b => {
       b.addEventListener("click", e => { e.preventDefault(); e.stopImmediatePropagation(); svToast(b.dataset.why || "", 3500, b); }, true);
-      let lt = 0; b.addEventListener("pointerdown", () => { clearTimeout(lt); lt = setTimeout(() => svToast(b.dataset.why || "", 3500, b), 500); });
+      let lt = 0; b.addEventListener("pointerdown", () => { clearTimeout(lt); lt = setTimeout(() => svToast(b.dataset.why || "", 3500, b), SVI_G.lp); });
       ["pointerup", "pointercancel", "pointerleave"].forEach(ev => b.addEventListener(ev, () => clearTimeout(lt)));
     });
     if (budget.inst && budget.inst.state === "valide") {

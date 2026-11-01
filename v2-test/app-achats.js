@@ -514,6 +514,8 @@ function sviAchInit() {
     const LM = tab === "bsn" ? BSNM : MODS[tab];
     if (LM && LM.h1) { body.innerHTML = LM.html(); if (sub) sub.textContent = ""; view.classList.add("ach-bdgl"); achBdglSync(body); return; }
     view.classList.remove("ach-bdgl");
+    /* v785 : PARAMÈTRES (et tout écran des achats sans liste) : même barre commune à droite du titre */
+    { const sh = view.querySelector(".section-head"); if (sh && !sh.querySelector(".svi-hdr")) { sh.insertAdjacentHTML("beforeend", sviListBar()); sh.style.display = "flex"; sh.style.alignItems = "center"; } }
     if (h1 && TTL[tab]) h1.textContent = TTL[tab][0];
     else if (h1) h1.textContent = tab === "caf" ? "ACHATS — CONSULTATIONS" : tab === "dvf" ? "ACHATS — DEVIS" : tab === "bsn" ? "BESOINS" : tab === "prm" ? "ACHATS — PARAMÈTRES" : tab === "frs" ? "ACHATS — FOURNISSEURS" : showDel ? "ACHATS — CORBEILLE DES ARTICLES" : "ACHATS — ARTICLES";
     if (sub && TTL[tab]) sub.textContent = TTL[tab][1];
@@ -1998,7 +2000,7 @@ function achNvList(ctx, o) {
     const cell = (x, c) => { const v = c[2](x), cl = c[3] === "number" ? "number" : "";
       if (c[0] === "ref") { const w = o.why(x, all); return `<td class="bdg-ref-c">${w.length ? `<b class="obs-bang val-bang nv-bang" role="button" data-why="${esc(w.join(" · "))}">!</b> ` : ""}${esc(v)}</td>`; }
       const t = typeof v === "number" ? achF2(v) : String(v ?? ""); return `<td class="${cl}" title="${esc(t)}">${esc(t)}</td>`; };
-    return `<div class="novapp-list-shell"><div class="novapp-list-titlebar"><button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button><h1>${t1}</h1>${SVI_LIST_MORE}</div>
+    return `<div class="novapp-list-shell"><div class="novapp-list-titlebar"><button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button><h1>${t1}</h1>${sviListBar()}</div>
       <div class="novapp-budget-layout"><aside class="novapp-date-panel svi-bdgp">
         <div class="novapp-date-head"><button type="button" class="novapp-date-filter" data-a="${o.k}-etat"><span>${(ETATS.find(x => x[0] === etat) || ETATS[0])[1]} ▾</span>${svCnt(base.length)}</button></div>
         <div class="novapp-date-list">${days.map(([d, n]) => `<button type="button" data-nvday="${esc(d)}" class="novapp-date-item ${d === dSel ? "selected" : ""}"><span>${esc(achDFr(d) || "SANS DATE")}</span>${svCnt(n)}</button>`).join("")}</div></aside>
@@ -2049,7 +2051,7 @@ const achBlkTools = k => `<span class="blk-tools"><button type="button" class="b
 function achNvPageHTML(p, rec) {
   const blk = L => { const k = achNvhKey(L.t);
     return `<div class="bdg-d-block nvp-blk" data-nvb="${k}"><div class="bdg-d-block-title blk-head"><span class="ttl">${esc(L.t)} ${svCnt(L.rows.length)}</span>${achBlkTools(k)}</div>
-      <div class="rec-scroll" style="max-height:var(--nvh-${k}, 200px)"><table class="bdg-d-table rec-table"><thead><tr>${L.cols.map(c => `<th class="${c[1] || ""}">${esc(c[0])}</th>`).join("")}</tr></thead>
+      <div class="rec-scroll" style="max-height:var(--nvh-${k}, 200px)"><table class="bdg-d-table rec-table" data-colh="achp_${esc(k)}"><thead><tr>${L.cols.map(c => `<th class="${c[1] || ""}">${esc(c[0])}</th>`).join("")}</tr></thead>
       <tbody>${L.rows.map((r, i) => `<tr class="${r.cls || ""}">${r.cells.map((v, j) => `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${i}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`).join("")}</tr>`).join("") || (L.add ? "" : `<tr><td colspan="${L.cols.length}" class="empty">AUCUN</td></tr>`)}${L.add ? `<tr class="rec-new" data-nvadd="${k}"><td colspan="${L.cols.length}">${esc(L.add)}</td></tr>` : ""}</tbody></table></div>
       <div class="blk-rsz nvp-rsz" data-nvh="${k}" title="Glisser pour changer la hauteur"></div></div>`; };
   return `<div class="nvp bdg-d-page ${p.st === "instance" && !p.del ? "bdg-inst-instance" : "nvp-valide"}" style="${achNvhStyle()}">
@@ -2067,7 +2069,10 @@ function achNvPageHTML(p, rec) {
 /* module complet liste + page : cfg = { list: options de achNvList (sans page), pageOf(id) → p, back } */
 /* v783 : APERÇU d'une pièce ou d'une fiche — l'éditeur MISE EN PAGE unique (sviMep) ; corps = LIGNES (sinon le premier bloc lié) */
 function achMepOpen(cfg, P, rec, redraw) {
-  const Lg = P.links.find(l => /^LIGNES/.test(l.t)) || P.links[0] || { cols: [], rows: [] };
+  const Lg0 = P.links.find(l => /^LIGNES/.test(l.t)) || P.links[0] || { t: "", cols: [], rows: [] };
+  /* v786 : l'aperçu suit les colonnes affichées à l'écran */
+  const tb = document.querySelector(`#ach table[data-colh="achp_${achNvhKey(Lg0.t)}"]`), vis = tb ? sviColhVis(tb) : null, vf = a => vis ? a.filter((_, i) => vis.includes(i)) : a;
+  const Lg = { ...Lg0, cols: vf(Lg0.cols), rows: Lg0.rows.map(r => ({ ...r, cells: vf(r.cells) })) };
   sviMep.open({ key: "ACH-" + String(cfg.list.k || "X").toUpperCase(), title: cfg.list.one, ref: P.ref || P.code, party: P.party || P.title, date: P.date || "", prelim: P.st === "instance",
     cols: Lg.cols.map((c, i) => ["c" + i, c[0], c[1] || ""]), rows: Lg.rows.map(r => r.cells), tot: P.tot || [], fields: { projet: P.projet || "", ttc: P.ttc ? achF2(P.ttc) + " MAD" : "", numFrs: P.numFrs || "" },
     name: (P.ref || P.code) + " " + cfg.list.one, save: async (b, n) => { const r = await rec.savePdf(b, n); if (redraw) setTimeout(redraw, 0); return r; } });
@@ -2100,14 +2105,17 @@ function achNvMod(ctx, cfg) {
     /* v776 : AGRANDIR / RÉDUIRE un bloc de la page ; ⋯ du bloc (EXPORTER, APERÇU ; SUIVI : CRÉER) */
     const mx = e.target.closest("[data-nvmax]"); if (mx) { const bl = mx.closest(".nvp-blk"); const on = !bl.classList.contains("nvp-max"); bl.classList.toggle("nvp-max", on); mx.classList.toggle("on", on); return true; }
     const mo = e.target.closest("[data-nvmore]"); if (mo) { const k = mo.dataset.nvmore, bl = mo.closest(".nvp-blk"), L = P.links.find(x => achNvhKey(x.t) === k);
-      const tsv = () => { const t = bl.querySelector("table"); return [...t.rows].filter(r => !r.classList.contains("rec-new")).map(r => [...r.cells].map(c => c.textContent.trim()).join("\t")).join("\n"); };
-      sviHdrMenu(mo, [k === "rec" ? [{ k: "add", lab: "CRÉER" }] : [], [{ k: "exp", lab: "EXPORTER" }, { k: "apr", lab: "APERÇU" }]], async a => {
+      const tsv = () => { const t = bl.querySelector("table"); return [...t.rows].filter(r => !r.classList.contains("rec-new")).map(r => [...r.cells].filter(c => !c.classList.contains("svi-colh")).map(c => c.textContent.trim()).join("\t")).join("\n"); };
+      const bt = bl.querySelector("table"), vis = sviColhVis(bt), vf = a => a.filter((_, i) => vis.includes(i));
+      sviHdrMenu(mo, [[{ k: "max", lab: bl.classList.contains("nvp-max") ? "RÉDUIRE" : "AGRANDIR" }].concat(k === "rec" ? [{ k: "add", lab: "CRÉER" }] : []), sviColhItems(bt), [{ k: "exp", lab: "EXPORTER" }, { k: "apr", lab: "APERÇU" }]], async a => {
+        if (sviColhPick(a, bt)) return;
+        if (a === "max") { bl.querySelector("[data-nvmax]")?.click(); return; }
         if (a === "add") { if (await rec.click({ target: bl.querySelector("[data-nvradd]") }, () => ctx.draw())) return; }
         const ttl = (P.ref || P.code) + " — " + (L ? L.t : "SUIVI");
         if (a === "exp") { const b = new Blob(["\ufeff" + tsv().split("\n").map(l => l.split("\t").map(v => /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v).join(";")).join("\n")], { type: "text/csv;charset=utf-8" });
           const u = URL.createObjectURL(b), an = document.createElement("a"); an.href = u; an.download = ttl.replace(/[\\/:*?"<>|]/g, "-") + ".csv"; document.body.appendChild(an); an.click(); setTimeout(() => { URL.revokeObjectURL(u); an.remove(); }, 1000); }
         if (a === "apr") { const Lb = L || { t: "SUIVI", cols: [...bl.querySelectorAll("thead th")].map(th => [th.textContent.trim(), ""]), rows: [...bl.querySelectorAll("tbody tr:not(.rec-new)")].map(tr => ({ cells: [...tr.cells].map(c => c.textContent.trim()) })) };   /* v783 : l'aperçu unique (MISE EN PAGE) */
-          sviMep.open({ key: "ACH-BLOC-" + achNvhKey(Lb.t).toUpperCase(), title: Lb.t, ref: P.ref || P.code, party: P.party || P.title, prelim: P.st === "instance", cols: Lb.cols.map((c, i) => ["c" + i, c[0], c[1] || ""]), rows: Lb.rows.map(r => r.cells), name: ttl, save: (b, n) => rec.savePdf(b, n) }); } });
+          sviMep.open({ key: "ACH-BLOC-" + achNvhKey(Lb.t).toUpperCase(), title: Lb.t, ref: P.ref || P.code, party: P.party || P.title, prelim: P.st === "instance", cols: vf(Lb.cols).map((c, i) => ["c" + i, c[0], c[1] || ""]), rows: Lb.rows.map(r => vf(r.cells)), name: ttl, save: (b, n) => rec.savePdf(b, n) }); } });
       return true; }
     const na = e.target.closest("[data-nvadd]"); if (na) { const L = P.links.find(x => achNvhKey(x.t) === na.dataset.nvadd); if (L && L.addFn) L.addFn(() => ctx.draw()); else P.info(() => ctx.draw()); return true; }   /* v780 : ligne CRÉER … ICI */
     const l = e.target.closest("[data-nvl]"); if (l) { const [t, i] = l.dataset.nvl.split("|"), L = P.links.find(x => x.t === t), r = L && L.rows[+i]; if (r && r.open) r.open(() => ctx.draw()); return true; }

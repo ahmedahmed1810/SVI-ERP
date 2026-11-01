@@ -18,7 +18,7 @@
   /* cases à cocher, ronds (○ et ›) */
   --tb-cb: 16px; --tb-cb-c: var(--svst, #172033); --tb-rd: 18px;
   /* compteurs */
-  --tb-cnt-on: #f97316; --tb-cnt-off: #e5e9ef;
+  --tb-cnt-on: #ea580c; --tb-cnt-off: #e5e9ef;
 }
 :is(table.ins-table, table.rec-table, table.dly-table, table.prm-table, table.pv-t, table.cmp-t, table.cond-t, table.novapp-budget-table, table.svi-bdgl, table.ach-table, table.bdg-d-table, table.scn-table, table.mg-table, table.qq-table, table.sd-t, table.imp-table, table.av-stg-t, table.inc-table, table.apr-t, table.dpk-t, table.ins-t, table.ind-table, table.lk-table, table.ver-t, table.rcl-table, table.qq-t, table.cmpm-t, table.av-t, table.rat-t, table.ibd-table, table.cum-t, table.ctr-t, table.ver-table, table.lkw-t, table.ld-t, table.imp-ask-t, table.hb-t, table.gc-t, table.gax-t) { font-family: var(--tb-font); }
 :is(table.ins-table, table.rec-table, table.dly-table, table.prm-table, table.pv-t, table.cmp-t, table.cond-t, table.novapp-budget-table, table.svi-bdgl, table.ach-table, table.bdg-d-table, table.scn-table, table.mg-table, table.qq-table, table.sd-t, table.imp-table, table.av-stg-t, table.inc-table, table.apr-t, table.dpk-t, table.ins-t, table.ind-table, table.lk-table, table.ver-t, table.rcl-table, table.qq-t, table.cmpm-t, table.av-t, table.rat-t, table.ibd-table, table.cum-t, table.ctr-t, table.ver-table, table.lkw-t, table.ld-t, table.imp-ask-t, table.hb-t, table.gc-t, table.gax-t) th { height: var(--tb-head-h); font-family: var(--tb-font); font-size: var(--tb-head-fs); font-weight: var(--tb-head-fw); color: var(--tb-head-c);
@@ -28,7 +28,14 @@
 :is(table.ins-table, table.rec-table, table.dly-table, table.prm-table, table.pv-t, table.cmp-t, table.cond-t, table.novapp-budget-table, table.svi-bdgl, table.ach-table, table.bdg-d-table, table.scn-table, table.mg-table, table.qq-table, table.sd-t, table.imp-table, table.av-stg-t, table.inc-table, table.apr-t, table.dpk-t, table.ins-t, table.ind-table, table.lk-table, table.ver-t, table.rcl-table, table.qq-t, table.cmpm-t, table.av-t, table.rat-t, table.ibd-table, table.cum-t, table.ctr-t, table.ver-table, table.lkw-t, table.ld-t, table.imp-ask-t, table.hb-t, table.gc-t, table.gax-t) :is(tfoot td, tr.bdg-d-total-row td, tr.ins-tot td) { font-weight: var(--tb-tot-fw); color: var(--tb-tot-c); background: var(--tb-tot-bg); }
 :is(table.ins-table, table.rec-table, table.dly-table, table.prm-table, table.pv-t, table.cmp-t, table.cond-t, table.novapp-budget-table, table.svi-bdgl, table.ach-table, table.bdg-d-table, table.scn-table, table.mg-table, table.qq-table, table.sd-t, table.imp-table, table.av-stg-t, table.inc-table, table.apr-t, table.dpk-t, table.ins-t, table.ind-table, table.lk-table, table.ver-t, table.rcl-table, table.qq-t, table.cmpm-t, table.av-t, table.rat-t, table.ibd-table, table.cum-t, table.ctr-t, table.ver-table, table.lkw-t, table.ld-t, table.imp-ask-t, table.hb-t, table.gc-t, table.gax-t) input:is([type=checkbox], [type=radio]) { width: var(--tb-cb); height: var(--tb-cb); accent-color: var(--tb-cb-c); }
 .svi-cnt { background: var(--tb-cnt-off); }
-.svi-cnt.cnt-nz { background: var(--tb-cnt-on); color: #fff; }
+.svi-cnt.cnt-nz { color: var(--tb-cnt-on); }
+/* v786 : colonnes masquées (mécanisme commun 09e-colonnes-masquees) et fenêtre MASQUER / AFFICHER */
+table .svi-colh, table col.svi-colh { display: none !important; }
+#svConf .colh-list { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+#svConf .colh-r { display: flex; align-items: center; gap: 10px; min-height: var(--svi-hit-h, 32px); padding: 4px 6px; border-radius: 6px; font-weight: 700; font-size: 13px; cursor: pointer; }
+#svConf .colh-r:active { background: #eef1f6; }
+#svConf .colh-r input { width: 18px; height: 18px; accent-color: var(--svst, #172033); }
+#svConf .colh-err { margin-top: 8px; color: #b91c1c; font-weight: 700; font-size: 12px; }
 /* ===================================================================== */
 
 * {
@@ -1976,7 +1983,7 @@ td.svi-cs { background: var(--inst-bg, #eef0f3) !important; box-shadow: inset 0 
 /* v510 (remarque 71) : zones de toucher uniformes pour toutes les petites icônes (pliage, pastilles, loupes, i, ronds) —
    la zone s'étend autour de l'icône sans changer sa taille ni la mise en page */
 :is(.ins-fold, .ins-gfold, .lot-fold, .qq-fold, .dly-fold, .mg-f) { position: relative; z-index: 3; }
-:is(.ins-fold, .ins-gfold, .lot-fold, .qq-fold, .dly-fold, .mg-f)::after { content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 32px; transform: translate(-50%, -50%); }
+:is(.ins-fold, .ins-gfold, .lot-fold, .qq-fold, .dly-fold, .mg-f)::after { content: ""; position: absolute; left: 50%; top: 50%; width: var(--svi-hit-w, 44px); height: var(--svi-hit-h, 32px); transform: translate(-50%, -50%); }
 :is(.cf-btn, .des-i, .ins-grd) { z-index: 3; }
 
 /* v510 (remarque 68) : signe de pliage d'un titre / niveau aux couleurs des ronds de sa branche */
@@ -3419,7 +3426,7 @@ table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 #ach .nvp .rec-table thead th { position: sticky; top: 0; }
 
 /* v780 (remarque 4) : COMPTEURS — différent de zéro = ORANGE, quel que soit le mode ; zéro = gris */
-.svi-cnt.cnt-nz { background: var(--tb-cnt-on) !important; color: #fff !important; }   /* forcé : passe devant les pastilles des onglets (fond propre) */
+.svi-cnt.cnt-nz { color: var(--tb-cnt-on) !important; }   /* v785 : la pastille garde sa couleur, seul le CHIFFRE passe en orange (forcé : passe devant la couleur propre des onglets) */
 /* v780 (remarque 3) : CASES À COCHER — cochée = couleur du mode en cours, partout */
 input[type=checkbox], input[type=radio] { accent-color: var(--tb-cb-c) !important; }   /* forcé : passe devant les accent-color propres (--inst) */
 /* v780 (remarques 2 et 5) : lignes des budgets, avenants, scénarios, versions, recalages — même police, taille et graisse que les autres lignes,
@@ -3519,4 +3526,12 @@ body.mep-open #sviScreenTag, body.mep-open #sviSync, body.mep-open #sviTestTag, 
 #sviMep .mep-totaux .tot div:first-child b { border-top: 1px solid #000; }
 #sviMep .mep-totaux .arr { margin-top: 14px; font-weight: bold; line-height: 1.7; text-align: left; }
 /* v784 : ⋯ du titre des listes, à droite */
-.novapp-list-titlebar .nvl-more { margin-left: auto; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: #fff; border: 1px solid #fca5a5; color: var(--inst, #b91c1c); cursor: pointer; font-size: 18px; flex: none; }
+/* v785 : AGRANDIR / RÉDUIRE dans le ⋯ des blocs — plus d'icône dans l'en-tête (le bouton reste, caché, pour le double toucher et le ⋯) */
+html body .blk-tools .blk-btn.blk-max-btn, #ach .nvp .blk-tools [data-nvmax] { display: none !important; }
+
+/* v785 : la ligne « CRÉER … ICI » reste toujours visible, collée en bas du bloc (réduit ou agrandi) ; à l'ouverture on voit le haut du tableau */
+:is(table.ins-table, table.rec-table, table.dly-table, table.prm-table, table.pv-t, table.cmp-t, table.cond-t, table.novapp-budget-table, table.svi-bdgl, table.ach-table, table.bdg-d-table, table.scn-table, table.mg-table, table.qq-table, table.sd-t, table.imp-table, table.av-stg-t, table.inc-table, table.apr-t, table.dpk-t, table.ins-t, table.ind-table, table.lk-table, table.ver-t, table.rcl-table, table.qq-t, table.cmpm-t, table.av-t, table.rat-t, table.ibd-table, table.cum-t, table.ctr-t, table.ver-table, table.lkw-t, table.ld-t, table.imp-ask-t, table.hb-t, table.gc-t, table.gax-t) tbody tr:is(.ins-new, .rec-new, .scn-new, .qq-new, .dlw-newr) td { position: sticky; bottom: 0; z-index: 5; }
+.ins-hcol .bdg-h-col .ins-li.ins-new, .bdg-h-col .ins-li.ins-new { position: sticky; bottom: 0; z-index: 5; background: var(--tb-new-bg); }
+/* v785 : barre commune dans le titre des listes, à droite */
+.novapp-list-titlebar .svi-listbar, .novapp-list-titlebar > .svi-hdr { margin-left: auto; display: flex; }
+.novapp-list-titlebar .svi-listbar .svi-hdr { margin-left: 0; }

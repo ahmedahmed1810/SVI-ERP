@@ -1909,9 +1909,9 @@ const coOrder = (t, cols) => {
 /* FORMAT 102 : ordre des colonnes tel qu'affiché à l'écran (après glissement) — copies, exports, aperçus */
 const screenCols = (table, cols) => {
   if (!table || !cols) return cols;
-  const keys = [...table.querySelectorAll("thead tr:first-child > th .cf-btn[data-col]")].map(b => b.dataset.col);
+  const keys = [...table.querySelectorAll("thead tr:first-child > th:not(.svi-colh) .cf-btn[data-col]")].map(b => b.dataset.col);
   const out = keys.map(k => cols.find(c => c[0] === k)).filter(Boolean);
-  return out.length ? [...out, ...cols.filter(c => !out.includes(c) && !keys.length)] : cols;
+  return out.length ? out : cols;   /* v786 : colonnes masquées exclues (aperçu, export, copie suivent l'écran) */
 };
 /* — de src/12-tableaux-colonnes.js — */
 /* réordonne un tableau déjà dessiné (col, en-têtes, lignes, pied) */
@@ -2158,7 +2158,7 @@ const qqWin = (title, html, onOk, onLive) => {
   sviWinShow(d);
   if (onLive) { d.addEventListener("input", () => onLive(d)); d.addEventListener("change", () => onLive(d)); onLive(d); }
   let lp = null;
-  d.addEventListener("pointerdown", e => { const g = e.target.closest(".qq-dis"); if (g) lp = setTimeout(() => svToast(g.dataset.why || "", 3500, g), 500); });
+  d.addEventListener("pointerdown", e => { const g = e.target.closest(".qq-dis"); if (g) lp = setTimeout(() => svToast(g.dataset.why || "", 3500, g), SVI_G.lp); });
   ["pointerup", "pointercancel"].forEach(t => d.addEventListener(t, () => clearTimeout(lp)));
   d.addEventListener("click", e => {
     const b = e.target.closest("[data-r]");
@@ -2191,7 +2191,7 @@ const dlyViewAll = () => { try { return JSON.parse(localStorage.getItem("svi_dly
 /* hauteur des lignes du PLANNING (tableau et Gantt) : pincement vertical à deux doigts ; 24 px au moins (taille d'origine), 64 au plus */
 const DLY_RH_KEY = "svi_dly_rh_v1";
 /* — de src/17-2-lignes-ordre.js — */
-const dlyRhGet = () => { const v = Number(localStorage.getItem(DLY_RH_KEY)); return v >= 24 && v <= 64 ? v : 24; };
+const dlyRhGet = () => { const v = Number(localStorage.getItem(DLY_RH_KEY)); return v >= SVI_G.ganttMin && v <= SVI_G.ganttMax ? v : SVI_G.ganttMin; };
 /* — de src/17-2-lignes-ordre.js — */
 const dlyBh = rh => Math.round(11 + (rh - 24) * 0.5);   /* épaisseur des barres : 11 px à 24, 31 px à 64 */
 /* — de src/17-2-lignes-ordre.js — */
@@ -3355,7 +3355,7 @@ function sviHdrBar(o = {}) {
   const b = (k, cls, title, extra = "") => `<button type="button" class="${cls}${W[k] ? " hdr-off" : ""}" data-${at}="${k}" title="${esc(W[k] || title)}" aria-label="${esc(title)}"${W[k] ? ` data-why="${esc(W[k])}"` : ""}>${SVI_HDR_IC[k] || ""}${extra}</button>`;
   return `<div class="bdg-d-hright svi-hdr">${b("undo", "inst-act", "Annuler")}${b("redo", "inst-act", "Rétablir")}${b("prev", "inst-nav", "Précédent")}${b("next", "inst-nav", "Suivant")}`
     + `${b("todo", "inst-act inst-todo" + (o.n ? " todo-on" : ""), "Alertes", `<b>${o.n || ""}</b>`)}${b("close", "inst-act", "Fermer")}`
-    + `<button type="button" class="inst-act bdg-more-btn" data-${at}="more" title="Actions" aria-label="Actions">⋯</button></div>`;
+    + `<button type="button" class="inst-act bdg-more-btn${at === "nvl" ? " nvl-more" : ""}" data-${at}="more" title="Actions" aria-label="Actions">⋯</button></div>`;
 }
 /* ⋯ principal commun : groupes séparés par un trait (même présentation que le ⋯ d'un budget) */
 function sviHdrMenu(btn, groups, pick) {
@@ -3366,6 +3366,161 @@ function sviHdrMenu(btn, groups, pick) {
   m.addEventListener("click", e => { const it = e.target.closest("[data-a]"); if (!it) return; e.stopPropagation(); m.remove(); pick(it.dataset.a); });
   setTimeout(() => document.addEventListener("click", function off(e) { if (!e.target.closest("#blkMenu")) { m.remove(); document.removeEventListener("click", off, true); } }, true), 0);
 }
+/* ⟪ src/09e-colonnes-masquees.js ⟫ */
+/* =========================================================
+   v786 (prompt codage, point 2) : MASQUER / AFFICHER LES COLONNES — un seul mécanisme pour tous les tableaux.
+   - Un tableau est reconnu par ses en-têtes (.cf-btn data-cf / data-col) ou, à défaut, par data-colh="clé" sur la table
+     (les colonnes sont alors nommées par leur titre).
+   - Choix gardé par tableau (svi_colh_v1) ; listes : choix séparé EN INSTANCE (_i) / VALIDÉS (_v).
+   - Au moins une colonne reste affichée. Colonnes masquées par défaut : SVI_COLH_DEF.
+   - Aperçu, export et copie suivent l'écran (screenCols, sviColhVis).
+   ========================================================= */
+const COLH_KEY = "svi_colh_v1";
+const SVI_COLH_DEF = {};   /* { cléTableau: [colonnes masquées tant que l'utilisateur n'a rien choisi] } */
+const colhLoad = () => { try { return JSON.parse(localStorage.getItem(COLH_KEY) || "{}") || {}; } catch (e) { return {}; } };
+const colhSave = o => { try { localStorage.setItem(COLH_KEY, JSON.stringify(o)); } catch (e) {} };
+const colhNorm = s => String(s || "").replace(/\s+/g, " ").trim().toUpperCase();
+/* description d'un tableau affiché : clé, colonnes (index réel, clé, titre), colonnes masquées */
+function sviColhInfo(table) {
+  if (!table || !table.tHead || !table.tHead.rows[0]) return null;
+  const tr = table.tHead.rows[0], b0 = tr.querySelector(".cf-btn[data-cf]");
+  let t = b0 ? b0.dataset.cf : table.dataset.colh;
+  if (!t) return null;
+  if (table.tHead.rows.length > 1 && [...tr.cells].some(c => c.colSpan > 1)) return null;   /* en-tête sur deux lignes : exception */
+  const sh = table.closest(".novapp-list-shell");
+  const id = sh ? t + (table.classList.contains("nv-inst") || table.closest(".list-inst") ? "_i" : "_v") : t;
+  let x = 0;
+  const cols = [];
+  [...tr.cells].forEach(th => {
+    const b = th.querySelector(".cf-btn[data-col]");
+    const lab = colhNorm((th.querySelector(".cf-lab") || th).textContent);
+    const k = b ? b.dataset.col : (!b0 && lab && !th.querySelector("input") ? lab : null);
+    if (k) cols.push({ i: x, k, lab: lab || k, th });
+    x += th.colSpan || 1;
+  });
+  if (!cols.length) return null;
+  const S = colhLoad(), keys = cols.map(c => c.k);
+  let hid = (S[id] || SVI_COLH_DEF[t] || []).filter(k => keys.includes(k));
+  if (hid.length >= keys.length) hid = hid.slice(0, keys.length - 1);
+  return { t, id, cols, hid, n: x };
+}
+/* applique le masquage à un tableau (idempotent) */
+function sviColhApply(table) {
+  const I = sviColhInfo(table);
+  table.querySelectorAll(".svi-colh").forEach(c => c.classList.remove("svi-colh"));
+  table.querySelectorAll("[data-cs0]").forEach(c => { c.colSpan = +c.dataset.cs0; c.removeAttribute("data-cs0"); });
+  if (table.dataset.w0) { table.style.width = table.dataset.w0; table.removeAttribute("data-w0"); }
+  if (!I || !I.hid.length) return;
+  const H = new Set(I.cols.filter(c => I.hid.includes(c.k)).map(c => c.i));
+  let wOff = 0;
+  table.querySelectorAll("colgroup").forEach(cg => { let x = 0;
+    [...cg.children].forEach(col => { const sp = col.span || 1; if (sp === 1 && H.has(x)) { col.classList.add("svi-colh"); wOff += parseFloat(col.style.width) && /px$/.test(col.style.width) ? parseFloat(col.style.width) : 0; } x += sp; }); });
+  [...table.rows].forEach(r => { let x = 0;
+    [...r.cells].forEach(c => { const sp = c.colSpan || 1; let nh = 0; for (let j = x; j < x + sp; j++) if (H.has(j)) nh++;
+      if (nh === sp) c.classList.add("svi-colh"); else if (nh) { c.dataset.cs0 = sp; c.colSpan = sp - nh; }
+      x += sp; }); });
+  if (wOff && /px$/.test(table.style.width || "")) { table.dataset.w0 = table.style.width; table.style.width = Math.max(120, parseFloat(table.style.width) - wOff) + "px"; }
+}
+/* index des colonnes affichées d'un tableau (aperçus, exports qui lisent l'écran) */
+function sviColhVis(table) {
+  const r = table && table.tHead && table.tHead.rows[0];
+  if (!r) return [];
+  return [...r.cells].map((c, i) => c.classList.contains("svi-colh") ? -1 : i).filter(i => i >= 0);
+}
+let colhRaf = 0;
+function sviColhAll() {
+  cancelAnimationFrame(colhRaf);
+  colhRaf = requestAnimationFrame(() => {
+    const S = colhLoad();
+    if (!Object.keys(S).some(k => (S[k] || []).length) && !Object.keys(SVI_COLH_DEF).length && !document.querySelector(".svi-colh")) return;
+    document.querySelectorAll("table").forEach(t => { if (t.closest("#sviMep, .mep-page")) return; if (t.tHead && (t.dataset.colh || t.tHead.querySelector(".cf-btn[data-cf]"))) sviColhApply(t); });
+  });
+}
+new MutationObserver(muts => { if (muts.some(m => m.addedNodes.length)) sviColhAll(); }).observe(document.documentElement, { childList: true, subtree: true });
+/* tableau concerné par un ⋯ : le premier tableau visible du bloc / de l'écran */
+function sviColhTableNear(el) {
+  const root = el && (el.closest(".nvp-blk, .bdg-d-block, .bdg-blk, [data-blk-box], .novapp-list-shell, #ach, section") || null);
+  const scope = root || document;
+  const T = [...scope.querySelectorAll("table")].filter(t => t.offsetParent && sviColhInfo(t));
+  return T[0] || null;
+}
+/* entrées du ⋯ : seulement MASQUER quand tout est affiché ; MASQUER et AFFICHER dès qu'une colonne est masquée */
+function sviColhItems(table) {
+  const I = sviColhInfo(table);
+  if (!I || I.cols.length < 2) return [];
+  const out = [{ k: "__colhide", lab: "MASQUER DES COLONNES…" }];
+  if (I.hid.length) out.push({ k: "__colshow", lab: "AFFICHER DES COLONNES… (" + I.hid.length + ")" });
+  return out;
+}
+/* fenêtre commune : liste à cocher */
+function sviColhWin(table, mode) {
+  const I = sviColhInfo(table);
+  if (!I) return;
+  const hide = mode === "hide";
+  const L = I.cols.filter(c => hide ? !I.hid.includes(c.k) : I.hid.includes(c.k));
+  if (!L.length) return;
+  const d = sviWinNew();
+  d.innerHTML = sviWinCard({ cls: "pv-card colh-card", close: "data-x", title: hide ? "MASQUER DES COLONNES" : "AFFICHER DES COLONNES",
+    body: `<div class="pv-sub">${hide ? "COCHER LES COLONNES À MASQUER. AU MOINS UNE COLONNE RESTE AFFICHÉE." : "COCHER LES COLONNES À AFFICHER DE NOUVEAU."}</div>
+      <div class="pv-scroll colh-list">${L.map(c => `<label class="colh-r"><input type="checkbox" data-k="${esc(c.k)}"><span>${esc(c.lab)}</span></label>`).join("")}</div>
+      <div class="colh-err" hidden></div>`,
+    foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>${hide ? "MASQUER" : "AFFICHER"}</button>` });
+  sviWinShow(d);
+  const err = d.querySelector(".colh-err");
+  d.addEventListener("click", e => {
+    if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+    if (!e.target.closest("[data-ok]")) return;
+    const K = [...d.querySelectorAll(".colh-r input:checked")].map(i => i.dataset.k);
+    if (!K.length) { d.remove(); return; }
+    const next = hide ? [...I.hid, ...K] : I.hid.filter(k => !K.includes(k));
+    if (next.length >= I.cols.length) { err.hidden = false; err.textContent = "AU MOINS UNE COLONNE DOIT RESTER AFFICHÉE."; return; }
+    const S = colhLoad(); S[I.id] = next; colhSave(S);
+    d.remove();
+    document.querySelectorAll("table").forEach(t => { const J = t.tHead && sviColhInfo(t); if (J && J.id === I.id) sviColhApply(t); });
+  });
+}
+function sviColhPick(a, table) {
+  if (a === "__colhide") { sviColhWin(table, "hide"); return true; }
+  if (a === "__colshow") { sviColhWin(table, "show"); return true; }
+  return false;
+}
+/* ⟪ src/09e-gestes-communs.js ⟫ */
+/* =========================================================
+   v785 : GESTES ET TOUCHER — UN SEUL RÉGLAGE POUR TOUTE L'APPLICATION
+   Changer une valeur ici la change partout (tableaux, Gantt, graphiques, achats, fenêtres).
+   - lp    : durée de l'APPUI LONG (ms)
+   - drag  : distance avant qu'un GLISSER commence (px) ; en dessous, c'est un toucher
+   - dbl   : délai maximal entre les deux touchers d'un DOUBLE TOUCHER (ms)
+   - hitW / hitH : zone de toucher autour des petits boutons, ronds et cases (px)
+   - pinch : sensibilité du PINCEMENT (1 = normale ; plus grand = plus rapide)
+   - ganttMin / ganttMax : hauteur des lignes du Gantt réglable au pincement (px)
+   ========================================================= */
+const SVI_G = { lp: 450, drag: 8, dbl: 350, hitW: 44, hitH: 32, pinch: 1, ganttMin: 24, ganttMax: 80 };
+window.SVI_G = SVI_G;
+try { document.documentElement.style.setProperty("--svi-hit-w", SVI_G.hitW + "px"); document.documentElement.style.setProperty("--svi-hit-h", SVI_G.hitH + "px"); } catch (e) {}
+/* v785 : RACCOURCIS COMMUNS — Ctrl (Commande sur l'iPad) + Z = ANNULER, + Y (ou Maj + Z) = RÉTABLIR, sur tout écran qui a la barre commune.
+   Dans une case en cours de saisie (curseur dans le texte), le raccourci reste celui du texte. */
+document.addEventListener("keydown", e => {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+  const k = String(e.key || "").toLowerCase(); if (k !== "z" && k !== "y") return;
+  const a = document.activeElement, typing = a && a.matches && a.matches("input:not([type=checkbox]):not([type=radio]), textarea, [contenteditable=true]") && !a.classList.contains("svi-nav");
+  if (typing || document.querySelector("#sdW:not([hidden])")) return;
+  const redo = k === "y" || e.shiftKey, b = document.getElementById(redo ? "instRedo" : "instUndo") || document.querySelector(`[data-nvp="${redo ? "redo" : "undo"}"]`);
+  if (!b || !b.isConnected) return;
+  e.preventDefault(); b.click();
+}, true);
+/* v786 (prompt codage, point 5) : Ctrl / Cmd + C, X, V sur des cases SÉLECTIONNÉES (cadre fin, pas en saisie) = COPIER, COUPER, COLLER
+   — la même chose que la bulle COPIER / COLLER / EFFACER. En cours de saisie, le raccourci reste celui du texte. */
+document.addEventListener("keydown", e => {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+  const k = String(e.key || "").toLowerCase(); if (!["c", "x", "v"].includes(k)) return;
+  const a = document.activeElement, typing = a && a.matches && a.matches("input:not([type=checkbox]):not([type=radio]), textarea, [contenteditable=true]") && !a.classList.contains("svi-nav");
+  const X = window.__sviCells;
+  if (typing || !X || !X.count() || document.querySelector("#svConf, #sdW:not([hidden])")) return;
+  e.preventDefault();
+  if (k === "c") X.copy(); else if (k === "v") X.paste(); else { X.copy(); X.clear(); }
+  if (window.__sviSelBar) setTimeout(window.__sviSelBar, 50);
+}, true);
 /* ⟪ src/09e-mise-en-page.js ⟫ */
 /* =========================================================
    v783 : APERÇU UNIQUE — éditeur MISE EN PAGE par blocs (repris d'achats.html)
@@ -3588,14 +3743,17 @@ const sviMep = (() => {
 window.sviMep = sviMep;
 
 /* v784 : APERÇU d'une LISTE (liste des budgets, listes des achats) — ⋯ du titre de la liste ; le tableau affiché (filtres compris) */
-const SVI_LIST_MORE = '<button type="button" class="inst-act bdg-more-btn nvl-more" title="Actions" aria-label="Actions">⋯</button>';
+/* v785 : les listes ont la même barre que le budget (ANNULER, RÉTABLIR, PRÉCÉDENT, SUIVANT, ALERTES, FERMER, ⋯) ; ce qui est sans objet est grisé et dit pourquoi */
+const sviListBar = () => sviHdrBar({ attr: "nvl", why: { undo: "RIEN À ANNULER DANS LA LISTE.", redo: "RIEN À RÉTABLIR DANS LA LISTE.", prev: "LISTE : PAS D'ÉCRAN PRÉCÉDENT.", next: "LISTE : PAS D'ÉCRAN SUIVANT.", todo: "AUCUNE ALERTE.", close: "LISTE : RIEN À FERMER (MENU ☰ POUR CHANGER D'ÉCRAN)." } });
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".svi-hdr .hdr-off[data-why]"); if (!b || b.closest(".bdg-d-sticky .bdg-d-hright:not(.svi-hdr)")) return; e.stopPropagation(); e.preventDefault(); svToast(b.dataset.why, 3000, b); }, true);
 document.addEventListener("click", e => {
   const b = e.target.closest && e.target.closest(".nvl-more"); if (!b) return;
   e.stopPropagation();
-  const shell = b.closest(".novapp-list-shell"), t = shell && shell.querySelector("table"), h1 = shell && shell.querySelector(".novapp-list-titlebar h1");
-  sviHdrMenu(b, [[{ k: "apr", lab: "APERÇU" }]], () => {
-    if (!t) return;
-    const ths = [...t.tHead.rows[0].cells].map(th => (th.querySelector(".cf-lab") || th).textContent.trim()), keep = ths.map((x, i) => x ? i : -1).filter(i => i >= 0);
+  const shell = b.closest(".novapp-list-shell"), t = shell ? shell.querySelector("table") : sviColhTableNear(b), h1 = shell ? shell.querySelector(".novapp-list-titlebar h1") : b.closest("#ach")?.querySelector(".section-head h2, .section-head h1");
+  sviHdrMenu(b, [sviColhItems(t), [{ k: "apr", lab: "APERÇU" }]], a => {
+    if (!t || sviColhPick(a, t)) return;
+    const vis = sviColhVis(t);
+    const ths = [...t.tHead.rows[0].cells].map(th => (th.querySelector(".cf-lab") || th).textContent.trim()), keep = ths.map((x, i) => x && vis.includes(i) ? i : -1).filter(i => i >= 0);
     const num = i => [...t.tBodies[0].rows].some(r => r.cells[i] && r.cells[i].classList.contains("number"));
     const rows = [...t.tBodies[0].rows].filter(r => !r.matches(".bdg-newrow, .ach-new, .rec-new") && !r.querySelector("td.empty") && r.cells.length >= keep.length).map(r => keep.map(i => (r.cells[i] ? r.cells[i].textContent.replace(/\s+/g, " ").trim() : "")));
     const title = h1 ? h1.childNodes[0].textContent.trim() || h1.textContent.trim() : "LISTE";
@@ -3864,7 +4022,7 @@ document.addEventListener("click", e => {
     const sub = menu.querySelector(`.nav-sub[data-grp="${grp.dataset.grp}"]`), open = !!sub && sub.hidden;
     if (sub) sub.hidden = !open;
     grp.setAttribute("aria-expanded", open ? "true" : "false");
-    try { localStorage.setItem("svi_navgrp_" + grp.dataset.grp + "_v1", open ? "1" : ""); } catch (err) {}
+    try { sessionStorage.setItem("svi_navgrp_" + grp.dataset.grp + "_v1", open ? "1" : ""); } catch (err) {}   /* v785 : gardé pendant la séance seulement */
     return;
   }
   const off = e.target.closest("#navMenu .nav-off");
@@ -3880,8 +4038,9 @@ document.addEventListener("click", e => {
     menu.classList.toggle("hidden");
     /* groupe déplié la dernière fois (ou contenant le module ouvert) : déplié à l'ouverture du menu */
     menu.querySelectorAll(".nav-grp").forEach(g => { const sub = menu.querySelector(`.nav-sub[data-grp="${g.dataset.grp}"]`); if (!sub) return;
-      let o = false; try { o = !!localStorage.getItem("svi_navgrp_" + g.dataset.grp + "_v1"); } catch (err) {}
-      o = o || !!sub.querySelector(".nav-btn.active"); sub.hidden = !o; g.setAttribute("aria-expanded", o ? "true" : "false"); });
+      /* v785 : au lancement de l'application, tout est plié (achats compris) ; pendant la séance, ce qui a été ouvert reste ouvert */
+      let o = false; try { o = !!sessionStorage.getItem("svi_navgrp_" + g.dataset.grp + "_v1"); } catch (err) {}
+      sub.hidden = !o; g.setAttribute("aria-expanded", o ? "true" : "false"); });
     return;
   }
   menu.classList.add("hidden");
@@ -4224,7 +4383,7 @@ function openSourceWin() {
     const f = e.target.closest(".src-fld.src-edit-ok");
     if (!f || editing) return;
     lpDone = false;
-    lpTimer = setTimeout(() => { lpDone = true; msg(""); setMode(f.dataset.which); }, 550);
+    lpTimer = setTimeout(() => { lpDone = true; msg(""); setMode(f.dataset.which); }, SVI_G.lp);
   });
   ["pointerup", "pointercancel", "pointerleave"].forEach(t => p.addEventListener(t, () => clearTimeout(lpTimer)));
   p.addEventListener("contextmenu", e => { if (e.target.closest(".src-fld")) e.preventDefault(); });
@@ -4515,7 +4674,7 @@ function sviParamTabs() {
   paint();
   document.addEventListener("click", e => { if (e.target.closest && e.target.closest('.nav-btn[data-view="chs"], .open-menu')) setTimeout(paint, 0); });
   let lp = null;
-  bar.addEventListener("pointerdown", e => { const b = e.target.closest(".prm-bdg.off"); if (!b) return; lp = setTimeout(() => svToast(why(), 3000, b), 550); });
+  bar.addEventListener("pointerdown", e => { const b = e.target.closest(".prm-bdg.off"); if (!b) return; lp = setTimeout(() => svToast(why(), 3000, b), SVI_G.lp); });
   ["pointerup", "pointerleave", "pointercancel"].forEach(t => bar.addEventListener(t, () => clearTimeout(lp)));
   bar.addEventListener("click", e => {
     const b = e.target.closest(".prm-bdg");
@@ -5036,13 +5195,19 @@ document.addEventListener("focusin", e => {
     if (t.closest("input, textarea, select, .blk-tools, .cf-btn, [data-onlyc], .col-rs, th, .gh, .blk-grip, .blk-rsz")) { last = null; return; }
     let zone = "", act = null;
     /* v545 (remarque 1) : plus de double toucher sur la barre de titre des blocs (bouton agrandir / réduire visible) */
-    {
+    /* v785 : retour du double toucher sur la barre de titre d'un bloc (ou sa rangée d'onglets) = AGRANDIR / RÉDUIRE, partout (budget, achats) ;
+       le bouton n'est plus dans l'en-tête : la commande est aussi dans le ⋯ du bloc */
+    { const head = !t.closest("button, .bdg-d-tab, .rec-tab, [role=button], .svi-cnt, a") && t.closest(".bdg-d-block-title, .blk-tabrow, #bdgDetailHead, #bdgTabs");
+      const blk = head && (head.closest(".bdg-d-block") || (head.matches("#bdgDetailHead, #bdgTabs") ? head : null));
+      const mx = blk && (blk.querySelector(".blk-max-btn, [data-nvmax]") || (head.matches("#bdgDetailHead, #bdgTabs") ? document.querySelector('#bdgDetailHead .blk-max-btn') : null));
+      if (mx) { zone = "b"; act = () => mx.click(); } }
+    if (!zone) {
       const tt = t.closest(".svc-card .svc-t"), card = tt && tt.closest(".svc-card");
       if (card && card.querySelector('[class$="-rsz"]')) { zone = "w"; act = () => card.classList.toggle("svc-full"); }
     }
     if (!zone) { last = null; return; }
     const now = Date.now();
-    if (last && last.zone === zone && now - last.t < 380 && Math.abs(e.clientX - last.x) < 30 && Math.abs(e.clientY - last.y) < 30) { last = null; act(); }
+    if (last && last.zone === zone && now - last.t < SVI_G.dbl && Math.abs(e.clientX - last.x) < 30 && Math.abs(e.clientY - last.y) < 30) { last = null; act(); }
     else last = { zone, t: now, x: e.clientX, y: e.clientY };
   });
 })();
@@ -5204,7 +5369,7 @@ function sviDlyRoSync() {
     if (t.matches(TXT + ", select") && !t.readOnly) return;
     st = { a, t, x: e.clientX, y: e.clientY, toast: toastOn() };
   }, true);
-  document.addEventListener("pointermove", e => { if (st && Math.hypot(e.clientX - st.x, e.clientY - st.y) > 10) st = null; }, true);
+  document.addEventListener("pointermove", e => { if (st && Math.hypot(e.clientX - st.x, e.clientY - st.y) > SVI_G.drag) st = null; }, true);
   document.addEventListener("pointercancel", () => { st = null; }, true);
   document.addEventListener("pointerup", () => {
     if (!st) return;

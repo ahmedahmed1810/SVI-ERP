@@ -105,8 +105,8 @@
           const c = (INS_COLS[k] || []).find(x => x[4] === st.sort.col || x[0] === st.sort.col);
           const lab = c ? c[1] : ({ lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE", v: k === "lot" ? "LOT" : k === "prim" ? "ACTIVITÉ PRIMAIRE" : "ACTIVITÉ SECONDAIRE" }[st.sort.col] || String(st.sort.col).toUpperCase());
           const sx = event.clientX, sy = event.clientY;
-          const tm = setTimeout(() => { off(); svToast("GLISSEMENT IMPOSSIBLE : TRI ACTIF SUR LA COLONNE " + lab + " — ANNULER LE TRI POUR DÉPLACER OU SUPERPOSER", 4500, el); }, 400);
-          const mvv = e => { if (Math.abs(e.clientX - sx) > 10 || Math.abs(e.clientY - sy) > 10) off(); };
+          const tm = setTimeout(() => { off(); svToast("GLISSEMENT IMPOSSIBLE : TRI ACTIF SUR LA COLONNE " + lab + " — ANNULER LE TRI POUR DÉPLACER OU SUPERPOSER", 4500, el); }, SVI_G.lp);
+          const mvv = e => { if (Math.abs(e.clientX - sx) > SVI_G.drag || Math.abs(e.clientY - sy) > SVI_G.drag) off(); };
           const off = () => { clearTimeout(tm); document.removeEventListener("pointermove", mvv); document.removeEventListener("pointerup", off); document.removeEventListener("pointercancel", off); };
           document.addEventListener("pointermove", mvv); document.addEventListener("pointerup", off); document.addEventListener("pointercancel", off);
           return;
@@ -163,7 +163,7 @@
         document.body.classList.add("svi-dragging");
         el.classList.add("ro-src");
         try { navigator.vibrate && navigator.vibrate(15); } catch (e) {}
-      }, 350);
+      }, SVI_G.lp);
       const tm = e => { if (on) e.preventDefault(); };
       const move = e => {
         if (!on) {
@@ -379,7 +379,7 @@
       const insEl = INS_EDIT && event.target.closest('.ins-table:not([data-ik="chg"]):not([data-ik="prd"]) tr[data-iid], .ins-hcol .ins-li[data-iid], .ins-hcol .ins-li.lot-grp');
       if (insEl && insEl.classList.contains("lk-ban") && !event.target.closest("input.ins-cb, .ins-t")) {
         const x0 = event.clientX, y0 = event.clientY;
-        const tmr = setTimeout(() => { svToast(insEl.dataset.ban || "", 3500, insEl); off(); }, 450);
+        const tmr = setTimeout(() => { svToast(insEl.dataset.ban || "", 3500, insEl); off(); }, SVI_G.lp);
         const mv = e => { if (Math.abs(e.clientX - x0) > 10 || Math.abs(e.clientY - y0) > 10) off(); };
         const off = () => { clearTimeout(tmr); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", off); document.removeEventListener("pointercancel", off); };
         document.addEventListener("pointermove", mv); document.addEventListener("pointerup", off); document.addEventListener("pointercancel", off);

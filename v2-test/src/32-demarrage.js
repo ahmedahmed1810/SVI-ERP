@@ -258,7 +258,7 @@ document.addEventListener("click", e => {
     const sub = menu.querySelector(`.nav-sub[data-grp="${grp.dataset.grp}"]`), open = !!sub && sub.hidden;
     if (sub) sub.hidden = !open;
     grp.setAttribute("aria-expanded", open ? "true" : "false");
-    try { localStorage.setItem("svi_navgrp_" + grp.dataset.grp + "_v1", open ? "1" : ""); } catch (err) {}
+    try { sessionStorage.setItem("svi_navgrp_" + grp.dataset.grp + "_v1", open ? "1" : ""); } catch (err) {}   /* v785 : gardé pendant la séance seulement */
     return;
   }
   const off = e.target.closest("#navMenu .nav-off");
@@ -274,8 +274,9 @@ document.addEventListener("click", e => {
     menu.classList.toggle("hidden");
     /* groupe déplié la dernière fois (ou contenant le module ouvert) : déplié à l'ouverture du menu */
     menu.querySelectorAll(".nav-grp").forEach(g => { const sub = menu.querySelector(`.nav-sub[data-grp="${g.dataset.grp}"]`); if (!sub) return;
-      let o = false; try { o = !!localStorage.getItem("svi_navgrp_" + g.dataset.grp + "_v1"); } catch (err) {}
-      o = o || !!sub.querySelector(".nav-btn.active"); sub.hidden = !o; g.setAttribute("aria-expanded", o ? "true" : "false"); });
+      /* v785 : au lancement de l'application, tout est plié (achats compris) ; pendant la séance, ce qui a été ouvert reste ouvert */
+      let o = false; try { o = !!sessionStorage.getItem("svi_navgrp_" + g.dataset.grp + "_v1"); } catch (err) {}
+      sub.hidden = !o; g.setAttribute("aria-expanded", o ? "true" : "false"); });
     return;
   }
   menu.classList.add("hidden");

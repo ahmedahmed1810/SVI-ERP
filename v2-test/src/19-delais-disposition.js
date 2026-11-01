@@ -347,7 +347,9 @@
           const sr = sc.getBoundingClientRect(), rr = row.getBoundingClientRect();
           const hd = sc.querySelector(":scope > .bdg-h-head") || sc.querySelector("thead"), ft = sc.querySelector("tfoot");
           const top = sr.top + sc.clientTop + (hd ? hd.getBoundingClientRect().height + (sc.matches(".bdg-h-col") ? 0 : Math.max(0, hd.getBoundingClientRect().top - sr.top - sc.clientTop)) : 0);
-          const bot = sr.top + sc.clientTop + sc.clientHeight - (ft && ft.offsetHeight ? ft.getBoundingClientRect().height : 0);
+          /* v785 : la ligne « CRÉER … ICI » est collée en bas du bloc : la case en saisie reste au-dessus d'elle */
+          const nw = sc.querySelector("tbody tr.ins-new, tbody tr.rec-new, tbody tr.scn-new, .ins-li.ins-new"), nwH = nw && nw !== row && !nw.contains(row) ? nw.getBoundingClientRect().height : 0;
+          const bot = sr.top + sc.clientTop + sc.clientHeight - (ft && ft.offsetHeight ? ft.getBoundingClientRect().height : 0) - nwH;
           if (rr.top < top) sc.scrollTop -= Math.ceil(top - rr.top);
           else if (rr.bottom > bot) sc.scrollTop += Math.ceil(rr.bottom - bot);
         };

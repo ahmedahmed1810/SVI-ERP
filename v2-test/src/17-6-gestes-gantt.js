@@ -3,7 +3,7 @@
       shell.addEventListener("pointerdown", e => {
         const b = e.target.closest && e.target.closest(".dly-pred-new.off");
         if (!b) return;
-        const t = setTimeout(() => svToast("TOUTES LES TÂCHES SONT DÉJÀ DANS LE PLANNING.", 3000, b), 550);
+        const t = setTimeout(() => svToast("TOUTES LES TÂCHES SONT DÉJÀ DANS LE PLANNING.", 3000, b), SVI_G.lp);
         const off = () => { clearTimeout(t); document.removeEventListener("pointerup", off); document.removeEventListener("pointercancel", off); };
         document.addEventListener("pointerup", off); document.addEventListener("pointercancel", off);
       });
@@ -13,14 +13,14 @@
         if (!X || !tr || tr.classList.contains("dly-ext") || e.target.closest("input[type=checkbox], .dly-pred, .dly-jal, .dly-fold, .cf-btn")) return;
         const x0 = e.clientX, y0 = e.clientY;
         let on = false, hit = null, far = false;
-        const tm = setTimeout(() => { if (X.view() === "d" && !tr.classList.contains("dly-grp")) { svToast("VUE PAR DÉBUT : PASSER EN VUE PAR LOT POUR DÉPLACER.", 3000, tr); end(false); return; } on = true; tr.classList.add("ro-src"); grpFlush(true); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); try { window.getSelection().removeAllRanges(); } catch (err) {} document.body.classList.add("svi-dragging"); }, 350);
+        const tm = setTimeout(() => { if (X.view() === "d" && !tr.classList.contains("dly-grp")) { svToast("VUE PAR DÉBUT : PASSER EN VUE PAR LOT POUR DÉPLACER.", 3000, tr); end(false); return; } on = true; tr.classList.add("ro-src"); grpFlush(true); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); try { window.getSelection().removeAllRanges(); } catch (err) {} document.body.classList.add("svi-dragging"); }, SVI_G.lp);
         const tmv = ev => { if (on) ev.preventDefault(); };
         document.addEventListener("touchmove", tmv, { passive: false });
         const isG = tr.classList.contains("dly-grp"), gRow = isG ? (shell.__dlyRows || []).find(r => r.grp && r.path === tr.dataset.path) : null;
         const mv = ev => {
           if (!on) { if (Math.abs(ev.clientX - x0) > 8 || Math.abs(ev.clientY - y0) > 8) end(); return; }
           ev.preventDefault();
-          if (!far && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 10) return;
+          if (!far && Math.hypot(ev.clientX - x0, ev.clientY - y0) < SVI_G.drag) return;
           far = true;
           shell.__dlySrcG = window.__sviDlySrcG = false;
           if (gRow && X.view() === "d") { if (!tr.__vdMsg) { tr.__vdMsg = 1; svToast("VUE PAR DÉBUT : PASSER EN VUE PAR LOT POUR DÉPLACER.", 3000, tr); } hit = null; return; }
@@ -82,7 +82,7 @@
           m.innerHTML = `<span class="ct-sl" style="left:${xi - 4}px;top:${pl.getBoundingClientRect().top - 9}px">/</span><span class="ct-b" style="left:${xi - 50}px;top:${pl.getBoundingClientRect().top - 40}px">COUPER ICI<br><b>${esc(dFr(iso))}</b></span>`;
           cut = iso;
         };
-        const lt = setTimeout(() => { if (P === null) showCut(x0); }, 600);
+        const lt = setTimeout(() => { if (P === null) showCut(x0); }, SVI_G.lp);
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });
         const mv = ev => {
@@ -153,7 +153,7 @@
       /* v736 : la case SUCCESSEURS se sélectionne comme les autres (cadre commun du module 35) ; bulle du texte complet à l'appui long */
       { let lt = 0;
         shell.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".dly-succ[data-key]"); const X = shell.__insDly; clearTimeout(lt); if (!b || !X) return;
-          lt = setTimeout(() => { const L = X.succs(b.dataset.key); svToast(L.length ? "SUCCESSEURS : " + L.join(" ; ") : "AUCUN SUCCESSEUR.", 5000, b); }, 500); }, true);
+          lt = setTimeout(() => { const L = X.succs(b.dataset.key); svToast(L.length ? "SUCCESSEURS : " + L.join(" ; ") : "AUCUN SUCCESSEUR.", 5000, b); }, SVI_G.lp); }, true);
         ["pointerup", "pointercancel"].forEach(t => shell.addEventListener(t, () => clearTimeout(lt), true)); }
       /* R24 : repère ⧖ d'une tâche freinée par une autre ressource */
       shell.addEventListener("click", e => { const c = e.target.closest && e.target.closest("#dlyGantt .gb-lim[data-key]"); const X = shell.__insDly; if (!c || !X) return; e.stopPropagation(); svToast(X.limTxt(c.dataset.key), 3500, c); }, true);
@@ -337,8 +337,8 @@
           e.stopPropagation(); e.preventDefault();
           host.__dlyXlp = true;
           const x0 = e.clientX, y0 = e.clientY; let fired = false;
-          const tm = setTimeout(() => { fired = true; if (shell.__dlyXF) dlyXUnfilter(); else dlyXFilter(sviIsoAdd(host.__d0, X0.i)); }, 550);
-          const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 8) { clearTimeout(tm); fin(); } };
+          const tm = setTimeout(() => { fired = true; if (shell.__dlyXF) dlyXUnfilter(); else dlyXFilter(sviIsoAdd(host.__d0, X0.i)); }, SVI_G.lp);
+          const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > SVI_G.drag) { clearTimeout(tm); fin(); } };
           const fin = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", fin); setTimeout(() => { host.__dlyXlp = false; }, 450); };
           const up = () => { clearTimeout(tm); fin(); if (!fired) dlyXDraw(host, g, X0.px, X0.cy, 1); };
           /* v637 : toucher repris par l'iPad (défilement, zoom) = rien ; avant, le délai continuait et posait un FILTRE DU JOUR */
@@ -407,7 +407,7 @@
         /* v577 (remarque 6) : la règle s'aimante sur les valeurs rondes (10 K, 11 K, 12 K…) : petit arrêt ; en continuant à tirer, elle se détache */
         const stp = Number(h.dataset.stp) || 0, p10 = stp ? Math.pow(10, Math.floor(Math.log10(stp))) : 0, fine = p10 ? (stp / p10 <= 1.0001 ? p10 / 10 : p10) : 0;
         const x0 = e.clientX, y0 = e.clientY;
-        const lp = setTimeout(() => { up(); shell.__dlyRule = false; shell.__dlyRuleV = null; const host = shell.querySelector("#dlyGantt"); if (host) { host.__drawn = false; dlyGanttDraw(); } }, 550);
+        const lp = setTimeout(() => { up(); shell.__dlyRule = false; shell.__dlyRuleV = null; const host = shell.querySelector("#dlyGantt"); if (host) { host.__drawn = false; dlyGanttDraw(); } }, SVI_G.lp);
         const mv = ev => { ev.preventDefault(); if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return; clearTimeout(lp); let y = Math.max(4, Math.min(Y0, ev.clientY - h.getBoundingClientRect().top)); let v = (Y0 - y) / sc;
           let snap = false;
           if (fine > 0) { const r = Math.round(v / fine) * fine, yr = Y0 - r * sc; if (Math.abs(yr - y) <= 7) { v = r; y = yr; snap = true; } }
@@ -427,9 +427,9 @@
         let p = p0, moved = false;
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });
-        const lp = setTimeout(() => { if (moved) return; done(); const hr = h.getBoundingClientRect(); X.rdCut(bar.dataset.sk, bar.dataset.sec, sviIsoAdd(host.__d0, Math.max(0, Math.floor((x0 - hr.left) / DLY_DW)))); }, 550);
+        const lp = setTimeout(() => { if (moved) return; done(); const hr = h.getBoundingClientRect(); X.rdCut(bar.dataset.sk, bar.dataset.sec, sviIsoAdd(host.__d0, Math.max(0, Math.floor((x0 - hr.left) / DLY_DW)))); }, SVI_G.lp);
         const mv = ev => {
-          if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return;
+          if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) < SVI_G.drag) return;
           moved = true; clearTimeout(lp); ev.preventDefault();
           const y = ev.clientY - h.getBoundingClientRect().top;
           p = Math.max(L.min, Math.min(L.max, Math.round((Y0 - y) / s / ref * 100)));

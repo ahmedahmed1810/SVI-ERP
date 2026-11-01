@@ -83,11 +83,11 @@
           }
           if (P0.mode === "h" && P0.tg && P0.tg.closest && P0.tg.closest(".dlyg-l")) return;
           if (P0.mode === "v") {
-            const rh = Math.round(Math.max(24, Math.min(64, P0.rh0 * Math.max(20, distY(e.touches)) / P0.dy)));
+            const rh = Math.round(Math.max(SVI_G.ganttMin, Math.min(SVI_G.ganttMax, P0.rh0 * Math.pow(Math.max(20, distY(e.touches)) / P0.dy, SVI_G.pinch))));   /* v785 : réglage commun (24 à 80 px) */
             if (rh !== dlyRhGet()) { try { localStorage.setItem(DLY_RH_KEY, String(rh)); } catch (err) {} dlyRhApply(rh); }
             return;
           }
-          const w = P0.w0 * Math.max(20, dist(e.touches)) / P0.d;
+          const w = P0.w0 * Math.pow(Math.max(20, dist(e.touches)) / P0.d, SVI_G.pinch);
           dlyDwSet(shell.querySelector("#dlyGantt") || P0.host, w, P0.ax, P0.p);
         };
         shell.addEventListener("touchmove", pmv, { passive: false });
@@ -115,9 +115,9 @@
           if (!V || e.touches.length !== 1 || e.__sviV) return;
           e.__sviV = true;
           const t = e.touches[0], dx = t.clientX - V.x, dy = t.clientY - V.y;
-          if (Math.hypot(dx, dy) > 6) V.mv = true;
+          if (Math.hypot(dx, dy) > SVI_G.drag) V.mv = true;
           if (!V.zoom || shell.__dlyPinch) return;
-          if (!V.mode) { if (Math.max(Math.abs(dx), Math.abs(dy)) < 4) { e.preventDefault(); return; } V.mode = Math.abs(dy) > Math.abs(dx) ? "v" : "h"; }
+          if (!V.mode) { if (Math.max(Math.abs(dx), Math.abs(dy)) < SVI_G.drag) { e.preventDefault(); return; } V.mode = Math.abs(dy) > Math.abs(dx) ? "v" : "h"; }
           if (V.mode !== "v") return;
           e.preventDefault(); e.stopPropagation();
           shell.__dlyYO = Math.max(0, V.yo + dy / V.sc);
@@ -127,10 +127,10 @@
         shell.addEventListener("touchend", e => {
           if (!V) return;
           if (V.tg) V.tg.removeEventListener("touchmove", vmv);
-          const tap = !V.mv && Date.now() - V.t < 350 && !e.touches.length, x = V.x, y = V.y;
+          const tap = !V.mv && Date.now() - V.t < SVI_G.dbl && !e.touches.length, x = V.x, y = V.y;
           V = null;
           if (!tap) { lastTap = null; return; }
-          if (lastTap && Date.now() - lastTap.t < 350 && Math.hypot(x - lastTap.x, y - lastTap.y) < 30) { lastTap = null; setTimeout(yFull, 0); return; }
+          if (lastTap && Date.now() - lastTap.t < SVI_G.dbl && Math.hypot(x - lastTap.x, y - lastTap.y) < 30) { lastTap = null; setTimeout(yFull, 0); return; }
           lastTap = { t: Date.now(), x, y };
         }, { capture: true, passive: true });
         shell.addEventListener("dblclick", e => { if (e.target.closest && e.target.closest(".dlyg-foot .ghist") && !e.target.closest(NOV)) yFull(); });
@@ -141,8 +141,8 @@
         const gn = e.target.closest && e.target.closest("#dlyGantt .gb-grp[data-path]");
         if (!X || !gn || e.button > 0) return;
         const x0 = e.clientX, y0 = e.clientY;
-        const t = setTimeout(() => { shell.__dlyGLong = Date.now(); X.grpMenu(gn.dataset.path, gn); }, 500);
-        const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 8) stop(); };
+        const t = setTimeout(() => { shell.__dlyGLong = Date.now(); X.grpMenu(gn.dataset.path, gn); }, SVI_G.lp);
+        const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > SVI_G.drag) stop(); };
         const stop = () => { clearTimeout(t); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", stop); document.removeEventListener("pointercancel", stop); };
         document.addEventListener("pointermove", mv); document.addEventListener("pointerup", stop); document.addEventListener("pointercancel", stop);
       });
@@ -161,14 +161,14 @@
         const moving = [...els, ...bars];
         const x0 = e.clientX, y0 = e.clientY;
         let mode = "", hit = null, days = 0, gfar = false;
-        const t = setTimeout(() => { if (mode) return; mode = "vert"; els.forEach(b => b.classList.add("gb-lift")); document.body.classList.add("svi-dragging"); }, 500);
+        const t = setTimeout(() => { if (mode) return; mode = "vert"; els.forEach(b => b.classList.add("gb-lift")); document.body.classList.add("svi-dragging"); }, SVI_G.lp);
         const tmv = ev => { if (mode) ev.preventDefault(); };
         document.addEventListener("touchmove", tmv, { passive: false });
         const mv = ev => {
           if (shell.__dlyPinch) { clearTimeout(t); return; }
           const dx = ev.clientX - x0;
           if (mode === "vert") { ev.preventDefault(); if (!gfar && Math.hypot(dx, ev.clientY - y0) < 10) return; if (X.view() === "d") { if (!gfar) svToast("VUE PAR DÉBUT : PASSER EN VUE PAR LOT POUR DÉPLACER.", 3000, gb); gfar = true; hit = null; return; } gfar = true; shell.__dlySrcG = window.__sviDlySrcG = true; hit = g ? dlyGrpHit(ev, path, g.lvl, x0) : null; dlyGrpShow(hit); return; }
-          if (!mode && Math.abs(dx) > 4) { mode = "time"; clearTimeout(t); moving.forEach(b => { b.__l0 = b.offsetLeft; b.classList.add("gb-drag"); }); }
+          if (!mode && Math.abs(dx) > SVI_G.drag) { mode = "time"; clearTimeout(t); moving.forEach(b => { b.__l0 = b.offsetLeft; b.classList.add("gb-drag"); }); }
           if (mode !== "time") return;
           ev.preventDefault();
           days = Math.round(dx / DLY_DW);
@@ -243,7 +243,7 @@
           /* glisser la barre vers le haut ou le bas = changer le rang de la tâche (un seul trait) */
           const dy = ev.clientY - y0b;
           if (vert) { shell.__dlySrcG = window.__sviDlySrcG = true; hitV = dlyTaskHit(ev, null, key, x0); if (!hitV) document.getElementById("roLine")?.remove(); return; }
-          if (!moved && Math.abs(dx) > 4) { moved = true; clearTimeout(t); bar.classList.add("gb-drag"); }
+          if (!moved && Math.abs(dx) > SVI_G.drag) { moved = true; clearTimeout(t); bar.classList.add("gb-drag"); }
           if (!moved) return;
           days = Math.round(dx / DLY_DW);
           if (mode === "end") bar.style.width = Math.max(DLY_DW - 1, W0 + days * DLY_DW) + "px";

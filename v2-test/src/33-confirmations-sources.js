@@ -319,7 +319,7 @@ function openSourceWin() {
     const f = e.target.closest(".src-fld.src-edit-ok");
     if (!f || editing) return;
     lpDone = false;
-    lpTimer = setTimeout(() => { lpDone = true; msg(""); setMode(f.dataset.which); }, 550);
+    lpTimer = setTimeout(() => { lpDone = true; msg(""); setMode(f.dataset.which); }, SVI_G.lp);
   });
   ["pointerup", "pointercancel", "pointerleave"].forEach(t => p.addEventListener(t, () => clearTimeout(lpTimer)));
   p.addEventListener("contextmenu", e => { if (e.target.closest(".src-fld")) e.preventDefault(); });

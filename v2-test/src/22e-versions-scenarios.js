@@ -287,7 +287,7 @@
       if (p) {
         let lt = 0, longed = false;
         const clr = () => { clearTimeout(lt); lt = 0; };
-        p.addEventListener("pointerdown", () => { longed = false; clr(); lt = setTimeout(() => { longed = true; svToast(scnWhy() || "SCN : CRÉE UN SCÉNARIO, COPIE DE L'ÉTAPE TELLE QU'ELLE EST (" + SCN_MAX + " AU PLUS).", 4500, p); }, 550); });
+        p.addEventListener("pointerdown", () => { longed = false; clr(); lt = setTimeout(() => { longed = true; svToast(scnWhy() || "SCN : CRÉE UN SCÉNARIO, COPIE DE L'ÉTAPE TELLE QU'ELLE EST (" + SCN_MAX + " AU PLUS).", 4500, p); }, SVI_G.lp); });
         ["pointerup", "pointercancel", "pointerleave"].forEach(ev => p.addEventListener(ev, clr));
         p.addEventListener("click", e => {
           e.stopPropagation();
@@ -442,7 +442,7 @@
         blk.addEventListener("pointerdown", e => {
           longed = false; clearTimeout(lt);
           const nm = e.target.closest("[data-nm]"); if (!nm || !scnEd()) return;
-          lt = setTimeout(() => { longed = true; rename(nm); }, 550);
+          lt = setTimeout(() => { longed = true; rename(nm); }, SVI_G.lp);
         });
         ["pointerup", "pointercancel", "pointerleave"].forEach(ev => blk.addEventListener(ev, () => { clearTimeout(lt); if (longed) setTimeout(() => { longed = false; }, 350); }));
         blk.addEventListener("change", e => {

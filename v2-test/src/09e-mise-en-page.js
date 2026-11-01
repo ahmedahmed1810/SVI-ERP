@@ -219,14 +219,17 @@ const sviMep = (() => {
 window.sviMep = sviMep;
 
 /* v784 : APERÇU d'une LISTE (liste des budgets, listes des achats) — ⋯ du titre de la liste ; le tableau affiché (filtres compris) */
-const SVI_LIST_MORE = '<button type="button" class="inst-act bdg-more-btn nvl-more" title="Actions" aria-label="Actions">⋯</button>';
+/* v785 : les listes ont la même barre que le budget (ANNULER, RÉTABLIR, PRÉCÉDENT, SUIVANT, ALERTES, FERMER, ⋯) ; ce qui est sans objet est grisé et dit pourquoi */
+const sviListBar = () => sviHdrBar({ attr: "nvl", why: { undo: "RIEN À ANNULER DANS LA LISTE.", redo: "RIEN À RÉTABLIR DANS LA LISTE.", prev: "LISTE : PAS D'ÉCRAN PRÉCÉDENT.", next: "LISTE : PAS D'ÉCRAN SUIVANT.", todo: "AUCUNE ALERTE.", close: "LISTE : RIEN À FERMER (MENU ☰ POUR CHANGER D'ÉCRAN)." } });
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".svi-hdr .hdr-off[data-why]"); if (!b || b.closest(".bdg-d-sticky .bdg-d-hright:not(.svi-hdr)")) return; e.stopPropagation(); e.preventDefault(); svToast(b.dataset.why, 3000, b); }, true);
 document.addEventListener("click", e => {
   const b = e.target.closest && e.target.closest(".nvl-more"); if (!b) return;
   e.stopPropagation();
-  const shell = b.closest(".novapp-list-shell"), t = shell && shell.querySelector("table"), h1 = shell && shell.querySelector(".novapp-list-titlebar h1");
-  sviHdrMenu(b, [[{ k: "apr", lab: "APERÇU" }]], () => {
-    if (!t) return;
-    const ths = [...t.tHead.rows[0].cells].map(th => (th.querySelector(".cf-lab") || th).textContent.trim()), keep = ths.map((x, i) => x ? i : -1).filter(i => i >= 0);
+  const shell = b.closest(".novapp-list-shell"), t = shell ? shell.querySelector("table") : sviColhTableNear(b), h1 = shell ? shell.querySelector(".novapp-list-titlebar h1") : b.closest("#ach")?.querySelector(".section-head h2, .section-head h1");
+  sviHdrMenu(b, [sviColhItems(t), [{ k: "apr", lab: "APERÇU" }]], a => {
+    if (!t || sviColhPick(a, t)) return;
+    const vis = sviColhVis(t);
+    const ths = [...t.tHead.rows[0].cells].map(th => (th.querySelector(".cf-lab") || th).textContent.trim()), keep = ths.map((x, i) => x && vis.includes(i) ? i : -1).filter(i => i >= 0);
     const num = i => [...t.tBodies[0].rows].some(r => r.cells[i] && r.cells[i].classList.contains("number"));
     const rows = [...t.tBodies[0].rows].filter(r => !r.matches(".bdg-newrow, .ach-new, .rec-new") && !r.querySelector("td.empty") && r.cells.length >= keep.length).map(r => keep.map(i => (r.cells[i] ? r.cells[i].textContent.replace(/\s+/g, " ").trim() : "")));
     const title = h1 ? h1.childNodes[0].textContent.trim() || h1.textContent.trim() : "LISTE";

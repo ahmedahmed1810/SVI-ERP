@@ -375,7 +375,7 @@
         const r = e.target.closest("tr.dpk-sec.off");
         if (!r) return;
         clearTimeout(lpT);
-        lpT = setTimeout(() => svToast(add ? "DÉJÀ DANS LE PLANNING : TOUCHER SA LIGNE POUR SAISIR SES DATES." : "IMPOSSIBLE : LA TÂCHE ELLE-MÊME OU UNE BOUCLE.", 3500, r), 550);
+        lpT = setTimeout(() => svToast(add ? "DÉJÀ DANS LE PLANNING : TOUCHER SA LIGNE POUR SAISIR SES DATES." : "IMPOSSIBLE : LA TÂCHE ELLE-MÊME OU UNE BOUCLE.", 3500, r), SVI_G.lp);
       });
       ["pointerup", "pointercancel", "pointerleave"].forEach(t => d.addEventListener(t, () => clearTimeout(lpT)));
       d.addEventListener("change", e => {

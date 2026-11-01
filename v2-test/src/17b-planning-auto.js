@@ -495,7 +495,7 @@
     const dlyGenWhy = () => { const nk = dlyKeys().length; return !nk ? "AUCUNE TÂCHE DANS LE PLANNING." : !dlyKeys().some(k => !(dlyDeb(k) && dlyFin(k))) ? "TOUTES LES TÂCHES ONT DÉJÀ LEURS DATES." : ""; };
     const dlyCompWhy = () => { if (!dlyKeys().length) return "AUCUNE TÂCHE DANS LE PLANNING."; let C; try { C = dlyCanCompress({}); } catch (e) { return ""; } return C.ok ? "" : (C.stuck ? C.why : "RIEN À COMPRESSER : AUCUN VIDE À COMBLER."); };
     const dlyWhyPress = d => { let lt = 0;
-      d.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".off[data-why]"); clearTimeout(lt); if (b) lt = setTimeout(() => svToast(b.dataset.why, 3500, b), 500); });
+      d.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".off[data-why]"); clearTimeout(lt); if (b) lt = setTimeout(() => svToast(b.dataset.why, 3500, b), SVI_G.lp); });
       ["pointerup", "pointercancel", "pointerleave"].forEach(t => d.addEventListener(t, () => clearTimeout(lt))); };
     const dlyGCWin = () => {
       const miss = dlyKeys().filter(k => !(dlyDeb(k) && dlyFin(k))).length;

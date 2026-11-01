@@ -166,7 +166,7 @@
       shell.__aprH.pointerdown = e => {
         const r = e.target.closest && e.target.closest(".apr-wrap tr.apr-row[data-d]"); if (!r || !INS || !(INS_EDIT && INS_REAL)) return;
         let drag = false, tgt = null; const x0 = e.clientX, y0 = e.clientY, refA = r.dataset.apr, gidA = r.dataset.gid || "", rowA = () => [...shell.querySelectorAll(".apr-wrap tr.apr-row[data-apr]")].find(x => x.dataset.apr === refA) || r;
-        const lt = setTimeout(() => { drag = true; rowA().classList.add("apr-drag"); }, 450);
+        const lt = setTimeout(() => { drag = true; rowA().classList.add("apr-drag"); }, SVI_G.lp);
         const mv = ev => { if (!drag) { if (Math.abs(ev.clientX - x0) + Math.abs(ev.clientY - y0) > 8) end(); return; } ev.preventDefault();
           const el = document.elementFromPoint(ev.clientX, ev.clientY), t = el && el.closest && el.closest(".apr-wrap tr.apr-row");
           if (tgt && tgt !== t) tgt.classList.remove("apr-tgt"); tgt = t && t.dataset.apr !== refA ? t : null; if (tgt) tgt.classList.add("apr-tgt"); };

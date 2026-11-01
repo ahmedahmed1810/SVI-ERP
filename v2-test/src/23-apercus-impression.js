@@ -1176,7 +1176,7 @@
         if (!src) return;
         const t = src.cloneNode(true);
         t.removeAttribute("style");
-        t.querySelectorAll("colgroup, .cf-btn, .col-rs, tr.bdg-d-filler").forEach(x => x.remove());
+        t.querySelectorAll("colgroup, .cf-btn, .col-rs, tr.bdg-d-filler, .svi-colh").forEach(x => x.remove());
         t.querySelectorAll("input").forEach(i => i.replaceWith(document.createTextNode(i.value)));
         tableHTML = t.outerHTML;
       }

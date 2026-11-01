@@ -274,13 +274,19 @@ document.addEventListener("focusin", e => {
     if (t.closest("input, textarea, select, .blk-tools, .cf-btn, [data-onlyc], .col-rs, th, .gh, .blk-grip, .blk-rsz")) { last = null; return; }
     let zone = "", act = null;
     /* v545 (remarque 1) : plus de double toucher sur la barre de titre des blocs (bouton agrandir / réduire visible) */
-    {
+    /* v785 : retour du double toucher sur la barre de titre d'un bloc (ou sa rangée d'onglets) = AGRANDIR / RÉDUIRE, partout (budget, achats) ;
+       le bouton n'est plus dans l'en-tête : la commande est aussi dans le ⋯ du bloc */
+    { const head = !t.closest("button, .bdg-d-tab, .rec-tab, [role=button], .svi-cnt, a") && t.closest(".bdg-d-block-title, .blk-tabrow, #bdgDetailHead, #bdgTabs");
+      const blk = head && (head.closest(".bdg-d-block") || (head.matches("#bdgDetailHead, #bdgTabs") ? head : null));
+      const mx = blk && (blk.querySelector(".blk-max-btn, [data-nvmax]") || (head.matches("#bdgDetailHead, #bdgTabs") ? document.querySelector('#bdgDetailHead .blk-max-btn') : null));
+      if (mx) { zone = "b"; act = () => mx.click(); } }
+    if (!zone) {
       const tt = t.closest(".svc-card .svc-t"), card = tt && tt.closest(".svc-card");
       if (card && card.querySelector('[class$="-rsz"]')) { zone = "w"; act = () => card.classList.toggle("svc-full"); }
     }
     if (!zone) { last = null; return; }
     const now = Date.now();
-    if (last && last.zone === zone && now - last.t < 380 && Math.abs(e.clientX - last.x) < 30 && Math.abs(e.clientY - last.y) < 30) { last = null; act(); }
+    if (last && last.zone === zone && now - last.t < SVI_G.dbl && Math.abs(e.clientX - last.x) < 30 && Math.abs(e.clientY - last.y) < 30) { last = null; act(); }
     else last = { zone, t: now, x: e.clientX, y: e.clientY };
   });
 })();
@@ -442,7 +448,7 @@ function sviDlyRoSync() {
     if (t.matches(TXT + ", select") && !t.readOnly) return;
     st = { a, t, x: e.clientX, y: e.clientY, toast: toastOn() };
   }, true);
-  document.addEventListener("pointermove", e => { if (st && Math.hypot(e.clientX - st.x, e.clientY - st.y) > 10) st = null; }, true);
+  document.addEventListener("pointermove", e => { if (st && Math.hypot(e.clientX - st.x, e.clientY - st.y) > SVI_G.drag) st = null; }, true);
   document.addEventListener("pointercancel", () => { st = null; }, true);
   document.addEventListener("pointerup", () => {
     if (!st) return;

@@ -477,7 +477,7 @@
         f.addEventListener("pointerdown", () => {
           if (!f.readOnly) return;
           longDone = false;
-          timer = setTimeout(() => { longDone = true; edit(); }, 550);
+          timer = setTimeout(() => { longDone = true; edit(); }, SVI_G.lp);
         });
         ["pointerup", "pointerleave", "pointercancel"].forEach(ev =>
           f.addEventListener(ev, () => clearTimeout(timer)));

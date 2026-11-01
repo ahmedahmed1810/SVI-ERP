@@ -219,7 +219,7 @@ function sviParamTabs() {
   paint();
   document.addEventListener("click", e => { if (e.target.closest && e.target.closest('.nav-btn[data-view="chs"], .open-menu')) setTimeout(paint, 0); });
   let lp = null;
-  bar.addEventListener("pointerdown", e => { const b = e.target.closest(".prm-bdg.off"); if (!b) return; lp = setTimeout(() => svToast(why(), 3000, b), 550); });
+  bar.addEventListener("pointerdown", e => { const b = e.target.closest(".prm-bdg.off"); if (!b) return; lp = setTimeout(() => svToast(why(), 3000, b), SVI_G.lp); });
   ["pointerup", "pointerleave", "pointercancel"].forEach(t => bar.addEventListener(t, () => clearTimeout(lp)));
   bar.addEventListener("click", e => {
     const b = e.target.closest(".prm-bdg");

@@ -23,9 +23,11 @@
         window.__sviSwipe = true;
         let st = null;
         document.addEventListener("touchstart", e => {
-          const nav = window.__sviBdgNav;
-          if (!nav || e.touches.length !== 1 || !document.querySelector(".bdg-d-page")) { st = null; return; }
-          const t = e.target;
+          /* v786 (prompt codage, point 4) : balayage SEULEMENT sur l'en-tête (barre du haut) = document précédent / suivant ;
+             sur un tableau, il fait seulement défiler. Même geste sur les pages des achats (‹ › de leur barre). */
+          const t = e.target, hdr = t && t.closest && t.closest(".bdg-d-sticky"), ach = hdr && hdr.closest(".nvp");
+          const nav = ach ? { go: d => ach.querySelector(`[data-nvp="${d > 0 ? "next" : "prev"}"]`)?.click() } : window.__sviBdgNav;
+          if (!hdr || !nav || e.touches.length !== 1 || !document.querySelector(".bdg-d-page")) { st = null; return; }
           /* bloc agrandi (16/10/2026) : le balayage y change de budget en restant sur le même bloc et le même onglet ;
              un tableau ou le Gantt qui défile garde le geste tant qu'il n'est pas arrivé au bout */
           const pg = document.querySelector(".bdg-d-page"), mx = pg && [...pg.classList].find(c => /^max-/.test(c));
@@ -34,10 +36,10 @@
           /* v694 : balayage partout sauf dans une zone qui défile à l'horizontale (tableaux larges, Gantt, graphique) */
           if (t.closest("#docPop, #blkPop, #blkMenu, #svConf, #svCal, .av-list-ov, input, textarea, select")) { st = null; return; }
           for (let el = t; el && el !== document.body; el = el.parentElement) { const cs = getComputedStyle(el); if (el.scrollWidth > el.clientWidth + 2 && /(auto|scroll)/.test(cs.overflowX)) { st = null; return; } }
-          st = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), max: mx ? mx.slice(4) : "" };
+          st = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), max: mx ? mx.slice(4) : "", nav };
         }, { passive: true });
         document.addEventListener("touchend", e => {
-          const nav = window.__sviBdgNav;
+          const nav = st && st.nav;
           if (!st || !nav) return;
           const dx = e.changedTouches[0].clientX - st.x, dy = e.changedTouches[0].clientY - st.y;
           const quick = Date.now() - st.t < 700;

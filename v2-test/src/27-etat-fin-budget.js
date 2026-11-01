@@ -94,7 +94,7 @@
        ✕ = fermer ; ⚠ du consolidé = contradictions entre étapes */
     shell.querySelectorAll(".bdg-d-hright .hdr-off").forEach(b => {
       b.addEventListener("click", e => { e.preventDefault(); e.stopImmediatePropagation(); svToast(b.dataset.why || "", 3500, b); }, true);
-      let lt = 0; b.addEventListener("pointerdown", () => { clearTimeout(lt); lt = setTimeout(() => svToast(b.dataset.why || "", 3500, b), 500); });
+      let lt = 0; b.addEventListener("pointerdown", () => { clearTimeout(lt); lt = setTimeout(() => svToast(b.dataset.why || "", 3500, b), SVI_G.lp); });
       ["pointerup", "pointercancel", "pointerleave"].forEach(ev => b.addEventListener(ev, () => clearTimeout(lt)));
     });
     if (budget.inst && budget.inst.state === "valide") {

@@ -1206,6 +1206,7 @@ function renderBudgetList() {
   {
     /* v750 (point 3) : une seule icône de bascule EN INSTANCE ⇄ VALIDÉS, juste à côté du titre (grisée s'il n'y a rien dans l'autre liste) */
     const h1 = shell.querySelector(".novapp-list-titlebar h1");
+    { const lb = shell.querySelector(".novapp-list-titlebar .svi-listbar"); if (lb && !lb.firstChild) lb.innerHTML = sviListBar(); }   /* v785 : barre commune */
     const other = listMode === "inst" ? "valid" : "inst", can = LIST_N[other] > 0;
     const why = other === "inst" ? "AUCUN BUDGET EN INSTANCE." : "AUCUN BUDGET VALIDÉ.";
     if (h1) {

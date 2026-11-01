@@ -142,7 +142,7 @@
       });
       /* appui long sur un indicateur grisé : la raison */
       let lt = 0;
-      d.addEventListener("pointerdown", e => { const c = e.target.closest(".ibd-chip.off"); clearTimeout(lt); if (c) lt = setTimeout(() => svToast(c.dataset.why || "", 4000, c), 500); });
+      d.addEventListener("pointerdown", e => { const c = e.target.closest(".ibd-chip.off"); clearTimeout(lt); if (c) lt = setTimeout(() => svToast(c.dataset.why || "", 4000, c), SVI_G.lp); });
       ["pointerup", "pointercancel"].forEach(ev => d.addEventListener(ev, () => clearTimeout(lt)));
     };
 

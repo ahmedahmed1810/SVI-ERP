@@ -162,7 +162,7 @@ def main():
             document.getElementById('svConf')?.remove();
             const K = JSON.parse(keep); if (K.vfz) I.vfz = K.vfz; else delete I.vfz; if (keepT === null) localStorage.removeItem('svi_etp_tab_v1'); else localStorage.setItem('svi_etp_tab_v1', keepT); X.refreshAll(); return r; }""".replace("INS_X", ins))
         check("v756 / v757 : un seul bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES, boutons de l'onglet ouvert, menu ⋯ (COMPARER, CRÉER, APERÇU, EXPORTER), onglet AVENANTS ; COMPARER côte à côte avec écarts",
-              e756[:5] == [True, "av,scn,ver,rcl", True, True, True] and e756[5].endswith(" INI") and "COMPARER" not in e756[6] and e756[6].startswith("CRÉER UN AVENANT|IMPORTER") and e756[6].index("EXPORTER") < e756[6].index("APERÇU") and e756[7] == [3, 13, True], e756)
+              e756[:5] == [True, "av,scn,ver,rcl", True, True, True] and e756[5].endswith(" INI") and "COMPARER" not in e756[6] and e756[6].startswith("AGRANDIR|CRÉER UN AVENANT|MASQUER DES COLONNES…|IMPORTER") and e756[6].index("EXPORTER") < e756[6].index("APERÇU") and e756[7] == [3, 13, True], e756)
         # v758 : fenêtre d'import unique — sources FICHIER / GOOGLE SHEETS / MS PROJECT (XML) / AUTRE BUDGET ; un fichier est lu à blanc (budget
         # ouvert inchangé) puis proposé comme source de la même fenêtre (cases, aperçu, IMPORTER) ; IMPORTER dans AVENANTS, SCÉNARIOS, RECALAGES, pas VERSIONS
         import tempfile
@@ -1091,11 +1091,14 @@ def main():
         check("v525 remarque 2 : rond du titre de niveau = toutes ses lignes liées ; retoucher = libérer", r2 == [True, True, True, False, False] and r2b is False, [r2, r2b])
         pg.evaluate("""() => { const b = document.querySelector('.lot-grp[data-path="TOIT / NIVEAU 1"]'); if (!b) return; b.scrollIntoView({ block: 'center' });
             let sc = b.parentElement; while (sc && !(sc.scrollHeight > sc.clientHeight + 2 && /(auto|scroll)/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
-            if (sc) sc.scrollTop += b.getBoundingClientRect().top - sc.getBoundingClientRect().top - 40; }"""); pg.wait_for_timeout(300)
+            if (sc) sc.scrollTop += b.getBoundingClientRect().top - sc.getBoundingClientRect().top - 40;
+            /* v786 : la ligne « CRÉER … ICI » reste fixée en bas du bloc — NIVEAU 2 doit rester au-dessus d'elle */
+            const nr = sc && [...sc.querySelectorAll('.ins-li.ins-new')].find(x => x.offsetParent), ga = document.querySelector('.lot-grp[data-path="TOIT / NIVEAU 2"] input.lot-gname');
+            if (nr && ga) { const over = ga.getBoundingClientRect().bottom + 6 - nr.getBoundingClientRect().top; if (over > 0) sc.style.minHeight = sc.style.height = (sc.clientHeight + over + 10) + 'px'; } }"""); pg.wait_for_timeout(300)
         g = pg.evaluate("""() => { const a = document.querySelector('.lot-grp[data-path="TOIT / NIVEAU 2"]'), b = document.querySelector('.lot-grp[data-path="TOIT / NIVEAU 1"]'); if (!a || !b) return null;
             const ia = a.querySelector('input.lot-gname').getBoundingClientRect(), rb = b.getBoundingClientRect(); return [ia.left + ia.width / 2, ia.top + ia.height / 2, ia.left + ia.width / 2, rb.top + 2]; }""")
         if g:
-            pg.mouse.move(g[0], g[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+            pg.mouse.move(g[0], g[1]); pg.mouse.down(); pg.wait_for_timeout(700)
             pg.mouse.move(g[2], g[3] + 3, steps=6); pg.wait_for_timeout(150); pg.mouse.move(g[2], g[3], steps=3); pg.wait_for_timeout(150)
             pg.mouse.up(); pg.wait_for_timeout(500)
         r5 = pg.evaluate(f"() => {{ const X = {ins}; const ids = X.INS.lot.map(r => r.id); return [ids.indexOf('tc'), ids.indexOf('ta'), (X.INS.lot.find(r => r.id === 'tc') || {{}}).v]; }}")
@@ -1114,7 +1117,7 @@ def main():
             const tr = [...t.tBodies[0].rows].filter(r => r.dataset.iid && r.offsetParent !== null)[1]; const c = tr.querySelector('.ins-dv') || tr.cells[2]; const r = c.getBoundingClientRect(), s = sc.getBoundingClientRect();
             return [r.left + 20, r.top + r.height / 2, s.bottom - 4, sc.scrollHeight > sc.clientHeight + 40]; }""")
         if d6:
-            pg.mouse.move(d6[0], d6[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+            pg.mouse.move(d6[0], d6[1]); pg.mouse.down(); pg.wait_for_timeout(700)
             pg.mouse.move(d6[0], d6[2], steps=8); pg.wait_for_timeout(700)
         s6 = pg.evaluate("""() => { const t = document.querySelector('table.ins-table[data-ik="des"]'); let sc = t.parentElement; while (sc && !(sc.scrollHeight > sc.clientHeight + 2 && /(auto|scroll)/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement; return sc ? sc.scrollTop : -1; }""")
         pg.keyboard.press("Escape"); pg.mouse.move(5, 5); pg.mouse.up(); pg.wait_for_timeout(400)
@@ -1127,7 +1130,7 @@ def main():
         # remarque 1 : appui long sur une ligne du DÉTAIL CHARGES = pas de trait de déplacement
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"chg\"]')?.click()"); pg.wait_for_timeout(400)
         c1 = pg.evaluate("""() => { const tr = [...document.querySelectorAll('table.ins-table[data-ik="chg"] tbody tr[data-iid]')].find(t => t.offsetParent !== null); tr.scrollIntoView({ block: 'center' }); const r = tr.cells[2].getBoundingClientRect(); return [r.left + 10, r.top + r.height / 2]; }""")
-        pg.mouse.move(c1[0], c1[1]); pg.mouse.down(); pg.wait_for_timeout(500); pg.mouse.move(c1[0], c1[1] + 30, steps=5); pg.wait_for_timeout(200)
+        pg.mouse.move(c1[0], c1[1]); pg.mouse.down(); pg.wait_for_timeout(700); pg.mouse.move(c1[0], c1[1] + 30, steps=5); pg.wait_for_timeout(200)
         n1 = pg.evaluate("() => [!!document.getElementById('roLine'), document.body.classList.contains('svi-dragging')]")
         pg.mouse.up(); pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(300)
         check("v527 remarque 1 : appui long sur une ligne de charge = aucun trait (pas de déplacement)", n1 == [False, False], n1)
@@ -1211,7 +1214,7 @@ def main():
             a = pg.evaluate("""() => { const r = document.querySelector('.ins-li[data-iid="mv"] input.ins-in').getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; }""")
             t = pg.evaluate("""([s, f]) => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return r.top + r.height * f; }""", [sel, frac])
             if t is None: return None
-            pg.mouse.move(a[0], a[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+            pg.mouse.move(a[0], a[1]); pg.mouse.down(); pg.wait_for_timeout(700)
             pg.mouse.move(a[0], t - 3, steps=6); pg.wait_for_timeout(100); pg.mouse.move(a[0] + dx, t, steps=4); pg.wait_for_timeout(150)
             pg.mouse.up(); pg.wait_for_timeout(500)
             return pg.evaluate(f"() => {{ const L = {ins}.INS.lot; const m = L.find(r => r.id === 'mv'); return [m.v, L.indexOf(m)]; }}")
@@ -1355,7 +1358,7 @@ def main():
         st = pg.evaluate("""() => { const stl = document.createElement('style'); stl.id = 'tst531'; stl.textContent = '.ins-hcol[data-ik="lot"]{max-height:380px!important;height:380px!important}'; document.head.appendChild(stl);
             const c = document.querySelector('.ins-hcol[data-ik="lot"]'); c.scrollIntoView({ block: 'center' }); c.scrollTop = 300; const s = document.querySelector('.ins-li[data-iid="z14"]'), t = document.querySelector('.ins-li[data-iid="z16"]');
             const a = s.querySelector('input.ins-in').getBoundingClientRect(), b = t.getBoundingClientRect(); return [a.left + 20, a.top + a.height / 2, b.top + b.height / 2, b.top, window.scrollY]; }""")
-        pg.mouse.move(st[0], st[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+        pg.mouse.move(st[0], st[1]); pg.mouse.down(); pg.wait_for_timeout(700)
         pg.mouse.move(st[0], st[2] - 2, steps=6); pg.wait_for_timeout(100); pg.mouse.move(st[0], st[2], steps=2); pg.wait_for_timeout(150)
         pg.mouse.up(); pg.wait_for_timeout(700)
         s31 = pg.evaluate("""() => { const c = document.querySelector('.ins-hcol[data-ik="lot"]'); const g = [...c.querySelectorAll('.lot-grp')].find(x => /^GROUPE/.test(x.dataset.path)); const ids = [...c.querySelectorAll('.ins-li')].map(x => x.dataset.path || x.dataset.iid);
@@ -1378,7 +1381,7 @@ def main():
         def dr32(src, dst, frac):
             a = pg.evaluate("s => { const r = document.querySelector('.ins-li[data-iid=\"' + s + '\"] input.ins-in').getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; }", src)
             t = pg.evaluate("([s, f]) => { const r = document.querySelector('.ins-li[data-iid=\"' + s + '\"]').getBoundingClientRect(); return r.top + r.height * f; }", [dst, frac])
-            pg.mouse.move(a[0], a[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+            pg.mouse.move(a[0], a[1]); pg.mouse.down(); pg.wait_for_timeout(700)
             pg.mouse.move(a[0], t - 2, steps=6); pg.wait_for_timeout(100); pg.mouse.move(a[0], t, steps=2); pg.wait_for_timeout(150)
             pg.mouse.up(); pg.wait_for_timeout(600); pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(200)
         dr32("ke", "ka", .05)          # ZONE E glissée tout en haut
@@ -1407,7 +1410,7 @@ def main():
         pg.keyboard.type("RDC HAUT"); pg.wait_for_timeout(200)
         s3 = pg.evaluate("""() => { const r = document.querySelector('.ins-li[data-iid="b1"] input.ins-in').getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; }""")
         t3 = pg.evaluate("""() => { const r = document.querySelector('.lot-grp[data-path="GROUPE 2 / GROUPE 2.1"]').getBoundingClientRect(); return r.top + 3; }""")
-        pg.mouse.move(s3[0], s3[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+        pg.mouse.move(s3[0], s3[1]); pg.mouse.down(); pg.wait_for_timeout(700)
         pg.mouse.move(s3[0], t3 - 2, steps=6); pg.wait_for_timeout(100); pg.mouse.move(s3[0], t3, steps=2); pg.wait_for_timeout(150)
         pg.mouse.up(); pg.wait_for_timeout(700); pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(300)
         r33 = pg.evaluate(f"() => {{ const I = {ins}.INS; return [I.lot.map(r => r.v).join(' | '), [...document.querySelectorAll('.ins-hcol[data-ik=\"lot\"] input.lot-gname')].map(i => i.value)]; }}")
@@ -1425,7 +1428,7 @@ def main():
         pg.evaluate("""() => { const c = document.querySelector('.ins-hcol[data-ik="lot"]'); c.style.maxHeight = 'none'; c.style.height = 'auto'; c.scrollIntoView({ block: 'center' }); }"""); pg.wait_for_timeout(200)
         s4 = pg.evaluate("""() => { const r = document.querySelector('.ins-li.lot-par[data-iid], .lot-grp[data-path="RDC BA"]'); const i = document.querySelector('.lot-grp[data-path="RDC BA"] input.lot-gname').getBoundingClientRect(); return [i.left + 30, i.top + i.height / 2]; }""")
         t4 = pg.evaluate("""() => { const r = document.querySelector('.lot-grp[data-path="RDC HAUT"]').getBoundingClientRect(); return r.top + r.height / 2; }""")
-        pg.mouse.move(s4[0], s4[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+        pg.mouse.move(s4[0], s4[1]); pg.mouse.down(); pg.wait_for_timeout(700)
         pg.mouse.move(s4[0], t4 - 3, steps=6); pg.wait_for_timeout(100); pg.mouse.move(s4[0], t4, steps=2); pg.wait_for_timeout(150)
         y4 = pg.evaluate("() => { const r = document.querySelector('.lot-grp[data-path=\"RDC HAUT\"]'); return r ? [r.classList.contains('ro-on'), getComputedStyle(r).backgroundColor] : null; }")
         pg.mouse.up(); pg.wait_for_timeout(700); pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(300)
@@ -1446,7 +1449,7 @@ def main():
         pg.evaluate("""() => { const c = document.querySelector('.ins-hcol[data-ik="lot"]'); c.style.maxHeight = 'none'; c.style.height = 'auto'; c.scrollIntoView({ block: 'center' }); }"""); pg.wait_for_timeout(200)
         s5 = pg.evaluate("""() => { const i = document.querySelector('.lot-grp[data-path="RDC / HAUT"] input.lot-gname').getBoundingClientRect(); return [i.left + 30, i.top + i.height / 2]; }""")
         t5 = pg.evaluate("""() => { const r = document.querySelector('.ins-li[data-iid="l1"]').getBoundingClientRect(); return r.top + r.height / 2; }""")
-        pg.mouse.move(s5[0], s5[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+        pg.mouse.move(s5[0], s5[1]); pg.mouse.down(); pg.wait_for_timeout(700)
         pg.mouse.move(s5[0], t5 + 3, steps=6); pg.wait_for_timeout(100); pg.mouse.move(s5[0], t5, steps=2); pg.wait_for_timeout(150)
         pg.mouse.up(); pg.wait_for_timeout(700); pg.keyboard.press("Escape"); pg.mouse.click(5, 5); pg.wait_for_timeout(300)
         v5 = pg.evaluate(f"() => {ins}.INS.lot.filter(r => /^(m|l1)/.test(r.id)).map(r => r.v)")
@@ -1500,7 +1503,7 @@ def main():
         def dpd(src, dst, frac, dx):
             a = pg.evaluate("p => { const r = document.querySelector('.dlyg-l tr.dly-grp[data-path=\"' + p + '\"] .dly-lotc').getBoundingClientRect(); return [r.left + r.width - 30, r.top + r.height / 2]; }", src)
             t = pg.evaluate("([p, f]) => { const r = document.querySelector('.dlyg-l tr.dly-grp[data-path=\"' + p + '\"]').getBoundingClientRect(); return r.top + r.height * f; }", [dst, frac])
-            pg.mouse.move(a[0], a[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+            pg.mouse.move(a[0], a[1]); pg.mouse.down(); pg.wait_for_timeout(700)
             pg.mouse.move(a[0], a[1] + 12, steps=3); pg.wait_for_timeout(150)
             for _ in range(4):
                 t = pg.evaluate("([p, f]) => { const r = document.querySelector('.dlyg-l tr.dly-grp[data-path=\"' + p + '\"]').getBoundingClientRect(); return r.top + r.height * f; }", [dst, frac])
@@ -2038,6 +2041,10 @@ def main():
         if hd:
             pg.mouse.click(hd[0], hd[1]); pg.wait_for_timeout(60); pg.mouse.click(hd[0], hd[1]); pg.wait_for_timeout(400)
         r1d = pg.evaluate("() => document.querySelectorAll('.blk-max-btn.on').length")
+        if hd and r1d:   # v786 : double toucher du titre = agrandir ; on le refait pour réduire
+            hd2 = pg.evaluate("() => { const h = document.querySelector('.ins-hcol .blk-head, .blk-head'); const r = h.getBoundingClientRect(); return [r.left + 60, r.top + r.height / 2]; }")
+            pg.wait_for_timeout(500); pg.mouse.click(hd2[0], hd2[1]); pg.wait_for_timeout(60); pg.mouse.click(hd2[0], hd2[1]); pg.wait_for_timeout(400)
+        r1e = pg.evaluate("() => document.querySelectorAll('.blk-max-btn.on').length")
         pg.set_viewport_size({"width": 1180, "height": 820}); pg.wait_for_timeout(300)
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS;
             I.chg.forEach(r => {{ r.on = false; }});
@@ -2060,8 +2067,8 @@ def main():
         pg.evaluate("() => localStorage.removeItem('svi_dlyhh_v1')")
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk5; I.dlp = I.__dlp5; I.dpred = I.__dp5; I.dord = I.__ord5;
             ['__lk5', '__dlp5', '__dp5', '__ord5'].forEach(k => delete I[k]); I.plafR = {{}}; I.chg = I.chg.filter(r => !/^n[13]$/.test(r.id)); X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
-        check("v545 remarque 1 : bouton AGRANDIR / RÉDUIRE visible juste à gauche du ⋯, plus dans le menu ; double toucher sur la barre de titre = rien",
-              r1 == [True, True, True] and r1m is False and r1d == 0, [r1, r1m, r1d])
+        check("v545 remarque 1 / v786 : AGRANDIR / RÉDUIRE dans le ⋯ (icône retirée) ; double toucher sur le titre = agrandir / réduire",
+              r1 is not None and r1[0] is False and r1m is True and r1d == 1 and r1e == 0, [r1, r1m, r1d, r1e])   # v786 : AGRANDIR dans le ⋯, double toucher du titre
         check("v545 remarques 2 et 3 : histogramme dans la hauteur visible de l'écran ; poignée verticale « ‖ » = la poignée « = » tournée, même taille",
               r2 and r2[0] <= r2[1] + 1 and r3 == [True, True], [r2, r3])
         check("v545 remarque 4 : poignée « = » glissée de 4 px = hauteur gardée là où on la lâche (ni plein écran, ni miniaturisé)",
@@ -2141,7 +2148,7 @@ def main():
         def drag9(src, dst, frac):
             a = pg.evaluate("s => { const e = document.querySelector('.ins-hcol[data-ik=\"sec\"] .ins-li[data-iid=\"' + s + '\"] input.ins-in'); e.scrollIntoView({ block: 'center' }); const r = e.getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; }", src)
             t = pg.evaluate("([s, f]) => { const e = document.querySelector('.ins-hcol[data-ik=\"sec\"] .ins-li[data-iid=\"' + s + '\"]'); const r = e.getBoundingClientRect(); return r.top + r.height * f; }", [dst, frac])
-            pg.mouse.move(a[0], a[1]); pg.mouse.down(); pg.wait_for_timeout(500)
+            pg.mouse.move(a[0], a[1]); pg.mouse.down(); pg.wait_for_timeout(700)
             pg.mouse.move(a[0], t, steps=6); pg.wait_for_timeout(150); pg.mouse.up(); pg.wait_for_timeout(500)
         drag9("a9", "b9", .5)
         r9 = pg.evaluate(f"""() => {{ const I = {ins}.INS; return [I.sec.find(r => r.id === 'a9').g, I.sec.find(r => r.id === 'b9').g,
@@ -2755,7 +2762,7 @@ def main():
             return r; }""".replace("INS_X", ins))
         check("v774 : RÉVISIONS ; barre ANNULER, RÉTABLIR, PRÉCÉDENT, SUIVANT, ALERTES, FERMER, ⋯ ; ⋯ principal ordonné ; ⋯ de DÉSIGNATIONS CLIENT par groupes ; v780 : référence des versions et MONTANT TTC",
               r774[0] == "RÉVISIONS" and r774[1] == "instUndo,instRedo,instPrev,instNext,instTodo,instClose,bdgMore" and r774[2] is True
-              and r774[3].startswith("SOUS-DÉTAIL DES PRIX|✕ DÉLIER LES LIGNES COCHÉES|-|Importer|Exporter|Aperçu PDF|-|Copier") and "COMPARATIF" not in r774[3]
+              and r774[3].startswith("AGRANDIR|SOUS-DÉTAIL DES PRIX|✕ DÉLIER LES LIGNES COCHÉES|-|MASQUER DES COLONNES…|-|Importer|Exporter|Aperçu PDF|-|Copier") and "COMPARATIF" not in r774[3]
               and r774[4] is True and r774[5] == "VR1" and r774[6] == "6", r774)   # v780 : SOURCE annulée — référence en chaîne (… INI VR1) et MONTANT TTC
         # v750 : liste des budgets — colonnes (marge de pliage, RÉFÉRENCE, NATURE, PROJET, INTITULÉ, MONTANT TTC, SAISI LE ; VALIDÉ LE seulement
         # dans les validés), une icône de bascule, plus de cases ni d'impression (corbeille seule), CONSOLIDÉ en ligne de titre, menu de filtre commun,
@@ -3104,6 +3111,25 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("v767 : import NovApp — fichier JSON, données remplacées (copie de sécurité), F26 = SIÈGE, besoin sans budget gardé, ancienne référence dans H, partagé par la base",
               n767 == [1, "CMF 25-1202/001", "SIÈGE", "CHANTIER", True, "CMF 25-1202/099", True], n767)
+        # v786 : MASQUER / AFFICHER DES COLONNES — mécanisme commun (liste des budgets)
+        c786 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), keep = localStorage.getItem('svi_colh_v1');
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]')?.click(); await w(300);
+            const T = () => document.getElementById('budgetListTable'), labs = () => [...document.querySelectorAll('#blkMenu button')].map(b => b.textContent.trim());
+            const more = () => [...document.querySelectorAll('.novapp-list-shell .nvl-more')].find(b => b.offsetParent); const r = [];
+            more().click(); await w(150); r.push(labs().filter(l => /COLONNES/.test(l)).join('|')); document.getElementById('blkMenu')?.remove();
+            more().click(); await w(150); [...document.querySelectorAll('#blkMenu button')].find(b => /^MASQUER/.test(b.textContent.trim())).click(); await w(150);
+            const ins = [...document.querySelectorAll('#svConf .colh-r input')]; r.push(ins.length > 1);
+            ins.forEach(i => { i.checked = true; }); document.querySelector('#svConf [data-ok]').click(); await w(100);
+            r.push(!document.querySelector('#svConf .colh-err').hidden);
+            ins.forEach((i, j) => { i.checked = j === 0; }); document.querySelector('#svConf [data-ok]').click(); await w(200);
+            const th0 = T().tHead.rows[0].cells[0]; r.push(getComputedStyle(th0).display, T().tBodies[0].rows[0]?.cells[0]?.classList.contains('svi-colh'));
+            more().click(); await w(150); r.push(labs().filter(l => /COLONNES/.test(l)).join('|'));
+            [...document.querySelectorAll('#blkMenu button')].find(b => /^AFFICHER/.test(b.textContent.trim())).click(); await w(150);
+            document.querySelectorAll('#svConf .colh-r input').forEach(i => { i.checked = true; }); document.querySelector('#svConf [data-ok]').click(); await w(200);
+            r.push(getComputedStyle(T().tHead.rows[0].cells[0]).display !== 'none');
+            if (keep === null) localStorage.removeItem('svi_colh_v1'); else localStorage.setItem('svi_colh_v1', keep); return r; }""")
+        check("v786 : MASQUER / AFFICHER DES COLONNES — seulement MASQUER si tout est affiché, liste à cocher, au moins une colonne, MASQUER et AFFICHER dès qu'une est masquée",
+              c786 == ["MASQUER DES COLONNES…", True, True, "none", True, "MASQUER DES COLONNES…|AFFICHER DES COLONNES… (1)", True], c786)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
