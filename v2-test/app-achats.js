@@ -502,10 +502,12 @@ function sviAchInit() {
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.ach === tab));
     /* v765 : plus de rangée d'onglets : on passe d'une liste à l'autre par le menu ☰ (comme les budgets) ; pas d'étiquette du budget ici */
     bar.style.display = "none"; document.getElementById("sviScreenTag")?.remove(); document.body.classList.remove("bdg-screen");
-    if (NV[tab]) { const M = NV[tab]; body.innerHTML = M.html(); if (h1) h1.innerHTML = M.h1(); if (sub) sub.textContent = ""; view.classList.toggle("ach-page", M.isPage()); return; }
+    /* v766 : les listes ont la forme exacte de la liste des budgets (titre et ☰ dans la liste elle-même) ; la page garde l'en-tête de l'écran */
+    if (NV[tab]) { const M = NV[tab]; body.innerHTML = M.html(); if (h1) h1.innerHTML = M.isPage() ? M.h1() : ""; if (sub) sub.textContent = ""; view.classList.toggle("ach-page", M.isPage()); view.classList.toggle("ach-bdgl", !M.isPage()); achBdglSync(body); return; }
     view.classList.remove("ach-page");
     const LM = tab === "bsn" ? BSNM : MODS[tab];
-    if (LM && LM.h1) { body.innerHTML = LM.html(); if (h1) h1.innerHTML = LM.h1(); if (sub) sub.textContent = ""; return; }
+    if (LM && LM.h1) { body.innerHTML = LM.html(); if (sub) sub.textContent = ""; view.classList.add("ach-bdgl"); achBdglSync(body); return; }
+    view.classList.remove("ach-bdgl");
     if (h1 && TTL[tab]) h1.textContent = TTL[tab][0];
     else if (h1) h1.textContent = tab === "caf" ? "ACHATS — CONSULTATIONS" : tab === "dvf" ? "ACHATS — DEVIS" : tab === "bsn" ? "BESOINS" : tab === "prm" ? "ACHATS — PARAMÈTRES" : tab === "frs" ? "ACHATS — FOURNISSEURS" : showDel ? "ACHATS — CORBEILLE DES ARTICLES" : "ACHATS — ARTICLES";
     if (sub && TTL[tab]) sub.textContent = TTL[tab][1];
@@ -1898,7 +1900,7 @@ function achNvList(ctx, o) {
   const { cfApply, cfHead, draw } = ctx;
   const ETATS = [["actif", "ACTIF"], ["inactif", "INACTIF"], ["corbeille", "CORBEILLE"], ["tout", "TOUT"]];
   const KM = "svi_ach_" + o.k + "_mode_v1", KE = "svi_ach_" + o.k + "_etat2_v1";
-  let mode = "valid", etat = "actif", dSel = "", order = [];
+  let mode = "valid", etat = "actif", dSel = "", order = [], chosen = false;
   try { mode = localStorage.getItem(KM) === "inst" ? "inst" : "valid"; const e0 = localStorage.getItem(KE); if (ETATS.some(x => x[0] === e0)) etat = e0; } catch (e) {}
   /* v765 : crochets pour les pièces (consultations, devis, commandes…) — o.etats / o.ok, o.inst, o.dI / o.dV, o.kill, o.bang */
   if (o.etats) ETATS.splice(0, ETATS.length, ...o.etats);
@@ -1906,37 +1908,43 @@ function achNvList(ctx, o) {
   const eOk = (x, k, L) => o.ok ? o.ok(x, k, L) : k === "tout" ? true : k === "corbeille" ? !!x.del : !x.del && (k === "inactif" ? x.actif === false : x.actif !== false);
   const mOk = x => mode === "inst" ? isI(x) : !isI(x);
   const dOf = x => mode === "inst" ? achDay(o.dI ? o.dI(x) : x.cree) : achDay(o.dV ? o.dV(x) : x.val || x.cree);
-  const cwX = k => (cwLoad()[o.t + "." + k]) || (o.w || {})[k] || 120;
+  /* v766 : MÊME FORME QUE LA LISTE DES BUDGETS (mêmes classes : novapp-list-shell, novapp-date-panel, novapp-budget-table) ;
+     colonnes : celles de la liste puis SAISI LE (en instance) ou VALIDÉ LE et SAISI LE (validés), dates au format du budget ;
+     corbeille en bout de ligne et CRÉER … ICI seulement dans la liste EN INSTANCE (comme les budgets) */
+  const dI = x => o.dI ? o.dI(x) : x.cree, dV = x => o.dV ? o.dV(x) : x.val || x.cree;
+  const colsOf = () => o.cols(mode).filter(c => c[1] !== "SAISI LE" && c[1] !== "VALIDÉ LE")
+    .concat(mode === "valid" ? [["_val", "VALIDÉ LE", x => svDT(dV(x) || ""), ""]] : []).concat([["_cree", "SAISI LE", x => svDT(dI(x) || ""), ""]]);
   const counts = () => { const A = o.all(), L = A.filter(x => eOk(x, etat, A)); return { inst: L.filter(isI).length, valid: L.filter(x => !isI(x)).length }; };
   const h1 = () => {
-    const n = counts(); if (!n[mode] && n[mode === "inst" ? "valid" : "inst"]) mode = mode === "inst" ? "valid" : "inst";
-    const other = mode === "inst" ? "valid" : "inst", can = n[other] > 0;
-    return esc(o.name) + (mode === "inst" ? " (EN INSTANCE)" : " (VALIDÉS)") + " " + svCnt(n[mode]) + ` <button type="button" class="bdg-mode-sw nv-sw${can ? "" : " off"}" data-nvsw title="${can ? (other === "inst" ? "VOIR LA LISTE EN INSTANCE" : "VOIR LA LISTE DES VALIDÉS") : (other === "inst" ? "RIEN EN INSTANCE." : "RIEN DE VALIDÉ.")}">${ACH_SW}</button>`;
+    const n = counts(), keep = chosen; chosen = false; if (!keep && !n[mode] && n[mode === "inst" ? "valid" : "inst"]) mode = mode === "inst" ? "valid" : "inst";
+    const other = mode === "inst" ? "valid" : "inst", can = other === "inst" || n[other] > 0;
+    return esc(o.name) + (mode === "inst" ? " (EN INSTANCE)" : " (VALIDÉS)") + ` <span class="bdgl-cnt">${svCnt(n[mode])}</span>`
+      + `<button type="button" class="bdg-mode-sw${can ? "" : " off"}" data-nvsw title="${can ? (other === "inst" ? "VOIR LA LISTE EN INSTANCE" : "VOIR LA LISTE DES VALIDÉS") : "RIEN DE VALIDÉ."}" aria-label="BASCULER">${ACH_SW}</button>`;
   };
   const html = () => {
-    h1();
+    const t1 = h1();
     const all = o.all(), base = all.filter(x => eOk(x, etat, all) && mOk(x));
     const days = [...base.reduce((m, x) => m.set(dOf(x), (m.get(dOf(x)) || 0) + 1), new Map())].sort((a, b) => b[0].localeCompare(a[0]));
     if (dSel && !days.some(d => d[0] === dSel)) dSel = "";
-    const rows0 = base.filter(x => !dSel || dOf(x) === dSel), cols = coOrder(o.t, o.cols(mode)), rows = cfApply(o.t, cols, rows0);
+    const rows0 = base.filter(x => !dSel || dOf(x) === dSel), cols = coOrder(o.t + (mode === "inst" ? "_i" : "_v"), colsOf()), rows = cfApply(o.t, cols, rows0);
     order = rows.map(x => x.id);
-    const inst = mode === "inst", W = cols.reduce((s, c) => s + cwX(c[0]), 0) + (inst ? 40 : 0);
-    const cell = (x, c) => { const v = c[2](x);
-      const bg = c[0] === (o.bang || "nom") ? (w => w.length ? `<span class="ach-warn nv-bang" data-why="${esc(w.join(" · "))}">!</span> ` : "")(o.why(x, all)) : "";
-      if (c[0] === "ref") return bg + `<button type="button" class="ach-link nv-ref" data-nvo="${esc(x.id)}">${esc(v)}</button>`;
-      if (bg) return bg + esc(v);
-      return esc(typeof v === "number" ? achF2(v) : v); };
-    return `<div class="nv-wrap">
-      <div class="nv-dates"><button type="button" class="ach-b ach-etat nv-etat" data-a="${o.k}-etat">${(ETATS.find(x => x[0] === etat) || ETATS[0])[1]} ▾ ${svCnt(base.length)}</button>
-        ${days.map(([d, n]) => `<button type="button" class="nv-day${d === dSel ? " on" : ""}" data-nvday="${esc(d)}"><span>${esc(achDFr(d) || "SANS DATE")}</span>${svCnt(n)}</button>`).join("") || `<div class="nv-none">—</div>`}</div>
-      <div class="ach-scroll nv-scroll"><table id="${o.id}" class="bdg-d-table prm-table ach-table nv-table${inst ? " nv-inst" : ""}" data-ach="${o.k}" style="width:${W}px">
-        <colgroup>${cols.map(c => `<col data-w="${o.t}.${c[0]}" style="width:${cwX(c[0])}px">`).join("")}${inst ? `<col style="width:40px">` : ""}</colgroup>
-        <thead><tr>${cols.map(c => cfHead(o.t, c[0], c[1], c[3])).join("")}${inst ? "<th></th>" : ""}</tr></thead>
-        <tbody>${rows.map(x => `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" class="nv-row${x.actif === false ? " ach-off" : ""}${x.del ? " ach-deleted" : ""}">${cols.map(c => `<td class="${c[3]}">${cell(x, c)}</td>`).join("")}${inst ? `<td class="center">${x.del || x.state === "annule" ? "" : `<button type="button" class="nv-del" data-nvdel="${esc(x.id)}" title="METTRE À LA CORBEILLE">${ACH_TRASH}</button>`}</td>` : ""}</tr>`).join("")}
-          ${etat === "corbeille" || etat === "inactif" || etat === "annule" ? "" : `<tr class="ach-new nv-new" data-nvnew><td colspan="${cols.length + (inst ? 1 : 0)}">${esc(o.newRow)}</td></tr>`}</tbody></table></div></div>`;
+    const inst = mode === "inst", W = o.w || {}, CW = cwLoad(), tot = cols.reduce((t, c) => t + (W[c[0]] || 120), 0);
+    const cell = (x, c) => { const v = c[2](x), cl = c[3] === "number" ? "number" : "";
+      if (c[0] === "ref") { const w = o.why(x, all); return `<td class="bdg-ref-c">${w.length ? `<b class="obs-bang val-bang nv-bang" role="button" data-why="${esc(w.join(" · "))}">!</b> ` : ""}${esc(v)}</td>`; }
+      const t = typeof v === "number" ? achF2(v) : String(v ?? ""); return `<td class="${cl}" title="${esc(t)}">${esc(t)}</td>`; };
+    return `<div class="novapp-list-shell"><div class="novapp-list-titlebar"><button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button><h1>${t1}</h1></div>
+      <div class="novapp-budget-layout"><aside class="novapp-date-panel svi-bdgp">
+        <div class="novapp-date-head"><button type="button" class="novapp-date-filter" data-a="${o.k}-etat"><span>${(ETATS.find(x => x[0] === etat) || ETATS[0])[1]} ▾</span>${svCnt(base.length)}</button></div>
+        <div class="novapp-date-list">${days.map(([d, n]) => `<button type="button" data-nvday="${esc(d)}" class="novapp-date-item ${d === dSel ? "selected" : ""}"><span>${esc(achDFr(d) || "SANS DATE")}</span>${svCnt(n)}</button>`).join("")}</div></aside>
+      <div class="novapp-budget-table-wrap"><table id="${o.id}" class="novapp-budget-table svi-bdgl${inst ? " nv-inst" : ""}" data-ach="${o.k}">
+        <colgroup>${cols.map(c => `<col data-w="${o.t}.${c[0]}" style="width:${CW[o.t + "." + c[0]] ? CW[o.t + "." + c[0]] + "px" : ((W[c[0]] || 120) / tot * 100).toFixed(2) + "%"}">`).join("")}<col style="width:44px"></colgroup>
+        <thead><tr>${cols.map(c => cfHead(o.t, c[0], c[1], "bdg-list-head" + (c[3] === "number" ? " number" : ""))).join("")}<th class="bdg-act-h"></th></tr></thead>
+        <tbody>${rows.map(x => `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" data-nvo="${esc(x.id)}" class="${isI(x) ? "inst-instance" : "inst-valide"}${x.del || x.state === "annule" ? " etat-bloque" : ""}${x.actif === false ? " etat-archive" : ""}">${cols.map(c => cell(x, c)).join("")}<td class="bdg-action-cell">${inst && !x.del && x.state !== "annule" ? `<button type="button" class="bdg-row-action bdg-row-del" data-nvdel="${esc(x.id)}" title="Supprimer" aria-label="Supprimer">${SVI_DEL_ICON}</button>` : ""}</td></tr>`).join("")
+          || `<tr><td colspan="${cols.length + 1}" class="empty">AUCUN ÉLÉMENT</td></tr>`}
+          ${inst && etat !== "corbeille" && etat !== "inactif" && etat !== "annule" ? `<tr class="bdg-newrow" data-nvnew><td colspan="${cols.length + 1}">${esc(o.newRow)}</td></tr>` : ""}</tbody></table></div></div></div>`;
   };
   const click = async e => {
-    if (e.target.closest("[data-nvsw]")) { const b = e.target.closest("[data-nvsw]"); if (b.classList.contains("off")) { svToast(b.title, 2500, b); return true; } mode = mode === "inst" ? "valid" : "inst"; dSel = ""; try { localStorage.setItem(KM, mode); } catch (err) {} draw(); return true; }
+    if (e.target.closest("[data-nvsw]")) { const b = e.target.closest("[data-nvsw]"); if (b.classList.contains("off") && mode === "inst") { svToast(b.title, 2500, b); return true; } mode = mode === "inst" ? "valid" : "inst"; dSel = ""; chosen = true; try { localStorage.setItem(KM, mode); } catch (err) {} draw(); return true; }
     const dy = e.target.closest("[data-nvday]"); if (dy) { dSel = dSel === dy.dataset.nvday ? "" : dy.dataset.nvday; draw(); return true; }
     const eb = e.target.closest(`[data-a="${o.k}-etat"]`);
     if (eb) { const L = o.all(); sviEtatMenu(eb, ETATS.map(([k, lab]) => ({ k, lab, n: L.filter(x => eOk(x, k, L) && mOk(x)).length })), etat, k => { etat = k; try { localStorage.setItem(KE, k); } catch (err) {} draw(); }); return true; }
@@ -1947,7 +1955,7 @@ function achNvList(ctx, o) {
       if (!(await svConfirm({ title: "METTRE À LA CORBEILLE", text: o.code(x) + " — " + o.nom(x) + " (RESTAURABLE ; SON NUMÉRO NE SERA PAS RÉUTILISÉ).", ok: "METTRE À LA CORBEILLE" }))) return true;
       x.del = achNow(); x.mod = x.del; o.save(L); achHist(o.code(x), "CORBEILLE", o.nom(x)); draw(); return true; }
     if (e.target.closest("[data-nvnew]")) { o.add(id => { if (id) { mode = "inst"; try { localStorage.setItem(KM, mode); } catch (err) {} } draw(); }); return true; }
-    const r = e.target.closest("[data-nvo]") || (e.target.closest("tr.nv-row") && !e.target.closest("input, button, .cf-btn") ? e.target.closest("tr.nv-row") : null);
+    const r = e.target.closest("button, .cf-btn, thead") ? e.target.closest("button[data-nvo]") : e.target.closest("[data-nvo]");
     if (r) { o.page(r.dataset.nvo || r.dataset.id); return true; }
     return false;
   };
@@ -2131,4 +2139,11 @@ function achFrsNvMod(ctx) {
           { t: "FACTURES", cols: [["RÉFÉRENCE"], ["N°"], ["MONTANT TTC", "number"], ["RESTE À PAYER", "number"], ["ÉTAT", "center"]], rows: FA.map(x => ({ cells: [x.ref, x.num || "", achFafTot(x).ttc, x.state === "annule" ? "" : achFafReste(x), achFafEtat(x)], open: r => achFafFiche(x.id, null, r), cls: x.state === "annule" ? "nv-strike" : "" })) },
           { t: "PAIEMENTS", cols: [["RÉFÉRENCE"], ["MODE"], ["MONTANT", "number"], ["ÉTAT", "center"]], rows: PA.map(p => ({ cells: [p.ref, p.mode, achN(p.mt), ACH_PAF_ST[p.state] || ""], open: r => achPafFiche(p.id, null, r), cls: p.state === "annule" || p.state === "rejete" ? "nv-strike" : "" })) }] }; }
   });
+}
+
+/* v766 : panneau des dates aux hauteurs de la liste (comme les budgets) — à appeler après le dessin */
+function achBdglSync(root) {
+  requestAnimationFrame(() => { try { root.querySelectorAll(".svi-bdgp").forEach(pn => { const tb = pn.parentNode.querySelector("table.svi-bdgl"); if (!tb || !tb.tHead) return;
+    const tr = tb.querySelector("tbody tr:not(.bdg-newrow)") || tb.querySelector("tbody tr");
+    pn.style.setProperty("--bdg-head-h", Math.round(tb.tHead.getBoundingClientRect().height) + "px"); if (tr) pn.style.setProperty("--bdg-row-h", Math.round(tr.getBoundingClientRect().height) + "px"); }); } catch (e) {} });
 }

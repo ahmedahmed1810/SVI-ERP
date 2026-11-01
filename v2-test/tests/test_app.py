@@ -2733,7 +2733,7 @@ def main():
             M.classList.remove('hidden'); M.querySelector('.nav-grp').click(); await w(100); const open = !M.querySelector('.nav-sub').hidden, still = !M.classList.contains('hidden');
             M.querySelector('.nav-sub .nav-off').click(); await w(100); const stay = !M.classList.contains('hidden');
             M.querySelector('.nav-sub .nav-btn[data-ach="art"]').click(); await w(400);
-            const r = [top.join(','), sub.join(','), open, still, stay, document.getElementById('ach').classList.contains('active-view'), document.querySelector('#ach .section-head h1').textContent.trim().replace(/ \(.*$/, '')];
+            const r = [top.join(','), sub.join(','), open, still, stay, document.getElementById('ach').classList.contains('active-view'), (document.querySelector('#ach .novapp-list-titlebar h1') || document.querySelector('#ach .section-head h1')).textContent.trim().replace(/ \(.*$/, '')];
             M.querySelector('.nav-grp').click(); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); M.classList.add('hidden'); await w(600); return r; }""")
         check("v751 / v752 : menu ☰ — ordre BDG, ACHAT, BESOIN, PARAMÉTRAGE ; ACHAT dépliable (CONSULTATIONS, DEVIS, COMMANDES, RÉCEPTIONS, FACTURES, PAIEMENTS, FOURNISSEURS, ARTICLES, ACC), BESOIN dessous ; entrées à venir grisées ; ARTICLES ouvre les achats",
               m751 == ["BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RETOURS DE COMMANDE,RÉCEPTIONS,RETOURS DE RÉCEPTION,FACTURES,AVOIRS,PAIEMENTS,FOURNISSEURS,ARTICLES,PARAMÈTRES ACHATS,ACC", True, True, True, True, "ARTICLES"], m751)
@@ -2807,7 +2807,7 @@ def main():
             const keepA = localStorage.getItem('svi_ach_art_v1'), keepAE = localStorage.getItem('svi_ach_etat_v1'); localStorage.removeItem('svi_ach_art_etat2_v1'); const L = [];
             achArtNew(L, { des: 'SABLE', u: 'M3' }); const b2 = achArtNew(L, { des: 'GRAVIER', u: 'M3' }); b2.actif = false; const b3 = achArtNew(L, { des: 'CHAUX', u: 'T' }); b3.del = '2026-11-01'; achArtsSave(L);
             localStorage.removeItem('svi_ach_etat_v1'); const v = document.getElementById('ach'); v.__achTab('art'); await w(200);
-            const eb = v.querySelector('.ach-etat'), aRows = () => [...v.querySelectorAll('#achArtT tbody tr[data-id]')].length;
+            const eb = v.querySelector('.novapp-date-filter'), aRows = () => [...v.querySelectorAll('#achArtT tbody tr[data-id]')].length;
             const a = [eb ? eb.textContent.replace(/\\s+/g, ' ').trim() : '', aRows()]; eb.click(); await w(150);
             a.push([...document.querySelectorAll('#sviEtatMenu button')].map(b => b.textContent.replace(/\\s+/g, ' ').trim()).join('|'));
             document.querySelector('#sviEtatMenu [data-k="tout"]').click(); await w(200); a.push(aRows()); localStorage.removeItem('svi_ach_art_etat2_v1');
@@ -2827,12 +2827,12 @@ def main():
             a.ribs = [{ rib: '007640000123456789012345', p: true }]; a.docf = [{ type: 'ATTESTATION CNSS', no: '1', exp: '2020-01-01' }]; const wa = achFrsWhy(a, L); b2.del = '2026-11-01';
             achFrsSave(L);
             document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(400); const v = document.getElementById('ach');
-            const h1 = v.querySelector('.section-head h1').textContent.trim(), n0 = v.querySelectorAll('#achFrsT tbody tr[data-id]').length;
-            v.querySelector('#achFrsT [data-nvnew]').click(); await w(250); document.querySelector('#svConf .ask-v').value = 'NOUVEAU FRS'; document.querySelector('#svConf [data-ok]').click(); await w(300);
+            const h1 = (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), n0 = v.querySelectorAll('#achFrsT tbody tr[data-id]').length;
+            v.querySelector('[data-nvsw]').click(); await w(150); v.querySelector('#achFrsT [data-nvnew]').click(); await w(250); document.querySelector('#svConf .ask-v').value = 'NOUVEAU FRS'; document.querySelector('#svConf [data-ok]').click(); await w(300);
             document.querySelector('.frs-card [data-x]').click(); await w(300);
-            const n1 = achFrs().filter(f => !f.del).length + (v.querySelectorAll('#achFrsT tbody tr[data-id]').length === 1 && /EN INSTANCE/.test(v.querySelector('.section-head h1').textContent) ? 0 : 100);
+            const n1 = achFrs().filter(f => !f.del).length + (v.querySelectorAll('#achFrsT tbody tr[data-id]').length === 1 && /EN INSTANCE/.test((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent) ? 0 : 100);
             v.querySelector('[data-nvsw]').click(); await w(200); v.querySelector(`#achFrsT [data-nvo="${a.id}"]`).click(); await w(250);
-            const pgOk = /^FOURNISSEUR — BETON SUD/.test(v.querySelector('.section-head h1').textContent) && v.querySelectorAll('.nvp-blk').length === 5;
+            const pgOk = /^FOURNISSEUR — BETON SUD/.test((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent) && v.querySelectorAll('.nvp-blk').length === 5;
             v.querySelector('[data-nvp="info"]').click(); await w(300); const fc = document.querySelector('.frs-card');
             const secs = fc ? [...fc.querySelectorAll('.frs-st')].map(x => x.textContent.replace(/\\s*\\d+$/, '').split(' ')[0]).join(',') : 'pas de fiche';
             const ri = fc.querySelector('.frs-sub[data-sub="ribs"] .frs-s[data-c="rib"]'); ri.value = '011780000123456789012345'; fc.querySelector('[data-save]').click(); await w(250);
@@ -2859,7 +2859,7 @@ def main():
             b2.deb = { u: 'T', t: '2026-11-01', why: 'X' }; const w2b = achBsnWhy(b2, L), s0 = achBsnCtl({ centre: 'SIÈGE', des: 'PAPIER', q: 1 }, L);
             const r = [C.length, C[0].des, C[0].tasks.join(','), Math.round(C[0].p), Math.round(c1.pct), w2.some(m => /BLOQUÉ/.test(m)), w3.some(m => /SEUIL/.test(m)), w2b.length, s0, achBsnNextRef([b1], new Date(2026, 10, 2))];
             document.querySelector('#navMenu .nav-btn[data-ach="bsn"]').click(); await w(400); const v = document.getElementById('ach');
-            r.push(v.querySelector('.section-head h1').textContent.trim().replace(/ \\(.*$/, ''));
+            r.push((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim().replace(/ \\(.*$/, ''));
             achBsnFiche(null, () => v.__achDraw()); await w(200);
             const set = (k, val) => { const i = document.querySelector(`.bsn-card .bsn-x[data-k="${k}"]`); i.value = val; i.dispatchEvent(new Event('change', { bubbles: true })); };
             set('bdg', 'BSN-T1'); await w(50); set('chg', achKey('CIMENT', 'T')); await w(50);
@@ -2974,12 +2974,12 @@ def main():
             const L = []; const s1 = achArtNew(L, { des: 'SABLE', u: 'M3', cat: 'MATERIAUX STOCKABLE' }); s1.cree = '2026-10-13T08:00:00Z'; const s2 = achArtNew(L, { des: 'GRAVIER', u: 'M3', cat: 'MATERIAUX STOCKABLE' }); s2.cree = '2026-10-14T08:00:00Z'; achArtsSave(L);
             const F = []; const f1 = achFrsNew(F, { nom: 'AFRA' }); achFrsSave(F); achDvfSave([{ id: 'v1', ref: 'DVF 1', frs: f1.id, state: 'recu', lignes: [{ des: 'SABLE', u: 'M3', q: 5, pu: 100, tva: 20 }] }]);
             const v = document.getElementById('ach'); document.querySelector('#navMenu .nav-btn[data-ach="art"]').click(); await w(300);
-            const r = [v.querySelector('.section-head h1').textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, v.querySelectorAll('.nv-day').length];
-            v.querySelector('.nv-day').click(); await w(150); r.push(v.querySelectorAll('#achArtT tbody tr[data-id]').length); v.querySelector('.nv-day').click(); await w(150);
-            v.querySelector('#achArtT [data-nvnew]').click(); await w(200); const c = document.querySelector('#svConf');
+            const r = [(v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, v.querySelectorAll('.novapp-date-item').length];
+            v.querySelector('.novapp-date-item').click(); await w(150); r.push(v.querySelectorAll('#achArtT tbody tr[data-id]').length); v.querySelector('.novapp-date-item').click(); await w(150);
+            v.querySelector('[data-nvsw]').click(); await w(150); v.querySelector('#achArtT [data-nvnew]').click(); await w(200); const c = document.querySelector('#svConf');
             c.querySelector('.art-x[data-k="des"]').value = 'CIMENT CPJ45'; c.querySelector('.art-x[data-k="u"]').value = 'T'; c.querySelector('.art-x[data-k="cat"]').value = 'MATERIAUX STOCKABLE'; c.querySelector('[data-save]').click(); await w(300);
             const A = achArts().find(a => a.des === 'CIMENT CPJ45');
-            r.push(!!A && A.st, v.querySelector('.section-head h1').textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, !!v.querySelector('.nv-inst [data-nvdel]'), !!v.querySelector('[data-nvnew]'));
+            r.push(!!A && A.st, (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, !!v.querySelector('.nv-inst [data-nvdel]'), !!v.querySelector('[data-nvnew]'));
             v.querySelector(`[data-nvo="${A.id}"]`).click(); await w(250);
             r.push(v.querySelector('.nvp-code').textContent, !!v.querySelector('.nvp-inst'), v.querySelectorAll('.nvp-rec .rec-tab').length);
             v.querySelector('[data-nvr="obs"]').click(); await w(100); v.querySelector('[data-nvradd]').click(); await w(200);
@@ -2991,7 +2991,7 @@ def main():
             r.push(JSON.stringify(achArts().find(a => a.id === A.id).cv));
             v.querySelector('[data-nvp="more"]').click(); await w(150); document.querySelector('#sviEtatMenu [data-k="val"]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
             r.push(achArts().find(a => a.id === A.id).st, !v.querySelector('.nvp-inst'));
-            v.querySelector('[data-nvp="close"]').click(); await w(200); r.push(v.querySelector('.section-head h1').textContent.trim());
+            v.querySelector('[data-nvp="close"]').click(); await w(200); r.push((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim());
             v.querySelector(`[data-nvo="${s1.id}"]`).click(); await w(250); r.push([...v.querySelectorAll('.nvp-blk')].some(b => b.textContent.includes('DVF 1')));
             const t0 = v.querySelector('.nvp-code').textContent; v.querySelector('[data-nvp="next"]').click(); await w(200); r.push(t0 !== v.querySelector('.nvp-code').textContent);
             v.__achTab('art'); await w(150); r.push(!v.querySelector('.nvp'));
@@ -3004,8 +3004,8 @@ def main():
         l765 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_caf_v1', 'svi_ach_caf_mode_v1', 'svi_ach_caf_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
             achCafSave([{ id: 'c1', ref: 'CAF 1', state: 'ouverte', cree: '2026-10-30T10:00:00Z', lignes: [], frs: [] }, { id: 'c2', ref: 'CAF 2', state: 'close', cree: '2026-10-20T10:00:00Z', valide: '2026-10-25T10:00:00Z', lignes: [], frs: [] }]);
             const v = document.getElementById('ach'); document.querySelector('#navMenu .nav-btn[data-ach="caf"]').click(); await w(300);
-            const h = () => v.querySelector('.section-head h1').textContent.replace(/\\s+/g, ' ').trim();
-            const r = [getComputedStyle(v.querySelector('.ach-tabs')).display, h(), v.querySelectorAll('#achCafT tbody tr[data-id]').length, !!v.querySelector('.nv-day'), !v.querySelector('.ach-hh'), !!document.getElementById('sviScreenTag')];
+            const h = () => (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.replace(/\\s+/g, ' ').trim();
+            const r = [getComputedStyle(v.querySelector('.ach-tabs')).display, h(), v.querySelectorAll('#achCafT tbody tr[data-id]').length, !!v.querySelector('.novapp-date-item'), !v.querySelector('.ach-hh'), !!document.getElementById('sviScreenTag')];
             v.querySelector('[data-nvsw]').click(); await w(200); r.push(h(), !!v.querySelector('.nv-inst [data-nvdel]'));
             v.querySelector('[data-nvdel]').click(); await w(200); document.querySelector('#svConf [data-r="1"]')?.click(); await w(250);
             r.push(achCaf().find(c => c.id === 'c1').state);
