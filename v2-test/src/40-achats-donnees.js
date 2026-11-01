@@ -56,7 +56,7 @@ const achArtNew = (L, o) => {
 };
 /* historique d'un article : même format que celui du budget (H) */
 const achHist = (code, action, detail) => { try { const k = "svi_hist_v1:ACH-" + code, l = JSON.parse(localStorage.getItem(k) || "[]") || []; l.push({ t: new Date().toISOString(), b: "ARTICLE", a: action, d: achU(detail), u: typeof sviUser === "function" ? sviUser() : "" }); localStorage.setItem(k, JSON.stringify(l.slice(-500))); } catch (e) {} };
-const achHistGet = code => achJ("svi_hist_v1:ACH-" + code, []) || [];
+const achHistGet = code => (typeof achHistNov === "function" ? achHistNov(code) : []).concat(achJ("svi_hist_v1:ACH-" + code, []) || []);   /* v767 : historique NovApp devant */
 /* fusion de doublons : l'article gardé reprend l'origine de l'autre ; l'autre va à la corbeille avec la mention */
 const achArtMerge = (L, keepId, dropIds) => {
   const k = L.find(a => a.id === keepId); if (!k) return 0;

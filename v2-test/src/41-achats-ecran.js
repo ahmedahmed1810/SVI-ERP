@@ -103,6 +103,8 @@ function sviAchInit() {
         <span class="ach-tvaw"><input class="ins-in ach-ptol number" inputmode="decimal" value="${esc(F2(P.tol))}" autocomplete="off"> %</span></div>
       ${[["ecart", "ÉCART TOLÉRÉ ENTRE LA FACTURE ET LE CALCUL (ARRONDIS), TTC", "DH"], ["rasT", "RETENUE À LA SOURCE SUR LA TVA, TAUX PAR DÉFAUT (% DE LA TVA)", "%"], ["esp", "PLAFOND DES PAIEMENTS EN ESPÈCES", "DH"], ["chqj", "CHÈQUE OU LCN NON ENCAISSÉ : ALERTE APRÈS", "JOURS"], ["avj", "AVANCE NON RÉCUPÉRÉE : ALERTE APRÈS", "JOURS"]].map(([k, lab, u]) => `<div class="ach-pbox"><div class="ach-pt">${lab}</div>
         <span class="ach-tvaw"><input class="ins-in ach-pnum number" data-pk="${k}" inputmode="decimal" value="${esc(F2(P[k]))}" autocomplete="off"> ${u}</span></div>`).join("")}
+      <div class="ach-pbox"><div class="ach-pt">IMPORTER LES DONNÉES DE NOVAPP (FICHIER novapp-achats.json) — REMPLACE LES DONNÉES DES ACHATS</div>
+        <input type="file" class="ach-novimp" accept=".json,application/json"></div>
       <div class="ach-pbox"><div class="ach-pt">TVA PAR DÉFAUT DES NOUVEAUX ARTICLES</div>
         <span class="ach-tvaw"><input class="ins-in ach-ptva number" inputmode="decimal" value="${esc(F2(P.tva))}" autocomplete="off"> %</span></div>
       <div class="ach-pbox"><div class="ach-pt">CATÉGORIES ${svCnt ? svCnt(catRows.length, P.cat.length) : ""}</div>
@@ -216,6 +218,7 @@ function sviAchInit() {
     /* paramètres */
     if (t.classList.contains("ach-ptol")) { const P = achPrm(), v = achN(t.value); if (v < 0 || v > 100) { svToast("TOLÉRANCE NON VALIDE (0 À 100 %).", 3000, t); draw(); return; } P.tol = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-pdirect")) { const P = achPrm(), v = achN(t.value); if (v < 0) { svToast("SEUIL NON VALIDE.", 3000, t); draw(); return; } P.direct = v; achPrmSave(P); draw(); return; }
+    if (t.classList.contains("ach-novimp")) { const f = t.files && t.files[0]; if (f) achNovImport(f, () => draw()); t.value = ""; return; }
     if (t.classList.contains("ach-pnum")) { const P = achPrm(), v = achN(t.value), k = t.dataset.pk; if (v < 0 || (k === "rasT" && v > 100)) { svToast("VALEUR NON VALIDE.", 3000, t); draw(); return; } P[k] = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-ptva")) { const P = achPrm(), v = achN(t.value); if (v < 0 || v > 100) { svToast("TVA NON VALIDE (0 À 100).", 3000, t); draw(); return; } P.tva = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-pnew") || t.classList.contains("ach-pin")) {

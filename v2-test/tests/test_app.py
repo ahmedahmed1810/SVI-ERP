@@ -3014,6 +3014,19 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v765 : listes des achats au format du budget — sans onglets, titre EN INSTANCE / VALIDÉS avec nombre et bascule, dates, sans H, sans étiquette du budget ; corbeille = ANNULÉ ; ligne → fiche",
               l765[0] == "none" and l765[1].startswith("CONSULTATIONS (VALIDÉS) 1") and l765[2:6] == [1, True, True, False] and l765[6].startswith("CONSULTATIONS (EN INSTANCE) 1") and l765[7] is True and l765[8:] == ["annule", True], l765)
+        # v767 : import des achats de NovApp — fichier JSON, remplacement (copie de sécurité), besoins F26 = SIÈGE, ancienne référence dans H
+        n767 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = Object.values(ACH_K).concat(['svi_ach_nov_v1', 'svi_ach_backup_v1']), keep = K.map(k => localStorage.getItem(k));
+            const D = { src: 'NOVAPP', art: [{ id: 'A1', code: 'ART-0001', des: 'SABLE', u: 'M3', st: 'valide', cree: '2025-12-02T12:00:00', val: '2025-12-02T12:00:00' }], frs: [{ id: 'F1', code: 'FRS-0001', nom: 'AFRA', ribs: [], cree: '2025-12-02T12:00:00' }],
+              bsn: [{ id: 'N1', ref: 'BSN 25-1130/001', prj: 'F26', des: 'TVA', u: 'U', q: 1, state: 'valide', cree: '2025-11-30T12:00:00', datePrevue: '2025-12-02' }, { id: 'N2', ref: 'BSN 25-1130/002', prj: 'ZZZ', des: 'SABLE', u: 'M3', q: 2, state: 'valide', cree: '2025-11-30T12:00:00', datePrevue: '2025-12-02' }],
+              caf: [], dvf: [], cmf: [{ id: 'M1', ref: 'CMF 25-1202/001', frs: 'F1', state: 'valide', cree: '2025-12-02T12:00:00', lignes: [{ id: 'l1', des: 'SABLE', u: 'M3', q: 2, pu: 100, tva: 20, bsn: 'N2' }] }], rcp: [], faf: [], paf: [],
+              nov: { 'CMF 25-1202/001': { o: 'CMF 25-1202/099', h: [['2025-12-02T12:00:00', 'CRÉATION']] } }, prm: { cat: ['SERVICES'] } };
+            const f = new File([JSON.stringify(D)], 'novapp-achats.json', { type: 'application/json' });
+            const p = achNovImport(f, () => 0); await w(200); [...document.querySelectorAll('#svConf button')].find(b => b.textContent.trim() === 'IMPORTER').click(); await p; await w(200);
+            const r = [achArts().length, achCmf()[0].ref, achBsn().find(b => b.id === 'N1').centre, achBsn().find(b => b.id === 'N2').centre, !!localStorage.getItem('svi_ach_backup_v1'),
+              achHistGet('CMF 25-1202/001')[0].d, SVI_SHARE_RX.test('svi_ach_nov_v1')];
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
+        check("v767 : import NovApp — fichier JSON, données remplacées (copie de sécurité), F26 = SIÈGE, besoin sans budget gardé, ancienne référence dans H, partagé par la base",
+              n767 == [1, "CMF 25-1202/001", "SIÈGE", "CHANTIER", True, "CMF 25-1202/099", True], n767)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
