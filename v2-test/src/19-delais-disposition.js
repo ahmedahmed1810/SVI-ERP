@@ -211,7 +211,9 @@
       const head = tb.tHead.getBoundingClientRect().height;
       const rows = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight);
       const tot = rows.filter(r => r.classList.length && /tot/i.test(r.className) && /\bTOTAL\b/.test(r.textContent || ""));   /* v743 : classe d'abord (rapide), texte ensuite */
-      const row = rows.find(r => !tot.includes(r) && r.matches("tr.ins-new")) || rows.find(r => !tot.includes(r));   /* v774 : ligne de saisie d'abord (hauteur stable) */
+      /* v787 : la ligne « CRÉER … ICI » est fixée en bas — mode réduit = UNE ligne de données entière + la ligne CRÉER */
+      const nrw = rows.find(r => !tot.includes(r) && r.matches("tr.ins-new")), dat = rows.find(r => !tot.includes(r) && r !== nrw);
+      const row = { getBoundingClientRect: () => ({ height: (dat ? dat.getBoundingClientRect().height : 0) + (nrw ? nrw.getBoundingClientRect().height : 0) || 21 }) };
       const foot = (tb.tFoot && tb.tFoot.offsetHeight ? tb.tFoot.getBoundingClientRect().height : 0) + tot.reduce((t, r) => t + r.getBoundingClientRect().height, 0);
       let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
       const bar = Math.max(0, scr.offsetHeight - scr.clientHeight);
@@ -226,24 +228,23 @@
       if (u === "detail") return layDetMin();
       const pg = page$(); if (!pg) return 0;
       if (u === "hier") { const c = [...pg.querySelectorAll(".bdg-h-col")].find(x => x.offsetHeight); if (!c) return 44;
-        const hd = c.querySelector(".bdg-h-head"), li = c.querySelector(".ins-li.ins-new") || c.querySelector(".ins-li, .bdg-h-item");
-        return Math.ceil((hd ? hd.getBoundingClientRect().height : 0) + (li ? li.getBoundingClientRect().height : 21) + Math.max(0, c.offsetHeight - c.clientHeight)) + 1; }
+        const hd = c.querySelector(".bdg-h-head"), nw = c.querySelector(".ins-li.ins-new"), li = [...c.querySelectorAll(".ins-li, .bdg-h-item")].find(x => x !== nw && x.offsetHeight);
+        return Math.ceil((hd ? hd.getBoundingClientRect().height : 0) + ((li ? li.getBoundingClientRect().height : 0) + (nw ? nw.getBoundingClientRect().height : 0) || 21) + Math.max(0, c.offsetHeight - c.clientHeight)) + 1; }
       const scr = pg.querySelector(LAY_SC[u]); if (!scr || !scr.offsetHeight) return { client: 65 }[u] || 44;
       const tb = [...scr.querySelectorAll("table")].find(t => t.offsetHeight && t.tHead); if (!tb) return 44;
       const top = tb.getBoundingClientRect().top - scr.getBoundingClientRect().top + scr.scrollTop;
       const rows = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight);
-      const row = rows.find(r => r.matches(LAY_NEW)) || rows[0];
+      const nrw = rows.find(r => r.matches(LAY_NEW)), dat = rows.find(r => r !== nrw && !(r.classList.length && /tot/i.test(r.className)));
       const foot = tb.tFoot && tb.tFoot.offsetHeight ? tb.tFoot.getBoundingClientRect().height : 0;
-      return Math.ceil(top + tb.tHead.getBoundingClientRect().height + (row ? row.getBoundingClientRect().height : 21) + foot + Math.max(0, scr.offsetHeight - scr.clientHeight)) + 1;
+      return Math.ceil(top + tb.tHead.getBoundingClientRect().height + ((dat ? dat.getBoundingClientRect().height : 0) + (nrw ? nrw.getBoundingClientRect().height : 0) || 21) + foot + Math.max(0, scr.offsetHeight - scr.clientHeight)) + 1;
     };
     /* à la hauteur minimale : la seule ligne visible est la ligne de saisie, entière */
     const layMinScroll = () => { const pg = page$(); if (!pg) return;
       Object.keys(LAY_SC).forEach(u => { if (pg.classList.contains("max-" + u)) return; const scr = pg.querySelector(LAY_SC[u]); if (!scr || !scr.offsetHeight) return;
         const nr = scr.querySelector("tbody " + LAY_NEW.split(", ").join(", tbody ")); if (!nr) return;
         const m = u === "detail" ? layDetMin() : layMinOf(u); if (scr.getBoundingClientRect().height > m + 3) return;
-        /* la ligne de saisie juste sous les titres des colonnes (collés en haut) : entière, seule */
-        const tb = nr.closest("table"), hh = tb && tb.tHead ? tb.tHead.getBoundingClientRect().height : 0;
-        scr.scrollTop = Math.max(0, nr.getBoundingClientRect().top - scr.getBoundingClientRect().top + scr.scrollTop - hh); }); };
+        /* v787 : haut du tableau (première ligne entière), la ligne CRÉER reste fixée en bas */
+        scr.scrollTop = 0; }); };
     shell.__layMinScroll = layMinScroll;
     /* v774 (point 9) : DISPOSITION PAR DÉFAUT — ordre d'origine et chaque bloc à exactement 5 lignes visibles
        (titres des colonnes + 5 lignes entières + pied), enregistré : l'écran se rouvre ainsi */

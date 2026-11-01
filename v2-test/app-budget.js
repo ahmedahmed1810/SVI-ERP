@@ -4086,14 +4086,12 @@ function renderBudgetList() {
       if (lotNumC.k === k) return lotNumC.M;
       const M = new Map(), cnt = new Map(), res = new Map();
       const L = INS.lot.filter(x => !x.t);
-      L.forEach(x => { let p = ""; lotSegs(x).forEach(g => { const par = p; p = p ? p + " / " + U_(g) : U_(g); const a = lotAutoNo(g); if (a) { if (!res.has(par)) res.set(par, new Set()); res.get(par).add(a.split(".").pop()); } }); });
+      /* v787 (Ahmed, 01/11) : un GROUPE est numéroté par sa place, comme les lots (GROUPE 5 en 2e position = 2 ; ses lots 2.1, 2.2) */
       L.forEach(x => {
         let p = "";
         lotSegs(x).forEach(g => {
           const par = p; p = p ? p + " / " + U_(g) : U_(g);
           if (M.has(p)) return;
-          const a = lotAutoNo(g);
-          if (a) { M.set(p, a); return; }
           let n = cnt.get(par) || 0;
           do n++; while (res.has(par) && res.get(par).has(String(n)));
           cnt.set(par, n);
@@ -4165,7 +4163,7 @@ function renderBudgetList() {
     const lotTreeHTML = list => lotTreeRows(list).map(x => {
       /* v530 (remarque 2) : un sous-groupe (titre sans lot à lui) est décalé au niveau des numéros de ses lots frères (5.1, 7.1…),
          pour ne plus paraître au rang des lots du dessus */
-      const pad = `style="margin-left:${x.lvl * 16 + (x.grp && x.lvl ? 14 : 0)}px"`;
+      const pad = `style="margin-left:${x.lvl * 16}px"`;
       /* v510 (remarque 68) : signe d'un niveau aux couleurs des ronds de sa branche (rouge choisi, bleu lié, violet mélange) */
       const UB = INS.lot.filter(r => !r.t && lotUnder(r, x.segs));
       const fst = x.kids && INS_EDIT ? sviFoldState(UB.some(r => LK.lot === r.id), UB.some(r => lkHit("lot", r.id))) : "";
@@ -4176,7 +4174,7 @@ function renderBudgetList() {
         const all = br.length && br.every(r => r.on === true);
         const GL = lotLab(x.segs);
         /* v510 (remarque 68) : niveau replié qui cache un lot coché = bleu */
-        return `<div class="ins-li lot-grp${dlyIsFolded(x.path) && br.some(r => r.on === true) ? " ins-hasck" : ""}" data-path="${esc(x.path)}"><span class="ins-rdc">${lkRdPart("lot", x.path)}</span><span class="lot-in" ${pad}>${fold}${lotNoHTML(GL)}${INS_EDIT ? `<input class="lot-gname" data-kind="grp" data-path="${esc(x.path)}" value="${esc(GL.name)}" autocomplete="off">` : `<span>${esc(GL.name)}</span>`}</span>
+        return `<div class="ins-li lot-grp${dlyIsFolded(x.path) && br.some(r => r.on === true) ? " ins-hasck" : ""}" data-path="${esc(x.path)}"><span class="ins-rdc">${lkRdPart("lot", x.path)}</span><span class="lot-in" ${pad}>${lotNoHTML(GL)}${fold}${INS_EDIT ? `<input class="lot-gname" data-kind="grp" data-path="${esc(x.path)}" value="${esc(GL.name)}" autocomplete="off">` : `<span>${esc(GL.name)}</span>`}</span>
           ${INS_EDIT ? `<span class="ins-delc"><input type="checkbox" class="lot-gcb" data-path="${esc(x.path)}"${all ? " checked" : ""}></span>` : ""}</div>`;
       }
       const r = x.r, k = "lot";
@@ -4184,8 +4182,8 @@ function renderBudgetList() {
       const LL = lotLab(x.segs);
       const nm = x.segs.length ? LL.name : (r.v || "");
       return `<div class="ins-li${x.kids ? " lot-par" : ""}${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
-          ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><span class="lot-in" ${pad}>${fold}${lotNoHTML(LL)}<input class="ins-in" data-f="v" enterkeyhint="next" data-pre="${esc(pre)}" value="${esc(nm)}" autocomplete="off"></span>
-            <span class="ins-delc">${insDelCell(r)}</span>` : `<span class="lot-in" ${pad}>${fold}<span>${esc(x.segs.length ? LL.full : nm)}</span></span>`}
+          ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><span class="lot-in" ${pad}>${lotNoHTML(LL)}${fold}<input class="ins-in" data-f="v" enterkeyhint="next" data-pre="${esc(pre)}" value="${esc(nm)}" autocomplete="off"></span>
+            <span class="ins-delc">${insDelCell(r)}</span>` : `<span class="lot-in" ${pad}>${lotNoHTML(LL)}${fold}<span>${esc(x.segs.length ? LL.name : nm)}</span></span>`}
         </div>`;
     }).join("");
     /* glissement d'un lot (FORMAT 26, 44) : dans un niveau = passe dessous ; avant / après = même niveau que la ligne visée ;
@@ -7685,7 +7683,7 @@ function renderBudgetList() {
           const tbl = dlyTable(PR.rows.concat(INS_EDIT ? [{ nw: true }] : []), x => x.nw
             ? { lot: newIn("lot", "dlyLotDl"), sec: newIn("sec", "dlySecDl"), pred: "", succ: "", deb: "", fin: "", dur: "", marge: "", jal: "", __cb: "", __td_marge: " dly-calc", __td_succ: " dly-calc" }
             : x.grp
-            ? { lot: `<span class="dly-lotc" ${ind(x.lvl)}>${dlyGrpRd(x.path)}<span class="dly-fold" data-path="${esc(x.path)}"><b>${x.fold ? "›" : "⌄"}</b></span>${lotNoHTML(x.lab)}${nm("grp", `data-path="${esc(x.path)}"`, x.lab.name)}</span>`, sec: "", pred: "", succ: "", __td_succ: " dly-calc",
+            ? { lot: `<span class="dly-lotc" ${ind(x.lvl)}>${dlyGrpRd(x.path)}${lotNoHTML(x.lab)}<span class="dly-fold" data-path="${esc(x.path)}"><b>${x.fold ? "›" : "⌄"}</b></span>${nm("grp", `data-path="${esc(x.path)}"`, x.lab.name)}</span>`, sec: "", pred: "", succ: "", __td_succ: " dly-calc",
                 deb: `<b>${esc(dFr(x.deb))}</b>`, fin: `<b>${esc(dFr(x.fin))}</b>`, dur: x.dur === "" ? "" : `<b>${x.dur}</b>`, marge: "", jal: "", __td_marge: " dly-calc",
                 __td_deb: " dly-calc", __td_fin: " dly-calc", __td_dur: " dly-calc",   /* v561 : dates des titres calculées = fond gris */
                 __cb: `<input type="checkbox" class="dlyp-cb" data-path="${esc(x.path)}"${x.all.length && x.all.every(t => SEL.has(t.key)) ? " checked" : ""}${x.all.some(t => SEL.has(t.key)) && !x.all.every(t => SEL.has(t.key)) ? " data-part=\"1\"" : ""}>` }
@@ -12524,7 +12522,9 @@ ${A}</Assignments>
       const head = tb.tHead.getBoundingClientRect().height;
       const rows = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight);
       const tot = rows.filter(r => r.classList.length && /tot/i.test(r.className) && /\bTOTAL\b/.test(r.textContent || ""));   /* v743 : classe d'abord (rapide), texte ensuite */
-      const row = rows.find(r => !tot.includes(r) && r.matches("tr.ins-new")) || rows.find(r => !tot.includes(r));   /* v774 : ligne de saisie d'abord (hauteur stable) */
+      /* v787 : la ligne « CRÉER … ICI » est fixée en bas — mode réduit = UNE ligne de données entière + la ligne CRÉER */
+      const nrw = rows.find(r => !tot.includes(r) && r.matches("tr.ins-new")), dat = rows.find(r => !tot.includes(r) && r !== nrw);
+      const row = { getBoundingClientRect: () => ({ height: (dat ? dat.getBoundingClientRect().height : 0) + (nrw ? nrw.getBoundingClientRect().height : 0) || 21 }) };
       const foot = (tb.tFoot && tb.tFoot.offsetHeight ? tb.tFoot.getBoundingClientRect().height : 0) + tot.reduce((t, r) => t + r.getBoundingClientRect().height, 0);
       let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
       const bar = Math.max(0, scr.offsetHeight - scr.clientHeight);
@@ -12539,24 +12539,23 @@ ${A}</Assignments>
       if (u === "detail") return layDetMin();
       const pg = page$(); if (!pg) return 0;
       if (u === "hier") { const c = [...pg.querySelectorAll(".bdg-h-col")].find(x => x.offsetHeight); if (!c) return 44;
-        const hd = c.querySelector(".bdg-h-head"), li = c.querySelector(".ins-li.ins-new") || c.querySelector(".ins-li, .bdg-h-item");
-        return Math.ceil((hd ? hd.getBoundingClientRect().height : 0) + (li ? li.getBoundingClientRect().height : 21) + Math.max(0, c.offsetHeight - c.clientHeight)) + 1; }
+        const hd = c.querySelector(".bdg-h-head"), nw = c.querySelector(".ins-li.ins-new"), li = [...c.querySelectorAll(".ins-li, .bdg-h-item")].find(x => x !== nw && x.offsetHeight);
+        return Math.ceil((hd ? hd.getBoundingClientRect().height : 0) + ((li ? li.getBoundingClientRect().height : 0) + (nw ? nw.getBoundingClientRect().height : 0) || 21) + Math.max(0, c.offsetHeight - c.clientHeight)) + 1; }
       const scr = pg.querySelector(LAY_SC[u]); if (!scr || !scr.offsetHeight) return { client: 65 }[u] || 44;
       const tb = [...scr.querySelectorAll("table")].find(t => t.offsetHeight && t.tHead); if (!tb) return 44;
       const top = tb.getBoundingClientRect().top - scr.getBoundingClientRect().top + scr.scrollTop;
       const rows = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight);
-      const row = rows.find(r => r.matches(LAY_NEW)) || rows[0];
+      const nrw = rows.find(r => r.matches(LAY_NEW)), dat = rows.find(r => r !== nrw && !(r.classList.length && /tot/i.test(r.className)));
       const foot = tb.tFoot && tb.tFoot.offsetHeight ? tb.tFoot.getBoundingClientRect().height : 0;
-      return Math.ceil(top + tb.tHead.getBoundingClientRect().height + (row ? row.getBoundingClientRect().height : 21) + foot + Math.max(0, scr.offsetHeight - scr.clientHeight)) + 1;
+      return Math.ceil(top + tb.tHead.getBoundingClientRect().height + ((dat ? dat.getBoundingClientRect().height : 0) + (nrw ? nrw.getBoundingClientRect().height : 0) || 21) + foot + Math.max(0, scr.offsetHeight - scr.clientHeight)) + 1;
     };
     /* à la hauteur minimale : la seule ligne visible est la ligne de saisie, entière */
     const layMinScroll = () => { const pg = page$(); if (!pg) return;
       Object.keys(LAY_SC).forEach(u => { if (pg.classList.contains("max-" + u)) return; const scr = pg.querySelector(LAY_SC[u]); if (!scr || !scr.offsetHeight) return;
         const nr = scr.querySelector("tbody " + LAY_NEW.split(", ").join(", tbody ")); if (!nr) return;
         const m = u === "detail" ? layDetMin() : layMinOf(u); if (scr.getBoundingClientRect().height > m + 3) return;
-        /* la ligne de saisie juste sous les titres des colonnes (collés en haut) : entière, seule */
-        const tb = nr.closest("table"), hh = tb && tb.tHead ? tb.tHead.getBoundingClientRect().height : 0;
-        scr.scrollTop = Math.max(0, nr.getBoundingClientRect().top - scr.getBoundingClientRect().top + scr.scrollTop - hh); }); };
+        /* v787 : haut du tableau (première ligne entière), la ligne CRÉER reste fixée en bas */
+        scr.scrollTop = 0; }); };
     shell.__layMinScroll = layMinScroll;
     /* v774 (point 9) : DISPOSITION PAR DÉFAUT — ordre d'origine et chaque bloc à exactement 5 lignes visibles
        (titres des colonnes + 5 lignes entières + pied), enregistré : l'écran se rouvre ainsi */

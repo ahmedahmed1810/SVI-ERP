@@ -612,9 +612,9 @@ def main():
         # remarque 74 (v774, point 7) : un seul petit cadre, fin, de taille fixe, dans la case
         pg.click('table.ins-table[data-ik="chg"] tr[data-iid="c2"] input.ins-in[data-f="q"]'); pg.wait_for_timeout(150)
         pg.wait_for_timeout(100)
-        g74 = pg.evaluate("() => { const a = document.activeElement, td = a.closest('td'), f = document.getElementById('sviSelFrame'); if (!f) return [false, false]; const r = td.getBoundingClientRect(), q = f.getBoundingClientRect(); return [f.style.display === 'block', q.height <= 22.5 && q.width < r.width && q.left >= r.left && q.right <= r.right && q.top >= r.top && q.bottom <= r.bottom]; }")
+        g74 = pg.evaluate("() => { const a = document.activeElement, td = a.closest('td'), f = document.getElementById('sviSelFrame'); if (!f) return [false, false]; const r = td.getBoundingClientRect(), q = f.getBoundingClientRect(); return [f.style.display === 'block', Math.abs(q.left - r.left) <= 1 && Math.abs(q.right - r.right) <= 1 && q.top >= r.top - 1 && q.bottom <= r.bottom + 1 && q.height >= r.height - 4]; }")
         pg.keyboard.press("Escape")
-        check("remarque 74 / v774 : petit cadre de taille fixe dans la case sélectionnée", g74 == [True, True], g74)
+        check("remarque 74 / v787 : le cadre prend exactement le bord de la case sélectionnée", g74 == [True, True], g74)
         # remarque 75 : v782 : SAISIE DIRECTE sur place depuis le ⋯ du DÉTAIL (AGRANDIR = plein écran comme les autres blocs) ; plus dans IMPORTER
         pg.evaluate("() => { document.querySelector('#bdgDetailHead .blk-more')?.click(); document.querySelector('#blkMenu [data-sdo]')?.click(); }"); pg.wait_for_timeout(600)
         g75 = pg.evaluate("() => { const w = document.querySelector('#sdW.sd-inplace'); const tb = document.getElementById('bdgTabBody'); return [!!w, !!(w && w.closest('.bdg-d-page')), tb ? getComputedStyle(tb).display : '']; }")
@@ -654,7 +654,7 @@ def main():
             pg.click(sel); pg.wait_for_timeout(200)
             a = pg.evaluate("""() => { const a = document.activeElement, c = window.sviCellOf(a), f = document.getElementById('sviSelFrame');
                 if (!c || !f) return null; const r = c.getBoundingClientRect(), q = f.getBoundingClientRect();
-                return [a.classList.contains('svi-nav') || (a.tagName === 'TD' && a.classList.contains('svi-tdf')), f.style.display === 'block' && q.height <= 22.5 && q.height >= Math.min(10, r.height - 6) && q.width <= r.width && q.width > 10, window.sviCellKey(a), [r.top, r.height, r.width, q.top, q.height, q.width, f.style.display].map(x => typeof x === 'number' ? Math.round(x) : x)]; }""")
+                return [a.classList.contains('svi-nav') || (a.tagName === 'TD' && a.classList.contains('svi-tdf')), f.style.display === 'block' && q.height <= r.height + 1 && q.height >= Math.min(10, r.height - 6) && q.width <= r.width + 1 && q.width > 10,   /* v787 : cadre = bords de la case */ window.sviCellKey(a), [r.top, r.height, r.width, q.top, q.height, q.width, f.style.display].map(x => typeof x === 'number' ? Math.round(x) : x)]; }""")
             if a and not a[1]: print("RECT", sel, a[3])
             pg.keyboard.press("ArrowDown"); pg.wait_for_timeout(200)
             b = pg.evaluate("k => { const a = document.activeElement; const c = window.sviCellOf(a); return !!c && JSON.stringify(window.sviCellKey(a)) !== JSON.stringify(k); }", a[2] if a else None)
@@ -1013,7 +1013,7 @@ def main():
         check("v523 remarque 4 : lots cochés supprimés — les autres tableaux s'affichent", r4 == [False, True], r4)
         # remarque 6 : boutons-icônes à la même taille
         r6 = pg.evaluate("() => [...document.querySelectorAll('.bdg-d-hright .inst-act:not([hidden]), .bdg-d-hright .inst-nav, .blk-more')].filter(b => b.offsetParent !== null).map(b => Math.round(b.getBoundingClientRect().width) + 'x' + Math.round(b.getBoundingClientRect().height))")
-        check("v523 remarque 6 : boutons-icônes à la même taille (36 × 36)", len(r6) > 3 and all(x == "36x36" for x in r6), r6)
+        check("v523 remarque 6 / v787 : boutons-icônes de la barre à la même taille (36 × 36) ; ⋯ des blocs plus petit (28 × 24)", len(r6) > 3 and all(x in ("36x36", "28x24") for x in r6) and r6[0] == "36x36" and r6[-1] == "28x24", r6)
 
         # ===== v524 : remarques 1 à 5 (bis) =====
         pg.mouse.click(5, 5); pg.wait_for_timeout(200)
@@ -1278,7 +1278,7 @@ def main():
               q1 == [["3", True, False, True], ["2", True, True, False]] and q1b and q1b[1] and q1b[2], [q1, q1b])
         q2 = pg.evaluate("""() => { const m = s => { const e = document.querySelector(s); return e ? parseFloat(getComputedStyle(e).marginLeft) : null; };
             return [m('.lot-grp[data-path="GROUPE 4"] .lot-in'), m('.lot-grp[data-path="GROUPE 4 / GROUPE 4.1"] .lot-in'), m('.ins-li[data-iid="pa"] .lot-in')]; }""")
-        check("v530 remarque 2 : sous-groupe décalé au niveau des numéros de ses lots frères", q2 == [0, 30, 16], q2)
+        check("v530 remarque 2 / v787 : sous-groupe au rang de ses lots frères (numéro, signe, nom)", q2 == [0, 16, 16], q2)
         pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
         # DÉTAIL PRODUITS : la pastille du titre choisit / libère tous ses produits
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.prd.push({{ id: 'x9', des: 'BETON B25', u: 'M3', nbr: 2, d1: 1, d2: 1, d3: 1 }}); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
@@ -1395,7 +1395,7 @@ def main():
         grp = lambda t: [x for x in t.split(" | ") if x.startswith("GROUPE")]
         pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
         check("v532 : « GROUPE 6 » reste « GROUPE 6 » ; un nouveau titre garde son nom après d'autres glissements ; ses lots numérotés 6.1, 6.2",
-              "GROUPE 6" in grp(n0) and "GROUPE 6" in grp(n1) and len(grp(n2)) == 2 and grp(n3) == grp(n2) and "6.1 ZONE B" in n0, [n0, n1, n2, n3])
+              "GROUPE 6" in grp(n0) and "GROUPE 6" in grp(n1) and len(grp(n2)) == 2 and grp(n3) == grp(n2) and re.search(r"\b\d+\.1 ZONE B", n0) is not None, [n0, n1, n2, n3])   # v787 : un GROUPE est numéroté par sa place
 
         # ===== v533 : nom tapé sur un titre (RDC HAUT) gardé quand on glisse aussitôt une autre ligne =====
         pg.mouse.click(5, 5); pg.wait_for_timeout(200)
@@ -1814,10 +1814,10 @@ def main():
         g1 = pg.evaluate("() => { const hh = document.querySelector('.dlyg-hh'), vv = window.visualViewport, b = vv ? vv.offsetTop + vv.height : innerHeight; const r = hh.getBoundingClientRect(); return [Math.round(r.top), Math.round(b)]; }")
         g2 = pg.evaluate("() => { const sc = document.querySelector('.dly-scroll'), hh = document.querySelector('.dlyg-hh'), vv = window.visualViewport, b = vv ? vv.offsetTop + vv.height : innerHeight; const r = sc.getBoundingClientRect(); return [Math.round(r.bottom), Math.round(b), Math.round(hh.getBoundingClientRect().bottom)]; }")
         check("v551 FORMAT 200 : le cadre du PLANNING se ferme au bas de l'écran ; la barre « = » est posée sur sa limite (rien en dessous)",
-              g2[0] <= g2[1] + 1 and g2[1] - g2[0] <= 30 and 0 <= g2[0] - g2[2] <= 12, g2)   # v727 : blocs à leur nombre de lignes, la page est plus courte (cadre = hauteur du bloc détail)
+              g2[0] <= g2[1] + 1 and g2[1] - g2[0] <= 60 and 0 <= g2[0] - g2[2] <= 12, g2)   # v787 : barres de titre des blocs moins hautes — page plus courte   # v727 : blocs à leur nombre de lignes, la page est plus courte (cadre = hauteur du bloc détail)
         pg.evaluate("() => localStorage.removeItem('svi_dlyhh_v1')"); pg.evaluate(f"() => {DXJ}.hh(110)"); pg.wait_for_timeout(500)
         check("v550 : graphique plein écran stable quand la page défile ; graphique caché = barre « = » visible au bas de l'écran",
-              len(set(g0)) == 1 and g0[0] > 0 and g1[0] < g1[1] and g1[1] - g1[0] < 60, [g0, g1])
+              len(set(g0)) == 1 and g0[0] > 0 and g1[0] < g1[1] and g1[1] - g1[0] < 90, [g0, g1])   # v787 : page plus courte (barres de titre des blocs)
         check("v547 R22 : COMPRESSER coupe la tâche autour de la pénurie (02-03 / 05-06) ; deux barres, pastille 2 ; MORCEAUX → RECOLLER = un seul morceau de 4 jours",
               m1[0] == '[["2026-11-02","2026-11-03"],["2026-11-05","2026-11-06"]]' and m1[1] == 2 and m1[2] == "2" and m2[0].startswith("MORCEAUX") and m2[1] == 2 and m3 == '[["2026-11-02","2026-11-05"]]', [m1, m2, m3])
 

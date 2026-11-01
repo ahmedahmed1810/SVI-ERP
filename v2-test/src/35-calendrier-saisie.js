@@ -615,9 +615,9 @@ const sviFrame = () => {
   }
   /* v774 (point 7) : UN SEUL CADRE, FIN, DE TAILLE FIXE — le petit cadre autour du texte (3 px en retrait des bords, 22 px de haut au plus, centré),
      jamais toute la case ni la ligne ; le point rouge suit son coin bas droit */
-  { const cy = (v.full.top + v.full.bottom) / 2, hh = Math.min(22, v.full.height - 4) / 2;
-    v.left = Math.max(v.left, v.full.left + 3); v.right = Math.min(v.right, v.full.right - 3);
-    v.top = Math.max(v.top, cy - hh); v.bottom = Math.min(v.bottom, cy + hh);
+  /* v787 (Ahmed, 01/11) : le cadre prend exactement le bord de la case, sur toute sa largeur et toute sa hauteur */
+  { v.left = Math.max(v.left, v.full.left); v.right = Math.min(v.right, v.full.right);
+    v.top = Math.max(v.top, v.full.top); v.bottom = Math.min(v.bottom, v.full.bottom);
     if (v.bottom - v.top < 4 || v.right - v.left < 4) { SVI_FR.style.display = "none"; return; } }
   let col = (getComputedStyle(c).getPropertyValue("--inst") || "").trim() || "#111827";
   { const pgS = c.closest('[class*="bdg-inst-"]'); if (pgS && !pgS.matches(".bdg-inst-instance, .bdg-inst-fige")) col = "#98a2b3"; }   /* figé : vert gardé (31/10/2026) */   /* v736 : lecture seule = cadre gris */

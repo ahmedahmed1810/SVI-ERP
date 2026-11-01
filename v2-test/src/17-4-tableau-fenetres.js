@@ -144,7 +144,7 @@
           const tbl = dlyTable(PR.rows.concat(INS_EDIT ? [{ nw: true }] : []), x => x.nw
             ? { lot: newIn("lot", "dlyLotDl"), sec: newIn("sec", "dlySecDl"), pred: "", succ: "", deb: "", fin: "", dur: "", marge: "", jal: "", __cb: "", __td_marge: " dly-calc", __td_succ: " dly-calc" }
             : x.grp
-            ? { lot: `<span class="dly-lotc" ${ind(x.lvl)}>${dlyGrpRd(x.path)}<span class="dly-fold" data-path="${esc(x.path)}"><b>${x.fold ? "›" : "⌄"}</b></span>${lotNoHTML(x.lab)}${nm("grp", `data-path="${esc(x.path)}"`, x.lab.name)}</span>`, sec: "", pred: "", succ: "", __td_succ: " dly-calc",
+            ? { lot: `<span class="dly-lotc" ${ind(x.lvl)}>${dlyGrpRd(x.path)}${lotNoHTML(x.lab)}<span class="dly-fold" data-path="${esc(x.path)}"><b>${x.fold ? "›" : "⌄"}</b></span>${nm("grp", `data-path="${esc(x.path)}"`, x.lab.name)}</span>`, sec: "", pred: "", succ: "", __td_succ: " dly-calc",
                 deb: `<b>${esc(dFr(x.deb))}</b>`, fin: `<b>${esc(dFr(x.fin))}</b>`, dur: x.dur === "" ? "" : `<b>${x.dur}</b>`, marge: "", jal: "", __td_marge: " dly-calc",
                 __td_deb: " dly-calc", __td_fin: " dly-calc", __td_dur: " dly-calc",   /* v561 : dates des titres calculées = fond gris */
                 __cb: `<input type="checkbox" class="dlyp-cb" data-path="${esc(x.path)}"${x.all.length && x.all.every(t => SEL.has(t.key)) ? " checked" : ""}${x.all.some(t => SEL.has(t.key)) && !x.all.every(t => SEL.has(t.key)) ? " data-part=\"1\"" : ""}>` }

@@ -1270,14 +1270,12 @@
       if (lotNumC.k === k) return lotNumC.M;
       const M = new Map(), cnt = new Map(), res = new Map();
       const L = INS.lot.filter(x => !x.t);
-      L.forEach(x => { let p = ""; lotSegs(x).forEach(g => { const par = p; p = p ? p + " / " + U_(g) : U_(g); const a = lotAutoNo(g); if (a) { if (!res.has(par)) res.set(par, new Set()); res.get(par).add(a.split(".").pop()); } }); });
+      /* v787 (Ahmed, 01/11) : un GROUPE est numéroté par sa place, comme les lots (GROUPE 5 en 2e position = 2 ; ses lots 2.1, 2.2) */
       L.forEach(x => {
         let p = "";
         lotSegs(x).forEach(g => {
           const par = p; p = p ? p + " / " + U_(g) : U_(g);
           if (M.has(p)) return;
-          const a = lotAutoNo(g);
-          if (a) { M.set(p, a); return; }
           let n = cnt.get(par) || 0;
           do n++; while (res.has(par) && res.get(par).has(String(n)));
           cnt.set(par, n);
@@ -1349,7 +1347,7 @@
     const lotTreeHTML = list => lotTreeRows(list).map(x => {
       /* v530 (remarque 2) : un sous-groupe (titre sans lot à lui) est décalé au niveau des numéros de ses lots frères (5.1, 7.1…),
          pour ne plus paraître au rang des lots du dessus */
-      const pad = `style="margin-left:${x.lvl * 16 + (x.grp && x.lvl ? 14 : 0)}px"`;
+      const pad = `style="margin-left:${x.lvl * 16}px"`;
       /* v510 (remarque 68) : signe d'un niveau aux couleurs des ronds de sa branche (rouge choisi, bleu lié, violet mélange) */
       const UB = INS.lot.filter(r => !r.t && lotUnder(r, x.segs));
       const fst = x.kids && INS_EDIT ? sviFoldState(UB.some(r => LK.lot === r.id), UB.some(r => lkHit("lot", r.id))) : "";
@@ -1360,7 +1358,7 @@
         const all = br.length && br.every(r => r.on === true);
         const GL = lotLab(x.segs);
         /* v510 (remarque 68) : niveau replié qui cache un lot coché = bleu */
-        return `<div class="ins-li lot-grp${dlyIsFolded(x.path) && br.some(r => r.on === true) ? " ins-hasck" : ""}" data-path="${esc(x.path)}"><span class="ins-rdc">${lkRdPart("lot", x.path)}</span><span class="lot-in" ${pad}>${fold}${lotNoHTML(GL)}${INS_EDIT ? `<input class="lot-gname" data-kind="grp" data-path="${esc(x.path)}" value="${esc(GL.name)}" autocomplete="off">` : `<span>${esc(GL.name)}</span>`}</span>
+        return `<div class="ins-li lot-grp${dlyIsFolded(x.path) && br.some(r => r.on === true) ? " ins-hasck" : ""}" data-path="${esc(x.path)}"><span class="ins-rdc">${lkRdPart("lot", x.path)}</span><span class="lot-in" ${pad}>${lotNoHTML(GL)}${fold}${INS_EDIT ? `<input class="lot-gname" data-kind="grp" data-path="${esc(x.path)}" value="${esc(GL.name)}" autocomplete="off">` : `<span>${esc(GL.name)}</span>`}</span>
           ${INS_EDIT ? `<span class="ins-delc"><input type="checkbox" class="lot-gcb" data-path="${esc(x.path)}"${all ? " checked" : ""}></span>` : ""}</div>`;
       }
       const r = x.r, k = "lot";
@@ -1368,8 +1366,8 @@
       const LL = lotLab(x.segs);
       const nm = x.segs.length ? LL.name : (r.v || "");
       return `<div class="ins-li${x.kids ? " lot-par" : ""}${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
-          ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><span class="lot-in" ${pad}>${fold}${lotNoHTML(LL)}<input class="ins-in" data-f="v" enterkeyhint="next" data-pre="${esc(pre)}" value="${esc(nm)}" autocomplete="off"></span>
-            <span class="ins-delc">${insDelCell(r)}</span>` : `<span class="lot-in" ${pad}>${fold}<span>${esc(x.segs.length ? LL.full : nm)}</span></span>`}
+          ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><span class="lot-in" ${pad}>${lotNoHTML(LL)}${fold}<input class="ins-in" data-f="v" enterkeyhint="next" data-pre="${esc(pre)}" value="${esc(nm)}" autocomplete="off"></span>
+            <span class="ins-delc">${insDelCell(r)}</span>` : `<span class="lot-in" ${pad}>${lotNoHTML(LL)}${fold}<span>${esc(x.segs.length ? LL.name : nm)}</span></span>`}
         </div>`;
     }).join("");
     /* glissement d'un lot (FORMAT 26, 44) : dans un niveau = passe dessous ; avant / après = même niveau que la ligne visée ;

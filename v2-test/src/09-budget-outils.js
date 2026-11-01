@@ -339,7 +339,7 @@ const LVL_AUTO = /^(NOUVEAU )?(NIVEAU|GROUPE) \d+(\.\d+)*$/i;
 /* — de src/13-instance-saisie.js — */
 const lotAutoNo = g => { const m = String(g || "").trim().match(/^(?:NOUVEAU )?(?:NIVEAU|GROUPE) (\d+(?:\.\d+)*)$/i); return m ? m[1] : ""; };
 /* — de src/13-instance-saisie.js — */
-const lotNoHTML = L => L.auto || !L.no ? "" : `<span class="lvl-no">${esc(L.no)}</span>`;
+const lotNoHTML = L => !L.no ? "" : `<span class="lvl-no">${esc(L.no)}</span>`;
 /* — de src/13-instance-saisie.js — */
 const lotUnder = (r, P) => { const s2 = lotSegs(r); return s2.length >= P.length && P.every((g, i) => U_(g) === U_(s2[i])); };
 /* — de src/13-instance-saisie.js — */
