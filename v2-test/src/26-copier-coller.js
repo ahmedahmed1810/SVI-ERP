@@ -319,7 +319,8 @@
       /* v511 (remarque 75) : AGRANDIR du bloc détail (charges / produits) = SAISIE DIRECTE sur place ; retoucher = la fermer */
       /* v573 (remarque 19) : plein écran du bloc détail encore ouvert (agrandi sur un autre onglet) : le bouton réduit d'abord */
       if (act === "max" && blk === "detail" && shell.querySelector(".bdg-d-page.max-detail")) return toggleMax(blk);
-      if (act === "max" && blk === "detail" && INS && INS_EDIT && (active === "prd" || active === "chg") && shell.__sdOpen) {
+      /* v782 (remarque 4) : AGRANDIR du DÉTAIL = plein écran comme les autres blocs ; la SAISIE DIRECTE passe dans le ⋯ du bloc (act « sd ») */
+      if (act === "sd" && blk === "detail" && INS && INS_EDIT && (active === "prd" || active === "chg") && shell.__sdOpen) {
         if (shell.__sdClose && shell.__sdClose()) return;
         shell.__sdOpen(active);
         /* v512 (remarque 78) : onglets juste sous le bandeau, SAISIE DIRECTE à la hauteur de l'écran (en-têtes et boutons visibles) */
@@ -470,6 +471,10 @@
         m.addEventListener("click", e => { const b = e.target.closest("[data-cmpx]"); if (!b) return; e.stopPropagation(); m.remove(); if (b.dataset.cmpx === "cmp") shell.__cmpWin(); else if (b.dataset.cmpx === "ctr") shell.__ctrWin(LK.des); else shell.__sdp(); }, true);
       }
       /* v774 (point 2) : COÛT D'UNE JOURNÉE DE MAIN-D'ŒUVRE passe dans le ⋯ principal */
+      if (INS && INS_EDIT && (active === "chg" || active === "prd") && shell.__sdOpen && acts.some(a => a.dataset.blk === "detail")) {
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-sdo="1"><span>SAISIE DIRECTE</span></button>`);
+        m.addEventListener("click", e => { const b = e.target.closest("[data-sdo]"); if (!b) return; e.stopPropagation(); m.remove(); runBlkAct("detail", "sd"); }, true);
+      }
       /* v500 (remarque 46) : MARGE — TOUT DÉPLIER / TOUT REPLIER */
       if (active === "lnk" && shell.__mg && acts.some(a => a.dataset.blk === "detail")) {
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-mgf="pv"><span>PRIX DE VENTE PAR LA MARGE…</span></button><div class="blk-sep"></div><button type="button" data-mgf="open"><span>TOUT DÉPLIER</span></button><button type="button" data-mgf="close"><span>TOUT REPLIER</span></button><div class="blk-sep"></div>`);

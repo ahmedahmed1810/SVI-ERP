@@ -28,7 +28,8 @@
       let etpTab = "";
       try { etpTab = localStorage.getItem(ETP_K) || ""; } catch (e) {}
       /* ---------- AVENANTS ---------- */
-      const AV_COLS = [["avnat", "ÉTAPE", x => x.nat, ""], ["avref", "RÉFÉRENCE", x => x.r, ""], ["avint", "INTITULÉ", x => x.int, ""],
+      /* v782 (remarque 2) : plus de colonne ÉTAPE — la nature est dans la référence (INI, AVn, CNS) */
+      const AV_COLS = [["avref", "RÉFÉRENCE", x => x.r, ""], ["avint", "INTITULÉ", x => x.int, ""],
         ["avttc", "MONTANT TTC", x => x.ttc, "number"], ["avst", "ÉTAT", x => x.st, "center"], ["avdt", "VALIDÉ LE", x => x.val, ""]];
       let avShown = [];
       const avRows = () => {
@@ -57,7 +58,7 @@
         t.style.width = cwTableW("vav", AV_COLS) + "px";
         t.innerHTML = `<colgroup>${cwCols("vav", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("vav", c[0], c[1], c[3])).join("")}</tr></thead>
           <tbody>${rows.map(x => `<tr class="av-row st-${x.cls}${x.ref === ref ? " ver-act" : ""}" data-avr="${esc(x.ref)}">${oc.map(c => `<td class="${c[3]}">${esc(c[0] === "avttc" ? money(c[2](x)) : c[2](x))}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}
-          <tr class="scn-new${ok ? "" : " off"}" data-avadd${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="${oc.length}">CRÉER UN AVENANT ICI…</td></tr></tbody>`;
+          ${ok ? `<tr class="scn-new" data-avadd><td colspan="${oc.length}">CRÉER UN AVENANT ICI…</td></tr>` : ""}</tbody>`;   /* v782 (remarque 1) : seulement si le budget initial est validé et qu'aucun avenant n'est en instance */
       };
       shell.querySelector(".blk-etp .blk-av")?.addEventListener("click", e => {
         if (e.target.closest(".cf-btn, .col-rs")) return;

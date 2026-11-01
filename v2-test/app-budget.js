@@ -19442,7 +19442,8 @@ ${A}</Assignments>
       let etpTab = "";
       try { etpTab = localStorage.getItem(ETP_K) || ""; } catch (e) {}
       /* ---------- AVENANTS ---------- */
-      const AV_COLS = [["avnat", "ÉTAPE", x => x.nat, ""], ["avref", "RÉFÉRENCE", x => x.r, ""], ["avint", "INTITULÉ", x => x.int, ""],
+      /* v782 (remarque 2) : plus de colonne ÉTAPE — la nature est dans la référence (INI, AVn, CNS) */
+      const AV_COLS = [["avref", "RÉFÉRENCE", x => x.r, ""], ["avint", "INTITULÉ", x => x.int, ""],
         ["avttc", "MONTANT TTC", x => x.ttc, "number"], ["avst", "ÉTAT", x => x.st, "center"], ["avdt", "VALIDÉ LE", x => x.val, ""]];
       let avShown = [];
       const avRows = () => {
@@ -19471,7 +19472,7 @@ ${A}</Assignments>
         t.style.width = cwTableW("vav", AV_COLS) + "px";
         t.innerHTML = `<colgroup>${cwCols("vav", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("vav", c[0], c[1], c[3])).join("")}</tr></thead>
           <tbody>${rows.map(x => `<tr class="av-row st-${x.cls}${x.ref === ref ? " ver-act" : ""}" data-avr="${esc(x.ref)}">${oc.map(c => `<td class="${c[3]}">${esc(c[0] === "avttc" ? money(c[2](x)) : c[2](x))}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}
-          <tr class="scn-new${ok ? "" : " off"}" data-avadd${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="${oc.length}">CRÉER UN AVENANT ICI…</td></tr></tbody>`;
+          ${ok ? `<tr class="scn-new" data-avadd><td colspan="${oc.length}">CRÉER UN AVENANT ICI…</td></tr>` : ""}</tbody>`;   /* v782 (remarque 1) : seulement si le budget initial est validé et qu'aucun avenant n'est en instance */
       };
       shell.querySelector(".blk-etp .blk-av")?.addEventListener("click", e => {
         if (e.target.closest(".cf-btn, .col-rs")) return;
@@ -22225,7 +22226,8 @@ ${A}</Assignments>
       /* v511 (remarque 75) : AGRANDIR du bloc détail (charges / produits) = SAISIE DIRECTE sur place ; retoucher = la fermer */
       /* v573 (remarque 19) : plein écran du bloc détail encore ouvert (agrandi sur un autre onglet) : le bouton réduit d'abord */
       if (act === "max" && blk === "detail" && shell.querySelector(".bdg-d-page.max-detail")) return toggleMax(blk);
-      if (act === "max" && blk === "detail" && INS && INS_EDIT && (active === "prd" || active === "chg") && shell.__sdOpen) {
+      /* v782 (remarque 4) : AGRANDIR du DÉTAIL = plein écran comme les autres blocs ; la SAISIE DIRECTE passe dans le ⋯ du bloc (act « sd ») */
+      if (act === "sd" && blk === "detail" && INS && INS_EDIT && (active === "prd" || active === "chg") && shell.__sdOpen) {
         if (shell.__sdClose && shell.__sdClose()) return;
         shell.__sdOpen(active);
         /* v512 (remarque 78) : onglets juste sous le bandeau, SAISIE DIRECTE à la hauteur de l'écran (en-têtes et boutons visibles) */
@@ -22376,6 +22378,10 @@ ${A}</Assignments>
         m.addEventListener("click", e => { const b = e.target.closest("[data-cmpx]"); if (!b) return; e.stopPropagation(); m.remove(); if (b.dataset.cmpx === "cmp") shell.__cmpWin(); else if (b.dataset.cmpx === "ctr") shell.__ctrWin(LK.des); else shell.__sdp(); }, true);
       }
       /* v774 (point 2) : COÛT D'UNE JOURNÉE DE MAIN-D'ŒUVRE passe dans le ⋯ principal */
+      if (INS && INS_EDIT && (active === "chg" || active === "prd") && shell.__sdOpen && acts.some(a => a.dataset.blk === "detail")) {
+        m.insertAdjacentHTML("afterbegin", `<button type="button" data-sdo="1"><span>SAISIE DIRECTE</span></button>`);
+        m.addEventListener("click", e => { const b = e.target.closest("[data-sdo]"); if (!b) return; e.stopPropagation(); m.remove(); runBlkAct("detail", "sd"); }, true);
+      }
       /* v500 (remarque 46) : MARGE — TOUT DÉPLIER / TOUT REPLIER */
       if (active === "lnk" && shell.__mg && acts.some(a => a.dataset.blk === "detail")) {
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-mgf="pv"><span>PRIX DE VENTE PAR LA MARGE…</span></button><div class="blk-sep"></div><button type="button" data-mgf="open"><span>TOUT DÉPLIER</span></button><button type="button" data-mgf="close"><span>TOUT REPLIER</span></button><div class="blk-sep"></div>`);

@@ -154,7 +154,7 @@ def main():
             document.getElementById('svConf')?.remove();
             const K = JSON.parse(keep); if (K.vfz) I.vfz = K.vfz; else delete I.vfz; if (keepT === null) localStorage.removeItem('svi_etp_tab_v1'); else localStorage.setItem('svi_etp_tab_v1', keepT); X.refreshAll(); return r; }""".replace("INS_X", ins))
         check("v756 / v757 : un seul bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES, boutons de l'onglet ouvert, menu ⋯ (COMPARER, CRÉER, APERÇU, EXPORTER), onglet AVENANTS ; COMPARER côte à côte avec écarts",
-              e756[:5] == [True, "av,scn,ver,rcl", True, True, True] and e756[5] == "BUDGET INITIAL" and "COMPARER" not in e756[6] and e756[6].startswith("CRÉER UN AVENANT|IMPORTER") and e756[6].index("EXPORTER") < e756[6].index("APERÇU") and e756[7] == [3, 13, True], e756)
+              e756[:5] == [True, "av,scn,ver,rcl", True, True, True] and e756[5].endswith(" INI") and "COMPARER" not in e756[6] and e756[6].startswith("CRÉER UN AVENANT|IMPORTER") and e756[6].index("EXPORTER") < e756[6].index("APERÇU") and e756[7] == [3, 13, True], e756)
         # v758 : fenêtre d'import unique — sources FICHIER / GOOGLE SHEETS / MS PROJECT (XML) / AUTRE BUDGET ; un fichier est lu à blanc (budget
         # ouvert inchangé) puis proposé comme source de la même fenêtre (cases, aperçu, IMPORTER) ; IMPORTER dans AVENANTS, SCÉNARIOS, RECALAGES, pas VERSIONS
         import tempfile
@@ -608,14 +608,14 @@ def main():
         g74 = pg.evaluate("() => { const a = document.activeElement, td = a.closest('td'), f = document.getElementById('sviSelFrame'); if (!f) return [false, false]; const r = td.getBoundingClientRect(), q = f.getBoundingClientRect(); return [f.style.display === 'block', q.height <= 22.5 && q.width < r.width && q.left >= r.left && q.right <= r.right && q.top >= r.top && q.bottom <= r.bottom]; }")
         pg.keyboard.press("Escape")
         check("remarque 74 / v774 : petit cadre de taille fixe dans la case sélectionnée", g74 == [True, True], g74)
-        # remarque 75 : AGRANDIR = SAISIE DIRECTE sur place ; plus dans IMPORTER
-        pg.evaluate("() => { const b = document.querySelector('.blk-max-btn[data-blk=\"detail\"]'); b && b.click(); }"); pg.wait_for_timeout(600)
+        # remarque 75 : v782 : SAISIE DIRECTE sur place depuis le ⋯ du DÉTAIL (AGRANDIR = plein écran comme les autres blocs) ; plus dans IMPORTER
+        pg.evaluate("() => { document.querySelector('#bdgDetailHead .blk-more')?.click(); document.querySelector('#blkMenu [data-sdo]')?.click(); }"); pg.wait_for_timeout(600)
         g75 = pg.evaluate("() => { const w = document.querySelector('#sdW.sd-inplace'); const tb = document.getElementById('bdgTabBody'); return [!!w, !!(w && w.closest('.bdg-d-page')), tb ? getComputedStyle(tb).display : '']; }")
         g78 = pg.evaluate("""() => { const w = document.querySelector('#sdW.sd-inplace'), tabs = document.getElementById('bdgTabs'); if (!w || !tabs) return null;
             const tr = tabs.getBoundingClientRect(), wr = w.getBoundingClientRect(), th = w.querySelector('thead').getBoundingClientRect(), ok = w.querySelector('.sd-ok').getBoundingClientRect();
             return [tr.height > 0 && tr.bottom <= wr.top + 2, th.top >= 0 && th.bottom <= innerHeight, ok.bottom <= innerHeight + 1]; }""")
         check("remarque 78 : SAISIE DIRECTE sur place sous les onglets, en-têtes et VALIDER visibles", g78 == [True, True, True], g78)
-        pg.evaluate("() => { const b = document.querySelector('.blk-max-btn[data-blk=\"detail\"]'); b && b.click(); }"); pg.wait_for_timeout(400)
+        pg.evaluate("() => { document.querySelector('#bdgDetailHead .blk-more')?.click(); document.querySelector('#blkMenu [data-sdo]')?.click(); }"); pg.wait_for_timeout(400)
         g75b = pg.evaluate("() => [!!document.querySelector('#sdW'), getComputedStyle(document.getElementById('bdgTabBody')).display]")
         check("remarque 75 : AGRANDIR = SAISIE DIRECTE sur place dans le bloc, retoucher = retour au tableau", g75 == [True, True, "none"] and g75b[0] is False and g75b[1] != "none", [g75, g75b])
         # remarque 79 : Entrée sur un titre de charges groupé (valeur changée → tableau redessiné) : la case du dessous reste sélectionnée
