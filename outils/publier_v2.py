@@ -1,5 +1,5 @@
 """Passe la version test (v2-test) en version validée (v2).
-Copie app.js et styles.css, et refait v2/index.html à partir de v2-test/index.html :
+Copie les fichiers des modules (app.js, app-budget.js, app-achats.js, app-autres.js — v753) et styles.css, et refait v2/index.html à partir de v2-test/index.html :
 - sans le préfixe des données de test ni le bandeau VERSION TEST, titre « SVI ERP — V2 » ;
 - au premier lancement sur un appareil, les données de la version test (préfixe « svitest: », bases « svitest_… »)
   sont copiées une fois vers la version validée, puis la page se recharge (drapeau svi_from_test_v1).
@@ -10,6 +10,7 @@ T, V = os.path.join(R, "v2-test"), os.path.join(R, "v2")
 s = open(os.path.join(T, "index.html"), encoding="utf-8").read()
 shim = re.search(r"\n  <!-- VERSION DE TEST[^\n]*-->\n  <script>.*?</script>\n", s, re.S)
 tag = re.search(r'\n  <div style="position:fixed;[^>]*id="sviTestTag">VERSION TEST</div>\n', s, re.S)
+APPS = re.findall(r'  <script src="(app[\w-]*\.js)\?v=(\d+)"></script>\n', s)
 app = re.search(r'  <script src="(app\.js\?v=\d+)"></script>', s)
 if not (shim and tag and app): sys.exit("v2-test/index.html : repères introuvables (préfixe, bandeau ou app.js)")
 MIG = r'''
@@ -60,8 +61,9 @@ MIG = r'''
 '''
 s = s.replace(shim.group(0), MIG, 1).replace(tag.group(0), "\n", 1)
 s = s.replace("<title>SVI ERP — TEST</title>", "<title>SVI ERP — V2</title>", 1)
-s = s.replace(app.group(0), '  <script>if (!window.__sviMig) document.write(\'<script src="%s"><\\/script>\');</script>' % app.group(1), 1)
+for f, v in APPS[1:]: s = s.replace('  <script src="%s?v=%s"></script>\n' % (f, v), "", 1)
+s = s.replace(app.group(0), '  <script>if (!window.__sviMig) document.write(%s);</script>' % " + ".join("\'<script src=\"%s?v=%s\"><\\/script>\'" % (f, v) for f, v in APPS), 1)
 if "svitest:" in s.split("<!-- v748")[0] or "VERSION TEST" in s: sys.exit("index.html : reste de la version test")
 open(os.path.join(V, "index.html"), "w", encoding="utf-8").write(s)
-for f in ("app.js", "styles.css"): shutil.copyfile(os.path.join(T, f), os.path.join(V, f))
+for f in [a for a, _ in APPS] + ["styles.css"]: shutil.copyfile(os.path.join(T, f), os.path.join(V, f))
 print("v2 publiée :", app.group(1))

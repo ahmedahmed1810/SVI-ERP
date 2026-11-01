@@ -45,9 +45,17 @@ def check(name, ok, info=""):
 def static_checks():
     import subprocess
     r = subprocess.run([sys.executable, os.path.join(ROOT, "outils", "assembler.py"), "--verifier"], capture_output=True, text=True)
-    check("app.js assemblé à partir de src/ (à jour)", r.returncode == 0, r.stdout.strip())
-    r = subprocess.run(["node", "--check", os.path.join(ROOT, "app.js")], capture_output=True, text=True)
-    check("app.js : syntaxe valide", r.returncode == 0, r.stderr[:300])
+    check("fichiers des modules assemblés à partir de src/ (à jour)", r.returncode == 0, r.stdout.strip())
+    # v753 : un fichier par module — chacun a une syntaxe valide et index.html les charge tous, socle d'abord, même version
+    errs = []
+    for f in ("app.js", "app-budget.js", "app-achats.js", "app-autres.js"):
+        r = subprocess.run(["node", "--check", os.path.join(ROOT, f)], capture_output=True, text=True)
+        if r.returncode: errs.append(f + " : " + r.stderr[:200])
+    check("fichiers des modules : syntaxe valide", not errs, errs)
+    import re
+    tags = re.findall(r'<script src="(app[\w-]*\.js)\?v=(\d+)"', open(os.path.join(ROOT, "index.html"), encoding="utf-8").read())
+    check("index.html charge app.js, app-budget.js, app-achats.js, app-autres.js (même version)",
+          [t[0] for t in tags] == ["app.js", "app-budget.js", "app-achats.js", "app-autres.js"] and len({t[1] for t in tags}) == 1, tags)
 
 def main():
     static_checks()

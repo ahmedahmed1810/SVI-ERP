@@ -1,13 +1,22 @@
 # Sources de l'application (v2-test)
 
-`app.js` est **assemblé** à partir de ces fichiers : on modifie ici, puis
+Depuis la v753, l'application est **assemblée en un fichier par module** à partir de ces fichiers : on modifie ici, puis
 
 ```
-python3 outils/assembler.py          # écrit app.js
+python3 outils/assembler.py          # écrit app.js, app-budget.js, app-achats.js, app-autres.js
 python3 tests/test_app.py            # tests de non-régression
 ```
 
-Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'un budget) : ils se suivent et partagent les mêmes variables ; un fichier seul n'est donc pas un module JavaScript complet. Une ligne repère `/* ⟪ src/… ⟫ */` marque dans `app.js` le début de chaque fichier.
+| Fichier assemblé | Module | Fichiers de src/ |
+|---|---|---|
+| `app.js` | SOCLE COMMUN (chargé en premier ; garde le nom app.js, lu par le bouton NOUVELLE VERSION) | 00, 01, 02, 02e, 03, 05, 09, 09c, 32, 33, 34, 35 |
+| `app-budget.js` | BUDGET | 02b, 02c, 02d, 02f, 07, 10 à 27, 30 |
+| `app-achats.js` | ACHATS | 40, 41 |
+| `app-autres.js` | AUTRES : BDS, formulaires CHS / BDS | 04, 06, 31 |
+
+`index.html` charge les quatre fichiers dans cet ordre, avec le même numéro de version. Tous les écouteurs globaux (clavier, saisie, calendrier, menu) sont dans le socle, dans le même ordre qu'avant ; les autres modules ne contiennent que des déclarations (sauf ACHATS, qui démarre son écran). Un nouveau fichier de `src/` se range dans `MODULES` de `outils/assembler.py`, sinon l'assemblage s'arrête.
+
+Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'un budget) : ils se suivent et partagent les mêmes variables ; un fichier seul n'est donc pas un module JavaScript complet. Une ligne repère `/* ⟪ src/… ⟫ */` marque dans chaque fichier assemblé le début de chaque fichier de src/.
 
 | Fichier | Rôle | Lignes |
 |---|---|---|

@@ -5,7 +5,7 @@ Pour un informaticien qui reprend le code. Les règles métier sont dans le cahi
 
 ## 1. Vue d'ensemble
 
-- Application web d'une seule page, sans cadriciel ni compilation : `index.html`, `styles.css`, `app.js`.
+- Application web d'une seule page, sans cadriciel ni compilation : `index.html`, `styles.css` et les fichiers des modules `app.js` (socle), `app-budget.js`, `app-achats.js`, `app-autres.js` (v753).
 - Données de référence (budgets validés, BDS, base V3 ; CHS n'est plus utilisé depuis v727 et son écran est supprimé depuis v742 — la section `#chs` de `index.html` sert de page PARAMÉTRAGE) : Google Sheets, lues par un script Google Apps Script (`API_URL`, `API_KEY` dans `src/00-socle.js` ; fonctions `apiGet` (`src/03-api-drive.js`) et `apiSrc` (`src/33-confirmations-sources.js`)).
 - **Budgets en instance** (en cours de saisie) : sur l'appareil, dans IndexedDB (`svi_store`, clé `svi_bdg_inst_v1`) — `src/02-stockage-instance.js` (`sviInstGet`, `sviInstSet`, `sviInstFlush`).
 - Réglages d'affichage (largeurs, ordre des colonnes, filtres mémorisés, dernière vue…) : `localStorage` (clés `svi_…` ; en version test, toutes les clés sont préfixées `svitest:`).
@@ -15,7 +15,7 @@ Pour un informaticien qui reprend le code. Les règles métier sont dans le cahi
 
 ## 2. Code source et assemblage
 
-- La source est dans `src/*.js`. **`app.js` est assemblé** : `python3 outils/assembler.py` concatène les fichiers de `src/` dans l'ordre de leur nom (repère `/* ⟪ src/… ⟫ */` en tête de chacun). On ne modifie jamais `app.js` à la main.
+- La source est dans `src/*.js`. **Les fichiers des modules sont assemblés** (v753) : `python3 outils/assembler.py` réunit les fichiers de `src/` par module (liste `MODULES`), dans l'ordre de leur nom, en `app.js` (socle commun), `app-budget.js`, `app-achats.js`, `app-autres.js` (repère `/* ⟪ src/… ⟫ */` en tête de chacun). On ne les modifie jamais à la main.
 - Liste et rôle des fichiers : `src/LISEZ-MOI.md`.
 - **Le grand bloc** : les fichiers `11` à `27` forment ensemble une seule fonction, `openBudgetDetail(ref)` (ouverte en 11, fermée en 27), qui affiche un budget. Ils partagent ses variables (`INS`, `LK`, `shell`, `active`, `CF`…). Tout ce qui ne dépend d'aucune de ces variables en a été sorti :
   - `02b-donnees-budget.js` : forme des données, conversions des anciens budgets (`SVI_MIGRATIONS`, `sviMigrate`), enregistrement (`sviBudgetStore`), contrôle des doublons (`sviDataHasDup`) ;
@@ -86,7 +86,7 @@ Enregistrement : toute modification appelle `insSave()` (13) → mise en ordre (
 
 - `python3 tests/test_app.py` (Chromium sans réseau, budget d'essai TEST-1) : doit finir par « N / N TESTS RÉUSSIS ». Nouveaux tests : seulement pour les règles de calcul.
 - `python3 tests/reference.py capture <dossier>` puis `compare <avant> <après>` : captures et texte de chaque écran (budget d'essai, et un vrai budget via `SVI_REF_BUDGET=<fichier .json>`, jamais mis dans le dépôt) ; sert à vérifier qu'une réorganisation ne change rien à l'écran.
-- Livraison : modifier `src/` → `python3 outils/assembler.py` → tests → monter `app.js?v=` (et `styles.css?v=` si les styles changent) dans `index.html` → commit → push. L'application affiche alors « NOUVELLE VERSION — ACTUALISER ».
+- Livraison : modifier `src/` → `python3 outils/assembler.py` → tests → monter `?v=` des quatre fichiers des modules dans `index.html` (même numéro ; et `styles.css?v=` si les styles changent) dans `index.html` → commit → push. L'application affiche alors « NOUVELLE VERSION — ACTUALISER ».
 - Diagnostic d'un blocage à l'ouverture : `sviStep` (40 dernières étapes, `svi_steps_v1`), fenêtre OUVERTURE BLOQUÉE au démarrage, `?liste` dans l'adresse, TÉLÉCHARGER LE BUDGET / CHARGER UN FICHIER BUDGET.
 
 ## 8. Ce qui reste à faire pour aller plus loin
