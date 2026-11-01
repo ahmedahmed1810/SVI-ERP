@@ -699,6 +699,7 @@ function sviAchInit() {
   /* données reçues d'un autre appareil (base V3) : écran redessiné s'il est affiché */
   window.addEventListener("storage", () => { if (view.classList.contains("active-view")) draw(); });
   draw();
+  if (SVI_BIG.ready) SVI_BIG.ready.then(() => draw());   /* v770 : listes lues dans IndexedDB */
 }
 /* fenêtre H : historique d'un article */
 function achHistWin(code) {

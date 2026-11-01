@@ -23,10 +23,30 @@ const SVI_SYNC = { applying: false, timer: null, busy: false, status: "", err: "
 const sviSyncBase = ref => sviIdbGet("svi_sync_base:" + ref).catch(() => null);
 const sviSyncBaseSet = (ref, s) => sviIdbPut("svi_sync_base:" + ref, s).catch(() => {});
 
+/* v770 : GRANDES LISTES (achats) gardées dans IndexedDB comme les budgets, et non dans le stockage local de Safari (~5 Mo par site,
+   partagés entre la version validée, la version test et leurs copies pour l'envoi : l'import NovApp ne tenait plus).
+   localStorage.getItem / setItem / removeItem de ces clés sont redirigés ici (même code partout, tests compris) ;
+   copie en mémoire lue au démarrage ; reprise unique de l'ancien stockage, qui est libéré. */
+const SVI_BIG_RX = /^svi_ach_(art|frs|bsn|caf|dvf|cmf|rcp|rtr|faf|avf|paf|nov|backup)_v1$/;
+const SVI_BIG = (() => {
+  const cache = new Map(), K = ["art", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtr", "faf", "avf", "paf", "nov", "backup"].map(x => "svi_ach_" + x + "_v1");
+  const o = { cache, ready: null, raw: null };
+  o.get = k => cache.has(k) ? cache.get(k) : o.raw ? o.raw.get(k) : null;
+  o.set = (k, v) => { cache.set(k, v === null || v === undefined ? null : String(v)); try { sviIdbPut("big:" + k, cache.get(k)).catch(() => {}); } catch (e) {} };
+  o.load = () => (o.ready = Promise.all(K.map(k => (typeof sviIdbGet === "function" ? sviIdbGet("big:" + k) : Promise.resolve(undefined)).catch(() => undefined).then(v => {
+    if (cache.has(k)) return;   /* écrit pendant le chargement : la valeur récente reste */
+    let x = v;
+    if (x === undefined && o.raw) { const r = o.raw.get(k); if (r !== null) { x = r; sviIdbPut("big:" + k, r).catch(() => {}); } }
+    cache.set(k, x === undefined ? null : x);
+    if (o.raw && cache.get(k) !== null) { o.raw.rm(k); o.raw.rm("svi_shared_v1:K:" + k); }   /* ancien stockage libéré */
+  }))).catch(() => {}));
+  return o;
+})();
 /* v679 : DONNÉES PARTAGÉES hors budgets (LISTE DES INDICATEURS…) — une ligne de SYNC « _CLÉ », même envoi, même fusion */
 const SVI_SH_KEY = "svi_shared_v1:";
-const sviSharedItem = ref => { try { return JSON.parse(localStorage.getItem(SVI_SH_KEY + ref.slice(1)) || "null"); } catch (e) { return null; } };
-const sviSharedPut = (ref, it) => { try { const o = { ...it, data: { ...(it.data || {}) } }; delete o.data.conf; localStorage.setItem(SVI_SH_KEY + ref.slice(1), JSON.stringify(o)); } catch (e) {} };
+const sviSharedItem = ref => { const bk = /^_K:/.test(ref) ? ref.slice(3) : ""; if (bk && SVI_BIG_RX.test(bk)) { const v = SVI_BIG.get(bk); return v === null ? { ref, project: "PARTAGÉ", state: "partage", data: { v: null } } : { ref, project: "PARTAGÉ", state: "partage", data: { v } }; }
+  try { return JSON.parse(localStorage.getItem(SVI_SH_KEY + ref.slice(1)) || "null"); } catch (e) { return null; } };
+const sviSharedPut = (ref, it) => { if (/^_K:/.test(ref) && SVI_BIG_RX.test(ref.slice(3))) return; try { const o = { ...it, data: { ...(it.data || {}) } }; delete o.data.conf; localStorage.setItem(SVI_SH_KEY + ref.slice(1), JSON.stringify(o)); } catch (e) {} };
 const sviSharedGet = key => (sviSharedItem("_" + key) || {}).data || {};
 const sviSharedSet = (key, data) => {
   const ref = "_" + key; sviSharedPut(ref, { ref, project: "PARTAGÉ", state: "partage", data });
@@ -135,10 +155,14 @@ const sviShareApply = (ref, it) => {
 /* toute écriture d'une clé partagée sur l'appareil = ligne « _K:<clé> » en attente d'envoi */
 if (typeof window !== "undefined" && !window.__sviShareHook && typeof Storage !== "undefined") {
   window.__sviShareHook = true;
-  const S = Storage.prototype, st = S.setItem, rm = S.removeItem;
-  S.setItem = function (k, v) { const r = st.call(this, k, v); try { if (this === window.localStorage && SVI_SHARE_RX.test(String(k)) && !SVI_SYNC.applying) sviSharedSet("K:" + k, { v: sviShareVal(String(k), v) }); } catch (e) {} return r; };
-  S.removeItem = function (k) { const r = rm.call(this, k); try { if (this === window.localStorage && SVI_SHARE_RX.test(String(k)) && !SVI_SYNC.applying) sviSharedSet("K:" + k, { v: null }); } catch (e) {} return r; };
+  const S = Storage.prototype, st = S.setItem, rm = S.removeItem, gt = S.getItem;
+  const big = (t, k) => t === window.localStorage && SVI_BIG_RX.test(String(k));
+  SVI_BIG.raw = { get: k => gt.call(window.localStorage, k), rm: k => { try { rm.call(window.localStorage, k); } catch (e) {} } };
+  S.getItem = function (k) { return big(this, k) ? SVI_BIG.get(String(k)) : gt.call(this, k); };
+  S.setItem = function (k, v) { const r = big(this, k) ? SVI_BIG.set(String(k), v) : st.call(this, k, v); try { if (this === window.localStorage && SVI_SHARE_RX.test(String(k)) && !SVI_SYNC.applying) sviSharedSet("K:" + k, { v: sviShareVal(String(k), v) }); } catch (e) {} return r; };
+  S.removeItem = function (k) { const r = big(this, k) ? SVI_BIG.set(String(k), null) : rm.call(this, k); try { if (this === window.localStorage && SVI_SHARE_RX.test(String(k)) && !SVI_SYNC.applying) sviSharedSet("K:" + k, { v: null }); } catch (e) {} return r; };
 }
+SVI_BIG.load();
 /* clés partagées déjà présentes sur l'appareil (avant la v722) : envoyées une fois */
 const sviShareSeed = () => {
   try {
@@ -275,6 +299,7 @@ const sviSyncPushOne = async (ref, M) => {
   if (m.del) { await sviQ("v3Del", { ref }); delete M[ref]; return; }
   if (SVI_CLAIM) await SVI_CLAIM.catch(() => {});   /* v678 : réponse du verrou d'abord (annulation éventuelle) */
   const SH = ref[0] === "_";   /* v679 : donnée partagée */
+  if (SH && SVI_BIG.ready) await SVI_BIG.ready;   /* v770 */
   let it = SH ? sviSharedItem(ref) : sviInstGet().find(x => x.ref === ref);
   if (!it) { delete M[ref]; return; }
   for (let tour = 0; tour < 3; tour++) {
@@ -334,6 +359,7 @@ const sviSyncRun = async () => {
 
 /* ---------- réception : budgets modifiés ailleurs, verrous ---------- */
 const sviSyncPull = async () => {
+  if (SVI_BIG.ready) await SVI_BIG.ready;   /* v770 */
   if (typeof apiPost !== "function" || !document.getElementById("sviTestTag") || !navigator.onLine) return;
   let L;
   try { L = await sviQ("v3List", {}); } catch (e) { SVI_SYNC.status = /fetch|network|Load failed/i.test(String(e && e.message || e)) ? "off" : "nob"; SVI_SYNC.err = String(e && e.message || e); sviSyncPaint(); return; }
