@@ -2648,8 +2648,20 @@ def main():
             M.querySelector('.nav-sub .nav-btn[data-ach="art"]').click(); await w(400);
             const r = [top.join(','), sub.join(','), open, still, stay, document.getElementById('ach').classList.contains('active-view'), document.querySelector('#ach .section-head h1').textContent];
             M.querySelector('.nav-grp').click(); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); M.classList.add('hidden'); await w(600); return r; }""")
-        check("v751 : menu ☰ — ACHAT dépliable (CONSULTATIONS, DEVIS, COMMANDES, RÉCEPTIONS, FACTURES, PAIEMENTS, FOURNISSEURS, ARTICLES, ACC), BESOIN dessous ; entrées à venir grisées ; ARTICLES ouvre les achats",
-              m751 == ["PARAMÉTRAGE,BDG,ACHAT,BESOIN,DONNÉES SOURCE", "CONSULTATIONS,DEVIS,COMMANDES,RÉCEPTIONS,FACTURES,PAIEMENTS,FOURNISSEURS,ARTICLES,ACC", True, True, True, True, "ACHATS — ARTICLES"], m751)
+        check("v751 / v752 : menu ☰ — ordre BDG, ACHAT, BESOIN, PARAMÉTRAGE ; ACHAT dépliable (CONSULTATIONS, DEVIS, COMMANDES, RÉCEPTIONS, FACTURES, PAIEMENTS, FOURNISSEURS, ARTICLES, ACC), BESOIN dessous ; entrées à venir grisées ; ARTICLES ouvre les achats",
+              m751 == ["BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "CONSULTATIONS,DEVIS,COMMANDES,RÉCEPTIONS,FACTURES,PAIEMENTS,FOURNISSEURS,ARTICLES,ACC", True, True, True, True, "ACHATS — ARTICLES"], m751)
+        # v752 : icône devant chaque entrée du menu ; liste des budgets en gras ; lignes du dessous décalées ; corbeille de la couleur de sa ligne
+        k752 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const M = document.getElementById('navMenu');
+            const ic = [...M.querySelectorAll('.nav-btn, .nav-grp, .nav-off, .nav-src')].every(b => !!b.querySelector('svg.nav-ic'));
+            const d = () => ({ des: [], lot: [], prim: [], sec: [], chg: [], prd: [], links: [], dlp: {} }); window.__kp752 = JSON.stringify(sviInstGet());
+            sviInstSet(sviInstGet().filter(x => !/^F-/.test(x.ref)).concat([{ ref: 'F-1', project: 'FAM', state: 'instance', created: '2026-10-30T10:00', data: d() }]));
+            sviInstSet(sviInstGet().map(x => x.ref === 'F-1' ? { ...x, state: 'valide' } : x).concat([{ ref: 'F-1-AV1', project: 'FAM', state: 'instance', created: '2026-10-31T09:00', parent: 'F-1', avn: 1, data: d() }]));
+            localStorage.setItem('svi_listmode_v1', 'inst'); localStorage.setItem('svi_bdgfold_v1', JSON.stringify(['F-1'])); renderBudgetList(); await w(300);
+            const T = document.getElementById('budgetListTable'), top = T.querySelector('tr[data-budget-ref="F-1"]'), kid = T.querySelector('tr[data-budget-ref="F-1-AV1"]');
+            const fw = getComputedStyle(kid.cells[3]).fontWeight, pl = [parseFloat(getComputedStyle(top.cells[1]).paddingLeft), parseFloat(getComputedStyle(kid.cells[1]).paddingLeft)];
+            const del = kid.querySelector('.bdg-row-del'), same = del && getComputedStyle(del).color === getComputedStyle(kid.cells[3]).color;
+            sviInstSet(JSON.parse(window.__kp752)); localStorage.removeItem('svi_bdgfold_v1'); renderBudgetList(); return [ic, fw, pl[1] > pl[0] + 10, same]; }""")
+        check("v752 : icônes du menu, liste en gras, lignes du dessous décalées vers la droite, corbeille de la couleur de sa ligne", k752 == [True, "700", True, True], k752)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

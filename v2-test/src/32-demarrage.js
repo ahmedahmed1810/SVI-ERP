@@ -268,6 +268,9 @@ document.addEventListener("click", e => {
     const r = opener.getBoundingClientRect();
     menu.style.left = r.left + "px";
     menu.style.top = (r.bottom + 6) + "px";
+    /* v752 : menu assez large pour cacher le premier tableau derrière lui (panneau des dates de la liste des budgets) */
+    { const pn = document.getElementById("bdgDatePanel"), pr = pn && pn.offsetParent ? pn.getBoundingClientRect() : null;
+      menu.style.width = Math.max(210, pr && pr.width ? Math.round(pr.right - r.left) + 2 : 0) + "px"; }
     menu.classList.toggle("hidden");
     /* groupe déplié la dernière fois (ou contenant le module ouvert) : déplié à l'ouverture du menu */
     menu.querySelectorAll(".nav-grp").forEach(g => { const sub = menu.querySelector(`.nav-sub[data-grp="${g.dataset.grp}"]`); if (!sub) return;

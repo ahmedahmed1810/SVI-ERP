@@ -3144,7 +3144,7 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .novapp-list-titlebar h1 .bdg-mode-sw.off { color: #b8c0cc; cursor: not-allowed; }
 /* point 5 : PROJET = lien souligné, sans fond, même police / taille / couleur / graisse que les autres cases, à gauche */
 #budgetListTable .budget-link { background: none !important; border: 0 !important; border-radius: 0; padding: 0; margin: 0; box-shadow: none; font: inherit; font-weight: inherit !important; color: inherit !important; text-align: left; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; text-transform: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline; }
-#budgetListTable tbody tr:not(.bdg-newrow) td, #budgetListTable tbody tr:not(.bdg-newrow) td * { font-weight: 400 !important; font-style: normal !important; }
+#budgetListTable tbody tr:not(.bdg-newrow) td, #budgetListTable tbody tr:not(.bdg-newrow) td * { font-weight: 700 !important; font-style: normal !important; }   /* v752 : toute la liste en gras, même graisse partout */
 #budgetListTable tbody tr:not(.bdg-newrow) td { color: #172033; }
 #budgetListTable td { text-align: left; }
 #budgetListTable td.number { text-align: right; }
@@ -3152,7 +3152,9 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 #budgetListTable td.bdg-fold-c, #budgetListTable tr.bdg-kid td.bdg-fold-c, #budgetListTable tr.bdg-newrow td.bdg-fold-c { padding: 0 !important; text-align: center; }
 #budgetListTable td.bdg-fold-c[data-fold-bdg] { cursor: pointer; }
 #budgetListTable td.bdg-fold-c .bdg-fold { margin: 0; width: 100%; font-size: 15px; font-weight: 900 !important; color: #3f4856; }
-#budgetListTable tr.bdg-kid td:first-child, #budgetListTable tr.bdg-newrow.bdg-kid td { padding-left: 8px; }
+#budgetListTable tr.bdg-kid td:first-child { padding-left: 0; }
+/* v752 : lignes du dessous (BUDGET INITIAL, AVENANTS, CRÉER UN AVENANT) décalées vers la droite ; lignes de titre alignées */
+#budgetListTable tr.bdg-kid td:nth-child(2) { padding-left: 26px; }
 #budgetListTable tr.bdg-newrow.bdg-kid td.bdg-fold-c { background: transparent; }
 #budgetListTable thead th .cf-wrap { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-width: 0; }
 #budgetListTable thead th .cf-lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -3161,8 +3163,9 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 #budgetListTable thead th .col-rs { position: absolute; top: 0; right: -4px; width: 8px; height: 100%; z-index: 40; cursor: col-resize; touch-action: none; }
 #budgetListTable thead th .col-rs.active, #budgetListTable thead th .col-rs:hover { background: rgba(23,105,194,.18); }
 /* point 7 : seule action d'une ligne — la corbeille standard */
-#budgetListTable .bdg-row-del { color: #6b7480; display: inline-flex; align-items: center; justify-content: center; }
-#budgetListTable .bdg-row-del:hover { color: #b91c1c; background: #fef2f2; }
+/* v752 : la corbeille prend la couleur de sa ligne (rouge en instance, vert figé, noir validé) */
+#budgetListTable .bdg-row-del { color: inherit !important; display: inline-flex; align-items: center; justify-content: center; }
+#budgetListTable .bdg-row-del:hover { background: #f1f4f8; }
 /* états : rouge (en instance), vert (figé) — gardés après la graisse unique */
 #budgetListTable tr.inst-instance td, #budgetListTable tr.inst-instance .budget-link { color: #991b1b !important; }
 #budgetListTable tr.inst-fige td, #budgetListTable tr.inst-fige .budget-link { color: #166534 !important; }
@@ -3183,3 +3186,10 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 #navMenu .nav-sub[hidden] { display: none; }
 #navMenu .nav-sub .nav-btn, #navMenu .nav-sub .nav-off { padding: 8px 10px; }
 #navMenu .nav-off { color: #9aa3b2; cursor: not-allowed; }
+
+/* v752 : icône devant chaque entrée du menu ☰ */
+#navMenu .nav-btn, #navMenu .nav-src { display: flex; align-items: center; width: 100%; }
+#navMenu .nav-btn, #navMenu .nav-grp, #navMenu .nav-off, #navMenu .nav-src { gap: 9px; }
+#navMenu .nav-grp, #navMenu .nav-off { justify-content: flex-start; }
+#navMenu .nav-grp i { margin-left: auto; }
+#navMenu .nav-ic { flex: none; display: block; }
