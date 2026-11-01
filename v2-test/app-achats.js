@@ -19,8 +19,9 @@ const ACH_PRM_DEF = {
 };
 const achU = v => String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();
 const achN = v => { const n = Number(String(v ?? "").replace(/\s| | /g, "").replace(",", ".")); return isFinite(n) ? n : 0; };
-const achJ = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || "null"); return v === null ? d : v; } catch (e) { return d; } };
-const achW = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+/* v769 : grandes listes des achats COMPRESSÉES dans la mémoire de l'appareil (SVI_LZ, 02e) — environ 9 fois moins de place */
+const achJ = (k, d) => { try { const v = JSON.parse(SVI_LZ.dec(localStorage.getItem(k)) || "null"); return v === null ? d : v; } catch (e) { return d; } };
+const achW = (k, v) => { try { const s = JSON.stringify(v); localStorage.setItem(k, /^svi_ach_/.test(k) && s.length > 4000 ? SVI_LZ.enc(s) : s); return true; } catch (e) { return false; } };
 /* ---------- paramètres d'achat ---------- */
 const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: p.esp === undefined ? 5000 : achN(p.esp), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: p.avj === undefined ? 90 : achN(p.avj), chqj: p.chqj === undefined ? 30 : achN(p.chqj), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })) }; };
 const achPrmSave = p => achW(ACH_K.prm, p);
@@ -2187,14 +2188,20 @@ async function achNovImport(file, done) {
   if (!(await svConfirm({ title: "IMPORTER LES DONNÉES DE NOVAPP", html: `<div class="svc-sub">${n("art")} ARTICLES · ${n("frs")} FOURNISSEURS · ${n("bsn")} BESOINS · ${n("caf")} CONSULTATIONS · ${n("dvf")} DEVIS · ${n("cmf")} COMMANDES · ${n("rcp")} RÉCEPTIONS · ${n("faf")} FACTURES · ${n("paf")} PAIEMENTS</div>
       <div class="svc-sub">LES DONNÉES DES ACHATS ACTUELLES SONT REMPLACÉES (COPIE DE SÉCURITÉ GARDÉE SUR CET APPAREIL). RÉFÉRENCES RENUMÉROTÉES, DATES D'ORIGINE GARDÉES, ANCIENNE RÉFÉRENCE DANS H.</div>`, ok: "IMPORTER", tone: "neutral" }))) return;
   const K = ["art", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtr", "faf", "avf", "paf"];
-  try { const bk = {}; K.forEach(k => { bk[k] = localStorage.getItem(ACH_K[k]); }); bk[ACH_NOV_K] = localStorage.getItem(ACH_NOV_K); localStorage.setItem("svi_ach_backup_v1", JSON.stringify({ t: achNow(), bk })); } catch (e) {}
+  /* copie de sécurité compressée (une seule, la précédente est remplacée) */
+  try { localStorage.removeItem("svi_ach_backup_v1"); const bk = {}; K.forEach(k => { bk[k] = SVI_LZ.dec(localStorage.getItem(ACH_K[k])); }); bk[ACH_NOV_K] = SVI_LZ.dec(localStorage.getItem(ACH_NOV_K));
+    localStorage.setItem("svi_ach_backup_v1", SVI_LZ.enc(JSON.stringify({ t: achNow(), bk }))); } catch (e) { try { localStorage.removeItem("svi_ach_backup_v1"); } catch (e2) {} }
+  /* place libérée avant d'écrire : les anciennes listes sont retirées */
+  K.forEach(k => { try { localStorage.removeItem(ACH_K[k]); } catch (e) {} }); try { localStorage.removeItem(ACH_NOV_K); } catch (e) {}
   const st = achNovBsnLink(D.bsn || []);
   D.bsn.forEach(b => { delete b.prj; });
   achArtsSave(D.art); achFrsSave(D.frs); achBsnSave(D.bsn); achCafSave(D.caf); achDvfSave(D.dvf); achCmfSave(D.cmf); achRcpSave(D.rcp); achRtrSave([]); achFafSave(D.faf); achAvfSave([]); achPafSave(D.paf);
   achW(ACH_NOV_K, D.nov || {});
   const P = achPrm(); (D.prm && D.prm.cat || []).forEach(c => { if (c && !P.cat.includes(c)) P.cat.push(c); }); achPrmSave(P);
-  const ok = ["art", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "faf", "paf"].every(k => (localStorage.getItem(ACH_K[k]) || "").length === JSON.stringify(D[k]).length);
-  svToast(ok ? `IMPORT TERMINÉ — BESOINS : ${st.ok} RATTACHÉS À UNE CHARGE ET UNE TÂCHE, ${st.siege} SIÈGE (F26), ${st.bdg} AU BUDGET SANS CHARGE TROUVÉE, ${st.none} SANS BUDGET SUR CET APPAREIL (À COMPLÉTER).`
-    : "IMPORT INCOMPLET : MÉMOIRE DE L'APPAREIL PLEINE ?", 9000);
+  const bad = ["art", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "faf", "paf"].filter(k => (SVI_LZ.dec(localStorage.getItem(ACH_K[k]) || "") || "").length !== JSON.stringify(D[k]).length);
+  const ok = !bad.length;
+  const say = (t, x) => { const d = sviWinNew(); d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: t, body: `<div class="svc-sub">${esc(x)}</div>`, foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` }); sviWinShow(d); d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) d.remove(); }); };
+  if (!ok) { say("IMPORT INCOMPLET", "MÉMOIRE DE L'APPAREIL PLEINE : " + bad.map(k => ({ art: "ARTICLES", frs: "FOURNISSEURS", bsn: "BESOINS", caf: "CONSULTATIONS", dvf: "DEVIS", cmf: "COMMANDES", rcp: "RÉCEPTIONS", faf: "FACTURES", paf: "PAIEMENTS" })[k]).join(", ") + " NON ENREGISTRÉS."); if (done) done(); return; }
+  say("IMPORT TERMINÉ", `BESOINS : ${st.ok} RATTACHÉS À UNE CHARGE ET UNE TÂCHE, ${st.siege} SIÈGE (F26), ${st.bdg} AU BUDGET SANS CHARGE TROUVÉE, ${st.none} SANS BUDGET SUR CET APPAREIL (À COMPLÉTER). LES DONNÉES PARTENT VERS LA BASE (GOOGLE SHEET) DANS QUELQUES SECONDES.`);
   if (done) done();
 }

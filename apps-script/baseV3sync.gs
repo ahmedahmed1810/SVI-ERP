@@ -165,7 +165,7 @@ function sviAchTabs_(ss, sh) {
   var L = {};
   sviSyncRows_(sh).forEach(function (r) {
     var m = String(r[0]).match(/^_K:svi_ach_([a-z]+)_v1$/); if (!m) return;
-    try { var o = JSON.parse(sviSyncData_(r)), v = o.data ? o.data.v : o.v; L[m[1]] = JSON.parse(v); } catch (e) {}
+    try { var o = JSON.parse(sviSyncData_(r)), v = o.data ? o.data.v : o.v; L[m[1]] = JSON.parse(SVI_LZ.dec(v)); } catch (e) {}
   });
   var A = function (k) { return Array.isArray(L[k]) ? L[k] : []; };
   var by = function (k) { var M = {}; A(k).forEach(function (x) { M[x.id] = x; }); return M; };
@@ -226,3 +226,63 @@ function sviAchTabs_(ss, sh) {
   });
   return { ok: true, tabs: out };
 }
+
+/* v769 (même code que l'application, 02e) : COMPRESSION des grandes listes (achats) dans la mémoire de l'appareil — algorithme lz-string (Pieroxy, licence MIT),
+   variante UTF-16 (15 bits par caractère) faite pour localStorage. Valeur compressée = « \u0001LZ » + texte compressé. */
+const SVI_LZ = (() => {
+  const f = String.fromCharCode;
+  function compress(u, bits, gc) {
+    if (u == null) return "";
+    let i, v, dict = {}, toCreate = {}, c = "", wc = "", w = "", enlarge = 2, dictSize = 3, numBits = 2, data = [], val = 0, pos = 0, ii;
+    const out = (n, b) => { for (let k = 0; k < b; k++) { val = (val << 1) | (n & 1); if (pos === bits - 1) { pos = 0; data.push(gc(val)); val = 0; } else pos++; n >>= 1; } };
+    const outZero = b => { for (let k = 0; k < b; k++) { val = val << 1; if (pos === bits - 1) { pos = 0; data.push(gc(val)); val = 0; } else pos++; } };
+    const emitW = () => {
+      if (Object.prototype.hasOwnProperty.call(toCreate, w)) {
+        if (w.charCodeAt(0) < 256) { outZero(numBits); out(w.charCodeAt(0), 8); }
+        else { out(1, numBits); out(w.charCodeAt(0), 16); }
+        if (--enlarge === 0) { enlarge = Math.pow(2, numBits); numBits++; }
+        delete toCreate[w];
+      } else out(dict[w], numBits);
+      if (--enlarge === 0) { enlarge = Math.pow(2, numBits); numBits++; }
+    };
+    for (ii = 0; ii < u.length; ii++) {
+      c = u.charAt(ii);
+      if (!Object.prototype.hasOwnProperty.call(dict, c)) { dict[c] = dictSize++; toCreate[c] = true; }
+      wc = w + c;
+      if (Object.prototype.hasOwnProperty.call(dict, wc)) w = wc;
+      else { emitW(); dict[wc] = dictSize++; w = String(c); }
+    }
+    if (w !== "") emitW();
+    out(2, numBits);
+    while (true) { val = val << 1; if (pos === bits - 1) { data.push(gc(val)); break; } else pos++; }
+    return data.join("");
+  }
+  function decompress(length, resetValue, getNext) {
+    let dict = [], enlarge = 4, dictSize = 4, numBits = 3, entry = "", result = [], i, w, c, bits, resb, maxpower, power;
+    const data = { val: getNext(0), position: resetValue, index: 1 };
+    const read = n => { let b = 0; maxpower = Math.pow(2, n); power = 1;
+      while (power !== maxpower) { resb = data.val & data.position; data.position >>= 1; if (data.position === 0) { data.position = resetValue; data.val = getNext(data.index++); } b |= (resb > 0 ? 1 : 0) * power; power <<= 1; }
+      return b; };
+    for (i = 0; i < 3; i++) dict[i] = i;
+    switch (read(2)) { case 0: c = f(read(8)); break; case 1: c = f(read(16)); break; case 2: return ""; }
+    dict[3] = c; w = c; result.push(c);
+    while (true) {
+      if (data.index > length) return "";
+      switch (c = read(numBits)) {
+        case 0: dict[dictSize++] = f(read(8)); c = dictSize - 1; enlarge--; break;
+        case 1: dict[dictSize++] = f(read(16)); c = dictSize - 1; enlarge--; break;
+        case 2: return result.join("");
+      }
+      if (enlarge === 0) { enlarge = Math.pow(2, numBits); numBits++; }
+      if (dict[c]) entry = dict[c]; else if (c === dictSize) entry = w + w.charAt(0); else return null;
+      result.push(entry);
+      dict[dictSize++] = w + entry.charAt(0); enlarge--;
+      w = entry;
+      if (enlarge === 0) { enlarge = Math.pow(2, numBits); numBits++; }
+    }
+  }
+  const toUTF16 = s => s == null ? "" : compress(s, 15, a => f(a + 32)) + " ";
+  const fromUTF16 = s => s == null ? "" : s === "" ? null : decompress(s.length, 16384, i => s.charCodeAt(i) - 32);
+  const MK = "\u0001LZ";
+  return { MK, enc: s => MK + toUTF16(s), dec: v => typeof v === "string" && v.startsWith(MK) ? fromUTF16(v.slice(MK.length)) : v, is: v => typeof v === "string" && v.startsWith(MK) };
+})();
