@@ -2818,6 +2818,33 @@ def main():
               k755[0][:5] == ["ACTIF ▾", False, False, 3, 1] and k755[0][5].startswith("✓ACTIF") and "ARCHIVÉ1" in k755[0][5] and k755[0][6:8] == ["ARCHIVÉ ▾", "H-1"]
               and k755[0][8] == "F-1,F-1,F-1-AV1" and "etat-expire" in k755[0][9] and k755[0][10] == [True, True] and k755[0][11] is True and "BLOQUÉ" in k755[0][12] and k755[0][13] is False
               and k755[1][0].startswith("ACTIF ▾") and k755[1][1] == 1 and k755[1][2].startswith("✓ACTIF") and k755[1][3] == 3, k755)
+        # v759 : ACHATS — FOURNISSEURS : règles (ICE 15 chiffres et unique, RIB 24 chiffres, principal, document expiré, occasionnel) ; onglet,
+        # création par la ligne CRÉER…, fiche (code souligné), changement de RIB confirmé et signalé jusqu'à « RIB VÉRIFIÉ »
+        f759 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const keepF = localStorage.getItem('svi_ach_frs_v1'), keepE = localStorage.getItem('svi_ach_frs_etat_v1'); localStorage.removeItem('svi_ach_frs_v1'); localStorage.removeItem('svi_ach_frs_etat_v1');
+            const L = []; const a = achFrsNew(L, { nom: 'beton sud' }); a.ice = '001234567000089'; const b2 = achFrsNew(L, { nom: 'X' }); b2.ice = '001234567000089';
+            const r1 = [a.code, b2.code, achIceOk('123'), achIceOk(a.ice), (achFrsDupIce(L, b2.ice, b2.id) || {}).code, achRibOk('0076400001234567890123 45')];
+            const c = achFrsNew(L, { nom: 'OCC', occ: true }); const wc = achFrsWhy(c, L);
+            a.ribs = [{ rib: '007640000123456789012345', p: true }]; a.docf = [{ type: 'ATTESTATION CNSS', no: '1', exp: '2020-01-01' }]; const wa = achFrsWhy(a, L); b2.del = '2026-11-01';
+            achFrsSave(L);
+            document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(400); const v = document.getElementById('ach');
+            const h1 = v.querySelector('.section-head h1').textContent, n0 = v.querySelectorAll('#achFrsT tbody tr[data-id]').length;
+            const ni = v.querySelector('#achFrsT .ach-newin'); ni.value = 'NOUVEAU FRS'; ni.dispatchEvent(new Event('change', { bubbles: true })); await w(200);
+            const n1 = v.querySelectorAll('#achFrsT tbody tr[data-id]').length;
+            v.querySelector(`#achFrsT [data-fiche="${a.id}"]`).click(); await w(300); const fc = document.querySelector('.frs-card');
+            const secs = fc ? [...fc.querySelectorAll('.frs-st')].map(x => x.textContent.replace(/\\s*\\d+$/, '').split(' ')[0]).join(',') : 'pas de fiche';
+            const ri = fc.querySelector('.frs-sub[data-sub="ribs"] .frs-s[data-c="rib"]'); ri.value = '011780000123456789012345'; fc.querySelector('[data-save]').click(); await w(250);
+            const cf = document.querySelector('#svConf .svc-t'); const conf = cf ? cf.textContent : ''; document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
+            const a2 = achFrs().find(x => x.id === a.id), sig = !!a2.ribChg && achFrsWhy(a2, achFrs()).some(m => /RIB MODIFIÉ/.test(m)), hist = achHistGet(a.code).some(h => h.a === 'RIB MODIFIÉ');
+            v.querySelector(`#achFrsT [data-fiche="${a.id}"]`).click(); await w(300); document.querySelector('.frs-card [data-ribok]').click(); await w(100); document.querySelector('.frs-card [data-save]').click(); await w(250);
+            const ok = !achFrs().find(x => x.id === a.id).ribChg;
+            if (keepF === null) localStorage.removeItem('svi_ach_frs_v1'); else localStorage.setItem('svi_ach_frs_v1', keepF);
+            if (keepE === null) localStorage.removeItem('svi_ach_frs_etat_v1'); else localStorage.setItem('svi_ach_frs_etat_v1', keepE);
+            v.__achTab('art'); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300);
+            return [r1, wc.length, wa.join('|'), h1, n0, n1, secs, conf, sig, hist, ok]; }""")
+        check("v759 : FOURNISSEURS — ICE (15 chiffres, unique), RIB 24 chiffres, occasionnel sans ICE ni RIB, document expiré ; onglet, création, fiche ; changement de RIB confirmé, signalé, noté dans H, puis RIB VÉRIFIÉ",
+              f759[0] == ["FRS-0001", "FRS-0002", False, True, "FRS-0001", True] and f759[1] == 0 and "DOCUMENT EXPIRÉ : ATTESTATION CNSS" in f759[2] and "ICE EN DOUBLE" in f759[2]
+              and f759[3] == "ACHATS — FOURNISSEURS" and f759[4] == 2 and f759[5] == 3 and f759[6] == "IDENTITÉ,FISCAL,RIB,CONDITIONS,FAMILLES,DOCUMENTS,CONTACTS,ÉVALUATIONS,CONTRATS"
+              and f759[7] == "CHANGEMENT DE RIB" and f759[8] and f759[9] and f759[10], f759)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

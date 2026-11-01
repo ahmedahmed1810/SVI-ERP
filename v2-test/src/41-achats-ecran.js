@@ -15,7 +15,7 @@ function sviAchInit() {
   const aOk = (a, k) => k === "tout" ? true : k === "corbeille" ? !!a.del : !a.del && (k === "inactif" ? a.actif === false : a.actif !== false);
   const setEtat = k => { aEtat = k; showDel = k === "corbeille"; try { localStorage.setItem("svi_ach_etat_v1", k); } catch (e) {} };
   showDel = aEtat === "corbeille";
-  try { const t = localStorage.getItem("svi_ach_tab_v1"); if (t === "art" || t === "prm") tab = t; } catch (e) {}
+  try { const t = localStorage.getItem("svi_ach_tab_v1"); if (t === "art" || t === "prm" || t === "frs") tab = t; } catch (e) {}
   const SEL = new Set();
   const kit = sviCfKit({ key: "ach", shell: view, refresh: () => draw() });
   const { cfApply, cfHead, cfOpenMenu, cfT } = kit;
@@ -73,6 +73,8 @@ function sviAchInit() {
           ${!rows.length && showDel ? `<tr><td colspan="${cols.length + 2}" class="empty">CORBEILLE VIDE</td></tr>` : ""}
         </tbody></table></div>`;
   };
+  /* ---------- FOURNISSEURS (v759, 42-achats-fournisseurs.js) ---------- */
+  const FRSM = achFrsMod({ view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 });
   /* ---------- PARAMÈTRES ---------- */
   const prmHTML = () => {
     const P = achPrm();
@@ -112,14 +114,14 @@ function sviAchInit() {
   };
   const draw = () => keepPos(() => {
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.ach === tab));
-    if (h1) h1.textContent = tab === "prm" ? "ACHATS — PARAMÈTRES" : showDel ? "ACHATS — CORBEILLE DES ARTICLES" : "ACHATS — ARTICLES";
-    if (sub) sub.textContent = tab === "prm" ? "CATÉGORIES, BANQUES, TVA PAR DÉFAUT ; COMMUNS À TOUS LES APPAREILS" : "UN ARTICLE = UNE CHARGE DU BUDGET (DÉSIGNATION + UNITÉ) ; COMMUN À TOUS LES BUDGETS ET À TOUS LES APPAREILS";
-    body.innerHTML = tab === "prm" ? prmHTML() : artTable();
+    if (h1) h1.textContent = tab === "prm" ? "ACHATS — PARAMÈTRES" : tab === "frs" ? "ACHATS — FOURNISSEURS" : showDel ? "ACHATS — CORBEILLE DES ARTICLES" : "ACHATS — ARTICLES";
+    if (sub) sub.textContent = tab === "frs" ? "TOUCHER LE CODE : FICHE (RIB, DOCUMENTS FISCAUX, CONTACTS, ÉVALUATIONS, CONTRATS) ; COMMUN À TOUS LES APPAREILS" : tab === "prm" ? "CATÉGORIES, BANQUES, TVA PAR DÉFAUT ; COMMUNS À TOUS LES APPAREILS" : "UN ARTICLE = UNE CHARGE DU BUDGET (DÉSIGNATION + UNITÉ) ; COMMUN À TOUS LES BUDGETS ET À TOUS LES APPAREILS";
+    body.innerHTML = tab === "prm" ? prmHTML() : tab === "frs" ? FRSM.html() : artTable();
     body.querySelectorAll("input.ach-cb, input.ach-all").forEach(c => { if (c.classList.contains("ach-all")) { const n = body.querySelectorAll("input.ach-cb:checked").length, t = body.querySelectorAll("input.ach-cb").length; c.indeterminate = n > 0 && n < t; } });
   });
   view.__achDraw = draw;
   /* v750 : entrée du menu ☰ (ACHAT › ARTICLES…) — ouvre l'onglet correspondant */
-  view.__achTab = t => { if (t !== "art" && t !== "prm") return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
+  view.__achTab = t => { if (t !== "art" && t !== "prm" && t !== "frs") return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
   /* ---------- gestes ---------- */
   bar.addEventListener("click", e => {
     const b = e.target.closest(".prm-tab"); if (!b) return;
@@ -133,6 +135,7 @@ function sviAchInit() {
     const cf = e.target.closest(".cf-btn"); if (cf) { e.stopPropagation(); cfOpenMenu(cf); return; }
     const w = e.target.closest(".ach-warn"); if (w) { svToast(w.dataset.why, 4000, w); return; }
     const hb = e.target.closest(".ach-h"); if (hb) { achHistWin(hb.dataset.h); return; }
+    if (tab === "frs" && await FRSM.click(e)) return;
     const bb = e.target.closest(".ach-bdg"); if (bb) { const L = achArts(), a = L.find(x => x.id === bb.dataset.bdg); if (a) achBdgWin(a); return; }
     const xc = e.target.closest("[data-xcat]"); if (xc) { const P = achPrm(); P.cat = P.cat.filter(c => c !== xc.dataset.xcat); achPrmSave(P); draw(); return; }
     const xb = e.target.closest("[data-xbq]"); if (xb) { const P = achPrm(); P.banques = P.banques.filter(b => b.id !== xb.dataset.xbq); achPrmSave(P); draw(); return; }
@@ -170,6 +173,7 @@ function sviAchInit() {
     const t = e.target;
     /* case « CRÉER … ICI » : une seule création, même si « change » arrive deux fois (Entrée, puis case retirée) */
     if (t.matches && t.matches(".ach-newin, .ach-pnew, .ach-bnew")) { if (t.__achDone) return; t.__achDone = true; }
+    if (tab === "frs" && FRSM.change(e)) return;
     if (t.classList.contains("ach-all")) { body.querySelectorAll("tr[data-id]").forEach(tr => { if (t.checked) SEL.add(tr.dataset.id); else SEL.delete(tr.dataset.id); }); draw(); return; }
     if (t.classList.contains("ach-cb")) { const tr = t.closest("tr[data-id]"); if (t.checked) SEL.add(tr.dataset.id); else SEL.delete(tr.dataset.id); draw(); return; }
     /* paramètres */
@@ -224,8 +228,10 @@ function sviAchInit() {
   });
   /* catégories proposées sous la case (même liste que les unités) */
   body.addEventListener("input", e => {
-    const i = e.target.closest('input[data-sug="cat"]'); if (!i) return;
-    const q = achU(i.value), L = achPrm().cat.filter(c => !q || c.includes(q)).slice(0, 8);
+    const i = e.target.closest('input[data-sug]'); if (!i) return;
+    /* v759 : mêmes listes pour la FORME JURIDIQUE et les CONDITIONS DE PAIEMENT des fournisseurs */
+    const src = i.dataset.sug === "forme" ? ACH_FORMES : i.dataset.sug === "cond" ? ACH_CONDS : achPrm().cat;
+    const q = achU(i.value), L = src.filter(c => !q || c.includes(q)).slice(0, 8);
     let b = document.getElementById("svUnitSug");
     if (!L.length) { b && b.remove(); return; }
     if (!b) { b = document.createElement("div"); b.id = "svUnitSug"; document.body.appendChild(b); }
@@ -235,8 +241,8 @@ function sviAchInit() {
     b.style.left = Math.max(8, Math.min(r.left, window.innerWidth - b.offsetWidth - 8)) + "px";
     b.style.top = (r.bottom + 4 + b.offsetHeight <= (typeof sviViewH === "function" ? sviViewH() : window.innerHeight) - 8 ? r.bottom + 4 : Math.max(8, r.top - b.offsetHeight - 4)) + "px";
   });
-  body.addEventListener("focusin", e => { const i = e.target.closest('input[data-sug="cat"]'); if (i) i.dispatchEvent(new Event("input", { bubbles: true })); });
-  body.addEventListener("focusout", e => { if (e.target.closest('input[data-sug="cat"]')) setTimeout(() => { const b = document.getElementById("svUnitSug"); if (b && b.__for === e.target && document.activeElement !== e.target) b.remove(); }, 200); });
+  body.addEventListener("focusin", e => { const i = e.target.closest('input[data-sug]'); if (i) i.dispatchEvent(new Event("input", { bubbles: true })); });
+  body.addEventListener("focusout", e => { if (e.target.closest('input[data-sug]')) setTimeout(() => { const b = document.getElementById("svUnitSug"); if (b && b.__for === e.target && document.activeElement !== e.target) b.remove(); }, 200); });
   /* largeur des colonnes (poignée du bord droit de l'en-tête) et ordre (glisser un en-tête) — même mémoire que le budget */
   body.addEventListener("pointerdown", e => {
     const h = e.target.closest(".col-rs");

@@ -11,7 +11,7 @@ python3 tests/test_app.py            # tests de non-régression
 |---|---|---|
 | `app.js` | SOCLE COMMUN (chargé en premier ; garde le nom app.js, lu par le bouton NOUVELLE VERSION) | 00, 01, 02, 02e, 03, 05, 09, 09c, 09d, 32, 33, 34, 35 |
 | `app-budget.js` | BUDGET | 02b, 02c, 02d, 02f, 07, 10 à 27, 30 |
-| `app-achats.js` | ACHATS | 40, 41 |
+| `app-achats.js` | ACHATS | 40, 41, 42 |
 | `app-autres.js` | AUTRES : BDS, formulaires CHS / BDS | 04, 06, 31 |
 
 `index.html` charge les quatre fichiers dans cet ordre, avec le même numéro de version. Tous les écouteurs globaux (clavier, saisie, calendrier, menu) sont dans le socle, dans le même ordre qu'avant ; les autres modules ne contiennent que des déclarations (sauf ACHATS, qui démarre son écran). Un nouveau fichier de `src/` se range dans `MODULES` de `outils/assembler.py`, sinon l'assemblage s'arrête.
@@ -86,5 +86,6 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `35-calendrier-saisie.js` | calendrier, saisie façon Google Sheets, cadre de sélection unique | 1451 |
 | `40-achats-donnees.js` | ACHATS : données et règles des articles et paramètres (partagés par la base V3), lien avec les charges des budgets | 98 |
 | `41-achats-ecran.js` | ACHATS : écran ARTICLES / FOURNISSEURS / PARAMÈTRES, corbeille, fusion, historique H | 320 |
+| `42-achats-fournisseurs.js` | FOURNISSEURS : tableau (même format que les articles) et FICHE (identité, fiscal, RIB, conditions, familles, documents fiscaux, contacts, évaluations, contrats) | 200 |
 
 Document technique (architecture, données, recettes, tests) : `../DOC-TECHNIQUE.md`.
