@@ -2715,6 +2715,22 @@ def main():
             document.getElementById('blkMenu')?.remove(); return r; }""")
         check("v772 : blocs DÉTAIL, ÉVOLUTIONS, SUIVI avec en-tête puis onglets ; DÉTAIL = CHARGES, PRODUITS, QUALITÉ, DÉLAIS ; TABLEAU DE BORD depuis le ⋯ du haut (nom dans l'en-tête)",
               o772[:7] == ["DÉTAIL", "ÉVOLUTIONS", "SUIVI", True, True, "chg,prd,qlt,dly", True] and o772[7] is True and o772[8] == "DÉTAIL — TABLEAU DE BORD" and o772[9] == "DÉTAIL", o772)
+        # v773 : ÉVOLUTIONS — cases à cocher ; SCÉNARIOS non validés supprimés, validés (retenus / offerts) archivés, actif intouché ; VERSIONS archivées
+        g773 = pg.evaluate("""async () => { const X = INS_X, I = X.INS, w = ms => new Promise(z => setTimeout(z, ms)), sh = [...document.querySelectorAll('*')].find(e => e.__ins);
+            const keep = JSON.stringify({ vfz: I.vfz || null, ver: I.ver || null }); const d0 = JSON.parse(JSON.stringify(I)); delete d0.ver; delete d0.vfz;
+            I.ver = { L: [{ id: 'a1', kind: 'sc', nom: 'ACTIF' }, { id: 'b2', kind: 'sc', nom: 'BROUILLON', d: d0 }, { id: 'c3', kind: 'sc', nom: 'RETENU', d: d0, of: true }], act: 'a1', ind: [] };
+            I.vfz = [{ id: 'v1', n: 1, kind: 'MANUELLE', date: '01/11/2026', d: d0 }]; X.insSave(); X.refreshAll(); await w(300);
+            const B = document.querySelector('.blk-etp'); B.querySelector('[data-etab="scn"]').click(); await w(200);
+            const cbs = [...document.querySelectorAll('#scnTable .etp-cb')].map(c => c.dataset.id), r = [cbs.join(','), !!document.querySelector('#scnTable .etp-all')];
+            ['a1', 'b2', 'c3'].forEach(id => { const c = document.querySelector(`#scnTable .etp-cb[data-id="${id}"]`); if (c) { c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); } });
+            const p = sh.__etpDel('scn'); await w(200); const ul = document.querySelector('#svConf .svc-list'); r.push(ul ? ul.textContent.replace(/\\s+/g, ' ').trim() : ''); document.querySelector('#svConf [data-r="1"]')?.click(); await p; await w(400);
+            const L = (INS_X.INS.ver || {}).L || []; r.push(L.map(x => x.id + (x.arch ? ':A' : '')).join(','));
+            B.querySelector('[data-etab="ver"]').click(); await w(200); const vc = document.querySelector('#verTable .etp-cb[data-id="1"]'); if (vc) { vc.checked = true; vc.dispatchEvent(new Event('change', { bubbles: true })); }
+            const p2 = sh.__etpDel('ver'); await w(200); document.querySelector('#svConf [data-r="1"]')?.click(); await p2; await w(300);
+            r.push(!!((INS_X.INS.vfz || [])[0] || {}).arch);
+            const K = JSON.parse(keep), I3 = INS_X.INS; if (K.vfz) I3.vfz = K.vfz; else delete I3.vfz; if (K.ver) I3.ver = K.ver; else delete I3.ver; INS_X.insSave(); INS_X.refreshAll(); await w(200); return r; }""".replace("INS_X", ins))
+        check("v773 : ÉVOLUTIONS — cases à cocher ; scénario non validé supprimé, validé archivé, actif intouché ; version archivée",
+              g773[0] == "a1,b2,c3" and g773[1] and "SUPPRIMER 1" in g773[2] and "ARCHIVER 1" in g773[2] and g773[3] == "a1,c3:A" and g773[4] is True, g773)
         # v750 : liste des budgets — colonnes (marge de pliage, RÉFÉRENCE, NATURE, PROJET, INTITULÉ, MONTANT TTC, SAISI LE ; VALIDÉ LE seulement
         # dans les validés), une icône de bascule, plus de cases ni d'impression (corbeille seule), CONSOLIDÉ en ligne de titre, menu de filtre commun,
         # toute la largeur ; suppression depuis la fiche → budget précédent ; IMPRIMER et CUMUL dans le menu ⋯

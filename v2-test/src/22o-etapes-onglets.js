@@ -88,6 +88,68 @@
       let etpQ = false;
       shell.__etpLater = () => { if (etpQ) return; etpQ = true; queueMicrotask(() => { etpQ = false; try { etpSync(); } catch (e) {} }); };
       shell.__etpSync = etpSync;
+      /* =========================================================
+         v773 : CASES À COCHER et ACTION GROUPÉE dans les quatre onglets (décisions d'Ahmed du 01/11/2026) :
+         - AVENANTS : en instance (rouges) = SUPPRIMÉS ; validés = EXPIRÉS (ligne barrée, hors consolidé, remplaçables) ;
+         - SCÉNARIOS : non validés (ni retenus ni offerts) = SUPPRIMÉS ; validés = ARCHIVÉS ; l'actif n'est pas touché ;
+         - VERSIONS : ARCHIVÉES ; RECALAGES : en cours = SUPPRIMÉS, enregistrés = ARCHIVÉS.
+         Confirmation avec le nombre d'éléments par action ; ce qui ne peut pas être traité est ignoré, avec la raison.
+         ========================================================= */
+      const ETP_SEL = { av: new Set(), scn: new Set(), ver: new Set(), rcl: new Set() };
+      const ETP_ROW = { av: ["avTable", "avr"], scn: ["scnTable", "scn"], ver: ["verTable", "vn"], rcl: ["rclTable", "rcl"] };
+      const etpDecor = () => ["av", "scn", "ver", "rcl"].forEach(k => {
+        const t = $(ETP_ROW[k][0]); if (!t || !t.tHead || !t.tHead.rows[0] || t.tHead.querySelector(".etp-cbh")) return;
+        const at = ETP_ROW[k][1], rows = [...t.querySelectorAll(`tbody tr[data-${at}]`)];
+        const cg = t.querySelector("colgroup"); if (cg) cg.insertAdjacentHTML("beforeend", '<col style="width:36px">');
+        if (t.style.width) t.style.width = (parseFloat(t.style.width) + 36) + "px";
+        const ids = rows.map(r => r.dataset[at]); [...ETP_SEL[k]].forEach(id => { if (!ids.includes(id)) ETP_SEL[k].delete(id); });
+        t.tHead.rows[0].insertAdjacentHTML("beforeend", `<th class="center etp-cbh"><input type="checkbox" class="etp-all" data-k="${k}"${ids.length && ids.every(id => ETP_SEL[k].has(id)) ? " checked" : ""}></th>`);
+        rows.forEach(r => r.insertAdjacentHTML("beforeend", `<td class="center etp-cbc"><input type="checkbox" class="etp-cb" data-k="${k}" data-id="${esc(r.dataset[at])}"${ETP_SEL[k].has(r.dataset[at]) ? " checked" : ""}></td>`));
+        t.querySelectorAll("tbody tr:not([data-" + at + "]) td[colspan]").forEach(td => { td.colSpan = td.colSpan + 1; });
+        if (k === "ver") { const VF = INS.vfz || []; rows.forEach(r => { const x = VF.find(v => String(v.n) === r.dataset.vn); if (x && x.arch) r.classList.add("etp-arch"); }); }
+        if (k === "rcl") rows.forEach(r => { const x = sviInstGet().find(v => v.ref === r.dataset.rcl); if (x && x.arch) r.classList.add("etp-arch"); });
+      });
+      { const blk0 = shell.querySelector(".blk-etp");
+        if (blk0 && !blk0.__cbOn) { blk0.__cbOn = true;
+          blk0.addEventListener("click", e => { if (e.target.closest(".etp-cbc, .etp-cbh")) e.stopPropagation(); }, true);
+          blk0.addEventListener("change", e => {
+            const a = e.target.closest(".etp-all"), c = e.target.closest(".etp-cb");
+            if (a) { const k = a.dataset.k; a.closest("table").querySelectorAll(".etp-cb").forEach(x => { x.checked = a.checked; if (a.checked) ETP_SEL[k].add(x.dataset.id); else ETP_SEL[k].delete(x.dataset.id); }); return; }
+            if (c) { const k = c.dataset.k; if (c.checked) ETP_SEL[k].add(c.dataset.id); else ETP_SEL[k].delete(c.dataset.id); }
+          }, true); } }
+      const etpSync0 = etpSync;
+      shell.__etpSync = () => { etpSync0(); try { etpDecor(); } catch (e) {} };
+      shell.__etpLater = () => { if (etpQ) return; etpQ = true; queueMicrotask(() => { etpQ = false; try { etpSync0(); etpDecor(); } catch (e) {} }); };
+      shell.__etpDel = async k => {
+        const ids = [...ETP_SEL[k]]; if (!ids.length) { svToast("COCHER D'ABORD LES LIGNES À TRAITER.", 3000); return; }
+        const L = sviInstGet(), plan = { del: [], arch: [], xp: [], skip: [] };
+        if (k === "av") ids.forEach(r => { const st = L.find(x => x.ref === r); if (!st) return;
+          if (!st.parent) plan.skip.push(r + " : BUDGET INITIAL (SE SUPPRIME OU S'ARCHIVE PAR LE MENU ⋯ DU BUDGET)");
+          else if (st.state !== "valide") plan.del.push(r); else if (st.xp) plan.skip.push(r + " : DÉJÀ EXPIRÉ"); else plan.xp.push(r); });
+        if (k === "scn") { const V = INS.ver || {}; ids.forEach(id => { const x = (V.L || []).find(y => y.id === id); if (!x) return;
+          if (id === V.act) plan.skip.push((x.nom || id) + " : SCÉNARIO ACTIF"); else if (x.ret || x.of) { if (x.arch) plan.skip.push((x.nom || id) + " : DÉJÀ ARCHIVÉ"); else plan.arch.push(id); } else plan.del.push(id); }); }
+        if (k === "ver") ids.forEach(n => { const x = (INS.vfz || []).find(v => String(v.n) === n); if (!x) return; if (x.arch) plan.skip.push("VERSION " + n + " : DÉJÀ ARCHIVÉE"); else plan.arch.push(n); });
+        if (k === "rcl") ids.forEach(r => { const x = L.find(v => v.ref === r); if (!x) return; if (x.state !== "valide") plan.del.push(r); else if (x.arch) plan.skip.push(r + " : DÉJÀ ARCHIVÉ"); else plan.arch.push(r); });
+        const nm = { av: "AVENANT(S)", scn: "SCÉNARIO(S)", ver: "VERSION(S)", rcl: "RECALAGE(S)" }[k];
+        const li = [plan.del.length && `<li><b>SUPPRIMER</b> ${plan.del.length} ${nm}</li>`, plan.xp.length && `<li><b>EXPIRER</b> ${plan.xp.length} ${nm} (LIGNE BARRÉE, HORS CONSOLIDÉ)</li>`, plan.arch.length && `<li><b>ARCHIVER</b> ${plan.arch.length} ${nm}</li>`].filter(Boolean);
+        if (!li.length) { svToast("RIEN À TRAITER : " + plan.skip.join(" · "), 5000); return; }
+        if (!(await svConfirm({ title: "ACTION SUR LES " + ids.length + " LIGNE(S) COCHÉE(S)", html: `<ul class="svc-list">${li.join("")}</ul>${plan.skip.length ? `<div class="svc-sub">IGNORÉ : ${esc(plan.skip.join(" · "))}</div>` : ""}`, ok: "CONFIRMER" }))) return;
+        let goRoot = "";
+        if (k === "av" || k === "rcl") {
+          const del = new Set(plan.del), xp = new Set(plan.xp), ar = new Set(plan.arch);
+          if (del.has(ref)) goRoot = (L.find(x => x.ref === ref) || {}).parent || (L.find(x => x.ref === ref) || {}).rclOf || "";
+          sviInstSet(L.filter(x => !del.has(x.ref)).map(x => xp.has(x.ref) ? { ...x, xp: true } : ar.has(x.ref) ? { ...x, arch: true } : x));
+          plan.del.forEach(r => histLog(k === "av" ? "AVENANT" : "RECALAGE", "SUPPRIMÉ", r)); plan.xp.forEach(r => histLog("AVENANT", "EXPIRÉ", r)); plan.arch.forEach(r => histLog("RECALAGE", "ARCHIVÉ", r));
+          try { await sviInstFlush(); } catch (e) {}
+        }
+        if (k === "scn") { const V = INS.ver; V.L = V.L.filter(x => !plan.del.includes(x.id)); V.L.forEach(x => { if (plan.arch.includes(x.id)) x.arch = true; }); insSave(); histLog("SCÉNARIOS", "ACTION GROUPÉE", plan.del.length + " SUPPRIMÉ(S), " + plan.arch.length + " ARCHIVÉ(S)"); }
+        if (k === "ver") { (INS.vfz || []).forEach(x => { if (plan.arch.includes(String(x.n))) x.arch = true; }); insSave(); histLog("VERSIONS", "ARCHIVÉES", plan.arch.join(", ")); }
+        ETP_SEL[k].clear();
+        svToast("FAIT : " + [plan.del.length && plan.del.length + " SUPPRIMÉ(S)", plan.xp.length && plan.xp.length + " EXPIRÉ(S)", plan.arch.length && plan.arch.length + " ARCHIVÉ(S)"].filter(Boolean).join(", ") + ".", 3500);
+        if (goRoot) { window.__sviAvRet = null; window.__sviAvOpen(goRoot); return; }
+        if (k === "av" || k === "rcl") { window.__sviAvRet = window.__sviAvRet || null; window.__sviAvOpen(ref); return; }
+        try { refreshAll(); } catch (e) {} shell.__etpSync();
+      };
       /* v771 : FERMER de la fenêtre de SÉLECTION — retour à l'onglet d'origine, bloc remis à l'écran */
       shell.__etpTabSet = k => { if (!["av", "scn", "ver", "rcl"].includes(k)) return; etpTab = k; try { localStorage.setItem(ETP_K, k); } catch (e) {} etpSync();
         const blk = shell.querySelector(".blk-etp"); if (blk && !blk.hidden) { const r = blk.getBoundingClientRect(); if (r.top < 0 || r.top > window.innerHeight - 80) blk.scrollIntoView({ block: "center" }); } };
@@ -130,7 +192,7 @@
         if (k === "ver") { if (shell.__verTake) shell.__verTake(); return; }
         if (k === "rcl") { if (shell.__rclNew) shell.__rclNew(); return; }
       };
-      etpSync();
+      shell.__etpSync();
       /* v758 : avenant ou recalage créé par IMPORTER — la fenêtre d'import s'ouvre sur lui dès son ouverture */
       { const N = window.__sviImpNext;
         if (N && Date.now() - N.t < 120000 && bi && !bi.virtual && (bi.state || "instance") === "instance" && ((N.k === "av" && bi.parent) || (N.k === "rcl" && bi.rclOf))) {

@@ -341,6 +341,7 @@
       if (act === "cfg") { const DX = shell.__insDly; if (DX) DX.hcfgWin(); return; }   /* v707 : ⚙ = RÉGLAGES DU GRAPHIQUE */
       if (act === "hcfg") { const DX = shell.__insDly; if (DX) DX.gcfgWin(); return; }   /* v707 : icône Gantt = RÉGLAGES DU GANTT */   /* v704 : RÉGLAGES DU GRAPHIQUE */   /* v701 : RÉGLAGES DU GANTT */
       if (act === "adj") { const b = shell.querySelector(".blk-adj-btn"), DX = shell.__insDly; if (b && b.classList.contains("off")) { svToast(b.dataset.why || "RIEN À AJUSTER.", 3500, b); return; } if (DX) DX.gcWin(); return; }
+      if (act === "del" && ["av", "scn", "ver", "rcl"].includes(blk) && shell.__etpDel) return shell.__etpDel(blk);   /* v773 : ÉVOLUTIONS — action groupée sur les cochés */
       if (act === "del") return insDelRun(blk);
       { const cs = ["copy", "cut", "paste"].includes(act) && colSelFor(blk); if (cs) return colOp(act, cs); }
       if (ctlTab(blk) && (act === "copy" || act === "cut")) return ctlCopy(act === "cut");

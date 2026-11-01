@@ -3359,3 +3359,7 @@ table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 .bdg-d-page .bdg-d-table:has(tfoot td) tbody tr.ins-new > td { bottom: var(--tf-h, 25px); }
 .bdg-d-page .rec-table tbody tr.scn-new > td, .bdg-d-page .rec-table tbody tr.rec-new > td, .bdg-d-page .rec-table tbody tr[data-scnadd] > td { position: sticky; bottom: 0; z-index: 3; }
 .bdg-d-page tr.ins-new > td, .bdg-d-page .rec-table tr.scn-new > td, .bdg-d-page .rec-table tr.rec-new > td { height: 25px; min-height: 25px; }
+/* v773 : ÉVOLUTIONS — avenant EXPIRÉ barré (hors consolidé) ; version / recalage ARCHIVÉ grisé ; cases à cocher */
+.blk-etp .av-row.st-expire td { text-decoration: line-through; }
+.blk-etp tr.etp-arch td { color: #9aa3b2 !important; font-style: italic; }
+.blk-etp .etp-cbc, .blk-etp .etp-cbh { width: 36px; text-align: center; }
