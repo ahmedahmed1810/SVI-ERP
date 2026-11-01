@@ -3102,3 +3102,37 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .bdg-action-cell .bdg-cum { width: 16px; height: 16px; vertical-align: middle; margin-right: 4px; }
 .cum-band { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; background: #f2f4f7; border: 1px solid #d0d5dd; border-radius: 8px; padding: 6px 10px; margin: 6px 0; font-size: 11px; font-weight: 800; color: #344054; }
 .cum-band b { color: #1d3a8a; } .cum-band .cum-st { font-weight: 700; } .cum-band .cum-valide { color: #111827; } .cum-band .cum-fige { color: #067647; } .cum-band .cum-instance { color: #b42318; }
+
+/* ===== v749 : ACHATS (étape 1 : articles et paramètres) — mêmes tableaux que le budget ===== */
+#ach .ach-body { padding: 0 0 24px; }
+#ach .ach-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; }
+#ach .ach-cnt { font-weight: 800; font-size: 12px; color: #172033; margin-right: 8px; }
+#ach .ach-b { border: 1px solid #d5dbe3; background: #fff; border-radius: 8px; padding: 6px 10px; font-size: 11px; font-weight: 800; color: #172033; cursor: pointer; }
+#ach .ach-b:disabled { opacity: .45; cursor: default; }
+#ach .ach-scroll { overflow: auto; max-height: calc(100vh - 230px); -webkit-overflow-scrolling: touch; background: #fff; border: 1px solid #e5e9f0; border-radius: 10px; }
+#ach table.ach-table { table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+#ach table.ach-table thead th { position: sticky; top: 0; z-index: 3; background: #f3f4f6; font-size: 10px; color: #6b7280; text-align: left; padding: 4px 6px; border-bottom: 1px solid #e2e4eb; white-space: nowrap; }
+#ach table.ach-table th.center, #ach table.ach-table td.center { text-align: center; }
+#ach table.ach-table th.number, #ach table.ach-table td.number { text-align: right; }
+#ach table.ach-table td { height: 21px; padding: 0 4px; border-bottom: 1px solid #e2e4eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #ca3a31; }
+#ach table.ach-table td input.ins-in { width: 100%; border: 0; background: transparent; font: inherit; color: inherit; padding: 0 2px; height: 20px; }
+#ach table.ach-table td input.number { text-align: right; }
+#ach table.ach-table td input.center { text-align: center; }
+#ach table.ach-table tr.ach-new td { background: #fdf2f2; }
+#ach table.ach-table tr.ach-new input::placeholder { color: #ca3a31; opacity: .75; }
+#ach table.ach-table tr.ach-off td { color: #9aa3af; }
+#ach table.ach-table tr.ach-deleted td { color: #9aa3af; text-decoration: line-through; }
+#ach table.ach-table tr.ach-bad td:first-child { box-shadow: inset 3px 0 0 #ca3a31; }
+#ach .ach-code { color: #8a909c; font-weight: 700; }
+#ach .ach-h { border: 1px solid #c6ccd6; background: #fff; border-radius: 3px; font-size: 9px; font-weight: 800; width: 16px; height: 16px; line-height: 14px; padding: 0; cursor: pointer; color: #495467; }
+#ach .ach-warn { margin-left: 3px; cursor: pointer; font-size: 11px; }
+#ach .ach-bdg { border: 0; background: #e8eefc; color: #3661e3; border-radius: 9px; min-width: 22px; height: 18px; font-weight: 800; font-size: 11px; cursor: pointer; }
+#ach .ach-0 { color: #b8bec8; }
+#ach .ach-x { border: 0; background: none; color: #9aa3af; cursor: pointer; font-size: 12px; }
+#ach .ach-prm { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+#ach .ach-pbox { display: flex; flex-direction: column; gap: 6px; }
+#ach .ach-pt { font-size: 11px; font-weight: 800; color: #172033; }
+#ach .ach-ptva { width: 80px; border: 1px solid #d5dbe3; border-radius: 6px; height: 26px; text-align: right; padding: 0 6px; font-weight: 700; }
+#ach .ach-note { font-size: 10px; color: #8a909c; max-width: 520px; }
+.ach-pick { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; font-size: 12px; }
+#ach .ach-tvaw { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }

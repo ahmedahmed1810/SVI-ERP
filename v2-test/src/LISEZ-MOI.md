@@ -25,9 +25,10 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `06-bds-configuration.js` | écran BDS (décomposition) | 708 |
 | `07-bdg-chargement.js` | chargement des budgets validés | 179 |
 | `09-budget-outils.js` | fonctions sans état du budget (calculs, emballage et chutes, échéancier, bibliothèque, CUMUL) | 1209 |
+| `09c-filtres-communs.js` | tri et filtre par colonne façon tableur, COMMUNS à tous les écrans (budget, achats) : `sviCfKit` | 335 |
 | `10-bdg-liste.js` | liste des budgets (arborescence, avenants, CUMUL) | 2003 |
 | `11-budget-ouverture.js` | ouverture d'un budget (début de openBudgetDetail) | 548 |
-| `12-tableaux-colonnes.js` | colonnes des tableaux (SVI_COL), en-têtes, tri, filtre, largeurs | 348 |
+| `12-tableaux-colonnes.js` | ordre manuel des lignes du budget ; tri et filtre pris de 09c (`sviCfKit`) | 37 |
 | `13-instance-saisie.js` | budget en instance : saisie, filtres (FSRC), totaux, calendrier de tâche insCal | 1644 |
 | `14-doublons-classement.js` | doublons, classement, bandeau de liaison | 517 |
 | `15-qualite.js` | DÉTAIL QUALITÉ | 1308 |
@@ -72,5 +73,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `33-confirmations-sources.js` | fenêtres, messages, données source | 385 |
 | `34-parametrage.js` | PARAMÉTRAGE : UNITÉS, BIBLIOTHÈQUE DE PRIX, calendrier du budget | 446 |
 | `35-calendrier-saisie.js` | calendrier, saisie façon Google Sheets, cadre de sélection unique | 1451 |
+| `40-achats-donnees.js` | ACHATS : données et règles des articles et paramètres (partagés par la base V3), lien avec les charges des budgets | 98 |
+| `41-achats-ecran.js` | ACHATS : écran ARTICLES / FOURNISSEURS / PARAMÈTRES, corbeille, fusion, historique H | 320 |
 
 Document technique (architecture, données, recettes, tests) : `../DOC-TECHNIQUE.md`.

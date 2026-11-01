@@ -27,7 +27,7 @@
 
   <link
     rel="stylesheet"
-    href="styles.css?v=748"
+    href="styles.css?v=749"
   >
 </head>
 
@@ -69,6 +69,13 @@
         data-view="bdg"
       >
         BDG
+      </button>
+
+      <button
+        class="nav-btn"
+        data-view="ach"
+      >
+        ACHATS
       </button>
 
     </nav>
@@ -390,6 +397,21 @@
 
 
     <!-- ===================================================
+         ACHATS (v749, étape 1 : articles et paramètres ; src/40-achats-donnees.js, 41-achats-ecran.js)
+         =================================================== -->
+    <section id="ach" class="view">
+      <div class="section-head">
+        <button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button>
+        <div>
+          <h1>ACHATS</h1>
+          <p></p>
+        </div>
+      </div>
+      <div class="prm-tabs ach-tabs"><button type="button" class="prm-tab on" data-ach="art">ARTICLES</button><button type="button" class="prm-tab off" data-ach="frs" data-why="FOURNISSEURS : À LA PROCHAINE LIVRAISON (ÉTAPE 1, SUITE)">FOURNISSEURS</button><button type="button" class="prm-tab" data-ach="prm">PARAMÈTRES</button></div>
+      <div class="ach-body"></div>
+    </section>
+
+    <!-- ===================================================
          BDG — LISTE DES BUDGETS
          =================================================== -->
         <section id="bdg" class="view">
@@ -423,6 +445,7 @@
 <div id="navMenu" class="popup hidden">
   <button class="nav-btn active" data-view="chs">PARAMÉTRAGE</button>
   <button class="nav-btn" data-view="bdg">BDG</button>
+  <button class="nav-btn" data-view="ach">ACHATS</button>
   <div class="nav-sep"></div>
   <button type="button" class="nav-src" id="navSrcBtn">DONNÉES SOURCE</button>
 </div>
@@ -495,7 +518,7 @@
        JAVASCRIPT
        ===================================================== -->
 
-  <script src="app.js?v=748"></script>
+  <script src="app.js?v=749"></script>
 
 </body>
 

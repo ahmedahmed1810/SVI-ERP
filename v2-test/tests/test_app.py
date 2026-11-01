@@ -2574,6 +2574,25 @@ def main():
         b710 = pg.evaluate("() => !document.getElementById('budgetBackBtn')")
         pg.evaluate("() => { bdgRows = window.__rows710 || []; localStorage.setItem('svi_listmode_v1', 'inst'); renderBudgetList(); }"); pg.wait_for_timeout(400)
         check("v710 : budget ancien (sans INS) ouvert jusqu'au bout ; ← ramène à la liste", o710 == ["OUVERT", True] and b710, [o710, b710])
+        # v749 (ACHATS, étape 1) : règles des articles — doublon (désignation + unité), presque identique, numéro jamais réutilisé
+        # (corbeille), DIVERS sans plafond, prix au-dessus du plafond, reprise des charges des budgets, banque d'un RIB, fusion
+        a749 = pg.evaluate("""() => { const keepA = localStorage.getItem('svi_ach_art_v1'), keepP = localStorage.getItem('svi_ach_prm_v1');
+            localStorage.removeItem('svi_ach_art_v1'); localStorage.removeItem('svi_ach_prm_v1');
+            const L = []; const a1 = achArtNew(L, { des: 'ciment cpj 45', u: 't' }), a2 = achArtNew(L, { des: 'divers chantier', u: 'F' });
+            const dup = !!achArtDup(L, 'CIMENT  CPJ 45', 'T', null), near = (achArtNear(L, 'CIMANT CPJ 45', 'T', null) || {}).code || '';
+            a2.del = '2026-11-01'; const next = achArtNextCode(L);
+            const w1 = achArtWhy({ des: 'DIVERS X', u: 'F', pmax: 0 }), w2 = achArtWhy({ des: 'SABLE', u: 'M3', pref: 300, pmax: 200 });
+            const keepI = sviInstGet(); sviInstSet(keepI.concat([{ ref: 'ACH-T749', project: 'ACH', state: 'instance', data: { chg: [{ id: 'x1', des: 'sable', u: 'm3', q: 2, p: 150 }, { id: 'x2', des: 'SABLE', u: 'M3', q: 2, p: 250 }] } }]));
+            const n = achArtsFromBudgets(L), sab = L.find(a => a.des === 'SABLE'); sviInstSet(keepI);
+            const b1 = (achBankOfRib('190 810 21211') || {}).abr, b2 = (achBankOfRib('007 640 000') || {}).abr, b3 = achBankOfRib('999');
+            const k = achArtNew(L, { des: 'ACIER', u: 'KG', pref: 0 }), d = achArtNew(L, { des: 'ACIER HA', u: 'KG', pref: 14 }); const m = achArtMerge(L, k.id, [d.id]);
+            const out = [a1.code, a1.des, a1.u, a1.tva, dup, near, next, w1, w2, n >= 1, sab ? [sab.u, sab.src, sab.pref] : null, b1, b2, b3, m, k.pref, d.del ? d.mergedInto : ''];
+            if (keepA === null) localStorage.removeItem('svi_ach_art_v1'); else localStorage.setItem('svi_ach_art_v1', keepA);
+            if (keepP === null) localStorage.removeItem('svi_ach_prm_v1'); else localStorage.setItem('svi_ach_prm_v1', keepP);
+            return out; }""")
+        check("v749 : ACHATS — articles : doublon refusé, presque identique signalé, numéro jamais réutilisé, DIVERS sans plafond, prix au-dessus du plafond, reprise des charges des budgets, banque d'un RIB, fusion",
+              a749[:7] == ["ART-0001", "CIMENT CPJ 45", "T", 20, True, "ART-0001", "ART-0003"] and a749[7] == ["ARTICLE DIVERS : PLAFOND OBLIGATOIRE"] and a749[8] == ["PRIX DE RÉFÉRENCE AU-DESSUS DU PLAFOND"]
+              and a749[9] and a749[10] == ["M3", "BUDGETS", 200] and a749[11:14] == ["BP", "AWB", None] and a749[14] == 1 and a749[15] == 14 and a749[16] != "", a749)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
