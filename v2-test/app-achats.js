@@ -500,8 +500,12 @@ function sviAchInit() {
   };
   const draw = () => keepPos(() => {
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.ach === tab));
-    if (NV[tab]) { const M = NV[tab]; body.innerHTML = M.html(); if (h1) h1.innerHTML = M.h1(); if (sub) sub.textContent = ""; bar.style.display = M.isPage() ? "none" : ""; view.classList.toggle("ach-page", M.isPage()); return; }
-    bar.style.display = ""; view.classList.remove("ach-page");
+    /* v765 : plus de rangée d'onglets : on passe d'une liste à l'autre par le menu ☰ (comme les budgets) ; pas d'étiquette du budget ici */
+    bar.style.display = "none"; document.getElementById("sviScreenTag")?.remove(); document.body.classList.remove("bdg-screen");
+    if (NV[tab]) { const M = NV[tab]; body.innerHTML = M.html(); if (h1) h1.innerHTML = M.h1(); if (sub) sub.textContent = ""; view.classList.toggle("ach-page", M.isPage()); return; }
+    view.classList.remove("ach-page");
+    const LM = tab === "bsn" ? BSNM : MODS[tab];
+    if (LM && LM.h1) { body.innerHTML = LM.html(); if (h1) h1.innerHTML = LM.h1(); if (sub) sub.textContent = ""; return; }
     if (h1 && TTL[tab]) h1.textContent = TTL[tab][0];
     else if (h1) h1.textContent = tab === "caf" ? "ACHATS — CONSULTATIONS" : tab === "dvf" ? "ACHATS — DEVIS" : tab === "bsn" ? "BESOINS" : tab === "prm" ? "ACHATS — PARAMÈTRES" : tab === "frs" ? "ACHATS — FOURNISSEURS" : showDel ? "ACHATS — CORBEILLE DES ARTICLES" : "ACHATS — ARTICLES";
     if (sub && TTL[tab]) sub.textContent = TTL[tab][1];
@@ -511,7 +515,7 @@ function sviAchInit() {
   });
   view.__achDraw = draw;
   /* v764 : icône de bascule EN INSTANCE ⇄ VALIDÉS, placée dans le titre (hors du corps) */
-  if (h1) h1.addEventListener("click", e => { if (NV[tab] && e.target.closest("[data-nvsw]")) NV[tab].click(e); });
+  if (h1) h1.addEventListener("click", e => { const M = NV[tab] || (tab === "bsn" ? BSNM : MODS[tab]); if (M && e.target.closest("[data-nvsw]")) M.click(e); });
   /* v750 : entrée du menu ☰ (ACHAT › ARTICLES…) — ouvre l'onglet correspondant */
   view.__achTab = t => { Object.values(NV).forEach(M => M.close()); if (!["art", "prm", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr", "faf", "avf", "paf"].includes(t)) return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
   /* ---------- gestes ---------- */
@@ -960,38 +964,10 @@ function achBsnMod(ctx) {
     ["tache", "TÂCHE", b => b.tache || "", ""], ["prevue", "PRÉVU LE", b => dFr(b.datePrevue), ""], ["prio", "PRIORITÉ", b => b.prio || "", "center"],
     ["etat", "ÉTAT", b => stLab(b), "center"], ["ctl", "CONTRÔLE", b => ctlLab(b, L), "center"], ["dem", "DEMANDEUR", b => b.dem || "", ""]];
   const W0 = { ref: 150, bdg: 220, des: 220, u: 60, q: 100, pu: 110, mt: 120, tache: 220, prevue: 110, prio: 110, etat: 110, ctl: 130, dem: 120 };
-  const cwB = k => (cwLoad()["ach_bsn." + k]) || W0[k] || 100;
-  const html = () => {
-    const all = achBsn(), rows0 = all.filter(b => bOk(b, bEtat, all));
-    const cols = coOrder("ach_bsn", COLS(all)), rows = cfApply("ach_bsn", cols, rows0);
-    const W = cols.reduce((s, c) => s + cwB(c[0]), 0) + 46;
-    const cell = (b, c) => { const v = c[2](b);
-      if (c[0] === "ref") return `<button type="button" class="ach-link" data-bsn="${esc(b.id)}" title="Ouvrir la fiche">${esc(v)}</button>`;
-      return esc(typeof v === "number" ? (c[0] === "q" ? String(Math.round(v * 1000) / 1000).replace(".", ",") : F2(v)) : v); };
-    return `<div class="ach-tools">
-        <button type="button" class="ach-b ach-etat" data-a="bsn-etat">${(B_ETATS.find(x => x[0] === bEtat) || B_ETATS[0])[1]} ▾ ${svCnt(rows.length, rows0.length)}</button>
-        <button type="button" class="ach-b" data-a="bsn-new">+ NOUVEAU BESOIN</button>
-      </div>
-      <div class="ach-scroll"><table id="achBsnT" class="bdg-d-table prm-table ach-table" data-ach="bsn" style="width:${W}px">
-        <colgroup><col style="width:46px">${cols.map(c => `<col data-w="ach_bsn.${c[0]}" style="width:${cwB(c[0])}px">`).join("")}</colgroup>
-        <thead><tr><th class="center ach-hh">H</th>${cols.map(c => cfHead("ach_bsn", c[0], c[1], c[3])).join("")}</tr></thead>
-        <tbody>${rows.map(b => { const why = achBsnWhy(b, all); return `<tr data-id="${esc(b.id)}" data-iid="${esc(b.id)}" class="bsn-${esc(b.state || "instance")}${why.length ? " ach-bad" : ""}">
-          <td class="center"><button type="button" class="ach-h" data-h="${esc(b.ref)}" title="Historique">H</button>${why.length ? `<span class="ach-warn" data-why="${esc(why.join(" · "))}">⚠</span>` : ""}</td>
-          ${cols.map(c => `<td class="${c[3]}${c[0] === "ctl" && /BLOQUÉ/.test(ctlLab(b, all)) && !b.deb ? " bsn-blk" : ""}">${cell(b, c)}</td>`).join("")}</tr>`; }).join("")}
-          ${bEtat === "annule" || bEtat === "valide" ? "" : `<tr class="ach-new bsn-newrow" data-a="bsn-new"><td></td><td colspan="${cols.length}">CRÉER UN BESOIN ICI…</td></tr>`}
-        </tbody></table></div>`;
-  };
-  const click = async e => {
-    const lk = e.target.closest("[data-bsn]"); if (lk) { e.stopPropagation(); achBsnFiche(lk.dataset.bsn, () => draw()); return true; }
-    const nw = e.target.closest('[data-a="bsn-new"]'); if (nw) { e.stopPropagation(); achBsnFiche(null, () => draw()); return true; }
-    const ab = e.target.closest('.ach-b[data-a="bsn-etat"]');
-    if (ab) { const L = achBsn(); sviEtatMenu(ab, B_ETATS.map(([k, lab]) => ({ k, lab, n: L.filter(b => bOk(b, k, L)).length })), bEtat, k => { bEtat = k; try { localStorage.setItem("svi_ach_bsn_etat_v1", k); } catch (err) {} SEL.clear(); draw(); }); return true; }
-    return false;
-  };
-  return { html, click, change: () => false };
+  /* v765 : liste au format du budget (achListMod → achNvList) : EN INSTANCE / VALIDÉS, dates, CRÉER UN BESOIN ICI… en bas */
+  return achListMod(ctx, { k: "bsn", t: "ach_bsn", id: "achBsnT", name: "BESOINS", list: achBsn, save: achBsnSave, inst: b => b.state !== "valide" && b.state !== "annule",
+    open: achBsnFiche, why: (b, L) => achBsnWhy(b, L), w: W0, cols: () => COLS(achBsn()), newRow: "CRÉER UN BESOIN ICI…" });
 }
-
-/* ---------- FICHE BESOIN (création et suivi) ---------- */
 function achBsnFiche(id, done) {
   const L0 = achBsn(), b0 = id ? L0.find(x => x.id === id) : null;
   if (id && !b0) return;
@@ -1100,37 +1076,21 @@ const achDFr = v => /^\d{4}-\d{2}-\d{2}/.test(String(v || "")) ? String(v).slice
 const achF2 = v => (Number(v) || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/ | /g, " ");
 const achFrsNom = id => { const f = achFrs().find(x => x.id === id); return f ? f.code + " — " + f.nom : "?"; };
 /* tableau générique d'une liste d'achats (consultations, devis) : même format que les articles */
+/* v765 : toutes les listes des achats au format du budget (47 : achNvList) — EN INSTANCE / VALIDÉS, dates, CRÉER… en bas,
+   corbeille des lignes en instance (= ANNULER, la pièce est gardée) ; toucher une ligne ouvre sa fiche */
 function achListMod(ctx, o) {
-  const { cfApply, cfHead, SEL, draw } = ctx;
-  let et = o.etats[0][0]; try { const e0 = localStorage.getItem(o.etatKey); if (o.etats.some(x => x[0] === e0)) et = e0; } catch (e) {}
-  const cwX = k => (cwLoad()[o.t + "." + k]) || (o.w || {})[k] || 120;
-  const html = () => {
-    const all = o.list(), rows0 = all.filter(x => o.ok(x, et, all)), cols = coOrder(o.t, o.cols()), rows = cfApply(o.t, cols, rows0);
-    const W = cols.reduce((s, c) => s + cwX(c[0]), 0) + 46;
-    const cell = (x, c) => { const v = c[2](x); if (c[0] === "ref") return `<button type="button" class="ach-link" data-${o.k}="${esc(x.id)}">${esc(v)}</button>`;
-      return esc(typeof v === "number" ? achF2(v) : v); };
-    return `<div class="ach-tools"><button type="button" class="ach-b ach-etat" data-a="${o.k}-etat">${(o.etats.find(x => x[0] === et) || o.etats[0])[1]} ▾ ${svCnt(rows.length, rows0.length)}</button>
-        <button type="button" class="ach-b" data-a="${o.k}-new">+ ${o.newLab}</button></div>
-      <div class="ach-scroll"><table id="${o.id}" class="bdg-d-table prm-table ach-table" data-ach="${o.k}" style="width:${W}px">
-        <colgroup><col style="width:46px">${cols.map(c => `<col data-w="${o.t}.${c[0]}" style="width:${cwX(c[0])}px">`).join("")}</colgroup>
-        <thead><tr><th class="center ach-hh">H</th>${cols.map(c => cfHead(o.t, c[0], c[1], c[3])).join("")}</tr></thead>
-        <tbody>${rows.map(x => { const why = o.why(x, all); return `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" class="${o.k}-${esc(x.state || "")}${why.length ? " ach-bad" : ""}">
-          <td class="center"><button type="button" class="ach-h" data-h="${esc(x.ref)}" title="Historique">H</button>${why.length ? `<span class="ach-warn" data-why="${esc(why.join(" · "))}">⚠</span>` : ""}</td>
-          ${cols.map(c => `<td class="${c[3]}">${cell(x, c)}</td>`).join("")}</tr>`; }).join("")}
-          <tr class="ach-new ${o.k}-newrow" data-a="${o.k}-new"><td></td><td colspan="${cols.length}">${o.newRow}</td></tr></tbody></table></div>`;
-  };
-  const click = async e => {
-    const lk = e.target.closest(`[data-${o.k}]`); if (lk) { e.stopPropagation(); o.open(lk.dataset[o.k], () => draw()); return true; }
-    if (e.target.closest(`[data-a="${o.k}-new"]`)) { e.stopPropagation(); o.open(null, () => draw()); return true; }
-    const ab = e.target.closest(`.ach-b[data-a="${o.k}-etat"]`);
-    if (ab) { const L = o.list(); sviEtatMenu(ab, o.etats.map(([k, lab]) => ({ k, lab, n: L.filter(x => o.ok(x, k, L)).length })), et, k => { et = k; try { localStorage.setItem(o.etatKey, k); } catch (err) {} SEL.clear(); draw(); }); return true; }
-    return false;
-  };
-  return { html, click, change: () => false };
+  const dead = x => x.state === "annule";
+  return achNvList(ctx, { k: o.k, t: o.t, id: o.id, name: o.name, all: o.list, why: (x, L) => o.why(x, L || o.list()), bang: "ref", w: o.w,
+    etats: [["actif", "ACTIF"], ["alerte", "ALERTE"], ["annule", "ANNULÉS"], ["tout", "TOUT"]],
+    ok: (x, k, L) => k === "tout" ? true : k === "annule" ? dead(x) : !dead(x) && (k !== "alerte" || o.why(x, L || o.list()).length > 0),
+    inst: o.inst || (() => false), dI: x => x.cree || x.date || "", dV: x => x.valide || x.val || x.bap || x.solde || x.cree || x.date || "",
+    cols: () => o.cols(), newRow: o.newRow, add: done => o.open(null, () => done("x")), page: id => o.open(id, () => ctx.draw()),
+    kill: o.save ? async x => { if (!(await svConfirm({ title: "ANNULER", text: x.ref + " PASSE EN ANNULÉ (GARDÉ, VISIBLE DANS ANNULÉS).", ok: "ANNULER" }))) return false;
+      const L = o.list(), y = L.find(z => z.id === x.id); if (!y) return false; y.state = "annule"; y.mod = achNow(); o.save(L); achHist(y.ref, "ANNULÉ", ""); return true; } : null });
 }
 function achCafMod(ctx) {
   const st = { ouverte: "OUVERTE", close: "CLOSE", annule: "ANNULÉE" };
-  return achListMod(ctx, { k: "caf", t: "ach_caf", id: "achCafT", list: achCaf, etatKey: "svi_ach_caf_etat_v1", newLab: "NOUVELLE CONSULTATION", newRow: "CRÉER UNE CONSULTATION ICI…", open: achCafFiche,
+  return achListMod(ctx, { k: "caf", t: "ach_caf", id: "achCafT", list: achCaf, name: "CONSULTATIONS", save: achCafSave, inst: c => c.state === "ouverte", etatKey: "svi_ach_caf_etat_v1", newLab: "NOUVELLE CONSULTATION", newRow: "CRÉER UNE CONSULTATION ICI…", open: achCafFiche,
     etats: [["actif", "OUVERTES"], ["close", "CLOSES"], ["alerte", "ALERTE"], ["annule", "ANNULÉES"], ["tout", "TOUT"]],
     ok: (c, k, L) => k === "tout" ? true : k === "alerte" ? achCafWhy(c).length > 0 : k === "actif" ? c.state === "ouverte" : c.state === k,
     why: c => achCafWhy(c),
@@ -1141,7 +1101,7 @@ function achCafMod(ctx) {
 }
 function achDvfMod(ctx) {
   const st = { recu: "REÇU", retenu: "RETENU", rejete: "REJETÉ", annule: "ANNULÉ" };
-  return achListMod(ctx, { k: "dvf", t: "ach_dvf", id: "achDvfT", list: achDvf, etatKey: "svi_ach_dvf_etat_v1", newLab: "NOUVEAU DEVIS", newRow: "CRÉER UN DEVIS ICI… (HORS CONSULTATION)", open: achDvfFiche,
+  return achListMod(ctx, { k: "dvf", t: "ach_dvf", id: "achDvfT", list: achDvf, name: "DEVIS", save: achDvfSave, inst: v => v.state === "recu" || !v.state, etatKey: "svi_ach_dvf_etat_v1", newLab: "NOUVEAU DEVIS", newRow: "CRÉER UN DEVIS ICI… (HORS CONSULTATION)", open: achDvfFiche,
     etats: [["actif", "REÇUS"], ["retenu", "RETENUS"], ["rejete", "REJETÉS"], ["alerte", "ALERTE"], ["annule", "ANNULÉS"], ["tout", "TOUT"]],
     ok: (v, k) => k === "tout" ? true : k === "alerte" ? achDvfWhy(v).length > 0 : k === "actif" ? v.state === "recu" : v.state === k,
     why: v => achDvfWhy(v),
@@ -1336,7 +1296,7 @@ function achPickWin(title, items) {
 const ACH_CMF_ST = { instance: "EN INSTANCE", valide: "VALIDÉE", solde: "SOLDÉE", annule: "ANNULÉE" };
 const achNow = () => new Date().toISOString();
 function achCmfMod(ctx) {
-  return achListMod(ctx, { k: "cmf", t: "ach_cmf", id: "achCmfT", list: achCmf, etatKey: "svi_ach_cmf_etat_v1", newLab: "NOUVELLE COMMANDE", newRow: "CRÉER UNE COMMANDE ICI…", open: achCmfFiche,
+  return achListMod(ctx, { k: "cmf", t: "ach_cmf", id: "achCmfT", list: achCmf, name: "COMMANDES", save: achCmfSave, inst: c => c.state === "instance", etatKey: "svi_ach_cmf_etat_v1", newLab: "NOUVELLE COMMANDE", newRow: "CRÉER UNE COMMANDE ICI…", open: achCmfFiche,
     etats: [["actif", "EN COURS"], ["instance", "EN INSTANCE"], ["valide", "VALIDÉES"], ["solde", "SOLDÉES"], ["alerte", "ALERTE"], ["annule", "ANNULÉES"], ["tout", "TOUT"]],
     ok: (c, k) => k === "tout" ? true : k === "alerte" ? achCmfWhy(c).length > 0 : k === "actif" ? c.state === "instance" || c.state === "valide" : c.state === k,
     why: c => achCmfWhy(c),
@@ -1347,7 +1307,7 @@ function achCmfMod(ctx) {
       ["etat", "ÉTAT", c => ACH_CMF_ST[c.state] || "", "center"]] });
 }
 function achRcpMod(ctx) {
-  return achListMod(ctx, { k: "rcp", t: "ach_rcp", id: "achRcpT", list: achRcp, etatKey: "svi_ach_rcp_etat_v1", newLab: "LIVRAISON SANS COMMANDE", newRow: "CRÉER UNE RÉCEPTION SANS COMMANDE ICI… (LES AUTRES : DEPUIS LA COMMANDE, RÉCEPTIONNER)", open: (id, done) => achRcpFiche(id, null, done),
+  return achListMod(ctx, { k: "rcp", t: "ach_rcp", id: "achRcpT", list: achRcp, name: "RÉCEPTIONS", etatKey: "svi_ach_rcp_etat_v1", newLab: "LIVRAISON SANS COMMANDE", newRow: "CRÉER UNE RÉCEPTION SANS COMMANDE ICI… (LES AUTRES : DEPUIS LA COMMANDE, RÉCEPTIONNER)", open: (id, done) => achRcpFiche(id, null, done),
     etats: [["actif", "ACTIVES"], ["alerte", "ALERTE"], ["annule", "ANNULÉES"], ["tout", "TOUT"]],
     ok: (r, k) => k === "tout" ? true : k === "alerte" ? achRcpWhy(r).length > 0 : k === "annule" ? r.state === "annule" : r.state !== "annule",
     why: r => achRcpWhy(r),
@@ -1358,7 +1318,7 @@ function achRcpMod(ctx) {
       ["etat", "ÉTAT", r => r.state === "annule" ? "ANNULÉE" : "ENREGISTRÉE", "center"]] });
 }
 function achRtrMod(ctx, kind) {
-  return achListMod(ctx, { k: "rtr" + kind, t: "ach_rtr" + kind, id: kind === "cmd" ? "achRtcT" : "achRtrT", list: () => achRtr().filter(x => x.kind === kind), etatKey: "svi_ach_rtr" + kind + "_etat_v1",
+  return achListMod(ctx, { k: "rtr" + kind, t: "ach_rtr" + kind, id: kind === "cmd" ? "achRtcT" : "achRtrT", name: kind === "cmd" ? "RETOURS DE COMMANDE" : "RETOURS DE RÉCEPTION", list: () => achRtr().filter(x => x.kind === kind), etatKey: "svi_ach_rtr" + kind + "_etat_v1",
     newLab: kind === "cmd" ? "RETOUR DE COMMANDE (DEPUIS LA COMMANDE)" : "RETOUR DE RÉCEPTION (DEPUIS LA RÉCEPTION)", newRow: kind === "cmd" ? "UN RETOUR DE COMMANDE SE CRÉE DEPUIS LA COMMANDE (RETOUR DE COMMANDE, SOLDER)" : "UN RETOUR DE RÉCEPTION SE CRÉE DEPUIS LA RÉCEPTION (REFUS, RETOURNER)",
     open: (id, done) => { if (id) achRtrWin(id); else svToast(kind === "cmd" ? "OUVRIR LA COMMANDE PUIS « RETOUR DE COMMANDE » OU « SOLDER »." : "OUVRIR LA RÉCEPTION PUIS « RETOURNER » (OU REFUSER DES LIGNES).", 3500); },
     etats: [["tout", "TOUS"]], ok: () => true, why: () => [],
@@ -1604,7 +1564,7 @@ const achFafEtat = f => f.state === "bap" && achFafReste(f) <= 0.005 ? "PAYÉE" 
 const achId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 const achDin = v => String(v || "").slice(0, 10);
 function achFafMod(ctx) {
-  return achListMod(ctx, { k: "faf", t: "ach_faf", id: "achFafT", list: achFaf, etatKey: "svi_ach_faf_etat_v1", newLab: "NOUVELLE FACTURE", newRow: "CRÉER UNE FACTURE ICI… (OU DEPUIS LA COMMANDE : FACTURER)", open: (id, done) => achFafFiche(id, null, done),
+  return achListMod(ctx, { k: "faf", t: "ach_faf", id: "achFafT", list: achFaf, name: "FACTURES", save: achFafSave, inst: f => f.state === "instance" || f.state === "reclame", etatKey: "svi_ach_faf_etat_v1", newLab: "NOUVELLE FACTURE", newRow: "CRÉER UNE FACTURE ICI… (OU DEPUIS LA COMMANDE : FACTURER)", open: (id, done) => achFafFiche(id, null, done),
     etats: [["actif", "À PAYER"], ["instance", "EN INSTANCE"], ["reclame", "RÉCLAMÉES"], ["bap", "BON À PAYER"], ["payee", "PAYÉES"], ["alerte", "ALERTE"], ["annule", "ANNULÉES"], ["tout", "TOUT"]],
     ok: (f, k, L) => k === "tout" ? true : k === "alerte" ? achFafWhy(f, L).length > 0 : k === "payee" ? f.state === "bap" && achFafReste(f) <= 0.005 : k === "actif" ? f.state !== "annule" && achFafReste(f) > 0.005 : f.state === k,
     why: (f, L) => achFafWhy(f, L),
@@ -1614,7 +1574,7 @@ function achFafMod(ctx) {
       ["ttc", "MONTANT TTC", f => achFafTot(f).ttc, "number"], ["reste", "RESTE À PAYER", f => f.state === "annule" ? "" : achFafReste(f), "number"], ["etat", "ÉTAT", f => achFafEtat(f), "center"]] });
 }
 function achAvfMod(ctx) {
-  return achListMod(ctx, { k: "avf", t: "ach_avf", id: "achAvfT", list: achAvf, etatKey: "svi_ach_avf_etat_v1", newLab: "NOUVEL AVOIR", newRow: "CRÉER UN AVOIR ICI…", open: achAvfFiche,
+  return achListMod(ctx, { k: "avf", t: "ach_avf", id: "achAvfT", list: achAvf, name: "AVOIRS", etatKey: "svi_ach_avf_etat_v1", newLab: "NOUVEL AVOIR", newRow: "CRÉER UN AVOIR ICI…", open: achAvfFiche,
     etats: [["actif", "À DÉDUIRE"], ["tout", "TOUT"], ["annule", "ANNULÉS"]],
     ok: (a, k) => k === "tout" ? true : k === "annule" ? a.state === "annule" : a.state !== "annule" && achAvfReste(a) > 0.005, why: () => [],
     w: { ref: 150, num: 130, frs: 220, fa: 150, date: 110, ttc: 130, reste: 130, motif: 220 },
@@ -1622,7 +1582,7 @@ function achAvfMod(ctx) {
       ["date", "DATE", a => achDFr(a.date), ""], ["ttc", "MONTANT TTC", a => achN(a.ttc), "number"], ["reste", "RESTE À DÉDUIRE", a => a.state === "annule" ? "" : achAvfReste(a), "number"], ["motif", "MOTIF", a => a.motif || "", ""]] });
 }
 function achPafMod(ctx) {
-  return achListMod(ctx, { k: "paf", t: "ach_paf", id: "achPafT", list: achPaf, etatKey: "svi_ach_paf_etat_v1", newLab: "NOUVEAU PAIEMENT", newRow: "CRÉER UN PAIEMENT ICI… (OU DEPUIS LA FACTURE : PAYER)", open: (id, done) => achPafFiche(id, null, done),
+  return achListMod(ctx, { k: "paf", t: "ach_paf", id: "achPafT", list: achPaf, name: "PAIEMENTS", save: achPafSave, inst: p => p.state === "instance", etatKey: "svi_ach_paf_etat_v1", newLab: "NOUVEAU PAIEMENT", newRow: "CRÉER UN PAIEMENT ICI… (OU DEPUIS LA FACTURE : PAYER)", open: (id, done) => achPafFiche(id, null, done),
     etats: [["actif", "EN COURS"], ["instance", "EN INSTANCE"], ["emis", "ÉMIS (NON ENCAISSÉS)"], ["encaisse", "ENCAISSÉS"], ["avance", "AVANCES"], ["alerte", "ALERTE"], ["rejete", "REJETÉS / ANNULÉS"], ["tout", "TOUT"]],
     ok: (p, k, L) => k === "tout" ? true : k === "alerte" ? achPafWhy(p, L).length > 0 : k === "avance" ? p.type === "avance" && p.state !== "annule" && p.state !== "rejete" : k === "rejete" ? p.state === "rejete" || p.state === "annule" : k === "actif" ? p.state === "instance" || p.state === "emis" : p.state === k,
     why: (p, L) => achPafWhy(p, L),
@@ -1940,27 +1900,31 @@ function achNvList(ctx, o) {
   const KM = "svi_ach_" + o.k + "_mode_v1", KE = "svi_ach_" + o.k + "_etat2_v1";
   let mode = "valid", etat = "actif", dSel = "", order = [];
   try { mode = localStorage.getItem(KM) === "inst" ? "inst" : "valid"; const e0 = localStorage.getItem(KE); if (ETATS.some(x => x[0] === e0)) etat = e0; } catch (e) {}
-  const eOk = (x, k) => k === "tout" ? true : k === "corbeille" ? !!x.del : !x.del && (k === "inactif" ? x.actif === false : x.actif !== false);
-  const mOk = x => mode === "inst" ? achSt(x) === "instance" : achSt(x) === "valide";
-  const dOf = x => mode === "inst" ? achDay(x.cree) : achDay(x.val || x.cree);
+  /* v765 : crochets pour les pièces (consultations, devis, commandes…) — o.etats / o.ok, o.inst, o.dI / o.dV, o.kill, o.bang */
+  if (o.etats) ETATS.splice(0, ETATS.length, ...o.etats);
+  const isI = x => o.inst ? !!o.inst(x) : achSt(x) === "instance";
+  const eOk = (x, k, L) => o.ok ? o.ok(x, k, L) : k === "tout" ? true : k === "corbeille" ? !!x.del : !x.del && (k === "inactif" ? x.actif === false : x.actif !== false);
+  const mOk = x => mode === "inst" ? isI(x) : !isI(x);
+  const dOf = x => mode === "inst" ? achDay(o.dI ? o.dI(x) : x.cree) : achDay(o.dV ? o.dV(x) : x.val || x.cree);
   const cwX = k => (cwLoad()[o.t + "." + k]) || (o.w || {})[k] || 120;
-  const counts = () => { const L = o.all().filter(x => eOk(x, etat)); return { inst: L.filter(x => achSt(x) === "instance").length, valid: L.filter(x => achSt(x) === "valide").length }; };
+  const counts = () => { const A = o.all(), L = A.filter(x => eOk(x, etat, A)); return { inst: L.filter(isI).length, valid: L.filter(x => !isI(x)).length }; };
   const h1 = () => {
     const n = counts(); if (!n[mode] && n[mode === "inst" ? "valid" : "inst"]) mode = mode === "inst" ? "valid" : "inst";
     const other = mode === "inst" ? "valid" : "inst", can = n[other] > 0;
-    return esc(o.name) + (mode === "inst" ? " (EN INSTANCE)" : " (VALIDÉS)") + ` <button type="button" class="bdg-mode-sw nv-sw${can ? "" : " off"}" data-nvsw title="${can ? (other === "inst" ? "VOIR LA LISTE EN INSTANCE" : "VOIR LA LISTE DES VALIDÉS") : (other === "inst" ? "RIEN EN INSTANCE." : "RIEN DE VALIDÉ.")}">${ACH_SW}</button>`;
+    return esc(o.name) + (mode === "inst" ? " (EN INSTANCE)" : " (VALIDÉS)") + " " + svCnt(n[mode]) + ` <button type="button" class="bdg-mode-sw nv-sw${can ? "" : " off"}" data-nvsw title="${can ? (other === "inst" ? "VOIR LA LISTE EN INSTANCE" : "VOIR LA LISTE DES VALIDÉS") : (other === "inst" ? "RIEN EN INSTANCE." : "RIEN DE VALIDÉ.")}">${ACH_SW}</button>`;
   };
   const html = () => {
     h1();
-    const all = o.all(), base = all.filter(x => eOk(x, etat) && mOk(x));
+    const all = o.all(), base = all.filter(x => eOk(x, etat, all) && mOk(x));
     const days = [...base.reduce((m, x) => m.set(dOf(x), (m.get(dOf(x)) || 0) + 1), new Map())].sort((a, b) => b[0].localeCompare(a[0]));
     if (dSel && !days.some(d => d[0] === dSel)) dSel = "";
     const rows0 = base.filter(x => !dSel || dOf(x) === dSel), cols = coOrder(o.t, o.cols(mode)), rows = cfApply(o.t, cols, rows0);
     order = rows.map(x => x.id);
     const inst = mode === "inst", W = cols.reduce((s, c) => s + cwX(c[0]), 0) + (inst ? 40 : 0);
     const cell = (x, c) => { const v = c[2](x);
-      if (c[0] === "ref") return `<button type="button" class="ach-link nv-ref" data-nvo="${esc(x.id)}">${esc(v)}</button>`;
-      if (c[0] === "nom") { const w = o.why(x); return (w.length ? `<span class="ach-warn nv-bang" data-why="${esc(w.join(" · "))}">!</span> ` : "") + esc(v); }
+      const bg = c[0] === (o.bang || "nom") ? (w => w.length ? `<span class="ach-warn nv-bang" data-why="${esc(w.join(" · "))}">!</span> ` : "")(o.why(x, all)) : "";
+      if (c[0] === "ref") return bg + `<button type="button" class="ach-link nv-ref" data-nvo="${esc(x.id)}">${esc(v)}</button>`;
+      if (bg) return bg + esc(v);
       return esc(typeof v === "number" ? achF2(v) : v); };
     return `<div class="nv-wrap">
       <div class="nv-dates"><button type="button" class="ach-b ach-etat nv-etat" data-a="${o.k}-etat">${(ETATS.find(x => x[0] === etat) || ETATS[0])[1]} ▾ ${svCnt(base.length)}</button>
@@ -1968,16 +1932,17 @@ function achNvList(ctx, o) {
       <div class="ach-scroll nv-scroll"><table id="${o.id}" class="bdg-d-table prm-table ach-table nv-table${inst ? " nv-inst" : ""}" data-ach="${o.k}" style="width:${W}px">
         <colgroup>${cols.map(c => `<col data-w="${o.t}.${c[0]}" style="width:${cwX(c[0])}px">`).join("")}${inst ? `<col style="width:40px">` : ""}</colgroup>
         <thead><tr>${cols.map(c => cfHead(o.t, c[0], c[1], c[3])).join("")}${inst ? "<th></th>" : ""}</tr></thead>
-        <tbody>${rows.map(x => `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" class="nv-row${x.actif === false ? " ach-off" : ""}${x.del ? " ach-deleted" : ""}">${cols.map(c => `<td class="${c[3]}">${cell(x, c)}</td>`).join("")}${inst ? `<td class="center">${x.del ? "" : `<button type="button" class="nv-del" data-nvdel="${esc(x.id)}" title="METTRE À LA CORBEILLE">${ACH_TRASH}</button>`}</td>` : ""}</tr>`).join("")}
-          ${etat === "corbeille" || etat === "inactif" ? "" : `<tr class="ach-new nv-new" data-nvnew><td colspan="${cols.length + (inst ? 1 : 0)}">${esc(o.newRow)}</td></tr>`}</tbody></table></div></div>`;
+        <tbody>${rows.map(x => `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" class="nv-row${x.actif === false ? " ach-off" : ""}${x.del ? " ach-deleted" : ""}">${cols.map(c => `<td class="${c[3]}">${cell(x, c)}</td>`).join("")}${inst ? `<td class="center">${x.del || x.state === "annule" ? "" : `<button type="button" class="nv-del" data-nvdel="${esc(x.id)}" title="METTRE À LA CORBEILLE">${ACH_TRASH}</button>`}</td>` : ""}</tr>`).join("")}
+          ${etat === "corbeille" || etat === "inactif" || etat === "annule" ? "" : `<tr class="ach-new nv-new" data-nvnew><td colspan="${cols.length + (inst ? 1 : 0)}">${esc(o.newRow)}</td></tr>`}</tbody></table></div></div>`;
   };
   const click = async e => {
     if (e.target.closest("[data-nvsw]")) { const b = e.target.closest("[data-nvsw]"); if (b.classList.contains("off")) { svToast(b.title, 2500, b); return true; } mode = mode === "inst" ? "valid" : "inst"; dSel = ""; try { localStorage.setItem(KM, mode); } catch (err) {} draw(); return true; }
     const dy = e.target.closest("[data-nvday]"); if (dy) { dSel = dSel === dy.dataset.nvday ? "" : dy.dataset.nvday; draw(); return true; }
     const eb = e.target.closest(`[data-a="${o.k}-etat"]`);
-    if (eb) { const L = o.all(); sviEtatMenu(eb, ETATS.map(([k, lab]) => ({ k, lab, n: L.filter(x => eOk(x, k) && mOk(x)).length })), etat, k => { etat = k; try { localStorage.setItem(KE, k); } catch (err) {} draw(); }); return true; }
+    if (eb) { const L = o.all(); sviEtatMenu(eb, ETATS.map(([k, lab]) => ({ k, lab, n: L.filter(x => eOk(x, k, L) && mOk(x)).length })), etat, k => { etat = k; try { localStorage.setItem(KE, k); } catch (err) {} draw(); }); return true; }
     const w = e.target.closest(".nv-bang"); if (w) { e.stopPropagation(); svToast(w.dataset.why, 4000, w); return true; }
     const dl = e.target.closest("[data-nvdel]");
+    if (dl && o.kill) { const x = o.all().find(y => y.id === dl.dataset.nvdel); if (x && await o.kill(x)) draw(); return true; }
     if (dl) { const L = o.all(), x = L.find(y => y.id === dl.dataset.nvdel); if (!x) return true;
       if (!(await svConfirm({ title: "METTRE À LA CORBEILLE", text: o.code(x) + " — " + o.nom(x) + " (RESTAURABLE ; SON NUMÉRO NE SERA PAS RÉUTILISÉ).", ok: "METTRE À LA CORBEILLE" }))) return true;
       x.del = achNow(); x.mod = x.del; o.save(L); achHist(o.code(x), "CORBEILLE", o.nom(x)); draw(); return true; }

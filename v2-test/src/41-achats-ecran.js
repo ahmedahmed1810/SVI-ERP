@@ -135,8 +135,12 @@ function sviAchInit() {
   };
   const draw = () => keepPos(() => {
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.ach === tab));
-    if (NV[tab]) { const M = NV[tab]; body.innerHTML = M.html(); if (h1) h1.innerHTML = M.h1(); if (sub) sub.textContent = ""; bar.style.display = M.isPage() ? "none" : ""; view.classList.toggle("ach-page", M.isPage()); return; }
-    bar.style.display = ""; view.classList.remove("ach-page");
+    /* v765 : plus de rangée d'onglets : on passe d'une liste à l'autre par le menu ☰ (comme les budgets) ; pas d'étiquette du budget ici */
+    bar.style.display = "none"; document.getElementById("sviScreenTag")?.remove(); document.body.classList.remove("bdg-screen");
+    if (NV[tab]) { const M = NV[tab]; body.innerHTML = M.html(); if (h1) h1.innerHTML = M.h1(); if (sub) sub.textContent = ""; view.classList.toggle("ach-page", M.isPage()); return; }
+    view.classList.remove("ach-page");
+    const LM = tab === "bsn" ? BSNM : MODS[tab];
+    if (LM && LM.h1) { body.innerHTML = LM.html(); if (h1) h1.innerHTML = LM.h1(); if (sub) sub.textContent = ""; return; }
     if (h1 && TTL[tab]) h1.textContent = TTL[tab][0];
     else if (h1) h1.textContent = tab === "caf" ? "ACHATS — CONSULTATIONS" : tab === "dvf" ? "ACHATS — DEVIS" : tab === "bsn" ? "BESOINS" : tab === "prm" ? "ACHATS — PARAMÈTRES" : tab === "frs" ? "ACHATS — FOURNISSEURS" : showDel ? "ACHATS — CORBEILLE DES ARTICLES" : "ACHATS — ARTICLES";
     if (sub && TTL[tab]) sub.textContent = TTL[tab][1];
@@ -146,7 +150,7 @@ function sviAchInit() {
   });
   view.__achDraw = draw;
   /* v764 : icône de bascule EN INSTANCE ⇄ VALIDÉS, placée dans le titre (hors du corps) */
-  if (h1) h1.addEventListener("click", e => { if (NV[tab] && e.target.closest("[data-nvsw]")) NV[tab].click(e); });
+  if (h1) h1.addEventListener("click", e => { const M = NV[tab] || (tab === "bsn" ? BSNM : MODS[tab]); if (M && e.target.closest("[data-nvsw]")) M.click(e); });
   /* v750 : entrée du menu ☰ (ACHAT › ARTICLES…) — ouvre l'onglet correspondant */
   view.__achTab = t => { Object.values(NV).forEach(M => M.close()); if (!["art", "prm", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr", "faf", "avf", "paf"].includes(t)) return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
   /* ---------- gestes ---------- */

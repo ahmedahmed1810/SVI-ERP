@@ -18,38 +18,10 @@ function achBsnMod(ctx) {
     ["tache", "TÂCHE", b => b.tache || "", ""], ["prevue", "PRÉVU LE", b => dFr(b.datePrevue), ""], ["prio", "PRIORITÉ", b => b.prio || "", "center"],
     ["etat", "ÉTAT", b => stLab(b), "center"], ["ctl", "CONTRÔLE", b => ctlLab(b, L), "center"], ["dem", "DEMANDEUR", b => b.dem || "", ""]];
   const W0 = { ref: 150, bdg: 220, des: 220, u: 60, q: 100, pu: 110, mt: 120, tache: 220, prevue: 110, prio: 110, etat: 110, ctl: 130, dem: 120 };
-  const cwB = k => (cwLoad()["ach_bsn." + k]) || W0[k] || 100;
-  const html = () => {
-    const all = achBsn(), rows0 = all.filter(b => bOk(b, bEtat, all));
-    const cols = coOrder("ach_bsn", COLS(all)), rows = cfApply("ach_bsn", cols, rows0);
-    const W = cols.reduce((s, c) => s + cwB(c[0]), 0) + 46;
-    const cell = (b, c) => { const v = c[2](b);
-      if (c[0] === "ref") return `<button type="button" class="ach-link" data-bsn="${esc(b.id)}" title="Ouvrir la fiche">${esc(v)}</button>`;
-      return esc(typeof v === "number" ? (c[0] === "q" ? String(Math.round(v * 1000) / 1000).replace(".", ",") : F2(v)) : v); };
-    return `<div class="ach-tools">
-        <button type="button" class="ach-b ach-etat" data-a="bsn-etat">${(B_ETATS.find(x => x[0] === bEtat) || B_ETATS[0])[1]} ▾ ${svCnt(rows.length, rows0.length)}</button>
-        <button type="button" class="ach-b" data-a="bsn-new">+ NOUVEAU BESOIN</button>
-      </div>
-      <div class="ach-scroll"><table id="achBsnT" class="bdg-d-table prm-table ach-table" data-ach="bsn" style="width:${W}px">
-        <colgroup><col style="width:46px">${cols.map(c => `<col data-w="ach_bsn.${c[0]}" style="width:${cwB(c[0])}px">`).join("")}</colgroup>
-        <thead><tr><th class="center ach-hh">H</th>${cols.map(c => cfHead("ach_bsn", c[0], c[1], c[3])).join("")}</tr></thead>
-        <tbody>${rows.map(b => { const why = achBsnWhy(b, all); return `<tr data-id="${esc(b.id)}" data-iid="${esc(b.id)}" class="bsn-${esc(b.state || "instance")}${why.length ? " ach-bad" : ""}">
-          <td class="center"><button type="button" class="ach-h" data-h="${esc(b.ref)}" title="Historique">H</button>${why.length ? `<span class="ach-warn" data-why="${esc(why.join(" · "))}">⚠</span>` : ""}</td>
-          ${cols.map(c => `<td class="${c[3]}${c[0] === "ctl" && /BLOQUÉ/.test(ctlLab(b, all)) && !b.deb ? " bsn-blk" : ""}">${cell(b, c)}</td>`).join("")}</tr>`; }).join("")}
-          ${bEtat === "annule" || bEtat === "valide" ? "" : `<tr class="ach-new bsn-newrow" data-a="bsn-new"><td></td><td colspan="${cols.length}">CRÉER UN BESOIN ICI…</td></tr>`}
-        </tbody></table></div>`;
-  };
-  const click = async e => {
-    const lk = e.target.closest("[data-bsn]"); if (lk) { e.stopPropagation(); achBsnFiche(lk.dataset.bsn, () => draw()); return true; }
-    const nw = e.target.closest('[data-a="bsn-new"]'); if (nw) { e.stopPropagation(); achBsnFiche(null, () => draw()); return true; }
-    const ab = e.target.closest('.ach-b[data-a="bsn-etat"]');
-    if (ab) { const L = achBsn(); sviEtatMenu(ab, B_ETATS.map(([k, lab]) => ({ k, lab, n: L.filter(b => bOk(b, k, L)).length })), bEtat, k => { bEtat = k; try { localStorage.setItem("svi_ach_bsn_etat_v1", k); } catch (err) {} SEL.clear(); draw(); }); return true; }
-    return false;
-  };
-  return { html, click, change: () => false };
+  /* v765 : liste au format du budget (achListMod → achNvList) : EN INSTANCE / VALIDÉS, dates, CRÉER UN BESOIN ICI… en bas */
+  return achListMod(ctx, { k: "bsn", t: "ach_bsn", id: "achBsnT", name: "BESOINS", list: achBsn, save: achBsnSave, inst: b => b.state !== "valide" && b.state !== "annule",
+    open: achBsnFiche, why: (b, L) => achBsnWhy(b, L), w: W0, cols: () => COLS(achBsn()), newRow: "CRÉER UN BESOIN ICI…" });
 }
-
-/* ---------- FICHE BESOIN (création et suivi) ---------- */
 function achBsnFiche(id, done) {
   const L0 = achBsn(), b0 = id ? L0.find(x => x.id === id) : null;
   if (id && !b0) return;

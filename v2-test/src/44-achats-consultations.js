@@ -6,37 +6,21 @@ const achDFr = v => /^\d{4}-\d{2}-\d{2}/.test(String(v || "")) ? String(v).slice
 const achF2 = v => (Number(v) || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/ | /g, " ");
 const achFrsNom = id => { const f = achFrs().find(x => x.id === id); return f ? f.code + " — " + f.nom : "?"; };
 /* tableau générique d'une liste d'achats (consultations, devis) : même format que les articles */
+/* v765 : toutes les listes des achats au format du budget (47 : achNvList) — EN INSTANCE / VALIDÉS, dates, CRÉER… en bas,
+   corbeille des lignes en instance (= ANNULER, la pièce est gardée) ; toucher une ligne ouvre sa fiche */
 function achListMod(ctx, o) {
-  const { cfApply, cfHead, SEL, draw } = ctx;
-  let et = o.etats[0][0]; try { const e0 = localStorage.getItem(o.etatKey); if (o.etats.some(x => x[0] === e0)) et = e0; } catch (e) {}
-  const cwX = k => (cwLoad()[o.t + "." + k]) || (o.w || {})[k] || 120;
-  const html = () => {
-    const all = o.list(), rows0 = all.filter(x => o.ok(x, et, all)), cols = coOrder(o.t, o.cols()), rows = cfApply(o.t, cols, rows0);
-    const W = cols.reduce((s, c) => s + cwX(c[0]), 0) + 46;
-    const cell = (x, c) => { const v = c[2](x); if (c[0] === "ref") return `<button type="button" class="ach-link" data-${o.k}="${esc(x.id)}">${esc(v)}</button>`;
-      return esc(typeof v === "number" ? achF2(v) : v); };
-    return `<div class="ach-tools"><button type="button" class="ach-b ach-etat" data-a="${o.k}-etat">${(o.etats.find(x => x[0] === et) || o.etats[0])[1]} ▾ ${svCnt(rows.length, rows0.length)}</button>
-        <button type="button" class="ach-b" data-a="${o.k}-new">+ ${o.newLab}</button></div>
-      <div class="ach-scroll"><table id="${o.id}" class="bdg-d-table prm-table ach-table" data-ach="${o.k}" style="width:${W}px">
-        <colgroup><col style="width:46px">${cols.map(c => `<col data-w="${o.t}.${c[0]}" style="width:${cwX(c[0])}px">`).join("")}</colgroup>
-        <thead><tr><th class="center ach-hh">H</th>${cols.map(c => cfHead(o.t, c[0], c[1], c[3])).join("")}</tr></thead>
-        <tbody>${rows.map(x => { const why = o.why(x, all); return `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" class="${o.k}-${esc(x.state || "")}${why.length ? " ach-bad" : ""}">
-          <td class="center"><button type="button" class="ach-h" data-h="${esc(x.ref)}" title="Historique">H</button>${why.length ? `<span class="ach-warn" data-why="${esc(why.join(" · "))}">⚠</span>` : ""}</td>
-          ${cols.map(c => `<td class="${c[3]}">${cell(x, c)}</td>`).join("")}</tr>`; }).join("")}
-          <tr class="ach-new ${o.k}-newrow" data-a="${o.k}-new"><td></td><td colspan="${cols.length}">${o.newRow}</td></tr></tbody></table></div>`;
-  };
-  const click = async e => {
-    const lk = e.target.closest(`[data-${o.k}]`); if (lk) { e.stopPropagation(); o.open(lk.dataset[o.k], () => draw()); return true; }
-    if (e.target.closest(`[data-a="${o.k}-new"]`)) { e.stopPropagation(); o.open(null, () => draw()); return true; }
-    const ab = e.target.closest(`.ach-b[data-a="${o.k}-etat"]`);
-    if (ab) { const L = o.list(); sviEtatMenu(ab, o.etats.map(([k, lab]) => ({ k, lab, n: L.filter(x => o.ok(x, k, L)).length })), et, k => { et = k; try { localStorage.setItem(o.etatKey, k); } catch (err) {} SEL.clear(); draw(); }); return true; }
-    return false;
-  };
-  return { html, click, change: () => false };
+  const dead = x => x.state === "annule";
+  return achNvList(ctx, { k: o.k, t: o.t, id: o.id, name: o.name, all: o.list, why: (x, L) => o.why(x, L || o.list()), bang: "ref", w: o.w,
+    etats: [["actif", "ACTIF"], ["alerte", "ALERTE"], ["annule", "ANNULÉS"], ["tout", "TOUT"]],
+    ok: (x, k, L) => k === "tout" ? true : k === "annule" ? dead(x) : !dead(x) && (k !== "alerte" || o.why(x, L || o.list()).length > 0),
+    inst: o.inst || (() => false), dI: x => x.cree || x.date || "", dV: x => x.valide || x.val || x.bap || x.solde || x.cree || x.date || "",
+    cols: () => o.cols(), newRow: o.newRow, add: done => o.open(null, () => done("x")), page: id => o.open(id, () => ctx.draw()),
+    kill: o.save ? async x => { if (!(await svConfirm({ title: "ANNULER", text: x.ref + " PASSE EN ANNULÉ (GARDÉ, VISIBLE DANS ANNULÉS).", ok: "ANNULER" }))) return false;
+      const L = o.list(), y = L.find(z => z.id === x.id); if (!y) return false; y.state = "annule"; y.mod = achNow(); o.save(L); achHist(y.ref, "ANNULÉ", ""); return true; } : null });
 }
 function achCafMod(ctx) {
   const st = { ouverte: "OUVERTE", close: "CLOSE", annule: "ANNULÉE" };
-  return achListMod(ctx, { k: "caf", t: "ach_caf", id: "achCafT", list: achCaf, etatKey: "svi_ach_caf_etat_v1", newLab: "NOUVELLE CONSULTATION", newRow: "CRÉER UNE CONSULTATION ICI…", open: achCafFiche,
+  return achListMod(ctx, { k: "caf", t: "ach_caf", id: "achCafT", list: achCaf, name: "CONSULTATIONS", save: achCafSave, inst: c => c.state === "ouverte", etatKey: "svi_ach_caf_etat_v1", newLab: "NOUVELLE CONSULTATION", newRow: "CRÉER UNE CONSULTATION ICI…", open: achCafFiche,
     etats: [["actif", "OUVERTES"], ["close", "CLOSES"], ["alerte", "ALERTE"], ["annule", "ANNULÉES"], ["tout", "TOUT"]],
     ok: (c, k, L) => k === "tout" ? true : k === "alerte" ? achCafWhy(c).length > 0 : k === "actif" ? c.state === "ouverte" : c.state === k,
     why: c => achCafWhy(c),
@@ -47,7 +31,7 @@ function achCafMod(ctx) {
 }
 function achDvfMod(ctx) {
   const st = { recu: "REÇU", retenu: "RETENU", rejete: "REJETÉ", annule: "ANNULÉ" };
-  return achListMod(ctx, { k: "dvf", t: "ach_dvf", id: "achDvfT", list: achDvf, etatKey: "svi_ach_dvf_etat_v1", newLab: "NOUVEAU DEVIS", newRow: "CRÉER UN DEVIS ICI… (HORS CONSULTATION)", open: achDvfFiche,
+  return achListMod(ctx, { k: "dvf", t: "ach_dvf", id: "achDvfT", list: achDvf, name: "DEVIS", save: achDvfSave, inst: v => v.state === "recu" || !v.state, etatKey: "svi_ach_dvf_etat_v1", newLab: "NOUVEAU DEVIS", newRow: "CRÉER UN DEVIS ICI… (HORS CONSULTATION)", open: achDvfFiche,
     etats: [["actif", "REÇUS"], ["retenu", "RETENUS"], ["rejete", "REJETÉS"], ["alerte", "ALERTE"], ["annule", "ANNULÉS"], ["tout", "TOUT"]],
     ok: (v, k) => k === "tout" ? true : k === "alerte" ? achDvfWhy(v).length > 0 : k === "actif" ? v.state === "recu" : v.state === k,
     why: v => achDvfWhy(v),

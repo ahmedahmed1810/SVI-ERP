@@ -2736,7 +2736,7 @@ def main():
             const r = [top.join(','), sub.join(','), open, still, stay, document.getElementById('ach').classList.contains('active-view'), document.querySelector('#ach .section-head h1').textContent.trim().replace(/ \(.*$/, '')];
             M.querySelector('.nav-grp').click(); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); M.classList.add('hidden'); await w(600); return r; }""")
         check("v751 / v752 : menu ☰ — ordre BDG, ACHAT, BESOIN, PARAMÉTRAGE ; ACHAT dépliable (CONSULTATIONS, DEVIS, COMMANDES, RÉCEPTIONS, FACTURES, PAIEMENTS, FOURNISSEURS, ARTICLES, ACC), BESOIN dessous ; entrées à venir grisées ; ARTICLES ouvre les achats",
-              m751 == ["BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RETOURS DE COMMANDE,RÉCEPTIONS,RETOURS DE RÉCEPTION,FACTURES,AVOIRS,PAIEMENTS,FOURNISSEURS,ARTICLES,ACC", True, True, True, True, "ARTICLES"], m751)
+              m751 == ["BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RETOURS DE COMMANDE,RÉCEPTIONS,RETOURS DE RÉCEPTION,FACTURES,AVOIRS,PAIEMENTS,FOURNISSEURS,ARTICLES,PARAMÈTRES ACHATS,ACC", True, True, True, True, "ARTICLES"], m751)
         # v752 : icône devant chaque entrée du menu ; liste des budgets en gras ; lignes du dessous décalées ; corbeille de la couleur de sa ligne
         k752 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const M = document.getElementById('navMenu');
             const ic = [...M.querySelectorAll('.nav-btn, .nav-grp, .nav-off, .nav-src')].every(b => !!b.querySelector('svg.nav-ic'));
@@ -2846,7 +2846,7 @@ def main():
             return [r1, wc.length, wa.join('|'), h1, n0, n1, secs, conf, sig, hist, ok && pgOk]; }""")
         check("v759 : FOURNISSEURS — ICE (15 chiffres, unique), RIB 24 chiffres, occasionnel sans ICE ni RIB, document expiré ; onglet, création, fiche ; changement de RIB confirmé, signalé, noté dans H, puis RIB VÉRIFIÉ",
               f759[0] == ["FRS-0001", "FRS-0002", False, True, "FRS-0001", True] and f759[1] == 0 and "DOCUMENT EXPIRÉ : ATTESTATION CNSS" in f759[2] and "ICE EN DOUBLE" in f759[2]
-              and f759[3] == "FOURNISSEURS (VALIDÉS)" and f759[4] == 2 and f759[5] == 3 and f759[6] == "IDENTITÉ,FISCAL,RIB,CONDITIONS,FAMILLES,DOCUMENTS,CONTACTS,ÉVALUATIONS,CONTRATS"
+              and f759[3] == "FOURNISSEURS (VALIDÉS) 2" and f759[4] == 2 and f759[5] == 3 and f759[6] == "IDENTITÉ,FISCAL,RIB,CONDITIONS,FAMILLES,DOCUMENTS,CONTACTS,ÉVALUATIONS,CONTRATS"
               and f759[7] == "CHANGEMENT DE RIB" and f759[8] and f759[9] and f759[10], f759)
         # v760 : BESOINS — charges du budget avec leurs tâches, contrôle prévu / déjà demandé, dépassement BLOQUÉ (justifier puis DÉBLOQUER),
         # seuil 90 %, centre SIÈGE hors budget ; menu ☰ › BESOIN, fiche de création (budget › charge › tâche), validation
@@ -2859,14 +2859,14 @@ def main():
             b2.deb = { u: 'T', t: '2026-11-01', why: 'X' }; const w2b = achBsnWhy(b2, L), s0 = achBsnCtl({ centre: 'SIÈGE', des: 'PAPIER', q: 1 }, L);
             const r = [C.length, C[0].des, C[0].tasks.join(','), Math.round(C[0].p), Math.round(c1.pct), w2.some(m => /BLOQUÉ/.test(m)), w3.some(m => /SEUIL/.test(m)), w2b.length, s0, achBsnNextRef([b1], new Date(2026, 10, 2))];
             document.querySelector('#navMenu .nav-btn[data-ach="bsn"]').click(); await w(400); const v = document.getElementById('ach');
-            r.push(v.querySelector('.section-head h1').textContent);
+            r.push(v.querySelector('.section-head h1').textContent.trim().replace(/ \\(.*$/, ''));
             achBsnFiche(null, () => v.__achDraw()); await w(200);
             const set = (k, val) => { const i = document.querySelector(`.bsn-card .bsn-x[data-k="${k}"]`); i.value = val; i.dispatchEvent(new Event('change', { bubbles: true })); };
             set('bdg', 'BSN-T1'); await w(50); set('chg', achKey('CIMENT', 'T')); await w(50);
             const fc = document.querySelector('.bsn-card'); const tache = fc.querySelector('.bsn-x[data-k="tache"]').value;
             fc.querySelector('.bsn-x[data-k="q"]').value = '4'; fc.querySelector('.bsn-x[data-k="datePrevue"]').value = '2026-11-10'; fc.querySelector('[data-save]').click(); await w(300);
             const S = achBsn(); r.push(tache, S.length, S[0] && S[0].ref.startsWith('BSN '), v.querySelectorAll('#achBsnT tbody tr[data-id]').length);
-            v.querySelector('#achBsnT [data-bsn]').click(); await w(200); document.querySelector('.bsn-card [data-valid]').click(); await w(300); r.push(achBsn()[0].state);
+            v.querySelector('#achBsnT [data-nvo]').click(); await w(200); document.querySelector('.bsn-card [data-valid]').click(); await w(300); r.push(achBsn()[0].state);
             sviInstSet(keepI); if (keepB === null) localStorage.removeItem('svi_ach_bsn_v1'); else localStorage.setItem('svi_ach_bsn_v1', keepB);
             if (keepE === null) localStorage.removeItem('svi_ach_bsn_etat_v1'); else localStorage.setItem('svi_ach_bsn_etat_v1', keepE);
             v.__achTab('art'); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
@@ -2998,8 +2998,22 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v764 : ARTICLES au format du budget — listes EN INSTANCE / VALIDÉS, dates, création par fenêtre (en instance, corbeille), page : bloc DOC / TAF / OBS, ⋯ VALIDER et UNITÉ DE CONVERSION, devis liés, ‹ ›",
-              a764 == ["ARTICLES (VALIDÉS)", 2, 2, 1, "instance", "ARTICLES (EN INSTANCE)", 1, True, True, "ART-0003", True, 3, 1, True,
-                       "VALIDER|UNITÉ DE CONVERSION|BUDGETS (0)|METTRE À LA CORBEILLE", '[{"u":"SAC","r":20}]', "valide", True, "ARTICLES (VALIDÉS)", True, True, True], a764)
+              a764 == ["ARTICLES (VALIDÉS) 2", 2, 2, 1, "instance", "ARTICLES (EN INSTANCE) 1", 1, True, True, "ART-0003", True, 3, 1, True,
+                       "VALIDER|UNITÉ DE CONVERSION|BUDGETS (0)|METTRE À LA CORBEILLE", '[{"u":"SAC","r":20}]', "valide", True, "ARTICLES (VALIDÉS) 3", True, True, True], a764)
+        # v765 : toutes les listes des achats au format du budget — pas d'onglets, titre EN INSTANCE / VALIDÉS + bascule, dates, corbeille = ANNULER
+        l765 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_caf_v1', 'svi_ach_caf_mode_v1', 'svi_ach_caf_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
+            achCafSave([{ id: 'c1', ref: 'CAF 1', state: 'ouverte', cree: '2026-10-30T10:00:00Z', lignes: [], frs: [] }, { id: 'c2', ref: 'CAF 2', state: 'close', cree: '2026-10-20T10:00:00Z', valide: '2026-10-25T10:00:00Z', lignes: [], frs: [] }]);
+            const v = document.getElementById('ach'); document.querySelector('#navMenu .nav-btn[data-ach="caf"]').click(); await w(300);
+            const h = () => v.querySelector('.section-head h1').textContent.replace(/\\s+/g, ' ').trim();
+            const r = [getComputedStyle(v.querySelector('.ach-tabs')).display, h(), v.querySelectorAll('#achCafT tbody tr[data-id]').length, !!v.querySelector('.nv-day'), !v.querySelector('.ach-hh'), !!document.getElementById('sviScreenTag')];
+            v.querySelector('[data-nvsw]').click(); await w(200); r.push(h(), !!v.querySelector('.nv-inst [data-nvdel]'));
+            v.querySelector('[data-nvdel]').click(); await w(200); document.querySelector('#svConf [data-r="1"]')?.click(); await w(250);
+            r.push(achCaf().find(c => c.id === 'c1').state);
+            v.querySelector('[data-nvo]').click(); await w(250); r.push(!!document.querySelector('.caf-card')); document.querySelector('.caf-card [data-x]')?.click(); await w(150);
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
+        check("v765 : listes des achats au format du budget — sans onglets, titre EN INSTANCE / VALIDÉS avec nombre et bascule, dates, sans H, sans étiquette du budget ; corbeille = ANNULÉ ; ligne → fiche",
+              l765[0] == "none" and l765[1].startswith("CONSULTATIONS (VALIDÉS) 1") and l765[2:6] == [1, True, True, False] and l765[6].startswith("CONSULTATIONS (EN INSTANCE) 1") and l765[7] is True and l765[8:] == ["annule", True], l765)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

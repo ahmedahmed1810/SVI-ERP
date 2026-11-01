@@ -69,27 +69,31 @@ function achNvList(ctx, o) {
   const KM = "svi_ach_" + o.k + "_mode_v1", KE = "svi_ach_" + o.k + "_etat2_v1";
   let mode = "valid", etat = "actif", dSel = "", order = [];
   try { mode = localStorage.getItem(KM) === "inst" ? "inst" : "valid"; const e0 = localStorage.getItem(KE); if (ETATS.some(x => x[0] === e0)) etat = e0; } catch (e) {}
-  const eOk = (x, k) => k === "tout" ? true : k === "corbeille" ? !!x.del : !x.del && (k === "inactif" ? x.actif === false : x.actif !== false);
-  const mOk = x => mode === "inst" ? achSt(x) === "instance" : achSt(x) === "valide";
-  const dOf = x => mode === "inst" ? achDay(x.cree) : achDay(x.val || x.cree);
+  /* v765 : crochets pour les pièces (consultations, devis, commandes…) — o.etats / o.ok, o.inst, o.dI / o.dV, o.kill, o.bang */
+  if (o.etats) ETATS.splice(0, ETATS.length, ...o.etats);
+  const isI = x => o.inst ? !!o.inst(x) : achSt(x) === "instance";
+  const eOk = (x, k, L) => o.ok ? o.ok(x, k, L) : k === "tout" ? true : k === "corbeille" ? !!x.del : !x.del && (k === "inactif" ? x.actif === false : x.actif !== false);
+  const mOk = x => mode === "inst" ? isI(x) : !isI(x);
+  const dOf = x => mode === "inst" ? achDay(o.dI ? o.dI(x) : x.cree) : achDay(o.dV ? o.dV(x) : x.val || x.cree);
   const cwX = k => (cwLoad()[o.t + "." + k]) || (o.w || {})[k] || 120;
-  const counts = () => { const L = o.all().filter(x => eOk(x, etat)); return { inst: L.filter(x => achSt(x) === "instance").length, valid: L.filter(x => achSt(x) === "valide").length }; };
+  const counts = () => { const A = o.all(), L = A.filter(x => eOk(x, etat, A)); return { inst: L.filter(isI).length, valid: L.filter(x => !isI(x)).length }; };
   const h1 = () => {
     const n = counts(); if (!n[mode] && n[mode === "inst" ? "valid" : "inst"]) mode = mode === "inst" ? "valid" : "inst";
     const other = mode === "inst" ? "valid" : "inst", can = n[other] > 0;
-    return esc(o.name) + (mode === "inst" ? " (EN INSTANCE)" : " (VALIDÉS)") + ` <button type="button" class="bdg-mode-sw nv-sw${can ? "" : " off"}" data-nvsw title="${can ? (other === "inst" ? "VOIR LA LISTE EN INSTANCE" : "VOIR LA LISTE DES VALIDÉS") : (other === "inst" ? "RIEN EN INSTANCE." : "RIEN DE VALIDÉ.")}">${ACH_SW}</button>`;
+    return esc(o.name) + (mode === "inst" ? " (EN INSTANCE)" : " (VALIDÉS)") + " " + svCnt(n[mode]) + ` <button type="button" class="bdg-mode-sw nv-sw${can ? "" : " off"}" data-nvsw title="${can ? (other === "inst" ? "VOIR LA LISTE EN INSTANCE" : "VOIR LA LISTE DES VALIDÉS") : (other === "inst" ? "RIEN EN INSTANCE." : "RIEN DE VALIDÉ.")}">${ACH_SW}</button>`;
   };
   const html = () => {
     h1();
-    const all = o.all(), base = all.filter(x => eOk(x, etat) && mOk(x));
+    const all = o.all(), base = all.filter(x => eOk(x, etat, all) && mOk(x));
     const days = [...base.reduce((m, x) => m.set(dOf(x), (m.get(dOf(x)) || 0) + 1), new Map())].sort((a, b) => b[0].localeCompare(a[0]));
     if (dSel && !days.some(d => d[0] === dSel)) dSel = "";
     const rows0 = base.filter(x => !dSel || dOf(x) === dSel), cols = coOrder(o.t, o.cols(mode)), rows = cfApply(o.t, cols, rows0);
     order = rows.map(x => x.id);
     const inst = mode === "inst", W = cols.reduce((s, c) => s + cwX(c[0]), 0) + (inst ? 40 : 0);
     const cell = (x, c) => { const v = c[2](x);
-      if (c[0] === "ref") return `<button type="button" class="ach-link nv-ref" data-nvo="${esc(x.id)}">${esc(v)}</button>`;
-      if (c[0] === "nom") { const w = o.why(x); return (w.length ? `<span class="ach-warn nv-bang" data-why="${esc(w.join(" · "))}">!</span> ` : "") + esc(v); }
+      const bg = c[0] === (o.bang || "nom") ? (w => w.length ? `<span class="ach-warn nv-bang" data-why="${esc(w.join(" · "))}">!</span> ` : "")(o.why(x, all)) : "";
+      if (c[0] === "ref") return bg + `<button type="button" class="ach-link nv-ref" data-nvo="${esc(x.id)}">${esc(v)}</button>`;
+      if (bg) return bg + esc(v);
       return esc(typeof v === "number" ? achF2(v) : v); };
     return `<div class="nv-wrap">
       <div class="nv-dates"><button type="button" class="ach-b ach-etat nv-etat" data-a="${o.k}-etat">${(ETATS.find(x => x[0] === etat) || ETATS[0])[1]} ▾ ${svCnt(base.length)}</button>
@@ -97,16 +101,17 @@ function achNvList(ctx, o) {
       <div class="ach-scroll nv-scroll"><table id="${o.id}" class="bdg-d-table prm-table ach-table nv-table${inst ? " nv-inst" : ""}" data-ach="${o.k}" style="width:${W}px">
         <colgroup>${cols.map(c => `<col data-w="${o.t}.${c[0]}" style="width:${cwX(c[0])}px">`).join("")}${inst ? `<col style="width:40px">` : ""}</colgroup>
         <thead><tr>${cols.map(c => cfHead(o.t, c[0], c[1], c[3])).join("")}${inst ? "<th></th>" : ""}</tr></thead>
-        <tbody>${rows.map(x => `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" class="nv-row${x.actif === false ? " ach-off" : ""}${x.del ? " ach-deleted" : ""}">${cols.map(c => `<td class="${c[3]}">${cell(x, c)}</td>`).join("")}${inst ? `<td class="center">${x.del ? "" : `<button type="button" class="nv-del" data-nvdel="${esc(x.id)}" title="METTRE À LA CORBEILLE">${ACH_TRASH}</button>`}</td>` : ""}</tr>`).join("")}
-          ${etat === "corbeille" || etat === "inactif" ? "" : `<tr class="ach-new nv-new" data-nvnew><td colspan="${cols.length + (inst ? 1 : 0)}">${esc(o.newRow)}</td></tr>`}</tbody></table></div></div>`;
+        <tbody>${rows.map(x => `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" class="nv-row${x.actif === false ? " ach-off" : ""}${x.del ? " ach-deleted" : ""}">${cols.map(c => `<td class="${c[3]}">${cell(x, c)}</td>`).join("")}${inst ? `<td class="center">${x.del || x.state === "annule" ? "" : `<button type="button" class="nv-del" data-nvdel="${esc(x.id)}" title="METTRE À LA CORBEILLE">${ACH_TRASH}</button>`}</td>` : ""}</tr>`).join("")}
+          ${etat === "corbeille" || etat === "inactif" || etat === "annule" ? "" : `<tr class="ach-new nv-new" data-nvnew><td colspan="${cols.length + (inst ? 1 : 0)}">${esc(o.newRow)}</td></tr>`}</tbody></table></div></div>`;
   };
   const click = async e => {
     if (e.target.closest("[data-nvsw]")) { const b = e.target.closest("[data-nvsw]"); if (b.classList.contains("off")) { svToast(b.title, 2500, b); return true; } mode = mode === "inst" ? "valid" : "inst"; dSel = ""; try { localStorage.setItem(KM, mode); } catch (err) {} draw(); return true; }
     const dy = e.target.closest("[data-nvday]"); if (dy) { dSel = dSel === dy.dataset.nvday ? "" : dy.dataset.nvday; draw(); return true; }
     const eb = e.target.closest(`[data-a="${o.k}-etat"]`);
-    if (eb) { const L = o.all(); sviEtatMenu(eb, ETATS.map(([k, lab]) => ({ k, lab, n: L.filter(x => eOk(x, k) && mOk(x)).length })), etat, k => { etat = k; try { localStorage.setItem(KE, k); } catch (err) {} draw(); }); return true; }
+    if (eb) { const L = o.all(); sviEtatMenu(eb, ETATS.map(([k, lab]) => ({ k, lab, n: L.filter(x => eOk(x, k, L) && mOk(x)).length })), etat, k => { etat = k; try { localStorage.setItem(KE, k); } catch (err) {} draw(); }); return true; }
     const w = e.target.closest(".nv-bang"); if (w) { e.stopPropagation(); svToast(w.dataset.why, 4000, w); return true; }
     const dl = e.target.closest("[data-nvdel]");
+    if (dl && o.kill) { const x = o.all().find(y => y.id === dl.dataset.nvdel); if (x && await o.kill(x)) draw(); return true; }
     if (dl) { const L = o.all(), x = L.find(y => y.id === dl.dataset.nvdel); if (!x) return true;
       if (!(await svConfirm({ title: "METTRE À LA CORBEILLE", text: o.code(x) + " — " + o.nom(x) + " (RESTAURABLE ; SON NUMÉRO NE SERA PAS RÉUTILISÉ).", ok: "METTRE À LA CORBEILLE" }))) return true;
       x.del = achNow(); x.mod = x.del; o.save(L); achHist(o.code(x), "CORBEILLE", o.nom(x)); draw(); return true; }

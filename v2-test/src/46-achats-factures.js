@@ -8,7 +8,7 @@ const achFafEtat = f => f.state === "bap" && achFafReste(f) <= 0.005 ? "PAYÉE" 
 const achId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 const achDin = v => String(v || "").slice(0, 10);
 function achFafMod(ctx) {
-  return achListMod(ctx, { k: "faf", t: "ach_faf", id: "achFafT", list: achFaf, etatKey: "svi_ach_faf_etat_v1", newLab: "NOUVELLE FACTURE", newRow: "CRÉER UNE FACTURE ICI… (OU DEPUIS LA COMMANDE : FACTURER)", open: (id, done) => achFafFiche(id, null, done),
+  return achListMod(ctx, { k: "faf", t: "ach_faf", id: "achFafT", list: achFaf, name: "FACTURES", save: achFafSave, inst: f => f.state === "instance" || f.state === "reclame", etatKey: "svi_ach_faf_etat_v1", newLab: "NOUVELLE FACTURE", newRow: "CRÉER UNE FACTURE ICI… (OU DEPUIS LA COMMANDE : FACTURER)", open: (id, done) => achFafFiche(id, null, done),
     etats: [["actif", "À PAYER"], ["instance", "EN INSTANCE"], ["reclame", "RÉCLAMÉES"], ["bap", "BON À PAYER"], ["payee", "PAYÉES"], ["alerte", "ALERTE"], ["annule", "ANNULÉES"], ["tout", "TOUT"]],
     ok: (f, k, L) => k === "tout" ? true : k === "alerte" ? achFafWhy(f, L).length > 0 : k === "payee" ? f.state === "bap" && achFafReste(f) <= 0.005 : k === "actif" ? f.state !== "annule" && achFafReste(f) > 0.005 : f.state === k,
     why: (f, L) => achFafWhy(f, L),
@@ -18,7 +18,7 @@ function achFafMod(ctx) {
       ["ttc", "MONTANT TTC", f => achFafTot(f).ttc, "number"], ["reste", "RESTE À PAYER", f => f.state === "annule" ? "" : achFafReste(f), "number"], ["etat", "ÉTAT", f => achFafEtat(f), "center"]] });
 }
 function achAvfMod(ctx) {
-  return achListMod(ctx, { k: "avf", t: "ach_avf", id: "achAvfT", list: achAvf, etatKey: "svi_ach_avf_etat_v1", newLab: "NOUVEL AVOIR", newRow: "CRÉER UN AVOIR ICI…", open: achAvfFiche,
+  return achListMod(ctx, { k: "avf", t: "ach_avf", id: "achAvfT", list: achAvf, name: "AVOIRS", etatKey: "svi_ach_avf_etat_v1", newLab: "NOUVEL AVOIR", newRow: "CRÉER UN AVOIR ICI…", open: achAvfFiche,
     etats: [["actif", "À DÉDUIRE"], ["tout", "TOUT"], ["annule", "ANNULÉS"]],
     ok: (a, k) => k === "tout" ? true : k === "annule" ? a.state === "annule" : a.state !== "annule" && achAvfReste(a) > 0.005, why: () => [],
     w: { ref: 150, num: 130, frs: 220, fa: 150, date: 110, ttc: 130, reste: 130, motif: 220 },
@@ -26,7 +26,7 @@ function achAvfMod(ctx) {
       ["date", "DATE", a => achDFr(a.date), ""], ["ttc", "MONTANT TTC", a => achN(a.ttc), "number"], ["reste", "RESTE À DÉDUIRE", a => a.state === "annule" ? "" : achAvfReste(a), "number"], ["motif", "MOTIF", a => a.motif || "", ""]] });
 }
 function achPafMod(ctx) {
-  return achListMod(ctx, { k: "paf", t: "ach_paf", id: "achPafT", list: achPaf, etatKey: "svi_ach_paf_etat_v1", newLab: "NOUVEAU PAIEMENT", newRow: "CRÉER UN PAIEMENT ICI… (OU DEPUIS LA FACTURE : PAYER)", open: (id, done) => achPafFiche(id, null, done),
+  return achListMod(ctx, { k: "paf", t: "ach_paf", id: "achPafT", list: achPaf, name: "PAIEMENTS", save: achPafSave, inst: p => p.state === "instance", etatKey: "svi_ach_paf_etat_v1", newLab: "NOUVEAU PAIEMENT", newRow: "CRÉER UN PAIEMENT ICI… (OU DEPUIS LA FACTURE : PAYER)", open: (id, done) => achPafFiche(id, null, done),
     etats: [["actif", "EN COURS"], ["instance", "EN INSTANCE"], ["emis", "ÉMIS (NON ENCAISSÉS)"], ["encaisse", "ENCAISSÉS"], ["avance", "AVANCES"], ["alerte", "ALERTE"], ["rejete", "REJETÉS / ANNULÉS"], ["tout", "TOUT"]],
     ok: (p, k, L) => k === "tout" ? true : k === "alerte" ? achPafWhy(p, L).length > 0 : k === "avance" ? p.type === "avance" && p.state !== "annule" && p.state !== "rejete" : k === "rejete" ? p.state === "rejete" || p.state === "annule" : k === "actif" ? p.state === "instance" || p.state === "emis" : p.state === k,
     why: (p, L) => achPafWhy(p, L),
