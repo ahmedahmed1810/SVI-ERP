@@ -7,7 +7,7 @@
    - rien n'est effacé : une suppression met l'article à la CORBEILLE (restaurable), un numéro n'est jamais réutilisé.
    Règles reprises de achats.html (validées par Ahmed) : catégories, banques et codes RIB, TVA par défaut 20 %.
    ========================================================= */
-const ACH_K = { art: "svi_ach_art_v1", prm: "svi_ach_prm_v1", frs: "svi_ach_frs_v1", bsn: "svi_ach_bsn_v1", caf: "svi_ach_caf_v1", dvf: "svi_ach_dvf_v1" };
+const ACH_K = { art: "svi_ach_art_v1", prm: "svi_ach_prm_v1", frs: "svi_ach_frs_v1", bsn: "svi_ach_bsn_v1", caf: "svi_ach_caf_v1", dvf: "svi_ach_dvf_v1", cmf: "svi_ach_cmf_v1", rcp: "svi_ach_rcp_v1", rtr: "svi_ach_rtr_v1" };
 const ACH_PRM_DEF = {
   tva: 20,
   cat: ["COFFRAGE", "LOCATION MATERIEL", "MATERIAUX NON STOCKABLE", "MATERIAUX STOCKABLE", "MATERIEL DE BUREAU", "MATERIEL ET OUTILLAGE", "SERVICES", "SOUS TRAITANCE", "TRANSPORT"],
@@ -21,7 +21,7 @@ const achN = v => { const n = Number(String(v ?? "").replace(/\s| | /g, "").r
 const achJ = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || "null"); return v === null ? d : v; } catch (e) { return d; } };
 const achW = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 /* ---------- paramètres d'achat ---------- */
-const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { direct: p.direct === undefined ? 5000 : achN(p.direct), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })) }; };
+const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })) }; };
 const achPrmSave = p => achW(ACH_K.prm, p);
 /* banque d'un RIB : ses 3 premiers chiffres (code « 101-199 » = plage) */
 const achBankHasCode = (b, c) => String(b.code || "").split(/[,;\s]+/).filter(Boolean).some(x => { const m = x.match(/^(\d{3})-(\d{3})$/); return m ? +c >= +m[1] && +c <= +m[2] : x === c; });
@@ -232,3 +232,57 @@ const achCafWhy = (c, D) => { const w = [], today = new Date().toISOString().sli
   const nd = (D || achDvf()).filter(v => v.caf === c.id && v.state !== "annule").length;
   if ((c.frs || []).length && nd < Math.min(3, (c.frs || []).length)) w.push("MOINS DE " + Math.min(3, (c.frs || []).length) + " DEVIS");
   return w; };
+
+/* =========================================================
+   v762 : COMMANDES, RÉCEPTIONS, RETOURS (étape 4 — checklist Bloc C, chapitres 5 et 6)
+   COMMANDE (CMF) : nature (adapte la réception : PRESTATIONS = procès-verbal de service fait), fournisseur, lieu de livraison,
+   date promise / confirmée, urgente à régulariser, conditions et pénalités, avance (montant ou %), remise (RMS), transport FRANCO /
+   DÉPART et frais, lignes (devis d'origine et besoin rappelés), montant en lettres ; EN INSTANCE → VALIDÉE (engagement sur le budget)
+   → SOLDÉE ; AVENANT (modification d'une commande validée, numérotée) ; ANNULÉE seulement sans réception.
+   RÉCEPTION (RCP) : n° du bon de livraison (sauf PV), photo, date et heure, ligne par ligne ACCEPTÉE / AVEC RÉSERVES / REFUSÉE (motif),
+   n° de bon (béton, camion) ; tolérance de quantité (ACHATS › PARAMÈTRES) ; levée des réserves ; livraison sans commande (à régulariser) ;
+   demandeurs avertis (noté sur leur besoin). RETOURS (RTR) : de réception (lignes refusées, ou retour après acceptation) et de commande
+   (reste annulé chez le fournisseur, ou commande soldée).
+   ========================================================= */
+const ACH_NAT = ["FOURNITURES", "PRESTATIONS ET HONORAIRES", "TRANSPORT", "LOCATION D'ENGINS", "ABONNEMENT / CONTRAT RÉCURRENT", "CARBURANT (BONS OU CARTES)"];
+const achCmf = () => { const L = achJ(ACH_K.cmf, []); return Array.isArray(L) ? L : []; };
+const achCmfSave = L => achW(ACH_K.cmf, L);
+const achRcp = () => { const L = achJ(ACH_K.rcp, []); return Array.isArray(L) ? L : []; };
+const achRcpSave = L => achW(ACH_K.rcp, L);
+const achRtr = () => { const L = achJ(ACH_K.rtr, []); return Array.isArray(L) ? L : []; };
+const achRtrSave = L => achW(ACH_K.rtr, L);
+const achLid = () => "l" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const achCmfTot = c => { let ht = 0, tva = 0; const r = 1 - achN(c.rem) / 100;
+  (c.lignes || []).forEach(l => { const m = achN(l.q) * achN(l.pu) * r; ht += m; tva += m * (l.tva === "" || l.tva === undefined ? achPrm().tva : achN(l.tva)) / 100; });
+  const fr = achN(c.frais); ht += fr; tva += fr * achPrm().tva / 100;
+  const ttc = ht + tva, av = c.avT === "pct" ? ttc * achN(c.avV) / 100 : c.avT === "mt" ? achN(c.avV) : 0;
+  return { ht, tva, ttc, av }; };
+/* quantité reçue d'une ligne de commande (acceptée ou avec réserves ; les refus et retours de réception sont déduits) */
+const achRecQ = (cmfId, lid, R, T) => {
+  const rec = (R || achRcp()).filter(r => r.cmf === cmfId && r.state !== "annule").reduce((t, r) => t + (r.lignes || []).filter(l => l.cl === lid && l.st !== "ref").reduce((u, l) => u + achN(l.q), 0), 0);
+  const ret = (T || achRtr()).filter(x => x.kind === "rcp" && x.cmf === cmfId && x.after).reduce((t, x) => t + (x.lignes || []).filter(l => l.cl === lid).reduce((u, l) => u + achN(l.q), 0), 0);
+  return rec - ret; };
+/* quantité annulée chez le fournisseur (retours de commande) */
+const achCanQ = (cmfId, lid, T) => (T || achRtr()).filter(x => x.kind === "cmd" && x.cmf === cmfId).reduce((t, x) => t + (x.lignes || []).filter(l => l.cl === lid).reduce((u, l) => u + achN(l.q), 0), 0);
+const achResteQ = (c, l, R, T) => Math.max(0, achN(l.q) - achRecQ(c.id, l.id, R, T) - achCanQ(c.id, l.id, T));
+const achCmfWhy = (c, R, T) => { const w = [], today = new Date().toISOString().slice(0, 10);
+  if (c.state === "annule" || c.state === "solde") return w;
+  if (!c.frs) w.push("FOURNISSEUR MANQUANT");
+  if (!(c.lignes || []).length) w.push("AUCUNE LIGNE");
+  if ((c.lignes || []).some(l => !(achN(l.pu) > 0))) w.push("PRIX MANQUANTS");
+  if (c.urg) w.push("COMMANDE URGENTE À RÉGULARISER");
+  const d = c.dConf || c.dProm, rest = (c.lignes || []).some(l => achResteQ(c, l, R, T) > 1e-9);
+  if (c.state === "valide" && d && d < today && rest) w.push("LIVRAISON EN RETARD (PRÉVUE LE " + d.split("-").reverse().join("/") + ")");
+  if (c.state === "valide" && !rest) w.push("TOUT EST REÇU : À SOLDER");
+  return w; };
+const achRcpWhy = r => { const w = [];
+  if (r.state === "annule") return w;
+  if (!r.nbl && !r.pv) w.push("N° DU BON DE LIVRAISON MANQUANT");
+  if (!r.cmf) w.push("LIVRAISON SANS COMMANDE : À RÉGULARISER");
+  if ((r.lignes || []).some(l => l.st === "res") && !r.resLev) w.push("RÉSERVES À LEVER");
+  return w; };
+/* engagement sur un budget : commandes validées (ou soldées) dont les lignes viennent de besoins de ce budget */
+const achEngage = (bdg, chg) => { const B = achBsn(); let t = 0;
+  achCmf().filter(c => c.state === "valide" || c.state === "solde").forEach(c => { const r = 1 - achN(c.rem) / 100;
+    (c.lignes || []).forEach(l => { const b = B.find(x => x.id === l.bsn); if (b && b.bdg === bdg && (!chg || b.chg === chg)) t += achN(l.q) * achN(l.pu) * r; }); });
+  return t; };

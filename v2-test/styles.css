@@ -3287,3 +3287,11 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .caf-card .caf-cmp td, .caf-card .caf-cmp th { white-space: nowrap; }
 .caf-card .caf-tot td, .dvf-card .caf-tot td { background: #f3f6fa; }
 .caf-card .frs-sub select, .dvf-card .frs-sub select { width: 100%; height: 28px; border: 1px solid #d6dbe3; border-radius: 6px; font-size: 12px; font-weight: 700; background: #fff; }
+/* ===== v762 : COMMANDES, RÉCEPTIONS, RETOURS ===== */
+#achCmfT tr.cmf-valide td, #achCmfT tr.cmf-solde td { color: var(--st-valide, #172033); }
+#achCmfT tr.cmf-instance td { color: var(--st-instance, #b91c1c); }
+#achCmfT tr.cmf-annule td, #achRcpT tr.rcp-annule td { color: #9aa3b2; }
+#achCmfT tr.cmf-newrow td, #achRcpT tr.rcp-newrow td { cursor: pointer; }
+.cmf-card .cmf-src { font-size: 10px; color: #6b7480; white-space: nowrap; }
+.cmf-card .frs-sub td input, .rcp-card .frs-sub td input, .rcp-card .frs-sub td select { min-width: 60px; }
+.ach-tabs { flex-wrap: wrap; }

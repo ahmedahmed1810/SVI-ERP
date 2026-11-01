@@ -2893,6 +2893,34 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("v761 : CONSULTATIONS et DEVIS — besoins non couverts, deux fournisseurs, réponses en devis, comparatif ★, motif exigé, clôture (besoin couvert, devis retenu / rejeté), achat direct",
               c761 == [2, 1, 2, 1, "b2", 2, True, True, "ouverte", "close", True, "rejete,retenu", True, 0], c761)
+        # v762 : COMMANDES, RÉCEPTIONS, RETOURS — commande depuis la consultation close, validation (engagement), réception partielle, tolérance,
+        # refus remis au chauffeur (retour de réception), retour de commande, SOLDER ; demandeur averti
+        m762 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_bsn_v1', 'svi_ach_frs_v1', 'svi_ach_caf_v1', 'svi_ach_dvf_v1', 'svi_ach_cmf_v1', 'svi_ach_rcp_v1', 'svi_ach_rtr_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
+            const F = []; const f1 = achFrsNew(F, { nom: 'ALPHA' }); achFrsSave(F);
+            achBsnSave([{ id: 'b1', ref: 'BSN 26-1101/001', centre: 'CHANTIER', bdg: 'BX-1', chg: 'CIMENT|T', des: 'CIMENT', u: 'T', q: 10, pu: 100, datePrevue: '2026-11-10', state: 'valide', couvert: 'c1', dem: 'ALI' }]);
+            achCafSave([{ id: 'c1', ref: 'CAF 26-1101/001', state: 'close', retenu: f1.id, frs: [f1.id], rep: {}, lignes: [{ bsn: 'b1', des: 'CIMENT', u: 'T', q: 10 }] }]);
+            achDvfSave([{ id: 'v1', ref: 'DVF 26-1101/001', caf: 'c1', frs: f1.id, state: 'retenu', refFrs: 'X', lignes: [{ bsn: 'b1', des: 'CIMENT', u: 'T', q: 10, pu: 100, tva: 20 }] }]);
+            achCafFiche('c1', () => 0); await w(200); document.querySelector('.caf-card [data-mkcmf]').click(); await w(300);
+            const r = [achCmf().length, (achCmf()[0] || {}).lignes.length, achN(achCmf()[0].lignes[0].pu)];
+            const cm = () => document.querySelector('.cmf-card'); cm().querySelector('[data-valid]').click(); await w(200); document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
+            const C = achCmf()[0]; r.push(C.state, Math.round(achEngage('BX-1', 'CIMENT|T')), Math.round(achCmfTot(C).ttc), /MILLE/.test(frMoney(achCmfTot(C).ttc)));
+            cm().querySelector('[data-rcp]').click(); await w(300); let rc = () => [...document.querySelectorAll('.rcp-card')].pop();
+            const q = rc().querySelector('.rcp-l[data-c="q"]'); q.value = '6'; rc().querySelector('.rcp-x[data-k="nbl"]').value = 'BL1'; rc().querySelector('[data-save]').click(); await w(300);
+            r.push(achRcp().length, achResteQ(achCmf()[0], achCmf()[0].lignes[0]), !!(achBsn()[0] || {}).livre);
+            achRcpFiche(null, C.id, () => 0); await w(200); const q2 = rc().querySelector('.rcp-l[data-c="q"]'); q2.value = '5'; rc().querySelector('.rcp-x[data-k="nbl"]').value = 'BL2'; rc().querySelector('[data-save]').click(); await w(200);
+            r.push(achRcp().length);
+            q2.value = '4'; const st = rc().querySelector('.rcp-l[data-c="st"]'); st.value = 'ref'; st.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
+            rc().querySelector('.rcp-l[data-c="q"]').value = '4'; rc().querySelector('.rcp-l[data-c="motif"]').value = 'SACS DÉCHIRÉS'; rc().querySelector('.rcp-x[data-k="nbl"]').value = 'BL2'; rc().querySelector('[data-save]').click(); await w(250);
+            const ak = [...document.querySelectorAll('.frs-card')].pop(); ak.querySelector('.ask-v').value = 'HASSAN'; ak.querySelector('[data-ok]').click(); await w(300);
+            r.push(achRcp().length, achRtr().filter(x => x.kind === 'rcp').length, achResteQ(achCmf()[0], achCmf()[0].lignes[0]));
+            document.querySelectorAll('.rcp-card').forEach(x => x.closest('#svConf, .svc-back, div')?.remove && 0);
+            achCmfFiche(C.id, () => 0); await w(250); [...document.querySelectorAll('.cmf-card')].pop().querySelector('[data-solde]').click(); await w(250);
+            const qw = [...document.querySelectorAll('.frs-card')].pop(); qw.querySelector('[data-ok]').click(); await w(300);
+            r.push(achCmf()[0].state, achRtr().filter(x => x.kind === 'cmd').length, achResteQ(achCmf()[0], achCmf()[0].lignes[0]));
+            document.querySelectorAll('#svConf').forEach(x => x.remove());
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
+        check("v762 : COMMANDES et RÉCEPTIONS — commande depuis la consultation, validation et engagement, montant en lettres, réception partielle, tolérance, refus remis au chauffeur, SOLDER",
+              m762 == [1, 1, 100, "valide", 1000, 1200, True, 1, 4, True, 1, 2, 1, 4, "solde", 1, 0], m762)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
