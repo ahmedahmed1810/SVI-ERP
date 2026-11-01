@@ -38,7 +38,7 @@ function renderBudgetList() {
       #budgetListTable {
         table-layout: fixed;
         width: 100%;
-        min-width: 1050px;
+        min-width: 640px;   /* v750 : toute la largeur de l’écran (colonnes proportionnelles) */
       }
 
       #budgetListTable thead th {
@@ -1197,29 +1197,22 @@ function renderBudgetList() {
   shell.classList.toggle("list-inst", listMode === "inst");
   sviWatchState(shell);
   {
+    /* v750 (point 3) : une seule icône de bascule EN INSTANCE ⇄ VALIDÉS, juste à côté du titre (grisée s'il n'y a rien dans l'autre liste) */
     const h1 = shell.querySelector(".novapp-list-titlebar h1");
-    if (h1) h1.innerHTML = (listMode === "inst" ? "BUDGETS (EN INSTANCE)" : "BUDGETS (VALIDÉS)") + ' <span id="bdgListCount"></span>';
-    const acts = shell.querySelector(".novapp-list-actions");
-    if (acts) {
-      /* ⌛ : budgets en instance — ≡ : budgets validés (bouton de la liste affichée surligné) */
-      const hg = acts.querySelector('[aria-label="Historique"]');
-      const ls = acts.querySelector('[aria-label="Liste"]');
-      if (hg) { hg.title = "Budgets en instance"; hg.classList.toggle("on", listMode === "inst"); hg.hidden = !LIST_N.inst; hg.style.display = LIST_N.inst ? "" : "none"; }
-      if (ls) { ls.title = "Budgets validés"; ls.classList.toggle("on", listMode !== "inst"); ls.hidden = !LIST_N.valid; ls.style.display = LIST_N.valid ? "" : "none"; }
-      const setMode = m => {
-        try { localStorage.setItem("svi_listmode_v1", m); } catch (err) {}
+    const other = listMode === "inst" ? "valid" : "inst", can = LIST_N[other] > 0;
+    const why = other === "inst" ? "AUCUN BUDGET EN INSTANCE." : "AUCUN BUDGET VALIDÉ.";
+    if (h1) {
+      h1.innerHTML = (listMode === "inst" ? "BUDGETS (EN INSTANCE)" : "BUDGETS (VALIDÉS)") + ' <span id="bdgListCount"></span>'
+        + `<button type="button" id="bdgModeSw" class="bdg-mode-sw${can ? "" : " off"}" title="${can ? (other === "inst" ? "Voir les budgets en instance" : "Voir les budgets validés") : why}" aria-label="Basculer entre budgets en instance et budgets validés">`
+        + '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
+      const sw = h1.querySelector("#bdgModeSw");
+      sw.onclick = () => {
+        if (!can) { svToast(why, 2500, sw); return; }
+        try { localStorage.setItem("svi_listmode_v1", other); } catch (err) {}
         renderBudgetList();
       };
-      acts.onclick = e => {
-        const b = e.target.closest("button");
-        if (!b) return;
-        if (b.getAttribute("aria-label") === "Historique") setMode("inst");
-        else if (b.getAttribute("aria-label") === "Liste") setMode("valid");
-        else if (b.getAttribute("aria-label") === "Ajouter") {
-          openNewBudget();
-        }
-      };
     }
+    shell.querySelector(".novapp-list-actions")?.remove();
   }
 
   /* prochaine référence : la suite continue pour toujours (tous budgets confondus) */
@@ -1410,65 +1403,27 @@ function renderBudgetList() {
   }
 
   /* -------------------------------------------------------
-     COLONNES
+     COLONNES — v750 (corrections du 01/11/2026, points 2, 6 et 9)
+     marge de pliage à gauche (toutes les lignes : références alignées), RÉFÉRENCE, NATURE, PROJET, INTITULÉ,
+     MONTANT TTC, SAISI LE ; VALIDÉ LE seulement dans la liste des validés ; le tableau prend toute la largeur
      ------------------------------------------------------- */
 
   const columns = [
-    {
-      key: "ref",
-      title: "RÉFÉRENCE",
-      width: 210
-    },
-
-    {
-      key: "budget",
-      title: "PROJET",
-      width: 260
-    },
-
-    {
-      key: "intitule",
-      title: "INTITULÉ",
-      width: 260
-    },
-
-    {
-      key: "ttc",
-      title: "MONTANT TTC",
-      width: 150,
-      number: true
-    },
-
-    {
-      key: "validated",
-      title: "VALIDÉ LE",
-      width: 140
-    },
-
-    {
-      key: "entered",
-      title: "SAISI LE",
-      width: 140
-    }
+    { key: "ref", title: "RÉFÉRENCE", width: 200 },
+    { key: "nat", title: "NATURE", width: 110 },
+    { key: "budget", title: "PROJET", width: 100 },
+    { key: "intitule", title: "INTITULÉ", width: 220 },
+    { key: "ttc", title: "MONTANT TTC", width: 135, number: true },
+    { key: "entered", title: "SAISI LE", width: 150 },
+    ...(listMode === "inst" ? [] : [{ key: "validated", title: "VALIDÉ LE", width: 150 }])
   ];
+  const NCOL = columns.length + 2;
 
-  /* -------------------------------------------------------
-     ÉTAT RECHERCHE / TRI
-     ------------------------------------------------------- */
-
-  const state = {
-    sortKey: "",
-    sortDirection: 1,
-
-    search: {
-      ref: "",
-      budget: "",
-      intitule: "",
-      ttc: "",
-      validated: "",
-      entered: ""
-    }
-  };
+  /* tri et filtre : le menu commun (sviCfKit, comme le budget et les achats) ; gardés pendant la session */
+  const BL = "bdgl";
+  window.__bdglKit = window.__bdglKit || sviCfKit({ key: "bdgl", shell: {}, refresh: () => window.__bdglRefresh && window.__bdglRefresh() });
+  const KIT = window.__bdglKit;
+  const cfCols = () => columns.map(c => [c.key, c.title, c.key === "ref" ? r => r.budget + " " + r.ref : c.key === "ttc" ? r => num(r.ttc) : r => r[c.key] ?? ""]);
 
   const thead =
     table.querySelector(
@@ -1480,62 +1435,16 @@ function renderBudgetList() {
       "tbody"
     );
 
-  /* -------------------------------------------------------
-     ENTÊTES
-     ------------------------------------------------------- */
-
-  thead.innerHTML = `
-    <tr>
-
-      ${
-        columns.map(
-          column => `
-            <th
-              class="
-                bdg-list-head
-                ${
-                  column.number
-                    ? "number"
-                    : ""
-                }
-              "
-              data-bdg-column="${column.key}"
-              style="
-                width:${column.width}px;
-                min-width:${column.width}px;
-              "
-            >
-
-              <div
-                class="bdg-head-content"
-              >
-
-                <span class="bdg-head-label">${column.title}</span>
-                <button type="button" class="bdg-head-action" data-bdg-menu="${column.key}"
-                  title="Trier / rechercher"><svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><path d="M1 2h11M3 5h7M5 8h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M4.5 10l2 2.2 2-2.2z" fill="currentColor"/></svg></button>
-
-              </div>
-
-              <span
-                class="bdg-column-resizer"
-                data-bdg-resize="${column.key}"
-              ></span>
-
-            </th>
-          `
-        ).join("")
-      }
-
-      <th
-        style="
-          width:75px;
-          min-width:75px;
-        "
-      ></th>
-
-    </tr>
-  `;
-
+  /* largeurs : proportionnelles par défaut (toute la largeur), en pixels une fois réglées à la main (mémoire de la session) */
+  const colW = window.__bdglW || (window.__bdglW = {});
+  const renderHead = () => {
+    const tot = columns.reduce((t, c) => t + c.width, 0);
+    let cg = table.querySelector("colgroup");
+    if (!cg) { cg = document.createElement("colgroup"); table.insertBefore(cg, thead); }
+    cg.innerHTML = `<col style="width:26px">` + columns.map(c => `<col data-bdg-col="${c.key}" style="width:${colW[c.key] ? colW[c.key] + "px" : (c.width / tot * 100).toFixed(2) + "%"}">`).join("") + `<col style="width:44px">`;
+    thead.innerHTML = `<tr><th class="bdg-fold-h"></th>${columns.map(c => KIT.cfHead(BL, c.key, c.title, "bdg-list-head" + (c.number ? " number" : ""))).join("")}<th class="bdg-act-h"></th></tr>`;
+  };
+  renderHead();
   /* -------------------------------------------------------
      RENDU DES LIGNES
      ------------------------------------------------------- */
@@ -1622,176 +1531,62 @@ function renderBudgetList() {
       });
     }
 
+    /* v750 : NATURE — CONSOLIDÉ (budget à avenants), sinon INITIAL */
+    const isFam = r => { try { return sviAvStages(r).length > 1; } catch (e) { return false; } };
+    data.forEach(x => { x.fam = isFam(x.ref); x.nat = x.fam ? "CONSOLIDÉ" : "INITIAL"; });
 
-     
-    /* FILTRES */
-
-    Object.entries(
-      state.search
-    ).forEach(
-      ([key, search]) => {
-
-        const query =
-          normalise(search)
-            .toLowerCase();
-
-        if (!query) return;
-
-        data =
-          data.filter(item => {
-
-            let value =
-              key === "ref" ? item.budget + " " + item.ref : item[key];
-
-            if (
-              key === "ht" ||
-              key === "ttc"
-            ) {
-              value =
-                money(value);
-            }
-
-            return normalise(value)
-              .toLowerCase()
-              .includes(query);
-          });
-      }
-    );
-
-    /* TRI */
-
-    if (state.sortKey) {
-      const key =
-        state.sortKey;
-
-      data.sort((a, b) => {
-
-        if (
-          key === "ht" ||
-          key === "ttc"
-        ) {
-          return (
-            (
-              num(a[key]) -
-              num(b[key])
-            ) *
-            state.sortDirection
-          );
-        }
-
-        return (
-          normalise(a[key])
-            .localeCompare(
-              normalise(b[key]),
-              "fr",
-              {
-                numeric: true,
-                sensitivity: "base"
-              }
-            ) *
-          state.sortDirection
-        );
-      });
-    }
+    /* TRI ET FILTRES (menu commun) */
+    data = KIT.cfApply(BL, cfCols(), data);
+    renderHead();
 
     /* compteur du titre : budgets affichés (filtres compris) */
     { const c = $("bdgListCount"); if (c) c.innerHTML = svCnt(data.length, budgets.length); }
-    /* v740 (FORMAT 265) : bouton CUMUL (budgets cochés) à côté du titre — grisé sous 2 budgets */
-    { const c = $("bdgListCount"); window.__sviCumSel = window.__sviCumSel || new Set();
-      let b = $("bdgCumBtn"); if (c && !b) { b = document.createElement("button"); b.type = "button"; b.id = "bdgCumBtn"; b.className = "bdg-cum-btn"; c.after(b); }
-      if (b) { const n = window.__sviCumSel.size; b.hidden = !n; b.disabled = n < 2; b.innerHTML = "CUMUL " + svCnt(n); b.title = n < 2 ? "COCHER AU MOINS DEUX BUDGETS" : "";
-        b.onclick = () => { const S = [...window.__sviCumSel]; if (S.length < 2) { svToast("COCHER AU MOINS DEUX BUDGETS.", 2500, b); return; } window.__sviCum = S; if (window.__sviAvOpen) window.__sviAvOpen("CUMUL"); }; } }
 
     /* v698 : plus de bouton + — dernière ligne « SAISIR ICI… » (fenêtre INF du nouveau budget) */
     /* v699 : lignes SAISIR ICI seulement dans la liste EN INSTANCE, en rouge */
-    const NEWROW = listMode === "inst" ? `<tr class="bdg-newrow" data-newbdg="1"><td colspan="7">CRÉER UN BUDGET ICI…</td></tr>` : "";
+    const NEWROW = listMode === "inst" ? `<tr class="bdg-newrow" data-newbdg="1"><td colspan="${NCOL}">CRÉER UN BUDGET ICI…</td></tr>` : "";
     /* v705 : ordre de la liste affichée (tri et filtres) — balayage d'un budget à l'autre dans l'écran du budget */
     window.__sviBdgOrder = data.map(x => x.ref);
     if (!data.length) {
-      tbody.innerHTML = `<tr><td colspan="7" class="empty">AUCUN BUDGET</td></tr>` + NEWROW;
+      tbody.innerHTML = `<tr><td colspan="${NCOL}" class="empty">AUCUN BUDGET</td></tr>` + NEWROW;
       return;
     }
 
-    /* v691 : LISTE MÈRE EN ARBORESCENCE — un budget à avenants a un signe › / ⌄ ; déplié : BUDGET CONSOLIDÉ, BUDGET INITIAL,
-       AVENANT n DU BUDGET (mêmes colonnes). EN INSTANCE : étapes en instance, consolidé = validé + en instance ;
-       VALIDÉ : étapes validées, consolidé = validé seul. Toucher une étape l'ouvre ; ← ramène à la liste mère. */
+    /* v750 (point 8) : budget à avenants — la ligne de titre est le BUDGET CONSOLIDÉ (montant = budget initial + avenants),
+       elle se plie et se déplie par la flèche de la marge ; dessous : BUDGET INITIAL, AVENANT 1, AVENANT 2… (étapes de la liste affichée) */
     const FOLD_KEY = "svi_bdgfold_v1";
     const foldGet0 = () => { try { return JSON.parse(localStorage.getItem(FOLD_KEY) || "[]") || []; } catch (e) { return []; } };
-    const isFam = r => { try { return sviAvStages(r).length > 1; } catch (e) { return false; } };
     const kidsOf = item => {
-      if (!isFam(item.ref)) return [];
-      const S = sviAvStages(item.ref), out = [];
-      const pick = S.filter(st => listMode === "inst" ? st.state !== "valide" : st.state === "valide");
-      const g = groups.get(item.ref + "-GLOBAL");
-      if (g) { let bd = {}; try { bd = budgetData(g); } catch (e) {} const dts = sviAvDates(item.ref); out.push({ ref: g.ref, lab: "BUDGET CONSOLIDÉ", budget: item.budget, intitule: item.intitule, ttc: bd.ttc || 0, validated: svDT(dts.validated || ""), entered: svDT(dts.created || ""), state: "", kind: "glob" }); }
-      pick.forEach(st => { let bd = {}; try { bd = budgetData({ ref: st.ref, project: st.project, rows: [], first: {}, inst: st, __noFam: true }); } catch (e) {}
-        out.push({ ref: st.ref, lab: st.parent ? "AVENANT " + (st.avn || 1) + " DU BUDGET" : "BUDGET INITIAL", budget: U_(st.project), intitule: st.intitule || "", ttc: bd.ttc || 0,
-          validated: st.state === "valide" ? svDT(st.validated || "") : "", entered: svDT(st.created || ""), state: st.state || "instance", kind: st.parent ? "av" : "bdg" }); });
-      return out;
+      const S = sviAvStages(item.ref), last = S[S.length - 1];
+      return S.filter(st => listMode === "inst" ? st.state !== "valide" : st.state === "valide").map(st => {
+        let bd = {}; try { bd = budgetData({ ref: st.ref, project: st.project, rows: [], first: {}, inst: st, __noFam: true }); } catch (e) {}
+        return { ref: st.ref, nat: st.parent ? "AVENANT " + (st.avn || 1) : "INITIAL", budget: U_(st.project), intitule: st.intitule || "", ttc: bd.ttc || 0,
+          validated: st.state === "valide" ? svDT(st.validated || "") : "", entered: svDT(st.created || ""), state: st.state || "instance", kind: st.parent ? "av" : "bdg",
+          del: st.state === "instance" && st === last };
+      });
     };
+    /* une case par colonne, dans l'ordre des colonnes ; PROJET souligné = lien vers la fiche projet (règle : souligné = lien vers la fiche source) */
+    const cell = (k, x) => {
+      switch (k) {
+        case "ref": return `<td><span class="bang-slot">${obsBang(x.ref)}</span>${esc(x.budget + " " + x.ref)}</td>`;
+        case "budget": return `<td title="${esc(x.budget)}"><button type="button" class="budget-link" data-open-project="${esc(x.ref)}">${esc(x.budget)}</button></td>`;
+        case "ttc": return `<td class="number">${money(x.ttc)}</td>`;
+        default: return `<td title="${esc(x[k] || "")}">${esc(x[k] || "")}</td>`;
+      }
+    };
+    const delBtn = r => `<button type="button" class="bdg-row-action bdg-row-del" data-del-budget="${esc(r)}" title="Supprimer" aria-label="Supprimer">${SVI_DEL_ICON}</button>`;
     const FO = new Set(foldGet0());
     tbody.innerHTML =
-      data.map(item => { const fam = isFam(item.ref), open = fam && FO.has(item.ref), kids = open ? kidsOf(item) : [];
-        return `
-        <tr
-          data-budget-ref="${esc(item.ref)}"
-          class="${item.state ? "inst-" + item.state : ""}${fam ? " bdg-fam" : ""}"${fam ? ' data-fam="1"' : ""}
-        >
-
-          <td>
-            ${fam ? `<span class="bdg-fold" aria-hidden="true">${open ? "⌄" : "›"}</span>` : ""}<span class="bang-slot">${obsBang(item.ref)}</span>${esc(item.budget + " " + item.ref)}
-          </td>
-
-          <td title="${esc(item.budget)}">
-            <button
-              type="button"
-              class="budget-link"
-              data-open-project="${esc(item.ref)}"
-            >
-              ${esc(item.budget)}
-            </button>
-          </td>
-
-          <td title="${esc(item.intitule)}">
-            ${esc(item.intitule)}
-          </td>
-
-          <td class="number">
-            ${money(item.ttc)}
-          </td>
-
-          <td>
-            ${esc(item.validated)}
-          </td>
-
-          <td>
-            ${esc(item.entered)}
-          </td>
-
-          <td class="bdg-action-cell">
-            <input type="checkbox" class="bdg-cum" data-cum="${esc(item.ref)}"${(window.__sviCumSel || new Set()).has(item.ref) ? " checked" : ""} title="Cocher pour le CUMUL" aria-label="Cocher pour le CUMUL">
-
-            <button
-              type="button"
-              class="bdg-row-action"
-              data-print-budget="${esc(item.ref)}"
-              title="Imprimer"
-              aria-label="Imprimer"
-            >
-              🖨
-            </button>
-            ${item.state === "instance" ? `<button type="button" class="bdg-row-action bdg-row-del" data-del-budget="${esc(item.ref)}"
-              title="Supprimer" aria-label="Supprimer">🗑</button>` : ""}
-
-          </td>
-
-        </tr>
-        ${kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}">
-          <td><span class="bdg-kid-lab">${esc(k.lab)}</span> <small>${esc(k.ref)}</small></td><td>${esc(k.budget)}</td><td title="${esc(k.intitule)}">${esc(k.intitule)}</td>
-          <td class="number">${money(k.ttc)}</td><td>${esc(k.validated)}</td><td>${esc(k.entered)}</td><td class="bdg-action-cell"><input type="checkbox" class="bdg-cum" data-cum="${esc(k.ref)}"${(window.__sviCumSel || new Set()).has(k.ref) ? " checked" : ""} title="Cocher pour le CUMUL" aria-label="Cocher pour le CUMUL"></td></tr>`).join("")}
-        ${open ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
-          return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="7">CRÉER UN AVENANT ICI…</td></tr>`; })() : ""}
-      `; }).join("") + NEWROW;
+      data.map(item => { const fam = item.fam, open = fam && FO.has(item.ref), kids = open ? kidsOf(item) : [];
+        return `<tr data-budget-ref="${esc(item.ref)}" class="${item.state ? "inst-" + item.state : ""}${fam ? " bdg-fam" : ""}"${fam ? ' data-fam="1"' : ""}>`
+          + `<td class="bdg-fold-c"${fam ? ` data-fold-bdg="${esc(item.ref)}"` : ""}>${fam ? `<span class="bdg-fold" role="button" aria-label="${open ? "Plier" : "Déplier"}">${open ? "⌄" : "›"}</span>` : ""}</td>`
+          + columns.map(c => cell(c.key, item)).join("")
+          + `<td class="bdg-action-cell">${item.state === "instance" ? delBtn(item.ref) : ""}</td></tr>`
+          + kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}"><td class="bdg-fold-c"></td>`
+            + columns.map(c => cell(c.key, k)).join("") + `<td class="bdg-action-cell">${k.del ? delBtn(k.ref) : ""}</td></tr>`).join("")
+          + (open ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
+            return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td class="bdg-fold-c"></td><td colspan="${NCOL - 1}">CRÉER UN AVENANT ICI…</td></tr>`; })() : "");
+      }).join("") + NEWROW;
     /* v701 : panneau des dates aux hauteurs de la liste — TOUT = hauteur de l'en-tête, chaque date = hauteur d'une ligne */
     requestAnimationFrame(() => { try {
       const tb = tbody.closest("table"), th = tb && tb.tHead, tr = tbody.querySelector("tr:not(.bdg-newrow)") || tbody.querySelector("tr"), pn = $("bdgDatePanel");
@@ -1800,203 +1595,38 @@ function renderBudgetList() {
       if (tr) pn.style.setProperty("--bdg-row-h", Math.round(tr.getBoundingClientRect().height) + "px");
     } catch (e) {} });
   }
+  window.__bdglRefresh = renderRows;
 
   /* -------------------------------------------------------
-     RESTAURATION D'UN ENTÊTE
+     EN-TÊTES : menu de tri et filtre (commun), largeur ajustable
      ------------------------------------------------------- */
-
-  function restoreHeader(key) {
-    const column =
-      columns.find(
-        item =>
-          item.key === key
-      );
-
-    const th =
-      thead.querySelector(
-        `[data-bdg-column="${key}"]`
-      );
-
-    if (!column || !th) return;
-
-    const content =
-      th.querySelector(
-        ".bdg-head-content"
-      );
-
-    if (!content) return;
-
-    content.innerHTML = `
-      <span class="bdg-head-label">${column.title}</span>
-      <button type="button" class="bdg-head-action" data-bdg-menu="${key}"
-        title="Trier / rechercher"><svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><path d="M1 2h11M3 5h7M5 8h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M4.5 10l2 2.2 2-2.2z" fill="currentColor"/></svg></button>`;
-    /* en-tête bleu quand un tri ou une recherche est choisi (comme le budget) */
-    th.classList.toggle("cf-on", !!state.search[key] || state.sortKey === key);
-  }
-
-
-  /* -------------------------------------------------------
-     CLICS SUR ENTÊTES
-     ------------------------------------------------------- */
-
-  /* menu de colonne (comme dans le budget) : tri croissant / décroissant,
-     recherche, effacer */
-  const closeListMenu = () => document.getElementById("bdgListMenu")?.remove();
-  const openListMenu = (key, btn) => {
-    closeListMenu();
-    const column = columns.find(c => c.key === key);
-    if (!column) return;
-    const m = document.createElement("div");
-    m.id = "bdgListMenu";
-    m.className = "bdg-list-menu";
-    m.innerHTML = `
-      <div class="blm-title">${esc(column.title)}</div>
-      <button type="button" data-lm="asc" class="${state.sortKey === key && state.sortDirection === 1 ? "on" : ""}">↑ TRI CROISSANT</button>
-      <button type="button" data-lm="desc" class="${state.sortKey === key && state.sortDirection === -1 ? "on" : ""}">↓ TRI DÉCROISSANT</button>
-      <input type="search" class="blm-q" placeholder="RECHERCHER…" autocomplete="off" value="${esc(state.search[key] || "")}">
-      <button type="button" data-lm="clear">EFFACER</button>`;
-    document.body.appendChild(m);
-    const r = btn.getBoundingClientRect();
-    m.style.overflowY = "auto";
-    sviPlaceMenu(m, r);
-    const q = m.querySelector(".blm-q");
-    const apply = () => { columns.forEach(c => restoreHeader(c.key)); renderRows(); };
-    q.addEventListener("input", () => { state.search[key] = q.value; apply(); });
-    m.addEventListener("click", e => {
-      const b = e.target.closest("[data-lm]");
-      if (!b) return;
-      const a = b.dataset.lm;
-      if (a === "asc" || a === "desc") {
-        const d = a === "asc" ? 1 : -1;
-        if (state.sortKey === key && state.sortDirection === d) state.sortKey = "";
-        else { state.sortKey = key; state.sortDirection = d; }
-      } else {
-        state.search[key] = "";
-        if (state.sortKey === key) state.sortKey = "";
-      }
-      apply();
-      closeListMenu();
-    });
-    setTimeout(() => document.addEventListener("pointerdown", function off(e) {
-      if (!e.target.closest("#bdgListMenu")) { closeListMenu(); document.removeEventListener("pointerdown", off, true); }
-    }, true), 0);
-  };
 
   thead.onclick = event => {
-    const b = event.target.closest("[data-bdg-menu]");
+    const b = event.target.closest(".cf-btn");
     if (!b) return;
     event.preventDefault();
     event.stopPropagation();
-    openListMenu(b.dataset.bdgMenu, b);
+    KIT.cfOpenMenu(b);
   };
 
-  /* -------------------------------------------------------
-     LARGEUR DES COLONNES AJUSTABLE
-     ------------------------------------------------------- */
-
-  thead
-    .querySelectorAll(
-      ".bdg-column-resizer"
-    )
-    .forEach(resizer => {
-
-      resizer.addEventListener(
-        "pointerdown",
-        event => {
-
-          event.preventDefault();
-          event.stopPropagation();
-
-          const th =
-            resizer.closest("th");
-
-          if (!th) return;
-
-          const startX =
-            event.clientX;
-
-          const startWidth =
-            th.getBoundingClientRect()
-              .width;
-
-          resizer.classList.add(
-            "active"
-          );
-
-          try {
-            resizer.setPointerCapture(
-              event.pointerId
-            );
-          } catch (_) {}
-
-          const move =
-            moveEvent => {
-
-              const newWidth =
-                Math.max(
-                  80,
-                  startWidth +
-                  (
-                    moveEvent.clientX -
-                    startX
-                  )
-                );
-
-              th.style.width =
-                newWidth + "px";
-
-              th.style.minWidth =
-                newWidth + "px";
-            };
-
-          const stop =
-            stopEvent => {
-
-              resizer.classList.remove(
-                "active"
-              );
-
-              resizer.removeEventListener(
-                "pointermove",
-                move
-              );
-
-              resizer.removeEventListener(
-                "pointerup",
-                stop
-              );
-
-              resizer.removeEventListener(
-                "pointercancel",
-                stop
-              );
-
-              try {
-                resizer
-                  .releasePointerCapture(
-                    stopEvent.pointerId
-                  );
-              } catch (_) {}
-            };
-
-          resizer.addEventListener(
-            "pointermove",
-            move
-          );
-
-          resizer.addEventListener(
-            "pointerup",
-            stop
-          );
-
-          resizer.addEventListener(
-            "pointercancel",
-            stop
-          );
-        }
-      );
-    });
-
+  thead.onpointerdown = event => {
+    const rs = event.target.closest(".col-rs");
+    if (!rs) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const th = rs.closest("th"), key = rs.dataset.col, col = table.querySelector(`col[data-bdg-col="${key}"]`);
+    if (!th || !col) return;
+    const x0 = event.clientX, w0 = th.getBoundingClientRect().width;
+    rs.classList.add("active");
+    try { rs.setPointerCapture(event.pointerId); } catch (_) {}
+    const move = e => { const w = Math.max(60, Math.round(w0 + e.clientX - x0)); colW[key] = w; col.style.width = w + "px"; };
+    const stop = e => {
+      rs.classList.remove("active");
+      rs.removeEventListener("pointermove", move); rs.removeEventListener("pointerup", stop); rs.removeEventListener("pointercancel", stop);
+      try { rs.releasePointerCapture(e.pointerId); } catch (_) {}
+    };
+    rs.addEventListener("pointermove", move); rs.addEventListener("pointerup", stop); rs.addEventListener("pointercancel", stop);
+  };
   /* -------------------------------------------------------
      DÉTAIL D'UN BUDGET
      ------------------------------------------------------- */

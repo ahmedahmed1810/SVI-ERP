@@ -193,7 +193,7 @@ const cfKind = vals => {
   const v = vals.filter(x => String(x).trim() !== "");
   if (!v.length) return "";
   if (v.every(x => /^-?[\d\s\u00a0\u202f]+(,\d+)?( ?%)?$/.test(String(x).trim()))) return "num";
-  if (v.every(x => /^\d{2}\/\d{2}\/\d{4}$/.test(String(x).trim()) || /^\d{4}-\d{2}-\d{2}$/.test(String(x).trim()))) return "date";
+  if (v.every(x => /^\d{2}\/\d{2}\/\d{4}(\s+(À\s+)?\d{1,2}:\d{2})?$/.test(String(x).trim()) || /^\d{4}-\d{2}-\d{2}$/.test(String(x).trim()))) return "date";   /* v750 : heure acceptée */
   return "txt";   /* v622 : texte — contient, ne contient pas, commence par, se termine par, égal à */
 };
 /* — de src/12-tableaux-colonnes.js — */
@@ -203,7 +203,7 @@ const cfCondOk = (c, v) => {
   if (!c) return true;
   if (c.kind === "txt") {
     const x = U_(String(v || "")), a = U_(String(c.a || ""));
-    switch (c.op) { case "ct": return x.includes(a); case "nc": return !x.includes(a); case "sw": return x.startsWith(a); case "ew": return x.endsWith(a); case "eq": return x === a; default: return true; }
+    switch (c.op) { case "ct": return x.includes(a); case "nc": return !x.includes(a); case "sw": return x.startsWith(a); case "ew": return x.endsWith(a); case "eq": return x === a; case "ne": return x !== a; default: return true; }
   }
   if (String(v).trim() === "") return false;
   const x = c.kind === "num" ? cfNum(v) : cfDate(v);

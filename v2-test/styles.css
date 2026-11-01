@@ -3136,3 +3136,40 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 #ach .ach-note { font-size: 10px; color: #8a909c; max-width: 520px; }
 .ach-pick { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; font-size: 12px; }
 #ach .ach-tvaw { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+
+/* ===== v750 : LISTE DES BUDGETS (corrections du 01/11/2026) ===== */
+/* point 3 : une seule icône de bascule EN INSTANCE ⇄ VALIDÉS, à côté du titre */
+.novapp-list-titlebar h1 .bdg-mode-sw { width: 34px; height: 34px; border: 1px solid #dfe4eb; border-radius: 10px; background: #fff; color: #3f4856; display: inline-flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; flex: none; }
+.novapp-list-titlebar h1 .bdg-mode-sw:hover { background: #f1f4f8; }
+.novapp-list-titlebar h1 .bdg-mode-sw.off { color: #b8c0cc; cursor: not-allowed; }
+/* point 5 : PROJET = lien souligné, sans fond, même police / taille / couleur / graisse que les autres cases, à gauche */
+#budgetListTable .budget-link { background: none !important; border: 0 !important; border-radius: 0; padding: 0; margin: 0; box-shadow: none; font: inherit; font-weight: inherit !important; color: inherit !important; text-align: left; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; text-transform: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline; }
+#budgetListTable tbody tr:not(.bdg-newrow) td, #budgetListTable tbody tr:not(.bdg-newrow) td * { font-weight: 400 !important; font-style: normal !important; }
+#budgetListTable tbody tr:not(.bdg-newrow) td { color: #172033; }
+#budgetListTable td { text-align: left; }
+#budgetListTable td.number { text-align: right; }
+/* point 9 : marge de pliage à gauche sur toutes les lignes — références alignées, pliées ou dépliées */
+#budgetListTable td.bdg-fold-c, #budgetListTable tr.bdg-kid td.bdg-fold-c, #budgetListTable tr.bdg-newrow td.bdg-fold-c { padding: 0 !important; text-align: center; }
+#budgetListTable td.bdg-fold-c[data-fold-bdg] { cursor: pointer; }
+#budgetListTable td.bdg-fold-c .bdg-fold { margin: 0; width: 100%; font-size: 15px; font-weight: 900 !important; color: #3f4856; }
+#budgetListTable tr.bdg-kid td:first-child, #budgetListTable tr.bdg-newrow.bdg-kid td { padding-left: 8px; }
+#budgetListTable tr.bdg-newrow.bdg-kid td.bdg-fold-c { background: transparent; }
+#budgetListTable thead th .cf-wrap { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-width: 0; }
+#budgetListTable thead th .cf-lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+#budgetListTable thead th.number .cf-wrap { justify-content: flex-end; }
+#budgetListTable thead th .cf-wrap .cf-btn { margin-right: 4px; flex: none; color: #687281; cursor: pointer; display: inline-flex; }
+#budgetListTable thead th .col-rs { position: absolute; top: 0; right: -4px; width: 8px; height: 100%; z-index: 40; cursor: col-resize; touch-action: none; }
+#budgetListTable thead th .col-rs.active, #budgetListTable thead th .col-rs:hover { background: rgba(23,105,194,.18); }
+/* point 7 : seule action d'une ligne — la corbeille standard */
+#budgetListTable .bdg-row-del { color: #6b7480; display: inline-flex; align-items: center; justify-content: center; }
+#budgetListTable .bdg-row-del:hover { color: #b91c1c; background: #fef2f2; }
+/* états : rouge (en instance), vert (figé) — gardés après la graisse unique */
+#budgetListTable tr.inst-instance td, #budgetListTable tr.inst-instance .budget-link { color: #991b1b !important; }
+#budgetListTable tr.inst-fige td, #budgetListTable tr.inst-fige .budget-link { color: #166534 !important; }
+#budgetListTable tr.bdg-kid.inst-instance.row-av td, #budgetListTable tr.bdg-kid.inst-instance.row-av .budget-link { color: #dc2626 !important; }
+#budgetListTable tr.bdg-kid.inst-fige.row-av td, #budgetListTable tr.bdg-kid.inst-fige.row-av .budget-link { color: #22a052 !important; }
+#budgetListTable tr.bdg-kid.inst-valide.row-av td { color: #3a4a5e !important; }
+/* point 4 : fenêtre CUMUL (menu ⋯ du budget) */
+.cum-card .cum-wrap { max-height: 58vh; overflow: auto; margin-top: 8px; }
+.cum-card .cum-t tbody tr { cursor: pointer; }
+.cum-card .cum-t td.center { text-align: center; width: 34px; }

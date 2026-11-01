@@ -2593,6 +2593,52 @@ def main():
         check("v749 : ACHATS — articles : doublon refusé, presque identique signalé, numéro jamais réutilisé, DIVERS sans plafond, prix au-dessus du plafond, reprise des charges des budgets, banque d'un RIB, fusion",
               a749[:7] == ["ART-0001", "CIMENT CPJ 45", "T", 20, True, "ART-0001", "ART-0003"] and a749[7] == ["ARTICLE DIVERS : PLAFOND OBLIGATOIRE"] and a749[8] == ["PRIX DE RÉFÉRENCE AU-DESSUS DU PLAFOND"]
               and a749[9] and a749[10] == ["M3", "BUDGETS", 200] and a749[11:14] == ["BP", "AWB", None] and a749[14] == 1 and a749[15] == 14 and a749[16] != "", a749)
+        # v750 : liste des budgets — colonnes (marge de pliage, RÉFÉRENCE, NATURE, PROJET, INTITULÉ, MONTANT TTC, SAISI LE ; VALIDÉ LE seulement
+        # dans les validés), une icône de bascule, plus de cases ni d'impression (corbeille seule), CONSOLIDÉ en ligne de titre, menu de filtre commun,
+        # toute la largeur ; suppression depuis la fiche → budget précédent ; IMPRIMER et CUMUL dans le menu ⋯
+        pg.evaluate("""() => { document.getElementById('budgetBackBtn')?.click(); window.__kp750 = JSON.stringify(sviInstGet()); const d = () => ({ des: [], lot: [], prim: [], sec: [], chg: [], prd: [], links: [], dlp: {} });
+            sviInstSet(sviInstGet().filter(x => !/^(F|X)-/.test(x.ref)).concat([{ ref: 'F-1', project: 'FAM', intitule: 'VILLA', state: 'valide', created: '2026-10-30T10:00', validated: '2026-10-30T11:00', data: d() },
+              { ref: 'F-1-AV1', project: 'FAM', intitule: 'VILLA', state: 'instance', created: '2026-10-31T09:00', parent: 'F-1', avn: 1, data: d() },
+              { ref: 'X-1', project: 'XA', intitule: 'ECOLE', state: 'instance', created: '2026-10-29T08:00', data: d() }, { ref: 'X-2', project: 'XB', intitule: 'IMMEUBLE', state: 'instance', created: '2026-10-28T08:00', data: d() }]));
+            localStorage.setItem('svi_listmode_v1', 'inst'); localStorage.setItem('svi_bdgfold_v1', JSON.stringify(['F-1'])); renderBudgetList(); }"""); pg.wait_for_timeout(500)
+        l750 = pg.evaluate("""() => { const T = document.getElementById('budgetListTable'), wr = T.closest('.novapp-budget-table-wrap');
+            const hd = [...T.tHead.querySelectorAll('th')].map(th => (th.querySelector('.cf-lab') || th).textContent.trim());
+            const row = r => T.querySelector(`tr[data-budget-ref="${r}"]`), cells = r => row(r) ? [...row(r).cells].map(c => c.textContent.trim()) : null;
+            const bl = row('X-1').querySelector('.budget-link'), it = row('X-1').cells[4], cs = getComputedStyle(bl);
+            return [hd.join('|'), !!document.getElementById('bdgModeSw'), !document.querySelector('.novapp-list-actions'), T.querySelectorAll('input.bdg-cum, [data-print-budget]').length,
+              cells('F-1').slice(1, 4).join('|'), cells('F-1-AV1').slice(1, 4).join('|'), !!row('F-1-AV1').querySelector('.budget-link'), !!row('F-1-AV1').querySelector('[data-del-budget]'),
+              T.querySelectorAll('tr[data-kid="glob"]').length, cells('X-1')[2], !!row('F-1').querySelector('td.bdg-fold-c[data-fold-bdg]'), [...T.tBodies[0].rows].filter(r => r.dataset.budgetRef).every(r => r.cells[0].classList.contains('bdg-fold-c')),
+              cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.fontWeight === getComputedStyle(it).fontWeight && cs.textDecorationLine === 'underline', wr.scrollWidth <= wr.clientWidth + 1]; }""")
+        check("v750 : liste — colonnes dans l'ordre (sans VALIDÉ LE en instance), icône de bascule, ni cases ni impression, CONSOLIDÉ en titre, AVENANT 1 dessous (lien PROJET, corbeille), INITIAL, marge de pliage, PROJET souligné sans fond, toute la largeur",
+              l750 == ["|RÉFÉRENCE|NATURE|PROJET|INTITULÉ|MONTANT TTC|SAISI LE|", True, True, 0, "FAM F-1|CONSOLIDÉ|FAM", "FAM F-1-AV1|AVENANT 1|FAM", True, True, 0, "INITIAL", True, True, True, True], l750)
+        f750 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), T = document.getElementById('budgetListTable');
+            T.querySelector('.cf-btn[data-col="nat"]').click(); await w(200); const m = document.getElementById('cfMenu'); if (!m) return 'pas de menu';
+            const ord = [...m.children].map(e => e.className.split(' ')[0]).filter(c => /cf-(sort|search|cond|list|foot)/.test(c)).join(',');
+            const cb = [...m.querySelectorAll('[data-cfv]')].find(i => i.dataset.cfv === 'INITIAL'); cb.checked = false; cb.dispatchEvent(new Event('change', { bubbles: true }));
+            m.querySelector('.cf-ok').click(); await w(200); const refs = [...T.tBodies[0].rows].map(r => r.dataset.budgetRef).filter(Boolean).join(',');
+            T.querySelector('.cf-btn[data-col="entered"]').click(); await w(200); const ops = [...document.querySelectorAll('#cfMenu .cf-opi')].map(b => b.dataset.op).join(',');
+            document.querySelector('#cfMenu .cf-clear').click(); document.querySelector('#cfMenu .cf-x').click();
+            T.querySelector('.cf-btn[data-col="nat"]').click(); await w(150); document.querySelector('#cfMenu .cf-clear').click(); document.querySelector('#cfMenu .cf-x')?.click(); await w(150);
+            const n = [...T.tBodies[0].rows].filter(r => r.dataset.budgetRef).length;
+            T.querySelector('[data-fold-bdg="F-1"]').click(); await w(150); const folded = !T.querySelector('tr[data-budget-ref="F-1-AV1"]');
+            T.querySelector('[data-fold-bdg="F-1"]').click(); await w(150);
+            document.getElementById('bdgModeSw').click(); await w(300); const T2 = document.getElementById('budgetListTable');
+            const val = [document.querySelector('.novapp-list-titlebar h1').textContent.includes('VALIDÉS'), [...T2.tHead.querySelectorAll('th')].some(th => th.textContent.includes('VALIDÉ LE'))];
+            document.getElementById('bdgModeSw').click(); await w(300);
+            return [ord, refs, ops, n, folded, val]; }""")
+        check("v750 : filtre commun sur la liste (tri, recherche, conditions, cases, EFFACER), conditions des dates complètes, pliage par la flèche, bascule vers les validés (avec VALIDÉ LE)",
+              f750[0] == "cf-sort,cf-sort,cf-search,cf-cond,cf-list,cf-foot" and f750[1] == "F-1,F-1-AV1" and f750[2] == ",eq,ne,gt,ge,lt,le,bt" and f750[3] >= 4 and f750[4] and f750[5] == [True, True], f750)
+        d750 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms));
+            document.querySelector('#budgetListTable tr[data-budget-ref="X-2"] td:nth-child(5)').click(); await w(900);
+            document.getElementById('bdgMore')?.click(); await w(200); const mn = ['prt', 'cum'].map(a => !!document.querySelector(`#blkMenu [data-a="${a}"]`));
+            document.querySelector('#blkMenu [data-a="cum"]')?.click(); await w(300); const d = document.getElementById('svConf');
+            const pre = d ? [...d.querySelectorAll('input[data-cr]:checked')].map(i => i.dataset.cr).join(',') : 'pas de fenêtre', go0 = d ? d.querySelector('[data-cumgo]').disabled : null;
+            d && d.querySelector('tr[data-cr="X-1"] td:nth-child(2)').click(); const go1 = d ? d.querySelector('[data-cumgo]').disabled : null; d && d.querySelector('[data-r="0"]').click();
+            document.getElementById('instDel')?.click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(1200);
+            return [mn, pre, go0, go1, localStorage.getItem('svi_lastbdg_v1'), !!document.getElementById('budgetBackBtn'), sviInstGet().some(x => x.ref === 'X-2')]; }""")
+        check("v750 : menu ⋯ — IMPRIMER et CUMUL (budget ouvert coché, CUMULER grisé sous deux) ; suppression depuis la fiche → le budget précédent de la liste s'ouvre",
+              d750 == [[True, True], "X-2", True, False, "X-1", True, False], d750)
+        pg.evaluate("() => { document.getElementById('budgetBackBtn')?.click(); sviInstSet(JSON.parse(window.__kp750)); localStorage.setItem('svi_listmode_v1', 'inst'); localStorage.removeItem('svi_bdgfold_v1'); renderBudgetList(); }"); pg.wait_for_timeout(400)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

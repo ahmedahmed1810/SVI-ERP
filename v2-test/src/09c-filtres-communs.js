@@ -8,7 +8,10 @@
    Rend { CF, cfSrc, cfT, cfApply, cfHead, cfClose, cfOpenMenu, cfMakeF }.
    ========================================================= */
 /* date JJ/MM/AAAA ou AAAA-MM-JJ → AAAA-MM-JJ (aussi lue par cfCondOk, 09) */
-const cfDate = x => { const s = String(x || "").trim(); const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); if (m) return m[3] + "-" + m[2] + "-" + m[1]; return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : ""; };
+/* v750 : une heure après la date est acceptée (« 31/10/2026 À 10:00 », colonnes SAISI LE / VALIDÉ LE de la liste des budgets) */
+const cfDate = x => { const s = String(x || "").trim(); const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(?:À\s+)?\d{1,2}:\d{2})?$/); if (m) return m[3] + "-" + m[2] + "-" + m[1]; const n = s.match(/^(\d{4}-\d{2}-\d{2})(?:[T\s]\d{1,2}:\d{2})?$/); return n ? n[1] : ""; };
+/* v750 : clé de tri d'une date JJ/MM/AAAA [HH:MM] (sinon le tri suivait le jour) */
+const cfSortKey = v => { if (typeof v !== "string") return v; const m = v.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(?:À\s+)?(\d{1,2}):(\d{2}))?$/); return m ? m[3] + m[2] + m[1] + (m[4] || "00").padStart(2, "0") + (m[5] || "00") : v; };
 function sviCfKit(o) {
   const shell = o.shell;
   const refreshAll = () => o.refresh();
@@ -33,7 +36,7 @@ function sviCfKit(o) {
         const get = c[2];
         const dir = st.sort.dir === "desc" ? -1 : 1;
         out = [...out].sort((a, b) => {
-          const x = get(a), y = get(b);
+          const x = cfSortKey(get(a)), y = cfSortKey(get(b));
           const r = typeof x === "number" && typeof y === "number"
             ? x - y
             : String(x ?? "").localeCompare(String(y ?? ""), "fr", { numeric: true });
@@ -124,8 +127,9 @@ function sviCfKit(o) {
     if (!kind) { box.innerHTML = ""; return; }
     const c = cfOpen.cond && cfOpen.cond.kind === kind ? cfOpen.cond : null;
     const ops = kind === "num" ? [["", "AUCUNE"], ["eq", "ÉGAL À"], ["ne", "DIFFÉRENT DE"], ["gt", "SUPÉRIEUR À"], ["ge", "SUPÉRIEUR OU ÉGAL À"], ["lt", "INFÉRIEUR À"], ["le", "INFÉRIEUR OU ÉGAL À"], ["bt", "ENTRE … ET …"]]
-      : kind === "date" ? [["", "AUCUNE"], ["eq", "LE"], ["lt", "AVANT LE"], ["gt", "APRÈS LE"], ["bt", "ENTRE LE … ET LE …"]]
-      : [["", "AUCUNE"], ["ct", "CONTIENT"], ["nc", "NE CONTIENT PAS"], ["sw", "COMMENCE PAR"], ["ew", "SE TERMINE PAR"], ["eq", "ÉGAL À"]];
+      /* v750 (point 6) : mêmes conditions pour les dates que pour les nombres */
+      : kind === "date" ? [["", "AUCUNE"], ["eq", "ÉGAL À (LE)"], ["ne", "DIFFÉRENT DE"], ["gt", "SUPÉRIEUR À (APRÈS LE)"], ["ge", "SUPÉRIEUR OU ÉGAL À"], ["lt", "INFÉRIEUR À (AVANT LE)"], ["le", "INFÉRIEUR OU ÉGAL À"], ["bt", "ENTRE LE … ET LE …"]]
+      : [["", "AUCUNE"], ["eq", "ÉGAL À"], ["ne", "DIFFÉRENT DE"], ["ct", "CONTIENT"], ["nc", "NE CONTIENT PAS"], ["sw", "COMMENCE PAR"], ["ew", "SE TERMINE PAR"]];
     const fmt = v => v === undefined || v === null || v === "" ? "" : kind === "num" ? money(v) : v;
     const inp = (n, v) => kind === "num" ? `<input class="cf-ca" data-n="${n}" inputmode="decimal" value="${esc(fmt(v))}" placeholder="VALEUR">` : kind === "txt" ? `<input class="cf-ca" data-n="${n}" value="${esc(v || "")}" placeholder="TEXTE" autocomplete="off">` : `<input type="date" class="cf-ca" data-n="${n}" value="${esc(v || "")}">`;
     /* v622 : liste CONDITION de l'application (plus la grande liste de l'iPad) — petites lignes, ✓ devant le choix en cours */

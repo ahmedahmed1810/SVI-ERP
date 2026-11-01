@@ -143,9 +143,20 @@
         svConfirm(RC ? { title: "SUPPRIMER LE RECALAGE R" + budget.inst.rcn, text: "LE RECALAGE EN COURS R" + budget.inst.rcn + " SERA SUPPRIMÉ ; L'ÉTAPE " + RC + " NE CHANGE PAS.", ok: "SUPPRIMER" }
           : { title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
           if (!go) return;
+          /* v750 (point 1) : après la suppression, le budget précédent de la liste s'ouvre (le suivant s'il n'y en a pas) ;
+             retour à la liste seulement s'il n'en reste aucun ; un avenant supprimé ouvre l'étape d'avant */
+          const nxt = (() => {
+            if (RC) return null;
+            if (budget.inst.parent) { const S = sviAvStages(budget.inst.parent).filter(x => x.ref !== ref); return S.length ? S[S.length - 1].ref : null; }
+            const ord = Array.isArray(window.__sviBdgOrder) ? window.__sviBdgOrder : [], i = ord.indexOf(ref);
+            const L = ord.filter(r => r !== ref && groups.has(r)), j = i < 0 ? 0 : Math.min(Math.max(0, i - 1), L.length - 1);
+            const r = L.length ? L[j] : null;
+            return r && sviAvStages(r).length > 1 ? r + "-GLOBAL" : r;
+          })();
           instUpd(l => l.filter(x => x.ref !== ref));
           groups.delete(ref);
           if (RC) { window.__sviAvRet = null; window.__sviAvOpen(RC); return; }
+          if (nxt) { window.__sviAvRet = null; window.__sviAvOpen(nxt); return; }
           toList();
         });
       });
@@ -411,10 +422,15 @@
       return;
     }
 
-    /* v740 : CUMUL — cases des budgets et bouton */
-    const cb = event.target.closest("input.bdg-cum");
-    if (cb) { event.stopPropagation(); window.__sviCumSel = window.__sviCumSel || new Set(); if (cb.checked) window.__sviCumSel.add(cb.dataset.cum); else window.__sviCumSel.delete(cb.dataset.cum);
-      const b = document.getElementById("bdgCumBtn"); if (b) { const n = window.__sviCumSel.size; b.hidden = !n; b.disabled = n < 2; b.innerHTML = "CUMUL " + svCnt(n); } return; }
+    /* v750 (point 9) : flèche de la marge — plie / déplie un budget à avenants */
+    const fold = event.target.closest("[data-fold-bdg]");
+    if (fold) {
+      event.preventDefault(); event.stopPropagation();
+      let F = []; try { F = JSON.parse(localStorage.getItem("svi_bdgfold_v1") || "[]") || []; } catch (e) {}
+      const r0 = fold.dataset.foldBdg; F = F.includes(r0) ? F.filter(x => x !== r0) : F.concat(r0);
+      try { localStorage.setItem("svi_bdgfold_v1", JSON.stringify(F)); } catch (e) {}
+      renderRows(); return;
+    }
     /* v698 : lignes SAISIR ICI (nouveau budget) et AJOUTER UN AVENANT ICI */
     const nb = event.target.closest("tr[data-newbdg]");
     if (nb) { openNewBudget(); return; }
@@ -429,7 +445,7 @@
       const r = delButton.dataset.delBudget;
       const g = bdgGroups.get(r);
       if (!g || !g.inst) return;
-      svConfirm({ title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + g.project + " " + r + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
+      svConfirm({ title: g.inst.parent ? "SUPPRIMER L'AVENANT" : "SUPPRIMER LE BUDGET", text: (g.inst.parent ? "L'AVENANT EN INSTANCE " : "LE BUDGET EN INSTANCE ") + g.project + " " + r + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
         if (!go) return;
         try {
           const l = sviInstGet().filter(x => x.ref !== r && x.parent !== r);   /* v681 : ses avenants avec lui */
@@ -466,14 +482,9 @@
          composition du consolidé remise par défaut (étapes validées) */
       /* v691 : arborescence — la ligne d'un budget à avenants se déplie / se replie ; une étape s'ouvre ; le consolidé s'ouvre
          avec la composition par défaut de la liste affichée */
-      if (row.dataset.fam) {
-        let F = []; try { F = JSON.parse(localStorage.getItem("svi_bdgfold_v1") || "[]") || []; } catch (e) {}
-        const r0 = row.dataset.budgetRef; F = F.includes(r0) ? F.filter(x => x !== r0) : F.concat(r0);
-        try { localStorage.setItem("svi_bdgfold_v1", JSON.stringify(F)); } catch (e) {}
-        renderRows(); return;
-      }
-      if (row.dataset.kid === "glob") {
-        const g = row.dataset.budgetRef, r0 = g.replace(/-GLOBAL$/, "");
+      /* v750 (point 8) : la ligne de titre d'un budget à avenants est le BUDGET CONSOLIDÉ — la toucher l'ouvre (la flèche plie / déplie) */
+      if (row.dataset.fam || row.dataset.kid === "glob") {
+        const r0 = row.dataset.budgetRef.replace(/-GLOBAL$/, ""), g = r0 + "-GLOBAL";
         window.__sviAvRet = null;
         if (sviAvSelGet(r0) || !groups.has(g)) { sviAvSelSet(r0, null); sviAvOpen(g); } else openBudgetDetail(g);
         return;

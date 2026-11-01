@@ -1996,6 +1996,37 @@
         svImportFail({ source: "GOOGLE SHEETS — " + url, tries: [{ via: "PAR LE SCRIPT", err: first }, { via: "PAR LE LIEN PUBLIC", err: pub }], hint: "VÉRIFIER LE LIEN, QUE VOTRE COMPTE GOOGLE A ACCÈS À LA FEUILLE, OU LA PARTAGER « TOUTE PERSONNE DISPOSANT DU LIEN » ; SINON EXPORTER LA FEUILLE EN EXCEL ET IMPORTER LE FICHIER." });
       });
     };
+    /* v750 (point 4) : CUMUL — choix des budgets à additionner (le budget ouvert déjà coché), puis la vue CUMUL en lecture seule */
+    const cumPick = () => {
+      const natOf = g => /-GLOBAL$/.test(g.ref) ? "CONSOLIDÉ" : g.inst.parent ? "AVENANT " + (g.inst.avn || 1) : "INITIAL";
+      const G = [...(bdgGroups || new Map()).values()].filter(g => g && g.inst && g.inst.data && !g.inst.vname && !g.inst.rclOf && g.ref !== "CUMUL")
+        .map(g => ({ r: g.ref, ref: U_(g.project || g.inst.project || "") + " " + g.ref.replace(/-GLOBAL$/, ""), nat: natOf(g), int: g.inst.intitule || "" }))
+        .sort((x, y) => x.ref.localeCompare(y.ref, "fr", { numeric: true }) || (x.nat === "CONSOLIDÉ" ? -1 : y.nat === "CONSOLIDÉ" ? 1 : x.nat.localeCompare(y.nat, "fr", { numeric: true })));
+      const S = new Set(window.__sviCumSel && window.__sviCumSel.size ? [...window.__sviCumSel] : []);
+      if (!S.size && G.some(x => x.r === ref)) S.add(ref);
+      const d = sviWinNew();
+      const foot = () => `<button type="button" class="svc-b" data-r="0">ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-cumgo${S.size < 2 ? " disabled" : ""}>CUMULER ${svCnt(S.size)}</button>`;
+      d.innerHTML = sviWinCard({ cls: "cum-card", title: "CUMUL — BUDGETS À ADDITIONNER",
+        body: `<div class="svc-sub">COCHER AU MOINS DEUX BUDGETS.</div><div class="cum-wrap"><table class="pv-t cum-t"><thead><tr><th></th><th>RÉFÉRENCE</th><th>NATURE</th><th>INTITULÉ</th></tr></thead><tbody>${G.map(x => `<tr data-cr="${esc(x.r)}"><td class="center"><input type="checkbox" data-cr="${esc(x.r)}"${S.has(x.r) ? " checked" : ""} aria-label="Cocher"></td><td>${esc(x.ref)}</td><td>${esc(x.nat)}</td><td>${esc(x.int)}</td></tr>`).join("")}</tbody></table></div>`,
+        foot: foot() });
+      sviWinShow(d);
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest('[data-r="0"]')) { d.remove(); return; }
+        if (e.target.closest("[data-cumgo]")) {
+          if (S.size < 2) return;
+          const L = G.map(x => x.r).filter(r => S.has(r));
+          window.__sviCumSel = new Set(L); window.__sviCum = L; d.remove();
+          if (window.__sviAvOpen) window.__sviAvOpen("CUMUL");
+          return;
+        }
+        const tr = e.target.closest("tr[data-cr]");
+        if (!tr) return;
+        const cb = tr.querySelector("input[data-cr]");
+        if (e.target !== cb) cb.checked = !cb.checked;
+        if (cb.checked) S.add(cb.dataset.cr); else S.delete(cb.dataset.cr);
+        d.querySelector(".svc-f").innerHTML = foot();
+      });
+    };
     /* menu ⋯ du haut : DUPLIQUER, DISPOSITION PAR DÉFAUT, EXPORTER / IMPORTER LE BUDGET */
     const openBdgMore = btn => {
       const old = document.getElementById("blkMenu");
@@ -2004,6 +2035,9 @@
       const rb = $("layResetBtn");
       const items = [
         { a: "dup", lab: "DUPLIQUER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>' },
+        /* v750 (point 4) : IMPRIMER et CUMUL (avec le choix des budgets) passent de la liste au menu ⋯ du budget */
+        { a: "prt", lab: "IMPRIMER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3.5h10V8M7 17H4.5V9.5a1.5 1.5 0 0 1 1.5-1.5h12a1.5 1.5 0 0 1 1.5 1.5V17H17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M7 13.5h10V21H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' },
+        { a: "cum", lab: "CUMUL", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16M6 14h12M8 10h8M10 6h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' },
         /* v729 (bloc 10) : COMPARATIF — deux états quelconques du budget, lecture seule */
         ...(INS ? [{ a: "cmp", lab: "COMPARATIF", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h7M4 12h7M4 18h7M13 6h7M13 12h7M13 18h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 3v18" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 2"/></svg>' }] : []),
         { a: "lay", lab: "DISPOSITION PAR DÉFAUT", off: !rb || rb.disabled, ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
@@ -2031,7 +2065,7 @@
       ];
       /* v694 : le menu ⋯ ne garde que les entrées utiles à l'écran — consolidé : aperçus, exports, indicateurs ;
          version : RESTAURER, EN FAIRE UN SCÉNARIO, exports, indicateurs ; recalage : NOUVEAU RECALAGE, exports, indicateurs */
-      { const bi = budget.inst, keep = bi && bi.virtual ? (bi.vname ? ["vrest", "vscn", "lay", "rat", "ind", "exp", "cmp"] : ["lay", "rat", "ind", "multi", "exp", "av", "cph", "cmp"]) : bi && bi.rclOf ? ["rcl", "lay", "rat", "ind", "exp", "plans", "cmp"] : null;
+      { const bi = budget.inst, keep = bi && bi.virtual ? (bi.vname ? ["prt", "cum", "vrest", "vscn", "lay", "rat", "ind", "exp", "cmp"] : ["prt", "cum", "lay", "rat", "ind", "multi", "exp", "av", "cph", "cmp"]) : bi && bi.rclOf ? ["prt", "cum", "rcl", "lay", "rat", "ind", "exp", "plans", "cmp"] : null;
         if (keep) for (let i = items.length - 1; i >= 0; i--) if (!keep.includes(items[i].a)) items.splice(i, 1); }
       const m = document.createElement("div");
       m.id = "blkMenu";
@@ -2045,6 +2079,8 @@
         if (!it || it.classList.contains("off")) return;
         m.remove();
         if (it.dataset.a === "dup") $("instDup")?.click();
+        else if (it.dataset.a === "prt") { if (window.__sviPrintClient) window.__sviPrintClient(); else printBudgetPDF(ref); }
+        else if (it.dataset.a === "cum") cumPick();
         else if (it.dataset.a === "lay") $("layResetBtn")?.click();
         else if (it.dataset.a === "cmp") { if (shell.__cmpPick) shell.__cmpPick(); }
         else if (it.dataset.a === "paq") qqPaqOpen();
