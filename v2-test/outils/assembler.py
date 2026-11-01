@@ -18,7 +18,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MARK = "/* ⟪ src/{} ⟫ */\n"
 
 MODULES = [
-  ("app.js", "SOCLE COMMUN", ["00-", "01-", "02-", "02e-", "03-", "05-", "09-", "09c-", "32-", "33-", "34-", "35-"]),
+  ("app.js", "SOCLE COMMUN", ["00-", "01-", "02-", "02e-", "03-", "05-", "09-", "09c-", "09d-", "32-", "33-", "34-", "35-"]),
   ("app-budget.js", "BUDGET", ["02b-", "02c-", "02d-", "02f-", "07-", "1", "2", "30-"]),
   ("app-achats.js", "ACHATS", ["4"]),
   ("app-autres.js", "AUTRES (BDS, FORMULAIRES CHS / BDS)", ["04-", "06-", "31-"]),

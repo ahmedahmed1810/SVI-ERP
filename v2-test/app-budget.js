@@ -1950,7 +1950,7 @@ function renderBudgetList() {
     { key: "entered", title: "SAISI LE", width: 150 },
     ...(listMode === "inst" ? [] : [{ key: "validated", title: "VALIDÉ LE", width: 150 }])
   ];
-  const NCOL = columns.length + 2;
+  const NCOL = columns.length + 1;   /* v754 : plus de colonne de pliage (la flèche est dans RÉFÉRENCE) */
 
   /* tri et filtre : le menu commun (sviCfKit, comme le budget et les achats) ; gardés pendant la session */
   const BL = "bdgl";
@@ -1974,8 +1974,8 @@ function renderBudgetList() {
     const tot = columns.reduce((t, c) => t + c.width, 0);
     let cg = table.querySelector("colgroup");
     if (!cg) { cg = document.createElement("colgroup"); table.insertBefore(cg, thead); }
-    cg.innerHTML = `<col style="width:26px">` + columns.map(c => `<col data-bdg-col="${c.key}" style="width:${colW[c.key] ? colW[c.key] + "px" : (c.width / tot * 100).toFixed(2) + "%"}">`).join("") + `<col style="width:44px">`;
-    thead.innerHTML = `<tr><th class="bdg-fold-h"></th>${columns.map(c => KIT.cfHead(BL, c.key, c.title, "bdg-list-head" + (c.number ? " number" : ""))).join("")}<th class="bdg-act-h"></th></tr>`;
+    cg.innerHTML = columns.map(c => `<col data-bdg-col="${c.key}" style="width:${colW[c.key] ? colW[c.key] + "px" : (c.width / tot * 100).toFixed(2) + "%"}">`).join("") + `<col style="width:44px">`;
+    thead.innerHTML = `<tr>${columns.map(c => KIT.cfHead(BL, c.key, c.title, "bdg-list-head" + (c.number ? " number" : ""))).join("")}<th class="bdg-act-h"></th></tr>`;
   };
   renderHead();
   /* -------------------------------------------------------
@@ -2018,7 +2018,7 @@ function renderBudgetList() {
 
     panel.innerHTML = `
       <div class="novapp-date-head">
-        <button type="button" class="novapp-date-filter">TOUT ▾</button>
+        <button type="button" class="novapp-date-filter"><span>TOUT ▾</span>${svCnt(budgets.length)}</button>
       </div>
       <div class="novapp-date-list">
         ${keys.map(k => `
@@ -2095,13 +2095,25 @@ function renderBudgetList() {
         let bd = {}; try { bd = budgetData({ ref: st.ref, project: st.project, rows: [], first: {}, inst: st, __noFam: true }); } catch (e) {}
         return { ref: st.ref, nat: st.parent ? "AVENANT " + (st.avn || 1) : "INITIAL", budget: U_(st.project), intitule: st.intitule || "", ttc: bd.ttc || 0,
           validated: st.state === "valide" ? svDT(st.validated || "") : "", entered: svDT(st.created || ""), state: st.state || "instance", kind: st.parent ? "av" : "bdg",
-          del: st.state === "instance" && st === last };
+          del: st.state === "instance" && st === last, late: stLate(st) };
       });
     };
+    /* v754 : ALERTE — validé plus de 24 h après la saisie : « ! » devant la date de validation (le toucher donne la raison) ;
+       ligne de titre d'un budget à avenants : en alerte si l'une de ses étapes l'est */
+    const tms = v => { const m = String(v || "").match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/); return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)).getTime() : NaN; };
+    const lateOf = (c, v) => { const h = (tms(v) - tms(c)) / 36e5; if (!(h > 24)) return ""; const j = Math.floor(h / 24);
+      return "VALIDÉ " + (j >= 2 ? j + " J" : Math.round(h) + " H") + " APRÈS LA SAISIE (PLUS DE 24 H)."; };
+    const stLate = st => st && st.state === "valide" ? lateOf(st.created, st.validated) : "";
+    data.forEach(x => {
+      if (x.fam) { const L = sviAvStages(x.ref).map(st => [st, stLate(st)]).filter(z => z[1]); x.late = L.map(([st, w]) => sviAvName(st) + " : " + w).join(" — "); }
+      else { const bi = x.source && x.source.inst; x.late = bi ? stLate(bi) : ""; }
+    });
+    const lateBang = w => w ? `<b class="obs-bang val-bang" role="button" data-why="${esc(w)}" title="${esc(w)}">!</b> ` : "";
     /* une case par colonne, dans l'ordre des colonnes ; PROJET souligné = lien vers la fiche projet (règle : souligné = lien vers la fiche source) */
     const cell = (k, x) => {
       switch (k) {
-        case "ref": return `<td><span class="bang-slot">${obsBang(x.ref)}</span>${esc(x.budget + " " + x.ref)}</td>`;
+        case "ref": return `<td class="bdg-ref-c">${x.fam ? `<span class="bdg-fold" data-fold-bdg="${esc(x.ref)}" role="button" aria-label="${x.open ? "Plier" : "Déplier"}">${x.open ? "⌄" : "›"}</span>` : ""}<span class="bang-slot">${obsBang(x.ref)}</span>${esc(x.budget + " " + x.ref)}</td>`;
+        case "validated": return `<td title="${esc(x.late || x.validated || "")}">${lateBang(x.late)}${esc(x.validated || "")}</td>`;
         case "budget": return `<td title="${esc(x.budget)}"><button type="button" class="budget-link" data-open-project="${esc(x.ref)}">${esc(x.budget)}</button></td>`;
         case "ttc": return `<td class="number">${money(x.ttc)}</td>`;
         default: return `<td title="${esc(x[k] || "")}">${esc(x[k] || "")}</td>`;
@@ -2110,15 +2122,14 @@ function renderBudgetList() {
     const delBtn = r => `<button type="button" class="bdg-row-action bdg-row-del" data-del-budget="${esc(r)}" title="Supprimer" aria-label="Supprimer">${SVI_DEL_ICON}</button>`;
     const FO = new Set(foldGet0());
     tbody.innerHTML =
-      data.map(item => { const fam = item.fam, open = fam && FO.has(item.ref), kids = open ? kidsOf(item) : [];
+      data.map(item => { const fam = item.fam, open = fam && FO.has(item.ref), kids = open ? kidsOf(item) : []; item.open = open;
         return `<tr data-budget-ref="${esc(item.ref)}" class="${item.state ? "inst-" + item.state : ""}${fam ? " bdg-fam" : ""}"${fam ? ' data-fam="1"' : ""}>`
-          + `<td class="bdg-fold-c"${fam ? ` data-fold-bdg="${esc(item.ref)}"` : ""}>${fam ? `<span class="bdg-fold" role="button" aria-label="${open ? "Plier" : "Déplier"}">${open ? "⌄" : "›"}</span>` : ""}</td>`
           + columns.map(c => cell(c.key, item)).join("")
           + `<td class="bdg-action-cell">${item.state === "instance" ? delBtn(item.ref) : ""}</td></tr>`
-          + kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}"><td class="bdg-fold-c"></td>`
+          + kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}">`
             + columns.map(c => cell(c.key, k)).join("") + `<td class="bdg-action-cell">${k.del ? delBtn(k.ref) : ""}</td></tr>`).join("")
           + (open ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
-            return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td class="bdg-fold-c"></td><td colspan="${NCOL - 1}">CRÉER UN AVENANT ICI…</td></tr>`; })() : "");
+            return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="${NCOL}">CRÉER UN AVENANT ICI…</td></tr>`; })() : "");
       }).join("") + NEWROW;
     /* v701 : panneau des dates aux hauteurs de la liste — TOUT = hauteur de l'en-tête, chaque date = hauteur d'une ligne */
     requestAnimationFrame(() => { try {
@@ -22437,6 +22448,9 @@ ${A}</Assignments>
 
   table.onclick = event => {
 
+    /* v754 : « ! » de VALIDÉ LE — validé plus de 24 h après la saisie : la raison, sans ouvrir le budget */
+    const vb = event.target.closest(".val-bang");
+    if (vb) { event.preventDefault(); event.stopPropagation(); svToast(vb.dataset.why || "", 4000, vb); return; }
     /* « ! » : lire l'alerte sans ouvrir le détail du budget */
     const bang = event.target.closest(".obs-bang");
     if (bang) {

@@ -9,7 +9,7 @@ python3 tests/test_app.py            # tests de non-régression
 
 | Fichier assemblé | Module | Fichiers de src/ |
 |---|---|---|
-| `app.js` | SOCLE COMMUN (chargé en premier ; garde le nom app.js, lu par le bouton NOUVELLE VERSION) | 00, 01, 02, 02e, 03, 05, 09, 09c, 32, 33, 34, 35 |
+| `app.js` | SOCLE COMMUN (chargé en premier ; garde le nom app.js, lu par le bouton NOUVELLE VERSION) | 00, 01, 02, 02e, 03, 05, 09, 09c, 09d, 32, 33, 34, 35 |
 | `app-budget.js` | BUDGET | 02b, 02c, 02d, 02f, 07, 10 à 27, 30 |
 | `app-achats.js` | ACHATS | 40, 41 |
 | `app-autres.js` | AUTRES : BDS, formulaires CHS / BDS | 04, 06, 31 |
@@ -35,6 +35,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `07-bdg-chargement.js` | chargement des budgets validés | 179 |
 | `09-budget-outils.js` | fonctions sans état du budget (calculs, emballage et chutes, échéancier, bibliothèque, CUMUL) | 1209 |
 | `09c-filtres-communs.js` | tri et filtre par colonne façon tableur, COMMUNS à tous les écrans (budget, achats) : `sviCfKit` | 335 |
+| `09d-couleurs-etats.js` | couleurs des états (EN INSTANCE, FIGÉ, VALIDÉ, EXPIRÉ, BLOQUÉ, ARCHIVÉ), paramétrables, variables CSS `--st-…` | 27 |
 | `10-bdg-liste.js` | liste des budgets (arborescence, avenants, CUMUL) | 2003 |
 | `11-budget-ouverture.js` | ouverture d'un budget (début de openBudgetDetail) | 548 |
 | `12-tableaux-colonnes.js` | ordre manuel des lignes du budget ; tri et filtre pris de 09c (`sviCfKit`) | 37 |

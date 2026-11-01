@@ -211,7 +211,7 @@ function sviParamTabs() {
   const head = view.querySelector(".section-head");
   const bar = document.createElement("div");
   bar.className = "prm-tabs";
-  bar.innerHTML = `<button type="button" class="prm-tab on" data-prm="unit">UNITÉS</button><button type="button" class="prm-tab" data-prm="lib">BIBLIOTHÈQUE DE PRIX</button>`
+  bar.innerHTML = `<button type="button" class="prm-tab on" data-prm="unit">UNITÉS</button><button type="button" class="prm-tab" data-prm="lib">BIBLIOTHÈQUE DE PRIX</button><button type="button" class="prm-tab" data-prm="col">COULEURS</button>`
     + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal">CALENDRIER</button>`;
   /* CALENDRIER et DATES DU BUDGET : pour le budget ouvert ; grisés sans budget ouvert (appui long = raison) */
   const why = () => { const L = window.__sviBdgLive; return !L ? "OUVRIR UN BUDGET D'ABORD" : !L.edit ? "BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE" : ""; };
@@ -239,15 +239,34 @@ function sviParamTabs() {
   lpane.className = "prm-lib";
   lpane.hidden = true;
   pane.after(lpane);
+  /* v754 : COULEURS des états (EN INSTANCE, FIGÉ, VALIDÉ, EXPIRÉ, BLOQUÉ, ARCHIVÉ) — communes à toute l'application */
+  const cpane = document.createElement("div");
+  cpane.className = "prm-col";
+  cpane.hidden = true;
+  lpane.after(cpane);
+  const colDraw = () => {
+    const C = sviColors();
+    cpane.innerHTML = `<table class="prm-table"><colgroup><col style="width:200px"><col style="width:90px"><col style="width:260px"><col style="width:120px"></colgroup>
+      <thead><tr><th>ÉTAT</th><th class="center">COULEUR</th><th>APERÇU</th><th></th></tr></thead>
+      <tbody>${SVI_COL_LAB.map(([k, l]) => `<tr data-col="${k}"><td>${l}</td><td class="center"><input type="color" class="col-in" data-col="${k}" value="${esc(C[k])}" aria-label="Couleur ${esc(l)}"></td>
+        <td class="col-prev" style="color:${esc(C[k])}">BDG 26-1101/001 — ${l}</td>
+        <td class="center">${C[k].toLowerCase() !== SVI_COL_DEF[k] ? `<button type="button" class="col-rst" data-col="${k}">PAR DÉFAUT</button>` : ""}</td></tr>`).join("")}</tbody></table>`;
+  };
+  cpane.addEventListener("input", e => { const i = e.target.closest(".col-in"); if (!i) return; const C = sviColors(); C[i.dataset.col] = i.value; sviColorsSave(C);
+    const pv = i.closest("tr").querySelector(".col-prev"); if (pv) pv.style.color = i.value; });
+  cpane.addEventListener("change", e => { if (e.target.closest(".col-in")) colDraw(); });
+  cpane.addEventListener("click", e => { const b = e.target.closest(".col-rst"); if (!b) return; const C = sviColors(); C[b.dataset.col] = SVI_COL_DEF[b.dataset.col]; sviColorsSave(C); colDraw(); });
   const show = which => {
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.prm === which));
     pane.hidden = which !== "unit";
     lpane.hidden = which !== "lib";
+    cpane.hidden = which !== "col";
     const h1 = head.querySelector("h1"), sub = head.querySelector("p");
-    if (h1) h1.textContent = which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : "UNITÉS";
+    if (h1) h1.textContent = which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : which === "col" ? "COULEURS" : "UNITÉS";
     if (sub) sub.textContent = which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT ; COMMUNE À TOUS LES BUDGETS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";
     if (which === "unit") draw();
     if (which === "lib") libDraw();
+    if (which === "col") { colDraw(); if (sub) sub.textContent = "COULEUR DE CHAQUE ÉTAT, COMMUNE À TOUTE L'APPLICATION ET À TOUS LES APPAREILS"; }
     try { localStorage.setItem("svi_prm_v1", which); } catch (e) {}
   };
   const draw = () => {

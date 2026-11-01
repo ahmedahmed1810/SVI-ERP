@@ -3149,13 +3149,11 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 #budgetListTable td { text-align: left; }
 #budgetListTable td.number { text-align: right; }
 /* point 9 : marge de pliage à gauche sur toutes les lignes — références alignées, pliées ou dépliées */
-#budgetListTable td.bdg-fold-c, #budgetListTable tr.bdg-kid td.bdg-fold-c, #budgetListTable tr.bdg-newrow td.bdg-fold-c { padding: 0 !important; text-align: center; }
-#budgetListTable td.bdg-fold-c[data-fold-bdg] { cursor: pointer; }
-#budgetListTable td.bdg-fold-c .bdg-fold { margin: 0; width: 100%; font-size: 15px; font-weight: 900 !important; color: #3f4856; }
-#budgetListTable tr.bdg-kid td:first-child { padding-left: 0; }
-/* v752 : lignes du dessous (BUDGET INITIAL, AVENANTS, CRÉER UN AVENANT) décalées vers la droite ; lignes de titre alignées */
-#budgetListTable tr.bdg-kid td:nth-child(2) { padding-left: 26px; }
-#budgetListTable tr.bdg-newrow.bdg-kid td.bdg-fold-c { background: transparent; }
+/* v754 : la flèche de pliage est dans RÉFÉRENCE, devant la référence du parent (plus de colonne à gauche) ;
+   lignes de titre alignées (place de la flèche gardée), lignes du dessous décalées vers la droite */
+#budgetListTable td.bdg-ref-c { padding-left: 22px; position: relative; }
+#budgetListTable td.bdg-ref-c .bdg-fold { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); width: 16px; margin: 0; text-align: center; font-size: 15px; font-weight: 900 !important; color: #3f4856 !important; cursor: pointer; padding: 6px 0; }
+#budgetListTable tr.bdg-kid td.bdg-ref-c, #budgetListTable tr.bdg-newrow.bdg-kid td { padding-left: 44px; }
 #budgetListTable thead th .cf-wrap { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-width: 0; }
 #budgetListTable thead th .cf-lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 #budgetListTable thead th.number .cf-wrap { justify-content: flex-end; }
@@ -3166,12 +3164,13 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 /* v752 : la corbeille prend la couleur de sa ligne (rouge en instance, vert figé, noir validé) */
 #budgetListTable .bdg-row-del { color: inherit !important; display: inline-flex; align-items: center; justify-content: center; }
 #budgetListTable .bdg-row-del:hover { background: #f1f4f8; }
-/* états : rouge (en instance), vert (figé) — gardés après la graisse unique */
-#budgetListTable tr.inst-instance td, #budgetListTable tr.inst-instance .budget-link { color: #991b1b !important; }
-#budgetListTable tr.inst-fige td, #budgetListTable tr.inst-fige .budget-link { color: #166534 !important; }
-#budgetListTable tr.bdg-kid.inst-instance.row-av td, #budgetListTable tr.bdg-kid.inst-instance.row-av .budget-link { color: #dc2626 !important; }
-#budgetListTable tr.bdg-kid.inst-fige.row-av td, #budgetListTable tr.bdg-kid.inst-fige.row-av .budget-link { color: #22a052 !important; }
-#budgetListTable tr.bdg-kid.inst-valide.row-av td { color: #3a4a5e !important; }
+/* états — v754 : une seule couleur par état, paramétrable (PARAMÉTRAGE › COULEURS : variables --st-…) */
+#budgetListTable tbody tr:not(.bdg-newrow) td { color: var(--st-valide, #172033); }
+#budgetListTable tr.inst-instance td, #budgetListTable tr.inst-instance .budget-link { color: var(--st-instance, #b91c1c) !important; }
+#budgetListTable tr.inst-fige td, #budgetListTable tr.inst-fige .budget-link { color: var(--st-fige, #15803d) !important; }
+#budgetListTable tr.bdg-kid.inst-valide td, #budgetListTable tr.bdg-kid.inst-valide.row-av td, #budgetListTable tr.bdg-kid.inst-valide .budget-link { color: var(--st-valide, #172033) !important; }
+#budgetListTable tr.bdg-kid.inst-instance.row-av td, #budgetListTable tr.bdg-kid.inst-instance.row-av .budget-link { color: var(--st-instance, #b91c1c) !important; }
+#budgetListTable tr.bdg-kid.inst-fige.row-av td, #budgetListTable tr.bdg-kid.inst-fige.row-av .budget-link { color: var(--st-fige, #15803d) !important; }
 /* point 4 : fenêtre CUMUL (menu ⋯ du budget) */
 .cum-card .cum-wrap { max-height: 58vh; overflow: auto; margin-top: 8px; }
 .cum-card .cum-t tbody tr { cursor: pointer; }
@@ -3193,3 +3192,18 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 #navMenu .nav-grp, #navMenu .nav-off { justify-content: flex-start; }
 #navMenu .nav-grp i { margin-left: auto; }
 #navMenu .nav-ic { flex: none; display: block; }
+
+/* v754 : couleurs des états paramétrables — écran d'un budget et lignes CRÉER… */
+.bdg-inst-instance { --inst: var(--st-instance, #b91c1c); }
+.bdg-inst-fige { --inst: var(--st-fige, #15803d); }
+#budgetListTable tr.bdg-newrow td, #budgetListTable tr.bdg-newrow.bdg-kid td { color: var(--st-instance, #b91c1c) !important; }
+#budgetListTable tr.bdg-newrow.off td { color: color-mix(in srgb, var(--st-instance, #b91c1c) 40%, #fff) !important; }
+/* v754 : « ! » devant VALIDÉ LE (validé plus de 24 h après la saisie) */
+#budgetListTable .val-bang { margin: -4px 0 -4px -4px; padding: 4px 3px; }
+/* v754 : total à côté de TOUT */
+.novapp-date-filter { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+/* v754 : PARAMÉTRAGE › COULEURS */
+.prm-col .prm-table td { vertical-align: middle; }
+.prm-col input[type="color"] { width: 54px; height: 30px; padding: 0; border: 1px solid #d6dbe3; border-radius: 6px; background: #fff; cursor: pointer; }
+.prm-col .col-prev { font-weight: 800; }
+.prm-col .col-rst { border: 1px solid #dfe4eb; background: #fff; border-radius: 8px; padding: 5px 10px; font-weight: 800; font-size: 11px; cursor: pointer; }

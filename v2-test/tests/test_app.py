@@ -2612,13 +2612,13 @@ def main():
         l750 = pg.evaluate("""() => { const T = document.getElementById('budgetListTable'), wr = T.closest('.novapp-budget-table-wrap');
             const hd = [...T.tHead.querySelectorAll('th')].map(th => (th.querySelector('.cf-lab') || th).textContent.trim());
             const row = r => T.querySelector(`tr[data-budget-ref="${r}"]`), cells = r => row(r) ? [...row(r).cells].map(c => c.textContent.trim()) : null;
-            const bl = row('X-1').querySelector('.budget-link'), it = row('X-1').cells[4], cs = getComputedStyle(bl);
+            const bl = row('X-1').querySelector('.budget-link'), it = row('X-1').cells[3], cs = getComputedStyle(bl);
             return [hd.join('|'), !!document.getElementById('bdgModeSw'), !document.querySelector('.novapp-list-actions'), T.querySelectorAll('input.bdg-cum, [data-print-budget]').length,
-              cells('F-1').slice(1, 4).join('|'), cells('F-1-AV1').slice(1, 4).join('|'), !!row('F-1-AV1').querySelector('.budget-link'), !!row('F-1-AV1').querySelector('[data-del-budget]'),
-              T.querySelectorAll('tr[data-kid="glob"]').length, cells('X-1')[2], !!row('F-1').querySelector('td.bdg-fold-c[data-fold-bdg]'), [...T.tBodies[0].rows].filter(r => r.dataset.budgetRef).every(r => r.cells[0].classList.contains('bdg-fold-c')),
+              cells('F-1').slice(0, 3).join('|'), cells('F-1-AV1').slice(0, 3).join('|'), !!row('F-1-AV1').querySelector('.budget-link'), !!row('F-1-AV1').querySelector('[data-del-budget]'),
+              T.querySelectorAll('tr[data-kid="glob"]').length, cells('X-1')[1], !!row('F-1').querySelector('td.bdg-ref-c [data-fold-bdg]'), !T.querySelector('td.bdg-fold-c, th.bdg-fold-h'),
               cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.fontWeight === getComputedStyle(it).fontWeight && cs.textDecorationLine === 'underline', wr.scrollWidth <= wr.clientWidth + 1]; }""")
         check("v750 : liste — colonnes dans l'ordre (sans VALIDÉ LE en instance), icône de bascule, ni cases ni impression, CONSOLIDÉ en titre, AVENANT 1 dessous (lien PROJET, corbeille), INITIAL, marge de pliage, PROJET souligné sans fond, toute la largeur",
-              l750 == ["|RÉFÉRENCE|NATURE|PROJET|INTITULÉ|MONTANT TTC|SAISI LE|", True, True, 0, "FAM F-1|CONSOLIDÉ|FAM", "FAM F-1-AV1|AVENANT 1|FAM", True, True, 0, "INITIAL", True, True, True, True], l750)
+              l750 == ["RÉFÉRENCE|NATURE|PROJET|INTITULÉ|MONTANT TTC|SAISI LE|", True, True, 0, "⌄FAM F-1|CONSOLIDÉ|FAM", "FAM F-1-AV1|AVENANT 1|FAM", True, True, 0, "INITIAL", True, True, True, True], l750)
         f750 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), T = document.getElementById('budgetListTable');
             T.querySelector('.cf-btn[data-col="nat"]').click(); await w(200); const m = document.getElementById('cfMenu'); if (!m) return 'pas de menu';
             const ord = [...m.children].map(e => e.className.split(' ')[0]).filter(c => /cf-(sort|search|cond|list|foot)/.test(c)).join(',');
@@ -2666,10 +2666,35 @@ def main():
             sviInstSet(sviInstGet().map(x => x.ref === 'F-1' ? { ...x, state: 'valide' } : x).concat([{ ref: 'F-1-AV1', project: 'FAM', state: 'instance', created: '2026-10-31T09:00', parent: 'F-1', avn: 1, data: d() }]));
             localStorage.setItem('svi_listmode_v1', 'inst'); localStorage.setItem('svi_bdgfold_v1', JSON.stringify(['F-1'])); renderBudgetList(); await w(300);
             const T = document.getElementById('budgetListTable'), top = T.querySelector('tr[data-budget-ref="F-1"]'), kid = T.querySelector('tr[data-budget-ref="F-1-AV1"]');
-            const fw = getComputedStyle(kid.cells[3]).fontWeight, pl = [parseFloat(getComputedStyle(top.cells[1]).paddingLeft), parseFloat(getComputedStyle(kid.cells[1]).paddingLeft)];
-            const del = kid.querySelector('.bdg-row-del'), same = del && getComputedStyle(del).color === getComputedStyle(kid.cells[3]).color;
+            const fw = getComputedStyle(kid.cells[2]).fontWeight, pl = [parseFloat(getComputedStyle(top.cells[0]).paddingLeft), parseFloat(getComputedStyle(kid.cells[0]).paddingLeft)];
+            const del = kid.querySelector('.bdg-row-del'), same = del && getComputedStyle(del).color === getComputedStyle(kid.cells[2]).color;
             sviInstSet(JSON.parse(window.__kp752)); localStorage.removeItem('svi_bdgfold_v1'); renderBudgetList(); return [ic, fw, pl[1] > pl[0] + 10, same]; }""")
         check("v752 : icônes du menu, liste en gras, lignes du dessous décalées vers la droite, corbeille de la couleur de sa ligne", k752 == [True, "700", True, True], k752)
+        # v754 (lot 1) : « ! » devant VALIDÉ LE si validé plus de 24 h après la saisie (raison au toucher ; parent en alerte si une étape l'est),
+        # total à côté de TOUT, flèche de pliage dans RÉFÉRENCE (plus de colonne à gauche), PARAMÉTRAGE › COULEURS (couleur d'un état appliquée)
+        k754 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); window.__kp754 = JSON.stringify(sviInstGet()); const d = () => ({ des: [], lot: [], prim: [], sec: [], chg: [], prd: [], links: [], dlp: {} });
+            sviInstSet(sviInstGet().filter(x => !/^(F|L)-/.test(x.ref)).concat([{ ref: 'L-1', project: 'LAT', state: 'valide', created: '2026-10-27T08:00', validated: '2026-10-30T09:00', data: d() },
+              { ref: 'L-2', project: 'LAT', state: 'valide', created: '2026-10-27T08:00', validated: '2026-10-27T20:00', data: d() },
+              { ref: 'F-1', project: 'FAM', state: 'valide', created: '2026-10-30T10:00', validated: '2026-10-30T11:00', data: d() },
+              { ref: 'F-1-AV1', project: 'FAM', state: 'valide', created: '2026-10-28T09:00', validated: '2026-10-31T09:00', parent: 'F-1', avn: 1, data: d() }]));
+            localStorage.setItem('svi_listmode_v1', 'valid'); localStorage.setItem('svi_bdgfold_v1', JSON.stringify(['F-1'])); renderBudgetList(); await w(300);
+            const T = document.getElementById('budgetListTable'), vi = [...T.tHead.querySelectorAll('th')].findIndex(th => th.textContent.includes('VALIDÉ LE'));
+            const vc = r => T.querySelector(`tr[data-budget-ref="${r}"]`).cells[vi], b1 = vc('L-1').querySelector('.val-bang');
+            const res = [!!b1 && vc('L-1').textContent.trim().startsWith('!'), !vc('L-2').querySelector('.val-bang'), !!vc('F-1').querySelector('.val-bang'), !!vc('F-1-AV1').querySelector('.val-bang'),
+              !!T.querySelector('tr[data-budget-ref="F-1"] td.bdg-ref-c [data-fold-bdg]'), !T.querySelector('.bdg-fold-c')];
+            b1 && b1.click(); await w(100); const t = [...document.querySelectorAll('.sv-toast, #svToast, [class*=toast]')].map(e => e.textContent).join(' ');
+            res.push(/APRÈS LA SAISIE/.test(t), !document.getElementById('budgetBackBtn'));
+            const tot = document.querySelector('#bdgDatePanel .novapp-date-filter'); res.push(!!tot.querySelector('.svi-cnt') && tot.querySelector('.svi-cnt').textContent.trim() !== '');
+            document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); document.querySelector('.prm-tab[data-prm="col"]').click(); await w(200);
+            const ci = document.querySelector('.prm-col .col-in[data-col="valide"]'); res.push(!!ci && document.querySelectorAll('.prm-col tbody tr').length === 6);
+            ci.value = '#123456'; ci.dispatchEvent(new Event('input', { bubbles: true })); ci.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(400);
+            res.push(getComputedStyle(document.querySelector('#budgetListTable tr[data-budget-ref="L-2"]').cells[3]).color);
+            document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(200); document.querySelector('.prm-col .col-rst[data-col="valide"]')?.click(); res.push(sviColors().valide);
+            document.querySelector('.prm-tab[data-prm="unit"]').click(); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300);
+            sviInstSet(JSON.parse(window.__kp754)); localStorage.setItem('svi_listmode_v1', 'inst'); localStorage.removeItem('svi_bdgfold_v1'); renderBudgetList(); return res; }""")
+        check("v754 : « ! » devant VALIDÉ LE au-delà de 24 h (raison au toucher, parent en alerte), total à côté de TOUT, flèche dans RÉFÉRENCE, PARAMÉTRAGE › COULEURS appliqué puis PAR DÉFAUT",
+              k754 == [True, True, True, True, True, True, True, True, True, True, "rgb(18, 52, 86)", "#172033"], k754)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

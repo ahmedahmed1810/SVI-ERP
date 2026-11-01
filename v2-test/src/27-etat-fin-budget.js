@@ -396,6 +396,9 @@
 
   table.onclick = event => {
 
+    /* v754 : « ! » de VALIDÉ LE — validé plus de 24 h après la saisie : la raison, sans ouvrir le budget */
+    const vb = event.target.closest(".val-bang");
+    if (vb) { event.preventDefault(); event.stopPropagation(); svToast(vb.dataset.why || "", 4000, vb); return; }
     /* « ! » : lire l'alerte sans ouvrir le détail du budget */
     const bang = event.target.closest(".obs-bang");
     if (bang) {
