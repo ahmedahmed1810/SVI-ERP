@@ -3311,19 +3311,8 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 #ach .nvp-rec, #ach .nvp-blk { margin-bottom: 14px; }
 /* v764 : blocs de la page (mêmes formes que la page du budget, sans dépendre de son style) */
 #ach .nvp .bdg-d-block { margin-bottom: 14px; border: 1px solid #e1e5eb; border-radius: 12px; background: #fff; overflow: hidden; }
-#ach .nvp .bdg-d-block-title { display: flex; align-items: center; justify-content: space-between; padding: 4px 10px 4px 8px; min-height: 30px; background: #f3f4f6; border-bottom: 1px solid #e1e5eb; border-left: 4px solid #12355b; font-size: 11px; font-weight: 900; color: #12355b; }
-#ach .nvp .rec-tabs { display: inline-flex; gap: 4px; flex-wrap: wrap; }
-#ach .nvp .rec-tab { display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent; background: none; border-radius: 6px; padding: 3px 10px; font: inherit; font-weight: 900; color: #6b7480; cursor: pointer; }
-#ach .nvp .rec-tab.active { background: #fff; border-color: #d6dbe3; color: #0f4f96; }
-#ach .nvp .blk-btn { border: 1px solid #d6dbe3; background: #fff; border-radius: 6px; padding: 3px 6px; cursor: pointer; color: #12355b; }
-#ach .nvp .ttl { display: inline-flex; align-items: center; gap: 6px; }
-#ach .nvp .rec-scroll { overflow: auto; }
-#ach .nvp .rec-table { width: 100%; border-collapse: collapse; }
-#ach .nvp .rec-table th { text-align: left; font-size: 11px; color: #6b7480; padding: 6px 10px; border-bottom: 1px solid #e1e5eb; background: #fafbfc; position: sticky; top: 0; }
 #ach .nvp .rec-table th.number, #ach .nvp .rec-table td.number { text-align: right; }
 #ach .nvp .rec-table th.center, #ach .nvp .rec-table td.center { text-align: center; }
-#ach .nvp .rec-table td { padding: 6px 10px; border-bottom: 1px solid #eef1f5; font-weight: 700; color: #12355b; }
-#ach .nvp .rec-table td.empty { text-align: center; color: #94a3b8; font-weight: 600; }
 #ach .nvp-bar { justify-content: flex-end; }
 
 /* v766 : listes des achats = liste des budgets (mêmes classes ; règles #budgetListTable / #bdgDatePanel doublées pour table.svi-bdgl / .svi-bdgp) */
@@ -3388,8 +3377,12 @@ table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 #ach .nvp .nvp-blk .blk-tools { margin-left: auto; display: inline-flex; gap: 8px; }
 #ach .nvp .nvp-blk.nvp-max .rec-scroll { max-height: none !important; }
 #ach .nvp.nvp-valide .bdg-d-h1 { color: #12355b; }
-#ach .nvp tr.rec-new td { color: var(--inst, #b91c1c); background: #fdf2f2; cursor: pointer; }
+#ach.ach-page { background: #fff; }
+#ach .nvp .bdg-d-sticky { border-bottom-color: #4b5565; }
+#ach .nvp tr.rec-new { cursor: pointer; }
 #ach .nvp .novapp-list-titlebar .bdg-d-badge.ach-h { border-radius: 4px; background: transparent !important; border: 1.6px solid currentColor; color: #3f4856 !important; width: 24px; height: 24px; padding: 0; line-height: 1;
   display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; }
 #ach .nvp.bdg-inst-instance .novapp-list-titlebar .bdg-d-badge.ach-h { color: var(--inst, #b91c1c) !important; }
-#ach .nvp.bdg-inst-instance .bdg-d-block-title { border-left-color: var(--inst, #b91c1c); }
+#ach .nvp.bdg-inst-instance > .bdg-d-block:not(.blk-suivi) > .bdg-d-block-title { border-left-color: var(--inst, #b91c1c); }
+#ach .nvp.bdg-d-page { background: #fff; }
+#ach .nvp .rec-table tr.rec-new td { color: #172033; }
