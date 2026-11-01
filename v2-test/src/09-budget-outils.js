@@ -128,7 +128,7 @@ const colPw = k => (SVI_COL[k] && SVI_COL[k].pw) || 10;
 /* valeur d'une case pour un aperçu ou un export lisible : % pour les colonnes « pct », nombres au format 1 234,56 */
 const colFmt = (k, v) => (SVI_COL[k] && SVI_COL[k].f === "pct") && (k === "tva" || (v !== "" && v !== null && v !== undefined)) ? money(Number(v) || 0) + " %" : typeof v === "number" ? money(v) : String(v ?? "");
 /* — de src/12-tableaux-colonnes.js — */
-const cwGet = (t, k) => cwLoad()[t + "." + k] || SVI_COL_T[t + "." + k] || (SVI_COL[k] && SVI_COL[k].w) || 100;
+const cwGet = (t, k) => { const u = cwLoad()[t + "." + k]; return u ? Math.max(64, u) : SVI_COL_T[t + "." + k] || (SVI_COL[k] && SVI_COL[k].w) || 100; };   /* v788 : jamais plus étroite que son nom (et sa loupe) */
 /* — de src/12-tableaux-colonnes.js — */
 /* colgroup + largeur totale de la table */
 const cwCols = (t, cols) =>

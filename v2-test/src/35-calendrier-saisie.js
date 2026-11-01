@@ -615,6 +615,14 @@ const sviFrame = () => {
   }
   /* v774 (point 7) : UN SEUL CADRE, FIN, DE TAILLE FIXE — le petit cadre autour du texte (3 px en retrait des bords, 22 px de haut au plus, centré),
      jamais toute la case ni la ligne ; le point rouge suit son coin bas droit */
+  /* v788 (remarque 2) : liste du bloc TÂCHES — la case = toute la hauteur de la ligne, du début de la case (numéro compris) jusqu'à la case à cocher */
+  { const li = c.tagName !== "TD" && c.closest && c.closest(".ins-li");
+    if (li) { const F = v.full, lr = li.getBoundingClientRect(), st = c.closest(".lot-in") || c, dc = li.querySelector(".ins-delc");
+      /* bornes de la zone visible (en-tête fixé, bas du bloc) gardées */
+      const cT = v.top > F.top + .5 ? v.top : -1e9, cB = v.bottom < F.bottom - .5 ? v.bottom : 1e9;
+      const L = Math.min(st.getBoundingClientRect().left, F.left), dl = dc ? dc.getBoundingClientRect().left : 0, R = dl > F.left ? dl : F.right;
+      v.full = { top: lr.top, bottom: lr.bottom, left: L, right: R, height: lr.height, width: R - L };
+      v.top = Math.max(lr.top, cT); v.bottom = Math.min(lr.bottom, cB); v.left = L; v.right = R; } }
   /* v787 (Ahmed, 01/11) : le cadre prend exactement le bord de la case, sur toute sa largeur et toute sa hauteur */
   { v.left = Math.max(v.left, v.full.left); v.right = Math.min(v.right, v.full.right);
     v.top = Math.max(v.top, v.full.top); v.bottom = Math.min(v.bottom, v.full.bottom);
@@ -627,8 +635,30 @@ const sviFrame = () => {
   Object.assign(SVI_FR.style, { display: "block", left: (v.left + window.scrollX) + "px", top: (v.top + window.scrollY) + "px", width: (v.right - v.left) + "px", height: (v.bottom - v.top) + "px", borderColor: col });
 };
 window.sviFrame = sviFrame;
+/* v788 (remarque 3) : plusieurs cases sélectionnées = UN SEUL bloc continu (fond teinté) entouré d'un seul cadre */
+let SVI_SB = null;
+const sviSelBox = () => {
+  const els = [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null)
+    .concat([...document.querySelectorAll(".ins-hcol .svi-ls")].filter(x => x.offsetParent !== null).map(x => x.closest(".ins-li") || x));
+  if (!SVI_SB) { SVI_SB = document.createElement("div"); SVI_SB.id = "sviSelBox"; document.body.appendChild(SVI_SB); }
+  if (els.length < 2) { SVI_SB.style.display = "none"; return; }
+  let t = 1e9, b = -1e9, l = 1e9, r = -1e9;
+  els.forEach(e => { const v = sviCellVis(e.tagName === "TD" ? e : (e.querySelector(".svi-ls") || e)); const R = e.getBoundingClientRect(); if (!v) return;
+    t = Math.min(t, Math.max(R.top, v.top)); b = Math.max(b, Math.min(R.bottom, v.bottom)); l = Math.min(l, e.tagName === "TD" ? R.left : (e.querySelector(".lot-in, .svi-ls") || e).getBoundingClientRect().left); r = Math.max(r, e.tagName === "TD" ? R.right : ((e.querySelector(".ins-delc") || {}).getBoundingClientRect ? e.querySelector(".ins-delc").getBoundingClientRect().left : R.right)); });
+  if (!(b > t && r > l)) { SVI_SB.style.display = "none"; return; }
+  const col = (getComputedStyle(els[0]).getPropertyValue("--inst") || "").trim() || "#111827";
+  Object.assign(SVI_SB.style, { display: "block", left: (l + window.scrollX) + "px", top: (t + window.scrollY) + "px", width: (r - l) + "px", height: (b - t) + "px", borderColor: col, zIndex: SVI_FR ? SVI_FR.style.zIndex || "45" : "45" });
+};
+window.sviSelBox = sviSelBox;
+/* v788 (remarque 5) : SÉLECTION MULTIPLE au doigt — chaque toucher ajoute ou retire une case (comme Ctrl / Cmd) ; Échap ou le menu l'arrêtent */
+function sviMultiSet(on) {
+  window.__sviMulti = !!on; document.body.classList.toggle("svi-multi", !!on);
+  if (typeof svToast === "function") svToast(on ? "SÉLECTION MULTIPLE : TOUCHER LES CASES À AJOUTER OU À RETIRER." : "SÉLECTION MULTIPLE ARRÊTÉE.", 2500);
+}
+window.sviMultiSet = sviMultiSet;
+document.addEventListener("keydown", e => { if (e.key === "Escape" && window.__sviMulti) sviMultiSet(false); }, true);
 {
-  let q = 0; const go = () => { q = 0; try { sviFrame(); if (window.__sviHandle) window.__sviHandle(); } catch (e) {} };
+  let q = 0; const go = () => { q = 0; try { sviFrame(); if (window.__sviHandle) window.__sviHandle(); sviSelBox(); } catch (e) {} };
   const later = () => { if (!q) q = requestAnimationFrame(go); };
   ["focusin", "focusout", "scroll", "resize", "pointerup", "keyup"].forEach(t => (t === "resize" ? window : document).addEventListener(t, () => setTimeout(later, 0), true));
   new MutationObserver(later).observe(document.documentElement, { childList: true, subtree: true });
@@ -719,7 +749,7 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     document.querySelectorAll("td.svi-cs").forEach(td => td.classList.remove("svi-cs"));
     const C = cells();
     if (C.length > 1) C.forEach(td => td.classList.add("svi-cs"));
-    handle();
+    handle(); if (window.sviSelBox) window.sviSelBox();
   };
   const clear = () => { S.b = null; S.extra.clear(); paint(); };
   /* poignée ronde (doigt) au coin bas droit de la dernière case de la plage */
@@ -773,7 +803,8 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
       return;
     }
     const p = posOf(td); if (!p) return;
-    if ((e.shiftKey || e.metaKey || e.ctrlKey) && S.tbl === tbl && S.a) {
+    const multi = !!window.__sviMulti && !e.shiftKey;   /* v788 (remarque 5) : SÉLECTION MULTIPLE au doigt = comme Ctrl / Cmd + toucher */
+    if ((e.shiftKey || e.metaKey || e.ctrlKey || multi) && S.tbl === tbl && S.a) {
       e.preventDefault(); S.keep = true;
       if (e.shiftKey) S.b = p;
       else {
@@ -787,7 +818,7 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     } else if (!e.shiftKey && !e.metaKey && !e.ctrlKey && !td.querySelector("input, select, textarea, button")) {
       /* v619 : case sans saisie (MARGE, LIAISONS…) — un toucher en fait la case de départ */
       S.tbl = tbl; S.a = p; S.b = null; S.extra.clear(); S.tk = (sviCellKey(td) || {}).t || null; paint();
-    } else if ((e.metaKey || e.ctrlKey) && !S.a) {
+    } else if ((e.metaKey || e.ctrlKey || multi) && (!S.a || S.tbl !== tbl)) {
       /* première case touchée avec Ctrl / Cmd : elle devient la case de départ */
       S.tbl = tbl; S.a = p; S.b = null; S.extra.clear(); S.tk = (sviCellKey(td) || {}).t || null; paint();
     }
@@ -877,6 +908,8 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
   document.addEventListener("copy", copyEv(false), true);
   document.addEventListener("cut", copyEv(true), true);
   /* API de la sélection (menu ⋯ de la SAISIE DIRECTE) */
+  window.__sviSelTo = (from, to) => { const tbl = from.closest(TSEL), p = posOf(from), q = posOf(to); if (!tbl || !p || !q || to.closest("table") !== tbl) return;
+    if (S.tbl !== tbl || !S.a) { S.tbl = tbl; S.tk = (sviCellKey(from) || {}).t || null; S.a = p; S.extra.clear(); } S.b = q; paint(); };
   window.__sviSel = {
     count: () => cells().length,
     copy: () => { const C = cells(); if (!C.length) return 0; const t = selTsv(C); sviClipWrite(t); return C.length; },
@@ -1030,6 +1063,24 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     if (!quiet) { window.__sviLastGo = { k: sviCellKey(i || c), t: performance.now() }; if (typeof sviKeepVisible === "function") sviKeepVisible(c); }
   };
   window.__sviGrid = { go: goCell, near: sviNear, cellOf: sviCellOf };
+  /* v788 (remarques 6 et 7) : ALLER / SÉLECTIONNER JUSQU'AU BOUT, comme Google Sheets — Ctrl (Cmd) + flèche, Ctrl + Début / Fin ;
+     avec Maj = la plage jusqu'au bout. Au doigt : entrées du menu ⋯ (dernière case active). */
+  const NEWR = ".ins-new, .rec-new, .scn-new, .qq-new, .qq-xnew, .dlw-newr, .dly-new, .bdg-newrow, .bdg-d-total-row";
+  const far = (x, dr, dc) => { let y = x, n, g = 0; while (g++ < 5000 && (n = sviNear(y, dr, dc)) && !sviRowOf(n).matches(NEWR)) y = n; return y; };
+  const jumpT = (c, k) => k === "Home" ? far(far(c, -1, 0), 0, -1) : k === "End" ? far(far(c, 1, 0), 0, 1)
+    : far(c, k === "ArrowDown" ? 1 : k === "ArrowUp" ? -1 : 0, k === "ArrowRight" ? 1 : k === "ArrowLeft" ? -1 : 0);
+  const jump = (c, k, sel) => { const t = jumpT(c, k); if (!t || t === c) return;
+    if (sel) { if (c.tagName === "TD" && window.__sviSelTo) window.__sviSelTo(c, t); else if (window.__sviLS && window.__sviLS.range) window.__sviLS.range(c, t); if (typeof sviKeepVisible === "function") sviKeepVisible(t); }
+    else goCell(t); };
+  document.addEventListener("focusin", e => { const c = sviCellOf(e.target); if (c) window.__sviLastCell = c; }, true);
+  window.__sviJump = (k, sel) => { const c = window.__sviLastCell; if (!c || !c.isConnected) { if (typeof svToast === "function") svToast("TOUCHER D'ABORD UNE CASE.", 2000); return; } jump(c, k, sel); };
+  document.addEventListener("keydown", e => {
+    if (!(e.metaKey || e.ctrlKey) || e.altKey || !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    const el = e.target, c = el && el.closest && sviCellOf(el); if (!c) return;
+    const nav = el.tagName === "TD" || (el.classList && el.classList.contains("svi-nav"));
+    if (!nav && !["Home", "End"].includes(e.key)) return;   /* en saisie : Ctrl + flèche reste celui du texte */
+    e.preventDefault(); e.stopPropagation(); jump(c, e.key, e.shiftKey);
+  }, true);
   document.addEventListener("keydown", e => {
     const el = e.target;
     if (!el || !el.closest) return;
@@ -1103,6 +1154,7 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
   const lsPaint = () => {
     document.querySelectorAll(".ins-hcol .svi-ls").forEach(x => x.classList.remove("svi-ls"));
     const C = lsCells(); if (C.length > 1) C.forEach(x => x.classList.add("svi-ls"));
+    if (window.sviSelBox) window.sviSelBox();
   };
   const lsClear = () => { LS.a = null; LS.b = null; LS.x = []; lsPaint(); };
   const lsTsv = C => {
@@ -1110,6 +1162,7 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     return rows.map(r => C.filter(x => sviRowOf(x) === r).map(x => { const i = sviCellInput(x); return String(i ? i.value : x.textContent || "").replace(/[\t\n]/g, " ").trim(); }).join("\t")).join("\n");
   };
   window.__sviLS = {
+    range: (a, b) => { if (!a || !b || a.closest(".ins-hcol") !== b.closest(".ins-hcol")) return; LS.a = a; LS.b = b; LS.x = []; lsPaint(); },
     end: c => (LS.b && LS.b.isConnected && LS.a === c ? LS.b : null),
     /* point tiré au doigt : la plage va jusqu'à la case sous le doigt (même liste) */
     drag: el => {
@@ -1132,7 +1185,7 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
       e.preventDefault(); LS.a = LS.a && LS.a.isConnected ? LS.a : a; LS.b = t; LS.x = []; LS.keep = true; lsPaint(); return;
     }
     /* v523 (remarque 5) : Ctrl / Cmd + toucher dans une liste = ajouter / retirer une case de la sélection */
-    if (t && t.tagName !== "TD" && (e.metaKey || e.ctrlKey) && !sviRowOf(t).classList.contains("ins-new")) {
+    if (t && t.tagName !== "TD" && (e.metaKey || e.ctrlKey || (window.__sviMulti && !e.shiftKey)) && !sviRowOf(t).classList.contains("ins-new")) {
       e.preventDefault();
       if (!a || a.tagName === "TD" || a.closest(".ins-hcol") !== t.closest(".ins-hcol")) { LS.a = t; LS.b = null; LS.x = []; const i = sviCellInput(t); if (i) i.focus({ preventScroll: true }); lsPaint(); return; }
       LS.a = LS.a && LS.a.isConnected ? LS.a : a; LS.keep = true;
@@ -1291,7 +1344,8 @@ window.__sviCells = (() => {
   let B = null;
   const build = () => {
     B = document.createElement("div"); B.id = "sviSelBar";
-    B.innerHTML = '<button type="button" data-sb="copy">COPIER</button><button type="button" data-sb="paste">COLLER</button><button type="button" data-sb="clear" class="sb-del">EFFACER</button>';
+    /* v788 (remarque 4) : petit menu de l'application (même forme que le ⋯), jamais une bulle façon iPad */
+    B.innerHTML = '<button type="button" data-sb="copy">COPIER</button><button type="button" data-sb="paste">COLLER</button><div class="blk-sep"></div><button type="button" data-sb="multi">SÉLECTION MULTIPLE</button><button type="button" data-sb="seldown">SÉLECTIONNER JUSQU\'EN BAS</button><div class="blk-sep"></div><button type="button" data-sb="clear" class="sb-del">EFFACER</button>';
     /* la case garde le focus (et la sélection) quand on touche la barre */
     B.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); });
     B.addEventListener("mousedown", e => e.preventDefault());
@@ -1299,6 +1353,8 @@ window.__sviCells = (() => {
       const b = e.target.closest("[data-sb]"); if (!b) return;
       e.preventDefault(); e.stopPropagation();
       const v = b.dataset.sb, X = window.__sviCells;
+      if (v === "multi") { sviMultiSet(!window.__sviMulti); setTimeout(place, 50); return; }
+      if (v === "seldown") { window.__sviJump("ArrowDown", true); setTimeout(place, 50); return; }
       if (v === "copy") X.copy(); else if (v === "clear") X.clear(); else X.paste();
       setTimeout(place, 50);
     });
@@ -1312,7 +1368,7 @@ window.__sviCells = (() => {
     if (!B) build();
     let top = Infinity, left = Infinity, bottom = -Infinity;
     sel.forEach(x => { const r = x.getBoundingClientRect(); top = Math.min(top, r.top); left = Math.min(left, r.left); bottom = Math.max(bottom, r.bottom); });
-    B.style.display = "flex";
+    B.style.display = "flex"; { const mb = B.querySelector('[data-sb="multi"]'); if (mb) mb.textContent = (window.__sviMulti ? "✓ " : "") + "SÉLECTION MULTIPLE"; }
     const h = B.offsetHeight || 32, w = B.offsetWidth || 220;
     let y = top - h - 6; if (y < 70) y = bottom + 6;
     y = Math.max(4, Math.min(window.innerHeight - h - 4, y));

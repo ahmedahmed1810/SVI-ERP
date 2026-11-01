@@ -24,7 +24,8 @@ function sviColhInfo(table) {
   const cols = [];
   [...tr.cells].forEach(th => {
     const b = th.querySelector(".cf-btn[data-col]");
-    const lab = colhNorm((th.querySelector(".cf-lab") || th).textContent);
+    /* v788 (remarque 11) : le nom seul — sans le signe de pliage ni le compteur */
+    const lab = (() => { const x = (th.querySelector(".cf-lab") || th).cloneNode(true); x.querySelectorAll(".fold-all, .svi-cnt, .ins-fold, .cf-btn, .col-rs").forEach(e => e.remove()); return colhNorm(x.textContent); })();
     const k = b ? b.dataset.col : (!b0 && lab && !th.querySelector("input") ? lab : null);
     if (k) cols.push({ i: x, k, lab: lab || k, th });
     x += th.colSpan || 1;
@@ -75,35 +76,32 @@ function sviColhTableNear(el) {
   const T = [...scope.querySelectorAll("table")].filter(t => t.offsetParent && sviColhInfo(t));
   return T[0] || null;
 }
-/* entrées du ⋯ : seulement MASQUER quand tout est affiché ; MASQUER et AFFICHER dès qu'une colonne est masquée */
+/* v788 (remarque 17) : UNE seule entrée « MASQUER / AFFICHER LES COLONNES » — une seule fenêtre, toutes les colonnes,
+   cochée = affichée, décochée = masquée ; au moins une reste cochée */
 function sviColhItems(table) {
   const I = sviColhInfo(table);
   if (!I || I.cols.length < 2) return [];
-  const out = [{ k: "__colhide", lab: "MASQUER DES COLONNES…" }];
-  if (I.hid.length) out.push({ k: "__colshow", lab: "AFFICHER DES COLONNES… (" + I.hid.length + ")" });
-  return out;
+  return [{ k: "__colwin", lab: "MASQUER / AFFICHER LES COLONNES" + (I.hid.length ? " (" + I.hid.length + " MASQUÉE" + (I.hid.length > 1 ? "S" : "") + ")" : "") }];
 }
-/* fenêtre commune : liste à cocher */
-function sviColhWin(table, mode) {
+/* fenêtre commune : tableau des colonnes, une case par colonne (format des tableaux de l'application) */
+function sviColhWin(table) {
   const I = sviColhInfo(table);
   if (!I) return;
-  const hide = mode === "hide";
-  const L = I.cols.filter(c => hide ? !I.hid.includes(c.k) : I.hid.includes(c.k));
-  if (!L.length) return;
   const d = sviWinNew();
-  d.innerHTML = sviWinCard({ cls: "pv-card colh-card", close: "data-x", title: hide ? "MASQUER DES COLONNES" : "AFFICHER DES COLONNES",
-    body: `<div class="pv-sub">${hide ? "COCHER LES COLONNES À MASQUER. AU MOINS UNE COLONNE RESTE AFFICHÉE." : "COCHER LES COLONNES À AFFICHER DE NOUVEAU."}</div>
-      <div class="pv-scroll colh-list">${L.map(c => `<label class="colh-r"><input type="checkbox" data-k="${esc(c.k)}"><span>${esc(c.lab)}</span></label>`).join("")}</div>
+  d.innerHTML = sviWinCard({ cls: "pv-card colh-card", close: "data-x", title: "MASQUER / AFFICHER LES COLONNES",
+    body: `<div class="pv-scroll colh-list"><table class="bdg-d-table rec-table colh-t"><thead><tr><th class="center colh-c">AFFICHÉE</th><th>COLONNE</th></tr></thead>
+      <tbody>${I.cols.map(c => `<tr class="colh-r"><td class="center colh-c"><input type="checkbox" data-k="${esc(c.k)}"${I.hid.includes(c.k) ? "" : " checked"}></td><td>${esc(c.lab)}</td></tr>`).join("")}</tbody></table></div>
       <div class="colh-err" hidden></div>`,
-    foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>${hide ? "MASQUER" : "AFFICHER"}</button>` });
+    foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>` });
   sviWinShow(d);
   const err = d.querySelector(".colh-err");
   d.addEventListener("click", e => {
     if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+    const row = e.target.closest("tr.colh-r");
+    if (row && !e.target.matches("input")) { const i = row.querySelector("input"); i.checked = !i.checked; }
+    if (row) { const on = d.querySelectorAll(".colh-r input:checked").length; err.hidden = on > 0; err.textContent = on ? "" : "AU MOINS UNE COLONNE DOIT RESTER AFFICHÉE."; return; }
     if (!e.target.closest("[data-ok]")) return;
-    const K = [...d.querySelectorAll(".colh-r input:checked")].map(i => i.dataset.k);
-    if (!K.length) { d.remove(); return; }
-    const next = hide ? [...I.hid, ...K] : I.hid.filter(k => !K.includes(k));
+    const next = [...d.querySelectorAll(".colh-r input")].filter(i => !i.checked).map(i => i.dataset.k);
     if (next.length >= I.cols.length) { err.hidden = false; err.textContent = "AU MOINS UNE COLONNE DOIT RESTER AFFICHÉE."; return; }
     const S = colhLoad(); S[I.id] = next; colhSave(S);
     d.remove();
@@ -111,7 +109,6 @@ function sviColhWin(table, mode) {
   });
 }
 function sviColhPick(a, table) {
-  if (a === "__colhide") { sviColhWin(table, "hide"); return true; }
-  if (a === "__colshow") { sviColhWin(table, "show"); return true; }
+  if (a === "__colwin" || a === "__colhide" || a === "__colshow") { sviColhWin(table); return true; }
   return false;
 }

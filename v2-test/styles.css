@@ -3552,3 +3552,63 @@ html body .blk-tools .blk-btn.blk-max-btn, #ach .nvp .blk-tools [data-nvmax] { d
 .bdg-d-page .bdg-d-block-title, #ach .nvp .bdg-d-block-title { padding-top: 2px !important; padding-bottom: 2px !important; min-height: 0 !important; }
 .bdg-d-block-title .blk-tools .blk-more, #ach .nvp .blk-tools [data-nvmore] { width: 28px !important; height: 24px !important; border-radius: 7px !important; font-size: 15px !important; }
 .ins-hcol .lot-in :is(input.ins-in, input.lot-gname) { padding-left: 0 !important; text-indent: 0; }
+/* ===== v788 (Ahmed, 01/11) — base commune ===== */
+:root {
+  /* trois gris de structure, du plus foncé au plus clair : barre du bloc, onglets, titres des colonnes */
+  --blk-head-bg: #dde2e9; --tb-tab-bg: #eceff3; --tb-head-bg: #f6f7f9;
+  /* titres dans les tableaux (pliage) : gris chaud — jamais le bleu des filtres */
+  --ttl-bg: #ece8e1; --ttl-c: #2f2a24;
+  /* lignes CRÉER … ICI : toujours rouge (rien n'est encore validé), partout */
+  --tb-new-c: #b91c1c; --tb-new-bg: #fdf0f0; --tb-new-fw: 400;
+  /* pliage : un pas de retrait par niveau, place réservée au signe */
+  --fold-step: 20px; --fold-w: 16px;
+}
+.bdg-d-tabs, #bdgTabs, .rec-tabs, .lk-tabs { background: var(--tb-tab-bg); }
+.bdg-d-tab:not(.active):not(.tab-filt), .rec-tab:not(.on):not(.tab-filt) { background: var(--tb-tab-bg); }
+:is(table) thead th, .bdg-h-head { background: var(--tb-head-bg); }
+tr.ins-gtitle:not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit):not(.ro-on) td, .dly-grp:not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit):not(.ro-on) td,
+.ins-hcol .ins-li.lot-grp:not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit):not(.ro-on) { background: var(--ttl-bg) !important; }
+/* lignes CRÉER */
+:is(table) tbody tr:is(.ins-new, .rec-new, .scn-new, .bdg-newrow, .qq-new, .qq-xnew, .dlw-newr, .dly-new, .ach-new) td,
+.ins-hcol .ins-li.ins-new { background: var(--tb-new-bg) !important; color: var(--tb-new-c) !important; -webkit-text-fill-color: var(--tb-new-c) !important; font-weight: var(--tb-new-fw) !important; opacity: 1 !important; }
+:is(table) tbody tr:is(.ins-new, .rec-new, .scn-new, .qq-new, .dlw-newr, .dly-new, .ach-new) :is(input, textarea)::placeholder, .ins-hcol .ins-new input::placeholder { color: var(--tb-new-c) !important; -webkit-text-fill-color: var(--tb-new-c) !important; opacity: 1 !important; font-weight: var(--tb-new-fw) !important; }
+#ach .nvp .rec-table tr.rec-new td { color: var(--tb-new-c) !important; }
+/* en-têtes LOT / ACTIVITÉS = en-têtes de tableau (plus de petits cadres arrondis) */
+.bdg-h-col { border-radius: 0 !important; border: 1px solid var(--tb-line, #d9dee6) !important; }
+.ins-hcol .bdg-h-head { min-height: var(--tb-head-h); font-size: var(--tb-head-fs); font-weight: var(--tb-head-fw); color: var(--tb-head-c); border-bottom: 1px solid var(--tb-head-line); }
+/* aucun carré autour d'un signe de pliage, même dans l'en-tête */
+.fold-all { border: 0 !important; background: none !important; min-width: var(--fold-w) !important; padding: 0 !important; margin-right: 2px !important; }
+/* loupe (tri / filtre) éloignée du bord : le bord reste à la poignée de largeur ; poignée plus facile à attraper */
+.cf-wrap .cf-btn { margin-right: 10px !important; }
+thead th .col-rs { width: 18px !important; right: -9px !important; z-index: 6 !important; }
+thead th:last-child .col-rs { right: 0 !important; width: 9px !important; }
+/* colonnes : jamais plus étroites que leur nom */
+/* (v788) largeur minimale : 64 px pour une largeur réglée à la main (cwGet) */
+/* v788 (remarque 3) : sélection de plusieurs cases — fond continu, un seul cadre autour (#sviSelBox), un seul trait entre les lignes */
+td.svi-cs { box-shadow: none !important; }
+.ins-hcol input.svi-ls, .ins-hcol .act-u.svi-ls { box-shadow: none !important; background: transparent !important; }
+.ins-hcol .ins-li:has(.svi-ls) { background: var(--inst-bg, #eef0f3) !important; }
+#sviSelBox { position: absolute; display: none; box-sizing: border-box; border: 2px solid #111827; pointer-events: none; border-radius: 1px; }
+/* v788 (remarque 4) : COPIER / COLLER / EFFACER = petit menu de l'application (forme du ⋯), en colonne */
+#sviSelBar { flex-direction: column !important; min-width: 190px; padding: 4px !important; border-radius: 10px !important; }
+#sviSelBar button { text-align: left !important; padding: 9px 12px !important; border-left: 0 !important; border-radius: 6px !important; font: 700 12px/1.2 Arial, sans-serif !important; }
+#sviSelBar .blk-sep { height: 1px; background: #e5e9ef; margin: 3px 4px; }
+#sviSelBar .sb-del { color: #b91c1c !important; }
+/* jamais la bulle de l'iPad sur une case de tableau */
+:is(table) td, .ins-hcol .ins-li { -webkit-touch-callout: none; }
+body.svi-multi #sviSelBox, body.svi-multi td.svi-cs { outline-color: #1d4ed8; }
+/* v788 (remarque 8) : DÉTAIL DÉLAIS — hors plein écran, seulement le tableau du planning ; Gantt et graphique en plein écran seulement */
+html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody :is(.dlyg > :not(.dlyg-l), .dlyg-foot, .dlyg-hh, .gh-fix, .dlyhh-pill) { display: none !important; }
+html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dlyg-l { max-width: 100% !important; width: auto !important; flex: 1 1 auto !important; }
+#svConf .colh-list { display: block; }
+#svConf .colh-t { width: 100%; table-layout: auto; }
+#svConf .colh-t .colh-c { width: 90px; }
+#svConf .colh-t tr.colh-r { cursor: pointer; }
+#svConf .colh-t input { width: var(--tb-cb, 16px); height: var(--tb-cb, 16px); accent-color: var(--svst, #172033); }
+/* v788 (remarque 15) : RÈGLE COMMUNE DU PLIAGE — DÉTAIL CHARGES / PRODUITS : le nom d'un titre et celui d'une ligne seule commencent au même endroit ;
+   le signe › / ⌄ se loge dans la place réservée juste avant le nom (dans la même colonne) ; les lignes d'un titre rentrent d'un pas */
+.ins-table:is([data-ik="chg"], [data-ik="prd"]) tbody tr:not(.ins-gtitle):not(.ins-gkid) td > :is(input, textarea)[data-f="des"] { padding-left: calc(6px + var(--fold-w)) !important; }
+.ins-table:is([data-ik="chg"], [data-ik="prd"]) tbody tr.ins-gkid td > :is(input, textarea)[data-f="des"] { padding-left: calc(6px + var(--fold-w) + var(--fold-step)) !important; }
+.ins-table tr.ins-gtitle td.ins-gtd { padding-left: calc(6px + var(--fold-w)) !important; }
+.ins-table tr.ins-gtitle td.ins-gtd > input.ins-gin[data-f="des"] { padding-left: 0 !important; }
+.ins-table tr.ins-gtitle .ins-gfz { width: calc(6px + var(--fold-w)) !important; justify-content: flex-end !important; padding-right: 1px; box-sizing: border-box; }

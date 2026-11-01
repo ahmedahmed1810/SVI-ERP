@@ -34,3 +34,19 @@ document.addEventListener("keydown", e => {
   if (k === "c") X.copy(); else if (k === "v") X.paste(); else { X.copy(); X.clear(); }
   if (window.__sviSelBar) setTimeout(window.__sviSelBar, 50);
 }, true);
+/* v788 (remarque 1) : la ligne « CRÉER … ICI » fixée en bas reste JUSTE AU-DESSUS de la ligne TOTAL (pied fixé) — jamais derrière */
+{
+  const NEWR = "tr.ins-new, tr.rec-new, tr.scn-new, tr.qq-new, tr.dlw-newr, tr.dly-new, tr.ach-new";
+  let q = 0;
+  const fit = () => { q = 0;
+    document.querySelectorAll("table").forEach(t => {
+      const nr = t.tBodies[0] && t.tBodies[0].querySelector(":scope > " + NEWR.split(", ").join(", :scope > ")); if (!nr) return;
+      const fh = t.tFoot && t.tFoot.offsetParent !== null ? Math.round(t.tFoot.getBoundingClientRect().height) : 0;
+      const v = fh ? fh + "px" : "";
+      [...nr.cells].forEach(td => { if (td.style.bottom !== v) td.style.bottom = v; });
+    });
+  };
+  const later = () => { if (!q) q = requestAnimationFrame(fit); };
+  new MutationObserver(m => { if (m.some(x => x.addedNodes.length)) later(); }).observe(document.documentElement, { childList: true, subtree: true });
+  window.addEventListener("resize", later);
+}

@@ -501,10 +501,23 @@
             <button type="button" data-cs="paste"><span>COLLER DANS LES CASES</span></button>
             <button type="button" data-cs="clear" class="blk-del"><span>EFFACER LES CASES</span>${svCnt(n)}</button><div class="blk-sep"></div>`);
           m.addEventListener("click", e => {
-            const b = e.target.closest("[data-cs]"); if (!b) return;
+            const b = e.target.closest('[data-cs="copy"], [data-cs="paste"], [data-cs="clear"]'); if (!b) return;
             e.stopPropagation(); m.remove();
             const v = b.dataset.cs;
             if (v === "copy") X.copy(); else if (v === "clear") X.clear(); else X.paste();
+          }, true);
+        }
+        /* v788 (remarques 5 à 7) : au doigt — SÉLECTION MULTIPLE (chaque toucher ajoute / retire une case), ALLER / SÉLECTIONNER JUSQU'EN BAS */
+        const lc = window.__sviLastCell;
+        if (lc && lc.isConnected && (!blkEl || blkEl.contains(lc))) {
+          m.insertAdjacentHTML("afterbegin", `<button type="button" data-cs="multi"><span>${window.__sviMulti ? "✓ " : ""}SÉLECTION MULTIPLE</span></button>
+            <button type="button" data-cs="godown"><span>ALLER JUSQU'EN BAS</span></button>
+            <button type="button" data-cs="seldown"><span>SÉLECTIONNER JUSQU'EN BAS</span></button>`);
+          m.addEventListener("click", e => {
+            const b = e.target.closest('[data-cs="multi"], [data-cs="godown"], [data-cs="seldown"]'); if (!b) return;
+            e.stopPropagation(); e.stopImmediatePropagation(); m.remove();
+            const v = b.dataset.cs;
+            if (v === "multi") sviMultiSet(!window.__sviMulti); else window.__sviJump("ArrowDown", v === "seldown");
           }, true);
         } }
       /* v774 (point 3) : ordre unique du ⋯ de chaque bloc, un trait entre les groupes — actions propres au bloc ;

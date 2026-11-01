@@ -72,6 +72,8 @@ def main():
         b = p.chromium.launch()
         ctx = b.new_context(viewport={"width": 1180, "height": 820}, permissions=["clipboard-read", "clipboard-write"])
         ctx.add_init_script("try { localStorage.setItem('svitest:svi_user_v1', 'TESTEUR'); } catch (e) {}")
+        # v788 : le Gantt n'apparaît qu'en plein écran — les anciens tests du planning le gardent affiché (attribut de test)
+        ctx.add_init_script("(() => { const f = () => { try { document.documentElement.setAttribute('data-dly-all', '1'); } catch (e) {} }; f(); document.addEventListener('DOMContentLoaded', f); })()")
         pg = ctx.new_page()
         errs = []
         pg.on("pageerror", lambda e: errs.append(str(e)))
@@ -162,7 +164,7 @@ def main():
             document.getElementById('svConf')?.remove();
             const K = JSON.parse(keep); if (K.vfz) I.vfz = K.vfz; else delete I.vfz; if (keepT === null) localStorage.removeItem('svi_etp_tab_v1'); else localStorage.setItem('svi_etp_tab_v1', keepT); X.refreshAll(); return r; }""".replace("INS_X", ins))
         check("v756 / v757 : un seul bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES, boutons de l'onglet ouvert, menu ⋯ (COMPARER, CRÉER, APERÇU, EXPORTER), onglet AVENANTS ; COMPARER côte à côte avec écarts",
-              e756[:5] == [True, "av,scn,ver,rcl", True, True, True] and e756[5].endswith(" INI") and "COMPARER" not in e756[6] and e756[6].startswith("AGRANDIR|CRÉER UN AVENANT|MASQUER DES COLONNES…|IMPORTER") and e756[6].index("EXPORTER") < e756[6].index("APERÇU") and e756[7] == [3, 13, True], e756)
+              e756[:5] == [True, "av,scn,ver,rcl", True, True, True] and e756[5].endswith(" INI") and "COMPARER" not in e756[6] and e756[6].startswith("AGRANDIR|CRÉER UN AVENANT|MASQUER / AFFICHER LES COLONNES|IMPORTER") and e756[6].index("EXPORTER") < e756[6].index("APERÇU") and e756[7] == [3, 13, True], e756)
         # v758 : fenêtre d'import unique — sources FICHIER / GOOGLE SHEETS / MS PROJECT (XML) / AUTRE BUDGET ; un fichier est lu à blanc (budget
         # ouvert inchangé) puis proposé comme source de la même fenêtre (cases, aperçu, IMPORTER) ; IMPORTER dans AVENANTS, SCÉNARIOS, RECALAGES, pas VERSIONS
         import tempfile
@@ -608,7 +610,7 @@ def main():
         pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle .ins-gfz')?.click()"); pg.wait_for_timeout(300)
         g72 = pg.evaluate("() => { const g = document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle'); return g ? [!(g.nextElementSibling && ['c1', 'c9'].includes(g.nextElementSibling.dataset.iid)), Math.round(g.querySelector('.ins-gfz').getBoundingClientRect().width)] : null; }")
         pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle .ins-gfz')?.click()"); pg.wait_for_timeout(300)
-        check("remarque 72 : zone du signe du titre de charges (40 px) = plier / déplier", g72 == [True, 40], g72)
+        check("remarque 72 / v788 : zone du signe du titre de charges (place réservée de 22 px) = plier / déplier", g72 == [True, 22], g72)
         # remarque 74 (v774, point 7) : un seul petit cadre, fin, de taille fixe, dans la case
         pg.click('table.ins-table[data-ik="chg"] tr[data-iid="c2"] input.ins-in[data-f="q"]'); pg.wait_for_timeout(150)
         pg.wait_for_timeout(100)
@@ -642,7 +644,7 @@ def main():
         w77 = pg.evaluate("() => Math.round(document.querySelector('table.ins-table[data-ik=\"chg\"] col[data-w=\"chg.article\"]').getBoundingClientRect().width)")
         pg.evaluate("""() => { const o = JSON.parse(localStorage.getItem('svi_colw_v1') || '{}'); delete o['chg.article']; localStorage.setItem('svi_colw_v1', JSON.stringify(o)); }""")
         pg.evaluate("() => document.querySelector('table.ins-table[data-ik=\"chg\"] tr.ins-gtitle .ins-gfz')?.click()"); pg.wait_for_timeout(300)
-        check("remarque 77 : largeur réglée (ARTICLE réduit) gardée après pliage et menu ⋯", w77 == 30, w77)
+        check("remarque 77 / v788 : largeur réglée (ARTICLE réduit) gardée après pliage et menu ⋯ — jamais sous 64 px (nom lisible)", w77 == 64, w77)
         # remarques 74, 80, 81 : MÊME COMPORTEMENT DANS CHAQUE TABLEAU ET CHAQUE LISTE — 1er toucher = case sélectionnée
         # (cadre posé sur toute la cellule), flèche bas = case du dessous, 2e toucher = saisie, toucher ailleurs = plus de cadre
         def grid_check(tab, sel):
@@ -653,7 +655,7 @@ def main():
             if not pg.evaluate("s => !!document.querySelector(s)", sel): return "absent"
             pg.click(sel); pg.wait_for_timeout(200)
             a = pg.evaluate("""() => { const a = document.activeElement, c = window.sviCellOf(a), f = document.getElementById('sviSelFrame');
-                if (!c || !f) return null; const r = c.getBoundingClientRect(), q = f.getBoundingClientRect();
+                if (!c || !f) return null; const r = (c.tagName !== 'TD' && c.closest('.ins-li')) ? c.closest('.ins-li').getBoundingClientRect() : c.getBoundingClientRect(), q = f.getBoundingClientRect();   /* v788 : liste = toute la ligne */
                 return [a.classList.contains('svi-nav') || (a.tagName === 'TD' && a.classList.contains('svi-tdf')), f.style.display === 'block' && q.height <= r.height + 1 && q.height >= Math.min(10, r.height - 6) && q.width <= r.width + 1 && q.width > 10,   /* v787 : cadre = bords de la case */ window.sviCellKey(a), [r.top, r.height, r.width, q.top, q.height, q.width, f.style.display].map(x => typeof x === 'number' ? Math.round(x) : x)]; }""")
             if a and not a[1]: print("RECT", sel, a[3])
             pg.keyboard.press("ArrowDown"); pg.wait_for_timeout(200)
@@ -1250,8 +1252,8 @@ def main():
               pg.evaluate(C2, '#bdgClientBody tr.ins-title input.ins-in') or pg.evaluate(C2, '#bdgClientBody tr.ins-title td')]
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(500)
         t2.append(pg.evaluate(C2, '#bdgTabBody tr.dly-grp input.dly-nm') or pg.evaluate(C2, '#bdgTabBody tr.dly-grp td'))
-        check("v529 remarque 2 : titres en bleu foncé sur ligne grisée partout (lots, désignations, planning)",
-              t2 == ["rgb(30, 58, 138)", "rgb(228, 233, 241)", "rgb(30, 58, 138)", "rgb(30, 58, 138)"], t2)
+        check("v529 remarque 2 / v788 : titres même couleur sur ligne gris chaud partout (lots, désignations, planning) — jamais le bleu des filtres",
+              t2 == ["rgb(47, 42, 36)", "rgb(236, 232, 225)", "rgb(47, 42, 36)", "rgb(47, 42, 36)"], t2)
         # remarque 3 : nom tapé sur un titre gardé même si l'écran est redessiné sans quitter la case (iPad)
         pg.evaluate("() => { const i = document.querySelector('.lot-grp[data-path=\"GROUPE 5\"] input.lot-gname'); i.focus(); i.value = 'SOUS-SOL'; i.dispatchEvent(new Event('input', { bubbles: true })); }")
         pg.evaluate("() => document.querySelector('.lot-fold[data-path=\"GROUPE 4\"]')?.click()"); pg.wait_for_timeout(500)
@@ -2762,7 +2764,7 @@ def main():
             return r; }""".replace("INS_X", ins))
         check("v774 : RÉVISIONS ; barre ANNULER, RÉTABLIR, PRÉCÉDENT, SUIVANT, ALERTES, FERMER, ⋯ ; ⋯ principal ordonné ; ⋯ de DÉSIGNATIONS CLIENT par groupes ; v780 : référence des versions et MONTANT TTC",
               r774[0] == "RÉVISIONS" and r774[1] == "instUndo,instRedo,instPrev,instNext,instTodo,instClose,bdgMore" and r774[2] is True
-              and r774[3].startswith("AGRANDIR|SOUS-DÉTAIL DES PRIX|✕ DÉLIER LES LIGNES COCHÉES|-|MASQUER DES COLONNES…|-|Importer|Exporter|Aperçu PDF|-|Copier") and "COMPARATIF" not in r774[3]
+              and r774[3].startswith("AGRANDIR|SOUS-DÉTAIL DES PRIX|✕ DÉLIER LES LIGNES COCHÉES|-|MASQUER / AFFICHER LES COLONNES|-|Importer|Exporter|Aperçu PDF|-|Copier") and "COMPARATIF" not in r774[3]
               and r774[4] is True and r774[5] == "VR1" and r774[6] == "6", r774)   # v780 : SOURCE annulée — référence en chaîne (… INI VR1) et MONTANT TTC
         # v750 : liste des budgets — colonnes (marge de pliage, RÉFÉRENCE, NATURE, PROJET, INTITULÉ, MONTANT TTC, SAISI LE ; VALIDÉ LE seulement
         # dans les validés), une icône de bascule, plus de cases ni d'impression (corbeille seule), CONSOLIDÉ en ligne de titre, menu de filtre commun,
@@ -3111,25 +3113,39 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("v767 : import NovApp — fichier JSON, données remplacées (copie de sécurité), F26 = SIÈGE, besoin sans budget gardé, ancienne référence dans H, partagé par la base",
               n767 == [1, "CMF 25-1202/001", "SIÈGE", "CHANTIER", True, "CMF 25-1202/099", True], n767)
-        # v786 : MASQUER / AFFICHER DES COLONNES — mécanisme commun (liste des budgets)
+        # v786 / v788 : MASQUER / AFFICHER LES COLONNES — une seule entrée, une seule fenêtre (cochée = affichée), au moins une colonne
         c786 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), keep = localStorage.getItem('svi_colh_v1');
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]')?.click(); await w(300);
             const T = () => document.getElementById('budgetListTable'), labs = () => [...document.querySelectorAll('#blkMenu button')].map(b => b.textContent.trim());
             const more = () => [...document.querySelectorAll('.novapp-list-shell .nvl-more')].find(b => b.offsetParent); const r = [];
+            const open = async () => { more().click(); await w(150); [...document.querySelectorAll('#blkMenu button')].find(b => /^MASQUER \/ AFFICHER/.test(b.textContent.trim())).click(); await w(150); };
             more().click(); await w(150); r.push(labs().filter(l => /COLONNES/.test(l)).join('|')); document.getElementById('blkMenu')?.remove();
-            more().click(); await w(150); [...document.querySelectorAll('#blkMenu button')].find(b => /^MASQUER/.test(b.textContent.trim())).click(); await w(150);
-            const ins = [...document.querySelectorAll('#svConf .colh-r input')]; r.push(ins.length > 1);
-            ins.forEach(i => { i.checked = true; }); document.querySelector('#svConf [data-ok]').click(); await w(100);
+            await open(); const ins = [...document.querySelectorAll('#svConf .colh-r input')]; r.push(ins.length > 1 && ins.every(i => i.checked));
+            ins.forEach(i => { i.checked = false; }); document.querySelector('#svConf [data-ok]').click(); await w(100);
             r.push(!document.querySelector('#svConf .colh-err').hidden);
-            ins.forEach((i, j) => { i.checked = j === 0; }); document.querySelector('#svConf [data-ok]').click(); await w(200);
+            ins.forEach((i, j) => { i.checked = j !== 0; }); document.querySelector('#svConf [data-ok]').click(); await w(200);
             const th0 = T().tHead.rows[0].cells[0]; r.push(getComputedStyle(th0).display, T().tBodies[0].rows[0]?.cells[0]?.classList.contains('svi-colh'));
             more().click(); await w(150); r.push(labs().filter(l => /COLONNES/.test(l)).join('|'));
-            [...document.querySelectorAll('#blkMenu button')].find(b => /^AFFICHER/.test(b.textContent.trim())).click(); await w(150);
+            [...document.querySelectorAll('#blkMenu button')].find(b => /^MASQUER \/ AFFICHER/.test(b.textContent.trim())).click(); await w(150);
+            r.push([...document.querySelectorAll('#svConf .colh-r input')].filter(i => !i.checked).length);
             document.querySelectorAll('#svConf .colh-r input').forEach(i => { i.checked = true; }); document.querySelector('#svConf [data-ok]').click(); await w(200);
             r.push(getComputedStyle(T().tHead.rows[0].cells[0]).display !== 'none');
             if (keep === null) localStorage.removeItem('svi_colh_v1'); else localStorage.setItem('svi_colh_v1', keep); return r; }""")
-        check("v786 : MASQUER / AFFICHER DES COLONNES — seulement MASQUER si tout est affiché, liste à cocher, au moins une colonne, MASQUER et AFFICHER dès qu'une est masquée",
-              c786 == ["MASQUER DES COLONNES…", True, True, "none", True, "MASQUER DES COLONNES…|AFFICHER DES COLONNES… (1)", True], c786)
+        check("v786 / v788 : MASQUER / AFFICHER LES COLONNES — une entrée, une fenêtre (cochée = affichée), au moins une colonne, colonne masquée retrouvée dans la liste",
+              c786 == ["MASQUER / AFFICHER LES COLONNES", True, True, "none", True, "MASQUER / AFFICHER LES COLONNES (1 MASQUÉE)", 1, True], c786)
+        # v788 : ligne CRÉER juste au-dessus du TOTAL ; DÉLAIS : Gantt seulement en plein écran
+        g788 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const r = [];
+            if (!document.querySelector('.bdg-d-page')) { document.querySelector('#navMenu .nav-btn[data-view="bdg"]')?.click(); await w(300); window.__sviAvRet = null; window.__sviAvOpen && window.__sviAvOpen('TEST-1'); await w(2000); document.querySelectorAll('#svConf').forEach(x => x.remove()); }
+            if (!document.querySelector('.bdg-d-page')) return 'pas de budget';
+            document.querySelector('.bdg-d-tab[data-tab="chg"]')?.click(); await w(400);
+            const t = document.querySelector('table.ins-table[data-ik="chg"]'), nr = t && t.querySelector('tr.ins-new td');
+            r.push(!!(t && t.tFoot && nr) && nr.style.bottom === Math.round(t.tFoot.getBoundingClientRect().height) + 'px');
+            document.documentElement.removeAttribute('data-dly-all');
+            document.querySelector('.bdg-d-tab[data-tab="dly"]')?.click(); await w(600);
+            const vis = s => { const e = document.querySelector(s); return !!e && getComputedStyle(e).display !== 'none' && e.offsetParent !== null; };
+            r.push(vis('.dlyg-l'), vis('#dlyGantt'));
+            document.documentElement.setAttribute('data-dly-all', '1'); await w(200); return r; }""")
+        check("v788 : ligne CRÉER posée juste au-dessus du TOTAL ; DÉLAIS hors plein écran = tableau seul (pas de Gantt)", g788 == [True, True, False], g788)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

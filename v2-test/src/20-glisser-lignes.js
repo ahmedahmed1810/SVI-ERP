@@ -432,7 +432,7 @@
         const w0 = parseFloat(col.style.width) || col.getBoundingClientRect().width;
         let w = w0;
         apply = x => {
-          w = Math.max(28, Math.round(w0 + x - x0));   /* v493 (remarque 16) : réduite au maximum */
+          w = Math.max(64, Math.round(w0 + x - x0));   /* v788 : jamais plus étroite que son nom (v493 : 28) */
           col.style.width = w + "px";
           const total = [...table.querySelectorAll("col")]
             .reduce((sum, c) => sum + (parseFloat(c.style.width) || 0), 0);
