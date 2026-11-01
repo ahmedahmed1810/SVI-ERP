@@ -19670,6 +19670,25 @@ ${A}</Assignments>
       if (PM_DRY) { PM_DRY.doc = exDoc ? exDoc.ref : ""; return; }
       if (exDoc) { sviAlert("DÉJÀ ÉDITÉ ET CLASSÉ DANS DOCUMENTS : " + exDoc.ref + ". LE CONSULTER DEPUIS DOCUMENTS.", "APERÇU PDF"); return; }
       histLog(cfg.branch, "APERÇU PDF");
+      /* v784 : l'aperçu du budget passe par l'éditeur MISE EN PAGE unique (sviMep) — même document, mêmes fonctions
+         (entête, pied, signature, cachet, GÉNÉRER PDF classé dans DOCUMENTS, IMPRIMER SANS CLASSER, PORTRAIT / PAYSAGE) */
+      if (window.sviMep) {
+        const box = document.createElement("div"); box.innerHTML = cfg.table.replace(/(<td[^>]*>)\s*M([23])\s*(<\/td>)/g, (m, a, d, b) => a + "M" + (d === "2" ? "²" : "³") + b);
+        const t = box.querySelector("table"), st = budget && budget.inst ? budget.inst.state || "instance" : "valide";
+        const projet = (() => { const it = sviIntitule(ref, budget.project, budget.inst); return it !== "À COMPLÉTER" ? it : budget.project; })();
+        const A = (INS && INS.ao) || {};
+        sviMep.open({ key: "BDG-" + String(cfg.fileTag || cfg.docTitle).toUpperCase(), orient: cfg.portrait ? "p" : "l",
+          title: cfg.docTitle, titleHtml: "<b>" + esc(cfg.bpu ? "BORDEREAU DES PRIX – DÉTAIL ESTIMATIF" : cfg.docTitle) + "</b>",
+          ref: fullRef, refHtml: (cfg.bpu ? "RÉFÉRENCE : " + esc(String(A.num || "").trim() || fullRef) + (String(A.obj || "").trim() ? "<br>OBJET : " + esc(A.obj) : "") : "DEVIS N° : " + esc(fullRef.replace(/\bBDG\b/, "DVC")))
+            + "<br>PROJET : " + esc(projet) + (cfg.headLine ? "<br>" + esc(cfg.headLine) : ""),
+          party: "CLIENT : " + sviClient(budget.inst), fields: { projet }, prelim: st !== "valide", wmText: st === "fige" ? "PROVISOIRE" : "EN INSTANCE", wmColor: st === "fige" ? "rgba(21,128,61,.12)" : "rgba(185,28,28,.12)",
+          colgroup: t && t.querySelector("colgroup") ? t.querySelector("colgroup").outerHTML : "", thead: t && t.tHead ? t.tHead.outerHTML : "",
+          trs: t && t.tBodies[0] ? [...t.tBodies[0].rows].map(r => r.outerHTML) : [], endHtml: cfg.end || "",
+          footHtml: "<br>",
+          name: (fullRef + " " + cfg.fileTag).replace(/[\\/:*?"<>|]+/g, "-"),
+          save: (blob, name) => window.__sviSavePdfDoc ? window.__sviSavePdfDoc(blob, cfg.docTitle, name, "", fp) : null });
+        return;
+      }
       const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
         "août", "septembre", "octobre", "novembre", "décembre"];
       const now = new Date();

@@ -3505,3 +3505,18 @@ body.mep-open { overflow: hidden; }
 #sviMep .mep-tot { table-layout: fixed; }
 body.mep-open #sviScreenTag, body.mep-open #sviSync, body.mep-open #sviTestTag, body.mep-open #sviNavPill { display: none !important; }
 #sviMep table { min-width: 0; }
+/* v784 : tableaux tout faits du budget dans l'aperçu unique (mêmes règles que l'ancien aperçu) */
+#sviMep .mep-raw td.c { text-align: center; } #sviMep .mep-raw td.r { text-align: right; }
+#sviMep .mep-raw th { background: var(--hbg, #d9dee6); } #sviMep .mep-raw th.sub { padding: 2px 1px; }
+#sviMep .mep-raw td.pk { font-weight: bold; } #sviMep .mep-raw td.rep { color: #555; font-style: italic; }
+#sviMep .mep-raw tr.gfirst td, #sviMep .mep-raw tr.mdes td { border-top: 1.6px solid #000; } #sviMep .mep-raw tr.mdes td { font-weight: bold; }
+#sviMep .mep-raw tr.msub td:nth-child(2) { font-style: italic; text-decoration: underline; }
+#sviMep .mep-raw tr.stot td { background: #eef1f6; font-weight: bold; }
+#sviMep .mep-raw table.paq tr.paq-s td, #sviMep .mep-raw tr.paq-s td { background: #d9dee6; } #sviMep .mep-raw tr.paq-h td { background: #eef1f6; }
+#sviMep .mep-totaux .tot { display: flex; flex-direction: column; align-items: flex-end; }
+#sviMep .mep-totaux .tot div { display: flex; } #sviMep .mep-totaux .tot span { padding: 3px 6px; text-align: right; }
+#sviMep .mep-totaux .tot b { width: 120px; border: 1px solid #000; border-top: 0; padding: 3px 6px; text-align: right; font-weight: normal; }
+#sviMep .mep-totaux .tot div:first-child b { border-top: 1px solid #000; }
+#sviMep .mep-totaux .arr { margin-top: 14px; font-weight: bold; line-height: 1.7; text-align: left; }
+/* v784 : ⋯ du titre des listes, à droite */
+.novapp-list-titlebar .nvl-more { margin-left: auto; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: #fff; border: 1px solid #fca5a5; color: var(--inst, #b91c1c); cursor: pointer; font-size: 18px; flex: none; }

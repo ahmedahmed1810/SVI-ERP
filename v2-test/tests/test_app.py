@@ -57,6 +57,14 @@ def static_checks():
     check("index.html charge app.js, app-budget.js, app-achats.js, app-autres.js (même version)",
           [t[0] for t in tags] == ["app.js", "app-budget.js", "app-achats.js", "app-autres.js"] and len({t[1] for t in tags}) == 1, tags)
 
+class MepView:
+    """v784 : l'aperçu s'ouvre dans l'application (éditeur MISE EN PAGE unique), plus dans une autre fenêtre."""
+    def __init__(self, pg): self.pg = pg
+    def wait_for_timeout(self, ms): self.pg.wait_for_timeout(ms)
+    def evaluate(self, js): return self.pg.evaluate(js.replace("document.body", "(document.getElementById('sviMep') || document.body)"))
+    def screenshot(self, **k): self.pg.screenshot(**k)
+    def close(self): self.pg.evaluate("() => window.sviMep && sviMep.close()")
+
 def main():
     static_checks()
     srv = serve()
@@ -308,9 +316,8 @@ def main():
         pg.wait_for_timeout(300)
         win = pg.evaluate("() => document.querySelector('#svConf .svc-t')?.textContent || ''")
         check("PAQ : fenêtre DÉMARCHE QUALITÉ (FORMAT 112)", "DÉMARCHE QUALITÉ" in win, win)
-        with ctx.expect_page(timeout=5000) as pi:
-            pg.evaluate("() => document.querySelector('#svConf .svc-ok').click()")
-        pv = pi.value; pv.wait_for_timeout(1200)
+        pg.evaluate("() => document.querySelector('#svConf .svc-ok').click()")
+        pv = MepView(pg); pv.wait_for_timeout(1200)
         txt = pv.evaluate("() => document.body.innerText")
         okp = all(x in txt for x in ["PLAN D'ASSURANCE QUALITÉ", "1. DÉMARCHE QUALITÉ", "2. DÉCOMPOSITION DU PROJET", "3. PLANNING", "4. POINTS DE CONTRÔLE", "5. MATÉRIAUX ET AGRÉMENTS", "BETON B25"])
         check("PAQ : aperçu avec ses cinq parties (FORMAT 112)", okp, txt[:300])
@@ -2118,9 +2125,8 @@ def main():
         pg.evaluate("() => document.querySelector('#svConf [data-v=\"inf\"]')?.click()"); pg.wait_for_timeout(400)
         fo = pg.evaluate("() => document.activeElement && document.activeElement.id")
         pg.fill("#infAoN", "AO 12/2026"); pg.evaluate("() => document.querySelector('#docPop .inf-save')?.click()"); pg.wait_for_timeout(400)
-        with ctx.expect_page(timeout=5000) as pi:
-            pg.evaluate("() => document.querySelector('[data-blk=\"client\"][data-act=\"pdf\"]')?.click()")
-        pv = pi.value; pv.wait_for_timeout(1200)
+        pg.evaluate("() => document.querySelector('[data-blk=\"client\"][data-act=\"pdf\"]')?.click()")
+        pv = MepView(pg); pv.wait_for_timeout(1200)
         bt = pv.evaluate("() => document.body.innerText"); pv.close()
         pg.evaluate(f"() => {{ const X = {ins}; delete X.INS.ao; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
         check("v663 axe 12 : INF client PUBLIC → SUR CONSULTATION ; numéro vide → NUMÉRO D'APPEL D'OFFRES MANQUANT, RENSEIGNER = curseur dans la case ; bordereau avec RÉFÉRENCE, OBJET et ARRÊTÉ",
@@ -2175,9 +2181,8 @@ def main():
         rt5 = pg.evaluate("() => document.querySelector('#svConf .cmp-rt').textContent")
         pg.evaluate("() => document.querySelector('#svConf [data-save]')?.click()"); pg.wait_for_timeout(300)
         sv5 = pg.evaluate(f"() => {{ const c = {ins}.INS.cmp; return c ? [c.of.length, c.res, c.of[0].p.d1] : null; }}")
-        with ctx.expect_page(timeout=5000) as pi:
-            pg.evaluate("() => { const s = [...document.querySelectorAll('*')].find(e => e.__sdp); s.__sdp(); }")
-        pv = pi.value; pv.wait_for_timeout(1500)
+        pg.evaluate("() => { const s = [...document.querySelectorAll('*')].find(e => e.__sdp); s.__sdp(); }")
+        pv = MepView(pg); pv.wait_for_timeout(1500)
         t11 = pv.evaluate("() => document.body.innerText").replace("\u202f", " ").replace("\xa0", " "); pv.close()
         pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; const o = JSON.parse(I.__c5); I.des = o.des; I.links = o.links; I.chg = o.chg; delete I.__c5; delete I.cmp; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
         check("v665 axe 5 : comparatif — offre à 1 200 = −200 DH vert (−16,7 %), offre à 800 = +200 DH rouge (+25 %), moyenne 1 000 ; offre GAGNÉE enregistrée",

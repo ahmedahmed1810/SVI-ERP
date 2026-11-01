@@ -17,7 +17,7 @@ const sviMep = (() => {
   const ls = { get: (k, d) => { try { return JSON.parse(localStorage.getItem(k) || "null") ?? d; } catch (e) { return d; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
   const PW = { p: [794, 1123], l: [1123, 794] };
   const DEF = { entete: { x: 40, y: 24, w: 714, h: 96 }, date: { x: 414, y: 136, w: 340, h: 26, al: "right" }, titre: { x: 60, y: 176, w: 674, h: 36, al: "center" },
-    frs: { x: 60, y: 214, w: 674, h: 40, al: "center" }, ref: { x: 60, y: 266, w: 674, h: 26, al: "left" }, corps: { x: 40, y: 300, w: 714, h: 560 },
+    frs: { x: 60, y: 214, w: 674, h: 40, al: "center" }, ref: { x: 60, y: 260, w: 674, h: 50, al: "left" }, corps: { x: 40, y: 318, w: 714, h: 540 },
     totaux: { x: 474, y: 600, w: 280, h: 90, flow: true }, sign: { x: 404, y: 880, w: 170, h: 120 }, cachet: { x: 584, y: 880, w: 170, h: 120 }, pied: { x: 40, y: 1040, w: 714, h: 66 } };
   const LBL = { entete: "ENTÊTE", date: "DATE", titre: "TITRE", frs: "CLIENT / FOURNISSEUR", ref: "RÉFÉRENCE", corps: "TABLEAU", totaux: "TOTAUX", sign: "SIGNATURE", cachet: "CACHET", pied: "PIED DE PAGE" };
   const FIX = ["entete", "pied", "sign", "cachet", "corps"], TXT = ["date", "titre", "frs", "ref"], STY = ["date", "titre", "frs", "ref", "corps", "totaux", "pied", "entete"];
@@ -43,31 +43,33 @@ const sviMep = (() => {
     return { all: ord.map(k => all.find(c => c[0] === k)), vis, rest }; };
   const tableHTML = (b, rows, head = true) => {
     if (D.html) return D.html;
+    /* tableau tout fait (budget) : titres repris sur chaque page, lignes découpées */
+    if (D.trs) return `<table class="mep-t mep-raw">${D.colgroup || ""}${head ? D.thead || "" : ""}<tbody>${rows.join("")}</tbody></table>`;
     const C = colsOf(b), shown = C.all.filter(c => C.vis.includes(c[0])), w = k => k === C.rest ? 0 : ((b.cw || {})[k] ?? (shown.length > 6 ? 9 : 14));
     return `<table class="mep-t"><colgroup>${shown.map(c => w(c[0]) ? `<col style="width:${w(c[0])}%">` : "<col>").join("")}</colgroup>`
       + (head ? `<tr>${shown.map(c => `<th>${E(c[1])}</th>`).join("")}</tr>` : "")
       + rows.map(r => `<tr>${shown.map(c => { const v = r[c[3]]; return `<td class="${c[2] === "number" ? "nm" : c[2] === "center" ? "c" : ""}">${E(typeof v === "number" ? (typeof money === "function" ? money(v) : v) : v ?? "")}</td>`; }).join("")}</tr>`).join("") + "</table>"; };
-  const totHTML = () => (D.tot || []).length ? `<table class="mep-tot"><colgroup><col style="width:55%"><col style="width:45%"></colgroup>${D.tot.map(([l, v]) => `<tr><th>${E(l)}</th><td>${E(typeof v === "number" ? (typeof money === "function" ? money(v) : v) : v)}</td></tr>`).join("")}</table>` : "";
+  const totHTML = () => D.endHtml ? D.endHtml : (D.tot || []).length ? `<table class="mep-tot"><colgroup><col style="width:55%"><col style="width:45%"></colgroup>${D.tot.map(([l, v]) => `<tr><th>${E(l)}</th><td>${E(typeof v === "number" ? (typeof money === "function" ? money(v) : v) : v)}</td></tr>`).join("")}</table>` : "";
   const sty = (k, b) => (b.ff ? "font-family:" + b.ff + ";" : "") + (b.va && b.va !== "top" ? "display:flex;flex-direction:column;justify-content:" + (b.va === "middle" ? "center" : "flex-end") + ";" : "")
     + "font-size:" + (b.fs || FS[k] || 13) + "px;" + (b.col ? "color:" + b.col + ";" : "") + ((b.b !== undefined ? b.b : BOLD.includes(k)) ? "font-weight:700;" : "font-weight:400;") + (b.i ? "font-style:italic;" : "") + (b.u ? "text-decoration:underline;" : "")
     + (b.bg ? "background:#fff;" : "") + (k === "corps" ? (b.rh !== undefined ? "--rp:" + b.rh + "px;" : "") + (b.hbg ? "--hbg:" + b.hbg + ";" : "") : "") + "z-index:" + (b.z || 1) + ";";
   const blockHTML = (k, b, inner, ed, pos) => `<div class="mep-b mep-${k.replace(/^x_.*/, "x")}${ed ? " ed" : ""}${ed && SEL === k ? " sel" : ""}" data-pb="${k}" style="left:${pos.x}px;top:${pos.y}px;width:${pos.w}px;${(k === "corps" || k === "totaux") && !ed ? "min-height" : "height"}:${pos.h}px;text-align:${b.al || "left"};${sty(k, b)}">${inner}${ed ? `<span class="mep-lb">${isX(k) ? (b.kind === "text" ? "TEXTE" : "CHAMP") : LBL[k]}</span><span class="mep-rz" data-rz="${k}"></span>` : ""}</div>`;
   /* pages : la première porte tous les blocs ; le tableau continue sur les pages suivantes (entête et pied repris), TOTAUX, SIGNATURE et CACHET sur la dernière */
   const pagesHTML = () => {
-    const Ly = L(), ed = !!ED, [W, H] = PW[Ly.__o || "p"], rows = D.rows || [];
+    const Ly = L(), ed = !!ED, [W, H] = PW[Ly.__o || "p"], rows = D.trs || D.rows || [];
     const inner = {
       entete: O.ent || ed ? `<img src="${typeof SVI_LOGO !== "undefined" ? SVI_LOGO : ""}" alt="">` : "",
-      date: "<b>" + today() + "</b>", titre: E(D.title || ""), frs: E(D.party || ""), ref: "RÉFÉRENCE : " + E(D.ref || ""),
+      date: "<b>" + today() + "</b>", titre: D.titleHtml || E(D.title || ""), frs: E(D.party || ""), ref: D.refHtml || "RÉFÉRENCE : " + E(D.ref || ""),
       sign: (O.sign || ed) ? `<img src="${(ls.get("svi_sign_v1", null)) || (typeof SVI_SIGN !== "undefined" ? SVI_SIGN : "")}" alt="">` : "",
       cachet: (O.cachet || ed) ? `<img src="${typeof SVI_STAMP !== "undefined" ? SVI_STAMP : ""}" alt="" class="mep-stamp">` : "",
-      pied: O.pied || ed ? `<div class="mep-ft">SOCIÉTÉ SVI — AGADIR</div>` : "" };
+      pied: O.pied || ed ? `<div class="mep-ft">${D.footHtml || "SOCIÉTÉ SVI — AGADIR"}</div>` : "" };
     const cb = Ly.corps, pages = [];
     /* découpe des lignes : mesure réelle dans un conteneur caché, à la largeur du bloc TABLEAU */
     let chunks = [rows];
     if (!ed && !D.html && rows.length) {
       const m = document.createElement("div"); m.className = "mep-measure"; m.style.cssText = "position:absolute;left:-99999px;top:0;width:" + cb.w + "px;" + sty("corps", cb);
       m.innerHTML = tableHTML(cb, rows); document.body.appendChild(m);
-      const t = m.querySelector("table"), hh = t.rows[0] ? t.rows[0].offsetHeight : 0, rh = [...t.rows].slice(1).map(r => r.offsetHeight); m.remove();
+      const t = m.querySelector("table"), hh = t.tHead ? t.tHead.offsetHeight : t.rows[0] ? t.rows[0].offsetHeight : 0, rh = [...(t.tBodies[0] && D.trs ? t.tBodies[0].rows : [...t.rows].slice(1))].map(r => r.offsetHeight); m.remove();
       const cap1 = Math.max(cb.h, 120), capN = (Ly.pied.y - 20) - (Ly.entete.y + Ly.entete.h + 20);
       chunks = []; let cur = [], used = hh, cap = cap1;
       rows.forEach((r, i) => { if (cur.length && used + rh[i] > cap) { chunks.push(cur); cur = []; used = hh; cap = capN; } cur.push(r); used += rh[i]; });
@@ -87,7 +89,7 @@ const sviMep = (() => {
         if (k === "corps" && !first) pos = { ...pos, y: Ly.entete.y + Ly.entete.h + 20, h: (Ly.pied.y - 20) - (Ly.entete.y + Ly.entete.h + 20) };
         h += blockHTML(k, b, html, ed, pos);
       });
-      pages.push(`<div class="mep-pw"><div class="mep-pg${ed ? " lay" : ""}" style="width:${W}px;height:${H}px">${D.prelim && !ed ? '<div class="mep-wm">VERSION PRÉLIMINAIRE</div>' : ""}${h}${chunks.length > 1 ? `<div class="mep-no">${pi + 1} / ${chunks.length}</div>` : ""}</div></div>`);
+      pages.push(`<div class="mep-pw"><div class="mep-pg${ed ? " lay" : ""}" style="width:${W}px;height:${H}px">${D.prelim && !ed ? `<div class="mep-wm" style="${D.wmColor ? "color:" + D.wmColor : ""}">${E(D.wmText || "VERSION PRÉLIMINAIRE")}</div>` : ""}${h}${chunks.length > 1 ? `<div class="mep-no">${pi + 1} / ${chunks.length}</div>` : ""}</div></div>`);
     });
     return pages.join("");
   };
@@ -215,3 +217,20 @@ const sviMep = (() => {
   return { open, close, layOf };
 })();
 window.sviMep = sviMep;
+
+/* v784 : APERÇU d'une LISTE (liste des budgets, listes des achats) — ⋯ du titre de la liste ; le tableau affiché (filtres compris) */
+const SVI_LIST_MORE = '<button type="button" class="inst-act bdg-more-btn nvl-more" title="Actions" aria-label="Actions">⋯</button>';
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest(".nvl-more"); if (!b) return;
+  e.stopPropagation();
+  const shell = b.closest(".novapp-list-shell"), t = shell && shell.querySelector("table"), h1 = shell && shell.querySelector(".novapp-list-titlebar h1");
+  sviHdrMenu(b, [[{ k: "apr", lab: "APERÇU" }]], () => {
+    if (!t) return;
+    const ths = [...t.tHead.rows[0].cells].map(th => (th.querySelector(".cf-lab") || th).textContent.trim()), keep = ths.map((x, i) => x ? i : -1).filter(i => i >= 0);
+    const num = i => [...t.tBodies[0].rows].some(r => r.cells[i] && r.cells[i].classList.contains("number"));
+    const rows = [...t.tBodies[0].rows].filter(r => !r.matches(".bdg-newrow, .ach-new, .rec-new") && !r.querySelector("td.empty") && r.cells.length >= keep.length).map(r => keep.map(i => (r.cells[i] ? r.cells[i].textContent.replace(/\s+/g, " ").trim() : "")));
+    const title = h1 ? h1.childNodes[0].textContent.trim() || h1.textContent.trim() : "LISTE";
+    sviMep.open({ key: "LISTE-" + title.replace(/\s*\(.*$/, "").replace(/[^A-Z0-9É]+/gi, "-").toUpperCase(), orient: "l", title, ref: new Date().toLocaleDateString("fr-FR"), party: rows.length + " LIGNE(S)",
+      cols: keep.map((i, j) => ["c" + j, ths[i], num(i) ? "number" : ""]), rows, name: title + " " + new Date().toISOString().slice(0, 10) });
+  });
+}, true);
