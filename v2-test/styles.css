@@ -3297,3 +3297,51 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .ach-tabs { flex-wrap: wrap; }
 /* v763 : factures — quantité ou écart hors tolérance */
 .fa-over { color: var(--danger, #c62828) !important; font-weight: 700; }
+/* v764 : listes et pages des achats au format du budget (articles, fournisseurs) */
+#ach .nv-wrap { display: flex; gap: 14px; align-items: flex-start; }
+#ach .nv-dates { flex: 0 0 200px; display: flex; flex-direction: column; border: 1px solid #e3e7ee; border-radius: 12px; background: #fff; overflow: hidden; }
+#ach .nv-dates .nv-etat { border: 0; border-bottom: 1px solid #e3e7ee; border-radius: 0; justify-content: space-between; display: flex; width: 100%; background: #f6f7fa; }
+#ach .nv-day { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border: 0; border-bottom: 1px solid #eef1f5; background: #fff; font: inherit; font-weight: 700; color: #334155; cursor: pointer; text-align: left; }
+#ach .nv-day.on { background: #e8f0fb; color: #0f4f96; }
+#ach .nv-none { padding: 8px 12px; color: #94a3b8; }
+#ach .nv-scroll { flex: 1 1 auto; min-width: 0; }
+#ach .nv-table td { font-weight: 700; }
+#ach .nv-table tr.nv-row { cursor: pointer; }
+#ach .nv-inst td, #ach .nv-inst .nv-ref { color: var(--st-instance, #c62828); }
+#ach .nv-ref { text-decoration: underline; font-weight: 700; }
+#ach .nv-del { border: 0; background: none; color: inherit; cursor: pointer; padding: 2px; }
+#ach .nv-inst .nv-del { color: var(--st-instance, #c62828); }
+#ach .nv-bang { font-weight: 900; color: #b91c1c; cursor: pointer; }
+#ach .nv-new td { color: #c62828; cursor: pointer; background: #fdf2f2; }
+#ach .bdg-mode-sw { margin-left: 8px; vertical-align: middle; border: 1px solid #d6dbe3; border-radius: 8px; background: #fff; padding: 3px 6px; cursor: pointer; color: #12355b; }
+#ach .bdg-mode-sw.off { opacity: .35; }
+#ach.ach-page .section-head h1 { font-size: 22px; }
+#ach .nvp-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+#ach .nvp-tools { display: inline-flex; gap: 8px; }
+#ach .nvp-ic { width: 40px; height: 40px; border: 1px solid #d6dbe3; border-radius: 10px; background: #fff; font-size: 20px; cursor: pointer; color: #12355b; }
+#ach .nvp-card { border: 1px solid #e3e7ee; border-radius: 12px; background: #fff; padding: 16px 20px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(15, 23, 42, .06); }
+#ach .nvp-top { display: flex; align-items: center; gap: 10px; }
+#ach .nvp-code { font-size: 24px; font-weight: 800; color: #12355b; }
+#ach .nvp-inst .nvp-code, #ach .nvp-inst .nvp-name { color: var(--st-instance, #c62828); }
+#ach .nvp-st { font-size: 12px; font-weight: 800; color: #64748b; margin-left: auto; }
+#ach .nvp-name { display: block; margin-top: 8px; border: 0; background: none; padding: 0; font: inherit; font-size: 18px; font-weight: 800; color: #12355b; text-decoration: underline; cursor: pointer; text-align: left; }
+#ach .nvp-rec, #ach .nvp-blk { margin-bottom: 14px; }
+#ach .nv-strike td { text-decoration: line-through; color: #94a3b8; }
+/* v764 : blocs de la page (mêmes formes que la page du budget, sans dépendre de son style) */
+#ach .nv-table:not(.nv-inst) td, #ach .nv-table:not(.nv-inst) .nv-ref { color: #12355b; }
+#ach .nv-table tr.nv-new td { color: #ca3a31; }
+#ach .nvp .bdg-d-block { margin-bottom: 14px; border: 1px solid #e1e5eb; border-radius: 12px; background: #fff; overflow: hidden; }
+#ach .nvp .bdg-d-block-title { display: flex; align-items: center; justify-content: space-between; padding: 4px 10px 4px 8px; min-height: 30px; background: #f3f4f6; border-bottom: 1px solid #e1e5eb; border-left: 4px solid #12355b; font-size: 11px; font-weight: 900; color: #12355b; }
+#ach .nvp .rec-tabs { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+#ach .nvp .rec-tab { display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent; background: none; border-radius: 6px; padding: 3px 10px; font: inherit; font-weight: 900; color: #6b7480; cursor: pointer; }
+#ach .nvp .rec-tab.active { background: #fff; border-color: #d6dbe3; color: #0f4f96; }
+#ach .nvp .blk-btn { border: 1px solid #d6dbe3; background: #fff; border-radius: 6px; padding: 3px 6px; cursor: pointer; color: #12355b; }
+#ach .nvp .ttl { display: inline-flex; align-items: center; gap: 6px; }
+#ach .nvp .rec-scroll { max-height: 260px; overflow: auto; }
+#ach .nvp .rec-table { width: 100%; border-collapse: collapse; }
+#ach .nvp .rec-table th { text-align: left; font-size: 11px; color: #6b7480; padding: 6px 10px; border-bottom: 1px solid #e1e5eb; background: #fafbfc; position: sticky; top: 0; }
+#ach .nvp .rec-table th.number, #ach .nvp .rec-table td.number { text-align: right; }
+#ach .nvp .rec-table th.center, #ach .nvp .rec-table td.center { text-align: center; }
+#ach .nvp .rec-table td { padding: 6px 10px; border-bottom: 1px solid #eef1f5; font-weight: 700; color: #12355b; }
+#ach .nvp .rec-table td.empty { text-align: center; color: #94a3b8; font-weight: 600; }
+#ach .nvp-bar { justify-content: flex-end; }

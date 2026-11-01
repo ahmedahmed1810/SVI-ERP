@@ -2733,10 +2733,10 @@ def main():
             M.classList.remove('hidden'); M.querySelector('.nav-grp').click(); await w(100); const open = !M.querySelector('.nav-sub').hidden, still = !M.classList.contains('hidden');
             M.querySelector('.nav-sub .nav-off').click(); await w(100); const stay = !M.classList.contains('hidden');
             M.querySelector('.nav-sub .nav-btn[data-ach="art"]').click(); await w(400);
-            const r = [top.join(','), sub.join(','), open, still, stay, document.getElementById('ach').classList.contains('active-view'), document.querySelector('#ach .section-head h1').textContent];
+            const r = [top.join(','), sub.join(','), open, still, stay, document.getElementById('ach').classList.contains('active-view'), document.querySelector('#ach .section-head h1').textContent.trim().replace(/ \(.*$/, '')];
             M.querySelector('.nav-grp').click(); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); M.classList.add('hidden'); await w(600); return r; }""")
         check("v751 / v752 : menu ☰ — ordre BDG, ACHAT, BESOIN, PARAMÉTRAGE ; ACHAT dépliable (CONSULTATIONS, DEVIS, COMMANDES, RÉCEPTIONS, FACTURES, PAIEMENTS, FOURNISSEURS, ARTICLES, ACC), BESOIN dessous ; entrées à venir grisées ; ARTICLES ouvre les achats",
-              m751 == ["BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RETOURS DE COMMANDE,RÉCEPTIONS,RETOURS DE RÉCEPTION,FACTURES,AVOIRS,PAIEMENTS,FOURNISSEURS,ARTICLES,ACC", True, True, True, True, "ACHATS — ARTICLES"], m751)
+              m751 == ["BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RETOURS DE COMMANDE,RÉCEPTIONS,RETOURS DE RÉCEPTION,FACTURES,AVOIRS,PAIEMENTS,FOURNISSEURS,ARTICLES,ACC", True, True, True, True, "ARTICLES"], m751)
         # v752 : icône devant chaque entrée du menu ; liste des budgets en gras ; lignes du dessous décalées ; corbeille de la couleur de sa ligne
         k752 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const M = document.getElementById('navMenu');
             const ic = [...M.querySelectorAll('.nav-btn, .nav-grp, .nav-off, .nav-src')].every(b => !!b.querySelector('svg.nav-ic'));
@@ -2804,13 +2804,13 @@ def main():
             if (keepE === null) localStorage.removeItem('svi_bdgetat_v1'); else localStorage.setItem('svi_bdgetat_v1', keepE);
             sviInstSet(JSON.parse(window.__kp755)); localStorage.removeItem('svi_bdgfold_v1'); renderBudgetList(); await w(200);
             document.querySelector('#navMenu .nav-btn[data-ach="art"]').click(); await w(400);
-            const keepA = localStorage.getItem('svi_ach_art_v1'), keepAE = localStorage.getItem('svi_ach_etat_v1'); const L = [];
+            const keepA = localStorage.getItem('svi_ach_art_v1'), keepAE = localStorage.getItem('svi_ach_etat_v1'); localStorage.removeItem('svi_ach_art_etat2_v1'); const L = [];
             achArtNew(L, { des: 'SABLE', u: 'M3' }); const b2 = achArtNew(L, { des: 'GRAVIER', u: 'M3' }); b2.actif = false; const b3 = achArtNew(L, { des: 'CHAUX', u: 'T' }); b3.del = '2026-11-01'; achArtsSave(L);
             localStorage.removeItem('svi_ach_etat_v1'); const v = document.getElementById('ach'); v.__achTab('art'); await w(200);
             const eb = v.querySelector('.ach-etat'), aRows = () => [...v.querySelectorAll('#achArtT tbody tr[data-id]')].length;
             const a = [eb ? eb.textContent.replace(/\\s+/g, ' ').trim() : '', aRows()]; eb.click(); await w(150);
             a.push([...document.querySelectorAll('#sviEtatMenu button')].map(b => b.textContent.replace(/\\s+/g, ' ').trim()).join('|'));
-            document.querySelector('#sviEtatMenu [data-k="tout"]').click(); await w(200); a.push(aRows());
+            document.querySelector('#sviEtatMenu [data-k="tout"]').click(); await w(200); a.push(aRows()); localStorage.removeItem('svi_ach_art_etat2_v1');
             if (keepA === null) localStorage.removeItem('svi_ach_art_v1'); else localStorage.setItem('svi_ach_art_v1', keepA);
             if (keepAE === null) localStorage.removeItem('svi_ach_etat_v1'); else localStorage.setItem('svi_ach_etat_v1', keepAE);
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(400); return [r, a]; }""")
@@ -2827,23 +2827,26 @@ def main():
             a.ribs = [{ rib: '007640000123456789012345', p: true }]; a.docf = [{ type: 'ATTESTATION CNSS', no: '1', exp: '2020-01-01' }]; const wa = achFrsWhy(a, L); b2.del = '2026-11-01';
             achFrsSave(L);
             document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(400); const v = document.getElementById('ach');
-            const h1 = v.querySelector('.section-head h1').textContent, n0 = v.querySelectorAll('#achFrsT tbody tr[data-id]').length;
-            const ni = v.querySelector('#achFrsT .ach-newin'); ni.value = 'NOUVEAU FRS'; ni.dispatchEvent(new Event('change', { bubbles: true })); await w(200);
-            const n1 = v.querySelectorAll('#achFrsT tbody tr[data-id]').length;
-            v.querySelector(`#achFrsT [data-fiche="${a.id}"]`).click(); await w(300); const fc = document.querySelector('.frs-card');
+            const h1 = v.querySelector('.section-head h1').textContent.trim(), n0 = v.querySelectorAll('#achFrsT tbody tr[data-id]').length;
+            v.querySelector('#achFrsT [data-nvnew]').click(); await w(250); document.querySelector('#svConf .ask-v').value = 'NOUVEAU FRS'; document.querySelector('#svConf [data-ok]').click(); await w(300);
+            document.querySelector('.frs-card [data-x]').click(); await w(300);
+            const n1 = achFrs().filter(f => !f.del).length + (v.querySelectorAll('#achFrsT tbody tr[data-id]').length === 1 && /EN INSTANCE/.test(v.querySelector('.section-head h1').textContent) ? 0 : 100);
+            v.querySelector('[data-nvsw]').click(); await w(200); v.querySelector(`#achFrsT [data-nvo="${a.id}"]`).click(); await w(250);
+            const pgOk = /^FOURNISSEUR — BETON SUD/.test(v.querySelector('.section-head h1').textContent) && v.querySelectorAll('.nvp-blk').length === 5;
+            v.querySelector('[data-nvp="info"]').click(); await w(300); const fc = document.querySelector('.frs-card');
             const secs = fc ? [...fc.querySelectorAll('.frs-st')].map(x => x.textContent.replace(/\\s*\\d+$/, '').split(' ')[0]).join(',') : 'pas de fiche';
             const ri = fc.querySelector('.frs-sub[data-sub="ribs"] .frs-s[data-c="rib"]'); ri.value = '011780000123456789012345'; fc.querySelector('[data-save]').click(); await w(250);
             const cf = document.querySelector('#svConf .svc-t'); const conf = cf ? cf.textContent : ''; document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
             const a2 = achFrs().find(x => x.id === a.id), sig = !!a2.ribChg && achFrsWhy(a2, achFrs()).some(m => /RIB MODIFIÉ/.test(m)), hist = achHistGet(a.code).some(h => h.a === 'RIB MODIFIÉ');
-            v.querySelector(`#achFrsT [data-fiche="${a.id}"]`).click(); await w(300); document.querySelector('.frs-card [data-ribok]').click(); await w(100); document.querySelector('.frs-card [data-save]').click(); await w(250);
+            v.querySelector('[data-nvp="info"]').click(); await w(300); document.querySelector('.frs-card [data-ribok]').click(); await w(100); document.querySelector('.frs-card [data-save]').click(); await w(250);
             const ok = !achFrs().find(x => x.id === a.id).ribChg;
             if (keepF === null) localStorage.removeItem('svi_ach_frs_v1'); else localStorage.setItem('svi_ach_frs_v1', keepF);
             if (keepE === null) localStorage.removeItem('svi_ach_frs_etat_v1'); else localStorage.setItem('svi_ach_frs_etat_v1', keepE);
             v.__achTab('art'); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300);
-            return [r1, wc.length, wa.join('|'), h1, n0, n1, secs, conf, sig, hist, ok]; }""")
+            return [r1, wc.length, wa.join('|'), h1, n0, n1, secs, conf, sig, hist, ok && pgOk]; }""")
         check("v759 : FOURNISSEURS — ICE (15 chiffres, unique), RIB 24 chiffres, occasionnel sans ICE ni RIB, document expiré ; onglet, création, fiche ; changement de RIB confirmé, signalé, noté dans H, puis RIB VÉRIFIÉ",
               f759[0] == ["FRS-0001", "FRS-0002", False, True, "FRS-0001", True] and f759[1] == 0 and "DOCUMENT EXPIRÉ : ATTESTATION CNSS" in f759[2] and "ICE EN DOUBLE" in f759[2]
-              and f759[3] == "ACHATS — FOURNISSEURS" and f759[4] == 2 and f759[5] == 3 and f759[6] == "IDENTITÉ,FISCAL,RIB,CONDITIONS,FAMILLES,DOCUMENTS,CONTACTS,ÉVALUATIONS,CONTRATS"
+              and f759[3] == "FOURNISSEURS (VALIDÉS)" and f759[4] == 2 and f759[5] == 3 and f759[6] == "IDENTITÉ,FISCAL,RIB,CONDITIONS,FAMILLES,DOCUMENTS,CONTACTS,ÉVALUATIONS,CONTRATS"
               and f759[7] == "CHANGEMENT DE RIB" and f759[8] and f759[9] and f759[10], f759)
         # v760 : BESOINS — charges du budget avec leurs tâches, contrôle prévu / déjà demandé, dépassement BLOQUÉ (justifier puis DÉBLOQUER),
         # seuil 90 %, centre SIÈGE hors budget ; menu ☰ › BESOIN, fiche de création (budget › charge › tâche), validation
@@ -2965,6 +2968,38 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("v763 : FACTURES, AVOIRS, PAIEMENTS — avance, facture depuis la commande, échéance, écart accepté, bon à payer, doublon, avoir déduit, chèque rejeté",
               f763 == [200, 1, "encaisse", 200, 1, 6, 200, "2026-10-31", True, "bap", 525, True, 0, 1, 525, 1, "emis", 500, 0, "PAYÉE", 0, "rejete", 525, 25], f763)
+        # v764 : ARTICLES au format du budget — ligne CRÉER… → fenêtre, l'article naît EN INSTANCE (liste en instance, rouge, corbeille),
+        # page (nom → informations, bloc DOCUMENTS / TAF / OBSERVATIONS, ⋯ VALIDER et UNITÉ DE CONVERSION, devis liés), ‹ ›, filtre par date
+        a764 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_art_v1', 'svi_ach_dvf_v1', 'svi_ach_frs_v1', 'svi_ach_art_mode_v1', 'svi_ach_art_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
+            const L = []; const s1 = achArtNew(L, { des: 'SABLE', u: 'M3', cat: 'MATERIAUX STOCKABLE' }); s1.cree = '2026-10-13T08:00:00Z'; const s2 = achArtNew(L, { des: 'GRAVIER', u: 'M3', cat: 'MATERIAUX STOCKABLE' }); s2.cree = '2026-10-14T08:00:00Z'; achArtsSave(L);
+            const F = []; const f1 = achFrsNew(F, { nom: 'AFRA' }); achFrsSave(F); achDvfSave([{ id: 'v1', ref: 'DVF 1', frs: f1.id, state: 'recu', lignes: [{ des: 'SABLE', u: 'M3', q: 5, pu: 100, tva: 20 }] }]);
+            const v = document.getElementById('ach'); document.querySelector('#navMenu .nav-btn[data-ach="art"]').click(); await w(300);
+            const r = [v.querySelector('.section-head h1').textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, v.querySelectorAll('.nv-day').length];
+            v.querySelector('.nv-day').click(); await w(150); r.push(v.querySelectorAll('#achArtT tbody tr[data-id]').length); v.querySelector('.nv-day').click(); await w(150);
+            v.querySelector('#achArtT [data-nvnew]').click(); await w(200); const c = document.querySelector('#svConf');
+            c.querySelector('.art-x[data-k="des"]').value = 'CIMENT CPJ45'; c.querySelector('.art-x[data-k="u"]').value = 'T'; c.querySelector('.art-x[data-k="cat"]').value = 'MATERIAUX STOCKABLE'; c.querySelector('[data-save]').click(); await w(300);
+            const A = achArts().find(a => a.des === 'CIMENT CPJ45');
+            r.push(!!A && A.st, v.querySelector('.section-head h1').textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, !!v.querySelector('.nv-inst [data-nvdel]'), !!v.querySelector('[data-nvnew]'));
+            v.querySelector(`[data-nvo="${A.id}"]`).click(); await w(250);
+            r.push(v.querySelector('.nvp-code').textContent, !!v.querySelector('.nvp-inst'), v.querySelectorAll('.nvp-rec .rec-tab').length);
+            v.querySelector('[data-nvr="obs"]').click(); await w(100); v.querySelector('[data-nvradd]').click(); await w(200);
+            document.querySelector('#svConf .nr-t').value = 'livrer avant 10h'; document.querySelector('#svConf .nr-i').checked = true; document.querySelector('#svConf [data-ok]').click(); await w(250);
+            r.push(obsAlertCount('ACH-' + A.code), /AVANT 10H/.test(v.querySelector('.nvp-rec').textContent));
+            v.querySelector('[data-nvp="more"]').click(); await w(150); r.push([...document.querySelectorAll('#sviEtatMenu button')].map(b => b.textContent.trim()).join('|'));
+            document.querySelector('#sviEtatMenu [data-k="cv"]').click(); await w(200); const cv = document.querySelector('#svConf'); cv.querySelector('[data-add]').click(); await w(100);
+            const cvv = document.querySelector('#svConf'); cvv.querySelector('.cv-x[data-c="u"]').value = 'SAC'; cvv.querySelector('.cv-x[data-c="r"]').value = '20'; cvv.querySelector('[data-save]').click(); await w(250);
+            r.push(JSON.stringify(achArts().find(a => a.id === A.id).cv));
+            v.querySelector('[data-nvp="more"]').click(); await w(150); document.querySelector('#sviEtatMenu [data-k="val"]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
+            r.push(achArts().find(a => a.id === A.id).st, !v.querySelector('.nvp-inst'));
+            v.querySelector('[data-nvp="close"]').click(); await w(200); r.push(v.querySelector('.section-head h1').textContent.trim());
+            v.querySelector(`[data-nvo="${s1.id}"]`).click(); await w(250); r.push([...v.querySelectorAll('.nvp-blk')].some(b => b.textContent.includes('DVF 1')));
+            const t0 = v.querySelector('.nvp-code').textContent; v.querySelector('[data-nvp="next"]').click(); await w(200); r.push(t0 !== v.querySelector('.nvp-code').textContent);
+            v.__achTab('art'); await w(150); r.push(!v.querySelector('.nvp'));
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
+        check("v764 : ARTICLES au format du budget — listes EN INSTANCE / VALIDÉS, dates, création par fenêtre (en instance, corbeille), page : bloc DOC / TAF / OBS, ⋯ VALIDER et UNITÉ DE CONVERSION, devis liés, ‹ ›",
+              a764 == ["ARTICLES (VALIDÉS)", 2, 2, 1, "instance", "ARTICLES (EN INSTANCE)", 1, True, True, "ART-0003", True, 3, 1, True,
+                       "VALIDER|UNITÉ DE CONVERSION|BUDGETS (0)|METTRE À LA CORBEILLE", '[{"u":"SAC","r":20}]', "valide", True, "ARTICLES (VALIDÉS)", True, True, True], a764)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

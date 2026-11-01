@@ -81,6 +81,8 @@ function sviAchInit() {
   const CAFM = achCafMod({ view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 }), DVFM = achDvfMod({ view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 });
   /* ---------- COMMANDES, RÉCEPTIONS, RETOURS (v762, 45-achats-commandes.js) ---------- */
   const X = { view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 };
+  /* v764 : ARTICLES et FOURNISSEURS au format du budget (47-achats-liste-page.js) — listes EN INSTANCE / VALIDÉS, page de l'élément */
+  const NV = { art: achArtNvMod(X), frs: achFrsNvMod(X) };
   const MODS = { caf: CAFM, dvf: DVFM, cmf: achCmfMod(X), rcp: achRcpMod(X), rtc: achRtrMod(X, "cmd"), rtr: achRtrMod(X, "rcp"), faf: achFafMod(X), avf: achAvfMod(X), paf: achPafMod(X) };
   const TTL = { cmf: ["ACHATS — COMMANDES", "NATURE, LIVRAISON, AVANCE, REMISE, TRANSPORT ; VALIDER = ENGAGEMENT SUR LE BUDGET ; RÉCEPTIONNER, RETOUR DE COMMANDE, SOLDER, AVENANT"],
     rcp: ["ACHATS — RÉCEPTIONS", "BON DE LIVRAISON ET PHOTO, ACCEPTÉE / AVEC RÉSERVES / REFUSÉE PAR LIGNE, TOLÉRANCE DE QUANTITÉ ; LIVRAISON SANS COMMANDE À RÉGULARISER"],
@@ -133,6 +135,8 @@ function sviAchInit() {
   };
   const draw = () => keepPos(() => {
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.ach === tab));
+    if (NV[tab]) { const M = NV[tab]; body.innerHTML = M.html(); if (h1) h1.innerHTML = M.h1(); if (sub) sub.textContent = ""; bar.style.display = M.isPage() ? "none" : ""; view.classList.toggle("ach-page", M.isPage()); return; }
+    bar.style.display = ""; view.classList.remove("ach-page");
     if (h1 && TTL[tab]) h1.textContent = TTL[tab][0];
     else if (h1) h1.textContent = tab === "caf" ? "ACHATS — CONSULTATIONS" : tab === "dvf" ? "ACHATS — DEVIS" : tab === "bsn" ? "BESOINS" : tab === "prm" ? "ACHATS — PARAMÈTRES" : tab === "frs" ? "ACHATS — FOURNISSEURS" : showDel ? "ACHATS — CORBEILLE DES ARTICLES" : "ACHATS — ARTICLES";
     if (sub && TTL[tab]) sub.textContent = TTL[tab][1];
@@ -141,8 +145,10 @@ function sviAchInit() {
     body.querySelectorAll("input.ach-cb, input.ach-all").forEach(c => { if (c.classList.contains("ach-all")) { const n = body.querySelectorAll("input.ach-cb:checked").length, t = body.querySelectorAll("input.ach-cb").length; c.indeterminate = n > 0 && n < t; } });
   });
   view.__achDraw = draw;
+  /* v764 : icône de bascule EN INSTANCE ⇄ VALIDÉS, placée dans le titre (hors du corps) */
+  if (h1) h1.addEventListener("click", e => { if (NV[tab] && e.target.closest("[data-nvsw]")) NV[tab].click(e); });
   /* v750 : entrée du menu ☰ (ACHAT › ARTICLES…) — ouvre l'onglet correspondant */
-  view.__achTab = t => { if (!["art", "prm", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr", "faf", "avf", "paf"].includes(t)) return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
+  view.__achTab = t => { Object.values(NV).forEach(M => M.close()); if (!["art", "prm", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr", "faf", "avf", "paf"].includes(t)) return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
   /* ---------- gestes ---------- */
   bar.addEventListener("click", e => {
     const b = e.target.closest(".prm-tab"); if (!b) return;
@@ -156,6 +162,7 @@ function sviAchInit() {
     const cf = e.target.closest(".cf-btn"); if (cf) { e.stopPropagation(); cfOpenMenu(cf); return; }
     const w = e.target.closest(".ach-warn"); if (w) { svToast(w.dataset.why, 4000, w); return; }
     const hb = e.target.closest(".ach-h"); if (hb) { achHistWin(hb.dataset.h); return; }
+    if (NV[tab]) { await NV[tab].click(e); return; }
     if (tab === "frs" && await FRSM.click(e)) return;
     if (tab === "bsn" && await BSNM.click(e)) return;
     if (MODS[tab] && await MODS[tab].click(e)) return;
@@ -196,6 +203,7 @@ function sviAchInit() {
     const t = e.target;
     /* case « CRÉER … ICI » : une seule création, même si « change » arrive deux fois (Entrée, puis case retirée) */
     if (t.matches && t.matches(".ach-newin, .ach-pnew, .ach-bnew")) { if (t.__achDone) return; t.__achDone = true; }
+    if (NV[tab]) { NV[tab].change(e); return; }
     if (tab === "frs" && FRSM.change(e)) return;
     if (t.classList.contains("ach-all")) { body.querySelectorAll("tr[data-id]").forEach(tr => { if (t.checked) SEL.add(tr.dataset.id); else SEL.delete(tr.dataset.id); }); draw(); return; }
     if (t.classList.contains("ach-cb")) { const tr = t.closest("tr[data-id]"); if (t.checked) SEL.add(tr.dataset.id); else SEL.delete(tr.dataset.id); draw(); return; }

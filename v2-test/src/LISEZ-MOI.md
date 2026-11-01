@@ -91,5 +91,6 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `44-achats-consultations.js` | CONSULTATIONS (plusieurs fournisseurs, réponses, comparatif, clôture) et DEVIS ; tableau générique des listes d'achats (achListMod), choix multiple (achPickWin) | 260 |
 | `45-achats-commandes.js` | COMMANDES (nature, avance, remise, transport, avenant, solder), RÉCEPTIONS (BL, photo, réserves, refus, tolérance), RETOURS de commande et de réception | 330 |
 | `46-achats-factures.js` | FACTURES (rapprochement, doublon, écart, retenue à la source, avance imputée, échéance, bon à payer), AVOIRS, PAIEMENTS (règlement ou avance, chèque / LCN émis → encaissé ou rejeté) | 300 |
+| `47-achats-liste-page.js` | Listes au format du budget (EN INSTANCE / VALIDÉS, dates, ligne CRÉER → fenêtre) et PAGE d'un élément (DOC / TAF / OBS en un bloc, menu ⋯, tableaux liés) : ARTICLES et FOURNISSEURS | 280 |
 
 Document technique (architecture, données, recettes, tests) : `../DOC-TECHNIQUE.md`.
