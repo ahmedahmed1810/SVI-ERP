@@ -58,7 +58,12 @@ function achRecBlock(code) {
     return false;
   };
   const change = e => { const c = e.target.closest(".rec-done"); if (!c) return false; const L = get("taf"), x = L[+c.dataset.i]; if (x) { x.done = c.checked; achW(K.taf, L); } return true; };
-  return { html, click, change };
+  /* v783 : GÉNÉRER PDF de l'aperçu = classé dans DOCUMENTS de la pièce */
+  const savePdf = async (blob, name) => { const L = get("doc"), n = L.length + 1, k = "ach:doc:" + code + ":" + Date.now().toString(36);
+    try { await sviFiles.put(k, new File([blob], name, { type: "application/pdf" })); } catch (e) {}
+    const x = { ref: "ACH DOC " + code + "/" + String(n).padStart(3, "0"), date: new Date().toISOString(), title: name.replace(/\.pdf$/i, ""), fk: k, fname: name };
+    L.push(x); achW(K.doc, L); achHist(code, "DOCUMENT", x.title); return x.ref; };
+  return { html, click, change, savePdf };
 }
 
 /* ---------- LISTE au format du budget ----------
@@ -166,6 +171,13 @@ function achNvPageHTML(p, rec) {
   </div>`;
 }
 /* module complet liste + page : cfg = { list: options de achNvList (sans page), pageOf(id) → p, back } */
+/* v783 : APERÇU d'une pièce ou d'une fiche — l'éditeur MISE EN PAGE unique (sviMep) ; corps = LIGNES (sinon le premier bloc lié) */
+function achMepOpen(cfg, P, rec, redraw) {
+  const Lg = P.links.find(l => /^LIGNES/.test(l.t)) || P.links[0] || { cols: [], rows: [] };
+  sviMep.open({ key: "ACH-" + String(cfg.list.k || "X").toUpperCase(), title: cfg.list.one, ref: P.ref || P.code, party: P.party || P.title, date: P.date || "", prelim: P.st === "instance",
+    cols: Lg.cols.map((c, i) => ["c" + i, c[0], c[1] || ""]), rows: Lg.rows.map(r => r.cells), tot: P.tot || [], fields: { projet: P.projet || "", ttc: P.ttc ? achF2(P.ttc) + " MAD" : "", numFrs: P.numFrs || "" },
+    name: (P.ref || P.code) + " " + cfg.list.one, save: async (b, n) => { const r = await rec.savePdf(b, n); if (redraw) setTimeout(redraw, 0); return r; } });
+}
 function achNvMod(ctx, cfg) {
   let pid = null, P = null, rec = null;
   const open = id => { pid = id; rec = null; ctx.draw(); };
@@ -188,8 +200,8 @@ function achNvMod(ctx, cfg) {
       if (b.classList.contains("hdr-off")) { svToast(b.dataset.why || "", 3000, b); return true; }
       if (k === "todo") { svToast("⚠ " + P.why.join(" · "), 5000, b); return true; }
       /* v774 : ⋯ principal commun — VALIDER en tête ; actions ; CORBEILLE / RESTAURER et FERMER en bas, séparés par un trait */
-      if (k === "more") { const M = P.menu, top = M.filter(m => m.k === "val"), bot = M.filter(m => m.k === "del" || m.k === "rest").map(m => ({ ...m, del: m.k === "del" })), mid = M.filter(m => !top.includes(m) && !["del", "rest"].includes(m.k));
-        sviHdrMenu(b, [top, mid, [...bot, { k: "__close", lab: "FERMER" }]], async a => { if (a === "__close") { pid = null; ctx.draw(); return; } await P.act(a, () => ctx.draw(), id => open(id)); }); return true; }
+      if (k === "more") { const M = P.menu.concat([{ k: "__apr", lab: "APERÇU" }]), top = M.filter(m => m.k === "val"), bot = M.filter(m => m.k === "del" || m.k === "rest").map(m => ({ ...m, del: m.k === "del" })), mid = M.filter(m => !top.includes(m) && !["del", "rest"].includes(m.k));
+        sviHdrMenu(b, [top, mid, [...bot, { k: "__close", lab: "FERMER" }]], async a => { if (a === "__close") { pid = null; ctx.draw(); return; } if (a === "__apr") { achMepOpen(cfg, P, rec, () => ctx.draw()); return; } await P.act(a, () => ctx.draw(), id => open(id)); }); return true; }
     }
     /* v776 : AGRANDIR / RÉDUIRE un bloc de la page ; ⋯ du bloc (EXPORTER, APERÇU ; SUIVI : CRÉER) */
     const mx = e.target.closest("[data-nvmax]"); if (mx) { const bl = mx.closest(".nvp-blk"); const on = !bl.classList.contains("nvp-max"); bl.classList.toggle("nvp-max", on); mx.classList.toggle("on", on); return true; }
@@ -200,8 +212,8 @@ function achNvMod(ctx, cfg) {
         const ttl = (P.ref || P.code) + " — " + (L ? L.t : "SUIVI");
         if (a === "exp") { const b = new Blob(["\ufeff" + tsv().split("\n").map(l => l.split("\t").map(v => /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v).join(";")).join("\n")], { type: "text/csv;charset=utf-8" });
           const u = URL.createObjectURL(b), an = document.createElement("a"); an.href = u; an.download = ttl.replace(/[\\/:*?"<>|]/g, "-") + ".csv"; document.body.appendChild(an); an.click(); setTimeout(() => { URL.revokeObjectURL(u); an.remove(); }, 1000); }
-        if (a === "apr") { const w = window.open("", "_blank"); if (!w) { svToast("APERÇU BLOQUÉ PAR LE NAVIGATEUR.", 3000); return; }
-          w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(ttl)}</title><style>body{font:12px Arial;margin:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:4px 6px;text-align:left}th{background:#f3f4f6}</style><h3>${esc(ttl)}</h3>${bl.querySelector("table").outerHTML}`); w.document.close(); w.focus(); try { w.print(); } catch (err) {} } });
+        if (a === "apr") { const Lb = L || { t: "SUIVI", cols: [...bl.querySelectorAll("thead th")].map(th => [th.textContent.trim(), ""]), rows: [...bl.querySelectorAll("tbody tr:not(.rec-new)")].map(tr => ({ cells: [...tr.cells].map(c => c.textContent.trim()) })) };   /* v783 : l'aperçu unique (MISE EN PAGE) */
+          sviMep.open({ key: "ACH-BLOC-" + achNvhKey(Lb.t).toUpperCase(), title: Lb.t, ref: P.ref || P.code, party: P.party || P.title, prelim: P.st === "instance", cols: Lb.cols.map((c, i) => ["c" + i, c[0], c[1] || ""]), rows: Lb.rows.map(r => r.cells), name: ttl, save: (b, n) => rec.savePdf(b, n) }); } });
       return true; }
     const na = e.target.closest("[data-nvadd]"); if (na) { const L = P.links.find(x => achNvhKey(x.t) === na.dataset.nvadd); if (L && L.addFn) L.addFn(() => ctx.draw()); else P.info(() => ctx.draw()); return true; }   /* v780 : ligne CRÉER … ICI */
     const l = e.target.closest("[data-nvl]"); if (l) { const [t, i] = l.dataset.nvl.split("|"), L = P.links.find(x => x.t === t), r = L && L.rows[+i]; if (r && r.open) r.open(() => ctx.draw()); return true; }

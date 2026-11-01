@@ -21,7 +21,7 @@ function achListMod(ctx, o) {
       inst: o.inst || (() => false), dI: x => x.cree || x.date || "", dV: x => x.valide || x.val || x.bap || x.solde || x.cree || x.date || "",
       cols: () => o.cols(), newRow: o.newRow, add: done => o.open(null, () => done("x")), kill },
     pageOf: id => { const x = o.list().find(y => y.id === id); if (!x) return null; const D = achDocPage(o.k, x);
-      return { id, code: x.ref, ref: x.ref, title: D.title || x.ref, st: (o.inst || (() => false))(x) ? "instance" : "valide", del: dead(x), why: o.why(x, o.list()),
+      return { id, code: x.ref, ref: x.ref, title: D.title || x.ref, party: x.frs ? achFrsNom(x.frs) : "", date: achDFr(x.date || x.dFac || x.cree), tot: D.tot || [], ttc: D.ttc || 0, numFrs: x.refFrs || x.num || x.nbl || "", st: (o.inst || (() => false))(x) ? "instance" : "valide", del: dead(x), why: o.why(x, o.list()),
         info: done => o.open(id, () => done()),
         menu: [{ k: "fiche", lab: "OUVRIR LA FICHE" }].concat(D.menu || []).concat(kill && !dead(x) ? [{ k: "del", lab: "ANNULER" }] : []),
         act: async (k, redraw) => { if (k === "fiche") { o.open(id, redraw); return; } if (D.act && await D.act(k, redraw)) return; if (k === "del") { const y = o.list().find(z => z.id === id); if (y && await kill(y)) redraw(); } },
@@ -55,12 +55,13 @@ function achDocPage(k, x) {
         const m = achCmfFrom({ frs: v.frs, caf: x.id, dvf: v.id, lignes: v.lignes, why: "DEPUIS " + x.ref + " — " + v.ref }); achGo("cmf", m.id); return true; },
       links: [lig("LIGNES"), { t: "FOURNISSEURS CONSULTÉS", add: "AJOUTER UN FOURNISSEUR ICI…", cols: [["FOURNISSEUR"], ["RÉPONSE", "center"], ["DEVIS"]], rows: (x.frs || []).map(f => ({ cells: [fr(f), (R[f] || {}).st === "repondu" ? "RÉPONDU" : (R[f] || {}).st === "decline" ? "DÉCLINÉ" : "EN ATTENTE", ref(achDvf(), (R[f] || {}).dvf)] })) },
       CMP, DV("DEVIS", achDvf().filter(v => v.caf === x.id)), CM("COMMANDES", achCmf().filter(c => c.caf === x.id))] }; }
-  if (k === "dvf") return { title: fr(x.frs), links: [lig("LIGNES", true), CA("CONSULTATION", achCaf().filter(c => c.id === x.caf)), CM("COMMANDES", achCmf().filter(c => c.dvf === x.id || (c.lignes || []).some(l => l.dvf === x.id)))] };
-  if (k === "cmf") return { title: fr(x.frs), links: [lig("LIGNES", true), DV("DEVIS", achDvf().filter(v => v.id === x.dvf || (x.lignes || []).some(l => l.dvf === v.id))), { ...RC("RÉCEPTIONS", achRcp().filter(r => r.cmf === x.id)), add: "CRÉER UNE RÉCEPTION ICI…", addAny: x.state === "valide" },
+  const TOT = t => [["MONTANT HT", t.ht], ["MONTANT TVA", t.ttc - t.ht], ["MONTANT TTC", t.ttc]];
+  if (k === "dvf") return { title: fr(x.frs), tot: TOT(achDvfTot(x)), ttc: achDvfTot(x).ttc, links: [lig("LIGNES", true), CA("CONSULTATION", achCaf().filter(c => c.id === x.caf)), CM("COMMANDES", achCmf().filter(c => c.dvf === x.id || (c.lignes || []).some(l => l.dvf === x.id)))] };
+  if (k === "cmf") return { title: fr(x.frs), tot: TOT(achCmfTot(x)), ttc: achCmfTot(x).ttc, links: [lig("LIGNES", true), DV("DEVIS", achDvf().filter(v => v.id === x.dvf || (x.lignes || []).some(l => l.dvf === v.id))), { ...RC("RÉCEPTIONS", achRcp().filter(r => r.cmf === x.id)), add: "CRÉER UNE RÉCEPTION ICI…", addAny: x.state === "valide" },
     { ...FA("FACTURES", achFaf().filter(f => f.cmf === x.id || has(f.cmfs, x.id))), add: "CRÉER UNE FACTURE ICI…", addAny: x.state === "valide" }, { ...PA("PAIEMENTS", achPaf().filter(p => p.cmf === x.id)), add: "CRÉER UN PAIEMENT (AVANCE) ICI…", addAny: x.state === "valide" }] };
   if (k === "rcp") return { title: fr(x.frs), links: [lig("LIGNES", false, true), CM("COMMANDE", achCmf().filter(c => c.id === x.cmf)), FA("FACTURES", achFaf().filter(f => has(f.rcps, x.id)))] };
   if (k === "rtrcmd" || k === "rtrrcp") return { title: fr(x.frs), links: [lig("LIGNES"), CM("COMMANDE", achCmf().filter(c => c.id === x.cmf)), RC("RÉCEPTION", achRcp().filter(r => r.id === x.rcp))] };
-  if (k === "faf") return { title: fr(x.frs), links: [lig("LIGNES", true), CM("COMMANDES", achCmf().filter(c => c.id === x.cmf || has(x.cmfs, c.id))), RC("RÉCEPTIONS", achRcp().filter(r => has(x.rcps, r.id))),
+  if (k === "faf") return { title: fr(x.frs), tot: TOT(achFafTot(x)), ttc: achFafTot(x).ttc, links: [lig("LIGNES", true), CM("COMMANDES", achCmf().filter(c => c.id === x.cmf || has(x.cmfs, c.id))), RC("RÉCEPTIONS", achRcp().filter(r => has(x.rcps, r.id))),
     PA("PAIEMENTS", achPaf().filter(p => (p.aff || []).some(a => a.fa === x.id))), AV("AVOIRS", achAvf().filter(a => a.fa === x.id))] };
   if (k === "avf") return { title: fr(x.frs), links: [FA("FACTURE", achFaf().filter(f => f.id === x.fa))] };
   if (k === "paf") return { title: fr(x.frs), links: [FA("FACTURES RÉGLÉES", achFaf().filter(f => (x.aff || []).some(a => a.fa === f.id))), CM("COMMANDE (AVANCE)", achCmf().filter(c => c.id === x.cmf))] };

@@ -19640,7 +19640,11 @@ ${A}</Assignments>
     /* aperçu au modèle de la société (désignations client, tâches…) */
     /* FORMAT 106 : essai à blanc d'un aperçu (PM_DRY) — sert à griser APERÇU PDF si ce contenu est déjà classé */
     let PM_DRY = null;
-    const printModel = cfg => {
+    const printModel = cfg0 => {
+      /* v783 : PORTRAIT / PAYSAGE choisi dans l'aperçu, gardé pour ce type de document */
+      const ORK = "svi_pm_orient_v1", orAll = (() => { try { return JSON.parse(localStorage.getItem(ORK) || "{}") || {}; } catch (e) { return {}; } })();
+      const cfg = orAll[cfg0.fileTag] === undefined ? cfg0 : { ...cfg0, portrait: orAll[cfg0.fileTag] };
+      window.__sviPmOrient = (portrait, win) => { orAll[cfg0.fileTag] = !!portrait; try { localStorage.setItem(ORK, JSON.stringify(orAll)); } catch (e) {} try { win && win.close(); } catch (e) {} setTimeout(() => printModel(cfg0), 50); };
       /* empreinte du contenu : même bloc, mêmes données → même document */
       const fp = (() => {
         const str = cfg.docTitle + "|" + cfg.table + "|" + cfg.end +
@@ -19824,9 +19828,13 @@ ${A}</Assignments>
   .page > .head, .page > .content, .page > .foot { position: relative; z-index: 1; }
   body.portrait .head .date { right: 12mm; }
   body.portrait .head .t { padding-left: 30mm; padding-right: 30mm; }
+  .orw { display: flex; gap: 6px; margin: 4px 0 10px; } .orb { flex: 1; height: 34px; border: 1px solid #d0d5dd; border-radius: 8px; background: #fff; font-weight: 800; font-size: 12px; cursor: pointer; }
+  .orb.on { border-color: #2050d8; color: #2050d8; background: #eef3ff; }
 </style></head><body class="${cfg.portrait ? "portrait" : ""}">
 <aside id="side">
   <h2>MISE EN PAGE</h2>
+  <div class="sub">ORIENTATION</div>
+  <div class="orw"><button type="button" class="orb${cfg.portrait ? " on" : ""}" onclick="opener && opener.__sviPmOrient && opener.__sviPmOrient(true, window)">PORTRAIT</button><button type="button" class="orb${cfg.portrait ? "" : " on"}" onclick="opener && opener.__sviPmOrient && opener.__sviPmOrient(false, window)">PAYSAGE</button></div>
   <div class="sub">CHOISISSEZ LES PARTIES À INCLURE AVANT LA GÉNÉRATION.</div>
   <label class="ck"><input type="checkbox" id="oHead"> ENTÊTE</label>
   <label class="ck"><input type="checkbox" id="oFoot"> PIED DE PAGE</label>
