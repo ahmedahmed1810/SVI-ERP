@@ -127,13 +127,34 @@ def main():
             const before = JSON.stringify(I.dlp);
             document.getElementById('bdgMore')?.click(); await w(300); const inMenu = !!document.querySelector('#blkMenu [data-a="cmp"]');
             document.querySelector('#blkMenu [data-a="cmp"]')?.click(); await w(300);
-            const sb = document.querySelector('[data-cs=b]'), sa = document.querySelector('[data-cs=a]'); if (!sb) return ['pas de fenêtre', inMenu];
-            sb.value = sa.value; sb.dispatchEvent(new Event('change', { bubbles: true })); const same = document.querySelector('[data-cmpgo]').disabled;
-            sa.value = 'v:vx'; sb.value = 'cur'; sb.dispatchEvent(new Event('change', { bubbles: true })); document.querySelector('[data-cmpgo]').click(); await w(500);
+            /* v757 : COMPARER unique — l'état actuel coché d'avance ; un seul élément = COMPARER grisé ; deux = COMPARER EN DÉTAIL */
+            const pk = document.getElementById('svConf'); if (!pk || !pk.querySelector('[data-cv]')) return ['pas de fenêtre', inMenu];
+            const same = pk.querySelector('[data-cmpgo]').disabled;
+            const cv = pk.querySelector('[data-cv="v:vx"]'); cv.checked = true; cv.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
+            pk.querySelector('[data-cmpdet]').click(); await w(500);
             const d = document.getElementById('svConf'), ecart = d && d.querySelector('.cmp-plan tbody tr td:last-child') ? d.querySelector('.cmp-plan tbody tr td:last-child').textContent : '';
             const r = [inMenu, same, d ? d.querySelectorAll('.i1-p').length : 0, ecart, d ? d.querySelectorAll('.cmp-g1').length : 0, d ? d.querySelectorAll('polyline').length : 0, JSON.stringify(I.dlp) === before];
             d && d.remove(); const K = JSON.parse(keep); if (K.dlp) I.dlp = K.dlp; else delete I.dlp; if (K.vfz) I.vfz = K.vfz; else delete I.vfz; X.insSave(); X.refreshAll(); return r; }""".replace("INS_X", ins))
-        check("v729 : COMPARATIF — menu ⋯, deux états identiques = COMPARER grisé ; quatre parties, écart de fin −4 J, barres grises de l'état 1, deux courbes ; rien modifié", c729 == [True, True, 4, "-4", 1, 2, True], c729)
+        check("v729 / v757 : COMPARER (menu ⋯) — un seul élément = grisé ; deux = COMPARER EN DÉTAIL : quatre parties, écart de fin +4 J, barres grises de l'état 1, deux courbes ; rien modifié", c729 == [True, True, 4, "+4", 1, 2, True], c729)
+        # v756 / v757 : bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES (un seul bloc, boutons qui suivent l'onglet, menu ⋯ :
+        # COMPARER, CRÉER, APERÇU, EXPORTER) ; onglet AVENANTS (budget initial) ; COMPARER côte à côte de plusieurs éléments
+        e756 = pg.evaluate("""async () => { const X = INS_X, I = X.INS, w = ms => new Promise(z => setTimeout(z, ms)), sh = [...document.querySelectorAll('*')].find(e => e.__ins);
+            const keep = JSON.stringify({ vfz: I.vfz || null }), keepT = localStorage.getItem('svi_etp_tab_v1');
+            const B = document.querySelector('.blk-etp'); if (!B) return 'pas de bloc';
+            const r = [!B.hidden, [...B.querySelectorAll('[data-etab]')].map(b => b.dataset.etab).join(','), !document.querySelector('.bdg-d-page > .blk-scn, .bdg-d-page > .blk-ver, .bdg-d-page > .blk-rcl')];
+            B.querySelector('[data-etab="ver"]').click(); await w(50);
+            r.push(B.querySelector('.etp-pane[data-pane="ver"]').classList.contains('on'), [...B.querySelectorAll('.blk-tools .blk-btn[data-etp]')].every(b => b.dataset.blk === 'ver'));
+            B.querySelector('[data-etab="av"]').click(); await w(50);
+            r.push([...document.querySelectorAll('#avTable tbody tr[data-avr]')].map(t => t.cells[0].textContent.trim()).join(','));
+            B.querySelector('.blk-more')?.click(); await w(150); r.push([...document.querySelectorAll('#blkMenu button span')].map(x => x.textContent.trim()).join('|')); document.getElementById('blkMenu')?.remove();
+            const v = JSON.parse(JSON.stringify(I)); delete v.vfz; delete v.ver; (v.des.find(x => !x.t) || {}).q = 999; I.vfz = [{ id: 'vx', n: 1, kind: 'MANUELLE', date: '30/10/2026', d: v }];
+            sh.__cmpMulti(''); await w(150); const pk = document.getElementById('svConf'); const cv = pk.querySelector('[data-cv="v:vx"]'); cv.checked = true; cv.dispatchEvent(new Event('change', { bubbles: true })); await w(50);
+            pk.querySelector('[data-cmpgo]').click(); await w(300); const cw = document.querySelector('.cmpm-card');
+            r.push(cw ? [cw.querySelectorAll('thead th').length, cw.querySelectorAll('tbody tr').length, !!cw.querySelector('.cmpm-ec')] : 'pas de tableau');
+            document.getElementById('svConf')?.remove();
+            const K = JSON.parse(keep); if (K.vfz) I.vfz = K.vfz; else delete I.vfz; if (keepT === null) localStorage.removeItem('svi_etp_tab_v1'); else localStorage.setItem('svi_etp_tab_v1', keepT); X.refreshAll(); return r; }""".replace("INS_X", ins))
+        check("v756 / v757 : un seul bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES, boutons de l'onglet ouvert, menu ⋯ (COMPARER, CRÉER, APERÇU, EXPORTER), onglet AVENANTS ; COMPARER côte à côte avec écarts",
+              e756[:5] == [True, "av,scn,ver,rcl", True, True, True] and e756[5] == "BUDGET INITIAL" and all(x in e756[6] for x in ["COMPARER", "CRÉER UN AVENANT", "APERÇU", "EXPORTER"]) and e756[7] == [3, 13, True], e756)
         # v728 (bloc 9.2) : chute = barres achetées − longueur utile (méthode A), répartie au prorata des QCB du titre ; exemple du 30/10/2026
         t728 = pg.evaluate("""() => { const I = { chg: [{ id: 'a', des: 'ACIER HA12', u: 'KG', q: 60 }, { id: 'b', des: 'ACIER HA12', u: 'KG', q: 40 }],
             prd: [{ id: 'p1', d1: 4.5, nbr: 10 }, { id: 'p2', d1: 2.8, nbr: 6 }, { id: 'p3', d1: 1.2, nbr: 8 }],
@@ -2657,7 +2678,7 @@ def main():
             const r = [top.join(','), sub.join(','), open, still, stay, document.getElementById('ach').classList.contains('active-view'), document.querySelector('#ach .section-head h1').textContent];
             M.querySelector('.nav-grp').click(); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); M.classList.add('hidden'); await w(600); return r; }""")
         check("v751 / v752 : menu ☰ — ordre BDG, ACHAT, BESOIN, PARAMÉTRAGE ; ACHAT dépliable (CONSULTATIONS, DEVIS, COMMANDES, RÉCEPTIONS, FACTURES, PAIEMENTS, FOURNISSEURS, ARTICLES, ACC), BESOIN dessous ; entrées à venir grisées ; ARTICLES ouvre les achats",
-              m751 == ["BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "CONSULTATIONS,DEVIS,COMMANDES,RÉCEPTIONS,FACTURES,PAIEMENTS,FOURNISSEURS,ARTICLES,ACC", True, True, True, True, "ACHATS — ARTICLES"], m751)
+              m751 == ["BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RETOURS DE COMMANDE,RÉCEPTIONS,RETOURS DE RÉCEPTION,FACTURES,AVOIRS,PAIEMENTS,FOURNISSEURS,ARTICLES,ACC", True, True, True, True, "ACHATS — ARTICLES"], m751)
         # v752 : icône devant chaque entrée du menu ; liste des budgets en gras ; lignes du dessous décalées ; corbeille de la couleur de sa ligne
         k752 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const M = document.getElementById('navMenu');
             const ic = [...M.querySelectorAll('.nav-btn, .nav-grp, .nav-off, .nav-src')].every(b => !!b.querySelector('svg.nav-ic'));

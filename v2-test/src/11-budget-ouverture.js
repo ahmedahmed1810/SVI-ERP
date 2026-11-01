@@ -485,41 +485,27 @@
 
         <div class="bdg-d-block bdg-d-tabbody" id="bdgTabBody"></div>
 
-        <div class="bdg-d-block blk-rec blk-scn" data-rec="scn" hidden>
+        <!-- v756 : un seul bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES (ancien « scénario et version ») -->
+        <div class="bdg-d-block blk-rec blk-etp" data-rec="etp" hidden>
           <div class="bdg-d-block-title blk-head">
-            <span class="ttl" id="scnTitle">${SVI_ICON.scn}SCÉNARIOS</span>
+            <span class="rec-tabs etp-tabs">
+              <button type="button" class="rec-tab" data-etab="av" id="avTitle">AVENANTS</button>
+              <button type="button" class="rec-tab" data-etab="scn" id="scnTitle">${SVI_ICON.scn}SCÉNARIOS</button>
+              <button type="button" class="rec-tab" data-etab="ver" id="verTitle">${SVI_ICON.ver}VERSIONS</button>
+              <button type="button" class="rec-tab" data-etab="rcl" id="rclTitle">${SVI_ICON.rcl}RECALAGES</button>
+            </span>
             <span class="blk-tools">
-              <button type="button" class="blk-btn" data-blk="scn" data-act="view" title="Comparer les scénarios"></button>
-              <button type="button" class="blk-btn" data-blk="scn" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-              <button type="button" class="blk-btn" data-blk="scn" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-              <button type="button" class="blk-btn blk-max-btn" data-blk="scn" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="cmp" title="COMPARER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3v10M6.5 3v10M10.5 3v10M14 3v10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="new" title="CRÉER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="pdf" title="APERÇU"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="export" title="EXPORTER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn blk-max-btn" data-blk="etp" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
           </div>
-          <div class="rec-scroll scn-scroll"><table class="bdg-d-table rec-table scn-table" id="scnTable"></table></div>
-        </div>
-
-        <div class="bdg-d-block blk-rec blk-ver" data-rec="ver" hidden>
-          <div class="bdg-d-block-title blk-head">
-            <span class="ttl" id="verTitle">${SVI_ICON.ver}VERSIONS</span>
-            <span class="blk-tools">
-              <button type="button" class="blk-btn" data-blk="ver" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-              <button type="button" class="blk-btn" data-blk="ver" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-              <button type="button" class="blk-btn blk-max-btn" data-blk="ver" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-            </span>
-          </div>
-          <div class="rec-scroll ver-scroll"><table class="bdg-d-table rec-table ver-table" id="verTable"></table></div>
-        </div>
-
-        <div class="bdg-d-block blk-rec blk-rcl" data-rec="rcl" hidden>
-          <div class="bdg-d-block-title blk-head">
-            <span class="ttl" id="rclTitle">${SVI_ICON.rcl}RECALAGES</span>
-            <span class="blk-tools">
-              <button type="button" class="blk-btn" data-blk="rcl" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-              <button type="button" class="blk-btn" data-blk="rcl" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-              <button type="button" class="blk-btn blk-max-btn" data-blk="rcl" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-            </span>
-          </div>
-          <div class="rec-scroll rcl-scroll"><table class="bdg-d-table rec-table rcl-table" id="rclTable"></table></div>
+          <div class="etp-pane blk-av" data-pane="av"><div class="rec-scroll av-scroll"><table class="bdg-d-table rec-table av-table" id="avTable"></table></div><div class="etp-empty">AUCUN AVENANT</div></div>
+          <div class="etp-pane blk-scn" data-pane="scn"><div class="rec-scroll scn-scroll"><table class="bdg-d-table rec-table scn-table" id="scnTable"></table></div><div class="etp-empty">AUCUN SCÉNARIO</div></div>
+          <div class="etp-pane blk-ver" data-pane="ver"><div class="rec-scroll ver-scroll"><table class="bdg-d-table rec-table ver-table" id="verTable"></table></div><div class="etp-empty">AUCUNE VERSION — MENU ⋯ › CRÉER (PRENDRE UNE VERSION)</div></div>
+          <div class="etp-pane blk-rcl" data-pane="rcl"><div class="rec-scroll rcl-scroll"><table class="bdg-d-table rec-table rcl-table" id="rclTable"></table></div><div class="etp-empty">AUCUN RECALAGE — MENU ⋯ › CRÉER (ÉTAPE VALIDÉE)</div></div>
         </div>
 
         <div class="bdg-d-block blk-rec blk-suivi" data-rec="suivi">

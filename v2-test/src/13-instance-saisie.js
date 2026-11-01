@@ -41,7 +41,7 @@
         if (!window.__sviRO) return;
         const t = e.target; if (!t || !t.closest) return;
         const pg = t.closest(".bdg-d-page"); if (!pg) return;
-        if (t.closest(".cf-btn, .col-rs, [data-tab], .blk-max-btn, .blk-more, .blk-grip, .blk-rsz, .ibd-board, .blk-scn, .blk-ver, .blk-rcl, .blk-suivi")) return;
+        if (t.closest(".cf-btn, .col-rs, [data-tab], .blk-max-btn, .blk-more, .blk-grip, .blk-rsz, .ibd-board, .blk-scn, .blk-ver, .blk-rcl, .blk-etp, .blk-suivi")) return;
         const stop = say => { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); if (say) roSay(); };
         if (e.type === "focusin") { if (t.matches("input:not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable]")) { try { t.blur(); } catch (er) {} roSay(); } return; }
         if (e.type === "beforeinput" || e.type === "paste" || e.type === "drop" || e.type === "dragstart") return stop(true);

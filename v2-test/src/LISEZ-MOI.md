@@ -71,6 +71,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `22l-indicateur-onglet.js` | onglet INDICATEURS (quatre parties, ESSAI) | 121 |
 | `22m-comparatif.js` | COMPARATIF | 151 |
 | `22n-bibliotheque.js` | bibliothèque de prix dans le budget, bandeau du CUMUL | 59 |
+| `22o-etapes-onglets.js` | bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES (onglet AVENANTS, boutons de l'onglet ouvert, ouverture depuis la liste = scénario retenu) | 130 |
 | `23-apercus-impression.js` | aperçus PDF, impression | 1188 |
 | `24-doc-historique-fenetres.js` | DOCUMENTS, TAF, OBSERVATIONS, historique | 466 |
 | `25-inf.js` | fenêtre INF | 613 |

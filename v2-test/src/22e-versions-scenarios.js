@@ -176,6 +176,7 @@
     let verShown = [];
     shell.__verData = () => { const oc = coOrder("vver", VER_COLS); return { head: oc.map(c => c[1]), rows: verShown.map(x => oc.map(c => c[2](x) + (c[0] === "vno" && x.auto ? " (A)" : ""))) }; };
     const verRender = () => {
+      shell.__etpLater && shell.__etpLater();   /* v756 : onglets du bloc AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES remis à jour */
       const blk = shell.querySelector(".blk-ver"), t = $("verTable");
       if (!blk || !t) return;
       const VF = INS && budget.inst && !budget.inst.virtual ? (INS.vfz || []) : [];
@@ -335,6 +336,7 @@
         : '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
     };
     const scnRender = () => {
+      shell.__etpLater && shell.__etpLater();   /* v756 : onglets du bloc AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES remis à jour */
       scnPill();
       try { if (INS && shell.__tagPaint) shell.__tagPaint(INS.ver); } catch (e) {}   /* v706 : numéro du scénario en haut */
       try { verRender(); } catch (e) {}
@@ -405,6 +407,7 @@
         if (was !== archOf()) { reopen(); return; }
         refreshAll(); svToast(x.nom + " : SCÉNARIO ACTIF.", 2500);
       };
+      shell.__scnSwap = swap;   /* v756 : ouverture depuis la liste = le budget lui-même (scénario retenu) */
       const rename = el => {
         const V = V$(), x = V.L.find(y => y.id === el.dataset.nm); if (!x || x.arch) return;
         el.outerHTML = `<input class="cmp-nm scn-nm-in" data-id="${x.id}" value="${esc(x.nom)}">`;

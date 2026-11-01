@@ -3219,3 +3219,25 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 #sviEtatMenu button b { width: 12px; flex: none; }
 #sviEtatMenu button span { flex: 1; }
 .ach-tools .ach-etat { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ===== v756 : bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES ===== */
+.blk-etp .etp-pane { display: none; }
+.blk-etp .etp-pane.on { display: block; }
+.blk-etp .etp-pane[hidden] .rec-scroll { display: none; }
+.blk-etp .etp-pane .etp-empty { display: none; padding: 14px 12px; color: #6b7480; font-size: 12px; font-weight: 700; }
+.blk-etp .etp-pane[hidden] .etp-empty { display: block; }
+.blk-etp .etp-tabs .rec-tab.off { color: #b8c0cc; cursor: not-allowed; }
+.blk-etp .av-row { cursor: pointer; }
+.blk-etp .av-row.st-instance td { color: var(--st-instance, #b91c1c); }
+.blk-etp .av-row.st-fige td { color: var(--st-fige, #15803d); }
+.blk-etp .av-row.st-valide td { color: var(--st-valide, #172033); }
+.blk-etp .av-row.st-expire td { color: var(--st-expire, #b45309); }
+/* v757 : COMPARER — choix libre des éléments, puis côte à côte */
+.cmpm-pick .cmpm-list { max-height: 56vh; overflow: auto; margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+.cmpm-pick .cmpm-g { margin-top: 8px; font-size: 11px; font-weight: 900; color: #6b7480; letter-spacing: .03em; }
+.cmpm-pick .cmpm-it { display: flex; align-items: center; gap: 8px; padding: 6px 4px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.cmpm-card .cmpm-scroll { max-height: 64vh; overflow: auto; margin-top: 8px; }
+.cmpm-card .cmpm-t th { position: sticky; top: 0; background: #f3f4f6; white-space: nowrap; }
+.cmpm-card .cmpm-t td.cmpm-ind { font-weight: 800; white-space: nowrap; }
+.cmpm-card .cmpm-ec { display: block; font-size: 10px; font-weight: 800; color: #6b7480; }
+.cmpm-card .cmpm-ec.cmp-neg { color: #b91c1c; } .cmpm-card .cmpm-ec.cmp-pos { color: #15803d; }

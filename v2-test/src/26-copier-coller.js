@@ -333,6 +333,8 @@
         return;
       }
       if (act === "max") return toggleMax(blk);
+      /* v756 : bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES — COMPARER et CRÉER (propre à l'onglet) */
+      if ((act === "new" || act === "cmp") && shell.__etpAct) return shell.__etpAct(blk, act);
       if (act === "view") { if (shell.__scnView) shell.__scnView(); return; }   /* v686 : bloc SCÉNARIOS, LISTE ⇄ COMPARAISON */
       /* v546 (R33) : ↻ AJUSTER À LA CAPACITÉ (DÉTAIL DÉLAIS) */
       /* v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE, en haut à côté de ↻, AGRANDIR et ⋯ */

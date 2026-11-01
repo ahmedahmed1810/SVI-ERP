@@ -492,6 +492,7 @@
         if (sviAvSelGet(r0) || !groups.has(g)) { sviAvSelSet(r0, null); sviAvOpen(g); } else openBudgetDetail(g);
         return;
       }
+      window.__sviFromList = row.dataset.budgetRef;   /* v756 : depuis la liste, le budget lui-même (scénario retenu) */
       openBudgetDetail(
         row.dataset.budgetRef
       );

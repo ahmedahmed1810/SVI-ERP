@@ -62,6 +62,7 @@
     let rclShown = [];
     shell.__rclData = () => { const oc = coOrder("vrcl", RCL_COLS); return { head: oc.map(c => c[1]), rows: rclShown.map(x => oc.map(c => c[2](x))) }; };
     const rclRender = () => {
+      shell.__etpLater && shell.__etpLater();   /* v756 : onglets du bloc AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES remis à jour */
       const blk = shell.querySelector(".blk-rcl"), t = $("rclTable");
       if (!blk || !t) return;
       const stg = RCL_OF || (budget.inst && !budget.inst.virtual ? budget.inst.ref : "");

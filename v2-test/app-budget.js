@@ -2690,41 +2690,27 @@ function renderBudgetList() {
 
         <div class="bdg-d-block bdg-d-tabbody" id="bdgTabBody"></div>
 
-        <div class="bdg-d-block blk-rec blk-scn" data-rec="scn" hidden>
+        <!-- v756 : un seul bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES (ancien « scénario et version ») -->
+        <div class="bdg-d-block blk-rec blk-etp" data-rec="etp" hidden>
           <div class="bdg-d-block-title blk-head">
-            <span class="ttl" id="scnTitle">${SVI_ICON.scn}SCÉNARIOS</span>
+            <span class="rec-tabs etp-tabs">
+              <button type="button" class="rec-tab" data-etab="av" id="avTitle">AVENANTS</button>
+              <button type="button" class="rec-tab" data-etab="scn" id="scnTitle">${SVI_ICON.scn}SCÉNARIOS</button>
+              <button type="button" class="rec-tab" data-etab="ver" id="verTitle">${SVI_ICON.ver}VERSIONS</button>
+              <button type="button" class="rec-tab" data-etab="rcl" id="rclTitle">${SVI_ICON.rcl}RECALAGES</button>
+            </span>
             <span class="blk-tools">
-              <button type="button" class="blk-btn" data-blk="scn" data-act="view" title="Comparer les scénarios"></button>
-              <button type="button" class="blk-btn" data-blk="scn" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-              <button type="button" class="blk-btn" data-blk="scn" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-              <button type="button" class="blk-btn blk-max-btn" data-blk="scn" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="cmp" title="COMPARER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3v10M6.5 3v10M10.5 3v10M14 3v10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="new" title="CRÉER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="pdf" title="APERÇU"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="export" title="EXPORTER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button type="button" class="blk-btn blk-max-btn" data-blk="etp" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </span>
           </div>
-          <div class="rec-scroll scn-scroll"><table class="bdg-d-table rec-table scn-table" id="scnTable"></table></div>
-        </div>
-
-        <div class="bdg-d-block blk-rec blk-ver" data-rec="ver" hidden>
-          <div class="bdg-d-block-title blk-head">
-            <span class="ttl" id="verTitle">${SVI_ICON.ver}VERSIONS</span>
-            <span class="blk-tools">
-              <button type="button" class="blk-btn" data-blk="ver" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-              <button type="button" class="blk-btn" data-blk="ver" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-              <button type="button" class="blk-btn blk-max-btn" data-blk="ver" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-            </span>
-          </div>
-          <div class="rec-scroll ver-scroll"><table class="bdg-d-table rec-table ver-table" id="verTable"></table></div>
-        </div>
-
-        <div class="bdg-d-block blk-rec blk-rcl" data-rec="rcl" hidden>
-          <div class="bdg-d-block-title blk-head">
-            <span class="ttl" id="rclTitle">${SVI_ICON.rcl}RECALAGES</span>
-            <span class="blk-tools">
-              <button type="button" class="blk-btn" data-blk="rcl" data-act="export" title="Exporter"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-              <button type="button" class="blk-btn" data-blk="rcl" data-act="pdf" title="Aperçu PDF"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-              <button type="button" class="blk-btn blk-max-btn" data-blk="rcl" data-act="max" title="Agrandir / réduire"><svg class="ic-max" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.5v-4h4M2.5 2.5l4.5 4.5M13.5 9.5v4h-4M13.5 13.5 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-min" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M7 3v4H3M7 7 2.5 2.5M9 13V9h4M9 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-            </span>
-          </div>
-          <div class="rec-scroll rcl-scroll"><table class="bdg-d-table rec-table rcl-table" id="rclTable"></table></div>
+          <div class="etp-pane blk-av" data-pane="av"><div class="rec-scroll av-scroll"><table class="bdg-d-table rec-table av-table" id="avTable"></table></div><div class="etp-empty">AUCUN AVENANT</div></div>
+          <div class="etp-pane blk-scn" data-pane="scn"><div class="rec-scroll scn-scroll"><table class="bdg-d-table rec-table scn-table" id="scnTable"></table></div><div class="etp-empty">AUCUN SCÉNARIO</div></div>
+          <div class="etp-pane blk-ver" data-pane="ver"><div class="rec-scroll ver-scroll"><table class="bdg-d-table rec-table ver-table" id="verTable"></table></div><div class="etp-empty">AUCUNE VERSION — MENU ⋯ › CRÉER (PRENDRE UNE VERSION)</div></div>
+          <div class="etp-pane blk-rcl" data-pane="rcl"><div class="rec-scroll rcl-scroll"><table class="bdg-d-table rec-table rcl-table" id="rclTable"></table></div><div class="etp-empty">AUCUN RECALAGE — MENU ⋯ › CRÉER (ÉTAPE VALIDÉE)</div></div>
         </div>
 
         <div class="bdg-d-block blk-rec blk-suivi" data-rec="suivi">
@@ -2833,7 +2819,7 @@ function renderBudgetList() {
         if (!window.__sviRO) return;
         const t = e.target; if (!t || !t.closest) return;
         const pg = t.closest(".bdg-d-page"); if (!pg) return;
-        if (t.closest(".cf-btn, .col-rs, [data-tab], .blk-max-btn, .blk-more, .blk-grip, .blk-rsz, .ibd-board, .blk-scn, .blk-ver, .blk-rcl, .blk-suivi")) return;
+        if (t.closest(".cf-btn, .col-rs, [data-tab], .blk-max-btn, .blk-more, .blk-grip, .blk-rsz, .ibd-board, .blk-scn, .blk-ver, .blk-rcl, .blk-etp, .blk-suivi")) return;
         const stop = say => { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); if (say) roSay(); };
         if (e.type === "focusin") { if (t.matches("input:not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable]")) { try { t.blur(); } catch (er) {} roSay(); } return; }
         if (e.type === "beforeinput" || e.type === "paste" || e.type === "drop" || e.type === "dragstart") return stop(true);
@@ -12466,19 +12452,19 @@ ${A}</Assignments>
       }
     };
 
-    const LAY_UNITS = ["client", "hier", "detail", "scn", "ver", "rcl", "suivi"];   /* v685 : bloc SCÉNARIOS entre le détail et le suivi */
+    const LAY_UNITS = ["client", "hier", "detail", "etp", "suivi"];   /* v756 : SCÉNARIOS, VERSIONS, RECALAGES (et AVENANTS) = un seul bloc à onglets */   /* v685 : bloc SCÉNARIOS entre le détail et le suivi */
     const page$ = () => shell.querySelector(".bdg-d-page");
     const layEls = u => {
       const pg = page$();
       if (u === "detail") return [$("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
-      const sel = { client: ".blk-client", hier: ".blk-hier", scn: ".blk-scn", ver: ".blk-ver", rcl: ".blk-rcl", suivi: ".blk-suivi" }[u];
+      const sel = { client: ".blk-client", hier: ".blk-hier", etp: ".blk-etp", suivi: ".blk-suivi" }[u];
       return [pg.querySelector(":scope > " + sel)].filter(Boolean);
     };
     const layMeasure = u => {
       const sel = {
         client: ".bdg-d-client-scroll", hier: ".bdg-h-col",
         detail: "#bdgTabBody .bdg-d-scroll",
-        suivi: ".blk-suivi .rec-scroll:not([hidden])", scn: ".blk-scn .rec-scroll", ver: ".blk-ver .rec-scroll", rcl: ".blk-rcl .rec-scroll"
+        suivi: ".blk-suivi .rec-scroll:not([hidden])", etp: ".blk-etp .etp-pane.on .rec-scroll"
       }[u];
       const el = page$().querySelector(sel);
       return el ? el.getBoundingClientRect().height : 150;
@@ -13363,7 +13349,7 @@ ${A}</Assignments>
     /* ===== export / import / aperçu PDF par bloc ===== */
     const lastShown = { client: null, detail: null, hier: {} };
     const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL",
-                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD", scn: "SCENARIOS", ver: "VERSIONS", rcl: "RECALAGES" };
+                      doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD", scn: "SCENARIOS", ver: "VERSIONS", rcl: "RECALAGES", av: "AVENANTS" };
     const REC_KINDS = ["doc", "taf", "obs"];
 
     const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
@@ -13398,6 +13384,7 @@ ${A}</Assignments>
       if (blk === "scn" && shell.__scnData) return shell.__scnData();   /* v685 */
       if (blk === "ver" && shell.__verData) return shell.__verData();
       if (blk === "rcl" && shell.__rclData) return shell.__rclData();
+      if (blk === "av" && shell.__avData) return shell.__avData();   /* v756 : onglet AVENANTS */
       if (blk === "metre") return metreData();
       if (blk === "interne") return interneData();
       if (blk === "hier") {
@@ -15426,7 +15413,7 @@ ${A}</Assignments>
             out.push({ a: "arch", lab: root.arch ? "RAPPELER LE BUDGET (ARCHIVÉ)" : "ARCHIVER LE BUDGET", ic: ic('<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/>') }); }
           return out; })(),
         /* v729 (bloc 10) : COMPARATIF — deux états quelconques du budget, lecture seule */
-        ...(INS ? [{ a: "cmp", lab: "COMPARATIF", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h7M4 12h7M4 18h7M13 6h7M13 12h7M13 18h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 3v18" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 2"/></svg>' }] : []),
+        ...(INS ? [{ a: "cmp", lab: "COMPARER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h7M4 12h7M4 18h7M13 6h7M13 12h7M13 18h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 3v18" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 2"/></svg>' }] : []),
         { a: "lay", lab: "DISPOSITION PAR DÉFAUT", off: !rb || rb.disabled, ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
         ...(INS ? [{ a: "paq", lab: "PLAN D'ASSURANCE QUALITÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
         /* v681 : premier avenant — une seule fois (aucun avenant encore), marché initial validé */
@@ -17144,6 +17131,7 @@ ${A}</Assignments>
     let verShown = [];
     shell.__verData = () => { const oc = coOrder("vver", VER_COLS); return { head: oc.map(c => c[1]), rows: verShown.map(x => oc.map(c => c[2](x) + (c[0] === "vno" && x.auto ? " (A)" : ""))) }; };
     const verRender = () => {
+      shell.__etpLater && shell.__etpLater();   /* v756 : onglets du bloc AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES remis à jour */
       const blk = shell.querySelector(".blk-ver"), t = $("verTable");
       if (!blk || !t) return;
       const VF = INS && budget.inst && !budget.inst.virtual ? (INS.vfz || []) : [];
@@ -17303,6 +17291,7 @@ ${A}</Assignments>
         : '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
     };
     const scnRender = () => {
+      shell.__etpLater && shell.__etpLater();   /* v756 : onglets du bloc AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES remis à jour */
       scnPill();
       try { if (INS && shell.__tagPaint) shell.__tagPaint(INS.ver); } catch (e) {}   /* v706 : numéro du scénario en haut */
       try { verRender(); } catch (e) {}
@@ -17373,6 +17362,7 @@ ${A}</Assignments>
         if (was !== archOf()) { reopen(); return; }
         refreshAll(); svToast(x.nom + " : SCÉNARIO ACTIF.", 2500);
       };
+      shell.__scnSwap = swap;   /* v756 : ouverture depuis la liste = le budget lui-même (scénario retenu) */
       const rename = el => {
         const V = V$(), x = V.L.find(y => y.id === el.dataset.nm); if (!x || x.arch) return;
         el.outerHTML = `<input class="cmp-nm scn-nm-in" data-id="${x.id}" value="${esc(x.nom)}">`;
@@ -18471,6 +18461,7 @@ ${A}</Assignments>
     let rclShown = [];
     shell.__rclData = () => { const oc = coOrder("vrcl", RCL_COLS); return { head: oc.map(c => c[1]), rows: rclShown.map(x => oc.map(c => c[2](x))) }; };
     const rclRender = () => {
+      shell.__etpLater && shell.__etpLater();   /* v756 : onglets du bloc AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES remis à jour */
       const blk = shell.querySelector(".blk-rcl"), t = $("rclTable");
       if (!blk || !t) return;
       const stg = RCL_OF || (budget.inst && !budget.inst.virtual ? budget.inst.ref : "");
@@ -18954,7 +18945,67 @@ ${A}</Assignments>
         redraw(); });
       w.addEventListener("click", e => { if (e.target === w || e.target.closest("[data-x]")) w.remove(); });
     };
-    shell.__cmpPick = cmpPick;
+    /* =========================================================
+       v757 : COMPARER — UN SEUL, pour tout le budget (bloc AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES et menu ⋯ du haut).
+       On coche librement autant d'éléments qu'on veut, de n'importe quel type (état actuel, budget initial, avenants, consolidé,
+       scénarios, versions, recalages, photos du consolidé) ; ils s'affichent côte à côte (une colonne par élément, les indicateurs
+       en lignes, écart avec le premier). Deux éléments cochés : COMPARER EN DÉTAIL ouvre aussi l'écran en quatre parties (planning).
+       ========================================================= */
+    const CMPM_TYPES = [["cur", "ÉTAT ACTUEL"], ["b", "BUDGET INITIAL ET AVENANTS"], ["g", "CONSOLIDÉ"], ["s", "SCÉNARIOS"], ["v", "VERSIONS"], ["r", "RECALAGES"], ["c", "PHOTOS DU CONSOLIDÉ"]];
+    const cmpmType = x => x.v === "cur" ? "cur" : x.v === "g" ? "g" : /^RECALAGE/.test(x.lab) ? "r" : x.v.split(":")[0];
+    const cmpmTtc = d => { try { return (d.des || []).filter(r => !r.t).reduce((t, r) => { const lq = insLinkedQ(d, r.id); const q = lq !== null ? lq : num(r.q || 0);
+      return t + q * num(r.p || 0) * (1 + (r.tva === "" || r.tva === undefined ? 20 : num(r.tva)) / 100); }, 0); } catch (e) { return 0; } };
+    const CMPM_IND = [["ttc", "MONTANT TTC", d => cmpmTtc(d), 2], ["prd", "PRODUITS HT (DH)", d => verInd(d).prd, 2], ["chg", "CHARGES (DH)", d => verInd(d).chg, 2], ["mo", "MAIN-D'ŒUVRE (DH)", d => verInd(d).mo, 2],
+      ["mg", "MARGE (DH)", d => verInd(d).mg, 2], ["mgp", "MARGE (%)", d => verInd(d).mgp, 2], ["fin", "DATE DE FIN", d => verInd(d).fin, "d"], ["dur", "DURÉE (J CALENDAIRES)", d => verInd(d).dur, 0],
+      ["but", "MARGE SUR LA DATE BUTOIR (J)", d => verInd(d).but, 0], ["eff", "EFFECTIF MAXIMUM (J-H / JOUR)", d => verInd(d).eff, 1], ["lots", "LOTS", d => verInd(d).lots, 0],
+      ["ndes", "DÉSIGNATIONS CLIENT", d => (d.des || []).filter(r => !r.t).length, 0], ["nchg", "CHARGES (LIGNES)", d => (d.chg || []).filter(r => !r.t).length, 0]];
+    const cmpmFmt = (v, f) => v === null || v === undefined || v === "" || (typeof v === "number" && !isFinite(v)) ? "—" : f === "d" ? (/^\d{4}-\d{2}-\d{2}/.test(String(v)) ? String(v).slice(8, 10) + "/" + String(v).slice(5, 7) + "/" + String(v).slice(0, 4) : String(v)) : indNum(v, f);
+    const cmpMulti = k => {
+      if (!INS) { svToast("COMPARER : BUDGET EN INSTANCE, FIGÉ OU VALIDÉ SEULEMENT.", 3000); return; }
+      const L = cmpStates(), d = sviWinNew();
+      const pre = new Set(["cur"]);
+      if (k === "av") L.filter(x => x.v.startsWith("b:") && !/^RECALAGE/.test(x.lab)).forEach(x => pre.add(x.v));
+      if (k === "scn") L.filter(x => x.v.startsWith("s:")).forEach(x => pre.add(x.v));
+      if (k === "ver") { const v = L.find(x => x.v.startsWith("v:")); if (v) pre.add(v.v); }
+      if (k === "rcl") L.filter(x => /^RECALAGE/.test(x.lab)).forEach(x => pre.add(x.v));
+      const S = new Set([...pre].filter(v => L.some(x => x.v === v)));
+      const groups = CMPM_TYPES.map(([t, lab]) => [lab, L.filter(x => cmpmType(x) === t)]).filter(g => g[1].length);
+      const foot = () => `<button type="button" class="svc-b" data-x>ANNULER</button>${S.size === 2 ? `<button type="button" class="svc-b" data-cmpdet>COMPARER EN DÉTAIL (PLANNING)</button>` : ""}<button type="button" class="svc-b svc-ok svc-neutral" data-cmpgo${S.size < 2 ? " disabled" : ""}>COMPARER ${svCnt(S.size)}</button>`;
+      d.innerHTML = sviWinCard({ cls: "hcf-card cmpm-pick", close: "data-x", title: "COMPARER — ÉLÉMENTS À METTRE CÔTE À CÔTE",
+        body: `<div class="svc-sub">COCHER AU MOINS DEUX ÉLÉMENTS, DE N'IMPORTE QUEL TYPE. LECTURE SEULE : RIEN N'EST MODIFIÉ.</div><div class="cmpm-list">${groups.map(([lab, G]) => `<div class="cmpm-g">${esc(lab)}</div>${G.map(x => `<label class="cmpm-it"><input type="checkbox" data-cv="${esc(x.v)}"${S.has(x.v) ? " checked" : ""}> ${esc(x.lab)}</label>`).join("")}`).join("")}</div>`,
+        foot: foot() });
+      sviWinShow(d);
+      d.addEventListener("change", e => { const c = e.target.closest("[data-cv]"); if (!c) return; if (c.checked) S.add(c.dataset.cv); else S.delete(c.dataset.cv); d.querySelector(".svc-f").innerHTML = foot(); });
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        const ord = L.map(x => x.v).filter(v => S.has(v));
+        if (e.target.closest("[data-cmpdet]") && ord.length === 2) { d.remove(); cmpOpen(ord[0], ord[1]); return; }
+        if (e.target.closest("[data-cmpgo]") && ord.length >= 2) { d.remove(); cmpMultiShow(ord); }
+      });
+    };
+    const cmpMultiShow = vs => {
+      const L = cmpStates(), E = vs.map(v => L.find(x => x.v === v)).filter(Boolean).map(x => { let dd = {}; try { dd = cmpPrep(x.d()); } catch (e) {} return { lab: x.lab, d: dd }; });
+      const val = (f, x) => { try { return f(x.d); } catch (e) { return null; } };
+      const rows = CMPM_IND.map(([id, lab, f, fm]) => {
+        const v = E.map(x => val(f, x)), v0 = v[0];
+        return `<tr><td class="cmpm-ind">${esc(lab)}</td>${v.map((x, i) => { const ecart = i && typeof x === "number" && typeof v0 === "number" && isFinite(x) && isFinite(v0) ? x - v0 : null;
+          return `<td class="number">${esc(cmpmFmt(x, fm))}${ecart !== null && Math.abs(ecart) > 1e-9 ? `<small class="cmpm-ec${cmpCol(ecart)}">${esc(cmpSign(ecart, fm === "d" ? 0 : fm))}</small>` : ""}</td>`; }).join("")}</tr>`;
+      }).join("");
+      const w = sviWinNew();
+      w.innerHTML = sviWinCard({ cls: "cmp-card cmpm-card", close: "data-x", title: "COMPARER — " + E.length + " ÉLÉMENTS CÔTE À CÔTE",
+        body: `<div class="svc-sub">ÉCART AFFICHÉ SOUS CHAQUE VALEUR, PAR RAPPORT À LA PREMIÈRE COLONNE. LECTURE SEULE.</div><div class="cmpm-scroll"><table class="pv-t cmpm-t"><thead><tr><th>INDICATEUR</th>${E.map(x => `<th class="number">${esc(x.lab)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`,
+        foot: `<button type="button" class="svc-b" data-cmpcp>COPIER</button><button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
+      sviWinShow(w);
+      w.addEventListener("click", e => {
+        if (e.target === w || e.target.closest("[data-x]")) { w.remove(); return; }
+        if (e.target.closest("[data-cmpcp]")) {
+          const txt = [["INDICATEUR", ...E.map(x => x.lab)], ...CMPM_IND.map(([id, lab, f, fm]) => [lab, ...E.map(x => cmpmFmt(val(f, x), fm))])].map(r => r.join("\t")).join("\n");
+          try { (window.sviClipWrite ? window.sviClipWrite(txt) : navigator.clipboard.writeText(txt)); svToast("TABLEAU COPIÉ.", 2000); } catch (err) {}
+        }
+      });
+    };
+    shell.__cmpMulti = cmpMulti;
+    shell.__cmpPick = () => cmpMulti("");   /* v757 : le COMPARATIF à deux passe par COMPARER (COMPARER EN DÉTAIL quand deux éléments sont cochés) */
     shell.__cmpOpen = cmpOpen;
 /* ⟪ src/22n-bibliotheque.js ⟫ */
     /* =========================================================
@@ -19016,6 +19067,126 @@ ${A}</Assignments>
       b.innerHTML = `<b>CUMUL — ${INS.cum.length} BUDGETS ADDITIONNÉS (LECTURE SEULE)</b>` + INS.cum.map(x => `<span class="cum-st cum-${esc(x.state || "valide")}">${esc(x.ref)}${x.lab && x.lab !== x.ref ? " (" + esc(x.lab) + ")" : ""} — ${st(x.state)}</span>`).join("");
       pg.prepend(b);
     }, 0);
+/* ⟪ src/22o-etapes-onglets.js ⟫ */
+    /* =========================================================
+       v756 : BLOC À ONGLETS AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES (prompt du 01/11/2026, module BUDGET, points 2 à 5)
+       - un seul bloc en bas du budget ; chaque onglet garde son tableau (SCÉNARIOS, VERSIONS, RECALAGES : 22e, 22j) ;
+       - AVENANTS (surtout utile sur le consolidé) : budget initial puis chaque avenant — montant TTC et état ; toucher = l'ouvrir ;
+       - les scénarios ne se voient que dans l'onglet SCÉNARIOS ;
+       - menu ⋯ du bloc : COMPARER, CRÉER (propre à l'onglet), APERÇU, EXPORTER ; les boutons suivent l'onglet ouvert (data-blk) ;
+       - ouverture depuis la liste : le budget lui-même (scénario RETENU s'il y en a un), jamais un autre scénario.
+       ========================================================= */
+    {
+      const ETP_K = "svi_etp_tab_v1";
+      const ETP_LAB = { av: "AVENANTS", scn: "SCÉNARIOS", ver: "VERSIONS", rcl: "RECALAGES" };
+      const ETP_NEW = { av: "CRÉER UN AVENANT", scn: "CRÉER UN SCÉNARIO", ver: "PRENDRE UNE VERSION", rcl: "CRÉER UN RECALAGE" };
+      const bi = budget.inst;
+      /* étapes de la famille (budget initial puis avenants) : depuis une étape, le consolidé ou un recalage */
+      const etpRoot = () => {
+        if (!bi) return "";
+        if (AV_ROOT) return AV_ROOT;
+        if (bi.virtual) return "";
+        const st = bi.rclOf ? sviInstGet().find(x => x.ref === bi.rclOf) : bi;
+        return st ? (st.parent || st.ref) : "";
+      };
+      const etpOn = () => !!bi && bi.ref !== "CUMUL" && !(bi.virtual && bi.vname) && !!INS;
+      const etpWhy = k => {
+        if (k === "av") return etpRoot() ? "" : "PAS D'AVENANT ICI.";
+        if (bi.virtual) return "CONSOLIDÉ : " + ETP_LAB[k] + " SUR CHAQUE ÉTAPE (ONGLET AVENANTS › TOUCHER UNE ÉTAPE).";
+        return "";
+      };
+      let etpTab = "";
+      try { etpTab = localStorage.getItem(ETP_K) || ""; } catch (e) {}
+      /* ---------- AVENANTS ---------- */
+      const AV_COLS = [["avnat", "ÉTAPE", x => x.nat, ""], ["avref", "RÉFÉRENCE", x => x.r, ""], ["avint", "INTITULÉ", x => x.int, ""],
+        ["avttc", "MONTANT TTC", x => x.ttc, "number"], ["avst", "ÉTAT", x => x.st, "center"], ["avdt", "VALIDÉ LE", x => x.val, ""]];
+      let avShown = [];
+      const avRows = () => {
+        const root = etpRoot(); if (!root) return [];
+        return sviAvStages(root).map(st => {
+          let bd = {}; try { bd = budgetData({ ref: st.ref, project: st.project, rows: [], first: {}, inst: st, __noFam: true }); } catch (e) {}
+          const s0 = st.state === "valide" ? "VALIDÉ" : st.state === "fige" ? "FIGÉ" : "EN INSTANCE";
+          return { ref: st.ref, cls: st.xp ? "expire" : st.state || "instance", nat: st.parent ? "AVENANT " + (st.avn || 1) : "BUDGET INITIAL", r: U_(st.project || "") + " " + st.ref, int: st.intitule || "",
+            ttc: Math.round((bd.ttc || 0) * 100) / 100, st: st.xp ? s0 + " — EXPIRÉ" : s0, val: st.state === "valide" ? svDT(st.validated || "") : "" };
+        });
+      };
+      shell.__avData = () => { const oc = coOrder("vav", AV_COLS); return { head: oc.map(c => c[1]), rows: avShown.map(x => oc.map(c => c[0] === "avttc" ? money(c[2](x)) : c[2](x))) }; };
+      const avRender = () => {
+        const t = $("avTable"), pane = shell.querySelector(".blk-etp .blk-av"); if (!t || !pane) return;
+        const all = avRows(); pane.hidden = !all.length;
+        const ttl = $("avTitle");
+        if (!all.length) { if (ttl) ttl.innerHTML = "AVENANTS " + svCnt(0); t.innerHTML = ""; return; }
+        const rows = cfApply("vav", AV_COLS, all); avShown = rows;
+        if (ttl) ttl.innerHTML = "AVENANTS " + svCnt(rows.filter(x => x.nat !== "BUDGET INITIAL").length);
+        const oc = coOrder("vav", AV_COLS), S = sviAvStages(etpRoot()), last = S[S.length - 1], ok = !!last && last.state === "valide";
+        t.style.width = cwTableW("vav", AV_COLS) + "px";
+        t.innerHTML = `<colgroup>${cwCols("vav", oc)}</colgroup><thead><tr>${oc.map(c => cfHead("vav", c[0], c[1], c[3])).join("")}</tr></thead>
+          <tbody>${rows.map(x => `<tr class="av-row st-${x.cls}${x.ref === ref ? " ver-act" : ""}" data-avr="${esc(x.ref)}">${oc.map(c => `<td class="${c[3]}">${esc(c[0] === "avttc" ? money(c[2](x)) : c[2](x))}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${oc.length}" class="empty">AUCUNE LIGNE (FILTRE)</td></tr>`}
+          <tr class="scn-new${ok ? "" : " off"}" data-avadd${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="${oc.length}">CRÉER UN AVENANT ICI…</td></tr></tbody>`;
+      };
+      shell.querySelector(".blk-etp .blk-av")?.addEventListener("click", e => {
+        if (e.target.closest(".cf-btn, .col-rs")) return;
+        const na = e.target.closest("tr[data-avadd]");
+        if (na) { e.stopPropagation(); if (na.classList.contains("off")) { svToast(na.dataset.why, 4000, na); return; } window.__sviAvNew && window.__sviAvNew(etpRoot(), ref); return; }
+        const tr = e.target.closest("tr[data-avr]"); if (!tr) return;
+        e.stopPropagation();
+        if (tr.dataset.avr === ref) return;
+        window.__sviAvOpen(tr.dataset.avr, ref);   /* la flèche ramène à cet écran (le consolidé) */
+      });
+      /* ---------- onglets ---------- */
+      const etpSync = () => {
+        const blk = shell.querySelector(".blk-etp"); if (!blk) return;
+        blk.hidden = !etpOn();
+        if (blk.hidden) return;
+        try { avRender(); } catch (e) {}
+        const keys = ["av", "scn", "ver", "rcl"], ok = k => !etpWhy(k);
+        if (!keys.includes(etpTab) || !ok(etpTab)) etpTab = AV_ROOT ? "av" : keys.find(ok) || "av";
+        keys.forEach(k => {
+          const b = blk.querySelector(`[data-etab="${k}"]`), p = blk.querySelector(`.etp-pane[data-pane="${k}"]`), w = etpWhy(k);
+          if (b) { b.classList.toggle("active", k === etpTab); b.classList.toggle("off", !!w); if (w) b.dataset.why = w; else delete b.dataset.why;
+            /* onglet vide (tableau non dessiné) : son nombre à zéro */
+            if (p && p.hidden && k !== "av" && !/svi-cnt/.test(b.innerHTML)) b.innerHTML = (SVI_ICON[k] || "") + ETP_LAB[k] + " " + svCnt(0); }
+          if (p) p.classList.toggle("on", k === etpTab);
+        });
+        blk.querySelectorAll(".blk-tools .blk-btn[data-etp]").forEach(x => {
+          x.dataset.blk = etpTab;
+          if (x.dataset.act === "new") x.title = ETP_NEW[etpTab];
+        });
+      };
+      let etpQ = false;
+      shell.__etpLater = () => { if (etpQ) return; etpQ = true; queueMicrotask(() => { etpQ = false; try { etpSync(); } catch (e) {} }); };
+      shell.__etpSync = etpSync;
+      shell.querySelector(".blk-etp .etp-tabs")?.addEventListener("click", e => {
+        const b = e.target.closest("[data-etab]"); if (!b) return;
+        e.stopPropagation();
+        if (b.classList.contains("off")) { svToast(b.dataset.why || "", 3500, b); return; }
+        etpTab = b.dataset.etab;
+        try { localStorage.setItem(ETP_K, etpTab); } catch (err) {}
+        document.getElementById("blkMenu")?.remove();
+        etpSync();
+      });
+      /* COMPARER et CRÉER (menu ⋯ du bloc) */
+      shell.__etpAct = (k, act) => {
+        if (act === "cmp") { if (shell.__cmpMulti) shell.__cmpMulti(k); else if (shell.__cmpPick) shell.__cmpPick(); return; }
+        if (act !== "new") return;
+        if (k === "av") { const S = sviAvStages(etpRoot()), last = S[S.length - 1];
+          if (!last || last.state !== "valide") { svToast("LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT.", 4000); return; }
+          window.__sviAvNew && window.__sviAvNew(etpRoot(), ref); return; }
+        if (k === "scn") { const r = $("scnTable") && $("scnTable").querySelector("tr[data-scnadd]");
+          if (!r) { svToast(window.__sviRO || "CRÉER UN SCÉNARIO : BUDGET EN LECTURE SEULE.", 3500); return; }
+          if (r.classList.contains("off")) { svToast(r.textContent.trim(), 3500); return; }
+          r.click(); return; }
+        if (k === "ver") { if (shell.__verTake) shell.__verTake(); return; }
+        if (k === "rcl") { if (shell.__rclNew) shell.__rclNew(); return; }
+      };
+      etpSync();
+      /* point 1 : ouvert depuis la liste = le budget lui-même — le scénario RETENU s'il y en a un (la dernière vue, elle, reste celle qu'on avait) */
+      if (window.__sviFromList === ref) {
+        window.__sviFromList = null;
+        const V = INS && INS.ver, r = V && (V.L || []).find(x => x.kind === "sc" && x.ret && !x.arch);
+        if (r && r.id !== V.act && shell.__scnSwap) setTimeout(() => { try { shell.__scnSwap(r.id); } catch (e) {} }, 0);
+      }
+    }
 /* ⟪ src/23-apercus-impression.js ⟫ */
     /* ===== APERÇU DÉSIGNATIONS CLIENT (façon NovApp) :
        volet « OPTIONS PDF » à gauche, aperçu des pages à droite,
@@ -20038,7 +20209,7 @@ ${A}</Assignments>
     const printGeneric = blk => {
       const label = String(blkLabel(blk)).toUpperCase();
       let cols, rows, end = "";
-      if ((blk === "detail" && (active === "dly" || (active === "qlt" && INS))) || blk === "hist" || blk === "ind" || blk === "rat" || blk === "scn" || blk === "ver" || blk === "rcl") {
+      if ((blk === "detail" && (active === "dly" || (active === "qlt" && INS))) || blk === "hist" || blk === "ind" || blk === "rat" || blk === "scn" || blk === "ver" || blk === "rcl" || blk === "av") {
         const d = blkData(blk);
         if (!d.rows.length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         /* historique : date, branche et action étroites, détail large */
@@ -21081,10 +21252,10 @@ ${A}</Assignments>
       const page = shell.querySelector(".bdg-d-page");
       const cls = "max-" + blk;
       const on = !page.classList.contains(cls);
-      page.classList.remove("max-client", "max-hier", "max-detail", "max-rec", "max-suivi", "max-scn", "max-ver", "max-rcl");
+      page.classList.remove("max-client", "max-hier", "max-detail", "max-rec", "max-suivi", "max-scn", "max-ver", "max-rcl", "max-etp");
       shell.querySelectorAll(".blk-rec").forEach(b =>
         b.classList.toggle("blk-rec-on", on && b.dataset.rec === blk));
-      if (on && ["suivi", "scn", "ver", "rcl"].includes(blk)) page.classList.add("max-rec");
+      if (on && ["suivi", "scn", "ver", "rcl", "etp"].includes(blk)) page.classList.add("max-rec");
       if (on) {
         const head = shell.querySelector(".bdg-d-sticky");
         const avail = window.innerHeight - (head ? head.offsetHeight : 0) - 40;
@@ -21622,6 +21793,8 @@ ${A}</Assignments>
         return;
       }
       if (act === "max") return toggleMax(blk);
+      /* v756 : bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES — COMPARER et CRÉER (propre à l'onglet) */
+      if ((act === "new" || act === "cmp") && shell.__etpAct) return shell.__etpAct(blk, act);
       if (act === "view") { if (shell.__scnView) shell.__scnView(); return; }   /* v686 : bloc SCÉNARIOS, LISTE ⇄ COMPARAISON */
       /* v546 (R33) : ↻ AJUSTER À LA CAPACITÉ (DÉTAIL DÉLAIS) */
       /* v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE, en haut à côté de ↻, AGRANDIR et ⋯ */
@@ -22599,6 +22772,7 @@ ${A}</Assignments>
         if (sviAvSelGet(r0) || !groups.has(g)) { sviAvSelSet(r0, null); sviAvOpen(g); } else openBudgetDetail(g);
         return;
       }
+      window.__sviFromList = row.dataset.budgetRef;   /* v756 : depuis la liste, le budget lui-même (scénario retenu) */
       openBudgetDetail(
         row.dataset.budgetRef
       );

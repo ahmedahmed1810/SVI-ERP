@@ -147,5 +147,65 @@
         redraw(); });
       w.addEventListener("click", e => { if (e.target === w || e.target.closest("[data-x]")) w.remove(); });
     };
-    shell.__cmpPick = cmpPick;
+    /* =========================================================
+       v757 : COMPARER — UN SEUL, pour tout le budget (bloc AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES et menu ⋯ du haut).
+       On coche librement autant d'éléments qu'on veut, de n'importe quel type (état actuel, budget initial, avenants, consolidé,
+       scénarios, versions, recalages, photos du consolidé) ; ils s'affichent côte à côte (une colonne par élément, les indicateurs
+       en lignes, écart avec le premier). Deux éléments cochés : COMPARER EN DÉTAIL ouvre aussi l'écran en quatre parties (planning).
+       ========================================================= */
+    const CMPM_TYPES = [["cur", "ÉTAT ACTUEL"], ["b", "BUDGET INITIAL ET AVENANTS"], ["g", "CONSOLIDÉ"], ["s", "SCÉNARIOS"], ["v", "VERSIONS"], ["r", "RECALAGES"], ["c", "PHOTOS DU CONSOLIDÉ"]];
+    const cmpmType = x => x.v === "cur" ? "cur" : x.v === "g" ? "g" : /^RECALAGE/.test(x.lab) ? "r" : x.v.split(":")[0];
+    const cmpmTtc = d => { try { return (d.des || []).filter(r => !r.t).reduce((t, r) => { const lq = insLinkedQ(d, r.id); const q = lq !== null ? lq : num(r.q || 0);
+      return t + q * num(r.p || 0) * (1 + (r.tva === "" || r.tva === undefined ? 20 : num(r.tva)) / 100); }, 0); } catch (e) { return 0; } };
+    const CMPM_IND = [["ttc", "MONTANT TTC", d => cmpmTtc(d), 2], ["prd", "PRODUITS HT (DH)", d => verInd(d).prd, 2], ["chg", "CHARGES (DH)", d => verInd(d).chg, 2], ["mo", "MAIN-D'ŒUVRE (DH)", d => verInd(d).mo, 2],
+      ["mg", "MARGE (DH)", d => verInd(d).mg, 2], ["mgp", "MARGE (%)", d => verInd(d).mgp, 2], ["fin", "DATE DE FIN", d => verInd(d).fin, "d"], ["dur", "DURÉE (J CALENDAIRES)", d => verInd(d).dur, 0],
+      ["but", "MARGE SUR LA DATE BUTOIR (J)", d => verInd(d).but, 0], ["eff", "EFFECTIF MAXIMUM (J-H / JOUR)", d => verInd(d).eff, 1], ["lots", "LOTS", d => verInd(d).lots, 0],
+      ["ndes", "DÉSIGNATIONS CLIENT", d => (d.des || []).filter(r => !r.t).length, 0], ["nchg", "CHARGES (LIGNES)", d => (d.chg || []).filter(r => !r.t).length, 0]];
+    const cmpmFmt = (v, f) => v === null || v === undefined || v === "" || (typeof v === "number" && !isFinite(v)) ? "—" : f === "d" ? (/^\d{4}-\d{2}-\d{2}/.test(String(v)) ? String(v).slice(8, 10) + "/" + String(v).slice(5, 7) + "/" + String(v).slice(0, 4) : String(v)) : indNum(v, f);
+    const cmpMulti = k => {
+      if (!INS) { svToast("COMPARER : BUDGET EN INSTANCE, FIGÉ OU VALIDÉ SEULEMENT.", 3000); return; }
+      const L = cmpStates(), d = sviWinNew();
+      const pre = new Set(["cur"]);
+      if (k === "av") L.filter(x => x.v.startsWith("b:") && !/^RECALAGE/.test(x.lab)).forEach(x => pre.add(x.v));
+      if (k === "scn") L.filter(x => x.v.startsWith("s:")).forEach(x => pre.add(x.v));
+      if (k === "ver") { const v = L.find(x => x.v.startsWith("v:")); if (v) pre.add(v.v); }
+      if (k === "rcl") L.filter(x => /^RECALAGE/.test(x.lab)).forEach(x => pre.add(x.v));
+      const S = new Set([...pre].filter(v => L.some(x => x.v === v)));
+      const groups = CMPM_TYPES.map(([t, lab]) => [lab, L.filter(x => cmpmType(x) === t)]).filter(g => g[1].length);
+      const foot = () => `<button type="button" class="svc-b" data-x>ANNULER</button>${S.size === 2 ? `<button type="button" class="svc-b" data-cmpdet>COMPARER EN DÉTAIL (PLANNING)</button>` : ""}<button type="button" class="svc-b svc-ok svc-neutral" data-cmpgo${S.size < 2 ? " disabled" : ""}>COMPARER ${svCnt(S.size)}</button>`;
+      d.innerHTML = sviWinCard({ cls: "hcf-card cmpm-pick", close: "data-x", title: "COMPARER — ÉLÉMENTS À METTRE CÔTE À CÔTE",
+        body: `<div class="svc-sub">COCHER AU MOINS DEUX ÉLÉMENTS, DE N'IMPORTE QUEL TYPE. LECTURE SEULE : RIEN N'EST MODIFIÉ.</div><div class="cmpm-list">${groups.map(([lab, G]) => `<div class="cmpm-g">${esc(lab)}</div>${G.map(x => `<label class="cmpm-it"><input type="checkbox" data-cv="${esc(x.v)}"${S.has(x.v) ? " checked" : ""}> ${esc(x.lab)}</label>`).join("")}`).join("")}</div>`,
+        foot: foot() });
+      sviWinShow(d);
+      d.addEventListener("change", e => { const c = e.target.closest("[data-cv]"); if (!c) return; if (c.checked) S.add(c.dataset.cv); else S.delete(c.dataset.cv); d.querySelector(".svc-f").innerHTML = foot(); });
+      d.addEventListener("click", e => {
+        if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+        const ord = L.map(x => x.v).filter(v => S.has(v));
+        if (e.target.closest("[data-cmpdet]") && ord.length === 2) { d.remove(); cmpOpen(ord[0], ord[1]); return; }
+        if (e.target.closest("[data-cmpgo]") && ord.length >= 2) { d.remove(); cmpMultiShow(ord); }
+      });
+    };
+    const cmpMultiShow = vs => {
+      const L = cmpStates(), E = vs.map(v => L.find(x => x.v === v)).filter(Boolean).map(x => { let dd = {}; try { dd = cmpPrep(x.d()); } catch (e) {} return { lab: x.lab, d: dd }; });
+      const val = (f, x) => { try { return f(x.d); } catch (e) { return null; } };
+      const rows = CMPM_IND.map(([id, lab, f, fm]) => {
+        const v = E.map(x => val(f, x)), v0 = v[0];
+        return `<tr><td class="cmpm-ind">${esc(lab)}</td>${v.map((x, i) => { const ecart = i && typeof x === "number" && typeof v0 === "number" && isFinite(x) && isFinite(v0) ? x - v0 : null;
+          return `<td class="number">${esc(cmpmFmt(x, fm))}${ecart !== null && Math.abs(ecart) > 1e-9 ? `<small class="cmpm-ec${cmpCol(ecart)}">${esc(cmpSign(ecart, fm === "d" ? 0 : fm))}</small>` : ""}</td>`; }).join("")}</tr>`;
+      }).join("");
+      const w = sviWinNew();
+      w.innerHTML = sviWinCard({ cls: "cmp-card cmpm-card", close: "data-x", title: "COMPARER — " + E.length + " ÉLÉMENTS CÔTE À CÔTE",
+        body: `<div class="svc-sub">ÉCART AFFICHÉ SOUS CHAQUE VALEUR, PAR RAPPORT À LA PREMIÈRE COLONNE. LECTURE SEULE.</div><div class="cmpm-scroll"><table class="pv-t cmpm-t"><thead><tr><th>INDICATEUR</th>${E.map(x => `<th class="number">${esc(x.lab)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`,
+        foot: `<button type="button" class="svc-b" data-cmpcp>COPIER</button><button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` });
+      sviWinShow(w);
+      w.addEventListener("click", e => {
+        if (e.target === w || e.target.closest("[data-x]")) { w.remove(); return; }
+        if (e.target.closest("[data-cmpcp]")) {
+          const txt = [["INDICATEUR", ...E.map(x => x.lab)], ...CMPM_IND.map(([id, lab, f, fm]) => [lab, ...E.map(x => cmpmFmt(val(f, x), fm))])].map(r => r.join("\t")).join("\n");
+          try { (window.sviClipWrite ? window.sviClipWrite(txt) : navigator.clipboard.writeText(txt)); svToast("TABLEAU COPIÉ.", 2000); } catch (err) {}
+        }
+      });
+    };
+    shell.__cmpMulti = cmpMulti;
+    shell.__cmpPick = () => cmpMulti("");   /* v757 : le COMPARATIF à deux passe par COMPARER (COMPARER EN DÉTAIL quand deux éléments sont cochés) */
     shell.__cmpOpen = cmpOpen;

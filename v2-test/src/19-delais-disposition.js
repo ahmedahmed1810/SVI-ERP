@@ -182,19 +182,19 @@
       }
     };
 
-    const LAY_UNITS = ["client", "hier", "detail", "scn", "ver", "rcl", "suivi"];   /* v685 : bloc SCÉNARIOS entre le détail et le suivi */
+    const LAY_UNITS = ["client", "hier", "detail", "etp", "suivi"];   /* v756 : SCÉNARIOS, VERSIONS, RECALAGES (et AVENANTS) = un seul bloc à onglets */   /* v685 : bloc SCÉNARIOS entre le détail et le suivi */
     const page$ = () => shell.querySelector(".bdg-d-page");
     const layEls = u => {
       const pg = page$();
       if (u === "detail") return [$("bdgTabs"), $("bdgTabBody"), $("bdgDetailRsz")].filter(Boolean);
-      const sel = { client: ".blk-client", hier: ".blk-hier", scn: ".blk-scn", ver: ".blk-ver", rcl: ".blk-rcl", suivi: ".blk-suivi" }[u];
+      const sel = { client: ".blk-client", hier: ".blk-hier", etp: ".blk-etp", suivi: ".blk-suivi" }[u];
       return [pg.querySelector(":scope > " + sel)].filter(Boolean);
     };
     const layMeasure = u => {
       const sel = {
         client: ".bdg-d-client-scroll", hier: ".bdg-h-col",
         detail: "#bdgTabBody .bdg-d-scroll",
-        suivi: ".blk-suivi .rec-scroll:not([hidden])", scn: ".blk-scn .rec-scroll", ver: ".blk-ver .rec-scroll", rcl: ".blk-rcl .rec-scroll"
+        suivi: ".blk-suivi .rec-scroll:not([hidden])", etp: ".blk-etp .etp-pane.on .rec-scroll"
       }[u];
       const el = page$().querySelector(sel);
       return el ? el.getBoundingClientRect().height : 150;
