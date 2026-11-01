@@ -1996,6 +1996,23 @@
         svImportFail({ source: "GOOGLE SHEETS — " + url, tries: [{ via: "PAR LE SCRIPT", err: first }, { via: "PAR LE LIEN PUBLIC", err: pub }], hint: "VÉRIFIER LE LIEN, QUE VOTRE COMPTE GOOGLE A ACCÈS À LA FEUILLE, OU LA PARTAGER « TOUTE PERSONNE DISPOSANT DU LIEN » ; SINON EXPORTER LA FEUILLE EN EXCEL ET IMPORTER LE FICHIER." });
       });
     };
+    /* v755 : ÉTATS D'UN BUDGET (menu ⋯) — EXPIRÉ : l'étape validée reste là mais sort du consolidé (rétablissable) ;
+       BLOQUÉ : lecture seule pour tous (droits plus tard, checklist B9) ; ARCHIVÉ : projet achevé, hors de la liste ACTIF (rappelable) */
+    const etatSet = async a => {
+      const bi = budget.inst; if (!bi) return;
+      const tgt = a === "xp" ? bi : (bi.virtual ? sviInstGet().find(x => x.ref === bi.parent) : sviAvRoot(bi));
+      if (!tgt) return;
+      const on = !tgt[a], nm = U_(tgt.project || "") + " " + tgt.ref + (a === "xp" ? " — " + sviAvName(tgt) : "");
+      const T = { xp: on ? ["EXPIRER CETTE ÉTAPE", "L'ÉTAPE RESTE DANS LA LISTE (ÉTAT EXPIRÉ) MAIS N'EST PLUS COMPTÉE DANS LE CONSOLIDÉ ; ELLE PEUT ÊTRE RÉTABLIE.", "EXPIRER"] : ["RÉTABLIR L'ÉTAPE", "L'ÉTAPE REVIENT DANS LE CONSOLIDÉ.", "RÉTABLIR"],
+        blk: on ? ["BLOQUER LE BUDGET", "LE BUDGET (ET SES AVENANTS) PASSE EN LECTURE SEULE ET QUITTE LA LISTE ACTIF.", "BLOQUER"] : ["DÉBLOQUER LE BUDGET", "LE BUDGET REVIENT DANS LA LISTE ACTIF.", "DÉBLOQUER"],
+        arch: on ? ["ARCHIVER LE BUDGET", "PROJET ACHEVÉ : LE BUDGET (ET SES AVENANTS) QUITTE LA LISTE ACTIF ; IL RESTE DANS LA LISTE ARCHIVÉ, D'OÙ ON PEUT LE RAPPELER.", "ARCHIVER"] : ["RAPPELER LE BUDGET", "LE BUDGET REVIENT DANS LA LISTE ACTIF.", "RAPPELER"] }[a];
+      if (!(await svConfirm({ title: T[0], text: nm + " : " + T[1], ok: T[2], tone: "neutral" }))) return;
+      const d = new Date().toISOString();
+      sviInstSet(sviInstGet().map(x => x.ref === tgt.ref ? (on ? { ...x, [a]: d } : (() => { const y = { ...x }; delete y[a]; return y; })()) : x));
+      histLog("BUDGET", { xp: on ? "ÉTAPE EXPIRÉE" : "ÉTAPE RÉTABLIE", blk: on ? "BLOQUÉ" : "DÉBLOQUÉ", arch: on ? "ARCHIVÉ" : "RAPPELÉ" }[a], nm);
+      if (a === "arch" && on) { $("budgetBackBtn")?.click(); return; }
+      window.__sviAvRet = null; window.__sviAvOpen(ref);
+    };
     /* v750 (point 4) : CUMUL — choix des budgets à additionner (le budget ouvert déjà coché), puis la vue CUMUL en lecture seule */
     const cumPick = () => {
       const natOf = g => /-GLOBAL$/.test(g.ref) ? "CONSOLIDÉ" : g.inst.parent ? "AVENANT " + (g.inst.avn || 1) : "INITIAL";
@@ -2038,6 +2055,14 @@
         /* v750 (point 4) : IMPRIMER et CUMUL (avec le choix des budgets) passent de la liste au menu ⋯ du budget */
         { a: "prt", lab: "IMPRIMER", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3.5h10V8M7 17H4.5V9.5a1.5 1.5 0 0 1 1.5-1.5h12a1.5 1.5 0 0 1 1.5 1.5V17H17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M7 13.5h10V21H7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' },
         { a: "cum", lab: "CUMUL", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16M6 14h12M8 10h8M10 6h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' },
+        /* v755 : ÉTATS — EXPIRER une étape validée (hors consolidé, rétablissable) ; BLOQUER / ARCHIVER le budget (toute la famille) */
+        ...(() => { const bi = budget.inst; if (!bi || bi.rclOf || bi.ref === "CUMUL" || (bi.virtual && bi.vname)) return [];
+          const root = bi.virtual ? sviInstGet().find(x => x.ref === bi.parent) : sviAvRoot(bi), out = [];
+          const ic = d => `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+          if (!bi.virtual && bi.state === "valide") out.push({ a: "xp", lab: bi.xp ? "RÉTABLIR CETTE ÉTAPE (EXPIRÉE)" : "EXPIRER CETTE ÉTAPE", ic: ic('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 3h6"/>') });
+          if (root) { out.push({ a: "blk", lab: root.blk ? "DÉBLOQUER LE BUDGET" : "BLOQUER LE BUDGET", ic: ic('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3M12 15v2"/>') });
+            out.push({ a: "arch", lab: root.arch ? "RAPPELER LE BUDGET (ARCHIVÉ)" : "ARCHIVER LE BUDGET", ic: ic('<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/>') }); }
+          return out; })(),
         /* v729 (bloc 10) : COMPARATIF — deux états quelconques du budget, lecture seule */
         ...(INS ? [{ a: "cmp", lab: "COMPARATIF", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h7M4 12h7M4 18h7M13 6h7M13 12h7M13 18h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 3v18" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 2"/></svg>' }] : []),
         { a: "lay", lab: "DISPOSITION PAR DÉFAUT", off: !rb || rb.disabled, ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 3.8v4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
@@ -2065,7 +2090,7 @@
       ];
       /* v694 : le menu ⋯ ne garde que les entrées utiles à l'écran — consolidé : aperçus, exports, indicateurs ;
          version : RESTAURER, EN FAIRE UN SCÉNARIO, exports, indicateurs ; recalage : NOUVEAU RECALAGE, exports, indicateurs */
-      { const bi = budget.inst, keep = bi && bi.virtual ? (bi.vname ? ["prt", "cum", "vrest", "vscn", "lay", "rat", "ind", "exp", "cmp"] : ["prt", "cum", "lay", "rat", "ind", "multi", "exp", "av", "cph", "cmp"]) : bi && bi.rclOf ? ["prt", "cum", "rcl", "lay", "rat", "ind", "exp", "plans", "cmp"] : null;
+      { const bi = budget.inst, keep = bi && bi.virtual ? (bi.vname ? ["prt", "cum", "vrest", "vscn", "lay", "rat", "ind", "exp", "cmp"] : ["prt", "cum", "blk", "arch", "lay", "rat", "ind", "multi", "exp", "av", "cph", "cmp"]) : bi && bi.rclOf ? ["prt", "cum", "rcl", "lay", "rat", "ind", "exp", "plans", "cmp"] : null;
         if (keep) for (let i = items.length - 1; i >= 0; i--) if (!keep.includes(items[i].a)) items.splice(i, 1); }
       const m = document.createElement("div");
       m.id = "blkMenu";
@@ -2081,6 +2106,7 @@
         if (it.dataset.a === "dup") $("instDup")?.click();
         else if (it.dataset.a === "prt") { if (window.__sviPrintClient) window.__sviPrintClient(); else printBudgetPDF(ref); }
         else if (it.dataset.a === "cum") cumPick();
+        else if (it.dataset.a === "xp" || it.dataset.a === "blk" || it.dataset.a === "arch") etatSet(it.dataset.a);
         else if (it.dataset.a === "lay") $("layResetBtn")?.click();
         else if (it.dataset.a === "cmp") { if (shell.__cmpPick) shell.__cmpPick(); }
         else if (it.dataset.a === "paq") qqPaqOpen();

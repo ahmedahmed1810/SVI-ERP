@@ -109,6 +109,12 @@ function sviAchInit() {
   if (!view || view.__achOn) return;
   view.__achOn = true;
   let tab = "art", showDel = false;
+  /* v755 : FILTRE PAR ÉTAT des articles (commun à toutes les listes) — ACTIF, INACTIF, CORBEILLE, TOUT ; CORBEILLE = ancien bouton */
+  const A_ETATS = [["actif", "ACTIF"], ["inactif", "INACTIF"], ["corbeille", "CORBEILLE"], ["tout", "TOUT"]];
+  let aEtat = "actif"; try { const e0 = localStorage.getItem("svi_ach_etat_v1"); if (A_ETATS.some(x => x[0] === e0)) aEtat = e0; } catch (e) {}
+  const aOk = (a, k) => k === "tout" ? true : k === "corbeille" ? !!a.del : !a.del && (k === "inactif" ? a.actif === false : a.actif !== false);
+  const setEtat = k => { aEtat = k; showDel = k === "corbeille"; try { localStorage.setItem("svi_ach_etat_v1", k); } catch (e) {} };
+  showDel = aEtat === "corbeille";
   try { const t = localStorage.getItem("svi_ach_tab_v1"); if (t === "art" || t === "prm") tab = t; } catch (e) {}
   const SEL = new Set();
   const kit = sviCfKit({ key: "ach", shell: view, refresh: () => draw() });
@@ -143,13 +149,13 @@ function sviAchInit() {
   };
   const artTable = () => {
     BM = achBudgetCharges();
-    const all = achArts(), rows0 = all.filter(a => showDel ? !!a.del : !a.del);
+    const all = achArts(), rows0 = all.filter(a => aOk(a, aEtat));
     const cols = coOrder("ach_art", ART_COLS());
     const rows = cfApply("ach_art", cols, rows0);
     const nDel = all.filter(a => a.del).length, nSel = [...SEL].filter(id => rows0.some(a => a.id === id)).length;
     const W = cols.reduce((s, c) => s + cw("art", c[0]), 0) + 44 + 46;
     return `<div class="ach-tools">
-        <span class="ach-cnt">${showDel ? "CORBEILLE" : "ARTICLES"} ${svCnt ? svCnt(rows.length, rows0.length) : rows.length}</span>
+        <button type="button" class="ach-b ach-etat" data-a="etat">${(A_ETATS.find(x => x[0] === aEtat) || A_ETATS[0])[1]} ▾ ${svCnt(rows.length, rows0.length)}</button>
         ${showDel ? `<button type="button" class="ach-b" data-a="restore"${nSel ? "" : " disabled"}>RESTAURER LES COCHÉS <span class="svi-cnt">${nSel}</span></button><button type="button" class="ach-b" data-a="back">‹ RETOUR AUX ARTICLES</button>`
           : `<button type="button" class="ach-b" data-a="frombdg">REPRENDRE LES CHARGES DES BUDGETS</button>
              <button type="button" class="ach-b" data-a="merge"${nSel >= 2 ? "" : " disabled"}>FUSIONNER LES COCHÉS <span class="svi-cnt">${nSel}</span></button>
@@ -163,7 +169,7 @@ function sviAchInit() {
           <td class="center"><button type="button" class="ach-h" data-h="${esc(a.code)}" title="Historique">H</button>${why.length ? `<span class="ach-warn" data-why="${esc(why.join(" · "))}">⚠</span>` : ""}</td>
           ${cols.map(c => `<td class="${c[3]}">${cellIn(a, c[0])}</td>`).join("")}
           <td class="center ins-cbc"><input type="checkbox" class="ach-cb"${SEL.has(a.id) ? " checked" : ""}></td></tr>`; }).join("")}
-          ${showDel ? "" : `<tr class="ach-new"><td></td>${cols.map(c => `<td class="${c[3]}">${c[0] === "des" ? `<input class="ins-in ach-newin" data-f="des" placeholder="CRÉER UN ARTICLE ICI…" autocomplete="off" enterkeyhint="next">` : ""}</td>`).join("")}<td></td></tr>`}
+          ${aEtat === "corbeille" || aEtat === "inactif" ? "" : `<tr class="ach-new"><td></td>${cols.map(c => `<td class="${c[3]}">${c[0] === "des" ? `<input class="ins-in ach-newin" data-f="des" placeholder="CRÉER UN ARTICLE ICI…" autocomplete="off" enterkeyhint="next">` : ""}</td>`).join("")}<td></td></tr>`}
           ${!rows.length && showDel ? `<tr><td colspan="${cols.length + 2}" class="empty">CORBEILLE VIDE</td></tr>` : ""}
         </tbody></table></div>`;
   };
@@ -213,12 +219,12 @@ function sviAchInit() {
   });
   view.__achDraw = draw;
   /* v750 : entrée du menu ☰ (ACHAT › ARTICLES…) — ouvre l'onglet correspondant */
-  view.__achTab = t => { if (t !== "art" && t !== "prm") return; tab = t; showDel = false; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
+  view.__achTab = t => { if (t !== "art" && t !== "prm") return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
   /* ---------- gestes ---------- */
   bar.addEventListener("click", e => {
     const b = e.target.closest(".prm-tab"); if (!b) return;
     if (b.classList.contains("off")) { svToast(b.dataset.why || "", 3000, b); return; }
-    tab = b.dataset.ach; showDel = false; SEL.clear();
+    tab = b.dataset.ach; SEL.clear();
     try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {}
     draw();
   });
@@ -233,8 +239,9 @@ function sviAchInit() {
     const ab = e.target.closest(".ach-b"); if (!ab || ab.disabled) return;
     const L = achArts(), ids = [...SEL].filter(id => L.some(a => a.id === id));
     const act = ab.dataset.a;
-    if (act === "trash") { showDel = true; SEL.clear(); draw(); return; }
-    if (act === "back") { showDel = false; SEL.clear(); draw(); return; }
+    if (act === "trash") { setEtat("corbeille"); SEL.clear(); draw(); return; }
+    if (act === "back") { setEtat("actif"); SEL.clear(); draw(); return; }
+    if (act === "etat") { const L = achArts(); sviEtatMenu(e.target.closest("[data-a]"), A_ETATS.map(([k, lab]) => ({ k, lab, n: L.filter(a => aOk(a, k)).length })), aEtat, k => { setEtat(k); SEL.clear(); draw(); }); return; }
     if (act === "frombdg") {
       const n = achArtsFromBudgets(L);
       if (!n) { svToast("AUCUNE CHARGE DES BUDGETS SANS ARTICLE.", 3000, ab); return; }

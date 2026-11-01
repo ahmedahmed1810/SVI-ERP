@@ -3207,3 +3207,15 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .prm-col input[type="color"] { width: 54px; height: 30px; padding: 0; border: 1px solid #d6dbe3; border-radius: 6px; background: #fff; cursor: pointer; }
 .prm-col .col-prev { font-weight: 800; }
 .prm-col .col-rst { border: 1px solid #dfe4eb; background: #fff; border-radius: 8px; padding: 5px 10px; font-weight: 800; font-size: 11px; cursor: pointer; }
+/* v755 : états des budgets (couleurs paramétrables) */
+#budgetListTable tr.etat-expire td, #budgetListTable tr.etat-expire .budget-link { color: var(--st-expire, #b45309) !important; }
+#budgetListTable tr.etat-bloque td, #budgetListTable tr.etat-bloque .budget-link { color: var(--st-bloque, #6b7280) !important; }
+#budgetListTable tr.etat-archive td, #budgetListTable tr.etat-archive .budget-link { color: var(--st-archive, #6d28d9) !important; }
+/* v755 : liste des états (ACTIF ▾…) commune à toutes les listes */
+#sviEtatMenu { position: fixed; z-index: 10060; min-width: 190px; background: #fff; border: 1px solid #d6dbe3; border-radius: 12px; box-shadow: 0 10px 28px rgba(0,0,0,.18); padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+#sviEtatMenu button { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: #fff; border-radius: 8px; padding: 9px 10px; font-size: 12px; font-weight: 800; color: #172033; text-align: left; cursor: pointer; }
+#sviEtatMenu button:hover { background: #f3f6fa; }
+#sviEtatMenu button.on { background: #dcecff; color: #0f4f96; }
+#sviEtatMenu button b { width: 12px; flex: none; }
+#sviEtatMenu button span { flex: 1; }
+.ach-tools .ach-etat { display: inline-flex; align-items: center; gap: 6px; }

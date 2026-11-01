@@ -22,3 +22,24 @@ function sviColorsSave(o) {
   sviColorsApply();
 }
 sviColorsApply();
+
+/* =========================================================
+   v755 : FILTRE PAR ÉTAT (comme NovApp : ACTIF, ALERTE, EXPIRÉ, BLOQUÉ, ARCHIVÉ, TOUT), COMMUN À TOUTES LES LISTES
+   sviEtatMenu(btn, items, cur, pick) — items : [{ k, lab, n }] ; petite liste sous le bouton, ✓ devant l'état choisi,
+   nombre d'enregistrements de chaque état ; un toucher choisit (pick(k)) et ferme ; toucher ailleurs ferme.
+   ========================================================= */
+function sviEtatMenu(btn, items, cur, pick) {
+  const old = document.getElementById("sviEtatMenu");
+  if (old) { const same = old.__btn === btn; old.remove(); if (same) return; }
+  const m = document.createElement("div");
+  m.id = "sviEtatMenu";
+  m.__btn = btn;
+  m.innerHTML = items.map(x => `<button type="button" data-k="${esc(x.k)}" class="${x.k === cur ? "on" : ""}"><b>${x.k === cur ? "✓" : ""}</b><span>${esc(x.lab)}</span>${x.n === undefined ? "" : svCnt(x.n)}</button>`).join("");
+  document.body.appendChild(m);
+  sviPlaceMenu(m, btn.getBoundingClientRect());
+  m.addEventListener("click", e => { const b = e.target.closest("[data-k]"); if (!b) return; e.stopPropagation(); m.remove(); pick(b.dataset.k); });
+  setTimeout(() => document.addEventListener("pointerdown", function off(e) {
+    if (!e.target.closest("#sviEtatMenu") && e.target !== btn && !btn.contains(e.target)) { m.remove(); document.removeEventListener("pointerdown", off, true); }
+    if (!document.body.contains(m)) document.removeEventListener("pointerdown", off, true);
+  }, true), 0);
+}

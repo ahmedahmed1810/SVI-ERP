@@ -2695,6 +2695,50 @@ def main():
             sviInstSet(JSON.parse(window.__kp754)); localStorage.setItem('svi_listmode_v1', 'inst'); localStorage.removeItem('svi_bdgfold_v1'); renderBudgetList(); return res; }""")
         check("v754 : « ! » devant VALIDÉ LE au-delà de 24 h (raison au toucher, parent en alerte), total à côté de TOUT, flèche dans RÉFÉRENCE, PARAMÉTRAGE › COULEURS appliqué puis PAR DÉFAUT",
               k754 == [True, True, True, True, True, True, True, True, True, True, "rgb(18, 52, 86)", "#172033"], k754)
+        # v755 (lot 2) : filtre par état de la liste des budgets (ACTIF par défaut, ALERTE, EXPIRÉ, BLOQUÉ, ARCHIVÉ, TOUT, avec les nombres),
+        # actions du menu ⋯ (EXPIRER une étape = hors consolidé ; BLOQUER = lecture seule ; ARCHIVER = hors ACTIF), filtre par état des ARTICLES
+        k755 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); window.__kp755 = JSON.stringify(sviInstGet()); const d = q => ({ des: [{ id: 'd1', des: 'MUR', u: 'M2', q, p: 10, tva: 20 }], lot: [{ id: 'l1', v: 'RDC' }], prim: [], sec: [], chg: [], prd: [], links: [], dlp: {} });
+            sviInstSet(sviInstGet().filter(x => !/^[EFGH]-/.test(x.ref)).concat([{ ref: 'F-1', project: 'FAM', state: 'valide', created: '2026-10-30T10:00', validated: '2026-10-30T11:00', data: d(1) },
+              { ref: 'F-1-AV1', project: 'FAM', state: 'valide', created: '2026-10-30T12:00', validated: '2026-10-30T13:00', parent: 'F-1', avn: 1, data: d(2) },
+              { ref: 'G-1', project: 'GEL', state: 'instance', created: '2026-10-30T10:00', data: d(1) }, { ref: 'H-1', project: 'HIS', state: 'valide', created: '2026-10-20T10:00', validated: '2026-10-20T11:00', data: d(1) }]));
+            const keepE = localStorage.getItem('svi_bdgetat_v1'); localStorage.removeItem('svi_bdgetat_v1');
+            localStorage.setItem('svi_listmode_v1', 'valid'); localStorage.setItem('svi_bdgfold_v1', JSON.stringify(['F-1'])); renderBudgetList(); await w(300);
+            const lab = () => document.querySelector('#bdgDatePanel .novapp-date-filter span').textContent.trim();
+            const refs = () => [...document.querySelectorAll('#budgetListTable tbody tr[data-budget-ref]')].map(r => r.dataset.budgetRef);
+            const r = [lab()];
+            const sumBefore = sviAvMerge('F-1', true).des.reduce((t, x) => t + (+x.q || 0), 0);
+            sviInstSet(sviInstGet().map(x => x.ref === 'F-1-AV1' ? { ...x, xp: '2026-11-01' } : x.ref === 'H-1' ? { ...x, arch: '2026-11-01' } : x)); renderBudgetList(); await w(300);
+            const sumAfter = sviAvMerge('F-1', true).des.reduce((t, x) => t + (+x.q || 0), 0);
+            r.push(refs().includes('H-1'), refs().includes('F-1-AV1'), sumBefore, sumAfter);
+            document.querySelector('#bdgDatePanel .novapp-date-filter').click(); await w(150); const M = document.getElementById('sviEtatMenu');
+            r.push(M ? [...M.querySelectorAll('button')].map(b => b.textContent.replace(/\\s+/g, ' ').trim()).join('|') : 'pas de menu');
+            M.querySelector('[data-k="archive"]').click(); await w(200); r.push(lab(), refs().join(','));
+            document.querySelector('#bdgDatePanel .novapp-date-filter').click(); await w(150); document.querySelector('#sviEtatMenu [data-k="expire"]').click(); await w(200);
+            r.push(refs().join(','), (document.querySelector('#budgetListTable tr[data-budget-ref="F-1-AV1"]') || {}).className || '');
+            document.querySelector('#bdgDatePanel .novapp-date-filter').click(); await w(150); document.querySelector('#sviEtatMenu [data-k="actif"]').click(); await w(200);
+            localStorage.setItem('svi_listmode_v1', 'inst'); renderBudgetList(); await w(200);
+            document.querySelector('#budgetListTable tr[data-budget-ref="G-1"] td:nth-child(4)').click(); await w(900);
+            document.getElementById('bdgMore').click(); await w(200); const acts = ['blk', 'arch'].map(a => !!document.querySelector(`#blkMenu [data-a="${a}"]`));
+            document.querySelector('#blkMenu [data-a="blk"]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(900);
+            r.push(acts, !!(sviInstGet().find(x => x.ref === 'G-1') || {}).blk, window.__sviRO || '');
+            document.getElementById('budgetBackBtn')?.click(); await w(400); r.push(refs().includes('G-1'));
+            if (keepE === null) localStorage.removeItem('svi_bdgetat_v1'); else localStorage.setItem('svi_bdgetat_v1', keepE);
+            sviInstSet(JSON.parse(window.__kp755)); localStorage.removeItem('svi_bdgfold_v1'); renderBudgetList(); await w(200);
+            document.querySelector('#navMenu .nav-btn[data-ach="art"]').click(); await w(400);
+            const keepA = localStorage.getItem('svi_ach_art_v1'), keepAE = localStorage.getItem('svi_ach_etat_v1'); const L = [];
+            achArtNew(L, { des: 'SABLE', u: 'M3' }); const b2 = achArtNew(L, { des: 'GRAVIER', u: 'M3' }); b2.actif = false; const b3 = achArtNew(L, { des: 'CHAUX', u: 'T' }); b3.del = '2026-11-01'; achArtsSave(L);
+            localStorage.removeItem('svi_ach_etat_v1'); const v = document.getElementById('ach'); v.__achTab('art'); await w(200);
+            const eb = v.querySelector('.ach-etat'), aRows = () => [...v.querySelectorAll('#achArtT tbody tr[data-id]')].length;
+            const a = [eb ? eb.textContent.replace(/\\s+/g, ' ').trim() : '', aRows()]; eb.click(); await w(150);
+            a.push([...document.querySelectorAll('#sviEtatMenu button')].map(b => b.textContent.replace(/\\s+/g, ' ').trim()).join('|'));
+            document.querySelector('#sviEtatMenu [data-k="tout"]').click(); await w(200); a.push(aRows());
+            if (keepA === null) localStorage.removeItem('svi_ach_art_v1'); else localStorage.setItem('svi_ach_art_v1', keepA);
+            if (keepAE === null) localStorage.removeItem('svi_ach_etat_v1'); else localStorage.setItem('svi_ach_etat_v1', keepAE);
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(400); return [r, a]; }""")
+        check("v755 : états — ACTIF par défaut (archivé et étape expirée cachés), étape EXPIRÉE hors consolidé, liste des états avec nombres, ARCHIVÉ / EXPIRÉ, BLOQUER (lecture seule, hors ACTIF) ; ARTICLES : ACTIF / INACTIF / CORBEILLE / TOUT",
+              k755[0][:5] == ["ACTIF ▾", False, False, 3, 1] and k755[0][5].startswith("✓ACTIF") and "ARCHIVÉ1" in k755[0][5] and k755[0][6:8] == ["ARCHIVÉ ▾", "H-1"]
+              and k755[0][8] == "F-1,F-1,F-1-AV1" and "etat-expire" in k755[0][9] and k755[0][10] == [True, True] and k755[0][11] is True and "BLOQUÉ" in k755[0][12] and k755[0][13] is False
+              and k755[1][0].startswith("ACTIF ▾") and k755[1][1] == 1 and k755[1][2].startswith("✓ACTIF") and k755[1][3] == 3, k755)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

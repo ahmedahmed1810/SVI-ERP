@@ -21,7 +21,8 @@ const sviAvStages = ref => {
 const sviAvName = it => it && it.vname ? it.vname : it && it.parent ? "AVENANT " + (it.avn || 1) : "BUDGET INITIAL";   /* v691 : « marché » disparaît (phase budget) */
 /* v687 : COMPOSITION du consolidé — pour chaque étape : "act" (l'étape telle qu'elle est), l'id d'un de ses scénarios,
    ou rien (étape non comptée). Par défaut : les étapes VALIDÉES (le marché initial s'il n'y en a aucune). Mémoire de la session. */
-const sviAvSelDef = S0 => { const o = {}, all = S0[0] && (window.__sviAvMode || {})[S0[0].ref] === "inst"; S0.forEach(st => { if (all || st.state === "valide") o[st.ref] = "act"; }); if (!Object.keys(o).length && S0[0]) o[S0[0].ref] = "act"; return o; };
+/* v755 : une étape EXPIRÉE (validée puis mise de côté pour être remplacée) n'entre plus dans le consolidé */
+const sviAvSelDef = S0 => { const o = {}, all = S0[0] && (window.__sviAvMode || {})[S0[0].ref] === "inst"; S0.forEach(st => { if (!st.xp && (all || st.state === "valide")) o[st.ref] = "act"; }); if (!Object.keys(o).length && S0[0]) o[S0[0].ref] = "act"; return o; };
 const sviAvSelGet = r => ((window.__sviAvSel || {})[r]) || null;
 const sviAvSelSet = (r, v) => { window.__sviAvSel = window.__sviAvSel || {}; if (v) window.__sviAvSel[r] = v; else delete window.__sviAvSel[r]; };
 /* v693 : RECALAGES d'une étape (budgets « étape-Rn » de l'appareil), du plus ancien au plus récent ; dernier enregistré */
@@ -39,7 +40,7 @@ const sviAvSelLab = (rootRef, sel) => { const S0 = sviAvStages(rootRef), o = sel
 const sviAvMerge = (rootRef, opt) => {
   const S0 = sviAvStages(rootRef);
   if (!S0.length) return null;
-  const sel = opt === true ? Object.fromEntries(S0.map(st => [st.ref, "act"])) : opt && typeof opt === "object" ? opt : sviAvSelDef(S0);
+  const sel = opt === true ? Object.fromEntries(S0.filter(st => !st.xp).map(st => [st.ref, "act"])) : opt && typeof opt === "object" ? opt : sviAvSelDef(S0);
   /* v693 : « act » = budget de travail de l'étape (dernier recalage enregistré, sinon l'étape validée) ; « val » = étape validée d'origine */
   const S = S0.map(st => { const c = sel[st.ref]; if (!c) return null;
     if (c === "act") { const r = st.state === "valide" ? sviRclLast(st.ref) : null; return r ? { st, d: r.data || {}, sc: "R" + r.rcn } : { st, d: st.data || {} }; }
@@ -142,3 +143,8 @@ const sviRowDate = ref => {
   try { if (sviAvStages(ref).length > 1) { const c = sviAvDates(ref).created, m = String(c).match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return { key: m[1] + "-" + m[2] + "-" + m[3], label: m[3] + "/" + m[2] + "/" + m[1] }; } } catch (e) {}
   return budgetDate(ref);
 };
+
+/* v755 : ÉTATS D'UN BUDGET — BLOQUÉ (blk) et ARCHIVÉ (arch) se posent sur le budget initial et valent pour toute la famille ;
+   EXPIRÉ (xp) se pose sur une étape validée (budget initial ou avenant) */
+const sviAvRoot = it => { if (!it) return null; if (!it.parent) return it; return sviInstGet().find(x => x.ref === it.parent) || it; };
+const sviBdgBlk = it => { const r = sviAvRoot(it); return !!(r && r.blk); };

@@ -1452,6 +1452,24 @@ function renderBudgetList() {
 
   let dateFilter = "";
 
+  /* v754 : ALERTE — étape validée plus de 24 h après sa saisie */
+  const tms = v => { const m = String(v || "").match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/); return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)).getTime() : NaN; };
+  const lateOf = (c, v) => { const h = (tms(v) - tms(c)) / 36e5; if (!(h > 24)) return ""; const j = Math.floor(h / 24);
+      return "VALIDÉ " + (j >= 2 ? j + " J" : Math.round(h) + " H") + " APRÈS LA SAISIE (PLUS DE 24 H)."; };
+  const stLate = st => st && st.state === "valide" ? lateOf(st.created, st.validated) : "";
+  const isFam = r => { try { return sviAvStages(r).length > 1; } catch (e) { return false; } };
+  /* v755 : FILTRE PAR ÉTAT (bouton du petit tableau de gauche, comme NovApp) — ACTIF (par défaut) = tout sauf bloqué, archivé, expiré */
+  const ETATS = [["actif", "ACTIF"], ["alerte", "ALERTE"], ["expire", "EXPIRÉ"], ["bloque", "BLOQUÉ"], ["archive", "ARCHIVÉ"], ["tout", "TOUT"]];
+  let etatF = "actif"; try { const e0 = localStorage.getItem("svi_bdgetat_v1"); if (ETATS.some(x => x[0] === e0)) etatF = e0; } catch (e) {}
+  const flagsOf = g => {
+    const bi = g && g.inst, fam = !!bi && isFam(g.ref), S = !bi ? [] : fam ? sviAvStages(g.ref) : [bi];
+    return { fam, arch: !!(bi && bi.arch), blk: !!(bi && bi.blk), xp: fam ? S.some(st => st.xp) : !!(bi && bi.xp), late: S.some(st => stLate(st)) };
+  };
+  const etatOk = (f, k) => k === "tout" ? true : k === "alerte" ? f.late : k === "expire" ? f.xp : k === "bloque" ? f.blk : k === "archive" ? f.arch : !f.arch && !f.blk && !(f.xp && !f.fam);
+  const FLG = new Map(budgets.map(g => [g.ref, flagsOf(g)]));
+  const budgetsE = () => budgets.filter(g => etatOk(FLG.get(g.ref), etatF));
+
+
   let panel = $("bdgDatePanel");
 
   if (!panel) {
@@ -1472,7 +1490,7 @@ function renderBudgetList() {
   function renderDatePanel() {
     const counts = new Map();
 
-    budgets.forEach(b => {
+    budgetsE().forEach(b => {
       const d = sviRowDate(b.ref);   /* v695 */
       if (!d) return;
 
@@ -1485,7 +1503,7 @@ function renderBudgetList() {
 
     panel.innerHTML = `
       <div class="novapp-date-head">
-        <button type="button" class="novapp-date-filter"><span>TOUT ▾</span>${svCnt(budgets.length)}</button>
+        <button type="button" class="novapp-date-filter"><span>${(ETATS.find(x => x[0] === etatF) || ETATS[0])[1]} ▾</span>${svCnt(budgetsE().length)}</button>
       </div>
       <div class="novapp-date-list">
         ${keys.map(k => `
@@ -1505,7 +1523,13 @@ function renderBudgetList() {
     if (item) {
       dateFilter = dateFilter === item.dataset.date ? "" : item.dataset.date;
     } else if (event.target.closest(".novapp-date-filter")) {
-      dateFilter = "";
+      /* v755 : liste des états, chacun avec son nombre de budgets */
+      const btn = event.target.closest(".novapp-date-filter");
+      sviEtatMenu(btn, ETATS.map(([k, lab]) => ({ k, lab, n: budgets.filter(g => etatOk(FLG.get(g.ref), k)).length })), etatF, k => {
+        etatF = k; dateFilter = ""; try { localStorage.setItem("svi_bdgetat_v1", k); } catch (e) {}
+        renderDatePanel(); renderRows();
+      });
+      return;
     } else {
       return;
     }
@@ -1519,7 +1543,7 @@ function renderBudgetList() {
 
   function renderRows() {
     let data =
-      budgets.map(
+      budgetsE().map(
         budget =>
           budgetData(budget)
       );
@@ -1532,8 +1556,7 @@ function renderBudgetList() {
     }
 
     /* v750 : NATURE — CONSOLIDÉ (budget à avenants), sinon INITIAL */
-    const isFam = r => { try { return sviAvStages(r).length > 1; } catch (e) { return false; } };
-    data.forEach(x => { x.fam = isFam(x.ref); x.nat = x.fam ? "CONSOLIDÉ" : "INITIAL"; });
+    data.forEach(x => { const f = FLG.get(x.ref) || {}; x.fam = isFam(x.ref); x.flg = f; x.nat = x.fam ? "CONSOLIDÉ" : "INITIAL" + (f.xp ? " (EXPIRÉ)" : ""); });
 
     /* TRI ET FILTRES (menu commun) */
     data = KIT.cfApply(BL, cfCols(), data);
@@ -1558,19 +1581,16 @@ function renderBudgetList() {
     const foldGet0 = () => { try { return JSON.parse(localStorage.getItem(FOLD_KEY) || "[]") || []; } catch (e) { return []; } };
     const kidsOf = item => {
       const S = sviAvStages(item.ref), last = S[S.length - 1];
-      return S.filter(st => listMode === "inst" ? st.state !== "valide" : st.state === "valide").map(st => {
+      /* v755 : ACTIF — étapes expirées cachées ; autres états : toutes les étapes de la liste affichée */
+      return S.filter(st => (listMode === "inst" ? st.state !== "valide" : st.state === "valide") && (etatF !== "actif" || !st.xp)).map(st => {
         let bd = {}; try { bd = budgetData({ ref: st.ref, project: st.project, rows: [], first: {}, inst: st, __noFam: true }); } catch (e) {}
-        return { ref: st.ref, nat: st.parent ? "AVENANT " + (st.avn || 1) : "INITIAL", budget: U_(st.project), intitule: st.intitule || "", ttc: bd.ttc || 0,
+        return { ref: st.ref, xp: !!st.xp, nat: (st.parent ? "AVENANT " + (st.avn || 1) : "INITIAL") + (st.xp ? " (EXPIRÉ)" : ""), budget: U_(st.project), intitule: st.intitule || "", ttc: bd.ttc || 0,
           validated: st.state === "valide" ? svDT(st.validated || "") : "", entered: svDT(st.created || ""), state: st.state || "instance", kind: st.parent ? "av" : "bdg",
           del: st.state === "instance" && st === last, late: stLate(st) };
       });
     };
     /* v754 : ALERTE — validé plus de 24 h après la saisie : « ! » devant la date de validation (le toucher donne la raison) ;
        ligne de titre d'un budget à avenants : en alerte si l'une de ses étapes l'est */
-    const tms = v => { const m = String(v || "").match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/); return m ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)).getTime() : NaN; };
-    const lateOf = (c, v) => { const h = (tms(v) - tms(c)) / 36e5; if (!(h > 24)) return ""; const j = Math.floor(h / 24);
-      return "VALIDÉ " + (j >= 2 ? j + " J" : Math.round(h) + " H") + " APRÈS LA SAISIE (PLUS DE 24 H)."; };
-    const stLate = st => st && st.state === "valide" ? lateOf(st.created, st.validated) : "";
     data.forEach(x => {
       if (x.fam) { const L = sviAvStages(x.ref).map(st => [st, stLate(st)]).filter(z => z[1]); x.late = L.map(([st, w]) => sviAvName(st) + " : " + w).join(" — "); }
       else { const bi = x.source && x.source.inst; x.late = bi ? stLate(bi) : ""; }
@@ -1590,10 +1610,11 @@ function renderBudgetList() {
     const FO = new Set(foldGet0());
     tbody.innerHTML =
       data.map(item => { const fam = item.fam, open = fam && FO.has(item.ref), kids = open ? kidsOf(item) : []; item.open = open;
-        return `<tr data-budget-ref="${esc(item.ref)}" class="${item.state ? "inst-" + item.state : ""}${fam ? " bdg-fam" : ""}"${fam ? ' data-fam="1"' : ""}>`
+        const ec = item.flg && item.flg.arch ? " etat-archive" : item.flg && item.flg.blk ? " etat-bloque" : item.flg && item.flg.xp && !fam ? " etat-expire" : "";
+        return `<tr data-budget-ref="${esc(item.ref)}" class="${item.state ? "inst-" + item.state : ""}${fam ? " bdg-fam" : ""}${ec}"${fam ? ' data-fam="1"' : ""}>`
           + columns.map(c => cell(c.key, item)).join("")
           + `<td class="bdg-action-cell">${item.state === "instance" ? delBtn(item.ref) : ""}</td></tr>`
-          + kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}">`
+          + kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}${k.xp ? " etat-expire" : ""}${ec}">`
             + columns.map(c => cell(c.key, k)).join("") + `<td class="bdg-action-cell">${k.del ? delBtn(k.ref) : ""}</td></tr>`).join("")
           + (open ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
             return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="${NCOL}">CRÉER UN AVENANT ICI…</td></tr>`; })() : "");
