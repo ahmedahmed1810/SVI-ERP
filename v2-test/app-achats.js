@@ -1984,8 +1984,7 @@ function achNvhDrag(e, h) {
 }
 function achNvPageHTML(p, rec) {
   return `<div class="nvp" style="${achNvhStyle()}">
-    <div class="nvp-bar"><span class="nvp-tools"><button type="button" class="nvp-ic" data-nvp="prev" title="PRÉCÉDENT">‹</button><button type="button" class="nvp-ic" data-nvp="next" title="SUIVANT">›</button>
-      <button type="button" class="nvp-ic" data-nvp="more" title="MENU">⋯</button><button type="button" class="nvp-ic" data-nvp="close" title="FERMER">✕</button></span></div>
+    <div class="nvp-bar">${sviHdrBar({ attr: "nvp", n: p.why.length, why: { undo: "RIEN À ANNULER SUR CETTE FICHE.", redo: "RIEN À RÉTABLIR SUR CETTE FICHE.", todo: p.why.length ? "" : "AUCUNE ALERTE." } })}</div>
     <div class="nvp-card${p.st === "instance" ? " nvp-inst" : ""}">
       <div class="nvp-top"><span class="nvp-code">${esc(p.code)}</span><button type="button" class="ach-h" data-h="${esc(p.code)}" title="Historique">H</button>
         <span class="nvp-st">${p.del ? "CORBEILLE" : p.st === "instance" ? "EN INSTANCE" : "VALIDÉ"}${p.inactif ? " · INACTIF" : ""}</span></div>
@@ -2017,7 +2016,11 @@ function achNvMod(ctx, cfg) {
       if (k === "close") { pid = null; ctx.draw(); return true; }
       if (k === "prev" || k === "next") { const j = i + (k === "next" ? 1 : -1); if (i < 0 || j < 0 || j >= ord.length) { svToast(k === "next" ? "DERNIER DE LA LISTE." : "PREMIER DE LA LISTE.", 2000, b); return true; } open(ord[j]); return true; }
       if (k === "info") { P.info(() => ctx.draw()); return true; }
-      if (k === "more") { sviEtatMenu(b, P.menu.map(m => ({ k: m.k, lab: m.lab })), "", async a => { await P.act(a, () => ctx.draw(), id => open(id)); }); return true; }
+      if (b.classList.contains("hdr-off")) { svToast(b.dataset.why || "", 3000, b); return true; }
+      if (k === "todo") { svToast("⚠ " + P.why.join(" · "), 5000, b); return true; }
+      /* v774 : ⋯ principal commun — VALIDER en tête ; actions ; CORBEILLE / RESTAURER et FERMER en bas, séparés par un trait */
+      if (k === "more") { const M = P.menu, top = M.filter(m => m.k === "val"), bot = M.filter(m => m.k === "del" || m.k === "rest").map(m => ({ ...m, del: m.k === "del" })), mid = M.filter(m => !top.includes(m) && !["del", "rest"].includes(m.k));
+        sviHdrMenu(b, [top, mid, [...bot, { k: "__close", lab: "FERMER" }]], async a => { if (a === "__close") { pid = null; ctx.draw(); return; } await P.act(a, () => ctx.draw(), id => open(id)); }); return true; }
     }
     const l = e.target.closest("[data-nvl]"); if (l) { const [t, i] = l.dataset.nvl.split("|"), L = P.links.find(x => x.t === t), r = L && L.rows[+i]; if (r && r.open) r.open(() => ctx.draw()); return true; }
     return false;

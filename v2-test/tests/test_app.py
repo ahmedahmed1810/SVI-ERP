@@ -3057,11 +3057,11 @@ def main():
             v.querySelector('[data-nvr="obs"]').click(); await w(100); v.querySelector('[data-nvradd]').click(); await w(200);
             document.querySelector('#svConf .nr-t').value = 'livrer avant 10h'; document.querySelector('#svConf .nr-i').checked = true; document.querySelector('#svConf [data-ok]').click(); await w(250);
             r.push(obsAlertCount('ACH-' + A.code), /AVANT 10H/.test(v.querySelector('.nvp-rec').textContent));
-            v.querySelector('[data-nvp="more"]').click(); await w(150); r.push([...document.querySelectorAll('#sviEtatMenu button')].map(b => b.textContent.trim()).join('|'));
-            document.querySelector('#sviEtatMenu [data-k="cv"]').click(); await w(200); const cv = document.querySelector('#svConf'); cv.querySelector('[data-add]').click(); await w(100);
+            v.querySelector('[data-nvp="more"]').click(); await w(150); r.push([...document.querySelectorAll('#blkMenu button')].map(b => b.textContent.trim()).join('|'));
+            document.querySelector('#blkMenu [data-a="cv"]').click(); await w(200); const cv = document.querySelector('#svConf'); cv.querySelector('[data-add]').click(); await w(100);
             const cvv = document.querySelector('#svConf'); cvv.querySelector('.cv-x[data-c="u"]').value = 'SAC'; cvv.querySelector('.cv-x[data-c="r"]').value = '20'; cvv.querySelector('[data-save]').click(); await w(250);
             r.push(JSON.stringify(achArts().find(a => a.id === A.id).cv));
-            v.querySelector('[data-nvp="more"]').click(); await w(150); document.querySelector('#sviEtatMenu [data-k="val"]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
+            v.querySelector('[data-nvp="more"]').click(); await w(150); document.querySelector('#blkMenu [data-a="val"]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
             r.push(achArts().find(a => a.id === A.id).st, !v.querySelector('.nvp-inst'));
             v.querySelector('[data-nvp="close"]').click(); await w(200); r.push((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim());
             v.querySelector(`[data-nvo="${s1.id}"]`).click(); await w(250); r.push([...v.querySelectorAll('.nvp-blk')].some(b => b.textContent.includes('DVF 1')));
@@ -3071,7 +3071,7 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v764 : ARTICLES au format du budget — listes EN INSTANCE / VALIDÉS, dates, création par fenêtre (en instance, corbeille), page : bloc DOC / TAF / OBS, ⋯ VALIDER et UNITÉ DE CONVERSION, devis liés, ‹ ›",
               a764 == ["ARTICLES (VALIDÉS) 2", 2, 2, 1, "instance", "ARTICLES (EN INSTANCE) 1", 1, True, True, "ART-0003", True, 3, 1, True,
-                       "VALIDER|UNITÉ DE CONVERSION|BUDGETS (0)|METTRE À LA CORBEILLE", '[{"u":"SAC","r":20}]', "valide", True, "ARTICLES (VALIDÉS) 3", True, True, True], a764)
+                       "VALIDER|UNITÉ DE CONVERSION|BUDGETS (0)|METTRE À LA CORBEILLE|FERMER", '[{"u":"SAC","r":20}]', "valide", True, "ARTICLES (VALIDÉS) 3", True, True, True], a764)
         # v765 : toutes les listes des achats au format du budget — pas d'onglets, titre EN INSTANCE / VALIDÉS + bascule, dates, corbeille = ANNULER
         l765 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_caf_v1', 'svi_ach_caf_mode_v1', 'svi_ach_caf_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
             achCafSave([{ id: 'c1', ref: 'CAF 1', state: 'ouverte', cree: '2026-10-30T10:00:00Z', lignes: [], frs: [] }, { id: 'c2', ref: 'CAF 2', state: 'close', cree: '2026-10-20T10:00:00Z', valide: '2026-10-25T10:00:00Z', lignes: [], frs: [] }]);
