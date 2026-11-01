@@ -155,6 +155,43 @@ def main():
             const K = JSON.parse(keep); if (K.vfz) I.vfz = K.vfz; else delete I.vfz; if (keepT === null) localStorage.removeItem('svi_etp_tab_v1'); else localStorage.setItem('svi_etp_tab_v1', keepT); X.refreshAll(); return r; }""".replace("INS_X", ins))
         check("v756 / v757 : un seul bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES, boutons de l'onglet ouvert, menu ⋯ (COMPARER, CRÉER, APERÇU, EXPORTER), onglet AVENANTS ; COMPARER côte à côte avec écarts",
               e756[:5] == [True, "av,scn,ver,rcl", True, True, True] and e756[5] == "BUDGET INITIAL" and all(x in e756[6] for x in ["COMPARER", "CRÉER UN AVENANT", "APERÇU", "EXPORTER"]) and e756[7] == [3, 13, True], e756)
+        # v758 : fenêtre d'import unique — sources FICHIER / GOOGLE SHEETS / MS PROJECT (XML) / AUTRE BUDGET ; un fichier est lu à blanc (budget
+        # ouvert inchangé) puis proposé comme source de la même fenêtre (cases, aperçu, IMPORTER) ; IMPORTER dans AVENANTS, SCÉNARIOS, RECALAGES, pas VERSIONS
+        import tempfile
+        td = tempfile.mkdtemp()
+        xmlp, csvp = os.path.join(td, "plan.xml"), os.path.join(td, "budget.csv")
+        open(xmlp, "w", encoding="utf-8").write("<?xml version='1.0'?><Project><Tasks><Task><UID>0</UID><Name>P</Name><OutlineLevel>0</OutlineLevel><Summary>1</Summary></Task>"
+            "<Task><UID>1</UID><Name>RDC</Name><OutlineLevel>1</OutlineLevel><Summary>1</Summary></Task>"
+            "<Task><UID>2</UID><Name>FONDATION MSP</Name><OutlineLevel>2</OutlineLevel><Summary>0</Summary><Start>2026-11-02T08:00:00</Start><Finish>2026-11-04T17:00:00</Finish></Task>"
+            "<Task><UID>3</UID><Name>ELEVATION MSP</Name><OutlineLevel>2</OutlineLevel><Summary>0</Summary><Start>2026-11-05T08:00:00</Start><Finish>2026-11-06T17:00:00</Finish>"
+            "<PredecessorLink><PredecessorUID>2</PredecessorUID><Type>1</Type><LinkLag>0</LinkLag></PredecessorLink></Task></Tasks></Project>")
+        open(csvp, "w", encoding="utf-8").write("ART,DÉSIGNATION CLIENT,UPB,LOT,ACTIVITÉ PRIMAIRE,ACTIVITÉ SECONDAIRE,TYPE (PRD / CHG),ARTICLE,DÉSIGNATION PRODUIT / CHARGE,UNITÉ,NBR,DIM 1,DIM 2,DIM 3,QTE,PCB\n"
+            "9,MUR IMPORT CSV,M2,RDC,MACONNERIE CSV,MACONNERIE CSV,CHG,,CIMENT CSV,T,,,,,2,100\n")
+        pg.evaluate("""() => { window.__kp758 = JSON.stringify(INS_X.INS); }""".replace("INS_X", ins))
+        pg.evaluate("() => { const sh = [...document.querySelectorAll('*')].find(e => e.__ins); sh.__impMenu('budget'); }"); pg.wait_for_timeout(200)
+        srcs = pg.evaluate("() => [...document.querySelectorAll('.blk-card [data-src]')].map(b => b.dataset.src).join(',')")
+        with pg.expect_file_chooser() as fc:
+            pg.evaluate("() => document.querySelector('.blk-card [data-src=\"msp\"]').click()")
+        fc.value.set_files(xmlp); pg.wait_for_timeout(700)
+        m758 = pg.evaluate("""() => { const c = document.querySelector('.imp-card'); if (!c) return 'pas de fenêtre'; const same = JSON.stringify(INS_X.INS) === window.__kp758;
+            return [(document.getElementById('impSrc') || {}).textContent || '', [...c.querySelectorAll('.imp-tabs [data-tab], .imp-tabs button')].map(b => b.textContent.replace(/\\s+/g, ' ').trim()).join('|'), same]; }""".replace("INS_X", ins))
+        pg.evaluate("() => document.getElementById('impGo').click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('.imp-ask [data-mode=\"add\"]')?.click()"); pg.wait_for_timeout(500)
+        a758 = pg.evaluate("""() => { const I = INS_X.INS, S = (I.sec || []).filter(x => /MSP$/.test(x.v)), keys = Object.keys(I.dlp || {}).filter(k => S.some(s => k.endsWith('|' + s.id)));
+            const pred = Object.values(I.dpred || {}).flat().length; return [S.length, keys.length, pred > 0]; }""".replace("INS_X", ins))
+        pg.evaluate("() => { const sh = [...document.querySelectorAll('*')].find(e => e.__ins); sh.__impMenu('budget'); }"); pg.wait_for_timeout(200)
+        pg.evaluate("() => document.querySelector('.blk-card [data-src=\"file\"]').click()"); pg.wait_for_timeout(300)
+        with pg.expect_file_chooser() as fc:
+            pg.evaluate("() => document.querySelector('#svConf [data-go]').click()")
+        fc.value.set_files(csvp); pg.wait_for_timeout(700)
+        c758 = pg.evaluate("""() => { const c = document.querySelector('.imp-card'); if (!c) return 'pas de fenêtre'; const r = [(document.getElementById('impSrc') || {}).textContent || '', c.textContent.includes('MUR IMPORT CSV') || [...c.querySelectorAll('.imp-tabs *')].some(b => /DÉSIGNATIONS CLIENT\\s*1/.test(b.textContent))];
+            c.querySelector('[data-cancel]').click(); return r; }""")
+        e758 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), B = document.querySelector('.blk-etp'), r = [];
+            for (const k of ['scn', 'ver']) { B.querySelector(`[data-etab="${k}"]`).click(); await w(50); B.querySelector('.blk-more').click(); await w(120);
+              r.push([...document.querySelectorAll('#blkMenu button span')].some(x => /^IMPORTER/.test(x.textContent.trim()))); document.getElementById('blkMenu')?.remove(); }
+            const X = INS_X, I = X.INS; Object.keys(I).forEach(k => { delete I[k]; }); Object.assign(I, JSON.parse(window.__kp758)); X.insSave(); X.refreshAll(); return r; }""".replace("INS_X", ins))
+        check("v758 : import unique — sources (fichier, Google Sheets, MS Project, autre budget) ; MS Project XML lu à blanc puis même fenêtre (budget ouvert inchangé) ; tâches, dates et liaison importées ; CSV au format du budget ; IMPORTER dans SCÉNARIOS, pas dans VERSIONS",
+              srcs == "file,gsheet,msp,bdg" and isinstance(m758, list) and "MS PROJECT" in m758[0] and m758[2] is True and a758 == [2, 2, True] and isinstance(c758, list) and "FICHIER" in c758[0] and c758[1] and e758 == [True, False], [srcs, m758, a758, c758, e758])
         # v728 (bloc 9.2) : chute = barres achetées − longueur utile (méthode A), répartie au prorata des QCB du titre ; exemple du 30/10/2026
         t728 = pg.evaluate("""() => { const I = { chg: [{ id: 'a', des: 'ACIER HA12', u: 'KG', q: 60 }, { id: 'b', des: 'ACIER HA12', u: 'KG', q: 40 }],
             prd: [{ id: 'p1', d1: 4.5, nbr: 10 }, { id: 'p2', d1: 2.8, nbr: 6 }, { id: 'p3', d1: 1.2, nbr: 8 }],
@@ -2583,7 +2620,7 @@ def main():
         pg.evaluate("() => document.querySelector('[data-src=\"file\"]')?.click()"); pg.wait_for_timeout(400)
         i713 = pg.evaluate("() => { const d = document.getElementById('svConf'); return d ? [/EN-TÊTES DE COLONNE SUIVANTS/.test(d.innerText), d.querySelectorAll('.imph-req').length > 0, d.querySelectorAll('[data-cp]').length, !!d.querySelector('[data-go]')] : null; }")
         pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(200)
-        check("v713 : avant l'import Excel, fenêtre des en-têtes attendus (★, COPIER LES EN-TÊTES, CONTINUER)", i713 == [True, True, 1, True], i713)
+        check("v713 / v758 : avant l'import Excel, fenêtre des en-têtes attendus — format du budget : BUDGET, DÉLAIS, QUALITÉ (★, COPIER LES EN-TÊTES, CONTINUER)", i713 == [True, True, 3, True], i713)
         # v705 : balayage d'un budget à l'autre dans l'ordre de la liste ; budget à avenants parcouru écran par écran
         pg.evaluate("""() => { window.__kp705 = JSON.stringify(sviInstGet()); const d = { des: [], lot: [], prim: [], sec: [], chg: [], prd: [], links: [], dlp: {} };
             sviInstSet(sviInstGet().concat([{ ref: 'SOLO-1', project: 'SOL', state: 'valide', data: JSON.parse(JSON.stringify(d)) }, { ref: 'AVT-1', project: 'AVT', state: 'valide', data: JSON.parse(JSON.stringify(d)) }, { ref: 'AVT-1-AV1', project: 'AVT', state: 'valide', parent: 'AVT-1', avn: 1, data: JSON.parse(JSON.stringify(d)) }]));

@@ -80,6 +80,8 @@
         });
         blk.querySelectorAll(".blk-tools .blk-btn[data-etp]").forEach(x => {
           x.dataset.blk = etpTab;
+          /* v758 : IMPORTER dans AVENANTS, SCÉNARIOS et RECALAGES, pas dans VERSIONS */
+          if (x.dataset.act === "import" || x.dataset.act === "noimport") { x.dataset.act = etpTab === "ver" ? "noimport" : "import"; x.title = "IMPORTER — " + { av: "NOUVEL AVENANT", scn: "NOUVEAU SCÉNARIO", rcl: "NOUVEAU RECALAGE", ver: "" }[etpTab]; }
           if (x.dataset.act === "new") x.title = ETP_NEW[etpTab];
         });
       };
@@ -98,6 +100,22 @@
       /* COMPARER et CRÉER (menu ⋯ du bloc) */
       shell.__etpAct = (k, act) => {
         if (act === "cmp") { if (shell.__cmpMulti) shell.__cmpMulti(k); else if (shell.__cmpPick) shell.__cmpPick(); return; }
+        /* v758 : IMPORTER = l'élément est créé (avenant, scénario, recalage), puis la fenêtre d'import unique s'ouvre sur lui (TOUT coché) */
+        if (act === "import") {
+          if (k === "av") { const S = sviAvStages(etpRoot()), last = S[S.length - 1];
+            if (!last || last.state !== "valide") { svToast("LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT.", 4000); return; }
+            window.__sviImpNext = { k: "av", t: Date.now() }; window.__sviAvNew && window.__sviAvNew(etpRoot(), ref); return; }
+          if (k === "scn") { const r = $("scnTable") && $("scnTable").querySelector("tr[data-scnadd]");
+            if (!r) { svToast(window.__sviRO || "IMPORTER : BUDGET EN LECTURE SEULE.", 3500); return; }
+            if (r.classList.contains("off")) { svToast(r.textContent.trim(), 3500); return; }
+            const before = new Set(((INS.ver || {}).L || []).map(x => x.id)); r.click();
+            const nw = ((INS.ver || {}).L || []).filter(x => x.kind === "sc" && !before.has(x.id)).pop();
+            if (!nw) return;
+            if (shell.__scnSwap) shell.__scnSwap(nw.id);
+            setTimeout(() => shell.__impMenu && shell.__impMenu("budget", "NOUVEAU SCÉNARIO — " + nw.nom), 200); return; }
+          if (k === "rcl") { window.__sviImpNext = { k: "rcl", t: Date.now() }; if (shell.__rclNew) shell.__rclNew(); return; }
+          return;
+        }
         if (act !== "new") return;
         if (k === "av") { const S = sviAvStages(etpRoot()), last = S[S.length - 1];
           if (!last || last.state !== "valide") { svToast("LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT.", 4000); return; }
@@ -110,6 +128,12 @@
         if (k === "rcl") { if (shell.__rclNew) shell.__rclNew(); return; }
       };
       etpSync();
+      /* v758 : avenant ou recalage créé par IMPORTER — la fenêtre d'import s'ouvre sur lui dès son ouverture */
+      { const N = window.__sviImpNext;
+        if (N && Date.now() - N.t < 120000 && bi && !bi.virtual && (bi.state || "instance") === "instance" && ((N.k === "av" && bi.parent) || (N.k === "rcl" && bi.rclOf))) {
+          window.__sviImpNext = null;
+          setTimeout(() => shell.__impMenu && shell.__impMenu("budget", (N.k === "av" ? "NOUVEL AVENANT — " : "NOUVEAU RECALAGE — ") + ref), 400);
+        } }
       /* point 1 : ouvert depuis la liste = le budget lui-même — le scénario RETENU s'il y en a un (la dernière vue, elle, reste celle qu'on avait) */
       if (window.__sviFromList === ref) {
         window.__sviFromList = null;

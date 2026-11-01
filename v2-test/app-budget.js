@@ -2701,6 +2701,7 @@ function renderBudgetList() {
             </span>
             <span class="blk-tools">
               <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="cmp" title="COMPARER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3v10M6.5 3v10M10.5 3v10M14 3v10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+              <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="import" title="IMPORTER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="new" title="CRÉER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="pdf" title="APERÇU"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5v10h-8.5z M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
               <button type="button" class="blk-btn" data-blk="scn" data-etp="1" data-act="export" title="EXPORTER"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -2880,6 +2881,7 @@ function renderBudgetList() {
       }, 60);
     };
     const insSave = () => {
+      if (shell.__impDry) return;   /* v758 : lecture d'une source d'import (essai à blanc) — rien n'est enregistré */
       shell.__tabGen = (shell.__tabGen || 0) + 1;   /* v743 : toute modification enregistrée = onglets gardés en mémoire périmés */
       if (!INS_REAL) return;   /* v697 : lecture seule au format complet — rien n'est enregistré */
       if (INS_RCL0 && rclDesSig(INS.des) !== INS_RCL0.sig) {
@@ -12137,6 +12139,7 @@ ${A}</Assignments>
     };
 
     const refreshAll = () => {
+      if (shell.__impDry) return;   /* v758 */
       grpFlush();
       /* v523 (remarque 4) : après une suppression, plus de filtre sur des lignes disparues — la mémoire des cases cochées
          est vidée et un rond choisi sur une ligne supprimée est libéré (tous les tableaux et listes) */
@@ -14003,6 +14006,11 @@ ${A}</Assignments>
           (dD.dlp[tk] || []).forEach(pp => m.dly.push({ key: "dly|" + ln + "|" + sn + "|" + (pp.deb || "") + "|" + (pp.fin || ""),
             row: { lot: ln, sec: sn, deb: impFr(pp.deb), fin: impFr(pp.fin), _deb: pp.deb || "", _fin: pp.fin || "" } }));
         });
+        /* v758 : liaisons entre tâches du planning (prédécesseurs) — suivent le bloc DÉTAIL DÉLAIS */
+        m.dpred = [];
+        { const nm = k => { const [lo, se] = String(k).split("|"); return [U_(((d.lot || []).find(x => x.id === lo) || {}).v), U_(((d.sec || []).find(x => x.id === se) || {}).v)]; };
+          Object.keys(d.dpred || {}).forEach(tk => { const [ln, sn] = nm(tk); if (!ln || !sn) return;
+            (d.dpred[tk] || []).forEach(p => { const [pl, ps] = nm(p.k); if (pl && ps) m.dpred.push({ lot: ln, sec: sn, plot: pl, psec: ps, t: p.t, o: p.o }); }); }); }
         /* liaisons validées du budget source : un chemin par produit / charge */
         const byId = (k, id) => (d[k] || []).find(x => x.id === id);
         (d.links || []).forEach(l => {
@@ -14126,10 +14134,11 @@ ${A}</Assignments>
     });
     /* v680 : onglet INDICATEURS — importés vers le tableau de bord (blk « rat » ; source : autre budget ou LISTE COMMUNE)
        ou vers la liste commune (blk « indlist » ; source : tableau de bord d'un budget, celui-ci compris) ; done() rouvre la fenêtre d'appel */
-    const openImportBudget = (blk, done) => {
+    const openImportBudget = (blk, done, opt) => {
       if (!INS) return;
+      opt = opt || {};
       const IND_ONLY = blk === "indlist", TABS = IND_ONLY ? [["ind", "INDICATEURS (TABLEAUX DE BORD)"]] : [...IMP_TABS, ["ind", "INDICATEURS"]];
-      const startTab = blk === "rat" || IND_ONLY ? "ind" : blk === "client" ? "des" : blk === "hier" ? "hier" : (active === "prd" ? "prd" : "chg");
+      const startTab = blk === "rat" || IND_ONLY ? "ind" : blk === "client" || blk === "budget" ? "des" : blk === "hier" ? "hier" : (active === "prd" ? "prd" : "chg");
       /* v691 : SOURCE EN ARBORESCENCE — budgets de la liste mère › consolidé et étapes (budget initial, avenants) ›
          scénarios et versions de chaque étape ; tout élément est importable, consolidé compris */
       IMP_EXTRA.clear();
@@ -14142,6 +14151,8 @@ ${A}</Assignments>
         sviRclOf(st.ref).forEach(x => { if (groups.has(x.ref)) out.push({ r: x.ref, lab: "RECALAGE R" + x.rcn + (x.state === "valide" ? "" : " (EN COURS)") }); });
         return out;
       };
+      /* v758 : source lue d'un fichier, de Google Sheets ou de MS Project — en tête de la liste, choisie d'office */
+      if (opt.extra) { IMP_EXTRA.set(opt.extra.ref, { ref: opt.extra.ref, project: budget.project, rows: [], first: {}, inst: { ref: opt.extra.ref, project: budget.project, state: "valide", data: opt.extra.data } }); TREE.push({ r: opt.extra.ref, lab: opt.extra.lab, lvl: 0 }); }
       if (blk === "rat") TREE.push({ r: "__LISTE", lab: "LISTE DES INDICATEURS (COMMUNE)", lvl: 0 });
       [...groups.values()].filter(g => !(g.inst && g.inst.parent)).sort((a, b) => byRef(a.ref, b.ref)).forEach(g => {
         const S = g.inst ? sviAvStages(g.ref) : [];
@@ -14166,9 +14177,9 @@ ${A}</Assignments>
         const L = r === "__LISTE" ? indLoad() : r === ref ? ratMigrate(JSON.parse(JSON.stringify(INS.rat || {}))).L : (() => { const g = groups.get(r); return g && g.inst ? ratMigrate(JSON.parse(JSON.stringify((g.inst.data || {}).rat || {}))).L : []; })();
         m.ind = (L || []).filter(I => I.f).map(I => ({ key: "ind|" + U_(I.nom), row: { nom: I.nom, form: indText(I.f, []), I } }));
         return m; };
-      let src = refs[0] || "", model = impModelI(src), tab = startTab, withLinks = false, all = false;
+      let src = (opt.extra && opt.extra.ref) || refs[0] || "", model = impModelI(src), tab = startTab, withLinks = false, all = false;
       /* v691 : blocs cochés, chacun arrive en entier ; liaisons toujours ramenées */
-      const blkOn = new Set(IND_ONLY ? ["ind"] : [startTab]);
+      const blkOn = new Set(IND_ONLY ? ["ind"] : opt.all ? IMP_TABS.map(t => t[0]) : [startTab]);   /* v758 : IMPORTER UN BUDGET (et dans AVENANTS, SCÉNARIOS, RECALAGES) = TOUT coché d'office */
       const sel = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set(), ind: new Set() };
       /* lignes liées décochées à la main : la liaison est coupée à cet endroit */
       const cut = new Set();
@@ -14451,6 +14462,8 @@ ${A}</Assignments>
               if (old) kid.set(x.key, old.id);
               if (old) {
                 if (mode !== "update" || hierK) { skip++; return; }
+                /* v758 : recalage — la partie déjà réalisée n'est jamais écrasée */
+                if (budget.inst && budget.inst.rclOf && sviRclUsed(old)) { skip++; return; }
                 let ch = false;
                 ["q", "p", "tva", "nbr", "d1", "d2", "d3"].forEach(f => {
                   if (r[f] !== undefined && String(r[f]) !== String(old[f] ?? "")) { old[f] = r[f]; ch = true; }
@@ -14515,6 +14528,11 @@ ${A}</Assignments>
               const key = lo + "|" + pr, list = INS.dlp[key] = INS.dlp[key] || [];
               if (!list.some(p => p.deb === x.row._deb && p.fin === x.row._fin)) list.push({ id: insId(), deb: x.row._deb, fin: x.row._fin });
             });
+            /* v758 : prédécesseurs des tâches importées (MS Project, autre budget) */
+            if (pk.dly && pk.dly.size) { INS.dpred = INS.dpred || {};
+              (model.dpred || []).forEach(x => { const a = kid.get("lot|" + x.lot), b = kid.get("sec|" + x.sec), c = kid.get("lot|" + x.plot), e2 = kid.get("sec|" + x.psec);
+                if (!a || !b || !c || !e2) return; const key = a + "|" + b, pkk = c + "|" + e2; if (key === pkk) return;
+                const L = INS.dpred[key] = INS.dpred[key] || []; if (!L.some(y => y.k === pkk)) L.push({ k: pkk, t: x.t === "DD" ? "DD" : "FD", o: Number(x.o) || 0 }); }); }
           }
           insSave();
           const M = { add: "AJOUT", replace: "REMPLACEMENT", update: "MISE À JOUR" }[mode];
@@ -14533,7 +14551,7 @@ ${A}</Assignments>
             <div class="imp-ask-t">DONNÉES DÉJÀ PRÉSENTES</div>
             <button type="button" class="imp-ask-b" data-mode="add"><b>AJOUTER</b><span>LES LIGNES EXISTANTES SONT GARDÉES ; LES LIGNES IDENTIQUES NE SONT PAS AJOUTÉES</span></button>
             <button type="button" class="imp-ask-b" data-mode="update"><b>METTRE À JOUR</b><span>LES LIGNES IDENTIQUES PRENNENT LA QUANTITÉ ET LE PRIX IMPORTÉS ; LES NOUVELLES S'AJOUTENT</span></button>
-            <button type="button" class="imp-ask-b imp-ask-r" data-mode="replace"><b>REMPLACER</b><span>LES BLOCS CI-DESSUS SONT VIDÉS PUIS REMPLIS AVEC LES LIGNES IMPORTÉES</span></button>
+            ${budget.inst && budget.inst.rclOf ? `<div class="imp-ask-n">RECALAGE : LA PARTIE DÉJÀ RÉALISÉE N'EST JAMAIS ÉCRASÉE (PAS DE REMPLACER).</div>` : `<button type="button" class="imp-ask-b imp-ask-r" data-mode="replace"><b>REMPLACER</b><span>LES BLOCS CI-DESSUS SONT VIDÉS PUIS REMPLIS AVEC LES LIGNES IMPORTÉES</span></button>`}
             <div class="imp-ask-f"><button type="button" class="doc-btn" data-ask-cancel>ANNULER</button></div>
           </div>`;
         p.appendChild(ask);
@@ -15246,6 +15264,7 @@ ${A}</Assignments>
       { name: "DÉLAIS (FACULTATIF)", cols: [["LOT", 1], ["ACTIVITÉ SECONDAIRE", 1], ["DÉBUT"], ["FIN"], ["DURÉE (J)"], ["PRÉDÉCESSEURS"], ["TYPE"], ["DÉCALAGE (J)"]] },
       { name: "QUALITÉ (FACULTATIF)", cols: [["CRITÈRE", 1], ["POINT DE CONTRÔLE", 1]] }];
     const impHeadsOf = blk => {
+      if (blk === "budget") return IMP_HEADS_BUDGET;   /* v758 : tout import passe par les règles du budget */
       let H = []; try { H = (blkData(blk) || {}).head || []; } catch (e) {}
       H = H.map(h => String(h || "").trim()).filter(h => h && !/^[✓☐]?$/.test(h));
       const reqRx = /^(DÉSIGNATION|LOT|ACTIVITÉ PRIMAIRE|ACTIVITÉ SECONDAIRE|CRITÈRE|POINT DE CONTRÔLE|UNITÉ|U[CP]B)\b/;
@@ -15258,7 +15277,7 @@ ${A}</Assignments>
         body: `<div class="svc-sub imph-t">ASSUREZ-VOUS QUE LE FICHIER SOURCE A LES EN-TÊTES DE COLONNE SUIVANTS</div>
           ${T.map((t, i) => `<div class="imph-tb"><div class="imph-h"><b>${esc(t.name)}</b><button type="button" class="svc-b" data-cp="${i}">COPIER LES EN-TÊTES</button></div>
             <div class="imph-cols">${t.cols.map(([h, r]) => `<span class="imph-c">${esc(h)}${r ? '<i class="imph-req">★</i>' : ""}</span>`).join("")}</div></div>`).join("")}
-          <div class="hcf-note">★ = COLONNE EXIGÉE. MS PROJECT : PAS D'IMPORT DIRECT — EXPORTER LE PROJET EN EXCEL DANS MS PROJECT, PUIS IMPORTER LES DÉLAIS.</div>`,
+          <div class="hcf-note">★ = COLONNE EXIGÉE. MS PROJECT : CHOISIR « MS PROJECT (FICHIER XML) » DANS LA LISTE DES SOURCES.</div>`,
         foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-go>CONTINUER</button>` });
       sviWinShow(d);
       d.addEventListener("click", async e => {
@@ -15473,7 +15492,7 @@ ${A}</Assignments>
         else if (it.dataset.a === "multi") multiWin();   /* v668 (axe 8) */
         else if (it.dataset.a === "sign") signWin();   /* v668 */
         else if (it.dataset.a === "exp") openExportMenu("budget");
-        else if (it.dataset.a === "imp") openBudgetImport();
+        else if (it.dataset.a === "imp") { if (shell.__impMenu) shell.__impMenu("budget"); else openBudgetImport(); }   /* v758 : entrée et fenêtre d'import uniques */
         else if (it.dataset.a === "src") srcRefresh();
       });
       setTimeout(() => document.addEventListener("click", function off(e) {
@@ -15987,27 +16006,143 @@ ${A}</Assignments>
     shell.__sdClose = () => sdInplaceClose();
     shell.__sdOpen = k => openDirectEntry(k, { inplace: true });
     shell.__sd = k => openDirectEntry(k);
-    const openImportMenu = blk => {
+    /* =========================================================
+       v758 : UNE SEULE FENÊTRE D'IMPORT POUR TOUTE L'APPLICATION (prompt du 01/11/2026, points 6 et 7)
+       Même entrée partout (blocs DÉSIGNATIONS CLIENT, TÂCHES, DÉTAIL ; IMPORTER UN BUDGET ; onglets AVENANTS, SCÉNARIOS, RECALAGES) :
+       source au choix — FICHIER (EXCEL, CSV, JSON), GOOGLE SHEETS, MS PROJECT (XML), AUTRE BUDGET DE L'APPLICATION —
+       puis TOUJOURS la même fenêtre (modèle « IMPORTER — DÉTAIL CHARGES ») : cases TOUT / blocs, aperçu en onglets, IMPORTER (n).
+       Un fichier ou une feuille est d'abord lu « à blanc » (rien n'est enregistré) en un budget source, proposé en tête de la liste.
+       ========================================================= */
+    /* lecture à blanc : la fonction d'import habituelle tourne sur un budget vide, le résultat devient la source ; le budget ouvert est remis tel quel */
+    const impDry = fn => {
+      const keep = JSON.stringify(INS); let out = null;
+      shell.__impDry = true;
+      try {
+        Object.keys(INS).forEach(k => { delete INS[k]; });
+        Object.assign(INS, { des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: [], dly: {}, links: [], dlp: {}, dlpSec: true, dpred: {}, inc: [] });
+        fn();
+        out = JSON.parse(JSON.stringify(INS));
+      } finally {
+        Object.keys(INS).forEach(k => { delete INS[k]; });
+        Object.assign(INS, JSON.parse(keep));
+        shell.__impDry = false;
+      }
+      if (out) { delete out.inc; delete out.ver; delete out.vfz; }
+      return out;
+    };
+    /* onglets lus : budget (DÉSIGNATION CLIENT…), DÉLAIS, QUALITÉ — chacun par sa règle d'import habituelle */
+    const impDataOfSheets = (sheets, name) => impDry(() => {
+      sheets.forEach(aoa => { const k = sheetKind(aoa);
+        if (k === "dly") dlyImportAoa(aoa, name, true);
+        else if (k === "qlt") qltImportAoa(aoa, name, true);
+        else bfApply(bfModel(aoa), "add", name, true); });
+    });
+    /* MS PROJECT : fichier XML enregistré par MS Project (MSPDI) — tâches, dates, durées, liaisons ; une tâche = LOT (tâche récapitulative
+       de niveau 1 au-dessus) › ACTIVITÉ SECONDAIRE (son nom) ; FS = FIN → DÉBUT, SS = DÉBUT → DÉBUT (autres types : FIN → DÉBUT) ; décalage en jours */
+    const mspAoa = xml => {
+      const doc = new DOMParser().parseFromString(xml, "application/xml");
+      if (doc.getElementsByTagName("parsererror").length) throw new Error("FICHIER XML ILLISIBLE");
+      const tx = (el, t) => { const x = el.getElementsByTagName(t)[0]; return x ? String(x.textContent || "").trim() : ""; };
+      const T = [...doc.getElementsByTagName("Task")].map(el => ({ uid: tx(el, "UID"), name: U_(tx(el, "Name")), lvl: +tx(el, "OutlineLevel") || 0, sum: tx(el, "Summary") === "1",
+        deb: tx(el, "Start").slice(0, 10), fin: tx(el, "Finish").slice(0, 10),
+        pred: [...el.getElementsByTagName("PredecessorLink")].map(l => ({ uid: tx(l, "PredecessorUID"), ty: tx(l, "Type"), lag: Math.max(0, Math.round((+tx(l, "LinkLag") || 0) / 4800)) })) }))
+        .filter(t => t.uid !== "0" && t.lvl > 0 && t.name);
+      if (!T.length) throw new Error("AUCUNE TÂCHE DANS LE FICHIER (ENREGISTRER LE PROJET AU FORMAT XML DANS MS PROJECT)");
+      const stack = [], byUid = new Map();
+      T.forEach(t => { stack.length = t.lvl - 1; t.lot = (stack[0] && stack[0] !== t) ? stack[0].name : t.sum ? "" : "SANS LOT"; stack[t.lvl - 1] = t; byUid.set(t.uid, t); });
+      const fr = d => /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4) : "";
+      const nm = t => t.lot + " › " + t.name;
+      const rows = T.filter(t => !t.sum).map(t => { const P = t.pred.map(p => byUid.get(p.uid)).map((x, i) => x && !x.sum ? [x, t.pred[i]] : null).filter(Boolean);
+        return [t.lot, t.name, fr(t.deb), fr(t.fin), "", P.map(([x]) => nm(x)).join(" ; "), P.map(([, p]) => p.ty === "3" ? "DÉBUT → DÉBUT" : "FIN → DÉBUT").join(" ; "), P.map(([, p]) => p.lag).join(" ; ")]; });
+      return [["LOT", "ACTIVITÉ SECONDAIRE", "DÉBUT", "FIN", "DURÉE (J)", "PRÉDÉCESSEURS", "TYPE", "DÉCALAGE (J)"], ...rows];
+    };
+    shell.__mspAoa = mspAoa;
+    const impCsv = txt => {
+      txt = String(txt || "").replace(/^\ufeff/, "");
+      const l0 = txt.split(/\r?\n/)[0] || "", sep = (l0.match(/;/g) || []).length > (l0.match(/,/g) || []).length ? ";" : (l0.match(/\t/g) || []).length > (l0.match(/,/g) || []).length ? "\t" : ",";
+      const out = []; let row = [], cur = "", q = false;
+      for (let i = 0; i < txt.length; i++) {
+        const c = txt[i];
+        if (q) { if (c === '"') { if (txt[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; continue; }
+        if (c === '"') q = true; else if (c === sep) { row.push(cur); cur = ""; } else if (c === "\n" || c === "\r") { if (c === "\r" && txt[i + 1] === "\n") i++; row.push(cur); out.push(row); row = []; cur = ""; } else cur += c;
+      }
+      if (cur !== "" || row.length) { row.push(cur); out.push(row); }
+      return out.filter(r => r.some(x => String(x).trim() !== ""));
+    };
+    /* source lue → la fenêtre d'import unique, cette source choisie */
+    const impOpenWith = (blk, data, lab, all) => {
+      if (!data) return;
+      const n = ["des", "chg", "prd", "lot", "sec", "qlt"].reduce((t, k) => t + (data[k] || []).length, 0) + Object.keys(data.dlp || {}).length;
+      if (!n) { svImportFail({ source: lab, tries: [{ err: "AUCUNE LIGNE RECONNUE" }], hint: "LA PREMIÈRE LIGNE DOIT PORTER LES EN-TÊTES ATTENDUS (DÉSIGNATION CLIENT, LOT, ACTIVITÉ SECONDAIRE…), OU CHOISIR UN FICHIER XML DE MS PROJECT." }); return; }
+      openImportBudget(blk, null, { extra: { ref: "SRC|" + Date.now().toString(36), lab: lab, data }, all });
+    };
+    const impReadFile = (blk, all, msp) => {
+      const inp = document.createElement("input");
+      inp.type = "file";
+      inp.accept = msp ? ".xml" : ".xlsx,.xls,.csv,.json,.txt,.xml";
+      inp.onchange = async () => {
+        const f = inp.files[0]; if (!f) return;
+        try {
+          if (/\.xml$/i.test(f.name)) { const aoa = mspAoa(await f.text()); impOpenWith(blk, impDataOfSheets([aoa], f.name), "MS PROJECT — " + U_(f.name), all); return; }
+          if (/\.json$/i.test(f.name)) {
+            const j = JSON.parse(await f.text()), d = j && (j.data || j);
+            if (d && (Array.isArray(d.des) || Array.isArray(d.chg))) { impOpenWith(blk, JSON.parse(JSON.stringify(d)), "FICHIER — " + U_(f.name), all); return; }
+            const arr = Array.isArray(j) ? j : [j], head = [...new Set(arr.flatMap(o => Object.keys(o || {})))];
+            impOpenWith(blk, impDataOfSheets([[head, ...arr.map(o => head.map(h => o?.[h] ?? ""))]], f.name), "FICHIER — " + U_(f.name), all); return;
+          }
+          /* CSV : lu sans la bibliothèque Excel (séparateur « ; » ou « , », guillemets) — marche aussi hors connexion */
+          if (/\.(csv|txt)$/i.test(f.name)) { impOpenWith(blk, impDataOfSheets([impCsv(await f.text())], f.name), "FICHIER — " + U_(f.name), all); return; }
+          const X = await loadXLSX(), wb = X.read(await f.arrayBuffer(), { type: "array" });
+          const J = n => X.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: "" });
+          const kinds = wb.SheetNames.map(n => ({ n, k: sheetKind(J(n)) }));
+          let use = kinds.filter(x => x.k === "budget" || x.k === "dly" || x.k === "qlt").map(x => x.n);
+          if (!use.length) use = [wb.SheetNames[0]];
+          impOpenWith(blk, impDataOfSheets(use.map(J), f.name), "FICHIER — " + U_(f.name) + (use.length === 1 && wb.SheetNames.length > 1 ? " › " + use[0] : ""), all);
+        } catch (err) { svImportFail({ source: f.name, tries: [{ err }], hint: "VÉRIFIER QUE LE FICHIER EST UN EXCEL (.XLSX), UN CSV, UN JSON OU UN XML DE MS PROJECT, NON PROTÉGÉ PAR MOT DE PASSE." }); }
+      };
+      inp.click();
+    };
+    const impReadSheet = async (blk, all) => {
+      const url = await askSheetLink(); if (!url) return;
+      const id = (url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1], gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || "0";
+      if (!id) { svImportFail({ source: url, tries: [{ err: "LIEN GOOGLE SHEETS NON RECONNU" }], hint: "COPIER LE LIEN COMPLET DE LA FEUILLE (IL CONTIENT /spreadsheets/d/…)." }); return; }
+      let first = "";
+      for (const call of [() => apiGet("sheetRead", { link: url }), () => apiPost("sheetRead", { link: url })]) {
+        try { const d = await call(); if (d && d.ok && Array.isArray(d.values)) { impOpenWith(blk, impDataOfSheets([d.values], d.name || "GOOGLE SHEETS"), "GOOGLE SHEETS — " + U_(d.name || ""), all); return; }
+          first = first || "LE SCRIPT NE CONNAÎT PAS ENCORE LA LECTURE DE FEUILLE (NOUVELLE VERSION À DÉPLOYER)"; } catch (err) { first = first || (err && err.message) || String(err); }
+      }
+      try {
+        const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`);
+        if (!r.ok) throw new Error("HTTP " + r.status + " — ACCÈS REFUSÉ (FEUILLE NON PARTAGÉE)");
+        const X = await loadXLSX(), wb = X.read(await r.text(), { type: "string" });
+        impOpenWith(blk, impDataOfSheets([X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" })], "GOOGLE SHEETS"), "GOOGLE SHEETS", all);
+      } catch (e) { svImportFail({ source: "GOOGLE SHEETS — " + url, tries: [{ via: "PAR LE SCRIPT", err: first }, { via: "PAR LE LIEN PUBLIC", err: e }], hint: "VÉRIFIER LE LIEN, QUE VOTRE COMPTE GOOGLE A ACCÈS À LA FEUILLE, OU LA PARTAGER « TOUTE PERSONNE DISPOSANT DU LIEN »." }); }
+    };
+    /* entrée unique : blk = client / hier / detail (le bloc), ou "budget" (tout le budget : IMPORTER UN BUDGET, onglets AVENANTS / SCÉNARIOS / RECALAGES) */
+    const openImportMenu = (blk, title) => {
+      const all = blk === "budget";
       const p = popup(`
         <div class="blk-card">
           <button type="button" class="blk-x" data-close>✕</button>
-          <div class="blk-title">IMPORTER — ${esc(blkDisp(blk))}</div>
-          <button type="button" class="blk-choice" data-src="file">Fichier (Excel, CSV, JSON)</button>
-          <button type="button" class="blk-choice" data-src="gsheet">Google Sheets (lien)</button>
-          ${INS ? `<button type="button" class="blk-choice" data-src="bdg">Autre budget de l'application</button>` : ""}
+          <div class="blk-title">IMPORTER — ${esc(title || (all ? "BUDGET COMPLET" : blkDisp(blk)))}</div>
+          <button type="button" class="blk-choice" data-src="file">FICHIER (EXCEL, CSV, JSON)</button>
+          <button type="button" class="blk-choice" data-src="gsheet">GOOGLE SHEETS (LIEN)</button>
+          <button type="button" class="blk-choice" data-src="msp">MS PROJECT (FICHIER XML)</button>
+          ${INS ? `<button type="button" class="blk-choice" data-src="bdg">AUTRE BUDGET DE L'APPLICATION</button>` : ""}
         </div>`);
       p.addEventListener("click", async e => {
         const b = e.target.closest("[data-src]");
         if (!b) return;
         p.remove();
-        if (b.dataset.src === "direct") { openDirectEntry(active); return; }
+        const s = b.dataset.src;
+        if (s === "bdg") { openImportBudget(blk, null, { all }); return; }
         /* v713 (point 5) : en-têtes attendus avant un import Excel / Google Sheets */
-        if ((b.dataset.src === "file" || b.dataset.src === "gsheet") && shell.__impHeadAsk && !(await shell.__impHeadAsk(shell.__impHeadsOf(blk)))) return;
-        if (b.dataset.src === "gsheet") importGSheet();
-        else if (b.dataset.src === "bdg") openImportBudget(blk);
-        else doImport(blk);
+        if ((s === "file" || s === "gsheet") && shell.__impHeadAsk && !(await shell.__impHeadAsk(shell.__impHeadsOf("budget")))) return;
+        if (s === "gsheet") impReadSheet(blk, all);
+        else impReadFile(blk, all, s === "msp");
       });
     };
+    shell.__impMenu = openImportMenu;
 
     const doImport = blk => {
       const inp = document.createElement("input");
@@ -19150,6 +19285,8 @@ ${A}</Assignments>
         });
         blk.querySelectorAll(".blk-tools .blk-btn[data-etp]").forEach(x => {
           x.dataset.blk = etpTab;
+          /* v758 : IMPORTER dans AVENANTS, SCÉNARIOS et RECALAGES, pas dans VERSIONS */
+          if (x.dataset.act === "import" || x.dataset.act === "noimport") { x.dataset.act = etpTab === "ver" ? "noimport" : "import"; x.title = "IMPORTER — " + { av: "NOUVEL AVENANT", scn: "NOUVEAU SCÉNARIO", rcl: "NOUVEAU RECALAGE", ver: "" }[etpTab]; }
           if (x.dataset.act === "new") x.title = ETP_NEW[etpTab];
         });
       };
@@ -19168,6 +19305,22 @@ ${A}</Assignments>
       /* COMPARER et CRÉER (menu ⋯ du bloc) */
       shell.__etpAct = (k, act) => {
         if (act === "cmp") { if (shell.__cmpMulti) shell.__cmpMulti(k); else if (shell.__cmpPick) shell.__cmpPick(); return; }
+        /* v758 : IMPORTER = l'élément est créé (avenant, scénario, recalage), puis la fenêtre d'import unique s'ouvre sur lui (TOUT coché) */
+        if (act === "import") {
+          if (k === "av") { const S = sviAvStages(etpRoot()), last = S[S.length - 1];
+            if (!last || last.state !== "valide") { svToast("LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT.", 4000); return; }
+            window.__sviImpNext = { k: "av", t: Date.now() }; window.__sviAvNew && window.__sviAvNew(etpRoot(), ref); return; }
+          if (k === "scn") { const r = $("scnTable") && $("scnTable").querySelector("tr[data-scnadd]");
+            if (!r) { svToast(window.__sviRO || "IMPORTER : BUDGET EN LECTURE SEULE.", 3500); return; }
+            if (r.classList.contains("off")) { svToast(r.textContent.trim(), 3500); return; }
+            const before = new Set(((INS.ver || {}).L || []).map(x => x.id)); r.click();
+            const nw = ((INS.ver || {}).L || []).filter(x => x.kind === "sc" && !before.has(x.id)).pop();
+            if (!nw) return;
+            if (shell.__scnSwap) shell.__scnSwap(nw.id);
+            setTimeout(() => shell.__impMenu && shell.__impMenu("budget", "NOUVEAU SCÉNARIO — " + nw.nom), 200); return; }
+          if (k === "rcl") { window.__sviImpNext = { k: "rcl", t: Date.now() }; if (shell.__rclNew) shell.__rclNew(); return; }
+          return;
+        }
         if (act !== "new") return;
         if (k === "av") { const S = sviAvStages(etpRoot()), last = S[S.length - 1];
           if (!last || last.state !== "valide") { svToast("LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT.", 4000); return; }
@@ -19180,6 +19333,12 @@ ${A}</Assignments>
         if (k === "rcl") { if (shell.__rclNew) shell.__rclNew(); return; }
       };
       etpSync();
+      /* v758 : avenant ou recalage créé par IMPORTER — la fenêtre d'import s'ouvre sur lui dès son ouverture */
+      { const N = window.__sviImpNext;
+        if (N && Date.now() - N.t < 120000 && bi && !bi.virtual && (bi.state || "instance") === "instance" && ((N.k === "av" && bi.parent) || (N.k === "rcl" && bi.rclOf))) {
+          window.__sviImpNext = null;
+          setTimeout(() => shell.__impMenu && shell.__impMenu("budget", (N.k === "av" ? "NOUVEL AVENANT — " : "NOUVEAU RECALAGE — ") + ref), 400);
+        } }
       /* point 1 : ouvert depuis la liste = le budget lui-même — le scénario RETENU s'il y en a un (la dernière vue, elle, reste celle qu'on avait) */
       if (window.__sviFromList === ref) {
         window.__sviFromList = null;
@@ -20386,6 +20545,7 @@ ${A}</Assignments>
       try { return JSON.parse(localStorage.getItem(HIST_KEY) || "[]") || []; } catch (e) { return []; }
     };
     const histLog = (branche, action, detail = "") => {
+      if (shell.__impDry) return;   /* v758 */
       try {
         const l = histLoad();
         l.push({ t: new Date().toISOString(), b: branche, a: action, d: String(detail || "").toUpperCase(), u: typeof sviUser === "function" ? sviUser() : "" });
@@ -21794,7 +21954,7 @@ ${A}</Assignments>
       }
       if (act === "max") return toggleMax(blk);
       /* v756 : bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES — COMPARER et CRÉER (propre à l'onglet) */
-      if ((act === "new" || act === "cmp") && shell.__etpAct) return shell.__etpAct(blk, act);
+      if ((act === "new" || act === "cmp" || (act === "import" && ["av", "scn", "rcl"].includes(blk))) && shell.__etpAct) return shell.__etpAct(blk, act);
       if (act === "view") { if (shell.__scnView) shell.__scnView(); return; }   /* v686 : bloc SCÉNARIOS, LISTE ⇄ COMPARAISON */
       /* v546 (R33) : ↻ AJUSTER À LA CAPACITÉ (DÉTAIL DÉLAIS) */
       /* v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE, en haut à côté de ↻, AGRANDIR et ⋯ */
@@ -21826,7 +21986,7 @@ ${A}</Assignments>
       /* DÉTAIL QUALITÉ (FORMAT, section U) : ses propres commandes, pas d'import ni de copier / coller de lignes */
       const QQm = shell.__qq && shell.__qq.on() && tools.querySelector('.blk-btn[data-blk="detail"]') ? shell.__qq : null;
       /* v545 (remarque 1) : AGRANDIR / RÉDUIRE n'est plus dans le menu (bouton visible à gauche du ⋯) */
-      const acts = [...tools.querySelectorAll(".blk-btn")].filter(a => !["max", "adj", "cfg", "hcfg"].includes(a.dataset.act) && !(readOnly && a.dataset.act === "import"))
+      const acts = [...tools.querySelectorAll(".blk-btn")].filter(a => !["max", "adj", "cfg", "hcfg", "noimport"].includes(a.dataset.act) && !(readOnly && a.dataset.act === "import" && !a.dataset.etp))
         .filter(a => !(QQm && ["import", "del", "copy", "cut", "paste", "export"].includes(a.dataset.act)));
       const m = document.createElement("div");
       m.id = "blkMenu";

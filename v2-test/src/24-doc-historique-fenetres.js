@@ -7,6 +7,7 @@
       try { return JSON.parse(localStorage.getItem(HIST_KEY) || "[]") || []; } catch (e) { return []; }
     };
     const histLog = (branche, action, detail = "") => {
+      if (shell.__impDry) return;   /* v758 */
       try {
         const l = histLoad();
         l.push({ t: new Date().toISOString(), b: branche, a: action, d: String(detail || "").toUpperCase(), u: typeof sviUser === "function" ? sviUser() : "" });

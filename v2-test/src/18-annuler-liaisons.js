@@ -1106,6 +1106,7 @@
     };
 
     const refreshAll = () => {
+      if (shell.__impDry) return;   /* v758 */
       grpFlush();
       /* v523 (remarque 4) : après une suppression, plus de filtre sur des lignes disparues — la mémoire des cases cochées
          est vidée et un rond choisi sur une ligne supprimée est libéré (tous les tableaux et listes) */

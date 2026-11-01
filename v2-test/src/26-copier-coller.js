@@ -334,7 +334,7 @@
       }
       if (act === "max") return toggleMax(blk);
       /* v756 : bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES — COMPARER et CRÉER (propre à l'onglet) */
-      if ((act === "new" || act === "cmp") && shell.__etpAct) return shell.__etpAct(blk, act);
+      if ((act === "new" || act === "cmp" || (act === "import" && ["av", "scn", "rcl"].includes(blk))) && shell.__etpAct) return shell.__etpAct(blk, act);
       if (act === "view") { if (shell.__scnView) shell.__scnView(); return; }   /* v686 : bloc SCÉNARIOS, LISTE ⇄ COMPARAISON */
       /* v546 (R33) : ↻ AJUSTER À LA CAPACITÉ (DÉTAIL DÉLAIS) */
       /* v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE, en haut à côté de ↻, AGRANDIR et ⋯ */
@@ -366,7 +366,7 @@
       /* DÉTAIL QUALITÉ (FORMAT, section U) : ses propres commandes, pas d'import ni de copier / coller de lignes */
       const QQm = shell.__qq && shell.__qq.on() && tools.querySelector('.blk-btn[data-blk="detail"]') ? shell.__qq : null;
       /* v545 (remarque 1) : AGRANDIR / RÉDUIRE n'est plus dans le menu (bouton visible à gauche du ⋯) */
-      const acts = [...tools.querySelectorAll(".blk-btn")].filter(a => !["max", "adj", "cfg", "hcfg"].includes(a.dataset.act) && !(readOnly && a.dataset.act === "import"))
+      const acts = [...tools.querySelectorAll(".blk-btn")].filter(a => !["max", "adj", "cfg", "hcfg", "noimport"].includes(a.dataset.act) && !(readOnly && a.dataset.act === "import" && !a.dataset.etp))
         .filter(a => !(QQm && ["import", "del", "copy", "cut", "paste", "export"].includes(a.dataset.act)));
       const m = document.createElement("div");
       m.id = "blkMenu";

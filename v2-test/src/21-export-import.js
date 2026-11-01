@@ -655,6 +655,11 @@
           (dD.dlp[tk] || []).forEach(pp => m.dly.push({ key: "dly|" + ln + "|" + sn + "|" + (pp.deb || "") + "|" + (pp.fin || ""),
             row: { lot: ln, sec: sn, deb: impFr(pp.deb), fin: impFr(pp.fin), _deb: pp.deb || "", _fin: pp.fin || "" } }));
         });
+        /* v758 : liaisons entre tâches du planning (prédécesseurs) — suivent le bloc DÉTAIL DÉLAIS */
+        m.dpred = [];
+        { const nm = k => { const [lo, se] = String(k).split("|"); return [U_(((d.lot || []).find(x => x.id === lo) || {}).v), U_(((d.sec || []).find(x => x.id === se) || {}).v)]; };
+          Object.keys(d.dpred || {}).forEach(tk => { const [ln, sn] = nm(tk); if (!ln || !sn) return;
+            (d.dpred[tk] || []).forEach(p => { const [pl, ps] = nm(p.k); if (pl && ps) m.dpred.push({ lot: ln, sec: sn, plot: pl, psec: ps, t: p.t, o: p.o }); }); }); }
         /* liaisons validées du budget source : un chemin par produit / charge */
         const byId = (k, id) => (d[k] || []).find(x => x.id === id);
         (d.links || []).forEach(l => {
@@ -778,10 +783,11 @@
     });
     /* v680 : onglet INDICATEURS — importés vers le tableau de bord (blk « rat » ; source : autre budget ou LISTE COMMUNE)
        ou vers la liste commune (blk « indlist » ; source : tableau de bord d'un budget, celui-ci compris) ; done() rouvre la fenêtre d'appel */
-    const openImportBudget = (blk, done) => {
+    const openImportBudget = (blk, done, opt) => {
       if (!INS) return;
+      opt = opt || {};
       const IND_ONLY = blk === "indlist", TABS = IND_ONLY ? [["ind", "INDICATEURS (TABLEAUX DE BORD)"]] : [...IMP_TABS, ["ind", "INDICATEURS"]];
-      const startTab = blk === "rat" || IND_ONLY ? "ind" : blk === "client" ? "des" : blk === "hier" ? "hier" : (active === "prd" ? "prd" : "chg");
+      const startTab = blk === "rat" || IND_ONLY ? "ind" : blk === "client" || blk === "budget" ? "des" : blk === "hier" ? "hier" : (active === "prd" ? "prd" : "chg");
       /* v691 : SOURCE EN ARBORESCENCE — budgets de la liste mère › consolidé et étapes (budget initial, avenants) ›
          scénarios et versions de chaque étape ; tout élément est importable, consolidé compris */
       IMP_EXTRA.clear();
@@ -794,6 +800,8 @@
         sviRclOf(st.ref).forEach(x => { if (groups.has(x.ref)) out.push({ r: x.ref, lab: "RECALAGE R" + x.rcn + (x.state === "valide" ? "" : " (EN COURS)") }); });
         return out;
       };
+      /* v758 : source lue d'un fichier, de Google Sheets ou de MS Project — en tête de la liste, choisie d'office */
+      if (opt.extra) { IMP_EXTRA.set(opt.extra.ref, { ref: opt.extra.ref, project: budget.project, rows: [], first: {}, inst: { ref: opt.extra.ref, project: budget.project, state: "valide", data: opt.extra.data } }); TREE.push({ r: opt.extra.ref, lab: opt.extra.lab, lvl: 0 }); }
       if (blk === "rat") TREE.push({ r: "__LISTE", lab: "LISTE DES INDICATEURS (COMMUNE)", lvl: 0 });
       [...groups.values()].filter(g => !(g.inst && g.inst.parent)).sort((a, b) => byRef(a.ref, b.ref)).forEach(g => {
         const S = g.inst ? sviAvStages(g.ref) : [];
@@ -818,9 +826,9 @@
         const L = r === "__LISTE" ? indLoad() : r === ref ? ratMigrate(JSON.parse(JSON.stringify(INS.rat || {}))).L : (() => { const g = groups.get(r); return g && g.inst ? ratMigrate(JSON.parse(JSON.stringify((g.inst.data || {}).rat || {}))).L : []; })();
         m.ind = (L || []).filter(I => I.f).map(I => ({ key: "ind|" + U_(I.nom), row: { nom: I.nom, form: indText(I.f, []), I } }));
         return m; };
-      let src = refs[0] || "", model = impModelI(src), tab = startTab, withLinks = false, all = false;
+      let src = (opt.extra && opt.extra.ref) || refs[0] || "", model = impModelI(src), tab = startTab, withLinks = false, all = false;
       /* v691 : blocs cochés, chacun arrive en entier ; liaisons toujours ramenées */
-      const blkOn = new Set(IND_ONLY ? ["ind"] : [startTab]);
+      const blkOn = new Set(IND_ONLY ? ["ind"] : opt.all ? IMP_TABS.map(t => t[0]) : [startTab]);   /* v758 : IMPORTER UN BUDGET (et dans AVENANTS, SCÉNARIOS, RECALAGES) = TOUT coché d'office */
       const sel = { des: new Set(), hier: new Set(), chg: new Set(), prd: new Set(), qlt: new Set(), dly: new Set(), ind: new Set() };
       /* lignes liées décochées à la main : la liaison est coupée à cet endroit */
       const cut = new Set();
@@ -1103,6 +1111,8 @@
               if (old) kid.set(x.key, old.id);
               if (old) {
                 if (mode !== "update" || hierK) { skip++; return; }
+                /* v758 : recalage — la partie déjà réalisée n'est jamais écrasée */
+                if (budget.inst && budget.inst.rclOf && sviRclUsed(old)) { skip++; return; }
                 let ch = false;
                 ["q", "p", "tva", "nbr", "d1", "d2", "d3"].forEach(f => {
                   if (r[f] !== undefined && String(r[f]) !== String(old[f] ?? "")) { old[f] = r[f]; ch = true; }
@@ -1167,6 +1177,11 @@
               const key = lo + "|" + pr, list = INS.dlp[key] = INS.dlp[key] || [];
               if (!list.some(p => p.deb === x.row._deb && p.fin === x.row._fin)) list.push({ id: insId(), deb: x.row._deb, fin: x.row._fin });
             });
+            /* v758 : prédécesseurs des tâches importées (MS Project, autre budget) */
+            if (pk.dly && pk.dly.size) { INS.dpred = INS.dpred || {};
+              (model.dpred || []).forEach(x => { const a = kid.get("lot|" + x.lot), b = kid.get("sec|" + x.sec), c = kid.get("lot|" + x.plot), e2 = kid.get("sec|" + x.psec);
+                if (!a || !b || !c || !e2) return; const key = a + "|" + b, pkk = c + "|" + e2; if (key === pkk) return;
+                const L = INS.dpred[key] = INS.dpred[key] || []; if (!L.some(y => y.k === pkk)) L.push({ k: pkk, t: x.t === "DD" ? "DD" : "FD", o: Number(x.o) || 0 }); }); }
           }
           insSave();
           const M = { add: "AJOUT", replace: "REMPLACEMENT", update: "MISE À JOUR" }[mode];
@@ -1185,7 +1200,7 @@
             <div class="imp-ask-t">DONNÉES DÉJÀ PRÉSENTES</div>
             <button type="button" class="imp-ask-b" data-mode="add"><b>AJOUTER</b><span>LES LIGNES EXISTANTES SONT GARDÉES ; LES LIGNES IDENTIQUES NE SONT PAS AJOUTÉES</span></button>
             <button type="button" class="imp-ask-b" data-mode="update"><b>METTRE À JOUR</b><span>LES LIGNES IDENTIQUES PRENNENT LA QUANTITÉ ET LE PRIX IMPORTÉS ; LES NOUVELLES S'AJOUTENT</span></button>
-            <button type="button" class="imp-ask-b imp-ask-r" data-mode="replace"><b>REMPLACER</b><span>LES BLOCS CI-DESSUS SONT VIDÉS PUIS REMPLIS AVEC LES LIGNES IMPORTÉES</span></button>
+            ${budget.inst && budget.inst.rclOf ? `<div class="imp-ask-n">RECALAGE : LA PARTIE DÉJÀ RÉALISÉE N'EST JAMAIS ÉCRASÉE (PAS DE REMPLACER).</div>` : `<button type="button" class="imp-ask-b imp-ask-r" data-mode="replace"><b>REMPLACER</b><span>LES BLOCS CI-DESSUS SONT VIDÉS PUIS REMPLIS AVEC LES LIGNES IMPORTÉES</span></button>`}
             <div class="imp-ask-f"><button type="button" class="doc-btn" data-ask-cancel>ANNULER</button></div>
           </div>`;
         p.appendChild(ask);
@@ -1898,6 +1913,7 @@
       { name: "DÉLAIS (FACULTATIF)", cols: [["LOT", 1], ["ACTIVITÉ SECONDAIRE", 1], ["DÉBUT"], ["FIN"], ["DURÉE (J)"], ["PRÉDÉCESSEURS"], ["TYPE"], ["DÉCALAGE (J)"]] },
       { name: "QUALITÉ (FACULTATIF)", cols: [["CRITÈRE", 1], ["POINT DE CONTRÔLE", 1]] }];
     const impHeadsOf = blk => {
+      if (blk === "budget") return IMP_HEADS_BUDGET;   /* v758 : tout import passe par les règles du budget */
       let H = []; try { H = (blkData(blk) || {}).head || []; } catch (e) {}
       H = H.map(h => String(h || "").trim()).filter(h => h && !/^[✓☐]?$/.test(h));
       const reqRx = /^(DÉSIGNATION|LOT|ACTIVITÉ PRIMAIRE|ACTIVITÉ SECONDAIRE|CRITÈRE|POINT DE CONTRÔLE|UNITÉ|U[CP]B)\b/;
@@ -1910,7 +1926,7 @@
         body: `<div class="svc-sub imph-t">ASSUREZ-VOUS QUE LE FICHIER SOURCE A LES EN-TÊTES DE COLONNE SUIVANTS</div>
           ${T.map((t, i) => `<div class="imph-tb"><div class="imph-h"><b>${esc(t.name)}</b><button type="button" class="svc-b" data-cp="${i}">COPIER LES EN-TÊTES</button></div>
             <div class="imph-cols">${t.cols.map(([h, r]) => `<span class="imph-c">${esc(h)}${r ? '<i class="imph-req">★</i>' : ""}</span>`).join("")}</div></div>`).join("")}
-          <div class="hcf-note">★ = COLONNE EXIGÉE. MS PROJECT : PAS D'IMPORT DIRECT — EXPORTER LE PROJET EN EXCEL DANS MS PROJECT, PUIS IMPORTER LES DÉLAIS.</div>`,
+          <div class="hcf-note">★ = COLONNE EXIGÉE. MS PROJECT : CHOISIR « MS PROJECT (FICHIER XML) » DANS LA LISTE DES SOURCES.</div>`,
         foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-go>CONTINUER</button>` });
       sviWinShow(d);
       d.addEventListener("click", async e => {
@@ -2125,7 +2141,7 @@
         else if (it.dataset.a === "multi") multiWin();   /* v668 (axe 8) */
         else if (it.dataset.a === "sign") signWin();   /* v668 */
         else if (it.dataset.a === "exp") openExportMenu("budget");
-        else if (it.dataset.a === "imp") openBudgetImport();
+        else if (it.dataset.a === "imp") { if (shell.__impMenu) shell.__impMenu("budget"); else openBudgetImport(); }   /* v758 : entrée et fenêtre d'import uniques */
         else if (it.dataset.a === "src") srcRefresh();
       });
       setTimeout(() => document.addEventListener("click", function off(e) {

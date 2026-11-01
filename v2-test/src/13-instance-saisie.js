@@ -102,6 +102,7 @@
       }, 60);
     };
     const insSave = () => {
+      if (shell.__impDry) return;   /* v758 : lecture d'une source d'import (essai à blanc) — rien n'est enregistré */
       shell.__tabGen = (shell.__tabGen || 0) + 1;   /* v743 : toute modification enregistrée = onglets gardés en mémoire périmés */
       if (!INS_REAL) return;   /* v697 : lecture seule au format complet — rien n'est enregistré */
       if (INS_RCL0 && rclDesSig(INS.des) !== INS_RCL0.sig) {

@@ -504,27 +504,143 @@
     shell.__sdClose = () => sdInplaceClose();
     shell.__sdOpen = k => openDirectEntry(k, { inplace: true });
     shell.__sd = k => openDirectEntry(k);
-    const openImportMenu = blk => {
+    /* =========================================================
+       v758 : UNE SEULE FENÊTRE D'IMPORT POUR TOUTE L'APPLICATION (prompt du 01/11/2026, points 6 et 7)
+       Même entrée partout (blocs DÉSIGNATIONS CLIENT, TÂCHES, DÉTAIL ; IMPORTER UN BUDGET ; onglets AVENANTS, SCÉNARIOS, RECALAGES) :
+       source au choix — FICHIER (EXCEL, CSV, JSON), GOOGLE SHEETS, MS PROJECT (XML), AUTRE BUDGET DE L'APPLICATION —
+       puis TOUJOURS la même fenêtre (modèle « IMPORTER — DÉTAIL CHARGES ») : cases TOUT / blocs, aperçu en onglets, IMPORTER (n).
+       Un fichier ou une feuille est d'abord lu « à blanc » (rien n'est enregistré) en un budget source, proposé en tête de la liste.
+       ========================================================= */
+    /* lecture à blanc : la fonction d'import habituelle tourne sur un budget vide, le résultat devient la source ; le budget ouvert est remis tel quel */
+    const impDry = fn => {
+      const keep = JSON.stringify(INS); let out = null;
+      shell.__impDry = true;
+      try {
+        Object.keys(INS).forEach(k => { delete INS[k]; });
+        Object.assign(INS, { des: [], lot: [], prim: [], sec: [], chg: [], prd: [], qlt: [], dly: {}, links: [], dlp: {}, dlpSec: true, dpred: {}, inc: [] });
+        fn();
+        out = JSON.parse(JSON.stringify(INS));
+      } finally {
+        Object.keys(INS).forEach(k => { delete INS[k]; });
+        Object.assign(INS, JSON.parse(keep));
+        shell.__impDry = false;
+      }
+      if (out) { delete out.inc; delete out.ver; delete out.vfz; }
+      return out;
+    };
+    /* onglets lus : budget (DÉSIGNATION CLIENT…), DÉLAIS, QUALITÉ — chacun par sa règle d'import habituelle */
+    const impDataOfSheets = (sheets, name) => impDry(() => {
+      sheets.forEach(aoa => { const k = sheetKind(aoa);
+        if (k === "dly") dlyImportAoa(aoa, name, true);
+        else if (k === "qlt") qltImportAoa(aoa, name, true);
+        else bfApply(bfModel(aoa), "add", name, true); });
+    });
+    /* MS PROJECT : fichier XML enregistré par MS Project (MSPDI) — tâches, dates, durées, liaisons ; une tâche = LOT (tâche récapitulative
+       de niveau 1 au-dessus) › ACTIVITÉ SECONDAIRE (son nom) ; FS = FIN → DÉBUT, SS = DÉBUT → DÉBUT (autres types : FIN → DÉBUT) ; décalage en jours */
+    const mspAoa = xml => {
+      const doc = new DOMParser().parseFromString(xml, "application/xml");
+      if (doc.getElementsByTagName("parsererror").length) throw new Error("FICHIER XML ILLISIBLE");
+      const tx = (el, t) => { const x = el.getElementsByTagName(t)[0]; return x ? String(x.textContent || "").trim() : ""; };
+      const T = [...doc.getElementsByTagName("Task")].map(el => ({ uid: tx(el, "UID"), name: U_(tx(el, "Name")), lvl: +tx(el, "OutlineLevel") || 0, sum: tx(el, "Summary") === "1",
+        deb: tx(el, "Start").slice(0, 10), fin: tx(el, "Finish").slice(0, 10),
+        pred: [...el.getElementsByTagName("PredecessorLink")].map(l => ({ uid: tx(l, "PredecessorUID"), ty: tx(l, "Type"), lag: Math.max(0, Math.round((+tx(l, "LinkLag") || 0) / 4800)) })) }))
+        .filter(t => t.uid !== "0" && t.lvl > 0 && t.name);
+      if (!T.length) throw new Error("AUCUNE TÂCHE DANS LE FICHIER (ENREGISTRER LE PROJET AU FORMAT XML DANS MS PROJECT)");
+      const stack = [], byUid = new Map();
+      T.forEach(t => { stack.length = t.lvl - 1; t.lot = (stack[0] && stack[0] !== t) ? stack[0].name : t.sum ? "" : "SANS LOT"; stack[t.lvl - 1] = t; byUid.set(t.uid, t); });
+      const fr = d => /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4) : "";
+      const nm = t => t.lot + " › " + t.name;
+      const rows = T.filter(t => !t.sum).map(t => { const P = t.pred.map(p => byUid.get(p.uid)).map((x, i) => x && !x.sum ? [x, t.pred[i]] : null).filter(Boolean);
+        return [t.lot, t.name, fr(t.deb), fr(t.fin), "", P.map(([x]) => nm(x)).join(" ; "), P.map(([, p]) => p.ty === "3" ? "DÉBUT → DÉBUT" : "FIN → DÉBUT").join(" ; "), P.map(([, p]) => p.lag).join(" ; ")]; });
+      return [["LOT", "ACTIVITÉ SECONDAIRE", "DÉBUT", "FIN", "DURÉE (J)", "PRÉDÉCESSEURS", "TYPE", "DÉCALAGE (J)"], ...rows];
+    };
+    shell.__mspAoa = mspAoa;
+    const impCsv = txt => {
+      txt = String(txt || "").replace(/^\ufeff/, "");
+      const l0 = txt.split(/\r?\n/)[0] || "", sep = (l0.match(/;/g) || []).length > (l0.match(/,/g) || []).length ? ";" : (l0.match(/\t/g) || []).length > (l0.match(/,/g) || []).length ? "\t" : ",";
+      const out = []; let row = [], cur = "", q = false;
+      for (let i = 0; i < txt.length; i++) {
+        const c = txt[i];
+        if (q) { if (c === '"') { if (txt[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; continue; }
+        if (c === '"') q = true; else if (c === sep) { row.push(cur); cur = ""; } else if (c === "\n" || c === "\r") { if (c === "\r" && txt[i + 1] === "\n") i++; row.push(cur); out.push(row); row = []; cur = ""; } else cur += c;
+      }
+      if (cur !== "" || row.length) { row.push(cur); out.push(row); }
+      return out.filter(r => r.some(x => String(x).trim() !== ""));
+    };
+    /* source lue → la fenêtre d'import unique, cette source choisie */
+    const impOpenWith = (blk, data, lab, all) => {
+      if (!data) return;
+      const n = ["des", "chg", "prd", "lot", "sec", "qlt"].reduce((t, k) => t + (data[k] || []).length, 0) + Object.keys(data.dlp || {}).length;
+      if (!n) { svImportFail({ source: lab, tries: [{ err: "AUCUNE LIGNE RECONNUE" }], hint: "LA PREMIÈRE LIGNE DOIT PORTER LES EN-TÊTES ATTENDUS (DÉSIGNATION CLIENT, LOT, ACTIVITÉ SECONDAIRE…), OU CHOISIR UN FICHIER XML DE MS PROJECT." }); return; }
+      openImportBudget(blk, null, { extra: { ref: "SRC|" + Date.now().toString(36), lab: lab, data }, all });
+    };
+    const impReadFile = (blk, all, msp) => {
+      const inp = document.createElement("input");
+      inp.type = "file";
+      inp.accept = msp ? ".xml" : ".xlsx,.xls,.csv,.json,.txt,.xml";
+      inp.onchange = async () => {
+        const f = inp.files[0]; if (!f) return;
+        try {
+          if (/\.xml$/i.test(f.name)) { const aoa = mspAoa(await f.text()); impOpenWith(blk, impDataOfSheets([aoa], f.name), "MS PROJECT — " + U_(f.name), all); return; }
+          if (/\.json$/i.test(f.name)) {
+            const j = JSON.parse(await f.text()), d = j && (j.data || j);
+            if (d && (Array.isArray(d.des) || Array.isArray(d.chg))) { impOpenWith(blk, JSON.parse(JSON.stringify(d)), "FICHIER — " + U_(f.name), all); return; }
+            const arr = Array.isArray(j) ? j : [j], head = [...new Set(arr.flatMap(o => Object.keys(o || {})))];
+            impOpenWith(blk, impDataOfSheets([[head, ...arr.map(o => head.map(h => o?.[h] ?? ""))]], f.name), "FICHIER — " + U_(f.name), all); return;
+          }
+          /* CSV : lu sans la bibliothèque Excel (séparateur « ; » ou « , », guillemets) — marche aussi hors connexion */
+          if (/\.(csv|txt)$/i.test(f.name)) { impOpenWith(blk, impDataOfSheets([impCsv(await f.text())], f.name), "FICHIER — " + U_(f.name), all); return; }
+          const X = await loadXLSX(), wb = X.read(await f.arrayBuffer(), { type: "array" });
+          const J = n => X.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: "" });
+          const kinds = wb.SheetNames.map(n => ({ n, k: sheetKind(J(n)) }));
+          let use = kinds.filter(x => x.k === "budget" || x.k === "dly" || x.k === "qlt").map(x => x.n);
+          if (!use.length) use = [wb.SheetNames[0]];
+          impOpenWith(blk, impDataOfSheets(use.map(J), f.name), "FICHIER — " + U_(f.name) + (use.length === 1 && wb.SheetNames.length > 1 ? " › " + use[0] : ""), all);
+        } catch (err) { svImportFail({ source: f.name, tries: [{ err }], hint: "VÉRIFIER QUE LE FICHIER EST UN EXCEL (.XLSX), UN CSV, UN JSON OU UN XML DE MS PROJECT, NON PROTÉGÉ PAR MOT DE PASSE." }); }
+      };
+      inp.click();
+    };
+    const impReadSheet = async (blk, all) => {
+      const url = await askSheetLink(); if (!url) return;
+      const id = (url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1], gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || "0";
+      if (!id) { svImportFail({ source: url, tries: [{ err: "LIEN GOOGLE SHEETS NON RECONNU" }], hint: "COPIER LE LIEN COMPLET DE LA FEUILLE (IL CONTIENT /spreadsheets/d/…)." }); return; }
+      let first = "";
+      for (const call of [() => apiGet("sheetRead", { link: url }), () => apiPost("sheetRead", { link: url })]) {
+        try { const d = await call(); if (d && d.ok && Array.isArray(d.values)) { impOpenWith(blk, impDataOfSheets([d.values], d.name || "GOOGLE SHEETS"), "GOOGLE SHEETS — " + U_(d.name || ""), all); return; }
+          first = first || "LE SCRIPT NE CONNAÎT PAS ENCORE LA LECTURE DE FEUILLE (NOUVELLE VERSION À DÉPLOYER)"; } catch (err) { first = first || (err && err.message) || String(err); }
+      }
+      try {
+        const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`);
+        if (!r.ok) throw new Error("HTTP " + r.status + " — ACCÈS REFUSÉ (FEUILLE NON PARTAGÉE)");
+        const X = await loadXLSX(), wb = X.read(await r.text(), { type: "string" });
+        impOpenWith(blk, impDataOfSheets([X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" })], "GOOGLE SHEETS"), "GOOGLE SHEETS", all);
+      } catch (e) { svImportFail({ source: "GOOGLE SHEETS — " + url, tries: [{ via: "PAR LE SCRIPT", err: first }, { via: "PAR LE LIEN PUBLIC", err: e }], hint: "VÉRIFIER LE LIEN, QUE VOTRE COMPTE GOOGLE A ACCÈS À LA FEUILLE, OU LA PARTAGER « TOUTE PERSONNE DISPOSANT DU LIEN »." }); }
+    };
+    /* entrée unique : blk = client / hier / detail (le bloc), ou "budget" (tout le budget : IMPORTER UN BUDGET, onglets AVENANTS / SCÉNARIOS / RECALAGES) */
+    const openImportMenu = (blk, title) => {
+      const all = blk === "budget";
       const p = popup(`
         <div class="blk-card">
           <button type="button" class="blk-x" data-close>✕</button>
-          <div class="blk-title">IMPORTER — ${esc(blkDisp(blk))}</div>
-          <button type="button" class="blk-choice" data-src="file">Fichier (Excel, CSV, JSON)</button>
-          <button type="button" class="blk-choice" data-src="gsheet">Google Sheets (lien)</button>
-          ${INS ? `<button type="button" class="blk-choice" data-src="bdg">Autre budget de l'application</button>` : ""}
+          <div class="blk-title">IMPORTER — ${esc(title || (all ? "BUDGET COMPLET" : blkDisp(blk)))}</div>
+          <button type="button" class="blk-choice" data-src="file">FICHIER (EXCEL, CSV, JSON)</button>
+          <button type="button" class="blk-choice" data-src="gsheet">GOOGLE SHEETS (LIEN)</button>
+          <button type="button" class="blk-choice" data-src="msp">MS PROJECT (FICHIER XML)</button>
+          ${INS ? `<button type="button" class="blk-choice" data-src="bdg">AUTRE BUDGET DE L'APPLICATION</button>` : ""}
         </div>`);
       p.addEventListener("click", async e => {
         const b = e.target.closest("[data-src]");
         if (!b) return;
         p.remove();
-        if (b.dataset.src === "direct") { openDirectEntry(active); return; }
+        const s = b.dataset.src;
+        if (s === "bdg") { openImportBudget(blk, null, { all }); return; }
         /* v713 (point 5) : en-têtes attendus avant un import Excel / Google Sheets */
-        if ((b.dataset.src === "file" || b.dataset.src === "gsheet") && shell.__impHeadAsk && !(await shell.__impHeadAsk(shell.__impHeadsOf(blk)))) return;
-        if (b.dataset.src === "gsheet") importGSheet();
-        else if (b.dataset.src === "bdg") openImportBudget(blk);
-        else doImport(blk);
+        if ((s === "file" || s === "gsheet") && shell.__impHeadAsk && !(await shell.__impHeadAsk(shell.__impHeadsOf("budget")))) return;
+        if (s === "gsheet") impReadSheet(blk, all);
+        else impReadFile(blk, all, s === "msp");
       });
     };
+    shell.__impMenu = openImportMenu;
 
     const doImport = blk => {
       const inp = document.createElement("input");
