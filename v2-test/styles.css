@@ -3719,3 +3719,5 @@ tr.sv-addrow td { color: var(--tb-new-c, #b91c1c) !important; background: var(--
 .sv-rmbar { display: flex; justify-content: flex-end; margin: 6px 0 2px; }
 .sv-rmall:disabled { opacity: .5; cursor: default; }
 input.sv-rmcb { width: 18px; height: 18px; cursor: pointer; }
+/* v800 — document unique 3.6 – 3.7 : nom du fournisseur dans la barre du haut d'une pièce, touché = sa page */
+#ach .nvp .novapp-list-titlebar .nvp-party { margin-left: 12px; font-size: 15px; font-weight: 800; text-transform: uppercase; text-decoration: underline; background: none; border: 0; padding: 0; color: inherit; cursor: pointer; white-space: nowrap; }

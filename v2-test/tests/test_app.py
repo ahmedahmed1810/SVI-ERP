@@ -2916,6 +2916,8 @@ def main():
             const h1 = (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), n0 = v.querySelectorAll('#achFrsT tbody tr[data-id]').length;
             v.querySelector('[data-nvsw]').click(); await w(150); v.querySelector('#achFrsT [data-nvnew]').click(); await w(250); document.querySelector('#svConf .ask-v').value = 'NOUVEAU FRS'; document.querySelector('#svConf [data-ok]').click(); await w(300);
             document.querySelector('.frs-card [data-x]').click(); await w(300);
+            /* v800 (document unique 3.6) : le nouveau fournisseur s'ouvre sur sa page ; on revient à la liste */
+            const pg800 = !!v.querySelector('.nvp-ref'); v.querySelector('[data-nvp="close"]')?.click(); await w(250); if (!pg800) return 'v800 : page du nouveau fournisseur non ouverte';
             const n1 = achFrs().filter(f => !f.del).length + (v.querySelectorAll('#achFrsT tbody tr[data-id]').length === 1 && /EN INSTANCE/.test((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent) ? 0 : 100);
             v.querySelector('[data-nvsw]').click(); await w(200); v.querySelector(`#achFrsT [data-nvo="${a.id}"]`).click(); await w(250);
             const pgOk = /^FOURNISSEUR — BETON SUD/.test((document.getElementById('sviScreenTag') || {}).textContent || '') && /^FRS \\d{2}-\\d{4}\\/\\d{3}$/.test(v.querySelector('.nvp-ref').textContent) && v.querySelectorAll('.nvp-blk').length === 6;
@@ -3064,6 +3066,8 @@ def main():
             v.querySelector('.novapp-date-item').click(); await w(150); r.push(v.querySelectorAll('#achArtT tbody tr[data-id]').length); v.querySelector('.novapp-date-item').click(); await w(150);
             v.querySelector('[data-nvsw]').click(); await w(150); v.querySelector('#achArtT [data-nvnew]').click(); await w(200); const c = document.querySelector('#svConf');
             c.querySelector('.art-x[data-k="des"]').value = 'CIMENT CPJ45'; c.querySelector('.art-x[data-k="u"]').value = 'T'; c.querySelector('.art-x[data-k="cat"]').value = 'MATERIAUX STOCKABLE'; c.querySelector('[data-save]').click(); await w(300);
+            /* v800 (document unique 3.6) : le nouvel article s'ouvre sur sa page ; on revient à la liste */
+            if (!v.querySelector('.nvp-ref')) return 'v800 : page du nouvel article non ouverte'; document.querySelector('#svConf')?.remove(); v.querySelector('[data-nvp="close"]')?.click(); await w(250);
             const A = achArts().find(a => a.des === 'CIMENT CPJ45');
             r.push(!!A && A.st, (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, !!v.querySelector('.nv-inst [data-nvdel]'), !!v.querySelector('[data-nvnew]'));
             v.querySelector(`[data-nvo="${A.id}"]`).click(); await w(250);
