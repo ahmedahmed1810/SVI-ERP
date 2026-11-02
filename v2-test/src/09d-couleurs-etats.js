@@ -5,8 +5,8 @@
    EXPIRÉ, BLOQUÉ et ARCHIVÉ servent aux états des budgets (lot 2).
    ========================================================= */
 const SVI_COL_KEY = "svi_colors_v1";
-const SVI_COL_DEF = { instance: "#b91c1c", fige: "#15803d", valide: "#172033", expire: "#b45309", bloque: "#6b7280", archive: "#6d28d9" };
-const SVI_COL_LAB = [["instance", "EN INSTANCE"], ["fige", "FIGÉ"], ["valide", "VALIDÉ"], ["expire", "EXPIRÉ"], ["bloque", "BLOQUÉ"], ["archive", "ARCHIVÉ"]];
+const SVI_COL_DEF = { instance: "#b91c1c", fige: "#15803d", partiel: "#1d4ed8", valide: "#172033", expire: "#b45309", bloque: "#6b7280", archive: "#6d28d9" };
+const SVI_COL_LAB = [["instance", "EN INSTANCE"], ["fige", "FIGÉ"], ["partiel", "PARTIELLEMENT ACHEVÉ"], ["valide", "VALIDÉ"], ["expire", "EXPIRÉ"], ["bloque", "BLOQUÉ"], ["archive", "ARCHIVÉ"]];   /* v790 : PARTIELLEMENT ACHEVÉ (bleu) */
 function sviColors() {
   let v = null; try { v = JSON.parse(localStorage.getItem(SVI_COL_KEY) || "null"); } catch (e) {}
   const o = { ...SVI_COL_DEF };
@@ -22,6 +22,63 @@ function sviColorsSave(o) {
   sviColorsApply();
 }
 sviColorsApply();
+
+/* =========================================================
+   v790 (DOCUMENT UNIQUE, partie 1 §1) : PALETTE — PARAMÉTRAGE › FORMAT. Pour chaque élément de l'interface :
+   fond, couleur du texte, taille, gras, italique, souligné ; APPLIQUER À = toutes les interfaces ou certaines seulement.
+   Seuls les réglages changés sont écrits (feuille #sviFmtStyle) : sans réglage, la base commune de styles.css s'applique.
+   ========================================================= */
+const SVI_FMT_KEY = "svi_format_v1";
+const SVI_FMT_EL = [
+  { k: "top", lab: "BARRE DU HAUT DE L'INTERFACE", sel: [".bdg-d-sticky .novapp-list-titlebar", ".novapp-list-shell > .novapp-list-titlebar"], def: { bg: "#ffffff", c: "#172033", fs: 28, b: 1 } },
+  { k: "blk", lab: "EN-TÊTE DE BLOC", sel: [".bdg-d-block > .bdg-d-block-title"], def: { bg: "#dde2e9", c: "#b91c1c", fs: 11, b: 1 } },
+  { k: "tabs", lab: "RANGÉE D'ONGLETS", sel: [".bdg-d-tabs", "#bdgTabs", ".rec-tabs"], def: { bg: "#eceff3", c: "#6b7280", fs: 12, b: 1 } },
+  { k: "tab", lab: "ONGLET", sel: [".bdg-d-tab:not(.active)", ".rec-tab:not(.on)"], def: { bg: "#eceff3", c: "#6b7280", fs: 12, b: 1 } },
+  { k: "taba", lab: "ONGLET ACTIF", sel: [".bdg-d-tab.active", ".rec-tab.on"], def: { bg: "#ffffff", c: "#b91c1c", fs: 12, b: 1 } },
+  { k: "th", lab: "TITRES DES COLONNES (EN-TÊTE DE TABLEAU)", sel: ["table thead th", ".ins-hcol .bdg-h-head"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1 } },
+  { k: "ttl", lab: "LIGNES DE TITRE DANS UN TABLEAU", sel: ["tr.ins-title td", "tr.ins-gtitle td", ".dly-grp td", ".ins-hcol .ins-li.lot-grp"], def: { bg: "#ece8e1", c: "#2f2a24", fs: 12, b: 1 } },
+  { k: "new", lab: "LIGNE CRÉER … ICI", sel: ["tbody tr.ins-new td", "tbody tr.rec-new td", "tbody tr.scn-new td", "tbody tr.dly-new td", "tbody tr.bdg-newrow td", ".ins-hcol .ins-li.ins-new"], def: { bg: "#fdf0f0", c: "#b91c1c", fs: 12, b: 0 } },
+  { k: "tot", lab: "LIGNE TOTAL", sel: ["tfoot td", "tr.bdg-d-total-row td"], def: { bg: "#fdf0f0", c: "#b91c1c", fs: 12, b: 1 } },
+  { k: "win", lab: "BANDEAU DES FENÊTRES", sel: ["#svConf .svc-card > .svc-t"], def: { bg: "#dde2e9", c: "#172033", fs: 15, b: 1 } }
+];
+/* interfaces auxquelles la palette peut s'appliquer (APPLIQUER À) */
+const SVI_FMT_IF = [
+  { k: "bdg", lab: "BUDGET (ÉCRAN D'UN BUDGET)", sc: [".bdg-d-page"] },
+  { k: "bdgl", lab: "LISTE DES BUDGETS", sc: ["#bdg .novapp-list-shell"] },
+  { k: "ach", lab: "ACHATS (LISTES ET PIÈCES)", sc: ["#ach"] },
+  { k: "prm", lab: "PARAMÉTRAGE", sc: ["#chs"] },
+  { k: "win", lab: "FENÊTRES", sc: ["#svConf"] }
+];
+function sviFmt() {
+  let v = null; try { v = JSON.parse(localStorage.getItem(SVI_FMT_KEY) || "null"); } catch (e) {}
+  return v && typeof v === "object" ? { el: v.el || {}, to: Array.isArray(v.to) ? v.to : null } : { el: {}, to: null };
+}
+function sviFmtCss(F) {
+  const out = [], all = !F.to || F.to.length >= SVI_FMT_IF.length;
+  const SC = all ? null : SVI_FMT_IF.filter(x => F.to.includes(x.k)).flatMap(x => x.sc);
+  SVI_FMT_EL.forEach(E => {
+    const o = F.el[E.k]; if (!o) return;
+    const d = [];
+    if (o.bg) d.push(`background:${o.bg}!important`);
+    if (o.c) d.push(`color:${o.c}!important;-webkit-text-fill-color:${o.c}!important`);
+    if (o.fs) d.push(`font-size:${+o.fs}px!important`);
+    if (o.b !== undefined) d.push(`font-weight:${o.b ? 800 : 400}!important`);
+    if (o.i !== undefined) d.push(`font-style:${o.i ? "italic" : "normal"}!important`);
+    if (o.u !== undefined) d.push(`text-decoration:${o.u ? "underline" : "none"}!important`);
+    if (!d.length) return;
+    const sels = SC ? SC.flatMap(sc => E.sel.map(x => x.startsWith(sc) ? x : sc + " " + x)).filter(x => !(x.startsWith("#svConf ") && x.indexOf(" #svConf") > 0)) : E.sel;
+    if (!sels.length) return;
+    out.push(sels.map(x => "html body " + x).join(", ") + " { " + d.join("; ") + " }");
+  });
+  return out.join("\n");
+}
+function sviFmtApply() {
+  let st = document.getElementById("sviFmtStyle");
+  if (!st) { st = document.createElement("style"); st.id = "sviFmtStyle"; (document.head || document.documentElement).appendChild(st); }
+  st.textContent = sviFmtCss(sviFmt());
+}
+function sviFmtSave(F) { try { localStorage.setItem(SVI_FMT_KEY, JSON.stringify(F)); } catch (e) {} sviFmtApply(); }
+try { sviFmtApply(); } catch (e) {}
 
 /* =========================================================
    v755 : FILTRE PAR ÉTAT (comme NovApp : ACTIF, ALERTE, EXPIRÉ, BLOQUÉ, ARCHIVÉ, TOUT), COMMUN À TOUTES LES LISTES
@@ -68,5 +125,6 @@ function sviHdrMenu(btn, groups, pick) {
   m.innerHTML = groups.map(g => g.filter(Boolean)).filter(g => g.length).map(g => g.map(x => `<button type="button" data-a="${esc(x.k)}" class="${x.del ? "blk-del" : ""}"><span>${esc(x.lab)}</span></button>`).join("")).join('<div class="blk-sep"></div>');
   document.body.appendChild(m); sviPlaceMenu(m, btn.getBoundingClientRect());
   m.addEventListener("click", e => { const it = e.target.closest("[data-a]"); if (!it) return; e.stopPropagation(); m.remove(); pick(it.dataset.a); });
-  setTimeout(() => document.addEventListener("click", function off(e) { if (!e.target.closest("#blkMenu")) { m.remove(); document.removeEventListener("click", off, true); } }, true), 0);
+  /* v790 (DOCUMENT UNIQUE §10.1) : un 2e toucher sur le même ⋯ ferme le menu (sans le rouvrir) */
+  setTimeout(() => document.addEventListener("click", function off(e) { if (!m.isConnected) { document.removeEventListener("click", off, true); return; } if (!e.target.closest("#blkMenu")) { if (btn.contains(e.target)) { e.stopPropagation(); e.preventDefault(); } m.remove(); document.removeEventListener("click", off, true); } }, true), 0);
 }

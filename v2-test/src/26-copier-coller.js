@@ -562,7 +562,8 @@
         runBlkAct(a.dataset.blk, a.dataset.act);
       });
       setTimeout(() => document.addEventListener("click", function off(e) {
-        if (!e.target.closest("#blkMenu")) { m.remove(); document.removeEventListener("click", off, true); }
+        if (!m.isConnected) { document.removeEventListener("click", off, true); return; }
+        if (!e.target.closest("#blkMenu")) { if (btn.contains(e.target)) { e.stopPropagation(); e.preventDefault(); } m.remove(); document.removeEventListener("click", off, true); }   /* v790 : 2e toucher sur le ⋯ = fermer */
       }, true), 0);
     };
 

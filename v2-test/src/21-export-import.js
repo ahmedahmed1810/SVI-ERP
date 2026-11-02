@@ -2163,6 +2163,7 @@
         else if (it.dataset.a === "src") srcRefresh();
       });
       setTimeout(() => document.addEventListener("click", function off(e) {
-        if (!e.target.closest("#blkMenu")) { m.remove(); document.removeEventListener("click", off, true); }
+        if (!m.isConnected) { document.removeEventListener("click", off, true); return; }
+        if (!e.target.closest("#blkMenu")) { if (e.target.closest("#bdgMore")) { e.stopPropagation(); e.preventDefault(); } m.remove(); document.removeEventListener("click", off, true); }   /* v790 : 2e toucher sur ⋯ = fermer */
       }, true), 0);
     };

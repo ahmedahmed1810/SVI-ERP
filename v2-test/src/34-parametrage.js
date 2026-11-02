@@ -211,8 +211,11 @@ function sviParamTabs() {
   const head = view.querySelector(".section-head");
   const bar = document.createElement("div");
   bar.className = "prm-tabs";
-  bar.innerHTML = `<button type="button" class="prm-tab on" data-prm="unit">UNITÉS</button><button type="button" class="prm-tab" data-prm="lib">BIBLIOTHÈQUE DE PRIX</button><button type="button" class="prm-tab" data-prm="col">COULEURS</button>`
-    + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal">CALENDRIER</button>`;
+  /* v790 (DOCUMENT UNIQUE §1.1) : une seule interface PARAMÉTRAGE à deux niveaux — RUBRIQUES (BUDGET, FORMAT), puis leurs onglets */
+  bar.innerHTML = `<div class="prm-rubs"><button type="button" class="prm-rub on" data-rub="bdg">BUDGET</button><button type="button" class="prm-rub" data-rub="fmt">FORMAT</button></div>`
+    + `<button type="button" class="prm-tab on" data-prm="unit" data-rub="bdg">UNITÉS</button><button type="button" class="prm-tab" data-prm="lib" data-rub="bdg">BIBLIOTHÈQUE DE PRIX</button>`
+    + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal" data-rub="bdg">CALENDRIER</button>`
+    + `<button type="button" class="prm-tab" data-prm="col" data-rub="fmt" hidden>ÉTATS</button><button type="button" class="prm-tab" data-prm="fel" data-rub="fmt" hidden>ÉLÉMENTS</button><button type="button" class="prm-tab" data-prm="fif" data-rub="fmt" hidden>INTERFACES</button>`;
   /* CALENDRIER et DATES DU BUDGET : pour le budget ouvert ; grisés sans budget ouvert (appui long = raison) */
   const why = () => { const L = window.__sviBdgLive; return !L ? "OUVRIR UN BUDGET D'ABORD" : !L.edit ? "BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE" : ""; };
   const paint = () => bar.querySelectorAll(".prm-bdg").forEach(b => b.classList.toggle("off", !!why()));
@@ -244,6 +247,35 @@ function sviParamTabs() {
   cpane.className = "prm-col";
   cpane.hidden = true;
   lpane.after(cpane);
+  /* v790 : FORMAT › ÉLÉMENTS — fond, texte, taille, gras, italique, souligné de chaque élément ; FORMAT › INTERFACES — APPLIQUER À */
+  const epane = document.createElement("div"); epane.className = "prm-fel"; epane.hidden = true; cpane.after(epane);
+  const ipane = document.createElement("div"); ipane.className = "prm-fif"; ipane.hidden = true; epane.after(ipane);
+  const felDraw = () => {
+    const F = sviFmt();
+    epane.innerHTML = `<table class="prm-table fmt-t"><colgroup><col style="width:300px"><col style="width:90px"><col style="width:90px"><col style="width:90px"><col style="width:70px"><col style="width:70px"><col style="width:80px"><col style="width:120px"></colgroup>
+      <thead><tr><th>ÉLÉMENT</th><th class="center">FOND</th><th class="center">TEXTE</th><th class="center">TAILLE</th><th class="center">GRAS</th><th class="center">ITALIQUE</th><th class="center">SOULIGNÉ</th><th></th></tr></thead>
+      <tbody>${SVI_FMT_EL.map(E => { const o = F.el[E.k] || {}, v = f => o[f] !== undefined ? o[f] : E.def[f];
+        return `<tr data-el="${E.k}"><td class="fmt-lab" style="background:${esc(v("bg"))};color:${esc(v("c"))};font-weight:${v("b") ? 800 : 400};font-style:${v("i") ? "italic" : "normal"};text-decoration:${v("u") ? "underline" : "none"}">${esc(E.lab)}</td>
+        <td class="center"><input type="color" class="fmt-in" data-f="bg" value="${esc(v("bg"))}"></td><td class="center"><input type="color" class="fmt-in" data-f="c" value="${esc(v("c"))}"></td>
+        <td class="center"><input class="fmt-in fmt-fs center" data-f="fs" inputmode="numeric" value="${esc(v("fs"))}"></td>
+        ${["b", "i", "u"].map(f => `<td class="center"><input type="checkbox" class="fmt-in" data-f="${f}"${v(f) ? " checked" : ""}></td>`).join("")}
+        <td class="center">${F.el[E.k] ? `<button type="button" class="col-rst" data-fel="${E.k}">PAR DÉFAUT</button>` : ""}</td></tr>`; }).join("")}</tbody></table>`;
+  };
+  const fifDraw = () => {
+    const F = sviFmt(), on = k => !F.to || F.to.includes(k);
+    ipane.innerHTML = `<table class="prm-table fmt-t"><colgroup><col style="width:90px"><col style="width:360px"></colgroup>
+      <thead><tr><th class="center"><input type="checkbox" class="fif-all"${SVI_FMT_IF.every(x => on(x.k)) ? " checked" : ""}></th><th>APPLIQUER À</th></tr></thead>
+      <tbody>${SVI_FMT_IF.map(x => `<tr><td class="center"><input type="checkbox" class="fif-cb" data-if="${x.k}"${on(x.k) ? " checked" : ""}></td><td>${esc(x.lab)}</td></tr>`).join("")}</tbody></table>`;
+  };
+  epane.addEventListener("input", e => { const i = e.target.closest(".fmt-in"); if (!i || i.type === "checkbox") return; const k = i.closest("tr").dataset.el, F = sviFmt(); F.el[k] = F.el[k] || {};
+    if (i.dataset.f === "fs") { const n = parseInt(String(i.value).replace(/\D/g, ""), 10); if (!(n >= 8 && n <= 40)) return; F.el[k].fs = n; } else F.el[k][i.dataset.f] = i.value;
+    sviFmtSave(F); });
+  epane.addEventListener("change", e => { const i = e.target.closest(".fmt-in"); if (!i) return; if (i.type === "checkbox") { const k = i.closest("tr").dataset.el, F = sviFmt(); F.el[k] = F.el[k] || {}; F.el[k][i.dataset.f] = i.checked ? 1 : 0; sviFmtSave(F); } felDraw(); });
+  epane.addEventListener("click", e => { const b = e.target.closest("[data-fel]"); if (!b) return; const F = sviFmt(); delete F.el[b.dataset.fel]; sviFmtSave(F); felDraw(); });
+  ipane.addEventListener("change", e => { const F = sviFmt();
+    if (e.target.matches(".fif-all")) F.to = e.target.checked ? null : [];
+    else if (e.target.matches(".fif-cb")) { const cur = F.to || SVI_FMT_IF.map(x => x.k), k = e.target.dataset.if; F.to = e.target.checked ? [...new Set([...cur, k])] : cur.filter(x => x !== k); if (F.to.length >= SVI_FMT_IF.length) F.to = null; }
+    sviFmtSave(F); fifDraw(); });
   const colDraw = () => {
     const C = sviColors();
     cpane.innerHTML = `<table class="prm-table"><colgroup><col style="width:200px"><col style="width:90px"><col style="width:260px"><col style="width:120px"></colgroup>
@@ -257,16 +289,23 @@ function sviParamTabs() {
   cpane.addEventListener("change", e => { if (e.target.closest(".col-in")) colDraw(); });
   cpane.addEventListener("click", e => { const b = e.target.closest(".col-rst"); if (!b) return; const C = sviColors(); C[b.dataset.col] = SVI_COL_DEF[b.dataset.col]; sviColorsSave(C); colDraw(); });
   const show = which => {
+    const rub = ["col", "fel", "fif"].includes(which) ? "fmt" : "bdg";
+    bar.querySelectorAll(".prm-rub").forEach(b => b.classList.toggle("on", b.dataset.rub === rub));
+    bar.querySelectorAll(".prm-tab").forEach(b => { b.hidden = b.dataset.rub !== rub; });
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.prm === which));
     pane.hidden = which !== "unit";
     lpane.hidden = which !== "lib";
     cpane.hidden = which !== "col";
+    epane.hidden = which !== "fel"; ipane.hidden = which !== "fif";
+    if (which === "fel") felDraw(); if (which === "fif") fifDraw();
     const h1 = head.querySelector("h1"), sub = head.querySelector("p");
-    if (h1) h1.textContent = which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : which === "col" ? "COULEURS" : "UNITÉS";
+    if (h1) h1.textContent = which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : which === "col" ? "FORMAT — ÉTATS" : which === "fel" ? "FORMAT — ÉLÉMENTS" : which === "fif" ? "FORMAT — INTERFACES" : "UNITÉS";
     if (sub) sub.textContent = which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT ; COMMUNE À TOUS LES BUDGETS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";
     if (which === "unit") draw();
     if (which === "lib") libDraw();
     if (which === "col") { colDraw(); if (sub) sub.textContent = "COULEUR DE CHAQUE ÉTAT, COMMUNE À TOUTE L'APPLICATION ET À TOUS LES APPAREILS"; }
+    if (which === "fel" && sub) sub.textContent = "FOND, TEXTE, TAILLE ET STYLE DE CHAQUE ÉLÉMENT DES INTERFACES";
+    if (which === "fif" && sub) sub.textContent = "INTERFACES QUI PRENNENT LA PALETTE (TOUTES COCHÉES = PARTOUT)";
     try { localStorage.setItem("svi_prm_v1", which); } catch (e) {}
   };
   const draw = () => {
@@ -323,7 +362,7 @@ function sviParamTabs() {
     sviUnitsSave(L.filter((x, i) => !idx.includes(i)));
     draw();
   });
-  bar.addEventListener("click", e => { const b = e.target.closest(".prm-tab"); if (b && b.dataset.prm) show(b.dataset.prm); });
+  bar.addEventListener("click", e => { const r = e.target.closest(".prm-rub"); if (r) { show(r.dataset.rub === "fmt" ? "col" : "unit"); return; } const b = e.target.closest(".prm-tab"); if (b && b.dataset.prm) show(b.dataset.prm); });
   /* v739 : BIBLIOTHÈQUE DE PRIX — activités à gauche, recettes et leurs charges à droite ; tout modifiable ; enregistré aussitôt */
   let libAct = "";
   const U2 = v => String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();

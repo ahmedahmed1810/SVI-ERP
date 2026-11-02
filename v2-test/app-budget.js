@@ -15636,7 +15636,8 @@ ${A}</Assignments>
         else if (it.dataset.a === "src") srcRefresh();
       });
       setTimeout(() => document.addEventListener("click", function off(e) {
-        if (!e.target.closest("#blkMenu")) { m.remove(); document.removeEventListener("click", off, true); }
+        if (!m.isConnected) { document.removeEventListener("click", off, true); return; }
+        if (!e.target.closest("#blkMenu")) { if (e.target.closest("#bdgMore")) { e.stopPropagation(); e.preventDefault(); } m.remove(); document.removeEventListener("click", off, true); }   /* v790 : 2e toucher sur ⋯ = fermer */
       }, true), 0);
     };
 /* ⟪ src/22-saisie-directe.js ⟫ */
@@ -17742,8 +17743,9 @@ ${A}</Assignments>
             if (nm.dataset.nm === V.act) { svToast("SCÉNARIO ACTIF : C'EST LE BUDGET À L'ÉCRAN.", 2500, nm); return; }
             if (budget.inst && !budget.inst.virtual) window.__sviAvOpen(budget.inst.ref + "-SC" + nm.dataset.nm, budget.inst.ref);
             return; }
+          /* v790 (DOCUMENT UNIQUE §11) : plus de comparatif dans le bloc — toucher la ligne = le choisir, comme son nom ; le COMPARATIF est dans le ⋯ du haut */
           const row = e.target.closest("tr[data-scn]");
-          if (row) { e.stopPropagation(); scnView = "cmp"; scnRender(); }
+          if (row && row.dataset.scn !== V.act && budget.inst && !budget.inst.virtual && !e.target.closest("button, input, .scn-del, [data-ret]")) { e.stopPropagation(); window.__sviAvOpen(budget.inst.ref + "-SC" + row.dataset.scn, budget.inst.ref); }
         });
       }
     }
@@ -22530,7 +22532,8 @@ ${A}</Assignments>
         runBlkAct(a.dataset.blk, a.dataset.act);
       });
       setTimeout(() => document.addEventListener("click", function off(e) {
-        if (!e.target.closest("#blkMenu")) { m.remove(); document.removeEventListener("click", off, true); }
+        if (!m.isConnected) { document.removeEventListener("click", off, true); return; }
+        if (!e.target.closest("#blkMenu")) { if (btn.contains(e.target)) { e.stopPropagation(); e.preventDefault(); } m.remove(); document.removeEventListener("click", off, true); }   /* v790 : 2e toucher sur le ⋯ = fermer */
       }, true), 0);
     };
 

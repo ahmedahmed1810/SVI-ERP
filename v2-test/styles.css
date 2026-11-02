@@ -3630,3 +3630,34 @@ html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dlyg-l .dly-t
 html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dlyg-l .dly-table tbody td { height: var(--tb-row-h) !important; }
 /* v789 : CRÉER UN LOT ICI… commence au même alignement que les noms des lots (après la place du numéro et du signe) */
 .ins-hcol[data-ik="lot"] .ins-li.ins-new input.ins-in { padding-left: calc(2.4em + 2px + 14px + 4px + 5px) !important; }
+/* v790 : PARAMÉTRAGE à deux niveaux (rubriques, onglets) ; FORMAT › ÉLÉMENTS */
+.prm-tabs { flex-wrap: wrap; }
+.prm-rubs { display: flex; gap: 4px; width: 100%; padding-bottom: 6px; border-bottom: 1px solid #e5e9f0; margin-bottom: 2px; }
+.prm-rub { border: 1px solid #d6dbe3; background: #fff; border-radius: 8px; padding: 6px 14px; font: 800 12px Arial, sans-serif; color: #6b7280; cursor: pointer; }
+.prm-rub.on { background: #172033; color: #fff; border-color: #172033; }
+.prm-tab[hidden] { display: none !important; }
+.fmt-t .fmt-fs { width: 52px; }
+.fmt-t input[type=color] { width: 44px; height: 24px; border: 1px solid #d6dbe3; border-radius: 4px; padding: 0; background: none; }
+.fmt-t .fmt-lab { font-size: 12px; }
+/* v790 (DOCUMENT UNIQUE §10.2) : fenêtres — bandeau de titre en haut, aux couleurs de la palette */
+#svConf .svc-card > .svc-t { background: var(--blk-head-bg, #dde2e9); margin: -18px -20px 12px; padding: 12px 54px 12px 20px; border-radius: 12px 12px 0 0; }
+#svConf .svc-card > .svc-close { top: 7px; }
+/* ===== v790 (DOCUMENT UNIQUE) ===== */
+/* §2.3 : trait de gauche de TOUS les blocs (DÉTAIL et SUIVI compris) dans la couleur de l'état de l'écran (palette) */
+.bdg-inst-instance .bdg-d-page .bdg-d-block-title, .bdg-inst-fige .bdg-d-page .bdg-d-block-title,
+.bdg-inst-instance .bdg-d-page #bdgDetailHead, .bdg-inst-fige .bdg-d-page #bdgDetailHead,
+.bdg-inst-instance .bdg-d-page .blk-suivi .bdg-d-block-title, .bdg-inst-fige .bdg-d-page .blk-suivi .bdg-d-block-title { border-left: 4px solid var(--inst) !important; }
+.bdg-d-page #bdgDetailHead, .bdg-d-page .blk-suivi .bdg-d-block-title, #ach .nvp .blk-suivi .bdg-d-block-title { border-left: 4px solid var(--inst, var(--st-valide, #172033)) !important; }
+/* §2.5 : colonne sélectionnée (toucher son titre) = teinte grise, jamais un second bleu par-dessus le bleu des lignes liées */
+th.col-sel, td.col-sel, .bdg-h-head.col-sel, .ins-hcol.col-sel .ins-li, .bdg-h-col.col-sel .bdg-h-item { background-image: linear-gradient(rgba(15, 23, 42, .07), rgba(15, 23, 42, .07)) !important; }
+/* §10.2 : fenêtre MASQUER / AFFICHER — titres alignés sur leur contenu */
+#svConf .colh-t { table-layout: fixed; width: 100%; }
+#svConf .colh-t th, #svConf .colh-t td { padding: 0 10px !important; height: var(--tb-row-h); text-align: left; }
+#svConf .colh-t .colh-c { width: 110px; text-align: center !important; }
+/* §5.2 : l'onglet actif s'arrête au-dessus des titres des colonnes */
+#bdgTabs { margin-bottom: 0 !important; border-bottom: 1px solid var(--tb-line, #d9dee6); }
+#bdgTabs > .bdg-d-tab.active { box-shadow: inset 0 -2px 0 var(--inst, #172033) !important; }
+/* §6.6 : pages des achats — pas de ligne vide ; cases à droite */
+#ach .nvp .rec-table .nvp-cbh, #ach .nvp .rec-table td:last-child { width: 44px; }
+#svConf tr.colh-r { display: table-row !important; min-height: 0 !important; padding: 0 !important; border-radius: 0 !important; font-size: var(--tb-row-fs) !important; }
+#svConf tr.colh-r td { white-space: nowrap; }

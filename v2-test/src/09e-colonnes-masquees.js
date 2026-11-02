@@ -89,7 +89,7 @@ function sviColhWin(table) {
   if (!I) return;
   const d = sviWinNew();
   d.innerHTML = sviWinCard({ cls: "pv-card colh-card", close: "data-x", title: "MASQUER / AFFICHER LES COLONNES",
-    body: `<div class="pv-scroll colh-list"><table class="bdg-d-table rec-table colh-t"><thead><tr><th class="center colh-c">AFFICHÉE</th><th>COLONNE</th></tr></thead>
+    body: `<div class="pv-scroll colh-list"><table class="bdg-d-table rec-table colh-t"><colgroup><col style="width:110px"><col></colgroup><thead><tr><th class="center colh-c">AFFICHÉE</th><th>COLONNE</th></tr></thead>
       <tbody>${I.cols.map(c => `<tr class="colh-r"><td class="center colh-c"><input type="checkbox" data-k="${esc(c.k)}"${I.hid.includes(c.k) ? "" : " checked"}></td><td>${esc(c.lab)}</td></tr>`).join("")}</tbody></table></div>
       <div class="colh-err" hidden></div>`,
     foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>` });

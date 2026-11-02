@@ -2686,14 +2686,14 @@ def main():
             document.getElementById('budgetBackBtn')?.click(); await w(400); window.__sviAvRet = null; window.__sviAvOpen('TEST-1'); await w(1200);
             document.querySelector('.blk-etp [data-etab="scn"]').click(); await w(100);
             document.querySelector('#scnTable tr[data-scn="s2"] td:nth-child(2)').click(); await w(200);
-            const bar = !!document.querySelector('.blk-etp .scn-cmp-bar [data-cmpclose]'), rows = [...document.querySelectorAll('#scnTable tbody tr td:first-child b')].map(b => b.textContent.trim()).slice(0, 4).join('|');
-            document.querySelector('.blk-etp .scn-cmp-bar [data-cmpclose]')?.click(); await w(200); const back = !document.querySelector('.blk-etp .scn-cmp-bar') && !!document.querySelector('#scnTable [data-nm]');
+            await w(1000); const bar = !!document.querySelector('.scn-cmp-bar'), rows = '', back = / SCN2 \\(CONSULTATION\\)$/.test((document.getElementById('refTxt') || {}).textContent || '');
+            document.getElementById('budgetBackBtn')?.click(); await w(400);
             const M = sviMergeData({ ver: { L: [{ id: 'a', arch: false }] } }, { ver: { L: [{ id: 'a', arch: true }] } }, { ver: { L: [{ id: 'a', arch: false }, { id: 'b' }] } }, false, 'X', '');
             const K = JSON.parse(keep); sviInstSet(sviInstGet().map(x => { if (x.ref !== 'TEST-1') return x; const d = { ...(x.data || {}) }; if (K.ver) d.ver = K.ver; else delete d.ver; return { ...x, data: d }; })); await sviInstFlush();
             window.__sviAvRet = null; window.__sviAvOpen('TEST-1'); await w(1000);
             return [/ SCN2 \\(CONSULTATION\\)$/.test(tag), act, bar, rows, back, M.ver.L.map(x => x.id + ':' + !!x.arch).join(',')]; }""".replace("INS_X", ins))
-        check("v759 : toucher un scénario = le consulter (l'actif ne change pas) ; FERMER LA COMPARAISON ; indicateurs proposés d'office ; scénario archivé gardé à la fusion avec la base",
-              s759 == [True, "s1", True, "MONTANT HT|MONTANT TTC|ÉCART TTC AVEC LE SCÉNARIO ACTIF|NOMBRE DE CHARGES", True, "a:true,b:false"], s759)
+        check("v759 / v790 : toucher un scénario = le consulter (l'actif ne change pas) ; plus de comparatif dans le bloc ; indicateurs proposés d'office ; scénario archivé gardé à la fusion avec la base",
+              s759 == [True, "s1", False, "", True, "a:true,b:false"], s759)
         # v771 : fenêtre de SÉLECTION unique (COMPARER, CUMULER, FERMER) ; CUMULER signale les charges en double et s'enregistre comme scénario ;
         # FERMER ramène à l'onglet d'origine ; consolidé = étapes VALIDÉES seulement ; bloc à onglets : hauteur réglable (5 lignes par défaut)
         c771 = pg.evaluate("""async () => { const X = INS_X, I = X.INS, w = ms => new Promise(z => setTimeout(z, ms)), sh = [...document.querySelectorAll('*')].find(e => e.__ins);
@@ -2851,14 +2851,14 @@ def main():
             res.push(/APRÈS LA SAISIE/.test(t), !document.getElementById('budgetBackBtn'));
             const tot = document.querySelector('#bdgDatePanel .novapp-date-filter'); res.push(!!tot.querySelector('.svi-cnt') && tot.querySelector('.svi-cnt').textContent.trim() !== '');
             document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); document.querySelector('.prm-tab[data-prm="col"]').click(); await w(200);
-            const ci = document.querySelector('.prm-col .col-in[data-col="valide"]'); res.push(!!ci && document.querySelectorAll('.prm-col tbody tr').length === 6);
+            const ci = document.querySelector('.prm-col .col-in[data-col="valide"]'); res.push(!!ci && document.querySelectorAll('.prm-col tbody tr').length === 7);   /* v790 : + PARTIELLEMENT ACHEVÉ */
             ci.value = '#123456'; ci.dispatchEvent(new Event('input', { bubbles: true })); ci.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(400);
             res.push(getComputedStyle(document.querySelector('#budgetListTable tr[data-budget-ref="L-2"]').cells[3]).color);
             document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(200); document.querySelector('.prm-col .col-rst[data-col="valide"]')?.click(); res.push(sviColors().valide);
             document.querySelector('.prm-tab[data-prm="unit"]').click(); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300);
             sviInstSet(JSON.parse(window.__kp754)); localStorage.setItem('svi_listmode_v1', 'inst'); localStorage.removeItem('svi_bdgfold_v1'); renderBudgetList(); return res; }""")
-        check("v754 : « ! » devant VALIDÉ LE au-delà de 24 h (raison au toucher, parent en alerte), total à côté de TOUT, flèche dans RÉFÉRENCE, PARAMÉTRAGE › COULEURS appliqué puis PAR DÉFAUT",
+        check("v754 : « ! » devant VALIDÉ LE au-delà de 24 h (raison au toucher, parent en alerte), total à côté de TOUT, flèche dans RÉFÉRENCE, PARAMÉTRAGE › FORMAT › ÉTATS appliqué puis PAR DÉFAUT",
               k754 == [True, True, True, True, True, True, True, True, True, True, "rgb(18, 52, 86)", "#172033"], k754)
         # v755 (lot 2) : filtre par état de la liste des budgets (ACTIF par défaut, ALERTE, EXPIRÉ, BLOQUÉ, ARCHIVÉ, TOUT, avec les nombres),
         # actions du menu ⋯ (EXPIRER une étape = hors consolidé ; BLOQUER = lecture seule ; ARCHIVER = hors ACTIF), filtre par état des ARTICLES

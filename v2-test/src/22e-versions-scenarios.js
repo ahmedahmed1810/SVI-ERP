@@ -512,8 +512,9 @@
             if (nm.dataset.nm === V.act) { svToast("SCÉNARIO ACTIF : C'EST LE BUDGET À L'ÉCRAN.", 2500, nm); return; }
             if (budget.inst && !budget.inst.virtual) window.__sviAvOpen(budget.inst.ref + "-SC" + nm.dataset.nm, budget.inst.ref);
             return; }
+          /* v790 (DOCUMENT UNIQUE §11) : plus de comparatif dans le bloc — toucher la ligne = le choisir, comme son nom ; le COMPARATIF est dans le ⋯ du haut */
           const row = e.target.closest("tr[data-scn]");
-          if (row) { e.stopPropagation(); scnView = "cmp"; scnRender(); }
+          if (row && row.dataset.scn !== V.act && budget.inst && !budget.inst.virtual && !e.target.closest("button, input, .scn-del, [data-ret]")) { e.stopPropagation(); window.__sviAvOpen(budget.inst.ref + "-SC" + row.dataset.scn, budget.inst.ref); }
         });
       }
     }
