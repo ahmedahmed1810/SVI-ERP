@@ -361,18 +361,18 @@ function achArtNvMod(ctx) {
 function achFrsNvMod(ctx) {
   const frsWhy = f => achFrsWhy(f, achFrs());
   return achNvMod(ctx, {
-    list: { k: "frs", t: "ach_frs2", id: "achFrsT", name: "FOURNISSEURS", one: "FOURNISSEUR", all: achFrs, save: achFrsSave, code: f => achRefSvi(f, achFrs(), "FRS"), nom: f => f.nom, why: frsWhy,
+    list: { k: "frs", t: "ach_frs2", id: "achFrsT", name: "FOURNISSEURS", one: "FOURNISSEUR", all: achFrs, save: achFrsSave, code: f => achFrsRef(f), nom: f => f.nom, why: frsWhy,
       newRow: "CRÉER UN FOURNISSEUR ICI…",
       add: async done => { const nom = await achAsk("NOUVEAU FOURNISSEUR", "NOM"); if (!nom) { done(null); return; } const L = achFrs(), dn = achFrsDupNom(L, nom, "");
         if (dn) svToast("UN FOURNISSEUR DU MÊME NOM EXISTE : " + dn.code + ".", 3500);
-        const f = achFrsNew(L, { nom }); f.st = "instance"; achFrsSave(L); achHist(f.code, "CRÉATION", f.nom); done(f.id); achFrsFiche(f.id, "", () => done(f.id)); },
-      w: { ref: 110, nom: 320, ville: 140, ice: 160, cond: 140, val: 110, cree: 110 },
-      cols: mode => [["ref", "RÉFÉRENCE", f => achRefSvi(f, achFrs(), "FRS"), ""], ["nom", "NOM", f => f.nom, ""], ["ville", "VILLE", f => f.ville || "", ""], ["ice", "ICE", f => achDig(f.ice), "center"], ["cond", "PAIEMENT", f => f.cond || "", ""]]
+        const f = achFrsNew(L, { nom }); f.st = "instance"; f.grp = ""; achFrsSave(L); achHist(f.code, "CRÉATION", f.nom); done(f.id); achFrsFiche(f.id, "", () => done(f.id)); },
+      w: { ref: 110, grp: 150, nom: 320, ville: 140, ice: 160, cond: 140, val: 110, cree: 110 },
+      cols: mode => [["ref", "RÉFÉRENCE", f => achFrsRef(f), ""], ["grp", "GROUPE", f => achFrsGrp(f).nom, ""], ["nom", "NOM", f => f.nom, ""], ["ville", "VILLE", f => f.ville || "", ""], ["ice", "ICE", f => achDig(f.ice), "center"], ["cond", "PAIEMENT", f => f.cond || "", ""]]
         .concat(mode === "valid" ? [["val", "VALIDÉ LE", f => achDFr(f.val || f.cree), "center"]] : []).concat([["cree", "SAISI LE", f => achDFr(f.cree), "center"]]) },
     pageOf: id => { const f = achFrs().find(x => x.id === id); if (!f) return null;
       const D = achDvf().filter(v => v.frs === id), M = achCmf().filter(c => c.frs === id), FA = achFaf().filter(x => x.frs === id), PA = achPaf().filter(x => x.frs === id);
       const arts = new Map(); D.filter(v => v.state !== "rejete" && v.state !== "annule").forEach(v => (v.lignes || []).forEach(l => { if (achN(l.pu) > 0) arts.set(achKey(l.des, l.u), { l, v }); }));
-      return { id, code: f.code, ref: achRefSvi(f, achFrs(), "FRS"), tag: "FOURNISSEUR", title: f.nom, st: achSt(f), del: !!f.del, inactif: f.actif === false, why: frsWhy(f),
+      return { id, code: f.code, ref: achFrsRef(f), tag: "FOURNISSEUR", title: f.nom, st: achSt(f), del: !!f.del, inactif: f.actif === false, why: frsWhy(f),
         info: done => achFrsFiche(id, "", () => done()),
         menu: [achSt(f) === "instance" && !f.del ? { k: "val", lab: "VALIDER" } : null, { k: "rib", lab: "RIB" }, { k: "cte", lab: "CONTACTS (" + (f.cte || []).length + ")" }, { k: "evl", lab: "ÉVALUATIONS (" + (f.evl || []).length + ")" },
           { k: "cgf", lab: "CONTRATS (" + (f.cgf || []).length + ")" }, { k: "docf", lab: "DOCUMENTS FISCAUX (" + (f.docf || []).length + ")" },

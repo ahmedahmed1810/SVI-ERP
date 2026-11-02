@@ -22,7 +22,7 @@ const achN = v => { const n = Number(String(v ?? "").replace(/\s| | /g, "").r
 const achJ = (k, d) => { try { const v = JSON.parse(SVI_LZ.dec(localStorage.getItem(k)) || "null"); return v === null ? d : v; } catch (e) { return d; } };
 const achW = (k, v) => { try { const s = JSON.stringify(v); localStorage.setItem(k, /^svi_ach_/.test(k) && s.length > 4000 ? SVI_LZ.enc(s) : s); return true; } catch (e) { return false; } };
 /* ---------- paramètres d'achat ---------- */
-const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: p.esp === undefined ? 5000 : achN(p.esp), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: p.avj === undefined ? 90 : achN(p.avj), chqj: p.chqj === undefined ? 30 : achN(p.chqj), dorm: p.dorm === undefined ? 12 : achN(p.dorm), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })) }; };
+const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: p.esp === undefined ? 5000 : achN(p.esp), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: p.avj === undefined ? 90 : achN(p.avj), chqj: p.chqj === undefined ? 30 : achN(p.chqj), dorm: p.dorm === undefined ? 12 : achN(p.dorm), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })), grp: Array.isArray(p.grp) && p.grp.length ? p.grp : ACH_GRP_DEF.map(g => ({ ...g, req: g.req.slice() })) }; };
 const achPrmSave = p => achW(ACH_K.prm, p);
 /* banque d'un RIB : ses 3 premiers chiffres (code « 101-199 » = plage) */
 const achBankHasCode = (b, c) => String(b.code || "").split(/[,;\s]+/).filter(Boolean).some(x => { const m = x.match(/^(\d{3})-(\d{3})$/); return m ? +c >= +m[1] && +c <= +m[2] : x === c; });
@@ -125,13 +125,19 @@ const ACH_INCOTERMS = ["EXW", "FCA", "FAS", "FOB", "CFR", "CIF", "CPT", "CIP", "
 /* v807 : onglet RISQUE ET MOYENS (C1.27, C1.30) */
 const ACH_SOLVA = ["BONNE", "MOYENNE", "FAIBLE", "INCONNUE"];
 const ACH_STRAT = ["STRATÉGIQUE", "DE SECOURS", "ORDINAIRE"];
+/* v810 : groupes de fournisseurs (C1.39) — préfixe de la référence (suite simple par préfixe) et champs obligatoires, réglés dans PARAMÈTRES */
+const ACH_GRP_CH = [["ice", "ICE"], ["rib", "RIB"], ["ifisc", "IF"], ["rc", "RC"], ["cnss", "CNSS"], ["attf", "ATTESTATION FISCALE"], ["assRc", "ASSURANCE RC"], ["qualif", "QUALIFICATION"], ["pays", "PAYS"], ["adresse", "ADRESSE"], ["cte", "UN CONTACT"]];
+const ACH_GRP_DEF = [{ id: "loc", nom: "LOCAL", pre: "FRS", req: ["ice", "rib"] }, { id: "etr", nom: "ÉTRANGER", pre: "FRE", req: ["pays", "rib"] },
+  { id: "str", nom: "SOUS-TRAITANT", pre: "STR", req: ["ice", "rib", "cnss", "attf", "assRc"] }, { id: "occ", nom: "OCCASIONNEL", pre: "OCC", req: [] }, { id: "fin", nom: "ORGANISME FINANCIER", pre: "FIN", req: [] }];
 const ACH_DOCF = ["ATTESTATION DE RÉGULARITÉ FISCALE", "ATTESTATION CNSS", "MODÈLE J (REGISTRE DE COMMERCE)", "ATTESTATION DE RIB", "ASSURANCE", "ASSURANCE RESPONSABILITÉ CIVILE", "CERTIFICAT DE QUALIFICATION", "CERTIFICATION", "CONDITIONS GÉNÉRALES D'ACHAT SIGNÉES", "AUTRE"];
 const achDig = v => String(v ?? "").replace(/\D/g, "");
 /* v804 : l'ICE suit son masque de saisie (PARAMÉTRAGE › FORMAT › MASQUES DE SAISIE, C1.44) */
 const achIceOk = v => typeof sviMaskOk === "function" ? !!sviMaskRaw(v) && sviMaskOk("ice", v) : /^\d{15}$/.test(achDig(v));
 const achIceMsg = () => "ICE NON VALIDE : FORMAT " + ((typeof sviMaskOf === "function" && (sviMaskOf("ice") || {}).m) || "15 CHIFFRES");
+/* v810 : clé du RIB (C1.40, validée par Ahmed le 02/11/2026) — 24 chiffres divisibles par 97, sinon refusé */
+const achRibOk = v => achRibOk0(v) && achRibKeyOk(v);
 const achRibKeyOk = v => { const d = achDig(v); try { return d.length === 24 && BigInt(d) % 97n === 0n; } catch (e) { return true; } };
-const achRibOk = v => /^\d{24}$/.test(achDig(v));
+const achRibOk0 = v => /^\d{24}$/.test(achDig(v));
 const achFrs = () => { const L = achJ(ACH_K.frs, []); return Array.isArray(L) ? L : []; };
 const achFrsSave = L => achW(ACH_K.frs, L);
 const achFrsNextCode = L => "FRS-" + String(L.reduce((m, a) => Math.max(m, Number(String(a.code || "").replace(/\D/g, "")) || 0), 0) + 1).padStart(4, "0");
@@ -158,14 +164,22 @@ const achFrsLast = id => { let d = ""; achCmf().filter(c => c.frs === id && c.st
   achFaf().filter(x => x.frs === id && x.state !== "annule").forEach(x => { const y = String(x.dFac || x.cree || "").slice(0, 10); if (y > d) d = y; }); return d; };
 const achFrsDormant = f => { const d = achFrsLast(f.id) || String(f.cree || "").slice(0, 10), lim = new Date(); lim.setMonth(lim.getMonth() - achPrm().dorm); return !!d && d < lim.toISOString().slice(0, 10); };
 const achExFinMois = () => new Date().getMonth() + 1 === achPrm().exFin;
+/* grp absent (fiches d'avant v810) : déduit des anciennes cases ; grp vide = fournisseur créé sans groupe choisi */
+const achFrsGrpId = f => f && typeof f.grp === "string" ? f.grp : (f && f.orgFin ? "fin" : f && f.occ ? "occ" : "loc");
+const achFrsGrp = f => { const G = achPrm().grp, id = achFrsGrpId(f); return G.find(g => g.id === id) || G[0] || ACH_GRP_DEF[0]; };
+const achFrsPfx = f => achFrsGrp(f).pre || "FRS";
+const achFrsRef = f => typeof achRefSvi === "function" ? achRefSvi(f, achFrs().filter(y => achFrsPfx(y) === achFrsPfx(f)), achFrsPfx(f)) : f.code;
+const achFrsHas = (f, k) => k === "rib" ? (f.ribs || []).some(r => achDig(r.rib)) : k === "cte" ? (f.cte || []).some(c => c.nom || c.tel || c.email)
+  : k === "attf" ? (f.docf || []).some(d => d.type === "ATTESTATION DE RÉGULARITÉ FISCALE") : k === "assRc" ? !!f.assRc : !!String(f[k] ?? "").trim();
+const achFrsMissing = f => (achFrsGrp(f).req || []).filter(k => !achFrsHas(f, k)).map(k => (ACH_GRP_CH.find(c => c[0] === k) || [k, k])[1]);
 const achFrsWhy = (f, L) => {
   const w = [], today = new Date().toISOString().slice(0, 10), soon = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
   if (!achU(f.nom)) w.push("NOM MANQUANT");
-  if (!achDig(f.ice) && !f.occ) w.push("ICE MANQUANT (OU COCHER OCCASIONNEL)");
+  if (f.grp === "") w.push("GROUPE MANQUANT");
+  else { const m = achFrsMissing(f); if (m.length) w.push("GROUPE " + achFrsGrp(f).nom + " : " + m.join(", ") + " MANQUANT" + (m.length > 1 ? "S" : "")); }
   if (achDig(f.ice) && !achIceOk(f.ice)) w.push(achIceMsg());
   if (L && achDig(f.ice) && achFrsDupIce(L, f.ice, f.id)) w.push("ICE EN DOUBLE AVEC " + achFrsDupIce(L, f.ice, f.id).code);
-  if ((f.ribs || []).some(r => !achRibOk(r.rib))) w.push("RIB NON VALIDE (24 CHIFFRES)");
-  if (!(f.ribs || []).length && !f.occ) w.push("AUCUN RIB");
+  if ((f.ribs || []).some(r => !achRibOk(r.rib))) w.push("RIB NON VALIDE (24 CHIFFRES ET CLÉ)");
   if ((f.ribs || []).length > 1 && !(f.ribs || []).some(r => r.p)) w.push("AUCUN RIB PRINCIPAL");
   if (f.ribChg) w.push("RIB MODIFIÉ LE " + String(f.ribChg).slice(0, 10).split("-").reverse().join("/") + " : À VÉRIFIER AVANT TOUT PAIEMENT");
   /* v803 : revue de la fiche une fois par an (checklist C1.55) */
@@ -173,7 +187,6 @@ const achFrsWhy = (f, L) => {
   if (f.bloq) w.push("BLOQUÉ : " + (f.bloq.why || ""));
   if (f.arch) w.push("ARCHIVÉ LE " + String(f.arch).slice(0, 10).split("-").reverse().join("/"));
   /* v806 : clé du RIB (C1.40) — le RIB de 24 chiffres doit être divisible par 97 ; signalé, pas bloquant */
-  (f.ribs || []).forEach(r => { if (achRibOk(r.rib) && !achRibKeyOk(r.rib)) w.push("CLÉ DU RIB À VÉRIFIER : " + achDig(r.rib)); });
   { const t = (f.tar || []).filter(x => x.valid && x.valid < today); if (t.length) w.push("TARIF EXPIRÉ : " + t.map(x => x.des).join(", ")); }
   /* v805 : RIB partagé avec un autre fournisseur (C1.41) ; encours au-delà du plafond ; caution échue ou bientôt échue (C1.52) */
   if (L) (f.ribs || []).forEach(r => { const x = achDig(r.rib) && L.find(o => o.id !== f.id && !o.del && (o.ribs || []).some(q => achDig(q.rib) === achDig(r.rib))); if (x) w.push("RIB PARTAGÉ AVEC " + x.code + " — " + x.nom + " : FRAUDE POSSIBLE"); });

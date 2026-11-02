@@ -111,10 +111,11 @@ function achFrsMod(ctx) {
 function achFrsFiche(id, sec, done) {
   const L0 = achFrs(), f0 = L0.find(x => x.id === id); if (!f0) return;
   const F = JSON.parse(JSON.stringify(f0)), ro = !!f0.del, P = achPrm();
+  F.grp = achFrsGrpId(F);
   ["ribs", "docf", "cte", "evl", "cgf", "fam", "cau", "jours", "tar", "fermJ", "refs"].forEach(k => { if (!Array.isArray(F[k])) F[k] = []; });
   const d = sviWinNew();
   const inp = (k, lab, o = {}) => `<label class="frs-f${o.w ? " frs-w" : ""}"><span>${lab}${o.req ? " <b>*</b>" : ""}</span><input class="ins-in frs-x" data-k="${k}"${o.mask ? ` data-mask="${o.mask}"` : ""} value="${esc(o.mask ? sviMaskFmt(o.mask, F[k] ?? "") : F[k] ?? "")}"${o.num ? ' inputmode="numeric"' : ""}${o.date ? ' type="date"' : ""}${o.keep ? " data-keepcase" : ""}${o.list ? ` list="frsL-${k}"` : ""}${ro ? " readonly" : ""} autocomplete="off">${o.list ? `<datalist id="frsL-${k}">${o.list.map(x => `<option value="${esc(x)}">`).join("")}</datalist>` : ""}</label>`;
-  const sel = (k, lab, opts, o = {}) => `<label class="frs-f${o.w ? " frs-w" : ""}"><span>${lab}</span><select class="ins-in frs-xs" data-k="${k}"${ro ? " disabled" : ""}><option value="">—</option>${opts.map(x => { const v = Array.isArray(x) ? x[0] : x, t = Array.isArray(x) ? x[1] : x; return `<option value="${esc(v)}"${String(F[k] ?? "") === String(v) ? " selected" : ""}>${esc(t)}</option>`; }).join("")}</select></label>`;
+  const sel = (k, lab, opts, o = {}) => `<label class="frs-f${o.w ? " frs-w" : ""}"><span>${lab}</span><select class="ins-in frs-xs" data-k="${k}"${ro || o.dis ? " disabled" : ""}><option value="">—</option>${opts.map(x => { const v = Array.isArray(x) ? x[0] : x, t = Array.isArray(x) ? x[1] : x; return `<option value="${esc(v)}"${String(F[k] ?? "") === String(v) ? " selected" : ""}>${esc(t)}</option>`; }).join("")}</select></label>`;
   const chk = (k, lab) => `<label class="frs-c"><input type="checkbox" class="frs-xc" data-k="${k}"${F[k] ? " checked" : ""}${ro ? " disabled" : ""}> ${lab}</label>`;
   const sub = (k, cols, add) => `<table class="prm-table frs-sub" data-sub="${k}"><thead><tr>${cols.map(c => `<th>${c[1]}</th>`).join("")}<th></th></tr></thead><tbody>
       ${F[k].map((r, i) => `<tr data-i="${i}">${cols.map(c => `<td>${c[2] ? c[2](r, i) : `<input class="ins-in frs-s" data-c="${c[0]}" value="${esc(r[c[0]] ?? "")}"${c[3] || ""}${ro ? " readonly" : ""} autocomplete="off">`}</td>`).join("")}<td class="center">${ro ? "" : `<button type="button" class="ach-x" data-rm="${k}|${i}" data-rml="${k}|${i}" title="Retirer">✕</button>`}</td></tr>`).join("") || `<tr><td colspan="${cols.length + 1}" class="empty">AUCUNE LIGNE</td></tr>`}
@@ -125,20 +126,20 @@ function achFrsFiche(id, sec, done) {
   let tab = (TABS.find(t => t[2].includes(sec)) || TABS[0])[0];
   const draw = () => {
     const why = achFrsWhy(F, achFrs()), note = achFrsNote(F);
-    d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: esc(F.nom || "") + " : " + esc(typeof achRefSvi === "function" ? achRefSvi(F, achFrs(), "FRS") : F.code),
+    d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: esc(F.nom || "") + " : " + esc(achFrsRef(F)),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}${F.ribChg && !ro ? ` <button type="button" class="ach-b" data-ribok>RIB VÉRIFIÉ</button>` : ""}</div>` : ""}
         <div class="rec-tabs frs-tabs">${TABS.map(t => `<button type="button" class="rec-tab${t[0] === tab ? " active on" : ""}" data-ftab="${t[0]}">${t[1]}</button>`).join("")}</div>
         <div class="frs-scroll">
         <div class="frs-sec" data-s="id"><div class="frs-st">IDENTITÉ</div><div class="frs-g">
-          ${inp("nom", "NOM", { req: 1, w: 1 })}${inp("denom", "DÉNOMINATION SOCIALE", { w: 1 })}${inp("forme", "FORME JURIDIQUE", { list: ACH_FORMES })}${inp("ville", "VILLE")}
+          ${inp("nom", "NOM", { req: 1, w: 1 })}${sel("grp", "GROUPE <b>*</b>", achPrm().grp.map(g => [g.id, g.nom + " (" + g.pre + ")"]), { dis: achSt(f0) !== "instance" })}${inp("denom", "DÉNOMINATION SOCIALE", { w: 1 })}${inp("forme", "FORME JURIDIQUE", { list: ACH_FORMES })}${inp("ville", "VILLE")}
           ${sel("type", "TYPE DE FOURNISSEUR", ACH_FTYPES)}${inp("pays", "PAYS")}${sel("lang", "LANGUE", ACH_LANGS)}
           ${inp("adresse", "ADRESSE", { w: 1 })}${inp("site", "SITE WEB", { keep: 1 })}${inp("resp", "RESPONSABLE INTERNE")}
           ${inp("mailCmd", "E-MAIL DE COMMANDE", { keep: 1 })}${inp("mailFac", "E-MAIL DE FACTURATION", { keep: 1 })}${inp("origine", "ORIGINE (TROUVÉ COMMENT, RECOMMANDÉ PAR QUI)", { w: 1 })}
           ${sel("lie", "FOURNISSEUR LIÉ", achFrs().filter(x => !x.del && x.id !== id).map(x => [x.id, x.nom]))}${sel("lieT", "LIEN", ACH_FLIENS)}
           <div class="frs-f frs-w frs-logo"><span>LOGO</span><div>${F.logo ? `<img src="${esc(F.logo)}" alt="">` : ""}${ro ? "" : `<input type="file" accept="image/*" class="frs-logo-in">${F.logo ? ` <button type="button" class="ach-b" data-logorm>RETIRER LE LOGO</button>` : ""}`}</div></div>
-          <div class="frs-cs">${chk("occ", "FOURNISSEUR OCCASIONNEL (FICHE SIMPLIFIÉE : ICE ET RIB FACULTATIFS)")}${chk("orgFin", "ORGANISME FINANCIER")}${chk("actif", "ACTIF")}</div></div></div>
+          <div class="frs-cs">${chk("actif", "ACTIF")}</div></div></div>
         <div class="frs-sec" data-s="fisc"><div class="frs-st">FISCAL ET LÉGAL</div><div class="frs-g">
-          ${inp("ice", "ICE", { req: !F.occ, num: 1, mask: "ice" })}${inp("ifisc", "IDENTIFIANT FISCAL", { num: 1, mask: "if" })}${inp("rc", "REGISTRE DE COMMERCE", { num: 1, mask: "rc" })}${inp("villeRc", "VILLE DU RC")}
+          ${inp("ice", "ICE", { req: (achFrsGrp(F).req || []).includes("ice"), num: 1, mask: "ice" })}${inp("ifisc", "IDENTIFIANT FISCAL", { num: 1, mask: "if" })}${inp("rc", "REGISTRE DE COMMERCE", { num: 1, mask: "rc" })}${inp("villeRc", "VILLE DU RC")}
           ${inp("patente", "PATENTE", { num: 1 })}${inp("capital", "CAPITAL (MAD)", { num: 1 })}
           ${inp("cnss", "N° CNSS", { num: 1, mask: "cnss" })}${inp("dateCrea", "DATE DE CRÉATION", { date: 1 })}${inp("dirigeant", "DIRIGEANT", { w: 1 })}
           ${F.forme === "AUTO-ENTREPRENEUR" ? `${inp("aeNo", "N° AUTO-ENTREPRENEUR", { num: 1 })}${inp("aeCin", "CIN DU TITULAIRE")}` : ""}</div></div>
@@ -211,7 +212,7 @@ function achFrsFiche(id, sec, done) {
   };
   /* logo réduit à 96 px pour rester léger dans la base */
   d.addEventListener("change", e => {
-    if (e.target.matches('.frs-x[data-k="forme"]')) { pull(); draw(); return; }
+    if (e.target.matches('.frs-x[data-k="forme"], .frs-xs[data-k="grp"]')) { pull(); draw(); return; }
     const fi = e.target.closest(".frs-logo-in"); if (!fi || !fi.files || !fi.files[0]) return;
     const rd = new FileReader();
     rd.onload = () => { const im = new Image(); im.onload = () => { const k = Math.min(1, 96 / Math.max(im.width, im.height)), c = document.createElement("canvas");
@@ -251,13 +252,16 @@ function achFrsFiche(id, sec, done) {
     if (F.gps && !/^-?\d{1,2}(\.\d+)?\s*,\s*-?\d{1,3}(\.\d+)?$/.test(F.gps)) { svToast("POSITION GPS : LATITUDE, LONGITUDE (EX. 33.5731, -7.5898).", 3500); return; }
     if (F.refs.some(x => x.annee && !/^(19|20)\d{2}$/.test(String(x.annee)))) { svToast("RÉFÉRENCES : ANNÉE SUR 4 CHIFFRES.", 3000); return; }
     if (F.tar.some(x => !(achN(x.pu) > 0))) { svToast("TARIFS : PRIX OBLIGATOIRE.", 3000); return; }
+    if (!F.grp || !achPrm().grp.some(g => g.id === F.grp)) { svToast("GROUPE OBLIGATOIRE.", 3000); return; }
+    if (achSt(f0) !== "instance" && achFrsGrpId(f0) !== F.grp) { svToast("LE GROUPE NE SE CHANGE PLUS APRÈS LA VALIDATION (LA RÉFÉRENCE CHANGERAIT).", 4000); return; }
+    F.occ = F.grp === "occ"; F.orgFin = F.grp === "fin";
     if (F.cga && !F.cgaDate) { svToast("CONDITIONS GÉNÉRALES SIGNÉES : DONNER LA DATE.", 3000); return; }
     if (F.forme !== "AUTO-ENTREPRENEUR") { F.aeNo = ""; F.aeCin = ""; }
     if (F.lie && !F.lieT) { svToast("FOURNISSEUR LIÉ : CHOISIR LE LIEN.", 3000); return; }
     if (!F.lie) F.lieT = "";
     if (F.cond && !ACH_CONDS.includes(F.cond)) { svToast("CONDITIONS DE PAIEMENT : CHOISIR DANS LA LISTE.", 3500); return; }
     F.ribs = F.ribs.filter(r => achDig(r.rib));
-    if (F.ribs.some(r => !achRibOk(r.rib))) { svToast("RIB NON VALIDE : 24 CHIFFRES.", 3500); draw(); return; }
+    if (F.ribs.some(r => !achRibOk(r.rib))) { svToast("RIB NON VALIDE : 24 CHIFFRES ET CLÉ (LE RIB DOIT ÊTRE DIVISIBLE PAR 97).", 4000); draw(); return; }
     if (new Set(F.ribs.map(r => achDig(r.rib))).size < F.ribs.length) { svToast("LE MÊME RIB EST SAISI DEUX FOIS.", 3500); draw(); return; }
     if (F.ribs.length && !F.ribs.some(r => r.p)) F.ribs[0].p = true;
     F.cte = F.cte.filter(c => c.nom || c.tel || c.email); F.cgf = F.cgf.filter(c => c.intitule); F.docf = F.docf.filter(x => x.type && (x.no || x.exp)); F.cau = F.cau.filter(x => x.no || x.mt || x.ech); F.tar = F.tar.filter(x => x.des); F.refs = F.refs.filter(x => x.chantier);
@@ -270,7 +274,7 @@ function achFrsFiche(id, sec, done) {
       achHist(F.code, "RIB MODIFIÉ", (oldR.join(" · ") || "—") + " → " + (newR.join(" · ") || "—"));
     }
     if (F.__ribOk) { achHist(F.code, "RIB VÉRIFIÉ", newR.join(" · ")); delete F.__ribOk; }
-    const LAB = { nom: "NOM", denom: "DÉNOMINATION", forme: "FORME", ville: "VILLE", adresse: "ADRESSE", site: "SITE WEB", resp: "RESPONSABLE", type: "TYPE", pays: "PAYS", lang: "LANGUE", mailCmd: "E-MAIL DE COMMANDE", mailFac: "E-MAIL DE FACTURATION", origine: "ORIGINE", lie: "FOURNISSEUR LIÉ", lieT: "LIEN", logo: "LOGO", cnss: "CNSS", dateCrea: "DATE DE CRÉATION", dirigeant: "DIRIGEANT", aeNo: "N° AUTO-ENTREPRENEUR", aeCin: "CIN", qualif: "QUALIFICATION", classe: "CLASSIFICATION", effectif: "EFFECTIF", certif: "CERTIFICATIONS", assRc: "ASSURANCE RC", secu: "SÉCURITÉ", cga: "CONDITIONS GÉNÉRALES", cgaDate: "DATE DES CONDITIONS GÉNÉRALES", revue: "REVUE", occ: "OCCASIONNEL", orgFin: "ORGANISME FINANCIER", actif: "ACTIF",
+    const LAB = { nom: "NOM", denom: "DÉNOMINATION", forme: "FORME", ville: "VILLE", adresse: "ADRESSE", site: "SITE WEB", resp: "RESPONSABLE", type: "TYPE", pays: "PAYS", lang: "LANGUE", mailCmd: "E-MAIL DE COMMANDE", mailFac: "E-MAIL DE FACTURATION", origine: "ORIGINE", lie: "FOURNISSEUR LIÉ", lieT: "LIEN", logo: "LOGO", grp: "GROUPE", cnss: "CNSS", dateCrea: "DATE DE CRÉATION", dirigeant: "DIRIGEANT", aeNo: "N° AUTO-ENTREPRENEUR", aeCin: "CIN", qualif: "QUALIFICATION", classe: "CLASSIFICATION", effectif: "EFFECTIF", certif: "CERTIFICATIONS", assRc: "ASSURANCE RC", secu: "SÉCURITÉ", cga: "CONDITIONS GÉNÉRALES", cgaDate: "DATE DES CONDITIONS GÉNÉRALES", revue: "REVUE", occ: "OCCASIONNEL", orgFin: "ORGANISME FINANCIER", actif: "ACTIF",
       ice: "ICE", ifisc: "IF", rc: "RC", villeRc: "VILLE RC", patente: "PATENTE", capital: "CAPITAL", codeCpt: "CODE COMPTABLE", intCpt: "INTITULÉ COMPTABLE", cond: "PAIEMENT", fam: "FAMILLES", docf: "DOCUMENTS FISCAUX", plafEnc: "PLAFOND D'ENCOURS", encNom: "PERSONNE QUI ENCAISSE", jours: "JOURS DE PAIEMENT", cau: "CAUTIONS", modeReg: "MODE DE RÈGLEMENT", escTaux: "ESCOMPTE", escJours: "DÉLAI D'ESCOMPTE", retAcc: "RETENUE ACCEPTÉE", retTaux: "TAUX DE RETENUE", delai: "DÉLAI", devise: "DEVISE", minCmd: "MINIMUM", franco: "FRANCO", remise: "REMISE", envoi: "ENVOI DES COMMANDES", livr: "LIVRAISON", heuresLiv: "HEURES DE LIVRAISON", gps: "GPS DU DÉPÔT", incoterm: "INCOTERM", transit: "TRANSITAIRE", conges: "CONGÉS", fermJ: "JOURS SANS LIVRAISON", garMois: "GARANTIE", savContact: "CONTACT SAV", tar: "TARIFS", solva: "SOLVABILITÉ", strat: "PLACE DU FOURNISSEUR", camions: "CAMIONS", capJour: "CAPACITÉ PAR JOUR", materiel: "MATÉRIEL", refs: "RÉFÉRENCES", cte: "CONTACTS", evl: "ÉVALUATIONS", cgf: "CONTRATS" };
     const ch = Object.keys(LAB).filter(k => JSON.stringify(f[k] ?? "") !== JSON.stringify(F[k] ?? ""));
     Object.assign(f, F, { mod: new Date().toISOString() });

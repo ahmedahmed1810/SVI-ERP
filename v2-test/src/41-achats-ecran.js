@@ -115,6 +115,14 @@ function sviAchInit() {
           <tbody>${catRows.map(c => `<tr data-cat="${esc(c)}"><td><input class="ins-in ach-pin" data-p="cat" value="${esc(c)}" autocomplete="off"></td><td class="center"><input type="checkbox" class="ach-pcb" data-xcat="${esc(c)}" aria-label="Cocher"></td></tr>`).join("")}
           <tr class="ach-new"><td><input class="ins-in ach-pnew" data-p="cat" placeholder="CRÉER UNE CATÉGORIE ICI…" autocomplete="off"></td><td></td></tr></tbody></table></div>
         <div class="prm-foot"><button type="button" class="prm-del ach-pdel" data-pdel="cat" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div></div>
+      <div class="ach-pbox"><div class="ach-pt">GROUPES DE FOURNISSEURS ${svCnt ? svCnt(P.grp.length) : ""}</div>
+        <div class="ach-scroll"><table id="achGrpT" class="bdg-d-table prm-table ach-table" data-ach="grp" style="width:774px"><colgroup><col style="width:220px"><col style="width:90px"><col style="width:420px"><col style="width:44px"></colgroup>
+          <thead><tr><th>GROUPE</th><th class="center">PRÉFIXE</th><th>CHAMPS OBLIGATOIRES</th><th class="center"><input type="checkbox" class="ach-pall" aria-label="Tout cocher"></th></tr></thead>
+          <tbody>${P.grp.map(g => `<tr data-gid="${esc(g.id)}"><td><input class="ins-in ach-gin" data-f="nom" value="${esc(g.nom)}" autocomplete="off"></td><td class="center"><input class="ins-in ach-gin center" data-f="pre" value="${esc(g.pre || "")}" autocomplete="off"></td>
+            <td><button type="button" class="ach-link ach-greq" data-greq="${esc(g.id)}">${esc((g.req || []).map(k => (ACH_GRP_CH.find(c => c[0] === k) || [k, k])[1]).join(", ") || "—")}</button></td><td class="center"><input type="checkbox" class="ach-pcb" data-xgrp="${esc(g.id)}" aria-label="Cocher"></td></tr>`).join("")}
+          <tr class="ach-new"><td colspan="3"><input class="ins-in ach-gnew" placeholder="CRÉER UN GROUPE ICI…" autocomplete="off"></td><td></td></tr></tbody></table></div>
+        <div class="prm-foot"><button type="button" class="prm-del ach-pdel" data-pdel="grp" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div>
+        <div class="ach-note">LE PRÉFIXE DONNE LA RÉFÉRENCE DU FOURNISSEUR (EX. FRE 26-1102/001), AVEC UNE SUITE PROPRE À CHAQUE PRÉFIXE ; LES CHAMPS OBLIGATOIRES SONT EXIGÉS À LA VALIDATION DU FOURNISSEUR.</div></div>
       <div class="ach-pbox"><div class="ach-pt">BANQUES ET CODES RIB ${svCnt ? svCnt(bRows.length, P.banques.length) : ""}</div>
         <div class="ach-scroll"><table id="achBqT" class="bdg-d-table prm-table ach-table" data-ach="bq" style="width:${bCols.reduce((s, c) => s + cw("bq", c[0]), 0) + 44}px"><colgroup>${bCols.map(c => `<col data-w="ach_bq.${c[0]}" style="width:${cw("bq", c[0])}px">`).join("")}<col style="width:44px"></colgroup>
           <thead><tr>${bCols.map(c => cfHead("ach_bq", c[0], c[1], c[3])).join("")}<th class="center"><input type="checkbox" class="ach-pall" aria-label="Tout cocher"></th></tr></thead>
@@ -191,10 +199,23 @@ function sviAchInit() {
     /* v793 (DOCUMENT UNIQUE §6.4) : cases à droite + SUPPRIMER LES LIGNES COCHÉES (plus de ✕ par ligne) */
     const pd = e.target.closest("[data-pdel]");
     if (pd) { if (pd.disabled) return; const tb = pd.closest(".ach-pbox").querySelector("table"), ck = [...tb.querySelectorAll(".ach-pcb:checked")];
-      const labs = ck.map(c => c.dataset.xcat || ((achPrm().banques.find(b => b.id === c.dataset.xbq) || {}).nom || "")).filter(Boolean);
+      const xg = new Set(ck.map(c => c.dataset.xgrp).filter(Boolean));
+      if (xg.size) { const u = achFrs().find(f => !f.del && xg.has(achFrsGrpId(f))); if (u) { svToast("GROUPE UTILISÉ PAR " + u.code + " — " + u.nom + " : SUPPRESSION REFUSÉE.", 4000); return; }
+        if (xg.size >= achPrm().grp.length) { svToast("IL FAUT GARDER AU MOINS UN GROUPE.", 3000); return; } }
+      const labs = ck.map(c => c.dataset.xcat || ((achPrm().banques.find(b => b.id === c.dataset.xbq) || {}).nom || "") || ((achPrm().grp.find(g => g.id === c.dataset.xgrp) || {}).nom || "")).filter(Boolean);
       if (!ck.length || !(await svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", html: `<ul class="svc-list">${labs.map(l => `<li>${esc(l)}</li>`).join("")}</ul>`, ok: "SUPPRIMER" }))) return;
       const P = achPrm(), xc = new Set(ck.map(c => c.dataset.xcat).filter(Boolean)), xb = new Set(ck.map(c => c.dataset.xbq).filter(Boolean));
-      P.cat = P.cat.filter(c => !xc.has(c)); P.banques = P.banques.filter(b => !xb.has(b.id)); achPrmSave(P); draw(); return; }
+      P.cat = P.cat.filter(c => !xc.has(c)); P.banques = P.banques.filter(b => !xb.has(b.id)); P.grp = P.grp.filter(g => !xg.has(g.id)); achPrmSave(P); draw(); return; }
+    /* v810 : champs obligatoires d'un groupe de fournisseurs */
+    const gq = e.target.closest(".ach-greq");
+    if (gq) { const P0 = achPrm(), g0 = P0.grp.find(g => g.id === gq.dataset.greq); if (!g0) return; const d = sviWinNew();
+      d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: "CHAMPS OBLIGATOIRES — " + esc(g0.nom),
+        body: `<div class="frs-cs">${ACH_GRP_CH.map(c => `<label class="frs-c"><input type="checkbox" class="grq-c" value="${c[0]}"${(g0.req || []).includes(c[0]) ? " checked" : ""}> ${esc(c[1])}</label>`).join("")}</div>`,
+        foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>` });
+      sviWinShow(d);
+      d.addEventListener("click", ev => { if (ev.target === d || ev.target.closest("[data-x]")) { d.remove(); return; } if (!ev.target.closest("[data-ok]")) return;
+        const P = achPrm(), g = P.grp.find(x => x.id === g0.id); if (g) { g.req = [...d.querySelectorAll(".grq-c:checked")].map(i => i.value); achPrmSave(P); } d.remove(); draw(); });
+      return; }
     const ab = e.target.closest(".ach-b"); if (!ab || ab.disabled) return;
     const L = achArts(), ids = [...SEL].filter(id => L.some(a => a.id === id));
     const act = ab.dataset.a;
@@ -228,7 +249,7 @@ function sviAchInit() {
   body.addEventListener("change", e => {
     const t = e.target;
     /* case « CRÉER … ICI » : une seule création, même si « change » arrive deux fois (Entrée, puis case retirée) */
-    if (t.matches && t.matches(".ach-newin, .ach-pnew, .ach-bnew")) { if (t.__achDone) return; t.__achDone = true; }
+    if (t.matches && t.matches(".ach-newin, .ach-pnew, .ach-bnew, .ach-gnew")) { if (t.__achDone) return; t.__achDone = true; }
     if (NV[tab]) { NV[tab].change(e); return; }
     { const PM = MODS[tab] || (tab === "bsn" ? BSNM : null); if (PM && PM.isPage && PM.isPage() && PM.change(e)) return; }   /* v779 */
     if (tab === "frs" && FRSM.change(e)) return;
@@ -249,6 +270,14 @@ function sviAchInit() {
     }
     if (t.classList.contains("ach-bnew")) { const v = achU(t.value); if (!v) return; const P = achPrm(); if (P.banques.some(b => achU(b.n) === v)) { svToast("DOUBLON : " + v + " EXISTE DÉJÀ.", 3000, t); draw(); return; } P.banques.push({ id: "B" + Date.now().toString(36), n: v, abr: "", code: "" }); achPrmSave(P); draw();
       setTimeout(() => body.querySelector(`tr[data-bid="${P.banques[P.banques.length - 1].id}"] input[data-f="abr"]`)?.focus(), 0); return; }
+    /* v810 : groupes de fournisseurs */
+    if (t.classList.contains("ach-gnew")) { const v = achU(t.value); if (!v) return; const P = achPrm(); if (P.grp.some(g => achU(g.nom) === v)) { svToast("DOUBLON : " + v + " EXISTE DÉJÀ.", 3000, t); draw(); return; }
+      const id = "G" + Date.now().toString(36); P.grp.push({ id, nom: v, pre: "", req: [] }); achPrmSave(P); draw(); setTimeout(() => body.querySelector(`tr[data-gid="${id}"] input[data-f="pre"]`)?.focus(), 0); return; }
+    if (t.classList.contains("ach-gin")) { const P = achPrm(), g = P.grp.find(x => x.id === t.closest("tr").dataset.gid); if (!g) return; const f = t.dataset.f, v = achU(t.value);
+      if (f === "nom") { if (!v) { svToast("NOM DU GROUPE OBLIGATOIRE.", 3000, t); draw(); return; } if (P.grp.some(x => x.id !== g.id && achU(x.nom) === v)) { svToast("DOUBLON : " + v + " EXISTE DÉJÀ.", 3000, t); draw(); return; } }
+      if (f === "pre") { if (!/^[A-Z]{2,5}$/.test(v)) { svToast("PRÉFIXE : 2 À 5 LETTRES (EX. FRE).", 3500, t); draw(); return; }
+        const u = achFrs().find(x => !x.del && x.st !== "instance" && !x.nov && achFrsGrpId(x) === g.id); if (u && v !== g.pre) { svToast("PRÉFIXE FIGÉ : LE GROUPE A DES FOURNISSEURS VALIDÉS (" + u.code + "), LEUR RÉFÉRENCE CHANGERAIT.", 4500, t); draw(); return; } }
+      g[f] = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-bin")) {
       const P = achPrm(), b = P.banques.find(x => x.id === t.closest("tr").dataset.bid); if (!b) return;
       const f = t.dataset.f, v = f === "code" ? String(t.value || "").replace(/[^\d\-,; ]/g, "").trim() : achU(t.value);
@@ -343,7 +372,7 @@ function sviAchInit() {
   });
   /* case « CRÉER … ICI » : Entrée ou Tab crée la ligne (avant la navigation commune, qui n'a pas de case suivante dans cette ligne) */
   window.addEventListener("keydown", e => {
-    const i = e.target && e.target.closest && e.target.closest("#ach input.ach-newin, #ach input.ach-pnew, #ach input.ach-bnew");
+    const i = e.target && e.target.closest && e.target.closest("#ach input.ach-newin, #ach input.ach-pnew, #ach input.ach-bnew, #ach input.ach-gnew");
     if (!i || (e.key !== "Enter" && e.key !== "Tab") || !String(i.value || "").trim()) return;
     e.preventDefault(); e.stopPropagation();
     /* la mise en majuscules pendant la frappe empêche le navigateur d'envoyer « change » : il est envoyé ici */

@@ -2908,9 +2908,9 @@ def main():
         # création par la ligne CRÉER…, fiche (code souligné), changement de RIB confirmé et signalé jusqu'à « RIB VÉRIFIÉ »
         f759 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const keepF = localStorage.getItem('svi_ach_frs_v1'), keepE = localStorage.getItem('svi_ach_frs_etat_v1'); localStorage.removeItem('svi_ach_frs_v1'); localStorage.removeItem('svi_ach_frs_etat_v1');
             const L = []; const a = achFrsNew(L, { nom: 'beton sud' }); a.ice = '001234567000089'; const b2 = achFrsNew(L, { nom: 'X' }); b2.ice = '001234567000089';
-            const r1 = [a.code, b2.code, achIceOk('123'), achIceOk(a.ice), (achFrsDupIce(L, b2.ice, b2.id) || {}).code, achRibOk('0076400001234567890123 45')];
+            const r1 = [a.code, b2.code, achIceOk('123'), achIceOk(a.ice), (achFrsDupIce(L, b2.ice, b2.id) || {}).code, achRibOk('0076400001234567890123 43')];
             const c = achFrsNew(L, { nom: 'OCC', occ: true }); const wc = achFrsWhy(c, L);
-            a.ribs = [{ rib: '007640000123456789012345', p: true }]; a.docf = [{ type: 'ATTESTATION CNSS', no: '1', exp: '2020-01-01' }]; const wa = achFrsWhy(a, L); b2.del = '2026-11-01';
+            a.ribs = [{ rib: '007640000123456789012343', p: true }]; a.docf = [{ type: 'ATTESTATION CNSS', no: '1', exp: '2020-01-01' }]; const wa = achFrsWhy(a, L); b2.del = '2026-11-01';
             achFrsSave(L);
             document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(400); const v = document.getElementById('ach');
             const h1 = (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), n0 = v.querySelectorAll('#achFrsT tbody tr[data-id]').length;
@@ -2923,7 +2923,7 @@ def main():
             const pgOk = /^FOURNISSEUR — BETON SUD/.test((document.getElementById('sviScreenTag') || {}).textContent || '') && /^FRS \\d{2}-\\d{4}\\/\\d{3}$/.test(v.querySelector('.nvp-ref').textContent) && v.querySelectorAll('.nvp-blk').length === 10;
             v.querySelector('[data-nvp="info"]').click(); await w(300); const fc = document.querySelector('.frs-card');
             const secs = fc ? [...fc.querySelectorAll('.frs-st')].map(x => x.textContent.replace(/\\s*\\d+$/, '').split(' ')[0]).join(',') + '|' + [...fc.querySelectorAll('.frs-tabs .rec-tab')].map(x => x.textContent.trim()).join(',') + '|' + [...fc.querySelectorAll('.frs-sec')].filter(x => !x.hidden).length : 'pas de fiche';
-            const ri = fc.querySelector('.frs-sub[data-sub="ribs"] .frs-s[data-c="rib"]'); ri.value = '011780000123456789012345'; fc.querySelector('[data-save]').click(); await w(250);
+            const ri = fc.querySelector('.frs-sub[data-sub="ribs"] .frs-s[data-c="rib"]'); ri.value = '011780000123456789012386'; fc.querySelector('[data-save]').click(); await w(250);
             const cf = document.querySelector('#svConf .svc-t'); const conf = cf ? cf.textContent : ''; document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
             const a2 = achFrs().find(x => x.id === a.id), sig = !!a2.ribChg && achFrsWhy(a2, achFrs()).some(m => /RIB MODIFIÉ/.test(m)), hist = achHistGet(a.code).some(h => h.a === 'RIB MODIFIÉ');
             v.querySelector('[data-nvp="info"]').click(); await w(300); document.querySelector('.frs-card [data-ribok]').click(); await w(100); document.querySelector('.frs-card [data-save]').click(); await w(250);
