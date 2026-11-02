@@ -2782,8 +2782,8 @@ def main():
               cells('F-1').slice(0, 3).join('|'), cells('F-1-AV1').slice(0, 3).join('|'), !!row('F-1-AV1').querySelector('.budget-link'), !!row('F-1-AV1').querySelector('[data-del-budget]'),
               T.querySelectorAll('tr[data-kid="glob"]').length, cells('X-1')[1], !!row('F-1').querySelector('td.bdg-ref-c [data-fold-bdg]'), !T.querySelector('td.bdg-fold-c, th.bdg-fold-h'),
               cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.fontWeight === getComputedStyle(it).fontWeight && cs.textDecorationLine === 'underline', wr.scrollWidth <= wr.clientWidth + 1]; }""")
-        check("v750 : liste — colonnes dans l'ordre (sans VALIDÉ LE en instance), icône de bascule, ni cases ni impression, CONSOLIDÉ en titre, AVENANT 1 dessous (lien PROJET, corbeille), INITIAL, marge de pliage, PROJET souligné sans fond, toute la largeur",
-              l750 == ["RÉFÉRENCE|PROJET|INTITULÉ|MONTANT TTC|SAISI LE|", True, True, 0, "⌄FAM F-1 CNS|FAM|VILLA", "FAM F-1 AV1|FAM|VILLA", True, True, 0, "XA", True, True, True, True], l750)   # v780 : plus de NATURE, nature au bout de la référence
+        check("v750 / v793 : liste — colonnes dans l'ordre (sans VALIDÉ LE en instance), icône de bascule, ni case CUMUL ni impression (cases de sélection à droite, v793), CONSOLIDÉ en titre, AVENANT 1 dessous (lien PROJET, corbeille), INITIAL, marge de pliage, PROJET souligné sans fond, toute la largeur",
+              l750 == ["RÉFÉRENCE|PROJET|INTITULÉ|MONTANT TTC|SAISI LE||", True, True, 0, "⌄FAM F-1 CNS|FAM|VILLA", "FAM F-1 AV1|FAM|VILLA", True, True, 0, "XA", True, True, True, True], l750)   # v780 : plus de NATURE, nature au bout de la référence
         f750 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), T = document.getElementById('budgetListTable');
             T.querySelector('.cf-btn[data-col="budget"]').click(); await w(200); const m = document.getElementById('cfMenu'); if (!m) return 'pas de menu';
             const ord = [...m.children].map(e => e.className.split(' ')[0]).filter(c => /cf-(sort|search|cond|list|foot)/.test(c)).join(',');
@@ -3191,6 +3191,61 @@ def main():
             r.push([o1, o2, o3].join(',')); return r; }""")
         check("v791 : CONFORMITÉ au document unique — trait de gauche sur chaque bloc, onglets à la même hauteur (en-tête 22, lignes 21), pas de « AUCUN », palette appliquée et APPLIQUER À, ⋯ refermé au 2e toucher",
               k791 == [True, "chg:22/21 prd:22/21 dly:22/21", 0, "rgb(18, 52, 86)", True, "true,false,true"], k791)
+        # v793 : MOTEUR COMMUN branché sur la liste des budgets, PARAMÉTRAGE et les fiches d'achat ; SUIVI au noir ; cases qui ne filtrent que les blocs liés ;
+        # hauteur de RÉVISIONS gardée au lâcher de la poignée
+        m793 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = [];
+            const P = (el, t, x, y) => el.dispatchEvent(new PointerEvent(t, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 1, pointerType: 'touch', isPrimary: true }));
+            const drag = async (h, dx, dy) => { const b = h.getBoundingClientRect(), x = b.x + b.width / 2, y = b.y + b.height / 2; P(h, 'pointerdown', x, y); for (let i = 1; i <= 8; i++) { P(document, 'pointermove', x + dx * i / 8, y + dy * i / 8); await w(15); } P(document, 'pointerup', x + dx, y + dy); await w(200); };
+            if (!document.querySelector('.bdg-d-page')) { window.__sviAvRet = null; window.__sviAvOpen('TEST-1'); await w(1500); } document.querySelectorAll('#svConf').forEach(x => x.remove());
+            const sh = [...document.querySelectorAll('*')].find(e => e.__ins), X = sh.__ins, I = X.INS, keepV = JSON.stringify(I.ver || null), keepL = localStorage.getItem('svi_layout_v1');
+            /* SUIVI au noir du VALIDÉ, ligne CRÉER rouge */
+            const su = document.querySelector('.blk-suivi > .bdg-d-block-title'), nw = document.querySelector('.blk-suivi tr.rec-new td');
+            r.push(getComputedStyle(su).color === 'rgb(23, 32, 51)' && !!nw && getComputedStyle(nw).color === 'rgb(185, 28, 28)');
+            /* une case de RÉVISIONS ne filtre aucun bloc ; une case de charge filtre les blocs liés */
+            const n = s2 => [...document.querySelectorAll(s2)].filter(e => e.offsetParent).length, lots = () => n('.ins-hcol[data-ik="lot"] .ins-li:not(.ins-new)');
+            const l0 = lots(); document.querySelector('#avTable tbody input[type=checkbox]')?.click(); await w(400); const l1 = lots(); document.querySelector('#avTable tbody input[type=checkbox]:checked')?.click(); await w(300);
+            r.push(l0 > 0 && l1 === l0);
+            /* RÉVISIONS : hauteur gardée au lâcher */
+            const L = []; for (let i = 1; i <= 9; i++) L.push({ id: 'q' + i, kind: 'sc', nom: 'SCÉNARIO ' + i, d: i > 1 ? JSON.parse(JSON.stringify({ des: I.des, chg: I.chg, prd: I.prd })) : undefined });
+            I.ver = { act: 'q1', L, ind: [] }; X.insSave(); X.refreshAll(); await w(300); sh.__etpSync && sh.__etpSync(); await w(200);
+            document.querySelector('.blk-etp [data-etab="scn"]')?.click(); await w(300);
+            const sc = () => document.querySelector('.blk-etp .etp-pane.on .rec-scroll'), h0 = Math.round(sc().getBoundingClientRect().height);
+            await drag(document.querySelector('.blk-etp > .blk-rsz'), 0, 80); const h1 = Math.round(sc().getBoundingClientRect().height);
+            X.refreshAll(); await w(400); const h2 = Math.round(sc().getBoundingClientRect().height);
+            r.push(h1 >= h0 + 60 && Math.abs(h2 - h1) <= 2);
+            I.ver = JSON.parse(keepV); if (!I.ver) delete I.ver; X.insSave(); X.refreshAll(); if (keepL === null) localStorage.removeItem('svi_layout_v1'); else localStorage.setItem('svi_layout_v1', keepL); await w(300);
+            /* liste des budgets : lignes de 21 px, case à droite qui coche sans ouvrir */
+            document.getElementById('budgetBackBtn')?.click(); await w(800); if (!document.getElementById('budgetListTable')?.offsetParent) { document.querySelector('#navMenu .nav-btn[data-view="bdg"]')?.click(); await w(600); }
+            const T = document.getElementById('budgetListTable'), rw = T.querySelector('tbody tr[data-budget-ref]');
+            const last = rw.cells[rw.cells.length - 1]; last.click(); await w(200);
+            r.push(Math.round(T.tHead.rows[0].getBoundingClientRect().height), Math.round(rw.getBoundingClientRect().height), !!last.querySelector('input.nvl-cb:checked'), !document.querySelector('.bdg-d-page'));
+            last.click(); await w(100);
+            /* ligne « AUCUN … » masquée partout ; un message qui dit quoi faire reste */
+            const t = document.createElement('table'); t.innerHTML = '<tbody><tr><td class="empty">AUCUNE LIGNE</td></tr><tr><td class="empty">AUCUN ARTICLE : APPELER LE CPS</td></tr></tbody>'; document.body.appendChild(t); await w(100);
+            r.push([...t.rows].map(x => getComputedStyle(x).display).join(',')); t.remove();
+            /* PARAMÉTRAGE › UNITÉS : loupes, lignes de 21 px, largeur de colonne réglable et gardée */
+            const keepW = localStorage.getItem('svi_colw_v1');
+            document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); document.querySelector('.prm-tab[data-prm="unit"]')?.click(); await w(200);
+            const U = () => document.querySelector('.prm-unit table, table[data-svcw="prm_unit"]');
+            const u = U(); r.push(u.tHead.querySelectorAll('.cf-btn').length, Math.round(u.tBodies[0].rows[0].getBoundingClientRect().height));
+            const c0 = u.querySelector('col[data-k="n"]'), w0 = parseFloat(c0.style.width); await drag(u.tHead.querySelector('.col-rs[data-col="n"]'), 40, 0);
+            document.querySelector('.prm-tab[data-prm="lib"]')?.click(); await w(100); document.querySelector('.prm-tab[data-prm="unit"]')?.click(); await w(200);
+            r.push(Math.round(parseFloat(U().querySelector('col[data-k="n"]').style.width) - w0));
+            if (keepW === null) localStorage.removeItem('svi_colw_v1'); else localStorage.setItem('svi_colw_v1', keepW);
+            document.querySelector('.prm-tab[data-prm="fif"]') && (document.querySelector('.prm-rub[data-rub="fmt"]')?.click(), await w(100), document.querySelector('.prm-tab[data-prm="fif"]').click(), await w(150));
+            const f = document.querySelector('.prm-fif table'); r.push(f ? [...f.tBodies[0].rows[0].cells].findIndex(c => c.querySelector('input[type=checkbox]')) === f.tBodies[0].rows[0].cells.length - 1 : 'pas de fif');
+            /* fiche d'achat : LIGNES avec largeurs de colonnes, SUIVI avec loupes */
+            const K = ['svi_ach_dvf_v1', 'svi_ach_frs_v1'], keep = K.map(k => localStorage.getItem(k));
+            const F = []; const f1 = achFrsNew(F, { nom: 'AFRA' }); achFrsSave(F); achDvfSave([{ id: 'v1', ref: 'DVF 1', frs: f1.id, state: 'recu', lignes: [{ des: 'SABLE', u: 'M3', q: 5, pu: 100, tva: 20 }] }]);
+            const v = document.getElementById('ach'); document.querySelector('#navMenu .nav-btn[data-ach="dvf"]').click(); await w(300);
+            v.querySelector('[data-nvo]')?.click(); await w(300);
+            const lt = v.querySelector('.nvp-blk table[data-svcw]'), st = v.querySelector('.nvp-rec table');
+            r.push(!!lt && lt.querySelectorAll('colgroup col[data-k]').length >= 6, !!st && st.tHead.querySelectorAll('.cf-btn').length >= 3);
+            v.querySelector('[data-nvp="close"]')?.click(); await w(200);
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
+        check("v793 : SUIVI au noir (CRÉER rouge) ; case de RÉVISIONS sans filtre ; hauteur de RÉVISIONS gardée au lâcher ; liste : 22 / 21 px, case à droite qui coche sans ouvrir ; « AUCUN » masqué ; UNITÉS : loupes, 21 px, largeur gardée ; APPLIQUER À : case à droite ; fiche d'achat : largeurs et loupes du SUIVI",
+              m793 == [True, True, True, 22, 21, True, True, "none,table-row", 2, 21, 40, True, True, True], m793)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

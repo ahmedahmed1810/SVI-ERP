@@ -1976,7 +1976,7 @@ function renderBudgetList() {
     { key: "entered", title: "SAISI LE", width: 150 },
     ...(listMode === "inst" ? [] : [{ key: "validated", title: "VALIDÉ LE", width: 150 }])
   ];
-  const NCOL = columns.length + 1;   /* v754 : plus de colonne de pliage (la flèche est dans RÉFÉRENCE) */
+  const NCOL = columns.length + 2;   /* v754 : plus de colonne de pliage (la flèche est dans RÉFÉRENCE) ; v793 : + colonne des cases (à droite) */
 
   /* tri et filtre : le menu commun (sviCfKit, comme le budget et les achats) ; gardés pendant la session */
   const BL = "bdgl";
@@ -2000,8 +2000,8 @@ function renderBudgetList() {
     const tot = columns.reduce((t, c) => t + c.width, 0);
     let cg = table.querySelector("colgroup");
     if (!cg) { cg = document.createElement("colgroup"); table.insertBefore(cg, thead); }
-    cg.innerHTML = columns.map(c => `<col data-bdg-col="${c.key}" style="width:${colW[c.key] ? colW[c.key] + "px" : (c.width / tot * 100).toFixed(2) + "%"}">`).join("") + `<col style="width:44px">`;
-    thead.innerHTML = `<tr>${columns.map(c => KIT.cfHead(BL, c.key, c.title, "bdg-list-head" + (c.number ? " number" : ""))).join("")}<th class="bdg-act-h"></th></tr>`;
+    cg.innerHTML = columns.map(c => `<col data-bdg-col="${c.key}" style="width:${colW[c.key] ? colW[c.key] + "px" : (c.width / tot * 100).toFixed(2) + "%"}">`).join("") + `<col style="width:44px"><col style="width:40px">`;
+    thead.innerHTML = `<tr>${columns.map(c => KIT.cfHead(BL, c.key, c.title, "bdg-list-head" + (c.number ? " number" : ""))).join("")}<th class="bdg-act-h"></th>${sviListCbTh()}</tr>`;
   };
   renderHead();
   /* -------------------------------------------------------
@@ -2172,9 +2172,9 @@ function renderBudgetList() {
         const ec = item.flg && item.flg.arch ? " etat-archive" : item.flg && item.flg.blk ? " etat-bloque" : item.flg && item.flg.xp && !fam ? " etat-expire" : "";
         return `<tr data-budget-ref="${esc(item.ref)}" class="${item.state ? "inst-" + item.state : ""}${fam ? " bdg-fam" : ""}${ec}"${fam ? ' data-fam="1"' : ""}>`
           + columns.map(c => cell(c.key, item)).join("")
-          + `<td class="bdg-action-cell">${item.state === "instance" ? delBtn(item.ref) : ""}</td></tr>`
+          + `<td class="bdg-action-cell">${item.state === "instance" ? delBtn(item.ref) : ""}</td>${sviListCbTd()}</tr>`
           + kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}${k.xp ? " etat-expire" : ""}${ec}">`
-            + columns.map(c => cell(c.key, k)).join("") + `<td class="bdg-action-cell">${k.del ? delBtn(k.ref) : ""}</td></tr>`).join("")
+            + columns.map(c => cell(c.key, k)).join("") + `<td class="bdg-action-cell">${k.del ? delBtn(k.ref) : ""}</td>${sviListCbTd()}</tr>`).join("")
           + (open ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
             return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="${NCOL}">CRÉER UN AVENANT ICI…</td></tr>`; })() : "");
       }).join("") + NEWROW;

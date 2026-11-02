@@ -231,7 +231,9 @@ document.addEventListener("click", e => {
     const vis = sviColhVis(t);
     const ths = [...t.tHead.rows[0].cells].map(th => (th.querySelector(".cf-lab") || th).textContent.trim()), keep = ths.map((x, i) => x && vis.includes(i) ? i : -1).filter(i => i >= 0);
     const num = i => [...t.tBodies[0].rows].some(r => r.cells[i] && r.cells[i].classList.contains("number"));
-    const rows = [...t.tBodies[0].rows].filter(r => !r.matches(".bdg-newrow, .ach-new, .rec-new") && !r.querySelector("td.empty") && r.cells.length >= keep.length).map(r => keep.map(i => (r.cells[i] ? r.cells[i].textContent.replace(/\s+/g, " ").trim() : "")));
+    /* v793 : lignes cochées (cases à droite de la liste) s'il y en a, sinon toutes les lignes affichées */
+    const R0 = [...t.tBodies[0].rows].filter(r => !r.matches(".bdg-newrow, .ach-new, .rec-new") && !r.querySelector("td.empty") && r.cells.length >= keep.length), RC = R0.filter(r => r.querySelector(".nvl-cb:checked"));
+    const rows = (RC.length ? RC : R0).map(r => keep.map(i => (r.cells[i] ? r.cells[i].textContent.replace(/\s+/g, " ").trim() : "")));
     const title = h1 ? h1.childNodes[0].textContent.trim() || h1.textContent.trim() : "LISTE";
     sviMep.open({ key: "LISTE-" + title.replace(/\s*\(.*$/, "").replace(/[^A-Z0-9É]+/gi, "-").toUpperCase(), orient: "l", title, ref: new Date().toLocaleDateString("fr-FR"), party: rows.length + " LIGNE(S)",
       cols: keep.map((i, j) => ["c" + j, ths[i], num(i) ? "number" : ""]), rows, name: title + " " + new Date().toISOString().slice(0, 10) });

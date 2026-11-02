@@ -98,3 +98,56 @@ document.addEventListener("keydown", e => {
   document.addEventListener("input", e => { const el = e.target; requestAnimationFrame(() => fitIn(el)); setTimeout(() => fitIn(document.activeElement), 150); }, true);
   window.sviFitIn = fitIn;
 }
+/* v793 (DOCUMENT UNIQUE §6.6) : jamais de ligne « AUCUN … » — le compteur 0 du titre suffit, le tableau garde ses titres de colonnes.
+   Moteur commun : toute ligne faite d'une seule case .empty dont le texte est « AUCUN(E) … » (sans explication après « : ») est masquée,
+   dans tous les tableaux, présents et futurs. Un message qui dit QUOI FAIRE (« AUCUN ARTICLE : APPELER LE CPS… ») reste affiché. */
+{
+  const RX = /^AUCUNE?\s[^:]*$/;
+  let raf = 0;
+  const run = () => { raf = 0;
+    document.querySelectorAll("tbody td.empty").forEach(td => { const tr = td.parentNode; if (!tr || tr.cells.length !== 1) return;
+      tr.classList.toggle("svi-empty-x", RX.test(td.textContent.replace(/\s+/g, " ").trim())); }); };
+  const go = () => { if (!raf) raf = requestAnimationFrame(run); };
+  const start = () => new MutationObserver(go).observe(document.body, { childList: true, subtree: true });
+  if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
+  window.sviEmptyRun = run;
+}
+/* v793 (DOCUMENT UNIQUE §6.1) : LARGEUR DES COLONNES COMMUNE — tout tableau marqué data-svcw="clé", avec un colgroup dont chaque col porte
+   data-k (clé de la colonne) et des poignées .col-rs[data-col] dans ses titres ; largeur gardée (même mémoire que le budget : cwLoad / cwSave,
+   clé « clé.colonne ») ; minimum 64 px comme partout. sviCwCols(clé, [[col, largeurParDéfaut]…], extra) rend le colgroup et la largeur du tableau. */
+function sviCwCols(t, cols, extra = []) {
+  const CW = cwLoad(), all = cols.concat(extra), w = c => CW[t + "." + c[0]] || c[1];
+  const tot = all.reduce((s, c) => s + w(c), 0);
+  return { cg: `<colgroup>${all.map(c => `<col data-k="${esc(c[0])}" style="width:${w(c)}px">`).join("")}</colgroup>`, style: `width:${tot}px;min-width:100%` };
+}
+document.addEventListener("pointerdown", e => {
+  const h = e.target.closest && e.target.closest("table[data-svcw] .col-rs[data-col]"); if (!h) return;
+  const table = h.closest("table"), t = table.dataset.svcw, col = table.querySelector(`colgroup col[data-k="${CSS.escape(h.dataset.col)}"]`); if (!col) return;
+  e.preventDefault(); e.stopPropagation();
+  const cols = [...table.querySelectorAll("colgroup col")], hs = [...table.tHead.rows[0].cells];
+  cols.forEach((c, i) => { if (!/px$/.test(c.style.width || "") && hs[i]) c.style.width = Math.round(hs[i].getBoundingClientRect().width) + "px"; });
+  const x0 = e.clientX, w0 = parseFloat(col.style.width) || 120; let w = w0;
+  h.classList.add("on");
+  const mv = ev => { w = Math.max(64, Math.round(w0 + ev.clientX - x0)); col.style.width = w + "px"; table.style.width = cols.reduce((s, c) => s + (parseFloat(c.style.width) || 0), 0) + "px"; };
+  const up = () => { document.removeEventListener("pointermove", mv, true); document.removeEventListener("pointerup", up, true); document.removeEventListener("pointercancel", up, true); h.classList.remove("on");
+    const all = cwLoad(); all[t + "." + h.dataset.col] = w; cwSave(all); };
+  document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true);
+}, true);
+/* v793 (DOCUMENT UNIQUE §6.4) : CASES À COCHER À DROITE des listes (budgets, achats) — dernière colonne ; case d'en-tête = toutes ;
+   toucher la case (ou sa cellule) coche sans ouvrir la ligne ; l'APERÇU de la liste prend les lignes cochées s'il y en a */
+const sviListCbTh = () => `<th class="center nvl-cbh"><input type="checkbox" class="nvl-all" aria-label="Tout cocher"></th>`;
+const sviListCbTd = () => `<td class="center nvl-cbc"><input type="checkbox" class="nvl-cb" aria-label="Cocher"></td>`;
+document.addEventListener("click", e => {
+  const c = e.target.closest && e.target.closest("td.nvl-cbc, th.nvl-cbh"); if (!c) return;
+  e.stopPropagation();
+  if (!e.target.matches("input")) { const i = c.querySelector("input"); if (i) { i.checked = !i.checked; i.dispatchEvent(new Event("change", { bubbles: true })); } }
+}, true);
+document.addEventListener("change", e => {
+  const t = e.target; if (!t.matches || !t.matches(".nvl-all, .nvl-cb")) return;
+  const table = t.closest("table"); if (!table) return;
+  const cbs = [...table.querySelectorAll("tbody .nvl-cb")];
+  if (t.matches(".nvl-all")) cbs.forEach(x => { x.checked = t.checked; });
+  const n = cbs.filter(x => x.checked).length, all = table.querySelector(".nvl-all");
+  if (all) { all.checked = n > 0 && n === cbs.length; all.indeterminate = n > 0 && n < cbs.length; }
+  cbs.forEach(x => x.closest("tr").classList.toggle("nvl-on", x.checked));
+});

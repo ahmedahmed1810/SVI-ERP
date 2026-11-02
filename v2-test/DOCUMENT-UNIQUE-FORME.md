@@ -18,7 +18,7 @@ Version du 02/11/2026 (fusion demandée par Ahmed le 01/11/2026, en vocal). **Ce
 
 ## 2. Couleurs et états
 2.1 La couleur de l'état vient de la palette. Tout le corps des tableaux dans la couleur de l'état ; titres de colonnes gris.
-2.2 **Noir = validé**, partout. DOCUMENTS, TAF et OBSERVATIONS sont validés dès leur saisie : toujours en noir. Vert = figé. Rouge = en instance. Bleu = partiellement achevé.
+2.2 **Noir = validé**, partout. DOCUMENTS, TAF et OBSERVATIONS sont validés dès leur saisie : toujours en noir (titre du bloc SUIVI, onglet actif et lignes ; seule la ligne CRÉER reste rouge, 6.5). Vert = figé. Rouge = en instance. Bleu = partiellement achevé.
 2.3 **Trait de gauche des blocs** : tous les blocs, SUIVI compris, ont le trait de gauche dans la couleur de l'état de l'écran (palette).
 2.4 Une ligne garde la couleur de son propre état (liste des budgets, RÉVISIONS…), pas celle du document ouvert ; même police, même taille, même graisse ; seule la couleur change.
 2.5 Liaisons : blanc = non liée ; **un seul bleu clair** = liée (même teinte dans tous les blocs, LOT compris) ; bleu foncé = liée exactement à ce qui est choisi ; rond plein = choisie.
@@ -47,9 +47,9 @@ Version du 02/11/2026 (fusion demandée par Ahmed le 01/11/2026, en vocal). **Ce
 6.1 Titres des colonnes : hauteur, taille et couleur communes (palette) ; jamais coupés ; loupe de tri / filtre sur chaque colonne, éloignée du bord droit ; poignée de largeur posée sur le trait entre deux colonnes ; colonnes déplaçables ; largeur jamais sous le nom (64 px au moins pour une largeur réglée à la main) ; largeurs et ordre mémorisés par tableau.
 6.2 **Menu tri / filtre** (comme Google Sheets) : TRIER DE A À Z, TRIER DE Z À A, un trait, FILTRER PAR CONDITION, FILTRER PAR VALEURS (recherche juste au-dessus des cases), EFFACER / OK. Rien ne s'applique avant OK. En-tête bleu quand un filtre ou un tri est actif.
 6.3 Lignes de 21 px partout (exception : désignation longue à la ligne) ; titres des colonnes à 22 px. Tous les onglets à la même hauteur, DÉLAIS compris hors plein écran (en plein écran, les lignes suivent le Gantt).
-6.4 **Ronds** à gauche seulement là où il y a des liaisons. **Cases à cocher** à droite partout (supprimer, copier…). Case d'en-tête à trois états (vide, à moitié, plein). Une case cochée filtre les autres blocs seulement quand ils sont liés entre eux (budget : désignations, tâches, produits, charges → TOTAL PARTIEL).
+6.4 **Ronds** à gauche seulement là où il y a des liaisons. **Cases à cocher** à droite partout (supprimer, copier…), listes des budgets et des achats comprises (dernière colonne, v793) ; toucher la case ou sa cellule coche sans ouvrir la ligne ; jamais de ✕ par ligne (SUPPRIMER LES LIGNES COCHÉES). Case d'en-tête à trois états (vide, à moitié, plein). Une case cochée filtre les autres blocs seulement quand ils sont liés entre eux (budget : désignations, tâches, produits, charges, délais, MARGE, DOC / TAF / OBS rattachés → TOTAL PARTIEL) ; les cases de RÉVISIONS, des listes, de PARAMÉTRAGE et des fiches d'achat ne filtrent rien (règle : cahier 00, Décisions des 01 et 02/11/2026).
 6.5 **Ligne « CRÉER … ICI »** : toujours en rouge (rien n'est validé), même fond et même texte partout, fixée en bas du bloc, juste au-dessus de la ligne TOTAL, jamais derrière ; ne commence qu'à l'alignement des noms. La ligne qu'on crée ou qu'on saisit reste toujours visible et entière.
-6.6 **Jamais de ligne vide** ni de « AUCUN » : le compteur 0 du titre suffit, le tableau garde ses titres de colonnes. Pas d'action EFFACER de ligne : une ligne vidée est supprimée.
+6.6 **Jamais de ligne vide** ni de « AUCUN » : le compteur 0 du titre suffit, le tableau garde ses titres de colonnes. Pas d'action EFFACER de ligne : une ligne vidée est supprimée. Moteur commun (v793) : toute ligne « AUCUN(E) … » d'un tableau est masquée partout ; un message qui dit quoi faire (après « : ») reste.
 6.7 **Ligne TOTAL** : total général seulement, en bas, dans les tableaux qui ont des montants ; TOTAL PARTIEL si un filtre ou des cases cochées en cachent.
 6.8 **MASQUER / AFFICHER LES COLONNES** : une seule entrée du ⋯, une seule fenêtre au format des tableaux (cochée = affichée) ; au moins une colonne ; choix gardé par tableau (instance / validés séparés) ; aperçu, export et copie suivent l'écran.
 6.9 Nombres à droite (1 234,56), unités et ART centrés, tout en MAJUSCULES.
@@ -301,6 +301,7 @@ Version du 02/11/2026 (fusion demandée par Ahmed le 01/11/2026, en vocal). **Ce
 | Colonnes LOT / ACTIVITÉS du bloc TÂCHES | 6.8 | pas de MASQUER / AFFICHER (listes, pas des tableaux) | une seule colonne de nom + unité |
 | Tableaux imprimés (aperçus, PDF) | 6.x | format DEVIS (Times 10 pt, A4) | modèle de la société |
 | CHS, BDS | toute la partie 1 | non branchés | retirés à l'étape de nettoyage (CHS fournit encore les prix) |
-| Pages des achats | 6.1, 6.4, 6.7 | branchement en cours (loupes, colonnes réglables, cases, TOTAL) | à brancher sur le moteur commun |
+| PARAMÉTRAGE › FORMAT (ÉTATS, ÉLÉMENTS, INTERFACES) | 6.1, 6.4 | pas de loupe ; dans ÉLÉMENTS, les cases GRAS / ITALIQUE / SOULIGNÉ sont des valeurs (pas une sélection) et restent dans leur colonne | tableaux de réglage de la palette, quelques lignes fixes |
+| DÉTAIL QUALITÉ | 6.1, 6.3 | titres des colonnes sur deux lignes (37 px), lignes de 25 px | en-tête groupé par interface ; à revoir avec le cahier 03 |
 
 Toute nouvelle exception : ajoutée ici d'abord, avec sa raison, puis déclarée dans PARAMÉTRAGE › FORMAT › INTERFACES.

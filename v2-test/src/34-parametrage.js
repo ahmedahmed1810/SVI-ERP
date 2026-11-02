@@ -263,9 +263,10 @@ function sviParamTabs() {
   };
   const fifDraw = () => {
     const F = sviFmt(), on = k => !F.to || F.to.includes(k);
-    ipane.innerHTML = `<table class="prm-table fmt-t"><colgroup><col style="width:90px"><col style="width:360px"></colgroup>
-      <thead><tr><th class="center"><input type="checkbox" class="fif-all"${SVI_FMT_IF.every(x => on(x.k)) ? " checked" : ""}></th><th>APPLIQUER À</th></tr></thead>
-      <tbody>${SVI_FMT_IF.map(x => `<tr><td class="center"><input type="checkbox" class="fif-cb" data-if="${x.k}"${on(x.k) ? " checked" : ""}></td><td>${esc(x.lab)}</td></tr>`).join("")}</tbody></table>`;
+    /* v793 (DOCUMENT UNIQUE §6.4) : case à droite */
+    ipane.innerHTML = `<table class="prm-table fmt-t"><colgroup><col style="width:360px"><col style="width:90px"></colgroup>
+      <thead><tr><th>APPLIQUER À</th><th class="center"><input type="checkbox" class="fif-all"${SVI_FMT_IF.every(x => on(x.k)) ? " checked" : ""}></th></tr></thead>
+      <tbody>${SVI_FMT_IF.map(x => `<tr><td>${esc(x.lab)}</td><td class="center"><input type="checkbox" class="fif-cb" data-if="${x.k}"${on(x.k) ? " checked" : ""}></td></tr>`).join("")}</tbody></table>`;
   };
   epane.addEventListener("input", e => { const i = e.target.closest(".fmt-in"); if (!i || i.type === "checkbox") return; const k = i.closest("tr").dataset.el, F = sviFmt(); F.el[k] = F.el[k] || {};
     if (i.dataset.f === "fs") { const n = parseInt(String(i.value).replace(/\D/g, ""), 10); if (!(n >= 8 && n <= 40)) return; F.el[k].fs = n; } else F.el[k][i.dataset.f] = i.value;
@@ -308,11 +309,14 @@ function sviParamTabs() {
     if (which === "fif" && sub) sub.textContent = "INTERFACES QUI PRENNENT LA PALETTE (TOUTES COCHÉES = PARTOUT)";
     try { localStorage.setItem("svi_prm_v1", which); } catch (e) {}
   };
+  /* v793 : UNITÉS au format commun des tableaux — loupe de tri / filtre sur chaque colonne, largeur des colonnes réglable et gardée */
+  const UKIT = sviCfKit({ key: "prm_unit", shell: {}, refresh: () => draw() });
+  const UCOLS = [["n", "UNITÉ", x => x.n, ""], ["a", "ABRÉVIATION", x => x.a, "center"]];
   const draw = () => {
-    const L = sviUnits();
-    pane.innerHTML = `<table class="prm-table"><colgroup><col><col style="width:160px"><col style="width:44px"></colgroup>
-      <thead><tr><th>UNITÉ</th><th class="center">ABRÉVIATION</th><th class="center"><input type="checkbox" class="prm-all" title="Tout cocher"></th></tr></thead>
-      <tbody>${L.map((x, i) => `<tr data-i="${i}"><td><input class="prm-in" data-f="n" value="${esc(x.n)}" autocomplete="off"></td>
+    const L = sviUnits(), R = UKIT.cfApply("prm_unit", UCOLS, L.map((x, i) => ({ ...x, __i: i }))), CG = sviCwCols("prm_unit", [["n", 260], ["a", 160]], [["_cb", 44]]);
+    pane.innerHTML = `<table class="prm-table" data-svcw="prm_unit" style="${CG.style}">${CG.cg}
+      <thead><tr>${UCOLS.map(c => UKIT.cfHead("prm_unit", c[0], c[1], c[3])).join("")}<th class="center"><input type="checkbox" class="prm-all" title="Tout cocher"></th></tr></thead>
+      <tbody>${R.map(x => x.__i).map(i => [L[i], i]).map(([x, i]) => `<tr data-i="${i}"><td><input class="prm-in" data-f="n" value="${esc(x.n)}" autocomplete="off"></td>
         <td class="center"><input class="prm-in center" data-f="a" value="${esc(x.a)}" autocomplete="off"></td>
         <td class="center"><input type="checkbox" class="prm-cb"></td></tr>`).join("")}
         <tr class="prm-new"><td><input class="prm-in" data-f="n" placeholder="CRÉER UNE UNITÉ ICI…" autocomplete="off"></td><td class="center"><input class="prm-in center" data-f="a" autocomplete="off"></td><td></td></tr></tbody></table>
@@ -353,8 +357,9 @@ function sviParamTabs() {
     if (nt) nt.focus();
   });
   pane.addEventListener("click", async e => {
+    const cf = e.target.closest(".cf-btn"); if (cf) { e.preventDefault(); e.stopPropagation(); UKIT.cfOpenMenu(cf); return; }
     if (!e.target.closest(".prm-del") || e.target.closest(".prm-del").disabled) return;
-    const idx = [...pane.querySelectorAll(".prm-cb")].map((c, i) => c.checked ? i : -1).filter(i => i >= 0);
+    const idx = [...pane.querySelectorAll(".prm-cb:checked")].map(c => +c.closest("tr").dataset.i);
     if (!idx.length) return;
     const L = sviUnits();
     const ok = await svConfirm({ title: "SUPPRIMER LES UNITÉS COCHÉES", html: `<ul class="svc-list">${idx.map(i => `<li>${esc(L[i].a + " — " + L[i].n)}</li>`).join("")}</ul>`, ok: "SUPPRIMER" });
@@ -368,29 +373,40 @@ function sviParamTabs() {
   const U2 = v => String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();
   const N2 = v => Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")) || 0;
   const F2 = (v, d) => (Number(v) || 0).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+  /* v793 : BIBLIOTHÈQUE au format commun — loupes sur chaque colonne, largeur réglable, cases à droite (plus de ✕ par ligne) */
+  const LKIT = sviCfKit({ key: "prm_lib", shell: {}, refresh: () => libDraw() });
+  const LACOLS = [["act", "ACTIVITÉ SECONDAIRE", x => x, ""], ["n", "RECETTES", x => sviLibGet().filter(R => U2(R.act) === x).length, "center"]];
+  const LCCOLS = [["des", "CHARGE", x => x.c.des, ""], ["u", "UNITÉ", x => x.c.u, "center"], ["k", "QTÉ POUR 1 U", x => N2(x.c.k), "number"], ["p", "PCB", x => N2(x.c.p), "number"], ["c", "COÛT", x => N2(x.c.k) * N2(x.c.p), "number"]];
   const libDraw = () => {
-    const L = sviLibGet(), acts = [...new Set(L.map(R => U2(R.act)))].sort((a, b) => a.localeCompare(b, "fr"));
+    const L = sviLibGet(), acts0 = [...new Set(L.map(R => U2(R.act)))].sort((a, b) => a.localeCompare(b, "fr")), acts = LKIT.cfApply("prm_liba", LACOLS, acts0);
     if (!acts.includes(libAct)) libAct = acts[0] || "";
     const R0 = L.filter(R => U2(R.act) === libAct);
-    lpane.innerHTML = `<div class="lib-wrap"><div class="lib-acts"><table class="prm-table"><thead><tr><th>ACTIVITÉ SECONDAIRE</th><th class="center">RECETTES</th></tr></thead><tbody>
+    /* v793 : largeur des colonnes réglable et gardée (moteur commun) */
+    const LA = sviCwCols("prm_liba", [["act", 240], ["n", 100]]), LC = sviCwCols("prm_libc", [["des", 220], ["u", 80], ["k", 120], ["p", 110], ["c", 110]], [["_x", 44]]);
+    lpane.innerHTML = `<div class="lib-wrap"><div class="lib-acts"><table class="prm-table" data-svcw="prm_liba" style="${LA.style}">${LA.cg}<thead><tr>${LACOLS.map(c => LKIT.cfHead("prm_liba", c[0], c[1], c[3])).join("")}</tr></thead><tbody>
         ${acts.map(a => `<tr class="lib-a${a === libAct ? " on" : ""}" data-act="${esc(a)}"><td>${esc(a)}</td><td class="center">${svCnt(L.filter(R => U2(R.act) === a).length)}</td></tr>`).join("") || `<tr><td colspan="2" class="empty">BIBLIOTHÈQUE VIDE : ELLE SE REMPLIT AU FIL DES BUDGETS FIGÉS, OU ICI.</td></tr>`}
         <tr class="prm-new"><td colspan="2"><input class="prm-in lib-newa" placeholder="CRÉER UNE RECETTE ICI… (ACTIVITÉ — VARIANTE)" autocomplete="off"></td></tr></tbody></table></div>
       <div class="lib-recs">${R0.map(R => `<div class="lib-rec" data-rid="${esc(R.id)}"><div class="lib-rh"><b>${esc(U2(R.act))} —</b> <input class="prm-in lib-in" data-f="nom" value="${esc(R.nom)}" autocomplete="off"> <span>UNITÉ</span> <input class="prm-in lib-in center" data-f="u" value="${esc(R.u || "")}" style="width:60px" autocomplete="off">${R.chk ? ' <span class="lib-chk">À VÉRIFIER</span>' : ""}
           <small>${(R.des || []).length ? "UTILISÉE : " + esc((R.des || []).slice(0, 3).join(", ")) : ""}</small><button type="button" class="prm-del lib-del" data-rdel="${esc(R.id)}" title="Supprimer la recette">✕</button></div>
-        <table class="prm-table lib-t"><thead><tr><th>CHARGE</th><th class="center">UNITÉ</th><th class="number">QTÉ POUR 1 ${esc(R.u || "U")}</th><th class="number">PCB</th><th class="number">COÛT</th><th></th></tr></thead><tbody>
-          ${(R.chg || []).map((c, i) => `<tr data-ci="${i}"><td><input class="prm-in lib-c" data-f="des" value="${esc(c.des)}" autocomplete="off"></td><td><input class="prm-in lib-c center" data-f="u" value="${esc(c.u)}" autocomplete="off"></td>
+        <table class="prm-table lib-t" data-svcw="prm_libc" style="${LC.style}">${LC.cg}<thead><tr>${LCCOLS.map(c => LKIT.cfHead("prm_libc_" + R.id, c[0], c[0] === "k" ? "QTÉ POUR 1 " + esc(R.u || "U") : c[1], c[3])).join("")}<th class="center"><input type="checkbox" class="lib-call" aria-label="Tout cocher"></th></tr></thead><tbody>
+          ${LKIT.cfApply("prm_libc_" + R.id, LCCOLS, (R.chg || []).map((c, i) => ({ c, i }))).map(({ c, i }) => `<tr data-ci="${i}"><td><input class="prm-in lib-c" data-f="des" value="${esc(c.des)}" autocomplete="off"></td><td><input class="prm-in lib-c center" data-f="u" value="${esc(c.u)}" autocomplete="off"></td>
             <td><input class="prm-in lib-c number" data-f="k" inputmode="decimal" value="${esc(F2(c.k, 4))}" autocomplete="off"></td><td><input class="prm-in lib-c number" data-f="p" inputmode="decimal" value="${esc(F2(c.p, 2))}" autocomplete="off"></td>
-            <td class="number">${esc(F2(N2(c.k) * N2(c.p), 2))}</td><td class="center"><button type="button" class="lib-cdel" data-cdel="${i}" title="Retirer">✕</button></td></tr>`).join("")}
-          <tr class="prm-new"><td colspan="6"><input class="prm-in lib-newc" placeholder="CRÉER UNE CHARGE ICI…" autocomplete="off"></td></tr></tbody></table></div>`).join("") || `<div class="empty">CHOISIR UNE ACTIVITÉ, OU CRÉER UNE RECETTE (ACTIVITÉ — VARIANTE).</div>`}</div></div>`;
+            <td class="number">${esc(F2(N2(c.k) * N2(c.p), 2))}</td><td class="center"><input type="checkbox" class="lib-ccb" data-cdel="${i}" aria-label="Cocher"></td></tr>`).join("")}
+          <tr class="prm-new"><td colspan="6"><input class="prm-in lib-newc" placeholder="CRÉER UNE CHARGE ICI…" autocomplete="off"></td></tr></tbody></table>
+        <div class="prm-foot"><button type="button" class="prm-del lib-cdels" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div></div>`).join("") || `<div class="empty">CHOISIR UNE ACTIVITÉ, OU CRÉER UNE RECETTE (ACTIVITÉ — VARIANTE).</div>`}</div></div>`;
   };
   const libSave = (L, keep) => { sviLibSet(L); if (!keep) libDraw(); };
   lpane.addEventListener("click", e => {
     const a = e.target.closest(".lib-a"); if (a) { libAct = a.dataset.act; libDraw(); return; }
     const rd = e.target.closest("[data-rdel]"); if (rd) { (async () => { const L = sviLibGet(), R = L.find(x => x.id === rd.dataset.rdel); if (!R) return; if (typeof svConfirm === "function" && !(await svConfirm({ title: "SUPPRIMER LA RECETTE", text: U2(R.act) + " — " + R.nom, ok: "SUPPRIMER" }))) return; libSave(L.filter(x => x !== R)); })(); return; }
-    const cd = e.target.closest("[data-cdel]"); if (cd) { const L = sviLibGet(), R = L.find(x => x.id === cd.closest(".lib-rec").dataset.rid); if (R) { R.chg.splice(Number(cd.dataset.cdel), 1); libSave(L); } }
+    const cf = e.target.closest(".cf-btn"); if (cf) { e.preventDefault(); e.stopPropagation(); LKIT.cfOpenMenu(cf); return; }
+    const cd = e.target.closest(".lib-cdels"); if (cd && !cd.disabled) { const rec = cd.closest(".lib-rec"), L = sviLibGet(), R = L.find(x => x.id === rec.dataset.rid);
+      const ix = [...rec.querySelectorAll(".lib-ccb:checked")].map(c => +c.dataset.cdel); if (R && ix.length) { R.chg = R.chg.filter((c, i) => !ix.includes(i)); libSave(L); } }
   });
   lpane.addEventListener("change", e => {
     const t = e.target, L = sviLibGet();
+    if (t.matches(".lib-call, .lib-ccb")) { const rec = t.closest(".lib-rec"), cbs = [...rec.querySelectorAll(".lib-ccb")]; if (t.matches(".lib-call")) cbs.forEach(c => { c.checked = t.checked; });
+      const n = cbs.filter(c => c.checked).length, d = rec.querySelector(".lib-cdels"); d.disabled = !n; d.querySelector(".svi-cnt").textContent = n; return; }
     if (t.classList.contains("lib-newa")) {
       const v = U2(t.value), [act, ...rest] = v.split(/\s+[—-]\s+/); if (!act) return;
       const R = sviLibAdd(L, { act: U2(act), nom: U2(rest.join(" — ")) || "RECETTE", u: "", chg: [], des: [], lot: [], src: "PARAMÉTRAGE", date: new Date().toISOString().slice(0, 10) });
