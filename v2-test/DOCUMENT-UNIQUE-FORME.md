@@ -46,7 +46,7 @@ Version du 02/11/2026 (fusion demandée par Ahmed le 01/11/2026, en vocal). **Ce
 ## 6. Tableaux
 6.1 Titres des colonnes : hauteur, taille et couleur communes (palette) ; jamais coupés ; loupe de tri / filtre sur chaque colonne, éloignée du bord droit ; poignée de largeur posée sur le trait entre deux colonnes ; colonnes déplaçables ; largeur jamais sous le nom (64 px au moins pour une largeur réglée à la main) ; largeurs et ordre mémorisés par tableau.
 6.2 **Menu tri / filtre** (comme Google Sheets) : TRIER DE A À Z, TRIER DE Z À A, un trait, FILTRER PAR CONDITION, FILTRER PAR VALEURS (recherche juste au-dessus des cases), EFFACER / OK. Rien ne s'applique avant OK. En-tête bleu quand un filtre ou un tri est actif.
-6.3 Lignes de 21 px partout (exception : désignation longue à la ligne).
+6.3 Lignes de 21 px partout (exception : désignation longue à la ligne) ; titres des colonnes à 22 px. Tous les onglets à la même hauteur, DÉLAIS compris hors plein écran (en plein écran, les lignes suivent le Gantt).
 6.4 **Ronds** à gauche seulement là où il y a des liaisons. **Cases à cocher** à droite partout (supprimer, copier…). Case d'en-tête à trois états (vide, à moitié, plein). Une case cochée filtre les autres blocs seulement quand ils sont liés entre eux (budget : désignations, tâches, produits, charges → TOTAL PARTIEL).
 6.5 **Ligne « CRÉER … ICI »** : toujours en rouge (rien n'est validé), même fond et même texte partout, fixée en bas du bloc, juste au-dessus de la ligne TOTAL, jamais derrière ; ne commence qu'à l'alignement des noms. La ligne qu'on crée ou qu'on saisit reste toujours visible et entière.
 6.6 **Jamais de ligne vide** ni de « AUCUN » : le compteur 0 du titre suffit, le tableau garde ses titres de colonnes. Pas d'action EFFACER de ligne : une ligne vidée est supprimée.
@@ -82,6 +82,7 @@ Version du 02/11/2026 (fusion demandée par Ahmed le 01/11/2026, en vocal). **Ce
 
 ## 12. Impression (MISE EN PAGE)
 12.1 Aperçu unique MISE EN PAGE ; PORTRAIT / PAYSAGE en premier ; colonnes de départ = celles de l'écran ; MASQUER / AFFICHER propres à l'impression, gardés par type de document.
+12.2 **Contrôle automatique** (v791) : le test de conformité vérifie à chaque passage complet des tests le trait de gauche des blocs, les hauteurs des onglets, l'absence de « AUCUN », la palette (et APPLIQUER À) et le ⋯ qui se referme. Une règle de cette partie qui peut se mesurer y est ajoutée.
 
 ---
 

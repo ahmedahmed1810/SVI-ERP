@@ -3173,7 +3173,8 @@ def main():
             for (const tb of ['chg', 'prd', 'dly']) { document.querySelector('.bdg-d-tab[data-tab="' + tb + '"]')?.click(); await w(600);
               const t = [...document.querySelectorAll('#bdgTabBody table')].find(x => x.offsetParent); if (!t) { H.push(tb + ':?'); continue; }
               const th = Math.round(t.tHead.rows[0].getBoundingClientRect().height), rows = [...t.tBodies[0].rows].filter(x => x.offsetParent).map(x => Math.round(x.getBoundingClientRect().height));
-              H.push(tb + ':' + th + '/' + [...new Set(rows)].join(',')); }
+              H.push(tb + ':' + th + '/' + [...new Set(rows)].join(','));
+              if (th !== 22) window.__k791 = (window.__k791 || '') + ' ' + tb + '{' + [...t.tHead.rows[0].cells].filter(c => c.getBoundingClientRect().height > 23 || [...c.querySelectorAll('*')].some(x => x.getBoundingClientRect().height > 20)).map(c => c.className + '|' + c.textContent.trim().slice(0, 14) + '|' + [...c.querySelectorAll('*')].map(x => x.tagName + '.' + String(x.className).slice(0, 18) + ':' + Math.round(x.getBoundingClientRect().height)).join(',')).join(' ; ') + '}'; }
             document.documentElement.setAttribute('data-dly-all', '1');
             r.push(H.join(' '));
             r.push([...document.querySelectorAll('td, li')].filter(x => x.offsetParent && /^AUCUN(E)?\\b/.test(x.textContent.trim()) && x.closest('table, .ins-hcol')).length);
@@ -3186,7 +3187,8 @@ def main():
             b.addEventListener('click', () => sviHdrMenu(b, [[{ k: 'x', lab: 'X' }]], () => {}));
             b.click(); await w(50); const o1 = !!document.getElementById('blkMenu'); b.click(); await w(50); const o2 = !!document.getElementById('blkMenu');
             b.click(); await w(50); const o3 = !!document.getElementById('blkMenu'); document.getElementById('blkMenu')?.remove(); b.remove();
-            r.push([o1, o2, o3].join(',')); return r; }""")
+            r.push([o1, o2, o3].join(',')); if (window.__k791) console.log('K791' + window.__k791); return r; }""")
+        print('K791DBG', pg.evaluate("() => window.__k791 || ''"))
         check("v791 : CONFORMITÉ au document unique — trait de gauche sur chaque bloc, onglets à la même hauteur (en-tête 22, lignes 21), pas de « AUCUN », palette appliquée et APPLIQUER À, ⋯ refermé au 2e toucher",
               k791 == [True, "chg:22/21 prd:22/21 dly:22/21", 0, "rgb(18, 52, 86)", True, "true,false,true"], k791)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
