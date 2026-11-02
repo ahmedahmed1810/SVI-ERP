@@ -215,7 +215,7 @@ function sviParamTabs() {
   bar.innerHTML = `<div class="prm-rubs"><button type="button" class="prm-rub on" data-rub="bdg">BUDGET</button><button type="button" class="prm-rub" data-rub="fmt">FORMAT</button></div>`
     + `<button type="button" class="prm-tab on" data-prm="unit" data-rub="bdg">UNITÉS</button><button type="button" class="prm-tab" data-prm="lib" data-rub="bdg">BIBLIOTHÈQUE DE PRIX</button>`
     + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal" data-rub="bdg">CALENDRIER</button>`
-    + `<button type="button" class="prm-tab" data-prm="col" data-rub="fmt" hidden>ÉTATS</button><button type="button" class="prm-tab" data-prm="fel" data-rub="fmt" hidden>ÉLÉMENTS</button><button type="button" class="prm-tab" data-prm="fif" data-rub="fmt" hidden>INTERFACES</button>`;
+    + `<button type="button" class="prm-tab" data-prm="col" data-rub="fmt" hidden>ÉTATS</button><button type="button" class="prm-tab" data-prm="fel" data-rub="fmt" hidden>ÉLÉMENTS</button><button type="button" class="prm-tab" data-prm="fif" data-rub="fmt" hidden>INTERFACES</button><button type="button" class="prm-tab" data-prm="colh" data-rub="fmt" hidden>COLONNES</button>`;
   /* CALENDRIER et DATES DU BUDGET : pour le budget ouvert ; grisés sans budget ouvert (appui long = raison) */
   const why = () => { const L = window.__sviBdgLive; return !L ? "OUVRIR UN BUDGET D'ABORD" : !L.edit ? "BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE" : ""; };
   const paint = () => bar.querySelectorAll(".prm-bdg").forEach(b => b.classList.toggle("off", !!why()));
@@ -250,6 +250,15 @@ function sviParamTabs() {
   /* v790 : FORMAT › ÉLÉMENTS — fond, texte, taille, gras, italique, souligné de chaque élément ; FORMAT › INTERFACES — APPLIQUER À */
   const epane = document.createElement("div"); epane.className = "prm-fel"; epane.hidden = true; cpane.after(epane);
   const ipane = document.createElement("div"); ipane.className = "prm-fif"; ipane.hidden = true; epane.after(ipane);
+  /* v796 (DOCUMENT UNIQUE §6.8) : FORMAT › COLONNES — MASQUER / AFFICHER LES COLONNES de chaque tableau (« INTERFACE › TABLEAU ») ; toucher une ligne ouvre ses colonnes */
+  const hpane = document.createElement("div"); hpane.className = "prm-colh"; hpane.hidden = true; ipane.after(hpane);
+  const colhDraw = () => {
+    const L = sviColhRegList();
+    hpane.innerHTML = `<table class="prm-table fmt-t colh-reg"><colgroup><col style="width:420px"><col style="width:110px"><col style="width:110px"></colgroup>
+      <thead><tr><th>TABLEAU</th><th class="center">COLONNES</th><th class="center">MASQUÉES</th></tr></thead>
+      <tbody>${L.map(x => `<tr class="colh-open" data-colh="${esc(x.id)}"><td>${esc(x.lab)}</td><td class="center">${svCnt(x.cols.length)}</td><td class="center">${svCnt(x.hid.length)}</td></tr>`).join("")}</tbody></table>`;
+  };
+  hpane.addEventListener("click", e => { const r = e.target.closest("tr.colh-open"); if (!r) return; const I = sviColhRegInfo(r.dataset.colh); if (!I) return; I.done = colhDraw; sviColhWinI(I); });
   const felDraw = () => {
     const F = sviFmt();
     epane.innerHTML = `<table class="prm-table fmt-t"><colgroup><col style="width:300px"><col style="width:90px"><col style="width:90px"><col style="width:90px"><col style="width:70px"><col style="width:70px"><col style="width:80px"><col style="width:120px"></colgroup>
@@ -290,23 +299,24 @@ function sviParamTabs() {
   cpane.addEventListener("change", e => { if (e.target.closest(".col-in")) colDraw(); });
   cpane.addEventListener("click", e => { const b = e.target.closest(".col-rst"); if (!b) return; const C = sviColors(); C[b.dataset.col] = SVI_COL_DEF[b.dataset.col]; sviColorsSave(C); colDraw(); });
   const show = which => {
-    const rub = ["col", "fel", "fif"].includes(which) ? "fmt" : "bdg";
+    const rub = ["col", "fel", "fif", "colh"].includes(which) ? "fmt" : "bdg";
     bar.querySelectorAll(".prm-rub").forEach(b => b.classList.toggle("on", b.dataset.rub === rub));
     bar.querySelectorAll(".prm-tab").forEach(b => { b.hidden = b.dataset.rub !== rub; });
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.prm === which));
     pane.hidden = which !== "unit";
     lpane.hidden = which !== "lib";
     cpane.hidden = which !== "col";
-    epane.hidden = which !== "fel"; ipane.hidden = which !== "fif";
-    if (which === "fel") felDraw(); if (which === "fif") fifDraw();
+    epane.hidden = which !== "fel"; ipane.hidden = which !== "fif"; hpane.hidden = which !== "colh";
+    if (which === "fel") felDraw(); if (which === "fif") fifDraw(); if (which === "colh") colhDraw();
     const h1 = head.querySelector("h1"), sub = head.querySelector("p");
-    if (h1) h1.textContent = which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : which === "col" ? "FORMAT — ÉTATS" : which === "fel" ? "FORMAT — ÉLÉMENTS" : which === "fif" ? "FORMAT — INTERFACES" : "UNITÉS";
+    if (h1) h1.textContent = which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : which === "col" ? "FORMAT — ÉTATS" : which === "fel" ? "FORMAT — ÉLÉMENTS" : which === "fif" ? "FORMAT — INTERFACES" : which === "colh" ? "FORMAT — COLONNES" : "UNITÉS";
     if (sub) sub.textContent = which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT ; COMMUNE À TOUS LES BUDGETS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";
     if (which === "unit") draw();
     if (which === "lib") libDraw();
     if (which === "col") { colDraw(); if (sub) sub.textContent = "COULEUR DE CHAQUE ÉTAT, COMMUNE À TOUTE L'APPLICATION ET À TOUS LES APPAREILS"; }
     if (which === "fel" && sub) sub.textContent = "FOND, TEXTE, TAILLE ET STYLE DE CHAQUE ÉLÉMENT DES INTERFACES";
     if (which === "fif" && sub) sub.textContent = "INTERFACES QUI PRENNENT LA PALETTE (TOUTES COCHÉES = PARTOUT)";
+    if (which === "colh" && sub) sub.textContent = "MASQUER / AFFICHER LES COLONNES DE CHAQUE TABLEAU (UN TABLEAU S'INSCRIT ICI DÈS SA PREMIÈRE OUVERTURE)";
     try { localStorage.setItem("svi_prm_v1", which); } catch (e) {}
   };
   /* v793 : UNITÉS au format commun des tableaux — loupe de tri / filtre sur chaque colonne, largeur des colonnes réglable et gardée */

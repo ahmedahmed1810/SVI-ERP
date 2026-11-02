@@ -164,7 +164,7 @@ def main():
             document.getElementById('svConf')?.remove();
             const K = JSON.parse(keep); if (K.vfz) I.vfz = K.vfz; else delete I.vfz; if (keepT === null) localStorage.removeItem('svi_etp_tab_v1'); else localStorage.setItem('svi_etp_tab_v1', keepT); X.refreshAll(); return r; }""".replace("INS_X", ins))
         check("v756 / v757 : un seul bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES, boutons de l'onglet ouvert, menu ⋯ (COMPARER, CRÉER, APERÇU, EXPORTER), onglet AVENANTS ; COMPARER côte à côte avec écarts",
-              e756[:5] == [True, "av,scn,ver,rcl", True, True, True] and e756[5].endswith(" INI") and "COMPARER" not in e756[6] and e756[6].startswith("AGRANDIR|CRÉER UN AVENANT|MASQUER / AFFICHER LES COLONNES|IMPORTER") and e756[6].index("EXPORTER") < e756[6].index("APERÇU") and e756[7] == [3, 13, True], e756)
+              e756[:5] == [True, "av,scn,ver,rcl", True, True, True] and e756[5].endswith(" INI") and "COMPARER" not in e756[6] and e756[6].startswith("AGRANDIR|CRÉER UN AVENANT|IMPORTER") and e756[6].index("EXPORTER") < e756[6].index("APERÇU") and e756[7] == [3, 13, True], e756)
         # v758 : fenêtre d'import unique — sources FICHIER / GOOGLE SHEETS / MS PROJECT (XML) / AUTRE BUDGET ; un fichier est lu à blanc (budget
         # ouvert inchangé) puis proposé comme source de la même fenêtre (cases, aperçu, IMPORTER) ; IMPORTER dans AVENANTS, SCÉNARIOS, RECALAGES, pas VERSIONS
         import tempfile
@@ -2764,7 +2764,7 @@ def main():
             return r; }""".replace("INS_X", ins))
         check("v774 : RÉVISIONS ; barre ANNULER, RÉTABLIR, PRÉCÉDENT, SUIVANT, ALERTES, FERMER, ⋯ ; ⋯ principal ordonné ; ⋯ de DÉSIGNATIONS CLIENT par groupes ; v780 : référence des versions et MONTANT TTC",
               r774[0] == "RÉVISIONS" and r774[1] == "instUndo,instRedo,instPrev,instNext,instTodo,instClose,bdgMore" and r774[2] is True
-              and r774[3].startswith("AGRANDIR|SOUS-DÉTAIL DES PRIX|✕ DÉLIER LES LIGNES COCHÉES|-|MASQUER / AFFICHER LES COLONNES|-|Importer|Exporter|Aperçu PDF|-|Copier") and "COMPARATIF" not in r774[3]
+              and r774[3].startswith("AGRANDIR|SOUS-DÉTAIL DES PRIX|✕ DÉLIER LES LIGNES COCHÉES|-|Importer|Exporter|Aperçu PDF|-|Copier") and "COMPARATIF" not in r774[3]
               and r774[4] is True and r774[5] == "VR1" and r774[6] == "6", r774)   # v780 : SOURCE annulée — référence en chaîne (… INI VR1) et MONTANT TTC
         # v750 : liste des budgets — colonnes (marge de pliage, RÉFÉRENCE, NATURE, PROJET, INTITULÉ, MONTANT TTC, SAISI LE ; VALIDÉ LE seulement
         # dans les validés), une icône de bascule, plus de cases ni d'impression (corbeille seule), CONSOLIDÉ en ligne de titre, menu de filtre commun,
@@ -3113,26 +3113,30 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("v767 : import NovApp — fichier JSON, données remplacées (copie de sécurité), F26 = SIÈGE, besoin sans budget gardé, ancienne référence dans H, partagé par la base",
               n767 == [1, "CMF 25-1202/001", "SIÈGE", "CHANTIER", True, "CMF 25-1202/099", True], n767)
-        # v786 / v788 : MASQUER / AFFICHER LES COLONNES — une seule entrée, une seule fenêtre (cochée = affichée), au moins une colonne
+        # v786 / v788 → v796 (document unique 6.8) : MASQUER / AFFICHER LES COLONNES dans PARAMÉTRAGE › FORMAT › COLONNES, plus dans les ⋯ ;
+        # une fenêtre (cochée = affichée), au moins une colonne ; un seul choix par tableau (EN INSTANCE et VALIDÉS)
         c786 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), keep = localStorage.getItem('svi_colh_v1');
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]')?.click(); await w(300);
             const T = () => document.getElementById('budgetListTable'), labs = () => [...document.querySelectorAll('#blkMenu button')].map(b => b.textContent.trim());
             const more = () => [...document.querySelectorAll('.novapp-list-shell .nvl-more')].find(b => b.offsetParent); const r = [];
-            const open = async () => { more().click(); await w(150); [...document.querySelectorAll('#blkMenu button')].find(b => /^MASQUER \/ AFFICHER/.test(b.textContent.trim())).click(); await w(150); };
             more().click(); await w(150); r.push(labs().filter(l => /COLONNES/.test(l)).join('|')); document.getElementById('blkMenu')?.remove();
+            await w(500); const id = sviColhInfo(T()).id;
+            const open = async () => { document.querySelector('#navMenu .nav-btn[data-view="chs"]')?.click(); await w(300); sviParamTabs();
+              document.querySelector('#chs .prm-rub[data-rub="fmt"]').click(); await w(100); document.querySelector('#chs .prm-tab[data-prm="colh"]').click(); await w(150);
+              const row = document.querySelector(`#chs .prm-colh tr[data-colh="${id}"]`); r.push(row ? row.textContent.includes('LISTE DES BUDGETS') : 'pas de ligne'); row.click(); await w(150); };
             await open(); const ins = [...document.querySelectorAll('#svConf .colh-r input')]; r.push(ins.length > 1 && ins.every(i => i.checked));
             ins.forEach(i => { i.checked = false; }); document.querySelector('#svConf [data-ok]').click(); await w(100);
             r.push(!document.querySelector('#svConf .colh-err').hidden);
             ins.forEach((i, j) => { i.checked = j !== 0; }); document.querySelector('#svConf [data-ok]').click(); await w(200);
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]')?.click(); await w(400);
             const th0 = T().tHead.rows[0].cells[0]; r.push(getComputedStyle(th0).display, T().tBodies[0].rows[0]?.cells[0]?.classList.contains('svi-colh'));
-            more().click(); await w(150); r.push(labs().filter(l => /COLONNES/.test(l)).join('|'));
-            [...document.querySelectorAll('#blkMenu button')].find(b => /^MASQUER \/ AFFICHER/.test(b.textContent.trim())).click(); await w(150);
-            r.push([...document.querySelectorAll('#svConf .colh-r input')].filter(i => !i.checked).length);
+            await open(); r.push([...document.querySelectorAll('#svConf .colh-r input')].filter(i => !i.checked).length);
             document.querySelectorAll('#svConf .colh-r input').forEach(i => { i.checked = true; }); document.querySelector('#svConf [data-ok]').click(); await w(200);
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]')?.click(); await w(400);
             r.push(getComputedStyle(T().tHead.rows[0].cells[0]).display !== 'none');
             if (keep === null) localStorage.removeItem('svi_colh_v1'); else localStorage.setItem('svi_colh_v1', keep); return r; }""")
-        check("v786 / v788 : MASQUER / AFFICHER LES COLONNES — une entrée, une fenêtre (cochée = affichée), au moins une colonne, colonne masquée retrouvée dans la liste",
-              c786 == ["MASQUER / AFFICHER LES COLONNES", True, True, "none", True, "MASQUER / AFFICHER LES COLONNES (1 MASQUÉE)", 1, True], c786)
+        check("v796 : MASQUER / AFFICHER LES COLONNES dans PARAMÉTRAGE › FORMAT › COLONNES (plus dans les ⋯) — fenêtre (cochée = affichée), au moins une colonne, colonne masquée retrouvée",
+              c786 == ["", True, True, True, "none", True, True, 1, True], c786)
         # v788 : ligne CRÉER juste au-dessus du TOTAL ; DÉLAIS : Gantt seulement en plein écran
         g788 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const r = [];
             if (!document.querySelector('.bdg-d-page')) { document.querySelector('#navMenu .nav-btn[data-view="bdg"]')?.click(); await w(300); window.__sviAvRet = null; window.__sviAvOpen && window.__sviAvOpen('TEST-1'); await w(2000); document.querySelectorAll('#svConf').forEach(x => x.remove()); }

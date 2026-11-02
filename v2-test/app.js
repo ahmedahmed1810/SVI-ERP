@@ -3448,8 +3448,7 @@ function sviColhInfo(table) {
   let t = b0 ? b0.dataset.cf : table.dataset.colh;
   if (!t) return null;
   if (table.tHead.rows.length > 1 && [...tr.cells].some(c => c.colSpan > 1)) return null;   /* en-tête sur deux lignes : exception */
-  const sh = table.closest(".novapp-list-shell");
-  const id = sh ? t + (table.classList.contains("nv-inst") || table.closest(".list-inst") ? "_i" : "_v") : t;
+  const id = t;   /* v796 (document unique 6.8) : un seul choix par tableau, listes EN INSTANCE et VALIDÉS comprises */
   let x = 0;
   const cols = [];
   [...tr.cells].forEach(th => {
@@ -3462,7 +3461,7 @@ function sviColhInfo(table) {
   });
   if (!cols.length) return null;
   const S = colhLoad(), keys = cols.map(c => c.k);
-  let hid = (S[id] || SVI_COLH_DEF[t] || []).filter(k => keys.includes(k));
+  let hid = (S[id] || S[id + "_v"] || S[id + "_i"] || SVI_COLH_DEF[t] || []).filter(k => keys.includes(k));
   if (hid.length >= keys.length) hid = hid.slice(0, keys.length - 1);
   return { t, id, cols, hid, n: x };
 }
@@ -3494,8 +3493,8 @@ function sviColhAll() {
   cancelAnimationFrame(colhRaf);
   colhRaf = requestAnimationFrame(() => {
     const S = colhLoad();
-    if (!Object.keys(S).some(k => (S[k] || []).length) && !Object.keys(SVI_COLH_DEF).length && !document.querySelector(".svi-colh")) return;
-    document.querySelectorAll("table").forEach(t => { if (t.closest("#sviMep, .mep-page")) return; if (t.tHead && (t.dataset.colh || t.tHead.querySelector(".cf-btn[data-cf]"))) sviColhApply(t); });
+    const any = Object.keys(S).some(k => (S[k] || []).length) || Object.keys(SVI_COLH_DEF).length || document.querySelector(".svi-colh");
+    document.querySelectorAll("table").forEach(t => { if (t.closest("#sviMep, .mep-page")) return; if (t.tHead && (t.dataset.colh || t.tHead.querySelector(".cf-btn[data-cf]"))) { sviColhReg(t); if (any) sviColhApply(t); } });
   });
 }
 new MutationObserver(muts => { if (muts.some(m => m.addedNodes.length)) sviColhAll(); }).observe(document.documentElement, { childList: true, subtree: true });
@@ -3509,13 +3508,14 @@ function sviColhTableNear(el) {
 /* v788 (remarque 17) : UNE seule entrée « MASQUER / AFFICHER LES COLONNES » — une seule fenêtre, toutes les colonnes,
    cochée = affichée, décochée = masquée ; au moins une reste cochée */
 function sviColhItems(table) {
+  return [];   /* v796 (document unique 6.8) : plus dans les menus ⋯ — PARAMÉTRAGE › FORMAT › COLONNES */
   const I = sviColhInfo(table);
   if (!I || I.cols.length < 2) return [];
   return [{ k: "__colwin", lab: "MASQUER / AFFICHER LES COLONNES" + (I.hid.length ? " (" + I.hid.length + " MASQUÉE" + (I.hid.length > 1 ? "S" : "") + ")" : "") }];
 }
 /* fenêtre commune : tableau des colonnes, une case par colonne (format des tableaux de l'application) */
-function sviColhWin(table) {
-  const I = sviColhInfo(table);
+function sviColhWin(table) { sviColhWinI(sviColhInfo(table)); }
+function sviColhWinI(I) {
   if (!I) return;
   const d = sviWinNew();
   d.innerHTML = sviWinCard({ cls: "pv-card colh-card", close: "data-x", title: "MASQUER / AFFICHER LES COLONNES",
@@ -3536,12 +3536,62 @@ function sviColhWin(table) {
     const S = colhLoad(); S[I.id] = next; colhSave(S);
     d.remove();
     document.querySelectorAll("table").forEach(t => { const J = t.tHead && sviColhInfo(t); if (J && J.id === I.id) sviColhApply(t); });
+    if (typeof I.done === "function") I.done();
   });
 }
 function sviColhPick(a, table) {
   if (a === "__colwin" || a === "__colhide" || a === "__colshow") { sviColhWin(table); return true; }
   return false;
 }
+
+/* v796 (document unique 6.8) : registre des tableaux vus à l'écran — PARAMÉTRAGE › FORMAT › COLONNES les liste tous
+   (« INTERFACE › TABLEAU ») ; un tableau s'y inscrit la première fois qu'il est affiché */
+const COLH_REG = "svi_colhreg_v1";
+const colhRegLoad = () => { try { return JSON.parse(localStorage.getItem(COLH_REG) || "{}") || {}; } catch (e) { return {}; } };
+const COLH_IF_LAB = { bdg: "BUDGET", bdgl: "LISTE DES BUDGETS", ach: "ACHATS", prm: "PARAMÉTRAGE", win: "FENÊTRES" };
+function sviColhName(table) {
+  const txt = el => { if (!el) return ""; const x = el.cloneNode(true); x.querySelectorAll(".svi-cnt, svg, button, input").forEach(e => e.remove()); return colhNorm(x.textContent).replace(/\s*\(.*\)\s*$/, ""); };
+  const iface = (SVI_FMT_IF.find(x => x.sc.some(sel => table.closest(sel))) || {}).k;
+  const blk = table.closest(".bdg-d-block, .nvp-blk");
+  let name = "";
+  if (blk && blk.id === "bdgTabBody") {
+    const tab = document.querySelector("#bdgTabs .bdg-d-tab.active");
+    const ttl = document.querySelector("#bdgDetailHead .ttl"), x = ttl && ttl.cloneNode(true); if (x) x.querySelectorAll(".dhead-sub").forEach(e => e.remove());
+    name = (txt(x) || "DÉTAIL") + (tab ? " › " + txt(tab) : "");
+  } else if (blk) {
+    const tab = blk.querySelector(".rec-tab.active, .rec-tab.on, .nvp-tab.on");
+    name = txt(blk.querySelector(".bdg-d-block-title .ttl")) + (tab ? " › " + txt(tab) : "");
+  } else if (table.closest(".novapp-list-shell")) name = txt(table.closest(".novapp-list-shell").querySelector(".novapp-list-titlebar h1") || document.querySelector(".novapp-list-titlebar h1"));
+  else if (table.closest("#svConf")) name = txt(table.closest("#svConf").querySelector(".svc-title, h2, h3"));
+  return [COLH_IF_LAB[iface] || "", name].filter(Boolean).join(" › ");
+}
+let colhRegT = 0, colhRegP = null;
+function sviColhReg(table) {
+  if (!table.offsetParent) return;   /* onglet caché : inscrit quand il est ouvert (nom juste) */
+  const I = sviColhInfo(table);
+  if (!I || I.cols.length < 2) return;
+  colhRegP = colhRegP || colhRegLoad();
+  const R = colhRegP, old = R[I.id], cols = I.cols.map(c => [c.k, c.lab]);
+  const lab = sviColhName(table) || (old && old.lab) || I.id.toUpperCase();
+  if (old && old.lab === lab && JSON.stringify(old.cols) === JSON.stringify(cols)) return;
+  R[I.id] = { lab, cols };
+  clearTimeout(colhRegT);
+  colhRegT = setTimeout(() => { try { localStorage.setItem(COLH_REG, JSON.stringify(R)); } catch (e) {} }, 300);
+}
+/* description d'un tableau d'après le registre (le tableau n'a pas besoin d'être à l'écran) */
+function sviColhRegInfo(id) {
+  const R = colhRegP || colhRegLoad(), E = R[id];
+  if (!E) return null;
+  const S = colhLoad(), keys = E.cols.map(c => c[0]);
+  let hid = (S[id] || S[id + "_v"] || S[id + "_i"] || SVI_COLH_DEF[id] || []).filter(k => keys.includes(k));
+  if (hid.length >= keys.length) hid = hid.slice(0, keys.length - 1);
+  return { t: id, id, lab: E.lab, cols: E.cols.map(([k, lab]) => ({ k, lab })), hid };
+}
+function sviColhRegList() {
+  const R = colhRegP || colhRegLoad();
+  return Object.keys(R).map(sviColhRegInfo).filter(Boolean).sort((a, b) => a.lab.localeCompare(b.lab, "fr"));
+}
+document.addEventListener("click", () => setTimeout(() => document.querySelectorAll("table").forEach(t => { if (t.offsetParent && t.tHead && !t.closest("#sviMep, .mep-page") && (t.dataset.colh || t.tHead.querySelector(".cf-btn[data-cf]"))) sviColhReg(t); }), 400), true);
 /* ⟪ src/09e-gestes-communs.js ⟫ */
 /* =========================================================
    v785 : GESTES ET TOUCHER — UN SEUL RÉGLAGE POUR TOUTE L'APPLICATION
@@ -4847,7 +4897,7 @@ function sviParamTabs() {
   bar.innerHTML = `<div class="prm-rubs"><button type="button" class="prm-rub on" data-rub="bdg">BUDGET</button><button type="button" class="prm-rub" data-rub="fmt">FORMAT</button></div>`
     + `<button type="button" class="prm-tab on" data-prm="unit" data-rub="bdg">UNITÉS</button><button type="button" class="prm-tab" data-prm="lib" data-rub="bdg">BIBLIOTHÈQUE DE PRIX</button>`
     + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal" data-rub="bdg">CALENDRIER</button>`
-    + `<button type="button" class="prm-tab" data-prm="col" data-rub="fmt" hidden>ÉTATS</button><button type="button" class="prm-tab" data-prm="fel" data-rub="fmt" hidden>ÉLÉMENTS</button><button type="button" class="prm-tab" data-prm="fif" data-rub="fmt" hidden>INTERFACES</button>`;
+    + `<button type="button" class="prm-tab" data-prm="col" data-rub="fmt" hidden>ÉTATS</button><button type="button" class="prm-tab" data-prm="fel" data-rub="fmt" hidden>ÉLÉMENTS</button><button type="button" class="prm-tab" data-prm="fif" data-rub="fmt" hidden>INTERFACES</button><button type="button" class="prm-tab" data-prm="colh" data-rub="fmt" hidden>COLONNES</button>`;
   /* CALENDRIER et DATES DU BUDGET : pour le budget ouvert ; grisés sans budget ouvert (appui long = raison) */
   const why = () => { const L = window.__sviBdgLive; return !L ? "OUVRIR UN BUDGET D'ABORD" : !L.edit ? "BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE" : ""; };
   const paint = () => bar.querySelectorAll(".prm-bdg").forEach(b => b.classList.toggle("off", !!why()));
@@ -4882,6 +4932,15 @@ function sviParamTabs() {
   /* v790 : FORMAT › ÉLÉMENTS — fond, texte, taille, gras, italique, souligné de chaque élément ; FORMAT › INTERFACES — APPLIQUER À */
   const epane = document.createElement("div"); epane.className = "prm-fel"; epane.hidden = true; cpane.after(epane);
   const ipane = document.createElement("div"); ipane.className = "prm-fif"; ipane.hidden = true; epane.after(ipane);
+  /* v796 (DOCUMENT UNIQUE §6.8) : FORMAT › COLONNES — MASQUER / AFFICHER LES COLONNES de chaque tableau (« INTERFACE › TABLEAU ») ; toucher une ligne ouvre ses colonnes */
+  const hpane = document.createElement("div"); hpane.className = "prm-colh"; hpane.hidden = true; ipane.after(hpane);
+  const colhDraw = () => {
+    const L = sviColhRegList();
+    hpane.innerHTML = `<table class="prm-table fmt-t colh-reg"><colgroup><col style="width:420px"><col style="width:110px"><col style="width:110px"></colgroup>
+      <thead><tr><th>TABLEAU</th><th class="center">COLONNES</th><th class="center">MASQUÉES</th></tr></thead>
+      <tbody>${L.map(x => `<tr class="colh-open" data-colh="${esc(x.id)}"><td>${esc(x.lab)}</td><td class="center">${svCnt(x.cols.length)}</td><td class="center">${svCnt(x.hid.length)}</td></tr>`).join("")}</tbody></table>`;
+  };
+  hpane.addEventListener("click", e => { const r = e.target.closest("tr.colh-open"); if (!r) return; const I = sviColhRegInfo(r.dataset.colh); if (!I) return; I.done = colhDraw; sviColhWinI(I); });
   const felDraw = () => {
     const F = sviFmt();
     epane.innerHTML = `<table class="prm-table fmt-t"><colgroup><col style="width:300px"><col style="width:90px"><col style="width:90px"><col style="width:90px"><col style="width:70px"><col style="width:70px"><col style="width:80px"><col style="width:120px"></colgroup>
@@ -4922,23 +4981,24 @@ function sviParamTabs() {
   cpane.addEventListener("change", e => { if (e.target.closest(".col-in")) colDraw(); });
   cpane.addEventListener("click", e => { const b = e.target.closest(".col-rst"); if (!b) return; const C = sviColors(); C[b.dataset.col] = SVI_COL_DEF[b.dataset.col]; sviColorsSave(C); colDraw(); });
   const show = which => {
-    const rub = ["col", "fel", "fif"].includes(which) ? "fmt" : "bdg";
+    const rub = ["col", "fel", "fif", "colh"].includes(which) ? "fmt" : "bdg";
     bar.querySelectorAll(".prm-rub").forEach(b => b.classList.toggle("on", b.dataset.rub === rub));
     bar.querySelectorAll(".prm-tab").forEach(b => { b.hidden = b.dataset.rub !== rub; });
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.prm === which));
     pane.hidden = which !== "unit";
     lpane.hidden = which !== "lib";
     cpane.hidden = which !== "col";
-    epane.hidden = which !== "fel"; ipane.hidden = which !== "fif";
-    if (which === "fel") felDraw(); if (which === "fif") fifDraw();
+    epane.hidden = which !== "fel"; ipane.hidden = which !== "fif"; hpane.hidden = which !== "colh";
+    if (which === "fel") felDraw(); if (which === "fif") fifDraw(); if (which === "colh") colhDraw();
     const h1 = head.querySelector("h1"), sub = head.querySelector("p");
-    if (h1) h1.textContent = which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : which === "col" ? "FORMAT — ÉTATS" : which === "fel" ? "FORMAT — ÉLÉMENTS" : which === "fif" ? "FORMAT — INTERFACES" : "UNITÉS";
+    if (h1) h1.textContent = which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : which === "col" ? "FORMAT — ÉTATS" : which === "fel" ? "FORMAT — ÉLÉMENTS" : which === "fif" ? "FORMAT — INTERFACES" : which === "colh" ? "FORMAT — COLONNES" : "UNITÉS";
     if (sub) sub.textContent = which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT ; COMMUNE À TOUS LES BUDGETS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";
     if (which === "unit") draw();
     if (which === "lib") libDraw();
     if (which === "col") { colDraw(); if (sub) sub.textContent = "COULEUR DE CHAQUE ÉTAT, COMMUNE À TOUTE L'APPLICATION ET À TOUS LES APPAREILS"; }
     if (which === "fel" && sub) sub.textContent = "FOND, TEXTE, TAILLE ET STYLE DE CHAQUE ÉLÉMENT DES INTERFACES";
     if (which === "fif" && sub) sub.textContent = "INTERFACES QUI PRENNENT LA PALETTE (TOUTES COCHÉES = PARTOUT)";
+    if (which === "colh" && sub) sub.textContent = "MASQUER / AFFICHER LES COLONNES DE CHAQUE TABLEAU (UN TABLEAU S'INSCRIT ICI DÈS SA PREMIÈRE OUVERTURE)";
     try { localStorage.setItem("svi_prm_v1", which); } catch (e) {}
   };
   /* v793 : UNITÉS au format commun des tableaux — loupe de tri / filtre sur chaque colonne, largeur des colonnes réglable et gardée */

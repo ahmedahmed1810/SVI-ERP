@@ -18,8 +18,7 @@ function sviColhInfo(table) {
   let t = b0 ? b0.dataset.cf : table.dataset.colh;
   if (!t) return null;
   if (table.tHead.rows.length > 1 && [...tr.cells].some(c => c.colSpan > 1)) return null;   /* en-tête sur deux lignes : exception */
-  const sh = table.closest(".novapp-list-shell");
-  const id = sh ? t + (table.classList.contains("nv-inst") || table.closest(".list-inst") ? "_i" : "_v") : t;
+  const id = t;   /* v796 (document unique 6.8) : un seul choix par tableau, listes EN INSTANCE et VALIDÉS comprises */
   let x = 0;
   const cols = [];
   [...tr.cells].forEach(th => {
@@ -32,7 +31,7 @@ function sviColhInfo(table) {
   });
   if (!cols.length) return null;
   const S = colhLoad(), keys = cols.map(c => c.k);
-  let hid = (S[id] || SVI_COLH_DEF[t] || []).filter(k => keys.includes(k));
+  let hid = (S[id] || S[id + "_v"] || S[id + "_i"] || SVI_COLH_DEF[t] || []).filter(k => keys.includes(k));
   if (hid.length >= keys.length) hid = hid.slice(0, keys.length - 1);
   return { t, id, cols, hid, n: x };
 }
@@ -64,8 +63,8 @@ function sviColhAll() {
   cancelAnimationFrame(colhRaf);
   colhRaf = requestAnimationFrame(() => {
     const S = colhLoad();
-    if (!Object.keys(S).some(k => (S[k] || []).length) && !Object.keys(SVI_COLH_DEF).length && !document.querySelector(".svi-colh")) return;
-    document.querySelectorAll("table").forEach(t => { if (t.closest("#sviMep, .mep-page")) return; if (t.tHead && (t.dataset.colh || t.tHead.querySelector(".cf-btn[data-cf]"))) sviColhApply(t); });
+    const any = Object.keys(S).some(k => (S[k] || []).length) || Object.keys(SVI_COLH_DEF).length || document.querySelector(".svi-colh");
+    document.querySelectorAll("table").forEach(t => { if (t.closest("#sviMep, .mep-page")) return; if (t.tHead && (t.dataset.colh || t.tHead.querySelector(".cf-btn[data-cf]"))) { sviColhReg(t); if (any) sviColhApply(t); } });
   });
 }
 new MutationObserver(muts => { if (muts.some(m => m.addedNodes.length)) sviColhAll(); }).observe(document.documentElement, { childList: true, subtree: true });
@@ -79,13 +78,14 @@ function sviColhTableNear(el) {
 /* v788 (remarque 17) : UNE seule entrée « MASQUER / AFFICHER LES COLONNES » — une seule fenêtre, toutes les colonnes,
    cochée = affichée, décochée = masquée ; au moins une reste cochée */
 function sviColhItems(table) {
+  return [];   /* v796 (document unique 6.8) : plus dans les menus ⋯ — PARAMÉTRAGE › FORMAT › COLONNES */
   const I = sviColhInfo(table);
   if (!I || I.cols.length < 2) return [];
   return [{ k: "__colwin", lab: "MASQUER / AFFICHER LES COLONNES" + (I.hid.length ? " (" + I.hid.length + " MASQUÉE" + (I.hid.length > 1 ? "S" : "") + ")" : "") }];
 }
 /* fenêtre commune : tableau des colonnes, une case par colonne (format des tableaux de l'application) */
-function sviColhWin(table) {
-  const I = sviColhInfo(table);
+function sviColhWin(table) { sviColhWinI(sviColhInfo(table)); }
+function sviColhWinI(I) {
   if (!I) return;
   const d = sviWinNew();
   d.innerHTML = sviWinCard({ cls: "pv-card colh-card", close: "data-x", title: "MASQUER / AFFICHER LES COLONNES",
@@ -106,9 +106,59 @@ function sviColhWin(table) {
     const S = colhLoad(); S[I.id] = next; colhSave(S);
     d.remove();
     document.querySelectorAll("table").forEach(t => { const J = t.tHead && sviColhInfo(t); if (J && J.id === I.id) sviColhApply(t); });
+    if (typeof I.done === "function") I.done();
   });
 }
 function sviColhPick(a, table) {
   if (a === "__colwin" || a === "__colhide" || a === "__colshow") { sviColhWin(table); return true; }
   return false;
 }
+
+/* v796 (document unique 6.8) : registre des tableaux vus à l'écran — PARAMÉTRAGE › FORMAT › COLONNES les liste tous
+   (« INTERFACE › TABLEAU ») ; un tableau s'y inscrit la première fois qu'il est affiché */
+const COLH_REG = "svi_colhreg_v1";
+const colhRegLoad = () => { try { return JSON.parse(localStorage.getItem(COLH_REG) || "{}") || {}; } catch (e) { return {}; } };
+const COLH_IF_LAB = { bdg: "BUDGET", bdgl: "LISTE DES BUDGETS", ach: "ACHATS", prm: "PARAMÉTRAGE", win: "FENÊTRES" };
+function sviColhName(table) {
+  const txt = el => { if (!el) return ""; const x = el.cloneNode(true); x.querySelectorAll(".svi-cnt, svg, button, input").forEach(e => e.remove()); return colhNorm(x.textContent).replace(/\s*\(.*\)\s*$/, ""); };
+  const iface = (SVI_FMT_IF.find(x => x.sc.some(sel => table.closest(sel))) || {}).k;
+  const blk = table.closest(".bdg-d-block, .nvp-blk");
+  let name = "";
+  if (blk && blk.id === "bdgTabBody") {
+    const tab = document.querySelector("#bdgTabs .bdg-d-tab.active");
+    const ttl = document.querySelector("#bdgDetailHead .ttl"), x = ttl && ttl.cloneNode(true); if (x) x.querySelectorAll(".dhead-sub").forEach(e => e.remove());
+    name = (txt(x) || "DÉTAIL") + (tab ? " › " + txt(tab) : "");
+  } else if (blk) {
+    const tab = blk.querySelector(".rec-tab.active, .rec-tab.on, .nvp-tab.on");
+    name = txt(blk.querySelector(".bdg-d-block-title .ttl")) + (tab ? " › " + txt(tab) : "");
+  } else if (table.closest(".novapp-list-shell")) name = txt(table.closest(".novapp-list-shell").querySelector(".novapp-list-titlebar h1") || document.querySelector(".novapp-list-titlebar h1"));
+  else if (table.closest("#svConf")) name = txt(table.closest("#svConf").querySelector(".svc-title, h2, h3"));
+  return [COLH_IF_LAB[iface] || "", name].filter(Boolean).join(" › ");
+}
+let colhRegT = 0, colhRegP = null;
+function sviColhReg(table) {
+  if (!table.offsetParent) return;   /* onglet caché : inscrit quand il est ouvert (nom juste) */
+  const I = sviColhInfo(table);
+  if (!I || I.cols.length < 2) return;
+  colhRegP = colhRegP || colhRegLoad();
+  const R = colhRegP, old = R[I.id], cols = I.cols.map(c => [c.k, c.lab]);
+  const lab = sviColhName(table) || (old && old.lab) || I.id.toUpperCase();
+  if (old && old.lab === lab && JSON.stringify(old.cols) === JSON.stringify(cols)) return;
+  R[I.id] = { lab, cols };
+  clearTimeout(colhRegT);
+  colhRegT = setTimeout(() => { try { localStorage.setItem(COLH_REG, JSON.stringify(R)); } catch (e) {} }, 300);
+}
+/* description d'un tableau d'après le registre (le tableau n'a pas besoin d'être à l'écran) */
+function sviColhRegInfo(id) {
+  const R = colhRegP || colhRegLoad(), E = R[id];
+  if (!E) return null;
+  const S = colhLoad(), keys = E.cols.map(c => c[0]);
+  let hid = (S[id] || S[id + "_v"] || S[id + "_i"] || SVI_COLH_DEF[id] || []).filter(k => keys.includes(k));
+  if (hid.length >= keys.length) hid = hid.slice(0, keys.length - 1);
+  return { t: id, id, lab: E.lab, cols: E.cols.map(([k, lab]) => ({ k, lab })), hid };
+}
+function sviColhRegList() {
+  const R = colhRegP || colhRegLoad();
+  return Object.keys(R).map(sviColhRegInfo).filter(Boolean).sort((a, b) => a.lab.localeCompare(b.lab, "fr"));
+}
+document.addEventListener("click", () => setTimeout(() => document.querySelectorAll("table").forEach(t => { if (t.offsetParent && t.tHead && !t.closest("#sviMep, .mep-page") && (t.dataset.colh || t.tHead.querySelector(".cf-btn[data-cf]"))) sviColhReg(t); }), 400), true);
