@@ -5,6 +5,8 @@
    (cwLoad / coOrder, 09), case SAISIR ICI en bas, cases cochées pour les actions, H = historique, ⚠ = à compléter.
    ========================================================= */
 function sviAchInit() {
+  /* v797 : forme commune des blocs posée même si aucun budget n'a encore été ouvert */
+  if (typeof sviBdgRuntimeStyle === "function") sviBdgRuntimeStyle();
   const view = document.getElementById("ach");
   if (!view || view.__achOn) return;
   view.__achOn = true;
