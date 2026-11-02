@@ -117,11 +117,17 @@ const ACH_LANGS = ["FRANÇAIS", "ARABE", "ANGLAIS", "ESPAGNOL"];
 /* v805 : onglet BANQUE ET PAIEMENT (C1.52, C1.53) */
 const ACH_CAUT = ["CAUTION DE BONNE EXÉCUTION", "CAUTION DE RESTITUTION D'AVANCE", "CAUTION DE RETENUE DE GARANTIE", "AUTRE GARANTIE BANCAIRE"];
 const ACH_JOURS = ["LUN", "MAR", "MER", "JEU", "VEN", "SAM"];
+/* v806 : onglet CONDITIONS D'ACHAT (C1.22, C1.23, C1.25, C1.26, C1.32, C1.35 – C1.37, C1.50, C1.51) */
+const ACH_DEVISES = ["MAD", "EUR", "USD", "CNY"];
+const ACH_ENVOIS = ["E-MAIL", "WHATSAPP", "TÉLÉPHONE"];
+const ACH_LIVR = ["LIVRÉ SUR CHANTIER", "ENLÈVEMENT À SON DÉPÔT", "LES DEUX"];
+const ACH_INCOTERMS = ["EXW", "FCA", "FAS", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DPU", "DDP"];
 const ACH_DOCF = ["ATTESTATION DE RÉGULARITÉ FISCALE", "ATTESTATION CNSS", "MODÈLE J (REGISTRE DE COMMERCE)", "ATTESTATION DE RIB", "ASSURANCE", "ASSURANCE RESPONSABILITÉ CIVILE", "CERTIFICAT DE QUALIFICATION", "CERTIFICATION", "CONDITIONS GÉNÉRALES D'ACHAT SIGNÉES", "AUTRE"];
 const achDig = v => String(v ?? "").replace(/\D/g, "");
 /* v804 : l'ICE suit son masque de saisie (PARAMÉTRAGE › FORMAT › MASQUES DE SAISIE, C1.44) */
 const achIceOk = v => typeof sviMaskOk === "function" ? !!sviMaskRaw(v) && sviMaskOk("ice", v) : /^\d{15}$/.test(achDig(v));
 const achIceMsg = () => "ICE NON VALIDE : FORMAT " + ((typeof sviMaskOf === "function" && (sviMaskOf("ice") || {}).m) || "15 CHIFFRES");
+const achRibKeyOk = v => { const d = achDig(v); try { return d.length === 24 && BigInt(d) % 97n === 0n; } catch (e) { return true; } };
 const achRibOk = v => /^\d{24}$/.test(achDig(v));
 const achFrs = () => { const L = achJ(ACH_K.frs, []); return Array.isArray(L) ? L : []; };
 const achFrsSave = L => achW(ACH_K.frs, L);
@@ -154,6 +160,9 @@ const achFrsWhy = (f, L) => {
   if (f.ribChg) w.push("RIB MODIFIÉ LE " + String(f.ribChg).slice(0, 10).split("-").reverse().join("/") + " : À VÉRIFIER AVANT TOUT PAIEMENT");
   /* v803 : revue de la fiche une fois par an (checklist C1.55) */
   if (f.revue && f.revue < new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10)) w.push("FICHE À REVOIR : DERNIÈRE REVUE LE " + String(f.revue).split("-").reverse().join("/"));
+  /* v806 : clé du RIB (C1.40) — le RIB de 24 chiffres doit être divisible par 97 ; signalé, pas bloquant */
+  (f.ribs || []).forEach(r => { if (achRibOk(r.rib) && !achRibKeyOk(r.rib)) w.push("CLÉ DU RIB À VÉRIFIER : " + achDig(r.rib)); });
+  { const t = (f.tar || []).filter(x => x.valid && x.valid < today); if (t.length) w.push("TARIF EXPIRÉ : " + t.map(x => x.des).join(", ")); }
   /* v805 : RIB partagé avec un autre fournisseur (C1.41) ; encours au-delà du plafond ; caution échue ou bientôt échue (C1.52) */
   if (L) (f.ribs || []).forEach(r => { const x = achDig(r.rib) && L.find(o => o.id !== f.id && !o.del && (o.ribs || []).some(q => achDig(q.rib) === achDig(r.rib))); if (x) w.push("RIB PARTAGÉ AVEC " + x.code + " — " + x.nom + " : FRAUDE POSSIBLE"); });
   if (achN(f.plafEnc) > 0 && typeof achFrsEnc === "function" && achFrsEnc(f.id) > achN(f.plafEnc) + 0.005) w.push("ENCOURS AU-DELÀ DU PLAFOND (" + achF2(achFrsEnc(f.id)) + " / " + achF2(f.plafEnc) + ")");

@@ -111,7 +111,7 @@ function achFrsMod(ctx) {
 function achFrsFiche(id, sec, done) {
   const L0 = achFrs(), f0 = L0.find(x => x.id === id); if (!f0) return;
   const F = JSON.parse(JSON.stringify(f0)), ro = !!f0.del, P = achPrm();
-  ["ribs", "docf", "cte", "evl", "cgf", "fam", "cau", "jours"].forEach(k => { if (!Array.isArray(F[k])) F[k] = []; });
+  ["ribs", "docf", "cte", "evl", "cgf", "fam", "cau", "jours", "tar", "fermJ"].forEach(k => { if (!Array.isArray(F[k])) F[k] = []; });
   const d = sviWinNew();
   const inp = (k, lab, o = {}) => `<label class="frs-f${o.w ? " frs-w" : ""}"><span>${lab}${o.req ? " <b>*</b>" : ""}</span><input class="ins-in frs-x" data-k="${k}"${o.mask ? ` data-mask="${o.mask}"` : ""} value="${esc(o.mask ? sviMaskFmt(o.mask, F[k] ?? "") : F[k] ?? "")}"${o.num ? ' inputmode="numeric"' : ""}${o.date ? ' type="date"' : ""}${o.keep ? " data-keepcase" : ""}${o.list ? ` list="frsL-${k}"` : ""}${ro ? " readonly" : ""} autocomplete="off">${o.list ? `<datalist id="frsL-${k}">${o.list.map(x => `<option value="${esc(x)}">`).join("")}</datalist>` : ""}</label>`;
   const sel = (k, lab, opts, o = {}) => `<label class="frs-f${o.w ? " frs-w" : ""}"><span>${lab}</span><select class="ins-in frs-xs" data-k="${k}"${ro ? " disabled" : ""}><option value="">—</option>${opts.map(x => { const v = Array.isArray(x) ? x[0] : x, t = Array.isArray(x) ? x[1] : x; return `<option value="${esc(v)}"${String(F[k] ?? "") === String(v) ? " selected" : ""}>${esc(t)}</option>`; }).join("")}</select></label>`;
@@ -121,7 +121,7 @@ function achFrsFiche(id, sec, done) {
     </tbody></table>${ro ? "" : `<button type="button" class="ach-b frs-add" data-add="${k}" data-addl>+ ${add}</button>`}`;
   /* v801 : la fenêtre i a cinq onglets (checklist, fenêtre i du fournisseur, 02/11/2026) */
   const TABS = [["id", "IDENTITÉ", ["id", "cte"]], ["leg", "FISCAL ET LÉGAL", ["fisc", "qual", "secu", "docf"]], ["bq", "BANQUE ET PAIEMENT", ["rib", "cpt", "enc", "cau"]],
-    ["ach", "CONDITIONS D'ACHAT", ["cond", "fam", "cgf"]], ["rsq", "RISQUE ET MOYENS", ["evl"]]];
+    ["ach", "CONDITIONS D'ACHAT", ["cond", "com", "imp", "ferm", "sav", "tar", "fam", "cgf"]], ["rsq", "RISQUE ET MOYENS", ["evl"]]];
   let tab = (TABS.find(t => t[2].includes(sec)) || TABS[0])[0];
   const draw = () => {
     const why = achFrsWhy(F, achFrs()), note = achFrsNote(F);
@@ -160,7 +160,20 @@ function achFrsFiche(id, sec, done) {
           ${sub("cau", [["type", "TYPE", (r) => `<select class="ins-in frs-s" data-c="type"${ro ? " disabled" : ""}>${ACH_CAUT.map(x => `<option${x === r.type ? " selected" : ""}>${esc(x)}</option>`).join("")}</select>`], ["no", "N°"], ["bq", "BANQUE"],
             ["mt", "MONTANT", (r) => `<input class="ins-in frs-s number" data-c="mt" inputmode="decimal" value="${esc(r.mt ? achF2(r.mt) : "")}"${ro ? " readonly" : ""} autocomplete="off">`],
             ["ech", "ÉCHÉANCE", (r) => `<input type="date" class="ins-in frs-s" data-c="ech" value="${esc(r.ech || "")}"${ro ? " readonly" : ""}>`]], "AJOUTER UNE CAUTION")}</div>
-        <div class="frs-sec" data-s="cond"><div class="frs-st">CONDITIONS DE PAIEMENT</div><div class="frs-g">${inp("cond", "CONDITIONS", { list: ACH_CONDS })}</div></div>
+        <div class="frs-sec" data-s="cond"><div class="frs-st">CONDITIONS DE PAIEMENT</div><div class="frs-g">${inp("cond", "CONDITIONS (DÉLAI)", { list: ACH_CONDS })}${sel("modeReg", "MODE DE RÈGLEMENT", ACH_MODES)}
+          ${inp("escTaux", "ESCOMPTE (%)", { num: 1 })}${inp("escJours", "SI PAYÉ SOUS (JOURS)", { num: 1 })}
+          ${inp("retTaux", "RETENUE DE GARANTIE (%)", { num: 1 })}<div class="frs-cs">${chk("retAcc", "RETENUE DE GARANTIE ACCEPTÉE")}</div></div></div>
+        <div class="frs-sec" data-s="com"><div class="frs-st">COMMANDE ET LIVRAISON</div><div class="frs-g">
+          ${inp("delai", "DÉLAI DE LIVRAISON (JOURS)", { num: 1 })}${sel("devise", "DEVISE", ACH_DEVISES)}${inp("minCmd", "MINIMUM DE COMMANDE", { num: 1 })}${inp("franco", "FRANCO DE PORT À PARTIR DE", { num: 1 })}
+          ${inp("remise", "REMISE HABITUELLE (%)", { num: 1 })}${sel("envoi", "ENVOI DES COMMANDES", ACH_ENVOIS)}${sel("livr", "LIVRAISON", ACH_LIVR)}${inp("heuresLiv", "HEURES DE LIVRAISON")}
+          ${inp("gps", "DÉPÔT : POSITION GPS (LATITUDE, LONGITUDE)", { w: 1, keep: 1 })}</div></div>
+        <div class="frs-sec" data-s="imp"><div class="frs-st">IMPORT</div><div class="frs-g">${sel("incoterm", "INCOTERM", ACH_INCOTERMS)}${inp("transit", "TRANSITAIRE", { w: 1 })}</div></div>
+        <div class="frs-sec" data-s="ferm"><div class="frs-st">FERMETURES</div><div class="frs-g">${inp("conges", "CONGÉS (PÉRIODES)", { w: 1 })}
+          <div class="frs-f frs-w"><span>JOURS SANS LIVRAISON</span><div class="frs-cs">${ACH_JOURS.concat("DIM").map(j => `<label class="frs-c"><input type="checkbox" class="frs-fj" value="${j}"${F.fermJ.includes(j) ? " checked" : ""}${ro ? " disabled" : ""}> ${j}</label>`).join("")}</div></div></div></div>
+        <div class="frs-sec" data-s="sav"><div class="frs-st">GARANTIE ET APRÈS-VENTE</div><div class="frs-g">${inp("garMois", "DURÉE DE GARANTIE (MOIS)", { num: 1 })}${inp("savContact", "CONTACT SAV", { w: 1 })}</div></div>
+        <div class="frs-sec" data-s="tar"><div class="frs-st">TARIFS ${svCnt(F.tar.length)}</div>
+          ${sub("tar", [["des", "DÉSIGNATION"], ["u", "UNITÉ"], ["pu", "PRIX", (r) => `<input class="ins-in frs-s number" data-c="pu" inputmode="decimal" value="${esc(r.pu ? achF2(r.pu) : "")}"${ro ? " readonly" : ""} autocomplete="off">`],
+            ["valid", "VALABLE JUSQU'AU", (r) => `<input type="date" class="ins-in frs-s" data-c="valid" value="${esc(r.valid || "")}"${ro ? " readonly" : ""}>`]], "AJOUTER UN PRIX")}</div>
         <div class="frs-sec" data-s="fam"><div class="frs-st">FAMILLES D'ARTICLES FOURNIES ${svCnt(F.fam.length)}</div><div class="frs-fam">${P.cat.map(c => `<label class="frs-c"><input type="checkbox" class="frs-fc" value="${esc(c)}"${F.fam.includes(c) ? " checked" : ""}${ro ? " disabled" : ""}> ${esc(c)}</label>`).join("") || `<span class="ach-0">AUCUNE CATÉGORIE (ACHATS › PARAMÈTRES)</span>`}</div></div>
         <div class="frs-sec" data-s="docf"><div class="frs-st">DOCUMENTS FISCAUX ${svCnt(F.docf.length)}</div>
           ${sub("docf", [["type", "DOCUMENT", (r, i) => `<select class="ins-in frs-s" data-c="type"${ro ? " disabled" : ""}>${ACH_DOCF.map(x => `<option${x === r.type ? " selected" : ""}>${esc(x)}</option>`).join("")}</select>`], ["no", "N°"], ["exp", "EXPIRE LE", (r) => `<input type="date" class="ins-in frs-s" data-c="exp" value="${esc(r.exp || "")}"${ro ? " readonly" : ""}>`]], "AJOUTER UN DOCUMENT")}</div>
@@ -181,13 +194,14 @@ function achFrsFiche(id, sec, done) {
   if (sec) setTimeout(() => d.querySelector(`.frs-sec[data-s="${sec}"]`)?.scrollIntoView({ block: "start" }), 50);
   /* lecture des cases dans le brouillon (avant chaque redessin) */
   const pull = () => {
-    d.querySelectorAll(".frs-x").forEach(i => { const k = i.dataset.k; F[k] = ["ice", "ifisc", "rc", "cnss"].includes(k) ? sviMaskRaw(i.value) : ["patente", "codeCpt", "aeNo"].includes(k) ? achDig(i.value) : ["capital", "effectif", "plafEnc"].includes(k) ? (String(i.value || "").trim() === "" ? "" : achN(i.value)) : ["dateCrea", "cgaDate", "revue"].includes(k) ? i.value : ["site", "mailCmd", "mailFac"].includes(k) ? String(i.value || "").trim().toLowerCase() : achU(i.value); });
+    d.querySelectorAll(".frs-x").forEach(i => { const k = i.dataset.k; F[k] = ["ice", "ifisc", "rc", "cnss"].includes(k) ? sviMaskRaw(i.value) : ["patente", "codeCpt", "aeNo"].includes(k) ? achDig(i.value) : ["capital", "effectif", "plafEnc", "escTaux", "escJours", "retTaux", "delai", "minCmd", "franco", "remise", "garMois"].includes(k) ? (String(i.value || "").trim() === "" ? "" : achN(i.value)) : ["dateCrea", "cgaDate", "revue"].includes(k) ? i.value : ["site", "mailCmd", "mailFac"].includes(k) ? String(i.value || "").trim().toLowerCase() : k === "gps" ? String(i.value || "").trim() : achU(i.value); });
     d.querySelectorAll(".frs-xs").forEach(i => { F[i.dataset.k] = i.value; });
     d.querySelectorAll(".frs-xc").forEach(i => { F[i.dataset.k] = i.checked; });
     F.fam = [...d.querySelectorAll(".frs-fc:checked")].map(i => i.value);
     F.jours = [...d.querySelectorAll(".frs-jr:checked")].map(i => i.value);
+    F.fermJ = [...d.querySelectorAll(".frs-fj:checked")].map(i => i.value);
     d.querySelectorAll(".frs-sub[data-sub]").forEach(t => { const k = t.dataset.sub; t.querySelectorAll("tr[data-i]").forEach(tr => { const r = F[k][+tr.dataset.i]; if (!r) return;
-      tr.querySelectorAll(".frs-s").forEach(i => { const c = i.dataset.c; r[c] = c === "rib" ? achDig(i.value) : c === "email" ? String(i.value || "").trim().toLowerCase() : c === "mt" ? achN(i.value) : c === "exp" || c === "ech" || c === "debut" || c === "fin" || c === "type" || c === "role" ? i.value : achU(i.value); }); }); });
+      tr.querySelectorAll(".frs-s").forEach(i => { const c = i.dataset.c; r[c] = c === "rib" ? achDig(i.value) : c === "email" ? String(i.value || "").trim().toLowerCase() : c === "mt" || c === "pu" ? achN(i.value) : c === "exp" || c === "ech" || c === "valid" || c === "debut" || c === "fin" || c === "type" || c === "role" ? i.value : achU(i.value); }); }); });
     const rp = d.querySelector(".frs-rp:checked"); F.ribs.forEach((r, i) => { r.p = !!rp && +rp.dataset.i === i; });
   };
   /* logo réduit à 96 px pour rester léger dans la base */
@@ -206,7 +220,7 @@ function achFrsFiche(id, sec, done) {
     if (ft) { if (!ro) pull(); tab = ft.dataset.ftab; draw(); return; }
     if (ro) return;
     const ad = e.target.closest("[data-add]");
-    if (ad) { pull(); const k = ad.dataset.add; F[k].push(k === "cau" ? { type: ACH_CAUT[0], no: "", bq: "", mt: 0, ech: "" } : k === "ribs" ? { rib: "", p: !F.ribs.length } : k === "docf" ? { type: ACH_DOCF[0], no: "", exp: "" } : k === "cte" ? { nom: "", fonction: "", role: "", tel: "", email: "" } : { intitule: "", debut: "", fin: "" }); draw(); return; }
+    if (ad) { pull(); const k = ad.dataset.add; F[k].push(k === "tar" ? { des: "", u: "", pu: 0, valid: "" } : k === "cau" ? { type: ACH_CAUT[0], no: "", bq: "", mt: 0, ech: "" } : k === "ribs" ? { rib: "", p: !F.ribs.length } : k === "docf" ? { type: ACH_DOCF[0], no: "", exp: "" } : k === "cte" ? { nom: "", fonction: "", role: "", tel: "", email: "" } : { intitule: "", debut: "", fin: "" }); draw(); return; }
     const rm = e.target.closest("[data-rm]");
     if (rm) { pull(); const [k, i] = rm.dataset.rm.split("|"); F[k].splice(+i, 1); if (k === "ribs" && F.ribs.length && !F.ribs.some(r => r.p)) F.ribs[0].p = true; draw(); return; }
     if (e.target.closest("[data-evladd]")) {
@@ -228,6 +242,9 @@ function achFrsFiche(id, sec, done) {
     if (["mailCmd", "mailFac"].some(k => F[k] && !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(F[k]))) { svToast("E-MAIL NON VALIDE.", 3000); return; }
     for (const [k, m] of [["ifisc", "if"], ["rc", "rc"], ["cnss", "cnss"]]) if (F[k] && !sviMaskOk(m, F[k])) { svToast(sviMaskLab(m) + " NON VALIDE : FORMAT " + sviMaskOf(m).m + ".", 3500); return; }
     { const c = F.cte.find(c => c.tel && !sviMaskOk("tel", c.tel)); if (c) { svToast("TÉLÉPHONE NON VALIDE (" + (c.nom || c.tel) + ") : FORMAT " + sviMaskOf("tel").m + ".", 3500); return; } }
+    for (const k of ["escTaux", "retTaux", "remise"]) if (achN(F[k]) > 100) { svToast("UN TAUX NE PEUT PAS DÉPASSER 100 %.", 3000); return; }
+    if (F.gps && !/^-?\d{1,2}(\.\d+)?\s*,\s*-?\d{1,3}(\.\d+)?$/.test(F.gps)) { svToast("POSITION GPS : LATITUDE, LONGITUDE (EX. 33.5731, -7.5898).", 3500); return; }
+    if (F.tar.some(x => !(achN(x.pu) > 0))) { svToast("TARIFS : PRIX OBLIGATOIRE.", 3000); return; }
     if (F.cga && !F.cgaDate) { svToast("CONDITIONS GÉNÉRALES SIGNÉES : DONNER LA DATE.", 3000); return; }
     if (F.forme !== "AUTO-ENTREPRENEUR") { F.aeNo = ""; F.aeCin = ""; }
     if (F.lie && !F.lieT) { svToast("FOURNISSEUR LIÉ : CHOISIR LE LIEN.", 3000); return; }
@@ -237,7 +254,7 @@ function achFrsFiche(id, sec, done) {
     if (F.ribs.some(r => !achRibOk(r.rib))) { svToast("RIB NON VALIDE : 24 CHIFFRES.", 3500); draw(); return; }
     if (new Set(F.ribs.map(r => achDig(r.rib))).size < F.ribs.length) { svToast("LE MÊME RIB EST SAISI DEUX FOIS.", 3500); draw(); return; }
     if (F.ribs.length && !F.ribs.some(r => r.p)) F.ribs[0].p = true;
-    F.cte = F.cte.filter(c => c.nom || c.tel || c.email); F.cgf = F.cgf.filter(c => c.intitule); F.docf = F.docf.filter(x => x.type && (x.no || x.exp)); F.cau = F.cau.filter(x => x.no || x.mt || x.ech);
+    F.cte = F.cte.filter(c => c.nom || c.tel || c.email); F.cgf = F.cgf.filter(c => c.intitule); F.docf = F.docf.filter(x => x.type && (x.no || x.exp)); F.cau = F.cau.filter(x => x.no || x.mt || x.ech); F.tar = F.tar.filter(x => x.des);
     /* changement de RIB : confirmé, noté, signalé jusqu'à vérification */
     const oldR = (f.ribs || []).map(r => achDig(r.rib)), newR = F.ribs.map(r => achDig(r.rib)), oldP = (achFrsRibP(f) || {}).rib || "", newP = (achFrsRibP(F) || {}).rib || "";
     const chg = oldR.length && (oldR.some(r => !newR.includes(r)) || newR.some(r => !oldR.includes(r)) || achDig(oldP) !== achDig(newP));
@@ -248,7 +265,7 @@ function achFrsFiche(id, sec, done) {
     }
     if (F.__ribOk) { achHist(F.code, "RIB VÉRIFIÉ", newR.join(" · ")); delete F.__ribOk; }
     const LAB = { nom: "NOM", denom: "DÉNOMINATION", forme: "FORME", ville: "VILLE", adresse: "ADRESSE", site: "SITE WEB", resp: "RESPONSABLE", type: "TYPE", pays: "PAYS", lang: "LANGUE", mailCmd: "E-MAIL DE COMMANDE", mailFac: "E-MAIL DE FACTURATION", origine: "ORIGINE", lie: "FOURNISSEUR LIÉ", lieT: "LIEN", logo: "LOGO", cnss: "CNSS", dateCrea: "DATE DE CRÉATION", dirigeant: "DIRIGEANT", aeNo: "N° AUTO-ENTREPRENEUR", aeCin: "CIN", qualif: "QUALIFICATION", classe: "CLASSIFICATION", effectif: "EFFECTIF", certif: "CERTIFICATIONS", assRc: "ASSURANCE RC", secu: "SÉCURITÉ", cga: "CONDITIONS GÉNÉRALES", cgaDate: "DATE DES CONDITIONS GÉNÉRALES", revue: "REVUE", occ: "OCCASIONNEL", orgFin: "ORGANISME FINANCIER", actif: "ACTIF",
-      ice: "ICE", ifisc: "IF", rc: "RC", villeRc: "VILLE RC", patente: "PATENTE", capital: "CAPITAL", codeCpt: "CODE COMPTABLE", intCpt: "INTITULÉ COMPTABLE", cond: "PAIEMENT", fam: "FAMILLES", docf: "DOCUMENTS FISCAUX", plafEnc: "PLAFOND D'ENCOURS", encNom: "PERSONNE QUI ENCAISSE", jours: "JOURS DE PAIEMENT", cau: "CAUTIONS", cte: "CONTACTS", evl: "ÉVALUATIONS", cgf: "CONTRATS" };
+      ice: "ICE", ifisc: "IF", rc: "RC", villeRc: "VILLE RC", patente: "PATENTE", capital: "CAPITAL", codeCpt: "CODE COMPTABLE", intCpt: "INTITULÉ COMPTABLE", cond: "PAIEMENT", fam: "FAMILLES", docf: "DOCUMENTS FISCAUX", plafEnc: "PLAFOND D'ENCOURS", encNom: "PERSONNE QUI ENCAISSE", jours: "JOURS DE PAIEMENT", cau: "CAUTIONS", modeReg: "MODE DE RÈGLEMENT", escTaux: "ESCOMPTE", escJours: "DÉLAI D'ESCOMPTE", retAcc: "RETENUE ACCEPTÉE", retTaux: "TAUX DE RETENUE", delai: "DÉLAI", devise: "DEVISE", minCmd: "MINIMUM", franco: "FRANCO", remise: "REMISE", envoi: "ENVOI DES COMMANDES", livr: "LIVRAISON", heuresLiv: "HEURES DE LIVRAISON", gps: "GPS DU DÉPÔT", incoterm: "INCOTERM", transit: "TRANSITAIRE", conges: "CONGÉS", fermJ: "JOURS SANS LIVRAISON", garMois: "GARANTIE", savContact: "CONTACT SAV", tar: "TARIFS", cte: "CONTACTS", evl: "ÉVALUATIONS", cgf: "CONTRATS" };
     const ch = Object.keys(LAB).filter(k => JSON.stringify(f[k] ?? "") !== JSON.stringify(F[k] ?? ""));
     Object.assign(f, F, { mod: new Date().toISOString() });
     if (ch.length) achHist(f.code, "MODIFICATION", ch.map(k => LAB[k]).join(", "));

@@ -198,7 +198,11 @@ function achPafFiche(id, o, done) {
   const p0 = id ? achPaf().find(x => x.id === id) : null; if (id && !p0) return;
   const today = new Date().toISOString().slice(0, 10);
   const P = p0 ? JSON.parse(JSON.stringify(p0)) : { id: achId("P"), ref: "", type: o.type || "reglement", frs: o.frs || "", mode: "VIREMENT", num: "", echL: "", date: today, cmf: o.cmf || "", mt: 0, aff: [], ded: [], state: "instance", motif: "" };
+  /* v806 : mode de règlement par défaut du fournisseur (C1.22) */
+  const modeOf = id => { const f = achFrs().find(x => x.id === id); return f && ACH_MODES.includes(f.modeReg) ? f.modeReg : "VIREMENT"; };
+  if (!p0 && P.frs) P.mode = modeOf(P.frs);
   if (!p0 && o.cmf) { const C = achCmf().find(c => c.id === o.cmf); if (C) { P.frs = C.frs; P.mt = Math.max(0, Math.round((achCmfTot(C).av - achAvVerse(C.id)) * 100) / 100); } }
+  if (!p0 && o.cmf && P.frs) P.mode = modeOf(P.frs);
   if (!p0 && o.fa) { const f = achFaf().find(x => x.id === o.fa); if (f) P.aff = [{ fa: f.id, m: Math.round(achFafReste(f) * 100) / 100 }]; }
   const d = sviWinNew();
   const sum = () => { if (P.type === "reglement") P.mt = Math.round(((P.aff || []).reduce((t, a) => t + achN(a.m), 0) - (P.ded || []).reduce((t, a) => t + achN(a.m), 0)) * 100) / 100; };
@@ -251,7 +255,7 @@ function achPafFiche(id, o, done) {
     return true; };
   draw();
   d.addEventListener("change", e => { if (!e.target.closest(".pa-x, .pa-a, .pa-d")) return; const k = e.target.dataset.k; pull();
-    if (k === "frs") { P.aff = []; P.ded = []; P.cmf = ""; delete P.deb; } if (k === "type") { P.aff = []; P.ded = []; P.cmf = ""; P.mt = 0; }
+    if (k === "frs") { P.aff = []; P.ded = []; P.cmf = ""; delete P.deb; if (!p0) P.mode = modeOf(P.frs); } if (k === "type") { P.aff = []; P.ded = []; P.cmf = ""; P.mt = 0; }
     if (k === "cmf") { const C = achCmf().find(c => c.id === P.cmf); P.mt = C ? Math.max(0, Math.round((achCmfTot(C).av - achAvVerse(C.id)) * 100) / 100) : 0; }
     draw(); });
   d.addEventListener("click", async e => {
