@@ -89,7 +89,7 @@ function achCmfFiche(id, done) {
     const ro = !(C.state === "instance" || edAv), dis = ro ? " disabled" : "", t = achCmfTot(C), why = achCmfWhy(C), R = achRcp(), T = achRtr();
     const BL = achBsn(), DV = achDvf(), PV = C.nat === "PRESTATIONS ET HONORAIRES";
     const opt = (L, v) => L.map(x => `<option value="${esc(x[0])}"${x[0] === v ? " selected" : ""}>${esc(x[1])}</option>`).join("");
-    const FR = achLive(achFrs()).filter(f => f.actif !== false || f.id === C.frs);
+    const FR = achLive(achFrs()).filter(f => achFrsOk(f) || f.id === C.frs);
     d.innerHTML = sviWinCard({ cls: "frs-card cmf-card", close: "data-x", title: "COMMANDE — " + esc(C.ref) + (C.av ? " · AVENANT " + C.av : "") + " · " + (ACH_CMF_ST[C.state] || "") + (edAv ? " (AVENANT EN COURS)" : ""),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
         <div class="frs-sec"><div class="frs-g">
@@ -157,6 +157,7 @@ function achCmfFiche(id, done) {
         C.av = (C.av || 0) + 1; C.avH = (C.avH || []).concat({ n: C.av, t: achNow(), motif: C.__avM, ht: C.__avHt }); delete C.__avM; delete C.__avHt; edAv = false; store("AVENANT " + C.av); draw(); return; }
       store("MODIFICATION"); draw(); return; }
     if (e.target.closest("[data-valid]")) { pull(); if (!check()) return;
+      { const fr = achFrs().find(f => f.id === C.frs); if (fr && (fr.bloq || fr.arch)) { svToast("FOURNISSEUR " + (fr.bloq ? "BLOQUÉ : " + (fr.bloq.why || "") : "ARCHIVÉ") + ".", 4000); return; } }
       if (!(await svConfirm({ title: "VALIDER LA COMMANDE", text: C.ref + " : " + achF2(achCmfTot(C).ttc) + " TTC (" + frMoney(achCmfTot(C).ttc) + "). LE MONTANT EST ENGAGÉ SUR LE BUDGET DES BESOINS.", ok: "VALIDER", tone: "neutral" }))) return;
       C.state = "valide"; C.valide = achNow(); store("VALIDÉE"); draw(); return; }
     if (e.target.closest("[data-fac]")) { achFafFiche(null, { cmf: C.id }, () => draw()); return; }

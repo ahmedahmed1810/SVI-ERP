@@ -3295,6 +3295,17 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v804 : MASQUES DE SAISIE (ICE, IF, RC, CNSS, TÉLÉPHONE) réglés dans PARAMÉTRAGE › FORMAT, mise en forme à la frappe, refus hors masque ; paiement bloqué si l'attestation fiscale est expirée, DÉBLOQUER avec motif",
               c804 == ["06 12 34 56 78", False, True, False, True, False, "+212 6 12 34 56 78", "+212 6 12 34 56 78", True, "1234567", True, True, True, True, 5], c804)
+        # v809 : fournisseur BLOQUÉ (motif, H) refusé dans les nouvelles pièces ; ARCHIVER proposé seulement au mois de clôture, s'il est dormant
+        c809 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_frs_v1', 'svi_ach_paf_v1', 'svi_ach_prm_v1', 'svi_ach_cmf_v1', 'svi_ach_faf_v1'], keep = K.map(k => localStorage.getItem(k));
+            ['svi_ach_cmf_v1', 'svi_ach_faf_v1', 'svi_ach_paf_v1'].forEach(k => localStorage.setItem(k, '[]'));
+            const F = []; const f = achFrsNew(F, { nom: 'AFRA' }); f.occ = true; f.cree = '2020-01-01T00:00:00Z'; f.bloq = { u: 'X', t: achNow(), why: 'LITIGE' }; achFrsSave(F);
+            const r = [achFrsOk(f), achFrsWhy(f, F).some(x => /^BLOQUÉ : LITIGE/.test(x))];
+            achPafFiche(null, {}, () => {}); await w(250); r.push([...document.querySelectorAll('.paf-card select[data-k="frs"] option')].some(o => o.value === f.id)); document.getElementById('svConf')?.remove();
+            const P = JSON.parse(localStorage.getItem('svi_ach_prm_v1') || '{}'); P.exFin = new Date().getMonth() + 1; P.dorm = 12; localStorage.setItem('svi_ach_prm_v1', JSON.stringify(P));
+            r.push(achExFinMois(), achFrsDormant(f)); P.exFin = (new Date().getMonth() + 1) % 12 + 1; localStorage.setItem('svi_ach_prm_v1', JSON.stringify(P)); r.push(achExFinMois());
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
+        check("v809 : fournisseur BLOQUÉ refusé dans les nouvelles pièces (alerte avec le motif) ; ARCHIVER seulement au mois de clôture de l'exercice et s'il est dormant",
+              c809 == [False, True, False, True, True, False], c809)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

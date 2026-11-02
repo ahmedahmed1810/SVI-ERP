@@ -22,7 +22,7 @@ const achN = v => { const n = Number(String(v ?? "").replace(/\s| | /g, "").r
 const achJ = (k, d) => { try { const v = JSON.parse(SVI_LZ.dec(localStorage.getItem(k)) || "null"); return v === null ? d : v; } catch (e) { return d; } };
 const achW = (k, v) => { try { const s = JSON.stringify(v); localStorage.setItem(k, /^svi_ach_/.test(k) && s.length > 4000 ? SVI_LZ.enc(s) : s); return true; } catch (e) { return false; } };
 /* ---------- paramètres d'achat ---------- */
-const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: p.esp === undefined ? 5000 : achN(p.esp), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: p.avj === undefined ? 90 : achN(p.avj), chqj: p.chqj === undefined ? 30 : achN(p.chqj), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })) }; };
+const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: p.esp === undefined ? 5000 : achN(p.esp), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: p.avj === undefined ? 90 : achN(p.avj), chqj: p.chqj === undefined ? 30 : achN(p.chqj), dorm: p.dorm === undefined ? 12 : achN(p.dorm), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })) }; };
 const achPrmSave = p => achW(ACH_K.prm, p);
 /* banque d'un RIB : ses 3 premiers chiffres (code « 101-199 » = plage) */
 const achBankHasCode = (b, c) => String(b.code || "").split(/[,;\s]+/).filter(Boolean).some(x => { const m = x.match(/^(\d{3})-(\d{3})$/); return m ? +c >= +m[1] && +c <= +m[2] : x === c; });
@@ -151,6 +151,13 @@ const achFrsNote = f => { const E = f.evl || []; return E.length ? E.reduce((t, 
 /* v804 (checklist C1.43) : attestation de régularité fiscale expirée (la plus récente) → paiement bloqué, sauf déblocage avec motif */
 const achFrsAttExp = f => { const A = ((f && f.docf) || []).filter(d => d.type === "ATTESTATION DE RÉGULARITÉ FISCALE" && d.exp).map(d => d.exp).sort();
   return A.length ? A[A.length - 1] < new Date().toISOString().slice(0, 10) : false; };
+/* v809 : fournisseur utilisable dans une nouvelle pièce = ni supprimé, ni inactif, ni bloqué, ni archivé */
+const achFrsOk = f => !!f && !f.del && f.actif !== false && !f.bloq && !f.arch;
+/* C1.45 : dernier achat (commande ou facture) ; dormant = sans achat depuis PARAMÈTRES › dorm mois ; archivage proposé au mois de clôture de l'exercice */
+const achFrsLast = id => { let d = ""; achCmf().filter(c => c.frs === id && c.state !== "annule").forEach(c => { const x = String(c.valide || c.cree || "").slice(0, 10); if (x > d) d = x; });
+  achFaf().filter(x => x.frs === id && x.state !== "annule").forEach(x => { const y = String(x.dFac || x.cree || "").slice(0, 10); if (y > d) d = y; }); return d; };
+const achFrsDormant = f => { const d = achFrsLast(f.id) || String(f.cree || "").slice(0, 10), lim = new Date(); lim.setMonth(lim.getMonth() - achPrm().dorm); return !!d && d < lim.toISOString().slice(0, 10); };
+const achExFinMois = () => new Date().getMonth() + 1 === achPrm().exFin;
 const achFrsWhy = (f, L) => {
   const w = [], today = new Date().toISOString().slice(0, 10), soon = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
   if (!achU(f.nom)) w.push("NOM MANQUANT");
@@ -163,6 +170,8 @@ const achFrsWhy = (f, L) => {
   if (f.ribChg) w.push("RIB MODIFIÉ LE " + String(f.ribChg).slice(0, 10).split("-").reverse().join("/") + " : À VÉRIFIER AVANT TOUT PAIEMENT");
   /* v803 : revue de la fiche une fois par an (checklist C1.55) */
   if (f.revue && f.revue < new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10)) w.push("FICHE À REVOIR : DERNIÈRE REVUE LE " + String(f.revue).split("-").reverse().join("/"));
+  if (f.bloq) w.push("BLOQUÉ : " + (f.bloq.why || ""));
+  if (f.arch) w.push("ARCHIVÉ LE " + String(f.arch).slice(0, 10).split("-").reverse().join("/"));
   /* v806 : clé du RIB (C1.40) — le RIB de 24 chiffres doit être divisible par 97 ; signalé, pas bloquant */
   (f.ribs || []).forEach(r => { if (achRibOk(r.rib) && !achRibKeyOk(r.rib)) w.push("CLÉ DU RIB À VÉRIFIER : " + achDig(r.rib)); });
   { const t = (f.tar || []).filter(x => x.valid && x.valid < today); if (t.length) w.push("TARIF EXPIRÉ : " + t.map(x => x.des).join(", ")); }

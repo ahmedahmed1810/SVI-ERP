@@ -170,7 +170,7 @@ function achCafFiche(id, done) {
     }
     if (e.target.closest("[data-addfrs]")) {
       pull(); const cats = new Set(C.lignes.map(l => (achArts().find(a => achKey(a.des, a.u) === achKey(l.des, l.u)) || {}).cat).filter(Boolean));
-      const F = achLive(achFrs()).filter(f => f.actif !== false && !C.frs.includes(f.id)).map(f => ({ f, s: (f.fam || []).some(x => cats.has(x)) })).sort((a, b) => b.s - a.s || a.f.nom.localeCompare(b.f.nom, "fr"));
+      const F = achLive(achFrs()).filter(f => achFrsOk(f) && !C.frs.includes(f.id)).map(f => ({ f, s: (f.fam || []).some(x => cats.has(x)) })).sort((a, b) => b.s - a.s || a.f.nom.localeCompare(b.f.nom, "fr"));
       if (!F.length) { svToast("AUCUN AUTRE FOURNISSEUR ACTIF (ACHAT › FOURNISSEURS).", 3000); return; }
       const pick = await achPickWin("FOURNISSEURS À CONSULTER", F.map(x => ({ v: x.f.id, lab: x.f.code + " — " + x.f.nom + (x.s ? "  ★ FOURNIT CES FAMILLES" : "") })));
       pick.forEach(f => { C.frs.push(f); C.rep[f] = { st: "attente" }; }); draw(); return;
@@ -218,7 +218,7 @@ function achDvfFiche(id, done) {
   const V = v0 ? JSON.parse(JSON.stringify(v0)) : { id: "", ref: "", caf: "", frs: "", refFrs: "", date: new Date().toISOString().slice(0, 10), validite: "", lignes: [], state: "recu" };
   const ro = !!v0 && v0.state !== "recu", d = sviWinNew();
   const draw = () => {
-    const t = achDvfTot(V), why = V.id ? achDvfWhy(V) : [], dis = ro ? " disabled" : "", FR = achLive(achFrs()).filter(f => f.actif !== false || f.id === V.frs);
+    const t = achDvfTot(V), why = V.id ? achDvfWhy(V) : [], dis = ro ? " disabled" : "", FR = achLive(achFrs()).filter(f => achFrsOk(f) || f.id === V.frs);
     d.innerHTML = sviWinCard({ cls: "frs-card dvf-card", close: "data-x", title: v0 ? "DEVIS — " + esc(V.ref) + " · " + ({ recu: "REÇU", retenu: "RETENU", rejete: "REJETÉ", annule: "ANNULÉ" }[V.state]) : "NOUVEAU DEVIS",
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
         <div class="frs-sec"><div class="frs-g">

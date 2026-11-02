@@ -23,7 +23,7 @@ const achN = v => { const n = Number(String(v ?? "").replace(/\s| | /g, "").r
 const achJ = (k, d) => { try { const v = JSON.parse(SVI_LZ.dec(localStorage.getItem(k)) || "null"); return v === null ? d : v; } catch (e) { return d; } };
 const achW = (k, v) => { try { const s = JSON.stringify(v); localStorage.setItem(k, /^svi_ach_/.test(k) && s.length > 4000 ? SVI_LZ.enc(s) : s); return true; } catch (e) { return false; } };
 /* ---------- paramètres d'achat ---------- */
-const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: p.esp === undefined ? 5000 : achN(p.esp), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: p.avj === undefined ? 90 : achN(p.avj), chqj: p.chqj === undefined ? 30 : achN(p.chqj), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })) }; };
+const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: p.esp === undefined ? 5000 : achN(p.esp), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: p.avj === undefined ? 90 : achN(p.avj), chqj: p.chqj === undefined ? 30 : achN(p.chqj), dorm: p.dorm === undefined ? 12 : achN(p.dorm), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })) }; };
 const achPrmSave = p => achW(ACH_K.prm, p);
 /* banque d'un RIB : ses 3 premiers chiffres (code « 101-199 » = plage) */
 const achBankHasCode = (b, c) => String(b.code || "").split(/[,;\s]+/).filter(Boolean).some(x => { const m = x.match(/^(\d{3})-(\d{3})$/); return m ? +c >= +m[1] && +c <= +m[2] : x === c; });
@@ -152,6 +152,13 @@ const achFrsNote = f => { const E = f.evl || []; return E.length ? E.reduce((t, 
 /* v804 (checklist C1.43) : attestation de régularité fiscale expirée (la plus récente) → paiement bloqué, sauf déblocage avec motif */
 const achFrsAttExp = f => { const A = ((f && f.docf) || []).filter(d => d.type === "ATTESTATION DE RÉGULARITÉ FISCALE" && d.exp).map(d => d.exp).sort();
   return A.length ? A[A.length - 1] < new Date().toISOString().slice(0, 10) : false; };
+/* v809 : fournisseur utilisable dans une nouvelle pièce = ni supprimé, ni inactif, ni bloqué, ni archivé */
+const achFrsOk = f => !!f && !f.del && f.actif !== false && !f.bloq && !f.arch;
+/* C1.45 : dernier achat (commande ou facture) ; dormant = sans achat depuis PARAMÈTRES › dorm mois ; archivage proposé au mois de clôture de l'exercice */
+const achFrsLast = id => { let d = ""; achCmf().filter(c => c.frs === id && c.state !== "annule").forEach(c => { const x = String(c.valide || c.cree || "").slice(0, 10); if (x > d) d = x; });
+  achFaf().filter(x => x.frs === id && x.state !== "annule").forEach(x => { const y = String(x.dFac || x.cree || "").slice(0, 10); if (y > d) d = y; }); return d; };
+const achFrsDormant = f => { const d = achFrsLast(f.id) || String(f.cree || "").slice(0, 10), lim = new Date(); lim.setMonth(lim.getMonth() - achPrm().dorm); return !!d && d < lim.toISOString().slice(0, 10); };
+const achExFinMois = () => new Date().getMonth() + 1 === achPrm().exFin;
 const achFrsWhy = (f, L) => {
   const w = [], today = new Date().toISOString().slice(0, 10), soon = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
   if (!achU(f.nom)) w.push("NOM MANQUANT");
@@ -164,6 +171,8 @@ const achFrsWhy = (f, L) => {
   if (f.ribChg) w.push("RIB MODIFIÉ LE " + String(f.ribChg).slice(0, 10).split("-").reverse().join("/") + " : À VÉRIFIER AVANT TOUT PAIEMENT");
   /* v803 : revue de la fiche une fois par an (checklist C1.55) */
   if (f.revue && f.revue < new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10)) w.push("FICHE À REVOIR : DERNIÈRE REVUE LE " + String(f.revue).split("-").reverse().join("/"));
+  if (f.bloq) w.push("BLOQUÉ : " + (f.bloq.why || ""));
+  if (f.arch) w.push("ARCHIVÉ LE " + String(f.arch).slice(0, 10).split("-").reverse().join("/"));
   /* v806 : clé du RIB (C1.40) — le RIB de 24 chiffres doit être divisible par 97 ; signalé, pas bloquant */
   (f.ribs || []).forEach(r => { if (achRibOk(r.rib) && !achRibKeyOk(r.rib)) w.push("CLÉ DU RIB À VÉRIFIER : " + achDig(r.rib)); });
   { const t = (f.tar || []).filter(x => x.valid && x.valid < today); if (t.length) w.push("TARIF EXPIRÉ : " + t.map(x => x.des).join(", ")); }
@@ -502,7 +511,7 @@ function sviAchInit() {
         <span class="ach-tvaw"><input class="ins-in ach-pdirect number" inputmode="decimal" value="${esc(F2(P.direct))}" autocomplete="off"> DH</span></div>
       <div class="ach-pbox"><div class="ach-pt">TOLÉRANCE DE QUANTITÉ À LA RÉCEPTION (AU-DESSUS DU RESTE)</div>
         <span class="ach-tvaw"><input class="ins-in ach-ptol number" inputmode="decimal" value="${esc(F2(P.tol))}" autocomplete="off"> %</span></div>
-      ${[["ecart", "ÉCART TOLÉRÉ ENTRE LA FACTURE ET LE CALCUL (ARRONDIS), TTC", "DH"], ["rasT", "RETENUE À LA SOURCE SUR LA TVA, TAUX PAR DÉFAUT (% DE LA TVA)", "%"], ["esp", "PLAFOND DES PAIEMENTS EN ESPÈCES", "DH"], ["chqj", "CHÈQUE OU LCN NON ENCAISSÉ : ALERTE APRÈS", "JOURS"], ["avj", "AVANCE NON RÉCUPÉRÉE : ALERTE APRÈS", "JOURS"]].map(([k, lab, u]) => `<div class="ach-pbox"><div class="ach-pt">${lab}</div>
+      ${[["ecart", "ÉCART TOLÉRÉ ENTRE LA FACTURE ET LE CALCUL (ARRONDIS), TTC", "DH"], ["rasT", "RETENUE À LA SOURCE SUR LA TVA, TAUX PAR DÉFAUT (% DE LA TVA)", "%"], ["esp", "PLAFOND DES PAIEMENTS EN ESPÈCES", "DH"], ["chqj", "CHÈQUE OU LCN NON ENCAISSÉ : ALERTE APRÈS", "JOURS"], ["avj", "AVANCE NON RÉCUPÉRÉE : ALERTE APRÈS", "JOURS"], ["dorm", "FOURNISSEUR DORMANT : SANS ACHAT DEPUIS", "MOIS"], ["exFin", "MOIS DE CLÔTURE DE L'EXERCICE (1 À 12) : SEUL MOIS OÙ L'ARCHIVAGE EST PROPOSÉ", "MOIS"]].map(([k, lab, u]) => `<div class="ach-pbox"><div class="ach-pt">${lab}</div>
         <span class="ach-tvaw"><input class="ins-in ach-pnum number" data-pk="${k}" inputmode="decimal" value="${esc(F2(P[k]))}" autocomplete="off"> ${u}</span></div>`).join("")}
       <div class="ach-pbox"><div class="ach-pt">IMPORTER LES DONNÉES DE NOVAPP (FICHIER novapp-achats.json) — REMPLACE LES DONNÉES DES ACHATS</div>
         <input type="file" class="ach-novimp" accept=".json,application/json"></div>
@@ -1374,7 +1383,7 @@ function achCafFiche(id, done) {
     }
     if (e.target.closest("[data-addfrs]")) {
       pull(); const cats = new Set(C.lignes.map(l => (achArts().find(a => achKey(a.des, a.u) === achKey(l.des, l.u)) || {}).cat).filter(Boolean));
-      const F = achLive(achFrs()).filter(f => f.actif !== false && !C.frs.includes(f.id)).map(f => ({ f, s: (f.fam || []).some(x => cats.has(x)) })).sort((a, b) => b.s - a.s || a.f.nom.localeCompare(b.f.nom, "fr"));
+      const F = achLive(achFrs()).filter(f => achFrsOk(f) && !C.frs.includes(f.id)).map(f => ({ f, s: (f.fam || []).some(x => cats.has(x)) })).sort((a, b) => b.s - a.s || a.f.nom.localeCompare(b.f.nom, "fr"));
       if (!F.length) { svToast("AUCUN AUTRE FOURNISSEUR ACTIF (ACHAT › FOURNISSEURS).", 3000); return; }
       const pick = await achPickWin("FOURNISSEURS À CONSULTER", F.map(x => ({ v: x.f.id, lab: x.f.code + " — " + x.f.nom + (x.s ? "  ★ FOURNIT CES FAMILLES" : "") })));
       pick.forEach(f => { C.frs.push(f); C.rep[f] = { st: "attente" }; }); draw(); return;
@@ -1422,7 +1431,7 @@ function achDvfFiche(id, done) {
   const V = v0 ? JSON.parse(JSON.stringify(v0)) : { id: "", ref: "", caf: "", frs: "", refFrs: "", date: new Date().toISOString().slice(0, 10), validite: "", lignes: [], state: "recu" };
   const ro = !!v0 && v0.state !== "recu", d = sviWinNew();
   const draw = () => {
-    const t = achDvfTot(V), why = V.id ? achDvfWhy(V) : [], dis = ro ? " disabled" : "", FR = achLive(achFrs()).filter(f => f.actif !== false || f.id === V.frs);
+    const t = achDvfTot(V), why = V.id ? achDvfWhy(V) : [], dis = ro ? " disabled" : "", FR = achLive(achFrs()).filter(f => achFrsOk(f) || f.id === V.frs);
     d.innerHTML = sviWinCard({ cls: "frs-card dvf-card", close: "data-x", title: v0 ? "DEVIS — " + esc(V.ref) + " · " + ({ recu: "REÇU", retenu: "RETENU", rejete: "REJETÉ", annule: "ANNULÉ" }[V.state]) : "NOUVEAU DEVIS",
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
         <div class="frs-sec"><div class="frs-g">
@@ -1572,7 +1581,7 @@ function achCmfFiche(id, done) {
     const ro = !(C.state === "instance" || edAv), dis = ro ? " disabled" : "", t = achCmfTot(C), why = achCmfWhy(C), R = achRcp(), T = achRtr();
     const BL = achBsn(), DV = achDvf(), PV = C.nat === "PRESTATIONS ET HONORAIRES";
     const opt = (L, v) => L.map(x => `<option value="${esc(x[0])}"${x[0] === v ? " selected" : ""}>${esc(x[1])}</option>`).join("");
-    const FR = achLive(achFrs()).filter(f => f.actif !== false || f.id === C.frs);
+    const FR = achLive(achFrs()).filter(f => achFrsOk(f) || f.id === C.frs);
     d.innerHTML = sviWinCard({ cls: "frs-card cmf-card", close: "data-x", title: "COMMANDE — " + esc(C.ref) + (C.av ? " · AVENANT " + C.av : "") + " · " + (ACH_CMF_ST[C.state] || "") + (edAv ? " (AVENANT EN COURS)" : ""),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
         <div class="frs-sec"><div class="frs-g">
@@ -1640,6 +1649,7 @@ function achCmfFiche(id, done) {
         C.av = (C.av || 0) + 1; C.avH = (C.avH || []).concat({ n: C.av, t: achNow(), motif: C.__avM, ht: C.__avHt }); delete C.__avM; delete C.__avHt; edAv = false; store("AVENANT " + C.av); draw(); return; }
       store("MODIFICATION"); draw(); return; }
     if (e.target.closest("[data-valid]")) { pull(); if (!check()) return;
+      { const fr = achFrs().find(f => f.id === C.frs); if (fr && (fr.bloq || fr.arch)) { svToast("FOURNISSEUR " + (fr.bloq ? "BLOQUÉ : " + (fr.bloq.why || "") : "ARCHIVÉ") + ".", 4000); return; } }
       if (!(await svConfirm({ title: "VALIDER LA COMMANDE", text: C.ref + " : " + achF2(achCmfTot(C).ttc) + " TTC (" + frMoney(achCmfTot(C).ttc) + "). LE MONTANT EST ENGAGÉ SUR LE BUDGET DES BESOINS.", ok: "VALIDER", tone: "neutral" }))) return;
       C.state = "valide"; C.valide = achNow(); store("VALIDÉE"); draw(); return; }
     if (e.target.closest("[data-fac]")) { achFafFiche(null, { cmf: C.id }, () => draw()); return; }
@@ -1957,7 +1967,7 @@ function achPafFiche(id, o, done) {
   const draw = () => {
     sum();
     const ro = P.state !== "instance", dis = ro ? " disabled" : "", why = p0 ? achPafWhy(P) : [], fr = achFrs().find(f => f.id === P.frs), rib = fr ? achFrsRibP(fr) : null;
-    const FR = achLive(achFrs()).filter(f => f.actif !== false || f.id === P.frs);
+    const FR = achLive(achFrs()).filter(f => achFrsOk(f) || f.id === P.frs);
     const FA = achFaf().filter(f => f.frs === P.frs && f.state === "bap" && (achFafReste(f) > 0.005 || (P.aff || []).some(a => a.fa === f.id)));
     const AV = achAvf().filter(a => a.frs === P.frs && a.state !== "annule" && (achAvfReste(a) > 0.005 || (P.ded || []).some(x => x.av === a.id)));
     const CM = achCmf().filter(c => c.frs === P.frs && (c.state === "valide" || c.state === "instance") && c.avT);
@@ -2011,6 +2021,7 @@ function achPafFiche(id, o, done) {
     if (e.target.closest("[data-save]")) { pull(); if (!check()) return; store(p0 || achPaf().some(x => x.id === P.id) ? "MODIFICATION" : "CRÉATION"); draw(); return; }
     if (e.target.closest("[data-valid]")) { pull(); if (!check()) return;
       const fr = achFrs().find(f => f.id === P.frs);
+      if (fr && (fr.bloq || fr.arch)) { svToast("FOURNISSEUR " + (fr.bloq ? "BLOQUÉ : " + (fr.bloq.why || "") : "ARCHIVÉ") + " — PAIEMENT REFUSÉ.", 4000); return; }
       if (fr && achFrsAttExp(fr) && !P.deb) { svToast("ATTESTATION DE RÉGULARITÉ FISCALE EXPIRÉE : PAIEMENT BLOQUÉ (DÉBLOQUER AVEC UN MOTIF).", 5000); draw(); return; }
       if ((P.mode === "VIREMENT" || P.mode === "PRÉLÈVEMENT") && fr && fr.ribChg) { svToast("RIB DU FOURNISSEUR MODIFIÉ : À VÉRIFIER (FICHE FOURNISSEUR, RIB VÉRIFIÉ) AVANT TOUT PAIEMENT.", 5000); return; }
       if ((P.mode === "VIREMENT" || P.mode === "PRÉLÈVEMENT") && fr && !achFrsRibP(fr)) { svToast("AUCUN RIB POUR CE FOURNISSEUR.", 3500); return; }
@@ -2409,10 +2420,18 @@ function achFrsNvMod(ctx) {
       return { id, code: f.code, ref: achRefSvi(f, achFrs(), "FRS"), tag: "FOURNISSEUR", title: f.nom, st: achSt(f), del: !!f.del, inactif: f.actif === false, why: frsWhy(f),
         info: done => achFrsFiche(id, "", () => done()),
         menu: [achSt(f) === "instance" && !f.del ? { k: "val", lab: "VALIDER" } : null, { k: "rib", lab: "RIB" }, { k: "cte", lab: "CONTACTS (" + (f.cte || []).length + ")" }, { k: "evl", lab: "ÉVALUATIONS (" + (f.evl || []).length + ")" },
-          { k: "cgf", lab: "CONTRATS (" + (f.cgf || []).length + ")" }, { k: "docf", lab: "DOCUMENTS FISCAUX (" + (f.docf || []).length + ")" }, f.del ? { k: "rest", lab: "RESTAURER" } : { k: "del", lab: "METTRE À LA CORBEILLE" }].filter(Boolean),
+          { k: "cgf", lab: "CONTRATS (" + (f.cgf || []).length + ")" }, { k: "docf", lab: "DOCUMENTS FISCAUX (" + (f.docf || []).length + ")" },
+          f.del ? null : f.bloq ? { k: "debl", lab: "DÉBLOQUER" } : { k: "bloq", lab: "BLOQUER" },
+          f.del ? null : f.arch ? { k: "desarch", lab: "DÉSARCHIVER" } : achExFinMois() && achFrsDormant(f) ? { k: "arch", lab: "ARCHIVER (DORMANT)" } : null, f.del ? { k: "rest", lab: "RESTAURER" } : { k: "del", lab: "METTRE À LA CORBEILLE" }].filter(Boolean),
         act: async (k, redraw) => { const L = achFrs(), x = L.find(y => y.id === id); if (!x) return;
           if (k === "val") { if (await achNvValider(L, x, x.code, x.nom, frsWhy(x), achFrsSave)) redraw(); return; }
           if (["rib", "cte", "evl", "cgf", "docf"].includes(k)) { achFrsFiche(id, k === "rib" ? "rib" : k, redraw); return; }
+          /* v809 : BLOQUER (motif, noté dans H) — refusé dans les nouvelles consultations, devis, commandes et paiements ; ARCHIVER au mois de clôture si dormant (C1.45) */
+          if (k === "bloq") { const m = await achAsk("BLOQUER " + x.nom, "MOTIF DU BLOCAGE"); if (!m) return; x.bloq = { u: typeof sviUser === "function" ? sviUser() : "", t: achNow(), why: m }; x.mod = achNow(); achFrsSave(L); achHist(x.code, "BLOQUÉ", m); redraw(); return; }
+          if (k === "debl") { const m = await achAsk("DÉBLOQUER " + x.nom, "MOTIF DU DÉBLOCAGE"); if (!m) return; delete x.bloq; x.mod = achNow(); achFrsSave(L); achHist(x.code, "DÉBLOQUÉ", m); redraw(); return; }
+          if (k === "arch") { if (!(await svConfirm({ title: "ARCHIVER", text: x.code + " — " + x.nom + " : DERNIER ACHAT " + (achDFr(achFrsLast(x.id)) || "AUCUN") + ". IL NE POURRA PLUS ÊTRE CHOISI DANS UNE NOUVELLE PIÈCE.", ok: "ARCHIVER" }))) return;
+            x.arch = achNow(); x.mod = x.arch; achFrsSave(L); achHist(x.code, "ARCHIVÉ", "DORMANT"); redraw(); return; }
+          if (k === "desarch") { delete x.arch; x.mod = achNow(); achFrsSave(L); achHist(x.code, "DÉSARCHIVÉ", x.nom); redraw(); return; }
           if (k === "del") { if (!(await svConfirm({ title: "METTRE À LA CORBEILLE", text: x.code + " — " + x.nom + " (RESTAURABLE).", ok: "METTRE À LA CORBEILLE" }))) return; x.del = achNow(); achFrsSave(L); achHist(x.code, "CORBEILLE", x.nom); redraw(); return; }
           if (k === "rest") { x.del = ""; achFrsSave(L); achHist(x.code, "RESTAURATION", x.nom); redraw(); } },
         links: [

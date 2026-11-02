@@ -209,7 +209,7 @@ function achPafFiche(id, o, done) {
   const draw = () => {
     sum();
     const ro = P.state !== "instance", dis = ro ? " disabled" : "", why = p0 ? achPafWhy(P) : [], fr = achFrs().find(f => f.id === P.frs), rib = fr ? achFrsRibP(fr) : null;
-    const FR = achLive(achFrs()).filter(f => f.actif !== false || f.id === P.frs);
+    const FR = achLive(achFrs()).filter(f => achFrsOk(f) || f.id === P.frs);
     const FA = achFaf().filter(f => f.frs === P.frs && f.state === "bap" && (achFafReste(f) > 0.005 || (P.aff || []).some(a => a.fa === f.id)));
     const AV = achAvf().filter(a => a.frs === P.frs && a.state !== "annule" && (achAvfReste(a) > 0.005 || (P.ded || []).some(x => x.av === a.id)));
     const CM = achCmf().filter(c => c.frs === P.frs && (c.state === "valide" || c.state === "instance") && c.avT);
@@ -263,6 +263,7 @@ function achPafFiche(id, o, done) {
     if (e.target.closest("[data-save]")) { pull(); if (!check()) return; store(p0 || achPaf().some(x => x.id === P.id) ? "MODIFICATION" : "CRÉATION"); draw(); return; }
     if (e.target.closest("[data-valid]")) { pull(); if (!check()) return;
       const fr = achFrs().find(f => f.id === P.frs);
+      if (fr && (fr.bloq || fr.arch)) { svToast("FOURNISSEUR " + (fr.bloq ? "BLOQUÉ : " + (fr.bloq.why || "") : "ARCHIVÉ") + " — PAIEMENT REFUSÉ.", 4000); return; }
       if (fr && achFrsAttExp(fr) && !P.deb) { svToast("ATTESTATION DE RÉGULARITÉ FISCALE EXPIRÉE : PAIEMENT BLOQUÉ (DÉBLOQUER AVEC UN MOTIF).", 5000); draw(); return; }
       if ((P.mode === "VIREMENT" || P.mode === "PRÉLÈVEMENT") && fr && fr.ribChg) { svToast("RIB DU FOURNISSEUR MODIFIÉ : À VÉRIFIER (FICHE FOURNISSEUR, RIB VÉRIFIÉ) AVANT TOUT PAIEMENT.", 5000); return; }
       if ((P.mode === "VIREMENT" || P.mode === "PRÉLÈVEMENT") && fr && !achFrsRibP(fr)) { svToast("AUCUN RIB POUR CE FOURNISSEUR.", 3500); return; }
