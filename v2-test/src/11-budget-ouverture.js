@@ -3,11 +3,17 @@
     /* v634 : ouverture en cours — si l'application bloque, le budget ne sera pas rouvert au démarrage suivant */
     try { localStorage.setItem("svi_opening_v1", ref); setTimeout(() => { try { localStorage.removeItem("svi_opening_v1"); } catch (e) {} }, 4000); } catch (e) {}
     /* v649 : page quittée ou rechargée (NOUVELLE VERSION…) pendant l'ouverture = pas un blocage (une page bloquée ne passe pas ici) */
-    if (!window.__sviOpenHide) { window.__sviOpenHide = 1; addEventListener("pagehide", () => { try { localStorage.removeItem("svi_opening_v1"); } catch (e) {} }); }
+    if (!window.__sviOpenHide) { window.__sviOpenHide = 1; window.__sviNoWrap = 1; addEventListener("pagehide", () => { try { localStorage.removeItem("svi_opening_v1"); } catch (e) {} }); window.__sviNoWrap = 0; }
     const budget =
       groups.get(ref);
 
     if (!budget) return;
+    /* v789 : nouvelle ouverture = nouveau numéro ; les écouteurs posés une seule fois sur le conteneur sont reposés pour CE budget */
+    window.__sviBdgShell = shell; window.__sviBdgGen = (window.__sviBdgGen || 0) + 1;
+    ["__aprBound", "__avoBound", "__chkBound", "__condBound", "__dimBound", "__dlyBound", "__dlyFillBound", "__dlyGSelB", "__dlyKbBound", "__dlyLiftBound", "__dlyPinchBound",
+     "__dlyPlanBound", "__dupBound", "__emptyBound", "__faBound", "__filtCntBound", "__foldBound", "__fuseBound", "__gcbBound", "__gnBound", "__i1Bound", "__ibdOn", "__incBound",
+     "__insBound", "__insTouch", "__layDetRs", "__layFocus", "__libBound", "__lkBound", "__lnkCbBound", "__lotTreeBound", "__mgBound", "__modIndBound", "__moreBound", "__onlyBound",
+     "__qqDescBound", "__rdblBound", "__ruleBound", "__sdTabBound", "__tabGenB", "__unlBound", "__unlGoBound"].forEach(k => { delete shell[k]; });
     /* dernier budget consulté : rouvert à la prochaine ouverture */
     try { localStorage.setItem("svi_lastbdg_v1", ref); } catch (e) {}
     /* dernière vue de ce budget (v448) : enregistrée en partant, retrouvée à l'ouverture */
@@ -20,7 +26,7 @@
          une version, un scénario ou un recalage — fixé plus bas, une fois les écrans voisins connus (HNAV) */
       window.__sviBdgNav = null;
       if (!window.__sviSwipe) {
-        window.__sviSwipe = true;
+        window.__sviSwipe = true; window.__sviNoWrap = 1;   /* v789 : écouteurs communs à tous les budgets */
         let st = null;
         document.addEventListener("touchstart", e => {
           /* v786 (prompt codage, point 4) : balayage SEULEMENT sur l'en-tête (barre du haut) = document précédent / suivant ;
@@ -55,7 +61,7 @@
           }
           if (s0.max) window.__sviPendingMax = s0.max;
           if (nav.go) { nav.go(dx < 0 ? 1 : -1); return; }
-        }, { passive: true });
+        }, { passive: true }); window.__sviNoWrap = 0;
       }
     }
 

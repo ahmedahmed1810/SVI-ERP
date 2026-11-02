@@ -243,7 +243,9 @@
       Object.keys(LAY_SC).forEach(u => { if (pg.classList.contains("max-" + u)) return; const scr = pg.querySelector(LAY_SC[u]); if (!scr || !scr.offsetHeight) return;
         const nr = scr.querySelector("tbody " + LAY_NEW.split(", ").join(", tbody ")); if (!nr) return;
         const m = u === "detail" ? layDetMin() : layMinOf(u); if (scr.getBoundingClientRect().height > m + 3) return;
-        /* v787 : haut du tableau (première ligne entière), la ligne CRÉER reste fixée en bas */
+        /* v787 : haut du tableau (première ligne entière), la ligne CRÉER reste fixée en bas ;
+           v789 : sauf si une case du bloc est en saisie ou sélectionnée (la ligne créée reste visible) */
+        const a = document.activeElement; if (a && a !== document.body && scr.contains(a)) return;
         scr.scrollTop = 0; }); };
     shell.__layMinScroll = layMinScroll;
     /* v774 (point 9) : DISPOSITION PAR DÉFAUT — ordre d'origine et chaque bloc à exactement 5 lignes visibles

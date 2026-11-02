@@ -33,7 +33,7 @@
     window.__sviRO = INS_RO_WHY;
     shell.classList.toggle("svi-ro", !!INS_RO_WHY);
     if (!window.__sviROon) {
-      window.__sviROon = true;
+      window.__sviROon = true; window.__sviNoWrap = 1;   /* v789 : écouteurs communs à tous les budgets */
       let roT = 0;
       const roSay = () => { if (Date.now() - roT > 2500) { roT = Date.now(); try { svToast(window.__sviRO, 3500); } catch (e) {} } };
       const EDIT_CLICK = ".ins-x, .ins-xall, .ins-delc, .dly-pred, .dly-pred-new, .dly-succ, .dly-gen, .dly-lev, .dly-jal, .dly-vd-x, #insUnlBtn, .blk-adj-btn, .blk-cfg-btn, .blk-hcfg-btn, [data-act=import], [data-act=paste], [data-act=cut], [data-act=del], .ins-rdbl, .cond-btn, .only-c";
@@ -50,7 +50,7 @@
         if (e.type === "pointerdown" || e.type === "touchstart" || e.type === "mousedown") { if (t.closest(DRAG) && !t.closest("input[type=checkbox], .lk-rd, .ins-rd, .ins-tfz, .lot-fold, .dly-fold")) { e.stopPropagation(); e.stopImmediatePropagation(); } return; }
         if (e.type === "click" && t.closest(EDIT_CLICK)) return stop(true);
       };
-      ["focusin", "beforeinput", "paste", "drop", "dragstart", "keydown", "pointerdown", "mousedown", "touchstart", "click"].forEach(ev => document.addEventListener(ev, guard, true));
+      ["focusin", "beforeinput", "paste", "drop", "dragstart", "keydown", "pointerdown", "mousedown", "touchstart", "click"].forEach(ev => document.addEventListener(ev, guard, true)); window.__sviNoWrap = 0;
     }
     if (INS && typeof sviLockOpen === "function") sviLockOpen(budget.inst.ref, INS_REAL);
     window.__sviZoneCtx = INS ? { ref: budget.inst.ref, edit: INS_REAL, shell, tab: () => insTabName(active),
@@ -1285,12 +1285,33 @@
       lotNumC = { k, M };
       return M;
     };
+    /* v789 (Ahmed, 01/11) : NOM D'UN GROUPE — au même niveau, numéroté dans l'ordre de sa création (GROUPE 1, 2, 3…, quelle que soit sa place) ;
+       un groupe créé dans un groupe prend le numéro de son parent (GROUPE 1.1, 1.2…). Le nom enregistré ne change pas : seul l'affichage suit la règle. */
+    let lotGrpC = { k: null, M: new Map() };
+    const lotGrpNo = segs => {
+      const k = INS.lot.map(x => x.v).join("\n");
+      if (lotGrpC.k !== k) lotGrpC = { k, M: new Map() };
+      const key = segs.map(U_).join(" / ");
+      if (lotGrpC.M.has(key)) return lotGrpC.M.get(key);
+      const out = [];
+      segs.forEach((g, i) => {
+        if (!lotAutoNo(g)) { out.length = 0; return; }
+        const par = segs.slice(0, i).map(U_).join(" / "), sib = new Set();
+        INS.lot.forEach(r => { const s2 = lotSegs(r); if (s2.length > i && s2.slice(0, i).map(U_).join(" / ") === par && lotAutoNo(s2[i])) sib.add(U_(s2[i])); });
+        const arr = [...sib].sort((a, b) => lotAutoNo(a).split(".").map(Number).reduce((r, v, j) => r || v - (Number(lotAutoNo(b).split(".")[j]) || 0), 0));
+        out.push(arr.indexOf(U_(g)) + 1);
+      });
+      const r = out.join(".") || lotAutoNo(segs[segs.length - 1]);
+      lotGrpC.M.set(key, r); return r;
+    };
+    /* chemin d'un lot tel qu'affiché (groupes renumérotés) — PRÉDÉCESSEURS, SUCCESSEURS, TÂCHE… */
+    const lotPathDisp = v => { const sg = String(v || "").split("/").map(x => x.trim()).filter(Boolean); return sg.map((g, i) => lotAutoNo(g) ? "GROUPE " + lotGrpNo(sg.slice(0, i + 1)) : g).join(" / "); };
     const lotLab = segs => {
       const sg = (segs || []).map(x => String(x || "").trim()).filter(Boolean);
       const no = lotNumMap().get(sg.map(U_).join(" / ")) || "", last = sg[sg.length - 1] || "";
       /* v528 (remarque 4) : un titre « NIVEAU … » (même au premier rang) s'affiche « GROUPE » + son numéro ; v532 : celui de son nom */
       const auto = LVL_AUTO.test(last);
-      const name = auto ? "GROUPE " + lotAutoNo(last) : last;
+      const name = auto ? "GROUPE " + lotGrpNo(sg) : last;
       return { no, auto, name, full: auto ? name : (no ? no + " " : "") + last };
     };
     /* nom d'un nouveau niveau de lot (16/10/2026) : « NIVEAU n », numéro suivant dans le budget (anciens « NOUVEAU NIVEAU n » comptés) */
@@ -1301,12 +1322,13 @@
       /* v451 : tous les lots principaux sont au niveau 1 → dessous NIVEAU 1.1, 1.2… ; sous NIVEAU 1.1 → 1.1.1… ;
          sous un sous-lot portant un intitulé : numéro selon sa profondeur (1.1 pour le 2e niveau, etc.) */
       /* v532 : numéro = celui du parent (tel qu'affiché) + le suivant libre parmi ses lignes ; il ne changera plus */
-      const M = lotNumMap(), pn = P.length ? M.get(P.join(" / ")) || "" : "";
-      const base = pn ? pn + "." : "";
+      /* v789 : GROUPE n = rang de création parmi les groupes de ce niveau ; dans un groupe : numéro du parent + rang (1.1, 1.2…) */
+      const pa = P.length && lotAutoNo(parent[parent.length - 1]) ? lotGrpNo(parent) : "";
+      const base = pa ? pa + "." : "";
       const kids = new Set();
       INS.lot.forEach(x => { const sg = lotSegs(x).map(U_); if (sg.length > P.length && P.every((g, i) => g === sg[i])) kids.add(sg.slice(0, P.length + 1).join(" / ")); });
-      const used = [...kids].map(p => Number(String(M.get(p) || "").split(".").pop()) || 0);
-      let n = (used.length ? Math.max(...used) : 0) + 1;
+      const nGrp = [...kids].filter(p => lotAutoNo(p.split(" / ").pop())).length;
+      let n = nGrp + 1;
       while (kids.has(P.concat("GROUPE " + base + n).join(" / "))) n++;
       return "GROUPE " + base + n;
     };

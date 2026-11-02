@@ -3551,7 +3551,9 @@ html body .blk-tools .blk-btn.blk-max-btn, #ach .nvp .blk-tools [data-nvmax] { d
 /* barre de titre des blocs un peu moins haute ; ⋯ du bloc plus petit */
 .bdg-d-page .bdg-d-block-title, #ach .nvp .bdg-d-block-title { padding-top: 2px !important; padding-bottom: 2px !important; min-height: 0 !important; }
 .bdg-d-block-title .blk-tools .blk-more, #ach .nvp .blk-tools [data-nvmore] { width: 28px !important; height: 24px !important; border-radius: 7px !important; font-size: 15px !important; }
-.ins-hcol .lot-in :is(input.ins-in, input.lot-gname) { padding-left: 0 !important; text-indent: 0; }
+.ins-hcol .lot-in :is(input.ins-in, input.lot-gname) { padding-left: 5px !important; text-indent: 0; }
+/* v789 : nom d'un lot / d'une activité décollé de la case d'avant ; la ligne CRÉER commence au même alignement */
+.ins-hcol .ins-li:not(.ins-new) > input.ins-in { padding-left: 5px !important; }
 /* ===== v788 (Ahmed, 01/11) — base commune ===== */
 :root {
   /* trois gris de structure, du plus foncé au plus clair : barre du bloc, onglets, titres des colonnes */
@@ -3612,3 +3614,19 @@ html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dlyg-l { max-
 .ins-table tr.ins-gtitle td.ins-gtd { padding-left: calc(6px + var(--fold-w)) !important; }
 .ins-table tr.ins-gtitle td.ins-gtd > input.ins-gin[data-f="des"] { padding-left: 0 !important; }
 .ins-table tr.ins-gtitle .ins-gfz { width: calc(6px + var(--fold-w)) !important; justify-content: flex-end !important; padding-right: 1px; box-sizing: border-box; }
+/* v789 : menu tri / filtre dans l'ordre de Google Sheets — TRIER, puis FILTRER PAR CONDITION, puis FILTRER PAR VALEURS (recherche juste au-dessus des cases) */
+#cfMenu .cf-sep { height: 1px; background: #e5e9ef; margin: 6px 0; }
+#cfMenu .cf-h { font-size: 10.5px; font-weight: 800; color: #6b7480; letter-spacing: .03em; margin: 6px 2px 4px; }
+#cfMenu .cf-cond:empty { display: none; }
+#cfMenu .cf-h:has(+ .cf-cond:empty) { display: none; }
+/* v789 : petit menu des cases compact (trois mots courts) */
+#sviSelBar { min-width: 0 !important; width: max-content; padding: 3px !important; }
+#sviSelBar button { padding: 6px 12px !important; font-size: 11.5px !important; }
+#sviSelBar .blk-sep { margin: 2px 4px; }
+td.svi-cs.svi-cs1, .ins-hcol .ins-li.svi-cs1 { box-shadow: inset 0 0 0 1.5px var(--inst, #111827) !important; }
+/* v789 (remarque I) : DÉLAIS hors plein écran = tableau ordinaire : mêmes titres de colonnes que les autres onglets (hauteur, taille) */
+html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dlyg-l .dly-table thead th { height: var(--tb-head-h) !important; }
+html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dlyg-l .dly-table thead th { padding-top: 0 !important; padding-bottom: 0 !important; line-height: var(--tb-head-lh) !important; min-height: 0 !important; }
+html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dlyg-l .dly-table tbody td { height: var(--tb-row-h) !important; }
+/* v789 : CRÉER UN LOT ICI… commence au même alignement que les noms des lots (après la place du numéro et du signe) */
+.ins-hcol[data-ik="lot"] .ins-li.ins-new input.ins-in { padding-left: calc(2.4em + 2px + 14px + 4px + 5px) !important; }

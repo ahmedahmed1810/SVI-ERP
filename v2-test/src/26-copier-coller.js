@@ -510,8 +510,7 @@
         /* v788 (remarques 5 à 7) : au doigt — SÉLECTION MULTIPLE (chaque toucher ajoute / retire une case), ALLER / SÉLECTIONNER JUSQU'EN BAS */
         const lc = window.__sviLastCell;
         if (lc && lc.isConnected && (!blkEl || blkEl.contains(lc))) {
-          m.insertAdjacentHTML("afterbegin", `<button type="button" data-cs="multi"><span>${window.__sviMulti ? "✓ " : ""}SÉLECTION MULTIPLE</span></button>
-            <button type="button" data-cs="godown"><span>ALLER JUSQU'EN BAS</span></button>
+          m.insertAdjacentHTML("afterbegin", `<button type="button" data-cs="godown"><span>ALLER JUSQU'EN BAS</span></button>
             <button type="button" data-cs="seldown"><span>SÉLECTIONNER JUSQU'EN BAS</span></button>`);
           m.addEventListener("click", e => {
             const b = e.target.closest('[data-cs="multi"], [data-cs="godown"], [data-cs="seldown"]'); if (!b) return;

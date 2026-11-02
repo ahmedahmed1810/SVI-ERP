@@ -1,6 +1,6 @@
     /* ===== PLANNING (FORMAT 94) : prédécesseurs (plusieurs, communs à toutes les périodes de la tâche) ;
        une tâche commence au plus tôt le jour de la fin de tous ses prédécesseurs ===== */
-    const dlyName = key => { const [lo, se] = String(key).split("|"); return lkName("lot", lo) + " › " + lkName("sec", se); };
+    const dlyName = key => { const [lo, se] = String(key).split("|"); return lotPathDisp(lkName("lot", lo)) + " › " + lkName("sec", se); };   /* v789 : groupes renumérotés à l'affichage */
     /* liaisons typées : { k, t: FD | DD, o } (cahier, Planning budgétaire, Liaisons) */
     /* v617 (remarque 86) : FIN → DÉBUT, le décalage compte depuis la demi-journée qui suit la fin — les anciens décalages n ≥ 1
        (comptés depuis le jour de fin) deviennent n − 1, une seule fois par budget */

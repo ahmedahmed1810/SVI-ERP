@@ -3090,7 +3090,7 @@ function sviCfKit(o) {
     const inp = (n, v) => kind === "num" ? `<input class="cf-ca" data-n="${n}" inputmode="decimal" value="${esc(fmt(v))}" placeholder="VALEUR">` : kind === "txt" ? `<input class="cf-ca" data-n="${n}" value="${esc(v || "")}" placeholder="TEXTE" autocomplete="off">` : `<input type="date" class="cf-ca" data-n="${n}" value="${esc(v || "")}">`;
     /* v622 : liste CONDITION de l'application (plus la grande liste de l'iPad) — petites lignes, ✓ devant le choix en cours */
     const op0 = c ? c.op : "", lab0 = (ops.find(o => o[0] === op0) || ops[0])[1];
-    box.innerHTML = `<div class="cf-ct">CONDITION (${kind === "num" ? "NOMBRES" : kind === "date" ? "DATES" : "TEXTE"})</div><div class="cf-opw"><button type="button" class="cf-opb"><span>${lab0}</span><i>▾</i></button><div class="cf-opl" hidden>${ops.map(([k, l]) => `<button type="button" class="cf-opi${k === op0 ? " on" : ""}" data-op="${k}"><b>${k === op0 ? "✓" : ""}</b>${l}</button>`).join("")}</div><input type="hidden" class="cf-op" value="${op0}"></div>
+    box.innerHTML = `<div class="cf-opw"><button type="button" class="cf-opb"><span>${lab0}</span><i>▾</i></button><div class="cf-opl" hidden>${ops.map(([k, l]) => `<button type="button" class="cf-opi${k === op0 ? " on" : ""}" data-op="${k}"><b>${k === op0 ? "✓" : ""}</b>${l}</button>`).join("")}</div><input type="hidden" class="cf-op" value="${op0}"></div>
       <div class="cf-cv${c ? "" : " off"}">${inp("a", c && c.a)}<span class="cf-et${c && c.op === "bt" ? "" : " off"}"> ET </span>${`<span class="cf-bw${c && c.op === "bt" ? "" : " off"}">${inp("b", c && c.b)}</span>`}</div>`;
     box.addEventListener("click", ev => {
       if (ev.target.closest(".cf-opb")) { const L = box.querySelector(".cf-opl"); L.hidden = !L.hidden; cfPlace && cfPlace(); return; }
@@ -3137,10 +3137,13 @@ function sviCfKit(o) {
     m.innerHTML = `
       <div class="cf-rsz" title="Largeur et hauteur"></div>
       <button type="button" class="cf-x" aria-label="Fermer">✕</button>
-      <button type="button" class="cf-sort" data-dir="asc">↑ TRI CROISSANT</button>
-      <button type="button" class="cf-sort" data-dir="desc">↓ TRI DÉCROISSANT</button>${shell.__cfPar ? shell.__cfPar(t, key) : ""}
-      <div class="cf-search">🔍 <input type="search" class="cf-q" placeholder="RECHERCHER…"></div>
+      <button type="button" class="cf-sort" data-dir="asc">TRIER DE A À Z</button>
+      <button type="button" class="cf-sort" data-dir="desc">TRIER DE Z À A</button>${shell.__cfPar ? shell.__cfPar(t, key) : ""}
+      <div class="cf-sep"></div>
+      <div class="cf-h">FILTRER PAR CONDITION</div>
       <div class="cf-cond"></div>
+      <div class="cf-h">FILTRER PAR VALEURS</div>
+      <div class="cf-search">🔍 <input type="search" class="cf-q" placeholder="RECHERCHER…"></div>
       <div class="cf-list"></div>
       <div class="cf-foot">
         <button type="button" class="cf-clear">EFFACER</button>
@@ -3533,6 +3536,54 @@ document.addEventListener("keydown", e => {
   const later = () => { if (!q) q = requestAnimationFrame(fit); };
   new MutationObserver(m => { if (m.some(x => x.addedNodes.length)) later(); }).observe(document.documentElement, { childList: true, subtree: true });
   window.addEventListener("resize", later);
+}
+/* v789 (DÉFAUT GRAVE, 01/11) : l'écran d'un budget est dessiné dans un conteneur qui reste le même d'un budget à l'autre.
+   Les écouteurs posés sur ce conteneur (ou sur la page) par le code du budget gardaient le budget OUVERT EN PREMIER :
+   toucher un groupe redessinait alors les lots d'un autre budget. Désormais, chaque ouverture de budget a son numéro
+   (window.__sviBdgGen) : un écouteur posé par le code du budget ne réagit que pour le budget ouvert au moment où il a été posé. */
+(() => {
+  const P = EventTarget.prototype, add = P.addEventListener, rem = P.removeEventListener, W = new WeakMap();
+  const capOf = o => typeof o === "boolean" ? o : !!(o && o.capture);
+  P.addEventListener = function (t, fn, o) {
+    const g = window.__sviBdgGen;
+    if (g && !window.__sviNoWrap && typeof fn === "function" && (this === document || this === window || this === window.__sviBdgShell)) {
+      let st = ""; try { st = new Error().stack || ""; } catch (e) {}
+      if (/app-budget\.js/.test(st)) {
+        let m = W.get(fn); if (!m) { m = new Map(); W.set(fn, m); }
+        const k = t + "|" + capOf(o) + "|" + g;
+        let w = m.get(k); if (!w) { w = function (e) { if (window.__sviBdgGen !== g) return; return fn.call(this, e); }; m.set(k, w); }
+        m.set(t + "|" + capOf(o), w);
+        return add.call(this, t, w, o);
+      }
+    }
+    return add.call(this, t, fn, o);
+  };
+  P.removeEventListener = function (t, fn, o) {
+    const m = typeof fn === "function" ? W.get(fn) : null, w = m && m.get(t + "|" + capOf(o));
+    if (w) rem.call(this, t, w, o);
+    return rem.call(this, t, fn, o);
+  };
+})();
+/* v789 (remarques C et K) : la case en saisie (ligne qu'on vient de créer comprise) reste TOUJOURS visible et entière dans son bloc :
+   sous les titres des colonnes collés en haut, au-dessus de la ligne « CRÉER … ICI » et du TOTAL collés en bas — partout */
+{
+  const SC = ".bdg-h-col, .bdg-d-client-scroll, .bdg-d-scroll, .rec-scroll, .ach-scroll, .novapp-budget-table-wrap, .pv-scroll";
+  const NEW = "tbody tr:is(.ins-new, .rec-new, .scn-new, .qq-new, .dlw-newr, .dly-new, .ach-new), .ins-li.ins-new";
+  const fitIn = el => {
+    if (!el || !el.isConnected || !el.closest) return;
+    const sc = el.closest(SC), row = el.closest(".ins-li, .bdg-h-item, tr"); if (!sc || !row || row.closest("thead, tfoot")) return;
+    const sr = sc.getBoundingClientRect(), rr = row.getBoundingClientRect(); if (!sr.height || sc.scrollHeight <= sc.clientHeight + 1) return;
+    const hd = sc.querySelector(":scope > .bdg-h-head") || sc.querySelector("thead"), ft = sc.querySelector("tfoot");
+    const top = Math.max(sr.top + sc.clientTop, hd ? hd.getBoundingClientRect().bottom : 0);
+    const nw = [...sc.querySelectorAll(NEW)].find(x => x.offsetParent !== null), nwH = nw && nw !== row && !nw.contains(row) ? nw.getBoundingClientRect().height : 0;
+    const bot = sr.top + sc.clientTop + sc.clientHeight - (ft && ft.offsetParent !== null ? ft.getBoundingClientRect().height : 0) - nwH;
+    if (rr.top < top - .5) sc.scrollTop -= Math.ceil(top - rr.top);
+    else if (rr.bottom > bot + .5) sc.scrollTop += Math.ceil(rr.bottom - bot);
+  };
+  document.addEventListener("focusin", e => { const el = e.target; fitIn(el); requestAnimationFrame(() => fitIn(el)); setTimeout(() => fitIn(document.activeElement), 120); setTimeout(() => fitIn(document.activeElement), 400); }, true);
+  /* la ligne CRÉER devient une vraie ligne pendant la frappe (sans changer de case) : on la garde visible aussi */
+  document.addEventListener("input", e => { const el = e.target; requestAnimationFrame(() => fitIn(el)); setTimeout(() => fitIn(document.activeElement), 150); }, true);
+  window.sviFitIn = fitIn;
 }
 /* ⟪ src/09e-mise-en-page.js ⟫ */
 /* =========================================================
@@ -5550,13 +5601,12 @@ const sviFrame = () => {
   /* v774 (point 7) : UN SEUL CADRE, FIN, DE TAILLE FIXE — le petit cadre autour du texte (3 px en retrait des bords, 22 px de haut au plus, centré),
      jamais toute la case ni la ligne ; le point rouge suit son coin bas droit */
   /* v788 (remarque 2) : liste du bloc TÂCHES — la case = toute la hauteur de la ligne, du début de la case (numéro compris) jusqu'à la case à cocher */
+  /* v789 (règle commune) : une case = cette case seule — dans LOT / ACTIVITÉS, le nom seul (ni le numéro, ni l'unité), sur la hauteur de la ligne */
   { const li = c.tagName !== "TD" && c.closest && c.closest(".ins-li");
-    if (li) { const F = v.full, lr = li.getBoundingClientRect(), st = c.closest(".lot-in") || c, dc = li.querySelector(".ins-delc");
-      /* bornes de la zone visible (en-tête fixé, bas du bloc) gardées */
+    if (li) { const F = v.full, lr = li.getBoundingClientRect();
       const cT = v.top > F.top + .5 ? v.top : -1e9, cB = v.bottom < F.bottom - .5 ? v.bottom : 1e9;
-      const L = Math.min(st.getBoundingClientRect().left, F.left), dl = dc ? dc.getBoundingClientRect().left : 0, R = dl > F.left ? dl : F.right;
-      v.full = { top: lr.top, bottom: lr.bottom, left: L, right: R, height: lr.height, width: R - L };
-      v.top = Math.max(lr.top, cT); v.bottom = Math.min(lr.bottom, cB); v.left = L; v.right = R; } }
+      v.full = { top: lr.top, bottom: lr.bottom, left: F.left, right: F.right, height: lr.height, width: F.right - F.left };
+      v.top = Math.max(lr.top, cT); v.bottom = Math.min(lr.bottom, cB); } }
   /* v787 (Ahmed, 01/11) : le cadre prend exactement le bord de la case, sur toute sa largeur et toute sa hauteur */
   { v.left = Math.max(v.left, v.full.left); v.right = Math.min(v.right, v.full.right);
     v.top = Math.max(v.top, v.full.top); v.bottom = Math.min(v.bottom, v.full.bottom);
@@ -5575,11 +5625,15 @@ const sviSelBox = () => {
   const els = [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null)
     .concat([...document.querySelectorAll(".ins-hcol .svi-ls")].filter(x => x.offsetParent !== null).map(x => x.closest(".ins-li") || x));
   if (!SVI_SB) { SVI_SB = document.createElement("div"); SVI_SB.id = "sviSelBox"; document.body.appendChild(SVI_SB); }
-  if (els.length < 2) { SVI_SB.style.display = "none"; return; }
+  if (els.length < 2) { SVI_SB.style.display = "none"; document.querySelectorAll(".svi-cs1").forEach(x => x.classList.remove("svi-cs1")); return; }
   let t = 1e9, b = -1e9, l = 1e9, r = -1e9;
   els.forEach(e => { const v = sviCellVis(e.tagName === "TD" ? e : (e.querySelector(".svi-ls") || e)); const R = e.getBoundingClientRect(); if (!v) return;
     t = Math.min(t, Math.max(R.top, v.top)); b = Math.max(b, Math.min(R.bottom, v.bottom)); l = Math.min(l, e.tagName === "TD" ? R.left : (e.querySelector(".lot-in, .svi-ls") || e).getBoundingClientRect().left); r = Math.max(r, e.tagName === "TD" ? R.right : ((e.querySelector(".ins-delc") || {}).getBoundingClientRect ? e.querySelector(".ins-delc").getBoundingClientRect().left : R.right)); });
   if (!(b > t && r > l)) { SVI_SB.style.display = "none"; return; }
+  /* v789 : cases choisies une à une (Ctrl / Cmd) — chacune son propre cadre ; le grand cadre seulement pour une plage continue */
+  const area = els.reduce((s2, e) => { const R = e.getBoundingClientRect(); return s2 + (e.tagName === "TD" ? R.width : r - l) * R.height; }, 0);
+  document.querySelectorAll(".svi-cs1").forEach(x => x.classList.remove("svi-cs1"));
+  if (area < 0.97 * (r - l) * (b - t)) { els.forEach(e => e.classList.add("svi-cs1")); SVI_SB.style.display = "none"; return; }
   const col = (getComputedStyle(els[0]).getPropertyValue("--inst") || "").trim() || "#111827";
   Object.assign(SVI_SB.style, { display: "block", left: (l + window.scrollX) + "px", top: (t + window.scrollY) + "px", width: (r - l) + "px", height: (b - t) + "px", borderColor: col, zIndex: SVI_FR ? SVI_FR.style.zIndex || "45" : "45" });
 };
@@ -6279,7 +6333,7 @@ window.__sviCells = (() => {
   const build = () => {
     B = document.createElement("div"); B.id = "sviSelBar";
     /* v788 (remarque 4) : petit menu de l'application (même forme que le ⋯), jamais une bulle façon iPad */
-    B.innerHTML = '<button type="button" data-sb="copy">COPIER</button><button type="button" data-sb="paste">COLLER</button><div class="blk-sep"></div><button type="button" data-sb="multi">SÉLECTION MULTIPLE</button><button type="button" data-sb="seldown">SÉLECTIONNER JUSQU\'EN BAS</button><div class="blk-sep"></div><button type="button" data-sb="clear" class="sb-del">EFFACER</button>';
+    B.innerHTML = '<button type="button" data-sb="copy">COPIER</button><button type="button" data-sb="paste">COLLER</button><div class="blk-sep"></div><button type="button" data-sb="clear" class="sb-del">EFFACER</button>';   /* v789 : seulement COPIER, COLLER, EFFACER */
     /* la case garde le focus (et la sélection) quand on touche la barre */
     B.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); });
     B.addEventListener("mousedown", e => e.preventDefault());
@@ -6302,7 +6356,7 @@ window.__sviCells = (() => {
     if (!B) build();
     let top = Infinity, left = Infinity, bottom = -Infinity;
     sel.forEach(x => { const r = x.getBoundingClientRect(); top = Math.min(top, r.top); left = Math.min(left, r.left); bottom = Math.max(bottom, r.bottom); });
-    B.style.display = "flex"; { const mb = B.querySelector('[data-sb="multi"]'); if (mb) mb.textContent = (window.__sviMulti ? "✓ " : "") + "SÉLECTION MULTIPLE"; }
+    B.style.display = "flex";
     const h = B.offsetHeight || 32, w = B.offsetWidth || 220;
     let y = top - h - 6; if (y < 70) y = bottom + 6;
     y = Math.max(4, Math.min(window.innerHeight - h - 4, y));

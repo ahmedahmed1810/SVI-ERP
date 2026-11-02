@@ -134,7 +134,7 @@ function sviCfKit(o) {
     const inp = (n, v) => kind === "num" ? `<input class="cf-ca" data-n="${n}" inputmode="decimal" value="${esc(fmt(v))}" placeholder="VALEUR">` : kind === "txt" ? `<input class="cf-ca" data-n="${n}" value="${esc(v || "")}" placeholder="TEXTE" autocomplete="off">` : `<input type="date" class="cf-ca" data-n="${n}" value="${esc(v || "")}">`;
     /* v622 : liste CONDITION de l'application (plus la grande liste de l'iPad) — petites lignes, ✓ devant le choix en cours */
     const op0 = c ? c.op : "", lab0 = (ops.find(o => o[0] === op0) || ops[0])[1];
-    box.innerHTML = `<div class="cf-ct">CONDITION (${kind === "num" ? "NOMBRES" : kind === "date" ? "DATES" : "TEXTE"})</div><div class="cf-opw"><button type="button" class="cf-opb"><span>${lab0}</span><i>▾</i></button><div class="cf-opl" hidden>${ops.map(([k, l]) => `<button type="button" class="cf-opi${k === op0 ? " on" : ""}" data-op="${k}"><b>${k === op0 ? "✓" : ""}</b>${l}</button>`).join("")}</div><input type="hidden" class="cf-op" value="${op0}"></div>
+    box.innerHTML = `<div class="cf-opw"><button type="button" class="cf-opb"><span>${lab0}</span><i>▾</i></button><div class="cf-opl" hidden>${ops.map(([k, l]) => `<button type="button" class="cf-opi${k === op0 ? " on" : ""}" data-op="${k}"><b>${k === op0 ? "✓" : ""}</b>${l}</button>`).join("")}</div><input type="hidden" class="cf-op" value="${op0}"></div>
       <div class="cf-cv${c ? "" : " off"}">${inp("a", c && c.a)}<span class="cf-et${c && c.op === "bt" ? "" : " off"}"> ET </span>${`<span class="cf-bw${c && c.op === "bt" ? "" : " off"}">${inp("b", c && c.b)}</span>`}</div>`;
     box.addEventListener("click", ev => {
       if (ev.target.closest(".cf-opb")) { const L = box.querySelector(".cf-opl"); L.hidden = !L.hidden; cfPlace && cfPlace(); return; }
@@ -181,10 +181,13 @@ function sviCfKit(o) {
     m.innerHTML = `
       <div class="cf-rsz" title="Largeur et hauteur"></div>
       <button type="button" class="cf-x" aria-label="Fermer">✕</button>
-      <button type="button" class="cf-sort" data-dir="asc">↑ TRI CROISSANT</button>
-      <button type="button" class="cf-sort" data-dir="desc">↓ TRI DÉCROISSANT</button>${shell.__cfPar ? shell.__cfPar(t, key) : ""}
-      <div class="cf-search">🔍 <input type="search" class="cf-q" placeholder="RECHERCHER…"></div>
+      <button type="button" class="cf-sort" data-dir="asc">TRIER DE A À Z</button>
+      <button type="button" class="cf-sort" data-dir="desc">TRIER DE Z À A</button>${shell.__cfPar ? shell.__cfPar(t, key) : ""}
+      <div class="cf-sep"></div>
+      <div class="cf-h">FILTRER PAR CONDITION</div>
       <div class="cf-cond"></div>
+      <div class="cf-h">FILTRER PAR VALEURS</div>
+      <div class="cf-search">🔍 <input type="search" class="cf-q" placeholder="RECHERCHER…"></div>
       <div class="cf-list"></div>
       <div class="cf-foot">
         <button type="button" class="cf-clear">EFFACER</button>

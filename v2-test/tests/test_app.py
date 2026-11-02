@@ -1396,8 +1396,8 @@ def main():
         n3 = pg.evaluate(NM)
         grp = lambda t: [x for x in t.split(" | ") if x.startswith("GROUPE")]
         pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.lot = I.lot.filter(r => ['l1', 'l2'].includes(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
-        check("v532 : « GROUPE 6 » reste « GROUPE 6 » ; un nouveau titre garde son nom après d'autres glissements ; ses lots numérotés 6.1, 6.2",
-              "GROUPE 6" in grp(n0) and "GROUPE 6" in grp(n1) and len(grp(n2)) == 2 and grp(n3) == grp(n2) and re.search(r"\b\d+\.1 ZONE B", n0) is not None, [n0, n1, n2, n3])   # v787 : un GROUPE est numéroté par sa place
+        check("v532 / v789 : un groupe garde son nom après d'autres glissements ; GROUPE numéroté par ordre de création (GROUPE 1, puis GROUPE 2) ; ses lots numérotés par leur place",
+              "GROUPE 1" in grp(n0) and "GROUPE 1" in grp(n1) and len(grp(n2)) == 2 and grp(n3) == grp(n2) and re.search(r"\b\d+\.1 ZONE B", n0) is not None, [n0, n1, n2, n3])
 
         # ===== v533 : nom tapé sur un titre (RDC HAUT) gardé quand on glisse aussitôt une autre ligne =====
         pg.mouse.click(5, 5); pg.wait_for_timeout(200)
@@ -2799,8 +2799,8 @@ def main():
             const val = [document.querySelector('.novapp-list-titlebar h1').textContent.includes('VALIDÉS'), [...T2.tHead.querySelectorAll('th')].some(th => th.textContent.includes('VALIDÉ LE'))];
             document.getElementById('bdgModeSw').click(); await w(300);
             return [ord, refs, ops, n, folded, val]; }""")
-        check("v750 : filtre commun sur la liste (tri, recherche, conditions, cases, EFFACER), conditions des dates complètes, pliage par la flèche, bascule vers les validés (avec VALIDÉ LE)",
-              f750[0] == "cf-sort,cf-sort,cf-search,cf-cond,cf-list,cf-foot" and f750[1].startswith("F-1,F-1-AV1") and f750[2] == ",eq,ne,gt,ge,lt,le,bt" and f750[3] >= 4 and f750[4] and f750[5] == [True, True], f750)
+        check("v750 / v789 : filtre commun sur la liste (tri, puis condition, puis recherche et cases — ordre Google Sheets, EFFACER), conditions des dates complètes, pliage par la flèche, bascule vers les validés (avec VALIDÉ LE)",
+              f750[0] == "cf-sort,cf-sort,cf-cond,cf-search,cf-list,cf-foot" and f750[1].startswith("F-1,F-1-AV1") and f750[2] == ",eq,ne,gt,ge,lt,le,bt" and f750[3] >= 4 and f750[4] and f750[5] == [True, True], f750)
         d750 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms));
             document.querySelector('#budgetListTable tr[data-budget-ref="X-2"] td:nth-child(5)').click(); await w(900);
             document.getElementById('bdgMore')?.click(); await w(200); const mn = ['prt', 'cmp'].map(a => !!document.querySelector(`#blkMenu [data-a="${a}"]`));
@@ -3146,6 +3146,22 @@ def main():
             r.push(vis('.dlyg-l'), vis('#dlyGantt'));
             document.documentElement.setAttribute('data-dly-all', '1'); await w(200); return r; }""")
         check("v788 : ligne CRÉER posée juste au-dessus du TOTAL ; DÉLAIS hors plein écran = tableau seul (pas de Gantt)", g788 == [True, True, False], g788)
+        # v789 : défaut grave — après une 2e ouverture, toucher le signe d'un groupe ne redessine plus avec le budget ouvert avant ;
+        # noms des groupes par ordre de création (GROUPE 1, GROUPE 1.1)
+        g789 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const X0 = () => { const s = [...document.querySelectorAll('*')].find(e => e.__ins); return s && s.__ins; };
+            window.__sviAvRet = null; window.__sviAvOpen('TEST-1'); await w(1500); document.querySelectorAll('#svConf').forEach(x => x.remove());
+            window.__sviAvRet = null; window.__sviAvOpen('TEST-1'); await w(1500); document.querySelectorAll('#svConf').forEach(x => x.remove());
+            const X = X0(); if (!X) return 'pas de budget'; const I = X.INS, keep = JSON.stringify(I.lot);
+            I.lot = [{ id: 'q1', v: 'ETAGE 1' }, { id: 'q2', v: 'NIVEAU 22 / NIVEAU 21 / ZONE A' }, { id: 'q3', v: 'NIVEAU 22 / ZONE B' }, { id: 'q4', v: 'RDC NOUVEAU' }];
+            X.insSave(); X.refreshAll(); await w(400);
+            const names = () => [...document.querySelectorAll('.ins-hcol[data-ik="lot"] .ins-li')].map(li => { const i = li.querySelector('input.lot-gname, input.ins-in'); return i ? i.value : ''; }).filter(Boolean).join('|');
+            const n0 = names(); const f = document.querySelector('.ins-hcol[data-ik="lot"] .lot-fold'); f && f.click(); await w(400); const n1 = names();
+            f && document.querySelector('.ins-hcol[data-ik="lot"] .lot-fold')?.click(); await w(300);
+            const grp = [...document.querySelectorAll('.ins-hcol[data-ik="lot"] input.lot-gname')].map(i => i.value).join('|');
+            I.lot = JSON.parse(keep); X.insSave(); X.refreshAll(); await w(300);
+            return [n0.includes('RDC NOUVEAU'), n1.includes('RDC NOUVEAU'), grp]; }""")
+        check("v789 : toucher le signe d'un groupe garde le budget ouvert (pas celui d'avant) ; groupes nommés GROUPE 1, GROUPE 1.1",
+              g789 == [True, True, "GROUPE 1|GROUPE 1.1"], g789)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
