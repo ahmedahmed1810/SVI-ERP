@@ -23,7 +23,7 @@ Version du 02/11/2026 (fusion demandée par Ahmed le 01/11/2026, en vocal). **Ce
 2.4 Une ligne garde la couleur de son propre état (liste des budgets, RÉVISIONS…), pas celle du document ouvert ; même police, même taille, même graisse ; seule la couleur change.
 2.5 Liaisons : blanc = non liée ; **un seul bleu clair** = liée (même teinte dans tous les blocs, LOT compris) ; bleu foncé = liée exactement à ce qui est choisi ; rond plein = choisie.
 2.6 Cases à cocher et ronds cochés : couleur du mode en cours.
-2.7 Compteurs : pastille grise ; quand le nombre n'est pas 0, le chiffre est orange sur une pastille d'un gris plus foncé. Jamais entre parenthèses à l'écran.
+2.7 Compteurs : pastille grise ; quand le nombre n'est pas 0, le chiffre est orange sur une pastille d'un gris plus foncé. Jamais entre parenthèses à l'écran. **Même taille partout (listes, onglets, blocs, menus ⋯ et menus d'état) : la pastille s'ajuste au chiffre, jamais étirée.** (02/11/2026)
 2.8 Champs non saisissables : fond gris.
 
 ## 3. Barre du haut (en-tête d'interface)
