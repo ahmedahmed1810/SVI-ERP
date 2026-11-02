@@ -106,7 +106,9 @@ function sviFootUp(f) {
   f.__svFoot = true;
   const bs = [...f.querySelectorAll("button")];
   const x = bs.find(b => b.hasAttribute("data-x") && /^FERMER$/.test(String(b.textContent || "").trim()));
-  if (x && bs.length > 1) { x.textContent = "ANNULER"; f.prepend(x); }
+  /* v799 : pas de « ANNULER » à côté de « ANNULER LA COMMANDE / LE PAIEMENT… » — FERMER est alors gardé, pour ne pas confondre */
+  const twin = bs.some(b => b !== x && /^ANNULER\s/.test(String(b.textContent || "").trim()));
+  if (x && bs.length > 1 && !twin) { x.textContent = "ANNULER"; f.prepend(x); }
 }
 function sviUpAll() {
   document.querySelectorAll(SVI_UP_SC).forEach(root => {

@@ -3250,6 +3250,27 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v793 : SUIVI au noir (CRÉER rouge) ; case de RÉVISIONS sans filtre ; hauteur de RÉVISIONS gardée au lâcher ; liste : 22 / 21 px, case à droite qui coche sans ouvrir ; « AUCUN » masqué ; UNITÉS : loupes, 21 px, largeur gardée ; APPLIQUER À : case à droite ; fiche d'achat : largeurs et loupes du SUIVI",
               m793 == [True, True, True, 22, 21, True, True, "none,table-row", 2, 21, 40, True, True, True], m793)
+        # v797 – v799 : CONFORMITÉ DES ACHATS au document unique — fiche ouverte sans passer par un budget (forme commune posée au démarrage),
+        # fenêtre : listes et fichier au format de l'application, ligne CRÉER UNE LIGNE ICI…, cases à droite au lieu des ✕, ANNULER devant l'action
+        c797 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_frs_v1', 'svi_ach_dvf_v1', 'svi_ach_faf_v1'], keep = K.map(k => localStorage.getItem(k));
+            const F = []; const f1 = achFrsNew(F, { nom: 'AFRA' }); achFrsSave(F); achDvfSave([{ id: 'v1', ref: 'DVF 26-1101/001', frs: f1.id, state: 'recu', date: '2026-11-01', lignes: [{ des: 'SABLE', u: 'M3', q: 5, pu: 100, tva: 20 }] }]); achFafSave([]);
+            const st = document.getElementById('bdgListRuntimeStyle'); const had = !!st; st && st.remove(); sviAchInit && document.getElementById('ach').__achOn && sviBdgRuntimeStyle();
+            const v = document.getElementById('ach'); document.querySelector('#navMenu .nav-btn[data-ach="dvf"]').click(); await w(300);
+            if (!v.querySelector('[data-nvo]')) v.querySelector('[data-nvsw]')?.click(); await w(150); v.querySelector('[data-nvo]').click(); await w(300);
+            const b = [...v.querySelectorAll('.nvp .bdg-d-block')].find(x => x.offsetParent), t = b.querySelector('.bdg-d-block-title .ttl'), cs = getComputedStyle(t);
+            const tb = b.querySelector('table'), r0 = tb.tBodies[0].rows[0];
+            const r = [!!document.getElementById('bdgListRuntimeStyle'), cs.fontSize, cs.fontWeight, getComputedStyle(b.querySelector('.bdg-d-block-title')).borderLeftWidth, Math.round(tb.tHead.rows[0].getBoundingClientRect().height), Math.round(r0.getBoundingClientRect().height), !!tb.tHead.rows[0].lastElementChild.querySelector('input[type=checkbox]')];
+            v.querySelector('[data-nvp="close"]')?.click(); await w(150); document.querySelector('#navMenu .nav-btn[data-ach="faf"]').click(); await w(300);
+            if (!v.querySelector('[data-nvnew]')) v.querySelector('[data-nvsw]')?.click(); await w(150); v.querySelector('[data-nvnew]').click(); await w(300);
+            const c = document.querySelector('#svConf'), vis = e => e && e.offsetParent;
+            r.push([...c.querySelectorAll('select')].filter(vis).length, c.querySelectorAll('.sv-sel').length > 0, [...c.querySelectorAll('input[type=file]')].filter(vis).length, !!c.querySelector('.sv-file-b'));
+            c.querySelector('tr.sv-addrow').click(); await w(250); r.push(c.querySelectorAll('tbody tr[data-i]').length, [...c.querySelectorAll('button.ach-x')].filter(vis).length, c.querySelectorAll('.sv-rmcb').length);
+            r.push([...c.querySelectorAll('.svc-f button')].filter(vis).map(x => x.textContent.trim())[0]);
+            c.querySelector('.sv-sel').click(); await w(150); const m = document.getElementById('sviEtatMenu'); r.push(!!m && +getComputedStyle(m).zIndex > 100001); m && m.remove();
+            c.remove(); K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
+        check("v797 – v799 : CONFORMITÉ DES ACHATS — fiche au format du budget sans budget ouvert (12 px gras, trait de gauche, 22 / 21 px, case à droite) ; fenêtre : listes et fichier de l'application, CRÉER UNE LIGNE ICI, cases au lieu des ✕, ANNULER en premier",
+              c797 == [True, "12px", "900", "4px", 22, 21, True, 0, True, 0, True, 1, 0, 1, "ANNULER", True], c797)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
