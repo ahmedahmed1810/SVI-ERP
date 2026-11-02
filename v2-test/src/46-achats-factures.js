@@ -212,7 +212,8 @@ function achPafFiche(id, o, done) {
     const opt = (L, v) => L.map(x => `<option value="${esc(x[0])}"${x[0] === v ? " selected" : ""}>${esc(x[1])}</option>`).join("");
     const mine = (L, k, id) => achN(((L || []).find(a => a[k] === id) || {}).m);
     d.innerHTML = sviWinCard({ cls: "frs-card paf-card", close: "data-x", title: (p0 ? "PAIEMENT — " + esc(P.ref) : "NOUVEAU PAIEMENT") + " · " + esc(ACH_PAF_ST[P.state] || ""),
-      body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
+      body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}
+        ${fr && achFrsAttExp(fr) && P.state === "instance" ? `<div class="frs-why pa-att">⚠ ATTESTATION DE RÉGULARITÉ FISCALE EXPIRÉE : ${P.deb ? `PAIEMENT DÉBLOQUÉ PAR ${esc(P.deb.u || "?")} LE ${esc(achDFr(String(P.deb.t).slice(0, 10)))} — ${esc(P.deb.why || "")}` : `PAIEMENT BLOQUÉ <button type="button" class="ach-b" data-attdeb>DÉBLOQUER</button>`}</div>` : ""}<div class="frs-scroll">
         <div class="frs-sec"><div class="frs-g">
           <label class="frs-f"><span>TYPE</span><select class="ins-in pa-x" data-k="type"${dis || (p0 || o.fa || o.cmf ? " disabled" : "")}>${opt([["reglement", "RÈGLEMENT DE FACTURES"], ["avance", "AVANCE SUR COMMANDE"]], P.type)}</select></label>
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in pa-x" data-k="frs"${dis || (p0 || o.fa || o.cmf ? " disabled" : "")}><option value=""></option>${opt(FR.map(f => [f.id, f.code + " — " + f.nom]), P.frs)}</select></label>
@@ -250,7 +251,7 @@ function achPafFiche(id, o, done) {
     return true; };
   draw();
   d.addEventListener("change", e => { if (!e.target.closest(".pa-x, .pa-a, .pa-d")) return; const k = e.target.dataset.k; pull();
-    if (k === "frs") { P.aff = []; P.ded = []; P.cmf = ""; } if (k === "type") { P.aff = []; P.ded = []; P.cmf = ""; P.mt = 0; }
+    if (k === "frs") { P.aff = []; P.ded = []; P.cmf = ""; delete P.deb; } if (k === "type") { P.aff = []; P.ded = []; P.cmf = ""; P.mt = 0; }
     if (k === "cmf") { const C = achCmf().find(c => c.id === P.cmf); P.mt = C ? Math.max(0, Math.round((achCmfTot(C).av - achAvVerse(C.id)) * 100) / 100) : 0; }
     draw(); });
   d.addEventListener("click", async e => {
@@ -258,6 +259,7 @@ function achPafFiche(id, o, done) {
     if (e.target.closest("[data-save]")) { pull(); if (!check()) return; store(p0 || achPaf().some(x => x.id === P.id) ? "MODIFICATION" : "CRÉATION"); draw(); return; }
     if (e.target.closest("[data-valid]")) { pull(); if (!check()) return;
       const fr = achFrs().find(f => f.id === P.frs);
+      if (fr && achFrsAttExp(fr) && !P.deb) { svToast("ATTESTATION DE RÉGULARITÉ FISCALE EXPIRÉE : PAIEMENT BLOQUÉ (DÉBLOQUER AVEC UN MOTIF).", 5000); draw(); return; }
       if ((P.mode === "VIREMENT" || P.mode === "PRÉLÈVEMENT") && fr && fr.ribChg) { svToast("RIB DU FOURNISSEUR MODIFIÉ : À VÉRIFIER (FICHE FOURNISSEUR, RIB VÉRIFIÉ) AVANT TOUT PAIEMENT.", 5000); return; }
       if ((P.mode === "VIREMENT" || P.mode === "PRÉLÈVEMENT") && fr && !achFrsRibP(fr)) { svToast("AUCUN RIB POUR CE FOURNISSEUR.", 3500); return; }
       if ((P.mode === "CHÈQUE" || P.mode === "LCN") && !P.num) { svToast("N° DU " + P.mode + " OBLIGATOIRE.", 3000); return; }
@@ -265,6 +267,11 @@ function achPafFiche(id, o, done) {
       const esp = P.mode === "ESPÈCES" && P.mt > achPrm().esp ? " ATTENTION : ESPÈCES AU-DELÀ DU PLAFOND (" + achF2(achPrm().esp) + ")." : "";
       if (!(await svConfirm({ title: "VALIDER LE PAIEMENT", text: P.mode + " DE " + achF2(P.mt) + " (" + frMoney(P.mt) + ") À " + achFrsNom(P.frs) + "." + esp, ok: "VALIDER", tone: esp ? "" : "neutral" }))) return;
       P.state = P.mode === "CHÈQUE" || P.mode === "LCN" ? "emis" : "encaisse"; P.valide = achNow(); store(P.state === "emis" ? "ÉMIS" : "PAYÉ"); draw(); return; }
+    if (e.target.closest("[data-attdeb]")) { pull();
+      const m = await achAsk("DÉBLOQUER LE PAIEMENT", "MOTIF (ATTESTATION FISCALE EXPIRÉE)"); if (!m) return;
+      P.deb = { u: typeof sviUser === "function" ? sviUser() : "", t: achNow(), why: m };
+      if (achPaf().some(x => x.id === P.id)) store("DÉBLOQUÉ (ATTESTATION FISCALE EXPIRÉE) — " + m); else achHist(achFrs().find(f => f.id === P.frs)?.code || "", "PAIEMENT DÉBLOQUÉ (ATTESTATION FISCALE EXPIRÉE)", m);
+      draw(); return; }
     if (e.target.closest("[data-enc]")) { P.state = "encaisse"; P.enc = achNow(); store("ENCAISSÉ"); draw(); return; }
     if (e.target.closest("[data-rej]") || e.target.closest("[data-cancel]")) { const rej = !!e.target.closest("[data-rej]");
       const m = await achAsk(rej ? P.mode + " REJETÉ" : "ANNULER LE PAIEMENT", rej ? "MOTIF DU REJET" : "MOTIF DE L'ANNULATION"); if (!m) return;

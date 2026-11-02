@@ -37,6 +37,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `09c-filtres-communs.js` | tri et filtre par colonne façon tableur, COMMUNS à tous les écrans (budget, achats) : `sviCfKit` | 335 |
 | `09d-couleurs-etats.js` | couleurs des états (EN INSTANCE, FIGÉ, VALIDÉ, EXPIRÉ, BLOQUÉ, ARCHIVÉ), paramétrables, variables CSS `--st-…` | 27 |
 | `09f-fenetres-communes.js` | moteur commun des fenêtres et des achats : listes déroulantes et choix de fichier au format de l'application, ligne CRÉER … ICI, cases à droite au lieu des ✕, ANNULER puis l'action (v798) | 120 |
+| `09f-masques-saisie.js` | masques de saisie (ICE, IF, RC, CNSS, téléphone) réglés dans PARAMÉTRAGE › FORMAT › MASQUES DE SAISIE : mise en forme pendant la frappe, contrôle à l'enregistrement (v804) | 60 |
 | `10-bdg-liste.js` | liste des budgets (arborescence, avenants, CUMUL) | 2003 |
 | `11-budget-ouverture.js` | ouverture d'un budget (début de openBudgetDetail) | 548 |
 | `12-tableaux-colonnes.js` | ordre manuel des lignes du budget ; tri et filtre pris de 09c (`sviCfKit`) | 37 |

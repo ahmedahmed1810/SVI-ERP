@@ -4116,6 +4116,69 @@ new MutationObserver(muts => {
   cancelAnimationFrame(sviUpRaf);
   sviUpRaf = requestAnimationFrame(sviUpAll);
 }).observe(document.documentElement, { childList: true, subtree: true });
+/* ⟪ src/09f-masques-saisie.js ⟫ */
+/* =========================================================
+   v804 : MASQUES DE SAISIE (checklist C1.44) — réglés dans PARAMÉTRAGE › FORMAT › MASQUES DE SAISIE
+   Écriture d'un masque : 9 = un chiffre, A = une lettre, tout autre signe est écrit tel quel.
+   Un champ <input data-mask="clé"> se met en forme pendant la frappe ; sviMaskOk refuse à l'enregistrement
+   une valeur qui ne suit pas le masque (LONGUEUR EXACTE : le masque doit être rempli en entier).
+   ========================================================= */
+const SVI_MASK_KEY = "svi_masks_v1";
+const SVI_MASK_DEF = [
+  { k: "ice", lab: "ICE", m: "999999999999999", ex: true },
+  { k: "if", lab: "IDENTIFIANT FISCAL (IF)", m: "99999999", ex: true },
+  { k: "rc", lab: "REGISTRE DE COMMERCE (RC)", m: "999999", ex: false },
+  { k: "cnss", lab: "CNSS", m: "9999999", ex: true },
+  { k: "tel", lab: "TÉLÉPHONE", m: "99 99 99 99 99", ex: true }
+];
+function sviMasks() {
+  let o = {};
+  try { o = JSON.parse(localStorage.getItem(SVI_MASK_KEY) || "{}") || {}; } catch (e) {}
+  return SVI_MASK_DEF.map(d => Object.assign({}, d, o[d.k] || {}));
+}
+function sviMasksSave(L) {
+  const o = {};
+  L.forEach(x => { o[x.k] = { m: String(x.m || ""), ex: !!x.ex }; });
+  try { localStorage.setItem(SVI_MASK_KEY, JSON.stringify(o)); } catch (e) {}
+}
+const sviMaskOf = k => sviMasks().find(x => x.k === k) || null;
+const sviMaskSlot = c => c === "9" || c === "A";
+/* caractères utiles de la saisie (chiffres et lettres, en majuscules) */
+const sviMaskRaw = v => String(v ?? "").toUpperCase().replace(/[^0-9A-ZÀ-Ý]/g, "");
+/* met la saisie dans le masque : les signes fixes sont posés au fur et à mesure (un signe fixe déjà tapé n'est pas doublé) */
+function sviMaskRun(m, v) {
+  const s = String(v ?? "").toUpperCase();
+  let out = "", i = 0, n = 0;
+  for (const c of m) {
+    if (i >= s.length) break;
+    if (c === "9" || c === "A") {
+      const ok = c === "9" ? (x => /\d/.test(x)) : (x => /[A-ZÀ-Ý]/.test(x));
+      while (i < s.length && !ok(s[i])) i++;
+      if (i >= s.length) break;
+      out += s[i++]; n++;
+    } else { out += c; if (s[i] === c) i++; }
+  }
+  return { out, n, rest: sviMaskRaw(s.slice(i)).length > 0 };
+}
+function sviMaskFmt(k, v) {
+  const M = sviMaskOf(k), m = M ? M.m : "";
+  return m ? sviMaskRun(m, v).out : String(v ?? "").toUpperCase();
+}
+/* vide = accepté (l'obligation est contrôlée ailleurs) */
+function sviMaskOk(k, v) {
+  const M = sviMaskOf(k);
+  if (!sviMaskRaw(v) || !M || !M.m) return true;
+  const r = sviMaskRun(M.m, v), need = [...M.m].filter(sviMaskSlot).length;
+  return !r.rest && r.n > 0 && (M.ex ? r.n === need : r.n <= need);
+}
+const sviMaskLab = k => (sviMaskOf(k) || {}).lab || k;
+/* mise en forme pendant la frappe, pour tout champ marqué data-mask */
+document.addEventListener("input", e => {
+  const i = e.target;
+  if (!i || !i.matches || !i.matches("input[data-mask]")) return;
+  const f = sviMaskFmt(i.dataset.mask, i.value);
+  if (f !== i.value) { i.value = f; try { i.setSelectionRange(f.length, f.length); } catch (x) {} }
+}, true);
 /* ⟪ src/32-demarrage.js ⟫ */
 /* =========================================================
    DEMARRAGE
@@ -5025,7 +5088,7 @@ function sviParamTabs() {
   bar.innerHTML = `<div class="prm-rubs"><button type="button" class="prm-rub on" data-rub="bdg">BUDGET</button><button type="button" class="prm-rub" data-rub="fmt">FORMAT</button></div>`
     + `<button type="button" class="prm-tab on" data-prm="unit" data-rub="bdg">UNITÉS</button><button type="button" class="prm-tab" data-prm="lib" data-rub="bdg">BIBLIOTHÈQUE DE PRIX</button>`
     + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal" data-rub="bdg">CALENDRIER</button>`
-    + `<button type="button" class="prm-tab" data-prm="col" data-rub="fmt" hidden>ÉTATS</button><button type="button" class="prm-tab" data-prm="fel" data-rub="fmt" hidden>ÉLÉMENTS</button><button type="button" class="prm-tab" data-prm="fif" data-rub="fmt" hidden>INTERFACES</button><button type="button" class="prm-tab" data-prm="colh" data-rub="fmt" hidden>COLONNES</button>`;
+    + `<button type="button" class="prm-tab" data-prm="col" data-rub="fmt" hidden>ÉTATS</button><button type="button" class="prm-tab" data-prm="fel" data-rub="fmt" hidden>ÉLÉMENTS</button><button type="button" class="prm-tab" data-prm="fif" data-rub="fmt" hidden>INTERFACES</button><button type="button" class="prm-tab" data-prm="colh" data-rub="fmt" hidden>COLONNES</button><button type="button" class="prm-tab" data-prm="mask" data-rub="fmt" hidden>MASQUES DE SAISIE</button>`;
   /* CALENDRIER et DATES DU BUDGET : pour le budget ouvert ; grisés sans budget ouvert (appui long = raison) */
   const why = () => { const L = window.__sviBdgLive; return !L ? "OUVRIR UN BUDGET D'ABORD" : !L.edit ? "BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE" : ""; };
   const paint = () => bar.querySelectorAll(".prm-bdg").forEach(b => b.classList.toggle("off", !!why()));
@@ -5068,6 +5131,23 @@ function sviParamTabs() {
       <thead><tr><th>TABLEAU</th><th class="center">COLONNES</th><th class="center">MASQUÉES</th></tr></thead>
       <tbody>${L.map(x => `<tr class="colh-open" data-colh="${esc(x.id)}"><td>${esc(x.lab)}</td><td class="center">${svCnt(x.cols.length)}</td><td class="center">${svCnt(x.hid.length)}</td></tr>`).join("")}</tbody></table>`;
   };
+  /* v804 (checklist C1.44) : FORMAT › MASQUES DE SAISIE — 9 = un chiffre, A = une lettre, autre signe écrit tel quel */
+  const mpane = document.createElement("div"); mpane.className = "prm-mask"; mpane.hidden = true; hpane.after(mpane);
+  const maskDraw = () => {
+    const L = sviMasks();
+    mpane.innerHTML = `<table class="prm-table fmt-t mask-t"><colgroup><col style="width:280px"><col style="width:220px"><col style="width:150px"><col style="width:220px"></colgroup>
+      <thead><tr><th>CHAMP</th><th>MASQUE</th><th class="center">LONGUEUR EXACTE</th><th>EXEMPLE</th></tr></thead>
+      <tbody>${L.map(x => `<tr data-mk="${esc(x.k)}"><td>${esc(x.lab)}</td><td><input class="ins-in mask-in" value="${esc(x.m)}" autocomplete="off" data-keepcase></td>
+        <td class="center"><input type="checkbox" class="mask-ex"${x.ex ? " checked" : ""}></td><td class="mask-exm">${esc(sviMaskFmt(x.k, "1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S"))}</td></tr>`).join("")}</tbody></table>
+      <div class="mask-note">9 = UN CHIFFRE · A = UNE LETTRE · TOUT AUTRE SIGNE (ESPACE, TIRET, +) EST ÉCRIT TEL QUEL · MASQUE VIDE = AUCUN CONTRÔLE</div>`;
+  };
+  mpane.addEventListener("change", e => {
+    const tr = e.target.closest("tr[data-mk]"); if (!tr) return;
+    const L = sviMasks(), x = L.find(y => y.k === tr.dataset.mk); if (!x) return;
+    const m = String(tr.querySelector(".mask-in").value || "").toUpperCase().replace(/\s+/g, " ").trim();
+    if (m && ![...m].some(sviMaskSlot)) { svToast("MASQUE SANS 9 NI A : AUCUNE SAISIE POSSIBLE.", 3500); maskDraw(); return; }
+    x.m = m; x.ex = tr.querySelector(".mask-ex").checked; sviMasksSave(L); maskDraw();
+  });
   hpane.addEventListener("click", e => { const r = e.target.closest("tr.colh-open"); if (!r) return; const I = sviColhRegInfo(r.dataset.colh); if (!I) return; I.done = colhDraw; sviColhWinI(I); });
   const felDraw = () => {
     const F = sviFmt();
@@ -5109,17 +5189,17 @@ function sviParamTabs() {
   cpane.addEventListener("change", e => { if (e.target.closest(".col-in")) colDraw(); });
   cpane.addEventListener("click", e => { const b = e.target.closest(".col-rst"); if (!b) return; const C = sviColors(); C[b.dataset.col] = SVI_COL_DEF[b.dataset.col]; sviColorsSave(C); colDraw(); });
   const show = which => {
-    const rub = ["col", "fel", "fif", "colh"].includes(which) ? "fmt" : "bdg";
+    const rub = ["col", "fel", "fif", "colh", "mask"].includes(which) ? "fmt" : "bdg";
     bar.querySelectorAll(".prm-rub").forEach(b => b.classList.toggle("on", b.dataset.rub === rub));
     bar.querySelectorAll(".prm-tab").forEach(b => { b.hidden = b.dataset.rub !== rub; });
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.prm === which));
     pane.hidden = which !== "unit";
     lpane.hidden = which !== "lib";
     cpane.hidden = which !== "col";
-    epane.hidden = which !== "fel"; ipane.hidden = which !== "fif"; hpane.hidden = which !== "colh";
-    if (which === "fel") felDraw(); if (which === "fif") fifDraw(); if (which === "colh") colhDraw();
+    epane.hidden = which !== "fel"; ipane.hidden = which !== "fif"; hpane.hidden = which !== "colh"; mpane.hidden = which !== "mask";
+    if (which === "fel") felDraw(); if (which === "fif") fifDraw(); if (which === "colh") colhDraw(); if (which === "mask") maskDraw();
     const h1 = head.querySelector("h1"), sub = head.querySelector("p");
-    if (h1) h1.textContent = which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : which === "col" ? "FORMAT — ÉTATS" : which === "fel" ? "FORMAT — ÉLÉMENTS" : which === "fif" ? "FORMAT — INTERFACES" : which === "colh" ? "FORMAT — COLONNES" : "UNITÉS";
+    if (h1) h1.textContent = which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : which === "col" ? "FORMAT — ÉTATS" : which === "fel" ? "FORMAT — ÉLÉMENTS" : which === "fif" ? "FORMAT — INTERFACES" : which === "colh" ? "FORMAT — COLONNES" : which === "mask" ? "FORMAT — MASQUES DE SAISIE" : "UNITÉS";
     if (sub) sub.textContent = which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT ; COMMUNE À TOUS LES BUDGETS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";
     if (which === "unit") draw();
     if (which === "lib") libDraw();
@@ -5127,6 +5207,7 @@ function sviParamTabs() {
     if (which === "fel" && sub) sub.textContent = "FOND, TEXTE, TAILLE ET STYLE DE CHAQUE ÉLÉMENT DES INTERFACES";
     if (which === "fif" && sub) sub.textContent = "INTERFACES QUI PRENNENT LA PALETTE (TOUTES COCHÉES = PARTOUT)";
     if (which === "colh" && sub) sub.textContent = "MASQUER / AFFICHER LES COLONNES DE CHAQUE TABLEAU (UN TABLEAU S'INSCRIT ICI DÈS SA PREMIÈRE OUVERTURE)";
+    if (which === "mask" && sub) sub.textContent = "FORME DE SAISIE DE L'ICE, DE L'IF, DU RC, DE LA CNSS ET DU TÉLÉPHONE ; UNE VALEUR HORS MASQUE EST REFUSÉE À L'ENREGISTREMENT";
     try { localStorage.setItem("svi_prm_v1", which); } catch (e) {}
   };
   /* v793 : UNITÉS au format commun des tableaux — loupe de tri / filtre sur chaque colonne, largeur des colonnes réglable et gardée */

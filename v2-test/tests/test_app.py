@@ -3275,6 +3275,26 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v797 – v799 : CONFORMITÉ DES ACHATS — fiche au format du budget sans budget ouvert (12 px gras, trait de gauche, 22 / 21 px, case à droite) ; fenêtre : listes et fichier de l'application, CRÉER UNE LIGNE ICI, cases au lieu des ✕, ANNULER en premier",
               c797 == [True, "12px", "900", "4px", 22, 21, True, 0, True, 0, True, 1, 0, 1, "ANNULER", True], c797)
+        # v804 : MASQUES DE SAISIE (C1.44) et paiement bloqué par l'attestation fiscale expirée (C1.43)
+        c804 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_frs_v1', 'svi_ach_paf_v1', 'svi_masks_v1'], keep = K.map(k => localStorage.getItem(k));
+            localStorage.removeItem('svi_masks_v1');
+            const r = [sviMaskFmt('tel', '0612345678'), sviMaskOk('tel', '0612'), sviMaskOk('rc', '1234'), sviMaskOk('rc', '1234567'), achIceOk('001234567000089'), achIceOk('123')];
+            const M = sviMasks(); M.find(x => x.k === 'tel').m = '+212 9 99 99 99 99'; sviMasksSave(M); r.push(sviMaskFmt('tel', '612345678'), sviMaskFmt('tel', '+212 6 12 34 56 78'));
+            localStorage.removeItem('svi_masks_v1');
+            const F = []; const f = achFrsNew(F, { nom: 'AFRA' }); f.occ = true; f.docf = [{ type: 'ATTESTATION DE RÉGULARITÉ FISCALE', no: '1', exp: '2025-01-01' }]; achFrsSave(F);
+            achFrsFiche(f.id, 'fisc', () => {}); await w(300); let c = document.querySelector('.frs-card');
+            const cn = c.querySelector('[data-k="cnss"]'); cn.value = '123'; cn.dispatchEvent(new Event('input', { bubbles: true })); c.querySelector('[data-save]').click(); await w(200);
+            r.push(!!document.querySelector('.frs-card')); cn.value = '1234567'; c.querySelector('[data-save]').click(); await w(250); r.push(achFrs()[0].cnss, !document.querySelector('.frs-card'));
+            achPafFiche(null, { frs: f.id }, () => {}); await w(300); const pc = document.querySelector('.paf-card'); r.push(!!pc.querySelector('[data-attdeb]'));
+            pc.querySelector('[data-attdeb]').click(); await w(250); const a = [...document.querySelectorAll('#svConf .frs-card')].pop(); a.querySelector('.ask-v').value = 'urgence chantier'; a.querySelector('[data-ok]').click(); await w(250);
+            r.push(/DÉBLOQUÉ PAR/.test((document.querySelector('.paf-card .pa-att') || {}).textContent || ''));
+            document.getElementById('svConf')?.remove();
+            document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300);
+            const tb = document.querySelector('.prm-tab[data-prm="mask"]'); r.push(!!tb); if (tb) { tb.click(); await w(200); r.push(document.querySelectorAll('.prm-mask tr[data-mk]').length); }
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
+        check("v804 : MASQUES DE SAISIE (ICE, IF, RC, CNSS, TÉLÉPHONE) réglés dans PARAMÉTRAGE › FORMAT, mise en forme à la frappe, refus hors masque ; paiement bloqué si l'attestation fiscale est expirée, DÉBLOQUER avec motif",
+              c804 == ["06 12 34 56 78", False, True, False, True, False, "+212 6 12 34 56 78", "+212 6 12 34 56 78", True, "1234567", True, True, True, True, 5], c804)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
