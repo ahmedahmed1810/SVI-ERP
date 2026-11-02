@@ -3731,3 +3731,5 @@ input.sv-rmcb { width: 18px; height: 18px; cursor: pointer; }
 .prm-mask .mask-in { width: 100%; box-sizing: border-box; font-family: ui-monospace, Menlo, monospace; letter-spacing: 1px; }
 .prm-mask .mask-exm { font-family: ui-monospace, Menlo, monospace; letter-spacing: 1px; color: #6b7480; }
 .prm-mask .mask-note { margin-top: 8px; font-size: 11px; font-weight: 800; color: #6b7480; }
+/* v808 : bloc ENCOURS ET SOLDE au-delà du plafond */
+#ach .nvp-blk tr.nv-alert td { color: #b91c1c; font-weight: 900; }

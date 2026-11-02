@@ -2920,7 +2920,7 @@ def main():
             const pg800 = !!v.querySelector('.nvp-ref'); v.querySelector('[data-nvp="close"]')?.click(); await w(250); if (!pg800) return 'v800 : page du nouveau fournisseur non ouverte';
             const n1 = achFrs().filter(f => !f.del).length + (v.querySelectorAll('#achFrsT tbody tr[data-id]').length === 1 && /EN INSTANCE/.test((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent) ? 0 : 100);
             v.querySelector('[data-nvsw]').click(); await w(200); v.querySelector(`#achFrsT [data-nvo="${a.id}"]`).click(); await w(250);
-            const pgOk = /^FOURNISSEUR — BETON SUD/.test((document.getElementById('sviScreenTag') || {}).textContent || '') && /^FRS \\d{2}-\\d{4}\\/\\d{3}$/.test(v.querySelector('.nvp-ref').textContent) && v.querySelectorAll('.nvp-blk').length === 6;
+            const pgOk = /^FOURNISSEUR — BETON SUD/.test((document.getElementById('sviScreenTag') || {}).textContent || '') && /^FRS \\d{2}-\\d{4}\\/\\d{3}$/.test(v.querySelector('.nvp-ref').textContent) && v.querySelectorAll('.nvp-blk').length === 10;
             v.querySelector('[data-nvp="info"]').click(); await w(300); const fc = document.querySelector('.frs-card');
             const secs = fc ? [...fc.querySelectorAll('.frs-st')].map(x => x.textContent.replace(/\\s*\\d+$/, '').split(' ')[0]).join(',') + '|' + [...fc.querySelectorAll('.frs-tabs .rec-tab')].map(x => x.textContent.trim()).join(',') + '|' + [...fc.querySelectorAll('.frs-sec')].filter(x => !x.hidden).length : 'pas de fiche';
             const ri = fc.querySelector('.frs-sub[data-sub="ribs"] .frs-s[data-c="rib"]'); ri.value = '011780000123456789012345'; fc.querySelector('[data-save]').click(); await w(250);
