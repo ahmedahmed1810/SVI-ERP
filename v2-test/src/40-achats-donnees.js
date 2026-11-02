@@ -109,6 +109,11 @@ const achArtsFromBudgets = L => {
    ========================================================= */
 const ACH_FORMES = ["SARL", "SARL AU", "SA", "SNC", "SCS", "AUTO-ENTREPRENEUR", "PERSONNE PHYSIQUE", "COOPÉRATIVE", "ÉTABLISSEMENT PUBLIC", "AUTRE"];
 const ACH_CONDS = ["COMPTANT", "À LA COMMANDE", "À LA LIVRAISON", "30 JOURS", "45 JOURS", "60 JOURS", "90 JOURS", "120 JOURS"];
+/* v802 : onglet IDENTITÉ du fournisseur (checklist C1.24, C1.34, C1.54, C1.57, C1.58) */
+const ACH_FTYPES = ["FABRICANT", "DISTRIBUTEUR", "REVENDEUR", "LOUEUR DE MATÉRIEL", "SOUS-TRAITANT"];
+const ACH_CROLES = ["COMMANDE", "FACTURATION", "LIVRAISON", "DIRECTION"];
+const ACH_FLIENS = ["MAISON MÈRE", "FILIALE", "PAYÉ À SA PLACE"];
+const ACH_LANGS = ["FRANÇAIS", "ARABE", "ANGLAIS", "ESPAGNOL"];
 const ACH_DOCF = ["ATTESTATION DE RÉGULARITÉ FISCALE", "ATTESTATION CNSS", "MODÈLE J (REGISTRE DE COMMERCE)", "ATTESTATION DE RIB", "ASSURANCE", "AUTRE"];
 const achDig = v => String(v ?? "").replace(/\D/g, "");
 const achIceOk = v => /^\d{15}$/.test(achDig(v));

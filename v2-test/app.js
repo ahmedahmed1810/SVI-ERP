@@ -4087,7 +4087,7 @@ function sviRmUp(t) {
   del.addEventListener("click", e => {
     e.preventDefault();
     const root = t.closest(SVI_UP_SC) || document;
-    const idx = [...t.querySelectorAll(".sv-rmcb:checked")].map(c => c.dataset.rml).sort((a, b) => +b - +a);
+    const idx = [...t.querySelectorAll(".sv-rmcb:checked")].map(c => c.dataset.rml).sort((a, b) => +String(b).split("|").pop() - +String(a).split("|").pop());
     /* chaque suppression redessine la fenêtre : on retrouve le ✕ suivant à chaque fois, du dernier au premier */
     idx.forEach(i => { const x = root.querySelector(`button.ach-x[data-rml="${i}"]`); if (x) x.click(); });
   });
