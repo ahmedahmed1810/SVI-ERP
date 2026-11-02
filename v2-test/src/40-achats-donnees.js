@@ -114,6 +114,9 @@ const ACH_FTYPES = ["FABRICANT", "DISTRIBUTEUR", "REVENDEUR", "LOUEUR DE MATÉRI
 const ACH_CROLES = ["COMMANDE", "FACTURATION", "LIVRAISON", "DIRECTION"];
 const ACH_FLIENS = ["MAISON MÈRE", "FILIALE", "PAYÉ À SA PLACE"];
 const ACH_LANGS = ["FRANÇAIS", "ARABE", "ANGLAIS", "ESPAGNOL"];
+/* v805 : onglet BANQUE ET PAIEMENT (C1.52, C1.53) */
+const ACH_CAUT = ["CAUTION DE BONNE EXÉCUTION", "CAUTION DE RESTITUTION D'AVANCE", "CAUTION DE RETENUE DE GARANTIE", "AUTRE GARANTIE BANCAIRE"];
+const ACH_JOURS = ["LUN", "MAR", "MER", "JEU", "VEN", "SAM"];
 const ACH_DOCF = ["ATTESTATION DE RÉGULARITÉ FISCALE", "ATTESTATION CNSS", "MODÈLE J (REGISTRE DE COMMERCE)", "ATTESTATION DE RIB", "ASSURANCE", "ASSURANCE RESPONSABILITÉ CIVILE", "CERTIFICAT DE QUALIFICATION", "CERTIFICATION", "CONDITIONS GÉNÉRALES D'ACHAT SIGNÉES", "AUTRE"];
 const achDig = v => String(v ?? "").replace(/\D/g, "");
 /* v804 : l'ICE suit son masque de saisie (PARAMÉTRAGE › FORMAT › MASQUES DE SAISIE, C1.44) */
@@ -151,6 +154,10 @@ const achFrsWhy = (f, L) => {
   if (f.ribChg) w.push("RIB MODIFIÉ LE " + String(f.ribChg).slice(0, 10).split("-").reverse().join("/") + " : À VÉRIFIER AVANT TOUT PAIEMENT");
   /* v803 : revue de la fiche une fois par an (checklist C1.55) */
   if (f.revue && f.revue < new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10)) w.push("FICHE À REVOIR : DERNIÈRE REVUE LE " + String(f.revue).split("-").reverse().join("/"));
+  /* v805 : RIB partagé avec un autre fournisseur (C1.41) ; encours au-delà du plafond ; caution échue ou bientôt échue (C1.52) */
+  if (L) (f.ribs || []).forEach(r => { const x = achDig(r.rib) && L.find(o => o.id !== f.id && !o.del && (o.ribs || []).some(q => achDig(q.rib) === achDig(r.rib))); if (x) w.push("RIB PARTAGÉ AVEC " + x.code + " — " + x.nom + " : FRAUDE POSSIBLE"); });
+  if (achN(f.plafEnc) > 0 && typeof achFrsEnc === "function" && achFrsEnc(f.id) > achN(f.plafEnc) + 0.005) w.push("ENCOURS AU-DELÀ DU PLAFOND (" + achF2(achFrsEnc(f.id)) + " / " + achF2(f.plafEnc) + ")");
+  (f.cau || []).forEach(c => { if (c.ech && c.ech < today) w.push("CAUTION ÉCHUE : " + (c.no || c.type)); else if (c.ech && c.ech <= soon) w.push("CAUTION BIENTÔT ÉCHUE : " + (c.no || c.type)); });
   (f.docf || []).forEach(d => { if (d.exp && d.exp < today) w.push("DOCUMENT EXPIRÉ : " + d.type); else if (d.exp && d.exp <= soon) w.push("DOCUMENT BIENTÔT EXPIRÉ : " + d.type); });
   return w;
 };
@@ -331,6 +338,8 @@ const achFafTot = f => { const c = achFafCalc(f), ttc = f.sTtc !== undefined && 
   return { calc: c, ttc, tva, ht: ttc - tva, ras, av: achN(f.avImp), net: ttc - ras - achN(f.avImp), ecart: ttc - c.ttc }; };
 const achFafPaid = (fid, P) => achPafLive(P).reduce((t, p) => t + (p.aff || []).filter(a => a.fa === fid).reduce((u, a) => u + achN(a.m), 0), 0);
 const achFafReste = (f, P) => achFafTot(f).net - achFafPaid(f.id, P);
+/* v805 : encours du fournisseur = reste à payer de ses factures (hors annulées et supprimées) */
+const achFrsEnc = id => achFaf().filter(x => x.frs === id && !x.del && x.state !== "annule").reduce((t, x) => t + Math.max(0, achFafReste(x)), 0);
 const achAvfUsed = (aid, P) => achPafLive(P).reduce((t, p) => t + (p.ded || []).filter(a => a.av === aid).reduce((u, a) => u + achN(a.m), 0), 0);
 const achAvfReste = (a, P) => achN(a.ttc) - achAvfUsed(a.id, P);
 /* quantité déjà facturée d'une ligne de commande (hors la facture fid) */
