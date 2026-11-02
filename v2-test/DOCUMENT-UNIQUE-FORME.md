@@ -52,7 +52,7 @@ Version du 02/11/2026 (fusion demandée par Ahmed le 01/11/2026, en vocal). **Ce
 6.5 **Ligne « CRÉER … ICI »** : toujours en rouge (rien n'est validé), même fond et même texte partout, fixée en bas du bloc, juste au-dessus de la ligne TOTAL, jamais derrière ; ne commence qu'à l'alignement des noms. La ligne qu'on crée ou qu'on saisit reste toujours visible et entière.
 6.6 **Jamais de ligne vide** ni de « AUCUN » : le compteur 0 du titre suffit, le tableau garde ses titres de colonnes. Pas d'action EFFACER de ligne : une ligne vidée est supprimée. Moteur commun (v793) : toute ligne « AUCUN(E) … » d'un tableau est masquée partout ; un message qui dit quoi faire (après « : ») reste.
 6.7 **Ligne TOTAL** : total général seulement, en bas, dans les tableaux qui ont des montants ; TOTAL PARTIEL si un filtre ou des cases cochées en cachent.
-6.8 **MASQUER / AFFICHER LES COLONNES** : une seule entrée du ⋯, une seule fenêtre au format des tableaux (cochée = affichée) ; au moins une colonne ; choix gardé par tableau (instance / validés séparés) ; aperçu, export et copie suivent l'écran.
+6.8 **MASQUER / AFFICHER LES COLONNES** se règle dans **PARAMÉTRAGE › FORMAT › onglet COLONNES**, et plus dans les menus ⋯. On y trouve la liste de tous les tableaux, sous la forme « INTERFACE › TABLEAU ». Toucher un tableau ouvre ses colonnes, chacune avec une case, et une colonne au moins reste affichée. Le choix vaut pour toutes les listes et toutes les fiches de ce tableau. Aperçu, export et copie suivent l'écran. (02/11/2026)
 6.9 Nombres à droite (1 234,56), unités et ART centrés, tout en MAJUSCULES.
 
 ## 7. Pliage, titres et numéros
@@ -75,7 +75,7 @@ Version du 02/11/2026 (fusion demandée par Ahmed le 01/11/2026, en vocal). **Ce
 9.3 Glisser lignes et blocs : appui long, un seul trait ; bleu = même niveau, noir = entre dans un titre ; court = dans la ligne du dessus, long = niveau supérieur ; jaune = superposer.
 
 ## 10. Menus ⋯ et fenêtres
-10.1 Menus ⋯ : même présentation, groupes séparés par un trait, dans l'ordre : actions propres, MASQUER / AFFICHER LES COLONNES, IMPORTER / EXPORTER / APERÇU, COPIER / COUPER / COLLER, SUPPRIMER (en rouge) / EFFACER LES FILTRES. Un toucher ouvre, un 2e toucher sur le même ⋯ ferme. Toujours entier à l'écran.
+10.1 Menus ⋯ : même présentation, groupes séparés par un trait, dans l'ordre : actions propres, IMPORTER / EXPORTER / APERÇU, COPIER / COUPER / COLLER, SUPPRIMER (en rouge) / EFFACER LES FILTRES. Un toucher ouvre, un 2e toucher sur le même ⋯ ferme. Toujours entier à l'écran.
 10.2 **Fenêtres** : bandeau de titre en haut (couleurs de la palette, comme la barre du haut), ✕ à droite, contenu en vrais tableaux au format commun (titres alignés sur leur contenu, toute la largeur), boutons en bas : ANNULER puis l'action encadrée. Limite de 5 lignes de liste (résumé chiffré au-delà).
 
 ## 11. RÉVISIONS (budget)
