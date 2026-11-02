@@ -3666,3 +3666,6 @@ html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table tbo
 html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table tbody td :is(input, .dly-lotc) { height: calc(var(--tb-row-h) - 2px) !important; min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; line-height: var(--tb-row-lh) !important; box-sizing: border-box; }
 html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table thead th :is(.fold-all, .cf-wrap, .cf-lab) { height: var(--tb-head-lh) !important; max-height: var(--tb-head-lh); }
 html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table :is(thead th, tbody td) input[type=checkbox] { margin-top: 0 !important; margin-bottom: 0 !important; vertical-align: middle; }
+/* v792 (DOCUMENT UNIQUE §6.3) : le signe « tout plier » ne grandit plus l'en-tête (22 px partout, titres de charges compris) */
+table thead th .fold-all, table thead th .cf-wrap, table thead th .cf-lab { height: var(--tb-head-lh) !important; max-height: var(--tb-head-lh); line-height: var(--tb-head-lh) !important; }
+table thead th input[type=checkbox] { margin-top: 0 !important; margin-bottom: 0 !important; vertical-align: middle; }
