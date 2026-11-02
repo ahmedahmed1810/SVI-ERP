@@ -3698,3 +3698,8 @@ thead th:not(:last-child) .col-rs::after { right: 50% !important; }
 .bdg-d-page .blk-suivi .rec-tab.active { box-shadow: inset 0 -2px 0 var(--st-valide, #172033) !important; }
 .bdg-d-page .blk-suivi tbody tr:not(.rec-new) td, .bdg-d-page .blk-suivi tbody tr:not(.rec-new) td *:not(.rec-open):not(.rec-imp):not(.ach-link) { color: var(--st-valide, #172033) !important; }
 .bdg-d-page .blk-suivi tbody tr.rec-new td { color: var(--tb-new-c, #b91c1c) !important; background: var(--tb-new-bg, #fdf0f0) !important; }
+/* v794 — document unique 3.5 : tableau des dates des listes — ligne du haut sans cadre blanc, flèche ▾ seule un peu à droite du mot, pastille alignée sur celles des dates */
+.novapp-date-head, #bdgDatePanel .novapp-date-head, .svi-bdgp .novapp-date-head { padding: 0; }
+.novapp-date-filter, #bdgDatePanel .novapp-date-filter, .svi-bdgp .novapp-date-filter { width: 100%; height: 100%; max-height: none; min-height: 30px; padding: 0 12px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.novapp-date-filter .dt-arr { font-style: normal; margin-left: 4px; }
+.novapp-date-filter .svi-cnt { margin-left: 6px; }

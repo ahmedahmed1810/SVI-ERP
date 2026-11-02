@@ -2062,7 +2062,7 @@ function renderBudgetList() {
 
     panel.innerHTML = `
       <div class="novapp-date-head">
-        <button type="button" class="novapp-date-filter"><span>${(ETATS.find(x => x[0] === etatF) || ETATS[0])[1]} ▾</span>${svCnt(budgetsE().length)}</button>
+        <button type="button" class="novapp-date-filter"><span>${(ETATS.find(x => x[0] === etatF) || ETATS[0])[1]} <i class="dt-arr">▾</i></span>${svCnt(budgetsE().length)}</button>
       </div>
       <div class="novapp-date-list">
         ${keys.map(k => `

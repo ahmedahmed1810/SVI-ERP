@@ -31,6 +31,7 @@ Version du 02/11/2026 (fusion demandée par Ahmed le 01/11/2026, en vocal). **Ce
 3.2 Listes : titre « … (EN INSTANCE) » / « … (VALIDÉS) », compteur, bascule ⇄ au même endroit.
 3.3 ⋯ du haut du budget : PRENDRE UNE VERSION et COMPARATIF y sont, accessibles de partout (plus seulement dans le bloc RÉVISIONS).
 3.4 Balayage gauche / droite sur la barre du haut = pièce précédente / suivante (achats compris) ; sur un tableau = défilement seulement.
+3.5 **Tableau des dates des listes** (budgets, achats et toute liste future) : la ligne du haut (ACTIF ▾ et son compteur) n'a pas de cadre blanc ; le menu se montre seulement par la flèche ▾, un peu décalée à droite du mot ; la pastille du compteur est alignée sur celles des dates en dessous (même colonne, même taille). (02/11/2026)
 
 ## 4. Blocs
 4.1 Même forme partout : barre de titre (icône, nom, compteur, ⋯), onglets éventuels, contenu, poignée de hauteur en bas. Barre de titre basse, ⋯ du bloc plus petit que ceux de la barre du haut.
