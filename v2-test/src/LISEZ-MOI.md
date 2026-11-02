@@ -93,4 +93,4 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `46-achats-factures.js` | FACTURES (rapprochement, doublon, écart, retenue à la source, avance imputée, échéance, bon à payer), AVOIRS, PAIEMENTS (règlement ou avance, chèque / LCN émis → encaissé ou rejeté) | 300 |
 | `47-achats-liste-page.js` | Listes au format du budget (EN INSTANCE / VALIDÉS, dates, ligne CRÉER → fenêtre) et PAGE d'un élément (DOC / TAF / OBS en un bloc, menu ⋯, tableaux liés) : ARTICLES et FOURNISSEURS | 280 |
 
-Document technique (architecture, données, recettes, tests) : `../DOC-TECHNIQUE.md`.
+Documents du projet (ils font foi, plus de copie dans le dépôt) : document technique (architecture, données, recettes, tests) https://claude.ai/artifact/NJveG1A9Y5H3k8n4rAERdk ; document unique de forme https://claude.ai/artifact/1vKCKKCn3LKzAtq8YVL3FW ; cahier des charges https://claude.ai/artifact/5rU5qrhQHpbfEvqtRbgftq ; note de reprise https://claude.ai/artifact/8Uve95a1yLjvC315u1Hi5x ; feuille de route https://claude.ai/artifact/KMtD6rVXWgWoPQzkbppcoS.
