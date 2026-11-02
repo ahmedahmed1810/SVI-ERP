@@ -3162,6 +3162,33 @@ def main():
             return [n0.includes('RDC NOUVEAU'), n1.includes('RDC NOUVEAU'), grp]; }""")
         check("v789 : toucher le signe d'un groupe garde le budget ouvert (pas celui d'avant) ; groupes nommés GROUPE 1, GROUPE 1.1",
               g789 == [True, True, "GROUPE 1|GROUPE 1.1"], g789)
+        # v791 (point 24) : TEST DE CONFORMITÉ au DOCUMENT UNIQUE DE FORME — traits de gauche, hauteurs communes des onglets,
+        # pas de « AUCUN », palette appliquée (et APPLIQUER À), ⋯ qui se referme au 2e toucher
+        k791 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const r = [];
+            if (!document.querySelector('.bdg-d-page')) { window.__sviAvRet = null; window.__sviAvOpen('TEST-1'); await w(1500); }
+            document.querySelectorAll('#svConf').forEach(x => x.remove());
+            const blks = [...document.querySelectorAll('.bdg-d-page .bdg-d-block-title, .bdg-d-page #bdgDetailHead')].filter(b => b.offsetParent);
+            r.push(blks.length >= 4 && blks.every(b => getComputedStyle(b).borderLeftWidth === '4px') || blks.filter(b => getComputedStyle(b).borderLeftWidth !== '4px').map(b => b.textContent.trim().slice(0, 20)).join('|'));
+            document.documentElement.removeAttribute('data-dly-all'); const H = [];
+            for (const tb of ['chg', 'prd', 'dly']) { document.querySelector('.bdg-d-tab[data-tab="' + tb + '"]')?.click(); await w(600);
+              const t = [...document.querySelectorAll('#bdgTabBody table')].find(x => x.offsetParent); if (!t) { H.push(tb + ':?'); continue; }
+              const th = Math.round(t.tHead.rows[0].getBoundingClientRect().height), rows = [...t.tBodies[0].rows].filter(x => x.offsetParent).map(x => Math.round(x.getBoundingClientRect().height));
+              H.push(tb + ':' + th + '/' + [...new Set(rows)].join(',')); }
+            document.documentElement.setAttribute('data-dly-all', '1');
+            r.push(H.join(' '));
+            r.push([...document.querySelectorAll('td, li')].filter(x => x.offsetParent && /^AUCUN(E)?\\b/.test(x.textContent.trim()) && x.closest('table, .ins-hcol')).length);
+            const keep = localStorage.getItem('svi_format_v1');
+            sviFmtSave({ el: { th: { bg: '#123456' } }, to: null }); await w(50);
+            const th0 = document.querySelector('.bdg-d-page table thead th'); r.push(getComputedStyle(th0).backgroundColor);
+            sviFmtSave({ el: { th: { bg: '#123456' } }, to: ['ach'] }); await w(50); r.push(getComputedStyle(th0).backgroundColor !== 'rgb(18, 52, 86)');
+            if (keep === null) localStorage.removeItem('svi_format_v1'); else localStorage.setItem('svi_format_v1', keep); sviFmtApply();
+            const b = document.createElement('button'); b.textContent = '⋯'; document.body.appendChild(b);
+            b.addEventListener('click', () => sviHdrMenu(b, [[{ k: 'x', lab: 'X' }]], () => {}));
+            b.click(); await w(50); const o1 = !!document.getElementById('blkMenu'); b.click(); await w(50); const o2 = !!document.getElementById('blkMenu');
+            b.click(); await w(50); const o3 = !!document.getElementById('blkMenu'); document.getElementById('blkMenu')?.remove(); b.remove();
+            r.push([o1, o2, o3].join(',')); return r; }""")
+        check("v791 : CONFORMITÉ au document unique — trait de gauche sur chaque bloc, onglets à la même hauteur (en-tête 22, lignes 21), pas de « AUCUN », palette appliquée et APPLIQUER À, ⋯ refermé au 2e toucher",
+              k791 == [True, "chg:22/21 prd:22/21 dly:22/21", 0, "rgb(18, 52, 86)", True, "true,false,true"], k791)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

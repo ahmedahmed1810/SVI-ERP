@@ -3661,3 +3661,8 @@ th.col-sel, td.col-sel, .bdg-h-head.col-sel, .ins-hcol.col-sel .ins-li, .bdg-h-c
 #ach .nvp .rec-table .nvp-cbh, #ach .nvp .rec-table td:last-child { width: 44px; }
 #svConf tr.colh-r { display: table-row !important; min-height: 0 !important; padding: 0 !important; border-radius: 0 !important; font-size: var(--tb-row-fs) !important; }
 #svConf tr.colh-r td { white-space: nowrap; }
+/* v791 (point 18) : DÉLAIS hors plein écran = mêmes hauteurs que les autres onglets (en-tête 22, lignes 21) */
+html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table tbody td { padding-top: 0 !important; padding-bottom: 0 !important; line-height: var(--tb-row-lh) !important; }
+html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table tbody td :is(input, .dly-lotc) { height: calc(var(--tb-row-h) - 2px) !important; min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; line-height: var(--tb-row-lh) !important; box-sizing: border-box; }
+html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table thead th :is(.fold-all, .cf-wrap, .cf-lab) { height: var(--tb-head-lh) !important; max-height: var(--tb-head-lh); }
+html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table :is(thead th, tbody td) input[type=checkbox] { margin-top: 0 !important; margin-bottom: 0 !important; vertical-align: middle; }
