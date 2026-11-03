@@ -340,7 +340,7 @@
     /* v560 : plage DÉBUT – FIN du graphique (DÉTAIL DÉLAIS) — DÉTAIL CHARGES, DÉTAIL PRODUITS et MARGE ne gardent que les lignes
        dont la tâche a des jours dans la plage ; quantités et montants au prorata des jours travaillés de la tâche dans la plage
        (affichage seulement : INS_RGV n'est vrai que pendant le dessin de ces tableaux ; rien n'est enregistré au prorata) */
-    let INS_RGV = false, INS_RGM = null;
+    let INS_RGM = null; ECR.INS_RGV = false;
     const insRg = () => { const R = (INS && INS.hrange) || {}; return R.a || R.b ? { a: R.a || "", b: R.b || "" } : null; };
     const insRgTask = (key, R) => {
       let tot = 0, inn = 0;
@@ -356,9 +356,9 @@
        est cochée, la charge compte au prorata de leur quantité (QPB : même unité dans une tâche) ; affichage seulement */
     let INS_PON = undefined;   /* v743 : gardé le temps d'un dessin (remis à zéro aussitôt après) */
     const insPrdOn = () => {
-      if (INS_RGV && INS_PON !== undefined) return INS_PON;   /* seulement pendant le dessin des tableaux (aucune case ne change à ce moment) */
+      if (ECR.INS_RGV && INS_PON !== undefined) return INS_PON;   /* seulement pendant le dessin des tableaux (aucune case ne change à ce moment) */
       const on = (INS.prd || []).filter(r => !r.t && r.on === true), v = on.length ? new Set(on.map(r => r.id)) : null;
-      if (INS_RGV) { INS_PON = v; queueMicrotask(() => { INS_PON = undefined; }); }
+      if (ECR.INS_RGV) { INS_PON = v; queueMicrotask(() => { INS_PON = undefined; }); }
       return v;
     };
     const insPrdLF = (l, P) => {
@@ -386,9 +386,9 @@
       return f;
     };
     const insRgKeyIn = key => { const R = insRg(); return !R || insRgTask(key, R) > 0; };   /* v564 (remarque 5) : tâche avec au moins un jour dans la plage */
-    const insRgView = fn => { const o = INS_RGV; INS_RGV = true; try { return fn(); } finally { INS_RGV = o; } };
+    const insRgView = fn => { const o = ECR.INS_RGV; ECR.INS_RGV = true; try { return fn(); } finally { ECR.INS_RGV = o; } };
     const insQty = (k, r) => {
-      if (k === "prd") return insPrdQ(r) * (INS_RGV ? insRgF("prd", r.id) : 1);
+      if (k === "prd") return insPrdQ(r) * (ECR.INS_RGV ? insRgF("prd", r.id) : 1);
       /* QPB désignation : toujours calculée = somme des produits de ses tâches primaires (0 sans liaison) */
       if (k === "des") {
         /* v494 (remarque 23) : cases cochées dans d'autres blocs → QPB limitée aux tâches concernées
@@ -402,7 +402,7 @@
         const lq = r.id ? insLinkedQ(INS, r.id) : null; return lq !== null ? lq : 0;
       }
       const q0 = r.q === "" || r.q === undefined ? 0 : num(r.q);
-      return k === "chg" && INS_RGV ? q0 * insRgF("chg", r.id) : q0;
+      return k === "chg" && ECR.INS_RGV ? q0 * insRgF("chg", r.id) : q0;
     };
     /* v476 (remarque 3) : produit pas encore lié — tâche primaire choisie (ronds) : PPB de la désignation, sinon vide */
     const lkPrimPrice = r => {
@@ -412,7 +412,7 @@
       return d && d.p !== "" && d.p !== undefined ? num(d.p) : "";
     };
     const insPrice = (k, r) => { if (k !== "prd") return r.p; const v = insPrdPrice(INS, r.id); return v !== "" ? v : (INS.links || []).some(l => (l.prd || []).some(x => x.id === r.id)) ? "" : lkPrimPrice(r); };
-    const insHT = (k, r) => r.t ? 0 : (insQty(k, r) + (k === "chg" ? condChuteRow(INS, r) * (INS_RGV ? insRgF("chg", r.id) : 1) : 0)) * num(insPrice(k, r) || 0);   /* v728 : la chute s'ajoute à la quantité payée */
+    const insHT = (k, r) => r.t ? 0 : (insQty(k, r) + (k === "chg" ? condChuteRow(INS, r) * (ECR.INS_RGV ? insRgF("chg", r.id) : 1) : 0)) * num(insPrice(k, r) || 0);   /* v728 : la chute s'ajoute à la quantité payée */
     /* TVA de la ligne : produits = celle de la désignation liée (vide sans liaison) */
     const insTVAk = (k, r) => k === "prd" ? insPrdTVA(INS, r.id) : insTVA(r);
     const insTTC = (k, r) => insHT(k, r) * (1 + num(insTVAk(k, r) || 0) / 100);
@@ -1097,7 +1097,7 @@
     /* v613 (point 8) : total des charges retenues (comme le pied : filtres de colonne, cases cochées de tous les blocs, plage, prorata) */
     let PCT_M = null, PCT_BUSY = false;
     const insPctDen = () => {
-      if (PCT_M && PCT_M.rgv === INS_RGV) return PCT_M.v;
+      if (PCT_M && PCT_M.rgv === ECR.INS_RGV) return PCT_M.v;
       if (PCT_BUSY) return 0;
       PCT_BUSY = true;
       let v = 0; const pb = PAR_BUSY; PAR_BUSY = true;   /* v622 : % comptés sur toutes les charges retenues, avant CHARGES QUI FONT n % */
@@ -1106,7 +1106,7 @@
         let SA = null; try { SA = insCheckSet("chg", true); } catch (e) { SA = null; }
         v = (on.length ? on : shown).filter(r => !SA || SA.has(r.id)).reduce((t, r) => t + insHT("chg", r), 0);
       } finally { PCT_BUSY = false; PAR_BUSY = pb; }
-      PCT_M = { rgv: INS_RGV, v }; queueMicrotask(() => { PCT_M = null; });
+      PCT_M = { rgv: ECR.INS_RGV, v }; queueMicrotask(() => { PCT_M = null; });
       return v;
     };
     const insPctChg = r => { const d = insPctDen(); return d ? insHT("chg", r) / d * 100 : ""; };
@@ -1116,8 +1116,8 @@
     let PAR_M = null, PAR_BUSY = false;
     const insParPct = () => { const v = INS && INS.chgPar; return v ? Math.max(1, Math.min(100, Number(v) || 0)) : 0; };
     const insPar = () => {
-      if (PAR_M && PAR_M.rgv === INS_RGV) return PAR_M;
-      const out = { rgv: INS_RGV, ids: new Set(), keys: new Set() }, n = insParPct();
+      if (PAR_M && PAR_M.rgv === ECR.INS_RGV) return PAR_M;
+      const out = { rgv: ECR.INS_RGV, ids: new Set(), keys: new Set() }, n = insParPct();
       if (n && !PAR_BUSY) {
         PAR_BUSY = true;
         try {
@@ -1183,7 +1183,7 @@
     const insFoots = () => (ICL = null, shell).querySelectorAll("table.ins-table[data-ik]").forEach(t => { const ft = t.querySelector("tfoot"); if (ft) ft.innerHTML = insFootHTML(t.dataset.ik); });
     const insFootHTML = k => {
       if (k === "qlt") return "";
-      if ((k === "chg" || k === "prd") && !INS_RGV) return insRgView(() => insFootHTML(k));
+      if ((k === "chg" || k === "prd") && !ECR.INS_RGV) return insRgView(() => insFootHTML(k));
       /* FORMAT 126 : lignes affichées, ou seulement les cases carrées cochées ; « TOTAL PARTIEL » si une partie seulement */
       /* v478 (remarque 10) : trois filtres combinés — filtres de colonne (lignes affichées), ronds (lignes choisies ou liées
          à ce qui est choisi), cases cochées ; « TOTAL PARTIEL » dès que l'un d'eux agit */
@@ -1220,7 +1220,7 @@
     /* case d'en-tête : toutes les lignes visibles (hors titres) cochées */
     const insAllOn = k => { const v = insShown(k).filter(r => !r.t); return v.length > 0 && v.every(r => r.on === true); };
     const insTableHTML = k => {
-      if ((k === "chg" || k === "prd") && !INS_RGV) return insRgView(() => insTableHTML(k));
+      if ((k === "chg" || k === "prd") && !ECR.INS_RGV) return insRgView(() => insTableHTML(k));
       const cols = insColsOrd(k);
       const lead = 1;
       const qw = insQCol(k) ? 160 : 0;
