@@ -7202,6 +7202,21 @@ function sviBdgCopierColler(C) {
   shell.__markCut = insMarkCut;
   /* v485 (remarque 24) : COLLER des lignes venues d'Excel / Google Sheets : ajoutées en bas, colonne par colonne
      dans l'ordre de l'écran ; colonnes en trop ignorées (jamais de colonne créée) ; ligne d'en-tête sautée */
+  /* v895 (cahier, retenu le 02/11/2026) : les lignes collées se placent sous la ligne ou le titre de la case touchée en dernier
+     (même bloc) — sous un titre : dans ce titre ; sous une ligne : au même niveau. Sans case touchée dans ce bloc : en bas. */
+  const clipPlace = (k, arr, fresh) => {
+    const lc = window.__sviLastCell;
+    if (!lc || !lc.isConnected || !lc.closest(`table.ins-table[data-ik="${k}"], .ins-hcol[data-ik="${k}"]`)) { arr.push(...fresh); return false; }
+    const row = lc.closest("[data-iid]"), i = row ? arr.findIndex(r => r.id === row.dataset.iid) : -1;
+    if (i < 0) { arr.push(...fresh); return false; }
+    const A = arr[i];
+    if (k === "des") {
+      const base = (Number(A.d) || 0) + (A.t ? 1 : 0), m0 = Math.min(...fresh.map(x => Number(x.d) || 0));
+      fresh.forEach(x => { x.d = (Number(x.d) || 0) - m0 + base; });
+    }
+    arr.splice(i + 1, 0, ...fresh);
+    return true;
+  };
   const clipPasteText = (blk, txt) => {
     const X = shell.__ins; if (!X) return false;
     const ks = clipKinds(blk);
@@ -7234,13 +7249,13 @@ function sviBdgCopierColler(C) {
       if (ent.some(f => String(x[f] ?? "") !== "")) fresh.push(x);
     });
     if (!fresh.length) { svToast("RIEN À COLLER.", 2500); return true; }
-    X.INS[k].push(...fresh);
+    const under = clipPlace(k, X.INS[k], fresh), where = under ? "SOUS LA CASE TOUCHÉE" : "EN BAS";
     insNorm(); X.cleanLinks(); X.insSave();
     histLog("SAISIE", "COLLER LES LIGNES", fresh.length + " LIGNE(S) — PRESSE-PAPIERS");
     setTimeout(() => { try { shell.__dupExisting && shell.__dupExisting(true); } catch (e) {} }, 700);   /* v626 : doublons créés par le collage → fenêtre DOUBLON EXISTANT */
     refreshAll();
-    if (bad.length) sviAlert([fresh.length + " LIGNE(S) AJOUTÉE(S) EN BAS.", "CASES REFUSÉES :", ...bad.map(b => "— " + b)].join("\n"), "COLLER LES LIGNES");
-    else svToast(fresh.length + " LIGNE(S) AJOUTÉE(S) EN BAS.", 2500);
+    if (bad.length) sviAlert([fresh.length + " LIGNE(S) AJOUTÉE(S) " + where + ".", "CASES REFUSÉES :", ...bad.map(b => "— " + b)].join("\n"), "COLLER LES LIGNES");
+    else svToast(fresh.length + " LIGNE(S) AJOUTÉE(S) " + where + ".", 2500);
     return true;
   };
   const clipPaste = async blk => {
@@ -7266,7 +7281,7 @@ function sviBdgCopierColler(C) {
         if (dup && !cutHere) x[lab] = "COPIE DE " + (x[lab] || "");
         return x;
       });
-      X.INS[k].push(...fresh);
+      clipPlace(k, X.INS[k], fresh);
       n += fresh.length;
     });
     if (!n) return;
