@@ -986,7 +986,7 @@
     /* v484 (remarque 23) : cases cochées dans les AUTRES blocs (désignation, lot, activités, produits, charges) :
        seules les lignes liées à ce qui y est coché comptent (blocs combinés : ET) */
     /* liaisons retenues par les cases cochées des blocs autres que k (null : aucune case cochée ailleurs) ; mémorisé un instant */
-    var ICL = null;
+    ECR.ICL = null;
     /* v593 (remarque longue 3) : ordre dans lequel les blocs ont reçu leur première case cochée (pour ce budget ouvert) */
     const insIsoPath = () => { try { return dlyIsoPath() || ""; } catch (e) { return ""; } };
     /* =========================================================
@@ -1062,9 +1062,9 @@
     const insCheckLinks = (k, all) => {
       if (!INS) return null;
       /* mémoire valable pour un seul dessin (vidée dès la fin de la tâche en cours) */
-      if (!ICL) { ICL = { m: {} }; queueMicrotask(() => { ICL = null; }); }
+      if (!ECR.ICL) { ECR.ICL = { m: {} }; queueMicrotask(() => { ECR.ICL = null; }); }
       const ck = all ? k + "*" : k;
-      if (ck in ICL.m) return ICL.m[ck];
+      if (ck in ECR.ICL.m) return ECR.ICL.m[ck];
       /* v593 (remarque longue 3) : le bloc coché en premier garde toute sa liste ; chaque bloc n'est réduit que par les blocs cochés
          AVANT lui (un bloc sans case cochée est réduit par tous) ; les coches se cumulent. ISOLER (Gantt) réduit aussi les autres blocs. */
       /* v612 (point 7) : all = toutes les cases cochées des autres blocs (pour les totaux), pas seulement celles d'avant */
@@ -1083,7 +1083,7 @@
       const ks = Object.keys(C);
       const out = !ks.length && !lon && !DS && !IP && !PS && !MS ? null : (INS.links || []).filter(l => (!PS || (l.chg || []).some(y => PS.has(y.id))) && (!MS || MS.has(l.id)) && ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
         && (!lon || l.on === true) && (!DS || DS.has(l.lot + "|" + l.sec)) && (!IP || inIso(l)));
-      if (!msSkip) ICL.m[ck] = out;
+      if (!msSkip) ECR.ICL.m[ck] = out;
       return out;
     };
     const insCheckSet = (k, all) => {
@@ -1180,7 +1180,7 @@
       histLog("SAISIE", f ? "TOUT DÉPLIÉ" : "TOUT REPLIÉ", kind.toUpperCase());
       refreshAll();
     };
-    const insFoots = () => (ICL = null, shell).querySelectorAll("table.ins-table[data-ik]").forEach(t => { const ft = t.querySelector("tfoot"); if (ft) ft.innerHTML = insFootHTML(t.dataset.ik); });
+    const insFoots = () => (ECR.ICL = null, shell).querySelectorAll("table.ins-table[data-ik]").forEach(t => { const ft = t.querySelector("tfoot"); if (ft) ft.innerHTML = insFootHTML(t.dataset.ik); });
     const insFootHTML = k => {
       if (k === "qlt") return "";
       if ((k === "chg" || k === "prd") && !ECR.INS_RGV) return insRgView(() => insFootHTML(k));

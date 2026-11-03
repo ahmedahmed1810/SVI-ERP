@@ -1110,7 +1110,7 @@
       grpFlush();
       /* v523 (remarque 4) : après une suppression, plus de filtre sur des lignes disparues — la mémoire des cases cochées
          est vidée et un rond choisi sur une ligne supprimée est libéré (tous les tableaux et listes) */
-      ICL = null;
+      ECR.ICL = null;
       try {
         if (INS && LK) {
           ["des", "lot", "prim", "sec"].forEach(k => { if (LK[k] && !(INS[k] || []).some(r => r.id === LK[k])) LK[k] = null; });
