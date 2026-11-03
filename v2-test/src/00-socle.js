@@ -400,12 +400,30 @@ const insPrdPrice = (data, id) => {
   const d = (data.des || []).find(x => x.id === l.des);
   return d && d.p !== "" && d.p !== undefined ? num(d.p) : "";
 };
+/* v899 (cahier, décision du 03/11/2026) : TVA PAR DÉFAUT — un seul réglage, dans PARAMÉTRAGE › BUDGET › TVA, commun au budget et aux achats.
+   Plus de 20 % écrit dans le code : une désignation sans TVA prend ce réglage ; s'il est vide aussi, la TVA manque (enregistrement refusé).
+   Première lecture : reprend la TVA déjà réglée dans les paramètres des achats, si elle l'avait été. */
+const SVI_TVA_KEY = "svi_tva_def_v1";
+const sviTvaDef = () => {
+  try {
+    const s = localStorage.getItem(SVI_TVA_KEY);
+    if (s !== null) return String(s).trim() === "" ? null : num(s);
+    let a = null; try { a = JSON.parse(SVI_LZ.dec(localStorage.getItem("svi_ach_prm_v1")) || "null"); } catch (e) { a = null; }
+    if (a && a.tva !== undefined && a.tva !== "") { localStorage.setItem(SVI_TVA_KEY, String(num(a.tva))); return num(a.tva); }
+  } catch (e) {}
+  return null;
+};
+const sviTvaSave = v => { try { localStorage.setItem(SVI_TVA_KEY, v === null || v === undefined ? "" : String(v)); } catch (e) {} };
+/* TVA d'une désignation : la sienne, sinon la TVA PAR DÉFAUT ; null = manquante */
+const sviTvaOf = v => v === "" || v === undefined || v === null ? sviTvaDef() : num(v);
 /* TVA d'un produit : celle de la désignation client à laquelle il est lié ; vide s'il n'est lié à rien */
 const insPrdTVA = (data, id) => {
   const l = ((data || {}).links || []).find(l => (l.prd || []).some(x => x.id === id));
   if (!l) return "";
   const d = (data.des || []).find(x => x.id === l.des);
-  return !d ? "" : (d.tva === "" || d.tva === undefined ? 20 : num(d.tva));
+  if (!d) return "";
+  const t = sviTvaOf(d.tva);
+  return t === null ? "" : t;
 };
 
 /* v694 : petit rappel en haut, 2 s, à l'arrivée sur un autre écran du budget (« AVENANT 1 (2 / 4) ») */

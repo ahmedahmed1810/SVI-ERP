@@ -171,7 +171,7 @@ function sviBdgComparatif(C) {
   const CMPM_TYPES = [["cur", "ÉTAT ACTUEL"], ["b", "BUDGET INITIAL ET AVENANTS"], ["g", "CONSOLIDÉ"], ["s", "SCÉNARIOS"], ["v", "VERSIONS"], ["r", "RECALAGES"], ["c", "PHOTOS DU CONSOLIDÉ"], ["o", "AUTRES BUDGETS"]];
   const cmpmType = x => x.v === "cur" ? "cur" : x.v === "g" ? "g" : /^o/.test(x.v.split(":")[0]) ? "o" : /^RECALAGE/.test(x.lab) ? "r" : x.v.split(":")[0];
   const cmpmTtc = d => { try { return (d.des || []).filter(r => !r.t).reduce((t, r) => { const lq = insLinkedQ(d, r.id); const q = lq !== null ? lq : num(r.q || 0);
-    return t + q * num(r.p || 0) * (1 + (r.tva === "" || r.tva === undefined ? 20 : num(r.tva)) / 100); }, 0); } catch (e) { return 0; } };
+    return t + q * num(r.p || 0) * (1 + (sviTvaOf(r.tva) ?? 0) / 100); }, 0); } catch (e) { return 0; } };
   const CMPM_IND = [["ttc", "MONTANT TTC", d => cmpmTtc(d), 2], ["prd", "PRODUITS HT (DH)", d => verInd(d).prd, 2], ["chg", "CHARGES (DH)", d => verInd(d).chg, 2], ["mo", "MAIN-D'ŒUVRE (DH)", d => verInd(d).mo, 2],
     ["mg", "MARGE (DH)", d => verInd(d).mg, 2], ["mgp", "MARGE (%)", d => verInd(d).mgp, 2], ["fin", "DATE DE FIN", d => verInd(d).fin, "d"], ["dur", "DURÉE (J CALENDAIRES)", d => verInd(d).dur, 0],
     ["but", "MARGE SUR LA DATE BUTOIR (J)", d => verInd(d).but, 0], ["eff", "EFFECTIF MAXIMUM (J-H / JOUR)", d => verInd(d).eff, 1], ["lots", "LOTS", d => verInd(d).lots, 0],

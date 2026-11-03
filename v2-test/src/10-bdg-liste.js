@@ -1378,7 +1378,7 @@ function renderBudgetList() {
       dg.set(k, g);
     });
     const ttc = [...dg.values()].reduce((t, g) => t + g.qty * g.price, 0);
-    const ht = ttc / 1.2;
+    const ht = ttc / (1 + (sviTvaDef() ?? 0) / 100);   /* v899 : TVA PAR DÉFAUT */
 
     const refDate =
       budgetDate(budget.ref);
@@ -1408,7 +1408,7 @@ function renderBudgetList() {
           const qq = r => { const lq = insLinkedQ(D, r.id); return lq !== null ? lq : 0; };
           const ht = ds.reduce((t, r) => t + qq(r) * num(r.p || 0), 0);
           const ttc = ds.reduce((t, r) => t + qq(r) * num(r.p || 0) *
-            (1 + (r.tva === "" || r.tva === undefined ? 20 : num(r.tva)) / 100), 0);
+            (1 + (sviTvaOf(r.tva) ?? 0) / 100), 0);
           return { ht, ttc };
         })(),
         validated: svDT(budget.inst.validated || ""),

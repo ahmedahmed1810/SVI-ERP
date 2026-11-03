@@ -686,7 +686,7 @@ function sviBdgAnnulerLiaisons(C) {
       );
 
       if (k) {
-        g.price = k.cprice / 1.2;   /* prix de la feuille TTC → HT */
+        g.price = k.cprice / (1 + (sviTvaDef() ?? 0) / 100);   /* prix de la feuille TTC → HT */
         g.unit = k.dunit || k.unit || g.unit;
       }
 
@@ -715,7 +715,7 @@ function sviBdgAnnulerLiaisons(C) {
       ["price", "PPB", g => g.price, "number"],
       ["ht", "MPB HT", g => g.ht, "number"],
       ["tva", "TVA", () => "20,00 %", "number"],
-      ["ttc", "MPB TTC", g => g.ht * 1.2, "number"]
+      ["ttc", "MPB TTC", g => g.ht * (1 + (sviTvaDef() ?? 0) / 100), "number"]
     ];
 
     const shownClient = roApply("client", cfApply("client", ccols, base), g => g.key);
@@ -754,7 +754,7 @@ function sviBdgAnnulerLiaisons(C) {
                 <td class="number">${money(g.price)}</td>
                 <td class="number">${money(ht)}</td>
                 <td class="number">20,00 %</td>
-                <td class="number">${money(ht * 1.2)}</td>
+                <td class="number">${money(ht * (1 + (sviTvaDef() ?? 0) / 100))}</td>
               </tr>
             `;
           }).join("")
@@ -771,8 +771,8 @@ function sviBdgAnnulerLiaisons(C) {
         <td></td><td></td><td></td><td class="number">${cQty}</td>
         <td class="number">TOTAL</td>
         <td class="number">${money(cHT)}</td>
-        <td class="number">${money(cHT * 0.2)}</td>
-        <td class="number">${money(cHT * 1.2)}</td>
+        <td class="number">${money(cHT * (sviTvaDef() ?? 0) / 100)}</td>
+        <td class="number">${money(cHT * (1 + (sviTvaDef() ?? 0) / 100))}</td>
       </tr>`;
     coApply("client", $("bdgClientHead").closest("table"));
   };

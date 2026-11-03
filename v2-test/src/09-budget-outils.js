@@ -251,7 +251,7 @@ const artAutoOf = list => {
   return out;
 };
 /* — de src/13-instance-saisie.js — */
-const insTVA = r => (r.tva === "" || r.tva === undefined) ? 20 : num(r.tva);
+const insTVA = r => sviTvaOf(r.tva) ?? 0;   /* v899 : TVA PAR DÉFAUT (PARAMÉTRAGE), plus de 20 % écrit ici */
 /* — de src/13-instance-saisie.js — */
 const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 /* — de src/13-instance-saisie.js — */

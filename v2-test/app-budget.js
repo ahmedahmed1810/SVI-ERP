@@ -1947,7 +1947,7 @@ function renderBudgetList() {
       dg.set(k, g);
     });
     const ttc = [...dg.values()].reduce((t, g) => t + g.qty * g.price, 0);
-    const ht = ttc / 1.2;
+    const ht = ttc / (1 + (sviTvaDef() ?? 0) / 100);   /* v899 : TVA PAR DÉFAUT */
 
     const refDate =
       budgetDate(budget.ref);
@@ -1977,7 +1977,7 @@ function renderBudgetList() {
           const qq = r => { const lq = insLinkedQ(D, r.id); return lq !== null ? lq : 0; };
           const ht = ds.reduce((t, r) => t + qq(r) * num(r.p || 0), 0);
           const ttc = ds.reduce((t, r) => t + qq(r) * num(r.p || 0) *
-            (1 + (r.tva === "" || r.tva === undefined ? 20 : num(r.tva)) / 100), 0);
+            (1 + (sviTvaOf(r.tva) ?? 0) / 100), 0);
           return { ht, ttc };
         })(),
         validated: svDT(budget.inst.validated || ""),
@@ -2403,12 +2403,12 @@ function renderBudgetList() {
       }
 
       /* les prix / montants de la feuille sont TTC :
-         le HT est déduit avec la TVA de la ligne (20 % par défaut) */
+         le HT est déduit avec la TVA de la ligne (colonne TVA de la feuille, sinon TVA PAR DÉFAUT — v899) */
       const ttcAmount =
         price
           ? qty * price
           : num(pick(row, ["MNB", "MONTANT", "MPB"]));
-      const tvaRate = 20;
+      const tvaRate = (() => { const v = pick(row, ["TVA", "TVA %", "TAUX TVA"]); return String(v ?? "").trim() !== "" ? num(v) : (sviTvaDef() ?? 0); })();
 
       return {
         id: "l" + i,
@@ -4563,7 +4563,7 @@ function sviBdgComparatif(C) {
   const CMPM_TYPES = [["cur", "ÉTAT ACTUEL"], ["b", "BUDGET INITIAL ET AVENANTS"], ["g", "CONSOLIDÉ"], ["s", "SCÉNARIOS"], ["v", "VERSIONS"], ["r", "RECALAGES"], ["c", "PHOTOS DU CONSOLIDÉ"], ["o", "AUTRES BUDGETS"]];
   const cmpmType = x => x.v === "cur" ? "cur" : x.v === "g" ? "g" : /^o/.test(x.v.split(":")[0]) ? "o" : /^RECALAGE/.test(x.lab) ? "r" : x.v.split(":")[0];
   const cmpmTtc = d => { try { return (d.des || []).filter(r => !r.t).reduce((t, r) => { const lq = insLinkedQ(d, r.id); const q = lq !== null ? lq : num(r.q || 0);
-    return t + q * num(r.p || 0) * (1 + (r.tva === "" || r.tva === undefined ? 20 : num(r.tva)) / 100); }, 0); } catch (e) { return 0; } };
+    return t + q * num(r.p || 0) * (1 + (sviTvaOf(r.tva) ?? 0) / 100); }, 0); } catch (e) { return 0; } };
   const CMPM_IND = [["ttc", "MONTANT TTC", d => cmpmTtc(d), 2], ["prd", "PRODUITS HT (DH)", d => verInd(d).prd, 2], ["chg", "CHARGES (DH)", d => verInd(d).chg, 2], ["mo", "MAIN-D'ŒUVRE (DH)", d => verInd(d).mo, 2],
     ["mg", "MARGE (DH)", d => verInd(d).mg, 2], ["mgp", "MARGE (%)", d => verInd(d).mgp, 2], ["fin", "DATE DE FIN", d => verInd(d).fin, "d"], ["dur", "DURÉE (J CALENDAIRES)", d => verInd(d).dur, 0],
     ["but", "MARGE SUR LA DATE BUTOIR (J)", d => verInd(d).but, 0], ["eff", "EFFECTIF MAXIMUM (J-H / JOUR)", d => verInd(d).eff, 1], ["lots", "LOTS", d => verInd(d).lots, 0],
@@ -9744,7 +9744,7 @@ window.addEventListener("load", () => build());
         `${td(money(g.qty), "r")}${td(money(pu), "r")}${td(esc(frMoney(pu)), "c")}${td(money(g.ht), "r")}</tr>`;
     }).join("");
     const ht = rows.reduce((t, g) => t + g.ht, 0);
-    const tva = ht * 0.2, ttc = ht + tva;
+    const tva = ht * (sviTvaDef() ?? 0) / 100, ttc = ht + tva;   /* v899 : TVA PAR DÉFAUT */
     printModel({
       branch: "DÉSIGNATIONS CLIENT", docTitle: "BORDEREAU DES PRIX – DÉTAIL ESTIMATIF", fileTag: "BORDEREAU DES PRIX", headLine: "", bpu: true,   /* v663 (axe 12) */
       table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:37%"><col style="width:4%"><col style="width:9%">
@@ -12348,7 +12348,7 @@ function sviBdgAnnulerLiaisons(C) {
       );
 
       if (k) {
-        g.price = k.cprice / 1.2;   /* prix de la feuille TTC → HT */
+        g.price = k.cprice / (1 + (sviTvaDef() ?? 0) / 100);   /* prix de la feuille TTC → HT */
         g.unit = k.dunit || k.unit || g.unit;
       }
 
@@ -12377,7 +12377,7 @@ function sviBdgAnnulerLiaisons(C) {
       ["price", "PPB", g => g.price, "number"],
       ["ht", "MPB HT", g => g.ht, "number"],
       ["tva", "TVA", () => "20,00 %", "number"],
-      ["ttc", "MPB TTC", g => g.ht * 1.2, "number"]
+      ["ttc", "MPB TTC", g => g.ht * (1 + (sviTvaDef() ?? 0) / 100), "number"]
     ];
 
     const shownClient = roApply("client", cfApply("client", ccols, base), g => g.key);
@@ -12416,7 +12416,7 @@ function sviBdgAnnulerLiaisons(C) {
                 <td class="number">${money(g.price)}</td>
                 <td class="number">${money(ht)}</td>
                 <td class="number">20,00 %</td>
-                <td class="number">${money(ht * 1.2)}</td>
+                <td class="number">${money(ht * (1 + (sviTvaDef() ?? 0) / 100))}</td>
               </tr>
             `;
           }).join("")
@@ -12433,8 +12433,8 @@ function sviBdgAnnulerLiaisons(C) {
         <td></td><td></td><td></td><td class="number">${cQty}</td>
         <td class="number">TOTAL</td>
         <td class="number">${money(cHT)}</td>
-        <td class="number">${money(cHT * 0.2)}</td>
-        <td class="number">${money(cHT * 1.2)}</td>
+        <td class="number">${money(cHT * (sviTvaDef() ?? 0) / 100)}</td>
+        <td class="number">${money(cHT * (1 + (sviTvaDef() ?? 0) / 100))}</td>
       </tr>`;
     coApply("client", $("bdgClientHead").closest("table"));
   };
@@ -18733,7 +18733,7 @@ function sviBdgQualite(C) {
         /* première frappe dans la ligne vide : la ligne est créée */
         r = { id: X.insId(), on: false };   /* nouvelle ligne : décochée par défaut */
         if (k === "des") {
-          r.t = false; r.tva = 20;   /* TVA 20 % par défaut */
+          r.t = false; r.tva = "";   /* v899 : TVA vide = TVA PAR DÉFAUT (PARAMÉTRAGE) */
           /* niveau : celui de la dernière ligne (ou dans le dernier titre) */
           const last = X.INS.des[X.INS.des.length - 1];
           r.d = !last ? 0 : last.t ? (Number(last.d) || 0) + 1 : (Number(last.d) || 0);
@@ -19680,6 +19680,11 @@ function sviBdgInstanceSaisie(C) {
     }
     if (INS_EDIT) { sviDataTidy(INS); insLiveSync(); try { qqAutoSync(); } catch (e) {} if (shell.__undoTick) shell.__undoTick(); }
     /* délier en attente de ✓ VALIDER : l'état enregistré garde les liaisons d'avant */
+    /* v899 (cahier) : TVA manquante (désignation sans TVA et TVA PAR DÉFAUT vide) = enregistrement refusé */
+    if (sviTvaDef() === null && (INS.des || []).some(r => !r.t && (r.tva === "" || r.tva === undefined))) {
+      clearTimeout(shell.__tvaT); shell.__tvaT = setTimeout(() => svToast("TVA MANQUANTE : SAISIR LA TVA DE LA DÉSIGNATION, OU LA TVA PAR DÉFAUT (PARAMÉTRAGE › BUDGET › TVA). RIEN N'EST ENREGISTRÉ.", 5000), 50);
+      return;
+    }
     sviBudgetStore(budget.inst.ref, () => { let lb = null; try { lb = ECR.LK.linksBak; } catch (e) {} return lb ? { ...INS, links: lb } : INS; });
   };
   if (INS_DLP_MIG) insSave();
@@ -20082,7 +20087,7 @@ function sviBdgInstanceSaisie(C) {
     const er = !isNew && INS_EDIT ? insRowErr(k, r) : null;
     let val = "";
     /* ligne vide « SAISIR ICI » des désignations : TVA 20 % affichée par défaut */
-    if (isNew && f === "tva" && k !== "prd") val = "20,00";
+    if (isNew && f === "tva" && k !== "prd") { const d0 = sviTvaDef(); val = d0 === null ? "" : insFmt(d0); }
     if (isNew && k === "prd" && f === "u" && lkSecU()) val = lkSecU();
     if (isNew && k === "prd" && f === "p") { const pp = lkPrimPrice(null); val = pp === "" ? "" : insFmt(pp); }
     if (!isNew) {
@@ -20091,7 +20096,7 @@ function sviBdgInstanceSaisie(C) {
       else if (f === "pct") { const v = insCalc(k, r, f); val = v === "" ? "" : money(v) + " %"; }
       else if (type === "calc" || qAuto) val = insFmt(insCalc(k, r, f));
       else if (k === "prd" && f === "tva") val = insFmt(insPrdTVA(INS, r.id));
-      else if (type === "num") val = f === "tva" ? (r.tva === "" || r.tva === undefined ? "20,00" : insFmt(r.tva)) : insFmt(r[f]);
+      else if (type === "num") val = f === "tva" ? (r.tva === "" || r.tva === undefined ? (sviTvaDef() === null ? "" : insFmt(sviTvaDef())) : insFmt(r.tva)) : insFmt(r[f]);
       else val = r[f] || "";
     }
     const artA = k === "des" && f === "art" && !isNew && !String(r.art ?? "").trim() ? (ECR.ART_AUTO.get(r.id) || "") : "";
@@ -21649,7 +21654,7 @@ function sviBdgVersionsScenarios(C) {
     const ST = SC.map(x => x.id === V.act ? INS : x.d || null), EL = ST.map(s2 => s2 ? indEls(s2) : null);
     /* v759 : indicateurs proposés d'office — MONTANT HT, MONTANT TTC, ÉCART TTC AVEC LE SCÉNARIO ACTIF, NOMBRE DE CHARGES */
     const amt = d => { let ht = 0, ttc = 0; try { (d.des || []).filter(r => !r.t).forEach(r => { const lq = insLinkedQ(d, r.id), q = lq !== null ? lq : num(r.q || 0), m = q * num(r.p || 0);
-      ht += m; ttc += m * (1 + (r.tva === "" || r.tva === undefined ? 20 : num(r.tva)) / 100); }); } catch (e) {} return { ht, ttc }; };
+      ht += m; ttc += m * (1 + (sviTvaOf(r.tva) ?? 0) / 100); }); } catch (e) {} return { ht, ttc }; };
     const A = ST.map(s2 => s2 ? amt(s2) : null), ia = SC.findIndex(x => x.id === V.act), a0 = ia >= 0 && A[ia] ? A[ia].ttc : null;
     const cell = v => v === null ? null : { val: v, txt: money(v) };
     const DEF = [{ k: "_ht", nom: "MONTANT HT", v: A.map(a => a ? cell(a.ht) : null) }, { k: "_ttc", nom: "MONTANT TTC", v: A.map(a => a ? cell(a.ttc) : null) },
@@ -22574,7 +22579,7 @@ function sviBdgExportImport(C) {
         ks.ck = ck;
       } else if (l.kind === "prd") {
         /* produit : ART, DÉSIGNATION, UNITÉ ; quantité et prix propres à chaque tâche, non repris */
-        const row = { des: U_(l.detail), u: U_(l.dunit || l.unit), tva: 20 };
+        const row = { des: U_(l.detail), u: U_(l.dunit || l.unit), tva: "" };
         /* produit identique déjà listé : une seule ligne (ses liens sont gardés) */
         const pk = "p" + impId("prd", row);
         if (!pset.has(pk)) { pset.add(pk); m.prd.push({ key: pk, row }); }
@@ -22587,13 +22592,13 @@ function sviBdgExportImport(C) {
       const prim = l => l.kind !== "chg" && (l.cprice || l.priceTTC);
       const k = x.ms.find(prim) || x.ms[0];
       const q = x.ms.filter(prim).reduce((t, l) => t + (Number(l.qty) || 0), 0);
-      m.des.push({ key: x.key, row: { art: k.article, des: U_(k.designation), u: U_(k.dunit || k.unit), q, p: k.price, tva: 20 } });
+      m.des.push({ key: x.key, row: { art: k.article, des: U_(k.designation), u: U_(k.dunit || k.unit), q, p: k.price, tva: "" } });
     });
     cmap.forEach(x => {
       const f = x.ms[0];
       const q = x.ms.reduce((t, l) => t + (Number(l.qty) || 0), 0);
       const a = x.ms.reduce((t, l) => t + (Number(l.amount) || 0), 0);
-      m.chg.push({ key: x.key, row: { art: "", des: U_(f.detail), u: U_(f.dunit), q, p: q ? a / q : 0, tva: 20 } });
+      m.chg.push({ key: x.key, row: { art: "", des: U_(f.detail), u: U_(f.dunit), q, p: q ? a / q : 0, tva: "" } });
     });
     m.hier = [...hset.values()];
     /* délais du budget validé : une période par tâche secondaire (du premier début à la dernière fin) */
@@ -23257,7 +23262,7 @@ function sviBdgExportImport(C) {
       /* FORMAT 108 : produit sans NBR (même hors liaison complète) → IMPORT NON CRÉÉ */
       else if (isP && (String(g(r, "nbr") ?? "").trim() === "" || num(g(r, "nbr")) === 0)) lineBad = { bad: ["nbr"], why: "NBR VIDE OU 0" };
       if (dc && !(lineBad && lineBad.bad.includes("upb"))) {
-        const row = { art: String(g(r, "art") ?? "").trim(), des: dc, u: U_(g(r, "upb")), tva: 20 };
+        const row = { art: String(g(r, "art") ?? "").trim(), des: dc, u: U_(g(r, "upb")), tva: "" };
         /* titre : ni unité, ni tâche, ni détail */
         if (!row.u && !lot && !t && !dn) row.t = true;
         dk = put("des", "des|" + impId("des", row), row);
@@ -23271,7 +23276,7 @@ function sviBdgExportImport(C) {
         row.__ch = ch;
         pk = put("prd", "prd|" + impId("prd", row) + (ch ? "#" + ch : ""), row);
       } else if (dn && t.startsWith("CHG")) {
-        const row = { art: String(g(r, "article") ?? "").trim(), des: dn, u: U_(g(r, "u")), q: nn(g(r, "q")), tva: 20 };
+        const row = { art: String(g(r, "article") ?? "").trim(), des: dn, u: U_(g(r, "u")), q: nn(g(r, "q")), tva: "" };
         /* PCB rempli dans la feuille = ce prix-là (v727 : plus de CHS) */
         const ps = String(g(r, "p") ?? "").trim() !== "" ? num(g(r, "p")) : null;
         if (ps !== null && isFinite(ps)) row.p = ps;

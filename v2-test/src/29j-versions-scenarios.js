@@ -338,7 +338,7 @@ function sviBdgVersionsScenarios(C) {
     const ST = SC.map(x => x.id === V.act ? INS : x.d || null), EL = ST.map(s2 => s2 ? indEls(s2) : null);
     /* v759 : indicateurs proposés d'office — MONTANT HT, MONTANT TTC, ÉCART TTC AVEC LE SCÉNARIO ACTIF, NOMBRE DE CHARGES */
     const amt = d => { let ht = 0, ttc = 0; try { (d.des || []).filter(r => !r.t).forEach(r => { const lq = insLinkedQ(d, r.id), q = lq !== null ? lq : num(r.q || 0), m = q * num(r.p || 0);
-      ht += m; ttc += m * (1 + (r.tva === "" || r.tva === undefined ? 20 : num(r.tva)) / 100); }); } catch (e) {} return { ht, ttc }; };
+      ht += m; ttc += m * (1 + (sviTvaOf(r.tva) ?? 0) / 100); }); } catch (e) {} return { ht, ttc }; };
     const A = ST.map(s2 => s2 ? amt(s2) : null), ia = SC.findIndex(x => x.id === V.act), a0 = ia >= 0 && A[ia] ? A[ia].ttc : null;
     const cell = v => v === null ? null : { val: v, txt: money(v) };
     const DEF = [{ k: "_ht", nom: "MONTANT HT", v: A.map(a => a ? cell(a.ht) : null) }, { k: "_ttc", nom: "MONTANT TTC", v: A.map(a => a ? cell(a.ttc) : null) },

@@ -72,6 +72,8 @@ def main():
         b = p.chromium.launch()
         ctx = b.new_context(viewport={"width": 1180, "height": 820}, permissions=["clipboard-read", "clipboard-write"])
         ctx.add_init_script("try { localStorage.setItem('svitest:svi_user_v1', 'TESTEUR'); } catch (e) {}")
+        # v899 : la TVA PAR DÉFAUT est un réglage (PARAMÉTRAGE › BUDGET › TVA), plus 20 % dans le code — les tests la règlent à 20
+        ctx.add_init_script("try { ['svitest:svi_tva_def_v1', 'svi_tva_def_v1'].forEach(k => { if (localStorage.getItem(k) === null) localStorage.setItem(k, '20'); }); } catch (e) {}")
         # v788 : le Gantt n'apparaît qu'en plein écran — les anciens tests du planning le gardent affiché (attribut de test)
         ctx.add_init_script("(() => { const f = () => { try { document.documentElement.setAttribute('data-dly-all', '1'); } catch (e) {} }; f(); document.addEventListener('DOMContentLoaded', f); })()")
         pg = ctx.new_page()

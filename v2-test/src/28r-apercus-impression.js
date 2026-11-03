@@ -773,7 +773,7 @@ window.addEventListener("load", () => build());
         `${td(money(g.qty), "r")}${td(money(pu), "r")}${td(esc(frMoney(pu)), "c")}${td(money(g.ht), "r")}</tr>`;
     }).join("");
     const ht = rows.reduce((t, g) => t + g.ht, 0);
-    const tva = ht * 0.2, ttc = ht + tva;
+    const tva = ht * (sviTvaDef() ?? 0) / 100, ttc = ht + tva;   /* v899 : TVA PAR DÉFAUT */
     printModel({
       branch: "DÉSIGNATIONS CLIENT", docTitle: "BORDEREAU DES PRIX – DÉTAIL ESTIMATIF", fileTag: "BORDEREAU DES PRIX", headLine: "", bpu: true,   /* v663 (axe 12) */
       table: `<table id="tpl"><colgroup><col style="width:6%"><col style="width:37%"><col style="width:4%"><col style="width:9%">

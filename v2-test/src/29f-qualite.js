@@ -1101,7 +1101,7 @@ function sviBdgQualite(C) {
         /* première frappe dans la ligne vide : la ligne est créée */
         r = { id: X.insId(), on: false };   /* nouvelle ligne : décochée par défaut */
         if (k === "des") {
-          r.t = false; r.tva = 20;   /* TVA 20 % par défaut */
+          r.t = false; r.tva = "";   /* v899 : TVA vide = TVA PAR DÉFAUT (PARAMÉTRAGE) */
           /* niveau : celui de la dernière ligne (ou dans le dernier titre) */
           const last = X.INS.des[X.INS.des.length - 1];
           r.d = !last ? 0 : last.t ? (Number(last.d) || 0) + 1 : (Number(last.d) || 0);

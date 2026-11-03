@@ -134,12 +134,12 @@
       }
 
       /* les prix / montants de la feuille sont TTC :
-         le HT est déduit avec la TVA de la ligne (20 % par défaut) */
+         le HT est déduit avec la TVA de la ligne (colonne TVA de la feuille, sinon TVA PAR DÉFAUT — v899) */
       const ttcAmount =
         price
           ? qty * price
           : num(pick(row, ["MNB", "MONTANT", "MPB"]));
-      const tvaRate = 20;
+      const tvaRate = (() => { const v = pick(row, ["TVA", "TVA %", "TAUX TVA"]); return String(v ?? "").trim() !== "" ? num(v) : (sviTvaDef() ?? 0); })();
 
       return {
         id: "l" + i,

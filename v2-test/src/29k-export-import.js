@@ -727,7 +727,7 @@ function sviBdgExportImport(C) {
         ks.ck = ck;
       } else if (l.kind === "prd") {
         /* produit : ART, DÉSIGNATION, UNITÉ ; quantité et prix propres à chaque tâche, non repris */
-        const row = { des: U_(l.detail), u: U_(l.dunit || l.unit), tva: 20 };
+        const row = { des: U_(l.detail), u: U_(l.dunit || l.unit), tva: "" };
         /* produit identique déjà listé : une seule ligne (ses liens sont gardés) */
         const pk = "p" + impId("prd", row);
         if (!pset.has(pk)) { pset.add(pk); m.prd.push({ key: pk, row }); }
@@ -740,13 +740,13 @@ function sviBdgExportImport(C) {
       const prim = l => l.kind !== "chg" && (l.cprice || l.priceTTC);
       const k = x.ms.find(prim) || x.ms[0];
       const q = x.ms.filter(prim).reduce((t, l) => t + (Number(l.qty) || 0), 0);
-      m.des.push({ key: x.key, row: { art: k.article, des: U_(k.designation), u: U_(k.dunit || k.unit), q, p: k.price, tva: 20 } });
+      m.des.push({ key: x.key, row: { art: k.article, des: U_(k.designation), u: U_(k.dunit || k.unit), q, p: k.price, tva: "" } });
     });
     cmap.forEach(x => {
       const f = x.ms[0];
       const q = x.ms.reduce((t, l) => t + (Number(l.qty) || 0), 0);
       const a = x.ms.reduce((t, l) => t + (Number(l.amount) || 0), 0);
-      m.chg.push({ key: x.key, row: { art: "", des: U_(f.detail), u: U_(f.dunit), q, p: q ? a / q : 0, tva: 20 } });
+      m.chg.push({ key: x.key, row: { art: "", des: U_(f.detail), u: U_(f.dunit), q, p: q ? a / q : 0, tva: "" } });
     });
     m.hier = [...hset.values()];
     /* délais du budget validé : une période par tâche secondaire (du premier début à la dernière fin) */
@@ -1410,7 +1410,7 @@ function sviBdgExportImport(C) {
       /* FORMAT 108 : produit sans NBR (même hors liaison complète) → IMPORT NON CRÉÉ */
       else if (isP && (String(g(r, "nbr") ?? "").trim() === "" || num(g(r, "nbr")) === 0)) lineBad = { bad: ["nbr"], why: "NBR VIDE OU 0" };
       if (dc && !(lineBad && lineBad.bad.includes("upb"))) {
-        const row = { art: String(g(r, "art") ?? "").trim(), des: dc, u: U_(g(r, "upb")), tva: 20 };
+        const row = { art: String(g(r, "art") ?? "").trim(), des: dc, u: U_(g(r, "upb")), tva: "" };
         /* titre : ni unité, ni tâche, ni détail */
         if (!row.u && !lot && !t && !dn) row.t = true;
         dk = put("des", "des|" + impId("des", row), row);
@@ -1424,7 +1424,7 @@ function sviBdgExportImport(C) {
         row.__ch = ch;
         pk = put("prd", "prd|" + impId("prd", row) + (ch ? "#" + ch : ""), row);
       } else if (dn && t.startsWith("CHG")) {
-        const row = { art: String(g(r, "article") ?? "").trim(), des: dn, u: U_(g(r, "u")), q: nn(g(r, "q")), tva: 20 };
+        const row = { art: String(g(r, "article") ?? "").trim(), des: dn, u: U_(g(r, "u")), q: nn(g(r, "q")), tva: "" };
         /* PCB rempli dans la feuille = ce prix-là (v727 : plus de CHS) */
         const ps = String(g(r, "p") ?? "").trim() !== "" ? num(g(r, "p")) : null;
         if (ps !== null && isFinite(ps)) row.p = ps;

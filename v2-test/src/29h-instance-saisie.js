@@ -140,6 +140,11 @@ function sviBdgInstanceSaisie(C) {
     }
     if (INS_EDIT) { sviDataTidy(INS); insLiveSync(); try { qqAutoSync(); } catch (e) {} if (shell.__undoTick) shell.__undoTick(); }
     /* délier en attente de ✓ VALIDER : l'état enregistré garde les liaisons d'avant */
+    /* v899 (cahier) : TVA manquante (désignation sans TVA et TVA PAR DÉFAUT vide) = enregistrement refusé */
+    if (sviTvaDef() === null && (INS.des || []).some(r => !r.t && (r.tva === "" || r.tva === undefined))) {
+      clearTimeout(shell.__tvaT); shell.__tvaT = setTimeout(() => svToast("TVA MANQUANTE : SAISIR LA TVA DE LA DÉSIGNATION, OU LA TVA PAR DÉFAUT (PARAMÉTRAGE › BUDGET › TVA). RIEN N'EST ENREGISTRÉ.", 5000), 50);
+      return;
+    }
     sviBudgetStore(budget.inst.ref, () => { let lb = null; try { lb = ECR.LK.linksBak; } catch (e) {} return lb ? { ...INS, links: lb } : INS; });
   };
   if (INS_DLP_MIG) insSave();
@@ -542,7 +547,7 @@ function sviBdgInstanceSaisie(C) {
     const er = !isNew && INS_EDIT ? insRowErr(k, r) : null;
     let val = "";
     /* ligne vide « SAISIR ICI » des désignations : TVA 20 % affichée par défaut */
-    if (isNew && f === "tva" && k !== "prd") val = "20,00";
+    if (isNew && f === "tva" && k !== "prd") { const d0 = sviTvaDef(); val = d0 === null ? "" : insFmt(d0); }
     if (isNew && k === "prd" && f === "u" && lkSecU()) val = lkSecU();
     if (isNew && k === "prd" && f === "p") { const pp = lkPrimPrice(null); val = pp === "" ? "" : insFmt(pp); }
     if (!isNew) {
@@ -551,7 +556,7 @@ function sviBdgInstanceSaisie(C) {
       else if (f === "pct") { const v = insCalc(k, r, f); val = v === "" ? "" : money(v) + " %"; }
       else if (type === "calc" || qAuto) val = insFmt(insCalc(k, r, f));
       else if (k === "prd" && f === "tva") val = insFmt(insPrdTVA(INS, r.id));
-      else if (type === "num") val = f === "tva" ? (r.tva === "" || r.tva === undefined ? "20,00" : insFmt(r.tva)) : insFmt(r[f]);
+      else if (type === "num") val = f === "tva" ? (r.tva === "" || r.tva === undefined ? (sviTvaDef() === null ? "" : insFmt(sviTvaDef())) : insFmt(r.tva)) : insFmt(r[f]);
       else val = r[f] || "";
     }
     const artA = k === "des" && f === "art" && !isNew && !String(r.art ?? "").trim() ? (ECR.ART_AUTO.get(r.id) || "") : "";

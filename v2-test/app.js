@@ -401,12 +401,30 @@ const insPrdPrice = (data, id) => {
   const d = (data.des || []).find(x => x.id === l.des);
   return d && d.p !== "" && d.p !== undefined ? num(d.p) : "";
 };
+/* v899 (cahier, décision du 03/11/2026) : TVA PAR DÉFAUT — un seul réglage, dans PARAMÉTRAGE › BUDGET › TVA, commun au budget et aux achats.
+   Plus de 20 % écrit dans le code : une désignation sans TVA prend ce réglage ; s'il est vide aussi, la TVA manque (enregistrement refusé).
+   Première lecture : reprend la TVA déjà réglée dans les paramètres des achats, si elle l'avait été. */
+const SVI_TVA_KEY = "svi_tva_def_v1";
+const sviTvaDef = () => {
+  try {
+    const s = localStorage.getItem(SVI_TVA_KEY);
+    if (s !== null) return String(s).trim() === "" ? null : num(s);
+    let a = null; try { a = JSON.parse(SVI_LZ.dec(localStorage.getItem("svi_ach_prm_v1")) || "null"); } catch (e) { a = null; }
+    if (a && a.tva !== undefined && a.tva !== "") { localStorage.setItem(SVI_TVA_KEY, String(num(a.tva))); return num(a.tva); }
+  } catch (e) {}
+  return null;
+};
+const sviTvaSave = v => { try { localStorage.setItem(SVI_TVA_KEY, v === null || v === undefined ? "" : String(v)); } catch (e) {} };
+/* TVA d'une désignation : la sienne, sinon la TVA PAR DÉFAUT ; null = manquante */
+const sviTvaOf = v => v === "" || v === undefined || v === null ? sviTvaDef() : num(v);
 /* TVA d'un produit : celle de la désignation client à laquelle il est lié ; vide s'il n'est lié à rien */
 const insPrdTVA = (data, id) => {
   const l = ((data || {}).links || []).find(l => (l.prd || []).some(x => x.id === id));
   if (!l) return "";
   const d = (data.des || []).find(x => x.id === l.des);
-  return !d ? "" : (d.tva === "" || d.tva === undefined ? 20 : num(d.tva));
+  if (!d) return "";
+  const t = sviTvaOf(d.tva);
+  return t === null ? "" : t;
 };
 
 /* v694 : petit rappel en haut, 2 s, à l'arrivée sur un autre écran du budget (« AVENANT 1 (2 / 4) ») */
@@ -1994,7 +2012,7 @@ const artAutoOf = list => {
   return out;
 };
 /* — de src/13-instance-saisie.js — */
-const insTVA = r => (r.tva === "" || r.tva === undefined) ? 20 : num(r.tva);
+const insTVA = r => sviTvaOf(r.tva) ?? 0;   /* v899 : TVA PAR DÉFAUT (PARAMÉTRAGE), plus de 20 % écrit ici */
 /* — de src/13-instance-saisie.js — */
 const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 /* — de src/13-instance-saisie.js — */
@@ -5097,7 +5115,7 @@ function sviParamTabs() {
   /* v790 (DOCUMENT UNIQUE §1.1) : une seule interface PARAMÉTRAGE à deux niveaux — RUBRIQUES (BUDGET, FORMAT), puis leurs onglets */
   bar.innerHTML = `<div class="prm-rubs"><button type="button" class="prm-rub on" data-rub="bdg">BUDGET</button><button type="button" class="prm-rub" data-rub="fmt">FORMAT</button></div>`
     + `<button type="button" class="prm-tab on" data-prm="unit" data-rub="bdg">UNITÉS</button><button type="button" class="prm-tab" data-prm="lib" data-rub="bdg">BIBLIOTHÈQUE DE PRIX</button>`
-    + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal" data-rub="bdg">CALENDRIER</button>`
+    + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal" data-rub="bdg">CALENDRIER</button><button type="button" class="prm-tab" data-prm="tva" data-rub="bdg">TVA</button>`
     + `<button type="button" class="prm-tab" data-prm="col" data-rub="fmt" hidden>ÉTATS</button><button type="button" class="prm-tab" data-prm="fel" data-rub="fmt" hidden>ÉLÉMENTS</button><button type="button" class="prm-tab" data-prm="fif" data-rub="fmt" hidden>INTERFACES</button><button type="button" class="prm-tab" data-prm="colh" data-rub="fmt" hidden>COLONNES</button><button type="button" class="prm-tab" data-prm="mask" data-rub="fmt" hidden>MASQUES DE SAISIE</button>`;
   /* CALENDRIER et DATES DU BUDGET : pour le budget ouvert ; grisés sans budget ouvert (appui long = raison) */
   const why = () => { const L = window.__sviBdgLive; return !L ? "OUVRIR UN BUDGET D'ABORD" : !L.edit ? "BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE" : ""; };
@@ -5143,6 +5161,17 @@ function sviParamTabs() {
   };
   /* v804 (checklist C1.44) : FORMAT › MASQUES DE SAISIE — 9 = un chiffre, A = une lettre, autre signe écrit tel quel */
   const mpane = document.createElement("div"); mpane.className = "prm-mask"; mpane.hidden = true; hpane.after(mpane);
+  /* v899 (cahier, décision du 03/11/2026) : BUDGET › TVA — TVA PAR DÉFAUT, un seul réglage commun au budget et aux achats */
+  const tpane = document.createElement("div"); tpane.className = "prm-tva"; tpane.hidden = true; mpane.after(tpane);
+  const tvaDraw = () => { const d = sviTvaDef();
+    tpane.innerHTML = `<table class="prm-table fmt-t tva-t"><colgroup><col style="width:420px"><col style="width:140px"></colgroup>
+      <thead><tr><th>RÉGLAGE</th><th class="center">TAUX %</th></tr></thead>
+      <tbody><tr><td>TVA PAR DÉFAUT (DÉSIGNATIONS SANS TVA, ARTICLES ET PIÈCES D'ACHAT)</td><td class="center"><input class="ins-in tva-def number" inputmode="decimal" value="${d === null ? "" : esc(String(d).replace(".", ","))}" autocomplete="off"></td></tr></tbody></table>
+      <div class="mask-note">VIDE : UNE DÉSIGNATION SANS TVA NE PEUT PAS ÊTRE ENREGISTRÉE (TVA MANQUANTE)</div>`; };
+  tpane.addEventListener("change", e => { const i = e.target.closest(".tva-def"); if (!i) return; const s = String(i.value).trim();
+    if (s === "") { sviTvaSave(null); tvaDraw(); return; }
+    const v = num(s); if (!sviNumOk(s) || v < 0 || v > 100) { svToast("TVA NON VALIDE (0 À 100).", 3000, i); tvaDraw(); return; }
+    sviTvaSave(v); tvaDraw(); });
   const maskDraw = () => {
     const L = sviMasks();
     mpane.innerHTML = `<table class="prm-table fmt-t mask-t"><colgroup><col style="width:280px"><col style="width:220px"><col style="width:150px"><col style="width:220px"></colgroup>
@@ -5206,11 +5235,12 @@ function sviParamTabs() {
     pane.hidden = which !== "unit";
     lpane.hidden = which !== "lib";
     cpane.hidden = which !== "col";
-    epane.hidden = which !== "fel"; ipane.hidden = which !== "fif"; hpane.hidden = which !== "colh"; mpane.hidden = which !== "mask";
+    epane.hidden = which !== "fel"; ipane.hidden = which !== "fif"; hpane.hidden = which !== "colh"; mpane.hidden = which !== "mask"; tpane.hidden = which !== "tva";
+    if (which === "tva") tvaDraw();
     if (which === "fel") felDraw(); if (which === "fif") fifDraw(); if (which === "colh") colhDraw(); if (which === "mask") maskDraw();
     const h1 = head.querySelector("h1"), sub = head.querySelector("p");
-    if (h1) h1.textContent = which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : which === "col" ? "FORMAT — ÉTATS" : which === "fel" ? "FORMAT — ÉLÉMENTS" : which === "fif" ? "FORMAT — INTERFACES" : which === "colh" ? "FORMAT — COLONNES" : which === "mask" ? "FORMAT — MASQUES DE SAISIE" : "UNITÉS";
-    if (sub) sub.textContent = which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT ; COMMUNE À TOUS LES BUDGETS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";
+    if (h1) h1.textContent = which === "tva" ? "TVA" : which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : which === "col" ? "FORMAT — ÉTATS" : which === "fel" ? "FORMAT — ÉLÉMENTS" : which === "fif" ? "FORMAT — INTERFACES" : which === "colh" ? "FORMAT — COLONNES" : which === "mask" ? "FORMAT — MASQUES DE SAISIE" : "UNITÉS";
+    if (sub) sub.textContent = which === "tva" ? "TVA PAR DÉFAUT, COMMUNE AU BUDGET ET AUX ACHATS" : which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT ; COMMUNE À TOUS LES BUDGETS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";
     if (which === "unit") draw();
     if (which === "lib") libDraw();
     if (which === "col") { colDraw(); if (sub) sub.textContent = "COULEUR DE CHAQUE ÉTAT, COMMUNE À TOUTE L'APPLICATION ET À TOUS LES APPAREILS"; }
