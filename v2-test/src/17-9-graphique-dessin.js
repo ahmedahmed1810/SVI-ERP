@@ -76,13 +76,13 @@
           const allOn = (INS.chg || []).filter(r => !r.t).every(r => r.on === true);
           const pct = Math.max(1, Math.min(100, Number(INS.chgPar) || 70)), grand = totS.reduce((t, x) => t + x[1], 0) || 1;
           const keep = new Set(); { let acc = 0; totS.forEach(([sk, v]) => { if (!allOn || acc < grand * pct / 100 - 1e-9) keep.add(sk); acc += v; }); }
-          const col = {}; let ci = 0; totS.forEach(([sk]) => { col[sk] = keep.has(sk) ? DLY_SER[ci++ % DLY_SER.length] : "#7f5539"; });
+          const col = {}; let ci = 0; totS.forEach(([sk]) => { col[sk] = keep.has(sk) ? ECR.DLY_SER[ci++ % ECR.DLY_SER.length] : "#7f5539"; });
           const order = totS.map(x => ks.indexOf(x[0]));
           let hb = "", svg = "";
           /* v572 (remarque 16) : couleurs usuelles — PRODUITS en bleu, CHARGES en orange, MARGE en vert (rouge quand elle est négative) */
           const CC = "#f79009", CP = "#2e90fa", CG = "#12b76a", CGN = "#d92d20";
           /* v589 : une charge garde sa couleur partout — orange si elle est seule, sinon celle de la légende */
-          const colOf = (sk, j) => ks.length > 1 ? (col[sk] || DLY_SER[j % DLY_SER.length]) : CC;
+          const colOf = (sk, j) => ks.length > 1 ? (col[sk] || ECR.DLY_SER[j % ECR.DLY_SER.length]) : CC;
           if (!C && !hideC && !curve && !multi && !cum) {
             /* v628 : jour avec au moins une tâche en cours mais sans charge = barre aplatie à zéro (couleur de la série) */
             const cal = insCal(), busy = new Set();

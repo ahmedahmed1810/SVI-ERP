@@ -619,7 +619,7 @@
     };
 
     /* ---------- histogramme : données, R17 approvisionnement, R18 réglages ---------- */
-    const DLY_SER = ["#f79009", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#fdb022", "#9e165f"];   /* v588 : plus de gris dans les séries (le gris = hors DÉBUT – FIN) */
+    ECR.DLY_SER = ["#f79009", "#7a5af8", "#ee46bc", "#06aed4", "#a15c07", "#fdb022", "#9e165f"];   /* v588 : plus de gris dans les séries (le gris = hors DÉBUT – FIN) */
     const dlyHSetPut = o => { INS.hset = { ...dlyHSet(), ...o }; insSave(); renderTabK(); };
     /* R19 / R20 : plage DÉBUT – FIN et filtre MIN – MAX (mémorisés par budget) */
     const dlyHRange = () => ({ a: "", b: "", ...(INS.hrange || {}) });
