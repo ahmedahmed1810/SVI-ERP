@@ -68,7 +68,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `22g-indicateurs.js` | indicateurs : éléments, calcul, liste commune | 343 |
 | `22h-tableau-de-bord.js` | tableau de bord | 219 |
 | `22i-indicateurs-tableau.js` | tableau et graphique d'un indicateur | 195 |
-| `22j-recalages.js` | recalages | 90 |
+| `22j-recalages.js` | appel des recalages (v832 : le code est dans 28-recalages.js) | 2 |
 | `22k-approvisionnement.js` | APPROVISIONNEMENT PRÉVISIONNEL | 184 |
 | `22l-indicateur-onglet.js` | onglet INDICATEURS (quatre parties, ESSAI) | 121 |
 | `22m-comparatif.js` | COMPARATIF | 151 |
@@ -80,6 +80,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `26-copier-coller.js` | copier, couper, coller | 710 |
 | `26b-conditionnement.js` | emballage et découpe par titre de charges | 105 |
 | `27-etat-fin-budget.js` | FIGER, VALIDER, fin de openBudgetDetail | 716 |
+| `28-recalages.js` | recalages, hors du grand bloc (v832, découpe étape 1) : sviBdgRecalages(C) | 100 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
