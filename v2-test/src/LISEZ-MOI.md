@@ -61,7 +61,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `21-export-import.js` | export / import (Excel, Google Sheets, autre budget), menu ⋯ | 2071 |
 | `22-saisie-directe.js` | SAISIE DIRECTE | 609 |
 | `22b-exploitation.js` | exploitation (ex-onglet MARGE) | 507 |
-| `22c-ratios-multi-signature.js` | indicateurs (données), signatures | 98 |
+| `22c-ratios-multi-signature.js` | appel de « indicateurs (données), signatures » (v840 : le code est dans 28i-ratios-multi-signature.js) | 2 |
 | `22d-contrat.js` | contrat : CPS, révision des prix, modalités de paiement, retenue de garantie | 254 |
 | `22e-versions-scenarios.js` | scénarios et versions | 492 |
 | `22f-plans.js` | appel de « plans et métré » (v838 : le code est dans 28g-plans.js) | 2 |
@@ -88,6 +88,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `28f-comparatif.js` | COMPARATIF, hors du grand bloc (v837) : sviBdgComparatif(C) | 298 |
 | `28g-plans.js` | plans et métré, hors du grand bloc (v838) : sviBdgPlans(C) | 197 |
 | `28h-indicateur-onglet.js` | onglet INDICATEURS (quatre parties, ESSAI), hors du grand bloc (v839) : sviBdgIndicateurOnglet(C) | 130 |
+| `28i-ratios-multi-signature.js` | indicateurs (données), signatures, hors du grand bloc (v840) : sviBdgRatiosSignature(C) | 107 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
