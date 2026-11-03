@@ -415,10 +415,10 @@
     /* plus récent en premier (ordre par défaut, sans tri choisi) */
     const recSorted = kind => recLoad(kind).map((r, i) => ({ ...r, _i: i }))
       .sort((a, b) => String(b.date).localeCompare(String(a.date)) || b._i - a._i);
-    const recShown = {};
+    ECR.recShown = {};
     const recTableData = kind => {
       const cols = ECR.recCols[kind];
-      const rows = recShown[kind] || cfApply(kind, cols, attFilter(recSorted(kind)), true);
+      const rows = ECR.recShown[kind] || cfApply(kind, cols, attFilter(recSorted(kind)), true);
       const oc = coOrder(kind, cols);
       return { head: oc.map(c => c[1]), rows: rows.map(r => oc.map(c => c[2](r))) };
     };
@@ -429,7 +429,7 @@
       const cols = ECR.recCols[kind];
       const tot0 = recSorted(kind), all = attFilter(tot0);   /* v720 : filtre par les cases carrées des autres blocs */
       const list = cfApply(kind, cols, all);
-      recShown[kind] = list;
+      ECR.recShown[kind] = list;
       const title = $("recTitle-" + kind);
       if (title) { title.innerHTML = SVI_ICON[kind] + esc(blkName[kind]) + " " + svCnt(list.length, tot0.length);
         const c = title.querySelector(".svi-cnt"); if (c) c.classList.toggle("cnt-filt", list.length < tot0.length); }   /* v720 : même repère que les onglets (bleu, toucher = FILTRES ACTIFS) */
