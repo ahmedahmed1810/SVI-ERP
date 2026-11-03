@@ -39,11 +39,11 @@
       try { txt = await navigator.clipboard.readText(); } catch (e) { svToast("COLLAGE IMPOSSIBLE : AUTORISER L'ACCÈS AU PRESSE-PAPIERS.", 4000); return; }
       const aoa = String(txt || "").replace(/\r/g, "").split("\n").filter(l => l.trim()).map(l => l.split("\t"));
       if (!aoa.length) { svToast("PRESSE-PAPIERS VIDE.", 3000); return; }
-      const H = (aoa.find(r => r.map(bfNorm).includes("DESIGNATION CLIENT") || r.map(bfNorm).includes("ACTIVITE SECONDAIRE")) || []).map(bfNorm);
+      const H = (aoa.find(r => r.map(ECR.bfNorm).includes("DESIGNATION CLIENT") || r.map(ECR.bfNorm).includes("ACTIVITE SECONDAIRE")) || []).map(ECR.bfNorm);
       if (!H.length) { svToast("EN-TÊTES ATTENDUS (ART, DÉSIGNATION CLIENT… ou LOT, ACTIVITÉ SECONDAIRE, DÉBUT, FIN).", 4500); return; }
-      const hi = aoa.findIndex(r => r.map(bfNorm).join("|") === H.join("|"));
+      const hi = aoa.findIndex(r => r.map(ECR.bfNorm).join("|") === H.join("|"));
       const body = aoa.slice(hi + 1), ti = H.indexOf("TYPE");
-      const isD = r => ti >= 0 && bfNorm(r[ti]) === "DELAI";
+      const isD = r => ti >= 0 && ECR.bfNorm(r[ti]) === "DELAI";
       const bRows = body.filter(r => !isD(r)), dRows = body.filter(isD);
       /* la colonne LIGNE n de la raison garde le numéro d'origine */
       const before = (INS.inc || []).length;

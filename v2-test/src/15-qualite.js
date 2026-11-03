@@ -260,9 +260,9 @@
     };
     /* import : ligne d'en-tête avec CRITÈRE (sinon l'ancien format PROJET, QUALITÉ, TITRE) ; replace = la source remplace les contrôles */
     const qqImportAoa = (aoa, srcName, quiet, replace) => {
-      const hi = (aoa || []).findIndex(r => (r || []).map(bfNorm).includes("CRITERE"));
+      const hi = (aoa || []).findIndex(r => (r || []).map(ECR.bfNorm).includes("CRITERE"));
       if (hi < 0) return -1;
-      const H = aoa[hi].map(bfNorm), col = n => H.indexOf(bfNorm(n));
+      const H = aoa[hi].map(ECR.bfNorm), col = n => H.indexOf(ECR.bfNorm(n));
       const C = {}; QQ_IO.forEach(h => { C[h] = col(h); });
       const get = (r, h) => C[h] >= 0 ? sviClean(r[C[h]] ?? "") : "";
       const PJ = U_(budget.project || ""), Q = qqData();

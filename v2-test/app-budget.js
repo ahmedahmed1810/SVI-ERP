@@ -5323,9 +5323,9 @@ function renderBudgetList() {
     };
     /* import : ligne d'en-tête avec CRITÈRE (sinon l'ancien format PROJET, QUALITÉ, TITRE) ; replace = la source remplace les contrôles */
     const qqImportAoa = (aoa, srcName, quiet, replace) => {
-      const hi = (aoa || []).findIndex(r => (r || []).map(bfNorm).includes("CRITERE"));
+      const hi = (aoa || []).findIndex(r => (r || []).map(ECR.bfNorm).includes("CRITERE"));
       if (hi < 0) return -1;
-      const H = aoa[hi].map(bfNorm), col = n => H.indexOf(bfNorm(n));
+      const H = aoa[hi].map(ECR.bfNorm), col = n => H.indexOf(ECR.bfNorm(n));
       const C = {}; QQ_IO.forEach(h => { C[h] = col(h); });
       const get = (r, h) => C[h] >= 0 ? sviClean(r[C[h]] ?? "") : "";
       const PJ = U_(budget.project || ""), Q = qqData();
@@ -14315,13 +14315,13 @@ ${A}</Assignments>
       return { head: ["PROJET", ...BF_HEAD], rows: rows.map(r => [pj, ...r]) };
     };
     /* lecture d'un onglet : ligne d'en-tête trouvée (DÉSIGNATION CLIENT), colonnes par leur nom */
-    const bfNorm = sviBfNorm;   /* refonte, étape 9 (v645) : règles d'import dans 02d */
+    ECR.bfNorm = sviBfNorm;   /* refonte, étape 9 (v645) : règles d'import dans 02d */
     const bfModel = aoa => {
       /* FORMAT 105 : en-tête = ligne portant DÉSIGNATION CLIENT, sinon la première ligne remplie */
-      let hi = aoa.findIndex(r => (r || []).some(c => bfNorm(c) === "DESIGNATION CLIENT"));
+      let hi = aoa.findIndex(r => (r || []).some(c => ECR.bfNorm(c) === "DESIGNATION CLIENT"));
       if (hi < 0) hi = aoa.findIndex(r => (r || []).some(c => String(c ?? "").trim() !== ""));
       if (hi < 0) throw new Error("TABLEAU VIDE");
-      const H = aoa[hi].map(bfNorm);
+      const H = aoa[hi].map(ECR.bfNorm);
       const col = (...names) => H.findIndex(h => names.some(x => h === x || (x.endsWith("*") && h.startsWith(x.slice(0, -1)))));
       const C = { art: col("ART"), dc: col("DESIGNATION CLIENT"), upb: col("UPB"), lot: col("LOT"), prim: col("ACTIVITE PRIMAIRE"),
         sec: col("ACTIVITE SECONDAIRE"), type: col("TYPE*"), article: col("ARTICLE"), des: col("DESIGNATION PRODUIT / CHARGE", "DESIGNATION"), desP: col("DESIGNATION PRODUIT"), desC: col("DESIGNATION CHARGE"), u: col("UNITE"),
@@ -14363,7 +14363,7 @@ ${A}</Assignments>
       }
       aoa.slice(hi + 1).forEach(r => {
         if (!r || other(r)) return;
-        const dc = U_(g(r, "dc")), t = bfNorm(g(r, "type")), dn = U_(g(r, "des"));
+        const dc = U_(g(r, "dc")), t = ECR.bfNorm(g(r, "type")), dn = U_(g(r, "des"));
         if (dc && U_(g(r, "upb"))) uAdd("d", dc, U_(g(r, "upb")), 1);
         if (dn && t.startsWith("PRD") && U_(g(r, "u"))) uAdd("p", dn, U_(g(r, "u")), 1);
       });
@@ -14374,7 +14374,7 @@ ${A}</Assignments>
         prjIn++;
         const lineNo = (aoa.__line0 || 0) + hi + 2 + ri;   /* numéro de ligne dans le tableau source */
         const dc = U_(g(r, "dc")), lot = U_(g(r, "lot")), prim = U_(g(r, "prim")), sec = U_(g(r, "sec"));
-        const t = bfNorm(g(r, "type")), dn = U_(g(r, "des"));
+        const t = ECR.bfNorm(g(r, "type")), dn = U_(g(r, "des"));
         let dk = "", pk = "", ck = "";
         /* ligne de liaison complète : mêmes règles que la saisie (FORMAT 74) ; non conforme → IMPORT NON CRÉÉ,
            et ni sa désignation sans UPB, ni son produit / sa charge ne sont créés */
@@ -14680,9 +14680,9 @@ ${A}</Assignments>
     const qltImportAoa = (aoa, srcName, quiet, replace) => {
       /* v489 : nouveau format (une ligne par critère) → DÉTAIL QUALITÉ ; sinon l'ancienne liste (PROJET, QUALITÉ, TITRE) */
       { const nq = qqImportAoa(aoa, srcName, quiet, replace); if (nq >= 0) return nq; }
-      const hi = (aoa || []).findIndex(r => (r || []).map(bfNorm).includes("QUALITE"));
+      const hi = (aoa || []).findIndex(r => (r || []).map(ECR.bfNorm).includes("QUALITE"));
       if (hi < 0) return 0;
-      const H = aoa[hi].map(bfNorm), cv = H.indexOf("QUALITE"), ct = H.indexOf("TITRE"), cp = H.findIndex(h => h === "PROJET" || h === "PRJ");
+      const H = aoa[hi].map(ECR.bfNorm), cv = H.indexOf("QUALITE"), ct = H.indexOf("TITRE"), cp = H.findIndex(h => h === "PROJET" || h === "PRJ");
       const PJ = U_(budget.project || "");
       INS.qlt = INS.qlt || [];
       const have = new Set(INS.qlt.map(r => U_(r.v)));
@@ -14694,7 +14694,7 @@ ${A}</Assignments>
         if (!v || have.has(v)) return;
         have.add(v);
         const row = { id: insId(), v, on: false };
-        if (ct >= 0 && /^(OUI|X|1|TITRE)$/.test(bfNorm(r[ct]))) row.t = true;
+        if (ct >= 0 && /^(OUI|X|1|TITRE)$/.test(ECR.bfNorm(r[ct]))) row.t = true;
         INS.qlt.push(row); n++;
       });
       if (!quiet) histLog("IMPORT", "QUALITÉ", (srcName || "") + " — " + n + " LIGNE(S)");
@@ -14706,9 +14706,9 @@ ${A}</Assignments>
        Une seule période par tâche : plusieurs lignes d'une même tâche sont fusionnées (début de la première, fin de la dernière). */
     const dlyTyOf = sviLinkType;
     const dlyImportAoa = (aoa, srcName, quiet) => {
-      const hi = (aoa || []).findIndex(r => (r || []).map(bfNorm).includes("ACTIVITE SECONDAIRE"));
+      const hi = (aoa || []).findIndex(r => (r || []).map(ECR.bfNorm).includes("ACTIVITE SECONDAIRE"));
       if (hi < 0) return 0;
-      const H = aoa[hi].map(bfNorm), col = n => H.indexOf(n);
+      const H = aoa[hi].map(ECR.bfNorm), col = n => H.indexOf(n);
       const C = { lot: col("LOT"), sec: col("ACTIVITE SECONDAIRE"), deb: col("DEBUT"), fin: col("FIN"), dur: H.findIndex(h => h.startsWith("DUREE")), pred: col("PREDECESSEURS"),
         typ: col("TYPE"), off: H.findIndex(h => h.startsWith("DECALAGE")), prj: H.findIndex(h => h === "PROJET" || h === "PRJ") };
       const PJ = U_(budget.project || "");
@@ -18883,11 +18883,11 @@ ${A}</Assignments>
       try { txt = await navigator.clipboard.readText(); } catch (e) { svToast("COLLAGE IMPOSSIBLE : AUTORISER L'ACCÈS AU PRESSE-PAPIERS.", 4000); return; }
       const aoa = String(txt || "").replace(/\r/g, "").split("\n").filter(l => l.trim()).map(l => l.split("\t"));
       if (!aoa.length) { svToast("PRESSE-PAPIERS VIDE.", 3000); return; }
-      const H = (aoa.find(r => r.map(bfNorm).includes("DESIGNATION CLIENT") || r.map(bfNorm).includes("ACTIVITE SECONDAIRE")) || []).map(bfNorm);
+      const H = (aoa.find(r => r.map(ECR.bfNorm).includes("DESIGNATION CLIENT") || r.map(ECR.bfNorm).includes("ACTIVITE SECONDAIRE")) || []).map(ECR.bfNorm);
       if (!H.length) { svToast("EN-TÊTES ATTENDUS (ART, DÉSIGNATION CLIENT… ou LOT, ACTIVITÉ SECONDAIRE, DÉBUT, FIN).", 4500); return; }
-      const hi = aoa.findIndex(r => r.map(bfNorm).join("|") === H.join("|"));
+      const hi = aoa.findIndex(r => r.map(ECR.bfNorm).join("|") === H.join("|"));
       const body = aoa.slice(hi + 1), ti = H.indexOf("TYPE");
-      const isD = r => ti >= 0 && bfNorm(r[ti]) === "DELAI";
+      const isD = r => ti >= 0 && ECR.bfNorm(r[ti]) === "DELAI";
       const bRows = body.filter(r => !isD(r)), dRows = body.filter(isD);
       /* la colonne LIGNE n de la raison garde le numéro d'origine */
       const before = (INS.inc || []).length;
