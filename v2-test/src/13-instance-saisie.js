@@ -1078,7 +1078,7 @@
       const DS = k !== "dly" && A.has("dly") ? shell.__dlySel : null;
       const IP = k !== "dly" && A.has("iso") ? U_(insIsoPath()) : "";
       const PS = k !== "chg" && A.has("par") ? insParSet() : null;   /* v622 : CHARGES QUI FONT n % filtre aussi les autres blocs */
-      let MS = null, msSkip = false; if (k !== "lnk" && A.has("mpar")) { try { if (MGP_BUSY) msSkip = true; else MS = insMgParSet(); } catch (e) { MS = null; } }   /* v658 : MARGES QUI FONT n % (pendant son propre calcul : résultat non mémorisé) */
+      let MS = null, msSkip = false; if (k !== "lnk" && A.has("mpar")) { try { if (ECR.MGP_BUSY) msSkip = true; else MS = insMgParSet(); } catch (e) { MS = null; } }   /* v658 : MARGES QUI FONT n % (pendant son propre calcul : résultat non mémorisé) */
       const inIso = l => { const v = U_(((INS.lot || []).find(x => x.id === l.lot) || {}).v || ""); return v === IP || v.startsWith(IP + " / "); };
       const ks = Object.keys(C);
       const out = !ks.length && !lon && !DS && !IP && !PS && !MS ? null : (INS.links || []).filter(l => (!PS || (l.chg || []).some(y => PS.has(y.id))) && (!MS || MS.has(l.id)) && ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))

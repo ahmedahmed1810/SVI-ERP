@@ -3928,7 +3928,7 @@ function renderBudgetList() {
       const DS = k !== "dly" && A.has("dly") ? shell.__dlySel : null;
       const IP = k !== "dly" && A.has("iso") ? U_(insIsoPath()) : "";
       const PS = k !== "chg" && A.has("par") ? insParSet() : null;   /* v622 : CHARGES QUI FONT n % filtre aussi les autres blocs */
-      let MS = null, msSkip = false; if (k !== "lnk" && A.has("mpar")) { try { if (MGP_BUSY) msSkip = true; else MS = insMgParSet(); } catch (e) { MS = null; } }   /* v658 : MARGES QUI FONT n % (pendant son propre calcul : résultat non mémorisé) */
+      let MS = null, msSkip = false; if (k !== "lnk" && A.has("mpar")) { try { if (ECR.MGP_BUSY) msSkip = true; else MS = insMgParSet(); } catch (e) { MS = null; } }   /* v658 : MARGES QUI FONT n % (pendant son propre calcul : résultat non mémorisé) */
       const inIso = l => { const v = U_(((INS.lot || []).find(x => x.id === l.lot) || {}).v || ""); return v === IP || v.startsWith(IP + " / "); };
       const ks = Object.keys(C);
       const out = !ks.length && !lon && !DS && !IP && !PS && !MS ? null : (INS.links || []).filter(l => (!PS || (l.chg || []).some(y => PS.has(y.id))) && (!MS || MS.has(l.id)) && ks.every(x => (x === "prd" || x === "chg") ? (l[x] || []).some(y => C[x].has(y.id)) : C[x].has(l[x]))
@@ -15241,12 +15241,12 @@ ${A}</Assignments>
        ========================================================= */
     const MG_DIMS = ["des", "lot", "prim", "sec"];
     /* v658 (FORMAT 247) : liaisons retenues par MARGES QUI FONT n % (calculées par le dessin de MARGE) */
-    let MGP_IDS = null, MGP_BUSY = false, MGP_M = null;
+    let MGP_IDS = null, MGP_M = null; ECR.MGP_BUSY = false;
     const insMgParSet = () => {
-      if (!INS || !INS.mgPar || MGP_BUSY) return null;
+      if (!INS || !INS.mgPar || ECR.MGP_BUSY) return null;
       if (MGP_M && MGP_M.rgv === ECR.INS_RGV) return MGP_M.ids;
-      MGP_BUSY = true;
-      try { xplHTML(); } catch (e) { MGP_IDS = null; } finally { MGP_BUSY = false; }
+      ECR.MGP_BUSY = true;
+      try { xplHTML(); } catch (e) { MGP_IDS = null; } finally { ECR.MGP_BUSY = false; }
       MGP_M = { rgv: ECR.INS_RGV, ids: MGP_IDS }; queueMicrotask(() => { MGP_M = null; });
       return MGP_IDS;
     };
