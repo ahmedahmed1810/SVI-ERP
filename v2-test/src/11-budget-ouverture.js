@@ -310,6 +310,9 @@
     /* v684 : consolidé d'un budget à avenants (« réf.-GLOBAL ») ; étape ouverte depuis le consolidé (flèche = retour au consolidé) */
     const AV_ROOT = budget.inst && budget.inst.virtual && !budget.inst.vname && /-GLOBAL$/.test(String(ref)) ? budget.inst.parent : "";
     const AV_STG = AV_ROOT ? sviAvStages(AV_ROOT) : [];
+    /* v896 : consolidé — même article à des prix différents d'une étape à l'autre = erreur signalée (lignes gardées séparées) */
+    if (AV_ROOT && ((budget.inst.data || {}).perr || []).length) setTimeout(() => sviAlert(["MÊME ARTICLE À DES PRIX DIFFÉRENTS D'UNE ÉTAPE À L'AUTRE : LES LIGNES RESTENT SÉPARÉES. CORRIGER LE PRIX DANS L'ÉTAPE CONCERNÉE.",
+      ...budget.inst.data.perr.map(e => "— " + [e.art, e.des, e.u].filter(Boolean).join(" ") + " : " + e.p.map(x => money(x.p) + (x.o ? " (" + x.o + ")" : "")).join(" ; "))].join("\n"), "ERREUR DE PRIX DANS LE CONSOLIDÉ"), 400);
     const AV_RET = !!window.__sviAvRet && window.__sviAvRet !== ref;
     /* v694 : écrans voisins du même budget — CONSOLIDÉ › BUDGET INITIAL › AVENANT 1… (balayage et ‹ ›) ;
        sur une version : versions de l'étape ; sur un recalage : recalages de l'étape (‹ › seulement) */

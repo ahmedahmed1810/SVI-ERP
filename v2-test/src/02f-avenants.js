@@ -95,6 +95,14 @@ const sviAvMerge = (rootRef, opt) => {
       (M.dlp[kk] = M.dlp[kk] || []).push(...(dd.dlp[k] || []).map(p => ({ ...p, id: (p.id || "p") + "_" + si })));
     });
   });
+  /* v896 (cahier, décision du 03/11/2026) : même article (ART, désignation, unité) à des prix différents d'une étape à l'autre :
+     les lignes restent séparées et une ERREUR est signalée (liste M.perr, montrée à l'ouverture du consolidé) */
+  { const g = new Map();
+    ["des", "chg"].forEach(k => M[k].forEach(r => { if (r.t) return; const kk = k + "|" + [sviAvU(r.art), sviAvU(r.des), sviAvU(r.u)].join("|"); (g.get(kk) || g.set(kk, []).get(kk)).push(r); }));
+    M.perr = [];
+    g.forEach(L => { const P = [...new Set(L.map(r => n(r.p)))]; if (P.length < 2) return;
+      L.forEach(r => { r.perr = true; });
+      M.perr.push({ art: L[0].art || "", des: L[0].des || "", u: L[0].u || "", p: L.map(r => ({ p: n(r.p), o: (r.__o || []).join(", ") })) }); }); }
   /* prix moyen pondéré : total des montants ÷ total des quantités */
   ["des", "chg"].forEach(k => M[k].forEach(r => {
     if (r.t || !r.__det || r.__det.length < 2) return;
