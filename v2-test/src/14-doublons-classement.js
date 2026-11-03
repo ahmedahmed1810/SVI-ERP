@@ -366,8 +366,8 @@
       const u = insUnlinked(), out = [];
       /* RÉF. : ART (désignations, charges) sinon numéro de la ligne dans son bloc */
       const pos = {};
-      INS_LINKED_KINDS.forEach(k => { pos[k] = new Map(INS[k].filter(r => !r.t).map((r, i) => [r.id, i + 1])); });
-      INS_LINKED_KINDS.forEach(k => u[k].forEach(r => out.push({ k, r, id: r.id,
+      ECR.INS_LINKED_KINDS.forEach(k => { pos[k] = new Map(INS[k].filter(r => !r.t).map((r, i) => [r.id, i + 1])); });
+      ECR.INS_LINKED_KINDS.forEach(k => u[k].forEach(r => out.push({ k, r, id: r.id,
         ref: ((k === "des" || k === "chg") && String(r.art || "").trim()) ? String(r.art).trim() : "N° " + (pos[k].get(r.id) || ""),
         bloc: UNL_BLOC[k], lib: (k === "lot" || k === "prim" || k === "sec") ? (r.v || "") : [r.art, r.des].filter(Boolean).join(" — ") + (r.u ? " (" + r.u + ")" : "") })));
       return out;

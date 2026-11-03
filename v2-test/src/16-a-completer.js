@@ -123,11 +123,11 @@
     };
     shell.__figeWhy = () => insFigeWhy();
     shell.__figeBlocks = () => insFigeBlocks();
-    const insUnlCount = () => { const n = insUnlinked(); return INS_LINKED_KINDS.reduce((t, k) => t + n[k].length, 0); };
+    const insUnlCount = () => { const n = insUnlinked(); return ECR.INS_LINKED_KINDS.reduce((t, k) => t + n[k].length, 0); };
     /* liaisons dont une ligne a disparu : nettoyées */
     const insCleanLinks = () => {
       const has = k => new Set(INS[k].map(r => r.id));
-      const H = Object.fromEntries(INS_LINKED_KINDS.map(k => [k, has(k)]));
+      const H = Object.fromEntries(ECR.INS_LINKED_KINDS.map(k => [k, has(k)]));
       INS.links = (INS.links || []).filter(l => H.des.has(l.des) && H.lot.has(l.lot) && H.prim.has(l.prim) && H.sec.has(l.sec))
         .map(l => ({ ...l, prd: (l.prd || []).filter(x => H.prd.has(x.id)), chg: (l.chg || []).filter(x => H.chg.has(x.id)) }));
     };

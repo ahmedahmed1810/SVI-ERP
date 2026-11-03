@@ -4911,8 +4911,8 @@ function renderBudgetList() {
       const u = insUnlinked(), out = [];
       /* RÉF. : ART (désignations, charges) sinon numéro de la ligne dans son bloc */
       const pos = {};
-      INS_LINKED_KINDS.forEach(k => { pos[k] = new Map(INS[k].filter(r => !r.t).map((r, i) => [r.id, i + 1])); });
-      INS_LINKED_KINDS.forEach(k => u[k].forEach(r => out.push({ k, r, id: r.id,
+      ECR.INS_LINKED_KINDS.forEach(k => { pos[k] = new Map(INS[k].filter(r => !r.t).map((r, i) => [r.id, i + 1])); });
+      ECR.INS_LINKED_KINDS.forEach(k => u[k].forEach(r => out.push({ k, r, id: r.id,
         ref: ((k === "des" || k === "chg") && String(r.art || "").trim()) ? String(r.art).trim() : "N° " + (pos[k].get(r.id) || ""),
         bloc: UNL_BLOC[k], lib: (k === "lot" || k === "prim" || k === "sec") ? (r.v || "") : [r.art, r.des].filter(Boolean).join(" — ") + (r.u ? " (" + r.u + ")" : "") })));
       return out;
@@ -6345,11 +6345,11 @@ function renderBudgetList() {
       });
       return u;
     };
-    const INS_LINKED_KINDS = ["des", "lot", "prim", "sec", "chg", "prd"];
+    ECR.INS_LINKED_KINDS = ["des", "lot", "prim", "sec", "chg", "prd"];
     const insUnlinked = () => {
       const u = insUsed(), out = {};
       /* activité secondaire jumelle créée automatiquement : pas comptée « non liée » (elle suit son activité primaire) */
-      INS_LINKED_KINDS.forEach(k => { out[k] = INS[k].filter(r => !u[k].has(r.id) && !(k === "sec" && r.tw)); });
+      ECR.INS_LINKED_KINDS.forEach(k => { out[k] = INS[k].filter(r => !u[k].has(r.id) && !(k === "sec" && r.tw)); });
       return out;
     };
     /* FIGER (FORMAT 96) : impossible tant qu'il reste une cause ; chaque cause = libellé, nombre, onglet où aller */
@@ -6536,11 +6536,11 @@ function renderBudgetList() {
     };
     shell.__figeWhy = () => insFigeWhy();
     shell.__figeBlocks = () => insFigeBlocks();
-    const insUnlCount = () => { const n = insUnlinked(); return INS_LINKED_KINDS.reduce((t, k) => t + n[k].length, 0); };
+    const insUnlCount = () => { const n = insUnlinked(); return ECR.INS_LINKED_KINDS.reduce((t, k) => t + n[k].length, 0); };
     /* liaisons dont une ligne a disparu : nettoyées */
     const insCleanLinks = () => {
       const has = k => new Set(INS[k].map(r => r.id));
-      const H = Object.fromEntries(INS_LINKED_KINDS.map(k => [k, has(k)]));
+      const H = Object.fromEntries(ECR.INS_LINKED_KINDS.map(k => [k, has(k)]));
       INS.links = (INS.links || []).filter(l => H.des.has(l.des) && H.lot.has(l.lot) && H.prim.has(l.prim) && H.sec.has(l.sec))
         .map(l => ({ ...l, prd: (l.prd || []).filter(x => H.prd.has(x.id)), chg: (l.chg || []).filter(x => H.chg.has(x.id)) }));
     };
@@ -19801,7 +19801,7 @@ ${A}</Assignments>
         const n = insUnlCount();
         if (!n || !(await svConfirm({ title: "SUPPRIMER LES LIGNES NON LIÉES", text: n + " LIGNE(S) NON LIÉE(S) SERONT SUPPRIMÉES.", ok: "SUPPRIMER" }))) return;
         const u = insUsed();
-        INS_LINKED_KINDS.forEach(k => { INS[k] = INS[k].filter(r => u[k].has(r.id)); });
+        ECR.INS_LINKED_KINDS.forEach(k => { INS[k] = INS[k].filter(r => u[k].has(r.id)); });
         insCleanLinks(); insSave();
         histLog("SAISIE", "LIGNES NON LIÉES SUPPRIMÉES", n + " LIGNE(S)");
         refreshAll();

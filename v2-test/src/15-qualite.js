@@ -1282,11 +1282,11 @@
       });
       return u;
     };
-    const INS_LINKED_KINDS = ["des", "lot", "prim", "sec", "chg", "prd"];
+    ECR.INS_LINKED_KINDS = ["des", "lot", "prim", "sec", "chg", "prd"];
     const insUnlinked = () => {
       const u = insUsed(), out = {};
       /* activité secondaire jumelle créée automatiquement : pas comptée « non liée » (elle suit son activité primaire) */
-      INS_LINKED_KINDS.forEach(k => { out[k] = INS[k].filter(r => !u[k].has(r.id) && !(k === "sec" && r.tw)); });
+      ECR.INS_LINKED_KINDS.forEach(k => { out[k] = INS[k].filter(r => !u[k].has(r.id) && !(k === "sec" && r.tw)); });
       return out;
     };
     /* FIGER (FORMAT 96) : impossible tant qu'il reste une cause ; chaque cause = libellé, nombre, onglet où aller */
