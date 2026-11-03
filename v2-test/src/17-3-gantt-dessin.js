@@ -133,7 +133,7 @@
         if ((shell.__dlyCenter || shell.__dlyGx === undefined || sigNew) && HD && !shell.__dlyNoFit && (!!shell.__dlyCenter || !shell.__dlyFitOnce || sigNew) && fz.a && fz.b && !shell.__dlyFitting) {
           const r = host.getBoundingClientRect(), vw = Math.min(host.clientWidth, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0));
           const n = Math.max(1, dDiff(fz.a, fz.b) + 1), mg = fz.rg.a || fz.rg.b ? 60 : 12;
-          const w = Math.max(ECR.DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(Math.max(ECR.DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n)) * 10) / 10));
+          const w = Math.max(ECR.DLY_DW_MIN, Math.min(ECR.DLY_DW_MAX, Math.round(Math.max(ECR.DLY_DW_MIN, Math.min(ECR.DLY_DW_MAX, (vw - 2 * mg) / n)) * 10) / 10));
           if (vw > 60 && Math.abs(w - ECR.DLY_DW) >= 0.05) {
             try { localStorage.setItem(DLY_SC[dlyScale()].k, ECR.DLY_FILL && w <= ECR.DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}
             ECR.DLY_DW = w;
@@ -318,7 +318,7 @@
             requestAnimationFrame(() => { try {
               const h2 = shell.querySelector("#dlyGantt"); if (!h2) return;
               const r = h2.getBoundingClientRect(), vw = Math.min(h2.clientWidth, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0));
-              const n = Math.max(1, dDiff(fA, fB) + 1), mg = fRg.a || fRg.b ? 60 : 12, want = Math.max(ECR.DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n));
+              const n = Math.max(1, dDiff(fA, fB) + 1), mg = fRg.a || fRg.b ? 60 : 12, want = Math.max(ECR.DLY_DW_MIN, Math.min(ECR.DLY_DW_MAX, (vw - 2 * mg) / n));
               if (vw > 60 && Math.abs(want - ECR.DLY_DW) > 0.05) (shell.__dlyDwSet || (() => {}))(h2, want, mg + Math.max(0, (vw - 2 * mg - n * Math.round(want * 10) / 10) / 2), dDiff(h2.__d0, fA));
             } finally { shell.__dlyFitting = false; document.getElementById("dlyDwLab")?.remove(); } });
           } }

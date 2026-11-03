@@ -325,18 +325,18 @@
     const dlyScale = () => { let v = "j"; try { v = localStorage.getItem("svi_dlyg_sc_v1") || "j"; } catch (e) {} return DLY_SC[v] ? v : "j"; };
     /* v546 (R17) : choix JOUR / SEMAINE / MOIS dans la fenêtre CALENDRIER DU BUDGET ; SEMAINE et MOIS partent de la largeur qui remplit l'écran (R23) */
     window.__sviDlyScale = { get: () => dlyScale(), set: v => { const c = DLY_SC[v]; if (!c) return; try { localStorage.setItem(c.k, "fit"); localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} { const R0 = dlyHRange(); if (R0.a || R0.b) shell.__dlyCenter = true; } keepScroll(() => renderTab()); } };   /* v660 (FORMAT 252) : plage DÉBUT – FIN posée = elle remplit la largeur dans le nouvel affichage ; sans plage, tout le projet (v559) */
-    let DLY_DW_MAX = DLY_SC[dlyScale()].max; ECR.DLY_DW_MIN = DLY_SC[dlyScale()].min;
+    ECR.DLY_DW_MAX = DLY_SC[dlyScale()].max; ECR.DLY_DW_MIN = DLY_SC[dlyScale()].min;
     /* v546 (R23, R34) : maximum = 100 px par jour, ou plus si c'est la largeur qui remplit l'écran ; « fit » = remplir (départ en SEMAINE / MOIS) */
     ECR.DLY_FILL = 0;
     const dlyDwGet = () => {
-      const c = DLY_SC[dlyScale()]; ECR.DLY_DW_MIN = c.min; DLY_DW_MAX = Math.max(100, ECR.DLY_FILL);
+      const c = DLY_SC[dlyScale()]; ECR.DLY_DW_MIN = c.min; ECR.DLY_DW_MAX = Math.max(100, ECR.DLY_FILL);
       let s0 = null; try { s0 = localStorage.getItem(c.k); } catch (e) {}
       /* v559 : changer d'échelle (JOUR / SEMAINE / MOIS) = « fit » : tout le projet dans la largeur visible, trait FIN au bord droit
          (largeur d'un jour non arrondie) ; à l'ouverture, le dernier zoom réglé au doigt est repris */
       ECR.DLY_DW_MIN = Math.max(c.min, ECR.DLY_FILL || 0);   /* v553 (P11 R2) : jamais plus étroit que la largeur qui remplit le Gantt */
-      if ((s0 === null || s0 === "fit") && ECR.DLY_FILL) return Math.min(DLY_DW_MAX, ECR.DLY_FILL);
+      if ((s0 === null || s0 === "fit") && ECR.DLY_FILL) return Math.min(ECR.DLY_DW_MAX, ECR.DLY_FILL);
       const v = Number(s0) || c.def;
-      return Math.max(ECR.DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v * 10) / 10));
+      return Math.max(ECR.DLY_DW_MIN, Math.min(ECR.DLY_DW_MAX, Math.round(v * 10) / 10));
     };
     ECR.DLY_DW = dlyDwGet();
     /* v748 : réécrit seulement si la valeur change (sinon toute la page recalcule ses styles à chaque dessin) */
