@@ -8,7 +8,7 @@ const achFafEtat = f => f.state === "bap" && achFafReste(f) <= 0.005 ? "PAYÉE" 
 const achId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 const achDin = v => String(v || "").slice(0, 10);
 function achFafMod(ctx) {
-  return achListMod(ctx, { k: "faf", t: "ach_faf", id: "achFafT", list: achFaf, name: "FACTURES", save: achFafSave, inst: f => f.state === "instance" || f.state === "reclame", etatKey: "svi_ach_faf_etat_v1", newLab: "NOUVELLE FACTURE", newRow: "CRÉER UNE FACTURE ICI… (OU DEPUIS LA COMMANDE : FACTURER)", open: (id, done) => achFafFiche(id, null, done),
+  return achListMod(ctx, { k: "faf", t: "ach_faf", id: "achFafT", list: achFaf, name: "FACTURES", save: achFafSave, info: achFafInfo, inst: f => f.state === "instance" || f.state === "reclame", etatKey: "svi_ach_faf_etat_v1", newLab: "NOUVELLE FACTURE", newRow: "CRÉER UNE FACTURE ICI… (OU DEPUIS LA COMMANDE : FACTURER)", open: (id, done) => achFafFiche(id, null, done),
     etats: [["actif", "À PAYER"], ["instance", "EN INSTANCE"], ["reclame", "RÉCLAMÉES"], ["bap", "BON À PAYER"], ["payee", "PAYÉES"], ["alerte", "ALERTE"], ["annule", "ANNULÉES"], ["tout", "TOUT"]],
     ok: (f, k, L) => k === "tout" ? true : k === "alerte" ? achFafWhy(f, L).length > 0 : k === "payee" ? f.state === "bap" && achFafReste(f) <= 0.005 : k === "actif" ? f.state !== "annule" && achFafReste(f) > 0.005 : f.state === k,
     why: (f, L) => achFafWhy(f, L),
@@ -40,6 +40,21 @@ const achCopyBtn = (P, ro) => ro || P.copie ? (P.copie ? `<button type="button" 
 const achCopyOpen = async k => { try { const b = await sviFiles.get(k); if (b) window.open(URL.createObjectURL(b), "_blank"); } catch (e) {} };
 
 /* ---------- FICHE FACTURE ---------- */
+/* v817 : i de la facture (C8.88) — seulement les informations de la facture elle-même ; la saisie complète reste dans la fiche */
+function achFafInfo(id, done) {
+  const f = achFaf().find(x => x.id === id); if (!f) return; const d = sviWinNew(), C = achCmf().find(c => c.id === f.cmf);
+  const row = (l, v) => `<label class="frs-f"><span>${l}</span><input class="ins-in" value="${esc(v || "—")}" readonly></label>`;
+  d.innerHTML = sviWinCard({ cls: "frs-card faf-info", close: "data-x", title: "FACTURE — " + esc(f.ref) + " · " + esc(achFafEtat(f)),
+    body: `<div class="frs-scroll"><div class="frs-sec"><div class="frs-g">${row("N° DE LA FACTURE", f.num)}${row("TYPE", { normale: "FACTURE", acompte: "ACOMPTE" }[f.type] || String(f.type || "").toUpperCase())}
+      ${row("ÉMISE LE", achDFr(f.dFac))}${row("REÇUE LE", achDFr(f.dRec))}${row("ÉCHÉANCE", achDFr(achFafEch(f)))}${row("COMMANDE", C ? C.ref : f.type === "acompte" ? "ACOMPTE" : "SANS COMMANDE")}
+      ${row("FOURNISSEUR", f.frs ? achFrsNom(f.frs) : "")}${row("MONTANT TTC", achF2(achFafTot(f).ttc))}${row("RESTE À PAYER", f.state === "annule" ? "" : achF2(achFafReste(f)))}
+      ${f.motifAnn ? row("MOTIF DE L'ANNULATION", f.motifAnn) : ""}<label class="frs-f"><span>COPIE</span>${f.copie ? `<button type="button" class="ach-b" data-copy>VOIR LA COPIE</button>` : `<input class="ins-in" value="AUCUNE" readonly>`}</label></div></div></div>`,
+    foot: `<button type="button" class="svc-b" data-x>FERMER</button><button type="button" class="svc-b svc-ok svc-neutral" data-full>OUVRIR LA FICHE COMPLÈTE</button>` });
+  sviWinShow(d);
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(); return; }
+    if (e.target.closest("[data-copy]")) { achCopyOpen(f.copie); return; }
+    if (e.target.closest("[data-full]")) { d.remove(); achFafFiche(id, {}, done); } });
+}
 function achFafFiche(id, o, done) {
   o = o || {};
   const f0 = id ? achFaf().find(x => x.id === id) : null; if (id && !f0) return;

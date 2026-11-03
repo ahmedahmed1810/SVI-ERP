@@ -3097,7 +3097,7 @@ def main():
             const h = () => (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.replace(/\\s+/g, ' ').trim();
             const r = [getComputedStyle(v.querySelector('.ach-tabs')).display, h(), v.querySelectorAll('#achCafT tbody tr[data-id]').length, !!v.querySelector('.novapp-date-item'), !v.querySelector('.ach-hh'), !!document.getElementById('sviScreenTag')];
             v.querySelector('[data-nvsw]').click(); await w(200); r.push(h(), !!v.querySelector('.nv-inst [data-nvdel]'));
-            v.querySelector('[data-nvdel]').click(); await w(200); document.querySelector('#svConf [data-r="1"]')?.click(); await w(250);
+            v.querySelector('[data-nvdel]').click(); await w(200); { const q = document.querySelector('#svConf .ask-v'); if (q) { q.value = 'ERREUR'; document.querySelector('#svConf [data-ok]').click(); } else document.querySelector('#svConf [data-r="1"]')?.click(); } await w(250);
             r.push(achCaf().find(c => c.id === 'c1').state);
             v.querySelector('[data-nvo]').click(); await w(250); v.querySelector('[data-nvp="info"]')?.click(); await w(200); r.push(!!document.querySelector('.caf-card') && !!v.querySelector('.nvp-ref')); document.querySelector('.caf-card [data-x]')?.click(); await w(150); v.querySelector('[data-nvp="close"]')?.click(); await w(150);
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
@@ -3383,6 +3383,18 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("v816 : RÉCEPTIONS — écart entre le BL et le compté, attente d'essai, péremption, documents exigés, réception verrouillée après facture, sans facture depuis 60 jours",
               c816 == [True, True, True, True, True, True, False, 3], c816)
+        # v817 : page de la FACTURE — DÉTAIL FACTURE STANDARD depuis les réceptions, DÉTAIL FACTURE FOURNISSEUR, blocs liés ; i = infos de la facture seule ; annulation avec motif
+        c817 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_bsn_v1', 'svi_ach_cmf_v1', 'svi_ach_rcp_v1', 'svi_ach_faf_v1', 'svi_ach_dvf_v1'], keep = K.map(k => localStorage.getItem(k));
+            achBsnSave([{ id: 'b1', ref: 'BSN 1', centre: 'CHANTIER', bdg: 'X', bdgLab: 'PROJET A', des: 'SABLE', u: 'M3', q: 5, state: 'valide' }]); achDvfSave([{ id: 'v1', ref: 'DVF 1', state: 'retenu', lignes: [] }]);
+            achCmfSave([{ id: 'c1', ref: 'CMF 1', state: 'valide', dvf: 'v1', lignes: [{ id: 'l1', des: 'SABLE', u: 'M3', q: 5, pu: 100, tva: 20, bsn: 'b1' }] }]);
+            achRcpSave([{ id: 'r1', ref: 'RCP 1', cmf: 'c1', state: 'valide', lignes: [{ cl: 'l1', des: 'SABLE', u: 'M3', q: 2, st: 'ok' }] }]);
+            achFafSave([{ id: 'f1', ref: 'FAF 1', num: 'F-77', cmf: 'c1', type: 'normale', dFac: '2026-10-01', dRec: '2026-10-03', state: 'instance', lignes: [{ des: 'SABLE', u: 'M3', q: 2, pu: 100, tva: 20 }] }]);
+            const P = achDocPage('faf', achFaf()[0]), std = P.links[0];
+            const r = [P.links.map(L => L.t).join(','), std.rows.length, std.rows[0].cells.join('|')];
+            achFafInfo('f1', () => {}); await w(250); const c = document.querySelector('#svConf .faf-info'); r.push(!!c, !!c.querySelector('[data-full]'), !c.querySelector('table')); document.getElementById('svConf')?.remove();
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
+        check("v817 : page de la FACTURE — détail standard depuis les réceptions (chantier, TVA, TTC), détail du fournisseur, besoins, devis, commandes, réceptions, paiements, avoirs ; i = infos de la facture seule",
+              c817 == ["DÉTAIL FACTURE STANDARD,DÉTAIL FACTURE FOURNISSEUR,BESOINS,DEVIS,COMMANDES,RÉCEPTIONS,PAIEMENTS,AVOIRS", 1, "RCP 1|PROJET A|SABLE|M3|2|100|200|20|40|240", True, True, True], c817)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

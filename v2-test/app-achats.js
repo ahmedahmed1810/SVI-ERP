@@ -1405,8 +1405,9 @@ const achFrsNom = id => { const L = achFrs(), f = L.find(x => x.id === id); retu
    corbeille des lignes en instance (= ANNULER, la pièce est gardée) ; toucher une ligne ouvre sa fiche */
 function achListMod(ctx, o) {
   const dead = x => x.state === "annule";
-  const kill = o.save ? async x => { if (!(await svConfirm({ title: "ANNULER", text: x.ref + " PASSE EN ANNULÉ (GARDÉ, VISIBLE DANS ANNULÉS).", ok: "ANNULER" }))) return false;
-      const L = o.list(), y = L.find(z => z.id === x.id); if (!y) return false; y.state = "annule"; y.mod = achNow(); o.save(L); achHist(y.ref, "ANNULÉ", ""); return true; } : null;
+  /* v817 : annulation d'une pièce toujours avec motif (C5.27, C6.72, C8.71), la pièce est gardée */
+  const kill = o.save ? async x => { const m = await achAsk("ANNULER " + x.ref + " (GARDÉ, VISIBLE DANS ANNULÉS)", "MOTIF DE L'ANNULATION"); if (!m) return false;
+      const L = o.list(), y = L.find(z => z.id === x.id); if (!y) return false; y.state = "annule"; y.motifAnn = m; y.mod = achNow(); o.save(L); achHist(y.ref, "ANNULÉ — " + m, ""); return true; } : null;
   /* v779 : chaque pièce a sa PAGE au format de l'écran d'un budget (référence, i = la fiche, H, barre, blocs liés, SUIVI) */
   const ONE = { bsn: "BESOIN", caf: "CONSULTATION", dvf: "DEVIS", cmf: "COMMANDE", rcp: "RÉCEPTION", rtrcmd: "RETOUR DE COMMANDE", rtrrcp: "RETOUR DE RÉCEPTION", faf: "FACTURE", avf: "AVOIR", paf: "PAIEMENT" };
   return achNvMod(ctx, {
@@ -1423,7 +1424,7 @@ function achListMod(ctx, o) {
         o.open(null, end); } },
     pageOf: id => { const x = o.list().find(y => y.id === id); if (!x) return null; const D = achDocPage(o.k, x);
       return { id, code: x.ref, ref: x.ref, title: D.title || x.ref, party: x.frs ? achFrsNom(x.frs) : "", partyGo: x.frs ? "frs|" + x.frs : "", date: achDFr(x.date || x.dFac || x.cree), tot: D.tot || [], ttc: D.ttc || 0, numFrs: x.refFrs || x.num || x.nbl || "", st: (o.inst || (() => false))(x) ? "instance" : "valide", del: dead(x), why: o.why(x, o.list()),
-        info: done => o.open(id, () => done()),
+        info: done => (o.info || o.open)(id, () => done()),
         menu: [{ k: "fiche", lab: "OUVRIR LA FICHE" }].concat(D.menu || []).concat(kill && !dead(x) ? [{ k: "del", lab: "ANNULER" }] : []),
         act: async (k, redraw) => { if (k === "fiche") { o.open(id, redraw); return; } if (D.act && await D.act(k, redraw)) return; if (k === "del") { const y = o.list().find(z => z.id === id); if (y && await kill(y)) redraw(); } },
         links: D.links.map(L => L.add && !dead(x) && (L.addAny || (o.inst || (() => false))(x)) ? { ...L, addFn: redraw => o.open(id, redraw) } : { ...L, add: "" }) }; }
@@ -1435,7 +1436,7 @@ function achDocPage(k, x) {
   const fr = id => id ? achFrsNom(id) : "", ref = (L, id) => ((L.find(y => y.id === id) || {}).ref) || "";
   /* v800 (document unique 3.6 – 3.7) : toucher un article ou un fournisseur dans un tableau ouvre sa page */
   const AK = new Map(achArts().filter(a => !a.del).map(a => [achKey(a.des, a.u), a.id]));
-  const tv = l => l.tva === "" || l.tva === undefined ? achPrm().tva : achN(l.tva);
+  const tv = l => l.tva === "" || l.tva === undefined ? achPrm().tva : achN(l.tva), tv0 = tv;
   const lig = (t, withPu, withSt) => ({ t, add: "CRÉER UNE LIGNE ICI…", cols: [["DÉSIGNATION"], ["U", "center"], ["QUANTITÉ", "number"]].concat(withPu ? [["PU HT", "number"], ["TVA %", "number"], ["MONTANT HT", "number"]] : []).concat(withSt ? [["RÉSULTAT", "center"]] : []),
     rows: (x.lignes || []).map(l => ({ go: AK.get(achKey(l.des, l.u)) ? [[0, "art", AK.get(achKey(l.des, l.u))]] : [], cells: [l.des || "", l.u || "", achN(l.q)].concat(withPu ? [achN(l.pu), tv(l), achN(l.q) * achN(l.pu)] : []).concat(withSt ? [{ ok: "ACCEPTÉE", res: "RÉSERVES", ref: "REFUSÉE" }[l.st] || ""] : []) })) });
   const docs = (t, L, cols, cells, kk) => ({ t, cols, rows: L.map(y => ({ cells: cells(y), open: () => achGo(kk, y.id), go: y.frs && cols[1] && cols[1][0] === "FOURNISSEUR" ? [[1, "frs", y.frs]] : [], cls: ["annule", "rejete"].includes(y.state) ? "nv-strike" : "" })) });
@@ -1464,8 +1465,16 @@ function achDocPage(k, x) {
     { ...FA("FACTURES", achFaf().filter(f => f.cmf === x.id || has(f.cmfs, x.id))), add: "CRÉER UNE FACTURE ICI…", addAny: x.state === "valide" }, { ...PA("PAIEMENTS", achPaf().filter(p => p.cmf === x.id)), add: "CRÉER UN PAIEMENT (AVANCE) ICI…", addAny: x.state === "valide" }] };
   if (k === "rcp") return { title: fr(x.frs), links: [lig("LIGNES", false, true), CM("COMMANDE", achCmf().filter(c => c.id === x.cmf)), FA("FACTURES", achFaf().filter(f => has(f.rcps, x.id)))] };
   if (k === "rtrcmd" || k === "rtrrcp") return { title: fr(x.frs), links: [lig("LIGNES"), CM("COMMANDE", achCmf().filter(c => c.id === x.cmf)), RC("RÉCEPTION", achRcp().filter(r => r.id === x.rcp))] };
-  if (k === "faf") return { title: fr(x.frs), tot: TOT(achFafTot(x)), ttc: achFafTot(x).ttc, links: [lig("LIGNES", true), CM("COMMANDES", achCmf().filter(c => c.id === x.cmf || has(x.cmfs, c.id))), RC("RÉCEPTIONS", achRcp().filter(r => has(x.rcps, r.id))),
-    PA("PAIEMENTS", achPaf().filter(p => (p.aff || []).some(a => a.fa === x.id))), AV("AVOIRS", achAvf().filter(a => a.fa === x.id))] };
+  /* v817 : page de la facture (C8.90 – C8.93) — DÉTAIL FACTURE STANDARD (depuis les réceptions), DÉTAIL FACTURE FOURNISSEUR (saisi), puis besoins, devis, commandes, réceptions, paiements, avoirs */
+  if (k === "faf") { const cids = [x.cmf].concat(x.cmfs || []).filter(Boolean), CL = achCmf().filter(c => cids.includes(c.id)), RL = achRcp().filter(r => r.state !== "annule" && (has(x.rcps, r.id) || (!(x.rcps || []).length && cids.includes(r.cmf))));
+    const BS = achBsn(), lineOf = (r, l) => { const c = CL.find(y => y.id === r.cmf); return c ? (c.lignes || []).find(y => y.id === l.cl) : null; };
+    const STD = { t: "DÉTAIL FACTURE STANDARD", cols: [["RÉCEPTION"], ["CHANTIER"], ["DÉSIGNATION"], ["U", "center"], ["QUANTITÉ", "number"], ["PRIX HT", "number"], ["MONTANT HT", "number"], ["TVA %", "number"], ["MONTANT TVA", "number"], ["MONTANT TTC", "number"]],
+      rows: RL.flatMap(r => (r.lignes || []).filter(l => l.st !== "ref").map(l => { const cl = lineOf(r, l) || {}, b = cl.bsn ? BS.find(y => y.id === cl.bsn) : null, pu = achN(cl.pu), tv = tv0(cl), ht = achN(l.q) * pu;
+        return { cells: [r.ref, b ? (b.centre === "SIÈGE" ? "SIÈGE" : b.bdgLab || b.bdg || "") : "", l.des || "", l.u || "", achN(l.q), pu, ht, tv, ht * tv / 100, ht * (1 + tv / 100)], open: () => achGo("rcp", r.id), go: AK.get(achKey(l.des, l.u)) ? [[2, "art", AK.get(achKey(l.des, l.u))]] : [] }; })) };
+    const BIDS = new Set(CL.flatMap(c => (c.lignes || []).map(l => l.bsn)).filter(Boolean)), DIDS = new Set(CL.flatMap(c => [c.dvf].concat((c.lignes || []).map(l => l.dvf))).filter(Boolean));
+    const BSB = { t: "BESOINS", cols: [["RÉFÉRENCE"], ["CHARGE"], ["QUANTITÉ", "number"], ["AVANCEMENT", "center"]], rows: BS.filter(b => BIDS.has(b.id)).map(b => ({ cells: [b.ref, b.des || "", achN(b.q), achBsnAvLab(b)], open: () => achGo("bsn", b.id) })) };
+    return { title: fr(x.frs), tot: TOT(achFafTot(x)), ttc: achFafTot(x).ttc, links: [STD, lig("DÉTAIL FACTURE FOURNISSEUR", true), BSB, DV("DEVIS", achDvf().filter(v => DIDS.has(v.id))), CM("COMMANDES", CL), RC("RÉCEPTIONS", RL),
+      PA("PAIEMENTS", achPaf().filter(p => (p.aff || []).some(a => a.fa === x.id))), AV("AVOIRS", achAvf().filter(a => a.fa === x.id))] }; }
   if (k === "avf") return { title: fr(x.frs), links: [FA("FACTURE", achFaf().filter(f => f.id === x.fa))] };
   if (k === "paf") return { title: fr(x.frs), links: [FA("FACTURES RÉGLÉES", achFaf().filter(f => (x.aff || []).some(a => a.fa === f.id))), CM("COMMANDE (AVANCE)", achCmf().filter(c => c.id === x.cmf))] };
   if (k === "bsn") return { title: (x.des || "") + (x.u ? " (" + x.u + ")" : ""), links: [CA("CONSULTATIONS", achCaf().filter(c => (c.lignes || []).some(l => l.bsn === x.id))), CM("COMMANDES", achCmf().filter(c => (c.lignes || []).some(l => l.bsn === x.id)))] };
@@ -2024,7 +2033,7 @@ const achFafEtat = f => f.state === "bap" && achFafReste(f) <= 0.005 ? "PAYÉE" 
 const achId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 const achDin = v => String(v || "").slice(0, 10);
 function achFafMod(ctx) {
-  return achListMod(ctx, { k: "faf", t: "ach_faf", id: "achFafT", list: achFaf, name: "FACTURES", save: achFafSave, inst: f => f.state === "instance" || f.state === "reclame", etatKey: "svi_ach_faf_etat_v1", newLab: "NOUVELLE FACTURE", newRow: "CRÉER UNE FACTURE ICI… (OU DEPUIS LA COMMANDE : FACTURER)", open: (id, done) => achFafFiche(id, null, done),
+  return achListMod(ctx, { k: "faf", t: "ach_faf", id: "achFafT", list: achFaf, name: "FACTURES", save: achFafSave, info: achFafInfo, inst: f => f.state === "instance" || f.state === "reclame", etatKey: "svi_ach_faf_etat_v1", newLab: "NOUVELLE FACTURE", newRow: "CRÉER UNE FACTURE ICI… (OU DEPUIS LA COMMANDE : FACTURER)", open: (id, done) => achFafFiche(id, null, done),
     etats: [["actif", "À PAYER"], ["instance", "EN INSTANCE"], ["reclame", "RÉCLAMÉES"], ["bap", "BON À PAYER"], ["payee", "PAYÉES"], ["alerte", "ALERTE"], ["annule", "ANNULÉES"], ["tout", "TOUT"]],
     ok: (f, k, L) => k === "tout" ? true : k === "alerte" ? achFafWhy(f, L).length > 0 : k === "payee" ? f.state === "bap" && achFafReste(f) <= 0.005 : k === "actif" ? f.state !== "annule" && achFafReste(f) > 0.005 : f.state === k,
     why: (f, L) => achFafWhy(f, L),
@@ -2056,6 +2065,21 @@ const achCopyBtn = (P, ro) => ro || P.copie ? (P.copie ? `<button type="button" 
 const achCopyOpen = async k => { try { const b = await sviFiles.get(k); if (b) window.open(URL.createObjectURL(b), "_blank"); } catch (e) {} };
 
 /* ---------- FICHE FACTURE ---------- */
+/* v817 : i de la facture (C8.88) — seulement les informations de la facture elle-même ; la saisie complète reste dans la fiche */
+function achFafInfo(id, done) {
+  const f = achFaf().find(x => x.id === id); if (!f) return; const d = sviWinNew(), C = achCmf().find(c => c.id === f.cmf);
+  const row = (l, v) => `<label class="frs-f"><span>${l}</span><input class="ins-in" value="${esc(v || "—")}" readonly></label>`;
+  d.innerHTML = sviWinCard({ cls: "frs-card faf-info", close: "data-x", title: "FACTURE — " + esc(f.ref) + " · " + esc(achFafEtat(f)),
+    body: `<div class="frs-scroll"><div class="frs-sec"><div class="frs-g">${row("N° DE LA FACTURE", f.num)}${row("TYPE", { normale: "FACTURE", acompte: "ACOMPTE" }[f.type] || String(f.type || "").toUpperCase())}
+      ${row("ÉMISE LE", achDFr(f.dFac))}${row("REÇUE LE", achDFr(f.dRec))}${row("ÉCHÉANCE", achDFr(achFafEch(f)))}${row("COMMANDE", C ? C.ref : f.type === "acompte" ? "ACOMPTE" : "SANS COMMANDE")}
+      ${row("FOURNISSEUR", f.frs ? achFrsNom(f.frs) : "")}${row("MONTANT TTC", achF2(achFafTot(f).ttc))}${row("RESTE À PAYER", f.state === "annule" ? "" : achF2(achFafReste(f)))}
+      ${f.motifAnn ? row("MOTIF DE L'ANNULATION", f.motifAnn) : ""}<label class="frs-f"><span>COPIE</span>${f.copie ? `<button type="button" class="ach-b" data-copy>VOIR LA COPIE</button>` : `<input class="ins-in" value="AUCUNE" readonly>`}</label></div></div></div>`,
+    foot: `<button type="button" class="svc-b" data-x>FERMER</button><button type="button" class="svc-b svc-ok svc-neutral" data-full>OUVRIR LA FICHE COMPLÈTE</button>` });
+  sviWinShow(d);
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(); return; }
+    if (e.target.closest("[data-copy]")) { achCopyOpen(f.copie); return; }
+    if (e.target.closest("[data-full]")) { d.remove(); achFafFiche(id, {}, done); } });
+}
 function achFafFiche(id, o, done) {
   o = o || {};
   const f0 = id ? achFaf().find(x => x.id === id) : null; if (id && !f0) return;
