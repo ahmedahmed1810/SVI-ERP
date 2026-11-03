@@ -62,7 +62,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `22-saisie-directe.js` | appel de « SAISIE DIRECTE » (v845 : le code est dans 28n-saisie-directe.js) | 2 |
 | `22b-exploitation.js` | exploitation (ex-onglet MARGE) | 507 |
 | `22c-ratios-multi-signature.js` | appel de « indicateurs (données), signatures » (v840 : le code est dans 28i-ratios-multi-signature.js) | 2 |
-| `22d-contrat.js` | contrat : CPS, révision des prix, modalités de paiement, retenue de garantie | 254 |
+| `22d-contrat.js` | appel de « contrat : CPS, révision des prix, modalités de paiement, retenue de garantie » (v872 : le code est dans 28s-contrat.js) | 2 |
 | `22e-versions-scenarios.js` | scénarios et versions | 492 |
 | `22f-plans.js` | appel de « plans et métré » (v838 : le code est dans 28g-plans.js) | 2 |
 | `22g-indicateurs.js` | appel de « indicateurs : éléments, calcul, liste commune » (v843 : le code est dans 28l-indicateurs.js) | 2 |
@@ -98,6 +98,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `28p-inf.js` | fenêtre INF, hors du grand bloc (v869) : sviBdgInf(C) | 624 |
 | `28q-doc-historique-fenetres.js` | DOCUMENTS, TAF, OBSERVATIONS, historique, hors du grand bloc (v870) : sviBdgDocHistorique(C) | 475 |
 | `28r-apercus-impression.js` | aperçus PDF, impression, hors du grand bloc (v871) : sviBdgApercus(C) | 1226 |
+| `28s-contrat.js` | contrat : CPS, révision des prix, modalités de paiement, retenue de garantie, hors du grand bloc (v872) : sviBdgContrat(C) | 265 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
