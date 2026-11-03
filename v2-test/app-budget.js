@@ -7783,8 +7783,8 @@ function renderBudgetList() {
       });
       /* ordre par défaut : chronologique (début), puis alphabétique */
       all.sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || a.lot.localeCompare(b.lot, "fr") || a.sec.localeCompare(b.sec, "fr") || (a.nw - b.nw));
-      const rows = cfApply("dlys", DLY_COLS_S, all);
-      ECR.lastShown.detail = { cols: DLY_COLS_S, rows: rows.filter(x => !x.nw), kind: "dly" };
+      const rows = cfApply("dlys", ECR.DLY_COLS_S, all);
+      ECR.lastShown.detail = { cols: ECR.DLY_COLS_S, rows: rows.filter(x => !x.nw), kind: "dly" };
       const inp = (x, f) => edit
         ? `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${x.task}" data-pid="${x.pid}" data-f="${f}" type="text"
             ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${x.nw && f === "deb" ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? (x.dur || (shell.__dlyPendDur || {})[x.task] || "") : dFr(x[f]))}">`
@@ -7795,7 +7795,7 @@ function renderBudgetList() {
         __td_deb: td, __td_fin: td, __td_dur: td,
         __cb: edit && x.pid ? `<input type="checkbox" class="dlp-cb" data-task="${x.task}" data-pid="${x.pid}" ${x.on ? "checked" : ""}>` : "",
         __x: "" }),
-        x => `class="${x.nw ? "ins-new" : ""}"`, edit, DLY_COLS_S);
+        x => `class="${x.nw ? "ins-new" : ""}"`, edit, ECR.DLY_COLS_S);
     };
     /* saisie : début + durée → fin ; fin → durée ; refus d'un chevauchement dans la même tâche */
     if (!shell.__dlyBound) {
@@ -12386,7 +12386,7 @@ ${A}</Assignments>
     ];
     const DLY_W = { lot: 160, prim: 280, sec: 170, pred: 180, succ: 180, per: 120, deb: 90, fin: 90, dur: 80, marge: 70, jal: 62 };
     /* budget en instance / figé : une ligne par période d'une TÂCHE SECONDAIRE (lot + activité secondaire) */
-    const DLY_COLS_S = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ...DLY_COLS.slice(2)];
+    ECR.DLY_COLS_S = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ...DLY_COLS.slice(2)];
     /* planning : lot, activité secondaire, prédécesseurs, début, fin, durée */
     ECR.DLY_COLS_P = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ["pred", "PRÉDÉCESSEURS", x => x.pred || "", ""], ["succ", "SUCCESSEURS", x => x.succ || "", ""],
       ["deb", "DÉBUT", x => x.deb || "", "center"], ["fin", "FIN", x => x.fin || "", "center"], ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "center"],
@@ -12395,7 +12395,7 @@ ${A}</Assignments>
     /* del : mode modifiable (case au début de chaque période, 🗑 à la fin, case et 🗑 en tête) */
     /* v748 : opt.cut = { first, max } — au-delà de max lignes, seules les first premières sont mises dans le tableau ; le HTML des autres est rendu dans opt.rest */
     const dlyTable = (rows, cells, trAttr = () => "", del = false, base = DLY_COLS, opt = null) => {
-      const tk = base === DLY_COLS ? "dly" : base === DLY_COLS_S ? "dlys" : "dlyp";
+      const tk = base === DLY_COLS ? "dly" : base === ECR.DLY_COLS_S ? "dlys" : "dlyp";
       const cols = coOrder(tk, base);
       const w = k => cwLoad()["dly." + k] || DLY_W[k];
       /* FORMAT : case à droite de chaque ligne (cocher seulement) ; suppression par le menu ⋯ */

@@ -9,7 +9,7 @@
     ];
     const DLY_W = { lot: 160, prim: 280, sec: 170, pred: 180, succ: 180, per: 120, deb: 90, fin: 90, dur: 80, marge: 70, jal: 62 };
     /* budget en instance / figé : une ligne par période d'une TÂCHE SECONDAIRE (lot + activité secondaire) */
-    const DLY_COLS_S = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ...DLY_COLS.slice(2)];
+    ECR.DLY_COLS_S = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ...DLY_COLS.slice(2)];
     /* planning : lot, activité secondaire, prédécesseurs, début, fin, durée */
     ECR.DLY_COLS_P = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ["pred", "PRÉDÉCESSEURS", x => x.pred || "", ""], ["succ", "SUCCESSEURS", x => x.succ || "", ""],
       ["deb", "DÉBUT", x => x.deb || "", "center"], ["fin", "FIN", x => x.fin || "", "center"], ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "center"],
@@ -18,7 +18,7 @@
     /* del : mode modifiable (case au début de chaque période, 🗑 à la fin, case et 🗑 en tête) */
     /* v748 : opt.cut = { first, max } — au-delà de max lignes, seules les first premières sont mises dans le tableau ; le HTML des autres est rendu dans opt.rest */
     const dlyTable = (rows, cells, trAttr = () => "", del = false, base = DLY_COLS, opt = null) => {
-      const tk = base === DLY_COLS ? "dly" : base === DLY_COLS_S ? "dlys" : "dlyp";
+      const tk = base === DLY_COLS ? "dly" : base === ECR.DLY_COLS_S ? "dlys" : "dlyp";
       const cols = coOrder(tk, base);
       const w = k => cwLoad()["dly." + k] || DLY_W[k];
       /* FORMAT : case à droite de chaque ligne (cocher seulement) ; suppression par le menu ⋯ */

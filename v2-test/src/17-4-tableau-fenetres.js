@@ -180,8 +180,8 @@
       });
       /* ordre par défaut : chronologique (début), puis alphabétique */
       all.sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || a.lot.localeCompare(b.lot, "fr") || a.sec.localeCompare(b.sec, "fr") || (a.nw - b.nw));
-      const rows = cfApply("dlys", DLY_COLS_S, all);
-      ECR.lastShown.detail = { cols: DLY_COLS_S, rows: rows.filter(x => !x.nw), kind: "dly" };
+      const rows = cfApply("dlys", ECR.DLY_COLS_S, all);
+      ECR.lastShown.detail = { cols: ECR.DLY_COLS_S, rows: rows.filter(x => !x.nw), kind: "dly" };
       const inp = (x, f) => edit
         ? `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${x.task}" data-pid="${x.pid}" data-f="${f}" type="text"
             ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${x.nw && f === "deb" ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? (x.dur || (shell.__dlyPendDur || {})[x.task] || "") : dFr(x[f]))}">`
@@ -192,7 +192,7 @@
         __td_deb: td, __td_fin: td, __td_dur: td,
         __cb: edit && x.pid ? `<input type="checkbox" class="dlp-cb" data-task="${x.task}" data-pid="${x.pid}" ${x.on ? "checked" : ""}>` : "",
         __x: "" }),
-        x => `class="${x.nw ? "ins-new" : ""}"`, edit, DLY_COLS_S);
+        x => `class="${x.nw ? "ins-new" : ""}"`, edit, ECR.DLY_COLS_S);
     };
     /* saisie : début + durée → fin ; fin → durée ; refus d'un chevauchement dans la même tâche */
     if (!shell.__dlyBound) {
