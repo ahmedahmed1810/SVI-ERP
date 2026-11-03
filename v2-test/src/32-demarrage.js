@@ -8,78 +8,6 @@ document.addEventListener(
 
     initNav();
 
-    $("brdSearch")
-      ?.addEventListener(
-        "input",
-        renderBrd
-      );
-
-    if ($("addBrdBtn")) {
-      $("addBrdBtn").onclick =
-        () => brdForm();
-    }
-
-    if ($("modalClose")) {
-      $("modalClose").onclick =
-        closeModal;
-    }
-
-    $("modal")
-      ?.addEventListener(
-        "click",
-        e => {
-          if (
-            e.target ===
-            $("modal")
-          ) {
-            closeModal();
-          }
-        }
-      );
-
-    document.addEventListener(
-      "click",
-      e => {
-        if (
-          !e.target.closest(
-            "#rowMenu"
-          )
-        ) {
-          $("rowMenu")
-            ?.classList.add(
-              "hidden"
-            );
-        }
-      }
-    );
-
-    document
-      .querySelectorAll(
-        "[data-add]"
-      )
-      .forEach(
-        b => {
-          b.onclick =
-            () =>
-              addHierarchy(
-                b.dataset.add
-              );
-        }
-      );
-
-    document
-      .querySelectorAll(
-        "[data-search]"
-      )
-      .forEach(
-        i => {
-          i.addEventListener(
-            "input",
-            renderHierarchy
-          );
-        }
-      );
-
     /* ---------------- BDG SELECTEURS ---------------- */
 
     $("project")
@@ -144,98 +72,7 @@ document.addEventListener(
         );
       });
 
-    /* ---------------- MENU CONTEXTUEL ---------------- */
-
-    $("rowMenu")
-      ?.addEventListener(
-        "click",
-        async e => {
-
-          const action =
-            e.target.dataset.action;
-
-          if (
-            !action ||
-            !rowContext
-          ) {
-            return;
-          }
-
-          const item =
-            rowItem(
-              rowContext
-            );
-
-          $("rowMenu")
-            .classList.add(
-              "hidden"
-            );
-
-          try {
-            if (
-              action === "info"
-            ) {
-              infoRow(
-                rowContext
-              );
-            }
-
-            if (
-              action === "delete" &&
-              await svConfirm({ title: "SUPPRIMER", text: "LA LIGNE SERA SUPPRIMÉE.", ok: "SUPPRIMER" })
-            ) {
-              await deleteRow(
-                rowContext
-              );
-            }
-
-            if (
-              action === "edit"
-            ) {
-              if (
-                rowContext.type === "brd"
-              ) {
-                brdForm(item);
-
-              } else {
-                addHierarchy(
-                  rowContext.type,
-                  item
-                );
-              }
-            }
-
-            if (
-              action === "duplicate"
-            ) {
-              if (
-                rowContext.type === "brd"
-              ) {
-                brdForm(
-                  item,
-                  true
-                );
-
-              } else {
-                addHierarchy(
-                  rowContext.type,
-                  item,
-                  true
-                );
-              }
-            }
-
-          } catch (err) {
-            sviAlert(
-              err.message ||
-              String(err)
-            );
-          }
-        }
-      );
-
-    /* v746 (rapidité) : données BDS lues en parallèle — le dernier module (BDG…) s'ouvre sans attendre Google */
-    const boot = reloadAll();
+    /* v914 : BDS et CHS supprimés — plus de lecture de leurs données au démarrage */
 
     /* retour au dernier module ouvert (CHS, BDS, BDG…) */
     try {
@@ -243,7 +80,6 @@ document.addEventListener(
       const b = v && document.querySelector(`.nav-btn[data-view="${v}"]`);
       if (b && !b.classList.contains("active")) b.click();
     } catch (e) {}
-    await boot;
   }
 );
 

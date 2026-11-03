@@ -48,14 +48,14 @@ def static_checks():
     check("fichiers des modules assemblés à partir de src/ (à jour)", r.returncode == 0, r.stdout.strip())
     # v753 : un fichier par module — chacun a une syntaxe valide et index.html les charge tous, socle d'abord, même version
     errs = []
-    for f in ("app.js", "app-budget.js", "app-achats.js", "app-autres.js"):
+    for f in ("app.js", "app-budget.js", "app-achats.js"):
         r = subprocess.run(["node", "--check", os.path.join(ROOT, f)], capture_output=True, text=True)
         if r.returncode: errs.append(f + " : " + r.stderr[:200])
     check("fichiers des modules : syntaxe valide", not errs, errs)
     import re
     tags = re.findall(r'<script src="(app[\w-]*\.js)\?v=(\d+)"', open(os.path.join(ROOT, "index.html"), encoding="utf-8").read())
-    check("index.html charge app.js, app-budget.js, app-achats.js, app-autres.js (même version)",
-          [t[0] for t in tags] == ["app.js", "app-budget.js", "app-achats.js", "app-autres.js"] and len({t[1] for t in tags}) == 1, tags)
+    check("index.html charge app.js, app-budget.js, app-achats.js (même version ; v914 : app-autres.js supprimé avec BDS)",
+          [t[0] for t in tags] == ["app.js", "app-budget.js", "app-achats.js"] and len({t[1] for t in tags}) == 1, tags)
 
 class MepView:
     """v784 : l'aperçu s'ouvre dans l'application (éditeur MISE EN PAGE unique), plus dans une autre fenêtre."""

@@ -3,7 +3,7 @@
 Depuis la v753, l'application est **assemblée en un fichier par module** à partir de ces fichiers : on modifie ici, puis
 
 ```
-python3 outils/assembler.py          # écrit app.js, app-budget.js, app-achats.js, app-autres.js
+python3 outils/assembler.py          # écrit app.js, app-budget.js, app-achats.js (v914 : app-autres.js supprimé avec BDS)
 python3 tests/test_app.py            # tests de non-régression
 ```
 
@@ -12,7 +12,6 @@ python3 tests/test_app.py            # tests de non-régression
 | `app.js` | SOCLE COMMUN (chargé en premier ; garde le nom app.js, lu par le bouton NOUVELLE VERSION) | 00, 01, 02, 02e, 03, 05, 09, 09c, 09d, 09e, 09f, 32, 33, 34, 35 |
 | `app-budget.js` | BUDGET | 02b, 02c, 02d, 02f, 07, 10 à 27, 30 |
 | `app-achats.js` | ACHATS | 40 à 45 |
-| `app-autres.js` | AUTRES : BDS, formulaires CHS / BDS | 04, 06, 31 |
 
 `index.html` charge les quatre fichiers dans cet ordre, avec le même numéro de version. Tous les écouteurs globaux (clavier, saisie, calendrier, menu) sont dans le socle, dans le même ordre qu'avant ; les autres modules ne contiennent que des déclarations (sauf ACHATS, qui démarre son écran). Un nouveau fichier de `src/` se range dans `MODULES` de `outils/assembler.py`, sinon l'assemblage s'arrête.
 
@@ -29,9 +28,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `02e-synchro-base.js` | base V3 : envoi, fusion, verrous par zone, contrôle par les totaux, données partagées | 417 |
 | `02f-avenants.js` | étapes d'un budget, consolidé GLOBAL, contradictions, chaîne d'origine | 144 |
 | `03-api-drive.js` | appels au script Google, dossiers Drive | 388 |
-| `04-bds-donnees.js` | chargement des données BDS (CHS retiré en v742) | 490 |
 | `05-navigation.js` | menu principal (PARAMÉTRAGE / BDG) | 65 |
-| `06-bds-configuration.js` | écran BDS (décomposition) | 708 |
 | `07-bdg-chargement.js` | chargement des budgets validés | 179 |
 | `09-budget-outils.js` | fonctions sans état du budget (calculs, emballage et chutes, échéancier, bibliothèque, CUMUL) | 1209 |
 | `09c-filtres-communs.js` | tri et filtre par colonne façon tableur, COMMUNS à tous les écrans (budget, achats) : `sviCfKit` | 335 |
@@ -118,7 +115,6 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `29j-versions-scenarios.js` | scénarios et versions, hors du grand bloc (v889) : sviBdgVersionsScenarios(C) | 535 |
 | `29k-export-import.js` | export / import (Excel, Google Sheets, autre budget), menu ⋯, hors du grand bloc (v890) : sviBdgExportImport(C) | 2197 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
-| `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
 | `33-confirmations-sources.js` | fenêtres, messages, données source | 385 |
 | `34-parametrage.js` | PARAMÉTRAGE : UNITÉS, BIBLIOTHÈQUE DE PRIX, calendrier du budget | 446 |

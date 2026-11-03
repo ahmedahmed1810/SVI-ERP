@@ -49,8 +49,6 @@ function initNav() {
           $("pageSubtitle").textContent =
             btn.dataset.view === "chs"
               ? "VERSION 2 — PARAMÉTRAGE"
-              : btn.dataset.view === "bds"
-                ? "VERSION 2 — DÉCOMPOSITION"
               : btn.dataset.view === "ach"
                 ? "VERSION 2 — ACHATS"
                 : "VERSION 2 — BUDGET";

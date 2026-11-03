@@ -1224,3 +1224,8 @@ const sviRevEst = (d, pess) => {
     (d.chg || []).filter(r => !r.t && String(r.des || "").toUpperCase().includes(kw)).forEach(r => { chgUp += n(r.q) * n(r.p) * pc; }); });
   return { rev, val, chgUp, mb };
 };
+/* v914 : repris de 06-bds-configuration.js (BDS supprimé) — préfixe « 01 - » retiré d'un intitulé de niveau */
+function stripLevelPrefix(v) {
+  const s = String(v ?? "");
+  return s.replace(/^\s*\d{1,3}\s*[-–]\s*/, "");
+}
