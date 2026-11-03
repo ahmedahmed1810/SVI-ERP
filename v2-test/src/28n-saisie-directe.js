@@ -203,6 +203,45 @@ function sviBdgSaisieDirecte(C) {
       sugShow(inp);
     });
     d.addEventListener("focusout", () => setTimeout(() => { const b = d.querySelector(".sd-sug"); if (b && document.activeElement !== b.__for) sugHide(); }, 200));
+    /* v901 (cahier, décision du 03/11/2026 — principe général : l'erreur est refusée dès la saisie) : RÈGLE A contrôlée à la SORTIE DE LA LIGNE
+       (pas à chaque case : changer la désignation puis le lot d'une même ligne passe par des étapes intermédiaires).
+       Une tâche primaire (lot + act. prm) ou secondaire (lot + act. scd) déjà liée à une autre désignation (dans le budget ou dans cette fenêtre)
+       est refusée tout de suite : la ligne reprend ses valeurs d'avant, avec la raison */
+    const sdRuleA = (r, i) => {
+      const dc = U_(r.dc), lo = U_(r.lot), pr = U_(r.prim), se = U_(r.sec);
+      if (!dc || !lo || (!pr && !se)) return "";
+      const own = r._l || null;
+      for (const l of INS.links || []) {
+        if (l === own) continue;
+        const ld = U_(nm("des", l.des)), ll = U_(nm("lot", l.lot));
+        if (ll !== lo || ld === dc) continue;
+        if (pr && U_(nm("prim", l.prim)) === pr) return "RÈGLE A : LA TÂCHE PRIMAIRE " + lo + " › " + pr + " EST DÉJÀ LIÉE À " + ld + ".";
+        if (se && U_(nm("sec", l.sec)) === se) return "RÈGLE A : LA TÂCHE SECONDAIRE " + lo + " › " + se + " EST DÉJÀ LIÉE À " + ld + ".";
+      }
+      for (let j = 0; j < rows.length; j++) {
+        const o = rows[j]; if (j === i || o._del || !U_(o.dc) || U_(o.dc) === dc || U_(o.lot) !== lo) continue;
+        if (pr && U_(o.prim) === pr) return "RÈGLE A : LA TÂCHE PRIMAIRE " + lo + " › " + pr + " EST DÉJÀ LIÉE À " + U_(o.dc) + " (LIGNE " + (j + 1) + ").";
+        if (se && U_(o.sec) === se) return "RÈGLE A : LA TÂCHE SECONDAIRE " + lo + " › " + se + " EST DÉJÀ LIÉE À " + U_(o.dc) + " (LIGNE " + (j + 1) + ").";
+      }
+      return "";
+    };
+    let rowObj = null, rowSnap = null;
+    d.addEventListener("focusin", e => {
+      const inp = e.target.closest && e.target.closest(".sd-in"); if (!inp) return;
+      const r = rows[+inp.dataset.i];
+      if (rowObj && rowObj !== r && rows.includes(rowObj)) {
+        const why = sdRuleA(rowObj, rows.indexOf(rowObj));
+        if (why) {
+          const back = rows.indexOf(rowObj), S = JSON.parse(rowSnap);
+          Object.keys(rowObj).forEach(k => { delete rowObj[k]; }); Object.assign(rowObj, S);
+          rowObj = null; rowSnap = null;
+          svToast(why + " LA LIGNE REPREND SES VALEURS.", 5000);
+          setTimeout(() => { draw(); focusAt(back, "dc"); }, 0);
+          return;
+        }
+      }
+      if (rowObj !== r) { rowObj = r; rowSnap = JSON.stringify(r); }
+    });
     /* v494 (remarque 21) : la case à cocher apparaît dès la première lettre d'une ligne nouvelle */
     d.addEventListener("input", e => {
       const inp = e.target.closest && e.target.closest(".sd-in"); if (!inp) return;
