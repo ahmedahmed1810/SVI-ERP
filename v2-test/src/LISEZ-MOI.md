@@ -58,7 +58,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `18-annuler-liaisons.js` | appel de « annuler / rétablir, liaisons (ronds, VALIDER, DÉLIER) » (v875 : le code est dans 28v-annuler-liaisons.js) | 2 |
 | `19-delais-disposition.js` | appel de « disposition des blocs, hauteurs en lignes entières » (v874 : le code est dans 28u-delais-disposition.js) | 2 |
 | `20-glisser-lignes.js` | appel de « glisser des lignes et des titres » (v844 : le code est dans 28m-glisser-lignes.js) | 2 |
-| `21-export-import.js` | export / import (Excel, Google Sheets, autre budget), menu ⋯ | 2071 |
+| `21-export-import.js` | appel de « export / import (Excel, Google Sheets, autre budget), menu ⋯ » (v890 : le code est dans 29k-export-import.js) | 2 |
 | `22-saisie-directe.js` | appel de « SAISIE DIRECTE » (v845 : le code est dans 28n-saisie-directe.js) | 2 |
 | `22b-exploitation.js` | appel de « exploitation (ex-onglet MARGE) » (v873 : le code est dans 28t-exploitation.js) | 2 |
 | `22c-ratios-multi-signature.js` | appel de « indicateurs (données), signatures » (v840 : le code est dans 28i-ratios-multi-signature.js) | 2 |
@@ -116,6 +116,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `29h-instance-saisie.js` | budget en instance : saisie, filtres (FSRC), totaux, calendrier de tâche insCal, hors du grand bloc (v887) : sviBdgInstanceSaisie(C) | 1721 |
 | `29i-tableaux-colonnes.js` | ordre manuel des lignes du budget ; tri et filtre pris de 09c (`sviCfKit`), hors du grand bloc (v888) : sviBdgTableauxColonnes(C) | 46 |
 | `29j-versions-scenarios.js` | scénarios et versions, hors du grand bloc (v889) : sviBdgVersionsScenarios(C) | 535 |
+| `29k-export-import.js` | export / import (Excel, Google Sheets, autre budget), menu ⋯, hors du grand bloc (v890) : sviBdgExportImport(C) | 2197 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
