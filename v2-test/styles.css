@@ -874,9 +874,9 @@ tfoot td {
 /* ===== budget en instance / figé : blocs à hauteur fixe (vides ou non) ===== */
 /* désignations client : hauteur fixe de 5 lignes (en-tête + 5 lignes + total),
    ajustable par la poignée, même vide ou avec plus de lignes */
-.bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll { height: var(--h-client, 148px) !important; }
+.bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll { height: var(--h-client, 148px); }
 .bdg-inst-instance .bdg-d-tabbody .bdg-d-scroll,
-.bdg-inst-fige .bdg-d-tabbody .bdg-d-scroll { height: var(--h-detail, 148px) !important; }
+.bdg-inst-fige .bdg-d-tabbody .bdg-d-scroll { height: var(--h-detail, 148px); }
 .bdg-inst-instance .bdg-h-col, .bdg-inst-fige .bdg-h-col { height: var(--h-hier, 128px); }
 
 /* ===== saisie directe ===== */
@@ -919,7 +919,7 @@ tfoot td {
 .bdg-inst-instance .bdg-d-page .empty, .bdg-inst-fige .bdg-d-page .empty { color: var(--inst) !important; }
 .bdg-inst-instance .ins-table td.ins-lock input, .bdg-inst-fige .ins-table td.ins-lock input,
 .bdg-inst-instance .ins-table :is(input.ins-in, textarea.ins-in, .ins-dv), .bdg-inst-fige .ins-table :is(input.ins-in, textarea.ins-in, .ins-dv),
-.bdg-inst-instance .ins-hcol :is(input.ins-in, textarea.ins-in, .ins-dv) { color: var(--inst) !important; -webkit-text-fill-color: var(--inst) !important; }
+.bdg-inst-instance .ins-hcol :is(input.ins-in, textarea.ins-in, .ins-dv) { color: var(--inst); -webkit-text-fill-color: var(--inst); }
 .bdg-inst-instance .ins-t:not(.on), .bdg-inst-fige .ins-t:not(.on) { color: var(--inst) !important; border-color: var(--inst); opacity: .55; }
 .bdg-inst-instance .ins-t.on, .bdg-inst-fige .ins-t.on { color: #fff !important; }
 .bdg-inst-instance .bdg-d-tabbody .bdg-d-reserved, .bdg-inst-fige .bdg-d-tabbody .bdg-d-reserved,
@@ -1097,7 +1097,7 @@ tfoot td {
 .dly-table :is(input.ins-in, textarea.ins-in, .ins-dv):focus { box-shadow: inset 0 0 0 2px var(--inst, #b91c1c); background: #fff; }
 .dly-table :is(input.ins-in, textarea.ins-in, .ins-dv).number { text-align: right; }
 .dly-table :is(input.ins-in, textarea.ins-in, .ins-dv).center { text-align: center; }
-.bdg-inst-instance .dly-table :is(input.ins-in, textarea.ins-in, .ins-dv), .bdg-inst-fige .dly-table :is(input.ins-in, textarea.ins-in, .ins-dv) { color: var(--inst) !important; -webkit-text-fill-color: var(--inst) !important; }
+.bdg-inst-instance .dly-table :is(input.ins-in, textarea.ins-in, .ins-dv), .bdg-inst-fige .dly-table :is(input.ins-in, textarea.ins-in, .ins-dv) { color: var(--inst); -webkit-text-fill-color: var(--inst); }
 /* mode LIAISONS : FORMAT */
 .lk-scroll { height: 170px; max-height: none; overflow: auto; }
 .lk-table { table-layout: fixed; }
@@ -1121,7 +1121,7 @@ tfoot td {
 /* consigne 16 : blocs à hauteur fixe de 5 lignes, même vides (tous les modes) */
 .bdg-d-page:not(.max-client) .bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll { height: var(--h-client, 148px) !important; max-height: none !important; }
 .bdg-d-page:not(.max-rec) .blk-suivi .rec-scroll { height: var(--h-suivi, 129px); max-height: none; }
-.bdg-d-page:not(.max-detail) .bdg-d-tabbody .bdg-d-scroll { height: var(--h-detail, 148px) !important; max-height: none !important; }
+.bdg-d-page:not(.max-detail) .bdg-d-tabbody .bdg-d-scroll { height: var(--h-detail, 148px); max-height: none; }
 /* consigne 5 : en-têtes non tronqués */
 .ins-link-view .bdg-d-block-title .ttl { display: inline-flex; align-items: center; gap: 8px; }
 .lk-li.empty { justify-content: center; cursor: default; border: 0; }
@@ -1130,7 +1130,7 @@ tfoot td {
 /* DOC / TAF / OBS : validés dès leur saisie (boutons du haut) → noir, même dans un budget en instance ou figé */
 .bdg-inst-instance .bdg-d-page .blk-suivi tbody td, .bdg-inst-fige .bdg-d-page .blk-suivi tbody td,
 .bdg-inst-instance .bdg-d-page .blk-suivi tbody td *, .bdg-inst-fige .bdg-d-page .blk-suivi tbody td *,
-.bdg-inst-instance .bdg-d-page .blk-suivi .empty, .bdg-inst-fige .bdg-d-page .blk-suivi .empty { color: #172033 !important; }
+.bdg-inst-instance .bdg-d-page .blk-suivi .empty, .bdg-inst-fige .bdg-d-page .blk-suivi .empty { color: #172033; }
 .bdg-inst-instance .bdg-d-page .blk-suivi .rec-open, .bdg-inst-fige .bdg-d-page .blk-suivi .rec-open { color: #1d4ed8 !important; }
 .bdg-inst-instance .bdg-d-page .blk-suivi .rec-imp, .bdg-inst-fige .bdg-d-page .blk-suivi .rec-imp { color: #b91c1c !important; }
 .bdg-inst-instance .blk-suivi .rec-tab.active, .bdg-inst-fige .blk-suivi .rec-tab.active { color: #12355b; }
@@ -1163,7 +1163,7 @@ tfoot td {
 /* ===== page unique (saisie + liaisons) ===== */
 .lk-rd { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--inst, #b91c1c); border-radius: 50%; box-sizing: border-box; vertical-align: middle; cursor: pointer; flex: none; }
 span.ins-rdc { width: 22px; flex: none; display: inline-flex; align-items: center; justify-content: center; }
-.ins-table td.ins-rdc { padding: 0 !important; overflow: visible !important; text-overflow: clip !important; }
+.ins-table td.ins-rdc { padding: 0 !important; overflow: visible; text-overflow: clip; }
 .lk-dim .lk-rd { pointer-events: none; opacity: .35; }
 .ins-table tr.lk-dim td { opacity: .5; }
 .ins-hcol .ins-li.lk-dim { opacity: .55; }
@@ -1181,7 +1181,7 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 #insChain { margin: 0 0 12px; }
 #insChain[hidden] { display: none !important; }
 /* rond et case : mêmes colonnes en tête et dans les lignes (lots / activités) */
-.ins-hcol .bdg-h-head, .ins-hcol .ins-li { padding-left: 8px !important; padding-right: 6px !important; gap: 8px !important; }
+.ins-hcol .bdg-h-head, .ins-hcol .ins-li { padding-left: 8px; padding-right: 6px; gap: 8px; }
 .ins-hcol .ins-li .ins-x { margin-right: 0 !important; }
 .ins-hcol .ins-li .ins-delc, .ins-hcol .bdg-h-head .ins-hdel { width: 28px; flex: none; display: inline-flex; justify-content: center; padding: 0 !important; }
 .ins-hcol .ins-li .ins-rdc, .ins-hcol .bdg-h-head .ins-rdc { width: 22px; flex: none; padding: 0 !important; }
@@ -1196,7 +1196,7 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 #insChain.lk-chain-top { position: relative; }
 #insChain.lk-chain-top .lk-go { flex: none; padding: 7px 12px; font-size: 12px; }
 /* lignes déjà liées à la désignation choisie : mise en forme du choix du budget validé, en bleu tirant sur le rouge */
-.ins-table tr.lk-link td, .ins-hcol .ins-li.lk-link { background: #dbeafe !important; color: #1d4ed8 !important; font-weight: 700; }
+.ins-table tr.lk-link td, .ins-hcol .ins-li.lk-link { background: #dbeafe; color: #1d4ed8 !important; font-weight: 700; }
 .ins-table tr.lk-link td :is(input.ins-in, textarea.ins-in, .ins-dv), .ins-hcol .ins-li.lk-link :is(input.ins-in, textarea.ins-in, .ins-dv) { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; }
 /* rond : liée à la désignation choisie = anneau bleu + point ; CHOISIE = rond plein avec coche blanche
    (les deux états se distinguent : toucher le rond se voit toujours) */
@@ -1262,9 +1262,9 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 #svConf .svc-close:active { background: #eef1f6; }
 #svConf .svc-t { padding-right: 34px; }
 /* zone du bouton DÉLIER / VALIDER : sans pointillés (place toujours réservée) */
-#insChain.lk-chain-top { border-color: transparent !important; background: transparent; }
+#insChain.lk-chain-top { border-color: transparent; background: transparent; }
 /* barre du haut : DUPLIQUER et ↻ sont dans le menu ⋯ (avec EXPORTER / IMPORTER LE BUDGET) */
-#instDup[hidden] { display: none !important; }
+#instDup[hidden] { display: none; }
 .bdg-more-btn { font-weight: 900; line-height: 1; letter-spacing: 1px; }
 /* onglets à largeur égale : une seule rangée, défilement horizontal si elle dépasse */
 #bdgTabs, .rec-tabs, .imp-tabs, .lk-tabs { flex-wrap: nowrap !important; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
@@ -1279,7 +1279,7 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 .ins-fold.open { font-size: 12px; opacity: .8; }
 /* désignations : retrait selon le niveau (r.d), sans limite */
 /* FORMAT 120 : cascade des titres — 20 px par niveau (v748 : plus de sélecteur sur l'attribut style — il faisait recalculer toutes les cases à chaque largeur changée) */
-.ins-table[data-ik="des"] tr[data-iid] :is(input, textarea, .ins-dv)[data-f="des"], .bdg-d-table.ins-table tr[data-ik="des"][data-iid] :is(input, textarea, .ins-dv)[data-f="des"] { padding-left: calc(8px + var(--d, 0) * 20px) !important; }
+.ins-table[data-ik="des"] tr[data-iid] :is(input, textarea, .ins-dv)[data-f="des"], .bdg-d-table.ins-table tr[data-ik="des"][data-iid] :is(input, textarea, .ins-dv)[data-f="des"] { padding-left: calc(8px + var(--d, 0) * 20px); }
 .ins-table tr.ins-sub td.number:first-of-type { padding-left: calc(8px + var(--d, 0) * 20px); }
 /* glissement : entre dans le titre (décalé) / superposer = nouveau titre (encadré) */
 .ins-table tr.ro-in td { box-shadow: inset 0 -3px 0 var(--inst, #12355b); }
@@ -1432,7 +1432,7 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .only-c.on { background: var(--svst, #b91c1c); color: #fff; }
 #svConf .src-opt.src-all { padding-bottom: 6px; border-bottom: 1px solid #d1d5db; }
 /* FORMAT 134 : 9 px entre la dernière colonne et le bord droit du bloc (8 px + trait 1 px), défilement compris */
-.bdg-d-block .bdg-d-scroll, .bdg-d-block .rec-scroll, .bdg-d-block .lk-scroll { padding-right: 8px !important; box-sizing: border-box; }
+.bdg-d-block .bdg-d-scroll, .bdg-d-block .rec-scroll, .bdg-d-block .lk-scroll { padding-right: 8px; box-sizing: border-box; }
 
 /* fenêtre PRÉDÉCESSEURS : type et décalage de chaque liaison (15/10/2026) */
 .dpk-t .dpk-ty { width: 132px; }
@@ -1466,7 +1466,7 @@ input[type="checkbox"][class$="-cball"]:indeterminate { opacity: .55; }
 .dly-grp td { background: #f6f7f9; font-weight: 700; }
 .dly-fold { cursor: pointer; display: inline-block; }
 .dly-fold b { display: inline-block; width: 12px; color: #475467; }
-.dly-jal { cursor: pointer; color: #c3c9d2 !important; font-size: 13px; }
+.dly-jal { cursor: pointer; color: #c3c9d2; font-size: 13px; }
 .dly-jal.on { color: #b45309 !important; }
 .dly-table td.dly-calc { background: #f2f4f7; }
 .dlyg-r .gh { z-index: 5; background: #f6f7f9; border-bottom: 1px solid #e4e7ec; box-sizing: border-box; overflow: hidden; }
@@ -1675,7 +1675,7 @@ détail technique en petit */
 .qq-table td.qq-tree { white-space: nowrap; }
 .qq-table tr.qq-t input.qq-lab { font-weight: 700; }
 .qq-table tr.qq-p input.qq-lab { font-weight: 700; }
-.qq-table tr.qq-empty input.qq-lab { color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8 !important; font-weight: 600; }
+.qq-table tr.qq-empty input.qq-lab { color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8; font-weight: 600; }
 .qq-table tr.qq-new input { font-style: italic; }
 .qq-fold { display: inline-block; width: 20px; text-align: center; cursor: pointer; font-weight: 700; color: #475569; user-select: none; -webkit-user-select: none; }
 .qq-table td.qq-pick, .qq-table td.qq-win, .qq-table td.qq-xt { cursor: pointer; }
@@ -1927,7 +1927,7 @@ tr.ins-gtitle .ins-gfold { margin-right: 6px; }
 /* v500 (remarque 47) : MARGE aux couleurs des autres tableaux — liaisons comme les lignes liées (fond bleu clair, texte bleu),
    lignes regroupées comme les titres (gras, fond gris) ; v500 (remarque 48) : en-têtes classables d'un toucher */
 .bdg-d-page .mg-table tr.mg-leaf td:not(.xpl-pct) { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; font-weight: 700; }
-.bdg-d-page .mg-table tr.mg-grp td:not(.xpl-pct) { color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a !important; font-weight: 800; }
+.bdg-d-page .mg-table tr.mg-grp td:not(.xpl-pct) { color: #1e3a8a !important; -webkit-text-fill-color: #1e3a8a; font-weight: 800; }
 .bdg-d-page .mg-table tr.mg-grp:not(.mg-l0) td:not(.xpl-pct) { background: #f5f6f8 !important; }
 .mg-table th.mg-s .cf-lab { cursor: pointer; }
 
@@ -2084,7 +2084,7 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .ins-table td.ins-rdbc input.ins-rdbl { width: 52% !important; display: inline-block; text-align: right; }
 .ins-table td.ins-rdbc .ins-rdbu { font-size: 10px; font-weight: 700; padding: 0 4px 0 2px; }
 /* v527 (remarque 4) : unité du rendement dans la couleur de la ligne (plus de rouge) */
-.ins-table td.ins-rdbc .ins-rdbu { color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+.ins-table td.ins-rdbc .ins-rdbu { color: inherit !important; -webkit-text-fill-color: currentColor; }
 .svi-empty .svi-empty-k { background: #fff; color: #1d4ed8; }
 /* v528 (remarque 2) : la zone de toucher de la loupe U reste dans la colonne U (elle couvrait la case d'en-tête) */
 .ins-hcol .act-uh { position: relative; }
@@ -2103,7 +2103,7 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .ins-table tr.ins-title:not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit):not(.ro-on) td { background: var(--ttl-bg) !important; color: var(--ttl-c) !important; font-weight: 800; }
 .ins-table tr.ins-title:not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit):not(.ro-on) td :is(input.ins-in, textarea.ins-in, .ins-dv, .ins-art, span:not(.lk-rd):not(.ins-fold)) { color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c) !important; }
 .dly-grp:not(.ins-hasck):not(.ro-on) td { background: var(--ttl-bg) !important; color: var(--ttl-c) !important; font-weight: 800; }
-.dly-grp:not(.ins-hasck) td :is(input.dly-nm, .lvl-no, span:not(.lk-rd):not(.ins-fold):not(.dly-fold)) { color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c) !important; font-weight: 800; }
+.dly-grp:not(.ins-hasck) td :is(input.dly-nm, .lvl-no, span:not(.lk-rd):not(.ins-fold):not(.dly-fold)) { color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c); font-weight: 800; }
 .qq-table tr.qq-t td { background: var(--ttl-bg) !important; color: var(--ttl-c) !important; }
 .qq-table tr.qq-t td :is(input.qq-lab, input.qq-in) { color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c) !important; font-weight: 800; }
 
@@ -2116,7 +2116,7 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .lk-rd.lk-pst.part { background: linear-gradient(90deg, var(--gc) 50%, #fff 50%) !important; }
 .lk-rd.lk-pst.off { opacity: .45; }
 .pst-n { display: block; width: 100%; box-sizing: border-box; padding: 0 5px; text-align: center; font: inherit; color: inherit; -webkit-text-fill-color: currentColor; }
-.lk-rd.lk-pst .pst-n { color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+.lk-rd.lk-pst .pst-n { color: inherit !important; -webkit-text-fill-color: currentColor; }
 .lk-rd.lk-pst.on .pst-n { color: #fff !important; -webkit-text-fill-color: #fff !important; }
 .ins-grpn .pst-n { padding: 0 4px; }
 .ins-grpn.ins-grd { padding: 0 !important; }
@@ -2158,7 +2158,7 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 /* v541 : PLANNING — une tâche liée (désignation, lot, activités) en bleu comme les lignes liées des autres tableaux ;
    une tâche sans liaison reste en rouge */
 .dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td { background: #dbeafe !important; }
-.dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td :is(input, span:not(.lk-rd):not(.dly-pred), b) { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; font-weight: 700; }
+.dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td :is(input, span:not(.lk-rd):not(.dly-pred), b) { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8; font-weight: 700; }
 
 /* ===== v542 : remarques du planning 1 à 16 (23/10/2026) ===== */
 /* R16 / FORMAT 119 : tâche placée plus bas que des tâches d'un autre lot — pastille de la couleur de son lot */
@@ -3537,7 +3537,7 @@ html body .blk-tools .blk-btn.blk-max-btn, #ach .nvp .blk-tools [data-nvmax] { d
 .novapp-list-titlebar .svi-listbar .svi-hdr { margin-left: 0; }
 /* ===== v787 (Ahmed, 01/11) ===== */
 /* titres : signe › / ⌄ sans carré, dans une place réservée devant le nom ; noms des titres et des lignes du même rang alignés */
-:is(.ins-table tr.ins-title, .ins-table tr.ins-gtitle, .ins-hcol) .ins-fold { border: 0 !important; background: none !important; box-shadow: none !important; width: 14px !important; height: 18px !important; border-radius: 0 !important; color: var(--ttl-c, #334155) !important; -webkit-text-fill-color: var(--ttl-c, #334155) !important; font-size: 15px !important; opacity: 1 !important; }
+:is(.ins-table tr.ins-title, .ins-table tr.ins-gtitle, .ins-hcol) .ins-fold { border: 0 !important; background: none !important; box-shadow: none !important; width: 14px !important; height: 18px !important; border-radius: 0 !important; color: var(--ttl-c, #334155) !important; -webkit-text-fill-color: var(--ttl-c, #334155); font-size: 15px !important; opacity: 1 !important; }
 :is(.ins-table tr.ins-title, .ins-table tr.ins-gtitle, .ins-hcol) .ins-fold.fs-red { color: var(--inst, #b91c1c) !important; -webkit-text-fill-color: var(--inst, #b91c1c) !important; }
 :is(.ins-table tr.ins-title, .ins-table tr.ins-gtitle, .ins-hcol) .ins-fold.fs-blu { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; }
 :is(.ins-table tr.ins-title, .ins-table tr.ins-gtitle, .ins-hcol) .ins-fold.fs-vio { color: #7c3aed !important; -webkit-text-fill-color: #7c3aed !important; }
@@ -3572,7 +3572,7 @@ tr.ins-gtitle:not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit):not(.ro-on
 .ins-hcol .ins-li.lot-grp:not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit):not(.ro-on) { background: var(--ttl-bg) !important; }
 /* lignes CRÉER */
 :is(table) tbody tr:is(.ins-new, .rec-new, .scn-new, .bdg-newrow, .qq-new, .qq-xnew, .dlw-newr, .dly-new, .ach-new) td,
-.ins-hcol .ins-li.ins-new { background: var(--tb-new-bg) !important; color: var(--tb-new-c) !important; -webkit-text-fill-color: var(--tb-new-c) !important; font-weight: var(--tb-new-fw) !important; opacity: 1 !important; }
+.ins-hcol .ins-li.ins-new { background: var(--tb-new-bg) !important; color: var(--tb-new-c) !important; -webkit-text-fill-color: var(--tb-new-c); font-weight: var(--tb-new-fw) !important; opacity: 1 !important; }
 :is(table) tbody tr:is(.ins-new, .rec-new, .scn-new, .qq-new, .dlw-newr, .dly-new, .ach-new) :is(input, textarea)::placeholder, .ins-hcol .ins-new input::placeholder { color: var(--tb-new-c) !important; -webkit-text-fill-color: var(--tb-new-c) !important; opacity: 1 !important; font-weight: var(--tb-new-fw) !important; }
 #ach .nvp .rec-table tr.rec-new td { color: var(--tb-new-c) !important; }
 /* en-têtes LOT / ACTIVITÉS = en-têtes de tableau (plus de petits cadres arrondis) */
