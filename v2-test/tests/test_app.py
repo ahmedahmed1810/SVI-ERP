@@ -3350,6 +3350,17 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("v813 : BESOINS — avancement, urgence selon la date, rappel, DUPLIQUER, REFUSER avec motif, annulation du seul reste non commandé",
               c813 == ["COMMANDÉ EN PARTIE (40 %)", "REÇU (CLÔTURÉ)", "TRÈS URGENTE", "NORMALE", "TRÈS URGENTE", True, True, 4, "instance", "", "annule", "REFUSÉ", "valide", 4, 10], c813)
+        # v814 : DEVIS — remises, transport, total contrôlé, devis partiel, reçu après la date limite, prix bas, commande au prix net
+        c814 = pg.evaluate("""() => { const K = ['svi_ach_caf_v1', 'svi_ach_bsn_v1'], keep = K.map(k => localStorage.getItem(k));
+            achCafSave([{ id: 'c1', dlim: '2026-01-10', lignes: [], frs: [], state: 'ouverte' }]); achBsnSave([]);
+            const v = { caf: 'c1', date: '2026-01-12', refFrs: 'X', state: 'recu', remG: 10, transp: 100, totFrs: 999, lignes: [{ des: 'A', u: 'U', q: 10, pu: 100, rem: 5, tva: 20 }, { des: 'B', u: 'U', q: 1, pu: '', tva: 20 }] };
+            const t = achDvfTot(v), w = achDvfWhy(v), L = achDvfCmfLines(v);
+            const D = [{ id: 'd1', lignes: [{ des: 'A', u: 'U', pu: 100 }] }, { id: 'd2', lignes: [{ des: 'A', u: 'U', pu: 100 }] }, { id: 'd3', lignes: [{ des: 'A', u: 'U', pu: 50 }] }];
+            const r = [Math.round(t.ht * 100) / 100, w.some(x => /REÇU APRÈS LA DATE LIMITE/.test(x)), w.some(x => /TOTAL ÉCRIT/.test(x)), w.some(x => /1 LIGNE\(S\) NON CHIFFRÉE/.test(x)), L.length, L[0].pu, L[1].des,
+              achDvfLow({}, D, { des: 'A', u: 'U' }, D[2], D[2].lignes[0]), achDvfLow({}, D, { des: 'A', u: 'U' }, D[0], D[0].lignes[0])];
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
+        check("v814 : DEVIS — remise par ligne et globale, transport, total écrit contrôlé, devis partiel, reçu après la date limite, prix anormalement bas, commande au prix net",
+              c814 == [955, True, True, True, 2, 85.5, "TRANSPORT", True, False], c814)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

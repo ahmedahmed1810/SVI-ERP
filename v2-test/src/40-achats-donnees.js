@@ -337,12 +337,24 @@ const achNextRef = (pfx, L, d) => { d = d || new Date(); const p2 = x => String(
 const achBsnOpen = (B, C) => { B = B || achBsn(); C = C || achCaf();
   const inOpen = new Set(C.filter(c => c.state === "ouverte").flatMap(c => (c.lignes || []).map(l => l.bsn).filter(Boolean)));
   return B.filter(b => b.state === "valide" && !b.couvert && !b.direct && !inOpen.has(b.id)); };
-const achDvfTot = v => { let ht = 0, ttc = 0; (v.lignes || []).forEach(l => { const m = achN(l.q) * achN(l.pu); ht += m; ttc += m * (1 + (l.tva === "" || l.tva === undefined ? achPrm().tva : achN(l.tva)) / 100); }); return { ht, ttc }; };
+/* v814 : remise par ligne et remise globale (%), frais de transport HT (C5.54, C5.55) ; prix net d'une ligne = prix × (1 − remise) × (1 − remise globale) */
+const achDvfPuNet = (v, l) => achN(l.pu) * (1 - achN(l.rem) / 100) * (1 - achN(v.remG) / 100);
+const achDvfTot = v => { let ht = 0, ttc = 0, brut = 0; (v.lignes || []).forEach(l => { const b = achN(l.q) * achN(l.pu), m = achN(l.q) * achDvfPuNet(v, l); brut += b; ht += m; ttc += m * (1 + (l.tva === "" || l.tva === undefined ? achPrm().tva : achN(l.tva)) / 100); });
+  const tr = achN(v.transp); ht += tr; ttc += tr * (1 + achPrm().tva / 100); return { ht, ttc, brut, transp: tr }; };
 const achDvfWhy = v => { const w = [], today = new Date().toISOString().slice(0, 10);
   if (v.state === "rejete" || v.state === "annule") return w;
   if (!(v.lignes || []).some(l => achN(l.pu) > 0)) w.push("PRIX MANQUANTS");
   if (!v.refFrs) w.push("N° DU DEVIS FOURNISSEUR MANQUANT");
   if (v.validite && v.validite < today && v.state !== "retenu") w.push("DEVIS EXPIRÉ (VALIDITÉ " + v.validite.split("-").reverse().join("/") + ")");
+  /* v814 : expiration proche (C5.60), reçu après la date limite (C5.44), total écrit ≠ calcul (C5.46), lignes non chiffrées (C5.43),
+     délai trop tardif pour la date souhaitée (C5.74), documents du fournisseur expirés (C5.51) */
+  else if (v.validite && v.state === "recu") { const n = Math.round((new Date(v.validite) - new Date(today)) / 864e5); if (n <= 7) w.push("DEVIS EXPIRE DANS " + n + " JOUR(S)"); }
+  const c = v.caf ? achCaf().find(x => x.id === v.caf) : null;
+  if (c && c.dlim && v.date && v.date > c.dlim) w.push("REÇU APRÈS LA DATE LIMITE" + (v.tardOk ? " (ACCEPTÉ : " + v.tardOk + ")" : ""));
+  if (achN(v.totFrs) > 0 && Math.abs(achN(v.totFrs) - achDvfTot(v).ht) > achPrm().ecart) w.push("TOTAL ÉCRIT PAR LE FOURNISSEUR (" + achF2(v.totFrs) + ") ≠ CALCUL (" + achF2(achDvfTot(v).ht) + ")");
+  { const n = (v.lignes || []).filter(l => !(achN(l.pu) > 0)).length; if (n && (v.lignes || []).some(l => achN(l.pu) > 0)) w.push(n + " LIGNE(S) NON CHIFFRÉE(S) : DEVIS PARTIEL"); }
+  (v.lignes || []).forEach(l => { const b = l.bsn ? achBsn().find(x => x.id === l.bsn) : null; if (b && b.datePrevue && achN(l.delai) > 0) { const dl = new Date(Date.now() + achN(l.delai) * 864e5).toISOString().slice(0, 10); if (dl > b.datePrevue) w.push(l.des + " : LIVRÉ VERS LE " + dl.split("-").reverse().join("/") + ", APRÈS LA DATE SOUHAITÉE"); } });
+  { const f = achFrs().find(x => x.id === v.frs); if (f && (f.docf || []).some(d => d.exp && d.exp < today)) w.push("FOURNISSEUR : DOCUMENT FISCAL EXPIRÉ"); }
   return w; };
 const achCafWhy = (c, D) => { const w = [], today = new Date().toISOString().slice(0, 10);
   if (c.state !== "ouverte") return w;
