@@ -225,12 +225,28 @@ function sviBdgSaisieDirecte(C) {
       }
       return "";
     };
+    /* v911 (principe du 03/11/2026) : à la sortie de la ligne, aussi la RÈGLE D (un produit / une charge de même désignation et même unité
+       une seule fois dans une tâche secondaire) et le DOUBLON (même chaîne, même désignation et même unité) — dans le budget ou dans cette fenêtre */
+    const sdRuleD = (r, i) => {
+      const kk = P ? "prd" : "chg", dc = U_(r.dc), lo = U_(r.lot), pr = U_(r.prim), se = U_(r.sec), ds = U_(r.des), u = U_(r.u);
+      if (!dc || !lo || !pr || !se || !ds) return "";
+      const same = x => x && x.id !== r._id && U_(x.des) === ds && U_(x.u) === u;
+      for (const l of INS.links || []) {
+        if (U_(nm("lot", l.lot)) !== lo || U_(nm("sec", l.sec)) !== se) continue;
+        const hit = (l[kk] || []).some(e => same((INS[kk] || []).find(x => x.id === e.id))); if (!hit) continue;
+        if (U_(nm("des", l.des)) === dc && U_(nm("prim", l.prim)) === pr) return "DOUBLON : " + ds + " (" + u + ") EXISTE DÉJÀ DANS CETTE TÂCHE.";
+        return "RÈGLE D : " + ds + " (" + u + ") EST DÉJÀ DANS LA TÂCHE SECONDAIRE " + lo + " › " + se + ".";
+      }
+      for (let j = 0; j < rows.length; j++) { const o = rows[j]; if (j === i || o._del || o === r) continue;
+        if (U_(o.lot) === lo && U_(o.sec) === se && U_(o.des) === ds && U_(o.u) === u) return (U_(o.dc) === dc && U_(o.prim) === pr ? "DOUBLON" : "RÈGLE D") + " : " + ds + " (" + u + ") DÉJÀ SAISI LIGNE " + (j + 1) + "."; }
+      return "";
+    };
     let rowObj = null, rowSnap = null;
     d.addEventListener("focusin", e => {
       const inp = e.target.closest && e.target.closest(".sd-in"); if (!inp) return;
       const r = rows[+inp.dataset.i];
-      if (rowObj && rowObj !== r && rows.includes(rowObj)) {
-        const why = sdRuleA(rowObj, rows.indexOf(rowObj));
+      if (rowObj && rowObj !== r && rows.includes(rowObj) && JSON.stringify(rowObj) !== rowSnap) {   /* ligne changée seulement */
+        const why = sdRuleA(rowObj, rows.indexOf(rowObj)) || sdRuleD(rowObj, rows.indexOf(rowObj));
         if (why) {
           const back = rows.indexOf(rowObj), S = JSON.parse(rowSnap);
           Object.keys(rowObj).forEach(k => { delete rowObj[k]; }); Object.assign(rowObj, S);
