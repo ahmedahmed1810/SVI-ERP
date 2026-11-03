@@ -499,7 +499,7 @@
           insSave(); histLog("DÉLAIS", "CASES COCHÉES", (go === "chg" ? "CHARGES" : "PRODUITS") + " DE " + dlyHbName(k));
         } else shell.__dlySel = new Set([k]);
         const tb = document.querySelector(`.bdg-d-tab[data-tab="${b.dataset.go}"]`);
-        if (tb && active !== b.dataset.go) tb.click(); else refreshAll();
+        if (tb && ECR.active !== b.dataset.go) tb.click(); else refreshAll();
         setTimeout(() => { const c = document.querySelector("#bdgTabBody tr input.ins-cb:checked, #bdgTabBody tr input.dlyp-cb[data-key]:checked"), r = c && c.closest("tr"); if (r) r.scrollIntoView({ block: "center" }); }, 350);
       }, true);
       document.addEventListener("pointerdown", e => { const m = document.getElementById("dlyHb"); if (m && !m.contains(e.target) && !(e.target.closest && e.target.closest(".ghb"))) m.remove(); }, true);

@@ -1046,11 +1046,11 @@
     const printGeneric = blk => {
       const label = String(blkLabel(blk)).toUpperCase();
       let cols, rows, end = "";
-      if ((blk === "detail" && (active === "dly" || (active === "qlt" && INS))) || blk === "hist" || blk === "ind" || blk === "rat" || blk === "scn" || blk === "ver" || blk === "rcl" || blk === "av") {
+      if ((blk === "detail" && (ECR.active === "dly" || (ECR.active === "qlt" && INS))) || blk === "hist" || blk === "ind" || blk === "rat" || blk === "scn" || blk === "ver" || blk === "rcl" || blk === "av") {
         const d = blkData(blk);
         if (!d.rows.length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         /* historique : date, branche et action étroites, détail large */
-        cols = d.head.map((h, i) => [blk === "hist" ? ["hdt", "hbr", "hac", "hde"][i] : "c" + i, h, r => r[i], (blk === "hist" && i) || (active === "qlt" && !i) ? "" : "center"]);
+        cols = d.head.map((h, i) => [blk === "hist" ? ["hdt", "hbr", "hac", "hde"][i] : "c" + i, h, r => r[i], (blk === "hist" && i) || (ECR.active === "qlt" && !i) ? "" : "center"]);
         rows = d.rows;
       } else if (REC_KINDS.includes(blk)) {
         if (!recLoad(blk).length) { sviAlert("Aucune donnée dans " + label + "."); return; }
@@ -1062,9 +1062,9 @@
         cols = screenCols(detailTable(), src.cols);
         rows = src.rows;
         /* budget en instance : montants calculés des lignes saisies (avant : 0,00) */
-        const ht = src.ins ? rows.reduce((t, r) => t + (Number(insCalc(active, r, "ht")) || 0), 0) : rows.reduce((t, l) => t + (l.amount || 0), 0);
-        const tv = src.ins ? rows.reduce((t, r) => t + (Number(insCalc(active, r, "ttc")) || 0), 0) - ht : rows.reduce((t, l) => t + (l.tvaAmt || 0), 0);
-        if (active === "chg" || active === "prd") end = `<div class="tot">
+        const ht = src.ins ? rows.reduce((t, r) => t + (Number(insCalc(ECR.active, r, "ht")) || 0), 0) : rows.reduce((t, l) => t + (l.amount || 0), 0);
+        const tv = src.ins ? rows.reduce((t, r) => t + (Number(insCalc(ECR.active, r, "ttc")) || 0), 0) - ht : rows.reduce((t, l) => t + (l.tvaAmt || 0), 0);
+        if (ECR.active === "chg" || ECR.active === "prd") end = `<div class="tot">
             <div><span>TOTAL H.T. :</span><b>${money(ht)}</b></div>
             <div><span>TOTAL T.V.A. :</span><b>${money(tv)}</b></div>
             <div><span>TOTAL T.T.C. :</span><b>${money(ht + tv)}</b></div>
@@ -1151,13 +1151,13 @@
       /* budget en instance : aperçu standard des lignes saisies */
       if (INS && (blk === "hier" || blk === "detail")) return printGeneric(blk);
       if (blk === "hier") return printTasks("plain");
-      if (blk === "detail" && active === "chg") return printTasks("chg");
-      if (blk === "detail" && active === "prd") return printTasks("prd");
-      if (blk === "detail" && active === "dly") return printGeneric(blk);
-      if (!(blk === "detail" && active === "qlt")) return printGeneric(blk);
+      if (blk === "detail" && ECR.active === "chg") return printTasks("chg");
+      if (blk === "detail" && ECR.active === "prd") return printTasks("prd");
+      if (blk === "detail" && ECR.active === "dly") return printGeneric(blk);
+      if (!(blk === "detail" && ECR.active === "qlt")) return printGeneric(blk);
       histLog(blkLabel(blk), "APERÇU PDF");
       let tableHTML;
-      if (blk === "detail" && active === "qlt") {
+      if (blk === "detail" && ECR.active === "qlt") {
         sviAlert("Aucune donnée dans " + blkLabel(blk) + ".");
         return;
       }
@@ -1165,7 +1165,7 @@
         sviAlert("Aucune donnée dans " + blkLabel(blk) + ".");
         return;
       }
-      if (blk === "hier" || REC_KINDS.includes(blk) || (blk === "detail" && active === "dly")) {
+      if (blk === "hier" || REC_KINDS.includes(blk) || (blk === "detail" && ECR.active === "dly")) {
         const { head, rows } = blkData(blk);
         tableHTML = `<table><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead>
           <tbody>${rows.map(r => `<tr>${r.map(v => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;

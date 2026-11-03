@@ -2249,6 +2249,9 @@ function renderBudgetList() {
 
 /* ⟪ src/11-budget-ouverture.js ⟫ */
   function openBudgetDetail(ref) {
+    /* v846 : ÉTAT DE L'ÉCRAN PARTAGÉ — les variables que plusieurs parties de l'écran modifient y sont rangées une à une (ECR.active…),
+       pour que ces parties puissent sortir du grand bloc (elles reçoivent ECR au lieu de la variable) */
+    const ECR = {};
     sviStep("OUVERTURE " + ref);
     /* v634 : ouverture en cours — si l'application bloque, le budget ne sera pas rouvert au démarrage suivant */
     try { localStorage.setItem("svi_opening_v1", ref); setTimeout(() => { try { localStorage.removeItem("svi_opening_v1"); } catch (e) {} }, 4000); } catch (e) {}
@@ -2529,13 +2532,13 @@ function renderBudgetList() {
     ];
 
     /* dernier onglet du détail ouvert (charges, produits, qualité, délais) */
-    let active = "chg";
+    ECR.active = "chg";
     try {
       const t = localStorage.getItem("svi_dtab_v1");
-      if (["chg", "prd", "qlt", "dly"].includes(t)) active = t;
+      if (["chg", "prd", "qlt", "dly"].includes(t)) ECR.active = t;
     } catch (e) {}
     /* v675 : réouverture par le verrou par onglet — même onglet qu'avant */
-    if (window.__sviForceTab) { active = window.__sviForceTab; window.__sviForceTab = null; }
+    if (window.__sviForceTab) { ECR.active = window.__sviForceTab; window.__sviForceTab = null; }
     /* référence affichée du budget : « H88 BDG 26-1001/001 » */
     /* v693 : recalage — titre « <réf. de l'étape> R<n> » */
     /* v780 (remarques 1 et 7) : référence complète avec la nature à la fin (INI, AVn, CNS, SCNn, VRn, RCn) — liste, en-tête, RÉVISIONS, impressions */
@@ -2901,7 +2904,7 @@ function renderBudgetList() {
       ["focusin", "beforeinput", "paste", "drop", "dragstart", "keydown", "pointerdown", "mousedown", "touchstart", "click"].forEach(ev => document.addEventListener(ev, guard, true)); window.__sviNoWrap = 0;
     }
     if (INS && typeof sviLockOpen === "function") sviLockOpen(budget.inst.ref, INS_REAL);
-    window.__sviZoneCtx = INS ? { ref: budget.inst.ref, edit: INS_REAL, shell, tab: () => insTabName(active),
+    window.__sviZoneCtx = INS ? { ref: budget.inst.ref, edit: INS_REAL, shell, tab: () => insTabName(ECR.active),
       /* v678 : état du budget à l'entrée dans une zone, remis si la zone était déjà prise */
       snap: () => JSON.stringify(INS),
       restore: (str, why) => { const o = JSON.parse(str); Object.keys(INS).forEach(k => { delete INS[k]; }); Object.assign(INS, o); insSave(); try { histLog("BASE V3", "MODIFICATIONS ANNULÉES", why || ""); } catch (e) {} try { refreshAll(); } catch (e) {} } } : null;
@@ -2940,8 +2943,8 @@ function renderBudgetList() {
         try {
           insMarkUnlinked();
           const lb = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"] .svi-cnt`);
-          if (lb && active !== "lnk") lb.outerHTML = svCnt((INS.links || []).length);
-          if (active === "unl" && body && !body.contains(document.activeElement)) {
+          if (lb && ECR.active !== "lnk") lb.outerHTML = svCnt((INS.links || []).length);
+          if (ECR.active === "unl" && body && !body.contains(document.activeElement)) {
             const sc = body.querySelector(".bdg-d-scroll"), top = sc ? sc.scrollTop : 0, left = sc ? sc.scrollLeft : 0;
             body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`;
             const ns = body.querySelector(".bdg-d-scroll");
@@ -5616,7 +5619,7 @@ function renderBudgetList() {
     if (!body.__qqBound) {
       body.__qqBound = true;
       body.addEventListener("click", e => {
-        if (active !== "qlt" || !INS) return;
+        if (ECR.active !== "qlt" || !INS) return;
         const sb = e.target.closest(".qq-sub");
         if (sb) { qqSub = sb.dataset.sub; qqRender(); return; }
         const key = qqKey();
@@ -5643,7 +5646,7 @@ function renderBudgetList() {
         qqPick(td, items, n[f] || "", v => { n[f] = v; qqSave(); qqRender(); });
       });
       body.addEventListener("change", e => {
-        if (active !== "qlt" || !INS || !INS_EDIT) return;
+        if (ECR.active !== "qlt" || !INS || !INS_EDIT) return;
         const key = qqKey();
         const pin = e.target.closest(".qq-pin");
         if (pin) { const P = (qqData().per[key] = qqData().per[key] || {}); P[pin.dataset.f] = pin.classList.contains("number") ? insNum(pin.value) : U_(pin.value); qqSave(); return; }
@@ -5691,7 +5694,7 @@ function renderBudgetList() {
       });
       /* Entrée = case suivante (FORMAT 48) */
       body.addEventListener("keydown", e => {
-        if (active !== "qlt" || e.key !== "Enter") return;
+        if (ECR.active !== "qlt" || e.key !== "Enter") return;
         const inp = e.target.closest(".qq-in, .qq-xin, .qq-pin");
         if (!inp) return;
         e.preventDefault();
@@ -5700,7 +5703,7 @@ function renderBudgetList() {
     }
     /* menu ⋯ du bloc détail quand DÉTAIL QUALITÉ est ouvert : ajouter un titre, supprimer les lignes cochées */
     shell.__qq = {
-      on: () => active === "qlt" && !!INS,
+      on: () => ECR.active === "qlt" && !!INS,
       cfg: () => qqCfgWin(),
       io: { head: QQ_IO, exp: () => qqExportRows(), imp: (aoa, rep) => qqImportAoa(aoa, "TEST", true, rep) },
       edit: () => INS_EDIT,
@@ -5819,24 +5822,24 @@ function renderBudgetList() {
     }
     const tabStash = () => {
       const k = shell.__tabCur;
-      if (!k || k === active || !["chg", "prd"].includes(k) || !body.firstChild) return;
+      if (!k || k === ECR.active || !["chg", "prd"].includes(k) || !body.firstChild) return;
       const sc = body.querySelector(".bdg-d-scroll");
       TABC[k] = { gen: shell.__tabGen, w: body.clientWidth, nodes: [...body.childNodes], more: insMore[k], st: sc ? sc.scrollTop : 0, sl: sc ? sc.scrollLeft : 0, ls: lastShown.detail };
     };
     const tabReuse = () => {
-      const C = TABC[active]; delete TABC[active];
+      const C = TABC[ECR.active]; delete TABC[ECR.active];
       if (!C || C.gen !== shell.__tabGen || C.w !== body.clientWidth) return false;
-      body.replaceChildren(...C.nodes); insMore[active] = C.more; lastShown.detail = C.ls;
+      body.replaceChildren(...C.nodes); insMore[ECR.active] = C.more; lastShown.detail = C.ls;
       const sc = body.querySelector(".bdg-d-scroll"); if (sc) { sc.scrollTop = C.st; sc.scrollLeft = C.sl; }
-      shell.__insMore = () => insMoreRows(active);
+      shell.__insMore = () => insMoreRows(ECR.active);
       return true;
     };
     const insRenderTab = () => {
-      tabStash(); shell.__tabCur = active;
+      tabStash(); shell.__tabCur = ECR.active;
       /* v772 : vue ouverte depuis le menu ⋯ du haut — son nom dans l'en-tête du bloc DÉTAIL */
-      { const sb = document.getElementById("bdgDetailSub"); if (sb) sb.textContent = ({ lnk: " — TABLEAU DE BORD", apr: " — APPRO. PRÉVISIONNEL", ind1: " — INDICATEURS", unl: " — LIGNES NON LIÉES", inc: " — IMPORT NON CRÉÉ" })[active] || ""; }
+      { const sb = document.getElementById("bdgDetailSub"); if (sb) sb.textContent = ({ lnk: " — TABLEAU DE BORD", apr: " — APPRO. PRÉVISIONNEL", ind1: " — INDICATEURS", unl: " — LIGNES NON LIÉES", inc: " — IMPORT NON CRÉÉ" })[ECR.active] || ""; }
       { const tl = document.querySelector("#bdgDetailHead > .blk-tools");
-        if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (active === "chg" || active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(active)); } }
+        if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (ECR.active === "chg" || ECR.active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(ECR.active)); } }
       ["chg", "prd"].forEach(k => {
         const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
         /* v614 (point 10) : plus d'étoile sur DÉTAIL PRODUITS ; numéro d'ordre du filtre ; « cochées/total » */
@@ -5855,7 +5858,7 @@ function renderBudgetList() {
       /* IMPORT NON CRÉÉ : visible seulement s'il reste des lignes */
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="inc"]`), n = (INS.inc || []).length;
         if (b) { b.innerHTML = (SVI_ICON.hier || "") + "IMPORT NON CRÉÉ " + svCnt(n); b.hidden = !n; b.style.display = n ? "" : "none"; }
-        if (!n && active === "inc") { active = "prd"; try { localStorage.setItem("svi_dtab_v1", "prd"); } catch (e) {} document.querySelectorAll("#bdgTabs .bdg-d-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === active)); } }
+        if (!n && ECR.active === "inc") { ECR.active = "prd"; try { localStorage.setItem("svi_dtab_v1", "prd"); } catch (e) {} document.querySelectorAll("#bdgTabs .bdg-d-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === ECR.active)); } }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
         if (b) b.innerHTML = (SVI_ICON.xpl || "") + "TABLEAU DE BORD " + insCkBadge("lnk") + (insRg() ? svCnt((INS.links || []).filter(l => insRgKeyIn(l.lot + "|" + l.sec)).length, (INS.links || []).length) : svCnt((INS.links || []).length)); }
       sviMarkEmptyTabs(shell);
@@ -5870,13 +5873,13 @@ function renderBudgetList() {
       /* onglet actif (liaisons validées, lignes non liées, import non créé) : « retenues/total » une fois dessiné */
       setTimeout(() => {
         const ls = lastShown.detail;
-        if (!ls || !["lnk", "unl", "inc"].includes(ls.kind) || ls.kind !== active) return;
-        const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${active}"] .svi-cnt`);
-        const tot = active === "lnk" ? (INS.links || []).length : active === "inc" ? (INS.inc || []).length : insUnlCount();
+        if (!ls || !["lnk", "unl", "inc"].includes(ls.kind) || ls.kind !== ECR.active) return;
+        const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${ECR.active}"] .svi-cnt`);
+        const tot = ECR.active === "lnk" ? (INS.links || []).length : ECR.active === "inc" ? (INS.inc || []).length : insUnlCount();
         if (b) b.outerHTML = svCnt(ls.rows.length, tot);
       }, 0);
       /* v584 : onglet GRAPHIQUE = le graphique du DÉTAIL DÉLAIS sur tout le bloc (il reste aussi sous le Gantt) */
-      if (active === "dly") {
+      if (ECR.active === "dly") {
         /* délais : saisis ici (périodes par tâche secondaire ; tâche primaire choisie = récapitulatif) */
         body.innerHTML = `<div class="bdg-d-scroll dly-scroll">${insDlyHTML(INS_EDIT, shell.__insDly && shell.__insDly.err)}</div>`;
         /* v594 (remarque longue 2) : bandeau ISOLÉ posé AU-DESSUS de la zone qui défile (jamais sur les en-têtes) */
@@ -5897,22 +5900,22 @@ function renderBudgetList() {
           }, 60); } }
         return;
       }
-      if (active === "ind1") { body.innerHTML = shell.__ind1HTML ? shell.__ind1HTML() : ""; lastShown.detail = { cols: [], rows: [], kind: "ind1" }; return; }   /* v724 */
-      if (active === "apr") { body.innerHTML = shell.__aprHTML ? shell.__aprHTML() : ""; lastShown.detail = { cols: [], rows: [], kind: "apr" }; return; }   /* v714 */
-      if (active === "qlt") { qqRender(); lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
+      if (ECR.active === "ind1") { body.innerHTML = shell.__ind1HTML ? shell.__ind1HTML() : ""; lastShown.detail = { cols: [], rows: [], kind: "ind1" }; return; }   /* v724 */
+      if (ECR.active === "apr") { body.innerHTML = shell.__aprHTML ? shell.__aprHTML() : ""; lastShown.detail = { cols: [], rows: [], kind: "apr" }; return; }   /* v714 */
+      if (ECR.active === "qlt") { qqRender(); lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
       /* v692 : onglet INDICATEURS — carreaux du tableau de bord au-dessus du tableau par liaison */
-      if (active === "lnk") { body.innerHTML = `${shell.__ibdHTML ? shell.__ibdHTML() : ""}<div class="bdg-d-scroll">${insRgView(xplHTML)}</div>`; return; }
-      if (active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
-      if (active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
+      if (ECR.active === "lnk") { body.innerHTML = `${shell.__ibdHTML ? shell.__ibdHTML() : ""}<div class="bdg-d-scroll">${insRgView(xplHTML)}</div>`; return; }
+      if (ECR.active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
+      if (ECR.active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
       if (tabReuse()) { insMarkUnlinked(); return; }
-      if (active === "prd" && shell.__prdSyncU) shell.__prdSyncU();
+      if (ECR.active === "prd" && shell.__prdSyncU) shell.__prdSyncU();
       /* v568 (remarque 11) : DÉTAIL PRODUITS réduit aux tâches sans charge (depuis À COMPLÉTER) — bandeau jaune et TOUT AFFICHER */
-      const ncB = active === "prd" && shell.__prdNc ? `<div class="dly-iso prd-nc"><span><b>TÂCHES SANS CHARGE</b></span><small>PRODUITS DES TÂCHES QUI N'ONT AUCUNE CHARGE</small><button type="button" class="dly-iso-x prd-nc-x">TOUT AFFICHER</button></div>` : "";
-      body.innerHTML = `${ncB}<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
+      const ncB = ECR.active === "prd" && shell.__prdNc ? `<div class="dly-iso prd-nc"><span><b>TÂCHES SANS CHARGE</b></span><small>PRODUITS DES TÂCHES QUI N'ONT AUCUNE CHARGE</small><button type="button" class="dly-iso-x prd-nc-x">TOUT AFFICHER</button></div>` : "";
+      body.innerHTML = `${ncB}<div class="bdg-d-scroll">${insTableHTML(ECR.active)}</div>`;
       if (ncB && !shell.__prdNcB) { shell.__prdNcB = true; shell.addEventListener("click", e => { if (!(e.target.closest && e.target.closest(".prd-nc-x"))) return; e.stopPropagation(); shell.__prdNc = null; refreshAll(); }, true); }
-      if (active === "chg") chgFit();
-      shell.__insMore = () => insMoreRows(active);
-      lastShown.detail = { cols: insCfCols(active), rows: insShown(active), kind: active, ins: true };
+      if (ECR.active === "chg") chgFit();
+      shell.__insMore = () => insMoreRows(ECR.active);
+      lastShown.detail = { cols: insCfCols(ECR.active), rows: insShown(ECR.active), kind: ECR.active, ins: true };
       insMarkUnlinked();
     };
     /* met à jour les montants calculés, sous-totaux et totaux sans redessiner
@@ -6401,7 +6404,7 @@ function renderBudgetList() {
         if (b.go.startsWith("hier:")) { shell.querySelector(`.ins-hcol[data-ik="${b.go.slice(5)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
         if (b.go === "des") { shell.querySelector(".bdg-d-client-scroll")?.scrollIntoView({ block: "start", behavior: "smooth" }); return; }
         if (b.go === "dly") { LK.lot = LK.sec = LK.prim = null; }
-        if (b.go === "prdnc") { shell.__prdNc = new Set(b.prd); b = { go: "prd" }; if (active === "prd") { renderTab(); return; } }
+        if (b.go === "prdnc") { shell.__prdNc = new Set(b.prd); b = { go: "prd" }; if (ECR.active === "prd") { renderTab(); return; } }
         const t = shell.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${b.go}"]`);
         if (t) { t.click(); t.scrollIntoView({ block: "start", behavior: "smooth" }); }
         /* v581 : première ligne en erreur du bloc */
@@ -6562,8 +6565,8 @@ function renderBudgetList() {
         const nU = insUnlCount();
         tb.innerHTML = (SVI_ICON.hier || "") + "LIGNES NON LIÉES " + svCnt(nU);
         tb.hidden = !nU; tb.style.display = nU ? "" : "none";
-        if (!nU && active === "unl") {
-          active = "prd";
+        if (!nU && ECR.active === "unl") {
+          ECR.active = "prd";
           try { localStorage.setItem("svi_dtab_v1", "prd"); } catch (e) {}
           setTimeout(() => refreshAll(), 0);
         }
@@ -7451,11 +7454,11 @@ function renderBudgetList() {
       const g = shell.querySelector(".blk-cfg-btn"); if (!g) return;
       const host = shell.querySelector("#dlyGantt"), h = shell.querySelector(".dlyg-foot .ghist");
       /* v707 : ⚙ = RÉGLAGES DU GRAPHIQUE (graphique affiché) ; icône Gantt = RÉGLAGES DU GANTT (Gantt affiché) */
-      const on = active === "dly" && !!shell.__insDly && !!host && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone");
+      const on = ECR.active === "dly" && !!shell.__insDly && !!host && !!h && h.offsetHeight > 0 && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hnone");
       if (g.classList.contains("dly-on") !== on) g.classList.toggle("dly-on", on);
       /* v704 : ⚙ du GRAPHIQUE rendu (RÉGLAGES DU GRAPHIQUE), visible seulement quand le graphique est affiché */
       const gh = shell.querySelector(".blk-hcfg-btn");
-      if (gh) { const on2 = active === "dly" && !!shell.__insDly && !!host && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hfull"); if (gh.classList.contains("dly-on") !== on2) gh.classList.toggle("dly-on", on2); }
+      if (gh) { const on2 = ECR.active === "dly" && !!shell.__insDly && !!host && host.clientWidth > 30 && !shell.querySelector(".dlyg.dly-hfull"); if (gh.classList.contains("dly-on") !== on2) gh.classList.toggle("dly-on", on2); }
     };
     /* histogramme (et son libellé, et la poignée « = ») gardé en bas de la zone visible du planning : les tâches défilent dessous */
     /* v573 (remarque 18) : traits DÉBUT / FIN non posés = collés aux bords gauche et droit de la partie visible du Gantt (suivent le défilement) */
@@ -8945,7 +8948,7 @@ function renderBudgetList() {
           insSave(); histLog("DÉLAIS", "CASES COCHÉES", (go === "chg" ? "CHARGES" : "PRODUITS") + " DE " + dlyHbName(k));
         } else shell.__dlySel = new Set([k]);
         const tb = document.querySelector(`.bdg-d-tab[data-tab="${b.dataset.go}"]`);
-        if (tb && active !== b.dataset.go) tb.click(); else refreshAll();
+        if (tb && ECR.active !== b.dataset.go) tb.click(); else refreshAll();
         setTimeout(() => { const c = document.querySelector("#bdgTabBody tr input.ins-cb:checked, #bdgTabBody tr input.dlyp-cb[data-key]:checked"), r = c && c.closest("tr"); if (r) r.scrollIntoView({ block: "center" }); }, 350);
       }, true);
       document.addEventListener("pointerdown", e => { const m = document.getElementById("dlyHb"); if (m && !m.contains(e.target) && !(e.target.closest && e.target.closest(".ghb"))) m.remove(); }, true);
@@ -12409,21 +12412,21 @@ ${A}</Assignments>
       /* v553 (partie 11, remarque 4) : ⚙ visible sur DÉTAIL DÉLAIS quand le planning a un graphique */
       dlyCfgPaint();
       const b = shell.querySelector(".blk-adj-btn"); if (!b) return;
-      const on = active === "dly" && INS_EDIT && !!shell.__insDly;
+      const on = ECR.active === "dly" && INS_EDIT && !!shell.__insDly;
       b.classList.toggle("dly-on", on);
       if (!on) return;
       /* v570 : ↻ = fenêtre GÉNÉRER / COMPRESSER, active dès qu'il y a des tâches */
       let c = { ok: false, why: "" }; try { c = shell.__insDly.keys().length ? { ok: true } : { ok: false, why: "AUCUNE TÂCHE AU PLANNING." }; } catch (e) {}
       b.classList.toggle("off", !c.ok); if (c.ok) delete b.dataset.why; else b.dataset.why = c.why;
     };
-    const renderTab = () => { sviStep("ONGLET : " + active); renderTab0(); sviStep("ONGLET DESSINÉ : " + active); sviMarkEmptyTabs(shell); try { dlyAdjPaint(); } catch (e) {} try { requestAnimationFrame(() => { try { layDetFloor(); } catch (e) {} }); } catch (e) {} };
+    const renderTab = () => { sviStep("ONGLET : " + ECR.active); renderTab0(); sviStep("ONGLET DESSINÉ : " + ECR.active); sviMarkEmptyTabs(shell); try { dlyAdjPaint(); } catch (e) {} try { requestAnimationFrame(() => { try { layDetFloor(); } catch (e) {} }); } catch (e) {} };
     const renderTab0 = () => {
       shell
         .querySelectorAll("#bdgTabs .bdg-d-tab")
         .forEach(b =>
           b.classList.toggle(
             "active",
-            b.dataset.tab === active
+            b.dataset.tab === ECR.active
           )
         );
 
@@ -12442,17 +12445,17 @@ ${A}</Assignments>
         if (q) q.innerHTML = (SVI_ICON.qlt || "") + "DÉTAIL QUALITÉ " + svCnt(0);
         const d = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
         if (d) d.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(new Set(lines.filter(l => String(l.lot || "").trim() || String(l.prim || "").trim()).map(l => String(l.lot || "").trim() + "|" + String(l.prim || "").trim())).size); }
-      if (active === "chg" || active === "prd") {
-        const prd = active === "prd";
+      if (ECR.active === "chg" || ECR.active === "prd") {
+        const prd = ECR.active === "prd";
         const tcols = tcolsFor(prd);
-        const all = byKindNow()[active];
+        const all = byKindNow()[ECR.active];
         const byDesig = groupLines(all).sort((x, y) =>
           String(x.detail).localeCompare(String(y.detail), "fr", { numeric: true })
         );
-        const list = cfApply(active, tcols, byDesig).sort((x, y) =>
+        const list = cfApply(ECR.active, tcols, byDesig).sort((x, y) =>
           selRows.has(y.gid) - selRows.has(x.gid)
         );
-        lastShown.detail = { cols: tcols, rows: list, kind: active };
+        lastShown.detail = { cols: tcols, rows: list, kind: ECR.active };
         const shownG = new Set(list.map(g => g.gid));
         const raw = all.filter(l => shownG.has(l.gid));
         const cols = prd ? 12 : 8;
@@ -12493,10 +12496,10 @@ ${A}</Assignments>
 
         body.innerHTML = `
           <div class="bdg-d-scroll">
-            <table class="bdg-d-table" style="width:${cwTableW(active, tcols)}px">
-              <colgroup>${cwCols(active, tcols)}</colgroup>
+            <table class="bdg-d-table" style="width:${cwTableW(ECR.active, tcols)}px">
+              <colgroup>${cwCols(ECR.active, tcols)}</colgroup>
               <thead>
-                <tr>${tcols.map(([k, lab, , cls]) => cfHead(active, k, lab, cls)).join("")}</tr>
+                <tr>${tcols.map(([k, lab, , cls]) => cfHead(ECR.active, k, lab, cls)).join("")}</tr>
               </thead>
               <tbody>
                 ${
@@ -12515,12 +12518,12 @@ ${A}</Assignments>
             </table>
           </div>
         `;
-        coApply(active, body.querySelector("table"));
+        coApply(ECR.active, body.querySelector("table"));
 
         return;
       }
 
-      if (active === "qlt") {
+      if (ECR.active === "qlt") {
         /* DÉTAIL QUALITÉ : une seule colonne (contenu à venir) */
         body.innerHTML = `<div class="bdg-d-scroll"><table class="bdg-d-table"><thead><tr><th>QUALITÉ</th></tr></thead>
           <tbody><tr><td class="empty">AUCUNE LIGNE</td></tr></tbody></table></div>`;
@@ -13052,7 +13055,7 @@ ${A}</Assignments>
                       doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD", scn: "SCENARIOS", ver: "VERSIONS", rcl: "RECALAGES", av: "AVENANTS" };
     const REC_KINDS = ["doc", "taf", "obs"];
 
-    const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
+    const tabTitle = () => (tabs.find(t => t.key === ECR.active) || {}).title || "DÉTAIL";
     /* libellé affiché (avec accents) ; blkLabel reste pour les noms de fichiers */
     const blkDisp = blk => ({ client: "DÉSIGNATIONS CLIENT", hier: "TÂCHES", metre: "AVANT MÉTRÉ" }[blk] || blkLabel(blk));
     const blkLabel = blk => blk === "detail" ? tabTitle()
@@ -13060,7 +13063,7 @@ ${A}</Assignments>
 
     const blkEmpty = blk => {
       try {
-        if (blk === "detail" && active === "qlt" && !INS) return true;
+        if (blk === "detail" && ECR.active === "qlt" && !INS) return true;
         const b = blk === "suivi" ? recActive : blk;
         const d = blkData(b);
         return !d || !d.rows || !d.rows.length;
@@ -13068,9 +13071,9 @@ ${A}</Assignments>
     };
     const blkData = blk => {
       if (blk === "budget") return budgetFlat();
-      if (blk === "detail" && active === "qlt" && !INS) return { head: [], rows: [] };
-      if (blk === "detail" && active === "qlt" && INS && shell.__qq) return shell.__qq.data();
-      if (blk === "detail" && active === "dly") {
+      if (blk === "detail" && ECR.active === "qlt" && !INS) return { head: [], rows: [] };
+      if (blk === "detail" && ECR.active === "qlt" && INS && shell.__qq) return shell.__qq.data();
+      if (blk === "detail" && ECR.active === "dly") {
         /* délais : tableau affiché (filtres compris), dates JJ/MM/AAAA */
         const src = lastShown.detail && lastShown.detail.kind === "dly" ? lastShown.detail : { cols: DLY_COLS, rows: [] };
         const fr = v => /^\d{4}-\d{2}-\d{2}/.test(String(v)) ? String(v).slice(8, 10) + "/" + String(v).slice(5, 7) + "/" + String(v).slice(0, 4) : v;
@@ -13393,7 +13396,7 @@ ${A}</Assignments>
               /* format métré : NB centré, quantité à droite */
               if (blk === "metre" && head[c] === "NB") h = "center";
               if (blk === "metre" && head[c] === "QUANTITÉ") h = "right";
-              ws[a].s = { font: font(bold.has(i)), border, alignment: { horizontal: h, vertical: "top", wrapText: c !== 1 || (blk === "detail" && active === "dly") } };
+              ws[a].s = { font: font(bold.has(i)), border, alignment: { horizontal: h, vertical: "top", wrapText: c !== 1 || (blk === "detail" && ECR.active === "dly") } };
               if (ws[a].t === "n") ws[a].z = "#,##0.00";
             });
           });
@@ -13471,9 +13474,9 @@ ${A}</Assignments>
               <button type="button" class="doc-btn fmt-btn" data-fmt="csv">CSV</button>
               <button type="button" class="doc-btn fmt-btn" data-fmt="json">JSON</button>
               <button type="button" class="doc-btn fmt-btn" data-fmt="gsheet">GOOGLE SHEETS</button>
-              ${blk === "detail" && active === "dly" && INS ? `<button type="button" class="doc-btn fmt-btn" data-fmt="msp">MS PROJECT</button>` : ""}
+              ${blk === "detail" && ECR.active === "dly" && INS ? `<button type="button" class="doc-btn fmt-btn" data-fmt="msp">MS PROJECT</button>` : ""}
             </div>
-            ${blk === "detail" && active === "dly" && INS ? `<div class="msp-opts" hidden>
+            ${blk === "detail" && ECR.active === "dly" && INS ? `<div class="msp-opts" hidden>
               <div class="svc-sub">NIVEAUX À EXPORTER (LE PLUS FIN COCHÉ = LES TÂCHES, CEUX AU-DESSUS = TÂCHES RÉCAPITULATIVES)</div>
               <label><input type="checkbox" id="mspDes"> DÉSIGNATIONS CLIENT</label>
               <label><input type="checkbox" id="mspLots" checked> LOTS</label>
@@ -13835,7 +13838,7 @@ ${A}</Assignments>
       if (!INS) return;
       opt = opt || {};
       const IND_ONLY = blk === "indlist", TABS = IND_ONLY ? [["ind", "INDICATEURS (TABLEAUX DE BORD)"]] : [...IMP_TABS, ["ind", "INDICATEURS"]];
-      const startTab = blk === "rat" || IND_ONLY ? "ind" : blk === "client" || blk === "budget" ? "des" : blk === "hier" ? "hier" : (active === "prd" ? "prd" : "chg");
+      const startTab = blk === "rat" || IND_ONLY ? "ind" : blk === "client" || blk === "budget" ? "des" : blk === "hier" ? "hier" : (ECR.active === "prd" ? "prd" : "chg");
       /* v691 : SOURCE EN ARBORESCENCE — budgets de la liste mère › consolidé et étapes (budget initial, avenants) ›
          scénarios et versions de chaque étape ; tout élément est importable, consolidé compris */
       IMP_EXTRA.clear();
@@ -14620,7 +14623,7 @@ ${A}</Assignments>
       const M = { add: "AJOUT", replace: "REMPLACEMENT", update: "MISE À JOUR" }[mode];
       histLog("IMPORT", "BUDGET COMPLET — " + M, srcName + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S) — " + nl + " LIAISON(S)" + (rej.length ? " — " + rej.length + " NON CRÉÉE(S)" : ""));
       /* des liaisons n'ont pas pu être créées : l'onglet IMPORT NON CRÉÉ s'ouvre */
-      if (rej.length) { active = "inc"; try { localStorage.setItem("svi_dtab_v1", "inc"); } catch (e) {} }
+      if (rej.length) { ECR.active = "inc"; try { localStorage.setItem("svi_dtab_v1", "inc"); } catch (e) {} }
       refreshAll();
       /* v490 (remarque 2) : après un import, doublons et intitulés presque identiques proposés */
       setTimeout(() => { try { dupExisting(true); } catch (e) {} }, rej.length ? 1500 : 500);
@@ -14782,7 +14785,7 @@ ${A}</Assignments>
       /* v561 : plus de classement par date à l'import (l'ordre reste celui des lots) */
       if (!quiet) {
         histLog("IMPORT", "DÉLAIS", (srcName || "") + " — " + nAdd + " TÂCHE(S) DATÉE(S)" + (rej.length ? " — " + rej.length + " NON CRÉÉE(S)" : ""));
-        if (rej.length) { active = "inc"; try { localStorage.setItem("svi_dtab_v1", "inc"); } catch (e) {} }
+        if (rej.length) { ECR.active = "inc"; try { localStorage.setItem("svi_dtab_v1", "inc"); } catch (e) {} }
       }
       insSave(); refreshAll();
       return rej.length;
@@ -17586,11 +17589,11 @@ ${A}</Assignments>
     const printGeneric = blk => {
       const label = String(blkLabel(blk)).toUpperCase();
       let cols, rows, end = "";
-      if ((blk === "detail" && (active === "dly" || (active === "qlt" && INS))) || blk === "hist" || blk === "ind" || blk === "rat" || blk === "scn" || blk === "ver" || blk === "rcl" || blk === "av") {
+      if ((blk === "detail" && (ECR.active === "dly" || (ECR.active === "qlt" && INS))) || blk === "hist" || blk === "ind" || blk === "rat" || blk === "scn" || blk === "ver" || blk === "rcl" || blk === "av") {
         const d = blkData(blk);
         if (!d.rows.length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         /* historique : date, branche et action étroites, détail large */
-        cols = d.head.map((h, i) => [blk === "hist" ? ["hdt", "hbr", "hac", "hde"][i] : "c" + i, h, r => r[i], (blk === "hist" && i) || (active === "qlt" && !i) ? "" : "center"]);
+        cols = d.head.map((h, i) => [blk === "hist" ? ["hdt", "hbr", "hac", "hde"][i] : "c" + i, h, r => r[i], (blk === "hist" && i) || (ECR.active === "qlt" && !i) ? "" : "center"]);
         rows = d.rows;
       } else if (REC_KINDS.includes(blk)) {
         if (!recLoad(blk).length) { sviAlert("Aucune donnée dans " + label + "."); return; }
@@ -17602,9 +17605,9 @@ ${A}</Assignments>
         cols = screenCols(detailTable(), src.cols);
         rows = src.rows;
         /* budget en instance : montants calculés des lignes saisies (avant : 0,00) */
-        const ht = src.ins ? rows.reduce((t, r) => t + (Number(insCalc(active, r, "ht")) || 0), 0) : rows.reduce((t, l) => t + (l.amount || 0), 0);
-        const tv = src.ins ? rows.reduce((t, r) => t + (Number(insCalc(active, r, "ttc")) || 0), 0) - ht : rows.reduce((t, l) => t + (l.tvaAmt || 0), 0);
-        if (active === "chg" || active === "prd") end = `<div class="tot">
+        const ht = src.ins ? rows.reduce((t, r) => t + (Number(insCalc(ECR.active, r, "ht")) || 0), 0) : rows.reduce((t, l) => t + (l.amount || 0), 0);
+        const tv = src.ins ? rows.reduce((t, r) => t + (Number(insCalc(ECR.active, r, "ttc")) || 0), 0) - ht : rows.reduce((t, l) => t + (l.tvaAmt || 0), 0);
+        if (ECR.active === "chg" || ECR.active === "prd") end = `<div class="tot">
             <div><span>TOTAL H.T. :</span><b>${money(ht)}</b></div>
             <div><span>TOTAL T.V.A. :</span><b>${money(tv)}</b></div>
             <div><span>TOTAL T.T.C. :</span><b>${money(ht + tv)}</b></div>
@@ -17691,13 +17694,13 @@ ${A}</Assignments>
       /* budget en instance : aperçu standard des lignes saisies */
       if (INS && (blk === "hier" || blk === "detail")) return printGeneric(blk);
       if (blk === "hier") return printTasks("plain");
-      if (blk === "detail" && active === "chg") return printTasks("chg");
-      if (blk === "detail" && active === "prd") return printTasks("prd");
-      if (blk === "detail" && active === "dly") return printGeneric(blk);
-      if (!(blk === "detail" && active === "qlt")) return printGeneric(blk);
+      if (blk === "detail" && ECR.active === "chg") return printTasks("chg");
+      if (blk === "detail" && ECR.active === "prd") return printTasks("prd");
+      if (blk === "detail" && ECR.active === "dly") return printGeneric(blk);
+      if (!(blk === "detail" && ECR.active === "qlt")) return printGeneric(blk);
       histLog(blkLabel(blk), "APERÇU PDF");
       let tableHTML;
-      if (blk === "detail" && active === "qlt") {
+      if (blk === "detail" && ECR.active === "qlt") {
         sviAlert("Aucune donnée dans " + blkLabel(blk) + ".");
         return;
       }
@@ -17705,7 +17708,7 @@ ${A}</Assignments>
         sviAlert("Aucune donnée dans " + blkLabel(blk) + ".");
         return;
       }
-      if (blk === "hier" || REC_KINDS.includes(blk) || (blk === "detail" && active === "dly")) {
+      if (blk === "hier" || REC_KINDS.includes(blk) || (blk === "detail" && ECR.active === "dly")) {
         const { head, rows } = blkData(blk);
         tableHTML = `<table><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead>
           <tbody>${rows.map(r => `<tr>${r.map(v => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
@@ -18685,8 +18688,8 @@ ${A}</Assignments>
 
     /* budget en instance : lignes cochées d'un bloc (les cases servent à supprimer, exporter, aperçu) */
     const insBlkKinds = blk => blk === "client" ? ["des"] : blk === "hier" ? ["lot", "prim", "sec"]
-      : blk === "detail" && ["chg", "prd", "qlt"].includes(active) ? [active]
-      : blk === "detail" && active === "unl" ? ["des", "lot", "prim", "sec", "chg", "prd"] : [];
+      : blk === "detail" && ["chg", "prd", "qlt"].includes(ECR.active) ? [ECR.active]
+      : blk === "detail" && ECR.active === "unl" ? ["des", "lot", "prim", "sec", "chg", "prd"] : [];
     /* ✕ DÉLIER LES LIGNES COCHÉES (menu ⋯) : liaisons qui contiennent une ligne cochée (et affichée) du bloc ;
        produits / charges cochés : retirés de leurs liaisons ; LIAISONS VALIDÉES : liaisons cochées */
     const insUnlPlan = blk => {
@@ -18694,7 +18697,7 @@ ${A}</Assignments>
       const L = INS.links || [];
       /* bloc détail : tous ses onglets (FORMAT 104) — liaisons cochées (délier en entier) + produits / charges cochés (retirés) */
       if (blk === "detail") {
-        const vi = active === "lnk" && lastShown.detail && lastShown.detail.kind === "lnk" ? new Set(lastShown.detail.rows.map(l => l.id)) : null;
+        const vi = ECR.active === "lnk" && lastShown.detail && lastShown.detail.kind === "lnk" ? new Set(lastShown.detail.rows.map(l => l.id)) : null;
         const whole = L.filter(l => l.on === true && (!vi || vi.has(l.id)));
         const sp = insSelIds("prd"), sc = insSelIds("chg");
         const remP = [...sp].filter(id => L.some(l => (l.prd || []).some(x => x.id === id)));
@@ -18726,11 +18729,11 @@ ${A}</Assignments>
           X.INS[k].forEach(r => { if (r.t || r.on !== true || !vis.has(r.id)) return; if (k !== "qlt" && X.isUsed(k, r.id)) out.kept++; else add(k, r.id); });
         });
         /* LIGNES NON LIÉES : ses lignes cochées des autres blocs (désignations, lots, activités) */
-        const uv = active === "unl" && lastShown.detail && lastShown.detail.kind === "unl" ? new Set(lastShown.detail.rows.map(x => x.k + "|" + x.id)) : null;
+        const uv = ECR.active === "unl" && lastShown.detail && lastShown.detail.kind === "unl" ? new Set(lastShown.detail.rows.map(x => x.k + "|" + x.id)) : null;
         const un = insUnlinked();
         ["des", "lot", "prim", "sec", "chg", "prd"].forEach(k => (un[k] || []).forEach(r => { if (r.uon === true && !r.t && (!uv || uv.has(k + "|" + r.id))) add(k, r.id); }));
         /* IMPORT NON CRÉÉ */
-        const vi = active === "inc" && lastShown.detail && lastShown.detail.kind === "inc" ? new Set(lastShown.detail.rows.map(x => x.id)) : null;
+        const vi = ECR.active === "inc" && lastShown.detail && lastShown.detail.kind === "inc" ? new Set(lastShown.detail.rows.map(x => x.id)) : null;
         (INS.inc || []).forEach(x => { if (x.on === true && (!vi || vi.has(x.id))) add("inc", x.id); });
         /* DÉTAIL DÉLAIS : périodes cochées */
         const Y = shell.__insDly;
@@ -18742,7 +18745,7 @@ ${A}</Assignments>
       }
       /* IMPORT NON CRÉÉ : les lignes cochées de l'onglet (les données déjà importées restent) */
       /* DÉTAIL DÉLAIS : périodes cochées (le brouillon de la liaison en cours) */
-      if (blk === "detail" && active === "dly") {
+      if (blk === "detail" && ECR.active === "dly") {
         const Y = shell.__insDly, S = new Set(), P = new Set();
         if (Y && Y.draft) Object.values(Y.draft()).forEach(l => l.forEach(p => { if (p.on === true) S.add(p.id); }));
         /* PLANNING : tâches cochées ; une tâche liée reste (règle G) */
@@ -18752,9 +18755,9 @@ ${A}</Assignments>
         out.n = S.size + P.size;
         return out;
       }
-      if (blk === "detail" && active === "inc") { const vi = new Set(lastShown.detail && lastShown.detail.kind === "inc" ? lastShown.detail.rows.map(x => x.id) : []);
+      if (blk === "detail" && ECR.active === "inc") { const vi = new Set(lastShown.detail && lastShown.detail.kind === "inc" ? lastShown.detail.rows.map(x => x.id) : []);
         const ids = new Set((INS.inc || []).filter(x => x.on === true && vi.has(x.id)).map(x => x.id)); if (ids.size) { out.del.inc = ids; out.n = ids.size; } return out; }
-      const unlTab = blk === "detail" && active === "unl";
+      const unlTab = blk === "detail" && ECR.active === "unl";
       insBlkKinds(blk).forEach(k => {
         /* onglet LIGNES NON LIÉES : seulement ses lignes (non liées), titres compris */
         const vu = unlTab ? new Set((lastShown.detail && lastShown.detail.kind === "unl" ? lastShown.detail.rows : []).filter(x => x.k === k).map(x => x.id)) : insVis(k);
@@ -18843,14 +18846,14 @@ ${A}</Assignments>
        collées à la fin du même bloc, dans ce budget ou un autre, sans liaison ;
        « COPIE DE » seulement en cas de doublon ; COUPER = lignes non liées, retirées au COLLER ;
        copie aussi dans le presse-papiers de l'iPad (tableau) ===== */
-    const clipKinds = blk => blk === "detail" && !["chg", "prd", "qlt"].includes(active) ? [] : insBlkKinds(blk);
+    const clipKinds = blk => blk === "detail" && !["chg", "prd", "qlt"].includes(ECR.active) ? [] : insBlkKinds(blk);
     /* ===== onglets de contrôle (FORMAT 99) : IMPORT NON CRÉÉ (COPIER / COUPER / COLLER = réimport),
        LIGNES NON LIÉES et LIAISONS VALIDÉES (COPIER) — lignes cochées ET affichées ===== */
-    const ctlTab = blk => blk === "detail" && ["inc", "unl", "lnk"].includes(active) ? active : "";
+    const ctlTab = blk => blk === "detail" && ["inc", "unl", "lnk"].includes(ECR.active) ? ECR.active : "";
     const ctlRows = () => {
       const ls = lastShown.detail;
-      if (!ls || ls.kind !== active) return [];
-      return ls.rows.filter(x => active === "unl" ? x.r && x.r.uon === true : x.on === true);
+      if (!ls || ls.kind !== ECR.active) return [];
+      return ls.rows.filter(x => ECR.active === "unl" ? x.r && x.r.uon === true : x.on === true);
     };
     const ctlCount = (blk, act) => {
       const t = ctlTab(blk);
@@ -18963,7 +18966,7 @@ ${A}</Assignments>
     const clipPasteText = (blk, txt) => {
       const X = shell.__ins; if (!X) return false;
       const ks = clipKinds(blk);
-      const k = blk === "detail" ? active : ks.find(x => x === "des") || ks.find(x => shell.querySelector(`.ins-hcol[data-ik="${x}"] .ins-li.on, .ins-hcol[data-ik="${x}"]:focus-within`)) || ks[0];
+      const k = blk === "detail" ? ECR.active : ks.find(x => x === "des") || ks.find(x => shell.querySelector(`.ins-hcol[data-ik="${x}"] .ins-li.on, .ins-hcol[data-ik="${x}"]:focus-within`)) || ks[0];
       if (!k || !X.INS[k]) return false;
       const lines = String(txt).replace(/\r/g, "").split("\n").filter(l => l.trim() !== "").map(l => l.split("\t"));
       if (!lines.length) return false;
@@ -19149,7 +19152,7 @@ ${A}</Assignments>
     };
     /* FORMAT 106 : document déjà classé pour le contenu que donnerait APERÇU PDF (essai à blanc, sans fenêtre) */
     const pdfDoneRef = blk => {
-      if (!INS && blk === "detail" && (active === "prd" || active === "qlt")) return "";
+      if (!INS && blk === "detail" && (ECR.active === "prd" || ECR.active === "qlt")) return "";
       const b = blk === "suivi" ? recActive : blk;
       const ls = { ...lastShown, hier: { ...(lastShown.hier || {}) } };
       PM_DRY = {}; window.__sviQuiet = true;
@@ -19164,9 +19167,9 @@ ${A}</Assignments>
       /* v573 (remarque 19) : plein écran du bloc détail encore ouvert (agrandi sur un autre onglet) : le bouton réduit d'abord */
       if (act === "max" && blk === "detail" && shell.querySelector(".bdg-d-page.max-detail")) return toggleMax(blk);
       /* v782 (remarque 4) : AGRANDIR du DÉTAIL = plein écran comme les autres blocs ; la SAISIE DIRECTE passe dans le ⋯ du bloc (act « sd ») */
-      if (act === "sd" && blk === "detail" && INS && INS_EDIT && (active === "prd" || active === "chg") && shell.__sdOpen) {
+      if (act === "sd" && blk === "detail" && INS && INS_EDIT && (ECR.active === "prd" || ECR.active === "chg") && shell.__sdOpen) {
         if (shell.__sdClose && shell.__sdClose()) return;
-        shell.__sdOpen(active);
+        shell.__sdOpen(ECR.active);
         /* v512 (remarque 78) : onglets juste sous le bandeau, SAISIE DIRECTE à la hauteur de l'écran (en-têtes et boutons visibles) */
         setTimeout(() => {
           const w = document.querySelector("#sdW.sd-inplace"), tabs = $("bdgTabs");
@@ -19196,7 +19199,7 @@ ${A}</Assignments>
       if (act === "copy" || act === "cut") return clipTake(blk, act === "cut");
       if (act === "paste") return clipPaste(blk);
       if (act === "export" || act === "pdf") insOnlyChecked(blk);
-      if (!INS && blk === "detail" && active === "prd" && (act === "export" || act === "pdf")) return chooseFormat(act);
+      if (!INS && blk === "detail" && ECR.active === "prd" && (act === "export" || act === "pdf")) return chooseFormat(act);
       const b = blk === "suivi" ? recActive : blk;
       if (act === "export") openExportMenu(b);
       else if (act === "import") { if (budget.inst && (budget.inst.state || "instance") === "instance") openImportMenu(b); }
@@ -19225,8 +19228,8 @@ ${A}</Assignments>
         /* supprimer : grisé s'il n'y a aucune ligne cochée et déliée (l'erreur n'est pas proposée) */
         if (a.dataset.blk === "detail" && ["copy", "cut", "export", "pdf"].includes(a.dataset.act) && INS_EDIT) {
           /* ces actions ne prennent que l'onglet ouvert : signaler les cochées des autres onglets */
-          const all = insDelPlan("detail"), here = active === "lnk" ? 0 : (all.del[active] || new Set()).size;
-          const other = active === "unl" ? 0 : Math.max(0, all.n - here);
+          const all = insDelPlan("detail"), here = ECR.active === "lnk" ? 0 : (all.del[ECR.active] || new Set()).size;
+          const other = ECR.active === "unl" ? 0 : Math.max(0, all.n - here);
           a.__hint = "";
           if (other) m.__hint = "+ " + other + " COCHÉE(S) DANS D'AUTRES ONGLETS — COPIER, COUPER, EXPORTER ET APERÇU NE PRENNENT QUE L'ONGLET OUVERT";
         }
@@ -19267,7 +19270,7 @@ ${A}</Assignments>
       if (m.__hint) m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">${esc(m.__hint)}</div>`);
       /* FORMAT 97 : DÉTAIL DÉLAIS ouvert (PLANNING) — commandes du planning et affichage JOUR / SEMAINE / MOIS en tête du menu */
       const DX = shell.__insDly;
-      if (DX && active === "dly" && acts.some(a => a.dataset.blk === "detail") && shell.querySelector("#dlyGantt")) {
+      if (DX && ECR.active === "dly" && acts.some(a => a.dataset.blk === "detail") && shell.querySelector("#dlyGantt")) {
         /* v546 (R35, FORMAT 195) : PLANNING (vue, CLASSER PAR DÉBUT), HISTOGRAMME (APPROVISIONNEMENT) ; COMPRESSER = bouton ↻,
            affichage du Gantt = CALENDRIER DU BUDGET, réglages de l'histogramme = ⚙ */
         const vw = DX.view();
@@ -19319,12 +19322,12 @@ ${A}</Assignments>
       { const mb = tools.querySelector(".blk-max-btn"); if (mb) { const on = mb.classList.contains("on");
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-mx="1"><span>${on ? "RÉDUIRE" : "AGRANDIR"}</span></button>`);
         m.addEventListener("click", e => { const b = e.target.closest("[data-mx]"); if (!b) return; e.stopPropagation(); m.remove(); mb.click(); }, true); } }
-      if (INS && INS_EDIT && (active === "chg" || active === "prd") && shell.__sdOpen && acts.some(a => a.dataset.blk === "detail")) {
+      if (INS && INS_EDIT && (ECR.active === "chg" || ECR.active === "prd") && shell.__sdOpen && acts.some(a => a.dataset.blk === "detail")) {
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-sdo="1"><span>SAISIE DIRECTE</span></button>`);
         m.addEventListener("click", e => { const b = e.target.closest("[data-sdo]"); if (!b) return; e.stopPropagation(); m.remove(); runBlkAct("detail", "sd"); }, true);
       }
       /* v500 (remarque 46) : MARGE — TOUT DÉPLIER / TOUT REPLIER */
-      if (active === "lnk" && shell.__mg && acts.some(a => a.dataset.blk === "detail")) {
+      if (ECR.active === "lnk" && shell.__mg && acts.some(a => a.dataset.blk === "detail")) {
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-mgf="pv"><span>PRIX DE VENTE PAR LA MARGE…</span></button><div class="blk-sep"></div><button type="button" data-mgf="open"><span>TOUT DÉPLIER</span></button><button type="button" data-mgf="close"><span>TOUT REPLIER</span></button><div class="blk-sep"></div>`);
         m.addEventListener("click", e => { const b = e.target.closest("[data-mgf]"); if (!b) return; e.stopPropagation(); m.remove(); if (b.dataset.mgf === "pv") shell.__mg.pv(); else if (b.dataset.mgf === "open") shell.__mg.openAll(); else shell.__mg.closeAll(); }, true);   /* v663 (axe 2) : PRIX DE VENTE PAR LA MARGE */
       }
@@ -19501,9 +19504,9 @@ ${A}</Assignments>
         event.target.closest("[data-tab]");
 
       if (tab) {
-        active = tab.dataset.tab;
-        if (active === "dly") shell.__dlyCenter = true;   /* v603 : plage remplie centrée à l'ouverture du graphique */
-        try { localStorage.setItem("svi_dtab_v1", active); } catch (e) {}
+        ECR.active = tab.dataset.tab;
+        if (ECR.active === "dly") shell.__dlyCenter = true;   /* v603 : plage remplie centrée à l'ouverture du graphique */
+        try { localStorage.setItem("svi_dtab_v1", ECR.active); } catch (e) {}
         /* v676 : verrou par zone — l'onglet ouvert grisé s'il est pris par un autre */
         if (INS && typeof sviZonePaint === "function") sviZonePaint();
         renderTab();
@@ -19558,7 +19561,7 @@ ${A}</Assignments>
       if (input) {
         const gid = input.dataset.line;
         const members =
-          (byKindNow()[active] || []).filter(l => l.gid === gid);
+          (byKindNow()[ECR.active] || []).filter(l => l.gid === gid);
 
         if (members.length) {
           const v = num(String(input.value).replace("%", ""));
@@ -19580,7 +19583,7 @@ ${A}</Assignments>
           const shownG = new Set(
             [...shell.querySelectorAll("tr[data-row]")].map(r => r.dataset.row)
           );
-          const list = (byKindNow()[active] || []).filter(l => shownG.has(l.gid));
+          const list = (byKindNow()[ECR.active] || []).filter(l => shownG.has(l.gid));
 
           const ht =
             list.reduce((t, l) => t + l.amount, 0);

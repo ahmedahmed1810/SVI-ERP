@@ -556,7 +556,7 @@
     if (!body.__qqBound) {
       body.__qqBound = true;
       body.addEventListener("click", e => {
-        if (active !== "qlt" || !INS) return;
+        if (ECR.active !== "qlt" || !INS) return;
         const sb = e.target.closest(".qq-sub");
         if (sb) { qqSub = sb.dataset.sub; qqRender(); return; }
         const key = qqKey();
@@ -583,7 +583,7 @@
         qqPick(td, items, n[f] || "", v => { n[f] = v; qqSave(); qqRender(); });
       });
       body.addEventListener("change", e => {
-        if (active !== "qlt" || !INS || !INS_EDIT) return;
+        if (ECR.active !== "qlt" || !INS || !INS_EDIT) return;
         const key = qqKey();
         const pin = e.target.closest(".qq-pin");
         if (pin) { const P = (qqData().per[key] = qqData().per[key] || {}); P[pin.dataset.f] = pin.classList.contains("number") ? insNum(pin.value) : U_(pin.value); qqSave(); return; }
@@ -631,7 +631,7 @@
       });
       /* Entrée = case suivante (FORMAT 48) */
       body.addEventListener("keydown", e => {
-        if (active !== "qlt" || e.key !== "Enter") return;
+        if (ECR.active !== "qlt" || e.key !== "Enter") return;
         const inp = e.target.closest(".qq-in, .qq-xin, .qq-pin");
         if (!inp) return;
         e.preventDefault();
@@ -640,7 +640,7 @@
     }
     /* menu ⋯ du bloc détail quand DÉTAIL QUALITÉ est ouvert : ajouter un titre, supprimer les lignes cochées */
     shell.__qq = {
-      on: () => active === "qlt" && !!INS,
+      on: () => ECR.active === "qlt" && !!INS,
       cfg: () => qqCfgWin(),
       io: { head: QQ_IO, exp: () => qqExportRows(), imp: (aoa, rep) => qqImportAoa(aoa, "TEST", true, rep) },
       edit: () => INS_EDIT,
@@ -759,24 +759,24 @@
     }
     const tabStash = () => {
       const k = shell.__tabCur;
-      if (!k || k === active || !["chg", "prd"].includes(k) || !body.firstChild) return;
+      if (!k || k === ECR.active || !["chg", "prd"].includes(k) || !body.firstChild) return;
       const sc = body.querySelector(".bdg-d-scroll");
       TABC[k] = { gen: shell.__tabGen, w: body.clientWidth, nodes: [...body.childNodes], more: insMore[k], st: sc ? sc.scrollTop : 0, sl: sc ? sc.scrollLeft : 0, ls: lastShown.detail };
     };
     const tabReuse = () => {
-      const C = TABC[active]; delete TABC[active];
+      const C = TABC[ECR.active]; delete TABC[ECR.active];
       if (!C || C.gen !== shell.__tabGen || C.w !== body.clientWidth) return false;
-      body.replaceChildren(...C.nodes); insMore[active] = C.more; lastShown.detail = C.ls;
+      body.replaceChildren(...C.nodes); insMore[ECR.active] = C.more; lastShown.detail = C.ls;
       const sc = body.querySelector(".bdg-d-scroll"); if (sc) { sc.scrollTop = C.st; sc.scrollLeft = C.sl; }
-      shell.__insMore = () => insMoreRows(active);
+      shell.__insMore = () => insMoreRows(ECR.active);
       return true;
     };
     const insRenderTab = () => {
-      tabStash(); shell.__tabCur = active;
+      tabStash(); shell.__tabCur = ECR.active;
       /* v772 : vue ouverte depuis le menu ⋯ du haut — son nom dans l'en-tête du bloc DÉTAIL */
-      { const sb = document.getElementById("bdgDetailSub"); if (sb) sb.textContent = ({ lnk: " — TABLEAU DE BORD", apr: " — APPRO. PRÉVISIONNEL", ind1: " — INDICATEURS", unl: " — LIGNES NON LIÉES", inc: " — IMPORT NON CRÉÉ" })[active] || ""; }
+      { const sb = document.getElementById("bdgDetailSub"); if (sb) sb.textContent = ({ lnk: " — TABLEAU DE BORD", apr: " — APPRO. PRÉVISIONNEL", ind1: " — INDICATEURS", unl: " — LIGNES NON LIÉES", inc: " — IMPORT NON CRÉÉ" })[ECR.active] || ""; }
       { const tl = document.querySelector("#bdgDetailHead > .blk-tools");
-        if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (active === "chg" || active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(active)); } }
+        if (tl) { tl.querySelector(".only-c")?.remove(); if (INS_EDIT && (ECR.active === "chg" || ECR.active === "prd")) tl.insertAdjacentHTML("afterbegin", onlyBtn(ECR.active)); } }
       ["chg", "prd"].forEach(k => {
         const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${k}"]`);
         /* v614 (point 10) : plus d'étoile sur DÉTAIL PRODUITS ; numéro d'ordre du filtre ; « cochées/total » */
@@ -795,7 +795,7 @@
       /* IMPORT NON CRÉÉ : visible seulement s'il reste des lignes */
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="inc"]`), n = (INS.inc || []).length;
         if (b) { b.innerHTML = (SVI_ICON.hier || "") + "IMPORT NON CRÉÉ " + svCnt(n); b.hidden = !n; b.style.display = n ? "" : "none"; }
-        if (!n && active === "inc") { active = "prd"; try { localStorage.setItem("svi_dtab_v1", "prd"); } catch (e) {} document.querySelectorAll("#bdgTabs .bdg-d-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === active)); } }
+        if (!n && ECR.active === "inc") { ECR.active = "prd"; try { localStorage.setItem("svi_dtab_v1", "prd"); } catch (e) {} document.querySelectorAll("#bdgTabs .bdg-d-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === ECR.active)); } }
       { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"]`);
         if (b) b.innerHTML = (SVI_ICON.xpl || "") + "TABLEAU DE BORD " + insCkBadge("lnk") + (insRg() ? svCnt((INS.links || []).filter(l => insRgKeyIn(l.lot + "|" + l.sec)).length, (INS.links || []).length) : svCnt((INS.links || []).length)); }
       sviMarkEmptyTabs(shell);
@@ -810,13 +810,13 @@
       /* onglet actif (liaisons validées, lignes non liées, import non créé) : « retenues/total » une fois dessiné */
       setTimeout(() => {
         const ls = lastShown.detail;
-        if (!ls || !["lnk", "unl", "inc"].includes(ls.kind) || ls.kind !== active) return;
-        const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${active}"] .svi-cnt`);
-        const tot = active === "lnk" ? (INS.links || []).length : active === "inc" ? (INS.inc || []).length : insUnlCount();
+        if (!ls || !["lnk", "unl", "inc"].includes(ls.kind) || ls.kind !== ECR.active) return;
+        const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${ECR.active}"] .svi-cnt`);
+        const tot = ECR.active === "lnk" ? (INS.links || []).length : ECR.active === "inc" ? (INS.inc || []).length : insUnlCount();
         if (b) b.outerHTML = svCnt(ls.rows.length, tot);
       }, 0);
       /* v584 : onglet GRAPHIQUE = le graphique du DÉTAIL DÉLAIS sur tout le bloc (il reste aussi sous le Gantt) */
-      if (active === "dly") {
+      if (ECR.active === "dly") {
         /* délais : saisis ici (périodes par tâche secondaire ; tâche primaire choisie = récapitulatif) */
         body.innerHTML = `<div class="bdg-d-scroll dly-scroll">${insDlyHTML(INS_EDIT, shell.__insDly && shell.__insDly.err)}</div>`;
         /* v594 (remarque longue 2) : bandeau ISOLÉ posé AU-DESSUS de la zone qui défile (jamais sur les en-têtes) */
@@ -837,22 +837,22 @@
           }, 60); } }
         return;
       }
-      if (active === "ind1") { body.innerHTML = shell.__ind1HTML ? shell.__ind1HTML() : ""; lastShown.detail = { cols: [], rows: [], kind: "ind1" }; return; }   /* v724 */
-      if (active === "apr") { body.innerHTML = shell.__aprHTML ? shell.__aprHTML() : ""; lastShown.detail = { cols: [], rows: [], kind: "apr" }; return; }   /* v714 */
-      if (active === "qlt") { qqRender(); lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
+      if (ECR.active === "ind1") { body.innerHTML = shell.__ind1HTML ? shell.__ind1HTML() : ""; lastShown.detail = { cols: [], rows: [], kind: "ind1" }; return; }   /* v724 */
+      if (ECR.active === "apr") { body.innerHTML = shell.__aprHTML ? shell.__aprHTML() : ""; lastShown.detail = { cols: [], rows: [], kind: "apr" }; return; }   /* v714 */
+      if (ECR.active === "qlt") { qqRender(); lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
       /* v692 : onglet INDICATEURS — carreaux du tableau de bord au-dessus du tableau par liaison */
-      if (active === "lnk") { body.innerHTML = `${shell.__ibdHTML ? shell.__ibdHTML() : ""}<div class="bdg-d-scroll">${insRgView(xplHTML)}</div>`; return; }
-      if (active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
-      if (active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
+      if (ECR.active === "lnk") { body.innerHTML = `${shell.__ibdHTML ? shell.__ibdHTML() : ""}<div class="bdg-d-scroll">${insRgView(xplHTML)}</div>`; return; }
+      if (ECR.active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
+      if (ECR.active === "inc") { body.innerHTML = `<div class="bdg-d-scroll">${insIncHTML()}</div>`; return; }
       if (tabReuse()) { insMarkUnlinked(); return; }
-      if (active === "prd" && shell.__prdSyncU) shell.__prdSyncU();
+      if (ECR.active === "prd" && shell.__prdSyncU) shell.__prdSyncU();
       /* v568 (remarque 11) : DÉTAIL PRODUITS réduit aux tâches sans charge (depuis À COMPLÉTER) — bandeau jaune et TOUT AFFICHER */
-      const ncB = active === "prd" && shell.__prdNc ? `<div class="dly-iso prd-nc"><span><b>TÂCHES SANS CHARGE</b></span><small>PRODUITS DES TÂCHES QUI N'ONT AUCUNE CHARGE</small><button type="button" class="dly-iso-x prd-nc-x">TOUT AFFICHER</button></div>` : "";
-      body.innerHTML = `${ncB}<div class="bdg-d-scroll">${insTableHTML(active)}</div>`;
+      const ncB = ECR.active === "prd" && shell.__prdNc ? `<div class="dly-iso prd-nc"><span><b>TÂCHES SANS CHARGE</b></span><small>PRODUITS DES TÂCHES QUI N'ONT AUCUNE CHARGE</small><button type="button" class="dly-iso-x prd-nc-x">TOUT AFFICHER</button></div>` : "";
+      body.innerHTML = `${ncB}<div class="bdg-d-scroll">${insTableHTML(ECR.active)}</div>`;
       if (ncB && !shell.__prdNcB) { shell.__prdNcB = true; shell.addEventListener("click", e => { if (!(e.target.closest && e.target.closest(".prd-nc-x"))) return; e.stopPropagation(); shell.__prdNc = null; refreshAll(); }, true); }
-      if (active === "chg") chgFit();
-      shell.__insMore = () => insMoreRows(active);
-      lastShown.detail = { cols: insCfCols(active), rows: insShown(active), kind: active, ins: true };
+      if (ECR.active === "chg") chgFit();
+      shell.__insMore = () => insMoreRows(ECR.active);
+      lastShown.detail = { cols: insCfCols(ECR.active), rows: insShown(ECR.active), kind: ECR.active, ins: true };
       insMarkUnlinked();
     };
     /* met à jour les montants calculés, sous-totaux et totaux sans redessiner
@@ -1341,7 +1341,7 @@
         if (b.go.startsWith("hier:")) { shell.querySelector(`.ins-hcol[data-ik="${b.go.slice(5)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
         if (b.go === "des") { shell.querySelector(".bdg-d-client-scroll")?.scrollIntoView({ block: "start", behavior: "smooth" }); return; }
         if (b.go === "dly") { LK.lot = LK.sec = LK.prim = null; }
-        if (b.go === "prdnc") { shell.__prdNc = new Set(b.prd); b = { go: "prd" }; if (active === "prd") { renderTab(); return; } }
+        if (b.go === "prdnc") { shell.__prdNc = new Set(b.prd); b = { go: "prd" }; if (ECR.active === "prd") { renderTab(); return; } }
         const t = shell.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${b.go}"]`);
         if (t) { t.click(); t.scrollIntoView({ block: "start", behavior: "smooth" }); }
         /* v581 : première ligne en erreur du bloc */

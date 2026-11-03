@@ -35,21 +35,21 @@
       /* v553 (partie 11, remarque 4) : ⚙ visible sur DÉTAIL DÉLAIS quand le planning a un graphique */
       dlyCfgPaint();
       const b = shell.querySelector(".blk-adj-btn"); if (!b) return;
-      const on = active === "dly" && INS_EDIT && !!shell.__insDly;
+      const on = ECR.active === "dly" && INS_EDIT && !!shell.__insDly;
       b.classList.toggle("dly-on", on);
       if (!on) return;
       /* v570 : ↻ = fenêtre GÉNÉRER / COMPRESSER, active dès qu'il y a des tâches */
       let c = { ok: false, why: "" }; try { c = shell.__insDly.keys().length ? { ok: true } : { ok: false, why: "AUCUNE TÂCHE AU PLANNING." }; } catch (e) {}
       b.classList.toggle("off", !c.ok); if (c.ok) delete b.dataset.why; else b.dataset.why = c.why;
     };
-    const renderTab = () => { sviStep("ONGLET : " + active); renderTab0(); sviStep("ONGLET DESSINÉ : " + active); sviMarkEmptyTabs(shell); try { dlyAdjPaint(); } catch (e) {} try { requestAnimationFrame(() => { try { layDetFloor(); } catch (e) {} }); } catch (e) {} };
+    const renderTab = () => { sviStep("ONGLET : " + ECR.active); renderTab0(); sviStep("ONGLET DESSINÉ : " + ECR.active); sviMarkEmptyTabs(shell); try { dlyAdjPaint(); } catch (e) {} try { requestAnimationFrame(() => { try { layDetFloor(); } catch (e) {} }); } catch (e) {} };
     const renderTab0 = () => {
       shell
         .querySelectorAll("#bdgTabs .bdg-d-tab")
         .forEach(b =>
           b.classList.toggle(
             "active",
-            b.dataset.tab === active
+            b.dataset.tab === ECR.active
           )
         );
 
@@ -68,17 +68,17 @@
         if (q) q.innerHTML = (SVI_ICON.qlt || "") + "DÉTAIL QUALITÉ " + svCnt(0);
         const d = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
         if (d) d.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(new Set(lines.filter(l => String(l.lot || "").trim() || String(l.prim || "").trim()).map(l => String(l.lot || "").trim() + "|" + String(l.prim || "").trim())).size); }
-      if (active === "chg" || active === "prd") {
-        const prd = active === "prd";
+      if (ECR.active === "chg" || ECR.active === "prd") {
+        const prd = ECR.active === "prd";
         const tcols = tcolsFor(prd);
-        const all = byKindNow()[active];
+        const all = byKindNow()[ECR.active];
         const byDesig = groupLines(all).sort((x, y) =>
           String(x.detail).localeCompare(String(y.detail), "fr", { numeric: true })
         );
-        const list = cfApply(active, tcols, byDesig).sort((x, y) =>
+        const list = cfApply(ECR.active, tcols, byDesig).sort((x, y) =>
           selRows.has(y.gid) - selRows.has(x.gid)
         );
-        lastShown.detail = { cols: tcols, rows: list, kind: active };
+        lastShown.detail = { cols: tcols, rows: list, kind: ECR.active };
         const shownG = new Set(list.map(g => g.gid));
         const raw = all.filter(l => shownG.has(l.gid));
         const cols = prd ? 12 : 8;
@@ -119,10 +119,10 @@
 
         body.innerHTML = `
           <div class="bdg-d-scroll">
-            <table class="bdg-d-table" style="width:${cwTableW(active, tcols)}px">
-              <colgroup>${cwCols(active, tcols)}</colgroup>
+            <table class="bdg-d-table" style="width:${cwTableW(ECR.active, tcols)}px">
+              <colgroup>${cwCols(ECR.active, tcols)}</colgroup>
               <thead>
-                <tr>${tcols.map(([k, lab, , cls]) => cfHead(active, k, lab, cls)).join("")}</tr>
+                <tr>${tcols.map(([k, lab, , cls]) => cfHead(ECR.active, k, lab, cls)).join("")}</tr>
               </thead>
               <tbody>
                 ${
@@ -141,12 +141,12 @@
             </table>
           </div>
         `;
-        coApply(active, body.querySelector("table"));
+        coApply(ECR.active, body.querySelector("table"));
 
         return;
       }
 
-      if (active === "qlt") {
+      if (ECR.active === "qlt") {
         /* DÉTAIL QUALITÉ : une seule colonne (contenu à venir) */
         body.innerHTML = `<div class="bdg-d-scroll"><table class="bdg-d-table"><thead><tr><th>QUALITÉ</th></tr></thead>
           <tbody><tr><td class="empty">AUCUNE LIGNE</td></tr></tbody></table></div>`;

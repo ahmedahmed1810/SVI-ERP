@@ -54,7 +54,7 @@
       ["focusin", "beforeinput", "paste", "drop", "dragstart", "keydown", "pointerdown", "mousedown", "touchstart", "click"].forEach(ev => document.addEventListener(ev, guard, true)); window.__sviNoWrap = 0;
     }
     if (INS && typeof sviLockOpen === "function") sviLockOpen(budget.inst.ref, INS_REAL);
-    window.__sviZoneCtx = INS ? { ref: budget.inst.ref, edit: INS_REAL, shell, tab: () => insTabName(active),
+    window.__sviZoneCtx = INS ? { ref: budget.inst.ref, edit: INS_REAL, shell, tab: () => insTabName(ECR.active),
       /* v678 : état du budget à l'entrée dans une zone, remis si la zone était déjà prise */
       snap: () => JSON.stringify(INS),
       restore: (str, why) => { const o = JSON.parse(str); Object.keys(INS).forEach(k => { delete INS[k]; }); Object.assign(INS, o); insSave(); try { histLog("BASE V3", "MODIFICATIONS ANNULÉES", why || ""); } catch (e) {} try { refreshAll(); } catch (e) {} } } : null;
@@ -93,8 +93,8 @@
         try {
           insMarkUnlinked();
           const lb = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="lnk"] .svi-cnt`);
-          if (lb && active !== "lnk") lb.outerHTML = svCnt((INS.links || []).length);
-          if (active === "unl" && body && !body.contains(document.activeElement)) {
+          if (lb && ECR.active !== "lnk") lb.outerHTML = svCnt((INS.links || []).length);
+          if (ECR.active === "unl" && body && !body.contains(document.activeElement)) {
             const sc = body.querySelector(".bdg-d-scroll"), top = sc ? sc.scrollTop : 0, left = sc ? sc.scrollLeft : 0;
             body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`;
             const ns = body.querySelector(".bdg-d-scroll");

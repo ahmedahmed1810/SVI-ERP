@@ -4,7 +4,7 @@
                       doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD", scn: "SCENARIOS", ver: "VERSIONS", rcl: "RECALAGES", av: "AVENANTS" };
     const REC_KINDS = ["doc", "taf", "obs"];
 
-    const tabTitle = () => (tabs.find(t => t.key === active) || {}).title || "DÉTAIL";
+    const tabTitle = () => (tabs.find(t => t.key === ECR.active) || {}).title || "DÉTAIL";
     /* libellé affiché (avec accents) ; blkLabel reste pour les noms de fichiers */
     const blkDisp = blk => ({ client: "DÉSIGNATIONS CLIENT", hier: "TÂCHES", metre: "AVANT MÉTRÉ" }[blk] || blkLabel(blk));
     const blkLabel = blk => blk === "detail" ? tabTitle()
@@ -12,7 +12,7 @@
 
     const blkEmpty = blk => {
       try {
-        if (blk === "detail" && active === "qlt" && !INS) return true;
+        if (blk === "detail" && ECR.active === "qlt" && !INS) return true;
         const b = blk === "suivi" ? recActive : blk;
         const d = blkData(b);
         return !d || !d.rows || !d.rows.length;
@@ -20,9 +20,9 @@
     };
     const blkData = blk => {
       if (blk === "budget") return budgetFlat();
-      if (blk === "detail" && active === "qlt" && !INS) return { head: [], rows: [] };
-      if (blk === "detail" && active === "qlt" && INS && shell.__qq) return shell.__qq.data();
-      if (blk === "detail" && active === "dly") {
+      if (blk === "detail" && ECR.active === "qlt" && !INS) return { head: [], rows: [] };
+      if (blk === "detail" && ECR.active === "qlt" && INS && shell.__qq) return shell.__qq.data();
+      if (blk === "detail" && ECR.active === "dly") {
         /* délais : tableau affiché (filtres compris), dates JJ/MM/AAAA */
         const src = lastShown.detail && lastShown.detail.kind === "dly" ? lastShown.detail : { cols: DLY_COLS, rows: [] };
         const fr = v => /^\d{4}-\d{2}-\d{2}/.test(String(v)) ? String(v).slice(8, 10) + "/" + String(v).slice(5, 7) + "/" + String(v).slice(0, 4) : v;
@@ -345,7 +345,7 @@
               /* format métré : NB centré, quantité à droite */
               if (blk === "metre" && head[c] === "NB") h = "center";
               if (blk === "metre" && head[c] === "QUANTITÉ") h = "right";
-              ws[a].s = { font: font(bold.has(i)), border, alignment: { horizontal: h, vertical: "top", wrapText: c !== 1 || (blk === "detail" && active === "dly") } };
+              ws[a].s = { font: font(bold.has(i)), border, alignment: { horizontal: h, vertical: "top", wrapText: c !== 1 || (blk === "detail" && ECR.active === "dly") } };
               if (ws[a].t === "n") ws[a].z = "#,##0.00";
             });
           });
@@ -423,9 +423,9 @@
               <button type="button" class="doc-btn fmt-btn" data-fmt="csv">CSV</button>
               <button type="button" class="doc-btn fmt-btn" data-fmt="json">JSON</button>
               <button type="button" class="doc-btn fmt-btn" data-fmt="gsheet">GOOGLE SHEETS</button>
-              ${blk === "detail" && active === "dly" && INS ? `<button type="button" class="doc-btn fmt-btn" data-fmt="msp">MS PROJECT</button>` : ""}
+              ${blk === "detail" && ECR.active === "dly" && INS ? `<button type="button" class="doc-btn fmt-btn" data-fmt="msp">MS PROJECT</button>` : ""}
             </div>
-            ${blk === "detail" && active === "dly" && INS ? `<div class="msp-opts" hidden>
+            ${blk === "detail" && ECR.active === "dly" && INS ? `<div class="msp-opts" hidden>
               <div class="svc-sub">NIVEAUX À EXPORTER (LE PLUS FIN COCHÉ = LES TÂCHES, CEUX AU-DESSUS = TÂCHES RÉCAPITULATIVES)</div>
               <label><input type="checkbox" id="mspDes"> DÉSIGNATIONS CLIENT</label>
               <label><input type="checkbox" id="mspLots" checked> LOTS</label>
@@ -787,7 +787,7 @@
       if (!INS) return;
       opt = opt || {};
       const IND_ONLY = blk === "indlist", TABS = IND_ONLY ? [["ind", "INDICATEURS (TABLEAUX DE BORD)"]] : [...IMP_TABS, ["ind", "INDICATEURS"]];
-      const startTab = blk === "rat" || IND_ONLY ? "ind" : blk === "client" || blk === "budget" ? "des" : blk === "hier" ? "hier" : (active === "prd" ? "prd" : "chg");
+      const startTab = blk === "rat" || IND_ONLY ? "ind" : blk === "client" || blk === "budget" ? "des" : blk === "hier" ? "hier" : (ECR.active === "prd" ? "prd" : "chg");
       /* v691 : SOURCE EN ARBORESCENCE — budgets de la liste mère › consolidé et étapes (budget initial, avenants) ›
          scénarios et versions de chaque étape ; tout élément est importable, consolidé compris */
       IMP_EXTRA.clear();
@@ -1572,7 +1572,7 @@
       const M = { add: "AJOUT", replace: "REMPLACEMENT", update: "MISE À JOUR" }[mode];
       histLog("IMPORT", "BUDGET COMPLET — " + M, srcName + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S) — " + nl + " LIAISON(S)" + (rej.length ? " — " + rej.length + " NON CRÉÉE(S)" : ""));
       /* des liaisons n'ont pas pu être créées : l'onglet IMPORT NON CRÉÉ s'ouvre */
-      if (rej.length) { active = "inc"; try { localStorage.setItem("svi_dtab_v1", "inc"); } catch (e) {} }
+      if (rej.length) { ECR.active = "inc"; try { localStorage.setItem("svi_dtab_v1", "inc"); } catch (e) {} }
       refreshAll();
       /* v490 (remarque 2) : après un import, doublons et intitulés presque identiques proposés */
       setTimeout(() => { try { dupExisting(true); } catch (e) {} }, rej.length ? 1500 : 500);
@@ -1734,7 +1734,7 @@
       /* v561 : plus de classement par date à l'import (l'ordre reste celui des lots) */
       if (!quiet) {
         histLog("IMPORT", "DÉLAIS", (srcName || "") + " — " + nAdd + " TÂCHE(S) DATÉE(S)" + (rej.length ? " — " + rej.length + " NON CRÉÉE(S)" : ""));
-        if (rej.length) { active = "inc"; try { localStorage.setItem("svi_dtab_v1", "inc"); } catch (e) {} }
+        if (rej.length) { ECR.active = "inc"; try { localStorage.setItem("svi_dtab_v1", "inc"); } catch (e) {} }
       }
       insSave(); refreshAll();
       return rej.length;

@@ -152,8 +152,8 @@
         const nU = insUnlCount();
         tb.innerHTML = (SVI_ICON.hier || "") + "LIGNES NON LIÉES " + svCnt(nU);
         tb.hidden = !nU; tb.style.display = nU ? "" : "none";
-        if (!nU && active === "unl") {
-          active = "prd";
+        if (!nU && ECR.active === "unl") {
+          ECR.active = "prd";
           try { localStorage.setItem("svi_dtab_v1", "prd"); } catch (e) {}
           setTimeout(() => refreshAll(), 0);
         }

@@ -1,4 +1,7 @@
   function openBudgetDetail(ref) {
+    /* v846 : ÉTAT DE L'ÉCRAN PARTAGÉ — les variables que plusieurs parties de l'écran modifient y sont rangées une à une (ECR.active…),
+       pour que ces parties puissent sortir du grand bloc (elles reçoivent ECR au lieu de la variable) */
+    const ECR = {};
     sviStep("OUVERTURE " + ref);
     /* v634 : ouverture en cours — si l'application bloque, le budget ne sera pas rouvert au démarrage suivant */
     try { localStorage.setItem("svi_opening_v1", ref); setTimeout(() => { try { localStorage.removeItem("svi_opening_v1"); } catch (e) {} }, 4000); } catch (e) {}
@@ -279,13 +282,13 @@
     ];
 
     /* dernier onglet du détail ouvert (charges, produits, qualité, délais) */
-    let active = "chg";
+    ECR.active = "chg";
     try {
       const t = localStorage.getItem("svi_dtab_v1");
-      if (["chg", "prd", "qlt", "dly"].includes(t)) active = t;
+      if (["chg", "prd", "qlt", "dly"].includes(t)) ECR.active = t;
     } catch (e) {}
     /* v675 : réouverture par le verrou par onglet — même onglet qu'avant */
-    if (window.__sviForceTab) { active = window.__sviForceTab; window.__sviForceTab = null; }
+    if (window.__sviForceTab) { ECR.active = window.__sviForceTab; window.__sviForceTab = null; }
     /* référence affichée du budget : « H88 BDG 26-1001/001 » */
     /* v693 : recalage — titre « <réf. de l'étape> R<n> » */
     /* v780 (remarques 1 et 7) : référence complète avec la nature à la fin (INI, AVn, CNS, SCNn, VRn, RCn) — liste, en-tête, RÉVISIONS, impressions */

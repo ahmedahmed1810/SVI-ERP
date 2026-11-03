@@ -2,14 +2,14 @@
        collées à la fin du même bloc, dans ce budget ou un autre, sans liaison ;
        « COPIE DE » seulement en cas de doublon ; COUPER = lignes non liées, retirées au COLLER ;
        copie aussi dans le presse-papiers de l'iPad (tableau) ===== */
-    const clipKinds = blk => blk === "detail" && !["chg", "prd", "qlt"].includes(active) ? [] : insBlkKinds(blk);
+    const clipKinds = blk => blk === "detail" && !["chg", "prd", "qlt"].includes(ECR.active) ? [] : insBlkKinds(blk);
     /* ===== onglets de contrôle (FORMAT 99) : IMPORT NON CRÉÉ (COPIER / COUPER / COLLER = réimport),
        LIGNES NON LIÉES et LIAISONS VALIDÉES (COPIER) — lignes cochées ET affichées ===== */
-    const ctlTab = blk => blk === "detail" && ["inc", "unl", "lnk"].includes(active) ? active : "";
+    const ctlTab = blk => blk === "detail" && ["inc", "unl", "lnk"].includes(ECR.active) ? ECR.active : "";
     const ctlRows = () => {
       const ls = lastShown.detail;
-      if (!ls || ls.kind !== active) return [];
-      return ls.rows.filter(x => active === "unl" ? x.r && x.r.uon === true : x.on === true);
+      if (!ls || ls.kind !== ECR.active) return [];
+      return ls.rows.filter(x => ECR.active === "unl" ? x.r && x.r.uon === true : x.on === true);
     };
     const ctlCount = (blk, act) => {
       const t = ctlTab(blk);
@@ -122,7 +122,7 @@
     const clipPasteText = (blk, txt) => {
       const X = shell.__ins; if (!X) return false;
       const ks = clipKinds(blk);
-      const k = blk === "detail" ? active : ks.find(x => x === "des") || ks.find(x => shell.querySelector(`.ins-hcol[data-ik="${x}"] .ins-li.on, .ins-hcol[data-ik="${x}"]:focus-within`)) || ks[0];
+      const k = blk === "detail" ? ECR.active : ks.find(x => x === "des") || ks.find(x => shell.querySelector(`.ins-hcol[data-ik="${x}"] .ins-li.on, .ins-hcol[data-ik="${x}"]:focus-within`)) || ks[0];
       if (!k || !X.INS[k]) return false;
       const lines = String(txt).replace(/\r/g, "").split("\n").filter(l => l.trim() !== "").map(l => l.split("\t"));
       if (!lines.length) return false;
@@ -308,7 +308,7 @@
     };
     /* FORMAT 106 : document déjà classé pour le contenu que donnerait APERÇU PDF (essai à blanc, sans fenêtre) */
     const pdfDoneRef = blk => {
-      if (!INS && blk === "detail" && (active === "prd" || active === "qlt")) return "";
+      if (!INS && blk === "detail" && (ECR.active === "prd" || ECR.active === "qlt")) return "";
       const b = blk === "suivi" ? recActive : blk;
       const ls = { ...lastShown, hier: { ...(lastShown.hier || {}) } };
       PM_DRY = {}; window.__sviQuiet = true;
@@ -323,9 +323,9 @@
       /* v573 (remarque 19) : plein écran du bloc détail encore ouvert (agrandi sur un autre onglet) : le bouton réduit d'abord */
       if (act === "max" && blk === "detail" && shell.querySelector(".bdg-d-page.max-detail")) return toggleMax(blk);
       /* v782 (remarque 4) : AGRANDIR du DÉTAIL = plein écran comme les autres blocs ; la SAISIE DIRECTE passe dans le ⋯ du bloc (act « sd ») */
-      if (act === "sd" && blk === "detail" && INS && INS_EDIT && (active === "prd" || active === "chg") && shell.__sdOpen) {
+      if (act === "sd" && blk === "detail" && INS && INS_EDIT && (ECR.active === "prd" || ECR.active === "chg") && shell.__sdOpen) {
         if (shell.__sdClose && shell.__sdClose()) return;
-        shell.__sdOpen(active);
+        shell.__sdOpen(ECR.active);
         /* v512 (remarque 78) : onglets juste sous le bandeau, SAISIE DIRECTE à la hauteur de l'écran (en-têtes et boutons visibles) */
         setTimeout(() => {
           const w = document.querySelector("#sdW.sd-inplace"), tabs = $("bdgTabs");
@@ -355,7 +355,7 @@
       if (act === "copy" || act === "cut") return clipTake(blk, act === "cut");
       if (act === "paste") return clipPaste(blk);
       if (act === "export" || act === "pdf") insOnlyChecked(blk);
-      if (!INS && blk === "detail" && active === "prd" && (act === "export" || act === "pdf")) return chooseFormat(act);
+      if (!INS && blk === "detail" && ECR.active === "prd" && (act === "export" || act === "pdf")) return chooseFormat(act);
       const b = blk === "suivi" ? recActive : blk;
       if (act === "export") openExportMenu(b);
       else if (act === "import") { if (budget.inst && (budget.inst.state || "instance") === "instance") openImportMenu(b); }
@@ -384,8 +384,8 @@
         /* supprimer : grisé s'il n'y a aucune ligne cochée et déliée (l'erreur n'est pas proposée) */
         if (a.dataset.blk === "detail" && ["copy", "cut", "export", "pdf"].includes(a.dataset.act) && INS_EDIT) {
           /* ces actions ne prennent que l'onglet ouvert : signaler les cochées des autres onglets */
-          const all = insDelPlan("detail"), here = active === "lnk" ? 0 : (all.del[active] || new Set()).size;
-          const other = active === "unl" ? 0 : Math.max(0, all.n - here);
+          const all = insDelPlan("detail"), here = ECR.active === "lnk" ? 0 : (all.del[ECR.active] || new Set()).size;
+          const other = ECR.active === "unl" ? 0 : Math.max(0, all.n - here);
           a.__hint = "";
           if (other) m.__hint = "+ " + other + " COCHÉE(S) DANS D'AUTRES ONGLETS — COPIER, COUPER, EXPORTER ET APERÇU NE PRENNENT QUE L'ONGLET OUVERT";
         }
@@ -426,7 +426,7 @@
       if (m.__hint) m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">${esc(m.__hint)}</div>`);
       /* FORMAT 97 : DÉTAIL DÉLAIS ouvert (PLANNING) — commandes du planning et affichage JOUR / SEMAINE / MOIS en tête du menu */
       const DX = shell.__insDly;
-      if (DX && active === "dly" && acts.some(a => a.dataset.blk === "detail") && shell.querySelector("#dlyGantt")) {
+      if (DX && ECR.active === "dly" && acts.some(a => a.dataset.blk === "detail") && shell.querySelector("#dlyGantt")) {
         /* v546 (R35, FORMAT 195) : PLANNING (vue, CLASSER PAR DÉBUT), HISTOGRAMME (APPROVISIONNEMENT) ; COMPRESSER = bouton ↻,
            affichage du Gantt = CALENDRIER DU BUDGET, réglages de l'histogramme = ⚙ */
         const vw = DX.view();
@@ -478,12 +478,12 @@
       { const mb = tools.querySelector(".blk-max-btn"); if (mb) { const on = mb.classList.contains("on");
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-mx="1"><span>${on ? "RÉDUIRE" : "AGRANDIR"}</span></button>`);
         m.addEventListener("click", e => { const b = e.target.closest("[data-mx]"); if (!b) return; e.stopPropagation(); m.remove(); mb.click(); }, true); } }
-      if (INS && INS_EDIT && (active === "chg" || active === "prd") && shell.__sdOpen && acts.some(a => a.dataset.blk === "detail")) {
+      if (INS && INS_EDIT && (ECR.active === "chg" || ECR.active === "prd") && shell.__sdOpen && acts.some(a => a.dataset.blk === "detail")) {
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-sdo="1"><span>SAISIE DIRECTE</span></button>`);
         m.addEventListener("click", e => { const b = e.target.closest("[data-sdo]"); if (!b) return; e.stopPropagation(); m.remove(); runBlkAct("detail", "sd"); }, true);
       }
       /* v500 (remarque 46) : MARGE — TOUT DÉPLIER / TOUT REPLIER */
-      if (active === "lnk" && shell.__mg && acts.some(a => a.dataset.blk === "detail")) {
+      if (ECR.active === "lnk" && shell.__mg && acts.some(a => a.dataset.blk === "detail")) {
         m.insertAdjacentHTML("afterbegin", `<button type="button" data-mgf="pv"><span>PRIX DE VENTE PAR LA MARGE…</span></button><div class="blk-sep"></div><button type="button" data-mgf="open"><span>TOUT DÉPLIER</span></button><button type="button" data-mgf="close"><span>TOUT REPLIER</span></button><div class="blk-sep"></div>`);
         m.addEventListener("click", e => { const b = e.target.closest("[data-mgf]"); if (!b) return; e.stopPropagation(); m.remove(); if (b.dataset.mgf === "pv") shell.__mg.pv(); else if (b.dataset.mgf === "open") shell.__mg.openAll(); else shell.__mg.closeAll(); }, true);   /* v663 (axe 2) : PRIX DE VENTE PAR LA MARGE */
       }
@@ -660,9 +660,9 @@
         event.target.closest("[data-tab]");
 
       if (tab) {
-        active = tab.dataset.tab;
-        if (active === "dly") shell.__dlyCenter = true;   /* v603 : plage remplie centrée à l'ouverture du graphique */
-        try { localStorage.setItem("svi_dtab_v1", active); } catch (e) {}
+        ECR.active = tab.dataset.tab;
+        if (ECR.active === "dly") shell.__dlyCenter = true;   /* v603 : plage remplie centrée à l'ouverture du graphique */
+        try { localStorage.setItem("svi_dtab_v1", ECR.active); } catch (e) {}
         /* v676 : verrou par zone — l'onglet ouvert grisé s'il est pris par un autre */
         if (INS && typeof sviZonePaint === "function") sviZonePaint();
         renderTab();
@@ -717,7 +717,7 @@
       if (input) {
         const gid = input.dataset.line;
         const members =
-          (byKindNow()[active] || []).filter(l => l.gid === gid);
+          (byKindNow()[ECR.active] || []).filter(l => l.gid === gid);
 
         if (members.length) {
           const v = num(String(input.value).replace("%", ""));
@@ -739,7 +739,7 @@
           const shownG = new Set(
             [...shell.querySelectorAll("tr[data-row]")].map(r => r.dataset.row)
           );
-          const list = (byKindNow()[active] || []).filter(l => shownG.has(l.gid));
+          const list = (byKindNow()[ECR.active] || []).filter(l => shownG.has(l.gid));
 
           const ht =
             list.reduce((t, l) => t + l.amount, 0);
