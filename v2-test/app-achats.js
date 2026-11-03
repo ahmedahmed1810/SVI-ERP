@@ -2535,7 +2535,9 @@ function achNvList(ctx, o) {
     const inst = mode === "inst", W = o.w || {}, CW = cwLoad(), tot = cols.reduce((t, c) => t + (W[c[0]] || 120), 0);
     const cell = (x, c) => { const v = c[2](x), cl = c[3] === "number" ? "number" : "";
       if (c[0] === "ref") { const w = o.why(x, all); return `<td class="bdg-ref-c">${w.length ? `<b class="obs-bang val-bang nv-bang" role="button" data-why="${esc(w.join(" · "))}">!</b> ` : ""}${esc(v)}</td>`; }
-      const t = typeof v === "number" ? achF2(v) : String(v ?? ""); return `<td class="${cl}" title="${esc(t)}">${esc(t)}</td>`; };
+      /* v910 (checklist C1.38) : 5e élément d'une colonne = image (logo) devant le texte, à la hauteur de la ligne */
+      const im = c[4] ? c[4](x) : "";
+      const t = typeof v === "number" ? achF2(v) : String(v ?? ""); return `<td class="${cl}" title="${esc(t)}">${im ? `<img class="nv-logo" src="${esc(im)}" alt="">` : ""}${esc(t)}</td>`; };
     return `<div class="novapp-list-shell"><div class="novapp-list-titlebar"><button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button><h1>${t1}</h1>${sviListBar()}</div>
       <div class="novapp-budget-layout"><aside class="novapp-date-panel svi-bdgp">
         <div class="novapp-date-head"><button type="button" class="novapp-date-filter" data-a="${o.k}-etat"><span>${(ETATS.find(x => x[0] === etat) || ETATS[0])[1]} <i class="dt-arr">▾</i></span>${svCnt(base.length)}</button></div>
@@ -2801,7 +2803,7 @@ function achFrsNvMod(ctx) {
         if (dn) svToast("UN FOURNISSEUR DU MÊME NOM EXISTE : " + dn.code + ".", 3500);
         const f = achFrsNew(L, { nom }); f.st = "instance"; f.grp = ""; achFrsSave(L); achHist(f.code, "CRÉATION", f.nom); done(f.id); achFrsFiche(f.id, "", () => done(f.id)); },
       w: { ref: 110, grp: 150, nom: 320, ville: 140, ice: 160, cond: 140, val: 110, cree: 110 },
-      cols: mode => [["ref", "RÉFÉRENCE", f => achFrsRef(f), ""], ["grp", "GROUPE", f => achFrsGrp(f).nom, ""], ["nom", "NOM", f => f.nom, ""], ["ville", "VILLE", f => f.ville || "", ""], ["ice", "ICE", f => achDig(f.ice), "center"], ["cond", "PAIEMENT", f => f.cond || "", ""]]
+      cols: mode => [["ref", "RÉFÉRENCE", f => achFrsRef(f), ""], ["grp", "GROUPE", f => achFrsGrp(f).nom, ""], ["nom", "NOM", f => f.nom, "", f => f.logo || ""], ["ville", "VILLE", f => f.ville || "", ""], ["ice", "ICE", f => achDig(f.ice), "center"], ["cond", "PAIEMENT", f => f.cond || "", ""]]
         .concat(mode === "valid" ? [["val", "VALIDÉ LE", f => achDFr(f.val || f.cree), "center"]] : []).concat([["cree", "SAISI LE", f => achDFr(f.cree), "center"]]) },
     pageOf: id => { const f = achFrs().find(x => x.id === id); if (!f) return null;
       const D = achDvf().filter(v => v.frs === id), M = achCmf().filter(c => c.frs === id), FA = achFaf().filter(x => x.frs === id), PA = achPaf().filter(x => x.frs === id);
