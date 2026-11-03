@@ -13748,7 +13748,18 @@ function sviBdgPlanningAuto(C) {
     document.getElementById("svConf")?.remove();
     sviWinShow(d);
     draw();
-    d.addEventListener("change", e => { const i = e.target.closest(".pcs-d"); if (!i) return; rows[Number(i.dataset.i)][i.dataset.f] = i.value; draw(); });
+    /* v909 (principe du 03/11/2026) : la date d'un morceau est contrôlée dès la saisie (jour non travaillé, fin avant début, chevauchement,
+       date butoir, liaisons) — refusée, elle reprend sa valeur d'avant, avec la raison ; le contrôle d'ENREGISTRER reste */
+    d.addEventListener("change", e => { const i = e.target.closest(".pcs-d"); if (!i) return;
+      const n = Number(i.dataset.i), r = rows[n], f = i.dataset.f, old = r[f], v = i.value; r[f] = v;
+      let why = "";
+      if (v && !sviWork(cal, v)) why = "JOUR NON TRAVAILLÉ DU CALENDRIER DU BUDGET.";
+      else if (r.deb && r.fin && r.fin < r.deb) why = "LA FIN EST AVANT LE DÉBUT.";
+      else if (f === "fin" && v && INS.dbut && v > INS.dbut) why = "FIN REFUSÉE : APRÈS LA DATE BUTOIR DU " + dFr(INS.dbut) + ".";
+      else if (r.deb && r.fin && rows.some((o, j) => j !== n && o.deb && o.fin && !(r.fin < o.deb || r.deb > o.fin))) why = "CE MORCEAU EN CHEVAUCHE UN AUTRE.";
+      else { const pf = dlyPredFin(k), first = rows.map(o => o.deb).filter(Boolean).sort()[0]; if (pf && first && first < pf) why = "DÉBUT REFUSÉ : LES LIAISONS IMPOSENT LE " + dFr(pf) + " AU PLUS TÔT."; }
+      if (why) { r[f] = old; svToast(why, 3500, i); }
+      draw(); });
     d.addEventListener("click", e => {
       if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
       const x = e.target.closest(".pcs-x");
