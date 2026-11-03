@@ -1054,7 +1054,7 @@
         rows = d.rows;
       } else if (ECR.REC_KINDS.includes(blk)) {
         if (!recLoad(blk).length) { sviAlert("Aucune donnée dans " + label + "."); return; }
-        cols = coOrder(blk, recCols[blk]);
+        cols = coOrder(blk, ECR.recCols[blk]);
         rows = recShown[blk] || recSorted(blk);
       } else {
         const src = ECR.lastShown.detail;
