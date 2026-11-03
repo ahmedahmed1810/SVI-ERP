@@ -1052,7 +1052,7 @@
         /* historique : date, branche et action étroites, détail large */
         cols = d.head.map((h, i) => [blk === "hist" ? ["hdt", "hbr", "hac", "hde"][i] : "c" + i, h, r => r[i], (blk === "hist" && i) || (ECR.active === "qlt" && !i) ? "" : "center"]);
         rows = d.rows;
-      } else if (REC_KINDS.includes(blk)) {
+      } else if (ECR.REC_KINDS.includes(blk)) {
         if (!recLoad(blk).length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         cols = coOrder(blk, recCols[blk]);
         rows = recShown[blk] || recSorted(blk);
@@ -1161,11 +1161,11 @@
         sviAlert("Aucune donnée dans " + blkLabel(blk) + ".");
         return;
       }
-      if (REC_KINDS.includes(blk) && !recLoad(blk).length) {
+      if (ECR.REC_KINDS.includes(blk) && !recLoad(blk).length) {
         sviAlert("Aucune donnée dans " + blkLabel(blk) + ".");
         return;
       }
-      if (blk === "hier" || REC_KINDS.includes(blk) || (blk === "detail" && ECR.active === "dly")) {
+      if (blk === "hier" || ECR.REC_KINDS.includes(blk) || (blk === "detail" && ECR.active === "dly")) {
         const { head, rows } = blkData(blk);
         tableHTML = `<table><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead>
           <tbody>${rows.map(r => `<tr>${r.map(v => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;

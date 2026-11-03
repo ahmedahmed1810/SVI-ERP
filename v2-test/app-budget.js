@@ -11820,7 +11820,7 @@ ${A}</Assignments>
     shell.__fuse = INS && INS_EDIT ? { INS, LK: ECR.LK, insId, check: lkCheck, allToggle: k => lkAllToggle(k), chain: () => insRenderChain(), refresh: () => refreshAll(),
       partToggle: (k, key) => lkPartToggle(k, key),
       commit: () => { const r0 = lkCommit(); if (shell.__prdSyncU && shell.__prdSyncU()) refreshAll(); return r0; }, guard: () => lkGuard(), pending: () => lkPending(), ruleA: (k, id) => lkRuleA(k, id),
-      light: k => { lkLight(k); try { REC_KINDS.forEach(renderRec); } catch (e) {} }, unlink: (k, id) => lkUnlink(k, id), name: (k, id) => lkName(k, id),
+      light: k => { lkLight(k); try { ECR.REC_KINDS.forEach(renderRec); } catch (e) {} }, unlink: (k, id) => lkUnlink(k, id), name: (k, id) => lkName(k, id),
       unitErr: () => "",   /* v471 : plus de refus d'unité */
       info: () => {
         /* fenêtre au format INF : titre, ✕, libellés à gauche, état de la liaison, produits et charges, FERMER */
@@ -12263,7 +12263,7 @@ ${A}</Assignments>
         renderHier();
         renderTab();
         markFiltered();
-        REC_KINDS.forEach(renderRec);
+        ECR.REC_KINDS.forEach(renderRec);
         if (window.__sviHistRefresh) window.__sviHistRefresh();
         if (window.__sviIndRefresh) window.__sviIndRefresh();   /* v679 */
         if (window.__sviRatRefresh) window.__sviRatRefresh();   /* v680 */
@@ -13053,7 +13053,7 @@ ${A}</Assignments>
     ECR.lastShown = { client: null, detail: null, hier: {} };
     const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL",
                       doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD", scn: "SCENARIOS", ver: "VERSIONS", rcl: "RECALAGES", av: "AVENANTS" };
-    const REC_KINDS = ["doc", "taf", "obs"];
+    ECR.REC_KINDS = ["doc", "taf", "obs"];
 
     const tabTitle = () => (tabs.find(t => t.key === ECR.active) || {}).title || "DÉTAIL";
     /* libellé affiché (avec accents) ; blkLabel reste pour les noms de fichiers */
@@ -13080,7 +13080,7 @@ ${A}</Assignments>
         const oc = coOrder("dly", src.cols);
         return { head: oc.map(c => c[1]), rows: src.rows.map(r => oc.map(c => fr(c[2](r)))) };
       }
-      if (REC_KINDS.includes(blk)) return recTableData(blk);
+      if (ECR.REC_KINDS.includes(blk)) return recTableData(blk);
       if (blk === "hist") return histData();
       if (blk === "ind") return indData();   /* v679 */
       if (blk === "rat") return ratData();   /* v680 */
@@ -17595,7 +17595,7 @@ ${A}</Assignments>
         /* historique : date, branche et action étroites, détail large */
         cols = d.head.map((h, i) => [blk === "hist" ? ["hdt", "hbr", "hac", "hde"][i] : "c" + i, h, r => r[i], (blk === "hist" && i) || (ECR.active === "qlt" && !i) ? "" : "center"]);
         rows = d.rows;
-      } else if (REC_KINDS.includes(blk)) {
+      } else if (ECR.REC_KINDS.includes(blk)) {
         if (!recLoad(blk).length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         cols = coOrder(blk, recCols[blk]);
         rows = recShown[blk] || recSorted(blk);
@@ -17704,11 +17704,11 @@ ${A}</Assignments>
         sviAlert("Aucune donnée dans " + blkLabel(blk) + ".");
         return;
       }
-      if (REC_KINDS.includes(blk) && !recLoad(blk).length) {
+      if (ECR.REC_KINDS.includes(blk) && !recLoad(blk).length) {
         sviAlert("Aucune donnée dans " + blkLabel(blk) + ".");
         return;
       }
-      if (blk === "hier" || REC_KINDS.includes(blk) || (blk === "detail" && ECR.active === "dly")) {
+      if (blk === "hier" || ECR.REC_KINDS.includes(blk) || (blk === "detail" && ECR.active === "dly")) {
         const { head, rows } = blkData(blk);
         tableHTML = `<table><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead>
           <tbody>${rows.map(r => `<tr>${r.map(v => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;

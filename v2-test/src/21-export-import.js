@@ -2,7 +2,7 @@
     ECR.lastShown = { client: null, detail: null, hier: {} };
     const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL",
                       doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD", scn: "SCENARIOS", ver: "VERSIONS", rcl: "RECALAGES", av: "AVENANTS" };
-    const REC_KINDS = ["doc", "taf", "obs"];
+    ECR.REC_KINDS = ["doc", "taf", "obs"];
 
     const tabTitle = () => (tabs.find(t => t.key === ECR.active) || {}).title || "DÉTAIL";
     /* libellé affiché (avec accents) ; blkLabel reste pour les noms de fichiers */
@@ -29,7 +29,7 @@
         const oc = coOrder("dly", src.cols);
         return { head: oc.map(c => c[1]), rows: src.rows.map(r => oc.map(c => fr(c[2](r)))) };
       }
-      if (REC_KINDS.includes(blk)) return recTableData(blk);
+      if (ECR.REC_KINDS.includes(blk)) return recTableData(blk);
       if (blk === "hist") return histData();
       if (blk === "ind") return indData();   /* v679 */
       if (blk === "rat") return ratData();   /* v680 */
