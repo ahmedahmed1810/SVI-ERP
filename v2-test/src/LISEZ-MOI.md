@@ -48,7 +48,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `17-1-liaisons.js` | PLANNING : prédécesseurs, liaisons, décalages | 129 |
 | `17-2-lignes-ordre.js` | PLANNING : lots, couleurs, marges, ordre, dlyApply | 338 |
 | `17-3-gantt-dessin.js` | PLANNING : dessin du Gantt, pied fixe, ajustement | 510 |
-| `17-4-tableau-fenetres.js` | PLANNING : tableau DÉLAIS, fenêtres PRÉDÉCESSEURS et AJOUTER | 490 |
+| `17-4-tableau-fenetres.js` | appel de « PLANNING : tableau DÉLAIS, fenêtres PRÉDÉCESSEURS et AJOUTER » (v880 : le code est dans 29a-tableau-fenetres.js) | 2 |
 | `17-5-gestes-tableau.js` | appel de « PLANNING : gestes du tableau » (v879 : le code est dans 28z-gestes-planning.js) | 2 |
 | `17-6-gestes-gantt.js` | (v879 : « PLANNING : gestes du Gantt et du graphique » est dans 28z-gestes-planning.js, avec 17-5) | 1 |
 | `17-7-gestes-echelle.js` | (v879 : « PLANNING : largeur des jours, pincement, poignées » est dans 28z-gestes-planning.js, avec 17-5) | 1 |
@@ -106,6 +106,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `28x-graphique-dessin.js` | PLANNING : dessin du graphique, hors du grand bloc (v877) : sviBdgGraphique(C) | 285 |
 | `28y-actions.js` | PLANNING : actions (shell.__insDly), hors du grand bloc (v878) : sviBdgActions(C) | 701 |
 | `28z-gestes-planning.js` | PLANNING : gestes du tableau, hors du grand bloc (v879) : sviBdgGestesPlanning(C) | 1144 |
+| `29a-tableau-fenetres.js` | PLANNING : tableau DÉLAIS, fenêtres PRÉDÉCESSEURS et AJOUTER, hors du grand bloc (v880) : sviBdgTableauFenetres(C) | 537 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
