@@ -3335,6 +3335,21 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("v812 : ACHAT DIRECT cumulé par jour, par article et par fournisseur ; nombre minimum de devis et seuil d'alerte du budget réglables dans PARAMÈTRES",
               c812 == [True, True, True, True, True, True, 70, True], c812)
+        # v813 : BESOINS — avancement (consulté, commandé, reçu, clôturé), urgence selon la date, rappel, risque d'arrêt, DUPLIQUER, REFUSER, annulation du reste
+        c813 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_bsn_v1', 'svi_ach_cmf_v1', 'svi_ach_rcp_v1', 'svi_ach_rtr_v1', 'svi_ach_caf_v1'], keep = K.map(k => localStorage.getItem(k));
+            const day = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+            achBsnSave([{ id: 'b1', ref: 'BSN 1', centre: 'SIÈGE', des: 'SABLE', u: 'M3', q: 10, pu: 100, state: 'valide', datePrevue: day(1) }, { id: 'b2', ref: 'BSN 2', centre: 'SIÈGE', des: 'GRAVIER', u: 'M3', q: 4, pu: 100, state: 'valide', datePrevue: day(30) },
+              { id: 'b3', ref: 'BSN 3', centre: 'SIÈGE', des: 'CIMENT', u: 'T', q: 2, pu: 100, state: 'instance', datePrevue: day(5), arret: true }]);
+            achCmfSave([{ id: 'c1', state: 'valide', lignes: [{ id: 'l1', bsn: 'b1', q: 4, pu: 100 }, { id: 'l2', bsn: 'b2', q: 4, pu: 100 }] }]); achRcpSave([{ id: 'r1', cmf: 'c1', state: 'valide', lignes: [{ cl: 'l2', q: 4 }] }]); achRtrSave([]); achCafSave([]);
+            const B = achBsn(), r = [achBsnAvLab(B[0]), achBsnAvLab(B[1]), achBsnUrg(B[0]), achBsnUrg(B[1]), achBsnUrg(B[2]), achBsnWhy(B[0], B).some(x => /DATE SOUHAITÉE DANS 1 JOUR\(S\) : PAS ENTIÈREMENT COMMANDÉ/.test(x)), achBsnRecu(B[1])];
+            achBsnFiche('b3', () => {}); await w(250); document.querySelector('#svConf [data-dup]').click(); await w(300); r.push(achBsn().length, achBsn()[3].state, achBsn()[3].datePrevue); document.getElementById('svConf')?.remove();
+            achBsnFiche('b3', () => {}); await w(250); document.querySelector('#svConf [data-refus]').click(); await w(250); const a = [...document.querySelectorAll('#svConf .frs-card')].pop(); a.querySelector('.ask-v').value = 'pas prévu'; a.querySelector('[data-ok]').click(); await w(300);
+            r.push(achBsn().find(x => x.id === 'b3').state, achBsnAvLab(achBsn().find(x => x.id === 'b3'))); document.getElementById('svConf')?.remove();
+            achBsnFiche('b1', () => {}); await w(250); document.querySelector('#svConf [data-cancel]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
+            const b1 = achBsn().find(x => x.id === 'b1'); r.push(b1.state, b1.q, b1.qInit); document.getElementById('svConf')?.remove();
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
+        check("v813 : BESOINS — avancement, urgence selon la date, rappel, DUPLIQUER, REFUSER avec motif, annulation du seul reste non commandé",
+              c813 == ["COMMANDÉ EN PARTIE (40 %)", "REÇU (CLÔTURÉ)", "TRÈS URGENTE", "NORMALE", "TRÈS URGENTE", True, True, 4, "instance", "", "annule", "REFUSÉ", "valide", 4, 10], c813)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

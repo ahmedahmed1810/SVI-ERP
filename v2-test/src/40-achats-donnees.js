@@ -280,6 +280,25 @@ const achBsnCtl = (b, L) => {
   const usedQ = O.reduce((t, x) => t + achN(x.q), 0), mine = achN(b.q), tot = usedQ + mine;
   return { plan: C.mt, planQ: C.q, pu: C.p, usedQ, used: usedQ * C.p, restQ: C.q - usedQ, over: tot > C.q + 1e-9, pct: C.q ? tot / C.q * 100 : 0 };
 };
+/* v813 : avancement des besoins (C4.33), calculé en une fois : en consultation, commandé, reçu (retours déduits) */
+const achBsnAvMap = () => achMemo("bsnav", [ACH_K.caf, ACH_K.cmf, ACH_K.rcp, ACH_K.rtr], () => { const m = new Map(), g = id => { if (!m.has(id)) m.set(id, { cons: false, cmdQ: 0, recQ: 0 }); return m.get(id); };
+  achCaf().filter(c => c.state === "ouverte").forEach(c => (c.lignes || []).forEach(l => { if (l.bsn) g(l.bsn).cons = true; }));
+  const R = achRcp(), T = achRtr();
+  achCmf().filter(c => c.state === "valide" || c.state === "solde").forEach(c => (c.lignes || []).forEach(l => { if (!l.bsn) return; const x = g(l.bsn);
+    x.cmdQ += achN(l.q) - achCanQ(c.id, l.id, T); x.recQ += achRecQ(c.id, l.id, R, T); }));
+  return m; });
+const achBsnAv = b => achBsnAvMap().get(b.id) || { cons: false, cmdQ: 0, recQ: 0 };
+/* v813 : quantité déjà commandée pour la même charge du même budget (C4.12), autres besoins */
+const achBsnCmdChg = b => achBsn().filter(x => x.id !== b.id && x.state !== "annule" && x.bdg && x.bdg === b.bdg && x.chg === b.chg).reduce((t, x) => t + achBsnAv(x).cmdQ, 0);
+const achBsnRecu = b => b.state === "valide" && achN(b.q) > 0 && achBsnAv(b).recQ >= achN(b.q) - 1e-9;
+const achBsnAvLab = b => { if (b.state === "annule") return b.refus ? "REFUSÉ" : "ANNULÉ"; if (b.state !== "valide") return "EN INSTANCE";
+  const a = achBsnAv(b), q = achN(b.q), pc = v => Math.round(v / q * 100) + " %";
+  if (q && a.recQ >= q - 1e-9) return "REÇU (CLÔTURÉ)"; if (a.recQ > 0) return "REÇU EN PARTIE (" + pc(a.recQ) + ")";
+  if (q && a.cmdQ >= q - 1e-9) return "COMMANDÉ"; if (a.cmdQ > 0) return "COMMANDÉ EN PARTIE (" + pc(a.cmdQ) + ")";
+  if (b.couvert) return "DEVIS RETENU"; if (a.cons) return "EN CONSULTATION"; if (b.direct) return "ACHAT DIRECT"; return "À ACHETER"; };
+/* v813 : urgence déduite de la date souhaitée (C4.6), pas de champ priorité ; risque d'arrêt du chantier = TRÈS URGENTE (C4.38) */
+const achBsnJours = b => b.datePrevue ? Math.round((new Date(b.datePrevue + "T00:00:00") - new Date(new Date().toISOString().slice(0, 10) + "T00:00:00")) / 864e5) : null;
+const achBsnUrg = b => { const j = achBsnJours(b); return b.arret || (j !== null && j <= 2) ? "TRÈS URGENTE" : j !== null && j <= 7 ? "URGENTE" : "NORMALE"; };
 const achBsnWhy = (b, L) => {
   const w = [];
   if (b.state === "annule") return w;
@@ -292,6 +311,9 @@ const achBsnWhy = (b, L) => {
   else if (c && c.over && !b.deb) w.push("DÉPASSEMENT DU PRÉVU (" + Math.round(c.pct) + " %) : BLOQUÉ — JUSTIFIER PUIS DÉBLOQUER");
   else if (c && c.over && b.deb) { /* dépassement débloqué (justifié) : plus d'alerte */ }
   else if (c && c.pct >= achBsnSeuil()) w.push("SEUIL ATTEINT : " + Math.round(c.pct) + " % DU PRÉVU DE LA CHARGE");
+  /* v813 : rappel quand la date souhaitée approche (7 jours) et que rien n'est commandé (C4.34) ; risque d'arrêt signalé (C4.38) */
+  if (b.state === "valide" && !b.direct) { const j = achBsnJours(b), a = achBsnAv(b);
+    if (j !== null && j <= 7 && a.cmdQ < achN(b.q) - 1e-9) w.push((j < 0 ? "DATE SOUHAITÉE DÉPASSÉE DE " + (-j) + " JOUR(S)" : "DATE SOUHAITÉE DANS " + j + " JOUR(S)") + " : " + (a.cmdQ > 0 ? "PAS ENTIÈREMENT COMMANDÉ" : "RIEN COMMANDÉ") + (b.arret ? " — RISQUE D'ARRÊT DU CHANTIER" : "")); }
   return w;
 };
 
