@@ -43,7 +43,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `12-tableaux-colonnes.js` | ordre manuel des lignes du budget ; tri et filtre pris de 09c (`sviCfKit`) | 37 |
 | `13-instance-saisie.js` | budget en instance : saisie, filtres (FSRC), totaux, calendrier de tâche insCal | 1644 |
 | `14-doublons-classement.js` | doublons, classement, bandeau de liaison | 517 |
-| `15-qualite.js` | DÉTAIL QUALITÉ | 1308 |
+| `15-qualite.js` | appel de « DÉTAIL QUALITÉ » (v885 : le code est dans 29f-qualite.js) | 2 |
 | `16-a-completer.js` | appel de « ⚠ À COMPLÉTER et FILTRES ACTIFS » (v884 : le code est dans 29e-a-completer.js) | 2 |
 | `17-1-liaisons.js` | appel de « PLANNING : prédécesseurs, liaisons, décalages » (v883 : le code est dans 29d-liaisons.js) | 2 |
 | `17-2-lignes-ordre.js` | appel de « PLANNING : lots, couleurs, marges, ordre, dlyApply » (v882 : le code est dans 29c-lignes-ordre.js) | 2 |
@@ -111,6 +111,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `29c-lignes-ordre.js` | PLANNING : lots, couleurs, marges, ordre, dlyApply, hors du grand bloc (v882) : sviBdgLignesOrdre(C) | 362 |
 | `29d-liaisons.js` | PLANNING : prédécesseurs, liaisons, décalages, hors du grand bloc (v883) : sviBdgLiaisons(C) | 139 |
 | `29e-a-completer.js` | ⚠ À COMPLÉTER et FILTRES ACTIFS, hors du grand bloc (v884) : sviBdgACompleter(C) | 196 |
+| `29f-qualite.js` | DÉTAIL QUALITÉ, hors du grand bloc (v885) : sviBdgQualite(C) | 1376 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
