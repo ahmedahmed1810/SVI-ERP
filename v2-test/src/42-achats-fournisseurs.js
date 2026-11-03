@@ -210,6 +210,37 @@ function achFrsFiche(id, sec, done) {
       tr.querySelectorAll(".frs-s").forEach(i => { const c = i.dataset.c; r[c] = c === "rib" ? achDig(i.value) : c === "email" ? String(i.value || "").trim().toLowerCase() : c === "mt" || c === "pu" ? achN(i.value) : c === "exp" || c === "ech" || c === "valid" || c === "debut" || c === "fin" || c === "type" || c === "role" ? i.value : achU(i.value); }); }); });
     const rp = d.querySelector(".frs-rp:checked"); F.ribs.forEach((r, i) => { r.p = !!rp && +rp.dataset.i === i; });
   };
+  /* v906 (principe du 03/11/2026 : erreur refusée dès la saisie) : chaque case de la fiche est contrôlée en la quittant —
+     la case fautive reprend sa valeur d'avant, avec la raison (les contrôles d'ENREGISTRER restent ; masques IF / RC / CNSS / TÉLÉPHONE : règle commune, 09f) */
+  const frsWhy = i => {
+    const k = i.dataset.k || i.dataset.c, raw = String(i.value ?? "").trim(), v = achU(raw);
+    if (i.classList.contains("frs-x")) {
+      if (k === "nom" && !v) return "NOM OBLIGATOIRE.";
+      if (k === "ice" && sviMaskRaw(raw)) { const c = sviMaskRaw(raw); if (!achIceOk(c)) return achIceMsg() + "."; const x = achFrsDupIce(achFrs(), c, id); if (x) return "ICE DÉJÀ UTILISÉ PAR " + x.code + " — " + x.nom + "."; }
+      if (k === "forme" && v && !ACH_FORMES.includes(v)) return "FORME JURIDIQUE : CHOISIR DANS LA LISTE.";
+      if (k === "cond" && v && !ACH_CONDS.includes(v)) return "CONDITIONS DE PAIEMENT : CHOISIR DANS LA LISTE.";
+      if ((k === "mailCmd" || k === "mailFac") && raw && !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(raw)) return "E-MAIL NON VALIDE.";
+      if (["escTaux", "retTaux", "remise"].includes(k) && achN(raw) > 100) return "UN TAUX NE PEUT PAS DÉPASSER 100 %.";
+      if (k === "gps" && raw && !/^-?\d{1,2}(\.\d+)?\s*,\s*-?\d{1,3}(\.\d+)?$/.test(raw)) return "POSITION GPS : LATITUDE, LONGITUDE (EX. 33.5731, -7.5898).";
+    }
+    if (i.classList.contains("frs-xs") && k === "grp" && !i.value) return "GROUPE OBLIGATOIRE.";
+    if (i.classList.contains("frs-s")) {
+      if (k === "email" && raw && !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(raw)) return "E-MAIL NON VALIDE.";
+      if (k === "annee" && raw && !/^(19|20)\d{2}$/.test(raw)) return "RÉFÉRENCES : ANNÉE SUR 4 CHIFFRES.";
+      if (k === "pu" && raw && !(achN(raw) > 0)) return "TARIFS : PRIX SUPÉRIEUR À 0.";
+      if (k === "rib" && achDig(raw)) { const r = achDig(raw); if (!achRibOk(r)) return "RIB NON VALIDE : 24 CHIFFRES ET CLÉ (LE RIB DOIT ÊTRE DIVISIBLE PAR 97).";
+        const tr = i.closest("tr[data-i]"), me = tr ? +tr.dataset.i : -1;
+        if ((F.ribs || []).some((x, j) => j !== me && achDig(x.rib) === r)) return "LE MÊME RIB EST SAISI DEUX FOIS."; }
+    }
+    return "";
+  };
+  d.addEventListener("focusin", e => { const i = e.target.closest && e.target.closest(".frs-x, .frs-xs, .frs-s"); if (i) i.dataset.prev = i.value; });
+  d.addEventListener("change", e => {
+    const i = e.target.closest && e.target.closest(".frs-x, .frs-xs, .frs-s"); if (!i || ro) return;
+    const why = frsWhy(i); if (!why) return;
+    e.stopImmediatePropagation();
+    i.value = i.dataset.prev ?? ""; svToast(why, 4000, i);
+  }, true);
   /* logo réduit à 96 px pour rester léger dans la base */
   d.addEventListener("change", e => {
     if (e.target.matches('.frs-x[data-k="forme"], .frs-xs[data-k="grp"]')) { pull(); draw(); return; }
