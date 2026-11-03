@@ -75,7 +75,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `22n-bibliotheque.js` | appel de « bibliothèque de prix dans le budget, bandeau du CUMUL » (v835 : le code est dans 28d-bibliotheque.js) | 2 |
 | `22o-etapes-onglets.js` | appel de « bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES (onglet AVENANTS, boutons de l'onglet ouvert, ouverture depuis la liste = scénario retenu) » (v834 : le code est dans 28c-etapes-onglets.js) | 2 |
 | `23-apercus-impression.js` | aperçus PDF, impression | 1188 |
-| `24-doc-historique-fenetres.js` | DOCUMENTS, TAF, OBSERVATIONS, historique | 466 |
+| `24-doc-historique-fenetres.js` | appel de « DOCUMENTS, TAF, OBSERVATIONS, historique » (v870 : le code est dans 28q-doc-historique-fenetres.js) | 2 |
 | `25-inf.js` | appel de « fenêtre INF » (v869 : le code est dans 28p-inf.js) | 2 |
 | `26-copier-coller.js` | appel de « copier, couper, coller » (v868 : le code est dans 28o-copier-coller.js) | 2 |
 | `26b-conditionnement.js` | appel de « emballage et découpe par titre de charges » (v833 : le code est dans 28b-conditionnement.js) | 2 |
@@ -96,6 +96,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `28n-saisie-directe.js` | SAISIE DIRECTE, hors du grand bloc (v845) : sviBdgSaisieDirecte(C) | 737 |
 | `28o-copier-coller.js` | copier, couper, coller, hors du grand bloc (v868) : sviBdgCopierColler(C) | 766 |
 | `28p-inf.js` | fenêtre INF, hors du grand bloc (v869) : sviBdgInf(C) | 624 |
+| `28q-doc-historique-fenetres.js` | DOCUMENTS, TAF, OBSERVATIONS, historique, hors du grand bloc (v870) : sviBdgDocHistorique(C) | 475 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
