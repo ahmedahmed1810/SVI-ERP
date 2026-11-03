@@ -3361,6 +3361,20 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("v814 : DEVIS — remise par ligne et globale, transport, total écrit contrôlé, devis partiel, reçu après la date limite, prix anormalement bas, commande au prix net",
               c814 == [955, True, True, True, 2, 85.5, "TRANSPORT", True, False], c814)
+        # v815 : COMMANDES — contrôles de validation, alertes, échéance prévue, suspension, litige
+        c815 = pg.evaluate("""() => { const K = ['svi_ach_frs_v1', 'svi_ach_dvf_v1', 'svi_ach_cmf_v1', 'svi_ach_bsn_v1', 'svi_ach_faf_v1'], keep = K.map(k => localStorage.getItem(k));
+            const F = []; const f = achFrsNew(F, { nom: 'A' }); f.cond = '60 JOURS'; f.plafEnc = 1000; achFrsSave(F); achFafSave([]); achBsnSave([{ id: 'b1', des: 'SABLE', u: 'M3', q: 1, datePrevue: '2026-01-05', state: 'valide' }]);
+            achDvfSave([{ id: 'v1', ref: 'DVF 1', state: 'retenu', validite: '2099-01-01', lignes: [{ des: 'SABLE', u: 'M3', q: 1, pu: 100, rem: 10 }] }, { id: 'v2', ref: 'DVF 2', state: 'rejete', lignes: [] }]);
+            achCmfSave([{ id: 'old', ref: 'CMF 0', frs: f.id, state: 'valide', cree: new Date().toISOString(), lignes: [{ des: 'SABLE', u: 'M3', q: 1, pu: 90 }] }]);
+            const c = { id: 'c1', frs: f.id, state: 'instance', dProm: '2026-01-10', avT: 'pct', avV: 50, lignes: [{ id: 'l1', des: 'SABLE', u: 'M3', q: 1, pu: 90, dvf: 'v1', bsn: 'b1' }] };
+            const w = achCmfWhy(c), r = [w.some(x => /APRÈS LA DATE SOUHAITÉE/.test(x)), w.some(x => /COMMANDE RÉCENTE/.test(x)), w.some(x => /AVANCE AU-DELÀ DE 30/.test(x)), achCmfEch(c), achCmfValNo(c)];
+            c.lignes[0].pu = 95; r.push(/DIFFÉRENT DU DEVIS/.test(achCmfValNo(c))); c.motifPrix = 'HAUSSE'; c.lignes[0].pu = 2000; r.push(/PLAFOND D'ENCOURS/.test(achCmfValNo(c)));
+            c.lignes[0].dvf = 'v2'; r.push(/NON RETENU/.test(achCmfValNo(c)));
+            const s = { id: 's', frs: f.id, state: 'instance', lignes: [{ des: 'X', u: 'U', q: 1, pu: 1 }] }; r.push(/MOTIF OBLIGATOIRE/.test(achCmfValNo(s))); s.motifSans = 'SIÈGE'; r.push(achCmfValNo(s));
+            r.push(achCmfWhy({ state: 'valide', frs: 'x', susp: { why: 'ARRÊT' }, litige: { why: 'CASSE' }, lignes: [{ id: 'z', des: 'Y', u: 'U', q: 1, pu: 1, bsn: 'b9' }] }).filter(x => /SUSPENDUE : ARRÊT|EN LITIGE : CASSE/.test(x)).length);
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
+        check("v815 : COMMANDES — date promise après la date souhaitée, doublon récent, avance au-delà du plafond, échéance prévue ; refus : prix changé sans motif, plafond d'encours, devis non retenu, commande sans besoin sans motif ; suspension et litige",
+              c815 == [True, True, True, "2026-03-11", "", True, True, True, True, "", 2], c815)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

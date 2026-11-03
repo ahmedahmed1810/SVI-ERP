@@ -23,7 +23,7 @@ const achN = v => { const n = Number(String(v ?? "").replace(/\s| | /g, "").r
 const achJ = (k, d) => { try { const v = JSON.parse(SVI_LZ.dec(localStorage.getItem(k)) || "null"); return v === null ? d : v; } catch (e) { return d; } };
 const achW = (k, v) => { try { const s = JSON.stringify(v); localStorage.setItem(k, /^svi_ach_/.test(k) && s.length > 4000 ? SVI_LZ.enc(s) : s); return true; } catch (e) { return false; } };
 /* ---------- paramètres d'achat ---------- */
-const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: p.esp === undefined ? 5000 : achN(p.esp), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: p.avj === undefined ? 90 : achN(p.avj), chqj: p.chqj === undefined ? 30 : achN(p.chqj), dorm: p.dorm === undefined ? 12 : achN(p.dorm), directJ: p.directJ === undefined ? 30 : Math.max(1, Math.round(achN(p.directJ)) || 1), nfrs: p.nfrs === undefined ? 3 : Math.max(1, Math.round(achN(p.nfrs)) || 1), seuilBdg: p.seuilBdg === undefined ? 90 : Math.min(100, Math.max(1, achN(p.seuilBdg) || 90)), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })), grp: Array.isArray(p.grp) && p.grp.length ? p.grp : ACH_GRP_DEF.map(g => ({ ...g, req: g.req.slice() })) }; };
+const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: p.esp === undefined ? 5000 : achN(p.esp), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: p.avj === undefined ? 90 : achN(p.avj), chqj: p.chqj === undefined ? 30 : achN(p.chqj), dorm: p.dorm === undefined ? 12 : achN(p.dorm), directJ: p.directJ === undefined ? 30 : Math.max(1, Math.round(achN(p.directJ)) || 1), nfrs: p.nfrs === undefined ? 3 : Math.max(1, Math.round(achN(p.nfrs)) || 1), avMax: p.avMax === undefined ? 30 : achN(p.avMax), seuilBdg: p.seuilBdg === undefined ? 90 : Math.min(100, Math.max(1, achN(p.seuilBdg) || 90)), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })), grp: Array.isArray(p.grp) && p.grp.length ? p.grp : ACH_GRP_DEF.map(g => ({ ...g, req: g.req.slice() })) }; };
 const achPrmSave = p => achW(ACH_K.prm, p);
 /* v811 : lectures mémorisées. Une donnée dérivée n'est recalculée que si le texte gardé dans l'appareil a changé :
    rien à remettre à zéro, quel que soit celui qui écrit. Le résultat se lit seulement, il ne se modifie jamais. */
@@ -408,7 +408,33 @@ const achCmfWhy = (c, R, T) => { const w = [], today = new Date().toISOString().
   const d = c.dConf || c.dProm, rest = (c.lignes || []).some(l => achResteQ(c, l, R, T) > 1e-9);
   if (c.state === "valide" && d && d < today && rest) w.push("LIVRAISON EN RETARD (PRÉVUE LE " + d.split("-").reverse().join("/") + ")");
   if (c.state === "valide" && !rest) w.push("TOUT EST REÇU : À SOLDER");
+  /* v815 : suspension, litige, ancienne commande non soldée, date promise après la date souhaitée, doublon récent, avance au-delà du plafond (C6.45, 6.46, 6.54, 6.71, 6.76, 6.77) */
+  if (c.susp) w.push("SUSPENDUE : " + (c.susp.why || ""));
+  if (c.litige) w.push("EN LITIGE : " + (c.litige.why || ""));
+  if (c.state === "valide" && rest && c.valide && String(c.valide).slice(0, 10) < new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10)) w.push("VALIDÉE DEPUIS PLUS DE 90 JOURS SANS ÊTRE SOLDÉE");
+  if (c.state === "instance" || c.state === "valide") {
+    const B = achBsn(); (c.lignes || []).forEach(l => { const b = l.bsn && B.find(x => x.id === l.bsn); if (b && b.datePrevue && d && d > b.datePrevue) w.push(l.des + " : PROMIS LE " + d.split("-").reverse().join("/") + ", APRÈS LA DATE SOUHAITÉE"); });
+    const lim = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10), keys = new Set((c.lignes || []).map(l => achKey(l.des, l.u)));
+    const dup = achCmf().find(x => x.id !== c.id && x.frs === c.frs && x.state !== "annule" && String(x.cree || "").slice(0, 10) >= lim && (x.lignes || []).some(l => keys.has(achKey(l.des, l.u))));
+    if (dup && c.frs) w.push("COMMANDE RÉCENTE AU MÊME FOURNISSEUR POUR LE MÊME ARTICLE : " + dup.ref);
+    if (c.avT === "pct" ? achN(c.avV) > achPrm().avMax : c.avT === "mt" && achCmfTot(c).ttc > 0 && achN(c.avV) / achCmfTot(c).ttc * 100 > achPrm().avMax) w.push("AVANCE AU-DELÀ DE " + achPrm().avMax + " %");
+    if (!(c.lignes || []).some(l => l.bsn || l.dvf) && (c.lignes || []).length && !c.motifSans) w.push("COMMANDE SANS BESOIN NI DEVIS : MOTIF À DONNER");
+  }
   return w; };
+/* v815 : échéance prévisionnelle du paiement (C6.39) — date promise (ou confirmée) + délai des conditions du fournisseur */
+const achCmfEch = c => { const d = c.dConf || c.dProm; if (!d) return ""; const f = achFrs().find(x => x.id === c.frs), n = Number((String((f || {}).cond || "").match(/(\d+)\s*JOURS/) || [])[1]) || 0;
+  const x = new Date(d + "T00:00:00"); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
+/* v815 : contrôles bloquants de la validation (C6.44, 6.48, 6.50, 6.53) ; rend le motif du refus ou "" */
+const achCmfValNo = c => { const today = new Date().toISOString().slice(0, 10), DV = achDvf(), f = achFrs().find(x => x.id === c.frs);
+  if (f && (f.docf || []).some(x => x.exp && x.exp < today)) return "DOCUMENT FISCAL DU FOURNISSEUR EXPIRÉ : LE METTRE À JOUR (FICHE FOURNISSEUR)";
+  for (const l of c.lignes || []) { const v = l.dvf && DV.find(x => x.id === l.dvf); if (!v) continue;
+    if (v.state === "rejete" || v.state === "annule") return "DEVIS " + v.ref + " NON RETENU OU ANNULÉ : COMMANDE REFUSÉE";
+    if (v.validite && v.validite < today) return "DEVIS " + v.ref + " EXPIRÉ : COMMANDE REFUSÉE";
+    const z = (v.lignes || []).find(y => achKey(y.des, y.u) === achKey(l.des, l.u)); if (z && Math.abs(achDvfPuNet(v, z) - achN(l.pu)) > 0.005 && !c.motifPrix) return "PRIX DE " + l.des + " DIFFÉRENT DU DEVIS : MOTIF DU CHANGEMENT DE PRIX À DONNER"; }
+  if (f && achN(f.plafEnc) > 0) { const enc = achFrsEnc(f.id) + achCmfTot(c).ttc;   /* reste à payer des factures + cette commande */
+    if (enc > achN(f.plafEnc) + 0.005) return "PLAFOND D'ENCOURS DU FOURNISSEUR DÉPASSÉ (" + achF2(enc) + " / " + achF2(f.plafEnc) + ")"; }
+  if (!(c.lignes || []).some(l => l.bsn || l.dvf) && !c.motifSans) return "COMMANDE SANS BESOIN NI DEVIS : MOTIF OBLIGATOIRE";
+  return ""; };
 const achRcpWhy = r => { const w = [];
   if (r.state === "annule") return w;
   if (!r.nbl && !r.pv) w.push("N° DU BON DE LIVRAISON MANQUANT");
@@ -607,7 +633,7 @@ function sviAchInit() {
         <span class="ach-tvaw"><input class="ins-in ach-pdirect number" inputmode="decimal" value="${esc(F2(P.direct))}" autocomplete="off"> DH</span></div>
       <div class="ach-pbox"><div class="ach-pt">TOLÉRANCE DE QUANTITÉ À LA RÉCEPTION (AU-DESSUS DU RESTE)</div>
         <span class="ach-tvaw"><input class="ins-in ach-ptol number" inputmode="decimal" value="${esc(F2(P.tol))}" autocomplete="off"> %</span></div>
-      ${[["ecart", "ÉCART TOLÉRÉ ENTRE LA FACTURE ET LE CALCUL (ARRONDIS), TTC", "DH"], ["rasT", "RETENUE À LA SOURCE SUR LA TVA, TAUX PAR DÉFAUT (% DE LA TVA)", "%"], ["esp", "PLAFOND DES PAIEMENTS EN ESPÈCES", "DH"], ["chqj", "CHÈQUE OU LCN NON ENCAISSÉ : ALERTE APRÈS", "JOURS"], ["avj", "AVANCE NON RÉCUPÉRÉE : ALERTE APRÈS", "JOURS"], ["directJ", "ACHAT DIRECT : PÉRIODE DE CUMUL PAR ARTICLE ET PAR FOURNISSEUR (LE JOUR EST TOUJOURS CUMULÉ)", "JOURS"], ["nfrs", "NOMBRE MINIMUM DE DEVIS PAR CONSULTATION", "FOURNISSEURS"], ["seuilBdg", "ALERTE SUR LE PRÉVU DU BUDGET À PARTIR DE", "%"], ["dorm", "FOURNISSEUR DORMANT : SANS ACHAT DEPUIS", "MOIS"], ["exFin", "MOIS DE CLÔTURE DE L'EXERCICE (1 À 12) : SEUL MOIS OÙ L'ARCHIVAGE EST PROPOSÉ", "MOIS"]].map(([k, lab, u]) => `<div class="ach-pbox"><div class="ach-pt">${lab}</div>
+      ${[["ecart", "ÉCART TOLÉRÉ ENTRE LA FACTURE ET LE CALCUL (ARRONDIS), TTC", "DH"], ["rasT", "RETENUE À LA SOURCE SUR LA TVA, TAUX PAR DÉFAUT (% DE LA TVA)", "%"], ["esp", "PLAFOND DES PAIEMENTS EN ESPÈCES", "DH"], ["chqj", "CHÈQUE OU LCN NON ENCAISSÉ : ALERTE APRÈS", "JOURS"], ["avj", "AVANCE NON RÉCUPÉRÉE : ALERTE APRÈS", "JOURS"], ["directJ", "ACHAT DIRECT : PÉRIODE DE CUMUL PAR ARTICLE ET PAR FOURNISSEUR (LE JOUR EST TOUJOURS CUMULÉ)", "JOURS"], ["nfrs", "NOMBRE MINIMUM DE DEVIS PAR CONSULTATION", "FOURNISSEURS"], ["seuilBdg", "ALERTE SUR LE PRÉVU DU BUDGET À PARTIR DE", "%"], ["avMax", "AVANCE SUR COMMANDE : ALERTE AU-DELÀ DE", "%"], ["dorm", "FOURNISSEUR DORMANT : SANS ACHAT DEPUIS", "MOIS"], ["exFin", "MOIS DE CLÔTURE DE L'EXERCICE (1 À 12) : SEUL MOIS OÙ L'ARCHIVAGE EST PROPOSÉ", "MOIS"]].map(([k, lab, u]) => `<div class="ach-pbox"><div class="ach-pt">${lab}</div>
         <span class="ach-tvaw"><input class="ins-in ach-pnum number" data-pk="${k}" inputmode="decimal" value="${esc(F2(P[k]))}" autocomplete="off"> ${u}</span></div>`).join("")}
       <div class="ach-pbox"><div class="ach-pt">IMPORTER LES DONNÉES DE NOVAPP (FICHIER novapp-achats.json) — REMPLACE LES DONNÉES DES ACHATS</div>
         <input type="file" class="ach-novimp" accept=".json,application/json"></div>
@@ -1781,6 +1807,14 @@ function achCmfFiche(id, done) {
           <label class="frs-f"><span>AVANCE</span><select class="ins-in cmf-x" data-k="avT"${dis}>${opt([["", "AUCUNE"], ["pct", "EN %"], ["mt", "EN MONTANT"]], C.avT)}</select></label>
           <label class="frs-f"><span>AVANCE (VALEUR)</span><input class="ins-in cmf-x" data-k="avV" inputmode="decimal" value="${esc(String(achN(C.avV)).replace(".", ","))}"${dis || (!C.avT ? " disabled" : "")}></label>
           <label class="frs-f frs-w"><span>CONDITIONS ET PÉNALITÉS (IMPRIMÉES SUR LA COMMANDE)</span><input class="ins-in cmf-x" data-k="cond" value="${esc(C.cond)}"${dis} autocomplete="off"></label>
+          <label class="frs-f"><span>CONTACT DU FOURNISSEUR</span><input class="ins-in cmf-x" data-k="ctFrs" value="${esc(C.ctFrs || "")}"${dis} autocomplete="off"></label>
+          <label class="frs-f"><span>RESPONSABLE DE LA RÉCEPTION</span><input class="ins-in cmf-x" data-k="respRec" value="${esc(C.respRec || "")}"${dis} autocomplete="off"></label>
+          <label class="frs-f frs-w"><span>HORAIRES, ACCÈS AU CHANTIER, DÉCHARGEMENT</span><input class="ins-in cmf-x" data-k="acces" value="${esc(C.acces || "")}"${dis} autocomplete="off"></label>
+          <label class="frs-f"><span>MARCHÉ CLIENT ET LOT</span><input class="ins-in cmf-x" data-k="marche" value="${esc(C.marche || "")}"${dis} autocomplete="off"></label>
+          <label class="frs-f"><span>ÉCHÉANCE PRÉVUE DU PAIEMENT</span><input class="ins-in" value="${esc(achDFr(achCmfEch(C)) || "—")}" readonly></label>
+          ${!(C.lignes || []).some(l => l.bsn || l.dvf) ? `<label class="frs-f frs-w"><span>MOTIF D'UNE COMMANDE SANS BESOIN NI DEVIS (SIÈGE, URGENCE) <b>*</b></span><input class="ins-in cmf-x" data-k="motifSans" value="${esc(C.motifSans || "")}"${dis} autocomplete="off"></label>` : ""}
+          ${(C.lignes || []).some(l => l.dvf) ? `<label class="frs-f frs-w"><span>MOTIF SI UN PRIX DIFFÈRE DU DEVIS</span><input class="ins-in cmf-x" data-k="motifPrix" value="${esc(C.motifPrix || "")}"${dis} autocomplete="off"></label>` : ""}
+          <label class="frs-f frs-w"><span>NOTE INTERNE (NON IMPRIMÉE)</span><input class="ins-in cmf-x" data-k="note" value="${esc(C.note || "")}"${C.state === "annule" ? " disabled" : ""} autocomplete="off"></label>
           <div class="frs-cs"><label class="frs-c"><input type="checkbox" class="cmf-xc" data-k="urg"${C.urg ? " checked" : ""}${C.state === "annule" ? " disabled" : ""}> COMMANDE URGENTE PASSÉE AVANT LES PAPIERS — À RÉGULARISER</label></div></div></div>
         <div class="frs-sec"><div class="frs-st">LIGNES ${svCnt(C.lignes.length)}</div>
           <table class="prm-table frs-sub"><thead><tr><th>DÉSIGNATION</th><th>U</th><th class="number">QUANTITÉ</th><th class="number">PRIX HT</th><th class="number">TVA %</th><th class="number">MONTANT HT</th><th>DEVIS · BESOIN</th><th class="number">REÇU</th><th class="number">RESTE</th><th></th></tr></thead><tbody>
@@ -1796,7 +1830,9 @@ function achCmfFiche(id, done) {
       </div>`,
       foot: `<button type="button" class="svc-b" data-x>FERMER</button>
         ${C.state === "instance" && !R.some(r => r.cmf === C.id && r.state !== "annule") ? `<button type="button" class="svc-b" data-cancel>ANNULER LA COMMANDE</button>` : ""}
-        ${C.state === "valide" && !edAv ? `<button type="button" class="svc-b" data-rtc>RETOUR DE COMMANDE</button><button type="button" class="svc-b" data-solde>SOLDER</button><button type="button" class="svc-b" data-av>AVENANT</button><button type="button" class="svc-b svc-ok svc-neutral" data-rcp>${PV ? "PV DE SERVICE FAIT" : "RÉCEPTIONNER"}</button>` : ""}
+        ${C.id ? `<button type="button" class="svc-b" data-dup>DUPLIQUER</button><button type="button" class="svc-b" data-wa>WHATSAPP</button>` : ""}
+        ${C.state === "valide" && !edAv ? (C.susp ? `<button type="button" class="svc-b" data-repr>REPRENDRE</button>` : `<button type="button" class="svc-b" data-susp>SUSPENDRE</button>`) + (C.litige ? `<button type="button" class="svc-b" data-litok>LEVER LE LITIGE</button>` : `<button type="button" class="svc-b" data-lit>LITIGE</button>`) : ""}
+        ${C.state === "valide" && !edAv && !C.susp ? `<button type="button" class="svc-b" data-rtc>RETOUR DE COMMANDE</button><button type="button" class="svc-b" data-solde>SOLDER</button><button type="button" class="svc-b" data-av>AVENANT</button><button type="button" class="svc-b svc-ok svc-neutral" data-rcp>${PV ? "PV DE SERVICE FAIT" : "RÉCEPTIONNER"}</button>` : ""}
         ${C.state === "valide" && !edAv ? `<button type="button" class="svc-b svc-ok svc-neutral" data-save2>ENREGISTRER</button>` : ""}
         ${(C.state === "valide" || C.state === "instance") && !edAv && C.avT && achCmfTot(C).av - achAvVerse(C.id) > 0.005 ? `<button type="button" class="svc-b" data-avpay>VERSER L'AVANCE</button>` : ""}
         ${(C.state === "valide" || C.state === "solde") && !edAv ? `<button type="button" class="svc-b" data-fac>FACTURER</button>` : ""}
@@ -1825,7 +1861,18 @@ function achCmfFiche(id, done) {
       const pick = await achPickWin("BESOINS EN ACHAT DIRECT", B.map(b => ({ v: b.id, lab: b.ref + " — " + b.des + " (" + achF2(b.q) + " " + b.u + ")" })));
       B.filter(b => pick.includes(b.id)).forEach(b => C.lignes.push({ id: achLid(), des: b.des, u: b.u, q: achN(b.q), pu: achN(b.pu), tva: achPrm().tva, bsn: b.id, dvf: "" })); draw(); return;
     }
-    if (e.target.closest("[data-cancel]")) { if (!(await svConfirm({ title: "ANNULER LA COMMANDE", text: C.ref + " PASSE EN ANNULÉE (GARDÉE).", ok: "ANNULER LA COMMANDE" }))) return; C.state = "annule"; store("ANNULÉE"); d.remove(); if (done) done(); return; }
+    if (e.target.closest("[data-cancel]")) { const m = await achAsk("ANNULER LA COMMANDE " + C.ref + " (GARDÉE)", "MOTIF DE L'ANNULATION"); if (!m) return; C.state = "annule"; C.motifAnn = m; store("ANNULÉE — " + m); d.remove(); if (done) done(); return; }
+    /* v815 : DUPLIQUER (C6.9), WHATSAPP préformaté (C6.64), SUSPENDRE / REPRENDRE (C6.71), LITIGE (C6.77) */
+    if (e.target.closest("[data-dup]")) { const n = achCmfFrom({ frs: C.frs, lignes: C.lignes.map(l => ({ des: l.des, u: l.u, q: l.q, pu: l.pu, tva: l.tva })), why: "DUPLIQUÉE DE " + C.ref });
+      const L = achCmf(), x = L.find(y => y.id === n.id); if (x) { Object.assign(x, { nat: C.nat, lieu: C.lieu, cond: C.cond, transp: C.transp, frais: C.frais, rem: C.rem, acces: C.acces || "", respRec: C.respRec || "", ctFrs: C.ctFrs || "", marche: C.marche || "" }); achCmfSave(L); }
+      d.remove(); if (done) done(); achCmfFiche(n.id, done); return; }
+    if (e.target.closest("[data-wa]")) { const t = achCmfTot(C), txt = "BON DE COMMANDE " + C.ref + " — " + achFrsNom(C.frs) + "\n" + C.lignes.map(l => "- " + l.des + " : " + achF2(l.q) + " " + l.u + " × " + achF2(l.pu) + " HT").join("\n")
+        + "\nTOTAL : " + achF2(t.ttc) + " TTC" + (C.dProm ? "\nLIVRAISON : " + achDFr(C.dProm) : "") + (C.lieu ? "\nLIEU : " + C.lieu : "") + "\nMERCI DE RAPPELER LE N° " + C.ref + " SUR LE BON DE LIVRAISON ET LA FACTURE.";
+      window.open("https://wa.me/?text=" + encodeURIComponent(txt), "_blank"); return; }
+    if (e.target.closest("[data-susp]")) { const m = await achAsk("SUSPENDRE LA COMMANDE " + C.ref, "MOTIF (CHANTIER ARRÊTÉ…)"); if (!m) return; C.susp = { t: achNow(), why: m }; store("SUSPENDUE — " + m); draw(); return; }
+    if (e.target.closest("[data-repr]")) { delete C.susp; store("REPRISE"); draw(); return; }
+    if (e.target.closest("[data-lit]")) { const m = await achAsk("COMMANDE EN LITIGE " + C.ref, "MOTIF DU LITIGE"); if (!m) return; C.litige = { t: achNow(), why: m }; store("LITIGE — " + m); draw(); return; }
+    if (e.target.closest("[data-litok]")) { const m = await achAsk("LEVER LE LITIGE " + C.ref, "RÉSOLUTION"); if (!m) return; delete C.litige; store("LITIGE LEVÉ — " + m); draw(); return; }
     if (e.target.closest("[data-save2]")) { pull(); store("DATE CONFIRMÉE / RÉGULARISATION"); draw(); return; }
     if (e.target.closest("[data-av]")) { const m = await achAsk("AVENANT À LA COMMANDE", "MOTIF DE L'AVENANT"); if (!m) return; C.__avM = m; C.__avHt = achCmfTot(C).ht; edAv = true; draw(); return; }
     if (e.target.closest("[data-save]")) {
@@ -1834,7 +1881,7 @@ function achCmfFiche(id, done) {
         C.av = (C.av || 0) + 1; C.avH = (C.avH || []).concat({ n: C.av, t: achNow(), motif: C.__avM, ht: C.__avHt }); delete C.__avM; delete C.__avHt; edAv = false; store("AVENANT " + C.av); draw(); return; }
       store("MODIFICATION"); draw(); return; }
     if (e.target.closest("[data-valid]")) { pull(); if (!check()) return;
-      { const no = achDirCmfCheck(C); if (no) { svToast(no + ".", 5500); return; } }
+      { const no = achDirCmfCheck(C) || achCmfValNo(C); if (no) { svToast(no + ".", 5500); return; } }
       { const fr = achFrs().find(f => f.id === C.frs); if (fr && (fr.bloq || fr.arch)) { svToast("FOURNISSEUR " + (fr.bloq ? "BLOQUÉ : " + (fr.bloq.why || "") : "ARCHIVÉ") + ".", 4000); return; } }
       if (!(await svConfirm({ title: "VALIDER LA COMMANDE", text: C.ref + " : " + achF2(achCmfTot(C).ttc) + " TTC (" + frMoney(achCmfTot(C).ttc) + "). LE MONTANT EST ENGAGÉ SUR LE BUDGET DES BESOINS.", ok: "VALIDER", tone: "neutral" }))) return;
       C.state = "valide"; C.valide = achNow(); store("VALIDÉE"); draw(); return; }
