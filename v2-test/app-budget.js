@@ -7050,18 +7050,18 @@ function renderBudgetList() {
     const dlyScale = () => { let v = "j"; try { v = localStorage.getItem("svi_dlyg_sc_v1") || "j"; } catch (e) {} return DLY_SC[v] ? v : "j"; };
     /* v546 (R17) : choix JOUR / SEMAINE / MOIS dans la fenêtre CALENDRIER DU BUDGET ; SEMAINE et MOIS partent de la largeur qui remplit l'écran (R23) */
     window.__sviDlyScale = { get: () => dlyScale(), set: v => { const c = DLY_SC[v]; if (!c) return; try { localStorage.setItem(c.k, "fit"); localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} { const R0 = dlyHRange(); if (R0.a || R0.b) shell.__dlyCenter = true; } keepScroll(() => renderTab()); } };   /* v660 (FORMAT 252) : plage DÉBUT – FIN posée = elle remplit la largeur dans le nouvel affichage ; sans plage, tout le projet (v559) */
-    let DLY_DW_MIN = DLY_SC[dlyScale()].min, DLY_DW_MAX = DLY_SC[dlyScale()].max;
+    let DLY_DW_MAX = DLY_SC[dlyScale()].max; ECR.DLY_DW_MIN = DLY_SC[dlyScale()].min;
     /* v546 (R23, R34) : maximum = 100 px par jour, ou plus si c'est la largeur qui remplit l'écran ; « fit » = remplir (départ en SEMAINE / MOIS) */
     ECR.DLY_FILL = 0;
     const dlyDwGet = () => {
-      const c = DLY_SC[dlyScale()]; DLY_DW_MIN = c.min; DLY_DW_MAX = Math.max(100, ECR.DLY_FILL);
+      const c = DLY_SC[dlyScale()]; ECR.DLY_DW_MIN = c.min; DLY_DW_MAX = Math.max(100, ECR.DLY_FILL);
       let s0 = null; try { s0 = localStorage.getItem(c.k); } catch (e) {}
       /* v559 : changer d'échelle (JOUR / SEMAINE / MOIS) = « fit » : tout le projet dans la largeur visible, trait FIN au bord droit
          (largeur d'un jour non arrondie) ; à l'ouverture, le dernier zoom réglé au doigt est repris */
-      DLY_DW_MIN = Math.max(c.min, ECR.DLY_FILL || 0);   /* v553 (P11 R2) : jamais plus étroit que la largeur qui remplit le Gantt */
+      ECR.DLY_DW_MIN = Math.max(c.min, ECR.DLY_FILL || 0);   /* v553 (P11 R2) : jamais plus étroit que la largeur qui remplit le Gantt */
       if ((s0 === null || s0 === "fit") && ECR.DLY_FILL) return Math.min(DLY_DW_MAX, ECR.DLY_FILL);
       const v = Number(s0) || c.def;
-      return Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v * 10) / 10));
+      return Math.max(ECR.DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v * 10) / 10));
     };
     ECR.DLY_DW = dlyDwGet();
     /* v748 : réécrit seulement si la valeur change (sinon toute la page recalcule ses styles à chaque dessin) */
@@ -7204,7 +7204,7 @@ function renderBudgetList() {
         if ((shell.__dlyCenter || shell.__dlyGx === undefined || sigNew) && HD && !shell.__dlyNoFit && (!!shell.__dlyCenter || !shell.__dlyFitOnce || sigNew) && fz.a && fz.b && !shell.__dlyFitting) {
           const r = host.getBoundingClientRect(), vw = Math.min(host.clientWidth, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0));
           const n = Math.max(1, dDiff(fz.a, fz.b) + 1), mg = fz.rg.a || fz.rg.b ? 60 : 12;
-          const w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n)) * 10) / 10));
+          const w = Math.max(ECR.DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(Math.max(ECR.DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n)) * 10) / 10));
           if (vw > 60 && Math.abs(w - ECR.DLY_DW) >= 0.05) {
             try { localStorage.setItem(DLY_SC[dlyScale()].k, ECR.DLY_FILL && w <= ECR.DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}
             ECR.DLY_DW = w;
@@ -7389,7 +7389,7 @@ function renderBudgetList() {
             requestAnimationFrame(() => { try {
               const h2 = shell.querySelector("#dlyGantt"); if (!h2) return;
               const r = h2.getBoundingClientRect(), vw = Math.min(h2.clientWidth, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0));
-              const n = Math.max(1, dDiff(fA, fB) + 1), mg = fRg.a || fRg.b ? 60 : 12, want = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n));
+              const n = Math.max(1, dDiff(fA, fB) + 1), mg = fRg.a || fRg.b ? 60 : 12, want = Math.max(ECR.DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n));
               if (vw > 60 && Math.abs(want - ECR.DLY_DW) > 0.05) (shell.__dlyDwSet || (() => {}))(h2, want, mg + Math.max(0, (vw - 2 * mg - n * Math.round(want * 10) / 10) / 2), dDiff(h2.__d0, fA));
             } finally { shell.__dlyFitting = false; document.getElementById("dlyDwLab")?.remove(); } });
           } }
@@ -8985,7 +8985,7 @@ function renderBudgetList() {
          le jour sous le doigt reste en place ; largeur mémorisée ; un toucher simple ouvre toujours le calendrier */
 /* ⟪ src/17-7-gestes-echelle.js ⟫ */
       const dlyDwSet = (host, w, ax, p) => {
-        w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w * 10) / 10));   /* v657 : au dixième de pixel (la plage remplit exactement l'écran) */
+        w = Math.max(ECR.DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w * 10) / 10));   /* v657 : au dixième de pixel (la plage remplit exactement l'écran) */
         if (Math.abs(w - ECR.DLY_DW) < 0.05) return;
         try { localStorage.setItem(DLY_SC[dlyScale()].k, ECR.DLY_FILL && w <= ECR.DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}   /* v559 : réduit au maximum = ajusté à l'écran */
         host.__drawn = false; dlyGanttDraw();

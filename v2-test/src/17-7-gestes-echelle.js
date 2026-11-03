@@ -1,5 +1,5 @@
       const dlyDwSet = (host, w, ax, p) => {
-        w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w * 10) / 10));   /* v657 : au dixième de pixel (la plage remplit exactement l'écran) */
+        w = Math.max(ECR.DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w * 10) / 10));   /* v657 : au dixième de pixel (la plage remplit exactement l'écran) */
         if (Math.abs(w - ECR.DLY_DW) < 0.05) return;
         try { localStorage.setItem(DLY_SC[dlyScale()].k, ECR.DLY_FILL && w <= ECR.DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}   /* v559 : réduit au maximum = ajusté à l'écran */
         host.__drawn = false; dlyGanttDraw();
