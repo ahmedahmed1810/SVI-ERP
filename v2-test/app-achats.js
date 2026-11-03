@@ -1811,6 +1811,10 @@ function achQtyWin(title, lines, o = {}) {
         <label class="frs-f frs-w"><span>MOTIF <b>*</b></span><input class="ins-in aq-m" value="${esc(o.motif || "")}" autocomplete="off"></label>${o.chauffeur ? `<label class="frs-f frs-w"><span>REMIS AU CHAUFFEUR (NOM)</span><input class="ins-in aq-c" autocomplete="off"></label>` : ""}`,
       foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>${esc(o.ok || "ENREGISTRER")}</button>` });
     sviWinShow(d);
+    /* v908 (principe du 03/11/2026) : quantité au-dessus du MAXIMUM refusée en quittant la case */
+    d.addEventListener("focusin", e => { const i = e.target.closest && e.target.closest(".aq-q"); if (i) i.dataset.prev = i.value; });
+    d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".aq-q"); if (!i) return; const l = lines[+i.dataset.i], q = achN(i.value);
+      if (String(i.value).trim() && (!(q >= 0) || q > l.max + 1e-9)) { i.value = i.dataset.prev || ""; svToast("QUANTITÉ : DE 0 AU MAXIMUM (" + achF2(l.max) + ").", 3500, i); } });
     d.addEventListener("click", e => {
       if (e.target === d || e.target.closest("[data-x]")) { d.remove(); ok(null); return; }
       if (!e.target.closest("[data-ok]")) return;
@@ -2250,6 +2254,11 @@ function achAvfFiche(id, done) {
   const calc = () => { P.ttc = achN(P.ht) + (P.tva === "" ? achN(P.ht) * achPrm().tva / 100 : achN(P.tva)); };
   const pull = () => { d.querySelectorAll(".av-x").forEach(i => { if (i.disabled) return; const k = i.dataset.k; P[k] = k === "ht" || k === "tva" ? (String(i.value).trim() === "" ? "" : achN(i.value)) : ["frs", "fa", "rtr", "date"].includes(k) ? i.value : achU(i.value); }); calc(); };
   draw();
+  /* v908 (principe du 03/11/2026) : N° d'avoir déjà enregistré chez ce fournisseur refusé en quittant la case */
+  d.addEventListener("focusin", e => { const i = e.target.closest && e.target.closest('.av-x[data-k="num"]'); if (i) i.dataset.prev = i.value; });
+  d.addEventListener("change", e => { const i = e.target.closest && e.target.closest('.av-x[data-k="num"]'); if (!i) return;
+    const fr = (d.querySelector('.av-x[data-k="frs"]') || {}).value || P.frs, n = achU(i.value);
+    if (n && fr && achAvf().some(x => x.id !== P.id && x.state !== "annule" && x.frs === fr && achU(x.num) === n)) { e.stopImmediatePropagation(); i.value = i.dataset.prev || ""; svToast("N° D'AVOIR DÉJÀ ENREGISTRÉ CHEZ CE FOURNISSEUR.", 3500, i); } }, true);
   d.addEventListener("change", e => { const cp = e.target.closest(".fa-cp"); if (cp) { cpBlob = cp.files && cp.files[0] || null; return; } if (e.target.closest(".av-x")) { const k = e.target.dataset.k; pull(); if (k === "frs") { P.fa = ""; P.rtr = ""; } draw(); } });
   d.addEventListener("click", async e => {
     if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(); return; }
@@ -2332,6 +2341,13 @@ function achPafFiche(id, o, done) {
       if (!(P.mt > 0)) { svToast("MONTANT DU PAIEMENT NUL OU NÉGATIF (AVOIRS TROP ÉLEVÉS).", 3500); return false; } }
     return true; };
   draw();
+  /* v908 (principe du 03/11/2026) : montant payé ou déduit au-delà du reste refusé en quittant la case */
+  d.addEventListener("focusin", e => { const i = e.target.closest && e.target.closest(".pa-a, .pa-d"); if (i) i.dataset.prev = i.value; });
+  d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".pa-a, .pa-d"); if (!i) return;
+    const m = achN(i.value), others = achPaf().filter(x => x.id !== P.id);
+    const x = i.classList.contains("pa-a") ? achFaf().find(f => f.id === i.dataset.fa) : achAvf().find(a => a.id === i.dataset.av);
+    const rest = !x ? Infinity : i.classList.contains("pa-a") ? achFafReste(x, others) : achAvfReste(x, others);
+    if (m < 0 || m > rest + 0.005) { e.stopImmediatePropagation(); i.value = i.dataset.prev || ""; svToast((i.classList.contains("pa-a") ? "MONTANT AU-DELÀ DU RESTE DE " : "DÉDUCTION AU-DELÀ DU RESTE DE ") + (x ? x.ref : "") + " (" + achF2(rest) + ").", 4000, i); } }, true);
   d.addEventListener("change", e => { if (!e.target.closest(".pa-x, .pa-a, .pa-d")) return; const k = e.target.dataset.k; pull();
     if (k === "frs") { P.aff = []; P.ded = []; P.cmf = ""; delete P.deb; if (!p0) P.mode = modeOf(P.frs); } if (k === "type") { P.aff = []; P.ded = []; P.cmf = ""; P.mt = 0; }
     if (k === "cmf") { const C = achCmf().find(c => c.id === P.cmf); P.mt = C ? Math.max(0, Math.round((achCmfTot(C).av - achAvVerse(C.id)) * 100) / 100) : 0; }

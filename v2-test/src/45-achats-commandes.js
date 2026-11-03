@@ -58,6 +58,10 @@ function achQtyWin(title, lines, o = {}) {
         <label class="frs-f frs-w"><span>MOTIF <b>*</b></span><input class="ins-in aq-m" value="${esc(o.motif || "")}" autocomplete="off"></label>${o.chauffeur ? `<label class="frs-f frs-w"><span>REMIS AU CHAUFFEUR (NOM)</span><input class="ins-in aq-c" autocomplete="off"></label>` : ""}`,
       foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>${esc(o.ok || "ENREGISTRER")}</button>` });
     sviWinShow(d);
+    /* v908 (principe du 03/11/2026) : quantité au-dessus du MAXIMUM refusée en quittant la case */
+    d.addEventListener("focusin", e => { const i = e.target.closest && e.target.closest(".aq-q"); if (i) i.dataset.prev = i.value; });
+    d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".aq-q"); if (!i) return; const l = lines[+i.dataset.i], q = achN(i.value);
+      if (String(i.value).trim() && (!(q >= 0) || q > l.max + 1e-9)) { i.value = i.dataset.prev || ""; svToast("QUANTITÉ : DE 0 AU MAXIMUM (" + achF2(l.max) + ").", 3500, i); } });
     d.addEventListener("click", e => {
       if (e.target === d || e.target.closest("[data-x]")) { d.remove(); ok(null); return; }
       if (!e.target.closest("[data-ok]")) return;
