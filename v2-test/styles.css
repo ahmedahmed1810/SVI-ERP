@@ -3678,3 +3678,6 @@ input.sv-rmcb { width: 18px; height: 18px; cursor: pointer; }
 #ach .nvp-blk tr.nv-alert td { color: #b91c1c; font-weight: 900; }
 /* v819 : texte sous les totaux des pièces d'achat (montant en lettres, mention à reporter, ICE / IF) */
 #sviMep .mep-note { margin-top: 6px; font-size: 11px; font-weight: 700; line-height: 1.35; text-align: left; }
+
+/* v903 (principe du 03/11/2026) : ENREGISTRER grisé tant qu'il manque une case obligatoire ; le toucher dit lesquelles */
+.doc-btn.off { opacity: .45; }

@@ -8284,6 +8284,19 @@ function sviBdgInf(C) {
       updTimes();
     });
 
+    /* v903 (principe du 03/11/2026 : erreur refusée dès la saisie) : intitulé / descriptif déjà pris = refusé en quittant la case ;
+       ENREGISTRER grisé tant qu'une case obligatoire est vide (le toucher dit lesquelles) */
+    const recReq = () => kind === "obs" ? [["recDate", "date"], ["recText", "intitulé"]]
+      : [["recDate", "date"], ["recText", "descriptif"], ["recResp", "responsable"], ["recPDate", "date prévue"], ["recPTime", "heure prévue"]];
+    const recLive = () => { const miss = recReq().filter(([id]) => !String(($p(id) || {}).value || "").trim()); $p("recSave").classList.toggle("off", miss.length > 0); };
+    p.addEventListener("input", recLive); p.addEventListener("change", e => {
+      recLive();
+      if (e.target && e.target.id === "recText") { const dupR = findDup(recLoad(kind), r => r.text, e.target.value);
+        e.target.classList.toggle("bad", !!dupR);
+        $p("recErr").textContent = dupR ? (kind === "obs" ? "Cet intitulé" : "Ce descriptif") + " existe déjà (" + dupR.ref + ")." : "";
+        if (dupR) { svToast((kind === "obs" ? "CET INTITULÉ" : "CE DESCRIPTIF") + " EXISTE DÉJÀ (" + dupR.ref + ").", 3500, e.target); } }
+    });
+    setTimeout(recLive, 0);
     $p("recSave").addEventListener("click", () => {
       const req = kind === "obs"
         ? [["recDate", "date"], ["recText", "intitulé"]]
@@ -8786,11 +8799,21 @@ function sviBdgDocHistorique(C) {
         file = inp.files[0] || null;
         p.querySelector("#docName").textContent =
           file ? file.name.toUpperCase() : "AUCUN DOCUMENT SÉLECTIONNÉ";
-        p.querySelector("#docName").classList.toggle("ok", !!file);
+        p.querySelector("#docName").classList.toggle("ok", !!file); try { docLive(); } catch (e2) {}
       };
       inp.click();
     });
 
+    /* v903 (principe du 03/11/2026) : intitulé déjà pris = refusé en quittant la case ; ENREGISTRER grisé tant qu'il manque la date, l'intitulé ou le document */
+    const docLive = () => { const sv = p.querySelector("#docSave"); if (sv) sv.classList.toggle("off", !p.querySelector("#docDate").value || !p.querySelector("#docTitle").value.trim() || !file); };
+    p.addEventListener("input", docLive);
+    p.addEventListener("change", e => {
+      docLive();
+      if (e.target && e.target.id === "docTitle") { const dupD = findDup(docsLoad(), r => r.title, e.target.value.trim());
+        e.target.classList.toggle("bad", !!dupD); p.querySelector("#docErr").textContent = dupD ? "Cet intitulé existe déjà (" + dupD.ref + ")." : "";
+        if (dupD) svToast("CET INTITULÉ EXISTE DÉJÀ (" + dupD.ref + ").", 3500, e.target); }
+    });
+    setTimeout(docLive, 0);
     p.querySelector("#docSave").addEventListener("click", async () => {
       const date = p.querySelector("#docDate").value;
       const title = p.querySelector("#docTitle").value.trim();
