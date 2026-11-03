@@ -3600,8 +3600,8 @@ td.svi-cs { box-shadow: none !important; }
 :is(table) td, .ins-hcol .ins-li { -webkit-touch-callout: none; }
 body.svi-multi #sviSelBox, body.svi-multi td.svi-cs { outline-color: #1d4ed8; }
 /* v788 (remarque 8) : DÉTAIL DÉLAIS — hors plein écran, seulement le tableau du planning ; Gantt et graphique en plein écran seulement */
-html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody :is(.dlyg > :not(.dlyg-l), .dlyg-foot, .dlyg-hh, .gh-fix, .dlyhh-pill) { display: none !important; }
-html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dlyg-l { max-width: 100% !important; width: auto !important; flex: 1 1 auto !important; }
+html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody :is(.dlyg > :not(.dlyg-l), .dlyg-foot, .dlyg-hh, .gh-fix, .dlyhh-pill) { display: none; }
+html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dlyg-l { max-width: 100% !important; width: auto; flex: 1 1 auto; }
 #svConf .colh-list { display: block; }
 #svConf .colh-t { width: 100%; table-layout: auto; }
 #svConf .colh-t .colh-c { width: 90px; }
@@ -3609,7 +3609,7 @@ html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dlyg-l { max-
 #svConf .colh-t input { width: var(--tb-cb, 16px); height: var(--tb-cb, 16px); accent-color: var(--svst, #172033); }
 /* v788 (remarque 15) : RÈGLE COMMUNE DU PLIAGE — DÉTAIL CHARGES / PRODUITS : le nom d'un titre et celui d'une ligne seule commencent au même endroit ;
    le signe › / ⌄ se loge dans la place réservée juste avant le nom (dans la même colonne) ; les lignes d'un titre rentrent d'un pas */
-.ins-table:is([data-ik="chg"], [data-ik="prd"]) tbody tr:not(.ins-gtitle):not(.ins-gkid) td > :is(input, textarea)[data-f="des"] { padding-left: calc(6px + var(--fold-w)) !important; }
+.ins-table:is([data-ik="chg"], [data-ik="prd"]) tbody tr:not(.ins-gtitle):not(.ins-gkid) td > :is(input, textarea)[data-f="des"] { padding-left: calc(6px + var(--fold-w)); }
 .ins-table:is([data-ik="chg"], [data-ik="prd"]) tbody tr.ins-gkid td > :is(input, textarea)[data-f="des"] { padding-left: calc(6px + var(--fold-w) + var(--fold-step)) !important; }
 .ins-table tr.ins-gtitle td.ins-gtd { padding-left: calc(6px + var(--fold-w)) !important; }
 .ins-table tr.ins-gtitle td.ins-gtd > input.ins-gin[data-f="des"] { padding-left: 0 !important; }
