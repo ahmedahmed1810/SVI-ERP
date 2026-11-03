@@ -63,7 +63,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `22b-exploitation.js` | appel de « exploitation (ex-onglet MARGE) » (v873 : le code est dans 28t-exploitation.js) | 2 |
 | `22c-ratios-multi-signature.js` | appel de « indicateurs (données), signatures » (v840 : le code est dans 28i-ratios-multi-signature.js) | 2 |
 | `22d-contrat.js` | appel de « contrat : CPS, révision des prix, modalités de paiement, retenue de garantie » (v872 : le code est dans 28s-contrat.js) | 2 |
-| `22e-versions-scenarios.js` | scénarios et versions | 492 |
+| `22e-versions-scenarios.js` | appel de « scénarios et versions » (v889 : le code est dans 29j-versions-scenarios.js) | 2 |
 | `22f-plans.js` | appel de « plans et métré » (v838 : le code est dans 28g-plans.js) | 2 |
 | `22g-indicateurs.js` | appel de « indicateurs : éléments, calcul, liste commune » (v843 : le code est dans 28l-indicateurs.js) | 2 |
 | `22h-tableau-de-bord.js` | appel de « tableau de bord » (v841 : le code est dans 28j-tableau-de-bord.js) | 2 |
@@ -115,6 +115,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `29g-doublons-classement.js` | doublons, classement, bandeau de liaison, hors du grand bloc (v886) : sviBdgDoublons(C) | 530 |
 | `29h-instance-saisie.js` | budget en instance : saisie, filtres (FSRC), totaux, calendrier de tâche insCal, hors du grand bloc (v887) : sviBdgInstanceSaisie(C) | 1721 |
 | `29i-tableaux-colonnes.js` | ordre manuel des lignes du budget ; tri et filtre pris de 09c (`sviCfKit`), hors du grand bloc (v888) : sviBdgTableauxColonnes(C) | 46 |
+| `29j-versions-scenarios.js` | scénarios et versions, hors du grand bloc (v889) : sviBdgVersionsScenarios(C) | 535 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
