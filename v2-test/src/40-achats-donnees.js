@@ -435,6 +435,16 @@ const achCmfValNo = c => { const today = new Date().toISOString().slice(0, 10), 
     if (enc > achN(f.plafEnc) + 0.005) return "PLAFOND D'ENCOURS DU FOURNISSEUR DÉPASSÉ (" + achF2(enc) + " / " + achF2(f.plafEnc) + ")"; }
   if (!(c.lignes || []).some(l => l.bsn || l.dvf) && !c.motifSans) return "COMMANDE SANS BESOIN NI DEVIS : MOTIF OBLIGATOIRE";
   return ""; };
+/* v913 (checklist C1.51) : distance dépôt du fournisseur → chantier du budget de la commande (à vol d'oiseau) et transport estimé */
+const achCmfDist = c => {
+  const f = achFrs().find(x => x.id === c.frs), B = achBsn(), refs = [...new Set((c.lignes || []).map(l => (B.find(b => b.id === l.bsn) || {}).bdg).filter(Boolean))];
+  if (!f || !sviGpsParse(f.gps)) return { why: "GPS DU DÉPÔT DU FOURNISSEUR À SAISIR (FICHE)" };
+  if (!refs.length) return { why: "AUCUN BUDGET LIÉ (BESOIN)" };
+  let bd = null; try { bd = (sviInstGet().find(b => b.ref === refs[0]) || {}).data || null; } catch (e) { bd = null; }
+  const g = bd && sviGpsParse(bd.gps); if (!g) return { why: "GPS DU CHANTIER À SAISIR (INF DU BUDGET)" };
+  const km = sviGpsKm(sviGpsParse(f.gps), g), p = sviTrKm();
+  return { km, cost: p === null ? null : km * p };
+};
 const achRcpWhy = r => { const w = [];
   if (r.state === "annule") return w;
   if (!r.nbl && !r.pv) w.push("N° DU BON DE LIVRAISON MANQUANT");

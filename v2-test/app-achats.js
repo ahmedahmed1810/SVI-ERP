@@ -436,6 +436,16 @@ const achCmfValNo = c => { const today = new Date().toISOString().slice(0, 10), 
     if (enc > achN(f.plafEnc) + 0.005) return "PLAFOND D'ENCOURS DU FOURNISSEUR DÉPASSÉ (" + achF2(enc) + " / " + achF2(f.plafEnc) + ")"; }
   if (!(c.lignes || []).some(l => l.bsn || l.dvf) && !c.motifSans) return "COMMANDE SANS BESOIN NI DEVIS : MOTIF OBLIGATOIRE";
   return ""; };
+/* v913 (checklist C1.51) : distance dépôt du fournisseur → chantier du budget de la commande (à vol d'oiseau) et transport estimé */
+const achCmfDist = c => {
+  const f = achFrs().find(x => x.id === c.frs), B = achBsn(), refs = [...new Set((c.lignes || []).map(l => (B.find(b => b.id === l.bsn) || {}).bdg).filter(Boolean))];
+  if (!f || !sviGpsParse(f.gps)) return { why: "GPS DU DÉPÔT DU FOURNISSEUR À SAISIR (FICHE)" };
+  if (!refs.length) return { why: "AUCUN BUDGET LIÉ (BESOIN)" };
+  let bd = null; try { bd = (sviInstGet().find(b => b.ref === refs[0]) || {}).data || null; } catch (e) { bd = null; }
+  const g = bd && sviGpsParse(bd.gps); if (!g) return { why: "GPS DU CHANTIER À SAISIR (INF DU BUDGET)" };
+  const km = sviGpsKm(sviGpsParse(f.gps), g), p = sviTrKm();
+  return { km, cost: p === null ? null : km * p };
+};
 const achRcpWhy = r => { const w = [];
   if (r.state === "annule") return w;
   if (!r.nbl && !r.pv) w.push("N° DU BON DE LIVRAISON MANQUANT");
@@ -1889,6 +1899,9 @@ function achCmfFiche(id, done) {
           <label class="frs-f frs-w"><span>HORAIRES, ACCÈS AU CHANTIER, DÉCHARGEMENT</span><input class="ins-in cmf-x" data-k="acces" value="${esc(C.acces || "")}"${dis} autocomplete="off"></label>
           <label class="frs-f"><span>MARCHÉ CLIENT ET LOT</span><input class="ins-in cmf-x" data-k="marche" value="${esc(C.marche || "")}"${dis} autocomplete="off"></label>
           <label class="frs-f"><span>ÉCHÉANCE PRÉVUE DU PAIEMENT</span><input class="ins-in" value="${esc(achDFr(achCmfEch(C)) || "—")}" readonly></label>
+          ${(() => { const X = achCmfDist(C); /* v913 (C1.51) : distance au chantier et transport estimé */
+            return `<label class="frs-f"><span>DISTANCE AU CHANTIER (VOL D'OISEAU)</span><input class="ins-in" value="${esc(X.km === undefined ? X.why : achF2(X.km) + " KM")}" readonly></label>
+          <label class="frs-f"><span>TRANSPORT ESTIMÉ</span><input class="ins-in" value="${esc(X.km === undefined ? "—" : X.cost === null ? "PRIX AU KM À RÉGLER (PARAMÉTRAGE › BUDGET › TRANSPORT)" : achF2(X.cost) + " DH")}" readonly></label>`; })()}
           ${!(C.lignes || []).some(l => l.bsn || l.dvf) ? `<label class="frs-f frs-w"><span>MOTIF D'UNE COMMANDE SANS BESOIN NI DEVIS (SIÈGE, URGENCE) <b>*</b></span><input class="ins-in cmf-x${!C.motifSans && !ro ? " ins-need" : ""}" data-k="motifSans" value="${esc(C.motifSans || "")}"${dis} autocomplete="off"></label>` : ""}
           ${(C.lignes || []).some(l => l.dvf) ? (() => { /* v911 (principe du 03/11/2026) : prix différent du devis = motif obligatoire, signalé tout de suite (et non plus à VALIDER) */
             const DV = achDvf(), need = (C.lignes || []).some(l => { const v = l.dvf && DV.find(x => x.id === l.dvf); const z = v && (v.lignes || []).find(y => achKey(y.des, y.u) === achKey(l.des, l.u)); return z && Math.abs(achDvfPuNet(v, z) - achN(l.pu)) > 0.005; });

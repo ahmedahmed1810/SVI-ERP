@@ -113,6 +113,9 @@ function achCmfFiche(id, done) {
           <label class="frs-f frs-w"><span>HORAIRES, ACCÈS AU CHANTIER, DÉCHARGEMENT</span><input class="ins-in cmf-x" data-k="acces" value="${esc(C.acces || "")}"${dis} autocomplete="off"></label>
           <label class="frs-f"><span>MARCHÉ CLIENT ET LOT</span><input class="ins-in cmf-x" data-k="marche" value="${esc(C.marche || "")}"${dis} autocomplete="off"></label>
           <label class="frs-f"><span>ÉCHÉANCE PRÉVUE DU PAIEMENT</span><input class="ins-in" value="${esc(achDFr(achCmfEch(C)) || "—")}" readonly></label>
+          ${(() => { const X = achCmfDist(C); /* v913 (C1.51) : distance au chantier et transport estimé */
+            return `<label class="frs-f"><span>DISTANCE AU CHANTIER (VOL D'OISEAU)</span><input class="ins-in" value="${esc(X.km === undefined ? X.why : achF2(X.km) + " KM")}" readonly></label>
+          <label class="frs-f"><span>TRANSPORT ESTIMÉ</span><input class="ins-in" value="${esc(X.km === undefined ? "—" : X.cost === null ? "PRIX AU KM À RÉGLER (PARAMÉTRAGE › BUDGET › TRANSPORT)" : achF2(X.cost) + " DH")}" readonly></label>`; })()}
           ${!(C.lignes || []).some(l => l.bsn || l.dvf) ? `<label class="frs-f frs-w"><span>MOTIF D'UNE COMMANDE SANS BESOIN NI DEVIS (SIÈGE, URGENCE) <b>*</b></span><input class="ins-in cmf-x${!C.motifSans && !ro ? " ins-need" : ""}" data-k="motifSans" value="${esc(C.motifSans || "")}"${dis} autocomplete="off"></label>` : ""}
           ${(C.lignes || []).some(l => l.dvf) ? (() => { /* v911 (principe du 03/11/2026) : prix différent du devis = motif obligatoire, signalé tout de suite (et non plus à VALIDER) */
             const DV = achDvf(), need = (C.lignes || []).some(l => { const v = l.dvf && DV.find(x => x.id === l.dvf); const z = v && (v.lignes || []).find(y => achKey(y.des, y.u) === achKey(l.des, l.u)); return z && Math.abs(achDvfPuNet(v, z) - achN(l.pu)) > 0.005; });

@@ -258,6 +258,14 @@ const sviBdgDateWhy = (f, deb, obj, but) => {
   if (f === "but" && but && ((deb && but < deb) || (obj && but < obj))) return "DATE BUTOIR REFUSÉE : ELLE NE PEUT ÊTRE NI AVANT LE DÉBUT DU PROJET, NI AVANT LA DATE OBJECTIF.";
   return "";
 };
+/* v913 (checklist C1.51, décisions du 03/11/2026) : GPS DU CHANTIER (INF) et DÉPÔT DU FOURNISSEUR → distance à vol d'oiseau ;
+   coût du transport = distance × PRIX DU TRANSPORT AU KM (PARAMÉTRAGE › BUDGET › TRANSPORT, le même pour tous) */
+const sviGpsParse = s => { const m = String(s ?? "").trim().match(/^(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)$/); if (!m) return null; const a = +m[1], b = +m[2]; return Math.abs(a) <= 90 && Math.abs(b) <= 180 ? [a, b] : null; };
+const sviGpsKm = (p, q) => { const r = x => x * Math.PI / 180, dA = r(q[0] - p[0]), dB = r(q[1] - p[1]);
+  const h = Math.sin(dA / 2) ** 2 + Math.cos(r(p[0])) * Math.cos(r(q[0])) * Math.sin(dB / 2) ** 2; return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h))); };
+const SVI_TRKM_KEY = "svi_transport_km_v1";
+const sviTrKm = () => { try { const s = localStorage.getItem(SVI_TRKM_KEY); return s === null || String(s).trim() === "" ? null : num(s); } catch (e) { return null; } };
+const sviTrKmSave = v => { try { localStorage.setItem(SVI_TRKM_KEY, v === null || v === undefined ? "" : String(v)); } catch (e) {} };
 const insTVA = r => sviTvaOf(r.tva) ?? 0;   /* v899 : TVA PAR DÉFAUT (PARAMÉTRAGE), plus de 20 % écrit ici */
 /* — de src/13-instance-saisie.js — */
 const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;

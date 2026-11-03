@@ -2019,6 +2019,14 @@ const sviBdgDateWhy = (f, deb, obj, but) => {
   if (f === "but" && but && ((deb && but < deb) || (obj && but < obj))) return "DATE BUTOIR REFUSÉE : ELLE NE PEUT ÊTRE NI AVANT LE DÉBUT DU PROJET, NI AVANT LA DATE OBJECTIF.";
   return "";
 };
+/* v913 (checklist C1.51, décisions du 03/11/2026) : GPS DU CHANTIER (INF) et DÉPÔT DU FOURNISSEUR → distance à vol d'oiseau ;
+   coût du transport = distance × PRIX DU TRANSPORT AU KM (PARAMÉTRAGE › BUDGET › TRANSPORT, le même pour tous) */
+const sviGpsParse = s => { const m = String(s ?? "").trim().match(/^(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)$/); if (!m) return null; const a = +m[1], b = +m[2]; return Math.abs(a) <= 90 && Math.abs(b) <= 180 ? [a, b] : null; };
+const sviGpsKm = (p, q) => { const r = x => x * Math.PI / 180, dA = r(q[0] - p[0]), dB = r(q[1] - p[1]);
+  const h = Math.sin(dA / 2) ** 2 + Math.cos(r(p[0])) * Math.cos(r(q[0])) * Math.sin(dB / 2) ** 2; return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h))); };
+const SVI_TRKM_KEY = "svi_transport_km_v1";
+const sviTrKm = () => { try { const s = localStorage.getItem(SVI_TRKM_KEY); return s === null || String(s).trim() === "" ? null : num(s); } catch (e) { return null; } };
+const sviTrKmSave = v => { try { localStorage.setItem(SVI_TRKM_KEY, v === null || v === undefined ? "" : String(v)); } catch (e) {} };
 const insTVA = r => sviTvaOf(r.tva) ?? 0;   /* v899 : TVA PAR DÉFAUT (PARAMÉTRAGE), plus de 20 % écrit ici */
 /* — de src/13-instance-saisie.js — */
 const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -4234,6 +4242,7 @@ const SVI_ENTRY_RULES = [
   ['.rcp-l[data-c="q"], .rcp-l[data-c="qbl"]', v => v === "" || sviEntryN(v) >= 0, () => "QUANTITÉ : NOMBRE POSITIF OU NUL."],
   ['.bsn-x[data-k="pu"], .dvf-l[data-c="pu"], .cmf-l[data-c="pu"], .fa-l[data-c="pu"]', v => v === "" || sviEntryN(v) >= 0, () => "PRIX : NOMBRE POSITIF OU NUL."],
   ['.dvf-x[data-k="remG"], .dvf-l[data-c="rem"], .cmf-x[data-k="rem"], .dvf-l[data-c="tva"], .cmf-l[data-c="tva"], .fa-l[data-c="tva"], .fa-x[data-k="rasT"]', v => v === "" || (sviEntryN(v) >= 0 && sviEntryN(v) <= 100), () => "TAUX : DE 0 À 100 %."],
+  [".inf-gps", v => !v || !!sviGpsParse(v), () => "GPS DU CHANTIER : LATITUDE, LONGITUDE (EX. 33.5731, -7.5898)."],
   ['.rcp-l[data-c="per"]', v => !v || v >= new Date().toISOString().slice(0, 10), () => "DATE DE PÉREMPTION DÉJÀ PASSÉE."]
 ];
 /* nombre saisi (virgule ou point, espaces) ; NaN si ce n'est pas un nombre */
@@ -5157,7 +5166,7 @@ function sviParamTabs() {
   /* v790 (DOCUMENT UNIQUE §1.1) : une seule interface PARAMÉTRAGE à deux niveaux — RUBRIQUES (BUDGET, FORMAT), puis leurs onglets */
   bar.innerHTML = `<div class="prm-rubs"><button type="button" class="prm-rub on" data-rub="bdg">BUDGET</button><button type="button" class="prm-rub" data-rub="fmt">FORMAT</button></div>`
     + `<button type="button" class="prm-tab on" data-prm="unit" data-rub="bdg">UNITÉS</button><button type="button" class="prm-tab" data-prm="lib" data-rub="bdg">BIBLIOTHÈQUE DE PRIX</button>`
-    + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal" data-rub="bdg">CALENDRIER</button><button type="button" class="prm-tab" data-prm="tva" data-rub="bdg">TVA</button>`
+    + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal" data-rub="bdg">CALENDRIER</button><button type="button" class="prm-tab" data-prm="tva" data-rub="bdg">TVA</button><button type="button" class="prm-tab" data-prm="trk" data-rub="bdg">TRANSPORT</button>`
     + `<button type="button" class="prm-tab" data-prm="col" data-rub="fmt" hidden>ÉTATS</button><button type="button" class="prm-tab" data-prm="fel" data-rub="fmt" hidden>ÉLÉMENTS</button><button type="button" class="prm-tab" data-prm="fif" data-rub="fmt" hidden>INTERFACES</button><button type="button" class="prm-tab" data-prm="colh" data-rub="fmt" hidden>COLONNES</button><button type="button" class="prm-tab" data-prm="mask" data-rub="fmt" hidden>MASQUES DE SAISIE</button>`;
   /* CALENDRIER et DATES DU BUDGET : pour le budget ouvert ; grisés sans budget ouvert (appui long = raison) */
   const why = () => { const L = window.__sviBdgLive; return !L ? "OUVRIR UN BUDGET D'ABORD" : !L.edit ? "BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE" : ""; };
@@ -5210,6 +5219,17 @@ function sviParamTabs() {
       <thead><tr><th>RÉGLAGE</th><th class="center">TAUX %</th></tr></thead>
       <tbody><tr><td>TVA PAR DÉFAUT (DÉSIGNATIONS SANS TVA, ARTICLES ET PIÈCES D'ACHAT)</td><td class="center"><input class="ins-in tva-def number" inputmode="decimal" value="${d === null ? "" : esc(String(d).replace(".", ","))}" autocomplete="off"></td></tr></tbody></table>
       <div class="mask-note">VIDE : UNE DÉSIGNATION SANS TVA NE PEUT PAS ÊTRE ENREGISTRÉE (TVA MANQUANTE)</div>`; };
+  /* v913 : BUDGET › TRANSPORT — PRIX DU TRANSPORT AU KM, le même pour tous les fournisseurs (distance à vol d'oiseau dépôt → chantier) */
+  const kpane = document.createElement("div"); kpane.className = "prm-trk"; kpane.hidden = true; tpane.after(kpane);
+  const trkDraw = () => { const k = sviTrKm();
+    kpane.innerHTML = `<table class="prm-table fmt-t tva-t"><colgroup><col style="width:420px"><col style="width:140px"></colgroup>
+      <thead><tr><th>RÉGLAGE</th><th class="center">DH / KM</th></tr></thead>
+      <tbody><tr><td>PRIX DU TRANSPORT AU KILOMÈTRE (TOUS LES FOURNISSEURS)</td><td class="center"><input class="ins-in trk-km number" inputmode="decimal" value="${k === null ? "" : esc(String(k).replace(".", ","))}" autocomplete="off"></td></tr></tbody></table>
+      <div class="mask-note">DISTANCE À VOL D'OISEAU ENTRE LE DÉPÔT DU FOURNISSEUR (GPS DE SA FICHE) ET LE CHANTIER (GPS DU CHANTIER DANS INF)</div>`; };
+  kpane.addEventListener("change", e => { const i = e.target.closest(".trk-km"); if (!i) return; const s = String(i.value).trim();
+    if (s === "") { sviTrKmSave(null); trkDraw(); return; }
+    const v = num(s); if (!sviNumOk(s) || v < 0) { svToast("PRIX AU KM NON VALIDE.", 3000, i); trkDraw(); return; }
+    sviTrKmSave(v); trkDraw(); });
   tpane.addEventListener("change", e => { const i = e.target.closest(".tva-def"); if (!i) return; const s = String(i.value).trim();
     if (s === "") { sviTvaSave(null); tvaDraw(); return; }
     const v = num(s); if (!sviNumOk(s) || v < 0 || v > 100) { svToast("TVA NON VALIDE (0 À 100).", 3000, i); tvaDraw(); return; }
@@ -5277,12 +5297,12 @@ function sviParamTabs() {
     pane.hidden = which !== "unit";
     lpane.hidden = which !== "lib";
     cpane.hidden = which !== "col";
-    epane.hidden = which !== "fel"; ipane.hidden = which !== "fif"; hpane.hidden = which !== "colh"; mpane.hidden = which !== "mask"; tpane.hidden = which !== "tva";
-    if (which === "tva") tvaDraw();
+    epane.hidden = which !== "fel"; ipane.hidden = which !== "fif"; hpane.hidden = which !== "colh"; mpane.hidden = which !== "mask"; tpane.hidden = which !== "tva"; kpane.hidden = which !== "trk";
+    if (which === "tva") tvaDraw(); if (which === "trk") trkDraw();
     if (which === "fel") felDraw(); if (which === "fif") fifDraw(); if (which === "colh") colhDraw(); if (which === "mask") maskDraw();
     const h1 = head.querySelector("h1"), sub = head.querySelector("p");
-    if (h1) h1.textContent = which === "tva" ? "TVA" : which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : which === "col" ? "FORMAT — ÉTATS" : which === "fel" ? "FORMAT — ÉLÉMENTS" : which === "fif" ? "FORMAT — INTERFACES" : which === "colh" ? "FORMAT — COLONNES" : which === "mask" ? "FORMAT — MASQUES DE SAISIE" : "UNITÉS";
-    if (sub) sub.textContent = which === "tva" ? "TVA PAR DÉFAUT, COMMUNE AU BUDGET ET AUX ACHATS" : which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT ; COMMUNE À TOUS LES BUDGETS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";
+    if (h1) h1.textContent = which === "trk" ? "TRANSPORT" : which === "tva" ? "TVA" : which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : which === "col" ? "FORMAT — ÉTATS" : which === "fel" ? "FORMAT — ÉLÉMENTS" : which === "fif" ? "FORMAT — INTERFACES" : which === "colh" ? "FORMAT — COLONNES" : which === "mask" ? "FORMAT — MASQUES DE SAISIE" : "UNITÉS";
+    if (sub) sub.textContent = which === "trk" ? "PRIX DU TRANSPORT AU KM, LE MÊME POUR TOUS LES FOURNISSEURS" : which === "tva" ? "TVA PAR DÉFAUT, COMMUNE AU BUDGET ET AUX ACHATS" : which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT ; COMMUNE À TOUS LES BUDGETS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";
     if (which === "unit") draw();
     if (which === "lib") libDraw();
     if (which === "col") { colDraw(); if (sub) sub.textContent = "COULEUR DE CHAQUE ÉTAT, COMMUNE À TOUTE L'APPLICATION ET À TOUS LES APPAREILS"; }

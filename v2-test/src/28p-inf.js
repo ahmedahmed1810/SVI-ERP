@@ -148,6 +148,7 @@ function sviBdgInf(C) {
                 : `<span class="doc-in doc-ro inf-val">${esc(v)}</span>`}`).join("")}
             ${INS ? infAoHTML(editInt) : ""}
             ${INS ? infDatesHTML(editInt) : ""}
+            ${INS ? `<span class="doc-lab">GPS DU CHANTIER<small class="inf-sub">(DISTANCE ET TRANSPORT DES ACHATS)</small></span>${editInt ? `<input class="doc-in inf-gps" value="${esc(INS.gps || "")}" placeholder="LATITUDE, LONGITUDE" inputmode="decimal" autocomplete="off">` : `<span class="doc-in doc-ro inf-val">${esc(INS.gps || "")}</span>`}` : ""}
           </div>
         </div>
         <div class="doc-foot">
@@ -171,6 +172,7 @@ function sviBdgInf(C) {
     if (cd) sviDateField(cd);
     const collect = () => {
       const out = { ...pend };
+      const gp = p.querySelector(".inf-gps"); if (gp) out.gps = gp.value.trim();
       const pj = p.querySelector("#infPrj"); if (pj) out.project = pj.value.trim().toUpperCase().replace(/\s+/g, " ");
       const ii = p.querySelector("#infInt"); if (ii) out.intitule = ii.value.trim().toUpperCase();
       const ic = p.querySelector("#infCli"); if (ic) out.client = ic.value.trim().toUpperCase();
@@ -188,6 +190,7 @@ function sviBdgInf(C) {
       || (o.client !== undefined && o.client !== String(budget.inst.client || "").trim().toUpperCase())
       || (o.created !== undefined && o.created && o.created !== String(budget.inst.created || ""))
       || ["deb", "obj", "but"].some(f => o[f] !== undefined)
+      || (o.gps !== undefined && o.gps !== String((INS && INS.gps) || ""))
       || (o.ao !== undefined && ["pub", "cons", "num", "obj"].some(f => (o.ao[f] ?? "") !== ((INS.ao || {})[f] ?? (f === "cons" ? false : ""))));
     const save = () => {
       const o = collect();
@@ -211,6 +214,9 @@ function sviBdgInf(C) {
           histLog("INF", "MARCHÉ", (n.pub === true ? "CLIENT PUBLIC" : n.pub === false ? "CLIENT PRIVÉ" : "CLIENT —") + (n.cons ? ", SUR CONSULTATION" : "") + (n.num ? ", N° " + n.num : ""));
         }
       }
+      if (INS && o.gps !== undefined && o.gps !== String(INS.gps || "")) {
+        if (o.gps && !sviGpsParse(o.gps)) { svToast("GPS DU CHANTIER : LATITUDE, LONGITUDE (EX. 33.5731, -7.5898).", 3500, p.querySelector(".inf-gps")); return false; }
+        INS.gps = o.gps; histLog("INF", "GPS DU CHANTIER", o.gps || "—"); }
       if (INS) { infApplyDates(pend, p.querySelector(".doc-foot")); insSave(); }
       /* partout où l'information est affichée : en-tête, listes, aperçus */
       try { keepScroll(() => refreshAll()); } catch (e) {}
