@@ -7052,14 +7052,14 @@ function renderBudgetList() {
     window.__sviDlyScale = { get: () => dlyScale(), set: v => { const c = DLY_SC[v]; if (!c) return; try { localStorage.setItem(c.k, "fit"); localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} { const R0 = dlyHRange(); if (R0.a || R0.b) shell.__dlyCenter = true; } keepScroll(() => renderTab()); } };   /* v660 (FORMAT 252) : plage DÉBUT – FIN posée = elle remplit la largeur dans le nouvel affichage ; sans plage, tout le projet (v559) */
     let DLY_DW_MIN = DLY_SC[dlyScale()].min, DLY_DW_MAX = DLY_SC[dlyScale()].max;
     /* v546 (R23, R34) : maximum = 100 px par jour, ou plus si c'est la largeur qui remplit l'écran ; « fit » = remplir (départ en SEMAINE / MOIS) */
-    let DLY_FILL = 0;
+    ECR.DLY_FILL = 0;
     const dlyDwGet = () => {
-      const c = DLY_SC[dlyScale()]; DLY_DW_MIN = c.min; DLY_DW_MAX = Math.max(100, DLY_FILL);
+      const c = DLY_SC[dlyScale()]; DLY_DW_MIN = c.min; DLY_DW_MAX = Math.max(100, ECR.DLY_FILL);
       let s0 = null; try { s0 = localStorage.getItem(c.k); } catch (e) {}
       /* v559 : changer d'échelle (JOUR / SEMAINE / MOIS) = « fit » : tout le projet dans la largeur visible, trait FIN au bord droit
          (largeur d'un jour non arrondie) ; à l'ouverture, le dernier zoom réglé au doigt est repris */
-      DLY_DW_MIN = Math.max(c.min, DLY_FILL || 0);   /* v553 (P11 R2) : jamais plus étroit que la largeur qui remplit le Gantt */
-      if ((s0 === null || s0 === "fit") && DLY_FILL) return Math.min(DLY_DW_MAX, DLY_FILL);
+      DLY_DW_MIN = Math.max(c.min, ECR.DLY_FILL || 0);   /* v553 (P11 R2) : jamais plus étroit que la largeur qui remplit le Gantt */
+      if ((s0 === null || s0 === "fit") && ECR.DLY_FILL) return Math.min(DLY_DW_MAX, ECR.DLY_FILL);
       const v = Number(s0) || c.def;
       return Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v * 10) / 10));
     };
@@ -7195,7 +7195,7 @@ function renderBudgetList() {
       const d0 = SC === "s" ? sviIsoAdd(dA, -wd(dA)) : SC === "m" ? dA.slice(0, 8) + "01" : sviIsoAdd(dA, -3);
       const dE = SC === "s" ? sviIsoAdd(dZ, 6 - wd(dZ)) : SC === "m" ? (() => { const y = Number(dZ.slice(0, 4)), m = Number(dZ.slice(5, 7)); return dZ.slice(0, 8) + String(new Date(y, m, 0).getDate()).padStart(2, "0"); })() : sviIsoAdd(dZ, 3);
       const nD = dDiff(d0, dE) + 1;
-      DLY_FILL = Math.floor((host.clientWidth || 600) / nD * 1000) / 1000;   /* v559 : non arrondi — FIN pile au bord droit */
+      ECR.DLY_FILL = Math.floor((host.clientWidth || 600) / nD * 1000) / 1000;   /* v559 : non arrondi — FIN pile au bord droit */
       ECR.DLY_DW = dlyDwGet();
       /* v748 : ajustement à l'écran calculé AVANT le dessin (même règle que v628 / v639 plus bas) — un seul dessin à l'ouverture au lieu de deux */
       let fitSl = null;
@@ -7206,7 +7206,7 @@ function renderBudgetList() {
           const n = Math.max(1, dDiff(fz.a, fz.b) + 1), mg = fz.rg.a || fz.rg.b ? 60 : 12;
           const w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n)) * 10) / 10));
           if (vw > 60 && Math.abs(w - ECR.DLY_DW) >= 0.05) {
-            try { localStorage.setItem(DLY_SC[dlyScale()].k, DLY_FILL && w <= DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}
+            try { localStorage.setItem(DLY_SC[dlyScale()].k, ECR.DLY_FILL && w <= ECR.DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}
             ECR.DLY_DW = w;
             /* même défilement qu'avant (dlyDwSet) : premier jour utilisé à la marge, plage centrée si elle tient */
             fitSl = Math.max(0, dDiff(d0, fz.a) * w - (mg + Math.max(0, (vw - 2 * mg - n * w) / 2)));
@@ -8987,7 +8987,7 @@ function renderBudgetList() {
       const dlyDwSet = (host, w, ax, p) => {
         w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w * 10) / 10));   /* v657 : au dixième de pixel (la plage remplit exactement l'écran) */
         if (Math.abs(w - ECR.DLY_DW) < 0.05) return;
-        try { localStorage.setItem(DLY_SC[dlyScale()].k, DLY_FILL && w <= DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}   /* v559 : réduit au maximum = ajusté à l'écran */
+        try { localStorage.setItem(DLY_SC[dlyScale()].k, ECR.DLY_FILL && w <= ECR.DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}   /* v559 : réduit au maximum = ajusté à l'écran */
         host.__drawn = false; dlyGanttDraw();
         const h2 = shell.querySelector("#dlyGantt");
         if (h2) { h2.scrollLeft = Math.max(0, p * w - ax); shell.__dlyGx = h2.scrollLeft; shell.__dlyFitT = performance.now(); }

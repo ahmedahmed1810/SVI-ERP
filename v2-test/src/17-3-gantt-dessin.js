@@ -124,7 +124,7 @@
       const d0 = SC === "s" ? sviIsoAdd(dA, -wd(dA)) : SC === "m" ? dA.slice(0, 8) + "01" : sviIsoAdd(dA, -3);
       const dE = SC === "s" ? sviIsoAdd(dZ, 6 - wd(dZ)) : SC === "m" ? (() => { const y = Number(dZ.slice(0, 4)), m = Number(dZ.slice(5, 7)); return dZ.slice(0, 8) + String(new Date(y, m, 0).getDate()).padStart(2, "0"); })() : sviIsoAdd(dZ, 3);
       const nD = dDiff(d0, dE) + 1;
-      DLY_FILL = Math.floor((host.clientWidth || 600) / nD * 1000) / 1000;   /* v559 : non arrondi — FIN pile au bord droit */
+      ECR.DLY_FILL = Math.floor((host.clientWidth || 600) / nD * 1000) / 1000;   /* v559 : non arrondi — FIN pile au bord droit */
       ECR.DLY_DW = dlyDwGet();
       /* v748 : ajustement à l'écran calculé AVANT le dessin (même règle que v628 / v639 plus bas) — un seul dessin à l'ouverture au lieu de deux */
       let fitSl = null;
@@ -135,7 +135,7 @@
           const n = Math.max(1, dDiff(fz.a, fz.b) + 1), mg = fz.rg.a || fz.rg.b ? 60 : 12;
           const w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n)) * 10) / 10));
           if (vw > 60 && Math.abs(w - ECR.DLY_DW) >= 0.05) {
-            try { localStorage.setItem(DLY_SC[dlyScale()].k, DLY_FILL && w <= DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}
+            try { localStorage.setItem(DLY_SC[dlyScale()].k, ECR.DLY_FILL && w <= ECR.DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}
             ECR.DLY_DW = w;
             /* même défilement qu'avant (dlyDwSet) : premier jour utilisé à la marge, plage centrée si elle tient */
             fitSl = Math.max(0, dDiff(d0, fz.a) * w - (mg + Math.max(0, (vw - 2 * mg - n * w) / 2)));
