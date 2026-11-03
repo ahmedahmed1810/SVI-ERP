@@ -3667,25 +3667,25 @@ html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table tbo
 html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table thead th :is(.fold-all, .cf-wrap, .cf-lab) { height: var(--tb-head-lh) !important; max-height: var(--tb-head-lh); }
 html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table :is(thead th, tbody td) input[type=checkbox] { margin-top: 0 !important; margin-bottom: 0 !important; vertical-align: middle; }
 /* v792 (DOCUMENT UNIQUE §6.3) : le signe « tout plier » ne grandit plus l'en-tête (22 px partout, titres de charges compris) */
-table thead th .fold-all, table thead th .cf-wrap, table thead th .cf-lab { height: var(--tb-head-lh) !important; max-height: var(--tb-head-lh); line-height: var(--tb-head-lh) !important; }
+table thead th .fold-all, table thead th .cf-wrap, table thead th .cf-lab { height: var(--tb-head-lh); max-height: var(--tb-head-lh); line-height: var(--tb-head-lh); }
 table thead th input[type=checkbox] { margin-top: 0 !important; margin-bottom: 0 !important; vertical-align: middle; }
 /* ===== v793 (DOCUMENT UNIQUE : moteur commun branché sur la liste des budgets, PARAMÉTRAGE et les fiches d'achat) ===== */
 /* §6.6 : ligne « AUCUN … » masquée (le compteur 0 suffit) */
-tbody tr.svi-empty-x { display: none !important; }
+tbody tr.svi-empty-x { display: none; }
 /* §6.3 : lignes de 21 px dans les listes — la corbeille ne grandit plus la ligne */
-:is(#budgetListTable, table.svi-bdgl) .bdg-action-cell .bdg-row-action { width: 24px !important; height: 19px !important; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; }
+:is(#budgetListTable, table.svi-bdgl) .bdg-action-cell .bdg-row-action { width: 24px; height: 19px; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; }
 :is(#budgetListTable, table.svi-bdgl) .bdg-action-cell .bdg-row-action svg { width: 14px; height: 14px; }
 /* §6.4 : cases à cocher à droite des listes */
-:is(#budgetListTable, table.svi-bdgl) :is(th.nvl-cbh, td.nvl-cbc) { padding: 0 !important; text-align: center; cursor: pointer; }
-:is(#budgetListTable, table.svi-bdgl) :is(th.nvl-cbh, td.nvl-cbc) input { margin: 0 !important; vertical-align: middle; }
+:is(#budgetListTable, table.svi-bdgl) :is(th.nvl-cbh, td.nvl-cbc) { padding: 0; text-align: center; cursor: pointer; }
+:is(#budgetListTable, table.svi-bdgl) :is(th.nvl-cbh, td.nvl-cbc) input { margin: 0; vertical-align: middle; }
 /* PARAMÉTRAGE (et paramétrage des achats) : lignes de 21 px, saisies et boutons à la hauteur de la ligne */
-:is(#chs, #ach) .prm-table tbody td { height: var(--tb-row-h) !important; padding-top: 0 !important; padding-bottom: 0 !important; line-height: var(--tb-row-lh); box-sizing: border-box; }
+:is(#chs, #ach) .prm-table tbody td { height: var(--tb-row-h); padding-top: 0 !important; padding-bottom: 0 !important; line-height: var(--tb-row-lh); box-sizing: border-box; }
 :is(#chs, #ach) .prm-table tbody td :is(input:not([type=checkbox]):not([type=color]), button, select) { height: calc(var(--tb-row-h) - 2px) !important; min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; line-height: 17px !important; box-sizing: border-box; font-size: var(--tb-row-fs, 12px); }
 :is(#chs, #ach) .prm-table tbody td input[type=color] { height: 17px !important; padding: 0 !important; vertical-align: middle; }
 :is(#chs, #ach) .prm-table :is(tbody td, thead th) input[type=checkbox] { margin-top: 0 !important; margin-bottom: 0 !important; vertical-align: middle; }
 /* §6.5 : ligne « CRÉER … ICI » de PARAMÉTRAGE au format commun (rouge) */
 #chs .prm-table tr.prm-new td { background: var(--tb-new-bg, #fdf0f0) !important; }
-#chs .prm-table tr.prm-new input { background: transparent !important; color: var(--tb-new-c, #b91c1c) !important; }
+#chs .prm-table tr.prm-new input { background: transparent; color: var(--tb-new-c, #b91c1c); }
 #chs .prm-table tr.prm-new input::placeholder { color: var(--tb-new-c, #b91c1c); opacity: 1; font-weight: 400; }
 table[data-svcw] thead th { position: relative; }
 #budgetListTable thead th { background: var(--tb-head-bg) !important; }
