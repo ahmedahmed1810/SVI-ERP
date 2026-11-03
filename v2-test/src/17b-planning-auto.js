@@ -656,7 +656,7 @@
       const cur = dlyCurDates(), cal = insCal();
       let A = null;
       { const on = (INS.sec || []).filter(s => s.on === true).map(s => s.id); if (on.length === 1) A = on[0]; else if (on.length > 1) return { why: "RENDEMENT : UNE SEULE ACTIVITÉ SECONDAIRE À LA FOIS (" + on.length + " COCHÉES DANS TÂCHES)." }; }
-      if (!A && LK && LK.sec) A = LK.sec;
+      if (!A && ECR.LK && ECR.LK.sec) A = ECR.LK.sec;
       if (!A) { const S = new Set(); Object.keys(cur).forEach(k => { if (dlyResOf(k, R, "q").size) S.add(k.split("|")[1]); }); if (S.size === 1) A = [...S][0]; else return { why: "RENDEMENT : CHOISIR UNE ACTIVITÉ SECONDAIRE DANS LE BLOC TÂCHES." }; }
       const T = Object.keys(cur).filter(k => k.split("|")[1] === A);
       const us = new Set(), PT = {}, ser = new Map();

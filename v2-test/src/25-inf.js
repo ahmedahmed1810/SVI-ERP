@@ -61,7 +61,7 @@
             const n = nv > from ? sviWDur(cal, from, nv) - 1 : -(sviWDur(cal, nv, from) - 1);
             P.ks.forEach(k => {
               (INS.dlp[k] || []).forEach(q => { if (!q.deb || !q.fin) return; const du = sviWDur(cal, q.deb, q.fin) || 1; q.deb = sviWAdd(cal, sviWNear(cal, q.deb, 1), n); q.fin = sviWFin(cal, q.deb, du); });
-              if (LK.dlpDraft && LK.dlpDraft[k]) delete LK.dlpDraft[k];
+              if (ECR.LK.dlpDraft && ECR.LK.dlpDraft[k]) delete ECR.LK.dlpDraft[k];
             });
             histLog("INF", "PROJET DÉCALÉ", dFr(old) + " → " + dFr(nv) + " (" + (n > 0 ? "+" : "") + n + " J TRAVAILLÉS, " + P.ks.length + " TÂCHE(S))");
           } else histLog("INF", "DATE DE DÉBUT DU PROJET", dFr(nv));

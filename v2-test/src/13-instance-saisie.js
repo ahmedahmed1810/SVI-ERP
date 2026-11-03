@@ -115,7 +115,7 @@
       }
       if (INS_EDIT) { sviDataTidy(INS); insLiveSync(); try { qqAutoSync(); } catch (e) {} if (shell.__undoTick) shell.__undoTick(); }
       /* délier en attente de ✓ VALIDER : l'état enregistré garde les liaisons d'avant */
-      sviBudgetStore(budget.inst.ref, () => { let lb = null; try { lb = LK.linksBak; } catch (e) {} return lb ? { ...INS, links: lb } : INS; });
+      sviBudgetStore(budget.inst.ref, () => { let lb = null; try { lb = ECR.LK.linksBak; } catch (e) {} return lb ? { ...INS, links: lb } : INS; });
     };
     if (INS_DLP_MIG) insSave();
 
@@ -148,7 +148,7 @@
         : `<span class="act-u act-uro">${esc(r.u || "")}</span>`)
       : k === "prim" ? `<span class="act-u act-uro">${esc(actU(k, r))}</span>` : "";
     /* LK est déclaré plus bas : à l'ouverture d'un budget (tri des lignes avant sa déclaration), pas encore de liaison choisie */
-    const lkSecU = () => { let L = null; try { L = LK; } catch (e) { return ""; } if (!INS_EDIT || !L || !L.sec) return ""; const se = INS.sec.find(x => x.id === L.sec); return U_(se && se.u); };
+    const lkSecU = () => { let L = null; try { L = ECR.LK; } catch (e) { return ""; } if (!INS_EDIT || !L || !L.sec) return ""; const se = INS.sec.find(x => x.id === L.sec); return U_(se && se.u); };
     shell.__lkSecU = () => lkSecU();
     const prdLinkU = id => { const l = (INS.links || []).find(l => (l.prd || []).some(x => x.id === id)); if (!l) return ""; const se = INS.sec.find(x => x.id === l.sec); return U_(se && se.u); };
     const actUnitSync = () => {
@@ -165,7 +165,7 @@
           if (u) se.u = u;
         });
       }
-      { const su = lkSecU(); if (su) Object.keys(LK.prd || {}).forEach(id => { if (prdLinkU(id)) return; const p = INS.prd.find(q => q.id === id); if (p && U_(p.u) !== su) { p.u = su; ch = true; } }); }
+      { const su = lkSecU(); if (su) Object.keys(ECR.LK.prd || {}).forEach(id => { if (prdLinkU(id)) return; const p = INS.prd.find(q => q.id === id); if (p && U_(p.u) !== su) { p.u = su; ch = true; } }); }
       /* v743 : recherche par table (Map) au lieu d'un parcours de toutes les lignes pour chaque liaison (gros budgets) */
       const SE = new Map(INS.sec.map(x => [x.id, x])), DE = new Map(INS.des.map(x => [x.id, x])), PR = new Map((INS.prd || []).map(x => [x.id, x]));
       (INS.links || []).forEach(l => {
@@ -344,7 +344,7 @@
     const insRg = () => { const R = (INS && INS.hrange) || {}; return R.a || R.b ? { a: R.a || "", b: R.b || "" } : null; };
     const insRgTask = (key, R) => {
       let tot = 0, inn = 0;
-      ((LK && LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || []).forEach(p => {
+      ((ECR.LK && ECR.LK.dlpDraft && ECR.LK.dlpDraft[key]) || (INS.dlp || {})[key] || []).forEach(p => {
         if (!p.deb || !p.fin) return;
         tot += dDur(p.deb, p.fin);
         const s = R.a && R.a > p.deb ? R.a : p.deb, e = R.b && R.b < p.fin ? R.b : p.fin;
@@ -406,9 +406,9 @@
     };
     /* v476 (remarque 3) : produit pas encore lié — tâche primaire choisie (ronds) : PPB de la désignation, sinon vide */
     const lkPrimPrice = r => {
-      if (!INS_EDIT || !LK || !LK.des || !LK.prim || !LK.sec || !insIsPrimLink(LK.prim, LK.sec)) return "";
-      if (r && r.id && !(LK.prd && r.id in LK.prd)) return "";
-      const d = INS.des.find(x => x.id === LK.des);
+      if (!INS_EDIT || !ECR.LK || !ECR.LK.des || !ECR.LK.prim || !ECR.LK.sec || !insIsPrimLink(ECR.LK.prim, ECR.LK.sec)) return "";
+      if (r && r.id && !(ECR.LK.prd && r.id in ECR.LK.prd)) return "";
+      const d = INS.des.find(x => x.id === ECR.LK.des);
       return d && d.p !== "" && d.p !== undefined ? num(d.p) : "";
     };
     const insPrice = (k, r) => { if (k !== "prd") return r.p; const v = insPrdPrice(INS, r.id); return v !== "" ? v : (INS.links || []).some(l => (l.prd || []).some(x => x.id === r.id)) ? "" : lkPrimPrice(r); };
@@ -509,7 +509,7 @@
         /* v470 : produit d'une liaison primaire — UPB = celle de la désignation client (comme le PPB) : grisée */
         || (k === "prd" && f === "u" && !isNew && !!prdLinkU(r.id))
         /* v475 : activité secondaire choisie (rond) avec une unité : nouvelle ligne et produits choisis non liés prennent cette unité, grisée */
-        || (k === "prd" && f === "u" && !!lkSecU() && (isNew || (LK.prd && r.id in LK.prd && !prdLinkU(r.id))));
+        || (k === "prd" && f === "u" && !!lkSecU() && (isNew || (ECR.LK.prd && r.id in ECR.LK.prd && !prdLinkU(r.id))));
       /* FORMAT 111 : case AGRÉMENT EXIGÉ (charge) */
       if (type === "chk") return INS_EDIT && !isNew && !r.t
         ? `<td class="${cls} ins-td"><input type="checkbox" class="ins-chk" data-f="${f}"${r[f] ? " checked" : ""}></td>`
@@ -561,26 +561,26 @@
     /* page unique : rond à gauche = choix pour la liaison (2e toucher = libère le choix) ;
        case à droite = suppression (cochée, elle devient 🗑 ; ANNULER la décoche) */
     /* rond d'en-tête (FORMAT) : « toutes les lignes déjà liées » du bloc sont choisies, pour les délier d'un coup */
-    const lkAllLinked = (k, id) => LK.des && k !== "des" ? lkIsLinked(k, id) : lkAnyLinked(k, id);
+    const lkAllLinked = (k, id) => ECR.LK.des && k !== "des" ? lkIsLinked(k, id) : lkAnyLinked(k, id);
     /* v525 (remarque 2) : rond d'un TITRE (niveau de lot, titre de désignations) = toutes les lignes liées SOUS ce titre, même repliées */
     const lkInPart = (k, id) => {
-      const p = LK.allp && LK.allp[k]; if (!p) return true;
+      const p = ECR.LK.allp && ECR.LK.allp[k]; if (!p) return true;
       if (k === "lot") { const r = INS.lot.find(x => x.id === id); return !!r && lotUnder(r, dlyLotPath(p)); }
       if (k === "des") { const t = INS.des.find(x => x.id === p); return !!t && insBranch(t).some(x => x.id === id); }
       return true;
     };
-    const lkOn = (k, id) => (k === "prd" || k === "chg") ? LK[k][id] !== undefined : (LK.all && LK.all[k] ? lkAllLinked(k, id) && lkInPart(k, id) : LK[k] === id);
+    const lkOn = (k, id) => (k === "prd" || k === "chg") ? ECR.LK[k][id] !== undefined : (ECR.LK.all && ECR.LK.all[k] ? lkAllLinked(k, id) && lkInPart(k, id) : ECR.LK[k] === id);
     const lkRdPart = (k, key) => {
       if (!INS_EDIT) return "";
       /* v528 (remarque 1) : rond d'en-tête actif = tous les titres aussi ; rond d'un titre parent d'un titre choisi = choisi aussi */
-      const pk = LK.allp && LK.allp[k];
+      const pk = ECR.LK.allp && ECR.LK.allp[k];
       /* v529 (remarque 1) : titre choisi = ses sous-titres (sous-groupes) choisis aussi ; ses titres parents = « en partie » */
       const desIn = (top, id) => { const t = INS.des.find(x => x.id === top); return !!t && insBranch(t).some(x => x.id === id); };
       const inPk = !!pk && (k === "lot" ? (U_(pk) === U_(key) || U_(pk).startsWith(U_(key) + " / ")) : k === "des" ? desIn(key, pk) : false);
       const subPk = !!pk && (k === "lot" ? U_(key).startsWith(U_(pk) + " / ") : k === "des" ? key !== pk && desIn(pk, key) : false);
-      const on = !!(LK.all && LK.all[k] && (!pk || pk === key || subPk));
-      const part = !!(LK.all && LK.all[k] && inPk && pk !== key);
-      const busy = !!LK[k] || (!!(LK.all && LK.all[k]) && !on && !part);
+      const on = !!(ECR.LK.all && ECR.LK.all[k] && (!pk || pk === key || subPk));
+      const part = !!(ECR.LK.all && ECR.LK.all[k] && inPk && pk !== key);
+      const busy = !!ECR.LK[k] || (!!(ECR.LK.all && ECR.LK.all[k]) && !on && !part);
       /* v530 (remarque 1) : rond d'un titre = pastille avec le nombre de ses lignes (comme le DÉTAIL CHARGES), dans tous les tableaux */
       const n = k === "lot" ? INS.lot.filter(r => !r.t && lotUnder(r, dlyLotPath(key))).length
         : k === "des" ? (() => { const t = INS.des.find(x => x.id === key); return t ? insBranch(t).filter(x => !x.t).length : 0; })() : 0;
@@ -589,13 +589,13 @@
     /* lignes déjà liées à la désignation choisie (comme le choix du budget validé, niveau par niveau) :
        lots de la désignation ; activités primaires du lot choisi ; secondaires de la primaire choisie ;
        produits / charges de la secondaire choisie */
-    const lkLinks = upTo => (INS.links || []).filter(l => l.des === LK.des
-      && (upTo < 1 || !LK.lot || l.lot === LK.lot) && (upTo < 2 || !LK.prim || l.prim === LK.prim) && (upTo < 3 || !LK.sec || l.sec === LK.sec));
+    const lkLinks = upTo => (INS.links || []).filter(l => l.des === ECR.LK.des
+      && (upTo < 1 || !ECR.LK.lot || l.lot === ECR.LK.lot) && (upTo < 2 || !ECR.LK.prim || l.prim === ECR.LK.prim) && (upTo < 3 || !ECR.LK.sec || l.sec === ECR.LK.sec));
     const lkLinked = () => {
       const S = { lot: new Set(), prim: new Set(), sec: new Set(), prd: new Set(), chg: new Set() };
       /* aucune désignation choisie : toutes les lignes liées sont en bleu */
-      if (!LK.des) return insUsed();
-      S.des = new Set((INS.links || []).some(l => l.des === LK.des) ? [LK.des] : []);   /* la désignation choisie, si elle est liée */
+      if (!ECR.LK.des) return insUsed();
+      S.des = new Set((INS.links || []).some(l => l.des === ECR.LK.des) ? [ECR.LK.des] : []);   /* la désignation choisie, si elle est liée */
       lkLinks(0).forEach(l => S.lot.add(l.lot));
       lkLinks(1).forEach(l => S.prim.add(l.prim));
       lkLinks(2).forEach(l => S.sec.add(l.sec));
@@ -606,11 +606,11 @@
        elles remontent et passent en bleu foncé, dans tous les blocs, quel que soit l'élément choisi
        (le rond à point reste réservé aux lignes liées à la désignation choisie) */
     const lkHits = () => {
-      const ch = ["des", "lot", "prim", "sec"].filter(k => LK[k]);
-      const cp = Object.keys(LK.prd || {}), cc = Object.keys(LK.chg || {});
+      const ch = ["des", "lot", "prim", "sec"].filter(k => ECR.LK[k]);
+      const cp = Object.keys(ECR.LK.prd || {}), cc = Object.keys(ECR.LK.chg || {});
       if (!ch.length && !cp.length && !cc.length) return null;
       const S = { des: new Set(), lot: new Set(), prim: new Set(), sec: new Set(), prd: new Set(), chg: new Set() };
-      (INS.links || []).filter(l => ch.every(k => l[k] === LK[k])
+      (INS.links || []).filter(l => ch.every(k => l[k] === ECR.LK[k])
         && cp.every(id => (l.prd || []).some(x => x.id === id)) && cc.every(id => (l.chg || []).some(x => x.id === id)))
         .forEach(l => {
           ["des", "lot", "prim", "sec"].forEach(k => S[k].add(l[k]));
@@ -625,8 +625,8 @@
     const LK_T = { des: "UNE DÉSIGNATION", lot: "UN LOT", prim: "UNE ACTIVITÉ PRIMAIRE", sec: "UNE ACTIVITÉ SECONDAIRE" };
     const lkBan = (k, id) => {
       if (!INS_EDIT || !id || lkOn(k, id)) return "";
-      if (LK.all && LK.all[k]) return "TOUTES LES LIGNES LIÉES SONT CHOISIES : TOUCHER LE ROND D'EN-TÊTE POUR LIBÉRER.";
-      if (LK_T[k] && LK[k] && LK[k] !== id) return LK_T[k] + " EST DÉJÀ CHOISI(E) : LIBÉREZ-LA D'ABORD.";
+      if (ECR.LK.all && ECR.LK.all[k]) return "TOUTES LES LIGNES LIÉES SONT CHOISIES : TOUCHER LE ROND D'EN-TÊTE POUR LIBÉRER.";
+      if (LK_T[k] && ECR.LK[k] && ECR.LK[k] !== id) return LK_T[k] + " EST DÉJÀ CHOISI(E) : LIBÉREZ-LA D'ABORD.";
       /* désignation sans UPB : elle ne peut pas être liée */
       if (k === "des") { const D = INS.des.find(x => x.id === id); if (D && !D.t && !U_(D.u)) return "UPB MANQUANTE : SAISIR L'UNITÉ DE LA DÉSIGNATION AVANT DE LA LIER."; }
       if (k === "prim" || k === "sec") {
@@ -637,10 +637,10 @@
         return "";
       }
 
-      if ((k === "prd" || k === "chg") && LK.lot && LK.sec) {
-        const l = (INS.links || []).find(l => l.lot === LK.lot && l.sec === LK.sec && !(l.des === LK.des && l.prim === LK.prim)
+      if ((k === "prd" || k === "chg") && ECR.LK.lot && ECR.LK.sec) {
+        const l = (INS.links || []).find(l => l.lot === ECR.LK.lot && l.sec === ECR.LK.sec && !(l.des === ECR.LK.des && l.prim === ECR.LK.prim)
           && (l[k] || []).some(x => x.id === id));
-        if (l) return "RÈGLE D : DÉJÀ DANS LA TÂCHE SECONDAIRE " + lkName("lot", LK.lot) + " › " + lkName("sec", LK.sec) + ".";
+        if (l) return "RÈGLE D : DÉJÀ DANS LA TÂCHE SECONDAIRE " + lkName("lot", ECR.LK.lot) + " › " + lkName("sec", ECR.LK.sec) + ".";
       }
       return "";
     };
@@ -654,7 +654,7 @@
     /* ordre : 1) choisies, 2) cochées, 3) liées à ce qui est choisi, 4) autres lignes qu'on peut choisir
        (liées puis non liées), 5) en bas, les lignes grisées qu'on ne peut pas choisir */
     /* FORMAT 131 : une case cochée ne fait plus remonter la ligne (seuls les ronds) */
-    const lkRank = (k, r) => lkOn(k, r.id) ? 0 : (lkHit(k, r.id) || (LK.des && lkIsLinked(k, r.id))) ? 2
+    const lkRank = (k, r) => lkOn(k, r.id) ? 0 : (lkHit(k, r.id) || (ECR.LK.des && lkIsLinked(k, r.id))) ? 2
       : (k !== "des" && lkBan(k, r.id)) ? 5 : lkAnyLinked(k, r.id) ? 3 : 4;
     const lkTop = (k, rows) => {
       if (!INS_EDIT) return rows;
@@ -664,13 +664,13 @@
     const lkRdAll = k => {
       if (!INS_EDIT || !["des", "lot", "prim", "sec", "prd", "chg"].includes(k)) return "";
       const multi = k === "prd" || k === "chg";
-      const on = multi ? (Object.keys(LK[k]).length > 0 && LK.allm && LK.allm[k]) : !!(LK.all && LK.all[k] && !(LK.allp && LK.allp[k]));
-      const busy = multi ? (Object.keys(LK[k]).length > 0 && !on) : !!LK[k];
+      const on = multi ? (Object.keys(ECR.LK[k]).length > 0 && ECR.LK.allm && ECR.LK.allm[k]) : !!(ECR.LK.all && ECR.LK.all[k] && !(ECR.LK.allp && ECR.LK.allp[k]));
+      const busy = multi ? (Object.keys(ECR.LK[k]).length > 0 && !on) : !!ECR.LK[k];
       return `<span class="lk-rd lk-rdall${on ? " on" : ""}${busy ? " off" : ""}" data-rdall="${k}" role="button" aria-label="Choisir toutes les lignes liées"></span>`;
     };
     /* v490 (remarque 4) : quel que soit le rond choisi (désignation, lot, activité, produit, charge), les lignes liées
        à ce choix ont le point dans leur rond (avant : seulement quand une désignation était choisie) */
-    const lkRd = (k, r) => INS_EDIT && r && r.t && k === "des" ? lkRdPart("des", r.id) : INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${(LK.des && lkIsLinked(k, r.id)) || lkHit(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
+    const lkRd = (k, r) => INS_EDIT && r && r.t && k === "des" ? lkRdPart("des", r.id) : INS_EDIT && r && !r.t ? `<span class="lk-rd${lkOn(k, r.id) ? " on" : ""}${(ECR.LK.des && lkIsLinked(k, r.id)) || lkHit(k, r.id) ? " lnk" : ""}" data-rd="${k}" role="button" aria-label="Choisir pour la liaison"></span>` : "";
     /* v717 : CONSOLIDÉ — chaque article une fois (quantité totale) avec › / ⌄ ; déplié = une ligne par origine (BUDGET INITIAL, AVENANT n) ;
        toucher une ligne = ouvrir cette étape */
     const AVO_SET = shell.__avoSet = shell.__avoSet || new Set();
@@ -686,8 +686,8 @@
       const cols = insColsOrd(k);
       const tcell = "";   /* plus de colonne T : un titre se crée en superposant deux lignes (FORMAT 61) */
       const sel = r && !r.t && lkOn(k, r.id);
-      const dim = k === "des" && r && !r.t && LK.des && !sel;
-      const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
+      const dim = k === "des" && r && !r.t && ECR.LK.des && !sel;
+      const qc = insQCol(k) ? `<td class="number lk-qc">${r ? `<input class="lk-q" data-qk="${k}" inputmode="decimal" value="${sel ? esc(ECR.LK[k][r.id] ?? "") : ""}" ${sel ? "" : "disabled"}>` : ""}</td>` : "";
       const lnk = r && !r.t && lkAnyLinked(k, r.id);   /* bleu = liée (à n'importe quelle désignation) */
       INS_CELL_LVL = lvl || 0;
       return `<tr class="ins-row${r ? "" : " ins-new"}${lvl ? " ins-gkid" : ""}${r && r.t ? " ins-title lv" + Math.min(3, dOf(r) + 1) + (foldGet()[r.id] && insBranch(r).some(x => !x.t && x.on === true) ? " ins-hasck" : "") : ""}${sel ? " lk-sel" : ""}${lnk ? " lk-link" : ""}${r && !r.t && lkHit(k, r.id) ? " lk-hit" : ""}${dim && !(r && lkHit(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}"
@@ -805,7 +805,7 @@
         shell.__fold(b.dataset.fold);
       }, true);
     }
-    const foldBtn = r => r && r.t ? `<span class="ins-fold${foldGet()[r.id] ? "" : " open"}${INS_EDIT ? (() => { const B = insBranch(r).filter(x => !x.t); return sviFoldState(B.some(x => LK.des === x.id), B.some(x => lkHit("des", x.id))); })() : ""}" data-fold="${r.id}" role="button" aria-label="Replier / déplier">${foldGet()[r.id] ? "›" : "⌄"}</span>` : "";
+    const foldBtn = r => r && r.t ? `<span class="ins-fold${foldGet()[r.id] ? "" : " open"}${INS_EDIT ? (() => { const B = insBranch(r).filter(x => !x.t); return sviFoldState(B.some(x => ECR.LK.des === x.id), B.some(x => lkHit("des", x.id))); })() : ""}" data-fold="${r.id}" role="button" aria-label="Replier / déplier">${foldGet()[r.id] ? "›" : "⌄"}</span>` : "";
     const insMore = {};
     /* v492 (remarque 10) : DÉTAIL CHARGES filtré (filtre de colonne, cases cochées d'un autre bloc, « seulement les cochées ») */
     /* v499 (remarque 45) : charges identiques regroupées = un TITRE (gras, fond gris) — QCB, MCB HT et TTC cumulés,
@@ -848,11 +848,11 @@
         return `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}${f === "des" ? " ins-gtd" : ""}">${f === "des" ? fb : ""}${esc(v[f] ?? "")}</td>`;
       };
       /* v507 (remarque 63) : la pastille (nombre de lignes) sert de rond — toucher = choisir / libérer toutes ses charges */
-      const nch = INS_EDIT && LK && LK.chg ? g.filter(r => LK.chg[r.id] !== undefined).length : 0;
+      const nch = INS_EDIT && ECR.LK && ECR.LK.chg ? g.filter(r => ECR.LK.chg[r.id] !== undefined).length : 0;
       /* v508 (remarque 65) : couleur des ronds de ses lignes — rouge (choisies), bleu (liées à ce qui est choisi) */
-      const isB = r => INS_EDIT && ((LK.des && lkIsLinked("chg", r.id)) || lkHit("chg", r.id));
+      const isB = r => INS_EDIT && ((ECR.LK.des && lkIsLinked("chg", r.id)) || lkHit("chg", r.id));
       /* v510 (remarque 67) : mélange de rouge (choisies) et de bleu (liées) = violet */
-      const stt = new Set(g.map(r => LK && LK.chg && LK.chg[r.id] !== undefined ? (isB(r) ? "b" : "r") : (isB(r) ? "b" : "")).filter(Boolean));
+      const stt = new Set(g.map(r => ECR.LK && ECR.LK.chg && ECR.LK.chg[r.id] !== undefined ? (isB(r) ? "b" : "r") : (isB(r) ? "b" : "")).filter(Boolean));
       const blu = stt.has("b") && !stt.has("r"), vio = stt.has("b") && stt.has("r");
       return `<tr class="ins-row ins-grp ins-gtitle${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir toutes les charges">${pstNum(g.length)}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
@@ -866,9 +866,9 @@
       const non = g.filter(r => r.on === true).length;
       const cell = c => `<td class="${c[2]}${INS_EDIT ? " ins-lock" : ""}${c[0] === "des" ? " ins-gtd" : ""}">${c[0] === "des" ? fb + esc(g[0].des || "") : ""}</td>`;
       /* v530 (remarque 1) : la pastille du titre choisit / libère tous ses produits, comme celle des charges */
-      const nch = INS_EDIT && LK && LK.prd ? g.filter(r => LK.prd[r.id] !== undefined).length : 0;
-      const isB = r => INS_EDIT && ((LK.des && lkIsLinked("prd", r.id)) || lkHit("prd", r.id));
-      const stt = new Set(g.map(r => LK && LK.prd && LK.prd[r.id] !== undefined ? (isB(r) ? "b" : "r") : (isB(r) ? "b" : "")).filter(Boolean));
+      const nch = INS_EDIT && ECR.LK && ECR.LK.prd ? g.filter(r => ECR.LK.prd[r.id] !== undefined).length : 0;
+      const isB = r => INS_EDIT && ((ECR.LK.des && lkIsLinked("prd", r.id)) || lkHit("prd", r.id));
+      const stt = new Set(g.map(r => ECR.LK && ECR.LK.prd && ECR.LK.prd[r.id] !== undefined ? (isB(r) ? "b" : "r") : (isB(r) ? "b" : "")).filter(Boolean));
       const blu = stt.has("b") && !stt.has("r"), vio = stt.has("b") && stt.has("r");
       return `<tr class="ins-row ins-grp ins-gtitle ins-pgrp${fo && non ? " ins-hasck" : ""}" data-grp="${g.map(r => r.id).join(",")}"><td class="center ins-rdc"><span class="ins-grpn${INS_EDIT ? " ins-grd" : ""}${nch && nch === g.length ? " on" : nch ? " part" : ""}${blu ? " blu" : vio ? " vio" : ""}" role="button" aria-label="Choisir tous les produits">${pstNum(g.length)}</span></td>${cols.map(cell).join("")}${INS_EDIT ? `<td class="center ins-delc"><input type="checkbox" class="ins-gcb"${non === g.length ? " checked" : ""}${non && non < g.length ? ' data-part="1"' : ""}></td>` : ""}</tr>`;
     };
@@ -1350,7 +1350,7 @@
       const walk = n => n.kids.forEach(c => { (c.recs || []).forEach(r => rows.push(r)); walk(c); });
       walk(root);
       const byPath = new Set(rows.map(r => U_(lotSegs(r).join(" / "))));
-      const ch = LK.lot && INS.lot.find(x => x.id === LK.lot), chP = ch ? U_(lotSegs(ch).join(" / ")) : "";
+      const ch = ECR.LK.lot && INS.lot.find(x => x.id === ECR.LK.lot), chP = ch ? U_(lotSegs(ch).join(" / ")) : "";
       const folded = p => dlyIsFolded(p) && !chP.startsWith(U_(p) + " / ");
       const out = [], seen = new Set();
       rows.forEach(r => {
@@ -1373,7 +1373,7 @@
       const pad = `style="margin-left:${x.lvl * 16}px"`;
       /* v510 (remarque 68) : signe d'un niveau aux couleurs des ronds de sa branche (rouge choisi, bleu lié, violet mélange) */
       const UB = INS.lot.filter(r => !r.t && lotUnder(r, x.segs));
-      const fst = x.kids && INS_EDIT ? sviFoldState(UB.some(r => LK.lot === r.id), UB.some(r => lkHit("lot", r.id))) : "";
+      const fst = x.kids && INS_EDIT ? sviFoldState(UB.some(r => ECR.LK.lot === r.id), UB.some(r => lkHit("lot", r.id))) : "";
       const fold = x.kids ? `<span class="ins-fold lot-fold${fst}" data-path="${esc(x.path)}">${dlyIsFolded(x.path) ? "›" : "⌄"}</span>` : `<span class="lot-fold-sp"></span>`;
       if (x.grp) {
         /* niveau sans lot à lui : nom modifiable, case = toute sa branche */
@@ -1388,7 +1388,7 @@
       const pre = x.segs.length > 1 ? x.segs.slice(0, -1).join(" / ") + " / " : "";
       const LL = lotLab(x.segs);
       const nm = x.segs.length ? LL.name : (r.v || "");
-      return `<div class="ins-li${x.kids ? " lot-par" : ""}${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
+      return `<div class="ins-li${x.kids ? " lot-par" : ""}${INS_EDIT && ECR.LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && ECR.LK[k] && ECR.LK[k] !== r.id && !(ECR.LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
           ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><span class="lot-in" ${pad}>${lotNoHTML(LL)}${fold}<input class="ins-in" data-f="v" enterkeyhint="next" data-pre="${esc(pre)}" value="${esc(nm)}" autocomplete="off"></span>
             <span class="ins-delc">${insDelCell(r)}</span>` : `<span class="lot-in" ${pad}>${lotNoHTML(LL)}${fold}<span>${esc(x.segs.length ? LL.name : nm)}</span></span>`}
         </div>`;
@@ -1585,7 +1585,7 @@
           <div class="bdg-h-head ${on ? "cf-on" : ""}">${INS_EDIT ? `<span class="ins-rdc">${lkRdAll(k)}</span>` : ""}<span class="cf-wrap"><span class="cf-lab">${k === "lot" ? shell.__faHTML("lot") : ""}<span class="cf-tt" title="${esc(String(title).replace(/<[^>]*>/g, ""))}"${SVI_HD_ALT[title] ? ` data-alt="${esc(JSON.stringify([title].concat(SVI_HD_ALT[title])))}"` : ""}>${title}</span>${insCkBadge(k)}${insCntOwn(k, list.length, INS[k].length)}</span>${onlyBtn(k, true)}<span class="cf-btn"
             data-cf="${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>${k === "sec" || k === "prim" ? `<span class="act-uh${cfT(k).f.u || (cfT(k).sort && cfT(k).sort.col === "u" && !cfT(k).sort.def) ? " cf-on" : ""}"><span class="act-uhl">U</span><span class="cf-btn" data-cf="${k}" data-col="u" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span>` : ""}${INS_EDIT
             ? `<span class="ins-hdel"><input type="checkbox" class="ins-cball" title="Tout cocher"${list.length && list.every(r => r.on === true) ? " checked" : ""}></span>` : ""}</div>
-          ${k === "lot" ? lotTreeHTML(list) : actListHTML(k, list, r => `<div class="ins-li${actGrpOf(k, r) ? " act-in" : ""}${INS_EDIT && LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && LK[k] && LK[k] !== r.id && !(LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
+          ${k === "lot" ? lotTreeHTML(list) : actListHTML(k, list, r => `<div class="ins-li${actGrpOf(k, r) ? " act-in" : ""}${INS_EDIT && ECR.LK[k] === r.id ? " lk-sel" : ""}${INS_EDIT && lkAnyLinked(k, r.id) ? " lk-link" : ""}${INS_EDIT && lkHit(k, r.id) ? " lk-hit" : ""}${INS_EDIT && ECR.LK[k] && ECR.LK[k] !== r.id && !(ECR.LK.des && lkIsLinked(k, r.id)) ? " lk-dim" : ""}${lkBanAttr(k, r) ? " lk-ban" : ""}" data-ik="${k}" data-iid="${r.id}"${lkBanAttr(k, r)}>
               ${INS_EDIT ? `<span class="ins-rdc">${lkRd(k, r)}</span><input class="ins-in" data-f="v" enterkeyhint="next" value="${esc(r.v || "")}" autocomplete="off">${actUCell(k, r)}
                 <span class="ins-delc">${insDelCell(r)}</span>` : `<span>${esc(r.v || "")}</span>${actUCell(k, r)}`}
             </div>`)}

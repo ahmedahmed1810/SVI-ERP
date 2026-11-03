@@ -823,7 +823,7 @@
         { const sc = body.querySelector(".dly-scroll"); if (sc) sc.querySelectorAll(":scope > .dly-iso").forEach(b => sc.before(b)); }
         /* v454 : nouvelle tâche choisie par les ronds → le PLANNING défile jusqu'à sa ligne (surlignée) */
         /* v464 : ronds changés → tableau ouvert s'il était caché, première tâche surlignée en haut du tableau et du Gantt */
-        { const pk = [LK.des, LK.lot, LK.prim, LK.sec, Object.keys(LK.prd || {}).join(","), Object.keys(LK.chg || {}).join(",")].join("|");
+        { const pk = [ECR.LK.des, ECR.LK.lot, ECR.LK.prim, ECR.LK.sec, Object.keys(ECR.LK.prd || {}).join(","), Object.keys(ECR.LK.chg || {}).join(",")].join("|");
           if (pk !== shell.__dlyPickK) { shell.__dlyPickK = pk; if (shell.__dlyPS && shell.__dlyPS.size) setTimeout(() => {
             if (shell.__dlyOpenToDur) shell.__dlyOpenToDur();
             setTimeout(() => {
@@ -990,7 +990,7 @@
       isUsed: (k, id) => {
         if (!["des", "lot", "prim", "sec", "prd", "chg"].includes(k)) return false;
         let bak = null;
-        try { bak = LK.linksBak; } catch (e) {}
+        try { bak = ECR.LK.linksBak; } catch (e) {}
         return [INS.links || [], bak || []].some(L => L.some(l => k === "prd" || k === "chg" ? (l[k] || []).some(x => x.id === id) : l[k] === id));
       } } : null;
     /* v495 (remarque 24) : case d'une ligne regroupée = coche / décoche toutes les charges qu'elle réunit */
@@ -1340,7 +1340,7 @@
         /* v581 (remarque 8) : renvoi vers une colonne de la hiérarchie */
         if (b.go.startsWith("hier:")) { shell.querySelector(`.ins-hcol[data-ik="${b.go.slice(5)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
         if (b.go === "des") { shell.querySelector(".bdg-d-client-scroll")?.scrollIntoView({ block: "start", behavior: "smooth" }); return; }
-        if (b.go === "dly") { LK.lot = LK.sec = LK.prim = null; }
+        if (b.go === "dly") { ECR.LK.lot = ECR.LK.sec = ECR.LK.prim = null; }
         if (b.go === "prdnc") { shell.__prdNc = new Set(b.prd); b = { go: "prd" }; if (ECR.active === "prd") { renderTab(); return; } }
         const t = shell.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${b.go}"]`);
         if (t) { t.click(); t.scrollIntoView({ block: "start", behavior: "smooth" }); }

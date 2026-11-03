@@ -113,9 +113,9 @@ ${A}</Assignments>
     };
     const dlyDraft = () => {
       const key = insDlyKey();
-      LK.dlpDraft = LK.dlpDraft || {};
-      if (key && !LK.dlpDraft[key]) LK.dlpDraft[key] = ((INS.dlp || {})[key] || []).map(p => ({ ...p }));
-      return LK.dlpDraft;
+      ECR.LK.dlpDraft = ECR.LK.dlpDraft || {};
+      if (key && !ECR.LK.dlpDraft[key]) ECR.LK.dlpDraft[key] = ((INS.dlp || {})[key] || []).map(p => ({ ...p }));
+      return ECR.LK.dlpDraft;
     };
     /* FORMAT 22 : actions du planning (Gantt compris) — l'écran ne bouge jamais */
     const renderTabK = () => { grpFlush(); keepScroll(() => renderTab()); };
@@ -215,7 +215,7 @@ ${A}</Assignments>
         }
         mine.forEach(l => { l.lot = nl; });
         const mv = o => { if (o && Object.prototype.hasOwnProperty.call(o, key)) { o[nk] = o[key]; delete o[key]; } };
-        mv(INS.dlp); mv(LK.dlpDraft); mv(INS.jal); mv(INS.dpred);
+        mv(INS.dlp); mv(ECR.LK.dlpDraft); mv(INS.jal); mv(INS.dpred);
         Object.keys(INS.dpred || {}).forEach(s2 => { INS.dpred[s2] = dlyLinks(s2).map(x => x.k === key ? { ...x, k: nk } : x); });
         INS.dord = (INS.dord || []).map(x => x === key ? nk : x);
         if (shell.__dlySel && shell.__dlySel.has(key)) { shell.__dlySel.delete(key); shell.__dlySel.add(nk); }
@@ -276,7 +276,7 @@ ${A}</Assignments>
         const pr = (mode === "fus" ? [...dlyLinks(ek), ...dlyLinks(key)] : dlyLinks(key)).filter(x => !both.includes(x.k));
         const jal = mode === "fus" ? !!((INS.jal || {})[key] || (INS.jal || {})[ek]) : !!(INS.jal || {})[key];
         INS.links = plan.links;
-        both.forEach(k => { if (INS.dlp) delete INS.dlp[k]; if (LK.dlpDraft) delete LK.dlpDraft[k]; if (INS.dpred) delete INS.dpred[k]; if (INS.jal) delete INS.jal[k]; });
+        both.forEach(k => { if (INS.dlp) delete INS.dlp[k]; if (ECR.LK.dlpDraft) delete ECR.LK.dlpDraft[k]; if (INS.dpred) delete INS.dpred[k]; if (INS.jal) delete INS.jal[k]; });
         if (db || fn) { INS.dlp = INS.dlp || {}; INS.dlp[S] = [{ id: insId(), deb: db, fin: fn }]; }
         INS.jal = INS.jal || {}; if (jal) INS.jal[S] = true;
         /* successeurs des deux tâches reportés sur S (sans doublon) */
@@ -331,7 +331,7 @@ ${A}</Assignments>
           }
         }
         const apply = () => {
-          const back = JSON.stringify({ dlp: INS.dlp || {}, dr: LK.dlpDraft || {} });
+          const back = JSON.stringify({ dlp: INS.dlp || {}, dr: ECR.LK.dlpDraft || {} });
           Object.keys(N).forEach(k => {
             const L = dlyDraftKey(k);
             if (L.length > 1 && N[k].deb) { dlyShiftList(L, N[k].deb); return; }
@@ -341,7 +341,7 @@ ${A}</Assignments>
           dlyCommitDrafts(); dlyRespect(false);
           const f1 = dlyEnd(dlyCurDates());
           if (INS.dbut && f1 > INS.dbut) {
-            const b = JSON.parse(back); INS.dlp = b.dlp; LK.dlpDraft = b.dr;
+            const b = JSON.parse(back); INS.dlp = b.dlp; ECR.LK.dlpDraft = b.dr;
             svToast("DÉPLACEMENT REFUSÉ : LA DATE BUTOIR DU " + dFr(INS.dbut) + " SERAIT DÉPASSÉE (FIN LE " + dFr(f1) + ").", 4500, anchor);
             renderTabK(); return;
           }
@@ -567,7 +567,7 @@ ${A}</Assignments>
       removeTasks: keys => {
         keys.forEach(k => {
           if (INS.dlp) delete INS.dlp[k];
-          if (LK.dlpDraft) delete LK.dlpDraft[k];
+          if (ECR.LK.dlpDraft) delete ECR.LK.dlpDraft[k];
           if (INS.dpred) delete INS.dpred[k];
           if (INS.jal) delete INS.jal[k];
           Object.keys(INS.dpred || {}).forEach(s2 => { INS.dpred[s2] = dlyLinks(s2).filter(x => x.k !== k); if (!INS.dpred[s2].length) delete INS.dpred[s2]; });
@@ -652,6 +652,6 @@ ${A}</Assignments>
       },
       pickPreds: k => dlyPickPreds(k), addWin: () => dlyAddWin(),
       scale: v => { try { localStorage.setItem("svi_dlyg_sc_v1", v); } catch (e) {} { const R0 = dlyHRange(); if (R0.a || R0.b) shell.__dlyCenter = true; } keepScroll(() => renderTab()); }, scaleOf: () => dlyScale(),
-      go: k => { const [lo, se] = k.split("|"); LK.lot = lo; LK.sec = se; LK.prim = null; refreshAll(); },
+      go: k => { const [lo, se] = k.split("|"); ECR.LK.lot = lo; ECR.LK.sec = se; ECR.LK.prim = null; refreshAll(); },
       render: () => { renderTabK(); insRenderChain(); } } : null;
     /* budget ouvert, pour PARAMÉTRAGE › CALENDRIER et DATES DU BUDGET (15/10/2026) */

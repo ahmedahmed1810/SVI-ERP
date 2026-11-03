@@ -34,7 +34,7 @@
       const G = [];
       if (!INS) return G;
       const ck = k => (INS[k] || []).filter(r => !r.t && r.on === true).length;
-      const rd = k => (k === "prd" || k === "chg") ? Object.keys(LK[k] || {}).length : (LK.all && LK.all[k] ? 1 : LK[k] ? 1 : 0);
+      const rd = k => (k === "prd" || k === "chg") ? Object.keys(ECR.LK[k] || {}).length : (ECR.LK.all && ECR.LK.all[k] ? 1 : ECR.LK[k] ? 1 : 0);
       const add = (blk, go, it) => { it = it.filter(Boolean); if (it.length) G.push({ blk, go, it }); };
       const std = k => [ck(k) && { lab: "CASES COCHÉES", n: ck(k) }, rd(k) && { lab: "RONDS ALLUMÉS", n: rd(k) },
         cfHasF(insCfT(k)) && { lab: "LOUPE", n: Object.keys(CF[insCfT(k)].f).length }, ONLYC[k] && { lab: "COCHÉES" }];
@@ -178,4 +178,4 @@
     };
     /* tâche SECONDAIRE choisie (désignation + lot + activité secondaire), seulement si elle est déjà liée */
     /* tâche secondaire choisie par les ronds (lot + activité secondaire), liée ou non : le planning peut précéder les liaisons */
-    const insDlyKey = () => LK.lot && LK.sec ? LK.lot + "|" + LK.sec : null;
+    const insDlyKey = () => ECR.LK.lot && ECR.LK.sec ? ECR.LK.lot + "|" + ECR.LK.sec : null;

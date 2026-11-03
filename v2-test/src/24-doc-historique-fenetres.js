@@ -341,8 +341,8 @@
     };
     /* chemin des ronds pleins au moment de l'ajout */
     const attNow = () => {
-      if (!INS || !LK) return null;
-      return attNorm({ k: "path", des: LK.des || "", lot: LK.lot || "", prim: LK.prim || "", sec: LK.sec || "", prd: Object.keys(LK.prd || {}), chg: Object.keys(LK.chg || {}) });
+      if (!INS || !ECR.LK) return null;
+      return attNorm({ k: "path", des: ECR.LK.des || "", lot: ECR.LK.lot || "", prim: ECR.LK.prim || "", sec: ECR.LK.sec || "", prd: Object.keys(ECR.LK.prd || {}), chg: Object.keys(ECR.LK.chg || {}) });
     };
     const attFormHTML = () => `<label class="doc-lab" for="recAtt">RATTACHÉ À</label><input id="recAtt" class="doc-in doc-ro" value="${esc(attLab(attNow()))}" readonly>`;
     const attRead = () => { const a = attNow(); return a ? { k: "path", ...a } : null; };

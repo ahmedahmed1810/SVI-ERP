@@ -11,7 +11,7 @@
     const dlyPredTxt = k => dlyLinks(k).map(x => dlyName(x.k) + (x.t === "DD" ? (x.o ? " (DÉBUT → DÉBUT + " + x.o + " J)" : " (DÉBUT → DÉBUT)") : !(x.o > 0) ? "" : " (FIN → DÉBUT + " + x.o + " J)")).join(" ; ");
     /* v546 (R27) : SUCCESSEURS affichés (lecture seule), avec le type de la liaison */
     const dlySuccTxt = k => dlySuccs(k).map(s2 => { const x = dlyLinks(s2).find(y => y.k === k) || {}; return dlyName(s2) + " (" + (x.t === "DD" ? "DÉBUT → DÉBUT" : "FIN → DÉBUT") + ")"; }).join(" ; ");
-    const dlyList = key => (LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
+    const dlyList = key => (ECR.LK.dlpDraft && ECR.LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
     const dlyFin = key => dlyList(key).map(p => p.fin).filter(Boolean).sort().pop() || "";
     const dlyDeb = key => dlyList(key).map(p => p.deb).filter(Boolean).sort()[0] || "";
     /* date de début la plus tôt permise par les liaisons (la plus tardive des exigences) :
@@ -24,7 +24,7 @@
     const dlyPredFin = key => dlyNeedOf(key, dlyFin, dlyDeb);
     /* la tâche k est-elle (de proche en proche) un prédécesseur de c ? (boucle interdite) */
     const dlyReach = (c, k, seen = new Set()) => { if (c === k) return true; if (seen.has(c)) return false; seen.add(c); return dlyPreds(c).some(x => dlyReach(x, k, seen)); };
-    const dlyDraftKey = key => { LK.dlpDraft = LK.dlpDraft || {}; if (!LK.dlpDraft[key]) LK.dlpDraft[key] = ((INS.dlp || {})[key] || []).map(p => ({ ...p })); return LK.dlpDraft[key]; };
+    const dlyDraftKey = key => { ECR.LK.dlpDraft = ECR.LK.dlpDraft || {}; if (!ECR.LK.dlpDraft[key]) ECR.LK.dlpDraft[key] = ((INS.dlp || {})[key] || []).map(p => ({ ...p })); return ECR.LK.dlpDraft[key]; };
     /* placer une tâche à un nouveau début en gardant sa durée (jours travaillés) */
     const dlyMoveTo = (k, deb) => {
       const cal = insCal(k), L = dlyDraftKey(k), p = L[0];
@@ -62,10 +62,10 @@
           const cal = insCal(k), dur = p0.fin ? sviWDur(cal, p0.deb, p0.fin) || 1 : 0, deb = sviWNear(cal, need, 1), fin = dur ? sviWFin(cal, deb, dur) : p0.fin;
           if (!moved.has(k)) moved.set(k, p0.deb);
           INS.dlp = INS.dlp || {};
-          if (L.length > 1) { const nl = L.map(p => ({ ...p })); dlyShiftList(nl, deb, k); INS.dlp[k] = nl; if (LK.dlpDraft && LK.dlpDraft[k]) LK.dlpDraft[k] = nl.map(p => ({ ...p })); ch = true; return; }
+          if (L.length > 1) { const nl = L.map(p => ({ ...p })); dlyShiftList(nl, deb, k); INS.dlp[k] = nl; if (ECR.LK.dlpDraft && ECR.LK.dlpDraft[k]) ECR.LK.dlpDraft[k] = nl.map(p => ({ ...p })); ch = true; return; }
           const np = { id: p0.id || insId(), deb, fin: fin || "" };
           INS.dlp[k] = [np];
-          if (LK.dlpDraft && LK.dlpDraft[k]) LK.dlpDraft[k] = [{ ...LK.dlpDraft[k][0], deb, fin: fin || "" }];
+          if (ECR.LK.dlpDraft && ECR.LK.dlpDraft[k]) ECR.LK.dlpDraft[k] = [{ ...ECR.LK.dlpDraft[k][0], deb, fin: fin || "" }];
           ch = true;
         });
       }
@@ -107,7 +107,7 @@
       const S = new Set();
       (INS.links || []).forEach(l => S.add(l.lot + "|" + l.sec));
       Object.keys(INS.dlp || {}).forEach(k => { if ((INS.dlp[k] || []).length) S.add(k); });
-      Object.keys(LK.dlpDraft || {}).forEach(k => { if ((LK.dlpDraft[k] || []).length) S.add(k); });
+      Object.keys(ECR.LK.dlpDraft || {}).forEach(k => { if ((ECR.LK.dlpDraft[k] || []).length) S.add(k); });
       Object.keys(INS.dpred || {}).forEach(k => { S.add(k); dlyPreds(k).forEach(x => S.add(x)); });
       { const ck = typeof insDlyKey === "function" ? insDlyKey() : null; if (ck) S.add(ck); }
       const ok = k => { const [lo, se] = k.split("|"); return INS.lot.some(x => x.id === lo) && INS.sec.some(x => x.id === se); };

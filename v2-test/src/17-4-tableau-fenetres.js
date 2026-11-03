@@ -5,16 +5,16 @@
     const dlyCurDates = () => { const D = {}; dlyKeys().forEach(k => { const d = dlyDeb(k), f = dlyFin(k), L = dlyList(k); if (d && f) D[k] = { deb: d, fin: f, hs: L.length === 1 && dlyHalfS(L[0]), he: L.length === 1 && dlyHalfE(L[0]),
       per: L.filter(p => p.deb && p.fin).map(p => ({ deb: p.deb, fin: p.fin, hs: dlyHalfS(p), he: dlyHalfE(p) })) }; }); return D; };
     /* périodes affichées : brouillon en cours (à valider) ou périodes validées */
-    const insDlyList = key => (LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
+    const insDlyList = key => (ECR.LK.dlpDraft && ECR.LK.dlpDraft[key]) || (INS.dlp || {})[key] || [];
     /* v454 : dates saisies dans le PLANNING (ou sur le Gantt) enregistrées aussitôt (annulables par ↶) */
     const dlyCommitDrafts = () => {
-      if (!INS_EDIT || !LK.dlpDraft) return;
+      if (!INS_EDIT || !ECR.LK.dlpDraft) return;
       let ch = false;
-      Object.keys(LK.dlpDraft).forEach(k => {
+      Object.keys(ECR.LK.dlpDraft).forEach(k => {
         /* v530 : demi-journées gardées tant que la date n'a pas changé */
-        INS.dlp[k] = (LK.dlpDraft[k] || []).filter(p => p.deb || p.fin).map(p => ({ id: p.id, deb: p.deb || "", fin: p.fin || "", ...(dlyHalfS(p) ? { dmd: p.deb } : {}), ...(dlyHalfE(p) ? { fmd: p.fin } : {}) }));
+        INS.dlp[k] = (ECR.LK.dlpDraft[k] || []).filter(p => p.deb || p.fin).map(p => ({ id: p.id, deb: p.deb || "", fin: p.fin || "", ...(dlyHalfS(p) ? { dmd: p.deb } : {}), ...(dlyHalfE(p) ? { fmd: p.fin } : {}) }));
         if (!INS.dlp[k].length) delete INS.dlp[k];
-        delete LK.dlpDraft[k]; ch = true;
+        delete ECR.LK.dlpDraft[k]; ch = true;
       });
       if (ch) setTimeout(() => insSave(), 0);
     };
@@ -22,15 +22,15 @@
     /* v464 : ronds pleins (désignation, lot, activités, produits, charges) → tâches des liaisons correspondantes surlignées
        dans le PLANNING (ligne et barre), les autres grisées ; null = aucun rond plein */
     const dlyPickSet = () => {
-      const ch = ["des", "lot", "prim", "sec"].filter(k => LK[k]);
-      const cp = Object.keys(LK.prd || {}), cc = Object.keys(LK.chg || {});
+      const ch = ["des", "lot", "prim", "sec"].filter(k => ECR.LK[k]);
+      const cp = Object.keys(ECR.LK.prd || {}), cc = Object.keys(ECR.LK.chg || {});
       /* v538 : rond d'un titre de lots (ou rond d'en-tête) = ses tâches surlignées dans le PLANNING */
-      if (!ch.length && !cp.length && !cc.length && LK.all && LK.all.lot) return new Set(dlyKeys().filter(k => lkOn("lot", k.split("|")[0])));
+      if (!ch.length && !cp.length && !cc.length && ECR.LK.all && ECR.LK.all.lot) return new Set(dlyKeys().filter(k => lkOn("lot", k.split("|")[0])));
       if (!ch.length && !cp.length && !cc.length) return null;
       const S = new Set();
-      (INS.links || []).filter(l => ch.every(k => l[k] === LK[k]) && cp.every(id => (l.prd || []).some(x => x.id === id)) && cc.every(id => (l.chg || []).some(x => x.id === id)))
+      (INS.links || []).filter(l => ch.every(k => l[k] === ECR.LK[k]) && cp.every(id => (l.prd || []).some(x => x.id === id)) && cc.every(id => (l.chg || []).some(x => x.id === id)))
         .forEach(l => S.add(l.lot + "|" + l.sec));
-      if (LK.lot && LK.sec && !LK.des && !cp.length && !cc.length) S.add(LK.lot + "|" + LK.sec);
+      if (ECR.LK.lot && ECR.LK.sec && !ECR.LK.des && !cp.length && !cc.length) S.add(ECR.LK.lot + "|" + ECR.LK.sec);
       return S;
     };
     const dlyPicked = k => { const S = shell.__dlyPS; return !!(S && S.has(k)); };
@@ -151,12 +151,12 @@
             : x.ext
             ? { lot: "", sec: `<span class="dly-lotc dly-extn" ${ind(0)}>${esc(lotLab(dlyLotPath(x.lot)).full)} › ${esc(x.sec)}</span>`, pred: esc(x.pred), succ: esc(x.succ), __td_succ: " dly-calc", deb: esc(dFr(x.deb)), fin: esc(dFr(x.fin)), dur: x.dur === "" ? "" : x.dur,
                 marge: x.mshow === "" || x.mshow === undefined ? "" : x.mshow, jal: x.jal ? "★" : "", __cb: "", __td_marge: " dly-calc" }
-            : { lot: "", sec: `<span class="dly-lotc" ${ind(x.lvl)}>${x.away ? `<span class="dly-ldot" style="--c:${dlyLotColor(x.lo)}" title="${esc(lotLab(dlyLotPath(x.lot)).full)}"></span>` : ""}${x.vno ? `<b class="lvl-no dly-vno">${esc(x.vno)}</b><span class="dly-vsep">›</span>` : ""}${dlyIncHTML(x.key)}${INS_EDIT ? `<span class="lk-rd dly-rd${LK.lot === x.key.split("|")[0] && LK.sec === x.key.split("|")[1] ? " on" : dlyPicked(x.key) ? " lnk" : ""}" data-dkey="${esc(x.key)}" role="button" aria-label="Voir ce qui est lié à la tâche"></span>` : ""}${nm("sec", `data-sid="${esc(x.key.split("|")[1])}"`, x.sec)}</span>`, pred: `<span class="dly-pred" data-key="${esc(x.key)}">${esc(x.pred) || "<i>CHOISIR…</i>"}</span>`, succ: x.succ ? `<span class="dly-succ" data-key="${esc(x.key)}">${esc(x.succ)}</span>` : "", __td_succ: " dly-calc",
+            : { lot: "", sec: `<span class="dly-lotc" ${ind(x.lvl)}>${x.away ? `<span class="dly-ldot" style="--c:${dlyLotColor(x.lo)}" title="${esc(lotLab(dlyLotPath(x.lot)).full)}"></span>` : ""}${x.vno ? `<b class="lvl-no dly-vno">${esc(x.vno)}</b><span class="dly-vsep">›</span>` : ""}${dlyIncHTML(x.key)}${INS_EDIT ? `<span class="lk-rd dly-rd${ECR.LK.lot === x.key.split("|")[0] && ECR.LK.sec === x.key.split("|")[1] ? " on" : dlyPicked(x.key) ? " lnk" : ""}" data-dkey="${esc(x.key)}" role="button" aria-label="Voir ce qui est lié à la tâche"></span>` : ""}${nm("sec", `data-sid="${esc(x.key.split("|")[1])}"`, x.sec)}</span>`, pred: `<span class="dly-pred" data-key="${esc(x.key)}">${esc(x.pred) || "<i>CHOISIR…</i>"}</span>`, succ: x.succ ? `<span class="dly-succ" data-key="${esc(x.key)}">${esc(x.succ)}</span>` : "", __td_succ: " dly-calc",
                 deb: dlyCellIn(x, "deb"), fin: dlyCellIn(x, "fin"), dur: dlyCellIn(x, "dur"), marge: x.mshow === "" || x.mshow === undefined ? "" : x.mshow,
                 __td_deb: (INS_EDIT ? " ins-td" : "") + ((dlyLock(x.key) || {}).deb ? " dly-lkd" : ""), __td_fin: (INS_EDIT ? " ins-td" : "") + ((dlyLock(x.key) || {}).fin ? (dlyFin(x.key) > dlyLock(x.key).fin ? " dly-lkd dly-lkx" : " dly-lkd") : ""), __td_dur: INS_EDIT ? " ins-td" : "",
                 jal: `<span class="dly-jal${x.jal ? " on" : ""}" data-key="${esc(x.key)}">${x.jal ? "★" : "☆"}</span>`, __td_marge: " dly-calc",
                 __cb: `<input type="checkbox" class="dlyp-cb" data-key="${esc(x.key)}"${SEL.has(x.key) ? " checked" : ""}>` },
-            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp${x.det ? " dly-det" : ""}" data-path="${esc(x.path)}"` : `class="dly-task${x.ext ? " dly-ext" : ""}${x.off ? " dly-off" : ""}${!x.deb || !x.fin ? " dly-nod" : ""}${x.marge === 0 ? " dly-crit" : x.qc ? " dly-qcrit" : ""}${dlyPicked(x.key) ? " dly-pick" : ""}${LK.lot && LK.sec && x.key === LK.lot + "|" + LK.sec ? " dly-sel" : ""}${(INS.links || []).some(l => l.lot + "|" + l.sec === x.key) ? " dly-lnk" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P, cutO);
+            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp${x.det ? " dly-det" : ""}" data-path="${esc(x.path)}"` : `class="dly-task${x.ext ? " dly-ext" : ""}${x.off ? " dly-off" : ""}${!x.deb || !x.fin ? " dly-nod" : ""}${x.marge === 0 ? " dly-crit" : x.qc ? " dly-qcrit" : ""}${dlyPicked(x.key) ? " dly-pick" : ""}${ECR.LK.lot && ECR.LK.sec && x.key === ECR.LK.lot + "|" + ECR.LK.sec ? " dly-sel" : ""}${(INS.links || []).some(l => l.lot + "|" + l.sec === x.key) ? " dly-lnk" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P, cutO);
           /* FORMAT 64 / 33 : pas de ligne d'explication au-dessus du PLANNING */
           /* FORMAT 97 : commandes du planning dans le menu ⋯ du bloc détail (plus de rangée de boutons) */
           const dls = dl("dlyLotDl", [...new Set(INS.lot.filter(x => !x.t).map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")))
@@ -441,7 +441,7 @@
         const newRow = k => `<tr class="dlw-newr"><td><input class="dlw-new" data-k="${k}" placeholder="${k === "lot" ? "CRÉER UN LOT ICI…" : "CRÉER UNE ACTIVITÉ ICI…"}" autocomplete="off" enterkeyhint="done"></td></tr>`;
         let panel = "";
         if (key) {
-          const p0 = ((LK.dlpDraft && LK.dlpDraft[key]) || (INS.dlp || {})[key] || [])[0] || {};
+          const p0 = ((ECR.LK.dlpDraft && ECR.LK.dlpDraft[key]) || (INS.dlp || {})[key] || [])[0] || {};
           const dur = p0.deb && p0.fin ? dDur(p0.deb, p0.fin) : ((shell.__dlyPendDur || {})[key] || "");
           const s0 = T.includes(key) ? (dated(key) ? "black" : "red") : "none";
           const inp = (f, v, ph) => `<input class="ins-in dlp-in dlw-in${f === "dur" ? " number" : " center"}" data-task="${esc(key)}" data-pid="${esc(p0.id || "")}" data-f="${f}" type="text" ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${ph}" value="${esc(v)}">`;
