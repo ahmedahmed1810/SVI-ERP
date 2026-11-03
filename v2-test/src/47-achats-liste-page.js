@@ -359,7 +359,7 @@ function achArtNvMod(ctx) {
 
 /* ---------- FOURNISSEURS ---------- */
 function achFrsNvMod(ctx) {
-  const frsWhy = f => achFrsWhy(f, achFrs());
+  const frsWhy = f => achFrsWhy(f, achFrsRO());
   return achNvMod(ctx, {
     list: { k: "frs", t: "ach_frs2", id: "achFrsT", name: "FOURNISSEURS", one: "FOURNISSEUR", all: achFrs, save: achFrsSave, code: f => achFrsRef(f), nom: f => f.nom, why: frsWhy,
       newRow: "CRÉER UN FOURNISSEUR ICI…",

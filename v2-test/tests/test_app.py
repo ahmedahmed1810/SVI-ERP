@@ -3306,6 +3306,22 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("v809 : fournisseur BLOQUÉ refusé dans les nouvelles pièces (alerte avec le motif) ; ARCHIVER seulement au mois de clôture de l'exercice et s'il est dormant",
               c809 == [False, True, False, True, True, False], c809)
+        # v811 : lectures mémorisées — 500 fournisseurs, 2000 factures : liste affichée vite, références et encours identiques au calcul ligne par ligne
+        c811 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_frs_v1', 'svi_ach_faf_v1', 'svi_ach_paf_v1', 'svi_ach_frs_etat_v1'], keep = K.map(k => localStorage.getItem(k));
+            const F = []; for (let i = 0; i < 500; i++) { const f = achFrsNew(F, { nom: 'FRS ' + i }); f.st = 'valide'; f.cree = '2026-0' + (1 + i % 9) + '-1' + (i % 9) + 'T10:00:00Z'; f.ice = String(100000000000000 + i); if (i % 50 === 1) f.grp = 'etr'; }
+            F[3].nov = 'FRS 26-0410/007'; achFrsSave(F);
+            const FA = [], PA = []; for (let i = 0; i < 2000; i++) FA.push({ id: 'fa' + i, ref: 'FAF ' + i, frs: F[i % 500].id, state: 'bap', num: '' + i, dFac: '2026-10-01', lignes: [{ des: 'SABLE', u: 'M3', q: 2, pu: 100, tva: 20 }] });
+            for (let i = 0; i < 1500; i++) PA.push({ id: 'pa' + i, ref: 'PAF ' + i, frs: F[i % 500].id, state: 'encaisse', mode: 'VIREMENT', mt: 240, aff: [{ fa: 'fa' + i, m: 240 }], ded: [] });
+            achFafSave(FA); achPafSave(PA); localStorage.removeItem('svi_ach_frs_etat_v1');
+            const v = document.getElementById('ach'); let t = performance.now(); document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(0); const ms = performance.now() - t;
+            if (!v.querySelector('#achFrsT tbody tr[data-id]')) { v.querySelector('[data-nvsw]').click(); await w(0); }
+            const r = [ms < 2000, v.querySelectorAll('#achFrsT tbody tr[data-id]').length,
+              achFrsRO().every(f => achFrsRef(f) === achRefSvi(f, achFrsRO().filter(y => achFrsPfx(y) === achFrsPfx(f)), achFrsPfx(f))),
+              achFrsRO().every(f => Math.abs(achFrsEnc(f.id) - achFaf().filter(x => x.frs === f.id && x.state !== 'annule').reduce((s, x) => s + Math.max(0, achFafReste(x)), 0)) < 0.01)];
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r.concat([Math.round(ms)]); }""")
+        check("v811 : 500 fournisseurs et 2000 factures — liste affichée en moins de 2 s ; références et encours identiques au calcul ligne par ligne",
+              c811[:4] == [True, 500, True, True], c811)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

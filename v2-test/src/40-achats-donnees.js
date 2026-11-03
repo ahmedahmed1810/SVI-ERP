@@ -24,6 +24,15 @@ const achW = (k, v) => { try { const s = JSON.stringify(v); localStorage.setItem
 /* ---------- paramètres d'achat ---------- */
 const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: p.esp === undefined ? 5000 : achN(p.esp), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: p.avj === undefined ? 90 : achN(p.avj), chqj: p.chqj === undefined ? 30 : achN(p.chqj), dorm: p.dorm === undefined ? 12 : achN(p.dorm), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })), grp: Array.isArray(p.grp) && p.grp.length ? p.grp : ACH_GRP_DEF.map(g => ({ ...g, req: g.req.slice() })) }; };
 const achPrmSave = p => achW(ACH_K.prm, p);
+/* v811 : lectures mémorisées. Une donnée dérivée n'est recalculée que si le texte gardé dans l'appareil a changé :
+   rien à remettre à zéro, quel que soit celui qui écrit. Le résultat se lit seulement, il ne se modifie jamais. */
+const ACH_MEMO = {};
+const achMemo = (name, keys, fn) => { let raws; try { raws = keys.map(k => localStorage.getItem(k)); } catch (e) { return fn(); }
+  const c = ACH_MEMO[name]; if (c && c.raws.length === raws.length && c.raws.every((r, i) => r === raws[i])) return c.v;
+  const v = fn(); ACH_MEMO[name] = { raws, v }; return v; };
+/* index rangé sur le tableau lui-même (un tableau relu = un nouvel index) */
+const ACH_IDX = new WeakMap();
+const achIdx = (L, name, fn) => { if (!L || typeof L !== "object") return fn(L || []); let m = ACH_IDX.get(L); if (!m) { m = {}; ACH_IDX.set(L, m); } if (!(name in m)) m[name] = fn(L); return m[name]; };
 /* banque d'un RIB : ses 3 premiers chiffres (code « 101-199 » = plage) */
 const achBankHasCode = (b, c) => String(b.code || "").split(/[,;\s]+/).filter(Boolean).some(x => { const m = x.match(/^(\d{3})-(\d{3})$/); return m ? +c >= +m[1] && +c <= +m[2] : x === c; });
 const achBankOfRib = rib => { const c = String(rib || "").replace(/\D/g, "").slice(0, 3); return c.length < 3 ? null : achPrm().banques.find(b => achBankHasCode(b, c)) || null; };
@@ -141,7 +150,11 @@ const achRibOk0 = v => /^\d{24}$/.test(achDig(v));
 const achFrs = () => { const L = achJ(ACH_K.frs, []); return Array.isArray(L) ? L : []; };
 const achFrsSave = L => achW(ACH_K.frs, L);
 const achFrsNextCode = L => "FRS-" + String(L.reduce((m, a) => Math.max(m, Number(String(a.code || "").replace(/\D/g, "")) || 0), 0) + 1).padStart(4, "0");
-const achFrsDupIce = (L, ice, id) => { const c = achDig(ice); return c ? achLive(L).find(f => f.id !== id && achDig(f.ice) === c) || null : null; };
+const achFrsDupIce = (L, ice, id) => { const c = achDig(ice); if (!c) return null;
+  const ix = achIdx(L, "ice", A => { const m = new Map(); achLive(A).forEach(f => { const k = achDig(f.ice); if (!k) return; if (!m.has(k)) m.set(k, []); m.get(k).push(f); }); return m; });
+  return (ix.get(c) || []).find(f => f.id !== id) || null; };
+/* v811 : liste des fournisseurs à lire seulement (mémorisée) */
+const achFrsRO = () => achMemo("frs", [ACH_K.frs], achFrs);
 const achFrsDupNom = (L, nom, id) => achLive(L).find(f => f.id !== id && achU(f.nom) === achU(nom)) || null;
 const achFrsNew = (L, o) => {
   const now = new Date().toISOString();
@@ -166,9 +179,25 @@ const achFrsDormant = f => { const d = achFrsLast(f.id) || String(f.cree || "").
 const achExFinMois = () => new Date().getMonth() + 1 === achPrm().exFin;
 /* grp absent (fiches d'avant v810) : déduit des anciennes cases ; grp vide = fournisseur créé sans groupe choisi */
 const achFrsGrpId = f => f && typeof f.grp === "string" ? f.grp : (f && f.orgFin ? "fin" : f && f.occ ? "occ" : "loc");
-const achFrsGrp = f => { const G = achPrm().grp, id = achFrsGrpId(f); return G.find(g => g.id === id) || G[0] || ACH_GRP_DEF[0]; };
+const achFrsGrp = f => { const G = achMemo("grp", [ACH_K.prm], () => achPrm().grp), id = achFrsGrpId(f); return G.find(g => g.id === id) || G[0] || ACH_GRP_DEF[0]; };
 const achFrsPfx = f => achFrsGrp(f).pre || "FRS";
-const achFrsRef = f => typeof achRefSvi === "function" ? achRefSvi(f, achFrs().filter(y => achFrsPfx(y) === achFrsPfx(f)), achFrsPfx(f)) : f.code;
+/* v811 : toutes les références calculées en une fois (même règle que achRefSvi, par préfixe) */
+const achFrsRefMap = () => achMemo("ref", [ACH_K.frs, ACH_K.prm], () => {
+  const out = new Map(), byP = new Map();
+  achFrsRO().forEach(y => { const p = achFrsPfx(y); if (!byP.has(p)) byP.set(p, []); byP.get(p).push(y); });
+  byP.forEach((G, p) => {
+    const used = new Map(), byD = new Map();
+    G.forEach(y => { if (y.nov) { const m = String(y.nov).match(/ (\d{2}-\d{4})\/(\d+)$/); if (m) used.set(m[1], Math.max(used.get(m[1]) || 0, +m[2])); return; }
+      const d = String(y.cree || "").slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return; if (!byD.has(d)) byD.set(d, []); byD.get(d).push(y); });
+    G.forEach(y => { const d = String(y.cree || "").slice(0, 10); if (y.nov || !/^\d{4}-\d{2}-\d{2}$/.test(d)) out.set(y.id, { ref: y.nov || y.code, pfx: p, cree: y.cree, nov: y.nov || "" }); });
+    byD.forEach((S, d) => { const tag = d.slice(2, 4) + "-" + d.slice(5, 7) + d.slice(8, 10), u = used.get(tag) || 0;
+      S.sort((a, b) => String(a.cree).localeCompare(String(b.cree)) || String(a.code).localeCompare(String(b.code)))
+        .forEach((y, i) => out.set(y.id, { ref: p + " " + tag + "/" + String(u + i + 1).padStart(3, "0"), pfx: p, cree: y.cree, nov: "" })); });
+  });
+  return out; });
+const achFrsRef = f => { const e = achFrsRefMap().get(f.id);
+  if (e && e.pfx === achFrsPfx(f) && e.cree === f.cree && e.nov === (f.nov || "")) return e.ref;
+  return typeof achRefSvi === "function" ? achRefSvi(f, achFrsRO().filter(y => achFrsPfx(y) === achFrsPfx(f)), achFrsPfx(f)) : f.code; };
 const achFrsHas = (f, k) => k === "rib" ? (f.ribs || []).some(r => achDig(r.rib)) : k === "cte" ? (f.cte || []).some(c => c.nom || c.tel || c.email)
   : k === "attf" ? (f.docf || []).some(d => d.type === "ATTESTATION DE RÉGULARITÉ FISCALE") : k === "assRc" ? !!f.assRc : !!String(f[k] ?? "").trim();
 const achFrsMissing = f => (achFrsGrp(f).req || []).filter(k => !achFrsHas(f, k)).map(k => (ACH_GRP_CH.find(c => c[0] === k) || [k, k])[1]);
@@ -189,7 +218,8 @@ const achFrsWhy = (f, L) => {
   /* v806 : clé du RIB (C1.40) — le RIB de 24 chiffres doit être divisible par 97 ; signalé, pas bloquant */
   { const t = (f.tar || []).filter(x => x.valid && x.valid < today); if (t.length) w.push("TARIF EXPIRÉ : " + t.map(x => x.des).join(", ")); }
   /* v805 : RIB partagé avec un autre fournisseur (C1.41) ; encours au-delà du plafond ; caution échue ou bientôt échue (C1.52) */
-  if (L) (f.ribs || []).forEach(r => { const x = achDig(r.rib) && L.find(o => o.id !== f.id && !o.del && (o.ribs || []).some(q => achDig(q.rib) === achDig(r.rib))); if (x) w.push("RIB PARTAGÉ AVEC " + x.code + " — " + x.nom + " : FRAUDE POSSIBLE"); });
+  if (L) { const ix = achIdx(L, "rib", A => { const m = new Map(); A.forEach(o => { if (o.del) return; (o.ribs || []).forEach(q => { const k = achDig(q.rib); if (!k) return; if (!m.has(k)) m.set(k, []); m.get(k).push(o); }); }); return m; });
+    (f.ribs || []).forEach(r => { const x = achDig(r.rib) && (ix.get(achDig(r.rib)) || []).find(o => o.id !== f.id); if (x) w.push("RIB PARTAGÉ AVEC " + x.code + " — " + x.nom + " : FRAUDE POSSIBLE"); }); }
   if (achN(f.plafEnc) > 0 && typeof achFrsEnc === "function" && achFrsEnc(f.id) > achN(f.plafEnc) + 0.005) w.push("ENCOURS AU-DELÀ DU PLAFOND (" + achF2(achFrsEnc(f.id)) + " / " + achF2(f.plafEnc) + ")");
   (f.cau || []).forEach(c => { if (c.ech && c.ech < today) w.push("CAUTION ÉCHUE : " + (c.no || c.type)); else if (c.ech && c.ech <= soon) w.push("CAUTION BIENTÔT ÉCHUE : " + (c.no || c.type)); });
   (f.docf || []).forEach(d => { if (d.exp && d.exp < today) w.push("DOCUMENT EXPIRÉ : " + d.type); else if (d.exp && d.exp <= soon) w.push("DOCUMENT BIENTÔT EXPIRÉ : " + d.type); });
@@ -373,7 +403,11 @@ const achFafTot = f => { const c = achFafCalc(f), ttc = f.sTtc !== undefined && 
 const achFafPaid = (fid, P) => achPafLive(P).reduce((t, p) => t + (p.aff || []).filter(a => a.fa === fid).reduce((u, a) => u + achN(a.m), 0), 0);
 const achFafReste = (f, P) => achFafTot(f).net - achFafPaid(f.id, P);
 /* v805 : encours du fournisseur = reste à payer de ses factures (hors annulées et supprimées) */
-const achFrsEnc = id => achFaf().filter(x => x.frs === id && !x.del && x.state !== "annule").reduce((t, x) => t + Math.max(0, achFafReste(x)), 0);
+/* v811 : encours de tous les fournisseurs calculé en une fois */
+const achFrsEncMap = () => achMemo("enc", [ACH_K.faf, ACH_K.paf], () => { const paid = new Map(), m = new Map();
+  achPafLive().forEach(p => (p.aff || []).forEach(a => paid.set(a.fa, (paid.get(a.fa) || 0) + achN(a.m))));
+  achFaf().forEach(x => { if (x.del || x.state === "annule") return; const r = achFafTot(x).net - (paid.get(x.id) || 0); m.set(x.frs, (m.get(x.frs) || 0) + Math.max(0, r)); }); return m; });
+const achFrsEnc = id => achFrsEncMap().get(id) || 0;
 const achAvfUsed = (aid, P) => achPafLive(P).reduce((t, p) => t + (p.ded || []).filter(a => a.av === aid).reduce((u, a) => u + achN(a.m), 0), 0);
 const achAvfReste = (a, P) => achN(a.ttc) - achAvfUsed(a.id, P);
 /* quantité déjà facturée d'une ligne de commande (hors la facture fid) */

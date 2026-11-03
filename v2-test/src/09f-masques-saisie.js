@@ -12,10 +12,17 @@ const SVI_MASK_DEF = [
   { k: "cnss", lab: "CNSS", m: "9999999", ex: true },
   { k: "tel", lab: "TÉLÉPHONE", m: "99 99 99 99 99", ex: true }
 ];
+/* v811 : réglage mémorisé, relu seulement s'il a changé dans l'appareil (une copie est rendue, modifiable) */
+let sviMaskMem = null;
 function sviMasks() {
-  let o = {};
-  try { o = JSON.parse(localStorage.getItem(SVI_MASK_KEY) || "{}") || {}; } catch (e) {}
-  return SVI_MASK_DEF.map(d => Object.assign({}, d, o[d.k] || {}));
+  let raw = null;
+  try { raw = localStorage.getItem(SVI_MASK_KEY); } catch (e) {}
+  if (!sviMaskMem || sviMaskMem.raw !== raw) {
+    let o = {};
+    try { o = JSON.parse(raw || "{}") || {}; } catch (e) {}
+    sviMaskMem = { raw, L: SVI_MASK_DEF.map(d => Object.assign({}, d, o[d.k] || {})) };
+  }
+  return sviMaskMem.L.map(x => Object.assign({}, x));
 }
 function sviMasksSave(L) {
   const o = {};
