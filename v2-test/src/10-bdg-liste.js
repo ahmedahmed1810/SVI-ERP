@@ -1124,6 +1124,13 @@ function renderBudgetList() {
   /* Date provisoire intégrée à la référence : 01/10/2026 */
   const REF_PREFIX = "BDG 26-1001/";
 
+  /* v893 (cahier) : la référence d'un budget venu de la base est donnée une fois, puis gardée (par projet, sur l'appareil) —
+     un changement d'ordre de la feuille ne la change plus ; un nouveau projet prend le premier numéro libre */
+  const BREF_KEY = "svi_bdgref_base_v1";
+  let BREF = {}, brefDirty = false;
+  try { BREF = JSON.parse(localStorage.getItem(BREF_KEY) || "{}") || {}; } catch (e) { BREF = {}; }
+  const brefUsed = new Set(Object.values(BREF));
+
   bdgRows.forEach(row => {
     const prj =
       normalise(
@@ -1134,10 +1141,13 @@ function renderBudgetList() {
       ) || "SANS PROJET";
 
     if (!byProject.has(prj)) {
-      const ref =
-        REF_PREFIX +
-        String(byProject.size + 1)
-          .padStart(3, "0");
+      let ref = BREF[prj];
+      if (!ref) {
+        let n = 1;
+        while (brefUsed.has(REF_PREFIX + String(n).padStart(3, "0"))) n++;
+        ref = REF_PREFIX + String(n).padStart(3, "0");
+        BREF[prj] = ref; brefUsed.add(ref); brefDirty = true;
+      }
 
       const group = {
         ref,
@@ -1152,6 +1162,7 @@ function renderBudgetList() {
 
     byProject.get(prj).rows.push(row);
   });
+  if (brefDirty) { try { localStorage.setItem(BREF_KEY, JSON.stringify(BREF)); } catch (e) {} }
 
   /* ===== BUDGETS EN INSTANCE (création) — gardés sur l'appareil pendant les essais ===== */
   const instLoad = () => sviInstGet();
