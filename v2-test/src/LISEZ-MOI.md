@@ -77,7 +77,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `23-apercus-impression.js` | aperçus PDF, impression | 1188 |
 | `24-doc-historique-fenetres.js` | DOCUMENTS, TAF, OBSERVATIONS, historique | 466 |
 | `25-inf.js` | fenêtre INF | 613 |
-| `26-copier-coller.js` | copier, couper, coller | 710 |
+| `26-copier-coller.js` | appel de « copier, couper, coller » (v868 : le code est dans 28o-copier-coller.js) | 2 |
 | `26b-conditionnement.js` | appel de « emballage et découpe par titre de charges » (v833 : le code est dans 28b-conditionnement.js) | 2 |
 | `27-etat-fin-budget.js` | FIGER, VALIDER, fin de openBudgetDetail | 716 |
 | `28-recalages.js` | recalages, hors du grand bloc (v832, découpe étape 1) : sviBdgRecalages(C) | 100 |
@@ -94,6 +94,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `28l-indicateurs.js` | indicateurs : éléments, calcul, liste commune, hors du grand bloc (v843) : sviBdgIndicateurs(C) | 353 |
 | `28m-glisser-lignes.js` | glisser des lignes et des titres, hors du grand bloc (v844) : sviBdgGlisserLignes(C) | 470 |
 | `28n-saisie-directe.js` | SAISIE DIRECTE, hors du grand bloc (v845) : sviBdgSaisieDirecte(C) | 737 |
+| `28o-copier-coller.js` | copier, couper, coller, hors du grand bloc (v868) : sviBdgCopierColler(C) | 766 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
