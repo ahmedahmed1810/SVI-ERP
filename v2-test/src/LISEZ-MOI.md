@@ -40,7 +40,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `09f-masques-saisie.js` | masques de saisie (ICE, IF, RC, CNSS, téléphone) réglés dans PARAMÉTRAGE › FORMAT › MASQUES DE SAISIE : mise en forme pendant la frappe, contrôle à l'enregistrement (v804) | 60 |
 | `10-bdg-liste.js` | liste des budgets (arborescence, avenants, CUMUL) | 2003 |
 | `11-budget-ouverture.js` | ouverture d'un budget (début de openBudgetDetail) | 548 |
-| `12-tableaux-colonnes.js` | ordre manuel des lignes du budget ; tri et filtre pris de 09c (`sviCfKit`) | 37 |
+| `12-tableaux-colonnes.js` | appel de « ordre manuel des lignes du budget ; tri et filtre pris de 09c (`sviCfKit`) » (v888 : le code est dans 29i-tableaux-colonnes.js) | 2 |
 | `13-instance-saisie.js` | appel de « budget en instance : saisie, filtres (FSRC), totaux, calendrier de tâche insCal » (v887 : le code est dans 29h-instance-saisie.js) | 2 |
 | `14-doublons-classement.js` | appel de « doublons, classement, bandeau de liaison » (v886 : le code est dans 29g-doublons-classement.js) | 2 |
 | `15-qualite.js` | appel de « DÉTAIL QUALITÉ » (v885 : le code est dans 29f-qualite.js) | 2 |
@@ -114,6 +114,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `29f-qualite.js` | DÉTAIL QUALITÉ, hors du grand bloc (v885) : sviBdgQualite(C) | 1376 |
 | `29g-doublons-classement.js` | doublons, classement, bandeau de liaison, hors du grand bloc (v886) : sviBdgDoublons(C) | 530 |
 | `29h-instance-saisie.js` | budget en instance : saisie, filtres (FSRC), totaux, calendrier de tâche insCal, hors du grand bloc (v887) : sviBdgInstanceSaisie(C) | 1721 |
+| `29i-tableaux-colonnes.js` | ordre manuel des lignes du budget ; tri et filtre pris de 09c (`sviCfKit`), hors du grand bloc (v888) : sviBdgTableauxColonnes(C) | 46 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |

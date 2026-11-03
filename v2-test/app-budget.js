@@ -2810,43 +2810,8 @@ function renderBudgetList() {
     const body = $("bdgTabBody");
 
 /* ⟪ src/12-tableaux-colonnes.js ⟫ */
-    /* v749 : tri et filtre par colonne — commun à tous les écrans (09c-filtres-communs.js) */
-    const { CF, cfSrc, cfT, cfApply, cfHead, cfClose, cfOpenMenu, cfMakeF } = sviCfKit({ key: "bdg", shell, refresh: () => refreshAll(), toTop: () => { keepScroll.toTop = true; } });
-
-
-    /* ===== ordre manuel des lignes (glisser une ligne après un appui long) :
-       désignations client, lots, activités primaires et secondaires ===== */
-    const RO_KEY = "svi_roworder_v1:" + String(ref);
-    const roLoad = () => {
-      try { return JSON.parse(localStorage.getItem(RO_KEY) || "{}") || {}; } catch (e) { return {}; }
-    };
-    const roSave = o => { try { localStorage.setItem(RO_KEY, JSON.stringify(o)); } catch (e) {} };
-    /* appliqué quand aucun tri n'est choisi sur ce tableau */
-    const roApply = (t, arr, keyOf) => {
-      const st = CF[t];
-      if (st && st.sort && !st.sort.def) return arr;
-      const order = roLoad()[t];
-      if (!order || !order.length) return arr;
-      const pos = new Map(order.map((k, i) => [k, i]));
-      return arr.map((x, i) => ({ x, i }))
-        .sort((a, b) => {
-          const pa = pos.has(keyOf(a.x)) ? pos.get(keyOf(a.x)) : Infinity;
-          const pb = pos.has(keyOf(b.x)) ? pos.get(keyOf(b.x)) : Infinity;
-          return pa - pb || a.i - b.i;
-        }).map(o => o.x);
-    };
-
-    /* =========================================================
-       REFONTE, ÉTAPE 3 (v643) : CATALOGUE UNIQUE DES COLONNES — pour chaque clé de colonne, une fois :
-       w = largeur par défaut à l'écran (px), pw = poids dans les aperçus PDF, f = format (« pct » : 12,50 %).
-       SVI_COL_T = largeurs par tableau (FORMAT 113 : disposition réglée par Ahmed sur l'iPad, 13/10/2026).
-       Une colonne ajoutée à un tableau (liste [clé, libellé, valeur, classe]) a donc d'office : tri, filtre, largeur réglable
-       et mémorisée, ordre, copie, export, aperçu (largeur et format) — il suffit de lui donner une ligne ici.
-       ========================================================= */
-
-
-    const detailTable = () => body && body.querySelector("table.bdg-d-table, table.ins-table, table.lk-table");
-
+    /* v888 : TABLEAUX ET COLONNES sorti du grand bloc → 29i-tableaux-colonnes.js (sviBdgTableauxColonnes) */
+    const { CF, cfApply, cfHead, cfT, cfOpenMenu, roApply, roLoad, roSave, detailTable, cfMakeF } = sviBdgTableauxColonnes({ body, ref, shell, refreshAll: () => refreshAll, keepScroll: () => keepScroll });
 /* ⟪ src/13-instance-saisie.js ⟫ */
     /* v887 : SAISIE DE L'INSTANCE sorti du grand bloc → 29h-instance-saisie.js (sviBdgInstanceSaisie) */
     const { INS, INS_EDIT, INS_REAL, insCalc, insId, insNorm, insSave, lkOn, prdChainKey, FSRC, INS_COLS, ONLYC, actUnitSync, artOf, artRefresh, chgRdbApply, fsCfOn, fsClear, fsCount, insBranch, insCfCols, insCheckLinks, insCkBadge, insCntOwn, insFootHTML, insFoots, insHT, insIncHTML, insIsoPath, insMore, insMoreRows, insRenderClient, insRenderHier, insRg, insRgKeyIn, insRgView, insRowErr, insRowHTML, insShown, insSyncTitles, insTTC, insTableHTML, insTwins, lkRd, onlyBtn, insCal, insParSet, lotPathDisp, DLYG_REF, lotLab, dlygMine, lkRdPart, grpFlush, lotDrop, insIsPrimLink, insNextLevel, insCheckSet, insPrdLF, insPrdOn, fsSrc, insQty, lkAllLinked, lkLinked, lkLinks, actNextTitle, foldGet, insHiddenFn, insRgF, insSubOf, INS_LOCK, lkAnyLinked, prdLinks } = sviBdgInstanceSaisie({ AV_ROOT, CF, ECR, body, budget, cfApply, cfHead, cfT, ref, shell, tabs, histLog: () => histLog, refreshAll: () => refreshAll, dlyChgWe: () => dlyChgWe, insMarkUnlinked: () => insMarkUnlinked, insUnlHTML: () => insUnlHTML, qqAutoSync: () => qqAutoSync, dlyClean: () => dlyClean, dDur: () => dDur, insUsed: () => insUsed, lkRuleA: () => lkRuleA, lkName: () => lkName, keepScroll: () => keepScroll, dlyIsoPath: () => dlyIsoPath, insMgParSet: () => insMgParSet, dlyIsFolded: () => dlyIsFolded, dlyFoldK: () => dlyFoldK, dlyPlanFromTasks: () => dlyPlanFromTasks, dlyFoldToggle: () => dlyFoldToggle, incTry: () => incTry });
@@ -24143,6 +24108,53 @@ function sviBdgInstanceSaisie(C) {
   }
   shell.__incX = INS && INS_EDIT ? { INS, save: () => insSave(), refresh: () => refreshAll(), tryIt: it => incTry(it) } : null;
   return { INS, INS_EDIT, INS_REAL, insCalc, insId, insNorm, insSave, lkOn, prdChainKey, FSRC, INS_COLS, ONLYC, actUnitSync, artOf, artRefresh, chgRdbApply, fsCfOn, fsClear, fsCount, insBranch, insCfCols, insCheckLinks, insCkBadge, insCntOwn, insFootHTML, insFoots, insHT, insIncHTML, insIsoPath, insMore, insMoreRows, insRenderClient, insRenderHier, insRg, insRgKeyIn, insRgView, insRowErr, insRowHTML, insShown, insSyncTitles, insTTC, insTableHTML, insTwins, lkRd, onlyBtn, insCal, insParSet, lotPathDisp, DLYG_REF, lotLab, dlygMine, lkRdPart, grpFlush, lotDrop, insIsPrimLink, insNextLevel, insCheckSet, insPrdLF, insPrdOn, fsSrc, insQty, lkAllLinked, lkLinked, lkLinks, actNextTitle, foldGet, insHiddenFn, insRgF, insSubOf, INS_LOCK, lkAnyLinked, prdLinks };
+}
+/* ⟪ src/29i-tableaux-colonnes.js ⟫ */
+/* =========================================================
+   v888 : DÉCOUPE DU GRAND BLOC (programme, point 4) — TABLEAUX ET COLONNES sort de openBudgetDetail.
+   Appelé depuis l'écran du budget (12-tableaux-colonnes.js) avec ce dont il a besoin ; refreshAll, keepScroll (déclaré plus loin dans l'écran du budget) est lu au moment de l'appel.
+   ========================================================= */
+function sviBdgTableauxColonnes(C) {
+  const { body, ref, shell } = C;
+  const refreshAll = (...a) => C.refreshAll()(...a);
+  const keepScroll = (...a) => C.keepScroll()(...a);
+  /* v749 : tri et filtre par colonne — commun à tous les écrans (09c-filtres-communs.js) */
+  const { CF, cfSrc, cfT, cfApply, cfHead, cfClose, cfOpenMenu, cfMakeF } = sviCfKit({ key: "bdg", shell, refresh: () => refreshAll(), toTop: () => { keepScroll.toTop = true; } });
+
+
+  /* ===== ordre manuel des lignes (glisser une ligne après un appui long) :
+     désignations client, lots, activités primaires et secondaires ===== */
+  const RO_KEY = "svi_roworder_v1:" + String(ref);
+  const roLoad = () => {
+    try { return JSON.parse(localStorage.getItem(RO_KEY) || "{}") || {}; } catch (e) { return {}; }
+  };
+  const roSave = o => { try { localStorage.setItem(RO_KEY, JSON.stringify(o)); } catch (e) {} };
+  /* appliqué quand aucun tri n'est choisi sur ce tableau */
+  const roApply = (t, arr, keyOf) => {
+    const st = CF[t];
+    if (st && st.sort && !st.sort.def) return arr;
+    const order = roLoad()[t];
+    if (!order || !order.length) return arr;
+    const pos = new Map(order.map((k, i) => [k, i]));
+    return arr.map((x, i) => ({ x, i }))
+      .sort((a, b) => {
+        const pa = pos.has(keyOf(a.x)) ? pos.get(keyOf(a.x)) : Infinity;
+        const pb = pos.has(keyOf(b.x)) ? pos.get(keyOf(b.x)) : Infinity;
+        return pa - pb || a.i - b.i;
+      }).map(o => o.x);
+  };
+
+  /* =========================================================
+     REFONTE, ÉTAPE 3 (v643) : CATALOGUE UNIQUE DES COLONNES — pour chaque clé de colonne, une fois :
+     w = largeur par défaut à l'écran (px), pw = poids dans les aperçus PDF, f = format (« pct » : 12,50 %).
+     SVI_COL_T = largeurs par tableau (FORMAT 113 : disposition réglée par Ahmed sur l'iPad, 13/10/2026).
+     Une colonne ajoutée à un tableau (liste [clé, libellé, valeur, classe]) a donc d'office : tri, filtre, largeur réglable
+     et mémorisée, ordre, copie, export, aperçu (largeur et format) — il suffit de lui donner une ligne ici.
+     ========================================================= */
+
+
+  const detailTable = () => body && body.querySelector("table.bdg-d-table, table.ins-table, table.lk-table");
+  return { CF, cfApply, cfHead, cfT, cfOpenMenu, roApply, roLoad, roSave, detailTable, cfMakeF };
 }
 /* ⟪ src/30-bdg-produits-charges-analyse.js ⟫ */
 /* =========================================================
