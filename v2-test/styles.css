@@ -1197,7 +1197,7 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 #insChain.lk-chain-top .lk-go { flex: none; padding: 7px 12px; font-size: 12px; }
 /* lignes déjà liées à la désignation choisie : mise en forme du choix du budget validé, en bleu tirant sur le rouge */
 .ins-table tr.lk-link td, .ins-hcol .ins-li.lk-link { background: #dbeafe; color: #1d4ed8 !important; font-weight: 700; }
-.ins-table tr.lk-link td :is(input.ins-in, textarea.ins-in, .ins-dv), .ins-hcol .ins-li.lk-link :is(input.ins-in, textarea.ins-in, .ins-dv) { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; }
+.ins-table tr.lk-link td :is(input.ins-in, textarea.ins-in, .ins-dv), .ins-hcol .ins-li.lk-link :is(input.ins-in, textarea.ins-in, .ins-dv) { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8; }
 /* rond : liée à la désignation choisie = anneau bleu + point ; CHOISIE = rond plein avec coche blanche
    (les deux états se distinguent : toucher le rond se voit toujours) */
 .lk-rd.lnk { border-color: #1d4ed8; background: radial-gradient(circle, #1d4ed8 0 3px, #fff 3.5px); }
@@ -3359,7 +3359,7 @@ table.svi-bdgl tbody tr[data-nvo] { cursor: pointer; }
 table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 #ach .nvp .nv-strike td { text-decoration: line-through; color: #94a3b8; }
 /* v771 : bloc AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES comme les autres blocs — 5 lignes par défaut, défilement au-delà, poignée libre */
-.blk-etp .etp-pane .rec-scroll { height: auto !important; max-height: var(--h-etp, 129px) !important; overflow: auto !important; }
+.blk-etp .etp-pane .rec-scroll { height: auto; max-height: var(--h-etp, 129px); overflow: auto; }
 .bdg-d-page.max-etp .blk-etp .etp-pane .rec-scroll { max-height: none !important; }
 /* fenêtre de SÉLECTION : FERMER bien visible, colonne CUMUL */
 .cmpm-close { font-weight: 900 !important; border: 2px solid #12355b !important; color: #12355b !important; background: #fff !important; }
@@ -3370,7 +3370,7 @@ table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 #ach .nvp .nvp-rsz::after { content: ""; position: absolute; left: 50%; top: 3px; width: 40px; height: 4px; margin-left: -20px; border-radius: 3px; background: #cbd5e1; }
 #ach .nvp .nvp-rsz.on::after, #ach .nvp .nvp-rsz:hover::after { background: #1d4ed8; }
 /* v772 : ORGANISATION DES BLOCS DU BUDGET — en-tête (nom, AGRANDIR, ⋯), rangée d'onglets, tableau */
-#bdgTabs > .bdg-d-tab.tab-menu { display: none !important; }
+#bdgTabs > .bdg-d-tab.tab-menu { display: none; }
 .ins-mode-link #bdgDetailHead { display: none !important; }
 #bdgDetailHead { display: flex; align-items: center; justify-content: space-between; border: 1px solid #e1e5eb; border-bottom: 0; border-radius: 12px 12px 0 0; margin-bottom: 0; }
 #bdgDetailHead + #bdgTabs { border-radius: 0; margin-top: 0; }
@@ -3393,7 +3393,7 @@ table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 .bdg-d-hright #instClose { order: 8; }
 .bdg-d-hright #bdgMore { order: 9; }
 /* v774 (point 5) : une seule roue dentée dans DÉTAIL DÉLAIS */
-.blk-tools .blk-hcfg-btn { display: none !important; }
+.blk-tools .blk-hcfg-btn { display: none; }
 /* v774 (point 11) : EN-TÊTES DE BLOCS — même gris, un peu plus soutenu que les onglets et les tableaux, partout */
 :root { --blk-head-bg: #e4e8ee; }
 .bdg-d-page .bdg-d-block-title.blk-head, #bdgDetailHead, #ach .nvp .bdg-d-block-title { background: var(--blk-head-bg) !important; }
@@ -3401,7 +3401,7 @@ table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
    une ligne qui défile sous les titres ne s'y superpose plus */
 .bdg-d-page table thead th, .bdg-d-page table thead td, .nvp table thead th { z-index: 6; }
 /* v774 (point 7) : cadre de sélection fin, partout le même */
-#sviSelFrame { border-width: 1.5px !important; border-radius: 3px !important; }
+#sviSelFrame { border-width: 1.5px; border-radius: 3px; }
 /* v774 (point 7) : plus de second cadre intérieur (case DÉBUT / FIN du planning…) : seul le petit cadre commun reste */
 :is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) td.svi-tdf > :is(input, textarea, .ins-dv) { box-shadow: none !important; }
 /* v776 : PAGES DES ACHATS au format de l'écran d'un budget */
@@ -3417,7 +3417,7 @@ table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 #ach.ach-page { background: #fff; }
 #ach .nvp .bdg-d-sticky { border-bottom-color: #4b5565; }
 #ach .nvp tr.rec-new { cursor: pointer; }
-#ach .nvp .novapp-list-titlebar .bdg-d-badge.ach-h { border-radius: 4px; background: transparent !important; border: 1.6px solid currentColor; color: #3f4856 !important; width: 24px; height: 24px; padding: 0; line-height: 1;
+#ach .nvp .novapp-list-titlebar .bdg-d-badge.ach-h { border-radius: 4px; background: transparent; border: 1.6px solid currentColor; color: #3f4856; width: 24px; height: 24px; padding: 0; line-height: 1;
   display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; }
 #ach .nvp.bdg-inst-instance .novapp-list-titlebar .bdg-d-badge.ach-h { color: var(--inst, #b91c1c) !important; }
 #ach .nvp.bdg-inst-instance > .bdg-d-block:not(.blk-suivi) > .bdg-d-block-title { border-left-color: var(--inst, #b91c1c); }
@@ -3426,18 +3426,18 @@ table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 #ach .nvp .rec-table thead th { position: sticky; top: 0; }
 
 /* v780 (remarque 4) : COMPTEURS — différent de zéro = ORANGE, quel que soit le mode ; zéro = gris */
-.svi-cnt.cnt-nz { color: var(--tb-cnt-on) !important; }   /* v785 : la pastille garde sa couleur, seul le CHIFFRE passe en orange (forcé : passe devant la couleur propre des onglets) */
+.svi-cnt.cnt-nz { color: var(--tb-cnt-on); }   /* v785 : la pastille garde sa couleur, seul le CHIFFRE passe en orange (forcé : passe devant la couleur propre des onglets) */
 /* v780 (remarque 3) : CASES À COCHER — cochée = couleur du mode en cours, partout */
 input[type=checkbox], input[type=radio] { accent-color: var(--tb-cb-c) !important; }   /* forcé : passe devant les accent-color propres (--inst) */
 /* v780 (remarques 2 et 5) : lignes des budgets, avenants, scénarios, versions, recalages — même police, taille et graisse que les autres lignes,
    ni gras, ni italique, ni barré propres ; seule la couleur dit l'état, celle de LEUR état (pas celle de l'écran ouvert) */
-#budgetListTable tbody td, table.svi-bdgl tbody td { font-style: normal !important; text-decoration-line: none !important; }
-#budgetListTable tbody td *, table.svi-bdgl tbody td *, .blk-etp tbody td, .blk-etp tbody td span, .blk-etp tbody td b { font-style: normal !important; text-decoration-line: none !important; }
+#budgetListTable tbody td, table.svi-bdgl tbody td { font-style: normal; text-decoration-line: none; }
+#budgetListTable tbody td *, table.svi-bdgl tbody td *, .blk-etp tbody td, .blk-etp tbody td span, .blk-etp tbody td b { font-style: normal; text-decoration-line: none; }
 #budgetListTable tbody td span, #budgetListTable tbody td b:not(.obs-bang), table.svi-bdgl tbody td span, table.svi-bdgl tbody td b:not(.obs-bang), .blk-etp tbody td span, .blk-etp tbody td b { font-weight: inherit !important; }
 #budgetListTable tr.bdg-kid[data-kid="glob"] td, table.svi-bdgl tr.bdg-kid[data-kid="glob"] td, .rcl-table tr.rcl-cours td { font-weight: var(--row-fw, 400) !important; }
 .blk-etp .scn-table .scn-nm.scn-go { text-decoration-line: underline !important; }
 #budgetListTable tbody td .budget-link, table.svi-bdgl tbody td .budget-link { text-decoration-line: underline !important; }
-.blk-etp tr.st-instance td, .blk-etp tr.st-actif td { color: var(--st-instance, #b91c1c) !important; }
+.blk-etp tr.st-instance td, .blk-etp tr.st-actif td { color: var(--st-instance, #b91c1c); }
 .blk-etp tr.st-fige td { color: var(--st-fige, #15803d) !important; }
 .blk-etp tr.st-valide td, .blk-etp tr.st-reserve td { color: var(--st-valide, #172033) !important; }
 .blk-etp tr.st-expire td { color: var(--st-expire, #b45309) !important; }
@@ -3635,7 +3635,7 @@ html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dlyg-l .dly-t
 .prm-rubs { display: flex; gap: 4px; width: 100%; padding-bottom: 6px; border-bottom: 1px solid #e5e9f0; margin-bottom: 2px; }
 .prm-rub { border: 1px solid #d6dbe3; background: #fff; border-radius: 8px; padding: 6px 14px; font: 800 12px Arial, sans-serif; color: #6b7280; cursor: pointer; }
 .prm-rub.on { background: #172033; color: #fff; border-color: #172033; }
-.prm-tab[hidden] { display: none !important; }
+.prm-tab[hidden] { display: none; }
 .fmt-t .fmt-fs { width: 52px; }
 .fmt-t input[type=color] { width: 44px; height: 24px; border: 1px solid #d6dbe3; border-radius: 4px; padding: 0; background: none; }
 .fmt-t .fmt-lab { font-size: 12px; }
@@ -3646,7 +3646,7 @@ html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dlyg-l .dly-t
 /* §2.3 : trait de gauche de TOUS les blocs (DÉTAIL et SUIVI compris) dans la couleur de l'état de l'écran (palette) */
 .bdg-inst-instance .bdg-d-page .bdg-d-block-title, .bdg-inst-fige .bdg-d-page .bdg-d-block-title,
 .bdg-inst-instance .bdg-d-page #bdgDetailHead, .bdg-inst-fige .bdg-d-page #bdgDetailHead,
-.bdg-inst-instance .bdg-d-page .blk-suivi .bdg-d-block-title, .bdg-inst-fige .bdg-d-page .blk-suivi .bdg-d-block-title { border-left: 4px solid var(--inst) !important; }
+.bdg-inst-instance .bdg-d-page .blk-suivi .bdg-d-block-title, .bdg-inst-fige .bdg-d-page .blk-suivi .bdg-d-block-title { border-left: 4px solid var(--inst); }
 .bdg-d-page #bdgDetailHead, .bdg-d-page .blk-suivi .bdg-d-block-title, #ach .nvp .blk-suivi .bdg-d-block-title { border-left: 4px solid var(--inst, var(--st-valide, #172033)) !important; }
 /* §2.5 : colonne sélectionnée (toucher son titre) = teinte grise, jamais un second bleu par-dessus le bleu des lignes liées */
 th.col-sel, td.col-sel, .bdg-h-head.col-sel, .ins-hcol.col-sel .ins-li, .bdg-h-col.col-sel .bdg-h-item { background-image: linear-gradient(rgba(15, 23, 42, .07), rgba(15, 23, 42, .07)) !important; }
@@ -3655,16 +3655,16 @@ th.col-sel, td.col-sel, .bdg-h-head.col-sel, .ins-hcol.col-sel .ins-li, .bdg-h-c
 #svConf .colh-t th, #svConf .colh-t td { padding: 0 10px !important; height: var(--tb-row-h); text-align: left; }
 #svConf .colh-t .colh-c { width: 110px; text-align: center !important; }
 /* §5.2 : l'onglet actif s'arrête au-dessus des titres des colonnes */
-#bdgTabs { margin-bottom: 0 !important; border-bottom: 1px solid var(--tb-line, #d9dee6); }
-#bdgTabs > .bdg-d-tab.active { box-shadow: inset 0 -2px 0 var(--inst, #172033) !important; }
+#bdgTabs { margin-bottom: 0; border-bottom: 1px solid var(--tb-line, #d9dee6); }
+#bdgTabs > .bdg-d-tab.active { box-shadow: inset 0 -2px 0 var(--inst, #172033); }
 /* §6.6 : pages des achats — pas de ligne vide ; cases à droite */
 #ach .nvp .rec-table .nvp-cbh, #ach .nvp .rec-table td:last-child { width: 44px; }
 #svConf tr.colh-r { display: table-row !important; min-height: 0 !important; padding: 0 !important; border-radius: 0 !important; font-size: var(--tb-row-fs) !important; }
 #svConf tr.colh-r td { white-space: nowrap; }
 /* v791 (point 18) : DÉLAIS hors plein écran = mêmes hauteurs que les autres onglets (en-tête 22, lignes 21) */
-html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table tbody td { padding-top: 0 !important; padding-bottom: 0 !important; line-height: var(--tb-row-lh) !important; }
-html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table tbody td :is(input, .dly-lotc) { height: calc(var(--tb-row-h) - 2px) !important; min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; line-height: var(--tb-row-lh) !important; box-sizing: border-box; }
-html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table thead th :is(.fold-all, .cf-wrap, .cf-lab) { height: var(--tb-head-lh) !important; max-height: var(--tb-head-lh); }
+html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table tbody td { padding-top: 0 !important; padding-bottom: 0 !important; line-height: var(--tb-row-lh); }
+html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table tbody td :is(input, .dly-lotc) { height: calc(var(--tb-row-h) - 2px); min-height: 0; padding-top: 0; padding-bottom: 0; line-height: var(--tb-row-lh); box-sizing: border-box; }
+html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table thead th :is(.fold-all, .cf-wrap, .cf-lab) { height: var(--tb-head-lh); max-height: var(--tb-head-lh); }
 html:not([data-dly-all]) .bdg-d-page:not(.max-detail) #bdgTabBody .dly-table :is(thead th, tbody td) input[type=checkbox] { margin-top: 0 !important; margin-bottom: 0 !important; vertical-align: middle; }
 /* v792 (DOCUMENT UNIQUE §6.3) : le signe « tout plier » ne grandit plus l'en-tête (22 px partout, titres de charges compris) */
 table thead th .fold-all, table thead th .cf-wrap, table thead th .cf-lab { height: var(--tb-head-lh); max-height: var(--tb-head-lh); line-height: var(--tb-head-lh); }
@@ -3693,11 +3693,11 @@ table[data-svcw] thead th { position: relative; }
 thead th:not(:last-child) .col-rs::after { right: 50% !important; }
 /* v793 (DOCUMENT UNIQUE §2.2) : SUIVI (DOCUMENTS / TAF / OBSERVATIONS) toujours au noir du VALIDÉ (palette), titre et onglet actif compris,
    dans tous les états de l'écran (budget, fiches d'achat) ; seule la ligne « CRÉER … ICI » reste rouge (§6.5 : rien n'est encore créé) */
-.bdg-d-page .blk-suivi > .bdg-d-block-title, .bdg-d-page .blk-suivi > .bdg-d-block-title :is(.ttl, .ttl *, svg) { color: var(--st-valide, #172033) !important; }
-.bdg-d-page .blk-suivi .rec-tab.active, .bdg-d-page .blk-suivi .rec-tab.active .ico { color: var(--st-valide, #172033) !important; }
-.bdg-d-page .blk-suivi .rec-tab.active { box-shadow: inset 0 -2px 0 var(--st-valide, #172033) !important; }
+.bdg-d-page .blk-suivi > .bdg-d-block-title, .bdg-d-page .blk-suivi > .bdg-d-block-title :is(.ttl, .ttl *, svg) { color: var(--st-valide, #172033); }
+.bdg-d-page .blk-suivi .rec-tab.active, .bdg-d-page .blk-suivi .rec-tab.active .ico { color: var(--st-valide, #172033); }
+.bdg-d-page .blk-suivi .rec-tab.active { box-shadow: inset 0 -2px 0 var(--st-valide, #172033); }
 .bdg-d-page .blk-suivi tbody tr:not(.rec-new) td, .bdg-d-page .blk-suivi tbody tr:not(.rec-new) td *:not(.rec-open):not(.rec-imp):not(.ach-link) { color: var(--st-valide, #172033) !important; }
-.bdg-d-page .blk-suivi tbody tr.rec-new td { color: var(--tb-new-c, #b91c1c) !important; background: var(--tb-new-bg, #fdf0f0) !important; }
+.bdg-d-page .blk-suivi tbody tr.rec-new td { color: var(--tb-new-c, #b91c1c); background: var(--tb-new-bg, #fdf0f0); }
 /* v794 — document unique 3.5 : tableau des dates des listes — ligne du haut sans cadre blanc, flèche ▾ seule un peu à droite du mot, pastille alignée sur celles des dates */
 .novapp-date-head, #bdgDatePanel .novapp-date-head, .svi-bdgp .novapp-date-head { padding: 0; }
 .novapp-date-filter, #bdgDatePanel .novapp-date-filter, .svi-bdgp .novapp-date-filter { width: 100%; height: 100%; max-height: none; min-height: 30px; padding: 0 12px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
@@ -3706,7 +3706,7 @@ thead th:not(:last-child) .col-rs::after { right: 50% !important; }
 /* v795 — document unique 2.7 : pastilles de même taille partout (menus d'état compris), ajustées au chiffre, jamais étirées */
 .svi-cnt { flex: 0 0 auto; }
 /* v798 — moteur commun des fenêtres et des achats (document unique 6.4, 6.5, 8.6, 10.2) : listes et fichiers au format de l'application, ligne CRÉER … ICI, cases à droite */
-.sv-natsel, .sv-natfile, .sv-hidebtn { display: none !important; }
+.sv-natsel, .sv-natfile, .sv-hidebtn { display: none; }
 .sv-sel { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 34px; padding: 0 10px; border: 1px solid #d6dbe3; border-radius: 8px; background: #fff; color: #172033; font: inherit; font-size: 12px; font-weight: 700; text-align: left; text-transform: uppercase; cursor: pointer; }
 .sv-sel .sv-sel-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sv-sel .sv-sel-a { font-style: normal; color: #64748b; }
@@ -3715,7 +3715,7 @@ thead th:not(:last-child) .col-rs::after { right: 50% !important; }
 .sv-file-b { height: 32px; padding: 0 14px; border: 1px solid #d6dbe3; border-radius: 8px; background: #fff; color: #172033; font-weight: 800; font-size: 12px; text-transform: uppercase; cursor: pointer; }
 .sv-file-b:disabled { color: #94a3b8; cursor: default; }
 .sv-file-n { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; }
-tr.sv-addrow td { color: var(--tb-new-c, #b91c1c) !important; background: var(--tb-new-bg, #fdf0f0) !important; cursor: pointer; font-weight: 700; }
+tr.sv-addrow td { color: var(--tb-new-c, #b91c1c); background: var(--tb-new-bg, #fdf0f0) !important; cursor: pointer; font-weight: 700; }
 .sv-rmbar { display: flex; justify-content: flex-end; margin: 6px 0 2px; }
 .sv-rmall:disabled { opacity: .5; cursor: default; }
 input.sv-rmcb { width: 18px; height: 18px; cursor: pointer; }
