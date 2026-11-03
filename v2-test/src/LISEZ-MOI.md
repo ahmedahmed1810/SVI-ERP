@@ -53,7 +53,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `17-6-gestes-gantt.js` | PLANNING : gestes du Gantt et du graphique | 536 |
 | `17-7-gestes-echelle.js` | PLANNING : largeur des jours, pincement, poignées | 276 |
 | `17-8-actions.js` | PLANNING : actions (shell.__insDly) | 657 |
-| `17-9-graphique-dessin.js` | PLANNING : dessin du graphique | 263 |
+| `17-9-graphique-dessin.js` | appel de « PLANNING : dessin du graphique » (v877 : le code est dans 28x-graphique-dessin.js) | 2 |
 | `17b-planning-auto.js` | appel de « GÉNÉRER / COMPRESSER, capacités, calendrier des charges, DATE OBJECTIF » (v876 : le code est dans 28w-planning-auto.js) | 2 |
 | `18-annuler-liaisons.js` | appel de « annuler / rétablir, liaisons (ronds, VALIDER, DÉLIER) » (v875 : le code est dans 28v-annuler-liaisons.js) | 2 |
 | `19-delais-disposition.js` | appel de « disposition des blocs, hauteurs en lignes entières » (v874 : le code est dans 28u-delais-disposition.js) | 2 |
@@ -103,6 +103,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `28u-delais-disposition.js` | disposition des blocs, hauteurs en lignes entières, hors du grand bloc (v874) : sviBdgDelaisDisposition(C) | 680 |
 | `28v-annuler-liaisons.js` | annuler / rétablir, liaisons (ronds, VALIDER, DÉLIER), hors du grand bloc (v875) : sviBdgAnnulerLiaisons(C) | 1250 |
 | `28w-planning-auto.js` | GÉNÉRER / COMPRESSER, capacités, calendrier des charges, DATE OBJECTIF, hors du grand bloc (v876) : sviBdgPlanningAuto(C) | 960 |
+| `28x-graphique-dessin.js` | PLANNING : dessin du graphique, hors du grand bloc (v877) : sviBdgGraphique(C) | 285 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
