@@ -3975,7 +3975,10 @@ document.addEventListener("click", e => {
   const b = e.target.closest && e.target.closest(".nvl-more"); if (!b) return;
   e.stopPropagation();
   const shell = b.closest(".novapp-list-shell"), t = shell ? shell.querySelector("table") : sviColhTableNear(b), h1 = shell ? shell.querySelector(".novapp-list-titlebar h1") : b.closest("#ach")?.querySelector(".section-head h2, .section-head h1");
-  sviHdrMenu(b, [sviColhItems(t), [{ k: "apr", lab: "APERÇU" }]], a => {
+  /* v818 : actions propres à une liste, ajoutées par son module (SVI_LIST_EXTRA : { when(titre), items, act(k) }) */
+  const ttl = h1 ? (h1.childNodes[0] ? h1.childNodes[0].textContent : h1.textContent).trim() : "", EX = (window.SVI_LIST_EXTRA || []).filter(x => { try { return x.when(ttl); } catch (er) { return false; } });
+  sviHdrMenu(b, [sviColhItems(t), EX.flatMap(x => x.items), [{ k: "apr", lab: "APERÇU" }]].filter(g => g.length), a => {
+    { const x = EX.find(y => y.items.some(i => i.k === a)); if (x) { x.act(a); return; } }
     if (!t || sviColhPick(a, t)) return;
     const vis = sviColhVis(t);
     const ths = [...t.tHead.rows[0].cells].map(th => (th.querySelector(".cf-lab") || th).textContent.trim()), keep = ths.map((x, i) => x && vis.includes(i) ? i : -1).filter(i => i >= 0);

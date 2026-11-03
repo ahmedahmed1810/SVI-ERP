@@ -3395,6 +3395,19 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("v817 : page de la FACTURE — détail standard depuis les réceptions (chantier, TVA, TTC), détail du fournisseur, besoins, devis, commandes, réceptions, paiements, avoirs ; i = infos de la facture seule",
               c817 == ["DÉTAIL FACTURE STANDARD,DÉTAIL FACTURE FOURNISSEUR,BESOINS,DEVIS,COMMANDES,RÉCEPTIONS,PAIEMENTS,AVOIRS", 1, "RCP 1|PROJET A|SABLE|M3|2|100|200|20|40|240", True, True, True], c817)
+        # v818 : PROPOSITION DE PAIEMENT — factures bon à payer triées par échéance, échues d'abord, bloqués exclus, paiements créés par fournisseur avec avoirs déduits
+        c818 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_frs_v1', 'svi_ach_faf_v1', 'svi_ach_paf_v1', 'svi_ach_avf_v1'], keep = K.map(k => localStorage.getItem(k));
+            const F = []; const a = achFrsNew(F, { nom: 'A' }), b = achFrsNew(F, { nom: 'B' }); a.modeReg = 'CHÈQUE'; b.bloq = { why: 'X' }; achFrsSave(F); achPafSave([]);
+            const day = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+            achFafSave([{ id: 'f1', ref: 'FAF 1', frs: a.id, state: 'bap', ech: day(10), lignes: [{ des: 'X', u: 'U', q: 1, pu: 100, tva: 20 }] }, { id: 'f2', ref: 'FAF 2', frs: a.id, state: 'bap', ech: day(-3), lignes: [{ des: 'X', u: 'U', q: 1, pu: 50, tva: 20 }] },
+              { id: 'f3', ref: 'FAF 3', frs: b.id, state: 'bap', ech: day(1), lignes: [{ des: 'X', u: 'U', q: 1, pu: 10, tva: 20 }] }, { id: 'f4', ref: 'FAF 4', frs: a.id, state: 'reclame', ech: day(1), lignes: [{ des: 'X', u: 'U', q: 1, pu: 10, tva: 20 }] }]);
+            achAvfSave([{ id: 'a1', frs: a.id, state: 'valide', ttc: 20 }]);
+            const R = achPafPropRows(), r = [R.map(x => x.f.ref + ':' + (x.ok ? x.prio : 'BLOQUÉ')).join(',')];
+            achPafProp(() => {}); await w(250); document.querySelector('#svConf [data-all]').click(); await w(150); r.push(document.querySelectorAll('#svConf .pp-cb:checked').length); document.querySelector('#svConf [data-mk]').click(); await w(250);
+            const P = achPaf(); r.push(P.length, P[0] && P[0].mode, P[0] && P[0].aff.length, P[0] && P[0].mt, typeof (window.SVI_LIST_EXTRA || []).find(x => x.when('PAIEMENTS (EN INSTANCE) 0')) === 'object');
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
+        check("v818 : PROPOSITION DE PAIEMENT — échues d'abord, litiges et bloqués exclus, un paiement par fournisseur au mode du fournisseur, avoirs déduits ; entrée dans le ⋯ de la liste des paiements",
+              c818 == ["FAF 2:ÉCHUE,FAF 3:BLOQUÉ,FAF 1:NORMALE", 2, 1, "CHÈQUE", 2, 160, True], c818)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

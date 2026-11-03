@@ -299,3 +299,48 @@ function achPafFiche(id, o, done) {
       svToast((rej ? "REJETÉ" : "ANNULÉ") + " : LES FACTURES CONCERNÉES REDEVIENNENT À PAYER.", 3500); return; }
   });
 }
+
+/* =========================================================
+   v818 : PROPOSITION DE PAIEMENT (C9.1 – C9.4, C9.7 – C9.10) — ⋯ de la liste des PAIEMENTS
+   Factures BON À PAYER avec un reste, triées par échéance (échues d'abord), fournisseurs bloqués exclus ; priorité :
+   ÉCHUE, DÉLAI LÉGAL PROCHE (date de facture + délai légal de PARAMÈTRES), FOURNISSEUR STRATÉGIQUE ; décaissements de la semaine et du mois ;
+   CRÉER LES PAIEMENTS : un règlement EN INSTANCE par fournisseur, mode de règlement du fournisseur, avoirs disponibles déduits.
+   ========================================================= */
+const achPafPropRows = () => { const today = new Date().toISOString().slice(0, 10), F = achFrs(), lim = achPrm().delaiLeg;
+  return achFaf().filter(f => f.state === "bap" && achFafReste(f) > 0.005).map(f => { const fr = F.find(x => x.id === f.frs), ech = achFafEch(f) || today;
+    let leg = ""; if (f.dFac) { const x = new Date(f.dFac + "T00:00:00"); x.setDate(x.getDate() + lim); leg = x.toISOString().slice(0, 10); }
+    const prio = ech < today ? "ÉCHUE" : leg && leg <= new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10) ? "DÉLAI LÉGAL PROCHE" : fr && fr.strat === "STRATÉGIQUE" ? "STRATÉGIQUE" : "NORMALE";
+    return { f, fr, ech, leg, prio, reste: achFafReste(f), ok: !!fr && achFrsOk(fr) }; })
+    .sort((a, b) => (a.prio === "ÉCHUE" ? 0 : 1) - (b.prio === "ÉCHUE" ? 0 : 1) || a.ech.localeCompare(b.ech)); };
+function achPafProp(done) {
+  let hz = "mois"; const d = sviWinNew(), sel = new Set();
+  const end = () => { const x = new Date(); x.setDate(x.getDate() + (hz === "semaine" ? 7 : hz === "mois" ? 31 : 3650)); return x.toISOString().slice(0, 10); };
+  const draw = () => { const A = achPafPropRows(), R = A.filter(r => r.ech <= end()), wk = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10), mo = new Date(Date.now() + 31 * 864e5).toISOString().slice(0, 10);
+    const sum = L => L.reduce((t, r) => t + r.reste, 0), tot = sum(R.filter(r => sel.has(r.f.id)));
+    d.innerHTML = sviWinCard({ cls: "frs-card paf-prop", close: "data-x", title: "PROPOSITION DE PAIEMENT",
+      body: `<div class="frs-scroll"><div class="rec-tabs">${[["semaine", "SEMAINE"], ["mois", "MOIS"], ["tout", "TOUT"]].map(([k, l]) => `<button type="button" class="rec-tab${hz === k ? " active on" : ""}" data-hz="${k}">${l}</button>`).join("")}</div>
+        <div class="bsn-note">À DÉCAISSER CETTE SEMAINE : <b>${esc(achF2(sum(A.filter(r => r.ok && r.ech <= wk))))}</b> · CE MOIS : <b>${esc(achF2(sum(A.filter(r => r.ok && r.ech <= mo))))}</b> · COCHÉ : <b>${esc(achF2(tot))}</b></div>
+        <table class="prm-table frs-sub"><thead><tr><th>ÉCHÉANCE</th><th>PRIORITÉ</th><th>FOURNISSEUR</th><th>FACTURE</th><th>N°</th><th class="number">RESTE À PAYER</th><th class="center"></th></tr></thead><tbody>
+        ${R.map(r => `<tr${r.prio === "ÉCHUE" ? ' class="nv-alert"' : ""}><td>${esc(achDFr(r.ech))}</td><td>${esc(r.ok ? r.prio : "FOURNISSEUR BLOQUÉ")}</td><td>${esc(r.fr ? r.fr.nom : "?")}</td><td>${esc(r.f.ref)}</td><td>${esc(r.f.num || "")}</td><td class="number">${esc(achF2(r.reste))}</td>
+          <td class="center"><input type="checkbox" class="pp-cb" data-fa="${esc(r.f.id)}"${sel.has(r.f.id) ? " checked" : ""}${r.ok ? "" : " disabled"}></td></tr>`).join("") || `<tr><td colspan="7" class="empty">AUCUNE FACTURE À PAYER SUR CETTE PÉRIODE</td></tr>`}</tbody></table>
+        <div class="bsn-note">LES FACTURES EN INSTANCE OU RÉCLAMÉES (LITIGE) N'Y SONT PAS : SEULES LES FACTURES BON À PAYER SONT PROPOSÉES.</div></div>`,
+      foot: `<button type="button" class="svc-b" data-x>FERMER</button><button type="button" class="svc-b" data-all>TOUT COCHER</button><button type="button" class="svc-b svc-ok svc-neutral" data-mk${sel.size ? "" : " disabled"}>CRÉER LES PAIEMENTS (${sel.size})</button>` });
+    if (!d.isConnected) sviWinShow(d); };
+  draw();
+  d.addEventListener("change", e => { const c = e.target.closest(".pp-cb"); if (!c) return; if (c.checked) sel.add(c.dataset.fa); else sel.delete(c.dataset.fa); draw(); });
+  d.addEventListener("click", e => {
+    if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(); return; }
+    const h = e.target.closest("[data-hz]"); if (h) { hz = h.dataset.hz; draw(); return; }
+    if (e.target.closest("[data-all]")) { achPafPropRows().filter(r => r.ok && r.ech <= end()).forEach(r => sel.add(r.f.id)); draw(); return; }
+    if (!e.target.closest("[data-mk]") || !sel.size) return;
+    const rows = achPafPropRows().filter(r => sel.has(r.f.id) && r.ok), by = new Map(); rows.forEach(r => { if (!by.has(r.f.frs)) by.set(r.f.frs, []); by.get(r.f.frs).push(r); });
+    const L = achPaf(), made = [];
+    by.forEach((rs, frs) => { const fr = achFrs().find(x => x.id === frs), aff = rs.map(r => ({ fa: r.f.id, m: Math.round(r.reste * 100) / 100 })), tot = aff.reduce((t, a) => t + a.m, 0);
+      let left = tot - 0.01; const ded = []; achAvf().filter(a => a.frs === frs && a.state !== "annule" && achAvfReste(a) > 0.005).forEach(a => { if (left <= 0) return; const m = Math.min(achAvfReste(a), left); ded.push({ av: a.id, m: Math.round(m * 100) / 100 }); left -= m; });
+      const p = { id: achId("P"), ref: achNextRef("PAF", L), type: "reglement", frs, mode: fr && ACH_MODES.includes(fr.modeReg) ? fr.modeReg : "VIREMENT", num: "", echL: "", date: new Date().toISOString().slice(0, 10), cmf: "",
+        aff, ded, mt: Math.round((tot - ded.reduce((t, x) => t + x.m, 0)) * 100) / 100, state: "instance", motif: "", cree: achNow() };
+      L.push(p); made.push(p); achHist(p.ref, "CRÉATION", "PROPOSITION DE PAIEMENT — " + (fr ? fr.nom : "") + " — " + achF2(p.mt)); });
+    achPafSave(L); svToast(made.length + " PAIEMENT(S) CRÉÉ(S) EN INSTANCE : À VÉRIFIER PUIS VALIDER.", 4000); d.remove(); if (done) done();
+  });
+}
+window.SVI_LIST_EXTRA = (window.SVI_LIST_EXTRA || []).concat([{ when: t => /^PAIEMENTS/.test(t), items: [{ k: "pafprop", lab: "PROPOSITION DE PAIEMENT" }], act: () => achPafProp(() => { const v = document.getElementById("ach"); if (v && v.__achTab) v.__achTab("paf"); }) }]);
