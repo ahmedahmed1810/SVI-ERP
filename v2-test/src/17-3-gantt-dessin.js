@@ -54,7 +54,7 @@
         /* hauteur du tableau ou du bloc (agrandi / réduit) changée : le Gantt se redessine */
         const scr0 = host.closest(".bdg-d-scroll");
         /* v556 : hauteur gardée (capMax), pas la hauteur réelle qui suit le défilement — sinon redessin complet à chaque défilement (iPad figé) */
-        const hk = () => tbl.getBoundingClientRect().height + "|" + (scr0 ? (scr0.__capMax || 0) : 0) + "|" + Math.ceil(host.clientWidth / (DLY_DW || 1));
+        const hk = () => tbl.getBoundingClientRect().height + "|" + (scr0 ? (scr0.__capMax || 0) : 0) + "|" + Math.ceil(host.clientWidth / (ECR.DLY_DW || 1));
         /* refonte, étape 6 (v644) : comparé à l'état du DERNIER dessin (pas seulement au précédent signal) — un dessin déjà fait
            à la bonne taille (ajustement à l'écran, pincement) ne déclenche plus un second dessin identique */
         host.__hkf = hk; host.__hk0 = hk();
@@ -125,7 +125,7 @@
       const dE = SC === "s" ? sviIsoAdd(dZ, 6 - wd(dZ)) : SC === "m" ? (() => { const y = Number(dZ.slice(0, 4)), m = Number(dZ.slice(5, 7)); return dZ.slice(0, 8) + String(new Date(y, m, 0).getDate()).padStart(2, "0"); })() : sviIsoAdd(dZ, 3);
       const nD = dDiff(d0, dE) + 1;
       DLY_FILL = Math.floor((host.clientWidth || 600) / nD * 1000) / 1000;   /* v559 : non arrondi — FIN pile au bord droit */
-      DLY_DW = dlyDwGet();
+      ECR.DLY_DW = dlyDwGet();
       /* v748 : ajustement à l'écran calculé AVANT le dessin (même règle que v628 / v639 plus bas) — un seul dessin à l'ouverture au lieu de deux */
       let fitSl = null;
       {
@@ -134,48 +134,48 @@
           const r = host.getBoundingClientRect(), vw = Math.min(host.clientWidth, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0));
           const n = Math.max(1, dDiff(fz.a, fz.b) + 1), mg = fz.rg.a || fz.rg.b ? 60 : 12;
           const w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n)) * 10) / 10));
-          if (vw > 60 && Math.abs(w - DLY_DW) >= 0.05) {
+          if (vw > 60 && Math.abs(w - ECR.DLY_DW) >= 0.05) {
             try { localStorage.setItem(DLY_SC[dlyScale()].k, DLY_FILL && w <= DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}
-            DLY_DW = w;
+            ECR.DLY_DW = w;
             /* même défilement qu'avant (dlyDwSet) : premier jour utilisé à la marge, plage centrée si elle tient */
             fitSl = Math.max(0, dDiff(d0, fz.a) * w - (mg + Math.max(0, (vw - 2 * mg - n * w) / 2)));
           }
         }
       }
-      host.style.setProperty("--dw", DLY_DW + "px");
-      const W = nD * DLY_DW;
+      host.style.setProperty("--dw", ECR.DLY_DW + "px");
+      const W = nD * ECR.DLY_DW;
       const d1 = sviIsoAdd(d0, nD - 1);
-      const X = iso => dDiff(d0, iso) * DLY_DW;
+      const X = iso => dDiff(d0, iso) * ECR.DLY_DW;
       let head = "", bg = "";
       for (let i = 0; i < nD; i++) {
         const di = sviIsoAdd(d0, i), dd = Number(di.slice(8, 10));
         const mo = Number(di.slice(5, 7)) - 1;
         if (SC === "m") {
           /* MOIS : année en haut, mois en bas */
-          if ((dd === 1 && mo === 0) || i === 0) head += `<span class="gh-m" style="left:${i * DLY_DW}px">${di.slice(0, 4)}</span>`;
+          if ((dd === 1 && mo === 0) || i === 0) head += `<span class="gh-m" style="left:${i * ECR.DLY_DW}px">${di.slice(0, 4)}</span>`;
           if (dd === 1 || i === 0) { const nd = new Date(Number(di.slice(0, 4)), mo + 1, 0).getDate() - dd + 1;
-            head += `<span class="gh-d gh-w" style="left:${i * DLY_DW}px;width:${nd * DLY_DW}px">${["JANV.", "FÉVR.", "MARS", "AVR.", "MAI", "JUIN", "JUIL.", "AOÛT", "SEPT.", "OCT.", "NOV.", "DÉC."][mo]}</span>`; }
+            head += `<span class="gh-d gh-w" style="left:${i * ECR.DLY_DW}px;width:${nd * ECR.DLY_DW}px">${["JANV.", "FÉVR.", "MARS", "AVR.", "MAI", "JUIN", "JUIL.", "AOÛT", "SEPT.", "OCT.", "NOV.", "DÉC."][mo]}</span>`; }
           continue;
         }
         /* v650 : un mois ne déborde jamais sur le suivant (premier mois coupé : nom court, ou rien s'il n'y a pas la place) */
-        if (dd === 1 || i === 0) { const nd = Math.min(nD - i, new Date(Number(di.slice(0, 4)), mo + 1, 0).getDate() - dd + 1), wm = nd * DLY_DW;
+        if (dd === 1 || i === 0) { const nd = Math.min(nD - i, new Date(Number(di.slice(0, 4)), mo + 1, 0).getDate() - dd + 1), wm = nd * ECR.DLY_DW;
           const full = SVI_MOIS[mo] + " " + di.slice(0, 4), short = ["JANV.", "FÉVR.", "MARS", "AVR.", "MAI", "JUIN", "JUIL.", "AOÛT", "SEPT.", "OCT.", "NOV.", "DÉC."][mo], fit = t => t.length * 6.5 + 8 <= wm;
-          head += `<span class="gh-m" style="left:${i * DLY_DW}px;max-width:${wm}px;overflow:hidden">${fit(full) ? full : fit(short) ? short : ""}</span>`; }
+          head += `<span class="gh-m" style="left:${i * ECR.DLY_DW}px;max-width:${wm}px;overflow:hidden">${fit(full) ? full : fit(short) ? short : ""}</span>`; }
         if (SC === "s") {
           /* SEMAINE : numéro de semaine (ISO) et date du lundi */
           const dt = new Date(di + "T00:00:00");
           if (dt.getDay() === 1 || i === 0) {
             const t = new Date(dt); t.setDate(t.getDate() + 3 - (t.getDay() + 6) % 7);
             const w1 = new Date(t.getFullYear(), 0, 4), wn = 1 + Math.round(((t - w1) / 864e5 - 3 + (w1.getDay() + 6) % 7) / 7);
-            head += `<span class="gh-d gh-w" style="left:${i * DLY_DW}px;width:${7 * DLY_DW}px">S${wn}${7 * DLY_DW >= 56 ? " " + di.slice(8, 10) + "/" + di.slice(5, 7) : ""}</span>`;
+            head += `<span class="gh-d gh-w" style="left:${i * ECR.DLY_DW}px;width:${7 * ECR.DLY_DW}px">S${wn}${7 * ECR.DLY_DW >= 56 ? " " + di.slice(8, 10) + "/" + di.slice(5, 7) : ""}</span>`;
           }
           continue;
         }
         const off = !sviWork(cal, di);
-        head += `<span class="gh-d${off ? " off" : ""}" style="left:${i * DLY_DW}px">${dd}</span>`;
-        if (off) bg += `<div class="gbg-off" style="left:${i * DLY_DW}px"></div>`;
+        head += `<span class="gh-d${off ? " off" : ""}" style="left:${i * ECR.DLY_DW}px">${dd}</span>`;
+        if (off) bg += `<div class="gbg-off" style="left:${i * ECR.DLY_DW}px"></div>`;
       }
-      const vline = (iso, cls, lab) => iso && iso >= d0 && iso <= d1 ? `<div class="gv ${cls}" style="left:${X(iso) + DLY_DW}px" title="${lab}"><span>${lab}</span></div>` : "";
+      const vline = (iso, cls, lab) => iso && iso >= d0 && iso <= d1 ? `<div class="gv ${cls}" style="left:${X(iso) + ECR.DLY_DW}px" title="${lab}"><span>${lab}</span></div>` : "";
       let bars = "";
       const pos = {};
       R.forEach((x, i) => {
@@ -205,11 +205,11 @@
           const gcol = dlyLotColor((x.all.find(t => t.lo) || {}).lo);
           if (x.fold) {
             /* lot replié (FORMAT 92) : parties travaillées dans la couleur du lot, creux en blanc, trait fin en pointillé */
-            bars += `<div class="gdot" data-path="${esc(x.path)}" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW}px;top:${y + BH / 2 - 0.5}px"></div>`;
-            segs.forEach(s => { bars += `<div class="gseg" data-path="${esc(x.path)}" style="left:${X(s.a)}px;width:${X(s.b) - X(s.a) + DLY_DW - 1}px;top:${y}px;background:${s.lo ? dlyLotColor(s.lo) : gcol}"></div>`; });
-            bars += gname(X(a0), X(b0) + DLY_DW + 5);
-          } else bars += `<div class="gsum" data-path="${esc(x.path)}" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW - 1}px;top:${y + (BH - 6) / 2 - 0.5}px;--c:${gcol}"></div>`
-            + gname(X(a0), X(b0) + DLY_DW + 5);
+            bars += `<div class="gdot" data-path="${esc(x.path)}" style="left:${X(a0)}px;width:${X(b0) - X(a0) + ECR.DLY_DW}px;top:${y + BH / 2 - 0.5}px"></div>`;
+            segs.forEach(s => { bars += `<div class="gseg" data-path="${esc(x.path)}" style="left:${X(s.a)}px;width:${X(s.b) - X(s.a) + ECR.DLY_DW - 1}px;top:${y}px;background:${s.lo ? dlyLotColor(s.lo) : gcol}"></div>`; });
+            bars += gname(X(a0), X(b0) + ECR.DLY_DW + 5);
+          } else bars += `<div class="gsum" data-path="${esc(x.path)}" style="left:${X(a0)}px;width:${X(b0) - X(a0) + ECR.DLY_DW - 1}px;top:${y + (BH - 6) / 2 - 0.5}px;--c:${gcol}"></div>`
+            + gname(X(a0), X(b0) + ECR.DLY_DW + 5);
           return;
         }
         /* v546 (R14) : tâche sans ouvriers ni délai (DÉBUT = FIN, ni main-d'œuvre, ni durée fixée) = 0 jour, comme une tâche sans dates */
@@ -219,7 +219,7 @@
              la glisser vers la droite lui donne une durée */
           const at = x.deb || x.fin || dlyPredFin(x.key);
           if (!at || x.ext) return;
-          const left = X(at) + (!x.deb && x.fin ? DLY_DW : 0);
+          const left = X(at) + (!x.deb && x.fin ? ECR.DLY_DW : 0);
           pos[x.key] = { l: left, r: left, y: y + BH / 2 };
           bars += `<div class="gb gb0${x.off ? " gb-off" : ""}" data-key="${esc(x.key)}" data-at="${esc(at)}" style="left:${left - 1}px;top:${y}px"><span class="gb-e"></span></div>`
             + `<span class="gb-n gb-out gb-ren gb0n" data-key="${esc(x.key)}" style="left:${left + 6}px;top:${ty}px">${esc(x.sec)}</span>`;
@@ -229,18 +229,18 @@
            glisser un morceau = déplacer toute la tâche ; le bout du dernier morceau = sa FIN */
         if (x.per && x.per.length > 1) {
           const col = dlyLotColor(x.lo), P = x.per, last = P[P.length - 1];
-          const L0 = X(P[0].deb) + (P[0].hs ? DLY_DW / 2 : 0), R0 = X(last.fin) + DLY_DW - 1 - (last.he ? DLY_DW / 2 : 0);
+          const L0 = X(P[0].deb) + (P[0].hs ? ECR.DLY_DW / 2 : 0), R0 = X(last.fin) + ECR.DLY_DW - 1 - (last.he ? ECR.DLY_DW / 2 : 0);
           pos[x.key] = { l: L0, r: R0, y: y + BH / 2 };
           bars += `<div class="gpc" style="left:${L0}px;width:${Math.max(0, R0 - L0)}px;top:${y + BH / 2 - 0.5}px;--c:${col}"></div>`;
           P.forEach((q, j) => {
-            const l = X(q.deb) + (q.hs ? DLY_DW / 2 : 0), w = Math.max(3, X(q.fin) - X(q.deb) + DLY_DW - 1 - (q.hs ? DLY_DW / 2 : 0) - (q.he ? DLY_DW / 2 : 0));
+            const l = X(q.deb) + (q.hs ? ECR.DLY_DW / 2 : 0), w = Math.max(3, X(q.fin) - X(q.deb) + ECR.DLY_DW - 1 - (q.hs ? ECR.DLY_DW / 2 : 0) - (q.he ? ECR.DLY_DW / 2 : 0));
             bars += `<div class="gb gb-pc${x.off ? " gb-off" : ""}${x.marge === 0 ? " crit" : x.qc ? " qcrit" : ""}${w < 30 ? " gb-nar" : ""}" data-key="${esc(x.key)}" data-pc="${j}" style="left:${l}px;width:${w}px;top:${y}px;--c:${col}">${j === 0 ? '<span class="gb-s"></span>' : ""}${j === P.length - 1 ? '<span class="gb-e"></span>' : ""}</div>`;
           });
           bars += `<span class="gb-n gb-out gb-ren${x.off ? " gb-offn" : ""}" data-key="${esc(x.key)}" style="left:${R0 + 5}px;top:${ty}px">${dlyIncHTML(x.key)}${esc(x.sec)} <span class="gpc-n">${P.length} MORCEAUX</span>${x.jal ? ' <span class="gjal">★</span>' : ""}${dlyLimHTML(x.key)}</span>`;
           return;
         }
         /* v530 : demi-journée de début ou de fin = demi-case */
-        const left = X(x.deb) + (x.hs ? DLY_DW / 2 : 0), w = Math.max(3, X(x.fin) - X(x.deb) + DLY_DW - 1 - (x.hs ? DLY_DW / 2 : 0) - (x.he ? DLY_DW / 2 : 0)), col = dlyLotColor(x.lo);
+        const left = X(x.deb) + (x.hs ? ECR.DLY_DW / 2 : 0), w = Math.max(3, X(x.fin) - X(x.deb) + ECR.DLY_DW - 1 - (x.hs ? ECR.DLY_DW / 2 : 0) - (x.he ? ECR.DLY_DW / 2 : 0)), col = dlyLotColor(x.lo);
         const crit = x.marge === 0;
         const nm = esc(x.sec);
         /* FORMAT 91 : barre fine et arrondie, nom juste à droite */
@@ -279,10 +279,10 @@
             /* v575 (remarque 3) : plage DÉBUT – FIN posée — tout le Gantt (barres des lots comprises) estompé avant DÉBUT et après FIN */
             const R = dlyHRange(); let s = "";
             if (R.a) { const x = Math.max(0, X(R.a)); if (x > 0) s += `<div class="g-rgsh" style="left:0;width:${x}px;height:${bodyH}px"></div>`; }
-            if (R.b) { const x = Math.min(W, X(R.b) + DLY_DW); if (x < W) s += `<div class="g-rgsh" style="left:${x}px;width:${W - x}px;height:${bodyH}px"></div>`; }
+            if (R.b) { const x = Math.min(W, X(R.b) + ECR.DLY_DW); if (x < W) s += `<div class="g-rgsh" style="left:${x}px;width:${W - x}px;height:${bodyH}px"></div>`; }
             /* v612 (point 12) : les traits DÉBUT et FIN posés traversent aussi le Gantt — une seule plage, tirée de l'un ou de l'autre */
             if (R.a) s += `<div class="grng grng-g" data-r="a" style="left:${X(R.a)}px;height:${bodyH}px"><span>DÉBUT ${dFr(R.a).slice(0, 5)}</span></div>`;
-            if (R.b) s += `<div class="grng grng-g" data-r="b" style="left:${Math.min(W - 2, X(R.b) + DLY_DW)}px;height:${bodyH}px"><span>FIN ${dFr(R.b).slice(0, 5)}</span></div>`;
+            if (R.b) s += `<div class="grng grng-g" data-r="b" style="left:${Math.min(W - 2, X(R.b) + ECR.DLY_DW)}px;height:${bodyH}px"><span>FIN ${dFr(R.b).slice(0, 5)}</span></div>`;
             return s; })()}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>`;
       host.__X = X; host.__d0 = d0; host.__HD = HD;
       /* v594 (remarque longue 2) : graphique et poignée « = » dans un PIED FIXE sous la zone des tâches (hors de ce qui défile) :
@@ -319,12 +319,12 @@
               const h2 = shell.querySelector("#dlyGantt"); if (!h2) return;
               const r = h2.getBoundingClientRect(), vw = Math.min(h2.clientWidth, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0));
               const n = Math.max(1, dDiff(fA, fB) + 1), mg = fRg.a || fRg.b ? 60 : 12, want = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n));
-              if (vw > 60 && Math.abs(want - DLY_DW) > 0.05) (shell.__dlyDwSet || (() => {}))(h2, want, mg + Math.max(0, (vw - 2 * mg - n * Math.round(want * 10) / 10) / 2), dDiff(h2.__d0, fA));
+              if (vw > 60 && Math.abs(want - ECR.DLY_DW) > 0.05) (shell.__dlyDwSet || (() => {}))(h2, want, mg + Math.max(0, (vw - 2 * mg - n * Math.round(want * 10) / 10) / 2), dDiff(h2.__d0, fA));
             } finally { shell.__dlyFitting = false; document.getElementById("dlyDwLab")?.remove(); } });
           } }
         /* v639 : plage utilisée (avec DÉBUT / FIN) centrée, même sans changement de zoom ; v653 : marge de 60 px quand DÉBUT / FIN sont posés (étiquettes entières) */
-        if (fA && fB) { const x1 = X(fA), x2 = X(fB) + DLY_DW, w = host.clientWidth;
-          const t = x2 - x1 <= w ? (x1 + x2) / 2 - w / 2 : x1 - 2 * DLY_DW;
+        if (fA && fB) { const x1 = X(fA), x2 = X(fB) + ECR.DLY_DW, w = host.clientWidth;
+          const t = x2 - x1 <= w ? (x1 + x2) / 2 - w / 2 : x1 - 2 * ECR.DLY_DW;
           host.scrollLeft = fitSl !== null ? fitSl : Math.max(0, Math.min(host.scrollWidth - w, t)); shell.__dlyGx = host.scrollLeft; shell.__dlyFitT = performance.now(); }
       }
       host.addEventListener("scroll", () => { shell.__dlyGx = host.scrollLeft; dlyRngEdge(); }, { passive: true });   /* v657 : DÉBUT / FIN au repos suivent toujours le bord visible (après un ajustement aussi) */

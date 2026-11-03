@@ -73,12 +73,12 @@
           const npl = shell.querySelector(`.dlyg-foot .gplaf[data-seg="${seg}"]`) || shell.querySelector(".dlyg-foot .gplaf");
           if (npl && npl !== pl) { pl = npl; v0 = pl.querySelector(".gplaf-v") || v0; pl.classList.add("gcap-drag"); place(); } };
         const x0 = e.clientX, y0 = e.clientY, host = shell.querySelector("#dlyGantt");
-        const dayAt = cx => { const n = Math.floor((cx - h.getBoundingClientRect().left) / DLY_DW); return sviIsoAdd(host.__d0, Math.max(0, n)); };
+        const dayAt = cx => { const n = Math.floor((cx - h.getBoundingClientRect().left) / ECR.DLY_DW); return sviIsoAdd(host.__d0, Math.max(0, n)); };
         const showCut = cx => {
           const iso = sviWNear(X.cal(), dayAt(cx), 1);
           let m = document.getElementById("dlyCutTip");
           if (!m) { m = document.createElement("div"); m.id = "dlyCutTip"; document.body.appendChild(m); }
-          const hr = h.getBoundingClientRect(), xi = hr.left + dDiff(host.__d0, iso) * DLY_DW;
+          const hr = h.getBoundingClientRect(), xi = hr.left + dDiff(host.__d0, iso) * ECR.DLY_DW;
           m.innerHTML = `<span class="ct-sl" style="left:${xi - 4}px;top:${pl.getBoundingClientRect().top - 9}px">/</span><span class="ct-b" style="left:${xi - 50}px;top:${pl.getBoundingClientRect().top - 40}px">COUPER ICI<br><b>${esc(dFr(iso))}</b></span>`;
           cut = iso;
         };
@@ -124,10 +124,10 @@
         const host = shell.querySelector("#dlyGantt"), h = c.closest(".ghist"), x0 = e.clientX, y0 = e.clientY;
         let mov = false, iso = null;
         const tip = cx => {
-          const n = Math.floor((cx - h.getBoundingClientRect().left) / DLY_DW); iso = sviWNear(X.cal(), sviIsoAdd(host.__d0, Math.max(0, n)), 1);
+          const n = Math.floor((cx - h.getBoundingClientRect().left) / ECR.DLY_DW); iso = sviWNear(X.cal(), sviIsoAdd(host.__d0, Math.max(0, n)), 1);
           let m = document.getElementById("dlyCutTip");
           if (!m) { m = document.createElement("div"); m.id = "dlyCutTip"; document.body.appendChild(m); }
-          const xi = h.getBoundingClientRect().left + dDiff(host.__d0, iso) * DLY_DW, ty = c.getBoundingClientRect().top;
+          const xi = h.getBoundingClientRect().left + dDiff(host.__d0, iso) * ECR.DLY_DW, ty = c.getBoundingClientRect().top;
           m.innerHTML = `<span class="ct-sl" style="left:${xi - 4}px;top:${ty}px">/</span><span class="ct-b" style="left:${xi - 50}px;top:${ty - 34}px">DÉPLACER ICI<br><b>${esc(dFr(iso))}</b></span>`;
         };
         const lt = setTimeout(() => {
@@ -177,7 +177,7 @@
           moved = true;
           const x = ev.clientX - h.getBoundingClientRect().left, hr = host.getBoundingClientRect();
           edge = ev.clientX < hr.left + 2 || x <= 0 ? "l" : ev.clientX > hr.right - 2 || x >= W ? "r" : "";
-          iso = edge ? "" : sviIsoAdd(host.__d0, Math.max(0, Math.floor(x / DLY_DW)));
+          iso = edge ? "" : sviIsoAdd(host.__d0, Math.max(0, Math.floor(x / ECR.DLY_DW)));
           ln.style.left = Math.max(0, Math.min(W, x)) + "px"; ln.classList.toggle("grng-off", !!edge);
           const lab = other && iso && (ln.dataset.r === "a" ? iso > other : iso < other) ? (ln.dataset.r === "a" ? "FIN" : "DÉBUT") : (ln.dataset.r === "a" ? "DÉBUT" : "FIN");
           sp.textContent = lab + (iso ? " " + dFr(iso).slice(0, 5) : "");
@@ -263,7 +263,7 @@
       const dlyXDraw = (host, h, cx, cy, step) => {
         const HV = host.__HV || {}, H = host.__HD || {}, S = dlyXSeries(host, H, HV);
         const hr = h.getBoundingClientRect(), Y0 = Number(h.dataset.y0) || hr.height, sc = Number(h.dataset.sc) || 1;
-        const i = Math.max(0, Math.floor((cx - hr.left) / DLY_DW)), di = sviIsoAdd(host.__d0, i);
+        const i = Math.max(0, Math.floor((cx - hr.left) / ECR.DLY_DW)), di = sviIsoAdd(host.__d0, i);
         /* v655 (FORMAT 246) : repères seulement sur un jour de la plage DÉBUT – FIN */
         const RG = dlyHRange(); if ((RG.a && di < RG.a) || (RG.b && di > RG.b)) return;
         /* courbes de ce jour, de la plus proche du doigt à la plus loin */
@@ -272,8 +272,8 @@
         const k = step ? ((shell.__dlyX && shell.__dlyX.i === i ? shell.__dlyX.k : 0) + step) % C.length : 0, best = C[k];
         dlyXClear();
         const mk = (c) => { const d = document.createElement("div"); d.className = c; document.body.appendChild(d); return d; };
-        const px = hr.left + i * DLY_DW + DLY_DW / 2, top = hr.top;   /* v594 : graphique dans le pied fixe — repères depuis le haut du graphique */
-        const ax = Math.max(hr.left, host.getBoundingClientRect().left, RG.a ? hr.left + dDiff(host.__d0, RG.a) * DLY_DW : -1e9);   /* v655 : trait horizontal depuis DÉBUT (jamais hors plage) */
+        const px = hr.left + i * ECR.DLY_DW + ECR.DLY_DW / 2, top = hr.top;   /* v594 : graphique dans le pied fixe — repères depuis le haut du graphique */
+        const ax = Math.max(hr.left, host.getBoundingClientRect().left, RG.a ? hr.left + dDiff(host.__d0, RG.a) * ECR.DLY_DW : -1e9);   /* v655 : trait horizontal depuis DÉBUT (jamais hors plage) */
         const v = mk("dlyx-v"); v.style.left = px + "px"; v.style.top = top + "px"; v.style.height = Math.max(0, best.y - top) + "px"; v.style.borderLeftColor = best.c;
         const hz = mk("dlyx-h"); hz.style.left = ax + "px"; hz.style.top = best.y + "px"; hz.style.width = Math.max(0, px - ax) + "px"; hz.style.borderTopColor = best.c;
         const p = mk("dlyx-pt"); p.style.left = px + "px"; p.style.top = best.y + "px"; p.style.borderColor = best.c;
@@ -284,8 +284,8 @@
       /* v611 (point 3) : FILTRE DU JOUR — nouvel appui long sur le point des repères : DÉBUT et FIN autour de ce jour, cases des charges
          de ce jour cochées (tout le reste suit) ; un toucher dans le graphique hors des courbes l'enlève (plage et cases d'avant remises) */
       /* v631 : filtre du jour posé / enlevé — l'écran reste sur les mêmes jours (pas d'ajustement, pas de saut) */
-      const dlyXKeep = () => { const h = shell.querySelector("#dlyGantt"); shell.__dlyNoFit = true; shell.__dlyKeepD = h && h.__d0 ? sviIsoAdd(h.__d0, Math.round(h.scrollLeft / DLY_DW)) : ""; };
-      const dlyXBack = () => { const d = shell.__dlyKeepD; const go = () => { const h = shell.querySelector("#dlyGantt"); if (h && h.__d0 && d) { h.scrollLeft = Math.max(0, dDiff(h.__d0, d) * DLY_DW); shell.__dlyGx = h.scrollLeft; } }; go(); requestAnimationFrame(() => { go(); setTimeout(() => { go(); shell.__dlyNoFit = false; }, 400); }); };
+      const dlyXKeep = () => { const h = shell.querySelector("#dlyGantt"); shell.__dlyNoFit = true; shell.__dlyKeepD = h && h.__d0 ? sviIsoAdd(h.__d0, Math.round(h.scrollLeft / ECR.DLY_DW)) : ""; };
+      const dlyXBack = () => { const d = shell.__dlyKeepD; const go = () => { const h = shell.querySelector("#dlyGantt"); if (h && h.__d0 && d) { h.scrollLeft = Math.max(0, dDiff(h.__d0, d) * ECR.DLY_DW); shell.__dlyGx = h.scrollLeft; } }; go(); requestAnimationFrame(() => { go(); setTimeout(() => { go(); shell.__dlyNoFit = false; }, 400); }); };
       const dlyXFilter = di => {
         const host = shell.querySelector("#dlyGantt"), H = host && host.__HD;
         if (!H) return;
@@ -317,7 +317,7 @@
       /* courbe (ou haut de barre) près du doigt, ce jour-là */
       const dlyXNear = (host, h, cx, cy) => {
         const HV = host.__HV || {}, S = dlyXSeries(host, host.__HD || {}, HV), hr = h.getBoundingClientRect(), Y0 = Number(h.dataset.y0) || hr.height, sc = Number(h.dataset.sc) || 1;
-        const di = sviIsoAdd(host.__d0, Math.max(0, Math.floor((cx - hr.left) / DLY_DW))), RG = dlyHRange();
+        const di = sviIsoAdd(host.__d0, Math.max(0, Math.floor((cx - hr.left) / ECR.DLY_DW))), RG = dlyHRange();
         if ((RG.a && di < RG.a) || (RG.b && di > RG.b)) return false;
         return S.some(x => { const v = x.M[di]; return v !== undefined && v !== null && Math.abs(hr.top + Y0 - v * (x.s || sc) - cy) < 40; });
       };
@@ -427,7 +427,7 @@
         let p = p0, moved = false;
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });
-        const lp = setTimeout(() => { if (moved) return; done(); const hr = h.getBoundingClientRect(); X.rdCut(bar.dataset.sk, bar.dataset.sec, sviIsoAdd(host.__d0, Math.max(0, Math.floor((x0 - hr.left) / DLY_DW)))); }, SVI_G.lp);
+        const lp = setTimeout(() => { if (moved) return; done(); const hr = h.getBoundingClientRect(); X.rdCut(bar.dataset.sk, bar.dataset.sec, sviIsoAdd(host.__d0, Math.max(0, Math.floor((x0 - hr.left) / ECR.DLY_DW)))); }, SVI_G.lp);
         const mv = ev => {
           if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) < SVI_G.drag) return;
           moved = true; clearTimeout(lp); ev.preventDefault();

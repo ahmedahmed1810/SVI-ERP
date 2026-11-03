@@ -62,7 +62,7 @@
           const Y0 = Y0b + YO * sc;
           shell.__dlyYGeo = { RG: YRG, mn, HH, IB };
           const pass = di => inR(di) && (multi || ((VL.min === null || val[di] >= VL.min - 1e-9) && (VL.max === null || val[di] <= VL.max + 1e-9)));
-          const bw = Math.max(1, DLY_DW - (DLY_DW > 10 ? 6 : 0)), bo = DLY_DW > 10 ? 3 : 0;
+          const bw = Math.max(1, ECR.DLY_DW - (ECR.DLY_DW > 10 ? 6 : 0)), bo = ECR.DLY_DW > 10 ? 3 : 0;
           const capAt = di => { let n = -1; SG.forEach(x => { if (!x.def && (!x.d || x.d <= di)) n = x.n; }); return n; };
           /* v604 : rendement réglé (charge de main-d'œuvre seule sélectionnée) et heures sup du jour */
           const rdGK = (() => { const g = dlyCurGK(); return g && /\|J-H$/.test(g) && !g.includes(" § ") ? g : ""; })(), rdSt0 = rdGK ? dlyRdSt(rdGK, "", false) : null;
@@ -89,7 +89,7 @@
             R.filter(x => !x.grp && x.deb).forEach(x => { const f = x.fin || x.deb; for (let d = x.deb, g = 0; d <= f && g < 2000; d = sviIsoAdd(d, 1), g++) if (d >= d0 && d <= d1 && sviWork(cal, d)) busy.add(d); });
             vis.forEach(di => { if (busy.has(di) && !(Math.abs(val[di] || 0) > 1e-9) && pass(di)) hb += `<div class="ghb ghb-z" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;bottom:${HH - Y0}px;background:${ks.length === 1 ? colOf(ks[0], 0) : CC}"></div>`; });
           }
-          if (hideC) vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
+          if (hideC) vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${ECR.DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           else if (C && !curve) {
             /* v589 : commandes prévisionnelles — barres fines hachurées, empilées à la couleur de chaque charge commandée */
             const nb = 1 + (cPG && sP ? 1 : 0) + (cPG && sG ? 1 : 0), w1 = bw / nb;
@@ -122,26 +122,26 @@
             });
           } else {
             /* R28 : une seule courbe par grandeur (le total), plus une par charge */
-            const pt = (di, v) => `${X(di) + DLY_DW / 2},${Y0 - v * sc}`;
+            const pt = (di, v) => `${X(di) + ECR.DLY_DW / 2},${Y0 - v * sc}`;
             /* v562 : courbe continue — grise sur toute la durée, puis en couleur seulement sur les jours retenus (plage DÉBUT – FIN, MIN – MAX) ;
                plus de voile blanc jour par jour (rayures quand la largeur d'un jour n'est pas entière) */
             const runs = []; { let cur = []; vis.forEach(di => { if (pass(di)) cur.push(di); else { if (cur.length) runs.push(cur); cur = []; } }); if (cur.length) runs.push(cur); }
             /* v605 : commandes cumulées = escalier, une marche à chaque envoi */
-            const stepPts = (L, M) => L.map((di, i) => (i ? `${X(di) + DLY_DW / 2},${Y0 - (M[L[i - 1]] || 0) * sc} ` : "") + pt(di, M[di] || 0)).join(" ");
+            const stepPts = (L, M) => L.map((di, i) => (i ? `${X(di) + ECR.DLY_DW / 2},${Y0 - (M[L[i - 1]] || 0) * sc} ` : "") + pt(di, M[di] || 0)).join(" ");
             const poly = (L, M, c) => `<polyline points="${C && cum ? stepPts(L, M) : L.map(di => pt(di, M[di] || 0)).join(" ")}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
             /* v587 : la couleur s'arrête exactement aux traits DÉBUT et FIN (gris à l'extérieur seulement) */
-            const cxa = RG.a ? X(RG.a) : 0, cxb = RG.b ? X(RG.b) + DLY_DW : W, part = !!(RG.a || RG.b);
+            const cxa = RG.a ? X(RG.a) : 0, cxb = RG.b ? X(RG.b) + ECR.DLY_DW : W, part = !!(RG.a || RG.b);
             if (part) svg += `<defs><clipPath id="ghRgClip"><rect x="${cxa}" y="-10" width="${Math.max(0, cxb - cxa)}" height="${HH + 20}"/></clipPath></defs>`;
             const clip = h => part ? `<g clip-path="url(#ghRgClip)">${h}</g>` : h;
             /* v611 (point 4) : hors de la plage, plus de courbe grise — seule la partie retenue est tracée */
             /* v655 (FORMAT 246) : seulement les jours retenus ; un jour seul = un point (pas de traits vers les jours voisins) ;
                chaque morceau prolongé d'un jour de chaque côté puis coupé aux traits (la couleur s'arrête aux traits, v587) */
             const ext = L => { const i0 = vis.indexOf(L[0]), i1 = vis.indexOf(L[L.length - 1]); return vis.slice(Math.max(0, i0 - 1), i1 + 2); };
-            const dot = (di, M, c) => `<circle cx="${X(di) + DLY_DW / 2}" cy="${Y0 - (M[di] || 0) * sc}" r="3.5" fill="${c}"/>`;
+            const dot = (di, M, c) => `<circle cx="${X(di) + ECR.DLY_DW / 2}" cy="${Y0 - (M[di] || 0) * sc}" r="3.5" fill="${c}"/>`;
             const line = (M, c) => runs.map(L => L.length === 1 ? dot(L[0], M, c) : clip(poly(part ? ext(L) : L, M, c))).join("");
             /* v655 (FORMAT 246) : MARGE verte au-dessus de zéro, rouge en dessous ; la couleur change exactement où la courbe croise le zéro (affichage seul) */
             const sgnLine = (L, M) => {
-              const P = L.map(di => [X(di) + DLY_DW / 2, M[di] || 0]), out = []; let cur = [], neg = null;
+              const P = L.map(di => [X(di) + ECR.DLY_DW / 2, M[di] || 0]), out = []; let cur = [], neg = null;
               const push = (x, v, n) => { if (neg !== null && n !== neg) { out.push([neg, cur]); cur = [cur[cur.length - 1]]; } neg = n; cur.push([x, v]); };
               P.forEach(([x, v], k) => {
                 if (k) { const [x0, v0] = P[k - 1]; if ((v0 < 0) !== (v < 0) && v0 !== v) { const xz = x0 + (x - x0) * (0 - v0) / (v - v0); cur.push([xz, 0]); push(xz, 0, v < 0); } }
@@ -154,7 +154,7 @@
             if (!multi || sC) svg += line(val, CC);
             if (sP) svg += line(vP, CP);
             if (sG) svg += runs.map(L => L.length === 1 ? dot(L[0], vG, (vG[L[0]] || 0) < 0 ? CGN : CG) : clip(sgnLine(part ? ext(L) : L, vG))).join("");
-            vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
+            vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${ECR.DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           }
           /* v569 (remarque 13) : RENDEMENT par charge — quantité produite de l'activité (vert) et une courbe pointillée par charge cochée
              (sa couleur, sa propre échelle, valeur maximale affichée) */
@@ -162,13 +162,13 @@
           if (RD) {
             const cuM = M => cum ? cumOf(di => M[di] || 0) : M;
             const PQ = cuM(RD.L); vis.forEach(di => { rdPQ[di] = PQ[di] || 0; });
-            const lab = (v, s, c, di) => di ? `<div class="grd-mx" style="left:${X(di) + DLY_DW / 2}px;top:${Math.max(2, Y0 - v * s - 18)}px;--c:${c}">${fmtA(v)}</div>` : "";
+            const lab = (v, s, c, di) => di ? `<div class="grd-mx" style="left:${X(di) + ECR.DLY_DW / 2}px;top:${Math.max(2, Y0 - v * s - 18)}px;--c:${c}">${fmtA(v)}</div>` : "";
             const showP = crb.includes("p"), nB = RD.ser.length + (showP ? 1 : 0), w1 = Math.max(1, bw / (nB || 1));
             /* v571 : barres côte à côte dans le jour (HISTOGRAMME) ou courbes (COURBES), chacune à sa propre échelle */
             const barS = (M, s, c, j) => vis.forEach(di => { const v = M[di]; if (!v) return; hb += `<div class="ghb ghb-m${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo + j * w1}px;width:${w1}px;top:${Y0 - v * s}px;bottom:auto;height:${Math.max(1, v * s)}px;background:${c}"></div>`; });
             if (showP) {
               const mP = Math.max(1e-9, ...vis.map(di => rdPQ[di])), sP2 = (HH - 44 - IB) / (mP * 1.08) * YZ;   /* v601 : le zoom vertical agit aussi sur le RENDEMENT */ rdPQ.__s = sP2;
-              if (curve) svg += `<polyline points="${vis.map(di => `${X(di) + DLY_DW / 2},${Y0 - rdPQ[di] * sP2}`).join(" ")}" fill="none" stroke="#2e90fa" stroke-width="2" stroke-linejoin="round"/>`;
+              if (curve) svg += `<polyline points="${vis.map(di => `${X(di) + ECR.DLY_DW / 2},${Y0 - rdPQ[di] * sP2}`).join(" ")}" fill="none" stroke="#2e90fa" stroke-width="2" stroke-linejoin="round"/>`;
               else barS(rdPQ, sP2, "#2e90fa", 0);
               hb += lab(mP, sP2, "#2e90fa", vis.find(di => rdPQ[di] === mP));
             }
@@ -177,7 +177,7 @@
               vis.forEach(di => { const cq = C2[di] || 0; Rr[di] = cq > 1e-9 ? (P2[di] || 0) / cq : null; });
               const mR = Math.max(1e-9, ...vis.map(di => Rr[di] || 0)), sR2 = (HH - 44 - IB) / (mR * 1.08) * YZ;
               let seg = [];
-              const flush = () => { if (seg.length) svg += `<polyline points="${(seg.length > 1 ? seg : [seg[0], seg[0]]).map(di => `${X(di) + DLY_DW / 2},${Y0 - Rr[di] * sR2}`).join(" ")}" fill="none" stroke="${c}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`; seg = []; };
+              const flush = () => { if (seg.length) svg += `<polyline points="${(seg.length > 1 ? seg : [seg[0], seg[0]]).map(di => `${X(di) + ECR.DLY_DW / 2},${Y0 - Rr[di] * sR2}`).join(" ")}" fill="none" stroke="${c}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`; seg = []; };
               if (curve) { vis.forEach(di => { if (Rr[di] === null) flush(); else seg.push(di); }); flush(); }
               else barS(Rr, sR2, c, j + (showP ? 1 : 0));
               hb += lab(mR, sR2, c, vis.find(di => Rr[di] === mR));
@@ -235,7 +235,7 @@
             const tot = segs.length > 1 ? days.filter(pass).reduce((t, di) => t + (val[di] || 0), 0) : 0;
             host.__capTot = tot ? "TOTAL " + fmtA(tot) + " " + HD.unit : ""; }
           /* R19 : traits DÉBUT et FIN ; total de la plage seulement quand une plage est posée */
-          const xa = RG.a ? X(RG.a) : 0, xb = RG.b ? X(RG.b) + DLY_DW : W - 2;   /* v559 : FIN au bord droit, sans déborder */
+          const xa = RG.a ? X(RG.a) : 0, xb = RG.b ? X(RG.b) + ECR.DLY_DW : W - 2;   /* v559 : FIN au bord droit, sans déborder */
           const sum = days.filter(di => inR(di) && pass(di)).reduce((t, di) => t + (C ? C.L[di] : gC(di)), 0);
           /* v563 (remarque 3) : total de la plage pour chaque courbe affichée (CHARGES, PRODUITS, MARGE), pas seulement les charges */
           const sumOf = g => days.filter(di => inR(di) && pass(di)).reduce((t, di) => t + g(di), 0);

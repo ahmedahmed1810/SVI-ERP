@@ -338,7 +338,7 @@
       const v = Number(s0) || c.def;
       return Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v * 10) / 10));
     };
-    let DLY_DW = dlyDwGet();
+    ECR.DLY_DW = dlyDwGet();
     /* v748 : réécrit seulement si la valeur change (sinon toute la page recalcule ses styles à chaque dessin) */
     const dlyRhApply = rh => { const a = rh + "px", b = dlyBh(rh) + "px";
       if (shell.style.getPropertyValue("--dly-rh") !== a) shell.style.setProperty("--dly-rh", a);

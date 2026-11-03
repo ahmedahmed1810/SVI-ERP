@@ -23,7 +23,7 @@
         if (gh && shell.__dlyNoClick) { shell.__dlyNoClick = false; return; }
         /* v449 : deux doigts posés sur le Gantt (pincement pour élargir) : le calendrier ne s'ouvre pas */
         if (gh && Date.now() - (shell.__dlyMultiT || 0) < 800) return;
-        if (gh) { const host = gh.closest("#dlyGantt"); const n = Math.floor((e.clientX - gh.getBoundingClientRect().left) / DLY_DW); sviBdgCalWin(sviIsoAdd(host.__d0, Math.max(0, n))); return; }
+        if (gh) { const host = gh.closest("#dlyGantt"); const n = Math.floor((e.clientX - gh.getBoundingClientRect().left) / ECR.DLY_DW); sviBdgCalWin(sviIsoAdd(host.__d0, Math.max(0, n))); return; }
         const lv = e.target.closest && e.target.closest(".dly-lev");
         if (lv) { if (!lv.disabled) X.level(); return; }
         /* repli d'un lot (› / ⌄) */

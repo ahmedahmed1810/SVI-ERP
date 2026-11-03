@@ -832,7 +832,7 @@
               const th = tr.closest("table").querySelector("thead"), hh = th ? th.getBoundingClientRect().height : 0;
               sc.scrollTop += tr.getBoundingClientRect().top - sc.getBoundingClientRect().top - hh;
               const host = body.querySelector("#dlyGantt"), bar = host && host.querySelector(`.gb[data-key="${CSS.escape(tr.dataset.key)}"]`);
-              if (bar) host.scrollLeft = Math.max(0, bar.offsetLeft - 3 * (DLY_DW || 20));
+              if (bar) host.scrollLeft = Math.max(0, bar.offsetLeft - 3 * (ECR.DLY_DW || 20));
             }, 80);
           }, 60); } }
         return;

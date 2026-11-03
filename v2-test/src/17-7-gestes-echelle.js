@@ -1,6 +1,6 @@
       const dlyDwSet = (host, w, ax, p) => {
         w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w * 10) / 10));   /* v657 : au dixième de pixel (la plage remplit exactement l'écran) */
-        if (Math.abs(w - DLY_DW) < 0.05) return;
+        if (Math.abs(w - ECR.DLY_DW) < 0.05) return;
         try { localStorage.setItem(DLY_SC[dlyScale()].k, DLY_FILL && w <= DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}   /* v559 : réduit au maximum = ajusté à l'écran */
         host.__drawn = false; dlyGanttDraw();
         const h2 = shell.querySelector("#dlyGantt");
@@ -18,7 +18,7 @@
         const gh = e.target.closest && e.target.closest("#dlyGantt .gh");
         if (!gh || e.button > 0 || shell.__dlyPinch) return;
         const host = gh.closest("#dlyGantt"), hr = host.getBoundingClientRect();
-        const x0 = e.clientX, y0 = e.clientY, w0 = DLY_DW, ax = x0 - hr.left, p = (ax + host.scrollLeft) / w0;
+        const x0 = e.clientX, y0 = e.clientY, w0 = ECR.DLY_DW, ax = x0 - hr.left, p = (ax + host.scrollLeft) / w0;
         let on = false, raf = 0;
         const mv = ev => {
           if (shell.__dlyPinch) return;   /* deuxième doigt posé : c'est le pincement qui agit */
@@ -48,7 +48,7 @@
           if (!host || e.touches.length !== 2) return;
           const hr = host.getBoundingClientRect(), mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - hr.left;
           /* écarter à l'horizontale = largeur des jours ; à la verticale = hauteur des lignes et des barres (sens choisi au premier mouvement) */
-          P0 = { y1: e.touches[0].clientY, y2: e.touches[1].clientY, t0: Date.now(), host, d: Math.max(20, dist(e.touches)), dy: Math.max(20, distY(e.touches)), rh0: dlyRhGet(), mode: "", rx: dist(e.touches), ry: distY(e.touches), w0: DLY_DW, ax: mx, p: (mx + host.scrollLeft) / DLY_DW };
+          P0 = { y1: e.touches[0].clientY, y2: e.touches[1].clientY, t0: Date.now(), host, d: Math.max(20, dist(e.touches)), dy: Math.max(20, distY(e.touches)), rh0: dlyRhGet(), mode: "", rx: dist(e.touches), ry: distY(e.touches), w0: ECR.DLY_DW, ax: mx, p: (mx + host.scrollLeft) / ECR.DLY_DW };
           shell.__dlyPinch = true; shell.__dlyPinched = true;
           P0.tg = e.target; e.target.addEventListener("touchmove", pmv, { passive: false }); e.target.addEventListener("touchend", end); e.target.addEventListener("touchcancel", end);
           e.preventDefault();
@@ -171,8 +171,8 @@
           if (!mode && Math.abs(dx) > SVI_G.drag) { mode = "time"; clearTimeout(t); moving.forEach(b => { b.__l0 = b.offsetLeft; b.classList.add("gb-drag"); }); }
           if (mode !== "time") return;
           ev.preventDefault();
-          days = Math.round(dx / DLY_DW);
-          moving.forEach(b => { b.style.left = (b.__l0 + days * DLY_DW) + "px"; });
+          days = Math.round(dx / ECR.DLY_DW);
+          moving.forEach(b => { b.style.left = (b.__l0 + days * ECR.DLY_DW) + "px"; });
         };
         const up = () => {
           clearTimeout(t);
@@ -245,9 +245,9 @@
           if (vert) { shell.__dlySrcG = window.__sviDlySrcG = true; hitV = dlyTaskHit(ev, null, key, x0); if (!hitV) document.getElementById("roLine")?.remove(); return; }
           if (!moved && Math.abs(dx) > SVI_G.drag) { moved = true; clearTimeout(t); bar.classList.add("gb-drag"); }
           if (!moved) return;
-          days = Math.round(dx / DLY_DW);
-          if (mode === "end") bar.style.width = Math.max(DLY_DW - 1, W0 + days * DLY_DW) + "px";
-          else bar.style.left = (L0 + days * DLY_DW) + "px";
+          days = Math.round(dx / ECR.DLY_DW);
+          if (mode === "end") bar.style.width = Math.max(ECR.DLY_DW - 1, W0 + days * ECR.DLY_DW) + "px";
+          else bar.style.left = (L0 + days * ECR.DLY_DW) + "px";
         };
         const up = ev => {
           clearTimeout(t);

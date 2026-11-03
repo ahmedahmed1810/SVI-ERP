@@ -5895,7 +5895,7 @@ function renderBudgetList() {
               const th = tr.closest("table").querySelector("thead"), hh = th ? th.getBoundingClientRect().height : 0;
               sc.scrollTop += tr.getBoundingClientRect().top - sc.getBoundingClientRect().top - hh;
               const host = body.querySelector("#dlyGantt"), bar = host && host.querySelector(`.gb[data-key="${CSS.escape(tr.dataset.key)}"]`);
-              if (bar) host.scrollLeft = Math.max(0, bar.offsetLeft - 3 * (DLY_DW || 20));
+              if (bar) host.scrollLeft = Math.max(0, bar.offsetLeft - 3 * (ECR.DLY_DW || 20));
             }, 80);
           }, 60); } }
         return;
@@ -7063,7 +7063,7 @@ function renderBudgetList() {
       const v = Number(s0) || c.def;
       return Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(v * 10) / 10));
     };
-    let DLY_DW = dlyDwGet();
+    ECR.DLY_DW = dlyDwGet();
     /* v748 : réécrit seulement si la valeur change (sinon toute la page recalcule ses styles à chaque dessin) */
     const dlyRhApply = rh => { const a = rh + "px", b = dlyBh(rh) + "px";
       if (shell.style.getPropertyValue("--dly-rh") !== a) shell.style.setProperty("--dly-rh", a);
@@ -7125,7 +7125,7 @@ function renderBudgetList() {
         /* hauteur du tableau ou du bloc (agrandi / réduit) changée : le Gantt se redessine */
         const scr0 = host.closest(".bdg-d-scroll");
         /* v556 : hauteur gardée (capMax), pas la hauteur réelle qui suit le défilement — sinon redessin complet à chaque défilement (iPad figé) */
-        const hk = () => tbl.getBoundingClientRect().height + "|" + (scr0 ? (scr0.__capMax || 0) : 0) + "|" + Math.ceil(host.clientWidth / (DLY_DW || 1));
+        const hk = () => tbl.getBoundingClientRect().height + "|" + (scr0 ? (scr0.__capMax || 0) : 0) + "|" + Math.ceil(host.clientWidth / (ECR.DLY_DW || 1));
         /* refonte, étape 6 (v644) : comparé à l'état du DERNIER dessin (pas seulement au précédent signal) — un dessin déjà fait
            à la bonne taille (ajustement à l'écran, pincement) ne déclenche plus un second dessin identique */
         host.__hkf = hk; host.__hk0 = hk();
@@ -7196,7 +7196,7 @@ function renderBudgetList() {
       const dE = SC === "s" ? sviIsoAdd(dZ, 6 - wd(dZ)) : SC === "m" ? (() => { const y = Number(dZ.slice(0, 4)), m = Number(dZ.slice(5, 7)); return dZ.slice(0, 8) + String(new Date(y, m, 0).getDate()).padStart(2, "0"); })() : sviIsoAdd(dZ, 3);
       const nD = dDiff(d0, dE) + 1;
       DLY_FILL = Math.floor((host.clientWidth || 600) / nD * 1000) / 1000;   /* v559 : non arrondi — FIN pile au bord droit */
-      DLY_DW = dlyDwGet();
+      ECR.DLY_DW = dlyDwGet();
       /* v748 : ajustement à l'écran calculé AVANT le dessin (même règle que v628 / v639 plus bas) — un seul dessin à l'ouverture au lieu de deux */
       let fitSl = null;
       {
@@ -7205,48 +7205,48 @@ function renderBudgetList() {
           const r = host.getBoundingClientRect(), vw = Math.min(host.clientWidth, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0));
           const n = Math.max(1, dDiff(fz.a, fz.b) + 1), mg = fz.rg.a || fz.rg.b ? 60 : 12;
           const w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n)) * 10) / 10));
-          if (vw > 60 && Math.abs(w - DLY_DW) >= 0.05) {
+          if (vw > 60 && Math.abs(w - ECR.DLY_DW) >= 0.05) {
             try { localStorage.setItem(DLY_SC[dlyScale()].k, DLY_FILL && w <= DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}
-            DLY_DW = w;
+            ECR.DLY_DW = w;
             /* même défilement qu'avant (dlyDwSet) : premier jour utilisé à la marge, plage centrée si elle tient */
             fitSl = Math.max(0, dDiff(d0, fz.a) * w - (mg + Math.max(0, (vw - 2 * mg - n * w) / 2)));
           }
         }
       }
-      host.style.setProperty("--dw", DLY_DW + "px");
-      const W = nD * DLY_DW;
+      host.style.setProperty("--dw", ECR.DLY_DW + "px");
+      const W = nD * ECR.DLY_DW;
       const d1 = sviIsoAdd(d0, nD - 1);
-      const X = iso => dDiff(d0, iso) * DLY_DW;
+      const X = iso => dDiff(d0, iso) * ECR.DLY_DW;
       let head = "", bg = "";
       for (let i = 0; i < nD; i++) {
         const di = sviIsoAdd(d0, i), dd = Number(di.slice(8, 10));
         const mo = Number(di.slice(5, 7)) - 1;
         if (SC === "m") {
           /* MOIS : année en haut, mois en bas */
-          if ((dd === 1 && mo === 0) || i === 0) head += `<span class="gh-m" style="left:${i * DLY_DW}px">${di.slice(0, 4)}</span>`;
+          if ((dd === 1 && mo === 0) || i === 0) head += `<span class="gh-m" style="left:${i * ECR.DLY_DW}px">${di.slice(0, 4)}</span>`;
           if (dd === 1 || i === 0) { const nd = new Date(Number(di.slice(0, 4)), mo + 1, 0).getDate() - dd + 1;
-            head += `<span class="gh-d gh-w" style="left:${i * DLY_DW}px;width:${nd * DLY_DW}px">${["JANV.", "FÉVR.", "MARS", "AVR.", "MAI", "JUIN", "JUIL.", "AOÛT", "SEPT.", "OCT.", "NOV.", "DÉC."][mo]}</span>`; }
+            head += `<span class="gh-d gh-w" style="left:${i * ECR.DLY_DW}px;width:${nd * ECR.DLY_DW}px">${["JANV.", "FÉVR.", "MARS", "AVR.", "MAI", "JUIN", "JUIL.", "AOÛT", "SEPT.", "OCT.", "NOV.", "DÉC."][mo]}</span>`; }
           continue;
         }
         /* v650 : un mois ne déborde jamais sur le suivant (premier mois coupé : nom court, ou rien s'il n'y a pas la place) */
-        if (dd === 1 || i === 0) { const nd = Math.min(nD - i, new Date(Number(di.slice(0, 4)), mo + 1, 0).getDate() - dd + 1), wm = nd * DLY_DW;
+        if (dd === 1 || i === 0) { const nd = Math.min(nD - i, new Date(Number(di.slice(0, 4)), mo + 1, 0).getDate() - dd + 1), wm = nd * ECR.DLY_DW;
           const full = SVI_MOIS[mo] + " " + di.slice(0, 4), short = ["JANV.", "FÉVR.", "MARS", "AVR.", "MAI", "JUIN", "JUIL.", "AOÛT", "SEPT.", "OCT.", "NOV.", "DÉC."][mo], fit = t => t.length * 6.5 + 8 <= wm;
-          head += `<span class="gh-m" style="left:${i * DLY_DW}px;max-width:${wm}px;overflow:hidden">${fit(full) ? full : fit(short) ? short : ""}</span>`; }
+          head += `<span class="gh-m" style="left:${i * ECR.DLY_DW}px;max-width:${wm}px;overflow:hidden">${fit(full) ? full : fit(short) ? short : ""}</span>`; }
         if (SC === "s") {
           /* SEMAINE : numéro de semaine (ISO) et date du lundi */
           const dt = new Date(di + "T00:00:00");
           if (dt.getDay() === 1 || i === 0) {
             const t = new Date(dt); t.setDate(t.getDate() + 3 - (t.getDay() + 6) % 7);
             const w1 = new Date(t.getFullYear(), 0, 4), wn = 1 + Math.round(((t - w1) / 864e5 - 3 + (w1.getDay() + 6) % 7) / 7);
-            head += `<span class="gh-d gh-w" style="left:${i * DLY_DW}px;width:${7 * DLY_DW}px">S${wn}${7 * DLY_DW >= 56 ? " " + di.slice(8, 10) + "/" + di.slice(5, 7) : ""}</span>`;
+            head += `<span class="gh-d gh-w" style="left:${i * ECR.DLY_DW}px;width:${7 * ECR.DLY_DW}px">S${wn}${7 * ECR.DLY_DW >= 56 ? " " + di.slice(8, 10) + "/" + di.slice(5, 7) : ""}</span>`;
           }
           continue;
         }
         const off = !sviWork(cal, di);
-        head += `<span class="gh-d${off ? " off" : ""}" style="left:${i * DLY_DW}px">${dd}</span>`;
-        if (off) bg += `<div class="gbg-off" style="left:${i * DLY_DW}px"></div>`;
+        head += `<span class="gh-d${off ? " off" : ""}" style="left:${i * ECR.DLY_DW}px">${dd}</span>`;
+        if (off) bg += `<div class="gbg-off" style="left:${i * ECR.DLY_DW}px"></div>`;
       }
-      const vline = (iso, cls, lab) => iso && iso >= d0 && iso <= d1 ? `<div class="gv ${cls}" style="left:${X(iso) + DLY_DW}px" title="${lab}"><span>${lab}</span></div>` : "";
+      const vline = (iso, cls, lab) => iso && iso >= d0 && iso <= d1 ? `<div class="gv ${cls}" style="left:${X(iso) + ECR.DLY_DW}px" title="${lab}"><span>${lab}</span></div>` : "";
       let bars = "";
       const pos = {};
       R.forEach((x, i) => {
@@ -7276,11 +7276,11 @@ function renderBudgetList() {
           const gcol = dlyLotColor((x.all.find(t => t.lo) || {}).lo);
           if (x.fold) {
             /* lot replié (FORMAT 92) : parties travaillées dans la couleur du lot, creux en blanc, trait fin en pointillé */
-            bars += `<div class="gdot" data-path="${esc(x.path)}" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW}px;top:${y + BH / 2 - 0.5}px"></div>`;
-            segs.forEach(s => { bars += `<div class="gseg" data-path="${esc(x.path)}" style="left:${X(s.a)}px;width:${X(s.b) - X(s.a) + DLY_DW - 1}px;top:${y}px;background:${s.lo ? dlyLotColor(s.lo) : gcol}"></div>`; });
-            bars += gname(X(a0), X(b0) + DLY_DW + 5);
-          } else bars += `<div class="gsum" data-path="${esc(x.path)}" style="left:${X(a0)}px;width:${X(b0) - X(a0) + DLY_DW - 1}px;top:${y + (BH - 6) / 2 - 0.5}px;--c:${gcol}"></div>`
-            + gname(X(a0), X(b0) + DLY_DW + 5);
+            bars += `<div class="gdot" data-path="${esc(x.path)}" style="left:${X(a0)}px;width:${X(b0) - X(a0) + ECR.DLY_DW}px;top:${y + BH / 2 - 0.5}px"></div>`;
+            segs.forEach(s => { bars += `<div class="gseg" data-path="${esc(x.path)}" style="left:${X(s.a)}px;width:${X(s.b) - X(s.a) + ECR.DLY_DW - 1}px;top:${y}px;background:${s.lo ? dlyLotColor(s.lo) : gcol}"></div>`; });
+            bars += gname(X(a0), X(b0) + ECR.DLY_DW + 5);
+          } else bars += `<div class="gsum" data-path="${esc(x.path)}" style="left:${X(a0)}px;width:${X(b0) - X(a0) + ECR.DLY_DW - 1}px;top:${y + (BH - 6) / 2 - 0.5}px;--c:${gcol}"></div>`
+            + gname(X(a0), X(b0) + ECR.DLY_DW + 5);
           return;
         }
         /* v546 (R14) : tâche sans ouvriers ni délai (DÉBUT = FIN, ni main-d'œuvre, ni durée fixée) = 0 jour, comme une tâche sans dates */
@@ -7290,7 +7290,7 @@ function renderBudgetList() {
              la glisser vers la droite lui donne une durée */
           const at = x.deb || x.fin || dlyPredFin(x.key);
           if (!at || x.ext) return;
-          const left = X(at) + (!x.deb && x.fin ? DLY_DW : 0);
+          const left = X(at) + (!x.deb && x.fin ? ECR.DLY_DW : 0);
           pos[x.key] = { l: left, r: left, y: y + BH / 2 };
           bars += `<div class="gb gb0${x.off ? " gb-off" : ""}" data-key="${esc(x.key)}" data-at="${esc(at)}" style="left:${left - 1}px;top:${y}px"><span class="gb-e"></span></div>`
             + `<span class="gb-n gb-out gb-ren gb0n" data-key="${esc(x.key)}" style="left:${left + 6}px;top:${ty}px">${esc(x.sec)}</span>`;
@@ -7300,18 +7300,18 @@ function renderBudgetList() {
            glisser un morceau = déplacer toute la tâche ; le bout du dernier morceau = sa FIN */
         if (x.per && x.per.length > 1) {
           const col = dlyLotColor(x.lo), P = x.per, last = P[P.length - 1];
-          const L0 = X(P[0].deb) + (P[0].hs ? DLY_DW / 2 : 0), R0 = X(last.fin) + DLY_DW - 1 - (last.he ? DLY_DW / 2 : 0);
+          const L0 = X(P[0].deb) + (P[0].hs ? ECR.DLY_DW / 2 : 0), R0 = X(last.fin) + ECR.DLY_DW - 1 - (last.he ? ECR.DLY_DW / 2 : 0);
           pos[x.key] = { l: L0, r: R0, y: y + BH / 2 };
           bars += `<div class="gpc" style="left:${L0}px;width:${Math.max(0, R0 - L0)}px;top:${y + BH / 2 - 0.5}px;--c:${col}"></div>`;
           P.forEach((q, j) => {
-            const l = X(q.deb) + (q.hs ? DLY_DW / 2 : 0), w = Math.max(3, X(q.fin) - X(q.deb) + DLY_DW - 1 - (q.hs ? DLY_DW / 2 : 0) - (q.he ? DLY_DW / 2 : 0));
+            const l = X(q.deb) + (q.hs ? ECR.DLY_DW / 2 : 0), w = Math.max(3, X(q.fin) - X(q.deb) + ECR.DLY_DW - 1 - (q.hs ? ECR.DLY_DW / 2 : 0) - (q.he ? ECR.DLY_DW / 2 : 0));
             bars += `<div class="gb gb-pc${x.off ? " gb-off" : ""}${x.marge === 0 ? " crit" : x.qc ? " qcrit" : ""}${w < 30 ? " gb-nar" : ""}" data-key="${esc(x.key)}" data-pc="${j}" style="left:${l}px;width:${w}px;top:${y}px;--c:${col}">${j === 0 ? '<span class="gb-s"></span>' : ""}${j === P.length - 1 ? '<span class="gb-e"></span>' : ""}</div>`;
           });
           bars += `<span class="gb-n gb-out gb-ren${x.off ? " gb-offn" : ""}" data-key="${esc(x.key)}" style="left:${R0 + 5}px;top:${ty}px">${dlyIncHTML(x.key)}${esc(x.sec)} <span class="gpc-n">${P.length} MORCEAUX</span>${x.jal ? ' <span class="gjal">★</span>' : ""}${dlyLimHTML(x.key)}</span>`;
           return;
         }
         /* v530 : demi-journée de début ou de fin = demi-case */
-        const left = X(x.deb) + (x.hs ? DLY_DW / 2 : 0), w = Math.max(3, X(x.fin) - X(x.deb) + DLY_DW - 1 - (x.hs ? DLY_DW / 2 : 0) - (x.he ? DLY_DW / 2 : 0)), col = dlyLotColor(x.lo);
+        const left = X(x.deb) + (x.hs ? ECR.DLY_DW / 2 : 0), w = Math.max(3, X(x.fin) - X(x.deb) + ECR.DLY_DW - 1 - (x.hs ? ECR.DLY_DW / 2 : 0) - (x.he ? ECR.DLY_DW / 2 : 0)), col = dlyLotColor(x.lo);
         const crit = x.marge === 0;
         const nm = esc(x.sec);
         /* FORMAT 91 : barre fine et arrondie, nom juste à droite */
@@ -7350,10 +7350,10 @@ function renderBudgetList() {
             /* v575 (remarque 3) : plage DÉBUT – FIN posée — tout le Gantt (barres des lots comprises) estompé avant DÉBUT et après FIN */
             const R = dlyHRange(); let s = "";
             if (R.a) { const x = Math.max(0, X(R.a)); if (x > 0) s += `<div class="g-rgsh" style="left:0;width:${x}px;height:${bodyH}px"></div>`; }
-            if (R.b) { const x = Math.min(W, X(R.b) + DLY_DW); if (x < W) s += `<div class="g-rgsh" style="left:${x}px;width:${W - x}px;height:${bodyH}px"></div>`; }
+            if (R.b) { const x = Math.min(W, X(R.b) + ECR.DLY_DW); if (x < W) s += `<div class="g-rgsh" style="left:${x}px;width:${W - x}px;height:${bodyH}px"></div>`; }
             /* v612 (point 12) : les traits DÉBUT et FIN posés traversent aussi le Gantt — une seule plage, tirée de l'un ou de l'autre */
             if (R.a) s += `<div class="grng grng-g" data-r="a" style="left:${X(R.a)}px;height:${bodyH}px"><span>DÉBUT ${dFr(R.a).slice(0, 5)}</span></div>`;
-            if (R.b) s += `<div class="grng grng-g" data-r="b" style="left:${Math.min(W - 2, X(R.b) + DLY_DW)}px;height:${bodyH}px"><span>FIN ${dFr(R.b).slice(0, 5)}</span></div>`;
+            if (R.b) s += `<div class="grng grng-g" data-r="b" style="left:${Math.min(W - 2, X(R.b) + ECR.DLY_DW)}px;height:${bodyH}px"><span>FIN ${dFr(R.b).slice(0, 5)}</span></div>`;
             return s; })()}<svg class="gtmp" width="${W}" height="${bodyH}"></svg></div>`;
       host.__X = X; host.__d0 = d0; host.__HD = HD;
       /* v594 (remarque longue 2) : graphique et poignée « = » dans un PIED FIXE sous la zone des tâches (hors de ce qui défile) :
@@ -7390,12 +7390,12 @@ function renderBudgetList() {
               const h2 = shell.querySelector("#dlyGantt"); if (!h2) return;
               const r = h2.getBoundingClientRect(), vw = Math.min(h2.clientWidth, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0));
               const n = Math.max(1, dDiff(fA, fB) + 1), mg = fRg.a || fRg.b ? 60 : 12, want = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, (vw - 2 * mg) / n));
-              if (vw > 60 && Math.abs(want - DLY_DW) > 0.05) (shell.__dlyDwSet || (() => {}))(h2, want, mg + Math.max(0, (vw - 2 * mg - n * Math.round(want * 10) / 10) / 2), dDiff(h2.__d0, fA));
+              if (vw > 60 && Math.abs(want - ECR.DLY_DW) > 0.05) (shell.__dlyDwSet || (() => {}))(h2, want, mg + Math.max(0, (vw - 2 * mg - n * Math.round(want * 10) / 10) / 2), dDiff(h2.__d0, fA));
             } finally { shell.__dlyFitting = false; document.getElementById("dlyDwLab")?.remove(); } });
           } }
         /* v639 : plage utilisée (avec DÉBUT / FIN) centrée, même sans changement de zoom ; v653 : marge de 60 px quand DÉBUT / FIN sont posés (étiquettes entières) */
-        if (fA && fB) { const x1 = X(fA), x2 = X(fB) + DLY_DW, w = host.clientWidth;
-          const t = x2 - x1 <= w ? (x1 + x2) / 2 - w / 2 : x1 - 2 * DLY_DW;
+        if (fA && fB) { const x1 = X(fA), x2 = X(fB) + ECR.DLY_DW, w = host.clientWidth;
+          const t = x2 - x1 <= w ? (x1 + x2) / 2 - w / 2 : x1 - 2 * ECR.DLY_DW;
           host.scrollLeft = fitSl !== null ? fitSl : Math.max(0, Math.min(host.scrollWidth - w, t)); shell.__dlyGx = host.scrollLeft; shell.__dlyFitT = performance.now(); }
       }
       host.addEventListener("scroll", () => { shell.__dlyGx = host.scrollLeft; dlyRngEdge(); }, { passive: true });   /* v657 : DÉBUT / FIN au repos suivent toujours le bord visible (après un ajustement aussi) */
@@ -8150,7 +8150,7 @@ function renderBudgetList() {
         if (gh && shell.__dlyNoClick) { shell.__dlyNoClick = false; return; }
         /* v449 : deux doigts posés sur le Gantt (pincement pour élargir) : le calendrier ne s'ouvre pas */
         if (gh && Date.now() - (shell.__dlyMultiT || 0) < 800) return;
-        if (gh) { const host = gh.closest("#dlyGantt"); const n = Math.floor((e.clientX - gh.getBoundingClientRect().left) / DLY_DW); sviBdgCalWin(sviIsoAdd(host.__d0, Math.max(0, n))); return; }
+        if (gh) { const host = gh.closest("#dlyGantt"); const n = Math.floor((e.clientX - gh.getBoundingClientRect().left) / ECR.DLY_DW); sviBdgCalWin(sviIsoAdd(host.__d0, Math.max(0, n))); return; }
         const lv = e.target.closest && e.target.closest(".dly-lev");
         if (lv) { if (!lv.disabled) X.level(); return; }
         /* repli d'un lot (› / ⌄) */
@@ -8522,12 +8522,12 @@ function renderBudgetList() {
           const npl = shell.querySelector(`.dlyg-foot .gplaf[data-seg="${seg}"]`) || shell.querySelector(".dlyg-foot .gplaf");
           if (npl && npl !== pl) { pl = npl; v0 = pl.querySelector(".gplaf-v") || v0; pl.classList.add("gcap-drag"); place(); } };
         const x0 = e.clientX, y0 = e.clientY, host = shell.querySelector("#dlyGantt");
-        const dayAt = cx => { const n = Math.floor((cx - h.getBoundingClientRect().left) / DLY_DW); return sviIsoAdd(host.__d0, Math.max(0, n)); };
+        const dayAt = cx => { const n = Math.floor((cx - h.getBoundingClientRect().left) / ECR.DLY_DW); return sviIsoAdd(host.__d0, Math.max(0, n)); };
         const showCut = cx => {
           const iso = sviWNear(X.cal(), dayAt(cx), 1);
           let m = document.getElementById("dlyCutTip");
           if (!m) { m = document.createElement("div"); m.id = "dlyCutTip"; document.body.appendChild(m); }
-          const hr = h.getBoundingClientRect(), xi = hr.left + dDiff(host.__d0, iso) * DLY_DW;
+          const hr = h.getBoundingClientRect(), xi = hr.left + dDiff(host.__d0, iso) * ECR.DLY_DW;
           m.innerHTML = `<span class="ct-sl" style="left:${xi - 4}px;top:${pl.getBoundingClientRect().top - 9}px">/</span><span class="ct-b" style="left:${xi - 50}px;top:${pl.getBoundingClientRect().top - 40}px">COUPER ICI<br><b>${esc(dFr(iso))}</b></span>`;
           cut = iso;
         };
@@ -8573,10 +8573,10 @@ function renderBudgetList() {
         const host = shell.querySelector("#dlyGantt"), h = c.closest(".ghist"), x0 = e.clientX, y0 = e.clientY;
         let mov = false, iso = null;
         const tip = cx => {
-          const n = Math.floor((cx - h.getBoundingClientRect().left) / DLY_DW); iso = sviWNear(X.cal(), sviIsoAdd(host.__d0, Math.max(0, n)), 1);
+          const n = Math.floor((cx - h.getBoundingClientRect().left) / ECR.DLY_DW); iso = sviWNear(X.cal(), sviIsoAdd(host.__d0, Math.max(0, n)), 1);
           let m = document.getElementById("dlyCutTip");
           if (!m) { m = document.createElement("div"); m.id = "dlyCutTip"; document.body.appendChild(m); }
-          const xi = h.getBoundingClientRect().left + dDiff(host.__d0, iso) * DLY_DW, ty = c.getBoundingClientRect().top;
+          const xi = h.getBoundingClientRect().left + dDiff(host.__d0, iso) * ECR.DLY_DW, ty = c.getBoundingClientRect().top;
           m.innerHTML = `<span class="ct-sl" style="left:${xi - 4}px;top:${ty}px">/</span><span class="ct-b" style="left:${xi - 50}px;top:${ty - 34}px">DÉPLACER ICI<br><b>${esc(dFr(iso))}</b></span>`;
         };
         const lt = setTimeout(() => {
@@ -8626,7 +8626,7 @@ function renderBudgetList() {
           moved = true;
           const x = ev.clientX - h.getBoundingClientRect().left, hr = host.getBoundingClientRect();
           edge = ev.clientX < hr.left + 2 || x <= 0 ? "l" : ev.clientX > hr.right - 2 || x >= W ? "r" : "";
-          iso = edge ? "" : sviIsoAdd(host.__d0, Math.max(0, Math.floor(x / DLY_DW)));
+          iso = edge ? "" : sviIsoAdd(host.__d0, Math.max(0, Math.floor(x / ECR.DLY_DW)));
           ln.style.left = Math.max(0, Math.min(W, x)) + "px"; ln.classList.toggle("grng-off", !!edge);
           const lab = other && iso && (ln.dataset.r === "a" ? iso > other : iso < other) ? (ln.dataset.r === "a" ? "FIN" : "DÉBUT") : (ln.dataset.r === "a" ? "DÉBUT" : "FIN");
           sp.textContent = lab + (iso ? " " + dFr(iso).slice(0, 5) : "");
@@ -8712,7 +8712,7 @@ function renderBudgetList() {
       const dlyXDraw = (host, h, cx, cy, step) => {
         const HV = host.__HV || {}, H = host.__HD || {}, S = dlyXSeries(host, H, HV);
         const hr = h.getBoundingClientRect(), Y0 = Number(h.dataset.y0) || hr.height, sc = Number(h.dataset.sc) || 1;
-        const i = Math.max(0, Math.floor((cx - hr.left) / DLY_DW)), di = sviIsoAdd(host.__d0, i);
+        const i = Math.max(0, Math.floor((cx - hr.left) / ECR.DLY_DW)), di = sviIsoAdd(host.__d0, i);
         /* v655 (FORMAT 246) : repères seulement sur un jour de la plage DÉBUT – FIN */
         const RG = dlyHRange(); if ((RG.a && di < RG.a) || (RG.b && di > RG.b)) return;
         /* courbes de ce jour, de la plus proche du doigt à la plus loin */
@@ -8721,8 +8721,8 @@ function renderBudgetList() {
         const k = step ? ((shell.__dlyX && shell.__dlyX.i === i ? shell.__dlyX.k : 0) + step) % C.length : 0, best = C[k];
         dlyXClear();
         const mk = (c) => { const d = document.createElement("div"); d.className = c; document.body.appendChild(d); return d; };
-        const px = hr.left + i * DLY_DW + DLY_DW / 2, top = hr.top;   /* v594 : graphique dans le pied fixe — repères depuis le haut du graphique */
-        const ax = Math.max(hr.left, host.getBoundingClientRect().left, RG.a ? hr.left + dDiff(host.__d0, RG.a) * DLY_DW : -1e9);   /* v655 : trait horizontal depuis DÉBUT (jamais hors plage) */
+        const px = hr.left + i * ECR.DLY_DW + ECR.DLY_DW / 2, top = hr.top;   /* v594 : graphique dans le pied fixe — repères depuis le haut du graphique */
+        const ax = Math.max(hr.left, host.getBoundingClientRect().left, RG.a ? hr.left + dDiff(host.__d0, RG.a) * ECR.DLY_DW : -1e9);   /* v655 : trait horizontal depuis DÉBUT (jamais hors plage) */
         const v = mk("dlyx-v"); v.style.left = px + "px"; v.style.top = top + "px"; v.style.height = Math.max(0, best.y - top) + "px"; v.style.borderLeftColor = best.c;
         const hz = mk("dlyx-h"); hz.style.left = ax + "px"; hz.style.top = best.y + "px"; hz.style.width = Math.max(0, px - ax) + "px"; hz.style.borderTopColor = best.c;
         const p = mk("dlyx-pt"); p.style.left = px + "px"; p.style.top = best.y + "px"; p.style.borderColor = best.c;
@@ -8733,8 +8733,8 @@ function renderBudgetList() {
       /* v611 (point 3) : FILTRE DU JOUR — nouvel appui long sur le point des repères : DÉBUT et FIN autour de ce jour, cases des charges
          de ce jour cochées (tout le reste suit) ; un toucher dans le graphique hors des courbes l'enlève (plage et cases d'avant remises) */
       /* v631 : filtre du jour posé / enlevé — l'écran reste sur les mêmes jours (pas d'ajustement, pas de saut) */
-      const dlyXKeep = () => { const h = shell.querySelector("#dlyGantt"); shell.__dlyNoFit = true; shell.__dlyKeepD = h && h.__d0 ? sviIsoAdd(h.__d0, Math.round(h.scrollLeft / DLY_DW)) : ""; };
-      const dlyXBack = () => { const d = shell.__dlyKeepD; const go = () => { const h = shell.querySelector("#dlyGantt"); if (h && h.__d0 && d) { h.scrollLeft = Math.max(0, dDiff(h.__d0, d) * DLY_DW); shell.__dlyGx = h.scrollLeft; } }; go(); requestAnimationFrame(() => { go(); setTimeout(() => { go(); shell.__dlyNoFit = false; }, 400); }); };
+      const dlyXKeep = () => { const h = shell.querySelector("#dlyGantt"); shell.__dlyNoFit = true; shell.__dlyKeepD = h && h.__d0 ? sviIsoAdd(h.__d0, Math.round(h.scrollLeft / ECR.DLY_DW)) : ""; };
+      const dlyXBack = () => { const d = shell.__dlyKeepD; const go = () => { const h = shell.querySelector("#dlyGantt"); if (h && h.__d0 && d) { h.scrollLeft = Math.max(0, dDiff(h.__d0, d) * ECR.DLY_DW); shell.__dlyGx = h.scrollLeft; } }; go(); requestAnimationFrame(() => { go(); setTimeout(() => { go(); shell.__dlyNoFit = false; }, 400); }); };
       const dlyXFilter = di => {
         const host = shell.querySelector("#dlyGantt"), H = host && host.__HD;
         if (!H) return;
@@ -8766,7 +8766,7 @@ function renderBudgetList() {
       /* courbe (ou haut de barre) près du doigt, ce jour-là */
       const dlyXNear = (host, h, cx, cy) => {
         const HV = host.__HV || {}, S = dlyXSeries(host, host.__HD || {}, HV), hr = h.getBoundingClientRect(), Y0 = Number(h.dataset.y0) || hr.height, sc = Number(h.dataset.sc) || 1;
-        const di = sviIsoAdd(host.__d0, Math.max(0, Math.floor((cx - hr.left) / DLY_DW))), RG = dlyHRange();
+        const di = sviIsoAdd(host.__d0, Math.max(0, Math.floor((cx - hr.left) / ECR.DLY_DW))), RG = dlyHRange();
         if ((RG.a && di < RG.a) || (RG.b && di > RG.b)) return false;
         return S.some(x => { const v = x.M[di]; return v !== undefined && v !== null && Math.abs(hr.top + Y0 - v * (x.s || sc) - cy) < 40; });
       };
@@ -8876,7 +8876,7 @@ function renderBudgetList() {
         let p = p0, moved = false;
         const tmv = ev => ev.preventDefault();
         document.addEventListener("touchmove", tmv, { passive: false });
-        const lp = setTimeout(() => { if (moved) return; done(); const hr = h.getBoundingClientRect(); X.rdCut(bar.dataset.sk, bar.dataset.sec, sviIsoAdd(host.__d0, Math.max(0, Math.floor((x0 - hr.left) / DLY_DW)))); }, SVI_G.lp);
+        const lp = setTimeout(() => { if (moved) return; done(); const hr = h.getBoundingClientRect(); X.rdCut(bar.dataset.sk, bar.dataset.sec, sviIsoAdd(host.__d0, Math.max(0, Math.floor((x0 - hr.left) / ECR.DLY_DW)))); }, SVI_G.lp);
         const mv = ev => {
           if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) < SVI_G.drag) return;
           moved = true; clearTimeout(lp); ev.preventDefault();
@@ -8986,7 +8986,7 @@ function renderBudgetList() {
 /* ⟪ src/17-7-gestes-echelle.js ⟫ */
       const dlyDwSet = (host, w, ax, p) => {
         w = Math.max(DLY_DW_MIN, Math.min(DLY_DW_MAX, Math.round(w * 10) / 10));   /* v657 : au dixième de pixel (la plage remplit exactement l'écran) */
-        if (Math.abs(w - DLY_DW) < 0.05) return;
+        if (Math.abs(w - ECR.DLY_DW) < 0.05) return;
         try { localStorage.setItem(DLY_SC[dlyScale()].k, DLY_FILL && w <= DLY_FILL + 0.01 ? "fit" : String(w)); } catch (e) {}   /* v559 : réduit au maximum = ajusté à l'écran */
         host.__drawn = false; dlyGanttDraw();
         const h2 = shell.querySelector("#dlyGantt");
@@ -9004,7 +9004,7 @@ function renderBudgetList() {
         const gh = e.target.closest && e.target.closest("#dlyGantt .gh");
         if (!gh || e.button > 0 || shell.__dlyPinch) return;
         const host = gh.closest("#dlyGantt"), hr = host.getBoundingClientRect();
-        const x0 = e.clientX, y0 = e.clientY, w0 = DLY_DW, ax = x0 - hr.left, p = (ax + host.scrollLeft) / w0;
+        const x0 = e.clientX, y0 = e.clientY, w0 = ECR.DLY_DW, ax = x0 - hr.left, p = (ax + host.scrollLeft) / w0;
         let on = false, raf = 0;
         const mv = ev => {
           if (shell.__dlyPinch) return;   /* deuxième doigt posé : c'est le pincement qui agit */
@@ -9034,7 +9034,7 @@ function renderBudgetList() {
           if (!host || e.touches.length !== 2) return;
           const hr = host.getBoundingClientRect(), mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - hr.left;
           /* écarter à l'horizontale = largeur des jours ; à la verticale = hauteur des lignes et des barres (sens choisi au premier mouvement) */
-          P0 = { y1: e.touches[0].clientY, y2: e.touches[1].clientY, t0: Date.now(), host, d: Math.max(20, dist(e.touches)), dy: Math.max(20, distY(e.touches)), rh0: dlyRhGet(), mode: "", rx: dist(e.touches), ry: distY(e.touches), w0: DLY_DW, ax: mx, p: (mx + host.scrollLeft) / DLY_DW };
+          P0 = { y1: e.touches[0].clientY, y2: e.touches[1].clientY, t0: Date.now(), host, d: Math.max(20, dist(e.touches)), dy: Math.max(20, distY(e.touches)), rh0: dlyRhGet(), mode: "", rx: dist(e.touches), ry: distY(e.touches), w0: ECR.DLY_DW, ax: mx, p: (mx + host.scrollLeft) / ECR.DLY_DW };
           shell.__dlyPinch = true; shell.__dlyPinched = true;
           P0.tg = e.target; e.target.addEventListener("touchmove", pmv, { passive: false }); e.target.addEventListener("touchend", end); e.target.addEventListener("touchcancel", end);
           e.preventDefault();
@@ -9157,8 +9157,8 @@ function renderBudgetList() {
           if (!mode && Math.abs(dx) > SVI_G.drag) { mode = "time"; clearTimeout(t); moving.forEach(b => { b.__l0 = b.offsetLeft; b.classList.add("gb-drag"); }); }
           if (mode !== "time") return;
           ev.preventDefault();
-          days = Math.round(dx / DLY_DW);
-          moving.forEach(b => { b.style.left = (b.__l0 + days * DLY_DW) + "px"; });
+          days = Math.round(dx / ECR.DLY_DW);
+          moving.forEach(b => { b.style.left = (b.__l0 + days * ECR.DLY_DW) + "px"; });
         };
         const up = () => {
           clearTimeout(t);
@@ -9231,9 +9231,9 @@ function renderBudgetList() {
           if (vert) { shell.__dlySrcG = window.__sviDlySrcG = true; hitV = dlyTaskHit(ev, null, key, x0); if (!hitV) document.getElementById("roLine")?.remove(); return; }
           if (!moved && Math.abs(dx) > SVI_G.drag) { moved = true; clearTimeout(t); bar.classList.add("gb-drag"); }
           if (!moved) return;
-          days = Math.round(dx / DLY_DW);
-          if (mode === "end") bar.style.width = Math.max(DLY_DW - 1, W0 + days * DLY_DW) + "px";
-          else bar.style.left = (L0 + days * DLY_DW) + "px";
+          days = Math.round(dx / ECR.DLY_DW);
+          if (mode === "end") bar.style.width = Math.max(ECR.DLY_DW - 1, W0 + days * ECR.DLY_DW) + "px";
+          else bar.style.left = (L0 + days * ECR.DLY_DW) + "px";
         };
         const up = ev => {
           clearTimeout(t);
@@ -9983,7 +9983,7 @@ ${A}</Assignments>
           const Y0 = Y0b + YO * sc;
           shell.__dlyYGeo = { RG: YRG, mn, HH, IB };
           const pass = di => inR(di) && (multi || ((VL.min === null || val[di] >= VL.min - 1e-9) && (VL.max === null || val[di] <= VL.max + 1e-9)));
-          const bw = Math.max(1, DLY_DW - (DLY_DW > 10 ? 6 : 0)), bo = DLY_DW > 10 ? 3 : 0;
+          const bw = Math.max(1, ECR.DLY_DW - (ECR.DLY_DW > 10 ? 6 : 0)), bo = ECR.DLY_DW > 10 ? 3 : 0;
           const capAt = di => { let n = -1; SG.forEach(x => { if (!x.def && (!x.d || x.d <= di)) n = x.n; }); return n; };
           /* v604 : rendement réglé (charge de main-d'œuvre seule sélectionnée) et heures sup du jour */
           const rdGK = (() => { const g = dlyCurGK(); return g && /\|J-H$/.test(g) && !g.includes(" § ") ? g : ""; })(), rdSt0 = rdGK ? dlyRdSt(rdGK, "", false) : null;
@@ -10010,7 +10010,7 @@ ${A}</Assignments>
             R.filter(x => !x.grp && x.deb).forEach(x => { const f = x.fin || x.deb; for (let d = x.deb, g = 0; d <= f && g < 2000; d = sviIsoAdd(d, 1), g++) if (d >= d0 && d <= d1 && sviWork(cal, d)) busy.add(d); });
             vis.forEach(di => { if (busy.has(di) && !(Math.abs(val[di] || 0) > 1e-9) && pass(di)) hb += `<div class="ghb ghb-z" data-d="${di}" style="left:${X(di) + bo}px;width:${bw}px;bottom:${HH - Y0}px;background:${ks.length === 1 ? colOf(ks[0], 0) : CC}"></div>`; });
           }
-          if (hideC) vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
+          if (hideC) vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${ECR.DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           else if (C && !curve) {
             /* v589 : commandes prévisionnelles — barres fines hachurées, empilées à la couleur de chaque charge commandée */
             const nb = 1 + (cPG && sP ? 1 : 0) + (cPG && sG ? 1 : 0), w1 = bw / nb;
@@ -10043,26 +10043,26 @@ ${A}</Assignments>
             });
           } else {
             /* R28 : une seule courbe par grandeur (le total), plus une par charge */
-            const pt = (di, v) => `${X(di) + DLY_DW / 2},${Y0 - v * sc}`;
+            const pt = (di, v) => `${X(di) + ECR.DLY_DW / 2},${Y0 - v * sc}`;
             /* v562 : courbe continue — grise sur toute la durée, puis en couleur seulement sur les jours retenus (plage DÉBUT – FIN, MIN – MAX) ;
                plus de voile blanc jour par jour (rayures quand la largeur d'un jour n'est pas entière) */
             const runs = []; { let cur = []; vis.forEach(di => { if (pass(di)) cur.push(di); else { if (cur.length) runs.push(cur); cur = []; } }); if (cur.length) runs.push(cur); }
             /* v605 : commandes cumulées = escalier, une marche à chaque envoi */
-            const stepPts = (L, M) => L.map((di, i) => (i ? `${X(di) + DLY_DW / 2},${Y0 - (M[L[i - 1]] || 0) * sc} ` : "") + pt(di, M[di] || 0)).join(" ");
+            const stepPts = (L, M) => L.map((di, i) => (i ? `${X(di) + ECR.DLY_DW / 2},${Y0 - (M[L[i - 1]] || 0) * sc} ` : "") + pt(di, M[di] || 0)).join(" ");
             const poly = (L, M, c) => `<polyline points="${C && cum ? stepPts(L, M) : L.map(di => pt(di, M[di] || 0)).join(" ")}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
             /* v587 : la couleur s'arrête exactement aux traits DÉBUT et FIN (gris à l'extérieur seulement) */
-            const cxa = RG.a ? X(RG.a) : 0, cxb = RG.b ? X(RG.b) + DLY_DW : W, part = !!(RG.a || RG.b);
+            const cxa = RG.a ? X(RG.a) : 0, cxb = RG.b ? X(RG.b) + ECR.DLY_DW : W, part = !!(RG.a || RG.b);
             if (part) svg += `<defs><clipPath id="ghRgClip"><rect x="${cxa}" y="-10" width="${Math.max(0, cxb - cxa)}" height="${HH + 20}"/></clipPath></defs>`;
             const clip = h => part ? `<g clip-path="url(#ghRgClip)">${h}</g>` : h;
             /* v611 (point 4) : hors de la plage, plus de courbe grise — seule la partie retenue est tracée */
             /* v655 (FORMAT 246) : seulement les jours retenus ; un jour seul = un point (pas de traits vers les jours voisins) ;
                chaque morceau prolongé d'un jour de chaque côté puis coupé aux traits (la couleur s'arrête aux traits, v587) */
             const ext = L => { const i0 = vis.indexOf(L[0]), i1 = vis.indexOf(L[L.length - 1]); return vis.slice(Math.max(0, i0 - 1), i1 + 2); };
-            const dot = (di, M, c) => `<circle cx="${X(di) + DLY_DW / 2}" cy="${Y0 - (M[di] || 0) * sc}" r="3.5" fill="${c}"/>`;
+            const dot = (di, M, c) => `<circle cx="${X(di) + ECR.DLY_DW / 2}" cy="${Y0 - (M[di] || 0) * sc}" r="3.5" fill="${c}"/>`;
             const line = (M, c) => runs.map(L => L.length === 1 ? dot(L[0], M, c) : clip(poly(part ? ext(L) : L, M, c))).join("");
             /* v655 (FORMAT 246) : MARGE verte au-dessus de zéro, rouge en dessous ; la couleur change exactement où la courbe croise le zéro (affichage seul) */
             const sgnLine = (L, M) => {
-              const P = L.map(di => [X(di) + DLY_DW / 2, M[di] || 0]), out = []; let cur = [], neg = null;
+              const P = L.map(di => [X(di) + ECR.DLY_DW / 2, M[di] || 0]), out = []; let cur = [], neg = null;
               const push = (x, v, n) => { if (neg !== null && n !== neg) { out.push([neg, cur]); cur = [cur[cur.length - 1]]; } neg = n; cur.push([x, v]); };
               P.forEach(([x, v], k) => {
                 if (k) { const [x0, v0] = P[k - 1]; if ((v0 < 0) !== (v < 0) && v0 !== v) { const xz = x0 + (x - x0) * (0 - v0) / (v - v0); cur.push([xz, 0]); push(xz, 0, v < 0); } }
@@ -10075,7 +10075,7 @@ ${A}</Assignments>
             if (!multi || sC) svg += line(val, CC);
             if (sP) svg += line(vP, CP);
             if (sG) svg += runs.map(L => L.length === 1 ? dot(L[0], vG, (vG[L[0]] || 0) < 0 ? CGN : CG) : clip(sgnLine(part ? ext(L) : L, vG))).join("");
-            vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
+            vis.forEach(di => { hb += `<div class="ghb ghb-hit" data-d="${di}" style="left:${X(di)}px;width:${ECR.DLY_DW}px;height:${HH}px;bottom:0"></div>`; });
           }
           /* v569 (remarque 13) : RENDEMENT par charge — quantité produite de l'activité (vert) et une courbe pointillée par charge cochée
              (sa couleur, sa propre échelle, valeur maximale affichée) */
@@ -10083,13 +10083,13 @@ ${A}</Assignments>
           if (RD) {
             const cuM = M => cum ? cumOf(di => M[di] || 0) : M;
             const PQ = cuM(RD.L); vis.forEach(di => { rdPQ[di] = PQ[di] || 0; });
-            const lab = (v, s, c, di) => di ? `<div class="grd-mx" style="left:${X(di) + DLY_DW / 2}px;top:${Math.max(2, Y0 - v * s - 18)}px;--c:${c}">${fmtA(v)}</div>` : "";
+            const lab = (v, s, c, di) => di ? `<div class="grd-mx" style="left:${X(di) + ECR.DLY_DW / 2}px;top:${Math.max(2, Y0 - v * s - 18)}px;--c:${c}">${fmtA(v)}</div>` : "";
             const showP = crb.includes("p"), nB = RD.ser.length + (showP ? 1 : 0), w1 = Math.max(1, bw / (nB || 1));
             /* v571 : barres côte à côte dans le jour (HISTOGRAMME) ou courbes (COURBES), chacune à sa propre échelle */
             const barS = (M, s, c, j) => vis.forEach(di => { const v = M[di]; if (!v) return; hb += `<div class="ghb ghb-m${pass(di) ? "" : " gh-off"}" data-d="${di}" style="left:${X(di) + bo + j * w1}px;width:${w1}px;top:${Y0 - v * s}px;bottom:auto;height:${Math.max(1, v * s)}px;background:${c}"></div>`; });
             if (showP) {
               const mP = Math.max(1e-9, ...vis.map(di => rdPQ[di])), sP2 = (HH - 44 - IB) / (mP * 1.08) * YZ;   /* v601 : le zoom vertical agit aussi sur le RENDEMENT */ rdPQ.__s = sP2;
-              if (curve) svg += `<polyline points="${vis.map(di => `${X(di) + DLY_DW / 2},${Y0 - rdPQ[di] * sP2}`).join(" ")}" fill="none" stroke="#2e90fa" stroke-width="2" stroke-linejoin="round"/>`;
+              if (curve) svg += `<polyline points="${vis.map(di => `${X(di) + ECR.DLY_DW / 2},${Y0 - rdPQ[di] * sP2}`).join(" ")}" fill="none" stroke="#2e90fa" stroke-width="2" stroke-linejoin="round"/>`;
               else barS(rdPQ, sP2, "#2e90fa", 0);
               hb += lab(mP, sP2, "#2e90fa", vis.find(di => rdPQ[di] === mP));
             }
@@ -10098,7 +10098,7 @@ ${A}</Assignments>
               vis.forEach(di => { const cq = C2[di] || 0; Rr[di] = cq > 1e-9 ? (P2[di] || 0) / cq : null; });
               const mR = Math.max(1e-9, ...vis.map(di => Rr[di] || 0)), sR2 = (HH - 44 - IB) / (mR * 1.08) * YZ;
               let seg = [];
-              const flush = () => { if (seg.length) svg += `<polyline points="${(seg.length > 1 ? seg : [seg[0], seg[0]]).map(di => `${X(di) + DLY_DW / 2},${Y0 - Rr[di] * sR2}`).join(" ")}" fill="none" stroke="${c}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`; seg = []; };
+              const flush = () => { if (seg.length) svg += `<polyline points="${(seg.length > 1 ? seg : [seg[0], seg[0]]).map(di => `${X(di) + ECR.DLY_DW / 2},${Y0 - Rr[di] * sR2}`).join(" ")}" fill="none" stroke="${c}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`; seg = []; };
               if (curve) { vis.forEach(di => { if (Rr[di] === null) flush(); else seg.push(di); }); flush(); }
               else barS(Rr, sR2, c, j + (showP ? 1 : 0));
               hb += lab(mR, sR2, c, vis.find(di => Rr[di] === mR));
@@ -10156,7 +10156,7 @@ ${A}</Assignments>
             const tot = segs.length > 1 ? days.filter(pass).reduce((t, di) => t + (val[di] || 0), 0) : 0;
             host.__capTot = tot ? "TOTAL " + fmtA(tot) + " " + HD.unit : ""; }
           /* R19 : traits DÉBUT et FIN ; total de la plage seulement quand une plage est posée */
-          const xa = RG.a ? X(RG.a) : 0, xb = RG.b ? X(RG.b) + DLY_DW : W - 2;   /* v559 : FIN au bord droit, sans déborder */
+          const xa = RG.a ? X(RG.a) : 0, xb = RG.b ? X(RG.b) + ECR.DLY_DW : W - 2;   /* v559 : FIN au bord droit, sans déborder */
           const sum = days.filter(di => inR(di) && pass(di)).reduce((t, di) => t + (C ? C.L[di] : gC(di)), 0);
           /* v563 (remarque 3) : total de la plage pour chaque courbe affichée (CHARGES, PRODUITS, MARGE), pas seulement les charges */
           const sumOf = g => days.filter(di => inR(di) && pass(di)).reduce((t, di) => t + g(di), 0);
