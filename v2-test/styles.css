@@ -1675,7 +1675,7 @@ détail technique en petit */
 .qq-table td.qq-tree { white-space: nowrap; }
 .qq-table tr.qq-t input.qq-lab { font-weight: 700; }
 .qq-table tr.qq-p input.qq-lab { font-weight: 700; }
-.qq-table tr.qq-empty input.qq-lab { color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8; font-weight: 600; }
+.qq-table tr.qq-empty input.qq-lab { color: #94a3b8; -webkit-text-fill-color: #94a3b8; font-weight: 600; }
 .qq-table tr.qq-new input { font-style: italic; }
 .qq-fold { display: inline-block; width: 20px; text-align: center; cursor: pointer; font-weight: 700; color: #475569; user-select: none; -webkit-user-select: none; }
 .qq-table td.qq-pick, .qq-table td.qq-win, .qq-table td.qq-xt { cursor: pointer; }
@@ -1706,7 +1706,7 @@ td.ins-tdv { position: relative; }
 .des-i.on { border-color: #111; color: #111; }
 /* point d'arrêt qualité sur le Gantt (FORMAT 107) */
 .garr { color: #b91c1c; font-size: 10px; margin-left: 3px; }
-.qq-table thead th { white-space: normal !important; text-overflow: clip !important; overflow: visible !important; line-height: 1.15; }
+.qq-table thead th { white-space: normal; text-overflow: clip; overflow: visible; line-height: 1.15; }
 /* v441 : nom du lot d'arrivée surligné pendant un glissement sur le Gantt */
 .gb-grp.gb-grp-tgt { background: #fde68a; border-radius: 4px; box-shadow: 0 0 0 2px #fde68a; }
 /* v443 : nom d'un lot écrit dans sa barre quand il y tient */
@@ -1936,7 +1936,7 @@ tr.ins-gtitle .ins-gfold { margin-right: 6px; }
 .mg-table tr.mg-grp td[data-k] { cursor: pointer; }
 
 /* v503 (remarque 50 revue) : MARGE — à chaque niveau, nuances alternées entre voisins ; trait au début de chaque groupe */
-.bdg-d-page .mg-table tr.mg-grp.mg-l0 td:not(.xpl-pct) { background: #e6eaf0 !important; border-top: 2px solid #8b95a5; }
+.bdg-d-page .mg-table tr.mg-grp.mg-l0 td:not(.xpl-pct) { background: #e6eaf0; border-top: 2px solid #8b95a5; }
 .bdg-d-page .mg-table tr.mg-grp.mg-l0.mg-b1 td:not(.xpl-pct) { background: #dce1e9 !important; }
 .bdg-d-page .mg-table tr.mg-grp.mg-l1 td:not(.xpl-pct) { background: #f0f2f6 !important; border-top: 1px solid #aab3c0; }
 .bdg-d-page .mg-table tr.mg-grp.mg-l1.mg-b1 td:not(.xpl-pct) { background: #e7eaf0 !important; }
@@ -2024,8 +2024,8 @@ td.svi-cs { background: var(--inst-bg, #eef0f3) !important; box-shadow: inset 0 
 :is(table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table) tbody :is(input, textarea):focus,
 .ins-hcol .ins-li :is(input.ins-in, input.lot-gname):focus, #sdW .sd-in:focus { box-shadow: none !important; outline: none !important; }
 /* v512 (remarque 81) : un fin trait gris visible autour de chaque cellule, quel que soit son fond */
-:is(table.ins-table, table.dly-table, table.inc-table, table.prm-table, table.qq-table) tbody td { border-right: 1px solid #d9dee6 !important; border-bottom: 1px solid #d9dee6 !important; }
-.ins-hcol .ins-li { border-bottom: 1px solid #d9dee6 !important; }
+:is(table.ins-table, table.dly-table, table.inc-table, table.prm-table, table.qq-table) tbody td { border-right: 1px solid #d9dee6; border-bottom: 1px solid #d9dee6 !important; }
+.ins-hcol .ins-li { border-bottom: 1px solid #d9dee6; }
 .ins-hcol .ins-li .act-u { border-left: 1px solid #d9dee6; }
 
 /* v512 (remarque 78) : SAISIE DIRECTE sur place à la hauteur de l'écran (sous le bandeau et les onglets) */
@@ -2057,14 +2057,14 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 :root { --svi-ib: 36px; --svi-ii: 18px; }
 .bdg-d-hright .inst-nav, .bdg-d-hright .inst-act,
 .blk-more, #sdW .sd-more, .blk-tools .blk-btn.blk-max-btn {
-  width: var(--svi-ib) !important; height: var(--svi-ib) !important; min-width: 0 !important; min-height: 0 !important;
-  padding: 0 !important; border-radius: 9px !important; box-sizing: border-box !important;
-  display: inline-flex !important; align-items: center !important; justify-content: center !important;
-  font-size: 17px !important; line-height: 1 !important;
+  width: var(--svi-ib) !important; height: var(--svi-ib) !important; min-width: 0; min-height: 0;
+  padding: 0; border-radius: 9px; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 17px; line-height: 1 !important;
 }
-.bdg-d-hright .inst-nav svg, .bdg-d-hright .inst-act svg, .blk-tools .blk-btn.blk-max-btn svg { width: var(--svi-ii) !important; height: var(--svi-ii) !important; }
-.bdg-d-hright .inst-nav, .bdg-d-hright .inst-act { margin-left: 5px !important; }
-.bdg-more-btn { font-size: 17px !important; }
+.bdg-d-hright .inst-nav svg, .bdg-d-hright .inst-act svg, .blk-tools .blk-btn.blk-max-btn svg { width: var(--svi-ii); height: var(--svi-ii); }
+.bdg-d-hright .inst-nav, .bdg-d-hright .inst-act { margin-left: 5px; }
+.bdg-more-btn { font-size: 17px; }
 .blk-more, #sdW .sd-more { color: #374151; }
 .bdg-d-hright .inst-nav[hidden], .bdg-d-hright .inst-act[hidden], .blk-more[hidden], #sdW .sd-more[hidden] { display: none !important; }
 /* v524 (remarque 2) : bloc vidé par les cases cochées / filtres des autres blocs */
@@ -2075,20 +2075,20 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .ins-table tr.ins-gtitle td.ins-rdbc input.ins-rdbin { font-style: italic; width: 52% !important; display: inline-block; text-align: right; background: transparent; }
 .ins-table tr.ins-gtitle td.ins-rdbc .ins-rdbu { font-size: 10px; font-weight: 700; padding: 0 4px 0 2px; }
 /* v525 (remarque 4) : loupe de la colonne U des activités */
-.ins-hcol .act-uh { width: 54px !important; display: inline-flex; align-items: center; justify-content: center; gap: 2px; }
-.ins-hcol .act-uh .cf-btn { margin: 0 !important; }
+.ins-hcol .act-uh { width: 54px; display: inline-flex; align-items: center; justify-content: center; gap: 2px; }
+.ins-hcol .act-uh .cf-btn { margin: 0; }
 .ins-hcol .act-uh.cf-on { color: #1d4ed8; }
-.ins-hcol .ins-li .act-u { width: 54px !important; }
+.ins-hcol .ins-li .act-u { width: 54px; }
 /* v525 (remarque 1) : rendement modifiable sur une ligne de charge */
 .ins-table td.ins-rdbc { white-space: nowrap; }
-.ins-table td.ins-rdbc input.ins-rdbl { width: 52% !important; display: inline-block; text-align: right; }
+.ins-table td.ins-rdbc input.ins-rdbl { width: 52%; display: inline-block; text-align: right; }
 .ins-table td.ins-rdbc .ins-rdbu { font-size: 10px; font-weight: 700; padding: 0 4px 0 2px; }
 /* v527 (remarque 4) : unité du rendement dans la couleur de la ligne (plus de rouge) */
 .ins-table td.ins-rdbc .ins-rdbu { color: inherit !important; -webkit-text-fill-color: currentColor; }
 .svi-empty .svi-empty-k { background: #fff; color: #1d4ed8; }
 /* v528 (remarque 2) : la zone de toucher de la loupe U reste dans la colonne U (elle couvrait la case d'en-tête) */
 .ins-hcol .act-uh { position: relative; }
-.ins-hcol .act-uh .cf-btn { position: relative !important; }
+.ins-hcol .act-uh .cf-btn { position: relative; }
 .ins-hcol .bdg-h-head .ins-hdel { position: relative; z-index: 6; }
 /* v528 : rond d'un titre dont un sous-groupe est choisi (à moitié) */
 .lk-rd.lk-rdgrp.part { background: radial-gradient(circle, var(--inst, #b91c1c) 0 35%, transparent 38%); }
@@ -2101,22 +2101,22 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 .ins-hcol .ins-li:is(.lot-grp, .lot-par):not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit):not(.ro-on) :is(input.lot-gname, input.ins-in, .lot-in > span:not(.ins-fold):not(.lot-fold-sp), .lvl-no) {
   color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c) !important; font-weight: 800; }
 .ins-table tr.ins-title:not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit):not(.ro-on) td { background: var(--ttl-bg) !important; color: var(--ttl-c) !important; font-weight: 800; }
-.ins-table tr.ins-title:not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit):not(.ro-on) td :is(input.ins-in, textarea.ins-in, .ins-dv, .ins-art, span:not(.lk-rd):not(.ins-fold)) { color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c) !important; }
+.ins-table tr.ins-title:not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit):not(.ro-on) td :is(input.ins-in, textarea.ins-in, .ins-dv, .ins-art, span:not(.lk-rd):not(.ins-fold)) { color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c); }
 .dly-grp:not(.ins-hasck):not(.ro-on) td { background: var(--ttl-bg) !important; color: var(--ttl-c) !important; font-weight: 800; }
-.dly-grp:not(.ins-hasck) td :is(input.dly-nm, .lvl-no, span:not(.lk-rd):not(.ins-fold):not(.dly-fold)) { color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c); font-weight: 800; }
+.dly-grp:not(.ins-hasck) td :is(input.dly-nm, .lvl-no, span:not(.lk-rd):not(.ins-fold):not(.dly-fold)) { color: var(--ttl-c); -webkit-text-fill-color: var(--ttl-c); font-weight: 800; }
 .qq-table tr.qq-t td { background: var(--ttl-bg) !important; color: var(--ttl-c) !important; }
-.qq-table tr.qq-t td :is(input.qq-lab, input.qq-in) { color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c) !important; font-weight: 800; }
+.qq-table tr.qq-t td :is(input.qq-lab, input.qq-in) { color: var(--ttl-c) !important; -webkit-text-fill-color: var(--ttl-c); font-weight: 800; }
 
 /* v530 (remarque 1) : rond d'un titre = pastille chiffrée (nombre de lignes) dans les 4 tableaux ;
    à moitié remplie : chiffre blanc sur la moitié colorée, coloré sur la moitié blanche */
 .lk-rd.lk-pst { --gc: var(--inst, #b91c1c); width: auto; min-width: 22px; height: 20px; padding: 0; border: 0; border-radius: 9px; display: inline-flex; align-items: center;
-  background: #fff !important; box-shadow: inset 0 0 0 2px var(--gc); color: var(--gc); font-size: 11px; font-weight: 800; line-height: 20px; }
+  background: #fff; box-shadow: inset 0 0 0 2px var(--gc); color: var(--gc); font-size: 11px; font-weight: 800; line-height: 20px; }
 .lk-rd.lk-pst::after { display: none !important; }
 .lk-rd.lk-pst.on { background: var(--gc) !important; color: #fff; box-shadow: none; }
 .lk-rd.lk-pst.part { background: linear-gradient(90deg, var(--gc) 50%, #fff 50%) !important; }
 .lk-rd.lk-pst.off { opacity: .45; }
 .pst-n { display: block; width: 100%; box-sizing: border-box; padding: 0 5px; text-align: center; font: inherit; color: inherit; -webkit-text-fill-color: currentColor; }
-.lk-rd.lk-pst .pst-n { color: inherit !important; -webkit-text-fill-color: currentColor; }
+.lk-rd.lk-pst .pst-n { color: inherit; -webkit-text-fill-color: currentColor; }
 .lk-rd.lk-pst.on .pst-n { color: #fff !important; -webkit-text-fill-color: #fff !important; }
 .ins-grpn .pst-n { padding: 0 4px; }
 .ins-grpn.ins-grd { padding: 0 !important; }
@@ -2125,7 +2125,7 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 /* v530 : titres des DÉSIGNATIONS CLIENT — la pastille prend la colonne des ronds, le signe › / ⌄ passe devant le titre */
 .ins-table tr.ins-title td.ins-tdv { position: relative; }
 .ins-table tr.ins-title .ins-tfz { position: absolute; top: 0; bottom: 0; left: calc(4px + var(--d, 0) * 20px); display: flex; align-items: center; z-index: 4; }
-.ins-table[data-ik="des"] tr.ins-title :is(textarea, .ins-dv)[data-f="des"] { padding-left: calc(32px + var(--d, 0) * 20px) !important; }
+.ins-table[data-ik="des"] tr.ins-title :is(textarea, .ins-dv)[data-f="des"] { padding-left: calc(32px + var(--d, 0) * 20px); }
 /* v530 : CONDITIONNEMENT — bouton dans la DÉSIGNATION d'une charge, fenêtre commune (barres, palettes, camions) */
 .ins-table td.ins-pkc { position: relative; padding-right: 22px !important; }
 .chg-pk { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; border-radius: 50%; border: 1px solid #94a3b8; background: #fff; color: #94a3b8; padding: 0; display: inline-flex; align-items: center; justify-content: center; z-index: 3; cursor: pointer; }
@@ -2158,7 +2158,7 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 /* v541 : PLANNING — une tâche liée (désignation, lot, activités) en bleu comme les lignes liées des autres tableaux ;
    une tâche sans liaison reste en rouge */
 .dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td { background: #dbeafe !important; }
-.dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td :is(input, span:not(.lk-rd):not(.dly-pred), b) { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8; font-weight: 700; }
+.dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td :is(input, span:not(.lk-rd):not(.dly-pred), b) { color: #1d4ed8; -webkit-text-fill-color: #1d4ed8; font-weight: 700; }
 
 /* ===== v542 : remarques du planning 1 à 16 (23/10/2026) ===== */
 /* R16 / FORMAT 119 : tâche placée plus bas que des tâches d'un autre lot — pastille de la couleur de son lot */
@@ -2297,7 +2297,7 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 /* R27 : SUCCESSEURS (lecture seule) */
 .dly-succ { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #475467; cursor: pointer; }
 /* R33 : bouton ↻ AJUSTER À LA CAPACITÉ, seulement sur DÉTAIL DÉLAIS */
-.blk-tools .blk-btn.blk-adj-btn { display: none !important; }
+.blk-tools .blk-btn.blk-adj-btn { display: none; }
 .blk-tools .blk-btn.blk-adj-btn.dly-on { display: inline-flex !important; align-items: center; justify-content: center; width: var(--svi-ib, 36px); height: var(--svi-ib, 36px); border-radius: 9px; background: #fff; color: #12355b; border: 1px solid #d6dbe3; margin-right: 6px; padding: 0; }
 .blk-tools .blk-btn.blk-adj-btn.dly-on svg { width: var(--svi-ii, 18px); height: var(--svi-ii, 18px); }
 .blk-tools .blk-btn.blk-adj-btn.dly-on.off { opacity: .4; }
@@ -2345,7 +2345,7 @@ th.cb-filt, .ins-hdel.cb-filt { background: transparent !important; box-shadow: 
 #dlyGantt .gb-grp.gb-gfd { padding: 0 6px; display: inline-flex; align-items: center; box-sizing: border-box; }
 .dlyhh-cfg { top: 9px; right: 58px; }
 /* ===== v553 (partie 11, remarque 4) : ⚙ RÉGLAGES DU GRAPHIQUE en haut, à gauche de ↻ ===== */
-.blk-tools .blk-btn.blk-cfg-btn { display: none !important; }
+.blk-tools .blk-btn.blk-cfg-btn { display: none; }
 .blk-tools .blk-btn.blk-cfg-btn.dly-on { display: inline-flex !important; align-items: center; justify-content: center; width: var(--svi-ib, 36px); height: var(--svi-ib, 36px); border-radius: 9px; background: #fff; color: #12355b; border: 1px solid #d6dbe3; margin-right: 6px; padding: 0; font-size: 17px; line-height: 1; }
 /* ===== v553 (partie 11, remarque 5) : case de date active (calendrier ouvert) sans contour rouge ===== */
 input.sv-date:focus, input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus,
@@ -2409,7 +2409,7 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 #bdgTabBody { position: relative; }
 #bdgTabBody > .gh-fix { position: absolute; z-index: 7; overflow: hidden; pointer-events: none; background: #f6f7f9; }
 #bdgTabBody > .gh-fix > .gh-fix-in { position: relative; height: 100%; will-change: transform; overflow: visible; flex: none; min-width: 0; }
-#bdgTabBody > .gh-fix .gh { position: relative !important; transform: none !important; }
+#bdgTabBody > .gh-fix .gh { position: relative; transform: none; }
 #dlyGantt > .gh.gh-under { opacity: 0; }
 
 /* v575 (remarque 3) : Gantt estompé hors de la plage DÉBUT – FIN */
@@ -2473,11 +2473,11 @@ tr.fz-flash > td { background: #fef0c7 !important; transition: background .3s; }
 #bdgTabBody > .dlyg-foot > .dlyf-sc { position: absolute; top: 0; bottom: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 #bdgTabBody > .dlyg-foot > .dlyf-sc::-webkit-scrollbar { display: none; }
 #bdgTabBody > .dlyg-foot > .dlyf-sc > .dlyf-in { position: relative; height: 100%; }
-#bdgTabBody > .dlyg-foot .ghist { transform: none !important; border-top: 0; }
+#bdgTabBody > .dlyg-foot .ghist { transform: none; border-top: 0; }
 #bdgTabBody > .dlyg-foot > .dlyg-hh { position: absolute; z-index: 9; }
 #bdgTabBody > .th-fix { position: absolute; z-index: 7; overflow: hidden; pointer-events: none; background: #f6f7f9; }
 #bdgTabBody > .th-fix > table { table-layout: fixed; will-change: transform; margin: 0; }
-#bdgTabBody > .th-fix thead { position: static !important; transform: none !important; }
+#bdgTabBody > .th-fix thead { position: static; transform: none; }
 .dlyg-l thead.th-under { opacity: 0; }
 html.dly-lock, html.dly-lock body { overscroll-behavior: none; }
 /* v597 : nom sur le Gantt — sélection puis saisie au contour de la barre */
@@ -2485,7 +2485,7 @@ html.dly-lock, html.dly-lock body { overscroll-behavior: none; }
 input.dly-gin { box-sizing: border-box; border: 2px solid var(--inst, #b42318) !important; outline: none; padding: 0 8px; font-size: 11px; font-weight: 800; background: #fff; color: #101828; -webkit-user-select: text; box-shadow: 0 2px 6px rgba(0,0,0,.18); }
 /* v597 : pied du graphique posé sur le bas du Gantt seulement */
 #bdgTabBody > .dlyg-foot { position: absolute; left: 0; width: 0; }
-#bdgTabBody > .dlyg-foot > .dlyf-sc { left: 0 !important; right: 0; width: auto !important; }
+#bdgTabBody > .dlyg-foot > .dlyf-sc { left: 0; right: 0; width: auto; }
 /* v598 : pied du graphique — jamais de sélection de texte ni de loupe de l'iPad ; un glissement vertical ne fait pas défiler la page */
 #bdgTabBody > .dlyg-foot, #bdgTabBody > .dlyg-foot * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #bdgTabBody > .dlyg-foot > .dlyf-sc { touch-action: pan-x; overscroll-behavior: contain; }
