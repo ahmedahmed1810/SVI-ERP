@@ -3537,11 +3537,11 @@ html body .blk-tools .blk-btn.blk-max-btn, #ach .nvp .blk-tools [data-nvmax] { d
 .novapp-list-titlebar .svi-listbar .svi-hdr { margin-left: 0; }
 /* ===== v787 (Ahmed, 01/11) ===== */
 /* titres : signe › / ⌄ sans carré, dans une place réservée devant le nom ; noms des titres et des lignes du même rang alignés */
-:is(.ins-table tr.ins-title, .ins-table tr.ins-gtitle, .ins-hcol) .ins-fold { border: 0 !important; background: none !important; box-shadow: none !important; width: 14px !important; height: 18px !important; border-radius: 0 !important; color: var(--ttl-c, #334155) !important; -webkit-text-fill-color: var(--ttl-c, #334155); font-size: 15px !important; opacity: 1 !important; }
+:is(.ins-table tr.ins-title, .ins-table tr.ins-gtitle, .ins-hcol) .ins-fold { border: 0; background: none; box-shadow: none; width: 14px; height: 18px; border-radius: 0; color: var(--ttl-c, #334155) !important; -webkit-text-fill-color: var(--ttl-c, #334155); font-size: 15px; opacity: 1; }
 :is(.ins-table tr.ins-title, .ins-table tr.ins-gtitle, .ins-hcol) .ins-fold.fs-red { color: var(--inst, #b91c1c) !important; -webkit-text-fill-color: var(--inst, #b91c1c) !important; }
 :is(.ins-table tr.ins-title, .ins-table tr.ins-gtitle, .ins-hcol) .ins-fold.fs-blu { color: #1d4ed8 !important; -webkit-text-fill-color: #1d4ed8 !important; }
 :is(.ins-table tr.ins-title, .ins-table tr.ins-gtitle, .ins-hcol) .ins-fold.fs-vio { color: #7c3aed !important; -webkit-text-fill-color: #7c3aed !important; }
-.ins-table tr.ins-title .ins-tfz { left: calc(6px + var(--d, 0) * 20px) !important; }
+.ins-table tr.ins-title .ins-tfz { left: calc(6px + var(--d, 0) * 20px); }
 .bdg-d-table.ins-table tr[data-ik="des"]:is([data-iid], .ins-new, .ins-title) :is(input, textarea, .ins-dv)[data-f="des"], .bdg-d-table.ins-table[data-ik="des"] tr:is([data-iid], .ins-new, .ins-title) :is(input, textarea, .ins-dv)[data-f="des"] { padding-left: calc(24px + var(--d, 0) * 20px) !important; }
 /* LOTS : numéro dans sa colonne, puis le signe (ou sa place vide), puis le nom */
 .ins-hcol .lot-in .lvl-no { min-width: 2.4em; margin-right: 2px; text-align: left; }
@@ -3551,7 +3551,7 @@ html body .blk-tools .blk-btn.blk-max-btn, #ach .nvp .blk-tools [data-nvmax] { d
 /* barre de titre des blocs un peu moins haute ; ⋯ du bloc plus petit */
 .bdg-d-page .bdg-d-block-title, #ach .nvp .bdg-d-block-title { padding-top: 2px !important; padding-bottom: 2px !important; min-height: 0 !important; }
 .bdg-d-block-title .blk-tools .blk-more, #ach .nvp .blk-tools [data-nvmore] { width: 28px !important; height: 24px !important; border-radius: 7px !important; font-size: 15px !important; }
-.ins-hcol .lot-in :is(input.ins-in, input.lot-gname) { padding-left: 5px !important; text-indent: 0; }
+.ins-hcol .lot-in :is(input.ins-in, input.lot-gname) { padding-left: 5px; text-indent: 0; }
 /* v789 : nom d'un lot / d'une activité décollé de la case d'avant ; la ligne CRÉER commence au même alignement */
 .ins-hcol .ins-li:not(.ins-new) > input.ins-in { padding-left: 5px; }
 /* ===== v788 (Ahmed, 01/11) — base commune ===== */
