@@ -3,7 +3,7 @@
        bouton GÉNÉRER PDF ; aucune impression lancée ===== */
     /* aperçu au modèle de la société (désignations client, tâches…) */
     /* FORMAT 106 : essai à blanc d'un aperçu (PM_DRY) — sert à griser APERÇU PDF si ce contenu est déjà classé */
-    let PM_DRY = null;
+    ECR.PM_DRY = null;
     const printModel = cfg0 => {
       /* v783 : PORTRAIT / PAYSAGE choisi dans l'aperçu, gardé pour ce type de document */
       const ORK = "svi_pm_orient_v1", orAll = (() => { try { return JSON.parse(localStorage.getItem(ORK) || "{}") || {}; } catch (e) { return {}; } })();
@@ -31,7 +31,7 @@
           : String(d.title || "").toUpperCase() === String(cfg.docTitle).toUpperCase();
         if (!d.expired && (d.idb || d.data) && same) exDoc = d;
       }
-      if (PM_DRY) { PM_DRY.doc = exDoc ? exDoc.ref : ""; return; }
+      if (ECR.PM_DRY) { ECR.PM_DRY.doc = exDoc ? exDoc.ref : ""; return; }
       if (exDoc) { sviAlert("DÉJÀ ÉDITÉ ET CLASSÉ DANS DOCUMENTS : " + exDoc.ref + ". LE CONSULTER DEPUIS DOCUMENTS.", "APERÇU PDF"); return; }
       histLog(cfg.branch, "APERÇU PDF");
       /* v784 : l'aperçu du budget passe par l'éditeur MISE EN PAGE unique (sviMep) — même document, mêmes fonctions

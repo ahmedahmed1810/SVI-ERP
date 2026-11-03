@@ -16546,7 +16546,7 @@ ${A}</Assignments>
        bouton GÉNÉRER PDF ; aucune impression lancée ===== */
     /* aperçu au modèle de la société (désignations client, tâches…) */
     /* FORMAT 106 : essai à blanc d'un aperçu (PM_DRY) — sert à griser APERÇU PDF si ce contenu est déjà classé */
-    let PM_DRY = null;
+    ECR.PM_DRY = null;
     const printModel = cfg0 => {
       /* v783 : PORTRAIT / PAYSAGE choisi dans l'aperçu, gardé pour ce type de document */
       const ORK = "svi_pm_orient_v1", orAll = (() => { try { return JSON.parse(localStorage.getItem(ORK) || "{}") || {}; } catch (e) { return {}; } })();
@@ -16574,7 +16574,7 @@ ${A}</Assignments>
           : String(d.title || "").toUpperCase() === String(cfg.docTitle).toUpperCase();
         if (!d.expired && (d.idb || d.data) && same) exDoc = d;
       }
-      if (PM_DRY) { PM_DRY.doc = exDoc ? exDoc.ref : ""; return; }
+      if (ECR.PM_DRY) { ECR.PM_DRY.doc = exDoc ? exDoc.ref : ""; return; }
       if (exDoc) { sviAlert("DÉJÀ ÉDITÉ ET CLASSÉ DANS DOCUMENTS : " + exDoc.ref + ". LE CONSULTER DEPUIS DOCUMENTS.", "APERÇU PDF"); return; }
       histLog(cfg.branch, "APERÇU PDF");
       /* v784 : l'aperçu du budget passe par l'éditeur MISE EN PAGE unique (sviMep) — même document, mêmes fonctions
@@ -19155,10 +19155,10 @@ ${A}</Assignments>
       if (!INS && blk === "detail" && (ECR.active === "prd" || ECR.active === "qlt")) return "";
       const b = blk === "suivi" ? ECR.recActive : blk;
       const ls = { ...lastShown, hier: { ...(lastShown.hier || {}) } };
-      PM_DRY = {}; window.__sviQuiet = true;
+      ECR.PM_DRY = {}; window.__sviQuiet = true;
       let r = "";
-      try { insOnlyChecked(blk); doPdf(b); r = PM_DRY.doc || ""; } catch (e) { r = ""; }
-      PM_DRY = null; window.__sviQuiet = false;
+      try { insOnlyChecked(blk); doPdf(b); r = ECR.PM_DRY.doc || ""; } catch (e) { r = ""; }
+      ECR.PM_DRY = null; window.__sviQuiet = false;
       Object.keys(ls).forEach(k => { lastShown[k] = ls[k]; });
       return r;
     };

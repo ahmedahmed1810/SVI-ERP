@@ -311,10 +311,10 @@
       if (!INS && blk === "detail" && (ECR.active === "prd" || ECR.active === "qlt")) return "";
       const b = blk === "suivi" ? ECR.recActive : blk;
       const ls = { ...lastShown, hier: { ...(lastShown.hier || {}) } };
-      PM_DRY = {}; window.__sviQuiet = true;
+      ECR.PM_DRY = {}; window.__sviQuiet = true;
       let r = "";
-      try { insOnlyChecked(blk); doPdf(b); r = PM_DRY.doc || ""; } catch (e) { r = ""; }
-      PM_DRY = null; window.__sviQuiet = false;
+      try { insOnlyChecked(blk); doPdf(b); r = ECR.PM_DRY.doc || ""; } catch (e) { r = ""; }
+      ECR.PM_DRY = null; window.__sviQuiet = false;
       Object.keys(ls).forEach(k => { lastShown[k] = ls[k]; });
       return r;
     };
