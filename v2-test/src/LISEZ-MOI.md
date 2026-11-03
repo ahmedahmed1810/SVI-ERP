@@ -56,7 +56,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `17-9-graphique-dessin.js` | PLANNING : dessin du graphique | 263 |
 | `17b-planning-auto.js` | GÉNÉRER / COMPRESSER, capacités, calendrier des charges, DATE OBJECTIF | 949 |
 | `18-annuler-liaisons.js` | annuler / rétablir, liaisons (ronds, VALIDER, DÉLIER) | 1237 |
-| `19-delais-disposition.js` | disposition des blocs, hauteurs en lignes entières | 611 |
+| `19-delais-disposition.js` | appel de « disposition des blocs, hauteurs en lignes entières » (v874 : le code est dans 28u-delais-disposition.js) | 2 |
 | `20-glisser-lignes.js` | appel de « glisser des lignes et des titres » (v844 : le code est dans 28m-glisser-lignes.js) | 2 |
 | `21-export-import.js` | export / import (Excel, Google Sheets, autre budget), menu ⋯ | 2071 |
 | `22-saisie-directe.js` | appel de « SAISIE DIRECTE » (v845 : le code est dans 28n-saisie-directe.js) | 2 |
@@ -100,6 +100,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `28r-apercus-impression.js` | aperçus PDF, impression, hors du grand bloc (v871) : sviBdgApercus(C) | 1226 |
 | `28s-contrat.js` | contrat : CPS, révision des prix, modalités de paiement, retenue de garantie, hors du grand bloc (v872) : sviBdgContrat(C) | 265 |
 | `28t-exploitation.js` | exploitation (ex-onglet MARGE), hors du grand bloc (v873) : sviBdgExploitation(C) | 516 |
+| `28u-delais-disposition.js` | disposition des blocs, hauteurs en lignes entières, hors du grand bloc (v874) : sviBdgDelaisDisposition(C) | 680 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
