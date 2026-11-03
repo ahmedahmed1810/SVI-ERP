@@ -41,7 +41,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `10-bdg-liste.js` | liste des budgets (arborescence, avenants, CUMUL) | 2003 |
 | `11-budget-ouverture.js` | ouverture d'un budget (début de openBudgetDetail) | 548 |
 | `12-tableaux-colonnes.js` | ordre manuel des lignes du budget ; tri et filtre pris de 09c (`sviCfKit`) | 37 |
-| `13-instance-saisie.js` | budget en instance : saisie, filtres (FSRC), totaux, calendrier de tâche insCal | 1644 |
+| `13-instance-saisie.js` | appel de « budget en instance : saisie, filtres (FSRC), totaux, calendrier de tâche insCal » (v887 : le code est dans 29h-instance-saisie.js) | 2 |
 | `14-doublons-classement.js` | appel de « doublons, classement, bandeau de liaison » (v886 : le code est dans 29g-doublons-classement.js) | 2 |
 | `15-qualite.js` | appel de « DÉTAIL QUALITÉ » (v885 : le code est dans 29f-qualite.js) | 2 |
 | `16-a-completer.js` | appel de « ⚠ À COMPLÉTER et FILTRES ACTIFS » (v884 : le code est dans 29e-a-completer.js) | 2 |
@@ -113,6 +113,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `29e-a-completer.js` | ⚠ À COMPLÉTER et FILTRES ACTIFS, hors du grand bloc (v884) : sviBdgACompleter(C) | 196 |
 | `29f-qualite.js` | DÉTAIL QUALITÉ, hors du grand bloc (v885) : sviBdgQualite(C) | 1376 |
 | `29g-doublons-classement.js` | doublons, classement, bandeau de liaison, hors du grand bloc (v886) : sviBdgDoublons(C) | 530 |
+| `29h-instance-saisie.js` | budget en instance : saisie, filtres (FSRC), totaux, calendrier de tâche insCal, hors du grand bloc (v887) : sviBdgInstanceSaisie(C) | 1721 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
