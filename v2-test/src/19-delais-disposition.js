@@ -11,7 +11,7 @@
     /* budget en instance / figé : une ligne par période d'une TÂCHE SECONDAIRE (lot + activité secondaire) */
     const DLY_COLS_S = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ...DLY_COLS.slice(2)];
     /* planning : lot, activité secondaire, prédécesseurs, début, fin, durée */
-    const DLY_COLS_P = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ["pred", "PRÉDÉCESSEURS", x => x.pred || "", ""], ["succ", "SUCCESSEURS", x => x.succ || "", ""],
+    ECR.DLY_COLS_P = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ["pred", "PRÉDÉCESSEURS", x => x.pred || "", ""], ["succ", "SUCCESSEURS", x => x.succ || "", ""],
       ["deb", "DÉBUT", x => x.deb || "", "center"], ["fin", "FIN", x => x.fin || "", "center"], ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "center"],
       ["marge", "BATTEMENT", x => x.mshow === "" || x.mshow === undefined ? "" : Number(x.mshow), "center"], ["jal", "JALON", x => x.jal || "", "center"]];
     /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */

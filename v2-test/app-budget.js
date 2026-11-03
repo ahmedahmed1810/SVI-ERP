@@ -6889,7 +6889,7 @@ function renderBudgetList() {
       /* v564 (remarque 5) : plage DÉBUT – FIN du graphique — tâches sans jour dans la plage en gris pâle, à leur place */
       /* v620 : tâches hors filtre (cases des autres blocs, plage DÉBUT – FIN) retirées du tableau et du Gantt, comme du graphique ;
          un lot sans tâche retenue disparaît aussi ; tout revient quand on décoche ou qu'on efface les filtres */
-      const flat = cfApply("dlyp", DLY_COLS_P, P).filter(t => !(KD && !KD.has(t.key)) && insRgKeyIn(t.key));
+      const flat = cfApply("dlyp", ECR.DLY_COLS_P, P).filter(t => !(KD && !KD.has(t.key)) && insRgKeyIn(t.key));
       /* R16 (23/10/2026) : lignes dans l'ordre du PLANNING, tâche par tâche (CLASSER PAR DÉBUT ne regroupe plus par lot) ;
          le titre d'un lot (et de chacun de ses niveaux) se place à la ligne de sa première tâche ; un lot replié ne cache que ses tâches */
       const G = new Map();
@@ -7716,7 +7716,7 @@ function renderBudgetList() {
           shell.__dlyPS = dlyPickSet();
           const PR = dlyPlanRows();
           shell.__dlyRows = PR.rows;
-          ECR.lastShown.detail = { cols: DLY_COLS_P, rows: PR.flat, kind: "dly" };
+          ECR.lastShown.detail = { cols: ECR.DLY_COLS_P, rows: PR.flat, kind: "dly" };
           /* v748 : hauteur des lignes posée avant l'affichage du tableau (posée au dessin, elle refaisait le style de toute la page) */
           dlyRhApply(dlyRhGet());
           requestAnimationFrame(() => dlyGanttDraw());
@@ -7739,7 +7739,7 @@ function renderBudgetList() {
           const dl = (id, list) => `<datalist id="${id}">${list.map(v => `<option value="${esc(v)}"></option>`).join("")}</datalist>`;
           const newIn = (f, lid) => `<input class="dly-newin" data-f="${f}" list="${lid}" placeholder="${f === "lot" ? "CRÉER UNE TÂCHE ICI…" : ""}" autocomplete="off" enterkeyhint="next">`;
           /* v666 (axe 8) : en-tête BATTEMENT TOTAL ou LIBRE selon PARAMÉTRAGE DU PLANNING */
-          { const cm = DLY_COLS_P.find(c => c[0] === "marge"); if (cm) cm[1] = dlyPP().bt === "l" ? "BATTEMENT LIBRE" : "BATTEMENT TOTAL"; }
+          { const cm = ECR.DLY_COLS_P.find(c => c[0] === "marge"); if (cm) cm[1] = dlyPP().bt === "l" ? "BATTEMENT LIBRE" : "BATTEMENT TOTAL"; }
           /* v748 (rapidité) : première ouverture du PLANNING dans ce budget — un gros planning n'affiche d'abord que ses premières lignes ;
              les autres sont ajoutées juste après l'affichage (dlyFillRest), ou aussitôt au premier toucher / à la première touche */
           const cutO = shell.__dlyFullOnce ? null : { cut: { first: DLY_FIRST, max: DLY_FIRST_MAX } };
@@ -7759,7 +7759,7 @@ function renderBudgetList() {
                 __td_deb: (INS_EDIT ? " ins-td" : "") + ((dlyLock(x.key) || {}).deb ? " dly-lkd" : ""), __td_fin: (INS_EDIT ? " ins-td" : "") + ((dlyLock(x.key) || {}).fin ? (dlyFin(x.key) > dlyLock(x.key).fin ? " dly-lkd dly-lkx" : " dly-lkd") : ""), __td_dur: INS_EDIT ? " ins-td" : "",
                 jal: `<span class="dly-jal${x.jal ? " on" : ""}" data-key="${esc(x.key)}">${x.jal ? "★" : "☆"}</span>`, __td_marge: " dly-calc",
                 __cb: `<input type="checkbox" class="dlyp-cb" data-key="${esc(x.key)}"${SEL.has(x.key) ? " checked" : ""}>` },
-            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp${x.det ? " dly-det" : ""}" data-path="${esc(x.path)}"` : `class="dly-task${x.ext ? " dly-ext" : ""}${x.off ? " dly-off" : ""}${!x.deb || !x.fin ? " dly-nod" : ""}${x.marge === 0 ? " dly-crit" : x.qc ? " dly-qcrit" : ""}${dlyPicked(x.key) ? " dly-pick" : ""}${ECR.LK.lot && ECR.LK.sec && x.key === ECR.LK.lot + "|" + ECR.LK.sec ? " dly-sel" : ""}${(INS.links || []).some(l => l.lot + "|" + l.sec === x.key) ? " dly-lnk" : ""}" data-key="${esc(x.key)}"`, true, DLY_COLS_P, cutO);
+            x => x.nw ? `class="dly-new ins-new"` : x.grp ? `class="dly-grp${x.det ? " dly-det" : ""}" data-path="${esc(x.path)}"` : `class="dly-task${x.ext ? " dly-ext" : ""}${x.off ? " dly-off" : ""}${!x.deb || !x.fin ? " dly-nod" : ""}${x.marge === 0 ? " dly-crit" : x.qc ? " dly-qcrit" : ""}${dlyPicked(x.key) ? " dly-pick" : ""}${ECR.LK.lot && ECR.LK.sec && x.key === ECR.LK.lot + "|" + ECR.LK.sec ? " dly-sel" : ""}${(INS.links || []).some(l => l.lot + "|" + l.sec === x.key) ? " dly-lnk" : ""}" data-key="${esc(x.key)}"`, true, ECR.DLY_COLS_P, cutO);
           /* FORMAT 64 / 33 : pas de ligne d'explication au-dessus du PLANNING */
           /* FORMAT 97 : commandes du planning dans le menu ⋯ du bloc détail (plus de rangée de boutons) */
           const dls = dl("dlyLotDl", [...new Set(INS.lot.filter(x => !x.t).map(x => x.v))].sort((a, b) => a.localeCompare(b, "fr")))
@@ -12388,7 +12388,7 @@ ${A}</Assignments>
     /* budget en instance / figé : une ligne par période d'une TÂCHE SECONDAIRE (lot + activité secondaire) */
     const DLY_COLS_S = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ...DLY_COLS.slice(2)];
     /* planning : lot, activité secondaire, prédécesseurs, début, fin, durée */
-    const DLY_COLS_P = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ["pred", "PRÉDÉCESSEURS", x => x.pred || "", ""], ["succ", "SUCCESSEURS", x => x.succ || "", ""],
+    ECR.DLY_COLS_P = [DLY_COLS[0], ["sec", "ACTIVITÉ SECONDAIRE", x => x.sec || "", ""], ["pred", "PRÉDÉCESSEURS", x => x.pred || "", ""], ["succ", "SUCCESSEURS", x => x.succ || "", ""],
       ["deb", "DÉBUT", x => x.deb || "", "center"], ["fin", "FIN", x => x.fin || "", "center"], ["dur", "DURÉE (J)", x => x.dur === "" || x.dur === undefined ? "" : Number(x.dur), "center"],
       ["marge", "BATTEMENT", x => x.mshow === "" || x.mshow === undefined ? "" : Number(x.mshow), "center"], ["jal", "JALON", x => x.jal || "", "center"]];
     /* cells(x) → { cle: html } ; la ligne garde ses attributs (data-sec en saisie) */
