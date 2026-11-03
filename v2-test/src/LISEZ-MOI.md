@@ -71,7 +71,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `22j-recalages.js` | appel des recalages (v832 : le code est dans 28-recalages.js) | 2 |
 | `22k-approvisionnement.js` | appel de « APPROVISIONNEMENT PRÉVISIONNEL » (v836 : le code est dans 28e-approvisionnement.js) | 2 |
 | `22l-indicateur-onglet.js` | onglet INDICATEURS (quatre parties, ESSAI) | 121 |
-| `22m-comparatif.js` | COMPARATIF | 151 |
+| `22m-comparatif.js` | appel de « COMPARATIF » (v837 : le code est dans 28f-comparatif.js) | 2 |
 | `22n-bibliotheque.js` | appel de « bibliothèque de prix dans le budget, bandeau du CUMUL » (v835 : le code est dans 28d-bibliotheque.js) | 2 |
 | `22o-etapes-onglets.js` | appel de « bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES (onglet AVENANTS, boutons de l'onglet ouvert, ouverture depuis la liste = scénario retenu) » (v834 : le code est dans 28c-etapes-onglets.js) | 2 |
 | `23-apercus-impression.js` | aperçus PDF, impression | 1188 |
@@ -85,6 +85,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `28c-etapes-onglets.js` | bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES (onglet AVENANTS, boutons de l'onglet ouvert, ouverture depuis la liste = scénario retenu), hors du grand bloc (v834) : sviBdgEtapesOnglets(C) | 229 |
 | `28d-bibliotheque.js` | bibliothèque de prix dans le budget, bandeau du CUMUL, hors du grand bloc (v835) : sviBdgBibliotheque(C) | 67 |
 | `28e-approvisionnement.js` | APPROVISIONNEMENT PRÉVISIONNEL, hors du grand bloc (v836) : sviBdgAppro(C) | 192 |
+| `28f-comparatif.js` | COMPARATIF, hors du grand bloc (v837) : sviBdgComparatif(C) | 298 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
