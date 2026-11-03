@@ -390,12 +390,12 @@
     };
 
     /* ===== bloc SUIVI : onglets DOCUMENTS / TAF / OBSERVATIONS ===== */
-    let recActive = "doc";
-    try { recActive = localStorage.getItem("svi_rectab_v1") || "doc"; } catch (e) {}
-    if (!["doc", "taf", "obs"].includes(recActive)) recActive = "doc";
+    ECR.recActive = "doc";
+    try { ECR.recActive = localStorage.getItem("svi_rectab_v1") || "doc"; } catch (e) {}
+    if (!["doc", "taf", "obs"].includes(ECR.recActive)) ECR.recActive = "doc";
     const recTabApply = () => {
-      shell.querySelectorAll(".rec-tab").forEach(b => b.classList.toggle("active", b.dataset.rtab === recActive));
-      shell.querySelectorAll(".blk-suivi .rec-scroll").forEach(d => { d.hidden = d.dataset.pane !== recActive; });
+      shell.querySelectorAll(".rec-tab").forEach(b => b.classList.toggle("active", b.dataset.rtab === ECR.recActive));
+      shell.querySelectorAll(".blk-suivi .rec-scroll").forEach(d => { d.hidden = d.dataset.pane !== ECR.recActive; });
     };
 
     /* colonnes : [clé, libellé, accesseur, classe] (même moteur que les autres tableaux) */

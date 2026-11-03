@@ -13,7 +13,7 @@
     const blkEmpty = blk => {
       try {
         if (blk === "detail" && ECR.active === "qlt" && !INS) return true;
-        const b = blk === "suivi" ? recActive : blk;
+        const b = blk === "suivi" ? ECR.recActive : blk;
         const d = blkData(b);
         return !d || !d.rows || !d.rows.length;
       } catch (e) { return false; }

@@ -309,7 +309,7 @@
     /* FORMAT 106 : document déjà classé pour le contenu que donnerait APERÇU PDF (essai à blanc, sans fenêtre) */
     const pdfDoneRef = blk => {
       if (!INS && blk === "detail" && (ECR.active === "prd" || ECR.active === "qlt")) return "";
-      const b = blk === "suivi" ? recActive : blk;
+      const b = blk === "suivi" ? ECR.recActive : blk;
       const ls = { ...lastShown, hier: { ...(lastShown.hier || {}) } };
       PM_DRY = {}; window.__sviQuiet = true;
       let r = "";
@@ -356,7 +356,7 @@
       if (act === "paste") return clipPaste(blk);
       if (act === "export" || act === "pdf") insOnlyChecked(blk);
       if (!INS && blk === "detail" && ECR.active === "prd" && (act === "export" || act === "pdf")) return chooseFormat(act);
-      const b = blk === "suivi" ? recActive : blk;
+      const b = blk === "suivi" ? ECR.recActive : blk;
       if (act === "export") openExportMenu(b);
       else if (act === "import") { if (budget.inst && (budget.inst.state || "instance") === "instance") openImportMenu(b); }
       else doPdf(b);
@@ -630,8 +630,8 @@
 
       const rt = event.target.closest("[data-rtab]");
       if (rt) {
-        recActive = rt.dataset.rtab;
-        try { localStorage.setItem("svi_rectab_v1", recActive); } catch (e) {}
+        ECR.recActive = rt.dataset.rtab;
+        try { localStorage.setItem("svi_rectab_v1", ECR.recActive); } catch (e) {}
         recTabApply();
         return;
       }
