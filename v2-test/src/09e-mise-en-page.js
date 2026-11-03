@@ -5,7 +5,8 @@
      title : titre du document, ref : référence, party : client / fournisseur, date : date du document (texte),
      prelim: true = filigrane VERSION PRÉLIMINAIRE,
      cols  : [[clé, libellé, "number" | "center" | ""]], rows : [[cellules…]] (ou html : tableau tout fait),
-     tot   : [[libellé, valeur]] (TOTAUX), fields : { projet, ttc, numFrs } (blocs « champ »),
+     tot   : [[libellé, valeur]] (TOTAUX), fields : { projet, ttc, numFrs, lettres, mention, soc } (blocs « champ »),
+     note  : texte sous les TOTAUX (v819 : montant en lettres, mention à reporter),
      name  : nom du fichier PDF, save : async (blob, nom) => référence classée (GÉNÉRER PDF = classer dans DOCUMENTS) }
    Volet : ENTÊTE, PIED, CACHET, SIGNATURE (pages), PORTRAIT / PAYSAGE, MISE EN PAGE, GÉNÉRER PDF, IMPRIMER SANS CLASSER.
    MISE EN PAGE : glisser / redimensionner chaque bloc, texte libre ou champ, alignements, police, taille, couleur,
@@ -23,7 +24,7 @@ const sviMep = (() => {
   const FIX = ["entete", "pied", "sign", "cachet", "corps"], TXT = ["date", "titre", "frs", "ref"], STY = ["date", "titre", "frs", "ref", "corps", "totaux", "pied", "entete"];
   const FS = { date: 15, titre: 24, frs: 22, ref: 16, corps: 12, totaux: 13, pied: 11, entete: 13 }, BOLD = ["date", "titre", "frs", "ref"];
   const FF = [["", "PAR DÉFAUT (ARIAL)"], ['"Times New Roman",Times,serif', "TIMES NEW ROMAN"], ["Arial,Helvetica,sans-serif", "ARIAL"], ["Verdana,Geneva,sans-serif", "VERDANA"], ["Tahoma,Verdana,sans-serif", "TAHOMA"], ["Georgia,serif", "GEORGIA"], ['"Courier New",Courier,monospace', "COURIER NEW"]];
-  const FLD = [["date", "DATE (VILLE, LE …)"], ["ddoc", "DATE DU DOCUMENT"], ["ref", "RÉFÉRENCE"], ["frs", "CLIENT / FOURNISSEUR"], ["titre", "TITRE DU DOCUMENT"], ["projet", "PROJET"], ["numFrs", "N° DOCUMENT TIERS"], ["ttc", "MONTANT TTC"], ["ent", "ENTREPRISE"]];
+  const FLD = [["date", "DATE (VILLE, LE …)"], ["ddoc", "DATE DU DOCUMENT"], ["ref", "RÉFÉRENCE"], ["frs", "CLIENT / FOURNISSEUR"], ["titre", "TITRE DU DOCUMENT"], ["projet", "PROJET"], ["numFrs", "N° DOCUMENT TIERS"], ["ttc", "MONTANT TTC"], ["lettres", "MONTANT EN LETTRES"], ["mention", "MENTION À REPORTER (N° DE LA PIÈCE)"], ["soc", "ICE ET IF DE LA SOCIÉTÉ"], ["ent", "ENTREPRISE"]];
   const isX = k => String(k).startsWith("x_");
   const E = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   let D = null, O = null, ED = null, SEL = null, ROOT = null, RES = null;
@@ -49,7 +50,7 @@ const sviMep = (() => {
     return `<table class="mep-t"><colgroup>${shown.map(c => w(c[0]) ? `<col style="width:${w(c[0])}%">` : "<col>").join("")}</colgroup>`
       + (head ? `<tr>${shown.map(c => `<th>${E(c[1])}</th>`).join("")}</tr>` : "")
       + rows.map(r => `<tr>${shown.map(c => { const v = r[c[3]]; return `<td class="${c[2] === "number" ? "nm" : c[2] === "center" ? "c" : ""}">${E(typeof v === "number" ? (typeof money === "function" ? money(v) : v) : v ?? "")}</td>`; }).join("")}</tr>`).join("") + "</table>"; };
-  const totHTML = () => D.endHtml ? D.endHtml : (D.tot || []).length ? `<table class="mep-tot"><colgroup><col style="width:55%"><col style="width:45%"></colgroup>${D.tot.map(([l, v]) => `<tr><th>${E(l)}</th><td>${E(typeof v === "number" ? (typeof money === "function" ? money(v) : v) : v)}</td></tr>`).join("")}</table>` : "";
+  const totHTML = () => D.endHtml ? D.endHtml : (D.tot || []).length ? `<table class="mep-tot"><colgroup><col style="width:55%"><col style="width:45%"></colgroup>${D.tot.map(([l, v]) => `<tr><th>${E(l)}</th><td>${E(typeof v === "number" ? (typeof money === "function" ? money(v) : v) : v)}</td></tr>`).join("")}</table>${D.note ? `<div class="mep-note">${E(D.note).replace(/\n/g, "<br>")}</div>` : ""}` : D.note ? `<div class="mep-note">${E(D.note).replace(/\n/g, "<br>")}</div>` : "";
   const sty = (k, b) => (b.ff ? "font-family:" + b.ff + ";" : "") + (b.va && b.va !== "top" ? "display:flex;flex-direction:column;justify-content:" + (b.va === "middle" ? "center" : "flex-end") + ";" : "")
     + "font-size:" + (b.fs || FS[k] || 13) + "px;" + (b.col ? "color:" + b.col + ";" : "") + ((b.b !== undefined ? b.b : BOLD.includes(k)) ? "font-weight:700;" : "font-weight:400;") + (b.i ? "font-style:italic;" : "") + (b.u ? "text-decoration:underline;" : "")
     + (b.bg ? "background:#fff;" : "") + (k === "corps" ? (b.rh !== undefined ? "--rp:" + b.rh + "px;" : "") + (b.hbg ? "--hbg:" + b.hbg + ";" : "") : "") + "z-index:" + (b.z || 1) + ";";

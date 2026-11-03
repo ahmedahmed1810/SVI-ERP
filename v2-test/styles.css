@@ -3733,3 +3733,5 @@ input.sv-rmcb { width: 18px; height: 18px; cursor: pointer; }
 .prm-mask .mask-note { margin-top: 8px; font-size: 11px; font-weight: 800; color: #6b7480; }
 /* v808 : bloc ENCOURS ET SOLDE au-delà du plafond */
 #ach .nvp-blk tr.nv-alert td { color: #b91c1c; font-weight: 900; }
+/* v819 : texte sous les totaux des pièces d'achat (montant en lettres, mention à reporter, ICE / IF) */
+#sviMep .mep-note { margin-top: 6px; font-size: 11px; font-weight: 700; line-height: 1.35; text-align: left; }

@@ -190,13 +190,21 @@ function achNvPageHTML(p, rec, ctx) {
 }
 /* module complet liste + page : cfg = { list: options de achNvList (sans page), pageOf(id) → p, back } */
 /* v783 : APERÇU d'une pièce ou d'une fiche — l'éditeur MISE EN PAGE unique (sviMep) ; corps = LIGNES (sinon le premier bloc lié) */
-function achMepOpen(cfg, P, rec, redraw) {
-  const Lg0 = P.links.find(l => /^LIGNES/.test(l.t)) || P.links[0] || { t: "", cols: [], rows: [] };
+/* v819 : mise en page des pièces (étape 6) — montant en lettres et mention à reporter sous les totaux, ICE / IF de la société en champ ;
+   o.noPrice : BON SANS PRIX pour le chauffeur ou le magasin (C6.68) — prix, montants et totaux retirés */
+function achMepOpen(cfg, P, rec, redraw, o) {
+  o = o || {};
+  const Lg0 = P.links.find(l => /^LIGNES|^DÉTAIL FACTURE FOURNISSEUR/.test(l.t)) || P.links[0] || { t: "", cols: [], rows: [] };
   /* v786 : l'aperçu suit les colonnes affichées à l'écran */
   const tb = document.querySelector(`#ach table[data-colh="achp_${achNvhKey(Lg0.t)}"]`), vis = tb ? sviColhVis(tb) : null, vf = a => vis ? a.filter((_, i) => vis.includes(i)) : a;
-  const Lg = { ...Lg0, cols: vf(Lg0.cols), rows: Lg0.rows.map(r => ({ ...r, cells: vf(r.cells) })) };
-  sviMep.open({ key: "ACH-" + String(cfg.list.k || "X").toUpperCase(), title: cfg.list.one, ref: P.ref || P.code, party: P.party || P.title, date: P.date || "", prelim: P.st === "instance",
-    cols: Lg.cols.map((c, i) => ["c" + i, c[0], c[1] || ""]), rows: Lg.rows.map(r => r.cells), tot: P.tot || [], fields: { projet: P.projet || "", ttc: P.ttc ? achF2(P.ttc) + " MAD" : "", numFrs: P.numFrs || "" },
+  let Lg = { ...Lg0, cols: vf(Lg0.cols), rows: Lg0.rows.map(r => ({ ...r, cells: vf(r.cells) })) };
+  if (o.noPrice) { const keep = Lg.cols.map((c, i) => /PU|PRIX|MONTANT|TVA/.test(c[0]) ? -1 : i).filter(i => i >= 0); Lg = { ...Lg, cols: keep.map(i => Lg.cols[i]), rows: Lg.rows.map(r => ({ ...r, cells: keep.map(i => r.cells[i]) })) }; }
+  const K = cfg.list.k, pr = achPrm(), lettres = P.ttc && !o.noPrice ? "ARRÊTÉ(E) À LA SOMME DE : " + frMoney(P.ttc) + " TTC." : "";
+  const mention = K === "cmf" ? "N° " + (P.ref || P.code) + " À REPORTER SUR LE BON DE LIVRAISON ET LA FACTURE." : K === "caf" ? "MERCI DE RAPPELER LA RÉFÉRENCE " + (P.ref || P.code) + " DANS VOTRE DEVIS." : "";
+  const soc = [pr.socIce ? "ICE : " + pr.socIce : "", pr.socIf ? "IF : " + pr.socIf : ""].filter(Boolean).join(" — ");
+  sviMep.open({ key: "ACH-" + String(cfg.list.k || "X").toUpperCase() + (o.noPrice ? "-SP" : ""), title: cfg.list.one + (o.noPrice ? " (SANS PRIX)" : ""), ref: P.ref || P.code, party: P.party || P.title, date: P.date || "", prelim: P.st === "instance",
+    cols: Lg.cols.map((c, i) => ["c" + i, c[0], c[1] || ""]), rows: Lg.rows.map(r => r.cells), tot: o.noPrice ? [] : P.tot || [], note: [lettres, mention, soc].filter(Boolean).join("\n"),
+    fields: { projet: P.projet || "", ttc: P.ttc && !o.noPrice ? achF2(P.ttc) + " MAD" : "", numFrs: P.numFrs || "", lettres, mention, soc },
     name: (P.ref || P.code) + " " + cfg.list.one, save: async (b, n) => { const r = await rec.savePdf(b, n); if (redraw) setTimeout(redraw, 0); return r; } });
 }
 function achNvMod(ctx, cfg) {
@@ -221,8 +229,8 @@ function achNvMod(ctx, cfg) {
       if (b.classList.contains("hdr-off")) { svToast(b.dataset.why || "", 3000, b); return true; }
       if (k === "todo") { svToast("⚠ " + P.why.join(" · "), 5000, b); return true; }
       /* v774 : ⋯ principal commun — VALIDER en tête ; actions ; CORBEILLE / RESTAURER et FERMER en bas, séparés par un trait */
-      if (k === "more") { const M = P.menu.concat([{ k: "__apr", lab: "APERÇU" }]), top = M.filter(m => m.k === "val"), bot = M.filter(m => m.k === "del" || m.k === "rest").map(m => ({ ...m, del: m.k === "del" })), mid = M.filter(m => !top.includes(m) && !["del", "rest"].includes(m.k));
-        sviHdrMenu(b, [top, mid, [...bot, { k: "__close", lab: "FERMER" }]], async a => { if (a === "__close") { pid = null; ctx.draw(); return; } if (a === "__apr") { achMepOpen(cfg, P, rec, () => ctx.draw()); return; } await P.act(a, () => ctx.draw(), id => open(id)); }); return true; }
+      if (k === "more") { const M = P.menu.concat([{ k: "__apr", lab: "APERÇU" }]).concat(cfg.list.k === "cmf" || cfg.list.k === "rcp" ? [{ k: "__aprsp", lab: "BON SANS PRIX (CHAUFFEUR, MAGASIN)" }] : []), top = M.filter(m => m.k === "val"), bot = M.filter(m => m.k === "del" || m.k === "rest").map(m => ({ ...m, del: m.k === "del" })), mid = M.filter(m => !top.includes(m) && !["del", "rest"].includes(m.k));
+        sviHdrMenu(b, [top, mid, [...bot, { k: "__close", lab: "FERMER" }]], async a => { if (a === "__close") { pid = null; ctx.draw(); return; } if (a === "__apr") { achMepOpen(cfg, P, rec, () => ctx.draw()); return; } if (a === "__aprsp") { achMepOpen(cfg, P, rec, () => ctx.draw(), { noPrice: true }); return; } await P.act(a, () => ctx.draw(), id => open(id)); }); return true; }
     }
     /* v776 : AGRANDIR / RÉDUIRE un bloc de la page ; ⋯ du bloc (EXPORTER, APERÇU ; SUIVI : CRÉER) */
     const mx = e.target.closest("[data-nvmax]"); if (mx) { const bl = mx.closest(".nvp-blk"); const on = !bl.classList.contains("nvp-max"); bl.classList.toggle("nvp-max", on); mx.classList.toggle("on", on); return true; }

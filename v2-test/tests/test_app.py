@@ -3408,6 +3408,13 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("v818 : PROPOSITION DE PAIEMENT — échues d'abord, litiges et bloqués exclus, un paiement par fournisseur au mode du fournisseur, avoirs déduits ; entrée dans le ⋯ de la liste des paiements",
               c818 == ["FAF 2:ÉCHUE,FAF 3:BLOQUÉ,FAF 1:NORMALE", 2, 1, "CHÈQUE", 2, 160, True], c818)
+        # v819 : MISE EN PAGE des pièces — montant en lettres, mention à reporter, ICE / IF de la société sous les totaux ; BON SANS PRIX
+        c819 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), cfg = { list: { k: 'cmf', one: 'COMMANDE' } };
+            const P = { ref: 'CMF 1', party: 'AFRA', ttc: 120, tot: [['MONTANT TTC', 120]], links: [{ t: 'LIGNES', cols: [['DÉSIGNATION'], ['QUANTITÉ', 'number'], ['PU HT', 'number'], ['MONTANT HT', 'number']], rows: [{ cells: ['SABLE', 1, 100, 100] }] }] };
+            achMepOpen(cfg, P, { savePdf: async () => '' }, null); await w(400); let m = document.getElementById('sviMep'); const r = [/CENT VINGT/.test((m.querySelector('.mep-note') || {}).textContent || ''), /À REPORTER SUR LE BON DE LIVRAISON/.test(m.textContent)];
+            m.remove(); achMepOpen(cfg, P, { savePdf: async () => '' }, null, { noPrice: true }); await w(400); m = document.getElementById('sviMep');
+            r.push([...m.querySelectorAll('.mep-t th')].map(x => x.textContent.trim()).join(','), !m.querySelector('.mep-tot'), /SANS PRIX/.test(m.textContent)); m.remove(); return r; }""")
+        check("v819 : MISE EN PAGE — montant en lettres et mention à reporter sous les totaux ; BON SANS PRIX sans prix, montants ni totaux", c819 == [True, True, "DÉSIGNATION,QUANTITÉ", True, True], c819)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
