@@ -46,7 +46,10 @@
         const deb = pend.deb || infProj().deb, but = pend.but ?? (INS.dbut || "");
         if (pend.obj && ((deb && pend.obj < deb) || (but && pend.obj > but))) svToast("DATE OBJECTIF REFUSÉE : ENTRE LE DÉBUT DU PROJET ET LA DATE BUTOIR.", 4500, anchor);
         else { INS.dobj = pend.obj; histLog("INF", "DATE OBJECTIF", dFr(pend.obj) || "—"); } }
-      if (pend.but !== undefined && pend.but !== (INS.dbut || "")) { INS.dbut = pend.but; histLog("INF", "DATE BUTOIR", dFr(pend.but) || "—"); }
+      /* v820 (cahier, à coder) : DATE BUTOIR refusée avant le début du projet ou avant la date objectif */
+      if (pend.but !== undefined && pend.but !== (INS.dbut || "")) { const deb = pend.deb || infProj().deb, obj = pend.obj !== undefined ? pend.obj : (INS.dobj || "");
+        if (pend.but && ((deb && pend.but < deb) || (obj && pend.but < obj))) svToast("DATE BUTOIR REFUSÉE : ELLE NE PEUT ÊTRE NI AVANT LE DÉBUT DU PROJET, NI AVANT LA DATE OBJECTIF.", 5000, anchor);
+        else { INS.dbut = pend.but; histLog("INF", "DATE BUTOIR", dFr(pend.but) || "—"); } }
       if (pend.deb !== undefined && pend.deb) {
         const cal = insCal(), P = infProj(), v = pend.deb;
         const nv = sviWNear(cal, v, 1);

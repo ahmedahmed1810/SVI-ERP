@@ -365,6 +365,11 @@ const sviRowDate = ref => {
    EXPIRÉ (xp) se pose sur une étape validée (budget initial ou avenant) */
 const sviAvRoot = it => { if (!it) return null; if (!it.parent) return it; return sviInstGet().find(x => x.ref === it.parent) || it; };
 const sviBdgBlk = it => { const r = sviAvRoot(it); return !!(r && r.blk); };
+/* v820 (cahier, à coder) : supprimer un budget supprime aussi ses avenants et ses recalages (et ceux de ses avenants) */
+const sviBdgFamilyDrop = (L, ref) => { const fam = new Set([ref]); (L || []).forEach(x => { if (x && x.parent === ref) fam.add(x.ref); });
+  return (L || []).filter(x => !(x && (fam.has(x.ref) || fam.has(x.parent) || fam.has(x.rclOf)))); };
+/* v820 (cahier, à coder) : budget ARCHIVÉ = lecture seule (RAPPELER LE BUDGET pour le modifier) */
+const sviBdgArch = it => { const r = sviAvRoot(it); return !!(r && r.arch); };
 /* ⟪ src/07-bdg-chargement.js ⟫ */
 /* =========================================================
    BASE V3 → lignes au format de l'ancien onglet BDG (colonnes A:Z),
@@ -378,6 +383,11 @@ function sviIntitule(ref, project, inst) {
   return I.byRef[R] || I.byRef[(P + " " + R).trim()] || I.byPrj[P] || "À COMPLÉTER";
 }
 /* client d'un budget : saisi dans INF (budgets créés dans l'application) ; sinon « À COMPLÉTER » */
+/* v820 (cahier, à coder) : fiches CLIENT — pour l'instant le seul nom ; une fiche par client, créée à la création d'un budget */
+const SVI_CLI_KEY = "svi_clients_v1";
+function sviClients() { try { const L = JSON.parse(localStorage.getItem(SVI_CLI_KEY) || "[]"); return Array.isArray(L) ? L : []; } catch (e) { return []; } }
+function sviClientAdd(nom) { const n = String(nom || "").trim().toUpperCase().replace(/\s+/g, " "); if (!n) return null; const L = sviClients(); let c = L.find(x => x.nom === n);
+  if (!c) { c = { id: "CL" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), nom: n, cree: new Date().toISOString() }; L.push(c); try { localStorage.setItem(SVI_CLI_KEY, JSON.stringify(L)); } catch (e) {} } return c; }
 function sviClient(inst) {
   return (inst && String(inst.client || "").trim().toUpperCase()) || "À COMPLÉTER";
 }
@@ -1807,6 +1817,8 @@ function renderBudgetList() {
             <input id="nbDate" class="doc-in" type="datetime-local" value="${local}">
             <label class="doc-lab" for="nbPrj">PROJET <b>*</b></label>
             <input id="nbPrj" class="doc-in" type="text" autocomplete="off" placeholder="CODE PROJET">
+            <label class="doc-lab" for="nbCli">CLIENT <b>*</b></label>
+            <input id="nbCli" class="doc-in" type="text" autocomplete="off" placeholder="NOM DU CLIENT" list="nbCliL"><datalist id="nbCliL">${[...new Set(sviClients().map(c => c.nom).concat(instLoad().map(b => String(b.client || "").trim().toUpperCase()).filter(Boolean)))].sort().map(n => `<option value="${esc(n)}">`).join("")}</datalist>
             <label class="doc-lab" for="nbName">INTITULÉ</label>
             <input id="nbName" class="doc-in nb-wide" type="text" autocomplete="off" placeholder="INTITULÉ DU PROJET">
           </div>
@@ -1852,14 +1864,20 @@ function renderBudgetList() {
       svToast(b.ref + " CHARGÉ DANS LA LISTE.", 3000);
     });
     p.querySelector("#nbGo").addEventListener("click", () => {
-      const prj = val("#nbPrj").toUpperCase().replace(/\s+/g, " ");
-      const r = refNow();
+      const prj = val("#nbPrj").toUpperCase().replace(/\s+/g, " "), cli = val("#nbCli").toUpperCase().replace(/\s+/g, " ");
+      let r = refNow();
       const miss = [];
       if (!r) miss.push("date");
       if (!prj) miss.push("projet");
+      /* v820 (cahier, à coder) : client obligatoire à la création */
+      if (!cli) miss.push("client");
       if (miss.length) { p.querySelector("#nbErr").textContent = "À COMPLÉTER (*) : " + miss.join(", ").toUpperCase() + "."; return; }
       const list = instLoad();
-      list.push({ ref: r, project: prj, intitule: val("#nbName").toUpperCase() || "À COMPLÉTER",
+      /* v820 (cahier, à coder) : la référence calculée est vérifiée ; si elle existe déjà, le numéro suivant libre est pris */
+      { const used = new Set(list.map(b => String(b.ref || "")).concat([...groups.keys()].map(String))); let k = Number((r.match(/\/(\d+)$/) || [])[1]) || 1;
+        while (used.has(r)) { k += 1; r = r.replace(/\/\d+$/, "/" + String(k).padStart(3, "0")); } }
+      sviClientAdd(cli);
+      list.push({ ref: r, project: prj, intitule: val("#nbName").toUpperCase() || "À COMPLÉTER", client: cli,
         created: val("#nbDate"), state: "instance" });
       instSave(list);
       p.remove();
@@ -2028,9 +2046,10 @@ function renderBudgetList() {
   let etatF = "actif"; try { const e0 = localStorage.getItem("svi_bdgetat_v1"); if (ETATS.some(x => x[0] === e0)) etatF = e0; } catch (e) {}
   const flagsOf = g => {
     const bi = g && g.inst, fam = !!bi && isFam(g.ref), S = !bi ? [] : fam ? sviAvStages(g.ref) : [bi];
-    return { fam, arch: !!(bi && bi.arch), blk: !!(bi && bi.blk), xp: fam ? S.some(st => st.xp) : !!(bi && bi.xp), late: S.some(st => stLate(st)) };
+    /* v820 (cahier, à coder) : un budget dont toutes les étapes sont expirées passe dans EXPIRÉ (il quitte ACTIF) */
+    return { fam, arch: !!(bi && bi.arch), blk: !!(bi && bi.blk), xp: fam ? S.some(st => st.xp) : !!(bi && bi.xp), allXp: S.length > 0 && S.every(st => st.xp), late: S.some(st => stLate(st)) };
   };
-  const etatOk = (f, k) => k === "tout" ? true : k === "alerte" ? f.late : k === "expire" ? f.xp : k === "bloque" ? f.blk : k === "archive" ? f.arch : !f.arch && !f.blk && !(f.xp && !f.fam);
+  const etatOk = (f, k) => k === "tout" ? true : k === "alerte" ? f.late : k === "expire" ? f.xp : k === "bloque" ? f.blk : k === "archive" ? f.arch : !f.arch && !f.blk && !(f.xp && !f.fam) && !f.allXp;
   const FLG = new Map(budgets.map(g => [g.ref, flagsOf(g)]));
   const budgetsE = () => budgets.filter(g => etatOk(FLG.get(g.ref), etatF));
 
@@ -2175,7 +2194,7 @@ function renderBudgetList() {
     const FO = new Set(foldGet0());
     tbody.innerHTML =
       data.map(item => { const fam = item.fam, open = fam && FO.has(item.ref), kids = open ? kidsOf(item) : []; item.open = open;
-        const ec = item.flg && item.flg.arch ? " etat-archive" : item.flg && item.flg.blk ? " etat-bloque" : item.flg && item.flg.xp && !fam ? " etat-expire" : "";
+        const ec = item.flg && item.flg.arch ? " etat-archive" : item.flg && item.flg.blk ? " etat-bloque" : item.flg && item.flg.xp && (!fam || item.flg.allXp) ? " etat-expire" : "";
         return `<tr data-budget-ref="${esc(item.ref)}" class="${item.state ? "inst-" + item.state : ""}${fam ? " bdg-fam" : ""}${ec}"${fam ? ' data-fam="1"' : ""}>`
           + columns.map(c => cell(c.key, item)).join("")
           + `<td class="bdg-action-cell">${item.state === "instance" ? delBtn(item.ref) : ""}</td>${sviListCbTd()}</tr>`
@@ -2845,7 +2864,8 @@ function renderBudgetList() {
     const INS_ARCH = !!INS && !!(INS.ver && (INS.ver.L || []).some(x => x.id === INS.ver.act && x.arch));
     /* v755 : budget BLOQUÉ = lecture seule (en attendant les droits, checklist B9) */
     const INS_BLK = !!INS && !budget.inst.virtual && sviBdgBlk(budget.inst);
-    const INS_LIVE_EDIT = !!INS && (budget.inst.state || "instance") === "instance" && !INS_ARCH && !budget.inst.virtual && !INS_BLK;
+    const INS_ARCHB = !!INS && !budget.inst.virtual && typeof sviBdgArch === "function" && sviBdgArch(budget.inst);
+    const INS_LIVE_EDIT = !!INS && (budget.inst.state || "instance") === "instance" && !INS_ARCH && !budget.inst.virtual && !INS_BLK && !INS_ARCHB;
     /* v772 : nom de zone des verrous inchangé (« DÉTAIL CHARGES »…) même si l'onglet s'appelle maintenant CHARGES — compatibilité entre appareils */
     const insTabName = k => (["chg", "prd", "qlt", "dly"].includes(k) ? "DÉTAIL " : "") + ((tabs.find(t => t.key === k) || {}).title || k);
     const INS_HELD = INS_LIVE_EDIT && budget.inst.ref && typeof sviLockAll === "function" ? sviLockAll(budget.inst.ref).find(k => !k.onglet) || null : null;
@@ -2855,7 +2875,7 @@ function renderBudgetList() {
     const INS_REAL = INS_LIVE_EDIT && !INS_HELD;
     const INS_VIEW = !!INS && !INS_REAL;
     const INS_EDIT = !!INS;
-    const INS_RO_WHY = !INS_VIEW ? "" : INS_BLK ? "BUDGET BLOQUÉ : LECTURE SEULE (MENU ⋯ › DÉBLOQUER)." : budget.inst.ref === "CUMUL" ? "CUMUL : LECTURE SEULE (BUDGETS ADDITIONNÉS)." : budget.inst.virtual ? (budget.inst.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.")
+    const INS_RO_WHY = !INS_VIEW ? "" : INS_BLK ? "BUDGET BLOQUÉ : LECTURE SEULE (MENU ⋯ › DÉBLOQUER)." : INS_ARCHB ? "BUDGET ARCHIVÉ : LECTURE SEULE (MENU ⋯ › RAPPELER LE BUDGET)." : budget.inst.ref === "CUMUL" ? "CUMUL : LECTURE SEULE (BUDGETS ADDITIONNÉS)." : budget.inst.virtual ? (budget.inst.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.")
       : INS_HELD ? "EN LECTURE SEULE : " + INS_HELD.user + " MODIFIE CE BUDGET." : INS_ARCH ? "SCÉNARIO ARCHIVÉ : LECTURE SEULE (DÉSARCHIVER DANS LE BLOC SCÉNARIOS)."
       : budget.inst.state === "fige" ? "BUDGET FIGÉ : LECTURE SEULE (🔒 POUR REVENIR EN ÉDITION)." : budget.inst.rclOf ? "RECALAGE ENREGISTRÉ : LECTURE SEULE." : "BUDGET VALIDÉ : LECTURE SEULE.";
     window.__sviRO = INS_RO_WHY;
@@ -6344,6 +6364,8 @@ function renderBudgetList() {
       try { if (lkPending()) out.push({ lab: "MODIFICATION EN ATTENTE DE ✓ VALIDER", n: 1, go: "" }); } catch (e) {}
       try { infMissing().filter(x => x.req).forEach(x => out.push(x)); } catch (e) {}
       { const nu = INS.sec.filter(x => U_(x.v) && !U_(x.u)); if (nu.length) out.push({ lab: "ACTIVITÉS SECONDAIRES SANS UNITÉ", n: nu.length, go: "hier" }); }
+      /* v820 (cahier, à coder) : FIGER est refusé tant qu'il reste un doublon */
+      try { const dd = dupCount(); if (dd.length) out.push({ lab: "DOUBLONS", n: dd.length, go: "dup" }); } catch (e) {}
       return out;
     };
     const insFigeWhy = () => {
@@ -21408,7 +21430,10 @@ ${A}</Assignments>
         const deb = pend.deb || infProj().deb, but = pend.but ?? (INS.dbut || "");
         if (pend.obj && ((deb && pend.obj < deb) || (but && pend.obj > but))) svToast("DATE OBJECTIF REFUSÉE : ENTRE LE DÉBUT DU PROJET ET LA DATE BUTOIR.", 4500, anchor);
         else { INS.dobj = pend.obj; histLog("INF", "DATE OBJECTIF", dFr(pend.obj) || "—"); } }
-      if (pend.but !== undefined && pend.but !== (INS.dbut || "")) { INS.dbut = pend.but; histLog("INF", "DATE BUTOIR", dFr(pend.but) || "—"); }
+      /* v820 (cahier, à coder) : DATE BUTOIR refusée avant le début du projet ou avant la date objectif */
+      if (pend.but !== undefined && pend.but !== (INS.dbut || "")) { const deb = pend.deb || infProj().deb, obj = pend.obj !== undefined ? pend.obj : (INS.dobj || "");
+        if (pend.but && ((deb && pend.but < deb) || (obj && pend.but < obj))) svToast("DATE BUTOIR REFUSÉE : ELLE NE PEUT ÊTRE NI AVANT LE DÉBUT DU PROJET, NI AVANT LA DATE OBJECTIF.", 5000, anchor);
+        else { INS.dbut = pend.but; histLog("INF", "DATE BUTOIR", dFr(pend.but) || "—"); } }
       if (pend.deb !== undefined && pend.deb) {
         const cal = insCal(), P = infProj(), v = pend.deb;
         const nv = sviWNear(cal, v, 1);
@@ -22980,7 +23005,7 @@ ${A}</Assignments>
       $("instDel")?.addEventListener("click", () => {
         const RC = budget.inst.rclOf;
         svConfirm(RC ? { title: "SUPPRIMER LE RECALAGE R" + budget.inst.rcn, text: "LE RECALAGE EN COURS R" + budget.inst.rcn + " SERA SUPPRIMÉ ; L'ÉTAPE " + RC + " NE CHANGE PAS.", ok: "SUPPRIMER" }
-          : { title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
+          : { title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ, AVEC SES AVENANTS ET SES RECALAGES.", ok: "SUPPRIMER" }).then(go => {
           if (!go) return;
           /* v750 (point 1) : après la suppression, le budget précédent de la liste s'ouvre (le suivant s'il n'y en a pas) ;
              retour à la liste seulement s'il n'en reste aucun ; un avenant supprimé ouvre l'étape d'avant */
@@ -22992,7 +23017,7 @@ ${A}</Assignments>
             const r = L.length ? L[j] : null;
             return r && sviAvStages(r).length > 1 ? r + "-GLOBAL" : r;
           })();
-          instUpd(l => l.filter(x => x.ref !== ref));
+          instUpd(l => RC ? l.filter(x => x.ref !== ref) : sviBdgFamilyDrop(l, ref));
           groups.delete(ref);
           if (RC) { window.__sviAvRet = null; window.__sviAvOpen(RC); return; }
           if (nxt) { window.__sviAvRet = null; window.__sviAvOpen(nxt); return; }
@@ -23289,10 +23314,10 @@ ${A}</Assignments>
       const r = delButton.dataset.delBudget;
       const g = bdgGroups.get(r);
       if (!g || !g.inst) return;
-      svConfirm({ title: g.inst.parent ? "SUPPRIMER L'AVENANT" : "SUPPRIMER LE BUDGET", text: (g.inst.parent ? "L'AVENANT EN INSTANCE " : "LE BUDGET EN INSTANCE ") + g.project + " " + r + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
+      svConfirm({ title: g.inst.parent ? "SUPPRIMER L'AVENANT" : "SUPPRIMER LE BUDGET", text: (g.inst.parent ? "L'AVENANT EN INSTANCE " : "LE BUDGET EN INSTANCE ") + g.project + " " + r + " SERA SUPPRIMÉ" + (g.inst.parent ? "" : ", AVEC SES AVENANTS ET SES RECALAGES") + ".", ok: "SUPPRIMER" }).then(go => {
         if (!go) return;
         try {
-          const l = sviInstGet().filter(x => x.ref !== r && x.parent !== r);   /* v681 : ses avenants avec lui */
+          const l = sviBdgFamilyDrop(sviInstGet(), r);   /* v681 : ses avenants avec lui ; v820 : et les recalages */
           sviInstSet(l);
         } catch (e) {}
         renderBudgetList();

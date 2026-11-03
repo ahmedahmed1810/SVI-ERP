@@ -17,7 +17,8 @@
     const INS_ARCH = !!INS && !!(INS.ver && (INS.ver.L || []).some(x => x.id === INS.ver.act && x.arch));
     /* v755 : budget BLOQUÉ = lecture seule (en attendant les droits, checklist B9) */
     const INS_BLK = !!INS && !budget.inst.virtual && sviBdgBlk(budget.inst);
-    const INS_LIVE_EDIT = !!INS && (budget.inst.state || "instance") === "instance" && !INS_ARCH && !budget.inst.virtual && !INS_BLK;
+    const INS_ARCHB = !!INS && !budget.inst.virtual && typeof sviBdgArch === "function" && sviBdgArch(budget.inst);
+    const INS_LIVE_EDIT = !!INS && (budget.inst.state || "instance") === "instance" && !INS_ARCH && !budget.inst.virtual && !INS_BLK && !INS_ARCHB;
     /* v772 : nom de zone des verrous inchangé (« DÉTAIL CHARGES »…) même si l'onglet s'appelle maintenant CHARGES — compatibilité entre appareils */
     const insTabName = k => (["chg", "prd", "qlt", "dly"].includes(k) ? "DÉTAIL " : "") + ((tabs.find(t => t.key === k) || {}).title || k);
     const INS_HELD = INS_LIVE_EDIT && budget.inst.ref && typeof sviLockAll === "function" ? sviLockAll(budget.inst.ref).find(k => !k.onglet) || null : null;
@@ -27,7 +28,7 @@
     const INS_REAL = INS_LIVE_EDIT && !INS_HELD;
     const INS_VIEW = !!INS && !INS_REAL;
     const INS_EDIT = !!INS;
-    const INS_RO_WHY = !INS_VIEW ? "" : INS_BLK ? "BUDGET BLOQUÉ : LECTURE SEULE (MENU ⋯ › DÉBLOQUER)." : budget.inst.ref === "CUMUL" ? "CUMUL : LECTURE SEULE (BUDGETS ADDITIONNÉS)." : budget.inst.virtual ? (budget.inst.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.")
+    const INS_RO_WHY = !INS_VIEW ? "" : INS_BLK ? "BUDGET BLOQUÉ : LECTURE SEULE (MENU ⋯ › DÉBLOQUER)." : INS_ARCHB ? "BUDGET ARCHIVÉ : LECTURE SEULE (MENU ⋯ › RAPPELER LE BUDGET)." : budget.inst.ref === "CUMUL" ? "CUMUL : LECTURE SEULE (BUDGETS ADDITIONNÉS)." : budget.inst.virtual ? (budget.inst.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.")
       : INS_HELD ? "EN LECTURE SEULE : " + INS_HELD.user + " MODIFIE CE BUDGET." : INS_ARCH ? "SCÉNARIO ARCHIVÉ : LECTURE SEULE (DÉSARCHIVER DANS LE BLOC SCÉNARIOS)."
       : budget.inst.state === "fige" ? "BUDGET FIGÉ : LECTURE SEULE (🔒 POUR REVENIR EN ÉDITION)." : budget.inst.rclOf ? "RECALAGE ENREGISTRÉ : LECTURE SEULE." : "BUDGET VALIDÉ : LECTURE SEULE.";
     window.__sviRO = INS_RO_WHY;

@@ -160,3 +160,8 @@ const sviRowDate = ref => {
    EXPIRÉ (xp) se pose sur une étape validée (budget initial ou avenant) */
 const sviAvRoot = it => { if (!it) return null; if (!it.parent) return it; return sviInstGet().find(x => x.ref === it.parent) || it; };
 const sviBdgBlk = it => { const r = sviAvRoot(it); return !!(r && r.blk); };
+/* v820 (cahier, à coder) : supprimer un budget supprime aussi ses avenants et ses recalages (et ceux de ses avenants) */
+const sviBdgFamilyDrop = (L, ref) => { const fam = new Set([ref]); (L || []).forEach(x => { if (x && x.parent === ref) fam.add(x.ref); });
+  return (L || []).filter(x => !(x && (fam.has(x.ref) || fam.has(x.parent) || fam.has(x.rclOf)))); };
+/* v820 (cahier, à coder) : budget ARCHIVÉ = lecture seule (RAPPELER LE BUDGET pour le modifier) */
+const sviBdgArch = it => { const r = sviAvRoot(it); return !!(r && r.arch); };

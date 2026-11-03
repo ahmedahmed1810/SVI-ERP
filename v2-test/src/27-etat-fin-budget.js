@@ -141,7 +141,7 @@
       $("instDel")?.addEventListener("click", () => {
         const RC = budget.inst.rclOf;
         svConfirm(RC ? { title: "SUPPRIMER LE RECALAGE R" + budget.inst.rcn, text: "LE RECALAGE EN COURS R" + budget.inst.rcn + " SERA SUPPRIMÉ ; L'ÉTAPE " + RC + " NE CHANGE PAS.", ok: "SUPPRIMER" }
-          : { title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
+          : { title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ, AVEC SES AVENANTS ET SES RECALAGES.", ok: "SUPPRIMER" }).then(go => {
           if (!go) return;
           /* v750 (point 1) : après la suppression, le budget précédent de la liste s'ouvre (le suivant s'il n'y en a pas) ;
              retour à la liste seulement s'il n'en reste aucun ; un avenant supprimé ouvre l'étape d'avant */
@@ -153,7 +153,7 @@
             const r = L.length ? L[j] : null;
             return r && sviAvStages(r).length > 1 ? r + "-GLOBAL" : r;
           })();
-          instUpd(l => l.filter(x => x.ref !== ref));
+          instUpd(l => RC ? l.filter(x => x.ref !== ref) : sviBdgFamilyDrop(l, ref));
           groups.delete(ref);
           if (RC) { window.__sviAvRet = null; window.__sviAvOpen(RC); return; }
           if (nxt) { window.__sviAvRet = null; window.__sviAvOpen(nxt); return; }
@@ -450,10 +450,10 @@
       const r = delButton.dataset.delBudget;
       const g = bdgGroups.get(r);
       if (!g || !g.inst) return;
-      svConfirm({ title: g.inst.parent ? "SUPPRIMER L'AVENANT" : "SUPPRIMER LE BUDGET", text: (g.inst.parent ? "L'AVENANT EN INSTANCE " : "LE BUDGET EN INSTANCE ") + g.project + " " + r + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }).then(go => {
+      svConfirm({ title: g.inst.parent ? "SUPPRIMER L'AVENANT" : "SUPPRIMER LE BUDGET", text: (g.inst.parent ? "L'AVENANT EN INSTANCE " : "LE BUDGET EN INSTANCE ") + g.project + " " + r + " SERA SUPPRIMÉ" + (g.inst.parent ? "" : ", AVEC SES AVENANTS ET SES RECALAGES") + ".", ok: "SUPPRIMER" }).then(go => {
         if (!go) return;
         try {
-          const l = sviInstGet().filter(x => x.ref !== r && x.parent !== r);   /* v681 : ses avenants avec lui */
+          const l = sviBdgFamilyDrop(sviInstGet(), r);   /* v681 : ses avenants avec lui ; v820 : et les recalages */
           sviInstSet(l);
         } catch (e) {}
         renderBudgetList();

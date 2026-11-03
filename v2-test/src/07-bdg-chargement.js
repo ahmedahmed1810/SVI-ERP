@@ -10,6 +10,11 @@ function sviIntitule(ref, project, inst) {
   return I.byRef[R] || I.byRef[(P + " " + R).trim()] || I.byPrj[P] || "À COMPLÉTER";
 }
 /* client d'un budget : saisi dans INF (budgets créés dans l'application) ; sinon « À COMPLÉTER » */
+/* v820 (cahier, à coder) : fiches CLIENT — pour l'instant le seul nom ; une fiche par client, créée à la création d'un budget */
+const SVI_CLI_KEY = "svi_clients_v1";
+function sviClients() { try { const L = JSON.parse(localStorage.getItem(SVI_CLI_KEY) || "[]"); return Array.isArray(L) ? L : []; } catch (e) { return []; } }
+function sviClientAdd(nom) { const n = String(nom || "").trim().toUpperCase().replace(/\s+/g, " "); if (!n) return null; const L = sviClients(); let c = L.find(x => x.nom === n);
+  if (!c) { c = { id: "CL" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), nom: n, cree: new Date().toISOString() }; L.push(c); try { localStorage.setItem(SVI_CLI_KEY, JSON.stringify(L)); } catch (e) {} } return c; }
 function sviClient(inst) {
   return (inst && String(inst.client || "").trim().toUpperCase()) || "À COMPLÉTER";
 }

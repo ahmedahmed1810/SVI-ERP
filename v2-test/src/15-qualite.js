@@ -1304,6 +1304,8 @@
       try { if (lkPending()) out.push({ lab: "MODIFICATION EN ATTENTE DE ✓ VALIDER", n: 1, go: "" }); } catch (e) {}
       try { infMissing().filter(x => x.req).forEach(x => out.push(x)); } catch (e) {}
       { const nu = INS.sec.filter(x => U_(x.v) && !U_(x.u)); if (nu.length) out.push({ lab: "ACTIVITÉS SECONDAIRES SANS UNITÉ", n: nu.length, go: "hier" }); }
+      /* v820 (cahier, à coder) : FIGER est refusé tant qu'il reste un doublon */
+      try { const dd = dupCount(); if (dd.length) out.push({ lab: "DOUBLONS", n: dd.length, go: "dup" }); } catch (e) {}
       return out;
     };
     const insFigeWhy = () => {

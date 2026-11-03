@@ -1256,6 +1256,8 @@ function renderBudgetList() {
             <input id="nbDate" class="doc-in" type="datetime-local" value="${local}">
             <label class="doc-lab" for="nbPrj">PROJET <b>*</b></label>
             <input id="nbPrj" class="doc-in" type="text" autocomplete="off" placeholder="CODE PROJET">
+            <label class="doc-lab" for="nbCli">CLIENT <b>*</b></label>
+            <input id="nbCli" class="doc-in" type="text" autocomplete="off" placeholder="NOM DU CLIENT" list="nbCliL"><datalist id="nbCliL">${[...new Set(sviClients().map(c => c.nom).concat(instLoad().map(b => String(b.client || "").trim().toUpperCase()).filter(Boolean)))].sort().map(n => `<option value="${esc(n)}">`).join("")}</datalist>
             <label class="doc-lab" for="nbName">INTITULÉ</label>
             <input id="nbName" class="doc-in nb-wide" type="text" autocomplete="off" placeholder="INTITULÉ DU PROJET">
           </div>
@@ -1301,14 +1303,20 @@ function renderBudgetList() {
       svToast(b.ref + " CHARGÉ DANS LA LISTE.", 3000);
     });
     p.querySelector("#nbGo").addEventListener("click", () => {
-      const prj = val("#nbPrj").toUpperCase().replace(/\s+/g, " ");
-      const r = refNow();
+      const prj = val("#nbPrj").toUpperCase().replace(/\s+/g, " "), cli = val("#nbCli").toUpperCase().replace(/\s+/g, " ");
+      let r = refNow();
       const miss = [];
       if (!r) miss.push("date");
       if (!prj) miss.push("projet");
+      /* v820 (cahier, à coder) : client obligatoire à la création */
+      if (!cli) miss.push("client");
       if (miss.length) { p.querySelector("#nbErr").textContent = "À COMPLÉTER (*) : " + miss.join(", ").toUpperCase() + "."; return; }
       const list = instLoad();
-      list.push({ ref: r, project: prj, intitule: val("#nbName").toUpperCase() || "À COMPLÉTER",
+      /* v820 (cahier, à coder) : la référence calculée est vérifiée ; si elle existe déjà, le numéro suivant libre est pris */
+      { const used = new Set(list.map(b => String(b.ref || "")).concat([...groups.keys()].map(String))); let k = Number((r.match(/\/(\d+)$/) || [])[1]) || 1;
+        while (used.has(r)) { k += 1; r = r.replace(/\/\d+$/, "/" + String(k).padStart(3, "0")); } }
+      sviClientAdd(cli);
+      list.push({ ref: r, project: prj, intitule: val("#nbName").toUpperCase() || "À COMPLÉTER", client: cli,
         created: val("#nbDate"), state: "instance" });
       instSave(list);
       p.remove();
@@ -1477,9 +1485,10 @@ function renderBudgetList() {
   let etatF = "actif"; try { const e0 = localStorage.getItem("svi_bdgetat_v1"); if (ETATS.some(x => x[0] === e0)) etatF = e0; } catch (e) {}
   const flagsOf = g => {
     const bi = g && g.inst, fam = !!bi && isFam(g.ref), S = !bi ? [] : fam ? sviAvStages(g.ref) : [bi];
-    return { fam, arch: !!(bi && bi.arch), blk: !!(bi && bi.blk), xp: fam ? S.some(st => st.xp) : !!(bi && bi.xp), late: S.some(st => stLate(st)) };
+    /* v820 (cahier, à coder) : un budget dont toutes les étapes sont expirées passe dans EXPIRÉ (il quitte ACTIF) */
+    return { fam, arch: !!(bi && bi.arch), blk: !!(bi && bi.blk), xp: fam ? S.some(st => st.xp) : !!(bi && bi.xp), allXp: S.length > 0 && S.every(st => st.xp), late: S.some(st => stLate(st)) };
   };
-  const etatOk = (f, k) => k === "tout" ? true : k === "alerte" ? f.late : k === "expire" ? f.xp : k === "bloque" ? f.blk : k === "archive" ? f.arch : !f.arch && !f.blk && !(f.xp && !f.fam);
+  const etatOk = (f, k) => k === "tout" ? true : k === "alerte" ? f.late : k === "expire" ? f.xp : k === "bloque" ? f.blk : k === "archive" ? f.arch : !f.arch && !f.blk && !(f.xp && !f.fam) && !f.allXp;
   const FLG = new Map(budgets.map(g => [g.ref, flagsOf(g)]));
   const budgetsE = () => budgets.filter(g => etatOk(FLG.get(g.ref), etatF));
 
@@ -1624,7 +1633,7 @@ function renderBudgetList() {
     const FO = new Set(foldGet0());
     tbody.innerHTML =
       data.map(item => { const fam = item.fam, open = fam && FO.has(item.ref), kids = open ? kidsOf(item) : []; item.open = open;
-        const ec = item.flg && item.flg.arch ? " etat-archive" : item.flg && item.flg.blk ? " etat-bloque" : item.flg && item.flg.xp && !fam ? " etat-expire" : "";
+        const ec = item.flg && item.flg.arch ? " etat-archive" : item.flg && item.flg.blk ? " etat-bloque" : item.flg && item.flg.xp && (!fam || item.flg.allXp) ? " etat-expire" : "";
         return `<tr data-budget-ref="${esc(item.ref)}" class="${item.state ? "inst-" + item.state : ""}${fam ? " bdg-fam" : ""}${ec}"${fam ? ' data-fam="1"' : ""}>`
           + columns.map(c => cell(c.key, item)).join("")
           + `<td class="bdg-action-cell">${item.state === "instance" ? delBtn(item.ref) : ""}</td>${sviListCbTd()}</tr>`

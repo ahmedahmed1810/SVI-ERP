@@ -3415,6 +3415,15 @@ def main():
             m.remove(); achMepOpen(cfg, P, { savePdf: async () => '' }, null, { noPrice: true }); await w(400); m = document.getElementById('sviMep');
             r.push([...m.querySelectorAll('.mep-t th')].map(x => x.textContent.trim()).join(','), !m.querySelector('.mep-tot'), /SANS PRIX/.test(m.textContent)); m.remove(); return r; }""")
         check("v819 : MISE EN PAGE — montant en lettres et mention à reporter sous les totaux ; BON SANS PRIX sans prix, montants ni totaux", c819 == [True, True, "DÉSIGNATION,QUANTITÉ", True, True], c819)
+        # v820 : points du cahier — client obligatoire et fiche CLIENT, référence libre, suppression de la famille (avenants, recalages)
+        c820 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), keepC = localStorage.getItem('svi_clients_v1');
+            const L = [{ ref: 'A' }, { ref: 'A1', parent: 'A' }, { ref: 'R1', rclOf: 'A' }, { ref: 'R2', rclOf: 'A1' }, { ref: 'B' }, { ref: 'RB', rclOf: 'B' }];
+            const r = [sviBdgFamilyDrop(L, 'A').map(x => x.ref).join(',')]; localStorage.removeItem('svi_clients_v1'); sviClientAdd('onee'); sviClientAdd('ONEE'); r.push(sviClients().length, sviClients()[0].nom);
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); if (!document.querySelector('[data-newbdg]')) document.querySelector('[data-nvsw], .bdg-sw')?.click(); await w(200);
+            const nb = document.querySelector('[data-newbdg]'); if (nb) { nb.click(); await w(300); const p = document.querySelector('.pop-new-bdg'); p.querySelector('#nbPrj').value = 'T1'; p.querySelector('#nbGo').click(); await w(150);
+              r.push(/CLIENT/.test(p.querySelector('#nbErr').textContent), !!p.querySelector('#nbCli')); p.remove(); } else r.push('pas de ligne CRÉER');
+            if (keepC === null) localStorage.removeItem('svi_clients_v1'); else localStorage.setItem('svi_clients_v1', keepC); return r; }""")
+        check("v820 : points du cahier — client obligatoire (fiche CLIENT, sans doublon), suppression d'un budget avec ses avenants et recalages", c820 == ["B,RB", 1, "ONEE", True, True], c820)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
