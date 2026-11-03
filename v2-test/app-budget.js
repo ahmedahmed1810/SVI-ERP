@@ -20160,9 +20160,11 @@ function sviBdgInstanceSaisie(C) {
       return "";
     }
 
+    /* v892 (cahier) : règle D dès le choix, comme à ✓ VALIDER — un produit de même désignation et même unité qu'un produit déjà dans la tâche est refusé */
+    const lkPk = x => impId("prd", INS.prd.find(r => r.id === x) || {});
     if ((k === "prd" || k === "chg") && ECR.LK.lot && ECR.LK.sec) {
       const l = (INS.links || []).find(l => l.lot === ECR.LK.lot && l.sec === ECR.LK.sec && !(l.des === ECR.LK.des && l.prim === ECR.LK.prim)
-        && (l[k] || []).some(x => x.id === id));
+        && (l[k] || []).some(x => x.id === id || (k === "prd" && lkPk(x.id) === lkPk(id))));
       if (l) return "RÈGLE D : DÉJÀ DANS LA TÂCHE SECONDAIRE " + lkName("lot", ECR.LK.lot) + " › " + lkName("sec", ECR.LK.sec) + ".";
     }
     return "";
