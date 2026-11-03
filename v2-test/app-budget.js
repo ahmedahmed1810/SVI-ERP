@@ -2974,11 +2974,11 @@ function renderBudgetList() {
        l'ART reste tel que saisi. Pas de limite de niveaux. */
     /* FORMAT 124 : ART calculé quand il est vide — suivant de la ligne précédente de même niveau (dernier nombre + 1),
        sinon numéro du titre + « .1 » (1re ligne du tableau : 1) ; un ART saisi n'est jamais changé */
-    let ART_AUTO = new Map(), ART_DUP = new Map();
-    const artOf = r => r ? (String(r.art ?? "").trim() || ART_AUTO.get(r.id) || "") : "";
+    let ART_DUP = new Map(); ECR.ART_AUTO = new Map();
+    const artOf = r => r ? (String(r.art ?? "").trim() || ECR.ART_AUTO.get(r.id) || "") : "";
     const artRefresh = () => {
       if (!INS) return;
-      ART_AUTO = artAutoOf(INS.des);
+      ECR.ART_AUTO = artAutoOf(INS.des);
       ART_DUP = new Map();
       INS.des.forEach(r => { const a = artOf(r); if (a) (ART_DUP.get(a) || ART_DUP.set(a, []).get(a)).push(r); });
     };
@@ -3379,7 +3379,7 @@ function renderBudgetList() {
         else if (type === "num") val = f === "tva" ? (r.tva === "" || r.tva === undefined ? "20,00" : insFmt(r.tva)) : insFmt(r[f]);
         else val = r[f] || "";
       }
-      const artA = k === "des" && f === "art" && !isNew && !String(r.art ?? "").trim() ? (ART_AUTO.get(r.id) || "") : "";
+      const artA = k === "des" && f === "art" && !isNew && !String(r.art ?? "").trim() ? (ECR.ART_AUTO.get(r.id) || "") : "";
       if (!INS_EDIT) return `<td class="${cls}${k === "des" && f === "des" ? " c-wrap ins-tdv" : ""}${k === "chg" && f === "des" && !isNew && !r.t ? " ins-pkc" : ""}${artA ? " art-auto" : ""}">${esc(artA || val)}${k === "chg" && f === "des" && !isNew && !r.t ? condBtn(r) : ""}${f === "tva" && val ? " %" : ""}${k === "des" && f === "des" && !isNew && !r.t ? `<button type="button" class="des-i${r.dsc ? " on" : ""}" data-did="${r.id}" aria-label="Descriptif">i</button>` : ""}</td>`;
       /* v525 (remarque 1) : RENDEMENT d'une ligne de charge modifiable (une seule tâche avec des produits) —
          taper un rendement = QCB de la ligne recalculée (produit de sa tâche ÷ rendement, arrondie à 0,5) */
@@ -5571,7 +5571,7 @@ function renderBudgetList() {
       d.innerHTML = `<div class="svc-card qq-win qq-desc" role="dialog" aria-modal="true">
           <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
           <div class="svc-t">DESCRIPTIF</div>
-          <div class="svc-sub">${esc(((r.art || ART_AUTO.get(r.id) || "") + " " + (r.des || "")).trim().toUpperCase())}</div>
+          <div class="svc-sub">${esc(((r.art || ECR.ART_AUTO.get(r.id) || "") + " " + (r.des || "")).trim().toUpperCase())}</div>
           <div class="svc-x svc-html"><textarea class="qq-dta" ${ro ? "disabled" : ""} placeholder="EXTRAIT DU CONTRAT QUI DÉFINIT L'ARTICLE…">${esc(r.dsc || "")}</textarea></div>
           <div class="svc-f">${ro ? '<button type="button" class="svc-b svc-ok svc-neutral" data-r="0">FERMER</button>'
             : '<button type="button" class="svc-b" data-r="0">ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-r="1">ENREGISTRER</button>'}</div></div>`;
@@ -5938,7 +5938,7 @@ function renderBudgetList() {
           const rr = INS.des.find(x => x.id === row.dataset.iid);
           const ai = row.querySelector('.ins-in[data-f="art"]');
           if (!rr || !ai) return;
-          ai.placeholder = String(rr.art ?? "").trim() ? "" : (ART_AUTO.get(rr.id) || "");
+          ai.placeholder = String(rr.art ?? "").trim() ? "" : (ECR.ART_AUTO.get(rr.id) || "");
           const er = insRowErr("des", rr), td = ai.closest("td"), on = !!er && er.f === "art";
           td.classList.toggle("ins-bad", on);
           if (on) td.dataset.why = er.m; else if (td.dataset.why && /^ART /.test(td.dataset.why)) delete td.dataset.why;

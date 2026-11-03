@@ -508,7 +508,7 @@
       d.innerHTML = `<div class="svc-card qq-win qq-desc" role="dialog" aria-modal="true">
           <button type="button" class="svc-close" data-r="0" aria-label="Fermer">✕</button>
           <div class="svc-t">DESCRIPTIF</div>
-          <div class="svc-sub">${esc(((r.art || ART_AUTO.get(r.id) || "") + " " + (r.des || "")).trim().toUpperCase())}</div>
+          <div class="svc-sub">${esc(((r.art || ECR.ART_AUTO.get(r.id) || "") + " " + (r.des || "")).trim().toUpperCase())}</div>
           <div class="svc-x svc-html"><textarea class="qq-dta" ${ro ? "disabled" : ""} placeholder="EXTRAIT DU CONTRAT QUI DÉFINIT L'ARTICLE…">${esc(r.dsc || "")}</textarea></div>
           <div class="svc-f">${ro ? '<button type="button" class="svc-b svc-ok svc-neutral" data-r="0">FERMER</button>'
             : '<button type="button" class="svc-b" data-r="0">ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-r="1">ENREGISTRER</button>'}</div></div>`;
@@ -875,7 +875,7 @@
           const rr = INS.des.find(x => x.id === row.dataset.iid);
           const ai = row.querySelector('.ins-in[data-f="art"]');
           if (!rr || !ai) return;
-          ai.placeholder = String(rr.art ?? "").trim() ? "" : (ART_AUTO.get(rr.id) || "");
+          ai.placeholder = String(rr.art ?? "").trim() ? "" : (ECR.ART_AUTO.get(rr.id) || "");
           const er = insRowErr("des", rr), td = ai.closest("td"), on = !!er && er.f === "art";
           td.classList.toggle("ins-bad", on);
           if (on) td.dataset.why = er.m; else if (td.dataset.why && /^ART /.test(td.dataset.why)) delete td.dataset.why;
