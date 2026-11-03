@@ -3322,6 +3322,19 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r.concat([Math.round(ms)]); }""")
         check("v811 : 500 fournisseurs et 2000 factures — liste affichée en moins de 2 s ; références et encours identiques au calcul ligne par ligne",
               c811[:4] == [True, 500, True, True], c811)
+        # v812 : PARAMÈTRES — achat direct cumulé (jour, article, fournisseur), nombre minimum de devis et seuil d'alerte du budget réglables
+        c812 = pg.evaluate("""async () => { const K = ['svi_ach_bsn_v1', 'svi_ach_prm_v1', 'svi_ach_cmf_v1'], keep = K.map(k => localStorage.getItem(k));
+            const P = achPrm(); P.direct = 1000; P.directJ = 30; P.nfrs = 2; P.seuilBdg = 70; achPrmSave(P);
+            const now = new Date().toISOString(); achBsnSave([{ id: 'b1', des: 'SABLE', u: 'M3', q: 6, pu: 100, state: 'valide', direct: now }, { id: 'b2', des: 'GRAVIER', u: 'M3', q: 2, pu: 100, state: 'valide', direct: now }]);
+            const r = [achDirCheck({ id: 'b3', des: 'CIMENT', u: 'T', q: 1, pu: 100 }) === '', /CUMUL DES ACHATS DIRECTS/.test(achDirCheck({ id: 'b4', des: 'CIMENT', u: 'T', q: 3, pu: 100 })), /DÉPASSE LE SEUIL/.test(achDirCheck({ id: 'b5', des: 'X', u: 'U', q: 11, pu: 100 }))];
+            const old = new Date(Date.now() - 5 * 864e5).toISOString(); achBsnSave([{ id: 'b1', des: 'SABLE', u: 'M3', q: 6, pu: 100, state: 'valide', direct: old }, { id: 'b2', des: 'GRAVIER', u: 'M3', q: 2, pu: 100, state: 'valide', direct: now }]);
+            r.push(/CUMUL POUR SABLE/.test(achDirCheck({ id: 'b6', des: 'SABLE', u: 'M3', q: 5, pu: 100 })) && achDirCheck({ id: 'b7', des: 'CIMENT', u: 'T', q: 5, pu: 100 }) === '');
+            achCmfSave([{ id: 'c1', frs: 'F1', state: 'valide', valide: now, lignes: [{ bsn: 'b1', q: 6, pu: 100 }] }]);
+            r.push(/CHEZ CE FOURNISSEUR/.test(achDirCmfCheck({ id: 'c2', frs: 'F1', lignes: [{ bsn: 'b2', q: 5, pu: 100 }] })), achDirCmfCheck({ id: 'c3', frs: 'F2', lignes: [{ bsn: 'b2', q: 2, pu: 100 }] }) === '');
+            r.push(achBsnSeuil(), achCafWhy({ state: 'ouverte', lignes: [{}], frs: ['a', 'b', 'c'] }, []).includes('MOINS DE 2 DEVIS'));
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
+        check("v812 : ACHAT DIRECT cumulé par jour, par article et par fournisseur ; nombre minimum de devis et seuil d'alerte du budget réglables dans PARAMÈTRES",
+              c812 == [True, True, True, True, True, True, 70, True], c812)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

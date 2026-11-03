@@ -22,7 +22,7 @@ const achN = v => { const n = Number(String(v ?? "").replace(/\s| | /g, "").r
 const achJ = (k, d) => { try { const v = JSON.parse(SVI_LZ.dec(localStorage.getItem(k)) || "null"); return v === null ? d : v; } catch (e) { return d; } };
 const achW = (k, v) => { try { const s = JSON.stringify(v); localStorage.setItem(k, /^svi_ach_/.test(k) && s.length > 4000 ? SVI_LZ.enc(s) : s); return true; } catch (e) { return false; } };
 /* ---------- paramètres d'achat ---------- */
-const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: p.esp === undefined ? 5000 : achN(p.esp), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: p.avj === undefined ? 90 : achN(p.avj), chqj: p.chqj === undefined ? 30 : achN(p.chqj), dorm: p.dorm === undefined ? 12 : achN(p.dorm), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })), grp: Array.isArray(p.grp) && p.grp.length ? p.grp : ACH_GRP_DEF.map(g => ({ ...g, req: g.req.slice() })) }; };
+const achPrm = () => { const p = achJ(ACH_K.prm, null) || {}; return { tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: p.esp === undefined ? 5000 : achN(p.esp), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: p.avj === undefined ? 90 : achN(p.avj), chqj: p.chqj === undefined ? 30 : achN(p.chqj), dorm: p.dorm === undefined ? 12 : achN(p.dorm), directJ: p.directJ === undefined ? 30 : Math.max(1, Math.round(achN(p.directJ)) || 1), nfrs: p.nfrs === undefined ? 3 : Math.max(1, Math.round(achN(p.nfrs)) || 1), seuilBdg: p.seuilBdg === undefined ? 90 : Math.min(100, Math.max(1, achN(p.seuilBdg) || 90)), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), tva: p.tva === undefined ? ACH_PRM_DEF.tva : achN(p.tva), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })), grp: Array.isArray(p.grp) && p.grp.length ? p.grp : ACH_GRP_DEF.map(g => ({ ...g, req: g.req.slice() })) }; };
 const achPrmSave = p => achW(ACH_K.prm, p);
 /* v811 : lectures mémorisées. Une donnée dérivée n'est recalculée que si le texte gardé dans l'appareil a changé :
    rien à remettre à zéro, quel que soit celui qui écrit. Le résultat se lit seulement, il ne se modifie jamais. */
@@ -235,7 +235,22 @@ const achFrsWhy = (f, L) => {
    États : EN INSTANCE → VALIDÉ (responsable, B7 plus tard) ; ANNULÉ (gardé, jamais effacé). Référence BSN AA-MMJJ/nnn jamais réutilisée.
    ========================================================= */
 const ACH_PRIO = ["NORMALE", "URGENTE", "TRÈS URGENTE"];
-const ACH_BSN_SEUIL = 90;
+/* v812 : seuil d'alerte du budget réglable dans PARAMÈTRES (90 % au départ) */
+const achBsnSeuil = () => achPrm().seuilBdg;
+/* v812 : ACHAT DIRECT cumulé (contre le fractionnement) : tous les achats directs du jour ; par article (désignation + unité)
+   et par fournisseur (à la validation de la commande) sur la période de PARAMÈTRES (30 jours au départ) */
+const achDirFrom = () => { const d = new Date(); d.setDate(d.getDate() - (achPrm().directJ - 1)); return d.toISOString().slice(0, 10); };
+const achDirCheck = b => { const S = achPrm().direct, from = achDirFrom(), mt = achN(b.q) * achN(b.pu);
+  const D = achBsn().filter(x => x.id !== b.id && x.direct && x.state !== "annule" && String(x.direct).slice(0, 10) >= from), sum = L => L.reduce((t, x) => t + achN(x.q) * achN(x.pu), 0);
+  if (mt > S) return "ACHAT DIRECT IMPOSSIBLE : " + achF2(mt) + " HT DÉPASSE LE SEUIL DE " + achF2(S) + " HT";
+  const today = new Date().toISOString().slice(0, 10), tot = sum(D.filter(x => String(x.direct).slice(0, 10) === today)) + mt; if (tot > S) return "ACHAT DIRECT IMPOSSIBLE : CUMUL DES ACHATS DIRECTS DU JOUR " + achF2(tot) + " HT, AU-DELÀ DU SEUIL DE " + achF2(S) + " HT";
+  const k = achKey(b.des, b.u), ta = sum(D.filter(x => achKey(x.des, x.u) === k)) + mt; if (ta > S) return "ACHAT DIRECT IMPOSSIBLE : CUMUL POUR " + b.des + " " + achF2(ta) + " HT SUR " + achPrm().directJ + " JOURS, AU-DELÀ DU SEUIL DE " + achF2(S) + " HT";
+  return ""; };
+const achDirCmfCheck = C => { const S = achPrm().direct, from = achDirFrom(), B = new Map(achBsn().filter(b => b.direct).map(b => [b.id, b]));
+  const dir = c => (c.lignes || []).filter(l => l.bsn && B.has(l.bsn)).reduce((t, l) => t + achN(l.q) * achN(l.pu), 0);
+  const mine = dir(C); if (!mine) return "";
+  const tot = mine + achCmf().filter(c => c.id !== C.id && c.frs === C.frs && (c.state === "valide" || c.state === "solde") && String(c.valide || "").slice(0, 10) >= from).reduce((t, c) => t + dir(c), 0);
+  return tot > S ? "ACHAT DIRECT IMPOSSIBLE : CUMUL CHEZ CE FOURNISSEUR " + achF2(tot) + " HT SUR " + achPrm().directJ + " JOURS, AU-DELÀ DU SEUIL DE " + achF2(S) + " HT — PASSER PAR UNE CONSULTATION" : ""; };
 const achBsn = () => { const L = achJ(ACH_K.bsn, []); return Array.isArray(L) ? L : []; };
 const achBsnSave = L => achW(ACH_K.bsn, L);
 const achBsnNextRef = (L, d) => { d = d || new Date(); const p2 = x => String(x).padStart(2, "0");
@@ -276,7 +291,7 @@ const achBsnWhy = (b, L) => {
   if (c && c.none) w.push("CHARGE ABSENTE DU BUDGET");
   else if (c && c.over && !b.deb) w.push("DÉPASSEMENT DU PRÉVU (" + Math.round(c.pct) + " %) : BLOQUÉ — JUSTIFIER PUIS DÉBLOQUER");
   else if (c && c.over && b.deb) { /* dépassement débloqué (justifié) : plus d'alerte */ }
-  else if (c && c.pct >= ACH_BSN_SEUIL) w.push("SEUIL ATTEINT : " + Math.round(c.pct) + " % DU PRÉVU DE LA CHARGE");
+  else if (c && c.pct >= achBsnSeuil()) w.push("SEUIL ATTEINT : " + Math.round(c.pct) + " % DU PRÉVU DE LA CHARGE");
   return w;
 };
 
@@ -314,7 +329,7 @@ const achCafWhy = (c, D) => { const w = [], today = new Date().toISOString().sli
   const att = (c.frs || []).filter(f => ((c.rep || {})[f] || {}).st !== "repondu" && ((c.rep || {})[f] || {}).st !== "decline");
   if (c.dlim && c.dlim < today && att.length) w.push("DATE LIMITE DÉPASSÉE : " + att.length + " RÉPONSE(S) EN ATTENTE");
   const nd = (D || achDvf()).filter(v => v.caf === c.id && v.state !== "annule").length;
-  if ((c.frs || []).length && nd < Math.min(3, (c.frs || []).length)) w.push("MOINS DE " + Math.min(3, (c.frs || []).length) + " DEVIS");
+  { const n = Math.min(achPrm().nfrs, (c.frs || []).length); if ((c.frs || []).length && nd < n) w.push("MOINS DE " + n + " DEVIS"); }
   return w; };
 
 /* =========================================================
