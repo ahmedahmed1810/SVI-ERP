@@ -108,6 +108,29 @@ function achFrsMod(ctx) {
 }
 
 /* ---------- FICHE FOURNISSEUR ---------- */
+/* v912 (checklist : évaluations sorties du i) : NOUVELLE ÉVALUATION depuis la page du fournisseur (menu ⋯ › ÉVALUATIONS) ;
+   la liste des évaluations est le bloc ÉVALUATIONS de la page. Critères : nom + note de 0 à 10 (note refusée dès la saisie hors de 0 à 10) */
+function achFrsEvalWin(id, done) {
+  const L = achFrs(), f = L.find(x => x.id === id); if (!f) return;
+  if (f.del) { svToast("FOURNISSEUR SUPPRIMÉ : LECTURE SEULE.", 3000); return; }
+  const d = sviWinNew();
+  d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: "NOUVELLE ÉVALUATION — " + esc(f.nom || ""),
+    body: `<table class="prm-table frs-sub frs-ecrit"><thead><tr><th>CRITÈRE</th><th>NOTE (0 À 10)</th></tr></thead><tbody>${[0, 1, 2, 3, 4].map(i => `<tr><td><input class="ins-in frs-ed" data-i="${i}" value="${["QUALITÉ", "DÉLAIS", "PRIX", "SERVICE", ""][i]}" autocomplete="off"></td><td><input class="ins-in frs-en number" data-i="${i}" inputmode="decimal" autocomplete="off"></td></tr>`).join("")}</tbody></table>`,
+    foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>` });
+  sviWinShow(d);
+  d.addEventListener("change", e => { const i = e.target.closest && e.target.closest(".frs-en"); if (!i) return; const s = String(i.value).trim(), n = achN(s);
+    if (s && (!sviNumOk(s) || n < 0 || n > 10)) { i.value = ""; svToast("NOTE : DE 0 À 10.", 3000, i); } });
+  d.addEventListener("click", e => {
+    if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+    if (!e.target.closest("[data-ok]")) return;
+    const crit = [...d.querySelectorAll(".frs-ed")].map(i => { const ni = d.querySelector(`.frs-en[data-i="${i.dataset.i}"]`), s = String((ni || {}).value || "").trim(); return { d: achU(i.value), s, n: Math.max(0, Math.min(10, achN(s))) }; }).filter(c => c.d && c.s !== "").map(({ d: dd, n }) => ({ d: dd, n }));
+    if (!crit.length) { svToast("ÉVALUATION : AU MOINS UN CRITÈRE (NOM ET NOTE).", 3000); return; }
+    const L2 = achFrs(), f2 = L2.find(x => x.id === id); if (!f2) { d.remove(); return; }
+    f2.evl = f2.evl || []; f2.evl.push({ date: new Date().toISOString(), crit, moy: crit.reduce((t, c) => t + c.n, 0) / crit.length }); f2.mod = new Date().toISOString();
+    achFrsSave(L2); achHist(f2.code, "ÉVALUATION", crit.map(c => c.d + " " + c.n).join(", "));
+    d.remove(); if (done) done();
+  });
+}
 function achFrsFiche(id, sec, done) {
   const L0 = achFrs(), f0 = L0.find(x => x.id === id); if (!f0) return;
   const F = JSON.parse(JSON.stringify(f0)), ro = !!f0.del, P = achPrm();
@@ -122,7 +145,7 @@ function achFrsFiche(id, sec, done) {
     </tbody></table>${ro ? "" : `<button type="button" class="ach-b frs-add" data-add="${k}" data-addl>+ ${add}</button>`}`;
   /* v801 : la fenêtre i a cinq onglets (checklist, fenêtre i du fournisseur, 02/11/2026) */
   const TABS = [["id", "IDENTITÉ", ["id", "cte"]], ["leg", "FISCAL ET LÉGAL", ["fisc", "qual", "secu", "docf"]], ["bq", "BANQUE ET PAIEMENT", ["rib", "cpt", "enc", "cau"]],
-    ["ach", "CONDITIONS D'ACHAT", ["cond", "com", "imp", "ferm", "sav", "tar", "fam", "cgf"]], ["rsq", "RISQUE ET MOYENS", ["rsq", "moy", "refs", "evl"]]];
+    ["ach", "CONDITIONS D'ACHAT", ["cond", "com", "imp", "ferm", "sav", "tar", "fam", "cgf"]], ["rsq", "RISQUE ET MOYENS", ["rsq", "moy", "refs"]]];
   let tab = (TABS.find(t => t[2].includes(sec)) || TABS[0])[0];
   const draw = () => {
     const why = achFrsWhy(F, achFrs()), note = achFrsNote(F);
