@@ -2560,7 +2560,7 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
    pastilles, compteur et COCHÉES (n) restent entiers */
 .ins-hcol .bdg-h-head { flex-wrap: nowrap; white-space: nowrap; }
 .ins-hcol .bdg-h-head .cf-wrap { display: flex; align-items: center; min-width: 0; flex-wrap: nowrap; }
-.ins-hcol .bdg-h-head .cf-lab { display: flex; align-items: center; gap: 4px; flex: 0 1 auto; white-space: nowrap; overflow: visible !important; min-width: 0 !important; max-width: none !important; }
+.ins-hcol .bdg-h-head .cf-lab { display: flex; align-items: center; gap: 4px; flex: 0 1 auto; white-space: nowrap; overflow: visible; min-width: 0; max-width: none; }
 .ins-hcol .bdg-h-head .cf-lab > .cf-tt { min-width: 14px; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ins-hcol .bdg-h-head .cf-lab > :not(.cf-tt) { flex: none; }
 .ins-hcol .bdg-h-head .only-c, .ins-hcol .bdg-h-head .cf-btn { flex: none; white-space: nowrap; }
@@ -2571,13 +2571,13 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 .gplaf-v::before { content: none !important; display: none !important; }
 .gplaf.gcap-zero .gplaf-v { transform: translateY(calc(-100% - 6px)); }
 /* v658 (FORMAT 249) : en-têtes des listes resserrés (plus de place pour l'intitulé) */
-.ins-hcol .bdg-h-head .cf-wrap { gap: 2px !important; }
-.ins-hcol .bdg-h-head .cf-lab { gap: 3px !important; }
-.ins-hcol .bdg-h-head .cf-lab > .ck-ord, .ins-hcol .bdg-h-head .cf-lab > .svi-cnt { margin-left: 0 !important; }
+.ins-hcol .bdg-h-head .cf-wrap { gap: 2px; }
+.ins-hcol .bdg-h-head .cf-lab { gap: 3px; }
+.ins-hcol .bdg-h-head .cf-lab > .ck-ord, .ins-hcol .bdg-h-head .cf-lab > .svi-cnt { margin-left: 0; }
 .ins-hcol .bdg-h-head .only-c { margin-left: 2px !important; padding: 0 5px !important; }
 .ins-hcol .bdg-h-head .cf-wrap > .cf-btn { margin-right: 2px !important; }
 .ins-hcol .bdg-h-head .cf-lab > .ck-ord { margin-right: 0 !important; }
-.ins-hcol .bdg-h-head .cf-lab > .svi-cnt { padding: 0 4px !important; }
+.ins-hcol .bdg-h-head .cf-lab > .svi-cnt { padding: 0 4px; }
 /* v659 (FORMAT 251) : Gantt et graphique affichés ensemble = étiquettes DÉBUT / FIN seulement sur le graphique
    (le Gantt garde ses traits en tirets) ; graphique caché = étiquettes sur le Gantt */
 .dlyg:not(.dly-hnone) #dlyGantt .grng-g > span { display: none; }
@@ -2900,12 +2900,12 @@ td.ins-pmp { position: relative; }
 .novapp-list-titlebar #histBtn { border-radius: 4px; background: transparent; border: 1.6px solid currentColor; color: #3f4856; width: 24px; height: 24px; }
 .novapp-list-titlebar .bdg-d-inf { border-radius: 50%; background: transparent; border: 1.6px solid currentColor; color: #3f4856; width: 24px; height: 24px; }
 .bdg-inst-instance .novapp-list-titlebar :is(#histBtn, .bdg-d-inf), .bdg-inst-fige .novapp-list-titlebar :is(#histBtn, .bdg-d-inf) { color: var(--inst); }
-.ins-hcol .ins-li .act-uro { background: transparent !important; color: inherit !important; font-weight: inherit; border-radius: 0; }
-.blk-hier .ins-hcol .ins-li, .blk-hier .bdg-h-head, .blk-hier .bdg-h-item { height: 21px !important; min-height: 21px !important; max-height: 21px; box-sizing: border-box; }
+.ins-hcol .ins-li .act-uro { background: transparent; color: inherit; font-weight: inherit; border-radius: 0; }
+.blk-hier .ins-hcol .ins-li, .blk-hier .bdg-h-head, .blk-hier .bdg-h-item { height: 21px; min-height: 21px !important; max-height: 21px; box-sizing: border-box; }
 .av-comp-ic.on { color: #1d4ed8 !important; border-color: #1d4ed8 !important; background: #eff6ff !important; }
 
 .av-stg-t th[data-sk] { cursor: pointer; }
-.novapp-list-titlebar .bdg-d-badge.bdg-d-inf, .novapp-list-titlebar #histBtn.bdg-d-badge { background: transparent !important; color: #3f4856 !important; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; }
+.novapp-list-titlebar .bdg-d-badge.bdg-d-inf, .novapp-list-titlebar #histBtn.bdg-d-badge { background: transparent; color: #3f4856 !important; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; }
 .bdg-inst-instance .novapp-list-titlebar .bdg-d-badge, .bdg-inst-fige .novapp-list-titlebar .bdg-d-badge { color: var(--inst) !important; }
 /* v690 : bloc VERSIONS, repère Ⓐ (créé automatiquement) */
 .blk-ver .rec-scroll { height: auto; max-height: var(--h-ver, 150px); }
@@ -2976,7 +2976,7 @@ td.ins-pmp { position: relative; }
 .svi-ro .bdg-d-page .blk-adj-btn, .svi-ro .bdg-d-page .blk-cfg-btn { opacity: .35; }
 /* v698 : écran ouvert en haut au centre (à la place de VERSION TEST / BASE À JOUR) ; lignes SAISIR ICI de la liste mère */
 #sviScreenTag { position: fixed; left: 50%; top: 9px; transform: translateX(-50%); z-index: 20001; background: #172033; color: #fff; font: 800 13px Arial, sans-serif; letter-spacing: .5px; padding: 6px 16px; border-radius: 14px; pointer-events: none; white-space: nowrap; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; }
-body.bdg-screen #sviTestTag, body.bdg-screen #sviSync.sync-ok { display: none !important; }
+body.bdg-screen #sviTestTag, body.bdg-screen #sviSync.sync-ok { display: none; }
 body.bdg-screen #sviSync { top: 40px; }
 body:not(.bdg-screen) #sviScreenTag { display: none; }
 #budgetListTable tr.bdg-newrow td, table.svi-bdgl tr.bdg-newrow td { color: #6b7480; background: #f8fafc; cursor: pointer; font-weight: 700; }
@@ -2984,7 +2984,7 @@ body:not(.bdg-screen) #sviScreenTag { display: none; }
 #budgetListTable tr.bdg-newrow.off td, table.svi-bdgl tr.bdg-newrow.off td { color: #9aa3b2; cursor: not-allowed; }
 #budgetListTable tr.bdg-newrow small, table.svi-bdgl tr.bdg-newrow small { color: #9aa3b2; font-weight: 600; }
 /* v699 : lignes SAISIR ICI en rouge ; BUDGET CONSOLIDÉ plus foncé, sans italique ; avenant validé : nuance sombre (plus de bleu) */
-#budgetListTable tr.bdg-newrow td, #budgetListTable tr.bdg-newrow.bdg-kid td, table.svi-bdgl tr.bdg-newrow td, table.svi-bdgl tr.bdg-newrow.bdg-kid td { color: #b91c1c !important; background: #fef2f2; }
+#budgetListTable tr.bdg-newrow td, #budgetListTable tr.bdg-newrow.bdg-kid td, table.svi-bdgl tr.bdg-newrow td, table.svi-bdgl tr.bdg-newrow.bdg-kid td { color: #b91c1c; background: #fef2f2; }
 #budgetListTable tr.bdg-newrow.off td, table.svi-bdgl tr.bdg-newrow.off td { color: #e3a3a3 !important; }
 #budgetListTable tr.bdg-kid[data-kid="glob"] td, table.svi-bdgl tr.bdg-kid[data-kid="glob"] td { font-style: normal; color: #0b1a2c !important; font-weight: 900; }
 #budgetListTable tr.bdg-kid.inst-valide.row-av td, .av-stg-t tr.inst-valide.row-av td, .av-tree .av-st-valide.row-av b, table.svi-bdgl tr.bdg-kid.inst-valide.row-av td { color: #3a4a5e !important; }
@@ -3005,7 +3005,7 @@ body:not(.bdg-screen) #sviScreenTag { display: none; }
 .rec-table tr.scn-new.off td { color: #9aa3b2; cursor: not-allowed; }
 
 /* v704 : ⚙ du GRAPHIQUE (à gauche de ⚙ du GANTT) */
-.blk-tools .blk-btn.blk-hcfg-btn { display: none !important; }
+.blk-tools .blk-btn.blk-hcfg-btn { display: none; }
 .blk-tools .blk-btn.blk-hcfg-btn.dly-on { display: inline-flex !important; align-items: center; justify-content: center; width: var(--svi-ib, 36px); height: var(--svi-ib, 36px); border-radius: 9px; background: #fff; color: #12355b; border: 1px solid #d6dbe3; margin-right: 6px; padding: 0; font-size: 17px; line-height: 1; }
 .svi-ro .bdg-d-page .blk-hcfg-btn { opacity: .35; }
 
@@ -3097,7 +3097,7 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .ibd-rsz { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; cursor: nwse-resize; touch-action: none; background: linear-gradient(135deg, transparent 50%, #98a2b3 50%); }
 .ibd-tile:not([style*="height"]) { height: 280px; }
 .ibd-tile:not([style*="width"]) { width: 340px; }
-.ibd-board .ibd-add { font-size: 13px !important; font-weight: 900; }
+.ibd-board .ibd-add { font-size: 13px; font-weight: 900; }
 
 /* v725 : ESSAI depuis les indicateurs */
 .i1-try { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 8px; margin-bottom: 6px; border-radius: 6px; background: #fffaeb; color: #b54708; font-size: 11px; }
@@ -3181,7 +3181,7 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .novapp-list-titlebar h1 .bdg-mode-sw.off { color: #b8c0cc; cursor: not-allowed; }
 /* point 5 : PROJET = lien souligné, sans fond, même police / taille / couleur / graisse que les autres cases, à gauche */
 #budgetListTable .budget-link, table.svi-bdgl .budget-link { background: none !important; border: 0 !important; border-radius: 0; padding: 0; margin: 0; box-shadow: none; font: inherit; font-weight: inherit !important; color: inherit !important; text-align: left; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; text-transform: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline; }
-#budgetListTable tbody tr:not(.bdg-newrow) td, #budgetListTable tbody tr:not(.bdg-newrow) td *, table.svi-bdgl tbody tr:not(.bdg-newrow) td, table.svi-bdgl tbody tr:not(.bdg-newrow) td * { font-weight: 700 !important; font-style: normal !important; }   /* v752 : toute la liste en gras, même graisse partout */
+#budgetListTable tbody tr:not(.bdg-newrow) td, #budgetListTable tbody tr:not(.bdg-newrow) td *, table.svi-bdgl tbody tr:not(.bdg-newrow) td, table.svi-bdgl tbody tr:not(.bdg-newrow) td * { font-weight: 700; font-style: normal; }   /* v752 : toute la liste en gras, même graisse partout */
 #budgetListTable tbody tr:not(.bdg-newrow) td, table.svi-bdgl tbody tr:not(.bdg-newrow) td { color: #172033; }
 #budgetListTable td, table.svi-bdgl td { text-align: left; }
 #budgetListTable td.number, table.svi-bdgl td.number { text-align: right; }
@@ -3199,7 +3199,7 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 #budgetListTable thead th .col-rs.active, #budgetListTable thead th .col-rs:hover, table.svi-bdgl thead th .col-rs.active, table.svi-bdgl thead th .col-rs:hover { background: rgba(23,105,194,.18); }
 /* point 7 : seule action d'une ligne — la corbeille standard */
 /* v752 : la corbeille prend la couleur de sa ligne (rouge en instance, vert figé, noir validé) */
-#budgetListTable .bdg-row-del, table.svi-bdgl .bdg-row-del { color: inherit !important; display: inline-flex; align-items: center; justify-content: center; }
+#budgetListTable .bdg-row-del, table.svi-bdgl .bdg-row-del { color: inherit; display: inline-flex; align-items: center; justify-content: center; }
 #budgetListTable .bdg-row-del:hover, table.svi-bdgl .bdg-row-del:hover { background: #f1f4f8; }
 /* états — v754 : une seule couleur par état, paramétrable (PARAMÉTRAGE › COULEURS : variables --st-…) */
 #budgetListTable tbody tr:not(.bdg-newrow) td, table.svi-bdgl tbody tr:not(.bdg-newrow) td { color: var(--st-valide, #172033); }
@@ -3233,7 +3233,7 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 /* v754 : couleurs des états paramétrables — écran d'un budget et lignes CRÉER… */
 .bdg-inst-instance { --inst: var(--st-instance, #b91c1c); }
 .bdg-inst-fige { --inst: var(--st-fige, #15803d); }
-#budgetListTable tr.bdg-newrow td, #budgetListTable tr.bdg-newrow.bdg-kid td, table.svi-bdgl tr.bdg-newrow td, table.svi-bdgl tr.bdg-newrow.bdg-kid td { color: var(--st-instance, #b91c1c) !important; }
+#budgetListTable tr.bdg-newrow td, #budgetListTable tr.bdg-newrow.bdg-kid td, table.svi-bdgl tr.bdg-newrow td, table.svi-bdgl tr.bdg-newrow.bdg-kid td { color: var(--st-instance, #b91c1c); }
 #budgetListTable tr.bdg-newrow.off td, table.svi-bdgl tr.bdg-newrow.off td { color: color-mix(in srgb, var(--st-instance, #b91c1c) 40%, #fff) !important; }
 /* v754 : « ! » devant VALIDÉ LE (validé plus de 24 h après la saisie) */
 #budgetListTable .val-bang, table.svi-bdgl .val-bang { margin: -4px 0 -4px -4px; padding: 4px 3px; }
@@ -3285,7 +3285,7 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 
 /* ===== v759 : ACHATS — FOURNISSEURS ===== */
 #ach .ach-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 800; color: #1d4ed8; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
-.svc-card.frs-card { width: min(980px, 96vw) !important; max-width: 96vw !important; }
+.svc-card.frs-card { width: min(980px, 96vw) !important; max-width: 96vw; }
 .frs-card .frs-scroll { max-height: 64vh; overflow: auto; padding-right: 4px; }
 .frs-card .frs-why { margin: 6px 0 8px; padding: 8px 10px; border-radius: 8px; background: #fff7ed; color: #9a3412; font-size: 12px; font-weight: 800; }
 .frs-card .frs-why .ach-b { margin-left: 8px; }
