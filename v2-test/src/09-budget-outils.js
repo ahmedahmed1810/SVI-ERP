@@ -251,6 +251,13 @@ const artAutoOf = list => {
   return out;
 };
 /* — de src/13-instance-saisie.js — */
+/* v902 (principe du 03/11/2026 : erreur refusée dès la saisie) : règle des dates du budget, la même pour INF et PARAMÉTRAGE › DATES DU BUDGET —
+   DATE OBJECTIF entre le début du projet et la date butoir ; DATE BUTOIR ni avant le début du projet, ni avant la date objectif. f = case changée */
+const sviBdgDateWhy = (f, deb, obj, but) => {
+  if (f === "obj" && obj && ((deb && obj < deb) || (but && obj > but))) return "DATE OBJECTIF REFUSÉE : ENTRE LE DÉBUT DU PROJET ET LA DATE BUTOIR.";
+  if (f === "but" && but && ((deb && but < deb) || (obj && but < obj))) return "DATE BUTOIR REFUSÉE : ELLE NE PEUT ÊTRE NI AVANT LE DÉBUT DU PROJET, NI AVANT LA DATE OBJECTIF.";
+  return "";
+};
 const insTVA = r => sviTvaOf(r.tva) ?? 0;   /* v899 : TVA PAR DÉFAUT (PARAMÉTRAGE), plus de 20 % écrit ici */
 /* — de src/13-instance-saisie.js — */
 const INS_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;

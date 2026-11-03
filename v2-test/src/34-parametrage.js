@@ -544,7 +544,12 @@ function sviBdgDatesWin() {
   d.querySelectorAll('input[type="date"]').forEach(sviDateField);
   const ib = d.querySelector('[data-f="but"]'), io = d.querySelector('[data-f="obj"]');
   /* le calendrier de l'OBJECTIF ne propose pas de date après la BUTOIR, et celui de la BUTOIR pas avant l'OBJECTIF */
-  d.addEventListener("change", () => {
+  /* v902 : date refusée dès la saisie (même règle qu'INF) — la case reprend sa valeur d'avant, avec la raison */
+  const prev = { but: ib.value, obj: io.value };
+  d.addEventListener("change", e => {
+    const i = e.target && e.target.closest && e.target.closest('input[data-f="but"], input[data-f="obj"]');
+    if (i) { const why = sviBdgDateWhy(i.dataset.f, v.deb || "", io.value, ib.value);
+      if (why) { i.value = prev[i.dataset.f]; svToast(why, 4500, i); } else prev[i.dataset.f] = i.value; }
     if (ib.value) io.setAttribute("max", ib.value); else io.removeAttribute("max");
     if (io.value) ib.setAttribute("min", io.value); else ib.removeAttribute("min");
   });

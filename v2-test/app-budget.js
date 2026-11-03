@@ -7950,6 +7950,11 @@ function sviBdgInf(C) {
     p.addEventListener("change", e => {
       const i = e.target.closest && e.target.closest("input.inf-date");
       if (!i) return;
+      /* v902 (principe du 03/11/2026) : DATE OBJECTIF / DATE BUTOIR refusées dès la saisie (avant ENREGISTRER) — la case reprend sa valeur */
+      if (i.dataset.f === "obj" || i.dataset.f === "but") {
+        const P = cur(), nv = { ...P, [i.dataset.f]: i.value }, why = sviBdgDateWhy(i.dataset.f, nv.deb, nv.obj, nv.but);
+        if (why) { i.value = P[i.dataset.f] || ""; svToast(why, 4500, i); return; }
+      }
       pend[i.dataset.f] = i.value;
       paint();
     });
@@ -11785,7 +11790,7 @@ function sviBdgAnnulerLiaisons(C) {
   }
   window.__sviBdgLive = INS ? {
     ref: budget.inst.ref, project: budget.project || "", edit: INS_EDIT,
-    cal: k => insCal(k), dates: () => ({ but: INS.dbut || "", obj: INS.dobj || "" }),
+    cal: k => insCal(k), dates: () => ({ but: INS.dbut || "", obj: INS.dobj || "", deb: INS.pdeb || "" }),
     /* changer un jour (travaillé ↔ non travaillé) recale seulement les tâches qui le traversent, avec leur chaîne ;
        liaisons, durées et décalages restent */
     setCal: nc => {

@@ -84,7 +84,7 @@ function sviBdgAnnulerLiaisons(C) {
   }
   window.__sviBdgLive = INS ? {
     ref: budget.inst.ref, project: budget.project || "", edit: INS_EDIT,
-    cal: k => insCal(k), dates: () => ({ but: INS.dbut || "", obj: INS.dobj || "" }),
+    cal: k => insCal(k), dates: () => ({ but: INS.dbut || "", obj: INS.dobj || "", deb: INS.pdeb || "" }),
     /* changer un jour (travaillé ↔ non travaillé) recale seulement les tâches qui le traversent, avec leur chaîne ;
        liaisons, durées et décalages restent */
     setCal: nc => {
