@@ -1568,16 +1568,21 @@ def main():
         hb = pg.evaluate("() => (document.getElementById('dlyHb') || {}).innerText || ''")
         pg.evaluate("() => document.getElementById('dlyHb')?.remove()")
         check("v542 R8 : toucher une barre de l'histogramme = bulle des tâches du jour (avec la quantité)", "02/11/2026" in hb and "TOTAL" in hb and "2" in hb, hb[:200])
-        # R3 : durée changée à la main = INCOMPRESSIBLE ; COMPRESSER garde sa durée ; ▣ = RENDRE COMPRESSIBLE
+        # R3 revu (v900, cahier du 03/11/2026) : changer la durée ne rend plus INCOMPRESSIBLE ; l'appui long sur la barre (menu) le fait ;
+        # une tâche incompressible est bloquée (durée refusée à la saisie) ; ▣ → RENDRE COMPRESSIBLE
         pg.evaluate("""() => { const i = document.querySelector('#bdgTabBody tr[data-key="l1|s1"] input.dlp-in[data-f="dur"]'); i.value = '3'; i.dispatchEvent(new Event('change', { bubbles: true })); }"""); pg.wait_for_timeout(600)
         i3 = pg.evaluate(f"() => [!!({ins}.INS.dinc || {{}})['l1|s1'], !!document.querySelector('#bdgTabBody tr[data-key=\"l1|s1\"] .dly-inc')]")
-        pg.evaluate(f"() => {DXJ}.plafSeg(0, 4)"); pg.wait_for_timeout(600)
+        pg.evaluate(f"() => {{ {DXJ}.incWin('l1|s1'); }}"); pg.wait_for_timeout(300)   # la fenêtre rend une promesse : ne pas l'attendre
+        pg.evaluate("() => document.querySelector('#svConf [data-v=\"on\"]')?.click()"); pg.wait_for_timeout(400)
+        pg.evaluate(f"() => {DXJ}.plafSeg(0, 4)"); pg.wait_for_timeout(600)   # capacité 4 : la tâche incompressible garde ses 3 jours
+        i3a = pg.evaluate(f"() => {{ const p = {ins}.INS.dlp['l1|s1'][0]; return [!!({ins}.INS.dinc || {{}})['l1|s1'], p.deb, p.fin]; }}")
+        pg.evaluate("""() => { const i = document.querySelector('#bdgTabBody tr[data-key="l1|s1"] input.dlp-in[data-f="dur"]'); i.value = '5'; i.dispatchEvent(new Event('change', { bubbles: true })); }"""); pg.wait_for_timeout(600)
         i3b = pg.evaluate(f"() => {{ const p = {ins}.INS.dlp['l1|s1'][0]; return [p.deb, p.fin]; }}")
         pg.evaluate("() => document.querySelector('#bdgTabBody tr[data-key=\"l1|s1\"] .dly-inc')?.click()"); pg.wait_for_timeout(300)
         pg.evaluate("() => document.querySelector('#svConf [data-v=\"off\"]')?.click()"); pg.wait_for_timeout(400)
         i3c = pg.evaluate(f"() => !!({ins}.INS.dinc || {{}})['l1|s1']")
-        check("v542 R3 : durée changée à la main = INCOMPRESSIBLE (▣) ; la barre de plafond (4) garde ses 3 jours ; ▣ → RENDRE COMPRESSIBLE",
-              i3 == [True, True] and i3b == ["2026-11-02", "2026-11-04"] and i3c is False, [i3, i3b, i3c])
+        check("v900 R3 : durée changée = PAS incompressible ; menu de la barre → INCOMPRESSIBLE (▣) ; durée alors refusée ; ▣ → RENDRE COMPRESSIBLE",
+              i3 == [False, False] and i3a == [True, "2026-11-02", "2026-11-04"] and i3b == i3a[1:] and i3c is False, [i3, i3a, i3b, i3c])
         # v703 : barre CAPACITÉ sans bouton — le planning suit PENDANT le geste (baisser = allonger), un seul ↶ pour tout le geste
         pg.evaluate(f"() => {DXJ}.plafSeg(0, 4)"); pg.wait_for_timeout(900)
         pg.evaluate("() => document.querySelector('.ghist')?.scrollIntoView({ block: 'center' })"); pg.wait_for_timeout(300)

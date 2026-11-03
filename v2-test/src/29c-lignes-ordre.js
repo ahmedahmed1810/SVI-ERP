@@ -306,13 +306,15 @@ function sviBdgLignesOrdre(C) {
     else if (q.deb && q.fin && q.fin < q.deb) err = "LA FIN EST AVANT LE DÉBUT.";
     else if (q.fin && INS.dbut && q.fin > INS.dbut) err = "FIN REFUSÉE : APRÈS LA DATE BUTOIR DU " + dFr(INS.dbut) + ".";
     else if (q.deb) { const pf = dlyPredFin(task); if (pf && q.deb < pf) err = "DÉBUT REFUSÉ : LES LIAISONS IMPOSENT LE " + dFr(pf) + " AU PLUS TÔT."; }
+    /* v900 (cahier, décision du 03/11/2026) : tâche INCOMPRESSIBLE = durée bloquée ; la déplacer reste possible */
+    if (!err && dlyInc(task) && p && p.deb && p.fin && q.deb && q.fin && L.length <= 1 && sviWDur(cal, q.deb, q.fin) !== sviWDur(cal, p.deb, p.fin))
+      err = "TÂCHE INCOMPRESSIBLE : SA DURÉE EST BLOQUÉE. APPUI LONG SUR SA BARRE → RENDRE COMPRESSIBLE.";
     const draw = () => { renderTab(); insRenderChain(); };
     if (err) { svToast(err, 4000, anchor); draw(); return false; }
     const durOld = p && p.deb && p.fin ? sviWDur(cal, p.deb, p.fin) : 0;
     const glued = dlyGlued(task), back = p ? { ...p } : null, inc0 = dlyInc(task);
     if (p) Object.assign(p, q); else if (q.deb || q.fin) { L.splice(0, L.length, q); p = q; }
-    /* R3 : date ou durée changée à la main = tâche INCOMPRESSIBLE */
-    if (q.deb && q.fin) dlyIncSet(task, true);
+    /* v900 (cahier) : changer une date ou déplacer une barre ne rend plus la tâche INCOMPRESSIBLE (seulement l'appui long sur sa barre) */
     const undo = () => { if (back) Object.assign(p, back); else L.splice(0, L.length); if (!inc0) dlyIncSet(task, false); };
     /* v517 : une tâche suivante « collée » (elle commençait pile à la date exigée) suit toute seule (dlyShift plus bas) :
        ce n'est pas un conflit, pas de fenêtre. Seules les autres, qui commencent trop tôt, sont signalées. */

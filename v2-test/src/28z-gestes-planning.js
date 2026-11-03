@@ -1064,7 +1064,7 @@ function sviBdgGestesPlanning(C) {
       const key = bar.dataset.key, mode = zero || e.target.closest(".gb-e") ? "end" : e.target.closest(".gb-s") ? "start" : "body";
       e.preventDefault();
       const x0 = e.clientX, y0b = e.clientY, L0 = bar.offsetLeft, W0 = bar.offsetWidth;
-      let moved = false, link = false, days = 0, vert = false, hitV = null;
+      let moved = false, link = false, days = 0, vert = false, hitV = null, vmv = false;
       /* appui long : sur un bout = liaison ; sur le milieu = changer le rang (barre soulevée) */
       const t = setTimeout(() => { if (moved) return; if (mode !== "body") { link = true; bar.classList.add("gb-link"); } else if (X.view() === "d") { svToast("VUE PAR DÉBUT : PASSER EN VUE PAR LOT POUR DÉPLACER.", 3000, bar); } else { vert = true; bar.classList.add("gb-lift"); } }, 500);
       const br = () => body.getBoundingClientRect();
@@ -1109,8 +1109,13 @@ function sviBdgGestesPlanning(C) {
         }
         /* glisser la barre vers le haut ou le bas = changer le rang de la tâche (un seul trait) */
         const dy = ev.clientY - y0b;
-        if (vert) { shell.__dlySrcG = window.__sviDlySrcG = true; hitV = dlyTaskHit(ev, null, key, x0); if (!hitV) document.getElementById("roLine")?.remove(); return; }
-        if (!moved && Math.abs(dx) > SVI_G.drag) { moved = true; clearTimeout(t); bar.classList.add("gb-drag"); }
+        if (vert && !vmv && Math.abs(dy) <= SVI_G.drag) return;   /* v900 : appui long sans glisser = menu INCOMPRESSIBLE (au lâcher) */
+        if (vert) { vmv = true; shell.__dlySrcG = window.__sviDlySrcG = true; hitV = dlyTaskHit(ev, null, key, x0); if (!hitV) document.getElementById("roLine")?.remove(); return; }
+        if (!moved && Math.abs(dx) > SVI_G.drag) {
+          /* v900 : tâche INCOMPRESSIBLE — son bout ne se tire pas (durée bloquée), refusé tout de suite */
+          if (mode === "end" && X.isInc && X.isInc(key)) { clearTimeout(t); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
+            svToast("TÂCHE INCOMPRESSIBLE : SA DURÉE EST BLOQUÉE. APPUI LONG SUR SA BARRE → RENDRE COMPRESSIBLE.", 3500, bar); return; }
+          moved = true; clearTimeout(t); bar.classList.add("gb-drag"); }
         if (!moved) return;
         days = Math.round(dx / ECR.DLY_DW);
         if (mode === "end") bar.style.width = Math.max(ECR.DLY_DW - 1, W0 + days * ECR.DLY_DW) + "px";
@@ -1124,6 +1129,7 @@ function sviBdgGestesPlanning(C) {
         bar.classList.remove("gb-link", "gb-drag", "gb-lift");
         host.querySelectorAll(".gb.gb-tgt").forEach(b => b.classList.remove("gb-tgt", "gb-ts", "gb-te"));
         if (shell.__dlyPinch || shell.__dlyPinched) { shell.__dlyPinched = false; tmp.innerHTML = ""; document.getElementById("roLine")?.remove(); return; }
+        if (vert && !vmv) { document.getElementById("roLine")?.remove(); if (X.incWin) X.incWin(key); return; }
         if (vert) { document.getElementById("roLine")?.remove(); shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on")); sviDlyRoSync(); if (hitV && hitV.on) X.superpose(key, hitV.on, bar); else if (hitV) X.dropTaskTo(key, hitV, bar); return; }
         if (link) {
           tmp.innerHTML = "";

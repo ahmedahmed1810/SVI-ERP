@@ -12919,12 +12919,16 @@ function sviBdgPlanningAuto(C) {
   const dlyInc = k => !!(INS.dinc || {})[k];
   const dlyIncSet = (k, on) => { INS.dinc = INS.dinc || {}; if (on) INS.dinc[k] = 1; else delete INS.dinc[k]; };
   const dlyIncHTML = k => dlyInc(k) ? `<span class="dly-inc" data-key="${esc(k)}" role="button" title="TÂCHE INCOMPRESSIBLE">▣</span>` : "";
-  const dlyIncWin = k => svChoose({ title: "TÂCHE INCOMPRESSIBLE",
-    html: `<div class="svc-sub"><b>${esc(dlyName(k))}</b></div><div class="svc-sub">SA DATE OU SA DURÉE A ÉTÉ CHANGÉE À LA MAIN : COMPRESSER ET LA CAPACITÉ GARDENT SA DURÉE, MÊME AU-DESSUS DE LA CAPACITÉ.</div>`,
-    buttons: [{ v: "off", label: "RENDRE COMPRESSIBLE", tone: "neutral" }] }).then(r => {
-    if (r !== "off") return;
-    dlyIncSet(k, false); insSave(); histLog("DÉLAIS", "TÂCHE COMPRESSIBLE", dlyName(k)); renderTabK();
-  });
+  /* v900 (cahier, décision du 03/11/2026) : appui long sur la barre = RENDRE INCOMPRESSIBLE / RENDRE COMPRESSIBLE.
+     Incompressible = bloquée : sa durée ne change ni en tirant ses bouts, ni par la saisie, ni par COMPRESSER */
+  const dlyIncWin = k => { const on = dlyInc(k); return svChoose({ title: on ? "TÂCHE INCOMPRESSIBLE" : "TÂCHE COMPRESSIBLE",
+    html: `<div class="svc-sub"><b>${esc(dlyName(k))}</b></div><div class="svc-sub">${on ? "SA DURÉE EST BLOQUÉE : ON NE PEUT NI L'ALLONGER NI LA RACCOURCIR, ET COMPRESSER GARDE SA DURÉE (MÊME AU-DESSUS DE LA CAPACITÉ)."
+      : "INCOMPRESSIBLE, SA DURÉE SERA BLOQUÉE : PLUS D'ALLONGEMENT NI DE RACCOURCISSEMENT, ET COMPRESSER GARDERA SA DURÉE."}</div>`,
+    buttons: [{ v: on ? "off" : "on", label: on ? "RENDRE COMPRESSIBLE" : "RENDRE INCOMPRESSIBLE", tone: "neutral" }] }).then(r => {
+    if (r !== "off" && r !== "on") return;
+    if (!INS_EDIT) return;
+    dlyIncSet(k, r === "on"); insSave(); histLog("DÉLAIS", r === "on" ? "TÂCHE INCOMPRESSIBLE" : "TÂCHE COMPRESSIBLE", dlyName(k)); renderTabK();
+  }); };
   /* R24 : tâche dont la durée est fixée par une autre ressource que la sélection */
   const dlyLimHTML = k => { const g = (INS.dlim || {})[k]; return g && g !== dlyCurGK() ? `<span class="gb-lim" data-key="${esc(k)}" role="button">⧖</span>` : ""; };
   const dlyLimTxt = k => { const g = (INS.dlim || {})[k]; if (!g) return ""; const n = dlyCapOf(dlyDeb(k) || "", g); return "DURÉE FIXÉE PAR " + dlyGName(g) + (n >= 0 ? " (CAPACITÉ " + n + ")" : ""); };
@@ -14164,7 +14168,7 @@ ${A}</Assignments>
     mspXml: o => dlyMspXml(o), mspTree: lv => dlyMspTree(lv), mspPrint: lv => dlyMspPrint(lv), lockWin: () => dlyLockWin(), lockLate: () => dlyLockLate(),   /* v667 (axe 8) */
     gen: () => dlyCompressRun(), gcWin: () => dlyGCWin(), genOnly: () => dlyCompressRun({ gen: true }), keys: () => dlyKeys(), comp: () => dlyCompressRun(), hasDates: () => dlyHasDates(), canComp: () => dlyCanCompress(),
     moveCut: (i, iso) => dlyMoveCut(i, iso), rdSet: (sk, sec, i, p) => dlyRdSetV(sk, sec, i, p), rdCut: (sk, sec, iso) => dlyRdCut(sk, sec, iso), rdDel: (sk, sec, i) => dlyRdDel(sk, sec, i), rdLim: () => dlyRdLim(), piecesWin: k => dlyPiecesWin(k), hcfgWin: () => dlyHCfgWin(), chgCalWin: () => dlyChgCalWin(), span: () => { const V = Object.values(dlyCurDates()); return [V.map(x => x.deb).filter(Boolean).sort()[0] || "", dlyEnd(dlyCurDates())]; }, gcfgWin: () => dlyGCfgWin(), succs: k => dlySuccs(k).map(dlyName), cutPlaf: iso => dlyCutPlaf(iso), plafSeg: (i, n, a, live) => dlySetPlaf(i, n, a, live), delCut: i => dlyDelCut(i), limTxt: k => dlyLimTxt(k),
-    incWin: k => dlyIncWin(k), apprWin: () => dlyApproWin(), hh: v => { dlyHHSet(v); keepScroll(() => renderTab()); }, hhGet: () => dlyHHGet(),
+    incWin: k => dlyIncWin(k), isInc: k => !!(INS.dinc || {})[k], apprWin: () => dlyApproWin(), hh: v => { dlyHHSet(v); keepScroll(() => renderTab()); }, hhGet: () => dlyHHGet(),
     /* R18 : réglages de l'histogramme ; R19 / R20 : plage et filtre */
     hset: () => dlyHSet(), hsetPut: o => dlyHSetPut(o), sameU: () => dlySameU(dlyResSel()), hasSel: () => !!dlyResSel(),
     hrange: () => dlyHRange(), hrangeSet: R => { INS.hrange = R;
@@ -15759,7 +15763,7 @@ function sviBdgGestesPlanning(C) {
       const key = bar.dataset.key, mode = zero || e.target.closest(".gb-e") ? "end" : e.target.closest(".gb-s") ? "start" : "body";
       e.preventDefault();
       const x0 = e.clientX, y0b = e.clientY, L0 = bar.offsetLeft, W0 = bar.offsetWidth;
-      let moved = false, link = false, days = 0, vert = false, hitV = null;
+      let moved = false, link = false, days = 0, vert = false, hitV = null, vmv = false;
       /* appui long : sur un bout = liaison ; sur le milieu = changer le rang (barre soulevée) */
       const t = setTimeout(() => { if (moved) return; if (mode !== "body") { link = true; bar.classList.add("gb-link"); } else if (X.view() === "d") { svToast("VUE PAR DÉBUT : PASSER EN VUE PAR LOT POUR DÉPLACER.", 3000, bar); } else { vert = true; bar.classList.add("gb-lift"); } }, 500);
       const br = () => body.getBoundingClientRect();
@@ -15804,8 +15808,13 @@ function sviBdgGestesPlanning(C) {
         }
         /* glisser la barre vers le haut ou le bas = changer le rang de la tâche (un seul trait) */
         const dy = ev.clientY - y0b;
-        if (vert) { shell.__dlySrcG = window.__sviDlySrcG = true; hitV = dlyTaskHit(ev, null, key, x0); if (!hitV) document.getElementById("roLine")?.remove(); return; }
-        if (!moved && Math.abs(dx) > SVI_G.drag) { moved = true; clearTimeout(t); bar.classList.add("gb-drag"); }
+        if (vert && !vmv && Math.abs(dy) <= SVI_G.drag) return;   /* v900 : appui long sans glisser = menu INCOMPRESSIBLE (au lâcher) */
+        if (vert) { vmv = true; shell.__dlySrcG = window.__sviDlySrcG = true; hitV = dlyTaskHit(ev, null, key, x0); if (!hitV) document.getElementById("roLine")?.remove(); return; }
+        if (!moved && Math.abs(dx) > SVI_G.drag) {
+          /* v900 : tâche INCOMPRESSIBLE — son bout ne se tire pas (durée bloquée), refusé tout de suite */
+          if (mode === "end" && X.isInc && X.isInc(key)) { clearTimeout(t); document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
+            svToast("TÂCHE INCOMPRESSIBLE : SA DURÉE EST BLOQUÉE. APPUI LONG SUR SA BARRE → RENDRE COMPRESSIBLE.", 3500, bar); return; }
+          moved = true; clearTimeout(t); bar.classList.add("gb-drag"); }
         if (!moved) return;
         days = Math.round(dx / ECR.DLY_DW);
         if (mode === "end") bar.style.width = Math.max(ECR.DLY_DW - 1, W0 + days * ECR.DLY_DW) + "px";
@@ -15819,6 +15828,7 @@ function sviBdgGestesPlanning(C) {
         bar.classList.remove("gb-link", "gb-drag", "gb-lift");
         host.querySelectorAll(".gb.gb-tgt").forEach(b => b.classList.remove("gb-tgt", "gb-ts", "gb-te"));
         if (shell.__dlyPinch || shell.__dlyPinched) { shell.__dlyPinched = false; tmp.innerHTML = ""; document.getElementById("roLine")?.remove(); return; }
+        if (vert && !vmv) { document.getElementById("roLine")?.remove(); if (X.incWin) X.incWin(key); return; }
         if (vert) { document.getElementById("roLine")?.remove(); shell.querySelectorAll(".dlyg-l tr.ro-on").forEach(t => t.classList.remove("ro-on")); sviDlyRoSync(); if (hitV && hitV.on) X.superpose(key, hitV.on, bar); else if (hitV) X.dropTaskTo(key, hitV, bar); return; }
         if (link) {
           tmp.innerHTML = "";
@@ -17232,13 +17242,15 @@ function sviBdgLignesOrdre(C) {
     else if (q.deb && q.fin && q.fin < q.deb) err = "LA FIN EST AVANT LE DÉBUT.";
     else if (q.fin && INS.dbut && q.fin > INS.dbut) err = "FIN REFUSÉE : APRÈS LA DATE BUTOIR DU " + dFr(INS.dbut) + ".";
     else if (q.deb) { const pf = dlyPredFin(task); if (pf && q.deb < pf) err = "DÉBUT REFUSÉ : LES LIAISONS IMPOSENT LE " + dFr(pf) + " AU PLUS TÔT."; }
+    /* v900 (cahier, décision du 03/11/2026) : tâche INCOMPRESSIBLE = durée bloquée ; la déplacer reste possible */
+    if (!err && dlyInc(task) && p && p.deb && p.fin && q.deb && q.fin && L.length <= 1 && sviWDur(cal, q.deb, q.fin) !== sviWDur(cal, p.deb, p.fin))
+      err = "TÂCHE INCOMPRESSIBLE : SA DURÉE EST BLOQUÉE. APPUI LONG SUR SA BARRE → RENDRE COMPRESSIBLE.";
     const draw = () => { renderTab(); insRenderChain(); };
     if (err) { svToast(err, 4000, anchor); draw(); return false; }
     const durOld = p && p.deb && p.fin ? sviWDur(cal, p.deb, p.fin) : 0;
     const glued = dlyGlued(task), back = p ? { ...p } : null, inc0 = dlyInc(task);
     if (p) Object.assign(p, q); else if (q.deb || q.fin) { L.splice(0, L.length, q); p = q; }
-    /* R3 : date ou durée changée à la main = tâche INCOMPRESSIBLE */
-    if (q.deb && q.fin) dlyIncSet(task, true);
+    /* v900 (cahier) : changer une date ou déplacer une barre ne rend plus la tâche INCOMPRESSIBLE (seulement l'appui long sur sa barre) */
     const undo = () => { if (back) Object.assign(p, back); else L.splice(0, L.length); if (!inc0) dlyIncSet(task, false); };
     /* v517 : une tâche suivante « collée » (elle commençait pile à la date exigée) suit toute seule (dlyShift plus bas) :
        ce n'est pas un conflit, pas de fenêtre. Seules les autres, qui commencent trop tôt, sont signalées. */

@@ -172,12 +172,16 @@ function sviBdgPlanningAuto(C) {
   const dlyInc = k => !!(INS.dinc || {})[k];
   const dlyIncSet = (k, on) => { INS.dinc = INS.dinc || {}; if (on) INS.dinc[k] = 1; else delete INS.dinc[k]; };
   const dlyIncHTML = k => dlyInc(k) ? `<span class="dly-inc" data-key="${esc(k)}" role="button" title="TÂCHE INCOMPRESSIBLE">▣</span>` : "";
-  const dlyIncWin = k => svChoose({ title: "TÂCHE INCOMPRESSIBLE",
-    html: `<div class="svc-sub"><b>${esc(dlyName(k))}</b></div><div class="svc-sub">SA DATE OU SA DURÉE A ÉTÉ CHANGÉE À LA MAIN : COMPRESSER ET LA CAPACITÉ GARDENT SA DURÉE, MÊME AU-DESSUS DE LA CAPACITÉ.</div>`,
-    buttons: [{ v: "off", label: "RENDRE COMPRESSIBLE", tone: "neutral" }] }).then(r => {
-    if (r !== "off") return;
-    dlyIncSet(k, false); insSave(); histLog("DÉLAIS", "TÂCHE COMPRESSIBLE", dlyName(k)); renderTabK();
-  });
+  /* v900 (cahier, décision du 03/11/2026) : appui long sur la barre = RENDRE INCOMPRESSIBLE / RENDRE COMPRESSIBLE.
+     Incompressible = bloquée : sa durée ne change ni en tirant ses bouts, ni par la saisie, ni par COMPRESSER */
+  const dlyIncWin = k => { const on = dlyInc(k); return svChoose({ title: on ? "TÂCHE INCOMPRESSIBLE" : "TÂCHE COMPRESSIBLE",
+    html: `<div class="svc-sub"><b>${esc(dlyName(k))}</b></div><div class="svc-sub">${on ? "SA DURÉE EST BLOQUÉE : ON NE PEUT NI L'ALLONGER NI LA RACCOURCIR, ET COMPRESSER GARDE SA DURÉE (MÊME AU-DESSUS DE LA CAPACITÉ)."
+      : "INCOMPRESSIBLE, SA DURÉE SERA BLOQUÉE : PLUS D'ALLONGEMENT NI DE RACCOURCISSEMENT, ET COMPRESSER GARDERA SA DURÉE."}</div>`,
+    buttons: [{ v: on ? "off" : "on", label: on ? "RENDRE COMPRESSIBLE" : "RENDRE INCOMPRESSIBLE", tone: "neutral" }] }).then(r => {
+    if (r !== "off" && r !== "on") return;
+    if (!INS_EDIT) return;
+    dlyIncSet(k, r === "on"); insSave(); histLog("DÉLAIS", r === "on" ? "TÂCHE INCOMPRESSIBLE" : "TÂCHE COMPRESSIBLE", dlyName(k)); renderTabK();
+  }); };
   /* R24 : tâche dont la durée est fixée par une autre ressource que la sélection */
   const dlyLimHTML = k => { const g = (INS.dlim || {})[k]; return g && g !== dlyCurGK() ? `<span class="gb-lim" data-key="${esc(k)}" role="button">⧖</span>` : ""; };
   const dlyLimTxt = k => { const g = (INS.dlim || {})[k]; if (!g) return ""; const n = dlyCapOf(dlyDeb(k) || "", g); return "DURÉE FIXÉE PAR " + dlyGName(g) + (n >= 0 ? " (CAPACITÉ " + n + ")" : ""); };
