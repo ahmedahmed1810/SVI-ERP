@@ -65,7 +65,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `22d-contrat.js` | contrat : CPS, révision des prix, modalités de paiement, retenue de garantie | 254 |
 | `22e-versions-scenarios.js` | scénarios et versions | 492 |
 | `22f-plans.js` | appel de « plans et métré » (v838 : le code est dans 28g-plans.js) | 2 |
-| `22g-indicateurs.js` | indicateurs : éléments, calcul, liste commune | 343 |
+| `22g-indicateurs.js` | appel de « indicateurs : éléments, calcul, liste commune » (v843 : le code est dans 28l-indicateurs.js) | 2 |
 | `22h-tableau-de-bord.js` | appel de « tableau de bord » (v841 : le code est dans 28j-tableau-de-bord.js) | 2 |
 | `22i-indicateurs-tableau.js` | appel de « tableau et graphique d'un indicateur » (v842 : le code est dans 28k-indicateurs-tableau.js) | 2 |
 | `22j-recalages.js` | appel des recalages (v832 : le code est dans 28-recalages.js) | 2 |
@@ -91,6 +91,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `28i-ratios-multi-signature.js` | indicateurs (données), signatures, hors du grand bloc (v840) : sviBdgRatiosSignature(C) | 107 |
 | `28j-tableau-de-bord.js` | tableau de bord, hors du grand bloc (v841) : sviBdgTableauBord(C) | 228 |
 | `28k-indicateurs-tableau.js` | tableau et graphique d'un indicateur, hors du grand bloc (v842) : sviBdgIndicateursTableau(C) | 204 |
+| `28l-indicateurs.js` | indicateurs : éléments, calcul, liste commune, hors du grand bloc (v843) : sviBdgIndicateurs(C) | 353 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
