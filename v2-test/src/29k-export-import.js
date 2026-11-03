@@ -1160,12 +1160,37 @@ function sviBdgExportImport(C) {
           const ok = { des: new Set(INS.des.map(x => x.id)), lot: new Set(INS.lot.map(x => x.id)), prim: new Set(INS.prim.map(x => x.id)),
             sec: new Set(INS.sec.map(x => x.id)), prd: new Set(INS.prd.map(x => x.id)), chg: new Set(INS.chg.map(x => x.id)) };
           const fresh = new Set();
+          /* v894 (cahier) : fenêtre d'import unique — une ligne qui ne peut pas être liée (ligne de la chaîne non importée, règle A, règle D,
+             tâche sans produit) va dans IMPORT NON CRÉÉ avec sa raison, au lieu de disparaître ; règles A et D comme l'import d'un seul tableau */
+          const rowOf = (k, key) => { const x = (k === "hier" ? model.hier : model[k]).find(y => y.key === key); return x ? x.row : {}; };
+          const srcOf = l => { const D = rowOf("des", l.dk), P = l.pk ? rowOf("prd", l.pk) : rowOf("chg", l.ck);
+            return { art: D.art || "", dc: D.des || "", upb: D.u || "", lot: rowOf("hier", l.lot).v || "", prim: rowOf("hier", l.prim).v || "", sec: rowOf("hier", l.sec).v || "",
+              type: l.pk ? "PRD" : "CHG", article: P.art || "", des: P.des || "", u: P.u || "", q: l.q ?? "" }; };
+          const rejI = [], rejSeen = new Set();
+          const rej = (l, why) => { const s0 = srcOf(l), kk = JSON.stringify(s0); if (rejSeen.has(kk)) return; rejSeen.add(kk);
+            rejI.push({ id: insId(), on: false, src: s0, bad: [], why: "IMPORT DEPUIS " + refLab(src) + " — " + why }); };
+          const nm = (k, id) => { const r = (INS[k] || []).find(x => x.id === id) || {}; return k === "des" ? (r.des || "") : (r.v || ""); };
+          const pkOf = id => impId("prd", INS.prd.find(x => x.id === id) || {});
+          const blkIn = l => [["des", l.dk], ["hier", l.lot], ["hier", l.prim], ["hier", l.sec], [l.pk ? "prd" : "chg", l.pk || l.ck]].every(x => !x[1] || blkOn.has(x[0]));
+          const chgOnly = new Map();
           model.links.forEach(l => {
             const des = kid.get(l.dk), lot = kid.get(l.lot), prim = kid.get(l.prim), sec = kid.get(l.sec);
             const pid = l.pk && kid.get(l.pk), cid = l.ck && kid.get(l.ck);
-            if (!ok.des.has(des) || !ok.lot.has(lot) || !ok.prim.has(prim) || !ok.sec.has(sec)) return;
-            if (!(pid && ok.prd.has(pid)) && !(cid && ok.chg.has(cid))) return;
+            const miss = [!ok.des.has(des) && "DÉSIGNATION CLIENT", !ok.lot.has(lot) && "LOT", !ok.prim.has(prim) && "ACTIVITÉ PRIMAIRE", !ok.sec.has(sec) && "ACTIVITÉ SECONDAIRE",
+              !(pid && ok.prd.has(pid)) && !(cid && ok.chg.has(cid)) && (l.pk ? "PRODUIT" : "CHARGE")].filter(Boolean);
+            /* blocs non cochés : traités plus bas (raison BLOC NON COCHÉ) ; lignes non cochées d'un bloc coché : raison ici */
+            if (miss.length) { if (blkIn(l) && (pid || cid || des)) rej(l, "LIGNE(S) NON IMPORTÉE(S) : " + miss.join(", ")); return; }
+            /* règle A : une tâche primaire (lot + act. prm) et une tâche secondaire (lot + act. scd) n'ont qu'une désignation */
+            const tA = INS.links.find(x => x.lot === lot && x.prim === prim && x.des !== des);
+            if (tA) { rej(l, "RÈGLE A : LA TÂCHE PRIMAIRE " + nm("lot", lot) + " › " + nm("prim", prim) + " EST DÉJÀ LIÉE À " + nm("des", tA.des)); return; }
+            const tS = INS.links.find(x => x.lot === lot && x.sec === sec && x.des !== des);
+            if (tS) { rej(l, "RÈGLE A : LA TÂCHE SECONDAIRE " + nm("lot", lot) + " › " + nm("sec", sec) + " EST DÉJÀ LIÉE À " + nm("des", tS.des)); return; }
+            /* règle D : un produit (même désignation, même unité) / une charge une seule fois dans une tâche secondaire */
+            const dD = INS.links.find(x => x.lot === lot && x.sec === sec && !(x.des === des && x.prim === prim)
+              && ((pid && (x.prd || []).some(y => y.id === pid || pkOf(y.id) === pkOf(pid))) || (cid && (x.chg || []).some(y => y.id === cid))));
+            if (dD) { rej(l, "RÈGLE D : DÉJÀ DANS LA TÂCHE SECONDAIRE " + nm("lot", lot) + " › " + nm("sec", sec)); return; }
             let L = INS.links.find(x => x.des === des && x.lot === lot && x.prim === prim && x.sec === sec);
+            if (!pid && !(L && (L.prd || []).length)) { const kk = [des, lot, prim, sec].join("|"); (chgOnly.get(kk) || chgOnly.set(kk, []).get(kk)).push(l); }
             if (!L) { L = { id: insId(), des, lot, prim, sec, prd: [], chg: [] }; INS.links.push(L); nl++; }
             const add = (arr, id) => {
               const e = arr.find(x => x.id === id);
@@ -1176,8 +1201,10 @@ function sviBdgExportImport(C) {
             if (pid && ok.prd.has(pid)) add(L.prd = L.prd || [], pid);
             if (cid && ok.chg.has(cid)) add(L.chg = L.chg || [], cid);
           });
-          /* une liaison doit avoir au moins un produit */
+          /* une liaison doit avoir au moins un produit : les charges d'une tâche restée sans produit vont dans IMPORT NON CRÉÉ */
+          INS.links.filter(x => !(x.prd || []).length).forEach(x => (chgOnly.get([x.des, x.lot, x.prim, x.sec].join("|")) || []).forEach(l => rej(l, "AUCUN PRODUIT DANS CETTE TÂCHE (UNE LIAISON DOIT AVOIR AU MOINS UN PRODUIT)")));
           INS.links = INS.links.filter(x => (x.prd || []).length);
+          if (rejI.length) { INS.inc = (INS.inc || []).concat(rejI); shell.__impInc = (shell.__impInc || 0) + rejI.length; }
           /* v691 : liaison du budget source qui demande un bloc non coché : non reconstruite → IMPORT NON CRÉÉ */
           { const row = (k, key) => { const x = (k === "hier" ? model.hier : model[k]).find(y => y.key === key); return x ? x.row : {}; };
             const need = l => [["des", l.dk, "DÉSIGNATIONS CLIENT"], ["hier", l.lot, "TÂCHES"], ["hier", l.prim, "TÂCHES"], ["hier", l.sec, "TÂCHES"], ["chg", l.ck, "DÉTAIL CHARGES"], ["prd", l.pk, "DÉTAIL PRODUITS"]].filter(x => x[1] && !blkOn.has(x[0]));
@@ -1191,7 +1218,7 @@ function sviBdgExportImport(C) {
               const kk = JSON.stringify(src0); if (seenI.has(kk)) return; seenI.add(kk);
               items.push({ id: insId(), on: false, src: src0, bad: [], why: "IMPORT DEPUIS " + refLab(src) + " — BLOC NON COCHÉ : " + [...new Set(miss.map(x => x[2]))].join(", ") });
             });
-            if (items.length) { INS.inc = (INS.inc || []).concat(items); shell.__impInc = items.length; } }
+            if (items.length) { INS.inc = (INS.inc || []).concat(items); shell.__impInc = (shell.__impInc || 0) + items.length; } }
           /* délais : rattachés à la tâche secondaire importée (lot + activité secondaire), seulement avec les liaisons */
           INS.dlp = INS.dlp || {};
           if (mode === "replace") INS.dlp = {};
@@ -1211,7 +1238,7 @@ function sviBdgExportImport(C) {
         const M = { add: "AJOUT", replace: "REMPLACEMENT", update: "MISE À JOUR" }[mode];
         insSortAll(); insSave();
         histLog("IMPORT", "DEPUIS UN AUTRE BUDGET — " + M, refLab(src) + " — " + added + " AJOUTÉE(S), " + upd + " MISE(S) À JOUR, " + skip + " IGNORÉE(S)" + (lk ? " — " + nl + " LIAISON(S)" : "") + (shell.__impInc ? " — " + shell.__impInc + " NON CRÉÉE(S)" : ""));
-        if (shell.__impInc) { svToast(shell.__impInc + " LIGNE(S) DANS IMPORT NON CRÉÉ (BLOC NON COCHÉ).", 4500); shell.__impInc = 0; }
+        if (shell.__impInc) { svToast(shell.__impInc + " LIGNE(S) DANS IMPORT NON CRÉÉ : VOIR LA RAISON DE CHAQUE LIGNE.", 4500); shell.__impInc = 0; }
         p.remove();
         refreshAll();
       };
