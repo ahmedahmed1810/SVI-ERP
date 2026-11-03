@@ -105,8 +105,9 @@
         } else { tsv.push({ lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" }[k] || k.toUpperCase()); p[k].forEach(r => tsv.push(r.v || "")); }
         tsv.push("");
       });
-      clipSet({ items, tsv: tsv.join("\n").trim(), cut: cut ? { ref, ids: Object.fromEntries(Object.keys(p).map(k => [k, p[k].map(r => r.id)])) } : null, from: fullRef });
-      try { navigator.clipboard && navigator.clipboard.writeText(tsv.join("\n").trim()).catch(() => {}); } catch (e) {}
+      clipSet({ items, tsv: tsv.join("\n").trim(), cut: cut ? { ref, ids: Object.fromEntries(Object.keys(p).map(k => [k, p[k].map(r => r.id)])) } : null, from: fullRef, t: Date.now(), sys: false });
+      /* v821 (cahier, à coder) : COLLER prend la dernière copie faite — on note si la copie est bien partie dans le presse-papiers de l'appareil */
+      try { navigator.clipboard && navigator.clipboard.writeText(tsv.join("\n").trim()).then(() => { const c2 = clipGet(); if (c2) { c2.sys = true; clipSet(c2); } }).catch(() => {}); } catch (e) {}
       histLog("SAISIE", cut ? "COUPER" : "COPIER", Object.values(p).reduce((t, a) => t + a.length, 0) + " LIGNE(S)");
       insMarkCut();
     };
@@ -164,7 +165,9 @@
       if (!X) return;
       let txt = "";
       try { if (navigator.clipboard && navigator.clipboard.readText) txt = await navigator.clipboard.readText(); } catch (e) { txt = ""; }
-      if (txt && txt.trim() && (!c || !c.tsv || c.tsv !== txt.trim())) { if (clipPasteText(blk, txt)) return; }
+      /* v821 : la dernière copie passe en premier — un texte du presse-papiers différent de la copie de l'application est plus récent
+         seulement si cette copie y avait été écrite (sinon la copie faite dans l'application est la dernière) */
+      if (txt && txt.trim() && (!c || !c.tsv || (c.tsv !== txt.trim() && c.sys !== false))) { if (clipPasteText(blk, txt)) return; }
       if (!c) { svToast("RIEN À COLLER : COPIER D'ABORD DES LIGNES.", 3000); return; }
       let n = 0;
       clipKinds(blk).forEach(k => {

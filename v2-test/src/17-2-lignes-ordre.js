@@ -218,7 +218,7 @@
       INS.dpred = INS.dpred || {};
       const L = INS.dpred[succ] = (INS.dpred[succ] || []).map(x => typeof x === "string" ? { k: x, t: "FD", o: 0 } : x);
       if (L.some(x => x.k === pred)) { dlyLinkWin(pred, succ); return; }
-      L.push({ k: pred, t, o: t === "FD" ? 1 : 0 });   /* v544 : FIN → DÉBUT créée au doigt = le lendemain */
+      L.push({ k: pred, t, o: 0 });   /* v821 (cahier, à coder) : FIN → DÉBUT tracée sur le Gantt = décalage 0 (remplace le « lendemain » de v544) */
       insSave();
       histLog("DÉLAIS", "LIAISON", dlyName(pred) + " → " + dlyName(succ) + " (" + (t === "DD" ? "DÉBUT → DÉBUT" : "FIN → DÉBUT") + ")");
       dlyAfterLink(succ);

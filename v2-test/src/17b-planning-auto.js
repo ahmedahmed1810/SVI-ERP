@@ -432,6 +432,8 @@
         return null;
       }
       const P = C.P, f0 = dlyEnd(dlyCurDates()), gen = !!opts.gen || !dlyHasDates();
+      /* v821 (cahier, à coder) : GÉNÉRER / COMPRESSER refuse une fin après la DATE BUTOIR, comme la saisie — rien n'est écrit */
+      { let fN = ""; try { fN = dlyEnd(P.D); } catch (e) {} if (INS.dbut && fN && fN > INS.dbut) { if (!opts.live && !opts.quiet) svToast(DLY_BUT_MSG + " : CALCUL REFUSÉ (FIN LE " + dFr(fN) + ", BUTOIR LE " + dFr(INS.dbut) + ").", 6000, opts.anchor); return null; } }
       dlyWriteH(P.D);
       dlyCommitDrafts();
       INS.dpred = INS.dpred || {};
