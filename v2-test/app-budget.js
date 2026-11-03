@@ -16956,26 +16956,31 @@ function sviBdgLignesOrdre(C) {
     return DLY_PAL[c % DLY_PAL.length];
   };
   /* MARGE = jours travaillés dont la tâche peut glisser sans repousser la fin du chantier (calcul au plus tard) */
+  /* v897 (cahier) : chaque tâche compte avec SON calendrier (celui du budget + les jours non travaillés de ses charges), comme GÉNÉRER / COMPRESSER */
+  const dlyCalMemo = () => {
+    const CK = new Map(), SIG = new Map();
+    return k => { let v = CK.get(k); if (!v) { const c = insCal(k), s = JSON.stringify(c); let id = SIG.get(s); if (id === undefined) { id = SIG.size; SIG.set(s, id); } v = { c, id }; CK.set(k, v); } return v; };
+  };
   const dlyMarges = keys => {
-    const cal = insCal();
+    const calOf = dlyCalMemo();
     const dated = keys.filter(k => dlyDeb(k) && dlyFin(k));
     const end = dated.map(dlyFin).sort().pop() || "";
     /* v747 (rapidité) : durées et calculs de dates gardés pendant ce calcul (même calendrier, mêmes résultats) */
     const DU = new Map(), MW = new Map();
-    const dur = k => { let v = DU.get(k); if (v === undefined) { v = sviWDur(cal, dlyDeb(k), dlyFin(k)) || 1; DU.set(k, v); } return v; };
-    const memo = (t, f) => (a, n) => { const q = t + a + "|" + n; let v = MW.get(q); if (v === undefined) { v = f(a, n); MW.set(q, v); } return v; };
-    const sviWDeb_ = memo("D", (a, n) => sviWDeb(cal, a, n)), sviWAdd_ = memo("A", (a, n) => sviWAdd(cal, a, n));
+    const dur = k => { let v = DU.get(k); if (v === undefined) { v = sviWDur(calOf(k).c, dlyDeb(k), dlyFin(k)) || 1; DU.set(k, v); } return v; };
+    const memo = (t, f) => (k, a, n) => { const C = calOf(k), q = t + C.id + "|" + a + "|" + n; let v = MW.get(q); if (v === undefined) { v = f(C.c, a, n); MW.set(q, v); } return v; };
+    const sviWDeb_ = memo("D", (c, a, n) => sviWDeb(c, a, n)), sviWAdd_ = memo("A", (c, a, n) => sviWAdd(c, a, n));
     const succ = {};
     keys.forEach(k => dlyLinks(k).forEach(l => { (succ[l.k] = succ[l.k] || []).push({ s: k, t: l.t, o: Math.max(0, Number(l.o) || 0) }); }));
     const LS = {};
-    dated.forEach(k => { LS[k] = sviWDeb_(end, dur(k)); });
+    dated.forEach(k => { LS[k] = sviWDeb_(k, end, dur(k)); });
     for (let it = 0; it < dated.length + 2; it++) {
       let ch = false;
       dated.forEach(k => {
-        let ls = sviWDeb_(end, dur(k));
+        let ls = sviWDeb_(k, end, dur(k));
         (succ[k] || []).forEach(x => {
           if (!LS[x.s]) return;
-          const c = x.t === "DD" ? sviWAdd_(LS[x.s], -x.o) : sviWDeb_(sviWAdd_(LS[x.s], -(1 + x.o)), dur(k));
+          const c = x.t === "DD" ? sviWAdd_(k, LS[x.s], -x.o) : sviWDeb_(k, sviWAdd_(k, LS[x.s], -(1 + x.o)), dur(k));
           if (c < ls) ls = c;
         });
         if (ls !== LS[k]) { LS[k] = ls; ch = true; }
@@ -16983,16 +16988,17 @@ function sviBdgLignesOrdre(C) {
       if (!ch) break;
     }
     const M = {};
-    dated.forEach(k => { const d0 = dlyDeb(k); M[k] = LS[k] <= d0 ? 0 : sviWDur(cal, d0, LS[k]) - 1; });
+    dated.forEach(k => { const d0 = dlyDeb(k); M[k] = LS[k] <= d0 ? 0 : sviWDur(calOf(k).c, d0, LS[k]) - 1; });
     return M;
   };
   /* v666 (axe 8) : BATTEMENT LIBRE = jours travaillés dont la tâche peut glisser sans décaler aucun de ses successeurs
      (sans successeur : son battement total). Réglages du PLANNING : INS.pplan = { qc: seuil quasi-critique (J), bt: "t" | "l" } */
   const dlyMargesLib = (keys, M) => {
-    const cal = insCal(), L = {};
+    const calOf = dlyCalMemo(), L = {};
     const succ = {};
     keys.forEach(k => dlyLinks(k).forEach(l => { (succ[l.k] = succ[l.k] || []).push({ s: k, t: l.t, o: Math.max(0, Number(l.o) || 0) }); }));
     keys.filter(k => dlyDeb(k) && dlyFin(k)).forEach(k => {
+      const cal = calOf(k).c;
       const S = (succ[k] || []).filter(x => dlyDeb(x.s));
       if (!S.length) { L[k] = M[k] === undefined ? "" : M[k]; return; }
       let m = Infinity;
