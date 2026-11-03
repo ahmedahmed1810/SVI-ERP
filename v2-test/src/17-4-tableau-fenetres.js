@@ -113,7 +113,7 @@
           shell.__dlyPS = dlyPickSet();
           const PR = dlyPlanRows();
           shell.__dlyRows = PR.rows;
-          lastShown.detail = { cols: DLY_COLS_P, rows: PR.flat, kind: "dly" };
+          ECR.lastShown.detail = { cols: DLY_COLS_P, rows: PR.flat, kind: "dly" };
           /* v748 : hauteur des lignes posée avant l'affichage du tableau (posée au dessin, elle refaisait le style de toute la page) */
           dlyRhApply(dlyRhGet());
           requestAnimationFrame(() => dlyGanttDraw());
@@ -181,7 +181,7 @@
       /* ordre par défaut : chronologique (début), puis alphabétique */
       all.sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || a.lot.localeCompare(b.lot, "fr") || a.sec.localeCompare(b.sec, "fr") || (a.nw - b.nw));
       const rows = cfApply("dlys", DLY_COLS_S, all);
-      lastShown.detail = { cols: DLY_COLS_S, rows: rows.filter(x => !x.nw), kind: "dly" };
+      ECR.lastShown.detail = { cols: DLY_COLS_S, rows: rows.filter(x => !x.nw), kind: "dly" };
       const inp = (x, f) => edit
         ? `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${x.task}" data-pid="${x.pid}" data-f="${f}" type="text"
             ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${x.nw && f === "deb" ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? (x.dur || (shell.__dlyPendDur || {})[x.task] || "") : dFr(x[f]))}">`

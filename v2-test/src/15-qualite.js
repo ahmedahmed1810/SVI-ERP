@@ -761,12 +761,12 @@
       const k = shell.__tabCur;
       if (!k || k === ECR.active || !["chg", "prd"].includes(k) || !body.firstChild) return;
       const sc = body.querySelector(".bdg-d-scroll");
-      TABC[k] = { gen: shell.__tabGen, w: body.clientWidth, nodes: [...body.childNodes], more: insMore[k], st: sc ? sc.scrollTop : 0, sl: sc ? sc.scrollLeft : 0, ls: lastShown.detail };
+      TABC[k] = { gen: shell.__tabGen, w: body.clientWidth, nodes: [...body.childNodes], more: insMore[k], st: sc ? sc.scrollTop : 0, sl: sc ? sc.scrollLeft : 0, ls: ECR.lastShown.detail };
     };
     const tabReuse = () => {
       const C = TABC[ECR.active]; delete TABC[ECR.active];
       if (!C || C.gen !== shell.__tabGen || C.w !== body.clientWidth) return false;
-      body.replaceChildren(...C.nodes); insMore[ECR.active] = C.more; lastShown.detail = C.ls;
+      body.replaceChildren(...C.nodes); insMore[ECR.active] = C.more; ECR.lastShown.detail = C.ls;
       const sc = body.querySelector(".bdg-d-scroll"); if (sc) { sc.scrollTop = C.st; sc.scrollLeft = C.sl; }
       shell.__insMore = () => insMoreRows(ECR.active);
       return true;
@@ -809,7 +809,7 @@
       } catch (e) {}
       /* onglet actif (liaisons validées, lignes non liées, import non créé) : « retenues/total » une fois dessiné */
       setTimeout(() => {
-        const ls = lastShown.detail;
+        const ls = ECR.lastShown.detail;
         if (!ls || !["lnk", "unl", "inc"].includes(ls.kind) || ls.kind !== ECR.active) return;
         const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${ECR.active}"] .svi-cnt`);
         const tot = ECR.active === "lnk" ? (INS.links || []).length : ECR.active === "inc" ? (INS.inc || []).length : insUnlCount();
@@ -837,9 +837,9 @@
           }, 60); } }
         return;
       }
-      if (ECR.active === "ind1") { body.innerHTML = shell.__ind1HTML ? shell.__ind1HTML() : ""; lastShown.detail = { cols: [], rows: [], kind: "ind1" }; return; }   /* v724 */
-      if (ECR.active === "apr") { body.innerHTML = shell.__aprHTML ? shell.__aprHTML() : ""; lastShown.detail = { cols: [], rows: [], kind: "apr" }; return; }   /* v714 */
-      if (ECR.active === "qlt") { qqRender(); lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
+      if (ECR.active === "ind1") { body.innerHTML = shell.__ind1HTML ? shell.__ind1HTML() : ""; ECR.lastShown.detail = { cols: [], rows: [], kind: "ind1" }; return; }   /* v724 */
+      if (ECR.active === "apr") { body.innerHTML = shell.__aprHTML ? shell.__aprHTML() : ""; ECR.lastShown.detail = { cols: [], rows: [], kind: "apr" }; return; }   /* v714 */
+      if (ECR.active === "qlt") { qqRender(); ECR.lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
       /* v692 : onglet INDICATEURS — carreaux du tableau de bord au-dessus du tableau par liaison */
       if (ECR.active === "lnk") { body.innerHTML = `${shell.__ibdHTML ? shell.__ibdHTML() : ""}<div class="bdg-d-scroll">${insRgView(xplHTML)}</div>`; return; }
       if (ECR.active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
@@ -852,7 +852,7 @@
       if (ncB && !shell.__prdNcB) { shell.__prdNcB = true; shell.addEventListener("click", e => { if (!(e.target.closest && e.target.closest(".prd-nc-x"))) return; e.stopPropagation(); shell.__prdNc = null; refreshAll(); }, true); }
       if (ECR.active === "chg") chgFit();
       shell.__insMore = () => insMoreRows(ECR.active);
-      lastShown.detail = { cols: insCfCols(ECR.active), rows: insShown(ECR.active), kind: ECR.active, ins: true };
+      ECR.lastShown.detail = { cols: insCfCols(ECR.active), rows: insShown(ECR.active), kind: ECR.active, ins: true };
       insMarkUnlinked();
     };
     /* met à jour les montants calculés, sous-totaux et totaux sans redessiner

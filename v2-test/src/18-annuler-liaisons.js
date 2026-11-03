@@ -876,7 +876,7 @@
 
       const shownClient = roApply("client", cfApply("client", ccols, base), g => g.key);
       ECR.lastClientKeys = new Set(shownClient.map(g => g.key));
-      lastShown.client = { cols: ccols, rows: shownClient };
+      ECR.lastShown.client = { cols: ccols, rows: shownClient };
       /* compteur du titre : lignes affichées (filtres compris) */
       { const t = document.querySelector("#bdgClientTitle .ttl");
         if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + svCnt(shownClient.length, base.length); }
@@ -993,7 +993,7 @@
         };
         const byOrder = [...all].sort((a, b) => ord(a) - ord(b));
         const items = roApply(level, cfApply(level, hcols, byOrder), v => v);
-        lastShown.hier[level] = items.map(v => stripLevelPrefix(v));
+        ECR.lastShown.hier[level] = items.map(v => stripLevelPrefix(v));
         items.sort((x, y) =>
           hSel[level].has(y) - hSel[level].has(x)
         );

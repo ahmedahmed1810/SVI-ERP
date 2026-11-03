@@ -78,7 +78,7 @@
         const list = cfApply(ECR.active, tcols, byDesig).sort((x, y) =>
           selRows.has(y.gid) - selRows.has(x.gid)
         );
-        lastShown.detail = { cols: tcols, rows: list, kind: ECR.active };
+        ECR.lastShown.detail = { cols: tcols, rows: list, kind: ECR.active };
         const shownG = new Set(list.map(g => g.gid));
         const raw = all.filter(l => shownG.has(l.gid));
         const cols = prd ? 12 : 8;
@@ -175,7 +175,7 @@
         const rows = cfApply("dly", DLY_COLS, all);
         { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
           if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(rows.length); }
-        lastShown.detail = { cols: DLY_COLS, rows, kind: "dly" };
+        ECR.lastShown.detail = { cols: DLY_COLS, rows, kind: "dly" };
         body.innerHTML = `<div class="bdg-d-scroll">${dlyTable(rows, x => DLY_COLS.map(c => c[0])
           .reduce((o, k) => (o[k] = k === "deb" || k === "fin" ? fr(x[k]) : esc(x[k] ?? ""), o), {}))}</div>`;
         return;

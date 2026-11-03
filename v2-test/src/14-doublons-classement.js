@@ -378,7 +378,7 @@
       const oc = coOrder("lk_unl", UC);
       const w = k => cwLoad()["lk_unl." + k] || W[k] || 160;
       const rows = cfApply("lk_unl", UC, insUnlRows().sort((a, b) => natCmp(a.bloc, b.bloc) || natCmp(a.lib, b.lib)));
-      lastShown.detail = { cols: UC, rows, kind: "unl" };
+      ECR.lastShown.detail = { cols: UC, rows, kind: "unl" };
       const dw = INS_EDIT ? 40 : 0;
       /* FORMAT 119 : case propre à LIGNES NON LIÉES (r.uon), indépendante des cases des tableaux d'origine */
       const all = rows.length && rows.every(x => x.r.uon === true);

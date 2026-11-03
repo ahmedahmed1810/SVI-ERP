@@ -1242,7 +1242,7 @@
       const t = document.querySelector("#bdgClientTitle .ttl");
       const shownD = insShown("des");
       if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + insCkBadge("des") + insCntOwn("des", shownD.filter(r => !r.t).length, INS.des.filter(r => !r.t).length) + onlyBtn("des");
-      lastShown.client = { cols: insCfCols("des"), rows: shownD, ins: true };
+      ECR.lastShown.client = { cols: insCfCols("des"), rows: shownD, ins: true };
       ECR.lastClientKeys = new Set();
       /* même tableau que la version validée (identifiants gardés) */
       const tbl = $("bdgClientBody")?.closest("table");
@@ -1576,7 +1576,7 @@
         const hcols = [["v", title, r => r.v || "", ""]].concat(k === "sec" ? [["u", "U", r => U_(r.u), "center"]] : k === "prim" ? [["u", "U", r => U_(actU(k, r)), "center"]] : []);
         /* v528 (remarque 3) : la liste des LOTS (arborescence) garde son ordre quand on choisit un lot ou un groupe */
         const list = (k === "lot" ? (k2, rows) => rows : lkTop)(k, cfApply(k, hcols, INS[k]).filter(r => (!ONLYC[k] || r.on === true) && (!csk || r.t || csk.has(r.id))));
-        lastShown.hier[k] = list.map(r => r.v || "");
+        ECR.lastShown.hier[k] = list.map(r => r.v || "");
         /* v528 (remarque 2) : lignes de la liste (lots repliés compris) — pour la case carrée d'en-tête */
         shell.__hierList = shell.__hierList || {}; shell.__hierList[k] = list.map(r => r.id);
         const on = !!cfT(k).f.v;
@@ -1646,7 +1646,7 @@
       };
       const incLn = x => { const n = parseInt(x.line, 10); return isNaN(n) ? Infinity : n; };
       const rows = cfApply("lk_inc", UC, (INS.inc || []).slice().sort((a, b) => incKey(a).localeCompare(incKey(b), "fr") || incLn(a) - incLn(b) || natCmp(a.src.dc, b.src.dc)));
-      lastShown.detail = { cols: UC, rows, kind: "inc" };
+      ECR.lastShown.detail = { cols: UC, rows, kind: "inc" };
       const w = k => cwLoad()["lk_inc." + k] || ((INC_COLS.find(c => c[0] === k) || [])[2]) || 320;
       const ed = INS_EDIT;
       const all = rows.length && rows.every(x => x.on === true);

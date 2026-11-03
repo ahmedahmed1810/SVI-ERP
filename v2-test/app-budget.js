@@ -4092,7 +4092,7 @@ function renderBudgetList() {
       const t = document.querySelector("#bdgClientTitle .ttl");
       const shownD = insShown("des");
       if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + insCkBadge("des") + insCntOwn("des", shownD.filter(r => !r.t).length, INS.des.filter(r => !r.t).length) + onlyBtn("des");
-      lastShown.client = { cols: insCfCols("des"), rows: shownD, ins: true };
+      ECR.lastShown.client = { cols: insCfCols("des"), rows: shownD, ins: true };
       ECR.lastClientKeys = new Set();
       /* même tableau que la version validée (identifiants gardés) */
       const tbl = $("bdgClientBody")?.closest("table");
@@ -4426,7 +4426,7 @@ function renderBudgetList() {
         const hcols = [["v", title, r => r.v || "", ""]].concat(k === "sec" ? [["u", "U", r => U_(r.u), "center"]] : k === "prim" ? [["u", "U", r => U_(actU(k, r)), "center"]] : []);
         /* v528 (remarque 3) : la liste des LOTS (arborescence) garde son ordre quand on choisit un lot ou un groupe */
         const list = (k === "lot" ? (k2, rows) => rows : lkTop)(k, cfApply(k, hcols, INS[k]).filter(r => (!ONLYC[k] || r.on === true) && (!csk || r.t || csk.has(r.id))));
-        lastShown.hier[k] = list.map(r => r.v || "");
+        ECR.lastShown.hier[k] = list.map(r => r.v || "");
         /* v528 (remarque 2) : lignes de la liste (lots repliés compris) — pour la case carrée d'en-tête */
         shell.__hierList = shell.__hierList || {}; shell.__hierList[k] = list.map(r => r.id);
         const on = !!cfT(k).f.v;
@@ -4496,7 +4496,7 @@ function renderBudgetList() {
       };
       const incLn = x => { const n = parseInt(x.line, 10); return isNaN(n) ? Infinity : n; };
       const rows = cfApply("lk_inc", UC, (INS.inc || []).slice().sort((a, b) => incKey(a).localeCompare(incKey(b), "fr") || incLn(a) - incLn(b) || natCmp(a.src.dc, b.src.dc)));
-      lastShown.detail = { cols: UC, rows, kind: "inc" };
+      ECR.lastShown.detail = { cols: UC, rows, kind: "inc" };
       const w = k => cwLoad()["lk_inc." + k] || ((INC_COLS.find(c => c[0] === k) || [])[2]) || 320;
       const ed = INS_EDIT;
       const all = rows.length && rows.every(x => x.on === true);
@@ -4923,7 +4923,7 @@ function renderBudgetList() {
       const oc = coOrder("lk_unl", UC);
       const w = k => cwLoad()["lk_unl." + k] || W[k] || 160;
       const rows = cfApply("lk_unl", UC, insUnlRows().sort((a, b) => natCmp(a.bloc, b.bloc) || natCmp(a.lib, b.lib)));
-      lastShown.detail = { cols: UC, rows, kind: "unl" };
+      ECR.lastShown.detail = { cols: UC, rows, kind: "unl" };
       const dw = INS_EDIT ? 40 : 0;
       /* FORMAT 119 : case propre à LIGNES NON LIÉES (r.uon), indépendante des cases des tableaux d'origine */
       const all = rows.length && rows.every(x => x.r.uon === true);
@@ -5824,12 +5824,12 @@ function renderBudgetList() {
       const k = shell.__tabCur;
       if (!k || k === ECR.active || !["chg", "prd"].includes(k) || !body.firstChild) return;
       const sc = body.querySelector(".bdg-d-scroll");
-      TABC[k] = { gen: shell.__tabGen, w: body.clientWidth, nodes: [...body.childNodes], more: insMore[k], st: sc ? sc.scrollTop : 0, sl: sc ? sc.scrollLeft : 0, ls: lastShown.detail };
+      TABC[k] = { gen: shell.__tabGen, w: body.clientWidth, nodes: [...body.childNodes], more: insMore[k], st: sc ? sc.scrollTop : 0, sl: sc ? sc.scrollLeft : 0, ls: ECR.lastShown.detail };
     };
     const tabReuse = () => {
       const C = TABC[ECR.active]; delete TABC[ECR.active];
       if (!C || C.gen !== shell.__tabGen || C.w !== body.clientWidth) return false;
-      body.replaceChildren(...C.nodes); insMore[ECR.active] = C.more; lastShown.detail = C.ls;
+      body.replaceChildren(...C.nodes); insMore[ECR.active] = C.more; ECR.lastShown.detail = C.ls;
       const sc = body.querySelector(".bdg-d-scroll"); if (sc) { sc.scrollTop = C.st; sc.scrollLeft = C.sl; }
       shell.__insMore = () => insMoreRows(ECR.active);
       return true;
@@ -5872,7 +5872,7 @@ function renderBudgetList() {
       } catch (e) {}
       /* onglet actif (liaisons validées, lignes non liées, import non créé) : « retenues/total » une fois dessiné */
       setTimeout(() => {
-        const ls = lastShown.detail;
+        const ls = ECR.lastShown.detail;
         if (!ls || !["lnk", "unl", "inc"].includes(ls.kind) || ls.kind !== ECR.active) return;
         const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="${ECR.active}"] .svi-cnt`);
         const tot = ECR.active === "lnk" ? (INS.links || []).length : ECR.active === "inc" ? (INS.inc || []).length : insUnlCount();
@@ -5900,9 +5900,9 @@ function renderBudgetList() {
           }, 60); } }
         return;
       }
-      if (ECR.active === "ind1") { body.innerHTML = shell.__ind1HTML ? shell.__ind1HTML() : ""; lastShown.detail = { cols: [], rows: [], kind: "ind1" }; return; }   /* v724 */
-      if (ECR.active === "apr") { body.innerHTML = shell.__aprHTML ? shell.__aprHTML() : ""; lastShown.detail = { cols: [], rows: [], kind: "apr" }; return; }   /* v714 */
-      if (ECR.active === "qlt") { qqRender(); lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
+      if (ECR.active === "ind1") { body.innerHTML = shell.__ind1HTML ? shell.__ind1HTML() : ""; ECR.lastShown.detail = { cols: [], rows: [], kind: "ind1" }; return; }   /* v724 */
+      if (ECR.active === "apr") { body.innerHTML = shell.__aprHTML ? shell.__aprHTML() : ""; ECR.lastShown.detail = { cols: [], rows: [], kind: "apr" }; return; }   /* v714 */
+      if (ECR.active === "qlt") { qqRender(); ECR.lastShown.detail = { cols: [], rows: [], kind: "qlt" }; return; }
       /* v692 : onglet INDICATEURS — carreaux du tableau de bord au-dessus du tableau par liaison */
       if (ECR.active === "lnk") { body.innerHTML = `${shell.__ibdHTML ? shell.__ibdHTML() : ""}<div class="bdg-d-scroll">${insRgView(xplHTML)}</div>`; return; }
       if (ECR.active === "unl") { body.innerHTML = `<div class="bdg-d-scroll">${insUnlHTML()}</div>`; insMarkUnlinked(); return; }
@@ -5915,7 +5915,7 @@ function renderBudgetList() {
       if (ncB && !shell.__prdNcB) { shell.__prdNcB = true; shell.addEventListener("click", e => { if (!(e.target.closest && e.target.closest(".prd-nc-x"))) return; e.stopPropagation(); shell.__prdNc = null; refreshAll(); }, true); }
       if (ECR.active === "chg") chgFit();
       shell.__insMore = () => insMoreRows(ECR.active);
-      lastShown.detail = { cols: insCfCols(ECR.active), rows: insShown(ECR.active), kind: ECR.active, ins: true };
+      ECR.lastShown.detail = { cols: insCfCols(ECR.active), rows: insShown(ECR.active), kind: ECR.active, ins: true };
       insMarkUnlinked();
     };
     /* met à jour les montants calculés, sous-totaux et totaux sans redessiner
@@ -7716,7 +7716,7 @@ function renderBudgetList() {
           shell.__dlyPS = dlyPickSet();
           const PR = dlyPlanRows();
           shell.__dlyRows = PR.rows;
-          lastShown.detail = { cols: DLY_COLS_P, rows: PR.flat, kind: "dly" };
+          ECR.lastShown.detail = { cols: DLY_COLS_P, rows: PR.flat, kind: "dly" };
           /* v748 : hauteur des lignes posée avant l'affichage du tableau (posée au dessin, elle refaisait le style de toute la page) */
           dlyRhApply(dlyRhGet());
           requestAnimationFrame(() => dlyGanttDraw());
@@ -7784,7 +7784,7 @@ function renderBudgetList() {
       /* ordre par défaut : chronologique (début), puis alphabétique */
       all.sort((a, b) => String(a.deb || "9").localeCompare(String(b.deb || "9")) || a.lot.localeCompare(b.lot, "fr") || a.sec.localeCompare(b.sec, "fr") || (a.nw - b.nw));
       const rows = cfApply("dlys", DLY_COLS_S, all);
-      lastShown.detail = { cols: DLY_COLS_S, rows: rows.filter(x => !x.nw), kind: "dly" };
+      ECR.lastShown.detail = { cols: DLY_COLS_S, rows: rows.filter(x => !x.nw), kind: "dly" };
       const inp = (x, f) => edit
         ? `<input class="ins-in dlp-in${f === "dur" ? " number" : " center"}" data-task="${x.task}" data-pid="${x.pid}" data-f="${f}" type="text"
             ${f === "dur" ? "" : "readonly"} inputmode="${f === "dur" ? "numeric" : "none"}" placeholder="${x.nw && f === "deb" ? "SAISIR ICI…" : f === "dur" ? "" : "JJ/MM/AAAA"}" value="${esc(f === "dur" ? (x.dur || (shell.__dlyPendDur || {})[x.task] || "") : dFr(x[f]))}">`
@@ -12013,7 +12013,7 @@ ${A}</Assignments>
 
       const shownClient = roApply("client", cfApply("client", ccols, base), g => g.key);
       ECR.lastClientKeys = new Set(shownClient.map(g => g.key));
-      lastShown.client = { cols: ccols, rows: shownClient };
+      ECR.lastShown.client = { cols: ccols, rows: shownClient };
       /* compteur du titre : lignes affichées (filtres compris) */
       { const t = document.querySelector("#bdgClientTitle .ttl");
         if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + svCnt(shownClient.length, base.length); }
@@ -12130,7 +12130,7 @@ ${A}</Assignments>
         };
         const byOrder = [...all].sort((a, b) => ord(a) - ord(b));
         const items = roApply(level, cfApply(level, hcols, byOrder), v => v);
-        lastShown.hier[level] = items.map(v => stripLevelPrefix(v));
+        ECR.lastShown.hier[level] = items.map(v => stripLevelPrefix(v));
         items.sort((x, y) =>
           hSel[level].has(y) - hSel[level].has(x)
         );
@@ -12455,7 +12455,7 @@ ${A}</Assignments>
         const list = cfApply(ECR.active, tcols, byDesig).sort((x, y) =>
           selRows.has(y.gid) - selRows.has(x.gid)
         );
-        lastShown.detail = { cols: tcols, rows: list, kind: ECR.active };
+        ECR.lastShown.detail = { cols: tcols, rows: list, kind: ECR.active };
         const shownG = new Set(list.map(g => g.gid));
         const raw = all.filter(l => shownG.has(l.gid));
         const cols = prd ? 12 : 8;
@@ -12552,7 +12552,7 @@ ${A}</Assignments>
         const rows = cfApply("dly", DLY_COLS, all);
         { const b = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="dly"]`);
           if (b) b.innerHTML = (SVI_ICON.dly || "") + "DÉTAIL DÉLAIS " + svCnt(rows.length); }
-        lastShown.detail = { cols: DLY_COLS, rows, kind: "dly" };
+        ECR.lastShown.detail = { cols: DLY_COLS, rows, kind: "dly" };
         body.innerHTML = `<div class="bdg-d-scroll">${dlyTable(rows, x => DLY_COLS.map(c => c[0])
           .reduce((o, k) => (o[k] = k === "deb" || k === "fin" ? fr(x[k]) : esc(x[k] ?? ""), o), {}))}</div>`;
         return;
@@ -13050,7 +13050,7 @@ ${A}</Assignments>
     const { insSelIds, insVis } = sviBdgGlisserLignes({ CF, INS, INS_COLS, INS_EDIT, actNextTitle, cfApply, coDrag, dlyPlanFromTasks, foldGet, grpFlush, insId, insNorm, insRedraw, insSave, insShown, layDrag, layResize, lines, lotDrop, ref, refreshAll, renderTab, roStart, shell, table, histLog: () => histLog });
 /* ⟪ src/21-export-import.js ⟫ */
     /* ===== export / import / aperçu PDF par bloc ===== */
-    const lastShown = { client: null, detail: null, hier: {} };
+    ECR.lastShown = { client: null, detail: null, hier: {} };
     const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL",
                       doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD", scn: "SCENARIOS", ver: "VERSIONS", rcl: "RECALAGES", av: "AVENANTS" };
     const REC_KINDS = ["doc", "taf", "obs"];
@@ -13075,7 +13075,7 @@ ${A}</Assignments>
       if (blk === "detail" && ECR.active === "qlt" && INS && shell.__qq) return shell.__qq.data();
       if (blk === "detail" && ECR.active === "dly") {
         /* délais : tableau affiché (filtres compris), dates JJ/MM/AAAA */
-        const src = lastShown.detail && lastShown.detail.kind === "dly" ? lastShown.detail : { cols: DLY_COLS, rows: [] };
+        const src = ECR.lastShown.detail && ECR.lastShown.detail.kind === "dly" ? ECR.lastShown.detail : { cols: DLY_COLS, rows: [] };
         const fr = v => /^\d{4}-\d{2}-\d{2}/.test(String(v)) ? String(v).slice(8, 10) + "/" + String(v).slice(5, 7) + "/" + String(v).slice(0, 4) : v;
         const oc = coOrder("dly", src.cols);
         return { head: oc.map(c => c[1]), rows: src.rows.map(r => oc.map(c => fr(c[2](r)))) };
@@ -13091,7 +13091,7 @@ ${A}</Assignments>
       if (blk === "metre") return metreData();
       if (blk === "interne") return interneData();
       if (blk === "hier") {
-        const h = lastShown.hier;
+        const h = ECR.lastShown.hier;
         const n = Math.max((h.lot || []).length, (h.prim || []).length, (h.sec || []).length);
         const ks = coKeys("hierCols", ["lot", "prim", "sec"]);
         const lab = { lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" };
@@ -13100,7 +13100,7 @@ ${A}</Assignments>
           rows: Array.from({ length: n }, (_, i) => ks.map(k => (h[k] || [])[i] ?? ""))
         };
       }
-      const src = lastShown[blk];
+      const src = ECR.lastShown[blk];
       if (!src) return { head: [], rows: [] };
       const oc = blk === "detail" ? screenCols(detailTable(), src.cols)
         : blk === "client" ? screenCols(shell.querySelector(".bdg-d-client-scroll table"), src.cols)
@@ -15335,7 +15335,7 @@ ${A}</Assignments>
           for (const o of it) { if (acc >= tot * n / 100 - 1e-9) break; acc += o.v; o.ids.forEach(id => keep.add(id)); }
           MGP_IDS = keep; rows = rows.filter(l => keep.has(l.id));
         } }
-      lastShown.detail = { cols: LC, rows, kind: "lnk" };
+      ECR.lastShown.detail = { cols: LC, rows, kind: "lnk" };
       const dw = INS_EDIT ? 40 : 0;
       const w = k => cwLoad()[t + "." + k] || W[k] || 100;
       /* lignes à afficher : groupes (dépliés ou non) et liaisons */
@@ -15720,7 +15720,7 @@ ${A}</Assignments>
       /* v501 (remarque 51) : plier / déplier ne fait pas bouger le tableau (la ligne touchée reste à sa place) */
       fold: p => { if (mgOpen.has(p)) [...mgOpen].forEach(x => { if (x === p || x.startsWith(p + "/")) mgOpen.delete(x); }); else mgOpen.add(p); keepScroll(() => renderTab()); },
       check: cb => {
-        const ls = lastShown.detail && lastShown.detail.kind === "lnk" ? lastShown.detail.rows : [];
+        const ls = ECR.lastShown.detail && ECR.lastShown.detail.kind === "lnk" ? ECR.lastShown.detail.rows : [];
         let L = ls;
         if (cb.classList.contains("mg-gcb")) {
           const parts = cb.dataset.p.split("/").filter(Boolean).map(x => x.split(":"));
@@ -17293,7 +17293,7 @@ ${A}</Assignments>
 
 
     const printClient = () => {
-      const src = lastShown.client;
+      const src = ECR.lastShown.client;
       if (!src || !src.rows.length) { sviAlert("Aucune désignation à afficher."); return; }
       if (src.ins) return bpuAoWarn(() => printClientIns(src.rows));
       const rows = [...src.rows].sort((a, b) =>
@@ -17381,7 +17381,7 @@ ${A}</Assignments>
        primaires / secondaires avec leurs unités */
     /* export FORMAT INTERNE : une ligne par produit, valeurs complètes */
     const interneData = () => {
-      const src = lastShown.client;
+      const src = ECR.lastShown.client;
       const head = ["ART.", "DESIGNATION", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE",
         "DÉSIGNATION PRODUIT", "UPB", "NBR", "DIM 1", "DIM 2", "DIM 3", "QPB", "CLÉ PRIMAIRE"];
       if (!src) return { head, rows: [] };
@@ -17405,7 +17405,7 @@ ${A}</Assignments>
        la quantité (clés primaires), puis par lot / activité les lignes de calcul
        NB × longueur × largeur × hauteur = quantité partielle */
     const metreGroups = () => {
-      const src = lastShown.client;
+      const src = ECR.lastShown.client;
       if (!src) return [];
       const U = v => String(v ?? "").trim().toUpperCase();
       return [...src.rows].sort((a, b) => String(a.article).localeCompare(String(b.article), "fr", { numeric: true }))
@@ -17467,7 +17467,7 @@ ${A}</Assignments>
        mode "chg" : décomposition (avec U) + détail charges (aperçu DÉTAIL CHARGES) */
     const printTasks = (mode = "prd") => {
       const CHG = mode === "chg", PLAIN = mode === "plain";
-      const src = lastShown.client;
+      const src = ECR.lastShown.client;
       if (!src || !src.rows.length) { sviAlert("Aucune désignation à afficher."); return; }
       const U = v => String(v ?? "").trim().toUpperCase();
       const groups = [...src.rows].sort((a, b) =>
@@ -17600,7 +17600,7 @@ ${A}</Assignments>
         cols = coOrder(blk, recCols[blk]);
         rows = recShown[blk] || recSorted(blk);
       } else {
-        const src = lastShown.detail;
+        const src = ECR.lastShown.detail;
         if (!src || !src.rows.length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         cols = screenCols(detailTable(), src.cols);
         rows = src.rows;
@@ -17671,7 +17671,7 @@ ${A}</Assignments>
 
     /* FORMAT 112 : aperçu TÂCHES = les trois tableaux côte à côte, comme à l'écran (ordre des colonnes, filtres, lignes cochées) */
     const printHier = () => {
-      const h = lastShown.hier || {};
+      const h = ECR.lastShown.hier || {};
       const ks = coKeys("hierCols", ["lot", "prim", "sec"]);
       const lab = { lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" };
       const L = ks.map(k => h[k] || []);
@@ -18697,7 +18697,7 @@ ${A}</Assignments>
       const L = INS.links || [];
       /* bloc détail : tous ses onglets (FORMAT 104) — liaisons cochées (délier en entier) + produits / charges cochés (retirés) */
       if (blk === "detail") {
-        const vi = ECR.active === "lnk" && lastShown.detail && lastShown.detail.kind === "lnk" ? new Set(lastShown.detail.rows.map(l => l.id)) : null;
+        const vi = ECR.active === "lnk" && ECR.lastShown.detail && ECR.lastShown.detail.kind === "lnk" ? new Set(ECR.lastShown.detail.rows.map(l => l.id)) : null;
         const whole = L.filter(l => l.on === true && (!vi || vi.has(l.id)));
         const sp = insSelIds("prd"), sc = insSelIds("chg");
         const remP = [...sp].filter(id => L.some(l => (l.prd || []).some(x => x.id === id)));
@@ -18729,11 +18729,11 @@ ${A}</Assignments>
           X.INS[k].forEach(r => { if (r.t || r.on !== true || !vis.has(r.id)) return; if (k !== "qlt" && X.isUsed(k, r.id)) out.kept++; else add(k, r.id); });
         });
         /* LIGNES NON LIÉES : ses lignes cochées des autres blocs (désignations, lots, activités) */
-        const uv = ECR.active === "unl" && lastShown.detail && lastShown.detail.kind === "unl" ? new Set(lastShown.detail.rows.map(x => x.k + "|" + x.id)) : null;
+        const uv = ECR.active === "unl" && ECR.lastShown.detail && ECR.lastShown.detail.kind === "unl" ? new Set(ECR.lastShown.detail.rows.map(x => x.k + "|" + x.id)) : null;
         const un = insUnlinked();
         ["des", "lot", "prim", "sec", "chg", "prd"].forEach(k => (un[k] || []).forEach(r => { if (r.uon === true && !r.t && (!uv || uv.has(k + "|" + r.id))) add(k, r.id); }));
         /* IMPORT NON CRÉÉ */
-        const vi = ECR.active === "inc" && lastShown.detail && lastShown.detail.kind === "inc" ? new Set(lastShown.detail.rows.map(x => x.id)) : null;
+        const vi = ECR.active === "inc" && ECR.lastShown.detail && ECR.lastShown.detail.kind === "inc" ? new Set(ECR.lastShown.detail.rows.map(x => x.id)) : null;
         (INS.inc || []).forEach(x => { if (x.on === true && (!vi || vi.has(x.id))) add("inc", x.id); });
         /* DÉTAIL DÉLAIS : périodes cochées */
         const Y = shell.__insDly;
@@ -18755,12 +18755,12 @@ ${A}</Assignments>
         out.n = S.size + P.size;
         return out;
       }
-      if (blk === "detail" && ECR.active === "inc") { const vi = new Set(lastShown.detail && lastShown.detail.kind === "inc" ? lastShown.detail.rows.map(x => x.id) : []);
+      if (blk === "detail" && ECR.active === "inc") { const vi = new Set(ECR.lastShown.detail && ECR.lastShown.detail.kind === "inc" ? ECR.lastShown.detail.rows.map(x => x.id) : []);
         const ids = new Set((INS.inc || []).filter(x => x.on === true && vi.has(x.id)).map(x => x.id)); if (ids.size) { out.del.inc = ids; out.n = ids.size; } return out; }
       const unlTab = blk === "detail" && ECR.active === "unl";
       insBlkKinds(blk).forEach(k => {
         /* onglet LIGNES NON LIÉES : seulement ses lignes (non liées), titres compris */
-        const vu = unlTab ? new Set((lastShown.detail && lastShown.detail.kind === "unl" ? lastShown.detail.rows : []).filter(x => x.k === k).map(x => x.id)) : insVis(k);
+        const vu = unlTab ? new Set((ECR.lastShown.detail && ECR.lastShown.detail.kind === "unl" ? ECR.lastShown.detail.rows : []).filter(x => x.k === k).map(x => x.id)) : insVis(k);
         const rows = unlTab ? X.INS[k].filter(r => r.uon === true && vu.has(r.id) && !X.isUsed(k, r.id)) : X.INS[k].filter(r => !r.t && r.on === true && vu.has(r.id));
         const free = rows.filter(r => !X.isUsed(k, r.id));
         out.kept += rows.length - free.length;
@@ -18823,22 +18823,22 @@ ${A}</Assignments>
     /* export / aperçu : s'il y a des lignes cochées dans le bloc, seulement celles-là */
     const insOnlyChecked = blk => {
       const X = shell.__ins;
-      if (!X || !lastShown) return;
-      if (blk === "client" && lastShown.client && lastShown.client.ins) {
+      if (!X || !ECR.lastShown) return;
+      if (blk === "client" && ECR.lastShown.client && ECR.lastShown.client.ins) {
         const on = new Set(X.INS.des.filter(r => !r.t && r.on === true).map(r => r.id));
         if (!on.size) return;
         const keep = new Set();
         X.INS.des.forEach(t => { if (t.t && X.insBranch(t).some(r => on.has(r.id))) keep.add(t.id); });
-        lastShown.client = { ...lastShown.client, rows: lastShown.client.rows.filter(r => on.has(r.id) || keep.has(r.id)) };
-      } else if (blk === "hier" && lastShown.hier) {
+        ECR.lastShown.client = { ...ECR.lastShown.client, rows: ECR.lastShown.client.rows.filter(r => on.has(r.id) || keep.has(r.id)) };
+      } else if (blk === "hier" && ECR.lastShown.hier) {
         ["lot", "prim", "sec"].forEach(k => {
           const vis = insVis(k);
           const on = X.INS[k].filter(r => r.on === true && vis.has(r.id));
-          if (on.length) lastShown.hier[k] = on.map(r => r.v || "");
+          if (on.length) ECR.lastShown.hier[k] = on.map(r => r.v || "");
         });
-      } else if (blk === "detail" && lastShown.detail && lastShown.detail.ins) {
-        const rows = lastShown.detail.rows.filter(r => r.on === true);
-        if (rows.length) lastShown.detail = { ...lastShown.detail, rows };
+      } else if (blk === "detail" && ECR.lastShown.detail && ECR.lastShown.detail.ins) {
+        const rows = ECR.lastShown.detail.rows.filter(r => r.on === true);
+        if (rows.length) ECR.lastShown.detail = { ...ECR.lastShown.detail, rows };
       }
     };
 /* ⟪ src/26-copier-coller.js ⟫ */
@@ -18851,7 +18851,7 @@ ${A}</Assignments>
        LIGNES NON LIÉES et LIAISONS VALIDÉES (COPIER) — lignes cochées ET affichées ===== */
     const ctlTab = blk => blk === "detail" && ["inc", "unl", "lnk"].includes(ECR.active) ? ECR.active : "";
     const ctlRows = () => {
-      const ls = lastShown.detail;
+      const ls = ECR.lastShown.detail;
       if (!ls || ls.kind !== ECR.active) return [];
       return ls.rows.filter(x => ECR.active === "unl" ? x.r && x.r.uon === true : x.on === true);
     };
@@ -18864,7 +18864,7 @@ ${A}</Assignments>
       return -1;   /* COLLER : toujours proposé (le presse-papiers est lu au toucher) */
     };
     const ctlCopy = async (cut) => {
-      const ls = lastShown.detail, rows = ctlRows();
+      const ls = ECR.lastShown.detail, rows = ctlRows();
       if (!rows.length) return;
       const cols = screenCols(detailTable(), ls.cols);
       const cell = v => String(v ?? "").replace(/[\t\n]/g, " ");
@@ -19154,12 +19154,12 @@ ${A}</Assignments>
     const pdfDoneRef = blk => {
       if (!INS && blk === "detail" && (ECR.active === "prd" || ECR.active === "qlt")) return "";
       const b = blk === "suivi" ? ECR.recActive : blk;
-      const ls = { ...lastShown, hier: { ...(lastShown.hier || {}) } };
+      const ls = { ...ECR.lastShown, hier: { ...(ECR.lastShown.hier || {}) } };
       ECR.PM_DRY = {}; window.__sviQuiet = true;
       let r = "";
       try { insOnlyChecked(blk); doPdf(b); r = ECR.PM_DRY.doc || ""; } catch (e) { r = ""; }
       ECR.PM_DRY = null; window.__sviQuiet = false;
-      Object.keys(ls).forEach(k => { lastShown[k] = ls[k]; });
+      Object.keys(ls).forEach(k => { ECR.lastShown[k] = ls[k]; });
       return r;
     };
     const runBlkAct = (blk, act) => {

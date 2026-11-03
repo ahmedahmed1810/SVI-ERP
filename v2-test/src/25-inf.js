@@ -470,7 +470,7 @@
       const L = INS.links || [];
       /* bloc détail : tous ses onglets (FORMAT 104) — liaisons cochées (délier en entier) + produits / charges cochés (retirés) */
       if (blk === "detail") {
-        const vi = ECR.active === "lnk" && lastShown.detail && lastShown.detail.kind === "lnk" ? new Set(lastShown.detail.rows.map(l => l.id)) : null;
+        const vi = ECR.active === "lnk" && ECR.lastShown.detail && ECR.lastShown.detail.kind === "lnk" ? new Set(ECR.lastShown.detail.rows.map(l => l.id)) : null;
         const whole = L.filter(l => l.on === true && (!vi || vi.has(l.id)));
         const sp = insSelIds("prd"), sc = insSelIds("chg");
         const remP = [...sp].filter(id => L.some(l => (l.prd || []).some(x => x.id === id)));
@@ -502,11 +502,11 @@
           X.INS[k].forEach(r => { if (r.t || r.on !== true || !vis.has(r.id)) return; if (k !== "qlt" && X.isUsed(k, r.id)) out.kept++; else add(k, r.id); });
         });
         /* LIGNES NON LIÉES : ses lignes cochées des autres blocs (désignations, lots, activités) */
-        const uv = ECR.active === "unl" && lastShown.detail && lastShown.detail.kind === "unl" ? new Set(lastShown.detail.rows.map(x => x.k + "|" + x.id)) : null;
+        const uv = ECR.active === "unl" && ECR.lastShown.detail && ECR.lastShown.detail.kind === "unl" ? new Set(ECR.lastShown.detail.rows.map(x => x.k + "|" + x.id)) : null;
         const un = insUnlinked();
         ["des", "lot", "prim", "sec", "chg", "prd"].forEach(k => (un[k] || []).forEach(r => { if (r.uon === true && !r.t && (!uv || uv.has(k + "|" + r.id))) add(k, r.id); }));
         /* IMPORT NON CRÉÉ */
-        const vi = ECR.active === "inc" && lastShown.detail && lastShown.detail.kind === "inc" ? new Set(lastShown.detail.rows.map(x => x.id)) : null;
+        const vi = ECR.active === "inc" && ECR.lastShown.detail && ECR.lastShown.detail.kind === "inc" ? new Set(ECR.lastShown.detail.rows.map(x => x.id)) : null;
         (INS.inc || []).forEach(x => { if (x.on === true && (!vi || vi.has(x.id))) add("inc", x.id); });
         /* DÉTAIL DÉLAIS : périodes cochées */
         const Y = shell.__insDly;
@@ -528,12 +528,12 @@
         out.n = S.size + P.size;
         return out;
       }
-      if (blk === "detail" && ECR.active === "inc") { const vi = new Set(lastShown.detail && lastShown.detail.kind === "inc" ? lastShown.detail.rows.map(x => x.id) : []);
+      if (blk === "detail" && ECR.active === "inc") { const vi = new Set(ECR.lastShown.detail && ECR.lastShown.detail.kind === "inc" ? ECR.lastShown.detail.rows.map(x => x.id) : []);
         const ids = new Set((INS.inc || []).filter(x => x.on === true && vi.has(x.id)).map(x => x.id)); if (ids.size) { out.del.inc = ids; out.n = ids.size; } return out; }
       const unlTab = blk === "detail" && ECR.active === "unl";
       insBlkKinds(blk).forEach(k => {
         /* onglet LIGNES NON LIÉES : seulement ses lignes (non liées), titres compris */
-        const vu = unlTab ? new Set((lastShown.detail && lastShown.detail.kind === "unl" ? lastShown.detail.rows : []).filter(x => x.k === k).map(x => x.id)) : insVis(k);
+        const vu = unlTab ? new Set((ECR.lastShown.detail && ECR.lastShown.detail.kind === "unl" ? ECR.lastShown.detail.rows : []).filter(x => x.k === k).map(x => x.id)) : insVis(k);
         const rows = unlTab ? X.INS[k].filter(r => r.uon === true && vu.has(r.id) && !X.isUsed(k, r.id)) : X.INS[k].filter(r => !r.t && r.on === true && vu.has(r.id));
         const free = rows.filter(r => !X.isUsed(k, r.id));
         out.kept += rows.length - free.length;
@@ -596,21 +596,21 @@
     /* export / aperçu : s'il y a des lignes cochées dans le bloc, seulement celles-là */
     const insOnlyChecked = blk => {
       const X = shell.__ins;
-      if (!X || !lastShown) return;
-      if (blk === "client" && lastShown.client && lastShown.client.ins) {
+      if (!X || !ECR.lastShown) return;
+      if (blk === "client" && ECR.lastShown.client && ECR.lastShown.client.ins) {
         const on = new Set(X.INS.des.filter(r => !r.t && r.on === true).map(r => r.id));
         if (!on.size) return;
         const keep = new Set();
         X.INS.des.forEach(t => { if (t.t && X.insBranch(t).some(r => on.has(r.id))) keep.add(t.id); });
-        lastShown.client = { ...lastShown.client, rows: lastShown.client.rows.filter(r => on.has(r.id) || keep.has(r.id)) };
-      } else if (blk === "hier" && lastShown.hier) {
+        ECR.lastShown.client = { ...ECR.lastShown.client, rows: ECR.lastShown.client.rows.filter(r => on.has(r.id) || keep.has(r.id)) };
+      } else if (blk === "hier" && ECR.lastShown.hier) {
         ["lot", "prim", "sec"].forEach(k => {
           const vis = insVis(k);
           const on = X.INS[k].filter(r => r.on === true && vis.has(r.id));
-          if (on.length) lastShown.hier[k] = on.map(r => r.v || "");
+          if (on.length) ECR.lastShown.hier[k] = on.map(r => r.v || "");
         });
-      } else if (blk === "detail" && lastShown.detail && lastShown.detail.ins) {
-        const rows = lastShown.detail.rows.filter(r => r.on === true);
-        if (rows.length) lastShown.detail = { ...lastShown.detail, rows };
+      } else if (blk === "detail" && ECR.lastShown.detail && ECR.lastShown.detail.ins) {
+        const rows = ECR.lastShown.detail.rows.filter(r => r.on === true);
+        if (rows.length) ECR.lastShown.detail = { ...ECR.lastShown.detail, rows };
       }
     };

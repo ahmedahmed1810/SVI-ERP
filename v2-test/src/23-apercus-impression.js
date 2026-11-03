@@ -750,7 +750,7 @@
 
 
     const printClient = () => {
-      const src = lastShown.client;
+      const src = ECR.lastShown.client;
       if (!src || !src.rows.length) { sviAlert("Aucune désignation à afficher."); return; }
       if (src.ins) return bpuAoWarn(() => printClientIns(src.rows));
       const rows = [...src.rows].sort((a, b) =>
@@ -838,7 +838,7 @@
        primaires / secondaires avec leurs unités */
     /* export FORMAT INTERNE : une ligne par produit, valeurs complètes */
     const interneData = () => {
-      const src = lastShown.client;
+      const src = ECR.lastShown.client;
       const head = ["ART.", "DESIGNATION", "UPB", "LOT", "ACTIVITÉ PRIMAIRE", "ACTIVITÉ SECONDAIRE",
         "DÉSIGNATION PRODUIT", "UPB", "NBR", "DIM 1", "DIM 2", "DIM 3", "QPB", "CLÉ PRIMAIRE"];
       if (!src) return { head, rows: [] };
@@ -862,7 +862,7 @@
        la quantité (clés primaires), puis par lot / activité les lignes de calcul
        NB × longueur × largeur × hauteur = quantité partielle */
     const metreGroups = () => {
-      const src = lastShown.client;
+      const src = ECR.lastShown.client;
       if (!src) return [];
       const U = v => String(v ?? "").trim().toUpperCase();
       return [...src.rows].sort((a, b) => String(a.article).localeCompare(String(b.article), "fr", { numeric: true }))
@@ -924,7 +924,7 @@
        mode "chg" : décomposition (avec U) + détail charges (aperçu DÉTAIL CHARGES) */
     const printTasks = (mode = "prd") => {
       const CHG = mode === "chg", PLAIN = mode === "plain";
-      const src = lastShown.client;
+      const src = ECR.lastShown.client;
       if (!src || !src.rows.length) { sviAlert("Aucune désignation à afficher."); return; }
       const U = v => String(v ?? "").trim().toUpperCase();
       const groups = [...src.rows].sort((a, b) =>
@@ -1057,7 +1057,7 @@
         cols = coOrder(blk, recCols[blk]);
         rows = recShown[blk] || recSorted(blk);
       } else {
-        const src = lastShown.detail;
+        const src = ECR.lastShown.detail;
         if (!src || !src.rows.length) { sviAlert("Aucune donnée dans " + label + "."); return; }
         cols = screenCols(detailTable(), src.cols);
         rows = src.rows;
@@ -1128,7 +1128,7 @@
 
     /* FORMAT 112 : aperçu TÂCHES = les trois tableaux côte à côte, comme à l'écran (ordre des colonnes, filtres, lignes cochées) */
     const printHier = () => {
-      const h = lastShown.hier || {};
+      const h = ECR.lastShown.hier || {};
       const ks = coKeys("hierCols", ["lot", "prim", "sec"]);
       const lab = { lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" };
       const L = ks.map(k => h[k] || []);

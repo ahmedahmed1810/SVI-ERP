@@ -7,7 +7,7 @@
        LIGNES NON LIÉES et LIAISONS VALIDÉES (COPIER) — lignes cochées ET affichées ===== */
     const ctlTab = blk => blk === "detail" && ["inc", "unl", "lnk"].includes(ECR.active) ? ECR.active : "";
     const ctlRows = () => {
-      const ls = lastShown.detail;
+      const ls = ECR.lastShown.detail;
       if (!ls || ls.kind !== ECR.active) return [];
       return ls.rows.filter(x => ECR.active === "unl" ? x.r && x.r.uon === true : x.on === true);
     };
@@ -20,7 +20,7 @@
       return -1;   /* COLLER : toujours proposé (le presse-papiers est lu au toucher) */
     };
     const ctlCopy = async (cut) => {
-      const ls = lastShown.detail, rows = ctlRows();
+      const ls = ECR.lastShown.detail, rows = ctlRows();
       if (!rows.length) return;
       const cols = screenCols(detailTable(), ls.cols);
       const cell = v => String(v ?? "").replace(/[\t\n]/g, " ");
@@ -310,12 +310,12 @@
     const pdfDoneRef = blk => {
       if (!INS && blk === "detail" && (ECR.active === "prd" || ECR.active === "qlt")) return "";
       const b = blk === "suivi" ? ECR.recActive : blk;
-      const ls = { ...lastShown, hier: { ...(lastShown.hier || {}) } };
+      const ls = { ...ECR.lastShown, hier: { ...(ECR.lastShown.hier || {}) } };
       ECR.PM_DRY = {}; window.__sviQuiet = true;
       let r = "";
       try { insOnlyChecked(blk); doPdf(b); r = ECR.PM_DRY.doc || ""; } catch (e) { r = ""; }
       ECR.PM_DRY = null; window.__sviQuiet = false;
-      Object.keys(ls).forEach(k => { lastShown[k] = ls[k]; });
+      Object.keys(ls).forEach(k => { ECR.lastShown[k] = ls[k]; });
       return r;
     };
     const runBlkAct = (blk, act) => {

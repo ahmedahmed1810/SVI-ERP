@@ -1,5 +1,5 @@
     /* ===== export / import / aperçu PDF par bloc ===== */
-    const lastShown = { client: null, detail: null, hier: {} };
+    ECR.lastShown = { client: null, detail: null, hier: {} };
     const blkName = { client: "DESIGNATIONS CLIENT", hier: "TACHES", detail: "DETAIL",
                       doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS", suivi: "SUIVI", hist: "HISTORIQUE", budget: "BUDGET COMPLET", ind: "LISTE DES INDICATEURS", rat: "TABLEAU DE BORD", scn: "SCENARIOS", ver: "VERSIONS", rcl: "RECALAGES", av: "AVENANTS" };
     const REC_KINDS = ["doc", "taf", "obs"];
@@ -24,7 +24,7 @@
       if (blk === "detail" && ECR.active === "qlt" && INS && shell.__qq) return shell.__qq.data();
       if (blk === "detail" && ECR.active === "dly") {
         /* délais : tableau affiché (filtres compris), dates JJ/MM/AAAA */
-        const src = lastShown.detail && lastShown.detail.kind === "dly" ? lastShown.detail : { cols: DLY_COLS, rows: [] };
+        const src = ECR.lastShown.detail && ECR.lastShown.detail.kind === "dly" ? ECR.lastShown.detail : { cols: DLY_COLS, rows: [] };
         const fr = v => /^\d{4}-\d{2}-\d{2}/.test(String(v)) ? String(v).slice(8, 10) + "/" + String(v).slice(5, 7) + "/" + String(v).slice(0, 4) : v;
         const oc = coOrder("dly", src.cols);
         return { head: oc.map(c => c[1]), rows: src.rows.map(r => oc.map(c => fr(c[2](r)))) };
@@ -40,7 +40,7 @@
       if (blk === "metre") return metreData();
       if (blk === "interne") return interneData();
       if (blk === "hier") {
-        const h = lastShown.hier;
+        const h = ECR.lastShown.hier;
         const n = Math.max((h.lot || []).length, (h.prim || []).length, (h.sec || []).length);
         const ks = coKeys("hierCols", ["lot", "prim", "sec"]);
         const lab = { lot: "LOT", prim: "ACTIVITÉ PRIMAIRE", sec: "ACTIVITÉ SECONDAIRE" };
@@ -49,7 +49,7 @@
           rows: Array.from({ length: n }, (_, i) => ks.map(k => (h[k] || [])[i] ?? ""))
         };
       }
-      const src = lastShown[blk];
+      const src = ECR.lastShown[blk];
       if (!src) return { head: [], rows: [] };
       const oc = blk === "detail" ? screenCols(detailTable(), src.cols)
         : blk === "client" ? screenCols(shell.querySelector(".bdg-d-client-scroll table"), src.cols)
