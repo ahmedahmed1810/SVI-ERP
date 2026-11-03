@@ -309,15 +309,20 @@
         if (!CR) return;
         const e = qqEnd(L, p);
         let c = null; for (let x = p + 1; x < e; x++) if (L[x].k === "c" && U_(L[x].v) === CR) { c = L[x]; break; }
+        const was = !!c;
         if (!c) { c = { id: insId(), k: "c", d: L[p].d + 1, v: CR, nc: "RIEN" }; L.splice(e, 0, c); }
         const pick = (h, list) => { const v = U_(get(r, h)); return list.includes(v) ? v : (v ? (bad.push("LIGNE " + ln + " : " + h + " « " + v + " » INCONNU"), "") : ""); };
         const numv = h => { const v = get(r, h); return v === "" ? "" : sviNumOk(v) ? insNum(v) : (bad.push("LIGNE " + ln + " : " + h + " « " + v + " » N'EST PAS UN NOMBRE"), ""); };
-        Object.assign(c, {
+        const upd = {
           ev: evOf(key, get(r, "ÉLÉMENT VISÉ")) || c.ev || (key ? "T" : ""), pr: U_(get(r, "PRESCRIPTION")), ref: U_(get(r, "RÉFÉRENCE")),
           how: pick("COMMENT", QQ_LISTS.how), who: pick("PAR QUI", QQ_LISTS.who), proof: pick("PAR QUOI", QQ_LISTS.proof),
           btn: U_(get(r, "DÉCLENCHEMENT")).split(/\s*[;·]\s*/).filter(Boolean), fq: numv("FRÉQUENCE"), pv: numv("PRÉAVIS (J)"), pw: U_(get(r, "PRÉVENIR")),
           nc: pick("SI NON CONFORME", QQ_LISTS.nc) || "RIEN", tol: U_(get(r, "TOLÉRANCE")), lrm: U_(get(r, "LIMITE REMARQUE")), nra: numv("REMARQUES AVANT AUDIT"), nrz: numv("CONTRÔLES SANS REMARQUE")
-        });
+        };
+        /* v821 (cahier, à coder) : critère déjà présent — une case vide du fichier ne change pas la valeur existante */
+        if (was) { const SRC = { pr: "PRESCRIPTION", ref: "RÉFÉRENCE", how: "COMMENT", who: "PAR QUI", proof: "PAR QUOI", btn: "DÉCLENCHEMENT", fq: "FRÉQUENCE", pv: "PRÉAVIS (J)", pw: "PRÉVENIR", nc: "SI NON CONFORME", tol: "TOLÉRANCE", lrm: "LIMITE REMARQUE", nra: "REMARQUES AVANT AUDIT", nrz: "CONTRÔLES SANS REMARQUE" };
+          Object.keys(SRC).forEach(k => { if (!String(get(r, SRC[k]) ?? "").trim()) delete upd[k]; }); }
+        Object.assign(c, upd);
         n++;
       });
       if (!quiet) histLog("IMPORT", "QUALITÉ", (srcName || "") + " — " + n + " LIGNE(S)" + (bad.length ? " — " + bad.length + " REFUSÉE(S)" : ""));

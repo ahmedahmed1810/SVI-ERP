@@ -1878,6 +1878,8 @@
           const v = await svChoose({ title: "COLONNE(S) MANQUANTE(S)", html: `<div class="svc-sub">${esc(m.miss.join(", "))}</div><div class="svc-sub">ACTUALISER QUAND MÊME ?</div>`, buttons: [{ v: "go", label: "ACTUALISER QUAND MÊME", tone: "neutral" }] });
           if (v !== "go") return;
         }
+        /* v821 (cahier, à coder) : refuser la confirmation de la règle A annule tout — photo avant l'effacement */
+        const SNAP0 = JSON.stringify({ des: INS.des, lot: INS.lot, prim: INS.prim, sec: INS.sec, chg: INS.chg, prd: INS.prd, links: INS.links, inc: INS.inc });
         /* effacement des blocs cochés (et des liaisons qui en dépendent) */
         const T = { prd: "PRD", chg: "CHG" };
         if (kinds.has("des") || kinds.has("hier")) INS.links = [];
@@ -1889,7 +1891,7 @@
         INS.inc = (INS.inc || []).filter(x => { const t = U_((x.src || {}).type || ""); if (t === "DÉLAI") return true; if (kinds.has("des") || kinds.has("hier")) return false; return !Object.keys(T).some(k => kinds.has(k) && t.startsWith(T[k])); });
         const only = new Set(kinds);
         const plan = bfRuleA(m, "add");
-        if (!(await bfRuleAAsk(plan))) { insSave(); refreshAll(); return; }
+        if (!(await bfRuleAAsk(plan))) { Object.assign(INS, JSON.parse(SNAP0)); refreshAll(); svToast("RÈGLE A REFUSÉE : ACTUALISATION ANNULÉE, RIEN N'EST ENREGISTRÉ.", 4000); return; }
         plan.ok = true;
         const bef = { prd: new Set(INS.prd.map(r => r.id)), chg: new Set(INS.chg.map(r => r.id)) };
         bfApply(m, "add", "ACTUALISATION — " + got.name, false, plan, only);
