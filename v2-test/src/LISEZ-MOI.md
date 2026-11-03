@@ -59,7 +59,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `19-delais-disposition.js` | disposition des blocs, hauteurs en lignes entières | 611 |
 | `20-glisser-lignes.js` | appel de « glisser des lignes et des titres » (v844 : le code est dans 28m-glisser-lignes.js) | 2 |
 | `21-export-import.js` | export / import (Excel, Google Sheets, autre budget), menu ⋯ | 2071 |
-| `22-saisie-directe.js` | SAISIE DIRECTE | 609 |
+| `22-saisie-directe.js` | appel de « SAISIE DIRECTE » (v845 : le code est dans 28n-saisie-directe.js) | 2 |
 | `22b-exploitation.js` | exploitation (ex-onglet MARGE) | 507 |
 | `22c-ratios-multi-signature.js` | appel de « indicateurs (données), signatures » (v840 : le code est dans 28i-ratios-multi-signature.js) | 2 |
 | `22d-contrat.js` | contrat : CPS, révision des prix, modalités de paiement, retenue de garantie | 254 |
@@ -93,6 +93,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `28k-indicateurs-tableau.js` | tableau et graphique d'un indicateur, hors du grand bloc (v842) : sviBdgIndicateursTableau(C) | 204 |
 | `28l-indicateurs.js` | indicateurs : éléments, calcul, liste commune, hors du grand bloc (v843) : sviBdgIndicateurs(C) | 353 |
 | `28m-glisser-lignes.js` | glisser des lignes et des titres, hors du grand bloc (v844) : sviBdgGlisserLignes(C) | 470 |
+| `28n-saisie-directe.js` | SAISIE DIRECTE, hors du grand bloc (v845) : sviBdgSaisieDirecte(C) | 737 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
