@@ -78,9 +78,10 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `24-doc-historique-fenetres.js` | DOCUMENTS, TAF, OBSERVATIONS, historique | 466 |
 | `25-inf.js` | fenêtre INF | 613 |
 | `26-copier-coller.js` | copier, couper, coller | 710 |
-| `26b-conditionnement.js` | emballage et découpe par titre de charges | 105 |
+| `26b-conditionnement.js` | appel de « emballage et découpe par titre de charges » (v833 : le code est dans 28b-conditionnement.js) | 2 |
 | `27-etat-fin-budget.js` | FIGER, VALIDER, fin de openBudgetDetail | 716 |
 | `28-recalages.js` | recalages, hors du grand bloc (v832, découpe étape 1) : sviBdgRecalages(C) | 100 |
+| `28b-conditionnement.js` | emballage et découpe par titre de charges, hors du grand bloc (v833) : sviBdgConditionnement(C) | 112 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
