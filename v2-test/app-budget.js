@@ -5728,6 +5728,15 @@ function sviBdgIndicateurs(C) {
       if (t.classList.contains("ind-fmt")) { I.fmt = t.value; draw(); return; }
       if (t.classList.contains("ind-dec")) { I.dec = Number(t.value); draw(); return; }
     });
+    /* v905 (principe du 03/11/2026) : NOM vide ou déjà pris refusé en quittant la case (le contrôle d'ENREGISTRER reste) */
+    d.addEventListener("focusin", e => { const n = e.target.closest && e.target.closest(".ind-nom"); if (n) n.dataset.prev = n.value; });
+    d.addEventListener("change", e => {
+      const n = e.target.closest && e.target.closest(".ind-nom"); if (!n) return;
+      const v = U_(n.value || ""), imp0 = st === IND_STORE && !isNew, msg = d.querySelector(".ind-msg");
+      const why = !v ? "DONNER UN NOM À L'INDICATEUR." : st.list().some(x => (imp0 || x.id !== I.id) && U_(x.nom) === v) ? (imp0 ? "AMÉLIORER CRÉE UN NOUVEL INDICATEUR : LUI DONNER UN AUTRE NOM." : "UN INDICATEUR PORTE DÉJÀ CE NOM.") : "";
+      if (msg) msg.textContent = why;
+      if (why) { n.value = n.dataset.prev || ""; svToast(why, 3500, n); }
+    });
     d.addEventListener("click", e => {
       if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(null); return; }
       const k = e.target.closest("[data-k]"); if (k) { const v = k.dataset.k; put(v === "(" || v === ")" ? { t: v } : { t: "o", v }); return; }
@@ -20142,6 +20151,8 @@ function sviBdgInstanceSaisie(C) {
       if (z(r.q)) return { f: "q", m: "QTE VIDE OU 0 : SAISIR LA QUANTITÉ." };
       if (z(r.p)) return { f: "p", m: "SAISIR LE PCB." };
     }
+    /* v905 (principe du 03/11/2026) : TVA MANQUANTE signalée sur sa case (désignation sans TVA, TVA PAR DÉFAUT vide) */
+    if (k === "des" && (r.tva === "" || r.tva === undefined) && sviTvaDef() === null) return { f: "tva", m: "TVA MANQUANTE : SAISIR LA TVA, OU LA TVA PAR DÉFAUT (PARAMÉTRAGE › BUDGET › TVA)." };
     return null;
   };
   shell.__prdSyncU = () => { if (INS && INS_EDIT && actUnitSync()) { insSave(); return true; } return false; };

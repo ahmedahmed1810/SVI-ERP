@@ -523,6 +523,8 @@ function sviBdgInstanceSaisie(C) {
       if (z(r.q)) return { f: "q", m: "QTE VIDE OU 0 : SAISIR LA QUANTITÉ." };
       if (z(r.p)) return { f: "p", m: "SAISIR LE PCB." };
     }
+    /* v905 (principe du 03/11/2026) : TVA MANQUANTE signalée sur sa case (désignation sans TVA, TVA PAR DÉFAUT vide) */
+    if (k === "des" && (r.tva === "" || r.tva === undefined) && sviTvaDef() === null) return { f: "tva", m: "TVA MANQUANTE : SAISIR LA TVA, OU LA TVA PAR DÉFAUT (PARAMÉTRAGE › BUDGET › TVA)." };
     return null;
   };
   shell.__prdSyncU = () => { if (INS && INS_EDIT && actUnitSync()) { insSave(); return true; } return false; };
