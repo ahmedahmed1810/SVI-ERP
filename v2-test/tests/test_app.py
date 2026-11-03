@@ -1306,9 +1306,10 @@ def main():
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.pdeb = '2026-11-02'; I.plafR = {{ 'MAIN D OEUVRE A|J-H § MAIN D OEUVRE B|J-H § MAIN D OEUVRE C|J-H': {{ plaf: 2 }} }}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
         pg.evaluate(f"() => {DXJ}.gen()"); pg.wait_for_timeout(800)
         g5 = pg.evaluate(f"() => {{ const I = {ins}.INS, P = k => {{ const p = (I.dlp[k] || [])[0] || {{}}; return [p.deb, p.fin, !!p.dmd, !!p.fmd]; }}; return [P('l2|s1'), P('l2|s2'), P('l1|s1'), JSON.stringify(I.dpred['l2|s2'] || []), JSON.stringify(I.dpred['l1|s1'] || [])]; }}")
-        check("v530 planning : GÉNÉRER — J-H ÷ ouvriers en demi-journées, tâche suivante dans la demi-journée libre, liaisons FIN → DÉBUT",
+        # v898 (cahier) : GÉNÉRER n'enchaîne que par les liaisons — aucune liaison créée ; la capacité seule étale les tâches
+        check("v530 planning : GÉNÉRER — J-H ÷ ouvriers en demi-journées, la capacité étale les tâches ; v898 : aucune liaison FIN → DÉBUT créée",
               g5[:3] == [["2026-11-02", "2026-11-03", False, False], ["2026-11-04", "2026-11-04", False, True], ["2026-11-04", "2026-11-05", True, False]]
-              and '"o":0' in g5[3] and '"o":0' in g5[4], g5)   # v617 (remarque 86) : 0 = demi-journée suivante
+              and g5[3] == "[]" and g5[4] == "[]", g5)
         # plafond coupé (appui long) puis morceau tiré : 4 ouvriers à partir du 04/11 ; COMPRESSER
         pg.evaluate("() => document.querySelector('.ghist')?.scrollIntoView({ block: 'center' })"); pg.wait_for_timeout(300)
         pl = pg.evaluate("() => { const g = document.querySelector('.dlyg-foot .gplaf'); const h = document.querySelector('#dlyGantt'); if (!g) return null; const x0 = h.__d0; const r = g.getBoundingClientRect(); return [r.left, r.top, r.width, x0]; }")
@@ -1332,7 +1333,7 @@ def main():
         pg.evaluate(f"() => {DXJ}.comp()"); pg.wait_for_timeout(800)
         c5 = pg.evaluate(f"() => {{ const I = {ins}.INS, P = k => {{ const p = (I.dlp[k] || [])[0] || {{}}; return [p.deb, p.fin, !!p.dmd, !!p.fmd]; }}; return [P('l2|s2'), P('l1|s1'), document.querySelectorAll('.dlyg-foot .gplaf').length, JSON.stringify(I.plafR), JSON.stringify(I.dinc || {{}})]; }}")
         check("v530 planning : appui long sur le plafond = le couper ; morceau à 4 ouvriers ; COMPRESSER resserre les tâches datées",
-              cutok and '"2026-11-04"' in segs and c5[:3] == [["2026-11-04", "2026-11-04", False, True], ["2026-11-04", "2026-11-05", True, True], 2], [cutok, segs, c5])
+              cutok and '"2026-11-04"' in segs and c5[:3] == [["2026-11-04", "2026-11-04", False, True], ["2026-11-04", "2026-11-04", False, False], 2], [cutok, segs, c5])   # v898 : sans liaison, l1|s1 profite des 4 ouvriers dès le 04
         pg.evaluate(f"() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk; I.dlp = I.__dlp; I.dpred = I.__dp; I.pdeb = I.__pd0; delete I.__lk; delete I.__dlp; delete I.__dp; delete I.__pd0; I.dlim = {{}}; I.plaf = 0; I.plafs = []; I.plafR = {{}}; I.chg = I.chg.filter(r => !/^j/.test(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(400)
         # conditionnement : barres de 12 m (découpe), puis palettes et camions
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.chg.push({{ id: 'a1', des: 'ACIER HA12', u: 'KG', q: 120, p: 12 }});
@@ -1660,7 +1661,8 @@ def main():
         check("v543 R24 / R27 : la ressource la plus limitante (sable) fixe la durée, repère ⧖ ; ensuite ↻ grisé (RIEN À AJUSTER)",
               r24[:3] == ["2026-11-02", "2026-11-03", GS] and r24[3] and "SABLE" in r24[4] and r27.get("ok") is False and "RIEN À AJUSTER" in r27.get("why", ""), [r24, r27])
         r26 = pg.evaluate(f"() => {{ const I = {ins}.INS; return [JSON.stringify(I.dpred['l2|s1'] || []), I.dlp['l2|s1'][0].deb]; }}")
-        check("v543 R26 / v578 P11 R10 : COMPRESSER crée la liaison FIN → DÉBUT avec la tâche du dessus ; la suivante commence après la fin de la précédente (le 04)", '"k":"l1|s1"' in r26[0] and r26[1] == "2026-11-04", r26)
+        # v898 (cahier) : plus de liaison créée avec la tâche du dessus ; une tâche sans prédécesseur part au début du projet (le 02)
+        check("v898 : COMPRESSER ne crée plus de liaison avec la tâche du dessus ; une tâche sans prédécesseur part au début du projet (le 02)", r26[0] == "[]" and r26[1] == "2026-11-02", r26)
         # R21 / R23 : sable illimité ; MACON 1 → coupe le 06/11 (rattachée à la 1re tâche) ; MACON 4 → la coupe suit la fin de la 1re tâche
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.plafR['{GS}'] = {{ plaf: -1 }}; I.plafR['{GM}'] = {{ plaf: 1 }}; I.dlim = {{}}; X.insSave(); X.refreshAll(); }}"""); pg.wait_for_timeout(400)
         pg.evaluate(f"() => {DXJ}.comp()"); pg.wait_for_timeout(600)

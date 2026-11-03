@@ -13077,8 +13077,8 @@ function sviBdgPlanningAuto(C) {
       const pre = idx ? L[idx - 1] : null;
       if (FX.has(k)) return;
       let e = 0;
-      /* v578 (partie 11, remarque 10) : FIN → DÉBUT respecté — la suivante commence au plus tôt la demi-journée qui suit la fin de la précédente */
-      if (pre && S[pre]) e = Math.max(e, S[pre].b + 1);
+      /* v898 (cahier) : GÉNÉRER / COMPRESSER n'enchaînent les tâches que par leurs liaisons — une tâche sans prédécesseur part au début du projet
+         (plus d'enchaînement sur la tâche du dessus, plus de liaison FIN → DÉBUT créée avec elle) */
       dlyLinks(k).forEach(x => {
         const P = S[x.k];
         if (!P) return;
@@ -13103,7 +13103,6 @@ function sviBdgPlanningAuto(C) {
         const runs = []; r.got.forEach(s => { const u = runs[runs.length - 1]; if (u && (s === u[1] + 1 || allOff(u[1] + 1, s - 1))) u[1] = s; else runs.push([s, s]); });
         D[k].per = runs.map(([s1, s2]) => ({ deb: dayAt(s1 >> 1), fin: dayAt(s2 >> 1), dm: s1 & 1, fm: (s2 & 1) ? 0 : 1 }));
       }
-      if (pre && !dlyLinks(k).some(x => x.k === pre) && !dlyLinks(pre).some(x => x.k === k) && !dlyReach(pre, k)) links.push([pre, k]);
     });
     /* v570 : GÉNÉRER seul — on n'écrit que les tâches placées ; liaisons proposées seulement si l'une des deux était sans dates */
     if (opts.gen) { FX.forEach(k => { delete D[k]; }); return { D, S, links: links.filter(([a, b]) => !FX.has(a) || !FX.has(b)), lim, gen: true }; }
