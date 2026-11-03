@@ -439,7 +439,15 @@ const achRcpWhy = r => { const w = [];
   if (!r.nbl && !r.pv) w.push("N° DU BON DE LIVRAISON MANQUANT");
   if (!r.cmf) w.push("LIVRAISON SANS COMMANDE : À RÉGULARISER");
   if ((r.lignes || []).some(l => l.st === "res") && !r.resLev) w.push("RÉSERVES À LEVER");
+  /* v816 : en attente d'essai (C7.26, C7.34), écart BL / compté (C7.20), péremption (C7.27), documents exigés (C7.24), sans facture depuis 60 jours (C7.68) */
+  if ((r.lignes || []).some(l => l.st === "att") && !r.resLev) w.push("EN ATTENTE D'ESSAI : ACCEPTATION PROVISOIRE");
+  (r.lignes || []).forEach(l => { if (l.qbl !== "" && l.qbl !== undefined && Math.abs(achN(l.qbl) - achN(l.q)) > 1e-9) w.push(l.des + " : BL " + achF2(l.qbl) + " / COMPTÉ " + achF2(l.q));
+    if (l.per && l.per < new Date().toISOString().slice(0, 10)) w.push(l.des + " : PÉRIMÉ LE " + l.per.split("-").reverse().join("/")); });
+  if (r.docsExig && !r.docsOk) w.push("DOCUMENTS EXIGÉS NON REÇUS");
+  if (r.cmf && String(r.date || "").slice(0, 10) < new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10) && !achFaf().some(f => f.cmf === r.cmf && f.state !== "annule")) w.push("RÉCEPTION SANS FACTURE DEPUIS PLUS DE 60 JOURS");
   return w; };
+/* v816 : réception verrouillée dès qu'une facture existe sur sa commande (C7.65) */
+const achRcpFacturee = r => !!r.cmf && achFaf().some(f => f.cmf === r.cmf && f.state !== "annule");
 /* engagement sur un budget : commandes validées (ou soldées) dont les lignes viennent de besoins de ce budget */
 const achEngage = (bdg, chg) => { const B = achBsn(); let t = 0;
   achCmf().filter(c => c.state === "valide" || c.state === "solde").forEach(c => { const r = 1 - achN(c.rem) / 100;

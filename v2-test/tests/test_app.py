@@ -3375,6 +3375,14 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("v815 : COMMANDES — date promise après la date souhaitée, doublon récent, avance au-delà du plafond, échéance prévue ; refus : prix changé sans motif, plafond d'encours, devis non retenu, commande sans besoin sans motif ; suspension et litige",
               c815 == [True, True, True, "2026-03-11", "", True, True, True, True, "", 2], c815)
+        # v816 : RÉCEPTIONS — écart BL / compté, attente d'essai, péremption, documents exigés, verrou après facture, sans facture depuis 60 jours
+        c816 = pg.evaluate("""() => { const K = ['svi_ach_faf_v1'], keep = K.map(k => localStorage.getItem(k)); achFafSave([{ id: 'f1', cmf: 'c2', state: 'bap' }]);
+            const r1 = { cmf: 'c1', nbl: '1', date: '2025-01-01T10:00:00Z', docsExig: true, docsOk: false, lignes: [{ des: 'CIMENT', q: 9, qbl: 10, st: 'att', per: '2020-01-01' }] }, w = achRcpWhy(r1);
+            const r = [w.some(x => /BL 10,00 \/ COMPTÉ 9,00/.test(x)), w.some(x => /EN ATTENTE D'ESSAI/.test(x)), w.some(x => /PÉRIMÉ/.test(x)), w.some(x => /DOCUMENTS EXIGÉS NON REÇUS/.test(x)), w.some(x => /SANS FACTURE DEPUIS/.test(x)),
+              achRcpFacturee({ cmf: 'c2' }), achRcpFacturee(r1), achRecQ('zz', 'l', [{ cmf: 'zz', state: 'valide', lignes: [{ cl: 'l', q: 3, st: 'att' }] }], [])];
+            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
+        check("v816 : RÉCEPTIONS — écart entre le BL et le compté, attente d'essai, péremption, documents exigés, réception verrouillée après facture, sans facture depuis 60 jours",
+              c816 == [True, True, True, True, True, True, False, 3], c816)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

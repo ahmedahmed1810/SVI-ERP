@@ -440,7 +440,15 @@ const achRcpWhy = r => { const w = [];
   if (!r.nbl && !r.pv) w.push("N° DU BON DE LIVRAISON MANQUANT");
   if (!r.cmf) w.push("LIVRAISON SANS COMMANDE : À RÉGULARISER");
   if ((r.lignes || []).some(l => l.st === "res") && !r.resLev) w.push("RÉSERVES À LEVER");
+  /* v816 : en attente d'essai (C7.26, C7.34), écart BL / compté (C7.20), péremption (C7.27), documents exigés (C7.24), sans facture depuis 60 jours (C7.68) */
+  if ((r.lignes || []).some(l => l.st === "att") && !r.resLev) w.push("EN ATTENTE D'ESSAI : ACCEPTATION PROVISOIRE");
+  (r.lignes || []).forEach(l => { if (l.qbl !== "" && l.qbl !== undefined && Math.abs(achN(l.qbl) - achN(l.q)) > 1e-9) w.push(l.des + " : BL " + achF2(l.qbl) + " / COMPTÉ " + achF2(l.q));
+    if (l.per && l.per < new Date().toISOString().slice(0, 10)) w.push(l.des + " : PÉRIMÉ LE " + l.per.split("-").reverse().join("/")); });
+  if (r.docsExig && !r.docsOk) w.push("DOCUMENTS EXIGÉS NON REÇUS");
+  if (r.cmf && String(r.date || "").slice(0, 10) < new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10) && !achFaf().some(f => f.cmf === r.cmf && f.state !== "annule")) w.push("RÉCEPTION SANS FACTURE DEPUIS PLUS DE 60 JOURS");
   return w; };
+/* v816 : réception verrouillée dès qu'une facture existe sur sa commande (C7.65) */
+const achRcpFacturee = r => !!r.cmf && achFaf().some(f => f.cmf === r.cmf && f.state !== "annule");
 /* engagement sur un budget : commandes validées (ou soldées) dont les lignes viennent de besoins de ce budget */
 const achEngage = (bdg, chg) => { const B = achBsn(); let t = 0;
   achCmf().filter(c => c.state === "valide" || c.state === "solde").forEach(c => { const r = 1 - achN(c.rem) / 100;
@@ -1916,37 +1924,49 @@ function achRcpFiche(id, cmfId, done) {
   const r0 = id ? achRcp().find(x => x.id === id) : null; if (id && !r0) return;
   const C = cmfId ? achCmf().find(c => c.id === cmfId) : r0 && r0.cmf ? achCmf().find(c => c.id === r0.cmf) : null;
   const tol = achPrm().tol, R0 = achRcp(), T0 = achRtr();
-  const P = r0 ? JSON.parse(JSON.stringify(r0)) : { id: "", ref: "", cmf: C ? C.id : "", frs: C ? C.frs : "", nbl: "", pv: !!C && C.nat === "PRESTATIONS ET HONORAIRES", date: achNow(), photo: "", state: "valide",
+  const P = r0 ? JSON.parse(JSON.stringify(r0)) : { id: "", ref: "", cmf: C ? C.id : "", frs: C ? C.frs : "", nbl: "", transp: "", chauf: "", immat: "", hArr: "", hDep: "", fraisAtt: "", note: "", docsExig: !!(C && C.cond && /CERTIFICAT|FICHE TECHNIQUE|PV|ESSAI/.test(C.cond)), docsOk: false, pv: !!C && C.nat === "PRESTATIONS ET HONORAIRES", date: achNow(), photo: "", state: "valide",
     lignes: C ? C.lignes.map(l => ({ cl: l.id, des: l.des, u: l.u, max: achResteQ(C, l, R0, T0), q: Math.round(achResteQ(C, l, R0, T0) * 1000) / 1000, st: "ok", motif: "", bon: "" })).filter(l => l.max > 1e-9) : [] };
   const ro = !!r0, d = sviWinNew();
   let photoBlob = null;
   const draw = () => {
     const why = r0 ? achRcpWhy(P) : [], dis = ro ? " disabled" : "", FR = achLive(achFrs()).filter(f => f.actif !== false || f.id === P.frs);
-    const sel = (i, v) => `<select class="ins-in rcp-l" data-c="st" data-i="${i}"${dis}>${[["ok", "ACCEPTÉE"], ["res", "AVEC RÉSERVES"], ["ref", "REFUSÉE"]].map(([k, l]) => `<option value="${k}"${v === k ? " selected" : ""}>${l}</option>`).join("")}</select>`;
+    const sel = (i, v) => `<select class="ins-in rcp-l" data-c="st" data-i="${i}"${dis}>${[["ok", "ACCEPTÉE"], ["res", "AVEC RÉSERVES"], ["att", "EN ATTENTE D'ESSAI"], ["ref", "REFUSÉE"]].map(([k, l]) => `<option value="${k}"${v === k ? " selected" : ""}>${l}</option>`).join("")}</select>`;
     d.innerHTML = sviWinCard({ cls: "frs-card rcp-card", close: "data-x", title: (r0 ? "RÉCEPTION — " + esc(P.ref) : P.pv ? "PROCÈS-VERBAL DE SERVICE FAIT" : "NOUVELLE RÉCEPTION") + (C ? " · " + esc(C.ref) : " · SANS COMMANDE"),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
         <div class="frs-sec"><div class="frs-g">
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in rcp-x" data-k="frs"${dis || (C ? " disabled" : "")}><option value=""></option>${FR.map(f => `<option value="${esc(f.id)}"${f.id === P.frs ? " selected" : ""}>${esc(f.code + " — " + f.nom)}</option>`).join("")}</select></label>
           <label class="frs-f"><span>${P.pv ? "N° DU PV" : "N° DU BON DE LIVRAISON"}${P.pv ? "" : " <b>*</b>"}</span><input class="ins-in rcp-x" data-k="nbl" value="${esc(P.nbl)}"${dis} autocomplete="off"></label>
           <label class="frs-f"><span>REÇU LE (DATE ET HEURE)</span><input class="ins-in" value="${esc(svDT(P.date))}" readonly></label>
+          <label class="frs-f"><span>TRANSPORTEUR</span><input class="ins-in rcp-x" data-k="transp" value="${esc(P.transp || "")}"${dis} autocomplete="off"></label>
+          <label class="frs-f"><span>CHAUFFEUR</span><input class="ins-in rcp-x" data-k="chauf" value="${esc(P.chauf || "")}"${dis} autocomplete="off"></label>
+          <label class="frs-f"><span>IMMATRICULATION</span><input class="ins-in rcp-x" data-k="immat" value="${esc(P.immat || "")}"${dis} autocomplete="off"></label>
+          <label class="frs-f"><span>ARRIVÉE DU CAMION</span><input type="time" class="ins-in rcp-x" data-k="hArr" value="${esc(P.hArr || "")}"${dis}></label>
+          <label class="frs-f"><span>DÉPART DU CAMION</span><input type="time" class="ins-in rcp-x" data-k="hDep" value="${esc(P.hDep || "")}"${dis}></label>
+          <label class="frs-f"><span>FRAIS D'ATTENTE OU DE DÉCHARGEMENT HT</span><input class="ins-in rcp-x" data-k="fraisAtt" inputmode="decimal" value="${esc(P.fraisAtt ? achF2(P.fraisAtt) : "")}"${dis} autocomplete="off"></label>
+          <label class="frs-f frs-w"><span>NOTE DU RÉCEPTIONNAIRE</span><input class="ins-in rcp-x" data-k="note" value="${esc(P.note || "")}"${dis} autocomplete="off"></label>
+          <div class="frs-cs"><label class="frs-c"><input type="checkbox" class="rcp-c" data-k="docsExig"${P.docsExig ? " checked" : ""}${dis}> DOCUMENTS EXIGÉS (CERTIFICAT, FICHE TECHNIQUE, BON D'ESSAI)</label><label class="frs-c"><input type="checkbox" class="rcp-c" data-k="docsOk"${P.docsOk ? " checked" : ""}${P.state === "annule" ? " disabled" : ""}> DOCUMENTS REÇUS</label></div>
           <label class="frs-f frs-w"><span>PHOTO DU BON</span>${ro ? (P.photo ? `<button type="button" class="ach-b" data-photo>VOIR LA PHOTO</button>` : `<span class="ach-0">AUCUNE</span>`) : `<input type="file" class="rcp-ph" accept="image/*" capture="environment">`}</label></div></div>
         <div class="frs-sec"><div class="frs-st">LIGNES ${svCnt(P.lignes.length)} ${C ? `<small>(TOLÉRANCE ${esc(String(tol).replace(".", ","))} % AU-DESSUS DU RESTE)</small>` : ""}</div>
-          <table class="prm-table frs-sub"><thead><tr><th>DÉSIGNATION</th><th>U</th>${C && !ro ? `<th class="number">RESTE</th>` : ""}<th class="number">QUANTITÉ REÇUE</th><th>RÉSULTAT</th><th>MOTIF (RÉSERVE, REFUS)</th><th>N° DE BON (BÉTON, CAMION)</th>${C || ro ? "" : "<th></th>"}</tr></thead><tbody>
+          <table class="prm-table frs-sub"><thead><tr><th>DÉSIGNATION</th><th>U</th>${C && !ro ? `<th class="number">RESTE</th>` : ""}<th class="number">QTÉ SUR LE BL</th><th class="number">QUANTITÉ COMPTÉE</th><th>RÉSULTAT</th><th>PÉREMPTION</th><th>MOTIF (RÉSERVE, REFUS)</th><th>N° DE BON (BÉTON, CAMION)</th>${C || ro ? "" : "<th></th>"}</tr></thead><tbody>
           ${P.lignes.map((l, i) => `<tr data-i="${i}"><td>${C || ro ? esc(l.des) : `<input class="ins-in rcp-l" data-c="des" data-i="${i}" value="${esc(l.des)}">`}</td><td>${C || ro ? esc(l.u) : `<input class="ins-in rcp-l" data-c="u" data-i="${i}" value="${esc(l.u)}">`}</td>
-            ${C && !ro ? `<td class="number">${esc(achF2(l.max))}</td>` : ""}<td><input class="ins-in rcp-l number" data-c="q" data-i="${i}" inputmode="decimal" value="${esc(String(l.q ?? "").replace(".", ","))}"${dis}></td><td>${sel(i, l.st)}</td>
+            ${C && !ro ? `<td class="number">${esc(achF2(l.max))}</td>` : ""}<td><input class="ins-in rcp-l number" data-c="qbl" data-i="${i}" inputmode="decimal" value="${esc(String(l.qbl ?? "").replace(".", ","))}"${dis}></td><td><input class="ins-in rcp-l number" data-c="q" data-i="${i}" inputmode="decimal" value="${esc(String(l.q ?? "").replace(".", ","))}"${dis}></td><td>${sel(i, l.st)}</td>
+            <td><input type="date" class="ins-in rcp-l" data-c="per" data-i="${i}" value="${esc(l.per || "")}"${dis}></td>
             <td><input class="ins-in rcp-l" data-c="motif" data-i="${i}" value="${esc(l.motif)}"${dis} autocomplete="off"></td><td><input class="ins-in rcp-l" data-c="bon" data-i="${i}" value="${esc(l.bon)}"${dis} autocomplete="off"></td>
-            ${C || ro ? "" : `<td class="center"><button type="button" class="ach-x" data-rml="${i}">✕</button></td>`}</tr>`).join("") || `<tr><td colspan="8" class="empty">AUCUNE LIGNE (TOUT EST REÇU)</td></tr>`}</tbody></table>
+            ${C || ro ? "" : `<td class="center"><button type="button" class="ach-x" data-rml="${i}">✕</button></td>`}</tr>`).join("") || `<tr><td colspan="10" class="empty">AUCUNE LIGNE (TOUT EST REÇU)</td></tr>`}</tbody></table>
           ${C || ro ? "" : `<button type="button" class="ach-b" data-addl>+ LIGNE</button>`}
           ${P.resLev ? `<div class="bsn-deb">RÉSERVES LEVÉES LE ${esc(svDT(P.resLev))}.</div>` : ""}</div>
         <div class="bsn-note">LES DEMANDEURS DES BESOINS SONT AVERTIS (NOTÉ SUR LEUR BESOIN). CONVERSION D'UNITÉ À LA RÉCEPTION : AVEC LE VOLET UNITÉS DES ARTICLES (À VENIR).</div></div>`,
       foot: `<button type="button" class="svc-b" data-x>${ro ? "FERMER" : "ANNULER"}</button>
-        ${ro && P.state !== "annule" && P.lignes.some(l => l.st === "res") && !P.resLev ? `<button type="button" class="svc-b svc-ok svc-neutral" data-lev>LEVER LES RÉSERVES</button>` : ""}
+        ${ro && P.state !== "annule" && P.lignes.some(l => l.st === "res" || l.st === "att") && !P.resLev ? `<button type="button" class="svc-b svc-ok svc-neutral" data-lev>LEVER LES RÉSERVES / ESSAI CONFORME</button>` : ""}
+        ${ro && P.state !== "annule" && !achRcpFacturee(P) ? `<button type="button" class="svc-b" data-rcpann>ANNULER LA RÉCEPTION</button>` : ""}
+        ${ro && P.state !== "annule" && P.docsExig && !P.docsOk ? `<button type="button" class="svc-b" data-docok>DOCUMENTS REÇUS</button>` : ""}
         ${ro && P.state !== "annule" && P.cmf ? `<button type="button" class="svc-b" data-ret>RETOURNER</button>` : ""}
         ${!ro ? `<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER LA RÉCEPTION</button>` : ""}` });
     if (!d.isConnected) sviWinShow(d);
   };
-  const pull = () => { d.querySelectorAll(".rcp-x").forEach(i => { if (!i.disabled) P[i.dataset.k] = i.dataset.k === "frs" ? i.value : achU(i.value); });
-    d.querySelectorAll(".rcp-l").forEach(i => { const l = P.lignes[+i.dataset.i]; if (!l || i.disabled) return; const c = i.dataset.c; l[c] = c === "q" ? achN(i.value) : c === "st" ? i.value : achU(i.value); }); };
+  const pull = () => { d.querySelectorAll(".rcp-x").forEach(i => { if (i.disabled) return; const k = i.dataset.k; P[k] = ["frs", "hArr", "hDep"].includes(k) ? i.value : k === "fraisAtt" ? (String(i.value).trim() === "" ? "" : achN(i.value)) : achU(i.value); });
+    d.querySelectorAll(".rcp-c").forEach(i => { if (!i.disabled) P[i.dataset.k] = i.checked; });
+    d.querySelectorAll(".rcp-l").forEach(i => { const l = P.lignes[+i.dataset.i]; if (!l || i.disabled) return; const c = i.dataset.c; l[c] = c === "q" ? achN(i.value) : c === "qbl" ? (String(i.value).trim() === "" ? "" : achN(i.value)) : c === "st" || c === "per" ? i.value : achU(i.value); }); };
   draw();
   d.addEventListener("change", e => {
     const ph = e.target.closest(".rcp-ph"); if (ph) { photoBlob = ph.files && ph.files[0] || null; return; }
@@ -1958,7 +1978,11 @@ function achRcpFiche(id, cmfId, done) {
     if (e.target.closest("[data-addl]")) { pull(); P.lignes.push({ cl: "", des: "", u: "", q: "", st: "ok", motif: "", bon: "" }); draw(); return; }
     const rl = e.target.closest("[data-rml]"); if (rl) { pull(); P.lignes.splice(+rl.dataset.rml, 1); draw(); return; }
     const L = achRcp(), cur = r0 ? L.find(x => x.id === r0.id) : null;
-    if (e.target.closest("[data-lev]")) { if (!cur) return; cur.resLev = achNow(); cur.lignes.forEach(l => { if (l.st === "res") l.st = "ok"; }); achRcpSave(L); achHist(cur.ref, "RÉSERVES LEVÉES", ""); d.remove(); if (done) done(); return; }
+    /* v816 : annulation avec motif tant qu'aucune facture n'existe (C7.63, C7.65) ; documents reçus ensuite (C7.24) */
+    if (e.target.closest("[data-rcpann]")) { if (!cur) return; if (achRcpFacturee(cur)) { svToast("RÉCEPTION FACTURÉE : CORRIGER PAR UN AVOIR OU UNE RÉGULARISATION.", 4000); return; }
+      const m = await achAsk("ANNULER LA RÉCEPTION " + cur.ref, "MOTIF DE L'ANNULATION"); if (!m) return; cur.state = "annule"; cur.motifAnn = m; cur.mod = achNow(); achRcpSave(L); achHist(cur.ref, "ANNULÉE — " + m, ""); d.remove(); if (done) done(); return; }
+    if (e.target.closest("[data-docok]")) { if (!cur) return; cur.docsOk = true; cur.mod = achNow(); achRcpSave(L); achHist(cur.ref, "DOCUMENTS EXIGÉS REÇUS", ""); d.remove(); if (done) done(); return; }
+    if (e.target.closest("[data-lev]")) { if (!cur) return; cur.resLev = achNow(); cur.lignes.forEach(l => { if (l.st === "res" || l.st === "att") l.st = "ok"; }); achRcpSave(L); achHist(cur.ref, "RÉSERVES LEVÉES", ""); d.remove(); if (done) done(); return; }
     if (e.target.closest("[data-ret]")) {
       if (!cur) return; const T = achRtr(), lines = cur.lignes.filter(l => l.st !== "ref").map(l => { const done0 = T.filter(x => x.kind === "rcp" && x.rcp === cur.id && x.after).reduce((t, x) => t + (x.lignes || []).filter(y => y.cl === l.cl).reduce((u, y) => u + achN(y.q), 0), 0); return { cl: l.cl, des: l.des, u: l.u, max: achN(l.q) - done0 }; }).filter(l => l.max > 1e-9);
       if (!lines.length) { svToast("RIEN À RETOURNER.", 3000); return; }
@@ -1973,7 +1997,8 @@ function achRcpFiche(id, cmfId, done) {
     if (!P.lignes.length) { svToast("AUCUNE QUANTITÉ REÇUE.", 3000); draw(); return; }
     if (P.lignes.some(l => !achU(l.des))) { svToast("CHAQUE LIGNE : DÉSIGNATION.", 3000); return; }
     if (C && P.lignes.some(l => achN(l.q) > l.max * (1 + tol / 100) + 1e-9)) { svToast("QUANTITÉ AU-DELÀ DU RESTE + TOLÉRANCE (" + tol + " %) : À REFUSER OU À COMMANDER PAR AVENANT.", 4500); return; }
-    if (P.lignes.some(l => (l.st === "res" || l.st === "ref") && !l.motif)) { svToast("MOTIF OBLIGATOIRE POUR UNE RÉSERVE OU UN REFUS.", 3500); return; }
+    if (P.lignes.some(l => l.per && l.per < new Date().toISOString().slice(0, 10) && l.st !== "ref")) { svToast("PRODUIT PÉRIMÉ : À REFUSER.", 3500); return; }
+    if (P.lignes.some(l => (l.st === "res" || l.st === "ref" || l.st === "att") && !l.motif)) { svToast("MOTIF OBLIGATOIRE POUR UNE RÉSERVE OU UN REFUS.", 3500); return; }
     let chauffeur = "";
     if (P.lignes.some(l => l.st === "ref")) { chauffeur = await achAsk("REFUS REMIS AU CHAUFFEUR", "NOM DU CHAUFFEUR"); if (!chauffeur) return; }
     const now = achNow(), r = { ...JSON.parse(JSON.stringify(P)), id: "R" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ref: achNextRef("RCP", L), date: now, cree: now };
