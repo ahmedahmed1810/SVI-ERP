@@ -64,7 +64,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `22c-ratios-multi-signature.js` | indicateurs (données), signatures | 98 |
 | `22d-contrat.js` | contrat : CPS, révision des prix, modalités de paiement, retenue de garantie | 254 |
 | `22e-versions-scenarios.js` | scénarios et versions | 492 |
-| `22f-plans.js` | plans et métré | 187 |
+| `22f-plans.js` | appel de « plans et métré » (v838 : le code est dans 28g-plans.js) | 2 |
 | `22g-indicateurs.js` | indicateurs : éléments, calcul, liste commune | 343 |
 | `22h-tableau-de-bord.js` | tableau de bord | 219 |
 | `22i-indicateurs-tableau.js` | tableau et graphique d'un indicateur | 195 |
@@ -86,6 +86,7 @@ Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'
 | `28d-bibliotheque.js` | bibliothèque de prix dans le budget, bandeau du CUMUL, hors du grand bloc (v835) : sviBdgBibliotheque(C) | 67 |
 | `28e-approvisionnement.js` | APPROVISIONNEMENT PRÉVISIONNEL, hors du grand bloc (v836) : sviBdgAppro(C) | 192 |
 | `28f-comparatif.js` | COMPARATIF, hors du grand bloc (v837) : sviBdgComparatif(C) | 298 |
+| `28g-plans.js` | plans et métré, hors du grand bloc (v838) : sviBdgPlans(C) | 197 |
 | `30-bdg-produits-charges-analyse.js` | analyse des produits et charges (budgets validés) | 652 |
 | `31-formulaires-appui-long.js` | formulaires et appui long de BDS | 319 |
 | `32-demarrage.js` | démarrage de l'application | 278 |
