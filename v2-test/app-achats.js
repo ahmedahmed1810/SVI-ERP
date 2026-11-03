@@ -2188,6 +2188,11 @@ function achFafFiche(id, o, done) {
     if (P.cmf && achN(P.avImp) > achAvReste(P.cmf, P.id) + 0.005) { svToast("AVANCE IMPUTÉE AU-DELÀ DE L'AVANCE DISPONIBLE.", 3500); return false; }
     return true; };
   draw();
+  /* v907 (principe du 03/11/2026) : N° de facture déjà enregistré chez ce fournisseur refusé en quittant la case */
+  d.addEventListener("focusin", e => { const i = e.target.closest && e.target.closest('.fa-x[data-k="num"]'); if (i) i.dataset.prev = i.value; });
+  d.addEventListener("change", e => { const i = e.target.closest && e.target.closest('.fa-x[data-k="num"]'); if (!i) return;
+    const fr = (d.querySelector('.fa-x[data-k="frs"]') || {}).value || P.frs, n = achU(i.value);
+    if (n && fr && achFaf().some(x => x.id !== P.id && x.state !== "annule" && x.frs === fr && achU(x.num) === n)) { e.stopImmediatePropagation(); i.value = i.dataset.prev || ""; svToast("N° DE FACTURE DÉJÀ ENREGISTRÉ CHEZ CE FOURNISSEUR.", 3500, i); } }, true);
   d.addEventListener("change", e => {
     const cp = e.target.closest(".fa-cp"); if (cp) { cpBlob = cp.files && cp.files[0] || null; if (cpBlob) P.copie = P.copie || "ach:fa:" + P.id; return; }
     if (!e.target.closest(".fa-x, .fa-xc, .fa-l")) return;

@@ -81,8 +81,16 @@ const SVI_ENTRY_RULES = [
   [".apr-dl", v => /^\d+$/.test(v), () => "DÉLAI D'APPROVISIONNEMENT : NOMBRE ENTIER DE JOURS."],
   [".apr-nj", v => v === "" || (/^\d+$/.test(v) && Number(v) >= 1), () => "NOMBRE DE JOURS : ENTIER, 1 AU MOINS."],
   [".rd-min", v => /^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 100, () => "RENDEMENT MIN : DE 1 À 100 %."],
-  [".rd-max", v => /^\d+$/.test(v) && Number(v) >= 100 && Number(v) <= 300, () => "RENDEMENT MAX : DE 100 À 300 %."]
+  [".rd-max", v => /^\d+$/.test(v) && Number(v) >= 100 && Number(v) <= 300, () => "RENDEMENT MAX : DE 100 À 300 %."],
+  /* v907 : ACHATS — besoin, consultation, devis, commande, réception, facture : quantités, prix, taux, péremption */
+  ['.bsn-x[data-k="q"], .caf-l[data-c="q"], .dvf-l[data-c="q"], .cmf-l[data-c="q"], .fa-l[data-c="q"]', v => v === "" || sviEntryN(v) > 0, () => "QUANTITÉ : NOMBRE SUPÉRIEUR À 0."],
+  ['.rcp-l[data-c="q"], .rcp-l[data-c="qbl"]', v => v === "" || sviEntryN(v) >= 0, () => "QUANTITÉ : NOMBRE POSITIF OU NUL."],
+  ['.bsn-x[data-k="pu"], .dvf-l[data-c="pu"], .cmf-l[data-c="pu"], .fa-l[data-c="pu"]', v => v === "" || sviEntryN(v) >= 0, () => "PRIX : NOMBRE POSITIF OU NUL."],
+  ['.dvf-x[data-k="remG"], .dvf-l[data-c="rem"], .cmf-x[data-k="rem"], .dvf-l[data-c="tva"], .cmf-l[data-c="tva"], .fa-l[data-c="tva"], .fa-x[data-k="rasT"]', v => v === "" || (sviEntryN(v) >= 0 && sviEntryN(v) <= 100), () => "TAUX : DE 0 À 100 %."],
+  ['.rcp-l[data-c="per"]', v => !v || v >= new Date().toISOString().slice(0, 10), () => "DATE DE PÉREMPTION DÉJÀ PASSÉE."]
 ];
+/* nombre saisi (virgule ou point, espaces) ; NaN si ce n'est pas un nombre */
+const sviEntryN = v => { const s = String(v ?? "").replace(/[\s\u00a0\u202f]/g, "").replace(",", "."); return s === "" || !/^[-+]?\d*\.?\d*$/.test(s) ? NaN : Number(s); };
 const sviEntryRule = el => SVI_ENTRY_RULES.find(r => el.matches && el.matches(r[0]));
 document.addEventListener("focusin", e => { const i = e.target; if (i && i.tagName === "INPUT" && sviEntryRule(i)) i.dataset.prev = i.value; }, true);
 document.addEventListener("change", e => {
